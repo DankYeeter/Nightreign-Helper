@@ -33,9 +33,15 @@ PACKAGES = {
     "texture2ddecoder": "texture2ddecoder",
 }
 
-DATA_FILES = [
-    ("nrplanner/data/nightreign_data.json", "bundled game data snapshot"),
+# Generated from the player's own installation, so a fresh clone has neither.
+# That is the expected state, not a fault -- see BUILT_FILES handling below.
+BUILT_FILES = [
+    ("nrplanner/data/nightreign_data.json", "game data snapshot"),
     ("nrplanner/data/icons/manifest.json", "icon pack index"),
+]
+
+# Shipped with the source. Absent means a broken checkout.
+REQUIRED_FILES = [
     ("vendor/Paramdex/NR/Defs", "paramdefs (required to read the game)"),
 ]
 
@@ -87,24 +93,45 @@ def missing_packages(python: pathlib.Path | None) -> list[str]:
         return list(PACKAGES.values())
 
 
-def check_data() -> bool:
+def _describe(path: pathlib.Path) -> str:
+    if path.is_dir():
+        return f"{sum(1 for _ in path.iterdir())} files"
+    return f"{path.stat().st_size / 1024 / 1024:.1f} MB"
+
+
+def check_required() -> bool:
     every = True
-    for rel, label in DATA_FILES:
+    for rel, label in REQUIRED_FILES:
         path = ROOT / rel
         if path.exists():
-            if path.is_dir():
-                detail = f"{sum(1 for _ in path.iterdir())} files"
-            else:
-                detail = f"{path.stat().st_size / 1024 / 1024:.1f} MB"
-            line(OK, label, detail)
+            line(OK, label, _describe(path))
         else:
             line(BAD, label, rel)
             every = False
     return every
 
 
-def check_game() -> None:
-    """Optional: only needed to rebuild data after a game patch."""
+def check_built() -> bool:
+    """Is the extracted data present?
+
+    A fresh clone has none of it, by design -- this project ships no game
+    content. So absence is reported as "not built yet" rather than as a
+    fault, and it is only fatal when there is no installation to build it
+    from either.
+    """
+    every = True
+    for rel, label in BUILT_FILES:
+        path = ROOT / rel
+        if path.exists():
+            line(OK, label, _describe(path))
+        else:
+            line(WARN, label, "not built yet")
+            every = False
+    return every
+
+
+def check_game() -> bool:
+    """Required: the app has no data of its own to fall back on."""
     sys.path.insert(0, str(ROOT))
     try:
         from nrdata import gamefiles
@@ -112,12 +139,12 @@ def check_game() -> None:
         game = gamefiles.find_game_dir()
     except Exception as exc:  # noqa: BLE001
         line(WARN, "Nightreign installation", f"could not check ({exc})")
-        return
+        return False
     if game:
         line(OK, "Nightreign installation", str(game))
-    else:
-        line(WARN, "Nightreign installation",
-             "not found - the app still runs on bundled data")
+        return True
+    line(BAD, "Nightreign installation", "not found")
+    return False
 
 
 def check_save() -> None:
@@ -164,8 +191,9 @@ def main() -> int:
     else:
         line(OK, "python packages", ", ".join(PACKAGES.values()))
 
-    data_ok = check_data()
-    check_game()
+    required_ok = check_required()
+    built_ok = check_built()
+    game_ok = check_game()
     check_save()
 
     needs_work = bool(missing) or not have_venv
@@ -184,11 +212,21 @@ def main() -> int:
             return 1
 
     print()
-    if not data_ok:
-        print("Bundled data is missing. Rebuild it with:")
+    if not required_ok:
+        print("Part of the source is missing. Re-clone the repository.")
+        return 1
+    if not game_ok:
+        print("No ELDEN RING NIGHTREIGN installation was found.")
+        print()
+        print("This project ships no game data -- every value it shows is read")
+        print("from your own copy of the game, so the game must be installed.")
+        print("Steam's library list and the drives C to H were checked.")
+        return 1
+    if not built_ok:
+        print("The game data has not been built yet. Build it with:")
         print("   .venv\\Scripts\\python.exe scripts\\build_snapshot.py")
         print("   .venv\\Scripts\\python.exe scripts\\build_icons.py")
-        print("Both need Nightreign installed.")
+        print("That takes about a minute, and is only needed once per patch.")
         return 1
     if needs_work:
         print("Environment incomplete. Re-run with --fix to install:")
