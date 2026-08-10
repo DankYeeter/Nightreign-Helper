@@ -1,0 +1,1 @@
+"""Nightreign Helper GUI."""

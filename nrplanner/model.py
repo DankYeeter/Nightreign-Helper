@@ -1,0 +1,736 @@
+"""Build maths: turn a hero, a level and a set of effects into final stats."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+# SpEffect field -> the attribute it adds to.
+ATTRIBUTE_FIELDS = {
+    "addLifeForceStatus": "Vigor",
+    "addWillpowerStatus": "Mind",
+    "addEndureStatus": "Endurance",
+    "addStrengthStatus": "Strength",
+    "addDexterityStatus": "Dexterity",
+    "addMagicStatus": "Intelligence",
+    "addFaithStatus": "Faith",
+    "addLuckStatus": "Arcane",
+}
+
+ATTRIBUTE_ORDER = [
+    "Vigor", "Mind", "Endurance", "Strength",
+    "Dexterity", "Intelligence", "Faith", "Arcane",
+]
+
+# Multiplicative fields worth surfacing, with readable labels.
+RATE_LABELS = {
+    "maxHpRate": "Max HP",
+    "maxMpRate": "Max FP",
+    "maxStaminaRate": "Max Stamina",
+    "physicsAttackRate": "Physical Attack",
+    "magicAttackRate": "Magic Attack",
+    "fireAttackRate": "Fire Attack",
+    "thunderAttackRate": "Lightning Attack",
+    "darkAttackRate": "Holy Attack",
+    # The second attack family, carried by the three "Starting armament
+    # inflicts ..." relics. Unlabelled until now, so the panel printed the raw
+    # field name at the player: "darkAttackPowerRate -15.0%".
+    "physicsAttackPowerRate": "Physical Attack",
+    "magicAttackPowerRate": "Magic Attack",
+    "fireAttackPowerRate": "Fire Attack",
+    "thunderAttackPowerRate": "Lightning Attack",
+    "darkAttackPowerRate": "Holy Attack",
+    "physicsDefenceRate": "Physical Defence",
+    "magicDefenceRate": "Magic Defence",
+    "fireDefenceRate": "Fire Defence",
+    "thunderDefenceRate": "Lightning Defence",
+    "darkDefenceRate": "Holy Defence",
+    "staminaRecoverRate": "Stamina Recovery",
+    "defenceStatusRate": "Status Resistance",
+    # Damage *taken*, not dealt. These are multipliers on incoming damage, so
+    # 0.84 means 16% less damage reaches you. Naming them "... damage taken"
+    # keeps the sign honest: -16% is unambiguously good, +45% unambiguously
+    # bad, and the reader does not have to know what "cut rate" means.
+    "slashDamageCutRate": "Slash damage taken",
+    "blowDamageCutRate": "Strike damage taken",
+    "thrustDamageCutRate": "Thrust damage taken",
+    "neutralDamageCutRate": "Standard damage taken",
+    "magicDamageCutRate": "Magic damage taken",
+    "fireDamageCutRate": "Fire damage taken",
+    "thunderDamageCutRate": "Lightning damage taken",
+    "darkDamageCutRate": "Holy damage taken",
+    # Named here as well as in effecttext, because the Multipliers panel reads
+    # these labels and was still printing the raw field names at the player.
+    "changeHpEstusFlaskCorrectRate": "HP restored per flask",
+    "changeMpEstusFlaskCorrectRate": "FP restored per flask",
+    "regainRate": "Regain — HP won back by attacking after a hit",
+    "saAttackPowerRate": "Stance damage",
+    "itemDropRate": "Item discovery",
+    "soulRate": "Runes gained",
+}
+
+# Rates where a value below 1.0 is a benefit, so the usual "positive is good"
+# colouring has to be flipped. Getting this wrong showed Improved Fire Damage
+# Negation as a red -16%, when it is exactly the effect the player wanted.
+INVERTED_RATES = {
+    "slashDamageCutRate", "blowDamageCutRate", "thrustDamageCutRate",
+    "neutralDamageCutRate", "magicDamageCutRate", "fireDamageCutRate",
+    "thunderDamageCutRate", "darkDamageCutRate",
+    "magicConsumptionRate", "consumeStaminaRate", "spConsumptionRate",
+    "characterSkillCooldownReduction",
+}
+
+
+def is_better_lower(field_name: str) -> bool:
+    return field_name in INVERTED_RATES
+
+
+# Multipliers whose field name does not end in "Rate", so compute() never
+# routed them anywhere and the Multipliers panel showed "none" while the relic
+# plainly granted something. Neutral is 1.0 for all of these: ultimateArtGauge
+# is 1.0 on 13,462 of the 13,472 SpEffect rows, and the handful that differ sit
+# either side of it (0.85 / 0.90 impairing, 1.05 / 1.075 / 1.10 improving).
+# The Ultimate Art and the Character Skill are two separate systems and must
+# not be blurred together: the Skill runs off a cooldown timer
+# (HeroParam.characterAbilityCooldown, in seconds), the Art off a gauge that
+# auto-charges during combat. "Charge speed" rather than "gain" because the
+# game's own caption for this field is "Faster auto-charging for Ultimate Art
+# during combat" (AttachEffectInfo 8360000).
+EXTRA_MULTIPLIERS = {
+    "ultimateArtGauge": "Ultimate Art auto-charge speed",
+    "characterSkillCooldownReduction": "Character Skill cooldown",
+}
+
+# Flat additions, not multipliers -- shown as a count rather than a percentage.
+# characterSkillGauge belongs here, not above: its baseline across the 13,472
+# SpEffect rows is 0.0, not 1.0, and the values it takes are point awards
+# (6.5 on defeating an enemy, 18.0, -45.0) rather than anything near 1.
+FLAT_BONUSES = {
+    "characterSkillGauge": "Art gauge points",
+    "additionalCharacterSkillUse": "Extra Character Skill uses",
+    "changeHpPoint": "HP per tick",
+    "changeMpPoint": "FP per tick",
+    "runeDiscountValue": "Shop discount %",
+}
+
+# Fields stored with the opposite sign to how a player reads them. The engine
+# treats these as damage applied per tick, so Continuous HP *Recovery* holds
+# -2 and the Continuous HP *Loss* curse holds +2. Displaying the raw number
+# put a minus in front of a heal, so the value is negated on the way out.
+INVERTED_SIGN = {"changeHpPoint", "changeMpPoint"}
+
+# Whether a number multiplies or adds is decided by the field's own neutral
+# value in the game data, not by whether its name happens to end in "Rate".
+# configure() fills these from the snapshot's field_baselines; until it is
+# called the name-based rule below is used, which keeps the module usable on
+# its own but is the less accurate of the two.
+#
+# Five fields ending in "Rate" are additive and were being multiplied:
+# changeHpRate, changeMpRate, bowDistRate, itemDropRate and
+# guardCounterAttackRate. "[Revenant] Expend own HP to fully heal nearby
+# allies" carries changeHpRate 50.0, which as a multiplier reads +4900%.
+FIELD_BASELINE: dict[str, float] = {}
+# Additive fields whose name ends in Rate, so they read as percentages.
+PERCENT_FIELDS: set[str] = set()
+
+# Of those, the ones stated as a fraction of 1 rather than out of 100, so they
+# need scaling before they read as a percentage. Told apart by the range of
+# values the field actually takes across SpEffectParam:
+#   changeHpRate / changeMpRate / changeStaminaRate run -100..100
+#   bowDistRate is 30, 40, 50
+#   itemDropRate runs 0.16..1.6 in steps of 0.04 -- a fraction, so the 0.2 on
+#     "Improved Item Discovery" is +20%
+# That last one is why the effect used to show -60%: read as a multiplier
+# against an assumed neutral of 1.0 it looked like a large penalty, when the
+# field's neutral is 0.0 and the value is a straight gain.
+FRACTION_PERCENT_FIELDS = {"itemDropRate"}
+
+
+def percent_value(field_name: str, value: float) -> float:
+    """The value of an additive percentage field, as a percentage."""
+    if field_name in FRACTION_PERCENT_FIELDS:
+        return value * 100.0
+    return value
+# Baseline -1 marks a sentinel -- a condition or a row id -- rather than a
+# quantity, so those fields are not shown as a number at all.
+SENTINEL_BASELINE = -1.0
+
+
+def configure(data: dict) -> None:
+    """Teach the module which fields multiply and which add, from the data."""
+    FIELD_BASELINE.clear()
+    PERCENT_FIELDS.clear()
+    for name, value in (data.get("field_baselines") or {}).items():
+        FIELD_BASELINE[name] = float(value)
+        if abs(float(value)) < 1e-9 and name.endswith("Rate"):
+            PERCENT_FIELDS.add(name)
+    RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
+
+
+def is_multiplier(field_name: str) -> bool:
+    """Does this field scale what it touches, rather than add to it?"""
+    baseline = FIELD_BASELINE.get(field_name)
+    if baseline is None:
+        return field_name.endswith("Rate") or field_name in EXTRA_MULTIPLIERS
+    return abs(baseline - 1.0) < 1e-9
+
+
+def is_sentinel(field_name: str) -> bool:
+    baseline = FIELD_BASELINE.get(field_name)
+    return baseline is not None and abs(baseline - SENTINEL_BASELINE) < 1e-9
+
+RATE_LABELS.update(EXTRA_MULTIPLIERS)
+RATE_LABELS.update(FLAT_BONUSES)
+
+# A critical-hit buff raises all five element rates, exactly as an ordinary
+# attack buff does, and the two were being multiplied into the same figures.
+# That is wrong in both directions: it inflates the Physical Attack line with
+# a bonus that only applies to criticals, and it hides the critical bonus
+# among numbers that look like general damage. Effects carrying this flag are
+# therefore routed into a bucket of their own.
+# Fields that gate an effect on something that is not always true. An effect
+# carrying one of these must NOT be folded into the flat totals: "Lower Attack
+# When Below Max HP" only bites below 85% HP, and counting it unconditionally
+# both invented a penalty that is usually absent and corrupted the buffs it
+# was multiplied against -- a real +12% Physical Attack was displayed as
+# +2.5%. These effects are listed under Conditional & situational instead,
+# with their numbers, so nothing is lost.
+CONDITIONAL_FIELDS = {
+    "conditionHp", "conditionHpRate",
+    "invocationConditionsStateChange1", "invocationConditionsStateChange2",
+    "enemyStateInfoTrigger",
+    "triggerOnWepType", "wepTypeTrigger", "wepTypeTriggerCount",
+}
+
+# Gates gated on a *value* rather than on the field merely being present.
+#
+# saveCategory 9 marks the effects that accumulate against a counter the save
+# keeps -- "Attack power increased for each Night Invader defeated" and the
+# seven others like it. Their listed number is what one tally is worth, so a
+# fresh expedition gets none of it, and folding it into the flat totals showed
+# a +7% attack buff to a player who had killed no Night Invaders.
+#
+# The value matters: saveCategory 10 is the ordinary always-on case and covers
+# 65 effects, including every "Improved Physical Attack Power". Keying on the
+# field's presence would wrongly park all of those under Conditional too.
+# Exactly 8 effects carry 9, and all 8 read as counters:
+# seven named "... for each X" plus Revenant's "upon Ability Activation".
+CONDITIONAL_FIELD_VALUES = {"saveCategory": {9}}
+
+# magicSubCategoryChange* narrows an attack buff to one kind of attack: 130 is
+# melee, 112/111 skills, 100 charged attacks, 2 Carian sword sorcery, and so
+# on for some forty values. Two such buffs must never be multiplied together
+# -- Improved Melee Attack Power (+6%) and Improved Skill Attack Power (+15%)
+# apply to different attacks entirely, yet merged into a single bogus +21.9%
+# on every damage type.
+#
+# Rather than hand-maintaining a map of forty scope numbers to wordings, which
+# would mean inventing labels the game does not state, each scoped buff gets a
+# line of its own named after the effect. The effect's name already says what
+# it covers, so the result is exact and needs no upkeep.
+SCOPE_FIELDS = ("magicSubCategoryChange1", "magicSubCategoryChange2",
+                "magicSubCategoryChange3")
+SCOPED_PREFIX = "scoped:"
+# Source key for a multiplier that only covers one weapon type.
+WEAPON_TYPE_PREFIX = "weptype:"
+WEAPON_CLASS_PREFIX = "wepclass:"
+
+# Of the 38 scope values, only three restrict a buff by the *kind of armament*
+# rather than by the kind of attack, and only those can be applied to an
+# ordinary hit. The game's own effect names are what say so:
+#   130       "Improved Melee Attack Power"
+#   113, 118  "Improved Ranged Weapon Attacks"
+# Everything else narrows to a move or a spell family -- 102 jump attacks, 100
+# charge attacks, 103 guard counters, 104 chain finishers, 124 two-handing,
+# 125 wielding two armaments, 112 skills, 2-12 and 20-26 spell families, and so
+# on. None of those is the plain swing an attack rating describes, so they stay
+# out of it and keep their own scoped line.
+WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged"}
+
+# Which class an armament belongs to, by its family. Families are named by the
+# game's own buffs (see "Categories come from the buffs"), so this reads them
+# rather than inventing a grouping.
+RANGED_FAMILIES = {"Bow", "Greatbow", "Crossbow", "Ballista"}
+CATALYST_FAMILIES = {"Glintstone Staff", "Sacred Seal"}
+
+
+def scoped_class(effect: dict) -> str | None:
+    """The armament class a buff is restricted to, if any.
+
+    All three scope fields are read, not just the first: "Improved Ranged
+    Weapon Attacks" carries 105, 113 and 118 together, and the 105 in front
+    would otherwise hide the two that name the class. Checked across the data
+    -- only two effect families carry a class scope at all, neither mixes melee
+    with ranged, and the only value they sit beside is 105.
+    """
+    mods = effect.get("modifiers") or {}
+    if not any(f in mods for f in ELEMENT_ATTACK_RATES):
+        return None
+    for field_name in SCOPE_FIELDS:
+        value = mods.get(field_name)
+        if isinstance(value, int) and value in WEAPON_CLASS_SCOPES:
+            return WEAPON_CLASS_SCOPES[value]
+    return None
+
+
+def weapon_class(weapon: dict | None) -> str | None:
+    """"melee", "ranged" or "catalyst" for an armament."""
+    if not weapon:
+        return None
+    family = weapon.get("family") or ""
+    if family in RANGED_FAMILIES:
+        return "ranged"
+    if family in CATALYST_FAMILIES:
+        return "catalyst"
+    return "melee"
+
+
+def attack_scope(effect: dict) -> int | None:
+    mods = effect.get("modifiers") or {}
+    if not any(f in mods for f in ELEMENT_ATTACK_RATES):
+        return None
+    for field_name in SCOPE_FIELDS:
+        value = mods.get(field_name)
+        if isinstance(value, int) and value:
+            return value
+    return None
+
+
+# Weapon-type gates the selected reference weapon can actually satisfy. The
+# test is plain equality against the weapon's own wep_type, which keeps the
+# values that are not weapon types honest for free: triggerOnWepType is 256 on
+# 70 effects and 512 on 2, neither of which is any weapon's type, so they never
+# match and stay conditional. wepTypeTriggerCount is deliberately absent -- it
+# wants several of that type equipped, which one reference weapon cannot show.
+WEAPON_TYPE_GATES = ("triggerOnWepType", "wepTypeTrigger")
+
+
+def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
+    """True when an equipped armament meets this weapon-type gate.
+
+    `wep_type` may be a single type or a collection of them -- the planner
+    holds six armaments, and "Improved Axe Attack Power" is live whenever any
+    of them is an axe, not only when the tile being broken down is.
+    """
+    if field_name not in WEAPON_TYPE_GATES or wep_type is None:
+        return False
+    if isinstance(wep_type, (set, frozenset, list, tuple)):
+        return value in wep_type
+    return value == wep_type
+
+
+def is_conditional(effect: dict, wep_type: int | None = None) -> bool:
+    """Is this effect gated on something that is not currently true?
+
+    With a reference weapon selected, a weapon-type gate the weapon matches is
+    no longer a gate: "Improved Axe Attack Power" is simply active while an axe
+    is equipped, so it belongs in the totals rather than parked under
+    Conditional & situational. An effect carrying a second, unmet gate stays
+    conditional -- every gate has to be satisfied, not just this one.
+    """
+    mods = effect.get("modifiers") or {}
+    for field_name in CONDITIONAL_FIELDS:
+        if field_name not in mods:
+            continue
+        if satisfied_by_weapon(field_name, mods[field_name], wep_type):
+            continue
+        return True
+    for field_name, gating in CONDITIONAL_FIELD_VALUES.items():
+        if mods.get(field_name) in gating:
+            return True
+    return False
+
+
+CRIT_FLAG = "throwAttackParamChange"
+CRIT_RATE = "criticalDamageRate"
+ELEMENT_ATTACK_RATES = ("physicsAttackRate", "magicAttackRate",
+                        "fireAttackRate", "thunderAttackRate",
+                        "darkAttackRate")
+ELEMENT_ATTACK_POWER_RATES = ("physicsAttackPowerRate", "magicAttackPowerRate",
+                              "fireAttackPowerRate", "thunderAttackPowerRate",
+                              "darkAttackPowerRate")
+# Marks a row that stands for all five damage types at once. The real field
+# name rides behind it so the click-through breakdown still works.
+ALL_DAMAGE_PREFIX = "alldamage:"
+RATE_LABELS[CRIT_RATE] = "Critical damage"
+
+# Verified against the wiki's vessel list: 8 of 8 chalices matched exactly.
+# Colour 4 is White -- a wildcard slot that accepts a relic of any colour.
+COLOUR_NAMES = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
+
+# Lowest attribute value the sheet will display. See compute() for why.
+ATTRIBUTE_FLOOR = 1
+
+
+# Derived stats: the multiplier each one is scaled by, if any effect touches it.
+DERIVED_RATE_FIELD = {
+    "HP": "maxHpRate",
+    "FP": "maxMpRate",
+    "Stamina": "maxStaminaRate",
+}
+
+# Status resistances, additive point change and multiplicative rate.
+RESISTANCES = {
+    "Poison": ("changePoisonResistPoint", "registPoizonChangeRate"),
+    "Scarlet Rot": ("changeDiseaseResistPoint", "registDiseaseChangeRate"),
+    "Blood Loss": ("changeBloodResistPoint", "registBloodChangeRate"),
+    "Death Blight": ("changeCurseResistPoint", "registCurseChangeRate"),
+    "Sleep": ("changeSleepResistPoint", "registSleepChangeRate"),
+    "Madness": ("changeMadnessResistPoint", "registMadnessChangeRate"),
+    "Frost": ("changeFreezeResistPoint", "registFreezeChangeRate"),
+}
+
+
+def evaluate_curve(curve: dict, x: float) -> float:
+    """Piecewise CalcCorrectGraph evaluation, as the engine does it."""
+    xs, ys, adj = curve["x"], curve["y"], curve["adj"]
+    if x <= xs[0]:
+        return ys[0]
+    for i in range(4):
+        if xs[i] <= x <= xs[i + 1]:
+            span = xs[i + 1] - xs[i]
+            if span <= 0:
+                return ys[i + 1]
+            t = (x - xs[i]) / span
+            a = adj[i] or 1.0
+            t = t ** a if a > 0 else 1.0 - (1.0 - t) ** -a
+            return ys[i] + (ys[i + 1] - ys[i]) * t
+    return ys[4]
+
+
+@dataclass
+class Warning:
+    kind: str          # "duplicate" | "category"
+    text: str
+
+
+@dataclass
+class Build:
+    attributes: dict[str, int] = field(default_factory=dict)
+    base_attributes: dict[str, int] = field(default_factory=dict)
+    rates: dict[str, float] = field(default_factory=dict)
+    # Multipliers that only apply to armaments of one weapon type, keyed by
+    # that type. "Improved Katana Attack Power" belongs here rather than in
+    # `rates`: holding a katana makes it live, but it lifts the katana's damage
+    # and not the bow's in the next slot.
+    weapon_rates: dict[int, dict[str, float]] = field(default_factory=dict)
+    # Multipliers that only cover a class of armament -- "Improved Melee Attack
+    # Power" against a bow. Keyed by "melee" / "ranged" / "catalyst".
+    class_rates: dict[str, dict[str, float]] = field(default_factory=dict)
+    other: dict[str, float] = field(default_factory=dict)
+    warnings: list[Warning] = field(default_factory=list)
+    # label -> (value before relics, value after relics)
+    derived: dict[str, tuple[float, float]] = field(default_factory=dict)
+    # label -> (added points, multiplier)
+    resistances: dict[str, tuple[int, float]] = field(default_factory=dict)
+    # Effects that do something real but cannot be reduced to a number in the
+    # stat sheet: hero-specific, weapon-specific, or gated on a condition.
+    # Without this they were equipped and yet invisible in the overview.
+    # (name, what it does, why it does not appear as a number)
+    qualitative: list[tuple[str, str, str]] = field(default_factory=list)
+    # Which effects produced each total, so a figure can be broken back down
+    # into the buffs behind it. field name -> [(effect name, its own value)]
+    sources: dict[str, list[tuple[str, float]]] = field(default_factory=dict)
+
+
+def compute_derived(curves: dict, build: "Build") -> None:
+    """HP / FP / Stamina from the attribute curves, then relic multipliers."""
+    for label, curve in curves.items():
+        attribute = curve["attribute"]
+        base = evaluate_curve(curve, build.base_attributes.get(attribute, 0))
+        # Relic attribute bonuses feed back into the curve, then rate
+        # multipliers apply on top of the result.
+        raised = evaluate_curve(curve, build.attributes.get(attribute, 0))
+        rate = build.rates.get(DERIVED_RATE_FIELD.get(label, ""), 1.0)
+        build.derived[label] = (base, raised * rate)
+
+
+def compute_resistances(build: "Build", effects: list[dict]) -> None:
+    for label, (point_field, rate_field) in RESISTANCES.items():
+        points = 0
+        rate = 1.0
+        for eff in effects:
+            mods = eff["modifiers"]
+            if point_field in mods:
+                points += int(mods[point_field])
+            if rate_field in mods:
+                rate *= float(mods[rate_field])
+        if points or abs(rate - 1.0) > 1e-9:
+            build.resistances[label] = (points, rate)
+
+
+def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
+            weapon: dict | None = None,
+            weapons_held: list[dict] | None = None) -> Build:
+    """Combine the level's base attributes with every selected effect.
+
+    `weapon` is the reference weapon shown in the Weapon damage block. It is
+    what lets a weapon-type buff count: "Improved Axe Attack Power" is inert
+    until an axe is equipped, and the sheet cannot know which without it.
+
+    Additive attribute bonuses sum; '*Rate' fields multiply. Effects flagged
+    isStrongestEffect (stacks=False) do not add up when picked more than once --
+    only the single strongest instance applies -- so duplicates are reported
+    rather than counted twice.
+    """
+    base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
+    build = Build(base_attributes=dict(base), attributes=dict(base))
+    # Weapon-type gates are met by any armament being held, not just the one
+    # being broken down. Falls back to the single weapon when no set is given,
+    # so older callers keep working.
+    if weapons_held:
+        wep_type = {w.get("wep_type") for w in weapons_held if w}
+        wep_type.discard(None)
+        wep_type = wep_type or None
+    else:
+        wep_type = weapon.get("wep_type") if weapon else None
+
+    seen_ids: dict[int, int] = {}
+    counted: list[dict] = []
+    for eff in effects:
+        eid = eff["id"]
+        seen_ids[eid] = seen_ids.get(eid, 0) + 1
+        if not eff["stacks"] and seen_ids[eid] > 1:
+            build.warnings.append(
+                Warning("duplicate", f"{eff['name']} x{seen_ids[eid]} — only the strongest applies")
+            )
+            continue
+        counted.append(eff)
+
+    # Conflicts come from the game's own exclusivityId, not from guesswork.
+    # The previous rule -- a shared SpEffect category plus any overlapping
+    # modifier field -- reported pairs that plainly do stack, such as Improved
+    # Carian Sword Sorcery against Physical Attack Up +4, which touch
+    # different things and both carry exclusivityId -1. Only 64 of the 2079
+    # effects set the field at all, and effects sharing a positive value are
+    # the ones the game actually treats as mutually exclusive.
+    by_exclusivity: dict[int, list[dict]] = {}
+    for eff in counted:
+        key = eff.get("exclusivity", -1)
+        if isinstance(key, int) and key > 0:
+            by_exclusivity.setdefault(key, []).append(eff)
+
+    reported: set[tuple[str, str]] = set()
+    for key, group in by_exclusivity.items():
+        for i, a in enumerate(group):
+            for b in group[i + 1:]:
+                pair = tuple(sorted((" ".join(a["name"].split()),
+                                     " ".join(b["name"].split()))))
+                if pair[0] == pair[1] or pair in reported:
+                    continue
+                reported.add(pair)
+                build.warnings.append(
+                    Warning(
+                        "exclusive",
+                        f"{pair[0]} and {pair[1]} are mutually exclusive "
+                        f"(the game groups them under exclusivity {key}) — "
+                        "only one will apply",
+                    )
+                )
+
+    for eff in counted:
+        mods = eff["modifiers"]
+        # Gated effects are not part of the always-on totals. They still get
+        # reported, with their numbers, under Conditional & situational.
+        if is_conditional(eff, wep_type):
+            continue
+        # A critical-hit effect raises every element rate, so left alone it
+        # would multiply into the same Physical/Fire/... figures as a general
+        # attack buff and overstate both. Route it to its own line instead.
+        # The five rates carry one number between them, not five, so it is
+        # applied once rather than raised to the fifth power.
+        label = " ".join(str(eff.get("name", "")).split())
+
+        def record(key: str, own: float) -> None:
+            build.sources.setdefault(key, []).append((label, own))
+
+        # Which weapon type, if any, this effect is tied to. Holding a katana
+        # is what makes a katana buff live, but it still only lifts katanas --
+        # so its multipliers go into a bucket for that type instead of the flat
+        # totals, and each armament picks up only the buckets it qualifies for.
+        gated_to = None
+        for field_name in WEAPON_TYPE_GATES:
+            value = mods.get(field_name)
+            if satisfied_by_weapon(field_name, value, wep_type):
+                gated_to = value
+                break
+
+        crit_only = bool(mods.get(CRIT_FLAG))
+        scope = attack_scope(eff)
+        # A scope that names a kind of armament rather than a kind of attack is
+        # a real attack-rating buff for those armaments, so it is bucketed by
+        # class instead of being parked on a scoped line and ignored.
+        class_to = scoped_class(eff)
+        scoped_out = crit_only or (scope and class_to is None)
+        # Both cases take the element rates out of the general pool: the five
+        # of them carry one number between them, applied once, on a line that
+        # says what it actually covers.
+        if scoped_out:
+            values = [float(mods[f]) for f in ELEMENT_ATTACK_RATES
+                      if isinstance(mods.get(f), (int, float))]
+            if values:
+                key = CRIT_RATE if crit_only else f"{SCOPED_PREFIX}{label}"
+                build.rates[key] = build.rates.get(key, 1.0) * max(values)
+                record(key, max(values))
+
+        for fname, value in mods.items():
+            if scoped_out and fname in ELEMENT_ATTACK_RATES:
+                continue
+            if fname in ATTRIBUTE_FIELDS:
+                attr = ATTRIBUTE_FIELDS[fname]
+                build.attributes[attr] = build.attributes.get(attr, 0) + int(value)
+                record(attr, int(value))
+            elif fname in FLAT_BONUSES and isinstance(value, (int, float)):
+                signed = -value if fname in INVERTED_SIGN else value
+                build.other[fname] = build.other.get(fname, 0) + signed
+                record(fname, signed)
+            elif is_sentinel(fname) and isinstance(value, (int, float)):
+                # Neutral -1 means "unset". A value other than -1 is real, but
+                # the baseline does not say whether it scales or adds, so it is
+                # shown as its own figure rather than folded into a multiplier
+                # -- guessing wrong there is what produced +4900% readings.
+                if abs(float(value) - SENTINEL_BASELINE) < 1e-9:
+                    continue
+                build.other[fname] = build.other.get(fname, 0) + value
+                record(fname, value)
+            elif ((fname.endswith("Rate") or fname in EXTRA_MULTIPLIERS)
+                    and isinstance(value, (int, float))
+                    and is_multiplier(fname)):
+                if gated_to is not None:
+                    # Tied to one weapon type: kept out of the flat totals so
+                    # it cannot lift an armament it does not cover.
+                    bucket = build.weapon_rates.setdefault(gated_to, {})
+                    bucket[fname] = bucket.get(fname, 1.0) * float(value)
+                    record(f"{WEAPON_TYPE_PREFIX}{gated_to}:{fname}",
+                           float(value))
+                    continue
+                if class_to is not None:
+                    # Tied to melee or ranged armaments, same reasoning.
+                    bucket = build.class_rates.setdefault(class_to, {})
+                    bucket[fname] = bucket.get(fname, 1.0) * float(value)
+                    record(f"{WEAPON_CLASS_PREFIX}{class_to}:{fname}",
+                           float(value))
+                    continue
+                build.rates[fname] = build.rates.get(fname, 1.0) * float(value)
+                record(fname, float(value))
+            elif fname in PERCENT_FIELDS and isinstance(value, (int, float)):
+                # Neutral is 0, so these add rather than scale.
+                signed = -value if fname in INVERTED_SIGN else value
+                build.other[fname] = build.other.get(fname, 0) + signed
+                record(fname, signed)
+            elif isinstance(value, (int, float)) and fname in RATE_LABELS:
+                build.other[fname] = build.other.get(fname, 0) + value
+                record(fname, value)
+
+    # Curses subtract, and enough of them will drive an attribute negative,
+    # which is certainly not a state the game can be in. 1 is the floor used
+    # here because it is the lowest value any Nightfarer's own starting stats
+    # take (Recluse begins with Strength 1). The exact floor is not stated
+    # anywhere in the params, so this is an inference, not a read value --
+    # but leaving Faith at -1 on the sheet would be worse than saying 1.
+    for attr, value in build.attributes.items():
+        if value < ATTRIBUTE_FLOOR:
+            build.attributes[attr] = ATTRIBUTE_FLOOR
+            build.warnings.append(Warning(
+                "floor",
+                f"{attr} was driven below {ATTRIBUTE_FLOOR} by a curse and is "
+                f"shown at {ATTRIBUTE_FLOOR}; the game's true floor is not "
+                f"stated in the params",
+            ))
+
+    if curves:
+        compute_derived(curves, build)
+    compute_resistances(build, counted)
+    compute_qualitative(build, counted, hero, wep_type)
+
+    return build
+
+
+# Modifier fields that mark an effect as gated rather than always-on.
+GATE_FIELDS = {
+    "triggerOnWepType": "only with a matching weapon type",
+    "wepTypeTrigger": "only with a matching weapon type",
+    "wepTypeTriggerCount": "needs several of that weapon equipped",
+    "conditionHp": "only below a HP threshold",
+    "conditionHpRate": "only at a HP threshold",
+    "invocationConditionsStateChange1": "only in a particular state",
+    "invocationConditionsStateChange2": "only in a particular state",
+    "enemyStateInfoTrigger": "only against enemies in a given state",
+    "cycleOccurrenceSpEffectId": "fires periodically",
+    "atkOccurrenceSpEffectId": "fires on attacking",
+    "replaceSpEffectId": "swaps in another effect when triggered",
+    "accumuOverFireId": "fires once a counter fills",
+    "startGoodsId": "grants an item at the start of an expedition",
+    "startSwordArtsId": "changes the armament's skill",
+    "additionalCharacterSkillUse": "grants an extra Character Skill use",
+}
+
+
+def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
+                        wep_type: int | None = None) -> None:
+    """Record effects that contribute nothing numeric, so none go unseen.
+
+    The stat sheet can only show what reduces to a number. An effect that is
+    conditional, tied to one Nightfarer, or tied to a weapon type changes no
+    total, and so used to be equipped and completely invisible. Listing them
+    separately is the honest alternative to pretending they are not there.
+    """
+    from . import effecttext
+
+    hero_name = str(hero.get("name", ""))
+    for eff in effects:
+        mods = eff.get("modifiers") or {}
+
+        # A gated effect never reached the totals, so it always belongs here
+        # regardless of whether it carries numbers.
+        gated = is_conditional(eff, wep_type)
+
+        # Did this effect already move a number the sheet displays?
+        numeric = not gated and any(
+            f in ATTRIBUTE_FIELDS
+            or f in FLAT_BONUSES
+            or f in EXTRA_MULTIPLIERS
+            or (isinstance(v, (int, float)) and f.endswith("Rate"))
+            for f, v in mods.items()
+        )
+        touches_resist = not gated and any(
+            f in (pt, rate)
+            for f in mods
+            for pt, rate in RESISTANCES.values()
+        )
+        if numeric or touches_resist:
+            continue
+
+        reasons = [text for field_name, text in GATE_FIELDS.items()
+                   if field_name in mods
+                   and not satisfied_by_weapon(field_name, mods[field_name], wep_type)]
+        name = effecttext.name(eff)
+        if not effecttext.works_for(eff, hero_name):
+            who = effecttext.owner(eff) or "another Nightfarer"
+            reasons.insert(0, f"NOT WORKING — {who} only, you are {hero_name}")
+        elif effecttext.owner(eff):
+            reasons.insert(0, f"{effecttext.owner(eff)}-specific")
+
+        if eff.get("inflicts"):
+            reasons.append("inflicts a status build-up")
+
+        build.qualitative.append((
+            name,
+            effecttext.describe_full(eff),
+            "; ".join(dict.fromkeys(reasons)) or "no numeric effect on the sheet",
+        ))
+
+
+def label_for(field_name: str) -> str:
+    if field_name.startswith(SCOPED_PREFIX):
+        # The effect's own name is the label -- it already states the scope.
+        return field_name[len(SCOPED_PREFIX):]
+    if field_name.startswith(ALL_DAMAGE_PREFIX):
+        return "All damage"
+    return RATE_LABELS.get(field_name, field_name)
+
+
+def real_field(field_name: str) -> str:
+    """The underlying field behind a display-only key."""
+    if field_name.startswith(ALL_DAMAGE_PREFIX):
+        return field_name[len(ALL_DAMAGE_PREFIX):]
+    return field_name

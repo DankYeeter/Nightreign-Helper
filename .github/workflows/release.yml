@@ -1,0 +1,54 @@
+name: Release
+
+# Push a version tag and the EXE appears on the Releases page:
+#
+#     git tag v1.0.0
+#     git push origin v1.0.0
+#
+# The runner has no Nightreign installation, which is exactly right: the
+# build must not be able to bake game data into the executable even by
+# accident. The EXE reads the user's own install on first launch.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check nothing importable is broken
+        run: python -c "import nrdata.extract, nrdata.savefile, nrplanner.datasource"
+
+      - name: Build
+        run: pyinstaller NightreignHelper.spec --noconfirm
+
+      - name: Refuse to ship game data
+        shell: bash
+        run: |
+          if [ -e nrplanner/data/nightreign_data.json ] || [ -e nrplanner/data/icons ]; then
+            echo "::error::Extracted game data is present in the build tree."
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/NightreignHelper.exe
+          generate_release_notes: true

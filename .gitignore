@@ -1,0 +1,18 @@
+# Environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Build output
+build/
+dist/
+
+# Game data extracted from the user's own installation. Never committed:
+# this project ships no FromSoftware assets. Both are built on first run.
+nrplanner/data/nightreign_data.json
+nrplanner/data/icons/
+
+# Generated diagnostics
+vessel_art.png

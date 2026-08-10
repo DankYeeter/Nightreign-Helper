@@ -1,0 +1,8 @@
+# Python 3.12
+pycryptodome==3.23.0
+zstandard==0.25.0
+PySide6==6.11.1
+pyinstaller==6.21.0
+pillow==12.3.0
+texture2ddecoder==1.0.6
+

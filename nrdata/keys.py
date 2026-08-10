@@ -1,0 +1,16 @@
+"""Static keys needed to open FromSoftware containers.
+
+These are not game data -- they are the well-known constants that community
+tooling (SoulsFormats, WitchyBND, Smithbox) uses to unlock the archives.
+All actual values read by this project come from the user's own install.
+"""
+
+# regulation.bin, AES-256-CBC, IV = first 16 bytes of the file.
+NIGHTREIGN_REGULATION_KEY = bytes(
+    [
+        0x9A, 0x8E, 0xE9, 0x0C, 0x4C, 0x01, 0xA4, 0x31,
+        0x68, 0xA1, 0x7D, 0x9D, 0x75, 0xE4, 0xA7, 0xD0,
+        0x21, 0x07, 0xEB, 0xCF, 0x43, 0xD5, 0xAC, 0xB0,
+        0x55, 0x4F, 0x94, 0x16, 0x01, 0xB5, 0x79, 0x18,
+    ]
+)
