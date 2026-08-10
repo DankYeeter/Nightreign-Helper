@@ -1,4 +1,4 @@
-"""Access to the icon pack bundled alongside the data snapshot."""
+"""Access to the icon pack built from the player's own installation."""
 
 from __future__ import annotations
 
@@ -7,18 +7,28 @@ import pathlib
 
 from PySide6.QtGui import QIcon, QPixmap
 
+from . import paths
 from .datasource import _base_dir
 
 
 class IconPack:
-    def __init__(self) -> None:
-        # Bundled at "icons" inside the executable, "data/icons" from source.
+    @staticmethod
+    def locate() -> pathlib.Path:
+        """Where the icon pack is, or where it should be built.
+
+        The pack is extracted from the game into the per-user cache, so that
+        is checked first. The other two are source trees that still have a
+        locally built pack sitting beside the package.
+        """
         base = _base_dir()
-        self.dir = next(
-            (d for d in (base / "icons", base / "data" / "icons")
-             if (d / "manifest.json").exists()),
-            base / "icons",
+        candidates = (paths.icons_dir(), base / "icons", base / "data" / "icons")
+        return next(
+            (d for d in candidates if (d / "manifest.json").exists()),
+            paths.icons_dir(),
         )
+
+    def __init__(self) -> None:
+        self.dir = self.locate()
         self.manifest: dict = {"portraits": {}, "items": {}, "variants": {},
                                "menu": {}}
         path = self.dir / "manifest.json"

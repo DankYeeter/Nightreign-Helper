@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
     QSlider, QTabWidget, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import datasource, effecttext, inventory, model, search, weaponslots, weapons
+from . import (datasource, effecttext, firstrun, inventory, model, search,
+               weaponslots, weapons)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -1805,6 +1806,17 @@ def main() -> int:
     icon = datasource.icon_path()
     if icon:
         app.setWindowIcon(QIcon(str(icon)))
+
+    # Nothing ships with the program, so the first launch on a machine has
+    # to read the installed game before there is anything to show.
+    from nrdata import gamefiles
+
+    error = firstrun.ensure_data(gamefiles.find_game_dir())
+    if error:
+        QMessageBox.critical(
+            None, "Nightreign Helper", f"Could not read your game:\n\n{error}"
+        )
+        return 1
 
     try:
         data = load_data()

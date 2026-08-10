@@ -22,11 +22,24 @@ def _base_dir() -> pathlib.Path:
 
 
 def bundled_path() -> pathlib.Path:
+    """Where the snapshot is, preferring the one built from the live game.
+
+    The cache comes first because it is the only writable location once the
+    program is installed, and so the only place a rebuild after a game patch
+    can land. The two fallbacks are for running from a source tree that still
+    has a locally built snapshot beside the package.
+    """
+    from . import paths
+
     base = _base_dir()
-    for candidate in (base / "data" / BUNDLED_NAME, base / BUNDLED_NAME):
+    for candidate in (
+        paths.snapshot_path(),
+        base / "data" / BUNDLED_NAME,
+        base / BUNDLED_NAME,
+    ):
         if candidate.exists():
             return candidate
-    return base / "data" / BUNDLED_NAME
+    return paths.snapshot_path()
 
 
 def icon_path() -> pathlib.Path | None:
