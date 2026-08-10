@@ -178,7 +178,12 @@ def install(missing: list[str]) -> bool:
 
 def main() -> int:
     fix = "--fix" in sys.argv
-    print(f"Nightreign Helper - environment check\n{ROOT}\n")
+    try:
+        sys.path.insert(0, str(ROOT))
+        from nrplanner import __version__ as version
+    except Exception:  # noqa: BLE001 - this has to run on a bare tree too
+        version = "unknown"
+    print(f"Nightreign Helper {version} - environment check\n{ROOT}\n")
 
     python_ok = check_python()
     have_venv = check_venv()

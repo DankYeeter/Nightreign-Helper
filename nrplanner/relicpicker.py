@@ -429,6 +429,27 @@ class RelicPicker(QDialog):
 
         self._refresh()
 
+    @staticmethod
+    def _distinct(items: list) -> list:
+        """One card per roll, keeping the first copy of each.
+
+        The save scan reports two records whose relic id, effects and curses
+        are byte-identical to two earlier ones, so the grid drew the same
+        relic twice with nothing to tell the cards apart. Whether the second
+        record is a stale one the scan should not have found -- the count is
+        275 against the 273 the game shows -- or a genuine second copy, the
+        two are interchangeable in a build, so the picker offers one.
+        """
+        seen = set()
+        out = []
+        for item in items:
+            key = favourites.key(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
     def _candidates(self):
         from . import search
 
@@ -436,9 +457,9 @@ class RelicPicker(QDialog):
         predicate = search.parse(text)
         items = []
         if self.slot.owned is not None:
-            items = self.slot.owned.relics_for(
+            items = self._distinct(self.slot.owned.relics_for(
                 self.slot.colour, self.slot.deep, 4
-            )
+            ))
         if predicate is not None:
             items = [i for i in items if predicate(self.slot.effect_names(i))]
         # Favourites for the Nightfarer currently being planned lead the grid.
@@ -479,9 +500,9 @@ class RelicPicker(QDialog):
         items, needle = self._candidates()
         total = 0
         if self.slot.owned is not None:
-            total = len(self.slot.owned.relics_for(
+            total = len(self._distinct(self.slot.owned.relics_for(
                 self.slot.colour, self.slot.deep, 4
-            ))
+            )))
         starred = sum(
             1 for i in items
             if self.hero_id is not None and favourites.is_favourite(i, self.hero_id)

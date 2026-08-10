@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from . import (datasource, effecttext, firstrun, inventory, model, search,
                weaponslots, weapons)
+from . import __version__
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -570,9 +571,12 @@ class Planner(QMainWindow):
         # nothing to a player and ate half the title bar, so the title just
         # names the tool. Only a re-read after a patch is worth saying, and it
         # is said in words rather than as a version id.
+        # The tool's own version does belong here, though: it is the one
+        # thing a bug report needs and the one thing a reporter cannot look
+        # up after the fact.
         stale = data.get("meta", {}).get("regenerated")
         self.setWindowTitle(
-            "Nightreign Helper"
+            f"Nightreign Helper {__version__}"
             + ("  —  updated for your installed game version" if stale else "")
         )
         self.resize(1320, 860)

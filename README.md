@@ -368,9 +368,10 @@ The application icon was generated with Google Gemini and contains no game
 assets. The source artwork is in `art/`; `scripts/make_icon.py` produces the
 shipped PNG and ICO from it.
 
-Param field definitions in `vendor/Paramdex` come from the community
-[Paramdex](https://github.com/soulsmods/Paramdex) project and remain under their
-own terms.
+The byte layouts of the game's param tables come from the community
+[Paramdex](https://github.com/soulsmods/Paramdex) project — the schema only,
+which is what makes an otherwise opaque binary readable. Everything built on
+top of it is this project's own. See [`vendor/Paramdex/NOTICE`](vendor/Paramdex/NOTICE).
 
 ## Licence
 

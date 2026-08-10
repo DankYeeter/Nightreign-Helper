@@ -36,6 +36,18 @@ jobs:
       - name: Check nothing importable is broken
         run: python -c "import nrdata.extract, nrdata.savefile, nrplanner.datasource"
 
+      - name: Tag must match the version in the source
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source_version=$(python -c "from nrplanner import __version__; print(__version__)")
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$source_version" != "$tag_version" ]; then
+            echo "::error::tag says $tag_version, nrplanner/__init__.py says $source_version"
+            exit 1
+          fi
+          echo "releasing $source_version"
+
       - name: Build
         run: pyinstaller NightreignHelper.spec --noconfirm
 

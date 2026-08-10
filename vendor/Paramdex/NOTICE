@@ -1,0 +1,46 @@
+Paramdex — third-party param definitions
+========================================
+
+Source:  https://github.com/soulsmods/Paramdex
+Vendored: NR/Defs only (226 XML files)
+
+What these are
+--------------
+Each file describes the byte layout of one of the game's param tables: for
+every field, its offset, its type and its name. regulation.bin decrypts to a
+set of binary tables whose rows are otherwise opaque blobs, so these layouts
+are what make the data readable at all.
+
+They contain no game content. There is no artwork, no text and no game data
+here — only the schema describing where values sit.
+
+What Nightreign Helper takes from them
+--------------------------------------
+The schema, and only the schema, for the 17 param tables it reads: roughly
+1,384 field definitions. Everything built on top — what the fields mean,
+which combine and how, the save file format, and the application itself — is
+this project's own work and is covered by its MIT licence.
+
+Licence position
+----------------
+Paramdex carries no licence file, so no licence is granted or implied by its
+authors, and none is claimed here. It is included because the tool cannot
+read the game without it and because redistributing it in this form is long-
+standing practice among comparable open-source tools, notably DSMapStudio
+and Smithbox.
+
+If you are a Paramdex contributor and would prefer this project not
+redistribute your work, please open an issue and it will be removed.
+
+Credit
+------
+The Paramdex README names TKGP (JKAnderson), EvanDeadlySins, GiveMeThePowa,
+katalash, Pavuk, thefifthmatt and Vawser as contributors, with further
+Nightreign-era contributions credited in that project.
+
+Note on provenance
+------------------
+The upstream revision these files came from was not recorded when they were
+vendored. When they are next refreshed, the commit should be pinned here so
+a reader can tell exactly which version is in use — layouts shift as the
+game is patched.
