@@ -44,9 +44,13 @@ Grab the latest `NightreignHelper.exe` from the
 [Releases](../../releases) page and run it. No Python, no installer, no admin
 rights.
 
-**First launch takes about half a minute** while it reads your installation and
-builds a local copy of the data. Every launch after that is instant, until the
-game patches — then it re-reads itself automatically.
+**First launch takes about a minute** while it reads your installation and
+builds a local copy of the data in `%LOCALAPPDATA%\NightreignHelper`. Every
+launch after that is immediate, until the game patches — then it re-reads
+itself and tells you why.
+
+Nothing is written anywhere else, so uninstalling means deleting that folder
+and the EXE.
 
 ## Running from source
 
@@ -68,12 +72,17 @@ and verifies the result. It reports on each piece:
 [  ok   ] save file                             2 profile(s)
 ```
 
-Then build the data from your install and start it:
+Then just start it -- the first launch builds the data itself:
+
+```bat
+.venv\Scripts\python.exe run.py
+```
+
+To build the data deliberately instead, both builders can be run by hand:
 
 ```bat
 .venv\Scripts\python.exe scripts\build_snapshot.py
 .venv\Scripts\python.exe scripts\build_icons.py
-.venv\Scripts\python.exe run.py
 ```
 
 To package your own EXE:
@@ -117,9 +126,9 @@ game values and images the tool displays are read at runtime from the copy of
 the game on the user's own machine, and are generated into that machine's local
 storage only.
 
-The application icon is original artwork and contains no game assets. It is set
-in [Cinzel](https://github.com/NDISCOVER/Cinzel), licensed under the SIL Open
-Font License.
+The application icon was generated with Google Gemini and contains no game
+assets. The source artwork is kept in `art/`; `scripts/make_icon.py` produces
+the shipped PNG and ICO from it.
 
 Param field definitions in `vendor/Paramdex` come from the community
 [Paramdex](https://github.com/soulsmods/Paramdex) project and remain under
