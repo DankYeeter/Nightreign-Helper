@@ -1,0 +1,15 @@
+# Normalise line endings, so a contributor on macOS or Linux does not see
+# every file as rewritten. Without this, git reports CRLF conversion on
+# almost every commit made on Windows.
+* text=auto eol=lf
+
+# Windows-only, and cmd.exe needs CRLF in batch files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary: never touch these.
+*.png binary
+*.ico binary
+*.jpg binary
+*.exe binary
+*.dll binary
