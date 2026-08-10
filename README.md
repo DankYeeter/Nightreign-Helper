@@ -88,6 +88,18 @@ and what colour each one is.
 you own. Open one to choose from a picker that lists only relics which fit. A
 relic's three effects appear under it once slotted.
 
+**Favourites** — mark a relic in the picker as wanted for one or more
+Nightfarers, and it leads the grid the next time you open a slot for that
+Nightfarer. It changes nothing about the build; it just saves hunting for a good
+roll in a grid of two hundred.
+
+A favourite follows the **roll**, not the copy. Two relics with the same effects
+and curses are interchangeable in a build, so they count as the same favourite —
+and melting one down and earning another with the same roll keeps the mark.
+Curses are part of that identity: the same relic with and without a curse is not
+the same thing. The picker also collapses duplicate rolls down to one tile for
+the same reason.
+
 **Deep of Night** — the checkbox under the vessel list adds the three extra
 slots that Deep of Night runs give you.
 
