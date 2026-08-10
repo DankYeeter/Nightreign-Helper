@@ -55,6 +55,9 @@ class EquippedLoadout:
 @dataclass
 class Inventory:
     source: str
+    # Kept apart from `source` because it contains the Steam account id, and
+    # so belongs in a tooltip rather than on the face of the window.
+    folder: str = ""
     relic_count: int = 0
     # slot colour -> set of effect ids obtainable in that colour
     effects_by_colour: dict[int, set[int]] = field(default_factory=dict)
@@ -120,7 +123,10 @@ def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
         if not owned:
             continue
 
-        inv = Inventory(source=f"{path.parent.name} / {name}")
+        # The save folder is named after the Steam account id. Naming it in
+        # the window puts that id into every screenshot and bug report, so
+        # the label says which slot is loaded and the id stays in the path.
+        inv = Inventory(source=name, folder=str(path.parent))
         by_offset = savefile.read_relic_handles(blob, owned)
         handle_of = {relic.offset: handle for handle, relic in by_offset.items()}
         item_by_handle: dict[int, OwnedItem] = {}

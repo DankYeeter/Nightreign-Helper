@@ -1393,6 +1393,9 @@ class Planner(QMainWindow):
         self.owned_label.setText(
             f"{self.owned.relic_count} relics in {self.owned.source}"
         )
+        # The folder is named after the Steam account id, so it is offered on
+        # hover rather than printed where every screenshot would carry it.
+        self.owned_label.setToolTip(self.owned.folder)
         if not initial:
             self.apply_chalice()
 
