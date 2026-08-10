@@ -3,7 +3,7 @@
 A tile holds one armament, its upgrade tier, and the effects it has rolled.
 Only effects the weapon can genuinely roll are offered -- `weapon["effect_pool"]`
 comes from that weapon's own AttachEffectTable pools, the same mechanism that
-gives a relic its three effects. See HANDOVER 6j.
+gives a relic its three effects.
 """
 
 from __future__ import annotations

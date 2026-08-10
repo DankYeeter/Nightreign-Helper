@@ -953,7 +953,7 @@ class Planner(QMainWindow):
         self.chalice_list.clear()
         # A Nightfarer's own vessels, then the four shared Grails. The Grails
         # belong to every Nightfarer, which the save confirms: each one stores
-        # its own arrangement of all four (see HANDOVER 6d).
+        # its own arrangement of all four.
         own = [v for v in self.vessels if v["hero_type"] == hero["id"]]
         grails = [v for v in self.vessels if v["hero_type"] == GRAIL_HERO_TYPE]
         self.hero_vessels = own + grails
@@ -1097,7 +1097,7 @@ class Planner(QMainWindow):
     # data: saAttackPowerRate and staminaAttackRate are stance and guard
     # damage rather than attack rating, guardCounterAttackRate applies only to
     # a guard counter, and characterSkillAttackRate only to Duchess' skill.
-    # None of the four scales an ordinary hit. See scripts/audit_ar_rates.py.
+    # None of the four scales an ordinary hit.
     AR_RATE_FOR = {
         "Physics": ("physicsAttackRate", "physicsAttackPowerRate"),
         "Magic": ("magicAttackRate", "magicAttackPowerRate"),

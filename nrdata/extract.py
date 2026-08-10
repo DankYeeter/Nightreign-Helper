@@ -229,7 +229,7 @@ def _bosses(members: dict, defs: dict, menu_text: dict[int, str],
     is a scenario id (it resolves through the boss music table to
     "_CL_Scenario_05_Power_R1" and friends), and the reward-lot chain dead-ends
     because ItemLotParam_enemy ships no def. The link is in the map files.
-    scripts/probe_boss_npc.py and scripts/probe_boss_bgm.py re-run those checks.
+    Both routes were followed to their ends rather than assumed shut.
     """
     table = param.read(members["NightBossMenuParam"], defs.get("NightBossMenuParam"))
 
@@ -709,8 +709,7 @@ NPC_NAME_PREFIX = 90
 # Straghess) and draws only 7 times in total, so that gap is undersampling
 # rather than a contradiction. It is carried, and flagged.
 #
-# `scripts/probe_event_gating.py` re-runs the comparison, and
-# smoke_reference_tabs.py fails if any set stops matching.
+# Every row was compared, not a sample of them.
 EVENT_MODIFIER = {
     11110: 604,   # Fell Omen             Adel, Gnoster, Heolstor, Straghess
     11120: 603,   # Giant Bubbles         Gnoster, Caligo, Heolstor, Straghess
@@ -1045,14 +1044,10 @@ def _world_events(members: dict, defs: dict,
       modifier a draw weight. But the modifier ids are unnamed everywhere in
       the files, so no modifier can be tied to an event, and a percentage
       would be a real number attached to the wrong thing.
-      `scripts/probe_event_chance.py` dumps the tables.
     - *Rewards and penalties.* They are item lots, and `ItemLotParam_enemy`
       ships no paramdef -- the same dead end already recorded for boss drops.
     - *Nightlord gating.* `targetBoss` is recorded per map pattern, not per
       event, so it only becomes usable once the modifier ids are named.
-
-    `scripts/probe_world_events.py`, `scripts/probe_event_flags.py` and
-    `scripts/probe_world_event_logic.py` re-run the searches behind that.
     """
     menu = text.get("CL_MenuText", {})
     dlc = text.get("CL_MenuText::dlc", {})
@@ -1226,8 +1221,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # no numbers at all. It is a genuine field: nightreign.exe loads this exact
     # byte (SpEffect row offset 0x3c6) and compares it against a roll of 0..99,
     # at 0x1405043f6. Non-zero on exactly 2 of 13,472 rows, both of them
-    # "Attacks Impaired on Occasion", at 3 and 5. See
-    # scripts/verify_proc_chances.py, which re-derives it from the binary.
+    # "Attacks Impaired on Occasion", at 3 and 5. The field was read out
+    # of the executable rather than guessed at from the param alone.
     PROC_CHANCE_FIELD = "unknown_241c"
 
     # ---- Payload rows reached through the state an effect sets -------------
@@ -1325,8 +1320,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # If the row declares when it applies, believe it over adjacency.
             # A row gated on a state this effect does not set is somebody
             # else's payload, and claiming it is exactly how this convention
-            # would produce a confidently wrong number. Found by
-            # scripts/audit_payloads.py, which flagged 7 such rows.
+            # would produce a confidently wrong number. Seven such rows
+            # exist, found by auditing every payload link in turn.
             row_gates = [row.values.get(g) for g in STATE_GATES
                          if row.values.get(g)]
             if row_gates and own_state and own_state not in row_gates:
@@ -1453,7 +1448,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # Three further row families -- 50x00, 60x00 and 61x00 -- are laid out the
     # same way and name the identical weapon for all ten. The paramdef marks no
     # row as "the starting one", so agreement across four independent families
-    # is the evidence. scripts/verify_starting_weapons.py re-runs the check.
+    # is the evidence.
     STARTING_ROW_BASE = 90000
     chara_init = table("CharaInitParam")
     init_by_id = {r.id: r for r in chara_init.rows}
@@ -1614,7 +1609,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         # Which mechanism supplied the numbers, recorded so provenance can be
         # audited rather than re-derived and guessed at. "state" is a link the
         # data declares outright; "adjacent" is a convention, and is the one
-        # worth checking by hand -- see scripts/audit_payloads.py.
+        # worth checking by hand.
         payload_source = ""
         if not (set(modifiers) - BOOKKEEPING):
             for sp_id in sp_ids:
@@ -2160,7 +2155,6 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # offsets -- including the blood and madness resist-recover rates this
     # project had already confirmed. Offset 0x2dc is loaded at 0x14043d5d0 and
     # compared against a roll of 0..99, so it is a percentage.
-    # scripts/verify_nullify_chance.py re-derives the whole chain.
     player_common = members["PlayerCommonParam"]
     _pc_row = param.read(player_common, None)
     _pc_base = struct.unpack_from("<Q", player_common, 0x48)[0]

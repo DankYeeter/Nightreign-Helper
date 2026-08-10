@@ -2,7 +2,7 @@
 
 No resistance figures here, and that is a data limit rather than an omission.
 They live in NpcParam and nothing links the boss menu to an NPC row -- see the
-note in nrdata/extract.py._bosses and scripts/probe_boss_npc.py.
+note in nrdata/extract.py._bosses.
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
 """How mutation weighting shifts across the five depths.
 
-HANDOVER section 7.3 expected this to live in
-ChaosMatchingMutationEnemyTableParam. It does not: that table's 3067 rows
-carry no weight column and no per-depth structure. The weighting is in
+This was expected to live in ChaosMatchingMutationEnemyTableParam. It does
+not: that table's 3067 rows carry no weight column and no per-depth
+structure. The weighting is in
 ChaosMatchingMutationCategoryParam, whose every 20-byte row begins with five
 u16 -- one per depth -- and 20 of whose 46 rows genuinely differ across them.
 """
