@@ -389,3 +389,9 @@ top of it is this project's own. See [`vendor/Paramdex/NOTICE`](vendor/Paramdex/
 
 [MIT](LICENSE) © DankYeeter — source code only. See the disclaimer above for game
 content.
+
+The released executable bundles its runtime dependencies, so their terms travel
+with it — most notably **Qt, via PySide6, under the LGPL-3.0**. What is included
+and how the LGPL obligations are met is set out in
+[THIRD_PARTY.md](THIRD_PARTY.md), and `scripts/check_licences.py` fails the
+build if a dependency is added without being recorded there.

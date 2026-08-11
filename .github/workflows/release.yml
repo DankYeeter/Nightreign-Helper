@@ -36,6 +36,12 @@ jobs:
       - name: Check nothing importable is broken
         run: python -c "import nrdata.extract, nrdata.savefile, nrplanner.datasource"
 
+      # The executable bundles every runtime dependency, so their terms ship
+      # with it. Adding a library without recording its licence fails here
+      # rather than going out unnoticed.
+      - name: Licences are recorded
+        run: python scripts/check_licences.py
+
       - name: Tag must match the version in the source
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
