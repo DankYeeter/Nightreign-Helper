@@ -153,7 +153,21 @@ def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
             inv.relics.append(item)
             if handle is not None:
                 item_by_handle[handle] = item
-        inv.relic_count = len(inv.relics)
+        # Count distinct rolls, not records. The brute-force sweep finds two
+        # stale records in this save that the game does not count -- 275
+        # against the 273 it shows -- and both are byte-identical duplicates
+        # of a real relic. Confirmed in game 2026-08-11: only one copy of each
+        # is actually held. Reporting records made the one number on screen
+        # that the player can check against the game the one number that was
+        # wrong.
+        #
+        # This corrects the count only. The relics themselves are left as read,
+        # because dropping a duplicate here would also drop a genuine second
+        # copy the day one is owned, and the real fix is to bound the sweep.
+        inv.relic_count = len({
+            (r.relic_id, tuple(r.effect_ids), tuple(r.curse_ids))
+            for r in inv.relics
+        })
 
         # The equipped-loadout table lives in the same member as the inventory.
         # A save from before the table existed, or one this reader does not

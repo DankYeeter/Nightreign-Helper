@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (
     QSlider, QTabWidget, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
+from . import __version__
 from . import (datasource, effecttext, firstrun, inventory, model, search,
                weaponslots, weapons)
-from . import __version__
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -85,6 +85,121 @@ def _heading(text: str) -> QLabel:
     label.setFont(font)
     label.setStyleSheet(f"color: {MUTED};")
     return label
+
+
+class SituationalRow(QFrame):
+    """One gated effect, with a switch and -- if it stacks -- a count.
+
+    The sheet cannot know whether the condition is met. This is where the
+    player says so: tick it and the effect joins every total, exactly as an
+    always-on roll would.
+    """
+
+    def __init__(self, entry, count: int, on_change):
+        super().__init__()
+        self.effect_id = entry.effect_id
+        self.accumulates = entry.accumulates
+        self.on_change = on_change
+        self.setStyleSheet("QFrame { border: none; }")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 5)
+        layout.setSpacing(1)
+
+        head = QHBoxLayout()
+        head.setSpacing(6)
+        # The name is a separate wrapping label rather than the checkbox's own
+        # text. A QCheckBox will not wrap, so a long effect name set the whole
+        # sheet's minimum width -- which pushed the panel wider than its
+        # viewport and clipped every other line in it, count box included.
+        self.check = QCheckBox()
+        self.check.setChecked(count > 0)
+        self.check.setStyleSheet("border: none;")
+        self.check.toggled.connect(self._toggled)
+        head.addWidget(self.check, 0, Qt.AlignTop)
+
+        self.title = QLabel(entry.name)
+        self.title.setWordWrap(True)
+        self.title.setCursor(Qt.PointingHandCursor)
+        self.title.setStyleSheet(f"color: {ACCENT}; border: none;")
+        self.title.mousePressEvent = lambda _e: self.check.toggle()
+        head.addWidget(self.title, 1)
+
+        if entry.accumulates:
+            # Free text, not a spin box with a ceiling. How many Night Invaders
+            # a map can hold, or how many Sites of Grace are in reach, is a
+            # fact about the run rather than about this program -- so the
+            # player states the number and the arithmetic follows it.
+            self.times = QLabel("×")
+            self.times.setStyleSheet(f"color: {MUTED}; border: none;")
+            head.addWidget(self.times, 0, Qt.AlignTop)
+            self.count = QLineEdit(str(max(count, 1)))
+            self.count.setFixedWidth(42)
+            self.count.setAlignment(Qt.AlignCenter)
+            self.count.setToolTip("How many times this is true right now")
+            self.count.editingFinished.connect(self._edited)
+            head.addWidget(self.count, 0, Qt.AlignTop)
+            self._set_count_enabled(count > 0)
+        else:
+            self.count = None
+        layout.addLayout(head)
+
+        detail = QLabel(entry.detail)
+        detail.setWordWrap(True)
+        detail.setStyleSheet("color: #cfcfcf; font-size: 11px; border: none;")
+        layout.addWidget(detail)
+
+        self.why_text = entry.why
+        self.why = QLabel()
+        self.why.setWordWrap(True)
+        self.why.setStyleSheet(f"color: {MUTED}; font-size: 10px; border: none;")
+        layout.addWidget(self.why)
+        self._refresh_why()
+
+    def _refresh_why(self) -> None:
+        """Say whether this is currently counted, not only why it is gated."""
+        value = self.value()
+        if value:
+            times = f" ×{value}" if self.count is not None else ""
+            self.why.setText(f"counted in the totals{times} — {self.why_text}")
+            self.why.setStyleSheet(
+                f"color: {GOOD}; font-size: 10px; border: none;")
+        else:
+            self.why.setText(self.why_text)
+            self.why.setStyleSheet(
+                f"color: {MUTED}; font-size: 10px; border: none;")
+
+    def _set_count_enabled(self, on: bool) -> None:
+        if self.count is not None:
+            self.count.setEnabled(on)
+            self.times.setEnabled(on)
+
+    def value(self) -> int:
+        """How many times the player says this applies; 0 when switched off."""
+        if not self.check.isChecked():
+            return 0
+        if self.count is None:
+            return 1
+        text = self.count.text().strip()
+        try:
+            # A blank or nonsense box means "it is true", not "it is true zero
+            # times" -- switching it on is already the statement that it holds.
+            return max(int(text), 1)
+        except ValueError:
+            return 1
+
+    def _toggled(self, on: bool) -> None:
+        self._set_count_enabled(on)
+        self._refresh_why()
+        self.on_change()
+
+    def _edited(self) -> None:
+        value = self.value()
+        if self.count is not None and self.count.text().strip() != str(value):
+            self.count.setText(str(value))
+        self._refresh_why()
+        if self.check.isChecked():
+            self.on_change()
 
 
 class RelicSlot(QFrame):
@@ -566,14 +681,18 @@ class Planner(QMainWindow):
         self.weapon_loadouts: dict[int, list[weaponslots.WeaponSlot]] = {}
         # Which tile the damage breakdown describes.
         self.active_weapon = 0
+        # effect id -> how many times the player says its condition is met.
+        # Session state, like the armament tiles: a declaration is about the
+        # run you are in, not a preference worth remembering across launches.
+        self.declared: dict[int, int] = {}
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
         # names the tool. Only a re-read after a patch is worth saying, and it
         # is said in words rather than as a version id.
-        # The tool's own version does belong here, though: it is the one
-        # thing a bug report needs and the one thing a reporter cannot look
-        # up after the fact.
+        # The tool's own version does belong in the title: it is the one thing
+        # a bug report needs and the one thing a reporter cannot look up after
+        # the fact.
         stale = data.get("meta", {}).get("regenerated")
         self.setWindowTitle(
             f"Nightreign Helper {__version__}"
@@ -778,7 +897,10 @@ class Planner(QMainWindow):
         # curse sections alone can outrun the window, and content was simply
         # falling off the bottom with no way to reach it.
         outer = QScrollArea()
-        outer.setFixedWidth(348)
+        # 348 was tight before the situational switches and cramped after them:
+        # a multiplier line such as "All damage +6.0% - melee armaments only"
+        # had nowhere to go, and the count box sat past the right edge.
+        outer.setFixedWidth(430)
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
         outer.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -847,6 +969,16 @@ class Planner(QMainWindow):
         # not working, and without this the plain case printed "&amp;" raw.
         self.qual_heading.setTextFormat(Qt.RichText)
         layout.addWidget(self.qual_heading)
+
+        # The switchable ones first, as widgets, then the rest as text. Only
+        # the top group can be acted on, and mixing them would hide that.
+        self.qual_rows = QWidget()
+        self.qual_rows_layout = QVBoxLayout(self.qual_rows)
+        self.qual_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.qual_rows_layout.setSpacing(0)
+        layout.addWidget(self.qual_rows)
+        self.situational_rows: dict[int, SituationalRow] = {}
+
         self.qual_label = QLabel()
         self.qual_label.setWordWrap(True)
         layout.addWidget(self.qual_label)
@@ -1234,27 +1366,23 @@ class Planner(QMainWindow):
             if not total:
                 continue
             scaled_total += total
-            typed_here = build.weapon_rates.get(weapon.get("wep_type"), {})
             class_here = build.class_rates.get(model.weapon_class(weapon), {})
             for field_name in self.AR_RATE_FOR.get(damage, ()):
                 value = (build.rates.get(field_name, 1.0)
-                         * typed_here.get(field_name, 1.0)
                          * class_here.get(field_name, 1.0))
                 if abs(value - 1.0) > 1e-9:
                     rates_in_play[field_name] = value
             # Deliberately excludes model.CRIT_RATE: attack rating is the
             # ordinary hit, and folding a critical-only bonus into it would
             # overstate the weapon by a fifth.
-            # Buffs tied to a weapon type only count for an armament of that
-            # type, so a katana buff lifts the katana and leaves the bow alone.
-            # The same for buffs tied to a class: "Improved Melee Attack Power"
-            # covers the greatsword and not the bow beside it.
-            typed = build.weapon_rates.get(weapon.get("wep_type"), {})
+            # A buff tied to a weapon *class* covers only that class:
+            # "Improved Melee Attack Power" lifts the greatsword and not the
+            # bow beside it. A buff merely *gated* on a weapon type is not
+            # restricted at all -- that is a flat rate and already counted.
             by_class = build.class_rates.get(model.weapon_class(weapon), {})
             rate = 1.0
             for field_name in self.AR_RATE_FOR.get(damage, ()):
                 rate *= build.rates.get(field_name, 1.0)
-                rate *= typed.get(field_name, 1.0)
                 rate *= by_class.get(field_name, 1.0)
             boosted[damage] = total * rate
 
@@ -1493,6 +1621,44 @@ class Planner(QMainWindow):
                     out.append(eff)
         return out
 
+    def _sync_situational(self, entries: list) -> None:
+        """Draw one switch per gated effect, rebuilding only when the set changes.
+
+        recompute() runs on every keystroke that reaches it, and rebuilding the
+        rows each time would take the count box out from under the cursor
+        mid-number. The rows are therefore kept while the same effects are
+        equipped, and only their values are pushed back.
+        """
+        wanted = [e.effect_id for e in entries]
+        if wanted != list(self.situational_rows):
+            while self.qual_rows_layout.count():
+                item = self.qual_rows_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            self.situational_rows = {}
+            for entry in entries:
+                row = SituationalRow(
+                    entry, self.declared.get(entry.effect_id, 0),
+                    self._situational_changed,
+                )
+                self.situational_rows[entry.effect_id] = row
+                self.qual_rows_layout.addWidget(row)
+        self.qual_rows.setVisible(bool(entries))
+
+        # An effect that is no longer equipped stops being declared, so putting
+        # the same relic back on does not silently bring a stale count with it.
+        for eid in list(self.declared):
+            if eid not in self.situational_rows:
+                del self.declared[eid]
+
+    def _situational_changed(self) -> None:
+        self.declared = {
+            eid: row.value()
+            for eid, row in self.situational_rows.items()
+            if row.value() > 0
+        }
+        self.recompute()
+
     def recompute(self) -> None:
         if not hasattr(self, "level_slider"):
             return
@@ -1522,6 +1688,7 @@ class Planner(QMainWindow):
             # tested against all six rather than only the active tile.
             weapon=self.active_slot().weapon,
             weapons_held=self.equipped_weapons(),
+            declared=self.declared,
         )
 
         for grid in (self.attr_grid, self.derived_grid):
@@ -1681,11 +1848,6 @@ class Planner(QMainWindow):
             return out
 
         restricted: list[tuple[str, str, float]] = []
-        for wep_type, bucket in sorted(build.weapon_rates.items()):
-            family = next((w["family"] for w in self.data["weapons"]
-                           if w.get("wep_type") == wep_type), None)
-            where = f"{family} only" if family else f"weapon type {wep_type}"
-            restricted += spell_out(bucket, where)
         for class_name, bucket in sorted(build.class_rates.items()):
             restricted += spell_out(bucket, f"{class_name} armaments only")
 
@@ -1745,9 +1907,13 @@ class Planner(QMainWindow):
         self.qual_heading.setText(f"Conditional &amp; situational{suffix}")
         self.qual_heading.setVisible(True)
 
-        if build.qualitative:
+        self._sync_situational(build.situational)
+
+        switchable = {entry.name for entry in build.situational}
+        rest = [row for row in build.qualitative if row[0] not in switchable]
+        if rest:
             lines = []
-            for name, detail, why in build.qualitative:
+            for name, detail, why in rest:
                 dead = why.startswith("NOT WORKING")
                 head = BAD if dead else ACCENT
                 shown = f"<s>{name}</s>" if dead else name
@@ -1760,6 +1926,10 @@ class Planner(QMainWindow):
                     f"</div>"
                 )
             self.qual_label.setText("".join(lines))
+        elif build.situational:
+            # The switches above are the whole list. Repeating "nothing depends
+            # on a condition" underneath them would contradict them.
+            self.qual_label.clear()
         else:
             self.qual_label.setText(
                 f"<span style='color:{MUTED}; font-size:11px'>Nothing you have "
@@ -1767,7 +1937,7 @@ class Planner(QMainWindow):
                 f"below a HP threshold, with a particular armament, or on a "
                 f"trigger would be listed here.</span>"
             )
-        self.qual_label.setVisible(True)
+        self.qual_label.setVisible(bool(self.qual_label.text()))
 
         curses = self.selected_curses()
         if curses:

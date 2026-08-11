@@ -100,6 +100,24 @@ EXTRA_MULTIPLIERS = {
     "characterSkillCooldownReduction": "Character Skill cooldown",
 }
 
+# Fields that refuse to add up, established by reading the game rather than the
+# params -- which is the only reason this list is hand-written instead of
+# derived, and the reason it must stay short and cited.
+#
+#   additionalCharacterSkillUse
+#       Three effects carry it, all worth 1, all flagged as stacking, none in
+#       an exclusivity group and none delivered through a state. Nothing in
+#       the params distinguishes it from any other flat bonus. Measured
+#       2026-08-11: several "+1 additional Character Skill use" relics equipped
+#       together still gave 2 charges, not 3 or 4. Summing it, as every other
+#       flat bonus is summed, told the player something the game does not do.
+#
+# Whether this is the field refusing to accumulate or a hard cap of two
+# charges cannot be told apart from that reading: no effect grants more than
+# +1, so the two are indistinguishable. Taking the maximum reproduces what was
+# seen without inventing a cap that has not been observed.
+NON_ACCUMULATING = {"additionalCharacterSkillUse"}
+
 # Flat additions, not multipliers -- shown as a count rather than a percentage.
 # characterSkillGauge belongs here, not above: its baseline across the 13,472
 # SpEffect rows is 0.0, not 1.0, and the values it takes are point awards
@@ -231,7 +249,6 @@ SCOPE_FIELDS = ("magicSubCategoryChange1", "magicSubCategoryChange2",
                 "magicSubCategoryChange3")
 SCOPED_PREFIX = "scoped:"
 # Source key for a multiplier that only covers one weapon type.
-WEAPON_TYPE_PREFIX = "weptype:"
 WEAPON_CLASS_PREFIX = "wepclass:"
 
 # Of the 38 scope values, only three restrict a buff by the *kind of armament*
@@ -316,6 +333,20 @@ def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
     if isinstance(wep_type, (set, frozenset, list, tuple)):
         return value in wep_type
     return value == wep_type
+
+
+def accumulates(effect: dict) -> bool:
+    """Does this effect gain a stack each time something happens?
+
+    These are the ones worth a number rather than a yes/no: "for each Night
+    Invader defeated" is worth four times as much with four kills. The marker
+    is saveCategory 9, documented above -- exactly 8 effects carry it and all
+    8 read as counters. isStrongestEffect is the wrong test and was the first
+    one tried: it is true of 407 of the 421 gated effects, which would have
+    put a count box on "below 40% HP", where a number means nothing.
+    """
+    return (effect.get("modifiers") or {}).get("saveCategory") in (
+        CONDITIONAL_FIELD_VALUES["saveCategory"])
 
 
 def is_conditional(effect: dict, wep_type: int | None = None) -> bool:
@@ -403,16 +434,42 @@ class Warning:
     text: str
 
 
+# Marks a copy of a gated effect the player has declared live. The original is
+# replaced by however many copies were asked for, so the existing arithmetic --
+# additive fields summing, rate fields multiplying, isStrongestEffect refusing
+# to stack -- applies to a declared condition exactly as it does to two relics
+# carrying the same roll. Nothing about how an effect is applied changes; only
+# whether it is applied at all.
+FORCED = "_declared_live"
+
+
+@dataclass
+class Situational:
+    """A gated effect the player can switch on, and how many times it applies.
+
+    The sheet cannot know whether you are below 85% HP, standing in Morgott's
+    aura, or how many Night Invaders you have killed. It can know what each of
+    those is worth, which is the whole value of being able to say so.
+    """
+    effect_id: int
+    name: str
+    detail: str
+    why: str
+    # True only for the counters -- the effects that gain a stack per event.
+    # Everything else is a yes/no condition, and gets a switch with no number.
+    accumulates: bool
+    count: int = 0
+
+    @property
+    def live(self) -> bool:
+        return self.count > 0
+
+
 @dataclass
 class Build:
     attributes: dict[str, int] = field(default_factory=dict)
     base_attributes: dict[str, int] = field(default_factory=dict)
     rates: dict[str, float] = field(default_factory=dict)
-    # Multipliers that only apply to armaments of one weapon type, keyed by
-    # that type. "Improved Katana Attack Power" belongs here rather than in
-    # `rates`: holding a katana makes it live, but it lifts the katana's damage
-    # and not the bow's in the next slot.
-    weapon_rates: dict[int, dict[str, float]] = field(default_factory=dict)
     # Multipliers that only cover a class of armament -- "Improved Melee Attack
     # Power" against a bow. Keyed by "melee" / "ranged" / "catalyst".
     class_rates: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -427,6 +484,10 @@ class Build:
     # Without this they were equipped and yet invisible in the overview.
     # (name, what it does, why it does not appear as a number)
     qualitative: list[tuple[str, str, str]] = field(default_factory=list)
+    # The gated effects the player can declare live, in the order shown. A
+    # subset of `qualitative`: only those whose condition is something the
+    # player controls or can count, never a hero or weapon mismatch.
+    situational: list["Situational"] = field(default_factory=list)
     # Which effects produced each total, so a figure can be broken back down
     # into the buffs behind it. field name -> [(effect name, its own value)]
     sources: dict[str, list[tuple[str, float]]] = field(default_factory=dict)
@@ -460,7 +521,8 @@ def compute_resistances(build: "Build", effects: list[dict]) -> None:
 
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
-            weapons_held: list[dict] | None = None) -> Build:
+            weapons_held: list[dict] | None = None,
+            declared: dict[int, int] | None = None) -> Build:
     """Combine the level's base attributes with every selected effect.
 
     `weapon` is the reference weapon shown in the Weapon damage block. It is
@@ -471,6 +533,11 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     isStrongestEffect (stacks=False) do not add up when picked more than once --
     only the single strongest instance applies -- so duplicates are reported
     rather than counted twice.
+
+    `declared` maps effect id to how many times the player says its condition
+    is met right now. A gated effect is otherwise left out of every total,
+    because the sheet has no way to know. Declaring one counts it exactly as
+    though that many copies were equipped.
     """
     base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
     build = Build(base_attributes=dict(base), attributes=dict(base))
@@ -483,6 +550,20 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         wep_type = wep_type or None
     else:
         wep_type = weapon.get("wep_type") if weapon else None
+
+    # A declared effect is replaced by the number of copies asked for, rather
+    # than kept alongside them: leaving the original in would make the first
+    # copy of an isStrongestEffect look like a duplicate of it and be dropped.
+    live = {int(k): int(v) for k, v in (declared or {}).items() if int(v) > 0}
+    if live:
+        expanded: list[dict] = []
+        for eff in effects:
+            times = live.get(eff["id"], 0)
+            if times and is_conditional(eff, wep_type):
+                expanded.extend([{**eff, FORCED: True}] * times)
+            else:
+                expanded.append(eff)
+        effects = expanded
 
     seen_ids: dict[int, int] = {}
     counted: list[dict] = []
@@ -530,8 +611,10 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     for eff in counted:
         mods = eff["modifiers"]
         # Gated effects are not part of the always-on totals. They still get
-        # reported, with their numbers, under Conditional & situational.
-        if is_conditional(eff, wep_type):
+        # reported, with their numbers, under Conditional & situational --
+        # unless the player has declared the condition met, which is the one
+        # thing the sheet cannot work out for itself.
+        if is_conditional(eff, wep_type) and not eff.get(FORCED):
             continue
         # A critical-hit effect raises every element rate, so left alone it
         # would multiply into the same Physical/Fire/... figures as a general
@@ -543,17 +626,16 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         def record(key: str, own: float) -> None:
             build.sources.setdefault(key, []).append((label, own))
 
-        # Which weapon type, if any, this effect is tied to. Holding a katana
-        # is what makes a katana buff live, but it still only lifts katanas --
-        # so its multipliers go into a bucket for that type instead of the flat
-        # totals, and each armament picks up only the buckets it qualifies for.
-        gated_to = None
-        for field_name in WEAPON_TYPE_GATES:
-            value = mods.get(field_name)
-            if satisfied_by_weapon(field_name, value, wep_type):
-                gated_to = value
-                break
-
+        # A weapon-type gate says what makes an effect live, NOT what it then
+        # applies to. Holding three Great Hammers switches "Improved Attack
+        # Power with 3+ Great Hammers Equipped" on, and it then lifts
+        # everything being carried -- measured, 152 / 183 / 219 with neither,
+        # one and both of two +20% buffs. Section 6j has the working.
+        #
+        # So nothing here buckets a multiplier by weapon type. The scoping that
+        # does survive is by weapon *class*, below, which was measured and
+        # holds: Improved Melee Attack Power lifts the greatsword and leaves
+        # the bow beside it alone.
         crit_only = bool(mods.get(CRIT_FLAG))
         scope = attack_scope(eff)
         # A scope that names a kind of armament rather than a kind of attack is
@@ -581,8 +663,23 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 record(attr, int(value))
             elif fname in FLAT_BONUSES and isinstance(value, (int, float)):
                 signed = -value if fname in INVERTED_SIGN else value
-                build.other[fname] = build.other.get(fname, 0) + signed
-                record(fname, signed)
+                if fname in NON_ACCUMULATING:
+                    # Measured, not derived: the params mark these as stacking
+                    # and they do not. See NON_ACCUMULATING.
+                    previous = build.other.get(fname)
+                    build.other[fname] = (signed if previous is None
+                                          else max(previous, signed))
+                    if previous is not None:
+                        build.warnings.append(Warning(
+                            "no-accumulate",
+                            f"{RATE_LABELS.get(fname, fname)} does not add up "
+                            f"-- a second source of it is wasted",
+                        ))
+                    else:
+                        record(fname, signed)
+                else:
+                    build.other[fname] = build.other.get(fname, 0) + signed
+                    record(fname, signed)
             elif is_sentinel(fname) and isinstance(value, (int, float)):
                 # Neutral -1 means "unset". A value other than -1 is real, but
                 # the baseline does not say whether it scales or adds, so it is
@@ -595,14 +692,6 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             elif ((fname.endswith("Rate") or fname in EXTRA_MULTIPLIERS)
                     and isinstance(value, (int, float))
                     and is_multiplier(fname)):
-                if gated_to is not None:
-                    # Tied to one weapon type: kept out of the flat totals so
-                    # it cannot lift an armament it does not cover.
-                    bucket = build.weapon_rates.setdefault(gated_to, {})
-                    bucket[fname] = bucket.get(fname, 1.0) * float(value)
-                    record(f"{WEAPON_TYPE_PREFIX}{gated_to}:{fname}",
-                           float(value))
-                    continue
                 if class_to is not None:
                     # Tied to melee or ranged armaments, same reasoning.
                     bucket = build.class_rates.setdefault(class_to, {})
@@ -640,7 +729,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     if curves:
         compute_derived(curves, build)
     compute_resistances(build, counted)
-    compute_qualitative(build, counted, hero, wep_type)
+    compute_qualitative(build, counted, hero, wep_type, live)
 
     return build
 
@@ -666,7 +755,8 @@ GATE_FIELDS = {
 
 
 def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
-                        wep_type: int | None = None) -> None:
+                        wep_type: int | None = None,
+                        live: dict[int, int] | None = None) -> None:
     """Record effects that contribute nothing numeric, so none go unseen.
 
     The stat sheet can only show what reduces to a number. An effect that is
@@ -677,8 +767,16 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
     from . import effecttext
 
     hero_name = str(hero.get("name", ""))
+    live = live or {}
+    # A declared effect was expanded into one copy per application. They are
+    # the same effect said several times over, so the list shows it once.
+    seen_declared: set[int] = set()
     for eff in effects:
         mods = eff.get("modifiers") or {}
+        if eff.get(FORCED):
+            if eff["id"] in seen_declared:
+                continue
+            seen_declared.add(eff["id"])
 
         # A gated effect never reached the totals, so it always belongs here
         # regardless of whether it carries numbers.
@@ -713,11 +811,29 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         if eff.get("inflicts"):
             reasons.append("inflicts a status build-up")
 
-        build.qualitative.append((
-            name,
-            effecttext.describe_full(eff),
-            "; ".join(dict.fromkeys(reasons)) or "no numeric effect on the sheet",
-        ))
+        detail = effecttext.describe_full(eff)
+        # "no numeric effect on the sheet" is the right answer for an effect
+        # that reduces to nothing, and the wrong one for a gated effect that
+        # carries a plain number and is merely waiting on its condition --
+        # which is exactly the case the switches exist for.
+        default = ("only while its condition holds" if gated
+                   else "no numeric effect on the sheet")
+        why = "; ".join(dict.fromkeys(reasons)) or default
+        build.qualitative.append((name, detail, why))
+
+        # Offered as a switch only when the condition is one the player can
+        # actually be in. An effect belonging to another Nightfarer is not
+        # gated on anything you can do, so declaring it live would produce a
+        # sheet describing a build that cannot exist.
+        if gated and effecttext.works_for(eff, hero_name):
+            build.situational.append(Situational(
+                effect_id=eff["id"],
+                name=name,
+                detail=detail,
+                why=why,
+                accumulates=accumulates(eff),
+                count=live.get(eff["id"], 0),
+            ))
 
 
 def label_for(field_name: str) -> str:

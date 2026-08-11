@@ -12,11 +12,11 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import effecttext, model
+from . import effecttext, model, stacking
 from .effecttext import caption, describe, describe_full  # noqa: F401
 
 COLUMNS = ["Effect", "Type", "Tier", "Copies", "Colours", "Pools",
-           "Avg chance", "Best chance", "Stacks", "Comes with curse",
+           "Avg chance", "Best chance", "Stacking", "Comes with curse",
            "What it does"]
 
 # Column indices used for formatting, kept next to COLUMNS so they move
@@ -141,13 +141,19 @@ class EffectsTab(QWidget):
         self.rollable_only.toggled.connect(self.refresh)
         controls.addWidget(self.rollable_only)
 
-        self.nonstacking_only = QCheckBox("Non-stacking only")
-        self.nonstacking_only.toggled.connect(self._on_nonstacking)
-        controls.addWidget(self.nonstacking_only)
-
-        self.stacking_only = QCheckBox("Stacking only")
-        self.stacking_only.toggled.connect(self._on_stacking)
-        controls.addWidget(self.stacking_only)
+        # One class filter rather than two opposed tickboxes. "Stacking" was
+        # never a yes/no: whether a second copy counts and whether the number
+        # adds or multiplies are separate questions with separate answers, and
+        # the old pair could only express the first of them.
+        self.stacking_box = QComboBox()
+        self.stacking_box.addItem("Any stacking", "all")
+        for label in self._stacking_classes(data):
+            self.stacking_box.addItem(label, label)
+        self.stacking_box.setToolTip(
+            "How a second copy behaves, and whether the number adds or "
+            "multiplies")
+        self.stacking_box.currentIndexChanged.connect(self.refresh)
+        controls.addWidget(self.stacking_box)
 
         self.kind_box = QComboBox()
         self.kind_box.addItem("Buffs and curses", "all")
@@ -175,16 +181,18 @@ class EffectsTab(QWidget):
 
         self.refresh()
 
-    def _on_nonstacking(self, checked: bool) -> None:
-        # The two filters are opposites; ticking one clears the other.
-        if checked and self.stacking_only.isChecked():
-            self.stacking_only.setChecked(False)
-        self.refresh()
+    @staticmethod
+    def _stacking_classes(data: dict) -> list[str]:
+        """Every class actually present, commonest first.
 
-    def _on_stacking(self, checked: bool) -> None:
-        if checked and self.nonstacking_only.isChecked():
-            self.nonstacking_only.setChecked(False)
-        self.refresh()
+        Built from the data rather than hard-coded, so the filter can never
+        offer a class nothing falls into -- which is what would have happened
+        with "different tiers only", a category the game turns out not to
+        have. Tier ladders are separate effects and both rungs apply.
+        """
+        counts = collections.Counter(
+            stacking.classify(e) for e in data["effects"].values())
+        return [label for label, _n in counts.most_common()]
 
     @staticmethod
     def _matches(effect: dict, needle: str) -> bool:
@@ -224,9 +232,8 @@ class EffectsTab(QWidget):
             # pool, so it must never be filtered out as "not rollable".
             if self.rollable_only.isChecked() and not colours and not bad:
                 continue
-            if self.nonstacking_only.isChecked() and eff["stacks"]:
-                continue
-            if self.stacking_only.isChecked() and not eff["stacks"]:
+            wanted = self.stacking_box.currentData()
+            if wanted != "all" and stacking.classify(eff) != wanted:
                 continue
             if colour != -1 and colour not in colours:
                 continue
@@ -304,7 +311,7 @@ class EffectsTab(QWidget):
                 pools,
                 avg,
                 best,
-                "yes" if eff["stacks"] else "strongest only",
+                stacking.classify(eff),
                 "is a curse" if eff.get("is_curse")
                 else CURSE_LABEL.get(eff.get("curse", "never"), ""),
                 description,
@@ -325,8 +332,16 @@ class EffectsTab(QWidget):
                 # does -- the two cells the eye actually lands on.
                 if c in (0, COL_TYPE, len(values) - 1):
                     item.setForeground(CURSE_COLOUR if is_bad else BUFF_COLOUR)
-                if c == COL_STACKS and not eff["stacks"]:
-                    item.setForeground(Qt.red)
+                if c == COL_STACKS:
+                    # Red is for the classes that cost you something: a second
+                    # copy of these is wasted, which is the one case where the
+                    # column changes what a player should equip.
+                    if stacking.repetition(eff) != stacking.STACKS:
+                        item.setForeground(Qt.red)
+                    # Naming the deciding field turns the verdict into
+                    # something checkable rather than something to take on
+                    # trust, which is the whole point of the column.
+                    item.setToolTip(stacking.evidence(eff))
                 if c == COL_CURSE and value:
                     item.setForeground(CURSE_COLOUR)
                 # The full text is often wider than the column; the tooltip
