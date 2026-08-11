@@ -6,11 +6,11 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QPushButton, QScrollArea, QToolButton, QVBoxLayout,
-    QWidget,
+    QListWidgetItem, QMenu, QPushButton, QScrollArea, QToolButton,
+    QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import effecttext, model
+from . import effecttext, favourites, model
 from .inventory import CUSTOM_RELIC_ID
 
 COLUMNS = 5
@@ -22,6 +22,14 @@ MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
 CURSE = "#d1655f"
+# Purple against the gold of a selected card: the two states have to be told
+# apart at a glance, and gold's opposite is the one colour the rest of the
+# window never uses.
+FAVOURITE = "#a86fe0"
+
+# The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
+HERO_COLUMNS = 5
+HERO_ICON = 44
 
 SLOT_COLOURS = {
     0: "#b4544e", 1: "#4e7ab4", 2: "#c2a24a", 3: "#5c9e63", 4: "#d8d8d8",
@@ -33,14 +41,26 @@ class RelicCard(QFrame):
 
     def __init__(self, item, effect_names: list[str], icon, selected: bool,
                  on_pick, curses: list[tuple[str, str]] | None = None,
-                 tooltip: str = ""):
+                 tooltip: str = "", favourite: bool = False,
+                 on_favourite=None):
         super().__init__()
         self.item = item
+        self.on_favourite = on_favourite
         self.setFixedWidth(CARD_WIDTH)
         self.setCursor(Qt.PointingHandCursor)
+        # Selection and favourite are different questions -- "is this relic on
+        # right now" and "do I want this relic on this character" -- so a card
+        # can be both. Selection takes the border because it is about the slot
+        # being edited; the star carries the favourite through either state.
+        if selected:
+            edge, width = ACCENT, 2
+        elif favourite:
+            edge, width = FAVOURITE, 2
+        else:
+            edge, width = BORDER, 1
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
-            f" border: 1px solid {ACCENT if selected else BORDER};"
+            f" border: {width}px solid {edge};"
             f" border-radius: 6px; }}"
         )
 
@@ -60,6 +80,12 @@ class RelicCard(QFrame):
             self.button.setIcon(QIcon(icon))
         self.button.clicked.connect(lambda: on_pick(item))
         header.addWidget(self.button)
+
+        if favourite:
+            star = QLabel("★")
+            star.setStyleSheet(
+                f"border: none; color: {FAVOURITE}; font-size: 13px;")
+            header.addWidget(star, 0, Qt.AlignTop)
 
         title = QLabel(item.name)
         title.setWordWrap(True)
@@ -101,7 +127,18 @@ class RelicCard(QFrame):
         layout.addStretch()
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt naming
+        # Right-click belongs to the favourite menu. Without this guard the
+        # menu would open and the card would be picked in the same gesture,
+        # closing the picker out from under it.
+        if event.button() != Qt.LeftButton:
+            event.ignore()
+            return
         self.button.click()
+
+    def contextMenuEvent(self, event):  # noqa: N802 - Qt naming
+        if self.on_favourite is None:
+            return
+        self.on_favourite(self.item, event.globalPos())
 
 
 class CustomRelicCard(QFrame):
@@ -165,6 +202,71 @@ class CustomRelicCard(QFrame):
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt naming
         self.button.click()
+
+
+class FavouriteMenu(QMenu):
+    """"Favourite for" — the Nightfarers, in the same 2x5 grid as the sidebar.
+
+    The menu deliberately stays open while portraits are toggled: a relic that
+    suits one character usually suits its neighbours too, and reopening the
+    menu once per Nightfarer for a good roll would be tedious.
+    """
+
+    def __init__(self, parent, item, heroes: list[dict], icons):
+        super().__init__(parent)
+        self.item = item
+        self.changed = False
+
+        heading = QLabel("Favourite for")
+        heading.setStyleSheet(
+            f"color: {MUTED}; font-size: 11px; padding: 6px 8px 2px 8px;")
+        title = QWidgetAction(self)
+        title.setDefaultWidget(heading)
+        self.addAction(title)
+
+        holder = QWidget()
+        grid = QGridLayout(holder)
+        grid.setContentsMargins(8, 2, 8, 8)
+        grid.setSpacing(4)
+        marked = favourites.heroes_for(item)
+        for i, hero in enumerate(heroes):
+            grid.addWidget(
+                self._tile(hero, icons, hero["id"] in marked),
+                i // HERO_COLUMNS, i % HERO_COLUMNS,
+            )
+        body = QWidgetAction(self)
+        body.setDefaultWidget(holder)
+        self.addAction(body)
+
+    def _tile(self, hero: dict, icons, checked: bool) -> QToolButton:
+        button = QToolButton()
+        button.setCheckable(True)
+        button.setChecked(checked)
+        button.setAutoRaise(True)
+        button.setCursor(Qt.PointingHandCursor)
+        button.setFixedSize(HERO_ICON + 8, HERO_ICON + 8)
+        button.setToolTip(hero["name"])
+        pixmap = icons.portrait(hero["id"]) if icons is not None else None
+        if pixmap is not None:
+            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+            button.setIconSize(QSize(HERO_ICON, HERO_ICON))
+            button.setIcon(QIcon(pixmap))
+        else:
+            # The DLC characters have no extractable artwork, so their tiles
+            # carry initials and keep the grid the same shape either way.
+            button.setText(hero["name"][:2])
+        button.setStyleSheet(
+            f"QToolButton {{ border: 1px solid {BORDER}; border-radius: 4px;"
+            f" background: {PANEL}; color: #cfcfcf; padding: 0px; }}"
+            f"QToolButton:checked {{ border: 2px solid {FAVOURITE}; }}"
+        )
+        button.clicked.connect(
+            lambda _checked=False, h=hero, b=button: self._toggle(h, b))
+        return button
+
+    def _toggle(self, hero: dict, button: QToolButton) -> None:
+        button.setChecked(favourites.toggle(self.item, hero["id"]))
+        self.changed = True
 
 
 class CustomRelicDialog(QDialog):
@@ -277,6 +379,13 @@ class RelicPicker(QDialog):
         self.icons = icons
         self.on_search_changed = on_search_changed
         self.chosen = None
+        # Favourites are per Nightfarer, so the picker has to know which one
+        # the build is for. A slot outside the main window simply has none.
+        window = slot.window()
+        current = getattr(window, "current_hero", None)
+        hero = current() if callable(current) else None
+        self.hero_id = hero["id"] if hero else None
+        self.hero_label = hero["name"] if hero else ""
 
         colour = model.COLOUR_NAMES.get(slot.colour, slot.colour)
         self.setWindowTitle(
@@ -332,7 +441,28 @@ class RelicPicker(QDialog):
             )
         if predicate is not None:
             items = [i for i in items if predicate(self.slot.effect_names(i))]
+        # Favourites for the Nightfarer currently being planned lead the grid.
+        # sorted() is stable, so everything else keeps the name order it had.
+        if self.hero_id is not None:
+            items = sorted(
+                items,
+                key=lambda i: 0 if favourites.is_favourite(i, self.hero_id) else 1,
+            )
         return items, text.strip()
+
+    def _heroes(self) -> list[dict]:
+        return getattr(self.slot.window(), "heroes", None) or []
+
+    def _open_favourites(self, item, position) -> None:
+        heroes = self._heroes()
+        if not heroes:
+            return
+        menu = FavouriteMenu(self, item, heroes, self.icons)
+        # Refreshing while the menu is open would delete the card it is
+        # anchored to, so the grid is rebuilt only once the menu has closed.
+        menu.exec(position)
+        if menu.changed:
+            self._refresh()
 
     def _curses(self, item) -> list[tuple[str, str]]:
         """(name, full description) for each curse this relic actually rolled."""
@@ -352,9 +482,16 @@ class RelicPicker(QDialog):
             total = len(self.slot.owned.relics_for(
                 self.slot.colour, self.slot.deep, 4
             ))
+        starred = sum(
+            1 for i in items
+            if self.hero_id is not None and favourites.is_favourite(i, self.hero_id)
+        )
+        note = f" — {starred} favourited for {self.hero_label}" if starred else ""
         self.summary.setText(
             f"{len(items)} of {total} relics"
             + (f" matching “{needle}”" if needle else "")
+            + note
+            + "  ·  right-click a relic to favourite it"
         )
 
         holder = QWidget()
@@ -390,6 +527,9 @@ class RelicPicker(QDialog):
                 on_pick=self._pick,
                 curses=self._curses(item),
                 tooltip=self.slot.curse_tooltip(item),
+                favourite=self.hero_id is not None
+                and favourites.is_favourite(item, self.hero_id),
+                on_favourite=self._open_favourites,
             )
             grid.addWidget(card, i // COLUMNS, i % COLUMNS)
 
