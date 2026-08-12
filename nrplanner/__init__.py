@@ -9,4 +9,4 @@
 # a feature or a corrected number lands (1.1.0), and tag only what matches.
 # Nothing has been released before 1.0.0, so everything built up to that tag is
 # part of it rather than an increment on it.
-__version__ = "1.0.0"
+__version__ = "1.1.0"

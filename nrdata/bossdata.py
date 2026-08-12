@@ -30,7 +30,7 @@ from __future__ import annotations
 import struct
 from typing import Any
 
-from . import dvdbnd, oodle, param
+from . import bnd4, dvdbnd, oodle, param, tae
 
 INSTRUCTION_RECORD = 32
 
@@ -146,6 +146,96 @@ def _parts(blob: bytes) -> list[tuple[str, bytes]]:
     return out
 
 
+# SpEffectParam 7330-7398 is a per-boss buff/debuff family: every row pairs an
+# attack-power multiplier with a stance-damage-taken multiplier. Which row a
+# boss uses is authored individually, so the band has to be read per boss
+# rather than assumed. Confirmed against play in OPEN_QUESTIONS section 11 --
+# the owner's list of which bosses show an attack up matched, including Maris,
+# who has no row in the band at all.
+LADDER = range(7330, 7399)
+
+# A boss buffing its own defence is rare enough to be worth its own pass:
+# Libra is the only one of the ten who does it. The attack ladder above lives
+# in a fixed band, but a defence buff is authored wherever its author put it,
+# so it is found by shape instead -- reduces every damage type, and runs for a
+# stated time rather than being a permanent trait.
+DAMAGE_CUTS = ("neutralDamageCutRate", "slashDamageCutRate",
+               "blowDamageCutRate", "thrustDamageCutRate",
+               "magicDamageCutRate", "fireDamageCutRate",
+               "thunderDamageCutRate", "darkDamageCutRate")
+
+
+def _tae(archives, chr_id: int) -> bytes | None:
+    """The boss's TAE, or None. An unreadable anibnd costs that boss its
+    ladder, never the whole snapshot."""
+    path = f"/chr/c{chr_id}.anibnd.dcx"
+    archive = next((a for a in archives.values() if path in a), None)
+    if archive is None:
+        return None
+    try:
+        return next((f.data for f in bnd4.read(archive.read(path))
+                     if f.basename.lower().endswith(".tae")), None)
+    except Exception:  # noqa: BLE001 - an unreadable anibnd is not fatal
+        return None
+
+
+def _defence_buffs(sp_rows: dict, reachable: set[int],
+                   located: dict[int, set]) -> list[dict]:
+    """Timed damage reduction a boss puts on itself."""
+    out = []
+    for sid in sorted(reachable):
+        row = sp_rows.get(sid)
+        if row is None:
+            continue
+        cuts = [row.values.get(f) for f in DAMAGE_CUTS
+                if isinstance(row.values.get(f), (int, float))]
+        duration = row.values.get("effectEndurance") or -1
+        # All eight types, all reduced, and time-limited. A permanent cut is
+        # the boss's base resistance profile and already shown elsewhere.
+        if len(cuts) != len(DAMAGE_CUTS) or max(cuts) >= 0.99 or duration <= 0:
+            continue
+        entry = {"id": sid, "taken": round(float(max(cuts)), 3),
+                 "seconds": round(float(duration), 1)}
+        if sid in located:
+            entry["from"] = [{"animation": anim, "at": round(at, 3)}
+                             for anim, at in sorted(located[sid])]
+        out.append(entry)
+    return out
+
+
+def _ladder(sp_rows: dict, reachable: set[int],
+            located: dict[int, tuple[int, float]]) -> dict[str, list] | None:
+    """The boss's attack-up / attack-down rows and where they come from.
+
+    `located` maps a SpEffect to the animation that applies it and the time
+    it fires, which is the part that says *when* a boss buffs itself. Several
+    bosses -- Heolstor among them -- carry ladder rows with no animation
+    behind them at all, so the field stays absent rather than guessed.
+    """
+    up, down = [], []
+    for sid in sorted(reachable & set(LADDER)):
+        row = sp_rows.get(sid)
+        if row is None:
+            continue
+        atk = row.values.get("physicsAttackPowerRate")
+        stance = row.values.get("saReceiveDamageRate")
+        if not isinstance(atk, (int, float)) or abs(atk - 1.0) < 1e-6:
+            continue
+        entry = {"id": sid, "attack": round(float(atk), 3),
+                 "stance_taken": (round(float(stance), 3)
+                                  if isinstance(stance, (int, float)) else None)}
+        # An effect can be applied from more than one animation -- Gladius's
+        # buff comes off both 3025 and the taunt 20004 -- so all of them are
+        # kept. Showing only the first read as "this is the move that does it".
+        if sid in located:
+            entry["from"] = [{"animation": anim, "at": round(at, 3)}
+                             for anim, at in sorted(located[sid])]
+        (up if atk > 1.0 else down).append(entry)
+    if not up and not down:
+        return None
+    return {"up": up, "down": down}
+
+
 def _profile(rows: list[param.ParamRow]) -> dict[str, Any] | None:
     """The weakness picture for one character."""
     if not rows:
@@ -173,15 +263,44 @@ def _profile(rows: list[param.ParamRow]) -> dict[str, Any] | None:
         if isinstance(best.values.get(f"partsDamageRate{i}"), (int, float))
         and abs(best.values[f"partsDamageRate{i}"] - 1.0) > 1e-6
     }
+    # isWeakA..F are single-bit flags, separate from the per-part rates above
+    # and set on only three of the ten. What body part each letter stands for
+    # is NOT in the files -- the paramdef gives the fields no description and
+    # the AI scripts only ever number parts (ANIME_ID_PART1_DAMAGE and so on).
+    weak_flags = [letter for letter in "ABCDEF"
+                  if best.values.get(f"isWeak{letter}")]
+    # Stance. `superArmorDurability` is the size of the poise bar that has to
+    # be emptied to break the boss, and `superArmorRecoverCorrection` scales
+    # how fast it refills -- so a big bar that refills fast is a boss you
+    # cannot stagger by chipping at it. Both vary per Nightlord where
+    # weakPartsDamageRate does not, which is what makes them worth showing.
+    # Reported raw. Nothing here says a weakness hit does extra stance damage:
+    # no boss carries a `toughnessDamageCutRate`, and all 17 rows in the game
+    # that do are elsewhere. See OPEN_QUESTIONS 5.13.
+    stance = {
+        key: round(float(best.values[field]), 3)
+        for field, key in (("superArmorDurability", "bar"),
+                           ("superArmorRecoverCorrection", "recovery"),
+                           ("toughnessRecoverCorrection", "toughness_recovery"))
+        if isinstance(best.values.get(field), (int, float))
+    }
     return {
         "hp": best.values.get("hp"),
         "npc_row": best.id,
         "damage": damage,
         "status": status,
+        "stance": stance,
         "weak_part_rate": (round(float(weak_part), 3)
                            if isinstance(weak_part, (int, float))
                            and abs(weak_part - 1.0) > 1e-6 else None),
         "part_rates": part_rates,
+        "weak_flags": weak_flags,
+        "parts_damage_type": best.values.get("partsDamageType"),
+        # Whether a weak-point hit plays its own reaction. Six of the ten
+        # Nightlords set this, and for those there is no visual feedback by
+        # design -- which is why "hit it and watch" cannot identify a part on
+        # them. 384 of 3016 NpcParam rows game-wide set it.
+        "skips_weak_animation": bool(best.values.get("isSkipWeakDamageAnim")),
         # Only report a weakness where the game actually tuned one. A flat
         # profile means no designed weakness, and saying "weak to Standard"
         # because every rate is 1.0 would be an invention.
@@ -369,6 +488,30 @@ def derive(game_dir, members: dict, defs: dict,
                 "parts": {best: best_profile},
             }
             break
+
+    # The buff/debuff ladder, attached in one pass so every confidence path
+    # gets it. A boss reaches these rows either from an NpcParam slot or from
+    # its own animations, and several use only the second route.
+    sp_rows = {r.id: r for r in param.read(members["SpEffectParam"],
+                                           defs.get("SpEffectParam")).rows}
+    slots = [f"spEffectID{i}" for i in range(30)]
+    for entry in out.values():
+        chr_id = entry["primary"]
+        reachable = {v for row in by_chr.get(chr_id, []) for s in slots
+                     if (v := row.values.get(s, -1)) and v > 0}
+        blob = _tae(archives, chr_id)
+        located: dict[int, set[tuple[int, float]]] = {}
+        if blob:
+            for event in tae.applied_speffects(blob):
+                reachable.add(event.param0)
+                located.setdefault(event.param0, set()).add(
+                    (event.animation, event.start))
+        ladder = _ladder(sp_rows, reachable, located)
+        if ladder and entry.get("profile"):
+            entry["profile"]["ladder"] = ladder
+        defence = _defence_buffs(sp_rows, reachable, located)
+        if defence and entry.get("profile"):
+            entry["profile"]["defence_buffs"] = defence
     return out
 
 

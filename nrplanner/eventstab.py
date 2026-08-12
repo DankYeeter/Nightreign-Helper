@@ -34,6 +34,10 @@ UNKNOWN = "#7d6f52"
 # Community material is tinted throughout, so it never sits on the page
 # looking like the extracted text beside it.
 COMMUNITY = "#6f9ac4"
+# A line someone actually watched happen in a run. Stronger than a wiki claim
+# and weaker than a param read, so it gets its own colour rather than
+# borrowing either.
+OBSERVED = "#7fae72"
 
 # An outcome line that mentions one of these reads as the event ending badly.
 # It is only used to colour the line, never to claim a penalty: the wording is
@@ -432,6 +436,12 @@ class WorldEventsTab(QWidget):
                 "belongs to this event is unverified."))
         elif "nightlords" not in covered:
             column.addWidget(_note("Nightlord gating: not reported anywhere."))
+
+        if lore.get("confirmed"):
+            label = QLabel("<b>Confirmed in play:</b> " + lore["confirmed"])
+            label.setWordWrap(True)
+            label.setStyleSheet(f"color: {OBSERVED}; font-size: 12px;")
+            column.addWidget(label)
 
         for key, prefix in (("note", "Note"), ("uncertain", "Least certain"),
                             ("conflict", "Sources disagree")):

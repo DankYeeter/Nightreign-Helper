@@ -23,6 +23,10 @@ them would erase the evidence for the identification.
 shows pool shares read from the map patterns; no source publishes a real
 per-event percentage, so none is written down.
 
+A `confirmed` key holds something a player watched happen in a run. It is a
+third class of evidence, above the wikis and below a param read, and the tab
+gives it its own colour so it is never mistaken for either.
+
 Sources, all fetched 2026-08-09:
   fextralife   https://eldenringnightreign.wiki.fextralife.com/Events
   eldenpedia   https://eldenring.wiki.gg/wiki/Nightreign:Special_Events
@@ -102,6 +106,13 @@ LORE: dict[int, dict] = {
             "Ignore it and the reduced maximum HP simply stays for the rest "
             "of the run. Refusing the deal is its own outcome -- the game "
             "announces \"A failed deal has sown enmity\"."
+        ),
+        "confirmed": (
+            "The 15,000 / 35,000 prices are right, read off the screen. The "
+            "curse for not paying lasts the whole expedition -- it survives "
+            "the day 1 and day 2 transitions and is still on the party for "
+            "the Nightlord. Paying also lets the team take one of the "
+            "merchant's deals at no cost."
         ),
         "nightlords": ["Caligo", "Fulghor", "Heolstor"],
         "conflict": (
