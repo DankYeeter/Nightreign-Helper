@@ -181,17 +181,30 @@ an invented figure.
 
 ![Nightlords](docs/screenshots/nightlords.png)
 
-All eighteen expeditions — ten Nightlords and eight Everdark Sovereigns — with
-the game's own artwork and lore text. Select one for its detail panel.
+Ten Nightlords, each carrying its Everdark Sovereign rather than repeating it.
+The two are the same character and every extracted figure is identical between
+them, so one entry shows both: the portrait is a single circle split on the
+diagonal, regular art in the lower-left and Everdark in the upper-right.
+Straghess and Heolstor have no Everdark version. Select one for its detail
+panel.
 
-The Everdark Sovereigns reuse the base bosses' text and differ in artwork and
-sort order; they are shown as their own group because the game labels them that
-way.
+**What a weakness is for.** The panel opens with the interaction rather than
+the chart: the right damage type builds a hidden meter, and filling it breaks
+the boss's stance and opens it up for a critical. Three bosses are also seen to
+take a debuff while broken — double damage taken, a fifth off their attack —
+shown with the visual tell that says it has landed.
 
-**On weaknesses.** Damage and status charts appear for the seven base Nightlords
-whose NPC rows can be resolved through the event scripts. For Heolstor,
-Harmonia, Straghess and every Everdark row that chain does not resolve, and the
-tab says so rather than borrowing another boss's numbers or a wiki's.
+**Also on the panel.** Damage and status charts. The stance bar, its refill
+rate and where the boss ranks among the ten. The attack buff each boss puts on
+itself, whether it stacks and what sets it off. Per-part damage where a boss
+tunes it — only Gladius has a soft spot and only Caligo has armour. Libra's
+defence buff, which no other boss has.
+
+**Where the figures stop.** The break threshold is not extracted: the chain is
+named in the game's own AI script, but those scripts are compiled and their
+constants are not yet tied to the functions that use them. Which body part a
+number refers to is not in the files either, so the panel says "Part 1" rather
+than naming it. Both say so on the page instead of guessing.
 
 ---
 
@@ -263,8 +276,9 @@ The **relic picker** and the **Weapons** tab take a query syntax:
 | `poise NOT curse` | poise, excluding anything matching *curse* |
 | `"attack power"` | that exact phrase |
 
-The **Effects** and **Nightlords** boxes are simpler — a plain substring match,
-no operators. All four search descriptions as well as names.
+The **Effects** box is simpler — a plain substring match, no operators. It
+searches descriptions as well as names. The Nightlords tab has no search: ten
+entries fit on screen at once.
 
 ## Where your data lives
 
@@ -357,7 +371,10 @@ Stated plainly rather than hidden:
 - **The relic scan can over-count.** It currently reports slightly more owned
   relics than the game shows; the extras follow gaps in the save's record run and
   no loadout uses them.
-- **Boss weaknesses resolve for seven Nightlords**, not all eighteen expeditions.
+- **The break threshold is unknown.** The weakness chain is named in the AI
+  scripts, but their constants are not yet scoped to the functions using them.
+- **Weak parts are numbered, not named.** Nothing in the files says which body
+  part a slot refers to.
 - **Spell damage is unavailable** — no such field exists in the data.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
