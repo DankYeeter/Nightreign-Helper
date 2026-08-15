@@ -14,9 +14,10 @@ import pathlib
 import traceback
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal
-from PySide6.QtWidgets import QApplication, QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QApplication, QCheckBox, QLabel, QProgressBar,
+                               QVBoxLayout, QWidget)
 
-from . import paths
+from . import paths, shortcut
 from .datasource import bundled_path, defs_dir
 
 
@@ -49,9 +50,16 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
         try:
             import json
 
+            from nrdata import extract
+
             meta = json.loads(snapshot.read_text(encoding="utf-8")).get("meta", {})
             stamp = _regulation_stamp(game)
-            if stamp and (
+            # Two ways to be out of date, and both have to rebuild here or the
+            # cache is never written: a patched game, and a snapshot built by
+            # an older version of this program's extractor.
+            if meta.get("extract_version") != extract.EXTRACT_VERSION:
+                needed.append("snapshot")
+            elif stamp and (
                 meta.get("regulation_sha256") != stamp[0]
                 or meta.get("regulation_size") != stamp[1]
             ):
@@ -121,19 +129,22 @@ class _Window(QWidget):
 
     def __init__(self, first_time: bool) -> None:
         super().__init__(None, Qt.WindowType.SplashScreen)
-        self.setFixedSize(460, 150)
+        # Taller on the first run only, where the Start Menu offer appears.
+        self.setFixedSize(460, 190 if first_time else 150)
 
+        # The rebuild is no longer only for a patched game -- upgrading the
+        # tool itself can need one too -- so the wording says what is being
+        # done rather than guessing at the reason for it.
         headline = (
             "Setting up Nightreign Helper"
             if first_time
-            else "Your game was updated"
+            else "Refreshing your game data"
         )
         detail = (
             "Reading your installation. This happens once, and takes about a "
             "minute."
             if first_time
-            else "Re-reading your installation so the numbers match the new "
-            "version."
+            else "Re-reading your installation so the numbers are up to date."
         )
 
         layout = QVBoxLayout(self)
@@ -159,6 +170,31 @@ class _Window(QWidget):
         self.status = QLabel("")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+
+        # This minute of setup is the closest thing the program has to being
+        # installed, so it is the natural place to offer what an installer
+        # would: an entry in the Start Menu. Offered rather than done, and only
+        # on the first run -- a rebuild after a patch is not an install, and
+        # putting the shortcut back after someone deleted it would be a program
+        # overruling its user.
+        #
+        # Ticked by default. It is a single file in the user's own profile,
+        # trivially undone from inside the program or by deleting it, and
+        # someone who has just downloaded a tool almost always does want to be
+        # able to find it again.
+        self.shortcut_check = None
+        if first_time and shortcut.available():
+            self.shortcut_check = QCheckBox("Add to my Start Menu")
+            self.shortcut_check.setChecked(True)
+            self.shortcut_check.setToolTip(
+                "Creates one shortcut in your own Start Menu. No admin "
+                "rights, nothing installed, and removable from inside the "
+                "program at any time."
+            )
+            layout.addWidget(self.shortcut_check)
+
+    def wants_shortcut(self) -> bool:
+        return bool(self.shortcut_check and self.shortcut_check.isChecked())
 
 
 def ensure_data(game: pathlib.Path | None) -> str | None:
@@ -188,6 +224,14 @@ def ensure_data(game: pathlib.Path | None) -> str | None:
     thread.start()
     while not thread.wait(50):
         QApplication.processEvents()
+
+    # Acted on after the build rather than before it, so a setup that fails
+    # does not leave a Start Menu entry pointing at a program that cannot run.
+    # A shortcut that cannot be written is not worth stopping for or reporting
+    # here: the data is what the user is waiting on, and the button in the main
+    # window says plainly whether the entry exists.
+    if not outcome.get("error") and window.wants_shortcut():
+        shortcut.create()
 
     window.close()
     return outcome.get("error") or None

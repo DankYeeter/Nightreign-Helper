@@ -43,7 +43,8 @@ not tell you: what an effect actually does, which effects refuse to stack, how
 much tougher enemies get at Depth 4, what a world event pays out.
 
 It reads your save file, so the relics it offers are the relics you own, and it
-can pull a Nightfarer's current loadout straight out of the game.
+can pull a Nightfarer's current loadout straight out of the game. Builds you put
+together are kept per Nightfarer and are still there the next time you open it.
 
 **What it is not.** Your save is opened **read-only**. This tool never writes to
 it. It is not a mod, a trainer, a save editor, or anything that touches the game
@@ -63,8 +64,10 @@ Download `NightreignHelper.exe` from the [Releases](../../releases) page and run
 it. No Python, no installer, no admin rights.
 
 **First launch takes about a minute.** It reads your installation and builds a
-local copy of the data. Every launch after that is immediate, until the game is
-patched — then it re-reads itself and tells you why.
+local copy of the data, and offers to put itself in your Start Menu. Every
+launch after that is immediate, until the data needs rereading — when the game
+is patched, or when a new version of the tool reads something the old one did
+not. It says so and does it once.
 
 ---
 
@@ -88,6 +91,20 @@ and what colour each one is.
 you own. Open one to choose from a picker that lists only relics which fit. A
 relic's three effects appear under it once slotted.
 
+**Your build stays put.** The vessel, the Deep of Night toggle and every slot
+are remembered per Nightfarer and come back the next time you open the tool. A
+build is worked out once and then referred to for as long as you own the relics
+behind it; rebuilding all six slots on every launch is what stops it being
+referred to at all.
+
+What is stored is the relic's **roll** as well as the exact copy, so a build
+survives your save being rewritten — melting an unrelated relic renumbers the
+copies internally, and the roll is what still identifies the one you meant.
+
+**Reset Chalice**, at the top right of the relic slots, empties every slot and
+forgets that Nightfarer's stored build. It is the way back to an empty vessel
+now that builds stick.
+
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
 Nightfarer. It changes nothing about the build; it just saves hunting for a good
@@ -107,6 +124,15 @@ slots that Deep of Night runs give you.
 selected Nightfarer's currently equipped vessel and relics out of the save, so
 you can start from what you actually have on.
 
+The line beneath them says what was read — how many relics, from which profile,
+and how many stored builds. If the builds cannot be read it says why there,
+rather than reporting none and leaving you to guess.
+
+Saves are looked for under `%APPDATA%\Nightreign`, and **every** save found is
+tried rather than only the most recently written one. A second Steam account
+folder or a restored backup can otherwise sit in front of the save you actually
+play.
+
 **Level** — the slider runs 1 to 15, and the attribute figures come from the
 game's own per-Nightfarer level tables, not a formula.
 
@@ -120,10 +146,22 @@ game's own per-Nightfarer level tables, not a formula.
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
+| **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. |
 
 Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
 they are folded into the maths rather than quietly ignored.
+
+**About the switches.** The tool cannot know whether you are below 40% HP, or
+how many Night Invaders you have killed, or whether your Character Skill is up
+right now. What it can know is what each of those is worth, so a gated effect is
+kept out of the flat totals and offered as a switch instead. Counting one
+unconditionally invents a bonus you usually do not have — and worse, corrupts
+every buff multiplied against it.
+
+An effect that only lasts a number of seconds once triggered belongs there too.
+The Character Skill auras, "Power of the Blood Lord", "Power of Dark Moon" and
+the rest are timed windows, not passives, and are treated as such.
 
 **Every figure is clickable** for a per-buff breakdown showing which relic and
 which effect contributed what.
@@ -289,12 +327,17 @@ Everything the tool extracts goes to:
 ```
 
 That folder holds the data snapshot and the icon pack, both built from your
-installation on first run. **Nothing is written anywhere else**, and nothing is
-sent anywhere — the tool makes no network connections at all. Uninstalling means
-deleting that folder and the EXE.
+installation on first run. Your saved builds, favourites and artwork choices
+are small enough to live in the registry, under `HKCU\Software\DankYeeter`, and
+the Start Menu entry — if you accept it — is one shortcut in your own profile.
+**Nothing is written anywhere else**, and nothing is sent anywhere: the tool
+makes no network connections at all. Uninstalling means deleting that folder,
+that registry key, the shortcut and the EXE.
 
-When the game is patched, `regulation.bin` changes, the tool notices on the next
-launch, rebuilds, and tells you it has done so.
+The snapshot is rebuilt when it no longer matches. That is either because the
+game was patched, so `regulation.bin` changed, or because a new version of the
+tool reads more out of the game than the version that built the snapshot did.
+Both are noticed on the next launch, and both say so while they rebuild.
 
 ## Running from source
 
@@ -336,7 +379,14 @@ To package your own EXE:
 ```
 
 Close any running copy first, or Windows' file lock makes PyInstaller fail with
-`PermissionError`.
+`PermissionError`. The EXE takes its version from `nrplanner/__init__.py`, so
+Properties → Details reports the build without having to run it.
+
+To refresh the screenshots in this README after a tab changes:
+
+```bat
+.venv\Scripts\python.exe scripts\make_screenshots.py
+```
 
 ### Layout
 
@@ -344,7 +394,7 @@ Close any running copy first, or Windows' file lock makes PyInstaller fail with
 |---|---|
 | `nrdata/` | Reading the game's own formats — archives, params, textures, saves. No GUI code. |
 | `nrplanner/` | The GUI, the build maths, and save inventory. |
-| `scripts/` | Environment check, data builders, icon generator. |
+| `scripts/` | Environment check, data builders, icon generator, screenshot generator. |
 | `vendor/Paramdex/NR/Defs` | Field schemas for the params. Required to read anything. |
 
 ## How values are derived
@@ -361,6 +411,20 @@ The handful of figures that genuinely are not in the files — the expedition
 rating table, the cataclysm split — are marked *confirmed in game* or
 *community-reported* where they appear, never presented as extracted data.
 
+It also means a field is shown only when it is understood. Some values in the
+game's tables are pointers into other tables rather than quantities, and a few
+are named for Elden Ring in a way that does not hold for Nightreign; those are
+left off the sheet rather than printed as stats with impossible numbers.
+
+The same rule applies to the tool's own past conclusions. The twenty
+"[Nightfarer] Improved X, Reduced Y" relics were recorded as unreadable — their
+effect rows carry no numbers anywhere — and that was wrong. The numbers are in a
+second family of `HeroStatusParam` blocks, stored as signed deltas in unsigned
+byte fields, so a −1 reads as 255 and looks like noise. All twenty now show
+their real attribute changes; each is only shipped if the sign of every delta
+agrees with the effect's own name, so a block assigned to the wrong Nightfarer
+would be dropped rather than displayed.
+
 ## Known limits
 
 Stated plainly rather than hidden:
@@ -368,9 +432,11 @@ Stated plainly rather than hidden:
 - **Attack rating has not been verified against an in-game number.** The maths
   follows the game's own fields, but the final figure has not been checked
   against what the game displays.
-- **The relic scan can over-count.** It currently reports slightly more owned
-  relics than the game shows; the extras follow gaps in the save's record run and
-  no loadout uses them.
+- **Don't scan while the game is saving.** A save read part-way through being
+  written gives records that were never there — measured once at 290 against a
+  true 284. The reader now waits for the file to settle, and on a settled file
+  the count matches the game exactly, but a scan timed badly enough can still
+  be wrong. Rescan after the game has written, or with it closed.
 - **The break threshold is unknown.** The weakness chain is named in the AI
   scripts, but their constants are not yet scoped to the functions using them.
 - **Weak parts are numbered, not named.** Nothing in the files says which body

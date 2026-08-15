@@ -197,6 +197,20 @@ def describe(effect: dict) -> str:
     mods = dict(effect["modifiers"])
     parts: list[str] = []
 
+    # A stat-swap relic keeps its numbers outside `modifiers`, because they
+    # come from HeroStatusParam rather than from a SpEffect row. Its top anchor
+    # is what the description shows -- the sheet applies the value for the
+    # level actually selected, and saying which level this is stops the two
+    # from reading as a contradiction.
+    swap = effect.get("attribute_swap") or {}
+    if swap:
+        top = max(swap, key=int)
+        moves = ", ".join(
+            f"{attr} {value:+d}" for attr, value in swap[top].items() if value
+        )
+        if moves:
+            parts.append(f"{moves} at level {top}, scaling from level 1")
+
     conditions = [fn(mods.pop(key)) for key, fn in CONDITIONS.items()
                   if key in mods and isinstance(mods.get(key), (int, float))]
 

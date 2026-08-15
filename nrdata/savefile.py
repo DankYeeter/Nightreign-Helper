@@ -7,6 +7,7 @@ with a static key, the IV being the member's own first 16 bytes.
 from __future__ import annotations
 
 import hashlib
+import os
 import pathlib
 import struct
 from dataclasses import dataclass, field
@@ -203,7 +204,17 @@ LOADOUT_SLOTS = 6
 LOADOUT_GROUP = 8 + 4 * LOADOUT_RECORD      # 120
 HERO_MARKER_BASE = 0xFF00
 GRAILS_PER_HERO = 4
-PERSONAL_VESSELS = 70
+VESSELS_PER_HERO = 7
+
+# How many Nightfarers the table can hold, and the fewest that still make it
+# recognisable. Neither is fixed at ten on purpose. A save from a player who
+# does not own the DLC carries fewer groups than one that does, and requiring
+# exactly ten markers meant such a save reported no stored builds at all --
+# not "some", none, which is precisely how the failure shows up. Four
+# consecutive markers in ascending order is already far too specific a pattern
+# to occur by chance in a save this size.
+MAX_HEROES = 16
+MIN_HEROES = 4
 
 
 @dataclass
@@ -215,22 +226,36 @@ class Loadout:
     offset: int
 
 
-def find_loadout_table(slot_data: bytes) -> int:
-    """Offset of the 0xff01 marker that begins table A.
+def find_loadout_table(slot_data: bytes) -> tuple[int, int]:
+    """Offset of the 0xff01 marker that begins table A, and how many groups.
 
-    Anchors on all ten markers being present at the right spacing, so a stray
-    0x0000ff01 elsewhere in the slot cannot be mistaken for the table.
+    Anchors on a run of markers ascending by one at exactly 120 bytes apart,
+    so a stray 0x0000ff01 elsewhere in the slot cannot be mistaken for the
+    table. The run is counted rather than assumed: see MIN_HEROES.
     """
-    for off in range(0, len(slot_data) - LOADOUT_GROUP * 10, 4):
+    limit = len(slot_data)
+    best: tuple[int, int] | None = None
+    for off in range(0, max(limit - LOADOUT_GROUP * MIN_HEROES, 0), 4):
         if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
             continue
-        if all(
-            struct.unpack_from("<I", slot_data, off + i * LOADOUT_GROUP)[0]
-            == HERO_MARKER_BASE + 1 + i
-            for i in range(10)
-        ):
-            return off
-    raise ValueError("equipped-loadout table not found in this save slot")
+        count = 0
+        while count < MAX_HEROES:
+            probe = off + count * LOADOUT_GROUP
+            if probe + LOADOUT_GROUP > limit:
+                break
+            if (struct.unpack_from("<I", slot_data, probe)[0]
+                    != HERO_MARKER_BASE + 1 + count):
+                break
+            count += 1
+        if count >= MIN_HEROES and (best is None or count > best[1]):
+            best = (off, count)
+    if best is None:
+        raise ValueError(
+            "equipped-loadout table not found in this save slot "
+            f"(no run of {MIN_HEROES}+ Nightfarer markers at {LOADOUT_GROUP}-byte "
+            "spacing)"
+        )
+    return best
 
 
 def read_relic_handles(slot_data: bytes, owned: list[OwnedRelic]) -> dict[int, OwnedRelic]:
@@ -247,7 +272,7 @@ def read_relic_handles(slot_data: bytes, owned: list[OwnedRelic]) -> dict[int, O
 
 def read_loadouts(slot_data: bytes) -> list[Loadout]:
     """Read every stored loadout, both the Grail and the personal-vessel ones."""
-    base = find_loadout_table(slot_data)
+    base, heroes = find_loadout_table(slot_data)
     out: list[Loadout] = []
 
     def record(off: int, hero: int | None, selected_id: int | None) -> Loadout:
@@ -255,7 +280,7 @@ def read_loadouts(slot_data: bytes) -> list[Loadout]:
         handles = list(struct.unpack_from(f"<{LOADOUT_SLOTS}I", slot_data, off + 4))
         return Loadout(vessel_id, handles, hero, vessel_id == selected_id, off)
 
-    for i in range(10):
+    for i in range(heroes):
         group = base + i * LOADOUT_GROUP
         marker, selected_id = struct.unpack_from("<2I", slot_data, group)
         hero = marker - HERO_MARKER_BASE
@@ -269,18 +294,66 @@ def read_loadouts(slot_data: bytes) -> list[Loadout]:
         - HERO_MARKER_BASE: struct.unpack_from(
             "<I", slot_data, base + i * LOADOUT_GROUP + 4
         )[0]
-        for i in range(10)
+        for i in range(heroes)
     }
-    flat = base + 10 * LOADOUT_GROUP
-    for k in range(PERSONAL_VESSELS):
+    # The personal-vessel table is walked rather than counted off a fixed 70.
+    # Its length follows from how many Nightfarers the save knows about, which
+    # is the very thing that differs between installations, so the walk stops
+    # on the first record whose vessel id is not a well-formed one: a vessel is
+    # 1000-1006 for Nightfarer 1, 2000-2006 for Nightfarer 2, and so on.
+    flat = base + heroes * LOADOUT_GROUP
+    for k in range(heroes * VESSELS_PER_HERO):
         off = flat + k * LOADOUT_RECORD
+        if off + LOADOUT_RECORD > len(slot_data):
+            break
         vessel_id = struct.unpack_from("<I", slot_data, off)[0]
         hero = vessel_id // 1000          # 1000-1006 -> 1, 2000-2006 -> 2, ...
+        if not (1 <= hero <= heroes and vessel_id % 1000 < VESSELS_PER_HERO):
+            break
         out.append(record(off, hero, selected_by_hero.get(hero)))
 
     return out
 
 
+def save_roots() -> list[pathlib.Path]:
+    """Every directory a Nightreign save could be sitting in.
+
+    %APPDATA% comes first and matters: it is the variable the game itself
+    uses, and it is not always ~/AppData/Roaming. Folder redirection, a
+    OneDrive-backed profile and a roaming enterprise profile all move it, and
+    on those machines the hardcoded path finds nothing while the game is
+    saving quite happily a directory away. Both are searched rather than one
+    being picked, because either can be the real one.
+    """
+    roots: list[pathlib.Path] = []
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        roots.append(pathlib.Path(appdata))
+    roots.append(pathlib.Path.home() / "AppData" / "Roaming")
+
+    out: list[pathlib.Path] = []
+    for root in roots:
+        folder = root / "Nightreign"
+        if folder not in out:
+            out.append(folder)
+    return out
+
+
 def find_saves() -> list[pathlib.Path]:
-    root = pathlib.Path.home() / "AppData" / "Roaming" / "Nightreign"
-    return sorted(root.glob("*/NR0000.sl2"))
+    """Every readable save file, newest last.
+
+    The glob is deliberately wider than NR0000.sl2. The file is named that on
+    every install seen so far, but a backup restored under another name, or a
+    second slot file a future patch adds, is still a save this program can
+    read -- and returning nothing at all is a far worse answer than returning
+    one file too many, which the caller drops when it holds no relics.
+    """
+    seen: dict[pathlib.Path, None] = {}
+    for root in save_roots():
+        if not root.is_dir():
+            continue
+        for pattern in ("*/NR*.sl2", "NR*.sl2", "*/*.sl2"):
+            for path in sorted(root.glob(pattern)):
+                if path.is_file():
+                    seen.setdefault(path.resolve(), None)
+    return list(seen)

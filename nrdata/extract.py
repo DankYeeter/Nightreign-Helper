@@ -35,6 +35,22 @@ STAT_FIELDS = [
 # Levels the game defines explicitly; everything between is interpolated.
 MAX_LEVEL = 15
 
+# What this extractor produces, as opposed to what the game contains.
+#
+# The cached snapshot was only ever rebuilt when the game's regulation.bin
+# changed, which is right for a patch and wrong for an update to this file: a
+# player upgrading the tool kept a snapshot built by the old extractor forever,
+# and so never saw a field the new one adds. That is how the stat-swap relics
+# would have stayed blank for everyone but the developer.
+#
+# Raise this whenever a change here alters the shape or the content of the
+# snapshot, and every existing cache rebuilds itself once, in the background,
+# on the next launch.
+#   1  the schema as it shipped up to 1.1.0
+#   2  attribute_swap on the twenty stat-swap relics; the state gate they
+#      carried is dropped
+EXTRACT_VERSION = 2
+
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
 # CalcCorrectGraph rows that turn an attribute into a derived stat. Verified
@@ -2171,6 +2187,114 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if key in effects:
             effects[key]["modifiers"]["procChancePercent"] = _pc_s32(offset)
 
+    # ---- The stat-swap relics: numbers that are not in SpEffectParam ------
+    # Twenty effects read "[Nightfarer] Improved X, Reduced Y" and their
+    # SpEffect rows carry no numbers at all -- 7641000 "[Guardian] Improved
+    # Strength and Dexterity, Reduced Vigor" holds nothing but stateInfo 2123
+    # and a gate on state 2249. Neither a state payload nor an adjacent row
+    # exists for any of the twenty, so the effect reached the planner as a
+    # bare gated marker: parked under Conditional & situational, moving no
+    # attribute, for something that is in fact on the whole time.
+    #
+    # The numbers are in HeroStatusParam instead, in a second family of blocks
+    # the base stats never touch. Blocks 300..309 run parallel to the ten
+    # Nightfarers -- 301 is Guardian, whose base block is 20 -- and each holds
+    # two variants, 30N000/30N001 and 30N100/30N101, matching the two swap
+    # relics each Nightfarer has. The rows are *deltas*, not stats, stored in
+    # the same u8 fields, so a reduction wraps: statVigor 255 is -1.
+    #
+    # The pairing is not asserted, it is checked. For all 20 of 20 the sign of
+    # every non-zero delta agrees with the effect's own name -- every stat
+    # named after "Improved" comes out positive, every stat after "Reduced"
+    # negative, and no stat moves that the name does not mention. A wrong
+    # block assignment could not survive that, and any effect that fails it is
+    # dropped here rather than shipped with a number that might be another
+    # Nightfarer's.
+    #
+    # Anchors are levels 1 and 12 only, against the base stats' 1/2/12/15, so
+    # the ladder is clamped above 12 rather than extrapolated.
+    SWAP_STATE = 2123
+    SWAP_BLOCK_BASE = 300
+    _swap_family = sorted(
+        r.id for r in speffect.rows if r.values.get("stateInfo") == SWAP_STATE
+    )
+
+    def _signed_u8(value: int) -> int:
+        return value - 256 if value >= 128 else value
+
+    def _swap_anchors(block: int, variant: int) -> dict[str, dict[str, int]]:
+        out: dict[str, dict[str, int]] = {}
+        prefix = (block * 1000 + variant * 100) // 100
+        for row in hero_status.rows:
+            if row.id // 100 != prefix:
+                continue
+            deltas = {
+                label: _signed_u8(row.values[key])
+                for key, label in STAT_FIELDS
+                if _signed_u8(row.values.get(key, 0)) != 0
+            }
+            out[str(row.values["totalLevel"])] = deltas
+        return out
+
+    def _named_stats(name: str) -> tuple[set[str], set[str]]:
+        """The stats the effect's own name says go up, and the ones it says down."""
+        labels = [label for _key, label in STAT_FIELDS]
+        up_text, _, down_text = name.partition("Reduced")
+        pick = lambda text_: {s for s in labels if re.search(rf"\b{s}\b", text_)}
+        return pick(up_text), pick(down_text)
+
+    _hero_id_by_name = {h["name"]: h["id"] for h in heroes}
+    # The effect that owns each of the family's SpEffect rows, found through
+    # the effect's own sp_effect_ids rather than by an id arithmetic that only
+    # happens to hold.
+    _effect_by_sp: dict[int, Any] = {}
+    for _entry in effects.values():
+        for _sp in _entry.get("sp_effect_ids") or ():
+            _effect_by_sp.setdefault(_sp, _entry)
+
+    _rank_by_hero: dict[str, int] = {}
+    for _sp_id in _swap_family:
+        _effect = _effect_by_sp.get(_sp_id)
+        if _effect is None:
+            continue
+        # AttachEffectParam's allow* flags cover the base eight Nightfarers
+        # only, so Scholar's and Undertaker's rows come back with no owner at
+        # all. Their names still carry it -- every one of the twenty begins
+        # "[Nightfarer]" -- and the sign check below is what actually keeps a
+        # wrong owner from shipping, so the name is a safe fallback.
+        _allowed = _effect.get("allowed_heroes") or []
+        if not _allowed:
+            _bracket = re.match(r"\s*\[(.+?)\]", str(_effect.get("name", "")))
+            _allowed = [_bracket.group(1)] if _bracket else []
+        if len(_allowed) != 1 or _allowed[0] not in _hero_id_by_name:
+            continue
+        _hero = _allowed[0]
+        _variant = _rank_by_hero.get(_hero, 0)
+        _rank_by_hero[_hero] = _variant + 1
+        if _variant > 1:
+            continue
+        _block = SWAP_BLOCK_BASE + _hero_id_by_name[_hero] - 1
+        _anchors = _swap_anchors(_block, _variant)
+        if not _anchors:
+            continue
+
+        _name = " ".join(str(_effect["name"]).split())
+        _up, _down = _named_stats(_name)
+        _top = _anchors[max(_anchors, key=int)]
+        if ({s for s, v in _top.items() if v > 0} != _up
+                or {s for s, v in _top.items() if v < 0} != _down):
+            continue
+
+        _effect["attribute_swap"] = _anchors
+        _effect["attribute_swap_source"] = f"HeroStatusParam {_block}xxx"
+        # The gate is what parked this under Conditional & situational. State
+        # 2249 is set by exactly one row, 7999010, which itself carries nothing
+        # and is referenced by nothing -- so the params say nothing about when
+        # it holds. Reported in game as permanently active, which is also what
+        # a relic that rewrites your starting stats has to be. The gate is
+        # therefore dropped rather than left to hide the effect.
+        _effect["modifiers"].pop("invocationConditionsStateChange1", None)
+
     # ---- Bosses and Deep of Night ----------------------------------------
     menu_text = text.get("CL_MenuText", {})
     bosses = _bosses(members, defs, menu_text, game_dir)
@@ -2179,6 +2303,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 
     return {
         "meta": {
+            "extract_version": EXTRACT_VERSION,
             "regulation_sha256": hashlib.sha256(reg_path.read_bytes()).hexdigest(),
             "regulation_size": reg_path.stat().st_size,
             "data_version": data_version,

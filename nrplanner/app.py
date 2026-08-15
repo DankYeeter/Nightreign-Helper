@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (datasource, effecttext, firstrun, inventory, model, search,
-               weaponslots, weapons)
+from . import (chalices, datasource, effecttext, favourites, firstrun,
+               inventory, model, search, shortcut, weaponslots, weapons)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -478,6 +478,37 @@ class RelicSlot(QFrame):
         item = self.relic_box.currentData()
         return list(item.effect_ids) if item is not None else []
 
+    def saved_key(self) -> str:
+        """How this slot's relic is written down for the next session."""
+        return chalices.slot_key(self.relic_box.currentData())
+
+    def select_saved(self, key: str) -> bool:
+        """Put back the relic a previous session left here.
+
+        The handle is tried first because it is exact. Falling back to the
+        roll matters when the save has been rewritten since -- handles are
+        renumbered by the game, and a build that came back empty every time
+        the player melted an unrelated relic would not be worth storing.
+        """
+        if not key:
+            return self.select_handle(None)
+        handle, roll = chalices.split_key(key)
+        if handle is not None and self.select_handle(handle):
+            return True
+        if not roll:
+            return False
+        self.relic_box.blockSignals(True)
+        try:
+            for i in range(self.relic_box.count()):
+                item = self.relic_box.itemData(i)
+                if item is not None and favourites.key(item) == roll:
+                    self.relic_box.setCurrentIndex(i)
+                    return True
+            return False
+        finally:
+            self.relic_box.blockSignals(False)
+            self._sync_mode()
+
     def select_handle(self, handle: int | None) -> bool:
         """Put the relic with this save handle in the slot, or empty it.
 
@@ -685,6 +716,10 @@ class Planner(QMainWindow):
         # Session state, like the armament tiles: a declaration is about the
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
+        # Held while a stored build is being put back, so the act of restoring
+        # a vessel and six relics does not write a half-restored build over
+        # the one still being read.
+        self._restoring = False
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -702,6 +737,20 @@ class Planner(QMainWindow):
 
         tabs = QTabWidget()
         self.setCentralWidget(tabs)
+
+        # A Start Menu entry is offered during first-run setup, which a player
+        # upgrading from an earlier version never sees, and which anyone can
+        # decline and later want. So it also lives here, permanently, in the
+        # one piece of chrome that is on screen whichever tab is open. A corner
+        # widget rather than a menu bar: the window has never had one, and
+        # growing one for a single action would cost more room than it earns.
+        self.shortcut_button = QToolButton()
+        self.shortcut_button.setAutoRaise(True)
+        self.shortcut_button.setCursor(Qt.PointingHandCursor)
+        self.shortcut_button.clicked.connect(self._toggle_shortcut)
+        self._sync_shortcut_button()
+        if shortcut.available():
+            tabs.setCornerWidget(self.shortcut_button, Qt.TopRightCorner)
 
         planner = QWidget()
         root = QHBoxLayout(planner)
@@ -858,7 +907,21 @@ class Planner(QMainWindow):
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 6, 0)
-        layout.addWidget(_heading("Relic slots"))
+
+        # The heading and, opposite it, the way out of a build. Equipped
+        # relics now survive a restart, so there has to be something that
+        # clears them on purpose -- otherwise the only way back to an empty
+        # vessel is to empty six slots by hand.
+        header = QHBoxLayout()
+        header.addWidget(_heading("Relic slots"))
+        header.addStretch()
+        self.reset_button = QPushButton("Reset Chalice")
+        self.reset_button.setToolTip(
+            "Empty every slot and forget this Nightfarer's saved build"
+        )
+        self.reset_button.clicked.connect(self.reset_chalice)
+        header.addWidget(self.reset_button)
+        layout.addLayout(header)
 
         # No search box here. A single filter across every slot narrowed each
         # slot's own list, so a relic already chosen could stop matching and be
@@ -1008,6 +1071,37 @@ class Planner(QMainWindow):
         outer.setWidget(panel)
         return outer
 
+    # -- Start Menu entry -------------------------------------------------
+    def _sync_shortcut_button(self) -> None:
+        """Label the button for what it will do, not for what it is."""
+        if not shortcut.available():
+            self.shortcut_button.setVisible(False)
+            return
+        on = shortcut.exists()
+        self.shortcut_button.setText(
+            "  ✓ In Start Menu  " if on else "  ★ Add to Start Menu  "
+        )
+        self.shortcut_button.setToolTip(
+            f"Remove {shortcut.SHORTCUT_NAME} from your Start Menu"
+            if on else
+            "Put a shortcut in your Start Menu so this can be launched by "
+            "name. Your account only — no admin rights, nothing installed."
+        )
+        self.shortcut_button.setStyleSheet(
+            f"QToolButton {{ color: {ACCENT if on else MUTED}; "
+            f"font-size: 11px; border: none; padding: 2px 4px; }}"
+            f"QToolButton:hover {{ color: {ACCENT}; }}"
+        )
+
+    def _toggle_shortcut(self) -> None:
+        error = shortcut.remove() if shortcut.exists() else shortcut.create()
+        self._sync_shortcut_button()
+        if error:
+            QMessageBox.warning(
+                self, "Start Menu",
+                f"The Start Menu entry could not be changed.\n\n{error}",
+            )
+
     # -- logic -----------------------------------------------------------
     def current_hero(self) -> dict:
         return self.heroes[self.hero_index]
@@ -1124,9 +1218,84 @@ class Planner(QMainWindow):
                 if first_row is None:
                     first_row = self.chalice_list.count() - 1
         self.chalice_list.blockSignals(False)
-        if first_row is not None:
-            self.chalice_list.setCurrentRow(first_row)
-        self.apply_chalice()
+
+        # The build this Nightfarer was last left holding, if there is one.
+        # Restored in the same order load_equipped uses -- vessel and mode
+        # first, because both rebuild the slots and would otherwise empty them
+        # again straight after they were filled.
+        vessel_id, deep_on, slot_keys = chalices.load(hero["id"])
+        saved_row = None
+        if vessel_id is not None:
+            saved_row = next(
+                (i for i in range(self.chalice_list.count())
+                 if (self.chalice_list.item(i).data(Qt.UserRole) or {}).get("id")
+                 == vessel_id),
+                None,
+            )
+
+        self._restoring = True
+        try:
+            if saved_row is not None:
+                self.chalice_list.setCurrentRow(saved_row)
+                self.deep_check.blockSignals(True)
+                self.deep_check.setChecked(deep_on)
+                self.deep_check.blockSignals(False)
+            elif first_row is not None:
+                self.chalice_list.setCurrentRow(first_row)
+            self.apply_chalice()
+
+            if saved_row is not None and slot_keys:
+                slots = list(self.base_slots) + list(self.deep_slots)
+                for slot, key in zip(slots, slot_keys):
+                    slot.select_saved(key)
+        finally:
+            self._restoring = False
+        self.recompute()
+
+    def _store_chalice(self) -> None:
+        """Write down what this Nightfarer is holding, for the next session."""
+        if self._restoring or not getattr(self, "hero_vessels", None):
+            return
+        vessel = self.current_vessel()
+        slots = list(self.base_slots) + list(self.deep_slots)
+        keys = [slot.saved_key() for slot in slots]
+        # The default vessel with nothing in it is not a build worth keeping.
+        # Storing it anyway is what made Reset Chalice look as though it had
+        # not worked: the reset emptied everything and the write that followed
+        # put the starting state straight back as a saved one.
+        default = self.hero_vessels[0] if self.hero_vessels else None
+        if (not any(keys) and not self.deep_check.isChecked()
+                and (vessel is None or default is None
+                     or vessel["id"] == default["id"])):
+            chalices.clear(self.current_hero()["id"])
+            return
+        chalices.save(
+            self.current_hero()["id"],
+            vessel["id"] if vessel else None,
+            self.deep_check.isChecked(),
+            keys,
+        )
+
+    def reset_chalice(self) -> None:
+        """Forget this Nightfarer's build and go back to an empty first vessel."""
+        chalices.clear(self.current_hero()["id"])
+        self._restoring = True
+        try:
+            self.deep_check.blockSignals(True)
+            self.deep_check.setChecked(False)
+            self.deep_check.blockSignals(False)
+            # Row 0 is the group caption, which cannot be selected; the first
+            # real vessel is whatever follows it.
+            for i in range(self.chalice_list.count()):
+                if self.chalice_list.item(i).data(Qt.UserRole) is not None:
+                    self.chalice_list.setCurrentRow(i)
+                    break
+            self.apply_chalice()
+            for slot in list(self.base_slots) + list(self.deep_slots):
+                slot.select_saved("")
+        finally:
+            self._restoring = False
+        self.recompute()
 
     def current_vessel(self) -> dict | None:
         """The vessel selected in the list, ignoring the caption rows."""
@@ -1522,14 +1691,25 @@ class Planner(QMainWindow):
             )
             return
 
-        self.owned_label.setText(
-            f"{self.owned.relic_count} relics in {self.owned.source}"
-        )
+        note = f"{self.owned.relic_count} relics in {self.owned.source}"
+        if self.owned.loadouts:
+            note += f", {len(self.owned.loadouts)} stored builds"
+        elif self.owned.loadout_error:
+            # A save whose relics read but whose builds do not is a specific
+            # failure with a specific cause, and reporting "0 builds" without
+            # the cause left it undiagnosable from a bug report.
+            note += f" — no stored builds could be read: {self.owned.loadout_error}"
+        else:
+            note += " — this save stores no builds yet"
+        self.owned_label.setText(note)
         # The folder is named after the Steam account id, so it is offered on
         # hover rather than printed where every screenshot would carry it.
         self.owned_label.setToolTip(self.owned.folder)
         if not initial:
-            self.apply_chalice()
+            # reload_chalices, not apply_chalice: the relics have just changed
+            # underneath the slots, so the saved build has to be matched
+            # against the new inventory rather than left pointing at the old.
+            self.reload_chalices()
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
@@ -1544,9 +1724,15 @@ class Planner(QMainWindow):
         hero = self.current_hero()
         loadout = self.owned.selected_loadout(hero["id"])
         if loadout is None:
-            self.owned_label.setText(
-                f"This save stores no equipped loadout for {hero['name']}."
-            )
+            if self.owned.loadout_error:
+                self.owned_label.setText(
+                    "This save's stored builds could not be read: "
+                    f"{self.owned.loadout_error}"
+                )
+            else:
+                self.owned_label.setText(
+                    f"This save stores no equipped loadout for {hero['name']}."
+                )
             return
 
         # Rows include the two caption rows, so the vessel is found by its own
@@ -1662,6 +1848,9 @@ class Planner(QMainWindow):
     def recompute(self) -> None:
         if not hasattr(self, "level_slider"):
             return
+        # Every path that changes a vessel, a mode or a relic ends here, so
+        # this is the one place the stored build has to be kept up to date.
+        self._store_chalice()
         hero = self.current_hero()
         level = self.level_slider.value()
         self.level_label.setText(str(level))
@@ -1804,7 +1993,8 @@ class Planner(QMainWindow):
                     # still names the relics behind the number.
                     shown_rates[f"{model.ALL_DAMAGE_PREFIX}{present[0]}"] = \
                         build.rates[present[0]]
-            for fname, value in sorted(shown_rates.items()):
+            for fname, value in sorted(
+                    model.collapse_by_label(shown_rates).items()):
                 pct = (value - 1.0) * 100
                 # For damage taken and resource costs, less is the good news.
                 helpful = pct <= 0 if model.is_better_lower(model.real_field(fname)) else pct >= 0
@@ -1868,13 +2058,22 @@ class Planner(QMainWindow):
         # build.other and then never shown at all.
         if build.other:
             lines = []
-            for fname, value in sorted(build.other.items()):
-                colour = GOOD if value >= 0 else BAD
+            for fname, value in sorted(
+                    model.collapse_by_label(build.other).items()):
+                # Damage taken and resource costs read the other way round:
+                # more of them is worse news, so the colour follows what the
+                # figure means rather than its sign.
+                helpful = (value <= 0 if model.is_better_lower(fname)
+                           else value >= 0)
+                colour = GOOD if helpful else BAD
                 # Additive fields whose neutral is 0 but which the game states
                 # as a percentage -- item discovery, bow drop-off and the like.
                 shown, unit = value, ""
                 if fname in model.PERCENT_FIELDS:
                     shown, unit = model.percent_value(fname, value), "%"
+                elif fname in model.PERCENT_OF_100_FIELDS:
+                    # Already reduced to its distance from the neutral 100.
+                    unit = "%"
                 lines.append(
                     f"<div>{model.label_for(fname)} "
                     f"<a href='{fname}' style='color:{colour}; "
