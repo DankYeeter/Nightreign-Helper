@@ -8,6 +8,19 @@ name: Release
 # The runner has no Nightreign installation, which is exactly right: the
 # build must not be able to bake game data into the executable even by
 # accident. The EXE reads the user's own install on first launch.
+#
+# ONE FILE, TWO REPOSITORIES. The project is developed in a private working
+# repo and published here, and each kept its own copy of this file until they
+# quietly disagreed: this one checks licences and that one did not, because the
+# script that does the checking is part of what makes this repo publishable and
+# does not exist over there. Each was right for its own tree and wrong as a
+# shared one -- the kind of drift that goes unnoticed until a release behaves
+# differently from the rehearsal of it.
+#
+# So the licence step is guarded on its own script being present rather than
+# assumed, which is what lets one identical file live in both. It is a skip,
+# not a pass: the check still runs wherever the script exists, which is here,
+# which is where releases are built. Copy this file between the repos verbatim.
 
 on:
   push:
@@ -39,7 +52,15 @@ jobs:
       # The executable bundles every runtime dependency, so their terms ship
       # with it. Adding a library without recording its licence fails here
       # rather than going out unnoticed.
+      #
+      # Guarded rather than assumed present: the script and THIRD_PARTY.md are
+      # part of what makes the published repo publishable and do not exist in
+      # the working one. Without the guard this file cannot be shared between
+      # them, which is how the two drifted apart in the first place. It is a
+      # skip, not a pass -- the check still runs wherever it can, which is the
+      # repo that actually builds the release.
       - name: Licences are recorded
+        if: hashFiles('scripts/check_licences.py') != ''
         run: python scripts/check_licences.py
 
       - name: Tag must match the version in the source

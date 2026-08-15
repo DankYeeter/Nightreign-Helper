@@ -80,6 +80,15 @@ def _regulation_matches(snapshot: dict) -> bool:
 
     from nrdata import gamefiles
 
+    from nrdata import extract
+
+    # A snapshot built by an older extractor is stale however current the game
+    # is. Without this, everything added here only ever reached a machine that
+    # had no cache yet -- an upgrade over an existing install kept the old data
+    # for good, because the game had not changed and nothing else was checked.
+    if snapshot.get("meta", {}).get("extract_version") != extract.EXTRACT_VERSION:
+        return False
+
     recorded = snapshot.get("meta", {}).get("regulation_sha256")
     if not recorded:
         return False

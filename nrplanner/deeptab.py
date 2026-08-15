@@ -1,20 +1,24 @@
 """The five depths: how much tougher enemies get, and what it pays.
 
-Every number here is read from the game's own params, but none of those params
-ship a paramdef, so the layouts were inferred. What makes the inference solid
-is stated on the tab itself rather than buried: 89 of 90 correction rows read
-as five SpEffect ids that all resolve, and the values they carry are monotonic
-across the five depths.
+Every number here is read from the game's own params except the rating table,
+which is labelled where it appears because no param holds it.
+
+Laid out in the order a player asks the questions: what do I get for going
+deeper, what does it cost me in difficulty, what moves my rating, and what else
+changes. Anything that only answers "how do you know" is either one short line
+or is not on the tab at all -- it lives in HANDOVER.md, which is where a reader
+who wants the derivation is actually going to look.
 """
 
 from __future__ import annotations
 
+import re
 import statistics
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QHeaderView, QLabel, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
+    QVBoxLayout, QWidget,
 )
 
 ACCENT = "#c8a45c"
@@ -42,10 +46,10 @@ ATTACK_FIELDS = [
 # and mutually consistent -- a reported +300 for a Depth 3 win on an invisible
 # map is exactly 200 + 100, which corroborates both the win value and the map
 # bonus from an independent direction.
+WIN_RATING = 200
 RATING_BONUSES = [
-    ("Win (defeat the Nightlord)", 200, "confirmed in game"),
-    ("Unknown Nightlord", 100, "confirmed in game"),
-    ("Obstructed map", 100, "community-reported"),
+    ("Unknown Nightlord", 100),
+    ("Obstructed map", 100),
 ]
 
 # Depth -> (lost to the Nightlord, lost on day 2, lost on day 1).
@@ -57,6 +61,15 @@ RATING_LOSSES = {
     4: (-400, -500, -600),
     5: (-600, -700, -800),
 }
+
+# Byte offsets in the depth-control row. The two-way split is how many
+# cataclysm events the map carries; the three-way split is what may be hidden
+# from you. Both are shares out of 100. See HANDOVER for how they were read --
+# the offsets are the tab's business, not the player's, so they no longer
+# appear on it.
+BYTE_TWO_CATACLYSMS = 7
+BYTE_CONCEALED_MAP = 2
+BYTE_OBSCURED_NIGHTLORD = 3
 
 
 def _heading(text: str) -> QLabel:
@@ -75,7 +88,88 @@ def _note(text: str) -> QLabel:
     return label
 
 
+def _source(text: str) -> QLabel:
+    """A provenance line: present, findable, and visually out of the way."""
+    label = QLabel(text)
+    label.setWordWrap(True)
+    label.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
+    return label
+
+
+# These tables are read, not operated. Nothing on this tab responds to being
+# clicked, so a click had no business repainting a cell in full accent gold and
+# bolding its column header -- which is what it did, and it dominated the tab:
+# one solid gold block on an otherwise even grid, marking a cell the reader
+# happened to touch on the way past. The styling below turns selection and
+# focus off outright and states every colour, rather than inheriting a palette
+# built for editable widgets.
+#
+# Contrast is set deliberately: figures brightest, because they are the
+# content; row and column headers a step down, because they are labels the eye
+# should skim; grid lines barely there, because they only need to separate.
+TABLE_STYLE = f"""
+QTableWidget {{
+    background: {PANEL};
+    alternate-background-color: #24262b;
+    gridline-color: {BORDER};
+    color: #e4e4e4;
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+    font-size: 12px;
+}}
+QTableWidget::item {{ padding: 4px 6px; }}
+QTableWidget::item:selected {{ background: transparent; color: #e4e4e4; }}
+QHeaderView::section {{
+    background: {PANEL};
+    color: {MUTED};
+    border: none;
+    border-bottom: 1px solid {BORDER};
+    padding: 5px 6px;
+    font-weight: normal;
+}}
+QHeaderView::section:vertical {{
+    border-bottom: none;
+    border-right: 1px solid {BORDER};
+    padding-left: 2px;
+}}
+QTableCornerButton::section {{ background: {PANEL}; border: none; }}
+"""
+
+
+def _fit(table: QTableWidget) -> QTableWidget:
+    """Size a table to its contents, with no dead strip under the last row.
+
+    Rows must be measured after they have been told to size themselves.
+    Reading rowHeight() before that returns the default, which is what clipped
+    the last row of the rating table clean off and let the table below it
+    overlap what was left.
+    """
+    table.setEditTriggers(QTableWidget.NoEditTriggers)
+    table.setSelectionMode(QAbstractItemView.NoSelection)
+    table.setFocusPolicy(Qt.NoFocus)
+    table.setAlternatingRowColors(True)
+    table.setShowGrid(True)
+    table.setStyleSheet(TABLE_STYLE)
+    table.horizontalHeader().setHighlightSections(False)
+    table.verticalHeader().setHighlightSections(False)
+    table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+    table.resizeRowsToContents()
+    height = table.horizontalHeader().height() + 2 * table.frameWidth() + 2
+    for row in range(table.rowCount()):
+        height += table.rowHeight(row)
+    table.setFixedHeight(height)
+    return table
+
+
+def _cell(text: str, tone: str = "") -> QTableWidgetItem:
+    item = QTableWidgetItem(text)
+    item.setTextAlignment(Qt.AlignCenter)
+    return item
+
+
 class DeepTab(QWidget):
+    HEADER_WIDTH = 190
+
     def __init__(self, data: dict):
         super().__init__()
         self.deep = data.get("deep_of_night") or {}
@@ -86,123 +180,67 @@ class DeepTab(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
+        layout.setSpacing(14)
 
         layout.addWidget(self._build_rewards())
-        layout.addWidget(self._build_rating())
         layout.addWidget(self._build_scaling())
-        layout.addWidget(self._build_unidentified())
+        layout.addWidget(self._build_rating())
+        layout.addWidget(self._build_odds())
         layout.addStretch(1)
 
-
-    # -- rewards ---------------------------------------------------------
-    def _build_rewards(self) -> QWidget:
+    def _section(self, title: str) -> tuple[QWidget, QVBoxLayout]:
         panel = QWidget()
         box = QVBoxLayout(panel)
         box.setContentsMargins(0, 0, 0, 0)
         box.setSpacing(5)
-        box.addWidget(_heading("REWARDS BY DEPTH"))
+        box.addWidget(_heading(title))
+        return panel, box
+
+    def _table(self, rows: list[str]) -> QTableWidget:
+        table = QTableWidget(len(rows), len(self.depth_names))
+        table.setHorizontalHeaderLabels(self.depth_names)
+        table.setVerticalHeaderLabels(rows)
+        table.verticalHeader().setFixedWidth(self.HEADER_WIDTH)
+        return table
+
+    # -- what each depth is worth ------------------------------------------
+    def _build_rewards(self) -> QWidget:
+        panel, box = self._section("WHAT EACH DEPTH IS WORTH")
+
+        sigil = self.deep.get("sigil_name") or "Sovereign Sigils"
+        # The rating band belongs in this table rather than in a list of its
+        # own underneath it. It is the entry price for the column it sits in,
+        # and reading it against the reward is the whole question.
+        bands = self._rating_bands()
+        table = self._table(["Rating needed", "Reward multiplier", sigil])
 
         rewards = self.deep.get("rewards", [])
-        table = QTableWidget(2, len(self.depth_names))
-        table.setHorizontalHeaderLabels(self.depth_names)
-        # The second row is deliberately not called "Points". Nothing in the
-        # files names it, and it is far too small to be the depth rating.
-        sigil = self.deep.get("sigil_name") or "Sovereign Sigils"
-        table.setVerticalHeaderLabels(["Reward multiplier", sigil])
-        table.setEditTriggers(QTableWidget.NoEditTriggers)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        table.verticalHeader().setFixedWidth(150)
-
-        for column, reward in enumerate(rewards[: len(self.depth_names)]):
+        for column in range(len(self.depth_names)):
+            table.setItem(0, column, _cell(bands.get(column + 1, "-")))
+            reward = rewards[column] if column < len(rewards) else None
             if reward is None:
                 continue
-            multiplier = QTableWidgetItem(f"x{reward['multiplier']:g}")
-            sigils = QTableWidgetItem(str(reward["sigils"]))
-            table.setItem(0, column, multiplier)
-            table.setItem(1, column, sigils)
-        # Sized to its two rows. A fixed height left a blank strip under the
-        # last row that read like a third, empty category.
-        table.setFixedHeight(table.horizontalHeader().height()
-                             + table.rowHeight(0) + table.rowHeight(1)
-                             + 2 * table.frameWidth() + 2)
-        box.addWidget(table)
-        rating = self.deep.get("rating_text")
-        if rating:
-            box.addSpacing(6)
-            box.addWidget(_heading("WHAT DEPTH MEANS"))
-            # The game's own tutorial, verbatim -- this is where the rating
-            # bands behind each Depth are actually stated.
-            body = QLabel(self._depth_bands(rating))
-            body.setWordWrap(True)
-            body.setStyleSheet("color: #d8d8d8; font-size: 11px;")
-            box.addWidget(body)
-        return panel
+            table.setItem(1, column, _cell(f"x{reward['multiplier']:g}"))
+            table.setItem(2, column, _cell(str(reward["sigils"])))
+        box.addWidget(_fit(table))
 
-    @staticmethod
-    def _depth_bands(rating: str) -> str:
-        """Just the rating bands, without the tutorial's framing prose.
-
-        The game's text opens by restating what a rating is and closes on
-        matchmaking, neither of which is a number a player needs here.
-        """
-        blocks = [b.strip() for b in rating.splitlines() if b.strip()]
-        return "\n".join(b for b in blocks
-                         if "Rating" in b or "Depths in total" in b)
-
-
-    # -- rating per expedition --------------------------------------------
-    def _build_rating(self) -> QWidget:
-        panel = QWidget()
-        box = QVBoxLayout(panel)
-        box.setContentsMargins(0, 0, 0, 0)
-        box.setSpacing(5)
-        box.addWidget(_heading("RATING PER EXPEDITION"))
-
-        gains = QTableWidget(len(RATING_BONUSES), 1)
-        gains.setHorizontalHeaderLabels(["Rating"])
-        gains.setVerticalHeaderLabels([n for n, _v, _s in RATING_BONUSES])
-        gains.setEditTriggers(QTableWidget.NoEditTriggers)
-        gains.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        gains.verticalHeader().setFixedWidth(180)
-        for row, (_name, value, source) in enumerate(RATING_BONUSES):
-            item = QTableWidgetItem(f"+{value}    ({source})")
-            gains.setItem(row, 0, item)
-        gains.setFixedHeight(gains.horizontalHeader().height()
-                             + sum(gains.rowHeight(r)
-                                   for r in range(len(RATING_BONUSES)))
-                             + 2 * gains.frameWidth() + 2)
-        box.addWidget(gains)
-
-        labels = ["Lost to the Nightlord", "Lost on day 2", "Lost on day 1"]
-        losses = QTableWidget(len(labels), len(self.depth_names))
-        losses.setHorizontalHeaderLabels(self.depth_names)
-        losses.setVerticalHeaderLabels(labels)
-        losses.setEditTriggers(QTableWidget.NoEditTriggers)
-        losses.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        losses.verticalHeader().setFixedWidth(180)
-        for col, _name in enumerate(self.depth_names):
-            values = RATING_LOSSES.get(col + 1)
-            for row in range(len(labels)):
-                text = "?" if values is None else f"{values[row]:+d}"
-                item = QTableWidgetItem(text.replace("+0", "0"))
-                item.setTextAlignment(Qt.AlignCenter)
-                losses.setItem(row, col, item)
-        losses.setFixedHeight(losses.horizontalHeader().height()
-                              + sum(losses.rowHeight(r)
-                                    for r in range(len(labels)))
-                              + 2 * losses.frameWidth() + 2)
-        box.addWidget(losses)
-
+        # Kept from the game's own tutorial because it changes how you play:
+        # it says when a loss cannot cost you the Depth you have reached.
         box.addWidget(_note(
-            "Unlike everything else on this tab, these figures are not read "
-            "from the game files -- no param holds them. The win and unknown-"
-            "Nightlord values are confirmed in game; the map bonus and the "
-            "loss table are community-reported; Depth 1 costing nothing is "
-            "confirmed in game. Bonuses add together: a Depth 3 win against "
-            "an unknown Nightlord on an obstructed map is 200 + 100 + 100."
+            "Once you reach Depth 2 you cannot drop back to Depth 1, and at "
+            "Depth 3 your Depth is held for several expeditions before it can "
+            "fall."
         ))
         return panel
+
+    def _rating_bands(self) -> dict[int, str]:
+        """Depth -> the rating band that puts you in it, from the game's text."""
+        out: dict[int, str] = {}
+        for line in (self.deep.get("rating_text") or "").splitlines():
+            match = re.search(r"Depth\s*(\d+)\s*:\s*Rating\s*(\S+)", line)
+            if match:
+                out[int(match.group(1))] = match.group(2)
+        return out
 
     # -- enemy scaling ---------------------------------------------------
     # What a player actually wants to know: how much tougher do enemies get,
@@ -247,22 +285,11 @@ class DeepTab(QWidget):
         return out
 
     def _build_scaling(self) -> QWidget:
-        panel = QWidget()
-        box = QVBoxLayout(panel)
-        box.setContentsMargins(0, 0, 0, 0)
-        box.setSpacing(5)
-        box.addWidget(_heading("HOW MUCH TOUGHER ENEMIES GET"))
+        panel, box = self._section("HOW MUCH TOUGHER ENEMIES GET")
 
         summary = self._summary()
-        self.scaling_table = QTableWidget(len(self.SUMMARY_ROWS),
-                                          len(self.depth_names))
-        self.scaling_table.setHorizontalHeaderLabels(self.depth_names)
-        self.scaling_table.setVerticalHeaderLabels(
+        self.scaling_table = self._table(
             [label for label, _f in self.SUMMARY_ROWS])
-        self.scaling_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.scaling_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch)
-        self.scaling_table.verticalHeader().setFixedWidth(180)
 
         for row, (_label, field) in enumerate(self.SUMMARY_ROWS):
             for col in range(len(self.depth_names)):
@@ -275,93 +302,73 @@ class DeepTab(QWidget):
                     text = f"x{typical:.2f}"
                     if high - low > 0.005:
                         text += f"\n{low:.2f} to {high:.2f}"
-                item = QTableWidgetItem(text)
-                item.setTextAlignment(Qt.AlignCenter)
-                self.scaling_table.setItem(row, col, item)
-        self.scaling_table.resizeRowsToContents()
-        height = (self.scaling_table.horizontalHeader().height()
-                  + 2 * self.scaling_table.frameWidth() + 2)
-        for row in range(len(self.SUMMARY_ROWS)):
-            height += self.scaling_table.rowHeight(row)
-        self.scaling_table.setFixedHeight(height)
-        box.addWidget(self.scaling_table)
+                self.scaling_table.setItem(row, col, _cell(text))
+        box.addWidget(_fit(self.scaling_table))
 
-        box.addWidget(_note(self._scaling_headline()))
+        box.addWidget(_note(
+            "The big figure is typical; the range under it is the spread from "
+            "the weakest enemy group to the toughest."
+        ))
         return panel
 
-    def _scaling_headline(self) -> str:
-        """The one sentence worth taking away, plus what the figures are not."""
-        summary = self._summary()
-        if not summary:
-            return ""
-        lines: list[str] = []
-        lines.append(
-            "The top figure is the typical multiplier; the range below it is "
-            "the spread across enemy groups. The game files sort enemies into "
-            "89 groups but never record which creature is in which, so a "
-            "single exact number per depth is not derivable -- the spread is "
-            "shown instead of inventing one."
-        )
-        return "\n".join(lines)
+    # -- rating per expedition --------------------------------------------
+    def _build_rating(self) -> QWidget:
+        panel, box = self._section("WHAT MOVES YOUR RATING")
 
-    # -- the part that is not solved --------------------------------------
+        # One table, not two. Winning and losing are the same question asked
+        # in two directions, and splitting them meant the gains table did not
+        # vary by depth yet still carried a full set of depth columns.
+        rows = ["Win", "Lost to the Nightlord", "Lost on day 2", "Lost on day 1"]
+        table = self._table(rows)
+        for col in range(len(self.depth_names)):
+            table.setItem(0, col, _cell(f"+{WIN_RATING}"))
+            losses = RATING_LOSSES.get(col + 1)
+            for row in range(3):
+                text = "?" if losses is None else f"{losses[row]:+d}"
+                table.setItem(row + 1, col, _cell(text.replace("+0", "0")))
+        box.addWidget(_fit(table))
 
-    # -- an open question --------------------------------------------------
-    def _build_unidentified(self) -> QWidget:
-        panel = QFrame()
-        panel.setObjectName("unid")
-        panel.setStyleSheet(
-            f"#unid {{ background: {PANEL}; border: 1px solid {BORDER};"
-            f" border-radius: 6px; }}"
-            " #unid QLabel { background: transparent; border: none; }"
-        )
-        box = QVBoxLayout(panel)
-        box.setContentsMargins(10, 8, 10, 8)
-        box.setSpacing(3)
-
-        title = QLabel("CATACLYSMS AND CONCEALMENT")
-        title.setStyleSheet(
-            f"color: {MUTED}; font-size: 11px; font-weight: bold;"
-            " letter-spacing: 1px;"
-        )
-        box.addWidget(title)
-
-        control = self.deep.get("control_raw", [])
-        two, three = [], []
-        for row in control:
-            data = row.get("bytes", [])
-            if len(data) > 7:
-                two.append(f"depth {row['id']}: {data[6]}% / {data[7]}%")
-                three.append(f"depth {row['id']}: {data[2]}/{data[3]}/{data[4]}")
+        bonuses = ", ".join(f"{name} +{value}"
+                           for name, value in RATING_BONUSES)
         box.addWidget(_note(
-            "How often each outcome comes up, by depth. Both sets are shares "
-            "out of 100, read from the game's own depth table."
+            f"On top of a win, and they add up: {bonuses}. So a win against an "
+            f"unknown Nightlord on an obstructed map is "
+            f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."
         ))
-        box.addWidget(_note("Cataclysms -- one / two:    "
-                            + "    ".join(two)))
-        box.addWidget(_note("Concealment -- map / Nightlord / neither "
-                            "(bytes +2/+3/+4):    " + "    ".join(three)))
-        box.addWidget(_note(
-            "The two-way split is the number of cataclysm events on the map -- "
-            "the empowered camps that carry night invaders. It is one or the "
-            "other, never none, which is why the pair always sums to 100: an "
-            "even chance of one or two at Depths 1-2, shifting to almost "
-            "always two by Depth 5. Community-sourced and consistent with "
-            "play; it is not stated anywhere in the files."
+        box.addWidget(_source(
+            "The only figures on this tab not read from the game files — no "
+            "param holds them. The win value and Depth 1 costing nothing are "
+            "confirmed in game; the bonuses and the loss table are "
+            "community-reported."
         ))
+        return panel
+
+    # -- what else changes -------------------------------------------------
+    def _build_odds(self) -> QWidget:
+        panel, box = self._section("WHAT ELSE CHANGES WITH DEPTH")
+
+        rows = ["Two cataclysms", "Map concealed", "Nightlord obscured"]
+        table = self._table(rows)
+        control = {row.get("id"): row.get("bytes", [])
+                   for row in self.deep.get("control_raw", [])}
+        for col in range(len(self.depth_names)):
+            data = control.get(col + 1) or []
+            for row, offset in enumerate((BYTE_TWO_CATACLYSMS,
+                                          BYTE_CONCEALED_MAP,
+                                          BYTE_OBSCURED_NIGHTLORD)):
+                text = f"{data[offset]}%" if len(data) > offset else "-"
+                table.setItem(row, col, _cell(text))
+        box.addWidget(_fit(table))
+
         box.addWidget(_note(
-            "The three-way split is what may be hidden from you. It switches "
-            "on exactly at Depth 3, the same threshold the wiki gives for the "
-            "map being concealed or the Nightlord obscured until the final "
-            "day, and its two active buckets match that pair: 10% concealed "
-            "map, 10% obscured Nightlord, 80% neither. Because it is one roll "
-            "of three, the two never occur in the same run."
+            "Cataclysms are the empowered camps that carry night invaders — "
+            "there are always one or two, so the figure above is the chance of "
+            "the second. Concealment starts at Depth 3, and because it is one "
+            "roll, the map and the Nightlord are never hidden in the same run."
         ))
-        box.addWidget(_note(
-            "Both readings come from matching the shape of the numbers against "
-            "what the game and its players describe. The files state neither. "
-            "Ruled out along the way: neither split carries the Everdark "
-            "chance, which begins at Depth 2, because neither moves between "
-            "Depths 1 and 2."
+        box.addWidget(_source(
+            "Read from the game's depth table; what each share means is "
+            "matched against what the game and its players describe, not "
+            "stated in the files."
         ))
         return panel

@@ -46,6 +46,56 @@ RATE_LABELS = {
     "darkDefenceRate": "Holy Defence",
     "staminaRecoverRate": "Stamina Recovery",
     "defenceStatusRate": "Status Resistance",
+    # Named from the effects that carry them rather than from the field name,
+    # which is how the rest of this table was built and the only way to get
+    # them right. Each of these reached the panel as its own raw field name --
+    # "toughnessDamageCutRate -5.0%" is what a player saw for Poise +1.
+    #
+    #   artsConsumptionRate       "Reduced Skill FP Cost" 0.75
+    #   magicConsumptionRate      "Reduced Spell FP Cost" 0.75
+    #   miracleConsumptionRate    same effect, same value
+    #   shamanConsumptionRate     same effect, same value
+    #   goodsConsumptionRate      "Reduced FP Consumption" 0.92
+    #   extendLifeRate            "Extended Spell Duration" 1.30
+    #   staminaAttackRate         "Improved Guard Breaking" 1.50
+    #   toughnessDamageCutRate    "Improved Poise" 0.75, "Poise +1" 0.95
+    #   characterSkillAttackRate  "[Duchess] Improved Character Skill Attack"
+    #
+    # The three spell-cost fields are separate because the game separates
+    # sorceries, incantations and the Nightreign third school, but every relic
+    # that touches one touches all three at the same value, so they are given
+    # one name and collapse into a single line rather than three identical ones.
+    "artsConsumptionRate": "Skill FP cost",
+    "magicConsumptionRate": "Spell FP cost",
+    "miracleConsumptionRate": "Spell FP cost",
+    "shamanConsumptionRate": "Spell FP cost",
+    "goodsConsumptionRate": "Item use cost",
+    "extendLifeRate": "Spell duration",
+    "staminaAttackRate": "Stamina damage you deal",
+    # Stance damage *taken*, so below 1.0 is good -- the same convention as the
+    # damage-cut family below. This is what Poise relics move.
+    "toughnessDamageCutRate": "Stance damage taken",
+    "characterSkillAttackRate": "Character Skill attack power",
+    # The remaining four that reached the panel raw. All are real quantities,
+    # unlike the engine references above, so all they ever needed was a name.
+    #   accumuOverVal           "FP Restoration upon Successive Attacks" 32
+    #   changeHpRate / changeMpRate   additive despite the name -- see the
+    #                           field_baselines note; 0.0 is neutral, not 1.0
+    #   bowDistRate             "Projectile Damage Drop-Off Reduced" 50
+    #   guardCounterAttackRate  "Guard counter is given a boost ..." 5.0
+    # The ailment damage family, neutral 100. The game's own caption on the
+    # effect that carries them says what they are: "Increases damage taken
+    # from ailments". All four move together at one value, so they are given
+    # one name and collapse to a single line.
+    "bloodDamageRate": "Ailment damage taken",
+    "freezeDamageRate": "Ailment damage taken",
+    "madnessDamageRate": "Ailment damage taken",
+    "sleepDamageRate": "Ailment damage taken",
+    "accumuOverVal": "Hits needed to trigger",
+    "changeHpRate": "HP change",
+    "changeMpRate": "FP change",
+    "bowDistRate": "Projectile drop-off distance",
+    "guardCounterAttackRate": "Guard counter attack power",
     # Damage *taken*, not dealt. These are multipliers on incoming damage, so
     # 0.84 means 16% less damage reaches you. Naming them "... damage taken"
     # keeps the sign honest: -16% is unambiguously good, +45% unambiguously
@@ -77,6 +127,14 @@ INVERTED_RATES = {
     "thunderDamageCutRate", "darkDamageCutRate",
     "magicConsumptionRate", "consumeStaminaRate", "spConsumptionRate",
     "characterSkillCooldownReduction",
+    # The rest of the cost family, which was only half here: a relic cutting
+    # skill or item cost was being coloured as though the reduction were a
+    # loss. Stance damage taken and the ailment damage family belong for the
+    # same reason -- they are damage arriving at you, so less is the good news.
+    "artsConsumptionRate", "miracleConsumptionRate", "shamanConsumptionRate",
+    "goodsConsumptionRate", "toughnessDamageCutRate",
+    "bloodDamageRate", "freezeDamageRate", "madnessDamageRate",
+    "sleepDamageRate",
 }
 
 
@@ -162,6 +220,22 @@ PERCENT_FIELDS: set[str] = set()
 # field's neutral is 0.0 and the value is a straight gain.
 FRACTION_PERCENT_FIELDS = {"itemDropRate"}
 
+# A third way of stating a percentage, after "1.0 is neutral" and "0.0 is
+# neutral": neutral is 100, and the value is a percentage *of* normal. 125
+# means 25% more, not 125 of something.
+#
+# Exactly four fields sit at that baseline and all four are the ailment damage
+# family, carried by the two tiers of "Ailments Cause Increased Damage" at 125
+# and 135. Nothing else in the data comes near it, so this is a small closed
+# set rather than a rule waiting to misfire. Filled by configure().
+#
+# Until now these were dropped on the floor: not a multiplier, not additive,
+# not a sentinel, so no branch claimed them and the effect showed no numbers
+# at all -- a debuff that reads "Increases damage taken from ailments" and then
+# moved nothing on the sheet.
+PERCENT_OF_100_BASELINE = 100.0
+PERCENT_OF_100_FIELDS: set[str] = set()
+
 
 def percent_value(field_name: str, value: float) -> float:
     """The value of an additive percentage field, as a percentage."""
@@ -177,10 +251,13 @@ def configure(data: dict) -> None:
     """Teach the module which fields multiply and which add, from the data."""
     FIELD_BASELINE.clear()
     PERCENT_FIELDS.clear()
+    PERCENT_OF_100_FIELDS.clear()
     for name, value in (data.get("field_baselines") or {}).items():
         FIELD_BASELINE[name] = float(value)
         if abs(float(value)) < 1e-9 and name.endswith("Rate"):
             PERCENT_FIELDS.add(name)
+        elif abs(float(value) - PERCENT_OF_100_BASELINE) < 1e-9:
+            PERCENT_OF_100_FIELDS.add(name)
     RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
 
 
@@ -190,6 +267,35 @@ def is_multiplier(field_name: str) -> bool:
     if baseline is None:
         return field_name.endswith("Rate") or field_name in EXTRA_MULTIPLIERS
     return abs(baseline - 1.0) < 1e-9
+
+
+# Fields the shipped Elden Ring paramdef names wrongly for Nightreign. The
+# name is all the def gives, and where the values plainly are not the thing the
+# name describes, showing them is worse than showing nothing: a number on the
+# sheet is a claim about the game.
+#
+# soulStealRate, at offset 280, is the one found so far. Its values are 20008,
+# 20406, 20493 and sixteen more in that band -- and 18 of its 19 distinct
+# values also occur as iconId on other rows. It is an icon reference, not a
+# rate. Left alone it reached the panel as "soulStealRate 20493", which is not
+# a wrong label on a real number but a real label on an engine pointer.
+MISNAMED_FIELDS = {"soulStealRate"}
+
+# Fields whose value is a pointer into another table, or a classification code,
+# rather than a quantity. They were reaching the panel as their own raw name
+# with the id beside it -- "cycleOccurrenceSpEffectId 7011001", "saveCategory
+# 10", "vfxId1 1643000" -- which reads as a stat with an absurd value.
+#
+# These are not unlabelled numbers waiting for a label. There is no honest
+# label, because there is no quantity: 7011001 is the row that fires, not an
+# amount of anything. What the effect actually does with them is already said
+# in words under Conditional & situational, via GATE_FIELDS.
+ENGINE_FIELDS = {
+    "cycleOccurrenceSpEffectId", "atkOccurrenceSpEffectId",
+    "accumuOverFireId", "replaceSpEffectId", "startSwordArtsId",
+    "startGoodsId", "behaviorId", "dmypolyId", "vfxId", "vfxId1",
+    "spEffectTextId_1", "saveCategory",
+}
 
 
 def is_sentinel(field_name: str) -> bool:
@@ -218,6 +324,30 @@ CONDITIONAL_FIELDS = {
     "enemyStateInfoTrigger",
     "triggerOnWepType", "wepTypeTrigger", "wepTypeTriggerCount",
 }
+
+# A payload row that carries a positive effectEndurance is a timed window, not
+# a passive: the number applies for that many seconds once something sets the
+# buff off, and for none of the rest of the expedition.
+#
+# "[Guardian] Character Skill Boosts Damage Negation of Nearby Allies" is the
+# case that showed it. Its numbers live on payload row 7500101 -- eight damage
+# cut rates at 0.82 with effectEndurance 30 -- and nothing on the effect itself
+# says "only while the skill is up", so an 18% damage reduction was being
+# folded into the flat totals permanently for an aura that lasts half a minute
+# and only covers allies standing near you.
+#
+# The rule is bounded rather than broad: exactly 20 effects carry a positive
+# effectEndurance, and all 20 read as timed windows -- the Character Skill
+# auras, "Power of the Blood Lord", "Power of Dark Moon", the Duchess's 0.4 s
+# invulnerability. None of them is on by default, so all of them belong under
+# Conditional & situational with a switch, which is where this puts them.
+DURATION_FIELD = "effectEndurance"
+
+
+def timed_window(effect: dict) -> float:
+    """Seconds this effect lasts once triggered, or 0 if it is not timed."""
+    value = (effect.get("modifiers") or {}).get(DURATION_FIELD)
+    return float(value) if isinstance(value, (int, float)) and value > 0 else 0.0
 
 # Gates gated on a *value* rather than on the field merely being present.
 #
@@ -368,7 +498,7 @@ def is_conditional(effect: dict, wep_type: int | None = None) -> bool:
     for field_name, gating in CONDITIONAL_FIELD_VALUES.items():
         if mods.get(field_name) in gating:
             return True
-    return False
+    return timed_window(effect) > 0
 
 
 CRIT_FLAG = "throwAttackParamChange"
@@ -409,6 +539,41 @@ RESISTANCES = {
     "Madness": ("changeMadnessResistPoint", "registMadnessChangeRate"),
     "Frost": ("changeFreezeResistPoint", "registFreezeChangeRate"),
 }
+
+
+# The stat-swap relics -- "[Guardian] Improved Strength and Dexterity, Reduced
+# Vigor" and the nineteen like them. Their SpEffect rows carry no numbers at
+# all; the deltas are in HeroStatusParam's 300-block and are attached to the
+# effect by the extractor, keyed by the level they were read at. See the
+# "stat-swap relics" section of extract.py for how the blocks were matched and
+# checked.
+SWAP_FIELD = "attribute_swap"
+
+
+def swap_deltas(effect: dict, level: int) -> dict[str, int]:
+    """This effect's attribute changes at `level`, interpolated between anchors.
+
+    The game defines the swap at levels 1 and 12 only. Between them the value
+    is interpolated exactly as the base stats are; above the top anchor it is
+    held, because extrapolating past the last number the game states would be
+    inventing one.
+    """
+    anchors = effect.get(SWAP_FIELD) or {}
+    if not anchors:
+        return {}
+    levels = sorted(int(k) for k in anchors)
+    lo = max([l for l in levels if l <= level], default=levels[0])
+    hi = min([l for l in levels if l >= level], default=levels[-1])
+    low, high = anchors[str(lo)], anchors[str(hi)]
+    span = hi - lo
+    t = 0.0 if span <= 0 else (level - lo) / span
+    out: dict[str, int] = {}
+    for attr in set(low) | set(high):
+        a, b = low.get(attr, 0), high.get(attr, 0)
+        value = round(a + (b - a) * t)
+        if value:
+            out[attr] = int(value)
+    return out
 
 
 def evaluate_curve(curve: dict, x: float) -> float:
@@ -626,6 +791,13 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         def record(key: str, own: float) -> None:
             build.sources.setdefault(key, []).append((label, own))
 
+        # A stat swap moves attributes and nothing else, and its numbers come
+        # from HeroStatusParam rather than from `modifiers`, so it is applied
+        # here rather than in the field loop below.
+        for attr, delta in swap_deltas(eff, level).items():
+            build.attributes[attr] = build.attributes.get(attr, 0) + delta
+            record(attr, delta)
+
         # A weapon-type gate says what makes an effect live, NOT what it then
         # applies to. Holding three Great Hammers switches "Improved Attack
         # Power with 3+ Great Hammers Equipped" on, and it then lifts
@@ -656,6 +828,8 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
 
         for fname, value in mods.items():
             if scoped_out and fname in ELEMENT_ATTACK_RATES:
+                continue
+            if fname in MISNAMED_FIELDS or fname in ENGINE_FIELDS:
                 continue
             if fname in ATTRIBUTE_FIELDS:
                 attr = ATTRIBUTE_FIELDS[fname]
@@ -704,6 +878,14 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             elif fname in PERCENT_FIELDS and isinstance(value, (int, float)):
                 # Neutral is 0, so these add rather than scale.
                 signed = -value if fname in INVERTED_SIGN else value
+                build.other[fname] = build.other.get(fname, 0) + signed
+                record(fname, signed)
+            elif (fname in PERCENT_OF_100_FIELDS
+                    and isinstance(value, (int, float))):
+                # Neutral is 100, so the number worth showing is the distance
+                # from it: 125 is +25%, and a second source of +25% is +50%
+                # rather than 250.
+                signed = value - PERCENT_OF_100_BASELINE
                 build.other[fname] = build.other.get(fname, 0) + signed
                 record(fname, signed)
             elif isinstance(value, (int, float)) and fname in RATE_LABELS:
@@ -782,8 +964,12 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         # regardless of whether it carries numbers.
         gated = is_conditional(eff, wep_type)
 
-        # Did this effect already move a number the sheet displays?
-        numeric = not gated and any(
+        # Did this effect already move a number the sheet displays? A stat swap
+        # carries no modifiers at all -- its numbers ride alongside them -- so
+        # it has to be asked about separately or it would be reported as having
+        # no numeric effect while visibly moving three attributes.
+        numeric = not gated and bool(eff.get(SWAP_FIELD))
+        numeric = numeric or not gated and any(
             f in ATTRIBUTE_FIELDS
             or f in FLAT_BONUSES
             or f in EXTRA_MULTIPLIERS
@@ -801,6 +987,13 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         reasons = [text for field_name, text in GATE_FIELDS.items()
                    if field_name in mods
                    and not satisfied_by_weapon(field_name, mods[field_name], wep_type)]
+        # Said with its own number rather than from GATE_FIELDS: how long the
+        # window lasts is the whole of what makes this one worth switching on.
+        seconds = timed_window(eff)
+        if seconds:
+            reasons.append(
+                f"only for {seconds:g} s once triggered, not all the time"
+            )
         name = effecttext.name(eff)
         if not effecttext.works_for(eff, hero_name):
             who = effecttext.owner(eff) or "another Nightfarer"
@@ -843,6 +1036,34 @@ def label_for(field_name: str) -> str:
     if field_name.startswith(ALL_DAMAGE_PREFIX):
         return "All damage"
     return RATE_LABELS.get(field_name, field_name)
+
+
+def collapse_by_label(values: dict[str, float]) -> dict[str, float]:
+    """Merge fields that share a display name and agree on their number.
+
+    The game splits some single ideas across several fields -- sorceries,
+    incantations and the third school each have their own FP cost; the four
+    ailment damage rates are one debuff. Every relic that touches one touches
+    all of them at the same value, so showing a line each repeats the same
+    figure three or four times over.
+
+    Only merged while they actually agree. If a future relic moves one and not
+    the others, they split back apart and the difference is on screen rather
+    than averaged away or silently dropped.
+    """
+    groups: dict[str, list[str]] = {}
+    for field_name in values:
+        groups.setdefault(label_for(field_name), []).append(field_name)
+
+    out: dict[str, float] = {}
+    for fields in groups.values():
+        distinct = {round(float(values[f]), 6) for f in fields}
+        if len(fields) > 1 and len(distinct) == 1:
+            first = sorted(fields)[0]
+            out[first] = values[first]
+        else:
+            out.update({f: values[f] for f in fields})
+    return out
 
 
 def real_field(field_name: str) -> str:
