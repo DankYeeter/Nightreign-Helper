@@ -250,22 +250,25 @@ than naming it. Both say so on the page instead of guessing.
 
 ![Deep of Night](docs/screenshots/deep_of_night.png)
 
-What each of the five Depths changes.
+What each of the five Depths changes, in the order the questions get asked.
 
-- **Rewards by depth** — the reward multiplier and the Sovereign Sigil award.
-- **What depth means** — the rating band for each Depth.
-- **Rating per expedition** — what a win, a loss, an unknown Nightlord and an
-  obstructed map are worth. This block is **not** from the game files, and says
-  so on itself: no param holds it. Each line is marked *confirmed in game* or
-  *community-reported*.
+- **What each depth is worth** — the rating band that puts you in it, the reward
+  multiplier and the Sovereign Sigil award, side by side. The band is the entry
+  price for the column it sits in, so it belongs next to what the column pays.
 - **How much tougher enemies get** — HP, attack power, stance damage taken and
-  stamina drain on block, per Depth. The top figure is the typical multiplier and
-  the range below is the spread across enemy groups. The game sorts enemies into
-  89 groups but never records which creature is in which, so the spread is shown
-  rather than a single invented number.
-- **Cataclysms and concealment** — how often each outcome comes up, as shares out
-  of 100 read from the game's own depth table, with the reasoning for each
-  reading written out underneath.
+  stamina drain on block, per Depth. The big figure is typical and the range
+  under it is the spread from the weakest enemy group to the toughest, because
+  the game sorts enemies into groups without recording which creature is in
+  which.
+- **What moves your rating** — a win, and what each kind of loss costs, per
+  Depth. This block is **not** from the game files and says so on itself: no
+  param holds it. The win value and Depth 1 costing nothing are confirmed in
+  game; the bonuses and the loss table are community-reported.
+- **What else changes with depth** — the chance of a second cataclysm, and of
+  the map or the Nightlord being hidden from you. Read from the game's own depth
+  table.
+
+The tables are read, not operated, so nothing on this tab responds to a click.
 
 ---
 
