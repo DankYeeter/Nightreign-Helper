@@ -118,7 +118,7 @@ class WorldEventsTab(QWidget):
                 if entry.get("is_dlc"):
                     label = f"{label}  · Deep of Night"
             else:
-                label = f"{entry['name']}  · no banner"
+                label = entry["name"]
             item = QListWidgetItem(label)
             if kind == "unannounced":
                 item.setForeground(_colour(COMMUNITY))
@@ -205,7 +205,11 @@ class WorldEventsTab(QWidget):
         if buff:
             column.addWidget(_stat(f"{buff['name']} — {buff['info']}"))
             figures = list(buff["lines"])
-            figures += [f"{line} each time it triggers"
+            cap = buff.get("stacks_to")
+            per_trigger_suffix = (
+                f" each time it triggers, up to +{cap} stacks" if cap
+                else " each time it triggers")
+            figures += [line + per_trigger_suffix
                         for line in buff["per_trigger"]]
             for part in buff["parts"]:
                 if part["lines"]:
@@ -289,8 +293,7 @@ class WorldEventsTab(QWidget):
             f"color: {COMMUNITY}; font-size: 15px; font-weight: bold;")
         column.addWidget(title)
         column.addWidget(_note(
-            "The game never puts a banner on screen for this one; "
-            "everything below is community-reported."
+            "Everything on this one is community-reported."
         ))
         if entry.get("what"):
             column.addWidget(_heading("WHAT HAPPENS"))
