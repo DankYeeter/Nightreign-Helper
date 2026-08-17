@@ -38,7 +38,7 @@ SHOTS = [
     ("Weapons && spells", "weapons.png"),
     ("Nightlords", "nightlords.png"),
     ("Deep of Night", "deep_of_night.png"),
-    ("Depth weighting", "depth_weighting.png"),
+    ("Red variants", "depth_weighting.png"),
     ("World Events", "world_events.png"),
 ]
 

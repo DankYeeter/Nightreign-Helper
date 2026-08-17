@@ -62,14 +62,16 @@ RATING_LOSSES = {
     5: (-600, -700, -800),
 }
 
-# Byte offsets in the depth-control row. The two-way split is how many
-# cataclysm events the map carries; the three-way split is what may be hidden
-# from you. Both are shares out of 100. See HANDOVER for how they were read --
-# the offsets are the tab's business, not the player's, so they no longer
-# appear on it.
-BYTE_TWO_CATACLYSMS = 7
-BYTE_CONCEALED_MAP = 2
-BYTE_OBSCURED_NIGHTLORD = 3
+# The depth-control figures, by the game's own field names. This table was
+# read byte by byte until 2026-08-16, when a real paramdef turned up and
+# confirmed every column -- see nrdata.extract for the whole story.
+CONTROL_ROWS = (
+    ("Two cataclysms", "cataclysms_2"),
+    ("Map concealed", "conceal_map"),
+    ("Nightlord obscured", "conceal_nightlord"),
+    ("Cursed relic — Uncommon", "cursed_uncommon"),
+    ("Cursed relic — Rare", "cursed_rare"),
+)
 
 
 def _heading(text: str) -> QLabel:
@@ -212,9 +214,16 @@ class DeepTab(QWidget):
         # own underneath it. It is the entry price for the column it sits in,
         # and reading it against the reward is the whole question.
         bands = self._rating_bands()
-        table = self._table(["Rating needed", "Reward multiplier", sigil])
-
         rewards = self.deep.get("rewards", [])
+        # The relic tier each depth can hand out. Named rather than listed in
+        # full: every tier comes in the same four colours, so the tier is the
+        # information and repeating the colours is not.
+        tiers = [self._relic_tiers(r) for r in rewards]
+        rows = ["Rating needed", "Reward multiplier", sigil]
+        if any(tiers):
+            rows.append("Relic tier")
+        table = self._table(rows)
+
         for column in range(len(self.depth_names)):
             table.setItem(0, column, _cell(bands.get(column + 1, "-")))
             reward = rewards[column] if column < len(rewards) else None
@@ -222,6 +231,8 @@ class DeepTab(QWidget):
                 continue
             table.setItem(1, column, _cell(f"x{reward['multiplier']:g}"))
             table.setItem(2, column, _cell(str(reward["sigils"])))
+            if len(rows) > 3:
+                table.setItem(3, column, _cell(tiers[column] or "-"))
         box.addWidget(_fit(table))
 
         # Kept from the game's own tutorial because it changes how you play:
@@ -231,7 +242,43 @@ class DeepTab(QWidget):
             "Depth 3 your Depth is held for several expeditions before it can "
             "fall."
         ))
+        if any(tiers):
+            box.addWidget(_note(
+                "Relic tiers run Delicate, Polished, then Grand, and every "
+                "tier comes in all four colours. The reward lots drop the "
+                "lower tiers as the Depth rises — by Depth 4 only Grand "
+                "relics are on the table. A “Deep” relic is one that works "
+                "only in the Deep of Night."
+            ))
+            box.addWidget(_source(
+                "Read from the depth reward table's own item lots, through "
+                "the map lot table to the relic list."
+            ))
         return panel
+
+    @staticmethod
+    def _relic_tiers(reward: dict | None) -> str:
+        """The tier words a depth's reward relics carry, weakest tier first.
+
+        The extracted names are whole relic names -- "Grand Burning Scene" --
+        and the leading word is the tier. Reading the tier off the name is
+        safe because all four colours share one naming scheme; a name that
+        starts with no known tier is carried whole rather than dropped.
+        """
+        if not reward:
+            return ""
+        order = ["Delicate", "Polished", "Grand"]
+        found: list[str] = []
+        for name in reward.get("items", []):
+            deep = name.startswith("Deep ")
+            bare = name[len("Deep "):] if deep else name
+            tier = next((t for t in order if bare.startswith(t)), None)
+            label = f"Deep {tier}" if (tier and deep) else (tier or name)
+            if label not in found:
+                found.append(label)
+        found.sort(key=lambda t: (order.index(t.split()[-1])
+                                 if t.split()[-1] in order else len(order), t))
+        return ", ".join(found)
 
     def _rating_bands(self) -> dict[int, str]:
         """Depth -> the rating band that puts you in it, from the game's text."""
@@ -347,28 +394,26 @@ class DeepTab(QWidget):
     def _build_odds(self) -> QWidget:
         panel, box = self._section("WHAT ELSE CHANGES WITH DEPTH")
 
-        rows = ["Two cataclysms", "Map concealed", "Nightlord obscured"]
-        table = self._table(rows)
-        control = {row.get("id"): row.get("bytes", [])
-                   for row in self.deep.get("control_raw", [])}
+        table = self._table([label for label, _key in CONTROL_ROWS])
+        control = {row.get("depth"): row
+                   for row in self.deep.get("depth_control", [])}
         for col in range(len(self.depth_names)):
-            data = control.get(col + 1) or []
-            for row, offset in enumerate((BYTE_TWO_CATACLYSMS,
-                                          BYTE_CONCEALED_MAP,
-                                          BYTE_OBSCURED_NIGHTLORD)):
-                text = f"{data[offset]}%" if len(data) > offset else "-"
+            data = control.get(col + 1) or {}
+            for row, (_label, key) in enumerate(CONTROL_ROWS):
+                value = data.get(key)
+                text = f"{value}%" if value is not None else "-"
                 table.setItem(row, col, _cell(text))
         box.addWidget(_fit(table))
 
         box.addWidget(_note(
             "Cataclysms are the empowered camps that carry night invaders — "
-            "there are always one or two, so the figure above is the chance of "
+            "the game never places zero, so the figure above is the chance of "
             "the second. Concealment starts at Depth 3, and because it is one "
-            "roll, the map and the Nightlord are never hidden in the same run."
+            "roll of three, the map and the Nightlord are never hidden in the "
+            "same run. The cursed-relic rates do not move with depth."
         ))
         box.addWidget(_source(
-            "Read from the game's depth table; what each share means is "
-            "matched against what the game and its players describe, not "
-            "stated in the files."
+            "Read from the game's depth table, and named by its own fields — "
+            "cataclysmWeight, mapChallengeWeight, cursedRareRate."
         ))
         return panel

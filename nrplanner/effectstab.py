@@ -332,6 +332,12 @@ class EffectsTab(QWidget):
                 # does -- the two cells the eye actually lands on.
                 if c in (0, COL_TYPE, len(values) - 1):
                     item.setForeground(CURSE_COLOUR if is_bad else BUFF_COLOUR)
+                # Where the game itself files this effect in its own UI
+                # filters. Only 568 of the effects carry one, so the tooltip
+                # appears where there is something to say and not otherwise.
+                if c == 0 and eff.get("game_category"):
+                    item.setToolTip(
+                        "The game files this under: " + eff["game_category"])
                 if c == COL_STACKS:
                     # Red is for the classes that cost you something: a second
                     # copy of these is wasted, which is the one case where the

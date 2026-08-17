@@ -27,10 +27,15 @@ A `confirmed` key holds something a player watched happen in a run. It is a
 third class of evidence, above the wikis and below a param read, and the tab
 gives it its own colour so it is never mistaken for either.
 
-Sources, all fetched 2026-08-09:
+Sources, fetched 2026-08-09 unless dated otherwise:
   fextralife   https://eldenringnightreign.wiki.fextralife.com/Events
+               (re-fetched 2026-08-15 for the DLC events)
   eldenpedia   https://eldenring.wiki.gg/wiki/Nightreign:Special_Events
   game8        https://game8.co/games/Elden-Ring-Nightreign/archives/526257
+  thefifthmatt https://thefifthmatt.github.io/nightreign/ and its per-pattern
+               sheet, fetched 2026-08-15 -- the dump whose pattern numbers
+               align 1:1 with LotResultMapPatternFlag.patternId and split
+               modifier 140 (Frenzy Tower) from 230 (Sorcerer's Rise)
 
 Where they disagree, the disagreement is recorded rather than resolved
 silently -- except where this project's own extracted text settles it, which
@@ -210,8 +215,17 @@ LORE: dict[int, dict] = {
         ),
         "reward": "The Beast's Hunt buff, and the Scorching debuff is removed.",
         "penalty": "Continuous HP drain from Scorching until the areas are cleared.",
-        "nightlords": ["Gladius"],
-        "sources": ["fextralife"],
+        # The beasts are Gladius's own split form, which is why the files
+        # never draw this event on a Gladius expedition. An earlier entry
+        # here read "Gladius" as the gating; it was the subject, not the
+        # host.
+        "nightlords": [],
+        "note": (
+            "Reported to trigger at exactly five minutes into Day 1, and "
+            "only in Deep of Night on the base Nightlords -- the DLC-added "
+            "pattern block the extracted lines point at."
+        ),
+        "sources": ["fextralife", "thefifthmatt"],
     },
     110050: {
         "buff_id": 8970060,
@@ -222,8 +236,12 @@ LORE: dict[int, dict] = {
         ),
         "reward": "All flask charges restored, plus the Power to Balance the World buff.",
         "penalty": "Half your flask charges for as long as the event runs.",
-        "nightlords": ["Any"],
-        "sources": ["fextralife"],
+        "nightlords": [],
+        "note": (
+            "Reported to trigger at exactly five minutes into Day 1, and "
+            "only in Deep of Night on the base Nightlords."
+        ),
+        "sources": ["fextralife", "thefifthmatt"],
     },
     110200: {
         "buff_id": 8970040,
@@ -234,7 +252,13 @@ LORE: dict[int, dict] = {
         "reward": "The Cold Mirage effect -- concealment near death, neutralising attacks.",
         "penalty": "None reported.",
         "nightlords": [],
-        "sources": ["fextralife"],
+        "note": (
+            "The dragon is reported as Caligo's own form, which fits the "
+            "files never drawing this event on a Caligo expedition. Reported "
+            "to trigger at exactly five minutes into Day 1, and only in Deep "
+            "of Night on the base Nightlords."
+        ),
+        "sources": ["fextralife", "thefifthmatt"],
     },
 }
 
@@ -254,7 +278,25 @@ UNANNOUNCED: list[dict] = [
         "reward": "Duplicates one armament you already hold, up to Legendary.",
         "penalty": "None.",
         "nightlords": ["Maris", "Caligo"],
+        "note": (
+            "The files go one further: pattern modifier 210 draws for Maris, "
+            "Caligo and Harmonia, and for nobody else."
+        ),
         "sources": ["fextralife", "eldenpedia", "game8"],
+    },
+    {
+        "name": "Difficult Sorcerer's Rise",
+        "what": (
+            "A Sorcerer's Rise with a harder puzzle variant. No banner, no "
+            "fight -- a map feature some patterns carry, catalogued in "
+            "thefifthmatt's per-pattern dump. It is pattern modifier 230, "
+            "the row this project had wrongly matched to the Flame of "
+            "Frenzy through 1.2.0."
+        ),
+        "reward": "Whatever the Rise holds; nothing beyond the usual is reported.",
+        "penalty": "None.",
+        "nightlords": ["Gnoster", "Libra", "Harmonia"],
+        "sources": ["thefifthmatt"],
     },
     {
         "name": "Scale-Bearing Merchant",
