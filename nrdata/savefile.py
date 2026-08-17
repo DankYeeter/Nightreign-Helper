@@ -226,34 +226,64 @@ class Loadout:
     offset: int
 
 
-def find_loadout_table(slot_data: bytes) -> tuple[int, int]:
-    """Offset of the 0xff01 marker that begins table A, and how many groups.
+def find_loadout_table(slot_data: bytes) -> tuple[int, int, int]:
+    """Offset of the 0xff01 marker beginning table A, the group count, and
+    the group stride.
 
-    Anchors on a run of markers ascending by one at exactly 120 bytes apart,
-    so a stray 0x0000ff01 elsewhere in the slot cannot be mistaken for the
-    table. The run is counted rather than assumed: see MIN_HEROES.
+    Anchors on a run of markers ascending by one at a constant spacing, so a
+    stray 0x0000ff01 elsewhere in the slot cannot be mistaken for the table.
+    Both the run length and the spacing are measured rather than assumed.
+
+    The spacing was hardcoded at 120 bytes through 1.3.0, and that shipped a
+    second no-builds-at-all failure: 120 is 8 + 4 x 28, four Grail records
+    per Nightfarer, and a save without the DLC carries **three** Grails --
+    92-byte groups -- so the finder never saw a run at 120. The 1.1.1 fix
+    had covered a save with fewer *Nightfarers* and left the group width
+    itself assumed. The stride is now read off the gap between the first two
+    markers, has to be a well-formed group width (8 + k x 28), and how many
+    Grail records a group holds falls out of it.
     """
     limit = len(slot_data)
-    best: tuple[int, int] | None = None
-    for off in range(0, max(limit - LOADOUT_GROUP * MIN_HEROES, 0), 4):
+    best: tuple[int, int, int] | None = None
+    for off in range(0, max(limit - 8, 0), 4):
         if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
             continue
-        count = 0
-        while count < MAX_HEROES:
-            probe = off + count * LOADOUT_GROUP
-            if probe + LOADOUT_GROUP > limit:
+        # Measure the stride: the 0xff02 marker sits one group later, and
+        # only a gap that is a whole number of records past the 8-byte
+        # header can be a group width.
+        for gap in range(8 + LOADOUT_RECORD, 8 + 12 * LOADOUT_RECORD + 1, 4):
+            probe = off + gap
+            if probe + 4 > limit:
                 break
             if (struct.unpack_from("<I", slot_data, probe)[0]
-                    != HERO_MARKER_BASE + 1 + count):
-                break
-            count += 1
-        if count >= MIN_HEROES and (best is None or count > best[1]):
-            best = (off, count)
+                    != HERO_MARKER_BASE + 2):
+                continue
+            if (gap - 8) % LOADOUT_RECORD:
+                continue
+            count = 2
+            while count < MAX_HEROES:
+                nxt = off + count * gap
+                if nxt + gap > limit:
+                    break
+                if (struct.unpack_from("<I", slot_data, nxt)[0]
+                        != HERO_MARKER_BASE + 1 + count):
+                    break
+                count += 1
+            if count >= MIN_HEROES and (best is None or count > best[1]):
+                best = (off, count, gap)
     if best is None:
+        # Say what was actually seen, so the next report from a machine this
+        # code has never met carries the numbers needed to diagnose it.
+        seen = []
+        for n in range(1, MAX_HEROES + 1):
+            marker = struct.pack("<I", HERO_MARKER_BASE + n)
+            hits = slot_data.count(marker)
+            if hits:
+                seen.append(f"ff{n:02x}×{hits}")
         raise ValueError(
             "equipped-loadout table not found in this save slot "
-            f"(no run of {MIN_HEROES}+ Nightfarer markers at {LOADOUT_GROUP}-byte "
-            "spacing)"
+            f"(no run of {MIN_HEROES}+ Nightfarer markers at a constant "
+            f"group spacing; markers present: {', '.join(seen) or 'none'})"
         )
     return best
 
@@ -272,7 +302,10 @@ def read_relic_handles(slot_data: bytes, owned: list[OwnedRelic]) -> dict[int, O
 
 def read_loadouts(slot_data: bytes) -> list[Loadout]:
     """Read every stored loadout, both the Grail and the personal-vessel ones."""
-    base, heroes = find_loadout_table(slot_data)
+    base, heroes, group_stride = find_loadout_table(slot_data)
+    # The group width says how many shared-Grail records each Nightfarer
+    # carries: four with the DLC's Scadutree Grail, three without it.
+    grails = (group_stride - 8) // LOADOUT_RECORD
     out: list[Loadout] = []
 
     def record(off: int, hero: int | None, selected_id: int | None) -> Loadout:
@@ -281,18 +314,18 @@ def read_loadouts(slot_data: bytes) -> list[Loadout]:
         return Loadout(vessel_id, handles, hero, vessel_id == selected_id, off)
 
     for i in range(heroes):
-        group = base + i * LOADOUT_GROUP
+        group = base + i * group_stride
         marker, selected_id = struct.unpack_from("<2I", slot_data, group)
         hero = marker - HERO_MARKER_BASE
-        for k in range(GRAILS_PER_HERO):
+        for k in range(grails):
             out.append(record(group + 8 + k * LOADOUT_RECORD, hero, selected_id))
 
     # Table B carries no hero marker; the vessel's own heroType names its owner,
     # and whether it is selected is settled from that Nightfarer's group header.
     selected_by_hero = {
-        struct.unpack_from("<I", slot_data, base + i * LOADOUT_GROUP)[0]
+        struct.unpack_from("<I", slot_data, base + i * group_stride)[0]
         - HERO_MARKER_BASE: struct.unpack_from(
-            "<I", slot_data, base + i * LOADOUT_GROUP + 4
+            "<I", slot_data, base + i * group_stride + 4
         )[0]
         for i in range(heroes)
     }
@@ -301,7 +334,7 @@ def read_loadouts(slot_data: bytes) -> list[Loadout]:
     # is the very thing that differs between installations, so the walk stops
     # on the first record whose vessel id is not a well-formed one: a vessel is
     # 1000-1006 for Nightfarer 1, 2000-2006 for Nightfarer 2, and so on.
-    flat = base + heroes * LOADOUT_GROUP
+    flat = base + heroes * group_stride
     for k in range(heroes * VESSELS_PER_HERO):
         off = flat + k * LOADOUT_RECORD
         if off + LOADOUT_RECORD > len(slot_data):
