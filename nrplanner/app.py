@@ -1506,7 +1506,8 @@ class Planner(QMainWindow):
                 rating = weapons.rate(slot.weapon, build.attributes,
                                       self.data, slot.tier)
             self.weapon_tiles[index].show_slot(
-                slot, rating, active=index == self.active_weapon)
+                slot, rating, active=index == self.active_weapon,
+                effects=self.data["effects"])
 
         slot = self.active_slot()
         if not slot.filled:

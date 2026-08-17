@@ -142,7 +142,7 @@ game's own per-Nightfarer level tables, not a formula.
 |---|---|
 | **Base stats** | HP, FP and Stamina — your base, the change, and the total. |
 | **Attributes** | All eight, same three-column layout. |
-| **Weapon damage** | Six armament tiles. Double-click one to choose a weapon; the panel below breaks its attack rating down. |
+| **Weapon damage** | Six armament tiles. Double-click one to choose a weapon, its upgrade tier and the effects it rolled; the panel below breaks its attack rating down. |
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
@@ -212,6 +212,23 @@ Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 Attack rating is base damage plus what your stats add to it. **Spell damage is
 not in the game data**, so sorceries and incantations show their costs instead of
 an invented figure.
+
+Every tile carries the weapon's **scaling**, and the infusions of one armament
+sit together so they can be read against each other. Where an infusion moves
+the scaling, the tile says by how much against the uninfused version — a Sacred
+Longsword reads `STR 43 · DEX 43 · FAI 30`, with `vs standard: FAI +30 · STR −7
+· DEX −7`.
+
+### Which armaments can roll effects
+
+Of the 395 distinct armaments, **387 roll effects**. The eight that never do are
+Unarmed and the Nightfarers' own starting armaments.
+
+An **infused** weapon has no pool of its own, because the infusion is the effect
+it rolled. It can still carry **one further buff and one debuff** on top — the
+planner offers it the uninfused version's pool and caps it at one of each, while
+an uninfused weapon takes up to three. Negative rolls come from the same pool as
+everything else and are marked in red, in the picker and on the tile.
 
 ---
 
