@@ -60,7 +60,8 @@ MAX_LEVEL = 15
 #      bytes, and the mutation figures are counts, not weights
 #   6  what each depth rewards (relics, via ItemLotParam_map and the new lot
 #      category 5), and the game's own filter category per effect
-EXTRACT_VERSION = 6
+#   7  stacks_to on the event buffs -- the highest "+N" tier the game names
+EXTRACT_VERSION = 7
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -791,10 +792,30 @@ def _event_buffs(members: dict, defs: dict,
             # Grace applies, and that row is where the +2% actually is.
             "per_trigger": _buff_lines(
                 sp_rows.get(row.values.get("graceSpEffectId"), {})),
+            # How far the game itself counts the stacks. A buff that stacks
+            # ships one named tier per step -- "Traces of Grace-Given Lord
+            # +1" through "+10" -- so the highest "+N" the game names is the
+            # display's own ceiling. Read from the strings, not asserted.
+            "stacks_to": _named_stack_cap(sp_name,
+                                          (name.get(row.id) or "").strip()),
             "parts": parts,
         })
     out.sort(key=lambda b: b["id"])
     return out
+
+
+def _named_stack_cap(sp_name: dict[int, str], buff_name: str) -> int | None:
+    """The highest "+N" tier the game names for this buff, if any."""
+    if not buff_name:
+        return None
+    cap = None
+    prefix = buff_name + " +"
+    for label in sp_name.values():
+        if label and label.startswith(prefix):
+            tail = label[len(prefix):].strip()
+            if tail.isdigit():
+                cap = max(cap or 0, int(tail))
+    return cap
 
 
 # The band that holds the expedition-wide states: the Shifting Earth favours,

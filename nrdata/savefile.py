@@ -226,52 +226,77 @@ class Loadout:
     offset: int
 
 
-def find_loadout_table(slot_data: bytes) -> tuple[int, int, int]:
-    """Offset of the 0xff01 marker beginning table A, the group count, and
-    the group stride.
+# The most Grail records one Nightfarer's group can hold before the walk
+# gives up. Generous on purpose: it only bounds a scan.
+MAX_GRAILS = 12
 
-    Anchors on a run of markers ascending by one at a constant spacing, so a
-    stray 0x0000ff01 elsewhere in the slot cannot be mistaken for the table.
-    Both the run length and the spacing are measured rather than assumed.
 
-    The spacing was hardcoded at 120 bytes through 1.3.0, and that shipped a
-    second no-builds-at-all failure: 120 is 8 + 4 x 28, four Grail records
-    per Nightfarer, and a save without the DLC carries **three** Grails --
-    92-byte groups -- so the finder never saw a run at 120. The 1.1.1 fix
-    had covered a save with fewer *Nightfarers* and left the group width
-    itself assumed. The stride is now read off the gap between the first two
-    markers, has to be a well-formed group width (8 + k x 28), and how many
-    Grail records a group holds falls out of it.
+def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
+    """Table A as a list of (group offset, Grail-record count), one per
+    Nightfarer, in marker order.
+
+    Anchors on a run of markers ascending by one, so a stray 0x0000ff01
+    elsewhere in the slot cannot be mistaken for the table -- but nothing
+    about the layout is assumed beyond the record size. This function has
+    now been wrong twice by assuming one number too many, and the third
+    report settled the shape for good:
+
+    - Through 1.3.0 the group width was hardcoded at 120 bytes (four Grail
+      records). A save without the DLC carries three Grails -- 92-byte
+      groups -- and reported no builds at all.
+    - 1.3.1 measured the width but required it to be the SAME for every
+      Nightfarer. The next report's diagnostics showed all ten markers
+      present with no constant spacing between them: **group widths vary
+      per Nightfarer** on that save, which is what a group holding records
+      only for what that save has unlocked looks like.
+
+    So each group's width is now measured individually: from a marker, the
+    group runs until the next marker up sits at a well-formed distance
+    (8 + k x 28 bytes), each Nightfarer with its own k.
     """
     limit = len(slot_data)
-    best: tuple[int, int, int] | None = None
+    best: list[tuple[int, int]] = []
     for off in range(0, max(limit - 8, 0), 4):
         if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
             continue
-        # Measure the stride: the 0xff02 marker sits one group later, and
-        # only a gap that is a whole number of records past the 8-byte
-        # header can be a group width.
-        for gap in range(8 + LOADOUT_RECORD, 8 + 12 * LOADOUT_RECORD + 1, 4):
-            probe = off + gap
-            if probe + 4 > limit:
+        groups: list[tuple[int, int]] = []
+        pos = off
+        hero = 1
+        while hero <= MAX_HEROES:
+            # How many records until the next marker up? The last group has
+            # no next marker, so it cannot be measured this way and is
+            # handled after the loop.
+            found = None
+            for records in range(0, MAX_GRAILS + 1):
+                probe = pos + 8 + records * LOADOUT_RECORD
+                if probe + 4 > limit:
+                    break
+                if (struct.unpack_from("<I", slot_data, probe)[0]
+                        == HERO_MARKER_BASE + hero + 1):
+                    found = records
+                    break
+            if found is None:
                 break
-            if (struct.unpack_from("<I", slot_data, probe)[0]
-                    != HERO_MARKER_BASE + 2):
-                continue
-            if (gap - 8) % LOADOUT_RECORD:
-                continue
-            count = 2
-            while count < MAX_HEROES:
-                nxt = off + count * gap
-                if nxt + gap > limit:
+            groups.append((pos, found))
+            pos = pos + 8 + found * LOADOUT_RECORD
+            hero += 1
+        if len(groups) >= MIN_HEROES and len(groups) > len(best):
+            # The final Nightfarer's group has no next marker to bound it,
+            # but it does not need one: a shared-Grail record's own vessel id
+            # sits in the 19000 band, and the personal vessels that follow in
+            # table B do not, so the records are counted by what they are.
+            records = 0
+            while records < MAX_GRAILS:
+                probe = pos + 8 + records * LOADOUT_RECORD
+                if probe + 4 > limit:
                     break
-                if (struct.unpack_from("<I", slot_data, nxt)[0]
-                        != HERO_MARKER_BASE + 1 + count):
+                vessel = struct.unpack_from("<I", slot_data, probe)[0]
+                if not 19000 <= vessel <= 19999:
                     break
-                count += 1
-            if count >= MIN_HEROES and (best is None or count > best[1]):
-                best = (off, count, gap)
-    if best is None:
+                records += 1
+            groups.append((pos, records))
+            best = groups
+    if not best:
         # Say what was actually seen, so the next report from a machine this
         # code has never met carries the numbers needed to diagnose it.
         seen = []
@@ -282,8 +307,8 @@ def find_loadout_table(slot_data: bytes) -> tuple[int, int, int]:
                 seen.append(f"ff{n:02x}×{hits}")
         raise ValueError(
             "equipped-loadout table not found in this save slot "
-            f"(no run of {MIN_HEROES}+ Nightfarer markers at a constant "
-            f"group spacing; markers present: {', '.join(seen) or 'none'})"
+            f"(no ascending run of {MIN_HEROES}+ Nightfarer markers; "
+            f"markers present: {', '.join(seen) or 'none'})"
         )
     return best
 
@@ -302,10 +327,8 @@ def read_relic_handles(slot_data: bytes, owned: list[OwnedRelic]) -> dict[int, O
 
 def read_loadouts(slot_data: bytes) -> list[Loadout]:
     """Read every stored loadout, both the Grail and the personal-vessel ones."""
-    base, heroes, group_stride = find_loadout_table(slot_data)
-    # The group width says how many shared-Grail records each Nightfarer
-    # carries: four with the DLC's Scadutree Grail, three without it.
-    grails = (group_stride - 8) // LOADOUT_RECORD
+    groups = find_loadout_table(slot_data)
+    heroes = len(groups)
     out: list[Loadout] = []
 
     def record(off: int, hero: int | None, selected_id: int | None) -> Loadout:
@@ -313,28 +336,23 @@ def read_loadouts(slot_data: bytes) -> list[Loadout]:
         handles = list(struct.unpack_from(f"<{LOADOUT_SLOTS}I", slot_data, off + 4))
         return Loadout(vessel_id, handles, hero, vessel_id == selected_id, off)
 
-    for i in range(heroes):
-        group = base + i * group_stride
+    selected_by_hero: dict[int, int] = {}
+    for group, grails in groups:
         marker, selected_id = struct.unpack_from("<2I", slot_data, group)
         hero = marker - HERO_MARKER_BASE
+        selected_by_hero[hero] = selected_id
         for k in range(grails):
             out.append(record(group + 8 + k * LOADOUT_RECORD, hero, selected_id))
 
     # Table B carries no hero marker; the vessel's own heroType names its owner,
     # and whether it is selected is settled from that Nightfarer's group header.
-    selected_by_hero = {
-        struct.unpack_from("<I", slot_data, base + i * group_stride)[0]
-        - HERO_MARKER_BASE: struct.unpack_from(
-            "<I", slot_data, base + i * group_stride + 4
-        )[0]
-        for i in range(heroes)
-    }
     # The personal-vessel table is walked rather than counted off a fixed 70.
     # Its length follows from how many Nightfarers the save knows about, which
     # is the very thing that differs between installations, so the walk stops
     # on the first record whose vessel id is not a well-formed one: a vessel is
     # 1000-1006 for Nightfarer 1, 2000-2006 for Nightfarer 2, and so on.
-    flat = base + heroes * group_stride
+    last_group, last_grails = groups[-1]
+    flat = last_group + 8 + last_grails * LOADOUT_RECORD
     for k in range(heroes * VESSELS_PER_HERO):
         off = flat + k * LOADOUT_RECORD
         if off + LOADOUT_RECORD > len(slot_data):
