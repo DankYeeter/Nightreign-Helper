@@ -92,6 +92,10 @@ class Tile(QFrame):
             left.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
             right = QLabel(value)
             right.setAlignment(Qt.AlignRight)
+            # A value wider than the tile must wrap, not clip: the scaling
+            # rows ("STR 43 · DEX 43 · ARC 45") lost their leading characters
+            # on a fixed-width card otherwise.
+            right.setWordWrap(True)
             # Lead with the headline number, then quieter detail rows.
             emphasis = ("font-size: 13px; color: #f0e2c0;" if index == 0
                         else "font-size: 11px; color: #cfcfcf;")
@@ -286,10 +290,34 @@ class ArsenalTab(QWidget):
 
         total = sum(len(v) for v in by_family.values())
 
+        # Infusion variants live as sibling rows in one id band -- Longsword
+        # 2000000, Fire Longsword 2000500, Sacred 2000700 -- so the band is
+        # the family and the lowest id in it is the standard version the
+        # others are measured against.
+        def band(rating):
+            return rating.weapon["id"] // 10000
+
+        standards: dict[int, dict] = {}
+        for family_entries in by_family.values():
+            for rating in family_entries:
+                group = band(rating)
+                if (group not in standards
+                        or rating.weapon["id"] < standards[group]["id"]):
+                    standards[group] = rating.weapon
+
+        def scaling_text(values: dict) -> str:
+            parts = [f"{stat[:3].upper()} {value:g}"
+                     for stat, value in values.items() if value]
+            return " · ".join(parts) if parts else "none"
+
         def build_family(entries):
-            # Rarest first, then alphabetically inside each rarity band.
-            entries = sorted(entries, key=lambda r: (-r.weapon.get("rarity", 0),
-                                                     r.weapon["name"].lower()))
+            # Rarest first; inside a rarity band the infusions of one weapon
+            # sit together, ordered by the standard version's name.
+            entries = sorted(entries, key=lambda r: (
+                -r.weapon.get("rarity", 0),
+                standards[band(r)]["name"].lower(),
+                r.weapon["id"],
+            ))
             tiles = []
             for rating in entries:
                 weapon = rating.weapon
@@ -298,6 +326,21 @@ class ArsenalTab(QWidget):
                     value = rating.base.get(damage, 0) + rating.scaled.get(damage, 0)
                     if value:
                         lines.append((weapons.DAMAGE_LABELS[damage], f"{value:.0f}"))
+                scaling = weapon.get("scaling") or {}
+                lines.append(("Scaling", scaling_text(scaling)))
+                # An infusion that moves the scaling says by how much, against
+                # the standard version of the same weapon.
+                standard = standards.get(band(rating))
+                if standard is not None and standard["id"] != weapon["id"]:
+                    base_scaling = standard.get("scaling") or {}
+                    shifts = []
+                    for stat in scaling.keys() | base_scaling.keys():
+                        delta = (scaling.get(stat, 0) or 0) - (
+                            base_scaling.get(stat, 0) or 0)
+                        if delta:
+                            shifts.append(f"{stat[:3].upper()} {delta:+g}")
+                    if shifts:
+                        lines.append(("vs standard", " · ".join(shifts)))
                 lines.append(("Rarity", RARITY_NAMES.get(weapon.get("rarity", 0), "?")))
                 reached = min(weapon.get("rarity", 0) + 1 + rating.applied_upgrade,
                               weapons.MAX_UPGRADE)
