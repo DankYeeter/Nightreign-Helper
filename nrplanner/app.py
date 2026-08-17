@@ -787,7 +787,7 @@ class Planner(QMainWindow):
             self.deep_tab = DeepTab(data)
             tabs.addTab(self.deep_tab, "Deep of Night")
             self.depths_tab = DepthsTab(data)
-            tabs.addTab(self.depths_tab, "Depth weighting")
+            tabs.addTab(self.depths_tab, "Red variants")
         if (data.get("world_events") or {}).get("events"):
             self.events_tab = WorldEventsTab(data)
             tabs.addTab(self.events_tab, "World Events")

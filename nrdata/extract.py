@@ -49,7 +49,18 @@ MAX_LEVEL = 15
 #   1  the schema as it shipped up to 1.1.0
 #   2  attribute_swap on the twenty stat-swap relics; the state gate they
 #      carried is dropped
-EXTRACT_VERSION = 2
+#   3  Flame of Frenzy re-matched to modifier 140 (230 is the Difficult
+#      Sorcerer's Rise); the three DLC events gain gating (600 / 10000 /
+#      10001); day and DLC-block counts on every gating entry
+#   4  deep_of_night.kinds -- what each mutation category covers, from the
+#      enemy table (characters with the game's own names where it has one,
+#      Limveld tiles for the area-scoped kinds)
+#   5  real paramdefs for the six ChaosMatching params (Smithbox ships them,
+#      Paramdex does not): the depth control table is named rather than raw
+#      bytes, and the mutation figures are counts, not weights
+#   6  what each depth rewards (relics, via ItemLotParam_map and the new lot
+#      category 5), and the game's own filter category per effect
+EXTRACT_VERSION = 6
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -395,6 +406,17 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
             "per_depth": [{f: d.get(f) for f in moving} for d in per_depth],
         }
 
+    # ---- what each depth actually hands you ------------------------------
+    # `SessionRewardByModeRankParam` carries `itemLotId_1..4`, which nothing
+    # here read until the param gained a def. The lots are in
+    # `ItemLotParam_map` -- not `_enemy`, which is why earlier passes found
+    # nothing -- and they resolve through lot category 5 to relics. The tier
+    # climbs with depth: Polished and Deep Delicate Burning Scene at Depth 1,
+    # Grand Burning Scene by Depth 3. Ids sharing a name differ in their
+    # rolled effects, so the reward is "one of these rolls", which is how the
+    # game hands relics out; the names are therefore deduplicated.
+    reward_items = _depth_reward_items(members, defs, text)
+
     # ---- per-depth reward scaling ---------------------------------------
     reward_rows = dict(_raw_rows(members["SessionRewardByModeRankParam"])[0])
     rewards = []
@@ -415,38 +437,148 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
             {
                 "multiplier": round(struct.unpack_from("<f", blob, 0)[0], 4),
                 "sigils": struct.unpack_from("<i", blob, 36)[0],
+                "items": reward_items.get(reward_id, []),
             }
         )
 
-    # ---- mutation weighting per depth ------------------------------------
-    # Five u16 lead every 20-byte row, one per depth, and 20 of the 46 rows
-    # genuinely differ across the five -- several starting at 0, meaning the
-    # category cannot appear at depth 1. What each category *is* is not named
-    # anywhere in the files, so only the id is reported.
+    # ---- mutations per depth ---------------------------------------------
+    # Read by inspection until 2026-08-16, when a real paramdef turned up
+    # (Smithbox ships one; Paramdex does not). It confirms the layout that
+    # was inferred and corrects the most important thing about it:
+    #
+    #   depth1Count .. depth5Count  -- these are **counts, not weights**.
+    #       The figure is how many mutations of that kind the map places at
+    #       that depth, so it is a number a player can go and count, not a
+    #       share of an unknown pool. That also matches what the owner
+    #       reports from play: "many, several in every camp."
+    #   categoryId    -- the kind. Confirms the inferred offset.
+    #   modifierMapId -- the map, by the game's own field name, confirming
+    #       the identification made from the Shifting Earth modifier ids.
     mutations = []
-    category_rows, _ = _raw_rows(members["ChaosMatchingMutationCategoryParam"])
-    for row_id, blob in category_rows:
-        weights = list(struct.unpack_from("<5H", blob))
-        category, group = struct.unpack_from("<BI", blob, 11)
+    category_table = param.read(
+        members["ChaosMatchingMutationCategoryParam"],
+        defs.get("ChaosMatchingMutationCategoryParam"))
+    for row in category_table.rows:
+        values = row.values
+        counts = [values[f"depth{i}Count"] for i in range(1, 6)]
         mutations.append(
             {
-                "id": row_id,
-                "weights": weights,
-                "category": category,
-                "group": group,
-                "varies": len(set(weights)) > 1,
+                "id": row.id,
+                "counts": counts,
+                "category": values["categoryId"],
+                "group": values["modifierMapId"],
+                "varies": len(set(counts)) > 1,
             }
         )
 
-    # ---- the raw 5-row control table -------------------------------------
-    # Kept because the layout is not solved: bytes +6 and +7 sum to 100 in
-    # every row and shift steadily with depth, which is a real structure, but
-    # nothing in the files says what the split is between. Reported as raw
-    # bytes so the tab can show it as unidentified rather than invent a name.
+    # ---- what each mutation kind covers ----------------------------------
+    # ChaosMatchingMutationEnemyTableParam: 3067 x 48-byte rows, no def.
+    # Read by inspection, with three anchors that make the layout solid:
+    #
+    # - The low byte of the leading u16 is the category. Its 19 observed
+    #   values are exactly the 18 category bytes of the weight table above
+    #   plus one (102) that has no weight row -- present in the roster,
+    #   absent from the draw.
+    # - u16 at +6, where set, is a character id. c5011 resolves through
+    #   NpcName to Golden Hippopotamus and c3400 to Grave Warden Duelist,
+    #   and category 160's four are the arena bosses (Dragonkin Soldier,
+    #   Guardian Golem, Ancestor Spirit, Fallingstar Beast) -- names landing
+    #   on real enemies is not something a misaligned read produces.
+    # - u32 at +12, where set (667 rows, exactly the rows with no character),
+    #   reads 604|XX|YY with XX 42-45 and YY 36-39 -- the Limveld tile grid,
+    #   so those kinds are scoped to map areas rather than to enemies.
+    #
+    # Character names here are the game's own (NpcParam.nameId -> NpcName).
+    # Most common enemies are never named by the game at all, so most
+    # entries carry only the id; community names stay in the tab's tinted
+    # layer, outside this snapshot.
+    npc_table = param.read(members["NpcParam"], defs.get("NpcParam"))
+    npc_names = text.get("NpcName", {})
+    chr_names: dict[int, str] = {}
+    # Two routes to a name, both the game's own. The structured NpcName id
+    # (90 <4-digit character> <3-digit variant>, section 6e) covers enemies
+    # whose NpcParam rows never made it into the table; nameId covers the
+    # rest. The structured route runs first because it is keyed by the
+    # character itself rather than by whichever row happened to be seen.
+    for name_id, label in npc_names.items():
+        if 900000000 <= name_id <= 909999999 and label and label.strip():
+            chr_names.setdefault((name_id - 900000000) // 1000, label.strip())
+    for row in npc_table.rows:
+        label = (npc_names.get(row.values.get("nameId", -1)) or "").strip()
+        if label:
+            chr_names.setdefault(row.id // 10000, label)
+
+    kinds: dict[int, dict] = {}
+    enemy_table = param.read(
+        members["ChaosMatchingMutationEnemyTableParam"],
+        defs.get("ChaosMatchingMutationEnemyTableParam"))
+    for row in enemy_table.rows:
+        values = row.values
+        category = values["categoryId"]
+        # The def calls this `smallBaseId`, and that name is wrong: the
+        # values run 2000-5391 while SmallBaseAndSpotDefine holds 107 rows
+        # in 100-2219, so only 2 of 116 would resolve. As characters they
+        # resolve into real, thematically correct names -- c5011 Golden
+        # Hippopotamus, the four arena bosses under one kind -- which is
+        # what a correct read looks like. Structure from the def, meaning
+        # from the data.
+        target = values["smallBaseId"]
+        # Likewise `mapUnk_1/2/3`, which the def leaves unnamed: read as one
+        # little-endian u32 the field is packed decimal 60|XX|YY, giving the
+        # 4x4 grid of real m60_4X_3Y Limveld tiles. The def's byte split
+        # produces (76, 56, 9), which names nothing.
+        tile = (values["mapUnk_1"] | (values["mapUnk_2"] << 8)
+                | (values["mapUnk_3"] << 16))
+        kind = kinds.setdefault(
+            category, {"rows": 0, "chrs": {}, "tiles": set()})
+        kind["rows"] += 1
+        if target:
+            kind["chrs"][target] = kind["chrs"].get(target, 0) + 1
+        elif tile:
+            kind["tiles"].add(f"m60_{tile // 100 % 100}_{tile % 100}")
+    for kind in kinds.values():
+        kind["chrs"] = [
+            {"chr": chr_id, "rows": count, "name": chr_names.get(chr_id)}
+            for chr_id, count in sorted(kind["chrs"].items(),
+                                        key=lambda kv: -kv[1])
+        ]
+        kind["tiles"] = sorted(kind["tiles"])
+    kinds_out = {str(cat): kind for cat, kind in sorted(kinds.items())}
+
+    # ---- the depth control table -----------------------------------------
+    # SOLVED 2026-08-16. This was read byte by byte for the life of the
+    # project, with the meaning of each column matched against what players
+    # describe rather than stated by the files. A paramdef for it exists
+    # after all -- Smithbox ships defs for all six ChaosMatching params that
+    # Paramdex does not -- and the game's own field names confirm the
+    # community reading exactly:
+    #
+    #   +2/+3/+4  mapChallengeWeight_Map / _Nightlord / _None
+    #             0/0/100 at Depths 1-2, 10/10/80 from Depth 3 -- one roll of
+    #             three, which is why the map and the Nightlord are never
+    #             concealed together.
+    #   +5/+6/+7  cataclysmWeight_0 / _1 / _2
+    #             the number of cataclysm sites. Weight_0 is 0 in every row,
+    #             so a run always has at least one, and the 50/50 -> 5/95
+    #             series is the chance of the second.
+    #   +0/+1     cursedUncommonRate 25, cursedRareRate 40, flat across all
+    #             five depths -- new, and not previously readable at all.
     control = []
-    control_rows, control_size = _raw_rows(members["ChaosMatchingRankControlParam"])
-    for row_id, blob in control_rows:
-        control.append({"id": row_id, "bytes": list(blob)})
+    control_table = param.read(members["ChaosMatchingRankControlParam"],
+                               defs.get("ChaosMatchingRankControlParam"))
+    for row in control_table.rows:
+        values = row.values
+        control.append({
+            "depth": row.id,
+            "cursed_uncommon": values["cursedUncommonRate"],
+            "cursed_rare": values["cursedRareRate"],
+            "conceal_map": values["mapChallengeWeight_Map"],
+            "conceal_nightlord": values["mapChallengeWeight_Nightlord"],
+            "conceal_none": values["mapChallengeWeight_None"],
+            "cataclysms_1": values["cataclysmWeight_1"],
+            "cataclysms_2": values["cataclysmWeight_2"],
+        })
+    control_size = 0
 
     # TutorialBody 403500, "The Deep of Night: Depth and Rating" -- the game's
     # own statement of the rating bands behind each Depth.
@@ -481,8 +613,8 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
         "scaling": list(profiles.values()),
         "scaling_unresolved": unresolved,
         "mutations": mutations,
-        "control_raw": control,
-        "control_row_size": control_size,
+        "kinds": kinds_out,
+        "depth_control": control,
         "field_labels": SCALING_FIELDS,
     }
 
@@ -721,22 +853,61 @@ NPC_NAME_PREFIX = 90
 # are confirmed by the files, and the files' anonymous modifier ids are named
 # by the pools.
 #
-# The ninth, Flame of Frenzy, matches on three of four (modifier 230 lacks
-# Straghess) and draws only 7 times in total, so that gap is undersampling
-# rather than a contradiction. It is carried, and flagged.
+# The ninth assignment was wrong for two releases and is now corrected.
+# 11180 (Flame of Frenzy) was matched to modifier 230 as "one short,
+# undersampled". A per-pattern community dump (thefifthmatt's map-pattern
+# sheet, whose global pattern numbers align 1:1 with patternId -- verified on
+# all nine of Adel's Fell Omen patterns) splits the two candidates cleanly:
+# every pattern it marks "Frenzy Tower" carries modifier **140**, and every
+# pattern it marks "Difficult Sorcerer's Rise" carries modifier **230**, six
+# of six each. So 230 is the hard Sorcerer's Rise (no banner, not an
+# announced event) and the Flame of Frenzy is 140 -- whose boss set includes
+# Straghess, so there was never an undersampling gap, just the wrong row.
+#
+# The three DLC events are named through their reward buffs rather than
+# through published pools. LotBaseMapPatternFlag gives the seven invasion
+# modifiers one contiguous eventFlag band, and common.emevd's initializer
+# pairs each flag with the SpEffect of the buff the event awards:
+#
+#   flag 8075 = mod   604 -> sp 8970001 Traces of Grace-Given Lord (Fell Omen)
+#   flag 8076 = mod   603 -> sp 8970020 Unifying Fate            (Bubbles)
+#   flag 8077 = mod   600 -> sp 8970050 Beast's Hunt             (Fire-Summoning)
+#   flag 8078 = mod   601 -> sp 8970010 Integration of Intelligence (Locusts)
+#   flag 8079 = mod   602 -> sp 8970030 Demon's Plating          (Demon)
+#   flag 8080 = mod 10000 -> sp 8970040 Cold Mirage              (Blizzard)
+#   flag 8081 = mod 10001 -> sp 8970060 Power to Balance the World (Judgment)
+#
+# The four base rows are the controls: each reaches exactly the reward its
+# event is known to give, so the bridge is trusted for the three DLC rows.
+# Which buff belongs to which DLC event is community-reported (Fextralife
+# names all three); everything else in the chain is the files' own.
+# The same initializer wires penalty row 6999400 (Unhealed Wound) to flags
+# 8075 AND 8076 -- so losing the bubble fight carries the same wound as
+# losing to the Fell Omen, which had only ever been a community claim.
 #
 # Every row was compared, not a sample of them.
 EVENT_MODIFIER = {
-    11110: 604,   # Fell Omen             Adel, Gnoster, Heolstor, Straghess
-    11120: 603,   # Giant Bubbles         Gnoster, Caligo, Heolstor, Straghess
-    11130: 602,   # Demon / Libra         Fulghor, Caligo, Heolstor, Straghess
-    11140: 601,   # Plague of Locusts     Maris, Libra, Heolstor, Straghess
-    11150: 120,   # Additional Night Boss Adel, Fulghor, Harmonia, Straghess
-    11160: 200,   # Meteor Strike         Gladius, Adel, Caligo, Harmonia
-    11170: 180,   # Hordes of the Night   Gladius, Maris, Fulghor, Harmonia
-    11180: 230,   # Flame of Frenzy       Gnoster, Libra, Harmonia (partial)
+    11110: 604,     # Fell Omen             Adel, Gnoster, Heolstor, Straghess
+    11120: 603,     # Giant Bubbles         Gnoster, Caligo, Heolstor, Straghess
+    11130: 602,     # Demon / Libra         Fulghor, Caligo, Heolstor, Straghess
+    11140: 601,     # Plague of Locusts     Maris, Libra, Heolstor, Straghess
+    11150: 120,     # Additional Night Boss Adel, Fulghor, Harmonia, Straghess
+    11160: 200,     # Meteor Strike         Gladius, Adel, Caligo, Harmonia
+    11170: 180,     # Hordes of the Night   Gladius, Maris, Fulghor, Harmonia
+    11180: 140,     # Flame of Frenzy       Gnoster, Libra, Harmonia, Straghess
+                    #                       (+ Gladius, DLC block only)
+    110000: 600,    # Fire-Summoning Beasts everyone but Gladius and Maris
+    110050: 10001,  # Judgment / Balancers  everyone but Adel, Gnoster, Harmonia
+    110200: 10000,  # Blizzard              everyone but Libra, Fulghor, Caligo
 }
-UNDERSAMPLED = {230}
+UNDERSAMPLED: set[int] = set()
+
+# The DLC added ten map patterns per base Nightlord, in their own id block --
+# patternId 1000 + 10*boss .. 1009 + 10*boss. The three DLC events sit only
+# in that block on the eight base Nightlords, which the tab states from the
+# ids alone; players report the block as Deep of Night, and that label stays
+# in the community layer.
+DLC_PATTERN_LO, DLC_PATTERN_HI = 1000, 1079
 
 
 def _gating(members: dict, defs: dict,
@@ -780,19 +951,37 @@ def _gating(members: dict, defs: dict,
     out: dict[str, Any] = {}
     for log_id, modifier in EVENT_MODIFIER.items():
         per: dict[int, int] = {}
+        per_dlc: dict[int, int] = {}
+        # Modifiers 800 and 801 mark the day the event fires. Named the same
+        # way 140/230 were: in the per-pattern community dump every pattern
+        # with a "Day 1" event carries 800 (52 of 52) and every "Day 2"
+        # pattern carries 801 (57 of 57), with no exceptions either way.
+        day1 = day2 = 0
         for pattern, mods in pattern_mods.items():
             if modifier in mods:
                 boss = pattern_boss[pattern]
                 per[boss] = per.get(boss, 0) + 1
+                if DLC_PATTERN_LO <= pattern <= DLC_PATTERN_HI:
+                    per_dlc[boss] = per_dlc.get(boss, 0) + 1
+                if 800 in mods:
+                    day1 += 1
+                if 801 in mods:
+                    day2 += 1
         out[str(log_id)] = {
             "modifier": modifier,
             "undersampled": modifier in UNDERSAMPLED,
+            "day1_patterns": day1,
+            "day2_patterns": day2,
             "bosses": [
                 {
                     "name": names.get(boss, str(boss)),
                     "patterns": count,
                     "of": totals[boss],
                     "share": round(100 * count / totals[boss], 1),
+                    # How many of those sit in the DLC-added pattern block.
+                    # Only meaningful for the eight base Nightlords; Harmonia
+                    # and Straghess have no such block.
+                    "dlc_patterns": per_dlc.get(boss, 0),
                 }
                 for boss, count in sorted(per.items(), key=lambda kv: -kv[1])
             ],
@@ -805,9 +994,85 @@ def _gating(members: dict, defs: dict,
 # reached better than chance. Category 3 (115 references) resolves to nothing
 # and is carried raw.
 LOT_GOODS, LOT_WEAPON, LOT_ACCESSORY = 1, 2, 4
+LOT_RELIC = 5              # -> EquipParamAntique. See below
 LOT_CUSTOM_WEAPON = 6      # -> EquipParamCustomWeapon.targetWeaponId
 LOT_TABLE = 7              # -> ItemTableParam, and it nests inside itself
 MAX_TABLE_DEPTH = 4
+
+# Category 5 was missing from the list above until 2026-08-16, for a good
+# reason: it never appears in `ItemLotParam_enemy`, which is the only lot
+# table this project used to read. It shows up in `ItemLotParam_map`, where
+# **all 27 distinct category-5 ids are rows in `EquipParamAntique`** -- 100%,
+# against 81% for the nearest rival param -- and the names that come out are
+# real and coherent rather than merely plausible. So category 5 is a relic.
+
+
+def _depth_reward_items(members: dict, defs: dict,
+                        text: dict[str, dict[int, str]]) -> dict[int, list]:
+    """Which relics each Deep of Night depth can hand out.
+
+    `SessionRewardByModeRankParam.itemLotId_1..4` -> `ItemLotParam_map` ->
+    category 5 -> `EquipParamAntique`. Two things had kept this unread: the
+    param shipped no def until 2026-08-16, and the lots are in the *map*
+    table rather than the *enemy* one every earlier pass searched.
+
+    Names are deduplicated on purpose. A reward lot points at several ids
+    that share a name and differ in their rolled effects (1007001 / 1007011 /
+    1007021 are all "Polished Burning Scene"), so listing each id would show
+    the same relic three times and say nothing.
+    """
+    reward = param.read(members["SessionRewardByModeRankParam"],
+                        defs.get("SessionRewardByModeRankParam"))
+    lots = param.read(members["ItemLotParam_map"], defs.get("ItemLotParam"))
+    lot_rows = {row.id: row.values for row in lots.rows}
+    if not lot_rows:
+        return {}
+    fields = list(next(iter(lot_rows.values())))
+    id_fields = [f for f in fields if f.startswith("lotItemId")]
+    cat_fields = [f for f in fields if f.startswith("lotItemCategory")]
+
+    antique = param.read(members["EquipParamAntique"],
+                         defs.get("EquipParamAntique"))
+    names = text.get("AntiqueName", {})
+    relic_name = {}
+    for row in antique.rows:
+        label = (names.get(row.values.get("nameId", -1))
+                 or names.get(row.id) or "").strip()
+        if label:
+            relic_name[row.id] = label
+
+    tables = param.read(members["ItemTableParam"], defs.get("ItemTableParam"))
+    groups: dict[int, list] = {}
+    for row in tables.rows:
+        groups.setdefault(row.id, []).append(row.values)
+
+    def collect(category: int, item_id: int, found: set, depth: int) -> None:
+        if category == LOT_TABLE:
+            if depth > MAX_TABLE_DEPTH:
+                return
+            for entry in groups.get(item_id, []):
+                collect(entry["itemCategory"], entry["itemId"], found,
+                        depth + 1)
+        elif category == LOT_RELIC:
+            label = relic_name.get(item_id)
+            if label:
+                found.add(label)
+
+    out: dict[int, list] = {}
+    for row in reward.rows:
+        found: set[str] = set()
+        for slot in range(1, 5):
+            lot_id = row.values.get(f"itemLotId_{slot}", 0)
+            values = lot_rows.get(lot_id)
+            if not values:
+                continue
+            for id_field, cat_field in zip(id_fields, cat_fields):
+                item_id = values[id_field]
+                if item_id:
+                    collect(values[cat_field], item_id, found, 0)
+        if found:
+            out[row.id] = sorted(found)
+    return out
 
 
 def _event_drops(members: dict, defs: dict,
@@ -1217,6 +1482,34 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     stands = table("AntiqueStandParam")
     attach_table = table("AttachEffectTableParam")
     attach = table("AttachEffectParam")
+
+    # The game's own filing for an effect, which nothing here read until
+    # `AttachEffectFilterSubCategoryParam` gained a def (see OPEN_QUESTIONS
+    # section 24). The chain is
+    #   AttachEffectParam.attachFilterParamId
+    #     -> AttachEffectFilterParam.attachEffectFilterCategory
+    #     -> AttachEffectFilterSubCategoryParam row -> CL_MenuText
+    # and it covers 568 of the 2,079 effects, so it is shown where present
+    # and left out otherwise rather than filled in with a guess. The group
+    # the game calls "Demerits" is its own word for curses.
+    #
+    # NOTE the sub-category table also holds a 32-entry weapon-type list in
+    # its own UI numbering, where 53 is Colossal Sword. That is NOT `wepType`,
+    # where 53 is Greatbow. Do not use it to name weapon families.
+    filter_category: dict[int, str] = {}
+    try:
+        sub_rows = table("AttachEffectFilterSubCategoryParam").rows
+        filter_rows = table("AttachEffectFilterParam").rows
+        filter_text = text.get("CL_MenuText", {})
+        sub_label = {r.id: (filter_text.get(r.values.get("textId", -1)) or "").strip()
+                     for r in sub_rows}
+        for row in filter_rows:
+            label = sub_label.get(row.values.get("attachEffectFilterCategory"))
+            if label:
+                filter_category[row.id] = label
+    except KeyError:
+        # A game build without these params must not break the extract.
+        filter_category = {}
     speffect = table("SpEffectParam")
 
     # ---- SpEffect: work out which fields an effect actually changes --------
@@ -1719,6 +2012,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # from a shared SpEffect category produced false conflicts
             # between effects that plainly stack.
             "exclusivity": row.values.get("exclusivityId", -1),
+            # How the game itself files this effect in its own UI filters --
+            # "Attack Power", "Damage Negation", a Nightfarer's name, or
+            # "Demerits (...)" for a curse. Empty where the game files it
+            # nowhere, which is most of them.
+            "game_category": filter_category.get(
+                row.values.get("attachFilterParamId", -1), ""),
             "modifiers": modifiers,
             # Kept out of "modifiers" deliberately: the build maths reads that
             # dict and expects plain numbers, while this is a ladder of them.

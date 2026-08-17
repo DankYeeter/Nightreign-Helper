@@ -25,7 +25,7 @@ answer a question, the tool says so instead of guessing.
   - [3. Weapons & spells](#3-weapons--spells)
   - [4. Nightlords](#4-nightlords)
   - [5. Deep of Night](#5-deep-of-night)
-  - [6. Depth weighting](#6-depth-weighting)
+  - [6. Red variants](#6-red-variants)
   - [7. World Events](#7-world-events)
 - [Searching](#searching)
 - [Where your data lives](#where-your-data-lives)
@@ -253,8 +253,9 @@ than naming it. Both say so on the page instead of guessing.
 What each of the five Depths changes, in the order the questions get asked.
 
 - **What each depth is worth** — the rating band that puts you in it, the reward
-  multiplier and the Sovereign Sigil award, side by side. The band is the entry
-  price for the column it sits in, so it belongs next to what the column pays.
+  multiplier, the Sovereign Sigil award and the relic tier the depth can hand
+  out, side by side. The tier climbs as you sink: Depth 1 still pays Polished
+  relics, from Depth 4 only Grand ones are on the table.
 - **How much tougher enemies get** — HP, attack power, stance damage taken and
   stamina drain on block, per Depth. The big figure is typical and the range
   under it is the spread from the weakest enemy group to the toughest, because
@@ -264,29 +265,32 @@ What each of the five Depths changes, in the order the questions get asked.
   Depth. This block is **not** from the game files and says so on itself: no
   param holds it. The win value and Depth 1 costing nothing are confirmed in
   game; the bonuses and the loss table are community-reported.
-- **What else changes with depth** — the chance of a second cataclysm, and of
-  the map or the Nightlord being hidden from you. Read from the game's own depth
-  table.
+- **What else changes with depth** — the chance of a second cataclysm, of the
+  map or the Nightlord being hidden from you, and the rates at which relics
+  come cursed. Read from the game's own depth table.
 
 The tables are read, not operated, so nothing on this tab responds to a click.
 
 ---
 
-## 6. Depth weighting
+## 6. Red variants
 
-![Depth weighting](docs/screenshots/depth_weighting.png)
+![Red variants](docs/screenshots/depth_weighting.png)
 
-Which mutations can appear at which Depth. One row per mutation category, one
-column per Depth, showing the game's own draw weights.
+How many red, empowered variants a Deep of Night run puts on the map, and of
+what. A red variant is always the same enemy re-tuned — never a different one
+— and they appear as individuals scattered through the map, several per camp.
 
-- **Only categories that change with depth** hides the flat ones — 20 of the 46
-  categories actually move.
-- **Show share within category** converts weights to percentages, on the
-  assumption that the category is the pool.
+One row per sort of thing that can be red: ordinary enemies in camps and
+ruins, named field enemies and minibosses (Golden Hippopotamus, Grave Warden
+Duelist, …), evergaol bosses, night bosses, merchants. One column per Depth,
+showing the game's own placement counts — on the default map, 87 red variants
+at Depth 1 rising to 100 at Depth 5, and the boss tiers only join the pool
+from Depth 2 on. A map selector covers the Shifting Earths and the Great
+Hollow, which runs noticeably hotter than Limveld.
 
-The weights are shown **raw**. What pool they are drawn against is not stated
-anywhere in the files, and the categories themselves are unnamed, so only their
-ids appear. Inventing labels for them would be inventing data.
+These counts are not published anywhere else — they are read straight out of
+the game's data.
 
 ---
 
@@ -294,15 +298,17 @@ ids appear. Inventing labels for them would be inventing data.
 
 ![World events](docs/screenshots/world_events.png)
 
-The events that can interrupt an expedition, and how each one can end.
+The events that can interrupt an expedition, one card each: which Nightlords
+it can appear under and how often, what happens, what you win, what you lose.
 
-Select an event for its reward, its drop table, its penalty and which Nightlords
-it can appear under. Rune values are broken down properly: the base value on the
-creature, then the multipliers that apply — expeditions completed, and Depth.
+The percentages beside each Nightlord say how much of that boss's map pool
+carries the event — the closest thing to "how likely am I to see this" the
+game's data supports. The demon's card lists everything the demon can do, in
+the game's own words.
 
-Each block is marked **from the game files**. Anything shown in blue is
-community-reported and could not be verified against the files. DLC events are
-tagged, and events with no announcement banner are marked *no banner*.
+Anything shown in blue is community-reported and could not be verified against
+the game's data. The three expansion events are tagged **Deep of Night only**,
+and events with no announcement banner are marked *no banner*.
 
 ---
 
