@@ -3,12 +3,33 @@
 from __future__ import annotations
 
 import json
+import time
 import pathlib
 
 from PySide6.QtGui import QIcon, QPixmap
 
 from . import paths
 from .datasource import _base_dir
+
+
+def _read_with_retries(path: pathlib.Path, attempts: int = 4) -> bytes | None:
+    """Read a file that may be briefly held by something else.
+
+    Seen in practice: OSError 22 on open() while getsize() succeeds, across
+    a whole directory, minutes after it was written -- the signature of a
+    scanner or sync client sitting on new files. A short backoff outlasts
+    that; a genuine failure still returns None rather than raising.
+    """
+    delay = 0.05
+    for attempt in range(attempts):
+        try:
+            return path.read_bytes()
+        except OSError:
+            if attempt == attempts - 1:
+                return None
+            time.sleep(delay)
+            delay *= 3
+    return None
 
 
 class IconPack:
@@ -30,10 +51,20 @@ class IconPack:
     def __init__(self) -> None:
         self.dir = self.locate()
         self.manifest: dict = {"portraits": {}, "items": {}, "variants": {},
-                               "menu": {}}
+                               "menu": {}, "ui": {}}
         path = self.dir / "manifest.json"
         if path.exists():
-            self.manifest = json.loads(path.read_text(encoding="utf-8"))
+            # A read can fail transiently -- a scanner or sync client holding
+            # the directory right after a rebuild produced OSError 22 on
+            # files whose sizes read fine. The manifest is the one file that
+            # takes the whole pack down with it, so it gets retries, and a
+            # final failure degrades to "no icons" rather than a crash.
+            raw = _read_with_retries(path)
+            if raw is not None:
+                try:
+                    self.manifest = json.loads(raw.decode("utf-8"))
+                except ValueError:
+                    pass
         self._cache: dict[str, QPixmap] = {}
 
     @property
@@ -49,6 +80,19 @@ class IconPack:
         if not path.exists():
             return None
         pixmap = QPixmap(str(path))
+        if pixmap.isNull():
+            # The direct load failed. Read the bytes ourselves, with
+            # retries, and decode from memory -- the two fail for different
+            # reasons, so one regularly works where the other does not.
+            raw = _read_with_retries(path)
+            if raw:
+                pixmap = QPixmap()
+                pixmap.loadFromData(raw)
+        if pixmap.isNull():
+            # Deliberately NOT cached: caching a null here is what turned a
+            # transient read failure at startup into a session with no
+            # icons. Leaving the miss uncached lets a later call succeed.
+            return None
         self._cache[filename] = pixmap
         return pixmap
 
@@ -67,6 +111,18 @@ class IconPack:
     def menu(self, icon_id: int) -> QPixmap | None:
         """Boss art, which lives in the MenuIcon atlas rather than the item one."""
         return self._pixmap(self.manifest.get("menu", {}).get(str(icon_id)))
+
+    def ui_path(self, sprite: str) -> str | None:
+        """Absolute path of a UI sprite, for embedding in rich text."""
+        filename = self.manifest.get("ui", {}).get(sprite)
+        if not filename:
+            return None
+        path = self.dir / filename
+        return str(path) if path.exists() else None
+
+    def ui(self, sprite: str) -> QPixmap | None:
+        """One of the game's own UI sprites, by its sprite name."""
+        return self._pixmap(self.manifest.get("ui", {}).get(sprite))
 
     def item_icon(self, icon_id: int) -> QIcon | None:
         pixmap = self.item(icon_id)

@@ -12,6 +12,8 @@ figures; see `merge_everdark`.
 
 from __future__ import annotations
 
+import pathlib
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
@@ -331,8 +333,41 @@ class BossTab(QWidget):
         return (f"<div style='color:{ACCENT}; font-size:10px; font-weight:bold;"
                 f" letter-spacing:1px; margin-top:10px'>{title}</div>")
 
-    @staticmethod
-    def _bars(damage: dict, weak: list) -> str:
+    # Chart label -> the game's own damage-type icon, extracted from the
+    # relic screen's filter list. The three grey physical icons were pinned
+    # by looking at them enlarged -- club on rubble is Strike, the broad
+    # blade Slash, the gauntlet thrust Pierce -- not assumed from their ids.
+    TYPE_ICONS = {
+        "Standard": "MENU_FL_40141.png",
+        "Strike": "MENU_FL_40142.png",
+        "Slash": "MENU_FL_40143.png",
+        "Pierce": "MENU_FL_40144.png",
+        "Holy": "MENU_FL_40145.png",
+        "Magic": "MENU_FL_40146.png",
+        "Frostbite": "MENU_FL_40147.png",
+        "Fire": "MENU_FL_40148.png",
+        "Lightning": "MENU_FL_40150.png",
+        "Madness": "MENU_FL_40151.png",
+        "Poison": "MENU_FL_40172.png",
+        "Blood loss": "MENU_FL_40173.png",
+    }
+
+    def _type_icon_cell(self, label: str) -> str:
+        """A table cell with the type's game icon, or an empty spacer.
+
+        Scarlet Rot, Sleep and Death have no icon in the set the game ships
+        for its own filter list, so those rows keep a spacer rather than
+        borrowing a lookalike.
+        """
+        sprite = self.TYPE_ICONS.get(label)
+        path = self.icons.ui_path(sprite) if (self.icons and sprite) else None
+        if path is None:
+            return "<td style='padding-right:4px'></td>"
+        src = pathlib.Path(path).as_uri()
+        return (f"<td style='padding-right:4px'>"
+                f"<img src='{src}' width='16' height='16'></td>")
+
+    def _bars(self, damage: dict, weak: list) -> str:
         """Damage multipliers as a bar chart, 1.00 being neutral."""
         # Block characters rather than styled divs: Qt's rich text ignores
         # percentage widths, so a CSS bar renders as nothing at all.
@@ -349,6 +384,7 @@ class BossTab(QWidget):
             bar = "&#9608;" * filled
             rows.append(
                 "<tr>"
+                + self._type_icon_cell(label) +
                 f"<td style='color:{MUTED}; font-size:11px;"
                 f" padding-right:8px; white-space:nowrap'>{label}</td>"
                 f"<td style='color:{colour}; font-size:11px;"
@@ -359,8 +395,7 @@ class BossTab(QWidget):
             )
         return f"<table>{''.join(rows)}</table>"
 
-    @staticmethod
-    def _status(status: dict, weak: list) -> str:
+    def _status(self, status: dict, weak: list) -> str:
         rows = []
         for label, value in sorted(status.items(), key=lambda kv: kv[1]):
             if value >= 999:
@@ -370,12 +405,15 @@ class BossTab(QWidget):
             else:
                 shown, colour = str(value), "#d8d8d8"
             rows.append(
-                f"<div style='margin-top:2px'>"
-                f"<span style='color:{MUTED}; font-size:11px'>{label}</span>"
-                f"<span style='color:{colour}; font-size:11px'>"
-                f" &nbsp;{shown}</span></div>"
+                "<tr>"
+                + self._type_icon_cell(label) +
+                f"<td style='color:{MUTED}; font-size:11px;"
+                f" padding-right:8px; white-space:nowrap'>{label}</td>"
+                f"<td style='color:{colour}; font-size:11px;"
+                f" white-space:nowrap'>{shown}</td>"
+                "</tr>"
             )
-        return "".join(rows)
+        return f"<table>{''.join(rows)}</table>"
 
     @staticmethod
     def _row(label: str, value) -> str:

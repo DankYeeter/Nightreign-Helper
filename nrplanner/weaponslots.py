@@ -30,6 +30,17 @@ BAD = "#d1655f"
 # reads the same wherever it appears.
 DEBUFF = "#e07a74"
 
+# The rarity a weapon reads as, in the same colours the Weapons tab uses for
+# its tiles. An upgrade raises the tier a weapon counts as, so the name is
+# coloured by where it ends up rather than where it started.
+RARITY_NAMES = {0: "Common", 1: "Uncommon", 2: "Rare", 3: "Legendary"}
+RARITY_TEXT = {
+    0: "#b9b9b9",
+    1: "#6fa8d6",
+    2: "#a97fe0",
+    3: "#e0a94a",
+}
+
 SLOT_COUNT = 6
 SLOT_COLUMNS = 3
 # A weapon draws from up to three pools, so it can carry three rolled effects,
@@ -200,8 +211,18 @@ class WeaponTile(QFrame):
             self.detail.setText("double-click to add an armament")
             return
 
-        tier_name = dict(TIERS).get(slot.tier, "")
-        self.title.setText(slot.weapon["name"])
+        # The upgrade tier is an absolute rarity: a Common weapon taken to +2
+        # reads as Rare, so the name is coloured for what it has become and
+        # the tier is named beside it.
+        native = slot.weapon.get("rarity", 0)
+        reached = min(max(native, slot.tier - 1), max(RARITY_TEXT))
+        colour = RARITY_TEXT.get(reached, "#e4e4e4")
+        self.title.setText(
+            f"<span style='color:{colour}'>{slot.weapon['name']}</span>")
+        tier_name = RARITY_NAMES.get(reached, "")
+        upgrade = slot.tier - 1 - native
+        if upgrade > 0:
+            tier_name += f" +{upgrade}"
         bits = [tier_name]
         if rating is not None:
             bits.append(f"<b style='color:{ACCENT}'>{rating.total:.0f}</b> AR")
@@ -265,6 +286,17 @@ class WeaponDialog(QDialog):
         self.effects_note.setWordWrap(True)
         self.effects_note.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.effects_note)
+
+        # A Longsword rolls from 369 effects, so the list is unusable without
+        # a filter. It hides rows rather than rebuilding them, which keeps
+        # what is already ticked ticked -- and keeps a chosen effect visible
+        # even when it does not match, so nothing can be silently lost behind
+        # a search term.
+        self.effect_search = QLineEdit()
+        self.effect_search.setPlaceholderText("Search effects…")
+        self.effect_search.setClearButtonEnabled(True)
+        self.effect_search.textChanged.connect(self._filter_effects)
+        layout.addWidget(self.effect_search)
 
         area = QScrollArea()
         area.setWidgetResizable(True)
@@ -353,15 +385,16 @@ class WeaponDialog(QDialog):
             return
         infused = self.slot.weapon["id"] not in self._bases
         if infused:
-            self.effects_note.setText(
+            self._pool_note = (
                 "Infused: it already carries its elemental effect. On top of "
                 "that it can roll one more buff and one debuff — or neither."
             )
         else:
-            self.effects_note.setText(
+            self._pool_note = (
                 f"{len(pool)} effects this armament can roll. Choose up to "
                 f"{MAX_WEAPON_EFFECTS}, as it would carry in game."
             )
+        self.effects_note.setText(self._pool_note)
         for effect in pool:
             box = QCheckBox(" ".join(effect["name"].split()))
             box.setChecked(effect["id"] in self.slot.effect_ids)
@@ -378,6 +411,25 @@ class WeaponDialog(QDialog):
             self._pool.append(effect)
         self.effects_layout.addStretch(1)
         self._sync_limit()
+        # A term typed for the last armament still applies to this one.
+        self._filter_effects()
+
+    def _filter_effects(self) -> None:
+        """Show the effects matching the term, plus anything already chosen."""
+        term = self.effect_search.text().strip().lower()
+        shown = 0
+        for box, effect in zip(self._boxes, self._pool):
+            keep = (not term
+                    or term in " ".join(effect["name"].split()).lower()
+                    or term in (effect.get("info") or "").lower()
+                    or box.isChecked())
+            box.setVisible(keep)
+            shown += bool(keep)
+        if term and hasattr(self, "_pool_note"):
+            self.effects_note.setText(
+                f"{shown} of {len(self._pool)} shown  ·  {self._pool_note}")
+        elif hasattr(self, "_pool_note"):
+            self.effects_note.setText(self._pool_note)
 
     def _on_toggle(self, effect: dict, checked: bool) -> None:
         if checked:

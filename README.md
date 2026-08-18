@@ -120,9 +120,21 @@ the same reason.
 **Deep of Night** — the checkbox under the vessel list adds the three extra
 slots that Deep of Night runs give you.
 
-**Rescan save** re-reads your save from disk. **Load equipped** pulls the
-selected Nightfarer's currently equipped vessel and relics out of the save, so
-you can start from what you actually have on.
+Every chalice a Nightfarer owns is drawn in the list with its slots and
+whatever is in them, so the list answers "which one had the poison build?"
+without opening each in turn. A gold dot marks the chalice you have equipped
+in game.
+
+The first time you open a Nightfarer, all of their chalices are read out of
+the save and the equipped one is shown. After that the app reopens on whatever
+chalice you last had open, across sessions, along with the Deep of Night
+setting. **Load equipped** reads the save again and goes back to the equipped
+chalice; **Rescan save** re-reads the save from disk after you have earned or
+melted relics.
+
+Chalices you change here are remembered per chalice, so switching between them
+does not disturb what is in the others. A chalice that is empty in game stays
+empty here.
 
 The line beneath them says what was read — how many relics, from which profile,
 and how many stored builds. If the builds cannot be read it says why there,
@@ -363,7 +375,9 @@ that registry key, the shortcut and the EXE.
 The snapshot is rebuilt when it no longer matches. That is either because the
 game was patched, so `regulation.bin` changed, or because a new version of the
 tool reads more out of the game than the version that built the snapshot did.
-Both are noticed on the next launch, and both say so while they rebuild.
+The icon pack is rebuilt the same way, when a new version needs artwork the
+one on disk was never asked for. All of it is noticed on the next launch, and
+says so while it rebuilds.
 
 ## Running from source
 

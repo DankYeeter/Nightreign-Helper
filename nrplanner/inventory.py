@@ -69,6 +69,14 @@ class Inventory:
     # no builds stored, which made the failure impossible to report.
     loadout_error: str = ""
 
+    def loadouts_for(self, hero_id: int) -> list[EquippedLoadout]:
+        """Every chalice this Nightfarer has, not only the one worn.
+
+        The save stores all of them, and a player who builds several and
+        wears one still expects to see the others.
+        """
+        return [e for e in self.loadouts if e.hero_id == hero_id]
+
     def selected_loadout(self, hero_id: int) -> EquippedLoadout | None:
         """The loadout for the vessel this Nightfarer currently has on."""
         for entry in self.loadouts:

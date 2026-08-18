@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import QPoint, QSettings, QSize, Qt
+from PySide6.QtCore import QPoint, QPointF, QSettings, QSize, Qt
 from PySide6.QtGui import (
-    QColor, QCursor, QFont, QIcon, QPainter, QPalette, QPixmap,
+    QColor, QCursor, QFont, QIcon, QPainter, QPalette, QPen, QPixmap,
+    QLinearGradient, QPolygonF, QRadialGradient,
 )
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFrame,
+    QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
     QSlider, QTabWidget, QToolButton, QToolTip, QVBoxLayout, QWidget,
@@ -200,6 +202,231 @@ class SituationalRow(QFrame):
         self._refresh_why()
         if self.check.isChecked():
             self.on_change()
+
+
+# The slot-colour gems, by relic colour. White ships none -- the game has
+# only four -- so it is drawn as a pale diamond to match.
+SLOT_GEMS = {
+    0: "MENU_MenuIcon_40480.png",
+    1: "MENU_MenuIcon_40481.png",
+    2: "MENU_MenuIcon_40483.png",   # Yellow
+    3: "MENU_MenuIcon_40482.png",   # Green
+}
+
+
+# Drawn chips, keyed by what actually changes their pixels. Without this the
+# vessel list redrew every slot of every vessel on each hero switch -- eleven
+# vessels times six slots, each a scaled composite -- which took the import
+# smoke test from seconds to minutes.
+_CHIP_CACHE: dict[tuple, QPixmap] = {}
+
+
+def slot_chip(icons, colour: int, owned=None, size: int = 26):
+    """One relic slot, drawn the way the game presents it.
+
+    A dark cell, a coloured glow rising from its floor, the relic sitting in
+    it, and the colour gem in the corner. The gem matters precisely because a
+    filled slot hides most of the glow -- which is why the game puts it there
+    -- so it is drawn only when something is in the slot.
+
+    The glow is drawn rather than extracted: the sprite atlas carries the
+    gems and the relic art but no slot light, so this is the one piece with
+    no authentic source, and it is generated to sit under the real ones.
+    """
+    key = (colour, size, getattr(owned, "icon", None) if owned else None)
+    cached = _CHIP_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    chip = QPixmap(size, size)
+    chip.fill(Qt.transparent)
+    tint = QColor(SLOT_COLOURS.get(colour, "#8a8a8a"))
+    painter = QPainter(chip)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor("#15161a"))
+    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+
+    # The light standing in the cell. The game renders this per frame -- it
+    # is in no sprite anywhere in the menu atlas, which was searched
+    # exhaustively -- so it is drawn.
+    #
+    # It is drawn small and scaled up, which is the whole trick: at a quarter
+    # size the shapes are a few pixels across, and the smooth upscale turns
+    # their edges into a gradient. Drawing at full size gives either a hard
+    # triangle or visible rings, both of which read as a drawn shape rather
+    # than as light -- each was tried and looked it.
+    lit = 1.0 if owned is None else 0.5
+    small = max(8, size // 4)
+    layer = QPixmap(small, small)
+    layer.fill(Qt.transparent)
+    lp = QPainter(layer)
+    lp.setRenderHint(QPainter.Antialiasing, True)
+    lp.setPen(Qt.NoPen)
+
+    cone = QLinearGradient(0, small * 0.88, 0, small * 0.18)
+    base = QColor(tint).lighter(140); base.setAlpha(int(230 * lit))
+    tip = QColor(tint); tip.setAlpha(0)
+    cone.setColorAt(0.0, base)
+    cone.setColorAt(1.0, tip)
+    lp.setBrush(cone)
+    lp.drawPolygon(QPolygonF([
+        QPointF(small * 0.5, small * 0.12),
+        QPointF(small * 0.88, small * 0.88),
+        QPointF(small * 0.12, small * 0.88),
+    ]))
+
+    pool = QRadialGradient(small / 2, small * 0.82, small * 0.5)
+    hot = QColor(tint).lighter(170); hot.setAlpha(int(245 * lit))
+    pool.setColorAt(0.0, hot)
+    rim = QColor(tint); rim.setAlpha(0)
+    pool.setColorAt(1.0, rim)
+    lp.setBrush(pool)
+    lp.drawEllipse(QPointF(small / 2, small * 0.82),
+                   small * 0.46, small * 0.20)
+    lp.end()
+
+    painter.setClipRect(1, 1, size - 2, size - 2)
+    painter.drawPixmap(0, 0, layer.scaled(size, size, Qt.IgnoreAspectRatio,
+                                          Qt.SmoothTransformation))
+    painter.setClipping(False)
+
+    if owned is not None and icons is not None:
+        art = icons.item(getattr(owned, "icon", None))
+        if art is not None:
+            inner = int(size * 0.78)
+            art = art.scaled(inner, inner, Qt.KeepAspectRatio,
+                             Qt.SmoothTransformation)
+            painter.drawPixmap((size - art.width()) // 2,
+                               (size - art.height()) // 2 - 1, art)
+        gem = icons.ui(SLOT_GEMS[colour]) if colour in SLOT_GEMS else None
+        pip = max(7, size // 3)
+        if gem is not None and not gem.isNull():
+            gem = gem.scaled(pip, pip, Qt.KeepAspectRatio,
+                             Qt.SmoothTransformation)
+            painter.drawPixmap(size - pip - 1, size - pip - 1, gem)
+        else:
+            # White has no gem of its own; a plain diamond stands in for it.
+            painter.save()
+            painter.translate(size - pip / 2 - 2, size - pip / 2 - 2)
+            painter.rotate(45)
+            painter.setBrush(tint)
+            painter.setPen(QColor("#00000060"))
+            painter.drawRect(-pip // 3, -pip // 3, 2 * pip // 3, 2 * pip // 3)
+            painter.restore()
+
+    painter.setBrush(Qt.NoBrush)
+    painter.setPen(QColor("#00000070"))
+    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+    painter.end()
+    _CHIP_CACHE[key] = chip
+    return chip
+
+
+class VesselStrip(QWidget):
+    """The vessel's slots as one small row, the way the game shows them.
+
+    The six editing panels below say what each relic *does*; this says what
+    the chalice *is* -- which slots it has, what colour each one is, and which
+    are filled. Reading that off six tall panels means scrolling; reading it
+    off one row is a glance, which is the whole point of it.
+
+    A Deep of Night vessel exposes three more slots, so the strip is three or
+    six tiles wide and never a fixed six: showing three greyed tiles for slots
+    the vessel does not have would be inventing a chalice.
+    """
+
+    TILE = 40
+    ICON = 30
+    # The relic screen's own slot sprite. It ships greyscale -- the five that
+    # exist are a rarity ladder with no green in it -- so it is tinted to the
+    # slot's colour rather than picked from the set.
+    SPRITE = "MENU_In_RaritySlot_00.png"
+
+    def __init__(self, icons=None):
+        super().__init__()
+        self.icons = icons
+        self._tinted: dict[int, QPixmap] = {}
+        self._row = QHBoxLayout(self)
+        self._row.setContentsMargins(0, 2, 0, 2)
+        self._row.setSpacing(4)
+        self._row.addStretch(1)
+        self.tiles: list[QLabel] = []
+
+    def _backing(self, colour: int) -> QPixmap | None:
+        """The slot sprite, tinted to one relic colour and cached."""
+        if colour in self._tinted:
+            return self._tinted[colour]
+        base = self.icons.ui(self.SPRITE) if self.icons is not None else None
+        if base is None:
+            return None
+        tile = base.scaled(self.TILE, self.TILE, Qt.KeepAspectRatioByExpanding,
+                           Qt.SmoothTransformation)
+        # Overlay is the blend that reproduces the game's own colouring:
+        # tinting the greyscale sprite this way against the shipped red
+        # variant (RaritySlot_10) matches it almost exactly -- dark interior,
+        # colour-lit smoke -- where multiply buried the sprite and screen
+        # washed it out. Checked side by side, not assumed.
+        tinted = QPixmap(tile.size())
+        tinted.fill(Qt.transparent)
+        painter = QPainter(tinted)
+        painter.drawPixmap(0, 0, tile)
+        painter.setCompositionMode(QPainter.CompositionMode_Overlay)
+        painter.fillRect(tinted.rect(),
+                         QColor(SLOT_COLOURS.get(colour, "#8a8a8a")))
+        painter.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+        painter.drawPixmap(0, 0, tile)
+        painter.end()
+        self._tinted[colour] = tinted
+        return tinted
+
+    def show_slots(self, colours: list[int], items: list) -> None:
+        """One tile per slot the vessel has: its colour, and its relic."""
+        while self._row.count() > 1:
+            item = self._row.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.tiles = []
+
+        for index, colour in enumerate(colours):
+            tint = SLOT_COLOURS.get(colour, "#8a8a8a")
+            backing = slot_chip(self.icons, colour,
+                                items[index] if index < len(items) else None,
+                                self.TILE)
+            tile = QLabel()
+            tile.setFixedSize(self.TILE, self.TILE)
+            tile.setAlignment(Qt.AlignCenter)
+            owned = items[index] if index < len(items) else None
+            if backing is not None:
+                tile.setPixmap(backing)
+                tile.setStyleSheet("border: none; background: transparent;")
+                tile.setToolTip(getattr(owned, "name", "") or "empty slot")
+                self._row.insertWidget(index, tile)
+                self.tiles.append(tile)
+                continue
+            # A filled slot is drawn in its colour; an empty one keeps the
+            # colour as an outline only, so "this chalice has a red slot" and
+            # "there is a red relic in it" never look the same.
+            if owned is not None:
+                tile.setStyleSheet(
+                    f"background: rgba(255,255,255,18);"
+                    f" border: 2px solid {tint}; border-radius: 5px;")
+                icon = None
+                if self.icons is not None:
+                    icon = self.icons.item(getattr(owned, "icon", None))
+                if icon is not None:
+                    tile.setPixmap(icon.scaled(
+                        self.ICON, self.ICON, Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation))
+                tile.setToolTip(getattr(owned, "name", ""))
+            else:
+                tile.setStyleSheet(
+                    f"background: transparent;"
+                    f" border: 1px dashed {tint}; border-radius: 5px;")
+                tile.setToolTip("empty slot")
+            self._row.insertWidget(index, tile)
+            self.tiles.append(tile)
 
 
 class RelicSlot(QFrame):
@@ -477,6 +704,15 @@ class RelicSlot(QFrame):
     def selected_ids(self) -> list[int]:
         item = self.relic_box.currentData()
         return list(item.effect_ids) if item is not None else []
+
+    def current_relic(self):
+        """The relic sitting in this slot, or None.
+
+        Named deliberately: `self.owned` is the whole inventory, not the
+        chosen relic, and reading it as the relic is a mistake already made
+        once -- it renders as a filled slot with no art in it.
+        """
+        return self.relic_box.currentData()
 
     def saved_key(self) -> str:
         """How this slot's relic is written down for the next session."""
@@ -795,7 +1031,10 @@ class Planner(QMainWindow):
     # -- panels ----------------------------------------------------------
     def _build_left(self) -> QWidget:
         panel = QWidget()
-        panel.setFixedWidth(250)
+        # Wide enough for a vessel's icon, its six slots and enough of the
+        # name to tell "Sealed Ironeye's Urn" from "Soot-Covered" -- the
+        # slots pushed the names off the edge at the old 250.
+        panel.setFixedWidth(430)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -854,12 +1093,14 @@ class Planner(QMainWindow):
         # kind of vessel.
         layout.addWidget(_heading("Vessel"))
         self.chalice_list = QListWidget()
-        self.chalice_list.setIconSize(QSize(34, 34))
+        # Wide enough for the vessel's own icon plus its slots drawn beside
+        # it; six of them in Deep of Night is the widest case.
+        self.chalice_list.setIconSize(QSize(34 + 5 + 6 * 24, 34))
         self.chalice_list.currentRowChanged.connect(lambda *_: self.apply_chalice())
         layout.addWidget(self.chalice_list, 1)
 
         self.deep_check = QCheckBox("Deep of Night (3 extra slots)")
-        self.deep_check.toggled.connect(lambda *_: self.apply_chalice())
+        self.deep_check.toggled.connect(self._on_deep_toggled)
         layout.addWidget(self.deep_check)
 
         layout.addSpacing(6)
@@ -923,6 +1164,35 @@ class Planner(QMainWindow):
         header.addWidget(self.reset_button)
         layout.addLayout(header)
 
+        # The vessel at a glance, above the six panels that edit it.
+        self.vessel_strip = VesselStrip(self.icons)
+        layout.addWidget(self.vessel_strip)
+
+        # Saved builds. The scratchpad -- whatever is in the slots now -- is
+        # still restored on launch; this is for keeping several worked-out
+        # builds and flipping between them to compare.
+        builds = QHBoxLayout()
+        builds.setSpacing(6)
+        builds.addWidget(QLabel("Build"))
+        self.build_box = QComboBox()
+        self.build_box.setMinimumWidth(180)
+        self.build_box.activated.connect(self._on_build_chosen)
+        builds.addWidget(self.build_box, 1)
+        save_build = QPushButton("Save")
+        save_build.setToolTip("Save the slots as they are under a name")
+        save_build.clicked.connect(self._save_build)
+        builds.addWidget(save_build)
+        self.delete_build_button = QPushButton("Delete")
+        self.delete_build_button.setToolTip("Forget the selected saved build")
+        self.delete_build_button.clicked.connect(self._delete_build)
+        builds.addWidget(self.delete_build_button)
+        self.hide_build_button = QPushButton("Hide")
+        self.hide_build_button.setToolTip(
+            "Keep this build out of the list without deleting it")
+        self.hide_build_button.clicked.connect(self._toggle_hidden_build)
+        builds.addWidget(self.hide_build_button)
+        layout.addLayout(builds)
+
         # No search box here. A single filter across every slot narrowed each
         # slot's own list, so a relic already chosen could stop matching and be
         # dropped out from under you -- relics would not stay put. Filtering
@@ -963,7 +1233,7 @@ class Planner(QMainWindow):
         # 348 was tight before the situational switches and cramped after them:
         # a multiplier line such as "All damage +6.0% - melee armaments only"
         # had nowhere to go, and the count box sat past the right edge.
-        outer.setFixedWidth(430)
+        outer.setFixedWidth(370)
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
         outer.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -1113,6 +1383,11 @@ class Planner(QMainWindow):
         self.hero_name_label.setText(self.heroes[index]["name"])
         self.apply_hero_weapon()
         self.reload_chalices()
+        # Saved builds are per Nightfarer, so the list and the strip both
+        # belong to whoever is selected.
+        self.refresh_build_list(
+            keep=chalices.selected_build(self.heroes[index]["id"]))
+        self.refresh_vessel_strip()
 
     # -- armament tiles ---------------------------------------------------
     def weapon_by_id(self, weapon_id: int) -> dict | None:
@@ -1177,6 +1452,130 @@ class Planner(QMainWindow):
                 self.weapon_slots[0] = weaponslots.WeaponSlot(weapon=starting)
         self.active_weapon = 0
 
+    ROW_SLOT = 22
+
+    def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False):
+        """A vessel's own icon followed by its slots, as one row image.
+
+        Reading a vessel's colours off a letter code -- "R B Y" -- means
+        translating in your head every time. Drawing the slots is what the
+        game does, and the selected vessel shows what is actually sitting in
+        them, which is the thing the list could never say before.
+
+        `worn` marks the chalice the game has equipped, with a mark on the
+        vessel rather than words after its name: the name is what the list is
+        read for, and a label pushed the longer names out of sight.
+        """
+        cell = self.chalice_list.iconSize().height()
+        colours = list(vessel.get("slots", []))
+        if self.deep_check.isChecked():
+            colours += list(vessel.get("deep_slots") or [])
+        gap = 5
+        width = cell + gap + len(colours) * (self.ROW_SLOT + 2)
+        art = QPixmap(width, cell)
+        art.fill(Qt.transparent)
+        painter = QPainter(art)
+        base = self.icons.item(vessel.get("icon")) if self.icons else None
+        if base is not None:
+            base = base.scaled(cell, cell, Qt.KeepAspectRatio,
+                               Qt.SmoothTransformation)
+            painter.drawPixmap(0, (cell - base.height()) // 2, base)
+        top = (cell - self.ROW_SLOT) // 2
+        for i, colour in enumerate(colours):
+            owned = items[i] if items and i < len(items) else None
+            painter.drawPixmap(cell + gap + i * (self.ROW_SLOT + 2), top,
+                               slot_chip(self.icons, colour, owned,
+                                         self.ROW_SLOT))
+        if worn:
+            # Drawn rather than taken from the game: the menus mark the worn
+            # chalice by moving it, not with a sprite this program could
+            # borrow, so this mark is the planner's own.
+            dot = 10
+            painter.setRenderHint(QPainter.Antialiasing, True)
+            painter.setPen(QPen(QColor("#14150f"), 1))
+            painter.setBrush(QColor(ACCENT))
+            painter.drawEllipse(cell - dot - 1, 1, dot, dot)
+        painter.end()
+        return art
+
+    def _relics_by_handle(self) -> dict:
+        """Owned relics keyed by their save handle, for drawing rows."""
+        if self.owned is None:
+            return {}
+        return {r.handle: r for r in self.owned.relics
+                if getattr(r, "handle", None) is not None}
+
+    def _stored_relics(self, hero_id: int, vessel_id: int, by_handle: dict):
+        """What one chalice holds, read from its stored build.
+
+        Rows other than the selected one have no live slots to read, so the
+        stored build is the only account of what is in them.
+        """
+        _vessel, _deep, keys = chalices.load(hero_id, vessel_id)
+        if not keys:
+            return None
+        out = []
+        for key in (list(keys) + [""] * 6)[:6]:
+            handle, _roll = chalices.split_key(key)
+            out.append(by_handle.get(handle) if handle is not None else None)
+        return out
+
+    def _worn_vessel_id(self) -> int | None:
+        """The chalice the game has equipped on this Nightfarer.
+
+        Read from the save's own record -- the vessel id in the Nightfarer's
+        loadout group header -- and not from which chalice holds relics: a
+        Nightfarer can be wearing an empty one while built ones sit beside it.
+        """
+        if (getattr(self, "owned", None) is None
+                or not getattr(self, "hero_vessels", None)):
+            return None
+        worn = self.owned.selected_loadout(self.current_hero()["id"])
+        return worn.vessel_id if worn is not None else None
+
+    def refresh_vessel_rows(self) -> None:
+        """Redraw every vessel row, not only the selected one.
+
+        The Deep of Night switch changes how many slots a chalice shows, and
+        redrawing just the selected row left every chalice the player had not
+        clicked on still drawing three -- so turning Deep on appeared to add
+        slots to one chalice and not the rest. The relics come from each
+        chalice's stored build, so a row says what is in it without being
+        opened.
+        """
+        if not getattr(self, "hero_vessels", None):
+            return
+        hero_id = self.current_hero()["id"]
+        by_handle = self._relics_by_handle()
+        current = self.chalice_list.currentRow()
+        for row in range(self.chalice_list.count()):
+            item = self.chalice_list.item(row)
+            vessel = item.data(Qt.UserRole)
+            if not vessel:
+                continue
+            if row == current:
+                items = [s.current_relic() for s in self._visible_slots()]
+            else:
+                items = self._stored_relics(hero_id, vessel["id"], by_handle)
+            item.setIcon(QIcon(self._vessel_row_art(
+                vessel, items, vessel["id"] == self._worn_vessel_id())))
+
+    def refresh_vessel_row(self) -> None:
+        """Redraw the selected vessel's row so its slots show what is in them."""
+        row = self.chalice_list.currentRow()
+        item = self.chalice_list.item(row) if row >= 0 else None
+        vessel = item.data(Qt.UserRole) if item is not None else None
+        if not vessel:
+            return
+        slots = self._visible_slots()
+        # The worn mark has to be passed here too. Without it this redraw --
+        # which runs on every slot change -- quietly rubbed the mark off the
+        # selected row, and the equipped chalice is the row most likely to be
+        # selected, so the mark appeared to not work at all.
+        item.setIcon(QIcon(self._vessel_row_art(
+            vessel, [s.current_relic() for s in slots],
+            vessel["id"] == self._worn_vessel_id())))
+
     def reload_chalices(self) -> None:
         hero = self.current_hero()
         self.chalice_list.blockSignals(True)
@@ -1198,6 +1597,7 @@ class Planner(QMainWindow):
             item.setForeground(QColor(MUTED))
             self.chalice_list.addItem(item)
 
+        worn_id = self._worn_vessel_id()
         first_row = None
         for group, vessels in ((f"{hero['name']}'s own", own),
                                ("Shared Grails — any Nightfarer", grails)):
@@ -1207,23 +1607,49 @@ class Planner(QMainWindow):
             for vessel in vessels:
                 item = QListWidgetItem(vessel["name"])
                 item.setData(Qt.UserRole, vessel)
-                icon = self.icons.item_icon(vessel.get("icon"))
-                if icon is not None:
-                    item.setIcon(icon)
+                item.setIcon(QIcon(self._vessel_row_art(
+                    vessel, None, vessel["id"] == worn_id)))
                 slots = " ".join(
                     model.COLOUR_NAMES.get(c, "?")[0] for c in vessel["slots"]
                 )
-                item.setToolTip(f"{vessel['name']} — slots {slots}")
+                tip = f"{vessel['name']} — slots {slots}"
+                if vessel["id"] == worn_id:
+                    # The mark is on the vessel, not after the name: the name
+                    # is what the list is read for, and a label pushed the
+                    # longer chalice names out of the panel.
+                    tip += "\nEquipped in game"
+                item.setToolTip(tip)
                 self.chalice_list.addItem(item)
                 if first_row is None:
                     first_row = self.chalice_list.count() - 1
         self.chalice_list.blockSignals(False)
 
+        # The first time a Nightfarer is opened, their chalices are read out
+        # of the save and the equipped one is the one shown. Until this ran on
+        # its own, a Nightfarer nobody had pressed the button on showed eleven
+        # empty chalices, and pressing it changed the whole list at once --
+        # the same list, moments apart, telling two different stories.
+        #
+        # It happens once. From then on the chalice the player last had open
+        # is what reopens, across sessions, because that choice is theirs;
+        # Load equipped is how the save is asked again.
+        if (self.owned is not None
+                and not chalices.imported(hero["id"])
+                and self.owned.loadouts_for(hero["id"])):
+            chalices.set_imported(hero["id"])
+            self.load_equipped()
+            return
+
         # The build this Nightfarer was last left holding, if there is one.
         # Restored in the same order load_equipped uses -- vessel and mode
         # first, because both rebuild the slots and would otherwise empty them
         # again straight after they were filled.
-        vessel_id, deep_on, slot_keys = chalices.load(hero["id"])
+        view_vessel, view_deep = chalices.view(hero["id"])
+        vessel_id, deep_on, slot_keys = chalices.load(hero["id"], view_vessel)
+        # The view wins for both: an empty chalice with Deep on stores no
+        # build, and its choice would otherwise be lost on the next launch.
+        if view_vessel is not None:
+            vessel_id, deep_on = view_vessel, view_deep
         saved_row = None
         if vessel_id is not None:
             saved_row = next(
@@ -1237,23 +1663,43 @@ class Planner(QMainWindow):
         try:
             if saved_row is not None:
                 self.chalice_list.setCurrentRow(saved_row)
+            if saved_row is not None or view_vessel is not None:
                 self.deep_check.blockSignals(True)
-                self.deep_check.setChecked(deep_on)
+                self.deep_check.setChecked(bool(deep_on))
                 self.deep_check.blockSignals(False)
-            elif first_row is not None:
+            if saved_row is None and first_row is not None:
                 self.chalice_list.setCurrentRow(first_row)
             self.apply_chalice()
 
+            # Emptied first, every time. This whole block runs with the
+            # restoring guard up, so apply_chalice does not set the slots
+            # from the chalice -- and rebuilding a slot keeps the relic that
+            # was in it when the colour still fits. Changing Nightfarer
+            # therefore carried relics across, and the write that followed
+            # stored them: a Nightfarer whose chalice is empty in the game
+            # inherited whatever the Nightfarer before them had on.
+            slots = list(self.base_slots) + list(self.deep_slots)
+            for slot in slots:
+                slot.select_saved("")
+
             if saved_row is not None and slot_keys:
-                slots = list(self.base_slots) + list(self.deep_slots)
                 for slot, key in zip(slots, slot_keys):
                     slot.select_saved(key)
         finally:
             self._restoring = False
+        # Drawn once the Deep switch and the slots have settled, so every row
+        # shows the right number of slots and what that chalice holds.
+        self.refresh_vessel_rows()
         self.recompute()
 
     def _store_chalice(self) -> None:
         """Write down what this Nightfarer is holding, for the next session."""
+        self.refresh_vessel_strip()
+        # Never mid-apply: see apply_chalice. The slots and the chosen vessel
+        # disagree until the apply finishes, and apply_chalice stores itself
+        # once it has.
+        if getattr(self, "_applying", False):
+            return
         if self._restoring or not getattr(self, "hero_vessels", None):
             return
         vessel = self.current_vessel()
@@ -1263,11 +1709,16 @@ class Planner(QMainWindow):
         # Storing it anyway is what made Reset Chalice look as though it had
         # not worked: the reset emptied everything and the write that followed
         # put the starting state straight back as a saved one.
-        default = self.hero_vessels[0] if self.hero_vessels else None
-        if (not any(keys) and not self.deep_check.isChecked()
-                and (vessel is None or default is None
-                     or vessel["id"] == default["id"])):
-            chalices.clear(self.current_hero()["id"])
+        # The view is always recorded: which chalice is open and whether Deep
+        # of Night is on survive even an empty vessel, because they are what
+        # the player was looking at rather than what they had equipped.
+        chalices.save_view(self.current_hero()["id"],
+                           vessel["id"] if vessel else None,
+                           self.deep_check.isChecked())
+        # The build itself is not. An empty set of slots is never written
+        # over a stored one -- Reset Chalice is how a build is forgotten,
+        # deliberately and per vessel.
+        if not any(keys):
             return
         chalices.save(
             self.current_hero()["id"],
@@ -1276,9 +1727,156 @@ class Planner(QMainWindow):
             keys,
         )
 
+    # -- saved builds ----------------------------------------------------
+
+    def _visible_slots(self) -> list:
+        """The slot panels the current vessel actually exposes."""
+        slots = list(self.base_slots)
+        if self.deep_check.isChecked():
+            slots += list(self.deep_slots)
+        return slots
+
+    def refresh_vessel_strip(self) -> None:
+        """Redraw the small slot row from the vessel and what is in it."""
+        if not hasattr(self, "vessel_strip"):
+            return
+        slots = self._visible_slots()
+        self.vessel_strip.show_slots([s.colour for s in slots],
+                                     [s.current_relic() for s in slots])
+        self.refresh_vessel_row()
+
+    def refresh_build_list(self, keep: str | None = None) -> None:
+        """Rebuild the build picker for the current Nightfarer.
+
+        The equipped build is always offered first and is never stored here:
+        it is read from the save, so it cannot go stale. Hidden builds drop
+        out of the list but keep their entry, which is what "hidden, not
+        deleted" has to mean.
+        """
+        if not hasattr(self, "build_box"):
+            return
+        hero_id = self.current_hero()["id"]
+        hidden = chalices.hidden_builds(hero_id)
+        names = [chalices.EQUIPPED_NAME] + chalices.build_names(hero_id)
+        if keep is None:
+            # No explicit target means "whatever was selected", and on the
+            # first build of the list that is what the last session left.
+            keep = self.build_box.currentData() or chalices.selected_build(
+                hero_id)
+
+        self.build_box.blockSignals(True)
+        self.build_box.clear()
+        for name in names:
+            if name in hidden and name != keep:
+                continue
+            label = f"{name}  (hidden)" if name in hidden else name
+            self.build_box.addItem(label, name)
+        index = self.build_box.findData(keep)
+        self.build_box.setCurrentIndex(index if index >= 0 else 0)
+        self.build_box.blockSignals(False)
+        self._sync_build_buttons()
+
+    def _sync_build_buttons(self) -> None:
+        name = self.build_box.currentData()
+        equipped = name == chalices.EQUIPPED_NAME
+        # The equipped build belongs to the save, not to this program: it can
+        # be looked at and hidden, never deleted or written over.
+        self.delete_build_button.setEnabled(bool(name) and not equipped)
+        hidden = name in chalices.hidden_builds(self.current_hero()["id"])
+        self.hide_build_button.setText("Unhide" if hidden else "Hide")
+        self.hide_build_button.setEnabled(bool(name))
+
+    def _on_build_chosen(self, _index: int) -> None:
+        name = self.build_box.currentData()
+        if not name:
+            return
+        chalices.set_selected_build(self.current_hero()["id"], name)
+        self._sync_build_buttons()
+        if name == chalices.EQUIPPED_NAME:
+            self.load_equipped()
+            return
+        hero_id = self.current_hero()["id"]
+        vessel_id, deep, keys = chalices.load_build(hero_id, name)
+        self._apply_stored_build(vessel_id, deep, keys)
+
+    def _apply_stored_build(self, vessel_id, deep, keys) -> None:
+        """Put a stored build into the slots, the way a restore does."""
+        self._restoring = True
+        try:
+            self.deep_check.blockSignals(True)
+            self.deep_check.setChecked(bool(deep))
+            self.deep_check.blockSignals(False)
+            if vessel_id is not None:
+                for i in range(self.chalice_list.count()):
+                    entry = self.chalice_list.item(i).data(Qt.UserRole)
+                    if entry is not None and entry["id"] == vessel_id:
+                        self.chalice_list.setCurrentRow(i)
+                        break
+            self.apply_chalice()
+            slots = list(self.base_slots) + list(self.deep_slots)
+            for index, slot in enumerate(slots):
+                slot.select_saved(keys[index] if index < len(keys) else "")
+        finally:
+            self._restoring = False
+        self.recompute()
+        self._store_chalice()
+
+    def _save_build(self) -> None:
+        suggested = self.build_box.currentData() or ""
+        if suggested == chalices.EQUIPPED_NAME:
+            suggested = ""
+        name, ok = QInputDialog.getText(
+            self, "Save build", "Name this build:", text=suggested)
+        name = (name or "").strip()
+        if not ok or not name:
+            return
+        if name == chalices.EQUIPPED_NAME:
+            QToolTip.showText(
+                QCursor.pos(),
+                "That name belongs to the build your save has equipped.")
+            return
+        vessel = self.current_vessel()
+        slots = list(self.base_slots) + list(self.deep_slots)
+        chalices.save_build(
+            self.current_hero()["id"], name,
+            vessel["id"] if vessel else None,
+            self.deep_check.isChecked(),
+            [slot.saved_key() for slot in slots],
+        )
+        chalices.set_selected_build(self.current_hero()["id"], name)
+        self.refresh_build_list(keep=name)
+
+    def _delete_build(self) -> None:
+        name = self.build_box.currentData()
+        if not name or name == chalices.EQUIPPED_NAME:
+            return
+        chalices.delete_build(self.current_hero()["id"], name)
+        chalices.set_selected_build(self.current_hero()["id"],
+                                    chalices.EQUIPPED_NAME)
+        self.refresh_build_list(keep=chalices.EQUIPPED_NAME)
+
+    def _toggle_hidden_build(self) -> None:
+        name = self.build_box.currentData()
+        if not name:
+            return
+        hero_id = self.current_hero()["id"]
+        hidden = name in chalices.hidden_builds(hero_id)
+        chalices.set_hidden(hero_id, name, not hidden)
+        # Hiding the one on screen leaves it selected until something else is
+        # chosen -- dropping it out from under the player would look like the
+        # build had been deleted, which is the one thing Hide must not do.
+        self.refresh_build_list(keep=name)
+
     def reset_chalice(self) -> None:
-        """Forget this Nightfarer's build and go back to an empty first vessel."""
-        chalices.clear(self.current_hero()["id"])
+        """Empty this vessel and forget the build stored for it.
+
+        Scoped to the vessel on screen now that each keeps its own build --
+        clearing every vessel's work from one button would be a far bigger
+        thing than the label promises.
+        """
+        vessel = self.current_vessel()
+        chalices.clear(self.current_hero()["id"],
+                       vessel["id"] if vessel else None)
         self._restoring = True
         try:
             self.deep_check.blockSignals(True)
@@ -1305,13 +1903,43 @@ class Planner(QMainWindow):
             vessel = self.hero_vessels[0] if self.hero_vessels else None
         return vessel
 
+    def _on_deep_toggled(self, *_args) -> None:
+        """The Deep switch changes every chalice, so every row is redrawn."""
+        self.apply_chalice()
+        self.refresh_vessel_rows()
+
     def apply_chalice(self) -> None:
         if not self.hero_vessels:
             return
+        # This is not re-entrant. It rebuilds the slots, and rebuilding a slot
+        # can put a relic in it, which is a change like any other and comes
+        # back round here. Nesting is never useful -- the outer call finishes
+        # by drawing and recomputing anyway -- and left unguarded the nesting
+        # grew until the program died of a stack overflow while stepping
+        # through one Nightfarer's chalices in order.
+        if getattr(self, "_applying", False):
+            return
+        # Whatever this call changes -- vessel, Deep of Night, slot colours --
+        # the strip is drawn from it, so it is refreshed at the end below.
         vessel = self.current_vessel()
         if vessel is None:
             return
         deep_on = self.deep_check.isChecked()
+        self._applying = True
+        try:
+            self._apply_chalice(vessel, deep_on)
+        finally:
+            self._applying = False
+        # Only now, with the slots holding this chalice and nothing of the
+        # one before it. Rebuilding a slot can emit, and a store that ran
+        # part-way through wrote the old chalice's relics under the new
+        # chalice's name: the vessel id had already changed while the slots
+        # had not caught up. That is how a chalice empty in the game ended up
+        # owning a relic nobody put there.
+        self._store_chalice()
+
+    def _apply_chalice(self, vessel: dict, deep_on: bool) -> None:
+        """The body of apply_chalice, held apart so it cannot nest."""
 
         owned = self.owned
         # Slots always list everything they can hold. Narrowing them from
@@ -1325,7 +1953,56 @@ class Planner(QMainWindow):
             slot.setVisible(deep_on)
         self.deep_heading.setVisible(deep_on)
 
+        # set_colour above does NOT empty the slots. It repopulates them and
+        # deliberately keeps the relic that was in one if that relic still
+        # fits -- which is what a search filter or the Deep switch needs, and
+        # is wrong the moment the chalice itself changes. Every slot the new
+        # chalice happens to share a colour with the old one kept the old
+        # relic, and the write that followed stored it: opening a Grail whose
+        # slots are all Yellow inherited the Yellow relic from the chalice
+        # before it, and the Grail then owned a relic nobody put there.
+        #
+        # So on a change of chalice the slots are set from that chalice's own
+        # stored build and from nothing else, empty included.
+        # The note of which chalice was last applied is only made when the
+        # slots were actually set from it. Marking it here regardless meant a
+        # pass that skipped the restore still claimed the chalice as applied,
+        # so the next pass saw no change and never cleared -- one relic from
+        # the chalice before survived, and was stored.
+        changed = getattr(self, "_applied_vessel", None) != vessel["id"]
+        if not self._restoring:
+            self._applied_vessel = vessel["id"]
+            self._restore_vessel_build(vessel, clear=changed)
+
+        self.refresh_vessel_strip()
         self.recompute()
+
+    def _restore_vessel_build(self, vessel: dict, clear: bool = False) -> None:
+        """Put back whatever this vessel was last holding.
+
+        With `clear`, a vessel that has no stored build has its slots emptied
+        rather than left alone -- the chalice has just changed, and whatever
+        is in the slots belongs to the chalice being left.
+        """
+        _stored_id, deep, keys = chalices.load(
+            self.current_hero()["id"], vessel["id"])
+        if not any(keys) and not clear:
+            return
+        self._restoring = True
+        try:
+            # The Deep of Night switch is left exactly as the player set it.
+            # Restoring the stored flag here fought the switch: turning Deep
+            # off reloaded a build that had it on and turned it straight back.
+            #
+            # Every slot is filled regardless, the hidden Deep ones included,
+            # so toggling the switch reveals the full array instead of an
+            # empty half. Only the visible ones reach the totals --
+            # selected_effects() reads active_slots().
+            slots = list(self.base_slots) + list(self.deep_slots)
+            for index, slot in enumerate(slots):
+                slot.select_saved(keys[index] if index < len(keys) else "")
+        finally:
+            self._restoring = False
 
     def show_variant_strip(self, tile) -> None:
         """Inline artwork chooser for one Nightfarer, inside the sidebar."""
@@ -1475,12 +2152,23 @@ class Planner(QMainWindow):
             rows.append(f"&nbsp;&nbsp;From attributes &nbsp; "
                         f"<b>{from_attributes:+.0f}</b>")
 
+        weapon_class = ar.get("class")
         for field_name, value in ar["rates"].items():
             rows.append(f"&nbsp;&nbsp;{model.label_for(field_name)} &nbsp; "
                         f"<b>{(value - 1.0) * 100:+.1f}%</b>")
             # Which relics produced that multiplier, in the same order and
-            # wording the other breakdowns use.
-            for name, own in self.last_sources.get(field_name, []):
+            # wording the other breakdowns use. A buff scoped to melee or
+            # ranged armaments is filed under its own key, so both are read:
+            # the flat sources, then the ones that apply because of what this
+            # armament is.
+            entries = list(self.last_sources.get(field_name, []))
+            if weapon_class:
+                scoped = (f"{model.WEAPON_CLASS_PREFIX}{weapon_class}:"
+                          f"{field_name}")
+                entries += [(f"{name} — {weapon_class} armaments only", own)
+                            for name, own in
+                            self.last_sources.get(scoped, [])]
+            for name, own in entries:
                 rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
                             f"<span style='color:{MUTED}'>{name} "
                             f"{(own - 1.0) * 100:+.1f}%</span>")
@@ -1565,6 +2253,11 @@ class Planner(QMainWindow):
             "final": final_total,
             "rates": rates_in_play,
             "weapon": weapon.get("name", "weapon"),
+            # A class-scoped buff records its source under a prefixed key, so
+            # the breakdown needs to know which class to look under -- without
+            # it, "Improved Ranged Weapon Attacks" raised the total and then
+            # named nothing that did it.
+            "class": model.weapon_class(weapon),
         }
 
         rows = []
@@ -1723,6 +2416,28 @@ class Planner(QMainWindow):
             return
 
         hero = self.current_hero()
+        entries = self.owned.loadouts_for(hero["id"])
+        # Every chalice is imported, not only the one being worn. The save
+        # stores all of them, and a player who has built several and happens
+        # to have an empty one equipped used to get an empty planner back.
+        imported = 0
+        for entry in entries:
+            keys = [chalices.slot_key(r) for r in entry.relics]
+            keys += [""] * (6 - len(keys))
+            if any(keys):
+                chalices.save(hero["id"], entry.vessel_id, entry.deep_used, keys)
+                imported += 1
+            else:
+                # Empty in the game means empty here: this button says the
+                # save is the truth. Named builds are stored separately and
+                # are not touched, so planning work survives an import.
+                chalices.clear(hero["id"], entry.vessel_id)
+
+        # The vessel shown is the one actually worn, even when it is empty:
+        # the button says "equipped", and opening a different chalice because
+        # it happens to have relics in it would misreport the game. The empty
+        # case is explained in the note instead, and the other chalices are
+        # already filled in by then.
         loadout = self.owned.selected_loadout(hero["id"])
         if loadout is None:
             if self.owned.loadout_error:
@@ -1751,13 +2466,40 @@ class Planner(QMainWindow):
             )
             return
 
-        # Set the vessel and mode first: both rebuild the slots, which would
-        # otherwise discard the relics just put in them.
-        self.chalice_list.setCurrentRow(row)
-        self.deep_check.blockSignals(True)
-        self.deep_check.setChecked(loadout.deep_used)
-        self.deep_check.blockSignals(False)
-        self.apply_chalice()
+        # What is on screen after this is the save's build, so the picker has
+        # to say so. It kept naming whichever saved build was chosen before,
+        # which then described a chalice it had nothing to do with.
+        chalices.set_selected_build(hero["id"], chalices.EQUIPPED_NAME)
+        self.refresh_build_list(chalices.EQUIPPED_NAME)
+
+        # The guard goes up before the row changes, not after. Changing the
+        # row fires the list's own handler, which stores what the slots hold
+        # -- and at that moment they still hold the chalice being left, while
+        # the vessel id has already moved on. That wrote one chalice's relics
+        # under another one's name: importing a Nightfarer whose equipped
+        # chalice is empty gave it whatever was on screen beforehand.
+        #
+        # It also holds off the per-vessel restore inside apply_chalice: the
+        # save is the authority here, and restoring would put the stored
+        # build back and take the save's Deep of Night setting with it.
+        self._restoring = True
+        try:
+            # Set the vessel and mode first: both rebuild the slots, which
+            # would otherwise discard the relics just put in them.
+            self.chalice_list.setCurrentRow(row)
+            # Deep of Night is only ever switched ON here, never off. The
+            # save says whether the equipped build uses the extra slots, but
+            # the switch is also how the player chooses what to look at:
+            # turning it on and then importing used to turn it straight back
+            # off. Slots are filled either way, so nothing is lost by
+            # leaving it on.
+            if loadout.deep_used and not self.deep_check.isChecked():
+                self.deep_check.blockSignals(True)
+                self.deep_check.setChecked(True)
+                self.deep_check.blockSignals(False)
+            self.apply_chalice()
+        finally:
+            self._restoring = False
 
         slots = list(self.base_slots) + list(self.deep_slots)
         missing = 0
@@ -1765,10 +2507,22 @@ class Planner(QMainWindow):
             if not slot.select_handle(item.handle if item else None):
                 missing += 1
 
+        # Every row, not only the one on screen: the import has just filled
+        # the other chalices, and they should say so without being clicked.
+        self.refresh_vessel_rows()
         vessel_name = self.chalice_list.item(row).data(Qt.UserRole)["name"]
         filled = sum(1 for r in loadout.relics if r is not None)
-        note = (f"Loaded {hero['name']} — {vessel_name}, {filled} relics"
-                f"{' (Deep of Night)' if loadout.deep_used else ''}.")
+        count = f"{imported} {'chalice' if imported == 1 else 'chalices'}"
+        if filled:
+            note = (f"Loaded {hero['name']} — {count}, showing the equipped "
+                    f"{vessel_name} with {filled} relics"
+                    f"{' (Deep of Night)' if loadout.deep_used else ''}.")
+        elif imported:
+            note = (f"Loaded {hero['name']} — {count}. The equipped "
+                    f"{vessel_name} is empty in game; the others are in the "
+                    "list on the left.")
+        else:
+            note = (f"Loaded {hero['name']} — every chalice is empty in game.")
         if missing:
             # Only reachable if a search filter is hiding an equipped relic.
             note += f" {missing} could not be placed; clear the search and retry."
