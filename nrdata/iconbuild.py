@@ -13,6 +13,17 @@ from typing import Callable
 
 from . import (bnd4, dds, dvdbnd, icons, param, paramdef, regulation, tpf)
 
+# What this builder produces, so an existing pack can be told from a current
+# one. Exactly the reason extract.EXTRACT_VERSION exists, and it was missed
+# here: the pack was rebuilt only when its manifest was *missing*, so a player
+# upgrading kept the pack an older build wrote, forever. 1.5.0 added the UI
+# sprites for the chalice slots and the damage icons -- every 1.4.0 player
+# would have upgraded into a program that draws slots it has no art for.
+#
+# Raise this whenever the pack gains or changes a sprite.
+#   2  the relic-slot cell, the four slot gems, the twelve damage-type icons
+ICON_VERSION = 2
+
 PORTRAIT_SIZE = 128
 ITEM_SIZE = 64
 VARIANT_SIZE = 256
@@ -28,6 +39,33 @@ SOLO_DATA = "/menu/00_solo_h.tpfbdt"
 # and its data blob differ only in the tail of the name hash.
 DLC_SOLO_HEADER = 0x6D0C219038D068B1
 DLC_SOLO_DATA = 0x6D0C219038D066AD
+
+
+# Sprite name -> the file it is written as. Damage-type icons are keyed by
+# what they depict, which was read off the extracted images.
+UI_SPRITES = {
+    "MENU_In_RaritySlot_00.png": "ui_slot.png",
+    # The slot-colour gems. The game shows these in the corner of a filled
+    # slot, where the relic covers the coloured glow behind it and the colour
+    # would otherwise be unreadable. Exactly four exist -- checked across the
+    # whole MenuIcon range -- so White has none and is drawn.
+    "MENU_MenuIcon_40480.png": "ui_gem_red.png",
+    "MENU_MenuIcon_40481.png": "ui_gem_blue.png",
+    "MENU_MenuIcon_40482.png": "ui_gem_green.png",
+    "MENU_MenuIcon_40483.png": "ui_gem_yellow.png",
+    "MENU_FL_40141.png": "ui_dmg_standard.png",
+    "MENU_FL_40142.png": "ui_dmg_strike.png",
+    "MENU_FL_40143.png": "ui_dmg_slash.png",
+    "MENU_FL_40144.png": "ui_dmg_pierce.png",
+    "MENU_FL_40145.png": "ui_dmg_holy.png",
+    "MENU_FL_40146.png": "ui_dmg_magic.png",
+    "MENU_FL_40147.png": "ui_dmg_frost.png",
+    "MENU_FL_40148.png": "ui_dmg_fire.png",
+    "MENU_FL_40150.png": "ui_dmg_lightning.png",
+    "MENU_FL_40151.png": "ui_dmg_madness.png",
+    "MENU_FL_40172.png": "ui_dmg_poison.png",
+    "MENU_FL_40173.png": "ui_dmg_blood.png",
+}
 
 
 def build(
@@ -111,7 +149,48 @@ def build(
         manifest["menu"][str(icon_id)] = name
     report(f"boss icons: {len(manifest['menu'])} of {len(boss_icons)} requested")
 
+    # -- UI sprites -------------------------------------------------------
+    # The relic screen's own artwork, named by its Scaleform file rather than
+    # guessed at: 01_125_itemsummary_antique.gfx references MENU_In_RaritySlot
+    # for the slot backing and MENU_FL_401xx for the damage-type icons. The
+    # slot sprite ships greyscale and is tinted per relic colour at draw time,
+    # because the five that exist are a rarity ladder and carry no green.
+    for sprite, name in UI_SPRITES.items():
+        image = source.crop(sprite)
+        if image is None:
+            continue
+        image.save(OUT / name)
+        manifest.setdefault("ui", {})[sprite] = name
+    report(f"ui sprites: {len(manifest.get('ui', {}))} of {len(UI_SPRITES)}")
+
     source.release()
+
+    # -- read-back verification -------------------------------------------
+    # A written file is not a delivered file: a scanner holding the
+    # directory produced icons that existed at full size and failed every
+    # open() minutes later. Each file is re-read and re-decoded here, with
+    # one rewrite attempt, so a bad write is caught while the game data to
+    # redo it is still in hand -- not at draw time on some later launch.
+    from PIL import Image as _Image
+    import io as _io
+    bad = []
+    for group in manifest.values():
+        entries = group.items() if isinstance(group, dict) else []
+        for _key, filename in entries:
+            if not isinstance(filename, str):
+                continue
+            target = OUT / filename
+            try:
+                _Image.open(_io.BytesIO(target.read_bytes())).load()
+            except OSError:
+                bad.append(filename)
+    if bad:
+        report(f"verification: {len(bad)} of the written files failed to "
+               f"read back (e.g. {bad[0]}) -- something on this machine is "
+               "holding the icons directory; the pack may show gaps until "
+               "the next rebuild")
+    else:
+        report("verification: every written icon reads back")
 
     # --- full-body character variants ------------------------------------
     from PIL import Image
@@ -162,6 +241,7 @@ def build(
     report(f"character variants: {total} across "
           f"{len(manifest['variants'])} heroes")
 
+    manifest["icon_version"] = ICON_VERSION
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1))
     size = sum(f.stat().st_size for f in OUT.iterdir())
     report(f"\nicon pack: {size / 1024 / 1024:.1f} MB in {OUT}")

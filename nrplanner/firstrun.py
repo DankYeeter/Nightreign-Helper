@@ -70,8 +70,36 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
     # Same for the icon pack: whichever one IconPack would find.
     from .iconpack import IconPack
 
-    if not (IconPack.locate() / "manifest.json").exists():
+    icon_manifest = IconPack.locate() / "manifest.json"
+    if not icon_manifest.exists():
         needed.append("icons")
+    else:
+        # A pack that exists is not necessarily a pack this build can use.
+        # Rebuilding only when the manifest was missing meant an upgrading
+        # player kept whatever an older build wrote: 1.5.0 draws chalice
+        # slots and damage icons from sprites 1.4.0 never extracted, and
+        # every existing installation would have come up without them.
+        #
+        # A manifest that cannot be read is left alone rather than rebuilt.
+        # On this machine the icons directory intermittently refuses to
+        # open -- see iconpack._read_with_retries -- and treating that as
+        # "out of date" would rebuild the whole pack on every single launch,
+        # which is far worse than keeping the pack already on disk.
+        import json
+
+        from nrdata import iconbuild
+
+        from .iconpack import _read_with_retries
+
+        raw = _read_with_retries(icon_manifest)
+        if raw is not None:
+            try:
+                built = json.loads(raw.decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                needed.append("icons")
+            else:
+                if built.get("icon_version", 1) != iconbuild.ICON_VERSION:
+                    needed.append("icons")
 
     return needed
 
