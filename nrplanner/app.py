@@ -1454,7 +1454,8 @@ class Planner(QMainWindow):
 
     ROW_SLOT = 22
 
-    def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False):
+    def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False,
+                        selected: bool = False):
         """A vessel's own icon followed by its slots, as one row image.
 
         Reading a vessel's colours off a letter code -- "R B Y" -- means
@@ -1465,6 +1466,12 @@ class Planner(QMainWindow):
         `worn` marks the chalice the game has equipped, with a mark on the
         vessel rather than words after its name: the name is what the list is
         read for, and a label pushed the longer names out of sight.
+
+        `selected` flips that mark dark. The row highlight is the same accent
+        the mark was drawn in -- exactly, #c8a45c on both -- so on the row the
+        player had open the mark was gold on gold and only its outline showed.
+        That is the row it matters on most: the equipped chalice is the one
+        open after an import and on a Nightfarer's first visit.
         """
         cell = self.chalice_list.iconSize().height()
         colours = list(vessel.get("slots", []))
@@ -1492,8 +1499,10 @@ class Planner(QMainWindow):
             # borrow, so this mark is the planner's own.
             dot = 10
             painter.setRenderHint(QPainter.Antialiasing, True)
-            painter.setPen(QPen(QColor("#14150f"), 1))
-            painter.setBrush(QColor(ACCENT))
+            fill, edge = ((QColor("#14150f"), QColor("#e6d3a3"))
+                          if selected else (QColor(ACCENT), QColor("#14150f")))
+            painter.setPen(QPen(edge, 1))
+            painter.setBrush(fill)
             painter.drawEllipse(cell - dot - 1, 1, dot, dot)
         painter.end()
         return art
@@ -1558,7 +1567,8 @@ class Planner(QMainWindow):
             else:
                 items = self._stored_relics(hero_id, vessel["id"], by_handle)
             item.setIcon(QIcon(self._vessel_row_art(
-                vessel, items, vessel["id"] == self._worn_vessel_id())))
+                vessel, items, vessel["id"] == self._worn_vessel_id(),
+                row == current)))
 
     def refresh_vessel_row(self) -> None:
         """Redraw the selected vessel's row so its slots show what is in them."""
@@ -1574,7 +1584,7 @@ class Planner(QMainWindow):
         # selected, so the mark appeared to not work at all.
         item.setIcon(QIcon(self._vessel_row_art(
             vessel, [s.current_relic() for s in slots],
-            vessel["id"] == self._worn_vessel_id())))
+            vessel["id"] == self._worn_vessel_id(), True)))
 
     def reload_chalices(self) -> None:
         hero = self.current_hero()
@@ -1937,6 +1947,11 @@ class Planner(QMainWindow):
         # had not caught up. That is how a chalice empty in the game ended up
         # owning a relic nobody put there.
         self._store_chalice()
+        # The whole list, because selection moved: the row being left has to
+        # lose the light mark and the row arrived at has to gain it, and only
+        # one of the two is the current row. Chip drawing is cached, so this
+        # costs little and only runs when the chalice or the mode changes.
+        self.refresh_vessel_rows()
 
     def _apply_chalice(self, vessel: dict, deep_on: bool) -> None:
         """The body of apply_chalice, held apart so it cannot nest."""
