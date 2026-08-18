@@ -18,4 +18,4 @@
 # difference. Keep them in step -- a version that disagrees with what shipped
 # is worse than no version, because a bug report names a build that never
 # existed.
-__version__ = "1.5.0"
+__version__ = "1.5.1"
