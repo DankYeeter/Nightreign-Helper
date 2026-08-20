@@ -11,10 +11,19 @@ without adding a file of its own.
 
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import QSettings
 
-ORG = "DankYeeter"
-APP = "NightreignHelper"
+# Named by the environment when it says so, and by the program otherwise.
+# Every script that drives a real Planner writes into the player's own
+# settings without this -- builds, favourites and artwork included -- so the
+# order the smoke battery ran in mattered, and a test could overwrite work
+# somebody had done in the game. Setting NIGHTREIGN_SETTINGS_APP in front of
+# a run gives that run a store of its own without any script having to know
+# it is being isolated. OPEN_QUESTIONS §21.8.
+ORG = os.environ.get("NIGHTREIGN_SETTINGS_ORG") or "DankYeeter"
+APP = os.environ.get("NIGHTREIGN_SETTINGS_APP") or "NightreignHelper"
 GROUP = "favourites"
 
 

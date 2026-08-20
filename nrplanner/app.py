@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
-from PySide6.QtCore import QPoint, QPointF, QSettings, QSize, Qt
+from PySide6.QtCore import QPoint, QPointF, QProcess, QSettings, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFont, QIcon, QPainter, QPalette, QPen, QPixmap,
     QLinearGradient, QPolygonF, QRadialGradient,
@@ -14,12 +15,14 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
-    QSlider, QTabWidget, QToolButton, QToolTip, QVBoxLayout, QWidget,
+    QSlider, QSplitter, QTabWidget, QToolButton, QToolTip, QVBoxLayout,
+    QWidget,
 )
 
 from . import __version__
 from . import (chalices, datasource, effecttext, favourites, firstrun,
-               inventory, model, search, shortcut, weaponslots, weapons)
+               inventory, model, search, shortcut, uiscale, weaponslots,
+               weapons)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -42,6 +45,10 @@ AR_BREAKDOWN_KEY = "ar:total"
 
 # Sentinel for the "build your own relic" entry in a slot's relic list.
 CUSTOM_RELIC = object()
+
+# Where the three panes' widths are kept, so a window sized once stays
+# that way. QSplitter's own encoding, which survives a pane being added.
+PANES_KEY = "ui/panes"
 
 TILE_SIZE = 50
 TILE_PAD = 6
@@ -985,16 +992,71 @@ class Planner(QMainWindow):
         self.shortcut_button.setCursor(Qt.PointingHandCursor)
         self.shortcut_button.clicked.connect(self._toggle_shortcut)
         self._sync_shortcut_button()
+
+        # How large the interface is drawn goes beside it, for the same
+        # reason: it belongs to no tab, and this is the only chrome on screen
+        # whichever tab is open. Automatic follows Windows, which is what the
+        # program has always done and stays the default.
+        corner = QWidget()
+        corner_row = QHBoxLayout(corner)
+        corner_row.setContentsMargins(0, 0, 6, 0)
+        corner_row.setSpacing(6)
+        scale_caption = QLabel("UI scale")
+        scale_caption.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        corner_row.addWidget(scale_caption)
+        self.scale_box = QComboBox()
+        for label, value in uiscale.CHOICES:
+            self.scale_box.addItem(label, value)
+        stored_scale = self.scale_box.findData(uiscale.stored())
+        self.scale_box.setCurrentIndex(max(stored_scale, 0))
+        self.scale_box.setToolTip(
+            "How large everything is drawn, on top of Windows' own display "
+            "scaling. Automatic is Windows' setting unchanged."
+        )
+        self.scale_box.activated.connect(self._choose_scale)
+        corner_row.addWidget(self.scale_box)
         if shortcut.available():
-            tabs.setCornerWidget(self.shortcut_button, Qt.TopRightCorner)
+            corner_row.addWidget(self.shortcut_button)
+        tabs.setCornerWidget(corner, Qt.TopRightCorner)
 
         planner = QWidget()
         root = QHBoxLayout(planner)
         root.setContentsMargins(14, 14, 14, 14)
-        root.setSpacing(14)
-        root.addWidget(self._build_left(), 0)
-        root.addWidget(self._build_middle(), 1)
-        root.addWidget(self._build_right(), 0)
+        # The splitter draws its own gaps, so the layout no longer adds any.
+        root.setSpacing(0)
+
+        # Panes rather than three columns pinned to the pixel. The sidebar was
+        # 430 wide and the sheet 370 on every machine, so the same numbers had
+        # to serve a laptop and a 4K monitor: relic names were cut off on one
+        # while the sheet had room going spare on the other, and nothing could
+        # be done about either. Collapsing is off -- a pane dragged shut
+        # leaves nothing on screen to say it is still there, and reads as the
+        # program having lost it.
+        self.panes = QSplitter(Qt.Horizontal)
+        self.panes.setChildrenCollapsible(False)
+        self.panes.setHandleWidth(10)
+        self.panes.addWidget(self._build_left())
+        self.panes.addWidget(self._build_middle())
+        self.panes.addWidget(self._build_right())
+        # Extra width goes to the slots in the middle; the two edges keep the
+        # size they were given, which is what they had before.
+        self.panes.setStretchFactor(0, 0)
+        self.panes.setStretchFactor(1, 1)
+        self.panes.setStretchFactor(2, 0)
+        self.panes.setSizes([430, 520, 370])
+        stored_panes = QSettings(favourites.ORG, favourites.APP).value(PANES_KEY)
+        if stored_panes:
+            try:
+                self.panes.restoreState(stored_panes)
+            except TypeError:
+                pass    # a key from some older shape of this setting
+        root.addWidget(self.panes)
+
+        # Written once, on the way out. splitterMoved fires for every pixel of
+        # a drag, and a settings write per pixel is a lot of nothing.
+        instance = QApplication.instance()
+        if instance is not None:
+            instance.aboutToQuit.connect(self._store_layout)
 
         tabs.addTab(planner, "Build planner")
         self.effects_tab = EffectsTab(data)
@@ -1031,10 +1093,12 @@ class Planner(QMainWindow):
     # -- panels ----------------------------------------------------------
     def _build_left(self) -> QWidget:
         panel = QWidget()
-        # Wide enough for a vessel's icon, its six slots and enough of the
-        # name to tell "Sealed Ironeye's Urn" from "Soot-Covered" -- the
-        # slots pushed the names off the edge at the old 250.
-        panel.setFixedWidth(430)
+        # 430 is what this pane opens at, and is no longer all it can be:
+        # it is a pane of a splitter now, and the player sizes it. The floor
+        # is what a vessel's icon and its six slots need before the name has
+        # anywhere left to go -- below that the list stops saying which vessel
+        # each row is, which is worse than a scrollbar.
+        panel.setMinimumWidth(300)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -1188,9 +1252,21 @@ class Planner(QMainWindow):
         builds.addWidget(self.delete_build_button)
         self.hide_build_button = QPushButton("Hide")
         self.hide_build_button.setToolTip(
-            "Keep this build out of the list without deleting it")
+            "Keep this build out of the list without deleting it — "
+            "Show hidden lists it again")
         self.hide_build_button.clicked.connect(self._toggle_hidden_build)
         builds.addWidget(self.hide_build_button)
+        # Hiding was one-way. The build left the list as soon as anything else
+        # was selected and nothing anywhere offered it back, so the only route
+        # a player found was to save a new build under the same name -- which
+        # does bring the entry back, and overwrites everything that was in it.
+        self.show_hidden_check = QCheckBox("Show hidden")
+        self.show_hidden_check.setToolTip(
+            "List the builds you have hidden, so one can be selected and "
+            "unhidden")
+        self.show_hidden_check.toggled.connect(
+            lambda *_: self.refresh_build_list())
+        builds.addWidget(self.show_hidden_check)
         layout.addLayout(builds)
 
         # No search box here. A single filter across every slot narrowed each
@@ -1232,8 +1308,11 @@ class Planner(QMainWindow):
         outer = QScrollArea()
         # 348 was tight before the situational switches and cramped after them:
         # a multiplier line such as "All damage +6.0% - melee armaments only"
-        # had nowhere to go, and the count box sat past the right edge.
-        outer.setFixedWidth(370)
+        # had nowhere to go, and the count box sat past the right edge. 370 is
+        # still what it opens at -- the splitter's initial sizes say so -- but
+        # a player who wants the sheet wider may now have it, and one who
+        # drags it narrow gets the wrapping rather than a cut-off column.
+        outer.setMinimumWidth(340)
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
         outer.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -1341,7 +1420,69 @@ class Planner(QMainWindow):
         outer.setWidget(panel)
         return outer
 
-    # -- Start Menu entry -------------------------------------------------
+    # -- window chrome: pane widths, scale, Start Menu entry -------------
+    def _store_layout(self) -> None:
+        """Remember how wide the player made each pane."""
+        if hasattr(self, "panes"):
+            QSettings(favourites.ORG, favourites.APP).setValue(
+                PANES_KEY, self.panes.saveState())
+
+    def _choose_scale(self, _index: int) -> None:
+        """Store the chosen scale, and offer the restart it needs to show.
+
+        Qt reads the scale factor once, while the QApplication is being made,
+        and gives nothing that changes it afterwards. So this cannot redraw
+        what is already on screen. Saying that and offering the restart is
+        the honest version of a control that would otherwise look broken.
+        """
+        chosen = self.scale_box.currentData()
+        if chosen == uiscale.stored():
+            return
+        uiscale.set_stored(chosen)
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Nightreign Helper")
+        box.setIcon(QMessageBox.Question)
+        box.setText(
+            f"The interface is drawn at {self.scale_box.currentText()} from "
+            f"the next launch."
+        )
+        # What a restart costs, in the player's terms. Relics, builds,
+        # favourites and artwork are in the settings and come straight back;
+        # the armament tiles and the switched-on conditions are session state
+        # by design, and would start again from the Nightfarer's default.
+        box.setInformativeText(
+            "Your relics, saved builds and favourites are kept. The armament "
+            "tiles and any conditions you have switched on last only for the "
+            "run of the program, and would start again."
+        )
+        restart = box.addButton("Restart now", QMessageBox.AcceptRole)
+        box.addButton("Later", QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is restart:
+            self._restart()
+
+    def _restart(self) -> None:
+        """Start this program again and leave.
+
+        Frozen, the executable is its own launcher and takes no arguments of
+        ours; from a checkout it is the interpreter that has to be started,
+        with the script it was given. Nothing is written on the way out that
+        is not written already -- every build is stored as it changes.
+        """
+        if getattr(sys, "frozen", False):
+            arguments = []
+        else:
+            arguments = [os.path.abspath(sys.argv[0]), *sys.argv[1:]]
+        if QProcess.startDetached(sys.executable, arguments):
+            QApplication.quit()
+            return
+        QMessageBox.information(
+            self, "Nightreign Helper",
+            "This could not restart itself. Close it and open it again, and "
+            "the new scale will be in place."
+        )
+
     def _sync_shortcut_button(self) -> None:
         """Label the button for what it will do, not for what it is."""
         if not shortcut.available():
@@ -1695,6 +1836,7 @@ class Planner(QMainWindow):
             if saved_row is not None and slot_keys:
                 for slot, key in zip(slots, slot_keys):
                     slot.select_saved(key)
+            self._mark_vessel_applied()
         finally:
             self._restoring = False
         # Drawn once the Deep switch and the slots have settled, so every row
@@ -1767,17 +1909,23 @@ class Planner(QMainWindow):
             return
         hero_id = self.current_hero()["id"]
         hidden = chalices.hidden_builds(hero_id)
-        names = [chalices.EQUIPPED_NAME] + chalices.build_names(hero_id)
+        names = ([chalices.EQUIPPED_NAME, chalices.UNSAVED_NAME]
+                 + chalices.build_names(hero_id))
         if keep is None:
             # No explicit target means "whatever was selected", and on the
             # first build of the list that is what the last session left.
             keep = self.build_box.currentData() or chalices.selected_build(
                 hero_id)
+        # A hidden build is listed while the player asks for it, and while it
+        # is the one selected. Without the first of those, hiding was a thing
+        # that could not be undone.
+        show_hidden = getattr(self, "show_hidden_check", None)
+        showing = show_hidden is not None and show_hidden.isChecked()
 
         self.build_box.blockSignals(True)
         self.build_box.clear()
         for name in names:
-            if name in hidden and name != keep:
+            if name in hidden and name != keep and not showing:
                 continue
             label = f"{name}  (hidden)" if name in hidden else name
             self.build_box.addItem(label, name)
@@ -1788,13 +1936,17 @@ class Planner(QMainWindow):
 
     def _sync_build_buttons(self) -> None:
         name = self.build_box.currentData()
-        equipped = name == chalices.EQUIPPED_NAME
         # The equipped build belongs to the save, not to this program: it can
-        # be looked at and hidden, never deleted or written over.
-        self.delete_build_button.setEnabled(bool(name) and not equipped)
+        # be looked at and hidden, never deleted or written over. The unsaved
+        # entry is not a build at all -- it is the list's way of saying the
+        # slots are nobody's saved work -- so there is nothing to delete and
+        # nothing to hide.
+        unsaved = name == chalices.UNSAVED_NAME
+        self.delete_build_button.setEnabled(
+            bool(name) and name not in chalices.RESERVED_NAMES)
         hidden = name in chalices.hidden_builds(self.current_hero()["id"])
         self.hide_build_button.setText("Unhide" if hidden else "Hide")
-        self.hide_build_button.setEnabled(bool(name))
+        self.hide_build_button.setEnabled(bool(name) and not unsaved)
 
     def _on_build_chosen(self, _index: int) -> None:
         name = self.build_box.currentData()
@@ -1802,6 +1954,12 @@ class Planner(QMainWindow):
             return
         chalices.set_selected_build(self.current_hero()["id"], name)
         self._sync_build_buttons()
+        if name == chalices.UNSAVED_NAME:
+            # A label, not a build. Picking it says "these slots are not one
+            # of my saved builds" and changes nothing on screen: emptying them
+            # is Reset Chalice's job, and doing it from a name in a list would
+            # throw away work nobody asked to lose.
+            return
         if name == chalices.EQUIPPED_NAME:
             self.load_equipped()
             return
@@ -1826,6 +1984,7 @@ class Planner(QMainWindow):
             slots = list(self.base_slots) + list(self.deep_slots)
             for index, slot in enumerate(slots):
                 slot.select_saved(keys[index] if index < len(keys) else "")
+            self._mark_vessel_applied()
         finally:
             self._restoring = False
         self.recompute()
@@ -1833,17 +1992,19 @@ class Planner(QMainWindow):
 
     def _save_build(self) -> None:
         suggested = self.build_box.currentData() or ""
-        if suggested == chalices.EQUIPPED_NAME:
+        if suggested in chalices.RESERVED_NAMES:
             suggested = ""
         name, ok = QInputDialog.getText(
             self, "Save build", "Name this build:", text=suggested)
         name = (name or "").strip()
         if not ok or not name:
             return
-        if name == chalices.EQUIPPED_NAME:
+        if name in chalices.RESERVED_NAMES:
             QToolTip.showText(
                 QCursor.pos(),
-                "That name belongs to the build your save has equipped.")
+                "That name belongs to the build your save has equipped."
+                if name == chalices.EQUIPPED_NAME else
+                "That name means the slots hold no saved build.")
             return
         vessel = self.current_vessel()
         slots = list(self.base_slots) + list(self.deep_slots)
@@ -1872,6 +2033,13 @@ class Planner(QMainWindow):
         hero_id = self.current_hero()["id"]
         hidden = name in chalices.hidden_builds(hero_id)
         chalices.set_hidden(hero_id, name, not hidden)
+        if not hidden:
+            # Said at the moment of hiding, because that is the moment the
+            # player has to learn there is a way back. Finding out afterwards
+            # meant not finding out at all.
+            QToolTip.showText(
+                QCursor.pos(),
+                'Hidden. Tick "Show hidden" to list it again.')
         # Hiding the one on screen leaves it selected until something else is
         # chosen -- dropping it out from under the player would look like the
         # build had been deleted, which is the one thing Hide must not do.
@@ -1901,9 +2069,18 @@ class Planner(QMainWindow):
             self.apply_chalice()
             for slot in list(self.base_slots) + list(self.deep_slots):
                 slot.select_saved("")
+            self._mark_vessel_applied()
         finally:
             self._restoring = False
         self.recompute()
+        # The picker went on naming the build that was loaded before the
+        # reset. An emptied chalice still read as "Test", clicking that entry
+        # put it back, and the reset looked as though it had half worked --
+        # so the list now has an entry for exactly this state, and lands on
+        # it.
+        chalices.set_selected_build(self.current_hero()["id"],
+                                    chalices.UNSAVED_NAME)
+        self.refresh_build_list(keep=chalices.UNSAVED_NAME)
 
     def current_vessel(self) -> dict | None:
         """The vessel selected in the list, ignoring the caption rows."""
@@ -2018,6 +2195,26 @@ class Planner(QMainWindow):
                 slot.select_saved(keys[index] if index < len(keys) else "")
         finally:
             self._restoring = False
+
+    def _mark_vessel_applied(self) -> None:
+        """Note the chalice the slots now hold, after a restore has set them.
+
+        `_apply_chalice` makes this note only when it set the slots itself,
+        which it does not do while a restore is in progress -- and every
+        restoring path sets them afterwards from its own authority: the save,
+        a stored build, or an emptying. Leaving the note alone through all of
+        that left it naming the chalice the player was on *before*, and one
+        click later that was read as "the chalice has not changed": the slots
+        were left exactly as they were, and Load equipped's relics were stored
+        under a chalice that is empty in the game.
+
+        The mirror of this was a real bug too, which is why the note is not
+        simply made every time: a pass that changes the chalice and does
+        *not* set the slots must not claim it, or the next pass sees no change
+        and never clears.
+        """
+        vessel = self.current_vessel()
+        self._applied_vessel = vessel["id"] if vessel else None
 
     def show_variant_strip(self, tile) -> None:
         """Inline artwork chooser for one Nightfarer, inside the sidebar."""
@@ -2521,6 +2718,12 @@ class Planner(QMainWindow):
         for slot, item in zip(slots, loadout.relics):
             if not slot.select_handle(item.handle if item else None):
                 missing += 1
+        # These slots are the equipped chalice's now, and the next click on
+        # the chalice list has to know it. Without this, clicking back on the
+        # chalice that was open *before* Load equipped counted as no change
+        # at all: nothing cleared the slots, and the equipped build was
+        # written into a chalice that is empty in the game.
+        self._mark_vessel_applied()
 
         # Every row, not only the one on screen: the import has just filled
         # the other chalices, and they should say so without being clicked.
@@ -2945,6 +3148,10 @@ class Planner(QMainWindow):
 
 
 def main() -> int:
+    # Before the QApplication, which is when Qt reads it and so the last
+    # moment it can be said.
+    uiscale.apply_to_environment()
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setPalette(_dark_palette())

@@ -27,6 +27,7 @@ answer a question, the tool says so instead of guessing.
   - [5. Deep of Night](#5-deep-of-night)
   - [6. Red variants](#6-red-variants)
   - [7. World Events](#7-world-events)
+- [The window](#the-window)
 - [Searching](#searching)
 - [Where your data lives](#where-your-data-lives)
 - [Running from source](#running-from-source)
@@ -102,8 +103,27 @@ survives your save being rewritten — melting an unrelated relic renumbers the
 copies internally, and the roll is what still identifies the one you meant.
 
 **Reset Chalice**, at the top right of the relic slots, empties every slot and
-forgets that Nightfarer's stored build. It is the way back to an empty vessel
-now that builds stick.
+forgets that chalice's stored build. It is the way back to an empty vessel now
+that builds stick, and the build list moves to **Unsaved build** so it is not
+left naming something you have just cleared.
+
+**Saved builds** — the row under the vessel strip. Whatever is in the slots is
+already remembered per chalice; a *saved* build is a copy of that, put aside
+under a name, so several can be compared without building each one again from
+six slots.
+
+- **Equipped in game** is always the first entry, and is never stored: it is
+  read out of your save each time, so it cannot go stale. It is also what
+  repairs a chalice the tool has got wrong — it clears every chalice your save
+  says is empty.
+- **Unsaved build** means the slots are not one of your saved builds. It is
+  where you land after Reset Chalice. Choosing it deliberately changes nothing
+  on screen: it is the list saying what you are looking at, not an action.
+- **Save** stores the slots as they stand under a name; **Delete** forgets one.
+- **Hide** keeps a build out of the list without deleting it — for work you
+  have finished with and do not want to lose. **Show hidden**, beside it, lists
+  the hidden ones again, and selecting one turns the button into **Unhide**.
+  What is in the build is untouched by any of this.
 
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
@@ -341,6 +361,23 @@ and events with no announcement banner are marked *no banner*.
 
 ---
 
+## The window
+
+**The three panels can be resized.** Drag the dividers between the Nightfarer
+sidebar, the relic slots and the stat sheet — useful in both directions, since
+a long relic name needs a wider sidebar and a wide monitor can give the slots
+more room than the old fixed widths allowed. Where you leave them is remembered
+between sessions, and none of the three can be dragged shut.
+
+**UI scale**, top right. It multiplies whatever Windows' own display scaling
+already asks for, so **Automatic** is your Windows setting unchanged — which is
+why there is no "100%" entry saying the same thing twice. Qt reads the scale
+once, as the program starts, and gives no way to change it after; so choosing a
+new one offers to restart the tool rather than pretending to redraw. Your
+relics, saved builds and favourites are kept across that restart. The armament
+tiles and any conditions you have switched on are only kept for the run of the
+program, and start again.
+
 ## Searching
 
 The **relic picker** and the **Weapons** tab take a query syntax:
@@ -365,8 +402,9 @@ Everything the tool extracts goes to:
 ```
 
 That folder holds the data snapshot and the icon pack, both built from your
-installation on first run. Your saved builds, favourites and artwork choices
-are small enough to live in the registry, under `HKCU\Software\DankYeeter`, and
+installation on first run. Your saved builds, favourites, artwork choices,
+panel widths and interface scale are small enough to live in the registry,
+under `HKCU\Software\DankYeeter`, and
 the Start Menu entry — if you accept it — is one shortcut in your own profile.
 **Nothing is written anywhere else**, and nothing is sent anywhere: the tool
 makes no network connections at all. Uninstalling means deleting that folder,

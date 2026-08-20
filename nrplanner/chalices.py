@@ -171,6 +171,19 @@ BUILDS = "builds"
 # refuses to delete it, and lets it be hidden like any other.
 EQUIPPED_NAME = "Equipped in game"
 
+# The slots as they stand, belonging to no saved build. Nothing is stored
+# under it -- the scratchpad already persists per vessel -- and it exists so
+# the list can say "these are not one of your saved builds" instead of going
+# on naming the last one loaded. Reset Chalice left it doing exactly that:
+# the slots were empty, the picker still said "Test", and clicking that
+# entry brought the build back, so the reset read as though it had half
+# worked.
+UNSAVED_NAME = "Unsaved build"
+
+# Neither of the two above is a name a build may be saved under: one belongs
+# to the save file and the other to the empty state.
+RESERVED_NAMES = (EQUIPPED_NAME, UNSAVED_NAME)
+
 
 def _encode(vessel_id: int | None, deep: bool, slots: list[str]) -> str:
     parts = [str(vessel_id if vessel_id is not None else ""),
@@ -212,7 +225,7 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
                slots: list[str]) -> None:
     """Store a build under a name, replacing one of the same name."""
     name = name.strip()
-    if not name or name == EQUIPPED_NAME:
+    if not name or name in RESERVED_NAMES:
         return
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
@@ -237,8 +250,8 @@ def load_build(hero_id: int, name: str) -> tuple[int | None, bool, list[str]]:
 
 
 def delete_build(hero_id: int, name: str) -> None:
-    """Forget a saved build. The equipped one is not ours to delete."""
-    if name == EQUIPPED_NAME:
+    """Forget a saved build. The reserved ones are not ours to delete."""
+    if name in RESERVED_NAMES:
         return
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
