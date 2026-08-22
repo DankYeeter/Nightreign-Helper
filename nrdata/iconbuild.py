@@ -22,7 +22,9 @@ from . import (bnd4, dds, dvdbnd, icons, param, paramdef, regulation, tpf)
 #
 # Raise this whenever the pack gains or changes a sprite.
 #   2  the relic-slot cell, the four slot gems, the twelve damage-type icons
-ICON_VERSION = 2
+#   3  Scarlet Rot and Sleep, the two status symbols the Nightlords tab had
+#      no art for
+ICON_VERSION = 3
 
 PORTRAIT_SIZE = 128
 ITEM_SIZE = 64
@@ -65,6 +67,26 @@ UI_SPRITES = {
     "MENU_FL_40151.png": "ui_dmg_madness.png",
     "MENU_FL_40172.png": "ui_dmg_poison.png",
     "MENU_FL_40173.png": "ui_dmg_blood.png",
+    # Scarlet Rot and Sleep are absent from the MENU_FL set -- it holds exactly
+    # twelve icons, which is the relic screen's filter list and nothing more --
+    # so the Nightlords tab printed those two rows with a blank where every
+    # other status has a symbol.
+    #
+    # They come instead from MENU_PropertyIcon_3123x, the seven status symbols
+    # the equipment screen uses, and the pairing is not eyeballed:
+    # `MenuPropertySpecParam` rows 3026-3034 carry these very ids in `IconID`,
+    # and the block 31230-31236 runs in the game's own status order. Three of
+    # the seven are already in this table under their MENU_FL names -- 31230
+    # is the same green as MENU_FL_40172 (Poison), 31232 the same red as 40173
+    # (Blood loss), 31233 the same frost as 40147 (Frostbite) -- so the three
+    # known members anchor the run and fix the two wanted here: 31231 is the
+    # red growth (Scarlet Rot) and 31234 the closed eye (Sleep).
+    #
+    # 31235 (Madness) and 31236 (Death Blight) are deliberately left out:
+    # Madness already has its MENU_FL icon, and no Nightlord row reports Death
+    # Blight.
+    "MENU_PropertyIcon_31231.png": "ui_dmg_rot.png",
+    "MENU_PropertyIcon_31234.png": "ui_dmg_sleep.png",
 }
 
 
