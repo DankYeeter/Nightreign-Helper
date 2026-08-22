@@ -350,13 +350,19 @@ class BossTab(QWidget):
         "Madness": "MENU_FL_40151.png",
         "Poison": "MENU_FL_40172.png",
         "Blood loss": "MENU_FL_40173.png",
+        # Not in the MENU_FL filter set, which holds twelve icons and neither
+        # of these. Taken from the equipment screen's own status symbols
+        # instead -- MenuPropertySpecParam names the ids, and the three of that
+        # run the FL set already covers identify the rest. See iconbuild's
+        # UI_SPRITES for the working.
+        "Scarlet Rot": "MENU_PropertyIcon_31231.png",
+        "Sleep": "MENU_PropertyIcon_31234.png",
     }
 
     def _type_icon_cell(self, label: str) -> str:
         """A table cell with the type's game icon, or an empty spacer.
 
-        Scarlet Rot, Sleep and Death have no icon in the set the game ships
-        for its own filter list, so those rows keep a spacer rather than
+        Death has no icon here, so that row keeps a spacer rather than
         borrowing a lookalike.
         """
         sprite = self.TYPE_ICONS.get(label)

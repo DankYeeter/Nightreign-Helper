@@ -33,7 +33,10 @@ RATE_LABELS = {
     "darkAttackRate": "Holy Attack",
     # The second attack family, carried by the three "Starting armament
     # inflicts ..." relics. Unlabelled until now, so the panel printed the raw
-    # field name at the player: "darkAttackPowerRate -15.0%".
+    # field name at the player: "darkAttackPowerRate -15.0%". It no longer
+    # reaches the Multipliers panel at all -- it scopes to slot 1, see
+    # Planner.STARTING_AR_RATE_FOR -- but the attack-rating breakdown still
+    # names it, so the labels are still wanted.
     "physicsAttackPowerRate": "Physical Attack",
     "magicAttackPowerRate": "Magic Attack",
     "fireAttackPowerRate": "Fire Attack",
@@ -936,6 +939,21 @@ GATE_FIELDS = {
 }
 
 
+# Gated effects that get no switch, because there is nothing for a switch to
+# show. A switch exists to answer "what would this be worth if its condition
+# held", and that question needs a number the sheet can move. An effect whose
+# whole content is a proc chance moves none: declaring it live would tick a box
+# and change not one figure on screen, which reads as the switch being broken.
+#
+#   7037800  "Occasionally Nullify Attacks When Damage Negation is Lowered".
+#            Its only quantity is `procChancePercent`, read out of
+#            PlayerCommonParam + 0x2DC by the extractor -- how often it happens,
+#            not what it is worth. Reported by the owner from play for 1.7.0.
+#            It stays listed under Conditional & situational with its wording;
+#            only the checkbox goes.
+NO_SWITCH = {7037800}
+
+
 def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
                         wep_type: int | None = None,
                         live: dict[int, int] | None = None) -> None:
@@ -1018,7 +1036,8 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         # actually be in. An effect belonging to another Nightfarer is not
         # gated on anything you can do, so declaring it live would produce a
         # sheet describing a build that cannot exist.
-        if gated and effecttext.works_for(eff, hero_name):
+        if (gated and effecttext.works_for(eff, hero_name)
+                and eff["id"] not in NO_SWITCH):
             build.situational.append(Situational(
                 effect_id=eff["id"],
                 name=name,

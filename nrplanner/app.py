@@ -2279,13 +2279,8 @@ class Planner(QMainWindow):
     # the attribute changes do -- a relic granting Physical Attack +12% moves
     # the damage without moving a single stat.
     #
-    # Two families do this, and both belong here. `*AttackRate` is the general
-    # buff, carried by 213-216 effects. `*AttackPowerRate` is carried by
-    # exactly three -- the "Starting armament inflicts frost / poison / blood
-    # loss" relics, each x0.85 -- and it is the price the game charges for the
-    # status: the weapon inflicts a status and hits 15% softer for it. Leaving
-    # it out meant equipping one of those relics moved the weapon damage not at
-    # all, when it should drop it by 15%.
+    # `*AttackRate` is the general buff, carried by 213-216 effects, and it
+    # lifts whatever you are swinging.
     #
     # Deliberately NOT here, having checked every attack multiplier in the
     # data: saAttackPowerRate and staminaAttackRate are stance and guard
@@ -2293,12 +2288,38 @@ class Planner(QMainWindow):
     # a guard counter, and characterSkillAttackRate only to Duchess' skill.
     # None of the four scales an ordinary hit.
     AR_RATE_FOR = {
-        "Physics": ("physicsAttackRate", "physicsAttackPowerRate"),
-        "Magic": ("magicAttackRate", "magicAttackPowerRate"),
-        "Fire": ("fireAttackRate", "fireAttackPowerRate"),
-        "Thunder": ("thunderAttackRate", "thunderAttackPowerRate"),
-        "Dark": ("darkAttackRate", "darkAttackPowerRate"),
+        "Physics": ("physicsAttackRate",),
+        "Magic": ("magicAttackRate",),
+        "Fire": ("fireAttackRate",),
+        "Thunder": ("thunderAttackRate",),
+        "Dark": ("darkAttackRate",),
     }
+
+    # `*AttackPowerRate` is the second family, carried by exactly three effects
+    # -- the "Starting armament inflicts frost / poison / blood loss" relics,
+    # each x0.85 -- and it is the price the game charges for the status: the
+    # armament inflicts it and hits 15% softer for it.
+    #
+    # It is **not** a global debuff, which is how it was implemented until
+    # 1.7.0 and what a player reported from play: it reaches the starting
+    # armament alone -- and "starting armament" means both conditions at
+    # once, the Nightfarer's own default weapon sitting in slot 1 (verified
+    # in play 2026-08-22: moved to another slot it loses the penalty, and a
+    # different weapon in slot 1 never gains it). So it is applied there
+    # and to nothing else, and it
+    # is kept out of the Multipliers section, where an "All damage -15.0%" line
+    # said the whole build was hitting softer.
+    STARTING_AR_RATE_FOR = {
+        "Physics": ("physicsAttackPowerRate",),
+        "Magic": ("magicAttackPowerRate",),
+        "Fire": ("fireAttackPowerRate",),
+        "Thunder": ("thunderAttackPowerRate",),
+        "Dark": ("darkAttackPowerRate",),
+    }
+
+    # Slot 1 holds the armament the expedition starts with -- it is seeded with
+    # the Nightfarer's own starting weapon, see `apply_hero_weapon`.
+    STARTING_SLOT = 0
 
     def _show_breakdown(self, key: str) -> None:
         """Which buffs make up one figure, shown beside the number clicked.
@@ -2431,13 +2452,24 @@ class Planner(QMainWindow):
         # the two separate things they are.
         scaled_total = 0.0
         rates_in_play: dict[str, float] = {}
+        # The starting-armament penalty needs both halves: slot 1, holding
+        # this Nightfarer's own starting armament. Verified in play
+        # 2026-08-22 -- the Duchess' Dagger moved to slot 2 loses the
+        # penalty, put back into slot 1 it returns, and a different weapon
+        # in slot 1 never gains it.
+        starting = (self.active_weapon == self.STARTING_SLOT
+                    and weapon["id"] == self.current_hero()
+                    .get("starting_weapon"))
         for damage in weapons.DAMAGE_TYPES:
             total = after.base.get(damage, 0.0) + after.scaled.get(damage, 0.0)
             if not total:
                 continue
             scaled_total += total
+            fields = self.AR_RATE_FOR.get(damage, ())
+            if starting:
+                fields += self.STARTING_AR_RATE_FOR.get(damage, ())
             class_here = build.class_rates.get(model.weapon_class(weapon), {})
-            for field_name in self.AR_RATE_FOR.get(damage, ()):
+            for field_name in fields:
                 value = (build.rates.get(field_name, 1.0)
                          * class_here.get(field_name, 1.0))
                 if abs(value - 1.0) > 1e-9:
@@ -2451,7 +2483,7 @@ class Planner(QMainWindow):
             # restricted at all -- that is a flat rate and already counted.
             by_class = build.class_rates.get(model.weapon_class(weapon), {})
             rate = 1.0
-            for field_name in self.AR_RATE_FOR.get(damage, ()):
+            for field_name in fields:
                 rate *= build.rates.get(field_name, 1.0)
                 rate *= by_class.get(field_name, 1.0)
             boosted[damage] = total * rate
@@ -2501,8 +2533,8 @@ class Planner(QMainWindow):
 
         # Status the armament applies on a landed hit. This belongs with the
         # weapon rather than in the relic list: "Starting armament inflicts
-        # frost" is the reason the attack rating above is 15% lower, and the
-        # buildup is what you are buying with it.
+        # frost" is the reason the attack rating above is 15% lower **on slot
+        # 1**, and the buildup is what you are buying with it.
         #
         # Only statuses your attacks apply are shown. The ones that build up on
         # you -- "Taking Damage Causes Poison Buildup" and the like -- reach the
@@ -2951,21 +2983,29 @@ class Planner(QMainWindow):
         if build.rates:
             lines = []
             cooldown = float(hero.get("ability_cooldown") or 0.0)
+            # The `*AttackPowerRate` family is not a build-wide multiplier: it
+            # is the "Starting armament inflicts frost / poison / blood loss"
+            # penalty, and it reaches the starting armament alone. Reported from
+            # play for 1.7.0, having previously read here as "All damage
+            # -15.0%" against everything equipped. It is applied to slot 1 by
+            # `_refresh_weapon_damage`, where its 15% is visible in that
+            # weapon's own figure, so it is dropped from this section rather
+            # than shown twice.
+            shown_rates = {f: v for f, v in build.rates.items()
+                           if f not in model.ELEMENT_ATTACK_POWER_RATES}
             # A buff that raises all five damage types by the same amount is one
-            # buff, not five. Printing a row each turned "Starting armament
-            # inflicts frost" into five identical -15.0% lines.
-            shown_rates = dict(build.rates)
-            for family in (model.ELEMENT_ATTACK_RATES,
-                           model.ELEMENT_ATTACK_POWER_RATES):
-                present = [f for f in family if f in shown_rates]
-                values = {round(shown_rates[f], 6) for f in present}
-                if len(present) == len(family) and len(values) == 1:
-                    for f in present:
-                        del shown_rates[f]
-                    # Linked to a real field so the click-through breakdown
-                    # still names the relics behind the number.
-                    shown_rates[f"{model.ALL_DAMAGE_PREFIX}{present[0]}"] = \
-                        build.rates[present[0]]
+            # buff, not five. Printing a row each turned a single relic into
+            # five identical lines.
+            family = model.ELEMENT_ATTACK_RATES
+            present = [f for f in family if f in shown_rates]
+            values = {round(shown_rates[f], 6) for f in present}
+            if len(present) == len(family) and len(values) == 1:
+                for f in present:
+                    del shown_rates[f]
+                # Linked to a real field so the click-through breakdown
+                # still names the relics behind the number.
+                shown_rates[f"{model.ALL_DAMAGE_PREFIX}{present[0]}"] = \
+                    build.rates[present[0]]
             for fname, value in sorted(
                     model.collapse_by_label(shown_rates).items()):
                 pct = (value - 1.0) * 100
