@@ -745,6 +745,22 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             continue
         counted.append(eff)
 
+    # An effect the current Nightfarer cannot use contributes to no total.
+    # works_for is the single authority here: the slot cards, the totals and
+    # the Conditional section all derive from the same predicate, so a figure
+    # can never be counted while its own name is crossed out -- which is
+    # exactly what an Undertaker build did on 1.7.0 (resistances +75 from an
+    # effect struck through as not working). The dead ones are not dropped;
+    # compute_qualitative lists every one, so nothing equipped goes unseen.
+    from . import effecttext    # local, as in compute_qualitative
+
+    hero_name = str(hero.get("name", ""))
+    dead = [eff for eff in counted
+            if not effecttext.works_for(eff, hero_name)]
+    if dead:
+        counted = [eff for eff in counted
+                   if effecttext.works_for(eff, hero_name)]
+
     # Conflicts come from the game's own exclusivityId, not from guesswork.
     # The previous rule -- a shared SpEffect category plus any overlapping
     # modifier field -- reported pairs that plainly do stack, such as Improved
@@ -914,7 +930,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     if curves:
         compute_derived(curves, build)
     compute_resistances(build, counted)
-    compute_qualitative(build, counted, hero, wep_type, live)
+    compute_qualitative(build, counted, hero, wep_type, live, dead=dead)
 
     return build
 
@@ -956,18 +972,32 @@ NO_SWITCH = {7037800}
 
 def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
                         wep_type: int | None = None,
-                        live: dict[int, int] | None = None) -> None:
+                        live: dict[int, int] | None = None,
+                        dead: list[dict] | None = None) -> None:
     """Record effects that contribute nothing numeric, so none go unseen.
 
     The stat sheet can only show what reduces to a number. An effect that is
     conditional, tied to one Nightfarer, or tied to a weapon type changes no
     total, and so used to be equipped and completely invisible. Listing them
     separately is the honest alternative to pretending they are not there.
+
+    `dead` is the effects compute() excluded because works_for ruled them
+    out. Every one is listed here -- numeric or not, which is what keeps the
+    heading's "not working" count equal to the strikethroughs on the slot
+    cards. They are listed first: a slot doing nothing at all outranks a
+    buff that is merely waiting on its condition.
     """
     from . import effecttext
 
     hero_name = str(hero.get("name", ""))
     live = live or {}
+    for eff in dead or []:
+        who = effecttext.owner(eff) or "another Nightfarer"
+        build.qualitative.append((
+            effecttext.name(eff),
+            effecttext.describe_full(eff),
+            f"NOT WORKING — {who} only, you are {hero_name}",
+        ))
     # A declared effect was expanded into one copy per application. They are
     # the same effect said several times over, so the list shows it once.
     seen_declared: set[int] = set()
