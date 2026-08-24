@@ -387,18 +387,33 @@ def owner(effect: dict) -> str:
     return ""
 
 
+# The Nightfarers AttachEffectParam's allow* flags can actually name
+# (nrdata.extract.ALLOW_FIELDS). The param predates the expansion, so it has
+# no flag for Scholar or Undertaker -- for those two an allow list that does
+# not name them is silence, never exclusion. Found the hard way: on 1.7.0
+# every effect on an Undertaker build read "NOT WORKING -- another Nightfarer
+# only". smoke_dlc_effects.py cross-checks this set against the snapshot, so
+# a patch that adds flags for the DLC pair fails loudly instead of drifting.
+ALLOW_FLAG_HEROES = frozenset({
+    "Wylder", "Guardian", "Ironeye", "Duchess",
+    "Raider", "Revenant", "Recluse", "Executor",
+})
+
+
 def works_for(effect: dict, hero_name: str) -> bool:
     """Is this effect actually doing anything on this Nightfarer?
 
     Two separate gates. An effect named "[Scholar] ..." is Scholar's alone,
     and the params also carry an allow-list per effect. Either can rule it
     out, and an effect ruled out is dead weight in the slot -- worth saying
-    loudly rather than letting it read as a working buff.
+    loudly rather than letting it read as a working buff. The allow list
+    only speaks about the heroes it can name -- see ALLOW_FLAG_HEROES.
     """
     who = owner(effect)
     if who and who.lower() != str(hero_name).lower():
         return False
     allowed = effect.get("allowed_heroes") or []
-    if allowed and hero_name and hero_name not in allowed:
+    if (allowed and hero_name in ALLOW_FLAG_HEROES
+            and hero_name not in allowed):
         return False
     return True
