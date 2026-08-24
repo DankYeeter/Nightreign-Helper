@@ -44,6 +44,27 @@ def key(item) -> str:
     return f"{item.relic_id}|{effects}|{curses}"
 
 
+def distinct(items) -> list:
+    """One entry per roll, in the order given.
+
+    Two copies with the same roll are interchangeable in a build, and the
+    save can also carry stale duplicate records (HANDOVER §6k), so every
+    place that lists or counts relics collapses on key(). The picker always
+    did; the slot header did not, and the two disagreed by exactly the
+    number of duplicate rolls -- "(50 owned)" over a picker saying
+    "49 of 49". One function, so a count and a list can never differ again.
+    """
+    seen = set()
+    out = []
+    for item in items:
+        k = key(item)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(item)
+    return out
+
+
 def heroes_for(item) -> set[int]:
     """Nightfarer ids this relic is favourited for."""
     raw = _settings().value(f"{GROUP}/{key(item)}", "", type=str)

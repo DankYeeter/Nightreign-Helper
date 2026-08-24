@@ -42,6 +42,30 @@ CURSE_LABEL = {
     "never": "",
 }
 
+# What each column means, on the header itself. Written for a player: no
+# param names, no file talk beyond what the provenance genuinely is.
+HEADER_TIPS = {
+    2: "Some effects come as a ladder of strengths under one name — "
+       "'1 of 3' is the weakest rung, and each rung is its own effect.",
+    COL_COPIES: "How many identical copies of this effect the game defines. "
+                "They are merged into this one row.",
+    4: "Relic colours this effect can appear on.",
+    COL_POOLS: "How many of the game's loot pools can produce this effect. "
+               "A pool is one of the lists a relic's effects are drawn "
+               "from. More pools does not mean more likely — the two "
+               "chance columns say that.",
+    COL_AVG: "Your odds of rolling this effect on one effect slot, "
+             "averaged over every pool that can produce it, with the "
+             "colour and mode filters applied.",
+    COL_BEST: "Your odds in the single most favourable pool. 100% means "
+              "at least one pool always grants it.",
+    COL_STACKS: "What a second copy of the effect does: adds, multiplies, "
+                "or is wasted. Hover a cell for the evidence behind its "
+                "verdict.",
+    COL_CURSE: "Whether relics carrying this effect can also roll a curse "
+               "— 'sometimes' by relic, 'always cursed' without exception.",
+}
+
 # Buffs read blue, curses red, so which is which never has to be worked out
 # from the wording.
 BUFF_COLOUR = QColor("#7fb2e5")
@@ -52,6 +76,24 @@ def format_chance(value: float) -> str:
     if value >= 0.01:
         return f"{value * 100:.1f}%"
     return f"{value * 100:.2f}%"
+
+
+class ChanceItem(QTableWidgetItem):
+    """A chance cell that shows a percentage but sorts as a number.
+
+    setText after setData(DisplayRole, float) silently replaces the float
+    with the string, so the old cells sorted lexicographically -- "10.0%"
+    between "0.20%" and "2.5%", which on a chances column is worse than no
+    sorting at all. The value is kept aside and compared directly.
+    """
+
+    def __init__(self, value: float):
+        super().__init__()
+        self.value = float(value)
+        self.setText(format_chance(self.value) if value else "—")
+
+    def __lt__(self, other) -> bool:
+        return self.value < getattr(other, "value", 0.0)
 
 
 def identity(effect: dict) -> tuple:
@@ -162,14 +204,38 @@ class EffectsTab(QWidget):
         self.kind_box.currentIndexChanged.connect(self.refresh)
         controls.addWidget(self.kind_box)
 
+        # The filter row must be able to shrink below the sum of its widest
+        # texts, or it sets the tab's minimum width and, through QTabWidget,
+        # the whole window's. The popup lists still show every label in full;
+        # only the closed boxes give up width when the window is narrow.
+        for box in (self.colour_box, self.mode_box, self.stacking_box,
+                    self.kind_box):
+            box.setSizeAdjustPolicy(
+                QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            box.setMinimumContentsLength(8)
+
         layout.addLayout(controls)
 
         self.summary = QLabel()
         self.summary.setStyleSheet("color: #8a8a8a; font-size: 11px;")
+        # Load-bearing: an unwrapped QLabel's minimum width is its full text
+        # width, this line runs to ~3900px, and QTabWidget takes the max of
+        # every page's minimum -- so without the wrap this one label forced
+        # the whole window wider than most monitors and every tab clipped at
+        # the right edge (the stat sheet, the filter boxes on this very row,
+        # the Red variants count columns). smoke_layout.py guards the class.
+        self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
 
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
+        # Every column that is not self-explanatory says what it means where
+        # the player is already looking. "Pools" in particular was a bare
+        # number in the hundreds with nothing anywhere saying what a pool is.
+        for column, tip in HEADER_TIPS.items():
+            item = self.table.horizontalHeaderItem(column)
+            if item is not None:
+                item.setToolTip(tip)
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
@@ -273,8 +339,8 @@ class EffectsTab(QWidget):
                        if eff.get("is_curse") or eff.get("is_debuff"))
         undescribed = sum(1 for eff, _c, _n in rows
                           if describe_full(eff) == effecttext.NO_DESCRIPTION)
-        missing = (f" {undescribed} carry no detail beyond their name in the "
-                   f"game files." if undescribed else "")
+        missing = (f" For {undescribed} the game gives nothing beyond the "
+                   f"name." if undescribed else "")
         self.summary.setText(
             f"{len(rows) - n_curses} buffs (blue) then {n_curses} curses "
             f"(red).{note}{missing} Chance is how likely an effect is on one "
@@ -320,10 +386,21 @@ class EffectsTab(QWidget):
                 if c == COL_COPIES or c == COL_POOLS:
                     item = QTableWidgetItem()
                     item.setData(Qt.DisplayRole, int(value))
+                    # A rung of a ladder can exist while nothing in the
+                    # current filters can roll it; a bare 0 next to dashes
+                    # read as the table being broken rather than as an
+                    # answer.
+                    if c == COL_POOLS and not value:
+                        item.setToolTip(
+                            "No pool produces this effect under the current "
+                            "colour and mode filters. It exists as a rung "
+                            "of its ladder; other filters may reach it.")
                 elif c in (COL_AVG, COL_BEST):
-                    item = QTableWidgetItem()
-                    item.setData(Qt.DisplayRole, float(value))
-                    item.setText(format_chance(float(value)) if value else "—")
+                    item = ChanceItem(float(value))
+                    if not pools:
+                        item.setToolTip(
+                            "Not obtainable under the current colour and "
+                            "mode filters — see the Pools column.")
                 else:
                     item = QTableWidgetItem(str(value))
                 if c in NUMERIC:

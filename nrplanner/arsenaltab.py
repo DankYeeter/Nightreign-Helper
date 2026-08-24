@@ -39,7 +39,8 @@ class Tile(QFrame):
     """One weapon or spell: icon, name, and its numbers listed underneath."""
 
     def __init__(self, title: str, icon, lines: list[tuple[str, str]],
-                 dimmed: bool = False, rarity: int | None = None):
+                 dimmed: bool = False, rarity: int | None = None,
+                 blurb: str = ""):
         super().__init__()
         self.setFixedWidth(CARD_WIDTH)
         self.setObjectName("tile")
@@ -104,6 +105,16 @@ class Tile(QFrame):
             row.addWidget(right, 1)
             layout.addLayout(row)
 
+        # The game's own description, where one exists. Spells carried these
+        # in the snapshot from the start and never showed them, so choosing
+        # between Ranni's and Rennala's moons came down to which cost 10 FP
+        # less.
+        if blurb:
+            text = QLabel(blurb)
+            text.setWordWrap(True)
+            text.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
+            layout.addWidget(text)
+
         layout.addStretch()
 
 
@@ -156,6 +167,19 @@ class Section(QWidget):
             self.body = widget
         self.body.setVisible(show)
         self.toggle.setArrowType(Qt.DownArrow if show else Qt.RightArrow)
+
+    def expand_all(self) -> None:
+        """Open this section and every subsection it builds.
+
+        Only for small result sets: the laziness exists because building
+        everything is thousands of widgets, and the caller is responsible
+        for knowing the count is modest before asking.
+        """
+        if not self.toggle.isChecked():
+            self.toggle.setChecked(True)
+            self._on_toggle()
+        for child in self.body.findChildren(Section):
+            child.expand_all()
 
 
 class ArsenalTab(QWidget):
@@ -257,6 +281,7 @@ class ArsenalTab(QWidget):
         outer.setContentsMargins(0, 0, 8, 0)
         outer.setSpacing(6)
 
+        self._top_sections: list[Section] = []
         shown = 0
         shown += self._build_weapons(outer, predicate)
         shown += self._build_spells(outer, predicate, "Sorceries")
@@ -264,10 +289,23 @@ class ArsenalTab(QWidget):
 
         outer.addStretch()
         self.scroll.setWidget(root)
+        # "14 shown" behind three collapsed headings still needed three
+        # clicks per group to see anything, which made searching feel
+        # broken. A modest result set opens itself; the cap keeps the lazy
+        # sections doing their job when a search matches half the arsenal.
+        if predicate is not None and 0 < shown <= 60:
+            for section in self._top_sections:
+                section.expand_all()
+        # The attack-rating caveat is measured, not hedging: in the training
+        # area the game's own panel reads about 60% of the computed figure,
+        # and whether that scale applies on expeditions is still being
+        # verified in play. Ratings still rank weapons correctly either way.
         self.summary.setText(
             f"{self.header_text}. {shown} shown. Attack rating is base damage "
-            f"plus what your stats add to it. Spell damage is not in the game "
-            f"data, so spells show their costs instead."
+            f"plus what your stats add to it. The in-game panel has been seen "
+            f"showing about 60% of these figures (under investigation); the "
+            f"ranking between weapons is unaffected. Spell damage is not in "
+            f"the game's data, so spells show their costs instead."
         )
 
     def _build_weapons(self, outer, predicate) -> int:
@@ -326,6 +364,13 @@ class ArsenalTab(QWidget):
                     value = rating.base.get(damage, 0) + rating.scaled.get(damage, 0)
                     if value:
                         lines.append((weapons.DAMAGE_LABELS[damage], f"{value:.0f}"))
+                # The status the weapon exists for. Elemental variants always
+                # showed their element; the status variants hid their one
+                # number, so a Poison Cleaver read as a plain cleaver with
+                # less damage.
+                for status, value in sorted(
+                        (weapon.get("inflicts") or {}).items()):
+                    lines.append((f"{status} buildup", f"{value:g}"))
                 scaling = weapon.get("scaling") or {}
                 lines.append(("Scaling", scaling_text(scaling)))
                 # An infusion that moves the scaling says by how much, against
@@ -375,7 +420,9 @@ class ArsenalTab(QWidget):
                 ))
             return body
 
-        outer.addWidget(Section(f"Weapons  ({total})", build_body))
+        section = Section(f"Weapons  ({total})", build_body)
+        self._top_sections.append(section)
+        outer.addWidget(section)
         return total
 
     def _build_spells(self, outer, predicate, category: str) -> int:
@@ -400,8 +447,12 @@ class ArsenalTab(QWidget):
                 if spell.get("stamina"):
                     lines.append(("Stamina", str(spell["stamina"])))
                 lines.append(("Slots", str(spell.get("slots") or 1)))
+                # The game's caption, whitespace reflowed for a card. This is
+                # the only place a spell says what it does.
+                caption = " ".join((spell.get("caption") or "").split())
                 tiles.append(Tile(spell["name"],
-                                  self.icons.item(spell.get("icon")), lines))
+                                  self.icons.item(spell.get("icon")), lines,
+                                  blurb=caption))
             return self._grid(tiles)
 
         def build_body():
@@ -411,12 +462,20 @@ class ArsenalTab(QWidget):
             inner.setSpacing(4)
             for family in sorted(by_family):
                 entries = by_family[family]
-                inner.addWidget(Section(
+                section = Section(
                     f"{family}  ({len(entries)})",
                     lambda e=entries: build_family(e),
                     level=1,
-                ))
+                )
+                if family.startswith("Group "):
+                    section.toggle.setToolTip(
+                        "The game groups these spells together but names "
+                        "the group nowhere, so the number is all there is "
+                        "to show.")
+                inner.addWidget(section)
             return body
 
-        outer.addWidget(Section(f"{category}  ({total})", build_body))
+        section = Section(f"{category}  ({total})", build_body)
+        self._top_sections.append(section)
+        outer.addWidget(section)
         return total

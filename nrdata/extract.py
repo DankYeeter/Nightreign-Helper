@@ -61,7 +61,9 @@ MAX_LEVEL = 15
 #   6  what each depth rewards (relics, via ItemLotParam_map and the new lot
 #      category 5), and the game's own filter category per effect
 #   7  stacks_to on the event buffs -- the highest "+N" tier the game names
-EXTRACT_VERSION = 7
+#   8  weapons[].inflicts -- status buildup per hit from the armament's own
+#      spEffectBehaviorId rows, so a Poison Cleaver finally states its poison
+EXTRACT_VERSION = 8
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -90,6 +92,22 @@ DAMAGE_TYPES = ("Physics", "Magic", "Fire", "Thunder", "Dark")
 SPELL_CATEGORIES = {3: "Sorceries", 4: "Incantations"}
 
 # Weapon types no relic buff names, read off from what they contain.
+# Status buildup fields on a SpEffect row, shared by two walks: the relic
+# effects follow their hand-off chain to these (the curse rows are empty and
+# the number sits three hops on), and every armament's own
+# spEffectBehaviorId0..2 rows carry the same fields for what the weapon
+# inflicts on hit. Module-level so both readers and the probe script agree
+# on one list by construction.
+STATUS_POWER = {
+    "poizonAttackPower": "Poison",
+    "diseaseAttackPower": "Scarlet Rot",
+    "bloodAttackPower": "Blood Loss",
+    "freezeAttackPower": "Frost",
+    "sleepAttackPower": "Sleep",
+    "madnessAttackPower": "Madness",
+    "curseAttackPower": "Death Blight",
+}
+
 FALLBACK_WEAPON_FAMILIES = {
     "33": "Unarmed",
     "53": "Greatbow",
@@ -1709,19 +1727,6 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # reached through it is something your weapon does to the enemy.
     ATTACK_CHAIN_FIELD = "atkOccurrenceSpEffectId"
 
-    # Status buildup applied by an effect, once the chain is followed. These
-    # are the payload at the end of every "Taking Damage Causes X Buildup"
-    # curse: the curse row itself is empty, three hops later sits the number.
-    STATUS_POWER = {
-        "poizonAttackPower": "Poison",
-        "diseaseAttackPower": "Scarlet Rot",
-        "bloodAttackPower": "Blood Loss",
-        "freezeAttackPower": "Frost",
-        "sleepAttackPower": "Sleep",
-        "madnessAttackPower": "Madness",
-        "curseAttackPower": "Death Blight",
-    }
-
     # Flat Art/Skill gauge awards, also only reachable through the chain.
     # "Defeating enemies fills more of the Art gauge +1" carries nothing
     # itself; two hops on via applyIdOnGetSoul sits characterSkillGauge 6.5.
@@ -2332,6 +2337,31 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                     best[effect_id] = weight
         return [{"effect": eid, "weight": w} for eid, w in sorted(best.items())]
 
+    def weapon_inflicts(row) -> dict[str, float]:
+        """Status buildup the armament itself applies on hit.
+
+        The armament's own spEffectBehaviorId0..2 rows carry the same
+        *AttackPower fields the relic-effect chain walk reads. Where two of
+        the three rows raise the same status the larger figure is kept
+        rather than their sum -- whether the game adds them is unmeasured,
+        and the one weapon whose rows were checked (Blood Great Omenkiller
+        Cleaver, 69) carries its whole figure on a single row.
+        """
+        found: dict[str, float] = {}
+        for field in ("spEffectBehaviorId0", "spEffectBehaviorId1",
+                      "spEffectBehaviorId2"):
+            ref = row.values.get(field, -1)
+            if not isinstance(ref, int) or ref <= 0:
+                continue
+            target = sp_by_id.get(ref)
+            if target is None:
+                continue
+            for power_field, label in STATUS_POWER.items():
+                value = target.values.get(power_field, 0)
+                if isinstance(value, (int, float)) and value > 0:
+                    found[label] = max(found.get(label, 0), value)
+        return found
+
     weapons = []
     for r in weapon_table.rows:
         name = weapon_name.get(r.id)
@@ -2340,6 +2370,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         bases = {d: r.values.get(f"attackBase{d}", 0) for d in DAMAGE_TYPES}
         if not any(bases.values()):
             continue
+        inflicts = weapon_inflicts(r)
         weapons.append(
             {
                 "id": r.id,
@@ -2375,6 +2406,10 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # Effects this weapon can roll, from its own pools. Empty for
                 # the armaments that roll nothing.
                 "effect_pool": weapon_effect_pool(r.id),
+                # Status buildup per hit, when the armament applies any. The
+                # elemental variants always showed their element; the status
+                # variants hid the one number they exist for until 1.7.1.
+                **({"inflicts": inflicts} if inflicts else {}),
             }
         )
 
@@ -2449,6 +2484,19 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         shared = set.intersection(*proposals) if proposals and all(proposals) else set()
         if len(shared) == 1:
             spell_families[str(sub)] = next(iter(shared))
+
+    # Named by hand where neither the buffs nor the captions supply it, on
+    # the same footing as FALLBACK_WEAPON_FAMILIES: only groups whose every
+    # member wears the name on its face. 1 is the two moons, 8 all magma,
+    # 10 all death sorceries (Rancorcall, Ancient Death Rancor, Explosive
+    # Ghostflame, Tibia's Summons), 13 all frost. The groups that would need
+    # an invented name -- 6 mixes Comet with Eternal Darkness, and 14, 15,
+    # 27, 126 hold one spell each -- stay "Group N", which is the honest
+    # label for "the game groups these and names the group nowhere".
+    spell_families.setdefault("1", "Moon")
+    spell_families.setdefault("8", "Magma")
+    spell_families.setdefault("10", "Death")
+    spell_families.setdefault("13", "Frost")
 
     spells = []
     for r in magic_table.rows:
