@@ -50,6 +50,10 @@ CUSTOM_RELIC = object()
 # that way. QSplitter's own encoding, which survives a pane being added.
 PANES_KEY = "ui/panes"
 
+# The opening pane widths, shared by first run, the restore fallback and the
+# Reset layout button so all three mean the same thing by construction.
+PANE_DEFAULTS = (430, 520, 370)
+
 TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
@@ -676,7 +680,11 @@ class RelicSlot(QFrame):
         predicate = search.parse(effect_filter)
         items = []
         if self.owned is not None:
-            items = self.owned.relics_for(self.colour, self.deep, WHITE_SLOT)
+            # The same collapse the picker applies, or the header counts the
+            # save's records while the picker counts distinct rolls and the
+            # two sit one apart on screen ("50 owned" over "49 of 49").
+            items = favourites.distinct(
+                self.owned.relics_for(self.colour, self.deep, WHITE_SLOT))
         if predicate is not None:
             items = [i for i in items if predicate(self.effect_names(i))]
 
@@ -1015,6 +1023,14 @@ class Planner(QMainWindow):
         )
         self.scale_box.activated.connect(self._choose_scale)
         corner_row.addWidget(self.scale_box)
+        # A way back for the panes. Anyone can drag a splitter somewhere
+        # unfortunate, and 1.7.0 could store such a state on its own; without
+        # an inverse the player's only route was hand-editing the registry.
+        reset_layout = QPushButton("Reset layout")
+        reset_layout.setToolTip(
+            "Put the three Build planner panes back to their opening widths")
+        reset_layout.clicked.connect(self._reset_layout)
+        corner_row.addWidget(reset_layout)
         if shortcut.available():
             corner_row.addWidget(self.shortcut_button)
         tabs.setCornerWidget(corner, Qt.TopRightCorner)
@@ -1043,13 +1059,21 @@ class Planner(QMainWindow):
         self.panes.setStretchFactor(0, 0)
         self.panes.setStretchFactor(1, 1)
         self.panes.setStretchFactor(2, 0)
-        self.panes.setSizes([430, 520, 370])
+        self.panes.setSizes(list(PANE_DEFAULTS))
         stored_panes = QSettings(favourites.ORG, favourites.APP).value(PANES_KEY)
         if stored_panes:
             try:
                 self.panes.restoreState(stored_panes)
             except TypeError:
                 pass    # a key from some older shape of this setting
+            # No validation here, and that is deliberate: sizes() before the
+            # first layout returns placeholder values (measured: [276, 68,
+            # 276] for a stored [520, 328, 420]), so any check at this point
+            # condemns good states. The pane floors and childrenCollapsible
+            # already clamp a genuinely broken state at layout time --
+            # smoke_layout.py proves a stored [4000, 4000, 0] comes back with
+            # the stat sheet at its floor -- and Reset layout is the way out
+            # of anything merely unfortunate.
         root.addWidget(self.panes)
 
         # Written once, on the way out. splitterMoved fires for every pixel of
@@ -1426,6 +1450,15 @@ class Planner(QMainWindow):
         if hasattr(self, "panes"):
             QSettings(favourites.ORG, favourites.APP).setValue(
                 PANES_KEY, self.panes.saveState())
+
+    def _reset_layout(self) -> None:
+        """The panes back to their opening widths, and the stored state gone.
+
+        Both halves matter: setSizes alone would come back wrong on the next
+        launch if the stored state is the broken thing being escaped from.
+        """
+        self.panes.setSizes(list(PANE_DEFAULTS))
+        QSettings(favourites.ORG, favourites.APP).remove(PANES_KEY)
 
     def _choose_scale(self, _index: int) -> None:
         """Store the chosen scale, and offer the restart it needs to show.

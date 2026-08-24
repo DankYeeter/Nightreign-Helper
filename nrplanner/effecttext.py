@@ -173,7 +173,7 @@ REFERENCE_LABELS = {
 # Shown when the game ships no caption and the effect changes no field this
 # code can read. The name is still on the row, so say that rather than
 # implying the effect is unknown.
-NO_DESCRIPTION = "no detail beyond the name in the game files"
+NO_DESCRIPTION = "the game gives no detail beyond the name"
 
 
 def _percent(value: float) -> str:
@@ -270,7 +270,8 @@ def describe(effect: dict) -> str:
     hp_rate = mods.pop("changeHpRate", None)
     if isinstance(hp_rate, (int, float)) and hp_rate:
         verb = "recovery" if hp_rate < 0 else "loss"
-        parts.append(f"HP {verb} rate {abs(hp_rate):g} (unit not stated in the files)")
+        parts.append(f"HP {verb} rate {abs(hp_rate):g} "
+                     f"(the game does not state the unit)")
 
     for field_name, value in list(mods.items()):
         if field_name in IGNORE or not isinstance(value, (int, float)):
@@ -283,6 +284,18 @@ def describe(effect: dict) -> str:
         elif field_name in RATE_LIKE_LABELS:
             parts.append(f"{RATE_LIKE_LABELS[field_name]} {_percent(value)}")
         elif field_name in FLAT_LABELS:
+            # wepTypeTriggerCount is only a weapon count when a weapon type
+            # sits beside it ("3+ Bows equipped" carries wepTypeTrigger 51,
+            # count 3). The engine reuses the same field on every "item in
+            # possession at start of expedition" effect with values like 256
+            # and 1024, and labelling those produced the review's favourite
+            # nonsense line, "Weapons of the type needed 256". Without the
+            # type sibling the field is not a count and says nothing a
+            # player can use, so it is dropped rather than mistranslated.
+            if (field_name == "wepTypeTriggerCount"
+                    and "wepTypeTrigger" not in (effect.get("modifiers")
+                                                 or {})):
+                continue
             parts.append(f"{FLAT_LABELS[field_name]} {value:g}")
         elif field_name.endswith("Rate"):
             label = (EXTRA_RATE_LABELS.get(field_name)
@@ -330,8 +343,8 @@ def describe(effect: dict) -> str:
         if any(k.endswith("SpEffectId") for k in mods):
             return "conditional — triggers a linked effect"
         if any(k.startswith("invocationConditionsStateChange") for k in mods):
-            return ("the game files carry no numbers for this — the row is "
-                    "only a marker the game code acts on")
+            return ("the game states no numbers for this effect — what it "
+                    "does is decided by the game's own code")
 
     text = ", ".join(parts[:6])
     if conditions:

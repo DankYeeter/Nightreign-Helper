@@ -383,10 +383,9 @@ class DeepTab(QWidget):
             f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."
         ))
         box.addWidget(_source(
-            "The only figures on this tab not read from the game files — no "
-            "param holds them. The win value and Depth 1 costing nothing are "
-            "confirmed in game; the bonuses and the loss table are "
-            "community-reported."
+            "The only figures on this tab the game's own data does not "
+            "state. The win value and Depth 1 costing nothing are confirmed "
+            "in game; the bonuses and the loss table are community-reported."
         ))
         return panel
 
@@ -412,8 +411,10 @@ class DeepTab(QWidget):
             "roll of three, the map and the Nightlord are never hidden in the "
             "same run. The cursed-relic rates do not move with depth."
         ))
+        # The raw field names used to be printed here as provenance. They
+        # belong in the code, not on screen: to a player they are noise, and
+        # the provenance is already said in words.
         box.addWidget(_source(
-            "Read from the game's depth table, and named by its own fields — "
-            "cataclysmWeight, mapChallengeWeight, cursedRareRate."
+            "Read from the game's own depth table."
         ))
         return panel

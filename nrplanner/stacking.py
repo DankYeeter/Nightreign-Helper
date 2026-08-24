@@ -154,8 +154,9 @@ def classify(effect: dict) -> str:
     how = combination(effect)
     what = repetition(effect)
     if what == STACKS:
-        if how == NO_NUMBER:
-            return "Stacks — no number"
+        # One bracket style across all three classes; the old dash form
+        # ("Stacks — no number") read as a different kind of statement from
+        # "Stacks (adds)" while answering the same question.
         return f"Stacks ({how})"
     if what == EXCLUSIVE:
         return f"Exclusive group ({how})"

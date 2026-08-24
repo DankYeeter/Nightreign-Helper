@@ -253,6 +253,10 @@ class BossTab(QWidget):
         # field only took up room and gave the list a state it did not need.
         self.summary = QLabel()
         self.summary.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        # Wrap, or this line's full text width becomes the tab's minimum and
+        # QTabWidget imposes it on the whole window -- the fault that hid the
+        # detail panel off the right edge of the screen. See effectstab.
+        self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
 
         body = QHBoxLayout()
@@ -620,7 +624,12 @@ class BossTab(QWidget):
         self.grid_outer.addStretch(1)
 
         paired = sum(1 for b in self.bosses if b.get("everdark"))
+        # The click hint earns its place: the whole combat profile -- damage
+        # taken, status buildup, stance, self-buffs -- lives behind a card
+        # click, and nothing else on the tab says so.
         self.summary.setText(
             f"{len(self.bosses)} Nightlords  ·  {paired} also have an "
-            f"Everdark Sovereign, shown as the upper-right half of each circle"
+            f"Everdark Sovereign, shown as the upper-right half of each "
+            f"circle  ·  click a card for damage taken, status buildup "
+            f"and more"
         )

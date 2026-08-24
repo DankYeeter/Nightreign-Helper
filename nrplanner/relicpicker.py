@@ -431,24 +431,12 @@ class RelicPicker(QDialog):
 
     @staticmethod
     def _distinct(items: list) -> list:
-        """One card per roll, keeping the first copy of each.
-
-        The save scan reports two records whose relic id, effects and curses
-        are byte-identical to two earlier ones, so the grid drew the same
-        relic twice with nothing to tell the cards apart. Whether the second
-        record is a stale one the scan should not have found -- the count is
-        275 against the 273 the game shows -- or a genuine second copy, the
-        two are interchangeable in a build, so the picker offers one.
+        """One card per roll -- favourites.distinct, kept as a method name
+        because the call sites read better for it. The reasoning lives with
+        the shared function, which the slot header now uses as well, so the
+        picker's count and the header's can no longer disagree.
         """
-        seen = set()
-        out = []
-        for item in items:
-            key = favourites.key(item)
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(item)
-        return out
+        return favourites.distinct(items)
 
     def _candidates(self):
         from . import search
