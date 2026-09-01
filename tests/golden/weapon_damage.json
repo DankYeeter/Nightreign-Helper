@@ -1,0 +1,599 @@
+{
+  "dataset": {
+    "data_version": "10350000",
+    "extract_version": 8,
+    "regulation_sha256": "876a3ca279a4561d0c69f81fe5e510c75c59ab9a8a201694f8cf4a42c91e0268"
+  },
+  "cases": [
+    {
+      "case": {
+        "name": "bare starting armament, level 1",
+        "hero": "Wylder",
+        "level": 1,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 1,
+            "effects": []
+          }
+        ],
+        "relic_effects": [],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 94.272,
+          "scaled": 94.272,
+          "final": 94.272,
+          "rates": {},
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>94</span> <span style='color:#8a8a8a'>—</span> <b>94</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>94</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>94</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "bare starting armament, level 15, legendary",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 4,
+            "effects": []
+          }
+        ],
+        "relic_effects": [],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 364.117496,
+          "scaled": 364.117496,
+          "final": 364.117496,
+          "rates": {},
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>364</span> <span style='color:#8a8a8a'>—</span> <b>364</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>364</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>364</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "starting armament with the frost penalty, in slot 1",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7120400
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 273.189852,
+          "rates": {
+            "physicsAttackPowerRate": 0.85
+          },
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#d1655f'>-48</span> <b>273</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#d1655f;text-decoration:none'>-48</a> <b style='color:#c8a45c'>273</b> <span style='color:#d1655f'>(-15.0%)</span></div><div style='margin-top:6px'>Inflicts Frost <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "same penalty, same weapon, moved to slot 2",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 1,
+        "armaments": [
+          {
+            "slot": 1,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7120400
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 321.399817,
+          "rates": {},
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#8a8a8a'>—</span> <b>321</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>321</b></div><div style='margin-top:6px'>Inflicts Frost <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "all three status penalties at once, slot 1",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7120400,
+          7120500,
+          7120600
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 197.379679,
+          "rates": {
+            "physicsAttackPowerRate": 0.614125
+          },
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#d1655f'>-124</span> <b>197</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#d1655f;text-decoration:none'>-124</a> <b style='color:#c8a45c'>197</b> <span style='color:#d1655f'>(-38.6%)</span></div><div style='margin-top:6px'>Inflicts Blood Loss <b style='color:#c8a45c'>25</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Frost <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Poison <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "physical attack buff on a foreign armament",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 4110800,
+            "tier": 2,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          320600,
+          330000
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 316.048253,
+          "scaled": 316.048253,
+          "final": 383.160604,
+          "rates": {
+            "physicsAttackRate": 1.332,
+            "magicAttackRate": 1.11
+          },
+          "weapon": "Troll Knight's Magic Sword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>146</span> <span style='color:#6fbf73'>+48</span> <b>194</b></div><div>Magic <span style='color:#8a8a8a'>170</span> <span style='color:#6fbf73'>+19</span> <b>189</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>316</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+67</a> <b style='color:#c8a45c'>383</b> <span style='color:#6fbf73'>(+21.2%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>70</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>70 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "armament whose requirements are not met",
+        "hero": "Wylder",
+        "level": 1,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 4110800,
+            "tier": 1,
+            "effects": []
+          }
+        ],
+        "relic_effects": [],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 154.106036,
+          "scaled": 154.106036,
+          "final": 154.106036,
+          "rates": {},
+          "weapon": "Troll Knight's Magic Sword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>69</span> <span style='color:#8a8a8a'>—</span> <b>69</b></div><div>Magic <span style='color:#8a8a8a'>85</span> <span style='color:#8a8a8a'>—</span> <b>85</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>154</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>154</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>70</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>70 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "attribute gains feeding the scaling",
+        "hero": "Wylder",
+        "level": 8,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 4110800,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7000300,
+          7000301,
+          312500
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 314.916104,
+          "scaled": 329.382261,
+          "final": 329.382261,
+          "rates": {},
+          "weapon": "Troll Knight's Magic Sword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>147</span> <span style='color:#6fbf73'>+6</span> <b>153</b></div><div>Magic <span style='color:#8a8a8a'>168</span> <span style='color:#6fbf73'>+8</span> <b>176</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>315</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+14</a> <b style='color:#c8a45c'>329</b> <span style='color:#6fbf73'>(+4.6%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>70</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>70 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "melee-only buff with a bow in hand",
+        "hero": "Ironeye",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 40000000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7006600
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 169.349184,
+          "scaled": 169.349184,
+          "final": 169.349184,
+          "rates": {},
+          "weapon": "Shortbow",
+          "class": "ranged"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>169</span> <span style='color:#8a8a8a'>—</span> <b>169</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>169</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>169</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>40 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "ranged-only buff with a bow in hand",
+        "hero": "Ironeye",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 40000000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          321500
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 169.349184,
+          "scaled": 169.349184,
+          "final": 193.058067,
+          "rates": {
+            "physicsAttackRate": 1.14
+          },
+          "weapon": "Shortbow",
+          "class": "ranged"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>169</span> <span style='color:#6fbf73'>+24</span> <b>193</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>169</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+24</a> <b style='color:#c8a45c'>193</b> <span style='color:#6fbf73'>(+14.0%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>40 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "catalyst: magic buff idle, Intelligence at work",
+        "hero": "Recluse",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 33000000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          320000,
+          6646100
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 42.386364,
+          "scaled": 46.477273,
+          "final": 46.477273,
+          "rates": {},
+          "weapon": "Glintstone Staff",
+          "class": "catalyst"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>42</span> <span style='color:#6fbf73'>+4</span> <b>46</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>42</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+4</a> <b style='color:#c8a45c'>46</b> <span style='color:#6fbf73'>(+9.7%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>20</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>20 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "Recluse on her own starting armament",
+        "hero": "Recluse",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 33750000,
+            "tier": 2,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          7120500
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 42.386364,
+          "scaled": 42.386364,
+          "final": 42.386364,
+          "rates": {},
+          "weapon": "Recluse's Staff",
+          "class": "catalyst"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>42</span> <span style='color:#8a8a8a'>—</span> <b>42</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>42</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>42</b></div><div style='margin-top:6px'>Inflicts Poison <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>20</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>20 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "Executor, allow-flagged effects and a curse",
+        "hero": "Executor",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 9750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          320600,
+          330000,
+          7000300,
+          7000301
+        ],
+        "curse_effects": [
+          6830000
+        ],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 249.912424,
+          "scaled": 249.912424,
+          "final": 332.883366,
+          "rates": {
+            "physicsAttackRate": 1.332
+          },
+          "weapon": "Executor's Blade",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>250</span> <span style='color:#6fbf73'>+83</span> <b>333</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>250</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+83</a> <b style='color:#c8a45c'>333</b> <span style='color:#6fbf73'>(+33.2%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>40 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "armament effects count too",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": [
+              320600
+            ]
+          },
+          {
+            "slot": 1,
+            "weapon": 40000000,
+            "tier": 2,
+            "effects": [
+              321500
+            ]
+          }
+        ],
+        "relic_effects": [],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 385.679795,
+          "rates": {
+            "physicsAttackRate": 1.2
+          },
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#6fbf73'>+64</span> <b>386</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+64</a> <b style='color:#c8a45c'>386</b> <span style='color:#6fbf73'>(+20.0%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "rally recovery with the relic that scales it",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          6005600
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 321.399817,
+          "rates": {},
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#8a8a8a'>—</span> <b>321</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>321</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#6fbf73'>+15</span> <b style='color:#c8a45c'>75 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "rally recovery on an armament that reclaims nothing",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 40000000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          6005600
+        ],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {
+          "base": 152.886336,
+          "scaled": 152.886336,
+          "final": 152.886336,
+          "rates": {},
+          "weapon": "Shortbow",
+          "class": "ranged"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>153</span> <span style='color:#8a8a8a'>—</span> <b>153</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>153</span> <a href='ar:total' style='color:#8a8a8a;text-decoration:none'>no change</a> <b style='color:#c8a45c'>153</b></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#6fbf73'>+10</span> <b style='color:#c8a45c'>50 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "a conditional effect the player declares",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 0,
+        "armaments": [
+          {
+            "slot": 0,
+            "weapon": 3750000,
+            "tier": 3,
+            "effects": []
+          }
+        ],
+        "relic_effects": [
+          10002
+        ],
+        "curse_effects": [],
+        "declared": {
+          "10002": 2
+        }
+      },
+      "expected": {
+        "last_ar": {
+          "base": 321.399817,
+          "scaled": 321.399817,
+          "final": 388.893795,
+          "rates": {
+            "physicsAttackRate": 1.21
+          },
+          "weapon": "Wylder's Greatsword",
+          "class": "melee"
+        },
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#6fbf73'>+67</span> <b>389</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+67</a> <b style='color:#c8a45c'>389</b> <span style='color:#6fbf73'>(+21.0%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>"
+      }
+    },
+    {
+      "case": {
+        "name": "empty tile",
+        "hero": "Wylder",
+        "level": 15,
+        "active": 2,
+        "armaments": [],
+        "relic_effects": [],
+        "curse_effects": [],
+        "declared": {}
+      },
+      "expected": {
+        "last_ar": {},
+        "panel": "<span style='color:#8a8a8a'>Slot 3 is empty — double-click a tile to choose an armament, single-click one to break it down here.</span>"
+      }
+    }
+  ]
+}

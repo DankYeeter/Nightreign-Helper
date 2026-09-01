@@ -1,0 +1,386 @@
+"""The cases the attack-rating golden file freezes, and the harness that runs them.
+
+Shared by the capture script (`scripts/capture_weapon_damage.py`) and by the
+golden test, so that both drive the calculation through the same path. A
+golden file captured through a different path than the one the test replays
+would prove nothing about the code in between.
+
+Nothing here picks an effect or an armament by a hardcoded id it made up.
+Every choice is a query against the dataset -- "the effects that measurably
+lower physical attack power", "the heaviest colossal sword" -- so the case
+list says *why* each case is in it. The ids the query resolved to are written into
+the golden file, and it is those ids the test replays: a game patch that
+changes what the query would pick cannot silently change what is compared.
+"""
+
+from __future__ import annotations
+
+from nrplanner import model, weaponslots
+
+
+def hero_by_name(data: dict, name: str) -> dict:
+    for hero in data["heroes"]:
+        if hero["name"] == name:
+            return hero
+    raise LookupError(f"no Nightfarer named {name!r} in this dataset")
+
+
+def weapon_by_id(data: dict, weapon_id: int) -> dict:
+    for weapon in data["weapons"]:
+        if weapon["id"] == weapon_id:
+            return weapon
+    raise LookupError(f"no armament with id {weapon_id} in this dataset")
+
+
+def effect_by_id(data: dict, effect_id: int) -> dict:
+    effect = data["effects"].get(str(effect_id))
+    if effect is None:
+        raise LookupError(f"no effect with id {effect_id} in this dataset")
+    return effect
+
+
+PROBE_LEVEL = 15
+
+
+def _alone(data: dict, hero: dict, effect: dict) -> model.Build:
+    """What one effect does on its own, asked of the model itself."""
+    return model.compute(hero, PROBE_LEVEL, [effect], data.get("curves", {}))
+
+
+def _lowest_first(data: dict) -> list[dict]:
+    return [data["effects"][k] for k in
+            sorted(data["effects"], key=lambda k: int(data["effects"][k]["id"]))]
+
+
+def _pick(data: dict, moves, count: int, what: str) -> list[int]:
+    """The lowest-numbered effects that pass `moves`, or a loud failure.
+
+    Chosen by asking `model.compute` what the effect actually does, not by
+    reading its modifier names. Most effects carrying an attack rate are
+    gated -- on a weapon switch, on grease, on three bows -- or scoped to
+    skills rather than to the swing, and they move an attack rating by
+    nothing at all. A case built on one would look like a case about a buff
+    and be a case about a bare armament. Lowest-numbered so two runs against
+    the same dataset choose the same effects.
+    """
+    out: list[int] = []
+    for effect in _lowest_first(data):
+        if moves(effect):
+            out.append(int(effect["id"]))
+            if len(out) == count:
+                return out
+    raise LookupError(
+        f"this dataset has {len(out)} effects that {what}, "
+        f"fewer than the {count} this case needs")
+
+
+def effects_raising_rate(data: dict, hero: dict, field_name: str,
+                         count: int = 1) -> list[int]:
+    """Effects that measurably move this multiplier for this Nightfarer."""
+    def moves(effect: dict) -> bool:
+        if field_name not in (effect.get("modifiers") or {}):
+            return False
+        rates = _alone(data, hero, effect).rates
+        return abs(rates.get(field_name, 1.0) - 1.0) > 1e-9
+
+    return _pick(data, moves, count, f"move {field_name}")
+
+
+def effects_raising_attribute(data: dict, hero: dict, attribute: str,
+                              count: int = 1) -> list[int]:
+    """Effects that measurably raise this attribute for this Nightfarer."""
+    def moves(effect: dict) -> bool:
+        build = _alone(data, hero, effect)
+        return (build.attributes.get(attribute, 0)
+                > build.base_attributes.get(attribute, 0))
+
+    return _pick(data, moves, count, f"raise {attribute}")
+
+
+def scoped_effect(data: dict, hero: dict, class_name: str) -> int:
+    """An attack buff that reaches only one class of armament."""
+    def moves(effect: dict) -> bool:
+        bucket = _alone(data, hero, effect).class_rates.get(class_name, {})
+        return any(abs(v - 1.0) > 1e-9 for v in bucket.values())
+
+    return _pick(data, moves, 1, f"buff {class_name} armaments only")[0]
+
+
+def heaviest_of_family(data: dict, family: str) -> int:
+    """The armament of this family with the steepest Strength requirement.
+
+    Used for the requirements-not-met case: at level 1 nobody can hold it, and
+    the scaling it loses is the branch under test.
+    """
+    candidates = [w for w in data["weapons"] if w.get("family") == family]
+    if not candidates:
+        raise LookupError(f"no armament of family {family!r} in this dataset")
+    return max(candidates,
+               key=lambda w: (w["requires"].get("Strength", 0), w["id"]))["id"]
+
+
+def first_of_family(data: dict, family: str) -> int:
+    candidates = sorted((w["id"] for w in data["weapons"]
+                         if w.get("family") == family))
+    if not candidates:
+        raise LookupError(f"no armament of family {family!r} in this dataset")
+    return candidates[0]
+
+
+def _case(name: str, hero: str, level: int, active: int,
+          armaments: list[dict], relic_effects: list[int] | None = None,
+          curse_effects: list[int] | None = None,
+          declared: dict[int, int] | None = None) -> dict:
+    return {
+        "name": name,
+        "hero": hero,
+        "level": level,
+        "active": active,
+        # One entry per filled tile: {"slot", "weapon", "tier", "effects"}.
+        "armaments": armaments,
+        "relic_effects": list(relic_effects or []),
+        "curse_effects": list(curse_effects or []),
+        "declared": {str(k): v for k, v in (declared or {}).items()},
+    }
+
+
+def cases(data: dict) -> list[dict]:
+    """Every combination the golden file covers, and why it is covered."""
+    # Wylder is the build QA measured the divergence on; Ironeye is the one
+    # who fights at range; Recluse carries the magic scaling; Executor is one
+    # of the two DLC Nightfarers the allow flags cannot speak about (QA-006).
+    wylder = hero_by_name(data, "Wylder")
+    ironeye = hero_by_name(data, "Ironeye")
+    recluse = hero_by_name(data, "Recluse")
+    executor = hero_by_name(data, "Executor")
+
+    wylder_start = wylder["starting_weapon"]
+    recluse_start = recluse["starting_weapon"]
+    executor_start = executor["starting_weapon"]
+
+    # The x0.85 the game charges for a status on the starting armament. Three
+    # effects carry it, and they are the whole of the STARTING_AR_RATE_FOR
+    # family (frost, poison, blood loss).
+    starting_penalty = effects_raising_rate(
+        data, wylder, "physicsAttackPowerRate", 3)
+    # The ordinary attack buff, carried by 200-odd effects.
+    attack_rate = effects_raising_rate(data, wylder, "physicsAttackRate", 2)
+    magic_rate = effects_raising_rate(data, recluse, "magicAttackRate", 1)
+    strength = effects_raising_attribute(data, wylder, "Strength", 2)
+    dexterity = effects_raising_attribute(data, wylder, "Dexterity", 1)
+    intelligence = effects_raising_attribute(data, recluse, "Intelligence", 1)
+    regain = effects_raising_rate(data, wylder, "regainRate", 1)
+    melee_only = scoped_effect(data, wylder, "melee")
+    ranged_only = scoped_effect(data, ironeye, "ranged")
+
+    bow = first_of_family(data, "Bow")
+    staff = first_of_family(data, "Glintstone Staff")
+    colossal = heaviest_of_family(data, "Colossal Sword")
+
+    declarable = declarable_attack_buff(data, wylder)
+
+    out = [
+        _case("bare starting armament, level 1",
+              "Wylder", 1, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 1, "effects": []}]),
+        _case("bare starting armament, level 15, legendary",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 4, "effects": []}]),
+        # The starting-armament penalty needs both halves: slot 1 AND this
+        # Nightfarer's own weapon. Verified in play 2026-08-22, and these two
+        # cases are what keeps that pair together.
+        _case("starting armament with the frost penalty, in slot 1",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 3, "effects": []}],
+              relic_effects=[starting_penalty[0]]),
+        _case("same penalty, same weapon, moved to slot 2",
+              "Wylder", 15, 1,
+              [{"slot": 1, "weapon": wylder_start, "tier": 3, "effects": []}],
+              relic_effects=[starting_penalty[0]]),
+        _case("all three status penalties at once, slot 1",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 3, "effects": []}],
+              relic_effects=list(starting_penalty)),
+        _case("physical attack buff on a foreign armament",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": colossal, "tier": 2, "effects": []}],
+              relic_effects=list(attack_rate)),
+        # Requirements not met: level 1 against the steepest Strength wall in
+        # the game, so the scaling is lost and the notice must appear.
+        _case("armament whose requirements are not met",
+              "Wylder", 1, 0,
+              [{"slot": 0, "weapon": colossal, "tier": 1, "effects": []}]),
+        _case("attribute gains feeding the scaling",
+              "Wylder", 8, 0,
+              [{"slot": 0, "weapon": colossal, "tier": 3, "effects": []}],
+              relic_effects=strength + dexterity),
+        # A melee-scoped buff on a bow must not move it, and a ranged-scoped
+        # buff must. Both directions, one armament each.
+        _case("melee-only buff with a bow in hand",
+              "Ironeye", 15, 0,
+              [{"slot": 0, "weapon": bow, "tier": 3, "effects": []}],
+              relic_effects=[melee_only]),
+        _case("ranged-only buff with a bow in hand",
+              "Ironeye", 15, 0,
+              [{"slot": 0, "weapon": bow, "tier": 3, "effects": []}],
+              relic_effects=[ranged_only]),
+        # A staff's own hit is physical, so a magic buff does not lift it and
+        # Intelligence does. Both halves of that in one case.
+        _case("catalyst: magic buff idle, Intelligence at work",
+              "Recluse", 15, 0,
+              [{"slot": 0, "weapon": staff, "tier": 3, "effects": []}],
+              relic_effects=magic_rate + intelligence),
+        _case("Recluse on her own starting armament",
+              "Recluse", 15, 0,
+              [{"slot": 0, "weapon": recluse_start, "tier": 2, "effects": []}],
+              relic_effects=[starting_penalty[1]]),
+        # A DLC Nightfarer: the allow flags cannot name Executor, so every
+        # effect here has to count (QA-006, decided "works").
+        _case("Executor, allow-flagged effects and a curse",
+              "Executor", 15, 0,
+              [{"slot": 0, "weapon": executor_start, "tier": 3,
+                "effects": []}],
+              relic_effects=list(attack_rate) + strength,
+              curse_effects=curses_lowering_an_attribute(data, executor)),
+        # An armament's own rolled effects count towards the sheet just as a
+        # relic's do, including from a tile that is not the active one.
+        _case("armament effects count too",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 3,
+                "effects": [attack_rate[0]]},
+               {"slot": 1, "weapon": bow, "tier": 2,
+                "effects": [ranged_only]}],
+              relic_effects=[]),
+        # Rally recovery is read off the armament and scaled by regainRate.
+        _case("rally recovery with the relic that scales it",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 3, "effects": []}],
+              relic_effects=[regain[0]]),
+        _case("rally recovery on an armament that reclaims nothing",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": bow, "tier": 3, "effects": []}],
+              relic_effects=[regain[0]]),
+        # A declared conditional effect counts exactly as that many copies.
+        _case("a conditional effect the player declares",
+              "Wylder", 15, 0,
+              [{"slot": 0, "weapon": wylder_start, "tier": 3, "effects": []}],
+              relic_effects=[declarable],
+              declared={declarable: 2}),
+        _case("empty tile",
+              "Wylder", 15, 2, []),
+    ]
+    return out
+
+
+def curses_lowering_an_attribute(data: dict, hero: dict,
+                                 count: int = 1) -> list[int]:
+    """Curses that really take an attribute away.
+
+    Only Deep of Night relics carry curses, and a curse that moves no number
+    would make the case indistinguishable from the same build without it.
+    """
+    def moves(effect: dict) -> bool:
+        if not effect.get("is_curse"):
+            return False
+        build = _alone(data, hero, effect)
+        return any(build.attributes.get(name, 0) < value
+                   for name, value in build.base_attributes.items())
+
+    return _pick(data, moves, count, "lower an attribute")
+
+
+def declarable_attack_buff(data: dict, hero: dict) -> int:
+    """A gated attack buff that counts once the player declares its condition.
+
+    Gated effects are left out of every total until declared -- that is the
+    whole point of the declaration -- so the case has to prove both halves:
+    nothing while silent, a multiplier once declared.
+    """
+    curves = data.get("curves", {})
+
+    def moves(effect: dict) -> bool:
+        if not model.is_conditional(effect, None):
+            return False
+        if abs(_alone(data, hero, effect).rates
+               .get("physicsAttackRate", 1.0) - 1.0) > 1e-9:
+            return False        # not gated in practice; a plain buff
+        declared = model.compute(hero, PROBE_LEVEL, [effect], curves,
+                                 declared={int(effect["id"]): 1})
+        return abs(declared.rates.get("physicsAttackRate", 1.0) - 1.0) > 1e-9
+
+    return _pick(data, moves, 1, "buff attack once declared")[0]
+
+
+def build_for(data: dict, case: dict) -> model.Build:
+    """The build this case describes.
+
+    Assembled exactly as `Planner.recompute` assembles it -- relics, armament
+    effects and curses in one list, the weapon gates from the tiles, the
+    declared counts as given. Written out here rather than borrowed from the
+    Planner so the golden file survives the refactoring of the Planner, which
+    is the very thing it exists to police.
+    """
+    hero = hero_by_name(data, case["hero"])
+    slots = armament_slots(data, case)
+    relic_effects = [effect_by_id(data, e) for e in case["relic_effects"]]
+    weapon_effects = [effect_by_id(data, e)
+                      for slot in slots for e in slot.effect_ids]
+    curses = [effect_by_id(data, e) for e in case["curse_effects"]]
+    active = slots[case["active"]]
+    return model.compute(
+        hero, case["level"],
+        relic_effects + weapon_effects + curses,
+        data.get("curves", {}),
+        weapon=active.weapon,
+        weapons_held=[s.weapon for s in slots if s.filled],
+        declared={int(k): v for k, v in case["declared"].items()},
+    )
+
+
+def armament_slots(data: dict, case: dict) -> list[weaponslots.WeaponSlot]:
+    """The six tiles this case puts on the grid."""
+    slots = [weaponslots.WeaponSlot()
+             for _ in range(weaponslots.SLOT_COUNT)]
+    for entry in case["armaments"]:
+        slots[entry["slot"]] = weaponslots.WeaponSlot(
+            weapon=weapon_by_id(data, entry["weapon"]),
+            tier=entry["tier"],
+            effect_ids=list(entry["effects"]),
+        )
+    return slots
+
+
+def run(planner, data: dict, case: dict) -> dict:
+    """Drive the real weapon-damage panel for one case and read it back.
+
+    The Planner is the real one, headless. Only the pieces the case describes
+    are set on it; `selected_effects` is replaced because the relics behind it
+    live in combo boxes the case has no business filling.
+    """
+    hero = hero_by_name(data, case["hero"])
+    planner.hero_index = data["heroes"].index(hero)
+    planner.weapon_slots = armament_slots(data, case)
+    planner.active_weapon = case["active"]
+    planner.declared = {int(k): v for k, v in case["declared"].items()}
+    relic_effects = [effect_by_id(data, e) for e in case["relic_effects"]]
+    planner.selected_effects = lambda: relic_effects
+
+    planner._refresh_weapon_damage(build_for(data, case))
+    return {
+        # The figures the panel keeps for the click-through breakdown: the
+        # calculation's own output, before it is turned into text.
+        "last_ar": rounded(planner.last_ar),
+        # And the text itself, which catches a change in what is shown even
+        # when every number behind it stayed the same.
+        "panel": planner.ar_label.text(),
+    }
+
+
+def rounded(value):
+    """Six decimals: enough to catch a changed calculation, loose enough that
+    the last bit of a float cannot fail the test on its own."""
+    if isinstance(value, dict):
+        return {k: rounded(v) for k, v in value.items()}
+    if isinstance(value, float):
+        return round(value, 6)
+    return value
