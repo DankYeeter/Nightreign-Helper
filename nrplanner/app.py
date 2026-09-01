@@ -445,13 +445,16 @@ class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
     def __init__(self, index: int, deep: bool, on_change, icons=None,
-                 on_search_changed=None):
+                 on_search_changed=None, taken_elsewhere=None):
         super().__init__()
         self.index = index
         self.deep = deep
         self.on_change = on_change
         self.icons = icons
         self.on_search_changed = on_search_changed or (lambda _text: None)
+        # Which physical relics the other slots are already holding. A slot on
+        # its own knows of no others and so blocks nothing.
+        self.taken_elsewhere = taken_elsewhere or (lambda _slot: frozenset())
         self.search_text = ""
         self.owned = None
         self.colour = 0
@@ -670,6 +673,34 @@ class RelicSlot(QFrame):
                 self.relic_box.setCurrentIndex(index)
         self.on_change()
 
+    def available_items(self) -> list:
+        """The relics this slot may be given.
+
+        Owned, of a colour and mode this slot takes, and not already lying in
+        another slot: a relic is one physical object and cannot be worn twice.
+        It used to be offered everywhere it fit, and taking the same entry
+        into two slots counted its effects twice -- silently, with no warning
+        and a plausible total (QA-002). With 306 distinct rolls across 309
+        owned relics, an entry in this list stands for exactly one physical
+        relic 99 times out of 100, so the second helping was almost never real.
+        Planning around a relic you do not own is what "Custom relic" is for,
+        and that stays untouched.
+
+        The ownership filter runs *before* the collapse to one entry per roll,
+        not after: a player who owns two copies of the same roll may wear both,
+        and the second copy has to survive to be offered.
+        """
+        if self.owned is None:
+            return []
+        taken = self.taken_elsewhere(self)
+        free = [item for item
+                in self.owned.relics_for(self.colour, self.deep, WHITE_SLOT)
+                if inventory.copy_key(item) not in taken]
+        # The same collapse the picker applies, or the header counts the
+        # save's records while the picker counts distinct rolls and the
+        # two sit one apart on screen ("50 owned" over "49 of 49").
+        return favourites.distinct(free)
+
     def populate(self, effect_filter: str = "") -> None:
         """List the relics the player owns that fit this slot.
 
@@ -679,13 +710,7 @@ class RelicSlot(QFrame):
         """
         self.search_text = effect_filter
         predicate = search.parse(effect_filter)
-        items = []
-        if self.owned is not None:
-            # The same collapse the picker applies, or the header counts the
-            # save's records while the picker counts distinct rolls and the
-            # two sit one apart on screen ("50 owned" over "49 of 49").
-            items = favourites.distinct(
-                self.owned.relics_for(self.colour, self.deep, WHITE_SLOT))
+        items = self.available_items()
         if predicate is not None:
             items = [i for i in items if predicate(self.effect_names(i))]
 
@@ -710,7 +735,11 @@ class RelicSlot(QFrame):
                 self.relic_box.setCurrentIndex(idx)
         self.relic_box.blockSignals(False)
 
-        suffix = f"{len(items)} match" if predicate else f"{len(items)} owned"
+        # "available" rather than "owned": a relic lying in another slot is
+        # owned and is not offered here, so counting it would put a number on
+        # the heading that the list underneath contradicts.
+        suffix = (f"{len(items)} match" if predicate
+                  else f"{len(items)} available")
         self.title.setText(
             f"{'Deep ' if self.deep else ''}Slot {self.index + 1} — "
             f"{model.COLOUR_NAMES.get(self.colour, self.colour)}  ({suffix})"
@@ -1310,7 +1339,8 @@ class Planner(QMainWindow):
         layout.addWidget(hint)
 
         self.base_slots = [
-            RelicSlot(i, False, self.recompute, self.icons, self._set_search)
+            RelicSlot(i, False, self._relic_changed, self.icons,
+                      self._set_search, self._relics_taken_elsewhere)
             for i in range(3)
         ]
         for slot in self.base_slots:
@@ -1319,7 +1349,8 @@ class Planner(QMainWindow):
         self.deep_heading = _heading("Deep of Night slots")
         layout.addWidget(self.deep_heading)
         self.deep_slots = [
-            RelicSlot(i, True, self.recompute, self.icons, self._set_search)
+            RelicSlot(i, True, self._relic_changed, self.icons,
+                      self._set_search, self._relics_taken_elsewhere)
             for i in range(3)
         ]
         for slot in self.deep_slots:
@@ -2306,6 +2337,39 @@ class Planner(QMainWindow):
         self.last_search = text
         for slot in self.base_slots + self.deep_slots:
             slot.search_text = text
+
+    def _relics_taken_elsewhere(self, asking: RelicSlot) -> set:
+        """The physical relics the other slots are already holding.
+
+        Asked by a slot while it works out what it can offer. The asking slot
+        is skipped, or a slot would hide the very relic sitting in it.
+
+        Every slot is considered, the hidden Deep ones included: they hold
+        Deep relics, which no ordinary slot can take anyway, so the two
+        never contend -- and a Deep slot that is out of sight still has a
+        relic in it, which is exactly the case where a doubled relic would go
+        unnoticed.
+        """
+        taken = set()
+        for slot in self.base_slots + self.deep_slots:
+            if slot is asking:
+                continue
+            key = inventory.copy_key(slot.current_relic())
+            if key is not None:
+                taken.add(key)
+        return taken
+
+    def _relic_changed(self) -> None:
+        """A relic moved, so both the totals and the other slots' lists change.
+
+        The lists have to be rebuilt here and not only when the chalice
+        changes: what a slot may offer depends on what the other five are
+        holding at this moment, and a list built before the choice was made
+        would still be offering the relic that has just been taken.
+        """
+        for slot in self.base_slots + self.deep_slots:
+            slot.populate(slot.search_text)
+        self.recompute()
 
     # Populated by recompute(), read by the click-to-break-down popup.
     last_sources: dict = {}

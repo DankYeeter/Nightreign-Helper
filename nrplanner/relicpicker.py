@@ -429,25 +429,17 @@ class RelicPicker(QDialog):
 
         self._refresh()
 
-    @staticmethod
-    def _distinct(items: list) -> list:
-        """One card per roll -- favourites.distinct, kept as a method name
-        because the call sites read better for it. The reasoning lives with
-        the shared function, which the slot header now uses as well, so the
-        picker's count and the header's can no longer disagree.
-        """
-        return favourites.distinct(items)
-
     def _candidates(self):
         from . import search
 
         text = self.search.text()
         predicate = search.parse(text)
-        items = []
-        if self.slot.owned is not None:
-            items = self._distinct(self.slot.owned.relics_for(
-                self.slot.colour, self.slot.deep, 4
-            ))
+        # The slot decides what it can hold -- one card per roll, and nothing
+        # that is already lying in another slot. Asking the inventory here as
+        # well is how the picker came to offer a relic the slot beside it was
+        # already wearing (QA-002); the count below is drawn from the same
+        # answer, so the grid and the "x of y" above it cannot disagree.
+        items = self.slot.available_items()
         if predicate is not None:
             items = [i for i in items if predicate(self.slot.effect_names(i))]
         # Favourites for the Nightfarer currently being planned lead the grid.
@@ -486,11 +478,7 @@ class RelicPicker(QDialog):
 
     def _refresh(self) -> None:
         items, needle = self._candidates()
-        total = 0
-        if self.slot.owned is not None:
-            total = len(self._distinct(self.slot.owned.relics_for(
-                self.slot.colour, self.slot.deep, 4
-            )))
+        total = len(self.slot.available_items())
         starred = sum(
             1 for i in items
             if self.hero_id is not None and favourites.is_favourite(i, self.hero_id)
