@@ -44,6 +44,30 @@ def key(item) -> str:
     return f"{item.relic_id}|{effects}|{curses}"
 
 
+def parts(roll: str) -> tuple[int, list[int], list[int]] | None:
+    """A roll key read back: the relic id, its effects, its curses.
+
+    The inverse of key(), and here because this is where the format is
+    decided. A custom relic is why it exists: it is owned by nobody, so a
+    stored build that names one has nothing to be looked up in and can only be
+    rebuilt from the key itself (QA-025).
+
+    None when the text is not a roll key -- an empty stored slot, or one
+    written by a version that spelled it differently. The text comes out of
+    the settings store, so it is checked rather than trusted.
+    """
+    fields = str(roll).split("|")
+    if len(fields) != 3:
+        return None
+    try:
+        relic_id = int(fields[0])
+        effects = [int(e) for e in fields[1].split(",") if e]
+        curses = [int(c) for c in fields[2].split(",") if c]
+    except ValueError:
+        return None
+    return relic_id, effects, curses
+
+
 def distinct(items) -> list:
     """One entry per roll, in the order given.
 

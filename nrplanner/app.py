@@ -454,6 +454,24 @@ def _same_copy(one, other) -> bool:
     return key == inventory.copy_key(other)
 
 
+def _relic_count(how_many: int) -> str:
+    """"1 relic" or "4 relics", because "1 relics" was on screen."""
+    return "1 relic" if how_many == 1 else f"{how_many} relics"
+
+
+def _custom_effects(roll: str) -> list[int] | None:
+    """The effects a stored slot names, when what it names is a custom relic.
+
+    A custom relic is owned by nobody, so a build naming one cannot be put
+    back by looking it up: it is built again out of what was written down.
+    None for every other relic, which is looked up rather than rebuilt.
+    """
+    parts = favourites.parts(roll)
+    if parts is None or parts[0] != inventory.CUSTOM_RELIC_ID:
+        return None
+    return parts[1]
+
+
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
@@ -473,6 +491,11 @@ class RelicSlot(QFrame):
         # saying. An empty slot otherwise looks the same whether nothing was
         # ever put in it or its relic was taken away by a rule.
         self.empty_reason = ""
+        # The condition that reason describes, where it is a condition about
+        # something other than this slot. Kept beside the text and asked again
+        # at every redraw: a reason that has stopped being true is not a
+        # reason, it is a leftover (QA-022).
+        self.reason_holds = None
         self.owned = None
         self.colour = 0
         self.pool: list[dict] = []
@@ -524,6 +547,7 @@ class RelicSlot(QFrame):
         # Whatever this slot was last told to say about being empty is spent:
         # the player has just put something here or taken it away themselves.
         self.empty_reason = ""
+        self.reason_holds = None
         self._sync_mode()
         self.on_change()
 
@@ -540,8 +564,16 @@ class RelicSlot(QFrame):
         elif dialog.chosen is None and dialog.result():
             self.relic_box.setCurrentIndex(0)
 
+    def _forget_a_spent_reason(self) -> None:
+        """Drop the reason for being empty once it has stopped being true."""
+        if self.empty_reason and self.reason_holds is not None:
+            if not self.reason_holds():
+                self.empty_reason = ""
+                self.reason_holds = None
+
     def _sync_mode(self) -> None:
         """Show the rolled effects of the relic currently in this slot."""
+        self._forget_a_spent_reason()
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
         if item is None:
@@ -644,14 +676,25 @@ class RelicSlot(QFrame):
 
     def set_colour(self, colour: int, all_effects: list[dict], owned=None,
                    hero_name: str = "") -> None:
+        """Give this slot the colour the chalice says it has, and rebuild it.
+
+        Runs on every apply of the chalice, the Deep of Night switch included,
+        and most of those applies leave this slot's colour exactly as it was.
+        """
         self.hero_name = hero_name or self.hero_name
+        # A custom relic is built for one slot colour, so a colour that has
+        # really changed invalidates it -- and nothing else does. Dropping it
+        # on every rebuild deleted the relic the player had planned at one
+        # click on the Deep switch, took its effects out of the totals, and
+        # left the key the build had written down for it behind, redeemable
+        # by nothing ever again (QA-025). A slot's mode is fixed when the slot
+        # is built, so the colour is the whole of the question.
+        if colour != self.colour:
+            self.custom_item = None
         self.colour = colour
         self.owned = owned
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
-        # A custom relic is built for one slot colour; changing the colour
-        # invalidates it rather than silently leaving an illegal relic in place.
-        self.custom_item = None
         self.chip.setStyleSheet(
             f"background: {SLOT_COLOURS.get(colour, '#888')};"
             f" border: 1px solid {BORDER}; border-radius: 7px;"
@@ -683,23 +726,55 @@ class RelicSlot(QFrame):
         return sorted(out, key=effecttext.name)
 
     def set_custom(self, effect_ids: list[int]) -> None:
+        """Put a made-up relic in this slot, or clear it when given nothing.
+
+        What the player does in the picker. The window is told once, at the
+        end, the way it is told about any other relic landing in a slot.
+        """
+        self._hold_custom(effect_ids)
+        self.on_change()
+
+    def adopt_custom(self, effect_ids: list[int]) -> bool:
+        """Rebuild this slot's custom relic from a stored build, silently.
+
+        A custom relic is owned by nobody, so a build that names one cannot be
+        put back by looking it up -- there is nothing to look it up in. It is
+        rebuilt here out of the effects the build wrote down, which is what
+        lets it outlive a session or a chalice the player wandered through
+        (QA-025).
+
+        Refused when this slot could not have rolled those effects: a relic
+        built for a Red slot has no business reappearing in a Blue one. Asked
+        here and not in `set_custom` because the two are asked by different
+        parties -- the picker offers the player the effects this slot can roll
+        and nothing else, while a stored build was written down when the slot
+        may have had another colour entirely.
+
+        Emits nothing. A restore is one change to the build, not one per slot.
+        """
+        rollable = {e["id"] for e in self.rollable_effects()}
+        if not all(eid in rollable for eid in effect_ids):
+            return False
+        self._hold_custom(effect_ids)
+        return True
+
+    def _hold_custom(self, effect_ids: list[int]) -> None:
         """Put a made-up relic in this slot, or clear it when given nothing."""
         if not effect_ids:
             self.custom_item = None
-        else:
-            self.custom_item = inventory.OwnedItem(
-                relic_id=inventory.CUSTOM_RELIC_ID,
-                name="Custom relic",
-                colour=self.colour,
-                effect_ids=list(effect_ids),
-                is_deep=self.deep,
-            )
+            self.populate()
+            return
+        self.custom_item = inventory.OwnedItem(
+            relic_id=inventory.CUSTOM_RELIC_ID,
+            name="Custom relic",
+            colour=self.colour,
+            effect_ids=list(effect_ids),
+            is_deep=self.deep,
+        )
         self.populate()
-        if self.custom_item is not None:
-            index = self.relic_box.findData(self.custom_item)
-            if index >= 0:
-                self.relic_box.setCurrentIndex(index)
-        self.on_change()
+        index = self.relic_box.findData(self.custom_item)
+        if index >= 0:
+            self._select_index(index)
 
     def available_items(self) -> list:
         """The relics this slot may be given.
@@ -717,17 +792,34 @@ class RelicSlot(QFrame):
         The ownership filter runs *before* the collapse to one entry per roll,
         not after: a player who owns two copies of the same roll may wear both,
         and the second copy has to survive to be offered.
+
+        The collapse is a way of showing relics, not a way of counting them.
+        One entry stands for one roll, and while the first copy of that roll
+        is free the second is behind it, unreachable by anything that asks
+        this list. A build names *copies*, so the restore asks by handle and
+        reaches past this list to the copy itself (see `select_copy`) --
+        reading a build out of this list put one physical relic in two slots
+        and emptied the later one (QA-021).
         """
-        if self.owned is None:
-            return []
         taken = self.taken_elsewhere(self)
-        free = [item for item
-                in self.owned.relics_for(self.colour, self.deep, WHITE_SLOT)
+        free = [item for item in self._holdable()
                 if inventory.copy_key(item) not in taken]
         # The same collapse the picker applies, or the header counts the
         # save's records while the picker counts distinct rolls and the
         # two sit one apart on screen ("50 owned" over "49 of 49").
         return favourites.distinct(free)
+
+    def _holdable(self) -> list:
+        """Every owned copy this slot could take: its colour, its mode.
+
+        One entry per physical relic, before anything is collapsed away. Both
+        questions this slot answers about a relic -- may it be offered, and is
+        this the copy a build names -- are asked of this list, so the two
+        cannot come to mean different things by one relic.
+        """
+        if self.owned is None:
+            return []
+        return self.owned.relics_for(self.colour, self.deep, WHITE_SLOT)
 
     def slot_name(self) -> str:
         """What this slot is called on screen, and in anything said about it."""
@@ -741,11 +833,21 @@ class RelicSlot(QFrame):
         chalice. A relic of a colour this slot no longer takes belongs to the
         chalice before it, and keeping such a relic is how a Grail came to own
         one nobody put there.
+
+        Asked about owned relics only. A custom relic is owned by nobody and
+        is answered for one line earlier, by `custom_item`: it is this slot's
+        own, it is put in the list by `populate` itself, and giving this
+        function a second opinion about it would be two answers to one
+        question (QA-016).
         """
-        if self.owned is None or item is None:
+        if item is None:
             return False
-        return any(_same_copy(item, other) for other
-                   in self.owned.relics_for(self.colour, self.deep, WHITE_SLOT))
+        return any(_same_copy(item, other) for other in self._holdable())
+
+    def _label(self, item) -> str:
+        """One line for the list: the relic's name and what it rolled."""
+        summary = ", ".join(self.effect_names(item))
+        return (f"{item.name} — {summary}" if summary else item.name)[:120]
 
     def populate(self) -> None:
         """List the relics this slot may be given, and the one it has.
@@ -776,13 +878,10 @@ class RelicSlot(QFrame):
         # A custom relic is not owned, so it survives repopulation only by
         # being re-added here.
         if self.custom_item is not None:
-            summary = ", ".join(self.effect_names(self.custom_item))
-            self.relic_box.addItem(
-                f"Custom relic — {summary}"[:120], self.custom_item)
+            self.relic_box.addItem(self._label(self.custom_item),
+                                   self.custom_item)
         for item in items:
-            summary = ", ".join(self.effect_names(item))
-            label = f"{item.name} — {summary}" if summary else item.name
-            self.relic_box.addItem(label[:120], item)
+            self.relic_box.addItem(self._label(item), item)
         if worn is not None:
             idx = self.relic_box.findData(worn)
             if idx >= 0:
@@ -799,14 +898,23 @@ class RelicSlot(QFrame):
         )
         self._sync_mode()
 
-    def clear_relic(self, reason: str = "") -> None:
+    def clear_relic(self, reason: str = "", while_true=None) -> None:
         """Take whatever is in this slot out of it, and say why if there is a why.
+
+        `while_true` is the condition the reason describes, asked again every
+        time the slot is redrawn. "Already worn in Slot 1" is a statement
+        about slot 1, and it was kept as a property of this one: it stayed on
+        screen after slot 1 had given the relic up or been filled with
+        another, so the text was false exactly when the player did what it
+        asked (QA-022). A reason with no condition holds until the slot is
+        changed, which is what the ones about this slot alone need.
 
         Signals are held back. A slot emptied during a restore is part of
         setting one build, not six separate changes by the player, and the
         window settles the slots itself once the restore has finished.
         """
         self.empty_reason = reason
+        self.reason_holds = while_true
         self.relic_box.blockSignals(True)
         try:
             self.relic_box.setCurrentIndex(0)
@@ -831,59 +939,92 @@ class RelicSlot(QFrame):
         """How this slot's relic is written down for the next session."""
         return chalices.slot_key(self.relic_box.currentData())
 
-    def select_saved(self, key: str) -> bool:
-        """Put back the relic a previous session left here.
-
-        The handle is tried first because it is exact. Falling back to the
-        roll matters when the save has been rewritten since -- handles are
-        renumbered by the game, and a build that came back empty every time
-        the player melted an unrelated relic would not be worth storing.
-        """
-        self.empty_reason = ""
-        if not key:
-            return self.select_handle(None)
-        handle, roll = chalices.split_key(key)
-        if handle is not None and self.select_handle(handle):
-            return True
-        if not roll:
-            return False
-        self.relic_box.blockSignals(True)
-        try:
-            for i in range(self.relic_box.count()):
-                item = self.relic_box.itemData(i)
-                if item is not None and favourites.key(item) == roll:
-                    self.relic_box.setCurrentIndex(i)
-                    return True
-            return False
-        finally:
-            self.relic_box.blockSignals(False)
-            self._sync_mode()
-
-    def select_handle(self, handle: int | None) -> bool:
-        """Put the relic with this save handle in the slot, or empty it.
+    def select_copy(self, handle: int) -> bool:
+        """Put one exact physical copy in this slot, list or no list.
 
         Matching on the handle rather than the name matters: several copies of
         one relic can be owned with different rolls, and this save equips the
         second copy of The Wylder's Earring while the first sits unused.
 
+        The list is not asked, it is only tried first. It holds one entry per
+        roll, so a second copy of a roll is not in it -- and a build naming
+        that copy fell through to the roll, landed on the first copy, and left
+        two slots holding one relic, the later of which was then emptied and
+        the loss stored (QA-021). What identifies a copy here is the handle,
+        which is what `copy_key` and `_settle_slots` mean by "the same relic"
+        as well.
+
         Signals are held back so importing six slots recomputes the build once
         at the end rather than six times.
         """
-        self.empty_reason = ""
+        # A relic with no handle is not identified by one, and the custom
+        # relic has none: asked for "the copy with handle None", this would
+        # otherwise hand back whatever the player had invented.
+        if handle is None:
+            return False
+        for i in range(self.relic_box.count()):
+            item = self.relic_box.itemData(i)
+            if item is not None and getattr(item, "handle", None) == handle:
+                return self._select_index(i)
+        copy = next((item for item in self._holdable()
+                     if getattr(item, "handle", None) == handle), None)
+        if copy is None:
+            return False
+        return self._select_index(self._offer(copy))
+
+    def select_roll(self, roll: str, taken=frozenset()) -> bool:
+        """Put back a relic named by its roll alone, avoiding copies spoken for.
+
+        The fallback for a build stored before the save was rewritten: handles
+        are renumbered by the game, and a build that came back empty every
+        time the player melted an unrelated relic would not be worth storing.
+
+        `taken` are the copies other slots of this same build have already
+        been given. Without it two slots asking for one roll are both answered
+        with the first copy -- the same loss as QA-021 by another road, and
+        the more so because the player may own the roll twice and be entitled
+        to both.
+        """
+        for i in range(self.relic_box.count()):
+            item = self.relic_box.itemData(i)
+            if (item is not None and favourites.key(item) == roll
+                    and inventory.copy_key(item) not in taken):
+                return self._select_index(i)
+        for item in self._holdable():
+            if (favourites.key(item) == roll
+                    and inventory.copy_key(item) not in taken):
+                return self._select_index(self._offer(item))
+        return False
+
+    def _offer(self, item) -> int:
+        """Add one relic to the end of this slot's list, and say where it went.
+
+        For a copy the collapsed list has no entry of its own for. The next
+        `populate` draws the list up again from what the slots hold by then,
+        and keeps whatever is in this one.
+        """
         self.relic_box.blockSignals(True)
         try:
-            if handle is None:
-                self.relic_box.setCurrentIndex(0)
-                return True
-            for i in range(self.relic_box.count()):
-                item = self.relic_box.itemData(i)
-                if item is not None and getattr(item, "handle", None) == handle:
-                    self.relic_box.setCurrentIndex(i)
-                    return True
-            return False
+            self.relic_box.addItem(self._label(item), item)
+        finally:
+            self.relic_box.blockSignals(False)
+        return self.relic_box.count() - 1
+
+    def _select_index(self, index: int) -> bool:
+        """Make one entry of the list the one in the slot, without emitting.
+
+        Whatever this slot was last told to say about being empty is spent: it
+        is not empty now.
+        """
+        self.empty_reason = ""
+        self.reason_holds = None
+        self.relic_box.blockSignals(True)
+        try:
+            self.relic_box.setCurrentIndex(index)
         finally:
             self.relic_box.blockSignals(False)
             self._sync_mode()
+        return True
 
 
 class VariantDialog(QDialog):
@@ -1074,6 +1215,10 @@ class Planner(QMainWindow):
         # a vessel and six relics does not write a half-restored build over
         # the one still being read.
         self._restoring = False
+        # Set when a restore had to take a relic out of a slot because another
+        # slot holds the same physical one. The stored build is then left as
+        # it was, so the player can still decide which slot keeps it.
+        self._unresolved_clash = False
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -1969,11 +2114,10 @@ class Planner(QMainWindow):
             # inherited whatever the Nightfarer before them had on.
             slots = list(self.base_slots) + list(self.deep_slots)
             for slot in slots:
-                slot.select_saved("")
+                slot.clear_relic()
 
             if saved_row is not None and slot_keys:
-                for slot, key in zip(slots, slot_keys):
-                    slot.select_saved(key)
+                self._restore_slot_keys(slots, slot_keys)
             self._mark_vessel_applied()
         finally:
             self._restoring = False
@@ -1982,6 +2126,58 @@ class Planner(QMainWindow):
         # shows the right number of slots and what that chalice holds.
         self.refresh_vessel_rows()
         self.recompute()
+
+    def _restore_slot_keys(self, slots: list, keys: list[str]) -> None:
+        """Put a stored build back into these slots, one physical relic each.
+
+        In two passes over the whole build rather than slot by slot, because
+        the question "which physical relic is this" has to be answered the
+        same way everywhere it is asked (QA-016, QA-021):
+
+        1. the copies each slot names by handle, and the custom relics, which
+           are rebuilt from what the build wrote down because nothing owns
+           them and no list can offer them until they exist again (QA-025);
+        2. the rolls, which are what is left when the save has been rewritten
+           and the handles renumbered -- each answered with a copy no slot of
+           this build has already been given.
+
+        Slot order used to decide the second pass, which is not a rule but an
+        accident of iteration: the earlier slot took the only copy the list
+        offered and the later one was told the relic was already worn.
+
+        A slot whose stored relic cannot be placed is emptied here, and that is
+        why nothing is returned: three callers each had to be told the same
+        thing and one of them was not listening, which is how a slot came to
+        keep the relic of the chalice being left (QA-014). The rule is carried
+        out where it is decided instead of being handed out as an answer.
+        """
+        claimed = set()
+        rolls = []
+        for index, slot in enumerate(slots):
+            key = keys[index] if index < len(keys) else ""
+            if not key:
+                slot.clear_relic()
+                continue
+            handle, roll = chalices.split_key(key)
+            custom = _custom_effects(roll)
+            if custom is not None:
+                if not slot.adopt_custom(custom):
+                    slot.clear_relic()
+                continue
+            if handle is not None and slot.select_copy(handle):
+                claimed.add(inventory.copy_key(slot.current_relic()))
+                continue
+            rolls.append((slot, roll))
+
+        for slot, roll in rolls:
+            if roll and slot.select_roll(roll, claimed):
+                claimed.add(inventory.copy_key(slot.current_relic()))
+                continue
+            # The stored relic is not one this slot can be given -- melted
+            # since, or belonging to another save. Whatever the slot holds
+            # belongs to the chalice being left, so it goes: keeping it would
+            # make that relic part of this chalice's build at the next store.
+            slot.clear_relic()
 
     def _store_chalice(self) -> None:
         """Write down what this Nightfarer is holding, for the next session."""
@@ -2010,6 +2206,14 @@ class Planner(QMainWindow):
         # over a stored one -- Reset Chalice is how a build is forgotten,
         # deliberately and per vessel.
         if not any(keys):
+            return
+        # Nor is a build the restore had to resolve. It names one physical
+        # relic in two slots; which slot keeps it is the player's to decide,
+        # and writing the resolution down decided it for them, irreversibly
+        # and without a word once the note had gone. So the stored build is
+        # left as it was until the player changes something themselves, and
+        # the note comes back with it every time (director, 2026-09-02).
+        if getattr(self, "_unresolved_clash", False):
             return
         chalices.save(
             self.current_hero()["id"],
@@ -2120,14 +2324,11 @@ class Planner(QMainWindow):
                         self.chalice_list.setCurrentRow(i)
                         break
             self.apply_chalice()
-            slots = list(self.base_slots) + list(self.deep_slots)
-            for index, slot in enumerate(slots):
-                key = keys[index] if index < len(keys) else ""
-                if not slot.select_saved(key):
-                    # A saved build can name a relic that has since been
-                    # melted. The slot it was stored for is empty then, not
-                    # left holding whatever the build before it had there.
-                    slot.clear_relic()
+            # A saved build can name a relic that has since been melted. The
+            # slot it was stored for is empty then, not left holding whatever
+            # the build before it had there.
+            self._restore_slot_keys(
+                list(self.base_slots) + list(self.deep_slots), keys)
             self._mark_vessel_applied()
         finally:
             self._restoring = False
@@ -2213,7 +2414,7 @@ class Planner(QMainWindow):
                     break
             self.apply_chalice()
             for slot in list(self.base_slots) + list(self.deep_slots):
-                slot.select_saved("")
+                slot.clear_relic()
             self._mark_vessel_applied()
         finally:
             self._restoring = False
@@ -2353,22 +2554,13 @@ class Planner(QMainWindow):
             # so toggling the switch reveals the full array instead of an
             # empty half. Only the visible ones reach the totals --
             # selected_effects() reads active_slots().
-            slots = list(self.base_slots) + list(self.deep_slots)
-            for index, slot in enumerate(slots):
-                key = keys[index] if index < len(keys) else ""
-                if not slot.select_saved(key):
-                    # The stored relic is not one this slot can be given --
-                    # melted since, or belonging to another save. Whatever the
-                    # slot is holding belongs to the chalice being left, so it
-                    # goes: keeping it would make that relic part of this
-                    # chalice's build at the next store. select_saved has
-                    # always said so, and nobody read the answer.
-                    slot.clear_relic()
+            self._restore_slot_keys(
+                list(self.base_slots) + list(self.deep_slots), keys)
         finally:
             self._restoring = False
         self._settle_slots()
 
-    def _settle_slots(self) -> None:
+    def _settle_slots(self) -> int:
         """Bring the slots into agreement, once a restore has filled them.
 
         Two things are settled here, and both come of a board being written to
@@ -2385,8 +2577,13 @@ class Planner(QMainWindow):
         Then every list is rebuilt, because they were drawn up before the
         slots were set and each was written down against a board that no
         longer exists.
+
+        Returns how many slots had to give a relic up, which is the one thing
+        about a restore that only this function knows: the stored build is
+        left exactly as it was, so nothing downstream could work it out again.
         """
         worn_in: dict = {}
+        resolved = 0
         for slot in self.base_slots + self.deep_slots:
             # An empty slot and a custom relic both answer None: the one has
             # nothing to clash with, the other is imaginary by design and may
@@ -2396,10 +2593,24 @@ class Planner(QMainWindow):
                 continue
             keeper = worn_in.setdefault(key, slot)
             if keeper is not slot:
-                slot.clear_relic(f"Already worn in {keeper.slot_name()} — "
-                                 "pick another relic for this slot.")
+                resolved += 1
+                # The reason is about the keeper, so it is kept with the
+                # condition it describes: the moment that slot gives the relic
+                # up, this one has nothing to explain any more (QA-022).
+                slot.clear_relic(
+                    f"Already worn in {keeper.slot_name()} — "
+                    "pick another relic for this slot.",
+                    while_true=lambda held=key, by=keeper: (
+                        inventory.copy_key(by.current_relic()) == held),
+                )
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
+        # Until the player resolves it themselves. Writing the resolution into
+        # the stored build made it permanent and, one click later, unexplained
+        # -- the note is gone by then and nothing records that a slot was
+        # emptied (director, 2026-09-02).
+        self._unresolved_clash = bool(resolved)
+        return resolved
 
     def _mark_vessel_applied(self) -> None:
         """Note the chalice the slots now hold, after a restore has set them.
@@ -2515,7 +2726,12 @@ class Planner(QMainWindow):
         The rebuild is about ownership and nothing else. It used to hand each
         slot the term last typed into the picker, which had nothing to do with
         the question being asked and everything to do with QA-013.
+
+        This is also the moment a build the restore had to resolve becomes the
+        player's own again: they have just moved a relic, so what the slots
+        hold is theirs and is written down from here on.
         """
+        self._unresolved_clash = False
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
         self.recompute()
@@ -2902,14 +3118,25 @@ class Planner(QMainWindow):
             self._restoring = False
 
         slots = list(self.base_slots) + list(self.deep_slots)
-        missing = 0
+        # By copy, not by list entry. The lists hold one entry per roll, and
+        # this save equips two copies of one roll in the same chalice -- the
+        # second was not in any list and could not be placed at all (QA-021).
+        #
+        # A relic the save names and the inventory no longer has arrives here
+        # as None, indistinguishable from an empty slot, so what is left when
+        # a placement fails is a relic this slot will not take: the wrong
+        # colour for it, or the wrong side of Deep of Night. That is what is
+        # said, because it is what happened.
+        unfit = 0
         for slot, item in zip(slots, loadout.relics):
-            if not slot.select_handle(item.handle if item else None):
-                missing += 1
-                # The slot the save names a relic for is empty when that relic
-                # cannot be placed, never left holding the one the chalice
-                # before it had there.
-                slot.clear_relic()
+            if item is not None and slot.select_copy(item.handle):
+                continue
+            if item is not None:
+                unfit += 1
+            # The slot the save names a relic for is empty when that relic
+            # cannot be placed, never left holding the one the chalice
+            # before it had there.
+            slot.clear_relic()
         # These slots are the equipped chalice's now, and the next click on
         # the chalice list has to know it. Without this, clicking back on the
         # chalice that was open *before* Load equipped counted as no change
@@ -2920,26 +3147,40 @@ class Planner(QMainWindow):
         # Every row, not only the one on screen: the import has just filled
         # the other chalices, and they should say so without being clicked.
         self.refresh_vessel_rows()
+        # Before the note is written, because settling can empty a slot and
+        # the note is about what is on screen when it is read.
+        clashed = self._settle_slots()
         vessel_name = self.chalice_list.item(row).data(Qt.UserRole)["name"]
-        filled = sum(1 for r in loadout.relics if r is not None)
         count = f"{imported} {'chalice' if imported == 1 else 'chalices'}"
-        if filled:
+        # What the slots actually hold. Counting the save's relics instead
+        # told the player about six relics they could not see, on a screen
+        # holding none of them (QA-024).
+        placed = sum(1 for slot in slots if slot.current_relic() is not None)
+        if placed:
             note = (f"Loaded {hero['name']} — {count}, showing the equipped "
-                    f"{vessel_name} with {filled} relics"
+                    f"{vessel_name} with {_relic_count(placed)}"
                     f"{' (Deep of Night)' if loadout.deep_used else ''}.")
+        elif unfit or clashed:
+            note = (f"Loaded {hero['name']} — {count}. Nothing the equipped "
+                    f"{vessel_name} holds in game could be placed.")
         elif imported:
             note = (f"Loaded {hero['name']} — {count}. The equipped "
                     f"{vessel_name} is empty in game; the others are in the "
                     "list on the left.")
         else:
             note = (f"Loaded {hero['name']} — every chalice is empty in game.")
-        if missing:
-            # Reached when a slot could not be given the relic the save
-            # names for it: the only relic the slot will not take is one
-            # another slot is already holding.
-            note += f" {missing} could not be placed; clear the search and retry."
+        # Each with the reason it happened for. "Could not be placed" on its
+        # own left the player to guess, and the guess it invited was that the
+        # program had lost the relic.
+        if unfit:
+            fit = ("it does not fit the slot the save has it in" if unfit == 1
+                   else "they do not fit the slots the save has them in")
+            note += f" {_relic_count(unfit)} could not be placed: {fit}."
+        if clashed:
+            worn = "it is" if clashed == 1 else "they are"
+            note += (f" {_relic_count(clashed)} could not be placed: "
+                     f"{worn} already worn in another slot.")
         self.owned_label.setText(note)
-        self._settle_slots()
         self.recompute()
 
     def active_slots(self) -> list:
