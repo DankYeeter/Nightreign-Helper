@@ -21,8 +21,7 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from . import (chalices, datasource, effecttext, favourites, firstrun,
-               inventory, model, search, shortcut, uiscale, weaponslots,
-               weapons)
+               inventory, model, shortcut, uiscale, weaponslots, weapons)
 from .damage import attack_rating, is_starting_armament
 from .effectstab import EffectsTab
 from .iconpack import IconPack
@@ -441,6 +440,20 @@ class VesselStrip(QWidget):
             self.tiles.append(tile)
 
 
+def _same_copy(one, other) -> bool:
+    """Whether two entries stand for the same physical relic.
+
+    By copy_key where there is one -- the handle the save's loadout table
+    uses, or the record's own place in the save. A relic with neither (a
+    custom one, or an entry that never came out of a save) stands for itself
+    and nothing else.
+    """
+    key = inventory.copy_key(one)
+    if key is None:
+        return one is other
+    return key == inventory.copy_key(other)
+
+
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
@@ -615,7 +628,7 @@ class RelicSlot(QFrame):
         return f"   [{chance}]{mark}"
 
     def set_colour(self, colour: int, all_effects: list[dict], owned=None,
-                   effect_filter: str = "", hero_name: str = "") -> None:
+                   hero_name: str = "") -> None:
         self.hero_name = hero_name or self.hero_name
         self.colour = colour
         self.owned = owned
@@ -628,7 +641,7 @@ class RelicSlot(QFrame):
             f"background: {SLOT_COLOURS.get(colour, '#888')};"
             f" border: 1px solid {BORDER}; border-radius: 7px;"
         )
-        self.populate(effect_filter)
+        self.populate()
 
     def effect_names(self, item) -> list[str]:
         return [
@@ -666,7 +679,7 @@ class RelicSlot(QFrame):
                 effect_ids=list(effect_ids),
                 is_deep=self.deep,
             )
-        self.populate(self.search_text)
+        self.populate()
         if self.custom_item is not None:
             index = self.relic_box.findData(self.custom_item)
             if index >= 0:
@@ -701,26 +714,52 @@ class RelicSlot(QFrame):
         # two sit one apart on screen ("50 owned" over "49 of 49").
         return favourites.distinct(free)
 
-    def populate(self, effect_filter: str = "") -> None:
-        """List the relics the player owns that fit this slot.
+    def slot_name(self) -> str:
+        """What this slot is called on screen, and in anything said about it."""
+        return f"{'Deep ' if self.deep else ''}Slot {self.index + 1}"
 
-        A search term keeps only relics carrying a matching effect, which
-        answers "which of my relics has this?" -- the effects themselves are
-        fixed to the relic, exactly as in game.
+    def _may_hold(self, item) -> bool:
+        """Whether this slot could take this relic at all: colour and mode.
+
+        Asked about the relic already in the slot, which stays in the list
+        whatever else is being filtered out -- but not past a change of
+        chalice. A relic of a colour this slot no longer takes belongs to the
+        chalice before it, and keeping such a relic is how a Grail came to own
+        one nobody put there.
         """
-        self.search_text = effect_filter
-        predicate = search.parse(effect_filter)
-        items = self.available_items()
-        if predicate is not None:
-            items = [i for i in items if predicate(self.effect_names(i))]
+        if self.owned is None or item is None:
+            return False
+        return any(_same_copy(item, other) for other
+                   in self.owned.relics_for(self.colour, self.deep, WHITE_SLOT))
 
-        previous = self.relic_box.currentData()
+    def populate(self) -> None:
+        """List the relics this slot may be given, and the one it has.
+
+        What a slot may be given is a question of ownership, colour and mode.
+        Narrowing it by effect is the picker's work: there a filter changes
+        what is being *chosen from* and can disturb nothing that is already
+        equipped. Applied here it dropped the relic out of a slot the moment
+        it stopped matching, and the loss was written down (QA-013) -- one
+        mistyped word in the picker emptied every other slot.
+
+        Whatever is in the slot is in the slot's own list, however that list
+        was arrived at. The rule is enforced here rather than trusted to the
+        callers: two of them already carry a comment saying that narrowing a
+        slot from outside is what makes an equipped relic disappear, and a
+        third arrived and did it anyway, for an unrelated reason.
+        """
+        worn = self.relic_box.currentData()
+        items = self.available_items()
+        if (worn is not None and worn is not self.custom_item
+                and self._may_hold(worn)
+                and not any(_same_copy(worn, item) for item in items)):
+            items = items + [worn]
+
         self.relic_box.blockSignals(True)
         self.relic_box.clear()
         self.relic_box.addItem("Empty slot", None)
         # A custom relic is not owned, so it survives repopulation only by
-        # being re-added here; it ignores the effect filter deliberately, so
-        # searching cannot make the relic you just built disappear.
+        # being re-added here.
         if self.custom_item is not None:
             summary = ", ".join(self.effect_names(self.custom_item))
             self.relic_box.addItem(
@@ -729,8 +768,8 @@ class RelicSlot(QFrame):
             summary = ", ".join(self.effect_names(item))
             label = f"{item.name} — {summary}" if summary else item.name
             self.relic_box.addItem(label[:120], item)
-        if previous is not None:
-            idx = self.relic_box.findData(previous)
+        if worn is not None:
+            idx = self.relic_box.findData(worn)
             if idx >= 0:
                 self.relic_box.setCurrentIndex(idx)
         self.relic_box.blockSignals(False)
@@ -738,11 +777,10 @@ class RelicSlot(QFrame):
         # "available" rather than "owned": a relic lying in another slot is
         # owned and is not offered here, so counting it would put a number on
         # the heading that the list underneath contradicts.
-        suffix = (f"{len(items)} match" if predicate
-                  else f"{len(items)} available")
         self.title.setText(
-            f"{'Deep ' if self.deep else ''}Slot {self.index + 1} — "
-            f"{model.COLOUR_NAMES.get(self.colour, self.colour)}  ({suffix})"
+            f"{self.slot_name()} — "
+            f"{model.COLOUR_NAMES.get(self.colour, self.colour)}"
+            f"  ({len(items)} available)"
         )
         self._sync_mode()
 
@@ -2205,18 +2243,18 @@ class Planner(QMainWindow):
         # Slots always list everything they can hold. Narrowing them from
         # outside is what made an equipped relic disappear.
         for i, slot in enumerate(self.base_slots):
-            slot.set_colour(vessel["slots"][i], self.effect_list, owned, "",
+            slot.set_colour(vessel["slots"][i], self.effect_list, owned,
                             hero_name=self.current_hero()["name"])
         for i, slot in enumerate(self.deep_slots):
             slot.set_colour(vessel["deep_slots"][i], self.effect_list, owned,
-                            "", hero_name=self.current_hero()["name"])
+                            hero_name=self.current_hero()["name"])
             slot.setVisible(deep_on)
         self.deep_heading.setVisible(deep_on)
 
         # set_colour above does NOT empty the slots. It repopulates them and
         # deliberately keeps the relic that was in one if that relic still
-        # fits -- which is what a search filter or the Deep switch needs, and
-        # is wrong the moment the chalice itself changes. Every slot the new
+        # fits -- which is what the Deep switch needs, and is wrong the
+        # moment the chalice itself changes. Every slot the new
         # chalice happens to share a colour with the old one kept the old
         # relic, and the write that followed stored it: opening a Grail whose
         # slots are all Yellow inherited the Yellow relic from the chalice
@@ -2366,9 +2404,13 @@ class Planner(QMainWindow):
         changes: what a slot may offer depends on what the other five are
         holding at this moment, and a list built before the choice was made
         would still be offering the relic that has just been taken.
+
+        The rebuild is about ownership and nothing else. It used to hand each
+        slot the term last typed into the picker, which had nothing to do with
+        the question being asked and everything to do with QA-013.
         """
         for slot in self.base_slots + self.deep_slots:
-            slot.populate(slot.search_text)
+            slot.populate()
         self.recompute()
 
     # Populated by recompute(), read by the click-to-break-down popup.
@@ -2781,7 +2823,9 @@ class Planner(QMainWindow):
         else:
             note = (f"Loaded {hero['name']} — every chalice is empty in game.")
         if missing:
-            # Only reachable if a search filter is hiding an equipped relic.
+            # Reached when a slot could not be given the relic the save
+            # names for it: the only relic the slot will not take is one
+            # another slot is already holding.
             note += f" {missing} could not be placed; clear the search and retry."
         self.owned_label.setText(note)
         self.recompute()
