@@ -95,11 +95,20 @@ which fit. A relic's three effects appear under it once slotted.
 A relic you have put in one slot is not offered in the others: you own one of
 it, and it can only be worn once. To plan around a relic you have not found
 yet — or a second copy of one you have — use **Custom relic** in the picker,
-which is not limited by what your save holds.
+which is not limited by what your save holds. It is remembered with the build
+like any other relic and comes back with the chalice it was built in; a chalice
+that gives that slot another colour drops it, because it was built for the
+colour it had.
+
+Two copies of the same roll are two relics, and you may wear both: the picker
+shows one card per roll, but each slot is given a copy of its own.
 
 A build saved before that rule existed can name the same relic in two slots.
-Restoring one sorts it out there and then: the first slot keeps the relic, and
-the other says where it went instead of standing empty for no stated reason.
+Restoring one sorts it out on screen: the first slot keeps the relic, and the
+other says where it went instead of standing empty for no stated reason. The
+stored build is left exactly as it was — which slot should keep the relic is
+yours to decide, so the note comes back every time you open that chalice until
+you decide it.
 
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A

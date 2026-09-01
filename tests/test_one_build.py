@@ -40,6 +40,12 @@ def python_modules(root: pathlib.Path) -> list[pathlib.Path]:
     inside it -- and the build advisor arrives as a package of its own,
     nrplanner/advisor/ (AD-001). The third caller, the one this guard was
     written for, would have been the one caller it could not see (QA-017).
+
+    The space is still `nrplanner/` alone: `run.py` and `scripts/` are outside
+    it and a second call site put there would not be seen (QA-023, held over).
+    That is a deliberate boundary rather than an oversight -- the package is
+    what ships -- and it is written down here because a guard whose reach is
+    unstated is read as a guard with no limits.
     """
     return sorted(root.rglob("*.py"))
 
@@ -98,6 +104,14 @@ def compute_call_sites(source: str) -> int:
     References rather than calls, for the same reason. A reference handed to
     functools.partial, or assigned to a name, is a call site reached one step
     later, and a guard that insisted on parentheses would wave both through.
+
+    What it cannot see, and is not claimed to: reaching the function at run
+    time rather than by name -- `importlib.import_module`, a lookup in
+    `sys.modules`, a name bound from a string. A tree is what is written, not
+    what is executed, and no reading of the text can close that (QA-023, held
+    over). It catches the spellings a second calculation would plausibly be
+    written in, which is what it is for; it is not proof that there is one
+    caller.
     """
     tree = ast.parse(source)
     modules, functions = _local_names(tree)
