@@ -1,0 +1,13 @@
+# Development only -- never shipped.
+#
+# The program itself imports nothing from this file. NightreignHelper.spec
+# analyses run.py, and run.py reaches only the runtime dependencies below, so
+# nothing here can end up in the executable even by accident. That separation
+# is the condition under which pytest was approved: a test framework in
+# requirements.txt would be bundled into a 20 MB tool that never runs a test.
+#
+#     pip install -r requirements-dev.txt
+#
+-r requirements.txt
+
+pytest==9.1.1
