@@ -222,3 +222,62 @@ def shared_planner(game_data, qapp):
     yield window
     window.close()
     window.deleteLater()
+
+
+@pytest.fixture
+def two_copies_of_one_roll(planner):
+    """Two copies of one roll out of the player's own save, and where they fit.
+
+    Real copies, not built ones. The restore picks from a list holding one
+    entry per roll, so a second copy is only reachable by handle -- and a pair
+    invented for the test would prove that only if it were shaped to. This
+    save carries three such pairs (QA measured them); the fixture takes the
+    first that a vessel of the current Nightfarer can wear in two slots.
+
+    Ordinary relics only: a Deep of Night pair would need the switch on and
+    would then be testing two things at once.
+    """
+    from nrplanner import app as appmod
+    from nrplanner import favourites, inventory
+    from tests.relics import OwnedPair
+
+    if planner.owned is None:
+        pytest.skip("this machine has no save to read")
+
+    by_roll: dict[str, list] = {}
+    for relic in planner.owned.relics:
+        by_roll.setdefault(favourites.key(relic), []).append(relic)
+    pairs = [copies[:2] for copies in by_roll.values()
+             if len(copies) > 1 and not copies[0].is_deep
+             and inventory.copy_key(copies[0]) != inventory.copy_key(copies[1])]
+    if not pairs:
+        pytest.skip("this save owns no two copies of one roll")
+
+    for row, vessel in _vessels_in_the_list(planner):
+        for copies in pairs:
+            fits = [i for i, c in enumerate(vessel["slots"])
+                    if c == copies[0].colour or c == appmod.WHITE_SLOT]
+            if len(fits) >= 2:
+                return OwnedPair(row, vessel, fits[0], fits[1], copies)
+    pytest.skip("no vessel of this Nightfarer takes two copies of one roll")
+
+
+@pytest.fixture
+def a_slot_whose_colour_changes(planner):
+    """A slot, and another vessel that gives that slot a different colour.
+
+    A custom relic is built for one slot colour. Keeping it through a chalice
+    that changes that colour would leave an illegal relic in place; losing it
+    through anything else is QA-025. Both need the same two vessels.
+    """
+    from tests.relics import CustomSlot
+
+    entries = _vessels_in_the_list(planner)
+    for row, vessel in entries:
+        for other_row, other in entries:
+            if other is vessel:
+                continue
+            for index, colour in enumerate(vessel["slots"]):
+                if other["slots"][index] != colour:
+                    return CustomSlot(row, index, other_row, colour)
+    pytest.skip("every vessel of this Nightfarer has the same slot colours")
