@@ -97,6 +97,10 @@ it, and it can only be worn once. To plan around a relic you have not found
 yet — or a second copy of one you have — use **Custom relic** in the picker,
 which is not limited by what your save holds.
 
+A build saved before that rule existed can name the same relic in two slots.
+Restoring one sorts it out there and then: the first slot keeps the relic, and
+the other says where it went instead of standing empty for no stated reason.
+
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A
 build is worked out once and then referred to for as long as you own the relics
