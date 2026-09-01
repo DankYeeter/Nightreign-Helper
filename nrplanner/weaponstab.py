@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import model, weapons
+from . import weapons
 
 COLUMNS = ["Weapon", "AR", "Physical", "Magic", "Fire", "Lightning", "Holy",
            "Requirements", "Weight"]
@@ -75,8 +75,10 @@ class WeaponsTab(QWidget):
     def recalculate(self) -> None:
         hero = self.planner.current_hero()
         level = self.planner.level_slider.value()
-        build = model.compute(hero, level, self.planner.selected_effects(),
-                              self.planner.curves)
+        # The build the planner tab is showing, taken rather than worked
+        # out again: a second argument list drifts from the first at the next
+        # parameter, which is exactly what QA-001 caught it doing.
+        build = self.planner.current_build()
         self.attributes = build.attributes
         self.ratings = weapons.rank(
             self.data, build.attributes,

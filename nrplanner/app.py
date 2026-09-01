@@ -968,6 +968,9 @@ class Planner(QMainWindow):
         # Session state, like the armament tiles: a declaration is about the
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
+        # The build every tab reads, computed once per change by recompute().
+        # None until the first one has been computed.
+        self._build: model.Build | None = None
         # Held while a stored build is being put back, so the act of restoring
         # a vessel and six relics does not write a half-restored build over
         # the one still being read.
@@ -2790,6 +2793,49 @@ class Planner(QMainWindow):
         }
         self.recompute()
 
+    def _rebuild(self) -> model.Build:
+        """Turn what is on screen into a build. The only call to the model.
+
+        Everything that reaches a total is gathered in this one place: the
+        relics in the slots, the effects the armaments rolled, the curses
+        those relics carry, the weapon-type gates and whatever conditional
+        effects the player has declared.
+
+        A second caller with an argument list of its own is how the Weapons
+        tab came to rank every armament in the game against a build three
+        attributes away from the one on screen, with nothing on the window to
+        say which was right (QA-001). So there is one caller, and everyone
+        else is handed the result through current_build().
+        """
+        # Curses are part of the relic you equipped, so they count towards the
+        # totals exactly as the good rolls do. Leaving them out meant a curse
+        # reading "Reduced Dexterity and Faith -3" changed no attribute, which
+        # made the sheet quietly wrong for every Deep of Night build.
+        curses = [eff for _source, eff in self.selected_curses()]
+        return model.compute(
+            self.current_hero(), self.level_slider.value(),
+            # Armament effects count towards the sheet alongside the relics.
+            self.selected_effects() + self.weapon_effects() + curses,
+            self.curves,
+            # A weapon-type buff such as "Improved Axe Attack Power" is live
+            # when any armament on the grid is of that type, so the gate is
+            # tested against all six rather than only the active tile.
+            weapon=self.active_slot().weapon,
+            weapons_held=self.equipped_weapons(),
+            declared=self.declared,
+        )
+
+    def current_build(self) -> model.Build:
+        """The build every tab reads.
+
+        Kept up to date by recompute(), which runs on every change that can
+        move a number. Computed on the spot if something asks before the
+        first recompute -- a tab built during startup, for instance.
+        """
+        if self._build is None:
+            self._build = self._rebuild()
+        return self._build
+
     def recompute(self) -> None:
         if not hasattr(self, "level_slider"):
             return
@@ -2806,24 +2852,7 @@ class Planner(QMainWindow):
             else f"Interpolated — the game defines levels {', '.join(map(str, exact))}."
         )
 
-        # Curses are part of the relic you equipped, so they count towards the
-        # totals exactly as the good rolls do. Leaving them out meant a curse
-        # reading "Reduced Dexterity and Faith -3" changed no attribute, which
-        # made the sheet quietly wrong for every Deep of Night build.
-        curses = self.selected_curses()
-        build = model.compute(
-            hero, level,
-            # Armament effects count towards the sheet alongside the relics.
-            self.selected_effects() + self.weapon_effects()
-            + [eff for _src, eff in curses],
-            self.curves,
-            # A weapon-type buff such as "Improved Axe Attack Power" is live
-            # when any armament on the grid is of that type, so the gate is
-            # tested against all six rather than only the active tile.
-            weapon=self.active_slot().weapon,
-            weapons_held=self.equipped_weapons(),
-            declared=self.declared,
-        )
+        build = self._build = self._rebuild()
 
         for grid in (self.attr_grid, self.derived_grid):
             while grid.count():

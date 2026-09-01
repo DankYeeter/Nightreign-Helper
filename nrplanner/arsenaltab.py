@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import model, search, weapons
+from . import search, weapons
 from .weapons import RARITY_TIERS
 
 COLUMNS = 5
@@ -248,8 +248,12 @@ class ArsenalTab(QWidget):
     def recalculate(self) -> None:
         hero = self.planner.current_hero()
         level = self.planner.level_slider.value()
-        build = model.compute(hero, level, self.planner.selected_effects(),
-                              self.planner.curves)
+        # The build the planner tab is showing, not one computed again here.
+        # This tab used to work out its own, with four of the seven arguments
+        # missing -- no curses, no armament effects, no declared conditionals,
+        # no weapon gates -- and then ranked every armament in the game
+        # against attributes the stat sheet next door disagreed with (QA-001).
+        build = self.planner.current_build()
         self.attributes = build.attributes
         self.ratings = weapons.rank(
             self.data, build.attributes,

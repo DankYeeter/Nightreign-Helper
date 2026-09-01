@@ -250,8 +250,19 @@ def percent_value(field_name: str, value: float) -> float:
 SENTINEL_BASELINE = -1.0
 
 
+# Whether configure() has run at all. Not a nicety: without it the module
+# falls back to deciding what multiplies from the field's name, which is a
+# different calculation and not a slightly worse one. "Improved Item
+# Discovery" carries itemDropRate 0.2, whose neutral is 0.0 -- read as a
+# multiplier against an assumed neutral of 1.0 it shows -60% where the truth
+# is +40% (QA-011). compute() refuses rather than answer with either.
+_CONFIGURED = False
+
+
 def configure(data: dict) -> None:
     """Teach the module which fields multiply and which add, from the data."""
+    global _CONFIGURED
+
     FIELD_BASELINE.clear()
     PERCENT_FIELDS.clear()
     PERCENT_OF_100_FIELDS.clear()
@@ -262,6 +273,7 @@ def configure(data: dict) -> None:
         elif abs(float(value) - PERCENT_OF_100_BASELINE) < 1e-9:
             PERCENT_OF_100_FIELDS.add(name)
     RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
+    _CONFIGURED = True
 
 
 def is_multiplier(field_name: str) -> bool:
@@ -706,7 +718,19 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     is met right now. A gated effect is otherwise left out of every total,
     because the sheet has no way to know. Declaring one counts it exactly as
     though that many copies were equipped.
+
+    Raises RuntimeError until configure() has been given the game data: which
+    fields multiply and which add is read from the data, and the fallback that
+    guesses it from the field name is a different calculation, not a rougher
+    one. A wrong number nobody was warned about is worse than no number.
     """
+    if not _CONFIGURED:
+        raise RuntimeError(
+            "model.configure(data) has not run, so this module does not yet "
+            "know which fields multiply and which add. Computing now would "
+            "guess it from the field names and quietly get some of them "
+            "backwards -- Improved Item Discovery reads -60% instead of +40%."
+        )
     base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
     build = Build(base_attributes=dict(base), attributes=dict(base))
     # Weapon-type gates are met by any armament being held, not just the one
