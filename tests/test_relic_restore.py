@@ -168,6 +168,32 @@ def test_switching_vessels_restores_the_build_of_the_one_arrived_at(
         chalices.slot_key(relic), "and the stored build still names it"
 
 
+def test_a_chalice_left_and_returned_to_is_holding_what_it_held(
+        planner, game_data, two_vessels_sharing_a_colour):
+    """Emptying the slots on the way out must not empty the build behind them.
+
+    A chalice being left has its slots cleared before the lists are rebuilt --
+    what is in them belongs to it, and it is going. The build itself is stored
+    per vessel and has to survive that, or the fix for QA-014 would cost more
+    than the finding did.
+    """
+    pair = two_vessels_sharing_a_colour
+    template = templates_for(game_data, pair.colour, 1)[0]
+    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+                       effects=some_effect_ids(game_data, 2))
+    own(planner, [relic])
+
+    select_vessel(planner, pair.row)
+    equip(planner.base_slots[pair.here], relic)
+
+    select_vessel(planner, pair.other_row)
+    assert relics_in(planner) == [None, None, None],         "the chalice arrived at has no build of its own yet"
+
+    select_vessel(planner, pair.row)
+    assert relics_in(planner) == [relic if i == pair.here else None
+                                  for i in range(3)]
+
+
 def test_a_stored_relic_that_cannot_be_placed_empties_its_slot(
         planner, game_data, two_slots_of_one_colour):
     """A build naming a relic the player no longer owns leaves an empty slot.
