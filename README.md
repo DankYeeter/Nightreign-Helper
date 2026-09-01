@@ -89,8 +89,13 @@ which any Nightfarer can carry. The vessel decides how many relic slots you get
 and what colour each one is.
 
 **Relic slots** — each slot names its colour and how many relics of that colour
-you own. Open one to choose from a picker that lists only relics which fit. A
-relic's three effects appear under it once slotted.
+are available to it. Open one to choose from a picker that lists only relics
+which fit. A relic's three effects appear under it once slotted.
+
+A relic you have put in one slot is not offered in the others: you own one of
+it, and it can only be worn once. To plan around a relic you have not found
+yet — or a second copy of one you have — use **Custom relic** in the picker,
+which is not limited by what your save holds.
 
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A
@@ -466,6 +471,24 @@ To refresh the screenshots in this README after a tab changes:
 .venv\Scripts\python.exe scripts\make_screenshots.py
 ```
 
+### Tests
+
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest
+```
+
+They need no display and open no window. Tests that need the game data read
+your own installation, or the snapshot it built; on a machine without
+NIGHTREIGN they skip and say so rather than fail. Nothing in
+`requirements-dev.txt` reaches the packaged EXE.
+
+`tests/golden/weapon_damage.json` holds what the weapon-damage panel said at
+one game version, so a change to the calculation cannot pass unnoticed. It is
+regenerated with `scripts\capture_weapon_damage.py` — but only after the new
+figures have been checked, because regenerating it is how the evidence gets
+thrown away.
+
 ### Layout
 
 | Path | Purpose |
@@ -473,6 +496,7 @@ To refresh the screenshots in this README after a tab changes:
 | `nrdata/` | Reading the game's own formats — archives, params, textures, saves. No GUI code. |
 | `nrplanner/` | The GUI, the build maths, and save inventory. |
 | `scripts/` | Environment check, data builders, icon generator, screenshot generator. |
+| `tests/` | The test suite. Headless; skips what needs a game it cannot find. |
 | `vendor/Paramdex/NR/Defs` | Field schemas for the params. Required to read anything. |
 
 ## How values are derived
