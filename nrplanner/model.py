@@ -35,7 +35,7 @@ RATE_LABELS = {
     # inflicts ..." relics. Unlabelled until now, so the panel printed the raw
     # field name at the player: "darkAttackPowerRate -15.0%". It no longer
     # reaches the Multipliers panel at all -- it scopes to slot 1, see
-    # Planner.STARTING_AR_RATE_FOR -- but the attack-rating breakdown still
+    # damage.STARTING_AR_RATE_FOR -- but the attack-rating breakdown still
     # names it, so the labels are still wanted.
     "physicsAttackPowerRate": "Physical Attack",
     "magicAttackPowerRate": "Magic Attack",

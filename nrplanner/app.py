@@ -23,6 +23,7 @@ from . import __version__
 from . import (chalices, datasource, effecttext, favourites, firstrun,
                inventory, model, search, shortcut, uiscale, weaponslots,
                weapons)
+from .damage import attack_rating, is_starting_armament
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -2307,53 +2308,6 @@ class Planner(QMainWindow):
     last_sources: dict = {}
     last_rates: dict = {}
 
-    # Which build.rates multiplier applies to which damage type. Attack rates
-    # scale the finished number, so they belong in the comparison as much as
-    # the attribute changes do -- a relic granting Physical Attack +12% moves
-    # the damage without moving a single stat.
-    #
-    # `*AttackRate` is the general buff, carried by 213-216 effects, and it
-    # lifts whatever you are swinging.
-    #
-    # Deliberately NOT here, having checked every attack multiplier in the
-    # data: saAttackPowerRate and staminaAttackRate are stance and guard
-    # damage rather than attack rating, guardCounterAttackRate applies only to
-    # a guard counter, and characterSkillAttackRate only to Duchess' skill.
-    # None of the four scales an ordinary hit.
-    AR_RATE_FOR = {
-        "Physics": ("physicsAttackRate",),
-        "Magic": ("magicAttackRate",),
-        "Fire": ("fireAttackRate",),
-        "Thunder": ("thunderAttackRate",),
-        "Dark": ("darkAttackRate",),
-    }
-
-    # `*AttackPowerRate` is the second family, carried by exactly three effects
-    # -- the "Starting armament inflicts frost / poison / blood loss" relics,
-    # each x0.85 -- and it is the price the game charges for the status: the
-    # armament inflicts it and hits 15% softer for it.
-    #
-    # It is **not** a global debuff, which is how it was implemented until
-    # 1.7.0 and what a player reported from play: it reaches the starting
-    # armament alone -- and "starting armament" means both conditions at
-    # once, the Nightfarer's own default weapon sitting in slot 1 (verified
-    # in play 2026-08-22: moved to another slot it loses the penalty, and a
-    # different weapon in slot 1 never gains it). So it is applied there
-    # and to nothing else, and it
-    # is kept out of the Multipliers section, where an "All damage -15.0%" line
-    # said the whole build was hitting softer.
-    STARTING_AR_RATE_FOR = {
-        "Physics": ("physicsAttackPowerRate",),
-        "Magic": ("magicAttackPowerRate",),
-        "Fire": ("fireAttackPowerRate",),
-        "Thunder": ("thunderAttackPowerRate",),
-        "Dark": ("darkAttackPowerRate",),
-    }
-
-    # Slot 1 holds the armament the expedition starts with -- it is seeded with
-    # the Nightfarer's own starting weapon, see `apply_hero_weapon`.
-    STARTING_SLOT = 0
-
     def _show_breakdown(self, key: str) -> None:
         """Which buffs make up one figure, shown beside the number clicked.
 
@@ -2455,12 +2409,12 @@ class Planner(QMainWindow):
         the full breakdown underneath.
         """
         for index, slot in enumerate(self.weapon_slots):
-            rating = None
+            tile_rating = None
             if slot.filled:
-                rating = weapons.rate(slot.weapon, build.attributes,
-                                      self.data, slot.tier)
+                tile_rating = weapons.rate(slot.weapon, build.attributes,
+                                           self.data, slot.tier)
             self.weapon_tiles[index].show_slot(
-                slot, rating, active=index == self.active_weapon,
+                slot, tile_rating, active=index == self.active_weapon,
                 effects=self.data["effects"])
 
         slot = self.active_slot()
@@ -2473,69 +2427,22 @@ class Planner(QMainWindow):
                 f"</span>")
             return
         weapon = slot.weapon
-        tier = slot.tier
 
-        before = weapons.rate(weapon, build.base_attributes, self.data, tier)
-        after = weapons.rate(weapon, build.attributes, self.data, tier)
-
-        # Apply the attack multipliers on top of the scaled figure.
-        boosted: dict[str, float] = {}
-        # Kept for the click-through breakdown: the figure before any rate is
-        # applied, so the attribute scaling and the multipliers can be shown as
-        # the two separate things they are.
-        scaled_total = 0.0
-        rates_in_play: dict[str, float] = {}
-        # The starting-armament penalty needs both halves: slot 1, holding
-        # this Nightfarer's own starting armament. Verified in play
-        # 2026-08-22 -- the Duchess' Dagger moved to slot 2 loses the
-        # penalty, put back into slot 1 it returns, and a different weapon
-        # in slot 1 never gains it.
-        starting = (self.active_weapon == self.STARTING_SLOT
-                    and weapon["id"] == self.current_hero()
-                    .get("starting_weapon"))
-        for damage in weapons.DAMAGE_TYPES:
-            total = after.base.get(damage, 0.0) + after.scaled.get(damage, 0.0)
-            if not total:
-                continue
-            scaled_total += total
-            fields = self.AR_RATE_FOR.get(damage, ())
-            if starting:
-                fields += self.STARTING_AR_RATE_FOR.get(damage, ())
-            class_here = build.class_rates.get(model.weapon_class(weapon), {})
-            for field_name in fields:
-                value = (build.rates.get(field_name, 1.0)
-                         * class_here.get(field_name, 1.0))
-                if abs(value - 1.0) > 1e-9:
-                    rates_in_play[field_name] = value
-            # Deliberately excludes model.CRIT_RATE: attack rating is the
-            # ordinary hit, and folding a critical-only bonus into it would
-            # overstate the weapon by a fifth.
-            # A buff tied to a weapon *class* covers only that class:
-            # "Improved Melee Attack Power" lifts the greatsword and not the
-            # bow beside it. A buff merely *gated* on a weapon type is not
-            # restricted at all -- that is a flat rate and already counted.
-            by_class = build.class_rates.get(model.weapon_class(weapon), {})
-            rate = 1.0
-            for field_name in fields:
-                rate *= build.rates.get(field_name, 1.0)
-                rate *= by_class.get(field_name, 1.0)
-            boosted[damage] = total * rate
-
-        base_total = before.total
-        final_total = sum(boosted.values())
+        # The figure itself is not computed here. It is the one piece of
+        # domain arithmetic that had ended up inside the window, and the build
+        # advisor needs to ask for it without drawing anything, so it lives in
+        # nrplanner/damage.py and this method formats what comes back.
+        rating = attack_rating(
+            weapon, slot.tier, build, self.data,
+            starting_armament=is_starting_armament(
+                weapon, self.current_hero(), self.active_weapon),
+        )
+        before, after = rating.before, rating.after
+        boosted = rating.per_type
+        base_total = rating.base_total
+        final_total = rating.final_total
         delta = final_total - base_total
-        self.last_ar = {
-            "base": base_total,
-            "scaled": scaled_total,
-            "final": final_total,
-            "rates": rates_in_play,
-            "weapon": weapon.get("name", "weapon"),
-            # A class-scoped buff records its source under a prefixed key, so
-            # the breakdown needs to know which class to look under -- without
-            # it, "Improved Ranged Weapon Attacks" raised the total and then
-            # named nothing that did it.
-            "class": model.weapon_class(weapon),
-        }
+        self.last_ar = rating.figures()
 
         rows = []
         for damage, value in boosted.items():
