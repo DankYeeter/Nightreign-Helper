@@ -1,81 +1,91 @@
 # Stand
 
-Stand: 2026-09-01, Zyklus 1 (Audit) abgeschlossen.
+Stand: 2026-09-02, Ende Zyklus 2. Branch `docs/audit-and-advisor-design`,
+19 Commits, gepusht. **Pull Request #16** offen — Merge nach `main` gehoert dem
+Nutzer, `main` ist geschuetzt.
 
 ## Wo wir stehen
-- Repo geklont von github.com/DankYeeter/Nightreign-Helper, Stand 3da8428 (v1.7.1).
-- ~16.7k Zeilen Python, **PySide6/Qt** (nicht Tkinter — Korrektur im Zyklus).
-- `GOAL.md` vom Nutzer freigegeben. PR #15 gemerged (CLAUDE.md, Repo-Kategorie
-  privat) — noch nicht in die Arbeitskopie gezogen, steht beim naechsten sync-in an.
-- Spiel installiert (`D:\SteamLibrary`, mit DLC), zwei echte Savefiles vorhanden.
-  QA hat gegen echte Daten geprueft.
+- Nightreign Helper, PySide6/Qt, ~17k Zeilen Python, Windows-only.
+- Zyklus 1 = vollstaendiger Audit (nur Dokumentation, kein Codewechsel).
+- Zyklus 2 = "eine Rechenstelle, nachweislich unveraendert" plus die
+  Regressionen, die dabei entstanden sind. Drei Developer-Runden, drei
+  QA-Runden.
+- **Testsockel steht:** 0 → 78 Tests, headless, mit CI-Job, gegen echte
+  Spieldaten. Vorher gab es null Tests, und die im Code zitierten Waechter
+  existierten im veroeffentlichten Repo gar nicht.
 
-## Zyklus 1 — Audit: fertig
-| Task | Rolle | Ergebnis |
-|---|---|---|
-| T-001 | architect | `ARCHITECTURE.md`, AD-001..AD-013, 11 Umsetzungsschritte; nach QA-Nachmessung korrigiert |
-| T-002 | qa-engineer | 12 Befunde → `qa/findings.md` (2x P1) |
-| T-003 | security-reviewer | 10 Befunde → `security/findings.md` (4x Hoch, 0 kritisch) |
-| T-004 | ui-ux-designer | `UI_SPEC.md`, AK-01..AK-30 |
-| T-005 | researcher | `docs/research/R-001.md` — SEC-005 bestaetigt |
+## Was in Zyklus 2 geschlossen wurde
+QA-001 (zwei driftende Rechenstellen — es waren drei), QA-011, QA-013, QA-014,
+QA-015, QA-017, QA-021, QA-022, QA-024, QA-025. Die Schadensrechnung ist aus der
+Oberflaeche nach `nrplanner/damage.py` gezogen, **nachweislich verhaltensgleich**
+(10 000 Differentialfaelle, 0 Abweichungen; sechs Mutationen alle gefangen).
 
-## Kernbefund des Zyklus
-Die Rechnung selbst ist sorgfaeltig gegen das Spiel gemessen und haelt. Die
-Fehler liegen in den **Naehten**: eine zweite Rechenstelle, die driftet
-(QA-001), eine Regel, die fuer Effekte gilt und fuer physische Relikte nicht
-(QA-002), Nutzertext in einem Schluesselraum (QA-003). Dazu drei
-Sicherheitsbefunde desselben Musters: Zahlen aus fremden Dateien steuern
-Schleifen und Allokationen ohne Groessenpruefung (SEC-001, SEC-002, SEC-005).
-**Null automatisierte Tests** ist die Ursache dahinter.
+## Naechster Zyklus (Zyklus 3): der Build-Berater
+**Von QA freigegeben.** Grundlage: `ARCHITECTURE.md` AD-001 bis AD-013,
+`UI_SPEC.md` AK-01 bis AK-30.
 
-## Entscheidungen des Directors
-- QA-001, QA-002, QA-006 **vor** dem Build-Berater. Der Berater wird sonst die
-  dritte driftende Rechenstelle und verletzt A4 und A7 bauartbedingt.
-- Kein Release, solange QA-001, QA-002 und SEC-001 offen sind.
-- AD-011 (freie Prueffunktionen in `binary.py` statt Reader-Methode):
-  angenommen — die Reader-Methode haette nur 2 von 5 Fundstellen erreicht.
-- AD-012 (kein `defusedxml`): angenommen, mit der im AD genannten
-  Neubewertungs-Bedingung.
-- `pytest` als **Entwicklungs-Abhaengigkeit** freigegeben (nicht im Artefakt).
-- OF-5: `max_damage` ohne Referenzwaffe faellt auf eine benannte, im Ergebnis
-  ausgewiesene Annahme zurueck, statt zu verweigern — A7 ist erfuellt, solange
-  die Annahme dasteht.
+Auflagen, die beim Bau gelten:
+- Das Berater-Paket muss unter `nrplanner/` liegen, sonst sieht der
+  `compute`-Waechter es nicht (QA-023).
+- Bewertet wird mit `model.compute()` selbst, an jedem Suchschritt (AD-002) —
+  kein zweiter Scorer.
+- Beam-Suche K=20/W=40. Gemessen im ungueenstigsten realen Fall
+  (`Wylder's Chalice`, weisser Slot, Deep): **0,46 s**.
+- Exemplar-Eindeutigkeit ueber Handles (AD-013). Ohne sie sind bei
+  `Wylder's Urn` 40 von 40 Vorschlaegen unbrauchbar.
+- Eine **feste, benannte** Gewichtung der acht Schadensarten, im Ergebnis
+  sichtbar ausgewiesen. Kein Bedienelement.
+- Kein Gefaess-Vorschlag (Nicht-Ziel).
 
-## Naechster Zyklus (Zyklus 2) — Fix vor Feature
-S1 Testsockel → S2 Golden-Test der Schadensrechnung → S3 AR-Extraktion nach
-`nrplanner/damage.py` → QA-001 (eine Rechenstelle) → QA-002 (Handle-Regel).
-Sicherheitsstrang X1 (SEC-001/002/005) laeuft unabhaengig daneben.
+## Offen beim Nutzer
+- **UI F1-F4** (blockiert den Berater-Bau): Slots festhalten? Statblatt-Vorschau
+  vor dem Anwenden? Flueche mitbewerten? Name des Features?
+  Meine Empfehlungen: nein / nein (Undo genuegt) / ja, mitbewerten und benennen
+  / offen.
+- **`nightlords.png`** (C-002, Ampel ROT): Bildausschnitt neu setzen (empfohlen),
+  oder anderer Weg. Dazu: Git-Historie umschreiben oder nicht?
+- **PR #16** mergen, wenn gewuenscht — inhaltlich tragfaehig, aber der Stand ist
+  nicht releasefaehig.
 
-## Nutzerentscheidungen vom 2026-09-01
-- QA-006: **"wirkt"**, Status quo. Faellt aus dem Fix-Zyklus, Waechter-Test bleibt.
-- QA-002: **Besitz erzwingen**. Handle-Regel, freies Planen ueber "Custom relic".
-- SEC-007 fixen, SEC-006 dokumentieren (Deckel ja, Herkunftspruefung nein).
-- Berater schlaegt **kein Gefaess** vor — Nicht-Ziel.
-- **OF-3: feste Annahme**, kein Bedienelement. Genau eine Gewichtung der acht
-  Schadensarten, als `DEFAULT_WEIGHTING` im `GoalContext`. Zwei Auflagen aus
-  der Hausregel A7, die beim Bau des Beraters gelten: die Annahme ist
-  **benannt** und im Ergebnis **sichtbar** ("weighted against ..."), und sie
-  wird aus den Spieldaten hergeleitet, soweit die Dateien das hergeben —
-  wo nicht, sagt der Berater es. Der Weg zum Bedienelement bleibt offen, weil
-  Gewichte Daten sind und keine Konstanten in der Zielfunktion; er wird jetzt
-  nicht gebaut.
+## Release-Blocker (GOAL A2)
+- **QA-003** (P2/Critical): Build-Namen landen ungeprueft im
+  QSettings-Schluesselraum; ein `/` im Namen loescht gespeicherte Builds.
+- **QA-018** (P2): Waffen-Tab nennt 203,4, die Detailtafel 244,1 fuer dieselbe
+  Waffe. Entschieden: Tabs ranken ueber `damage.attack_rating`, Fallback ist
+  Umbenennung der Spalte mit gemessener Begruendung.
+- **SEC-001 bis SEC-011** — der Sicherheitszyklus ist noch nicht gelaufen.
+  SEC-001 (Endlosschleife aus einem heruntergeladenen Save, beim Start, auf dem
+  GUI-Thread) ist vier Zeilen Arbeit und sperrt jedes Release.
+- **GOAL A9**: keine Pruefung gegen ein gebautes Artefakt. Erststart,
+  Startmenue-Eintrag, Icon-Pack-Bau sind ungeprueft. Braucht
+  `release-manager` (build, clean-room) und danach `power-user`.
 
-## Noch offen beim Nutzer (blockiert Zyklus 2 nicht)
-- **UI F1-F4**: Slots festhalten, Statblatt-Vorschau, Flueche mitbewerten, Name
-  des Features. Blockiert erst den Berater-Bau, nicht den Fix-Zyklus.
+## Naechste kleinere Auftraege, geordnet
+1. QA-030 (verdeckte Deep-Aufloesung sichtbar machen) + QA-028 (Custom relic
+   gehoert dem Build) + die Luecke "genannten Slot leeren aendert nichts".
+2. QA-003 und QA-018 — beide Release-Blocker.
+3. QA-016: `architect` korrigiert AD-013 Punkt 4 an der Messung (die Praemisse
+   "ein Save ohne lesbare Loadout-Tabelle liefert keine Handles" ist **falsch** —
+   beide echten Saves liefern 100 % Handles).
+4. QA-027, QA-029, QA-031, QA-019, QA-026 — klein, dokumentiert.
 
-## Bestaetigt durch Nachmessung (2026-09-01)
-Die Beam-Suche haelt auch im ungueenstigsten realen Fall: `Wylder's Chalice`
-mit weissem Slot und Deep of Night, 6 Slots, **0,46 s** bei K=20/W=40 —
-einschliesslich Vorsortierung und erzwungener Exemplar-Eindeutigkeit. Die
-Suchkosten sind `Slots x W x K` und damit **unabhaengig von der Poolgroesse**:
-`Wylder's Chalice` (Pool 208) und `Wylder's Urn` (Pool 56) brauchen exakt
-gleich viele Bewertungen (3929). Der weisse Slot vervierfacht den Produktraum
-und laesst die Suchkosten unberuehrt.
+## Was niemand geprueft hat, und das bleibt so, bis es jemand tut
+- **Die Oberflaeche hat in Zyklus 2 kein Mensch gesehen.** Das Fenster liess
+  sich in dieser Umgebung nicht fokussieren; alle Belege sind headless ueber die
+  echten Widgets. Schliesst erst der `power-user` auf einem gebauten Artefakt.
+- **Zahlenrichtigkeit gegen das laufende Spiel.** Geprueft wurde gegen die
+  Spieldateien und gegen sich selbst, nie gegen das, was das Spiel anzeigt. Der
+  README-Vorbehalt zum Attack Rating bleibt offen — **das kann nur der Nutzer
+  im Spiel schliessen, und fuer den Berater waere es die wertvollste Pruefung.**
+- Nebenlaeufigkeit auf echten Widgets (Doppelklick, Abbruch mitten im Restore).
+- Der `("record", offset)`-Zweig von `copy_key`: mit echten Daten nicht
+  erreichbar, synthetisch geprueft, unbewacht.
 
-Der Beleg fuer die Handle-Regel (AD-013) ist der schaerfste Einzelbefund des
-Zyklus: ohne sie sind bei `Wylder's Urn` (Slotfarben Rot/Rot/Blau)
-**40 von 40** Vorschlaegen unbrauchbar — und zwar auf die unauffaelligste Art:
-Punktzahl plausibel, alle Relikte im Besitz, nur liegt eines zweimal.
-Deshalb prueft AD-009 Testpunkt 4 gegen `Wylder's Urn`, nicht gegen ein
-gutmuetiges Gefaess.
+## Prozessfehler dieses Zyklus, zur Kenntnis
+- T-008 bis T-012 wurden **ohne Auftragsdatei** vergeben, nur als Freitext im
+  Dispatch. Der `ui-ux-designer` hat es gemerkt und vermerkt, der `archivist`
+  hat die Luecke im Repo gefunden. Die Vorschrift lautet: je nicht-trivialem
+  Auftrag eine Datei unter `docs/tasks/`.
+- Zwei parallel laufende `researcher` haben sich beim Schreiben ihres
+  gemeinsamen Rollengedaechtnisses ueberschrieben. Aufgefallen ist es nur, weil
+  der zweite es bemerkt und zusammengefuehrt hat.
