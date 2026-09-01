@@ -16,16 +16,129 @@ before it was written.
 
 from __future__ import annotations
 
+import ast
 import pathlib
-import re
 
 import pytest
 
 from nrplanner import model
 
 
-UI_MODULES = sorted(pathlib.Path(__file__).resolve().parents[1]
-                    .glob("nrplanner/*.py"))
+REPO = pathlib.Path(__file__).resolve().parents[1]
+
+# What the model module is called by the modules that import it, in the two
+# spellings an import can bind: `from . import model` and `import
+# nrplanner.model`.
+MODEL_NAMES = frozenset({"model", "nrplanner.model"})
+
+
+def python_modules(root: pathlib.Path) -> list[pathlib.Path]:
+    """Every module under `root`, however deeply it is nested.
+
+    Recursive, and that is why the function exists. The search space used to
+    be glob("nrplanner/*.py"), which sees the top of the package and nothing
+    inside it -- and the build advisor arrives as a package of its own,
+    nrplanner/advisor/ (AD-001). The third caller, the one this guard was
+    written for, would have been the one caller it could not see (QA-017).
+    """
+    return sorted(root.rglob("*.py"))
+
+
+UI_MODULES = python_modules(REPO / "nrplanner")
+
+
+def _dotted(node: ast.AST) -> str:
+    """"a.b.c" for a name or a chain of attributes, "" for anything else."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return ""
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _local_names(tree: ast.AST) -> tuple[set[str], set[str]]:
+    """(what this module calls the model, what it calls compute).
+
+    Both halves are needed. `import nrplanner.model as m` binds the module
+    under a name of the importer's choosing, and `from .model import compute`
+    skips the module altogether and binds the function.
+    """
+    modules: set[str] = set()
+    functions: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in MODEL_NAMES:
+                    modules.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            # `from . import model`, `from nrplanner import model`,
+            # `from .model import compute`, `from nrplanner.model import x`.
+            tail = (node.module or "").rsplit(".", 1)[-1]
+            for alias in node.names:
+                if alias.name == "model":
+                    modules.add(alias.asname or alias.name)
+                elif alias.name == "compute" and tail == "model":
+                    functions.add(alias.asname or alias.name)
+    return modules, functions
+
+
+def compute_call_sites(source: str) -> int:
+    """How many times one module gets hold of model.compute.
+
+    Read off the syntax tree rather than searched for as text. The rule is
+    that there is one caller, not that there is one spelling of one caller: a
+    search for "model.compute(" fell out for five of the six ways round it --
+    the function imported by name, the module under an alias, getattr, a line
+    break after the dot, functools.partial -- and counted a mention in a
+    comment as a call (QA-017).
+
+    References rather than calls, for the same reason. A reference handed to
+    functools.partial, or assigned to a name, is a call site reached one step
+    later, and a guard that insisted on parentheses would wave both through.
+    """
+    tree = ast.parse(source)
+    modules, functions = _local_names(tree)
+    found = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr == "compute":
+            if _dotted(node.value) in modules:
+                found += 1
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            if node.id in functions:
+                found += 1
+        elif (isinstance(node, ast.Call) and _dotted(node.func) == "getattr"
+                and len(node.args) == 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value == "compute"
+                and _dotted(node.args[0]) in modules):
+            found += 1
+    return found
+
+
+# One entry per way of reaching model.compute without writing it where a text
+# search would find it. Each of them is one call site and counts as one.
+WAYS_ROUND_THE_GUARD = {
+    "written out in full":
+        "from nrplanner import model\nmodel.compute(hero, 15, [], {})\n",
+    "the function imported by name":
+        "from .model import compute\ncompute(hero, 15, [], {})\n",
+    "the module under an alias":
+        "from . import model as m\nm.compute(hero, 15, [], {})\n",
+    "the module imported whole":
+        "import nrplanner.model\n"
+        "nrplanner.model.compute(hero, 15, [], {})\n",
+    "getattr":
+        "from . import model\n"
+        "getattr(model, 'compute')(hero, 15, [], {})\n",
+    "a line break after the dot":
+        "from . import model\n(model.\n compute)(hero, 15, [], {})\n",
+    "handed to functools.partial":
+        "import functools\nfrom . import model\n"
+        "run = functools.partial(model.compute, hero)\nrun(15, [], {})\n",
+}
 
 
 def attributes_on_the_planner_tab(planner) -> dict[str, int]:
@@ -130,11 +243,59 @@ def test_the_user_interface_holds_exactly_one_call_to_compute():
     place to pass one.
     """
     callers = {
-        path.name: len(re.findall(r"model\.compute\(", path.read_text("utf-8")))
+        path.relative_to(REPO).as_posix():
+            compute_call_sites(path.read_text("utf-8"))
         for path in UI_MODULES
     }
 
-    assert {name: n for name, n in callers.items() if n} == {"app.py": 1}, (
-        "every tab must take the build from Planner.current_build(); "
-        f"model.compute is called in {callers}"
+    assert {name: n for name, n in callers.items() if n} == {
+        "nrplanner/app.py": 1
+    }, ("every tab must take the build from Planner.current_build(); "
+        f"model.compute is reached in {callers}")
+
+
+def test_the_guard_sees_every_way_round_itself():
+    """A guard that knows one spelling guards the spelling.
+
+    Five of these were invisible to the search this replaces, and the advisor
+    is being written now: whoever writes the second caller will not write it
+    in the one form a text search happened to look for.
+    """
+    missed = {label for label, source in WAYS_ROUND_THE_GUARD.items()
+              if compute_call_sites(source) != 1}
+
+    assert not missed, f"reached model.compute unnoticed: {sorted(missed)}"
+
+
+def test_the_guard_does_not_mistake_a_mention_for_a_call():
+    """Writing about the rule is not breaking it.
+
+    The search this replaces counted the words in a comment, so the passage
+    that most needs to explain why there is one call site was the passage it
+    accused of being a second one.
+    """
+    mentioned = (
+        "# The tabs used to call model.compute( with a shorter argument\n"
+        "# list of their own -- see QA-001.\n"
+        "TEXT = \"nothing here calls model.compute(...) but the Planner\"\n"
     )
+
+    assert compute_call_sites(mentioned) == 0
+
+
+def test_the_search_space_reaches_inside_a_package(tmp_path):
+    """The advisor is a package, and a package has an inside.
+
+    Against a tree of its own rather than the real one, because the module
+    this is about does not exist yet -- and by the time it does, a guard that
+    cannot see into it is worth exactly as much as no guard.
+    """
+    (tmp_path / "app.py").write_text("", encoding="utf-8")
+    (tmp_path / "advisor").mkdir()
+    (tmp_path / "advisor" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "advisor" / "beam.py").write_text("", encoding="utf-8")
+
+    found = {p.relative_to(tmp_path).as_posix()
+             for p in python_modules(tmp_path)}
+
+    assert found == {"app.py", "advisor/__init__.py", "advisor/beam.py"}
