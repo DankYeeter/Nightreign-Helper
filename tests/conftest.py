@@ -159,6 +159,57 @@ def planner(game_data, qapp):
     window.deleteLater()
 
 
+def _vessels_in_the_list(planner) -> list[tuple[int, dict]]:
+    """(row, vessel) for every selectable row, skipping the caption rows."""
+    from PySide6.QtCore import Qt
+
+    out = []
+    for row in range(planner.chalice_list.count()):
+        vessel = planner.chalice_list.item(row).data(Qt.UserRole)
+        if vessel is not None:
+            out.append((row, vessel))
+    return out
+
+
+@pytest.fixture
+def two_slots_of_one_colour(planner):
+    """A vessel with two slots of the same colour, and where it sits.
+
+    Repeated slot colours are where the ownership rule bites: with three
+    different colours a relic rarely fits two slots at all, and a test on such
+    a vessel would pass while proving nothing (AD-013 measured it -- 5
+    unusable suggestions out of 40 against 40 out of 40).
+    """
+    for row, vessel in _vessels_in_the_list(planner):
+        colours = list(vessel["slots"])
+        repeated = next((c for c in colours if colours.count(c) > 1), None)
+        if repeated is not None:
+            return row, vessel, repeated
+    pytest.skip("no vessel in this dataset has two slots of one colour")
+
+
+@pytest.fixture
+def two_vessels_sharing_a_colour(planner):
+    """Two vessels one relic can move between, at different slot positions.
+
+    See relics.VesselPair for what the four numbers have to satisfy and why.
+    """
+    from tests.relics import VesselPair
+
+    entries = _vessels_in_the_list(planner)
+    for row, vessel in entries:
+        for other_row, other in entries:
+            if other is vessel:
+                continue
+            for here, colour in enumerate(vessel["slots"]):
+                for there, elsewhere in enumerate(other["slots"]):
+                    if (colour == elsewhere and here != there
+                            and vessel["slots"][there] == elsewhere):
+                        return VesselPair(row, here, other_row, there, colour)
+    pytest.skip("no two vessels in this dataset share a colour at two "
+                "different slot positions")
+
+
 @pytest.fixture(scope="module")
 def shared_planner(game_data, qapp):
     """One Planner for a whole module.
