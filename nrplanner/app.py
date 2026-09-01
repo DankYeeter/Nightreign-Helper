@@ -784,6 +784,20 @@ class RelicSlot(QFrame):
         )
         self._sync_mode()
 
+    def clear_relic(self) -> None:
+        """Take whatever is in this slot out of it.
+
+        Signals are held back. A slot emptied during a restore is part of
+        setting one build, not six separate changes by the player, and the
+        window settles the slots itself once the restore has finished.
+        """
+        self.relic_box.blockSignals(True)
+        try:
+            self.relic_box.setCurrentIndex(0)
+        finally:
+            self.relic_box.blockSignals(False)
+            self._sync_mode()
+
     def selected_ids(self) -> list[int]:
         item = self.relic_box.currentData()
         return list(item.effect_ids) if item is not None else []
@@ -1945,6 +1959,7 @@ class Planner(QMainWindow):
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        self._settle_slots()
         # Drawn once the Deep switch and the slots have settled, so every row
         # shows the right number of slots and what that chalice holds.
         self.refresh_vessel_rows()
@@ -2089,10 +2104,16 @@ class Planner(QMainWindow):
             self.apply_chalice()
             slots = list(self.base_slots) + list(self.deep_slots)
             for index, slot in enumerate(slots):
-                slot.select_saved(keys[index] if index < len(keys) else "")
+                key = keys[index] if index < len(keys) else ""
+                if not slot.select_saved(key):
+                    # A saved build can name a relic that has since been
+                    # melted. The slot it was stored for is empty then, not
+                    # left holding whatever the build before it had there.
+                    slot.clear_relic()
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        self._settle_slots()
         self.recompute()
         self._store_chalice()
 
@@ -2178,6 +2199,11 @@ class Planner(QMainWindow):
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        # The lists were drawn up while the slots still held the build that
+        # has just been thrown away, so they are missing every relic that was
+        # in it. Nothing else here can put them right: the next rebuild only
+        # happens when a relic changes, and there is nothing left to change.
+        self._settle_slots()
         self.recompute()
         # The picker went on naming the build that was loaded before the
         # reset. An emptied chalice still read as "Test", clicking that entry
@@ -2240,6 +2266,19 @@ class Planner(QMainWindow):
         """The body of apply_chalice, held apart so it cannot nest."""
 
         owned = self.owned
+        # Whether this is a different chalice from the one the slots are
+        # holding, asked before anything is touched: both the emptying just
+        # below and the restore at the end turn on the answer.
+        changed = getattr(self, "_applied_vessel", None) != vessel["id"]
+        # On a change of chalice the slots still hold the one being left, and
+        # they are emptied before the lists are rebuilt rather than after. A
+        # list drawn up around relics that are on their way out treats them as
+        # taken, and the incoming chalice's own build could then not be put
+        # back: its relic was "already worn" by the chalice it was replacing
+        # (QA-014).
+        if changed and not self._restoring:
+            for slot in self.base_slots + self.deep_slots:
+                slot.clear_relic()
         # Slots always list everything they can hold. Narrowing them from
         # outside is what made an equipped relic disappear.
         for i, slot in enumerate(self.base_slots):
@@ -2262,12 +2301,12 @@ class Planner(QMainWindow):
         #
         # So on a change of chalice the slots are set from that chalice's own
         # stored build and from nothing else, empty included.
+        #
         # The note of which chalice was last applied is only made when the
-        # slots were actually set from it. Marking it here regardless meant a
-        # pass that skipped the restore still claimed the chalice as applied,
-        # so the next pass saw no change and never cleared -- one relic from
-        # the chalice before survived, and was stored.
-        changed = getattr(self, "_applied_vessel", None) != vessel["id"]
+        # slots were actually set from it. Marking it regardless meant a pass
+        # that skipped the restore still claimed the chalice as applied, so
+        # the next pass saw no change and never cleared -- one relic from the
+        # chalice before survived, and was stored.
         if not self._restoring:
             self._applied_vessel = vessel["id"]
             self._restore_vessel_build(vessel, clear=changed)
@@ -2298,9 +2337,29 @@ class Planner(QMainWindow):
             # selected_effects() reads active_slots().
             slots = list(self.base_slots) + list(self.deep_slots)
             for index, slot in enumerate(slots):
-                slot.select_saved(keys[index] if index < len(keys) else "")
+                key = keys[index] if index < len(keys) else ""
+                if not slot.select_saved(key):
+                    # The stored relic is not one this slot can be given --
+                    # melted since, or belonging to another save. Whatever the
+                    # slot is holding belongs to the chalice being left, so it
+                    # goes: keeping it would make that relic part of this
+                    # chalice's build at the next store. select_saved has
+                    # always said so, and nobody read the answer.
+                    slot.clear_relic()
         finally:
             self._restoring = False
+        self._settle_slots()
+
+    def _settle_slots(self) -> None:
+        """Rebuild every slot's list, once a restore has filled them.
+
+        The lists are drawn up before the slots are set -- that is the order a
+        restore has to run in -- so each of them was written down against a
+        board that no longer exists. Left as they were, a slot would go on
+        offering a relic another slot has just been given.
+        """
+        for slot in self.base_slots + self.deep_slots:
+            slot.populate()
 
     def _mark_vessel_applied(self) -> None:
         """Note the chalice the slots now hold, after a restore has set them.
@@ -2387,7 +2446,15 @@ class Planner(QMainWindow):
         never contend -- and a Deep slot that is out of sight still has a
         relic in it, which is exactly the case where a doubled relic would go
         unnoticed.
+
+        Not while a restore is running. The slots are then half the build
+        being left and half the one arriving, and an answer drawn from that
+        mixture withheld from the incoming build exactly the relics it was
+        about to be given (QA-014). The board is settled once, at the end of
+        the restore, by _settle_slots.
         """
+        if self._restoring:
+            return set()
         taken = set()
         for slot in self.base_slots + self.deep_slots:
             if slot is asking:
@@ -2799,6 +2866,10 @@ class Planner(QMainWindow):
         for slot, item in zip(slots, loadout.relics):
             if not slot.select_handle(item.handle if item else None):
                 missing += 1
+                # The slot the save names a relic for is empty when that relic
+                # cannot be placed, never left holding the one the chalice
+                # before it had there.
+                slot.clear_relic()
         # These slots are the equipped chalice's now, and the next click on
         # the chalice list has to know it. Without this, clicking back on the
         # chalice that was open *before* Load equipped counted as no change
@@ -2828,6 +2899,7 @@ class Planner(QMainWindow):
             # another slot is already holding.
             note += f" {missing} could not be placed; clear the search and retry."
         self.owned_label.setText(note)
+        self._settle_slots()
         self.recompute()
 
     def active_slots(self) -> list:

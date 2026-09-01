@@ -73,6 +73,13 @@ def some_effect_ids(data: dict, count: int) -> list[int]:
     return [int(k) for k in sorted(data["effects"], key=int)[:count]]
 
 
+def vessel_at(planner, row: int):
+    """The vessel one row of the chalice list stands for."""
+    from PySide6.QtCore import Qt
+
+    return planner.chalice_list.item(row).data(Qt.UserRole)
+
+
 def select_vessel(planner, row: int) -> None:
     """Click a chalice in the list, which is what applies it."""
     planner.chalice_list.setCurrentRow(row)
