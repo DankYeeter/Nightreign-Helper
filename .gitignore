@@ -16,3 +16,7 @@ nrplanner/data/icons/
 
 # Generated diagnostics
 vessel_art.png
+
+# Rollengedaechtnis der Agenten - gehoert nicht ins Projekt
+.claude/agent-memory/
+**/.claude/agent-memory/
