@@ -51,12 +51,16 @@ Sicherheitsstrang X1 (SEC-001/002/005) laeuft unabhaengig daneben.
 - QA-002: **Besitz erzwingen**. Handle-Regel, freies Planen ueber "Custom relic".
 - SEC-007 fixen, SEC-006 dokumentieren (Deckel ja, Herkunftspruefung nein).
 - Berater schlaegt **kein Gefaess** vor — Nicht-Ziel.
+- **OF-3: feste Annahme**, kein Bedienelement. Genau eine Gewichtung der acht
+  Schadensarten, als `DEFAULT_WEIGHTING` im `GoalContext`. Zwei Auflagen aus
+  der Hausregel A7, die beim Bau des Beraters gelten: die Annahme ist
+  **benannt** und im Ergebnis **sichtbar** ("weighted against ..."), und sie
+  wird aus den Spieldaten hergeleitet, soweit die Dateien das hergeben —
+  wo nicht, sagt der Berater es. Der Weg zum Bedienelement bleibt offen, weil
+  Gewichte Daten sind und keine Konstanten in der Zielfunktion; er wird jetzt
+  nicht gebaut.
 
 ## Noch offen beim Nutzer (blockiert Zyklus 2 nicht)
-- **OF-3**: Gewichtung der acht Schadensarten fuer "minimise damage taken" —
-  feste benannte Annahme oder Bedienelement? Der Architekt hat es entkoppelt
-  (Gewichte sind Daten im `GoalContext`), der `developer` kann ohne die
-  Antwort beginnen.
 - **UI F1-F4**: Slots festhalten, Statblatt-Vorschau, Flueche mitbewerten, Name
   des Features. Blockiert erst den Berater-Bau, nicht den Fix-Zyklus.
 
