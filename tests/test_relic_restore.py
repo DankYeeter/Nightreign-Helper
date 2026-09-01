@@ -1,8 +1,8 @@
 """Putting a build back must never be how a build is lost.
 
-Two findings, one theme. Enforcing ownership (QA-002) taught the slots to
+Three findings, one theme. Enforcing ownership (QA-002) taught the slots to
 rebuild their lists from what the other five are holding, and every one of
-both is that rebuild running at a moment when the slots do not yet hold the
+these is that rebuild running at a moment when the slots do not yet hold the
 build being asked about:
 
 * **QA-013** -- the picker's search term was remembered on every slot, and the
@@ -13,9 +13,13 @@ build being asked about:
   still in the slots, so the incoming build's own relics count as taken and
   cannot be put back. `select_saved` said so with a `False` nobody read, and
   the slot kept the relic of the vessel being left.
+* **QA-015** -- a build stored before ownership was enforced can name one
+  physical relic twice. It was restored twice, counted twice, and then quietly
+  halved at the next unrelated click.
+
 None of the 60 tests that existed when these were found touched a restore,
-which is why both came out of manual testing against a real save. These do:
-every case here goes through the window's own restore paths.
+which is why all three came out of manual testing against a real save. These
+do: every case here goes through the window's own restore paths.
 """
 
 from __future__ import annotations
@@ -189,3 +193,43 @@ def test_a_stored_relic_that_cannot_be_placed_empties_its_slot(
     planner._apply_stored_build(vessel["id"], False, keys)
 
     assert planner.base_slots[first].current_relic() is None
+
+
+# -- QA-015: an old build with one relic in two slots -----------------------
+
+def test_an_old_build_with_one_relic_twice_is_resolved_when_it_is_restored(
+        planner, game_data, two_slots_of_one_colour):
+    """Resolved at the restore, and said out loud -- not at the next click.
+
+    Builds stored before ownership was enforced can name one physical relic in
+    two slots. Restoring it as written counted the relic twice (measured:
+    Endurance 5 where the relic gives 4), and the next change to any slot
+    emptied one of the two with nothing said anywhere.
+    """
+    row, vessel, colour = two_slots_of_one_colour
+    template = templates_for(game_data, colour, 1)[0]
+    effects = some_effect_ids(game_data, 2)
+    relic = make_relic(template, handle=WORN_HANDLE, index=0, effects=effects)
+    own(planner, [relic])
+
+    first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
+    hero_id = planner.current_hero()["id"]
+    keys = ["" for _ in range(6)]
+    keys[first] = keys[second] = chalices.slot_key(relic)
+    chalices.save(hero_id, vessel["id"], False, keys)
+
+    select_vessel(planner, row)
+
+    holders = [i for i, item in enumerate(relics_in(planner)) if item is relic]
+    assert holders == [first], "one physical relic, one slot"
+
+    counted = [e["id"] for e in planner.selected_effects()]
+    assert counted.count(effects[0]) == 1, \
+        "and its effects reach the totals once, not twice"
+
+    emptied = planner.base_slots[second]
+    # isVisibleTo, not isVisible: the window is never shown in a test, so
+    # nothing in it is visible in the sense Qt means by isVisible().
+    assert emptied.rolled_label.isVisibleTo(emptied)
+    assert (f"Already worn in Slot {first + 1} — pick another relic for "
+            "this slot.") in emptied.rolled_label.text()

@@ -469,6 +469,10 @@ class RelicSlot(QFrame):
         # its own knows of no others and so blocks nothing.
         self.taken_elsewhere = taken_elsewhere or (lambda _slot: frozenset())
         self.search_text = ""
+        # Why this slot is empty, when it was emptied for a reason worth
+        # saying. An empty slot otherwise looks the same whether nothing was
+        # ever put in it or its relic was taken away by a rule.
+        self.empty_reason = ""
         self.owned = None
         self.colour = 0
         self.pool: list[dict] = []
@@ -517,6 +521,9 @@ class RelicSlot(QFrame):
 
     # -- state -----------------------------------------------------------
     def _on_relic_changed(self, *_args) -> None:
+        # Whatever this slot was last told to say about being empty is spent:
+        # the player has just put something here or taken it away themselves.
+        self.empty_reason = ""
         self._sync_mode()
         self.on_change()
 
@@ -538,8 +545,16 @@ class RelicSlot(QFrame):
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
         if item is None:
-            self.rolled_label.setVisible(False)
-            self.rolled_label.clear()
+            # An empty slot says nothing unless it was emptied for a reason.
+            # A slot whose relic is worn elsewhere used to read exactly like
+            # one never filled, leaving the player to work out where the
+            # relic went (DR-002).
+            if self.empty_reason:
+                self.rolled_label.setText(
+                    f"<div style='color:{MUTED}'>{self.empty_reason}</div>")
+            else:
+                self.rolled_label.clear()
+            self.rolled_label.setVisible(bool(self.empty_reason))
             return
 
         lines = []
@@ -784,13 +799,14 @@ class RelicSlot(QFrame):
         )
         self._sync_mode()
 
-    def clear_relic(self) -> None:
-        """Take whatever is in this slot out of it.
+    def clear_relic(self, reason: str = "") -> None:
+        """Take whatever is in this slot out of it, and say why if there is a why.
 
         Signals are held back. A slot emptied during a restore is part of
         setting one build, not six separate changes by the player, and the
         window settles the slots itself once the restore has finished.
         """
+        self.empty_reason = reason
         self.relic_box.blockSignals(True)
         try:
             self.relic_box.setCurrentIndex(0)
@@ -823,6 +839,7 @@ class RelicSlot(QFrame):
         renumbered by the game, and a build that came back empty every time
         the player melted an unrelated relic would not be worth storing.
         """
+        self.empty_reason = ""
         if not key:
             return self.select_handle(None)
         handle, roll = chalices.split_key(key)
@@ -852,6 +869,7 @@ class RelicSlot(QFrame):
         Signals are held back so importing six slots recomputes the build once
         at the end rather than six times.
         """
+        self.empty_reason = ""
         self.relic_box.blockSignals(True)
         try:
             if handle is None:
@@ -2351,13 +2369,35 @@ class Planner(QMainWindow):
         self._settle_slots()
 
     def _settle_slots(self) -> None:
-        """Rebuild every slot's list, once a restore has filled them.
+        """Bring the slots into agreement, once a restore has filled them.
 
-        The lists are drawn up before the slots are set -- that is the order a
-        restore has to run in -- so each of them was written down against a
-        board that no longer exists. Left as they were, a slot would go on
-        offering a relic another slot has just been given.
+        Two things are settled here, and both come of a board being written to
+        while it was being read.
+
+        A build stored before ownership was enforced can name one physical
+        relic in two slots. Restored as written, both slots showed it and both
+        were counted (measured: Endurance 5 where the relic gives 4), and the
+        doubling was then resolved by the *next* change to any slot -- which
+        emptied the lower-numbered of the two, elsewhere on the screen, with
+        nothing said anywhere (QA-015, DR-002). It is resolved here instead:
+        at the restore, once, and the slot that loses the relic says why.
+
+        Then every list is rebuilt, because they were drawn up before the
+        slots were set and each was written down against a board that no
+        longer exists.
         """
+        worn_in: dict = {}
+        for slot in self.base_slots + self.deep_slots:
+            # An empty slot and a custom relic both answer None: the one has
+            # nothing to clash with, the other is imaginary by design and may
+            # be planned into every slot.
+            key = inventory.copy_key(slot.current_relic())
+            if key is None:
+                continue
+            keeper = worn_in.setdefault(key, slot)
+            if keeper is not slot:
+                slot.clear_relic(f"Already worn in {keeper.slot_name()} — "
+                                 "pick another relic for this slot.")
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
 
