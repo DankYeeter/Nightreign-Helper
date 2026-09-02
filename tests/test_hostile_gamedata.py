@@ -178,6 +178,16 @@ def test_a_layout_that_declares_entities_is_refused():
 
 
 def test_a_layout_bomb_is_refused_before_it_expands():
+    """Not the case SEC-010 rests on: expat refuses this one on its own.
+
+    Take the entity guard out of icons.read_subtextures and this stays green
+    -- expat caps entity expansion itself and raises long before the gigabyte
+    exists. So the case tells nothing about this program and is no evidence
+    that the refusal works; that hangs on
+    test_a_layout_that_declares_entities_is_refused alone. Kept because the
+    ceiling it watches is expat's, and a parser that lifted it would turn this
+    red, which is worth knowing.
+    """
     started = time.monotonic()
     with pytest.raises(icons.LayoutError):
         # Nine levels is a gigabyte if anything expands it, and nothing here
