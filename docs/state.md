@@ -1,7 +1,7 @@
 # Stand
 
-Stand: 2026-09-02, Ende Zyklus 4. Branch `docs/audit-and-advisor-design`,
-20 Commits. **Push vom Director freigegeben** nach gruenem QA-Durchlauf.
+Stand: 2026-09-02, Ende Zyklus 5. Branch `docs/audit-and-advisor-design`,
+25 Commits. **Push vom Director freigegeben** nach gruenem QA-Durchlauf.
 Pull Request #16 offen — **Merge nach `main` gehoert dem Nutzer**, `main` ist
 geschuetzt.
 
@@ -9,17 +9,18 @@ geschuetzt.
 - Nightreign Helper, PySide6/Qt, ~17k Zeilen Python, Windows-only.
 - Zyklus 1 = Audit (nur Doku). Zyklus 2 = eine Rechenstelle, nachweislich
   unveraendert. Zyklus 3 = der Sicherheitszyklus, der nie gelaufen war.
-  Zyklus 4 = der Datenverlust, den Zyklus 3 selbst erzeugt hat.
-- **Testsockel 78 -> 167.** Und erstmals belegt statt behauptet: der
+  Zyklus 4 = der Datenverlust, den Zyklus 3 selbst erzeugt hat. Zyklus 5 =
+  ein Schluessel, der im Speicher nicht eindeutig war.
+- **Testsockel 78 -> 187.** Und erstmals belegt statt behauptet: der
   `qa-engineer` faehrt eigene Laufzeitmutationen statt uebernommener
-  Entwicklertests. Das hat in beiden Zyklen jeweils das Entscheidende gefunden.
+  Entwicklertests. Das hat in jedem der drei Zyklen das Entscheidende gefunden.
 
-## Was Zyklus 3 und 4 geschlossen haben
+## Was Zyklus 3 bis 5 geschlossen haben
 **Zwoelf Sicherheitsbefunde**, alle mit bestandenem adversarialem Retest, kein
 Fix umgehbar: SEC-001, 002, 004, 005, 006 (Deckel), 007, 008, 010, 012, 013,
 014.
-**Elf QA-Befunde:** QA-003, QA-005 (teilweise), QA-024, QA-033, QA-034,
-QA-035, QA-039, QA-040, QA-041, QA-042, QA-043, QA-045.
+**Dreizehn QA-Befunde:** QA-003, QA-005 (teilweise), QA-024, QA-033, QA-034,
+QA-035, QA-039, QA-040, QA-041, QA-042, QA-043, QA-045, **QA-046**.
 
 Belegt gegen echte Daten, nicht gegen sich selbst:
 - **SEC-001:** der Vor-Fix-Stand haengt an einem echten praeparierten Save
@@ -40,39 +41,45 @@ nicht (`conftest.py` nahm den Snapshot-Cache; fuenf Parser liefen in einem
 gruenen Lauf gar nicht). Als DEBT-001 geschlossen.
 
 ## Was das Release sperrt
-1. **QA-046 (P2, Critical)** — zwei Build-Namen, die sich nur in der
-   Gross-/Kleinschreibung unterscheiden, teilen sich einen Speicherplatz; der
-   zweite ueberschreibt den ersten still, das Loeschen des einen loescht beide.
-   QSettings-Wertnamen sind auf Windows case-insensitiv, `build_key` ist
-   injektiv gegen Python-Strings, **nicht gegen die Registry**. **Keine
-   Regression dieses Zyklus** — galt im alten Format genauso. Braucht ein
-   drittes Schluesselschema und eine erneute Wanderung.
-2. **QA-036 (P2)** — die Vollstaendigkeit des Icon-Packs wird nie geprueft.
+1. **QA-036 (P2)** — die Vollstaendigkeit des Icon-Packs wird nie geprueft.
    Das Pack des Nutzers war am 2026-09-02 zu 88 % leer (105 von 839 Dateien);
    **wiederhergestellt am 2026-09-02** ueber `scripts/build_icons.py`, 840
    Dateien, ueber die Programm-API verifiziert. **Die Ursache ist offen:**
    `iconbuild.build` leert das Ziel ohne Sperre.
-3. **QA-018** — Waffen-Tab 203,4 gegen Detailtafel 244,1.
-4. **SEC-009**, nur zwei Punkte: Release-Action auf beweglichem Tag in einem
+2. **QA-018** — Waffen-Tab 203,4 gegen Detailtafel 244,1.
+3. **SEC-009**, nur zwei Punkte: Release-Action auf beweglichem Tag in einem
    Job mit `contents: write`, und keine Pruefsumme. Zusammen unter zehn Zeilen
    YAML. Signatur und `--require-hashes` sind akzeptiertes Restrisiko.
-5. **GOAL A9** — noch nichts gegen ein gebautes Artefakt geprueft.
-6. **C-002** (`nightlords.png`, Ampel ROT) — Entscheidung des Nutzers.
+4. **GOAL A9** — noch nichts gegen ein gebautes Artefakt geprueft.
+5. **C-002** (`nightlords.png`, Ampel ROT) — Entscheidung des Nutzers.
 
-## Naechster Zyklus (Zyklus 5), geordnet
-1. **QA-046** — eigener Auftrag, mit derselben Ruecklesungs-Nachbedingung wie
-   T-020, und der Kommentar bei `_KEY_SAFE` gehoert korrigiert ("injective"
-   gilt nicht gegen den Store).
-2. **QA-032 + QA-004** — beschaedigtes Save wird still uebersprungen;
+**QA-046 ist in Zyklus 5 gefallen** (Schema 3, Commit `543f69d`) — zwei
+Build-Namen, die sich nur in der Gross-/Kleinschreibung unterschieden, teilten
+sich einen Speicherplatz. Die Lehre bleibt stehen: `build_key` war injektiv
+gegen Python-Zeichenketten, **nicht gegen die Registry**. Eine Zusicherung
+ohne Bezugsrahmen ist keine.
+
+## Naechster Zyklus (Zyklus 6), geordnet
+1. **QA-049** (P3) — zwei Stellen in `app.py` bauen `QSettings` aus Literalen
+   und umgehen die Testumlenkung; **die Suite liest heute den echten Speicher
+   des Spielers.** Dazu ein Waechtertest, der den Baum nach literal gebauten
+   `QSettings`-Aufrufen absucht. Klein, und es schliesst die Klasse.
+   Im selben Auftrag: **QA-050** (Kommentar nennt den falschen Schutz) und
+   **QA-051** (pruefen, ob das Entfernen **beider** Waechter erreichbar ist —
+   wenn ja ein Testfall, wenn nein faellt einer weg).
+2. **QA-048 + die zurueckgestellte Nebenlaeufigkeit als EIN Auftrag** — beide
+   sitzen im selben Fenster: was ist ein halb migrierter Speicher, und wer
+   erkennt ihn?
+3. **QA-032 + QA-004** — beschaedigtes Save wird still uebersprungen;
    entschieden ist Lesart B, der Spieler soll es erfahren. Drei Zustaende:
    kein Save / Save gefunden, keins lesbar (mit Grund) / gelesen, N
    uebersprungen.
-3. **QA-036** — in ein temporaeres Verzeichnis bauen und am Ende umbenennen.
-4. **SEC-019-Klasse** — Label-Fabrik plus Waechtertest, **nicht** 90
+4. **QA-036** — in ein temporaeres Verzeichnis bauen und am Ende umbenennen.
+5. **SEC-019-Klasse** — Label-Fabrik plus Waechtertest, **nicht** 90
    Einzelaenderungen; mit SEC-015 und DR-004.
-5. **SEC-006/016/018 als EIN Nachtrag** — relative Schranke aus der
+6. **SEC-006/016/018 als EIN Nachtrag** — relative Schranke aus der
    komprimierten Nutzlast statt gemessener Konstante.
-6. Klein und dokumentiert: QA-037, QA-038, QA-044, QA-047, SEC-017, SEC-020,
+7. Klein und dokumentiert: QA-037, QA-038, QA-044, QA-047, SEC-017, SEC-020,
    DR-005 bis DR-007, `scripts/capture_weapon_damage.py`.
 
 Zurueckgestellt, nicht vergessen: **Nebenlaeufigkeit der Migration** (zwei

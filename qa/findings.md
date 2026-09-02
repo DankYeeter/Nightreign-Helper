@@ -222,10 +222,14 @@ Handles 3229614315/3229615265).
 | QA-041 | `_migrate_keys` entfernt den Alteintrag, ohne dass das Schreiben belegt ist: ein Alt-Build, dessen **Name** unter 16 383 Zeichen liegt, dessen **abgeleiteter Schluessel** aber darueber, wird bei der Migration still und unwiderruflich geloescht. Dieselbe Wurzel wie QA-033 | P2 | Critical | developer | 5 Namenslaengen um die Grenze, deterministisch (16 380 ueberlebt, 16 386 verloren) | **behoben** - 5 Laengen, Mischstore, 5 echte Neustarts, Falsch-Positiv-Fall eigens gebaut | 2026-09-02 |
 | QA-042 | Die zweite Schutzmassnahme des QA-033-Fixes (`path not in written`) ist von keinem der 156 Tests bewacht; der Ordnungs-Test kann sie bauartbedingt nicht fangen - er misst, *wann* entfernt wird, nicht *was* entfernt werden darf | P2 | Major | developer | Mutation: Waechter entfernt -> 26 passed, dabei gehen bei `Fire ice` + `Fire%20ice` Builds verloren | **behoben** - eigene Mutation 2 failed (vorher 0); Ketten 2/3/4 in beiden Reihenfolgen | 2026-09-02 |
 | QA-043 | Die Suite teilt sich einen maschinenweiten Einstellungs-Store; ein paralleler pytest-Lauf macht sie rot und sieht dabei wie eine Produktregression aus | P4 | Minor | developer | zwei Ausfaelle in `test_relic_restore.py` erzeugt und durch Isolation widerlegt | **behoben** - Prozess-ID im Store-Namen; Kehrseite als QA-047 | 2026-09-02 |
-| QA-044 | Kehrseite des QA-041-Fixes: ein Alt-Build mit zu langem abgeleitetem Schluessel wird jetzt nicht mehr geloescht, aber ueber `childKeys()` am Listenende gelistet - er laedt leer und laesst sich nicht loeschen, weil `load_build` und `delete_build` beide den abgeleiteten Schluessel benutzen. Verstecken geht. Betrifft nur Stores, die so einen Build **vor** `e96a6e0` schon hatten; `save_build` laesst solche Namen seit QA-035 nicht mehr entstehen | P4 | Minor | developer, ui-ux-designer | gemessen mit 1400 Emoji: nach dem Loeschen weiterhin gelistet | offen - bestaetigt und erweitert: betrifft auch `save_build` (wird abgelehnt) und `set_selected_build`; **`set_hidden` ist der einzige Ausweg** und gehoert in die Beschreibung | 2026-09-02 |
+| QA-044 | Kehrseite des QA-041-Fixes: ein Alt-Build mit zu langem abgeleitetem Schluessel wird jetzt nicht mehr geloescht, aber ueber `childKeys()` am Listenende gelistet - er laedt leer und laesst sich nicht loeschen, weil `load_build` und `delete_build` beide den abgeleiteten Schluessel benutzen. Verstecken geht. Betrifft nur Stores, die so einen Build **vor** `e96a6e0` schon hatten; `save_build` laesst solche Namen seit QA-035 nicht mehr entstehen | P4 | Minor | developer, ui-ux-designer | gemessen mit 1400 Emoji: nach dem Loeschen weiterhin gelistet | offen - in T-021 erneut bestaetigt, **nicht verschlimmert**: Schema-2-Build mit 5 462 Grossbuchstaben bleibt liegen, wird mit richtigem Namen gelistet, laedt leer. Gleicher Mechanismus, groessere Namensmenge betroffen | 2026-09-02 |
 | QA-045 | Der Wertvergleich der Ruecklesung in `_migrate_keys` ist von keinem Test bewacht: streicht man nur ihn und laesst `contains()` stehen, bleiben 166 Tests gruen - und ein Build wird still durch den Inhalt eines anderen ersetzt. Dieselbe Form wie QA-042 | P3 | Major | developer | Mutation im Scratchpad-Klon, voller Lauf | **behoben** - `test_an_old_path_that_is_itself_another_builds_key_is_not_removed` (Commit `998ee46`); Mutation streicht den Wertvergleich -> genau dieser Test faellt (vorher 0) | 2026-09-02 |
-| QA-046 | Zwei Build-Namen, die sich nur in der Gross-/Kleinschreibung unterscheiden, teilen sich einen Speicherplatz: der zweite ueberschreibt den ersten still, und das Loeschen des einen loescht beide. QSettings-Wertnamen sind auf Windows **case-insensitiv** - `build_key` erhaelt die Schreibweise und ist damit injektiv gegen Python-Strings, **nicht gegen die Registry** | P2 | Critical | developer, director | "Bleed build" + "bleed build": `build_names` zeigt zwei, beide laden denselben Inhalt, Loeschen des einen leert die Liste | offen (neu aus T-020-Retest) - **keine Regression dieses Zyklus**, galt im alten Format genauso | 2026-09-02 |
+| QA-046 | Zwei Build-Namen, die sich nur in der Gross-/Kleinschreibung unterscheiden, teilen sich einen Speicherplatz: der zweite ueberschreibt den ersten still, und das Loeschen des einen loescht beide. QSettings-Wertnamen sind auf Windows **case-insensitiv** - `build_key` erhaelt die Schreibweise und ist damit injektiv gegen Python-Strings, **nicht gegen die Registry** | P2 | Critical | developer, director | "Bleed build" + "bleed build": `build_names` zeigt zwei, beide laden denselben Inhalt, Loeschen des einen leert die Liste | **behoben** (Commit `543f69d`, Schema 3) - 47 gegnerische Namen -> 47 Eintraege, 235 276 Namen ohne Kollision, alle 12 faltungsverdaechtigen Nicht-ASCII-Zeichen gegen die Registry geprueft, Migration 1->3 und 2->3, 26 Mutationen / 18 getoetet | 2026-09-02 |
 | QA-047 | Kehrseite des QA-043-Fixes: ein abgebrochener Testlauf laesst seinen PID-Store dauerhaft in `HKCU\Software\DankYeeterTests` zurueck, und kein spaeterer Lauf raeumt ihn weg. Vorher gab es genau einen Rest, den der naechste Lauf beseitigte | P4 | Minor | developer | `os._exit(1)` nach einem Speichern, dann `reg query` | offen (neu aus T-020-Retest) - nur Entwicklermaschinen | 2026-09-02 |
+| QA-048 | Eine zwischen Markerschreiben und Entfernungen abgebrochene Migration hinterlaesst den Alt-Pfad und damit dauerhaft eine doppelte Zeile in der Liste; der Speicher heilt nicht, weil `__schema` schon auf 3 steht. **Nicht durch `543f69d` erzeugt** - galt unter Schema 2 fuer jeden Namen mit einem Leerzeichen | P3 | Major | developer | echter Hard-Kill unmittelbar nach dem Markerschreiben, Nachschau aus frischem Prozess | offen (neu aus T-021) - **gehoert mit der zurueckgestellten Nebenlaeufigkeit zusammen entschieden, es ist dasselbe Fenster** | 2026-09-02 |
+| QA-049 | `app.py:1175` und `:1179` bauen `QSettings` aus Literalen und umgehen damit die Umlenkung ueber `NIGHTREIGN_SETTINGS_ORG`/`_APP`: **die Testsuite liest ueber `restore_variant()` den echten Nutzerspeicher**, ein Variantenklick im Test wuerde hineinschreiben. Der Schluessel selbst ist klassensicher, der Speicher nicht | P3 | Major | developer | `fileName()` beider Speicher unter gesetzter Umlenkung verglichen; einzige zwei Literal-Stellen im Baum | offen (neu aus T-021, aus der Klassensuche) - fuer den Spieler heute folgenlos, im echten Speicher existiert noch keine Varianten-Gruppe | 2026-09-02 |
+| QA-050 | Die Begruendung fuer die Grossbuchstaben-Hex im `_KEY_SAFE`-Kommentar und in `543f69d` nennt einen Schutz, den sie nicht leistet: mit Kleinbuchstaben-Hex teilen sehr viele Namen den Platz ihres Alt-Pfades, die Migration verliert aber **nichts**, weil der Entfernungswaechter faltet. Die Laengenkette selbst stimmt (0 Gegenbeispiele ueber 200 000 Namen) | P4 | Minor | developer | Kodierung im Klon auf Kleinbuchstaben-Hex umgestellt, Schema-2-Migration mit 7 Namen gefahren | offen (neu aus T-021) - kein Verhaltensfehler, aber **dieselbe Form wie der `_KEY_SAFE`-Kommentar, der QA-046 ueberlebt hat** | 2026-09-02 |
+| QA-051 | Zwei Waechter in `chalices.py` sterben an keiner Mutation: der Order-Filter beim Neuschreiben und die `contains`-Pruefung in `build_names`. **Sie decken einander** - fuer keinen einzeln liess sich eine erreichbare Folge messen | P4 | Minor | developer, director | je einzeln entfernt, 57 Faelle gruen | offen (neu aus T-021) - **ohne Schadensbeleg**, anders als QA-042/QA-045 | 2026-09-02 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -536,3 +540,72 @@ der drei Runden.
 - **Offen und release-sperrend:** QA-046 (Gross-/Kleinschreibung, P2, kein
   Regress dieses Zyklus), QA-036 (Icon-Pack-Vollstaendigkeit), QA-018,
   SEC-009 (zwei Punkte), GOAL A9, C-002.
+
+## Entscheidungen des Directors - Zyklus 5 (2026-09-02)
+
+- **QA-046 behoben, Push freigegeben.** Der `qa-engineer` hat nicht die
+  Entwicklertests uebernommen: 47 gegnerische Namen durch die echte
+  Speicherschicht ergeben 47 Eintraege; 235 276 verschiedene Namen ohne eine
+  einzige Kollision unter `upper()` und unter `casefold()`; erschoepfend bis
+  Laenge 3; Migration Schema 1 nach 3 und 2 nach 3 mit Kollisionspaar;
+  Idempotenz ueber je drei echte Programmstarts mit byteweise identischem
+  Dump. **26 Mutationen, 18 getoetet, kein Ueberlebender zerstoert Daten.**
+- **Der Klassenschnitt nach L-001 hat sich in seinem ersten Einsatz bezahlt
+  gemacht.** Der `developer` fand drei weitere Instanzen derselben Klasse, die
+  im Befund nicht standen: der Entfernungswaechter verglich mit
+  Python-Gleichheit statt gefaltet, `build_names` verglich den
+  childKeys-Nachtrag mit doppeltem Gleichheitszeichen, und die Hidden-Marken
+  verglichen Schluessel gegen Namen. Die erste haette einen Build gekostet -
+  die Mutation M3 belegt es. **Den Auftrag als Klasse zu schneiden hat einen
+  vierten Zyklus in derselben Datei verhindert.**
+- **Die Grundwahrheit ist jetzt gemessen, nicht angenommen:** die Registry
+  gleicht ausser ASCII-Gross/Klein **nichts** an. Der Pruefer hat alle zwoelf
+  faltungsverdaechtigen Nicht-ASCII-Zeichen einzeln gegen ihr
+  ASCII-Gegenstueck geschrieben - null Zusammenlegungen. Punktloses i,
+  scharfes s gegen Doppel-s, NFC gegen NFD, Omega, Mikro, fuehrende Punkte und
+  Leerzeichen bleiben getrennt. Keine Unicode-Normalisierung.
+- **Die drei geaenderten Bestandstests sind eine Reparatur, keine
+  Abschwaechung - und das ist gemessen, nicht argumentiert.** Der Pruefer hat
+  zwei datenzerstoerende Mutationen gebaut und die Suite je zweimal gefahren,
+  einmal mit der neuen und einmal mit der alten Schreibweise der Faelle. Mit
+  der **alten** Schreibweise haette die ganze Datei **beide Datenverluste
+  durchgelassen** (57 gruen). Die drei Faelle sind die einzigen, die sie
+  fangen. Der `developer` hat fremden Testbestand angefasst und es von sich
+  aus gemeldet - richtig so.
+- **QA-049 ist der unangenehmste Nebenfund, und er kam aus der Klassensuche,
+  nicht aus dem Befund.** Zwei Stellen in `app.py` bauen `QSettings` aus
+  Literalen und umgehen die Testumlenkung: **die Suite liest heute den echten
+  Speicher des Spielers.** Geschrieben wird dort noch nicht, weil kein Test
+  einen Variantenklick ausloest - das ist Glueck, keine Absicherung. Geht in
+  den naechsten Zyklus, zusammen mit einem Waechtertest, der den Baum nach
+  literal gebauten `QSettings`-Aufrufen absucht.
+- **QA-048 wird NICHT einzeln beauftragt.** Das Abbruchfenster zwischen
+  Markerschreiben und Entfernungen ist dasselbe Fenster wie die
+  zurueckgestellte Nebenlaeufigkeit (zwei Programminstanzen auf einem
+  Speicher). Beides einzeln zu fixen hiesse, zweimal dieselbe Frage zu
+  beantworten - naemlich, was ein halb migrierter Speicher ist und wer ihn
+  erkennt. **Ein Auftrag, beide Faelle.**
+- **QA-051: ich entscheide weder streichen noch so lassen.** Der Pruefer hat
+  gezeigt, dass die beiden Waechter **einander decken** - jeder einzeln
+  entfernt bleibt folgenlos. Das ist etwas anderes als ein Waechter ohne
+  Wirkung. Der naechste Auftrag prueft, ob das Entfernen **beider** erreichbar
+  ist: wenn ja, ein Testfall; wenn nein, einer faellt weg und der andere
+  bekommt einen Kommentar, der die Redundanz benennt. Was nicht bleibt, ist
+  der dritte Zustand - zwei Zeilen, von denen niemand sagen kann, wofuer sie
+  da sind.
+- **QA-050 bestaetigt eine Regel, die ich mitnehme:** eine Zusicherung im
+  Kommentar ist so gefaehrlich wie falscher Code, wenn sie den falschen Schutz
+  nennt. Die Laengenkette stimmt, die Sicherheitsfolgerung nicht - was die
+  Migration schuetzt, ist der gefaltete Entfernungswaechter, nicht die
+  Hex-Schreibweise. Der `_KEY_SAFE`-Kommentar hat QA-046 genau deshalb
+  ueberlebt.
+- **Die zurueckbleibende Alt-Schreibweise ist Absicht und wird nicht
+  aufgeraeumt.** Nach einer Kollisionsmigration behaelt der Speicher fuer
+  einen der beiden Eintraege die alte Schreibweise, weil die Registry einen
+  bestehenden Wert nicht umbenennt. Der Pruefer hat verifiziert, dass sie
+  nirgends sichtbar wird. Sie zu jagen hiesse, jeden Wert umzuschreiben, um
+  ein unsichtbares Detail zu glaetten. Nein.
+- **Die weggelassene Order- und Hidden-Dedupe ist vom Pruefer gedeckt.** Er
+  hat keinen erreichbaren Pfad gefunden, der einen doppelten Eintrag erzeugt.
+  Damit ist die Linie des `developer` bestaetigt: lieber kein Waechter als
+  einer ohne Test.
