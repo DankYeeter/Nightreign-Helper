@@ -86,6 +86,14 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
     # `upgrade` is the target rarity tier (1-4). How far a given weapon has to
     # travel is the gap between its own rarity and that target, so a Rare
     # weapon only moves when the target is Legendary.
+    #
+    # The ceiling is guarded twice, and neither guard is spare (QA-068): the
+    # `min` below, and the shape of the reinforce table, which holds no entry
+    # above `MAX_UPGRADE` for any weapon. Removing the `min` on its own
+    # changes nothing -- the backward search underneath finds the same row --
+    # so a tidying commit will read it as dead. It is not: drop the `min` and
+    # the backward search together and a request for tier 5 walks off the top
+    # of the table. Whichever is removed, the other has to be shown to hold.
     base_type = weapon.get("reinforce_type", 0)
     own_tier = weapon.get("rarity", 0) + 1
     steps = max(0, min(upgrade, MAX_UPGRADE) - own_tier)
@@ -122,13 +130,14 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         # A plain loop, not `sum()`, and that is load-bearing. Since Python
         # 3.12 `sum()` on floats carries a running correction term that this
         # accumulation does not, so the same addends in the same order can
-        # land a ULP apart (see `damage._accumulated` for the other place
-        # this bites). This is the larger of the two: measured against the
-        # compensated sum, it moves 48,100 of 258,192 weapon-tier-damage
-        # cards, against 0.15% at the `damage.py` spot that already carries
-        # the comment this one had been missing (QA-064/d). It stays a loop
-        # for as long as one step of the AD-019 rebuild is promised
-        # bit-for-bit unchanged.
+        # land a ULP apart. This is the **larger** of the two places in the
+        # program where that bites -- it moves a substantial minority of all
+        # weapon-tier-damage cards, where the other place moves a fraction of
+        # a percent. The counts are in QA-064/d; they are not repeated here,
+        # because a figure a reader cannot trace back to the run that produced
+        # it is worse than the comparison it decorates (QA-069). It stays a
+        # loop while any step of the AD-019 rebuild is promised bit-for-bit
+        # unchanged.
         bonus = 0.0
         if curve is not None:
             for stat, scaling in weapon["scaling"].items():

@@ -389,10 +389,12 @@ def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
     layer below the attack multipliers, layer one. That is **not** the order
     the arsenal tab draws: `arsenaltab._build_weapons` discards this list's
     order outright and re-sorts each family of its own accord, by descending
-    rarity, then the standard version's name, then id (measured 2026-09-02:
-    reversing this function's order changes 0 of 1654 rows the tab draws, and
-    W4, which puts the tab onto this function, has to read this paragraph and
-    not the one this replaces -- QA-064/a). What does hold while
+    rarity, then the standard version's name, then id. Reversing this
+    function's order leaves every row the tab draws where it was; the count
+    behind that sentence is in QA-064/a and not here, because it was measured
+    by the run recorded there and not by this module's author (QA-069). W4,
+    which puts the tab onto this function, has to read this paragraph and not
+    the one it replaces. What does hold while
     `MULTIPLIERS_FOR[Question.CANDIDATE]` is off is that the ranked figure and
     the figure a display would show are the same number; switching it on in
     W6 makes the order come from the layer below the multipliers, and a
