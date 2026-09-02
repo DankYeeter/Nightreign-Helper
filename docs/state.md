@@ -1,91 +1,118 @@
 # Stand
 
-Stand: 2026-09-02, Ende Zyklus 2. Branch `docs/audit-and-advisor-design`,
-19 Commits, gepusht. **Pull Request #16** offen — Merge nach `main` gehoert dem
-Nutzer, `main` ist geschuetzt.
+Stand: 2026-09-02, Ende Zyklus 4. Branch `docs/audit-and-advisor-design`,
+20 Commits. **Push vom Director freigegeben** nach gruenem QA-Durchlauf.
+Pull Request #16 offen — **Merge nach `main` gehoert dem Nutzer**, `main` ist
+geschuetzt.
 
 ## Wo wir stehen
 - Nightreign Helper, PySide6/Qt, ~17k Zeilen Python, Windows-only.
-- Zyklus 1 = vollstaendiger Audit (nur Dokumentation, kein Codewechsel).
-- Zyklus 2 = "eine Rechenstelle, nachweislich unveraendert" plus die
-  Regressionen, die dabei entstanden sind. Drei Developer-Runden, drei
-  QA-Runden.
-- **Testsockel steht:** 0 → 78 Tests, headless, mit CI-Job, gegen echte
-  Spieldaten. Vorher gab es null Tests, und die im Code zitierten Waechter
-  existierten im veroeffentlichten Repo gar nicht.
+- Zyklus 1 = Audit (nur Doku). Zyklus 2 = eine Rechenstelle, nachweislich
+  unveraendert. Zyklus 3 = der Sicherheitszyklus, der nie gelaufen war.
+  Zyklus 4 = der Datenverlust, den Zyklus 3 selbst erzeugt hat.
+- **Testsockel 78 -> 167.** Und erstmals belegt statt behauptet: der
+  `qa-engineer` faehrt eigene Laufzeitmutationen statt uebernommener
+  Entwicklertests. Das hat in beiden Zyklen jeweils das Entscheidende gefunden.
 
-## Was in Zyklus 2 geschlossen wurde
-QA-001 (zwei driftende Rechenstellen — es waren drei), QA-011, QA-013, QA-014,
-QA-015, QA-017, QA-021, QA-022, QA-024, QA-025. Die Schadensrechnung ist aus der
-Oberflaeche nach `nrplanner/damage.py` gezogen, **nachweislich verhaltensgleich**
-(10 000 Differentialfaelle, 0 Abweichungen; sechs Mutationen alle gefangen).
+## Was Zyklus 3 und 4 geschlossen haben
+**Zwoelf Sicherheitsbefunde**, alle mit bestandenem adversarialem Retest, kein
+Fix umgehbar: SEC-001, 002, 004, 005, 006 (Deckel), 007, 008, 010, 012, 013,
+014.
+**Elf QA-Befunde:** QA-003, QA-005 (teilweise), QA-024, QA-033, QA-034,
+QA-035, QA-039, QA-040, QA-041, QA-042, QA-043, QA-045.
 
-## Naechster Zyklus (Zyklus 3): der Build-Berater
-**Von QA freigegeben.** Grundlage: `ARCHITECTURE.md` AD-001 bis AD-013,
-`UI_SPEC.md` AK-01 bis AK-30.
+Belegt gegen echte Daten, nicht gegen sich selbst:
+- **SEC-001:** der Vor-Fix-Stand haengt an einem echten praeparierten Save
+  (nach 20 s zwangsbeendet), der heutige meldet es in 0,01 s, Fenster in 1,8 s
+  bedienbar.
+- **QA-003/033/041:** 15 Namensformen ueber die echte Oberflaeche, ein
+  Mischstore aus zu langem Namen, Schraegstrich, senkrechtem Strich und
+  Prozentzeichen, Ketten der Laenge 2 bis 4 in beiden Reihenfolgen, und fuenf
+  echte Programmstarts mit **byteweise identischem** Store-Dump.
 
-Auflagen, die beim Bau gelten:
-- Das Berater-Paket muss unter `nrplanner/` liegen, sonst sieht der
-  `compute`-Waechter es nicht (QA-023).
-- Bewertet wird mit `model.compute()` selbst, an jedem Suchschritt (AD-002) —
-  kein zweiter Scorer.
-- Beam-Suche K=20/W=40. Gemessen im ungueenstigsten realen Fall
-  (`Wylder's Chalice`, weisser Slot, Deep): **0,46 s**.
-- Exemplar-Eindeutigkeit ueber Handles (AD-013). Ohne sie sind bei
-  `Wylder's Urn` 40 von 40 Vorschlaegen unbrauchbar.
-- Eine **feste, benannte** Gewichtung der acht Schadensarten, im Ergebnis
-  sichtbar ausgewiesen. Kein Bedienelement.
-- Kein Gefaess-Vorschlag (Nicht-Ziel).
+**Die ehrliche Bilanz:** Zwei Datenverluste sind in diesem Zyklus entstanden
+und wieder geschlossen worden — **beide aus dem Fix fuer QA-003, keiner aus
+dem Altbestand.** Eine Migration, die Nutzerdaten anfasst, hat drei Developer-
+und drei QA-Runden gebraucht, bis sie nichts mehr zerstoert.
+
+**Nebenbefund mit Folgen:** Der Testsockel aus Zyklus 2 belegte die Parser
+nicht (`conftest.py` nahm den Snapshot-Cache; fuenf Parser liefen in einem
+gruenen Lauf gar nicht). Als DEBT-001 geschlossen.
+
+## Was das Release sperrt
+1. **QA-046 (P2, Critical)** — zwei Build-Namen, die sich nur in der
+   Gross-/Kleinschreibung unterscheiden, teilen sich einen Speicherplatz; der
+   zweite ueberschreibt den ersten still, das Loeschen des einen loescht beide.
+   QSettings-Wertnamen sind auf Windows case-insensitiv, `build_key` ist
+   injektiv gegen Python-Strings, **nicht gegen die Registry**. **Keine
+   Regression dieses Zyklus** — galt im alten Format genauso. Braucht ein
+   drittes Schluesselschema und eine erneute Wanderung.
+2. **QA-036 (P2)** — die Vollstaendigkeit des Icon-Packs wird nie geprueft.
+   Das Pack des Nutzers war am 2026-09-02 zu 88 % leer (105 von 839 Dateien);
+   **wiederhergestellt am 2026-09-02** ueber `scripts/build_icons.py`, 840
+   Dateien, ueber die Programm-API verifiziert. **Die Ursache ist offen:**
+   `iconbuild.build` leert das Ziel ohne Sperre.
+3. **QA-018** — Waffen-Tab 203,4 gegen Detailtafel 244,1.
+4. **SEC-009**, nur zwei Punkte: Release-Action auf beweglichem Tag in einem
+   Job mit `contents: write`, und keine Pruefsumme. Zusammen unter zehn Zeilen
+   YAML. Signatur und `--require-hashes` sind akzeptiertes Restrisiko.
+5. **GOAL A9** — noch nichts gegen ein gebautes Artefakt geprueft.
+6. **C-002** (`nightlords.png`, Ampel ROT) — Entscheidung des Nutzers.
+
+## Naechster Zyklus (Zyklus 5), geordnet
+1. **QA-046** — eigener Auftrag, mit derselben Ruecklesungs-Nachbedingung wie
+   T-020, und der Kommentar bei `_KEY_SAFE` gehoert korrigiert ("injective"
+   gilt nicht gegen den Store).
+2. **QA-032 + QA-004** — beschaedigtes Save wird still uebersprungen;
+   entschieden ist Lesart B, der Spieler soll es erfahren. Drei Zustaende:
+   kein Save / Save gefunden, keins lesbar (mit Grund) / gelesen, N
+   uebersprungen.
+3. **QA-036** — in ein temporaeres Verzeichnis bauen und am Ende umbenennen.
+4. **SEC-019-Klasse** — Label-Fabrik plus Waechtertest, **nicht** 90
+   Einzelaenderungen; mit SEC-015 und DR-004.
+5. **SEC-006/016/018 als EIN Nachtrag** — relative Schranke aus der
+   komprimierten Nutzlast statt gemessener Konstante.
+6. Klein und dokumentiert: QA-037, QA-038, QA-044, QA-047, SEC-017, SEC-020,
+   DR-005 bis DR-007, `scripts/capture_weapon_damage.py`.
+
+Zurueckgestellt, nicht vergessen: **Nebenlaeufigkeit der Migration** (zwei
+Programminstanzen auf einem Store — vom `qa-engineer` als naechster
+Bruchpunkt von "lesen, schreiben, loeschen" benannt); `ruff` als
+Entwicklungsabhaengigkeit (zieht `researcher` und `compliance-agent` nach).
+
+## Entscheidungen des Nutzers
+- **Die eigene Spielinstallation gilt als vertrauenswuerdig** (2026-09-02).
+  SEC-015 bis SEC-018 auf Niedrig, SEC-019 von Hoch auf Mittel — sperrt das
+  Release nicht mehr. Grenze A (heruntergeladenes Save) bleibt scharf.
+  **Die README-Zusage "kein Netzwerkzugriff" muss trotzdem umformuliert
+  werden**, bevor etwas veroeffentlicht wird: SEC-019 ist gemessen, nicht
+  vermutet.
 
 ## Offen beim Nutzer
-- **UI F1-F4** (blockiert den Berater-Bau): Slots festhalten? Statblatt-Vorschau
-  vor dem Anwenden? Flueche mitbewerten? Name des Features?
-  Meine Empfehlungen: nein / nein (Undo genuegt) / ja, mitbewerten und benennen
-  / offen.
-- **`nightlords.png`** (C-002, Ampel ROT): Bildausschnitt neu setzen (empfohlen),
-  oder anderer Weg. Dazu: Git-Historie umschreiben oder nicht?
-- **PR #16** mergen, wenn gewuenscht — inhaltlich tragfaehig, aber der Stand ist
-  nicht releasefaehig.
+- **UI F1-F4** — blockiert den Berater-Bau: Slots festhalten? Statblatt-
+  Vorschau vor dem Anwenden? Flueche mitbewerten? Name des Features?
+  Empfehlungen: nein / nein / ja / offen.
+- **`nightlords.png`** (C-002, ROT) und ob die Git-Historie umgeschrieben wird.
+- **PR #16** mergen.
+- **L-003** aus `docs/lessons.md`: "ein Branch pro Task" widerspricht dem
+  Verbot von `branch`/`checkout` beim `developer` und beim `archivist`; keine
+  dritte Rolle ist benannt. Empfehlung: Erwartung auf "ein Branch pro
+  Auftragsgruppe, angelegt vom Director" aendern — aendert keine
+  Agentendefinition und entspricht der gelebten Praxis.
+- **QA-044**: die Aufloesung ist eine Produktentscheidung — Rueckfall auf den
+  Rohnamen (widerspricht der Trennung Name/Schluessel) oder ein sichtbares
+  "kann nicht uebernommen werden" im Panel.
 
-## Release-Blocker (GOAL A2)
-- **QA-003** (P2/Critical): Build-Namen landen ungeprueft im
-  QSettings-Schluesselraum; ein `/` im Namen loescht gespeicherte Builds.
-- **QA-018** (P2): Waffen-Tab nennt 203,4, die Detailtafel 244,1 fuer dieselbe
-  Waffe. Entschieden: Tabs ranken ueber `damage.attack_rating`, Fallback ist
-  Umbenennung der Spalte mit gemessener Begruendung.
-- **SEC-001 bis SEC-011** — der Sicherheitszyklus ist noch nicht gelaufen.
-  SEC-001 (Endlosschleife aus einem heruntergeladenen Save, beim Start, auf dem
-  GUI-Thread) ist vier Zeilen Arbeit und sperrt jedes Release.
-- **GOAL A9**: keine Pruefung gegen ein gebautes Artefakt. Erststart,
-  Startmenue-Eintrag, Icon-Pack-Bau sind ungeprueft. Braucht
-  `release-manager` (build, clean-room) und danach `power-user`.
-
-## Naechste kleinere Auftraege, geordnet
-1. QA-030 (verdeckte Deep-Aufloesung sichtbar machen) + QA-028 (Custom relic
-   gehoert dem Build) + die Luecke "genannten Slot leeren aendert nichts".
-2. QA-003 und QA-018 — beide Release-Blocker.
-3. QA-016: `architect` korrigiert AD-013 Punkt 4 an der Messung (die Praemisse
-   "ein Save ohne lesbare Loadout-Tabelle liefert keine Handles" ist **falsch** —
-   beide echten Saves liefern 100 % Handles).
-4. QA-027, QA-029, QA-031, QA-019, QA-026 — klein, dokumentiert.
-
-## Was niemand geprueft hat, und das bleibt so, bis es jemand tut
-- **Die Oberflaeche hat in Zyklus 2 kein Mensch gesehen.** Das Fenster liess
-  sich in dieser Umgebung nicht fokussieren; alle Belege sind headless ueber die
-  echten Widgets. Schliesst erst der `power-user` auf einem gebauten Artefakt.
-- **Zahlenrichtigkeit gegen das laufende Spiel.** Geprueft wurde gegen die
-  Spieldateien und gegen sich selbst, nie gegen das, was das Spiel anzeigt. Der
-  README-Vorbehalt zum Attack Rating bleibt offen — **das kann nur der Nutzer
-  im Spiel schliessen, und fuer den Berater waere es die wertvollste Pruefung.**
-- Nebenlaeufigkeit auf echten Widgets (Doppelklick, Abbruch mitten im Restore).
-- Der `("record", offset)`-Zweig von `copy_key`: mit echten Daten nicht
-  erreichbar, synthetisch geprueft, unbewacht.
-
-## Prozessfehler dieses Zyklus, zur Kenntnis
-- T-008 bis T-012 wurden **ohne Auftragsdatei** vergeben, nur als Freitext im
-  Dispatch. Der `ui-ux-designer` hat es gemerkt und vermerkt, der `archivist`
-  hat die Luecke im Repo gefunden. Die Vorschrift lautet: je nicht-trivialem
-  Auftrag eine Datei unter `docs/tasks/`.
-- Zwei parallel laufende `researcher` haben sich beim Schreiben ihres
-  gemeinsamen Rollengedaechtnisses ueberschrieben. Aufgefallen ist es nur, weil
-  der zweite es bemerkt und zusammengefuehrt hat.
+## Was niemand geprueft hat, und das bleibt so
+- **Die Oberflaeche hat kein Mensch mit Augen gesehen.** Alle Belege headless
+  ueber die echten Widgets. Schliesst erst der `power-user` auf einem
+  gebauten Artefakt.
+- **Zahlenrichtigkeit gegen das laufende Spiel.** Nur der Nutzer kann das
+  schliessen, und fuer den Berater waere es die wertvollste Pruefung.
+- Linux und macOS: dort legt QSettings INI/plist an; `settings.sync()` in
+  `_migrate_keys` ist von keiner Mutation zu toeten, weil nur Windows geprueft
+  wird. **Wuerden sie je Zielplattform, ist das der Punkt, an dem eine
+  Testluecke zur Datenverlustluecke wird.**
+- Bekannte CVEs der sieben Abhaengigkeiten (SEC-011).
+- Die vermutete 4-GiB-Allokation in `dvdbnd._read_entry` — Hypothese, nicht
+  ausgeloest.
