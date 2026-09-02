@@ -504,11 +504,14 @@ def set_hidden(hero_id: int, name: str, hidden: bool) -> None:
 
 
 def selected_build(hero_id: int) -> str:
-    """Which build this Nightfarer had selected when the program last closed.
+    """The build this Nightfarer's picker was last set to.
 
-    Stored so a session picks up where the last one left off: without it the
-    list always reopened on the equipped build, quietly discarding the choice
-    a player had made.
+    Set by the player when they choose one, and by the program when it reads
+    the save: finding a vessel equipped for this Nightfarer puts the picker on
+    the equipped build and stores that over whatever was there before, because
+    what is on screen at that moment is the save's build and the picker has to
+    say so. A session therefore opens on the equipped build wherever the save
+    has one, and on the last build the player chose wherever it has not.
     """
     _migrate_keys(hero_id)
     key = str(_settings().value(f"{BUILDS}/{hero_id}/__selected", "",
