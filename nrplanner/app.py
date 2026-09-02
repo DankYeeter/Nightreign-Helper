@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import os
 import sys
 
@@ -3022,7 +3023,13 @@ class Planner(QMainWindow):
         self.owned_label.setText(note)
         # The folder is named after the Steam account id, so it is offered on
         # hover rather than printed where every screenshot would carry it.
-        self.owned_label.setToolTip(self.owned.folder)
+        #
+        # Escaped, because a tooltip decides for itself whether what it is
+        # given is markup exactly as a QLabel on AutoText does, and setting a
+        # text format is not offered for tooltips (SEC-013). No Windows path
+        # can contain a "<", so this is depth rather than a hole being shut:
+        # the path is shown as the path, whatever it turns out to hold.
+        self.owned_label.setToolTip(html.escape(self.owned.folder))
         if not initial:
             # reload_chalices, not apply_chalice: the relics have just changed
             # underneath the slots, so the saved build has to be matched

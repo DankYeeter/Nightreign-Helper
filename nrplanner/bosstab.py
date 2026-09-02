@@ -12,6 +12,7 @@ figures; see `merge_everdark`.
 
 from __future__ import annotations
 
+import html
 import pathlib
 
 from PySide6.QtCore import Qt, Signal
@@ -308,6 +309,12 @@ class BossTab(QWidget):
 
         self.detail_name = QLabel()
         self.detail_name.setWordWrap(True)
+        # The boss's own name, straight out of the game's FMG text. A QLabel
+        # left on AutoText decides for itself whether what it is handed is
+        # markup, so a name carrying a tag would be rendered as one instead of
+        # shown as the name it is (SEC-012, the same defect as SEC-004). This
+        # label never wants markup, so it is told so where it is built.
+        self.detail_name.setTextFormat(Qt.PlainText)
         self.detail_name.setStyleSheet(
             "color: #e8e8e8; font-size: 15px; font-weight: bold;")
         layout.addWidget(self.detail_name)
@@ -319,6 +326,9 @@ class BossTab(QWidget):
 
         self.detail_text = QLabel()
         self.detail_text.setWordWrap(True)
+        # The boss's description, from the same FMG text and on AutoText for
+        # the same reason (SEC-012).
+        self.detail_text.setTextFormat(Qt.PlainText)
         self.detail_text.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.detail_text)
 
@@ -449,9 +459,13 @@ class BossTab(QWidget):
             return "-"
         bars.sort()
         place = sum(1 for value, _ in bars if value < mine) + 1
+        # The two names are the game's own text and this string is put into a
+        # rich-text label, so they are escaped rather than concatenated
+        # (SEC-012). Escaping at the point the value enters the markup is the
+        # only place it can be got right: the caller cannot know it will.
         return (f"{place} of {len(bars)} for bar size  "
-                f"(smallest {bars[0][1]} {bars[0][0]:g}, "
-                f"largest {bars[-1][1]} {bars[-1][0]:g})")
+                f"(smallest {html.escape(bars[0][1])} {bars[0][0]:g}, "
+                f"largest {html.escape(bars[-1][1])} {bars[-1][0]:g})")
 
     def show_detail(self, boss: dict | None) -> None:
         if boss is None:
@@ -583,7 +597,7 @@ class BossTab(QWidget):
             parts.append(self._section("BODY PARTS"))
             for label, value in rates.items():
                 parts.append(self._row(
-                    PART_NAMES.get((boss["name"], label), label),
+                    html.escape(PART_NAMES.get((boss["name"], label), label)),
                     f"x{value:g} damage"
                     + ("  — armoured" if value < 1 else "  — soft spot")))
             if profile.get("skips_weak_animation"):
