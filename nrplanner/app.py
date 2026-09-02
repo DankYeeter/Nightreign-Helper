@@ -1454,6 +1454,14 @@ class Planner(QMainWindow):
 
         self.owned_label = QLabel()
         self.owned_label.setWordWrap(True)
+        # This label prints the save's own slot name, and a save is a file the
+        # player may have been handed by someone else. A QLabel left on
+        # AutoText decides for itself whether what it was given is markup, so
+        # a slot named "<img src='//host/share/x'>" would be rendered as an
+        # image rather than shown as the name it is (SEC-004). Nothing here
+        # ever wants markup, so the label is told so once, at the one place it
+        # is built, rather than at each of the seven places it is written.
+        self.owned_label.setTextFormat(Qt.PlainText)
         self.owned_label.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
         layout.addWidget(self.owned_label)
 
