@@ -31,6 +31,14 @@ SHORTCUT_NAME = "Nightreign Helper.lnk"
 # directory, which is a shortcut that breaks the moment the venv moves.
 FROZEN = bool(getattr(sys, "frozen", False))
 
+# Where Windows keeps its own PowerShell. Started by bare name, "powershell"
+# is looked up in the current directory and along PATH first, so anything that
+# could drop a powershell.exe beside the executable -- or ahead of System32 on
+# PATH -- would be run instead, with the paths this module hands it (SEC-007).
+# The interpreter is a fixed part of Windows, so it is named in full and the
+# name is not negotiable.
+POWERSHELL_RELATIVE = ("System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
 
 def start_menu_dir() -> pathlib.Path | None:
     """The user's own Start Menu programs folder."""
@@ -49,6 +57,19 @@ def shortcut_path() -> pathlib.Path | None:
 def target() -> pathlib.Path:
     """What the shortcut should point at."""
     return pathlib.Path(sys.executable).resolve()
+
+
+def powershell_path() -> pathlib.Path | None:
+    """Windows PowerShell where Windows itself put it, or None.
+
+    None is a reason to let the shortcut fail with a message, never to stop
+    the program: everything else this tool does works without it.
+    """
+    system_root = os.environ.get("SystemRoot")
+    if not system_root:
+        return None
+    exe = pathlib.Path(system_root).joinpath(*POWERSHELL_RELATIVE)
+    return exe if exe.is_file() else None
 
 
 def available() -> bool:
@@ -92,10 +113,16 @@ def create() -> str:
     # a folder name containing a quote or a $ cannot end up being executed.
     env = {**os.environ, "NRH_LNK": str(path), "NRH_EXE": str(exe)}
 
+    powershell = powershell_path()
+    if powershell is None:
+        return ("Windows PowerShell was not found where Windows keeps it "
+                r"(%SystemRoot%\System32\WindowsPowerShell\v1.0)"
+                ", so the shortcut cannot be written.")
+
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive",
+            [str(powershell), "-NoProfile", "-NonInteractive",
              "-ExecutionPolicy", "Bypass", "-Command", script],
             env=env, capture_output=True, text=True, timeout=30,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
