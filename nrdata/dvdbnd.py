@@ -114,9 +114,6 @@ class Archive:
         out = bytes(data[:size])
         return dcx.decompress(out) if dcx.is_dcx(out) else out
 
-    def __contains__hash(self, name_hash: int) -> bool:
-        return name_hash in self.entries
-
     def _decrypt_ranges(self, data: bytearray, key_offset: int) -> None:
         key = self.header[key_offset : key_offset + 16]
         (range_count,) = struct.unpack_from("<I", self.header, key_offset + 16)
