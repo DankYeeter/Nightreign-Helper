@@ -49,6 +49,11 @@ NO_DATA = (
     "installed. Nothing here ships game data."
 ).format(env=SNAPSHOT_ENV)
 
+NO_GAME = (
+    "needs the installed game: this case reads the archives themselves and a "
+    "snapshot cannot stand in for them. Correct to skip on a runner."
+)
+
 
 def _snapshot_from_env() -> dict | None:
     raw = os.environ.get(SNAPSHOT_ENV)
@@ -101,6 +106,43 @@ def game_data() -> dict:
     # accident.
     model.configure(data)
     return data
+
+
+@pytest.fixture(scope="session")
+def installed_game():
+    """(game directory, paramdef directory) of a real installation, or a skip.
+
+    Never a snapshot. This is what the fixture below is for, and what it must
+    not be allowed to fall back out of.
+    """
+    from nrdata import gamefiles
+    from nrplanner import datasource
+
+    game = gamefiles.find_game_dir()
+    defs = datasource.defs_dir()
+    if game is None or defs is None:
+        pytest.skip(NO_GAME)
+    return game, defs
+
+
+@pytest.fixture(scope="session")
+def extracted_game_data(installed_game) -> dict:
+    """A dataset read out of the installed game during this run.
+
+    `game_data` above takes the snapshot when there is one, which is right for
+    every test that only needs a dataset to compute on -- and wrong as the
+    only thing the suite ever does, because it means fmg, bnd4, dvdbnd, tpf
+    and tae do not execute in a green run at all. All five parse bytes that
+    come out of a file rather than out of this program, so a change to any of
+    them would look tested without being tested (DEBT-001).
+
+    Session-scoped for the same reason `game_data` is: an extraction costs
+    about forty seconds and nothing here writes to what it returns.
+    """
+    from nrdata import extract
+
+    game, defs = installed_game
+    return extract.build(game, defs)
 
 
 @pytest.fixture(scope="session")
