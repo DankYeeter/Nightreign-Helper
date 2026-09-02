@@ -225,16 +225,25 @@ RESERVED_NAMES = (EQUIPPED_NAME, UNSAVED_NAME)
 #   the safe set holds no character that has a second spelling -- a-z and
 #     0-9, never A-Z, so nothing a name says reaches the key as a character
 #     the store could fold onto another one;
-#   the escapes are written one way only -- %XX with the hex digits in
-#     capitals, always. That is the spelling schema 2 already used, so a name
-#     with no capital letters in it keeps the key it was filed under and the
-#     move costs it nothing.
+#   the escapes are written one way only -- %XX, the hex digits always in
+#     the same case, so no name can reach the key in two spellings that the
+#     store would then fold onto one another.
 #
 # Folding the case of a key cannot merge two of them. "%" has no case and
 # every escape is exactly three characters long, so folding never moves a
 # character across the line between an escape and a plain one: a folded key
 # still reads one token at a time, each token still stands for one byte, and
 # the bytes still spell one name.
+#
+# Which case the hex digits are written in is a cost and not a safety.
+# Capitals are the spelling schema 2 already used, so a name with no capital
+# letters in it keeps the key schema 2 filed it under and the move costs it
+# nothing -- test_a_name_without_capitals_keeps_the_key_schema_2_filed_it_under
+# holds that, and it is the whole of the reason. Lower-case digits are just as
+# injective and were measured to be: the migration was run on a schema 2 store
+# with them, very many names took a new place, and nothing was lost. What
+# keeps the entry just written from being deleted is the folded comparison in
+# front of every remove() further down, not the case of the hex (QA-050).
 _KEY_SAFE = frozenset(string.ascii_lowercase + string.digits)
 
 # Set on a Nightfarer's group to say which derivation its builds are filed
