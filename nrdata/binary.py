@@ -72,13 +72,53 @@ class Reader:
             raise ValueError(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
 
     def cstr_at(self, offset: int, utf16: bool = False) -> str:
-        if utf16:
-            end = offset
-            while self.data[end : end + 2] != b"\0\0":
-                end += 2
-            return self.data[offset:end].decode("utf-16-le", "replace")
-        end = self.data.index(b"\0", offset)
-        return self.data[offset:end].decode("shift-jis", "replace")
+        return read_cstring(self.data, offset, utf16)
+
+
+def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
+    """The NUL-terminated string at `offset`, or a ValueError if there is none.
+
+    The bound is the buffer's own length rather than a chosen constant: a name
+    is read exactly as far as there are bytes to read it in, and no further.
+    Reaching that bound means the container said "a string starts here" and the
+    bytes do not back it up. That is a damaged file and is reported as one --
+    not quietly cut short at some invented length, which would hand the caller
+    a name the file never held.
+
+    This replaces four copies of a loop that walked forward until it met a
+    terminator (SEC-001). Past the end of the buffer the two-byte slice it
+    compared is empty forever, so the loop never left, and the copy in the save
+    reader ran on the GUI thread before the player had touched anything.
+
+    The UTF-16 terminator only counts at an even distance from the string's
+    start. A zero pair on an odd boundary is the high byte of one character
+    meeting the low byte of the next, and cutting there would split a
+    character in half.
+    """
+    if not 0 <= offset <= len(data):
+        raise ValueError(
+            f"string offset {offset} lies outside the {len(data)}-byte buffer"
+        )
+    if not utf16:
+        end = data.find(b"\0", offset)
+        if end < 0:
+            raise ValueError(
+                f"unterminated string at offset {offset} "
+                f"in a {len(data)}-byte buffer"
+            )
+        return data[offset:end].decode("shift-jis", "replace")
+
+    pos = offset
+    while True:
+        end = data.find(b"\0\0", pos)
+        if end < 0:
+            raise ValueError(
+                f"unterminated UTF-16 string at offset {offset} "
+                f"in a {len(data)}-byte buffer"
+            )
+        if (end - offset) % 2 == 0:
+            return data[offset:end].decode("utf-16-le", "replace")
+        pos = end + 1
 
 
 def reverse_bits(value: int) -> int:

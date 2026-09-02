@@ -39,9 +39,24 @@ class Archive:
             raise ValueError(f"{bhd_path.name}: wrong key, no BHD5 magic")
 
         bucket_count, buckets_offset = struct.unpack_from("<II", self.header, 0x10)
+        # The bucket count and every per-bucket file count are read out of the
+        # header and steer the two loops below, so each is measured against
+        # the header's own size first (SEC-002). Unchecked, one number in a
+        # damaged header asks for four billion FileEntry objects.
+        size = len(self.header)
+        if buckets_offset + bucket_count * 8 > size:
+            raise ValueError(
+                f"{bhd_path.name}: {bucket_count} buckets do not fit in a "
+                f"{size}-byte header"
+            )
         self.entries: dict[int, FileEntry] = {}
         for i in range(bucket_count):
             count, offset = struct.unpack_from("<II", self.header, buckets_offset + i * 8)
+            if offset + count * FILE_HEADER_SIZE > size:
+                raise ValueError(
+                    f"{bhd_path.name}: bucket {i} claims {count} files, which "
+                    f"do not fit in a {size}-byte header"
+                )
             for j in range(count):
                 (h, padded, unpadded, off, _sha, aes) = struct.unpack_from(
                     "<QIIQQQ", self.header, offset + j * FILE_HEADER_SIZE
