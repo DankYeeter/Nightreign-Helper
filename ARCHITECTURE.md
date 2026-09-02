@@ -1781,10 +1781,11 @@ Arithmetik-Einstiege, nicht auf das Modul.
 |---------|--------|-----------|--------------|
 | **W0** | `nrplanner/weaponstab.py` löschen (QA-057). Kein Importeur im ganzen Baum; `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`, das Attribut überlebt. | ja, trivial | — |
 | **W1** | `WeaponRating.per_type()` in `weapons.py`; die drei verbleibenden Ausschreibungen darauf umstellen. | **ja, bitgleich** | W0 |
+| **W1b** | Umbenennung nach der Schichtregel aus AD-022 (`scaled_*` / `final_*`, `Basis` → `Question`). Reine Umbenennung. | **ja, bitgleich** | W1 |
 | **W2** | Fassade in `damage.py` anlegen, `MULTIPLIERS_FOR`/`ATTRIBUTES_FOR` **mit den heutigen Werten** befüllen. `attack_rating` ruft die Fassade; sonst ändert sich nichts. | **ja, bitgleich** | W1 |
 | **W3** | `app.py` Kachel **und** Tafel auf `damage.equipped()` umstellen. Hier fällt Achse C zwischen Kachel und Tafel — sie sind dieselbe Frage. | **nein, gewollt** | W2 |
 | **W4** | `arsenaltab` auf `damage.rank_candidates()` umstellen, Ziel-Tier ausdrücklich als `target_tier` durchgereicht. | **nein, gewollt** | W2 |
-| **W5** | Wächter aus AD-021 scharfschalten. | — | W3, W4 |
+| **W5** | Wächter aus AD-021 scharfschalten; `WeaponRating.total` fällt, sobald es keinen Leser mehr hat (Z1); `weapons.rank` bekommt einen stabilen Zweitschlüssel. | — | W3, W4 |
 | **W6** | Nach der Spielmessung: **ein Wert** in `MULTIPLIERS_FOR[Basis.CANDIDATE]`. | nein, das ist die Antwort auf QA-018 | Nutzer |
 
 W3 und W4 sind voneinander unabhängig und können in beliebiger Reihenfolge
@@ -1809,6 +1810,36 @@ sichern. Also:
   `weapons.rate` liefert über alle Differentialfälle dieselben Zahlen wie
   vorher; abweichen darf nur, was die Fassade darüberlegt. Das ist prüfbar und
   trennt Umbau von Bedeutungsänderung.
+
+**Zusicherung Z1 — es gibt je Schicht genau eine Darstellung, und jedes `_total`
+ist ihre Summe** (nachgetragen 2026-09-02 auf Vorlage des `director` nach W1):
+Die Fassade hält je Schicht **eine** Abbildung Schadensart → Zahl. Jedes
+`*_total` ist definitionsgemäss `sum(*_per_type.values())` und wird **nirgends
+unabhängig gebildet**.
+
+Anlass: heute zeigt der Waffen-Tab „AR" aus `WeaponRating.total`
+(`sum(base) + sum(scaled)`), die Typzeilen darunter aus `per_type()`
+(typweise summiert). Dieselben Summanden, **andere Klammerung**. Dass beide auf
+dieselbe angezeigte Ganzzahl runden, ist heute Gleitkomma-Glück, nicht
+Konstruktion. Der `director` liest das als stillen Driftpfad derselben Art, die
+W1 gerade geschlossen hat — **das ist richtig, und es ist schlimmer als eine
+Anzeigefrage:** der Grenzbeitrag des Beraters (AD-018) ist eine **Differenz
+zweier Totals**. Werden die beiden Seiten unterschiedlich geklammert, setzt
+nicht die Arithmetik das Rauschniveau des Vergleichs, sondern die
+Inkonsistenz — und Grenzbeiträge sind klein.
+
+Prüfbar als **exakte** Gleichheit (`==`, kein `pytest.approx`), über dieselben
+Differentialfälle: `rating.total == sum(rating.per_type.values())` für jede
+Schicht. Eine Toleranz würde genau die Drift verstecken, deretwegen die
+Zusicherung existiert.
+
+`weapons.WeaponRating.total` bleibt bis W4 **bitgleich unverändert** — es ist
+der Bezugspunkt der Differentialprüfung, solange es zwei Pfade gibt. Es fällt
+in W5, wenn es keinen Leser mehr ausserhalb der Fassade hat; ab da gibt es im
+Programm genau eine Summation. `weapons.rank` sortiert dann über die
+abgeleitete Summe und bekommt im selben Zug einen **stabilen Zweitschlüssel**
+(`weapon["id"]`) — QA-059 hat gerade belegt, dass nicht reproduzierbare
+Sortierung in diesem Programm kein Gedankenspiel ist.
 
 **Konsequenzen:** Leicht wird — die Antwort auf QA-018 ist danach eine
 Zeilenänderung an einer benannten Stelle statt eines Eingriffs an vier
@@ -1952,6 +1983,155 @@ eben" für eine Sonderansicht rufen; er muss eine `Basis` beantragen. Das ist
 der Preis und der Zweck.
 
 **Umkehrbarkeit:** leicht. Ein Test.
+
+---
+
+### AD-022 — Ein Name je Schicht: `scaled_*` vor der Multiplikatorschicht, `final_*` danach; die Umbenennung ist ein eigener Schritt W1b vor W2 (2026-09-02, Status: aktiv; präzisiert AD-019)
+
+**Kontext:** Meldung des `developer` aus W1. Nach W1 heissen drei Dinge auf
+drei Schichten gleich: `weapons.WeaponRating.per_type()` ist eine **Methode**
+(vor Multiplikatoren), `damage.AttackRating.per_type` ein **Feld** (nach
+Multiplikatoren), und AD-019 sah `Rating.per_type` als drittes vor. Zwei davon
+unterscheiden genau das, was der ganze Umbau trennen soll.
+
+**Beim Nachlesen kommt eine vierte Kollision dazu, die nicht gemeldet war und
+eine Schicht tiefer sitzt:** `weapons.WeaponRating.base` heisst „vor der
+Attributskalierung"; `damage.AttackRating.base_total` heisst „auf den
+**Grundattributen**" (`base_total = before.total`, und `before` ist
+`weapons.rate(..., build.base_attributes, ...)`). Zwei Bedeutungen von `base`
+in zwei Modulen, die einander importieren. Dieselbe Fehlerklasse wie QA-058,
+nur in der Benennung statt in der Arithmetik.
+
+**Optionen:**
+- **A — Nur das gemeldete `per_type` entzerren.** Billig. Konsequenz: `base`
+  bleibt doppeldeutig, und die Fassade erbt die Zweideutigkeit in ihrem
+  Feldnamen.
+- **B — Freie Namen je Stelle** („`per_damage_type`", „`by_type`", …).
+  Konsequenz: verschieden genug, um nicht zu kollidieren, und nichtssagend
+  genug, um nicht zu erklären, welche Schicht gemeint ist.
+- **C — Eine mechanische Regel über alle drei Schichten**, abgeleitet aus dem
+  Vokabular, das `damage.py` schon führt (`base_total`, `scaled_total`,
+  `final_total`).
+
+**Entscheidung:** C. Die Regel lautet:
+
+> Der Name nennt die **Schicht**, und `X_total` ist immer die Summe genau des
+> gleichnamigen `X_per_type` (Zusicherung Z1 in AD-019). Kein Name ohne
+> Schichtpräfix.
+
+| Schicht | je Schadensart | Summe | Bedeutung |
+|---------|----------------|-------|-----------|
+| 1 | `scaled_per_type` | `scaled_total` | Grundschaden x Verstärkung + Attributskalierung |
+| 2 | `final_per_type` | `final_total` | nach `build.rates` x `class_rates` — die angezeigte Zahl |
+
+Konkret: `weapons.WeaponRating.per_type()` → **`scaled_per_type()`**;
+`damage.AttackRating.per_type` → **`final_per_type`**; `Rating` aus AD-019
+führt beide Paare und **kein** unpräfigiertes `per_type`/`total`.
+`AttackRating.base_total` → **`bare_scaled_total`** (die Schicht-1-Summe auf
+Grundattributen), womit `base` wieder nur eines heisst.
+
+Ausserdem: das Enum aus AD-019 heisst **`Question`**, nicht `Basis` — `Basis`
+neben `base_*` ist dieselbe Falle noch einmal. Mitglieder unverändert
+`EQUIPPED`, `CANDIDATE`, `BARE`.
+
+**Eigener Schritt W1b, vor W2 — nicht in W2 hinein.** Begründung, und sie ist
+nicht Ordnungsliebe: W1b ist eine reine Umbenennung und damit **beweisbar
+bitgleich**; die Differentialstrecke aus W1 (30 000 Fälle, Vergleicher
+mutationsgeprüft) deckt sie ohne eine Zeile neuen Testcode. W2 legt die Fassade
+an. Steckt die Umbenennung in W2, kann der Differentialtest „umbenannt" nicht
+mehr von „verändert" unterscheiden — und genau diese Trennung ist das Gerüst
+des ganzen Migrationspfads (AD-019: W1/W2 bitgleich, ab W3 gewollt anders).
+Nebenbei bleibt der W2-Diff lesbar.
+
+**Konsequenzen:** Leicht wird — man kann einer Zahl ihren Namen ansehen, statt
+ihren Aufrufweg zurückzuverfolgen. Dauerhaft schwer wird — jeder künftige
+Zahlenname trägt ein Präfix, auch wo es umständlich klingt. Der Preis ist
+Tipparbeit, der Gegenwert ist, dass QA-058 nicht als Benennungsbefund
+zurückkommt.
+
+**Umkehrbarkeit:** leicht. Eine Umbenennung, durch die Differentialstrecke
+abgesichert.
+
+---
+
+### AD-023 — Das Invarianzargument aus Nachtrag III gilt nur für Multiplikatoren des Grundzustands; für Kandidaten, die selbst eine Angriffsrate mitbringen, kann W6 die Reihenfolge drehen (2026-09-02, Status: aktiv; **korrigiert Nachtrag III**)
+
+**Kontext:** Der `ui-ux-designer` hat beim Schreiben der Spec einen Fehler in
+meiner Begründung gefunden. Nachtrag III behauptete, der Berater-Bau sei ab W5
+nicht mehr von der Spielmessung (W6) abhängig, weil eine flache
+Multiplikatorschicht den Grenzbeitrag nur **skaliert**. **Die Randbedingung
+dieser Aussage war „der Multiplikator kommt aus dem Grundzustand" — und sie
+wurde still auf jeden Kandidaten ausgedehnt.** Genau der Fehler, vor dem meine
+eigene Rollenregel warnt.
+
+**Nachgerechnet.** Sei `S(·)` die Schicht-1-Summe und `m(·)` das Produkt der
+Angriffsraten. Der Grenzbeitrag eines Kandidaten `k` auf Grundzustand `B` ist
+
+```
+Delta(k) = m(B+k) * S(B+k) - m(B) * S(B)
+```
+
+- Bringt `k` **nur Attribute** mit, ist `m(B+k) = m(B) = m`, also
+  `Delta(k) = m * (S(B+k) - S(B))`. Ein gemeinsamer Faktor über alle
+  Kandidaten: Grössen ändern sich, Rangfolge nicht. **So weit trug
+  Nachtrag III.**
+- Bringt `k` **selbst eine Angriffsrate** `r > 1` mit, ist `m(B+k) = m * r`:
+
+```
+Delta(k) = m * (r - 1) * S(B)  +  m * r * (S(B+k) - S(B))
+```
+
+Der erste Summand hängt an `S(B)` — am **ganzen** Angriffswert, nicht am
+Zuwachs. Grössenordnung: bei `S(B) ~ 300` und `r = 1,20` sind das 60, während
+ein Relikt mit +5 Stärke `S` im einstelligen Bereich bewegt. Und der Term ist
+**genau dann null, wenn W6 die Multiplikatorschicht für `Question.CANDIDATE`
+abschaltet**. W6 entscheidet also nicht die Grösse, sondern **welche
+Effektfamilie gewinnt**. Die strittige Familie aus T-023 (Improved Thrusting
+Counterattack, Improved Sorceries, Improved Incantations) ist genau diese.
+
+**Der `ui-ux-designer` hat recht, die Korrektur des `director` in
+`docs/state.md` ist richtig, und Nachtrag III ist an dieser Stelle falsch.**
+
+**Optionen für den Umgang bis W6:**
+- **A — Berater bis W6 gar nicht ausliefern.** Sicher, und es hängt ein ganzes
+  Feature an einer Beobachtung, die der Nutzer machen soll, wenn er Zeit hat.
+- **B — Pauschaler, immer sichtbarer Reihenfolgevorbehalt an jeder
+  Picker-Zeile.** Ehrlich, aber falsch dosiert: er stünde auch dort, wo die
+  Rangfolge nachweislich invariant ist, und ein Vorbehalt, der immer da ist,
+  wird nicht gelesen.
+- **C — Der Vorbehalt wird berechnet statt gesetzt.** Die Invarianz ist keine
+  Eigenschaft der Zielrichtung, sondern des **Kandidatenfelds**, und sie ist
+  exakt prüfbar: ein Kandidat ist betroffen, wenn einer seiner Effekte ein Feld
+  aus `AR_RATE_FOR` oder dessen klassengebundener Variante trägt. Die Familie
+  ist **vollständig aufgezählt** (~20 IDs, `docs/state.md`), also ist das ein
+  Test, keine Heuristik.
+
+**Entscheidung:** C.
+
+1. **Kein Kandidat des Laufs trägt ein AR-Ratenfeld** → die Rangfolge ist
+   gegenüber W6 invariant. **Kein Vorbehalt.** Das ist der häufige Fall.
+2. **Mindestens einer trägt eines** → der Vorbehalt erscheint, und zwar **an
+   den betroffenen Zeilen**, nicht als Banner über der Liste.
+
+Die Zahlengrösse bleibt in beiden Fällen unter dem Attack-Rating-Vorbehalt aus
+AD-004, bis W6 steht — das ist unverändert.
+
+**Folge für die Reihenfolge, und das ist die Korrektur an Nachtrag III:** Der
+**Bau** des Beraters ist ab W5 nicht von der Spielmessung blockiert. Die
+**Auslieferung einer Rangfolge, die AR-Raten-Kandidaten enthält**, ist es sehr
+wohl — bis W6 nur mit der Markierung aus Punkt 2. Prüfpunkt 16 (abnehmender
+Ertrag) bleibt gültig, weil er auf Attributskandidaten formuliert ist; er ist
+**kein** Beleg für die Rangfolge gemischter Felder und darf nicht als solcher
+gelesen werden.
+
+**Konsequenzen:** Leicht wird — der Nutzer sieht den Vorbehalt dort, wo er
+zutrifft, und nirgends sonst. Dauerhaft schwer wird — der Berater muss je Lauf
+wissen, welche Kandidaten eine Angriffsrate tragen; das ist eine Zusatzabfrage
+über die Effekte des Kandidaten, keine zweite Rechnung.
+
+**Umkehrbarkeit:** leicht. Fällt W6 auf „aus", verschwindet der Fall
+vollständig; fällt er auf „an", bleibt die Markierung als Erklärung stehen und
+kann dann entfallen.
 
 ---
 
@@ -2423,3 +2603,78 @@ Schirm stehen können. Die Benennung der Spalten und Beschriftungen (QA-018
 Weg B) sollte diese drei Fragen unterscheidbar machen; welche Wörter, ist
 nicht meine Entscheidung. Der Entwurf liefert `Rating.basis` mit, damit die
 Anzeige benennen **kann**, was sie zeigt.
+
+---
+
+## Nachtrag IV 2026-09-02 — Antworten vor W2 (Z1, AD-022, AD-023)
+
+Anlass: der W1-Bericht des `developer` (W0 und W1 gebaut, 30 000
+Differentialfälle, 0 Abweichungen, Vergleicher selbst mutationsgeprüft) und
+eine Korrektur des `ui-ux-designer` an meiner Begründung aus Nachtrag III.
+
+### Auflagen für W2
+
+**A1 — Die Fassade bildet kein `total` unabhängig.** Zusicherung Z1 in AD-019,
+mit exaktem Gleichheitstest (`==`, kein `approx`). Die Lesart des `director`
+ist bestätigt und trägt weiter als angenommen: der Grenzbeitrag (AD-018) ist
+eine **Differenz zweier Totals**, und zwei Klammerungen setzen das
+Rauschniveau des Vergleichs statt der Arithmetik.
+
+**A2 — Die doppelte `fields`-Schleife in `attack_rating` darf in W2
+zusammengelegt werden, aber nur unter Erhalt der Multiplikationsreihenfolge.**
+Heute wird je Feld erst `build.rates[f]`, dann `class_rates[f]` an `rate`
+heranmultipliziert; `rates_in_play` benutzt daneben das Produkt beider. Eine
+Zusammenlegung, die stattdessen `value = build.rates[f] * class_rates[f]`
+bildet und `rate *= value` rechnet, ändert die Assoziationsreihenfolge und
+damit potentiell das letzte Bit — W2 ist als bitgleich zugesagt. Also:
+zusammenlegen mit unveränderter Reihenfolge, oder gar nicht. Gelingt es nicht
+sauber, wandert es nach W5, wo keine Bitgleichheit mehr zugesagt ist. Die
+Entscheidung darüber trifft der `developer` am Differentialtest, nicht am
+Augenschein.
+
+**A3 — W2 fasst nur `nrplanner/damage.py` an.** Dass `arsenaltab` weiterhin
+`weapons.rank` ruft, ist **richtig und W4**, nicht W2. Bestätigt. Genau
+deshalb kann W2 bitgleich sein: es ändert keinen Aufrufer.
+
+**A4 — W1b geht W2 voraus** (AD-022): reine Umbenennung, durch die bestehende
+Differentialstrecke gedeckt, damit W2 „umbenannt" nicht mit „verändert"
+vermischt.
+
+### Korrektur an Nachtrag III
+
+Der Abschnitt „Reihenfolge gegenüber dem Berater" in Nachtrag III ist an einer
+Stelle **falsch** und wird durch AD-023 ersetzt: die Invarianz des
+Grenzbeitrags gegenüber W6 gilt nur, solange der Multiplikator aus dem
+**Grundzustand** kommt. Bringt der Kandidat selbst eine Angriffsrate mit, tritt
+ein Term `m·(r−1)·S(B)` hinzu, der am **ganzen** Angriffswert hängt und die
+Rangfolge drehen kann. Die Randbedingung meiner Aussage war benannt gewesen —
+angewendet wurde sie trotzdem auf den allgemeinen Fall.
+
+Was von Nachtrag III **stehen bleibt:** die Fassade muss vor den Berater; der
+**Bau** des Beraters ist ab W5 nicht von der Spielmessung blockiert.
+Was **ersetzt** wird: die Auslieferung einer Rangfolge, die
+AR-Raten-Kandidaten enthält, ist es sehr wohl — mit der berechneten Markierung
+aus AD-023, Punkt 2, statt eines pauschalen Vorbehalts.
+
+### Prüfpunkte, Ergänzung
+
+23. **`total == sum(per_type.values())` exakt**, je Schicht, über die
+    Differentialfälle aus W1.
+24. **Der Vorbehalt aus AD-023 erscheint genau dann**, wenn das Kandidatenfeld
+    mindestens einen Effekt mit einem Feld aus `AR_RATE_FOR` oder dessen
+    klassengebundener Variante enthält — und sonst nicht. Zwei Fälle, beide
+    konstruierbar, weil die Familie vollständig aufgezählt ist.
+25. **Nach W5 gibt es im Programm genau eine Summation** der Schadensarten:
+    `WeaponRating.total` hat keinen Leser mehr oder existiert nicht mehr.
+
+### Was der `developer` zusätzlich nicht tun soll
+
+27. **`weapons.WeaponRating.total` vor W5 nicht umdefinieren.** Solange es zwei
+    Pfade gibt, ist es der Bezugspunkt der Differentialprüfung; eine
+    Neuklammerung dort macht die Prüfung uninterpretierbar.
+28. **Keine Toleranz in der Z1-Prüfung.** `pytest.approx` würde genau die
+    Drift verstecken, wegen der die Zusicherung existiert.
+29. **Beim Fallenlassen von `WeaponRating.total` in W5 die Sortierung von
+    `weapons.rank` nicht ohne Zweitschlüssel lassen.** QA-059 hat gerade
+    belegt, dass nicht reproduzierbare Sortierung in diesem Programm real ist;
+    `(-summe, weapon["id"])`.
