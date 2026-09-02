@@ -52,6 +52,26 @@ class WeaponRating:
     def meets_requirements(self) -> bool:
         return not self.unmet
 
+    def per_type(self) -> dict[str, float]:
+        """Base damage plus what the attributes add, per damage type.
+
+        The sum itself is one line, and that is exactly why it needs a home:
+        `WeaponRating` carried `total` but no way to ask per type, so every
+        display that breaks the figure down wrote the line out again. Three
+        copies of one line drift apart one call site at a time (AD-019).
+
+        A type the weapon does not deal is left out rather than reported as
+        zero -- `rate` records a type only where there is base damage to
+        record, and every caller wants the types the weapon hits with. The
+        order is DAMAGE_TYPES, so two displays list the same weapon alike.
+        """
+        out: dict[str, float] = {}
+        for damage in DAMAGE_TYPES:
+            value = self.base.get(damage, 0.0) + self.scaled.get(damage, 0.0)
+            if value:
+                out[damage] = value
+        return out
+
 
 def rate(weapon: dict, attributes: dict[str, int], data: dict,
          upgrade: int = MIN_UPGRADE) -> WeaponRating:

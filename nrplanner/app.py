@@ -2895,9 +2895,13 @@ class Planner(QMainWindow):
         delta = final_total - base_total
         self.last_ar = rating.figures()
 
+        # The left-hand column of each row: the same armament on the level's
+        # own attributes, before anything equipped raised them.
+        was_per_type = before.per_type()
+
         rows = []
         for damage, value in boosted.items():
-            was = before.base.get(damage, 0.0) + before.scaled.get(damage, 0.0)
+            was = was_per_type.get(damage, 0.0)
             diff = value - was
             colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
             change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"

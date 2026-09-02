@@ -136,10 +136,7 @@ def attack_rating(weapon: dict, tier: int, build: model.Build, data: dict,
     scaled_total = 0.0
     rates_in_play: dict[str, float] = {}
 
-    for damage in weapons.DAMAGE_TYPES:
-        total = after.base.get(damage, 0.0) + after.scaled.get(damage, 0.0)
-        if not total:
-            continue
+    for damage, total in after.per_type().items():
         scaled_total += total
         fields = AR_RATE_FOR.get(damage, ())
         if starting_armament:
