@@ -398,9 +398,16 @@ def test_the_panel_s_rating_is_the_equipped_question(game_data, build, hero,
                                                      starting_weapon):
     """`attack_rating` is a view of `equipped()`, not a second calculation.
 
-    It still exists because the breakdown panel asks in its own terms until
-    AD-019 step W3; what it must not be is a second answer to the same
-    question, which is how QA-018 arose in the first place.
+    The panel stopped asking in these terms in W3; the advisor's marginal
+    contribution (AD-018) and the window-free half of the golden file still
+    do. What it must not be is a second answer to the same question, which is
+    how QA-018 arose in the first place.
+
+    The two totals are asserted with `==` and no tolerance on purpose. Until
+    W3 this view carried its own accumulation of layer one -- a plain loop
+    where `Rating.scaled_total` uses a compensated `sum()` -- and the two
+    disagreed in the last bit. An `approx` here would let that summation back
+    in without a word, which is exactly what assurance Z1 forbids.
     """
     slot = slot_holding(starting_weapon, weapons.MAX_UPGRADE)
     bare, now = damage.equipped(slot, damage.STARTING_SLOT, build, hero,
@@ -414,3 +421,52 @@ def test_the_panel_s_rating_is_the_equipped_question(game_data, build, hero,
     assert panel.final_total == now.final_total
     assert panel.rates == now.rates
     assert panel.before.scaled_per_type() == bare.scaled_per_type
+    assert panel.scaled_total == now.scaled_total
+    assert panel.bare_scaled_total == bare.scaled_total
+    assert panel.figures() == damage.breakdown_figures(bare, now)
+
+
+# The reciprocal of the divergence rate QA-064/d records for this pair of
+# summations (about 0.15% of armament-tier-build combinations), times three.
+# Below it, a second summation put back into the panel view would be caught by
+# luck or not at all; at three times over, the case set is expected to hold
+# several counterexamples rather than one.
+ENOUGH_MULTI_TYPE = 3 * 667
+
+
+def test_the_panel_view_forms_no_total_of_its_own(game_data, build, hero,
+                                                  starting_weapon):
+    """Assurance Z1 through `attack_rating`, and it needs the whole dataset.
+
+    One armament cannot hold this. A plain accumulation and a compensated
+    `sum()` over the same addends in the same order agree for all but a
+    fraction of a percent of cases, and they agree always for an armament with
+    a single damage type -- so the obvious single-case assertion passes with
+    the second summation back in place. That is not hypothetical: this view
+    carried exactly such an accumulation until AD-019 step W3.
+
+    So the assertion runs over every armament at every tier the arsenal
+    spinbox can ask for, and the case set is counted before it is trusted.
+    """
+    multi_type = 0
+    for weapon in game_data["weapons"]:
+        for tier in ALL_TIERS:
+            slot = slot_holding(weapon, tier)
+            bare, now = damage.equipped(slot, damage.STARTING_SLOT, build,
+                                        hero, game_data)
+            panel = damage.attack_rating(
+                weapon, tier, build, game_data,
+                starting_armament=damage.is_starting_armament(
+                    weapon, hero, damage.STARTING_SLOT))
+
+            if len(now.scaled_per_type) > 1:
+                multi_type += 1
+            assert panel.scaled_total == now.scaled_total, weapon["name"]
+            assert panel.bare_scaled_total == bare.scaled_total, weapon["name"]
+            assert panel.final_total == now.final_total, weapon["name"]
+
+    assert multi_type >= ENOUGH_MULTI_TYPE, (
+        f"only {multi_type} armament-tier cases in this dataset carry more "
+        f"than one damage type, and a single-type case cannot tell two "
+        f"summations apart -- the assertions above would pass on arithmetic "
+        f"that had drifted")

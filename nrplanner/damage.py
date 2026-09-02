@@ -143,9 +143,11 @@ class Rating:
     """
 
     question: Question
-    # The layer-one rating this was built from. The breakdown panel still
-    # reads it directly for the requirement check and the per-stat scaling
-    # figures; it goes when the last such reader does (AD-019 steps W3, W5).
+    # The layer-one rating this was built from. No display reads it any more
+    # -- the breakdown panel took its requirement check and its per-stat
+    # figures off it in W3 and asks this dataclass instead. It stays for
+    # `WeaponRating.total`, which is still the reference point of the
+    # bit-for-bit comparison, and goes with it in W5 (assurance Z1).
     weapon_rating: weapons.WeaponRating
     scaled_per_type: dict[str, float]
     final_per_type: dict[str, float]
@@ -162,12 +164,15 @@ class Rating:
     def scaled_total(self) -> float:
         """Layer one, summed from the map beside it and from nothing else.
 
-        `_accumulated` below is the only other place in the module that sums
-        a layer-one per-type map the way this one does, and it belongs to the
-        panel rather than to the facade -- see there for why it outlives this
-        step. `final_total` beside this property is a third summation, but it
-        sums layer two, not layer one, so it is not the "other" this docstring
-        means (QA-064/b).
+        Since W3 this is the **only** place in the module that sums a
+        layer-one per-type map: the panel's own accumulation went with the
+        step that put the panel on `equipped()`. `final_total` beside this
+        property is a second summation, but it sums layer two, not layer one,
+        so it is not an "other" in the sense assurance Z1 forbids (QA-064/b).
+
+        Outside this module `weapons.WeaponRating.total` still brackets the
+        same addends differently, and deliberately so until W5 (do-not rule
+        27): it is the reference point the differential comparison stands on.
         """
         return sum(self.scaled_per_type.values())
 
@@ -207,43 +212,83 @@ class Rating:
 
 @dataclass(frozen=True)
 class AttackRating:
-    """One armament's damage, before and after everything equipped.
+    """The breakdown panel's older view of an `equipped()` pair.
 
-    The breakdown panel's own view of a `Rating` pair, kept until the panel
-    itself moves onto the facade (AD-019 step W3).
+    Every figure on it is read off the two `Rating`s it holds, so it cannot
+    be a second answer to a question the facade has already answered -- which
+    is how QA-018 arose. The panel itself stopped asking in these terms in
+    W3; what still asks is the advisor's marginal-contribution measure
+    (AD-018) and the window-free half of the golden file.
     """
 
-    weapon: dict
-    # The scaled figures at the level's own attributes, and at the attributes
-    # the relics raised them to. Both carry the requirement check.
-    before: weapons.WeaponRating
-    after: weapons.WeaponRating
-    # Damage type -> the figure after the multipliers, the number shown.
-    final_per_type: dict[str, float]
-    bare_scaled_total: float
-    scaled_total: float
-    final_total: float
-    # Only the multipliers that are not 1.0, for the click-through breakdown.
-    rates: dict[str, float]
-    weapon_class: str | None
-    starting_armament: bool
+    bare: Rating
+    now: Rating
+
+    @property
+    def weapon(self) -> dict:
+        return self.now.weapon
+
+    @property
+    def before(self) -> weapons.WeaponRating:
+        return self.bare.weapon_rating
+
+    @property
+    def after(self) -> weapons.WeaponRating:
+        return self.now.weapon_rating
+
+    @property
+    def final_per_type(self) -> dict[str, float]:
+        """Damage type -> the figure after the multipliers, the number shown."""
+        return self.now.final_per_type
+
+    @property
+    def bare_scaled_total(self) -> float:
+        return self.bare.scaled_total
+
+    @property
+    def scaled_total(self) -> float:
+        return self.now.scaled_total
+
+    @property
+    def final_total(self) -> float:
+        return self.now.final_total
+
+    @property
+    def rates(self) -> dict[str, float]:
+        """Only the multipliers that are not 1.0, for the click-through tafel."""
+        return self.now.rates
+
+    @property
+    def weapon_class(self) -> str | None:
+        return self.now.weapon_class
+
+    @property
+    def starting_armament(self) -> bool:
+        return self.now.starting_armament
 
     def figures(self) -> dict:
-        """The numbers the breakdown popup needs, and nothing else.
+        return breakdown_figures(self.bare, self.now)
 
-        `class` is in here because a class-scoped buff records its source
-        under a prefixed key: without knowing which class to look under,
-        "Improved Ranged Weapon Attacks" raised the total and then named
-        nothing that did it.
-        """
-        return {
-            "base": self.bare_scaled_total,
-            "scaled": self.scaled_total,
-            "final": self.final_total,
-            "rates": dict(self.rates),
-            "weapon": self.weapon.get("name", "weapon"),
-            "class": self.weapon_class,
-        }
+
+def breakdown_figures(bare: Rating, now: Rating) -> dict:
+    """The numbers the breakdown popup needs, and nothing else.
+
+    Takes the pair `equipped()` returns, because the popup's left-hand figure
+    answers a different question from its right-hand one and the pair is what
+    holds both answers together.
+
+    `class` is in here because a class-scoped buff records its source under a
+    prefixed key: without knowing which class to look under, "Improved Ranged
+    Weapon Attacks" raised the total and then named nothing that did it.
+    """
+    return {
+        "base": bare.scaled_total,
+        "scaled": now.scaled_total,
+        "final": now.final_total,
+        "rates": dict(now.rates),
+        "weapon": now.weapon.get("name", "weapon"),
+        "class": now.weapon_class,
+    }
 
 
 def is_starting_armament(weapon: dict, hero: dict, slot_index: int) -> bool:
@@ -321,29 +366,6 @@ def _answer(rating: weapons.WeaponRating, question: Question,
     )
 
 
-def _accumulated(per_type: dict[str, float]) -> float:
-    """Layer one summed the way the breakdown panel has always summed it.
-
-    `Rating.scaled_total` uses `sum()`, which since Python 3.12 carries a
-    running correction term; the panel's figure was accumulated in a plain
-    loop. The two disagree by one unit in the last place for 214 of the
-    143 440 armament-tier-build combinations measured on 2026-09-02 -- the
-    same addends in the same order, summed by two algorithms. Nothing on
-    screen and nothing in the golden file can show a difference that small,
-    but W2 is promised bit-for-bit unchanged and that promise is what makes
-    the differential comparison mean anything, so the panel keeps its own
-    summation for one more step.
-
-    It goes when the panel moves onto the facade in W3, along with the other
-    total this module still forms outside `Rating` -- and then there is one
-    summation left in the module, which is what assurance Z1 is for.
-    """
-    total = 0.0
-    for value in per_type.values():
-        total += value
-    return total
-
-
 def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
           data: dict, *, starting_armament: bool = False) -> Rating:
     """Both layers for one armament and one question."""
@@ -419,32 +441,13 @@ def attack_rating(weapon: dict, tier: int, build: model.Build, data: dict,
     halves of the figure -- what the stats do and what the buffs do -- come
     from the same computed build and cannot disagree with the stat sheet.
 
-    The panel's view of `equipped()`, for as long as the panel asks in these
-    terms (AD-019 step W3). It takes the pairing as a flag rather than working
-    it out from a slot, which is what the caller has to hand today.
+    Takes the starting-armament pairing as a flag rather than working it out
+    from a slot: its callers have a weapon and a tier, not a slot. Where there
+    is a slot, `equipped()` is the question to ask -- it works the pairing out
+    itself and cannot be handed the wrong answer (AD-020, point 6).
     """
-    bare = _rate(weapon, Question.BARE, tier, build, data)
-    now = _rate(weapon, Question.EQUIPPED, tier, build, data,
-                starting_armament=starting_armament)
-
     return AttackRating(
-        weapon=weapon,
-        before=bare.weapon_rating,
-        after=now.weapon_rating,
-        final_per_type=now.final_per_type,
-        # The two totals in this module that are not `sum()` of a per-type map
-        # of their own, and both for the same reason: they are what the panel
-        # shows today, and W2 changes no shown figure by so much as a bit.
-        # `WeaponRating.total` sums the two dicts whole instead of type by
-        # type and is the reference point of the bit-for-bit comparison that
-        # carries the rebuild, so it may not be redefined before W5 (AD-019,
-        # do-not rule 27); the two bracketings disagree in the last bit for
-        # about a tenth of the dataset. Both become the `Rating` totals beside
-        # them when the panel moves onto the facade in W3.
-        bare_scaled_total=bare.weapon_rating.total,
-        scaled_total=_accumulated(now.scaled_per_type),
-        final_total=now.final_total,
-        rates=now.rates,
-        weapon_class=now.weapon_class,
-        starting_armament=starting_armament,
+        bare=_rate(weapon, Question.BARE, tier, build, data),
+        now=_rate(weapon, Question.EQUIPPED, tier, build, data,
+                  starting_armament=starting_armament),
     )

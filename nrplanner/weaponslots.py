@@ -198,6 +198,19 @@ class WeaponTile(QFrame):
 
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
                   effects: dict | None = None) -> None:
+        """Draw one tile. `rating` is the slot's `damage.Rating`, or None.
+
+        The rating answers `damage.Question.EQUIPPED` -- this armament, in
+        this slot, as it stands -- and the tile shows its finished figure, the
+        one after the attack multipliers. It is the same number the breakdown
+        panel puts under the grid, out of the same call, which is what W3 of
+        AD-019 was for: the tile used to rate the armament for itself and
+        arrived at a different total for the same slot (QA-056).
+
+        Left untyped for the same reason `damage.equipped` leaves its slot
+        untyped: this module imports Qt and `damage` does not, so the arrow
+        between them only ever points one way.
+        """
         self.active = active
         border = ACCENT if active else BORDER
         width = 2 if active else 1
@@ -225,7 +238,8 @@ class WeaponTile(QFrame):
             tier_name += f" +{upgrade}"
         bits = [tier_name]
         if rating is not None:
-            bits.append(f"<b style='color:{ACCENT}'>{rating.total:.0f}</b> AR")
+            bits.append(f"<b style='color:{ACCENT}'>"
+                        f"{rating.final_total:.0f}</b> AR")
         if slot.effect_ids:
             # Count the negative rolls apart from the rest, in the same red
             # the picker uses, so a tile shows at a glance that one of its

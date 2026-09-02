@@ -21,9 +21,9 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (chalices, datasource, effecttext, favourites, firstrun,
-               inventory, model, shortcut, uiscale, weaponslots, weapons)
-from .damage import attack_rating, is_starting_armament
+from . import (chalices, damage, datasource, effecttext, favourites,
+               firstrun, inventory, model, shortcut, uiscale, weaponslots,
+               weapons)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -2857,15 +2857,23 @@ class Planner(QMainWindow):
         """Attack rating before and after everything equipped.
 
         Every tile is rated so each can show its own total; the active one gets
-        the full breakdown underneath.
+        the full breakdown underneath. Both figures come out of one
+        `damage.equipped()` call per slot, so the tile and the panel below it
+        are the same question with the same answer -- until W3 the tile chose
+        the raised attributes without the multipliers and the panel chose
+        both, and a player saw two totals for one armament with nothing to
+        tell them apart (AD-020, point 6; QA-056).
         """
+        hero = self.current_hero()
+        answers: dict[int, tuple] = {}
         for index, slot in enumerate(self.weapon_slots):
-            tile_rating = None
+            equipped = None
             if slot.filled:
-                tile_rating = weapons.rate(slot.weapon, build.attributes,
-                                           self.data, slot.tier)
+                answers[index] = damage.equipped(slot, index, build, hero,
+                                                 self.data)
+                equipped = answers[index][1]
             self.weapon_tiles[index].show_slot(
-                slot, tile_rating, active=index == self.active_weapon,
+                slot, equipped, active=index == self.active_weapon,
                 effects=self.data["effects"])
 
         slot = self.active_slot()
@@ -2882,31 +2890,30 @@ class Planner(QMainWindow):
         # The figure itself is not computed here. It is the one piece of
         # domain arithmetic that had ended up inside the window, and the build
         # advisor needs to ask for it without drawing anything, so it lives in
-        # nrplanner/damage.py and this method formats what comes back.
-        rating = attack_rating(
-            weapon, slot.tier, build, self.data,
-            starting_armament=is_starting_armament(
-                weapon, self.current_hero(), self.active_weapon),
-        )
-        before, after = rating.before, rating.after
-        boosted = rating.final_per_type
-        base_total = rating.bare_scaled_total
-        final_total = rating.final_total
+        # nrplanner/damage.py and this method formats what comes back. The
+        # tile above this panel was rated in the same call.
+        bare, now = answers[self.active_weapon]
+        boosted = now.final_per_type
+        base_total = bare.scaled_total
+        final_total = now.final_total
         delta = final_total - base_total
-        self.last_ar = rating.figures()
+        self.last_ar = damage.breakdown_figures(bare, now)
 
         # The left-hand column of each row: the same armament on the level's
-        # own attributes, before anything equipped raised them.
-        was_per_type = before.scaled_per_type()
+        # own attributes, before anything equipped raised them. It stays a
+        # different question from the total beside it, and on purpose --
+        # without it the panel has no before to put against its after
+        # (AD-020, point 2).
+        was_per_type = bare.scaled_per_type
 
         rows = []
-        for damage, value in boosted.items():
-            was = was_per_type.get(damage, 0.0)
+        for damage_type, value in boosted.items():
+            was = was_per_type.get(damage_type, 0.0)
             diff = value - was
             colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
             change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
             rows.append(
-                f"<div>{weapons.DAMAGE_LABELS[damage]} "
+                f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
                 f"<span style='color:{MUTED}'>{was:.0f}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
                 f"<b>{value:.0f}</b></div>"
@@ -2992,10 +2999,10 @@ class Planner(QMainWindow):
                 f"HP, so rally relics do nothing with it.</div>"
             )
 
-        if not after.meets_requirements:
+        if not now.meets_requirements:
             unmet = ", ".join(
                 f"{stat} {have}/{need}"
-                for stat, (have, need) in after.unmet.items()
+                for stat, (have, need) in now.unmet.items()
             )
             rows.append(
                 f"<div style='color:{BAD}; font-size:10px'>requirements not "
