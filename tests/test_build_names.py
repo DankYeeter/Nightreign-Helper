@@ -496,6 +496,31 @@ def test_an_old_path_whose_write_was_lost_is_not_removed(qapp, monkeypatch):
             == expected["Fire ice"])
 
 
+def test_an_old_path_that_is_itself_another_builds_key_is_not_removed(
+        qapp, monkeypatch):
+    """The lost write lands on a key that is itself an old path already.
+
+    "Fire ice" derives the key "Fire%20ice", which the old store already
+    holds as a build of its own. `contains()` on that key is true before the
+    write is ever attempted, for a reason that has nothing to do with
+    whether "Fire ice" migrated -- so losing the write must still be caught
+    by comparing the value, not by asking whether the key is occupied.
+    """
+    saved = ["Fire ice", "Fire%20ice"]
+    expected = write_the_old_way(HERO, saved)
+    lost = chalices.build_key("Fire ice")
+    monkeypatch.setattr(chalices, "_settings",
+                        lambda: SettingsThatLoseOneWrite(lost))
+
+    chalices._migrate_keys(HERO)
+    monkeypatch.undo()
+
+    entries = stored_entries(HERO)
+    assert "Fire ice" in entries
+    assert (chalices._decode(entries["Fire ice"])[2]
+            == expected["Fire ice"])
+
+
 # ---------------------------------------------------------------------------
 # Regression 7 -- QA-042: a removal spares a path that is now somebody's key
 #
