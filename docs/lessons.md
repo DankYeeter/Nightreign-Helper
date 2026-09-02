@@ -94,9 +94,11 @@ Das ist keine neue Fähigkeit — T-017 tat genau das bereits einmal ("Ausweitun
 
 Empfehlung dieser Retrospektive: Option 1, weil sie keine Agentendefinition ändert und der gelebten Praxis entspricht.
 
+**Entscheidung des Nutzers, 2026-09-02: Option 1.** Die Erwartung lautet ab sofort *"ein Branch pro Auftragsgruppe, angelegt vom `director` vor dem ersten Dispatch dieser Gruppe"*. `developer` und `archivist` committen weiterhin ausschliesslich auf den beim Aufruf ausgecheckten Branch — ihre Definitionen bleiben unveraendert. Offen bleibt, **wo der urspruengliche Satz "ein Branch pro Task" steht**: weder diese Retrospektive noch der `director` konnten ihn in einer Agentendefinition finden. Bis er auftaucht, gilt die neue Fassung als die geltende; wer ihn findet, zieht ihn nach.
+
 **Erfolgskriterium:** Kein Abschlussbericht eines `developer` benennt "ein Branch pro Task" künftig noch als für ihn unerfüllbare Vorgabe.
 
-**Status:** vorgeschlagen
+**Status:** **uebernommen (Nutzer, 2026-09-02)** — Option 1
 
 ### L-004 — Auftragsdatei-Pflicht (Zyklus-2-Prozessfehler) wirkt weiter, hiermit formal verankert
 
