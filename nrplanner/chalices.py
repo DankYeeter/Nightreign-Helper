@@ -20,6 +20,9 @@ does not.
 
 from __future__ import annotations
 
+import string
+import urllib.parse
+
 from PySide6.QtCore import QSettings
 
 from . import favourites
@@ -184,6 +187,97 @@ UNSAVED_NAME = "Unsaved build"
 # to the save file and the other to the empty state.
 RESERVED_NAMES = (EQUIPPED_NAME, UNSAVED_NAME)
 
+# ---------------------------------------------------------------------------
+# Where the player's name for a build ends and the store's key for it begins
+#
+# These were one thing, and a name is not a key. QSettings reads "/" in a key
+# as the path separator it is, so a build called "Fire / ice" was never an
+# entry of that name: it was a group called "Fire " holding an entry called
+# " ice". `childKeys()` cannot see into a group, so the build dropped out of
+# the list the moment it was saved, and deleting the Nightfarer's builds took
+# the group with it -- the player's work gone, without an error anywhere
+# (QA-003). Two smaller versions of the same mistake sat beside it: "|" splits
+# one name into two in the order list, and a name beginning "__" reads as one
+# of the bookkeeping entries.
+#
+# So the key is now derived from the name and nothing else is stored: every
+# character that is not a plain letter or digit becomes %XX of its UTF-8
+# bytes. That derivation is
+#   total       -- every name has a key, "/" and "\" and emoji included;
+#   injective   -- no two names share a key, because "%" is escaped as well,
+#                  so no name can spell out another name's escape;
+#   reversible  -- the name is read back out of the key, which is why the name
+#                  is not written anywhere else and the two cannot drift;
+#   inert       -- a key holds no "/", no "|" and no "\x1f", and cannot begin
+#                  with "_", so nothing in it means anything to QSettings, to
+#                  the order list or to the value encoding.
+_KEY_SAFE = frozenset(string.ascii_letters + string.digits)
+
+# Set on a Nightfarer's group once its builds are filed under derived keys.
+# The marker is what makes the move a one-off: a second pass over migrated
+# entries would encode the encoding, and "Fire %2F ice" is not a build anyone
+# saved.
+SCHEMA_KEY = "__schema"
+DERIVED_KEYS = "2"
+
+
+def build_key(name: str) -> str:
+    """The storage key a build name is filed under."""
+    return "".join(
+        character if character in _KEY_SAFE
+        else "".join(f"%{byte:02X}" for byte in character.encode("utf-8"))
+        for character in str(name)
+    )
+
+
+def build_name(key: str) -> str:
+    """The name a storage key was derived from, character for character."""
+    return urllib.parse.unquote(str(key), encoding="utf-8", errors="replace")
+
+
+def _migrate_keys(hero_id: int) -> None:
+    """File this Nightfarer's existing builds under derived keys, once.
+
+    Everything saved before this change is filed under the name itself, so a
+    fix that only changed how new builds are written would have hidden every
+    old one. This runs first in every operation that touches a saved build.
+
+    The old entries are collected with `allKeys()` rather than `childKeys()`
+    because a name holding a "/" is exactly the case that has to be rescued
+    and `childKeys()` is blind to it -- `allKeys()` walks into the group and
+    reports the whole path, which is the name that was typed. Backslashes,
+    leading spaces and non-ASCII survived as ordinary key characters and come
+    back untouched. A name holding a "|" comes back, but at the end of the
+    list: the order entry it was written into had already been split in two
+    and there is no way to tell from here which half went where.
+    """
+    settings = _settings()
+    settings.beginGroup(f"{BUILDS}/{hero_id}")
+    try:
+        if settings.value(SCHEMA_KEY, "", type=str) == DERIVED_KEYS:
+            return
+        # Bookkeeping entries are not builds. A build whose name began "__"
+        # was unreachable before this change for exactly that reason, so
+        # there is none to rescue.
+        for path in [k for k in settings.allKeys() if not k.startswith("__")]:
+            value = settings.value(path, "", type=str)
+            key = build_key(path)
+            if key != path:
+                settings.remove(path)
+            settings.setValue(key, value)
+        for field in ("__order", "__hidden"):
+            names = [n for n in str(settings.value(field, "", type=str))
+                     .split(SEPARATOR) if n]
+            if names:
+                settings.setValue(
+                    field, SEPARATOR.join(build_key(n) for n in names))
+        selected = str(settings.value("__selected", "", type=str) or "")
+        if selected:
+            settings.setValue("__selected", build_key(selected))
+        settings.setValue(SCHEMA_KEY, DERIVED_KEYS)
+    finally:
+        settings.endGroup()
+
 
 def _encode(vessel_id: int | None, deep: bool, slots: list[str]) -> str:
     parts = [str(vessel_id if vessel_id is not None else ""),
@@ -205,46 +299,55 @@ def _decode(raw: str) -> tuple[int | None, bool, list[str]]:
 
 def build_names(hero_id: int) -> list[str]:
     """Every saved build for this Nightfarer, in the order they were saved."""
+    _migrate_keys(hero_id)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         order = settings.value("__order", "", type=str)
-        names = [n for n in str(order).split(SEPARATOR) if n]
+        keys = [k for k in str(order).split(SEPARATOR) if k]
         # Anything written without an order entry still has to appear. The
         # bookkeeping keys are not builds and must never be offered as one.
         for key in settings.childKeys():
-            if not key.startswith("__") and key not in names:
-                names.append(key)
-        return [n for n in names
-                if not n.startswith("__") and settings.contains(n)]
+            if not key.startswith("__") and key not in keys:
+                keys.append(key)
+        return [build_name(k) for k in keys
+                if not k.startswith("__") and settings.contains(k)]
     finally:
         settings.endGroup()
 
 
 def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
                slots: list[str]) -> None:
-    """Store a build under a name, replacing one of the same name."""
-    name = name.strip()
-    if not name or name in RESERVED_NAMES:
+    """Store a build under a name, replacing one of the same name.
+
+    The name is stored exactly as it was given -- a leading space belongs to
+    the player, not to this function -- and only the derived key reaches the
+    settings store. A name that is nothing but whitespace is refused, because
+    it would show in the list as a row with no label.
+    """
+    if not str(name).strip() or name in RESERVED_NAMES:
         return
+    _migrate_keys(hero_id)
+    key = build_key(name)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
-        existing = [n for n in str(
-            settings.value("__order", "", type=str)).split(SEPARATOR) if n]
-        if name not in existing:
-            existing.append(name)
+        existing = [k for k in str(
+            settings.value("__order", "", type=str)).split(SEPARATOR) if k]
+        if key not in existing:
+            existing.append(key)
         settings.setValue("__order", SEPARATOR.join(existing))
-        settings.setValue(name, _encode(vessel_id, deep, slots))
+        settings.setValue(key, _encode(vessel_id, deep, slots))
     finally:
         settings.endGroup()
 
 
 def load_build(hero_id: int, name: str) -> tuple[int | None, bool, list[str]]:
+    _migrate_keys(hero_id)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
-        return _decode(settings.value(name, "", type=str))
+        return _decode(settings.value(build_key(name), "", type=str))
     finally:
         settings.endGroup()
 
@@ -253,13 +356,15 @@ def delete_build(hero_id: int, name: str) -> None:
     """Forget a saved build. The reserved ones are not ours to delete."""
     if name in RESERVED_NAMES:
         return
+    _migrate_keys(hero_id)
+    key = build_key(name)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
-        settings.remove(name)
-        order = [n for n in str(
+        settings.remove(key)
+        order = [k for k in str(
             settings.value("__order", "", type=str)).split(SEPARATOR)
-            if n and n != name]
+            if k and k != key]
         settings.setValue("__order", SEPARATOR.join(order))
     finally:
         settings.endGroup()
@@ -267,15 +372,16 @@ def delete_build(hero_id: int, name: str) -> None:
 
 def hidden_builds(hero_id: int) -> set[str]:
     """Builds the player has hidden from the list, the equipped one included."""
+    _migrate_keys(hero_id)
     raw = _settings().value(f"{BUILDS}/{hero_id}/__hidden", "", type=str)
-    return {n for n in str(raw).split(SEPARATOR) if n}
+    return {build_name(k) for k in str(raw).split(SEPARATOR) if k}
 
 
 def set_hidden(hero_id: int, name: str, hidden: bool) -> None:
     names = hidden_builds(hero_id)
     names.add(name) if hidden else names.discard(name)
     _settings().setValue(f"{BUILDS}/{hero_id}/__hidden",
-                         SEPARATOR.join(sorted(names)))
+                         SEPARATOR.join(sorted(build_key(n) for n in names)))
 
 
 def selected_build(hero_id: int) -> str:
@@ -285,12 +391,15 @@ def selected_build(hero_id: int) -> str:
     list always reopened on the equipped build, quietly discarding the choice
     a player had made.
     """
-    return str(_settings().value(f"{BUILDS}/{hero_id}/__selected",
-                                 EQUIPPED_NAME, type=str) or EQUIPPED_NAME)
+    _migrate_keys(hero_id)
+    key = str(_settings().value(f"{BUILDS}/{hero_id}/__selected", "",
+                                type=str) or "")
+    return build_name(key) if key else EQUIPPED_NAME
 
 
 def set_selected_build(hero_id: int, name: str) -> None:
-    _settings().setValue(f"{BUILDS}/{hero_id}/__selected", name)
+    _migrate_keys(hero_id)
+    _settings().setValue(f"{BUILDS}/{hero_id}/__selected", build_key(name))
 
 
 def imported(hero_id: int) -> bool:
