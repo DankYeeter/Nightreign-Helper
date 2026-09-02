@@ -1172,11 +1172,11 @@ class HeroTile(QToolButton):
     def set_variant(self, texture_id: int | None) -> None:
         self.variant_id = texture_id
         self._apply_image()
-        settings = QSettings("DankYeeter", "NightreignHelper")
+        settings = QSettings(favourites.ORG, favourites.APP)
         settings.setValue(f"variant/{self.hero['id']}", texture_id if texture_id else "")
 
     def restore_variant(self) -> None:
-        settings = QSettings("DankYeeter", "NightreignHelper")
+        settings = QSettings(favourites.ORG, favourites.APP)
         stored = settings.value(f"variant/{self.hero['id']}", "")
         if stored:
             self.variant_id = int(stored)
