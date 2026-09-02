@@ -14,21 +14,30 @@ ever reached by accident.
 * **SEC-006**, `test_a_member_claiming_*`: the decompressed size out of a DCX
   header sized the output buffer with nothing in between. Four bytes could ask
   for four gibibytes.
+* **SEC-010**, `test_a_layout_*`: the atlas layout XML went through
+  ElementTree, which expands the entities a document declares about itself.
+  Thirteen nested ten-fold entities are a gigabyte, and the file decided how
+  much memory the program used.
 """
 
 from __future__ import annotations
 
 import struct
+import time
 
 import pytest
 
-from nrdata import dds, oodle
+from nrdata import dds, icons, oodle
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
 BC1_BLOCK_BYTES = 8
 IMAGE_EDGE = 8
 BC1_PAYLOAD_BYTES = 32
+
+# Long enough that a machine under load cannot fail it, short enough that an
+# expansion the size of the old one cannot pass it.
+EXPANSION_LIMIT_SECONDS = 10.0
 
 
 def dds_file(fourcc: bytes, width: int, height: int, payload: bytes) -> bytes:
@@ -139,3 +148,54 @@ def test_the_ceiling_clears_the_largest_member_the_game_ships():
     # that would refuse an asset the planner has to read.
     largest_measured = 982_464_964
     assert oodle.MAX_UNCOMPRESSED_SIZE > largest_measured
+
+
+# ---------------------------------------------------------------------------
+# SEC-010 -- entity expansion in the atlas layout
+
+
+def entity_bomb(levels: int) -> str:
+    """A layout whose sprite name expands to 10**levels characters."""
+    declarations = ['<!ENTITY e0 "A">']
+    for level in range(1, levels + 1):
+        body = f"&e{level - 1};" * 10
+        declarations.append(f'<!ENTITY e{level} "{body}">')
+    return (
+        '<?xml version="1.0"?>'
+        f'<!DOCTYPE TextureAtlas [{"".join(declarations)}]>'
+        f'<TextureAtlas><SubTexture name="&e{levels};" x="0" y="0" '
+        'width="1" height="1"/></TextureAtlas>'
+    )
+
+
+def test_a_layout_that_declares_entities_is_refused():
+    with pytest.raises(icons.LayoutError):
+        icons.read_subtextures(entity_bomb(2))
+
+
+def test_a_layout_bomb_is_refused_before_it_expands():
+    started = time.monotonic()
+    with pytest.raises(icons.LayoutError):
+        # Nine levels is a gigabyte if anything expands it, and nothing here
+        # should get as far as looking.
+        icons.read_subtextures(entity_bomb(9))
+    assert time.monotonic() - started < EXPANSION_LIMIT_SECONDS
+
+
+def test_a_layout_that_is_not_well_formed_is_refused():
+    with pytest.raises(icons.LayoutError):
+        icons.read_subtextures("<TextureAtlas><SubTexture></TextureAtlas>")
+
+
+def test_an_ordinary_layout_still_reads():
+    sprites = icons.read_subtextures(
+        '<TextureAtlas imagePath="a.png">'
+        '<SubTexture name="MENU_ItemIcon_00001.png" x="1" y="2" '
+        'width="3" height="4"/>'
+        '<SubTexture name="MENU_ItemIcon_00002.png" x="5" y="6" '
+        'width="7" height="8"/>'
+        "</TextureAtlas>"
+    )
+    assert [s["name"] for s in sprites] == ["MENU_ItemIcon_00001.png",
+                                            "MENU_ItemIcon_00002.png"]
+    assert sprites[0]["x"] == "1"
