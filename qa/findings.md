@@ -235,8 +235,8 @@ Handles 3229614315/3229615265).
 | QA-054 | Verlorener Migrations-Schreibvorgang **plus Schraegstrich im Namen**: der Build wird **null** mal gelistet - der Alt-Pfad ist eine Gruppe, `childKeys()` ist dafuer blind, die Order-Liste raeumt ihn aus - und ist wegen `__schema`=3 dauerhaft unerreichbar. Die Daten stehen weiter in der Registry. Mechanisch dasselbe wie QA-044, **umgekehrte Sichtbarkeit** | P3 | Major | developer | Probe im Klon, mit zwei Kontrollen: ohne Schraegstrich einmal gelistet, ohne Schreibverlust korrekt gelistet | offen (neu aus T-022, **nicht neu im Code**) | 2026-09-02 |
 | QA-055 | **Achse B, der wahrscheinlichste Alltagsfall:** Slot auf Tier 3, Tab-Spinbox auf 1, **kein einziges Relikt** - Kachel und Tafel sagen 321,4, der Waffen-Tab 203,4. Reiner Eingabeunterschied, greift ohne jeden Buff, sobald der Spieler ein Slot-Tier hochsetzt. Das Tier, an dem die Liste rechnet, ist nirgends sichtbar | P2 | Major | developer, ui-ux-designer | gemessen ueber die echten Widgets | offen (neu aus T-023) | 2026-09-02 |
 | QA-056 | **Achse C:** mit "Strength +1" zeigt die Kachel 323 (erhoehte Attribute), die linke Zahl der Tafel 321,4 (Grundattribute), der Tab 204,2 - drei Zahlen fuer dieselbe Waffe. Das ist die Beobachtung aus `DESIGN_REVIEW.md:429`, jetzt mit Ursache | P3 | Major | developer, ui-ux-designer | gemessen | offen (neu aus T-023) | 2026-09-02 |
-| QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | offen (neu aus T-023) - **genau die Form von Debt, die QA-001 erzeugt hat** | 2026-09-02 |
-| QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | offen (neu aus T-023) - **eigener Auftrag: zweiter Waechter oder gemeinsame Fassade** | 2026-09-02 |
+| QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | offen - **W0 des AD-019-Umbaus: wird geloescht, nicht migriert** (Director 2026-09-02) | 2026-09-02 |
+| QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | **Entwurf steht (AD-019 bis AD-021, T-025): gemeinsame Fassade statt zweitem Waechter.** Umsetzung in sieben Schritten W0-W6, W0 ist das Loeschen von `weaponstab.py` | 2026-09-02 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -724,3 +724,53 @@ der drei Runden.
   nicht gebaut**, solange Schritt 2 nicht entschieden ist. Er wuerde eine Zahl
   festschreiben, ueber die gerade nicht entschieden ist. Der `developer` hat
   die Auslassung gemeldet statt sie zu verschweigen.
+
+## Entscheidungen des Directors - Zyklus 8, Architekturteil (2026-09-02)
+
+- **Fassade statt zweitem Waechter (AD-019 bis AD-021), angenommen.** Die
+  Begruendung ist besser als meine Neigung: der `compute`-Waechter traegt,
+  weil es genau **einen richtigen Build** gibt. Bei der Waffenrechnung gibt es
+  **mehr als eine richtige Frage** an dieselbe Formel. Ein Waechter auf "ein
+  Aufrufer" waere entweder falsch (er erzwaenge Achse B weg) oder braeuchte
+  eine Ausnahmeliste - **und die sichert die Ausnahmen nicht zu, sie
+  beschreibt sie nur.** Das ist derselbe Fehler wie bei den Zusicherungen ohne
+  Geltungsbereich (QA-046, QA-050, QA-052), diesmal vorher erkannt.
+- **Die Fassade fuehrt drei benannte Fragen** (`EQUIPPED`, `CANDIDATE`,
+  `BARE`); jede legt an genau einer Stelle Attributsatz, Tier und
+  Multiplikatorschicht fest. Die Wahl der Eingaben wird damit eine **benannte
+  Entscheidung** statt einer Nebenwirkung davon, welches Modul importiert
+  wurde.
+- **Fuenf der acht Abweichungen sind Absicht, drei sind Fehler** (AD-020).
+  Genau die Unterscheidung, die ich verlangt hatte: Ziel-Tier,
+  Grundattribute, Startwaffen-Paarung, klassengebundene Raten und
+  Krit-Ausschluss bleiben; Kachel gegen Tafel, die vierfache Formel und die
+  implizite Multiplikatorwahl fallen. **Eine Fassade, die alles
+  vereinheitlicht, haette das Programm falsch statt konsistent gemacht.**
+- **Die wichtigste Antwort: die Fassade muss vor den Berater - die
+  Spielmessung nicht.** Der Grenzbeitrag vergleicht Kandidaten bei **fester
+  Waffe**; eine flache Multiplikatorschicht skaliert ihn, dreht ihn nicht um,
+  und Pruefpunkt 16 ist gegenueber diesem Faktor invariant. **Ab W5 blockiert
+  die Spielmessung nur noch die angezeigte absolute Zahl, nicht mehr den
+  Berater-Bau.** Scharfe Randbedingung: das gilt fuer Relikt-Rangfolgen bei
+  fester Waffe; Zielrichtungen, die **Waffen gegeneinander** stellen, haengen
+  an den je Waffe verschiedenen `class_rates` und duerfen erst nach W6 scharf.
+- **Das Zyklus-2-Verfahren traegt nur zur Haelfte, und das ist richtig
+  erkannt.** Fuer W1/W2 ja; fuer W3 bis W6 nicht - dort **sollen** sich drei
+  der vier Stellen aendern, ein eingefrorener Golden-Stand wuerde den Befund
+  einfrieren statt ihn zu sichern. Ersatz: der Differentialtest wandert auf
+  die **untere** Schicht - `weapons.rate` bleibt ueber den ganzen Umbau
+  bitgleich, abweichen darf nur, was die Fassade darueberlegt.
+- **OF-17 entschieden: ja, `tests/golden/weapon_damage.json` darf bei W3/W4
+  neu aufgenommen werden - aber erst, wenn Pruefpunkt 18 gruen ist**, und die
+  AD-019-Begruendung gehoert in die Commit-Nachricht. Der Golden-Test erlaubt
+  eine Neuaufnahme heute nur nach einem Spiel-Patch; hier ist der Grund ein
+  bewusster Strukturwechsel, und der muss im Commit stehen, damit die naechste
+  Rolle nicht "der Golden-Test wurde mal angepasst" liest.
+- **W0 zuerst: `weaponstab.py` wird geloescht, nicht migriert** (QA-057). Es zu
+  migrieren hiesse zu entscheiden, was `setRange(0, 25)` bei Tier-Semantik
+  1..4 bedeutet - eine Frage ohne Antwort. Loeschen spart ein Viertel der
+  Migrationsflaeche.
+- **OF-18 geht an den laufenden `ui-ux-designer`**, nicht an mich: die drei
+  `Basis`-Fragen koennen gleichzeitig auf dem Schirm stehen, und die
+  Spaltenbenennung muss sie unterscheidbar machen. `Rating.basis` wird
+  mitgeliefert, damit die Anzeige benennen **kann**, was sie zeigt.

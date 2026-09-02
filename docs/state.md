@@ -98,6 +98,31 @@ Improved Sorceries & Incantations. Die Zauber-Buffs heben ausweislich der Daten
 Greatswords um bis zu 11 %. Ob das Spiel das wirklich tut, sagen die Dateien
 nicht.
 
+**Die Spielmessung blockiert den Berater TEILWEISE — Korrektur vom
+2026-09-02.** Ich hatte hier geschrieben, sie blockiere ihn nicht mehr. Das war
+zu stark, und der `ui-ux-designer` hat es beim Schreiben der Spec bemerkt.
+
+Das Argument des `architect` (eine flache Multiplikatorschicht skaliert den
+Grenzbeitrag und dreht ihn nicht um) traegt fuer Multiplikatoren des
+**Grundzustands**. Es traegt **nicht** fuer Multiplikatoren, die der
+**Kandidat selbst mitbringt** — und die strittige Effektfamilie aus T-023
+(Improved Thrusting Counterattack, Improved Sorceries, Improved Incantations)
+ist genau das: **reliktgetragene** Angriffsmultiplikatoren.
+
+**Folge:** Ein Picker-Ranking, in dem ein solches Relikt vorkommt, kann durch
+die Spielmessung die **Reihenfolge** wechseln, nicht nur die Groesse. Der
+Vorbehalt auf den Karten ist deshalb bewusst schwach formuliert ("may be
+wrong") statt "die Reihenfolge haelt" — das waere eine Zusicherung ohne Beleg
+gewesen, und genau davon hatten wir in diesem Vorhaben schon drei.
+
+Was weiterhin gilt: Zielrichtungen, die **Waffen gegeneinander** stellen,
+haengen an den je Waffe verschiedenen `class_rates` und duerfen erst nach W6
+scharf gestellt werden.
+
+**Offen an den `architect`:** ob sein Invarianzargument fuer
+kandidatengetragene Multiplikatoren nachgeschaerft werden kann, oder ob der
+Berater bis W6 nur mit sichtbarem Reihenfolgevorbehalt ausgeliefert wird.
+
 **Parallel laeuft Weg B** (Spalten umbenennen), weil er unter jedem Ausgang
 richtig bleibt. Weg C (die Effektfamilien nach `SCOPED_PREFIX` umleiten) wird
 **nicht** gegangen - er raet gegen die Params.
@@ -140,9 +165,13 @@ Attack-Rating-Vorbehalt sichtbar.
    benennen, was sie messen. **Weg A wartet auf die Spielmessung des Nutzers.**
    Im selben Zug QA-055 (Tier) und QA-056 (Attributsatz) - dieselben drei
    Zahlen, dieselbe Wurzel.
-4. **QA-058** — der eigentliche Klassenbefund: der `compute`-Waechter deckt
-   `model.compute` ab, nicht `weapons.rate`. Gemeinsame Fassade statt zweitem
-   Waechter — gehoert vor den `architect`.
+4. **QA-058 / AD-019-Umbau, sieben Schritte** — der Entwurf steht:
+   **W0** `weaponstab.py` loeschen (QA-057) · **W1** `WeaponRating.per_type()`
+   · **W2** Fassade mit den **heutigen** Werten · **W3** Kachel und Tafel auf
+   `damage.equipped()` · **W4** `arsenaltab` auf `rank_candidates()` mit
+   explizitem `target_tier` · **W5** Waechter AD-021 scharf · **W6** wartet auf
+   die Spielmessung. W0 bis W2 sind bitgleich, W3 und W4 aendern bewusst.
+   **Die Fassade muss vor den Berater.**
 5. **`ui-ux-designer` Spec fuer den Picker** — danach der Berater.
 6. **QA-032 + QA-004** — beschaedigtes Save wird still uebersprungen;
    entschieden ist Lesart B, der Spieler soll es erfahren. Drei Zustaende:
