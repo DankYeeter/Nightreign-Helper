@@ -200,25 +200,56 @@ RESERVED_NAMES = (EQUIPPED_NAME, UNSAVED_NAME)
 # one name into two in the order list, and a name beginning "__" reads as one
 # of the bookkeeping entries.
 #
-# So the key is now derived from the name and nothing else is stored: every
-# character that is not a plain letter or digit becomes %XX of its UTF-8
-# bytes. That derivation is
+# So the key is derived from the name and nothing else is stored: every
+# character that is not a lower-case letter or a digit becomes %XX of its
+# UTF-8 bytes. That derivation is
 #   total       -- every name has a key, "/" and "\" and emoji included;
-#   injective   -- no two names share a key, because "%" is escaped as well,
-#                  so no name can spell out another name's escape;
+#   injective in the store -- no two names are filed in one place, which is a
+#                  stronger thing than no two names sharing a string, and is
+#                  the property that was missing (see below);
 #   reversible  -- the name is read back out of the key, which is why the name
 #                  is not written anywhere else and the two cannot drift;
 #   inert       -- a key holds no "/", no "|" and no "\x1f", and cannot begin
 #                  with "_", so nothing in it means anything to QSettings, to
 #                  the order list or to the value encoding.
-_KEY_SAFE = frozenset(string.ascii_letters + string.digits)
+#
+# The second line used to read "no two names share a key", and that was true
+# and not enough. A key is the name of a registry value on Windows, and the
+# registry tells value names apart without regard to their case. Keeping the
+# capital letters therefore filed "Bleed build" and "bleed build" in one
+# entry: two names in the list, one build behind both of them, and deleting
+# either took the other with it (QA-046). What makes the derivation injective
+# under the store's equality rather than only under Python's is two properties
+# together:
+#
+#   the safe set holds no character that has a second spelling -- a-z and
+#     0-9, never A-Z, so nothing a name says reaches the key as a character
+#     the store could fold onto another one;
+#   the escapes are written one way only -- %XX with the hex digits in
+#     capitals, always. That is the spelling schema 2 already used, so a name
+#     with no capital letters in it keeps the key it was filed under and the
+#     move costs it nothing.
+#
+# Folding the case of a key cannot merge two of them. "%" has no case and
+# every escape is exactly three characters long, so folding never moves a
+# character across the line between an escape and a plain one: a folded key
+# still reads one token at a time, each token still stands for one byte, and
+# the bytes still spell one name.
+_KEY_SAFE = frozenset(string.ascii_lowercase + string.digits)
 
-# Set on a Nightfarer's group once its builds are filed under derived keys.
-# The marker is what makes the move a one-off: a second pass over migrated
-# entries would encode the encoding, and "Fire %2F ice" is not a build anyone
-# saved.
+# Set on a Nightfarer's group to say which derivation its builds are filed
+# under. The marker is what makes each move a one-off: a second pass over
+# migrated entries would encode the encoding, and "Fire %2F ice" is not a
+# build anyone saved.
+#
+# "2" is the first derivation, injective in Python and not in the store. "3"
+# is the one above. There is no marker for the state before either: a store
+# from then carries none, and a group with no marker is read as holding names
+# rather than keys.
 SCHEMA_KEY = "__schema"
 DERIVED_KEYS = "2"
+CASE_SAFE_KEYS = "3"
+CURRENT_SCHEMA = CASE_SAFE_KEYS
 
 
 def build_key(name: str) -> str:
@@ -286,21 +317,54 @@ def _migrate_keys(hero_id: int) -> None:
     ones that moved. Deciding this on the store's answer rather than on the
     shape of the name is what makes it hold for the reasons nobody has met
     yet (QA-041).
+
+    Two starting points reach here, and the marker says which: a store from
+    before there was a marker, where the key is the name as it was typed, and
+    a store on schema 2, where the key is the name encoded with the capitals
+    left standing. Both are read into names first and filed again from there,
+    so there is one migration and not two.
+
+    A store on schema 2 can hold a collision, and it is the reason for the
+    move: two names that differ only in case were one entry, and the order
+    list names both of them. Both are carried over, and both take the one
+    value the store had for them -- which is the build the player saw under
+    either name before this ran. It is not known which of the two the value
+    was written for, so neither name is the one to drop, and from here on they
+    are two entries that can be edited apart (QA-046).
     """
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
-        if settings.value(SCHEMA_KEY, "", type=str) == DERIVED_KEYS:
+        schema = settings.value(SCHEMA_KEY, "", type=str)
+        if schema == CURRENT_SCHEMA:
             return
+        # What a stored key says its build is called. Only schema 2 wrote a
+        # marker of its own, so a group carrying anything else -- nothing at
+        # all, in every store that reaches this -- holds names and not keys.
+        name_of = build_name if schema == DERIVED_KEYS else str
         # Bookkeeping entries are not builds. A build whose name began "__"
         # was unreachable before this change for exactly that reason, so
         # there is none to rescue.
         old_paths = [k for k in settings.allKeys() if not k.startswith("__")]
-        keys = {path: build_key(path) for path in old_paths}
-        values = {path: settings.value(path, "", type=str)
-                  for path in old_paths}
-        for path in old_paths:
-            settings.setValue(keys[path], values[path])
+        order = [n for n in str(settings.value("__order", "", type=str))
+                 .split(SEPARATOR) if n]
+        # A name in the order list the store answers for is a build too, even
+        # where allKeys() does not report it. That is what a collision looks
+        # like from here: one entry, and two names the store both accepts as
+        # the name of it. Reading the value under each name is what gives the
+        # two of them somewhere separate to go; going by allKeys() alone would
+        # carry one name over and drop the other, which is the loss this move
+        # exists to undo rather than to finish.
+        named_only_in_the_list = [
+            n for n in order if n not in old_paths
+            and not n.startswith("__") and settings.contains(n)]
+        sources = old_paths + named_only_in_the_list
+        names = {source: name_of(source) for source in sources}
+        keys = {source: build_key(names[source]) for source in sources}
+        values = {source: settings.value(source, "", type=str)
+                  for source in sources}
+        for source in sources:
+            settings.setValue(keys[source], values[source])
         # setValue answers nothing, so the store is asked instead of trusted.
         # A write can fail to land for more reasons than this code can name:
         # the registry refuses a value name longer than 16 383 characters
@@ -314,10 +378,11 @@ def _migrate_keys(hero_id: int) -> None:
         # registry answers from itself either way, a file-backed store would
         # answer out of its own cache and confirm whatever it had been told.
         settings.sync()
-        migrated = {path for path in old_paths
-                    if settings.contains(keys[path])
-                    and settings.value(keys[path], "", type=str)
-                    == values[path]}
+        migrated = {source for source in sources
+                    if settings.contains(keys[source])
+                    and settings.value(keys[source], "", type=str)
+                    == values[source]}
+        migrated_names = {names[source] for source in migrated}
         # The order list holds keys, so a key with nothing behind it has no
         # business in it: it shows no build, and save_build finds the name
         # already listed and leaves a later build of that name standing in
@@ -325,8 +390,6 @@ def _migrate_keys(hero_id: int) -> None:
         # are how a name holding a "|" arrived -- as two halves, neither of
         # which names anything -- and a build that could not be written is
         # the same case seen from the other side.
-        order = [n for n in str(settings.value("__order", "", type=str))
-                 .split(SEPARATOR) if n]
         if order:
             settings.setValue("__order", SEPARATOR.join(
                 keys[n] for n in order if n in migrated))
@@ -341,33 +404,45 @@ def _migrate_keys(hero_id: int) -> None:
         # rest is dropped, so a build hidden under such a name comes back
         # visible: hiding is a view and the player can set it again, where an
         # indelible phantom is nobody's to remove.
+        # The comparison is on names and not on stored keys, because one of
+        # the things it has to recognise is a reserved name -- and a store on
+        # schema 2 spells "Equipped in game" encoded, so asking whether the
+        # stored key is one of them answers no every time and the player's
+        # mark on the equipped build is thrown away.
         hidden = [n for n in str(settings.value("__hidden", "", type=str))
                   .split(SEPARATOR) if n]
         if hidden:
-            known = migrated | set(RESERVED_NAMES)
+            known = migrated_names | set(RESERVED_NAMES)
             settings.setValue("__hidden", SEPARATOR.join(
-                build_key(n) for n in hidden if n in known))
+                build_key(name_of(n)) for n in hidden
+                if name_of(n) in known))
         selected = str(settings.value("__selected", "", type=str) or "")
         if selected:
-            settings.setValue("__selected", build_key(selected))
-        settings.setValue(SCHEMA_KEY, DERIVED_KEYS)
+            settings.setValue("__selected", build_key(name_of(selected)))
+        settings.setValue(SCHEMA_KEY, CURRENT_SCHEMA)
         # Last of all, because a removal is the one step here that cannot be
-        # taken back, and only where all three of these hold:
+        # taken back, and only where both of these hold:
         #
-        #   the new key is not the old path itself -- nothing to remove;
-        #   the old path is not one of the keys just written -- it holds a
-        #     migrated build now, and removing it would delete the very thing
-        #     that was rescued into it;
+        #   the old path is not one of the places just written to -- its own
+        #     new key, or another build's; either way it holds a migrated
+        #     build now, and removing it would delete the very thing that was
+        #     rescued into it;
         #   the build was read back from its new key -- the old copy is not
         #     given up until the new one is known to exist.
         #
-        # The three are independent: an old path can be a written key while
-        # its own build migrated perfectly, and a build can migrate perfectly
+        # The two are independent: an old path can be a written key while its
+        # own build migrated perfectly, and a build can migrate perfectly
         # while its old path is nobody else's key.
-        written = set(keys.values())
+        #
+        # "One of the places written to" is decided by folding case, not by
+        # ==, because that is the question the store answers: it files
+        # "Bleed%20build" and "bleed%20build" in one entry, so a removal that
+        # went by == would delete the build it had just written. Folding
+        # errs towards leaving an entry behind, which costs a stale line in
+        # the list; going by == errs towards deleting a build.
+        written = {key.casefold() for key in keys.values()}
         for path in old_paths:
-            if (keys[path] != path and path not in written
-                    and path in migrated):
+            if path.casefold() not in written and path in migrated:
                 settings.remove(path)
     finally:
         settings.endGroup()
@@ -401,9 +476,17 @@ def build_names(hero_id: int) -> list[str]:
         keys = [k for k in str(order).split(SEPARATOR) if k]
         # Anything written without an order entry still has to appear. The
         # bookkeeping keys are not builds and must never be offered as one.
+        #
+        # Whether the order list already names an entry is the store's
+        # question and not Python's. An entry the store spells one way while
+        # the list spells it another is one build, not two, and comparing
+        # with `in` would offer it twice -- twice under one name, which is
+        # exactly the shape the player cannot act on.
+        listed = {k.casefold() for k in keys}
         for key in settings.childKeys():
-            if not key.startswith("__") and key not in keys:
+            if not key.startswith("__") and key.casefold() not in listed:
                 keys.append(key)
+                listed.add(key.casefold())
         return [build_name(k) for k in keys
                 if not k.startswith("__") and settings.contains(k)]
     finally:

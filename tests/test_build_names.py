@@ -19,6 +19,8 @@ them afterwards; losing them would be worse than the bug.
 
 from __future__ import annotations
 
+import string
+
 import pytest
 from PySide6.QtCore import QSettings
 
@@ -92,6 +94,43 @@ def write_the_old_way(hero_id: int, names: list[str]) -> dict[str, list[str]]:
         settings.setValue(
             name, chalices._encode(index + 1, False, old_slots(index)))
     settings.setValue("__order", chalices.SEPARATOR.join(names))
+    settings.endGroup()
+    settings.sync()
+    return {name: old_slots(index) for index, name in enumerate(names)}
+
+
+SCHEMA_2_SAFE = frozenset(string.ascii_letters + string.digits)
+
+
+def schema_2_key(name: str) -> str:
+    """The key the derivation before this change produced.
+
+    Written out here rather than taken from chalices, on purpose: a
+    migration fed its own output proves nothing, and the stores this one has
+    to rescue were written by code that kept the capital letters.
+    """
+    return "".join(
+        character if character in SCHEMA_2_SAFE
+        else "".join(f"%{byte:02X}" for byte in character.encode("utf-8"))
+        for character in str(name)
+    )
+
+
+def write_the_schema_2_way(hero_id: int, names: list[str]) -> dict[str, list]:
+    """Save builds as the first derived-key version did, marker and all.
+
+    That is the state of the machine this was written on. Two names that
+    differ only in case land in one entry here, exactly as they did for the
+    player -- the second write wins and the order list names both.
+    """
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.beginGroup(f"{chalices.BUILDS}/{hero_id}")
+    for index, name in enumerate(names):
+        settings.setValue(schema_2_key(name),
+                          chalices._encode(index + 1, False, old_slots(index)))
+    settings.setValue("__order", chalices.SEPARATOR.join(
+        schema_2_key(name) for name in names))
+    settings.setValue(chalices.SCHEMA_KEY, chalices.DERIVED_KEYS)
     settings.endGroup()
     settings.sync()
     return {name: old_slots(index) for index, name in enumerate(names)}
@@ -500,15 +539,20 @@ def test_an_old_path_that_is_itself_another_builds_key_is_not_removed(
         qapp, monkeypatch):
     """The lost write lands on a key that is itself an old path already.
 
-    "Fire ice" derives the key "Fire%20ice", which the old store already
+    "fire ice" derives the key "fire%20ice", which the old store already
     holds as a build of its own. `contains()` on that key is true before the
     write is ever attempted, for a reason that has nothing to do with
-    whether "Fire ice" migrated -- so losing the write must still be caught
+    whether "fire ice" migrated -- so losing the write must still be caught
     by comparing the value, not by asking whether the key is occupied.
+
+    Lower case since QA-046, for the reason given above the case before it:
+    a capital letter is escaped now, so "Fire ice" no longer derives another
+    build's name and the case would prove nothing.
     """
-    saved = ["Fire ice", "Fire%20ice"]
+    saved = ["fire ice", "fire%20ice"]
     expected = write_the_old_way(HERO, saved)
-    lost = chalices.build_key("Fire ice")
+    lost = chalices.build_key("fire ice")
+    assert lost == saved[1]
     monkeypatch.setattr(chalices, "_settings",
                         lambda: SettingsThatLoseOneWrite(lost))
 
@@ -516,23 +560,31 @@ def test_an_old_path_that_is_itself_another_builds_key_is_not_removed(
     monkeypatch.undo()
 
     entries = stored_entries(HERO)
-    assert "Fire ice" in entries
-    assert (chalices._decode(entries["Fire ice"])[2]
-            == expected["Fire ice"])
+    assert "fire ice" in entries
+    assert (chalices._decode(entries["fire ice"])[2]
+            == expected["fire ice"])
 
 
 # ---------------------------------------------------------------------------
 # Regression 7 -- QA-042: a removal spares a path that is now somebody's key
 #
-# "Fire ice" derives the key "Fire%20ice", and in a store that also holds a
+# "fire ice" derives the key "fire%20ice", and in a store that also holds a
 # build of that name the derived key is the second build's old path. Removing
 # it after the write takes the first build's rescue with it. The case is not
 # about the order of the steps -- these removals are already last -- so the
 # order test cannot see it, and did not.
+#
+# The names are lower case since QA-046. They read "Fire ice" and
+# "Fire%20ice" until the derivation started escaping capital letters, which
+# ends the relation these cases are built on: "Fire ice" now derives
+# "%46ire%20ice", which is nobody's old path, and the two cases went on
+# passing while holding nothing to account. Same shape, spelled in the
+# characters the derivation still passes through.
 
 
 def test_a_name_whose_key_is_another_name_leaves_both_builds_standing(qapp):
-    saved = ["Fire ice", "Fire%20ice"]
+    saved = ["fire ice", "fire%20ice"]
+    assert chalices.build_key(saved[0]) == saved[1]
     expected = write_the_old_way(HERO, saved)
 
     assert chalices.build_names(HERO) == saved
@@ -542,7 +594,7 @@ def test_a_name_whose_key_is_another_name_leaves_both_builds_standing(qapp):
 
 def test_a_chain_of_three_such_names_leaves_all_three_standing(qapp):
     """Each name derives the next one's old path, twice over."""
-    saved = ["Fire ice", "Fire%20ice", "Fire%2520ice"]
+    saved = ["fire ice", "fire%20ice", "fire%2520ice"]
     assert chalices.build_key(saved[0]) == saved[1]
     assert chalices.build_key(saved[1]) == saved[2]
     expected = write_the_old_way(HERO, saved)
@@ -638,3 +690,339 @@ def test_the_list_keeps_a_build_saved_again_under_a_deleted_name(planner):
     shown = [planner.build_box.itemData(i)
              for i in range(planner.build_box.count())]
     assert "Ghost" in shown
+
+
+# ---------------------------------------------------------------------------
+# Regression 10 -- QA-046: a key has to be one of a kind in the store, not in
+# the string space
+#
+# QSettings keys are registry value names on Windows, and the registry tells
+# two of them apart without regard to case. The derivation was injective
+# against Python strings and filed "Bleed build" and "bleed build" in one
+# entry: both names in the list, one build behind them, and deleting either
+# took the other away with it. Nothing here is a migration case -- it is what
+# the program does on an ordinary afternoon.
+
+# The pair the finding was raised on.
+UPPER_CASE_NAME, LOWER_CASE_NAME = "Bleed build", "bleed build"
+
+# Names that are different to Python and have every reason to be run together
+# by a store: capitals, escapes that look like names, names that look like
+# escapes, non-ASCII that carries a case of its own, and the two separators.
+# "Straße"/"STRASSE" and "istanbul"/"ıstanbul" are the pairs where Python's
+# own idea of folding case is not the store's -- they belong here because the
+# derivation may lean on neither.
+LOOKALIKE_NAMES = [
+    UPPER_CASE_NAME, LOWER_CASE_NAME, "BLEED BUILD", "BleeD BuilD",
+    "fire/ice", "Fire/Ice", "fire%2fice", "fire%2Fice", "FIRE%2FICE",
+    "a|b", "A|B", "__order", "__ORDER",
+    "%", "%25", "%%",
+    "Straße", "STRASSE", "strasse",
+    "istanbul", "İstanbul", "ıstanbul", "ISTANBUL",
+    "⚔ deep", "⚔ DEEP",
+    " lead", "lead ",
+]
+
+
+def build_entries(hero_id: int) -> dict[str, str]:
+    """The builds in this Nightfarer's group, as the store spells them."""
+    return {key: value for key, value in stored_entries(hero_id).items()
+            if not key.startswith("__")}
+
+
+# ---------------------------------------------------------------------------
+# The derivation, and what makes it one of a kind where it is stored
+
+
+def test_no_two_names_arrive_at_one_key_however_the_store_folds_case():
+    """Neither folding can bring two of these keys together.
+
+    The store is asked in the case below; this one holds the property the
+    store's answer rests on, over more names than a store test wants to
+    write, and in both directions -- Windows folds by putting a name into
+    capitals, Python by putting it into lower case, and the derivation may
+    not depend on which.
+    """
+    assert len(set(LOOKALIKE_NAMES)) == len(LOOKALIKE_NAMES)
+    keys = [chalices.build_key(name) for name in LOOKALIKE_NAMES]
+    assert len({key.casefold() for key in keys}) == len(LOOKALIKE_NAMES)
+    assert len({key.upper() for key in keys}) == len(LOOKALIKE_NAMES)
+
+
+def test_a_key_holds_no_character_that_has_a_second_spelling():
+    """Everything a name says reaches the key escaped or in lower case.
+
+    The capitals a key does hold are the hex digits of its own escapes, and
+    those are written by this module rather than by the player.
+    """
+    for name in LOOKALIKE_NAMES:
+        key = chalices.build_key(name)
+        outside_escapes = [
+            character for index, character in enumerate(key)
+            if "%" not in key[max(0, index - 2):index + 1]
+        ]
+        assert not [c for c in outside_escapes if c.isupper()]
+
+
+def test_a_name_without_capitals_keeps_the_key_schema_2_filed_it_under():
+    """The escapes are written one way only, and that way is schema 2's.
+
+    Not a matter of taste: the stores in the field are on schema 2, and a
+    name with no capital letter in it is already filed under exactly this
+    key. Spelling the hex digits the other way round would move every one of
+    those entries to a place the store cannot tell from the old one, for
+    nothing.
+    """
+    for name in ("fire / ice", "uni⚔", "a|b", "%", " lead", "straße"):
+        assert schema_2_key(name) == chalices.build_key(name)
+
+
+# ---------------------------------------------------------------------------
+# The store itself
+
+
+def test_two_names_that_differ_only_in_case_are_two_builds(qapp):
+    """The reported case, in ordinary use: save one, save the other.
+
+    Both were one entry, so both loaded the second build, and deleting
+    either emptied the list.
+    """
+    chalices.save_build(HERO, UPPER_CASE_NAME, 1, False, SLOTS_A)
+    chalices.save_build(HERO, LOWER_CASE_NAME, 2, False, SLOTS_B)
+
+    assert chalices.build_names(HERO) == [UPPER_CASE_NAME, LOWER_CASE_NAME]
+    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A)
+    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (2, False, SLOTS_B)
+
+    chalices.delete_build(HERO, LOWER_CASE_NAME)
+
+    assert chalices.build_names(HERO) == [UPPER_CASE_NAME]
+    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A)
+
+
+def test_a_hidden_mark_on_one_case_leaves_the_other_showing(qapp):
+    """The marks are keyed the same way, so they collided the same way."""
+    chalices.save_build(HERO, UPPER_CASE_NAME, 1, False, SLOTS_A)
+    chalices.save_build(HERO, LOWER_CASE_NAME, 2, False, SLOTS_B)
+
+    chalices.set_hidden(HERO, LOWER_CASE_NAME, True)
+    chalices.set_selected_build(HERO, UPPER_CASE_NAME)
+
+    assert chalices.hidden_builds(HERO) == {LOWER_CASE_NAME}
+    assert chalices.selected_build(HERO) == UPPER_CASE_NAME
+
+
+def test_every_lookalike_name_keeps_an_entry_of_its_own(qapp):
+    """The guard of the class: the store does the counting, not Python.
+
+    Every name goes in through the layer the program uses, and the store is
+    then asked how many entries it is holding. As many entries as names, and
+    each one giving back the build that was saved under it, is the whole
+    property -- and it is the one that fails the moment the safe set is
+    widened again, whatever the derivation looks like on paper.
+    """
+    for index, name in enumerate(LOOKALIKE_NAMES):
+        chalices.save_build(HERO, name, index + 1, False, old_slots(index))
+
+    assert len(build_entries(HERO)) == len(LOOKALIKE_NAMES)
+    assert sorted(chalices.build_names(HERO)) == sorted(LOOKALIKE_NAMES)
+    for index, name in enumerate(LOOKALIKE_NAMES):
+        assert chalices.load_build(HERO, name) == (
+            index + 1, False, old_slots(index))
+
+
+def test_deleting_one_lookalike_leaves_every_other_one_standing(qapp):
+    """A delete reaches one entry, not the ones the store spells alike."""
+    for index, name in enumerate(LOOKALIKE_NAMES):
+        chalices.save_build(HERO, name, index + 1, False, old_slots(index))
+
+    chalices.delete_build(HERO, LOWER_CASE_NAME)
+
+    left = [name for name in LOOKALIKE_NAMES if name != LOWER_CASE_NAME]
+    assert sorted(chalices.build_names(HERO)) == sorted(left)
+    for index, name in enumerate(LOOKALIKE_NAMES):
+        if name != LOWER_CASE_NAME:
+            assert (slots_of(chalices.load_build(HERO, name))
+                    == old_slots(index))
+
+
+# ---------------------------------------------------------------------------
+# Regression 11 -- QA-046, the two stores in the field
+#
+# Schema 1 filed a build under the name itself, schema 2 under a key that
+# kept the capitals. Both collide in the store, both have to arrive at
+# schema 3, and a second pass over either may change nothing.
+
+
+def test_a_store_of_names_migrates_to_the_new_keys(qapp):
+    old = ["plain", "Fire / ice", "back\\slash", " lead", "uni⚔", "CAPITALS"]
+    expected = write_the_old_way(HERO, old)
+
+    assert chalices.build_names(HERO) == old
+    for name in old:
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
+    assert set(build_entries(HERO)) == {chalices.build_key(n) for n in old}
+
+
+def test_a_schema_2_store_migrates_to_the_new_keys(qapp):
+    """The state of the machine this was written on."""
+    old = ["plain", "Fire / ice", "back\\slash", " lead", "uni⚔", "CAPITALS"]
+    expected = write_the_schema_2_way(HERO, old)
+
+    assert chalices.build_names(HERO) == old
+    for name in old:
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
+    assert set(build_entries(HERO)) == {chalices.build_key(n) for n in old}
+
+
+def test_a_schema_2_store_keeps_its_hidden_marks_and_its_selection(qapp):
+    """Both are stored as keys there, so both have to be read as keys.
+
+    The equipped build is the case that a comparison against the raw entry
+    would drop: it is hideable, it is stored nowhere, and on schema 2 its
+    mark is spelled "Equipped%20in%20game" rather than in words.
+    """
+    write_the_schema_2_way(HERO, ["plain", "Fire / ice"])
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.setValue(f"{chalices.BUILDS}/{HERO}/__hidden",
+                      chalices.SEPARATOR.join(
+                          [schema_2_key(chalices.EQUIPPED_NAME),
+                           schema_2_key("plain")]))
+    settings.setValue(f"{chalices.BUILDS}/{HERO}/__selected",
+                      schema_2_key("Fire / ice"))
+    settings.sync()
+
+    assert chalices.hidden_builds(HERO) == {chalices.EQUIPPED_NAME, "plain"}
+    assert chalices.selected_build(HERO) == "Fire / ice"
+
+
+@pytest.mark.parametrize("write", [write_the_old_way, write_the_schema_2_way])
+def test_a_collided_pair_arrives_as_two_builds_holding_what_they_held(
+        qapp, write):
+    """What becomes of a collision that is already in the store.
+
+    One entry, two names in the order list, and no way of telling which of
+    the two the value was written for -- so both names are carried over onto
+    the build both of them showed before this ran. Nothing is invented and
+    no name is dropped; from here on the two are separate entries the player
+    can edit apart.
+    """
+    expected = write(HERO, [UPPER_CASE_NAME, LOWER_CASE_NAME])
+    assert len(build_entries(HERO)) == 1, "the store held one entry for both"
+
+    assert chalices.build_names(HERO) == [UPPER_CASE_NAME, LOWER_CASE_NAME]
+    assert len(build_entries(HERO)) == 2
+    for name in (UPPER_CASE_NAME, LOWER_CASE_NAME):
+        assert (slots_of(chalices.load_build(HERO, name))
+                == expected[LOWER_CASE_NAME])
+
+
+@pytest.mark.parametrize("write", [write_the_old_way, write_the_schema_2_way])
+def test_the_names_of_a_collided_pair_can_then_be_told_apart(qapp, write):
+    """The point of splitting them: an edit reaches one and not the other."""
+    write(HERO, [UPPER_CASE_NAME, LOWER_CASE_NAME])
+    chalices.build_names(HERO)
+
+    chalices.save_build(HERO, LOWER_CASE_NAME, 9, False, SLOTS_B)
+
+    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (9, False, SLOTS_B)
+    assert slots_of(chalices.load_build(HERO, UPPER_CASE_NAME)) != SLOTS_B
+    chalices.delete_build(HERO, LOWER_CASE_NAME)
+    assert chalices.build_names(HERO) == [UPPER_CASE_NAME]
+
+
+@pytest.mark.parametrize("write", [write_the_old_way, write_the_schema_2_way])
+def test_a_second_migration_of_either_store_changes_nothing(qapp, write):
+    write(HERO, [UPPER_CASE_NAME, LOWER_CASE_NAME, "plain", "Fire / ice"])
+    chalices.build_names(HERO)
+    after_the_first = stored_entries(HERO)
+
+    chalices.build_names(HERO)
+
+    assert stored_entries(HERO) == after_the_first
+
+
+# A name of capitals: 5 462 characters of name, and 16 386 of key now that a
+# capital letter is escaped like anything else. Schema 2 filed it under
+# 5 462 characters and the store took it.
+NAME_WHOSE_NEW_KEY_IS_TOO_LONG = "A" * (chalices.MAX_KEY_LENGTH // 3 + 1)
+
+
+def test_a_schema_2_build_the_new_key_is_too_long_for_stays_where_it_is(qapp):
+    """QA-044 may not get worse: it may lie there, it may not disappear.
+
+    The new derivation makes keys longer, so a build that fits schema 2 can
+    overrun what the store takes. It keeps its old entry and its place in
+    the list, because a build is given up only where the new key can be read
+    back holding it.
+    """
+    assert len(schema_2_key(NAME_WHOSE_NEW_KEY_IS_TOO_LONG)) \
+        <= chalices.MAX_KEY_LENGTH
+    assert len(chalices.build_key(NAME_WHOSE_NEW_KEY_IS_TOO_LONG)) \
+        > chalices.MAX_KEY_LENGTH
+    expected = write_the_schema_2_way(
+        HERO, [NAME_WHOSE_NEW_KEY_IS_TOO_LONG, "plain"])
+
+    listed = chalices.build_names(HERO)
+
+    assert sorted(listed) == sorted([NAME_WHOSE_NEW_KEY_IS_TOO_LONG, "plain"])
+    entries = build_entries(HERO)
+    old = schema_2_key(NAME_WHOSE_NEW_KEY_IS_TOO_LONG)
+    assert old in entries
+    assert (chalices._decode(entries[old])[2]
+            == expected[NAME_WHOSE_NEW_KEY_IS_TOO_LONG])
+    assert (slots_of(chalices.load_build(HERO, "plain")) == expected["plain"])
+
+
+def test_a_schema_2_path_whose_write_was_lost_is_not_removed(qapp,
+                                                             monkeypatch):
+    """The T-020 rule, on the store this migration now also has to read.
+
+    Nothing here is a matter of length: the write is simply dropped, which
+    is what a quota or a refused permission would look like from in here.
+    """
+    saved = ["Fire / ice", "plain"]
+    expected = write_the_schema_2_way(HERO, saved)
+    lost = chalices.build_key("Fire / ice")
+    monkeypatch.setattr(chalices, "_settings",
+                        lambda: SettingsThatLoseOneWrite(lost))
+
+    chalices._migrate_keys(HERO)
+    monkeypatch.undo()
+
+    entries = build_entries(HERO)
+    assert lost not in entries
+    old = schema_2_key("Fire / ice")
+    assert old in entries
+    assert chalices._decode(entries[old])[2] == expected["Fire / ice"]
+    assert slots_of(chalices.load_build(HERO, "plain")) == expected["plain"]
+
+
+def test_a_fragment_naming_a_bookkeeping_entry_is_not_taken_for_a_build(
+        qapp):
+    """The order list is asked what it holds, and it can name itself.
+
+    A name holding a "|" reaches the migration as two fragments (QA-034),
+    and a fragment can read "__order". The store answers for that one -- it
+    is an entry, only not a build -- so following every fragment the store
+    answers for would file the order list itself as a build with the other
+    builds' keys for slots.
+    """
+    write_the_old_way(HERO, ["x|__order"])
+
+    names = chalices.build_names(HERO)
+
+    assert names == ["x|__order"]
+
+
+def test_the_list_shows_a_collided_pair_as_two_rows(planner):
+    """On screen, where the player met it: two names, two builds."""
+    hero_id = planner.current_hero()["id"]
+    write_the_schema_2_way(hero_id, [UPPER_CASE_NAME, LOWER_CASE_NAME])
+
+    planner.refresh_build_list()
+
+    shown = [planner.build_box.itemData(i)
+             for i in range(planner.build_box.count())]
+    assert shown.count(UPPER_CASE_NAME) == 1
+    assert shown.count(LOWER_CASE_NAME) == 1
