@@ -1167,6 +1167,480 @@ keinen Aufrufer.
 
 ---
 
+### AD-014 — Ein festgehaltener Slot ist Randbedingung der Suche, nicht Startwert: er geht als Grundzustand in jede Bewertung ein (2026-09-02, Status: aktiv)
+
+**Kontext:** Der Nutzer hat am 2026-09-02 entschieden (`GOAL.md`, F1): der
+Spieler kann einzelne Slots festhalten, der Berater optimiert nur den Rest.
+Seine Begründung: „Ich will immer vom aktuellen Stand aus optimieren können.
+Falls ich z. B. um 1 Relikt herum bauen will und dann ein Build optimieren
+will, wo es aber um dieses eine 'nicht optimale' Relikt geht."
+
+Die Lesart des `director` — **festgehalten heisst Randbedingung, nicht
+Startwert** — ist am Bestand geprüft und **bestätigt**. Der Beleg ist die
+Signatur, an der alles hängt:
+`model.compute(hero, level, effects, curves, weapon, weapons_held, declared)`
+nimmt **eine flache Effektliste über alle Slots**. Die Bewertung kennt keine
+Slots. Ein festgehaltenes Relikt kann deshalb nur auf einem Weg wirken: seine
+Effekte (und Flüche, AD-015) stehen in *jeder* Liste, die die Suche bewertet.
+Damit ist „optimiere um dieses Relikt herum" tatsächlich ein **anderes
+Suchproblem** — ein Problem über weniger Variablen mit einem anderen
+Grundzustand, nicht dasselbe Problem mit einem anderen Anfangspunkt.
+
+Ein Startwert wäre auch fachlich falsch: er würde in der Beam-Suche in der
+nächsten Ebene wieder verdrängt, und genau der Fall, um dessentwillen der
+Nutzer die Funktion will (ein für sich *nicht* optimales Relikt), ist der
+Fall, in dem er zuerst verdrängt würde.
+
+**Kräfte:** Die Rechnung darf nicht zweimal existieren (AD-002). Der
+Grundzustand darf an keiner Bewertungsstelle vergessen werden — vergisst ihn
+die Vorsortierung, empfiehlt der Berater Kandidaten, deren Beitrag das
+festgehaltene Relikt bereits abdeckt. Und das Budget aus A6 darf nicht kippen.
+
+**Optionen:**
+- **A — Startwert.** Festgehaltene Relikte werden als Anfangsbelegung in den
+  Beam gelegt, die Suche läuft über alle Slots. Konsequenz: der Beam ersetzt
+  sie in der nächsten Ebene wieder; „festhalten" wäre nur eine Vorbelegung
+  und beantwortete die Frage des Nutzers nicht. Verworfen.
+- **B — Nachträglich filtern.** Frei suchen, am Ende nur Ergebnisse behalten,
+  die den festgehaltenen Slot zufällig gleich belegen. Konsequenz: derselbe
+  Fehler wie AD-013 Option B, nur schärfer — bei einem bewusst nicht optimalen
+  Relikt bleibt von 40 Ergebnissen keines übrig. Verworfen.
+- **C — Grundzustand.** Die festgehaltenen Slots bilden einen `held_build`;
+  die Suche läuft nur über die freien Slots, und jede Bewertung — auch die
+  Vorsortierung — bewertet `held_effects + gewählte Effekte`. Konsequenz: die
+  Suche wird kleiner statt grösser, die Stacking-Regeln greifen von selbst
+  (AD-002), und es kommt genau eine Datenstruktur dazu.
+
+**Entscheidung:** C.
+
+**Ausgestaltung, verbindlich:**
+
+1. **Genau eine Bewertungsstelle im Berater.** Neu im Modulschnitt aus
+   AD-001: `nrplanner/advisor/evaluate.py` mit einer Funktion
+
+   ```python
+   # advisor/evaluate.py  (illustrierend, kein Anwendungscode)
+   def evaluate(problem, assignment, ctx) -> model.Build:
+       """The one place under advisor/ that reaches model.compute.
+
+       Held slots, chosen candidates, their curses and the weapon effects are
+       assembled here and nowhere else -- pre-sort, beam step and baseline all
+       come through this door, so none of them can forget the held slots.
+       """
+   ```
+
+   Das ist kein Stilwunsch, sondern die Durchsetzung: „der festgehaltene
+   Beitrag geht in jede Bewertung ein" ist eine Regel, die man an drei Stellen
+   vergessen kann, solange es drei Stellen gibt. `candidates.py`, `search.py`
+   und der Grundlauf rufen `evaluate`; keines von ihnen ruft `model.compute`.
+   Der `compute`-Wächter (`tests/test_one_build.py`) erwartet danach
+   `{"nrplanner/app.py": 1, "nrplanner/advisor/evaluate.py": 1}` — **eine**
+   neue Zeile, und jede zweite fällt auf. Abhängigkeitsrichtung:
+   `types` → `evaluate` → `candidates`/`goals`/`search`/`explain`.
+
+2. **Suchtiefe = Zahl der freien Slots.** Festgehaltene Slots sind keine
+   Ebenen der Beam-Suche. Sind alle Slots festgehalten, findet **keine Suche**
+   statt: das Ergebnis ist der bewertete Ist-Zustand mit einer Zeile, die das
+   sagt. Ein leerer Beam ist kein Fehlerfall.
+
+3. **Die Vorsortierung bewertet gegen den Grundzustand**, nicht isoliert:
+   Rang eines Kandidaten = `goal(evaluate(held + Kandidat))`. Das ist die
+   einzige Stelle, an der das Festhalten die *Qualität* verbessert statt nur
+   den Raum zu verkleinern — die in AD-003 benannte schärfste Schwäche
+   (isolierte Vorsortierung, OF-10) wird für jeden festgehaltenen Slot
+   kleiner, weil der Kontext, den ihr fehlte, jetzt teilweise dasteht.
+
+4. **Farbsymmetrie nur über freie Slots.** AD-003 Punkt 2 schränkt die Wahl
+   innerhalb einer Gruppe gleichfarbiger Slots auf aufsteigende
+   Kandidatenreihenfolge ein. **Diese Regel wurde unter der Bedingung
+   „alle Slots sind frei" geprüft und ist dort richtig; das Festhalten
+   verletzt diese Bedingung.** Beispiel `Wylder's Urn` `[Rot, Rot, Blau]`:
+   ist der erste rote Slot festgehalten, sind die beiden roten Slots **nicht
+   mehr austauschbar**, und die aufsteigende Regel würde jeden roten
+   Kandidaten mit kleinerem Index als das festgehaltene Relikt still
+   ausschliessen. Die Symmetriegruppen werden deshalb **über die freien Slots
+   allein** gebildet. Ein einzelner freier Slot einer Farbe hat keine
+   Symmetrie und keine Einschränkung.
+
+5. **Handles: der Grundzustand belegt vor.** Der Anfangszustand der Suche
+   trägt die Handles der festgehaltenen Relikte in seinem `frozenset`
+   (AD-013 Punkt 2). Damit kann kein festgehaltenes Exemplar ein zweites Mal
+   vorgeschlagen werden. Der Fall „festgehaltenes Relikt **ohne** Handle"
+   (Custom relic, oder ein Save ohne lesbare Handle-Tabelle) trägt sich ohne
+   neue Regel: AD-013 Punkt 4 nimmt handle-lose Relikte bereits aus dem
+   Kandidatenraum, sie können also gar nicht vorgeschlagen werden. Ein
+   festgehaltenes „Custom relic" ist zulässig — es ist eine Randbedingung,
+   kein Vorschlag, und `UI_SPEC` AK-16 (kein Custom relic **im Vorschlag**)
+   bleibt unberührt.
+
+6. **Erklärt wird gegen den Grundzustand, nicht gegen den leeren Build.**
+   S8/AD-010 nannten „die Differenz zum leeren Build". Mit festgehaltenen
+   Slots ist das falsch: die Begründung schriebe dem Vorschlag die Effekte
+   des festgehaltenen Relikts gut. Bezugspunkt ist `evaluate(held, {})`.
+   Die Rangzahl bleibt der **absolute** Wert des ganzen Builds (eine
+   Autorität); zusätzlich weist das Ergebnis den **Zugewinn gegenüber dem
+   Grundzustand** aus. Das kostet genau einen zusätzlichen `evaluate`-Aufruf
+   je Lauf.
+
+7. **Ein festgehaltener leerer Slot bedeutet „bleibt leer"** und wird nicht
+   belegt. Ob die Oberfläche das anbietet, entscheidet der `ui-ux-designer`;
+   die Suche muss es vertragen.
+
+8. **Nichts wird persistiert.** Der Haltezustand ist Teil des
+   `AdvisorRequest` (AD-006 Punkt 8: unveränderliche Datenklassen über die
+   Thread-Grenze), nicht `QSettings`, nicht Platte (AD-007).
+
+**Laufzeit — das Budget hält, und zwar beweisbar ohne neue Messung.** Die
+Kosten der Beam-Suche sind `Ebenen × W × K` Bewertungen; die Kosten *einer*
+Bewertung wachsen mit der Zahl der beitragenden Relikte (0,10 ms bei wenigen,
+0,18–0,25 ms bei vollem Build). Ein Lauf mit `h` festgehaltenen Slots
+bewertet auf seiner ersten Ebene Builds aus `h+1` Relikten, auf seiner
+letzten aus 6 — er zahlt also **genau die tiefsten `6−h` Ebenen des heutigen
+Laufs** und keine einzige zusätzliche. Damit ist er durch die gemessenen
+**0,46 s** des freien Laufs (`Wylder's Chalice` + Deep, weisser Slot,
+K=20/W=40) nach oben beschränkt.
+
+Teurer wird genau eine Stelle: die Vorsortierung. Sie bewertet 309 Relikte,
+und zwar jetzt im Kontext des Grundzustands — bei `h=5` also volle Builds
+statt einzelner Relikte, rund **77 ms statt 31 ms**. Der zugehörige
+Suchanteil ist dann aber nur noch eine Ebene (1 × 40 × 20 × 0,25 ms ≈ 0,2 s),
+Gesamtlauf ≈ 0,28 s.
+
+**Der ungünstigste Fall bleibt derselbe: `Wylder's Chalice` + Deep mit
+nichts festgehalten, 0,46 s.** Bei `h=0` ist der Entwurf verhaltensgleich
+mit dem heutigen — der Grundzustand ist dann der leere Build. Das ist die
+Prüfbedingung, unter der die 0,46 s gemessen wurden, und sie bleibt gültig.
+Der `performance-tuner` bestätigt in S11 zusätzlich einen Lauf mit `h=5`.
+
+**Nebenertrag, ungeplant und für T-004 wichtig:** „Was passt in **diesen**
+Slot?" (die Picker-Frage aus `GOAL.md` F4) ist in diesem Entwurf **kein
+neuer Mechanismus**, sondern derselbe Lauf mit `h = Slotzahl − 1`. Kosten
+nach obiger Rechnung ≈ 0,28 s im schlechtesten Fall. Der `ui-ux-designer`
+kann die beiden Fragen also frei anordnen, ohne dass eine davon Architektur
+kostet.
+
+**Konsequenzen:** Leicht wird — inkrementelles Bauen („von hier aus weiter"),
+die Picker-Frage, und eine bessere Vorsortierung bei jedem festgehaltenen
+Slot. Dauerhaft schwer wird — eine Aussage über den *Wert des Festhaltens*
+selbst („dieses Relikt kostet dich 40 AR"); dafür bräuchte es einen zweiten
+Lauf ohne Haltezustand und einen Vergleich. Das ist möglich (zwei Läufe,
+zwei Cache-Einträge), aber es ist ein Merkmal und keine Nebenwirkung.
+
+**Umkehrbarkeit:** leicht. Ohne Haltezustand ist der Grundzustand der leere
+Build und alles läuft wie bisher; die Struktur ist die allgemeinere Form
+dessen, was ohnehin gebaut wird.
+
+---
+
+### AD-015 — Flüche gehen als gewöhnliche Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus `Build.sources`, nicht aus einer zweiten Rechnung (2026-09-02, Status: aktiv)
+
+**Kontext:** `GOAL.md` F3, entschieden vom Nutzer am 2026-09-02: Flüche
+werden mitbewertet und im Ergebnis ausgewiesen. Begründung: „Falls meine
+negativen auf Relikten meine Benefits vernichten, muss ich das wissen."
+
+Am Bestand geprüft: `Planner.current_build()` (`app.py:3300 f.`) reicht
+`self.selected_effects() + self.weapon_effects() + curses` in **einen**
+`model.compute`-Aufruf; der Kommentar dort nennt den Grund („Leaving them out
+meant a curse ... made the sheet quietly wrong for every Deep of Night
+build"). Flüche sind für die Rechnung also längst gewöhnliche Effekte. Für
+den Berater ist F3 damit **keine neue Mechanik**, sondern die Auflage, den
+bestehenden Weg nicht zu verlassen.
+
+**Optionen:**
+- **A — Flüche nur anzeigen, nicht bewerten.** Konsequenz: die Rangliste
+  widerspricht dem Statblatt desselben Programms — genau der Fehler aus
+  QA-001, wegen dessen es den `compute`-Wächter gibt. Und F3 wäre verletzt.
+- **B — Flüche als gewöhnliche Effekte in dieselbe Effektliste**, wie
+  `current_build()` es tut. Konsequenz: das Ranking stimmt mit dem Statblatt
+  überein, ohne dass jemand darauf achten muss; ein Fluch, der den Nutzen
+  auffrisst, senkt die Rangzahl von selbst.
+- **C — Zusätzlicher Fluch-Malus auf die Zielpunktzahl.** Konsequenz: eine
+  zweite Bewertungsautorität mit eigenen Gewichten — gegen AD-002 — und die
+  Gewichte stünden nirgends in den Spieldateien, also gegen A7.
+
+**Entscheidung:** B. C ist die Versuchung, weil ein Malus den blinden Fleck
+unten scheinbar schliesst; er schlösse ihn mit erfundenen Zahlen.
+
+**Ausweisen, ohne zweite Rechnung:** `Build.sources` ist bereits
+`field -> [(Effektname, Einzelwert)]` und enthält die Fluchbeiträge mit
+negativem Vorzeichen, weil sie durch dieselbe Rechnung gelaufen sind.
+`explain.py` liest daraus:
+- je vorgeschlagenem Relikt die Flüche mit Namen **und** dem Feld, das sie
+  bewegt haben, samt Betrag (`UI_SPEC` 3.2 und AK-19 verlangen die Nennung
+  vor dem Anwenden; die Zahl kommt jetzt aus derselben Quelle wie die
+  Begründungszeile),
+- `AdvisorResult.curses` bleibt wie in AD-010 gefordert, wird aber
+  ausdrücklich aus `sources` gefüllt statt aus der Relikt-Definition — sonst
+  stünde ein Fluch da, den die Rechnung gar nicht angewandt hat (etwa ein
+  konditionaler).
+
+**Der blinde Fleck, ausdrücklich benannt (A7).** Bewertet wird alles,
+**gerankt** wird eine Zahl. Ein Fluch, der ein Feld bewegt, das die gewählte
+Zielrichtung nicht misst — etwa `-HP` unter „Maximise damage" —, ist im Build
+korrekt verrechnet, ändert die Rangzahl aber nicht. Dass er im Vorschlagsblock
+steht, ist damit nicht Kosmetik, sondern der einzige Ort, an dem er sichtbar
+wird. Pflichtzeile in `unknowns`, sobald ein vorgeschlagenes Relikt einen
+Fluch trägt, dessen Felder ausserhalb der Zielgrösse liegen:
+`"A curse on <relic> changes <field>, which this goal does not rank."`
+
+Ein Schalter „ohne Flüche" (`UI_SPEC` F3, Alternative) ist damit **nicht**
+entschieden worden und auch nicht nötig: er wäre ein Kandidatenfilter in
+`candidates.py`, eine Zeile, und berührt weder Suche noch Bewertung. Ob er
+kommt, entscheidet der `ui-ux-designer` mit dem Nutzer.
+
+**Konsequenzen:** Leicht wird — F3 kostet im Kern null Struktur, und jede
+künftige Korrektur an der Fluchbehandlung in `model.py` erreicht den Berater
+ohne Zutun. Dauerhaft schwer wird — eine *Abwägung* zwischen Nutzen und Fluch
+über Dimensionen hinweg; die braucht Gewichte, die es nicht gibt (siehe
+OF-13).
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### AD-016 — Der Haltezustand geht in die Kanonisierung, den Cache-Schlüssel und den Generationszähler ein (2026-09-02, Status: aktiv; präzisiert AD-006, AD-007, AD-008)
+
+**Kontext:** AD-008 schlüsselt ein Suchproblem über die **sortierte
+Slot-Farbmenge** statt über die Gefäss-Id — geprüft unter der Bedingung, dass
+alle Slots gleichberechtigt frei sind; dort ist die Sortierung verlustfrei,
+weil ein Slot ausser seiner Farbe keine Eigenschaft hat. **Festhalten führt
+eine zweite Eigenschaft ein** und stösst diese Bedingung um:
+`[Rot(gehalten), Rot(frei), Blau]` und `[Rot(frei), Rot(frei), Blau]` haben
+dieselbe sortierte Farbmenge und sind verschiedene Probleme.
+
+**Optionen:**
+- **A — Cache aus, sobald etwas festgehalten ist.** Immer korrekt, nichts zu
+  bauen. Konsequenz: ausgerechnet der Fall mit den meisten festgehaltenen
+  Slots — die Picker-Frage aus AD-014, sechs Slots nacheinander geöffnet —
+  träfe nie, und dort ist der Nutzen des Caches am grössten.
+- **B — Gefäss-Id plus Slotindizes in den Schlüssel**, Kanonisierung fallen
+  lassen. Konsequenz: korrekt, aber der Trefferanteil aus AD-008 ist weg, und
+  mit ihm das Argument, mit dem der `qa-engineer` A3 über 26 bzw. 47
+  kanonische Probleme statt 74 Gefässe prüft.
+- **C — Kanonische Form erweitern.** Schlüssel ist `(sortierte Farben der
+  **freien** Slots, deep, Fingerabdruck des Haltebündels, …)`. Das Haltebündel
+  wirkt positionsunabhängig — seine Effekte gehen in eine flache Liste, und es
+  belegt Handles —, also genügt ein Fingerabdruck über
+  `(handle, relic_id, sorted(effect_ids), sorted(curse_ids))` je gehaltenem
+  Relikt, sortiert. Konsequenz: die Rückabbildung in `worker.py` bildet nur
+  noch die **freien** Slots zurück, ein paar Zeilen mehr.
+
+**Entscheidung:** C.
+
+**Verbindlich:**
+1. `AdvisorRequest` trägt den Haltezustand als eingefrorene Abbildung
+   Slotindex → Inhalt (Handle, oder ein Custom-Relikt-Inhalt, oder „leer").
+2. Der Cache-Schlüssel aus AD-007 wird um `held_fingerprint` ergänzt. Das ist
+   dieselbe Abwägung wie bei den Handles im Nachtrag zu AD-007: ein
+   überflüssiger Fehlschlag kostet 0,46 s, ein Treffer über den falschen
+   Haltezustand liefert einen Vorschlag, der einen bewusst festgehaltenen
+   Slot überschreibt.
+3. Der Generationszähler aus AD-006 Punkt 3 wird **auch** erhöht, wenn ein
+   Slot festgehalten oder freigegeben wird oder sich der Inhalt eines
+   festgehaltenen Slots ändert. Die dort festgeschriebene Kopplung gilt
+   unverändert: was den Cache-Schlüssel ändert, macht ein laufendes Ergebnis
+   veraltet.
+4. Die Rückabbildung permutiert nur freie Slots; festgehaltene behalten ihren
+   Platz per Konstruktion.
+
+**Konsequenzen:** Leicht wird — der Picker-Fall bleibt cachefähig, und die
+Prüfbarkeit aus AD-008 bleibt erhalten. Dauerhaft schwer wird — nichts von
+Belang; der Schlüssel wird um ein Feld länger.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### AD-017 — Der Haltezustand gehört zum Paar (Nightfarer, Gefäss) und lebt im Fenster, nicht auf Platte (2026-09-02, Status: aktiv; präzisiert AD-014.8 und die Nicht-tun-Regel 15)
+
+**Kontext:** Antwort des Nutzers auf OF-12, wörtlich: *„Die Relikte selbst
+verfallen beim Wechsel, wenn man zurueck auf das Gefaess oder den Nightfarer
+springt soll es aber noch da sein. Also persistent in dem Gefaess selbst,
+sonst flexibel."* Das ist die dritte Option, die weder mein Vorschlag
+(„verfällt") noch „wandert mit" war: der Haltezustand ist eine Eigenschaft
+des Paars (Held, Gefäss), nicht der Sitzung und nicht des Slots.
+
+**Kräfte:** Die verlangte Wirkung ist „weg und zurück, und es steht wieder
+da". Dagegen steht die Geschichte des Schlüsselraums: Zyklus 4 und 5 haben
+dreimal Nutzerdaten zerstört, es gilt Schema 3, Schlüssel sind prozentkodiert
+und **im Speicher** eindeutig, und jede Migration hält die Nachbedingung
+„erst alles lesen, dann schreiben, dann `sync()`, dann Rücklesung, und nur
+entfernen, was nachweislich steht". Und der Inhalt ist heikel: ein Halt
+verweist auf einen **Handle**, und Handles werden beim Einschmelzen oder
+Rechnerwechsel neu vergeben (Nachtrag zu AD-007).
+
+**Optionen:**
+- **A — `QSettings`, eigener Schlüsselraum je (Held, Gefäss).** Überlebt
+  Neustarts. Konsequenz: ein **neues Schema** mit allem, was daran hängt —
+  Prozentkodierung, Eindeutigkeit im Speicher, Migration mit der
+  Nachbedingung oben, und eine Auflösungsregel für den Fall, dass das
+  gehaltene Relikt beim nächsten Start nicht mehr im Besitz ist. Das ist die
+  volle Maschinerie eines Werks für Ansichtszustand.
+- **B — Im Fenster, Abbildung `(hero_id, vessel_id, deep) -> Haltezustand`,
+  gehalten am `Planner`.** Konsequenz: „weg und zurück" trägt genau so, wie
+  der Nutzer es beschrieben hat; kein Schema, keine Migration, kein
+  Schlüsselraum, kein Datenverlustrisiko. Beim Programmende ist der Halt weg.
+- **C — In den bestehenden Build-Speicher (`chalices.save_build`).**
+  Konsequenz: ein Halt ist kein Bestandteil eines Builds; das Format eines
+  **Werks** würde für Ansichtszustand geändert. Schlechteste Option.
+
+**Entscheidung: B.** Der Nutzer beschreibt Hin- und Herspringen, also einen
+Vorgang **innerhalb** einer Sitzung; B erfüllt das vollständig. Ein Halt ist
+Ansichtszustand, kein Werk — und die Regel des Hauses lautet, ihn im Zweifel
+zu verwerfen statt zu retten. Ein über den Neustart geretteter Halt wäre
+ausserdem genau der Fall, gegen den AD-013 gebaut ist: er zeigt auf ein
+Exemplar, das inzwischen eingeschmolzen sein kann.
+
+**Verbindlich:**
+1. Die Abbildung lebt am `Planner`, **nicht** im `AdvisorController` — sie
+   überdauert einen Beraterlauf, aber nicht das Fenster. Der Berater bekommt
+   sie weiterhin nur als eingefrorenen Teil des `AdvisorRequest` (AD-014.8).
+2. Schlüssel ist `(hero_id, vessel_id, deep)`. Der Deep-Schalter gehört dazu,
+   weil er die Slotmenge ändert.
+3. **Gültigkeit wird beim Bauen des Requests geprüft, nicht beim Speichern.**
+   Ein Halt, dessen Handle nicht mehr im Besitz ist (Neu-Scan des Saves,
+   Einschmelzen), fällt weg und wird in `unknowns` genannt:
+   `"A held slot was released: that relic is no longer in your inventory."`
+   Stillschweigend weiterrechnen wäre die Variante, die einen falschen
+   Vorschlag erzeugt.
+4. **Kein `QSettings`-Eintrag, kein Schema, keine Migration.** Damit ist die
+   Nachbedingung aus Zyklus 4/5 nicht berührt — nicht weil sie eingehalten
+   wird, sondern weil kein persistenter Zustand entsteht.
+5. Nicht-tun-Regel 15 gilt in dieser Fassung weiter: nicht auf Platte, nicht
+   in `QSettings`. Die Ergänzung ist, dass der Zustand **im Fenster** einen
+   definierten Ort bekommt statt gar keinen.
+
+**Bedingung für eine Neubewertung:** Sagt der Nutzer, dass der Halt einen
+**Programmneustart** überleben soll (OF-15), ist A richtig — dann aber mit
+allem: eigenes Schema, Migrationsnachbedingung, und eine ausgesprochene Regel
+für nicht mehr besessene Relikte. Das ist ein eigener Auftrag und nicht Teil
+des Beraters.
+
+**Konsequenzen:** Leicht wird — die Funktion, die der Nutzer beschrieben hat,
+ohne einen Meter neuen Speicherraum. Dauerhaft schwer wird — nichts, solange
+die Bedingung oben gilt.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### AD-018 — Der Hauptweg des Beraters ist der Grenzbeitrag je Kandidat im Picker; er ist dieselbe Rechnung wie die Vorsortierung, und der Gesamtlauf bleibt als zweite Frage bestehen (2026-09-02, Status: aktiv; präzisiert AD-014, AD-003, AD-006, AD-016)
+
+**Kontext:** Der Nutzer hat F2 nicht beantwortet, sondern die Fragestellung
+verworfen. Wörtlich: *„Ich will im Relikte-Auswahlfenster Vorschlaege haben.
+Diese Vorschlaege sollen immer schon die Berechnung machen vom aktuellen
+Build aus. … Z.B. macht ein +Staerke weniger viel aus, wenn ich schon sehr
+viel Staerke habe, weil der Schaden dann weniger stark steigt."*
+
+**Die Lesart des `director` ist bestätigt, und sie kostet nichts Neues.**
+Der Wert eines Kandidaten ist sein Grenzbeitrag
+`goal(evaluate(held + Kandidat)) − goal(evaluate(held))`. Das ist **wörtlich
+die Vorsortierung aus AD-014.3** — dieselbe Zahl, für denselben Slot, aus
+demselben `evaluate`. Was AD-014 als internen Zwischenschritt beschrieb, ist
+jetzt die sichtbare Hauptausgabe. Es kommt keine Rechnung dazu; es wird eine
+Rechnung, die ohnehin läuft, angezeigt.
+
+Der abnehmende Ertrag, nach dem der Nutzer fragt, fällt tatsächlich von
+selbst heraus: die Attributkurven und die Skalierung stecken in
+`damage.py`/`model.py`, und eine Differenz zweier Punkte auf einer konkaven
+Kurve ist am oberen Ende kleiner. **Er fällt aber nur heraus, wenn die
+Steigung dieser Kurve stimmt — siehe das Risiko unten (QA-018).**
+
+**Optionen:**
+- **A — Beim alten Entwurf bleiben:** Gesamtlauf auf Knopfdruck, Picker zeigt
+  nur eine Markierung (`UI_SPEC` AK-28). Konsequenz: beantwortet die Frage des
+  Nutzers nicht; „was bringt *mir* dieses Relikt jetzt" bliebe unbeantwortet.
+- **B — Picker-Bewertung als alleiniger Weg**, Gesamtlauf streichen.
+  Konsequenz: wer sich Slot für Slot durchklickt, baut **greedy** — und das
+  ist AD-003 Option B, gemessen falsch bei Exklusivgruppen und
+  `isStrongestEffect`. Der Berater verlöre genau die Fähigkeit, für die es die
+  Beam-Suche gibt.
+- **C — Beides, aus einer Rechnung:** der Picker beantwortet „was ist für
+  **diesen** Slot jetzt das Beste" (Grenzbeitrag, h = Slotzahl − 1), der
+  Gesamtlauf „welche **Menge** ist zusammen die beste" (Beam über die freien
+  Slots). Konsequenz: zwei Ansichten, ein `evaluate`, eine Bewertungsautorität.
+
+**Entscheidung:** C. Es sind zwei verschiedene Fragen und nicht zwei
+Darstellungen derselben Antwort — deshalb bleibt der `Optimize`-Lauf, den der
+Nutzer ohnehin weiter will.
+
+**Verbindlich:**
+1. **Grenzbeitrag statt Absolutwert im Picker.** Angezeigt wird die Differenz
+   zum Grundzustand; gerankt wird danach. Der Grundzustand ist der aktuelle
+   Build ohne den geöffneten Slot — dieser Slot ist im Sinne von AD-014 der
+   **einzige freie**, alle anderen sind gehalten, gleichgültig ob der Spieler
+   sie festgehalten hat oder nicht.
+2. **Beide Zielrichtungen kosten fast nichts.** Teuer ist `compute`, nicht
+   `goal`. `evaluate` liefert einen `Build`; ihn unter beiden Zielrichtungen
+   zu bewerten kostet zwei Funktionsaufrufe über fertige Felder. Ob der Picker
+   eine Spalte oder zwei zeigt, ist damit eine Frage des `ui-ux-designer` und
+   keine Kostenfrage.
+3. **Ein Hinweis, der aus dem Verfahren folgt** (A7, Pflichtzeile, sobald der
+   Spieler slotweise wählt): `"Chosen slot by slot. Relics that only pay off
+   together are not visible this way — the Optimize run looks for those."`
+   Ohne diesen Satz behauptet die Picker-Liste eine Optimalität, die AD-003
+   Option B widerlegt hat.
+4. **Der Lauf bleibt im Worker.** Auch 50 ms gehören nicht in den
+   Hauptthread, wenn sie bei jedem Tastendruck im Filterfeld anfallen können
+   (AD-006). Entprellung und Generationszähler gelten unverändert.
+
+**Laufzeit — die entscheidende Verschiebung, gerechnet aus den Grundzahlen.**
+Aus „ein Lauf auf Knopfdruck" wird „ein Lauf bei jeder Interaktion". Die
+gute Nachricht steht in den Zahlen: ein Picker-Lauf ist **eine** Ebene, also
+eine Bewertung je Kandidat des Slots, nicht `Ebenen × W × K`.
+
+| Fall | Bewertungen | Kosten |
+|------|-------------|--------|
+| weisser Slot, normal (grösster Pool) | 205 | ~51 ms |
+| weisser Slot, deep | 101 | ~25 ms |
+| farbiger Slot | 21–55 | ~5–14 ms |
+| Grundzustand je Lauf | 1 | ~0,25 ms |
+| **Gesamtlauf (`Optimize`), unverändert** | 3 929 | **0,46 s** |
+
+(0,25 ms je Bewertung, weil im Picker fast immer ein voller Build bewertet
+wird — der obere Rand der gemessenen Spanne.)
+
+Der teuerste Picker-Lauf ist damit rund **ein Neuntel** des Gesamtlaufs und
+liegt unter der 250-ms-Schwelle aus `UI_SPEC` AK-09, ab der überhaupt ein
+Wartezustand gezeigt wird. Der ungünstigste Fall des Beraters bleibt
+unverändert der Gesamtlauf mit nichts festgehalten, 0,46 s.
+
+Was sich verschiebt, ist nicht die Spitze, sondern die **Häufigkeit**: der
+Berater rechnet jetzt beim Öffnen des Pickers und nach jeder Änderung, die
+den Grundzustand bewegt (Level, Waffe, ein anderer Slot, ein deklarierter
+konditionaler Effekt). Deshalb sind die beiden bereits beschlossenen
+Schutzmechanismen jetzt tragend statt vorsorglich: die Entprellung (AD-006.5)
+und der Generationszähler (AD-006.3). Neu ist nur die Empfehlung, die
+Entprellung für den Picker-Pfad **kürzer** zu setzen als für den Gesamtlauf
+(Vorschlag 100 ms gegen 250 ms) — 50 ms Rechnung hinter 250 ms Wartezeit
+fühlt sich träger an, als sie ist. Der `performance-tuner` setzt beide Werte
+in S11.
+
+**Zwischenspeicher und Generation (präzisiert AD-016).** Es entsteht **keine
+zweite Schlüsselform.** Ein Picker-Lauf ist in der Kanonisierung aus AD-016
+der Fall „freie Slots = genau einer": Schlüssel ist
+`(Farbe des freien Slots, deep, held_fingerprint, goal_id, weighting_id,
+inventory, snapshot, weapon, declared, hero, level)`. Zwei Folgen, beide
+gewollt: das Durchklicken durch sechs Slots erzeugt sechs kleine Einträge
+statt eines grossen, und ein zurückgeklickter Slot antwortet aus dem Cache.
+Weil die Einträge nun kleiner und zahlreicher sind, ist die LRU-Grösse aus
+AD-007 (Vorschlag 32) neu zu setzen — Aufgabe des `performance-tuner` in S11,
+Vorschlag 64.
+
+**Konsequenzen:** Leicht wird — die Frage, die der Nutzer tatsächlich stellt,
+und zwar ohne neue Rechnung; ausserdem ist der Picker-Wert *dieselbe* Zahl,
+nach der der Gesamtlauf vorsortiert, die beiden Ansichten können sich also
+nicht widersprechen. Dauerhaft schwer wird — der Berater ist jetzt an der
+Interaktion beteiligt statt daneben; jede künftige Verlangsamung von
+`model.compute()` wird sofort spürbar, nicht erst auf Knopfdruck. Das ist der
+Preis dieser Entscheidung und gehört als Messpunkt in S11.
+
+**Umkehrbarkeit:** mittel. Die Rechnung ist dieselbe; rückgängig wäre nur die
+Anzeige. Was nicht leicht zurückgeht, ist die Erwartung des Nutzers, dass
+jede Auswahl sofort bewertet ist.
+
+---
+
 ## Umsetzung — Schnitt in einzeln lauffähige Schritte
 
 Jeder Schritt ist für sich lauffähig und für sich prüfbar. Reihenfolge ist
@@ -1325,3 +1799,191 @@ solche Relikte aus dem Kandidatenraum und meldet sie. Wie viele der 309 sind
 das tatsächlich? Bei null ist die Regel eine Formalie, bei einer
 nennenswerten Zahl ist sie ein sichtbarer Verlust an Vorschlagsqualität und
 gehört in die Oberfläche statt nur in `unknowns`.
+
+---
+
+## Nachtrag 2026-09-02 — Festhalten und Flüche (AD-014 bis AD-016)
+
+Dieser Nachtrag schreibt die Umsetzung, die Prüfpunkte, die Risiken und die
+offenen Fragen fort. **Was er nicht anfasst: AD-002.** Die Entscheidung,
+`model.compute()` an jedem Suchschritt zu benutzen, trägt beide neuen
+Anforderungen unverändert — sie ist der Grund, warum Stacking-Regeln bei
+festgehaltenen Slots und Flüche in der Bewertung **nichts kosten**. Wären
+die Regeln in einem zweiten Scorer nachgebaut, wäre jede der beiden
+Anforderungen ein eigener Umbau gewesen.
+
+### Änderungen am Umsetzungsschnitt
+
+| Schritt | Änderung |
+|---------|----------|
+| **S4+** | `AdvisorRequest` trägt den Haltezustand (eingefrorene Abbildung Slotindex → Handle / Custom-Inhalt / „leer") und dessen Fingerabdruck. `AdvisorResult` trägt zusätzlich den Wert des Grundzustands und den Zugewinn (AD-014.6) sowie die festgehaltenen Slots. |
+| **S4b (neu, vor S5)** | **`advisor/evaluate.py`** — die einzige Stelle unter `advisor/`, die `model.compute` erreicht (AD-014.1). Die Erwartung im `compute`-Wächter (`tests/test_one_build.py`) wird um **genau diesen einen** Eintrag erweitert. *Fertig, wenn:* Wächter grün mit zwei Einträgen, **und** ein probeweise in `search.py` eingefügter zweiter Aufruf ihn rot macht. |
+| **S5+** | Vorsortierung gegen den Grundzustand statt isoliert (AD-014.3); Handles der festgehaltenen Relikte im Anfangszustand belegt (AD-014.5); Mindestlänge der Kandidatenliste `K + (Zahl der freien Slots − 1)`. |
+| **S7+** | Ebenen der Beam-Suche = **freie** Slots; Symmetriegruppen nur über freie Slots (AD-014.4); alle Slots gehalten ⇒ kein Suchlauf. |
+| **S8+** | Bezugspunkt der Begründung ist der Grundzustand, nicht der leere Build (AD-014.6); Flüche und ihre Beträge aus `Build.sources` (AD-015); neue `unknowns`-Zeilen für gehaltene Slots und zielfremde Flüche. |
+| **S9+** | `held_fingerprint` im Cache-Schlüssel, Generationszähler auch bei Halteänderung, Rückabbildung nur der freien Slots (AD-016). |
+| **S11+** | Der `performance-tuner` misst zusätzlich einen Lauf mit `h=5` (die Picker-Frage) und bestätigt, dass der ungünstigste Fall weiterhin `h=0` ist. |
+
+Die Reihenfolge bleibt: S4 → S4b → S5/S6 → S7 → S8 → S9 → S10.
+
+### Prüfpunkte, Ergänzung zum Mindestumfang aus AD-009
+
+8. **Ein festgehaltener Slot steht im Ergebnis unverändert** — der Test, der
+   die Lesart „Randbedingung, nicht Startwert" absichert.
+9. **Kein Handle eines festgehaltenen Relikts erscheint in einem freien Slot.**
+10. **Symmetriefalle (AD-014.4):** `Wylder's Urn` `[Rot, Rot, Blau]`, der
+    erste rote Slot festgehalten mit einem Relikt hohen Kandidatenindex. Der
+    freie rote Slot **muss** ein Relikt mit kleinerem Index wählen dürfen.
+    Ohne AD-014.4 fällt dieser Test — und nur dieser; bei einem Gefäss mit
+    lauter verschiedenen Farben bliebe der Fehler unsichtbar. Das ist
+    dieselbe Falle wie bei AD-013 Punkt 4 in AD-009.
+11. **Cache:** gleiches Problem, anderer Halteinhalt ⇒ **kein** Treffer.
+    Determinismus gilt bei festgehaltenem Haltezustand.
+12. **Nullfall:** `h=0` liefert dasselbe Ergebnis wie ein Lauf ohne die
+    Haltefunktion. Das ist die Bedingung, unter der die 0,46 s gemessen
+    wurden, und sie muss messbar erhalten bleiben.
+13. **Fluchbeitrag (AD-015):** ein Build mit verfluchtem Relikt bekommt vom
+    Berater dieselbe Zahl wie über `Planner.current_build()`. Der Vergleich
+    gegen die Oberfläche ist die eigentliche Zusage, nicht die interne
+    Konsistenz des Beraters.
+14. **Alle Slots gehalten:** kein Suchlauf, Ergebnis ist der bewertete
+    Ist-Zustand, und `unknowns` sagt es.
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Der Grundzustand wird an **einer** Bewertungsstelle vergessen (typisch: der Vorsortierung). | Vorschläge doppeln einen Effekt, den das festgehaltene Relikt bereits kappt (`NON_ACCUMULATING`, `isStrongestEffect`) — die Punktzahl steigt nicht, der Vorschlag sieht trotzdem plausibel aus. | Es gibt nur eine Bewertungsstelle (AD-014.1), und der `compute`-Wächter erzwingt das. Kein zweiter Rückweg nötig. |
+| Festhalten wird doch als Startwert gebaut. | Der festgehaltene Slot ändert sich im Ergebnis. | Prüfpunkt 8. |
+| Cache liefert ein Ergebnis zum falschen Haltezustand. | Gefäss weg und zurück, danach ist ein gehaltener Slot überschrieben. | Prüfpunkt 11; `held_fingerprint` im Schlüssel (AD-016). |
+| Ein Fluch steht im Vorschlag, ist aber nicht in die Rechnung eingegangen (konditional), oder umgekehrt. | Anzeige und Statblatt widersprechen sich beim selben Relikt. | Flüche werden aus `Build.sources` ausgewiesen, nicht aus der Relikt-Definition (AD-015). |
+| Die isolierte Vorsortierung an weissen Slots (OF-10) bleibt die schärfste Schwäche. | Unverändert wie in AD-003 beschrieben. | Sie **verkleinert** sich mit jedem festgehaltenen Slot, weil die Vorsortierung dann Kontext hat. OF-10 bleibt trotzdem offen — für `h=0` ändert sich nichts. |
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+11. **Kein zweiter `model.compute`-Aufruf unter `advisor/`.** Genau einer, in
+    `evaluate.py`. Die Wächtertabelle wird um genau eine Zeile erweitert.
+12. **Festgehaltene Relikte nicht als Anfangsbelegung in den Beam legen.**
+    Sie sind kein Zustand, den die Suche verändern darf.
+13. **Die Vorsortierung nicht gegen den leeren Build laufen lassen**, wenn
+    etwas festgehalten ist.
+14. **Keinen Fluch-Malus, kein Fluch-Gewicht, keinen Fluch-Sonderweg** in der
+    Bewertung. Flüche sind Effekte.
+15. **Den Haltezustand nicht persistieren** — nicht in `QSettings`, nicht auf
+    Platte, auch nicht „nur für die Sitzung".
+16. **Kein Bedienelement erfinden** — ob Schloss, wo es sitzt, wie es heisst,
+    entscheidet der `ui-ux-designer`. Der `developer` baut, was die Suche
+    braucht: den Haltezustand im Request.
+
+### Folgen für `UI_SPEC.md` — an den `ui-ux-designer`
+
+Nicht meine Entscheidung, aber es hängt daran: **AK-13, AK-14 und AK-16
+brauchen eine Fassung für den Haltezustand.** „`Apply all` belegt alle Slots"
+und „`Suggest` verändert keinen Slot" sind unter Festhalten nicht mehr
+vollständig — ein festgehaltener Slot darf von `Apply all` nicht angefasst
+werden, und der Inhalt eines festgehaltenen Slots ist eine **Eingabe** der
+Rechnung, kein Vorschlag (AK-16 bleibt für Vorschläge gültig, ein
+festgehaltenes Custom relic ist zulässig). Ausserdem: die Picker-Frage aus
+`GOAL.md` F4 ist algorithmisch derselbe Lauf mit `h = Slotzahl − 1`
+(AD-014) — sie kostet keine Architektur und darf frei angeordnet werden.
+
+### Offene Fragen, neu
+
+**OF-12 — an den App Designer, über `director`:** Überlebt ein Haltezustand
+den Wechsel von Gefäss, Nightfarer oder Deep-Schalter? Bei einem Wechsel
+ändern sich Zahl, Farbe und Bedeutung der Slots; ein „Slot 2 gehalten" von
+vorher zeigt danach auf etwas anderes. Die Architektur trägt beides. Der
+Entwurfsvorschlag lautet: **Haltezustand verfällt** bei jeder Änderung, die
+die Slotmenge verändert, und wird nicht über Programmstarts gemerkt. Wird das
+bestätigt, ändert sich an AD-014 bis AD-016 nichts; wird es verneint, braucht
+es eine Regel, welcher Halt auf welchen Slot abgebildet wird.
+
+**OF-13 — an den App Designer, über `director`:** Ein Fluch, der ein Feld
+bewegt, das die gewählte Zielrichtung nicht misst (`-HP` unter „Maximise
+damage"), ist im Build verrechnet, aber nicht in der Rangzahl. Der Entwurf
+**nennt** ihn im Vorschlag und in `unknowns` (AD-015). Genügt Nennen, oder
+soll ein solches Relikt schlechter gerankt oder ausgeschlossen werden? Eine
+Abwertung bräuchte Gewichte über Dimensionen hinweg, die die Spieldateien
+nicht hergeben — sie wäre also eine erfundene Zahl und stünde gegen A7.
+Der `developer` kann ohne diese Antwort beginnen: ein Ausschluss wäre später
+ein Kandidatenfilter in `candidates.py` und berührt weder Suche noch
+Bewertung.
+
+**Erledigt am 2026-09-02** (Nutzerentscheid in `GOAL.md`): `UI_SPEC` F1
+(Slots festhalten — **ja**, siehe AD-014) und F3 (Flüche mitbewerten —
+**ja**, siehe AD-015). `UI_SPEC` F2 und F4 bleiben beim `ui-ux-designer`
+bzw. beim Nutzer; keine der beiden bewegt diesen Entwurf.
+
+
+---
+
+## Nachtrag II 2026-09-02 — Antworten des Nutzers zu OF-12, OF-13, F2 (AD-017, AD-018)
+
+**OF-13 — erledigt, wie vorgeschlagen:** zielfremde Flüche werden genannt,
+nicht abgewertet. AD-015 bleibt unverändert in Kraft.
+**OF-12 — erledigt, aber anders als vorgeschlagen:** siehe AD-017. Meine
+Nicht-tun-Regel 15 („Haltezustand nicht persistieren") galt unter der
+Annahme, der Halt sei reiner Sitzungszustand ohne Ort; unter der Antwort des
+Nutzers bekommt er einen Ort im Fenster. Nicht auf Platte, nicht in
+`QSettings` — insofern gilt die Regel weiter, und sie ist in AD-017.5
+präzisiert statt aufgehoben.
+**F2 — die Fragestellung ist vom Nutzer verworfen:** siehe AD-018. Die alte
+Formulierung „Vorschlag erzeugen, dann anwenden" ist damit **abgelöst**; sie
+war unter der Annahme richtig, der Berater sei ein Ereignis auf Knopfdruck.
+
+### Änderungen am Umsetzungsschnitt (zusätzlich zu Nachtrag I)
+
+| Schritt | Änderung |
+|---------|----------|
+| **S5++** | Die Vorsortierung ist ab jetzt ein **öffentliches Ergebnis**, nicht ein Zwischenschritt: `candidates` liefert je Kandidat den Grenzbeitrag gegen den Grundzustand, unter beiden Zielrichtungen. `search` verbraucht dieselbe Liste. |
+| **S9++** | Zwei Entprellungswerte (Picker kürzer als Gesamtlauf), LRU-Grösse neu (Vorschlag 64). Kein zweiter Cache, keine zweite Schlüsselform (AD-016). |
+| **S10++** | Der Halt lebt am `Planner` als `(hero_id, vessel_id, deep) -> Haltezustand` (AD-017). Die Anbindung des Pickers gehört ebenfalls hierher — `relicpicker.py` bekommt die bewertete Liste über den Controller, **nicht** einen eigenen Rechenweg. |
+| **S11++** | Zusätzlich zu messen: Picker-Lauf am weissen Slot (Erwartung ~51 ms), beide Entprellungswerte, LRU-Grösse, und ob der Gesamtlauf weiterhin der ungünstigste Fall ist. |
+
+### Prüfpunkte, Ergänzung (zu AD-009 und Nachtrag I)
+
+15. **Grenzbeitrag = Vorsortierwert.** Der im Picker gezeigte Wert eines
+    Kandidaten ist bitgleich die Zahl, nach der der Gesamtlauf denselben
+    Kandidaten für denselben Slot vorsortiert. Zwei Ansichten, eine Zahl.
+16. **Abnehmender Ertrag ist nachweisbar:** derselbe `+Stärke`-Kandidat hat
+    bei hohem Stärkewert einen kleineren Grenzbeitrag als bei niedrigem. Das
+    ist die Zusage des Nutzers an sich selbst und muss ein Test sein, kein
+    Argument. **Fällt dieser Test, ist die Ursache in `damage.py`/`model.py`
+    zu suchen, nicht im Berater.**
+17. **Halt überlebt den Gefässwechsel und kommt zurück** (AD-017), und ein
+    Halt auf ein nicht mehr besessenes Relikt fällt weg und wird genannt.
+18. **Kein `QSettings`-Zugriff im Berater-Pfad.** Der Wächtertest aus QA-049
+    deckt den literalen Aufbau ab; hier genügt, dass unter `advisor/` und im
+    Haltezustand kein `QSettings` vorkommt.
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| **QA-018 trifft den Kern von AD-018.** Der Waffen-Tab nennt 203,4, die Detailtafel 244,1 für dieselbe Waffe — ein offener, gemessener Widerspruch in genau der Rechnung, aus der der Grenzbeitrag entsteht. Ein konstanter Versatz kürzt sich in einer Differenz heraus, eine falsche **Steigung** nicht — und der abnehmende Ertrag *ist* die Steigung. | Prüfpunkt 16 und der Vergleich der beiden Anzeigen. | **QA-018 ist damit keine Nebenbaustelle mehr, sondern Vorbedingung des Hauptwegs.** Empfehlung an den `director`: vor S10 einplanen. Solange er offen ist, trägt jede Picker-Zeile den Attack-Rating-Vorbehalt aus AD-004 sichtbar, nicht aufklappbar. |
+| Der Berater rechnet jetzt bei jeder Interaktion; eine spätere Verlangsamung von `model.compute()` wird sofort spürbar. | Ruckeln beim Tippen im Picker-Filter. | Entprellung erhöhen; Messpunkt in S11; im Äussersten AD-002 Option C, die weiterhin nachrüstbar ist. |
+| Der Spieler baut sich slotweise einen greedy Build und hält ihn für das Beste. | Der `Optimize`-Lauf findet mehr, als die sechs Picker-Entscheidungen ergaben. | Kein Fehler, sondern die Natur der beiden Fragen — aber die Pflichtzeile aus AD-018.3 muss dastehen. |
+| Ein Halt zeigt auf ein eingeschmolzenes Relikt. | Nach einem Neu-Scan des Saves. | AD-017.3: der Halt fällt beim Bauen des Requests weg und wird genannt. |
+
+### Was der `developer` zusätzlich nicht tun soll
+
+17. **Keinen `QSettings`-Eintrag für den Haltezustand** und kein neues Schema
+    (AD-017). Bei Zweifeln: verwerfen, nicht retten.
+18. **Im Picker keine eigene Bewertung.** `relicpicker.py` zeigt an, was der
+    Controller liefert; es gibt weiterhin genau eine `compute`-Stelle
+    (`advisor/evaluate.py`).
+19. **Den Gesamtlauf nicht streichen**, auch wenn der Picker die häufiger
+    benutzte Ansicht wird. Es sind zwei Fragen (AD-018, Option B).
+20. **Den Grenzbeitrag nicht in der Zielfunktion bilden.** `goal` bewertet
+    einen `Build`; die Differenz bildet der Aufrufer. Sonst wandert
+    Grundzustandswissen in die Registry aus AD-004.
+
+### Offene Frage, neu
+
+**OF-15 — an den App Designer, über `director`:** Soll der Haltezustand einen
+**Programmneustart** überleben? AD-017 liest die Antwort des Nutzers als
+„innerhalb der Sitzung, gebunden an Held und Gefäss" und kommt damit ohne
+persistenten Speicher aus. Soll er den Neustart überleben, ist das ein
+eigener Auftrag mit eigenem Schema, der Migrationsnachbedingung aus Zyklus
+4/5 und einer ausgesprochenen Regel für Relikte, die nicht mehr im Besitz
+sind — nicht eine Zeile mehr im Berater.
