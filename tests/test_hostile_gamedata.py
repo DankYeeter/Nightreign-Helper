@@ -11,6 +11,9 @@ ever reached by accident.
   the image needs -- it walks `ceil(w/4) * ceil(h/4)` blocks and advances the
   input pointer blindly. A header claiming a larger image than its bytes can
   fill read past the end of the buffer in native code.
+* **SEC-006**, `test_a_member_claiming_*`: the decompressed size out of a DCX
+  header sized the output buffer with nothing in between. Four bytes could ask
+  for four gibibytes.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ import struct
 
 import pytest
 
-from nrdata import dds
+from nrdata import dds, oodle
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -96,3 +99,43 @@ def test_an_unknown_fourcc_never_reaches_a_decoder():
     with pytest.raises(NotImplementedError):
         dds.decode(dds_file(b"ZZZZ", IMAGE_EDGE, IMAGE_EDGE,
                             b"\0" * BC1_PAYLOAD_BYTES))
+
+
+# ---------------------------------------------------------------------------
+# SEC-006 -- the size an archive member claims
+
+
+def test_a_member_claiming_more_than_the_ceiling_is_refused():
+    with pytest.raises(ValueError) as raised:
+        oodle.decompress(b"\0" * 16, oodle.MAX_UNCOMPRESSED_SIZE + 1)
+    assert str(oodle.MAX_UNCOMPRESSED_SIZE) in str(raised.value)
+
+
+def test_a_member_claiming_nothing_is_refused():
+    with pytest.raises(ValueError):
+        oodle.decompress(b"\0" * 16, 0)
+
+
+def test_a_member_claiming_a_negative_size_is_refused():
+    with pytest.raises(ValueError):
+        oodle.decompress(b"\0" * 16, -1)
+
+
+def test_a_member_within_the_ceiling_gets_past_the_size_check(monkeypatch):
+    """The ceiling has to let the game's own archives through.
+
+    Reaching "the DLL is not loaded" is the proof that the size was accepted;
+    the DLL is deliberately taken away first so the test can never call into
+    it with a payload that is not one.
+    """
+    monkeypatch.setattr(oodle, "_handle", None)
+    with pytest.raises(oodle.OodleUnavailable):
+        oodle.decompress(b"\0" * 16, oodle.MAX_UNCOMPRESSED_SIZE)
+
+
+def test_the_ceiling_clears_the_largest_member_the_game_ships():
+    # Measured over the 5103 unencrypted Oodle members of data0-3.bdt in an
+    # installation: the largest unpacks to 982464964 bytes. A ceiling under
+    # that would refuse an asset the planner has to read.
+    largest_measured = 982_464_964
+    assert oodle.MAX_UNCOMPRESSED_SIZE > largest_measured
