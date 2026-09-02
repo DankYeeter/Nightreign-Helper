@@ -277,6 +277,15 @@ def _migrate_keys(hero_id: int) -> None:
     empty vessel with no error anywhere. Read everything up front and a
     removal can take whatever it likes with it, because by then nothing is
     read or written again.
+
+    Nor is a build given up on the strength of having been written. The old
+    entry is removed only where the new key can be read back holding it, so a
+    write that did not land -- for whatever reason the store had, which this
+    code never has to enumerate -- costs the player a place in the order list
+    and nothing else: the build stays where it was, and is listed after the
+    ones that moved. Deciding this on the store's answer rather than on the
+    shape of the name is what makes it hold for the reasons nobody has met
+    yet (QA-041).
     """
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
@@ -292,24 +301,50 @@ def _migrate_keys(hero_id: int) -> None:
                   for path in old_paths}
         for path in old_paths:
             settings.setValue(keys[path], values[path])
+        # setValue answers nothing, so the store is asked instead of trusted.
+        # A write can fail to land for more reasons than this code can name:
+        # the registry refuses a value name longer than 16 383 characters
+        # (QA-041), and a quota, a denied permission or a backend that will
+        # not take some other shape of name would look exactly the same from
+        # here -- like a write that worked. So nothing below rests on having
+        # called setValue. A build counts as migrated only where its new key
+        # is in the store holding what was written to it, and only such a
+        # build gives up its old path. The sync is what puts the question to
+        # the store rather than to the writes still pending inside it: the
+        # registry answers from itself either way, a file-backed store would
+        # answer out of its own cache and confirm whatever it had been told.
+        settings.sync()
+        migrated = {path for path in old_paths
+                    if settings.contains(keys[path])
+                    and settings.value(keys[path], "", type=str)
+                    == values[path]}
+        # The order list holds keys, so a key with nothing behind it has no
+        # business in it: it shows no build, and save_build finds the name
+        # already listed and leaves a later build of that name standing in
+        # the phantom's place instead of at the end (QA-040). Old fragments
+        # are how a name holding a "|" arrived -- as two halves, neither of
+        # which names anything -- and a build that could not be written is
+        # the same case seen from the other side.
         order = [n for n in str(settings.value("__order", "", type=str))
                  .split(SEPARATOR) if n]
         if order:
-            settings.setValue(
-                "__order", SEPARATOR.join(build_key(n) for n in order))
+            settings.setValue("__order", SEPARATOR.join(
+                keys[n] for n in order if n in migrated))
         # A hidden name holding a "|" reached this point as two fragments,
         # and neither of them names a build. Carried over as they stood they
         # became two hidden entries no build could answer for, so nothing
         # could ever un-hide them, while the build itself was left showing
-        # (QA-034). Only a fragment that names a build which exists is kept,
-        # or the equipped build, which is hideable and stored nowhere. The
+        # (QA-034). Only a fragment that names a build the migration brought
+        # through is kept, or the equipped build, which is hideable and
+        # stored nowhere -- a mark on a key with nothing behind it is the
+        # same phantom whether the name was split or the write was lost. The
         # rest is dropped, so a build hidden under such a name comes back
         # visible: hiding is a view and the player can set it again, where an
         # indelible phantom is nobody's to remove.
         hidden = [n for n in str(settings.value("__hidden", "", type=str))
                   .split(SEPARATOR) if n]
         if hidden:
-            known = set(old_paths) | set(RESERVED_NAMES)
+            known = migrated | set(RESERVED_NAMES)
             settings.setValue("__hidden", SEPARATOR.join(
                 build_key(n) for n in hidden if n in known))
         selected = str(settings.value("__selected", "", type=str) or "")
@@ -317,12 +352,22 @@ def _migrate_keys(hero_id: int) -> None:
             settings.setValue("__selected", build_key(selected))
         settings.setValue(SCHEMA_KEY, DERIVED_KEYS)
         # Last of all, because a removal is the one step here that cannot be
-        # taken back. A path that is itself one of the keys just written is
-        # left where it is: it holds a migrated build now, and removing it
-        # would delete the very thing that was rescued into it.
+        # taken back, and only where all three of these hold:
+        #
+        #   the new key is not the old path itself -- nothing to remove;
+        #   the old path is not one of the keys just written -- it holds a
+        #     migrated build now, and removing it would delete the very thing
+        #     that was rescued into it;
+        #   the build was read back from its new key -- the old copy is not
+        #     given up until the new one is known to exist.
+        #
+        # The three are independent: an old path can be a written key while
+        # its own build migrated perfectly, and a build can migrate perfectly
+        # while its old path is nobody else's key.
         written = set(keys.values())
         for path in old_paths:
-            if keys[path] != path and path not in written:
+            if (keys[path] != path and path not in written
+                    and path in migrated):
                 settings.remove(path)
     finally:
         settings.endGroup()

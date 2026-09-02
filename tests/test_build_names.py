@@ -67,19 +67,34 @@ def a_store_of_our_own():
     clear_settings()
 
 
-def write_the_old_way(hero_id: int, names: list[str]) -> None:
+def old_slots(index: int) -> list[str]:
+    """One build's slots, told apart from every other build's.
+
+    Filling every build with the same relics would let the migration hand a
+    build the contents of its neighbour and still pass: what came back would
+    equal what went in, for the wrong build. The value has to name the build
+    it belongs to for a swap to be visible at all.
+    """
+    return [f"relic-{index}", "", "", "", "", ""]
+
+
+def write_the_old_way(hero_id: int, names: list[str]) -> dict[str, list[str]]:
     """Save builds exactly as the code before this change did.
 
     The name went in as the key and into the order list unaltered; that is
-    the state on the machine of anyone who has used the program.
+    the state on the machine of anyone who has used the program. Returns the
+    slots each name was written with, so a case can hold the migration to
+    giving every build back its own.
     """
     settings = QSettings(favourites.ORG, favourites.APP)
     settings.beginGroup(f"{chalices.BUILDS}/{hero_id}")
     for index, name in enumerate(names):
-        settings.setValue(name, chalices._encode(index + 1, False, SLOTS_A))
+        settings.setValue(
+            name, chalices._encode(index + 1, False, old_slots(index)))
     settings.setValue("__order", chalices.SEPARATOR.join(names))
     settings.endGroup()
     settings.sync()
+    return {name: old_slots(index) for index, name in enumerate(names)}
 
 
 # ---------------------------------------------------------------------------
@@ -168,9 +183,9 @@ def test_the_list_on_screen_shows_the_name_exactly_as_it_was_saved(planner):
 
 
 def test_a_build_saved_before_the_change_is_still_there(qapp):
-    write_the_old_way(HERO, ["plain"])
+    expected = write_the_old_way(HERO, ["plain"])
     assert chalices.build_names(HERO) == ["plain"]
-    assert slots_of(chalices.load_build(HERO, "plain")) == SLOTS_A
+    assert slots_of(chalices.load_build(HERO, "plain")) == expected["plain"]
 
 
 def test_a_build_a_slash_had_hidden_comes_back(qapp):
@@ -179,17 +194,18 @@ def test_a_build_a_slash_had_hidden_comes_back(qapp):
     It was stored as a group and a key, which is why the list stopped showing
     it; the entry itself was still there and is recovered by name.
     """
-    write_the_old_way(HERO, ["Fire / ice"])
+    expected = write_the_old_way(HERO, ["Fire / ice"])
     assert chalices.build_names(HERO) == ["Fire / ice"]
-    assert slots_of(chalices.load_build(HERO, "Fire / ice")) == SLOTS_A
+    assert (slots_of(chalices.load_build(HERO, "Fire / ice"))
+            == expected["Fire / ice"])
 
 
 def test_every_old_shape_of_name_comes_back(qapp):
     old = ["plain", "Fire / ice", "back\\slash", " lead", "uni⚔"]
-    write_the_old_way(HERO, old)
+    expected = write_the_old_way(HERO, old)
     assert chalices.build_names(HERO) == old
     for name in old:
-        assert slots_of(chalices.load_build(HERO, name)) == SLOTS_A
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
 
 
 def test_migrating_twice_does_not_encode_the_encoding(qapp):
@@ -286,18 +302,18 @@ def test_the_migration_removes_nothing_until_it_has_read_and_written(
 ])
 def test_a_name_and_a_name_beneath_it_both_survive_the_migration(qapp, saved):
     """Both orders of writing them: neither may take the other with it."""
-    write_the_old_way(HERO, saved)
+    expected = write_the_old_way(HERO, saved)
     assert chalices.build_names(HERO) == saved
     for name in saved:
-        assert slots_of(chalices.load_build(HERO, name)) == SLOTS_A
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
 
 
 def test_two_names_beneath_a_third_all_survive_the_migration(qapp):
     saved = ["a-b", "a-b/c", "a-b/d"]
-    write_the_old_way(HERO, saved)
+    expected = write_the_old_way(HERO, saved)
     assert chalices.build_names(HERO) == saved
     for name in saved:
-        assert slots_of(chalices.load_build(HERO, name)) == SLOTS_A
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
 
 
 def test_a_second_migration_leaves_the_store_exactly_as_it_found_it(qapp):
@@ -348,14 +364,14 @@ def test_the_equipped_build_stays_hidden_across_the_migration(qapp):
 def test_an_old_store_holding_both_faults_at_once_loses_nothing(qapp):
     """A name beneath another and a "|" in the hidden list, in one store."""
     saved = ["Fire ice", "Fire ice/v2", "a|b"]
-    write_the_old_way(HERO, saved)
+    expected = write_the_old_way(HERO, saved)
     settings = QSettings(favourites.ORG, favourites.APP)
     settings.setValue(f"{chalices.BUILDS}/{HERO}/__hidden", "a|b")
     settings.sync()
 
     assert sorted(chalices.build_names(HERO)) == sorted(saved)
     for name in saved:
-        assert slots_of(chalices.load_build(HERO, name)) == SLOTS_A
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
     assert chalices.hidden_builds(HERO) == set()
 
 
@@ -403,3 +419,143 @@ def test_the_panel_says_so_when_a_name_is_too_long(planner, monkeypatch):
 
     assert len(said) == 1 and "too long" in said[0]
     assert chalices.build_names(planner.current_hero()["id"]) == []
+
+
+# ---------------------------------------------------------------------------
+# Regression 6 -- QA-041: an old build is given up only where the new key can
+# be read back holding it
+#
+# The guard that refuses a name the store cannot take sits in save_build. The
+# migration had none: it wrote, it removed, and asked nothing in between, so a
+# build whose name fits the store while its derived key does not was deleted
+# on the first launch after the update -- silently, and past recovery. What is
+# held to account here is not the length. Length is one reason a store can
+# have for keeping nothing; the rule is that a removal follows a read-back,
+# whatever the reason was.
+
+
+# Six characters of key for one of name, so the derived key overruns a limit
+# the name itself is nowhere near: 2 731 characters of name, 16 386 of key.
+NAME_WHOSE_KEY_IS_TOO_LONG = "é" * (chalices.MAX_KEY_LENGTH // 6 + 1)
+
+
+class SettingsThatLoseOneWrite(QSettings):
+    """A store that takes one write and keeps nothing of it.
+
+    Nothing here is a matter of length, which is the point: setValue reports
+    nothing either way, and a write can be lost for reasons this code has no
+    list of -- a quota, a refused permission, a name some backend will not
+    take. What the migration may act on is only what it can read back.
+    """
+
+    def __init__(self, lose: str):
+        super().__init__(favourites.ORG, favourites.APP)
+        self.lose = lose
+
+    def setValue(self, key, value):
+        if key == self.lose:
+            return
+        super().setValue(key, value)
+
+
+def test_an_old_build_whose_key_is_too_long_is_not_lost(qapp):
+    """The measured case: a name of 2 731 characters, a key of 16 386."""
+    assert len(NAME_WHOSE_KEY_IS_TOO_LONG) <= chalices.MAX_KEY_LENGTH
+    assert (len(chalices.build_key(NAME_WHOSE_KEY_IS_TOO_LONG))
+            > chalices.MAX_KEY_LENGTH)
+    expected = write_the_old_way(HERO, [NAME_WHOSE_KEY_IS_TOO_LONG])
+
+    listed = chalices.build_names(HERO)
+
+    entries = stored_entries(HERO)
+    assert NAME_WHOSE_KEY_IS_TOO_LONG in entries
+    assert (chalices._decode(entries[NAME_WHOSE_KEY_IS_TOO_LONG])[2]
+            == expected[NAME_WHOSE_KEY_IS_TOO_LONG])
+    assert listed == [NAME_WHOSE_KEY_IS_TOO_LONG]
+
+
+def test_an_old_path_whose_write_was_lost_is_not_removed(qapp, monkeypatch):
+    """The same rule where nothing is long: the write is simply dropped."""
+    saved = ["Fire / ice", "Fire ice"]
+    expected = write_the_old_way(HERO, saved)
+    lost = chalices.build_key("Fire / ice")
+    monkeypatch.setattr(chalices, "_settings",
+                        lambda: SettingsThatLoseOneWrite(lost))
+
+    chalices._migrate_keys(HERO)
+    monkeypatch.undo()
+
+    entries = stored_entries(HERO)
+    assert lost not in entries
+    assert "Fire / ice" in entries
+    assert (chalices._decode(entries["Fire / ice"])[2]
+            == expected["Fire / ice"])
+    # The build whose write did land moved, and gave up its old path.
+    assert "Fire ice" not in entries
+    assert (slots_of(chalices.load_build(HERO, "Fire ice"))
+            == expected["Fire ice"])
+
+
+# ---------------------------------------------------------------------------
+# Regression 7 -- QA-042: a removal spares a path that is now somebody's key
+#
+# "Fire ice" derives the key "Fire%20ice", and in a store that also holds a
+# build of that name the derived key is the second build's old path. Removing
+# it after the write takes the first build's rescue with it. The case is not
+# about the order of the steps -- these removals are already last -- so the
+# order test cannot see it, and did not.
+
+
+def test_a_name_whose_key_is_another_name_leaves_both_builds_standing(qapp):
+    saved = ["Fire ice", "Fire%20ice"]
+    expected = write_the_old_way(HERO, saved)
+
+    assert chalices.build_names(HERO) == saved
+    for name in saved:
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
+
+
+def test_a_chain_of_three_such_names_leaves_all_three_standing(qapp):
+    """Each name derives the next one's old path, twice over."""
+    saved = ["Fire ice", "Fire%20ice", "Fire%2520ice"]
+    assert chalices.build_key(saved[0]) == saved[1]
+    assert chalices.build_key(saved[1]) == saved[2]
+    expected = write_the_old_way(HERO, saved)
+
+    assert chalices.build_names(HERO) == saved
+    for name in saved:
+        assert slots_of(chalices.load_build(HERO, name)) == expected[name]
+
+
+# ---------------------------------------------------------------------------
+# Regression 8 -- QA-040: the order list keeps no key with no build behind it
+
+
+def test_the_order_list_keeps_no_key_without_a_build(qapp):
+    """A name holding the list separator reached the migration as two halves,
+    and neither half is a build. Carried over, they left the list naming keys
+    nothing answers to -- invisible on screen, and in the store for good."""
+    write_the_old_way(HERO, ["a|b", "plain"])
+
+    chalices.build_names(HERO)
+
+    entries = stored_entries(HERO)
+    order = [k for k in entries["__order"].split(chalices.SEPARATOR) if k]
+    assert order == [chalices.build_key("plain")]
+    for key in order:
+        assert key in entries
+
+
+def test_a_build_named_after_a_phantom_is_appended_like_any_other(qapp):
+    """What the dead keys did to the player: "a" was in the order list
+    already, so a build later saved under that name inherited the phantom's
+    place and stood in front of builds older than itself."""
+    write_the_old_way(HERO, ["a|b", "plain"])
+    chalices.build_names(HERO)
+
+    chalices.save_build(HERO, "a", 5, False, SLOTS_B)
+
+    names = chalices.build_names(HERO)
+    assert names.index("a") > names.index("plain")
+    assert slots_of(chalices.load_build(HERO, "a")) == SLOTS_B
+
