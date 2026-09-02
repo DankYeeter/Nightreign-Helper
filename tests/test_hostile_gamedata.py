@@ -18,6 +18,10 @@ ever reached by accident.
   ElementTree, which expands the entities a document declares about itself.
   Thirteen nested ten-fold entities are a gigabyte, and the file decided how
   much memory the program used.
+* **SEC-014**, `test_*_part_name_*`: the map reader walked to the end of a
+  record looking for a terminator and, finding none, returned what it had
+  collected -- a name the map never contained, on which a boss is then
+  identified. Not a hang like SEC-001, a fabrication.
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ import time
 
 import pytest
 
-from nrdata import dds, icons, oodle
+from nrdata import bossdata, dds, icons, oodle
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -199,3 +203,72 @@ def test_an_ordinary_layout_still_reads():
     assert [s["name"] for s in sprites] == ["MENU_ItemIcon_00001.png",
                                             "MENU_ItemIcon_00002.png"]
     assert sprites[0]["x"] == "1"
+
+
+# ---------------------------------------------------------------------------
+# SEC-014 -- a part name the map never held
+
+
+PART_HEADER_BYTES = 32
+NAME_AT = 8
+PART_NAME = "c7500_0000"
+
+
+def msb_with_one_part(record: bytes) -> bytes:
+    """The smallest blob `bossdata._parts` reads one part out of.
+
+    The section is located by its own name string and the entry offsets are
+    read relative to the pointer that names it, so the shape matters even
+    though the content does not: a count, a pointer to the section name, and
+    one offset per entry plus one for the end.
+
+    The gap between the end of the section and its name string is not padding
+    for padding's sake. The reader finds the section header by searching
+    backwards for the pointer value, so a name sitting exactly at the section
+    end would make the end offset and the pointer the same eight bytes and the
+    search would settle on the wrong one.
+    """
+    needle = "PARTS_PARAM_ST".encode("utf-16-le") + b"\0\0"
+    gap = b"\0" * 8
+    record_at = PART_HEADER_BYTES
+    end_at = record_at + len(record)
+    string_at = end_at + len(gap)
+    blob = bytearray()
+    blob += struct.pack("<I", 0)                    # unused
+    blob += struct.pack("<I", 3)                    # count: two offsets follow
+    blob += struct.pack("<Q", string_at)            # pointer to the name
+    blob += struct.pack("<QQ", record_at, end_at)   # this entry, and the end
+    assert len(blob) == PART_HEADER_BYTES
+    blob += record
+    blob += gap
+    blob += needle
+    return bytes(blob)
+
+
+def part_record(name: str, terminated: bool) -> bytes:
+    text = name.encode("utf-16-le")
+    return (struct.pack("<Q", NAME_AT) + text
+            + (b"\0\0" if terminated else b""))
+
+
+def test_a_terminated_part_name_is_still_read():
+    blob = msb_with_one_part(part_record(PART_NAME, terminated=True))
+    assert [name for name, _record in bossdata._parts(blob)] == [PART_NAME]
+
+
+def test_an_unterminated_part_name_is_a_data_error():
+    """Not a shorter name -- no name.
+
+    The old reader returned "c7500_0000" here as well, from a record that
+    never said where the name ended. A boss is identified by that name, so a
+    fabrication is worse than losing the map.
+    """
+    blob = msb_with_one_part(part_record(PART_NAME, terminated=False))
+    with pytest.raises(ValueError):
+        bossdata._parts(blob)
+
+
+def test_a_part_name_offset_past_the_record_is_a_data_error():
+    record = struct.pack("<Q", 4096) + PART_NAME.encode("utf-16-le") + b"\0\0"
+    with pytest.raises(ValueError):
+        bossdata._parts(msb_with_one_part(record))
