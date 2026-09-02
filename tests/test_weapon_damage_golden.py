@@ -12,10 +12,29 @@ Two tests, because there are two claims:
 * the extracted module says the same thing on its own, with no window
   anywhere near it -- which is what the build advisor will call.
 
-Re-capture (`python scripts/capture_weapon_damage.py`) only after a game
-patch has genuinely changed the inputs, and say so in the commit. Capturing
-it to make a red test green would delete the only evidence that the
-calculation is unchanged.
+Re-capture (`python scripts/capture_weapon_damage.py`) under one of exactly
+two conditions, and say which in the commit:
+
+* a game patch has genuinely changed the inputs; or
+* a documented decision has changed one of them -- the commit names the AD or
+  QA number, so the next reader gets the reason and not "was adjusted once"
+  (`ARCHITECTURE.md` AD-019, checkpoint 22).
+
+Capturing it to make a red test green is neither, and would delete the only
+evidence that the calculation is unchanged.
+
+**What this file does not hold, said out loud rather than left to be
+discovered:** the weapon *tile* above the panel. `weapon_damage_cases.run`
+records the panel's text and the figures behind it, and nothing of the six
+tiles -- which is why the tile could answer a different question from the
+panel for as long as it did (QA-056). The tile is covered between two guards
+instead of by this one: the panel's total is frozen here, and
+`test_weapon_tile_and_panel_agree.py` holds the tile to that total. Remove
+either and the tile is unguarded again.
+
+AD-019 step W3 was allowed to re-capture and did not need to: a fresh capture
+on the post-W3 tree came back byte-identical to this file. W3 changed what the
+tile asks, not what the panel answers.
 """
 
 from __future__ import annotations
