@@ -26,7 +26,7 @@ Savefiles. Status: offen | teilweise behoben | behoben | zurueckgestellt
 | QA-016 | Praemisse der AD-013-Abweichung am echten Save widerlegt; Offset-Zweig tot | P2 | Major | developer, architect | echte Daten | offen | 2026-09-01 |
 | QA-017 | Waechter "eine `compute`-Stelle" ist Textsuche und sieht das Berater-Paket nicht | P3 | Minor | developer | statisch + probiert | **behoben** — AST + `rglob`; Restluecke als QA-023 | 2026-09-02 |
 | QA-018 | Waffen-/Arsenal-Tab zeigen andere AR als die Waffentafel (203,4 gegen 244,1) | P2 | Major | developer | echte Daten | **Ursache erklaert und gemessen (T-023), Fix haengt an einer Spielbeobachtung des Nutzers.** 203,4 x 1,2 = 244,1 - exakt der Multiplikatorunterschied. Zwei Schichten, nicht zwei Rechnungen | 2026-09-02 |
-| QA-019 | Zwei Golden-Faelle pruefen nicht den Zweig ihres Namens; ein Zweig unabgedeckt | P3 | Minor | developer | echte Daten | offen | 2026-09-01 |
+| QA-019 | Zwei Golden-Faelle pruefen nicht den Zweig ihres Namens; ein Zweig unabgedeckt | P3 | Minor | developer | echte Daten | offen - **Reichweite in T-027 gemessen und als QA-061 erweitert**: der Zweig ist nicht nur ungedeckt, er ist auf echten Daten unerreichbar | 2026-09-02 |
 | QA-020 | Loadout-Fehlermeldung zeigt Leserinterna | P4 | Minor | ui-ux-designer | echte Daten | offen (aelter als T-006) | 2026-09-01 |
 | QA-021 | Zwei eigene Exemplare desselben Rolls: eines geht bei jedem Restore verloren | P2 | Major | developer | **beide echten Saves, 104 Rundreisen, Deep sichtbar+verdeckt, Rollen-Fallback, veraltete Handles, handle-lose Kopien** | **behoben** | 2026-09-02 |
 | QA-022 | "Already worn in Slot N" bleibt stehen, nachdem Slot N geleert oder neu belegt wurde | P3 | Minor | developer | echte Daten, 3 Wege | **behoben** | 2026-09-02 |
@@ -235,8 +235,12 @@ Handles 3229614315/3229615265).
 | QA-054 | Verlorener Migrations-Schreibvorgang **plus Schraegstrich im Namen**: der Build wird **null** mal gelistet - der Alt-Pfad ist eine Gruppe, `childKeys()` ist dafuer blind, die Order-Liste raeumt ihn aus - und ist wegen `__schema`=3 dauerhaft unerreichbar. Die Daten stehen weiter in der Registry. Mechanisch dasselbe wie QA-044, **umgekehrte Sichtbarkeit** | P3 | Major | developer | Probe im Klon, mit zwei Kontrollen: ohne Schraegstrich einmal gelistet, ohne Schreibverlust korrekt gelistet | offen (neu aus T-022, **nicht neu im Code**) | 2026-09-02 |
 | QA-055 | **Achse B, der wahrscheinlichste Alltagsfall:** Slot auf Tier 3, Tab-Spinbox auf 1, **kein einziges Relikt** - Kachel und Tafel sagen 321,4, der Waffen-Tab 203,4. Reiner Eingabeunterschied, greift ohne jeden Buff, sobald der Spieler ein Slot-Tier hochsetzt. Das Tier, an dem die Liste rechnet, ist nirgends sichtbar | P2 | Major | developer, ui-ux-designer | gemessen ueber die echten Widgets | offen (neu aus T-023) | 2026-09-02 |
 | QA-056 | **Achse C:** mit "Strength +1" zeigt die Kachel 323 (erhoehte Attribute), die linke Zahl der Tafel 321,4 (Grundattribute), der Tab 204,2 - drei Zahlen fuer dieselbe Waffe. Das ist die Beobachtung aus `DESIGN_REVIEW.md:429`, jetzt mit Ursache | P3 | Major | developer, ui-ux-designer | gemessen | offen (neu aus T-023) | 2026-09-02 |
-| QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | offen - **W0 des AD-019-Umbaus: wird geloescht, nicht migriert** (Director 2026-09-02) | 2026-09-02 |
-| QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | **Entwurf steht (AD-019 bis AD-021, T-025): gemeinsame Fassade statt zweitem Waechter.** Umsetzung in sieben Schritten W0-W6, W0 ist das Loeschen von `weaponstab.py` | 2026-09-02 |
+| QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | **behoben** - W0, Datei geloescht (Commit `b53a7b4`), Totsein belegt statt behauptet | 2026-09-02 |
+| QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | **teilweise behoben** - W0 und W1 abgenommen, Formel nur noch an einer Stelle, **bitgleich unabhaengig gegengeprueft** (89 706 Vergleiche, 0 Abweichungen). Waechter und die Achsen QA-018/055/056 bleiben offen (W2-W6) | 2026-09-02 |
+| QA-059 | Die Zeile "vs standard" im Waffen-Tab ist **nicht reproduzierbar sortiert**: `arsenaltab._build_weapons` iteriert `scaling.keys() \| base_scaling.keys()` - eine **Mengenvereinigung**, deren Reihenfolge an der Hash-Saat des Prozesses haengt. Dieselbe Waffe listet ihre Skalierungsunterschiede nach jedem Programmstart anders | P4 | Minor | developer | **5 802 von 11 718 Kacheln** unterscheiden sich zwischen zwei Laeufen **desselben** Codes; verschwindet mit `PYTHONHASHSEED=0` | offen - **unabhaengig bestaetigt** (956 von 1793 Kacheln zwischen zwei Hash-Saaten; mit `PYTHONHASHSEED=0` null). **Klassenfrage geklaert: einziger Fall** - jede Mengenoperation einzeln bis zum Anzeigetext verfolgt, 369 Textbloecke unter zwei Saaten ohne Unterschied | 2026-09-02 |
+| QA-060 | `WeaponRating.per_type()` (Methode) und `AttackRating.per_type` (Feld) tragen im selben Rechenweg denselben Namen; in `app.py:2892`/`:2900` stehen beide Formen acht Zeilen auseinander. Kein aktiver Fehler - beide Verwechslungen werfen heute; die **stille** Form waere `if x.per_type:`, die auf einem `WeaponRating` immer wahr ist | P4 | Minor | developer, architect | statisch, beide Aufrufformen probiert | offen - **von AD-022 aufgeloest** (Schichtpraefix, `scaled_per_type` / `final_per_type`), Umsetzung in W1b | 2026-09-02 |
+| QA-061 | **Keine Waffe des Datensatzes hat je eine unerfuellte Anforderung.** 1791 von 1793 tragen ein `requires` aus lauter Nullen, die zwei uebrigen verlangen Arcane 1 - jeder Nightfarer hat auf Level 1 mindestens 10. Folge: `require_usable=True` filtert **1793 zu 1793** in allen Level/Tier-Kombinationen, die Checkbox "Meets requirements" ist wirkungslos, Kachel-Dimmen und "requirements unmet" erscheinen nie, und `weapons.rate`s Zweig `if stat in result.unmet: continue` ist auf echten Daten **unerreichbar**. Erweitert QA-019 um Bedienelement und Rechenzweig | P3 | Major | Nutzer (Absichtsfrage), dann developer | echte Daten, 1793 Waffen x 4 Tiers x 14 Attributsaetze | offen - **zwei Lesarten, im Spiel in einer Minute entscheidbar** | 2026-09-02 |
+| QA-062 | Der Docstring von `per_type()` verspricht "nur Typen mit Grundschaden"; der Code filtert auf **Summe ungleich Null**. Auf den heutigen Daten faellt beides zusammen (0 von 100 408 Bewertungen weichen ab), weil `rate()` `base` und `scaled` in einer Schleife fuellt. Ein handgebautes `WeaponRating` mit `scaled`-Schluessel ohne `base` liefert den Typ sehr wohl | P4 | Minor | developer, architect | synthetisch reproduziert, Datenbedingung ueber den ganzen Datensatz gemessen | offen - `test_every_type_the_rating_holds_comes_back` ist damit ein **Datenwaechter**, nicht nur ein Codewaechter; **relevant, sobald W2 `WeaponRating`s selbst zusammensetzt** | 2026-09-02 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -774,3 +778,171 @@ der drei Runden.
   `Basis`-Fragen koennen gleichzeitig auf dem Schirm stehen, und die
   Spaltenbenennung muss sie unterscheidbar machen. `Rating.basis` wird
   mitgeliefert, damit die Anzeige benennen **kann**, was sie zeigt.
+
+## Entscheidungen des Directors - Zyklus 9, W0 und W1 (2026-09-02)
+
+- **W0 abgenommen ohne eigenen QA-Lauf.** Trivialfall nach der Regel
+  "developer plus Stichprobe": eine Loeschung, deren Totsein belegt statt
+  behauptet wurde (Importe, Klassenname, Modulname, `tests/`, `scripts/`,
+  `run.py` und die PyInstaller-`.spec` **gelesen**, nicht nur gegreppt) und
+  deren Testzahl vorher wie nachher 213 ist. **Was dabei ungeprueft bleibt und
+  hier stehen soll:** ob ein **gebautes** Artefakt noch laeuft. Das faellt
+  unter GOAL A9 und ist ohnehin offen - ich behaupte nicht, es sei durch
+  diesen Schritt gedeckt.
+- **W1 abgenommen: 30 000 Differentialfaelle, 0 Abweichungen**, dazu 35 154
+  Arsenal-Kacheln in sechs Konfigurationen. **Der Vergleicher wurde selbst
+  mutationsgeprueft** (Skalierungsterm weg, Nullfilter weg, `DAMAGE_TYPES`
+  umgedreht - alle drei gefangen). Ein Differentialtest ohne diesen Nachweis
+  waere eine Zahl ohne Aussage gewesen.
+- **Die drei Stellen haben arithmetisch dasselbe gerechnet.** Die Unterschiede
+  waren keine Rechenunterschiede, sondern **welches** `WeaponRating` gefragt
+  wird - genau die von AD-020 als Absicht eingestuften Achsen B und C.
+  `per_type()` fasst sie nicht an. **Keine vierte Einstufung noetig.**
+- **Der zusaetzliche Testcommit bleibt.** Der `developer` hat eine Datei mehr
+  angelegt als der Auftrag woertlich nannte (`test_weapon_rating_per_type.py`,
+  213 -> 218) und sie **in einen eigenen Commit** gelegt, damit ich sie ohne
+  den Refactor fallen lassen kann. Das ist die richtige Art, eine
+  Scope-Grenze zu behandeln, die man fuer zu eng haelt: liefern, trennen,
+  melden - statt sie stillschweigend zu dehnen oder die Arbeit unfertig
+  abzugeben. Die Tests sind mutationsbelegt und bleiben.
+- **QA-059 aufgenommen.** Ein **Zufallswert im Anzeigetext**: dieselbe Waffe
+  listet ihre Skalierungsunterschiede nach jedem Programmstart anders.
+  Kosmetisch fuer den Spieler, aber es macht jeden kuenftigen
+  Differentialtest an diesem Tab unbrauchbar, wenn niemand `PYTHONHASHSEED`
+  festnagelt - der `developer` ist genau darueber gestolpert und hat es
+  zunaechst fuer eine Regression seiner eigenen Aenderung gehalten. Eigener
+  kleiner Auftrag, **nicht** in W2 mitnehmen.
+- **Zwei Fragen gehen vor W2 an den `architect`**, weil sie Benennung und
+  Struktur betreffen und nicht der `developer` sie entscheiden darf:
+  **(a)** `damage.AttackRating.per_type` ist ein **Feld** (nach
+  Multiplikatoren), `weapons.WeaponRating.per_type()` jetzt eine **Methode**
+  (vor Multiplikatoren), und AD-019 sieht `Rating.per_type` als drittes vor -
+  **drei Dinge gleichen Namens auf drei Schichten.**
+  **(b)** Der Waffen-Tab zeigt "AR" aus `rating.total`
+  (`sum(base) + sum(scaled)`), die Typzeilen darunter aus `per_type()`
+  (typweise). Gleiche Summanden, andere Klammerung; **dass beide auf dieselbe
+  angezeigte Ganzzahl runden, ist heute Glueck der Gleitkommaordnung, nicht
+  Konstruktion.** Leitet die Fassade ihren `total` aus `per_type()` ab, ist
+  das strukturell erledigt - sonst bleibt ein stiller Driftpfad genau der Art,
+  die W1 gerade geschlossen hat.
+- **Das Differentialwerkzeug bleibt vorerst im Scratchpad.** Es ins Repo zu
+  nehmen ist ein eigener Auftrag, keine Beigabe - aber es wird fuer W3 und W4
+  gebraucht, und dort **werden** Abweichungen erwartet. Vor W3 entscheiden.
+
+## Entscheidungen des Directors - vor W2 (2026-09-02)
+
+- **AD-022 angenommen: der Name nennt die Schicht, und `X_total` ist immer die
+  Summe genau des gleichnamigen `X_per_type`.** Der `architect` hat eine
+  **vierte** Kollision gefunden, die niemand gemeldet hatte und die tiefer
+  sitzt: `weapons.WeaponRating.base` heisst "vor der Attributskalierung",
+  `damage.AttackRating.base_total` heisst "auf den **Grundattributen**". Zwei
+  Bedeutungen von `base` in zwei Modulen, die einander importieren - dieselbe
+  Fehlerklasse wie QA-058, nur in der Benennung. Auch das Enum heisst jetzt
+  `Question` statt `Basis`: `Basis` neben `base_*` waere dieselbe Falle noch
+  einmal.
+- **W1b wird ein eigener Schritt, vor W2.** Nicht Ordnungsliebe: eine reine
+  Umbenennung ist **beweisbar bitgleich** und von der bestehenden
+  30-000-Fall-Strecke gedeckt, ohne eine Zeile neuen Testcode. Steckt sie in
+  W2, **kann der Differentialtest "umbenannt" nicht mehr von "veraendert"
+  unterscheiden** - und genau diese Trennung ist das Geruest des
+  Migrationspfads.
+- **Zusicherung Z1 in AD-019, und sie traegt weiter als meine Frage.** Ich
+  hatte die doppelte Summe als Anzeigeproblem gestellt. Der `architect`
+  zeigt: **der Grenzbeitrag ist eine Differenz zweier Totals**, und bei
+  unterschiedlicher Klammerung setzt nicht die Arithmetik das Rauschniveau des
+  Vergleichs, sondern die Inkonsistenz - waehrend Grenzbeitraege klein sind.
+  Z1 wird als **exakte** Gleichheit geprueft (`==`, kein `approx`).
+- **`weapons.WeaponRating.total` bleibt bis W4 bitgleich unveraendert** - es
+  ist der Bezugspunkt der Differentialpruefung, solange zwei Pfade existieren.
+  Es faellt in W5, wenn kein Leser ausserhalb der Fassade mehr da ist; ab dann
+  gibt es im Programm genau **eine** Summation.
+- **Die `fields`-Doppelschleife nur unter Erhalt der Multiplikationsreihenfolge**
+  - eine Zusammenlegung aendert die Assoziationsreihenfolge und damit
+  potentiell das letzte Bit, und W2 ist als bitgleich zugesagt. Gelingt es
+  nicht sauber, wandert es nach W5. **Entschieden am Differentialtest, nicht am
+  Augenschein.**
+- **AD-023 ist die eigentliche Verbesserung, und sie kam aus einer Korrektur an
+  ihm selbst.** Der `ui-ux-designer` hatte belegt, dass sein Invarianzargument
+  fuer kandidatengetragene Multiplikatoren nicht traegt. Statt es nur
+  einzuraeumen, hat er es **gerechnet**: bringt ein Kandidat selbst eine Rate
+  `r` mit, entsteht ein Term `m*(r-1)*S(B)`, der am **ganzen** Angriffswert
+  haengt statt am Zuwachs - bei `S(B) ~ 300` und `r = 1,20` sind das 60,
+  waehrend +5 Staerke `S` einstellig bewegt. **W6 entscheidet also nicht die
+  Groesse, sondern welche Effektfamilie gewinnt.**
+- **Folge: der Vorbehalt wird berechnet, nicht pauschal gesetzt.** Die
+  Invarianz ist keine Eigenschaft der Zielrichtung, sondern des
+  **Kandidatenfelds**, und exakt pruefbar: betroffen ist ein Kandidat genau
+  dann, wenn einer seiner Effekte ein Feld aus `AR_RATE_FOR` traegt. Die
+  Familie ist vollstaendig aufgezaehlt - **das ist ein Test, keine
+  Heuristik.** Traegt kein Kandidat des Laufs ein solches Feld, ist die
+  Rangfolge invariant und es braucht **gar keinen Vorbehalt**. Das ist der
+  haeufige Fall.
+- **Das geht an den `ui-ux-designer` zurueck:** AK-47 spezifiziert `unverified`
+  auf **jeder** Karte. Nach AD-023 ist das zu grob - der Vorbehalt gehoert an
+  die **betroffenen Zeilen**, nicht als Banner. Er hielt die pauschale Fassung
+  ohnehin fuer den schwaecheren Weg und hat es gemeldet; jetzt gibt es einen
+  Grund, ihm recht zu geben.
+- **Und meine state.md-Formulierung wird zum dritten Mal praezisiert.** Was
+  bleibt: Fassade vor Berater, und der **Bau** des Beraters ist ab W5 nicht
+  durch die Spielmessung blockiert. Was ersetzt wird: die **Auslieferung**
+  einer Rangfolge mit AR-Raten-Kandidaten ist es sehr wohl - bis W6 nur mit
+  Markierung an den betroffenen Zeilen. **Pruefpunkt 16 ist auf
+  Attributskandidaten formuliert und ist kein Beleg fuer die Rangfolge
+  gemischter Felder.** Dass diese Passage dreimal nachgeschaerft werden musste,
+  gehoert hierhin: sie ist die schwierigste Aussage des Vorhabens, und jedes
+  Mal hat eine andere Rolle den Fehler gefunden.
+
+## Entscheidungen des Directors - Abnahme W0 und W1 (2026-09-02)
+
+- **W0 und W1 freigegeben.** Der `qa-engineer` hat ein **eigenes**
+  Differential gefahren, nicht das des `developer`: 71 720 `attack_rating`-
+  Faelle, 14 344 Arsenal-Kacheln, 3 642 Waffentafeln, 6 synthetische
+  Randfaelle - **89 706 Vergleiche, 0 Abweichungen**, Vergleicher
+  mutationsgeprueft.
+- **Die W0-Luecke ist geschlossen, nicht vertagt - und das ist die beste
+  Einzelleistung dieses Zyklus.** Ich hatte gesagt, wenn sie es ohne Build
+  nicht entscheiden kann, bleibt es unter GOAL A9 offen. Sie hat **zwei echte
+  PyInstaller-Artefakte gebaut** (Vor-W0-Stand und HEAD, beide im Scratchpad,
+  Repo unberuehrt): `nrplanner.weaponstab` war **auch vorher nicht im
+  Artefakt** - 0 Treffer in `PYZ-00.toc`, `Analysis-00.toc`, `xref` und im
+  58-MB-EXE-Binaerstrom; Modulmenge **341 zu 341, Differenz leer in beide
+  Richtungen**. Dazu die sechs Wege, auf denen ein nicht importiertes Modul
+  doch im Artefakt landen koennte, einzeln geprueft. **Die Datei war nie
+  drin; ihr Loeschen kann nichts aendern.**
+- **Der zusaetzliche Testcommit des `developer` ist im Nachhinein der
+  wichtigste Teil von W1.** Der `qa-engineer` hat eine eigene Mutation
+  gefahren, die er nicht kannte: `per_type` ueber die **Einfuegereihenfolge**
+  statt ueber `DAMAGE_TYPES`. Ergebnis: **die 213 alten Tests bleiben gruen,
+  nichts merkt es** - nur sein neuer Reihenfolge-Fall faellt. Diese Mutation
+  ist heute verhaltensgleich und morgen nicht mehr, **sobald die W2-Fassade
+  ein `WeaponRating` anders zusammensetzt.** Der Test, den ich haette
+  fallenlassen koennen, ist genau der Waechter, den W2 braucht.
+- **Und die alten 213 binden `per_type()` wirklich** - ueber den Golden-Test
+  fallen drei von vier verhaltenswirksamen Mutationen, und eine Mutation um
+  Faktor 1,0001 zeigt, dass die Empfindlichkeit **unter** die Anzeigerundung
+  reicht.
+- **QA-061 geht an den Nutzer, nicht an den `developer`.** Es ist keine
+  Codefrage: entweder kennt Nightreign keine Attributsvoraussetzungen fuer
+  Waffen - dann sind Checkbox, Kachel-Dimmen, "Requires"-Zeile und ein ganzer
+  Rechenzweig toter Code - oder die Extraktion liest ein leeres Feld und
+  **jede Waffe wird faelschlich als tragbar angezeigt.** Im Spiel in einer
+  Minute entscheidbar, und der Nutzer schaut ohnehin fuer QA-018 hinein.
+  **Vor W2 entscheiden**, sonst erbt der naechste Differentialtest denselben
+  blinden Fleck.
+- **QA-060 ist von AD-022 bereits aufgeloest** (Schichtpraefix), Umsetzung in
+  W1b. Der `qa-engineer` hat unabhaengig dieselbe Kollision gefunden wie der
+  `architect` - ein gutes Zeichen fuer beide.
+- **QA-062 geht in W2**, nicht davor: `test_every_type_the_rating_holds_comes_back`
+  ist heute ein **Datenwaechter**, kein Codewaechter, und das wird genau dann
+  relevant, wenn die Fassade `WeaponRating`s selbst zusammensetzt.
+- **QA-059 bleibt der einzige Fall seiner Klasse** - der `qa-engineer` hat
+  jede Mengenoperation in `nrplanner/` einzeln bis zum Anzeigetext verfolgt
+  **und** 369 Textbloecke des vollen Fensters unter zwei Hash-Saaten
+  verglichen (0 Unterschiede). Bis zum Fix laeuft jeder Differentiallauf an
+  diesem Tab mit `PYTHONHASHSEED=0`.
+- **Zur Rueckfrage des `qa-engineer`, ob die Aenderungen an `ARCHITECTURE.md`
+  und `docs/state.md` waehrend seines Laufs Absicht waren: ja.** "Eingefroren"
+  gilt fuer den **Code**, nicht fuer die Register und Entwurfsdokumente - die
+  fuehre ich waehrend eines Prueflaufs fort, und der `architect` hat parallel
+  an `ARCHITECTURE.md` gearbeitet. `nrplanner/` und `tests/` waren unberuehrt,
+  und er hat das selbst nachgeprueft, statt es anzunehmen. Richtig gefragt.

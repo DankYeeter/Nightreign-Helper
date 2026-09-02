@@ -76,7 +76,9 @@ erkannt, wenn der Effekt `magicSubCategoryChange1/2/3` traegt. "Improved
 Thrusting Counterattack" traegt keines davon - **seine Einschraenkung steht nur
 im Beschreibungstext, in keinem Param-Feld.**
 
-### Die Messung im Spiel
+### Zwei Messungen im Spiel — beide in derselben Sitzung erledigt
+
+**Messung 1 — QA-018 (welche Zahl stimmt):**
 
 > **Wylder, Wylder's Greatsword (Common, Slot 1), sonst nichts ausgeruestet.**
 > Angriffswert im Spielmenue notieren. Dann **genau ein** Relikt mit
@@ -91,7 +93,30 @@ Zweite, unabhaengige Probe im selben Aufbau: statt dessen ein Relikt mit
 "Improved Sorceries +2 (+11 %)". Bewegt sich der Angriffswert des Greatswords,
 traegt das Feld wirklich pauschal.
 
-Betroffen ist eine **vollstaendig aufgezaehlte** Effektfamilie (~20 IDs):
+**Messung 2 — QA-061 (haben Waffen ueberhaupt Anforderungen?):**
+
+> Im Spiel eine **schwere Waffe** ansehen, die ein Nightfarer mit niedrigen
+> Attributen nicht tragen koennen sollte — ein Greathammer, ein Colossal
+> Sword oder ein Katalysator bei einem Nightfarer mit wenig Intelligenz.
+> **Zeigt das Spiel dort eine Attributsanforderung an (rot markiert, "Requires
+> STR 30" oder aehnlich), oder gibt es so etwas in Nightreign gar nicht?**
+> - **Es gibt Anforderungen** -> unsere Extraktion liest ein leeres Feld, und
+>   das Programm zeigt **jede** Waffe faelschlich als tragbar an. Echter
+>   Befund.
+> - **Es gibt keine** -> Nightreign kennt keine Waffenanforderungen. Dann sind
+>   die Checkbox "Meets requirements", das Kachel-Dimmen, die "Requires"-Zeile
+>   und ein ganzer Rechenzweig **toter Code** und gehoeren weg.
+
+Gemessen: 1791 von 1793 Waffen tragen ein `requires` aus lauter Nullen, die
+zwei uebrigen verlangen Arcane 1 — und jeder Nightfarer hat auf Level 1
+mindestens 10. Der Filter "Meets requirements" filtert deshalb **1793 zu
+1793**. Das ist zu auffaellig, um Zufall zu sein, und zu wichtig, um es zu
+raten.
+
+---
+
+Betroffen (Messung 1) ist eine **vollstaendig aufgezaehlte** Effektfamilie
+(~20 IDs):
 Improved Thrusting Counterattack, Improved Sorceries, Improved Incantations,
 Improved Sorceries & Incantations. Die Zauber-Buffs heben ausweislich der Daten
 `physicsAttackRate` mit - sie erhoehen also den physischen Angriffswert eines
@@ -119,9 +144,29 @@ Was weiterhin gilt: Zielrichtungen, die **Waffen gegeneinander** stellen,
 haengen an den je Waffe verschiedenen `class_rates` und duerfen erst nach W6
 scharf gestellt werden.
 
-**Offen an den `architect`:** ob sein Invarianzargument fuer
-kandidatengetragene Multiplikatoren nachgeschaerft werden kann, oder ob der
-Berater bis W6 nur mit sichtbarem Reihenfolgevorbehalt ausgeliefert wird.
+**Nachgeschaerft am 2026-09-02 (AD-023) — dritte und letzte Fassung.** Der
+`architect` hat es gerechnet statt eingeraeumt. Bringt ein Kandidat **selbst**
+eine Rate `r` mit, entsteht ein Term `m*(r-1)*S(B)`, der am **ganzen**
+Angriffswert haengt statt am Zuwachs: bei `S(B) ~ 300` und `r = 1,20` sind das
+60, waehrend +5 Staerke den Wert einstellig bewegt. **W6 entscheidet also
+nicht die Groesse, sondern welche Effektfamilie gewinnt.**
+
+**Der Vorbehalt wird deshalb berechnet, nicht pauschal gesetzt.** Betroffen ist
+ein Kandidat genau dann, wenn einer seiner Effekte ein Feld aus `AR_RATE_FOR`
+traegt — die Familie ist vollstaendig aufgezaehlt, das ist ein **Test, keine
+Heuristik**. Traegt kein Kandidat des Laufs ein solches Feld, ist die Rangfolge
+invariant und es braucht **gar keinen Vorbehalt**; das ist der haeufige Fall.
+Sonst: Markierung an den **betroffenen Zeilen**, nicht als Banner.
+
+**Was bleibt:** Fassade vor Berater; der **Bau** des Beraters ist ab W5 nicht
+durch die Spielmessung blockiert. **Was ersetzt wird:** die **Auslieferung**
+einer Rangfolge mit AR-Raten-Kandidaten ist es sehr wohl. Pruefpunkt 16 ist auf
+**Attributskandidaten** formuliert und ist kein Beleg fuer die Rangfolge
+gemischter Felder.
+
+*(Diese Passage musste dreimal nachgeschaerft werden — sie ist die
+schwierigste Aussage des Vorhabens, und jedes Mal hat eine andere Rolle den
+Fehler gefunden.)*
 
 **Parallel laeuft Weg B** (Spalten umbenennen), weil er unter jedem Ausgang
 richtig bleibt. Weg C (die Effektfamilien nach `SCOPED_PREFIX` umleiten) wird
