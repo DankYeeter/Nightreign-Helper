@@ -52,7 +52,7 @@ class WeaponRating:
     def meets_requirements(self) -> bool:
         return not self.unmet
 
-    def per_type(self) -> dict[str, float]:
+    def scaled_per_type(self) -> dict[str, float]:
         """Base damage plus what the attributes add, per damage type.
 
         The sum itself is one line, and that is exactly why it needs a home:
@@ -60,10 +60,14 @@ class WeaponRating:
         display that breaks the figure down wrote the line out again. Three
         copies of one line drift apart one call site at a time (AD-019).
 
-        A type the weapon does not deal is left out rather than reported as
-        zero -- `rate` records a type only where there is base damage to
-        record, and every caller wants the types the weapon hits with. The
-        order is DAMAGE_TYPES, so two displays list the same weapon alike.
+        A type whose combined figure is zero is left out rather than reported
+        as such -- the filter is on the summed value, not on whether `rate`
+        recorded base damage for it (QA-062). On the game's data the two
+        coincide, because `rate` only ever writes `base` and `scaled` for the
+        same key in the same pass; a hand-built rating with a `scaled` entry
+        and no matching `base` would still come back. Every caller wants the
+        types the weapon hits with, so the order is DAMAGE_TYPES and two
+        displays list the same weapon alike.
         """
         out: dict[str, float] = {}
         for damage in DAMAGE_TYPES:

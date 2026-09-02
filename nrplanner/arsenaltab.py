@@ -364,7 +364,7 @@ class ArsenalTab(QWidget):
             for rating in entries:
                 weapon = rating.weapon
                 lines = [("AR", f"{rating.total:.0f}")]
-                for damage, value in rating.per_type().items():
+                for damage, value in rating.scaled_per_type().items():
                     lines.append((weapons.DAMAGE_LABELS[damage], f"{value:.0f}"))
                 # The status the weapon exists for. Elemental variants always
                 # showed their element; the status variants hid their one

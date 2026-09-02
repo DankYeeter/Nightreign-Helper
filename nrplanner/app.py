@@ -2889,15 +2889,15 @@ class Planner(QMainWindow):
                 weapon, self.current_hero(), self.active_weapon),
         )
         before, after = rating.before, rating.after
-        boosted = rating.per_type
-        base_total = rating.base_total
+        boosted = rating.final_per_type
+        base_total = rating.bare_scaled_total
         final_total = rating.final_total
         delta = final_total - base_total
         self.last_ar = rating.figures()
 
         # The left-hand column of each row: the same armament on the level's
         # own attributes, before anything equipped raised them.
-        was_per_type = before.per_type()
+        was_per_type = before.scaled_per_type()
 
         rows = []
         for damage, value in boosted.items():

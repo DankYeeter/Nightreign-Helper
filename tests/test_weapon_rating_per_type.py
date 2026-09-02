@@ -1,4 +1,4 @@
-"""`WeaponRating.per_type()` is now the only place the per-type sum is written.
+"""`WeaponRating.scaled_per_type()` is now the only place the per-type sum is written.
 
 `ARCHITECTURE.md` AD-019 step W1, AD-020 point 7. Until this accessor existed,
 `base.get(d, 0) + scaled.get(d, 0)` stood in four places, so each display was
@@ -30,7 +30,7 @@ def test_each_type_is_its_base_plus_its_scaling():
     rating = a_rating({"Physics": 100.0, "Fire": 20.0},
                       {"Physics": 25.0, "Fire": 5.0})
 
-    assert rating.per_type() == {"Physics": 125.0, "Fire": 25.0}
+    assert rating.scaled_per_type() == {"Physics": 125.0, "Fire": 25.0}
 
 
 def test_a_type_the_weapon_does_not_deal_is_absent_rather_than_zero():
@@ -42,7 +42,7 @@ def test_a_type_the_weapon_does_not_deal_is_absent_rather_than_zero():
     """
     rating = a_rating({"Physics": 90.0}, {"Physics": 10.0})
 
-    assert rating.per_type() == {"Physics": 100.0}
+    assert rating.scaled_per_type() == {"Physics": 100.0}
 
 
 def test_the_order_is_the_damage_type_order_not_the_insertion_order():
@@ -54,15 +54,15 @@ def test_the_order_is_the_damage_type_order_not_the_insertion_order():
     rating = a_rating({"Dark": 30.0, "Physics": 60.0, "Magic": 45.0},
                       {"Dark": 3.0, "Physics": 6.0, "Magic": 4.5})
 
-    assert list(rating.per_type()) == ["Physics", "Magic", "Dark"]
+    assert list(rating.scaled_per_type()) == ["Physics", "Magic", "Dark"]
 
 
 def test_the_types_add_up_to_the_total_the_rating_already_carried(game_data):
     """The new accessor and the old field describe the same armament.
 
-    `total` sums the two dictionaries whole; `per_type` sums them type by
-    type. The same addends in a different order, so the tolerance here is for
-    floating-point associativity alone and nothing else -- a real
+    `total` sums the two dictionaries whole; `scaled_per_type` sums them type
+    by type. The same addends in a different order, so the tolerance here is
+    for floating-point associativity alone and nothing else -- a real
     disagreement would be visible far above it.
     """
     attributes = {"Strength": 30, "Dexterity": 30, "Intelligence": 30,
@@ -71,7 +71,7 @@ def test_the_types_add_up_to_the_total_the_rating_already_carried(game_data):
     for weapon in game_data["weapons"]:
         rating = weapons.rate(weapon, attributes, game_data,
                               upgrade=weapons.MAX_UPGRADE)
-        assert sum(rating.per_type().values()) == pytest.approx(
+        assert sum(rating.scaled_per_type().values()) == pytest.approx(
             rating.total, rel=1e-12), weapon["name"]
 
 
@@ -83,4 +83,4 @@ def test_every_type_the_rating_holds_comes_back(game_data):
     for weapon in game_data["weapons"]:
         rating = weapons.rate(weapon, attributes, game_data,
                               upgrade=weapons.MAX_UPGRADE)
-        assert set(rating.per_type()) == set(rating.base), weapon["name"]
+        assert set(rating.scaled_per_type()) == set(rating.base), weapon["name"]

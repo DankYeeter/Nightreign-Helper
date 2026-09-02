@@ -77,8 +77,8 @@ class AttackRating:
     before: weapons.WeaponRating
     after: weapons.WeaponRating
     # Damage type -> the figure after the multipliers, the number shown.
-    per_type: dict[str, float]
-    base_total: float
+    final_per_type: dict[str, float]
+    bare_scaled_total: float
     scaled_total: float
     final_total: float
     # Only the multipliers that are not 1.0, for the click-through breakdown.
@@ -95,7 +95,7 @@ class AttackRating:
         nothing that did it.
         """
         return {
-            "base": self.base_total,
+            "base": self.bare_scaled_total,
             "scaled": self.scaled_total,
             "final": self.final_total,
             "rates": dict(self.rates),
@@ -129,14 +129,14 @@ def attack_rating(weapon: dict, tier: int, build: model.Build, data: dict,
     class_rates = build.class_rates.get(weapon_class, {})
 
     # Apply the attack multipliers on top of the scaled figure.
-    per_type: dict[str, float] = {}
+    final_per_type: dict[str, float] = {}
     # Kept for the click-through breakdown: the figure before any rate is
     # applied, so the attribute scaling and the multipliers can be shown as
     # the two separate things they are.
     scaled_total = 0.0
     rates_in_play: dict[str, float] = {}
 
-    for damage, total in after.per_type().items():
+    for damage, total in after.scaled_per_type().items():
         scaled_total += total
         fields = AR_RATE_FOR.get(damage, ())
         if starting_armament:
@@ -157,16 +157,16 @@ def attack_rating(weapon: dict, tier: int, build: model.Build, data: dict,
         for field_name in fields:
             rate *= build.rates.get(field_name, 1.0)
             rate *= class_rates.get(field_name, 1.0)
-        per_type[damage] = total * rate
+        final_per_type[damage] = total * rate
 
     return AttackRating(
         weapon=weapon,
         before=before,
         after=after,
-        per_type=per_type,
-        base_total=before.total,
+        final_per_type=final_per_type,
+        bare_scaled_total=before.total,
         scaled_total=scaled_total,
-        final_total=sum(per_type.values()),
+        final_total=sum(final_per_type.values()),
         rates=rates_in_play,
         weapon_class=weapon_class,
         starting_armament=starting_armament,
