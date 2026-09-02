@@ -25,7 +25,7 @@ Savefiles. Status: offen | teilweise behoben | behoben | zurueckgestellt
 | QA-015 | Alte Builds mit doppeltem Relikt: doppelt wiederhergestellt, dann still geloescht | P2 | Major | developer | echtes Save, Attributraster | **behoben** — beim Restore aufgeloest, erster Slot behaelt, Zahl sofort richtig | 2026-09-02 |
 | QA-016 | Praemisse der AD-013-Abweichung am echten Save widerlegt; Offset-Zweig tot | P2 | Major | developer, architect | echte Daten | offen | 2026-09-01 |
 | QA-017 | Waechter "eine `compute`-Stelle" ist Textsuche und sieht das Berater-Paket nicht | P3 | Minor | developer | statisch + probiert | **behoben** — AST + `rglob`; Restluecke als QA-023 | 2026-09-02 |
-| QA-018 | Waffen-/Arsenal-Tab zeigen andere AR als die Waffentafel (203,4 gegen 244,1) | P2 | Major | developer | echte Daten | offen — **Release-Blocker** | 2026-09-01 |
+| QA-018 | Waffen-/Arsenal-Tab zeigen andere AR als die Waffentafel (203,4 gegen 244,1) | P2 | Major | developer | echte Daten | **Ursache erklaert und gemessen (T-023), Fix haengt an einer Spielbeobachtung des Nutzers.** 203,4 x 1,2 = 244,1 - exakt der Multiplikatorunterschied. Zwei Schichten, nicht zwei Rechnungen | 2026-09-02 |
 | QA-019 | Zwei Golden-Faelle pruefen nicht den Zweig ihres Namens; ein Zweig unabgedeckt | P3 | Minor | developer | echte Daten | offen | 2026-09-01 |
 | QA-020 | Loadout-Fehlermeldung zeigt Leserinterna | P4 | Minor | ui-ux-designer | echte Daten | offen (aelter als T-006) | 2026-09-01 |
 | QA-021 | Zwei eigene Exemplare desselben Rolls: eines geht bei jedem Restore verloren | P2 | Major | developer | **beide echten Saves, 104 Rundreisen, Deep sichtbar+verdeckt, Rollen-Fallback, veraltete Handles, handle-lose Kopien** | **behoben** | 2026-09-02 |
@@ -227,9 +227,16 @@ Handles 3229614315/3229615265).
 | QA-046 | Zwei Build-Namen, die sich nur in der Gross-/Kleinschreibung unterscheiden, teilen sich einen Speicherplatz: der zweite ueberschreibt den ersten still, und das Loeschen des einen loescht beide. QSettings-Wertnamen sind auf Windows **case-insensitiv** - `build_key` erhaelt die Schreibweise und ist damit injektiv gegen Python-Strings, **nicht gegen die Registry** | P2 | Critical | developer, director | "Bleed build" + "bleed build": `build_names` zeigt zwei, beide laden denselben Inhalt, Loeschen des einen leert die Liste | **behoben** (Commit `543f69d`, Schema 3) - 47 gegnerische Namen -> 47 Eintraege, 235 276 Namen ohne Kollision, alle 12 faltungsverdaechtigen Nicht-ASCII-Zeichen gegen die Registry geprueft, Migration 1->3 und 2->3, 26 Mutationen / 18 getoetet | 2026-09-02 |
 | QA-047 | Kehrseite des QA-043-Fixes: ein abgebrochener Testlauf laesst seinen PID-Store dauerhaft in `HKCU\Software\DankYeeterTests` zurueck, und kein spaeterer Lauf raeumt ihn weg. Vorher gab es genau einen Rest, den der naechste Lauf beseitigte | P4 | Minor | developer | `os._exit(1)` nach einem Speichern, dann `reg query` | offen (neu aus T-020-Retest) - nur Entwicklermaschinen | 2026-09-02 |
 | QA-048 | Eine zwischen Markerschreiben und Entfernungen abgebrochene Migration hinterlaesst den Alt-Pfad und damit dauerhaft eine doppelte Zeile in der Liste; der Speicher heilt nicht, weil `__schema` schon auf 3 steht. **Nicht durch `543f69d` erzeugt** - galt unter Schema 2 fuer jeden Namen mit einem Leerzeichen | P3 | Major | developer | echter Hard-Kill unmittelbar nach dem Markerschreiben, Nachschau aus frischem Prozess | offen (neu aus T-021) - **gehoert mit der zurueckgestellten Nebenlaeufigkeit zusammen entschieden, es ist dasselbe Fenster** | 2026-09-02 |
-| QA-049 | `app.py:1175` und `:1179` bauen `QSettings` aus Literalen und umgehen damit die Umlenkung ueber `NIGHTREIGN_SETTINGS_ORG`/`_APP`: **die Testsuite liest ueber `restore_variant()` den echten Nutzerspeicher**, ein Variantenklick im Test wuerde hineinschreiben. Der Schluessel selbst ist klassensicher, der Speicher nicht | P3 | Major | developer | `fileName()` beider Speicher unter gesetzter Umlenkung verglichen; einzige zwei Literal-Stellen im Baum | offen (neu aus T-021, aus der Klassensuche) - fuer den Spieler heute folgenlos, im echten Speicher existiert noch keine Varianten-Gruppe | 2026-09-02 |
-| QA-050 | Die Begruendung fuer die Grossbuchstaben-Hex im `_KEY_SAFE`-Kommentar und in `543f69d` nennt einen Schutz, den sie nicht leistet: mit Kleinbuchstaben-Hex teilen sehr viele Namen den Platz ihres Alt-Pfades, die Migration verliert aber **nichts**, weil der Entfernungswaechter faltet. Die Laengenkette selbst stimmt (0 Gegenbeispiele ueber 200 000 Namen) | P4 | Minor | developer | Kodierung im Klon auf Kleinbuchstaben-Hex umgestellt, Schema-2-Migration mit 7 Namen gefahren | offen (neu aus T-021) - kein Verhaltensfehler, aber **dieselbe Form wie der `_KEY_SAFE`-Kommentar, der QA-046 ueberlebt hat** | 2026-09-02 |
-| QA-051 | Zwei Waechter in `chalices.py` sterben an keiner Mutation: der Order-Filter beim Neuschreiben und die `contains`-Pruefung in `build_names`. **Sie decken einander** - fuer keinen einzeln liess sich eine erreichbare Folge messen | P4 | Minor | developer, director | je einzeln entfernt, 57 Faelle gruen | offen (neu aus T-021) - **ohne Schadensbeleg**, anders als QA-042/QA-045 | 2026-09-02 |
+| QA-049 | `app.py:1175` und `:1179` bauen `QSettings` aus Literalen und umgehen damit die Umlenkung ueber `NIGHTREIGN_SETTINGS_ORG`/`_APP`: **die Testsuite liest ueber `restore_variant()` den echten Nutzerspeicher**, ein Variantenklick im Test wuerde hineinschreiben. Der Schluessel selbst ist klassensicher, der Speicher nicht | P3 | Major | developer | `fileName()` beider Speicher unter gesetzter Umlenkung verglichen; einzige zwei Literal-Stellen im Baum | **behoben** (`da42e66`) - Fundstelle vollstaendig; die **Klasse nur teilweise**, siehe QA-052 | 2026-09-02 |
+| QA-050 | Die Begruendung fuer die Grossbuchstaben-Hex im `_KEY_SAFE`-Kommentar und in `543f69d` nennt einen Schutz, den sie nicht leistet: mit Kleinbuchstaben-Hex teilen sehr viele Namen den Platz ihres Alt-Pfades, die Migration verliert aber **nichts**, weil der Entfernungswaechter faltet. Die Laengenkette selbst stimmt (0 Gegenbeispiele ueber 200 000 Namen) | P4 | Minor | developer | Kodierung im Klon auf Kleinbuchstaben-Hex umgestellt, Schema-2-Migration mit 7 Namen gefahren | **behoben** (`80244e6`) - Diff mechanisch als reine Kommentaraenderung geprueft | 2026-09-02 |
+| QA-051 | Zwei Waechter in `chalices.py` sterben an keiner Mutation: der Order-Filter beim Neuschreiben und die `contains`-Pruefung in `build_names`. **Sie decken einander** - fuer keinen einzeln liess sich eine erreichbare Folge messen | P4 | Minor | developer, director | je einzeln entfernt, 57 Faelle gruen | **behoben** (`57abc84`) - Zustand erreichbar (beide zusammen abgeschwaecht: 4 Ausfaelle), beide Waechter zu Recht behalten | 2026-09-02 |
+| QA-052 | Der AST-Waechter aus T-022 prueft **die Schreibweise des Aufrufs, nicht den geoeffneten Speicher**: 10 von 15 store-oeffnenden Formen bleiben ungesehen (Zuweisungs-Alias `S = QSettings`, Subklasse ohne eigenes `__init__`, gleichnamige lokale `ORG`/`APP`-Literale), und die Ausnahmenliste im Docstring nennt nur drei davon. **Ein gleichnamiges Literalpaar wird sogar gruen gemeldet** | P3 | Major | developer | 15 Schreibweisen gegen den Scanner gemessen | offen (neu aus T-022) - heute folgenlos, keine dieser Formen steht im Baum | 2026-09-02 |
+| QA-053 | Derselbe Waechter meldet zwei **korrekte** Schreibweisen rot: `favourites` unter Alias importiert, und die von PySide6 unterstuetzte Drei-Argument-Form mit `parent` | P4 | Minor | developer | beide Formen gemessen, Parent-Form gegen den Testspeicher verifiziert | offen (neu aus T-022) - die Sorte Rot, die jemanden dazu bringt, den Waechter zu lockern statt seinen Code zu aendern | 2026-09-02 |
+| QA-054 | Verlorener Migrations-Schreibvorgang **plus Schraegstrich im Namen**: der Build wird **null** mal gelistet - der Alt-Pfad ist eine Gruppe, `childKeys()` ist dafuer blind, die Order-Liste raeumt ihn aus - und ist wegen `__schema`=3 dauerhaft unerreichbar. Die Daten stehen weiter in der Registry. Mechanisch dasselbe wie QA-044, **umgekehrte Sichtbarkeit** | P3 | Major | developer | Probe im Klon, mit zwei Kontrollen: ohne Schraegstrich einmal gelistet, ohne Schreibverlust korrekt gelistet | offen (neu aus T-022, **nicht neu im Code**) | 2026-09-02 |
+| QA-055 | **Achse B, der wahrscheinlichste Alltagsfall:** Slot auf Tier 3, Tab-Spinbox auf 1, **kein einziges Relikt** - Kachel und Tafel sagen 321,4, der Waffen-Tab 203,4. Reiner Eingabeunterschied, greift ohne jeden Buff, sobald der Spieler ein Slot-Tier hochsetzt. Das Tier, an dem die Liste rechnet, ist nirgends sichtbar | P2 | Major | developer, ui-ux-designer | gemessen ueber die echten Widgets | offen (neu aus T-023) | 2026-09-02 |
+| QA-056 | **Achse C:** mit "Strength +1" zeigt die Kachel 323 (erhoehte Attribute), die linke Zahl der Tafel 321,4 (Grundattribute), der Tab 204,2 - drei Zahlen fuer dieselbe Waffe. Das ist die Beobachtung aus `DESIGN_REVIEW.md:429`, jetzt mit Ursache | P3 | Major | developer, ui-ux-designer | gemessen | offen (neu aus T-023) | 2026-09-02 |
+| QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | offen (neu aus T-023) - **genau die Form von Debt, die QA-001 erzeugt hat** | 2026-09-02 |
+| QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | offen (neu aus T-023) - **eigener Auftrag: zweiter Waechter oder gemeinsame Fassade** | 2026-09-02 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -609,3 +616,111 @@ der drei Runden.
   hat keinen erreichbaren Pfad gefunden, der einen doppelten Eintrag erzeugt.
   Damit ist die Linie des `developer` bestaetigt: lieber kein Waechter als
   einer ohne Test.
+
+## Entscheidungen des Directors - Zyklus 6 (2026-09-02)
+
+- **Push freigegeben.** QA-049, QA-050 und QA-051 sind behoben; der
+  `qa-engineer` hat alle drei selbst nachgefahren statt die Entwicklertests zu
+  uebernehmen. 204 Tests, echter Spielerspeicher vor und nach dem Lauf
+  byteweise identisch.
+- **QA-054 bekommt eine eigene ID, nicht eine Zeile in QA-044.** Der
+  Mechanismus ist derselbe (ein Alt-Pfad bleibt liegen), die **Wirkung auf den
+  Spieler ist die entgegengesetzte**: QA-044 heisst "wird gelistet, laedt
+  leer"; QA-054 heisst "wird gar nicht gelistet, Daten liegen unerreichbar in
+  der Registry". Nach meiner eigenen Gewichtungsregel - verschwinden schlaegt
+  doppelt zaehlen - ist QA-054 der schwerere Fall. Zwei Wirkungen unter einer
+  ID zu fuehren heisst, dass die leichtere die schwerere verdeckt.
+- **QA-049 gilt als Fundstellen-Fix mit Teilabdeckung der Klasse, nicht als
+  Klassenabschluss.** Ich hatte in T-022 geschrieben, der Waechtertest sei
+  "der Teil, der die Klasse schliesst". Das ist nach QA-052 nicht mehr
+  haltbar, und ich korrigiere es hier statt es stehenzulassen.
+- **Und damit ist es das dritte Mal in Folge dieselbe Sache.** QA-050: ein
+  Kommentar sichert einen Schutz zu, den er nicht leistet. QA-046: der
+  `_KEY_SAFE`-Kommentar sagte "injective", ohne den Bezugsrahmen zu nennen.
+  QA-052: ein Waechtertest-Docstring sagt "There are no exempted call sites",
+  waehrend fuenf Formen woertlich im Baum stehen koennten und passieren
+  wuerden. **Das ist kein Zufall mehr, sondern ein Muster: eine Zusicherung
+  ohne benannten Geltungsbereich ist keine Zusicherung.** Geht als Vorschlag
+  an die `retrospective`.
+- **Der Vorschlag des Pruefers zu QA-052 ist der richtige: den Scanner nicht
+  aufblaehen, sondern die ehrliche Regel hinschreiben** und die zwei
+  billigsten Loecher schliessen (Zuweisungs-Aliase, und bare `ORG`/`APP` nur
+  in Modulen gelten lassen, die sie aus `favourites` importieren).
+- **Zum Zwischenfall in T-022, aus dem etwas zu lernen ist:** Die
+  Mutationsprobe des `developer` hat in den echten Spielerspeicher
+  geschrieben, weil er die Mutation auf die **echten** Literale gesetzt hat.
+  Der `qa-engineer` hat dieselbe Aussage mit einem harmlosen Fremd-Store
+  gemessen und dabei sogar **mehr** Faelle fallen sehen. Die Lehre ist nicht
+  "vorsichtiger sein", sondern: **eine Mutation, die einen Umgehungsfehler
+  nachstellt, fuehrt ihn auch aus - sie darf deshalb nie auf das echte Ziel
+  zeigen.** Geht an die `retrospective`.
+- **Punkt 4 des Auftrags - Variantenwahl - ist sauber beantwortet, und zwar
+  besser als ich gefragt hatte.** Ich hatte gefragt, ob es nur diesen Rechner
+  trifft. Die tragende Antwort haengt nicht an einer Messung: `favourites.ORG`
+  und `.APP` fallen ohne Umgebungsvariablen auf **exakt dieselben**
+  Zeichenketten zurueck wie die alten Literale. Fuer jeden Spielerstart ist
+  der Speicher derselbe wie vorher - es gibt keine Wanderung, also nichts zu
+  verlieren. Keine vierte Runde dieser Art.
+
+## Entscheidungen des Directors - Zyklus 7 (2026-09-02)
+
+- **QA-018 ist erklaert, nicht behoben - und das ist das richtige Ergebnis.**
+  Der Auftrag verlangte ausdruecklich, zuerst zu erklaeren statt anzugleichen.
+  Der `developer` hat es getan und ist dabei auf etwas gestossen, das keine
+  Codeentscheidung ist.
+- **Die Ursache in einem Satz:** `damage.py` ist **nicht** die eine
+  Rechenstelle, sondern die **obere Haelfte einer zweistoeckigen Rechnung**.
+  Beide Pfade sind bis `weapons.rate` bitgleich; `attack_rating` legt danach
+  eine Multiplikatorschicht darauf, die der Waffen-Tab nie sieht.
+  203,4 x 1,2000000476837158 = 244,101... - **die QA-Messung ist exakt der
+  Multiplikatorunterschied, nichts sonst.**
+- **Die Annahme, die bricht,** steht woertlich in `damage.py`: *"A buff merely
+  gated on a weapon type is not restricted at all - that is a flat rate and
+  already counted."* Eine Einschraenkung auf eine Angriffsart wird nur erkannt,
+  wenn der Effekt `magicSubCategoryChange1/2/3` traegt - das trifft auf 96 von
+  175 Buffs zu und wird korrekt ausgesondert. **"Improved Thrusting
+  Counterattack" traegt keines dieser Felder: seine Einschraenkung existiert
+  nur im Beschreibungstext, in keinem Param-Feld.** 244,1 ist der Angriffswert
+  eines Stoss-Konters, angezeigt fuer ein Greatsword, das keinen hat.
+- **Keine der beiden Zahlen ist unbesehen richtig.** In diesem Fall ist 203,4
+  zufaellig richtig - zufaellig, weil bei einem echten Pauschalbuff
+  ("Physical Attack Up +4", +12 %) die Verhaeltnisse **umgekehrt** laegen und
+  203,4 zu niedrig waere. Aus den Spieldateien ist nicht entscheidbar, welcher
+  Fall vorliegt; es gibt kein Feld, das die beiden Sorten trennt. Die
+  betroffene Effektfamilie ist aber klein und vollstaendig aufgezaehlt (vier
+  Familien, ~20 IDs).
+- **Weg A plus B, wie vom `developer` empfohlen.** A: der Nutzer macht **eine**
+  Beobachtung im Spiel, die die ganze Effektklasse entscheidet. B: die Spalten
+  werden umbenannt - **B bleibt unter jedem Ausgang von A richtig**, weil das
+  Benennungsproblem unabhaengig davon besteht (203,4 = Grundschaden plus
+  Attributskalierung, 244,1 = dasselbe plus alle Multiplikatoren; beide heissen
+  heute "AR" bzw. "Total"). Weg C - die vier Effektfamilien nach
+  `SCOPED_PREFIX` umleiten - **wird nicht gegangen**: er raet gegen die Params,
+  und wenn der Buff doch global ist, sortiert der Berater sie faelschlich nach
+  unten.
+- **Der Steigungstest faellt nicht** - die Steigung des heutigen
+  `damage.py`/`model.py` ist in der geforderten Richtung. Kein zweiter Befund
+  an der Steigung. Drei Leitern (Wylder/STR, Ironeye/DEX, Recluse/INT), je 15
+  Stuetzstellen, drei Mutationen die alle drei Zusicherungen einzeln toeten.
+- **Eine Zusage aus dem Auftrag korrigiert, mit Belegen:** Ich hatte
+  "abnehmender Ertrag" als streng fallenden Verlauf gedacht. Die drei von
+  Waffen benutzten Kurven sind **stueckweise linear** (alle `adj`-Exponenten
+  1,0); der Grenzbeitrag ist **innerhalb eines Abschnitts konstant** und
+  faellt nur an den Soft Caps (Kurve 0: bei 24, 49, 74). Der Test sichert
+  deshalb "steigt nie" **plus** "ist oben kleiner als unten". **Ein Test, der
+  strenges Fallen verlangt, wuerde einen Fehler verlangen.** Der `developer`
+  hat das gemessen statt meiner Formulierung zu folgen - richtig so.
+- **Folge fuer die Oberflaeche, die sonst niemand gesehen haette:** zwei
+  Kandidaten im selben Kurvenabschnitt sind **exakt gleich viel wert**. Der
+  Picker muss Gleichstaende darstellen koennen und darf keine strenge
+  Rangfolge behaupten. Geht an den `ui-ux-designer`.
+- **QA-058 ist der eigentliche Klassenbefund** und bekommt einen eigenen
+  Auftrag: der `compute`-Waechter zaehlt Zugriffe auf `model.compute`, nicht
+  auf `weapons.rate`. "Eine Rechenstelle" gilt fuer die obere Schicht und fuer
+  die untere nicht. Sauberer als ein zweiter Waechter waere eine gemeinsame
+  Fassade, die Attributsatz, Tier und Multiplikatorschicht **einmal**
+  festlegt - das gehoert vor den `architect`.
+- **Ein Test, der die Abweichung einfriert (203,4 gegen 244,1), wird bewusst
+  nicht gebaut**, solange Schritt 2 nicht entschieden ist. Er wuerde eine Zahl
+  festschreiben, ueber die gerade nicht entschieden ist. Der `developer` hat
+  die Auslassung gemeldet statt sie zu verschweigen.
