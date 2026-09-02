@@ -255,7 +255,7 @@ class AttackRating:
 
     @property
     def rates(self) -> dict[str, float]:
-        """Only the multipliers that are not 1.0, for the click-through tafel."""
+        """Only the multipliers that are not 1.0, for the click-through panel."""
         return self.now.rates
 
     @property
