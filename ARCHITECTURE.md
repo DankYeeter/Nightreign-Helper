@@ -1641,6 +1641,320 @@ jede Auswahl sofort bewertet ist.
 
 ---
 
+### AD-019 — Eine gemeinsame Fassade über beiden Rechenschichten, kein zweiter Wächter über `weapons.rate` (2026-09-02, Status: aktiv; erweitert AD-005, Vorbedingung für AD-018)
+
+**Kontext:** QA-058. Die Waffen-Arithmetik hat zwei Schichten. Bis
+`weapons.rate` (Grundschaden x Verstärkung + Attributskalierung) sind alle
+Pfade bitgleich — das ist gemessen, nicht vermutet. `damage.attack_rating`
+legt danach eine **Multiplikatorschicht** (`build.rates` x `class_rates`, flach
+je Schadensart) darauf, die drei der vier Anzeigestellen nie sehen. Der
+`compute`-Wächter aus AD-002/QA-001 ist grün und bleibt grün: er deckt die
+Schicht darunter ab (`model.compute`), nicht diese. Die Randbedingung, unter
+der „eine Rechenstelle" geprüft wurde, war der **Build** — nicht die
+**Waffenzahl**.
+
+Vier Anzeigestellen wählen ihre drei Eingaben — Attributsatz, Tier,
+Multiplikatorschicht — heute unabhängig voneinander, und keine von ihnen sagt,
+welche sie gewählt hat:
+
+| Stelle | Attributsatz | Tier | Multiplikatoren |
+|--------|--------------|------|-----------------|
+| `damage.attack_rating`, `after` | `build.attributes` | `slot.tier` | ja |
+| `damage.attack_rating`, `before` | `build.base_attributes` | `slot.tier` | nein |
+| `app.py:2865` (Waffenkachel) | `build.attributes` | `slot.tier` | **nein** |
+| `arsenaltab` (über `rank`) | `build.attributes` | **Ziel-Tier aus der Spinbox** | nein |
+| `weaponstab` (toter Code) | `build.attributes` | Spinbox 0..25 | nein |
+
+Daraus die drei unabhängig gemessenen Abweichungsachsen: **A** Multiplikatoren
+(QA-018, Tab 203,4 gegen Tafel 244,1), **B** Tier (QA-055, Slot auf Tier 3 und
+Spinbox auf 1 ohne ein einziges Relikt: Kachel und Tafel 321,4, Tab 203,4),
+**C** Attributsatz (QA-056, mit „Strength +1": Kachel 323, linke Tafelzahl
+321,4, Tab 204,2). Dazu ist die Formel je Schadensart
+`base.get(d,0) + scaled.get(d,0)` **viermal ausgeschrieben** (`damage.py:140`,
+`weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`), weil `WeaponRating`
+zwar `total` trägt, aber keinen Zugriff je Typ.
+
+**Die Kräfte:** Konsistenz gegen Richtigkeit. Nicht jede der drei Achsen ist
+ein Fehler — der Arsenal-Tab rankt bewusst auf einem **Ziel-Tier**, nicht auf
+dem ausgerüsteten, und die linke Tafelzahl steht bewusst auf den
+**Grundattributen**, sonst gäbe es kein Vorher/Nachher. Eine Struktur, die das
+wegvereinheitlicht, macht das Programm falsch statt konsistent. Die Grenze
+zieht AD-020.
+
+**Optionen:**
+- **A — Im Bestand bleiben, zweiter Wächter über `weapons.rate`/`weapons.rank`
+  nach dem Muster von `test_one_build.py`.** Kein Umbau, das Werkzeug steht
+  bereits (AST-Zählung über alle sechs Aufrufschreibweisen, rekursiv über
+  `nrplanner/`). Konsequenz: **die Zusicherung wäre falsch.** Der
+  `compute`-Wächter trägt, weil es genau *einen* richtigen Build gibt. Hier
+  gibt es mehr als eine richtige **Frage**: „was hängt in Slot 1" und „wie gut
+  wäre diese Waffe als Legendary" sind verschiedene Fragen an dieselbe Formel.
+  Ein Wächter auf einen Aufrufer erzwänge entweder eine falsche
+  Vereinheitlichung (Achse B) oder bräuchte eine Ausnahmeliste — und ein
+  Wächter mit Ausnahmeliste sichert die Ausnahmen nicht zu.
+- **B — Zweiter Wächter plus ausdrückliche Ausnahmeliste je Aufrufer.**
+  Konsequenz: die Liste beschreibt den Ist-Zustand, statt ihn zu binden. Sie
+  wächst mit jedem neuen Tab und sagt weiterhin nicht, *warum* eine Stelle
+  abweicht. QA-058 wäre dokumentiert, nicht geschlossen.
+- **C — Gemeinsame Fassade in `nrplanner/damage.py`.** Eine Stelle legt für
+  **jede benannte Frage** alle drei Eingaben fest; die Anzeigestellen nennen
+  die Frage und bekommen eine Zahl. Der Wächter sichert danach nicht „ein
+  Aufrufer", sondern „nur die Fassade fasst `weapons.rate`/`rank` an"
+  (AD-021). Konsequenz: ein Eingriff in vier Stellen, der Regressionsschutz
+  braucht.
+- **D — Fassade in einem neuen Modul `nrplanner/rating.py`.** Sauberer
+  Namensschnitt. Konsequenz: ein drittes Modul für eine Rechnung, die schon
+  zwei hat, und `damage.py` bliebe als halbe Fassade daneben stehen. Verworfen
+  zugunsten von C: `damage.py` ist bereits die obere Schicht (AD-005) und
+  liegt bereits unter `nrplanner/`, was QA-023 verlangt.
+
+**Entscheidung:** C. Der `developer` hat recht, und der Grund ist nicht
+Sauberkeit, sondern Zusicherbarkeit: Option A behauptet etwas, das nicht
+stimmt, und Option B sichert nichts zu. Die Fassade ist die einzige Option, in
+der die Wahl der drei Eingaben eine **benannte, an einer Stelle getroffene
+Entscheidung** ist statt einer Nebenwirkung davon, welches Modul man importiert
+hat.
+
+**Schnittstelle (illustrierend, kein Anwendungscode):**
+
+```python
+# nrplanner/weapons.py -- die vierfach ausgeschriebene Formel, einmal.
+@dataclass
+class WeaponRating:
+    ...
+    def per_type(self) -> dict[str, float]:
+        """base + scaled je Schadensart, nur die von Null verschiedenen."""
+
+# nrplanner/damage.py -- die Fassade.
+class Basis(enum.Enum):
+    """Welche Frage gestellt wird. Es gibt genau diese drei."""
+    EQUIPPED  = "equipped"    # diese Waffe, in diesem Slot, wie sie steht
+    CANDIDATE = "candidate"   # eine nicht ausgeruestete Waffe, auf Ziel-Tier
+    BARE      = "bare"        # Grundattribute, ohne alles Ausgeruestete
+
+# Die EINZIGE Stelle, die sagt, ob die Multiplikatorschicht zu einer Frage
+# gehoert. Die Spielmessung zu QA-018 aendert hier einen Wert und sonst
+# nichts im Programm.
+MULTIPLIERS_FOR = {Basis.EQUIPPED: True, Basis.CANDIDATE: OFFEN,
+                   Basis.BARE: False}
+ATTRIBUTES_FOR  = {Basis.EQUIPPED: "attributes", Basis.CANDIDATE: "attributes",
+                   Basis.BARE: "base_attributes"}
+
+@dataclass(frozen=True)
+class Rating:
+    weapon: dict
+    basis: Basis            # welche Frage beantwortet wurde -- steht mit dabei
+    tier_applied: int       # welches Tier tatsaechlich erreicht wurde
+    per_type: dict[str, float]
+    total: float
+    unmet: dict[str, tuple[int, int]]
+    rates: dict[str, float]     # nur die != 1.0, fuer die Aufklapp-Tafel
+    weapon_class: str | None
+    starting_armament: bool
+
+def equipped(slot, slot_index, build, hero, data) -> tuple[Rating, Rating]:
+    """Die ausgeruestete Waffe: (BARE-Vergleichszahl, EQUIPPED-Zahl).
+    Tier kommt aus dem Slot, die Startwaffen-Paarung aus (slot_index, hero)."""
+
+def candidate(weapon, target_tier, build, data) -> Rating:
+    """Eine Waffe, die nirgends steckt, auf einem gewaehlten Ziel-Tier.
+    Kein slot_index, also nie eine Startwaffen-Strafe (AD-020, Punkt 3)."""
+
+def rank_candidates(build, target_tier, data, *, require_usable) -> list[Rating]:
+    """`weapons.rank` mit derselben Politik wie `candidate`."""
+```
+
+`AttackRating` aus AD-005 bleibt als Rückgabetyp der Aufklapp-Tafel bestehen
+oder geht in `Rating` auf — das entscheidet der `developer` beim Umbau; es ist
+eine Umbenennung, keine Struktur.
+
+**Abhängigkeitsrichtung, unverändert und ohne Zyklus:**
+`app.py`/`arsenaltab.py` → `damage.py` → `weapons.py` → `model.py`.
+`arsenaltab.py` importiert `weapons` künftig nur noch für Konstanten und
+Typen (`DAMAGE_TYPES`, `DAMAGE_LABELS`, `RARITY_TIERS`, `WeaponRating`), nicht
+mehr für Arithmetik. Der Wächter aus AD-021 zielt auf die zwei
+Arithmetik-Einstiege, nicht auf das Modul.
+
+**Migrationspfad — vier Anzeigestellen, nicht in einem Rutsch:**
+
+| Schritt | Inhalt | Bitgleich? | Hängt ab von |
+|---------|--------|-----------|--------------|
+| **W0** | `nrplanner/weaponstab.py` löschen (QA-057). Kein Importeur im ganzen Baum; `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`, das Attribut überlebt. | ja, trivial | — |
+| **W1** | `WeaponRating.per_type()` in `weapons.py`; die drei verbleibenden Ausschreibungen darauf umstellen. | **ja, bitgleich** | W0 |
+| **W2** | Fassade in `damage.py` anlegen, `MULTIPLIERS_FOR`/`ATTRIBUTES_FOR` **mit den heutigen Werten** befüllen. `attack_rating` ruft die Fassade; sonst ändert sich nichts. | **ja, bitgleich** | W1 |
+| **W3** | `app.py` Kachel **und** Tafel auf `damage.equipped()` umstellen. Hier fällt Achse C zwischen Kachel und Tafel — sie sind dieselbe Frage. | **nein, gewollt** | W2 |
+| **W4** | `arsenaltab` auf `damage.rank_candidates()` umstellen, Ziel-Tier ausdrücklich als `target_tier` durchgereicht. | **nein, gewollt** | W2 |
+| **W5** | Wächter aus AD-021 scharfschalten. | — | W3, W4 |
+| **W6** | Nach der Spielmessung: **ein Wert** in `MULTIPLIERS_FOR[Basis.CANDIDATE]`. | nein, das ist die Antwort auf QA-018 | Nutzer |
+
+W3 und W4 sind voneinander unabhängig und können in beliebiger Reihenfolge
+oder in zwei Aufträgen erledigt werden — beide hängen nur an W2.
+
+**Trägt das Verfahren aus Zyklus 2 (10 000 Differentialfälle, 0 Abweichungen)
+hier?** **Für W1 und W2 ja, für W3 bis W6 nicht — und das ist die wichtigste
+Aussage dieses Entwurfs.** Zyklus 2 belegte „nichts hat sich geändert", und der
+Golden-Stand war der Beleg. Hier sollen sich drei der vier Stellen **ändern**;
+ein eingefrorener Golden-Stand würde den Befund einfrieren statt ihn zu
+sichern. Also:
+- **W1, W2:** Differentialtest gegen den Vor-Zustand, Abbruch bei jeder
+  Abweichung. Genau das Verfahren aus Zyklus 2, unverändert.
+- **W3 bis W6:** `tests/golden/weapon_damage.json` muss neu aufgenommen
+  werden. Sein eigener Vertrag erlaubt das heute nur nach einem
+  **Spiel-Patch**. Der Vertrag ist zu erweitern um: „oder wenn eine
+  dokumentierte Entscheidung eine Eingabe geändert hat; der Commit nennt die
+  AD- oder QA-Nummer." Ohne diese Erweiterung ist die erste Neuaufnahme ein
+  stiller Vertragsbruch und löscht den einzigen Beleg, dass die Rechnung
+  unverändert ist.
+- **Was bei W3/W4 trotzdem bitgleich bleiben muss:** die **untere** Schicht.
+  `weapons.rate` liefert über alle Differentialfälle dieselben Zahlen wie
+  vorher; abweichen darf nur, was die Fassade darüberlegt. Das ist prüfbar und
+  trennt Umbau von Bedeutungsänderung.
+
+**Konsequenzen:** Leicht wird — die Antwort auf QA-018 ist danach eine
+Zeilenänderung an einer benannten Stelle statt eines Eingriffs an vier
+Anzeigestellen; und jede neue Ansicht muss ihre Frage benennen, statt sie zu
+erben. Dauerhaft schwer wird — eine Anzeige, die eine **vierte** Frage stellen
+will, muss sie in `Basis` eintragen und begründen, statt sich die Eingaben
+selbst zusammenzustellen. Das ist Absicht und der ganze Zweck.
+
+**Umkehrbarkeit:** mittel. W0 bis W2 sind trivial rückgängig. Ab W3 hängt die
+Anzeige daran, ab dem Berater (AD-018) die Rangfolge.
+
+---
+
+### AD-020 — Was die Fassade ausdrücklich NICHT vereinheitlicht (2026-09-02, Status: aktiv; Randbedingung von AD-019)
+
+**Kontext:** Die drei gemessenen Abweichungsachsen aus QA-018/055/056 sind
+**nicht drei Fehler**. Eine Fassade, die alle drei einebnet, macht das
+Programm konsistent und falsch. Diese Entscheidung trennt Absicht von Fehler,
+damit der `developer` beim Umbau nicht raten muss.
+
+**Optionen:**
+- **A — Alles vereinheitlichen, eine Zahl je Waffe.** Konsequenz: der
+  Arsenal-Tab könnte nicht mehr fragen „wie gut wäre diese Waffe als
+  Legendary", weil er auf dem ausgerüsteten Tier ränge — für eine Waffe, die
+  in keinem Slot steckt, gibt es dieses Tier gar nicht. Der Tab verlöre seinen
+  Zweck.
+- **B — Nichts festlegen, jede Stelle behält ihre Wahl, die Fassade bündelt
+  nur die Formel.** Konsequenz: QA-058 wäre auf die Formelduplikate
+  zusammengeschrumpft; die drei Achsen blieben, und der nächste Tab öffnet
+  eine vierte.
+- **C — Absicht und Fehler einzeln benennen, die Absichten als eigene `Basis`
+  führen.** Konsequenz: die Liste muss gepflegt werden und wächst mit jeder
+  echten neuen Frage.
+
+**Entscheidung:** C.
+
+**Absicht — bleibt verschieden, und die Fassade muss es tragen:**
+1. **Ziel-Tier gegen Slot-Tier (Achse B).** Der Arsenal-Tab rankt bewusst auf
+   einem gewählten Ziel-Tier. Das ist keine Abweichung, sondern die Frage des
+   Tabs. `Basis.CANDIDATE` bekommt `target_tier` als Pflichtargument; es gibt
+   keinen Vorgabewert, der still das Slot-Tier einsetzt.
+2. **Grundattribute gegen erhöhte Attribute (Achse C, linke Tafelzahl).** Die
+   „vorher"-Zahl steht auf `build.base_attributes`, weil sonst das Vorher/
+   Nachher der Tafel verschwindet. `Basis.BARE` ist genau dafür da.
+3. **Startwaffen-Strafe (`*AttackPowerRate`, x0,85).** Sie hängt an der
+   **Paarung** Slot 1 + eigene Startwaffe des Nightfarers, im Spiel verifiziert
+   2026-08-22. `Basis.CANDIDATE` hat keinen Slot und darf sich keinen erfinden;
+   die Strafe erscheint nur in `Basis.EQUIPPED`.
+4. **Klassengebundene Raten (`class_rates`) sind je Waffe verschieden**, nicht
+   je Build. Sie dürfen nicht zu einem einzigen Build-Faktor zusammengezogen
+   werden — „Improved Melee Attack Power" hebt das Greatsword und nicht den
+   Bogen daneben (AD-005-Kommentar, unverändert gültig).
+5. **Krit-Rate bleibt draussen** (`model.CRIT_RATE`). Attack Rating ist der
+   gewöhnliche Treffer. Unverändert aus `damage.py`.
+
+**Fehler — wird vereinheitlicht:**
+6. **Kachel gegen Tafel (`app.py:2865` gegen `attack_rating`).** Dieselbe
+   Waffe, derselbe Slot, dasselbe Tier, zwei Zahlen gleichzeitig auf dem
+   Schirm, und nichts unterscheidet die Fragen. Das ist eine Frage, zweimal
+   beantwortet. Beide gehen auf `Basis.EQUIPPED`.
+7. **Die vierfach ausgeschriebene Formel je Schadensart.** `WeaponRating`
+   bekommt `per_type()`.
+8. **Die implizite Wahl der Multiplikatorschicht.** Heute entscheidet
+   darüber, welches Modul eine Anzeigestelle importiert hat. Künftig
+   entscheidet `MULTIPLIERS_FOR`, und die Entscheidung hat einen Namen.
+
+**Was diese Entscheidung ausdrücklich NICHT festlegt:** ob die Zahl 203,4 oder
+244,1 richtig ist. Sie legt fest, **wo** die Zahl entsteht, nicht **welchen
+Wert** sie hat. Der Wert hängt an der Spielmessung des Nutzers (siehe
+`docs/state.md`, Abschnitt „Die Messung im Spiel") und wird zu W6.
+
+**Konsequenzen:** Leicht wird — eine begründete Abweichung ist im Code als
+`Basis` sichtbar statt als stille Unterschiedlichkeit der Aufrufargumente.
+Dauerhaft schwer wird — wer eine neue Ansicht baut, muss vorher entscheiden,
+welche Frage sie stellt. Das ist Absicht.
+
+**Umkehrbarkeit:** leicht. Die Liste ist Dokumentation plus ein Enum; ein
+Eintrag mehr oder weniger kostet nichts.
+
+---
+
+### AD-021 — Der Wächter sichert nicht „ein Aufrufer", sondern „nur die Fassade rechnet"; dasselbe Werkzeug, zwei Zusicherungen (2026-09-02, Status: aktiv; erweitert AD-002 und `test_one_build.py`)
+
+**Kontext:** QA-058 stellt die Frage, wie „eine Rechenstelle" für **beide**
+Schichten gelten kann. Der bestehende Wächter
+(`test_one_build.py::test_the_user_interface_holds_exactly_one_call_to_compute`)
+zählt über den Syntaxbaum, kennt alle sechs Aufrufschreibweisen, sucht rekursiv
+unter `nrplanner/` und weiss ausdrücklich, was er nicht sehen kann
+(Laufzeitauflösung, QA-023, festgehalten). Das Werkzeug ist gut; nur seine
+**Zusicherungsform** passt für die obere Schicht nicht: dort gibt es nicht
+einen richtigen Aufrufer, sondern eine richtige Fassade (AD-019).
+
+**Optionen:**
+- **A — Den `compute`-Wächter kopieren und auf `rate`/`rank` umbenennen.**
+  Konsequenz: zwei fast gleiche Testdateien, die getrennt driften; und die
+  falsche Zusicherung aus AD-019 Option A.
+- **B — `compute_call_sites` zu `call_sites(source, modules, functions)`
+  verallgemeinern und zweimal aufrufen: einmal mit
+  (`model`, `compute`) → Erwartung `{app.py: 1}`, einmal mit
+  (`weapons`, `rate`/`rank`) → Erwartung `{damage.py: n}` und **überall sonst
+  Null**.** Konsequenz: eine Implementierung, zwei Zusicherungen; der Test
+  „sieht jeden Weg um sich herum" prüft beide mit denselben sieben
+  Schreibweisen.
+- **C — Zusätzlich den Ausdruck `base.get(d,0) + scaled.get(d,0)` im
+  Syntaxbaum verbieten.** Konsequenz: brüchig (jede Umformulierung entkommt),
+  und nach W1 gegenstandslos, weil eine Stelle ohne Zugriff auf `rate` gar
+  keine `WeaponRating` mehr selbst erzeugt.
+
+**Entscheidung:** B. C wird **nicht** gebaut; die Formel deckt der
+Golden-Test ab, und die Grenze wird im Wächter-Docstring genannt statt
+behauptet.
+
+**Form der zweiten Zusicherung (illustrierend):**
+
+```python
+ARITHMETIC_ENTRY = ("rate", "rank")   # weapons.py, untere Schicht
+FACADE = "nrplanner/damage.py"        # die einzige Stelle, die sie anfassen darf
+
+# Erwartung: {FACADE: n}. Jede andere Datei unter nrplanner/ muss 0 haben.
+# Konstanten und Typen aus weapons.py (DAMAGE_TYPES, DAMAGE_LABELS,
+# RARITY_TIERS, WeaponRating) bleiben ausdruecklich erlaubt -- der Waechter
+# zielt auf zwei Funktionsnamen, nicht auf den Import des Moduls.
+```
+
+**Reichweite, ausdrücklich, weil ein Wächter mit unausgesprochener Reichweite
+als Wächter ohne Grenzen gelesen wird:**
+- Suchraum bleibt `nrplanner/` (QA-023). `run.py` und `scripts/` liegen
+  ausserhalb; `scripts/capture_weapon_damage.py` ruft die Rechnung
+  absichtlich und ist deshalb kein Verstoss — aber auch nicht gesichert.
+- **Das Berater-Paket muss unter `nrplanner/advisor/` liegen** (AD-001, von
+  `test_the_search_space_reaches_inside_a_package` bereits geprüft), sonst
+  sieht der Wächter es nicht. Diese Bedingung gilt jetzt für **beide**
+  Zusicherungen.
+- Der Berater ruft die Fassade, nicht `weapons.rate`. Damit gilt für ihn
+  dieselbe Regel wie für jeden Tab.
+
+**Konsequenzen:** Leicht wird — eine fünfte Anzeigestelle, die sich ihre
+Waffenzahl selbst zusammenrechnet, fällt beim Testlauf auf statt beim Spieler.
+Dauerhaft schwer wird — der `developer` kann `weapons.rate` nicht mehr „mal
+eben" für eine Sonderansicht rufen; er muss eine `Basis` beantragen. Das ist
+der Preis und der Zweck.
+
+**Umkehrbarkeit:** leicht. Ein Test.
+
+---
+
 ## Umsetzung — Schnitt in einzeln lauffähige Schritte
 
 Jeder Schritt ist für sich lauffähig und für sich prüfbar. Reihenfolge ist
@@ -1987,3 +2301,125 @@ persistenten Speicher aus. Soll er den Neustart überleben, ist das ein
 eigener Auftrag mit eigenem Schema, der Migrationsnachbedingung aus Zyklus
 4/5 und einer ausgesprochenen Regel für Relikte, die nicht mehr im Besitz
 sind — nicht eine Zeile mehr im Berater.
+
+---
+
+## Nachtrag III 2026-09-02 — Die zweite Rechenschicht (AD-019 bis AD-021, QA-058)
+
+Anlass: QA-058. Der `compute`-Wächter ist grün und bleibt grün — er sichert
+die Schicht, für die er geschrieben wurde. Die Waffenzahl entsteht eine Etage
+höher, und dort wählen vier Anzeigestellen ihre Eingaben unabhängig. Das ist
+dieselbe Klasse von Befund wie QA-001, nur eine Schicht weiter oben.
+
+### Änderungen am Umsetzungsschnitt
+
+Vor S10 (Berater-Bau) tritt die Fassaden-Kette **W0 bis W5** aus AD-019. W6
+(ein Wert in `MULTIPLIERS_FOR`) steht ausserhalb der Kette und wartet auf die
+Spielmessung des Nutzers.
+
+| Schritt | Inhalt | Hängt ab von |
+|---------|--------|--------------|
+| **W0** | `nrplanner/weaponstab.py` löschen (QA-057) | — |
+| **W1** | `WeaponRating.per_type()`, drei Ausschreibungen umstellen | W0 |
+| **W2** | Fassade in `damage.py`, Politik mit den **heutigen** Werten | W1 |
+| **W3** | `app.py` Kachel + Tafel auf `damage.equipped()` | W2 |
+| **W4** | `arsenaltab` auf `damage.rank_candidates()`, `target_tier` explizit | W2 |
+| **W5** | Wächter aus AD-021 scharfschalten | W3, W4 |
+| **W6** | `MULTIPLIERS_FOR[Basis.CANDIDATE]` setzen | Spielmessung |
+
+### Reihenfolge gegenüber dem Berater — die Frage des `director`
+
+**Die Fassade kommt vor dem Berater. Die Spielmessung nicht.** Das ist die
+Präzisierung gegenüber dem Nachtrag II, wo QA-018 als Ganzes vor den Berater
+gezogen wurde.
+
+- **Warum die Fassade davor muss:** Der Hauptweg des Beraters ist der
+  Grenzbeitrag über `attack_rating` (AD-018). Solange `attack_rating` eine von
+  vier Lesarten ist, erbt der Berater die Mehrdeutigkeit, und eine falsche
+  **Steigung** kürzt sich in einer Differenz nicht heraus.
+- **Warum die Messung danach kommen darf:** Der Berater vergleicht Kandidaten
+  **bei fester Waffenmenge**. Eine flache Multiplikatorschicht wirkt auf jeden
+  Kandidaten mit demselben Faktor je Schadensart; sie skaliert den
+  Grenzbeitrag, dreht ihn nicht um und verändert den abnehmenden Ertrag nicht.
+  Prüfpunkt 16 (derselbe +Stärke-Kandidat hat bei hohem Stärkewert einen
+  kleineren Grenzbeitrag) ist gegenüber diesem Faktor **invariant**.
+  **Randbedingung dieser Aussage, und sie ist scharf:** sie gilt für
+  Rangfolgen über Relikte bei fester Waffe. Sobald eine Zielrichtung
+  **Waffen gegeneinander** stellt, sind die `class_rates` je Waffe
+  verschieden, und dann entscheidet W6 mit. Zielrichtungen, die Waffen
+  vergleichen, dürfen erst nach W6 scharfgestellt werden.
+
+**Folge für den `director`:** Der Berater-Bau ist ab W5 nicht mehr durch die
+Spielmessung blockiert. Was noch blockiert ist, ist die **angezeigte absolute
+Zahl** — und dafür trägt jede Picker-Zeile weiterhin den
+Attack-Rating-Vorbehalt aus AD-004, bis W6 steht.
+
+### Prüfpunkte, Ergänzung
+
+18. **Untere Schicht bitgleich über den ganzen Umbau.** Über die
+    Differentialfälle aus Zyklus 2: `weapons.rate` liefert vor und nach W0–W5
+    dieselben Zahlen. Abweichungen dürfen nur oberhalb der Fassade entstehen.
+19. **Kachel und Tafel nennen dieselbe Zahl.** Nach W3, headless über die
+    echten Widgets: für jeden gefüllten Slot ist die Kachelzahl gleich der
+    Gesamtzahl der Tafel. Das ist der Test, den es zu QA-018 nie gab.
+20. **Das Ziel-Tier überlebt den Umbau.** Nach W4: Slot auf Tier 3, Spinbox
+    auf 1, kein Relikt — der Arsenal-Tab muss weiterhin auf Tier 1 ranken und
+    **darf** von Kachel und Tafel abweichen (AD-020, Punkt 1). Ein Test, der
+    hier Gleichheit fordert, wäre der Fehler, nicht der Befund.
+21. **Der zweite Wächter sieht jeden Weg um sich herum.** Dieselben sieben
+    Schreibweisen wie beim `compute`-Wächter, gegen `weapons.rate`/`rank`.
+22. **Der Golden-Vertrag ist erweitert, bevor er gebrochen wird.** Der
+    Docstring von `test_weapon_damage_golden.py` nennt die zweite erlaubte
+    Neuaufnahme-Bedingung (dokumentierte Entscheidung, AD-/QA-Nummer im
+    Commit), **bevor** W3 die erste Neuaufnahme auslöst.
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Die Neuaufnahme des Golden-Stands bei W3/W4 löscht den Beleg, dass die Rechnung unverändert ist. | Ein grüner Lauf, der nichts mehr belegt. | Prüfpunkt 18 hängt an der **unteren** Schicht und überlebt die Neuaufnahme. Er ist der eigentliche Beleg; der Golden-Stand ist danach der Beleg für die Anzeige. |
+| Die Fassade vereinheitlicht Achse B mit und der Arsenal-Tab rankt auf dem Slot-Tier. | Prüfpunkt 20 fällt. | AD-020, Punkt 1: `target_tier` ist Pflichtargument ohne Vorgabewert. |
+| W6 wird nie beantwortet und `MULTIPLIERS_FOR[CANDIDATE]` bleibt auf dem Platzhalter stehen. | Nichts — genau das ist die Gefahr. | Der Platzhalter ist keiner: W2 setzt den **heutigen** Wert (`False`), das Verhalten ist damit unverändert und der Vorbehalt aus AD-004 bleibt sichtbar, bis der Nutzer misst. |
+| Eine Zielrichtung des Beraters vergleicht Waffen gegeneinander, bevor W6 steht. | Eine Empfehlung, die die Waffe wechselt. | Solche Zielrichtungen bleiben bis W6 aus der Registry (AD-004) heraus. |
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+21. **Nicht entscheiden, ob 203,4 oder 244,1 richtig ist.** W2 trägt die
+    heutigen Werte ein, nicht die vermuteten. Der Wert ist eine Messung, kein
+    Entwurf.
+22. **`weaponstab.py` nicht migrieren, sondern löschen** (W0). Es hat keinen
+    Importeur und ist bereits gedriftet (`setRange(0, 25)` gegen die
+    Tier-Semantik 1..4). Es zu migrieren hiesse zu entscheiden, was „+17"
+    bedeutet — eine Frage ohne Antwort.
+23. **Kein Vorgabewert für `target_tier`** in `candidate`/`rank_candidates`.
+    Ein Vorgabewert setzt still das Slot-Tier ein und stellt Achse B als
+    Fehler dar.
+24. **Keine vierte `Basis` ohne AD-Eintrag.** Wer eine neue Frage braucht,
+    meldet sie; er stellt sie sich nicht selbst zusammen.
+25. **Den `compute`-Wächter nicht anfassen ausser zur Verallgemeinerung von
+    `compute_call_sites`.** Seine Zusicherung `{app.py: 1}` bleibt wörtlich
+    stehen.
+26. **`scripts/capture_weapon_damage.py` nicht nach `nrplanner/` verschieben**,
+    um den Wächter zufriedenzustellen. Es liegt absichtlich ausserhalb
+    (QA-023); die Grenze wird im Docstring genannt, nicht umgangen.
+
+### Offene Fragen, neu
+
+**OF-16 — an den App Designer, über `director`, entscheidet W6:** Die
+Spielmessung aus `docs/state.md` ist unverändert die offene Frage. Neu ist,
+dass sie **nur noch einen Wert** bestimmt (`MULTIPLIERS_FOR[Basis.CANDIDATE]`)
+und nicht mehr den Bauplan. Sie blockiert ab W5 die angezeigte Zahl, nicht
+mehr den Berater.
+
+**OF-17 — an den `director`:** Darf `tests/golden/weapon_damage.json` bei W3
+und W4 neu aufgenommen werden, mit AD-019 im Commit-Text als Grund? Ohne diese
+Freigabe hält W3 an, weil sein eigener Vertrag die Neuaufnahme heute nur nach
+einem Spiel-Patch erlaubt. **Empfehlung: ja, aber erst nachdem Prüfpunkt 18
+grün ist** — sonst gibt es keinen zweiten Beleg mehr.
+
+**OF-18 — an den `ui-ux-designer`, nicht an mich:** `Basis.EQUIPPED`,
+`CANDIDATE` und `BARE` sind drei verschiedene Fragen, die gleichzeitig auf dem
+Schirm stehen können. Die Benennung der Spalten und Beschriftungen (QA-018
+Weg B) sollte diese drei Fragen unterscheidbar machen; welche Wörter, ist
+nicht meine Entscheidung. Der Entwurf liefert `Rating.basis` mit, damit die
+Anzeige benennen **kann**, was sie zeigt.
