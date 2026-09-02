@@ -2361,6 +2361,16 @@ class Planner(QMainWindow):
                 if name == chalices.EQUIPPED_NAME else
                 "That name means the slots hold no saved build.")
             return
+        if not chalices.name_fits_the_store(name):
+            # Said here rather than swallowed below: the store cannot write a
+            # name this long, and a name that looks short can still be too
+            # long, so the player has no way of guessing why the build never
+            # appeared (QA-035).
+            QToolTip.showText(
+                QCursor.pos(),
+                "That name is too long to save. Symbols and emoji take up "
+                "several characters each, so try a shorter name.")
+            return
         vessel = self.current_vessel()
         slots = list(self.base_slots) + list(self.deep_slots)
         chalices.save_build(

@@ -235,6 +235,20 @@ def build_name(key: str) -> str:
     return urllib.parse.unquote(str(key), encoding="utf-8", errors="replace")
 
 
+# QSettings files each build as a registry value on Windows, and the registry
+# takes at most 16 383 characters in the name of a value. The derived key is
+# what goes there, and one character of a name can become twelve of key, so a
+# name that looks short can still overrun the limit. Past it setValue writes
+# nothing and reports nothing, and the build would be lost in silence with its
+# name left behind in the order list (QA-035).
+MAX_KEY_LENGTH = 16383
+
+
+def name_fits_the_store(name: str) -> bool:
+    """Whether the key derived from this name is short enough to be stored."""
+    return len(build_key(name)) <= MAX_KEY_LENGTH
+
+
 def _migrate_keys(hero_id: int) -> None:
     """File this Nightfarer's existing builds under derived keys, once.
 
@@ -250,6 +264,19 @@ def _migrate_keys(hero_id: int) -> None:
     back untouched. A name holding a "|" comes back, but at the end of the
     list: the order entry it was written into had already been split in two
     and there is no way to tell from here which half went where.
+
+    Everything is read first, then written, then removed, and the removals
+    come last of all. That order is the whole of QA-033. A name holding a "/"
+    is a group as much as a key, so an old store holding "Fire ice" and
+    "Fire ice/v2" holds the entry "Fire ice" and the group "Fire ice" side by
+    side -- and `QSettings.remove("Fire ice")` takes the group away with the
+    entry. Removing while still walking the list therefore deleted
+    "Fire ice/v2" before it had been read, and the empty string that came
+    back was written under its new key: the build gone from the store beyond
+    recovery, its name still in the list, and the player left holding an
+    empty vessel with no error anywhere. Read everything up front and a
+    removal can take whatever it likes with it, because by then nothing is
+    read or written again.
     """
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
@@ -259,22 +286,44 @@ def _migrate_keys(hero_id: int) -> None:
         # Bookkeeping entries are not builds. A build whose name began "__"
         # was unreachable before this change for exactly that reason, so
         # there is none to rescue.
-        for path in [k for k in settings.allKeys() if not k.startswith("__")]:
-            value = settings.value(path, "", type=str)
-            key = build_key(path)
-            if key != path:
-                settings.remove(path)
-            settings.setValue(key, value)
-        for field in ("__order", "__hidden"):
-            names = [n for n in str(settings.value(field, "", type=str))
-                     .split(SEPARATOR) if n]
-            if names:
-                settings.setValue(
-                    field, SEPARATOR.join(build_key(n) for n in names))
+        old_paths = [k for k in settings.allKeys() if not k.startswith("__")]
+        keys = {path: build_key(path) for path in old_paths}
+        values = {path: settings.value(path, "", type=str)
+                  for path in old_paths}
+        for path in old_paths:
+            settings.setValue(keys[path], values[path])
+        order = [n for n in str(settings.value("__order", "", type=str))
+                 .split(SEPARATOR) if n]
+        if order:
+            settings.setValue(
+                "__order", SEPARATOR.join(build_key(n) for n in order))
+        # A hidden name holding a "|" reached this point as two fragments,
+        # and neither of them names a build. Carried over as they stood they
+        # became two hidden entries no build could answer for, so nothing
+        # could ever un-hide them, while the build itself was left showing
+        # (QA-034). Only a fragment that names a build which exists is kept,
+        # or the equipped build, which is hideable and stored nowhere. The
+        # rest is dropped, so a build hidden under such a name comes back
+        # visible: hiding is a view and the player can set it again, where an
+        # indelible phantom is nobody's to remove.
+        hidden = [n for n in str(settings.value("__hidden", "", type=str))
+                  .split(SEPARATOR) if n]
+        if hidden:
+            known = set(old_paths) | set(RESERVED_NAMES)
+            settings.setValue("__hidden", SEPARATOR.join(
+                build_key(n) for n in hidden if n in known))
         selected = str(settings.value("__selected", "", type=str) or "")
         if selected:
             settings.setValue("__selected", build_key(selected))
         settings.setValue(SCHEMA_KEY, DERIVED_KEYS)
+        # Last of all, because a removal is the one step here that cannot be
+        # taken back. A path that is itself one of the keys just written is
+        # left where it is: it holds a migrated build now, and removing it
+        # would delete the very thing that was rescued into it.
+        written = set(keys.values())
+        for path in old_paths:
+            if keys[path] != path and path not in written:
+                settings.remove(path)
     finally:
         settings.endGroup()
 
@@ -323,21 +372,29 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
     The name is stored exactly as it was given -- a leading space belongs to
     the player, not to this function -- and only the derived key reaches the
     settings store. A name that is nothing but whitespace is refused, because
-    it would show in the list as a row with no label.
+    it would show in the list as a row with no label. So is one whose derived
+    key is longer than the store will take: it cannot be written at all, and
+    a caller that asks is told rather than left to find out (QA-035).
+
+    The build goes in before the order list, never the other way round. An
+    order entry for a value that never landed is a name in the list with
+    nothing behind it, and the player cannot even delete it, because deleting
+    works through the name the list offers.
     """
-    if not str(name).strip() or name in RESERVED_NAMES:
+    if (not str(name).strip() or name in RESERVED_NAMES
+            or not name_fits_the_store(name)):
         return
     _migrate_keys(hero_id)
     key = build_key(name)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
+        settings.setValue(key, _encode(vessel_id, deep, slots))
         existing = [k for k in str(
             settings.value("__order", "", type=str)).split(SEPARATOR) if k]
         if key not in existing:
             existing.append(key)
         settings.setValue("__order", SEPARATOR.join(existing))
-        settings.setValue(key, _encode(vessel_id, deep, slots))
     finally:
         settings.endGroup()
 
