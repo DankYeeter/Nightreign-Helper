@@ -72,11 +72,21 @@ def test_a_rating_has_no_total_to_be_given(game_data, build, starting_weapon):
     not fields at all, so there is no way to construct a `Rating` whose total
     was worked out somewhere else. A test that only compared the two would
     pass just as well against a stored field that happened to be right today.
+
+    QA-063: excluding those two names is not the same claim as "no total can
+    be handed in from outside". A `Rating` carrying a field named
+    `scaled_total_` (note the underscore) and a `scaled_total` property that
+    reads `self.scaled_total_ or sum(...)` passes both `not in` checks and
+    still hands a total in from outside. Nailing the complete field set turns
+    every new field into a decision this test has to be told about, rather
+    than a name it has to dodge.
     """
     field_names = {f.name for f in dataclasses.fields(damage.Rating)}
 
-    assert "scaled_total" not in field_names
-    assert "final_total" not in field_names
+    assert field_names == {
+        "question", "weapon_rating", "scaled_per_type", "final_per_type",
+        "rates", "weapon_class", "starting_armament",
+    }
 
     rating = damage.candidate(starting_weapon, weapons.MAX_UPGRADE, build,
                               game_data)
@@ -214,6 +224,22 @@ def test_the_equipped_question_takes_its_tier_from_the_slot(
         assert now.tier_applied == expected
 
 
+def test_a_tier_request_past_the_maximum_clamps_rather_than_reaching_past_it(
+        game_data, build, starting_weapon):
+    """`tier_applied` is `max(own, requested)` only within the reachable range.
+
+    QA-064/c: the spinbox never offers more than `weapons.MAX_UPGRADE`, but
+    `candidate()` places no ceiling on `target_tier` (AD-020, point 1), so 5
+    or 6 is a reachable call even though it is not a reachable click.
+    `weapons.rate` clamps the request before it reaches the reinforce table,
+    so the answer comes back at `MAX_UPGRADE`, short of what was asked.
+    """
+    rating = damage.candidate(starting_weapon, weapons.MAX_UPGRADE + 2, build,
+                              game_data)
+
+    assert rating.tier_applied == weapons.MAX_UPGRADE
+
+
 def test_a_candidate_never_takes_the_starting_armament_penalty(
         game_data, build, hero, starting_weapon):
     """The x0.85 follows a pairing, and a candidate is in no slot (AD-020, 3).
@@ -245,6 +271,30 @@ def test_a_candidate_never_takes_the_starting_armament_penalty(
                    for field_name in fields)
 
 
+def test_the_multiplier_layer_excludes_the_critical_rate(
+        game_data, hero, starting_weapon):
+    """A critical-only buff must not move the ordinary hit (AD-020, point 5).
+
+    QA-063: of the five AD-020 differences, four are enforced by a table this
+    module reads (`MULTIPLIERS_FOR`, `ATTRIBUTES_FOR`) or by a structural
+    check (Z1); the critical-rate exclusion was only the comment above the
+    `rate = 1.0` line in `_answer`. A build that raises `model.CRIT_RATE` and
+    nothing else must come back unchanged, because no `*AttackRate` or
+    `*AttackPowerRate` field is set -- if the exclusion slipped, `CRIT_RATE`
+    would have to be the thing moving the number.
+    """
+    build = model.Build(rates={model.CRIT_RATE: 2.0})
+    slot = slot_holding(starting_weapon, weapons.MAX_UPGRADE)
+    # A slot other than STARTING_SLOT, so the starting-armament penalty --
+    # which does legitimately read build.rates -- cannot also explain a
+    # difference here (AD-020, point 3).
+    _, now = damage.equipped(slot, damage.STARTING_SLOT + 1, build, hero,
+                             game_data)
+
+    assert now.final_per_type == now.scaled_per_type
+    assert now.final_total == now.scaled_total
+
+
 def test_the_equipped_pair_is_the_panel_s_two_columns(game_data, build, hero,
                                                       starting_weapon):
     """`equipped()` answers two questions at once, in the order shown."""
@@ -261,14 +311,29 @@ def test_the_equipped_pair_is_the_panel_s_two_columns(game_data, build, hero,
 
 def test_ranking_answers_the_candidate_question_for_every_armament(
         game_data, build):
-    """Best first, every one of them asked the same question at one tier."""
+    """Best first, every one of them asked the same question at one tier.
+
+    "Best first" is `weapons.rank`'s own promise: descending
+    `WeaponRating.total`, layer one, which is the key it actually sorts by.
+    That is a different claim from descending `final_total` (QA-065):
+    `WeaponRating.total` sums the base and scaled maps whole, `final_total`
+    sums the merged per-type map, and the two bracketings of the same
+    addends can disagree by a ULP without the sort key moving at all --
+    measured at Wylder, level 1, no relics, `MAX_UPGRADE`: positions 319/320
+    are Gargoyle's Black Halberd and Gargoyle's Sacred Black Halberd,
+    bit-identical on `weapon_rating.total` and one ULP apart on
+    `final_total` (2026-09-02). A test pinned to `final_total` order would be
+    red on that reachable input while `rank_candidates` did exactly what it
+    promises. W6, which moves the sort onto layer two, is what has to bring a
+    stable secondary key with it.
+    """
     ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
                                     require_usable=False)
 
     assert len(ranked) == len(game_data["weapons"])
     assert all(r.question is damage.Question.CANDIDATE for r in ranked)
     assert all(r.tier_applied >= weapons.MAX_UPGRADE for r in ranked)
-    totals = [r.final_total for r in ranked]
+    totals = [r.weapon_rating.total for r in ranked]
     assert totals == sorted(totals, reverse=True)
 
 

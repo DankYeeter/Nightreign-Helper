@@ -162,9 +162,12 @@ class Rating:
     def scaled_total(self) -> float:
         """Layer one, summed from the map beside it and from nothing else.
 
-        `_accumulated` below is the only other summation left in the module,
-        and it belongs to the panel rather than to the facade -- see there for
-        why it outlives this step.
+        `_accumulated` below is the only other place in the module that sums
+        a layer-one per-type map the way this one does, and it belongs to the
+        panel rather than to the facade -- see there for why it outlives this
+        step. `final_total` beside this property is a third summation, but it
+        sums layer two, not layer one, so it is not the "other" this docstring
+        means (QA-064/b).
         """
         return sum(self.scaled_per_type.values())
 
@@ -187,8 +190,16 @@ class Rating:
 
         The reinforce group of a weapon holds exactly the tiers above its own,
         so asking for a tier below where an armament already sits leaves it
-        where it is. Measured over the whole dataset (2026-09-02): this is
-        always `max(own tier, requested tier)`, never short of the request.
+        where it is. Measured over the whole dataset (2026-09-02): for a
+        requested tier within 1..`weapons.MAX_UPGRADE` -- the only range the
+        arsenal tab's spinbox can ask for -- this is always `max(own tier,
+        requested tier)`, never short of the request.
+
+        `candidate()` places no ceiling on `target_tier` (AD-020, point 1),
+        so a caller can ask past `weapons.MAX_UPGRADE` where the spinbox
+        cannot: `weapons.rate` clamps the request to `MAX_UPGRADE` before it
+        ever reaches the reinforce table, so tier 5 or 6 comes back as tier 4,
+        short of what was asked (QA-064/c).
         """
         return (self.weapon.get("rarity", 0) + 1
                 + self.weapon_rating.applied_upgrade)
@@ -374,12 +385,18 @@ def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
                     require_usable: bool) -> list[Rating]:
     """Every armament in the dataset as a candidate, best first.
 
-    `weapons.rank` orders them, so the order is the one the arsenal tab has
-    always shown. That holds while `MULTIPLIERS_FOR[Question.CANDIDATE]` is
-    off, because then the ranked figure and the shown figure are the same
-    number; switching it on in W6 makes the order come from the layer below
-    the multipliers, and a class-scoped rate would reorder the answer without
-    reordering the list.
+    `weapons.rank` orders them by descending `WeaponRating.total` -- the
+    layer below the attack multipliers, layer one. That is **not** the order
+    the arsenal tab draws: `arsenaltab._build_weapons` discards this list's
+    order outright and re-sorts each family of its own accord, by descending
+    rarity, then the standard version's name, then id (measured 2026-09-02:
+    reversing this function's order changes 0 of 1654 rows the tab draws, and
+    W4, which puts the tab onto this function, has to read this paragraph and
+    not the one this replaces -- QA-064/a). What does hold while
+    `MULTIPLIERS_FOR[Question.CANDIDATE]` is off is that the ranked figure and
+    the figure a display would show are the same number; switching it on in
+    W6 makes the order come from the layer below the multipliers, and a
+    class-scoped rate would reorder the answer without reordering the list.
 
     `require_usable` is passed straight through and is a caller's input, not a
     policy of the question -- it is a checkbox in the arsenal tab today

@@ -119,6 +119,16 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         curve_id = str(weapon["curve"].get(damage))
         curve = curves.get(curve_id)
 
+        # A plain loop, not `sum()`, and that is load-bearing. Since Python
+        # 3.12 `sum()` on floats carries a running correction term that this
+        # accumulation does not, so the same addends in the same order can
+        # land a ULP apart (see `damage._accumulated` for the other place
+        # this bites). This is the larger of the two: measured against the
+        # compensated sum, it moves 48,100 of 258,192 weapon-tier-damage
+        # cards, against 0.15% at the `damage.py` spot that already carries
+        # the comment this one had been missing (QA-064/d). It stays a loop
+        # for as long as one step of the AD-019 rebuild is promised
+        # bit-for-bit unchanged.
         bonus = 0.0
         if curve is not None:
             for stat, scaling in weapon["scaling"].items():
