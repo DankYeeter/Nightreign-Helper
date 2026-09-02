@@ -1026,3 +1026,42 @@ def test_the_list_shows_a_collided_pair_as_two_rows(planner):
              for i in range(planner.build_box.count())]
     assert shown.count(UPPER_CASE_NAME) == 1
     assert shown.count(LOWER_CASE_NAME) == 1
+
+
+# ---------------------------------------------------------------------------
+# Regression 12 -- QA-051: a build the migration could not move is listed
+# once, not twice
+#
+# Two lines share this. `if n in migrated` keeps a key with nothing behind it
+# out of the rewritten order list, and `and settings.contains(k)` keeps
+# build_names from reading such a key back as a name. Either one alone is
+# enough for the state below, so removing either alone leaves the suite green
+# -- which is what made them look like two lines nobody could account for.
+#
+# They are accounted for together: with both gone the same build arrives
+# twice, once out of the order list and once out of childKeys, and the player
+# is shown two rows that are one build. The state is reachable and is not
+# exotic -- a write the store did not take is all it needs, which is QA-041's
+# case seen from the list rather than from the store.
+
+
+def test_a_build_whose_write_was_lost_is_listed_once(qapp, monkeypatch):
+    """The migration wrote, the store kept nothing, the build stayed put.
+
+    A name with no "/" in it, because the old path has to be a key and not a
+    group: a build left lying under "Fire / ice" is invisible to childKeys()
+    and would be listed no times rather than two, which is QA-044 and a
+    different complaint.
+    """
+    saved = ["fire ice", "plain"]
+    write_the_old_way(HERO, saved)
+    lost = chalices.build_key("fire ice")
+    monkeypatch.setattr(chalices, "_settings",
+                        lambda: SettingsThatLoseOneWrite(lost))
+
+    chalices._migrate_keys(HERO)
+    monkeypatch.undo()
+
+    listed = chalices.build_names(HERO)
+    assert listed.count("fire ice") == 1
+    assert sorted(listed) == sorted(saved)
