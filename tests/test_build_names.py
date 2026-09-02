@@ -559,3 +559,57 @@ def test_a_build_named_after_a_phantom_is_appended_like_any_other(qapp):
     assert names.index("a") > names.index("plain")
     assert slots_of(chalices.load_build(HERO, "a")) == SLOTS_B
 
+
+# ---------------------------------------------------------------------------
+# Regression 9 -- QA-039: a deleted build leaves nothing of itself behind
+#
+# Hiding is a view of a build. Left behind by a delete, it was inherited by
+# the next build saved under that name: visible while it stayed selected,
+# gone from the list at the next refresh and in every later session, with a
+# checkbox nobody points at as the only way back.
+
+
+def test_deleting_a_hidden_build_takes_its_hidden_mark_with_it(qapp):
+    chalices.save_build(HERO, "Ghost", 1, False, SLOTS_A)
+    chalices.set_hidden(HERO, "Ghost", True)
+
+    chalices.delete_build(HERO, "Ghost")
+
+    assert chalices.build_names(HERO) == []
+    assert chalices.hidden_builds(HERO) == set()
+
+
+def test_a_build_saved_again_under_a_deleted_name_is_not_hidden(qapp):
+    chalices.save_build(HERO, "Ghost", 1, False, SLOTS_A)
+    chalices.set_hidden(HERO, "Ghost", True)
+    chalices.delete_build(HERO, "Ghost")
+
+    chalices.save_build(HERO, "Ghost", 2, False, SLOTS_B)
+
+    assert chalices.build_names(HERO) == ["Ghost"]
+    assert chalices.hidden_builds(HERO) == set()
+    assert chalices.load_build(HERO, "Ghost") == (2, False, SLOTS_B)
+
+
+def test_deleting_the_selected_build_leaves_the_equipped_one_selected(qapp):
+    chalices.save_build(HERO, "Ghost", 1, False, SLOTS_A)
+    chalices.set_selected_build(HERO, "Ghost")
+
+    chalices.delete_build(HERO, "Ghost")
+
+    assert chalices.selected_build(HERO) == chalices.EQUIPPED_NAME
+
+
+def test_the_list_keeps_a_build_saved_again_under_a_deleted_name(planner):
+    """The symptom on screen: the player saves a build and cannot find it."""
+    hero_id = planner.current_hero()["id"]
+    chalices.save_build(hero_id, "Ghost", None, False, SLOTS_A)
+    chalices.set_hidden(hero_id, "Ghost", True)
+    chalices.delete_build(hero_id, "Ghost")
+    chalices.save_build(hero_id, "Ghost", None, False, SLOTS_B)
+
+    planner.refresh_build_list()
+
+    shown = [planner.build_box.itemData(i)
+             for i in range(planner.build_box.count())]
+    assert "Ghost" in shown

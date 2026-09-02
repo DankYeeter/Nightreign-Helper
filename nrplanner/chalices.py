@@ -455,7 +455,18 @@ def load_build(hero_id: int, name: str) -> tuple[int | None, bool, list[str]]:
 
 
 def delete_build(hero_id: int, name: str) -> None:
-    """Forget a saved build. The reserved ones are not ours to delete."""
+    """Forget a saved build, and everything else that named it.
+
+    The reserved ones are not ours to delete. For the rest, the entry, its
+    place in the order list, its hidden mark and the selection all go, because
+    a mark that outlives the build it describes is inherited by the next build
+    of that name: a deleted build that had been hidden left "hidden" behind,
+    so saving a build under the same name again gave a build the player could
+    not see -- present in the list until the next refresh, then filtered out
+    of it and out of every later session, with the "Show hidden" box as the
+    only way back (QA-039). Hiding is a view of a build; with the build gone
+    there is nothing for it to be a view of.
+    """
     if name in RESERVED_NAMES:
         return
     _migrate_keys(hero_id)
@@ -468,6 +479,12 @@ def delete_build(hero_id: int, name: str) -> None:
             settings.value("__order", "", type=str)).split(SEPARATOR)
             if k and k != key]
         settings.setValue("__order", SEPARATOR.join(order))
+        hidden = [k for k in str(
+            settings.value("__hidden", "", type=str)).split(SEPARATOR)
+            if k and k != key]
+        settings.setValue("__hidden", SEPARATOR.join(hidden))
+        if str(settings.value("__selected", "", type=str) or "") == key:
+            settings.remove("__selected")
     finally:
         settings.endGroup()
 
