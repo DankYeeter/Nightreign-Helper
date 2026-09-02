@@ -33,8 +33,16 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # nrplanner.favourites reads these at import time and every persisting module
 # (favourites, chalices, uiscale) goes through it.
+#
+# The process id is part of the name because the store is machine-wide, not
+# per-run: two pytest processes at once shared one store, and clear_settings()
+# in either pulled the ground from under the other. That failed cases which
+# are green on their own -- a red result that looks exactly like a regression
+# of the program and is expensive to read as one (QA-043). A run now writes
+# only where no other run is looking, and the session fixture below empties it
+# again at the end.
 os.environ["NIGHTREIGN_SETTINGS_ORG"] = "DankYeeterTests"
-os.environ["NIGHTREIGN_SETTINGS_APP"] = "NightreignHelperTests"
+os.environ["NIGHTREIGN_SETTINGS_APP"] = f"NightreignHelperTests-{os.getpid()}"
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
