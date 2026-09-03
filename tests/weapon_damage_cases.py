@@ -15,7 +15,7 @@ changes what the query would pick cannot silently change what is compared.
 
 from __future__ import annotations
 
-from nrplanner import model, weaponslots
+from nrplanner import damage, model, weaponslots, weapons
 
 
 def hero_by_name(data: dict, name: str) -> dict:
@@ -316,6 +316,101 @@ def declarable_attack_buff(data: dict, hero: dict) -> int:
     return _pick(data, moves, 1, "buff attack once declared")[0]
 
 
+#: How the arsenal tab's own list is read, on either side of AD-019 step W4.
+#: Written out for both shapes rather than reached for with `getattr`: a
+#: silent fallback would answer "nothing moved" for a tab that never moved
+#: onto the facade, which is the one answer a differential run must not give
+#: by accident. The class name goes into the record beside the figure, so a
+#: comparison shows the move rather than assuming it.
+def arsenal_figure(rating) -> float:
+    """The number the arsenal tab prints for one armament, unrounded."""
+    if isinstance(rating, weapons.WeaponRating):
+        return rating.total          # the tab before W4: `weapons.rank`
+    if isinstance(rating, damage.Rating):
+        return rating.final_total    # the tab on the facade: layer two
+    raise TypeError(
+        f"the arsenal tab is holding {type(rating).__name__} objects, which "
+        f"this reader has never seen. Nothing captured -- a figure guessed "
+        f"off an unknown shape is worse than no figure.")
+
+
+def arsenal_tile_texts(tab, name: str) -> list[list[str]]:
+    """Every label of every tile the tab drew for this armament's name.
+
+    The whole tile, not only its AR row: the rarity band, the "Upgraded to"
+    line and the scaling rows are read off the same rating and move with it.
+    Names are not unique in the dataset, so this hands back one list per tile
+    carrying the name and the comparison sees how many there were.
+    """
+    from PySide6.QtWidgets import QLabel
+
+    from nrplanner import arsenaltab
+
+    out = []
+    for tile in tab.scroll.widget().findChildren(arsenaltab.Tile):
+        texts = [label.text() for label in tile.findChildren(QLabel)]
+        # The icon badge carries no text and the name follows it.
+        if len(texts) >= 2 and texts[1] == name:
+            out.append(texts)
+    return out
+
+
+def arsenal_reading(planner, data: dict, build, request: dict) -> dict:
+    """Drive the real arsenal tab for one armament and read it back.
+
+    The tab is the one the Planner built, and every control the reading
+    depends on is set from the request: the target tier, the requirements
+    checkbox and the rarity filter. The search box is set to the armament's
+    own name because the tab builds its sections lazily and opens them itself
+    only for a modest result set -- without a search nothing is drawn at all.
+
+    **`planner._build` is set here, not by `Planner.recompute()`.** The tab
+    asks `current_build()`, and in the running program `recompute()` is what
+    stores that; here it is set directly for the same reason `last_sources`
+    is set in `run` below -- so the reading depends on the case and on
+    nothing the planner happened to be holding. That means no case in this
+    file exercises the assignment inside `recompute()`; the three cases in
+    `tests/test_one_build.py` that call `recompute()` for real and then check
+    `weapons_tab.attributes` are what cover that half.
+    """
+    tab = planner.weapons_tab
+    weapon = weapon_by_id(data, int(request["weapon"]))
+
+    planner._build = build
+    tab.upgrade.setValue(int(request["tier"]))
+    tab.usable_only.setChecked(bool(request["require_usable"]))
+    wanted_rarity = int(request["rarity"])
+    index = tab.rarity_box.findData(wanted_rarity)
+    if index < 0:
+        raise LookupError(
+            f"the rarity filter has no entry for {wanted_rarity}; -1 is "
+            f"'All' and 0..3 are the bands")
+    tab.rarity_box.setCurrentIndex(index)
+    tab.search.setText(f'"{weapon["name"]}"')
+    tab.recalculate()
+
+    listed = [r for r in tab.ratings if r.weapon["id"] == weapon["id"]]
+    return {
+        # What kind of object the tab's own list holds. The signal that the
+        # tab moved onto the facade at all, rather than a figure that would
+        # look the same either way.
+        "arsenal_kind": (type(listed[0]).__name__ if listed else None),
+        # The tier the tab really ranked at, read off the control.
+        "arsenal_tier": tab.upgrade.value(),
+        # Exact bits, so a one-ULP change cannot hide behind rounding. The
+        # rendered text sits in `arsenal_tiles` beside it, on purpose: the
+        # two answer different questions (QA-074).
+        "arsenal_figure": (arsenal_figure(listed[0]).hex() if listed
+                           else None),
+        # How many rows the list holds for this armament. Zero means the
+        # requirements checkbox or the rarity filter dropped it, which is a
+        # finding and not an absence.
+        "arsenal_listed": len(listed),
+        "arsenal_tiles": arsenal_tile_texts(tab, weapon["name"]),
+        "arsenal_summary": tab.summary.text(),
+    }
+
+
 def build_for(data: dict, case: dict) -> model.Build:
     """The build this case describes.
 
@@ -377,6 +472,15 @@ def run(planner, data: dict, case: dict) -> dict:
     itself -- a green suite here says nothing about whether `recompute()`
     still wires it up (QA-076). `tests/test_breakdown_sources_wiring.py`
     covers that half separately, against `recompute()` directly.
+
+    **A fifth reading, and only where a case asks for it.** A case carrying
+    an `arsenal` block also gets the arsenal tab driven and read back. The
+    golden cases carry none, so what they freeze is unchanged by its being
+    here; the block is written by `scripts/differential/plan.py` out of a
+    raster, for the differential run of AD-019 step W4. The tab is a fourth
+    display of the same calculation and it ranks at a tier of its own
+    choosing (AD-020, point 1), which is exactly why it needs measuring
+    separately rather than folding into the panel's cases.
     """
     hero = hero_by_name(data, case["hero"])
     planner.hero_index = data["heroes"].index(hero)
@@ -394,7 +498,7 @@ def run(planner, data: dict, case: dict) -> dict:
     planner.last_sources = dict(build.sources)
     planner.last_rates = dict(build.rates)
     planner._refresh_weapon_damage(build)
-    return {
+    shown = {
         # The figures the panel keeps for the click-through breakdown: the
         # calculation's own output, before it is turned into text.
         "last_ar": rounded(planner.last_ar),
@@ -411,6 +515,12 @@ def run(planner, data: dict, case: dict) -> dict:
         # figures changes what the player reads and nothing notices.
         "breakdown": planner._ar_breakdown_text(),
     }
+    # Only when the case asks. A case without an `arsenal` block gets exactly
+    # the four keys above, which is what keeps the golden file -- whose cases
+    # all predate W4 and ask for none -- unchanged by this addition.
+    if case.get("arsenal"):
+        shown.update(arsenal_reading(planner, data, build, case["arsenal"]))
+    return shown
 
 
 def rounded(value):

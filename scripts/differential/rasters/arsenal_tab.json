@@ -1,0 +1,44 @@
+{
+  "name": "arsenal_tab",
+  "why": "Every armament through the arsenal tab, for AD-019 W4 (QA-055). The tab was the one display of the weapon calculation no capture had ever read, and the tiles_and_panel raster does not reach it: it drives the six planner tiles and the breakdown panel, all of which rank at the slot's tier, while the tab ranks at the spinbox's (AD-020, point 1). The slots here are held fixed on Wylder's own starting armament and only the arsenal block sweeps, because the tab does not care which armament sits in a slot -- it ranks every armament in the dataset against the build. Wylder at level 15 because that is the build QA measured QA-018 and QA-055 on. Configuration 1 is QA-055's own case, verbatim: slot on tier 3, spinbox on 1, not a single relic.",
+  "hero": "Wylder",
+  "level": 15,
+  "step": 1,
+  "configurations": [
+    {
+      "name": "QA-055: slot on tier 3, spinbox on 1, no relic",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
+      "effects": [],
+      "arsenal": {"weapon": "$armament", "tier": 1,
+                  "require_usable": true, "rarity": -1}
+    },
+    {
+      "name": "spinbox at the top of its range, no relic",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
+      "effects": [],
+      "arsenal": {"weapon": "$armament", "tier": 4,
+                  "require_usable": true, "rarity": -1}
+    },
+    {
+      "name": "attack multiplier in play, spinbox on 2",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}],
+      "arsenal": {"weapon": "$armament", "tier": 2,
+                  "require_usable": true, "rarity": -1}
+    },
+    {
+      "name": "attribute gains, filter off, Rare only, spinbox on 3",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
+      "effects": [
+        {"attribute": "Strength", "count": 2},
+        {"attribute": "Dexterity", "count": 1}
+      ],
+      "arsenal": {"weapon": "$armament", "tier": 3,
+                  "require_usable": false, "rarity": 2}
+    }
+  ]
+}

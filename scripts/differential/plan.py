@@ -82,6 +82,34 @@ def swept_armaments(data: dict, step: int) -> list[int]:
     return sorted(w["id"] for w in data["weapons"])[::step]
 
 
+def _arsenal(data: dict, hero: dict, configuration: dict,
+             swept: int) -> dict | None:
+    """The arsenal-tab reading one configuration asks for, if it asks.
+
+    Every control the reading depends on is named in the raster and none of
+    them has a default here. The target tier above all: it is the tab's own
+    question and a default would put the slot's tier back silently (AD-020,
+    point 1, and `damage.rank_candidates` takes it without one for the same
+    reason).
+    """
+    request = configuration.get("arsenal")
+    if request is None:
+        return None
+    missing = {"weapon", "tier", "require_usable", "rarity"} - set(request)
+    if missing:
+        raise ValueError(
+            f"the arsenal block of configuration {configuration['name']!r} "
+            f"leaves {sorted(missing)} unsaid. Each of them moves the figures "
+            f"the tab shows, so a run that guessed one would not be "
+            f"comparable to a run that guessed it differently.")
+    return {
+        "weapon": _weapon_id(data, hero, request["weapon"], swept),
+        "tier": int(request["tier"]),
+        "require_usable": bool(request["require_usable"]),
+        "rarity": int(request["rarity"]),
+    }
+
+
 def _case(data: dict, hero: dict, raster: dict, configuration: dict,
           swept: int) -> dict:
     """One configuration applied to one swept armament."""
@@ -97,7 +125,7 @@ def _case(data: dict, hero: dict, raster: dict, configuration: dict,
     relic_effects: list[int] = []
     for query in configuration.get("effects", []):
         relic_effects.extend(_effect_ids(data, hero, query))
-    return {
+    case = {
         "name": f"{configuration['name']} :: armament {swept}",
         "hero": raster["hero"],
         "level": int(raster["level"]),
@@ -107,6 +135,10 @@ def _case(data: dict, hero: dict, raster: dict, configuration: dict,
         "curse_effects": [],
         "declared": {},
     }
+    arsenal = _arsenal(data, hero, configuration, swept)
+    if arsenal is not None:
+        case["arsenal"] = arsenal
+    return case
 
 
 def build_plan(data: dict, raster: dict, step: int | None = None) -> dict:

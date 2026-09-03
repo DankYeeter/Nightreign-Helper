@@ -129,6 +129,84 @@ def test_an_unknown_query_is_refused_rather_than_skipped(game_data):
         plan._weapon_id(game_data, hero, "@whatever", 1)
 
 
+ARSENAL_RASTER = {
+    "name": "test arsenal",
+    "hero": "Wylder",
+    "level": 15,
+    "step": 700,
+    "configurations": [
+        {
+            "name": "the tab at a tier of its own",
+            "active": 0,
+            "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
+            "effects": [],
+            "arsenal": {"weapon": "$armament", "tier": 1,
+                        "require_usable": True, "rarity": -1},
+        },
+    ],
+}
+
+
+def test_an_arsenal_block_resolves_the_swept_armament_like_a_slot_does(
+        game_data):
+    """`$armament` means the same thing wherever it stands in a raster."""
+    written = plan.build_plan(game_data, ARSENAL_RASTER)
+    swept = plan.swept_armaments(game_data, 700)
+
+    assert [case["arsenal"]["weapon"] for case in written["cases"]] == swept
+    for case in written["cases"]:
+        assert case["arsenal"]["tier"] == 1
+        assert case["arsenal"]["require_usable"] is True
+        assert case["arsenal"]["rarity"] == -1
+
+
+def test_a_configuration_without_an_arsenal_block_writes_no_arsenal_key(
+        game_data):
+    """Absent, not empty.
+
+    The golden file's cases carry no arsenal block, and `run` hands back the
+    extra fields only for a case that does. A plan that wrote an empty block
+    would put the arsenal tab into every capture that ever names this module
+    -- including the golden one, whose cases predate the tab being read at
+    all.
+    """
+    written = plan.build_plan(game_data, SMALL_RASTER)
+
+    assert all("arsenal" not in case for case in written["cases"])
+
+
+@pytest.mark.parametrize("dropped",
+                         ["weapon", "tier", "require_usable", "rarity"])
+def test_an_arsenal_block_missing_a_control_is_refused(game_data, dropped):
+    """Each of the four moves the figures, so none of them may be guessed.
+
+    The target tier is the one this repository has already been bitten by:
+    a default there is the slot tier coming back in silence, which is QA-055
+    (AD-020, point 1).
+    """
+    configuration = dict(ARSENAL_RASTER["configurations"][0])
+    configuration["arsenal"] = {
+        key: value for key, value in configuration["arsenal"].items()
+        if key != dropped}
+    raster = dict(ARSENAL_RASTER, configurations=[configuration])
+
+    with pytest.raises(ValueError, match=dropped):
+        plan.build_plan(game_data, raster)
+
+
+def test_the_arsenal_reading_refuses_a_rating_shape_it_does_not_know(
+        game_data):
+    """No `getattr` fallback: an unknown shape is a stop, not a guess.
+
+    The reader has to serve two trees at once -- the arsenal tab holds
+    `weapons.WeaponRating` before AD-019 W4 and `damage.Rating` after it --
+    and a fallback that quietly produced a figure for a third shape would
+    report "nothing moved" for a tab that never moved.
+    """
+    with pytest.raises(TypeError, match="never seen"):
+        cases.arsenal_figure(object())
+
+
 # --- the comparer -----------------------------------------------------------
 
 def _record(index: int, **fields) -> dict:
