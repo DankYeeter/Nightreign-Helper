@@ -233,7 +233,7 @@ Handles 3229614315/3229615265).
 | QA-052 | Der AST-Waechter aus T-022 prueft **die Schreibweise des Aufrufs, nicht den geoeffneten Speicher**: 10 von 15 store-oeffnenden Formen bleiben ungesehen (Zuweisungs-Alias `S = QSettings`, Subklasse ohne eigenes `__init__`, gleichnamige lokale `ORG`/`APP`-Literale), und die Ausnahmenliste im Docstring nennt nur drei davon. **Ein gleichnamiges Literalpaar wird sogar gruen gemeldet** | P3 | Major | developer | 15 Schreibweisen gegen den Scanner gemessen | offen (neu aus T-022) - heute folgenlos, keine dieser Formen steht im Baum | 2026-09-02 |
 | QA-053 | Derselbe Waechter meldet zwei **korrekte** Schreibweisen rot: `favourites` unter Alias importiert, und die von PySide6 unterstuetzte Drei-Argument-Form mit `parent` | P4 | Minor | developer | beide Formen gemessen, Parent-Form gegen den Testspeicher verifiziert | offen (neu aus T-022) - die Sorte Rot, die jemanden dazu bringt, den Waechter zu lockern statt seinen Code zu aendern | 2026-09-02 |
 | QA-054 | Verlorener Migrations-Schreibvorgang **plus Schraegstrich im Namen**: der Build wird **null** mal gelistet - der Alt-Pfad ist eine Gruppe, `childKeys()` ist dafuer blind, die Order-Liste raeumt ihn aus - und ist wegen `__schema`=3 dauerhaft unerreichbar. Die Daten stehen weiter in der Registry. Mechanisch dasselbe wie QA-044, **umgekehrte Sichtbarkeit** | P3 | Major | developer | Probe im Klon, mit zwei Kontrollen: ohne Schraegstrich einmal gelistet, ohne Schreibverlust korrekt gelistet | offen (neu aus T-022, **nicht neu im Code**) | 2026-09-02 |
-| QA-055 | **Achse B, der wahrscheinlichste Alltagsfall:** Slot auf Tier 3, Tab-Spinbox auf 1, **kein einziges Relikt** - Kachel und Tafel sagen 321,4, der Waffen-Tab 203,4. Reiner Eingabeunterschied, greift ohne jeden Buff, sobald der Spieler ein Slot-Tier hochsetzt. Das Tier, an dem die Liste rechnet, ist nirgends sichtbar | P2 | Major | developer, ui-ux-designer | gemessen ueber die echten Widgets | offen (neu aus T-023) | 2026-09-02 |
+| QA-055 | **Achse B, der wahrscheinlichste Alltagsfall:** Slot auf Tier 3, Tab-Spinbox auf 1, **kein einziges Relikt** - Kachel und Tafel sagen 321,4, der Waffen-Tab 203,4. Reiner Eingabeunterschied, greift ohne jeden Buff, sobald der Spieler ein Slot-Tier hochsetzt. Das Tier, an dem die Liste rechnet, ist nirgends sichtbar | P2 | Major | developer, ui-ux-designer | gemessen ueber die echten Widgets | **teilweise behoben** (W4) - das Ziel-Tier ist jetzt **Pflichtargument** und mutationsbelegt bewacht (Pruefpunkt 20). **Die zweite Haelfte steht unveraendert: das Tier ist nirgends sichtbar** - auf dem Schirm steht nur "+1", der Spieler sieht 203 neben 321 ohne Erklaerung. Das ist AK-33/AK-34, eigener Auftrag. **Director-Entscheid: nicht auf "behoben" setzen** - sonst verdeckt es genau die Haelfte, die den Spieler trifft | 2026-09-03 |
 | QA-056 | **Achse C:** mit "Strength +1" zeigt die Kachel 323 (erhoehte Attribute), die linke Zahl der Tafel 321,4 (Grundattribute), der Tab 204,2 - drei Zahlen fuer dieselbe Waffe. Das ist die Beobachtung aus `DESIGN_REVIEW.md:429`, jetzt mit Ursache | P3 | Major | developer, ui-ux-designer | gemessen | **behoben** (W3, `125dc1f`) - unabhaengig nachgemessen: vorher weichen **12 903 von 25 102** Planner-Faellen zwischen Kachel und Tafel ab, nachher **0 von 25 102**, ueber alle 1793 Waffen, 4 Nightfarer, Tiers 1-4, bis zu 6 gefuellte Kacheln, Deep-Fluechte und deklarierte Konditionale. Rot-vorher-Beleg vorhanden | 2026-09-03 |
 | QA-057 | `nrplanner/weaponstab.py` ist **toter Code** - von keiner Datei importiert, `app.py:1342` bindet `ArsenalTab` an `self.weapons_tab`. 140 Zeilen, die dieselbe Rangliste ein zweites Mal rendern, **und sie sind bereits gedriftet**: Spinbox `setRange(0, 25)` gegen die Tier-Semantik 1..4; bei 0 rechnet sie still wie 1, bei 5-25 wie 4 | P3 | Minor | developer | kein Importeur im Baum | **behoben** - W0, Datei geloescht (Commit `b53a7b4`), Totsein belegt statt behauptet | 2026-09-02 |
 | QA-058 | Der `compute`-Waechter deckt `model.compute` ab, **nicht** `weapons.rate`. Die Waffen-Arithmetik hat zwei Schichten, und vier Anzeigestellen waehlen ihre Eingaben (Attributsatz, Tier, Multiplikatorschicht) unabhaengig. Zusaetzlich ist die Formel je Schadensart viermal ausgeschrieben (`damage.py:140`, `weaponstab.py:107`, `arsenaltab.py:368`, `app.py:2900`) | P3 | Major | developer, architect | Aufruferanalyse; drei unabhaengig gemessene Abweichungsachsen | **teilweise behoben** - W0, W1, **W1b und W2 unabhaengig abgenommen**. Bitgleichheit gegengeprueft: **1 032 768 Datensaetze** ueber zwei Strecken und drei Staende, byte-identisch; Oberflaeche 1654 Zeilen byte-identisch; Vergleicher mit 12 Mutationen geschaerft. Waechter und QA-018/055/056 offen (W3-W6) | 2026-09-02 |
@@ -250,17 +250,24 @@ Handles 3229614315/3229615265).
 | QA-069 | **In W2b sind zwei Zahlen in Code-Kommentare gewandert, die der `developer` nicht selbst gemessen hat** (48 100 von 258 192 Karten; 0 von 1654 Oberflaechenzeilen). Er hat es ausdruecklich gemeldet: Groessenordnung und Richtung sind strukturell sicher, die exakten Werte stammen aus dem QA-Bericht. Sein eigener Gegenlauf kam auf eine andere Grundgesamtheit (1432 von 23 344) | P4 | Minor | developer | Selbstmeldung, im Bericht offengelegt | **behoben** (W3) - gegengeprueft: keine der beiden nicht selbst gemessenen Zahlen steht noch irgendwo unter `nrplanner/` | 2026-09-03 |
 | QA-070 | **Die Golden-Datei hat die Waffenkachel nie erfasst** - `weapon_damage_cases.run` nimmt Tafeltext und `last_ar`, von den sechs Kacheln nichts. **Das ist die Ursache dafuer, dass QA-056 so lange stehen konnte:** der Waechter, der die Zahlen einfriert, sah die Stelle nicht, an der sie auseinanderliefen. Klasse "Waechter mit unausgesprochener Reichweite", dieselbe wie QA-064 | P3 | Major | developer | in W3 gefunden und im Docstring benannt; Kachel jetzt durch das **Paar** Golden + Pruefpunkt 19 gedeckt - einzeln deckt keiner von beiden sie | **teilweise behoben** (W3) - fuer die **aktive** Kachel geschlossen und in **beiden** Richtungen mutationsbelegt (Golden allein blind, Pruefpunkt 19 allein blind). Die fuenf nicht-aktiven Kacheln und die Klick-Aufschluesselung bleiben ungedeckt -> **QA-073**. Director-Entscheid: die Zeile bleibt teilweise, damit ein "behoben" den schwereren Rest nicht verdeckt | 2026-09-03 |
 | QA-071 | `damage.attack_rating`/`AttackRating` hat nach W3 **keinen Produktionsleser mehr** - Leser sind nur noch `tests/test_marginal_returns.py` (AD-018-Hauptweg) und die fensterlose Haelfte des Golden-Tests. Bewusst stehen gelassen: AD-019 laesst "bleibt oder geht in `Rating` auf" offen, und Loeschen haette einen AD-018-Test und den Golden-Test umgebaut | P4 | Minor | developer, architect | Aufruferanalyse in W3 | offen - **nach W5 entscheiden**, Aufwand gering (drei Aufrufstellen) | 2026-09-02 |
-| QA-072 | `arsenaltab.py:367` benutzt `damage` als **Schleifenvariable** und verdeckt damit das Modul gleichen Namens. In W3 hat genau das eine Testrunde gekostet (`UnboundLocalError`, der erst beim Zeichnen zuschlaegt, nicht beim Import). **W4 wird dieselbe Falle treffen**, sobald dort `from . import damage` steht | P4 | Minor | developer | in W3 am eigenen Leib erlebt und gemeldet | offen - **Warnung fuer W4**, nicht vorab reparieren (waere ein W4-Eingriff) | 2026-09-02 |
+| QA-072 | `arsenaltab.py:367` benutzt `damage` als **Schleifenvariable** und verdeckt damit das Modul gleichen Namens. In W3 hat genau das eine Testrunde gekostet (`UnboundLocalError`, der erst beim Zeichnen zuschlaegt, nicht beim Import). **W4 wird dieselbe Falle treffen**, sobald dort `from . import damage` steht | P4 | Minor | developer | in W3 am eigenen Leib erlebt und gemeldet | **behoben** (W4) - Schleifenvariable heisst `damage_type`. Der `developer` ist beim Bauen in eine **Variante** derselben Falle gelaufen (Hilfsfunktion unter ihrem Aufrufer definiert) und hat sie vor dem ersten Testlauf gefangen | 2026-09-03 |
 | QA-073 | **Zwei Anzeigestellen der Waffenrechnung sind von keinem Waechter erfasst**, dieselbe Klasse wie QA-070: **(a) die fuenf nicht-aktiven Kacheln** - Pruefpunkt 19 macht jede Kachel nacheinander aktiv und prueft sie nur in diesem Zustand; **kein Test sieht je eine Kachel, waehrend eine andere aktiv ist.** Mutation "nur die aktive Kachel bekommt den fertigen Wert" aendert **36 958 Kachelziffern in 12 551 von 25 102 Faellen (50,0 Prozent)** und laesst **237 von 237 Tests gruen**. **(b) die Klick-Aufschluesselung** `_show_ar_breakdown` - die Golden-Datei friert `last_ar` ein, also ihre **Eingabe**, nie ihre Ausgabe; Mutation "base und scaled vertauscht" laesst ebenfalls 237 gruen | P2 | Major | developer | zwei ueberlebende Mutationen gegen die volle Suite, Reichweite ueber 25 102 Planner-Faelle gemessen | **behoben** (W3b) - unabhaengig nachgefahren: beide Mutationen rot. Der Invariantentest fordert **nichts Falsches**: die Unabhaengigkeit der Kachelzahl vom aktiven Slot ist **strukturell** und ueber 120 Gitter mit 0 Abweichungen gemessen. Rest in anderer Form -> QA-076/QA-077 | 2026-09-03 |
 | QA-074 | **Die zweite Haelfte der W3-Bikonditionale ist rasterabhaengig, nicht programmeigen.** "Keine Kachel mit einem Multiplikator blieb stehen" wird an **gerundetem Anzeigetext** gemessen. Mit dem kleinsten Multiplikator des Datensatzes (x1,007) bleiben **68 Kacheln auf 68 verschiedenen Waffen** stehen, obwohl er wirkt - 129,559 gegen 130,466, beide Male "130". **Kein Programmfehler**, Kachel und Tafel stimmen ueberein. Die **schaerfere** Haelfte (keine Kachel bewegte sich ohne Multiplikator) ist ueber 25 102 Faelle bestaetigt | P4 | Minor | developer | 1793 Waffen x 14 Konfigurationen, Gegenbeispiele einzeln nachgerechnet | **behoben** (W3b) - die Charakterisierung ist ungerundet **und** gerundet gefuehrt | 2026-09-03 |
 | QA-075 | **Die Differentialstrecke, die die Abnahmezahlen von W0 bis W3 erzeugt hat, liegt nicht im Repo.** `scripts/` enthaelt nur `capture_weapon_damage.py`; die Zahlen sind nur durch **Neubau** einer Strecke pruefbar - in dieser Abnahme geschehen, alle Klassen bestaetigt. Verstoesst gegen die eigene Regel "ein Messwert traegt sein Rezept". **Trifft W4, W5 und W6 gleichermassen**, und die Fallzahlen zweier Schritte sind ohne die Raster nicht vergleichbar ("10 276 von 19 392" gegen "38 787 von 25 102") | P3 | Minor | director, developer | Aufruferanalyse plus unabhaengiger Nachbau der ganzen Strecke | **behoben** (W3b) - Strecke im Repo, Raster als Datei. Die Eigenpruefung der Strecke ergab drei Schwaechen -> QA-079, eine Doku-Abweichung -> QA-080 | 2026-09-03 |
 | QA-076 | **Die Verdrahtung `recompute` -> `last_sources` ist von nichts gehalten.** `self.last_sources = {}` laesst **259 von 259** gruen, waehrend in der laufenden Anwendung jede Klick-Aufschluesselung ihre Quellzeilen verliert. Ursache: `weapon_damage_cases.run` **setzt** diesen Zustand selbst, statt ihn ausloesen zu lassen - die neue Golden-Spalte friert damit die **Formatierung** ein, nicht die **Verdrahtung**. Dieselbe Klasse wie QA-073(b), eine Ebene hoeher, und **durch die W3b-Harness-Entscheidung neu entstanden** | P2 | Major | developer | ueberlebende Mutation gegen die volle Suite | **behoben** (W3c) - Harness-Zuweisung bleibt (Begruendung richtig), Docstring benennt die Luecke, und `test_recompute_wires_last_sources_and_last_rates_from_its_own_build` ruft `recompute()` **real** auf. Mutation `last-sources-not-assigned` toetet ihn | 2026-09-03 |
 | QA-077 | **Die Klick-Aufschluesselungen ausserhalb der Waffenrechnung liest kein Test.** `_show_breakdown` baut seinen Text lokal und reicht ihn nur an `QToolTip` - angeschlossen an `rates_label`, `other_label` und die Attribut-Differenzlabels. Mutation `(value-1)*100 -> value*100` laesst **259 gruen**; **34 Tooltips mit 47 Prozentzeilen** allein ueber die 18 Golden-Builds waeren falsch ("+12,4 %" als "+112,4 %"). **Vorbestehend, keine W3b-Regression** - betrifft den ganzen Charakterbogen statt nur der Waffentafel | P2 | Major | developer | ueberlebende Mutation, Reichweite ueber die Golden-Builds gezaehlt | offen - **eigener Auftrag NACH W4**, Director-Entscheid | 2026-09-03 |
 | QA-078 | **Welche Kachel den Goldring traegt, prueft kein Test - auch nicht der so benannte.** `active=False` laesst 259 gruen. `show_slot` legt `active` nur ins Stylesheet; die neue Erfassung nimmt Text, nicht Rahmen. Der Ring ist die **einzige** Zuordnung zwischen Tafel und Slot | P3 | Minor | developer | ueberlebende Mutation | offen - zurueckgestellt, dokumentiert | 2026-09-03 |
-| QA-079 | **Systemisch: drei Waechter der Messstrecke pruefen schwaecher als ihr Text.** (a) die Hashseed-Verweigerung liest `os.environ`, nicht `sys.flags.hash_randomization` - nach Interpreterstart gesetzt passiert sie, waehrend die Randomisierung weiterlaeuft; (b) `mutate.py` verweigert nur den **eigenen** Checkout - ein zweiter Klon oder `git worktree` wird beschrieben, und das ist der naheliegendere Weg zum alten Baum; (c) fuer `use_tree` gibt es **keinen Nachweisweg im Repo** (wirkt, per Gegenbau belegt) | P3 | Minor | developer | drei Faelle einzeln nachgestellt | **behoben** (W3c) - (a) prueft jetzt `sys.flags.hash_randomization` statt der Umgebungsvariable; (b) verweigert jeden Baum mit `.git`; (c) hat erstmals einen Nachweis - **im Subprozess**, weil der `sys.modules`-Cache ihn sonst maskiert haette. Alle drei rot-vorher belegt mit sha256-Rueckstellung | 2026-09-03 |
+| QA-079 | **Systemisch: drei Waechter der Messstrecke pruefen schwaecher als ihr Text.** (a) die Hashseed-Verweigerung liest `os.environ`, nicht `sys.flags.hash_randomization` - nach Interpreterstart gesetzt passiert sie, waehrend die Randomisierung weiterlaeuft; (b) `mutate.py` verweigert nur den **eigenen** Checkout - ein zweiter Klon oder `git worktree` wird beschrieben, und das ist der naheliegendere Weg zum alten Baum; (c) fuer `use_tree` gibt es **keinen Nachweisweg im Repo** (wirkt, per Gegenbau belegt) | P3 | Minor | developer | drei Faelle einzeln nachgestellt | **behoben** fuer (a) und (c) - beide per Gegenbau rot bestaetigt. **(b) nur zur Haelfte belegt:** der Code verweigert `.git` als Datei, der Testkoerper prueft nur das Verzeichnis -> QA-087 | 2026-09-03 |
 | QA-080 | `compare.py` druckt standardmaessig 20 Datensaetze, das Paket-Docstring nennt "prints those records in full" als **tragende** Eigenschaft. Der Rest wird angekuendigt, nicht verschwiegen | P4 | Trivial | developer | Default gegen Docstring gelesen | **behoben** (W3c) - als Doku geloest: Default 20 bleibt, das Flag steht im Docstring | 2026-09-03 |
 | QA-081 | Die Quellzuordnung im Aufschluesselungstext haengt an **genau einem** Golden-Fall. Gedeckt, aber ohne zweiten Waechter - dieselbe Konstellation, die beim aktiven Slot als nicht tragfaehig eingestuft wurde. **Antwort auf die vom `developer` selbst benannte, ungemessene Luecke** | P3 | Minor | developer | Mutation plus Auszaehlung der Golden-Datei | **dokumentiert** (W3c) - der Kommentar benennt, dass genau ein Golden-Fall die klassengebundene Quellzeile deckt. **Keine Fallmengen-Erweiterung** - das waere ein Auftrag, den niemand hat | 2026-09-03 |
 | QA-082 | Die Begruendung im Docstring des Invariantentests **trifft den Code nicht**: Gates kommen aus `weapons_held` (alle sechs), die Paarung aus dem **Slot-Index**, Klassenraten aus der Klasse der gerateten Waffe. Der Test selbst ist richtig; die Begruendung haelt die naechste Rolle von einer Zusicherung ab, die **heute belegbar haelt** (0 von 120 Gittern, gerundet und ungerundet) | P4 | Minor | developer | Codeanalyse plus 120 Gitter / 720 Zeichnungen | **behoben** (W3c) - falsche Begruendung ersetzt durch die tatsaechlichen Fundstellen. Die breitere Zusicherung ist als haltend vermerkt | 2026-09-03 |
+| QA-083 | **Der Arsenal-Tab war von nichts bewacht - schlimmer als QA-073.** Auf dem Vor-W4-Stand liess **`rating.total * 0.5`, also jede AR-Zahl auf jeder Kachel halbiert, 264 von 264 Tests gruen**; ebenso "die Spinbox bewegt gar nichts mehr". Bewacht wurde ausschliesslich sein **Attributsatz** (`test_one_build.py`, QA-001). Keine Zeile las je eine Zahl vom Tab, keine je das Tier. Klasse "Waechter mit unausgesprochener Reichweite" wie QA-070/073 | P2 | Major | developer | zwei Mutationen gegen die volle Suite auf dem Vor-W4-Baum | **behoben** (W4) bestaetigt - beide registrierten Mutationen toeten den Waechter, und er steht auf der **gerenderten Kachel**, nicht auf `tab.ratings`. **Reichweite eingeschraenkt:** er haelt genau die AR-Zeile von vier Armaturen -> QA-086 | 2026-09-03 |
+| QA-084 | **Die Summationsreihenfolge steht in keinem AD-020-Punkt**, obwohl der Wechsel von `WeaponRating.total` (`sum(base) + sum(scaled)`) auf `Rating.final_total` (`sum(base[t]+scaled[t])`) sie zwingend mitbringt. W4 hat dadurch **584 von 7172 Datensaetzen** um exakt 1 ULP verschoben - **alle auf mehrtypigen Armaturen, keine einzige einartige**. Der `developer` hat sie **gemeldet statt einsortiert**, wie beauftragt | P3 | Minor | architect | 7172 Datensaetze, groesster Absolutbetrag 5,68e-14, 424 verschiedene Armaturen | **entschieden (AD-024)**, Signatur unabhaengig bestaetigt: 871 von 7172 (Recluse, Level 1, anderes Raster), **alle exakt 1 ULP**, 863 zweitypig, 8 dreitypig, **0 von 2736 einartig**. Der Ausschluss ist **algebraisch, nicht statistisch**: `sum([x])` ist exakt | 2026-09-03 |
+| QA-085 | **Systemisch: keine Signalverdrahtung des Arsenal-Tabs ist gehalten.** `upgrade.valueChanged.connect` entfernt -> **275 gruen**, die Spinbox bewegt keine Zahl mehr (AR 154 bleibt 154 statt 211). `tabs.currentChanged.connect(...recalculate)` entfernt -> **275 gruen**, der Tab bleibt auf den Attributen stehen, mit denen er gebaut wurde - **das ist QA-001 woertlich zurueck**. Beide auch fuer die Differentialstrecke unsichtbar (0 von 60), weil jeder Test und die Harness `recalculate()` **selbst** rufen: geprueft wird die Rechnung, nie der Ausloeser | P2 | Major | developer | zwei ueberlebende Mutationen, jede am laufenden Widget als wirksam belegt | offen - **vor W5 in `mutate.py` registrieren**, W5 fasst die Datei an | 2026-09-03 |
+| QA-086 | **Der neue Arsenal-Waechter haelt nur die AR-Zeile.** Vier ueberlebende Mutationen, je 275 gruen: (a) Typzeilen verdoppelt ("AR 186" ueber "Physical 168 / Magic 205"); (b) "Upgraded to +4 Legendary" statt "+3 Rare"; (c) `effective_rarity` ohne `-1` - der Rarity-Filter zeigt in **jedem** Band die falschen Waffen (Band 0 bei Tier 1: 856 statt 160); (d) Zauber-FP verdoppelt. `rarity_box` und `usable_only` kommen in **keinem** Test vor, die Golden-Datei enthaelt **null** Arsenal-Bloecke. Klasse "Waechter mit unausgesprochener Reichweite" | P3 | Major | developer | vier Mutationen, Reichweite je am Widget gemessen; (a)(b)(c) faengt die Differentialstrecke, (d) faengt nichts | offen | 2026-09-03 |
+| QA-087 | Der Worktree-Fall aus QA-079(b) ist **im Code richtig, im Nachweis nicht**: der Test legt `.git` als **Verzeichnis** an, waehrend sein Docstring die `.git`-**Datei** als Grund fuer `.exists()` nennt - `.exists()` -> `.is_dir()` laesst 34 von 34 gruen. Zusaetzlich hat `use_tree` nur die **verweigernde** Richtung: "verweigert jeden Baum" laesst ebenfalls alles gruen. Klasse wie QA-082 | P4 | Minor | developer | fuenf Gegenbauten, zwei ueberlebend | offen | 2026-09-03 |
+| QA-088 | **Die Arsenal-Ablesung der Messstrecke kann still das Falsche oder gar nichts messen.** (a) `run` bewegt den Level-Slider nie, also steht in jedem Datensatz eines Level-15-Laufs "at level 1" neben Level-15-Attributen - konstant, erzeugt keine Falschmeldung, **maskiert** aber jede Aenderung der Levelangabe. (b) Eine Konfiguration mit Rarity-Band unter dem Ziel-Tier zeichnet gar keine Kachel (1792 von 1793 leer), zaehlt aber voll mit; `plan.py` warnt nicht | P4 | Minor | developer | eigener Lauf ueber 7172 Datensaetze, Leerstand je Konfiguration ausgezaehlt | offen | 2026-09-03 |
+| QA-089 | Der Rarity-Filter des Arsenal-Tabs **filtert die Zauber nicht mit**, und die Zaehlung mischt gefiltert und ungefiltert: "Common" meldet 856, davon **160 Zauber ohne jede Rarity**; bei Tier 4 meldet "Legendary" 1953 - den ganzen Datensatz. **Vorbestand, keine W4-Regression** | P4 | Trivial | ui-ux-designer | an der Zusammenfassung des echten Widgets ueber alle Baender und zwei Tiers abgelesen | offen | 2026-09-03 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -1235,3 +1242,108 @@ einem Gefuehl.**
   Messinstrument dort ohnehin benutzt: waere es kaputt, faellt es genau dann
   auf, wenn es zaehlt. Das ist die Anwendung der Grenze, die ich nach der
   W3b-Abnahme gezogen habe.
+
+## Entscheidungen des Directors - AD-024, Summationsreihenfolge (2026-09-03)
+
+- **Meine Lesart war falsch, und der `architect` hat sie praezise widerlegt.**
+  Ich hatte vorgeschlagen: "die Klammerung je Schadensart ist die richtige,
+  die alte war der Fehler, die 584 ULP sind die Korrektur." Das behauptet, eine
+  der beiden Summationen sei **genauer** - und das ist nicht belegbar. Beide
+  sind gleich gute Naeherungen, und **gegen das Spiel ist keine von beiden
+  geprueft.** Wer es so festschreibt, laedt ein, die Frage spaeter mit
+  Genauigkeitsargumenten wieder aufzumachen.
+- **Seine Fassung, die ich uebernehme:** *Der Fehler war nie einer der beiden
+  Werte - der Fehler war, dass es zwei gab.* Die Klammerung je Schadensart ist
+  verbindlich, **weil Z1 sie festlegt**, nicht weil sie besser ist. Die 584 ULP
+  sind der **Preis** der Vereinheitlichung, nicht ihre Korrektur - und die
+  Messung des `developer` belegt genau das, wofuer man sie braucht: der Preis
+  ist unsichtbar (0 von 7172 Anzeigetexten).
+- **Die Regel, die beide Stellen entscheidet - und sie entscheidet sie
+  entgegengesetzt:**
+  > Die Summationsreihenfolge wird nur geaendert, wenn die Aenderung **zwei
+  > Darstellungen derselben Zahl auf eine reduziert**. Eine Aenderung, die nur
+  > "genauer" verspricht, wird nicht vorgenommen.
+  Arsenal-Tab erfuellt sie (zwei Darstellungen verschwinden) -> gemacht.
+  Die `bonus`-Schleife erfuellt sie **nicht** - dort gibt es nur **eine**
+  Darstellung, eine Umstellung waere eine einseitige Genauigkeitsaenderung ohne
+  Konsistenzgewinn, bei 48 100 von 258 192 Karten. **Sie bleibt dauerhaft eine
+  Schleife, nicht "bis W5".**
+  **Das Kriterium ist nicht die Groessenordnung, sondern ob eine
+  Doppeldarstellung verschwindet.** Dieselbe Klasse, entgegengesetzte Antwort.
+- **Folge: der Kommentar an der `bonus`-Schleife sagt das Falsche.** Er bindet
+  sie an die Bitgleichheit **eines Schrittes**; richtig ist die
+  AD-024-Begruendung, die dauerhaft gilt. Geht als kleiner Punkt in W5 mit -
+  kein eigener Auftrag.
+- **Ort: weder AD-020 noch AD-022, sondern AD-024** mit einem **Verweis** als
+  AD-020 Punkt 9. Begruendung, die ich uebernehme: AD-020 trennt Absicht von
+  Fehler bei **semantischen** Unterschieden - welche Frage eine Anzeige stellt.
+  Die Klammerung stellt keine andere Frage, sie beantwortet dieselbe mit einem
+  anderen letzten Bit. Als neunter gleichrangiger Punkt wuerde sie verwischen,
+  wofuer die Liste da ist.
+- **W5: die Frage verschwindet nicht mit `WeaponRating.total`.** Z1 wird
+  innerhalb der Fassade trivial wahr, aber die **Regel** muss stehen bleiben,
+  sonst schreibt die naechste Anzeige `sum(base) + sum(scaled)` erneut hin.
+  Teilsummen sind erlaubt, **Vergleiche gegen `final_total` nicht**.
+- **Nicht-tun-Regel 29 ist jetzt gemessen begruendet statt vorsorglich:** nach
+  dem Wegfall von `WeaponRating.total` sortiert `rank` auf der abgeleiteten
+  Summe, und 584 von 7172 Werten verschieben sich um 1 ULP - **nahe
+  Gleichstaende koennen die Plaetze tauschen.** Stabiler Zweitschluessel
+  `(-summe, weapon["id"])`.
+- **Und er hat nachgesehen statt zu warnen.** Er war kurz davor, ein
+  CPython-Versionsrisiko fuer den Golden-Stand zu melden - und hat es geprueft:
+  `rounded()` rundet auf sechs Nachkommastellen, 5,68e-14 liegt **acht
+  Groessenordnungen darunter**. Ein Versionswechsel kann die Golden-Datei nicht
+  rot faerben. Steht jetzt in AD-024, damit es niemand erneut prueft. **Eine
+  gepruefte Nicht-Gefahr ist wertvoller als eine gemeldete Vermutung.**
+
+## Entscheidungen des Directors - W4-Abnahme (2026-09-03)
+
+- **W4 freigegeben.** Der `qa-engineer` hat eine eigene Strecke mit **anderem
+  Nightfarer, anderem Level, anderen Bedienelementen** gefahren: 871 von 7172
+  gegen seine 8,1 %. Kein Widerspruch - beide Zahlen tragen ihr Raster, und
+  genau dafuer liegt es seit QA-075 im Repo.
+- **Die Signatur ist algebraisch geschlossen, nicht statistisch - das ist der
+  Unterschied, auf den es ankommt.** `sum([x])` ist exakt (Startwert 0.0,
+  Korrekturterm 0), also fallen bei **einer** Schadensart beide Klammerungen
+  bitgenau zusammen, unabhaengig von den Werten. Die **2736 einartigen
+  Datensaetze sind die Gegenprobe mit Zaehlbeleg: eine einzige Abweichung dort
+  haette die Erklaerung widerlegt.** Es gab keine.
+- **QA-085 ist der Befund, der vor W5 muss.** Keine Signalverdrahtung des
+  Arsenal-Tabs ist gehalten: `connect`-Zeile streichen -> 275 gruen, die
+  Bedienung bewegt nichts mehr. Und der zweite Fall ist **QA-001 woertlich
+  zurueck** - der Tab rangiert gegen Attribute, denen das Datenblatt nebenan
+  widerspricht. **Auch die Differentialstrecke ist blind**, weil jeder Test und
+  die Harness `recalculate()` selbst rufen: geprueft wird die Rechnung, nie der
+  Ausloeser. **W5 fasst genau diese Datei an.**
+- **Zwei offene Fragen des `qa-engineer`, beide von mir entschieden:**
+  1. **Die Zauber-Sektionen bekommen jetzt keine Waechter** - sie zeigen Zahlen
+     direkt aus dem Datensatz, ohne Rechnung. **Aber der Grund gehoert
+     hingeschrieben**, sonst ist es genau die unausgesprochene Reichweite, die
+     dieses Projekt sechsmal Geld gekostet hat: *"diese Zahlen sind
+     ungerechnet; wird eine davon je gerechnet, braucht sie einen Waechter."*
+     Eine Zusicherung, die ihren Geltungsbereich nennt - das ist die Lehre,
+     angewandt auf eine Nicht-Handlung.
+  2. **Dass der Rarity-Filter die Zauber nicht filtert, ist vertretbar** -
+     Rarity ist eine Waffeneigenschaft. **Die gemischte Zaehlung ist der
+     Fehler** und bleibt als QA-089 beim `ui-ux-designer`.
+- **QA-086 wird gezielt ergaenzt, nicht verbreitert.** Der Waechter soll nicht
+  jede Zeile jeder Kachel halten - das waere unbegrenzt. Zwei Faelle genuegen:
+  eine mehrtypige Armatur vollstaendig gegen `damage.candidate`, und der
+  Rarity-Filter gegen die Zaehlung in der Zusammenfassung. **(c) ist der
+  eigentliche Schaden:** bei Tier 1 verschwinden 696 Waffen aus "Common", der
+  Spieler waehlt ein Band und bekommt ein anderes.
+- **QA-055 bleibt "teilweise", jetzt unabhaengig belegt.** Die Arsenal-Kachel
+  traegt die Beschriftung `AR` **allein**, ohne Tier; 203 steht neben 321, und
+  die einzige Stelle, die das Tier nennt, ist die Spinbox plus ein `+1` mitten
+  im Fliesstext. Genau der Zustand, den AK-31, AK-33 und AK-38 beheben - und
+  den AK-40 ausdruecklich **nach** W4 erlaubt.
+- **QA-087 ist die Klasse im Nachweis statt im Code**, und der `qa-engineer`
+  hat den Unterschied sauber getrennt: der Code verweigert die Worktree-Form
+  tatsaechlich (nachgestellt), nur der Testkoerper prueft die falsche Variante,
+  waehrend sein Docstring die richtige benennt. **Dieselbe Klasse wie QA-082,
+  eine Ecke schaerfer.**
+- **Und noch eine gepruefte Nicht-Gefahr:** die vom `developer` genannte Falle
+  mit mehrdeutigen Waffennamen (4x "Scholar's Thrusting Sword") **beisst
+  heute nicht** - alle vier Waechter-Armaturen tragen eindeutige Namen,
+  insgesamt sind nur 8 Armaturen auf 3 Namen betroffen. Gemessen statt
+  vermutet.
