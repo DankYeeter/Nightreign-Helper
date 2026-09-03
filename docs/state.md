@@ -43,16 +43,17 @@ ist entfernt. Testsuite 78 (Sessionbeginn) -> 296.
 
 ## GENAU HIER unterbrochen — Anschlusspunkt fuer die neue Session
 
-**Ein `qa-engineer`-Retest fuer T-036 (QA-085/086/W5, Commits `d4d4a50`,
-`2be5e84`, `696e3d7`) wurde gestartet und ist NICHT zurueckgekommen** —
-Session wurde pausiert, bevor das Ergebnis eintraf. **Diese drei Commits sind
-NICHT gepusht** und haben KEINE unabhaengige Bestaetigung.
+**Update, nach dem ersten Handover-Schreiben eingetroffen:** Der
+`qa-engineer`-Retest fuer T-036 ist zurueckgekommen — **QA-085 und QA-086
+sind vollstaendig bestaetigt**, kein Codefund faellt weg. Allerdings kam das
+Ergebnis erst NACH dem Sync-out/Push (siehe QA-094 in `qa/findings.md` —
+ein Prozessfehler dieser Session: Handover-Sync-out wurde ausgeloest, ohne
+zu pruefen, dass noch ein Pruefagent lief). Fuenf neue Kleinbefunde QA-090
+bis QA-094, alle P3/P4, siehe `qa/findings.md`.
 
-**Erster Auftrag der neuen Session:** den Retest fuer T-036 neu ansetzen
-(gleicher Auftrag wie zuletzt: die fuenf neuen Mutationen nachfahren, die
-W5-Charakterisierung gegenpruefen, den neuen Gleichstandsfall bei Duchess
-verifizieren, den AD-021-Waechter angreifen, QA-085-Nebenpruefung). Dann bei
-Freigabe `archivist` `sync-out`.
+**Erster Auftrag der neuen Session: KEIN Retest noetig — direkt mit P3
+(Build-Berater) beginnen.** QA-090 bis QA-093 sind P7-Kandidaten (Waechter-
+Praezision, niedrige Prioritaet), koennen mit P7 mitlaufen.
 
 ## Der Plan fuer den Rest — `docs/plan-restarbeiten.md`
 
