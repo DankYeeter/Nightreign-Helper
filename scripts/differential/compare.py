@@ -73,7 +73,10 @@ def tile_entries_moved(before, after) -> int:
 
 
 class Report:
-    """What the comparison found. Kept apart from printing so it is testable."""
+    """What the comparison found.
+
+    Kept apart from the printing so a test can read it instead of stdout.
+    """
 
     def __init__(self) -> None:
         self.compared = 0
@@ -138,10 +141,11 @@ def render(report: Report, expected: set[str], examples: int) -> list[str]:
     if report.tiles_moved:
         lines.append(f"  tiles: {report.tiles_moved} single tile texts moved "
                      f"across those records")
-    lines.append(f"unexpected: {report.unexpected_records} records differ in a "
-                 f"field nobody named")
+    lines.append(f"unexpected: {report.unexpected_records} records differ "
+                 f"in a field nobody named")
 
-    shown = report.unexpected if examples == 0 else report.unexpected[:examples]
+    shown = (report.unexpected if examples == 0
+             else report.unexpected[:examples])
     for one, _other, surprising in shown:
         lines.append("")
         lines.append(f"--- index {one.get('index')}: {one.get('case')}")

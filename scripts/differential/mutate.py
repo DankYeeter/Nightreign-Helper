@@ -50,6 +50,9 @@ class Mutation:
     survival_means: str
 
 
+#: The anchors below run past the margin every other line in this repository
+#: keeps to, and they have to: they are the source verbatim, and a wrapped
+#: anchor matches nothing.
 MUTATIONS: dict[str, Mutation] = {
     "active-tile-only": Mutation(
         path="nrplanner/app.py",
