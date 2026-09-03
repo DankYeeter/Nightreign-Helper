@@ -58,7 +58,11 @@ A full run, old tree against new:
     python scripts/differential/compare.py /tmp/old.jsonl /tmp/new.jsonl
 
 `compare.py` exits non-zero when anything differs in a field that was not
-named as expected, and prints those records in full. That property -- it
-spits out everything it cannot place -- is what made the W3 measurement
-usable, and it is the one thing not to trade away for a tidier report.
+named as expected, and prints those records in full -- the first twenty by
+default, every one of them with `--examples 0` (QA-080: an earlier version of
+this paragraph named "prints those records in full" as the property and left
+the default cap unmentioned, which the two together made sound absolute).
+That property -- it spits out what it cannot place, in full, not only a
+tally -- is what made the W3 measurement usable, and it is the one thing not
+to trade away for a tidier report.
 """
