@@ -215,7 +215,12 @@ def cases(data: dict) -> list[dict]:
               [{"slot": 0, "weapon": colossal, "tier": 3, "effects": []}],
               relic_effects=strength + dexterity),
         # A melee-scoped buff on a bow must not move it, and a ranged-scoped
-        # buff must. Both directions, one armament each.
+        # buff must. Both directions, one armament each. The ranged case is
+        # also the only one in this file whose relic contributes a
+        # class-scoped source line to the click-through breakdown (rendered
+        # as "... -- ranged armaments only"); it is the sole case exercising
+        # that half of `_ar_breakdown_text`, so removing it would silently
+        # stop covering it (QA-081).
         _case("melee-only buff with a bow in hand",
               "Ironeye", 15, 0,
               [{"slot": 0, "weapon": bow, "tier": 3, "effects": []}],
@@ -362,6 +367,16 @@ def run(planner, data: dict, case: dict) -> dict:
     reach the player unremarked (QA-073): the five tiles that are not the
     active one, and the text of the click-through breakdown. Both are here
     now, so they hang on the same frozen state the panel does.
+
+    **`last_sources`/`last_rates` below are set by this function, not by
+    `Planner.recompute()`.** In the running program those two lines are
+    `recompute()`'s own doing, right before it calls the same
+    `_refresh_weapon_damage`; here they are set directly so the captured text
+    depends on the case and nothing else, as the comment below explains. That
+    means no case in this file exercises the assignment inside `recompute()`
+    itself -- a green suite here says nothing about whether `recompute()`
+    still wires it up (QA-076). `tests/test_breakdown_sources_wiring.py`
+    covers that half separately, against `recompute()` directly.
     """
     hero = hero_by_name(data, case["hero"])
     planner.hero_index = data["heroes"].index(hero)

@@ -86,6 +86,22 @@ MUTATIONS: dict[str, Mutation] = {
             "output, and the text went only to a QToolTip. Measured "
             "surviving on 2026-09-03: 237 of 237 tests green (QA-073 b)."),
     ),
+    "last-sources-not-assigned": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.last_sources = dict(build.sources)
+""",
+        new="""        self.last_sources = {}
+""",
+        survival_means=(
+            "the click-through breakdown loses every source line in the "
+            "running program the moment `recompute()` runs, while the test "
+            "suite reports nothing: `tests/weapon_damage_cases.run` sets "
+            "`last_sources` itself before drawing, so no golden case ever "
+            "exercises this assignment inside `recompute()`. Measured "
+            "surviving on 2026-09-03: 259 of 259 tests green (QA-076). "
+            "Guarded since by test_breakdown_sources_wiring.py, which calls "
+            "`recompute()` directly."),
+    ),
 }
 
 
