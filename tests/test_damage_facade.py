@@ -356,26 +356,38 @@ def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data):
     A **multiplier** still opens a gap between the two layers, and it opens a
     new one besides: multiplying two per-type sums that already differ by a
     ULP can land on the same float, so `final_total` can tie two armaments
-    `scaled_per_type()` does not. Measured 2026-09-03, searching every
-    Nightfarer at levels 1 and 15 with no effects (no case), and with the
-    lowest one to three effects raising `physicsAttackRate`,
-    `magicAttackRate` or `fireAttackRate` plus one class-scoped melee buff,
-    over all four tiers: Duchess, level 1, MIN_UPGRADE, with the two
-    lowest-numbered effects that raise `magicAttackRate` --
-    `cases.effects_raising_rate(game_data, hero, "magicAttackRate", 2)` --
-    ties Magic Miséricorde, Rogier's Cold Rapier and Magic Serpentbone Blade
-    at `final_total` 94.267388..., while their `scaled_per_type()` sums are
-    83.21192727272728, 83.21192727272727 and 83.21192727272728 -- the middle
-    one a ULP low, which the shared multiplier 1.2707499955892558 erases.
-    Layer one therefore puts the highest-id armament of the three ahead of
-    the lowest, and the tie-break is what puts it back.
+    `scaled_per_type()` does not. The build below is the answer to a search
+    over that grid: every Nightfarer at levels 1 and 15, with no effects and
+    with the lowest one to three effects raising `physicsAttackRate`,
+    `magicAttackRate` or `fireAttackRate`, plus one class-scoped melee buff,
+    over all four tiers.
+
+    **Re-measured 2026-09-03 for T-045**, and the case moved. The build this
+    test used to stand on -- Duchess, level 1, MIN_UPGRADE, with the two
+    lowest-numbered effects raising `magicAttackRate` -- discriminates
+    nothing once `weapons.GAME_ATTACK_POWER_RATE` is in the sum: the extra
+    multiplication moves the last bit, and the ULP disagreement that case was
+    picked for is gone. 33 configurations of the grid still discriminate; the
+    one below has the most groups of them and is otherwise the same shape.
+
+    Guardian, level 1, MIN_UPGRADE, with the single lowest-numbered effect
+    that raises `physicsAttackRate` ("Physical Attack Up +3", id 6001400):
+    409 groups tie on `final_total`, two of them out of id order in the
+    layer-one order. The plainer of the two is `final_total` 62.416742...,
+    shared by Fire and Lightning Iron Greatsword, Fire and Lightning Vulgar
+    Militia Shotel, Magic Brass Shield and Magic Great Turtle Shell -- the
+    first four sum to 59.25887999999999 in layer one and the last two to
+    59.25888, a ULP higher, which the shared multiplier 1.1050000190734863
+    erases. Layer one therefore puts the two highest-id armaments of the six
+    in front, and the tie-break is what puts them back.
 
     So the case asserts three things and not one: that ties exist, that at
     least one of them is out of id order before the tie-break (without which
     this test proves nothing), and that none of them is out of it afterwards.
     """
-    hero = cases.hero_by_name(game_data, "Duchess")
-    rate_ids = cases.effects_raising_rate(game_data, hero, "magicAttackRate", 2)
+    hero = cases.hero_by_name(game_data, "Guardian")
+    rate_ids = cases.effects_raising_rate(
+        game_data, hero, "physicsAttackRate", 1)
     effects = [cases.effect_by_id(game_data, i) for i in rate_ids]
     build = model.compute(hero, 1, effects, game_data.get("curves", {}))
     tier = weapons.MIN_UPGRADE

@@ -163,7 +163,8 @@ def test_every_tile_shows_the_candidate_answer_for_the_chosen_tier(
 
             expected = damage.candidate(weapon, tier, build, game_data)
             for tile in tiles:
-                assert tile_ar(tile) == f"{expected.final_total:.0f}", (
+                assert tile_ar(tile) == str(
+                        damage.displayed(expected.final_total)), (
                     f"{weapon['name']!r} at tier {tier}: the tab and the "
                     f"facade name different figures")
                 seen += 1
@@ -203,7 +204,8 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
 
     at_spinbox = damage.candidate(weapon, spinbox_tier, build, game_data)
     at_slot = damage.candidate(weapon, slot_tier, build, game_data)
-    assert f"{at_spinbox.final_total:.0f}" != f"{at_slot.final_total:.0f}", (
+    assert (damage.displayed(at_spinbox.final_total)
+            != damage.displayed(at_slot.final_total)), (
         f"{weapon['name']!r} rates the same at tier {spinbox_tier} and at "
         f"tier {slot_tier}, so this case cannot tell the two tiers apart. "
         f"Pick an armament the upgrade moves.")
@@ -211,7 +213,8 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
     tiles = drawn_tiles(tab, weapon)
     assert tiles, f"the tab drew no tile for {weapon['name']!r}"
     for tile in tiles:
-        assert tile_ar(tile) == f"{at_spinbox.final_total:.0f}", (
+        assert tile_ar(tile) == str(
+                damage.displayed(at_spinbox.final_total)), (
             f"the tab is ranking {weapon['name']!r} at a tier the spinbox "
             f"does not show")
 
@@ -289,11 +292,13 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
 
     for tile in tiles:
         rows = tile_rows(tile)
-        assert rows[0] == ("AR", f"{expected.final_total:.0f}")
+        assert rows[0] == ("AR", str(damage.displayed(
+            expected.final_total)))
 
         type_rows = rows[1:1 + len(expected.final_per_type)]
         expected_type_rows = [
-            (weapons.DAMAGE_LABELS[damage_type], f"{value:.0f}")
+            (weapons.DAMAGE_LABELS[damage_type],
+             str(damage.displayed(value)))
             for damage_type, value in expected.final_per_type.items()
         ]
         assert type_rows == expected_type_rows, (

@@ -31,6 +31,7 @@ Nothing here imports Qt, and nothing here reads a widget or a Planner.
 from __future__ import annotations
 
 import enum
+import math
 from dataclasses import dataclass, field
 
 from . import model, weapons
@@ -81,6 +82,33 @@ STARTING_AR_RATE_FOR = {
 # Slot 1 holds the armament the expedition starts with -- it is seeded with
 # the Nightfarer's own starting armament, see `Planner.apply_hero_weapon`.
 STARTING_SLOT = 0
+
+
+def displayed(figure: float) -> int:
+    """The whole number a display puts on screen for an attack rating.
+
+    **Truncated, not rounded**, and that is a measurement rather than a
+    preference: over nine armaments that scale off nothing, "the game rounds"
+    leaves an empty interval for the calibration factor and "the game
+    truncates" leaves a consistent one, and Soldier's Crossbow settles it on
+    its own -- 148 base, 0.6 x 148 = 88.8, and the game shows **88**
+    (QA-095, `docs/berichte/T-038-qa-engineer.md` section 4.1).
+
+    **One place, because there is one number.** Every display that prints an
+    attack rating goes through here: the weapon tile, the breakdown panel and
+    its click-through, the arsenal tab's tiles and the advisor's goal line. A
+    second `f"{x:.0f}"` anywhere is the shape QA-018 had -- one armament, two
+    figures on screen at the same moment -- and this time it would be one
+    figure agreeing with the game and one not.
+
+    **The rounding stays out of the arithmetic** (QA-074). What is truncated
+    is the text; rankings, marginal contributions and the multiplier layer go
+    on working with the unrounded figure, so a comparison between two
+    armaments is never decided by a digit that only exists for the screen.
+    Consequently a shown difference is not always the difference of the two
+    shown figures -- it is the real one, rounded for display.
+    """
+    return math.floor(figure)
 
 
 class Question(enum.Enum):

@@ -1,15 +1,20 @@
 """Attack rating calculation.
 
-This is the engine's own formula, assembled from four params that all carry an
-exact paramdef, so nothing here is estimated:
+The shape of it is the engine's own formula, assembled from four params that
+all carry an exact paramdef:
 
-  base   = attackBase{Type} x reinforce.{type}AtkRate
+  base   = attackBase{Type} x reinforce.{type}AtkRate x GAME_ATTACK_POWER_RATE
   factor = correct{Stat}/100 x reinforce.correct{Stat}Rate
            x curve(stat) / 100 x influence{Stat}_by{Type}
   AR     = base x (1 + sum of factors over every scaling stat)
 
 Which stats feed which damage type comes from AttackElementCorrectParam; the
 curve id per damage type comes from the weapon's own correctType_{Type}.
+
+**One term of that first line is not from a param.**
+`GAME_ATTACK_POWER_RATE` is measured against the game and not read out of it;
+its scope and its evidence are written out where it is defined. Every other
+term is a field with a paramdef behind it.
 """
 
 from __future__ import annotations
@@ -27,6 +32,40 @@ DAMAGE_LABELS = {
     "Thunder": "Lightning",
     "Dark": "Holy",
 }
+
+
+#: The constant the game lays over the figure this formula produces, so that
+#: what the program calls "Attack rating" is the number the weapon panel in
+#: the game shows -- and, per the App Designer's reading on the training
+#: dummy, the number that actually lands.
+#:
+#: **Measured, not derived.** It is in none of the params this program reads.
+#: The evidence is in `docs/berichte/T-038-qa-engineer.md` and QA-095: nine
+#: armaments that scale off no attribute (seven crossbows, Hand Ballista, Jar
+#: Cannon) pin it without a curve in the way, and the intersection over those
+#: nine x eight Nightfarers is k in [0.599315, 0.600928) -- a single interval,
+#: which 0.6 is the only round number inside. The same reading rules rounding
+#: out: under "the display rounds" the intersection is **empty**, under "the
+#: display truncates" it is the interval above. Over the whole measurement --
+#: 310 armaments x 8 Nightfarers -- `floor(rate)` reproduces 97.5 % of the
+#: readings exactly.
+#:
+#: **Where it is measured, and where it is only plausible.** Measured at
+#: levels 1, 12 and 15, for the eight Nightfarers the source covers, at each
+#: armament's **own** rarity with no reinforcement, without relics and without
+#: infusion variants. It is *not* measured for reinforced rarities, for
+#: infused variants, for Scholar and Undertaker, or for any other level; there
+#: it is plausible and nothing more. Catalysts are a separate matter
+#: altogether -- for staves and seals the game shows the spell scaling rather
+#: than an attack rating, so this factor does not describe them (QA-099).
+#:
+#: **Not the source, but the only lead there is:** `PlayerCommonParam` carries
+#: exactly this value at offset +664, in a slot no paramdef describes
+#: (`docs/berichte/T-042-qa-engineer.md`). An undefined field holding the
+#: right number is a coincidence until somebody shows the engine reads it, so
+#: it is written down here as a thread to pull and **not** as evidence. The
+#: number below stands on the measurement above and on nothing else.
+GAME_ATTACK_POWER_RATE = 0.6
 
 
 # The upgrade number is an absolute rarity tier, not a count of upgrades:
@@ -110,6 +149,14 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         if not base:
             continue
         base *= reinforce["atk"].get(damage, 1.0)
+        # The one place the game's constant is applied, and it is applied to
+        # `base` rather than to the finished figure on purpose: the scaled
+        # part below is `base x bonus`, so one multiplication here reaches
+        # both halves and they cannot part company. Everything downstream --
+        # `scaled_per_type`, the facade, every tile, the panel, the arsenal
+        # tab and the advisor -- therefore sees the game's number without a
+        # second constant anywhere (AD-019, QA-018).
+        base *= GAME_ATTACK_POWER_RATE
         result.base[damage] = base
 
         rules = aec.get(damage, {})

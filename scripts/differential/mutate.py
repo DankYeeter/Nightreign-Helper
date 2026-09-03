@@ -92,9 +92,9 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "arsenal-tile-figure-halved": Mutation(
         path="nrplanner/arsenaltab.py",
-        old="""                lines = [("AR", f"{rating.final_total:.0f}")]
+        old="""                lines = [("AR", f"{damage.displayed(rating.final_total)}")]
 """,
-        new="""                lines = [("AR", f"{rating.final_total * 0.5:.0f}")]
+        new="""                lines = [("AR", f"{damage.displayed(rating.final_total * 0.5)}")]
 """,
         survival_means=(
             "no test reads a single figure off the arsenal tab. Every AR "
@@ -280,13 +280,13 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/arsenaltab.py",
         old="""                for damage_type, value in rating.final_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
-                                  f"{value:.0f}"))
+                                  f"{damage.displayed(value)}"))
 """,
         new="""                for damage_type, value in rating.final_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
-                                  f"{value:.0f}"))
+                                  f"{damage.displayed(value)}"))
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
-                                  f"{value:.0f}"))
+                                  f"{damage.displayed(value)}"))
 """,
         survival_means=(
             "a multi-type tile carries a duplicate row for every damage "

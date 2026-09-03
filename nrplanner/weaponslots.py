@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import effecttext, weapons
+from . import damage, effecttext, weapons
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -238,7 +238,8 @@ class WeaponTile(QFrame):
         bits = [tier_name]
         if rating is not None:
             bits.append(f"<b style='color:{ACCENT}'>"
-                        f"{rating.final_total:.0f}</b> AR")
+                        f"{damage.displayed(rating.final_total)}</b>"
+                        f" AR")
         if slot.effect_ids:
             # Count the negative rolls apart from the rest, in the same red
             # the picker uses, so a tile shows at a glance that one of its

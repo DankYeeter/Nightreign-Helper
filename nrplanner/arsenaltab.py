@@ -371,14 +371,14 @@ class ArsenalTab(QWidget):
             tiles = []
             for rating in entries:
                 weapon = rating.weapon
-                lines = [("AR", f"{rating.final_total:.0f}")]
+                lines = [("AR", f"{damage.displayed(rating.final_total)}")]
                 # `damage_type`, not `damage`: the loop variable used to
                 # shadow the module of that name, and the resulting
                 # UnboundLocalError only fired when a tile was drawn, never
                 # on import (QA-072).
                 for damage_type, value in rating.final_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
-                                  f"{value:.0f}"))
+                                  f"{damage.displayed(value)}"))
                 # The status the weapon exists for. Elemental variants always
                 # showed their element; the status variants hid their one
                 # number, so a Poison Cleaver read as a plain cleaver with

@@ -297,16 +297,24 @@ def test_the_score_is_unrounded_and_the_display_is_the_rounded_one(game_data,
     rounded for the screen would put the noise floor of every comparison at
     half a unit -- and the diminishing return the whole feature rests on is
     smaller than that near the top of a curve.
+
+    The text is the facade's own, `damage.displayed` -- truncated rather than
+    rounded, because that is what the game does with an attack rating
+    (QA-095) -- so this line and the weapon panel cannot show one armament as
+    two figures. Asserted through that function and not against a second
+    `f"{...:.0f}"` written out here: a copy of the rule in the test is a
+    second rule, and it would go on passing after the display's own stopped
+    matching the game.
     """
     reference = advisor.scaling_armament(game_data, wylder)
     build, ctx = build_with(game_data, wylder, reference=reference)
 
     score = goals.GOALS["max_damage"].score(build, ctx)
 
-    assert score.value != round(score.value), (
+    assert score.value != int(score.value), (
         "this armament happens to rate at a whole number; the case needs one "
         "that does not, or it says nothing about rounding")
-    assert f"{score.value:.0f}" in score.display
+    assert str(damage.displayed(score.value)) in score.display
 
 
 def test_the_eight_damage_kinds_are_the_ones_the_model_knows(game_data):

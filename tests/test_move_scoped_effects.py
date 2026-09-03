@@ -293,10 +293,12 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
         f"QA-018")
 
     unbuffed = rating_with(game_data, hero, greatsword, []).final_total
-    assert on_the_panel == f"{unbuffed:.0f}", (
+    assert on_the_panel == str(damage.displayed(unbuffed)), (
         f"both displays agree on {on_the_panel}, and that is not the figure "
-        f"{ARMAMENT!r} has without the relic ({unbuffed:.0f}). The +20% is "
+        f"{ARMAMENT!r} has without the relic "
+        f"({damage.displayed(unbuffed)}). The +20% is "
         f"still being counted somewhere")
-    assert f"{unbuffed:.0f}" != f"{unbuffed * factor:.0f}", (
+    assert (damage.displayed(unbuffed)
+            != damage.displayed(unbuffed * factor)), (
         f"with and without the relic round to the same text on this "
         f"armament, so the case cannot tell them apart")

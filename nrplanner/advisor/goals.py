@@ -156,9 +156,15 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
         )
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data)
+    # `value` is the unrounded figure and `display` the truncated one, and
+    # they are deliberately not the same number: the ranking and the marginal
+    # contribution are formed from `value`, so a digit that exists only for
+    # the screen cannot decide which relic the advisor recommends (QA-074).
+    # The text goes through the facade's one formatter, so this line and the
+    # weapon panel show the same whole number for the same armament.
     return types.GoalScore(
         value=now.final_total,
-        display=f"Attack rating {now.final_total:.0f}",
+        display=f"Attack rating {damage.displayed(now.final_total)}",
         unit="AR",
         unknowns=unknowns,
     )

@@ -2823,7 +2823,8 @@ class Planner(QMainWindow):
 
         base, scaled, final = ar["base"], ar["scaled"], ar["final"]
         rows = [f"<b>Attack rating — {ar['weapon']}</b>",
-                f"&nbsp;&nbsp;Base &nbsp; <b>{base:.0f}</b>"]
+                f"&nbsp;&nbsp;Base &nbsp; "
+                f"<b>{damage.displayed(base)}</b>"]
 
         from_attributes = scaled - base
         if abs(from_attributes) >= 0.5:
@@ -2856,7 +2857,7 @@ class Planner(QMainWindow):
 
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
-        rows.append(f"&nbsp;&nbsp;<b>Total {final:.0f}</b> "
+        rows.append(f"&nbsp;&nbsp;<b>Total {damage.displayed(final)}</b> "
                     f"({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
         return "<br>".join(rows)
 
@@ -2929,9 +2930,9 @@ class Planner(QMainWindow):
             change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
             rows.append(
                 f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
-                f"<span style='color:{MUTED}'>{was:.0f}</span> "
+                f"<span style='color:{MUTED}'>{damage.displayed(was)}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
-                f"<b>{value:.0f}</b></div>"
+                f"<b>{damage.displayed(value)}</b></div>"
             )
 
         colour = GOOD if delta > 0.05 else (BAD if delta < -0.05 else MUTED)
@@ -2939,10 +2940,12 @@ class Planner(QMainWindow):
         pct = (delta / base_total * 100) if base_total else 0.0
         rows.append(
             f"<div style='margin-top:4px'><b>Total</b> "
-            f"<span style='color:{MUTED}'>{base_total:.0f}</span> "
+            f"<span style='color:{MUTED}'>"
+            f"{damage.displayed(base_total)}</span> "
             f"<a href='{AR_BREAKDOWN_KEY}' style='color:{colour};"
             f"text-decoration:none'>{change}</a> "
-            f"<b style='color:{ACCENT}'>{final_total:.0f}</b>"
+            f"<b style='color:{ACCENT}'>"
+            f"{damage.displayed(final_total)}</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
                if abs(pct) >= 0.05 else "") +
             f"</div>"

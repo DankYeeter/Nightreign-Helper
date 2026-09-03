@@ -91,20 +91,23 @@ def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
     low, high = weapons.MIN_UPGRADE, weapons.MAX_UPGRADE
     expected_low = damage.candidate(weapon, low, build, game_data).final_total
     expected_high = damage.candidate(weapon, high, build, game_data).final_total
-    assert f"{expected_low:.0f}" != f"{expected_high:.0f}", (
+    assert (damage.displayed(expected_low)
+            != damage.displayed(expected_high)), (
         f"{weapon['name']!r} rates the same at +{low} and +{high}, so this "
         f"case cannot tell the two tiers apart. Pick an armament the "
         f"upgrade moves.")
 
     tab.upgrade.setValue(low)
-    assert tile_ar(named_tile(tab, weapon["name"])) == f"{expected_low:.0f}"
+    assert (tile_ar(named_tile(tab, weapon["name"]))
+            == str(damage.displayed(expected_low)))
 
     # The only action under test: nothing here calls recalculate() or
     # rebuild() -- if the spinbox's own signal is wired, this alone has to
     # repaint the tile.
     tab.upgrade.setValue(high)
 
-    assert tile_ar(named_tile(tab, weapon["name"])) == f"{expected_high:.0f}", (
+    assert (tile_ar(named_tile(tab, weapon["name"]))
+            == str(damage.displayed(expected_high))), (
         "moving the spinbox alone must repaint the tile; reading the +1 "
         "figure here means self.upgrade.valueChanged is not wired to "
         "recalculate() any more")
@@ -143,7 +146,7 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
     build = planner.current_build()
     tier = tab.upgrade.value()
     expected = damage.candidate(weapon, tier, build, game_data).final_total
-    assert f"{expected:.0f}" != before, (
+    assert str(damage.displayed(expected)) != before, (
         f"raising Strength did not move {weapon['name']!r}'s figure, so "
         f"this case cannot tell the stale build from the current one. Pick "
         f"an effect the armament's damage responds to.")
@@ -159,7 +162,8 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
     # front has to repaint it for the build set up just above.
     tabs.setCurrentWidget(tab)
 
-    assert tile_ar(named_tile(tab, weapon["name"])) == f"{expected:.0f}", (
+    assert (tile_ar(named_tile(tab, weapon["name"]))
+            == str(damage.displayed(expected))), (
         "switching to the tab alone must repaint it for the current build; "
         "reading the pre-Strength figure here means tabs.currentChanged is "
         "not wired to recalculate() any more")
