@@ -1906,6 +1906,10 @@ damit der `developer` beim Umbau nicht raten muss.
    darüber, welches Modul eine Anzeigestelle importiert hat. Künftig
    entscheidet `MULTIPLIERS_FOR`, und die Entscheidung hat einen Namen.
 
+**Keine Absicht und kein Fehler, sondern eine andere Art von Frage:**
+
+9. **Die Summationsreihenfolge (Klammerung).** Sie stellt keine andere Frage, sie beantwortet dieselbe mit einem anderen letzten Bit. Diese Liste trennt Absicht von Fehler bei **semantischen** Unterschieden; eine numerische Klammerung gehört nicht hinein. Entschieden in **AD-024** (sie folgt aus Zusicherung Z1 und ist keine Genauigkeitsfrage). Wer hier nach ihr sucht, findet sie dort — nachgetragen 2026-09-02 aus W4, weil der `developer` sie zu Recht gemeldet statt einsortiert hat.
+
 **Was diese Entscheidung ausdrücklich NICHT festlegt:** ob die Zahl 203,4 oder
 244,1 richtig ist. Sie legt fest, **wo** die Zahl entsteht, nicht **welchen
 Wert** sie hat. Der Wert hängt an der Spielmessung des Nutzers (siehe
@@ -2132,6 +2136,110 @@ wissen, welche Kandidaten eine Angriffsrate tragen; das ist eine Zusatzabfrage
 **Umkehrbarkeit:** leicht. Fällt W6 auf „aus", verschwindet der Fall
 vollständig; fällt er auf „an", bleibt die Markierung als Erklärung stehen und
 kann dann entfallen.
+
+---
+
+### AD-024 — Summationsreihenfolge ist eine Eindeutigkeits-, keine Genauigkeitsentscheidung; sie wird nur geändert, wo sie zwei Darstellungen derselben Zahl beseitigt (2026-09-02, Status: aktiv; folgt aus Zusicherung Z1 in AD-019, ergänzt AD-020)
+
+**Kontext:** Meldung des `developer` aus W4, ausdrücklich **nicht** einsortiert,
+weil sie zu keinem der acht Punkte in AD-020 passt. Der Umzug des Arsenal-Tabs
+von `WeaponRating.total` auf `Rating.final_total` tauscht zwei Klammerungen
+derselben Summanden:
+
+```
+WeaponRating.total   = sum(base) + sum(scaled)          # je Ebene
+Rating.final_total   = sum(base[t] + scaled[t] ...)     # je Schadensart
+```
+
+Gemessen: **584 von 7 172 Datensätzen (8,1 %) verschieben sich um exakt 1 ULP**,
+grösster Absolutbetrag **5,68e-14**, auf 424 Armaturen; **ausnahmslos
+mehrtypige** Armaturen, keine einzige einartige — bei einer Schadensart sind
+beide Klammerungen identisch. **Der Anzeigetext bewegt sich in 0 von 7 172
+Fällen.** Vorlauf über zwei Level: 1 403 von 14 344 (9,8 %), gleiche Richtung
+und Grössenordnung. Mechanismus: ab CPython 3.12 summiert das eingebaute `sum()`
+kompensiert (Neumaier), eine ausgeschriebene Schleife nicht — gleiche
+Summanden, gleiche Reihenfolge, bis zu 1 ULP Unterschied.
+
+**Warum das weder in AD-020 noch in AD-022 gehört.** AD-020 trennt Absicht von
+Fehler bei **semantischen** Unterschieden: welche Frage eine Anzeige stellt
+(Attributsatz, Tier, Multiplikatorschicht). Die Klammerung stellt keine andere
+Frage; sie beantwortet dieselbe mit einem anderen letzten Bit. Sie als neunten
+Punkt zu führen, würde verwischen, wofür die Liste da ist. AD-022 regelt die
+**Benennung** (`X_total` zu `X_per_type`) und ist der Ort, aus dem die
+Klammerung folgt — aber die Frage betrifft inzwischen eine **zweite Stelle**,
+die mit der Fassade nichts zu tun hat (siehe unten), und die trägt eine andere
+Antwort. Deshalb eine eigene Entscheidung; AD-020 bekommt nur einen Verweis.
+
+**Optionen:**
+- **A — Die alte Klammerung war der Fehler, die 584 ULP sind die Korrektur.**
+  Konsequenz: Es wird behauptet, eine der beiden Summationen sei genauer. Das
+  ist **nicht belegbar** — beide sind gleich gute Näherungen der exakten Summe,
+  und gegen das Spiel ist keine von beiden geprüft (die Messung zu QA-018 steht
+  noch aus). Die Behauptung lädt dazu ein, die Frage später wieder
+  aufzumachen: „welche ist denn nun genauer?"
+- **B — Toleranz einführen und beide zulassen.** Konsequenz: hebt Z1 auf und
+  stellt den Driftpfad wieder her, den W1 bis W4 gerade geschlossen haben.
+- **C — Die Klammerung je Schadensart ist verbindlich, weil sie aus Z1 folgt —
+  nicht weil sie genauer wäre.** Konsequenz: die Frage ist ein für alle Mal
+  entschieden und kann nicht mit Genauigkeitsargumenten aufgerollt werden.
+
+**Entscheidung:** C, und damit **Widerspruch im Detail** zur Vorlage des
+`director`: die Einordnung „alte Klammerung = Fehler, 584 ULP = Korrektur"
+trifft nicht zu. **Der Fehler war nie einer der beiden Werte — der Fehler war,
+dass es zwei gab.** Die 584 ULP sind der **Preis der Vereinheitlichung**, nicht
+ihre Korrektur, und die Messung des `developer` belegt genau das, wofür sie
+gebraucht wird: der Preis ist auf dem Bildschirm nicht sichtbar (0 von 7 172).
+
+**Die Regel, die beide Stellen entscheidet:**
+
+> Die Summationsreihenfolge wird **nur** geändert, wenn die Änderung **zwei
+> Darstellungen derselben Zahl auf eine reduziert**. Eine Änderung, die nur
+> „genauer" verspricht, wird nicht vorgenommen.
+
+Angewendet:
+1. **Arsenal-Tab auf `final_total` (W4):** erfüllt die Bedingung — zwei
+   Darstellungen werden eine. **Wird gemacht**, Kosten gemessen und unsichtbar.
+2. **Die `bonus`-Schleife in `weapons.rate`:** erfüllt die Bedingung **nicht**.
+   Dort gibt es nur **eine** Darstellung; kompensierte Summation wäre eine
+   einseitige Genauigkeitsänderung ohne Konsistenzgewinn — und sie verschiebt
+   **48 100 von 258 192 Karten**, zwei Grössenordnungen mehr. **Bleibt eine
+   Schleife**, und zwar **dauerhaft**, nicht „bis W5". Der Kommentar dort, der
+   sie an die Bitgleichheit eines Schrittes bindet, sagt damit das Falsche und
+   ist beim nächsten Anfassen auf diese Begründung umzuschreiben. Wieder
+   interessant wird die Stelle erst, wenn eine Abweichung **auf dem Bildschirm
+   oder gegen das Spiel** gemessen wird — nicht wenn jemand sie im Code sieht.
+
+**Was nach W5 übrig bleibt** (Frage 3 des `director`): Die Frage verschwindet
+**nicht**. Mit `WeaponRating.total` fällt eine der beiden Klammerungen weg, und
+Z1 wird innerhalb der Fassade trivial wahr — aber die **Regel** muss stehen
+bleiben, sonst schreibt die nächste Anzeige `sum(base) + sum(scaled)` erneut
+hin. Drei Reste, ausdrücklich:
+- **Z1 bleibt die tragende Zusicherung** (exakte Gleichheit, kein `approx`).
+- **Teilsummen sind erlaubt, Vergleiche nicht.** Wer über ausgewählte
+  Schadensarten summiert, bildet das aus `final_per_type` — und vergleicht das
+  Ergebnis **nicht** auf Gleichheit mit `final_total`.
+- **`weapons.rank` braucht den stabilen Zweitschlüssel aus Nicht-tun-Regel 29,
+  und das ist ab jetzt gemessen begründet statt vorsorglich:** nach dem Wegfall
+  von `total` sortiert `rank` über die abgeleitete Summe; 584 von 7 172 Werten
+  verschieben sich um 1 ULP, also können nahe Gleichstände die Plätze tauschen.
+  `(-summe, weapon["id"])`.
+
+**Geprüft und ausdrücklich kein Risiko:** Der Golden-Stand ist von der
+CPython-Version **nicht** betroffen — `tests/weapon_damage_cases.rounded()`
+rundet auf sechs Nachkommastellen, und 5,68e-14 liegt acht Grössenordnungen
+darunter. Ein Wechsel der CPython-Version kann `weapon_damage.json` nicht rot
+färben. (Nachgesehen, nicht angenommen: die Alternative wäre gewesen, hier eine
+Warnung zu hinterlassen, die es nicht braucht.)
+
+**Konsequenzen:** Leicht wird — künftige Meldungen dieser Klasse sind in einem
+Satz entschieden, ohne Genauigkeitsdebatte. Dauerhaft schwer wird — eine
+tatsächlich vorhandene Ungenauigkeit in der `bonus`-Schleife bliebe unter
+dieser Regel unangetastet, bis sie sichtbar wird. Das ist bewusst: gegen das
+Spiel ist keine dieser Zahlen validiert, und das letzte Bit einer unvalidierten
+Zahl zu ändern ist Bewegung ohne Information.
+
+**Umkehrbarkeit:** leicht für Punkt 1 (die Klammerung folgt aus Z1 und fiele
+mit ihr), leicht für Punkt 2 (es bleibt alles, wie es ist).
 
 ---
 
@@ -2678,3 +2786,68 @@ aus AD-023, Punkt 2, statt eines pauschalen Vorbehalts.
     `weapons.rank` nicht ohne Zweitschlüssel lassen.** QA-059 hat gerade
     belegt, dass nicht reproduzierbare Sortierung in diesem Programm real ist;
     `(-summe, weapon["id"])`.
+
+---
+
+## Nachtrag V 2026-09-02 — Die Klammerungsfrage aus W4 (AD-024)
+
+Anlass: der `developer` hat in W4 eine Abweichung gemessen, die zu keinem der
+acht AD-020-Punkte passt, und sie **gemeldet statt einsortiert**. Das war
+richtig; sie gehört in keine der beiden vom `director` vorgeschlagenen Stellen.
+
+### Die drei Antworten in Kurzform
+
+1. **Ort:** weder neunter AD-020-Punkt noch Absatz in AD-022, sondern
+   **AD-024**. AD-020 trennt Absicht von Fehler bei *semantischen*
+   Unterschieden; die Klammerung ist keiner. AD-022 wäre der Ort gewesen,
+   solange es um die Fassade ginge — die Frage betrifft aber inzwischen eine
+   **zweite Stelle** (`bonus`-Schleife in `weapons.rate`), die mit der Fassade
+   nichts zu tun hat und eine **andere** Antwort bekommt. AD-020 erhält einen
+   Punkt 9, der auf AD-024 verweist, damit man sie dort findet, wo man sucht.
+2. **Absicht oder Fehler: keins von beidem, und die vorgelegte Lesart trifft
+   nicht zu.** „Alte Klammerung = Fehler, 584 ULP = Korrektur" behauptet, eine
+   der beiden Summationen sei genauer — das ist nicht belegbar, und gegen das
+   Spiel ist keine von beiden geprüft. **Der Fehler war nie einer der beiden
+   Werte, sondern dass es zwei gab.** Die 584 ULP sind der Preis der
+   Vereinheitlichung; die Messung belegt, dass er unsichtbar ist (0 von 7 172
+   Anzeigetexten).
+3. **W5:** Die Frage verschwindet nicht. Z1 bleibt tragend; Teilsummen bleiben
+   erlaubt, aber nicht auf Gleichheit mit `final_total` prüfbar; und
+   Nicht-tun-Regel 29 (stabiler Zweitschlüssel in `weapons.rank`) ist ab jetzt
+   **gemessen begründet** statt vorsorglich — nahe Gleichstände können durch
+   1 ULP die Plätze tauschen.
+
+### Beide Stellen unter einer Regel
+
+> Die Summationsreihenfolge wird nur geändert, wenn die Änderung **zwei
+> Darstellungen derselben Zahl auf eine reduziert**. Eine Änderung, die nur
+> „genauer" verspricht, wird nicht vorgenommen.
+
+Arsenal-Tab (W4): erfüllt sie, wird gemacht. `bonus`-Schleife: erfüllt sie
+nicht (nur eine Darstellung, 48 100 von 258 192 Karten betroffen), **bleibt
+dauerhaft** eine Schleife. Der dortige Kommentar bindet sie heute an die
+Bitgleichheit eines Schrittes und sagt damit das Falsche — beim nächsten
+Anfassen auf die Begründung aus AD-024 umschreiben. Das ist eine
+Kommentarkorrektur, kein eigener Auftrag.
+
+### Prüfpunkte, Ergänzung
+
+26. **Einartige Armaturen sind gegenüber der Klammerung invariant.** Bei einer
+    Schadensart sind beide Klammerungen identisch — das ist der Gegenprobe-Fall
+    zur Messung des `developer` und eine billige Zusicherung, dass die
+    gemessene Verschiebung wirklich aus der Klammerung stammt und nicht aus
+    etwas anderem, das W4 mitgebracht hat.
+27. **Nach W5 sortiert `weapons.rank` reproduzierbar**, auch bei
+    ULP-Gleichstand: zweimal derselbe Lauf, byteweise dieselbe Reihenfolge.
+    Verwandt mit QA-059, aber ein eigener Fall.
+
+### Was der `developer` zusätzlich nicht tun soll
+
+30. **Die `bonus`-Schleife in `weapons.rate` nicht auf `sum()`, `math.fsum()`
+    oder kompensierte Summation umstellen** — auch nicht „im Vorbeigehen" bei
+    W5. AD-024, Punkt 2.
+31. **Keine der beiden Klammerungen als „genauer" bezeichnen**, weder im Code
+    noch im Commit. Sie ist verbindlich, weil Z1 sie festlegt; sie ist nicht
+    besser.
+32. **Teilsummen über ausgewählte Schadensarten nicht gegen `final_total`
+    prüfen.** Sie werden aus `final_per_type` gebildet und dort belassen.
