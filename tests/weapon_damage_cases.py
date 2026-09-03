@@ -351,11 +351,17 @@ def armament_slots(data: dict, case: dict) -> list[weaponslots.WeaponSlot]:
 
 
 def run(planner, data: dict, case: dict) -> dict:
-    """Drive the real weapon-damage panel for one case and read it back.
+    """Drive the real weapon-damage displays for one case and read them back.
 
     The Planner is the real one, headless. Only the pieces the case describes
     are set on it; `selected_effects` is replaced because the relics behind it
     live in combo boxes the case has no business filling.
+
+    All three displays, not one. Until W3b this read the panel and the figures
+    behind it and nothing else, which left two ways for a wrong number to
+    reach the player unremarked (QA-073): the five tiles that are not the
+    active one, and the text of the click-through breakdown. Both are here
+    now, so they hang on the same frozen state the panel does.
     """
     hero = hero_by_name(data, case["hero"])
     planner.hero_index = data["heroes"].index(hero)
@@ -365,7 +371,14 @@ def run(planner, data: dict, case: dict) -> dict:
     relic_effects = [effect_by_id(data, e) for e in case["relic_effects"]]
     planner.selected_effects = lambda: relic_effects
 
-    planner._refresh_weapon_damage(build_for(data, case))
+    build = build_for(data, case)
+    # What `Planner.recompute` hands the breakdown before it draws. Set from
+    # this case rather than left to whatever the planner last held, so the
+    # captured text depends on the case and on nothing else -- otherwise the
+    # source lines would follow the order the cases happened to run in.
+    planner.last_sources = dict(build.sources)
+    planner.last_rates = dict(build.rates)
+    planner._refresh_weapon_damage(build)
     return {
         # The figures the panel keeps for the click-through breakdown: the
         # calculation's own output, before it is turned into text.
@@ -373,6 +386,15 @@ def run(planner, data: dict, case: dict) -> dict:
         # And the text itself, which catches a change in what is shown even
         # when every number behind it stayed the same.
         "panel": planner.ar_label.text(),
+        # Every tile, including the five that are not ringed. The active one
+        # was already held between the golden total and checkpoint 19; the
+        # other five were held by nothing at all.
+        "tiles": [{"title": tile.title.text(), "detail": tile.detail.text()}
+                  for tile in planner.weapon_tiles],
+        # What a click on the total actually puts on screen. `last_ar` above
+        # is this display's input; without its output a swap of two of those
+        # figures changes what the player reads and nothing notices.
+        "breakdown": planner._ar_breakdown_text(),
     }
 
 

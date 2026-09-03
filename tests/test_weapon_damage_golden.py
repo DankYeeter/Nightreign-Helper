@@ -23,18 +23,36 @@ two conditions, and say which in the commit:
 Capturing it to make a red test green is neither, and would delete the only
 evidence that the calculation is unchanged.
 
-**What this file does not hold, said out loud rather than left to be
-discovered:** the weapon *tile* above the panel. `weapon_damage_cases.run`
-records the panel's text and the figures behind it, and nothing of the six
-tiles -- which is why the tile could answer a different question from the
-panel for as long as it did (QA-056). The tile is covered between two guards
-instead of by this one: the panel's total is frozen here, and
-`test_weapon_tile_and_panel_agree.py` holds the tile to that total. Remove
-either and the tile is unguarded again.
+**What this file holds, and what it does not, said out loud rather than left
+to be discovered.** Per case it freezes four things: `last_ar` (the figures
+the calculation produced), `panel` (the breakdown panel's markup), `tiles`
+(the title and detail of all six weapon tiles, ringed or not) and `breakdown`
+(the text a click on the total puts on screen). It holds nothing about the
+arsenal tab, which ranks at a chosen target tier and is allowed to differ
+(AD-020, point 1).
 
-AD-019 step W3 was allowed to re-capture and did not need to: a fresh capture
-on the post-W3 tree came back byte-identical to this file. W3 changed what the
-tile asks, not what the panel answers.
+The last two were added in AD-019 step W3b. Until then this file recorded the
+panel and the figures behind it and nothing else, and the gap was not
+theoretical:
+
+* the six tiles were unrecorded, which is how the tile could answer a
+  different question from the panel for as long as it did (QA-056, QA-070);
+* the click-through breakdown was unrecorded, because what this file froze
+  was `last_ar` -- that display's **input**, never its output (QA-073 b).
+
+The tile is now held by two guards rather than one, and they are not
+interchangeable: the text of every tile is frozen here, and
+`test_weapon_tile_and_panel_agree.py` holds the tile to the panel's total and
+holds every tile steady while a different one is ringed. Remove either and a
+gap opens that the other does not cover.
+
+Two re-captures have been allowed so far. AD-019 step W3 was allowed one and
+did not need it: a fresh capture on the post-W3 tree came back byte-identical
+to this file, because W3 changed what the tile asks and not what the panel
+answers. Step W3b needed one, and it took the second condition above --
+`tiles` and `breakdown` were added to the capture, and the values already
+frozen were shown not to move first (36 of 36 unchanged) before the file was
+written.
 """
 
 from __future__ import annotations

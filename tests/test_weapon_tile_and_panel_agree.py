@@ -148,6 +148,48 @@ def test_every_filled_tile_names_the_panel_s_own_total(
         "nothing. Pick effects that move an attack multiplier.")
 
 
+def test_which_tile_is_ringed_moves_no_tile_s_figure(
+        planner, game_data, hero, moving_effects):
+    """Selecting a tile is decoration; it must not change what another says.
+
+    The test above makes each tile active in turn and reads it only in that
+    state. **No test saw a tile while a different one was active**, and that
+    hole was not theoretical: the mutation "only the active tile gets the
+    finished value" moved 36 958 tile figures in 12 551 of 25 102 cases and
+    left 237 of 237 tests green (QA-073 a). For the player it is QA-056 in
+    new clothes -- five tiles showing the figure from before the multipliers,
+    and a click making the number jump. The mutation is kept, by name, in
+    `scripts/differential/mutate.py` as `active-tile-only`, so this claim can
+    be re-run rather than believed.
+
+    **The build is held fixed across the draws on purpose.** Choosing another
+    slot in the running program does change the build -- the
+    starting-armament pairing and the weapon gates follow the active
+    armament -- so "a tile figure never depends on the active slot" would be
+    false, and a test asserting it would be asserting the wrong thing. What is
+    true, and what the player relies on, is narrower: for one and the same
+    build, the gold ring moves and no figure does.
+    """
+    pairs = armaments(game_data, hero)
+    fill(planner, game_data, hero, pairs)
+    build = refresh(planner, game_data, hero, moving_effects, 0)
+    with_first_ringed = [tile.detail.text() for tile in planner.weapon_tiles]
+
+    figures = [tile_ar(planner.weapon_tiles[index])
+               for index in range(len(pairs))]
+    assert len(figures) >= 3 and len(set(figures)) > 1, (
+        "this case has fewer than three tiles carrying a figure, or they all "
+        "carry the same one, so comparing the draws proves nothing")
+
+    for active in range(1, weaponslots.SLOT_COUNT):
+        planner.active_weapon = active
+        planner._refresh_weapon_damage(build)
+
+        assert [tile.detail.text() for tile in planner.weapon_tiles] \
+            == with_first_ringed, (
+                f"ringing slot {active + 1} changed what the other tiles say")
+
+
 def test_the_starting_armament_penalty_reaches_the_tile_too(
         planner, game_data, hero):
     """The x0.85 pairing is on the tile now, not only in the panel.
