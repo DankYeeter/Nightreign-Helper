@@ -457,6 +457,73 @@ def attack_scope(effect: dict) -> int | None:
     return None
 
 
+# Attack buffs whose restriction the game states in prose and in no param
+# field, listed by effect id because nothing else can find them.
+#
+# `attack_scope` above reads `magicSubCategoryChange1/2/3`, and that field is
+# the only place the data ever says "this buff covers one kind of attack".
+# Four effect families raise `physicsAttackRate` and the four elemental rates
+# exactly like an always-on buff, carry no scope field at all, and state their
+# restriction in the description text alone:
+#
+#   Improved Thrusting Counterattack   "Enhances counterattacks unique to
+#                                       thrusting weapons"     x1.10/1.15/1.20
+#   Improved Sorceries (and +1, +2)    "Raises potency of sorceries"
+#   Improved Incantations (and +1, +2) "Raises potency of incantations"
+#   Improved Sorceries & Incantations  "Raises potency of sorceries and
+#                                       incantations"          x1.05 .. x1.11
+#
+# **Why a list and not a rule.** Counted over the dataset before this list was
+# written: 265 effects carry an element attack rate, 184 of them with no scope
+# field, and 22 of those 184 are these four families. No modifier separates
+# the 22 from the other 162. `magParamChange` looks like a marker and is not
+# -- 15 of the 22 carry it, and so do 149 of the 162, among them "Improved
+# Physical Attack Power", which is the flat buff this list exists to keep
+# apart from them. So the restriction is not derivable from the params, and a
+# program that wants it right has to carry it itself.
+#
+# **What is measured and what is inferred.** The user checked *Improved
+# Thrusting Counterattack* in play on 2026-09-03 (QA-018): Wylder with
+# Wylder's Greatsword, one relic carrying the +20%, the attack rating read off
+# the game's own menu before and after. It did not move. Verbatim: "counter-
+# attack ist nur bei konter. nicht global." The three spell families are
+# **inferred, not measured** -- they are here because their text names a kind
+# of attack the same way, and because a sorcery buff lifting a greatsword's
+# physical damage by 11% is the same claim. If one of them is ever measured
+# and turns out to apply flatly, it leaves this list on its own; the other
+# three do not follow it out.
+#
+# **What this list covers, and what it does not.** It names the families in
+# *today's* dataset. It is not a rule that catches future ones: a game patch
+# adding a fifth family adds effect ids nothing here knows about, and they
+# will be counted flat -- wrongly -- until someone puts them here. To extend
+# it: list every effect that carries one of `ELEMENT_ATTACK_RATES` and for
+# which `attack_scope` returns None, read the `info` text of each, and add the
+# ids whose text names a move, a spell school or an attack kind rather than a
+# situation. `tests/test_move_scoped_effects.py` holds that sweep as a guard,
+# so a dataset that grows a new member of one of these four families fails
+# loudly instead of quietly rejoining the flat multiplier.
+MOVE_SCOPED_EFFECT_IDS = frozenset({
+    320600, 8430000, 8851800, 8851850,                    # Thrusting Counter.
+    330000, 6611200, 6611201, 6611202,                    # Sorceries
+    8330000, 8330001, 8330002,
+    330400, 6611300, 6611301, 6611302,                    # Incantations
+    8330100, 8330101, 8330102,
+    8330103, 8330104, 8851200, 8851250,                   # both at once
+})
+
+
+def move_scoped(effect: dict) -> bool:
+    """Does this buff reach one kind of attack, with only its text saying so?
+
+    The counterpart of `attack_scope` for the case the params cannot express.
+    Kept as a lookup on the effect's own id rather than on its name: names
+    repeat across the dataset and a patch may reword one, while the id is what
+    the save file and the relic tables refer to.
+    """
+    return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
+
+
 # Weapon-type gates the selected reference weapon can actually satisfy. The
 # test is plain equality against the weapon's own wep_type, which keeps the
 # values that are not weapon types honest for free: triggerOnWepType is 256 on
@@ -857,10 +924,15 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         # a real attack-rating buff for those armaments, so it is bucketed by
         # class instead of being parked on a scoped line and ignored.
         class_to = scoped_class(eff)
-        scoped_out = crit_only or (scope and class_to is None)
-        # Both cases take the element rates out of the general pool: the five
-        # of them carry one number between them, applied once, on a line that
-        # says what it actually covers.
+        # And a buff whose only statement of its scope is its description text
+        # goes the same way, off the list above: the params would have it lift
+        # every swing, and the user's measurement in play says it does not
+        # (QA-018).
+        scoped_out = (crit_only or (scope and class_to is None)
+                      or move_scoped(eff))
+        # All three cases take the element rates out of the general pool: the
+        # five of them carry one number between them, applied once, on a line
+        # that says what it actually covers.
         if scoped_out:
             values = [float(mods[f]) for f in ELEMENT_ATTACK_RATES
                       if isinstance(mods.get(f), (int, float))]
