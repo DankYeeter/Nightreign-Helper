@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import search, weapons
+from . import damage, search, weapons
 from .weapons import RARITY_TIERS
 
 COLUMNS = 5
@@ -241,7 +241,7 @@ class ArsenalTab(QWidget):
         self.scroll.setFrameShape(QFrame.NoFrame)
         layout.addWidget(self.scroll, 1)
 
-        self.ratings: list[weapons.WeaponRating] = []
+        self.ratings: list[damage.Rating] = []
         self.recalculate()
 
     # -- data ------------------------------------------------------------
@@ -255,9 +255,12 @@ class ArsenalTab(QWidget):
         # against attributes the stat sheet next door disagreed with (QA-001).
         build = self.planner.current_build()
         self.attributes = build.attributes
-        self.ratings = weapons.rank(
-            self.data, build.attributes,
-            upgrade=self.upgrade.value(),
+        # The tier is handed over explicitly and there is no default that
+        # could stand in for it: ranking an armament that sits in no slot at
+        # a chosen target tier is this tab's question, and a default would
+        # quietly put the slot's tier back (AD-020, point 1; QA-055).
+        self.ratings = damage.rank_candidates(
+            build, self.upgrade.value(), self.data,
             require_usable=self.usable_only.isChecked(),
         )
         stats = "  ".join(f"{k[:3].upper()} {v}"
@@ -313,6 +316,18 @@ class ArsenalTab(QWidget):
         )
 
     def _build_weapons(self, outer, predicate) -> int:
+        def effective_rarity(rating) -> int:
+            """The rarity band the armament would carry at the tier it got.
+
+            `damage.Rating.tier_applied` counts tiers from 1 and
+            `weapon["rarity"]` counts bands from 0, so the band is one below
+            the tier. The `min` is kept although `weapons.rate` already
+            clamps the request to `MAX_UPGRADE`: that is the same pair of
+            guards QA-068 is about, and neither may be dropped on the
+            strength of the other alone.
+            """
+            return min(rating.tier_applied - 1, RARITY_TIERS - 1)
+
         wanted_rarity = self.rarity_box.currentData()
         by_family: dict[str, list] = {}
         for rating in self.ratings:
@@ -323,11 +338,9 @@ class ArsenalTab(QWidget):
                 continue
             # Match the rarity the weapon would have after upgrading, so the
             # filter agrees with the colour shown on the tile.
-            if wanted_rarity != -1:
-                effective = min(weapon.get("rarity", 0) + rating.applied_upgrade,
-                                RARITY_TIERS - 1)
-                if effective != wanted_rarity:
-                    continue
+            if (wanted_rarity != -1
+                    and effective_rarity(rating) != wanted_rarity):
+                continue
             by_family.setdefault(weapon.get("family", "Other"), []).append(rating)
 
         total = sum(len(v) for v in by_family.values())
@@ -363,9 +376,14 @@ class ArsenalTab(QWidget):
             tiles = []
             for rating in entries:
                 weapon = rating.weapon
-                lines = [("AR", f"{rating.total:.0f}")]
-                for damage, value in rating.scaled_per_type().items():
-                    lines.append((weapons.DAMAGE_LABELS[damage], f"{value:.0f}"))
+                lines = [("AR", f"{rating.final_total:.0f}")]
+                # `damage_type`, not `damage`: the loop variable used to
+                # shadow the module of that name, and the resulting
+                # UnboundLocalError only fired when a tile was drawn, never
+                # on import (QA-072).
+                for damage_type, value in rating.final_per_type.items():
+                    lines.append((weapons.DAMAGE_LABELS[damage_type],
+                                  f"{value:.0f}"))
                 # The status the weapon exists for. Elemental variants always
                 # showed their element; the status variants hid their one
                 # number, so a Poison Cleaver read as a plain cleaver with
@@ -389,9 +407,9 @@ class ArsenalTab(QWidget):
                     if shifts:
                         lines.append(("vs standard", " · ".join(shifts)))
                 lines.append(("Rarity", RARITY_NAMES.get(weapon.get("rarity", 0), "?")))
-                reached = min(weapon.get("rarity", 0) + 1 + rating.applied_upgrade,
-                              weapons.MAX_UPGRADE)
-                if rating.applied_upgrade:
+                own_tier = weapon.get("rarity", 0) + 1
+                reached = min(rating.tier_applied, weapons.MAX_UPGRADE)
+                if rating.tier_applied > own_tier:
                     lines.append(("Upgraded to", f"+{reached} "
                                                  f"{RARITY_NAMES.get(reached - 1, '')}"))
                 if rating.unmet:
@@ -400,12 +418,10 @@ class ArsenalTab(QWidget):
                     lines.append(("Requires", need))
                 # Colour by the rarity the weapon would actually have at the
                 # chosen upgrade target, not its shelf rarity.
-                effective = min(weapon.get("rarity", 0) + rating.applied_upgrade,
-                                RARITY_TIERS - 1)
                 tiles.append(Tile(weapon["name"],
                                   self.icons.item(weapon.get("icon")),
                                   lines, dimmed=bool(rating.unmet),
-                                  rarity=effective))
+                                  rarity=effective_rarity(rating)))
             return self._grid(tiles)
 
         def build_body():
