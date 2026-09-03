@@ -16,9 +16,11 @@ figures being the ones the rest of the program already stands on --
   context carries and with none of its own (AD-004, OF-3).
 
 **What is not tested here, said rather than left implicit:** that either
-figure is the one the *game* shows. Attack rating has never been checked
-against an in-game number, which is why every score carries that sentence in
-its `unknowns`.
+figure is the one the *game* shows. The damage goal's figure is held against
+the game in `tests/test_attack_power_against_the_game.py` and nowhere else;
+the survival goal's is held against nothing outside the program at all. What
+this file does check is that every score carries the scope of that agreement
+in its `unknowns` -- including the armaments the agreement does not cover.
 """
 
 from __future__ import annotations
