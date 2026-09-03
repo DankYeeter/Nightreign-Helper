@@ -90,6 +90,39 @@ MUTATIONS: dict[str, Mutation] = {
             "output, and the text went only to a QToolTip. Measured "
             "surviving on 2026-09-03: 237 of 237 tests green (QA-073 b)."),
     ),
+    "arsenal-tile-figure-halved": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""                lines = [("AR", f"{rating.final_total:.0f}")]
+""",
+        new="""                lines = [("AR", f"{rating.final_total * 0.5:.0f}")]
+""",
+        survival_means=(
+            "no test reads a single figure off the arsenal tab. Every AR "
+            "line on every tile of the tab would be half of what the "
+            "armament does, and the player's whole comparison between "
+            "armaments would stand on it. Measured surviving on 2026-09-03, "
+            "on the tree before W4 and with the same edit against "
+            "`rating.total`: 264 of 264 tests green. Guarded since by "
+            "tests/test_arsenal_tab_asks_the_facade.py, which reads the "
+            "rendered tile and not the list behind it."),
+    ),
+    "arsenal-ranks-at-the-slot-tier": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""        self.ratings = damage.rank_candidates(
+            build, self.upgrade.value(), self.data,
+""",
+        new="""        self.ratings = damage.rank_candidates(
+            build, weapons.MAX_UPGRADE, self.data,
+""",
+        survival_means=(
+            "the tier the arsenal tab ranks at is held by nothing, and the "
+            "'Upgrade to +n' spinbox moves no figure at all. This is the "
+            "shape QA-055 has: a list computed at a tier that is nowhere on "
+            "screen. Measured surviving on 2026-09-03, on the tree before W4 "
+            "and with the same edit against `upgrade=self.upgrade.value()`: "
+            "264 of 264 tests green. Checkpoint 20 is the assertion it now "
+            "fails."),
+    ),
     "last-sources-not-assigned": Mutation(
         path="nrplanner/app.py",
         old="""        self.last_sources = dict(build.sources)
