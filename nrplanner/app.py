@@ -2801,18 +2801,25 @@ class Planner(QMainWindow):
         # Offset to the right of the cursor so the number stays readable.
         QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
 
-    def _show_ar_breakdown(self) -> None:
+    def _ar_breakdown_text(self) -> str:
         """Where the weapon's attack-rating change came from.
 
         Two different things move this number and they are worth telling apart:
         raising an attribute makes the weapon scale harder, while an attack
         multiplier scales the finished figure. A relic can do either, and "+35"
         alone does not say which -- or whether it came from one relic or six.
+
+        Handed back rather than only shown. Until now this text was built and
+        passed straight to a tooltip, so it existed nowhere a test could reach
+        it: the golden file freezes `last_ar`, and `last_ar` is this display's
+        **input**, never its output. A mutation that swapped `base` for
+        `scaled` therefore changed what the player reads and left the whole
+        suite green (QA-073 b). Returning the text is the whole of the fix --
+        what is shown, and where, is unchanged.
         """
         ar = getattr(self, "last_ar", None)
         if not ar:
-            QToolTip.showText(QCursor.pos(), "No weapon selected.")
-            return
+            return "No weapon selected."
 
         base, scaled, final = ar["base"], ar["scaled"], ar["final"]
         rows = [f"<b>Attack rating — {ar['weapon']}</b>",
@@ -2851,7 +2858,15 @@ class Planner(QMainWindow):
         pct = (delta / base * 100) if base else 0.0
         rows.append(f"&nbsp;&nbsp;<b>Total {final:.0f}</b> "
                     f"({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
-        QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
+        return "<br>".join(rows)
+
+    def _show_ar_breakdown(self) -> None:
+        """The breakdown, beside the figure that was clicked."""
+        # Offset to the right of the cursor so the number stays readable --
+        # but only where there is a figure to keep clear. The "no weapon"
+        # notice has none, and sat under the cursor before this split did.
+        beside = QPoint(18, 0) if getattr(self, "last_ar", None) else QPoint()
+        QToolTip.showText(QCursor.pos() + beside, self._ar_breakdown_text())
 
     def _refresh_weapon_damage(self, build) -> None:
         """Attack rating before and after everything equipped.
