@@ -222,6 +222,44 @@ MUTATIONS: dict[str, Mutation] = {
             "armament's figure without moving its position. Killed since by "
             "test_ranking_answers_the_candidate_question_for_every_armament."),
     ),
+    "arsenal-spinbox-does-not-recalculate": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""        self.upgrade.valueChanged.connect(self.recalculate)
+""",
+        new="""        self.upgrade.valueChanged.connect(lambda _: None)
+""",
+        survival_means=(
+            "moving the 'Upgrade to +n' spinbox recalculates nothing. Every "
+            "tile keeps the figure from whichever tier the tab last "
+            "recalculated at, and the spinbox becomes a control that reads "
+            "as live and is not (QA-085). Every existing test and the "
+            "differential harness call `recalculate()` themselves before "
+            "reading a figure, so none of them can see this: it takes a "
+            "case that moves the control and reads the render without "
+            "calling `recalculate()` in between. Killed since by "
+            "test_moving_the_spinbox_alone_repaints_the_tile."),
+    ),
+    "arsenal-tab-switch-does-not-recalculate": Mutation(
+        path="nrplanner/app.py",
+        old="""        tabs.currentChanged.connect(
+            lambda index: self.weapons_tab.recalculate()
+            if tabs.widget(index) is self.weapons_tab else None
+        )
+""",
+        new="""        tabs.currentChanged.connect(lambda index: None)
+""",
+        survival_means=(
+            "bringing the Weapons && spells tab to the front recalculates "
+            "nothing. The tab goes on ranking against whichever build was "
+            "current the last time it was shown, which is QA-001 returned "
+            "in a new shape -- the tab disagreeing with the Build planner "
+            "tab beside it, this time because nobody told it the build had "
+            "moved rather than because it computed its own. Every existing "
+            "test reaches the tab through `recalculate()` or "
+            "`current_build()` directly, never by switching tabs, so none "
+            "of them can see this. Killed since by "
+            "test_switching_to_the_tab_alone_repaints_it_for_the_current_build."),
+    ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
         old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
