@@ -40,7 +40,11 @@ Outside pytest, by its own entry points -- deliberately, not by a marker:
    the comparison lies: the same tree in two processes came back with 5 802
    of 11 718 armament tiles differing, purely from set iteration order
    (measured 2026-09-02). `capture.py` refuses to run without it rather than
-   producing a plausible wrong number.
+   producing a plausible wrong number -- and the refusal reads `sys.flags.
+   hash_randomization`, the interpreter's own record of how it started,
+   never `os.environ`. The environment variable can still be poked after the
+   interpreter has already started unseeded, and a check that trusted it
+   would pass in exactly that state (QA-079 a).
 
 A full run, old tree against new:
 

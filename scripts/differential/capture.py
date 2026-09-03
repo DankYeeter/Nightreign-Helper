@@ -53,8 +53,17 @@ def hexed(value):
 
 
 def prepare_environment() -> None:
-    """Everything that has to be true before PySide6 is imported."""
-    if os.environ.get("PYTHONHASHSEED") != "0":
+    """Everything that has to be true before PySide6 is imported.
+
+    Checks `sys.flags.hash_randomization`, not `os.environ["PYTHONHASHSEED"]`
+    (QA-079 a). `PYTHONHASHSEED` only takes effect if it was set before the
+    interpreter started; the environment variable can be poked afterwards
+    without changing a thing that has already happened. A check reading
+    `os.environ` would pass in exactly that state -- the announcement says
+    "fixed" -- while set iteration order kept moving. `sys.flags.hash_
+    randomization` is fixed at interpreter start and cannot lie about it.
+    """
+    if sys.flags.hash_randomization:
         raise SystemExit(
             "refusing to capture without PYTHONHASHSEED=0. Set iteration "
             "order reaches the rendered text: the same tree in two processes "

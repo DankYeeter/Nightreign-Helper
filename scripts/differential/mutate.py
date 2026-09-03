@@ -13,8 +13,12 @@ of figures on screen and leaves every test green (QA-070, QA-073).
 Each mutation is written out in full: the exact text it replaces, the exact
 text it puts there, and what a reader is supposed to conclude when the suite
 stays green. It is applied to a **copy** of a tree; this refuses to touch the
-checkout it lives in, because a half-restored mutation in a working tree is a
-worse outcome than any measurement is worth:
+checkout it lives in, or any other tree with a `.git` of its own -- a second
+clone or a `git worktree add` is a working tree exactly like this one, and is
+the more direct path back to the unmutated source than the extraction below,
+which makes it the more likely mistake, not a safer one (QA-079 b). A
+half-restored mutation in a working tree is a worse outcome than any
+measurement is worth:
 
     git archive HEAD | tar -x -C /tmp/mutant
     python scripts/differential/mutate.py --apply active-tile-only \\
@@ -150,6 +154,15 @@ def guard_the_own_tree(tree: pathlib.Path) -> None:
             f"`git archive HEAD | tar -x -C <somewhere>`. A mutation left "
             f"behind in a working tree costs more than the measurement is "
             f"worth.")
+    if (tree / ".git").exists():
+        raise SystemExit(
+            f"{tree} has a .git of its own. A second clone or a `git "
+            f"worktree add` is a working tree the same as this checkout, and "
+            f"mutating it is worse than mutating this one: it is the more "
+            f"direct way back to the unmutated source, which makes leaving a "
+            f"mutation behind in it the more likely mistake (QA-079 b). "
+            f"Mutate a plain extraction instead: "
+            f"`git archive HEAD | tar -x -C <somewhere>`.")
 
 
 def main(argv: list[str] | None = None) -> int:

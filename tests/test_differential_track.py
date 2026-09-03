@@ -23,6 +23,8 @@ needs two trees. See the package docstring for how it is driven.
 from __future__ import annotations
 
 import pathlib
+import subprocess
+import sys
 
 import pytest
 
@@ -297,17 +299,87 @@ def test_the_checkout_itself_is_never_mutated():
         mutate.guard_the_own_tree(ROOT)
 
 
+def test_a_tree_with_its_own_git_is_refused_too(tmp_path):
+    """A second clone or `git worktree add` is refused for the same reason as
+    the checkout itself (QA-079 b).
+
+    The old guard only compared paths against `ROOT`, so a second clone --
+    or a worktree, which is a more direct way back to the unmutated source
+    than `git archive HEAD | tar -x` -- was never caught. A `.git` file
+    stands in for a worktree's own (it holds a `gitdir:` pointer, not a
+    repository), so `.exists()` is used rather than `.is_dir()`.
+    """
+    (tmp_path / ".git").mkdir()
+    with pytest.raises(SystemExit, match=r"\.git"):
+        mutate.guard_the_own_tree(tmp_path)
+
+
+def test_a_plain_extraction_without_git_is_left_alone(tmp_path):
+    """The ordinary case -- `git archive HEAD | tar -x` -- is not refused."""
+    mutate.guard_the_own_tree(tmp_path)
+
+
 # --- the capture ------------------------------------------------------------
 
-def test_the_capture_refuses_to_run_without_a_fixed_hash_seed(monkeypatch):
-    """Measured 2026-09-02: the same tree in two processes came back with
-    5 802 of 11 718 armament tiles differing, purely from set iteration order
-    in `arsenaltab`. A run without the seed produces a number that looks like
-    a regression finding and is not one."""
-    monkeypatch.setenv("PYTHONHASHSEED", "random")
+def test_the_capture_refuses_when_the_interpreter_itself_is_unseeded(
+        monkeypatch):
+    """Reads `sys.flags.hash_randomization`, not `os.environ` (QA-079 a).
+
+    `PYTHONHASHSEED` only takes effect if it is set before the interpreter
+    starts; the environment variable can still be changed afterwards without
+    moving anything that already happened. A check that read `os.environ`
+    would pass in exactly that state -- the announcement says "fixed" -- while
+    set iteration order kept moving, which is measured 2026-09-02: the same
+    tree in two processes came back with 5 802 of 11 718 armament tiles
+    differing, purely from the hash seed. `sys.flags.hash_randomization` is
+    fixed at interpreter start and cannot be forged from Python code after the
+    fact, so this test stands in for the forged state with a monkeypatched
+    flags object rather than pretending it could reproduce it for real.
+    """
+    monkeypatch.setenv("PYTHONHASHSEED", "0")  # the announcement says "fixed"
+
+    class Flags:
+        hash_randomization = 1  # ...but the interpreter itself was not
+
+    monkeypatch.setattr(capture.sys, "flags", Flags())
 
     with pytest.raises(SystemExit, match="PYTHONHASHSEED=0"):
         capture.prepare_environment()
+
+
+def test_use_tree_refuses_a_path_that_did_not_actually_win_the_import(
+        tmp_path):
+    """`sys.path.insert` is a preference, not a guarantee (QA-079 c).
+
+    Until this test, `use_tree` had no guard test at all in the repository --
+    it works (shown by rebuilding the whole differential track by hand
+    against a real second tree), but a guard without a test of its own counts
+    as unproven here.
+
+    Run in a fresh subprocess rather than in-process: this test process has
+    already imported the real `nrplanner`, and `import` caches by name in
+    `sys.modules`, so `use_tree`'s own claim -- that it notices when its
+    `sys.path.insert` did not win -- could not be exercised against a module
+    already sitting in the cache. `tmp_path` holds no `nrplanner` package at
+    all, so the import falls through to the real tree on `sys.path`, which is
+    exactly the "asked for one tree, got another" case `use_tree` exists to
+    catch.
+    """
+    root = pathlib.Path(__file__).resolve().parents[1]
+    script = (
+        "import sys, pathlib\n"
+        f"sys.path.insert(0, {str(root)!r})\n"
+        "from scripts.differential import capture\n"
+        f"capture.use_tree(pathlib.Path({str(tmp_path)!r}))\n"
+    )
+    result = subprocess.run([sys.executable, "-c", script],
+                            capture_output=True, text=True)
+
+    assert result.returncode != 0, (
+        "use_tree silently accepted an import that came from somewhere "
+        f"other than the tree it was asked for.\nstdout: {result.stdout}")
+    assert "Nothing captured" in result.stderr
+    assert str(tmp_path) in result.stderr
 
 
 def test_floats_go_out_bit_exact_and_not_through_repr():
