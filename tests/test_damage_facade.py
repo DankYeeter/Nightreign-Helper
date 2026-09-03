@@ -338,33 +338,61 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
 
 
 def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data,
-                                                                build):
-    """The second sort key, and why it is not decoration (do-not rule 29).
+                                                                hero):
+    """The second sort key, on the one input where it is visible at all.
 
-    Equal figures are not an edge case in this dataset: measured on 2026-09-03
-    at Wylder, level 15, `MAX_UPGRADE`, 1 424 of 1 793 armaments share their
-    `final_total` with at least one other, across 460 shared values. Without a
-    tie-break their order would be whatever `weapons.rank` happened to hand
-    over, and a ULP anywhere upstream could reshuffle rows a player cannot
-    tell apart.
+    Equal figures are not an edge case here: at Wylder, level 15, MAX_UPGRADE
+    over 400 groups of armaments share a `final_total`. But a tie-break that
+    only reorders is invisible whenever the order it replaces was already the
+    id order, and `weapons.rank` hands over the dataset's own order -- which
+    **is** id order -- within each layer-one tie. Measured 2026-09-03 across
+    three builds and all four tiers: in eleven of those twelve combinations,
+    dropping the second key changes nothing at all, and a case built on one of
+    them would pass against a `rank_candidates` that had no tie-break.
 
-    The case is built from the ties the dataset really has rather than from a
-    hand-made pair, and it refuses to pass if it found none.
+    The twelfth is this one, and it is an AD-024 case exactly: Wylder at
+    level 1, no relics, MIN_UPGRADE. Sacred Spiralhorn Shield (30190700),
+    Magic Spiralhorn Shield (30190800) and Cold Spiked Spear (16140900) all
+    come to `final_total` 0x1.30467381d7dc0p+6, while the spear's
+    `WeaponRating.total` is one ULP **below** the two shields. Layer one
+    therefore puts the spear last, behind two armaments with larger ids, and
+    the tie-break is what pulls it back to the front.
+
+    So the case asserts three things and not one: that ties exist, that at
+    least one of them is out of id order before the tie-break (without which
+    this test proves nothing), and that none of them is out of it afterwards.
     """
-    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
+    bare = model.compute(hero, 1, [], game_data.get("curves", {}))
+    tier = weapons.MIN_UPGRADE
+    attributes = getattr(bare,
+                         damage.ATTRIBUTES_FOR[damage.Question.CANDIDATE])
+
+    ranked = damage.rank_candidates(bare, tier, game_data,
                                     require_usable=False)
+    layer_one = [rating.weapon["id"] for rating in
+                 weapons.rank(game_data, attributes, tier,
+                              require_usable=False)]
+    place = {weapon_id: index for index, weapon_id in enumerate(layer_one)}
 
     groups: dict[float, list[int]] = {}
     for rating in ranked:
         groups.setdefault(rating.final_total, []).append(rating.weapon["id"])
     tied = {figure: ids for figure, ids in groups.items() if len(ids) > 1}
 
-    assert tied, ("no two armaments rate alike in this build, so this case "
-                  "cannot see the tie-break at all")
+    assert tied, ("no two armaments rate alike here, so this case cannot see "
+                  "the tie-break at all")
+    discriminating = {figure: ids for figure, ids in tied.items()
+                      if sorted(ids, key=place.__getitem__) != sorted(ids)}
+    assert discriminating, (
+        "every tie in this build was already in id order when `weapons.rank` "
+        "handed it over, so dropping the second sort key would change "
+        "nothing and this case would pass without it. Pick a build and tier "
+        "where layer one and layer two disagree -- see the docstring")
+
     for figure, ids in tied.items():
         assert ids == sorted(ids), (
-            f"the {len(ids)} armaments rating {figure} came back in the order "
-            f"{ids}, which is not their id order")
+            f"the {len(ids)} armaments rating {figure} came back as {ids}, "
+            f"which is not their id order")
 
 
 def test_a_candidate_carries_the_attack_multipliers(game_data, build):
