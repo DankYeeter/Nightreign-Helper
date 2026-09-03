@@ -139,6 +139,27 @@ MUTATIONS: dict[str, Mutation] = {
             "Guarded since by test_breakdown_sources_wiring.py, which calls "
             "`recompute()` directly."),
     ),
+    "move-scope-constant-emptied": Mutation(
+        path="nrplanner/model.py",
+        old="""MOVE_SCOPED_EFFECT_IDS = frozenset({
+    320600, 8430000, 8851800, 8851850,                    # Thrusting Counter.
+    330000, 6611200, 6611201, 6611202,                    # Sorceries
+    8330000, 8330001, 8330002,
+    330400, 6611300, 6611301, 6611302,                    # Incantations
+    8330100, 8330101, 8330102,
+    8330103, 8330104, 8851200, 8851250,                   # both at once
+})
+""",
+        new="""MOVE_SCOPED_EFFECT_IDS = frozenset()
+""",
+        survival_means=(
+            "the list itself can be emptied unremarked. This is the literal "
+            "edit `move-scope-list-emptied` stands in for behaviourally, and "
+            "it is kept beside it because it reaches one guard the other "
+            "cannot: test_every_effect_of_the_four_families_is_listed sweeps "
+            "the dataset by name against this constant, so it dies only when "
+            "the constant moves, never when the lookup that reads it does."),
+    ),
     "move-scope-list-emptied": Mutation(
         path="nrplanner/model.py",
         old="""    return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
