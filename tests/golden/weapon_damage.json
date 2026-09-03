@@ -317,8 +317,8 @@
           }
         ],
         "relic_effects": [
-          320600,
-          330000
+          6001400,
+          6001401
         ],
         "curse_effects": [],
         "declared": {}
@@ -327,19 +327,18 @@
         "last_ar": {
           "base": 316.048253,
           "scaled": 316.048253,
-          "final": 383.160604,
+          "final": 350.668322,
           "rates": {
-            "physicsAttackRate": 1.332,
-            "magicAttackRate": 1.11
+            "physicsAttackRate": 1.2376
           },
           "weapon": "Troll Knight's Magic Sword",
           "class": "melee"
         },
-        "panel": "<div>Physical <span style='color:#8a8a8a'>146</span> <span style='color:#6fbf73'>+48</span> <b>194</b></div><div>Magic <span style='color:#8a8a8a'>170</span> <span style='color:#6fbf73'>+19</span> <b>189</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>316</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+67</a> <b style='color:#c8a45c'>383</b> <span style='color:#6fbf73'>(+21.2%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>70</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>70 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
+        "panel": "<div>Physical <span style='color:#8a8a8a'>146</span> <span style='color:#6fbf73'>+35</span> <b>180</b></div><div>Magic <span style='color:#8a8a8a'>170</span> <span style='color:#8a8a8a'>—</span> <b>170</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>316</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+35</a> <b style='color:#c8a45c'>351</b> <span style='color:#6fbf73'>(+11.0%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>70</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>70 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
         "tiles": [
           {
             "title": "<span style='color:#6fa8d6'>Troll Knight's Magic Sword</span>",
-            "detail": "Uncommon · <b style='color:#c8a45c'>383</b> AR"
+            "detail": "Uncommon · <b style='color:#c8a45c'>351</b> AR"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 2 — empty</span>",
@@ -362,7 +361,7 @@
             "detail": "double-click to add an armament"
           }
         ],
-        "breakdown": "<b>Attack rating — Troll Knight's Magic Sword</b><br>&nbsp;&nbsp;Base &nbsp; <b>316</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+33.2%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Thrusting Counterattack +20.0%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Sorceries +11.0%</span><br>&nbsp;&nbsp;Magic Attack &nbsp; <b>+11.0%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Sorceries +11.0%</span><br>&nbsp;&nbsp;<b>Total 383</b> (+67, +21.2%)"
+        "breakdown": "<b>Attack rating — Troll Knight's Magic Sword</b><br>&nbsp;&nbsp;Base &nbsp; <b>316</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+23.8%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Physical Attack Up +3 +10.5%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Physical Attack Up +4 +12.0%</span><br>&nbsp;&nbsp;<b>Total 351</b> (+35, +11.0%)"
       }
     },
     {
@@ -737,8 +736,8 @@
           }
         ],
         "relic_effects": [
-          320600,
-          330000,
+          6001400,
+          6001401,
           7000300,
           7000301
         ],
@@ -751,18 +750,18 @@
         "last_ar": {
           "base": 249.912424,
           "scaled": 249.912424,
-          "final": 332.883366,
+          "final": 309.291623,
           "rates": {
-            "physicsAttackRate": 1.332
+            "physicsAttackRate": 1.2376
           },
           "weapon": "Executor's Blade",
           "class": "melee"
         },
-        "panel": "<div>Physical <span style='color:#8a8a8a'>250</span> <span style='color:#6fbf73'>+83</span> <b>333</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>250</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+83</a> <b style='color:#c8a45c'>333</b> <span style='color:#6fbf73'>(+33.2%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>40 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
+        "panel": "<div>Physical <span style='color:#8a8a8a'>250</span> <span style='color:#6fbf73'>+59</span> <b>309</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>250</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+59</a> <b style='color:#c8a45c'>309</b> <span style='color:#6fbf73'>(+23.8%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>40</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>40 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
         "tiles": [
           {
             "title": "<span style='color:#a97fe0'>Executor's Blade</span>",
-            "detail": "Rare +2 · <b style='color:#c8a45c'>333</b> AR"
+            "detail": "Rare +2 · <b style='color:#c8a45c'>309</b> AR"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 2 — empty</span>",
@@ -785,7 +784,7 @@
             "detail": "double-click to add an armament"
           }
         ],
-        "breakdown": "<b>Attack rating — Executor's Blade</b><br>&nbsp;&nbsp;Base &nbsp; <b>250</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+33.2%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Thrusting Counterattack +20.0%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Sorceries +11.0%</span><br>&nbsp;&nbsp;<b>Total 333</b> (+83, +33.2%)"
+        "breakdown": "<b>Attack rating — Executor's Blade</b><br>&nbsp;&nbsp;Base &nbsp; <b>250</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+23.8%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Physical Attack Up +3 +10.5%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Physical Attack Up +4 +12.0%</span><br>&nbsp;&nbsp;<b>Total 309</b> (+59, +23.8%)"
       }
     },
     {
@@ -800,7 +799,7 @@
             "weapon": 3750000,
             "tier": 3,
             "effects": [
-              320600
+              6001400
             ]
           },
           {
@@ -820,22 +819,22 @@
         "last_ar": {
           "base": 321.399817,
           "scaled": 321.399817,
-          "final": 385.679795,
+          "final": 355.146804,
           "rates": {
-            "physicsAttackRate": 1.2
+            "physicsAttackRate": 1.105
           },
           "weapon": "Wylder's Greatsword",
           "class": "melee"
         },
-        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#6fbf73'>+64</span> <b>386</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+64</a> <b style='color:#c8a45c'>386</b> <span style='color:#6fbf73'>(+20.0%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
+        "panel": "<div>Physical <span style='color:#8a8a8a'>321</span> <span style='color:#6fbf73'>+34</span> <b>355</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>321</span> <a href='ar:total' style='color:#6fbf73;text-decoration:none'>+34</a> <b style='color:#c8a45c'>355</b> <span style='color:#6fbf73'>(+10.5%)</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
         "tiles": [
           {
             "title": "<span style='color:#a97fe0'>Wylder's Greatsword</span>",
-            "detail": "Rare +2 · <b style='color:#c8a45c'>386</b> AR · 1 effect"
+            "detail": "Rare +2 · <b style='color:#c8a45c'>355</b> AR · 1 effect"
           },
           {
             "title": "<span style='color:#6fa8d6'>Shortbow</span>",
-            "detail": "Uncommon +1 · <b style='color:#c8a45c'>172</b> AR · 1 effect"
+            "detail": "Uncommon +1 · <b style='color:#c8a45c'>158</b> AR · 1 effect"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 3 — empty</span>",
@@ -854,7 +853,7 @@
             "detail": "double-click to add an armament"
           }
         ],
-        "breakdown": "<b>Attack rating — Wylder's Greatsword</b><br>&nbsp;&nbsp;Base &nbsp; <b>321</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+20.0%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Improved Thrusting Counterattack +20.0%</span><br>&nbsp;&nbsp;<b>Total 386</b> (+64, +20.0%)"
+        "breakdown": "<b>Attack rating — Wylder's Greatsword</b><br>&nbsp;&nbsp;Base &nbsp; <b>321</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>+10.5%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Physical Attack Up +3 +10.5%</span><br>&nbsp;&nbsp;<b>Total 355</b> (+34, +10.5%)"
       }
     },
     {
