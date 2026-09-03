@@ -251,9 +251,16 @@ Handles 3229614315/3229615265).
 | QA-070 | **Die Golden-Datei hat die Waffenkachel nie erfasst** - `weapon_damage_cases.run` nimmt Tafeltext und `last_ar`, von den sechs Kacheln nichts. **Das ist die Ursache dafuer, dass QA-056 so lange stehen konnte:** der Waechter, der die Zahlen einfriert, sah die Stelle nicht, an der sie auseinanderliefen. Klasse "Waechter mit unausgesprochener Reichweite", dieselbe wie QA-064 | P3 | Major | developer | in W3 gefunden und im Docstring benannt; Kachel jetzt durch das **Paar** Golden + Pruefpunkt 19 gedeckt - einzeln deckt keiner von beiden sie | **teilweise behoben** (W3) - fuer die **aktive** Kachel geschlossen und in **beiden** Richtungen mutationsbelegt (Golden allein blind, Pruefpunkt 19 allein blind). Die fuenf nicht-aktiven Kacheln und die Klick-Aufschluesselung bleiben ungedeckt -> **QA-073**. Director-Entscheid: die Zeile bleibt teilweise, damit ein "behoben" den schwereren Rest nicht verdeckt | 2026-09-03 |
 | QA-071 | `damage.attack_rating`/`AttackRating` hat nach W3 **keinen Produktionsleser mehr** - Leser sind nur noch `tests/test_marginal_returns.py` (AD-018-Hauptweg) und die fensterlose Haelfte des Golden-Tests. Bewusst stehen gelassen: AD-019 laesst "bleibt oder geht in `Rating` auf" offen, und Loeschen haette einen AD-018-Test und den Golden-Test umgebaut | P4 | Minor | developer, architect | Aufruferanalyse in W3 | offen - **nach W5 entscheiden**, Aufwand gering (drei Aufrufstellen) | 2026-09-02 |
 | QA-072 | `arsenaltab.py:367` benutzt `damage` als **Schleifenvariable** und verdeckt damit das Modul gleichen Namens. In W3 hat genau das eine Testrunde gekostet (`UnboundLocalError`, der erst beim Zeichnen zuschlaegt, nicht beim Import). **W4 wird dieselbe Falle treffen**, sobald dort `from . import damage` steht | P4 | Minor | developer | in W3 am eigenen Leib erlebt und gemeldet | offen - **Warnung fuer W4**, nicht vorab reparieren (waere ein W4-Eingriff) | 2026-09-02 |
-| QA-073 | **Zwei Anzeigestellen der Waffenrechnung sind von keinem Waechter erfasst**, dieselbe Klasse wie QA-070: **(a) die fuenf nicht-aktiven Kacheln** - Pruefpunkt 19 macht jede Kachel nacheinander aktiv und prueft sie nur in diesem Zustand; **kein Test sieht je eine Kachel, waehrend eine andere aktiv ist.** Mutation "nur die aktive Kachel bekommt den fertigen Wert" aendert **36 958 Kachelziffern in 12 551 von 25 102 Faellen (50,0 Prozent)** und laesst **237 von 237 Tests gruen**. **(b) die Klick-Aufschluesselung** `_show_ar_breakdown` - die Golden-Datei friert `last_ar` ein, also ihre **Eingabe**, nie ihre Ausgabe; Mutation "base und scaled vertauscht" laesst ebenfalls 237 gruen | P2 | Major | developer | zwei ueberlebende Mutationen gegen die volle Suite, Reichweite ueber 25 102 Planner-Faelle gemessen | offen - **vor W4 entscheiden, W4 arbeitet in genau diesem blinden Winkel** | 2026-09-03 |
-| QA-074 | **Die zweite Haelfte der W3-Bikonditionale ist rasterabhaengig, nicht programmeigen.** "Keine Kachel mit einem Multiplikator blieb stehen" wird an **gerundetem Anzeigetext** gemessen. Mit dem kleinsten Multiplikator des Datensatzes (x1,007) bleiben **68 Kacheln auf 68 verschiedenen Waffen** stehen, obwohl er wirkt - 129,559 gegen 130,466, beide Male "130". **Kein Programmfehler**, Kachel und Tafel stimmen ueberein. Die **schaerfere** Haelfte (keine Kachel bewegte sich ohne Multiplikator) ist ueber 25 102 Faelle bestaetigt | P4 | Minor | developer | 1793 Waffen x 14 Konfigurationen, Gegenbeispiele einzeln nachgerechnet | offen - **kuenftige Charakterisierungen auf `final_total` fuehren, nicht auf dem Anzeigetext** | 2026-09-03 |
-| QA-075 | **Die Differentialstrecke, die die Abnahmezahlen von W0 bis W3 erzeugt hat, liegt nicht im Repo.** `scripts/` enthaelt nur `capture_weapon_damage.py`; die Zahlen sind nur durch **Neubau** einer Strecke pruefbar - in dieser Abnahme geschehen, alle Klassen bestaetigt. Verstoesst gegen die eigene Regel "ein Messwert traegt sein Rezept". **Trifft W4, W5 und W6 gleichermassen**, und die Fallzahlen zweier Schritte sind ohne die Raster nicht vergleichbar ("10 276 von 19 392" gegen "38 787 von 25 102") | P3 | Minor | director, developer | Aufruferanalyse plus unabhaengiger Nachbau der ganzen Strecke | offen - **Prozessentscheid des Directors: die Strecke kommt ins Repo** | 2026-09-03 |
+| QA-073 | **Zwei Anzeigestellen der Waffenrechnung sind von keinem Waechter erfasst**, dieselbe Klasse wie QA-070: **(a) die fuenf nicht-aktiven Kacheln** - Pruefpunkt 19 macht jede Kachel nacheinander aktiv und prueft sie nur in diesem Zustand; **kein Test sieht je eine Kachel, waehrend eine andere aktiv ist.** Mutation "nur die aktive Kachel bekommt den fertigen Wert" aendert **36 958 Kachelziffern in 12 551 von 25 102 Faellen (50,0 Prozent)** und laesst **237 von 237 Tests gruen**. **(b) die Klick-Aufschluesselung** `_show_ar_breakdown` - die Golden-Datei friert `last_ar` ein, also ihre **Eingabe**, nie ihre Ausgabe; Mutation "base und scaled vertauscht" laesst ebenfalls 237 gruen | P2 | Major | developer | zwei ueberlebende Mutationen gegen die volle Suite, Reichweite ueber 25 102 Planner-Faelle gemessen | **behoben** (W3b) - unabhaengig nachgefahren: beide Mutationen rot. Der Invariantentest fordert **nichts Falsches**: die Unabhaengigkeit der Kachelzahl vom aktiven Slot ist **strukturell** und ueber 120 Gitter mit 0 Abweichungen gemessen. Rest in anderer Form -> QA-076/QA-077 | 2026-09-03 |
+| QA-074 | **Die zweite Haelfte der W3-Bikonditionale ist rasterabhaengig, nicht programmeigen.** "Keine Kachel mit einem Multiplikator blieb stehen" wird an **gerundetem Anzeigetext** gemessen. Mit dem kleinsten Multiplikator des Datensatzes (x1,007) bleiben **68 Kacheln auf 68 verschiedenen Waffen** stehen, obwohl er wirkt - 129,559 gegen 130,466, beide Male "130". **Kein Programmfehler**, Kachel und Tafel stimmen ueberein. Die **schaerfere** Haelfte (keine Kachel bewegte sich ohne Multiplikator) ist ueber 25 102 Faelle bestaetigt | P4 | Minor | developer | 1793 Waffen x 14 Konfigurationen, Gegenbeispiele einzeln nachgerechnet | **behoben** (W3b) - die Charakterisierung ist ungerundet **und** gerundet gefuehrt | 2026-09-03 |
+| QA-075 | **Die Differentialstrecke, die die Abnahmezahlen von W0 bis W3 erzeugt hat, liegt nicht im Repo.** `scripts/` enthaelt nur `capture_weapon_damage.py`; die Zahlen sind nur durch **Neubau** einer Strecke pruefbar - in dieser Abnahme geschehen, alle Klassen bestaetigt. Verstoesst gegen die eigene Regel "ein Messwert traegt sein Rezept". **Trifft W4, W5 und W6 gleichermassen**, und die Fallzahlen zweier Schritte sind ohne die Raster nicht vergleichbar ("10 276 von 19 392" gegen "38 787 von 25 102") | P3 | Minor | director, developer | Aufruferanalyse plus unabhaengiger Nachbau der ganzen Strecke | **behoben** (W3b) - Strecke im Repo, Raster als Datei. Die Eigenpruefung der Strecke ergab drei Schwaechen -> QA-079, eine Doku-Abweichung -> QA-080 | 2026-09-03 |
+| QA-076 | **Die Verdrahtung `recompute` -> `last_sources` ist von nichts gehalten.** `self.last_sources = {}` laesst **259 von 259** gruen, waehrend in der laufenden Anwendung jede Klick-Aufschluesselung ihre Quellzeilen verliert. Ursache: `weapon_damage_cases.run` **setzt** diesen Zustand selbst, statt ihn ausloesen zu lassen - die neue Golden-Spalte friert damit die **Formatierung** ein, nicht die **Verdrahtung**. Dieselbe Klasse wie QA-073(b), eine Ebene hoeher, und **durch die W3b-Harness-Entscheidung neu entstanden** | P2 | Major | developer | ueberlebende Mutation gegen die volle Suite | **behoben** (W3c) - Harness-Zuweisung bleibt (Begruendung richtig), Docstring benennt die Luecke, und `test_recompute_wires_last_sources_and_last_rates_from_its_own_build` ruft `recompute()` **real** auf. Mutation `last-sources-not-assigned` toetet ihn | 2026-09-03 |
+| QA-077 | **Die Klick-Aufschluesselungen ausserhalb der Waffenrechnung liest kein Test.** `_show_breakdown` baut seinen Text lokal und reicht ihn nur an `QToolTip` - angeschlossen an `rates_label`, `other_label` und die Attribut-Differenzlabels. Mutation `(value-1)*100 -> value*100` laesst **259 gruen**; **34 Tooltips mit 47 Prozentzeilen** allein ueber die 18 Golden-Builds waeren falsch ("+12,4 %" als "+112,4 %"). **Vorbestehend, keine W3b-Regression** - betrifft den ganzen Charakterbogen statt nur der Waffentafel | P2 | Major | developer | ueberlebende Mutation, Reichweite ueber die Golden-Builds gezaehlt | offen - **eigener Auftrag NACH W4**, Director-Entscheid | 2026-09-03 |
+| QA-078 | **Welche Kachel den Goldring traegt, prueft kein Test - auch nicht der so benannte.** `active=False` laesst 259 gruen. `show_slot` legt `active` nur ins Stylesheet; die neue Erfassung nimmt Text, nicht Rahmen. Der Ring ist die **einzige** Zuordnung zwischen Tafel und Slot | P3 | Minor | developer | ueberlebende Mutation | offen - zurueckgestellt, dokumentiert | 2026-09-03 |
+| QA-079 | **Systemisch: drei Waechter der Messstrecke pruefen schwaecher als ihr Text.** (a) die Hashseed-Verweigerung liest `os.environ`, nicht `sys.flags.hash_randomization` - nach Interpreterstart gesetzt passiert sie, waehrend die Randomisierung weiterlaeuft; (b) `mutate.py` verweigert nur den **eigenen** Checkout - ein zweiter Klon oder `git worktree` wird beschrieben, und das ist der naheliegendere Weg zum alten Baum; (c) fuer `use_tree` gibt es **keinen Nachweisweg im Repo** (wirkt, per Gegenbau belegt) | P3 | Minor | developer | drei Faelle einzeln nachgestellt | **behoben** (W3c) - (a) prueft jetzt `sys.flags.hash_randomization` statt der Umgebungsvariable; (b) verweigert jeden Baum mit `.git`; (c) hat erstmals einen Nachweis - **im Subprozess**, weil der `sys.modules`-Cache ihn sonst maskiert haette. Alle drei rot-vorher belegt mit sha256-Rueckstellung | 2026-09-03 |
+| QA-080 | `compare.py` druckt standardmaessig 20 Datensaetze, das Paket-Docstring nennt "prints those records in full" als **tragende** Eigenschaft. Der Rest wird angekuendigt, nicht verschwiegen | P4 | Trivial | developer | Default gegen Docstring gelesen | **behoben** (W3c) - als Doku geloest: Default 20 bleibt, das Flag steht im Docstring | 2026-09-03 |
+| QA-081 | Die Quellzuordnung im Aufschluesselungstext haengt an **genau einem** Golden-Fall. Gedeckt, aber ohne zweiten Waechter - dieselbe Konstellation, die beim aktiven Slot als nicht tragfaehig eingestuft wurde. **Antwort auf die vom `developer` selbst benannte, ungemessene Luecke** | P3 | Minor | developer | Mutation plus Auszaehlung der Golden-Datei | **dokumentiert** (W3c) - der Kommentar benennt, dass genau ein Golden-Fall die klassengebundene Quellzeile deckt. **Keine Fallmengen-Erweiterung** - das waere ein Auftrag, den niemand hat | 2026-09-03 |
+| QA-082 | Die Begruendung im Docstring des Invariantentests **trifft den Code nicht**: Gates kommen aus `weapons_held` (alle sechs), die Paarung aus dem **Slot-Index**, Klassenraten aus der Klasse der gerateten Waffe. Der Test selbst ist richtig; die Begruendung haelt die naechste Rolle von einer Zusicherung ab, die **heute belegbar haelt** (0 von 120 Gittern, gerundet und ungerundet) | P4 | Minor | developer | Codeanalyse plus 120 Gitter / 720 Zeichnungen | **behoben** (W3c) - falsche Begruendung ersetzt durch die tatsaechlichen Fundstellen. Die breitere Zusicherung ist als haltend vermerkt | 2026-09-03 |
 
 ## T-016: die Fixes halten — und zwei meiner Aussagen waren falsch
 
@@ -1076,3 +1083,155 @@ der drei Runden.
 - **QA-067 ist ein Vorbestand und trotzdem der Befund, den ein Spieler zuerst
   bemerkt:** "AR 164" ueber "Physical 84 / Magic 81". Wer nachrechnet, findet
   einen Fehler, der keiner ist.
+
+## Entscheidungen des Directors - W3b (2026-09-03)
+
+- **W3b erfuellt die Abnahmebedingung: beide Mutationen sind rot.**
+  `active-tile-only` von 237 gruen auf 3 rot, `breakdown-base-and-scaled-swapped`
+  von 237 gruen auf 10 rot. Beide sind namentlich in
+  `scripts/differential/mutate.py` hinterlegt und nachfahrbar - das ist mehr,
+  als ich verlangt hatte.
+- **Der `developer` hat meiner Fixrichtung widersprochen, und er hat recht.**
+  Ich hatte geschrieben, die erweiterte Golden-Erfassung erledige "beide
+  nicht-aktiven Faelle mit einem Schritt". **Sie erledigt (a) nur knapp:** die
+  Mutation wird ueber **genau einen** der 18 Golden-Faelle gefangen - den
+  einzigen mit einer gefuellten, nicht aktiven Kachel. **Ein spaeteres
+  Streichen dieses Falls haette den Waechter still entfernt** - exakt die
+  QA-070-Klasse, die wir gerade schliessen. Er hat zusaetzlich einen
+  Invariantentest gebaut und den Mehraufwand gemeldet statt ihn zu
+  verschweigen.
+  **Entscheidung: der Invariantentest ist der tragende Waechter, die
+  Golden-Erfassung der Regressionsteppich.** Kein zweiter Golden-Fall - eine
+  Fallmengen-Erweiterung ohne Auftrag waere derselbe Fehler in der anderen
+  Richtung.
+- **Seine Warnung an den `qa-engineer` ist wichtiger als der Fix selbst.** Die
+  naheliegende breitere Aussage - "die Kachelzahl haengt nie am aktiven Slot" -
+  ist **falsch**: Startwaffen-Paarung und Waffen-Gates folgen dem aktiven
+  Slot. **Ein Test, der sie fordert, waere der Fehler.** Genau die Sorte
+  Zusicherung, die zu weit greift, die dieses Projekt fuenfmal Geld gekostet
+  hat - diesmal vorher erkannt.
+- **Der bewusst rote Zwischen-Commit (`b196266`) ist akzeptiert.** Meine
+  Trennung "Codeaenderung getrennt von Neuaufnahme" war verbindlich, und
+  dazwischen kennt die Golden-Datei zwei von vier Feldern. Der Preis ist ein
+  Commit, bei dem `git bisect` stolpert; der Gegenwert ist, dass die
+  Neuaufnahme als eigener Schritt nachvollziehbar bleibt. **Der
+  Commit-Text sagt es ausdruecklich** - damit ist es dokumentierte Absicht,
+  kein Unfall. **Fuer W4 bis W6 gilt dieselbe Trennung**; wer bisect faehrt,
+  ueberspringt diesen einen Commit.
+- **QA-075 zeigt seinen Wert sofort.** Das Raster des `developer` ist **nicht**
+  das des `qa-engineer` - gleiche Groesse (1793 x 14), anderer Inhalt, darum
+  weichen die Reichweitenzahlen ab (42,9 % gegen 50,0 %). **Genau deshalb
+  gehoerte es ins Repo:** erst jetzt sind zwei Messungen ueberhaupt
+  vergleichbar. Effekte kommen als **Abfrage** ins Raster und werden einmal zu
+  IDs aufgeloest - eine auf dem zweiten Baum wiederholte Abfrage koennte
+  anderes waehlen, und der Diff wuerde dann die Abfrage messen statt die
+  Aenderung. Das ist die Sorte Detail, die eine Messstrecke erst belastbar
+  macht.
+- **QA-074-Disziplin eingehalten und richtig eingeordnet:** ungerundete und
+  gerenderte Zahl fallen in seinem Raster **zusammen** - und er sagt dazu,
+  dass das eine Eigenschaft des **Rasters** ist, nicht des Programms (der
+  kleinste Multiplikator dieses Rasters ist gross genug, dass die Rundung
+  keine Kachel verdeckt; mit x1,007 waere es anders).
+- **Eine Luecke, die er selbst benennt und die ich nicht ueberlese:** ob eine
+  Mutation an der **Quellzuordnung** im Aufschluesselungstext rot wird, hat er
+  **nicht gemessen**. Seine Formulierung: "das ist eine Luecke, kein Beleg."
+  Geht an den `qa-engineer`.
+- Nicht angefasst, wie angeordnet: QA-072 (`arsenaltab.py:367` verdeckt das
+  Modul `damage` - steht fuer W4 an), QA-061, QA-071 (nach W5),
+  `MULTIPLIERS_FOR[CANDIDATE]`, der `compute`-Waechter, `WeaponRating.total`.
+
+## Entscheidungen des Directors - nach der W3b-Abnahme (2026-09-03)
+
+**Das Muster, das ich hier benennen muss: wir sind in der dritten Runde
+"Waechter, die nicht bewachen", und jede Runde erzeugt neue.** QA-070 fuehrte
+zu QA-073, QA-073 fuehrte zu QA-076 bis QA-082. Das ist kein Versagen der
+Rollen - es ist, was passiert, wenn man anfaengt, Waechter ernsthaft zu
+pruefen. Aber es ist eine Regression ins Unendliche, wenn niemand sie
+abschliesst. **Ich schliesse sie hier, mit einer benannten Grenze statt mit
+einem Gefuehl.**
+
+- **W3b abgenommen und freigegeben.** Beide Abnahmemutationen rot, 36 von 36
+  Golden-Werten unbewegt (dazu unbewegte Falldefinitionen und Datensatzkopf -
+  strenger als verlangt), roter Zustand exakt auf `b196266` begrenzt,
+  Endstand 259 gruen.
+- **Ich hebe die engere Fassung auf: "die Kachelzahl haengt nicht am aktiven
+  Slot" wird zur Zusicherung** (Antwort auf offene Frage 1 des
+  `qa-engineer`). Begruendung: sie **haelt strukturell** - Gates ueber
+  `weapons_held`, Paarung ueber den Slot-Index, Klassenraten ueber die Klasse
+  der gerateten Waffe - und ist ueber 120 Gitter gerundet **und** ungerundet
+  mit 0 Abweichungen gemessen. Wuerde spaeter jemand entscheiden, dass
+  klassengebundene Buffs nur fuer die aktive Waffe gelten, **soll** dieser
+  Test rot werden: das waere ein bewusster Bruch, kein Unfall. Genau dafuer
+  sind Zusicherungen da.
+- **Die Warnung des `developer` war also gut gemeint und faktisch falsch**
+  (QA-082). Das ist kein Vorwurf - er hat vor einem Test gewarnt, der zu weit
+  greift, und das ist die richtige Reflexhaltung in diesem Projekt. Hier greift
+  er nicht zu weit, und der `qa-engineer` hat es gemessen statt es zu glauben.
+- **QA-076 wird vor W4 behoben. Er ist der einzige der sieben, der das muss.**
+  Grund: `weapon_damage_cases.run` **setzt** `last_sources` selbst, statt es
+  ausloesen zu lassen. Die neue Golden-Spalte sieht deshalb aus, als hielte sie
+  die Verdrahtung, und haelt nur die Formatierung. **W4 fasst genau diese
+  Schicht an** - das ist dieselbe Verwechslung, die QA-070 und QA-073 erzeugt
+  hat, diesmal vor dem Umbau bekannt.
+- **QA-079 wird mitbehoben, weil es das Messinstrument selbst betrifft.** Ein
+  Instrument, das still danebenmisst, ist schlimmer als keines - und dieses
+  traegt ab jetzt jede Abnahme von W4 bis W6. Besonders (a): die
+  Hashseed-Verweigerung liest die **Umgebungsvariable** statt
+  `sys.flags.hash_randomization`, also die Meldung statt des Signals. Das ist
+  woertlich die Klasse, die dieses Projekt fuenfmal Geld gekostet hat, diesmal
+  im Werkzeug.
+- **QA-080 und QA-082 gehen mit** - beides Doku, beides Zusicherungen, die
+  ihren Geltungsbereich nicht nennen. Zusammen mit QA-076 und QA-079 sind das
+  vier Zeilen Arbeit.
+- **QA-077 wird NACH W4 beauftragt, nicht davor.** Er ist vorbestehend, deutlich
+  groesser (der ganze Charakterbogen statt der Waffentafel), und ihn jetzt
+  mitzunehmen wuerde die Charakterisierung von W4 verwaessern - genau der
+  Fehler, den die Trennung von W1b und W2 vermieden hat. **Zurueckgestellt,
+  nicht vergessen.**
+- **QA-078 und QA-081 werden dokumentiert zurueckgestellt.** QA-078 (der
+  Goldring) ist eine Zeile im vorhandenen Invariantentest und kann mit dem
+  naechsten Anlass mitgehen. QA-081 bekommt einen Satz im Docstring, der die
+  Ein-Fall-Abhaengigkeit benennt - **keine Fallmengen-Erweiterung ohne
+  Auftrag**, das waere derselbe Fehler in der anderen Richtung.
+- **Die Grenze, die ich ziehe:** nach W3c gehen wir zu W4, auch wenn die
+  naechste Pruefung wieder Waechterluecken findet. Was ab dann gefunden wird,
+  wird **dokumentiert und eingeplant**, nicht sofort geschlossen - ausser es
+  betrifft die Schicht, an der der naechste Schritt arbeitet. Das ist das
+  Kriterium, nicht die Prioritaet: **ein blinder Winkel dort, wo gerade
+  gearbeitet wird, ist teurer als ein groesserer anderswo.**
+
+## Entscheidungen des Directors - W3c (2026-09-03)
+
+- **W3c erledigt, jeder Punkt mit Rot-vorher-Beleg.** Der `developer` hat fuer
+  (a), (b) und (c) jeweils die alte Fassung kurz zurueckgesetzt, den neuen
+  Test fallen sehen und danach exakt zurueckgestellt - mit sha256-Vergleich
+  vorher/nachher als Beleg, dass nichts haengengeblieben ist.
+- **Die schaerfste Beobachtung des Laufs betrifft (c):** der Nachweis fuer
+  `use_tree` musste in einen **Subprozess**, weil der Testprozess `nrplanner`
+  bereits importiert hatte - der `sys.modules`-Cache haette die Pruefung sonst
+  maskiert. Ein Test, der im selben Prozess laeuft, waere gruen gewesen und
+  haette nichts belegt. **Das ist dieselbe Klasse wie QA-079(a) selbst** -
+  ein Nachweis, der die Meldung statt des Signals prueft - und er hat sie beim
+  Bauen des Fixes fuer genau diese Klasse erkannt.
+- **QA-076 geloest, ohne die gute Entscheidung zurueckzunehmen.** Die
+  Harness-Zuweisung bleibt (die Begruendung war und ist richtig), aber der
+  Docstring benennt die Luecke, und ein eigener Waechter ruft `recompute()`
+  **real** auf und prueft gegen `current_build()`. Nicht-Vakuitaet geprueft.
+- **Commit-Hygiene: akzeptiert, kein Rueckbau.** Der QA-081-Kommentar ist
+  versehentlich im QA-076-Commit mitgelaufen, weil beide Aenderungen in
+  derselben Datei lagen. Der `developer` hat es von sich aus gemeldet.
+  Funktional korrekt; Historie umzuschreiben kostet mehr als der Gewinn.
+- **QA-080 als Doku geloest statt als Verhaltensaenderung** - Default 20
+  bleibt, das Flag steht jetzt im Docstring. Der kleinere Eingriff, und beide
+  Wege waren zugelassen.
+- **Neue Debt, gemeldet und nicht behoben:** der Kommentar in `mutate.py`
+  behauptet, `app.py` sei CRLF im Arbeitsbaum - gemessen ist es LF
+  (`.gitattributes` erzwingt es). Das **Verhalten** ist richtig
+  (`newline_of()` erkennt zur Laufzeit), nur die Kommentierung ist veraltet.
+  Wieder dieselbe Klasse, diesmal harmlos. Geht mit dem naechsten Anlass mit.
+- **W3c bekommt keinen eigenen QA-Lauf.** Es sind Doku und Waechter, jeder mit
+  eigenem Rot-vorher-Beleg des `developer`. **Die Pruefung reitet mit der
+  W4-Abnahme mit** - und zwar zwingend, weil der `qa-engineer` das
+  Messinstrument dort ohnehin benutzt: waere es kaputt, faellt es genau dann
+  auf, wenn es zaehlt. Das ist die Anwendung der Grenze, die ich nach der
+  W3b-Abnahme gezogen habe.
