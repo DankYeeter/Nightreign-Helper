@@ -543,6 +543,13 @@ def held_fingerprint(problem: SlotProblem) -> tuple[tuple, ...]:
             tuple(sorted(relic.effect_ids)),
             tuple(sorted(relic.curse_ids)),
         ))
+    # Ordered by `repr` rather than naturally: a custom relic's handle is
+    # `None` and an owned one's is an int, and Python refuses to order those
+    # against each other -- a held custom relic would turn the fingerprint
+    # into a TypeError at the moment a cache key was formed. `repr` is a total
+    # order over these tuples and deterministic for the strings, ints and
+    # tuples they hold. The order only has to be the *same* every time; it
+    # does not have to mean anything.
     return tuple(sorted(entries, key=repr))
 
 

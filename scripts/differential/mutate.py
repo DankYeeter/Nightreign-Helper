@@ -507,6 +507,22 @@ MUTATIONS: dict[str, Mutation] = {
             "test_advisor_goals.py::"
             "test_the_damage_goal_charges_the_starting_armament_penalty."),
     ),
+    "advisor-fingerprint-sorted-naturally": Mutation(
+        path="nrplanner/advisor/types.py",
+        old="""    return tuple(sorted(entries, key=repr))
+""",
+        new="""    return tuple(sorted(entries))
+""",
+        survival_means=(
+            "a held custom relic beside a held owned one raises `TypeError` "
+            "when the fingerprint is formed -- `None` does not order against "
+            "an int -- and it does so in the worker thread while a cache key "
+            "is being built, which is the hardest place in this design to "
+            "trace an exception back from. `UI_SPEC` AK-58 allows exactly "
+            "that pairing, so it is an ordinary state and not an exotic one. "
+            "Killed by test_advisor_types.py::"
+            "test_a_custom_relic_held_beside_an_owned_one_still_fingerprints."),
+    ),
     "advisor-rates-an-armament-itself": Mutation(
         path="nrplanner/advisor/goals.py",
         old="""    rates = [build.rates.get(field_name, 1.0)

@@ -91,6 +91,32 @@ def a_non_stacking_effect(data: dict, hero: dict, field_name: str) -> int:
                       f"{field_name}")
 
 
+def a_move_scoped_attack_buff(data: dict, hero: dict) -> int:
+    """An attack buff the game restricts to one move, in prose only.
+
+    QA-018, closed by the user's measurement in play: "counterattack ist nur
+    bei konter, nicht global". The four families are listed by id in
+    `model.MOVE_SCOPED_EFFECT_IDS`, and `compute` routes them to a scoped key
+    instead of into the flat multiplier -- so they reach no ordinary attack
+    rating. Asked of the model here rather than assumed from the list, because
+    the list is the input to that routing and not proof that it happened.
+    """
+    from nrplanner import damage, model
+
+    curves = data.get("curves", {})
+    flat = {name for names in damage.AR_RATE_FOR.values() for name in names}
+    for effect_id in sorted(model.MOVE_SCOPED_EFFECT_IDS):
+        effect = data["effects"].get(str(effect_id))
+        if effect is None:
+            continue
+        rates = model.compute(hero, LEVEL, [effect], curves).rates
+        scoped = any(key.startswith(model.SCOPED_PREFIX) for key in rates)
+        if scoped and not any(abs(rates.get(f, 1.0) - 1.0) > 1e-9
+                              for f in flat):
+            return effect_id
+    raise LookupError("no move-scoped attack buff in this dataset")
+
+
 def make_inventory(data: dict, hero: dict, *, colour: int = RED,
                    count: int = 4, handles: list[int | None] | None = None,
                    deep_count: int = 0, other_colour: int | None = None,

@@ -212,6 +212,28 @@ def test_a_slot_held_empty_is_not_the_same_question_as_a_free_slot():
     assert types.held_fingerprint(free) != types.held_fingerprint(empty)
 
 
+def test_a_custom_relic_held_beside_an_owned_one_still_fingerprints():
+    """A held custom relic has no handle, and `None` does not order with ints.
+
+    Two held slots, one of each kind, is the shortest way to a fingerprint
+    that compares them -- and `UI_SPEC` AK-58 allows exactly that pairing. A
+    natural sort would raise `TypeError` at the moment a cache key was being
+    formed, which is in the worker thread, which is where an exception is
+    hardest to trace back to its cause.
+    """
+    custom = types.HeldRelic(relic_id=-1, name="Custom relic",
+                             effect_ids=(1,), handle=None)
+    problem = types.SlotProblem(
+        slots=A_PROBLEM.slots,
+        held=(types.HeldSlot(0, custom), types.HeldSlot(1, A_RELIC)))
+
+    assert len(types.held_fingerprint(problem)) == 2
+    assert types.held_fingerprint(problem) == types.held_fingerprint(
+        types.SlotProblem(slots=A_PROBLEM.slots,
+                          held=(types.HeldSlot(0, A_RELIC),
+                                types.HeldSlot(1, custom))))
+
+
 def test_a_held_custom_relic_occupies_no_copy():
     """A custom relic is imaginary, so it takes nothing out of the inventory.
 

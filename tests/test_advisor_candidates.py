@@ -287,6 +287,39 @@ def test_every_candidate_carries_both_directions(game_data, wylder):
     assert {baseline.goal_id for baseline in pool.baseline} == set(goals.GOALS)
 
 
+def test_a_buff_the_game_restricts_to_one_move_is_worth_nothing_here(
+        game_data, wylder):
+    """QA-018 reaches the advisor through the facade, not through a rule here.
+
+    "Improved Thrusting Counterattack" lifts a thrusting counterattack and no
+    other swing -- the user measured it in play, and `compute` routes the
+    four families named in `model.MOVE_SCOPED_EFFECT_IDS` to a scoped key
+    instead of into the flat multiplier. So a candidate carrying one adds
+    nothing to an ordinary attack rating, while the flat family beside it
+    ("Improved Physical Attack Power" and its 200-odd relatives) adds what it
+    always did.
+
+    The advisor states none of that: it asks `damage.py`, and the scope
+    decision is made there once. This case is what shows the inheritance is
+    real -- and the registered mutation `move-scope-list-emptied` is its
+    counter-build, from the other side of the same decision.
+    """
+    scoped = advisor.a_move_scoped_attack_buff(game_data, wylder)
+    flat = cases.effects_raising_rate(game_data, wylder,
+                                      "physicsAttackRate")[0]
+    inventory = advisor.make_inventory(game_data, wylder, count=2,
+                                       rolls=[[scoped], [flat]])
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    pool = pool_for(inventory, advisor.problem([advisor.RED]), 0, ctx, DAMAGE)
+    by_handle = {c.handle: c for c in pool.candidates}
+
+    assert types.marginal_for(by_handle[100], DAMAGE) == pytest.approx(0.0)
+    assert types.marginal_for(by_handle[101], DAMAGE) > 0
+
+
 # -- order ------------------------------------------------------------------
 
 def test_the_order_is_the_ranking_goals_order(game_data, wylder):
