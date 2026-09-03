@@ -297,15 +297,16 @@ class ArsenalTab(QWidget):
         if predicate is not None and 0 < shown <= 60:
             for section in self._top_sections:
                 section.expand_all()
-        # The attack-rating caveat is measured, not hedging: in the training
-        # area the game's own panel reads about 60% of the computed figure,
-        # and whether that scale applies on expeditions is still being
-        # verified in play. Ratings still rank weapons correctly either way.
+        # UI_SPEC.md, Nachtrag zu AK-34 (T-035, 2026-09-03): Fassung B, faellig
+        # seit T-033, weil MULTIPLIERS_FOR[Basis.CANDIDATE] jetzt True ist --
+        # das Arsenal ranking wirkt jetzt ebenfalls mit der Multiplikatorschicht.
+        # Der bisherige 60%-Satz entfaellt ersatzlos (AK-34: die Zeichenketten
+        # "60%", "under investigation" und "ranking between weapons is
+        # unaffected" duerfen im Baum nicht mehr vorkommen).
         self.summary.setText(
-            f"{self.header_text}. {shown} shown. Attack rating is base damage "
-            f"plus what your stats add to it. The in-game panel has been seen "
-            f"showing about 60% of these figures (under investigation); the "
-            f"ranking between weapons is unaffected. Spell damage is not in "
+            f"{self.header_text}. {shown} shown. Attack rating is base "
+            f"damage, plus what your stats add to it, plus the +% attack "
+            f"effects your equipped relics grant. Spell damage is not in "
             f"the game's data, so spells show their costs instead."
         )
 
