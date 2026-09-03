@@ -434,6 +434,14 @@ class ArsenalTab(QWidget):
         return total
 
     def _build_spells(self, outer, predicate, category: str) -> int:
+        # No guard on these figures, and that is a decision, not a gap
+        # (QA-086, the lesson from QA-064/070/073/083 applied to a
+        # non-action): every number a spell tile shows below is read straight
+        # off the dataset -- FP, FP charged, Stamina, slot count -- with no
+        # calculation of this module's own standing between the data and the
+        # label. There is nothing here for a wrong formula to hide behind.
+        # If one of these figures is ever computed instead of looked up, it
+        # needs a guard at the moment it starts being computed, not before.
         by_family: dict[str, list] = {}
         for spell in self.data.get("spells", []):
             if spell["category"] != category:

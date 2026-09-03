@@ -30,9 +30,24 @@ The two questions are separate cases on purpose. That the tab shows the
 facade's `candidate()` answer, and that it asks that question at the
 **spinbox's** tier rather than at the slot's, are different claims: the first
 one holds just as well for a tab that ranks everything at tier 4.
+
+**QA-086, added in W5: the guard above holds the AR row alone.** Measured
+2026-09-03 on this tree, 275 of 275 green against four independent edits: a
+damage-type row on a multi-type tile appended twice, the "Upgraded to" line
+naming a tier the armament was not actually rated at, `effective_rarity`
+dropped the `-1` that turns a rating tier into a rarity band (which the
+rarity filter reads to decide what to show), and a spell's FP row doubled.
+Two of those four get a case below -- a multi-type armament checked row by
+row, and the rarity filter checked against an independently counted
+expectation. The third (the "Upgraded to" line) rides along with the first
+case, because both live on the same tile read at the same tier. The fourth
+does not: see `_build_spells` in `nrplanner/arsenaltab.py` for why the spell
+figures stay unguarded on purpose rather than by omission.
 """
 
 from __future__ import annotations
+
+import re
 
 import pytest
 from PySide6.QtWidgets import QLabel
@@ -199,3 +214,159 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
         assert tile_ar(tile) == f"{at_spinbox.final_total:.0f}", (
             f"the tab is ranking {weapon['name']!r} at a tier the spinbox "
             f"does not show")
+
+
+# -- QA-086: two targeted additions, not a wider guard -----------------------
+
+def tile_rows(tile) -> list[tuple[str, str]]:
+    """Every (label, value) row on a tile, in the order `Tile` laid them out.
+
+    The header is the icon badge (an empty label) and the name -- both
+    asserted away rather than assumed, same as `tile_name` -- and everything
+    after them comes in pairs.
+    """
+    labels = [label.text() for label in tile.findChildren(QLabel)]
+    assert len(labels) >= 2 and labels[0] == "", (
+        "the tile header is not the icon badge followed by the name any "
+        "more; this helper reads the wrong labels")
+    body = labels[2:]
+    assert len(body) % 2 == 0, (
+        f"the tile's rows are not (label, value) pairs any more: {labels!r}")
+    return list(zip(body[0::2], body[1::2]))
+
+
+def multitype_weapon(game_data, build, tier: int) -> dict:
+    """The lowest-id armament this build rates at two or more damage types.
+
+    Chosen by asking the facade, not by an id written down here: which
+    armaments deal more than one damage type does not change often, but a
+    hardcoded id would still be a guess about the dataset rather than a fact
+    read off it.
+    """
+    for weapon in sorted(game_data["weapons"], key=lambda w: w["id"]):
+        rating = damage.candidate(weapon, tier, build, game_data)
+        if len(rating.final_per_type) >= 2:
+            return weapon
+    raise LookupError(
+        "no armament in this dataset rates at two or more damage types at "
+        "this tier, so this case has nothing to check row by row")
+
+
+def test_every_type_row_and_the_upgrade_line_match_the_facade(
+        planner, game_data, hero):
+    """QA-086 (a) and (b): the tile is checked past its headline AR row.
+
+    `test_every_tile_shows_the_candidate_answer_for_the_chosen_tier` above
+    reads only the AR row, which is exactly the gap QA-086 measured: doubling
+    every damage-type row underneath it, or naming the wrong tier on the
+    "Upgraded to" line, left that case and the whole suite green. A
+    single-type armament could not catch either -- there would be only one
+    type row to duplicate into, and duplicating one row that already carries
+    the total looks the same as not duplicating it -- so this case picks a
+    multi-type one and reads every row the facade has an opinion on.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+    build = planner.current_build()
+    # Not MAX_UPGRADE: `reached` and the dataset's own ceiling would then be
+    # the same number, and a mutation that hardcodes the ceiling in place of
+    # `reached` would have nothing to disagree with.
+    tier = weapons.MAX_UPGRADE - 1
+
+    weapon = multitype_weapon(game_data, build, tier)
+    tab.upgrade.setValue(tier)
+    tiles = drawn_tiles(tab, weapon)
+    assert tiles, f"the tab drew no tile for {weapon['name']!r}"
+
+    expected = damage.candidate(weapon, tier, build, game_data)
+    assert len(expected.final_per_type) >= 2, (
+        f"{weapon['name']!r} no longer rates at two or more damage types at "
+        f"tier {tier}; this case needs one that does")
+    own_tier = weapon.get("rarity", 0) + 1
+    assert expected.tier_applied > own_tier, (
+        f"{weapon['name']!r} is not actually upgraded by asking for tier "
+        f"{tier}, so the 'Upgraded to' line has nothing to check")
+
+    for tile in tiles:
+        rows = tile_rows(tile)
+        assert rows[0] == ("AR", f"{expected.final_total:.0f}")
+
+        type_rows = rows[1:1 + len(expected.final_per_type)]
+        expected_type_rows = [
+            (weapons.DAMAGE_LABELS[damage_type], f"{value:.0f}")
+            for damage_type, value in expected.final_per_type.items()
+        ]
+        assert type_rows == expected_type_rows, (
+            f"{weapon['name']!r}: the damage-type rows are "
+            f"{type_rows!r}, the facade says {expected_type_rows!r}. A "
+            f"doubled or dropped row would show here as an extra or "
+            f"missing pair rather than a wrong number")
+
+        remaining_type_labels = [label for label, _ in rows[len(expected_type_rows) + 1:]
+                                 if label in weapons.DAMAGE_LABELS.values()]
+        assert not remaining_type_labels, (
+            f"{weapon['name']!r}: a damage-type row appears again after the "
+            f"contiguous block the facade accounts for: {remaining_type_labels!r}")
+
+        reached = min(expected.tier_applied, weapons.MAX_UPGRADE)
+        expected_upgrade_row = (
+            "Upgraded to",
+            f"+{reached} {arsenaltab.RARITY_NAMES.get(reached - 1, '')}")
+        assert expected_upgrade_row in rows, (
+            f"{weapon['name']!r}: expected the row {expected_upgrade_row!r} "
+            f"among {rows!r}")
+
+
+def weapons_section_total(tab) -> int:
+    """The N in the tab's "Weapons  (N)" heading.
+
+    Read off the section's own toggle text rather than off `tab.ratings`, for
+    the same reason `tile_ar` reads a label instead of a list entry: the
+    count a player sees is the one this case is about.
+    """
+    heading = tab._top_sections[0].toggle.text()
+    match = re.match(r"Weapons\s+\((\d+)\)", heading)
+    assert match, f"unexpected weapons section heading: {heading!r}"
+    return int(match.group(1))
+
+
+def test_the_rarity_filter_agrees_with_the_section_count(
+        planner, game_data, hero):
+    """QA-086 (c): the band a player picks is the band the count describes.
+
+    `effective_rarity` in `nrplanner/arsenaltab.py` turns a rating tier
+    (1-based) into a rarity band (0-based) with a `-1` that this case is the
+    only thing standing on: dropping it left every existing test green while
+    every band but the top one showed the wrong armaments -- 856 armaments
+    where the "Common" band should have shown 160 at tier 1 (QA-086).
+
+    The expectation is counted independently of `effective_rarity` here, from
+    the same tier-to-band relationship written out again rather than
+    imported, so a wrong `-1` in the tab has nothing to agree with by
+    sharing the code that computes it.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+    build = planner.current_build()
+    tier = weapons.MIN_UPGRADE
+    band = 0    # "Common"
+
+    expected = sum(
+        1 for rating in damage.rank_candidates(build, tier, game_data)
+        if min(rating.tier_applied - 1, weapons.RARITY_TIERS - 1) == band
+    )
+    assert 0 < expected < len(game_data["weapons"]), (
+        "the 'Common' band at this tier is empty or holds the whole "
+        "dataset, so this case cannot tell a correct filter from a broken "
+        "one")
+
+    tab.upgrade.setValue(tier)
+    index = tab.rarity_box.findData(band)
+    assert index >= 0, f"the rarity filter has no entry for band {band}"
+    tab.rarity_box.setCurrentIndex(index)
+    tab.recalculate()
+
+    assert weapons_section_total(tab) == expected, (
+        f"the tab shows {weapons_section_total(tab)} armaments for the "
+        f"'Common' band at tier {tier}, an independent count over the "
+        f"facade's own ratings says {expected}")

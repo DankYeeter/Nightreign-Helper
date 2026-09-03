@@ -260,6 +260,59 @@ MUTATIONS: dict[str, Mutation] = {
             "of them can see this. Killed since by "
             "test_switching_to_the_tab_alone_repaints_it_for_the_current_build."),
     ),
+    "arsenal-rarity-band-off-by-one": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""            return min(rating.tier_applied - 1, RARITY_TIERS - 1)
+""",
+        new="""            return min(rating.tier_applied, RARITY_TIERS - 1)
+""",
+        survival_means=(
+            "the rarity filter shows the wrong armaments in every band but "
+            "the top one, and the summary count agrees with the wrong list "
+            "rather than the right one. Measured on the tree before this "
+            "guard existed: at tier 1 the 'Common' band showed 856 "
+            "armaments instead of 160 (QA-086 c), and every existing test "
+            "stayed green because none of them read the rarity filter or "
+            "the section count. Killed since by "
+            "test_the_rarity_filter_agrees_with_the_section_count."),
+    ),
+    "arsenal-tile-type-row-duplicated": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""                for damage_type, value in rating.final_per_type.items():
+                    lines.append((weapons.DAMAGE_LABELS[damage_type],
+                                  f"{value:.0f}"))
+""",
+        new="""                for damage_type, value in rating.final_per_type.items():
+                    lines.append((weapons.DAMAGE_LABELS[damage_type],
+                                  f"{value:.0f}"))
+                    lines.append((weapons.DAMAGE_LABELS[damage_type],
+                                  f"{value:.0f}"))
+""",
+        survival_means=(
+            "a multi-type tile carries a duplicate row for every damage "
+            "type it deals, and nothing on the tab or in the suite reads "
+            "far enough down a tile to notice (QA-086 a) -- the AR-only "
+            "guard from AD-019 W4/QA-083 stops at the headline row. Killed "
+            "since by "
+            "test_every_type_row_and_the_upgrade_line_match_the_facade."),
+    ),
+    "arsenal-upgraded-to-names-the-wrong-tier": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""                if rating.tier_applied > own_tier:
+                    lines.append(("Upgraded to", f"+{reached} "
+                                                 f"{RARITY_NAMES.get(reached - 1, '')}"))
+""",
+        new="""                if rating.tier_applied > own_tier:
+                    lines.append(("Upgraded to", f"+{weapons.MAX_UPGRADE} "
+                                                 f"{RARITY_NAMES.get(weapons.MAX_UPGRADE - 1, '')}"))
+""",
+        survival_means=(
+            "the 'Upgraded to' line names the dataset's own maximum tier "
+            "for every upgraded armament, regardless of the tier it was "
+            "actually rated at (QA-086 b) -- '+4 Legendary' shown for an "
+            "armament rated to +3 Rare. Killed since by "
+            "test_every_type_row_and_the_upgrade_line_match_the_facade."),
+    ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
         old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
