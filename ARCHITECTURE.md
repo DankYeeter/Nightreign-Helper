@@ -1747,7 +1747,6 @@ class Rating:
     tier_applied: int       # welches Tier tatsaechlich erreicht wurde
     per_type: dict[str, float]
     total: float
-    unmet: dict[str, tuple[int, int]]
     rates: dict[str, float]     # nur die != 1.0, fuer die Aufklapp-Tafel
     weapon_class: str | None
     starting_armament: bool
@@ -1760,8 +1759,12 @@ def candidate(weapon, target_tier, build, data) -> Rating:
     """Eine Waffe, die nirgends steckt, auf einem gewaehlten Ziel-Tier.
     Kein slot_index, also nie eine Startwaffen-Strafe (AD-020, Punkt 3)."""
 
-def rank_candidates(build, target_tier, data, *, require_usable) -> list[Rating]:
-    """`weapons.rank` mit derselben Politik wie `candidate`."""
+def rank_candidates(build, target_tier, data) -> list[Rating]:
+    """Jede Waffe im Datensatz als Kandidat, `weapons.rank` gefolgt vom
+    Aufbau der Antwort je Zeile. Kein `require_usable`-Parameter mehr:
+    Nightreign kennt keine Attributsanforderungen fuer Waffen, nur
+    Charakterlevel (QA-061, T-034) -- die Anforderungspruefung war toter
+    Code und ist samt `WeaponRating.unmet` entfernt."""
 ```
 
 `AttackRating` aus AD-005 bleibt als Rückgabetyp der Aufklapp-Tafel bestehen
