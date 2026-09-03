@@ -656,6 +656,14 @@ Zahlen zweier Bäume, dieses Skript stoppt Sekunden auf einem), und wenn der
 | `64174eb` | `feat(advisor)`: der Rechenkern, vier Module, fünf Testdateien, zwölf Mutationen |
 | `3350172` | `test(advisor)`: Wächter geschärft (Kontexttypen belegt, Prüfpunkt 15, Attack-Rating-Vorbehalt, eHP-Annahme), AD-021-Gegenbau nachgetragen |
 | `690db5f` | `test(advisor)`: Fingerabdruck gegen ein gehaltenes Custom relic; QA-018-Erbe als Fall |
-| (folgt) | `chore`: Messskript und dieser Bericht |
+| `6ab589a` | `chore(advisor)`: `scripts/measure_advisor_picker.py` und dieser Bericht |
 
 Kein `push`, kein `merge`, kein Branchwechsel, `.gitignore` unberührt.
+
+**Nicht von mir, aber im Arbeitsbaum vorhanden** (Stand des letzten `git
+status` dieses Auftrags, 2026-09-03): `docs/state.md` ist geändert, und
+`docs/berichte/T-039-researcher.md`, `docs/berichte/T-040-researcher.md`,
+`docs/research/R-004.md`, `docs/research/R-005.md`, `docs/tasks/T-037.md` bis
+`docs/tasks/T-040.md` liegen unversioniert daneben. Ich habe nichts davon
+angefasst und nichts davon committet — sie gehören anderen Rollen. Der
+`director` sollte wissen, dass sie noch nicht im Verlauf stehen.
