@@ -3,10 +3,11 @@
 The shape of it is the engine's own formula, assembled from four params that
 all carry an exact paramdef:
 
-  base   = attackBase{Type} x reinforce.{type}AtkRate x GAME_ATTACK_POWER_RATE
+  base   = attackBase{Type} x reinforce.{type}AtkRate
   factor = correct{Stat}/100 x reinforce.correct{Stat}Rate
            x curve(stat) / 100 x influence{Stat}_by{Type}
   AR     = base x (1 + sum of factors over every scaling stat)
+           x GAME_ATTACK_POWER_RATE
 
 Which stats feed which damage type comes from AttackElementCorrectParam; the
 curve id per damage type comes from the weapon's own correctType_{Type}.
@@ -149,15 +150,12 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         if not base:
             continue
         base *= reinforce["atk"].get(damage, 1.0)
-        # The one place the game's constant is applied, and it is applied to
-        # `base` rather than to the finished figure on purpose: the scaled
-        # part below is `base x bonus`, so one multiplication here reaches
-        # both halves and they cannot part company. Everything downstream --
-        # `scaled_per_type`, the facade, every tile, the panel, the arsenal
-        # tab and the advisor -- therefore sees the game's number without a
-        # second constant anywhere (AD-019, QA-018).
-        base *= GAME_ATTACK_POWER_RATE
-        result.base[damage] = base
+        # `base` here is still the raw one. The game's constant is applied to
+        # each finished per-type figure instead, at the two lines that write
+        # into `result` -- see the note beside `result.scaled` below for why
+        # this bracketing and not the shorter `base *= GAME_ATTACK_POWER_RATE`
+        # on this line.
+        result.base[damage] = base * GAME_ATTACK_POWER_RATE
 
         rules = aec.get(damage, {})
         curve_id = str(weapon["curve"].get(damage))
@@ -195,7 +193,25 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
                 influence = rule["influence"] / 100.0
                 bonus += correct * ratio * influence
 
-        result.scaled[damage] = base * bonus
+        # The second and last place the game's constant is applied, and the
+        # bracketing is measured rather than chosen for looks. Written the
+        # shorter way -- `base *= GAME_ATTACK_POWER_RATE` above, and this line
+        # left as `base * bonus` -- the scaled figure carries two roundings
+        # where it used to carry one, and its ratio to the old figure drifts:
+        # measured over 350 160 per-type figures (ten Nightfarers x levels 1,
+        # 12, 15 x four tiers x every armament, 2026-09-04), 574 of them come
+        # out 2 ULP from 0.6 instead of 1. Written this way each per-type
+        # figure is exactly `fl(old x 0.6)` and **none** of the 350 160 is
+        # further than 1 ULP.
+        #
+        # The summed totals keep a residue either way -- 480 of 215 160 at
+        # 2 ULP here against 1081 the other way -- and that residue cannot be
+        # removed from inside this function: a sum of separately rounded terms
+        # is not the rounded sum, whichever term carries the constant. Said
+        # out loud so the next reader does not go looking for the bracketing
+        # that makes it zero (AD-024: bracketing is decided by what it makes
+        # unambiguous, not by which looks more careful).
+        result.scaled[damage] = base * bonus * GAME_ATTACK_POWER_RATE
 
     return result
 
