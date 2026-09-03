@@ -162,13 +162,22 @@ def test_which_tile_is_ringed_moves_no_tile_s_figure(
     `scripts/differential/mutate.py` as `active-tile-only`, so this claim can
     be re-run rather than believed.
 
-    **The build is held fixed across the draws on purpose.** Choosing another
-    slot in the running program does change the build -- the
-    starting-armament pairing and the weapon gates follow the active
-    armament -- so "a tile figure never depends on the active slot" would be
-    false, and a test asserting it would be asserting the wrong thing. What is
-    true, and what the player relies on, is narrower: for one and the same
-    build, the gold ring moves and no figure does.
+    **The build is held fixed across the draws, for simplicity, not
+    necessity.** An earlier version of this docstring justified that by
+    saying choosing another slot changes the build because "the weapon gates
+    follow the active armament" -- that does not match the code and was
+    corrected 2026-09-03 (QA-082). Weapon-type gates are read off
+    `weapons_held`, every filled slot at once, not the active one
+    (`model.py:739-742`); the starting-armament pairing follows the **slot
+    index** an armament sits in, not which slot is ringed (`damage.equipped`,
+    `damage.py:376-391`); class-scoped rates key off the class of the
+    armament being rated, not the active one (`damage.py:326`). None of the
+    three hinges on which tile is active, and the `qa-engineer` measured it
+    directly: 0 of 120 grids show a dependency, rounded and unrounded alike
+    (2026-09-03). So "a tile figure never depends on the active slot" is, in
+    fact, a true and broader assertion this test could make. It stays with
+    the narrower one below because that is all the fix this test guards
+    needed -- not because the broader one would be wrong.
     """
     pairs = armaments(game_data, hero)
     fill(planner, game_data, hero, pairs)
