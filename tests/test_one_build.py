@@ -270,13 +270,37 @@ def _equip_a_cursed_deep_relic(planner):
     return None
 
 
+#: Where `model.compute` may be reached from, and why each of them may.
+#:
+#: `app.py` is the window: every tab takes its build from
+#: `Planner.current_build()`, so a new argument cannot reach one tab and miss
+#: another (QA-001).
+#:
+#: `advisor/evaluate.py` is the second and last, added for AD-014.1. The
+#: advisor evaluates a build at three places -- the base state, the pre-sort
+#: and the beam step -- and every one of them has to carry the held slots. A
+#: rule that must not be forgotten at three places is kept by there being one
+#: place, not by care, so `candidates.py`, `search.py` and the base run all go
+#: through `evaluate()`.
+COMPUTE_CALLERS = {
+    "nrplanner/app.py": 1,
+    "nrplanner/advisor/evaluate.py": 1,
+}
+
+
 def test_the_user_interface_holds_exactly_one_call_to_compute():
-    """One call site, so a new argument cannot reach one tab and miss another.
+    """One call site per authority, so nobody gets a build of their own.
 
     This is the guard that outlives the fix above. Correcting the second
     argument list would have made the numbers agree today and drifted again at
     the next parameter; what keeps them together is that there is only one
     place to pass one.
+
+    Two entries rather than one since AD-014.1, and the second is not a
+    loosening: the window's call answers "what is on screen", the advisor's
+    answers "what would be on screen if this relic were in that slot", and
+    neither can be expressed through the other. Every further entry is a
+    second build disagreeing with the first, which is what this fails on.
     """
     callers = {
         path.relative_to(REPO).as_posix():
@@ -284,9 +308,9 @@ def test_the_user_interface_holds_exactly_one_call_to_compute():
         for path in UI_MODULES
     }
 
-    assert {name: n for name, n in callers.items() if n} == {
-        "nrplanner/app.py": 1
-    }, ("every tab must take the build from Planner.current_build(); "
+    assert {name: n for name, n in callers.items() if n} == COMPUTE_CALLERS, (
+        "every tab must take the build from Planner.current_build(), and "
+        "everything under advisor/ from evaluate.evaluate(); "
         f"model.compute is reached in {callers}")
 
 

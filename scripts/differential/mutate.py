@@ -313,6 +313,225 @@ MUTATIONS: dict[str, Mutation] = {
             "armament rated to +3 Rare. Killed since by "
             "test_every_type_row_and_the_upgrade_line_match_the_facade."),
     ),
+    # -- the build advisor (T-037: S4, S4b, S5, S6) -------------------------
+    #
+    # The advisor's guards are young and its failures are quiet ones: a
+    # pre-sort measured against the wrong base state does not crash, it
+    # produces a plausible order. Each entry below is one of those.
+    "advisor-computes-in-a-second-place": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    base_build = evaluate(base_problem, (), ctx)
+""",
+        new="""    from .. import model
+    base_build = model.compute(ctx.hero, ctx.level, [],
+                               ctx.data.get("curves", {}))
+""",
+        survival_means=(
+            "AD-014.1 is unenforced: the advisor may reach `model.compute` "
+            "from more than one place, and each of those places can forget "
+            "the held slots on its own. The base state written here forgets "
+            "them -- every candidate would then be ranked against the empty "
+            "build while the search ran against the held one. Killed by "
+            "test_one_build.py::"
+            "test_the_user_interface_holds_exactly_one_call_to_compute, "
+            "whose expectation grew by exactly one entry for evaluate.py."),
+    ),
+    "advisor-presorts-against-the-empty-build": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    base_problem = base_state_for(problem, slot_index)
+""",
+        new="""    base_problem = types.SlotProblem(slots=problem.slots)
+""",
+        survival_means=(
+            "do-not rule 13 is unenforced. The pre-sort would run against "
+            "the empty build with something held, which recommends "
+            "candidates whose contribution the held relic already caps: the "
+            "score does not move and the suggestion still looks plausible. "
+            "Killed by test_advisor_candidates.py::"
+            "test_a_candidate_is_measured_against_the_held_build, which "
+            "holds an isStrongestEffect and offers a second copy of it."),
+    ),
+    "advisor-ranks-the-slot-as-it-stands": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    kept = tuple(entry for entry in problem.held if entry.index != slot_index)
+""",
+        new="""    kept = problem.held
+""",
+        survival_means=(
+            "AD-018.1 is unenforced: the slot being ranked keeps its own "
+            "hold, so the relic already in it is measured against a build "
+            "that still contains it and scores zero. Every relic the player "
+            "already owns in place would read as worthless, which is the one "
+            "figure the picker exists to give. Killed by "
+            "test_advisor_candidates.py::"
+            "test_the_relic_in_the_slot_is_worth_what_it_actually_adds."),
+    ),
+    "advisor-offers-a-relic-without-a-handle": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""        if relic.handle is None or relic.handle in taken:
+            continue
+""",
+        new="""        if relic.handle in taken:
+            continue
+""",
+        survival_means=(
+            "AD-013 point 4 is unenforced. A save whose loadout table cannot "
+            "be read yields no handles at all, and copy identity would then "
+            "be given up for exactly the relics it cannot be checked for -- "
+            "a suggestion naming one could not be applied to a slot. Killed "
+            "by test_advisor_candidates.py::"
+            "test_a_copy_without_a_handle_is_not_offered_and_is_reported."),
+    ),
+    "advisor-leaves-a-relic-out-without-saying-so": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    unknowns = ((_without_a_handle_line(without_handle),)
+                if without_handle else ())
+""",
+        new="""    unknowns = ()
+""",
+        survival_means=(
+            "the other half of AD-013 point 4, and `GOAL.md` A7 with it: the "
+            "copies are correctly left out and nothing says so, leaving the "
+            "player to look for a relic they own and cannot find in the "
+            "list. Killed by test_advisor_candidates.py::"
+            "test_a_copy_without_a_handle_is_not_offered_and_is_reported, "
+            "which asserts both halves rather than only the filter."),
+    ),
+    "advisor-forgets-the-held-handles": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    taken = types.held_handles(base_problem)
+""",
+        new="""    taken = frozenset()
+""",
+        survival_means=(
+            "AD-014.5 is unenforced: a copy the player is holding is offered "
+            "for a second slot as well. On a vessel with two slots of one "
+            "colour that is the shape AD-013 measured on `Wylder's Urn` -- "
+            "40 of 40 suggestions unusable, the best one included, and all "
+            "of them with a plausible score. Killed by "
+            "test_advisor_candidates.py::"
+            "test_a_held_copy_is_not_offered_a_second_time."),
+    ),
+    "advisor-scores-only-the-ranking-goal": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""        marginals = tuple(
+            types.Marginal(goal_id, goal.score(build, ctx).value
+                           - baseline[goal_id])
+            for goal_id, goal in goals.items()
+        )
+""",
+        new="""        marginals = (types.Marginal(
+            rank_by, goals[rank_by].score(build, ctx).value
+            - baseline[rank_by]),)
+""",
+        survival_means=(
+            "AD-018 point 2 and AD-023/OF-13 are unenforced. Only the sorted "
+            "direction would carry a figure, so a relic that costs survival "
+            "to buy damage could not be shown costing anything -- and the "
+            "only remaining way to show it would be a weighted single "
+            "number, which is the invented exchange rate A7 forbids. Killed "
+            "by test_advisor_candidates.py::"
+            "test_every_candidate_carries_both_directions."),
+    ),
+    "advisor-marginals-as-a-mutable-map": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""        measured.append(dataclasses.replace(candidate, marginals=marginals))
+""",
+        new="""        measured.append(dataclasses.replace(
+            candidate,
+            marginals={entry.goal_id: entry.gain for entry in marginals}))
+""",
+        survival_means=(
+            "QA-066 reaches the advisor after all: a `frozen` dataclass "
+            "handed a dict is frozen in name and shared in fact, and AD-018 "
+            "memoises marginal contributions. The failure only shows where "
+            "the key is formed, which is S9 -- long after this. Killed by "
+            "test_advisor_candidates.py::"
+            "test_a_pool_the_advisor_produced_can_be_a_cache_key, which "
+            "hashes what the pool really produced rather than reading its "
+            "annotations."),
+    ),
+    "advisor-shortlist-without-room-for-the-others": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    room = budget.candidates_per_slot + free_slot_count - 1
+""",
+        new="""    room = budget.candidates_per_slot
+""",
+        survival_means=(
+            "S5+/AD-013 point 3 is unenforced. The search takes the first K "
+            "**available** candidates, so every copy taken by an earlier "
+            "slot narrows the branching at the deeper ones -- quietly, and "
+            "worst where the vessel repeats a colour, which is where the "
+            "ownership rule bites hardest. Killed by "
+            "test_advisor_candidates.py::"
+            "test_the_shortlist_leaves_room_for_the_copies_the_other_slots_take."),
+    ),
+    "damage-goal-ranks-on-the-bare-figure": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
+                                 build, ctx.hero, ctx.data)
+""",
+        new="""    now, _later = damage.equipped(ctx.reference, ctx.reference.slot_index,
+                                  build, ctx.hero, ctx.data)
+""",
+        survival_means=(
+            "the damage goal ranks on the breakdown panel's left-hand "
+            "column -- the armament with nothing equipped. Every relic that "
+            "buffs an attack rate rather than an attribute would be worth "
+            "exactly nothing, and the advisor would value a build's whole "
+            "multiplier stack at zero while the panel beside it printed the "
+            "multipliers (AD-019 step W6, QA-018). Killed by "
+            "test_advisor_goals.py::"
+            "test_the_damage_goal_counts_the_attack_multipliers."),
+    ),
+    "damage-goal-asks-the-slotless-question": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
+                                 build, ctx.hero, ctx.data)
+""",
+        new="""    now = damage.candidate(ctx.reference.weapon, ctx.reference.tier,
+                           build, ctx.data)
+""",
+        survival_means=(
+            "the damage goal asks `candidate()` -- an armament in no slot -- "
+            "where the weapon panel asks `equipped()`. With no slot there is "
+            "no starting-armament pairing, so the 0.85 the game charges for "
+            "'Starting armament inflicts frost' and its two relatives "
+            "disappears from the figure (AD-020 point 3). The **order** "
+            "survives, because the penalty is a constant factor over every "
+            "candidate; the absolute figure does not, and AD-014.6 keeps the "
+            "absolute figure as the one authority. This is therefore a "
+            "mutation the ranking tests cannot see. Killed by "
+            "test_advisor_goals.py::"
+            "test_the_damage_goal_charges_the_starting_armament_penalty."),
+    ),
+    "advisor-goal-without-its-unknowns": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    return types.GoalScore(
+        value=effective,
+        display=f"Effective HP {effective:.0f}",
+        unit="effective HP",
+        unknowns=_DAMAGE_TAKEN_UNKNOWNS,
+        weights_note=ctx.weighting.note,
+    )
+""",
+        new="""    return types.GoalScore(
+        value=effective,
+        display=f"Effective HP {effective:.0f}",
+        unit="effective HP",
+        unknowns=(),
+        weights_note=ctx.weighting.note,
+    )
+""",
+        survival_means=(
+            "`GOAL.md` A7 rests on the drawing again. The figure would go to "
+            "the screen with nothing saying that ailment resistance is not "
+            "in it and that the weighting between the eight damage kinds is "
+            "an assumption nothing in the game files supports -- which is "
+            "exactly the static-warning arrangement AD-010 rejected. Killed "
+            "by test_advisor_goals.py::"
+            "test_no_goal_hands_back_an_empty_unknowns[min_damage_taken]."),
+    ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
         old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
