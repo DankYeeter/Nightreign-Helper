@@ -129,16 +129,32 @@ def test_every_shape_outside_the_context_can_be_a_cache_key(name):
     hash(SAMPLES[name])
 
 
+CONTEXT_SAMPLES = {
+    "ReferenceArmament": lambda: types.ReferenceArmament(
+        weapon={"id": 1, "name": "a weapon"}, tier=1, slot_index=0),
+    "GoalContext": lambda: types.GoalContext(
+        data={"effects": {}}, hero={"name": "Wylder"}, level=15,
+        reference=None,
+        weighting=types.Weighting(id="even", label="Even", note="even",
+                                  weights=(("slashDamageCutRate", 1.0),))),
+}
+
+
 @pytest.mark.parametrize("name", sorted(CONTEXT_TYPES))
-def test_a_context_type_is_the_exception_it_says_it_is(name):
+def test_a_context_type_really_is_the_exception_it_is_named_as(name):
     """The exception has to be real, or the rule above is not a rule.
 
-    A context type that turned out to be hashable would mean the dataset had
-    stopped travelling in it -- at which point the exception should go, not be
-    kept as a licence.
+    Shown by hashing rather than by reading a field list: a context type that
+    turned out to be hashable would mean the dataset had stopped travelling in
+    it, and the entry should then be deleted rather than kept as a standing
+    licence for the next mapping somebody wants to put in a shape.
     """
-    fields = {f.name for f in dataclasses.fields(dataclasses_in_the_module()[name])}
+    assert set(CONTEXT_SAMPLES) == CONTEXT_TYPES
+    fields = {f.name
+              for f in dataclasses.fields(dataclasses_in_the_module()[name])}
 
+    with pytest.raises(TypeError):
+        hash(CONTEXT_SAMPLES[name]())
     assert "data" in fields or "weapon" in fields, (
         f"{name} is named a context type but carries neither the dataset nor "
         f"an armament record; the exception in advisor/types.py is stale")

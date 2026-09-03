@@ -96,6 +96,27 @@ def test_every_goal_gives_a_finite_number_for_a_known_build(game_data, wylder,
     assert isinstance(score.value, float)
 
 
+def test_the_damage_goal_always_carries_the_attack_rating_reservation(
+        game_data, wylder):
+    """The promise the README's Known limits already make, kept in the result.
+
+    Attack rating has never been checked against an in-game number, and the
+    figure the advisor ranks by is that same attack rating. A run that stopped
+    saying so would be the first place in the program where the reservation
+    was dropped -- and it would be dropped exactly where the player is being
+    asked to act on the number.
+    """
+    reference = advisor.scaling_armament(game_data, wylder)
+    with_armament, ctx = build_with(game_data, wylder, reference=reference)
+    without, plain_ctx = build_with(game_data, wylder)
+
+    for build, context in ((with_armament, ctx), (without, plain_ctx)):
+        unknowns = goals.GOALS["max_damage"].score(build, context).unknowns
+        assert any("has not been verified" in line for line in unknowns)
+        assert any("Spell damage" in line for line in unknowns)
+        assert any("Critical-only" in line for line in unknowns)
+
+
 def test_the_damage_goal_counts_the_attack_multipliers(game_data, wylder):
     """A build that buffs physical attack hits harder, and the goal says so.
 

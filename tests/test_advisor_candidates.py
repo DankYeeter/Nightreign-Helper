@@ -381,6 +381,28 @@ def test_the_shortlist_leaves_room_for_the_copies_the_other_slots_take(
     assert candidates.shortlist(pool, budget, 3) == pool.candidates[:4]
 
 
+def test_the_picker_number_and_the_search_pre_sort_are_one_number(game_data,
+                                                                  wylder):
+    """Checkpoint 15: two views, one figure, and not two that agree.
+
+    The shortlist is a slice of the very list the picker shows -- the same
+    objects, not a second computation over the same inputs -- so the two
+    cannot come to disagree about what a candidate is worth. If this
+    assertion ever needed a tolerance, there would be two calculations again
+    and S5++ would have quietly been undone.
+    """
+    inventory = advisor.make_inventory(game_data, wylder, count=4)
+    ctx = advisor.context(game_data, wylder)
+    pool = pool_for(inventory, advisor.problem([advisor.RED] * 2), 0, ctx,
+                    SURVIVAL)
+
+    short = candidates.shortlist(pool, types.Budget(candidates_per_slot=2,
+                                                    beam_width=4), 2)
+
+    assert len(short) == 3
+    assert all(taken is shown for taken, shown in zip(short, pool.candidates))
+
+
 def test_a_shortlist_shorter_than_the_room_is_the_whole_pool(game_data,
                                                              wylder):
     inventory = advisor.make_inventory(game_data, wylder, count=2)

@@ -92,6 +92,9 @@ _NO_ARMAMENT_NOTE = ("With no armament chosen there is nothing to scale, so "
                      "weight.")
 
 _DAMAGE_TAKEN_UNKNOWNS = (
+    "Effective HP assumes each damage-reduction rate multiplies the damage "
+    "you take; the game files name the fields, not how the engine applies "
+    "them.",
     "The game data gives no relative frequency of damage types, so the "
     "weighting between them is an assumption.",
     "Ailment and status resistance are not part of this figure.",

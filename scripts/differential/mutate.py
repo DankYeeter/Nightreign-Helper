@@ -437,15 +437,17 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/advisor/candidates.py",
         old="""        measured.append(dataclasses.replace(candidate, marginals=marginals))
 """,
-        new="""        measured.append(dataclasses.replace(
-            candidate,
-            marginals={entry.goal_id: entry.gain for entry in marginals}))
+        new="""        measured.append(dataclasses.replace(candidate,
+                                            marginals=list(marginals)))
 """,
         survival_means=(
             "QA-066 reaches the advisor after all: a `frozen` dataclass "
-            "handed a dict is frozen in name and shared in fact, and AD-018 "
-            "memoises marginal contributions. The failure only shows where "
-            "the key is formed, which is S9 -- long after this. Killed by "
+            "handed a mutable sequence is frozen in name and shared in fact, "
+            "and AD-018 memoises marginal contributions. A **list** rather "
+            "than a dict on purpose -- every lookup, every sort and every "
+            "figure goes on working, so this changes exactly one thing, "
+            "whether the result can be a cache key, and the failure would "
+            "otherwise first show in S9 where the key is formed. Killed by "
             "test_advisor_candidates.py::"
             "test_a_pool_the_advisor_produced_can_be_a_cache_key, which "
             "hashes what the pool really produced rather than reading its "
@@ -504,6 +506,31 @@ MUTATIONS: dict[str, Mutation] = {
             "mutation the ranking tests cannot see. Killed by "
             "test_advisor_goals.py::"
             "test_the_damage_goal_charges_the_starting_armament_penalty."),
+    ),
+    "advisor-rates-an-armament-itself": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    rates = [build.rates.get(field_name, 1.0)
+             for field_names in damage.AR_RATE_FOR.values()
+             for field_name in field_names]
+""",
+        new="""    from .. import weapons
+    _own_arithmetic = weapons.rate
+    rates = [build.rates.get(field_name, 1.0)
+             for field_names in damage.AR_RATE_FOR.values()
+             for field_name in field_names]
+""",
+        survival_means=(
+            "the AD-021 assurance does not reach the advisor package, and the "
+            "one thing `docs/state.md` promised would be enforced "
+            "automatically once `nrplanner/advisor/` existed is not. A "
+            "second armament arithmetic under advisor/ would then be free to "
+            "grow, and the advisor's figure could part company with the "
+            "weapon panel's the way QA-018's two numbers for one armament "
+            "did. A reference and not a call on purpose: the guard counts "
+            "references, and a call here would crash the run instead of "
+            "failing the guard, which proves something else. Killed by "
+            "test_one_build.py::"
+            "test_only_the_facade_calls_weapons_rate_or_rank."),
     ),
     "advisor-goal-without-its-unknowns": Mutation(
         path="nrplanner/advisor/goals.py",
