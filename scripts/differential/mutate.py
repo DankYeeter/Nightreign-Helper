@@ -591,6 +591,44 @@ MUTATIONS: dict[str, Mutation] = {
             "`ranking-left-in-layer-one-order` cannot make: there the figures "
             "themselves move, here only equal ones do."),
     ),
+    # -- the game's own number (T-045: QA-095) ------------------------------
+    #
+    # Two edits, because the calibration is two decisions and a guard that
+    # caught only one would leave the other unheld: what the factor is, and
+    # what the display does with the fraction that is left over.
+    "attack-power-rate-neutralised": Mutation(
+        path="nrplanner/weapons.py",
+        old="""GAME_ATTACK_POWER_RATE = 0.6
+""",
+        new="""GAME_ATTACK_POWER_RATE = 1.0
+""",
+        survival_means=(
+            "nothing holds the program's attack rating to the game's. This "
+            "is the state the program was in until T-045: every figure on "
+            "every tile, in the panel, on the arsenal tab and in the "
+            "advisor's goal line 1/0.6 = 1.667 times what the game shows, "
+            "with the ordering intact -- which is why no test could see it "
+            "from the inside. Killed by "
+            "tests/test_attack_power_against_the_game.py, all 23 readings."),
+    ),
+    "attack-power-rounded-instead-of-truncated": Mutation(
+        path="nrplanner/damage.py",
+        old="""    return math.floor(figure)
+""",
+        new="""    return round(figure)
+""",
+        survival_means=(
+            "the second half of QA-095 is unheld: the game **truncates** the "
+            "attack rating and rounding it would be off by one wherever the "
+            "fraction reaches a half -- about half of all armaments. It is "
+            "also the edit that decided the factor: under rounding the "
+            "intersection over the nine scaling-free armaments is empty, "
+            "under truncation it is [0.599315, 0.600928). Soldier's Crossbow "
+            "is the single reading that shows it, 88 against 89. Killed by "
+            "tests/test_attack_power_against_the_game.py, and its companion "
+            "test_at_least_one_reading_tells_truncation_from_rounding is "
+            "what keeps such a reading in the file."),
+    ),
 }
 
 
