@@ -77,8 +77,11 @@ def armaments(game_data, hero) -> list[tuple[int, int]]:
     """(armament id, tier) for the tiles this test fills.
 
     The Nightfarer's own starting armament, an armament of a class a scoped
-    buff can reach, and one whose requirements no level-15 build meets, so the
-    "requirements unmet" branch of the tile is drawn as well.
+    buff can reach, and a third, heavy-looking one, so the grid has enough
+    distinct figures for `test_which_tile_is_ringed_moves_no_tile_s_figure`
+    to tell tiles apart by. (This third slot used to be picked to exercise a
+    "requirements unmet" tile state; T-034 removed that state after QA-061
+    measured the requirement it depended on is always met on real data.)
     """
     return [
         (hero["starting_weapon"], 3),

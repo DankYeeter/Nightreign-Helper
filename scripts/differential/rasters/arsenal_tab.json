@@ -11,7 +11,7 @@
       "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
       "effects": [],
       "arsenal": {"weapon": "$armament", "tier": 1,
-                  "require_usable": true, "rarity": -1}
+                  "rarity": -1}
     },
     {
       "name": "spinbox at the top of its range, no relic",
@@ -19,7 +19,7 @@
       "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
       "effects": [],
       "arsenal": {"weapon": "$armament", "tier": 4,
-                  "require_usable": true, "rarity": -1}
+                  "rarity": -1}
     },
     {
       "name": "attack multiplier in play, spinbox on 2",
@@ -27,10 +27,10 @@
       "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
       "effects": [{"rate": "physicsAttackRate", "count": 2}],
       "arsenal": {"weapon": "$armament", "tier": 2,
-                  "require_usable": true, "rarity": -1}
+                  "rarity": -1}
     },
     {
-      "name": "attribute gains, filter off, Rare only, spinbox on 3",
+      "name": "attribute gains, Rare only, spinbox on 3",
       "active": 0,
       "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
       "effects": [
@@ -38,7 +38,7 @@
         {"attribute": "Dexterity", "count": 1}
       ],
       "arsenal": {"weapon": "$armament", "tier": 3,
-                  "require_usable": false, "rarity": 2}
+                  "rarity": 2}
     }
   ]
 }

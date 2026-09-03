@@ -109,8 +109,11 @@ def scoped_effect(data: dict, hero: dict, class_name: str) -> int:
 def heaviest_of_family(data: dict, family: str) -> int:
     """The armament of this family with the steepest Strength requirement.
 
-    Used for the requirements-not-met case: at level 1 nobody can hold it, and
-    the scaling it loses is the branch under test.
+    Kept for the two cases that want a heavy-looking, deterministic pick of
+    this family rather than the first one alphabetically. The name is now
+    aspirational rather than load-bearing: QA-061 measured that the
+    requirement this sorts on is zero for every Colossal Sword in the
+    dataset, so on a tie the id -- the second key -- decides (T-034).
     """
     candidates = [w for w in data["weapons"] if w.get("family") == family]
     if not candidates:
@@ -205,9 +208,14 @@ def cases(data: dict) -> list[dict]:
               "Wylder", 15, 0,
               [{"slot": 0, "weapon": colossal, "tier": 2, "effects": []}],
               relic_effects=list(attack_rate)),
-        # Requirements not met: level 1 against the steepest Strength wall in
-        # the game, so the scaling is lost and the notice must appear.
-        _case("armament whose requirements are not met",
+        # Renamed 2026-09-03 (T-034, QA-019): this used to be named for an
+        # "unmet requirements" branch that never existed on real data --
+        # QA-061 measured every armament's requirement at zero or trivially
+        # met, and the user confirmed in play that Nightreign has none at
+        # all. What the case actually covers, and still needs to: a bare
+        # armament with two damage types and no relic effects, the baseline
+        # the next case's scaling growth is measured against.
+        _case("a two-type armament with no relic effects",
               "Wylder", 1, 0,
               [{"slot": 0, "weapon": colossal, "tier": 1, "effects": []}]),
         _case("attribute gains feeding the scaling",
@@ -359,10 +367,14 @@ def arsenal_reading(planner, data: dict, build, request: dict) -> dict:
     """Drive the real arsenal tab for one armament and read it back.
 
     The tab is the one the Planner built, and every control the reading
-    depends on is set from the request: the target tier, the requirements
-    checkbox and the rarity filter. The search box is set to the armament's
-    own name because the tab builds its sections lazily and opens them itself
-    only for a modest result set -- without a search nothing is drawn at all.
+    depends on is set from the request: the target tier and the rarity
+    filter. The search box is set to the armament's own name because the tab
+    builds its sections lazily and opens them itself only for a modest
+    result set -- without a search nothing is drawn at all.
+
+    The requirements checkbox this used to also set is gone (T-034): QA-061
+    measured it could never filter anything on real data, and the user
+    confirmed Nightreign has no attribute requirement for armaments at all.
 
     **`planner._build` is set here, not by `Planner.recompute()`.** The tab
     asks `current_build()`, and in the running program `recompute()` is what
@@ -378,7 +390,6 @@ def arsenal_reading(planner, data: dict, build, request: dict) -> dict:
 
     planner._build = build
     tab.upgrade.setValue(int(request["tier"]))
-    tab.usable_only.setChecked(bool(request["require_usable"]))
     wanted_rarity = int(request["rarity"])
     index = tab.rarity_box.findData(wanted_rarity)
     if index < 0:
@@ -403,8 +414,7 @@ def arsenal_reading(planner, data: dict, build, request: dict) -> dict:
         "arsenal_figure": (arsenal_figure(listed[0]).hex() if listed
                            else None),
         # How many rows the list holds for this armament. Zero means the
-        # requirements checkbox or the rarity filter dropped it, which is a
-        # finding and not an absence.
+        # rarity filter dropped it, which is a finding and not an absence.
         "arsenal_listed": len(listed),
         "arsenal_tiles": arsenal_tile_texts(tab, weapon["name"]),
         "arsenal_summary": tab.summary.text(),

@@ -253,8 +253,6 @@ Every armament, sorcery and incantation, grouped by family with counts.
 
 - **Upgrade to +N** recalculates at that upgrade level.
 - **Rarity** filters to a tier.
-- **Meets requirements** hides what the selected Nightfarer cannot wield at the
-  chosen level.
 
 The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.

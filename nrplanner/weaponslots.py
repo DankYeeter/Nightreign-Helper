@@ -25,7 +25,6 @@ MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
 GOOD = "#78b57e"
-BAD = "#d1655f"
 # The red the Effects tab gives a curse, so a negative roll
 # reads the same wherever it appears.
 DEBUFF = "#e07a74"
@@ -254,8 +253,6 @@ class WeaponTile(QFrame):
             if bad:
                 bits.append(f"<span style='color:{DEBUFF}'>{bad} debuff"
                             f"{'s' if bad != 1 else ''}</span>")
-        if rating is not None and not rating.meets_requirements:
-            bits.append(f"<span style='color:{BAD}'>requirements unmet</span>")
         self.detail.setText(" · ".join(b for b in bits if b))
 
 

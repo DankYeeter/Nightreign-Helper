@@ -2394,6 +2394,17 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                     "Arcane": r.values.get("correctLuck", 0.0),
                 },
                 "curve": {d: r.values.get(f"correctType_{d}") for d in DAMAGE_TYPES},
+                # Kept because it is in the param, not because anything reads
+                # it: `nrplanner` no longer gates scaling on it (T-034). The
+                # gate it used to drive never fired on real data -- 1791 of
+                # 1793 armaments carry an all-zero requirement here, the other
+                # two ask for Arcane 1, and every Nightfarer starts above that
+                # (QA-061) -- and the user confirmed in play that Nightreign
+                # has no attribute requirement for armaments at all. Two test
+                # helpers still read this field directly, to pick a weapon
+                # deterministically rather than through the removed gate:
+                # `tests/weapon_damage_cases.heaviest_of_family` and
+                # `tests/test_marginal_returns.most_responsive_armament`.
                 "requires": {
                     "Strength": r.values.get("properStrength", 0),
                     "Dexterity": r.values.get("properAgility", 0),

@@ -5,7 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QComboBox, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
@@ -39,8 +39,7 @@ class Tile(QFrame):
     """One weapon or spell: icon, name, and its numbers listed underneath."""
 
     def __init__(self, title: str, icon, lines: list[tuple[str, str]],
-                 dimmed: bool = False, rarity: int | None = None,
-                 blurb: str = ""):
+                 rarity: int | None = None, blurb: str = ""):
         super().__init__()
         self.setFixedWidth(CARD_WIDTH)
         self.setObjectName("tile")
@@ -75,8 +74,8 @@ class Tile(QFrame):
 
         name = QLabel(title)
         name.setWordWrap(True)
-        colour = MUTED if dimmed else "#e4e4e4"
-        name.setStyleSheet(f"border: none; font-weight: bold; color: {colour};")
+        name.setStyleSheet(
+            "border: none; font-weight: bold; color: #e4e4e4;")
         header.addWidget(name, 1)
         layout.addLayout(header)
 
@@ -225,10 +224,6 @@ class ArsenalTab(QWidget):
         self.rarity_box.currentIndexChanged.connect(self.rebuild)
         controls.addWidget(self.rarity_box)
 
-        self.usable_only = QCheckBox("Meets requirements")
-        self.usable_only.setChecked(True)
-        self.usable_only.toggled.connect(self.recalculate)
-        controls.addWidget(self.usable_only)
         layout.addLayout(controls)
 
         self.summary = QLabel()
@@ -261,7 +256,6 @@ class ArsenalTab(QWidget):
         # quietly put the slot's tier back (AD-020, point 1; QA-055).
         self.ratings = damage.rank_candidates(
             build, self.upgrade.value(), self.data,
-            require_usable=self.usable_only.isChecked(),
         )
         stats = "  ".join(f"{k[:3].upper()} {v}"
                           for k, v in build.attributes.items())
@@ -412,16 +406,11 @@ class ArsenalTab(QWidget):
                 if rating.tier_applied > own_tier:
                     lines.append(("Upgraded to", f"+{reached} "
                                                  f"{RARITY_NAMES.get(reached - 1, '')}"))
-                if rating.unmet:
-                    need = " ".join(f"{s[:3].upper()} {n}"
-                                    for s, (_h, n) in rating.unmet.items())
-                    lines.append(("Requires", need))
                 # Colour by the rarity the weapon would actually have at the
                 # chosen upgrade target, not its shelf rarity.
                 tiles.append(Tile(weapon["name"],
                                   self.icons.item(weapon.get("icon")),
-                                  lines, dimmed=bool(rating.unmet),
-                                  rarity=effective_rarity(rating)))
+                                  lines, rarity=effective_rarity(rating)))
             return self._grid(tiles)
 
         def build_body():

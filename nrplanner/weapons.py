@@ -45,12 +45,7 @@ class WeaponRating:
     base: dict[str, float] = field(default_factory=dict)
     scaled: dict[str, float] = field(default_factory=dict)
     total: float = 0.0
-    unmet: dict[str, tuple[int, int]] = field(default_factory=dict)
     applied_upgrade: int = 0
-
-    @property
-    def meets_requirements(self) -> bool:
-        return not self.unmet
 
     def scaled_per_type(self) -> dict[str, float]:
         """Base damage plus what the attributes add, per damage type.
@@ -111,11 +106,6 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
     aec = element_correct.get(str(weapon.get("element_correct_id")), {})
     result = WeaponRating(weapon=weapon, applied_upgrade=applied)
 
-    for stat, needed in weapon["requires"].items():
-        have = attributes.get(stat, 0)
-        if needed and have < needed:
-            result.unmet[stat] = (have, needed)
-
     for damage in DAMAGE_TYPES:
         base = weapon["base"].get(damage, 0)
         if not base:
@@ -144,9 +134,6 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
                 rule = rules.get(stat)
                 if not scaling or not rule or not rule["on"]:
                     continue
-                # Requirements not met means the scaling contribution is lost.
-                if stat in result.unmet:
-                    continue
                 correct = scaling / 100.0 * reinforce["correct"].get(stat, 1.0)
                 ratio = evaluate_curve(curve, attributes.get(stat, 0)) / 100.0
                 # Influence is stored as a percentage (100 = full effect).
@@ -159,13 +146,9 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
     return result
 
 
-def rank(data: dict, attributes: dict[str, int], upgrade: int = MIN_UPGRADE,
-         require_usable: bool = False) -> list[WeaponRating]:
-    out = []
-    for weapon in data["weapons"]:
-        rating = rate(weapon, attributes, data, upgrade)
-        if require_usable and not rating.meets_requirements:
-            continue
-        out.append(rating)
+def rank(data: dict, attributes: dict[str, int],
+         upgrade: int = MIN_UPGRADE) -> list[WeaponRating]:
+    out = [rate(weapon, attributes, data, upgrade)
+           for weapon in data["weapons"]]
     out.sort(key=lambda r: -r.total)
     return out

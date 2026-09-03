@@ -366,7 +366,7 @@
     },
     {
       "case": {
-        "name": "armament whose requirements are not met",
+        "name": "a two-type armament with no relic effects",
         "hero": "Wylder",
         "level": 1,
         "active": 0,

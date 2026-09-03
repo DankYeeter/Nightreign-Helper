@@ -3014,15 +3014,6 @@ class Planner(QMainWindow):
                 f"HP, so rally relics do nothing with it.</div>"
             )
 
-        if not now.meets_requirements:
-            unmet = ", ".join(
-                f"{stat} {have}/{need}"
-                for stat, (have, need) in now.unmet.items()
-            )
-            rows.append(
-                f"<div style='color:{BAD}; font-size:10px'>requirements not "
-                f"met: {unmet} — scaling from those stats is lost</div>"
-            )
         rows.append(
             f"<div style='color:{MUTED}; font-size:10px; margin-top:2px'>"
             f"Grey is your base at this level; the change is what the equipped "

@@ -196,14 +196,6 @@ class Rating:
         return sum(self.final_per_type.values())
 
     @property
-    def unmet(self) -> dict[str, tuple[int, int]]:
-        return self.weapon_rating.unmet
-
-    @property
-    def meets_requirements(self) -> bool:
-        return self.weapon_rating.meets_requirements
-
-    @property
     def tier_applied(self) -> int:
         """The rarity tier the armament was actually rated at.
 
@@ -417,8 +409,8 @@ def candidate(weapon: dict, target_tier: int, build: model.Build,
     return _rate(weapon, Question.CANDIDATE, target_tier, build, data)
 
 
-def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
-                    require_usable: bool) -> list[Rating]:
+def rank_candidates(build: model.Build, target_tier: int,
+                    data: dict) -> list[Rating]:
     """Every armament in the dataset as a candidate, best first.
 
     **Best by the figure a display shows, which is `final_total`.** Ordering
@@ -447,14 +439,16 @@ def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
     QA-064/a and not here, because it was measured by the run recorded there
     and not by this module's author (QA-069).
 
-    `require_usable` is passed straight through and is a caller's input, not a
-    policy of the question -- it is a checkbox in the arsenal tab today
-    (QA-061 asks whether it can ever filter anything; that is a question about
-    the dataset, and it is not settled here).
+    There used to be a `require_usable` flag here, passed straight through
+    from a checkbox in the arsenal tab. QA-061 measured that it could never
+    filter anything on real data -- 1791 of 1793 armaments carry an all-zero
+    requirement, the other two ask for Arcane 1, and every Nightfarer starts
+    above that -- and the user confirmed Nightreign has no attribute
+    requirement for armaments at all (T-034). The flag, the checkbox, and the
+    branch in `weapons.rate` it gated are gone together.
     """
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
-    ranked = weapons.rank(data, attributes, target_tier,
-                          require_usable=require_usable)
+    ranked = weapons.rank(data, attributes, target_tier)
     answers = [_answer(rating, Question.CANDIDATE, build) for rating in ranked]
     answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
     return answers

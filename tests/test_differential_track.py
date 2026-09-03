@@ -140,8 +140,7 @@ ARSENAL_RASTER = {
             "active": 0,
             "slots": [{"slot": 0, "weapon": "@starting", "tier": 3}],
             "effects": [],
-            "arsenal": {"weapon": "$armament", "tier": 1,
-                        "require_usable": True, "rarity": -1},
+            "arsenal": {"weapon": "$armament", "tier": 1, "rarity": -1},
         },
     ],
 }
@@ -156,7 +155,6 @@ def test_an_arsenal_block_resolves_the_swept_armament_like_a_slot_does(
     assert [case["arsenal"]["weapon"] for case in written["cases"]] == swept
     for case in written["cases"]:
         assert case["arsenal"]["tier"] == 1
-        assert case["arsenal"]["require_usable"] is True
         assert case["arsenal"]["rarity"] == -1
 
 
@@ -175,10 +173,9 @@ def test_a_configuration_without_an_arsenal_block_writes_no_arsenal_key(
     assert all("arsenal" not in case for case in written["cases"])
 
 
-@pytest.mark.parametrize("dropped",
-                         ["weapon", "tier", "require_usable", "rarity"])
+@pytest.mark.parametrize("dropped", ["weapon", "tier", "rarity"])
 def test_an_arsenal_block_missing_a_control_is_refused(game_data, dropped):
-    """Each of the four moves the figures, so none of them may be guessed.
+    """Each of the three moves the figures, so none of them may be guessed.
 
     The target tier is the one this repository has already been bitten by:
     a default there is the slot tier coming back in silence, which is QA-055

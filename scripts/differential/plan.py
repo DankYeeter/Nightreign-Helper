@@ -95,7 +95,7 @@ def _arsenal(data: dict, hero: dict, configuration: dict,
     request = configuration.get("arsenal")
     if request is None:
         return None
-    missing = {"weapon", "tier", "require_usable", "rarity"} - set(request)
+    missing = {"weapon", "tier", "rarity"} - set(request)
     if missing:
         raise ValueError(
             f"the arsenal block of configuration {configuration['name']!r} "
@@ -105,7 +105,6 @@ def _arsenal(data: dict, hero: dict, configuration: dict,
     return {
         "weapon": _weapon_id(data, hero, request["weapon"], swept),
         "tier": int(request["tier"]),
-        "require_usable": bool(request["require_usable"]),
         "rarity": int(request["rarity"]),
     }
 

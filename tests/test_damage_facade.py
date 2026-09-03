@@ -327,8 +327,7 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
     the **shown** one, and that the ordering now carries the stable second key
     ULP noise made necessary (do-not rule 29).
     """
-    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
-                                    require_usable=False)
+    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data)
 
     assert len(ranked) == len(game_data["weapons"])
     assert all(r.question is damage.Question.CANDIDATE for r in ranked)
@@ -367,11 +366,9 @@ def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data,
     attributes = getattr(bare,
                          damage.ATTRIBUTES_FOR[damage.Question.CANDIDATE])
 
-    ranked = damage.rank_candidates(bare, tier, game_data,
-                                    require_usable=False)
+    ranked = damage.rank_candidates(bare, tier, game_data)
     layer_one = [rating.weapon["id"] for rating in
-                 weapons.rank(game_data, attributes, tier,
-                              require_usable=False)]
+                 weapons.rank(game_data, attributes, tier)]
     place = {weapon_id: index for index, weapon_id in enumerate(layer_one)}
 
     groups: dict[float, list[int]] = {}
@@ -412,8 +409,7 @@ def test_a_candidate_carries_the_attack_multipliers(game_data, build):
     rates are all 1.0 -- there the two answers coincide and the entry could be
     flipped back without a test noticing.
     """
-    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
-                                    require_usable=False)
+    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data)
     by_id = {r.weapon["id"]: r for r in ranked}
 
     moved = 0
@@ -430,35 +426,6 @@ def test_a_candidate_carries_the_attack_multipliers(game_data, build):
         "not one armament's figure moved between the two layers, so this "
         "build carries no multiplier and the case cannot tell "
         "MULTIPLIERS_FOR[CANDIDATE] True from False")
-
-
-def test_the_usable_filter_reaches_the_requirement_check(game_data):
-    """`require_usable` is the caller's input, not a policy of the question.
-
-    Asked with an attribute set of nothing but zeros, because with a real one
-    the flag has nothing to do: QA-061 measured that every armament in this
-    dataset can be held by every Nightfarer from level 1, so the checkbox
-    filters 1793 down to 1793. Whether that is intended is the user's call and
-    is not settled here -- but the branch behind the flag has to be shown to
-    work, and an attribute set the game cannot produce is the only way to show
-    it on this data.
-    """
-    nothing = model.Build(
-        attributes={k: 0 for k in ("Strength", "Dexterity", "Intelligence",
-                                   "Faith", "Arcane")})
-
-    everything = damage.rank_candidates(nothing, weapons.MIN_UPGRADE,
-                                        game_data, require_usable=False)
-    usable = damage.rank_candidates(nothing, weapons.MIN_UPGRADE, game_data,
-                                    require_usable=True)
-
-    unusable = {r.weapon["id"] for r in everything if not r.meets_requirements}
-
-    assert unusable, ("this dataset was supposed to have armaments with "
-                      "requirements a zeroed attribute set cannot meet")
-    assert all(r.meets_requirements for r in usable)
-    assert ({r.weapon["id"] for r in usable}
-            == {r.weapon["id"] for r in everything} - unusable)
 
 
 # -- the panel's own view ------------------------------------------------
