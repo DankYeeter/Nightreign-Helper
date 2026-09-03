@@ -257,9 +257,10 @@ Every armament, sorcery and incantation, grouped by family with counts.
 The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 
-Attack rating is base damage plus what your stats add to it. **Spell damage is
-not in the game data**, so sorceries and incantations show their costs instead of
-an invented figure.
+Attack rating is base damage, plus what your stats add to it, plus the +%
+attack effects your equipped relics grant. **Spell damage is not in the game
+data**, so sorceries and incantations show their costs instead of an invented
+figure.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves

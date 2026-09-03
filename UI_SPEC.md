@@ -1134,3 +1134,43 @@ gebautes Artefakt (GOAL A9).
   ab); der staerkere waere die eine dauerhaft sichtbare Zeile ueber dem Raster,
   die ohnehin schon dasteht (§3.2, Zeile 4). Entscheidung des Nutzers, ob der
   Kartenmarker bleibt.
+
+---
+
+## Nachtrag zu AK-34: Fassung B fuer den heutigen Einzelsatz (T-035) — 2026-09-03
+
+**Grundlage:** `docs/tasks/T-035.md` Teil 1, `docs/tasks/T-033.md`, AK-34 oben.
+
+**Praezisierung, keine Neufassung von AK-34.** AK-34 verlangt fuer den
+**Zielzustand** (nach der noch ausstehenden AK-31-bis-AK-40-Umstellung) zwei
+getrennte Labels mit dem Wortlaut aus §2.3(e). `nrplanner/arsenaltab.py`
+traegt diese Umstellung heute noch **nicht** — die Zusammenfassung ist dort
+weiterhin **ein** Prosasatzblock. Fassung A/B aus §2.3(e) passt deshalb nicht
+woertlich auf den heutigen Satz; dieser Nachtrag liefert die Formulierung fuer
+genau diesen Uebergangszustand, in derselben Begrifflichkeit wie §2.3(e)
+(„+% attack effects"), damit beide Stellen spaeter ohne Bruch zusammenfallen.
+
+Der bisherige Satz (Fassung A, beschrieb `MULTIPLIERS_FOR[Basis.CANDIDATE] =
+False`):
+
+> `Attack rating is base damage plus what your stats add to it.`
+
+**Fassung B, faellig seit T-033 (`MULTIPLIERS_FOR[Basis.CANDIDATE] = True`),
+woertlich:**
+
+> `Attack rating is base damage, plus what your stats add to it, plus the +% attack effects your equipped relics grant.`
+
+Der daran anschliessende Satz *„The in-game panel has been seen showing about
+60% of these figures (under investigation); the ranking between weapons is
+unaffected."* entfaellt ersatzlos, wie in AK-34 bereits gefordert (die
+Zeichenketten `60%`, `under investigation` und
+`ranking between weapons is unaffected` duerfen im Baum nicht mehr vorkommen);
+dieser Nachtrag fuehrt dafuer **keinen** Ersatzsatz ein — eine dauerhafte
+Verifikationsaussage fuer diesen Bildschirm (`Not checked against the game's
+own attack-power display.`) ist bereits Teil von §2.3(e)/AK-37 und gehoert in
+die AK-31-bis-AK-40-Umstellung, nicht in diesen Uebergangs-Fix. Der Satz
+`Spell damage is not in the game's data, so spells show their costs instead.`
+bleibt unveraendert stehen.
+
+Betroffene Akzeptanzkriterien: **AK-34** (Wortlaut jetzt vollstaendig
+spezifiziert, auch fuer den Uebergangszustand vor der Label-Umstellung).
