@@ -44,7 +44,6 @@ class WeaponRating:
     weapon: dict
     base: dict[str, float] = field(default_factory=dict)
     scaled: dict[str, float] = field(default_factory=dict)
-    total: float = 0.0
     applied_upgrade: int = 0
 
     def scaled_per_type(self) -> dict[str, float]:
@@ -125,9 +124,18 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         # weapon-tier-damage cards, where the other place moves a fraction of
         # a percent. The counts are in QA-064/d; they are not repeated here,
         # because a figure a reader cannot trace back to the run that produced
-        # it is worse than the comparison it decorates (QA-069). It stays a
-        # loop while any step of the AD-019 rebuild is promised bit-for-bit
-        # unchanged.
+        # it is worse than the comparison it decorates (QA-069).
+        #
+        # It stays a loop **permanently**, not "until W5" or any other step of
+        # the rebuild. AD-024 settled the question this comment used to bind
+        # to a step: switching to `sum()` here would not remove a second
+        # representation of the same number, because there is only one --
+        # unlike the arsenal tab's move onto `final_total`, it would be a
+        # one-sided accuracy change with no consistency gain to show for it,
+        # and neither bracketing is validated against the game. This place is
+        # worth revisiting only once a deviation is measured on screen or
+        # against the game itself, not on the strength of which bracketing
+        # looks more careful.
         bonus = 0.0
         if curve is not None:
             for stat, scaling in weapon["scaling"].items():
@@ -142,13 +150,28 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
 
         result.scaled[damage] = base * bonus
 
-    result.total = sum(result.base.values()) + sum(result.scaled.values())
     return result
 
 
 def rank(data: dict, attributes: dict[str, int],
          upgrade: int = MIN_UPGRADE) -> list[WeaponRating]:
+    """Every armament in the dataset, rated and ordered best first.
+
+    `WeaponRating.total` fell in AD-019 step W5 (assurance Z1): it bracketed
+    the same addends `scaled_per_type()` sums differently, and after W1 it
+    had no purpose but to be that second bracketing. Sorting on
+    `sum(scaled_per_type().values())` instead means there is now exactly one
+    summation of a damage type in the whole program, not two that happen to
+    agree to within a ULP.
+
+    The second sort key is not decoration (do-not rule 29, AD-024): two
+    orderings of the same addends can disagree by a ULP, so without a
+    tie-break the order of a near-tie would follow whatever this loop
+    happened to hand over, and two runs over the same data could disagree
+    about rows nobody could tell apart on screen.
+    """
     out = [rate(weapon, attributes, data, upgrade)
            for weapon in data["weapons"]]
-    out.sort(key=lambda r: -r.total)
+    out.sort(key=lambda r: (-sum(r.scaled_per_type().values()),
+                            r.weapon["id"]))
     return out

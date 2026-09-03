@@ -333,7 +333,11 @@ def declarable_attack_buff(data: dict, hero: dict) -> int:
 def arsenal_figure(rating) -> float:
     """The number the arsenal tab prints for one armament, unrounded."""
     if isinstance(rating, weapons.WeaponRating):
-        return rating.total          # the tab before W4: `weapons.rank`
+        # The tab before W4: `weapons.rank`. Read off `scaled_per_type()`
+        # rather than the `total` field this branch used to read -- `total`
+        # fell in W5 (AD-019), and the two were the same addends bracketed
+        # differently, so the figure this branch reports is unchanged.
+        return sum(rating.scaled_per_type().values())
     if isinstance(rating, damage.Rating):
         return rating.final_total    # the tab on the facade: layer two
     raise TypeError(

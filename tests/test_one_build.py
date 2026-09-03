@@ -26,11 +26,6 @@ from nrplanner import model
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
-# What the model module is called by the modules that import it, in the two
-# spellings an import can bind: `from . import model` and `import
-# nrplanner.model`.
-MODEL_NAMES = frozenset({"model", "nrplanner.model"})
-
 
 def python_modules(root: pathlib.Path) -> list[pathlib.Path]:
     """Every module under `root`, however deeply it is nested.
@@ -65,34 +60,42 @@ def _dotted(node: ast.AST) -> str:
     return ".".join(reversed(parts))
 
 
-def _local_names(tree: ast.AST) -> tuple[set[str], set[str]]:
-    """(what this module calls the model, what it calls compute).
+def _local_names(tree: ast.AST, module_names: frozenset[str],
+                 module_short_name: str,
+                 function_names: frozenset[str]) -> tuple[set[str], set[str]]:
+    """(what this module calls the target module, what it calls its functions).
 
     Both halves are needed. `import nrplanner.model as m` binds the module
     under a name of the importer's choosing, and `from .model import compute`
     skips the module altogether and binds the function.
+
+    `module_short_name` is the one word an `ast.ImportFrom` can name --
+    `from . import model` and `from .model import compute` both write
+    "model", never "nrplanner.model" -- so it is passed apart from
+    `module_names`, which is for whole-module `ast.Import` instead.
     """
     modules: set[str] = set()
     functions: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name in MODEL_NAMES:
+                if alias.name in module_names:
                     modules.add(alias.asname or alias.name)
         elif isinstance(node, ast.ImportFrom):
             # `from . import model`, `from nrplanner import model`,
             # `from .model import compute`, `from nrplanner.model import x`.
             tail = (node.module or "").rsplit(".", 1)[-1]
             for alias in node.names:
-                if alias.name == "model":
+                if alias.name == module_short_name:
                     modules.add(alias.asname or alias.name)
-                elif alias.name == "compute" and tail == "model":
+                elif alias.name in function_names and tail == module_short_name:
                     functions.add(alias.asname or alias.name)
     return modules, functions
 
 
-def compute_call_sites(source: str) -> int:
-    """How many times one module gets hold of model.compute.
+def call_sites(source: str, module_short_name: str,
+               function_names: frozenset[str]) -> int:
+    """How many times one module gets hold of one of another module's functions.
 
     Read off the syntax tree rather than searched for as text. The rule is
     that there is one caller, not that there is one spelling of one caller: a
@@ -112,12 +115,20 @@ def compute_call_sites(source: str) -> int:
     over). It catches the spellings a second calculation would plausibly be
     written in, which is what it is for; it is not proof that there is one
     caller.
+
+    Generalised from the single-function `model.compute` guard for AD-021:
+    the fassade over `weapons.rate`/`weapons.rank` needs the same seven
+    spellings watched for two function names in one module instead of one,
+    and a second copy of this walk would drift from the first one call site
+    at a time.
     """
+    module_names = frozenset({module_short_name, f"nrplanner.{module_short_name}"})
     tree = ast.parse(source)
-    modules, functions = _local_names(tree)
+    modules, functions = _local_names(
+        tree, module_names, module_short_name, function_names)
     found = 0
     for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and node.attr == "compute":
+        if isinstance(node, ast.Attribute) and node.attr in function_names:
             if _dotted(node.value) in modules:
                 found += 1
         elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
@@ -126,10 +137,21 @@ def compute_call_sites(source: str) -> int:
         elif (isinstance(node, ast.Call) and _dotted(node.func) == "getattr"
                 and len(node.args) == 2
                 and isinstance(node.args[1], ast.Constant)
-                and node.args[1].value == "compute"
+                and node.args[1].value in function_names
                 and _dotted(node.args[0]) in modules):
             found += 1
     return found
+
+
+def compute_call_sites(source: str) -> int:
+    """How many times one module gets hold of `model.compute`.
+
+    Thin wrapper kept under its own name: every case below and in
+    `WAYS_ROUND_THE_GUARD` was written against it before `call_sites` existed,
+    and renaming call sites in a guard's own test file is exactly the kind of
+    edit this guard exists to make unnecessary elsewhere.
+    """
+    return call_sites(source, "model", frozenset({"compute"}))
 
 
 # One entry per way of reaching model.compute without writing it where a text
@@ -295,6 +317,94 @@ def test_the_guard_does_not_mistake_a_mention_for_a_call():
     )
 
     assert compute_call_sites(mentioned) == 0
+
+
+# -- AD-021: the facade is the one caller of weapons.rate/rank --------------
+#
+# QA-058 asked how "one rechenstelle" can hold for both layers of the weapon
+# arithmetic. `compute`'s guard above answers "one caller"; the answer for
+# the lower layer is "one facade" (AD-019, AD-021): `nrplanner/damage.py` is
+# allowed to call `weapons.rate`/`weapons.rank`, and nothing else under
+# `nrplanner/` may. The same seven-spelling walk that guards `model.compute`
+# guards this, with two function names in one module instead of one -- a
+# second copy of `call_sites` here would drift from the first the same way a
+# second summation of a damage type already has (AD-024).
+
+FACADE = "nrplanner/damage.py"
+ARITHMETIC_ENTRY = frozenset({"rate", "rank"})
+
+
+def rate_rank_call_sites(source: str) -> int:
+    return call_sites(source, "weapons", ARITHMETIC_ENTRY)
+
+
+def test_only_the_facade_calls_weapons_rate_or_rank():
+    """One facade, not one caller: `damage.py` asks twice, by design.
+
+    Unlike `model.compute`, where a second call site is always a second
+    build disagreeing with the first, `damage.py` itself calls `weapons.rate`
+    (in `_scaled`, for one armament) and `weapons.rank` (in
+    `rank_candidates`, for every armament) -- two call sites in the one
+    module that is allowed any. The assurance is not "exactly one call site"
+    but "every call site is in the facade" (AD-021, option B).
+    """
+    callers = {
+        path.relative_to(REPO).as_posix():
+            rate_rank_call_sites(path.read_text("utf-8"))
+        for path in UI_MODULES
+    }
+
+    assert {name: n for name, n in callers.items() if n} == {
+        FACADE: 2
+    }, ("every armament rating must go through the facade in damage.py; "
+        f"weapons.rate/weapons.rank is reached in {callers}")
+
+
+#: The same shape as `WAYS_ROUND_THE_GUARD`, against `weapons.rate` -- plus
+#: one case for `rank`, the second name this guard has to know that the
+#: `compute` guard never needed.
+WAYS_ROUND_THE_RATE_RANK_GUARD = {
+    "written out in full":
+        "from nrplanner import weapons\nweapons.rate(w, a, d)\n",
+    "the function imported by name":
+        "from .weapons import rate\nrate(w, a, d)\n",
+    "the module under an alias":
+        "from . import weapons as wp\nwp.rate(w, a, d)\n",
+    "the module imported whole":
+        "import nrplanner.weapons\nnrplanner.weapons.rate(w, a, d)\n",
+    "getattr":
+        "from . import weapons\ngetattr(weapons, 'rate')(w, a, d)\n",
+    "a line break after the dot":
+        "from . import weapons\n(weapons.\n rate)(w, a, d)\n",
+    "handed to functools.partial":
+        "import functools\nfrom . import weapons\n"
+        "run = functools.partial(weapons.rate, w)\nrun(a, d)\n",
+    "the second function, rank":
+        "from . import weapons\nweapons.rank(d, a)\n",
+}
+
+
+def test_the_rate_rank_guard_sees_every_way_round_itself():
+    """The same blind spots `compute_call_sites` had, checked for this guard.
+
+    Written independently of `WAYS_ROUND_THE_GUARD` rather than looped over
+    it with a substituted name: a shared fixture would prove the two guards
+    agree with each other, not that either one sees the source.
+    """
+    missed = {label for label, source in WAYS_ROUND_THE_RATE_RANK_GUARD.items()
+              if rate_rank_call_sites(source) != 1}
+
+    assert not missed, f"reached weapons.rate/rank unnoticed: {sorted(missed)}"
+
+
+def test_the_rate_rank_guard_does_not_mistake_a_mention_for_a_call():
+    """Writing about the rule is not breaking it, for this guard as well."""
+    mentioned = (
+        "# weapons.rate and weapons.rank stay inside damage.py -- AD-021.\n"
+        "TEXT = \"nothing here calls weapons.rate(...) or weapons.rank(...)\"\n"
+    )
+
+    assert rate_rank_call_sites(mentioned) == 0
 
 
 def test_the_search_space_reaches_inside_a_package(tmp_path):

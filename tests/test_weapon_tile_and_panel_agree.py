@@ -140,8 +140,10 @@ def test_every_filled_tile_names_the_panel_s_own_total(
         # multipliers. Where it disagrees with what is now shown, this case
         # would have failed before the change -- which is what makes the
         # assertion above evidence rather than decoration.
-        before_w3 = weapons.rate(slot.weapon, build.attributes,
-                                 game_data, tier).total
+        # `WeaponRating.total` fell in W5 (AD-019); the per-type sum it used
+        # to carry is the same figure, read off `scaled_per_type()` instead.
+        before_w3 = sum(weapons.rate(slot.weapon, build.attributes,
+                                     game_data, tier).scaled_per_type().values())
         if round(before_w3) != panel_total(planner):
             had_teeth = True
 

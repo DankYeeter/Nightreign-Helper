@@ -336,37 +336,53 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
     assert keys == sorted(keys)
 
 
-def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data,
-                                                                hero):
+def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data):
     """The second sort key, on the one input where it is visible at all.
 
-    Equal figures are not an edge case here: at Wylder, level 15, MAX_UPGRADE
-    over 400 groups of armaments share a `final_total`. But a tie-break that
-    only reorders is invisible whenever the order it replaces was already the
-    id order, and `weapons.rank` hands over the dataset's own order -- which
-    **is** id order -- within each layer-one tie. Measured 2026-09-03 across
-    three builds and all four tiers: in eleven of those twelve combinations,
-    dropping the second key changes nothing at all, and a case built on one of
-    them would pass against a `rank_candidates` that had no tie-break.
+    Equal figures are not an edge case here: over 400 groups of armaments
+    share a `final_total` at Wylder, level 15, MAX_UPGRADE alone. But a
+    tie-break that only reorders is invisible whenever the order it replaces
+    was already the id order, and since W5 `weapons.rank` sorts on the same
+    per-type sum `final_total` is built from (`scaled_per_type()`, before the
+    attack multipliers), with its own id tie-break already in place -- so a
+    **bare** build's ties agree with `rank_candidates` before that function's
+    own tie-break ever runs, and a case built on one would pass against a
+    `rank_candidates` with no tie-break of its own. That is a real change
+    from before W5, when the two layers bracketed the same addends
+    differently and a bare build (Wylder, level 1, MIN_UPGRADE) was enough to
+    show it (AD-024) -- `WeaponRating.total` fell in W5, and with it that
+    disagreement.
 
-    The twelfth is this one, and it is an AD-024 case exactly: Wylder at
-    level 1, no relics, MIN_UPGRADE. Sacred Spiralhorn Shield (30190700),
-    Magic Spiralhorn Shield (30190800) and Cold Spiked Spear (16140900) all
-    come to `final_total` 0x1.30467381d7dc0p+6, while the spear's
-    `WeaponRating.total` is one ULP **below** the two shields. Layer one
-    therefore puts the spear last, behind two armaments with larger ids, and
-    the tie-break is what pulls it back to the front.
+    A **multiplier** still opens a gap between the two layers, and it opens a
+    new one besides: multiplying two per-type sums that already differ by a
+    ULP can land on the same float, so `final_total` can tie two armaments
+    `scaled_per_type()` does not. Measured 2026-09-03, searching every
+    Nightfarer at levels 1 and 15 with no effects (no case), and with the
+    lowest one to three effects raising `physicsAttackRate`,
+    `magicAttackRate` or `fireAttackRate` plus one class-scoped melee buff,
+    over all four tiers: Duchess, level 1, MIN_UPGRADE, with the two
+    lowest-numbered effects that raise `magicAttackRate` --
+    `cases.effects_raising_rate(game_data, hero, "magicAttackRate", 2)` --
+    ties Magic Miséricorde, Rogier's Cold Rapier and Magic Serpentbone Blade
+    at `final_total` 94.267388..., while their `scaled_per_type()` sums are
+    83.21192727272728, 83.21192727272727 and 83.21192727272728 -- the middle
+    one a ULP low, which the shared multiplier 1.2707499955892558 erases.
+    Layer one therefore puts the highest-id armament of the three ahead of
+    the lowest, and the tie-break is what puts it back.
 
     So the case asserts three things and not one: that ties exist, that at
     least one of them is out of id order before the tie-break (without which
     this test proves nothing), and that none of them is out of it afterwards.
     """
-    bare = model.compute(hero, 1, [], game_data.get("curves", {}))
+    hero = cases.hero_by_name(game_data, "Duchess")
+    rate_ids = cases.effects_raising_rate(game_data, hero, "magicAttackRate", 2)
+    effects = [cases.effect_by_id(game_data, i) for i in rate_ids]
+    build = model.compute(hero, 1, effects, game_data.get("curves", {}))
     tier = weapons.MIN_UPGRADE
-    attributes = getattr(bare,
+    attributes = getattr(build,
                          damage.ATTRIBUTES_FOR[damage.Question.CANDIDATE])
 
-    ranked = damage.rank_candidates(bare, tier, game_data)
+    ranked = damage.rank_candidates(build, tier, game_data)
     layer_one = [rating.weapon["id"] for rating in
                  weapons.rank(game_data, attributes, tier)]
     place = {weapon_id: index for index, weapon_id in enumerate(layer_one)}

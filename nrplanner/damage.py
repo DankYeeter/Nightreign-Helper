@@ -160,8 +160,11 @@ class Rating:
     # The layer-one rating this was built from. No display reads it any more
     # -- the breakdown panel took its requirement check and its per-stat
     # figures off it in W3 and asks this dataclass instead. It stays for
-    # `WeaponRating.total`, which is still the reference point of the
-    # bit-for-bit comparison, and goes with it in W5 (assurance Z1).
+    # `applied_upgrade` (`tier_applied` below) and for `AttackRating.before`/
+    # `.after`, the older view the golden test's window-free half and
+    # `test_marginal_returns.py` still read. `WeaponRating.total` itself fell
+    # in W5 (assurance Z1) -- it had no reader left once this field's own
+    # `scaled_per_type()` could be summed instead.
     weapon_rating: weapons.WeaponRating
     scaled_per_type: dict[str, float]
     final_per_type: dict[str, float]
@@ -184,9 +187,12 @@ class Rating:
         property is a second summation, but it sums layer two, not layer one,
         so it is not an "other" in the sense assurance Z1 forbids (QA-064/b).
 
-        Outside this module `weapons.WeaponRating.total` still brackets the
-        same addends differently, and deliberately so until W5 (do-not rule
-        27): it is the reference point the differential comparison stands on.
+        `weapons.WeaponRating.total` used to bracket the same addends
+        differently outside this module, and deliberately so until W5
+        (do-not rule 27): it was the reference point the differential
+        comparison during the W1-W4 migration stood on. It fell in W5 --
+        there was nothing left to compare it against once every display
+        stood on the facade.
         """
         return sum(self.scaled_per_type.values())
 
@@ -218,13 +224,30 @@ class Rating:
 
 @dataclass(frozen=True)
 class AttackRating:
-    """The breakdown panel's older view of an `equipped()` pair.
+    """The breakdown panel's older view of an `equipped()`-shaped pair.
 
     Every figure on it is read off the two `Rating`s it holds, so it cannot
     be a second answer to a question the facade has already answered -- which
     is how QA-018 arose. The panel itself stopped asking in these terms in
     W3; what still asks is the advisor's marginal-contribution measure
     (AD-018) and the window-free half of the golden file.
+
+    **QA-071, decided in W5: kept, not folded into `Rating`.** This class and
+    `attack_rating()` below have no production reader any more -- confirmed
+    by search, not by memory, before writing this. What they still have is a
+    calling convention `equipped()` cannot offer: a bare `(weapon, tier,
+    starting_armament)`, with no slot and no hero. `equipped()` needs both to
+    work out the tier and the starting-armament pairing on its own (AD-020,
+    point 6), which is right for a tab with a real slot and wrong for a case
+    that is evaluating a weapon nothing has equipped -- exactly the shape
+    `test_marginal_returns.py`'s AD-018 prototype and the golden file's
+    window-free half are in. Folding this into `Rating` would not remove a
+    second calculation, because there is only ever the one call to `_rate()`
+    underneath; it would only replace this pair with a bare tuple and push
+    the slot-free construction into every caller instead of once here. That
+    is a larger, riskier edit for a purely cosmetic gain -- the golden file
+    in particular is not to move a digit in this task -- so the second
+    interface stays, documented rather than merged away in silence.
     """
 
     bare: Rating

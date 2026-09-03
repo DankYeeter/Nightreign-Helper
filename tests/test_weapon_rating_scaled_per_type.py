@@ -8,13 +8,19 @@ are what that drift looked like from the outside.
 A test that only restated the sum would be worth nothing: it would pass with a
 copy of the line under test. So the claims below are the ones a caller relies
 on and could not read off the expression -- which types appear, in which
-order, and that the parts still add up to the `total` the dataclass already
-carried.
+order, and that no armament in the dataset loses a type on the way out.
+
+There used to be a fourth case here, checking that `scaled_per_type()` summed
+to the `total` field `WeaponRating` carried beside it -- the two were the same
+addends bracketed differently, and the case was the differential check
+assurance Z1 needed while both bracketings were live during the W1-W4
+migration. `total` fell in W5 (AD-019, AD-024): there is now exactly one
+summation of a damage type in the program, so there is nothing left for a
+second one to disagree with, and the case would have had to be deleted anyway
+to stop reading a field that no longer exists.
 """
 
 from __future__ import annotations
-
-import pytest
 
 from nrplanner import weapons
 
@@ -55,24 +61,6 @@ def test_the_order_is_the_damage_type_order_not_the_insertion_order():
                       {"Dark": 3.0, "Physics": 6.0, "Magic": 4.5})
 
     assert list(rating.scaled_per_type()) == ["Physics", "Magic", "Dark"]
-
-
-def test_the_types_add_up_to_the_total_the_rating_already_carried(game_data):
-    """The new accessor and the old field describe the same armament.
-
-    `total` sums the two dictionaries whole; `scaled_per_type` sums them type
-    by type. The same addends in a different order, so the tolerance here is
-    for floating-point associativity alone and nothing else -- a real
-    disagreement would be visible far above it.
-    """
-    attributes = {"Strength": 30, "Dexterity": 30, "Intelligence": 30,
-                  "Faith": 30, "Arcane": 30}
-
-    for weapon in game_data["weapons"]:
-        rating = weapons.rate(weapon, attributes, game_data,
-                              upgrade=weapons.MAX_UPGRADE)
-        assert sum(rating.scaled_per_type().values()) == pytest.approx(
-            rating.total, rel=1e-12), weapon["name"]
 
 
 def test_every_type_the_rating_holds_comes_back(game_data):
