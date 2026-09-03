@@ -102,16 +102,30 @@ class Question(enum.Enum):
 
 
 # The only place that says whether the multiplier layer belongs to a question.
-# The measurement in play behind QA-018 changes one value here and nothing
-# else in the program (AD-019 step W6).
 #
-# These are today's values, including where today's value is the wrong one:
-# the arsenal tab ranks without the multipliers and the breakdown panel shows
-# them, which is exactly the 203.4-against-244.1 of QA-018. W2 moves the
-# choice, it does not decide it.
+# **Decided by the measurement in play, 2026-09-03 (AD-019 step W6, QA-018).**
+# The arsenal tab used to rank without the multipliers while the breakdown
+# panel showed them, and one armament stood on screen as 203.4 and as 244.1 at
+# the same moment. Neither number was reached by a wrong sum: the panel's
+# figure carried a x1.20 that the tab's did not.
+#
+# The user checked which of the two the game agrees with, and the answer was
+# **both of them, once the buff behind the x1.20 stops being counted flat**.
+# "Improved Thrusting Counterattack" reaches a thrusting counterattack and no
+# other swing, so it belongs to no ordinary attack rating at all; it is out of
+# the layer since `model.MOVE_SCOPED_EFFECT_IDS`, together with the three
+# spell families beside it. What is left in the layer -- "Improved Physical
+# Attack Power" and its 200-odd relatives -- lifts every swing, so it belongs
+# to a candidate exactly as it belongs to an equipped armament, and a tab that
+# left it out ranked a bow above a greatsword for a build that buffs neither.
+#
+# BARE stays off, and that is a different question rather than the same one
+# answered differently: it is the breakdown's left-hand column, the figure the
+# armament would have with nothing equipped, and multipliers that come from
+# what is equipped have no place in it (AD-020, point 2).
 MULTIPLIERS_FOR = {
     Question.EQUIPPED: True,
-    Question.CANDIDATE: False,
+    Question.CANDIDATE: True,
     Question.BARE: False,
 }
 
@@ -407,20 +421,31 @@ def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
                     require_usable: bool) -> list[Rating]:
     """Every armament in the dataset as a candidate, best first.
 
-    `weapons.rank` orders them by descending `WeaponRating.total` -- the
-    layer below the attack multipliers, layer one. That is **not** the order
-    the arsenal tab draws: `arsenaltab._build_weapons` discards this list's
-    order outright and re-sorts each family of its own accord, by descending
-    rarity, then the standard version's name, then id. Reversing this
-    function's order leaves every row the tab draws where it was; the count
-    behind that sentence is in QA-064/a and not here, because it was measured
-    by the run recorded there and not by this module's author (QA-069). W4,
-    which puts the tab onto this function, has to read this paragraph and not
-    the one it replaces. What does hold while
-    `MULTIPLIERS_FOR[Question.CANDIDATE]` is off is that the ranked figure and
-    the figure a display would show are the same number; switching it on in
-    W6 makes the order come from the layer below the multipliers, and a
-    class-scoped rate would reorder the answer without reordering the list.
+    **Best by the figure a display shows, which is `final_total`.** Ordering
+    is done here and not left to `weapons.rank`, because `rank` sees layer one
+    only: it cannot know the attack multipliers, and since W6 they are part of
+    a candidate's answer. A list ordered by layer one while every row printed
+    layer two would rank a bow above a greatsword whenever a class-scoped rate
+    lifted one of them -- sorted by a number that is nowhere on screen. The
+    layer-one order `rank` hands over is therefore an intermediate result, not
+    this function's answer; it is re-sorted rather than trusted.
+
+    **The second key is the armament id, and it is not decoration** (do-not
+    rule 29). Two orderings of the same addends can disagree by a ULP --
+    `WeaponRating.total` sums the base and scaled maps whole, `final_total`
+    sums the merged per-type map, and 584 of 7 172 measured records move by
+    exactly one (AD-024). Near-ties are common in this dataset, so without a
+    tie-break the order of equal figures would follow whatever `rank` happened
+    to hand over, and two runs could disagree about rows a player cannot tell
+    apart.
+
+    This is **not** the order the arsenal tab draws:
+    `arsenaltab._build_weapons` discards this list's order outright and
+    re-sorts each family of its own accord, by descending rarity, then the
+    standard version's name, then id. Reversing this function's order leaves
+    every row the tab draws where it was; the count behind that sentence is in
+    QA-064/a and not here, because it was measured by the run recorded there
+    and not by this module's author (QA-069).
 
     `require_usable` is passed straight through and is a caller's input, not a
     policy of the question -- it is a checkbox in the arsenal tab today
@@ -430,7 +455,9 @@ def rank_candidates(build: model.Build, target_tier: int, data: dict, *,
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
     ranked = weapons.rank(data, attributes, target_tier,
                           require_usable=require_usable)
-    return [_answer(rating, Question.CANDIDATE, build) for rating in ranked]
+    answers = [_answer(rating, Question.CANDIDATE, build) for rating in ranked]
+    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+    return answers
 
 
 def attack_rating(weapon: dict, tier: int, build: model.Build, data: dict,

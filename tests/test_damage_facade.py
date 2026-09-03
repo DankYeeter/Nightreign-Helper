@@ -313,19 +313,19 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
         game_data, build):
     """Best first, every one of them asked the same question at one tier.
 
-    "Best first" is `weapons.rank`'s own promise: descending
-    `WeaponRating.total`, layer one, which is the key it actually sorts by.
-    That is a different claim from descending `final_total` (QA-065):
-    `WeaponRating.total` sums the base and scaled maps whole, `final_total`
-    sums the merged per-type map, and the two bracketings of the same
-    addends can disagree by a ULP without the sort key moving at all --
-    measured at Wylder, level 1, no relics, `MAX_UPGRADE`: positions 319/320
-    are Gargoyle's Black Halberd and Gargoyle's Sacred Black Halberd,
-    bit-identical on `weapon_rating.total` and one ULP apart on
-    `final_total` (2026-09-02). A test pinned to `final_total` order would be
-    red on that reachable input while `rank_candidates` did exactly what it
-    promises. W6, which moves the sort onto layer two, is what has to bring a
-    stable secondary key with it.
+    "Best" is `final_total`, the figure a display prints, since W6 moved the
+    ordering out of `weapons.rank` and into `rank_candidates`. Until then the
+    key was `WeaponRating.total`, layer one, and this assertion was written on
+    it for a measured reason (QA-065): the two bracketings of the same addends
+    disagree by a ULP -- at Wylder, level 1, no relics, `MAX_UPGRADE`,
+    positions 319/320 were Gargoyle's Black Halberd and Gargoyle's Sacred
+    Black Halberd, bit-identical on `weapon_rating.total` and one ULP apart on
+    `final_total` (2026-09-02). A test pinned to `final_total` order was red on
+    that input while the function kept its own promise.
+
+    What settles it is not that layer two is the better number but that it is
+    the **shown** one, and that the ordering now carries the stable second key
+    ULP noise made necessary (do-not rule 29).
     """
     ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
                                     require_usable=False)
@@ -333,34 +333,75 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
     assert len(ranked) == len(game_data["weapons"])
     assert all(r.question is damage.Question.CANDIDATE for r in ranked)
     assert all(r.tier_applied >= weapons.MAX_UPGRADE for r in ranked)
-    totals = [r.weapon_rating.total for r in ranked]
-    assert totals == sorted(totals, reverse=True)
+    keys = [(-r.final_total, r.weapon["id"]) for r in ranked]
+    assert keys == sorted(keys)
 
 
-def test_a_candidate_is_the_scaled_figure_the_arsenal_tab_shows_today(
-        game_data, build):
-    """Today's value of `MULTIPLIERS_FOR[CANDIDATE]`, stated as behaviour.
+def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data,
+                                                                build):
+    """The second sort key, and why it is not decoration (do-not rule 29).
 
-    The arsenal tab ranks without the attack multipliers and the breakdown
-    panel shows them, which is the 203.4 against 244.1 of QA-018. W2 moves
-    that choice into one table without deciding it, so what the facade answers
-    for a candidate is still, to the last bit, the figure the tab shows.
+    Equal figures are not an edge case in this dataset: measured on 2026-09-03
+    at Wylder, level 15, `MAX_UPGRADE`, 1 424 of 1 793 armaments share their
+    `final_total` with at least one other, across 460 shared values. Without a
+    tie-break their order would be whatever `weapons.rank` happened to hand
+    over, and a ULP anywhere upstream could reshuffle rows a player cannot
+    tell apart.
 
-    Which of the two is right is a measurement the user makes in game, and the
-    step that acts on it is W6: it sets one value in `MULTIPLIERS_FOR` and
-    brings this test with it, naming the finding in the commit. Until then a
-    flipped table value is a silent change of a shown number, and this is what
-    catches it.
+    The case is built from the ties the dataset really has rather than from a
+    hand-made pair, and it refuses to pass if it found none.
+    """
+    ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
+                                    require_usable=False)
+
+    groups: dict[float, list[int]] = {}
+    for rating in ranked:
+        groups.setdefault(rating.final_total, []).append(rating.weapon["id"])
+    tied = {figure: ids for figure, ids in groups.items() if len(ids) > 1}
+
+    assert tied, ("no two armaments rate alike in this build, so this case "
+                  "cannot see the tie-break at all")
+    for figure, ids in tied.items():
+        assert ids == sorted(ids), (
+            f"the {len(ids)} armaments rating {figure} came back in the order "
+            f"{ids}, which is not their id order")
+
+
+def test_a_candidate_carries_the_attack_multipliers(game_data, build):
+    """W6's value of `MULTIPLIERS_FOR[CANDIDATE]`, stated as behaviour.
+
+    Until W6 this table entry was False: the arsenal tab ranked without the
+    attack multipliers while the breakdown panel showed them, and one armament
+    stood on screen as two figures at once (QA-018, 203.4 against 244.1). The
+    user's measurement in play settled it -- what was wrong was not that the
+    tab left the multipliers out but that a move-restricted buff was in them
+    (`model.MOVE_SCOPED_EFFECT_IDS`). With that buff gone from the layer, the
+    layer belongs to a candidate exactly as it belongs to an equipped
+    armament.
+
+    Asserted against the layer-one figure times the build's own rates rather
+    than against a frozen number, and the case refuses to run on a build whose
+    rates are all 1.0 -- there the two answers coincide and the entry could be
+    flipped back without a test noticing.
     """
     ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data,
                                     require_usable=False)
     by_id = {r.weapon["id"]: r for r in ranked}
 
+    moved = 0
     for weapon in game_data["weapons"]:
-        today = weapons.rate(weapon, build.attributes, game_data,
-                             weapons.MAX_UPGRADE)
+        layer_one = weapons.rate(weapon, build.attributes, game_data,
+                                 weapons.MAX_UPGRADE)
         answer = by_id[weapon["id"]]
-        assert answer.final_per_type == today.scaled_per_type(), weapon["name"]
+        assert answer.scaled_per_type == layer_one.scaled_per_type(), \
+            weapon["name"]
+        if answer.final_per_type != answer.scaled_per_type:
+            moved += 1
+
+    assert moved, (
+        "not one armament's figure moved between the two layers, so this "
+        "build carries no multiplier and the case cannot tell "
+        "MULTIPLIERS_FOR[CANDIDATE] True from False")
 
 
 def test_the_usable_filter_reaches_the_requirement_check(game_data):
