@@ -100,11 +100,19 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation(
         game_data, wylder):
     """The promise the README's Known limits already make, kept in the result.
 
-    Attack rating has never been checked against an in-game number, and the
-    figure the advisor ranks by is that same attack rating. A run that stopped
-    saying so would be the first place in the program where the reservation
-    was dropped -- and it would be dropped exactly where the player is being
-    asked to act on the number.
+    The figure the advisor ranks by is the weapon panel's attack rating, and
+    since T-045 that figure **is** the game's own -- but only over a stated
+    range, and with one whole class of armament outside it. A run that
+    stopped saying so would be the first place in the program where the
+    scope was dropped, and it would be dropped exactly where the player is
+    being asked to act on the number.
+
+    The old single line, "Attack rating has not been verified against an
+    in-game number", is gone because 2256 comparisons against the game made
+    it false (QA-095). Replacing an untrue reservation with nothing is the
+    A7 failure this project keeps repeating, so what stands in its place is
+    the scope of the agreement and the exception to it -- and both are
+    asserted here, not only their presence in the source.
     """
     reference = advisor.scaling_armament(game_data, wylder)
     with_armament, ctx = build_with(game_data, wylder, reference=reference)
@@ -112,7 +120,19 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation(
 
     for build, context in ((with_armament, ctx), (without, plain_ctx)):
         unknowns = goals.GOALS["max_damage"].score(build, context).unknowns
-        assert any("has not been verified" in line for line in unknowns)
+        assert not any("has not been verified" in line for line in unknowns), (
+            "the old reservation is back; it says the attack rating was "
+            "never checked against the game, which is no longer true")
+        scope = [line for line in unknowns
+                 if "matches the game's own display" in line]
+        assert scope, "no line says where the agreement with the game holds"
+        for outside in ("reinforced", "infused", "Scholar", "Undertaker"):
+            assert any(outside in line for line in scope), (
+                f"the scope line does not say that {outside} armaments or "
+                f"Nightfarers are outside the measurement")
+        assert any("Staves and seals" in line for line in unknowns), (
+            "nothing says that a catalyst's figure is a different quantity "
+            "from the one the game shows for it")
         assert any("Spell damage" in line for line in unknowns)
         assert any("Critical-only" in line for line in unknowns)
 

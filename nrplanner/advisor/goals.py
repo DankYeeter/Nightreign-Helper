@@ -75,11 +75,25 @@ EVEN_WEIGHTING = types.Weighting(
 DEFAULT_WEIGHTING = EVEN_WEIGHTING
 
 
-# The three things an attack rating cannot tell the player, whatever the
+# The four things an attack rating cannot tell the player, whatever the
 # build. Written as a constant so that both branches of `_max_damage` carry
 # them and neither can be trimmed on its own.
+#
+# The first two used to be one line -- "Attack rating has not been verified
+# against an in-game number" -- and that line is simply no longer true: 2256
+# comparisons against the game's own display settled it (QA-095). What
+# replaces it is not silence but the **scope** of the agreement, because a
+# figure that says it matches the game and does not say where is the failure
+# this project keeps having (A7). And the second line is there because
+# catalysts are not merely unmeasured, they are measured and different: for a
+# staff or a seal the game shows the spell scaling, this figure is the
+# physical attack rating, and the two do not even rank alike (QA-099).
 _ATTACK_RATING_UNKNOWNS = (
-    "Attack rating has not been verified against an in-game number.",
+    "Attack rating matches the game's own display for ordinary armaments at "
+    "their own rarity; reinforced rarities, infused variants, Scholar and "
+    "Undertaker were not measured.",
+    "Staves and seals are outside that match — the game shows their spell "
+    "scaling, this figure is their physical attack rating instead.",
     "Spell damage is not in the game data, so spells are not rated.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
 )

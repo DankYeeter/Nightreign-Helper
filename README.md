@@ -543,9 +543,18 @@ would be dropped rather than displayed.
 
 Stated plainly rather than hidden:
 
-- **Attack rating has not been verified against an in-game number.** The maths
-  follows the game's own fields, but the final figure has not been checked
-  against what the game displays.
+- **Attack rating is checked against the game, within a stated range.** It was
+  held against a community measurement of the game's own armament panel — 310
+  armaments across eight Nightfarers, at level 12, each armament at its own
+  rarity and with no relics equipped. On that range the figure here is the
+  game's exactly for 1901 of 1974 readings and within one for 1933 of them.
+  Outside it nothing has been measured: reinforced rarities, infused variants,
+  Scholar and Undertaker, and levels other than 1, 12 and 15.
+- **Staves and seals are the exception, and their number is a different one.**
+  The game shows a catalyst's spell scaling where it shows an armament's
+  attack power; this tool shows the physical attack rating instead. So a
+  catalyst's figure here cannot be compared with the game's, and two catalysts
+  can come out in the opposite order from the one the game puts them in.
 - **Don't scan while the game is saving.** A save read part-way through being
   written gives records that were never there — measured once at 290 against a
   true 284. The reader now waits for the file to settle, and on a settled file
