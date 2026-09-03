@@ -139,6 +139,84 @@ MUTATIONS: dict[str, Mutation] = {
             "Guarded since by test_breakdown_sources_wiring.py, which calls "
             "`recompute()` directly."),
     ),
+    "move-scope-list-emptied": Mutation(
+        path="nrplanner/model.py",
+        old="""    return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
+""",
+        new="""    return False
+""",
+        survival_means=(
+            "the list of buffs the game restricts in prose reaches nothing, "
+            "which is the state the program was in before QA-018 was "
+            "decided: 'Improved Thrusting Counterattack' lifts every swing "
+            "by 20% again, and Wylder's Greatsword reads 244 where the game "
+            "says 203. Behaviourally identical to writing "
+            "`frozenset()` for the list itself, and anchored on the lookup "
+            "because the lookup is the one line the list is read through. "
+            "Killed since by tests/test_move_scoped_effects.py."),
+    ),
+    "move-scope-catches-every-unscoped-attack-buff": Mutation(
+        path="nrplanner/model.py",
+        old="""    return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
+""",
+        new="""    return any(f in (effect.get("modifiers") or {})
+               for f in ELEMENT_ATTACK_RATES)
+""",
+        survival_means=(
+            "nothing bounds the exclusion from the other side. The four "
+            "families would be out of the attack rating and so would the 162 "
+            "flat buffs beside them -- 'Improved Physical Attack Power' among "
+            "them -- and every multiplier a player equips would stop counting "
+            "while the sheet went on listing it. The counterpart of "
+            "`move-scope-list-emptied`: one mutation makes the list too "
+            "small, this one makes it too large, and a guard that catches "
+            "only the first says nothing about where the list ends."),
+    ),
+    "candidate-without-the-multipliers": Mutation(
+        path="nrplanner/damage.py",
+        old="""    Question.CANDIDATE: True,
+""",
+        new="""    Question.CANDIDATE: False,
+""",
+        survival_means=(
+            "AD-019 step W6 can be undone by one word and nothing notices. "
+            "The arsenal tab would go back to ranking and printing the figure "
+            "from below the attack multipliers while the breakdown panel next "
+            "door printed the one above them -- QA-018's two numbers for one "
+            "armament, restored. Killed since by "
+            "test_a_candidate_carries_the_attack_multipliers."),
+    ),
+    "ranking-left-in-layer-one-order": Mutation(
+        path="nrplanner/damage.py",
+        old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+    return answers
+""",
+        new="""    return answers
+""",
+        survival_means=(
+            "`rank_candidates` hands back the order `weapons.rank` produced, "
+            "which is descending `WeaponRating.total` -- the layer below the "
+            "attack multipliers. Every row would print one number and be "
+            "placed by another, and a class-scoped rate would move an "
+            "armament's figure without moving its position. Killed since by "
+            "test_ranking_answers_the_candidate_question_for_every_armament."),
+    ),
+    "ranking-without-the-tie-break": Mutation(
+        path="nrplanner/damage.py",
+        old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+""",
+        new="""    answers.sort(key=lambda answer: -answer.final_total)
+""",
+        survival_means=(
+            "do-not rule 29 is unenforced. Armaments that rate alike -- "
+            "1 424 of 1 793 of them at Wylder, level 15, MAX_UPGRADE, "
+            "measured 2026-09-03 -- would come back in whatever order "
+            "`weapons.rank` happened to produce, and a one-ULP move anywhere "
+            "upstream (584 of 7 172 records, AD-024) could reshuffle rows a "
+            "player cannot tell apart. This is the mutation "
+            "`ranking-left-in-layer-one-order` cannot make: there the figures "
+            "themselves move, here only equal ones do."),
+    ),
 }
 
 
