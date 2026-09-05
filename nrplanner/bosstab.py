@@ -37,6 +37,15 @@ OBSERVED_COLOUR = "#7fae72"
 ICON = 64
 CARD_WIDTH = 250
 
+#: How the grid shows which card the detail panel is describing (QA-150).
+#: Two channels rather than one, because the edge colour is already spoken
+#: for: a Nightlord with an Everdark twin carries DEEP there, and a selection
+#: that only swapped one edge colour for another would be a single hue apart
+#: from the twin marker. The fill is a channel no other marker on this grid
+#: uses, and it is the tint the Red variants table already selects rows with,
+#: so the two tabs say "this one" the same way (A13).
+SELECTED_EDGE = ACCENT
+SELECTED_FILL = "rgba(200, 164, 92, 60)"
 
 #: What the detail panel is given where there is room for it, and the least it
 #: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
@@ -261,12 +270,9 @@ class BossCard(QFrame):
         self.setObjectName("card")
         self.setCursor(Qt.PointingHandCursor)
 
-        edge = DEEP if boss.get("everdark") else BORDER
-        self.setStyleSheet(
-            f"#card {{ background: {PANEL}; border: 1px solid {edge};"
-            f" border-radius: 7px; }}"
-            " #card QLabel { background: transparent; border: none; }"
-        )
+        self._edge = DEEP if boss.get("everdark") else BORDER
+        self._selected = False
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(9, 9, 9, 9)
@@ -312,6 +318,33 @@ class BossCard(QFrame):
         description.setWordWrap(True)
         description.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(description, 1)
+
+    def _apply_appearance(self) -> None:
+        """Draw the card in the state it is in.
+
+        Border width is the same either way. A selected card that grew its
+        border would push its own contents a pixel inwards, and the grid
+        would twitch every time a reader tried another Nightlord.
+        """
+        edge = SELECTED_EDGE if self._selected else self._edge
+        fill = SELECTED_FILL if self._selected else PANEL
+        self.setStyleSheet(
+            f"#card {{ background: {fill}; border: 1px solid {edge};"
+            f" border-radius: 7px; }}"
+            " #card QLabel { background: transparent; border: none; }"
+        )
+
+    @property
+    def selected(self) -> bool:
+        """Is this the card the detail panel is describing?"""
+        return self._selected
+
+    def set_selected(self, selected: bool) -> None:
+        """Mark, or unmark, this card as the one the panel is describing."""
+        if selected == self._selected:
+            return
+        self._selected = selected
+        self._apply_appearance()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
         self.clicked.emit(self.boss)
@@ -583,7 +616,26 @@ class BossTab(QWidget):
                 f"(smallest {html.escape(bars[0][1])} {bars[0][0]:g}, "
                 f"largest {html.escape(bars[-1][1])} {bars[-1][0]:g})")
 
+    def _mark_selected(self, boss: dict | None) -> None:
+        """Put the marker on the card this entry came from, and on no other.
+
+        By name, not by identity. `BossCard.clicked` is declared `Signal(dict)`
+        and Qt marshals the entry across it, so what reaches this method after
+        a click is an equal dict and never the same object the card holds --
+        measured 2026-09-05: `emitted is card.boss` is False, `==` is True. An
+        `is` here would mark nothing at all, and would do it silently.
+        """
+        name = boss["name"] if boss else None
+        for card in self.holder.findChildren(BossCard):
+            card.set_selected(card.boss["name"] == name)
+
     def show_detail(self, boss: dict | None) -> None:
+        # Which card the panel is describing belongs on the grid and not only
+        # in the panel. At 8 px between cards a near miss opens the neighbour,
+        # and with no marker the grid looks exactly as it did before -- so a
+        # player can read a profile, believe it is the Nightlord he aimed at
+        # and plan the fight against a different one (QA-150).
+        self._mark_selected(boss)
         if boss is None:
             self.detail_art.clear()
             self.detail_name.setText("Select a Nightlord")
