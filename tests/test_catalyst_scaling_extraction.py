@@ -30,9 +30,12 @@ pass while the extractor read a field the game data does not have -- which
 is the whole failure. The literal is the fact about the data; the constant
 is the claim about it, and the two are held against each other.
 
-The refusal cases below stay green under that mutation on their own -- a
-guard that only ever refuses is satisfied by refusing everything -- which is
-why the positive case is in this file beside them.
+Measured on 2026-09-05: 3 of the 4 cases here fail under that mutation. The
+one that stays green is `test_a_table_without_the_field_is_refused` -- and
+that is the point of naming which case dies. A guard that only ever refuses
+is satisfied by refusing everything, so a file holding the refusal cases
+alone would report the extractor reading a field the game does not have as
+a clean run.
 """
 
 from __future__ import annotations

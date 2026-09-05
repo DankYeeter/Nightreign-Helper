@@ -710,13 +710,15 @@ MUTATIONS: dict[str, Mutation] = {
             "must not be ordinary is the extraction carrying on without it. "
             "Killed by tests/test_catalyst_scaling_extraction.py::"
             "test_a_well_formed_table_hands_back_every_rate, whose stub rows "
-            "carry the Paramdex name written out as a literal -- the two "
-            "refusal cases beside it stay green under this edit on their "
-            "own, because a guard that only ever refuses is satisfied by "
-            "refusing everything. The name written here is deliberately not "
-            "the one that file's refusal case uses: if the two coincided, "
-            "the refusal case would fail for a reason that has nothing to "
-            "do with what this mutation is about."),
+            "carry the Paramdex name written out as a literal rather than "
+            "read off the constant -- a stub built from the constant agrees "
+            "with whatever the extractor is looking for and cannot see this "
+            "at all. Measured 2026-09-05: 3 of that file's 4 cases fail, and "
+            "the one that survives is the refusal case, because a guard that "
+            "only ever refuses is satisfied by refusing everything. The name "
+            "written here is deliberately not the one that file's refusal "
+            "case uses: if the two coincided, that case would fail for a "
+            "reason that has nothing to do with this mutation."),
     ),
 }
 
