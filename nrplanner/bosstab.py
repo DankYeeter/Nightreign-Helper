@@ -105,9 +105,16 @@ DEBUFF_ON_BREAK_SIGHTING = (
 # alone -- with nothing anywhere saying the two were different things. Drawn
 # in the colour it explains, the way the Red variants tab already names its
 # community-reported line.
+#
+# It says what the colour means and stops there. The World Events tab can add
+# "everything else is the game's own data" because on that tab it is true; on
+# this one it is not yet -- `Set off by` and the trigger clause of a defence
+# step are sightings drawn in the ordinary colour (AK-94, reported to the
+# director rather than changed here). A legend that claimed it would be the
+# one false sentence on the panel.
 SIGHTING_LEGEND = (
-    "Lines in this colour were watched in play. Everything else on this panel "
-    "is read from the game's own files.")
+    "Lines in this colour were watched in play rather than read from the "
+    "game's files.")
 
 # The reference each block of figures is measured against (A12, AK-91's
 # pattern). Three sections carried one and three did not, which made the
