@@ -150,7 +150,8 @@ def an_armament_type_gate(data: dict, hero: dict) -> tuple[int, dict, dict]:
                               weapon=other, weapons_held=[other])
         seeing = model.compute(hero, LEVEL, [effect], curves,
                                weapon=other, weapons_held=[other, carrier])
-        if blind.rates != seeing.rates or blind.attributes != seeing.attributes:
+        if (blind.rates != seeing.rates
+                or blind.attributes != seeing.attributes):
             return int(effect["id"]), carrier, other
     raise LookupError("this dataset has no weapon-type gate that moves a "
                       "number, so nothing here can tell the whole grid from "

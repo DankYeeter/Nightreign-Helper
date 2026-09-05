@@ -30,8 +30,8 @@ offered at all and is reported instead (AD-013 point 4).
 (AD-025.2): the copies this save gives no handle for, the candidates whose
 effect no total counted, and the candidates whose damage-type conversion this
 figure has no place for (QA-113). Each carries a count, so each belongs to the
-run rather than to the method. What the *direction* cannot know whatever the run
-stands in `Goal.scope` and is read from there; six pools of a Deep vessel
+run rather than to the method. What the *direction* cannot know whatever the
+run stands in `Goal.scope` and is read from there; six pools of a Deep vessel
 repeating it six times is the noise AK-50 is written against. The one thing
 the pool does carry from a direction is what that direction found out about
 **this** run -- `Baseline.unknowns` and `weights_note`, which stopped at this

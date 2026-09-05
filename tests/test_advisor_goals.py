@@ -187,7 +187,7 @@ def test_every_goal_gives_a_finite_number_for_a_known_build(game_data, wylder,
 
 
 def test_the_damage_goal_always_carries_the_attack_rating_reservation():
-    """The promise the README's Known limits already make, kept in the registry.
+    """The promise the README's Known limits makes, kept in the registry.
 
     The figure the advisor ranks by is the weapon panel's figure, and since
     T-045 that figure **is** the game's own -- but only over a stated range.
@@ -270,7 +270,8 @@ def test_the_damage_goal_counts_the_attack_multipliers(game_data, wylder):
 def test_the_damage_goal_moves_with_the_attributes(game_data, wylder):
     """The half `weapons.rate` owns: scaling, and with it F2's whole point."""
     reference = advisor.scaling_armament(game_data, wylder)
-    stronger = cases.effects_raising_attribute(game_data, wylder, "Strength", 1)
+    stronger = cases.effects_raising_attribute(
+        game_data, wylder, "Strength", 1)
 
     plain, ctx = build_with(game_data, wylder, reference=reference)
     raised, _ = build_with(game_data, wylder, effect_ids=stronger,
@@ -352,12 +353,15 @@ def test_the_damage_goal_ranks_a_self_inflicted_penalty_below(game_data,
         return damage.candidate(reference.weapon, reference.tier, build,
                                 game_data).final_headline
 
-    assert (asked_without_a_slot(carrying) - asked_without_a_slot(base)) > \
-        (asked_without_a_slot(plain) - asked_without_a_slot(base)), (
+    slotless = asked_without_a_slot(carrying) - asked_without_a_slot(base)
+    slotless_plain = asked_without_a_slot(plain) - asked_without_a_slot(base)
+    charged = asked_as_the_goal_asks(carrying) - asked_as_the_goal_asks(base)
+    unburdened = asked_as_the_goal_asks(plain) - asked_as_the_goal_asks(base)
+
+    assert slotless > slotless_plain, (
         "asked as an armament in no slot these two come back the other way "
         "round; without that this case cannot tell the two questions apart")
-    assert (asked_as_the_goal_asks(carrying) - asked_as_the_goal_asks(base)) < \
-        (asked_as_the_goal_asks(plain) - asked_as_the_goal_asks(base)), (
+    assert charged < unburdened, (
         "a relic that costs the armament 15 % ranked above one that costs it "
         "nothing, so the goal is not charging the penalty to the candidate "
         "that brought it")
