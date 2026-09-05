@@ -17,8 +17,8 @@ import statistics
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QAbstractItemView, QFrame, QHeaderView, QLabel, QScrollArea, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from . import tabheader
@@ -183,7 +183,24 @@ class DeepTab(QWidget):
         depths = self.deep.get("depth_count", 5)
         self.depth_names = [f"Depth {i + 1}" for i in range(depths)]
 
-        layout = QVBoxLayout(self)
+        # Four tables sized to their rows stack to more than a screen, and a
+        # QTabWidget hands the tallest of its pages to the whole window: this
+        # one page asked for 1195 logical px on Windows -- 1838 physical at
+        # 150 % scale, against a screen 1600 px tall -- so the program had a
+        # minimum height no monitor here could satisfy and the tab's last two
+        # lines could neither be seen nor scrolled to (DR-015, AK-71, AK-97).
+        # Inside a scroll area the same content asks for 69; the tab is as
+        # tall as the window allows and the reader scrolls the rest.
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.scroll)
+
+        content = QWidget()
+        self.scroll.setWidget(content)
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(14)
 
