@@ -28,9 +28,34 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from . import tabheader
+
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
 COMMUNITY = "#7fb2e5"
+
+#: AK-98. The old heading, `RED VARIANTS BY DEPTH`, announced counts, and the
+#: answer to "what *is* a red variant" sat in a subordinate clause halfway
+#: down the intro paragraph -- where a player looking for it did not find it.
+#: The limit is named in the same breath as the answer, because the files
+#: carry no strength figures at all: `mutations` holds `counts`, `category`,
+#: `group` and `varies`, and nothing else.
+HEADING = "RED VARIANTS: WHAT THEY ARE, AND HOW MANY"
+QUESTION = (
+    "A red variant is the same enemy made stronger — never a different "
+    "enemy. The game's files do not say by how much. What they do say is how "
+    "many of each sort a run places on a map, and that is the table below.")
+
+#: AK-99. The rosters carry no map dimension at all, so the same names come
+#: back for every map the box above can be set to. Saying `(any map)` in the
+#: heading costs two words and stops the column claiming a link the data has
+#: not got.
+NAME_HEADER = "What can be red"
+EXAMPLES_HEADER = "Examples (any map)"
+EXAMPLES_TIP = (
+    "Named members of this group anywhere in the game. The files do not list "
+    "them per map, so these names are not tied to the map selected above.")
+NO_NAMES = "— the files name none"
 
 ZERO_COLOUR = QColor("#4a4a4a")
 BAR_COLOUR = QColor("#9a6fc4")
@@ -60,15 +85,6 @@ PLAYER_GROUPS: list[tuple[str, list[int]]] = [
 ]
 
 
-def _heading(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setStyleSheet(
-        f"color: {ACCENT}; font-size: 12px; font-weight: bold;"
-        " letter-spacing: 1px;"
-    )
-    return label
-
-
 class DepthsTab(QWidget):
     def __init__(self, data: dict):
         super().__init__()
@@ -81,15 +97,19 @@ class DepthsTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        layout.addWidget(_heading("RED VARIANTS BY DEPTH"))
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
+        # What is left of the old intro once its opening clause has moved up
+        # into QUESTION, where it answers the tab's own title (AK-98). The
+        # last sentence stays: it is the plainest statement of a reference
+        # quantity anywhere in the program, and the one the other five tabs
+        # were measured against.
         intro = QLabel(
-            "Red variants are individual empowered enemies -- the same "
-            "enemy, stronger, never a different one -- and they appear "
-            "scattered through the map, several per camp. Deeper runs do "
-            "not just make them stronger: more are placed, and the boss "
-            "tiers only join from Depth 2 on. The figures are how many red "
-            "variants of each sort a run puts on the selected map."
+            "They appear scattered through the map, several per camp. Deeper "
+            "runs do not just make them stronger: more are placed, and the "
+            "boss tiers only join from Depth 2 on. The figures are how many "
+            "red variants of each sort a run puts on the selected map."
         )
         intro.setWordWrap(True)
         intro.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
@@ -122,11 +142,15 @@ class DepthsTab(QWidget):
         self.summary.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.summary)
 
-        headers = ["What can be red", "For example"] + [
-            f"Depth {i + 1}" for i in range(self.depths)
+        self.depth_groups = self._depth_groups()
+        headers = [NAME_HEADER, EXAMPLES_HEADER] + [
+            self._depth_header(group) for group in self.depth_groups
         ]
         self.table = QTableWidget(0, len(headers))
         self.table.setHorizontalHeaderLabels(headers)
+        item = self.table.horizontalHeaderItem(1)
+        if item is not None:
+            item.setToolTip(EXAMPLES_TIP)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
@@ -135,8 +159,12 @@ class DepthsTab(QWidget):
             " color: #f0f0f0; }"
         )
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        # The leftover width goes to the column that says what the row is,
+        # not to the one carrying up to three names (AK-99). The other way
+        # round made the examples the widest column of the table while the
+        # names themselves were the same on every map.
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         for column in range(2, len(headers)):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
@@ -145,18 +173,70 @@ class DepthsTab(QWidget):
 
     # ------------------------------------------------------------------
 
+    def _counts_for(self, pool: list[dict], categories: list[int]) -> list[int]:
+        """How many red variants of these kinds a run places, per depth."""
+        return [sum(m["counts"][i] for m in pool if m["category"] in categories)
+                for i in range(self.depths)]
+
+    def _depth_groups(self) -> list[list[int]]:
+        """Consecutive depths whose figures are equal on every map and row.
+
+        Depth 2 equals Depth 3 and Depth 4 equals Depth 5 for all six maps and
+        all 22 data rows, so five columns repeated themselves three times over
+        and the table said with five columns what it had to say with three.
+        Merging is worked out from the data rather than written down, so a
+        patch that ever moves one of them apart drops this straight back to
+        one column per depth instead of hiding the difference (AK-100).
+
+        With nothing in the dataset there is nothing to merge on: every column
+        would then be trivially equal to its neighbour, and one column headed
+        `Depth 1–5` would be an assertion about data that is not there.
+        """
+        seen: list[list[int]] = []
+        for group in GROUP_MAPS:
+            pool = [m for m in self.mutations if m["group"] in (group, 0)]
+            for _label, categories in PLAYER_GROUPS:
+                seen.append(self._counts_for(pool, categories))
+        if not any(any(counts) for counts in seen):
+            return [[depth] for depth in range(self.depths)]
+
+        groups: list[list[int]] = []
+        for depth in range(self.depths):
+            column = [counts[depth] for counts in seen]
+            previous = ([counts[groups[-1][-1]] for counts in seen]
+                        if groups else None)
+            if previous is not None and column == previous:
+                groups[-1].append(depth)
+            else:
+                groups.append([depth])
+        return groups
+
+    @staticmethod
+    def _depth_header(group: list[int]) -> str:
+        if len(group) == 1:
+            return f"Depth {group[0] + 1}"
+        return f"Depth {group[0] + 1}–{group[-1] + 1}"
+
     def _pool(self) -> list[dict]:
         group = self.map_box.currentData()
         return [m for m in self.mutations if m["group"] in (group, 0)]
 
     def _examples(self, categories: list[int]) -> str:
-        """Up to three named members across the group's rosters."""
+        """Up to three named members across the group's rosters.
+
+        `NO_NAMES` rather than an empty cell where the rosters name nobody:
+        two of the six rows are in that state, one of them the largest row of
+        the table, and a blank cell reads as a gap in the program rather than
+        as an answer (A7, AK-99).
+        """
         names: list[str] = []
         for category in categories:
             kind = self.kinds.get(str(category)) or {}
             for entry in kind.get("chrs", []):
                 if entry.get("name") and entry["name"] not in names:
                     names.append(entry["name"])
+        if not names:
+            return NO_NAMES
         return ", ".join(names[:3]) + (" …" if len(names) > 3 else "")
 
     def refresh(self) -> None:
@@ -164,9 +244,7 @@ class DepthsTab(QWidget):
 
         rows: list[tuple[str, str, list[int]]] = []
         for label, categories in PLAYER_GROUPS:
-            counts = [sum(m["counts"][i] for m in pool
-                          if m["category"] in categories)
-                      for i in range(self.depths)]
+            counts = self._counts_for(pool, categories)
             if any(counts):
                 rows.append((label, self._examples(categories), counts))
         totals = [sum(r[2][i] for r in rows) for i in range(self.depths)]
@@ -186,7 +264,11 @@ class DepthsTab(QWidget):
             example.setForeground(QColor("#b8b8b8"))
             self.table.setItem(r, 1, example)
 
-            for i, count in enumerate(counts):
+            # One cell per column, and a column may stand for more than one
+            # depth. Every member of a group carries the same figure by the
+            # way the groups were built, so the first of them is the group's.
+            for i, group in enumerate(self.depth_groups):
+                count = counts[group[0]]
                 item = QTableWidgetItem()
                 item.setData(Qt.DisplayRole, str(count) if count else "—")
                 item.setTextAlignment(Qt.AlignCenter)
