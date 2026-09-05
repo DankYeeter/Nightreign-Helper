@@ -108,6 +108,31 @@ MUTATIONS: dict[str, Mutation] = {
             "tests/test_arsenal_tab_asks_the_facade.py, which reads the "
             "rendered tile and not the list behind it."),
     ),
+    "arsenal-summary-reads-the-slider": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""        build = self.planner.current_build()
+        # From the build and not from the slider: they agree in the running
+        # program, and for a tool that sets a build directly they do not --
+        # this line used to make every arsenal record of the differential
+        # track say "level 1" whatever it was measuring (QA-124).
+        level = build.level
+""",
+        new="""        build = self.planner.current_build()
+        level = self.planner.level_slider.value()
+""",
+        survival_means=(
+            "the level in the tab's summary line comes from a widget and the "
+            "figures beside it from a build, and nothing holds the two "
+            "together. In the running program they never differ; for a tool "
+            "that sets `planner._build` directly they always do, and this "
+            "track is such a tool -- every arsenal record it wrote before "
+            "T-048 says 'level 1' whatever level it was measuring (QA-124, "
+            "the root of QA-088 a). What that costs is not a wrong figure "
+            "but a wrong label on a right one, in the records this "
+            "repository argues from. Killed by "
+            "test_arsenal_tab_asks_the_facade.py::"
+            "test_the_summary_names_the_level_the_build_was_computed_at."),
+    ),
     "arsenal-ranks-at-the-slot-tier": Mutation(
         path="nrplanner/arsenaltab.py",
         old="""        self.ratings = damage.rank_candidates(

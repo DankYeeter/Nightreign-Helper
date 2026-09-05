@@ -739,6 +739,15 @@ class Situational:
 
 @dataclass
 class Build:
+    #: The level this build was computed at. Carried so that a display which
+    #: shows the level beside the figures can read it from the same object the
+    #: figures came from: `arsenaltab` read it off the level slider instead,
+    #: which agrees in the running program and disagrees for any tool that
+    #: sets a build directly -- the whole differential track did, and every
+    #: one of its arsenal records says "level 1" whatever it measured
+    #: (QA-124, the root of QA-088 a). 0 means "nobody said", which is what a
+    #: hand-built `Build` in a test carries.
+    level: int = 0
     attributes: dict[str, int] = field(default_factory=dict)
     base_attributes: dict[str, int] = field(default_factory=dict)
     rates: dict[str, float] = field(default_factory=dict)
@@ -824,7 +833,8 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             "backwards -- Improved Item Discovery reads -60% instead of +40%."
         )
     base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
-    build = Build(base_attributes=dict(base), attributes=dict(base))
+    build = Build(level=level, base_attributes=dict(base),
+                  attributes=dict(base))
     # Weapon-type gates are met by any armament being held, not just the one
     # being broken down. Falls back to the single weapon when no set is given,
     # so older callers keep working.

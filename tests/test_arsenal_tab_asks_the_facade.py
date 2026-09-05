@@ -52,7 +52,7 @@ import re
 import pytest
 from PySide6.QtWidgets import QLabel
 
-from nrplanner import arsenaltab, damage, weapons, weaponslots
+from nrplanner import arsenaltab, damage, model, weapons, weaponslots
 
 from tests import weapon_damage_cases as cases
 
@@ -393,3 +393,37 @@ def test_the_rarity_filter_agrees_with_the_section_count(
         f"the tab shows {weapons_section_total(tab)} armaments for the "
         f"'Common' band at tier {tier}, an independent count over the "
         f"facade's own ratings says {expected}")
+
+
+def test_the_summary_names_the_level_the_build_was_computed_at(planner,
+                                                               game_data,
+                                                               hero):
+    """QA-124: the level beside the figures comes from the same build.
+
+    In the running program the slider and the build never disagree, so this
+    changes nothing a player sees. It changes what a **tool** sees, and the
+    differential track is one: it sets `planner._build` directly, never moves
+    the slider, and every arsenal record it has ever written therefore says
+    "level 1" whatever level it was measuring (QA-088 a). A summary line that
+    can name a level the figures beside it do not belong to is a trap for the
+    next measurement, and the next measurement is the thing this repository
+    argues from.
+
+    The two are pulled apart here on purpose: the slider stays where
+    `prepare` left it and the build is replaced with one computed at another
+    level, which is exactly the state the track puts the tab in.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+    elsewhere = weapons.MIN_UPGRADE    # any level the slider is not on
+    assert planner.level_slider.value() != elsewhere, (
+        "the slider already sits at the level this case swaps in, so it "
+        "cannot tell the two sources apart")
+
+    planner._build = model.compute(hero, elsewhere, [],
+                                   game_data.get("curves", {}))
+    tab.recalculate()
+
+    assert f"at level {elsewhere}" in tab.summary.text(), (
+        f"the summary names a level the figures beside it were not computed "
+        f"at: {tab.summary.text()!r}")

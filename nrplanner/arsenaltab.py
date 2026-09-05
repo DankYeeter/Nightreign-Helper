@@ -242,13 +242,17 @@ class ArsenalTab(QWidget):
     # -- data ------------------------------------------------------------
     def recalculate(self) -> None:
         hero = self.planner.current_hero()
-        level = self.planner.level_slider.value()
         # The build the planner tab is showing, not one computed again here.
         # This tab used to work out its own, with four of the seven arguments
         # missing -- no curses, no armament effects, no declared conditionals,
         # no weapon gates -- and then ranked every armament in the game
         # against attributes the stat sheet next door disagreed with (QA-001).
         build = self.planner.current_build()
+        # From the build and not from the slider: they agree in the running
+        # program, and for a tool that sets a build directly they do not --
+        # this line used to make every arsenal record of the differential
+        # track say "level 1" whatever it was measuring (QA-124).
+        level = build.level
         self.attributes = build.attributes
         # The tier is handed over explicitly and there is no default that
         # could stand in for it: ranking an armament that sits in no slot at
