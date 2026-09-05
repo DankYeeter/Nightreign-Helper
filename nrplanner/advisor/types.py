@@ -231,16 +231,20 @@ class GoalScore:
     QA-074 cost this project once already. Bigger is better for every goal, so
     one comparison serves all of them.
 
-    `unknowns` is not optional and is never empty (AD-010, `GOAL.md` A7): a
-    figure that does not say what it cannot know is the thing the house rule
-    forbids. `weights_note` is empty exactly when the goal made no weighting
-    assumption of its own.
+    `unknowns` carries **run findings only** and may be empty (AD-025.2): a
+    sentence that would read the same before any run is a procedural sentence
+    and lives in `Goal.scope`, where the registry keeps it. Empty here means
+    "this run left nothing out", which is a statement rather than an omission
+    (AD-010 as AD-025.2 sharpens it). `weights_note` is empty exactly when the
+    goal made no weighting assumption of its own; it is a run finding too,
+    because which of the possible wordings applies is settled by the run
+    (AD-025.3).
     """
 
     value: float
     display: str
     unit: str
-    unknowns: tuple[str, ...]
+    unknowns: tuple[str, ...] = ()
     weights_note: str = ""
 
 
@@ -252,11 +256,22 @@ class Goal:
     `GoalScore`. It never sees the base state and never forms a difference:
     the marginal contribution is the caller's arithmetic (do-not rule 20),
     or knowledge of the base state would leak into the registry.
+
+    `scope` is what this direction cannot know **whatever the run** -- the
+    procedural sentences of AD-025.1, and it is never empty: a direction
+    without a stated scope is not one. It lives here rather than on
+    `GoalScore` because the registry has no run to look at, so a sentence
+    that needs one cannot be written here by mistake; and a caller can read
+    it without a dataset, a build or an inventory, which is what makes the
+    A7 promise checkable on a runner with no game installed (QA-106,
+    checkpoint 29). The run's own findings go the other way and travel in
+    `GoalScore.unknowns`.
     """
 
     id: str
     label: str
     blurb: str
+    scope: tuple[str, ...]
     score: Callable[[model.Build, "GoalContext"], GoalScore]
 
 
@@ -390,9 +405,10 @@ class SlotPool:
     *this* slot emptied (AD-018.1). Without it a gain of "+12.4" says nothing.
 
     `unknowns` is what this pool could not consider, in the player's language
-    (AD-010, A7). It is empty when there was nothing to leave out, which is
-    the ordinary case; the guarantee that a goal always says something is on
-    `GoalScore`, not here.
+    (AD-010, A7) -- run findings, and only those (AD-025.2). It is empty when
+    there was nothing to leave out, which is the ordinary case; the guarantee
+    that a direction always says something is on `Goal.scope`, which the
+    registry holds and no run can empty.
     """
 
     slot_index: int

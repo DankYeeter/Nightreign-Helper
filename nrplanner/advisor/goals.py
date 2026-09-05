@@ -1,9 +1,13 @@
 """The named directions to optimise in, as a registry of pure functions.
 
 AD-004: a goal is not a number, it is a number **with a stated scope**. Each
-entry below therefore hands back a `GoalScore` whose `unknowns` is never
-empty -- where the game files do not support a judgement, the result says so
-instead of guessing (`GOAL.md` A7).
+entry below therefore carries a `Goal.scope` that is never empty -- where the
+game files do not support a judgement, the registry says so instead of
+guessing (`GOAL.md` A7). What the *run* left out is a different sentence and
+goes back in `GoalScore.unknowns`, which may be empty; AD-025 splits the two
+by the question "can the sentence be written before the run is known?", and
+makes the answer a property of where the sentence lives rather than of how it
+was worded.
 
 **Two figures, never one.** There is no conversion between damage dealt and
 damage survived, and inventing an exchange rate is what AD-023 and OF-13
@@ -45,10 +49,10 @@ from . import types
 #: limits:** these eight and nothing else. Status ailments
 #: (`bloodDamageRate` and its three relatives), stance damage
 #: (`toughnessDamageCutRate`) and the resistance points in
-#: `model.RESISTANCES` are all real and all outside this figure; the
-#: `unknowns` below say so. `model.RATE_LABELS` names all of them, which is
-#: why the list here is written out rather than filtered out of that table by
-#: a name pattern.
+#: `model.RESISTANCES` are all real and all outside this figure;
+#: `_DAMAGE_TAKEN_SCOPE` below says so. `model.RATE_LABELS` names all of them,
+#: which is why the list here is written out rather than filtered out of that
+#: table by a name pattern.
 DAMAGE_CUT_FIELDS = (
     "slashDamageCutRate",
     "blowDamageCutRate",
@@ -75,9 +79,12 @@ EVEN_WEIGHTING = types.Weighting(
 DEFAULT_WEIGHTING = EVEN_WEIGHTING
 
 
-# The four things this figure cannot tell the player, whatever the build.
-# Written as a constant so that both branches of `_max_damage` carry them and
-# neither can be trimmed on its own.
+# The four things this figure cannot tell the player, whatever the build --
+# procedural sentences in the sense of AD-025.1, so they hang on
+# `MAX_DAMAGE.scope` and not on a score. They used to be a default for both
+# branches of `_max_damage`; the registry is the stronger version of the same
+# guarantee, because a run cannot empty it and a reader needs no dataset to
+# see it (checkpoint 29).
 #
 # The first line used to read "Attack rating has not been verified against an
 # in-game number", and that is simply no longer true: 2256 comparisons
@@ -94,7 +101,7 @@ DEFAULT_WEIGHTING = EVEN_WEIGHTING
 # what stands in its place is the **scope** of the new figure -- the base
 # rarity is what was measured, and the figure is the game's display and not a
 # statement about what a spell hits for.
-_ATTACK_RATING_UNKNOWNS = (
+_ATTACK_RATING_SCOPE = (
     "Attack rating matches the game's own display for ordinary armaments at "
     "their own rarity; reinforced rarities, infused variants, Scholar and "
     "Undertaker were not measured.",
@@ -112,7 +119,7 @@ _NO_ARMAMENT_NOTE = ("With no armament chosen there is nothing to scale, so "
                      "the five attack multipliers are averaged with equal "
                      "weight.")
 
-_DAMAGE_TAKEN_UNKNOWNS = (
+_DAMAGE_TAKEN_SCOPE = (
     "Effective HP assumes each damage-reduction rate multiplies the damage "
     "you take; the game files name the fields, not how the engine applies "
     "them.",
@@ -162,17 +169,21 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     a cost worth naming: it is a second `weapons.rate` per evaluation. See
     the report to the `performance-tuner` for S11.
     """
-    unknowns = _ATTACK_RATING_UNKNOWNS
     if ctx.reference is None:
         mean = _attack_multiplier_mean(build)
         # No unit: the figure is a ratio, not an attack rating, and `UI_SPEC`
         # §3.3 drops the "AR" suffix -- and with it the attack-rating
         # reservation -- exactly when the unit is empty.
+        #
+        # `_NO_ARMAMENT` is the pattern case of a run finding (AD-025.1): the
+        # wording could be written down before any run, but whether it holds
+        # could not, and a sentence that stood there with an armament chosen
+        # would be false. That is why the yardstick asks about both halves.
         return types.GoalScore(
             value=mean,
             display=f"Attack multipliers ×{mean:.2f}",
             unit="",
-            unknowns=unknowns + (_NO_ARMAMENT,),
+            unknowns=(_NO_ARMAMENT,),
             weights_note=_NO_ARMAMENT_NOTE,
         )
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
@@ -189,11 +200,13 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # on the spell scaling the game shows for it, because the physical rating
     # it used to rank on is a quantity the game never puts on screen for a
     # catalyst (QA-099).
+    # No `unknowns`: with an armament chosen this run left nothing out, and
+    # that empty tuple is an answer rather than a gap (AD-025.2). What the
+    # figure cannot know whatever the run stands in `MAX_DAMAGE.scope`.
     return types.GoalScore(
         value=now.final_headline,
         display=f"{now.headline_name} {damage.displayed(now.final_headline)}",
         unit=now.headline_label,
-        unknowns=unknowns,
     )
 
 
@@ -207,8 +220,11 @@ def _min_damage_taken(build: model.Build,
     serves both.
 
     **The averaging is an assumption and it is spoken out loud**, in
-    `weights_note` and again in `unknowns`: nothing in the game files says how
-    often a player meets fire rather than slash. Whoever knows better passes a
+    `weights_note` and again in `MIN_DAMAGE_TAKEN.scope`: nothing in the game
+    files says how often a player meets fire rather than slash. The two are
+    not a repetition -- `weights_note` names *this* run's weighting and comes
+    out of the context, the scope line says that a weighting has to be assumed
+    at all and is true of every run (AD-025.3). Whoever knows better passes a
     different `Weighting`; the goal holds no numbers of its own (AD-004,
     OF-3).
 
@@ -241,7 +257,6 @@ def _min_damage_taken(build: model.Build,
         value=effective,
         display=f"Effective HP {effective:.0f}",
         unit="effective HP",
-        unknowns=_DAMAGE_TAKEN_UNKNOWNS,
         weights_note=ctx.weighting.note,
     )
 
@@ -250,6 +265,7 @@ MAX_DAMAGE = types.Goal(
     id="max_damage",
     label="Maximise damage",
     blurb="Ranks by what your reference armament hits for.",
+    scope=_ATTACK_RATING_SCOPE,
     score=_max_damage,
 )
 
@@ -257,6 +273,7 @@ MIN_DAMAGE_TAKEN = types.Goal(
     id="min_damage_taken",
     label="Minimise damage taken",
     blurb="Ranks by how much punishment the build absorbs.",
+    scope=_DAMAGE_TAKEN_SCOPE,
     score=_min_damage_taken,
 )
 

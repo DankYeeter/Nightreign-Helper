@@ -551,32 +551,80 @@ MUTATIONS: dict[str, Mutation] = {
             "test_one_build.py::"
             "test_only_the_facade_calls_weapons_rate_or_rank."),
     ),
-    "advisor-goal-without-its-unknowns": Mutation(
+    # -- the two classes of reservation (T-048: AD-025, QA-102) -------------
+    #
+    # Three edits, because AD-025 makes three separate promises and a guard
+    # that caught only one would leave the others unheld: that the registry
+    # states a scope at all, that no sentence is told twice, and that a
+    # sentence which holds whatever the run is not filed as a finding of one.
+    "advisor-goal-without-its-scope": Mutation(
         path="nrplanner/advisor/goals.py",
-        old="""    return types.GoalScore(
-        value=effective,
-        display=f"Effective HP {effective:.0f}",
-        unit="effective HP",
-        unknowns=_DAMAGE_TAKEN_UNKNOWNS,
-        weights_note=ctx.weighting.note,
-    )
+        old="""MIN_DAMAGE_TAKEN = types.Goal(
+    id="min_damage_taken",
+    label="Minimise damage taken",
+    blurb="Ranks by how much punishment the build absorbs.",
+    scope=_DAMAGE_TAKEN_SCOPE,
 """,
-        new="""    return types.GoalScore(
-        value=effective,
-        display=f"Effective HP {effective:.0f}",
-        unit="effective HP",
-        unknowns=(),
-        weights_note=ctx.weighting.note,
-    )
+        new="""MIN_DAMAGE_TAKEN = types.Goal(
+    id="min_damage_taken",
+    label="Minimise damage taken",
+    blurb="Ranks by how much punishment the build absorbs.",
+    scope=(),
 """,
         survival_means=(
             "`GOAL.md` A7 rests on the drawing again. The figure would go to "
             "the screen with nothing saying that ailment resistance is not "
             "in it and that the weighting between the eight damage kinds is "
             "an assumption nothing in the game files supports -- which is "
-            "exactly the static-warning arrangement AD-010 rejected. Killed "
-            "by test_advisor_goals.py::"
-            "test_no_goal_hands_back_an_empty_unknowns[min_damage_taken]."),
+            "exactly the static-warning arrangement AD-010 rejected. This "
+            "is checkpoint 29's counter-build, and it is the one mutation of "
+            "the advisor that a runner with no game installed can catch: the "
+            "case that kills it takes no fixture. Killed by "
+            "test_advisor_goals.py::"
+            "test_no_direction_carries_an_empty_scope[min_damage_taken]."),
+    ),
+    "advisor-scope-sentence-repeated-as-a-run-finding": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""            unknowns=(_NO_ARMAMENT,),
+""",
+        new="""            unknowns=(_NO_ARMAMENT, _ATTACK_RATING_SCOPE[0]),
+""",
+        survival_means=(
+            "AD-025.4 is unheld and one sentence may stand in both classes. "
+            "The player would read where the attack rating agrees with the "
+            "game twice on one screen -- once outside the cards, where the "
+            "registry's scope is drawn, and once on the card as something "
+            "this particular run left out -- with two justifications behind "
+            "one sentence. That is the repetition AK-50 is written against, "
+            "arriving through the door AD-025 built to keep it out. Chosen "
+            "in the branch without a reference armament on purpose: it "
+            "leaves checkpoint 31 green, so the two checkpoints are told "
+            "apart by their own counter-builds. Killed by "
+            "test_advisor_goals.py::"
+            "test_no_sentence_stands_in_both_classes[max_damage]."),
+    ),
+    "advisor-run-finding-that-outlives-every-run": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""        unit="effective HP",
+        weights_note=ctx.weighting.note,
+""",
+        new="""        unit="effective HP",
+        unknowns=("Effective HP is not a figure the game displays.",),
+        weights_note=ctx.weighting.note,
+""",
+        survival_means=(
+            "a sentence that is true of every run can be filed as a finding "
+            "of one, and the split AD-025 rests on stops being enforced by "
+            "anything but care. Six pools of a Deep vessel would then repeat "
+            "it six times where the registry would have drawn it once "
+            "(AK-50), and the yardstick -- can the sentence be written "
+            "before the run is known? -- would be back to being a matter of "
+            "how carefully somebody read it. The sentence written here is "
+            "deliberately **not** one of the four in `_DAMAGE_TAKEN_SCOPE`: "
+            "if it were, checkpoint 30 would catch it first and this "
+            "counter-build would say nothing about checkpoint 31. Killed by "
+            "test_advisor_goals.py::"
+            "test_a_run_finding_does_not_survive_every_run[min_damage_taken]."),
     ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
