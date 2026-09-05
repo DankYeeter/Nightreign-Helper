@@ -92,24 +92,35 @@ def _offer(slot: types.Slot, relic) -> types.Candidate:
     )
 
 
-def _without_a_handle_line(count: int) -> str:
-    """The A7 line for copies this save cannot tell apart (AD-013 point 4)."""
+def _without_a_handle_line(count: int, slot: types.Slot) -> str:
+    """The A7 line for copies this save cannot tell apart (AD-013 point 4).
+
+    One sentence, two fillings for the one place they differ (AK-67). The
+    line used to say "of this colour" at every slot, and at a white one that
+    is a claim about the count that is not true: `inventory.relics_for` offers
+    a white slot relics of **every** colour, so a copy of any colour can fall
+    through the same handle gap. The number was always right -- it summed over
+    whatever the slot actually offers -- and only the description of what had
+    been counted was wrong (QA-108).
+    """
     one = count == 1
-    return (f"{count} owned {'relic' if one else 'relics'} of this colour "
+    reach = "any" if slot.colour == model.WHITE_SLOT else "this"
+    return (f"{count} owned {'relic' if one else 'relics'} of {reach} colour "
             f"{'is' if one else 'are'} not offered: this save carries no "
             f"handle for {'it' if one else 'them'}, so one copy cannot be "
             f"told from another and a suggestion naming one could not be "
             f"applied to a slot.")
 
 
-#: The conditional line's wording belongs to the `ui-ux-designer` and is not
-#: settled yet (OF-20, AD-025.6, `ARCHITECTURE.md` do-not rule 38). Until it
-#: is, the line is built with this marker in front of it so that nobody --
-#: reader or player -- can mistake the stand-in for the decided text. AD-004
-#: proposes "N of your relics"; what is actually counted is the candidates of
-#: *this* pool, so the sentence below describes what was counted rather than
-#: guessing what it will read.
-WORDING_PENDING = "[wording pending OF-20] "
+#: A line whose wording the `ui-ux-designer` has not settled carries this in
+#: front of it, so that nobody -- reader or player -- mistakes the stand-in
+#: for decided text. One line still does: the conversion line below. Its
+#: subject, QA-113, reached the code in T-048 and is named nowhere in the
+#: wording decision of 2026-09-05, which settled the other two lines of this
+#: field (AK-67) and states that `SlotPool.unknowns` carries at most two
+#: sentences. It carries three. Guessing the third would be inventing the
+#: decision rather than waiting for it.
+WORDING_PENDING = "[wording pending: QA-113] "
 
 
 def _conditional_line(count: int) -> str:
@@ -118,13 +129,19 @@ def _conditional_line(count: int) -> str:
     Without it a player sees a strong situational relic sitting at `0.00`
     and concludes the advisor is broken -- which is the reason AD-004 gives
     for the line existing at all.
+
+    Wording and count are settled and they do not describe the same set: the
+    sentence says "your relics" (AK-67, verbatim), while the count is over the
+    candidates **this pool** offers -- already narrowed by colour and by Deep,
+    the same population the handle line above counts over. The
+    `ui-ux-designer` decided it that way with both halves in view; the two
+    lines of one field would otherwise count over two different totals.
     """
     one = count == 1
-    return (f"{WORDING_PENDING}{count} of the "
-            f"{'relic' if one else 'relics'} offered for this slot "
-            f"{'carries' if one else 'carry'} an effect that only applies "
-            f"under a condition you have not declared, so "
-            f"{'it was' if one else 'they were'} not counted.")
+    carry = ("carries an effect that only applies" if one
+             else "carry effects that only apply")
+    return (f"{count} of your relics {carry} under a condition. "
+            f"{'It was' if one else 'They were'} not counted.")
 
 
 def _brought_an_uncounted_condition(build: model.Build,
@@ -189,7 +206,7 @@ def _converts_a_damage_type(candidate: types.Candidate,
     return False
 
 
-def _pool_findings(without_handle: int, conditional: int,
+def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
                    converting: int) -> tuple[str, ...]:
     """What this pool left out, in the player's language (AD-025.2).
 
@@ -202,10 +219,20 @@ def _pool_findings(without_handle: int, conditional: int,
     A relic can be named by more than one of these lines, and that is
     intended: the reasons are different, and one of them arriving would not
     make the others untrue.
+
+    The order is fixed and AK-67 gives its reason: the handle line names
+    candidates that were **never** counted, the conditional line names ones
+    that were counted and then set to zero -- rising order of how far into the
+    calculation the relic got. The conversion line, whose wording is still
+    the `ui-ux-designer`'s to settle, sits behind both on the same reading.
+
+    The slot is taken rather than the colour alone because the handle line
+    asks about the reach of `inventory.relics_for`, which is a property of the
+    slot and not of a number.
     """
     lines = []
     if without_handle:
-        lines.append(_without_a_handle_line(without_handle))
+        lines.append(_without_a_handle_line(without_handle, slot))
     if conditional:
         lines.append(_conditional_line(conditional))
     if converting:
@@ -287,7 +314,8 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                                       score.unknowns, score.weights_note)
                        for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
-        unknowns=_pool_findings(without_handle, conditional, converting),
+        unknowns=_pool_findings(slot, without_handle, conditional,
+                                converting),
     )
 
 

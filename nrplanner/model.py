@@ -676,6 +676,14 @@ RATE_LABELS[CRIT_RATE] = "Critical damage"
 # Colour 4 is White -- a wildcard slot that accepts a relic of any colour.
 COLOUR_NAMES = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
+# The one entry above that is not a colour a relic can carry: a white slot
+# draws from every colour, which is why `inventory.relics_for` treats it as a
+# wildcard rather than as a value to match. Read out of the names rather than
+# written as 4, so a renumbering moves both together -- and so that a reader
+# meeting the number somewhere else can find out here what it means.
+WHITE_SLOT = next(value for value, name in COLOUR_NAMES.items()
+                  if name == "White")
+
 # Lowest attribute value the sheet will display. See compute() for why.
 ATTRIBUTE_FLOOR = 1
 

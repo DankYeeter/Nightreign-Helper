@@ -420,7 +420,7 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/advisor/candidates.py",
         old="""    lines = []
     if without_handle:
-        lines.append(_without_a_handle_line(without_handle))
+        lines.append(_without_a_handle_line(without_handle, slot))
 """,
         new="""    lines = []
 """,
@@ -988,6 +988,37 @@ MUTATIONS: dict[str, Mutation] = {
             "written here is deliberately not the one that file's refusal "
             "case uses: if the two coincided, that case would fail for a "
             "reason that has nothing to do with this mutation."),
+    ),
+    "handle-line-names-a-colour-the-white-slot-has-not": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    reach = "any" if slot.colour == model.WHITE_SLOT else "this"
+""",
+        new="""    reach = "this"
+""",
+        survival_means=(
+            "the handle line is free to say 'of this colour' at a white "
+            "slot again, which is QA-108: `inventory.relics_for` offers a "
+            "white slot every colour, so the copies it counts there can be "
+            "of any of them and the sentence claims a narrowing that does "
+            "not exist. The count itself never moves, which is why a case "
+            "asserting the number cannot see this at all. Killed by "
+            "tests/test_pool_finding_wording.py::"
+            "test_the_handle_line_at_a_white_slot_names_every_colour."),
+    ),
+    "settled-wording-still-marked-as-pending": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    return (f"{count} of your relics {carry} under a condition. "
+""",
+        new="""    return (f"{WORDING_PENDING}{count} of your relics {carry} under a condition. "
+""",
+        survival_means=(
+            "a stand-in marker can travel to the screen in front of a "
+            "sentence that was decided -- the state T-048 left this line in "
+            "on purpose and AK-67 ended. Nothing else in the suite reads "
+            "these strings whole, so a wording that drifts from the one the "
+            "`ui-ux-designer` settled would ship unnoticed. Killed by "
+            "tests/test_pool_finding_wording.py::"
+            "test_the_conditional_line_word_for_word."),
     ),
     "arsenal-summary-defines-one-figure-of-two": Mutation(
         path="nrplanner/arsenaltab.py",
