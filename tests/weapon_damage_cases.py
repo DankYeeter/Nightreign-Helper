@@ -331,7 +331,17 @@ def declarable_attack_buff(data: dict, hero: dict) -> int:
 #: by accident. The class name goes into the record beside the figure, so a
 #: comparison shows the move rather than assuming it.
 def arsenal_figure(rating) -> float:
-    """The number the arsenal tab prints for one armament, unrounded."""
+    """The layer-two figure behind an arsenal tile, unrounded.
+
+    **Not always the number the tile prints.** Since T-046 a staff or a seal
+    is headed by the spell scaling the game shows for it (QA-099), and this
+    still reads `final_total`, the attack rating underneath. That is the
+    split the capture is built on rather than an oversight: this field
+    answers "did the arithmetic move", `arsenal_tiles` beside it answers
+    "did the text move", and keeping them apart is what QA-074 asks for. A
+    change of *which* figure a tile shows is a change of text, and it shows
+    up there -- for the 30 catalysts of the dataset, it did.
+    """
     if isinstance(rating, weapons.WeaponRating):
         # The tab before W4: `weapons.rank`. Read off `scaled_per_type()`
         # rather than the `total` field this branch used to read -- `total`
