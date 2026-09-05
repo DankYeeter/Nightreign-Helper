@@ -162,8 +162,12 @@ def cases(data: dict) -> list[dict]:
     executor_start = executor["starting_weapon"]
 
     # The x0.85 the game charges for a status on the starting armament. Three
-    # effects carry it, and they are the whole of the STARTING_AR_RATE_FOR
-    # family (frost, poison, blood loss).
+    # effects carry the STARTING_AR_RATE_FOR **fields**, and they are all of
+    # them (frost, poison, blood loss) -- which is not the same as saying
+    # they are all the "starting armament" relics there are: four more of
+    # those convert a damage type instead, through fields nothing here reads
+    # (QA-113, QA-114). See `damage.STARTING_AR_RATE_FOR` for the counts and
+    # for what could and could not be reproduced from the dataset.
     starting_penalty = effects_raising_rate(
         data, wylder, "physicsAttackPowerRate", 3)
     # The ordinary attack buff, carried by 200-odd effects.

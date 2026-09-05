@@ -64,10 +64,24 @@ AR_RATE_FOR = {
     "Dark": ("darkAttackRate",),
 }
 
-# `*AttackPowerRate` is the second family, carried by exactly three effects --
-# the "Starting armament inflicts frost / poison / blood loss" relics, each
-# x0.85 -- and it is the price the game charges for the status: the armament
-# inflicts it and hits 15% softer for it.
+# `*AttackPowerRate` is the second **field family**, and exactly three effects
+# in the data carry it: the "Starting armament inflicts frost / poison / blood
+# loss" relics, each holding all five fields at 0.85 (measured over the 2076
+# effects of data_version 10350000 on 2026-09-05 -- three effects, fifteen
+# modifier entries). It is the price the game charges for the status: the
+# armament inflicts it and hits 15% softer for it.
+#
+# **Three effects is a statement about this field, not about the relics they
+# belong to** (QA-114). The same three sit in a wider group of "starting
+# armament" relics whose other members convert a damage type instead --
+# "Starting armament deals magic / fire / lightning / holy damage",
+# 7120000/100/200/300, which carry flat `*AttackPower` fields that nothing in
+# this program reads (`model.FLAT_ATTACK_POWER_FIELDS`, QA-113). The claim
+# that the game groups all of them under one `stateInfo` is the
+# `qa-engineer`'s reading of the params and **cannot be reproduced from the
+# extracted dataset**, which carries no such field; what can be counted here
+# is the three above and the four beside them. Merging the two counts is what
+# sent R-005 looking for the conversion in the wrong three effects.
 #
 # It is **not** a global debuff, which is how it was implemented until 1.7.0
 # and what a player reported from play: it reaches the starting armament alone
