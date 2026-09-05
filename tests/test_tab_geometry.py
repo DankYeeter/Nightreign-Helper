@@ -556,3 +556,56 @@ def test_a_search_with_more_hits_than_the_cap_still_draws_a_tile(
                    if tile.isVisible()]
         assert visible, (
             f"the tab says {shown} shown and draws no tile at all")
+
+
+def test_a_narrow_window_does_not_shrink_the_columns_for_good(
+        game_data, qapp):
+    """The half of QA-140 that only shows up in a sequence.
+
+    A heading shortened for a narrow window is what the next measurement
+    reads, and the measurement is what decides how wide a column wants to be.
+    Without the full names put back first, `Type` would be measured at the
+    width of `Ty…` and keep that width when the window grew again -- the tab
+    looks right until it has been narrow once, and then it does not, and
+    nothing about the wide layout explains why.
+
+    The order is the whole case: narrow, a refresh **while narrow**, then wide
+    again. `refresh` is the only thing that re-measures, and a refresh is what
+    every filter on this tab does, so the sequence is one a reader reaches by
+    dragging the window and then ticking a box. Measured in a tree with the
+    restore taken out: back at a 1 600 px window `Type` stood at 37 px instead
+    of 53, `Relic slots` at 51 instead of 82, `Avg chance` at 52 instead of
+    91, and five headings were still shortened where all eleven had been
+    whole. The other order -- widen first, then refresh -- leaves no trace at
+    all, which is why this one is written down.
+
+    The comparison is against the same widths on the same window before the
+    detour, so the case says nothing about what the figures should be -- only
+    that the detour left them where it found them.
+    """
+    with rendered.laid_out(game_data, "effects_tab", 1600) as (window, tab):
+        header = tab.table.horizontalHeader()
+        before = [header.sectionSize(column)
+                  for column in range(tab.table.columnCount())]
+
+        window.resize(min(WIDTHS), 900)
+        rendered.settle()
+        shortened = [tab.table.horizontalHeaderItem(column).text()
+                     for column in range(tab.table.columnCount())]
+        assert any(shown != name
+                   for shown, name in zip(shortened, EFFECT_COLUMNS)), (
+            f"nothing was shortened at {window.width()} px, so the detour "
+            f"this case is about did not happen")
+        narrow = window.width()
+        tab.refresh()
+        rendered.settle()
+
+        window.resize(1600, 900)
+        rendered.settle()
+
+        after = [header.sectionSize(column)
+                 for column in range(tab.table.columnCount())]
+        assert after == before, (
+            f"the columns came back from a {narrow} px window narrower "
+            f"than they went: {dict(zip(EFFECT_COLUMNS, before))} became "
+            f"{dict(zip(EFFECT_COLUMNS, after))}")

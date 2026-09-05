@@ -1422,20 +1422,30 @@ MUTATIONS: dict[str, Mutation] = {
             "test_every_card_in_the_picker_is_drawn_whole at all three "
             "widths."),
     ),
-    "picker-opening-width-guessed-again": Mutation(
+    # The obvious mutation here -- putting the old `CARD_WIDTH *
+    # OPENING_COLUMNS + 80` back -- was written first and **survived**: 1 failed
+    # (the anchor case), 756 passed, on 2026-09-05. Recorded rather than
+    # quietly replaced, because it says something worth knowing. 1 030 px
+    # leaves a 988 px viewport and five 190 px cards with no grid margin need
+    # 982, so under this style the old figure happens to be wide enough once
+    # the grid reflows. What closed QA-141 was `CardGrid`; deriving the
+    # opening width guards a style whose scrollbars are wider than this
+    # machine's, and no case on this machine can tell the two apart. The
+    # mutation below is the one that can: it drops the chrome altogether.
+    "picker-opening-width-without-any-chrome": Mutation(
         path="nrplanner/relicpicker.py",
         old="""        return (cardgrid.room_for(OPENING_COLUMNS, CARD_WIDTH)
                 + 2 * MARGIN
                 + self.scroll.verticalScrollBar().sizeHint().width())
 """,
-        new="""        return CARD_WIDTH * OPENING_COLUMNS + 80
+        new="""        return cardgrid.room_for(OPENING_COLUMNS, CARD_WIDTH)
 """,
         survival_means=(
-            "the size the dialog opens at is a figure someone chose while "
-            "the grid reflows to a different one, which is how the picker "
-            "came to slice a column before the reader had touched it. The "
-            "grid hides the slicing now, so the sign left is a dialog that "
-            "opens one column short of what it sized itself for. Killed by "
+            "the dialog asks for exactly the width of its cards and gets a "
+            "viewport narrower than that by its own margins and its "
+            "scrollbar, so it opens one column short of the number it sized "
+            "itself for -- a grid that reflows correctly to a window that "
+            "was measured wrong. Killed by "
             "tests/test_relic_picker_geometry.py::"
             "test_the_picker_opens_wide_enough_for_the_cards_it_opens_with."),
     ),
