@@ -176,14 +176,18 @@ def test_the_slot_column_says_what_it_counts(tab):
     The heading and its tooltip are both pinned, and the sentence that
     explained the word `pool` has to be gone from the tab entirely -- it
     described something the figure never was.
-    """
-    header = tab.table.horizontalHeaderItem(
-        effectstab.COLUMNS.index(SLOTS_HEADER))
-    assert header is not None and header.text() == SLOTS_HEADER
-    assert tabtext.plain(header.toolTip()) == SLOTS_TIP
 
-    headings = [tab.table.horizontalHeaderItem(c).text()
-                for c in range(tab.table.columnCount())]
+    Read through `heading()` rather than off the header item, because since
+    QA-140 the item carries whatever fits the section it has been given and a
+    narrow window shortens it. The name a reader can still reach is the one in
+    the tooltip, which is asserted here in full.
+    """
+    column = effectstab.COLUMNS.index(SLOTS_HEADER)
+    header = tab.table.horizontalHeaderItem(column)
+    assert header is not None and tab.table.heading(column) == SLOTS_HEADER
+    assert tabtext.plain(header.toolTip()) == f"{SLOTS_HEADER} {SLOTS_TIP}"
+
+    headings = [tab.table.heading(c) for c in range(tab.table.columnCount())]
     assert "Pools" not in headings, (
         f"a column is still headed `Pools`: {headings!r}")
 

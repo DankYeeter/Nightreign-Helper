@@ -5,11 +5,12 @@ from __future__ import annotations
 import collections
 import json
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QStyle, QStyleOptionHeader, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget,
 )
 
 from . import effecttext, model, stacking, tabheader
@@ -157,6 +158,7 @@ class EffectTable(QTableWidget):
     def __init__(self, columns: int):
         super().__init__(0, columns)
         self._natural = [0] * columns
+        self._headings: list[str] = []
 
     @property
     def _description_column(self) -> int:
@@ -164,6 +166,106 @@ class EffectTable(QTableWidget):
 
     def _others(self) -> range:
         return range(1, self._description_column)
+
+    # -- headings ---------------------------------------------------------
+    def set_headings(self, headings: list[str],
+                     tips: dict[int, str]) -> None:
+        """Name the columns, and say on each what it means.
+
+        The names are kept here as well as on the header items because
+        `fit_columns` writes a shortened name into the item whenever the
+        section is too narrow for the whole one. The full name has to outlive
+        that -- to be put back before the next measurement, and to be handed
+        to the reader in the tooltip.
+        """
+        self._headings = list(headings)
+        self.setHorizontalHeaderLabels(self._headings)
+        for column, name in enumerate(self._headings):
+            item = self.horizontalHeaderItem(column)
+            if item is None:
+                continue
+            # The name leads, then whatever the column needs explaining.
+            # Every column carries at least its own name here, because a
+            # heading narrow enough to read as `vg chanc` is a heading with
+            # nowhere else to be read (QA-140); the three that had no tooltip
+            # at all -- `Effect`, `Type`, `What it does` -- are exactly the
+            # ones a reader had no way back from.
+            tip = tips.get(column)
+            item.setToolTip(f"{name}\n{tip}" if tip else name)
+
+    def heading(self, column: int) -> str:
+        """The column's full name, whatever is drawn in the header today."""
+        if 0 <= column < len(self._headings):
+            return self._headings[column]
+        item = self.horizontalHeaderItem(column)
+        return item.text() if item is not None else ""
+
+    def _label_room(self, column: int) -> int:
+        """How many px the style leaves this section's text.
+
+        Asked of the style rather than assumed, because the margin around a
+        header label is a property of the style and this program runs under
+        Fusion while the suite used to render under windowsvista -- 2 px
+        against 4, on every one of eleven columns (QA-146). It is the same
+        rect `QHeaderView` elides against when its own elide mode is on.
+
+        **The sort arrow is part of the answer.** The style takes its width
+        off the label rect, and only for the section that carries it: this
+        table sorts on `Type` from the start, and leaving the indicator out of
+        the option drew `Type` as `y.` at an 833 px window -- an ellipsis
+        clipped in half, which is the very thing being fixed one column over.
+        """
+        header = self.horizontalHeader()
+        option = QStyleOptionHeader()
+        option.initFrom(header)
+        option.orientation = Qt.Horizontal
+        # State_Horizontal, or the style will not take the sort arrow off
+        # the label rect: QCommonStyle reads the flag, not the orientation
+        # field, and without it `Type` came out as `y.` at 833 px.
+        option.state |= QStyle.State_Horizontal
+        option.section = column
+        option.rect = QRect(0, 0, header.sectionSize(column),
+                            max(header.height(), 1))
+        if (header.isSortIndicatorShown()
+                and header.sortIndicatorSection() == column):
+            option.sortIndicator = (
+                QStyleOptionHeader.SortDown
+                if header.sortIndicatorOrder() == Qt.AscendingOrder
+                else QStyleOptionHeader.SortUp)
+        return header.style().subElementRect(
+            QStyle.SE_HeaderLabel, option, header).width()
+
+    def _restore_headings(self) -> None:
+        """Put the full names back, so a measurement never reads a stump.
+
+        `measure_columns` asks Qt how wide each column would like to be, and
+        Qt takes the heading into account. Measuring while the heading is
+        elided would let a narrow window shrink the column it was elided for,
+        and the next wide window would inherit that.
+        """
+        for column, name in enumerate(self._headings):
+            item = self.horizontalHeaderItem(column)
+            if item is not None and item.text() != name:
+                item.setText(name)
+
+    def _elide_headings(self) -> None:
+        """Shorten each heading to the room its section actually leaves it.
+
+        Qt draws a header centred and clips it at both ends, which turned
+        `Avg chance` and `Best chance` into `vg chanc` and `est chanc` -- two
+        headings a reader cannot tell apart, over the two columns the tab
+        exists for (QA-140). An ellipsis says the name is shortened; the
+        tooltip set in `set_headings` says what it was.
+        """
+        metrics = self.horizontalHeader().fontMetrics()
+        for column, name in enumerate(self._headings):
+            item = self.horizontalHeaderItem(column)
+            if item is None:
+                continue
+            shown = metrics.elidedText(name, Qt.ElideRight,
+                                       self._label_room(column))
+            if item.text() != shown:
+                item.setText(shown)
 
     def measure_columns(self) -> None:
         """Note what each column would like, then share the width out.
@@ -173,6 +275,7 @@ class EffectTable(QTableWidget):
         """
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
+        self._restore_headings()
         self.resizeColumnsToContents()
         self._natural = [header.sectionSize(column)
                          for column in range(self.columnCount())]
@@ -238,6 +341,7 @@ class EffectTable(QTableWidget):
         header = self.horizontalHeader()
         for column, width in self.column_widths(available).items():
             header.resizeSection(column, width)
+        self._elide_headings()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
@@ -401,14 +505,10 @@ class EffectsTab(QWidget):
         layout.addWidget(self.summary)
 
         self.table = EffectTable(len(COLUMNS))
-        self.table.setHorizontalHeaderLabels(COLUMNS)
         # Every column that is not self-explanatory says what it means where
         # the player is already looking. "Pools" in particular was a bare
         # number in the hundreds with nothing anywhere saying what a pool is.
-        for column, tip in HEADER_TIPS.items():
-            item = self.table.horizontalHeaderItem(column)
-            if item is not None:
-                item.setToolTip(tip)
+        self.table.set_headings(COLUMNS, HEADER_TIPS)
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
