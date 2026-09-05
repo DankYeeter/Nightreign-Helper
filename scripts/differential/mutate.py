@@ -1269,6 +1269,145 @@ MUTATIONS: dict[str, Mutation] = {
             "arsenal off every player-facing list and leaves 29 catalysts "
             "behind. Killed by tests/test_unequippable_catalyst.py."),
     ),
+    "deep-tab-back-outside-a-scroll-area": Mutation(
+        path="nrplanner/deeptab.py",
+        old="""        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.scroll)
+
+        content = QWidget()
+        self.scroll.setWidget(content)
+        layout = QVBoxLayout(content)
+""",
+        new="""        layout = QVBoxLayout(self)
+""",
+        survival_means=(
+            "the window is free to demand more height than the screen has "
+            "again. This one page asked for 1047 logical px, and QTabWidget "
+            "hands the tallest page to the whole window, which put the "
+            "program minimum at 1075 against roughly 1035 usable above the "
+            "taskbar -- so the last two lines of the tab were on no screen "
+            "and behind no scrollbar (DR-015). Killed by "
+            "tests/test_tab_geometry.py::"
+            "test_no_content_tab_asks_the_window_for_more_than_the_limit and "
+            "::test_the_last_line_of_deep_of_night_can_be_reached_by_"
+            "scrolling."),
+    ),
+    "card-grid-back-to-a-fixed-column-count": Mutation(
+        path="nrplanner/cardgrid.py",
+        old="""    return max(1, (width + spacing) // (card_width + spacing))
+""",
+        new="""    return 4
+""",
+        survival_means=(
+            "the card grids are back to deciding for themselves how wide the "
+            "window is. Four columns of 250 px need 774 px and the Nightlord "
+            "area has 683 at a 1067 px window, so Gnoster, Maris, Caligo and "
+            "Harmonia are drawn sliced while the line above them says "
+            "'10 Nightlords' (DR-013). Killed by tests/test_tab_geometry.py::"
+            "test_every_nightlord_card_is_drawn_whole and "
+            "::test_every_weapon_tile_is_drawn_whole, both of which read the "
+            "rendered rectangles rather than the count."),
+    ),
+    "card-grid-minimum-back-to-the-whole-row": Mutation(
+        path="nrplanner/cardgrid.py",
+        old="""        hint = super().minimumSizeHint()
+        margins = self._grid.contentsMargins()
+        return QSize(self._card_width + margins.left() + margins.right(),
+                     hint.height())
+""",
+        new="""        return super().minimumSizeHint()
+""",
+        survival_means=(
+            "the reflow is armed and unreachable, which is the more "
+            "expensive half of DR-013 to find: the layout own minimum is "
+            "the row it is currently in, so a scroll area never shrinks the "
+            "grid below it, no resize event arrives, and the column count "
+            "never falls. The grid then looks correct in the source and "
+            "draws the same sliced cards as before. Killed by "
+            "tests/test_tab_geometry.py::test_every_nightlord_card_is_drawn_"
+            "whole at 833 and 1067 px."),
+    ),
+    "effect-column-back-to-the-leftovers": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        widths = self._levelled(wanted, available - floors)
+""",
+        new="""        widths = self._levelled(wanted, available)
+""",
+        survival_means=(
+            "the two columns the tab exists for are back on the leftovers, "
+            "which is DR-014 exactly: measured before the fix, `Effect` "
+            "rendered at 248 px of 2052 at a 2100 px window with 603 of 652 "
+            "names cut short, while `Stacking` held 343 px to show nine "
+            "distinct strings. Killed by tests/test_tab_geometry.py::"
+            "test_the_effect_column_is_the_widest_and_never_under_its_"
+            "floor."),
+    ),
+    "tile-value-free-to-break-inside-a-group": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""    if GROUP_SEPARATOR not in value:
+        return value
+    return GROUP_SEPARATOR.join(
+        NBSP.join(group.split()) for group in value.split(GROUP_SEPARATOR))
+""",
+        new="""    return value
+""",
+        survival_means=(
+            "a weapon tile may part a stat from its own figure again: "
+            "`STR -7 · ARC +45 · DEX` ending one line with `-7` alone "
+            "on the next, which reads as a smaller number rather than as a "
+            "wrap (DR-016b). Measured before the fix on the 77 tiles the tab "
+            "opens with: 46 of 122 multi-group values broke inside a group. "
+            "A test reading the tile string cannot see this -- the defect "
+            "is where Qt breaks the line. Killed by "
+            "tests/test_weapon_tile_value_wrap.py::"
+            "test_no_value_breaks_inside_one_of_its_groups."),
+    ),
+    "arsenal-opens-on-three-collapsed-headings-again": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""        elif predicate is None and self._top_sections:
+            self._top_sections[0].expand_first_child()
+""",
+        new="""        elif predicate is None and self._top_sections:
+            pass
+""",
+        survival_means=(
+            "the tab holding 1 952 entries, more data than any other in the "
+            "program, opens on three collapsed headings and blank space "
+            "again (DR-017). The module own comment already gives the "
+            "argument for the search case; the first view is the case it "
+            "never covered. Killed by tests/test_tab_geometry.py::"
+            "test_the_arsenal_shows_a_tile_without_being_asked."),
+    ),
+    "world-event-prose-back-to-two-hyphens": Mutation(
+        path="nrplanner/eventlore.py",
+        old="""        "reward": "A second set of boss rewards — Dormant Powers and runes.",
+""",
+        new="""        "reward": "A second set of boss rewards -- Dormant Powers and runes.",
+""",
+        survival_means=(
+            "the program is back to two dash styles on neighbouring tabs "
+            "(DR-018). This one is worth a mutation of its own because the "
+            "text is only drawn once its event row is selected: a check on "
+            "the tab as it opens finds nothing and always would have. Killed "
+            "by tests/test_one_dash_style.py, both by the walk over the "
+            "event list and by the literal scan."),
+    ),
+    "catalyst-figure-named-twice": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    "For staves and seals the figure is the spell power the game shows, "
+""",
+        new="""    "For staves and seals the figure is the spell scaling the game shows, "
+""",
+        survival_means=(
+            "one number carries two names on one screen again: `Spell power` "
+            "on up to 1 792 tiles and `spell scaling` in the reservation "
+            "under them (AK-88, QA-139). Killed by "
+            "tests/test_one_name_per_figure.py, by both of its searches."),
+    ),
 }
 
 
