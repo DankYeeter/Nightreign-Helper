@@ -989,6 +989,36 @@ MUTATIONS: dict[str, Mutation] = {
             "case uses: if the two coincided, that case would fail for a "
             "reason that has nothing to do with this mutation."),
     ),
+    "display-threshold-raised-with-the-calibration": Mutation(
+        path="nrplanner/app.py",
+        old="""VISIBLE_CHANGE = 0.5
+""",
+        new="""VISIBLE_CHANGE = 0.5 / 0.6
+""",
+        survival_means=(
+            "the threshold that decides whether a change is on screen at all "
+            "is held by nothing, and the proposal QA-117 raised -- move it to "
+            "0.8333 so that the cases the pre-calibration display showed keep "
+            "their row -- could be taken without a test noticing. AK-65 rules "
+            "it out: the threshold is half a unit of the screen and the "
+            "screen did not change. Killed by "
+            "tests/test_display_thresholds.py::"
+            "test_a_row_just_over_the_threshold_is_shown."),
+    ),
+    "display-threshold-lowered-with-the-calibration": Mutation(
+        path="nrplanner/app.py",
+        old="""VISIBLE_CHANGE = 0.5
+""",
+        new="""VISIBLE_CHANGE = 0.5 * 0.6
+""",
+        survival_means=(
+            "the same threshold, moved the other way -- multiplied by the "
+            "calibration instead of divided by it, which is the more literal "
+            "reading of 'make it follow the factor'. Rows the display cannot "
+            "tell from zero would come back, printed as `+0`. Killed by "
+            "tests/test_display_thresholds.py::"
+            "test_a_row_just_under_the_threshold_is_not_shown."),
+    ),
     "handle-line-names-a-colour-the-white-slot-has-not": Mutation(
         path="nrplanner/advisor/candidates.py",
         old="""    reach = "any" if slot.colour == model.WHITE_SLOT else "this"

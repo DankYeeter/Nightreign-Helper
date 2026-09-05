@@ -44,6 +44,33 @@ GRAIL_HERO_TYPE = 11
 # it is namespaced to keep it out of the way of the real ones.
 AR_BREAKDOWN_KEY = "ar:total"
 
+# -- what counts as visible on this screen ------------------------------
+#
+# Three thresholds, and each one is half of the smallest unit its own display
+# can print. They say "this is not distinguishable from zero **on screen**",
+# which is a property of the display and not of the game (`UI_SPEC.md` AK-65,
+# QA-117).
+#
+# **They do not move with a calibration factor and must not be made to.**
+# `weapons.GAME_ATTACK_POWER_RATE` made every attack figure 0.6 times what it
+# was, which moved 89 `From attributes` rows below the first of these and
+# turned 66 change cells into a dash; scaling the threshold to 0.3 alongside
+# it would keep no set of cases the same -- rounding a sum of several damage
+# types does not scale linearly with a factor -- and would translate a
+# property of the calibration into a property of the display. Under the
+# threshold the change shown really **is** zero, which is the same honesty
+# rule that writes `no change` instead of `+0.0`.
+#
+# Half of one, for a figure printed as a whole number (`f"{x:+.0f}"`).
+VISIBLE_CHANGE = 0.5
+# Half of a tenth, for a share printed with one decimal (`f"{x:+.1f}%"`).
+VISIBLE_PERCENT = 0.05
+# What earns a change cell a colour rather than the muted grey. Not a
+# rounding boundary at all: a figure below it prints as `+0` or `-0`, and
+# green or red on a zero would tell the player something moved when nothing
+# did. Small enough that everything the display can distinguish is coloured.
+COLOURED_CHANGE = 0.05
+
 # Sentinel for the "build your own relic" entry in a slot's relic list.
 CUSTOM_RELIC = object()
 
@@ -2830,7 +2857,7 @@ class Planner(QMainWindow):
                 f"<b>{damage.displayed(base)}</b>"]
 
         from_attributes = scaled - base
-        if abs(from_attributes) >= 0.5:
+        if abs(from_attributes) >= VISIBLE_CHANGE:
             rows.append(f"&nbsp;&nbsp;From attributes &nbsp; "
                         f"<b>{from_attributes:+.0f}</b>")
 
@@ -2855,7 +2882,7 @@ class Planner(QMainWindow):
                             f"<span style='color:{MUTED}'>{name} "
                             f"{(own - 1.0) * 100:+.1f}%</span>")
 
-        if not ar["rates"] and abs(from_attributes) < 0.5:
+        if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
             rows.append(f"&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
 
         delta = final - base
@@ -2932,8 +2959,10 @@ class Planner(QMainWindow):
         for damage_type, value in boosted.items():
             was = was_per_type.get(damage_type, 0.0)
             diff = value - was
-            colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
-            change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
+            colour = (GOOD if diff > COLOURED_CHANGE
+                      else BAD if diff < -COLOURED_CHANGE else MUTED)
+            change = (f"{diff:+.0f}" if abs(diff) >= VISIBLE_CHANGE
+                      else "—")
             rows.append(
                 f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
                 f"<span style='color:{MUTED}'>{damage.displayed(was)}</span> "
@@ -2941,8 +2970,10 @@ class Planner(QMainWindow):
                 f"<b>{damage.displayed(value)}</b></div>"
             )
 
-        colour = GOOD if delta > 0.05 else (BAD if delta < -0.05 else MUTED)
-        change = f"{delta:+.0f}" if abs(delta) >= 0.5 else "no change"
+        colour = (GOOD if delta > COLOURED_CHANGE
+                  else BAD if delta < -COLOURED_CHANGE else MUTED)
+        change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
+                  else "no change")
         pct = (delta / base_total * 100) if base_total else 0.0
         # "Total" while there are rows above it to total. A catalyst has
         # none, so this line is the figure itself and is named after it.
@@ -2956,7 +2987,7 @@ class Planner(QMainWindow):
             f"<b style='color:{ACCENT}'>"
             f"{damage.displayed(final_total)}</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
-               if abs(pct) >= 0.05 else "") +
+               if abs(pct) >= VISIBLE_PERCENT else "") +
             f"</div>"
         )
 
@@ -3007,8 +3038,10 @@ class Planner(QMainWindow):
             rate = build.rates.get("regainRate", 1.0)
             final_regain = regain * rate
             diff = final_regain - regain
-            colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
-            change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
+            colour = (GOOD if diff > COLOURED_CHANGE
+                      else BAD if diff < -COLOURED_CHANGE else MUTED)
+            change = (f"{diff:+.0f}" if abs(diff) >= VISIBLE_CHANGE
+                      else "—")
             rows.append(
                 f"<div style='margin-top:6px'>Rally recovery "
                 f"<span style='color:{MUTED}'>{regain:.0f}</span> "
@@ -3390,7 +3423,8 @@ class Planner(QMainWindow):
             base_lbl.setAlignment(Qt.AlignRight)
             self.derived_grid.addWidget(base_lbl, r, 1)
 
-            diff = QLabel(f"{delta:+.0f}" if abs(delta) >= 0.5 else "")
+            diff = QLabel(f"{delta:+.0f}"
+                          if abs(delta) >= VISIBLE_CHANGE else "")
             diff.setStyleSheet(f"color: {GOOD if delta > 0 else BAD};")
             diff.setAlignment(Qt.AlignRight)
             self.derived_grid.addWidget(diff, r, 2)
