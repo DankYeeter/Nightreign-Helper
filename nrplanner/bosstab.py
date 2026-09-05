@@ -37,6 +37,7 @@ OBSERVED_COLOUR = "#7fae72"
 ICON = 64
 CARD_WIDTH = 250
 
+
 #: What the detail panel is given where there is room for it, and the least it
 #: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
 #: an 833 px window the panel held 330 px of `Select a Nightlord` while the
@@ -543,11 +544,19 @@ class BossTab(QWidget):
         return f"<table>{''.join(rows)}</table>"
 
     @staticmethod
-    def _row(label: str, value) -> str:
+    def _row(label: str, value, colour: str = "#d8d8d8") -> str:
+        """A labelled value. `colour` is what the value itself is drawn in.
+
+        The default is the colour the panel gives everything it read out of
+        the game's files. A row whose value was watched in play rather than
+        read passes OBSERVED_COLOUR instead (AK-94); the label keeps the
+        muted colour either way, because the label is this module's word and
+        not the sighting.
+        """
         return (f"<div style='margin-top:2px'>"
                 f"<span style='color:{MUTED}; font-size:11px'>{label}</span>"
-                f"<span style='color:#d8d8d8; font-size:11px'> &nbsp;{value}</span>"
-                f"</div>")
+                f"<span style='color:{colour}; font-size:11px'> &nbsp;{value}"
+                f"</span></div>")
 
     def _stance_rank(self, profile: dict) -> str:
         """Where this boss sits among the ten on how hard it is to stagger.
@@ -612,22 +621,32 @@ class BossTab(QWidget):
 
         told_about_sightings = False
 
+        def legend_once() -> str:
+            """What the sighting colour means, the first time it is used.
+
+            AK-74 asks that a colour carrying a meaning be named once. It is
+            named here rather than at the top of the tab because a panel whose
+            Nightlord has no sighting must not explain a colour that is
+            nowhere on it (QA-145). Separate from `sighting` below because two
+            of the watched lines on this panel are not plain sentences -- a
+            labelled row and a clause inside an extracted line -- and they
+            need the legend just as much (QA-152).
+            """
+            nonlocal told_about_sightings
+            if told_about_sightings:
+                return ""
+            told_about_sightings = True
+            return (f"<div style='color:{OBSERVED_COLOUR}; font-size:11px;"
+                    f" margin-top:3px'><i>{SIGHTING_LEGEND}</i></div>")
+
         def sighting(text: str) -> str:
             """A line watched in play, and — the first time — what that means.
 
-            AK-94 gives these lines their own colour; AK-74 asks that a colour
-            carrying a meaning be named once. It is named here rather than at
-            the top of the tab because a panel whose Nightlord has no sighting
-            must not explain a colour that is nowhere on it (QA-145).
+            AK-94 gives these lines their own colour.
             """
-            nonlocal told_about_sightings
-            lead = ""
-            if not told_about_sightings:
-                told_about_sightings = True
-                lead = (f"<div style='color:{OBSERVED_COLOUR}; font-size:11px;"
-                        f" margin-top:3px'><i>{SIGHTING_LEGEND}</i></div>")
-            return (lead + f"<div style='color:{OBSERVED_COLOUR}; "
-                    f"font-size:11px; margin-top:3px'>{text}</div>")
+            return (legend_once()
+                    + f"<div style='color:{OBSERVED_COLOUR}; "
+                      f"font-size:11px; margin-top:3px'>{text}</div>")
 
         # Everything here is written for someone about to fight this boss.
         # How a figure was derived, what could not be extracted and which
@@ -734,18 +753,32 @@ class BossTab(QWidget):
             # extracted figures directly above it.
             parts.append(sighting("Stacks: yes — repeats compound"))
             if boss["name"] in BUFF_TRIGGER:
-                parts.append(self._row("Set off by", BUFF_TRIGGER[boss["name"]]))
+                # Watched, like the line above it: the files hold the
+                # animation id and never what provokes it, so BUFF_TRIGGER is
+                # kept in this module from play. It stayed a labelled row
+                # drawn in the colour of the extracted figures above it, which
+                # is the one place on this panel where a sighting read as a
+                # reading (AK-94, QA-152).
+                parts.append(legend_once() + self._row(
+                    "Set off by", BUFF_TRIGGER[boss["name"]],
+                    colour=OBSERVED_COLOUR))
         for entry in defence:
             cut = round((1 - entry["taken"]) * 100)
             bits = [f"takes {cut}% less damage", f"{entry['seconds']:g}s"]
             trigger = DEFENCE_TRIGGER.get((boss["name"], entry["id"]))
-            if trigger:
-                bits.append(trigger)
+            # The figures come out of the files and the trigger clause out of
+            # play, on one line. So the sighting colour goes on the clause and
+            # not on the line: colouring the whole line would say the figures
+            # beside it were watched too, and leaving the clause in the
+            # ordinary colour said the opposite (AK-94, QA-152).
+            watched = (f"<span style='color:{OBSERVED_COLOUR}; font-size:11px'>"
+                       f"  ·  {trigger}</span>") if trigger else ""
             parts.append(
-                f"<div style='margin-top:2px'>"
+                (legend_once() if trigger else "")
+                + f"<div style='margin-top:2px'>"
                 f"<span style='color:{DEEP}; font-size:11px'>Defence</span>"
                 f"<span style='color:#d8d8d8; font-size:11px'>"
-                f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+                f" &nbsp;{'  ·  '.join(bits)}</span>{watched}</div>")
         # A12, and the reason it is one note over both kinds of line: the two
         # differ in exactly the point a reader would otherwise have to guess.
         # `x1.35 attack` stood here with no reference at all, between three

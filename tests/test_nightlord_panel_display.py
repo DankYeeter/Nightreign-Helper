@@ -26,6 +26,8 @@ that module, which is the trap that has caught this repository twice.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from nrplanner import bosstab
@@ -308,3 +310,115 @@ def test_the_green_on_the_weakened_step_is_named_like_the_other_two(tab):
         assert bosstab.WEAKENED_NOTE in text, (
             f"{name}: the weakened step is drawn in the same green as the two "
             f"blocks above it and nothing on the panel says what it means")
+
+
+#: The watched line every panel with a buff or defence section carries, and
+#: the reference the two cases below read the sighting colour off. Written out
+#: rather than imported for the reason the module docstring gives: a case that
+#: took the colour from `nrplanner.bosstab` would follow that colour wherever
+#: it went, including onto lines that were never watched.
+WATCHED_REFERENCE = "Stacks: yes"
+
+#: A figure this panel computes for every Nightlord with a stance bar, so it
+#: is extracted by construction and can never legitimately be a sighting. It
+#: is the other end of the comparison: a panel painted all one colour has to
+#: fail, not pass.
+COMPUTED_REFERENCE = "for bar size"
+
+_COLOUR = re.compile(r"color:\s*(#[0-9a-fA-F]{6})")
+
+
+def colour_of(markup: str, needle: str) -> str:
+    """The colour this panel draws `needle` in.
+
+    Every span and div the panel builds opens with its own `color:`
+    declaration immediately before the text it carries, so the last
+    declaration before that text is the one that reaches the reader. Read off
+    the markup the label is handed rather than off the module, because what a
+    colour says is a claim about what a reader sees.
+    """
+    at = markup.find(needle)
+    assert at >= 0, f"the panel does not draw {needle!r} at all"
+    found = _COLOUR.findall(markup, 0, at)
+    assert found, f"nothing before {needle!r} on this panel sets a colour"
+    return found[-1]
+
+
+def test_the_buff_trigger_is_drawn_as_the_sighting_it_is(tab):
+    """QA-152, the first of AK-94's two gaps. `Set off by` read as extracted.
+
+    `BUFF_TRIGGER` is a list this module keeps from play -- the files carry
+    the animation id and never what provokes it -- and its value was printed
+    in the same colour as the multiplier extracted directly above it. On a
+    panel whose whole point is that a reader can tell a sighting from a
+    reading, that row was the one place where the two looked the same.
+
+    Neither colour is imported. The watched one is read off the panel's own
+    watched line and the ordinary one off a figure the panel computes, so the
+    two have to genuinely differ on the panel for this case to pass at all.
+    """
+    seen = 0
+    for boss in tab.bosses:
+        name = boss["name"]
+        trigger = bosstab.BUFF_TRIGGER.get(name)
+        if trigger is None:
+            continue
+        panel(tab, name)
+        markup = tab.detail_body.text()
+        if trigger not in markup:
+            continue
+        watched = colour_of(markup, WATCHED_REFERENCE)
+        computed = colour_of(markup, COMPUTED_REFERENCE)
+        assert watched != computed, (
+            f"{name}: this panel draws its watched line and its computed "
+            f"figures in the same colour ({watched}), so nothing here can "
+            f"tell a sighting from a reading")
+        assert colour_of(markup, trigger) == watched, (
+            f"{name}: `Set off by` was watched in play, and the panel draws "
+            f"it in {colour_of(markup, trigger)} -- the colour it gives "
+            f"extracted figures -- rather than in {watched}")
+        seen += 1
+    assert seen, (
+        "no Nightlord in this dataset shows a watched buff trigger, so this "
+        "case checked nothing")
+
+
+def test_a_defence_trigger_is_drawn_as_the_sighting_it_is(tab):
+    """QA-152, the second gap, and the awkward one T-060 stopped at.
+
+    Half of a defence line is extracted and half of it was watched: the
+    figures come from `defence_buffs`, the clause saying what sets the step
+    off comes from `DEFENCE_TRIGGER` and somebody's eyes. One colour over the
+    whole line would have said the figures were watched too, so the colour
+    goes on the clause.
+
+    Both ends of the comparison come off the very same line, which is the
+    strongest form this check takes anywhere on the panel: the figure and the
+    sighting stand side by side and must not read alike.
+    """
+    seen = 0
+    for boss in tab.bosses:
+        name = boss["name"]
+        triggers = [text for (owner, _), text in bosstab.DEFENCE_TRIGGER.items()
+                    if owner == name]
+        if not triggers:
+            continue
+        panel(tab, name)
+        markup = tab.detail_body.text()
+        for trigger in triggers:
+            if trigger not in markup:
+                continue
+            extracted = colour_of(markup, "% less damage")
+            assert colour_of(markup, trigger) != extracted, (
+                f"{name}: the clause saying what sets this defence step off "
+                f"was watched in play and is drawn in {extracted}, the same "
+                f"colour as the figure beside it on the same line")
+            assert colour_of(markup, trigger) == colour_of(
+                markup, WATCHED_REFERENCE), (
+                f"{name}: the trigger clause is drawn in "
+                f"{colour_of(markup, trigger)}, which is not the colour this "
+                f"panel keeps for what was watched")
+            seen += 1
+    assert seen, (
+        "no Nightlord in this dataset shows a watched defence trigger, so "
+        "this case checked nothing")
