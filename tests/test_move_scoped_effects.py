@@ -259,13 +259,13 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
     has with no relic at all, which is what the user read off the game.
 
     The two displays are read through the helpers that already own them:
-    `drawn_tiles`/`tile_ar` render the arsenal tile,
+    `drawn_tiles`/`tile_headline` render the arsenal tile,
     `test_weapon_tile_and_panel_agree.panel_total` picks the total out of the
     panel's markup. Copies of either would drift from the originals, and the
     originals are older than this case.
     """
     from tests.test_arsenal_tab_asks_the_facade import (
-        drawn_tiles, empty_slots, prepare, tile_ar)
+        drawn_tiles, empty_slots, prepare, tile_headline)
     from tests.test_weapon_tile_and_panel_agree import panel_total
 
     relic = strongest(named_effects(game_data,
@@ -283,7 +283,9 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
 
     tiles = drawn_tiles(tab, greatsword)
     assert tiles, f"the tab drew no tile for {ARMAMENT!r}"
-    on_the_tab = {tile_ar(tile) for tile in tiles}
+    expected = damage.candidate(greatsword, TIER, planner.current_build(),
+                                game_data)
+    on_the_tab = {tile_headline(tile, expected) for tile in tiles}
     assert len(on_the_tab) == 1, f"the tab drew two figures: {on_the_tab}"
     on_the_panel = f"{panel_total(planner):.0f}"
 

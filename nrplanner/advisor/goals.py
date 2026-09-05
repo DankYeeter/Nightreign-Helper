@@ -75,25 +75,32 @@ EVEN_WEIGHTING = types.Weighting(
 DEFAULT_WEIGHTING = EVEN_WEIGHTING
 
 
-# The four things an attack rating cannot tell the player, whatever the
-# build. Written as a constant so that both branches of `_max_damage` carry
-# them and neither can be trimmed on its own.
+# The four things this figure cannot tell the player, whatever the build.
+# Written as a constant so that both branches of `_max_damage` carry them and
+# neither can be trimmed on its own.
 #
-# The first two used to be one line -- "Attack rating has not been verified
-# against an in-game number" -- and that line is simply no longer true: 2256
-# comparisons against the game's own display settled it (QA-095). What
-# replaces it is not silence but the **scope** of the agreement, because a
-# figure that says it matches the game and does not say where is the failure
-# this project keeps having (A7). And the second line is there because
-# catalysts are not merely unmeasured, they are measured and different: for a
-# staff or a seal the game shows the spell scaling, this figure is the
-# physical attack rating, and the two do not even rank alike (QA-099).
+# The first line used to read "Attack rating has not been verified against an
+# in-game number", and that is simply no longer true: 2256 comparisons
+# against the game's own display settled it (QA-095). What replaces it is not
+# silence but the **scope** of the agreement, because a figure that says it
+# matches the game and does not say where is the failure this project keeps
+# having (A7).
+#
+# The second line used to say that staves and seals were outside the match --
+# that this program showed their physical attack rating where the game showed
+# a spell scaling. Since T-046 it does not: a catalyst is shown and ranked by
+# the game's own figure (QA-099). A reservation against a fault that has been
+# fixed is the stale line the next reader repeats as fact, so it is gone and
+# what stands in its place is the **scope** of the new figure -- the base
+# rarity is what was measured, and the figure is the game's display and not a
+# statement about what a spell hits for.
 _ATTACK_RATING_UNKNOWNS = (
     "Attack rating matches the game's own display for ordinary armaments at "
     "their own rarity; reinforced rarities, infused variants, Scholar and "
     "Undertaker were not measured.",
-    "Staves and seals are outside that match — the game shows their spell "
-    "scaling, this figure is their physical attack rating instead.",
+    "For staves and seals the figure is the spell scaling the game shows, "
+    "measured at their own rarity only, and it is that display and not what "
+    "a spell hits for.",
     "Spell damage is not in the game data, so spells are not rated.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
 )
@@ -176,10 +183,16 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # the screen cannot decide which relic the advisor recommends (QA-074).
     # The text goes through the facade's one formatter, so this line and the
     # weapon panel show the same whole number for the same armament.
+    #
+    # Which figure that is, and what it is called, comes from the facade as
+    # well: with a staff or a seal as the reference armament the goal ranks
+    # on the spell scaling the game shows for it, because the physical rating
+    # it used to rank on is a quantity the game never puts on screen for a
+    # catalyst (QA-099).
     return types.GoalScore(
-        value=now.final_total,
-        display=f"Attack rating {damage.displayed(now.final_total)}",
-        unit="AR",
+        value=now.final_headline,
+        display=f"{now.headline_name} {damage.displayed(now.final_headline)}",
+        unit=now.headline_label,
         unknowns=unknowns,
     )
 

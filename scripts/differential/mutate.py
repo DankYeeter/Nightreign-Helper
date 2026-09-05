@@ -92,9 +92,11 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "arsenal-tile-figure-halved": Mutation(
         path="nrplanner/arsenaltab.py",
-        old="""                lines = [("AR", f"{damage.displayed(rating.final_total)}")]
+        old="""                lines = [(rating.headline_label,
+                          f"{damage.displayed(rating.final_headline)}")]
 """,
-        new="""                lines = [("AR", f"{damage.displayed(rating.final_total * 0.5)}")]
+        new="""                lines = [(rating.headline_label,
+                          f"{damage.displayed(rating.final_headline * 0.5)}")]
 """,
         survival_means=(
             "no test reads a single figure off the arsenal tab. Every AR "
@@ -209,7 +211,8 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "ranking-left-in-layer-one-order": Mutation(
         path="nrplanner/damage.py",
-        old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+        old="""    answers.sort(key=lambda answer: (-answer.final_headline,
+                                     answer.weapon["id"]))
     return answers
 """,
         new="""    return answers
@@ -278,11 +281,11 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "arsenal-tile-type-row-duplicated": Mutation(
         path="nrplanner/arsenaltab.py",
-        old="""                for damage_type, value in rating.final_per_type.items():
+        old="""                for damage_type, value in rating.shown_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
                                   f"{damage.displayed(value)}"))
 """,
-        new="""                for damage_type, value in rating.final_per_type.items():
+        new="""                for damage_type, value in rating.shown_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
                                   f"{damage.displayed(value)}"))
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
@@ -577,9 +580,10 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
-        old="""    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+        old="""    answers.sort(key=lambda answer: (-answer.final_headline,
+                                     answer.weapon["id"]))
 """,
-        new="""    answers.sort(key=lambda answer: -answer.final_total)
+        new="""    answers.sort(key=lambda answer: -answer.final_headline)
 """,
         survival_means=(
             "do-not rule 29 is unenforced. Armaments that rate alike -- "
@@ -627,7 +631,88 @@ MUTATIONS: dict[str, Mutation] = {
             "is the single reading that shows it, 88 against 89. Killed by "
             "tests/test_attack_power_against_the_game.py, and its companion "
             "test_at_least_one_reading_tells_truncation_from_rounding is "
-            "what keeps such a reading in the file."),
+            "what keeps such a reading in the file. It reaches the catalyst "
+            "figures as well, which go through the same one formatter: 39 of "
+            "the 84 readings and 16 of the 28 reference figures in "
+            "tests/data/game_catalyst_scaling.json fail under it. That file "
+            "does not register a second entry for the same edit -- there is "
+            "one display rule and one place it lives."),
+    ),
+    # -- the game's other number: staves and seals (T-046: QA-099) ----------
+    #
+    # Three edits, because the figure is three decisions and a guard that
+    # caught only one would leave the others unheld: which rate it is built
+    # from, which curve turns the attribute into a bonus, and whether the
+    # influence that belongs to the attack rating belongs here too. The
+    # fourth, truncation against rounding, is the entry above -- the same
+    # display rule reaches both figures.
+    "catalyst-scaling-rate-ignored": Mutation(
+        path="nrplanner/weapons.py",
+        old="""    scaling_rate = reinforce[CATALYST_SCALING_KEY]
+""",
+        new="""    scaling_rate = 1.0
+""",
+        survival_means=(
+            "the one field that tells the catalysts apart reaches nothing, "
+            "and all 28 of them collapse onto the bare constant: every staff "
+            "and every seal would read the same figure for a given "
+            "attribute, 90 at Intelligence 0. This is QA-099 c in its "
+            "behavioural form -- the shape a Paramdex rename would have "
+            "produced silently under `values.get(name, 1.0)`. Measured "
+            "2026-09-05: 78 of the 84 readings and 26 of the 28 reference "
+            "figures fail. Killed by "
+            "tests/test_catalyst_scaling_against_the_game.py."),
+    ),
+    "catalyst-curve-hardcoded-to-zero": Mutation(
+        path="nrplanner/weapons.py",
+        old="""    curve = curves.get(str(weapon.get("curve", {}).get("Physics")))
+""",
+        new="""    curve = curves.get("0")
+""",
+        survival_means=(
+            "the curve that turns Intelligence or Faith into the bonus is "
+            "held by nothing, and the armament's own `correctType_Physics` "
+            "could be replaced by any of the 82 curves in the data. It is "
+            "16 for all 255 catalyst rows, and T-043 measured that exactly "
+            "one of the 82 admits any constant at all -- the other 81 leave "
+            "an empty interval. Measured 2026-09-05: 84 of 84 readings and "
+            "28 of 28 reference figures fail. Killed by "
+            "tests/test_catalyst_scaling_against_the_game.py."),
+    ),
+    "catalyst-influence-inside-the-bracket": Mutation(
+        path="nrplanner/weapons.py",
+        old="""    return CATALYST_DISPLAY_RATE * scaling_rate * (1.0 + ratio)
+""",
+        new="""    return CATALYST_DISPLAY_RATE * scaling_rate * (1.0 + 0.9 * ratio)
+""",
+        survival_means=(
+            "nothing says that the AttackElementCorrectParam influence "
+            "belongs to the attack rating and not to this figure. The "
+            "catalyst rows carry an influence of 90, `weapons.rate` applies "
+            "it, and applying it here as well is the single most plausible "
+            "wrong reading of the formula -- T-043 ruled it out by "
+            "intersection, K in [93.8009, 92.5061], which is empty. Measured "
+            "2026-09-05: 84 of 84 readings and 6 of 28 reference figures "
+            "fail. Killed by "
+            "tests/test_catalyst_scaling_against_the_game.py."),
+    ),
+    "catalyst-scaling-field-renamed": Mutation(
+        path="nrdata/extract.py",
+        old="""CATALYST_SCALING_FIELD = "unknown_1"
+""",
+        new="""CATALYST_SCALING_FIELD = "spellScalingRate"
+""",
+        survival_means=(
+            "the extraction does not notice that the field it reads the "
+            "catalyst rate out of has gone. The name is a Paramdex "
+            "placeholder for an unnamed field at offset 128, so it being "
+            "renamed is an ordinary event rather than a hypothetical; what "
+            "must not be ordinary is the extraction carrying on without it. "
+            "Killed by tests/test_catalyst_scaling_extraction.py::"
+            "test_a_well_formed_table_hands_back_every_rate, whose stub rows "
+            "carry the real name -- the two refusal cases beside it stay "
+            "green under this edit on their own, because a guard that only "
+            "ever refuses is satisfied by refusing everything."),
     ),
 }
 

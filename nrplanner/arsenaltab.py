@@ -371,12 +371,17 @@ class ArsenalTab(QWidget):
             tiles = []
             for rating in entries:
                 weapon = rating.weapon
-                lines = [("AR", f"{damage.displayed(rating.final_total)}")]
+                # The label comes from the facade rather than from a constant
+                # here: a staff is headed by its spell scaling and has no
+                # attack rating to show, and which armament that is, is not
+                # this tab's to decide (QA-099).
+                lines = [(rating.headline_label,
+                          f"{damage.displayed(rating.final_headline)}")]
                 # `damage_type`, not `damage`: the loop variable used to
                 # shadow the module of that name, and the resulting
                 # UnboundLocalError only fired when a tile was drawn, never
                 # on import (QA-072).
-                for damage_type, value in rating.final_per_type.items():
+                for damage_type, value in rating.shown_per_type.items():
                     lines.append((weapons.DAMAGE_LABELS[damage_type],
                                   f"{damage.displayed(value)}"))
                 # The status the weapon exists for. Elemental variants always

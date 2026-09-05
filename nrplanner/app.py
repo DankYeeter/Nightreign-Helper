@@ -2822,7 +2822,10 @@ class Planner(QMainWindow):
             return "No weapon selected."
 
         base, scaled, final = ar["base"], ar["scaled"], ar["final"]
-        rows = [f"<b>Attack rating — {ar['weapon']}</b>",
+        # What the three figures are, named by the facade: for a staff or a
+        # seal they are a spell scaling, and heading them "Attack rating"
+        # would be the right numbers under the wrong name (QA-099).
+        rows = [f"<b>{ar['headline']} — {ar['weapon']}</b>",
                 f"&nbsp;&nbsp;Base &nbsp; "
                 f"<b>{damage.displayed(base)}</b>"]
 
@@ -2909,9 +2912,12 @@ class Planner(QMainWindow):
         # nrplanner/damage.py and this method formats what comes back. The
         # tile above this panel was rated in the same call.
         bare, now = answers[self.active_weapon]
-        boosted = now.final_per_type
-        base_total = bare.scaled_total
-        final_total = now.final_total
+        # Which figure this armament is headed by, and whether it has
+        # damage-type rows at all, is the facade's answer: a staff has a
+        # spell scaling and no attack rating to break down (QA-099).
+        boosted = now.shown_per_type
+        base_total = bare.scaled_headline
+        final_total = now.final_headline
         delta = final_total - base_total
         self.last_ar = damage.breakdown_figures(bare, now)
 
@@ -2938,8 +2944,11 @@ class Planner(QMainWindow):
         colour = GOOD if delta > 0.05 else (BAD if delta < -0.05 else MUTED)
         change = f"{delta:+.0f}" if abs(delta) >= 0.5 else "no change"
         pct = (delta / base_total * 100) if base_total else 0.0
+        # "Total" while there are rows above it to total. A catalyst has
+        # none, so this line is the figure itself and is named after it.
+        total_label = "Total" if boosted else now.headline_name
         rows.append(
-            f"<div style='margin-top:4px'><b>Total</b> "
+            f"<div style='margin-top:4px'><b>{total_label}</b> "
             f"<span style='color:{MUTED}'>"
             f"{damage.displayed(base_total)}</span> "
             f"<a href='{AR_BREAKDOWN_KEY}' style='color:{colour};"

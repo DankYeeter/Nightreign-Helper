@@ -313,26 +313,32 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
         game_data, build):
     """Best first, every one of them asked the same question at one tier.
 
-    "Best" is `final_total`, the figure a display prints, since W6 moved the
-    ordering out of `weapons.rank` and into `rank_candidates`. Until then the
-    key was `WeaponRating.total`, layer one, and this assertion was written on
-    it for a measured reason (QA-065): the two bracketings of the same addends
-    disagree by a ULP -- at Wylder, level 1, no relics, `MAX_UPGRADE`,
-    positions 319/320 were Gargoyle's Black Halberd and Gargoyle's Sacred
-    Black Halberd, bit-identical on `weapon_rating.total` and one ULP apart on
-    `final_total` (2026-09-02). A test pinned to `final_total` order was red on
-    that input while the function kept its own promise.
+    "Best" is `final_headline`, the figure a display prints, since W6 moved
+    the ordering out of `weapons.rank` and into `rank_candidates`. Until then
+    the key was `WeaponRating.total`, layer one, and this assertion was
+    written on it for a measured reason (QA-065): the two bracketings of the
+    same addends disagree by a ULP -- at Wylder, level 1, no relics,
+    `MAX_UPGRADE`, positions 319/320 were Gargoyle's Black Halberd and
+    Gargoyle's Sacred Black Halberd, bit-identical on `weapon_rating.total`
+    and one ULP apart on `final_total` (2026-09-02). A test pinned to
+    `final_total` order was red on that input while the function kept its own
+    promise.
 
     What settles it is not that layer two is the better number but that it is
     the **shown** one, and that the ordering now carries the stable second key
-    ULP noise made necessary (do-not rule 29).
+    ULP noise made necessary (do-not rule 29). Since T-046 the shown figure
+    of a staff or a seal is its spell scaling rather than its attack rating
+    (QA-099), which is why the key here is `final_headline` and not
+    `final_total`: pinned to the latter, this case is red on the 30
+    catalysts of the dataset while the function keeps its promise -- the same
+    shape as the QA-065 reading above.
     """
     ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data)
 
     assert len(ranked) == len(game_data["weapons"])
     assert all(r.question is damage.Question.CANDIDATE for r in ranked)
     assert all(r.tier_applied >= weapons.MAX_UPGRADE for r in ranked)
-    keys = [(-r.final_total, r.weapon["id"]) for r in ranked]
+    keys = [(-r.final_headline, r.weapon["id"]) for r in ranked]
     assert keys == sorted(keys)
 
 
@@ -401,7 +407,14 @@ def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data):
 
     groups: dict[float, list[int]] = {}
     for rating in ranked:
-        groups.setdefault(rating.final_total, []).append(rating.weapon["id"])
+        # The figure the ordering is actually made on, which for a staff or a
+        # seal is its spell scaling (QA-099). Grouping on `final_total`
+        # instead would put two catalysts in one group whenever their
+        # physical ratings agreed while the shown figures did not, and the
+        # id-order assertion below would then be made about rows the
+        # function never claimed to have tied.
+        groups.setdefault(rating.final_headline, []).append(
+            rating.weapon["id"])
     tied = {figure: ids for figure, ids in groups.items() if len(ids) > 1}
 
     assert tied, ("no two armaments rate alike here, so this case cannot see "

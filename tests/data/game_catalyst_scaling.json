@@ -1,0 +1,925 @@
+{
+  "source": {
+    "what": "The spell scaling the game shows for a staff or a seal, where it shows an attack rating for every other armament: 28 catalysts x 3 Nightfarers, no relics, each catalyst at its own rarity.",
+    "sheet": "Nightreign Weapon Scaling.xlsx, sheet \"Weapon Attack Power\", rows 294-321, columns Duchess / Revenant / Recluse -- supplied by the App Designer",
+    "read_on": "2026-09-05",
+    "game_data_version": "10350000",
+    "measured_by": "docs/berichte/T-043-qa-engineer.md (T-043), QA-099. The 84 cells here were read out of the sheet again for this file rather than copied from that report; they agree with the three examples the report prints (Carian Regal Scepter 218/198/237, Recluse's Staff 118/107/128, Frenzied Flame Seal 172/212/212).",
+    "levels": "Level 12 for all three columns. The attributes are not written into this file: the test computes them with model.compute, which gives Duchess INT 36 / FAI 24, Revenant INT 27 / FAI 45, Recluse INT 45 / FAI 45 -- the values T-043 measured against.",
+    "left_out": [
+      "The Wylder, Guardian, Ironeye, Raider and Executor columns: the sheet leaves the catalyst block empty for them.",
+      "Upgraded catalysts: the sheet reads each armament at its own rarity, so nothing here says what a reinforced staff shows.",
+      "The 227 unnamed catalyst rows of the params: same structure, no figure to compare against.",
+      "What a spell actually hits for: this is the scaling the game displays, and MagicParam was never read."
+    ],
+    "how_these_rows_were_picked": "Every catalyst row of the sheet, all 28, and every column that carries figures for them, all 3. Nothing was selected: the block is contiguous (rows 294-321) and it is taken whole.",
+    "not_a_selection_of_the_hits": "floor(90 x reinforce.catalyst_scaling x (1 + curve16(INT or FAI)/100)) reproduces 84 of 84 of these cells exactly, with no exception and nothing left out. Verified 2026-09-05 for T-046, and by T-043 before it on the same sheet.",
+    "name_collisions": "Two of the sheet's names belong to two rows each in the data. `Recluse Staff` is 33750000, the Recluse's own starting armament: the other row, 33770000, holds no spell (equippedSpell_R1/R2 = -1), sits on the generic reinforce group 0 and would read 151 where the sheet reads 128. `Finger Seal` is taken as 34750000; the other row, 34000000, sits on the same reinforce group 6000 and is figure-for-figure identical, so that pairing cannot be wrong in a way this file could show (QA-099 a, QA-099 b)."
+  },
+  "readings": [
+    {
+      "sheet_row": 294,
+      "sheet_name": "Recluse Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33750000,
+      "name": "Recluse's Staff",
+      "spell_scaling": 118
+    },
+    {
+      "sheet_row": 294,
+      "sheet_name": "Recluse Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33750000,
+      "name": "Recluse's Staff",
+      "spell_scaling": 107
+    },
+    {
+      "sheet_row": 294,
+      "sheet_name": "Recluse Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33750000,
+      "name": "Recluse's Staff",
+      "spell_scaling": 128
+    },
+    {
+      "sheet_row": 295,
+      "sheet_name": "Astrologers Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33130000,
+      "name": "Astrologer's Staff",
+      "spell_scaling": 141
+    },
+    {
+      "sheet_row": 295,
+      "sheet_name": "Astrologers Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33130000,
+      "name": "Astrologer's Staff",
+      "spell_scaling": 129
+    },
+    {
+      "sheet_row": 295,
+      "sheet_name": "Astrologers Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33130000,
+      "name": "Astrologer's Staff",
+      "spell_scaling": 154
+    },
+    {
+      "sheet_row": 296,
+      "sheet_name": "Glintstone Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33000000,
+      "name": "Glintstone Staff",
+      "spell_scaling": 139
+    },
+    {
+      "sheet_row": 296,
+      "sheet_name": "Glintstone Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33000000,
+      "name": "Glintstone Staff",
+      "spell_scaling": 126
+    },
+    {
+      "sheet_row": 296,
+      "sheet_name": "Glintstone Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33000000,
+      "name": "Glintstone Staff",
+      "spell_scaling": 151
+    },
+    {
+      "sheet_row": 297,
+      "sheet_name": "Academy Glintstone Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33200000,
+      "name": "Academy Glintstone Staff",
+      "spell_scaling": 144
+    },
+    {
+      "sheet_row": 297,
+      "sheet_name": "Academy Glintstone Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33200000,
+      "name": "Academy Glintstone Staff",
+      "spell_scaling": 131
+    },
+    {
+      "sheet_row": 297,
+      "sheet_name": "Academy Glintstone Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33200000,
+      "name": "Academy Glintstone Staff",
+      "spell_scaling": 157
+    },
+    {
+      "sheet_row": 298,
+      "sheet_name": "Diggers staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33120000,
+      "name": "Digger's Staff",
+      "spell_scaling": 147
+    },
+    {
+      "sheet_row": 298,
+      "sheet_name": "Diggers staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33120000,
+      "name": "Digger's Staff",
+      "spell_scaling": 134
+    },
+    {
+      "sheet_row": 298,
+      "sheet_name": "Diggers staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33120000,
+      "name": "Digger's Staff",
+      "spell_scaling": 160
+    },
+    {
+      "sheet_row": 299,
+      "sheet_name": "Demi Human Queens Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33060000,
+      "name": "Demi-Human Queen's Staff",
+      "spell_scaling": 140
+    },
+    {
+      "sheet_row": 299,
+      "sheet_name": "Demi Human Queens Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33060000,
+      "name": "Demi-Human Queen's Staff",
+      "spell_scaling": 128
+    },
+    {
+      "sheet_row": 299,
+      "sheet_name": "Demi Human Queens Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33060000,
+      "name": "Demi-Human Queen's Staff",
+      "spell_scaling": 152
+    },
+    {
+      "sheet_row": 300,
+      "sheet_name": "Carian Glintstone Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33210000,
+      "name": "Carian Glintstone Staff",
+      "spell_scaling": 166
+    },
+    {
+      "sheet_row": 300,
+      "sheet_name": "Carian Glintstone Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33210000,
+      "name": "Carian Glintstone Staff",
+      "spell_scaling": 151
+    },
+    {
+      "sheet_row": 300,
+      "sheet_name": "Carian Glintstone Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33210000,
+      "name": "Carian Glintstone Staff",
+      "spell_scaling": 180
+    },
+    {
+      "sheet_row": 301,
+      "sheet_name": "Carian Glintblade Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33170000,
+      "name": "Carian Glintblade Staff",
+      "spell_scaling": 170
+    },
+    {
+      "sheet_row": 301,
+      "sheet_name": "Carian Glintblade Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33170000,
+      "name": "Carian Glintblade Staff",
+      "spell_scaling": 155
+    },
+    {
+      "sheet_row": 301,
+      "sheet_name": "Carian Glintblade Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33170000,
+      "name": "Carian Glintblade Staff",
+      "spell_scaling": 185
+    },
+    {
+      "sheet_row": 302,
+      "sheet_name": "Albinauric Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33190000,
+      "name": "Albinauric Staff",
+      "spell_scaling": 163
+    },
+    {
+      "sheet_row": 302,
+      "sheet_name": "Albinauric Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33190000,
+      "name": "Albinauric Staff",
+      "spell_scaling": 149
+    },
+    {
+      "sheet_row": 302,
+      "sheet_name": "Albinauric Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33190000,
+      "name": "Albinauric Staff",
+      "spell_scaling": 178
+    },
+    {
+      "sheet_row": 303,
+      "sheet_name": "Staff of loss",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33280000,
+      "name": "Staff of Loss",
+      "spell_scaling": 159
+    },
+    {
+      "sheet_row": 303,
+      "sheet_name": "Staff of loss",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33280000,
+      "name": "Staff of Loss",
+      "spell_scaling": 145
+    },
+    {
+      "sheet_row": 303,
+      "sheet_name": "Staff of loss",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33280000,
+      "name": "Staff of Loss",
+      "spell_scaling": 173
+    },
+    {
+      "sheet_row": 304,
+      "sheet_name": "Gelmir Glintstone Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33050000,
+      "name": "Gelmir Glintstone Staff",
+      "spell_scaling": 162
+    },
+    {
+      "sheet_row": 304,
+      "sheet_name": "Gelmir Glintstone Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33050000,
+      "name": "Gelmir Glintstone Staff",
+      "spell_scaling": 147
+    },
+    {
+      "sheet_row": 304,
+      "sheet_name": "Gelmir Glintstone Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33050000,
+      "name": "Gelmir Glintstone Staff",
+      "spell_scaling": 176
+    },
+    {
+      "sheet_row": 305,
+      "sheet_name": "Crystal Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33040000,
+      "name": "Crystal Staff",
+      "spell_scaling": 169
+    },
+    {
+      "sheet_row": 305,
+      "sheet_name": "Crystal Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33040000,
+      "name": "Crystal Staff",
+      "spell_scaling": 154
+    },
+    {
+      "sheet_row": 305,
+      "sheet_name": "Crystal Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33040000,
+      "name": "Crystal Staff",
+      "spell_scaling": 183
+    },
+    {
+      "sheet_row": 306,
+      "sheet_name": "Rotten Crystal Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33270000,
+      "name": "Rotten Crystal Staff",
+      "spell_scaling": 167
+    },
+    {
+      "sheet_row": 306,
+      "sheet_name": "Rotten Crystal Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33270000,
+      "name": "Rotten Crystal Staff",
+      "spell_scaling": 152
+    },
+    {
+      "sheet_row": 306,
+      "sheet_name": "Rotten Crystal Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33270000,
+      "name": "Rotten Crystal Staff",
+      "spell_scaling": 182
+    },
+    {
+      "sheet_row": 307,
+      "sheet_name": "Staff of Guilty",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33260000,
+      "name": "Staff of the Guilty",
+      "spell_scaling": 171
+    },
+    {
+      "sheet_row": 307,
+      "sheet_name": "Staff of Guilty",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33260000,
+      "name": "Staff of the Guilty",
+      "spell_scaling": 156
+    },
+    {
+      "sheet_row": 307,
+      "sheet_name": "Staff of Guilty",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33260000,
+      "name": "Staff of the Guilty",
+      "spell_scaling": 186
+    },
+    {
+      "sheet_row": 308,
+      "sheet_name": "Azur Glintstone Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33230000,
+      "name": "Azur's Glintstone Staff",
+      "spell_scaling": 192
+    },
+    {
+      "sheet_row": 308,
+      "sheet_name": "Azur Glintstone Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33230000,
+      "name": "Azur's Glintstone Staff",
+      "spell_scaling": 175
+    },
+    {
+      "sheet_row": 308,
+      "sheet_name": "Azur Glintstone Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33230000,
+      "name": "Azur's Glintstone Staff",
+      "spell_scaling": 209
+    },
+    {
+      "sheet_row": 309,
+      "sheet_name": "Lusat Glintstone staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33240000,
+      "name": "Lusat's Glintstone Staff",
+      "spell_scaling": 194
+    },
+    {
+      "sheet_row": 309,
+      "sheet_name": "Lusat Glintstone staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33240000,
+      "name": "Lusat's Glintstone Staff",
+      "spell_scaling": 177
+    },
+    {
+      "sheet_row": 309,
+      "sheet_name": "Lusat Glintstone staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33240000,
+      "name": "Lusat's Glintstone Staff",
+      "spell_scaling": 212
+    },
+    {
+      "sheet_row": 310,
+      "sheet_name": "Meteorite Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33250000,
+      "name": "Meteorite Staff",
+      "spell_scaling": 188
+    },
+    {
+      "sheet_row": 310,
+      "sheet_name": "Meteorite Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33250000,
+      "name": "Meteorite Staff",
+      "spell_scaling": 171
+    },
+    {
+      "sheet_row": 310,
+      "sheet_name": "Meteorite Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33250000,
+      "name": "Meteorite Staff",
+      "spell_scaling": 204
+    },
+    {
+      "sheet_row": 311,
+      "sheet_name": "Prince of Death Staff",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33180000,
+      "name": "Prince of Death's Staff",
+      "spell_scaling": 184
+    },
+    {
+      "sheet_row": 311,
+      "sheet_name": "Prince of Death Staff",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33180000,
+      "name": "Prince of Death's Staff",
+      "spell_scaling": 168
+    },
+    {
+      "sheet_row": 311,
+      "sheet_name": "Prince of Death Staff",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33180000,
+      "name": "Prince of Death's Staff",
+      "spell_scaling": 200
+    },
+    {
+      "sheet_row": 312,
+      "sheet_name": "Carian Regal Scepter",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 33090000,
+      "name": "Carian Regal Scepter",
+      "spell_scaling": 218
+    },
+    {
+      "sheet_row": 312,
+      "sheet_name": "Carian Regal Scepter",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 33090000,
+      "name": "Carian Regal Scepter",
+      "spell_scaling": 198
+    },
+    {
+      "sheet_row": 312,
+      "sheet_name": "Carian Regal Scepter",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 33090000,
+      "name": "Carian Regal Scepter",
+      "spell_scaling": 237
+    },
+    {
+      "sheet_row": 313,
+      "sheet_name": "Finger Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34750000,
+      "name": "Finger Seal",
+      "spell_scaling": 122
+    },
+    {
+      "sheet_row": 313,
+      "sheet_name": "Finger Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34750000,
+      "name": "Finger Seal",
+      "spell_scaling": 151
+    },
+    {
+      "sheet_row": 313,
+      "sheet_name": "Finger Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34750000,
+      "name": "Finger Seal",
+      "spell_scaling": 151
+    },
+    {
+      "sheet_row": 314,
+      "sheet_name": "Gravel Stone seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34030000,
+      "name": "Gravel Stone Seal",
+      "spell_scaling": 144
+    },
+    {
+      "sheet_row": 314,
+      "sheet_name": "Gravel Stone seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34030000,
+      "name": "Gravel Stone Seal",
+      "spell_scaling": 178
+    },
+    {
+      "sheet_row": 314,
+      "sheet_name": "Gravel Stone seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34030000,
+      "name": "Gravel Stone Seal",
+      "spell_scaling": 178
+    },
+    {
+      "sheet_row": 315,
+      "sheet_name": "Giants Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34020000,
+      "name": "Giant's Seal",
+      "spell_scaling": 147
+    },
+    {
+      "sheet_row": 315,
+      "sheet_name": "Giants Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34020000,
+      "name": "Giant's Seal",
+      "spell_scaling": 182
+    },
+    {
+      "sheet_row": 315,
+      "sheet_name": "Giants Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34020000,
+      "name": "Giant's Seal",
+      "spell_scaling": 182
+    },
+    {
+      "sheet_row": 316,
+      "sheet_name": "Godslayer Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34010000,
+      "name": "Godslayer's Seal",
+      "spell_scaling": 140
+    },
+    {
+      "sheet_row": 316,
+      "sheet_name": "Godslayer Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34010000,
+      "name": "Godslayer's Seal",
+      "spell_scaling": 173
+    },
+    {
+      "sheet_row": 316,
+      "sheet_name": "Godslayer Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34010000,
+      "name": "Godslayer's Seal",
+      "spell_scaling": 173
+    },
+    {
+      "sheet_row": 317,
+      "sheet_name": "Claw mark Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34040000,
+      "name": "Clawmark Seal",
+      "spell_scaling": 151
+    },
+    {
+      "sheet_row": 317,
+      "sheet_name": "Claw mark Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34040000,
+      "name": "Clawmark Seal",
+      "spell_scaling": 186
+    },
+    {
+      "sheet_row": 317,
+      "sheet_name": "Claw mark Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34040000,
+      "name": "Clawmark Seal",
+      "spell_scaling": 186
+    },
+    {
+      "sheet_row": 318,
+      "sheet_name": "Erdtree Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34070000,
+      "name": "Erdtree Seal",
+      "spell_scaling": 166
+    },
+    {
+      "sheet_row": 318,
+      "sheet_name": "Erdtree Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34070000,
+      "name": "Erdtree Seal",
+      "spell_scaling": 204
+    },
+    {
+      "sheet_row": 318,
+      "sheet_name": "Erdtree Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34070000,
+      "name": "Erdtree Seal",
+      "spell_scaling": 204
+    },
+    {
+      "sheet_row": 319,
+      "sheet_name": "Golden Order Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34060000,
+      "name": "Golden Order Seal",
+      "spell_scaling": 162
+    },
+    {
+      "sheet_row": 319,
+      "sheet_name": "Golden Order Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34060000,
+      "name": "Golden Order Seal",
+      "spell_scaling": 200
+    },
+    {
+      "sheet_row": 319,
+      "sheet_name": "Golden Order Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34060000,
+      "name": "Golden Order Seal",
+      "spell_scaling": 200
+    },
+    {
+      "sheet_row": 320,
+      "sheet_name": "Frenzied Flame seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34090000,
+      "name": "Frenzied Flame Seal",
+      "spell_scaling": 172
+    },
+    {
+      "sheet_row": 320,
+      "sheet_name": "Frenzied Flame seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34090000,
+      "name": "Frenzied Flame Seal",
+      "spell_scaling": 212
+    },
+    {
+      "sheet_row": 320,
+      "sheet_name": "Frenzied Flame seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34090000,
+      "name": "Frenzied Flame Seal",
+      "spell_scaling": 212
+    },
+    {
+      "sheet_row": 321,
+      "sheet_name": "Dragon communion Seal",
+      "nightfarer": "Duchess",
+      "level": 12,
+      "weapon": 34080000,
+      "name": "Dragon Communion Seal",
+      "spell_scaling": 169
+    },
+    {
+      "sheet_row": 321,
+      "sheet_name": "Dragon communion Seal",
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 34080000,
+      "name": "Dragon Communion Seal",
+      "spell_scaling": 209
+    },
+    {
+      "sheet_row": 321,
+      "sheet_name": "Dragon communion Seal",
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 34080000,
+      "name": "Dragon Communion Seal",
+      "spell_scaling": 209
+    }
+  ],
+  "reference_list": {
+    "what": "The scaling figure a second, independently collected list gives per catalyst. It is not tied to a Nightfarer: every one of the 28 figures is reproduced by the same formula at attribute value 2, which is what makes it a check on the reinforce rates and the constant rather than a second reading of the first source.",
+    "source": "The RPS armament list, transcribed from the table in docs/berichte/T-043-qa-engineer.md section 3. The list itself is NOT in this repository and was not re-read for this file -- this is a copy of a copy, and it is here as a second shape of the same claim, not as a second measurement.",
+    "attribute_value": 2,
+    "read_on": "2026-09-05",
+    "readings": [
+      {
+        "weapon": 33750000,
+        "name": "Recluse's Staff",
+        "spell_scaling": 78
+      },
+      {
+        "weapon": 33130000,
+        "name": "Astrologer's Staff",
+        "spell_scaling": 94
+      },
+      {
+        "weapon": 33000000,
+        "name": "Glintstone Staff",
+        "spell_scaling": 92
+      },
+      {
+        "weapon": 33200000,
+        "name": "Academy Glintstone Staff",
+        "spell_scaling": 96
+      },
+      {
+        "weapon": 33120000,
+        "name": "Digger's Staff",
+        "spell_scaling": 98
+      },
+      {
+        "weapon": 33060000,
+        "name": "Demi-Human Queen's Staff",
+        "spell_scaling": 93
+      },
+      {
+        "weapon": 33210000,
+        "name": "Carian Glintstone Staff",
+        "spell_scaling": 110
+      },
+      {
+        "weapon": 33170000,
+        "name": "Carian Glintblade Staff",
+        "spell_scaling": 113
+      },
+      {
+        "weapon": 33190000,
+        "name": "Albinauric Staff",
+        "spell_scaling": 109
+      },
+      {
+        "weapon": 33280000,
+        "name": "Staff of Loss",
+        "spell_scaling": 106
+      },
+      {
+        "weapon": 33050000,
+        "name": "Gelmir Glintstone Staff",
+        "spell_scaling": 108
+      },
+      {
+        "weapon": 33040000,
+        "name": "Crystal Staff",
+        "spell_scaling": 112
+      },
+      {
+        "weapon": 33270000,
+        "name": "Rotten Crystal Staff",
+        "spell_scaling": 111
+      },
+      {
+        "weapon": 33260000,
+        "name": "Staff of the Guilty",
+        "spell_scaling": 114
+      },
+      {
+        "weapon": 33230000,
+        "name": "Azur's Glintstone Staff",
+        "spell_scaling": 128
+      },
+      {
+        "weapon": 33240000,
+        "name": "Lusat's Glintstone Staff",
+        "spell_scaling": 129
+      },
+      {
+        "weapon": 33250000,
+        "name": "Meteorite Staff",
+        "spell_scaling": 125
+      },
+      {
+        "weapon": 33180000,
+        "name": "Prince of Death's Staff",
+        "spell_scaling": 122
+      },
+      {
+        "weapon": 33090000,
+        "name": "Carian Regal Scepter",
+        "spell_scaling": 145
+      },
+      {
+        "weapon": 34750000,
+        "name": "Finger Seal",
+        "spell_scaling": 92
+      },
+      {
+        "weapon": 34030000,
+        "name": "Gravel Stone Seal",
+        "spell_scaling": 109
+      },
+      {
+        "weapon": 34020000,
+        "name": "Giant's Seal",
+        "spell_scaling": 111
+      },
+      {
+        "weapon": 34010000,
+        "name": "Godslayer's Seal",
+        "spell_scaling": 106
+      },
+      {
+        "weapon": 34040000,
+        "name": "Clawmark Seal",
+        "spell_scaling": 114
+      },
+      {
+        "weapon": 34070000,
+        "name": "Erdtree Seal",
+        "spell_scaling": 125
+      },
+      {
+        "weapon": 34060000,
+        "name": "Golden Order Seal",
+        "spell_scaling": 122
+      },
+      {
+        "weapon": 34090000,
+        "name": "Frenzied Flame Seal",
+        "spell_scaling": 129
+      },
+      {
+        "weapon": 34080000,
+        "name": "Dragon Communion Seal",
+        "spell_scaling": 128
+      }
+    ]
+  }
+}

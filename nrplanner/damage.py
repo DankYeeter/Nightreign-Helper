@@ -25,6 +25,12 @@ level's own attributes, the starting-armament penalty follows a slot-and-hero
 pairing, class-scoped rates stay per weapon class, and the critical rate stays
 out. Five differences that are the questions, not the drift.
 
+**Not every armament is answered with an attack rating.** For a staff or a
+seal the game shows a spell scaling in that place and no attack rating at
+all, so the facade hands displays a `headline` -- figure, label and per-type
+rows -- and they print that instead of choosing for themselves which of the
+two an armament gets (QA-099).
+
 Nothing here imports Qt, and nothing here reads a widget or a Planner.
 """
 
@@ -82,6 +88,22 @@ STARTING_AR_RATE_FOR = {
 # Slot 1 holds the armament the expedition starts with -- it is seeded with
 # the Nightfarer's own starting armament, see `Planner.apply_hero_weapon`.
 STARTING_SLOT = 0
+
+# What the figure at the head of an armament is called, short for a tile row
+# and long for a sentence. Two forms because both are already in use: the
+# weapon tile and the arsenal tile have room for "AR" and the advisor's goal
+# line says "Attack rating".
+ATTACK_RATING_LABEL = "AR"
+ATTACK_RATING_NAME = "Attack rating"
+
+# A staff or a seal has no attack rating on screen; the game shows its spell
+# scaling in that place, so this program shows the same thing there and the
+# physical figure nowhere (the App Designer's decision, 2026-09-03: "replace
+# physical attack with spell power"). One word for both forms and one word
+# for staves and seals alike -- the alternative, "Incantation power" for
+# seals, was left to the `ui-ux-designer` and has not been ruled on, and the
+# task named this as what to use until it is.
+SPELL_POWER_LABEL = "Spell power"
 
 
 def displayed(figure: float) -> int:
@@ -229,6 +251,74 @@ class Rating:
         """Layer two, summed the same way. The number a display shows."""
         return sum(self.final_per_type.values())
 
+    # -- what the game puts at the head of this armament (QA-099) ----------
+    #
+    # For everything but a staff or a seal that is the attack rating above,
+    # and these three properties hand back exactly it. For a catalyst the
+    # game shows a spell scaling instead, and shows no attack rating at all,
+    # so these hand back that -- and the physical figure reaches no display.
+
+    @property
+    def catalyst_scaling(self) -> float | None:
+        """The spell scaling, or None where the game shows an attack rating.
+
+        Read off the layer-one rating rather than stored here, for the same
+        reason the totals are derived rather than stored (assurance Z1):
+        there is one representation of the figure, `weapons.rate` computed
+        it, and no caller can hand this dataclass a different one.
+        """
+        return self.weapon_rating.catalyst_scaling
+
+    @property
+    def scaled_headline(self) -> float:
+        """Layer one, as the game labels it: spell scaling or attack rating."""
+        return self.weapon_rating.scaled_headline()
+
+    @property
+    def final_headline(self) -> float:
+        """Layer two, as the game labels it. The number a display shows.
+
+        **The attack multipliers do not reach a catalyst's figure**, and that
+        is a measurement rather than an omission. The 90 in
+        `weapons.CATALYST_DISPLAY_RATE` was fitted against the spell scaling
+        the game displays, with no relic equipped; nothing has been measured
+        about what "Improved Physical Attack Power" does to that display, and
+        it is a scaling number rather than a damage figure. Multiplying it by
+        a physical attack rate would be this program inventing a relationship
+        the data does not state (GOAL.md A7). What does move it is an
+        attribute: a relic that raises Intelligence raises a staff's figure,
+        through the curve, exactly as the game does.
+        """
+        if self.catalyst_scaling is not None:
+            return self.catalyst_scaling
+        return self.final_total
+
+    @property
+    def headline_label(self) -> str:
+        """"AR" or "Spell power" -- what to write beside the figure."""
+        if self.catalyst_scaling is not None:
+            return SPELL_POWER_LABEL
+        return ATTACK_RATING_LABEL
+
+    @property
+    def headline_name(self) -> str:
+        """The same thing in a sentence: "Attack rating" or "Spell power"."""
+        if self.catalyst_scaling is not None:
+            return SPELL_POWER_LABEL
+        return ATTACK_RATING_NAME
+
+    @property
+    def shown_per_type(self) -> dict[str, float]:
+        """The per-damage-type rows a display prints under the headline.
+
+        Empty for a catalyst: those rows *are* the physical attack rating,
+        broken down, and the game shows a staff no attack rating to break
+        down. Everything else gets `final_per_type` unchanged.
+        """
+        if self.catalyst_scaling is not None:
+            return {}
+        return self.final_per_type
+
     @property
     def tier_applied(self) -> int:
         """The rarity tier the armament was actually rated at.
@@ -337,14 +427,22 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
     `class` is in here because a class-scoped buff records its source under a
     prefixed key: without knowing which class to look under, "Improved Ranged
     Weapon Attacks" raised the total and then named nothing that did it.
+
+    `headline` names the quantity the three figures are. It is here rather
+    than written into the text because the text is built from this dictionary
+    and nothing else, and for a staff the three figures are a spell scaling:
+    a popup headed "Attack rating" over them would be the one thing worse
+    than the wrong number, which is the right number under the wrong name
+    (QA-099).
     """
     return {
-        "base": bare.scaled_total,
-        "scaled": now.scaled_total,
-        "final": now.final_total,
+        "base": bare.scaled_headline,
+        "scaled": now.scaled_headline,
+        "final": now.final_headline,
         "rates": dict(now.rates),
         "weapon": now.weapon.get("name", "weapon"),
         "class": now.weapon_class,
+        "headline": now.headline_name,
     }
 
 
@@ -464,14 +562,23 @@ def rank_candidates(build: model.Build, target_tier: int,
                     data: dict) -> list[Rating]:
     """Every armament in the dataset as a candidate, best first.
 
-    **Best by the figure a display shows, which is `final_total`.** Ordering
-    is done here and not left to `weapons.rank`, because `rank` sees layer one
-    only: it cannot know the attack multipliers, and since W6 they are part of
-    a candidate's answer. A list ordered by layer one while every row printed
-    layer two would rank a bow above a greatsword whenever a class-scoped rate
-    lifted one of them -- sorted by a number that is nowhere on screen. The
-    layer-one order `rank` hands over is therefore an intermediate result, not
-    this function's answer; it is re-sorted rather than trusted.
+    **Best by the figure a display shows, which is `final_headline`.**
+    Ordering is done here and not left to `weapons.rank`, because `rank` sees
+    layer one only: it cannot know the attack multipliers, and since W6 they
+    are part of a candidate's answer. A list ordered by layer one while every
+    row printed layer two would rank a bow above a greatsword whenever a
+    class-scoped rate lifted one of them -- sorted by a number that is nowhere
+    on screen. The layer-one order `rank` hands over is therefore an
+    intermediate result, not this function's answer; it is re-sorted rather
+    than trusted.
+
+    For a staff or a seal that figure is its spell scaling and not its
+    physical rating (QA-099), which is the same rule as everywhere else here:
+    the list is ordered by what the row prints. It puts catalysts high in a
+    mixed list, because the game's spell scaling runs 78..237 where an attack
+    rating at the same tier runs lower -- two quantities in one ordering,
+    which is what "show the player the number the game shows" costs once the
+    game shows two different numbers.
 
     **The second key is the armament id, and it is not decoration** (do-not
     rule 29). Two orderings of the same addends can disagree by a ULP --
@@ -480,7 +587,9 @@ def rank_candidates(build: model.Build, target_tier: int,
     exactly one (AD-024). Near-ties are common in this dataset, so without a
     tie-break the order of equal figures would follow whatever `rank` happened
     to hand over, and two runs could disagree about rows a player cannot tell
-    apart.
+    apart. It carries the catalysts too: `Finger Seal` exists twice in the
+    data with identical figures (QA-099 a), so the two rows are separated by
+    their ids and by nothing else.
 
     This is **not** the order the arsenal tab draws:
     `arsenaltab._build_weapons` discards this list's order outright and
@@ -501,7 +610,8 @@ def rank_candidates(build: model.Build, target_tier: int,
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
     ranked = weapons.rank(data, attributes, target_tier)
     answers = [_answer(rating, Question.CANDIDATE, build) for rating in ranked]
-    answers.sort(key=lambda answer: (-answer.final_total, answer.weapon["id"]))
+    answers.sort(key=lambda answer: (-answer.final_headline,
+                                     answer.weapon["id"]))
     return answers
 
 

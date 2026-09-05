@@ -58,9 +58,12 @@ from tests import weapon_damage_cases as cases
 
 LEVEL = 15
 
-#: The left-hand label of the row this file reads. `Tile` writes the rows as
-#: (label, value) pairs, headline first.
-AR_ROW = "AR"
+#: The two left-hand labels the headline row of a tile can carry. `Tile`
+#: writes the rows as (label, value) pairs, headline first. Which of the two
+#: a given armament gets is the facade's answer and not a constant here: a
+#: staff or a seal is headed by the spell scaling the game shows for it and
+#: has no attack rating at all (QA-099).
+HEADLINE_ROWS = (damage.ATTACK_RATING_LABEL, damage.SPELL_POWER_LABEL)
 
 
 def armaments(game_data, hero) -> list[int]:
@@ -108,12 +111,21 @@ def tile_name(tile) -> str:
     return labels[1].text()
 
 
-def tile_ar(tile) -> str:
-    """The AR figure as the tile renders it, located by its own row label."""
-    labels = tile.findChildren(QLabel)
-    texts = [label.text() for label in labels]
-    assert AR_ROW in texts, f"no {AR_ROW!r} row on this tile: {texts!r}"
-    return texts[texts.index(AR_ROW) + 1]
+def tile_headline(tile, expected) -> str:
+    """The headline figure as the tile renders it, under its own row label.
+
+    The label is taken from the facade's answer for this armament rather than
+    searched for among both: a tile that headed a staff "AR" would then be
+    found under the label it should not be carrying, and this helper would
+    hide the very swap it is here to catch.
+    """
+    labels = [label.text() for label in tile.findChildren(QLabel)]
+    row = expected.headline_label
+    assert row in HEADLINE_ROWS, (
+        f"the facade calls this figure {row!r}, which is neither of the two "
+        f"labels this file knows: {HEADLINE_ROWS!r}")
+    assert row in labels, f"no {row!r} row on this tile: {labels!r}"
+    return labels[labels.index(row) + 1]
 
 
 @pytest.fixture(scope="module")
@@ -163,12 +175,13 @@ def test_every_tile_shows_the_candidate_answer_for_the_chosen_tier(
 
             expected = damage.candidate(weapon, tier, build, game_data)
             for tile in tiles:
-                assert tile_ar(tile) == str(
-                        damage.displayed(expected.final_total)), (
+                shown = tile_headline(tile, expected)
+                assert shown == str(
+                        damage.displayed(expected.final_headline)), (
                     f"{weapon['name']!r} at tier {tier}: the tab and the "
                     f"facade name different figures")
                 seen += 1
-                figures.add(f"{weapon['name']}@{tier}={tile_ar(tile)}")
+                figures.add(f"{weapon['name']}@{tier}={shown}")
 
     assert seen >= len(armaments(game_data, hero)), "nothing was compared"
     assert len(figures) > 1, (
@@ -213,8 +226,8 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
     tiles = drawn_tiles(tab, weapon)
     assert tiles, f"the tab drew no tile for {weapon['name']!r}"
     for tile in tiles:
-        assert tile_ar(tile) == str(
-                damage.displayed(at_spinbox.final_total)), (
+        assert tile_headline(tile, at_spinbox) == str(
+                damage.displayed(at_spinbox.final_headline)), (
             f"the tab is ranking {weapon['name']!r} at a tier the spinbox "
             f"does not show")
 
@@ -245,10 +258,15 @@ def multitype_weapon(game_data, build, tier: int) -> dict:
     armaments deal more than one damage type does not change often, but a
     hardcoded id would still be a guess about the dataset rather than a fact
     read off it.
+
+    `shown_per_type`, so the answer is the rows the tile really draws. A
+    catalyst has none of them whatever its physical rating breaks down into
+    (QA-099), and one picked here would leave the case reading rows that are
+    not on the tile.
     """
     for weapon in sorted(game_data["weapons"], key=lambda w: w["id"]):
         rating = damage.candidate(weapon, tier, build, game_data)
-        if len(rating.final_per_type) >= 2:
+        if len(rating.shown_per_type) >= 2:
             return weapon
     raise LookupError(
         "no armament in this dataset rates at two or more damage types at "
@@ -282,7 +300,7 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
     assert tiles, f"the tab drew no tile for {weapon['name']!r}"
 
     expected = damage.candidate(weapon, tier, build, game_data)
-    assert len(expected.final_per_type) >= 2, (
+    assert len(expected.shown_per_type) >= 2, (
         f"{weapon['name']!r} no longer rates at two or more damage types at "
         f"tier {tier}; this case needs one that does")
     own_tier = weapon.get("rarity", 0) + 1
@@ -292,14 +310,14 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
 
     for tile in tiles:
         rows = tile_rows(tile)
-        assert rows[0] == ("AR", str(damage.displayed(
-            expected.final_total)))
+        assert rows[0] == (expected.headline_label, str(damage.displayed(
+            expected.final_headline)))
 
-        type_rows = rows[1:1 + len(expected.final_per_type)]
+        type_rows = rows[1:1 + len(expected.shown_per_type)]
         expected_type_rows = [
             (weapons.DAMAGE_LABELS[damage_type],
              str(damage.displayed(value)))
-            for damage_type, value in expected.final_per_type.items()
+            for damage_type, value in expected.shown_per_type.items()
         ]
         assert type_rows == expected_type_rows, (
             f"{weapon['name']!r}: the damage-type rows are "
@@ -326,8 +344,8 @@ def weapons_section_total(tab) -> int:
     """The N in the tab's "Weapons  (N)" heading.
 
     Read off the section's own toggle text rather than off `tab.ratings`, for
-    the same reason `tile_ar` reads a label instead of a list entry: the
-    count a player sees is the one this case is about.
+    the same reason `tile_headline` reads a label instead of a list entry:
+    the count a player sees is the one this case is about.
     """
     heading = tab._top_sections[0].toggle.text()
     match = re.match(r"Weapons\s+\((\d+)\)", heading)

@@ -102,19 +102,26 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation(
         game_data, wylder):
     """The promise the README's Known limits already make, kept in the result.
 
-    The figure the advisor ranks by is the weapon panel's attack rating, and
-    since T-045 that figure **is** the game's own -- but only over a stated
-    range, and with one whole class of armament outside it. A run that
-    stopped saying so would be the first place in the program where the
-    scope was dropped, and it would be dropped exactly where the player is
-    being asked to act on the number.
+    The figure the advisor ranks by is the weapon panel's figure, and since
+    T-045 that figure **is** the game's own -- but only over a stated range.
+    A run that stopped saying so would be the first place in the program
+    where the scope was dropped, and it would be dropped exactly where the
+    player is being asked to act on the number.
 
-    The old single line, "Attack rating has not been verified against an
-    in-game number", is gone because 2256 comparisons against the game made
-    it false (QA-095). Replacing an untrue reservation with nothing is the
-    A7 failure this project keeps repeating, so what stands in its place is
-    the scope of the agreement and the exception to it -- and both are
-    asserted here, not only their presence in the source.
+    Two lines have been replaced here rather than deleted, and both times for
+    the same reason: an untrue reservation is worse than none, and *nothing*
+    in its place is worse than either.
+
+    * "Attack rating has not been verified against an in-game number" became
+      false when 2256 comparisons against the game settled it (QA-095), so
+      what stands there now is the **scope** of the agreement.
+    * "Staves and seals are outside that match" became false when T-046 put
+      the game's own catalyst figure on screen (QA-099). What stands there
+      now is the scope of *that* figure: measured at the catalyst's own
+      rarity, and the game's display rather than a claim about spell damage.
+      This case asserts the replacement, not merely the absence -- a
+      reservation dropped for a fault that was fixed is right; a scope
+      dropped with it is the A7 failure this project keeps repeating.
     """
     reference = advisor.scaling_armament(game_data, wylder)
     with_armament, ctx = build_with(game_data, wylder, reference=reference)
@@ -132,9 +139,21 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation(
             assert any(outside in line for line in scope), (
                 f"the scope line does not say that {outside} armaments or "
                 f"Nightfarers are outside the measurement")
-        assert any("Staves and seals" in line for line in unknowns), (
-            "nothing says that a catalyst's figure is a different quantity "
-            "from the one the game shows for it")
+        assert not any("outside that match" in line for line in unknowns), (
+            "the old catalyst reservation is back; it says this program "
+            "shows a staff's physical attack rating, which since T-046 it "
+            "does not")
+        catalysts = [line for line in unknowns
+                     if "staves and seals" in line.lower()]
+        assert catalysts, (
+            "nothing says what a catalyst's figure is; the scope of a "
+            "second measured quantity cannot be left out because the "
+            "quantity is now right")
+        for stated in ("own rarity", "spell hits for"):
+            assert any(stated in line for line in catalysts), (
+                f"the catalyst line does not say {stated!r}: it was measured "
+                f"at the base rarity only, and it is the game's display "
+                f"rather than what a spell does")
         assert any("Spell damage" in line for line in unknowns)
         assert any("Critical-only" in line for line in unknowns)
 
