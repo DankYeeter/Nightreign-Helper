@@ -382,14 +382,16 @@ class ArsenalTab(QWidget):
         if predicate is not None and 0 < shown <= 60:
             for section in self._top_sections:
                 section.expand_all()
-        # No search, so nothing has been asked for yet -- and this is the tab
-        # holding more of the game's data than any other, opening on three
-        # collapsed headings and an otherwise empty black page (DR-017). The
-        # comment above already had the argument for the search case; the
-        # first view had never been made to follow it. One subsection only:
-        # the reader sees what a tile looks like without paying for 1 792 of
-        # them (AK-83).
-        elif predicate is None and self._top_sections:
+        # Every other state where there is something to show. Two of them:
+        # the tab as it opens, which is the tab holding more of the game's
+        # data than any other and used to open on three collapsed headings
+        # and an otherwise empty black page (DR-017, AK-83); and a search
+        # matching more than the cap above, which fell through both branches
+        # and produced that same empty page again -- `a` matches 1 099
+        # armaments and drew none of them (QA-143). One subsection either
+        # way: the reader sees what a tile looks like without paying for
+        # 1 792 of them.
+        elif self._top_sections:
             self._top_sections[0].expand_first_child()
         # UI_SPEC.md, Nachtrag zu AK-34 (T-035, 2026-09-03): Fassung B, faellig
         # seit T-033, weil MULTIPLIERS_FOR[Basis.CANDIDATE] jetzt True ist --
@@ -466,6 +468,26 @@ class ArsenalTab(QWidget):
                      for stat, value in values.items() if value]
             return " · ".join(parts) if parts else "none"
 
+        def stats_of(*sources: dict) -> list[str]:
+            """Every stat named by `sources`, in the order the first names it.
+
+            `scaling.keys() | base_scaling.keys()` is a `set`, and the order a
+            set of strings iterates in follows PYTHONHASHSEED, which Python
+            picks afresh for every process. The same weapon therefore showed
+            `STR -21 · INT +29 · DEX +6` on one start of the program and
+            `DEX +6 · STR -21 · INT +29` on the next, directly under a
+            `Scaling` row that was stably ordered -- two lines of one tile,
+            two orders of the same three values (QA-142, and QA-059 word for
+            word at a new place). Ordering it by the weapon's own scaling dict
+            is what makes the two rows read the same way round.
+            """
+            order: list[str] = []
+            for source in sources:
+                for stat in source:
+                    if stat not in order:
+                        order.append(stat)
+            return order
+
         def build_family(entries):
             # Rarest first; inside a rarity band the infusions of one weapon
             # sit together, ordered by the standard version's name.
@@ -505,7 +527,7 @@ class ArsenalTab(QWidget):
                 if standard is not None and standard["id"] != weapon["id"]:
                     base_scaling = standard.get("scaling") or {}
                     shifts = []
-                    for stat in scaling.keys() | base_scaling.keys():
+                    for stat in stats_of(scaling, base_scaling):
                         delta = (scaling.get(stat, 0) or 0) - (
                             base_scaling.get(stat, 0) or 0)
                         if delta:

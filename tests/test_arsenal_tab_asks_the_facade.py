@@ -586,3 +586,59 @@ def test_the_summary_defines_both_figures_the_grid_can_show(planner,
     assert CATALYST_SENTENCE in tab.summary.text(), (
         f"with only catalysts on screen the summary still explains only the "
         f"attack rating: {tab.summary.text()!r}")
+
+
+#: The two rows of a tile that name the same stats. `Scaling` lists what the
+#: armament has; `vs standard` lists how that differs from the plain version
+#: of the same armament, and a stat can appear in either.
+SCALING_ROW = "Scaling"
+SHIFT_ROW = "vs standard"
+
+
+def stats_named_in(value: str) -> list[str]:
+    """The three-letter stat codes of a `·`-separated row, in drawn order."""
+    return [group.split()[0] for group in value.split(" · ") if group.split()]
+
+
+def test_a_tile_names_its_stats_in_one_order_on_both_of_its_rows(
+        planner, game_data, hero):
+    """QA-142: `vs standard` iterated a `set`, so its order was per process.
+
+    `scaling.keys() | base_scaling.keys()` is a set, and the order a set of
+    strings iterates in follows PYTHONHASHSEED, which Python picks afresh for
+    every start of the program. The same weapon showed `STR -21 · INT +29 ·
+    DEX +6` on one start and `DEX +6 · STR -21 · INT +29` on the next, one
+    line under a `Scaling` row that was stably ordered. QA-059 word for word,
+    at a new place.
+
+    **Why this can be seen in one process.** Two runs with different seeds is
+    what it takes to watch the order change; what can be checked here is the
+    property the change breaks -- that the two rows of one tile name their
+    shared stats the same way round. Under a set that holds only by luck, and
+    the arsenal draws it over dozens of tiles at once.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+
+    tiles = tab.scroll.widget().findChildren(arsenaltab.Tile)
+    assert tiles, "the tab drew no tile, so nothing here is measured"
+
+    compared = 0
+    wrong = []
+    for tile in tiles:
+        rows = dict(tile_rows(tile))
+        if SHIFT_ROW not in rows or SCALING_ROW not in rows:
+            continue
+        compared += 1
+        scaling = stats_named_in(rows[SCALING_ROW])
+        shifts = stats_named_in(rows[SHIFT_ROW])
+        shared = [stat for stat in shifts if stat in scaling]
+        if shared != [stat for stat in scaling if stat in shifts]:
+            wrong.append((tile_name(tile), rows[SCALING_ROW], rows[SHIFT_ROW]))
+
+    assert compared, (
+        f"no tile the tab opens with carries both a {SCALING_ROW!r} and a "
+        f"{SHIFT_ROW!r} row, so this case is watching nothing")
+    assert not wrong, (
+        f"{len(wrong)} of {compared} tiles name their stats in two different "
+        f"orders on two neighbouring rows; first three: {wrong[:3]}")
