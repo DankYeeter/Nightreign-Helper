@@ -81,13 +81,11 @@ LORE: dict[int, dict] = {
         ),
         "nightlords": ["Gnoster", "Caligo", "Heolstor"],
         "conflict": (
-            "The passive is called Unifying Fate by fextralife and Undying "
-            "Fate by game8. Eldenpedia labels this event's creature as the "
-            "Sentient Pest and the locust one as the Augur -- the reverse of "
-            "the other two. This project's own extracted text settles it: the "
-            "bubble event's outcome line is \"The master of bubbles was "
-            "felled\" and the locust one is \"Find the enemy who is stealing "
-            "runes\", so fextralife and game8 have the pairing right."
+            "Community write-ups disagree over which creature belongs to "
+            "this event and what its passive is called. The game's own "
+            "outcome lines settle it: this event ends with \"The master of "
+            "bubbles was felled\" and the locust one with \"Find the enemy "
+            "who is stealing runes\"."
         ),
         "sources": ["fextralife", "game8"],
     },
@@ -121,11 +119,10 @@ LORE: dict[int, dict] = {
         ),
         "nightlords": ["Caligo", "Fulghor", "Heolstor"],
         "conflict": (
-            "Sources split on whether killing it lifts the curse: fextralife "
-            "says it does, one summary of the same site says the HP cut "
-            "persists for the whole run. This project's extracted text is "
-            "decisive -- the game's own outcome banner for that branch reads "
-            "\"Foe felled, cleansing the curse\", so killing it does cleanse."
+            "Community write-ups split on whether killing it lifts the "
+            "curse or leaves the HP cut on for the whole run. The game's own "
+            "outcome banner for that branch reads \"Foe felled, cleansing "
+            "the curse\", so killing it does cleanse."
         ),
         "sources": ["fextralife", "eldenpedia", "game8"],
     },
@@ -279,7 +276,7 @@ UNANNOUNCED: list[dict] = [
         "penalty": "None.",
         "nightlords": ["Maris", "Caligo"],
         "note": (
-            "The files go one further: pattern modifier 210 draws for Maris, "
+            "The files go one further: this event is drawn for Maris, "
             "Caligo and Harmonia, and for nobody else."
         ),
         "sources": ["fextralife", "eldenpedia", "game8"],
@@ -288,10 +285,7 @@ UNANNOUNCED: list[dict] = [
         "name": "Difficult Sorcerer's Rise",
         "what": (
             "A Sorcerer's Rise with a harder puzzle variant. No banner, no "
-            "fight -- a map feature some patterns carry, catalogued in "
-            "thefifthmatt's per-pattern dump. It is pattern modifier 230, "
-            "the row this project had wrongly matched to the Flame of "
-            "Frenzy through 1.2.0."
+            "fight -- a map feature some patterns carry."
         ),
         "reward": "Whatever the Rise holds; nothing beyond the usual is reported.",
         "penalty": "None.",
@@ -302,7 +296,10 @@ UNANNOUNCED: list[dict] = [
         "name": "Scale-Bearing Merchant",
         "what": (
             "A grey-coated merchant offering wishes whose downsides are "
-            "stated up front. Attacking it starts the demon fight instead."
+            "stated up front. Attacking it starts the demon fight instead. "
+            "It is the same creature the announced event \"Curse of the "
+            "Demon / Libra, Creature of Night\" is about; that entry has "
+            "what the game's own files say about it."
         ),
         "reward": "Stat boosts, flask charges, runes, or a powerful weapon.",
         "penalty": "Each wish carries its own cost -- stats, HP, or levels.",
