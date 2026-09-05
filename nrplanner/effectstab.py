@@ -120,6 +120,130 @@ class ChanceItem(QTableWidgetItem):
         return self.value < getattr(other, "value", 0.0)
 
 
+class EffectTable(QTableWidget):
+    """A table that shares its width out by what the reader came for.
+
+    Qt's `Stretch` hands a column whatever is left after every other column
+    has taken what it wants, and on this table there was little left. Measured
+    on Windows at 150 % scale before this class existed, at a 1067 px window
+    -- the width the review ran at: `Effect` rendered at **138** px against
+    `Stacking` at 159 and `Colours` at 133, with **573 of 652** names cut
+    short, four consecutive rows reading `Successful ...` and no way to tell
+    them apart. At an 833 px window `Effect` was **32** px and all 652 were
+    cut. The column carrying the name was the narrowest of the eleven, and the
+    two columns that answer the tab's question came last in the share-out
+    (DR-014).
+
+    The order is reversed here: the name and the description are served first,
+    and the nine label columns divide what is over, capped. The share-out runs
+    on every width change, as `Stretch` did -- what changed is who is served
+    first, not when.
+    """
+
+    #: AK-77, in logical px. The name column never goes under the first, the
+    #: description column never under the second.
+    NAME_FLOOR = 320
+    DESCRIPTION_FLOOR = 260
+
+    #: What any other column may take at most. AK-77 asks for a bound "smaller
+    #: than the width of `Effect`", and `Effect` is never narrower than
+    #: NAME_FLOOR while there is room, so half of NAME_FLOOR keeps that true
+    #: with a margin. It is the two enumerations the bound is aimed at:
+    #: `Stacking` asked for 159 px to show nine distinct strings and `Colours`
+    #: for 133 px to show ten, on Windows at 150 % scale; under the suite's
+    #: offscreen font the same two ask for 343 and 295.
+    OTHER_CAP = NAME_FLOOR // 2
+
+    def __init__(self, columns: int):
+        super().__init__(0, columns)
+        self._natural = [0] * columns
+
+    @property
+    def _description_column(self) -> int:
+        return self.columnCount() - 1
+
+    def _others(self) -> range:
+        return range(1, self._description_column)
+
+    def measure_columns(self) -> None:
+        """Note what each column would like, then share the width out.
+
+        Called once per refresh, because asking 652 rows how wide they are is
+        the expensive part and their contents do not change with the window.
+        """
+        header = self.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        self.resizeColumnsToContents()
+        self._natural = [header.sectionSize(column)
+                         for column in range(self.columnCount())]
+        self.fit_columns()
+
+    def column_widths(self, available: int) -> dict[int, int]:
+        """How wide each column should be in `available` px of viewport.
+
+        Kept separate from the widget it sizes so the rule can be read in one
+        piece: the two floors are taken off the top, the other columns divide
+        what is left up to their cap, and anything still over goes back to the
+        two columns the tab is about.
+
+        The share-out always adds up to `available` exactly. A column past the
+        right-hand edge is a column the reader cannot get to, because the
+        scrollbar that would reach it sits at the bottom edge of the tab
+        behind the taskbar (DR-015) -- so where even the two floors do not
+        fit, the floors give way rather than the table growing past its own
+        viewport. Measured on Windows at 150 % scale: that happens below about
+        1 100 logical px of window width, and `Effect` is 310 px there instead
+        of 320. Ten pixels of name against `What it does` disappearing off the
+        edge is not a trade worth making.
+        """
+        floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
+        wanted = {column: min(self._natural[column], self.OTHER_CAP)
+                  for column in self._others()}
+        # The label columns give way before the two floors do. That is AK-77's
+        # order, and it is why every cell carries its own text as a tooltip:
+        # squeezed is not the same as lost.
+        widths = self._levelled(wanted, available - floors)
+        spare = max(available - sum(widths.values()), 2)
+        widths[0] = max(spare * self.NAME_FLOOR // floors, 1)
+        widths[self._description_column] = max(spare - widths[0], 1)
+        return widths
+
+    def _levelled(self, wanted: dict[int, int], budget: int) -> dict[int, int]:
+        """Divide `budget` among `wanted`, taking from the widest first.
+
+        Each column in turn, narrowest first, gets the smaller of what it
+        wants and an equal share of what is still unspent. A column that wants
+        less than its share keeps all of it and leaves the rest to the others,
+        so `Type` holds the 37 px its own heading needs while `Stacking` comes
+        down from 159 to 51 -- rather than both losing the same percentage,
+        which took `Type` to 32 px and drew it as `B...`.
+
+        Never below `minimumSectionSize`, which is the narrowest section Qt
+        will draw; below that the widths would be a fiction.
+        """
+        smallest = self.horizontalHeader().minimumSectionSize()
+        order = sorted(wanted, key=lambda column: wanted[column])
+        widths: dict[int, int] = {}
+        left = budget
+        for taken, column in enumerate(order):
+            share = max(left // (len(order) - taken), smallest)
+            widths[column] = min(wanted[column], share)
+            left -= widths[column]
+        return widths
+
+    def fit_columns(self) -> None:
+        available = self.viewport().width()
+        if available <= 0 or not any(self._natural):
+            return
+        header = self.horizontalHeader()
+        for column, width in self.column_widths(available).items():
+            header.resizeSection(column, width)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self.fit_columns()
+
+
 def identity(effect: dict) -> tuple:
     """What makes two effect rows genuinely the same effect.
 
@@ -276,7 +400,7 @@ class EffectsTab(QWidget):
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
 
-        self.table = QTableWidget(0, len(COLUMNS))
+        self.table = EffectTable(len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
         # Every column that is not self-explanatory says what it means where
         # the player is already looking. "Pools" in particular was a bare
@@ -289,9 +413,6 @@ class EffectsTab(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(len(COLUMNS) - 1, QHeaderView.Stretch)
         layout.addWidget(self.table, 1)
 
         self.refresh()
@@ -457,11 +578,15 @@ class EffectsTab(QWidget):
                 if c in (0, COL_TYPE, len(values) - 1):
                     item.setForeground(CURSE_COLOUR if is_bad else BUFF_COLOUR)
                 # Where the game itself files this effect in its own UI
-                # filters. Only 568 of the effects carry one, so the tooltip
-                # appears where there is something to say and not otherwise.
+                # filters. Only 568 of the effects carry one, so the sentence
+                # appears where there is something to say and not otherwise --
+                # and it now stands under the name rather than instead of it,
+                # because on a 320 px column the name is what the tooltip is
+                # most often needed for.
                 if c == 0 and eff.get("game_category"):
                     item.setToolTip(
-                        "The game files this under: " + eff["game_category"])
+                        f"{display_name}\nThe game files this under: "
+                        + eff["game_category"])
                 if c == COL_STACKS:
                     # Red is for the classes that cost you something: a second
                     # copy of these is wasted, which is the one case where the
@@ -470,8 +595,14 @@ class EffectsTab(QWidget):
                         item.setForeground(Qt.red)
                     # Naming the deciding field turns the verdict into
                     # something checkable rather than something to take on
-                    # trust, which is the whole point of the column.
-                    item.setToolTip(stacking.evidence(eff))
+                    # trust, which is the whole point of the column. The
+                    # verdict itself stands above it now: the column is capped
+                    # (EffectTable.OTHER_CAP) and `Exclusive group
+                    # (multiplies)` does not fit in 160 px, so a tooltip that
+                    # gave only the evidence left the reader with a cut-off
+                    # class and its reason underneath.
+                    item.setToolTip(
+                        f"{item.text()}\n{stacking.evidence(eff)}")
                 if c == COL_CURSE and value:
                     item.setForeground(CURSE_COLOUR)
                 # The full text is often wider than the column; the tooltip
@@ -480,6 +611,14 @@ class EffectsTab(QWidget):
                     item.setToolTip(description)
                     if description == effecttext.NO_DESCRIPTION:
                         item.setForeground(Qt.gray)
+                # Every column of this table is narrower than its longest
+                # cell at some window width -- the label columns because they
+                # are capped (EffectTable.OTHER_CAP), the name column because
+                # 80 of 652 names are still wider than the 320 px floor at a
+                # 1067 px window. Cut short has to mean reachable, not lost,
+                # so a cell with no tooltip of its own carries its text as one.
+                if not item.toolTip():
+                    item.setToolTip(item.text())
                 self.table.setItem(r, c, item)
 
         # Enabling sorting makes Qt immediately re-sort by whatever indicator
@@ -488,7 +627,4 @@ class EffectsTab(QWidget):
         # the header still clickable.
         self.table.setSortingEnabled(True)
         self.table.sortByColumn(COL_TYPE, Qt.AscendingOrder)
-        self.table.resizeColumnsToContents()
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(len(COLUMNS) - 1, QHeaderView.Stretch)
+        self.table.measure_columns()
