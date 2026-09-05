@@ -219,6 +219,38 @@ def test_the_detail_panel_gives_way_where_the_cards_run_out_of_room(
             f"panel {panel.width()}")
 
 
+def test_the_detail_panel_gives_way_at_the_narrowest_window_there_is(
+        game_data, qapp):
+    """The width QA-147 is about, whatever this platform's narrowest is.
+
+    The case above is parametrised on the five acceptance widths, and a fixed
+    330 px panel is **within** its share at every one of them except 833 --
+    which the offscreen platform cannot render and skips. Measured: putting
+    `setFixedWidth(DETAIL_WIDTH)` back left 757 of 757 green. A guard that only
+    bites at the one width the default run does not reach is not a guard.
+
+    So this one asks for a window narrower than anything and takes whatever
+    the platform gives -- 760 logical px under Windows, 964 offscreen -- which
+    is the narrowest state a player can put the program in and the state the
+    finding describes.
+    """
+    with rendered.laid_out(game_data, "boss_tab", 1600) as (window, tab):
+        window.resize(1, 900)
+        rendered.settle()
+        narrowest = window.width()
+        assert narrowest < 1600, (
+            "the window would not go below 1600 px, so this case measured "
+            "the wide state twice")
+        area = next(a for a in tab.findChildren(QScrollArea)
+                    if a.widget() is tab.holder)
+        panel = next(a for a in tab.findChildren(QScrollArea)
+                     if a is not area)
+        assert panel.width() * PANEL_SHARE <= tab.width(), (
+            f"at the narrowest window this platform allows ({narrowest} px) "
+            f"the tab is {tab.width()} px, the detail panel holds "
+            f"{panel.width()} of it and the cards {area.width()}")
+
+
 @pytest.mark.parametrize("width", WIDTHS)
 def test_the_two_cards_the_review_lost_are_among_them(game_data, qapp, width):
     """AK-90 by name. `Maris` and `Harmonia` were column four."""
