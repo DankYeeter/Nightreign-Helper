@@ -700,7 +700,7 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrdata/extract.py",
         old="""CATALYST_SCALING_FIELD = "unknown_1"
 """,
-        new="""CATALYST_SCALING_FIELD = "spellScalingRate"
+        new="""CATALYST_SCALING_FIELD = "spellAttackRate"
 """,
         survival_means=(
             "the extraction does not notice that the field it reads the "
@@ -710,9 +710,13 @@ MUTATIONS: dict[str, Mutation] = {
             "must not be ordinary is the extraction carrying on without it. "
             "Killed by tests/test_catalyst_scaling_extraction.py::"
             "test_a_well_formed_table_hands_back_every_rate, whose stub rows "
-            "carry the real name -- the two refusal cases beside it stay "
-            "green under this edit on their own, because a guard that only "
-            "ever refuses is satisfied by refusing everything."),
+            "carry the Paramdex name written out as a literal -- the two "
+            "refusal cases beside it stay green under this edit on their "
+            "own, because a guard that only ever refuses is satisfied by "
+            "refusing everything. The name written here is deliberately not "
+            "the one that file's refusal case uses: if the two coincided, "
+            "the refusal case would fail for a reason that has nothing to "
+            "do with what this mutation is about."),
     ),
 }
 
