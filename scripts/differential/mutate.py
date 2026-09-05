@@ -1491,22 +1491,30 @@ MUTATIONS: dict[str, Mutation] = {
             "test_the_two_reading_columns_hold_their_floors."),
     ),
     "suite-measures-under-another-style": Mutation(
-        path="nrplanner/app.py",
-        old="""    app.setStyle("Fusion")
-    app.setPalette(_dark_palette())
+        # The one mutation in this registry that edits the suite rather than
+        # the program, and it has to: QA-146 is a divergence between the two,
+        # and the state it describes is reached by the suite no longer
+        # following. Editing `apply_appearance` instead would move both sides
+        # together, which is the property this guard exists to hold.
+        path="tests/conftest.py",
+        old="""    app = QApplication.instance() or QApplication([])
+    appmod.apply_appearance(app)
+    yield app
 """,
-        new="""    app.setStyle("windowsvista")
-    app.setPalette(_dark_palette())
+        new="""    app = QApplication.instance() or QApplication([])
+    yield app
 """,
         survival_means=(
             "the program and the guards can be told apart by their pixels "
-            "again. Same data, same width, style the only variable: the "
-            "`Effect` column renders 446 px under windowsvista against 388 "
-            "under Fusion at a 1600 px window, and the count of effect names "
-            "too long for it goes from 12 to 44 (QA-146). Nothing was "
-            "falsely green -- the guards are relations -- which is exactly "
-            "why only a case comparing the two environments catches it. "
-            "Killed by tests/test_tab_geometry.py::"
+            "again, which is the state every figure reported out of this "
+            "suite before T-060 was measured in. Same data, same width, "
+            "style the only variable: the `Effect` column renders 446 px "
+            "under windowsvista against 388 under Fusion at a 1600 px "
+            "window, and the count of effect names too long for it goes "
+            "from 12 to 44 (QA-146). Nothing goes falsely green -- the other "
+            "guards are relations and hold under both -- which is exactly "
+            "why it takes a case comparing the two environments. Killed by "
+            "tests/test_tab_geometry.py::"
             "test_the_suite_measures_under_the_appearance_the_program_"
             "starts_with."),
     ),
@@ -1612,6 +1620,11 @@ MUTATIONS: dict[str, Mutation] = {
             "tests/test_nightlord_panel_display.py::"
             "test_no_block_of_figures_is_left_without_its_reference."),
     ),
+    # This one is only visible through a dataset the mutated extractor built.
+    # A run against a snapshot from before it carries the corrected sentence
+    # and both cases stay green -- the guard is fine, the input is stale. Run
+    # it with NIGHTREIGN_TEST_SNAPSHOT pointing at a snapshot written from
+    # inside the mutant tree, or with no snapshot on the machine at all.
     "rune-ladder-back-to-seven-bare-figures": Mutation(
         path="nrdata/extract.py",
         old="""            "Expedition progress moves it up a "
