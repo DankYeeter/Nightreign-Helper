@@ -569,6 +569,106 @@ MUTATIONS: dict[str, Mutation] = {
             "test_one_build.py::"
             "test_only_the_facade_calls_weapons_rate_or_rank."),
     ),
+    # -- the seven arguments of one build (T-048: QA-100) -------------------
+    #
+    # Five edits, one per input the advisor hands `model.compute` and that a
+    # shorter argument list could drop. QA-001 was exactly that -- a second,
+    # shorter list -- and checkpoint 13 exists to catch its return. It caught
+    # none of these until T-048, because the state it compared was hollowed
+    # out: level 1, one armament which was also the reference, nothing
+    # declared, Deep off, and Wylder, who is `heroes[0]`.
+    "advisor-computes-without-the-armaments-held": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""        weapons_held=list(ctx.weapons_held),
+""",
+        new="""        weapons_held=[],
+""",
+        survival_means=(
+            "the advisor rates a build against the armament it is looking at "
+            "instead of against the grid the player is carrying. A "
+            "weapon-type gate is met by any armament held, not only by the "
+            "one being rated (`model.satisfied_by_weapon`), so every effect "
+            "gated on one of the other five tiles would silently stop "
+            "counting -- and the stat sheet beside it would go on counting "
+            "them. That is QA-001 in a new place: two figures for one build, "
+            "with nothing on the window to say which is right. Measured "
+            "surviving on 2026-09-03 by the `qa-engineer`: 398 passed, 5 "
+            "deselected. Killed by test_advisor_evaluate.py::"
+            "test_the_advisor_computes_the_build_the_window_shows."),
+    ),
+    "advisor-computes-without-the-reference-armament": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""        weapon=reference.weapon if reference is not None else None,
+""",
+        new="""        weapon=None,
+""",
+        survival_means=(
+            "the reference armament does not reach the model. **Today this "
+            "changes no build at all**, and that is the finding rather than "
+            "an excuse: `model.compute` reads `weapon` only where "
+            "`weapons_held` is empty, and both are filled from the same grid "
+            "in both callers, so the branch is unreachable from the window. "
+            "A comparison of builds therefore cannot see this edit -- "
+            "measured, not assumed -- and the case that kills it reads the "
+            "call instead of its result. It matters because S9 builds the "
+            "`GoalContext` in a worker: a context with a reference and no "
+            "grid is one line away, and the guard has to be there before it "
+            "is written. Killed by test_advisor_evaluate.py::"
+            "test_evaluate_hands_the_whole_context_to_the_model."),
+    ),
+    "advisor-computes-at-the-first-level": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""        ctx.level,
+        _effects(ctx, effect_ids_of(problem, assignment, ctx)),
+""",
+        new="""        1,
+        _effects(ctx, effect_ids_of(problem, assignment, ctx)),
+""",
+        survival_means=(
+            "the advisor ranks relics for a level-1 Nightfarer whatever the "
+            "player is. Every attribute bonus would feed a curve at the "
+            "bottom of its first segment, so the marginal contribution of "
+            "every +attribute relic would be the wrong size -- and the "
+            "ordering would look plausible throughout. It survived until "
+            "T-048 for a reason worth keeping in view: the case that should "
+            "have caught it never moved the level slider, whose minimum is "
+            "1. Killed by test_advisor_evaluate.py::"
+            "test_the_advisor_computes_the_build_the_window_shows."),
+    ),
+    "advisor-computes-for-the-first-nightfarer": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""    return model.compute(
+        ctx.hero,
+""",
+        new="""    return model.compute(
+        ctx.data["heroes"][0],
+""",
+        survival_means=(
+            "every run is answered for Wylder. The base attributes, the "
+            "hero-specific effects and the starting-armament pairing all "
+            "follow the Nightfarer, so a Recluse player would be shown a "
+            "ranking for somebody else's build -- and `heroes[0]` is the one "
+            "substitution no synthetic case in this package could see, "
+            "because all of them ask about Wylder. Killed by "
+            "test_advisor_evaluate.py::"
+            "test_the_advisor_computes_the_build_the_window_shows."),
+    ),
+    "advisor-computes-with-nothing-declared": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""        declared=dict(ctx.declared),
+""",
+        new="""        declared={},
+""",
+        survival_means=(
+            "a condition the player has switched on counts on the stat sheet "
+            "and not in the ranking. A situational relic would then sit at "
+            "0.00 in the picker while the sheet beside it counts the effect "
+            "three times -- the two halves of one screen contradicting each "
+            "other, and the shape AD-004's conditional line exists to "
+            "explain rather than to cause. Killed by "
+            "test_advisor_evaluate.py::"
+            "test_the_advisor_computes_the_build_the_window_shows."),
+    ),
     # -- the two classes of reservation (T-048: AD-025, QA-102) -------------
     #
     # Three edits, because AD-025 makes three separate promises and a guard

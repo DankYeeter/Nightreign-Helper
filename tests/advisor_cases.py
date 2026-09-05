@@ -91,6 +91,50 @@ def a_non_stacking_effect(data: dict, hero: dict, field_name: str) -> int:
                       f"{field_name}")
 
 
+def an_armament_type_gate(data: dict, hero: dict) -> tuple[int, dict, dict]:
+    """An effect gated on a weapon type, and two armaments that tell it apart.
+
+    Hands back `(effect id, an armament of the wanted type, an armament of
+    another)`. A weapon-type gate is the one input that distinguishes "every
+    armament on the grid" from "the one being rated": the gate is met by any
+    of them (`model.satisfied_by_weapon`), so an effect gated on the *second*
+    armament's type is counted only while the whole grid is passed on.
+
+    Measured through `model.compute` and not read off a modifier name: 102
+    effects in this dataset carry such a gate and most of them move no number
+    the comparison can see, so a case built on the first one found would
+    compare a build with itself.
+    """
+    from nrplanner import model
+
+    curves = data.get("curves", {})
+    present = {weapon.get("wep_type") for weapon in data["weapons"]}
+    present.discard(None)
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        wanted = next((mods[field_name]
+                       for field_name in model.WEAPON_TYPE_GATES
+                       if mods.get(field_name) in present), None)
+        if wanted is None:
+            continue
+        carrier = next(w for w in data["weapons"]
+                       if w.get("wep_type") == wanted)
+        other = next((w for w in data["weapons"]
+                      if w.get("wep_type") not in (None, wanted)), None)
+        if other is None:
+            continue
+        blind = model.compute(hero, LEVEL, [effect], curves,
+                              weapon=other, weapons_held=[other])
+        seeing = model.compute(hero, LEVEL, [effect], curves,
+                               weapon=other, weapons_held=[other, carrier])
+        if blind.rates != seeing.rates or blind.attributes != seeing.attributes:
+            return int(effect["id"]), carrier, other
+    raise LookupError("this dataset has no weapon-type gate that moves a "
+                      "number, so nothing here can tell the whole grid from "
+                      "the armament being rated")
+
+
 def a_declarable_effect(data: dict, hero: dict) -> int:
     """A gated effect the sheet offers this Nightfarer as a switch.
 
