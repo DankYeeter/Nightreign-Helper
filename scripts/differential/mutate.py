@@ -1496,9 +1496,14 @@ MUTATIONS: dict[str, Mutation] = {
             "a heading shortened for a narrow window is what the next "
             "measurement reads, so the column keeps the width its stump "
             "needed and never grows back when the window does. The tab looks "
-            "right until it has been narrow once. Killed by "
-            "tests/test_tab_geometry.py::"
-            "test_the_two_reading_columns_hold_their_floors."),
+            "right until it has been narrow once. Measured with this edit in "
+            "place: back at a 1600 px window `Type` stood at 37 px instead "
+            "of 53, `Relic slots` at 51 instead of 82, `Avg chance` at 52 "
+            "instead of 91, and five headings were still shortened where all "
+            "eleven had been whole. Killed by tests/test_tab_geometry.py::"
+            "test_a_narrow_window_does_not_shrink_the_columns_for_good, and "
+            "only in the order that case runs: narrow, refresh, then wide. "
+            "Widening before the refresh leaves no trace at all."),
     ),
     "suite-measures-under-another-style": Mutation(
         # The one mutation in this registry that edits the suite rather than
