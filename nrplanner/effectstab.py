@@ -12,10 +12,34 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import effecttext, model, stacking
+from . import effecttext, model, stacking, tabheader
 from .effecttext import caption, describe, describe_full  # noqa: F401
 
-COLUMNS = ["Effect", "Type", "Tier", "Copies", "Colours", "Pools",
+#: What this tab is for, above the filter row and above the counts (AK-68,
+#: AK-76). Until T-057 the first line a reader met was a stock count.
+HEADING = "WHAT A RELIC CAN ROLL, AND HOW OFTEN"
+QUESTION = (
+    "Every effect a relic can carry, how likely you are to roll it, and "
+    "whether carrying a second copy is worth anything.")
+
+#: The one definition of the chance figures on this screen, and the only one
+#: (AK-79). There used to be two, six lines apart and saying different things:
+#: a column tooltip said "averaged over every pool that can produce it" and
+#: the summary said "how likely an effect is on one roll of the selected
+#: colour and mode" -- while the default is `All colours`, so no colour was
+#: selected at all. Both are gone; this sentence appears once.
+CHANCE_DEFINITION = (
+    "Chance is per relic effect slot, over every slot that can roll the "
+    "effect under the filters above — not per relic and not per run.")
+
+#: The chance cell of an effect no slot can reach under the current filters.
+#: It carries the signal the `Pools` column used to carry with a bare `0`
+#: (AK-78): a rung of a ladder can exist while nothing on offer rolls it.
+UNREACHABLE_TIP = (
+    "No relic effect slot can roll this under the current colour and mode "
+    "filters. It exists as a rung of its ladder; other filters may reach it.")
+
+COLUMNS = ["Effect", "Type", "Tier", "Copies", "Colours", "Relic slots",
            "Avg chance", "Best chance", "Stacking", "Comes with curse",
            "What it does"]
 
@@ -23,12 +47,12 @@ COLUMNS = ["Effect", "Type", "Tier", "Copies", "Colours", "Pools",
 # together if the layout changes.
 COL_TYPE = 1
 COL_COPIES = 3
-COL_POOLS = 5
+COL_SLOTS = 5
 COL_AVG = 6
 COL_BEST = 7
 COL_STACKS = 8
 COL_CURSE = 9
-NUMERIC = (COL_COPIES, COL_POOLS, COL_AVG, COL_BEST)
+NUMERIC = (COL_COPIES, COL_SLOTS, COL_AVG, COL_BEST)
 
 # "Buff" sorts before "Curse", so sorting on the Type column groups them the
 # way round the player wants without any special-casing. It also survives the
@@ -50,15 +74,15 @@ HEADER_TIPS = {
     COL_COPIES: "How many identical copies of this effect the game defines. "
                 "They are merged into this one row.",
     4: "Relic colours this effect can appear on.",
-    COL_POOLS: "How many of the game's loot pools can produce this effect. "
-               "A pool is one of the lists a relic's effects are drawn "
-               "from. More pools does not mean more likely — the two "
-               "chance columns say that.",
-    COL_AVG: "Your odds of rolling this effect on one effect slot, "
-             "averaged over every pool that can produce it, with the "
-             "colour and mode filters applied.",
-    COL_BEST: "Your odds in the single most favourable pool. 100% means "
-              "at least one pool always grants it.",
+    COL_SLOTS: "How many of the game's relic effect slots can roll this "
+               "effect, counted over every relic and every slot on it. It is "
+               "not a count of loot pools, and more slots does not mean more "
+               "likely — the chance column says that.",
+    COL_AVG: "Averaged over the slots that can roll it, each counting for "
+             "how often it occurs. The line under the filters says what the "
+             "figure is a chance of.",
+    COL_BEST: "The single most favourable slot. 100% means at least one "
+              "slot always grants it.",
     COL_STACKS: "What a second copy of the effect does: adds, multiplies, "
                 "or is wasted. Hover a cell for the evidence behind its "
                 "verdict.",
@@ -153,8 +177,22 @@ class EffectsTab(QWidget):
         super().__init__()
         self.effects = list(data["effects"].values())
 
+        # Ladders and duplicate counts are properties of the game's data, not
+        # of what the filters happen to show, so they are worked out once over
+        # the whole effect list and looked up per row. Building them from the
+        # filtered candidates made `Continuous HP Recovery` say "1 of 2" under
+        # `All colours` and nothing at all under a colour filter -- the same
+        # effect changing its own definition as the view narrowed (QA-127).
+        self._copies = collections.Counter(identity(e) for e in self.effects)
+        self._siblings: dict[str, list[dict]] = collections.defaultdict(list)
+        for first, _count in deduplicate(self.effects):
+            self._siblings[effecttext.name(first)].append(first)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
+
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
         controls = QHBoxLayout()
         self.search = QLineEdit()
@@ -309,22 +347,20 @@ class EffectsTab(QWidget):
 
         # Collapse identical rows before display. Colours are unioned across
         # the merged rows so nothing is lost by dropping the copies.
-        merged: dict[tuple, tuple[dict, set, int]] = collections.OrderedDict()
+        merged: dict[tuple, tuple[dict, set]] = collections.OrderedDict()
         for eff, colours in candidates:
             key = identity(eff)
             if key in merged:
-                prev_eff, prev_colours, count = merged[key]
-                merged[key] = (prev_eff, prev_colours | set(colours), count + 1)
+                prev_eff, prev_colours = merged[key]
+                merged[key] = (prev_eff, prev_colours | set(colours))
             else:
-                merged[key] = (eff, set(colours), 1)
+                merged[key] = (eff, set(colours))
 
-        # Siblings: same name, different strength. Needed for the tier column.
-        by_name: dict[str, list[dict]] = collections.defaultdict(list)
-        for eff, _colours, _count in merged.values():
-            by_name[" ".join(str(eff.get("name", "")).split())].append(eff)
-
-        rows = [(eff, sorted(colours), count)
-                for eff, colours, count in merged.values()]
+        # The copy count is the game's, not the filter's (AK-81): how many
+        # identical rows the params define, whether or not this view shows
+        # them all.
+        rows = [(eff, sorted(colours), self._copies[identity(eff)])
+                for eff, colours in merged.values()]
 
         # Buffs first, then curses, each alphabetical. Keeping them in one
         # table rather than splitting into a second tab means a search covers
@@ -343,10 +379,10 @@ class EffectsTab(QWidget):
                    f"name." if undescribed else "")
         self.summary.setText(
             f"{len(rows) - n_curses} buffs (blue) then {n_curses} curses "
-            f"(red).{note}{missing} Chance is how likely an effect is on one "
-            f"roll of the selected colour and mode; where an effect can come "
-            f"from several pools you see its average and its best. 'Tier' "
-            f"marks effects that come in a ladder of strengths under one name."
+            f"(red).{note}{missing} {CHANCE_DEFINITION} Where an effect can "
+            f"come from several slots you see its average and its best. "
+            f"'Tier' marks effects that come in a ladder of strengths under "
+            f"one name."
         )
 
         self.table.setSortingEnabled(False)
@@ -361,8 +397,15 @@ class EffectsTab(QWidget):
                 else:
                     relevant.extend(chance.values())
 
-            pools = sum(c["pools"] for c in relevant)
-            avg = (sum(c["avg"] for c in relevant) / len(relevant)) if relevant else 0.0
+            slots = sum(c["pools"] for c in relevant)
+            # Weighted by how many slots each entry stands for, not averaged
+            # over the (colour x mode) buckets. Unweighted, a single
+            # guaranteed relic took a fifth of the weight against 240 slots at
+            # 0.5%, and `[Wylder] Improved Mind, Reduced Vigor` read 20.4%
+            # where a player rolls it on 0.91% of slots -- 129 of 616 effects
+            # moved, this one by a factor of 22 (QA-126, AK-80).
+            avg = (sum(c["avg"] * c["pools"] for c in relevant) / slots
+                   if slots else 0.0)
             best = max((c["max"] for c in relevant), default=0.0)
 
             display_name = effecttext.name(eff)
@@ -371,10 +414,10 @@ class EffectsTab(QWidget):
             values = [
                 display_name,
                 TYPE_CURSE if is_bad else TYPE_BUFF,
-                tier_label(eff, by_name[display_name]),
+                tier_label(eff, self._siblings[display_name]),
                 copies,
                 ", ".join(model.COLOUR_NAMES.get(c, str(c)) for c in colours),
-                pools,
+                slots,
                 avg,
                 best,
                 stacking.classify(eff),
@@ -383,24 +426,17 @@ class EffectsTab(QWidget):
                 description,
             ]
             for c, value in enumerate(values):
-                if c == COL_COPIES or c == COL_POOLS:
+                if c == COL_COPIES or c == COL_SLOTS:
                     item = QTableWidgetItem()
                     item.setData(Qt.DisplayRole, int(value))
-                    # A rung of a ladder can exist while nothing in the
-                    # current filters can roll it; a bare 0 next to dashes
-                    # read as the table being broken rather than as an
-                    # answer.
-                    if c == COL_POOLS and not value:
-                        item.setToolTip(
-                            "No pool produces this effect under the current "
-                            "colour and mode filters. It exists as a rung "
-                            "of its ladder; other filters may reach it.")
                 elif c in (COL_AVG, COL_BEST):
                     item = ChanceItem(float(value))
-                    if not pools:
-                        item.setToolTip(
-                            "Not obtainable under the current colour and "
-                            "mode filters — see the Pools column.")
+                    # A rung of a ladder can exist while nothing in the
+                    # current filters can roll it. The signal used to hang on
+                    # a bare `0` in a column named after loot pools; it lives
+                    # on the cell that is showing the dash (AK-78).
+                    if not slots:
+                        item.setToolTip(UNREACHABLE_TIP)
                 else:
                     item = QTableWidgetItem(str(value))
                 if c in NUMERIC:
