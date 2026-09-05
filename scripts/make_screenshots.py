@@ -110,11 +110,11 @@ def main() -> None:
                 tab.show_detail(tab.bosses[0])
                 settle(app, 500)
         if label == "Weapons && spells":
-            # This tab opens with every group folded, because building tens of
-            # thousands of tiles up front stalls the window. Photographed as it
-            # opens, it is three collapsed headings and an acre of empty panel
-            # -- true, and useless as a picture of what the tab does. Two
-            # clicks' worth of unfolding shows the armament tiles.
+            # Since T-058 the tab opens with its first group already unfolded
+            # (AK-83), so the picture is no longer three headings over an acre
+            # of empty panel. This still opens the next folded group, because
+            # a picture showing two of them says more about what the tab is
+            # than a picture showing one.
             expand_first(app, tabs.currentWidget(), depth=2)
         path = out / name
         if not window.grab().save(str(path)):

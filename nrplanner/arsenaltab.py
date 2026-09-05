@@ -5,14 +5,13 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QComboBox, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import damage, search, tabheader, weapons
+from . import cardgrid, damage, search, tabheader, weapons
 from .weapons import RARITY_TIERS
 
-COLUMNS = 5
 ICON = 52
 CARD_WIDTH = 200
 
@@ -48,6 +47,38 @@ BUILDUP_SENTENCE = (
     "Buildup figures come straight from the game's weapon data. The files do "
     "not say what they are counted against, so use them to compare "
     "armaments, not as a number of hits.")
+
+#: A value never wraps inside one of its groups. `STR -7 · ARC +45 · DEX`
+#: with a lone `-7` underneath was a stat separated from its own figure
+#: (DR-016b, AK-73), and it read as a different, smaller number.
+# Written as an escape on purpose: the character itself is invisible in
+# source, and a maintainer would have no way to see what this line holds.
+NBSP = "\u00a0"
+GROUP_SEPARATOR = " · "
+
+
+def unbroken(value: str) -> str:
+    """`value` with every break opportunity inside a group taken away.
+
+    A tile's value made of several `·`-separated groups may wrap between two
+    groups and nowhere else (AK-73). Qt breaks a wrapped label at any space,
+    which put `DEX` at the end of one line and its `-7` at the start of the
+    next; a non-breaking space inside each group leaves the separators as the
+    only place a line can end.
+
+    A value with no separator is handed back byte for byte. It has no groups
+    to hold together, so joining it would rewrite a string -- `+3 Rare` on the
+    `Upgraded to` row -- that no finding asked to be changed, and none of them
+    is long enough to wrap on a 200 px tile in the first place (measured at
+    1600 px on the 77 tiles the tab opens with: 0 of 315 single-group values
+    take a second line, against 46 of 122 multi-group ones that broke inside a
+    group before this function existed).
+    """
+    if GROUP_SEPARATOR not in value:
+        return value
+    return GROUP_SEPARATOR.join(
+        NBSP.join(group.split()) for group in value.split(GROUP_SEPARATOR))
+
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -123,7 +154,7 @@ class Tile(QFrame):
             row.setSpacing(4)
             left = QLabel(label)
             left.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
-            right = QLabel(value)
+            right = QLabel(unbroken(value))
             right.setAlignment(Qt.AlignRight)
             # A value wider than the tile must wrap, not clip: the scaling
             # rows ("STR 43 · DEX 43 · ARC 45") lost their leading characters
@@ -200,6 +231,12 @@ class Section(QWidget):
         self.body.setVisible(show)
         self.toggle.setArrowType(Qt.DownArrow if show else Qt.RightArrow)
 
+    def expand(self) -> None:
+        """Open this section, building its body if that has not happened."""
+        if not self.toggle.isChecked():
+            self.toggle.setChecked(True)
+            self._on_toggle()
+
     def expand_all(self) -> None:
         """Open this section and every subsection it builds.
 
@@ -207,11 +244,22 @@ class Section(QWidget):
         everything is thousands of widgets, and the caller is responsible
         for knowing the count is modest before asking.
         """
-        if not self.toggle.isChecked():
-            self.toggle.setChecked(True)
-            self._on_toggle()
+        self.expand()
         for child in self.body.findChildren(Section):
             child.expand_all()
+
+    def expand_first_child(self) -> None:
+        """Open this section and the first subsection inside it, no more.
+
+        The narrow version of `expand_all`, for the one case that has to be
+        cheap: the tab showing something when it opens (AK-83). Opening every
+        subsection of `Weapons` would build 1 792 tiles before the reader has
+        asked for anything.
+        """
+        self.expand()
+        first = self.body.findChild(Section)
+        if first is not None:
+            first.expand()
 
 
 class ArsenalTab(QWidget):
@@ -305,14 +353,11 @@ class ArsenalTab(QWidget):
         self.rebuild()
 
     def _grid(self, tiles: list[Tile]) -> QWidget:
-        holder = QWidget()
-        grid = QGridLayout(holder)
-        grid.setSpacing(8)
-        grid.setContentsMargins(12, 0, 0, 8)
-        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        for i, tile in enumerate(tiles):
-            grid.addWidget(tile, i // COLUMNS, i % COLUMNS)
-        return holder
+        # As many columns as the width takes. Five fixed ones meant the last
+        # tile of every row was sliced, and because the figures on a tile are
+        # right-aligned it was the figures that went: `AR`, `Physical` and
+        # `Magic` with no number beside any of them (DR-016a).
+        return cardgrid.CardGrid(CARD_WIDTH, tiles, margins=(12, 0, 0, 8))
 
     def rebuild(self) -> None:
         predicate = search.parse(self.search.text())
@@ -337,6 +382,15 @@ class ArsenalTab(QWidget):
         if predicate is not None and 0 < shown <= 60:
             for section in self._top_sections:
                 section.expand_all()
+        # No search, so nothing has been asked for yet -- and this is the tab
+        # holding more of the game's data than any other, opening on three
+        # collapsed headings and an otherwise empty black page (DR-017). The
+        # comment above already had the argument for the search case; the
+        # first view had never been made to follow it. One subsection only:
+        # the reader sees what a tile looks like without paying for 1 792 of
+        # them (AK-83).
+        elif predicate is None and self._top_sections:
+            self._top_sections[0].expand_first_child()
         # UI_SPEC.md, Nachtrag zu AK-34 (T-035, 2026-09-03): Fassung B, faellig
         # seit T-033, weil MULTIPLIERS_FOR[Basis.CANDIDATE] jetzt True ist --
         # das Arsenal ranking wirkt jetzt ebenfalls mit der Multiplikatorschicht.
