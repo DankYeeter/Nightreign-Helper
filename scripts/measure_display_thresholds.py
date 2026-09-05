@@ -1,4 +1,4 @@
-"""How many armaments the display thresholds hide, and what moving them would do.
+"""How many armaments the display threshold hides, and what moving it costs.
 
 Developer tool, and the recipe behind the figures QA-117/AK-65 are argued
 with. `UI_SPEC.md` AK-65 decides that `app.VISIBLE_CHANGE` stays an absolute
