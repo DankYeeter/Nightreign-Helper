@@ -125,3 +125,34 @@ def test_damage_module_matches_the_golden_values(game_data, entry):
     )
 
     assert cases.rounded(rating.figures()) == expected
+
+
+def test_the_golden_file_names_the_extractor_this_tree_runs_on():
+    """QA-153. The stamp said 10 while `EXTRACT_VERSION` stood at 11.
+
+    The file records three things about the dataset it was captured from, and
+    `_same_dataset` above reads one of them. The other two sat there unread:
+    a wrong `extract_version` cost nothing on the day it was written and is
+    exactly the kind of quiet difference somebody later takes for a statement.
+
+    **Why this fails rather than skips**, unlike `_same_dataset`. That one is
+    about the game underneath, which the suite does not control and a runner
+    cannot change; this one is about the extractor in this very tree, and
+    `tests/conftest.py` already refuses any dataset built by a different one.
+    So on every machine that reaches this line the data the cases above ran
+    against came from `EXTRACT_VERSION`, and a stamp saying otherwise is a
+    claim about provenance that is simply untrue.
+
+    What to do when it fails: run the cases above. If the figures are
+    unchanged, the frozen values hold against the new extractor and the stamp
+    is what moves. If they moved, that is a real change and needs the AD or QA
+    number the module docstring asks for -- not a re-capture to get green.
+    """
+    from nrdata import extract
+
+    stamped = _FROZEN["dataset"].get("extract_version")
+    assert stamped == extract.EXTRACT_VERSION, (
+        f"{GOLDEN.name} says it was captured from extractor {stamped} and "
+        f"this tree is on {extract.EXTRACT_VERSION}. The file's record of "
+        f"where its figures came from is wrong; see this case's docstring "
+        f"for which of the two moves.")
