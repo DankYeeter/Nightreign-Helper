@@ -989,6 +989,21 @@ MUTATIONS: dict[str, Mutation] = {
             "case uses: if the two coincided, that case would fail for a "
             "reason that has nothing to do with this mutation."),
     ),
+    "figure-name-broken-across-the-wrap": Mutation(
+        path="nrplanner/weaponslots.py",
+        old="""            label = rating.headline_label.replace(" ", NO_BREAK_SPACE)
+""",
+        new="""            label = rating.headline_label
+""",
+        survival_means=(
+            "the slot tile is free to wrap a two-word figure name down the "
+            "middle again -- `Legendary · 145 Spell` on one line and "
+            "`power` on the next, which is DR-009 as it was found. A test "
+            "that only reads the tile's string cannot see this: the defect "
+            "is where Qt breaks the line, not what the string says. Killed "
+            "by tests/test_weapon_slot_tile_wrap.py, which lays the tile's "
+            "own text out at a width in the dangerous band."),
+    ),
     "unequippable-catalyst-offered-again": Mutation(
         path="nrplanner/model.py",
         old="""    if weapon_class(weapon) != "catalyst":

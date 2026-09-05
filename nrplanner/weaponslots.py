@@ -41,6 +41,20 @@ RARITY_TEXT = {
     3: "#e0a94a",
 }
 
+# A tile's detail line is one wrapped string in a box about 120 px wide, so
+# Qt breaks it at whichever space happens to fall past the edge. Since T-046
+# the name of a catalyst's figure is two words, and the break landed inside
+# it: `Legendary · 145 Spell` on the first line and `power` alone on the
+# second, which reads as a defect rather than as a layout (DR-009). Joining
+# the label's own words with a no-break space moves the break to the space in
+# front of the term and leaves the term whole.
+#
+# The other way the review offered -- an abbreviation at this one narrow
+# place -- was left alone on purpose: it would give the same figure a second
+# name in the one spot where a player compares it against the arsenal tab,
+# and AK-64 turns down a second name for exactly that reason.
+NO_BREAK_SPACE = "\u00a0"
+
 SLOT_COUNT = 6
 SLOT_COLUMNS = 3
 # A weapon draws from up to three pools, so it can carry three rolled effects,
@@ -241,9 +255,12 @@ class WeaponTile(QFrame):
         if rating is not None:
             # Figure and label both from the facade: a staff shows the spell
             # scaling the game shows for it and no attack rating (QA-099).
+            # The label's own words are held together, so a two-word label
+            # cannot be split across the wrap (DR-009, `NO_BREAK_SPACE`).
+            label = rating.headline_label.replace(" ", NO_BREAK_SPACE)
             bits.append(f"<b style='color:{ACCENT}'>"
                         f"{damage.displayed(rating.final_headline)}</b>"
-                        f" {rating.headline_label}")
+                        f" {label}")
         if slot.effect_ids:
             # Count the negative rolls apart from the rest, in the same red
             # the picker uses, so a tile shows at a glance that one of its
