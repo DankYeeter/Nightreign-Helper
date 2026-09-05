@@ -12,10 +12,13 @@ program already stands on --
 * the damage goal is the question the weapon panel asks, `damage.equipped`,
   which works the starting-armament pairing out from the slot and the
   Nightfarer. `damage.candidate` answers a different question and would drop
-  that penalty (AD-020 point 3); the ranking would survive the swap, the
-  absolute figure would not, and AD-014.6 keeps the absolute figure as the
-  one authority. The test that tells the two apart is
-  `test_the_damage_goal_charges_the_starting_armament_penalty`;
+  that penalty (AD-020 point 3). Neither the figure **nor the order** would
+  survive the swap: a candidate can carry the penalty itself, so it is not a
+  constant factor over the candidates, and the belief that it was stood in
+  this project as settled until it was measured (QA-101). Two cases tell the
+  questions apart -- `test_the_damage_goal_charges_the_starting_armament_
+  penalty` for the amount and
+  `test_the_damage_goal_ranks_a_self_inflicted_penalty_below` for the order;
 * the survival goal weighs the eight damage kinds with the weights the
   context carries and with none of its own (AD-004, OF-3).
 
@@ -306,6 +309,58 @@ def test_the_damage_goal_charges_the_starting_armament_penalty(game_data,
         goals.GOALS["max_damage"].score(moved, ctx_moved).value, (
         "the starting-armament penalty did not reach the damage goal, so it "
         "is not asking the question the weapon panel asks")
+
+
+def test_the_damage_goal_ranks_a_self_inflicted_penalty_below(game_data,
+                                                              wylder):
+    """The order, not only the amount -- and they are not the same claim.
+
+    The case above holds that the 0.85 reaches the figure. This holds that it
+    reaches the **ranking**, which the project believed for a while it could
+    not: `damage.candidate` was said to give the same order because the
+    penalty is a constant factor over every candidate. It is not a constant
+    factor, because a candidate can bring it with it -- three effects of this
+    dataset carry `*AttackPowerRate` 0.85 themselves, and 10 of the 309
+    relics on the save the `qa-engineer` measured carry one (QA-101).
+
+    The first assertion is the one that makes the second worth making: it
+    checks that the two questions really disagree about this pair. Without it
+    the case would pass on any pair whose order the swap happens not to move,
+    and an order test whose input cannot see the key is an empty test.
+    """
+    penalty = cases.effects_raising_rate(
+        game_data, wylder, "physicsAttackPowerRate", 1)[0]
+    buff = cases.effects_raising_rate(
+        game_data, wylder, "physicsAttackRate", 1)[0]
+    stronger = cases.effects_raising_attribute(
+        game_data, wylder, "Strength", 1)[0]
+    starting = next(w for w in game_data["weapons"]
+                    if w["id"] == wylder["starting_weapon"])
+    reference = types.ReferenceArmament(weapon=starting, tier=1,
+                                        slot_index=damage.STARTING_SLOT)
+
+    base, ctx = build_with(game_data, wylder, reference=reference)
+    carrying, _ = build_with(game_data, wylder, effect_ids=[penalty, buff],
+                             reference=reference)
+    plain, _ = build_with(game_data, wylder, effect_ids=[stronger],
+                          reference=reference)
+
+    def asked_as_the_goal_asks(build):
+        return goals.GOALS["max_damage"].score(build, ctx).value
+
+    def asked_without_a_slot(build):
+        return damage.candidate(reference.weapon, reference.tier, build,
+                                game_data).final_headline
+
+    assert (asked_without_a_slot(carrying) - asked_without_a_slot(base)) > \
+        (asked_without_a_slot(plain) - asked_without_a_slot(base)), (
+        "asked as an armament in no slot these two come back the other way "
+        "round; without that this case cannot tell the two questions apart")
+    assert (asked_as_the_goal_asks(carrying) - asked_as_the_goal_asks(base)) < \
+        (asked_as_the_goal_asks(plain) - asked_as_the_goal_asks(base)), (
+        "a relic that costs the armament 15 % ranked above one that costs it "
+        "nothing, so the goal is not charging the penalty to the candidate "
+        "that brought it")
 
 
 def test_without_an_armament_the_damage_goal_says_so(game_data, wylder):

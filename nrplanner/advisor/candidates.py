@@ -27,9 +27,10 @@ already held is not offered again (AD-014.5), and a copy with no handle is not
 offered at all and is reported instead (AD-013 point 4).
 
 **What a pool reports about itself** are run findings and only those
-(AD-025.2): the copies this save gives no handle for, and the candidates
-whose effect no total counted. Both carry a count, so both belong to the run
-rather than to the method. What the *direction* cannot know whatever the run
+(AD-025.2): the copies this save gives no handle for, the candidates whose
+effect no total counted, and the candidates whose damage-type conversion this
+figure has no place for (QA-113). Each carries a count, so each belongs to the
+run rather than to the method. What the *direction* cannot know whatever the run
 stands in `Goal.scope` and is read from there; six pools of a Deep vessel
 repeating it six times is the noise AK-50 is written against. The one thing
 the pool does carry from a direction is what that direction found out about
@@ -150,20 +151,65 @@ def _brought_an_uncounted_condition(build: model.Build,
                for entry in build.situational)
 
 
-def _pool_findings(without_handle: int, conditional: int) -> tuple[str, ...]:
+def _unmodelled_conversion_line(count: int) -> str:
+    """The A7 line for candidates whose conversion this figure cannot use.
+
+    The counterpart of the scope sentence in `MAX_DAMAGE.scope`: the sentence
+    says the figure does not carry a damage-type conversion, and this says how
+    many of the relics in front of the player are affected by that (AD-025,
+    QA-113).
+    """
+    one = count == 1
+    return (f"{WORDING_PENDING}{count} of the "
+            f"{'relic' if one else 'relics'} offered for this slot "
+            f"{'converts' if one else 'convert'} damage from one type to "
+            f"another. The game files do not say how much of it arrives, so "
+            f"the figure beside {'it' if one else 'them'} leaves the "
+            f"conversion out entirely.")
+
+
+def _converts_a_damage_type(candidate: types.Candidate,
+                            ctx: types.GoalContext) -> bool:
+    """Does this candidate carry a field the attack rating has no place for?
+
+    `model.FLAT_ATTACK_POWER_FIELDS` names them, and the model naming them is
+    the point: the criterion is "the calculation has no compartment for this",
+    which only the calculation can say. Read off the effect records rather
+    than off the build, and that is not the shortcut do-not rule 36 forbids --
+    a conditional effect is one `model.compute` **parked**, and a build can be
+    asked what it parked, but a field nothing reads leaves no trace in a
+    build at all. There is nothing here to ask.
+    """
+    known = ctx.data["effects"]
+    for effect_id in tuple(candidate.effect_ids) + tuple(candidate.curse_ids):
+        effect = known.get(str(effect_id))
+        modifiers = (effect or {}).get("modifiers") or {}
+        if any(name in modifiers for name in model.FLAT_ATTACK_POWER_FIELDS):
+            return True
+    return False
+
+
+def _pool_findings(without_handle: int, conditional: int,
+                   converting: int) -> tuple[str, ...]:
     """What this pool left out, in the player's language (AD-025.2).
 
-    Both lines carry a count, so both are findings of this run rather than
-    statements about the method, and both are absent when their count is
-    zero: "nothing was left out" is said by there being no line, not by a
-    line saying so. The procedural sentences are not here at all -- they are
-    the registry's, drawn once for the screen instead of once per pool.
+    Every line carries a count, so every one of them is a finding of this run
+    rather than a statement about the method, and each is absent when its
+    count is zero: "nothing was left out" is said by there being no line, not
+    by a line saying so. The procedural sentences are not here at all -- they
+    are the registry's, drawn once for the screen instead of once per pool.
+
+    A relic can be named by more than one of these lines, and that is
+    intended: the reasons are different, and one of them arriving would not
+    make the others untrue.
     """
     lines = []
     if without_handle:
         lines.append(_without_a_handle_line(without_handle))
     if conditional:
         lines.append(_conditional_line(conditional))
+    if converting:
+        lines.append(_unmodelled_conversion_line(converting))
     return tuple(lines)
 
 
@@ -216,6 +262,7 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
 
     measured: list[types.Candidate] = []
     conditional = 0
+    converting = 0
     for relic in offered:
         if relic.handle is None or relic.handle in taken:
             continue
@@ -223,6 +270,8 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
         build = evaluate(base_problem, (candidate,), ctx)
         if _brought_an_uncounted_condition(build, candidate):
             conditional += 1
+        if _converts_a_damage_type(candidate, ctx):
+            converting += 1
         marginals = tuple(
             types.Marginal(goal_id, goal.score(build, ctx).value
                            - base_scores[goal_id].value)
@@ -238,7 +287,7 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                                       score.unknowns, score.weights_note)
                        for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
-        unknowns=_pool_findings(without_handle, conditional),
+        unknowns=_pool_findings(without_handle, conditional, converting),
     )
 
 

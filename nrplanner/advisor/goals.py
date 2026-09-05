@@ -110,6 +110,9 @@ _ATTACK_RATING_SCOPE = (
     "a spell hits for.",
     "Spell damage is not in the game data, so spells are not rated.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
+    "Effects that convert one damage type into another are not in this "
+    "figure: how the game applies them cannot be read out of the files, so "
+    "they are named rather than guessed at.",
 )
 
 _NO_ARMAMENT = ("No armament selected — ranked on attack multipliers only, "
@@ -158,10 +161,23 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     starting-armament pairing worked out from the slot and the Nightfarer
     rather than handed in (AD-020 point 6). `damage.candidate` would answer a
     different question: an armament in no slot, which cannot carry the
-    starting-armament penalty at all (AD-020 point 3). The ranking would
-    survive that swap -- the penalty is a constant factor over every
-    candidate -- but the absolute figure would not, and AD-014.6 keeps the
-    absolute figure as the one authority.
+    starting-armament penalty at all (AD-020 point 3).
+
+    **The ranking would not survive that swap either**, and the reason this
+    docstring used to say it would is worth keeping: the penalty looks like a
+    constant factor over the candidates, and it is not, because a candidate
+    can **bring it with it**. Three effects of this dataset carry
+    `*AttackPowerRate` 0.85 themselves -- 7120400/500/600, "Starting armament
+    inflicts frost / poison / blood loss" -- and 10 of the 309 relics on the
+    save the `qa-engineer` measured against carry one. Re-measured here on
+    2026-09-05, Wylder at level 15 with his own starting armament in slot 1 at
+    tier 1: a candidate carrying `[7120400, 6001400]` gains −7.4146 asked as
+    `equipped` and +12.8153 asked as `candidate`, while one carrying
+    `[7000300]` gains +0.4977 either way -- so the two change places (QA-101).
+    `equipped` is therefore the more right of the two rather than merely the
+    more exact: a relic that costs the armament 15 % belongs ranked as
+    costing it. AD-014.6 keeps the absolute figure as the one authority, and
+    here the order agrees with it.
 
     `equipped` returns the bare comparison figure beside the real one; only
     the second is the ranking size. The first is the breakdown panel's

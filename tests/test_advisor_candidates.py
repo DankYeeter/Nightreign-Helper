@@ -264,6 +264,46 @@ def test_the_conditional_line_counts_this_pool_and_not_the_held_bundle(
         f"brought it: {pool.unknowns!r}")
 
 
+def test_a_conversion_the_figure_cannot_use_is_named(game_data, wylder):
+    """QA-113: a relic that moves the figure by exactly 0, said out loud.
+
+    Four relics of this dataset convert physical damage into an element --
+    `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
+    four payload tiers -- and `model.compute` has no compartment for either
+    field. The card prints the numbers and the attack rating does not move by
+    one part in a million. On the picker that is a relic sitting at `0.00`
+    with nothing saying why, which is the exact picture AD-004 wrote the
+    conditional line to prevent, arriving through a different door.
+
+    **What this case does not do**, because nothing in the files settles it:
+    say what the conversion is worth. Three readings of the same four relics
+    give 91, 116 and 117 against a base of 114, and choosing between them
+    needs a figure read off the game (QA-113, F-F). Naming a gap is not the
+    same as filling it, and the gap named wrongly would be worse than either.
+    """
+    converting = advisor.a_damage_type_conversion(game_data)
+    inventory = advisor.make_inventory(game_data, wylder, count=2,
+                                       rolls=[[converting],
+                                              advisor.raising_effects(
+                                                  game_data, wylder, 1)[0]])
+    ctx = advisor.context(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+
+    pool = pool_for(inventory, problem, 0, ctx)
+    gains = {candidate.handle: types.marginal_for(candidate, DAMAGE)
+             for candidate in pool.candidates}
+
+    assert gains[inventory.relics[0].handle] == 0.0, (
+        "the case needs a relic the figure really cannot use; this one moved "
+        "the attack rating, so there is nothing to report about it")
+    assert len(pool.unknowns) == 1, (
+        f"one relic converts and one does not, so one line: {pool.unknowns!r}")
+    assert "1" in pool.unknowns[0]
+    assert any("convert" in line for line in goals.GOALS[DAMAGE].scope), (
+        "the pool counts the relics and the registry has to say what the "
+        "count is about; without the scope sentence the number stands alone")
+
+
 def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
     """AD-014.5. On a vessel with two slots of one colour this is the
     difference between forty usable suggestions and none (AD-013, measured on

@@ -591,6 +591,31 @@ ELEMENT_ATTACK_RATES = ("physicsAttackRate", "magicAttackRate",
 ELEMENT_ATTACK_POWER_RATES = ("physicsAttackPowerRate", "magicAttackPowerRate",
                               "fireAttackPowerRate", "thunderAttackPowerRate",
                               "darkAttackPowerRate")
+
+#: The five **flat** counterparts of the rates above, and this module has no
+#: compartment for any of them: nothing here reads them, so an effect carrying
+#: one moves the attack rating by exactly 0 while its own card prints the
+#: numbers (QA-113). They are named rather than left unnamed so that a caller
+#: can say so to the player instead of showing a relic that does nothing and
+#: explaining nothing.
+#:
+#: Measured over the 2076 effects of `data_version` 10350000 on 2026-09-05:
+#: **21 effects** carry at least one of them, and none of the six checked
+#: moves any figure of the build. They are the four "Starting armament deals
+#: magic/fire/lightning/holy damage" relics (7120000/100/200/300, each
+#: `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
+#: four payload tiers, rising to -60/+66), sixteen "Add <element> to Weapon"
+#: effects (8110700-8111003), and one Wylder skill effect (7020000).
+#:
+#: **Deliberately not modelled here.** What the game does with them cannot be
+#: settled from the files -- three readings of the four relics give 91, 116
+#: and 117 against a base of 114 -- and it needs a reading in play (QA-113,
+#: F-F). Guessing one would put a number on screen that nobody warned the
+#: player about, which is the thing `compute` already refuses to do for a
+#: field whose direction it does not know.
+FLAT_ATTACK_POWER_FIELDS = ("physicsAttackPower", "magicAttackPower",
+                            "fireAttackPower", "thunderAttackPower",
+                            "darkAttackPower")
 # Marks a row that stands for all five damage types at once. The real field
 # name rides behind it so the click-through breakdown still works.
 ALL_DAMAGE_PREFIX = "alldamage:"

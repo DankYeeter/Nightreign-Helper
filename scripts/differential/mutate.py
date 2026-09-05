@@ -503,13 +503,25 @@ MUTATIONS: dict[str, Mutation] = {
             "where the weapon panel asks `equipped()`. With no slot there is "
             "no starting-armament pairing, so the 0.85 the game charges for "
             "'Starting armament inflicts frost' and its two relatives "
-            "disappears from the figure (AD-020 point 3). The **order** "
-            "survives, because the penalty is a constant factor over every "
-            "candidate; the absolute figure does not, and AD-014.6 keeps the "
-            "absolute figure as the one authority. This is therefore a "
-            "mutation the ranking tests cannot see. Killed by "
-            "test_advisor_goals.py::"
-            "test_the_damage_goal_charges_the_starting_armament_penalty."),
+            "disappears from the figure (AD-020 point 3). This entry used to "
+            "say the **order** survived because the penalty is a constant "
+            "factor over every candidate. That is measurably wrong, and the "
+            "sentence stood in this repository being read as settled until "
+            "the `qa-engineer` disproved it (QA-101): a candidate can bring "
+            "the penalty **with it**. Three effects carry "
+            "`*AttackPowerRate` 0.85 themselves (7120400/500/600), and 10 of "
+            "the 309 relics on the save measured against carry one. "
+            "Re-measured 2026-09-05, Wylder level 15, his own starting "
+            "armament in slot 1 at tier 1: `[7120400, 6001400]` gains "
+            "-7.4146 as `equipped` and +12.8153 as `candidate`, `[7000300]` "
+            "gains +0.4977 either way -- the two change places. So this "
+            "mutation moves the order as well as the figure, and `equipped` "
+            "is the more right of the two rather than merely the more exact: "
+            "a relic that costs the armament 15 % belongs ranked as costing "
+            "it. Killed by test_advisor_goals.py::"
+            "test_the_damage_goal_charges_the_starting_armament_penalty, "
+            "which holds the amount; the order is held by "
+            "test_the_damage_goal_ranks_a_self_inflicted_penalty_below."),
     ),
     "advisor-key-forgets-the-held-state": Mutation(
         path="nrplanner/advisor/types.py",
