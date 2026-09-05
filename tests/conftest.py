@@ -1,0 +1,389 @@
+"""Shared fixtures for the whole suite.
+
+Two rules shape everything here.
+
+**Headless.** Qt reads QT_QPA_PLATFORM once, when the first QApplication is
+created, so it is set before anything imports PySide6 -- at module import
+time, above the imports that matter. A test that needs a window gets one that
+is never shown.
+
+**The player's own files are read and never written.** The dataset comes from
+the installed game or from a snapshot built from it; the save is opened
+read-only by the code under test. Settings are the one thing the program does
+write, so the suite redirects them to a store of its own through the
+environment variables the program already honours (see nrplanner.favourites).
+Without that redirect a test run would overwrite the builds and favourites of
+whoever is sitting at the machine.
+
+Where a test genuinely needs the installed game, it is skipped with a message
+saying so rather than failing -- a runner has no Nightreign installation, and
+that is the correct state for a runner to be in.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import pathlib
+import sys
+
+import pytest
+
+# Before PySide6 is imported anywhere, including by a test module.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# nrplanner.favourites reads these at import time and every persisting module
+# (favourites, chalices, uiscale) goes through it.
+#
+# The process id is part of the name because the store is machine-wide, not
+# per-run: two pytest processes at once shared one store, and clear_settings()
+# in either pulled the ground from under the other. That failed cases which
+# are green on their own -- a red result that looks exactly like a regression
+# of the program and is expensive to read as one (QA-043). A run now writes
+# only where no other run is looking, and the session fixture below empties it
+# again at the end.
+os.environ["NIGHTREIGN_SETTINGS_ORG"] = "DankYeeterTests"
+os.environ["NIGHTREIGN_SETTINGS_APP"] = f"NightreignHelperTests-{os.getpid()}"
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+# Point this at a nightreign_data.json to run the data-backed tests without
+# waiting ~40 s for a fresh extraction. It is a convenience for the developer
+# loop; the tests are identical either way.
+SNAPSHOT_ENV = "NIGHTREIGN_TEST_SNAPSHOT"
+
+NO_DATA = (
+    "needs the dataset: set {env} to a nightreign_data.json, run the program "
+    "once so it builds one, or run this on a machine with NIGHTREIGN "
+    "installed. Nothing here ships game data."
+).format(env=SNAPSHOT_ENV)
+
+NO_GAME = (
+    "needs the installed game: this case reads the archives themselves and a "
+    "snapshot cannot stand in for them. Correct to skip on a runner."
+)
+
+
+def _built_by_this_extractor(snapshot: dict) -> bool:
+    """Was this snapshot written by the extractor in this working tree?
+
+    The program asks the same question before it trusts a cache
+    (`datasource._regulation_matches`), and until T-046 the suite did not:
+    it read whatever file was on the machine. A snapshot one extractor
+    behind is missing whatever the newer one adds -- and the failure that
+    follows is a KeyError deep in a rating, which reads like a regression of
+    the program and is expensive to read as one. The cheap version of that
+    news is here.
+    """
+    from nrdata import extract
+
+    return (snapshot.get("meta", {}).get("extract_version")
+            == extract.EXTRACT_VERSION)
+
+
+def _snapshot_from_env() -> dict | None:
+    raw = os.environ.get(SNAPSHOT_ENV)
+    if not raw:
+        return None
+    path = pathlib.Path(raw)
+    if not path.is_file():
+        pytest.fail(f"{SNAPSHOT_ENV} points at {path}, which is not a file")
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    # Loud, not skipped past: this file was named on purpose, so silently
+    # using a different source instead would answer a question nobody asked.
+    if not _built_by_this_extractor(snapshot):
+        from nrdata import extract
+
+        pytest.fail(
+            f"{SNAPSHOT_ENV} points at a snapshot built by extractor version "
+            f"{snapshot.get('meta', {}).get('extract_version')}, and this "
+            f"tree is on {extract.EXTRACT_VERSION}. Rebuild it with "
+            f"scripts/build_snapshot.py, or unset {SNAPSHOT_ENV}.")
+    return snapshot
+
+
+def _snapshot_from_cache() -> dict | None:
+    """The snapshot the program itself built, if this machine has run it.
+
+    A cache from an older extractor is passed over rather than failed on: it
+    is nobody's decision, just a file that has been sitting there, and the
+    fresh read from the installed game underneath is exactly the right
+    fallback. On a machine with no installation the run then skips with the
+    usual message instead of failing on a missing field.
+    """
+    from nrplanner import paths
+
+    path = paths.snapshot_path()
+    if not path.is_file():
+        return None
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    return snapshot if _built_by_this_extractor(snapshot) else None
+
+
+def _snapshot_from_game() -> dict | None:
+    """Read the installed game. Read-only, as the program promises."""
+    from nrdata import extract, gamefiles
+    from nrplanner import datasource
+
+    game = gamefiles.find_game_dir()
+    defs = datasource.defs_dir()
+    if game is None or defs is None:
+        return None
+    return extract.build(game, defs)
+
+
+@pytest.fixture(scope="session")
+def game_data() -> dict:
+    """The dataset the planner computes on, with model.configure() applied.
+
+    Session-scoped because a fresh extraction costs about 40 seconds and the
+    data is read-only for every test that takes it.
+    """
+    from nrplanner import model
+
+    data = (_snapshot_from_env() or _snapshot_from_cache()
+            or _snapshot_from_game())
+    if data is None:
+        pytest.skip(NO_DATA)
+    # Without this the module falls back to guessing from field names, which
+    # is a different calculation -- QA-011. Every test that computes anything
+    # takes this fixture, so no test can compute in the unconfigured state by
+    # accident.
+    model.configure(data)
+    return data
+
+
+@pytest.fixture(scope="session")
+def installed_game():
+    """(game directory, paramdef directory) of a real installation, or a skip.
+
+    Never a snapshot. This is what the fixture below is for, and what it must
+    not be allowed to fall back out of.
+    """
+    from nrdata import gamefiles
+    from nrplanner import datasource
+
+    game = gamefiles.find_game_dir()
+    defs = datasource.defs_dir()
+    if game is None or defs is None:
+        pytest.skip(NO_GAME)
+    return game, defs
+
+
+@pytest.fixture(scope="session")
+def extracted_game_data(installed_game) -> dict:
+    """A dataset read out of the installed game during this run.
+
+    `game_data` above takes the snapshot when there is one, which is right for
+    every test that only needs a dataset to compute on -- and wrong as the
+    only thing the suite ever does, because it means fmg, bnd4, dvdbnd, tpf
+    and tae do not execute in a green run at all. All five parse bytes that
+    come out of a file rather than out of this program, so a change to any of
+    them would look tested without being tested (DEBT-001).
+
+    Session-scoped for the same reason `game_data` is: an extraction costs
+    about forty seconds and nothing here writes to what it returns.
+    """
+    from nrdata import extract
+
+    game, defs = installed_game
+    return extract.build(game, defs)
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """One QApplication for the session, configured as the program is.
+
+    `nrplanner.app.main` sets the Fusion style and the dark palette before it
+    builds a window, so that is what a player runs. Nothing in the suite used
+    to set either, and Qt fell back to `windowsvista`: the `Effect` column of
+    the effects table renders at 446 px there against 388 under Fusion at the
+    same 1600 px window, and the count of shortened effect names goes from 12
+    to 44 (QA-146). No relation asserted anywhere in the suite broke -- the
+    guards were written as relations for exactly this reason -- but every
+    absolute figure measured through the suite was a figure off a machine
+    nobody runs.
+
+    Session-scoped and applied here rather than in the helper that builds
+    windows, because `setStyle` is global: applied by whichever case asked for
+    a window first, every pixel in the run would depend on the order the cases
+    happened to run in. Through the program's own `apply_appearance`, so the
+    two cannot say it differently.
+    """
+    from PySide6.QtWidgets import QApplication
+
+    from nrplanner import app as appmod
+
+    app = QApplication.instance() or QApplication([])
+    appmod.apply_appearance(app)
+    yield app
+
+
+def clear_settings() -> None:
+    """Empty the test settings store.
+
+    The Planner stores the build it is holding on almost every change, so a
+    test that builds one leaves entries behind and the next Planner would
+    restore them. They are under the test organisation set at the top of this
+    file, never the player's.
+    """
+    from PySide6.QtCore import QSettings
+
+    from nrplanner import favourites
+
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.clear()
+    settings.sync()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def settings_store(qapp):
+    """Nothing of an earlier run is inherited, and nothing is left behind."""
+    clear_settings()
+    yield
+    clear_settings()
+
+
+def _new_planner(data: dict):
+    """A real Planner window, never shown.
+
+    This is the whole application object: it reads the save if there is one,
+    builds every tab and computes a build. Tests that compare what two tabs
+    say need exactly that -- a stub would be the thing under test.
+    """
+    from nrplanner import app as appmod
+
+    clear_settings()
+    return appmod.Planner(data)
+
+
+@pytest.fixture
+def planner(game_data, qapp):
+    """A Planner of its own for one test, for tests that fill its slots."""
+    window = _new_planner(game_data)
+    yield window
+    window.close()
+    window.deleteLater()
+
+
+def _vessels_in_the_list(planner) -> list[tuple[int, dict]]:
+    """(row, vessel) for every selectable row, skipping the caption rows."""
+    from PySide6.QtCore import Qt
+
+    out = []
+    for row in range(planner.chalice_list.count()):
+        vessel = planner.chalice_list.item(row).data(Qt.UserRole)
+        if vessel is not None:
+            out.append((row, vessel))
+    return out
+
+
+@pytest.fixture
+def two_slots_of_one_colour(planner):
+    """A vessel with two slots of the same colour, and where it sits.
+
+    Repeated slot colours are where the ownership rule bites: with three
+    different colours a relic rarely fits two slots at all, and a test on such
+    a vessel would pass while proving nothing (AD-013 measured it -- 5
+    unusable suggestions out of 40 against 40 out of 40).
+    """
+    for row, vessel in _vessels_in_the_list(planner):
+        colours = list(vessel["slots"])
+        repeated = next((c for c in colours if colours.count(c) > 1), None)
+        if repeated is not None:
+            return row, vessel, repeated
+    pytest.skip("no vessel in this dataset has two slots of one colour")
+
+
+@pytest.fixture
+def two_vessels_sharing_a_colour(planner):
+    """Two vessels one relic can move between, at different slot positions.
+
+    See relics.VesselPair for what the four numbers have to satisfy and why.
+    """
+    from tests.relics import VesselPair
+
+    entries = _vessels_in_the_list(planner)
+    for row, vessel in entries:
+        for other_row, other in entries:
+            if other is vessel:
+                continue
+            for here, colour in enumerate(vessel["slots"]):
+                for there, elsewhere in enumerate(other["slots"]):
+                    if (colour == elsewhere and here != there
+                            and vessel["slots"][there] == elsewhere):
+                        return VesselPair(row, here, other_row, there, colour)
+    pytest.skip("no two vessels in this dataset share a colour at two "
+                "different slot positions")
+
+
+@pytest.fixture(scope="module")
+def shared_planner(game_data, qapp):
+    """One Planner for a whole module.
+
+    Building one costs a couple of seconds, which a table of twenty cases
+    should not pay twenty times. Only for tests that set every input they
+    depend on, so the order they run in cannot matter.
+    """
+    window = _new_planner(game_data)
+    yield window
+    window.close()
+    window.deleteLater()
+
+
+@pytest.fixture
+def two_copies_of_one_roll(planner):
+    """Two copies of one roll out of the player's own save, and where they fit.
+
+    Real copies, not built ones. The restore picks from a list holding one
+    entry per roll, so a second copy is only reachable by handle -- and a pair
+    invented for the test would prove that only if it were shaped to. This
+    save carries three such pairs (QA measured them); the fixture takes the
+    first that a vessel of the current Nightfarer can wear in two slots.
+
+    Ordinary relics only: a Deep of Night pair would need the switch on and
+    would then be testing two things at once.
+    """
+    from nrplanner import app as appmod
+    from nrplanner import favourites, inventory
+    from tests.relics import OwnedPair
+
+    if planner.owned is None:
+        pytest.skip("this machine has no save to read")
+
+    by_roll: dict[str, list] = {}
+    for relic in planner.owned.relics:
+        by_roll.setdefault(favourites.key(relic), []).append(relic)
+    pairs = [copies[:2] for copies in by_roll.values()
+             if len(copies) > 1 and not copies[0].is_deep
+             and inventory.copy_key(copies[0]) != inventory.copy_key(copies[1])]
+    if not pairs:
+        pytest.skip("this save owns no two copies of one roll")
+
+    for row, vessel in _vessels_in_the_list(planner):
+        for copies in pairs:
+            fits = [i for i, c in enumerate(vessel["slots"])
+                    if c == copies[0].colour or c == appmod.WHITE_SLOT]
+            if len(fits) >= 2:
+                return OwnedPair(row, vessel, fits[0], fits[1], copies)
+    pytest.skip("no vessel of this Nightfarer takes two copies of one roll")
+
+
+@pytest.fixture
+def a_slot_whose_colour_changes(planner):
+    """A slot, and another vessel that gives that slot a different colour.
+
+    A custom relic is built for one slot colour. Keeping it through a chalice
+    that changes that colour would leave an illegal relic in place; losing it
+    through anything else is QA-025. Both need the same two vessels.
+    """
+    from tests.relics import CustomSlot
+
+    entries = _vessels_in_the_list(planner)
+    for row, vessel in entries:
+        for other_row, other in entries:
+            if other is vessel:
+                continue
+            for index, colour in enumerate(vessel["slots"]):
+                if other["slots"][index] != colour:
+                    return CustomSlot(row, index, other_row, colour)
+    pytest.skip("every vessel of this Nightfarer has the same slot colours")

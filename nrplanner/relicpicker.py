@@ -10,12 +10,19 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import effecttext, favourites, model
+from . import cardgrid, effecttext, favourites, model
 from .inventory import CUSTOM_RELIC_ID
 
-COLUMNS = 5
+#: How many cards wide the dialog first asks to be. Not a claim about the
+#: grid: the grid reflows to whatever width it is actually given, and this
+#: only decides the size the window manager is asked for. The opening width
+#: is derived from it through `cardgrid.room_for`, so the two cannot part.
+OPENING_COLUMNS = 5
 ICON = 56
 CARD_WIDTH = 190
+#: The dialog's own layout margin, one side. Named because the opening width
+#: has to add both of them back.
+MARGIN = 14
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -392,10 +399,9 @@ class RelicPicker(QDialog):
             f"{'Deep ' if slot.deep else ''}Slot {slot.index + 1} — {colour}"
         )
         self.setModal(True)
-        self.resize(CARD_WIDTH * COLUMNS + 80, 720)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setContentsMargins(MARGIN, MARGIN, MARGIN, MARGIN)
         layout.setSpacing(10)
 
         top = QHBoxLayout()
@@ -427,27 +433,36 @@ class RelicPicker(QDialog):
         self.scroll.setFrameShape(QFrame.NoFrame)
         layout.addWidget(self.scroll, 1)
 
+        # After the scroll area, because the opening width has to account for
+        # the vertical scrollbar the card list will need: with 55 cards it is
+        # always there, and the width it takes came off the last column.
+        self.resize(self._opening_width(), 720)
+
         self._refresh()
 
-    @staticmethod
-    def _distinct(items: list) -> list:
-        """One card per roll -- favourites.distinct, kept as a method name
-        because the call sites read better for it. The reasoning lives with
-        the shared function, which the slot header now uses as well, so the
-        picker's count and the header's can no longer disagree.
+    def _opening_width(self) -> int:
+        """A width at which `OPENING_COLUMNS` whole cards fit the viewport.
+
+        Everything between the dialog edge and the card area is added back:
+        the layout margin on both sides and the vertical scrollbar. Asking the
+        scrollbar rather than assuming a figure is what makes this hold under
+        a style whose scrollbars are not the width this machine's are.
         """
-        return favourites.distinct(items)
+        return (cardgrid.room_for(OPENING_COLUMNS, CARD_WIDTH)
+                + 2 * MARGIN
+                + self.scroll.verticalScrollBar().sizeHint().width())
 
     def _candidates(self):
         from . import search
 
         text = self.search.text()
         predicate = search.parse(text)
-        items = []
-        if self.slot.owned is not None:
-            items = self._distinct(self.slot.owned.relics_for(
-                self.slot.colour, self.slot.deep, 4
-            ))
+        # The slot decides what it can hold -- one card per roll, and nothing
+        # that is already lying in another slot. Asking the inventory here as
+        # well is how the picker came to offer a relic the slot beside it was
+        # already wearing (QA-002); the count below is drawn from the same
+        # answer, so the grid and the "x of y" above it cannot disagree.
+        items = self.slot.available_items()
         if predicate is not None:
             items = [i for i in items if predicate(self.slot.effect_names(i))]
         # Favourites for the Nightfarer currently being planned lead the grid.
@@ -486,11 +501,7 @@ class RelicPicker(QDialog):
 
     def _refresh(self) -> None:
         items, needle = self._candidates()
-        total = 0
-        if self.slot.owned is not None:
-            total = len(self._distinct(self.slot.owned.relics_for(
-                self.slot.colour, self.slot.deep, 4
-            )))
+        total = len(self.slot.available_items())
         starred = sum(
             1 for i in items
             if self.hero_id is not None and favourites.is_favourite(i, self.hero_id)
@@ -503,29 +514,22 @@ class RelicPicker(QDialog):
             + "  ·  right-click a relic to favourite it"
         )
 
-        holder = QWidget()
-        grid = QGridLayout(holder)
-        grid.setSpacing(8)
-        grid.setAlignment(Qt.AlignTop)
-
         current = self.slot.relic_box.currentData()
 
         # The custom tile always leads, and is never filtered out -- it is the
         # answer to "none of these are what I want", so hiding it behind a
         # search that matched nothing would remove it exactly when it is needed.
         custom = getattr(self.slot, "custom_item", None)
-        grid.addWidget(
+        cards: list[QWidget] = [
             CustomRelicCard(
                 self.slot.effect_names(custom) if custom is not None else [],
                 selected=current is not None
                 and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
                 on_pick=self._open_custom,
-            ),
-            0, 0,
-        )
+            )
+        ]
 
-        for n, item in enumerate(items):
-            i = n + 1
+        for item in items:
             icon = self.icons.item(item.icon) if item.icon else None
             card = RelicCard(
                 item,
@@ -540,9 +544,15 @@ class RelicPicker(QDialog):
                 and favourites.is_favourite(item, self.hero_id),
                 on_favourite=self._open_favourites,
             )
-            grid.addWidget(card, i // COLUMNS, i % COLUMNS)
+            cards.append(card)
 
-        self.scroll.setWidget(holder)
+        # As many columns as the dialog is actually wide, not five whatever it
+        # is wide. Five fixed ones put the last column past the right-hand
+        # edge at the size the dialog opens at, and dragging it narrower moved
+        # nothing: eleven of fifty-five cards were sliced at 1 030 px and the
+        # same eleven lost 142 of their 190 px at 900, names ending mid-word
+        # (QA-141, DR-016a at a place T-058 left out).
+        self.scroll.setWidget(cardgrid.CardGrid(CARD_WIDTH, cards))
 
     def _open_custom(self) -> None:
         existing = getattr(self.slot, "custom_item", None)

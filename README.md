@@ -89,8 +89,26 @@ which any Nightfarer can carry. The vessel decides how many relic slots you get
 and what colour each one is.
 
 **Relic slots** — each slot names its colour and how many relics of that colour
-you own. Open one to choose from a picker that lists only relics which fit. A
-relic's three effects appear under it once slotted.
+are available to it. Open one to choose from a picker that lists only relics
+which fit. A relic's three effects appear under it once slotted.
+
+A relic you have put in one slot is not offered in the others: you own one of
+it, and it can only be worn once. To plan around a relic you have not found
+yet — or a second copy of one you have — use **Custom relic** in the picker,
+which is not limited by what your save holds. It is remembered with the build
+like any other relic and comes back with the chalice it was built in; a chalice
+that gives that slot another colour drops it, because it was built for the
+colour it had.
+
+Two copies of the same roll are two relics, and you may wear both: the picker
+shows one card per roll, but each slot is given a copy of its own.
+
+A build saved before that rule existed can name the same relic in two slots.
+Restoring one sorts it out on screen: the first slot keeps the relic, and the
+other says where it went instead of standing empty for no stated reason. The
+stored build is left exactly as it was — which slot should keep the relic is
+yours to decide, so the note comes back every time you open that chalice until
+you decide it.
 
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A
@@ -235,15 +253,14 @@ Every armament, sorcery and incantation, grouped by family with counts.
 
 - **Upgrade to +N** recalculates at that upgrade level.
 - **Rarity** filters to a tier.
-- **Meets requirements** hides what the selected Nightfarer cannot wield at the
-  chosen level.
 
 The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 
-Attack rating is base damage plus what your stats add to it. **Spell damage is
-not in the game data**, so sorceries and incantations show their costs instead of
-an invented figure.
+Attack rating is base damage, plus what your stats add to it, plus the +%
+attack effects your equipped relics grant. **Spell damage is not in the game
+data**, so sorceries and incantations show their costs instead of an invented
+figure.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves
@@ -466,6 +483,24 @@ To refresh the screenshots in this README after a tab changes:
 .venv\Scripts\python.exe scripts\make_screenshots.py
 ```
 
+### Tests
+
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest
+```
+
+They need no display and open no window. Tests that need the game data read
+your own installation, or the snapshot it built; on a machine without
+NIGHTREIGN they skip and say so rather than fail. Nothing in
+`requirements-dev.txt` reaches the packaged EXE.
+
+`tests/golden/weapon_damage.json` holds what the weapon-damage panel said at
+one game version, so a change to the calculation cannot pass unnoticed. It is
+regenerated with `scripts\capture_weapon_damage.py` — but only after the new
+figures have been checked, because regenerating it is how the evidence gets
+thrown away.
+
 ### Layout
 
 | Path | Purpose |
@@ -473,6 +508,7 @@ To refresh the screenshots in this README after a tab changes:
 | `nrdata/` | Reading the game's own formats — archives, params, textures, saves. No GUI code. |
 | `nrplanner/` | The GUI, the build maths, and save inventory. |
 | `scripts/` | Environment check, data builders, icon generator, screenshot generator. |
+| `tests/` | The test suite. Headless; skips what needs a game it cannot find. |
 | `vendor/Paramdex/NR/Defs` | Field schemas for the params. Required to read anything. |
 
 ## How values are derived
@@ -507,9 +543,21 @@ would be dropped rather than displayed.
 
 Stated plainly rather than hidden:
 
-- **Attack rating has not been verified against an in-game number.** The maths
-  follows the game's own fields, but the final figure has not been checked
-  against what the game displays.
+- **Attack rating is checked against the game, within a stated range.** It was
+  held against a community measurement of the game's own armament panel — 310
+  armaments across eight Nightfarers, at level 12, each armament at its own
+  rarity and with no relics equipped. On that range the figure here is the
+  game's exactly for 1901 of 1974 readings and within one for 1933 of them.
+  Outside it nothing has been measured: reinforced rarities, infused variants,
+  Scholar and Undertaker, and levels other than 1, 12 and 15.
+- **Staves and seals carry a different number, and it is the game's.** Where
+  the game shows an armament's attack power it shows a catalyst's spell
+  scaling, so that is what this tool shows and ranks a staff or a seal by;
+  their physical attack rating appears nowhere. It was held against the same
+  measurement, 28 catalysts across three Nightfarers, and matches all 84
+  readings exactly — but only at each catalyst's own rarity, as the readings
+  were taken. Upgraded catalysts are unmeasured. The figure is the one the
+  game displays; what a spell actually hits for is not in the data at all.
 - **Don't scan while the game is saving.** A save read part-way through being
   written gives records that were never there — measured once at 290 against a
   true 284. The reader now waits for the file to settle, and on a settled file

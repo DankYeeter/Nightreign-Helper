@@ -5,16 +5,80 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QComboBox, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import model, search, weapons
+from . import cardgrid, damage, search, tabheader, weapons
 from .weapons import RARITY_TIERS
 
-COLUMNS = 5
 ICON = 52
 CARD_WIDTH = 200
+
+#: What this tab is for, above the controls and above the count (AK-68,
+#: AK-82). The spell half of the sentence used to sit at the end of the
+#: summary line, where a reader arrived at it after the figures it explains.
+HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
+QUESTION = (
+    "Every armament and spell in the game, rated for the Nightfarer, level "
+    "and upgrade set above. Spell damage is not in the game's data, so "
+    "spells show what they cost you instead.")
+
+#: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
+#: say it on up to 1 792 cards, so the sentence says it too rather than the
+#: other way round.
+CATALYST_SENTENCE = (
+    "Staves and seals show the spell power the game displays for them "
+    "instead of an attack rating.")
+
+#: AK-85. `Scaling` stands on every one of the 1 792 weapon tiles with no
+#: unit and no scale beside it, and the letter grade the game shows in its own
+#: menus is not derivable from it -- so the tab says which of the two it is
+#: showing, and says the other one is not in the files.
+SCALING_SENTENCE = (
+    "Scaling is the game's own per-stat figure behind the letter grade it "
+    "shows in menus. Compare these figures with each other; the files do not "
+    "say which letter a figure earns.")
+
+#: AK-86, the same case one row down: the buildup figures are read straight
+#: off the weapon data and nothing in the files says what they are counted
+#: against, so they compare armaments and do not count hits (A7).
+BUILDUP_SENTENCE = (
+    "Buildup figures come straight from the game's weapon data. The files do "
+    "not say what they are counted against, so use them to compare "
+    "armaments, not as a number of hits.")
+
+#: A value never wraps inside one of its groups. `STR -7 · ARC +45 · DEX`
+#: with a lone `-7` underneath was a stat separated from its own figure
+#: (DR-016b, AK-73), and it read as a different, smaller number.
+# Written as an escape on purpose: the character itself is invisible in
+# source, and a maintainer would have no way to see what this line holds.
+NBSP = "\u00a0"
+GROUP_SEPARATOR = " · "
+
+
+def unbroken(value: str) -> str:
+    """`value` with every break opportunity inside a group taken away.
+
+    A tile's value made of several `·`-separated groups may wrap between two
+    groups and nowhere else (AK-73). Qt breaks a wrapped label at any space,
+    which put `DEX` at the end of one line and its `-7` at the start of the
+    next; a non-breaking space inside each group leaves the separators as the
+    only place a line can end.
+
+    A value with no separator is handed back byte for byte. It has no groups
+    to hold together, so joining it would rewrite a string -- `+3 Rare` on the
+    `Upgraded to` row -- that no finding asked to be changed, and none of them
+    is long enough to wrap on a 200 px tile in the first place (measured at
+    1600 px on the 77 tiles the tab opens with: 0 of 315 single-group values
+    take a second line, against 46 of 122 multi-group ones that broke inside a
+    group before this function existed).
+    """
+    if GROUP_SEPARATOR not in value:
+        return value
+    return GROUP_SEPARATOR.join(
+        NBSP.join(group.split()) for group in value.split(GROUP_SEPARATOR))
+
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -39,8 +103,7 @@ class Tile(QFrame):
     """One weapon or spell: icon, name, and its numbers listed underneath."""
 
     def __init__(self, title: str, icon, lines: list[tuple[str, str]],
-                 dimmed: bool = False, rarity: int | None = None,
-                 blurb: str = ""):
+                 rarity: int | None = None, blurb: str = ""):
         super().__init__()
         self.setFixedWidth(CARD_WIDTH)
         self.setObjectName("tile")
@@ -75,8 +138,8 @@ class Tile(QFrame):
 
         name = QLabel(title)
         name.setWordWrap(True)
-        colour = MUTED if dimmed else "#e4e4e4"
-        name.setStyleSheet(f"border: none; font-weight: bold; color: {colour};")
+        name.setStyleSheet(
+            "border: none; font-weight: bold; color: #e4e4e4;")
         header.addWidget(name, 1)
         layout.addLayout(header)
 
@@ -91,7 +154,7 @@ class Tile(QFrame):
             row.setSpacing(4)
             left = QLabel(label)
             left.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
-            right = QLabel(value)
+            right = QLabel(unbroken(value))
             right.setAlignment(Qt.AlignRight)
             # A value wider than the tile must wrap, not clip: the scaling
             # rows ("STR 43 · DEX 43 · ARC 45") lost their leading characters
@@ -168,6 +231,12 @@ class Section(QWidget):
         self.body.setVisible(show)
         self.toggle.setArrowType(Qt.DownArrow if show else Qt.RightArrow)
 
+    def expand(self) -> None:
+        """Open this section, building its body if that has not happened."""
+        if not self.toggle.isChecked():
+            self.toggle.setChecked(True)
+            self._on_toggle()
+
     def expand_all(self) -> None:
         """Open this section and every subsection it builds.
 
@@ -175,11 +244,22 @@ class Section(QWidget):
         everything is thousands of widgets, and the caller is responsible
         for knowing the count is modest before asking.
         """
-        if not self.toggle.isChecked():
-            self.toggle.setChecked(True)
-            self._on_toggle()
+        self.expand()
         for child in self.body.findChildren(Section):
             child.expand_all()
+
+    def expand_first_child(self) -> None:
+        """Open this section and the first subsection inside it, no more.
+
+        The narrow version of `expand_all`, for the one case that has to be
+        cheap: the tab showing something when it opens (AK-83). Opening every
+        subsection of `Weapons` would build 1 792 tiles before the reader has
+        asked for anything.
+        """
+        self.expand()
+        first = self.body.findChild(Section)
+        if first is not None:
+            first.expand()
 
 
 class ArsenalTab(QWidget):
@@ -191,6 +271,9 @@ class ArsenalTab(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
+
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
         controls = QHBoxLayout()
         self.search = QLineEdit()
@@ -225,10 +308,6 @@ class ArsenalTab(QWidget):
         self.rarity_box.currentIndexChanged.connect(self.rebuild)
         controls.addWidget(self.rarity_box)
 
-        self.usable_only = QCheckBox("Meets requirements")
-        self.usable_only.setChecked(True)
-        self.usable_only.toggled.connect(self.recalculate)
-        controls.addWidget(self.usable_only)
         layout.addLayout(controls)
 
         self.summary = QLabel()
@@ -241,20 +320,30 @@ class ArsenalTab(QWidget):
         self.scroll.setFrameShape(QFrame.NoFrame)
         layout.addWidget(self.scroll, 1)
 
-        self.ratings: list[weapons.WeaponRating] = []
+        self.ratings: list[damage.Rating] = []
         self.recalculate()
 
     # -- data ------------------------------------------------------------
     def recalculate(self) -> None:
         hero = self.planner.current_hero()
-        level = self.planner.level_slider.value()
-        build = model.compute(hero, level, self.planner.selected_effects(),
-                              self.planner.curves)
+        # The build the planner tab is showing, not one computed again here.
+        # This tab used to work out its own, with four of the seven arguments
+        # missing -- no curses, no armament effects, no declared conditionals,
+        # no weapon gates -- and then ranked every armament in the game
+        # against attributes the stat sheet next door disagreed with (QA-001).
+        build = self.planner.current_build()
+        # From the build and not from the slider: they agree in the running
+        # program, and for a tool that sets a build directly they do not --
+        # this line used to make every arsenal record of the differential
+        # track say "level 1" whatever it was measuring (QA-124).
+        level = build.level
         self.attributes = build.attributes
-        self.ratings = weapons.rank(
-            self.data, build.attributes,
-            upgrade=self.upgrade.value(),
-            require_usable=self.usable_only.isChecked(),
+        # The tier is handed over explicitly and there is no default that
+        # could stand in for it: ranking an armament that sits in no slot at
+        # a chosen target tier is this tab's question, and a default would
+        # quietly put the slot's tier back (AD-020, point 1; QA-055).
+        self.ratings = damage.rank_candidates(
+            build, self.upgrade.value(), self.data,
         )
         stats = "  ".join(f"{k[:3].upper()} {v}"
                           for k, v in build.attributes.items())
@@ -264,14 +353,11 @@ class ArsenalTab(QWidget):
         self.rebuild()
 
     def _grid(self, tiles: list[Tile]) -> QWidget:
-        holder = QWidget()
-        grid = QGridLayout(holder)
-        grid.setSpacing(8)
-        grid.setContentsMargins(12, 0, 0, 8)
-        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        for i, tile in enumerate(tiles):
-            grid.addWidget(tile, i // COLUMNS, i % COLUMNS)
-        return holder
+        # As many columns as the width takes. Five fixed ones meant the last
+        # tile of every row was sliced, and because the figures on a tile are
+        # right-aligned it was the figures that went: `AR`, `Physical` and
+        # `Magic` with no number beside any of them (DR-016a).
+        return cardgrid.CardGrid(CARD_WIDTH, tiles, margins=(12, 0, 0, 8))
 
     def rebuild(self) -> None:
         predicate = search.parse(self.search.text())
@@ -296,19 +382,55 @@ class ArsenalTab(QWidget):
         if predicate is not None and 0 < shown <= 60:
             for section in self._top_sections:
                 section.expand_all()
-        # The attack-rating caveat is measured, not hedging: in the training
-        # area the game's own panel reads about 60% of the computed figure,
-        # and whether that scale applies on expeditions is still being
-        # verified in play. Ratings still rank weapons correctly either way.
+        # Every other state where there is something to show. Two of them:
+        # the tab as it opens, which is the tab holding more of the game's
+        # data than any other and used to open on three collapsed headings
+        # and an otherwise empty black page (DR-017, AK-83); and a search
+        # matching more than the cap above, which fell through both branches
+        # and produced that same empty page again -- `a` matches 1 099
+        # armaments and drew none of them (QA-143). One subsection either
+        # way: the reader sees what a tile looks like without paying for
+        # 1 792 of them.
+        elif self._top_sections:
+            self._top_sections[0].expand_first_child()
+        # UI_SPEC.md, Nachtrag zu AK-34 (T-035, 2026-09-03): Fassung B, faellig
+        # seit T-033, weil MULTIPLIERS_FOR[Basis.CANDIDATE] jetzt True ist --
+        # das Arsenal ranking wirkt jetzt ebenfalls mit der Multiplikatorschicht.
+        # Der bisherige 60%-Satz entfaellt ersatzlos (AK-34: die Zeichenketten
+        # "60%", "under investigation" und "ranking between weapons is
+        # unaffected" duerfen im Baum nicht mehr vorkommen).
+        #
+        # Der mittlere Satz ist AK-64 (Nachtrag zu AK-34/QA-121, 2026-09-05):
+        # seit T-046 zeigt dasselbe Raster zwei verschiedene Kennzahlen, und
+        # eine Suche nach einem Stab- oder Siegelnamen fuellt es ganz mit
+        # Karten, deren Zahl der erste Satz nicht beschreibt. Er steht
+        # unabhaengig von der Trefferliste, weil die Zeile fuer das ganze
+        # Arsenal gilt und nicht fuer den gefilterten Ausschnitt.
+        #
+        # Die letzten beiden Saetze sind AK-85 und AK-86 (T-056): jede Kachel
+        # traegt eine `Scaling`-Zeile und viele eine `… buildup`-Zeile, und
+        # beide standen ohne Bezugsgroesse da. Der Satz zum Zauberschaden ist
+        # nach oben in QUESTION gewandert und darf hier nicht zweimal stehen.
         self.summary.setText(
-            f"{self.header_text}. {shown} shown. Attack rating is base damage "
-            f"plus what your stats add to it. The in-game panel has been seen "
-            f"showing about 60% of these figures (under investigation); the "
-            f"ranking between weapons is unaffected. Spell damage is not in "
-            f"the game's data, so spells show their costs instead."
+            f"{self.header_text}. {shown} shown. Attack rating is base "
+            f"damage, plus what your stats add to it, plus the +% attack "
+            f"effects your equipped relics grant. {CATALYST_SENTENCE} "
+            f"{SCALING_SENTENCE} {BUILDUP_SENTENCE}"
         )
 
     def _build_weapons(self, outer, predicate) -> int:
+        def effective_rarity(rating) -> int:
+            """The rarity band the armament would carry at the tier it got.
+
+            `damage.Rating.tier_applied` counts tiers from 1 and
+            `weapon["rarity"]` counts bands from 0, so the band is one below
+            the tier. The `min` is kept although `weapons.rate` already
+            clamps the request to `MAX_UPGRADE`: that is the same pair of
+            guards QA-068 is about, and neither may be dropped on the
+            strength of the other alone.
+            """
+            return min(rating.tier_applied - 1, RARITY_TIERS - 1)
+
         wanted_rarity = self.rarity_box.currentData()
         by_family: dict[str, list] = {}
         for rating in self.ratings:
@@ -319,11 +441,9 @@ class ArsenalTab(QWidget):
                 continue
             # Match the rarity the weapon would have after upgrading, so the
             # filter agrees with the colour shown on the tile.
-            if wanted_rarity != -1:
-                effective = min(weapon.get("rarity", 0) + rating.applied_upgrade,
-                                RARITY_TIERS - 1)
-                if effective != wanted_rarity:
-                    continue
+            if (wanted_rarity != -1
+                    and effective_rarity(rating) != wanted_rarity):
+                continue
             by_family.setdefault(weapon.get("family", "Other"), []).append(rating)
 
         total = sum(len(v) for v in by_family.values())
@@ -348,6 +468,26 @@ class ArsenalTab(QWidget):
                      for stat, value in values.items() if value]
             return " · ".join(parts) if parts else "none"
 
+        def stats_of(*sources: dict) -> list[str]:
+            """Every stat named by `sources`, in the order the first names it.
+
+            `scaling.keys() | base_scaling.keys()` is a `set`, and the order a
+            set of strings iterates in follows PYTHONHASHSEED, which Python
+            picks afresh for every process. The same weapon therefore showed
+            `STR -21 · INT +29 · DEX +6` on one start of the program and
+            `DEX +6 · STR -21 · INT +29` on the next, directly under a
+            `Scaling` row that was stably ordered -- two lines of one tile,
+            two orders of the same three values (QA-142, and QA-059 word for
+            word at a new place). Ordering it by the weapon's own scaling dict
+            is what makes the two rows read the same way round.
+            """
+            order: list[str] = []
+            for source in sources:
+                for stat in source:
+                    if stat not in order:
+                        order.append(stat)
+            return order
+
         def build_family(entries):
             # Rarest first; inside a rarity band the infusions of one weapon
             # sit together, ordered by the standard version's name.
@@ -359,11 +499,19 @@ class ArsenalTab(QWidget):
             tiles = []
             for rating in entries:
                 weapon = rating.weapon
-                lines = [("AR", f"{rating.total:.0f}")]
-                for damage in weapons.DAMAGE_TYPES:
-                    value = rating.base.get(damage, 0) + rating.scaled.get(damage, 0)
-                    if value:
-                        lines.append((weapons.DAMAGE_LABELS[damage], f"{value:.0f}"))
+                # The label comes from the facade rather than from a constant
+                # here: a staff is headed by its spell scaling and has no
+                # attack rating to show, and which armament that is, is not
+                # this tab's to decide (QA-099).
+                lines = [(rating.headline_label,
+                          f"{damage.displayed(rating.final_headline)}")]
+                # `damage_type`, not `damage`: the loop variable used to
+                # shadow the module of that name, and the resulting
+                # UnboundLocalError only fired when a tile was drawn, never
+                # on import (QA-072).
+                for damage_type, value in rating.shown_per_type.items():
+                    lines.append((weapons.DAMAGE_LABELS[damage_type],
+                                  f"{damage.displayed(value)}"))
                 # The status the weapon exists for. Elemental variants always
                 # showed their element; the status variants hid their one
                 # number, so a Poison Cleaver read as a plain cleaver with
@@ -379,7 +527,7 @@ class ArsenalTab(QWidget):
                 if standard is not None and standard["id"] != weapon["id"]:
                     base_scaling = standard.get("scaling") or {}
                     shifts = []
-                    for stat in scaling.keys() | base_scaling.keys():
+                    for stat in stats_of(scaling, base_scaling):
                         delta = (scaling.get(stat, 0) or 0) - (
                             base_scaling.get(stat, 0) or 0)
                         if delta:
@@ -387,23 +535,16 @@ class ArsenalTab(QWidget):
                     if shifts:
                         lines.append(("vs standard", " · ".join(shifts)))
                 lines.append(("Rarity", RARITY_NAMES.get(weapon.get("rarity", 0), "?")))
-                reached = min(weapon.get("rarity", 0) + 1 + rating.applied_upgrade,
-                              weapons.MAX_UPGRADE)
-                if rating.applied_upgrade:
+                own_tier = weapon.get("rarity", 0) + 1
+                reached = min(rating.tier_applied, weapons.MAX_UPGRADE)
+                if rating.tier_applied > own_tier:
                     lines.append(("Upgraded to", f"+{reached} "
                                                  f"{RARITY_NAMES.get(reached - 1, '')}"))
-                if rating.unmet:
-                    need = " ".join(f"{s[:3].upper()} {n}"
-                                    for s, (_h, n) in rating.unmet.items())
-                    lines.append(("Requires", need))
                 # Colour by the rarity the weapon would actually have at the
                 # chosen upgrade target, not its shelf rarity.
-                effective = min(weapon.get("rarity", 0) + rating.applied_upgrade,
-                                RARITY_TIERS - 1)
                 tiles.append(Tile(weapon["name"],
                                   self.icons.item(weapon.get("icon")),
-                                  lines, dimmed=bool(rating.unmet),
-                                  rarity=effective))
+                                  lines, rarity=effective_rarity(rating)))
             return self._grid(tiles)
 
         def build_body():
@@ -426,6 +567,14 @@ class ArsenalTab(QWidget):
         return total
 
     def _build_spells(self, outer, predicate, category: str) -> int:
+        # No guard on these figures, and that is a decision, not a gap
+        # (QA-086, the lesson from QA-064/070/073/083 applied to a
+        # non-action): every number a spell tile shows below is read straight
+        # off the dataset -- FP, FP charged, Stamina, slot count -- with no
+        # calculation of this module's own standing between the data and the
+        # label. There is nothing here for a wrong formula to hide behind.
+        # If one of these figures is ever computed instead of looked up, it
+        # needs a guard at the moment it starts being computed, not before.
         by_family: dict[str, list] = {}
         for spell in self.data.get("spells", []):
             if spell["category"] != category:
@@ -441,12 +590,15 @@ class ArsenalTab(QWidget):
         def build_family(entries):
             tiles = []
             for spell in sorted(entries, key=lambda s: s["name"].lower()):
-                lines = [("FP", str(spell.get("fp") or 0))]
+                # Named as costs, because that is what they are: `FP` and
+                # `Stamina` beside a figure read as something the spell gives
+                # you, on a card whose whole point is what it costs (AK-87).
+                lines = [("FP cost", str(spell.get("fp") or 0))]
                 if spell.get("fp_charged"):
-                    lines.append(("FP charged", str(spell["fp_charged"])))
+                    lines.append(("FP cost charged", str(spell["fp_charged"])))
                 if spell.get("stamina"):
-                    lines.append(("Stamina", str(spell["stamina"])))
-                lines.append(("Slots", str(spell.get("slots") or 1)))
+                    lines.append(("Stamina cost", str(spell["stamina"])))
+                lines.append(("Spell slots", str(spell.get("slots") or 1)))
                 # The game's caption, whitespace reflowed for a card. This is
                 # the only place a spell says what it does.
                 caption = " ".join((spell.get("caption") or "").split())

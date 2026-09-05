@@ -63,7 +63,20 @@ MAX_LEVEL = 15
 #   7  stacks_to on the event buffs -- the highest "+N" tier the game names
 #   8  weapons[].inflicts -- status buildup per hit from the armament's own
 #      spEffectBehaviorId rows, so a Poison Cleaver finally states its poison
-EXTRACT_VERSION = 8
+#   9  reinforce[].catalyst_scaling -- the rate behind the spell scaling the
+#      game shows for a staff or a seal, where it shows an attack rating for
+#      everything else (QA-099)
+#  10  weapons[].equipped_spells -- the armament's own spell slots, which is
+#      what tells the catalyst row no player can hold from the one they can
+#      (QA-119; the criterion and its scope are model.is_unequippable_catalyst)
+#  11  world_events.rune_scaling -- the step each rune multiplier belongs to,
+#      and no param name in the sentence. The figures were a bare ladder of
+#      seven with no rung numbered, and the tab had to strip the param name
+#      out again before it could show them (QA-148). Nothing is added to the
+#      dataset's shape; the strings themselves changed, which is exactly what
+#      the version check is for -- a cached snapshot would otherwise keep
+#      showing the old sentence for good.
+EXTRACT_VERSION = 11
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -86,6 +99,26 @@ DEEP_MARKER = 251
 CURSE_FIELDS = ("unknown_8", "unknown_9", "unknown_10")
 
 DAMAGE_TYPES = ("Physics", "Magic", "Fire", "Thunder", "Dark")
+
+# The rate behind the number the game shows for a staff or a seal. It is the
+# last field of a ReinforceParamWeapon row -- offset 128, f32 -- and the
+# Paramdex has no name for it, so the placeholder is the only handle there
+# is: `vendor/Paramdex/NR/Defs/ReinforceParamWeapon.xml` writes
+# `<Field Def="f32 unknown_1" />`. The def covers the row exactly (row_size
+# 132 = pdef.row_size 132, def_is_prefix False), so the offset is read off
+# the schema rather than guessed.
+#
+# What it is was measured, not inferred from the name: the game shows
+# `floor(90 x this x (1 + curve(INT or FAI)/100))`, which hits 84 of 84
+# measured cells and 28 of 28 of a second, independent list exactly
+# (`docs/berichte/T-043-qa-engineer.md`, QA-099).
+CATALYST_SCALING_FIELD = "unknown_1"
+
+# What the shipped game data holds, so a later reader can see how much room
+# the check below leaves: 97 of the 255 reinforce rows carry a rate other
+# than 1.0, spread over 30 groups, and every armament sitting on one of them
+# is a staff or a seal (measured 2026-09-03, T-043 section 2).
+CATALYST_SCALING_ROWS_TODAY = 97
 
 # Magic.spEffectCategory: verified against the spell names themselves --
 # 3 holds Glintstone Pebble and Comet, 4 holds Catch Flame and O, Flame!
@@ -1263,12 +1296,28 @@ def _rune_scaling(members: dict, defs: dict) -> list[str]:
 
     clear = param.read(members["ClearCountCorrectParam"],
                        defs.get("ClearCountCorrectParam"))
-    rates = [r.values["SoulRate"] for r in clear.rows if r.values.get("SoulRate")]
-    if rates:
+    # Ordered by the row id, which is the step the figure belongs to. Sorting
+    # by the figure instead threw that away, and the sentence then offered
+    # seven multipliers with nothing saying which was which -- a ladder a
+    # reader cannot climb (QA-148). The rows carrying no rate at all are left
+    # out; row 0 is one of them.
+    rungs = [(row.id, row.values["SoulRate"]) for row in clear.rows
+             if row.values.get("SoulRate")]
+    rungs.sort()
+    if rungs:
+        # What the step number is *counted in* is not in the files: the rows
+        # are numbered and nothing says how many expeditions reach each one.
+        # Said out loud rather than guessed at, which is A7 and is also why
+        # the sentence no longer carries the param name it was quoting. The
+        # name was being stripped again in the tab, leaving `Expeditions
+        # completed: runs ×1 …` -- a repair at the wrong end (AK-104).
         lines.append(
-            "Expeditions completed: ClearCountCorrectParam.SoulRate runs "
-            + " → ".join(f"×{r:g}" for r in sorted(rates))
-            + ", so a well-progressed profile earns more from the same kill.")
+            "Expedition progress moves it up a "
+            f"{len(rungs)}-step ladder: step {rungs[0][0]} ×{rungs[0][1]:g}, "
+            "then "
+            + ", ".join(f"×{rate:g}" for _step, rate in rungs[1:])
+            + f" at step {rungs[-1][0]}. The game's files number the steps "
+            "and do not say how many expeditions reach each one.")
 
     # Deep of Night is the other thing that moves, but its multiplier table
     # ships no paramdef and is read by inspection in _deep_of_night, so it is
@@ -1448,6 +1497,56 @@ def _world_events(members: dict, defs: dict,
             "and number. Those are shown as-is rather than guessed at.",
         ],
     }
+
+
+def catalyst_scaling_rates(table: param.ParamTable) -> dict[int, float]:
+    """Reinforce group -> the rate behind the game's spell scaling figure.
+
+    **Loud rather than defaulting** (QA-099 c). `CATALYST_SCALING_FIELD` is a
+    placeholder name, and a Paramdex update that gives the field its real name
+    would leave `row.values.get(name, 1.0)` handing back 1.0 for every row --
+    at which point all 28 catalysts would quietly show the same figure, 90,
+    and nothing anywhere would say the data had stopped arriving. A field that
+    is not there is therefore an error, not a default.
+
+    Two things are checked, because either on its own can be satisfied by a
+    dataset that says nothing:
+
+    * the field exists on every row -- a renamed or dropped field fails here;
+    * at least one row carries a rate other than 1.0 -- a field that exists
+      and is uniformly 1.0 is a field read from the wrong offset, and it
+      would pass the first check unremarked.
+
+    **The threshold is one, not** `CATALYST_SCALING_ROWS_TODAY`. The shipped
+    data holds 97 such rows, and that number is written down beside this so
+    the margin can be seen; the check itself asks for one, because a patch
+    that retires catalysts is a game change and not a broken extractor, and a
+    guard that fails on it would be read as noise and switched off.
+    """
+    rates: dict[int, float] = {}
+    for row in table.rows:
+        if CATALYST_SCALING_FIELD not in row.values:
+            raise ValueError(
+                f"ReinforceParamWeapon has no {CATALYST_SCALING_FIELD!r} "
+                f"field in this paramdef, and it is the only place the spell "
+                f"scaling of staves and seals is written (offset 128, the "
+                f"last field of the row). It has most likely been renamed by "
+                f"a Paramdex update: find the new name for offset 128 and "
+                f"put it in extract.CATALYST_SCALING_FIELD. Nothing is "
+                f"defaulted here -- a default would show every catalyst the "
+                f"same figure and say nothing (QA-099 c).")
+        rates[row.id] = float(row.values[CATALYST_SCALING_FIELD])
+
+    moving = sum(1 for value in rates.values() if value != 1.0)
+    if not moving:
+        raise ValueError(
+            f"every one of the {len(rates)} ReinforceParamWeapon rows reads "
+            f"{CATALYST_SCALING_FIELD!r} as 1.0, where this game data held "
+            f"{CATALYST_SCALING_ROWS_TODAY} rows with another value. A field "
+            f"that exists and never moves is a field read at the wrong "
+            f"offset; check what {CATALYST_SCALING_FIELD!r} names in the "
+            f"paramdef before trusting any catalyst figure.")
+    return rates
 
 
 def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
@@ -2258,6 +2357,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     reinforce_table = table("ReinforceParamWeapon")
     aec_table = table("AttackElementCorrectParam")
 
+    catalyst_scaling = catalyst_scaling_rates(reinforce_table)
+
     reinforce = {
         str(r.id): {
             "atk": {
@@ -2274,6 +2375,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 "Faith": r.values.get("correctFaithRate", 1.0),
                 "Arcane": r.values.get("correctLuckRate", 1.0),
             },
+            # The rate behind the figure the game shows for a staff or a
+            # seal instead of an attack rating. Read for every group, not
+            # only for the catalyst ones: which groups are catalyst groups is
+            # not this table's to decide, and the armament says it (QA-099).
+            "catalyst_scaling": catalyst_scaling[r.id],
         }
         for r in reinforce_table.rows
     }
@@ -2394,6 +2500,17 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                     "Arcane": r.values.get("correctLuck", 0.0),
                 },
                 "curve": {d: r.values.get(f"correctType_{d}") for d in DAMAGE_TYPES},
+                # Kept because it is in the param, not because anything reads
+                # it: `nrplanner` no longer gates scaling on it (T-034). The
+                # gate it used to drive never fired on real data -- 1791 of
+                # 1793 armaments carry an all-zero requirement here, the other
+                # two ask for Arcane 1, and every Nightfarer starts above that
+                # (QA-061) -- and the user confirmed in play that Nightreign
+                # has no attribute requirement for armaments at all. Two test
+                # helpers still read this field directly, to pick a weapon
+                # deterministically rather than through the removed gate:
+                # `tests/weapon_damage_cases.heaviest_of_family` and
+                # `tests/test_marginal_returns.most_responsive_armament`.
                 "requires": {
                     "Strength": r.values.get("properStrength", 0),
                     "Dexterity": r.values.get("properAgility", 0),
@@ -2403,6 +2520,19 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 },
                 "reinforce_type": r.values.get("reinforceTypeId", 0),
                 "element_correct_id": r.values.get("attackElementCorrectId"),
+                # The armament's own spell slots, -1 where it has none. Read
+                # because it is the one field that tells the two rows called
+                # `Recluse's Staff` apart by something a player would care
+                # about: 33770000 can hold no spell, so it is not a catalyst
+                # anybody can cast with (QA-119). Carried as a list rather
+                # than a tuple so a live extraction and a snapshot read back
+                # out of JSON hand back the same thing. What it does **not**
+                # say on its own: 1764 of the 1793 named armaments carry -1
+                # in both, because a sword holds no spell either -- the scope
+                # that makes this usable is in
+                # `nrplanner.model.is_unequippable_catalyst`.
+                "equipped_spells": [r.values.get("equippedSpell_R1", -1),
+                                    r.values.get("equippedSpell_R2", -1)],
                 # Effects this weapon can roll, from its own pools. Empty for
                 # the armaments that roll nothing.
                 "effect_pool": weapon_effect_pool(r.id),

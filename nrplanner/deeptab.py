@@ -17,15 +17,27 @@ import statistics
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QAbstractItemView, QFrame, QHeaderView, QLabel, QScrollArea, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget,
 )
+
+from . import tabheader
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
 DEEP = "#9a6fc4"
+
+#: The roof over this tab's four headings (AK-68, AK-95). Its second sentence
+#: is also the reference every scaling figure below is measured against, which
+#: is why it is not repeated under the scaling table (QA-128, point 9).
+HEADING = "DEEP OF NIGHT"
+QUESTION = (
+    "What a deeper run pays you, what it costs you, and how your Depth "
+    "rating moves. All figures compare a Deep of Night run with a normal "
+    "expedition.")
+
 
 # The five elemental attack rates move together in every profile, so showing
 # five identical columns would be noise. They are collapsed when equal and
@@ -72,15 +84,6 @@ CONTROL_ROWS = (
     ("Cursed relic — Uncommon", "cursed_uncommon"),
     ("Cursed relic — Rare", "cursed_rare"),
 )
-
-
-def _heading(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setStyleSheet(
-        f"color: {ACCENT}; font-size: 12px; font-weight: bold;"
-        " letter-spacing: 1px;"
-    )
-    return label
 
 
 def _note(text: str) -> QLabel:
@@ -180,9 +183,29 @@ class DeepTab(QWidget):
         depths = self.deep.get("depth_count", 5)
         self.depth_names = [f"Depth {i + 1}" for i in range(depths)]
 
-        layout = QVBoxLayout(self)
+        # Four tables sized to their rows stack to more than a screen, and a
+        # QTabWidget hands the tallest of its pages to the whole window: this
+        # one page asked for 1195 logical px on Windows -- 1838 physical at
+        # 150 % scale, against a screen 1600 px tall -- so the program had a
+        # minimum height no monitor here could satisfy and the tab's last two
+        # lines could neither be seen nor scrolled to (DR-015, AK-71, AK-97).
+        # Inside a scroll area the same content asks for 69; the tab is as
+        # tall as the window allows and the reader scrolls the rest.
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.scroll)
+
+        content = QWidget()
+        self.scroll.setWidget(content)
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(14)
+
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
         layout.addWidget(self._build_rewards())
         layout.addWidget(self._build_scaling())
@@ -195,7 +218,7 @@ class DeepTab(QWidget):
         box = QVBoxLayout(panel)
         box.setContentsMargins(0, 0, 0, 0)
         box.setSpacing(5)
-        box.addWidget(_heading(title))
+        box.addWidget(tabheader.heading(title))
         return panel, box
 
     def _table(self, rows: list[str]) -> QTableWidget:
@@ -234,6 +257,28 @@ class DeepTab(QWidget):
             if len(rows) > 3:
                 table.setItem(3, column, _cell(tiers[column] or "-"))
         box.addWidget(_fit(table))
+
+        # The two figures of this table that carried no reference at all
+        # (QA-128, points 7 and 8). The multiplier is real and its subject is
+        # not in the files, so the tab says that rather than letting a reader
+        # supply a subject of their own; the sigil count is read, while the
+        # name against it was identified in game.
+        box.addWidget(_note(
+            "Reward multiplier: the game's own multiplier for this Depth. "
+            "The files do not say what it multiplies, so it is shown as a "
+            "comparison between Depths and nothing more."
+        ))
+        box.addWidget(_note(
+            f"{sigil}: the figure comes from the depth table. That the item "
+            f"is the {sigil} was identified in game, not read from a link in "
+            f"the files."
+        ))
+        # The game's own description of the item, loaded since the extractor
+        # first read the depth table and thrown away every time until now.
+        # Quoted, so it reads as the game's wording and not as this tab's.
+        info = (self.deep.get("sigil_info") or "").strip()
+        if info:
+            box.addWidget(_source(f"In the game's own words: “{info}”."))
 
         # Kept from the game's own tutorial because it changes how you play:
         # it says when a loss cannot cost you the Depth you have reached.

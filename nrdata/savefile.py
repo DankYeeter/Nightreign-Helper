@@ -14,6 +14,14 @@ from dataclasses import dataclass, field
 
 from Crypto.Cipher import AES
 
+from .binary import read_cstring
+
+# Where the BND4 member headers begin, and the fields this reader takes out of
+# one. A member header may be larger than that -- the rest is padding this
+# reader does not touch -- but it can never be smaller and still hold them.
+BND4_HEADER_SIZE = 0x40
+MEMBER_FIELDS_SIZE = 24
+
 # Static save key, shared by Dark Souls 3 and Elden Ring.
 SAVE_KEY = bytes([
     0x18, 0xF6, 0x32, 0x66, 0x05, 0xBD, 0x17, 0x8A,
@@ -34,30 +42,44 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     """Yield (index, name, offset, size) for each BND4 member."""
     if blob[:4] != b"BND4":
         raise ValueError("not a BND4 save container")
+    if len(blob) < BND4_HEADER_SIZE:
+        raise ValueError(
+            f"save container is {len(blob)} bytes, too short for a BND4 header"
+        )
 
     file_count = struct.unpack_from("<I", blob, 0x0C)[0]
     file_header_size = struct.unpack_from("<Q", blob, 0x20)[0]
     unicode_names = blob[0x30] != 0
 
+    # Both numbers come out of the file and together they steer the loop below,
+    # so they are measured against the file's own size before anything is read
+    # (SEC-002). A count of four billion members would otherwise be walked as
+    # four billion members, and a header size of zero would put every member at
+    # the same place.
+    if (file_header_size < MEMBER_FIELDS_SIZE
+            or BND4_HEADER_SIZE + file_count * file_header_size > len(blob)):
+        raise ValueError(
+            f"save container claims {file_count} members of "
+            f"{file_header_size} bytes each, which do not fit in "
+            f"{len(blob)} bytes"
+        )
+
     out = []
     for i in range(file_count):
-        base = 0x40 + i * file_header_size
+        base = BND4_HEADER_SIZE + i * file_header_size
         # Read off the real file: u32 flags, i32 -1, u64 size, u32 offset,
         # u32 name offset, then padding.
         size = struct.unpack_from("<Q", blob, base + 8)[0]
         offset = struct.unpack_from("<I", blob, base + 16)[0]
         name_offset = struct.unpack_from("<I", blob, base + 20)[0]
 
+        # A name offset of zero is the container saying this member carries no
+        # name, which is a state and not a fault, so it keeps its positional
+        # one. Any other offset is a promise about the file, and read_cstring
+        # holds the file to it rather than guessing a name for it.
         name = f"slot_{i}"
-        if name_offset and name_offset < len(blob):
-            end = name_offset
-            if unicode_names:
-                while blob[end : end + 2] != b"\0\0":
-                    end += 2
-                name = blob[name_offset:end].decode("utf-16-le", "replace")
-            else:
-                end = blob.index(b"\0", name_offset)
-                name = blob[name_offset:end].decode("shift-jis", "replace")
+        if name_offset:
+            name = read_cstring(blob, name_offset, utf16=unicode_names)
 
         out.append((i, name, offset, size))
     return out

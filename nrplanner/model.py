@@ -35,7 +35,7 @@ RATE_LABELS = {
     # inflicts ..." relics. Unlabelled until now, so the panel printed the raw
     # field name at the player: "darkAttackPowerRate -15.0%". It no longer
     # reaches the Multipliers panel at all -- it scopes to slot 1, see
-    # Planner.STARTING_AR_RATE_FOR -- but the attack-rating breakdown still
+    # damage.STARTING_AR_RATE_FOR -- but the attack-rating breakdown still
     # names it, so the labels are still wanted.
     "physicsAttackPowerRate": "Physical Attack",
     "magicAttackPowerRate": "Magic Attack",
@@ -250,8 +250,19 @@ def percent_value(field_name: str, value: float) -> float:
 SENTINEL_BASELINE = -1.0
 
 
+# Whether configure() has run at all. Not a nicety: without it the module
+# falls back to deciding what multiplies from the field's name, which is a
+# different calculation and not a slightly worse one. "Improved Item
+# Discovery" carries itemDropRate 0.2, whose neutral is 0.0 -- read as a
+# multiplier against an assumed neutral of 1.0 it shows -60% where the truth
+# is +40% (QA-011). compute() refuses rather than answer with either.
+_CONFIGURED = False
+
+
 def configure(data: dict) -> None:
     """Teach the module which fields multiply and which add, from the data."""
+    global _CONFIGURED
+
     FIELD_BASELINE.clear()
     PERCENT_FIELDS.clear()
     PERCENT_OF_100_FIELDS.clear()
@@ -262,6 +273,7 @@ def configure(data: dict) -> None:
         elif abs(float(value) - PERCENT_OF_100_BASELINE) < 1e-9:
             PERCENT_OF_100_FIELDS.add(name)
     RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
+    _CONFIGURED = True
 
 
 def is_multiplier(field_name: str) -> bool:
@@ -434,6 +446,57 @@ def weapon_class(weapon: dict | None) -> str | None:
     return "melee"
 
 
+# The armament's own spell slots, as `nrdata.extract` writes them, and the
+# value that means "there is no slot here".
+SPELL_SLOTS_KEY = "equipped_spells"
+NO_SPELL_SLOT = -1
+
+
+def is_unequippable_catalyst(weapon: dict | None) -> bool:
+    """A staff or seal row with no spell slot -- nothing a player can hold.
+
+    **The scope is the whole of this criterion, and no caller may widen it.**
+    "Carries no spell slot" is the ordinary state of an armament: 1764 of the
+    1793 named rows in the shipped data have -1 in both slots, because that is
+    what a sword is. Asked of the catalyst family it says something else
+    entirely -- a staff or a seal exists to hold a spell, so a row that cannot
+    is not an armament the game ever puts in a hand. Inside the family the
+    criterion is exact: of the 30 named catalysts exactly one row answers yes
+    (33770000, the second `Recluse's Staff`), and two further criteria
+    measured independently pick out the same single row (`reinforceTypeId ==
+    0`, `attackElementCorrectId == 10000`; `docs/berichte/T-046-developer.md`
+    section 7). It is an artefact of the extraction, not a choice
+    (`UI_SPEC.md` AK-66, QA-119).
+
+    **A dataset that does not carry the field answers no.** An older extractor
+    wrote no `equipped_spells`, and the honest reading of a missing field is
+    "this cannot be decided here", which leaves the family exactly as visible
+    as it was before this filter existed. Reading a missing field as "no spell
+    slot" would hide all 30 catalysts instead of the one, so the failure that
+    matters is the loud one: `tests/test_unequippable_catalyst.py` names the
+    id it expects to disappear and goes red when nothing does.
+    """
+    if weapon_class(weapon) != "catalyst":
+        return False
+    slots = weapon.get(SPELL_SLOTS_KEY) or ()
+    return bool(slots) and all(slot == NO_SPELL_SLOT for slot in slots)
+
+
+def offerable_weapons(all_weapons) -> list[dict]:
+    """`all_weapons` minus the rows no player can hold, order unchanged.
+
+    Every list a player chooses an armament from goes through here, which is
+    the point: the decision is "this row appears in no player-facing weapon
+    list at all" (AK-66), and a rule written once at the two places such a
+    list is built cannot come apart the way a rule copied into each of them
+    would. The dataset itself keeps the row -- `data["weapons"]` is what the
+    game holds, and a measurement over the game's catalysts has to keep
+    finding 30 of them.
+    """
+    return [weapon for weapon in all_weapons
+            if not is_unequippable_catalyst(weapon)]
+
+
 def attack_scope(effect: dict) -> int | None:
     mods = effect.get("modifiers") or {}
     if not any(f in mods for f in ELEMENT_ATTACK_RATES):
@@ -443,6 +506,73 @@ def attack_scope(effect: dict) -> int | None:
         if isinstance(value, int) and value:
             return value
     return None
+
+
+# Attack buffs whose restriction the game states in prose and in no param
+# field, listed by effect id because nothing else can find them.
+#
+# `attack_scope` above reads `magicSubCategoryChange1/2/3`, and that field is
+# the only place the data ever says "this buff covers one kind of attack".
+# Four effect families raise `physicsAttackRate` and the four elemental rates
+# exactly like an always-on buff, carry no scope field at all, and state their
+# restriction in the description text alone:
+#
+#   Improved Thrusting Counterattack   "Enhances counterattacks unique to
+#                                       thrusting weapons"     x1.10/1.15/1.20
+#   Improved Sorceries (and +1, +2)    "Raises potency of sorceries"
+#   Improved Incantations (and +1, +2) "Raises potency of incantations"
+#   Improved Sorceries & Incantations  "Raises potency of sorceries and
+#                                       incantations"          x1.05 .. x1.11
+#
+# **Why a list and not a rule.** Counted over the dataset before this list was
+# written: 265 effects carry an element attack rate, 184 of them with no scope
+# field, and 22 of those 184 are these four families. No modifier separates
+# the 22 from the other 162. `magParamChange` looks like a marker and is not
+# -- 15 of the 22 carry it, and so do 149 of the 162, among them "Improved
+# Physical Attack Power", which is the flat buff this list exists to keep
+# apart from them. So the restriction is not derivable from the params, and a
+# program that wants it right has to carry it itself.
+#
+# **What is measured and what is inferred.** The user checked *Improved
+# Thrusting Counterattack* in play on 2026-09-03 (QA-018): Wylder with
+# Wylder's Greatsword, one relic carrying the +20%, the attack rating read off
+# the game's own menu before and after. It did not move. Verbatim: "counter-
+# attack ist nur bei konter. nicht global." The three spell families are
+# **inferred, not measured** -- they are here because their text names a kind
+# of attack the same way, and because a sorcery buff lifting a greatsword's
+# physical damage by 11% is the same claim. If one of them is ever measured
+# and turns out to apply flatly, it leaves this list on its own; the other
+# three do not follow it out.
+#
+# **What this list covers, and what it does not.** It names the families in
+# *today's* dataset. It is not a rule that catches future ones: a game patch
+# adding a fifth family adds effect ids nothing here knows about, and they
+# will be counted flat -- wrongly -- until someone puts them here. To extend
+# it: list every effect that carries one of `ELEMENT_ATTACK_RATES` and for
+# which `attack_scope` returns None, read the `info` text of each, and add the
+# ids whose text names a move, a spell school or an attack kind rather than a
+# situation. `tests/test_move_scoped_effects.py` holds that sweep as a guard,
+# so a dataset that grows a new member of one of these four families fails
+# loudly instead of quietly rejoining the flat multiplier.
+MOVE_SCOPED_EFFECT_IDS = frozenset({
+    320600, 8430000, 8851800, 8851850,                    # Thrusting Counter.
+    330000, 6611200, 6611201, 6611202,                    # Sorceries
+    8330000, 8330001, 8330002,
+    330400, 6611300, 6611301, 6611302,                    # Incantations
+    8330100, 8330101, 8330102,
+    8330103, 8330104, 8851200, 8851250,                   # both at once
+})
+
+
+def move_scoped(effect: dict) -> bool:
+    """Does this buff reach one kind of attack, with only its text saying so?
+
+    The counterpart of `attack_scope` for the case the params cannot express.
+    Kept as a lookup on the effect's own id rather than on its name: names
+    repeat across the dataset and a patch may reword one, while the id is what
+    the save file and the relic tables refer to.
+    """
+    return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
 
 
 # Weapon-type gates the selected reference weapon can actually satisfy. The
@@ -512,6 +642,31 @@ ELEMENT_ATTACK_RATES = ("physicsAttackRate", "magicAttackRate",
 ELEMENT_ATTACK_POWER_RATES = ("physicsAttackPowerRate", "magicAttackPowerRate",
                               "fireAttackPowerRate", "thunderAttackPowerRate",
                               "darkAttackPowerRate")
+
+#: The five **flat** counterparts of the rates above, and this module has no
+#: compartment for any of them: nothing here reads them, so an effect carrying
+#: one moves the attack rating by exactly 0 while its own card prints the
+#: numbers (QA-113). They are named rather than left unnamed so that a caller
+#: can say so to the player instead of showing a relic that does nothing and
+#: explaining nothing.
+#:
+#: Measured over the 2076 effects of `data_version` 10350000 on 2026-09-05:
+#: **21 effects** carry at least one of them, and none of the six checked
+#: moves any figure of the build. They are the four "Starting armament deals
+#: magic/fire/lightning/holy damage" relics (7120000/100/200/300, each
+#: `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
+#: four payload tiers, rising to -60/+66), sixteen "Add <element> to Weapon"
+#: effects (8110700-8111003), and one Wylder skill effect (7020000).
+#:
+#: **Deliberately not modelled here.** What the game does with them cannot be
+#: settled from the files -- three readings of the four relics give 91, 116
+#: and 117 against a base of 114 -- and it needs a reading in play (QA-113,
+#: F-F). Guessing one would put a number on screen that nobody warned the
+#: player about, which is the thing `compute` already refuses to do for a
+#: field whose direction it does not know.
+FLAT_ATTACK_POWER_FIELDS = ("physicsAttackPower", "magicAttackPower",
+                            "fireAttackPower", "thunderAttackPower",
+                            "darkAttackPower")
 # Marks a row that stands for all five damage types at once. The real field
 # name rides behind it so the click-through breakdown still works.
 ALL_DAMAGE_PREFIX = "alldamage:"
@@ -520,6 +675,14 @@ RATE_LABELS[CRIT_RATE] = "Critical damage"
 # Verified against the wiki's vessel list: 8 of 8 chalices matched exactly.
 # Colour 4 is White -- a wildcard slot that accepts a relic of any colour.
 COLOUR_NAMES = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
+
+# The one entry above that is not a colour a relic can carry: a white slot
+# draws from every colour, which is why `inventory.relics_for` treats it as a
+# wildcard rather than as a value to match. Read out of the names rather than
+# written as 4, so a renumbering moves both together -- and so that a reader
+# meeting the number somewhere else can find out here what it means.
+WHITE_SLOT = next(value for value, name in COLOUR_NAMES.items()
+                  if name == "White")
 
 # Lowest attribute value the sheet will display. See compute() for why.
 ATTRIBUTE_FLOOR = 1
@@ -635,6 +798,15 @@ class Situational:
 
 @dataclass
 class Build:
+    #: The level this build was computed at. Carried so that a display which
+    #: shows the level beside the figures can read it from the same object the
+    #: figures came from: `arsenaltab` read it off the level slider instead,
+    #: which agrees in the running program and disagrees for any tool that
+    #: sets a build directly -- the whole differential track did, and every
+    #: one of its arsenal records says "level 1" whatever it measured
+    #: (QA-124, the root of QA-088 a). 0 means "nobody said", which is what a
+    #: hand-built `Build` in a test carries.
+    level: int = 0
     attributes: dict[str, int] = field(default_factory=dict)
     base_attributes: dict[str, int] = field(default_factory=dict)
     rates: dict[str, float] = field(default_factory=dict)
@@ -706,9 +878,22 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     is met right now. A gated effect is otherwise left out of every total,
     because the sheet has no way to know. Declaring one counts it exactly as
     though that many copies were equipped.
+
+    Raises RuntimeError until configure() has been given the game data: which
+    fields multiply and which add is read from the data, and the fallback that
+    guesses it from the field name is a different calculation, not a rougher
+    one. A wrong number nobody was warned about is worse than no number.
     """
+    if not _CONFIGURED:
+        raise RuntimeError(
+            "model.configure(data) has not run, so this module does not yet "
+            "know which fields multiply and which add. Computing now would "
+            "guess it from the field names and quietly get some of them "
+            "backwards -- Improved Item Discovery reads -60% instead of +40%."
+        )
     base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
-    build = Build(base_attributes=dict(base), attributes=dict(base))
+    build = Build(level=level, base_attributes=dict(base),
+                  attributes=dict(base))
     # Weapon-type gates are met by any armament being held, not just the one
     # being broken down. Falls back to the single weapon when no set is given,
     # so older callers keep working.
@@ -833,10 +1018,15 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         # a real attack-rating buff for those armaments, so it is bucketed by
         # class instead of being parked on a scoped line and ignored.
         class_to = scoped_class(eff)
-        scoped_out = crit_only or (scope and class_to is None)
-        # Both cases take the element rates out of the general pool: the five
-        # of them carry one number between them, applied once, on a line that
-        # says what it actually covers.
+        # And a buff whose only statement of its scope is its description text
+        # goes the same way, off the list above: the params would have it lift
+        # every swing, and the user's measurement in play says it does not
+        # (QA-018).
+        scoped_out = (crit_only or (scope and class_to is None)
+                      or move_scoped(eff))
+        # All three cases take the element rates out of the general pool: the
+        # five of them carry one number between them, applied once, on a line
+        # that says what it actually covers.
         if scoped_out:
             values = [float(mods[f]) for f in ELEMENT_ATTACK_RATES
                       if isinstance(mods.get(f), (int, float))]

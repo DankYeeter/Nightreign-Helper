@@ -1,0 +1,236 @@
+{
+  "source": {
+    "what": "Community measurement of the attack power the game shows in the armament panel: 310 armaments x 8 Nightfarers, no relics, each armament at its own rarity.",
+    "sheet": "Nightreign Weapon Scaling.xlsx, sheet \"Weapon Attack Power\", supplied by the App Designer",
+    "read_on": "2026-09-03",
+    "game_data_version": "10350000",
+    "measured_by": "docs/berichte/T-038-qa-engineer.md (T-038), QA-095",
+    "levels": "Level 12 for every Nightfarer except the Guardian, whose column stands on level 11: 265 of 271 armaments fit that level and 2 fit level 12 (QA-098). The game states the attributes for levels 1, 2, 12 and 15 only, so the four Guardian rows here stand on **interpolated** attributes while the other nineteen stand on stated ones.",
+    "left_out": [
+      "The Duchess column: it is mixed block by block between levels 11 and 12 and is not usable as a source at all (QA-098).",
+      "Staves and seals: the game shows the spell scaling for them, not an attack rating, so the factor does not describe them (QA-099).",
+      "Greataxes and great hammers for the Raider: the sheet reads x1.18 above the program there and nobody has found the cause (QA-096).",
+      "Revenant's Cursed Claws: the sheet reads x0.88 below the program for every Nightfarer but the owner (QA-097)."
+    ],
+    "how_these_rows_were_picked": "Nine armaments that scale off no attribute -- they pin the factor without a curve in the way -- and then, for each Nightfarer in the sheet's own column order, the next representative of a weapon class that no earlier row has used, walking the sheet from the top. Two rounds, so two armaments per Nightfarer in fourteen different classes.",
+    "not_a_selection_of_the_hits": "Over the whole sheet with the exclusions above applied, floor(0.6 x rate) reproduces 1900 of 1942 readings exactly (97.8 %). Six of the seven columns miss exactly one armament -- Sword of Night and Flame, the only one with three damage types and two curve ids -- and Ironeye misses one more. The Guardian column misses 35 of 281, 30 of them by exactly 1 low, so a Guardian row here is weaker evidence than the other six. Measured 2026-09-03 for T-045."
+  },
+  "readings": [
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 274,
+      "nightfarer": "Wylder",
+      "level": 12,
+      "weapon": 43000000,
+      "name": "Soldier's Crossbow",
+      "attack_power": 88,
+      "note": "all 8 columns of the sheet read 88 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 275,
+      "nightfarer": "Guardian",
+      "level": 11,
+      "weapon": 43020000,
+      "name": "Light Crossbow",
+      "attack_power": 89,
+      "note": "all 8 columns of the sheet read 89 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 276,
+      "nightfarer": "Ironeye",
+      "level": 12,
+      "weapon": 43030000,
+      "name": "Heavy Crossbow",
+      "attack_power": 90,
+      "note": "all 8 columns of the sheet read 90 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 277,
+      "nightfarer": "Raider",
+      "level": 12,
+      "weapon": 43080000,
+      "name": "Arbalest",
+      "attack_power": 92,
+      "note": "all 8 columns of the sheet read 92 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 278,
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 43110000,
+      "name": "Crepus's Black-Key Crossbow",
+      "attack_power": 111,
+      "note": "all 8 columns of the sheet read 111 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 279,
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 43060000,
+      "name": "Full Moon Crossbow",
+      "attack_power": 111,
+      "note": "all 8 columns of the sheet read 111 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 280,
+      "nightfarer": "Executor",
+      "level": 12,
+      "weapon": 43050000,
+      "name": "Pulley Crossbow",
+      "attack_power": 63,
+      "note": "all 8 columns of the sheet read 63 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 281,
+      "nightfarer": "Wylder",
+      "level": 12,
+      "weapon": 44000000,
+      "name": "Hand Ballista",
+      "attack_power": 258,
+      "note": "all 8 columns of the sheet read 258 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "no attribute scaling",
+      "sheet_row": 282,
+      "nightfarer": "Guardian",
+      "level": 11,
+      "weapon": 44010000,
+      "name": "Jar Cannon",
+      "attack_power": 350,
+      "note": "all 8 columns of the sheet read 350 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 1,
+      "nightfarer": "Wylder",
+      "level": 12,
+      "weapon": 1750000,
+      "name": "Duchess' Dagger",
+      "attack_power": 70
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 18,
+      "nightfarer": "Guardian",
+      "level": 11,
+      "weapon": 2010000,
+      "name": "Short Sword",
+      "attack_power": 88
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 37,
+      "nightfarer": "Ironeye",
+      "level": 12,
+      "weapon": 3750000,
+      "name": "Wylder's Greatsword",
+      "attack_power": 101
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 59,
+      "nightfarer": "Raider",
+      "level": 12,
+      "weapon": 4040000,
+      "name": "Zweihander",
+      "attack_power": 147
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 70,
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 5020000,
+      "name": "Rapier",
+      "attack_power": 70
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 77,
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 6020000,
+      "name": "Great Épée",
+      "attack_power": 74
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 81,
+      "nightfarer": "Executor",
+      "level": 12,
+      "weapon": 7140000,
+      "name": "Scimitar",
+      "attack_power": 106
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 96,
+      "nightfarer": "Wylder",
+      "level": 12,
+      "weapon": 8020000,
+      "name": "Dismounter",
+      "attack_power": 124
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 105,
+      "nightfarer": "Guardian",
+      "level": 11,
+      "weapon": 9750000,
+      "name": "Executor's Blade",
+      "attack_power": 69
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 114,
+      "nightfarer": "Ironeye",
+      "level": 12,
+      "weapon": 10000000,
+      "name": "Twinblade",
+      "attack_power": 96
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 120,
+      "nightfarer": "Raider",
+      "level": 12,
+      "weapon": 14020000,
+      "name": "Hand Axe",
+      "attack_power": 106
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 133,
+      "nightfarer": "Revenant",
+      "level": 12,
+      "weapon": 15000000,
+      "name": "Greataxe",
+      "attack_power": 88
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 144,
+      "nightfarer": "Recluse",
+      "level": 12,
+      "weapon": 11010000,
+      "name": "Club",
+      "attack_power": 55
+    },
+    {
+      "group": "one weapon class each, two per Nightfarer",
+      "sheet_row": 159,
+      "nightfarer": "Executor",
+      "level": 12,
+      "weapon": 13010000,
+      "name": "Flail",
+      "attack_power": 97
+    }
+  ]
+}
