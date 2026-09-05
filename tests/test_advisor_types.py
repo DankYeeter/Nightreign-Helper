@@ -15,8 +15,15 @@ holds the answer rather than trusting the docstring:
 
 The second half of QA-066 is about what a key must *distinguish*, and the
 tests at the bottom are that: two runs whose held state differs are not one
-another's cache entry (AD-016 point 2), a slot held empty is not a free slot,
-and where a relic is held does not matter while what is held does.
+another's cache entry (AD-016.2), a slot held empty is not a free slot, and
+**where** a relic is held is part of the question as much as what is held.
+
+That last one reads the opposite way round since T-048. AD-016 first argued
+that position could not matter, because the held bundle acts through a flat
+effect list -- true of the effects, and beside the point for the answer, which
+carries slot indices. The derived `held_fingerprint` that asserted the old
+reading claimed a property the key never had (QA-107) and is gone; every case
+below asks the `AdvisorRequest` itself, which is the whole of the key.
 """
 
 from __future__ import annotations
@@ -166,40 +173,57 @@ def test_a_context_type_really_is_the_exception_it_is_named_as(name):
         f"an armament record; the exception in advisor/types.py is stale")
 
 
+def request_for(problem: types.SlotProblem) -> types.AdvisorRequest:
+    """One question about this problem, with everything else held constant.
+
+    Every case below varies the held state and nothing else, so the request
+    around it is built in one place: a field that differed by accident would
+    make two keys differ for a reason the case is not about.
+    """
+    return types.AdvisorRequest(hero_id=1, level=15, goal_id="max_damage",
+                                weighting_id="even", problem=problem)
+
+
 def test_two_requests_that_differ_only_in_what_is_held_are_different_keys():
-    """AD-016 point 2, and the reason the held state is in the key at all.
+    """Checkpoint 34, and the reason the held state is in the key at all.
 
     A hit across two held states hands back a suggestion that overwrites a
     slot the player deliberately held -- the one outcome the feature exists to
     prevent. Costing an unnecessary miss is 0.46 s; costing this is the
     feature.
+
+    Asserted on the request, which since D3 (AD-016.2) is the whole of the
+    key. The third assertion here used to read the derived `held_fingerprint`,
+    which claimed a property the key does not have (QA-107) -- what replaces
+    it is the same claim asked of the thing that is actually looked up.
     """
-    free = types.AdvisorRequest(hero_id=1, level=15, goal_id="max_damage",
-                                weighting_id="even",
-                                problem=types.SlotProblem(slots=A_PROBLEM.slots))
-    held = types.AdvisorRequest(hero_id=1, level=15, goal_id="max_damage",
-                                weighting_id="even", problem=A_PROBLEM)
+    free = request_for(types.SlotProblem(slots=A_PROBLEM.slots))
+    held = request_for(A_PROBLEM)
 
     assert free != held
     assert hash(free) != hash(held)
-    assert free.held_fingerprint != held.held_fingerprint
 
 
-def test_where_a_relic_is_held_does_not_change_the_fingerprint():
-    """AD-016: the held bundle acts through a flat effect list.
+def test_where_a_relic_is_held_is_part_of_the_question():
+    """Checkpoint 34: the key is position-dependent, and it has to be.
 
-    It contributes its effects and it occupies its copies, and neither
-    depends on which slot it sits in. Two problems that differ only in that
-    may share a cache entry -- and if the fingerprint said otherwise, the
-    picker walking six slots in turn would miss the cache every time, which is
-    the case AD-016 option A was rejected for.
+    This reverses `test_where_a_relic_is_held_does_not_change_the_fingerprint`,
+    which is gone with the fingerprint it read. AD-016 originally argued the
+    other way -- the held bundle acts through a flat effect list, so which
+    slot it sits in should not matter -- and that argument is sound about the
+    *effects* and wrong about the *answer*: a suggestion carries slot indices
+    (`SlotChoice.slot_index`), so a hit across a permutation would hand back
+    choices pointing at the other question's slots. Straightening that out is
+    the remapping AD-016.4 says does not exist. Until it does, every
+    position-independent hit is an overwritten hold.
     """
-    here = types.SlotProblem(slots=A_PROBLEM.slots,
-                             held=(types.HeldSlot(0, A_RELIC),))
-    there = types.SlotProblem(slots=A_PROBLEM.slots,
-                              held=(types.HeldSlot(1, A_RELIC),))
+    here = request_for(types.SlotProblem(slots=A_PROBLEM.slots,
+                                         held=(types.HeldSlot(0, A_RELIC),)))
+    there = request_for(types.SlotProblem(slots=A_PROBLEM.slots,
+                                          held=(types.HeldSlot(1, A_RELIC),)))
 
-    assert types.held_fingerprint(here) == types.held_fingerprint(there)
+    assert here != there
+    assert hash(here) != hash(there)
 
 
 def test_a_slot_held_empty_is_not_the_same_question_as_a_free_slot():
@@ -215,29 +239,42 @@ def test_a_slot_held_empty_is_not_the_same_question_as_a_free_slot():
 
     assert types.free_slots(free) == A_PROBLEM.slots
     assert [slot.index for slot in types.free_slots(empty)] == [1]
-    assert types.held_fingerprint(free) != types.held_fingerprint(empty)
+    assert request_for(free) != request_for(empty)
+    assert hash(request_for(free)) != hash(request_for(empty))
 
 
-def test_a_custom_relic_held_beside_an_owned_one_still_fingerprints():
+def test_a_custom_relic_held_beside_an_owned_one_still_keys():
     """A held custom relic has no handle, and `None` does not order with ints.
 
-    Two held slots, one of each kind, is the shortest way to a fingerprint
-    that compares them -- and `UI_SPEC` AK-58 allows exactly that pairing. A
-    natural sort would raise `TypeError` at the moment a cache key was being
-    formed, which is in the worker thread, which is where an exception is
-    hardest to trace back to its cause.
+    `UI_SPEC` AK-58 allows exactly that pairing, so it is an ordinary state.
+    While the key was a sorted fingerprint this was a real hazard: a natural
+    sort over `(handle, ...)` tuples raises `TypeError` the moment `None` meets
+    an int, and it would do so in the worker thread while a cache key was
+    being formed, which is the hardest place in this design to trace an
+    exception back from. The fingerprint answered it by sorting on `repr`.
+
+    With the fingerprint gone the hazard goes with it -- a tuple of frozen
+    dataclasses is hashed, never ordered -- but the **assurance** must not go
+    with it, which is why this case was rehung rather than deleted (checkpoint
+    34, second sentence). It is a characterisation of the shape and there is
+    no line whose removal breaks it; the mutation that used to kill it,
+    `advisor-fingerprint-sorted-naturally`, went out with the function it
+    mutated. What would break it is a key form that sorts or canonicalises the
+    held state, and that is the thing this file now asserts does not exist.
     """
     custom = types.HeldRelic(relic_id=-1, name="Custom relic",
                              effect_ids=(1,), handle=None)
-    problem = types.SlotProblem(
+    beside = request_for(types.SlotProblem(
         slots=A_PROBLEM.slots,
-        held=(types.HeldSlot(0, custom), types.HeldSlot(1, A_RELIC)))
+        held=(types.HeldSlot(0, custom), types.HeldSlot(1, A_RELIC))))
+    swapped = request_for(types.SlotProblem(
+        slots=A_PROBLEM.slots,
+        held=(types.HeldSlot(0, A_RELIC), types.HeldSlot(1, custom))))
 
-    assert len(types.held_fingerprint(problem)) == 2
-    assert types.held_fingerprint(problem) == types.held_fingerprint(
-        types.SlotProblem(slots=A_PROBLEM.slots,
-                          held=(types.HeldSlot(0, A_RELIC),
-                                types.HeldSlot(1, custom))))
+    hash(beside)
+    hash(swapped)
+    assert beside == beside
+    assert beside != swapped
 
 
 def test_a_held_custom_relic_occupies_no_copy():

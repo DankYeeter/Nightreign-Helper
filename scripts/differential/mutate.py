@@ -511,21 +511,38 @@ MUTATIONS: dict[str, Mutation] = {
             "test_advisor_goals.py::"
             "test_the_damage_goal_charges_the_starting_armament_penalty."),
     ),
-    "advisor-fingerprint-sorted-naturally": Mutation(
+    "advisor-key-forgets-the-held-state": Mutation(
         path="nrplanner/advisor/types.py",
-        old="""    return tuple(sorted(entries, key=repr))
+        old="""    slots: tuple[Slot, ...] = ()
+    held: tuple[HeldSlot, ...] = ()
 """,
-        new="""    return tuple(sorted(entries))
+        new="""    slots: tuple[Slot, ...] = ()
+    held: tuple[HeldSlot, ...] = ()
+
+    def __eq__(self, other) -> bool:
+        return type(other) is type(self) and self.slots == other.slots
+
+    def __hash__(self) -> int:
+        return hash(self.slots)
 """,
         survival_means=(
-            "a held custom relic beside a held owned one raises `TypeError` "
-            "when the fingerprint is formed -- `None` does not order against "
-            "an int -- and it does so in the worker thread while a cache key "
-            "is being built, which is the hardest place in this design to "
-            "trace an exception back from. `UI_SPEC` AK-58 allows exactly "
-            "that pairing, so it is an ordinary state and not an exotic one. "
-            "Killed by test_advisor_types.py::"
-            "test_a_custom_relic_held_beside_an_owned_one_still_fingerprints."),
+            "the held state stops reaching the cache key, and AD-016.2 is "
+            "unenforced in the one way that costs the feature rather than a "
+            "measurement: a run answers out of the cache of a run that held "
+            "something else, and the suggestion it hands back overwrites a "
+            "slot the player deliberately held. It is written as an explicit "
+            "`__eq__`/`__hash__` pair because that is the shape the mistake "
+            "would really take -- somebody deciding that two vessels with "
+            "the same slots are the same question -- and because "
+            "`dataclasses` respects a pair written into the class body. "
+            "This is checkpoint 34's counter-build and it replaces "
+            "`advisor-fingerprint-sorted-naturally`, which mutated a derived "
+            "form that no longer exists (QA-107). Killed by "
+            "test_advisor_types.py, three cases: the two requests that "
+            "differ in what is held, the two that differ in where, and the "
+            "slot held empty against the free one -- they are three "
+            "distinctions the key has to make, not one assertion said three "
+            "times."),
     ),
     "advisor-rates-an-armament-itself": Mutation(
         path="nrplanner/advisor/goals.py",

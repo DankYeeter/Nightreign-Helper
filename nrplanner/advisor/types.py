@@ -17,7 +17,11 @@ list.** `Slot`, `HeldRelic`, `HeldSlot`, `SlotProblem`, `ArmamentRef`,
 `Budget` and `AdvisorRequest` hold ints, strs, bools and tuples of those, so
 each of them hashes to a value derived from its whole content, and the cache
 key of AD-007/AD-016 is the request object itself -- there is no second key
-form that could drift from the state it stands for.
+form that could drift from the state it stands for. That sentence was false
+until T-048: a derived `held_fingerprint` stood beside the request and
+claimed a property the request does not have (QA-107). It is gone, and what
+the key knows about the held state it knows through `AdvisorRequest.problem`,
+which carries `held` in the vessel's own order.
 
 The answers (`GoalScore`, `Baseline`, `Marginal`, `Candidate`, `SlotPool`,
 `SlotChoice`, `Suggestion`, `AdvisorResult`) keep the same rule, for a
@@ -61,8 +65,10 @@ class Slot:
     `deep` says whether this is one of the three Deep of Night slots, which
     take Deep relics and only those. It sits on the slot rather than on the
     problem because a vessel with Deep of Night switched on has both kinds at
-    once; the problem-wide flag AD-016 puts in the cache key is the set of
-    `(colour, deep)` pairs of the free slots, not a separate field.
+    once; there is no problem-wide Deep flag, and the cache key reaches this
+    field the way it reaches every other one -- through `SlotProblem.slots`,
+    in the vessel's own order (AD-016.2 as D3 rewrote it). The canonical
+    `(colour, deep)` form AD-008 proposed was never built and is not the key.
     """
 
     index: int
@@ -181,6 +187,18 @@ class AdvisorRequest:
     `generation` is AD-006 point 3: a result whose generation is not the
     current one is dropped without touching the display. It is part of the
     request rather than of the controller so that a result can carry it back.
+
+    **Where the held state is in the key: in `problem`, and nowhere else**
+    (AD-016.2 as D3 rewrote it). `SlotProblem` holds `held` as an ordered
+    tuple, so the key is position-dependent -- two questions that differ only
+    in *which* slot a relic is held in are different questions, and they have
+    to be, because the answer carries slot indices (`SlotChoice.slot_index`).
+    A hit across a permutation would hand back a suggestion whose indices
+    point at the other question's slots, and the remapping that would
+    straighten it out does not exist (AD-016.4). There is no derived
+    fingerprint beside this and there will not be one: a second form of the
+    key can drift from the state it stands for, and a drifted one overwrites
+    a slot the player deliberately held.
     """
 
     hero_id: int
@@ -201,23 +219,6 @@ class AdvisorRequest:
     #: reads the save; the advisor never recomputes it from a live inventory.
     inventory_fingerprint: str = ""
     generation: int = 0
-
-    @property
-    def held_fingerprint(self) -> tuple[tuple, ...]:
-        """AD-016's fingerprint of the held state, derived and never stored.
-
-        A stored copy is a second representation of the same thing and can
-        drift from it; a drifted fingerprint produces exactly the failure
-        AD-016 point 2 is written against -- a cache hit across two different
-        held states, which hands back a suggestion that overwrites a slot the
-        player deliberately held. Deriving it costs a sort over at most six
-        entries.
-
-        This is the one property on any dataclass in this module, and it
-        calculates nothing: it re-reads `problem.held`. `damage.Rating` sets
-        the precedent for a derived reading on a frozen dataclass.
-        """
-        return held_fingerprint(self.problem)
 
 
 # --- the answer ------------------------------------------------------------
@@ -555,42 +556,6 @@ def held_handles(problem: SlotProblem) -> frozenset[int]:
     """
     return frozenset(relic.handle for relic in held_relics(problem)
                      if relic.handle is not None)
-
-
-def held_fingerprint(problem: SlotProblem) -> tuple[tuple, ...]:
-    """AD-016's canonical fingerprint of the held state.
-
-    Position-independent and sorted, because the held bundle acts through a
-    flat effect list and through the handles it occupies -- neither of which
-    depends on which slot a held relic sits in. Two problems whose held
-    bundles fingerprint alike may share a cache entry; two that do not, may
-    not.
-
-    A slot held empty contributes an entry as well. It changes the problem --
-    one slot fewer to fill -- so leaving it out would let a run with an empty
-    held slot answer from the cache of a run without one.
-    """
-    entries = []
-    for entry in sorted(problem.held, key=lambda held: held.index):
-        relic = entry.relic
-        if relic is None:
-            entries.append(("empty",))
-            continue
-        entries.append((
-            "relic",
-            relic.handle,
-            relic.relic_id,
-            tuple(sorted(relic.effect_ids)),
-            tuple(sorted(relic.curse_ids)),
-        ))
-    # Ordered by `repr` rather than naturally: a custom relic's handle is
-    # `None` and an owned one's is an int, and Python refuses to order those
-    # against each other -- a held custom relic would turn the fingerprint
-    # into a TypeError at the moment a cache key was formed. `repr` is a total
-    # order over these tuples and deterministic for the strings, ints and
-    # tuples they hold. The order only has to be the *same* every time; it
-    # does not have to mean anything.
-    return tuple(sorted(entries, key=repr))
 
 
 def marginal_for(candidate: Candidate, goal_id: str) -> float:
