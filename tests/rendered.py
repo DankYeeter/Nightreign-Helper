@@ -18,12 +18,29 @@ under test.
 sees: `QTabWidget` decides how much width a page gets, and the widths that
 matter are window widths. `laid_out` builds the real `Planner`, puts one tab
 in front and lets Qt settle before anything is read.
+
+**Which style these figures are in.** `nrplanner.app.main` calls
+`setStyle("Fusion")` and `setPalette(_dark_palette())` before it builds the
+window, so Fusion is what a player runs; nothing in the suite used to set
+either, and Qt then picked `windowsvista`. The difference is not cosmetic.
+Measured on 2026-09-05 at the `Effect` column of the effects table, same data,
+same width, style the only variable: **446 px under windowsvista against 388
+under Fusion at a 1600 px window**, and the count of shortened effect names
+goes from 12 to 44 (QA-146). Every relation asserted in
+`test_tab_geometry.py` held under both -- there was no false green -- but the
+figures beside them described a machine nobody runs. The header margin is 2 px
+a side under Fusion and 4 under windowsvista, which is the same trap one level
+down. `tests/conftest.py::qapp` now applies both before any test builds a
+widget, so this is settled for the session and not per call: a style applied
+by the first case to ask for it would make every figure depend on the order
+the cases ran in.
 """
 
 from __future__ import annotations
 
 import contextlib
 
+import pytest
 from PySide6.QtWidgets import QApplication, QTabWidget
 
 #: Layout passes to let run before reading. Qt defers geometry work to the
@@ -45,6 +62,13 @@ def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
 
     Yields (window, tab). Both sizes are logical px, which is what the
     acceptance criteria are written in.
+
+    **The width asked for is the width measured.** Under the offscreen
+    platform the window has a minimum width of 964 logical px, so a case
+    parametrised `[833]` was in fact reading a 964 px window and saying 833 in
+    its name (QA-146). Where the platform will not go that narrow the case is
+    skipped with the figure in the message, rather than quietly measuring
+    something else.
     """
     from nrplanner import app as appmod
 
@@ -58,6 +82,11 @@ def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
         window.resize(width, height)
         window.show()
         settle()
+        if window.width() != width:
+            pytest.skip(
+                f"this platform will not give the window {width} logical px: "
+                f"it is {window.width()} px wide, and a figure measured here "
+                f"would not be the figure this case is named for")
         yield window, tab
     finally:
         window.close()

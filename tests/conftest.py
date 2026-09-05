@@ -191,10 +191,30 @@ def extracted_game_data(installed_game) -> dict:
 
 @pytest.fixture(scope="session")
 def qapp():
-    """One QApplication for the session; Qt allows no more than one."""
+    """One QApplication for the session, configured as the program is.
+
+    `nrplanner.app.main` sets the Fusion style and the dark palette before it
+    builds a window, so that is what a player runs. Nothing in the suite used
+    to set either, and Qt fell back to `windowsvista`: the `Effect` column of
+    the effects table renders at 446 px there against 388 under Fusion at the
+    same 1600 px window, and the count of shortened effect names goes from 12
+    to 44 (QA-146). No relation asserted anywhere in the suite broke -- the
+    guards were written as relations for exactly this reason -- but every
+    absolute figure measured through the suite was a figure off a machine
+    nobody runs.
+
+    Session-scoped and applied here rather than in the helper that builds
+    windows, because `setStyle` is global: applied by whichever case asked for
+    a window first, every pixel in the run would depend on the order the cases
+    happened to run in. Through the program's own `apply_appearance`, so the
+    two cannot say it differently.
+    """
     from PySide6.QtWidgets import QApplication
 
+    from nrplanner import app as appmod
+
     app = QApplication.instance() or QApplication([])
+    appmod.apply_appearance(app)
     yield app
 
 

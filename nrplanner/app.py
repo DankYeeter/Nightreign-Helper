@@ -117,6 +117,27 @@ def _dark_palette() -> QPalette:
     return p
 
 
+def apply_appearance(app: QApplication) -> None:
+    """Style and palette, exactly as a player's run has them.
+
+    One function so there is one answer. `main` set these two lines itself and
+    the test suite set nothing, so Qt gave the suite `windowsvista` while a
+    player ran Fusion -- and the two do not measure the same. Same data, same
+    width, style the only variable: the `Effect` column of the effects table
+    renders 446 px under windowsvista and 388 under Fusion at a 1600 px
+    window, and the count of effect names too long for it goes from 12 to 44
+    (QA-146). Nothing was falsely green, because the guards are written as
+    relations that hold under both; every absolute figure ever reported from
+    the suite was a figure off a machine nobody runs.
+
+    Called by `main` and by `tests/conftest.py::qapp`. A second place saying
+    what the program looks like is a second place for it to be said
+    differently.
+    """
+    app.setStyle("Fusion")
+    app.setPalette(_dark_palette())
+
+
 def _heading(text: str) -> QLabel:
     label = QLabel(text.upper())
     font = label.font()
@@ -3711,8 +3732,7 @@ def main() -> int:
     uiscale.apply_to_environment()
 
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    app.setPalette(_dark_palette())
+    apply_appearance(app)
 
     icon = datasource.icon_path()
     if icon:
