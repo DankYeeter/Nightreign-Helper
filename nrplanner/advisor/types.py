@@ -341,15 +341,39 @@ class GoalContext:
 
 @dataclass(frozen=True)
 class Baseline:
-    """One goal's figure for the base state a slot is measured against.
+    """What one pool knows about one goal -- one line per direction.
 
-    Kept apart from `Marginal` although both are a goal id and a float: one is
-    an absolute value and the other a difference, and a type that let them be
-    mixed up would put an attack rating where a gain belongs.
+    Kept apart from `Marginal` although both begin with a goal id and a float:
+    one is an absolute value and the other a difference, and a type that let
+    them be mixed up would put an attack rating where a gain belongs. That
+    separation is about the **figure** and is unaffected by the text beside
+    it.
+
+    `value` is the base state's own figure, the reference point the
+    candidates were measured against. The three fields after it are the rest
+    of the same answer: until T-048 `pool()` took `.value` off the
+    `GoalScore` and dropped everything else, so the run findings of a
+    direction never reached the one result the player actually reads
+    (QA-102, checkpoint 32). They are carried here rather than in a second
+    per-goal record beside this one, because two records mean two lookups,
+    two places a `goal_id` can be missing, and two things to keep in step.
+
+    `unknowns` holds **run findings only**, never the procedural sentences:
+    those live in `Goal.scope`, are drawn once for the screen, and six pools
+    of a Deep vessel repeating them six times is exactly what AK-50 is
+    written against (AD-025).
+
+    `GoalScore.display` deliberately does **not** travel with them: it
+    formats the base state's absolute figure and the picker shows a
+    difference, so a formatted absolute here would be an invitation to put
+    the wrong number on a card, and a second representation of `value`.
     """
 
     goal_id: str
     value: float
+    unit: str = ""
+    unknowns: tuple[str, ...] = ()
+    weights_note: str = ""
 
 
 @dataclass(frozen=True)

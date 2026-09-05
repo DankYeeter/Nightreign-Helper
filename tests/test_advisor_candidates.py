@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import pytest
 
+from nrplanner import model
 from nrplanner.advisor import candidates, goals, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -129,15 +130,138 @@ def test_a_copy_without_a_handle_is_not_offered_and_is_reported(game_data,
 def test_nothing_left_out_says_nothing(game_data, wylder):
     """The pool's `unknowns` reports what happened, not a standing warning.
 
-    The guarantee that a run always says *something* is on `GoalScore`, which
-    is where A7 lives; a pool that always printed a line would be the static
-    warning AD-010 rejected.
+    The guarantee that a direction always says *something* is on `Goal.scope`,
+    which the registry holds and which is drawn once for the screen; a pool
+    that always printed a line would be the static warning AD-010 rejected and
+    the repetition AK-50 forbids (AD-025).
+
+    **The assertion below only means something while this stock has nothing to
+    report**, and since T-048 there are two ways it could have: a copy without
+    a handle and a candidate carrying an undeclared condition. So the case
+    states its own precondition first. Without that it would be green because
+    `advisor.raising_effects` happens to pick ungated effects -- and it would
+    go on being green if the conditional line stopped working.
     """
     inventory = advisor.make_inventory(game_data, wylder, count=2)
     ctx = advisor.context(game_data, wylder)
+    curves = game_data.get("curves", {})
+
+    for relic in inventory.relics:
+        assert relic.handle is not None, (
+            "this case needs a stock with nothing to report; one of its "
+            "copies has no handle")
+        rolled = [cases.effect_by_id(game_data, effect_id)
+                  for effect_id in relic.effect_ids]
+        assert not model.compute(wylder, advisor.LEVEL, rolled,
+                                 curves).situational, (
+            f"{relic.name} carries a gated effect, so the empty `unknowns` "
+            f"below would be green for the wrong reason")
 
     assert pool_for(inventory, advisor.problem([advisor.RED]), 0,
                     ctx).unknowns == ()
+
+
+def test_the_pool_carries_what_the_direction_could_not_know(game_data,
+                                                            wylder):
+    """Checkpoint 32, the guard over QA-102.
+
+    `pool()` used to score the base state and keep the number alone, so
+    everything the direction said about this run stopped at the pool boundary.
+    The pool is the path the player actually uses (AD-018), which made A7 a
+    promise held everywhere except where it was needed.
+
+    Held word for word against a second call to the same direction rather than
+    against a literal written out here: a copy of the sentence in the test is
+    a second sentence, and it would go on passing after the real one changed.
+    Asked without a reference armament, because that is the state in which the
+    damage direction has something to report at all -- with one it reports
+    nothing, and a case built on that would compare two empty tuples.
+    """
+    inventory = advisor.make_inventory(game_data, wylder, count=2)
+    ctx = advisor.context(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    base = evaluate(candidates.base_state_for(problem, 0), (), ctx)
+
+    pool = pool_for(inventory, problem, 0, ctx)
+
+    assert {line.goal_id for line in pool.baseline} == set(goals.GOALS)
+    for line in pool.baseline:
+        said = goals.GOALS[line.goal_id].score(base, ctx)
+        assert (line.value, line.unit, line.unknowns, line.weights_note) == \
+            (said.value, said.unit, said.unknowns, said.weights_note), (
+            f"the pool dropped what {line.goal_id} said about this run")
+    assert any(line.unknowns or line.weights_note for line in pool.baseline), (
+        "this stock leaves both fields empty for every direction, so the "
+        "comparison above holds vacuously")
+
+
+def test_the_conditional_line_counts_what_was_really_left_out(game_data,
+                                                              wylder):
+    """Checkpoint 33: the count describes the calculation, not the relics.
+
+    AD-004's own reason for the line is the player who sees a strong
+    situational relic at `0.00` and decides the advisor is broken. The count
+    is therefore worth only as much as its agreement with what actually
+    happened -- and the one thing that moves a gated effect from "not counted"
+    to "counted" is the player declaring its condition. Read off
+    `Build.situational`, that difference is visible; read off the relic
+    definitions it is not, and the line would go on naming relics the sheet
+    beside it counts in full.
+
+    The two pools differ in **nothing** but the declaration, so the second
+    half is not "no line for some other reason".
+    """
+    gated = advisor.a_declarable_effect(game_data, wylder)
+    inventory = advisor.make_inventory(game_data, wylder, count=2,
+                                       rolls=[[gated], [gated]])
+    problem = advisor.problem([advisor.RED])
+    silent = advisor.context(game_data, wylder)
+    live = advisor.context(game_data, wylder, declared=((gated, 1),))
+
+    undeclared = pool_for(inventory, problem, 0, silent)
+    declared = pool_for(inventory, problem, 0, live)
+
+    assert len(undeclared.candidates) == 2, (
+        "both copies have to be offered, or the count says nothing")
+    assert len(undeclared.unknowns) == 1, (
+        f"expected one line about the two uncounted conditions, got "
+        f"{undeclared.unknowns!r}")
+    assert "2" in undeclared.unknowns[0], (
+        f"the line does not name how many were left out: "
+        f"{undeclared.unknowns[0]!r}")
+    assert declared.unknowns == (), (
+        f"the same stock with the condition declared is counted in full, so "
+        f"there is nothing to report: {declared.unknowns!r}")
+
+
+def test_the_conditional_line_counts_this_pool_and_not_the_held_bundle(
+        game_data, wylder):
+    """AD-004.4: the number has to be one the player can count on the screen.
+
+    The held relics are in every build this pool computes, so a count taken
+    off `Build.situational` without asking *who brought it* would report the
+    held bundle's own conditions once for every candidate -- a number that
+    matches nothing in the list beside it.
+    """
+    gated = advisor.a_declarable_effect(game_data, wylder)
+    plain = advisor.raising_effects(game_data, wylder, 2)
+    inventory = advisor.make_inventory(game_data, wylder, count=3,
+                                       rolls=[[gated]] + plain)
+    held, ctx = inventory.relics[0], advisor.context(game_data, wylder)
+    problem = advisor.problem([advisor.RED, advisor.RED],
+                              held={0: advisor.held_relic(held)})
+
+    pool = pool_for(inventory, problem, 1, ctx)
+    build = evaluate(candidates.base_state_for(problem, 1), (), ctx)
+
+    assert any(entry.effect_id == gated and not entry.live
+               for entry in build.situational), (
+        "the held relic's condition has to be in the build, or this case "
+        "cannot tell the two counts apart")
+    assert len(pool.candidates) == 2
+    assert pool.unknowns == (), (
+        f"the held bundle's condition was counted as though a candidate had "
+        f"brought it: {pool.unknowns!r}")
 
 
 def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):

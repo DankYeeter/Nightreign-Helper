@@ -387,10 +387,11 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "advisor-leaves-a-relic-out-without-saying-so": Mutation(
         path="nrplanner/advisor/candidates.py",
-        old="""    unknowns = ((_without_a_handle_line(without_handle),)
-                if without_handle else ())
+        old="""    lines = []
+    if without_handle:
+        lines.append(_without_a_handle_line(without_handle))
 """,
-        new="""    unknowns = ()
+        new="""    lines = []
 """,
         survival_means=(
             "the other half of AD-013 point 4, and `GOAL.md` A7 with it: the "
@@ -419,13 +420,13 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/advisor/candidates.py",
         old="""        marginals = tuple(
             types.Marginal(goal_id, goal.score(build, ctx).value
-                           - baseline[goal_id])
+                           - base_scores[goal_id].value)
             for goal_id, goal in goals.items()
         )
 """,
         new="""        marginals = (types.Marginal(
             rank_by, goals[rank_by].score(build, ctx).value
-            - baseline[rank_by]),)
+            - base_scores[rank_by].value),)
 """,
         survival_means=(
             "AD-018 point 2 and AD-023/OF-13 are unenforced. Only the sorted "
@@ -625,6 +626,66 @@ MUTATIONS: dict[str, Mutation] = {
             "counter-build would say nothing about checkpoint 31. Killed by "
             "test_advisor_goals.py::"
             "test_a_run_finding_does_not_survive_every_run[min_damage_taken]."),
+    ),
+    "advisor-pool-keeps-only-the-figure": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""        baseline=tuple(types.Baseline(goal_id, score.value, score.unit,
+                                      score.unknowns, score.weights_note)
+                       for goal_id, score in base_scores.items()),
+""",
+        new="""        baseline=tuple(types.Baseline(goal_id, score.value)
+                       for goal_id, score in base_scores.items()),
+""",
+        survival_means=(
+            "the state QA-102 found: `pool()` scores the base state and "
+            "keeps the number alone, so everything the direction said about "
+            "this run stops at the pool boundary. A7 would then hold "
+            "everywhere except on the one path AD-018 says the player uses "
+            "to 100 % -- the picker -- where a run without a reference "
+            "armament would show a ratio with nothing saying it is one. "
+            "Killed by test_advisor_candidates.py::"
+            "test_the_pool_carries_what_the_direction_could_not_know."),
+    ),
+    "advisor-counts-conditions-it-did-count": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    return any(entry.effect_id in brought and not entry.live
+               for entry in build.situational)
+""",
+        new="""    return any(entry.effect_id in brought
+               for entry in build.situational)
+""",
+        survival_means=(
+            "the conditional line stops describing what the calculation did "
+            "and starts describing what the relics carry -- the counterpart "
+            "of AD-015's rule for curses, which is that a condition the "
+            "calculation *applied* must not be shown as though it had not. A "
+            "player who declares a condition live would still be told the "
+            "relic was left out, while the figure beside it counts the "
+            "effect in full: the two halves of one screen contradicting each "
+            "other. This is the shortest edit that produces the failure "
+            "`ARCHITECTURE.md` checkpoint 33 names -- the literal 'second "
+            "derivation over the relic definitions' cannot be written here "
+            "at all, because this function holds no dataset to read them "
+            "from, which is the design working rather than a gap in the "
+            "counter-build. Killed by test_advisor_candidates.py::"
+            "test_the_conditional_line_counts_what_was_really_left_out."),
+    ),
+    "advisor-counts-the-held-bundle-s-conditions": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""    brought = set(candidate.effect_ids) | set(candidate.curse_ids)
+""",
+        new="""    brought = {entry.effect_id for entry in build.situational}
+""",
+        survival_means=(
+            "the count stops being a count of *this pool's* candidates and "
+            "picks up whatever the held bundle and the armaments brought "
+            "with them (AD-004.4). The number would then match nothing the "
+            "player can count on the screen -- four situational relics in "
+            "the list, seven in the line -- and the line exists precisely so "
+            "that the figure and the list agree. Killed by "
+            "test_advisor_candidates.py::"
+            "test_the_conditional_line_counts_this_pool_and_not_the_held_"
+            "bundle."),
     ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",

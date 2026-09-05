@@ -91,6 +91,51 @@ def a_non_stacking_effect(data: dict, hero: dict, field_name: str) -> int:
                       f"{field_name}")
 
 
+def a_declarable_effect(data: dict, hero: dict) -> int:
+    """A gated effect the sheet offers this Nightfarer as a switch.
+
+    `Build.situational` is the list the conditional line of a pool counts, and
+    an effect reaches it only when its condition is one the player can
+    actually be in: another Nightfarer's effect is gated on nothing you can
+    do, and `model.compute` leaves it out of the switches for that reason.
+    Asked of the model rather than read off a modifier name, because whether
+    an effect gets a switch is a decision `compute` makes out of three fields
+    at once.
+    """
+    from nrplanner import model
+
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        offered = model.compute(hero, LEVEL, [effect], curves).situational
+        if any(entry.effect_id == int(effect["id"]) and not entry.live
+               for entry in offered):
+            return int(effect["id"])
+    raise LookupError("this dataset offers no effect as a switch, so nothing "
+                      "here can be left uncounted for a stated reason")
+
+
+def a_gated_attribute_effect(data: dict, hero: dict) -> int:
+    """A gated effect that raises an attribute once its condition is declared.
+
+    It has to move an **attribute**: a rate an assertion cannot see would make
+    a case pass for a build that received nothing.
+    """
+    from nrplanner import model
+
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if not model.is_conditional(effect, None):
+            continue
+        silent = model.compute(hero, LEVEL, [effect], curves)
+        declared = model.compute(hero, LEVEL, [effect], curves,
+                                 declared={int(effect["id"]): 1})
+        if declared.attributes != silent.attributes:
+            return int(effect["id"])
+    raise LookupError("no gated attribute effect in this dataset")
+
+
 def a_move_scoped_attack_buff(data: dict, hero: dict) -> int:
     """An attack buff the game restricts to one move, in prose only.
 

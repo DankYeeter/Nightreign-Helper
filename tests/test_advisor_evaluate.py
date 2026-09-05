@@ -198,7 +198,7 @@ def test_a_declared_conditional_reaches_the_build(game_data):
     relic at nothing while the sheet beside it counts it three times.
     """
     hero = cases.hero_by_name(game_data, "Wylder")
-    declarable = _a_gated_attribute_effect(game_data, hero)
+    declarable = advisor.a_gated_attribute_effect(game_data, hero)
     problem = advisor.problem([advisor.RED])
 
     silent = evaluate(problem, (), advisor.context(
@@ -244,22 +244,3 @@ def model_candidate(relic, slot_index: int):
 def types_unknown_effect_id(data: dict) -> int:
     """An effect id no record in this dataset carries."""
     return max(int(key) for key in data["effects"]) + 1
-
-
-def _a_gated_attribute_effect(data: dict, hero: dict) -> int:
-    """A gated effect that raises an attribute once its condition is declared.
-
-    It has to move an **attribute**: a rate the advisor's assertion cannot see
-    would make this pass for a build that received nothing.
-    """
-    curves = data.get("curves", {})
-    for key in sorted(data["effects"], key=int):
-        effect = data["effects"][key]
-        if not model.is_conditional(effect, None):
-            continue
-        silent = model.compute(hero, advisor.LEVEL, [effect], curves)
-        declared = model.compute(hero, advisor.LEVEL, [effect], curves,
-                                 declared={int(effect["id"]): 1})
-        if declared.attributes != silent.attributes:
-            return int(effect["id"])
-    raise LookupError("no gated attribute effect in this dataset")

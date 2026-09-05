@@ -26,6 +26,16 @@ gives up exactly the identity that a suggestion has to be tradeable on. A copy
 already held is not offered again (AD-014.5), and a copy with no handle is not
 offered at all and is reported instead (AD-013 point 4).
 
+**What a pool reports about itself** are run findings and only those
+(AD-025.2): the copies this save gives no handle for, and the candidates
+whose effect no total counted. Both carry a count, so both belong to the run
+rather than to the method. What the *direction* cannot know whatever the run
+stands in `Goal.scope` and is read from there; six pools of a Deep vessel
+repeating it six times is the noise AK-50 is written against. The one thing
+the pool does carry from a direction is what that direction found out about
+**this** run -- `Baseline.unknowns` and `weights_note`, which stopped at this
+boundary until T-048 (QA-102).
+
 **Scope of this module:** it ranks one slot at a time and knows nothing about
 what several slots are worth together. Two relics that only pay off beside
 each other are invisible to it -- that is the beam search's question (S7), and
@@ -42,6 +52,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping
 
+from .. import model
 from . import types
 from .evaluate import evaluate
 
@@ -90,6 +101,72 @@ def _without_a_handle_line(count: int) -> str:
             f"applied to a slot.")
 
 
+#: The conditional line's wording belongs to the `ui-ux-designer` and is not
+#: settled yet (OF-20, AD-025.6, `ARCHITECTURE.md` do-not rule 38). Until it
+#: is, the line is built with this marker in front of it so that nobody --
+#: reader or player -- can mistake the stand-in for the decided text. AD-004
+#: proposes "N of your relics"; what is actually counted is the candidates of
+#: *this* pool, so the sentence below describes what was counted rather than
+#: guessing what it will read.
+WORDING_PENDING = "[wording pending OF-20] "
+
+
+def _conditional_line(count: int) -> str:
+    """The A7 line for candidates whose effect no total counted (AD-004).
+
+    Without it a player sees a strong situational relic sitting at `0.00`
+    and concludes the advisor is broken -- which is the reason AD-004 gives
+    for the line existing at all.
+    """
+    one = count == 1
+    return (f"{WORDING_PENDING}{count} of the "
+            f"{'relic' if one else 'relics'} offered for this slot "
+            f"{'carries' if one else 'carry'} an effect that only applies "
+            f"under a condition you have not declared, so "
+            f"{'it was' if one else 'they were'} not counted.")
+
+
+def _brought_an_uncounted_condition(build: model.Build,
+                                    candidate: types.Candidate) -> bool:
+    """Did this candidate bring an effect the calculation left out?
+
+    Read off `Build.situational` -- what `model.compute` actually parked --
+    and not off the relic's definition, which is the discipline AD-015 states
+    for curses: a condition the calculation *did* apply must not be shown as
+    though it had not. Declaring the condition live is exactly what tells the
+    two apart, and only the build knows it. A second reading over the effect
+    records would also need the weapon type worked out a second time, and a
+    second opinion about what was counted is worth less than no line at all.
+
+    **Scope, because a count without one is read as a count of everything:**
+    `Build.situational` holds the conditions the player can declare, so an
+    effect gated on an armament class this build is not carrying is not in
+    here and is not counted. That case is QA-104 and gets a line of its own;
+    one figure standing for two different states would be worse than the
+    silence it replaced.
+    """
+    brought = set(candidate.effect_ids) | set(candidate.curse_ids)
+    return any(entry.effect_id in brought and not entry.live
+               for entry in build.situational)
+
+
+def _pool_findings(without_handle: int, conditional: int) -> tuple[str, ...]:
+    """What this pool left out, in the player's language (AD-025.2).
+
+    Both lines carry a count, so both are findings of this run rather than
+    statements about the method, and both are absent when their count is
+    zero: "nothing was left out" is said by there being no line, not by a
+    line saying so. The procedural sentences are not here at all -- they are
+    the registry's, drawn once for the screen instead of once per pool.
+    """
+    lines = []
+    if without_handle:
+        lines.append(_without_a_handle_line(without_handle))
+    if conditional:
+        lines.append(_conditional_line(conditional))
+    return tuple(lines)
+
+
 def pool(inventory, problem: types.SlotProblem, slot_index: int,
          ctx: types.GoalContext, goals: Mapping[str, types.Goal],
          rank_by: str) -> types.SlotPool:
@@ -113,6 +190,12 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
     the same (`tests/test_marginal_returns.py`). The order therefore breaks
     ties by name and then by handle, or two runs over one inventory would
     hand back rows in different orders and the player could not tell why.
+
+    The base state is scored once per direction and the **whole** answer is
+    kept: `Baseline` carries the figure and, beside it, what that direction
+    could not know about this run. Taking only the figure is what left the
+    picker -- the one path the player uses -- with no A7 line at all
+    (QA-102, checkpoint 32).
     """
     if rank_by not in goals:
         raise KeyError(f"nothing ranks by goal {rank_by!r}; this run knows "
@@ -120,36 +203,42 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
     slot = types.slot_at(problem, slot_index)
     base_problem = base_state_for(problem, slot_index)
     base_build = evaluate(base_problem, (), ctx)
-    baseline = {goal_id: goal.score(base_build, ctx).value
-                for goal_id, goal in goals.items()}
+    # The whole answer, not only its number: what a direction could not know
+    # about *this* run is the half that used to stop at the pool boundary
+    # (QA-102). The procedural half is not here and must not be -- it is read
+    # off the registry, once for the screen (AD-025).
+    base_scores = {goal_id: goal.score(base_build, ctx)
+                   for goal_id, goal in goals.items()}
     taken = types.held_handles(base_problem)
 
     offered = inventory.relics_for(slot.colour, slot.deep)
     without_handle = sum(1 for relic in offered if relic.handle is None)
 
     measured: list[types.Candidate] = []
+    conditional = 0
     for relic in offered:
         if relic.handle is None or relic.handle in taken:
             continue
         candidate = _offer(slot, relic)
         build = evaluate(base_problem, (candidate,), ctx)
+        if _brought_an_uncounted_condition(build, candidate):
+            conditional += 1
         marginals = tuple(
             types.Marginal(goal_id, goal.score(build, ctx).value
-                           - baseline[goal_id])
+                           - base_scores[goal_id].value)
             for goal_id, goal in goals.items()
         )
         measured.append(dataclasses.replace(candidate, marginals=marginals))
 
     measured.sort(key=lambda offer: (-types.marginal_for(offer, rank_by),
                                      offer.name, offer.handle))
-    unknowns = ((_without_a_handle_line(without_handle),)
-                if without_handle else ())
     return types.SlotPool(
         slot_index=slot_index,
-        baseline=tuple(types.Baseline(goal_id, value)
-                       for goal_id, value in baseline.items()),
+        baseline=tuple(types.Baseline(goal_id, score.value, score.unit,
+                                      score.unknowns, score.weights_note)
+                       for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
-        unknowns=unknowns,
+        unknowns=_pool_findings(without_handle, conditional),
     )
 
 

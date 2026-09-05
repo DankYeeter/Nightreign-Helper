@@ -71,7 +71,11 @@ SAMPLES = {
                        score=lambda b, c: A_SCORE),
     "Weighting": types.Weighting(id="even", label="Even", note="even",
                                  weights=(("slashDamageCutRate", 1.0),)),
-    "Baseline": types.Baseline("max_damage", 12.0),
+    # Every field filled, none left on its default: the claim under test is
+    # that a shape hashes with what it really holds, and a `Baseline` built
+    # from the defaults would say nothing about the three fields T-048 added.
+    "Baseline": types.Baseline("max_damage", 12.0, "AR",
+                               ("no armament selected",), "weighed evenly"),
     "Marginal": types.Marginal("max_damage", 1.0),
     "Candidate": A_CANDIDATE,
     "SlotPool": types.SlotPool(slot_index=1, candidates=(A_CANDIDATE,)),
