@@ -41,8 +41,9 @@ GEÄNDERT: nrdata/extract.py; nrplanner/weapons.py, damage.py, arsenaltab.py,
          nicht committet, per .gitignore ausgeschlossen).
          Ausserhalb des Repos: der Schnappschuss
          `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json` wurde neu
-         gebaut (EXTRACT_VERSION 8 -> 9). Acht Commits auf
-         `docs/audit-and-advisor-design`, 2a6bb3e bis 8bd70a9.
+         gebaut (EXTRACT_VERSION 8 -> 9). Acht Code- und Werkzeug-Commits
+         auf `docs/audit-and-advisor-design`, 2a6bb3e bis 8bd70a9, dazu
+         190f5bd und dieser Nachtrag fuer den Bericht selbst.
          NICHT angefasst: UI_SPEC.md, docs/state.md, qa/findings.md — die
          drei sind im Baum geaendert und gehoeren anderen Rollen.
 ANNAHMEN: (1) Beschriftung einheitlich "Spell power" fuer Staebe und Siegel —
@@ -79,7 +80,8 @@ Beraterzeile und in keiner Rangliste.
 | `scripts/differential/` | vier neue Mutationen, vier Anker nachgezogen, Paket-Docstring auf fuenf Skripte |
 | `tests/` | zwei neue Testdateien, eine neue Datendatei, Golden neu aufgezeichnet, fuenf bestehende Dateien nachgezogen (`test_damage_facade`, `test_arsenal_tab_asks_the_facade`, `test_move_scoped_effects`, `test_advisor_goals`, `weapon_damage_cases`), `conftest` prueft die Extraktorfassung des Schnappschusses |
 
-Acht Commits, `2a6bb3e` bis `8bd70a9`, alle auf dem ausgecheckten Branch
+Acht Code- und Werkzeug-Commits, `2a6bb3e` bis `8bd70a9`, plus den Bericht
+selbst — alle auf dem ausgecheckten Branch
 `docs/audit-and-advisor-design`. Kein push/pull/fetch/merge/rebase/checkout/
 branch/reset/revert/stash.
 
