@@ -1715,11 +1715,11 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "nightlord-defence-trigger-back-in-the-ordinary-colour": Mutation(
         path="nrplanner/bosstab.py",
-        old="""            watched = (f"<span style='color:{OBSERVED_COLOUR}; font-size:11px'>"
-                       f"  ·  {trigger}</span>") if trigger else ""
+        old="""                watched = (f"<span style='color:{OBSERVED_COLOUR}; "
+                           f"font-size:11px'>  ·  {trigger}</span>")
 """,
-        new="""            watched = (f"<span style='color:#d8d8d8; font-size:11px'>"
-                       f"  ·  {trigger}</span>") if trigger else ""
+        new="""                watched = (f"<span style='color:#d8d8d8; "
+                           f"font-size:11px'>  ·  {trigger}</span>")
 """,
         survival_means=(
             "the half of a defence line that was watched -- what sets the "

@@ -823,8 +823,10 @@ class BossTab(QWidget):
             # not on the line: colouring the whole line would say the figures
             # beside it were watched too, and leaving the clause in the
             # ordinary colour said the opposite (AK-94, QA-152).
-            watched = (f"<span style='color:{OBSERVED_COLOUR}; font-size:11px'>"
-                       f"  ·  {trigger}</span>") if trigger else ""
+            watched = ""
+            if trigger:
+                watched = (f"<span style='color:{OBSERVED_COLOUR}; "
+                           f"font-size:11px'>  ·  {trigger}</span>")
             parts.append(
                 (legend_once() if trigger else "")
                 + f"<div style='margin-top:2px'>"

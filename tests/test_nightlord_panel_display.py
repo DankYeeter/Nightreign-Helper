@@ -399,7 +399,8 @@ def test_a_defence_trigger_is_drawn_as_the_sighting_it_is(tab):
     seen = 0
     for boss in tab.bosses:
         name = boss["name"]
-        triggers = [text for (owner, _), text in bosstab.DEFENCE_TRIGGER.items()
+        triggers = [text
+                    for (owner, _), text in bosstab.DEFENCE_TRIGGER.items()
                     if owner == name]
         if not triggers:
             continue

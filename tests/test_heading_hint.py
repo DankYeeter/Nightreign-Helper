@@ -89,9 +89,9 @@ def hover(table, column: int) -> None:
     """Put a pointer in the middle of one heading, the way a mouse does."""
     header = table.horizontalHeader()
     QToolTip.hideText()
-    where = QPointF(
-        header.sectionViewportPosition(column) + header.sectionSize(column) / 2,
-        header.height() / 2)
+    middle = (header.sectionViewportPosition(column)
+              + header.sectionSize(column) / 2)
+    where = QPointF(middle, header.height() / 2)
     QApplication.sendEvent(header.viewport(), QMouseEvent(
         QEvent.MouseMove, where,
         QPointF(header.viewport().mapToGlobal(where.toPoint())),
@@ -116,14 +116,14 @@ def test_a_shortened_heading_answers_inside_a_brief_hover(game_data, qapp):
             f"this case waits {brief} ms and the style opens a tooltip after "
             f"{wake_up_delay(table)} ms, so a pass would prove nothing")
 
+        stub = table.horizontalHeaderItem(cut[0]).text()
         hover(table, cut[0])
         hold_still(brief)
 
         assert QToolTip.isVisible(), (
-            f"after {brief} ms over `{table.horizontalHeaderItem(cut[0]).text()}` "
-            f"nothing has opened; the style would take "
-            f"{wake_up_delay(table)} ms and that is the wait the finding is "
-            f"about")
+            f"after {brief} ms over `{stub}` nothing has opened; the style "
+            f"would take {wake_up_delay(table)} ms, and that is the wait the "
+            f"finding is about")
         assert table.heading(cut[0]) in QToolTip.text(), (
             f"what opened does not name the column: {QToolTip.text()!r}")
 
@@ -178,15 +178,15 @@ def test_each_shortened_heading_answers_with_its_own_name(game_data, qapp):
 
         answers = {}
         for column in cut:
+            stub = table.horizontalHeaderItem(column).text()
             hover(table, column)
             hold_still(patience(table))
             assert QToolTip.isVisible(), (
                 f"`{table.heading(column)}` gave no answer at "
                 f"{window.width()} px")
             assert table.heading(column) in QToolTip.text(), (
-                f"the answer over `{table.horizontalHeaderItem(column).text()}`"
-                f" does not name `{table.heading(column)}`: "
-                f"{QToolTip.text()!r}")
+                f"the answer over `{stub}` does not name "
+                f"`{table.heading(column)}`: {QToolTip.text()!r}")
             answers[column] = QToolTip.text()
 
         drawn = {}
