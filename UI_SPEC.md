@@ -714,7 +714,7 @@ Erste Zeile des Kartenkoerpers, **unter** der Kopfzeile (Icon, ★, Name),
 Arsenal-Kachel schon benutzt (`QFrame.HLine`, 1 px, `BORDER`).
 
 ```
-Damage         +12.4 AR  unverified
+Damage         +12.4 AR
 Damage taken   −18
 ```
 
@@ -728,10 +728,11 @@ Damage taken   −18
   Spieldateien nicht gibt (A7, AD-015).
 - Null heisst `no change`, nicht `+0.0`. Bei stueckweise linearen Kurven ist
   Null der haeufigste Wert; `+0.0` liest sich wie ein gerundetes Etwas.
-- `unverified` steht **auf jeder Karte** hinter dem Angriffswert, `MUTED`,
-  10 px — Auflage aus T-024 (Vorbehalt an jeder Picker-Zeile, nicht
-  aufklappbar). Er verschwindet vollstaendig, wenn QA-018 geschlossen ist,
-  nicht in einen Tooltip.
+- **`unverified` entfaellt.** Die Auflage aus T-024 galt "solange QA-018
+  offen ist"; QA-018 ist am 03.09.2026 durch eine Messung des Nutzers
+  geschlossen. Das Wort kommt auf keiner Karte mehr vor — siehe den Nachtrag
+  zu AK-47 am Ende dieser Datei. Der Vorbehalt selbst bleibt, aber als **ein**
+  Satz ausserhalb der Karten (Zeile 4 in §3.2), nicht als Marke je Zeile.
 - **Die Einheit steht am Wert. Abhaengigkeit, die nicht meine ist:** ob die
   Zielrichtung „Schaden maximieren" ihren Wert in AR ausdrueckt, legt AD-004
   fest, nicht diese Vorgabe. Ist die Zielpunktzahl **einheitenlos**, entfaellt
@@ -1174,3 +1175,1299 @@ bleibt unveraendert stehen.
 
 Betroffene Akzeptanzkriterien: **AK-34** (Wortlaut jetzt vollstaendig
 spezifiziert, auch fuer den Uebergangszustand vor der Label-Umstellung).
+
+---
+
+## Nachtrag zu AK-47: das Wort `unverified` entfaellt (Director, T-037) — 2026-09-03
+
+**Grundlage:** AK-47 selbst, `qa/findings.md` QA-018, `docs/state.md`,
+`docs/berichte/T-037-developer.md` Abschnitt 4(g).
+
+**Keine Neufassung, ein eingetretener Fall.** AK-47 war von Anfang an
+zweiteilig formuliert: *"Solange QA-018 offen ist, steht hinter dem
+Angriffswert jeder Karte das Wort `unverified` … Ist QA-018 geschlossen,
+kommt das Wort nirgends mehr vor."* QA-018 ist am 03.09.2026 durch eine
+Messung des Nutzers geschlossen ("counterattack ist nur bei konter, nicht
+global"); Waffen-Tab und Detailtafel nennen fuer den Ausgangsfall dieselbe
+Zahl. Damit ist die zweite Haelfte von AK-47 in Kraft.
+
+**Verbindlich fuer die Umsetzung des Pickers:**
+
+1. Das Wort `unverified` erscheint **nirgends** — nicht auf einer Karte,
+   nicht in einem Tooltip, nicht in einer Kopfzeile. Der Codeblock und der
+   Aufzaehlungspunkt in §3.3 sind entsprechend nachgezogen.
+2. **Der Vorbehalt selbst bleibt.** Er steht als **ein** Satz in Zeile 4 von
+   §3.2, ausserhalb der `QScrollArea`, nicht aufklappbar, nie elidiert:
+   `Attack rating has not been checked against the game, so these figures may
+   be wrong.` AK-37 zaehlt ihn als eine der beiden erlaubten Aussagen ueber
+   Verifikation, und AK-50 haelt seine Platzierung fest. Beide bleiben
+   unveraendert gueltig.
+3. Der Grund fuer 2 ist **nicht** QA-018, sondern die noch nicht erfolgte
+   Messung des Programmwerts gegen die Angriffsanzeige des Spiels. Die
+   beiden Fragen sind verschieden: QA-018 war ein Widerspruch **zwischen zwei
+   eigenen Anzeigen**, der Vorbehalt ist eine Aussage ueber den Abstand zum
+   **Spiel**. Der erste ist geschlossen, der zweite nicht.
+4. **Es wird keine Marke je Kandidat gebaut**, die anzeigt, ob ein Kandidat
+   ein AR-Ratenfeld traegt. AD-023 beschreibt diese Unterscheidung als
+   rechnerischen Sachverhalt; als Anzeige verlangt sie niemand mehr, seit
+   AK-47 seine erste Haelfte verloren hat. Wer sie doch bauen will, braucht
+   vorher eine Entscheidung des App Designers.
+
+**Betroffene Akzeptanzkriterien:** AK-47 (zweite Haelfte in Kraft, erste
+gegenstandslos), §3.3 (Codeblock und Aufzaehlungspunkt nachgezogen). AK-37,
+AK-42 und AK-50 sind **unberuehrt**.
+
+**Offen und ausdruecklich nicht hier entschieden:** welcher der beiden
+Wortlaute ausgeliefert wird — `Attack rating has not been verified against an
+in-game number.` (AD-004, steht heute in `advisor/goals.py` in `unknowns`)
+oder `Not checked against the game's own attack-power display.` (nach
+T-024/DR-003 beschlossen). Das ist eine Frage an den `ui-ux-designer`; zwei
+Saetze fuer dieselbe Sache duerfen nicht beide ausgeliefert werden.
+
+---
+
+## Nachtrag zu QA-116: keiner der beiden Wortlaute — der Vorbehalt wird
+## datengetrieben (ui-ux-designer, T-052) — 2026-09-05
+
+**Korrektur 2026-09-05 (T-052-Nachtrag, `ARCHITECTURE.md` Nachtrag VI,
+AD-025, OF-19).** Die urspruengliche Fassung dieses Abschnitts (unten,
+unveraendert stehen gelassen, damit sichtbar bleibt, was korrigiert wurde)
+nannte **eine** Quelle (`GoalScore.unknowns`) fuer beide Anzeigeorte. Der
+`architect` hat am selben Tag AD-025 beschlossen: es gibt **zwei** Klassen
+von Vorbehalten mit **zwei** verschiedenen Wohnorten — ein **Verfahrenssatz**
+(vor dem Lauf feststehend, z. B. der Geltungsbereich der Angriffsrechnung)
+wohnt in `Goal.scope`; ein **Laufbefund** (braucht den Lauf, traegt oft eine
+Anzahl, z. B. „3 copies had no readable handle") wohnt im Ergebnis
+(`GoalScore.unknowns`, `SlotPool.unknowns`). `GoalScore.unknowns` traegt nach
+AD-025 nur noch die zweite Sorte — die erste zieht nach `Goal.scope` um. Eine
+Vorgabe, die nur `GoalScore.unknowns` liest, wuerde nach dieser Trennung den
+Verfahrenssatz **verlieren**, nicht nur umziehen — genau der Regressionsfall,
+den der `architect` als einzigen A7-relevanten Punkt seines Nachtrags
+benannt hat. Die urspruengliche Antwort auf die Frage „welcher Wortlaut"
+bleibt richtig (keiner der beiden alten Saetze); **welche Quelle** das
+ersetzt, war falsch benannt und wird hier nachgezogen. Nur „Verbindlich",
+„AK-63" und „Betroffene Akzeptanzkriterien" unten sind ersetzt; Grundlage und
+die Analyse, warum ein fester Einzelsatz falsch waere, bleiben unveraendert
+gueltig und stehen weiter unten in diesem Abschnitt.
+
+**Grundlage:** `qa/findings.md` QA-116, die offene Frage oben (Zeile
+1220-1225), `docs/berichte/T-046-developer.md` §9, `nrplanner/advisor/goals.py`
+(`_ATTACK_RATING_UNKNOWNS`, `_DAMAGE_TAKEN_UNKNOWNS`), `ARCHITECTURE.md`
+Nachtrag VI (AD-025), OF-19.
+
+**Antwort auf die offene Frage: keiner der beiden.** Beide Wortlaute sind
+seit T-046 durch eine bessere Loesung ueberholt, die im Programm bereits
+steht: pro Zielrichtung eine **eigene**, genauer gefasste Satzliste
+(`_ATTACK_RATING_UNKNOWNS`, vier Saetze mit Geltungsbereich — welche
+Raritaeten gemessen sind, was ein Katalysator zeigt, dass Zauber gar nicht
+bewertet werden; `_DAMAGE_TAKEN_UNKNOWNS`, vier andere Saetze zur
+Ueberlebens-Zielrichtung). Ein fest verdrahteter Einzelsatz wie Wortlaut A
+oder B waere fuer die Zielrichtung „Minimise damage taken" schlicht falsch —
+dort geht es nie um Attack Rating. Der Fehler in UI_SPEC ist also nicht nur
+ein veralteter Wortlaut, sondern eine falsche Annahme: dass der Picker immer
+nur eine Zielrichtung (Schaden) haette. **Nach AD-025** sind diese acht
+Saetze durchweg Verfahrenssaetze (vor dem Lauf schreibbar, unabhaengig vom
+Bestand) und wandern nach `Goal.scope`; sie sind **nicht** die einzige
+Quelle, die Zeile 4 bzw. Punkt 4 speist (siehe unten).
+
+**Verbindlich, ersetzt §3.2 Zeile 4/Zeile 3 und §3.4 Punkt 4 — zwei Quellen,
+zwei Orte:**
+
+- **Der Verfahrenssatz** (`Goal.scope` der gewaehlten Zielrichtung, nach
+  AD-025 nie leer) steht **einmal je Bildschirm, ausserhalb der Karten** —
+  das ist unveraendert AK-50s Auftrag. Im Picker ist das weiterhin Zeile 4
+  von §3.2: Satz 1 bleibt die feste AD-018.3-Pflichtzeile (*"One slot at a
+  time — some relics only pay off together; Optimize on the Build planner
+  looks for those."*), danach folgen die Saetze aus `Goal.scope` der
+  gewaehlten Zielrichtung, der Reihe nach, wortgleich. Im Why-Dialog ist das
+  §3.4 Punkt 4: dieselben `Goal.scope`-Saetze, einmal, im Dialogkopf-Kontext.
+  Fuer „Name" (keine Zahlen, AK-49) entfaellt die Zeile ganz.
+- **Der Laufbefund** (`SlotPool.unknowns` des offenen Slots — heute die
+  Handle-Zeile aus QA-108 und die konditionale Zeile aus OF-20/D2, beide
+  unten in eigenen Nachtraegen festgelegt) **wohnt beim Pool, nicht bei der
+  Zielrichtung**, und erscheint deshalb **nicht** in Zeile 4, sondern
+  unmittelbar bei der Pool-Zusammenfassung: als eigene, neue **Zeile 3b** in
+  §3.2, direkt unter der bestehenden Zeile 3 (`29 of 29 relics · ranked
+  against your build with Slot 3 empty · …`), gleiche Formatierung wie Zeile
+  4 (`MUTED`, 11 px, `setWordWrap(True)`, ausserhalb der `QScrollArea`,
+  AK-50 gilt sinngemaess auch fuer sie). Zeile 3b **entfaellt vollstaendig**,
+  wenn `SlotPool.unknowns` leer ist (der Normalfall: 0 von 309 Relikten ohne
+  Handle heute) — leer ist nach AD-025 selbst eine gueltige Aussage, keine
+  Luecke. Im Why-Dialog erscheint derselbe Laufbefund **je Slot-Abschnitt**
+  (§3.4 Punkt 2, direkt nach den Effekten dieses Slots), nicht einmalig im
+  Dialogkopf — weil er eine Aussage ueber **diesen Pool** ist, nicht ueber
+  die Zielrichtung insgesamt, und ein anderer Slot einen anderen Laufbefund
+  (oder gar keinen) tragen kann.
+- Damit zeigt **kein** Bildschirm zwei verschiedene Saetze fuer dieselbe
+  Sache, und **keine** Sache verliert ihren Ort: Verfahrenssaetze stehen
+  einmal, ausserhalb der Karten, gebunden an die Zielrichtung; Laufbefunde
+  stehen beim Pool bzw. beim Slot, gebunden an den Lauf.
+
+**AK-63** Zeile 4 des Pickers (§3.2) und Punkt 4 des Why-Dialogs (§3.4) zeigen
+ausschliesslich die Saetze aus `Goal.scope` der aktuell gewaehlten
+Zielrichtung, wortgleich, in Tupel-Reihenfolge — nirgends ein zusaetzlicher,
+fest im UI-Code verdrahteter Vorbehaltssatz daneben oder anstelle davon.
+**Zusaetzlich, neu gegenueber der urspruenglichen Fassung dieses
+Akzeptanzkriteriums:** jeder String in `SlotPool.unknowns` des offenen Slots
+erscheint wortgleich in der neuen Zeile 3b von §3.2 bzw. im zugehoerigen
+Slot-Abschnitt von §3.4 Punkt 2 — und **nirgends sonst**. Ein Test, der
+`advisor/goals.py` um einen fuenften `Goal.scope`-Satz erweitert, findet
+diesen Satz danach in beiden Anzeigeorten der Zielrichtung wieder, ohne dass
+ein UI-String angefasst wurde; ein Test, der `SlotPool.unknowns` fuer einen
+Pool leert, findet dort **keine** Zeile 3b mehr, waehrend Zeile 4 unveraendert
+stehen bleibt.
+
+**Betroffene Akzeptanzkriterien:** AK-37 (beide bisherigen Wortlaute
+entfallen ersatzlos; die Aussage „keine Zeichenkette behauptet, welche Zahl
+richtig ist" gilt jetzt ueber `Goal.scope`/`SlotPool.unknowns` statt ueber
+einen festen Satz), AK-50 (gilt jetzt fuer **drei** Zeilen statt zwei — 3, 3b,
+4 —, alle ausserhalb der `QScrollArea`, keine gekuerzt; Zeile 3b ist die
+einzige der drei, die leer sein darf), der Nachtrag zu AK-47 oben (dessen
+offene Frage ist hiermit beantwortet: **keiner** der beiden dort genannten
+Wortlaute wird ausgeliefert).
+
+**ARCHITECTURE.md:513 und UI_SPEC.md:192** (§3.4 Punkt 4 selbst, oben in
+dieser Datei) zitieren weiterhin den alten Wortlaut A als Beispieltext einer
+frueheren Fassung dieser Sektion — das ist jetzt die **historische**
+Begruendung fuer diesen Nachtrag, nicht mehr die geltende Vorgabe. Wer §3.4
+Punkt 4 liest, liest ihn im Licht dieses Nachtrags.
+
+**Nicht Teil dieser Entscheidung:** ob `_ATTACK_RATING_UNKNOWNS`,
+`_DAMAGE_TAKEN_UNKNOWNS` oder ein `SlotPool.unknowns`-Eintrag inhaltlich
+richtig oder vollstaendig sind — das ist die Rechnung selbst (AD-004,
+AD-025), nicht die Anzeige. Der genaue Wortlaut der beiden heutigen
+`SlotPool.unknowns`-Saetze (Handle-Zeile, konditionale Zeile) steht in den
+beiden folgenden Nachtraegen.
+
+---
+
+## Nachtrag zu AK-34/QA-121: der Uebergangssatz braucht eine dritte Zeile,
+## seit Katalysatoren im selben Raster stehen (ui-ux-designer, T-052) — 2026-09-05
+
+**Grundlage:** `qa/findings.md` QA-121, `nrplanner/arsenaltab.py:306-311`,
+`docs/berichte/T-046-developer.md` §8.2 (Vorschlagstext des `developer`),
+der Nachtrag zu AK-34 oben (T-035).
+
+**Live bestaetigt (Screenshot):** Sucht man im Arsenal-Tab nach
+`Recluse's Staff`, zeigt das Raster ausschliesslich zwei Katalysator-Karten
+(`Spell power 139` / `Spell power 92`) — und die Zusammenfassungszeile
+darunter sagt trotzdem nur: *"Attack rating is base damage, plus what your
+stats add to it, plus the +% attack effects your equipped relics grant."*
+Der einzige Satz, der erklaert, was die Zahl auf dem Bildschirm bedeutet,
+handelt von einer Groesse, die auf keiner der sichtbaren Karten steht.
+Beleg: `docs/screenshots/2026-09-05/arsenal-recluses-staff-collision.png`.
+
+**Entscheidung, nah am Vorschlag des `developer` (T-046 §8.2), stilistisch an
+den Rest des Satzblocks angeglichen.** Der bestehende Satzblock
+(`arsenaltab.py:307-310`) bekommt **einen zusaetzlichen Satz in der Mitte**,
+zwischen der Attack-Rating-Definition und dem Zauber-Satz:
+
+> `Attack rating is base damage, plus what your stats add to it, plus the +% attack effects your equipped relics grant. Staves and seals show the spell scaling the game displays for them instead of an attack rating. Spell damage is not in the game's data, so spells show their costs instead.`
+
+Nicht der Vorschlagswortlaut selbst (*"For staves and seals the game shows a
+spell scaling instead of an attack power, so that is what their tiles
+show."*) — dieser Text erklaert die Kachel, nicht die Zusammenfassungszeile,
+und wiederholt "attack power" statt des im restlichen Satz benutzten "attack
+rating" (Terminologie-Bruch). Die hier gewaehlte Fassung nennt das Wort in
+derselben Form wie Satz 1, damit der Leser nicht zwei Namen fuer dieselbe
+Sache lernen muss.
+
+**AK-64** Der Zusammenfassungssatz des Arsenal-Tabs (`arsenaltab.py:306-311`,
+Fassung B des Uebergangs-Nachtrags zu AK-34) enthaelt zusaetzlich den Satz
+*"Staves and seals show the spell scaling the game displays for them instead
+of an attack rating."*, an der Stelle zwischen der Attack-Rating-Definition
+und dem Zauber-Satz, wortgleich. Ein Aufbau, bei dem der sichtbare
+Kachelraster nur Katalysatoren zeigt (z. B. Suche nach einem Stab- oder
+Siegel-Namen), zeigt diesen Satz **immer** — er ist nicht an die aktuelle
+Trefferliste gebunden, weil die Zusammenfassungszeile heute ohnehin fuer das
+ganze Arsenal gilt, nicht nur fuer den gefilterten Ausschnitt.
+
+**Verhaeltnis zu AK-34 selbst:** Sobald die AK-31-bis-AK-40-Umstellung auf
+zwei getrennte Labels (§2.3(e)) ausgeliefert wird, entfaellt dieser
+Uebergangssatz ohnehin zugunsten der endgueltigen Fassung — §2.3(e) nennt fuer
+Katalysatoren dort schon keinen eigenen Satz, weil Label 1 (Kontext) und
+Label 2 (Definition) je Basisgroesse getrennt sind. Dieser Nachtrag gilt nur
+fuer den heutigen Uebergangszustand (ein Prosablock), wie der Nachtrag zu
+AK-34 selbst.
+
+**Betroffene Akzeptanzkriterien:** AK-34 (Uebergangs-Wortlaut ergaenzt, siehe
+AK-64), QA-121 (damit geschlossen).
+
+---
+
+## Nachtrag zu QA-117: Anzeigeschwellen bleiben absolut, wandern nicht mit
+## dem Kalibrierungsfaktor (ui-ux-designer, T-052) — 2026-09-05
+
+**Grundlage:** `qa/findings.md` QA-117, `docs/berichte/T-045-developer.md`
+§4.2 und OF-3 (offene Frage an den `ui-ux-designer`), `nrplanner/app.py`
+(`abs(from_attributes) >= 0.5`, `abs(diff) >= 0.5`, `diff > 0.05`).
+
+**Die Frage:** Seit die 0,6-Kalibrierung eingezogen ist, faellt die Zeile
+`From attributes` 89-mal weg (vorher `|scaled - base| >= 0,5`, jetzt
+`< 0,5`) und 66 Aenderungszellen `+1` werden `—`. Sollen die Schwellen mit
+0,6 mitskaliert werden (≈ 0,83 statt 0,5), damit dieselben *Faelle* wie vorher
+eine Zeile zeigen?
+
+**Entscheidung: nein, die Schwellen bleiben, wo sie sind.** Begruendung, mit
+Akzeptanzkriterium:
+
+1. **Die Schwelle beschreibt die Anzeige, nicht das Spiel.** `0,5` ist die
+   halbe kleinste **darstellbare** Einheit einer auf null Nachkommastellen
+   gerundeten bzw. abgeschnittenen Ganzzahl (`f"{x:+.0f}"` /
+   `damage.displayed`) — sie sagt „diese Aenderung ist auf dem Bildschirm
+   nicht von 0 zu unterscheiden", nicht „diese Aenderung ist im Spiel
+   bedeutungslos". Die Anzeige selbst hat sich durch die Kalibrierung nicht
+   veraendert: sie zeigt immer noch ganze Zahlen, gerundet auf dieselbe Art,
+   in derselben Schriftgroesse. Eine Schwelle, die mitwandert, wuerde eine
+   Eigenschaft der **Kalibrierung** (0,6) in eine Eigenschaft der **Anzeige**
+   (wann eine Zeile erscheint) uebersetzen — genau die Art von erfundener
+   Umrechnung, die A7 fuer Spielgroessen verbietet, hier auf die Oberflaeche
+   selbst angewandt.
+2. **Mitwandern loest das Kernproblem nicht, es verschiebt nur die Kante.**
+   Jede feste Schwelle hat Faelle direkt daneben; 0,6 x 0,5 = 0,3 wuerde die
+   89 auf eine andere, nicht kleinere Menge von Grenzfaellen abbilden (Faelle
+   zwischen 0,3 und 0,5 waeren dann neu betroffen). Es gibt keine Schwelle,
+   die „dieselben Faelle wie vorher" UND „konsistent mit der neuen Zahl"
+   gleichzeitig erfuellt, weil die Rundungsregel selbst nicht linear mit dem
+   Faktor mitskaliert (T-045 §4.1: Summen aus mehreren gerundeten Schadensarten
+   verhalten sich nicht wie eine einzelne skalierte Zahl).
+3. **Der Fall ist bereits eine Anzeige-Wahrheit, keine verschwiegene
+   Information.** Zeile 4.9/AK-32-Nachbarschaft (§4 der Datei) verlangt schon,
+   dass eine Null als `no change` erscheint statt als `+0.0` — dieselbe Logik
+   gilt hier: unter der Rundungsschwelle **ist** die angezeigte Aenderung 0,
+   nicht "class="verschwiegen"". Der Spieler verliert keine echte Information,
+   die er vorher hatte; er sieht dieselbe Ehrlichkeitsregel auf kleinere
+   Zahlen angewandt.
+
+**AK-65** Die Anzeigeschwellen `>= 0.5` (Sichtbarkeit der Zeile
+`From attributes` und der Aenderungszelle) und `> 0.05` (Farbe GOOD/MUTED der
+Aenderungszelle) in `nrplanner/app.py` bleiben **absolute, an der
+Bildschirmeinheit gemessene Konstanten** und werden **nicht** mit einem
+Kalibrierungsfaktor multipliziert, auch nicht bei einer kuenftigen
+Neukalibrierung. Ein Test, der die 0,6-Konstante veraendert (z. B. auf 0,5
+oder 0,7), darf die Zahl der betroffenen Faelle bewegen, aber keine der
+beiden Schwellenkonstanten selbst.
+
+**Was das nicht heisst:** Diese Entscheidung bewertet nicht, ob 89 bzw. 66
+verschwundene Zeilen an sich zu viele sind — das waere eine Frage an die
+Rundungsregel/Anzeigepraezision selbst (z. B. eine Nachkommastelle zeigen),
+nicht an die Schwelle, und ist nicht Teil dieses Auftrags.
+
+---
+
+## Nachtrag zu QA-119: die Fremdzeile wird gefiltert, nicht durch eine Id
+## unterscheidbar gemacht (ui-ux-designer, T-052) — 2026-09-05
+
+**Grundlage:** `qa/findings.md` QA-119, `docs/berichte/T-046-developer.md`
+§7 (Kriterien) und §8.1 (Empfehlung des `developer`),
+`docs/screenshots/2026-09-05/arsenal-recluses-staff-collision.png` (live
+bestaetigt: zwei Karten `Recluse's Staff`, `Common · Upgraded to +4
+Legendary` auf beiden, unterscheidbar nur durch `Spell power 139` gegen
+`Spell power 92` — kein Merkmal auf der Karte selbst sagt, welche die
+„echte" ist).
+
+**Entscheidung: filtern, nicht kennzeichnen — dem Rat des `developer`
+folgend.** Eine Id auf der Kachel (Alternative aus T-046 §8.1) loest das
+Problem nicht, sie verschiebt es: der Spieler muesste wissen, **welche** Id
+richtig ist, um sie zu nutzen, und die Kollision beruht nicht auf einer
+legitimen Spielunterscheidung (zwei echte Varianten desselben Namens), sondern
+auf einer **Datenzeile, die kein Spieler je ausruesten kann** — Kriterium aus
+T-046 §7, gemessen: 33770000 traegt `equippedSpell_R1/R2 == -1` (kein
+Zauberplatz), `reinforceTypeId == 0` (generische Gruppe) und
+`attackElementCorrectId == 10000` (generische AEC), alle drei **innerhalb der
+Katalysator-Familie eindeutig** auf diese eine Zeile. Ein Katalysator ohne
+Zauberplatz ist kein Katalysator, den ein Spieler in der Hand haben kann — er
+ist ein Artefakt der Extraktion, keine Wahlmoeglichkeit.
+
+**AK-66** Eine Waffenzeile, die zur Katalysator-Familie gehoert (Glintstone
+Staff / Sacred Seal, `model.weapon_class(weapon) == "catalyst"`) und
+gleichzeitig `equippedSpell_R1 == -1 and equippedSpell_R2 == -1` traegt
+(keinen Zauberplatz), erscheint **nirgends** in einer spielerseitigen
+Waffenliste — nicht im Arsenal-Tab, nicht im `WeaponDialog`-Auswahldialog,
+nicht in einer kuenftigen Berater-Kandidatenliste. Der Filter greift **nur**
+innerhalb der Katalysator-Familie (T-046 §7: ausserhalb ist „kein Zauberplatz"
+der Normalfall fuer ein Schwert und sagt nichts). Damit sinkt die Zahl der
+sichtbar gefuehrten Katalysatoren um genau die eine betroffene Zeile
+(33770000); alle anderen Namen (`Finger Seal`, `Scholar's Thrusting Sword`)
+sind von diesem Kriterium nicht betroffen (T-046 §7: beide Kollisionen dort
+sind zahlengleich bzw. kosmetisch, kein Betrugsfall).
+
+**Warum keine Id auf der Kachel als Zusatzloesung:** AK-33/AK-41-Stil dieser
+Datei haelt Kachel-Kopfzeilen bewusst kurz und ohne technische Kennungen; eine
+Id waere die erste Zahl dieser Art auf einer Waffenkachel und muesste dann
+konsequent ueberall stehen, wo Namenskollisionen prinzipiell moeglich sind
+(auch bei den zahlengleichen Kollisionen), fuer keinen erkennbaren Gewinn,
+wenn die eigentliche Ursache (eine nicht ausruestbare Zeile) stattdessen
+verschwinden kann.
+
+**Betroffene Akzeptanzkriterien:** keine bestehende AK widerspricht; neu:
+AK-66. QA-119 gilt mit dieser Vorgabe als entschieden, nicht als geschlossen —
+die Umsetzung liegt beim `developer`.
+
+---
+
+## Nachtrag zu OF-20, QA-108 und QA-113: die drei Saetze in `SlotPool.unknowns`
+## (ui-ux-designer, T-052-Nachtrag) — 2026-09-05
+
+**Korrektur 2026-09-05, zweiter Nachtrag desselben Tages.** Dieser Abschnitt
+hiess urspruenglich „die beiden Saetze in `SlotPool.unknowns`" und AK-67
+nannte eine Obergrenze von zwei. Seit QA-113 (vier Relikte, „Starting
+armament deals magic/fire/lightning/holy damage", tragen eine echte
+Umwandlung von physischem in elementaren Schaden, die das Programm mit
+exakt 0 bewertet) ist ein **dritter** Laufbefund desselben Feldes dazu-
+gekommen. Der `developer` hat richtig gehandelt und keinen Wortlaut
+erfunden, sondern `[wording pending: QA-113]` stehen lassen — hier
+nachgezogen: dritter Wortlaut unten, Obergrenze auf drei angehoben,
+Titel und Kopftext entsprechend erweitert. Nichts an den ersten beiden
+Wortlauten oder an AK-63 (Erscheinungsort) aendert sich.
+
+**Grundlage:** `ARCHITECTURE.md` Nachtrag VI, AD-025 (Punkt 38 der
+Verbotsliste; OF-20; die Tabelle „Anwendung auf den heutigen Bestand", die
+QA-113s Blindstelle bereits als zweigeteilt vorwegnimmt), `qa/findings.md`
+QA-108 und QA-113, `nrplanner/advisor/candidates.py::_without_a_handle_line`,
+der Nachtrag zu QA-116 oben (Zeile 3b, wo alle drei Saetze erscheinen), die
+Coordinator-Nachricht vom 2026-09-05 zu QA-113. Alle drei sind Laufbefunde
+(`SlotPool.unknowns`, AD-025), alle drei tragen eine Anzahl, alle drei sind
+Aussagen ueber Unwissen — kein Warnhinweis-Ton, keine Ausrufezeichen, keine
+Wertung, keine behauptete Groesse oder Richtung einer Abweichung.
+
+### Die konditionale Zeile (D2, OF-20)
+
+AD-004 verlangt sinngemaess „N of your relics" — gezaehlt ueber die
+Kandidaten **dieses Pools** (also nach Farbe/Deep bereits gefiltert, dieselbe
+Grundgesamtheit wie die Handle-Zeile unten), nicht ueber den gesamten
+Besitzstand. Endgueltiger Wortlaut, ersetzt die im Code als Platzhalter
+benannte Fassung („die den gezaehlten Bestand beschreibt, nicht 'your
+relics'", AD-025 Punkt 38):
+
+> Einzahl: `1 of your relics carries an effect that only applies under a condition. It was not counted.`
+> Mehrzahl: `{n} of your relics carry effects that only apply under a condition. They were not counted.`
+
+Bewusst **ohne** Beispiel in Klammern (etwa „only below half HP"): eine
+Auswahl von Beispielen muesste fuer jedes betroffene Relikt stimmen oder
+waere selbst eine Lücke, die A7 wieder aufreisst — welche Bedingung genau
+gemeint ist, steht ohnehin schon je Relikt in seiner Effektzeile.
+„Not counted" statt „ignored" oder „skipped", weil es die neutralste der drei
+Notizen ist — die beiden anderen klingen nach einem Fehler des Programms,
+nicht nach einer Grenze der Daten.
+
+### Die Handle-Zeile (QA-108) — ein Muster, zwei Fuellungen
+
+Die heutige Zeile nennt **immer** „of this colour", auch am weissen Slot, wo
+sie falsch ist: `inventory.relics_for` liefert dort Kandidaten **jeder**
+Farbe (`model.COLOUR_NAMES[4] = "White"` ist die Karte, kein Farbwert, den
+ein Relikt selbst tragen kann), also faellt bei einem weissen Slot potenziell
+eine Kopie **jeder** Farbe durch dieselbe Handle-Luecke — „of this colour"
+behauptet dort eine Eingrenzung, die es nicht gibt. Die Anzahl selbst war nie
+falsch (sie summiert schon ueber alles, was der Slot tatsaechlich anbietet);
+falsch ist nur die Beschreibung, was gezaehlt wurde. Loesung: **ein**
+Satzgeruest, **zwei** Fuellungen fuer die eine Stelle, die sich unterscheidet
+— ausgewaehlt danach, ob `slot.colour` der Wert ist, dessen Name in
+`model.COLOUR_NAMES` „White" lautet (heute `4`; es gibt noch keine eigene
+Konstante dafuer, der `developer` waehlt die Pruefung):
+
+> Farbiger Slot, Einzahl: `1 owned relic of this colour is not offered: this save carries no handle for it, so one copy cannot be told from another and a suggestion naming one could not be applied to a slot.`
+> Farbiger Slot, Mehrzahl: `{n} owned relics of this colour are not offered: this save carries no handle for them, so one copy cannot be told from another and a suggestion naming one could not be applied to a slot.`
+> Weisser Slot, Einzahl: `1 owned relic of any colour is not offered: this save carries no handle for it, so one copy cannot be told from another and a suggestion naming one could not be applied to a slot.`
+> Weisser Slot, Mehrzahl: `{n} owned relics of any colour are not offered: this save carries no handle for them, so one copy cannot be told from another and a suggestion naming one could not be applied to a slot.`
+
+Einzige Aenderung gegenueber dem Bestand: `this` → `any` an der einen
+Stelle, die die Reichweite benennt — kein zweiter Satzbau, kein neuer Fall
+fuer Singular/Plural, den es nicht schon gaebe.
+
+### Die QA-113-Zeile (dritter Laufbefund, neu)
+
+Vier Relikte tragen einen Effekt „Starting armament deals magic/fire/
+lightning/holy damage", der in den Spieldaten eine echte Umwandlung von
+`physicsAttackPower` in ein elementares `*AttackPower`-Feld ist — `model.
+compute` hat fuer flache `*AttackPower`-Felder kein Fach (QA-113) und bewertet
+die Umwandlung deshalb mit exakt 0, waehrend die Effektkarte selbst Zahlen
+nennt. **Die Hoehe der Abweichung ist unbekannt und wird hier nicht
+geraten** — das kann erst eine Ablesung im laufenden Spiel entscheiden (siehe
+`docs/state.md`, Frage F-F). Der Satz benennt ausschliesslich die
+Blindstelle, ohne Richtung oder Betrag zu behaupten:
+
+> Einzahl: `1 of your relics changes what damage type your starting armament deals (to magic, fire, lightning, or holy). This figure does not count that change.`
+> Mehrzahl: `{n} of your relics change what damage type your starting armament deals (to magic, fire, lightning, or holy). This figure does not count that change.`
+
+Die vier Elemente in Klammern sind die vollstaendige, abgeschlossene Liste
+aus QA-113 (nicht ein Beispiel aus einer offenen Menge wie bei der
+konditionalen Zeile oben) — deshalb hier ausgeschrieben, ohne A7-Risiko: es
+gibt keinen fuenften Fall, der die Aufzaehlung falsch machen koennte, solange
+QA-113 bei vier Relikten bleibt. „This figure does not count that change"
+statt einer Zahl oder eines Vorzeichens, weil genau das die einzige wahre
+Aussage ist, die wir haben.
+
+**Ein Relikt kann in mehr als einer der drei Zeilen mitzaehlen** — Vorgabe
+des `director`: 16 der 21 konditionalen Effekte mit flachem `*AttackPower`
+sind zugleich konditional, und beide Zaehlungen bleiben bestehen, weil sie
+verschiedene Fragen beantworten (*"wird dieser Effekt gerade angerechnet"*
+gegen *"kann diese Art Effekt ueberhaupt angerechnet werden"*). Das ist
+**keine sichtbare Dopplung**: keine der drei Zeilen nennt ein Relikt beim
+Namen, jede ist eine Pool-weite Summe — ein Spieler sieht zwei unabhaengige
+Zahlen, nie zweimal denselben Reliktnamen. Eine Anzeigeentscheidung, die das
+verhindern muesste, ist deshalb nicht noetig.
+
+**AK-67** `SlotPool.unknowns` traegt fuer den heutigen Bestand **bis zu drei**
+Saetze, in dieser Reihenfolge, falls mehrere zutreffen — Handle-Zeile, dann
+konditionale Zeile, dann QA-113-Zeile (steigende Beteiligung an der Rechnung:
+nie im Pool → im Pool, aber gegen eine Bedingung auf 0 gesetzt → im Pool,
+aber durch eine fehlende Rechnungsart auf 0 gesetzt). Alle drei folgen den
+Wortlauten oben, wortgleich, mit `{n}` ersetzt durch die tatsaechliche Anzahl
+und Singular/Plural korrekt gewaehlt; die Handle-Zeile nennt „of this
+colour" ausschliesslich, wenn `slot.colour` nicht der weisse Platzhalter ist,
+sonst „of any colour". **Keine Obergrenze unter drei**: faellt ein vierter
+Fall dieser Art je an, braucht er eine eigene AK, keine Kuerzung der
+bestehenden drei. Alle zutreffenden Saetze stehen **in derselben Zeile 3b**
+(bzw. demselben Slot-Abschnitt in §3.4 Punkt 2), durch ein Leerzeichen
+getrennt, als ein einziger flexibel umbrechender Textblock — Zeile 3b war
+nie ein festes Zeilenraster, sondern ein wachsender Fliesstext wie Zeile 4
+selbst (dort schon bis zu fuenf Saetze fuer eine Zielrichtung); ein dritter
+Satz verlangt deshalb keine neue Struktur, nur mehr Zeilenumbruch in
+derselben `QLabel`.
+
+**Betroffene Akzeptanzkriterien:** AK-63 (Erscheinungsort, unveraendert),
+AK-67 (Wortlaut, Reihenfolge und Obergrenze — von zwei auf drei Saetze
+erweitert). QA-108, OF-20 und QA-113 gelten mit dieser Vorgabe als
+entschieden — Umsetzung liegt beim `developer`.
+
+---
+
+## Die sechs Inhalts-Tabs: welche Frage jeder beantwortet, und woran ein
+## Spieler das abliest (ui-ux-designer, T-056) — 2026-09-05
+
+**Geltungsbereich:** `Effects & chances`, `Weapons & spells`, `Nightlords`,
+`Deep of Night`, `Red variants`, `World Events`. **Nicht** `Build planner`
+(GOAL: „der erste passt"), **nicht** der Berater.
+
+### 0. Grundlage, Methode und Beweisklassen
+
+**Grundlage:** `GOAL.md` A10 bis A14 · `docs/berichte/T-055-qa-engineer.md`
+(QA-125 bis QA-139) · `docs/tasks/T-056.md` · eigene Sichtpruefung am
+laufenden Fenster am 05.09.2026, Screenshots unter
+`docs/screenshots/2026-09-05-T056/`.
+
+**Fehlende Quelle, ausdruecklich:** `docs/berichte/T-054-power-user.md`
+**existiert nicht** — weder im Arbeitsbaum, noch untracked, noch in einem
+Commit ueber alle Refs, noch im Stash (geprueft: `find`, `git ls-files
+--others`, `git log --all -- "*T-054*"`, `git stash list`). `docs/state.md`
+fuehrt T-054 als „geschrieben". Alles, was in dieser Vorgabe auf den
+`power-user` zurueckgeht, stammt **aus zweiter Hand** aus den drei Zitaten in
+`docs/tasks/T-056.md` und ist unten als solches gekennzeichnet. Die Vorgabe
+steht trotzdem, weil sie an jeder Stelle **zusaetzlich** durch eine Messung
+des `qa-engineer` oder durch einen eigenen Screenshot getragen wird — an
+keiner Stelle allein durch das Zitat.
+
+**Beweisklassen**, je Aussage unten mitgefuehrt:
+
+- *(visuell)* — am laufenden Fenster gesehen, Screenshot liegt bei.
+- *(gemessen)* — headless am echten Widget gemessen, Zahl im Text.
+- *(QA)* — Messung des `qa-engineer` aus T-055, nicht selbst nachgefahren.
+- *(zweiter Hand)* — Zitat aus T-056 ueber einen Bericht, der nicht vorliegt.
+
+**Messumgebung:** Fenster `Nightreign Helper 1.7.1`, `.venv\Scripts\python.exe
+run.py`, Bildschirm 2560x1600 physisch bei 150 % Windows-Skalierung
+(= 1707x1067 logisch), Fensterbreiten 1250 / 1600 / 2100 physisch.
+Headless-Messungen mit `QT_QPA_PLATFORM=offscreen` gegen
+`%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`.
+
+---
+
+### 1. Was fuer alle sechs Tabs gilt
+
+#### 1.1 Das Kopfmuster (A10)
+
+Drei der sechs Tabs haben es bereits und tragen es gut (`Deep of Night`,
+`Red variants`, `World Events`), drei nicht (QA-138). Es wird das Muster
+**aller sechs**:
+
+1. **Zeile 1 — Ueberschrift.** `_heading(...)` in der bestehenden Form:
+   `color: #c8a45c; font-size: 12px; font-weight: bold; letter-spacing: 1px`,
+   Text in GROSSBUCHSTABEN. Die Ueberschrift ist **die Frage oder das Ziel**,
+   nicht der Bestand.
+2. **Zeile 2 — Fragesatz.** Ein `QLabel`, `color: #8a8a8a; font-size: 11px`,
+   `setWordWrap(True)`, direkt darunter. Er sagt in einem Satz, welche Frage
+   der Tab beantwortet, und wo noetig, welche er **nicht** beantwortet.
+3. **Erst danach** Filterzeile, Bestandszaehlung und Inhalt. Die heutige
+   Bestandszaehlung (`577 buffs (blue) then 75 curses (red). …`) bleibt, aber
+   sie ist nie das Erste, was der Leser trifft.
+
+**AK-68** Jeder der sechs Tabs zeigt beim Erstoeffnen, **oberhalb jedes
+Bedienelements und jeder Zahl**, eine `_heading()`-Ueberschrift und
+unmittelbar darunter genau einen Fragesatz-Absatz in `#8a8a8a`/11 px mit
+`setWordWrap(True)`. Die Wortlaute stehen in §2 bis §7 und sind wortgleich zu
+uebernehmen. Ein Test, der den ersten sichtbaren Textknoten jedes der sechs
+Tab-Widgets ausliest, findet dort die Ueberschrift — auf keinem Tab eine
+Zahl, einen Filter oder eine Bestandszeile.
+
+#### 1.2 Keine Zahl ohne Bezugsgroesse (A12, QA-128)
+
+**AK-69** Auf keinem der sechs Tabs steht eine Zahl, deren Einheit **und**
+deren Bezugsgroesse nicht entweder in ihrer eigenen Zeile oder in genau einem
+Erklaersatz desselben Abschnitts benannt ist. Die zehn heute offenen Stellen
+sind in §2 bis §7 einzeln mit ihrem verbindlichen Wortlaut aufgefuehrt; ein
+Test, der die zehn Zeichenketten sucht, findet zu jeder den zugehoerigen
+Erklaersatz auf demselben Tab.
+
+**AK-70** Wo die Bezugsgroesse **auch im Code nicht bekannt** ist, sagt der
+Bildschirm das, statt die Zahl kommentarlos zu zeigen oder sie wegzulassen
+(GOAL A7, ausgedehnt auf die Anzeige). Der Wortlaut fuer diesen Fall ist je
+Stelle unten festgelegt und enthaelt immer die Formel *„the files do not
+say"*. Betroffen heute: `Reward multiplier` (§5), `Refills at` (§4),
+`… buildup` (§3), `stamina recovery speed +5` (§7).
+
+#### 1.3 Nichts abgeschnitten, nichts halb da (A13)
+
+Drei eigene Befunde am laufenden Fenster, alle *(visuell)* und *(gemessen)*:
+
+- **Der `Nightlords`-Tab zeigt bei 1600 px Fensterbreite acht von zehn
+  Nightlords.** Das Kartenraster ist auf `COLUMNS = 4` fest verdrahtet
+  (`bosstab.py:35`), das Detailpanel daneben auf `setFixedWidth(330)`
+  (`bosstab.py:288`), und beide sitzen in einer `QHBoxLayout` — also
+  **nicht** in einem verschiebbaren Splitter. Spalte 3 (Gnoster, Caligo)
+  bricht mitten im Satz ab, Spalte 4 (**Maris** und **Harmonia**) ist
+  vollstaendig unsichtbar, waehrend die Kopfzeile „10 Nightlords" behauptet.
+  Bei 2100 px erscheinen beide Karten — der Beweis, dass es Layout ist und
+  nicht Daten.
+  Belege: `docs/screenshots/2026-09-05-T056/tab3-nightlords.png` (acht) gegen
+  `…/tab3-nightlords-wide2100.png` (zehn, Maris und Harmonia in Spalte 4).
+  Die waagerechte Bildlaufleiste, ueber die man Spalte 4 theoretisch
+  erreichte, sitzt an der Unterkante des Tabs — und die liegt auf diesem
+  Bildschirm hinter der Taskleiste (siehe dritter Punkt).
+  Beleg: `…/zoom-nightlords-bottom.png`.
+- **Der `Weapons & spells`-Tab schneidet die letzte Kachelspalte ab**, und
+  weil die Werte rechtsbuendig stehen, verschwinden **die Zahlen zuerst**:
+  auf der abgeschnittenen Kachel steht `AR`, `Physical`, `Magic` — ohne einen
+  einzigen Wert. Ursache: `COLUMNS = 5` fest (`arsenaltab.py:15`) bei
+  `CARD_WIDTH = 200`. Reproduziert bei 1600 px (5. Spalte) und bei 1250 px
+  (4. Spalte).
+  Belege: `…/zoom-tile-clipped.png`, `…/tab2-weapons-narrow1250.png`.
+- **Das Fenster passt auf diesem Bildschirm nicht ueber die Taskleiste.**
+  Gemessen: die Mindesthoehe des Fensters betraegt **1606 physische px**
+  (getestet mit `MoveWindow` auf 500/700/1000/1300 — das Fenster bleibt bei
+  1606). Der Bildschirm ist 1600 hoch, die Arbeitsflaeche nach Taskleiste
+  ~1552. Verursacher ist **ein einziger Tab**: `Deep of Night` meldet
+  `minimumSizeHint().height() = 949` logische px, alle anderen fuenf melden
+  111 bis 443. `deeptab.py` hat **keine** `QScrollArea` und setzt vier
+  Tabellen per `setFixedHeight`. Folge: die beiden letzten Erklaerzeilen des
+  Tabs (*„The cursed-relic rates do not move with depth."*, *„Read from the
+  game's own depth table."*) sind auf diesem Bildschirm nie sichtbar und
+  **nicht scrollbar erreichbar**.
+  Belege: `…/tab4-deep.png` (unten abgeschnitten) gegen
+  `…/zoom-deep-bottom.png` (dieselbe Stelle, Fenster nach oben geschoben).
+
+**AK-71** Kein Tab setzt eine Mindesthoehe ueber **860 logische px**
+(`minimumSizeHint().height()`), gemessen an einer echten Widget-Instanz. Wo
+der Inhalt hoeher ist, ist er in einer `QScrollArea` mit
+`setWidgetResizable(True)`. Ein Test, der die sechs Tab-Widgets baut und ihre
+`minimumSizeHint()` abfragt, findet **keinen** Wert ueber 860; der heutige
+Ausreisser ist `Deep of Night` mit 949.
+
+**AK-72** Kein Kachel- oder Kartenraster hat eine feste Spaltenzahl. Die
+Spaltenzahl folgt aus der verfuegbaren Breite (`max(1, breite //
+(kartenbreite + abstand))`), und es wird **nie eine Kachel teilweise
+gezeichnet**. Ein Test, der `BossTab` bzw. `ArsenalTab` auf 1250, 1600 und
+2100 logische px setzt, findet bei jeder Breite: alle Karten vollstaendig
+sichtbar, `horizontalScrollBar().isVisible()` **False**, und im
+`Nightlords`-Tab alle **zehn** Kartennamen im ausgelesenen Text.
+
+**AK-73** Keine angezeigte Zeichenkette bricht mitten in einem Begriff um.
+Verbindlich fuer die Wertzeilen der Waffenkachel: ein Wert aus mehreren
+`·`-getrennten Gruppen bricht **nur zwischen zwei Gruppen** um, nie
+innerhalb einer. Der heutige Bruch `STR -7 · ARC +45 · DEX` / `-7` ist damit
+ausgeschlossen. Beleg des Ist-Zustands: `…/zoom-tile-wrap.png`.
+
+> **Korrektur an meiner eigenen Vorgabe.** `DESIGN_REVIEW.md`, T-052,
+> Abschnitt „Positiv / beibehalten", hat die Arsenal-Kachel als Vorbild
+> gegen DR-009 gelobt („Bezeichnung und Wert in getrennten, gestapelten
+> Zeilen"). Das galt fuer den damals geprueften Fall (`Spell power` / `145`,
+> ein kurzer Wert). Fuer die langen Skalierungswerte trifft dasselbe
+> Muster denselben Fehler wie DR-009 — nur eine Zeile tiefer. Das Lob bleibt
+> fuer den Einzelfall richtig und **taugt nicht als allgemeine Regel**;
+> AK-73 ersetzt es als Regel.
+
+#### 1.4 Farbrollen brauchen eine Legende (A12)
+
+Der `Nightlords`-Tab benutzt heute **drei** Farbrollen ohne jede Legende
+*(visuell,* `…/tab3-nightlords-gladius.png`*)*: gruen fuer die Schwaeche in
+der Schadenstafel, gruen fuer die leichtesten Statuswerte, und ein
+abweichendes Gruen (`OBSERVED_COLOUR`) fuer im Spiel Gesehenes. QA-131 nennt
+denselben Mangel.
+
+**AK-74** Jede Farbe, die auf einem der sechs Tabs eine **Bedeutung** traegt
+(und nicht nur Typografie ist), wird auf demselben Tab genau einmal benannt —
+in einem Satz oder einer Legendenzeile, nicht nur in einem Tooltip.
+Betroffen: gruen im `Nightlords`-Tab (zwei Bedeutungen, siehe §4), blau/rot
+im `Effects`-Tab, blau als „community-reported" im `Red variants`- und im
+`World Events`-Tab (dort heute schon korrekt benannt — das ist das Vorbild).
+
+#### 1.5 Ein Gedankenstrich, nicht zwei Bindestriche
+
+*(gemessen)* In den sieben Modulen der sechs Tabs enthalten **23**
+String-Literale ` -- ` und **24** ein `—`; darunter sind angezeigte
+Zeichenketten beider Sorten, teils nebeneinander (`depthstab.py:87` zeigt
+*„individual empowered enemies -- the same enemy"*, waehrend der Nachbartab
+*„Lasts the rest of the expedition — not consumed"* zeigt).
+
+**AK-75** In keiner **angezeigten** Zeichenkette der sechs Tabs steht ` -- `.
+Der Gedankenstrich ist `—` (U+2014), mit Leerzeichen davor und danach.
+Docstrings und Kommentare sind ausgenommen. Ein Test, der den sichtbaren Text
+aller sechs Tabs einsammelt, findet **0** Vorkommen von ` -- `.
+
+---
+
+### 2. `Effects & chances`
+
+#### 2.1 Die Frage, und wo sie steht
+
+> **Ueberschrift:** `WHAT A RELIC CAN ROLL, AND HOW OFTEN`
+>
+> **Fragesatz:** `Every effect a relic can carry, how likely you are to roll
+> it, and whether carrying a second copy is worth anything.`
+
+**AK-76** Der Tab oeffnet mit diesen beiden Zeilen, wortgleich, oberhalb der
+Filterzeile. Die heutige Bestandszeile (`577 buffs (blue) then 75 curses
+(red). …`) rutscht darunter und behaelt ihren Stil.
+
+#### 2.2 Die Tabelle: Breite folgt Bedeutung
+
+*(gemessen, headless, `EffectsTab` auf drei Breiten)* — die zwei Spalten, die
+die Frage beantworten, bekommen heute nur, was die anderen neun uebriglassen:
+
+| Tabellenbreite | `Effect` | `What it does` | zusammen | Rest (9 Spalten) |
+|---|---|---|---|---|
+| 1516 px | **22 px** | **21 px** | 43 px (2,8 %) | 1473 px |
+| 1856 px | 192 px | 191 px | 383 px (21 %) | 1473 px |
+| 2356 px | 442 px | 441 px | 883 px (37 %) | 1473 px |
+
+Bei 1516 px sind **652 von 652** Effektnamen und **652 von 652**
+Beschreibungen breiter als ihre Zelle; selbst bei 2356 px sind es noch
+333 bzw. 457. *(visuell, `…/tab1-effects.png`)*: vier aufeinanderfolgende
+Zeilen lesen sich als `Successful …`, `Successful …`, `Successful …`,
+`Successful …` und sind voneinander nicht zu unterscheiden.
+
+Die 1473 px gehen an Spalten mit sehr wenig Information *(gemessen)*:
+`Colours` 295 px fuer **10** verschiedene Zeichenketten (491 von 652 Zeilen
+zeigen dieselbe: `Red, Blue, Yellow, Green`), `Stacking` 343 px fuer 9,
+`Comes with curse` 214 px fuer 4 (302 davon leer), `Copies` 94 px fuer eine
+Spalte, die in 638 von 652 Zeilen `1` zeigt, `Type` 70 px fuer 2 Werte, die
+die Textfarbe bereits sagt.
+
+Ursache *(gemessen)*: `refresh()` ruft `resizeColumnsToContents()` und setzt
+danach nur Spalte 0 und Spalte 10 auf `QHeaderView.Stretch` — Stretch bekommt
+per Definition, was uebrig ist, und uebrig ist bei 1516 px nichts.
+
+**AK-77** Im `Effects`-Tab ist `Effect` die breiteste Spalte der Tabelle, bei
+jeder Fensterbreite. Verbindlich: `Effect` bekommt mindestens **320**
+logische px und `What it does` mindestens **260**, bevor irgendeine andere
+Spalte mehr als ihre Kopfzeilenbreite bekommt; die uebrigen Spalten sind
+`ResizeToContents` mit einer Obergrenze, die kleiner ist als die Breite von
+`Effect`. Ein Test, der die Tabelle auf 1516 logische px setzt, findet
+`sectionSize(0) >= 320` und `sectionSize(0) > sectionSize(i)` fuer alle
+i != 0. Ein Effektname von 40 Zeichen ist bei 1516 px vollstaendig lesbar.
+
+#### 2.3 `Pools` — die Zahl, die ihren eigenen Namen widerlegt
+
+**Befund (QA-125, zwei unabhaengige Belege):** die Spalte zaehlt keine Pools,
+sondern (Relikt x Effektplatz)-Vorkommen. Die Identitaet
+`333 167 + 5 760 = 338 927` geht exakt auf; das Spiel definiert laut
+Direktlesung nur **598** Pool-Tabellen, waehrend die Spalte bis **1 110**
+zeigt *(gemessen: Wertebereich der Spalte heute 0 bis 1 110)*. Der eigene
+Tooltip erklaert zusaetzlich, dass die Spalte die Frage nicht beantwortet:
+*„More pools does not mean more likely — the two chance columns say that."*
+*(zweiter Hand)* Der `power-user` nannte die Zahl fuer etwas, das er sich als
+Ziehtoepfe vorstellte, „riesig".
+
+**Entscheidung:** Der Zustand „steht da und heisst falsch" endet. Ich
+**schlage die Streichung der Spalte vor** (§8) und lege fuer beide Ausgaenge
+fest, was gilt:
+
+**AK-78** In der Effektetabelle steht **keine** Spalte mehr mit der
+Ueberschrift `Pools`.
+
+- *Ausgang A (mein Vorschlag, Streichung):* Die Spalte entfaellt. Ihre
+  einzige heute tragende Funktion — die `0` als Signal „unter diesen Filtern
+  nicht erreichbar" — wandert vollstaendig in die Chance-Zellen, die dafuer
+  bereits einen Tooltip haben; die Chance-Zelle zeigt in diesem Fall `—` und
+  traegt den Tooltip `No relic effect slot can roll this under the current
+  colour and mode filters. It exists as a rung of its ladder; other filters
+  may reach it.` Die Zahl selbst bleibt als Teil des Chance-Tooltips
+  erhalten, korrekt benannt: `{n} of the game's relic effect slots can roll
+  this.`
+- *Ausgang B (der App Designer behaelt sie):* Die Spalte heisst
+  `Relic slots`, und ihr Kopf-Tooltip lautet wortgleich: `How many of the
+  game's relic effect slots can roll this effect, counted over every relic
+  and every slot on it. It is not a count of loot pools, and more slots does
+  not mean more likely — the chance column says that.`
+
+In **beiden** Ausgaengen gilt: die Zeichenkette `A pool is one of the lists a
+relic's effects are drawn from` kommt im Baum nicht mehr vor.
+
+#### 2.4 `Avg chance` und `Best chance` — erst die Definition
+
+**Befund (QA-126):** die Spalte ist ein **ungewichtetes** Mittel ueber
+(Farbe x Modus)-Eimer. Sie entspricht weder dem Tooltip (*„averaged over
+every pool"*) noch der Zusammenfassung (*„how likely an effect is on one
+roll"*) — beide stehen gleichzeitig auf demselben Bildschirm und sagen
+Verschiedenes. **129 von 616** Effekten aendern ihre Prozentzahl bei
+Gewichtung nach Vorkommen; der schlimmste Fall zeigt **20,4 %** statt
+**0,91 %** (Faktor 22,3).
+
+Dazu ein zweiter, unabhaengiger Mangel derselben Zusammenfassungszeile
+*(visuell, `…/tab1-effects.png`)*: sie sagt *„on one roll of the selected
+colour and mode"*, waehrend die Voreinstellung `All colours` ist — es ist gar
+keine Farbe gewaehlt.
+
+**Was ich entscheide, weil es objektiv ist:**
+
+**AK-79** Die heutige ungewichtete Mittelung ueber Farb-/Modus-Eimer wird
+nicht ausgeliefert. Auf dem Bildschirm steht zu den Chance-Zahlen **genau
+eine** Definition, an **genau einer** Stelle, und sie nennt (a) die
+Bezugsgroesse „per relic effect slot", (b) dass die aktuellen Filter darin
+stecken, und (c) dass die Zahl **nicht** die Wahrscheinlichkeit pro Relikt
+oder pro Lauf ist. Verbindlicher Wortlaut des einen Satzes:
+`Chance is per relic effect slot, over every slot that can roll the effect
+under the filters above — not per relic and not per run.`
+Der heutige Tooltip-Satz *„averaged over every pool that can produce it"* und
+der heutige Zusammenfassungs-Halbsatz *„how likely an effect is on one roll
+of the selected colour and mode"* kommen im Baum nicht mehr vor. Ein Test,
+der den sichtbaren Text des Tabs einsammelt, findet die Zeichenkette
+`per relic effect slot` **genau einmal**.
+
+**AK-80** Der angezeigte Mittelwert ist nach Vorkommen gewichtet, nicht ueber
+Eimer gemittelt. Pruefbar an dem in QA-126 aufgeschluesselten Einzelfall:
+`[Wylder] Improved Mind, Reduced Vigor` zeigt **0,91 %**, nicht 20,4 %.
+
+**Was ich nicht entscheide** — siehe §10, Frage 1: ob der Tab nach der
+Korrektur **zwei** Zahlenspalten behaelt (gewichteter Mittelwert + bester
+Fall) oder **eine** Spannenspalte (`0.5 – 100 %`). Beide sind nach AK-79 und
+AK-80 ehrlich; die Wahl ist eine Frage der Tabellendichte und gehoert dem App
+Designer.
+
+#### 2.5 `Tier` und `Copies` (QA-127)
+
+**AK-81** `Tier` und `Copies` werden aus dem **ungefilterten** Effektbestand
+gebildet; die Filter bestimmen nur, welche Zeilen sichtbar sind. Pruefbar:
+`Continuous HP Recovery` traegt bei `All colours` `1 of 2` / `2 of 2` und
+traegt dieselbe Leitersprosse auch bei Farbfilter `Red`, statt eine leere
+Zelle zu zeigen.
+
+---
+
+### 3. `Weapons & spells`
+
+#### 3.1 Die Frage, und wo sie steht
+
+> **Ueberschrift:** `WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD`
+>
+> **Fragesatz:** `Every armament and spell in the game, rated for the
+> Nightfarer, level and upgrade set above. Spell damage is not in the game's
+> data, so spells show what they cost you instead.`
+
+**AK-82** Der Tab oeffnet mit diesen beiden Zeilen, wortgleich. Die heutige
+Zusammenfassung (`Wylder at level 1, +1 — VIG 10 … 1952 shown. …`) rutscht
+darunter; ihr letzter Satz (*„Spell damage is not in the game's data, so
+spells show their costs instead."*) entfaellt dort, weil er jetzt im
+Fragesatz steht — er darf nicht zweimal auf demselben Bildschirm stehen.
+
+#### 3.2 Der Erstzustand ist heute leer
+
+*(visuell, `…/tab2-weapons.png`)* Beim ersten Oeffnen zeigt der Tab drei
+zugeklappte Ueberschriften — `Weapons (1792)`, `Sorceries (67)`,
+`Incantations (93)` — und darunter **rund 95 % leere schwarze Flaeche**.
+Ursache: `Section.toggle.setChecked(False)` (`arsenaltab.py:139`);
+aufgeklappt wird nur bei einer Suche mit hoechstens 60 Treffern
+(`arsenaltab.py:302`). Der Kommentar dort benennt das Problem bereits fuer
+den Suchfall (*„which made searching feel broken"*), zieht aber den
+Erstzustand nicht nach.
+
+**AK-83** Beim ersten Oeffnen des Tabs ist mindestens ein Abschnitt
+aufgeklappt und mindestens eine Waffenkachel sichtbar, ohne dass der Nutzer
+etwas anklickt oder tippt. Ein Test, der `ArsenalTab` baut und die sichtbaren
+`Tile`-Widgets zaehlt, findet **> 0**.
+
+#### 3.3 Die Kachel
+
+**AK-84** *(setzt AK-72 und AK-73 fuer diesen Tab um)* Bei 1250, 1600 und
+2100 logischen px ist jede gezeichnete Kachel vollstaendig sichtbar,
+einschliesslich ihrer rechtsbuendigen Werte; kein `AR`, `Physical` oder
+`Magic` steht ohne seine Zahl.
+
+**AK-85** Die Skalierungszeile nennt ihre Skala. Der Tab traegt dazu genau
+einen Satz, im Zusammenfassungsblock, wortgleich:
+`Scaling is the game's own per-stat figure behind the letter grade it shows
+in menus. Compare these figures with each other; the files do not say which
+letter a figure earns.`
+Ein Test findet diesen Satz genau einmal, und er steht auf dem Tab, auf dem
+`Scaling ` auf 1 792 Kacheln erscheint.
+
+**AK-86** Die Aufbau-Zeilen (`Blood Loss buildup`, `Poison buildup`,
+`Frost buildup`, …) tragen ihren Geltungsbereich. Wo der Extraktor die
+Bezugsgroesse kennt, steht sie in der Zeile; wo er sie nicht kennt, steht im
+selben Zusammenfassungsblock wortgleich:
+`Buildup figures come straight from the game's weapon data. The files do not
+say what they are counted against, so use them to compare armaments, not as a
+number of hits.`
+AK-70 verlangt genau diesen Fall; welche der beiden Fassungen greift,
+entscheidet der Kenntnisstand des Extraktors, nicht der Geschmack.
+
+**AK-87** Die Zauberkachel benennt ihre Kosten als Kosten: `FP` heisst
+`FP cost`, `Stamina` heisst `Stamina cost`. Die Zeile `Slots` entfaellt (§8)
+oder heisst `Spell slots` — sie zeigt heute auf 160 von 160 Zauberkacheln `1`.
+
+**AK-88** *(QA-139)* Dieselbe Groesse heisst auf demselben Bildschirm einmal.
+Auf der Kachel steht `Spell power`; der Zusammenfassungssatz aus AK-64 sagt
+heute *„the spell scaling the game displays for them"*. **Entscheidung:
+`spell power` gewinnt**, weil dieser Ausdruck auf bis zu 1 792 Kacheln stehen
+kann und der Satz nur einmal. Der Satz aus AK-64 lautet ab jetzt wortgleich:
+`Staves and seals show the spell power the game displays for them instead of
+an attack rating.` Die Zeichenkette `spell scaling` kommt im Baum nicht mehr
+vor. **Betroffenes Akzeptanzkriterium: AK-64** — nur dieses eine Wort
+geaendert, Stellung und Rest des Satzes unveraendert.
+
+---
+
+### 4. `Nightlords`
+
+#### 4.1 Die Frage, und wo sie steht
+
+> **Ueberschrift:** `HOW TO HURT EACH NIGHTLORD`
+>
+> **Fragesatz:** `What each Nightlord takes extra damage from, what breaks
+> its stance, and what it does to you once it is broken. Click a card for the
+> full profile.`
+
+**AK-89** Der Tab oeffnet mit diesen beiden Zeilen, wortgleich. Die heutige
+Zeile (`10 Nightlords · 8 also have an Everdark Sovereign … click a card for
+damage taken, status buildup and more`) rutscht darunter und verliert ihren
+Klick-Hinweis, weil er jetzt im Fragesatz steht.
+
+#### 4.2 Alle zehn Karten
+
+**AK-90** *(setzt AK-72 fuer diesen Tab um, eigener Befund)* Bei 1250, 1600
+und 2100 logischen px sind **alle zehn** Nightlord-Karten vollstaendig
+sichtbar und ihre Blurb-Texte vollstaendig lesbar. Ein Test, der den
+sichtbaren Text des Kartenbereichs bei 1600 px einsammelt, findet die Namen
+`Maris` und `Harmonia`. Beleg des Ist-Zustands: `…/tab3-nightlords.png`
+(acht) gegen `…/tab3-nightlords-wide2100.png` (zehn).
+
+#### 4.3 Die Zahlen im Detailpanel
+
+**AK-91** *(QA-128 Punkte 4 bis 6, AK-74)* Das Detailpanel traegt drei
+Erklaerzeilen, je einmal je Abschnitt, wortgleich:
+
+- unter `DAMAGE TAKEN`: `Bars compare this Nightlord's damage types with each
+  other, not with another Nightlord. Green marks the type it is weak to.`
+- unter `STATUS BUILDUP`: `How much status you have to apply before it lands
+  — lower is easier. Green marks this Nightlord's easiest statuses.`
+- unter `STANCE`: `Bar to break is in the game's own stance points. The
+  refill figure is the rate the files give; they do not say what it is per,
+  so compare it between Nightlords rather than reading it as a speed.`
+
+**AK-92** *(QA-130)* Kein Sentinel wird als Zahl gedruckt. `Refills at x-1`
+kommt nicht vor: bei `stance.recovery <= 0` entfaellt die Zeile, oder sie
+lautet `Refills at — not in the game's files` (A7). Pruefbar an Maris, dem
+einzigen der zehn mit `recovery = -1.0`.
+
+**AK-93** *(QA-131)* Der Abschnitt `WEAKNESS SPECIAL INTERACTION` erscheint,
+sobald der Nightlord **irgendeine** Schwaeche traegt — Schadensart **oder**
+Status. Pruefbar an Adel: sein Panel zeigt den Abschnitt und die dafuer
+hinterlegte Notiz (*„Phase 1 only — the poison stagger is gone in phase 2 and
+in the Everdark version."*), statt direkt mit `DAMAGE TAKEN` zu beginnen.
+
+**AK-94** *(QA-129, Herkunft)* Zeilen, die auf einer Sichtung beruhen und
+nicht in den Spieldateien stehen, tragen `OBSERVED_COLOUR` (`#7fae72`) —
+dieselbe Farbe, die der Tab fuer `WEAKNESS_NOTE` bereits benutzt. Betroffen
+sind heute `Debuff x2.0 damage taken`, `Debuff x0.8 attack power` und
+`Stacks: yes — repeats compound`. Ein Test, der die Textfarbe dieser drei
+Zeilen liest, findet `#7fae72` und nicht die Farbe der extrahierten Werte.
+*(Ob die Zahlen selbst richtig sind und ob `ladder.down` zusaetzlich gezeigt
+wird, ist der Rechenteil von QA-129 und gehoert dem `developer` — diese
+Vorgabe regelt nur, dass man einer Zahl ansieht, woher sie kommt.)*
+
+---
+
+### 5. `Deep of Night`
+
+Dieser Tab ist gestalterisch der beste der sechs und bleibt das Vorbild fuer
+die anderen fuenf: Ueberschrift, Tabelle, Erklaernote, Herkunftszeile. Er
+bekommt nur ein Dach und drei Bezugsgroessen.
+
+> **Ueberschrift (neu, ueber den vier vorhandenen):** `DEEP OF NIGHT`
+>
+> **Fragesatz:** `What a deeper run pays you, what it costs you, and how your
+> Depth rating moves. All figures compare a Deep of Night run with a normal
+> expedition.`
+
+**AK-95** Der Tab oeffnet mit diesen beiden Zeilen, wortgleich; die vier
+bestehenden Ueberschriften (`WHAT EACH DEPTH IS WORTH`, `HOW MUCH TOUGHER
+ENEMIES GET`, `WHAT MOVES YOUR RATING`, `WHAT ELSE CHANGES WITH DEPTH`)
+bleiben unveraendert darunter. Der zweite Satz des Fragesatzes ist zugleich
+die Bezugsgroesse fuer die Skalierungstabelle (QA-128 Punkt 9) und wird nicht
+zusaetzlich unter der Tabelle wiederholt.
+
+**AK-96** *(QA-128 Punkte 7 und 8, AK-70)* Die beiden Zeilen des obersten
+Blocks nennen ihren Bezug bzw. sagen, dass er nicht bekannt ist. Verbindlich,
+als Note unter der ersten Tabelle:
+
+- `Reward multiplier: the game's own multiplier for this Depth. The files do
+  not say what it multiplies, so it is shown as a comparison between Depths
+  and nothing more.`
+- `Sovereign Sigil: the figure comes from the depth table. That the item is
+  the Sovereign Sigil was identified in game, not read from a link in the
+  files.`
+
+Dazu erscheint der bereits geladene, heute nie gezeigte Satz aus
+`deep_of_night.sigil_info` (*„rays of everdark used for bartering in the
+Roundtable Hold"*) einmal unter der ersten Tabelle. Das ist **keine neue
+Funktion**: das Feld wird heute geladen und weggeworfen.
+
+**AK-97** *(eigener Befund, setzt AK-71 fuer diesen Tab um)* Der Inhalt des
+Tabs liegt in einer `QScrollArea`; die vier Tabellen setzen keine feste
+Hoehe mehr, die das ganze Fenster bindet. Ein Test findet
+`DeepTab().minimumSizeHint().height() <= 860` und erreicht die letzte
+Erklaerzeile (`Read from the game's own depth table.`) bei einer
+Fensterhoehe von 900 logischen px durch Scrollen.
+
+---
+
+### 6. `Red variants`
+
+#### 6.1 Erst die Frage, dann der Inhalt
+
+**Geprueft, ob die Daten die Frage „was ist an einer roten Variante anders"
+hergeben** *(gemessen, am Datensatz)*: `deep_of_night.mutations` traegt je
+Eintrag genau `id`, `counts` (fuenf Tiefen), `category`, `group`, `varies` —
+**keine Staerkefaktoren, keine HP- oder Schadenszahlen**.
+`deep_of_night.kinds` traegt Roster (`rows`, `chrs`, `tiles`) **ohne
+Kartendimension** (das ist zugleich die Wurzel von QA-132). Die Daten sagen
+also **nicht**, um wie viel staerker eine rote Variante ist.
+
+Was sie sagen, steht heute schon da — aber an der falschen Stelle. Der
+Intro-Absatz enthaelt die Antwort im Nebensatz (*„the same enemy, stronger,
+never a different one"*), und die community-berichtete Zeile darunter enthaelt
+den handfesten Teil (*„red enemies always drop a weapon, and red mini-bosses
+are guaranteed a unique-tier armament"*). *(zweiter Hand)* Der `power-user`
+fand die Antwort nicht und nannte den Tab den ueberfluessigsten der sechs —
+was zu einer Ueberschrift passt, die `RED VARIANTS BY DEPTH` heisst und damit
+Stueckzahlen ankuendigt.
+
+> **Ueberschrift:** `RED VARIANTS: WHAT THEY ARE, AND HOW MANY`
+>
+> **Fragesatz:** `A red variant is the same enemy made stronger — never a
+> different enemy. The game's files do not say by how much. What they do say
+> is how many of each sort a run places on a map, and that is the table
+> below.`
+
+**AK-98** Der Tab oeffnet mit diesen beiden Zeilen, wortgleich. Der heutige
+Intro-Absatz verliert seinen ersten Nebensatz (er steht jetzt im Fragesatz)
+und behaelt den Rest; die `COMMUNITY-REPORTED`-Zeile bleibt unveraendert und
+steht direkt darunter, weil sie den zweiten Teil derselben Antwort traegt.
+Der Satz `The figures are how many red variants of each sort a run puts on
+the selected map.` bleibt an der Tabelle — er ist heute die vorbildlichste
+Bezugsgroessen-Zeile der sechs Tabs und wird nicht angefasst.
+
+#### 6.2 Die Spalte `For example` (QA-132)
+
+*(visuell, `…/tab5-redvariants.png`)* Die Spalte ist die **breiteste** der
+Tabelle (~870 physische px), ist fuer die **groesste** Zeile (`Ordinary
+enemies in camps & ruins`, 32 von 87) leer, und zeigt auf allen sechs Karten
+dieselben Namen, obwohl die Tabelle daneben *„on the selected map"* sagt.
+
+**AK-99** Die Spalte behauptet keinen Kartenbezug, den die Daten nicht
+tragen. Zwei zulaessige Ausgaenge, beide pruefbar:
+
+- *Ausgang A:* Die Namen werden an die Kartengruppe gebunden (falls die
+  Rosterdaten das je hergeben) — dann aendert sich der Zellinhalt beim
+  Kartenwechsel.
+- *Ausgang B (heute der einzig moegliche):* Die Spalte heisst
+  `Examples (any map)` und ihr Kopf-Tooltip lautet wortgleich:
+  `Named members of this group anywhere in the game. The files do not list
+  them per map, so these names are not tied to the map selected above.`
+
+In **beiden** Ausgaengen gilt fuer die zwei Zeilen ohne benannte Mitglieder
+(`Ordinary enemies in camps & ruins`, `Unidentified enemies`): die Zelle
+bleibt nicht leer, sondern traegt `— the files name none` (A7). Und die
+Spalte ist **nie breiter** als die Spalte `What can be red`.
+
+#### 6.3 Die doppelten Tiefenspalten
+
+*(QA, visuell bestaetigt)* Fuer alle sechs Karten und in 22 von 22
+Datenzeilen gilt Depth 2 = Depth 3 und Depth 4 = Depth 5.
+
+**AK-100** Die Tabelle sagt das, statt es fuenfmal zu wiederholen. Die
+Spaltenkoepfe lauten `Depth 1`, `Depth 2–3`, `Depth 4–5`, solange die Daten
+das hergeben; weichen sie fuer irgendeine Karte ab, faellt die Tabelle
+automatisch auf fuenf Einzelspalten zurueck. Ein Test, der eine Zeile mit
+fuenf verschiedenen Werten einspeist, findet danach fuenf Spaltenkoepfe.
+
+---
+
+### 7. `World Events`
+
+Dieser Tab beantwortet seine Frage bereits und sagt sie auch. Er bekommt
+fuenf Praezisierungen.
+
+> **Ueberschrift:** `WORLD EVENTS` *(unveraendert)*
+>
+> **Fragesatz** *(der heutige Absatz, unveraendert — er erfuellt AK-68
+> bereits):* `Events that can interrupt an expedition: where each one can
+> appear, what happens, what you win and what you lose. Blue lines are
+> community-reported; everything else is the game's own data.`
+
+**AK-101** *(QA-134)* Der Tagesatz unterscheidet zwischen den Ereignissen,
+statt auf 11 von 11 wortgleich zu stehen. Er nennt die Verteilung, die im
+Datensatz liegt und heute verworfen wird — Beispiel `Judgment`: 19 Day-1-
+gegen 1 Day-2-Muster. Verbindliches Muster:
+`Can fire on Day 1 or Day 2 — {d1} of the {n} map patterns that carry it are
+Day 1.` Ein Test findet fuer `Judgment` und `Fire-Summoning Beasts`
+**verschiedene** Zeichenketten an dieser Stelle.
+
+**AK-102** *(QA-134, A12)* Die Prozentzahl nennt ihren Geltungsbereich und
+sagt, was sie **nicht** ist. Der Satz lautet wortgleich:
+`The percentage is how much of that Nightlord's map pool carries the event.
+The pool is drawn with weights, so it is not the chance of seeing it on a
+given run.` Die Allaussage `Every other Nightlord: never.` bleibt, bekommt
+aber ihren Beleg: `Every other Nightlord: never — across every map pattern
+in the game's data.`
+
+**AK-103** *(QA-133)* Eine Dauer steht nur an einer Zeile, die einen
+**Zustand** beschreibt. Eine Zeile, die einen Betrag gewaehrt, traegt keine.
+Pruefbar an drei Stellen: `10,000 runes` (ohne `for 1s`),
+`restores 100 stamina` (ohne `for 0.3s`), `invulnerable for 5s` (mit, weil
+das ein Zustand ist). Eine Dauer von `0.0` ist keine Angabe und wird nicht
+als `for 0s` gedruckt.
+
+**AK-104** *(QA-135)* Herleitungs- und Quellensprache steht nicht im
+Fliesstext. Die Regel des Modulkopfs von `eventstab.py` (*„Everything about
+how any of it was derived stays in the project's documents — none of it
+belongs on screen."*) **bleibt in Kraft** — das ist meine Antwort auf die
+offene Frage 4 aus T-055. Konkret: die Zeichenketten `fextralife`, `game8`,
+`Eldenpedia`, `thefifthmatt`, `pattern modifier` und
+`the row this project had wrong` kommen in keinem angezeigten Text vor. Was
+bleibt, ist die Aussage, die den Spieler angeht — `Sources disagree: {was}` —
+und, falls der App Designer die Quellen sehen will, das strukturierte Feld
+`sources` als eigene, ruhige Zeile unter dem Absatz, nicht im Absatz. Der
+heute geladene und nie gezeigte `rune_scaling`-Text beziffert die einzige
+unbezifferte Behauptung des Tabs (*„rises the more expeditions you have
+cleared"*) und erscheint an genau dieser Zeile — auch das ist **keine neue
+Funktion**, sondern ein geladenes Feld.
+
+**AK-105** *(QA-136)* `Scale-Bearing Merchant` steht einmal in der Liste,
+oder die beiden Eintraege verweisen sichtbar aufeinander. Ein Test, der die
+Listeneintraege zaehlt, findet den Namen **einmal** — oder findet im Text des
+einen Eintrags einen Verweis auf den anderen.
+
+---
+
+### 8. Streichvorschlaege je Tab
+
+**Ich schlage vor, ich entscheide nicht** (GOAL A10). Jeder Eintrag mit dem
+Satz, was ein Spieler verliert. Reihenfolge: staerkster Vorschlag zuerst.
+
+**Effects & chances**
+
+1. **Spalte `Pools`** (AK-78, Ausgang A). *Wenn das weg ist, verliert ein
+   Spieler* nichts Benutzbares — ihr eigener Tooltip sagt das. Das 0-Signal
+   wandert in die Chance-Zelle.
+2. **Spalte `Copies`.** 638 von 652 Zeilen zeigen `1` *(gemessen)*. *Wenn das
+   weg ist, verliert ein Spieler* die Information, dass 14 Effekte mehrfach
+   definiert sind — was an keiner Rolle etwas aendert.
+3. **Spalte `Type`.** Zwei Werte, die die Textfarbe bereits sagt *(gemessen:
+   2 verschiedene Zeichenketten auf 652 Zeilen)*. *Wenn das weg ist, verliert
+   ein Spieler* die Sortierung, die heute Buffs und Fluche gruppiert. **Nur
+   streichen, wenn die Gruppierung anders erhalten bleibt** — sonst ist der
+   Verlust groesser als der Gewinn.
+4. **Spalte `Colours` auf eine Kurzform** (vier Farbpunkte statt
+   `Red, Blue, Yellow, Green`). 491 von 652 Zeilen zeigen dieselbe
+   Zeichenkette in 295 px *(gemessen)*. *Wenn das weg ist, verliert ein
+   Spieler* nichts: die Information bleibt, die Breite geht an `Effect`.
+
+**Weapons & spells**
+
+1. **Die Wiederholung der Kopfzahl bei einschichtigen Waffen** — 655 von
+   1 792 Kacheln drucken `AR 49` und darunter `Physical 49` *(QA)*. *Wenn das
+   weg ist, verliert ein Spieler* nichts; die Typzeile verdient ihren Platz
+   ab zwei Schadensarten.
+2. **Zeile `Slots` auf Zauberkacheln.** 160 von 160 zeigen `1` *(QA)*. *Wenn
+   das weg ist, verliert ein Spieler* nichts — bis das Spiel je einen Zauber
+   mit zwei Plaetzen bekommt.
+3. **Nicht streichen: `vs standard`.** Die einzige Zeile, die den Unterschied
+   zur Standardfassung beziffert.
+
+**Nightlords**
+
+1. **Der Klammerzusatz `(smallest Harmonia 75, largest Caligo 160)`** auf
+   allen zehn Panels. *Wenn das weg ist, verliert ein Spieler* die Skala fuer
+   `Bar to break` — also einmal an den Tabkopf, nicht zehnmal ins Panel.
+2. **`Stacks: yes — repeats compound` und `harder to stagger`.** Auf jedem
+   Boss identisch, ersteres ohne Datengrundlage *(QA)*. *Wenn das weg ist,
+   verliert ein Spieler* die Aussage, dass Buffs sich stapeln — die gehoert
+   einmal in den Tabkopf.
+3. **Abschnitt `BODY PARTS`, solange `PART_NAMES` leer ist.** *Wenn das weg
+   ist, verliert ein Spieler* die Information, dass ein Boss gepanzerte
+   Stellen hat — die er ohne Koerperteilnamen ohnehin nicht anwenden kann.
+   Der Abschnitt wird wertvoll, sobald `PART_NAMES` gefuellt ist.
+4. **Nicht streichen: der `EVERDARK`-Block.** Die Behauptung „identisch" ist
+   geprueft und wahr fuer 8 von 8 *(QA)*.
+
+**Deep of Night**
+
+1. **Die Zeile `Win` mit fuenf identischen `+200`.** *Wenn das weg ist,
+   verliert ein Spieler* nichts — ein Satz sagt dasselbe und sagt
+   zusaetzlich, dass es nicht von der Tiefe abhaengt.
+2. **`Cursed relic — Uncommon` / `— Rare` aus der Tiefentabelle.** *Wenn das
+   weg ist, verliert ein Spieler* zwei echte Zahlen — also **verschieben**,
+   nicht loeschen.
+3. **`Map concealed` und `Nightlord obscured` als zwei Zeilen.** *Wenn das
+   weg ist, verliert ein Spieler* die Unterscheidung, welches von beidem
+   passiert — die ist relevant. Eine Zeile plus die vorhandene Note sagt mehr
+   auf weniger Platz.
+
+**Red variants**
+
+1. **Spalte `For example` in ihrer heutigen Form** (AK-99). *Wenn das weg
+   ist, verliert ein Spieler* nichts Korrektes — sie ist fuer die groesste
+   Zeile leer und fuer die uebrigen kartenblind.
+2. **Zwei der fuenf Tiefenspalten** (AK-100). *Wenn das weg ist, verliert ein
+   Spieler* die Moeglichkeit, „Depth 3" direkt nachzuschlagen — deshalb
+   **zusammenfassen statt streichen**.
+3. **Nicht streichen: `Night bosses (unconfirmed)`.** Zahlen fuer etwas, das
+   nie gesichtet wurde, mit genau diesem Wort im Titel — das ist A7, wie es
+   aussehen soll.
+
+**World Events**
+
+1. **`Can fire on Day 1 or Day 2.` in seiner heutigen Form** (AK-101). *Wenn
+   das weg ist, verliert ein Spieler* nichts — er verliert erst dann etwas,
+   wenn auch die Tagesverteilung wegbleibt, die heute schon verworfen wird.
+2. **Die Quellennamen in den `Sources disagree`-Bloecken** (AK-104). *Wenn
+   das weg ist, verliert ein Spieler* nichts, was er benutzen kann; „hier
+   widersprechen sich die Quellen" bleibt.
+3. **Nicht streichen: `Every other Nightlord: never.`** *Wenn das weg ist,
+   verliert ein Spieler* die Zusicherung, dass die Liste vollstaendig ist —
+   die ist wertvoll, aber nur mit ihrem Geltungsbereich (AK-102).
+4. **Nicht streichen: `WHAT THE DEMON CAN DO`.** Der einzige Ort im Programm,
+   an dem eine Spielentscheidung mit sieben Ausgaengen vollstaendig
+   aufgelistet ist.
+
+---
+
+### 9. Ausdruecklich nicht Teil dieser Vorgabe
+
+- **Die Rechnungen selbst.** Ob `ladder.down` gezeigt wird, ob
+  `DEBUFF_ON_BREAK` und `ladder.down` derselbe Mechanismus sind (QA-129), ob
+  die Kartenbindung der Roster ueberhaupt herstellbar ist (QA-132) — das sind
+  Daten- und Rechenfragen des `developer` bzw. des `director`. Diese Vorgabe
+  regelt, **was der Bildschirm ueber die Herkunft einer Zahl sagt**, nicht,
+  welche Zahl richtig ist.
+- **QA-137** (Testabdeckung der fuenf Tabs). Testschuld ohne Designanteil,
+  laut T-056 direkt an den `developer`.
+- **Neue Inhalte.** Jede Zeile oben ist entweder eine Umbenennung, eine
+  Umstellung, eine Streichung oder ein bereits geladenes, heute
+  weggeworfenes Feld (`sigil_info`, `rune_scaling`, Tagesverteilung). Kein
+  Punkt verlangt eine neue Extraktion.
+- **`Build planner`** und der Berater (S7 bis S11).
+- **Die Fensterbreite unter 1250 physischen px.** Dort wird die Tab-Leiste
+  selbst scrollbar *(visuell,* `…/tab2-weapons-narrow1250.png`*)*. Das ist
+  ein Befund des ganzen Fensters, nicht der sechs Tabs, und gehoert in einen
+  eigenen Auftrag.
+
+---
+
+### 10. Offene Fragen an den App Designer
+
+1. **`Avg chance`: eine Zahl oder eine Spanne?** Nach AK-79 und AK-80 ist die
+   Rechnung ehrlich; offen bleibt die Darstellung. *(a)* Zwei Spalten wie
+   heute — gewichteter Mittelwert und bester Fall. *(b)* Eine Spalte mit der
+   Spanne (`0.5 – 100 %`), weil die Streuung real ist (Faktor bis 22 im
+   gemessenen Einzelfall) und ein einzelner Mittelwert wieder eine Zahl
+   waere, die man ueberliest. Ich empfehle **(b)**: eine Spalte weniger auf
+   einer Tabelle, die heute ihren Effektnamen auf 22 px zusammendrueckt. Die
+   Wahl ist Tabellendichte gegen Genauigkeit und deshalb seine.
+2. **`Pools`: streichen oder umbenennen?** AK-78 legt beide Ausgaenge
+   verbindlich fest; welcher gilt, ist eine Streichung und damit seine
+   Entscheidung. Ich empfehle die Streichung (Ausgang A).
+3. **Die uebrigen Streichvorschlaege in §8** — dreizehn Vorschlaege, jeder
+   mit dem Satz, was verloren geht.
+4. **Zaehlt ein roter Haendler als „red variant"?** Die Intro definiert rote
+   Varianten als *„individual empowered enemies"*; die Zeile `Merchants`
+   (4 bis 6 je Karte) geht in `Total red variants on the map` ein. Der
+   `qa-engineer` hat die Frage in T-055 an den `director` gestellt und
+   ausdruecklich nicht als Befund gemeldet; sie ist eine Inhaltsentscheidung
+   und wird hier weitergereicht, nicht beantwortet.
+5. **Will er die Quellenangaben ueberhaupt sehen?** AK-104 haelt die Regel
+   des Moduls aufrecht und verbannt die Wiki-Namen aus dem Fliesstext. Ob sie
+   als eigenes, ruhiges Element (`sources`) darunter erscheinen sollen oder
+   gar nicht, ist Geschmack — beides ist mit AK-104 vertraeglich.
+
+
+---
+
+## Nachtrag des Directors zu AK-81, AK-82 und AK-88 — 2026-09-05
+
+Drei Stellen, an denen die Vorgabe im Kontakt mit dem Code nicht aufgeht. Der
+`developer` hat sie in T-057 gemeldet statt sie stillschweigend auszulegen.
+Ich entscheide sie hier, damit der naechste Lauf sie nicht erneut erbt.
+
+**AK-81 — die Beispielzahlen sind die falschen.** AK-81 verbietet, gefilterte
+Werte als Beispiel zu nennen, und nennt dann selbst `1 of 2` / `2 of 2` —
+genau die **gefilterten**. Ungefiltert lauten sie **`1 of 3` / `3 of 3`**.
+Verbindlich sind die ungefilterten. Der Rest von AK-81 bleibt unveraendert.
+
+**AK-82 gegen AK-68 — AK-68 gewinnt.** AK-82s Fragesatz sagt "set above",
+waehrend AK-68 die beiden Eroeffnungszeilen **ueber** die Bedienelemente
+stellt. Beides woertlich ist nicht gleichzeitig erfuellbar. **AK-68 ist die
+Ordnung**, AK-82s Wortlaut zieht nach. Grund: AK-68 gilt fuer alle sechs
+Tabs, AK-82 fuer einen — die allgemeinere Regel bricht die speziellere nur
+dann, wenn die speziellere ohne eigenen Grund abweicht, und den nennt AK-82
+nicht.
+
+**AK-88 — gilt fuer angezeigten Text, nicht fuer den Baum.** Woertlich
+genommen truege AK-88 eine Umbenennung an 31 Stellen in Kommentaren und
+Feldprosa quer durch Extraktor und Fassade, **ohne dass ein Nutzer etwas
+davon saehe**. Der Geltungsbereich ist ab jetzt: **jede Zeichenkette, die auf
+dem Bildschirm erscheint** — Beschriftungen, Tooltips, Kopfzeilen,
+Aufklapp-Texte. Kommentare und interne Feldnamen sind ausdruecklich nicht
+gemeint.
+
+Davon **nicht** gedeckt und weiterhin offen: `nrplanner/advisor/goals.py:108`
+zeigt `spell scaling` in einem `Goal.scope`-Satz — das **ist** angezeigter
+Text und faellt damit unter AK-88. Geht in den naechsten Auftrag.
+
+
+---
+
+## Nachtrag des Directors zu AK-75, AK-77 und AK-97 — 2026-09-05 (nach T-058)
+
+Der `developer` hat drei Vorgaben gemeldet, die im Kontakt mit dem Code nicht
+aufgehen, und jeweils eine Lesart gewaehlt statt sie stillschweigend zu
+beugen. Ich bestaetige alle drei.
+
+**AK-77 gilt nicht unterhalb von rund 1100 logischen px.** Dort gibt der
+Code die beiden Untergrenzen auf, statt eine Spalte hinter den rechten Rand
+zu schieben. Grund, und er ist zwingend: die Bildlaufleiste, die eine
+abgeschobene Spalte wieder erreichbar machen wuerde, ist **genau die, die
+hinter der Taskleiste liegt** (DR-015). Eine erzwungene Untergrenze braeuchte
+bei 833 px eine 883 px breite Tabelle in einem 780-px-Sichtbereich — die
+Vorgabe waere formal erfuellt und der Inhalt unerreichbar. **Bedingung:**
+jede gekuerzte Zelle traegt ihren vollen Text als Tooltip. Diese Zusicherung
+traegt den Kompromiss; ohne sie faellt er.
+
+**AK-97, erster Halbsatz: die vier Tabellen behalten ihre feste Hoehe.** Ohne
+sie bekaeme jede eine eigene Bildlaufleiste — vier Leisten auf einem Tab sind
+schlechter als eine.
+
+**AK-75 gilt nur fuer die sechs Inhalts-Tabs.** Vier angezeigte Literale mit
+` -- ` bleiben ausserhalb (`datasource.py:173`, `model.py:889`,
+`model.py:1058`, `weapons.py:221`). Sie liegen im `Build planner`, den der
+Nutzer ausdruecklich ausgenommen hat ("der erste passt"). Als Schuld
+vermerkt, nicht als Befund.
+
+**Ausserhalb der Spec, hier festgehalten, weil es sonst verlorengeht:**
+vier fest verdrahtete Spaltenzahlen stehen weiterhin im `Build planner` und
+im Relikt-Picker (`relicpicker.py:16` und `:31`, `weaponslots.py:59`,
+`app.py:1416`). Der Picker ist groessenveraenderlich — wer ihn schmaler
+zieht, bekommt DR-016a erneut. `CardGrid` liegt fertig vor. **Der Befund ist
+nicht geschlossen** und wird mit S10 gezogen, weil der Picker dort ohnehin
+umgebaut wird.

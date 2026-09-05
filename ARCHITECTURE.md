@@ -509,9 +509,14 @@ GOALS: dict[str, Goal] = {...}         # die Registry
 gewählten Referenzwaffe unter `build.attributes`, mit den Angriffsraten
 darauf — berechnet von `nrplanner/damage.py` (AD-005), also von genau
 derselben Rechnung, die die Waffentafel zeigt.
-`unknowns` enthält *immer mindestens*:
+`unknowns` enthält *immer mindestens* — **ab AD-025 ist das die Liste von
+`Goal.scope`, nicht die von `GoalScore.unknowns`**:
 - „Attack rating has not been verified against an in-game number." (README
-  Known limits)
+  Known limits) — **historisch. Seit QA-095 (2256 Vergleiche) ist der Satz
+  falsch; an seiner Stelle steht der Geltungsbereich der Übereinstimmung
+  (`advisor/goals.py`, `UI_SPEC` Nachtrag zu QA-116). Hier stehengelassen
+  als Beleg dafür, wie die Zeile einmal lautete — nicht als geltende
+  Vorgabe (QA-116).**
 - „Spell damage is not in the game data, so spells are not rated." (README)
 - „Critical-only bonuses are excluded — attack rating is the ordinary hit."
   (bereits so in `_refresh_weapon_damage` entschieden, siehe `model.CRIT_RATE`)
@@ -2647,7 +2652,9 @@ Attack-Rating-Vorbehalt aus AD-004, bis W6 steht.
 
 ### Prüfpunkte, Ergänzung
 
-18. **Untere Schicht bitgleich über den ganzen Umbau.** Über die
+28. **Untere Schicht bitgleich über den ganzen Umbau.** (Bis 05.09.2026 als
+    Prüfpunkt 18 geführt; umnummeriert in Nachtrag VI, weil Nachtrag II
+    dieselbe Nummer bereits vergeben hatte.) Über die
     Differentialfälle aus Zyklus 2: `weapons.rate` liefert vor und nach W0–W5
     dieselben Zahlen. Abweichungen dürfen nur oberhalb der Fassade entstehen.
 19. **Kachel und Tafel nennen dieselbe Zahl.** Nach W3, headless über die
@@ -2668,7 +2675,7 @@ Attack-Rating-Vorbehalt aus AD-004, bis W6 steht.
 
 | Risiko | Woran man es merkt | Rückweg |
 |--------|--------------------|---------|
-| Die Neuaufnahme des Golden-Stands bei W3/W4 löscht den Beleg, dass die Rechnung unverändert ist. | Ein grüner Lauf, der nichts mehr belegt. | Prüfpunkt 18 hängt an der **unteren** Schicht und überlebt die Neuaufnahme. Er ist der eigentliche Beleg; der Golden-Stand ist danach der Beleg für die Anzeige. |
+| Die Neuaufnahme des Golden-Stands bei W3/W4 löscht den Beleg, dass die Rechnung unverändert ist. | Ein grüner Lauf, der nichts mehr belegt. | Prüfpunkt 28 (bis 05.09.2026: 18) hängt an der **unteren** Schicht und überlebt die Neuaufnahme. Er ist der eigentliche Beleg; der Golden-Stand ist danach der Beleg für die Anzeige. |
 | Die Fassade vereinheitlicht Achse B mit und der Arsenal-Tab rankt auf dem Slot-Tier. | Prüfpunkt 20 fällt. | AD-020, Punkt 1: `target_tier` ist Pflichtargument ohne Vorgabewert. |
 | W6 wird nie beantwortet und `MULTIPLIERS_FOR[CANDIDATE]` bleibt auf dem Platzhalter stehen. | Nichts — genau das ist die Gefahr. | Der Platzhalter ist keiner: W2 setzt den **heutigen** Wert (`False`), das Verhalten ist damit unverändert und der Vorbehalt aus AD-004 bleibt sichtbar, bis der Nutzer misst. |
 | Eine Zielrichtung des Beraters vergleicht Waffen gegeneinander, bevor W6 steht. | Eine Empfehlung, die die Waffe wechselt. | Solche Zielrichtungen bleiben bis W6 aus der Registry (AD-004) heraus. |
@@ -2705,8 +2712,8 @@ mehr den Berater.
 **OF-17 — an den `director`:** Darf `tests/golden/weapon_damage.json` bei W3
 und W4 neu aufgenommen werden, mit AD-019 im Commit-Text als Grund? Ohne diese
 Freigabe hält W3 an, weil sein eigener Vertrag die Neuaufnahme heute nur nach
-einem Spiel-Patch erlaubt. **Empfehlung: ja, aber erst nachdem Prüfpunkt 18
-grün ist** — sonst gibt es keinen zweiten Beleg mehr.
+einem Spiel-Patch erlaubt. **Empfehlung: ja, aber erst nachdem Prüfpunkt 28
+(bis 05.09.2026: 18) grün ist** — sonst gibt es keinen zweiten Beleg mehr.
 
 **OF-18 — an den `ui-ux-designer`, nicht an mich:** `Basis.EQUIPPED`,
 `CANDIDATE` und `BARE` sind drei verschiedene Fragen, die gleichzeitig auf dem
@@ -2854,3 +2861,618 @@ Kommentarkorrektur, kein eigener Auftrag.
     besser.
 32. **Teilsummen über ausgewählte Schadensarten nicht gegen `final_total`
     prüfen.** Sie werden aus `final_per_type` gebildet und dort belassen.
+
+---
+
+## Nachtrag VI 2026-09-05 — Zwei Klassen von Vorbehalten, die Ergebnisform des Pickers, und vier Präzisierungen (AD-025)
+
+Anlass: der Erstdurchlauf des `qa-engineer` über den Rechenkern (T-041) hat
+zwei Entwurfslücken gefunden, die er ausdrücklich nicht selbst geschlossen
+hat — QA-102 (der `SlotPool` trägt keine A7-Zeile der Zielrichtungen) und
+QA-107 (`held_fingerprint` und der als Schlüssel benannte `AdvisorRequest`
+behaupten Verschiedenes). Der `director` hat in T-047 vier Entscheidungen
+getroffen (D1 bis D4); dieser Nachtrag arbeitet sie aus.
+
+**Was dieser Nachtrag nicht anfasst:** keine Zahl, keine Zielfunktion, kein
+Schwellenwert. D1 bis D4 betreffen ausschliesslich **Form und Text**. Der
+Rechenkern rechnet nach diesem Nachtrag dasselbe wie davor; er sagt mehr
+darüber.
+
+---
+
+### AD-025 — Ein Vorbehalt gehört entweder der Registry oder dem Ergebnis, und die Frage „kann der Satz geschrieben werden, bevor der Lauf bekannt ist?" entscheidet, welchem (2026-09-05, Status: aktiv; präzisiert AD-004 und AD-010, Vorbedingung für S8/S9/S10)
+
+**Kontext:** A7 verlangt, dass das Programm sagt, wo die Spieldateien keine
+Antwort geben. AD-010 hat daraus ein **Pflichtfeld im Ergebnis** gemacht, mit
+der Begründung: *„welche Lücken gelten, hängt vom konkreten Lauf ab"*.
+`UI_SPEC` AK-50 legt daneben **einen festen Satz ausserhalb der Karten** fest.
+Der `qa-engineer` hat beides nebeneinander gefunden und als Spec-Konflikt
+gemeldet (QA-102), weil beide Lesarten vertretbar sind und einander
+auszuschliessen scheinen.
+
+Sie schliessen einander nicht aus. Der Massstab ist AD-010s **eigene**
+Begründung, und sie ist eine Bedingung, keine Behauptung: *„welche Lücken
+gelten, hängt vom konkreten Lauf ab"*. Wo diese Bedingung zutrifft, gilt
+AD-010. Wo sie **nicht** zutrifft — wo ein Satz für jeden Lauf derselbe ist —
+war sie nie geprüft, und AD-010 sagt dort nichts. Genau dort steht AK-50.
+
+Die Kraft, die aufzulösen ist: **eine Zahl braucht ihren Geltungsbereich,
+und ein Bildschirm, der denselben Geltungsbereich sechsmal wiederholt,
+verliert ihn.** Der eine Fehler ist Schweigen, der andere ist Rauschen; A7
+verbietet den ersten, und der dritte Blick des Nutzers bestraft den zweiten.
+
+**Der Massstab (D1, Vorgabe des `director`):**
+
+> **Kann der Satz geschrieben werden, bevor der Lauf bekannt ist?**
+
+**Operational, damit er entscheidbar ist:** ein Satz ist ein
+**Verfahrenssatz**, wenn sowohl sein Wortlaut **als auch die Frage, ob er
+gilt**, allein aus der Registry folgen — aus `Goal` und `Weighting`, ohne
+Bestand, ohne `SlotProblem`, ohne `Build`. Er ist ein **Laufbefund**, wenn
+eines von beidem den Lauf braucht: eine Anzahl, ein benanntes Relikt, ein
+bestimmter Effekt, ein bestimmter Slot — **oder auch nur die Entscheidung, ob
+der Satz überhaupt dasteht**.
+
+Der Zusatz „ob er gilt" ist nicht Zierrat; ohne ihn geht der Massstab an
+`_NO_ARMAMENT` schief. *„No armament selected — ranked on attack multipliers
+only, without weapon scaling."* lässt sich wörtlich vor jedem Lauf
+aufschreiben und wäre danach ein Verfahrenssatz — und stünde dann auch da,
+wenn eine Waffe gewählt ist. Das ist der Fall, an dem sich die Regel prüfen
+lässt, und er entscheidet ihre Fassung.
+
+**Die zwei Klassen, benannt nach ihrer Antwort auf die Frage:**
+
+| | **Verfahrenssatz** | **Laufbefund** |
+|---|---|---|
+| Antwort | ja, vor dem Lauf schreibbar | nein, er entsteht im Lauf |
+| Aussage über | das Verfahren | diesen Bestand, diesen Slot, diesen Lauf |
+| Beispiele | Geltungsbereich der Angriffsrechnung · „alle acht Schadensarten gleich gewichtet" · die Formel für effektives HP · „Zauberschaden steht nicht in den Daten" | „N of your relics carry effects that only apply under a condition." · „3 copies had no readable handle." · „No armament selected …" · der weggefallene Halt |
+| Wohnt in | der **Registry**: `Goal.scope`, `Weighting.note` | dem **Ergebnis**: `GoalScore.unknowns`, `Baseline.unknowns`, `SlotPool.unknowns`, `AdvisorResult.*` |
+| Erscheint | **einmal je Bildschirm**, ausserhalb der Karten (AK-50) | **dort, wo er entsteht** — im Pool beim Pool, im Ergebnis beim Ergebnis (AD-010) |
+| Leer erlaubt | nein — eine Zielrichtung ohne Geltungsbereich ist keine | ja — „in diesem Lauf ist nichts weggefallen" ist eine Aussage |
+
+**Optionen:**
+
+- **A — Im Bestand bleiben.** `GoalScore.unknowns` trägt beide Klassen in
+  einem Feld, `SlotPool` trägt nichts davon weiter. Konsequenz: QA-102 bleibt
+  offen; auf dem Weg, den der Nutzer nach AD-018 zu 100 % benutzt, trägt das
+  Ergebnis keine A7-Zeile. Ein starkes situatives Relikt steht mit `0,00` da
+  und nichts sagt warum — das Bild, das AD-004 als Grund für die Zeile nennt.
+  Und die Oberfläche muss raten, welchen der fünf Sätze sie einmal und
+  welchen sie je Lauf zeichnet.
+- **B — Ein Feld, eine Marke.** Beide Klassen bleiben in `unknowns`, jeder
+  Satz bekommt ein Kennzeichen: `tuple[tuple[str, bool], ...]`. Konsequenz:
+  hashbar wäre es, und die Oberfläche könnte trennen. Aber die Klasse wäre
+  eine Eigenschaft des **Strings**, die jeder Schreiber neu und richtig
+  setzen muss — und die Registry dürfte weiterhin laufabhängige Sätze führen,
+  die Zielfunktion weiterhin statische. Der Fehler bliebe möglich, er wäre
+  nur benannt.
+- **C — Trennung nach Ort.** Der Verfahrenssatz zieht auf die Registry
+  (`Goal.scope`), der Laufbefund bleibt im Ergebnis. Konsequenz: die Klasse
+  ist keine Eigenschaft des Satzes mehr, sondern seines Wohnorts. Ein
+  Verfahrenssatz **kann** den Lauf nicht sehen, weil die Registry keinen hat;
+  ein Laufbefund **kann** ohne Lauf nicht entstehen. Preis:
+  `GoalScore.unknowns` darf jetzt leer sein — die Zusage „es steht immer
+  etwas da" wandert von dort auf `Goal.scope` —, und `UI_SPEC` AK-63 nennt
+  eine Quelle, wo es ab jetzt zwei gibt.
+
+**Entscheidung: C.** Der Grund ist derselbe, mit dem AD-010 seinerzeit den
+statischen Warntext verworfen hat: *ein Kriterium, dessen Erfüllung von der
+Sorgfalt beim Schreiben abhängt, ist nicht erfüllt.* B verlagert die Sorgfalt
+nur von der Oberfläche auf den Autor des Satzes. C nimmt sie beiden ab.
+
+**Verbindlich:**
+
+1. **`Goal` bekommt ein Feld `scope: tuple[str, ...]`** — die
+   Verfahrenssätze dieser Zielrichtung, nicht leer. Es ist **ohne Datensatz
+   lesbar**: `GOALS["max_damage"].scope` braucht keine Spielinstallation,
+   keinen `Build` und keinen Bestand. Das ist die Eigenschaft, die die Klasse
+   definiert, und sie ist damit auch auf einem Runner ohne Spiel prüfbar
+   (QA-106).
+2. **`GoalScore.unknowns` trägt ab jetzt nur noch Laufbefunde** und darf leer
+   sein. Es behält seinen Namen: AD-010 hat ihn geprägt, drei weitere Typen
+   führen ihn, und `UI_SPEC` AK-63 nennt ihn. Eine Umbenennung wäre
+   Vereinheitlichung ohne Ertrag.
+3. **`weights_note` ist ein Laufbefund** und bleibt, wo es ist. Der
+   *Wortlaut* steht in der Registry (`Weighting.note`), aber **welcher** der
+   möglichen Wortlaute gilt, sagt erst der Lauf — für `max_damage` hängt es
+   daran, ob eine Referenzwaffe gewählt ist. Es fährt deshalb im Ergebnis
+   mit.
+4. **Ein Satz steht in genau einer der beiden Klassen.** Derselbe String in
+   `Goal.scope` und in einem `unknowns` ist ein Fehler, kein Nachdruck: die
+   Oberfläche zeichnet ihn dann zweimal, an zwei Orten, mit zwei
+   Begründungen.
+5. **Die Zuordnung eines Satzes ist eine Entwurfsentscheidung, keine
+   Formulierungsfrage.** Wer einen neuen Vorbehalt schreibt, beantwortet
+   zuerst die Frage oben und wählt danach den Ort. Wer einen bestehenden Satz
+   von einer Klasse in die andere verschiebt, braucht eine AD.
+6. **Der Wortlaut selbst gehört dem `ui-ux-designer`** (`UI_SPEC` AK-63,
+   T-052). Diese AD legt fest, **welcher Klasse** ein Satz angehört und **wo**
+   er wohnt, nicht wie er heisst.
+
+**Anwendung auf den heutigen Bestand** (`nrplanner/advisor/goals.py`, Stand
+2026-09-05, nach T-045 und T-046):
+
+| Satz | Klasse | Ab jetzt in |
+|---|---|---|
+| `_ATTACK_RATING_UNKNOWNS`, alle vier | Verfahrenssatz | `MAX_DAMAGE.scope` |
+| `_DAMAGE_TAKEN_UNKNOWNS`, alle vier | Verfahrenssatz | `MIN_DAMAGE_TAKEN.scope` |
+| `_NO_ARMAMENT` | Laufbefund (gilt nur ohne Referenzwaffe) | `GoalScore.unknowns` |
+| `_NO_ARMAMENT_NOTE` | Laufbefund (dieselbe Bedingung) | `GoalScore.weights_note` |
+| `ctx.weighting.note` | Laufbefund der Auswahl, Verfahrenssatz dem Wortlaut nach | `GoalScore.weights_note` |
+| `_without_a_handle_line(n)` | Laufbefund (trägt eine Anzahl) | `SlotPool.unknowns` (Bestand) |
+| die konditionale Zeile (D2, neu) | Laufbefund (trägt eine Anzahl) | `SlotPool.unknowns` |
+| QA-113s Blindstelle, sobald sie benannt wird | **beides, getrennt**: „flache `*AttackPower`-Felder gehen in diese Zahl nicht ein" ist ein Verfahrenssatz; „N deiner Relikte tragen so einen Effekt" ist ein Laufbefund | `Goal.scope` bzw. `SlotPool.unknowns` |
+| QA-104s klassengebundener Buff ohne Waffe | Laufbefund (gilt nur ohne Referenzwaffe) | `GoalScore.unknowns` |
+
+Die letzten beiden Zeilen sind **keine Beauftragung** — QA-113s Einbauhöhe
+hängt an einer Messung des Nutzers (F-F), QA-104 ist ein eigener Befund. Sie
+stehen hier, weil die Regel sonst nur an den Fällen geprüft wäre, aus denen
+sie entstanden ist.
+
+**Konsequenzen:** Leicht wird — die Oberfläche muss nicht mehr raten: was in
+der Registry steht, zeichnet sie einmal; was im Ergebnis ankommt, zeichnet
+sie dort, wo das Ergebnis steht. Eine dritte Zielrichtung bringt ihren
+Geltungsbereich mit, ohne dass irgendwo eine Liste nachgezogen wird. Und A7
+ist auf dem Hauptweg zum ersten Mal prüfbar statt behauptet.
+Dauerhaft schwer wird — ein Vorbehalt, der *fast* für jeden Lauf gilt, muss
+sich für eine der beiden Klassen entscheiden; es gibt keine dritte. Wer
+findet, dass er in keine passt, hat einen Entwurfsbefund, keinen Sonderfall.
+
+**Umkehrbarkeit:** leicht für die Form, schwer für die Zusage. `Goal.scope`
+wieder in die Zielfunktion zu ziehen ist eine Zeile je Zielrichtung. Die
+Zusage an den Nutzer, dass jede Zahl ihren Geltungsbereich nennt,
+zurückzunehmen, ist es nicht — dieselbe Asymmetrie, die AD-010 schon nennt.
+
+---
+
+### Die Ergebnisform: was `SlotPool` bekommt und was ausdrücklich nicht
+
+**Das Problem, gemessen (QA-102):** `pool()` ruft `goal.score(base_build,
+ctx)` einmal je Zielrichtung und nimmt davon **nur `.value`**. `unknowns`,
+`weights_note`, `unit` und `display` fallen an der Poolgrenze weg. Der
+`SlotPool` ist der Hauptweg (AD-018) — was hier wegfällt, sieht der Nutzer
+nie.
+
+**Entscheidung: `Baseline` wird die Zeile, die dieser Pool über eine
+Zielrichtung weiss** — nicht ein zweiter, danebenstehender Datensatz.
+
+```python
+# advisor/types.py  (illustrierend, kein Anwendungscode)
+
+@dataclass(frozen=True)
+class Goal:
+    id: str
+    label: str
+    blurb: str
+    scope: tuple[str, ...]              # NEU: die Verfahrenssaetze (AD-025.1)
+    score: Callable[[model.Build, "GoalContext"], "GoalScore"]
+
+@dataclass(frozen=True)
+class GoalScore:
+    value: float
+    display: str
+    unit: str
+    unknowns: tuple[str, ...] = ()      # nur noch Laufbefunde, darf leer sein
+    weights_note: str = ""
+
+@dataclass(frozen=True)
+class Baseline:
+    """Was dieser Pool ueber eine Zielrichtung weiss -- eine Zeile je Ziel."""
+    goal_id: str
+    value: float                        # Bestand: der Bezugspunkt
+    unit: str = ""                      # NEU: laufabhaengig seit T-046
+    unknowns: tuple[str, ...] = ()      # NEU: die Laufbefunde dieses Ziels
+    weights_note: str = ""              # NEU
+
+# SlotPool unveraendert in der Form; neu ist nur, was `unknowns` enthaelt:
+#   - handle-lose Kopien              (Bestand)
+#   - die konditionale Zeile aus D2   (neu, siehe Praezisierung AD-004)
+```
+
+**Warum `Baseline` und nicht ein neuer Typ:** die drei neuen Felder sind
+**der Rest derselben Antwort**, aus der `value` schon kommt. Ein zweiter
+per-Ziel-Datensatz neben `Baseline` hiesse zwei Nachschlagefunktionen, zwei
+Orte, an denen eine `goal_id` fehlen kann, und zwei Datensätze, die
+auseinanderlaufen können. `baseline_for(pool, goal_id) -> float` bleibt
+unverändert gültig und liest weiterhin `.value`.
+
+**Warum nicht `scores: tuple[GoalScore, ...]`** (der Vorschlag des
+`qa-engineer`, ausdrücklich als tragfähig bezeichnet): `GoalScore.value`
+wäre dann eine **zweite Darstellung** von `Baseline.value` — dieselbe Zahl,
+zweimal im selben Objekt. Das ist die Fehlerklasse, die dieses Projekt schon
+zweimal getroffen hat (QA-082, QA-087) und gegen die AD-024 ausdrücklich
+entschieden hat. Und `GoalScore` trägt kein `goal_id`, also wäre die
+Zuordnung entweder eine Parallelordnung zweier Tupel oder ein zusätzliches
+Feld auf `GoalScore`, das die Zielfunktion selbst setzen müsste — womit die
+Registry-Id an zwei Stellen stünde.
+
+**Hashbar bleibt es** (QA-066, AD-016, Modul-Docstring `advisor/types.py`):
+`str`, `float`, `str`, `tuple[str, ...]`, `str` — kein Mapping, keine Liste,
+kein Feld, das ein Mapping enthält. `SlotPool` bleibt damit hashbar, ohne
+dass ein Test seine Begründung ändern muss.
+
+**Was ausdrücklich NICHT über die Poolgrenze fährt:**
+
+1. **`GoalScore.display`.** Es ist die formatierte **Absolutzahl des
+   Grundzustands**. Der Picker zeigt die **Differenz** (AD-018.1,
+   `UI_SPEC` §3.3). Eine formatierte Absolutzahl im Pool ist eine Einladung,
+   die falsche Zahl auf die Karte zu schreiben, und sie wäre die zweite
+   Darstellung von `value`.
+   *Wieder interessant, wenn:* eine Ansicht den Absolutwert des
+   Grundzustands zeigen soll. Dann aber mit eigener AD — zwei Zahlen auf
+   einem Schirm stellen die Frage „welche ist die Rankinggrösse" neu, und
+   AD-014.6 hat darauf schon einmal geantwortet.
+2. **Der `Build`, der `GoalContext`, der Datensatz.** Nicht hashbar, und die
+   beiden Ausnahmetypen sind abschliessend aufgezählt (Modul-Docstring).
+3. **Die Verfahrenssätze.** Sie stehen in der Registry und werden von dort
+   gelesen. Sechs Pools eines Deep-Gefässes trügen sonst sechsmal dieselben
+   vier Sätze — genau die Wiederholung, gegen die AK-50 geschrieben ist.
+4. **Kein `not_counted`-Feld auf `SlotPool`.** Der Ergebnisweg hat
+   `AdvisorResult.not_counted` **mit Namen**; der Pool trägt die **Zeile mit
+   der Anzahl**. Beide entstehen aus einem Kriterium (siehe Präzisierung
+   AD-004), aber der Pool zeigt, was der Spieler auf dem Schirm nachzählen
+   kann.
+
+**Eine benannte Lücke, die dieser Entwurf nicht schliesst:** der Picker zeigt
+`+12.4 AR` und `−18` — eine Differenz, je Zielrichtung anders formatiert.
+`GoalScore.display` formatiert den **Absolutwert** und taugt dafür nicht;
+`unit` allein reicht nicht, weil die Nachkommastellen je Zielrichtung
+verschieden sind. **Heute existiert für die Formatierung einer Differenz
+nirgends eine Regel.** Sie gehört zu S8/S10 und zum `ui-ux-designer`, nicht
+in T-048 — aber wer QA-102 liest („`display` fällt weg"), wird sie einbauen
+wollen, und das wäre der falsche Ort. Siehe OF-21.
+
+---
+
+### Präzisierung AD-004 — die `unknowns` einer Zielrichtung zerfallen, und die konditionale Zeile bekommt einen Ort (D2)
+
+AD-004 bleibt in der Sache unverändert: eine Zielrichtung ist eine Zahl mit
+erklärtem Geltungsbereich, als Registry reiner Funktionen. Präzisiert wird,
+**wo** der Geltungsbereich steht.
+
+1. **Die Liste „`unknowns` enthält *immer mindestens* …" in AD-004 ist ab
+   jetzt die Liste von `Goal.scope`**, nicht die von `GoalScore.unknowns`.
+   „Immer mindestens" war schon in AD-004 die Beschreibung eines
+   Verfahrenssatzes; das Feld war nur das falsche.
+2. **Der dort zitierte Wortlaut ist historisch, nicht geltend.** Die Zeile
+   *„Attack rating has not been verified against an in-game number."*
+   (ARCHITECTURE.md in AD-004, von QA-116 gemeldet) ist seit QA-095 **falsch**
+   — 2256 Vergleiche haben die Übereinstimmung belegt. Was heute in
+   `goals.py` steht, ist der **Geltungsbereich** dieser Übereinstimmung. Der
+   verbindliche Wortlaut ist keiner der beiden alten: `UI_SPEC`, Nachtrag zu
+   QA-116 (T-052, 2026-09-05) entscheidet, dass die Anzeige die Sätze aus dem
+   Programm liest statt einen eigenen zu führen. AD-004s Zitat steht ab jetzt
+   als Beleg dafür, wie die Zeile einmal lautete.
+3. **Die gemeinsame konditionale Zeile ist übersehen, nicht verschoben**
+   (D2). *„N of your relics carry effects that only apply under a condition.
+   They were not counted."* existiert nirgends im Paket (zwei unabhängige
+   Volltextsuchen, T-041). Sie trägt eine Anzahl, ist also ein **Laufbefund**,
+   und sie wird gebaut.
+4. **Wo sie entsteht: in `candidates.pool()`, gezählt über die Kandidaten
+   *dieses* Pools**, und sie geht nach `SlotPool.unknowns`. Begründung: die
+   Zeile existiert nach AD-004s eigener Begründung dafür, dass *„ein Spieler
+   ein starkes situatives Relikt ungenutzt sähe und den Berater für kaputt
+   hielte"* — dieses Bild entsteht in der Kandidatenliste des Pickers, und
+   nur dort kann der Spieler die Zahl gegen das prüfen, was auf dem Schirm
+   steht. Eine Zählung über den ganzen Bestand nennte Relikte mit, die
+   farblich gar nicht in diesen Slot passen.
+5. **Woraus gezählt wird, damit die Zahl nicht widerspricht, was gerechnet
+   wurde:** aus dem `Build`, den der Pool für den Kandidaten ohnehin bildet —
+   `Build.situational` mit `live == False`. Das ist dieselbe Disziplin wie
+   AD-015 bei den Flüchen (*„aus `Build.sources` statt aus den
+   Relikt-Definitionen, damit ein Fluch, den die Rechnung nicht angewandt
+   hat, nicht so gezeigt wird, als hätte sie es"*). **Ausdrücklich nicht**
+   erlaubt ist eine zweite, in `candidates.py` selbst geschriebene Ableitung
+   des Waffentyps für `model.is_conditional` — `model.compute` leitet ihn
+   heute in `model.py` aus `weapons_held`/`weapon` ab, und eine zweite
+   Ableitung ist eine zweite Meinung darüber, was gezählt wurde.
+6. **Der Geltungsbereich dieser Zeile, ausgesprochen:** `Build.situational`
+   führt nur Bedingungen, die der Spieler erklären kann — **nicht** einen
+   Effekt, der an einer nicht getragenen Waffenklasse hängt. Dieser Fall ist
+   QA-104 und bekommt seine eigene Zeile; er wird von der konditionalen Zeile
+   nicht mitgezählt und darf es nicht, sonst nennt eine Zahl zwei
+   verschiedene Sachverhalte.
+7. **Ein Kriterium, zwei Darstellungen.** Derselbe Sachverhalt erscheint auf
+   dem Ergebnisweg als `AdvisorResult.not_counted` (Effektnamen, S7/S9) und
+   auf dem Pickerweg als Zeile mit einer Anzahl von **Relikten**. Die
+   Nenner sind verschieden und das ist gewollt; das **Kriterium** ist
+   dasselbe und darf nur einmal geschrieben werden.
+8. **Der Wortlaut ist nicht meiner.** AD-004 sagt „N of your relics", gezählt
+   wird dieser Pool. Der `ui-ux-designer` entscheidet den Satz (OF-20); bis
+   dahin baut der `developer` ihn mit dem gezählten Bestand im Text, nicht
+   mit „your relics".
+
+---
+
+### Präzisierung AD-010 — was „Pflichtfeld im Ergebnis" nach D1 heisst, und warum AK-50 nicht widerspricht
+
+AD-010 bleibt gültig, mit einer geschärften Reichweite.
+
+1. **AD-010 hat eine statische Liste *aller denkbaren* Lücken verworfen** —
+   einen Text, der immer dasselbe sagt, gleichgültig ob die Lücke im Lauf
+   überhaupt eingetreten ist. Es hat **nicht** einen festen Satz über eine
+   Eigenschaft des Verfahrens verworfen. Die Bedingung, unter der Option A
+   geprüft wurde (*„welche Lücken gelten, hängt vom konkreten Lauf ab"*),
+   trifft auf einen Verfahrenssatz nicht zu. `UI_SPEC` AK-50 ist damit nicht
+   die von AD-010 verworfene Option A.
+2. **Pflicht im Ergebnis ist der Laufbefund**, und zwar vollständig: was in
+   diesem Lauf weggefallen ist, fährt mit und erscheint dort, wo es entstand.
+   `unknowns` **darf leer sein**; leer heisst „in diesem Lauf ist nichts
+   weggefallen" und ist eine Aussage, keine Auslassung.
+3. **Pflicht in der Registry ist der Verfahrenssatz**, und dort gilt „nie
+   leer": eine Zielrichtung ohne `scope` ist keine. Die Zusage aus AD-010,
+   dass immer etwas dasteht, wandert damit von `GoalScore.unknowns` auf
+   `Goal.scope` — sie wird nicht schwächer, sie wird prüfbar ohne
+   Datensatz (QA-106).
+4. **Die verbindliche Inhaltsliste jedes `AdvisorResult`** (AD-010) bleibt
+   Wort für Wort bestehen und ist nach dieser AD durchweg Laufbefund:
+   `unknowns`, `weights_note`, `not_counted`, `curses`, `data_note`,
+   `budget_note`. Das ist kein Zufall — AD-010 hat die Klasse schon richtig
+   getroffen, ohne sie zu benennen.
+5. **Nutzersprache bleibt verbindlich:** „Best found", „Top suggestions",
+   „Not counted", „Not verified" — nie „Optimal", „Best possible",
+   „Guaranteed". Für beide Klassen.
+
+---
+
+### Präzisierung AD-016 — der Cache-Schlüssel ist positionsabhängig, und `held_fingerprint` entfällt (D3, QA-107)
+
+**Der Befund:** `held_fingerprint` ist positionsunabhängig (sortiert, ohne
+Slotindex), der als Schlüssel benannte `AdvisorRequest` ist es nicht — er
+trägt `problem.held` als geordnetes Tupel. Gemessen: Fingerabdruck gleich,
+Request und Hash verschieden. Der Wächter
+`test_where_a_relic_is_held_does_not_change_the_fingerprint` sichert damit
+eine Eigenschaft, die der Schlüssel nicht hat.
+
+**Entscheidung (D3, Vorgabe des `director`): der Schlüssel ist der
+`AdvisorRequest`, positionsabhängig.**
+
+**Meine Entscheidung zur zweiten Hälfte, die der `director` mir überlassen
+hat: `held_fingerprint` wird gestrichen — die Funktion, die Property und der
+Wächter.** Nicht positionsabhängig gemacht. Drei Gründe, in dieser
+Reihenfolge:
+
+1. **Er wäre eine zweite Schlüsselform.** Der Modul-Docstring von
+   `advisor/types.py` verbietet genau das, mit ausgeschriebener Begründung:
+   *„there is no second key form that could drift from the state it stands
+   for."* Heute ist dieser Satz **falsch**, weil der Fingerabdruck da ist.
+   Ihn zu streichen macht den Satz wahr; ihn positionsabhängig zu machen
+   liesse ihn falsch und fügte eine ableitbare Kopie hinzu, die niemand
+   liest.
+2. **Er hat keinen Leser und bekommt keinen.** Der Cache schlüsselt auf den
+   Request (AD-018: *„Es entsteht keine zweite Schlüsselform"*). Der
+   Generationszähler (AD-016.3) braucht nur „ist der Request ein anderer" —
+   `SlotProblem` ist eine gefrorene Datenklasse und vergleicht sich selbst.
+3. **Er ist eine Falle.** Solange er dasteht und behauptet, zwei
+   Haltezustände seien dasselbe, wird ihn irgendwann jemand für etwas
+   Schlüsselartiges benutzen — und dann tritt der Fehler ein, gegen den D3
+   geschrieben ist: ein Treffer über den falschen Haltezustand überschreibt
+   einen bewusst festgehaltenen Slot. Ein positionsabhängiger Fingerabdruck
+   wäre keine Falle mehr, aber auch kein Nutzen; er wäre nur eine Kopie, die
+   driften kann.
+
+**Rückweg, benannt:** braucht S9 doch eine kanonische Form, wird sie dort
+gebaut — **positionsabhängig**, und der Wächter zeigt dann auf den
+**Schlüssel**, nicht auf den abgeleiteten Wert. Das sind zwölf Zeilen.
+
+**Verbindlich, ersetzt AD-016 Punkt 2 und 4:**
+
+- **AD-016.2 (neu):** Der Haltezustand ist im Cache-Schlüssel, **weil
+  `AdvisorRequest.problem` im Schlüssel ist**. Kein abgeleiteter
+  Fingerabdruck, keine zweite Form. Die Abwägung des ursprünglichen Punktes 2
+  gilt unverändert: ein überflüssiger Fehlschlag kostet 0,46 s (Gesamtlauf)
+  bzw. ~51 ms (Picker), ein Treffer über den falschen Haltezustand kostet
+  einen überschriebenen Halt.
+- **AD-016.4 (neu):** Es gibt keine Rückabbildung, weil es keine
+  Kanonisierung gibt. Festgehaltene Slots behalten ihren Platz, weil im
+  Schlüssel steht, wo sie sind.
+- **AD-016.1 und AD-016.3 bleiben unverändert.**
+
+**Was das AD-008 kostet, ausdrücklich benannt, weil eine neue Entscheidung
+einer alten widerspricht:** AD-008 hat entschieden, ein Suchproblem über die
+kanonisierte Slot-Farbmenge zu schlüsseln statt über das Gefäss. Für den
+**Cache-Schlüssel** ist diese Entscheidung damit abgelöst — er ist der
+Request, und der kennt Gefäss und Slotindizes. Der Trefferanteil, mit dem
+AD-008 argumentiert hat (74 Gefässe → 26 bzw. 47 Muster), entfällt.
+**Tragbar, weil:** der Hauptweg nach AD-018 erzeugt ohnehin je Slot einen
+eigenen Eintrag („freie Slots = genau einer"), die Einträge sind klein, und
+die LRU aus AD-007 ist ohnehin in S11 neu zu setzen (Vorschlag 64).
+**Nicht abgelöst ist AD-008 als Prüfäquivalenz:** die 26 bzw. 47 kanonischen
+Probleme bleiben das Mass, an dem der `qa-engineer` A3 vollständig prüft.
+Das war ein zweites, unabhängiges Argument in AD-008 und es hängt nicht am
+Cache. Siehe OF-22.
+
+**Warum D3 richtig ist, obwohl seine Begründung zu eng ist** — das gehört in
+die Akte, weil die Begründung sonst als Regel weiterlebt: der `director`
+begründet die Positionsabhängigkeit damit, dass *„die Slots verschiedene
+Farben tragen und die Menge der freien Slots eine andere ist"*. Der Fall, um
+den es geht, setzt aber voraus, dass **dasselbe** Relikt in beide Slots
+passt, also tragen sie in aller Regel **dieselbe** Farbe; und die Menge der
+freien Slots wäre unter einer Kanonisierung nach Farben gerade **gleich**.
+Der tragende Grund ist ein anderer und stärker: **die Antwort trägt
+Slotindizes** (`SlotChoice.slot_index`, `Candidate.slot_index`,
+`SlotPool.slot_index`). Ein Treffer über eine Permutation gäbe eine Antwort
+zurück, deren Indizes auf die Slots des *anderen* Problems zeigen; das
+geradezuziehen ist genau die Rückabbildung aus AD-016.4, die es nicht gibt
+und die niemand gebaut hat. Solange sie fehlt, ist jeder
+positionsunabhängige Treffer ein überschriebener Halt. Die Entscheidung ist
+damit **richtiger als ihre Begründung** — dieselbe Lage wie bei QA-101.
+
+---
+
+### Präzisierung AD-009 — die Nummer 18 war zweimal vergeben (D4)
+
+**Befund:** Nachtrag II vergibt Prüfpunkt **18** an *„Kein
+`QSettings`-Zugriff im Berater-Pfad"*, Nachtrag III vergibt dieselbe **18**
+an *„Untere Schicht bitgleich über den ganzen Umbau"*. Beide sind vom
+2026-09-02. Nachtrag III vergibt danach 19 bis 22, die frei waren; die
+Kollision betrifft **nur** die 18.
+
+**Auflösung, mit zwei unabhängigen Gründen, die auf dasselbe zeigen:**
+
+- **Prüfpunkt 18 bleibt bei Nachtrag II:** „Kein `QSettings`-Zugriff im
+  Berater-Pfad". Er hat den ersten Anspruch auf die Nummer (Nachtrag II
+  steht vor Nachtrag III), **und** er ist der einzige der beiden, der noch
+  **offen** ist: QA-110 zeigt auf ihn und geht an den `developer`. Eine
+  offene Zusicherung umzunummerieren heisst, in einem laufenden Befund eine
+  falsche Nummer stehen zu lassen.
+- **Nachtrag IIIs Prüfpunkt wird Prüfpunkt 28:** „Untere Schicht bitgleich
+  über den ganzen Umbau". Er ist **erledigt** — der Umbau W0–W5 ist
+  abgeschlossen, und die Stellen, die auf ihn zeigen (`docs/tasks/T-027.md`,
+  `T-029.md`, `T-030.md`, `qa/findings.md` bei der Golden-Neuaufnahme), sind
+  Verläufe passierter Tore, keine offenen Aufträge. 28 ist die nächste freie
+  Nummer nach Nachtrag V.
+
+**Ab jetzt gilt:**
+
+| Zusicherung | Nummer bis 05.09.2026 | Nummer ab jetzt |
+|---|---|---|
+| Kein `QSettings`-Zugriff im Berater-Pfad (Nachtrag II) | 18 | **18** (unverändert) |
+| Untere Schicht bitgleich über den ganzen Umbau (Nachtrag III) | 18 | **28** |
+
+Die Verweise in dieser Datei sind nachgezogen. Wer in
+`docs/tasks/T-027.md`, `T-029.md`, `T-030.md`, `docs/berichte/` vor dem
+05.09.2026 oder in `qa/findings.md` auf „Prüfpunkt 18" trifft, liest ihn im
+Licht dieser Tabelle: im Zusammenhang mit der Golden-Neuaufnahme und mit
+`weapons.rate` ist die 28 gemeint, im Zusammenhang mit dem Berater und
+QA-110 die 18.
+
+**Regel, damit es nicht wieder passiert:** Prüfpunkte werden wie AD-Nummern
+**fortlaufend** vergeben und **nie neu**. Ein Nachtrag schaut auf die höchste
+vergebene Nummer im ganzen Dokument, nicht auf die höchste in seinem eigenen
+Abschnitt. Höchste vergebene Nummer nach diesem Nachtrag: **34**.
+
+---
+
+### Prüfpunkte, Ergänzung (zu AD-009, Nachträge I bis V)
+
+29. **Jede Zielrichtung hat einen Geltungsbereich, und zwar ohne
+    Spielinstallation.** Für jeden Eintrag der Registry ist `Goal.scope`
+    nicht leer, geprüft **ohne** `game_data`, ohne `Build`, ohne Bestand.
+    Das ist der Fall, der QA-106 nicht trifft: er läuft auf jedem Runner.
+    **Gegenbau:** `scope` einer Zielrichtung leeren ⇒ rot.
+30. **Kein Satz steht in beiden Klassen.** Kein String aus `Goal.scope`
+    erscheint in `GoalScore.unknowns`, `Baseline.unknowns` oder
+    `SlotPool.unknowns` desselben Laufs. **Gegenbau:** einen Satz aus
+    `scope` zusätzlich in `unknowns` legen ⇒ rot. Läuft ohne Datensatz,
+    soweit über die Modulkonstanten geprüft.
+31. **Ein Laufbefund überlebt nicht jeden Lauf.** Über mindestens zwei
+    wirklich herstellbare Kontexte derselben Zielrichtung (mit und ohne
+    Referenzwaffe) ist der **Durchschnitt** der `unknowns`-Mengen leer: ein
+    Satz, der in jedem Lauf dasteht, ist ein Verfahrenssatz und gehört nach
+    `Goal.scope`. **Gegenbau:** einen der vier Geltungsbereichssätze zurück
+    in `unknowns` schieben ⇒ er steht in beiden Läufen ⇒ rot. Braucht den
+    Datensatz und überspringt ohne Spielinstallation (QA-106, stehende
+    Einschränkung).
+32. **Der Pool trägt, was die Zielrichtung nicht wusste.** Für jeden Pool und
+    jede Zielrichtung gilt: `Baseline.unknowns` und `weights_note` sind
+    wortgleich das, was `goal.score(base_build, ctx)` geliefert hat, und
+    `unit` ebenso. **Gegenbau:** in `pool()` wieder nur `.value` übernehmen
+    ⇒ rot. Das ist der Wächter über QA-102.
+33. **Die konditionale Zeile zählt, was wirklich nicht gezählt wurde.** Ein
+    Bestand mit K Relikten, deren Effekt gated und nicht deklariert ist,
+    ergibt eine Zeile mit K; derselbe Bestand mit denselben Effekten
+    **deklariert** ergibt **keine** Zeile. **Gegenbau:** die Zeile aus einer
+    zweiten Ableitung über die Relikt-Definitionen bilden statt aus dem
+    `Build` ⇒ der deklarierte Fall zählt weiter mit ⇒ rot.
+34. **Der Haltezustand ist im Schlüssel, ohne zweite Form.** Zwei Requests,
+    die sich nur im Halt unterscheiden — auch nur darin, **in welchem Slot**
+    gehalten wird —, sind verschieden und hashen verschieden. Ein
+    gehaltenes Custom-Relikt (`handle=None`) neben einem besessenen bricht
+    weder Gleichheit noch Hash. **Gegenbau:** `SlotProblem.held` aus dem
+    Request nehmen oder zu einer sortierten Menge machen ⇒ rot. Ersetzt den
+    Wächter über `held_fingerprint`.
+
+---
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Die Trennung wird gebaut, aber die Oberfläche liest nur eine Hälfte — `UI_SPEC` AK-63 nennt heute genau eine Quelle. Dann zeigt der Picker **weniger** als vorher, und A7 ist auf dem Hauptweg schlechter statt besser. | Zeile 4 des Pickers steht leer oder trägt nur die AD-018.3-Pflichtzeile. | OF-19: `UI_SPEC` nachziehen, **bevor** S10 gebaut wird. Prüfpunkt 29 hält die Registry-Hälfte, Prüfpunkt 32 die Ergebnis-Hälfte; die Anzeige selbst hält beides erst, wenn AK-63 zwei Quellen nennt. |
+| Die konditionale Zeile nennt eine Anzahl, die der Spieler auf dem Schirm nicht nachzählen kann (weil sie über einen anderen Bestand gebildet wurde als den angezeigten). | Ein Spieler zählt vier situative Relikte und die Zeile sagt sieben. | Prüfpunkt 33 und die Festlegung „gezählt über die Kandidaten dieses Pools, gebildet aus dem `Build`". |
+| `held_fingerprint` wird gestrichen, und mit ihm fällt still eine echte Zusicherung weg: dass ein **gehaltenes Custom-Relikt** (`handle=None`) den Schlüssel nicht sprengt. Der heutige Fall prüft das über den `repr`-Sort des Fingerabdrucks. | Nichts — bis ein Spieler ein Custom-Relikt festhält. | Prüfpunkt 34, zweiter Satz. Der Fall wird **nicht gelöscht**, sondern auf `AdvisorRequest` umgehängt. |
+| Der Cache trifft seltener als AD-008 versprochen hat, und S11 misst es als Regression. | Trefferquote in S11 unter der Erwartung aus AD-008. | Das ist die bewusste Folge von D3 und keine Regression; die Zahl aus AD-008 gilt für den Schlüssel nicht mehr. Wenn es doch drückt: kanonische Form in S9 nachrüsten, **mit** Rückabbildung, nicht ohne. |
+| Der `developer` baut aus QA-102 heraus auch `display` in den Pool und der Picker zeigt den Absolutwert des Grundzustands als Kandidatenwert. | Eine Karte zeigt „Attack rating 122" statt „+12.4". | „Was ausdrücklich nicht über die Poolgrenze fährt", Punkt 1, und Nicht-tun-Regel 33. |
+
+---
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+33. **`GoalScore.display` nicht in den Pool durchreichen.** Es formatiert den
+    Absolutwert des Grundzustands; der Picker zeigt eine Differenz. Wer eine
+    Formatregel für eine Differenz braucht, meldet sie (OF-21) und baut sie
+    nicht nebenbei.
+34. **`GoalScore.unknowns` nicht umbenennen** und `Baseline` nicht durch
+    einen neuen per-Ziel-Typ ersetzen. Beides wäre Vereinheitlichung ohne
+    Ertrag und zieht `UI_SPEC` AK-63 und drei Testdateien mit.
+35. **Keinen `dict`- und keinen `list`-Typ in die neuen Felder.** Die Regel
+    des Modul-Docstrings gilt unverändert (QA-066): die Formen, die eine
+    Frage oder eine Antwort beschreiben, tragen kein Mapping und keine
+    Liste.
+36. **Keine zweite Ableitung des Waffentyps** für `model.is_conditional` in
+    `candidates.py`. Die Zahl muss beschreiben, was `model.compute`
+    tatsächlich weggelassen hat, nicht was eine zweite Rechnung dafür hält.
+37. **`held_fingerprint` nicht „vorsichtshalber" stehenlassen**, auch nicht
+    als private Funktion. Streichen heisst streichen; die drei Testfälle, die
+    ihn benutzen, werden umgehängt oder gelöscht, nicht deaktiviert.
+38. **Den Wortlaut der konditionalen Zeile nicht als endgültig setzen.** Er
+    gehört dem `ui-ux-designer` (OF-20); im Code steht bis dahin die
+    Fassung, die den **gezählten** Bestand beschreibt, nicht „your relics".
+
+---
+
+### Bewusst nicht getan, Ergänzung
+
+- **`held_fingerprint` nicht positionsabhängig gemacht, sondern gestrichen.**
+  *Wieder interessant, wenn:* S9 eine kanonische Form braucht — dann
+  positionsabhängig, mit Rückabbildung, und mit dem Wächter auf dem
+  Schlüssel statt auf dem abgeleiteten Wert.
+- **Die kanonische Form aus AD-008 nicht als Cache-Schlüssel gebaut.**
+  *Wieder interessant, wenn:* S11 misst, dass die Trefferquote drückt, **und**
+  die Rückabbildung der freien Slots gebaut ist. Ohne die Rückabbildung ist
+  die kanonische Form kein Schlüssel, sondern ein überschriebener Halt.
+- **Keine Formatregel für eine Differenz je Zielrichtung.** *Wieder
+  interessant, wenn:* S8/S10 gebaut werden — dann als Entscheidung des
+  `ui-ux-designer`, nicht als Feld, das im Vorbeigehen im Pool landet.
+- **Kein Kennzeichen am einzelnen Satz** (Option B). *Wieder interessant,
+  wenn:* eine dritte Klasse auftaucht, die weder in die Registry noch ins
+  Ergebnis passt. Bis dahin ist der Ort die Klasse.
+
+---
+
+### Offene Fragen, neu
+
+**OF-19 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
+`UI_SPEC` AK-63 (T-052, 2026-09-05) legt fest, dass Zeile 4 des Pickers und
+Punkt 4 des Why-Dialogs **ausschliesslich** die Sätze aus
+`GoalScore.unknowns` der gewählten Zielrichtung zeigen. Nach AD-025 sind es
+**zwei** Quellen: `Goal.scope` (der Geltungsbereich, immer) und die
+Laufbefunde des Pools (`Baseline.unknowns`, `SlotPool.unknowns`,
+`weights_note`). Die **Absicht** von AK-63 bleibt vollständig erfüllbar — ein
+fünfter Satz in `advisor/goals.py` erscheint danach an beiden Anzeigeorten,
+ohne dass ein UI-String angefasst wird. Der **Wortlaut** von AK-63 nennt eine
+Quelle, wo es zwei gibt. Wird AK-63 nicht nachgezogen, zeigt eine
+spec-treue Umsetzung nach der Trennung **weniger** als heute. Das ist der
+einzige Punkt dieses Nachtrags, der A7 verschlechtern kann.
+
+**OF-20 — an den `ui-ux-designer`, über den `director`:** der Wortlaut der
+konditionalen Zeile. AD-004 sagt „N of your relics", gezählt wird nach dieser
+AD über die Kandidaten **dieses Pools**. Gehört in dieselbe Runde wie QA-108
+(„of this colour" stimmt am weissen Slot nicht) — es sind zwei Zeilen
+desselben Bautyps im selben Feld, und sie sollten zusammen geschrieben
+werden.
+
+**OF-21 — an den `director`:** die Formatierung einer **Differenz** je
+Zielrichtung (`+12.4 AR` gegen `−18`) hat heute nirgends einen Ort. Ich lese
+sie als S8/S10 und ausdrücklich **nicht** als Teil von T-048. Bestätigung
+erbeten, weil QA-102 „`display` fällt weg" meldet und der nächstliegende
+Griff der falsche wäre.
+
+**OF-22 — an den `director`:** AD-008 hatte zwei Argumente — Trefferquote im
+Cache **und** Prüfäquivalenz (26 bzw. 47 kanonische Probleme statt 74
+Gefässe, mit der A3 überhaupt vollständig prüfbar wird). D3 hebt das erste
+auf. Ich lese das zweite als **unberührt**, weil es nicht am Cache hängt.
+Falls der `director` das anders sieht, ist der Prüfumfang für A3 neu zu
+bemessen, und das trifft den `qa-engineer`, nicht den `developer`.

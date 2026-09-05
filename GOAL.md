@@ -152,3 +152,48 @@ Build-Berater war seit Zyklus 2 durch vier offene UI-Fragen blockiert.
   Handles werden beim Einschmelzen neu vergeben; ein ueber den Neustart
   geretteter Halt waere genau der Fall, gegen den AD-013 gebaut ist.
 
+
+
+## Erweiterung des Zielbilds (Nutzer, 2026-09-05)
+
+**Grund:** Der Nutzer hat den Audit auf die Inhalte der Tabs ausgedehnt.
+Woertlich: *"mach einen audit aller tabs ausser dem ersten. der erste passt.
+aber die effekte, waffen, world events etc.. alles. was macht dort sinn?
+verwende den power-user und den QA tester dafuer. Erst wenn alles was da
+steht qualitativ hochwertig, verstaendlich fuer den auto-normal-verbraucher/
+gamer, schoen formattiert und designed ist ist die aufgabe fertig."*
+
+**Geltungsbereich: sechs Tabs.** `Effects & chances`, `Weapons & spells`,
+`Nightlords`, `Deep of Night`, `Red variants`, `World Events`.
+**`Build planner` ist ausdruecklich ausgenommen** ("der erste passt").
+
+- **A10 — Jeder dieser Tabs beantwortet eine benennbare Spielerfrage**, und
+  ein Spieler kann sie am Tab selbst ablesen, ohne sie erraten zu muessen.
+  Ein Abschnitt, der keine Frage beantwortet, wird zur Streichung
+  **vorgeschlagen** — die Entscheidung darueber trifft der App Designer,
+  nicht das Team.
+- **A11 — Ein nicht-technischer Spieler erreicht auf jedem Tab sein Ziel
+  ohne fremde Hilfe.** Nachweis: `power-user`-Berichte, in denen kein
+  "ich habe nicht verstanden, was das bedeutet" und kein "ich habe geraten"
+  mehr steht. Das ist das haerteste der neuen Kriterien und das einzige,
+  das nicht am Code messbar ist.
+- **A12 — Jede Zahl und jede Beschriftung auf diesen Tabs nennt ihre
+  Einheit und ihren Geltungsbereich.** Das ist A7, ausgedehnt von der
+  Rechnung auf die Anzeige: keine Zahl ohne Bezugsgroesse, keine
+  Zusicherung ohne die Angabe, was sie **nicht** deckt.
+- **A13 — Die sechs Tabs sind unter sich gestalterisch konsistent** und in
+  sich fehlerfrei: gleiche Typografie, Abstaende, Farbrollen und
+  Spaltenausrichtung; nichts abgeschnitten, kein Wortumbruch mitten im
+  Begriff, keine waagerechte Bildlaufleiste am Standardmass. Nachweis am
+  **laufenden Fenster** mit Screenshots, nicht am Code.
+- **A14 — Der `qa-engineer` bestaetigt A10 bis A13 je Tab einzeln.** Eine
+  Sammelaussage ueber "die Tabs" zaehlt nicht.
+
+**Nicht-Ziel, ausdruecklich:** neue Funktionen auf diesen Tabs. Der Auftrag
+ist "was dort steht, soll gut sein" — nicht "es soll mehr dort stehen". Neue
+Inhalte gehen ueber den `product-strategist` und die Freigabe des Nutzers.
+
+**Verhaeltnis zu A9:** Der `power-user`-Lauf fuer A11 startet die
+Entwicklungsfassung. Der Lauf gegen ein **gebautes Artefakt** (A9) bleibt
+davon unberuehrt in P9 stehen — er beantwortet eine andere Frage
+(Installation, Erststart, Paketierung).
