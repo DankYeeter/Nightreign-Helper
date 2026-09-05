@@ -22,13 +22,14 @@ needs two trees. See the package docstring for how it is driven.
 
 from __future__ import annotations
 
+import math
 import pathlib
 import subprocess
 import sys
 
 import pytest
 
-from scripts.differential import capture, compare, mutate, plan
+from scripts.differential import capture, compare, mutate, plan, ratios
 
 from tests import weapon_damage_cases as cases
 
@@ -294,6 +295,182 @@ def test_withheld_records_are_announced_rather_than_dropped():
 
     assert "3 further unexpected records not printed" in lines
     assert "--examples 0" in lines
+
+
+# --- the ratios -------------------------------------------------------------
+#
+# `compare` says what moved; `ratios` says whether it moved by the amount
+# that was meant. The three ways it could lie quietly are what these pin
+# down: waving through a figure that missed the factor by a hair, quietly
+# widening the bracket the two rounding rules leave for a number on screen,
+# and reading digits out of a colour as if they were a figure.
+
+def _figures(index: int, **fields) -> dict:
+    """A capture record whose numbers are written the way `capture` writes
+    them: floats as `float.hex()`, everything else as it is."""
+    base = {"index": index, "case": f"case {index}"}
+    base.update({key: (value.hex() if isinstance(value, float) else value)
+                 for key, value in fields.items()})
+    return base
+
+
+def test_a_figure_that_moved_by_the_factor_is_placed_as_scaled():
+    old = [_figures(0, last_ar=100.0)]
+    new = [_figures(0, last_ar=100.0 * 0.6)]
+
+    report = ratios.measure(old, new, 0.6)
+
+    assert (report.figures, report.figures_scaled) == (1, 1)
+    assert report.unplaced_count == 0
+    assert report.worst_ulps == 0
+
+
+def test_one_ulp_off_the_factor_still_counts_and_two_do_not():
+    """The bar is one ULP, and it is a bar rather than a shrug.
+
+    Both sides of it in one case: the residue a double multiplication leaves
+    is allowed, and the residue of anything larger is a finding that gets
+    printed with its ratio. Without the second half this file would accept
+    any figure whose ratio merely looked like the factor.
+    """
+    wanted = 100.0 * 0.6
+    near = math.nextafter(wanted, math.inf)
+    far = math.nextafter(near, math.inf)
+
+    close = ratios.measure([_figures(0, last_ar=100.0)],
+                           [_figures(0, last_ar=near)], 0.6)
+    assert (close.figures_scaled, close.unplaced_count) == (1, 0)
+    assert close.worst_ulps == 1
+
+    beyond = ratios.measure([_figures(0, last_ar=100.0)],
+                            [_figures(0, last_ar=far)], 0.6)
+    lines = "\n".join(ratios.render(beyond, examples=20))
+    assert beyond.unplaced_count == 1
+    assert "2 ULP" in lines and "ratio" in lines
+
+
+def test_a_figure_that_moved_by_another_factor_is_printed_in_full():
+    old = [_figures(0, last_ar=100.0)]
+    new = [_figures(0, last_ar=70.0)]
+
+    report = ratios.measure(old, new, 0.6)
+    lines = "\n".join(ratios.render(report, examples=20))
+
+    assert report.unplaced_count == 1
+    assert "case 0" in lines and "0.7" in lines
+
+
+def test_a_multiplier_that_did_not_move_is_placed_apart_from_the_scaled():
+    """The three kinds have to stay apart: a rate the factor never reached
+    is evidence of a different thing than a figure it did."""
+    old = [_figures(0, last_ar={"final": (100.0).hex(),
+                                "rates": {"physicsAttackRate": (1.2).hex()}})]
+    new = [_figures(0, last_ar={"final": (60.0).hex(),
+                                "rates": {"physicsAttackRate": (1.2).hex()}})]
+
+    report = ratios.measure(old, new, 0.6)
+
+    assert (report.figures_scaled, report.figures_still) == (1, 1)
+    assert report.unplaced_count == 0
+
+
+def test_a_number_on_screen_is_held_to_what_the_rounding_rules_allow():
+    """Two whole numbers are reachable from 100 by the factor, and the third
+    is not. A bracket that admitted it would admit almost anything."""
+    for shown, placed in (("60", True), ("59", True),
+                          ("58", False), ("61", False)):
+        report = ratios.measure([_figures(0, panel="AR 100")],
+                                [_figures(0, panel=f"AR {shown}")], 0.6)
+        assert (report.unplaced_count == 0) is placed, (
+            f"100 -> {shown} was {'refused' if placed else 'accepted'}")
+
+
+def test_the_change_lines_are_reached_by_the_rounding_rule_not_the_other():
+    """`f"{d:+.0f}"` did not become `floor`, and the report says which rule
+    each number needed. Counting them together would hide a display that
+    started truncating a figure it is meant to round."""
+    report = ratios.measure([_figures(0, panel="Total 100 +24")],
+                            [_figures(0, panel="Total 60 +15")], 0.6)
+
+    assert report.numbers_truncated == 1
+    assert report.numbers_rounded == 1
+    assert report.unplaced_count == 0
+
+
+def test_text_that_moved_around_its_figures_is_dumped_rather_than_counted():
+    """A row that fell out of a panel is not a number that moved, and a
+    tally would make it look like one."""
+    report = ratios.measure(
+        [_figures(0, panel="Physical 100 +1 <b>101</b>")],
+        [_figures(0, panel="Physical 60 <b>60</b>")], 0.6)
+    lines = "\n".join(ratios.render(report, examples=20))
+
+    assert report.unplaced_count == 1
+    assert "the text around the figures moved" in lines
+    assert "+1" in lines
+
+
+def test_a_colour_that_changed_is_reported_and_not_read_as_a_figure():
+    """A colour is not a number that moved by 0.6.
+
+    Written here with two colours made of digits alone, which is as legal in
+    CSS as any other and is what the tokeniser's `#` is for. The palette this
+    program happens to use -- `#6fbf73`, `#8a8a8a` -- has letters in it and
+    would be held out by the lookahead anyway, so a case built from those
+    would pass with the `#` taken out and say nothing about it.
+
+    What the case says: the colour is **one** difference, dumped in full,
+    rather than six digits that moved by a factor nobody meant.
+    """
+    report = ratios.measure(
+        [_figures(0, panel="<span style='color:#116622'>100</span>")],
+        [_figures(0, panel="<span style='color:#884422'>60</span>")], 0.6)
+    lines = "\n".join(ratios.render(report, examples=20))
+
+    assert report.unplaced_count == 1
+    assert "#116622" in lines and "#884422" in lines
+    assert report.numbers == 0
+
+
+def test_a_length_in_a_stylesheet_is_not_one_of_the_numbers_on_screen():
+    """`10px` must not swell the tally of figures that stood still.
+
+    That tally is evidence -- it is what says the values the factor never
+    reached did not move -- and padding it with the stylesheet would make it
+    say less while looking like more.
+    """
+    report = ratios.measure(
+        [_figures(0, panel="<span style='font-size:10px'>100</span>")],
+        [_figures(0, panel="<span style='font-size:10px'>60</span>")], 0.6)
+
+    assert report.numbers == 1
+    assert report.numbers_truncated == 1
+    assert report.unplaced_count == 0
+
+
+def test_a_field_only_one_capture_holds_is_a_finding():
+    report = ratios.measure([_figures(0, last_ar=100.0)],
+                            [_figures(0, last_ar=60.0, extra="new")], 0.6)
+    lines = "\n".join(ratios.render(report, examples=20))
+
+    assert report.unplaced_count == 1
+    assert ratios.ABSENT in lines
+
+
+def test_zero_on_both_sides_is_counted_apart_from_the_evidence():
+    """Zero times anything is zero, so such a value agrees with every factor
+    there is. Counted as scaled it would pad the evidence."""
+    report = ratios.measure([_figures(0, last_ar=0.0)],
+                            [_figures(0, last_ar=0.0)], 0.6)
+
+    assert (report.figures_zero, report.figures_scaled) == (1, 0)
+
+
+def test_captures_of_two_different_plans_are_refused_by_the_ratios_too():
+    with pytest.raises(SystemExit, match="one length"):
+        ratios.measure([_figures(0)], [_figures(0), _figures(1)], 0.6)
+    with pytest.raises(SystemExit, match="do not line up"):
+        ratios.measure([_figures(0)], [_figures(0, case="another")], 0.6)
 
 
 # --- the mutations ----------------------------------------------------------
