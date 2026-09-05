@@ -1,7 +1,7 @@
 {
   "dataset": {
     "data_version": "10350000",
-    "extract_version": 9,
+    "extract_version": 10,
     "regulation_sha256": "876a3ca279a4561d0c69f81fe5e510c75c59ab9a8a201694f8cf4a42c91e0268"
   },
   "cases": [
@@ -647,7 +647,7 @@
         "tiles": [
           {
             "title": "<span style='color:#a97fe0'>Glintstone Staff</span>",
-            "detail": "Rare +2 · <b style='color:#c8a45c'>236</b> Spell power"
+            "detail": "Rare +2 · <b style='color:#c8a45c'>236</b> Spell power"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 2 — empty</span>",
@@ -707,7 +707,7 @@
         "tiles": [
           {
             "title": "<span style='color:#6fa8d6'>Recluse's Staff</span>",
-            "detail": "Uncommon +1 · <b style='color:#c8a45c'>184</b> Spell power"
+            "detail": "Uncommon +1 · <b style='color:#c8a45c'>184</b> Spell power"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 2 — empty</span>",
