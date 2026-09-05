@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from . import tabheader
+
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
@@ -35,6 +37,15 @@ OBSERVED_COLOUR = "#7fae72"
 COLUMNS = 4
 ICON = 64
 CARD_WIDTH = 250
+
+#: What this tab is for, in the reader's own words (AK-68, AK-89). Above the
+#: count and above the cards, because a player arrives with the question and
+#: not with the roster.
+HEADING = "HOW TO HURT EACH NIGHTLORD"
+QUESTION = (
+    "What each Nightlord takes extra damage from, what breaks its stance, "
+    "and what it does to you once it is broken. Click a card for the full "
+    "profile.")
 
 # What body part a numbered slot actually is, once someone has watched it.
 #
@@ -53,7 +64,24 @@ PART_NAMES: dict[tuple[str, str], str] = {}
 # all of them do -- Gnoster shows nothing at all -- and the files never say
 # who gets it, so this is a sighting list. Showing the line for every boss
 # would put a flat lie on the page.
+#
+# The two figures this list used to print with -- "x2.0 damage taken" and
+# "x0.8 attack power" -- are gone (QA-129). They were typed in here, and the
+# dataset neither confirms nor places them: `x2.0 damage taken` has no
+# counterpart anywhere in it, and the one field that is an attack-power
+# multiplier for a boss, `ladder.down`, says 0.815 for Gladius and nothing at
+# all for the other two names below, while saying exactly 0.8 for Harmonia and
+# Straghess, who are not on this list. Whether the two describe one mechanism
+# cannot be decided from the files, so the sighting is kept as a sighting -- it
+# says what was watched and admits that the size of it is not in the data (A7).
 DEBUFF_ON_BREAK = {"Gladius", "Heolstor the Nightlord", "Caligo"}
+
+# The sighting itself, without a magnitude. Shown in OBSERVED_COLOUR (AK-94),
+# so a reader can see at a glance that this line was watched rather than read.
+DEBUFF_ON_BREAK_SIGHTING = (
+    "Watched in play: breaking its stance leaves it weakened for a time — a "
+    "golden shine, with damage-down and defence-down icons on its health bar. "
+    "The files do not say by how much.")
 
 # What sets a boss's self-buff off. The files give the animation id and never
 # what provokes it, so these are sightings. Only bosses actually watched are
@@ -159,15 +187,6 @@ def _split_circle(regular, sovereign, size: int):
     return canvas
 
 
-def _heading(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setStyleSheet(
-        f"color: {ACCENT}; font-size: 12px; font-weight: bold;"
-        " letter-spacing: 1px;"
-    )
-    return label
-
-
 class BossCard(QFrame):
     """One expedition: its icon, the boss it ends on, and the flavour text."""
 
@@ -249,6 +268,9 @@ class BossTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
+
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
         # No filter box. Ten entries all fit on screen at once, so a search
         # field only took up room and gave the list a state it did not need.
@@ -346,6 +368,16 @@ class BossTab(QWidget):
     def _section(title: str) -> str:
         return (f"<div style='color:{ACCENT}; font-size:10px; font-weight:bold;"
                 f" letter-spacing:1px; margin-top:10px'>{title}</div>")
+
+    @staticmethod
+    def _note(text: str) -> str:
+        """What the figures directly above are measured against (A12).
+
+        Quieter than the figures and directly under them, because it is read
+        once and the figures are read every time.
+        """
+        return (f"<div style='color:{MUTED}; font-size:10px; "
+                f"margin-top:4px'>{text}</div>")
 
     # Chart label -> the game's own damage-type icon, extracted from the
     # relic screen's filter list. The three grey physical icons were pinned
@@ -520,45 +552,75 @@ class BossTab(QWidget):
             return
 
         weak = profile.get("weak_damage") or []
-        if weak:
+        weak_status = profile.get("weak_status") or []
+        # Any weakness at all opens the section, damage type or status
+        # (QA-131). Gating it on the damage types alone hid Adel's whole
+        # weakness -- he is the one Nightlord of the ten with no type that
+        # hurts him more than another -- and with it the note written for him.
+        if weak or weak_status:
             parts.append(self._section("WEAKNESS SPECIAL INTERACTION"))
-            parts.append(
-                f"<div style='color:#d8d8d8; font-size:11px'>"
-                f"Pile on <b style='color:{ACCENT}'>{' / '.join(weak)}</b> "
-                "damage. It builds a hidden meter, and filling it breaks the "
-                "boss's stance and opens it up for a critical.</div>"
-            )
+            if weak:
+                parts.append(
+                    f"<div style='color:#d8d8d8; font-size:11px'>"
+                    "Pile on <b style='color:" + ACCENT + "'>"
+                    + " / ".join(weak) + "</b> damage. It builds a hidden "
+                    "meter, and filling it breaks the boss's stance and "
+                    "opens it up for a critical.</div>"
+                )
+            else:
+                # Deliberately not the sentence above. `weak_status` is the
+                # set of lowest buildup thresholds, which is a different claim
+                # from "this type fills the hidden meter", and saying the
+                # second where the files only support the first would be the
+                # guess A7 forbids.
+                parts.append(
+                    f"<div style='color:#d8d8d8; font-size:11px'>"
+                    "No damage type hurts it more than another. Where it "
+                    "gives way is status: it needs least of "
+                    f"<b style='color:{ACCENT}'>{' / '.join(weak_status)}</b>"
+                    ", listed with the rest under STATUS BUILDUP below.</div>"
+                )
             if boss["name"] in WEAKNESS_NOTE:
                 parts.append(
                     f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
                     f"margin-top:3px'>{WEAKNESS_NOTE[boss['name']]}</div>")
             if boss["name"] in DEBUFF_ON_BREAK:
-                for label, value in (("Debuff", "x2.0 damage taken"),
-                                     ("Debuff", "x0.8 attack power")):
-                    parts.append(
-                        f"<div style='margin-top:2px'>"
-                        f"<span style='color:{GOOD}; font-size:11px'>{label}"
-                        f"</span><span style='color:#d8d8d8; font-size:11px'>"
-                        f" &nbsp;{value}</span></div>")
-                parts.append(self._row(
-                    "Tell", "golden shine, damage-down and defence-down "
-                            "icons on its health bar"))
-                parts.append(self._row("Lasts", "temporary"))
+                parts.append(
+                    f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
+                    f"margin-top:3px'>{DEBUFF_ON_BREAK_SIGHTING}</div>")
 
         parts.append(self._section("DAMAGE TAKEN"))
         parts.append(self._bars(profile["damage"], profile["weak_damage"]))
+        parts.append(self._note(
+            "Bars compare this Nightlord's damage types with each other, not "
+            "with another Nightlord. Green marks the type it is weak to."))
         parts.append(self._section("STATUS BUILDUP"))
         parts.append(self._status(profile["status"], profile["weak_status"]))
+        parts.append(self._note(
+            "How much status you have to apply before it lands — lower is "
+            "easier. Green marks this Nightlord's easiest statuses."))
 
         stance = profile.get("stance") or {}
         if stance:
             parts.append(self._section("STANCE"))
             if "bar" in stance:
                 parts.append(self._row("Bar to break", f"{stance['bar']:g}"))
-            if "recovery" in stance:
+            recovery = stance.get("recovery")
+            # `-1` is the files' way of saying "no value here", and Maris is
+            # the one Nightlord carrying it. Printing it read as `Refills at
+            # x-1`, an impossible rate on a panel of real ones (QA-130). The
+            # same guard already stands over `immune` in the status list.
+            if isinstance(recovery, (int, float)) and recovery > 0:
+                parts.append(self._row("Refills at", f"x{recovery:g}"))
+            elif "recovery" in stance:
                 parts.append(self._row(
-                    "Refills at", f"x{stance['recovery']:g}"))
+                    "Refills at", "— not in the game's files"))
             parts.append(self._row("Ranking", self._stance_rank(profile)))
+            parts.append(self._note(
+                "Bar to break is in the game's own stance points. The refill "
+                "figure is the rate the files give; they do not say what it "
+                "is per, so compare it between Nightlords rather than reading "
+                "it as a speed."))
 
         ladder = profile.get("ladder") or {}
         defence = profile.get("defence_buffs") or []
@@ -577,7 +639,12 @@ class BossTab(QWidget):
                     f"<span style='color:{BAD}; font-size:11px'>Buff</span>"
                     f"<span style='color:#d8d8d8; font-size:11px'>"
                     f" &nbsp;{'  ·  '.join(bits)}</span></div>")
-            parts.append(self._row("Stacks", "yes — repeats compound"))
+            # Not in the dataset -- it is somebody's sighting, and AK-94 puts
+            # sightings in OBSERVED_COLOUR so a reader can tell it from the
+            # extracted figures directly above it.
+            parts.append(
+                f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
+                f"margin-top:2px'>Stacks: yes — repeats compound</div>")
             if boss["name"] in BUFF_TRIGGER:
                 parts.append(self._row("Set off by", BUFF_TRIGGER[boss["name"]]))
         for entry in defence:
@@ -591,6 +658,33 @@ class BossTab(QWidget):
                 f"<span style='color:{DEEP}; font-size:11px'>Defence</span>"
                 f"<span style='color:#d8d8d8; font-size:11px'>"
                 f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+
+        # The other half of the same ladder, and until QA-129 the tab threw it
+        # away: seven of the ten carry a step that lowers their attack, and not
+        # one of them showed it. What stood there instead were two figures
+        # typed into this module, against three names that are not those seven.
+        #
+        # Its own section rather than a row under "IT BUFFS ITSELF": these
+        # figures move the boss the other way, and the same heading over both
+        # is how a reader ends up taking one for the other.
+        weakened = ladder.get("down") or []
+        if weakened:
+            parts.append(self._section("IT IS WEAKENED"))
+            for entry in weakened:
+                bits = [f"x{entry['attack']:g} its attack power"]
+                stance_taken = entry.get("stance_taken")
+                if stance_taken and abs(stance_taken - 1.0) > 1e-6:
+                    bits.append(f"x{stance_taken:g} the stance damage it "
+                                f"takes")
+                parts.append(
+                    f"<div style='margin-top:2px'>"
+                    f"<span style='color:{GOOD}; font-size:11px'>Weakened"
+                    f"</span><span style='color:#d8d8d8; font-size:11px'>"
+                    f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+            parts.append(self._note(
+                "A step the game's own data gives this Nightlord: while it is "
+                "on, these multiply its normal figures. The files do not say "
+                "what puts it into the step."))
 
         rates = profile.get("part_rates") or {}
         if rates:
@@ -638,12 +732,11 @@ class BossTab(QWidget):
         self.grid_outer.addStretch(1)
 
         paired = sum(1 for b in self.bosses if b.get("everdark"))
-        # The click hint earns its place: the whole combat profile -- damage
-        # taken, status buildup, stance, self-buffs -- lives behind a card
-        # click, and nothing else on the tab says so.
+        # The click hint has moved into QUESTION above, where it is the first
+        # thing read rather than the last (AK-89). Repeating it here would put
+        # the same instruction twice on one screen.
         self.summary.setText(
             f"{len(self.bosses)} Nightlords  ·  {paired} also have an "
             f"Everdark Sovereign, shown as the upper-right half of each "
-            f"circle  ·  click a card for damage taken, status buildup "
-            f"and more"
+            f"circle"
         )
