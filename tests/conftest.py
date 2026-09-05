@@ -63,6 +63,23 @@ NO_GAME = (
 )
 
 
+def _built_by_this_extractor(snapshot: dict) -> bool:
+    """Was this snapshot written by the extractor in this working tree?
+
+    The program asks the same question before it trusts a cache
+    (`datasource._regulation_matches`), and until T-046 the suite did not:
+    it read whatever file was on the machine. A snapshot one extractor
+    behind is missing whatever the newer one adds -- and the failure that
+    follows is a KeyError deep in a rating, which reads like a regression of
+    the program and is expensive to read as one. The cheap version of that
+    news is here.
+    """
+    from nrdata import extract
+
+    return (snapshot.get("meta", {}).get("extract_version")
+            == extract.EXTRACT_VERSION)
+
+
 def _snapshot_from_env() -> dict | None:
     raw = os.environ.get(SNAPSHOT_ENV)
     if not raw:
@@ -70,17 +87,36 @@ def _snapshot_from_env() -> dict | None:
     path = pathlib.Path(raw)
     if not path.is_file():
         pytest.fail(f"{SNAPSHOT_ENV} points at {path}, which is not a file")
-    return json.loads(path.read_text(encoding="utf-8"))
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    # Loud, not skipped past: this file was named on purpose, so silently
+    # using a different source instead would answer a question nobody asked.
+    if not _built_by_this_extractor(snapshot):
+        from nrdata import extract
+
+        pytest.fail(
+            f"{SNAPSHOT_ENV} points at a snapshot built by extractor version "
+            f"{snapshot.get('meta', {}).get('extract_version')}, and this "
+            f"tree is on {extract.EXTRACT_VERSION}. Rebuild it with "
+            f"scripts/build_snapshot.py, or unset {SNAPSHOT_ENV}.")
+    return snapshot
 
 
 def _snapshot_from_cache() -> dict | None:
-    """The snapshot the program itself built, if this machine has run it."""
+    """The snapshot the program itself built, if this machine has run it.
+
+    A cache from an older extractor is passed over rather than failed on: it
+    is nobody's decision, just a file that has been sitting there, and the
+    fresh read from the installed game underneath is exactly the right
+    fallback. On a machine with no installation the run then skips with the
+    usual message instead of failing on a missing field.
+    """
     from nrplanner import paths
 
     path = paths.snapshot_path()
     if not path.is_file():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
+    return snapshot if _built_by_this_extractor(snapshot) else None
 
 
 def _snapshot_from_game() -> dict | None:
