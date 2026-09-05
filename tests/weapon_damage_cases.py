@@ -243,6 +243,18 @@ def cases(data: dict) -> list[dict]:
               relic_effects=[ranged_only]),
         # A staff's own hit is physical, so a magic buff does not lift it and
         # Intelligence does. Both halves of that in one case.
+        #
+        # **These two cases freeze a spell scaling above the base rarity, and
+        # nothing outside this program says what it should be** (QA-120). The
+        # 84 readings in `tests/data/game_catalyst_scaling.json` were taken at
+        # each catalyst's **own** rarity and at no other, so the "Spell power
+        # 236" of the staff at tier 3 and the "184" of Recluse's own armament
+        # at tier 2 are held against this program and against nothing else. A
+        # characterisation may do that -- freezing today's answer is what it
+        # is for -- but the next reader must not take a frozen number for a
+        # measured one. If the reinforce step for `catalyst_scaling` is ever
+        # wrong, these two cases will go on agreeing with it; only a fresh
+        # reading off the game can say otherwise.
         _case("catalyst: magic buff idle, Intelligence at work",
               "Recluse", 15, 0,
               [{"slot": 0, "weapon": staff, "tier": 3, "effects": []}],
