@@ -340,20 +340,37 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         # bracketing is measured rather than chosen for looks. Written the
         # shorter way -- `base *= GAME_ATTACK_POWER_RATE` above, and this line
         # left as `base * bonus` -- the scaled figure carries two roundings
-        # where it used to carry one, and its ratio to the old figure drifts:
-        # measured over 350 160 per-type figures (ten Nightfarers x levels 1,
-        # 12, 15 x four tiers x every armament, 2026-09-04), 574 of them come
-        # out 2 ULP from 0.6 instead of 1. Written this way each per-type
-        # figure is exactly `fl(old x 0.6)` and **none** of the 350 160 is
-        # further than 1 ULP.
+        # where it used to carry one, and its ratio to the old figure drifts.
         #
-        # The summed totals keep a residue either way -- 480 of 215 160 at
-        # 2 ULP here against 1081 the other way -- and that residue cannot be
-        # removed from inside this function: a sum of separately rounded terms
-        # is not the rounded sum, whichever term carries the constant. Said
-        # out loud so the next reader does not go looking for the bracketing
-        # that makes it zero (AD-024: bracketing is decided by what it makes
-        # unambiguous, not by which looks more careful).
+        # Re-run on 2026-09-05 with `scripts/bracketing_residue.py`, which is
+        # the whole of the measurement and takes no arguments: over 350 160
+        # per-type figures (ten Nightfarers x levels 1, 12, 15 x four tiers x
+        # all 1793 armaments), **544** come out 2 ULP from `fl(old x 0.6)`
+        # the shorter way, and **0 of 350 160** do it this way -- written
+        # this way every per-type figure is exactly `fl(old x 0.6)`, to the
+        # last bit and not merely within one.
+        #
+        # The figure that stood here until then was 574, taken with a script
+        # that was never committed and cannot be re-run (QA-115). The case
+        # count and the figure count are reproduced exactly, so it is the
+        # same measurement; what the 30 come from is not knowable without the
+        # script, and the most likely reading is that its `bonus` was
+        # accumulated with `sum()` where this function uses a running loop --
+        # a difference of one last bit, which is the whole quantity being
+        # counted. The script above holds itself to the program's own
+        # arithmetic instead: every shipped figure it forms must equal
+        # `weapons.rate`'s bit for bit, and it stops if one does not.
+        #
+        # The summed totals keep a residue either way -- 447 of 215 160 at
+        # 2 ULP here against 3058 the other way, same run -- and that residue
+        # cannot be removed from inside this function: a sum of separately
+        # rounded terms is not the rounded sum, whichever term carries the
+        # constant. Said out loud so the next reader does not go looking for
+        # the bracketing that makes it zero (AD-024: bracketing is decided by
+        # what it makes unambiguous, not by which looks more careful). These
+        # two counts are of the per-type sum this script forms; the pair that
+        # stood here before (480 against 1081) named no definition of "the
+        # total" and cannot be matched to one.
         result.scaled[damage] = base * bonus * GAME_ATTACK_POWER_RATE
 
     return result
