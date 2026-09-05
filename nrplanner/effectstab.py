@@ -183,10 +183,21 @@ class EffectsTab(QWidget):
         # filtered candidates made `Continuous HP Recovery` say "1 of 2" under
         # `All colours` and nothing at all under a colour filter -- the same
         # effect changing its own definition as the view narrowed (QA-127).
+        #
+        # The rung is settled per identity and not per row. Which row of an
+        # identity group survives the filters is not fixed -- `refresh` keeps
+        # the first candidate, and that is a different `id` under a colour
+        # filter than with none -- so a lookup that matched on the id found
+        # nothing and printed an empty cell for exactly the effects this is
+        # about.
         self._copies = collections.Counter(identity(e) for e in self.effects)
-        self._siblings: dict[str, list[dict]] = collections.defaultdict(list)
+        by_name: dict[str, list[dict]] = collections.defaultdict(list)
         for first, _count in deduplicate(self.effects):
-            self._siblings[effecttext.name(first)].append(first)
+            by_name[effecttext.name(first)].append(first)
+        self._rung: dict[tuple, str] = {}
+        for siblings in by_name.values():
+            for effect in siblings:
+                self._rung[identity(effect)] = tier_label(effect, siblings)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
@@ -414,7 +425,7 @@ class EffectsTab(QWidget):
             values = [
                 display_name,
                 TYPE_CURSE if is_bad else TYPE_BUFF,
-                tier_label(eff, self._siblings[display_name]),
+                self._rung.get(identity(eff), ""),
                 copies,
                 ", ".join(model.COLOUR_NAMES.get(c, str(c)) for c in colours),
                 slots,

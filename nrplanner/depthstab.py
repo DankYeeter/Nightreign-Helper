@@ -173,9 +173,11 @@ class DepthsTab(QWidget):
 
     # ------------------------------------------------------------------
 
-    def _counts_for(self, pool: list[dict], categories: list[int]) -> list[int]:
+    def _counts_for(self, pool: list[dict],
+                    categories: list[int]) -> list[int]:
         """How many red variants of these kinds a run places, per depth."""
-        return [sum(m["counts"][i] for m in pool if m["category"] in categories)
+        return [sum(m["counts"][i] for m in pool
+                    if m["category"] in categories)
                 for i in range(self.depths)]
 
     def _depth_groups(self) -> list[list[int]]:
