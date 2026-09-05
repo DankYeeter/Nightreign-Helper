@@ -69,7 +69,14 @@ MAX_LEVEL = 15
 #  10  weapons[].equipped_spells -- the armament's own spell slots, which is
 #      what tells the catalyst row no player can hold from the one they can
 #      (QA-119; the criterion and its scope are model.is_unequippable_catalyst)
-EXTRACT_VERSION = 10
+#  11  world_events.rune_scaling -- the step each rune multiplier belongs to,
+#      and no param name in the sentence. The figures were a bare ladder of
+#      seven with no rung numbered, and the tab had to strip the param name
+#      out again before it could show them (QA-148). Nothing is added to the
+#      dataset's shape; the strings themselves changed, which is exactly what
+#      the version check is for -- a cached snapshot would otherwise keep
+#      showing the old sentence for good.
+EXTRACT_VERSION = 11
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -1289,12 +1296,28 @@ def _rune_scaling(members: dict, defs: dict) -> list[str]:
 
     clear = param.read(members["ClearCountCorrectParam"],
                        defs.get("ClearCountCorrectParam"))
-    rates = [r.values["SoulRate"] for r in clear.rows if r.values.get("SoulRate")]
-    if rates:
+    # Ordered by the row id, which is the step the figure belongs to. Sorting
+    # by the figure instead threw that away, and the sentence then offered
+    # seven multipliers with nothing saying which was which -- a ladder a
+    # reader cannot climb (QA-148). The rows carrying no rate at all are left
+    # out; row 0 is one of them.
+    rungs = [(row.id, row.values["SoulRate"]) for row in clear.rows
+             if row.values.get("SoulRate")]
+    rungs.sort()
+    if rungs:
+        # What the step number is *counted in* is not in the files: the rows
+        # are numbered and nothing says how many expeditions reach each one.
+        # Said out loud rather than guessed at, which is A7 and is also why
+        # the sentence no longer carries the param name it was quoting. The
+        # name was being stripped again in the tab, leaving `Expeditions
+        # completed: runs ×1 …` -- a repair at the wrong end (AK-104).
         lines.append(
-            "Expeditions completed: ClearCountCorrectParam.SoulRate runs "
-            + " → ".join(f"×{r:g}" for r in sorted(rates))
-            + ", so a well-progressed profile earns more from the same kill.")
+            "Expedition progress moves it up a "
+            f"{len(rungs)}-step ladder: step {rungs[0][0]} ×{rungs[0][1]:g}, "
+            "then "
+            + ", ".join(f"×{rate:g}" for _step, rate in rungs[1:])
+            + f" at step {rungs[-1][0]}. The game's files number the steps "
+            "and do not say how many expeditions reach each one.")
 
     # Deep of Night is the other thing that moves, but its multiplier table
     # ships no paramdef and is read by inspection in _deep_of_night, so it is

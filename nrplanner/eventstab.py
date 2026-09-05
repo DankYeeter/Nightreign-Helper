@@ -9,8 +9,6 @@ stays in the project's documents -- none of it belongs on screen.
 
 from __future__ import annotations
 
-import re
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
@@ -31,15 +29,6 @@ PENALTY = "#c07a6a"
 # Community material is tinted throughout, so it never sits on the page
 # looking like the extracted text beside it.
 COMMUNITY = "#6f9ac4"
-
-#: A param name says how a figure was derived, and the rule at the top of this
-#: module keeps derivation off the screen -- AK-104 leaves that rule standing.
-#: `nrdata.extract._rune_scaling` writes one into the very sentence AK-104
-#: asks to be shown, the only place the tab's "rises the more expeditions you
-#: have cleared" is ever given figures. Dropping the sentence would lose the
-#: figures; dropping the token loses nothing a player can use. Anchored on the
-#: shape a param read produces and on nothing else.
-PARAM_NAME = re.compile(r"\b\w+Param\.\w+\s*")
 
 #: Figures whose reference quantity is not in the files, keyed by the exact
 #: prefix `nrdata.extract._buff_lines` writes them with (AK-70, A7). Naming
@@ -291,8 +280,7 @@ class WorldEventsTab(QWidget):
             # that number it were loaded on the line above and thrown away
             # (AK-104). They go here, at the claim, and nowhere else.
             if self.rune_scaling:
-                column.addWidget(_note(" ".join(
-                    PARAM_NAME.sub("", line) for line in self.rune_scaling)))
+                column.addWidget(_note(" ".join(self.rune_scaling)))
         if drops:
             column.addWidget(_stat("Drops: " + self._drop_summary(drops)))
 

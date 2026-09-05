@@ -217,3 +217,42 @@ def test_the_tab_opens_with_the_question_it_answers(tab):
     assert "community-reported" in lines[1], (
         "the sentence naming the blue lines is gone, and the colour carries "
         "a meaning nothing else states")
+
+
+def test_the_rune_ladder_says_which_step_each_figure_belongs_to(tab,
+                                                                game_data):
+    """QA-148 and A12: seven multipliers, no rung numbered.
+
+    The sentence read `Expeditions completed: runs ×1 → ×1.1 → … → ×1.275, so
+    a well-progressed profile earns more from the same kill` -- a ladder a
+    player cannot climb, and one that began with the leftover of a param name
+    the tab had stripped out of it (`… completed: runs ×1 …`). Both ends now
+    name their step, and the panel says what the files do not carry: how many
+    expeditions reach each one.
+
+    The step numbers come out of the dataset rather than being written down
+    here: they are the row ids of the game's own table, and a patch may add a
+    rung.
+    """
+    scaling = (game_data.get("world_events") or {}).get("rune_scaling") or []
+    ladder = next((line for line in scaling if "step" in line), None)
+    assert ladder, (
+        f"no line of the rune scaling names a step at all: {scaling!r}")
+
+    rungs = ladder.count("×")
+    assert rungs > 1, f"the ladder shows {rungs} figure(s): {ladder!r}"
+    assert f"{rungs}-step ladder" in ladder, (
+        f"the sentence shows {rungs} multipliers and does not say how many "
+        f"steps there are: {ladder!r}")
+    assert "do not say how many expeditions reach each one" in ladder, (
+        f"the ladder claims a reference the files do not give: {ladder!r}")
+
+    with_runes = [text for text in every_page(tab).values()
+                  if "rises the more expeditions you have cleared" in text]
+    assert with_runes, "no card shows a creature's rune figure"
+    for text in with_runes:
+        assert ladder in text, (
+            "the ladder is not beside the claim it numbers")
+        assert "completed: runs" not in text, (
+            "the sentence still begins with the leftover of the param name "
+            "that used to stand in it")
