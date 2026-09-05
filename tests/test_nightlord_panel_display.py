@@ -209,3 +209,102 @@ def test_the_tab_opens_with_the_question_it_answers(tab):
         f"the stock line no longer follows the question: {lines[2]!r}")
     assert lines[2].count("click a card") == 0, (
         "the click hint stands twice on the same screen")
+
+
+#: The section headings that carry figures, and the note each one has to be
+#: read with (A12, QA-149). Written out here rather than imported so a note
+#: that quietly changed shows up as a failure instead of following the module.
+SECTIONS_AND_THEIR_NOTES = (
+    ("DAMAGE TAKEN", "Bars compare this Nightlord's damage types"),
+    ("STATUS BUILDUP", "How much status you have to apply before it lands"),
+    ("STANCE", "Bar to break is in the game's own stance points"),
+    ("IT BUFFS ITSELF", "Buff steps multiply this Nightlord's own attack"),
+    ("IT IS WEAKENED", "A step the game's own data gives this Nightlord"),
+    ("BODY PARTS", "Damage dealt to that part, against the same hit"),
+)
+
+
+def test_no_block_of_figures_is_left_without_its_reference(tab):
+    """QA-149. Four sections carried a note and two did not.
+
+    `Buff x1.35 attack` stood between three neighbours that each said what
+    their figures were measured against, and `Part 1  x1.5 damage` under a
+    heading whose names the files never give. Checked over all ten panels and
+    only where the section is actually drawn: a note under a heading that is
+    not there would explain nothing.
+    """
+    covered = {heading: 0 for heading, _note in SECTIONS_AND_THEIR_NOTES}
+    for boss in tab.bosses:
+        text = panel(tab, boss["name"])
+        for heading, note in SECTIONS_AND_THEIR_NOTES:
+            if heading not in text:
+                continue
+            covered[heading] += 1
+            assert note in text, (
+                f"{boss['name']}: the section {heading!r} shows figures with "
+                f"nothing saying what they are measured against")
+    missing = [heading for heading, seen in covered.items() if not seen]
+    assert not missing, (
+        f"no panel in this dataset draws these sections, so they are not "
+        f"checked by this case: {missing}")
+
+
+def test_the_colour_kept_for_sightings_is_named_where_it_is_used(tab):
+    """QA-145 and AK-74. `#7fae72` sat one step from `#6fbf73`, unexplained.
+
+    Two greens differing only in the red channel, one meaning "this is in your
+    favour" and the other "somebody watched this happen", and nothing on the
+    tab said either. The legend belongs on the panels that use the colour and
+    nowhere else: a Nightlord with no sighting must not carry a sentence about
+    a colour that is not on its panel.
+
+    Checked over all ten, in both directions, and counted rather than found --
+    a legend printed once per sighting would be three sentences on Gladius.
+
+    **Which panels ought to carry it is worked out from the dataset and the
+    two sighting lists, not from the colour on the panel.** Reading the colour
+    back off the rendered panel would find the legend's own line -- it is
+    drawn in the colour it explains -- and agree with itself whatever the
+    panel did.
+    """
+    with_legend, without = 0, 0
+    for boss in tab.bosses:
+        name = boss["name"]
+        text = panel(tab, name)
+        profile = profile_of(tab, name)
+        expected = bool(
+            name in bosstab.WEAKNESS_NOTE
+            or name in bosstab.DEBUFF_ON_BREAK
+            or (profile.get("ladder") or {}).get("up")
+            or profile.get("defence_buffs"))
+        count = text.count(bosstab.SIGHTING_LEGEND)
+        if expected:
+            with_legend += 1
+            assert count == 1, (
+                f"{name}: the panel carries a line that was watched rather "
+                f"than read, and names the colour it is in {count} times")
+            assert bosstab.OBSERVED_COLOUR in tab.detail_body.text(), name
+        else:
+            without += 1
+            assert count == 0, (
+                f"{name}: the panel explains the sighting colour and has no "
+                f"line in it")
+    assert with_legend and without, (
+        f"{with_legend} panels carry a sighting and {without} do not; this "
+        f"case can only tell the two apart when both exist")
+
+
+def test_the_green_on_the_weakened_step_is_named_like_the_other_two(tab):
+    """The third meaning `GOOD` carries, and the one AK-91 does not name.
+
+    `DAMAGE TAKEN` and `STATUS BUILDUP` each say what their green marks. The
+    same green then appeared on `Weakened`, against figures describing the
+    Nightlord rather than the player, with nothing saying so (QA-145).
+    """
+    carriers = with_a_down_step(tab)
+    assert carriers, "no Nightlord in this dataset carries a weakened step"
+    for name in carriers:
+        text = panel(tab, name)
+        assert bosstab.WEAKENED_NOTE in text, (
+            f"{name}: the weakened step is drawn in the same green as the two "
+            f"blocks above it and nothing on the panel says what it means")

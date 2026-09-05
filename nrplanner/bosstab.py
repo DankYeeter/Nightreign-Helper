@@ -37,6 +37,24 @@ OBSERVED_COLOUR = "#7fae72"
 ICON = 64
 CARD_WIDTH = 250
 
+#: What the detail panel is given where there is room for it, and the least it
+#: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
+#: an 833 px window the panel held 330 px of `Select a Nightlord` while the
+#: ten cards it describes stood one to a row in the 463 px left over
+#: (QA-147). The floor is a card's width: under that the damage bars and their
+#: labels stop lining up.
+DETAIL_WIDTH = 330
+DETAIL_FLOOR = CARD_WIDTH
+
+#: At most one part panel to two parts cards. The panel describes one of the
+#: cards beside it, so where there is not room for both it is the panel that
+#: gives way; where there is, it keeps DETAIL_WIDTH and every further pixel
+#: goes to the grid, because a wider window should mean more Nightlords on
+#: screen and not a roomier column of text. Measured on Windows at 150 % scale
+#: under Fusion: at an 833 px window the panel goes from 330 px to 276 and the
+#: cards from 463 to 517; from 1067 px up nothing moves.
+DETAIL_SHARE = 3
+
 #: What this tab is for, in the reader's own words (AK-68, AK-89). Above the
 #: count and above the cards, because a player arrives with the question and
 #: not with the roster.
@@ -81,6 +99,40 @@ DEBUFF_ON_BREAK_SIGHTING = (
     "Watched in play: breaking its stance leaves it weakened for a time — a "
     "golden shine, with damage-down and defence-down icons on its health bar. "
     "The files do not say by how much.")
+
+# What OBSERVED_COLOUR means, said once on the panel that uses it (AK-74,
+# QA-145). It sat one step from GOOD -- 0x7f against 0x6f in the red channel
+# alone -- with nothing anywhere saying the two were different things. Drawn
+# in the colour it explains, the way the Red variants tab already names its
+# community-reported line.
+SIGHTING_LEGEND = (
+    "Lines in this colour were watched in play. Everything else on this panel "
+    "is read from the game's own files.")
+
+# The reference each block of figures is measured against (A12, AK-91's
+# pattern). Three sections carried one and three did not, which made the
+# missing ones read as an oversight rather than as "nothing to say" (QA-149).
+#
+# `IT BUFFS ITSELF` holds two kinds of line and they differ in exactly the
+# point a reader would have to guess, so one note covers both and separates
+# them.
+BUFF_NOTE = (
+    "Buff steps multiply this Nightlord's own attack and stance figures while "
+    "the step is on; the files give no duration for them, and `always on` "
+    "means no trigger is recorded. Defence steps carry their own duration.")
+
+# The green on `Weakened` is the third meaning GOOD carries on this panel and
+# the one AK-91 does not name (QA-145); the sentence that already stood here
+# gains the clause, rather than a fourth note appearing beside it.
+WEAKENED_NOTE = (
+    "A step the game's own data gives this Nightlord: while it is on, these "
+    "multiply its normal figures — green, because every one of them is in "
+    "your favour. The files do not say what puts it into the step.")
+
+PARTS_NOTE = (
+    "Damage dealt to that part, against the same hit anywhere else on this "
+    "Nightlord. The files number the parts and never say which part is which, "
+    "so a number here is worth more than the name beside it.")
 
 # What sets a boss's self-buff off. The files give the animation id and never
 # what provokes it, so these are sightings. Only bosses actually watched are
@@ -294,10 +346,26 @@ class BossTab(QWidget):
         scroll.setWidget(self.holder)
         body.addWidget(scroll, 1)
 
-        body.addWidget(self._build_detail(), 0)
+        self.detail_panel = self._build_detail()
+        body.addWidget(self.detail_panel, 0)
         layout.addLayout(body, 1)
 
         self.refresh()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self._share_the_width()
+
+    def _share_the_width(self) -> None:
+        """Give the detail panel its width, which depends on the tab's.
+
+        `DETAIL_WIDTH` wherever there is room for it, its share of the tab
+        where there is not, and never below `DETAIL_FLOOR`. See DETAIL_SHARE
+        for what the share is and why it is that.
+        """
+        self.detail_panel.setFixedWidth(
+            min(DETAIL_WIDTH,
+                max(DETAIL_FLOOR, self.width() // DETAIL_SHARE)))
 
     def _build_detail(self) -> QWidget:
         """Everything the files hold about one boss, not just its blurb.
@@ -306,7 +374,8 @@ class BossTab(QWidget):
         replaced and grows whenever another link is cracked.
         """
         outer = QScrollArea()
-        outer.setFixedWidth(330)
+        # No width here: `_share_the_width` gives it one on every resize,
+        # because the right width depends on how much tab there is.
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
 
@@ -534,6 +603,25 @@ class BossTab(QWidget):
         # the first heading crowds straight into it.
         parts.append("<div style='height:14px'></div>")
 
+        told_about_sightings = False
+
+        def sighting(text: str) -> str:
+            """A line watched in play, and — the first time — what that means.
+
+            AK-94 gives these lines their own colour; AK-74 asks that a colour
+            carrying a meaning be named once. It is named here rather than at
+            the top of the tab because a panel whose Nightlord has no sighting
+            must not explain a colour that is nowhere on it (QA-145).
+            """
+            nonlocal told_about_sightings
+            lead = ""
+            if not told_about_sightings:
+                told_about_sightings = True
+                lead = (f"<div style='color:{OBSERVED_COLOUR}; font-size:11px;"
+                        f" margin-top:3px'><i>{SIGHTING_LEGEND}</i></div>")
+            return (lead + f"<div style='color:{OBSERVED_COLOUR}; "
+                    f"font-size:11px; margin-top:3px'>{text}</div>")
+
         # Everything here is written for someone about to fight this boss.
         # How a figure was derived, what could not be extracted and which
         # evidence class a claim belongs to are all real questions -- they
@@ -580,13 +668,9 @@ class BossTab(QWidget):
                     ", listed with the rest under STATUS BUILDUP below.</div>"
                 )
             if boss["name"] in WEAKNESS_NOTE:
-                parts.append(
-                    f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
-                    f"margin-top:3px'>{WEAKNESS_NOTE[boss['name']]}</div>")
+                parts.append(sighting(WEAKNESS_NOTE[boss["name"]]))
             if boss["name"] in DEBUFF_ON_BREAK:
-                parts.append(
-                    f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
-                    f"margin-top:3px'>{DEBUFF_ON_BREAK_SIGHTING}</div>")
+                parts.append(sighting(DEBUFF_ON_BREAK_SIGHTING))
 
         parts.append(self._section("DAMAGE TAKEN"))
         parts.append(self._bars(profile["damage"], profile["weak_damage"]))
@@ -641,9 +725,7 @@ class BossTab(QWidget):
             # Not in the dataset -- it is somebody's sighting, and AK-94 puts
             # sightings in OBSERVED_COLOUR so a reader can tell it from the
             # extracted figures directly above it.
-            parts.append(
-                f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
-                f"margin-top:2px'>Stacks: yes — repeats compound</div>")
+            parts.append(sighting("Stacks: yes — repeats compound"))
             if boss["name"] in BUFF_TRIGGER:
                 parts.append(self._row("Set off by", BUFF_TRIGGER[boss["name"]]))
         for entry in defence:
@@ -657,6 +739,12 @@ class BossTab(QWidget):
                 f"<span style='color:{DEEP}; font-size:11px'>Defence</span>"
                 f"<span style='color:#d8d8d8; font-size:11px'>"
                 f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+        # A12, and the reason it is one note over both kinds of line: the two
+        # differ in exactly the point a reader would otherwise have to guess.
+        # `x1.35 attack` stood here with no reference at all, between three
+        # neighbouring sections that each carried one (QA-149).
+        if ladder.get("up") or defence:
+            parts.append(self._note(BUFF_NOTE))
 
         # The other half of the same ladder, and until QA-129 the tab threw it
         # away: seven of the ten carry a step that lowers their attack, and not
@@ -680,10 +768,7 @@ class BossTab(QWidget):
                     f"<span style='color:{GOOD}; font-size:11px'>Weakened"
                     f"</span><span style='color:#d8d8d8; font-size:11px'>"
                     f" &nbsp;{'  ·  '.join(bits)}</span></div>")
-            parts.append(self._note(
-                "A step the game's own data gives this Nightlord: while it is "
-                "on, these multiply its normal figures. The files do not say "
-                "what puts it into the step."))
+            parts.append(self._note(WEAKENED_NOTE))
 
         rates = profile.get("part_rates") or {}
         if rates:
@@ -695,6 +780,7 @@ class BossTab(QWidget):
                     + ("  — armoured" if value < 1 else "  — soft spot")))
             if profile.get("skips_weak_animation"):
                 parts.append(self._row("Hit reaction", "none, ever"))
+            parts.append(self._note(PARTS_NOTE))
 
         if twin:
             parts.append(self._section("EVERDARK"))
