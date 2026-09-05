@@ -131,7 +131,13 @@ MUTATIONS: dict[str, Mutation] = {
             "but a wrong label on a right one, in the records this "
             "repository argues from. Killed by "
             "test_arsenal_tab_asks_the_facade.py::"
-            "test_the_summary_names_the_level_the_build_was_computed_at."),
+            "test_the_summary_names_the_level_the_build_was_computed_at -- "
+            "and on the first run of this entry it was not: the slider sits "
+            "at level 15, the build was computed at level 1, and 'at level "
+            "1' is a substring of 'at level 15'. The case matches the comma "
+            "after the number now. Worth keeping in the file: a "
+            "counter-build's first job is to find the case that does not "
+            "hold, and this one did."),
     ),
     "arsenal-ranks-at-the-slot-tier": Mutation(
         path="nrplanner/arsenaltab.py",

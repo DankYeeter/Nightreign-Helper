@@ -412,11 +412,18 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
     The two are pulled apart here on purpose: the slider stays where
     `prepare` left it and the build is replaced with one computed at another
     level, which is exactly the state the track puts the tab in.
+
+    **Matched with the comma after the number**, which is not fussiness: the
+    slider sits at 15 and the build is computed at 1, and "at level 1" is a
+    substring of "at level 15". Written without the comma this case passed
+    against its own counter-build -- measured, on the first run of
+    `arsenal-summary-reads-the-slider`.
     """
     prepare(planner, game_data, hero, empty_slots())
     tab = planner.weapons_tab
+    from_the_slider = planner.level_slider.value()
     elsewhere = weapons.MIN_UPGRADE    # any level the slider is not on
-    assert planner.level_slider.value() != elsewhere, (
+    assert from_the_slider != elsewhere, (
         "the slider already sits at the level this case swaps in, so it "
         "cannot tell the two sources apart")
 
@@ -424,6 +431,9 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
                                    game_data.get("curves", {}))
     tab.recalculate()
 
-    assert f"at level {elsewhere}" in tab.summary.text(), (
-        f"the summary names a level the figures beside it were not computed "
-        f"at: {tab.summary.text()!r}")
+    assert f"at level {elsewhere}," in tab.summary.text(), (
+        f"the summary does not name the level the figures beside it were "
+        f"computed at: {tab.summary.text()!r}")
+    assert f"at level {from_the_slider}," not in tab.summary.text(), (
+        f"the summary names the slider's level, not the build's: "
+        f"{tab.summary.text()!r}")

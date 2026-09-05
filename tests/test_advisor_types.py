@@ -256,11 +256,18 @@ def test_a_custom_relic_held_beside_an_owned_one_still_keys():
     With the fingerprint gone the hazard goes with it -- a tuple of frozen
     dataclasses is hashed, never ordered -- but the **assurance** must not go
     with it, which is why this case was rehung rather than deleted (checkpoint
-    34, second sentence). It is a characterisation of the shape and there is
-    no line whose removal breaks it; the mutation that used to kill it,
-    `advisor-fingerprint-sorted-naturally`, went out with the function it
-    mutated. What would break it is a key form that sorts or canonicalises the
-    held state, and that is the thing this file now asserts does not exist.
+    34, second sentence).
+
+    Its two halves stand differently, and saying which is which is the point
+    of writing this down. The `hash()` calls are a characterisation: nothing
+    in the module can be edited to make them raise, so no counter-build kills
+    them, and the mutation that used to (`advisor-fingerprint-sorted-
+    naturally`) went out with the function it mutated. The inequality is a
+    real assurance and `advisor-key-forgets-the-held-state` does kill it --
+    measured 2026-09-05, this case among the four it turns red. What would
+    put the hazard back is a key form that sorts or canonicalises the held
+    state, and that is exactly the thing the cases above now assert does not
+    exist.
     """
     custom = types.HeldRelic(relic_id=-1, name="Custom relic",
                              effect_ids=(1,), handle=None)
