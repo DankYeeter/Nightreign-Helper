@@ -38,14 +38,32 @@ grid however wrong both were -- which is exactly how `COLUMNS = 4` survived.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QLabel, QScrollArea
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import (
+    QLabel, QScrollArea, QStyle, QStyleOptionHeader,
+)
 
 from nrplanner import arsenaltab, bosstab
 
-from tests import rendered
+from tests import rendered, tabtext
 
 #: AK-71. No tab may ask the window for more height than this.
 TAB_HEIGHT_LIMIT = 860
+
+#: What a shortened heading ends with. U+2026, the one Qt's own `elidedText`
+#: appends -- written out here rather than imported so a change of character
+#: shows up as a failure rather than following the module under test.
+ELLIPSIS = "…"
+
+#: The eleven headings of the effects table, in order, written out rather
+#: than imported: `Relic slots` is AK-78's second outcome verbatim and the
+#: other ten are what the tab has drawn since T-057. A case that read them
+#: back off the module would follow a heading that had quietly become
+#: something else, which is the whole thing this file is here not to do.
+EFFECT_COLUMNS = ("Effect", "Type", "Tier", "Copies", "Colours",
+                  "Relic slots", "Avg chance", "Best chance", "Stacking",
+                  "Comes with curse", "What it does")
 
 #: AK-77, the two floors, in logical px.
 NAME_FLOOR = 320
@@ -117,6 +135,35 @@ def test_the_last_line_of_deep_of_night_can_be_reached_by_scrolling(
             "scrolled to the bottom, the last line is still not on screen")
 
 
+# -- QA-146: which machine these figures are off -------------------------
+
+def test_the_suite_measures_under_the_appearance_the_program_starts_with(
+        qapp):
+    """QA-146. The guards ran under one style and the program under another.
+
+    Applying the program's own `apply_appearance` to the application the suite
+    is already running under has to change nothing. That is the whole claim,
+    and it holds either way round: a fixture that stopped applying it fails
+    here, and so would a program that started applying something else without
+    the suite following.
+
+    Not asserted against the literal `"Fusion"`: what matters is that the two
+    agree, not which of the two they agree on.
+    """
+    from nrplanner import app as appmod
+
+    style = qapp.style().objectName()
+    palette = QPalette(qapp.palette())
+    appmod.apply_appearance(qapp)
+    assert qapp.style().objectName() == style, (
+        f"the suite measures under the {style!r} style and the program starts "
+        f"under {qapp.style().objectName()!r}; every pixel figure in this "
+        f"file is then off a machine nobody runs")
+    assert qapp.palette() == palette, (
+        "the suite measures under a different palette than the program starts "
+        "with, and the palette moves a Qt style's own metrics")
+
+
 # -- AK-72 / AK-90: every Nightlord card, whole ---------------------------
 
 @pytest.mark.parametrize("width", WIDTHS)
@@ -135,6 +182,41 @@ def test_every_nightlord_card_is_drawn_whole(game_data, qapp, width):
         assert not area.horizontalScrollBar().isVisible(), (
             f"at {width} px the card area needs a horizontal scrollbar, and "
             f"that scrollbar sits at the bottom edge of the tab")
+
+
+#: QA-147. The panel takes at most this share of the tab, so `PANEL_SHARE - 1`
+#: parts are always left for the cards it describes. Written out here rather
+#: than imported: a case reading the ratio back off the module would hold
+#: whatever ratio the module had.
+PANEL_SHARE = 3
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_the_detail_panel_gives_way_where_the_cards_run_out_of_room(
+        game_data, qapp, width):
+    """QA-147. A fixed 330 px panel took two fifths of a narrow tab.
+
+    At 833 px it held 330 px of `Select a Nightlord` while the ten cards it
+    describes stood one to a row in the 463 px left over. What it gets now
+    depends on how much tab there is, so the claim is a relation and holds at
+    every width rather than at a figure.
+
+    Read off the two rendered widths, and the share is compared against the
+    tab's own width rather than against their sum -- the sum would move with
+    whatever margins the layout has and would hide a panel that had eaten
+    them.
+    """
+    with rendered.laid_out(game_data, "boss_tab", width) as (_, tab):
+        area = next(a for a in tab.findChildren(QScrollArea)
+                    if a.widget() is tab.holder)
+        panel = next(a for a in tab.findChildren(QScrollArea)
+                     if a is not area)
+        assert panel.width() * PANEL_SHARE <= tab.width(), (
+            f"at {width} px the tab is {tab.width()} px, the detail panel "
+            f"holds {panel.width()} of it and the cards {area.width()}")
+        assert area.width() > panel.width(), (
+            f"at {width} px the cards have {area.width()} px and the detail "
+            f"panel {panel.width()}")
 
 
 @pytest.mark.parametrize("width", WIDTHS)
@@ -237,11 +319,13 @@ def test_the_effect_column_is_the_widest_column_at_every_width(
     """
     with rendered.laid_out(game_data, "effects_tab", width) as (_, tab):
         header = tab.table.horizontalHeader()
-        widths = {tab.table.horizontalHeaderItem(column).text():
-                  header.sectionSize(column)
-                  for column in range(tab.table.columnCount())}
+        # By position, not by the drawn heading: since QA-140 a narrow section
+        # shortens what stands in it, and a case keyed on the drawn text would
+        # stop recognising the very column it is about.
+        widths = {name: header.sectionSize(column)
+                  for column, name in enumerate(EFFECT_COLUMNS)}
         wider = {name: size for name, size in widths.items()
-                 if name != "Effect" and size >= header.sectionSize(0)}
+                 if name != EFFECT_COLUMNS[0] and size >= header.sectionSize(0)}
         assert not wider, (
             f"at {width} px these columns are at least as wide as `Effect` "
             f"({header.sectionSize(0)} px): {wider}")
@@ -253,9 +337,8 @@ def test_the_two_reading_columns_hold_their_floors(game_data, qapp, width):
     with rendered.laid_out(game_data, "effects_tab", width) as (_, tab):
         header = tab.table.horizontalHeader()
         last = tab.table.columnCount() - 1
-        widths = {tab.table.horizontalHeaderItem(column).text():
-                  header.sectionSize(column)
-                  for column in range(tab.table.columnCount())}
+        widths = {name: header.sectionSize(column)
+                  for column, name in enumerate(EFFECT_COLUMNS)}
         assert header.sectionSize(0) >= NAME_FLOOR, (
             f"at {width} px `Effect` is {header.sectionSize(0)} px, under the "
             f"{NAME_FLOOR} px floor: {widths}")
@@ -307,3 +390,168 @@ def test_every_cut_off_cell_carries_its_full_text(game_data, qapp):
         assert not naked, (
             f"{len(naked)} cells are cut off and their text is nowhere else; "
             f"first three: {naked[:3]}")
+
+
+# -- QA-140: the column headings, which the tooltip promise did not cover --
+
+def header_label_room(table, column: int) -> int:
+    """The px the style leaves this heading, asked of the style directly.
+
+    Not taken from the module under test and not a guessed margin: this is the
+    rect Qt itself hands the header label, so a heading elided against a
+    different width than the one it is drawn in still shows up here as text
+    that does not fit. The margin is 2 px a side under Fusion and 4 under
+    windowsvista, which is one of the two things QA-146 is about.
+
+    The sort arrow counts, and only on the section carrying it. Leaving it out
+    is a mistake worth ten px: it drew `Type` -- the column this table sorts
+    on from the start -- as `y.` at an 833 px window, an ellipsis cut in half.
+    """
+    header = table.horizontalHeader()
+    option = QStyleOptionHeader()
+    option.initFrom(header)
+    option.orientation = Qt.Horizontal
+    # State_Horizontal, or the style will not take the sort arrow off
+    # the label rect: QCommonStyle reads the flag, not the orientation
+    # field, and without it `Type` came out as `y.` at 833 px.
+    option.state |= QStyle.State_Horizontal
+    option.section = column
+    option.rect = QRect(0, 0, header.sectionSize(column),
+                        max(header.height(), 1))
+    if (header.isSortIndicatorShown()
+            and header.sortIndicatorSection() == column):
+        option.sortIndicator = (
+            QStyleOptionHeader.SortDown
+            if header.sortIndicatorOrder() == Qt.AscendingOrder
+            else QStyleOptionHeader.SortUp)
+    return header.style().subElementRect(
+        QStyle.SE_HeaderLabel, option, header).width()
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_no_column_heading_is_drawn_cut_off(game_data, qapp, width):
+    """QA-140. A heading was clipped at both ends, mid-word and unmarked.
+
+    Measured on Windows at 150 % scale under the style the program sets:
+    `Avg chance` and `Best chance` both drew as four letters out of the middle
+    of the word -- `vg chanc` and `est chanc` -- over the two columns the tab
+    exists for, at a half-width window. At 833 px eight headings stood as
+    three- to six-letter fragments.
+
+    The heading may be shortened; what it may not be is cut. Reading what is
+    actually in the header item against the room the style gives it is the
+    difference: a heading that Qt clips is still the whole string in the item
+    and shows up here.
+    """
+    with rendered.laid_out(game_data, "effects_tab", width) as (_, tab):
+        table = tab.table
+        metrics = table.horizontalHeader().fontMetrics()
+        over = []
+        for column in range(table.columnCount()):
+            item = table.horizontalHeaderItem(column)
+            room = header_label_room(table, column)
+            if metrics.horizontalAdvance(item.text()) > room:
+                over.append((item.text(),
+                             metrics.horizontalAdvance(item.text()), room))
+        assert not over, (
+            f"at {width} px these headings are wider than the room their "
+            f"section leaves them, so the style cuts them: {over}")
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_every_shortened_heading_says_so_and_keeps_its_name(
+        game_data, qapp, width):
+    """The other half of QA-140, and the half the tooltip promise missed.
+
+    Two things a reader needs from a heading that did not fit: a sign that it
+    was shortened, and a way back to the whole name. `Effect`, `Type` and
+    `What it does` carried no tooltip at all, and `Type` was drawn as `yp`.
+
+    The names come from `EFFECT_COLUMNS` at the top of this file, not from the
+    tab -- a case that read them back off the header items would follow the
+    shortening wherever it went.
+    """
+    with rendered.laid_out(game_data, "effects_tab", width) as (_, tab):
+        table = tab.table
+        assert table.columnCount() == len(EFFECT_COLUMNS), (
+            f"the table has {table.columnCount()} columns and this case knows "
+            f"{len(EFFECT_COLUMNS)} headings")
+        unreachable, unmarked = [], []
+        for column, name in enumerate(EFFECT_COLUMNS):
+            item = table.horizontalHeaderItem(column)
+            shown = item.text()
+            if name not in tabtext.plain(item.toolTip()):
+                unreachable.append((name, item.toolTip()))
+            if shown != name and not shown.endswith(ELLIPSIS):
+                unmarked.append((name, shown))
+        assert not unreachable, (
+            f"at {width} px these headings do not carry their own name where "
+            f"a reader can get at it: {unreachable}")
+        assert not unmarked, (
+            f"at {width} px these headings are drawn shorter than their name "
+            f"with nothing saying so: {unmarked}")
+
+
+# -- QA-144: the examples column against the column it illustrates --------
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_the_examples_column_never_outgrows_the_column_it_illustrates(
+        game_data, qapp, width):
+    """AK-99's last sentence, at the width where it stopped holding.
+
+    `Examples (any map)` was left to `ResizeToContents`, which hands a column
+    its natural width whatever is left for the rest. From 1 067 px up the
+    natural widths fell the right way round on their own and the rule looked
+    kept; at 833 px the examples took 349 px against 281 px for the column
+    that says what the row is (QA-144), on Windows at 150 % scale under
+    Fusion.
+
+    The two headings are identified by position rather than by their drawn
+    text, and the widths are read off the header rather than off the policy
+    that set them.
+    """
+    with rendered.laid_out(game_data, "depths_tab", width) as (_, tab):
+        header = tab.table.horizontalHeader()
+        name, examples = header.sectionSize(0), header.sectionSize(1)
+        assert tab.table.rowCount(), "the table drew no rows"
+        assert examples <= name, (
+            f"at {width} px `{tab.table.horizontalHeaderItem(1).text()}` is "
+            f"{examples} px and "
+            f"`{tab.table.horizontalHeaderItem(0).text()}` is {name} px")
+        assert not tab.table.horizontalScrollBar().isVisible(), (
+            f"at {width} px the red-variants table needs a horizontal "
+            f"scrollbar")
+
+
+# -- QA-143: the search that showed nothing at all ------------------------
+
+#: A search term that matches far more of the arsenal than the cap at which
+#: `rebuild` opens every group. `a` matched 1 099 of 1 952 entries on
+#: 2026-09-05; the assertion below reads the count off the tab rather than
+#: trusting that figure, so a dataset where `a` is rare fails loudly instead
+#: of passing on an empty tab.
+BROAD_SEARCH = "a"
+
+
+def test_a_search_with_more_hits_than_the_cap_still_draws_a_tile(
+        game_data, qapp):
+    """QA-143. Over sixty hits fell through both branches and drew nothing.
+
+    A modest result set opens every group; the first view opens one. A search
+    matching more than the cap matched neither rule, so the tab answered
+    `1 099 shown` over three collapsed headings and an empty black page --
+    DR-017 exactly, at the one state nobody had looked at.
+    """
+    with rendered.laid_out(game_data, "weapons_tab", 1600, 950) as (_, tab):
+        tab.search.setText(BROAD_SEARCH)
+        tab.rebuild()
+        rendered.settle()
+        shown = int(tab.summary.text().split(" shown")[0].split(". ")[-1])
+        assert shown > 60, (
+            f"{BROAD_SEARCH!r} matches only {shown} entries in this dataset, "
+            f"which is under the cap, so this case is watching the branch it "
+            f"is not about")
+        visible = [tile for tile in tab.findChildren(arsenaltab.Tile)
+                   if tile.isVisible()]
+        assert visible, (
+            f"the tab says {shown} shown and draws no tile at all")
