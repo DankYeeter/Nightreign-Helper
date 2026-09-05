@@ -1368,19 +1368,21 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "arsenal-opens-on-three-collapsed-headings-again": Mutation(
         path="nrplanner/arsenaltab.py",
-        old="""        elif predicate is None and self._top_sections:
+        old="""        elif self._top_sections:
             self._top_sections[0].expand_first_child()
 """,
-        new="""        elif predicate is None and self._top_sections:
+        new="""        elif self._top_sections:
             pass
 """,
         survival_means=(
             "the tab holding 1 952 entries, more data than any other in the "
             "program, opens on three collapsed headings and blank space "
-            "again (DR-017). The module own comment already gives the "
-            "argument for the search case; the first view is the case it "
-            "never covered. Killed by tests/test_tab_geometry.py::"
-            "test_the_arsenal_shows_a_tile_without_being_asked."),
+            "again (DR-017). Since T-060 this branch carries the wide-search "
+            "case as well, so the same edit empties the tab in both states; "
+            "the mutation that separates them is `arsenal-search-back-to-an-"
+            "empty-page`. Killed by tests/test_tab_geometry.py::"
+            "test_the_arsenal_shows_a_tile_without_being_asked and "
+            "::test_a_search_with_more_hits_than_the_cap_still_draws_a_tile."),
     ),
     "world-event-prose-back-to-two-hyphens": Mutation(
         path="nrplanner/eventlore.py",
@@ -1395,6 +1397,242 @@ MUTATIONS: dict[str, Mutation] = {
             "the tab as it opens finds nothing and always would have. Killed "
             "by tests/test_one_dash_style.py, both by the walk over the "
             "event list and by the literal scan."),
+    ),
+    "picker-back-to-a-fixed-column-count": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        self.scroll.setWidget(cardgrid.CardGrid(CARD_WIDTH, cards))
+""",
+        new="""        holder = QWidget()
+        grid = QGridLayout(holder)
+        grid.setSpacing(8)
+        grid.setAlignment(Qt.AlignTop)
+        for index, card in enumerate(cards):
+            grid.addWidget(card, index // OPENING_COLUMNS,
+                           index % OPENING_COLUMNS)
+        self.scroll.setWidget(holder)
+""",
+        survival_means=(
+            "the relic picker is back to five columns whatever it is wide. "
+            "Measured before the fix on Windows at 150 % scale under Fusion: "
+            "at the 1 030 px the dialog gave itself, 11 of 55 cards were "
+            "drawn past the right-hand edge of an 988 px viewport with a "
+            "horizontal scrollbar showing; at 900 px the same 11 cards lost "
+            "142 of their 190 px, names ending mid-word; at 700 px it was 22 "
+            "(QA-141). Killed by tests/test_relic_picker_geometry.py::"
+            "test_every_card_in_the_picker_is_drawn_whole at all three "
+            "widths."),
+    ),
+    "picker-opening-width-guessed-again": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        return (cardgrid.room_for(OPENING_COLUMNS, CARD_WIDTH)
+                + 2 * MARGIN
+                + self.scroll.verticalScrollBar().sizeHint().width())
+""",
+        new="""        return CARD_WIDTH * OPENING_COLUMNS + 80
+""",
+        survival_means=(
+            "the size the dialog opens at is a figure someone chose while "
+            "the grid reflows to a different one, which is how the picker "
+            "came to slice a column before the reader had touched it. The "
+            "grid hides the slicing now, so the sign left is a dialog that "
+            "opens one column short of what it sized itself for. Killed by "
+            "tests/test_relic_picker_geometry.py::"
+            "test_the_picker_opens_wide_enough_for_the_cards_it_opens_with."),
+    ),
+    "effect-headings-drawn-whole-or-not-at-all": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""            shown = metrics.elidedText(name, Qt.ElideRight,
+                                       self._label_room(column))
+""",
+        new="""            shown = name
+""",
+        survival_means=(
+            "the column headings go back to being clipped at both ends by "
+            "the style, mid-word and with nothing saying so. Measured before "
+            "the fix on Windows at 150 % scale under Fusion: at 1 067 px "
+            "`Avg chance` and `Best chance` drew as `vg chanc` and `est "
+            "chanc` -- the two columns the tab exists for, made "
+            "indistinguishable -- and at 833 px eight headings stood as "
+            "three- to six-letter fragments (QA-140). Killed by "
+            "tests/test_tab_geometry.py::"
+            "test_no_column_heading_is_drawn_cut_off at 833, 1067 and 1250 "
+            "px."),
+    ),
+    "effect-heading-tooltip-without-the-name": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""            item.setToolTip(f"{name}\\n{tip}" if tip else name)
+""",
+        new="""            item.setToolTip(tip or "")
+""",
+        survival_means=(
+            "a shortened heading has nowhere left to be read in full. Three "
+            "of the eleven columns -- `Effect`, `Type` and `What it does` -- "
+            "carried no tooltip at all, and `Type` drew as `yp`; the other "
+            "eight explained what the column meant without ever naming it "
+            "(QA-140, and the condition the AK-77 compromise stands on). "
+            "Killed by tests/test_tab_geometry.py::"
+            "test_every_shortened_heading_says_so_and_keeps_its_name and by "
+            "tests/test_effects_tab_display.py::"
+            "test_the_slot_column_says_what_it_counts."),
+    ),
+    "effect-headings-measured-while-elided": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        self._restore_headings()
+        self.resizeColumnsToContents()
+""",
+        new="""        self.resizeColumnsToContents()
+""",
+        survival_means=(
+            "a heading shortened for a narrow window is what the next "
+            "measurement reads, so the column keeps the width its stump "
+            "needed and never grows back when the window does. The tab looks "
+            "right until it has been narrow once. Killed by "
+            "tests/test_tab_geometry.py::"
+            "test_the_two_reading_columns_hold_their_floors."),
+    ),
+    "suite-measures-under-another-style": Mutation(
+        path="nrplanner/app.py",
+        old="""    app.setStyle("Fusion")
+    app.setPalette(_dark_palette())
+""",
+        new="""    app.setStyle("windowsvista")
+    app.setPalette(_dark_palette())
+""",
+        survival_means=(
+            "the program and the guards can be told apart by their pixels "
+            "again. Same data, same width, style the only variable: the "
+            "`Effect` column renders 446 px under windowsvista against 388 "
+            "under Fusion at a 1600 px window, and the count of effect names "
+            "too long for it goes from 12 to 44 (QA-146). Nothing was "
+            "falsely green -- the guards are relations -- which is exactly "
+            "why only a case comparing the two environments catches it. "
+            "Killed by tests/test_tab_geometry.py::"
+            "test_the_suite_measures_under_the_appearance_the_program_"
+            "starts_with."),
+    ),
+    "vs-standard-back-to-a-set": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""                    for stat in stats_of(scaling, base_scaling):
+""",
+        new="""                    for stat in scaling.keys() | base_scaling.keys():
+""",
+        survival_means=(
+            "the `vs standard` row orders its stats by PYTHONHASHSEED again, "
+            "so the same weapon reads `STR -21 \u00b7 INT +29 \u00b7 DEX "
+            "+6` on one start of the program and `DEX +6 \u00b7 STR -21 "
+            "\u00b7 INT +29` on the next, one line under a `Scaling` row "
+            "that is stably ordered (QA-142, QA-059 at a new place; four "
+            "seeds, four orders). Killed by "
+            "tests/test_arsenal_tab_asks_the_facade.py::"
+            "test_a_tile_names_its_stats_in_one_order_on_both_of_its_rows, "
+            "which compares the two rows of each of the 46 tiles that carry "
+            "both -- a set agrees with the row above it only by luck."),
+    ),
+    "arsenal-search-back-to-an-empty-page": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""        elif self._top_sections:
+            self._top_sections[0].expand_first_child()
+""",
+        new="""        elif predicate is None and self._top_sections:
+            self._top_sections[0].expand_first_child()
+""",
+        survival_means=(
+            "a search matching more than the cap falls through both branches "
+            "again and draws nothing at all: `a` matches 1 099 of the 1 952 "
+            "entries and the tab answered with three collapsed headings over "
+            "an empty black page, DR-017 at the one state nobody had looked "
+            "at (QA-143). Killed by tests/test_tab_geometry.py::"
+            "test_a_search_with_more_hits_than_the_cap_still_draws_a_tile."),
+    ),
+    "examples-column-back-to-its-natural-width": Mutation(
+        path="nrplanner/depthstab.py",
+        old="""        share = max(available - depths, 0) // 2
+        header.resizeSection(EXAMPLES_COLUMN,
+                             min(self._natural_examples, share))
+""",
+        new="""        header.resizeSection(EXAMPLES_COLUMN, self._natural_examples)
+""",
+        survival_means=(
+            "AK-99's last sentence is back to holding by luck. At 833 px "
+            "`Examples (any map)` took 349 px against 281 px for `What can "
+            "be red`, the column that says what the row is; from 1 067 px up "
+            "the natural widths happened to fall the right way round and "
+            "nothing looked wrong (QA-144). Killed by "
+            "tests/test_tab_geometry.py::"
+            "test_the_examples_column_never_outgrows_the_column_it_"
+            "illustrates at 833 px."),
+    ),
+    "nightlord-panel-back-to-a-fixed-width": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        self.detail_panel.setFixedWidth(
+            min(DETAIL_WIDTH,
+                max(DETAIL_FLOOR, self.width() // DETAIL_SHARE)))
+""",
+        new="""        self.detail_panel.setFixedWidth(DETAIL_WIDTH)
+""",
+        survival_means=(
+            "the detail panel takes its 330 px whatever the window is, so at "
+            "833 px it holds 330 px of `Select a Nightlord` while the ten "
+            "cards it describes stand one to a row in the 463 px left over "
+            "(QA-147). Killed by tests/test_tab_geometry.py::"
+            "test_the_detail_panel_gives_way_where_the_cards_run_out_of_room "
+            "at 833 px."),
+    ),
+    "sighting-colour-back-without-its-legend": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""            lead = ""
+            if not told_about_sightings:
+                told_about_sightings = True
+""",
+        new="""            lead = ""
+            if False:
+                told_about_sightings = True
+""",
+        survival_means=(
+            "two greens one step apart in the red channel -- `#6fbf73` for "
+            "`this is in your favour` and `#7fae72` for `somebody watched "
+            "this happen` -- go back to standing on the same panel with "
+            "nothing saying either (QA-145, AK-74). Killed by "
+            "tests/test_nightlord_panel_display.py::"
+            "test_the_colour_kept_for_sightings_is_named_where_it_is_used."),
+    ),
+    "buff-and-parts-figures-without-a-reference": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        if ladder.get("up") or defence:
+            parts.append(self._note(BUFF_NOTE))
+""",
+        new="""        if False:
+            parts.append(self._note(BUFF_NOTE))
+""",
+        survival_means=(
+            "`Buff x1.35 attack \u00b7 harder to stagger` stands again "
+            "between three sections that each say what their figures are "
+            "measured against, saying nothing itself -- from what base, and "
+            "for how long (QA-149, A12). Killed by "
+            "tests/test_nightlord_panel_display.py::"
+            "test_no_block_of_figures_is_left_without_its_reference."),
+    ),
+    "rune-ladder-back-to-seven-bare-figures": Mutation(
+        path="nrdata/extract.py",
+        old="""            "Expedition progress moves it up a "
+            f"{len(rungs)}-step ladder: step {rungs[0][0]} \u00d7{rungs[0][1]:g}, "
+            "then "
+            + ", ".join(f"\u00d7{rate:g}" for _step, rate in rungs[1:])
+            + f" at step {rungs[-1][0]}. The game's files number the steps "
+            "and do not say how many expeditions reach each one.")
+""",
+        new="""            "Expeditions completed: ClearCountCorrectParam.SoulRate runs "
+            + " \u2192 ".join(f"\u00d7{rate:g}" for _step, rate in rungs)
+            + ", so a well-progressed profile earns more from the same kill.")
+""",
+        survival_means=(
+            "the rune ladder goes back to seven multipliers with no rung "
+            "numbered and no word about what the files do not carry, and the "
+            "tab goes back to needing a param name stripped out of the "
+            "sentence, which left `Expeditions completed: runs \u00d71 "
+            "\u2026` behind (QA-148, A12 and A7). Killed by "
+            "tests/test_world_events_display.py::"
+            "test_the_rune_ladder_says_which_step_each_figure_belongs_to."),
     ),
     "catalyst-figure-named-twice": Mutation(
         path="nrplanner/advisor/goals.py",
