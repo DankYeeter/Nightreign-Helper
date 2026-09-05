@@ -23,11 +23,11 @@ QUESTION = (
     "whether carrying a second copy is worth anything.")
 
 #: The one definition of the chance figures on this screen, and the only one
-#: (AK-79). There used to be two, six lines apart and saying different things:
-#: a column tooltip said "averaged over every pool that can produce it" and
-#: the summary said "how likely an effect is on one roll of the selected
-#: colour and mode" -- while the default is `All colours`, so no colour was
-#: selected at all. Both are gone; this sentence appears once.
+#: (AK-79). There used to be two, six lines apart and disagreeing: a column
+#: tooltip averaged over loot pools while the summary spoke of one roll of a
+#: colour and mode the reader had not chosen -- `All colours` is the default,
+#: so no colour was selected at all. Both are gone; this sentence appears
+#: once, and `tests/test_effects_tab_display.py` holds the count at one.
 CHANCE_DEFINITION = (
     "Chance is per relic effect slot, over every slot that can roll the "
     "effect under the filters above — not per relic and not per run.")
