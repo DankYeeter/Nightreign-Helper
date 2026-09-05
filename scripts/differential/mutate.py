@@ -1603,13 +1603,15 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "sighting-colour-back-without-its-legend": Mutation(
         path="nrplanner/bosstab.py",
-        old="""            lead = ""
-            if not told_about_sightings:
-                told_about_sightings = True
+        old="""            nonlocal told_about_sightings
+            if told_about_sightings:
+                return ""
+            told_about_sightings = True
 """,
-        new="""            lead = ""
-            if False:
-                told_about_sightings = True
+        new="""            nonlocal told_about_sightings
+            if True:
+                return ""
+            told_about_sightings = True
 """,
         survival_means=(
             "two greens one step apart in the red channel -- `#6fbf73` for "
@@ -1661,6 +1663,103 @@ MUTATIONS: dict[str, Mutation] = {
             "\u2026` behind (QA-148, A12 and A7). Killed by "
             "tests/test_world_events_display.py::"
             "test_the_rune_ladder_says_which_step_each_figure_belongs_to."),
+    ),
+    "nightlord-grid-without-a-selection": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        self._mark_selected(boss)
+        if boss is None:
+""",
+        new="""        if boss is None:
+""",
+        survival_means=(
+            "the card grid goes back to looking exactly the same after a "
+            "click as before it: `show_detail` moves the panel and nothing "
+            "on the grid says which of the ten cards the panel is about. At "
+            "8 px between cards a near miss opens the neighbour, which is how "
+            "the `power-user` run of 2026-09-05 ended up reading Gnoster "
+            "while aiming at Adel (QA-150). Killed by "
+            "tests/test_nightlord_selection.py, all seven cases."),
+    ),
+    "nightlord-selection-only-on-the-edge": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        fill = SELECTED_FILL if self._selected else PANEL
+""",
+        new="""        fill = PANEL
+""",
+        survival_means=(
+            "the chosen card is marked on its one pixel border and nowhere "
+            "else -- the same stroke that already carries a different "
+            "meaning, DEEP for a Nightlord with an Everdark twin. The two "
+            "markers would then differ by hue alone on a stroke a card's "
+            "width away from each other (QA-150). Killed by "
+            "tests/test_nightlord_selection.py::"
+            "test_the_marker_reaches_the_inside_of_the_card, both cases."),
+    ),
+    "nightlord-buff-trigger-back-in-the-ordinary-colour": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""                parts.append(legend_once() + self._row(
+                    "Set off by", BUFF_TRIGGER[boss["name"]],
+                    colour=OBSERVED_COLOUR))
+""",
+        new="""                parts.append(legend_once() + self._row(
+                    "Set off by", BUFF_TRIGGER[boss["name"]]))
+""",
+        survival_means=(
+            "`Set off by` goes back to being drawn in the colour of the "
+            "extracted figures directly above it, while what it says was "
+            "watched in play -- the files hold the animation id and never "
+            "what provokes it. AK-94's whole point is that a reader can tell "
+            "the two apart at a glance (QA-152). Killed by "
+            "tests/test_nightlord_panel_display.py::"
+            "test_the_buff_trigger_is_drawn_as_the_sighting_it_is."),
+    ),
+    "nightlord-defence-trigger-back-in-the-ordinary-colour": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""            watched = (f"<span style='color:{OBSERVED_COLOUR}; font-size:11px'>"
+                       f"  ·  {trigger}</span>") if trigger else ""
+""",
+        new="""            watched = (f"<span style='color:#d8d8d8; font-size:11px'>"
+                       f"  ·  {trigger}</span>") if trigger else ""
+""",
+        survival_means=(
+            "the half of a defence line that was watched -- what sets the "
+            "step off -- goes back to reading like the two figures beside it "
+            "on the same line, which came out of the files (QA-152). This is "
+            "the case T-060 stopped at, because one colour over the whole "
+            "line would have been wrong in the other direction. Killed by "
+            "tests/test_nightlord_panel_display.py::"
+            "test_a_defence_trigger_is_drawn_as_the_sighting_it_is."),
+    ),
+    "effect-headings-wait-as-long-as-the-style": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""WAKE_UP_DIVISOR = 4
+""",
+        new="""WAKE_UP_DIVISOR = 1
+""",
+        survival_means=(
+            "a heading the table had to cut short answers a hover only after "
+            "the style's own wake-up delay again -- 700 ms under Fusion, "
+            "750-800 measured at the running window -- and the player of "
+            "2026-09-05 who `waited only briefly` over `Comes with c…` "
+            "sees nothing, with three headings reading `Co…` at 833 px "
+            "(QA-151). Killed by tests/test_heading_hint.py, three of its "
+            "six cases; the other three are the counter-cases and hold "
+            "either way, because they are about an answer *not* arriving."),
+    ),
+    "golden-file-stamped-with-the-earlier-extractor": Mutation(
+        path="tests/golden/weapon_damage.json",
+        old="""    "extract_version": 11,
+""",
+        new="""    "extract_version": 10,
+""",
+        survival_means=(
+            "the golden file's record of where its 36 frozen cases came from "
+            "goes back to naming an extractor this tree is not on, and "
+            "nothing anywhere compares the two -- which is the state QA-153 "
+            "found and called harmless, because the harm of a stale stamp is "
+            "always later, when somebody reads it as a statement. Killed by "
+            "tests/test_weapon_damage_golden.py::"
+            "test_the_golden_file_names_the_extractor_this_tree_runs_on."),
     ),
     "catalyst-figure-named-twice": Mutation(
         path="nrplanner/advisor/goals.py",
