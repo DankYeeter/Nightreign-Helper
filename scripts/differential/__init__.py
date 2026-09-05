@@ -5,12 +5,13 @@ times between AD-019 W0 and W3 -- three times by the `developer`, twice by the
 `qa-engineer` -- and every rebuild produced numbers nobody else could re-run
 (QA-075). It lives here now so that a figure in a report carries its recipe.
 
-Four steps, four scripts, and they are separate because each one is a
+Five steps, five scripts, and they are separate because each one is a
 different kind of failure:
 
 * `plan.py`     a raster file -> concrete cases, ids resolved **once**
 * `capture.py`  a plan -> what the three display layers say, one tree
 * `compare.py`  two captures -> what moved, and everything it cannot place
+* `ratios.py`   two captures -> **by how much** each figure moved, in ULP
 * `mutate.py`   one named edit to a tree, to show a guard has teeth
 
 The raster is a **file** (`rasters/*.json`), not a constant inside a script.
