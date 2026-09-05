@@ -335,7 +335,12 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
     """
     ranked = damage.rank_candidates(build, weapons.MAX_UPGRADE, game_data)
 
-    assert len(ranked) == len(game_data["weapons"])
+    # Every armament a player can hold, not every row of the dataset: since
+    # AK-66 the catalyst nobody can equip is not a candidate. The count is
+    # written as the filtered list rather than as "minus one" so it states the
+    # contract instead of today's arithmetic; the size of the difference is
+    # `tests/test_unequippable_catalyst.py`'s question, not this one's.
+    assert len(ranked) == len(model.offerable_weapons(game_data["weapons"]))
     assert all(r.question is damage.Question.CANDIDATE for r in ranked)
     assert all(r.tier_applied >= weapons.MAX_UPGRADE for r in ranked)
     keys = [(-r.final_headline, r.weapon["id"]) for r in ranked]
@@ -454,7 +459,11 @@ def test_a_candidate_carries_the_attack_multipliers(game_data, build):
     by_id = {r.weapon["id"]: r for r in ranked}
 
     moved = 0
-    for weapon in game_data["weapons"]:
+    # The armaments a player can hold, which since AK-66 is one row short of
+    # the dataset: `rank_candidates` answers about candidates, and the row it
+    # leaves out is one nobody can equip. Asking it about the dataset instead
+    # would fail on the missing key and say nothing about the multipliers.
+    for weapon in model.offerable_weapons(game_data["weapons"]):
         layer_one = weapons.rate(weapon, build.attributes, game_data,
                                  weapons.MAX_UPGRADE)
         answer = by_id[weapon["id"]]

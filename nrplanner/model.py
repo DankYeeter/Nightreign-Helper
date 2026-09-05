@@ -446,6 +446,57 @@ def weapon_class(weapon: dict | None) -> str | None:
     return "melee"
 
 
+# The armament's own spell slots, as `nrdata.extract` writes them, and the
+# value that means "there is no slot here".
+SPELL_SLOTS_KEY = "equipped_spells"
+NO_SPELL_SLOT = -1
+
+
+def is_unequippable_catalyst(weapon: dict | None) -> bool:
+    """A staff or seal row with no spell slot -- nothing a player can hold.
+
+    **The scope is the whole of this criterion, and no caller may widen it.**
+    "Carries no spell slot" is the ordinary state of an armament: 1764 of the
+    1793 named rows in the shipped data have -1 in both slots, because that is
+    what a sword is. Asked of the catalyst family it says something else
+    entirely -- a staff or a seal exists to hold a spell, so a row that cannot
+    is not an armament the game ever puts in a hand. Inside the family the
+    criterion is exact: of the 30 named catalysts exactly one row answers yes
+    (33770000, the second `Recluse's Staff`), and two further criteria
+    measured independently pick out the same single row (`reinforceTypeId ==
+    0`, `attackElementCorrectId == 10000`; `docs/berichte/T-046-developer.md`
+    section 7). It is an artefact of the extraction, not a choice
+    (`UI_SPEC.md` AK-66, QA-119).
+
+    **A dataset that does not carry the field answers no.** An older extractor
+    wrote no `equipped_spells`, and the honest reading of a missing field is
+    "this cannot be decided here", which leaves the family exactly as visible
+    as it was before this filter existed. Reading a missing field as "no spell
+    slot" would hide all 30 catalysts instead of the one, so the failure that
+    matters is the loud one: `tests/test_unequippable_catalyst.py` names the
+    id it expects to disappear and goes red when nothing does.
+    """
+    if weapon_class(weapon) != "catalyst":
+        return False
+    slots = weapon.get(SPELL_SLOTS_KEY) or ()
+    return bool(slots) and all(slot == NO_SPELL_SLOT for slot in slots)
+
+
+def offerable_weapons(all_weapons) -> list[dict]:
+    """`all_weapons` minus the rows no player can hold, order unchanged.
+
+    Every list a player chooses an armament from goes through here, which is
+    the point: the decision is "this row appears in no player-facing weapon
+    list at all" (AK-66), and a rule written once at the two places such a
+    list is built cannot come apart the way a rule copied into each of them
+    would. The dataset itself keeps the row -- `data["weapons"]` is what the
+    game holds, and a measurement over the game's catalysts has to keep
+    finding 30 of them.
+    """
+    return [weapon for weapon in all_weapons
+            if not is_unequippable_catalyst(weapon)]
+
+
 def attack_scope(effect: dict) -> int | None:
     mods = effect.get("modifiers") or {}
     if not any(f in mods for f in ELEMENT_ATTACK_RATES):

@@ -66,7 +66,10 @@ MAX_LEVEL = 15
 #   9  reinforce[].catalyst_scaling -- the rate behind the spell scaling the
 #      game shows for a staff or a seal, where it shows an attack rating for
 #      everything else (QA-099)
-EXTRACT_VERSION = 9
+#  10  weapons[].equipped_spells -- the armament's own spell slots, which is
+#      what tells the catalyst row no player can hold from the one they can
+#      (QA-119; the criterion and its scope are model.is_unequippable_catalyst)
+EXTRACT_VERSION = 10
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -2494,6 +2497,19 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 },
                 "reinforce_type": r.values.get("reinforceTypeId", 0),
                 "element_correct_id": r.values.get("attackElementCorrectId"),
+                # The armament's own spell slots, -1 where it has none. Read
+                # because it is the one field that tells the two rows called
+                # `Recluse's Staff` apart by something a player would care
+                # about: 33770000 can hold no spell, so it is not a catalyst
+                # anybody can cast with (QA-119). Carried as a list rather
+                # than a tuple so a live extraction and a snapshot read back
+                # out of JSON hand back the same thing. What it does **not**
+                # say on its own: 1764 of the 1793 named armaments carry -1
+                # in both, because a sword holds no spell either -- the scope
+                # that makes this usable is in
+                # `nrplanner.model.is_unequippable_catalyst`.
+                "equipped_spells": [r.values.get("equippedSpell_R1", -1),
+                                    r.values.get("equippedSpell_R2", -1)],
                 # Effects this weapon can roll, from its own pools. Empty for
                 # the armaments that roll nothing.
                 "effect_pool": weapon_effect_pool(r.id),

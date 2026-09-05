@@ -574,7 +574,16 @@ def candidate(weapon: dict, target_tier: int, build: model.Build,
 
 def rank_candidates(build: model.Build, target_tier: int,
                     data: dict) -> list[Rating]:
-    """Every armament in the dataset as a candidate, best first.
+    """Every armament a player can hold, as a candidate, best first.
+
+    **Not every row in the dataset**: the catalyst row nobody can equip is
+    not among the answers (`model.is_unequippable_catalyst`, AK-66, QA-119).
+    The filter sits here rather than in the arsenal tab because "candidate"
+    already means "something the player might choose", so every list built on
+    this answer inherits it -- the tab today, the advisor's own candidate list
+    when it is built. `weapons.rank` below is left seeing the whole dataset:
+    it is the rating layer, and a measurement over the game's 30 catalysts has
+    to go on finding 30 of them.
 
     **Best by the figure a display shows, which is `final_headline`.**
     Ordering is done here and not left to `weapons.rank`, because `rank` sees
@@ -623,7 +632,9 @@ def rank_candidates(build: model.Build, target_tier: int,
     """
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
     ranked = weapons.rank(data, attributes, target_tier)
-    answers = [_answer(rating, Question.CANDIDATE, build) for rating in ranked]
+    answers = [_answer(rating, Question.CANDIDATE, build)
+               for rating in ranked
+               if not model.is_unequippable_catalyst(rating.weapon)]
     answers.sort(key=lambda answer: (-answer.final_headline,
                                      answer.weapon["id"]))
     return answers

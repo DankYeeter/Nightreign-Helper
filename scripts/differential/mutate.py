@@ -989,6 +989,39 @@ MUTATIONS: dict[str, Mutation] = {
             "case uses: if the two coincided, that case would fail for a "
             "reason that has nothing to do with this mutation."),
     ),
+    "unequippable-catalyst-offered-again": Mutation(
+        path="nrplanner/model.py",
+        old="""    if weapon_class(weapon) != "catalyst":
+        return False
+    slots = weapon.get(SPELL_SLOTS_KEY) or ()
+    return bool(slots) and all(slot == NO_SPELL_SLOT for slot in slots)
+""",
+        new="""    return False
+""",
+        survival_means=(
+            "nothing holds AK-66. The second `Recluse's Staff` (33770000) "
+            "would be back on the arsenal tab and in the armament dialog "
+            "beside the row of the same name, with a different figure and "
+            "no mark to say which one a player can hold -- DR-008 exactly "
+            "as it was found. Killed by "
+            "tests/test_unequippable_catalyst.py."),
+    ),
+    "unequippable-catalyst-criterion-without-its-family": Mutation(
+        path="nrplanner/model.py",
+        old="""    if weapon_class(weapon) != "catalyst":
+        return False
+    slots = weapon.get(SPELL_SLOTS_KEY) or ()
+""",
+        new="""    slots = weapon.get(SPELL_SLOTS_KEY) or ()
+""",
+        survival_means=(
+            "the scope of the criterion is guarded by nobody, which is the "
+            "trap of this finding rather than a side note: \"carries no "
+            "spell slot\" is true of 1764 of the 1793 named armaments, so "
+            "without the family check the filter takes almost the whole "
+            "arsenal off every player-facing list and leaves 29 catalysts "
+            "behind. Killed by tests/test_unequippable_catalyst.py."),
+    ),
 }
 
 

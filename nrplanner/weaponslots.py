@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import damage, effecttext, weapons
+from . import damage, effecttext, model, weapons
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -270,8 +270,16 @@ class WeaponDialog(QDialog):
         self.icons = icons
         self.slot = slot.copy()
         self._bases = base_ids(data["weapons"])
+        # What this dialog offers, and what it counts names over, is the same
+        # list -- the armaments a player can hold (AK-66). Counting names over
+        # the whole dataset instead would keep putting an id beside
+        # `Recluse's Staff` to tell it from a row that is no longer on offer.
+        # `base_ids` above stays on the whole dataset: it works out which row
+        # of an id band is the uninfused one, and a band with a row missing
+        # would answer that differently.
+        self._offered = model.offerable_weapons(data["weapons"])
         self._name_counts = collections.Counter(
-            w["name"] for w in data["weapons"])
+            w["name"] for w in self._offered)
         self._effects_by_id = {int(k): v for k, v in data["effects"].items()}
         self._pool: list[dict] = []
         self.setWindowTitle("Armament")
@@ -337,17 +345,18 @@ class WeaponDialog(QDialog):
     def _list_label(self, weapon: dict) -> str:
         """The armament's name, and its id where the name is not its own.
 
-        Three names in the data belong to more than one row: `Recluse's
-        Staff` (33750000 is the Recluse's own, 33770000 cannot hold a spell
-        and carries a different spell scaling), `Finger Seal` and `Scholar's
-        Thrusting Sword`. Picking one of two identical rows in this list is
-        picking blind, and the two `Recluse's Staff` rows do not even rate
-        alike -- so where a name is shared, the id that tells them apart is
-        put beside it (QA-099 a).
+        Two names in what this dialog offers still belong to more than one
+        row: `Finger Seal` and `Scholar's Thrusting Sword`. Both collisions
+        are between rows that rate identically, so the choice between them
+        changes no figure -- but picking one of two rows that read alike is
+        picking blind either way, so the id that tells them apart is put
+        beside the name (QA-099 a).
 
-        Whether the unplayable rows belong in the dataset at all is not
-        settled and is not this dialog's to settle; until it is, the player
-        can at least see that there are two and which one they chose.
+        The third collision is gone from this list rather than labelled: the
+        second `Recluse's Staff` (33770000) can hold no spell and is filtered
+        out of every player-facing list (AK-66, QA-119). It did not rate like
+        its namesake either, so an id beside the two would have asked the
+        player to know which of them is the weapon.
         """
         name = weapon["name"]
         if self._name_counts[name] > 1:
@@ -360,7 +369,7 @@ class WeaponDialog(QDialog):
         self.list.clear()
         current = self.slot.weapon["id"] if self.slot.filled else None
         chosen_row = -1
-        for weapon in sorted(self.data["weapons"], key=lambda w: w["name"]):
+        for weapon in sorted(self._offered, key=lambda w: w["name"]):
             if term and term not in weapon["name"].lower():
                 continue
             item = QListWidgetItem(self._list_label(weapon))
