@@ -18,11 +18,11 @@ import pathlib
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea,
+    QFrame, QHBoxLayout, QLabel, QScrollArea,
     QVBoxLayout, QWidget,
 )
 
-from . import tabheader
+from . import cardgrid, tabheader
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -34,7 +34,6 @@ GOOD = "#6fbf73"
 # Watched in play: above a wiki claim, below a param read.
 OBSERVED_COLOUR = "#7fae72"
 
-COLUMNS = 4
 ICON = 64
 CARD_WIDTH = 250
 
@@ -718,17 +717,17 @@ class BossTab(QWidget):
                 widget.setParent(None)
                 widget.deleteLater()
 
-        grid_host = QWidget()
-        grid = QGridLayout(grid_host)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(8)
-        for i, boss in enumerate(self.bosses):
+        cards = []
+        for boss in self.bosses:
             card = BossCard(boss, self.icons)
             card.clicked.connect(self.show_detail)
-            grid.addWidget(card, i // COLUMNS, i % COLUMNS)
-        for column in range(COLUMNS):
-            grid.setColumnStretch(column, 1)
-        self.grid_outer.addWidget(grid_host)
+            cards.append(card)
+        # As many columns as the width takes, recounted whenever the window
+        # changes. The four hard-coded ones sliced Gnoster, Maris, Caligo and
+        # Harmonia at a 1067 px window and Maris and Harmonia at 1250, while
+        # the line above them said "10 Nightlords" (DR-013).
+        self.cards = cardgrid.CardGrid(CARD_WIDTH, cards, stretch=True)
+        self.grid_outer.addWidget(self.cards)
         self.grid_outer.addStretch(1)
 
         paired = sum(1 for b in self.bosses if b.get("everdark"))
