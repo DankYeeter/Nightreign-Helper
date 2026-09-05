@@ -107,12 +107,12 @@ LORE: dict[int, dict] = {
         ),
         "penalty": (
             "Ignore it and the reduced maximum HP simply stays for the rest "
-            "of the run. Refusing the deal is its own outcome -- the game "
+            "of the run. Refusing the deal is its own outcome — the game "
             "announces \"A failed deal has sown enmity\"."
         ),
         "confirmed": (
             "The 15,000 / 35,000 prices are right, read off the screen. The "
-            "curse for not paying lasts the whole expedition -- it survives "
+            "curse for not paying lasts the whole expedition — it survives "
             "the day 1 and day 2 transitions and is still on the party for "
             "the Nightlord. Paying also lets the team take one of the "
             "merchant's deals at no cost."
@@ -149,7 +149,7 @@ LORE: dict[int, dict] = {
             "A second Night Boss spawns straight after the first, with HP, FP "
             "and flasks refilled for the fight."
         ),
-        "reward": "A second set of boss rewards -- Dormant Powers and runes.",
+        "reward": "A second set of boss rewards — Dormant Powers and runes.",
         "penalty": "You have to beat it; a team caught unprepared can lose the run there.",
         "nightlords": ["Adel", "Fulghor"],
         "uncertain": (
@@ -165,7 +165,7 @@ LORE: dict[int, dict] = {
         "name": "Meteor Strike / Fallingstar Beast",
         "what": (
             "The crater is marked on the map and a Fallingstar Beast waits "
-            "in it. An ordinary boss fight -- no second phase, nothing to "
+            "in it. An ordinary boss fight — no second phase, nothing to "
             "fail."
         ),
         "reward": "Epic-tier loot; reported as reliably Epic-rarity Dormant Powers.",
@@ -177,8 +177,8 @@ LORE: dict[int, dict] = {
         "name": "Hordes of the Night",
         "what": (
             "A dark cloud marks a spot and fills it with a group of enemies "
-            "-- crows, dogs, revenants, trolls, knights, Fingercreepers, "
-            "Golem Warriors, depending on the roll."
+            "— crows, dogs, revenants, trolls, knights, "
+            "Fingercreepers, Golem Warriors, depending on the roll."
         ),
         "reward": "Runes and a buff improving Ultimate Art gauge charge speed.",
         "penalty": "None reported.",
@@ -219,7 +219,7 @@ LORE: dict[int, dict] = {
         "nightlords": [],
         "note": (
             "Reported to trigger at exactly five minutes into Day 1, and "
-            "only in Deep of Night on the base Nightlords -- the DLC-added "
+            "only in Deep of Night on the base Nightlords — the DLC-added "
             "pattern block the extracted lines point at."
         ),
         "sources": ["fextralife", "thefifthmatt"],
@@ -246,7 +246,8 @@ LORE: dict[int, dict] = {
         "what": (
             "A red circle marks a dragon. Attack it to drive it off."
         ),
-        "reward": "The Cold Mirage effect -- concealment near death, neutralising attacks.",
+        "reward": ("The Cold Mirage effect — concealment near death, "
+                   "neutralising attacks."),
         "penalty": "None reported.",
         "nightlords": [],
         "note": (
@@ -269,7 +270,7 @@ UNANNOUNCED: list[dict] = [
         "name": "Wandering Mausoleum",
         "what": (
             "A walking structure with a bell slung between its legs. Climb a "
-            "leg to reach the bell inside. It is only a duplicator -- there "
+            "leg to reach the bell inside. It is only a duplicator — there "
             "is no fight and nothing to fail."
         ),
         "reward": "Duplicates one armament you already hold, up to Legendary.",
@@ -285,7 +286,7 @@ UNANNOUNCED: list[dict] = [
         "name": "Difficult Sorcerer's Rise",
         "what": (
             "A Sorcerer's Rise with a harder puzzle variant. No banner, no "
-            "fight -- a map feature some patterns carry."
+            "fight — a map feature some patterns carry."
         ),
         "reward": "Whatever the Rise holds; nothing beyond the usual is reported.",
         "penalty": "None.",
@@ -302,7 +303,7 @@ UNANNOUNCED: list[dict] = [
             "what the game's own files say about it."
         ),
         "reward": "Stat boosts, flask charges, runes, or a powerful weapon.",
-        "penalty": "Each wish carries its own cost -- stats, HP, or levels.",
+        "penalty": "Each wish carries its own cost — stats, HP, or levels.",
         "nightlords": [],
         "sources": ["fextralife", "game8"],
     },
