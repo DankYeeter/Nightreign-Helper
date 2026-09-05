@@ -325,7 +325,8 @@ def test_the_effect_column_is_the_widest_column_at_every_width(
         widths = {name: header.sectionSize(column)
                   for column, name in enumerate(EFFECT_COLUMNS)}
         wider = {name: size for name, size in widths.items()
-                 if name != EFFECT_COLUMNS[0] and size >= header.sectionSize(0)}
+                 if name != EFFECT_COLUMNS[0]
+                 and size >= header.sectionSize(0)}
         assert not wider, (
             f"at {width} px these columns are at least as wide as `Effect` "
             f"({header.sectionSize(0)} px): {wider}")

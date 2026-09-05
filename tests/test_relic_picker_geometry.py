@@ -51,7 +51,8 @@ def picker(planner, qapp):
     planner.show()
     rendered.settle()
     slot = planner.base_slots[0]
-    dialog = relicpicker.RelicPicker(slot, planner.icons, "", lambda _text: None)
+    dialog = relicpicker.RelicPicker(slot, planner.icons, "",
+                                     lambda _text: None)
     dialog.show()
     rendered.settle()
     yield dialog
@@ -73,7 +74,8 @@ def test_every_card_in_the_picker_is_drawn_whole(picker, width):
         picker.resize(width, picker.height())
         rendered.settle()
     drawn = cards(picker)
-    assert drawn, "the picker drew no cards at all, so nothing here is measured"
+    assert drawn, (
+        "the picker drew no cards at all, so nothing here is measured")
     cut = rendered.clipped(drawn, picker.scroll.viewport())
     assert not cut, (
         f"at {picker.width()} px {len(cut)} of {len(drawn)} cards are cut off "
