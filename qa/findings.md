@@ -1430,3 +1430,230 @@ Nachweisen (dieselbe Klasse wie immer: Zahl ohne Reichweite):
 bestaetigt - kein weiterer Retest noetig, P3 kann direkt beginnen. QA-090
 bis QA-094 sind neue P7-Kandidaten (Waechter-/Testschulden), niedrige
 Prioritaet, koennen mit P7 mitlaufen.
+
+## T-038 (2026-09-03, parallele Session "Scaling Questions"): Angriffskraft gegen das Spiel gemessen
+
+Quelle: Fan-Messung Lv12 (310 Waffen x 8 Nightfarer) und RPS-Skalierungsbuchstaben; Bericht `docs/berichte/T-038-qa-engineer.md`, Recherchen R-004/R-005. IDs QA-095 bis QA-099 vergeben (Nummernkreis laut `docs/state.md`). Zwei Nebenbefunde ohne eigene ID: (1) `weapons.rate` hat keinen Einhaengepunkt fuer eine Kalibrierung und keinen Charakterisierungstest gegen eine Spielzahl - Teil des Fixes zu QA-095; (2) die Elden-Ring-Buchstabenschwellen gelten in Nightreign nicht (S >= 73, A 60-70, B 45-58, C 30-44, D 16-29, E 7-13, Grenzen 45 und 30 scharf), nur relevant, falls je Buchstaben angezeigt werden.
+
+| ID | Titel | Prio | Sev | Adressat | Verifiziert | Status | Letzte Pruefung |
+|----|-------|------|-----|----------|-------------|--------|----------------|
+| QA-095 | **Die Angriffskraft des Programms ist um den Faktor 1/0,6 zu hoch.** Spiel = `floor(0,6 x weapons.rate)`, exakt: Intervallschnitt ueber 9 skalierungsfreie Waffen x 8 Nightfarer ergibt k in [0,5993, 0,6009), Rundung statt Abschneiden ist ausgeschlossen (leere Schnittmenge). Modell trifft 1965 von 2256 Anzeigewerten ganzzahlig exakt (97,5 % ohne die unbrauchbare Duchess-Spalte). Faktor trifft Grundschaden und Skalierung gleich, ist level-unabhaengig (Lv 1/12/15) und steht in keinem gelesenen Param (Hypothesen a-f einzeln widerlegt, T-038 Abschn. 6). Trainingspuppe: realer Schaden = Anzeige (Nutzer 03.09.2026). Rangfolge unberuehrt, jede absolute Zahl falsch. **Fix-Richtung:** Kalibrierkonstante einmal in `weapons.rate`, benannt mit Geltungsbereich; Abschneiden nur an der Anzeige (QA-074); README Known limits nachziehen; Charakterisierungstest gegen die gemessenen Spielwerte mit toetender Mutation 0,6 -> 1,0 und floor -> round (Soldier's Crossbow 88 vs 89) | P1 | Major | director (A7-Entscheid), developer | echte Spieldaten + Fan-Messung Lv12, 310 Waffen x 8 Helden; RPS-Buchstaben als unabhaengige Quelle: 387/387 Zellen im Band ihres Buchstabens | offen - Entscheid des App Designers (F4) | 2026-09-03 |
+| QA-096 | **Raider trifft mit Greataxe und Great Hammer (wep_type 19/23) x1,1819 haerter** als das Programm rechnet - 25 Waffen, Spanne 1,1786-1,1839, nur beim Raider, nur dort (Kolossal 0,998-1,003; Wylder/Executor auf denselben Waffen 0,996-1,003). Zeilenversatz, Zweihaendigkeit (STR x1,5) und der Passivtext des Raiders einzeln ausgeschlossen. Ursache unbekannt, ordnungsrelevant fuer den Berater. **Nachtrag T-042:** Faktor per Intervallschnitt **exakt 1,18** (m in [1,179733; 1,180116), `floor(0,6 x 1,18 x rate)` trifft 25/25; 1,1819 war ein Median ueber abgeschnittene Werte). Params-Suche **negativ mit Nenner**: 252 Tabellen, 257 912 Zeilen, 6,66 Mio. Gleitkommazellen inkl. undefinierter Bytes; nur EquipParamWeapon und SpEffectParam koennen einen Waffentyp nennen, dort symmetrisch (max x1,09 je Typ); kein heldenseitiges Angriffsfeld. **Der float32-Wert 1,18 existiert als spielererreichbarer Multiplikator nur als Relikt-Effektstufe** ("Improved Attack Power when Two-Handing", "Attack Up when Wielding Two Armaments") - zwei Lesarten gleichberechtigt: Klassenregel des Raiders oder Fan-Ablesung mit aktivem 1,18-Relikt. **Beobachtung, keine Spielregel**, bis Lv15-Messung (T-042 Abschn. 7: Raider reliktfrei, einhaendig, Greataxe 15000000 -> 141 ohne / 166 mit Regel) | P2 | Major | director (Frage F2 an App Designer), developer | echte Spieldaten, 25 Waffen, Kontrollen negativ; T-042 Negativliste | offen - nicht einbauen, solange ohne Quelle (A7) | 2026-09-03 |
+| QA-097 | **Revenant's Cursed Claws (id 21750000): x0,87 fuer jeden Nightfarer ausser dem Revenant** (Besitzer 0,9994; sieben andere 0,865-0,887). Keine allgemeine Startwaffenregel: die sieben uebrigen Startwaffen liegen bei jedem Helden bei 0,951-0,999. Nutzer 03.09.2026: jeder Nightfarer kann die Claws fuehren, eigenes Moveset - die Zellen sind Messungen. R-006: Item-Text belegt die Absicht ("Only the Revenant can make proper use of this weapon ... reduced to a blunt instrument"), keine Zahl in der Community. **Nachtrag T-042:** Faktor **0,88** exakt (m in [0,877440; 0,882700), 8/8; 0,87 verfehlt vier Helden um je 1). Params-Suche negativ (siehe QA-096); jede Zeile mit 0,88 haengt an einem unreferenzierten Eintrag. Lv15-Messung: Recluse mit Claws 87 / 76 / 75 trennt die Lesarten | P3 | Minor | director (Frage F3 erledigt; Einbau erst mit Quelle) | echte Spieldaten, 8 Helden, Gegenprobe ueber alle 8 Startwaffen; T-042 | offen - belegte Absicht, unbelegte Zahl | 2026-09-03 |
+| QA-098 | **Fan-Messung (Nightreign Weapon Scaling.xlsx): zwei der acht Spalten stehen nicht auf Level 12.** Guardian durchgehend Level 11 (265 von 271 Waffen; erklaert die 'Guardian-Anomalie' der Director-Sonde vollstaendig), Duchess blockweise gemischt (198 auf L11, 69 auf L12, nach Zeilennummer) und als Beleg unbrauchbar. Kontrollspalten eindeutig L12 (83-89 % innerhalb 0,5 AP). Quellenbefund, kein Codefehler - gilt fuer jede Weiterverwendung der Tabelle | P3 | Major | director | 271 Waffen je Spalte, Level 8-15 je Spalte gefittet | offen - Quelle mit Einschraenkung fuehren | 2026-09-03 |
+| QA-099 | **Staebe und Siegel: das Programm zeigt die physische AR (~27-68), das Spiel die Zauber-/Anrufungsskalierung (78-237).** Herkunft in **T-043 gefunden**: `Anzeige = floor(90 x ReinforceParamWeapon.unknown_1 x (1 + Kurve16(INT bzw. FAI)/100))` - trifft **84 von 84** Fan-Zellen und **28 von 28** RPS-Zahlen exakt. `unknown_1` (Offset 128, f32, letztes Feld; Paramdef deckt die Zeile exakt) liest `extract.py` nicht; 53 von 2317 Waffen sitzen auf einer Gruppe mit Wert != 1,0, **alle** Katalysatoren. K = 90 aus Intervallschnitt [89,9982, 90,0147]; `round`, Einfluss 0,9 in der Klammer und 81 von 82 Kurven ergeben je eine **leere** Schnittmenge. Herkunft der 90 offen (Motorkonstante oder correct x Einfluss/100, an den Daten nicht trennbar; fuer die Reihenfolge folgenlos). Nur die Basisraritaet ist belegt. **Fehlreihung bestaetigt** (Rotten Crystal Staff 67,8 vor Carian Regal Scepter 37,1; Spiel 182 vs 237). Die Aussage aus T-038 Abschn. 8 "C steht in keinem Param" ist **widerrufen** | P2 | Major | developer, ui-ux-designer, director (A7, Anzeige ersetzen oder daneben) | 28 Katalysatoren x 3 Zauberer + RPS-Liste; alle 252 Param-Tabellen durchsucht; `docs/berichte/T-043-qa-engineer.md` | offen - umsetzbar, Auftrag folgt | 2026-09-03 |
+| QA-099a | **Zwei verschiedene Waffen heissen `Recluse's Staff`** (33750000 = Startwaffe der Recluse, Kennzahl 76,5; 33770000 = Fremdzeile ohne Zauberplatz, `equippedSpell_R1/R2 = -1`, 42 von 268 Feldern verschieden). Ebenso `Finger Seal` (34000000/34750000, zahlengleich) und `Scholar's Thrusting Sword` (4 Zeilen). Namensbasierte Zuordnung und Anzeige sind mehrdeutig. *(ID-Nachtrag zu QA-099, weil der Nummernkreis der Scaling-Session voll ist; der Audit-3-Director darf eine regulaere ID vergeben)* | P2 | Major | developer, ui-ux-designer, director | echte Spieldaten, Feldvergleich (T-043 7.2) | offen | 2026-09-03 |
+| QA-099b | **Korrektur an T-038 Abschn. 8:** die Fan-Zeile `Recluse Staff` wurde ueber die Fuzzy-Stufe auf 33770000 statt 33750000 gelegt; genau diese Zeile hat die Herkunftssuche in T-038 scheitern lassen. Mehrdeutige Kandidaten muessen als Nichttreffer gemeldet werden statt einer Aehnlichkeitsstufe ueberlassen. Uebrige 308 Zuordnungen unberuehrt | P3 | Major | director, qa | `assignment.json`, Stufe `fuzzy` (T-043 7.3) | offen - Messstreckenregel | 2026-09-03 |
+| QA-099c | **`unknown_1` ist ein Platzhaltername und wird tragend.** `values.get("unknown_1", 1.0)` macht ein vom Paramdex umbenanntes Feld ununterscheidbar vom Vorgabewert - alle 28 Katalysatoren fielen still auf 90 zurueck. Beim Einlesen pruefen: Feld vorhanden **und** mindestens eine Gruppe != 1,0, sonst laut scheitern | P3 | Minor | developer, architect | `param.read`: row_size 132 = def 132, `def_is_prefix=False` (T-043 7.4) | offen - gehoert in den Fixauftrag zu QA-099 | 2026-09-03 |
+
+## Zyklus 12, T-041: Erstdurchlauf gegen den Rechenkern des Beraters (2026-09-03)
+
+Quelle: `docs/berichte/T-041-qa-engineer.md`. Grundlage: T-037 (`developer`),
+Commit 690db5f/6ab589a auf `docs/audit-and-advisor-design`. Nachweisweg: 27
+frische `git archive`-Extraktionen, 26 volle Suitelaeufe. Die 15 Mutationen
+des `developer` sind unabhaengig nachgefahren — **0 Abweichungen**. Neun
+eigene Gegenbauten gegen `advisor/evaluate.py`, davon vier ueberlebend.
+Regression am Fenster ueber 18 Konfigurationen: 0 Unterschiede.
+
+| ID | Titel | Prio | Sev | Adressat | Verifiziert | Status | Letzte Pruefung |
+|----|-------|------|-----|----------|-------------|--------|----------------|
+| QA-100 | **Pruefpunkt 13 faengt keinen seiner eigenen Gegenbauten; vier der sieben `model.compute`-Argumente des Beraters sind ungewacht.** `weapons_held=[]`, `weapon=None`, `ctx.level→1` und `ctx.hero→heroes[0]` lassen je **398 passed** stehen. Ursache: der Testzustand ist entkernt (Level 1, eine Waffe = die Referenz, keine Waffeneffekte, `declared={}`, Deep aus, Wylder ist `heroes[0]`). Der Fall ist lebendig (Relikteffekte entfernt → rot), sieht aber genau das nicht, wofuer er gebaut ist. Klasse QA-070/073/083/086 | P1-Kandidat, eingestuft **P2** (Wirkung erst ab S9) | Major | developer | 9 Gegenbauten, je volle Suite im eigenen Baum; Planner-Zustandssonde | offen | 2026-09-03 |
+| QA-101 | **„Die Rangfolge waere bei `candidate` dieselbe" ist widerlegt.** Drei Effekte (7120400/500/600) tragen die Startwaffen-Strafe ×0,85 selbst; ein Kandidat kann sie mitbringen. Gemessen: R0 `[7120400, 6001400]` → d(equipped) −12,36 gegen d(candidate) +21,36, R1 +0,83 in beiden → **Reihenfolge gedreht**. 10 von 309 Relikten des Saves betroffen. Die Entscheidung `equipped` ist damit **richtiger**, die Begruendung falsch — und sie steht als `survival_means` in `mutate.py` | P2 | Major | director, developer | Gegenbeispiel-Kandidatensatz, Effekt- und Bestandsauszaehlung | offen — Entscheid des Directors (Vorbehalt aus `docs/state.md` aufgeloest) | 2026-09-03 |
+| QA-102 | **Der `SlotPool` — das Ergebnis des Hauptwegs — traegt keine A7-Zeile der Zielrichtungen.** `pool()` nimmt von `GoalScore` nur `.value`; `unknowns`, `weights_note`, `unit`, `display` fallen an der Poolgrenze weg. AD-004s gemeinsame Zeile ueber nicht gezaehlte konditionale Effekte existiert nirgends (zwei Suchen). Spec-Konflikt AD-010 (Pflichtfeld im Ergebnis) gegen `UI_SPEC` AK-50 (fester Satz ausserhalb der Karten) — nicht vom `qa-engineer` zu entscheiden | P2 | Major | director, developer | Codelesung + Pool-Ausgabe | offen | 2026-09-03 |
+| QA-103 | **Annahme 6 („eine Durchlassrate ist nie null") steht nur im Docstring.** Gemessen: 0,0 → nackter `ZeroDivisionError`; −0,5 → still `Effective HP 700` statt 1120; 1e-12 → still `Effective HP 1,4e14`, was jede Rangliste anfuehrt und die gemessene Regel („non-positive 0") **nicht verletzt**. Einzige der sechs Annahmen, die A7 nicht erfuellt | P3 | Major | developer, director | drei Randwerte einzeln gefahren | offen | 2026-09-03 |
+| QA-104 | **Ohne Referenzwaffe zaehlt ein klassengebundener Angriffsbuff exakt 0, und keine Zeile sagt es.** Gemessen: derselbe Effekt 0,000000000 ohne Waffe, +14,27 mit passender `ranged`-Waffe. 8 solcher Effekte im Datensatz. `_NO_ARMAMENT_NOTE` nennt den Geltungsbereich zu eng | P3 | Minor | developer, ui-ux-designer | Messung mit und ohne Referenzwaffe | offen | 2026-09-03 |
+| QA-105 | **Systemisch: die Vorbedingungspruefungen des Beraters nennen ihren Umfang zu weit.** Der Docstring sagt „die zwei Vorbedingungen, die ein Aufrufer falsch machen kann"; es sind mehr: Gewichtssumme 0 → `ZeroDivisionError` (2 Faelle), negatives Gewicht → still falsche Zahl, unbekannter Feldname → still neutral 1.0, doppelte Schluessel → still verworfen, `Budget(0)` ungeprueft, `pools` prueft `rank_by` ohne freie Slots nicht. OF-3 (Bedienelement fuer die Gewichte) macht daraus einen Nutzerpfad | P3 | Minor | developer | sieben Faelle einzeln nachgestellt | offen | 2026-09-03 |
+| QA-106 | **Auf einem Runner ohne Spielinstallation prueft keiner der 107 neuen Faelle eine Zahl des Beraters.** Gemessen (conftest im Klon entschaerft): 61 laufen, 46 ueberspringen — und die 61 sind 46 Formpruefungen, 1 Registry-Pruefung und 14 Tests des Messwerkzeugs. Pruefpunkt 13 ueberspringt zweifach. Die Zahl 398 traegt dort fast nichts vom Berater | P3 | Major | director, developer | Runner-Simulation, Faelle je Datei gezaehlt | offen | 2026-09-03 |
+| QA-107 | **`held_fingerprint` ist positionsunabhaengig, der als Cache-Schluessel benannte `AdvisorRequest` ist es nicht.** Gemessen: Fingerabdruck gleich, Request und Hash verschieden. Der Wächter `test_where_a_relic_is_held_does_not_change_the_fingerprint` prueft damit eine Eigenschaft, die der Schluessel nicht hat; AD-016s Begruendung fuer die Positionsunabhaengigkeit tritt nicht ein. Klasse QA-082/QA-087 | P3 | Minor | developer, architect | Hash-/Gleichheitsprobe | offen | 2026-09-03 |
+| QA-108 | **Bestand ohne Handles: jeder Pool leer, Zeile sagt „of this colour" auch am weissen Slot.** Synthetisch gebaut: 0 Kandidaten je Slot plus eine `unknowns`-Zeile (also nicht still, aber sechsmal dieselbe Teilausfall-Formulierung fuer einen Totalausfall). Am weissen Slot ist „of this colour" falsch — gemessen: zwei weggefallene rote Kopien, angeboten rot **und** blau. Latent (0 von 309 ohne Handle) | P3 | Minor | ui-ux-designer, director | synthetischer Bestand, zwei Faelle | offen | 2026-09-03 |
+| QA-109 | `effect_ids_of` behauptet „the same three sources `Planner._rebuild` gathers, **in the same order**"; gemessen: gleiche Multimenge, **verschiedene Reihenfolge**. Ohne Wirkung auf eine Zahl (sources/warnings/attributes im Messzustand identisch), aber `Build.sources` ist per AD-015 die Quelle fuer S8 — und Pruefpunkt 13 schliesst mit `figures()` genau `warnings` und `sources` aus | P4 | Trivial | developer | Reihenfolgenvergleich am echten Planner | offen | 2026-09-03 |
+| QA-110 | Pruefpunkt 18 („kein `QSettings` im Berater-Pfad") hat keinen Wächter: `test_no_source_opens_a_settings_store_of_its_own` prueft die **Namen** des Stores, nicht seinen **Ort** — ein `QSettings(favourites.ORG, favourites.APP)` unter `advisor/` passiert ihn. Eigenschaft haelt heute (zwei Suchen, 0 Treffer) | P4 | Minor | developer | Wächterlesung + zwei Suchen | offen | 2026-09-03 |
+| QA-111 | **A8 („alle nutzersichtbaren Zeichenketten Englisch") hat repo-weit keinen Wächter** (zwei unabhaengige Suchen ueber `tests/`, 0 einschlaegige Treffer). Bestand in Ordnung: AST-Durchgang ueber `nrplanner/advisor/` findet nur Englisch, die von AD-010 verbotenen Woerter kommen nicht vor. Vorbestand, hier gemeldet, weil `advisor/` das erste Paket mit deutschen Kommentaren und englischen Ausgaben in derselben Datei ist | P4 | Minor | director, developer | AST-Durchgang + zwei Suchen | offen | 2026-09-03 |
+| QA-112 | `inventory.copy_key`s Begruendung trifft den Code nicht (vom `developer` gemeldet, hier unabhaengig verifiziert): `read_relic_handles` liest aus dem **Relikt-Datensatz**, nicht aus der Loadout-Tabelle. Die zwei realen Wege zu `handle=None` stehen nirgends: (i) `read_relic_handles` schluesselt nach Handle, kollidierende Datensaetze kollabieren; (ii) `off < 0` wird uebersprungen. Gemessen: 0 handle-lose und 0 kollidierende Handles auf diesem Save. Klasse QA-082 | P4 | Trivial | developer | drei Stellen gelesen, Save nachgemessen | offen | 2026-09-03 |
+
+**Bestaetigt, kein Befund (T-041):** die 15 Mutationen des `developer`
+reproduzieren exakt; der AD-021-Wächter reicht wirklich in `advisor/`; die
+Regression am Fenster ist null (18 Konfigurationen, 297 Zeilen, 0
+Unterschiede); Pruefpunkt 15 ist ueber Objektidentitaet gesichert; die
+Hashbarkeit ist auf der **Erzeugerseite** belegt; Farbregel und
+Deep-Trennung sind an `inventory.relics_for` delegiert statt dupliziert;
+`0 von 309` Relikten ohne Handle unabhaengig nachgemessen; die `slow`-Faelle
+sind gruen (5 passed, alle in `test_extraction.py`, keiner beruehrt den
+Berater); volle Suite mit `slow`: **403 passed**.
+
+
+## Zyklus 12, T-049 (Scaling-Session, read-only): Startwaffen-Konversion (2026-09-03)
+
+IDs vom Director vergeben. Quelle: `docs/berichte/T-049-qa-engineer.md`, Klon auf 0dc54a6.
+
+Die Datei bestand bereits und wird fortgefuehrt; ich lege sie nicht selbst an.
+**Zeile QA-101 ersetzen durch:**
+
+| ID | Titel | Prio | Adressat | Status | Letzte Pruefung |
+|---|---|---|---|---|---|
+| QA-101 | **"Die Rangfolge waere bei `candidate` dieselbe" ist widerlegt.** Drei Effekte (7120400/500/600) tragen die Startwaffen-Strafe x0,85 selbst; ein Kandidat kann sie mitbringen. Gemessen: R0 `[7120400, 6001400]` → d(equipped) −12,36 gegen d(candidate) +21,36, R1 +0,83 in beiden → **Reihenfolge gedreht**. 10 von 309 Relikten des Saves betroffen. **Nachtrag T-049 (2026-09-03, Commit `0dc54a6`): auf dem Stand nach der 0,6-Kalibrierung ziffernweise reproduziert (Level 15 / Tier 1: 203,4176 / −12,3576 / +21,3589 vor der Kalibrierung; 122,0506 / −7,4146 / +12,8153 danach), Rangfolge dreht auf Level 1, 12 und 15. Ausserdem geprueft und bestaetigt: die drei Effekte tragen laut Params **nur** x0,85 (12 Zeilen im ganzen Spiel mit diesem Muster) und keine Schadensart-Umwandlung; Differenz Programm gegen Param-Lesart 0,000000 je Schadensart. Die Fan-Behauptung "~40-50 % AP werden umgewandelt" gehoert nicht zu ihnen — siehe QA-113.** | P2 | director, developer | offen — Entscheid des Directors | 2026-09-03 |
+
+**Neue Zeile anhaengen (ID vom Audit-3-Director zu vergeben, Vorschlag QA-113):**
+
+| ID | Titel | Prio | Adressat | Status | Letzte Pruefung |
+|---|---|---|---|---|---|
+| QA-113 | **Vier "Starting armament deals magic/fire/lightning/holy damage"-Relikte (7120000/100/200/300) bewegen die Angriffskraft um exakt 0.** Die Params tragen eine echte Umwandlung `physicsAttackPower −30/−40/−50/−60` mit `<element>AttackPower +33/+44/+55/+66`; die flachen `*AttackPower`-Felder haben in `model.compute` kein Fach und erscheinen im ganzen `nrplanner/` nur als Beschriftung (`effecttext.py` Z. 116-120) — drei unabhaengige Suchen. Gemessen Wylder Lv12: Programm 0,000000, Param-Lesart +1,80 (vor der 0,6-Kalibrierung) bzw. +3,00 (danach), Physics −18/−30 gegen Fire +19,8/+33. Auf dem Save 3 von 309 Relikten (`Night of the Beast`, `Delicate Drizzly Scene`, `Grand Luminous Scene`); in den Wuerfelpools 40 Eintraege je Effekt, genauso viele wie fuer die drei modellierten Geschwister. Rangfolge gedreht: 21 bzw. 75 echte Ueberholvorgaenge, 348/402 diskordante Paare von 47 586. Die Effektkarte nennt die Zahlen, die Angriffskraft nicht → beruehrt A3, A5 und A7. Kein Test im Repo nennt ein flaches `*AttackPower`. Einbauhoehe erst nach einer Ablesung im Spiel entscheidbar (drei Lesarten, 91 / 116 / 117 bei Grundwert 114) | P2 | developer, director | offen | 2026-09-03 |
+
+| ID | Titel | Prio | Adressat | Status | Letzte Pruefung |
+|---|---|---|---|---|---|
+| QA-114 | `damage.py` Z. 61-63 (wortgleich `tests/weapon_damage_cases.py` Z. 163-166) nennt `*AttackPowerRate` "carried by exactly three effects — the 'Starting armament inflicts ...' relics" und verschmilzt damit die Feldaussage (richtig: 3 Effekte, 12 Zeilen) mit der Familienaussage (falsch: die Familie hat 7 Mitglieder, `stateInfo 2101` → genau 7 Zeilen im ganzen Spiel). Wirkung belegt: R-005 hat die Fan-Notiz zur Konversion auf diese drei bezogen und die vier Geschwister nicht gesehen | P4 | developer | offen | 2026-09-03 |
+
+---
+
+
+## Zyklus 12, T-045/T-050: die 0,6-Kalibrierung und ihr Beleg (2026-09-05)
+
+Quelle: `docs/berichte/T-045-developer.md`. Vergleichslauf 89015aa gegen HEAD
+ueber beide Raster, `PYTHONHASHSEED=0`, 115 839 exakte Zahlen und 589 840
+Bildschirmzahlen. IDs vom Director vergeben.
+
+**Bestaetigt, kein Befund:** 97 745 Zahlen um 0,6 mitgezogen (<= 1 ULP);
+17 224 bitgleich stehengeblieben und **jede davon ein Multiplikator**;
+0 von 589 840 Bildschirmzahlen ausserhalb von Abschneiden oder Runden;
+0 von 121 924 gerenderten Gesamtzahlen widersprechen ihrer Quellzahl;
+beide Mutationen selbst gefahren und rot (60 bzw. 26 failed).
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-115 | **Eine Zahl im Quelltext ist nicht nachfahrbar — Verstoss gegen die eigene Hausregel (L-001).** Der Kommentar in `nrplanner/weapons.py` begruendet die Klammerung des Faktors mit "574 von 350 160 Werten kommen 2 ULP daneben heraus"; das Skript `dump_rate.py`, das die Zahl belegt, **existiert nicht** (`find`, `grep -rn`, `git log --all` je null Treffer). **Folge:** die **per-Typ**-Aussage der Klammerung ist unbelegt — der Vergleichslauf aus T-050 nimmt nur **Summen** auf und kann sie nicht stuetzen. Die Klammerung selbst ist dadurch nicht falsch, nur unbegruendet | P3 | Major | developer | drei unabhaengige Suchen, je 0 Treffer | offen | 2026-09-05 |
+| QA-116 | **Der ueberholte Attack-Rating-Vorbehalt steht noch an sechs Stellen in zwei Wortlauten**, die eine Suche nach dem einen Satz nicht beide findet: `ARCHITECTURE.md:513`, `UI_SPEC.md:192, 1221-1222` (Wortlaut A) und `UI_SPEC.md:696, 981, 1201` (Wortlaut B). AK-37 und AK-50 binden damit Zeichenketten, die es im Programm nicht mehr gibt. **Entwarnung: keiner der beiden Wortlaute steht im Programmcode** — reine Dokumentenschuld | P4 | Minor | architect, ui-ux-designer | Volltextsuche ueber beide Wortlaute | offen | 2026-09-05 |
+| QA-117 | **Die Anzeigeschwellen sind absolute Grenzen auf einer jetzt 0,6-mal kleineren Zahl.** Gemessen als Nebenwirkung der Kalibrierung: 89-mal faellt die Zeile `From attributes` weg (Schwelle `>= 0.5`, fuer alle 89 aus den Aufnahmen nachgerechnet), 66-mal wird eine Aenderungszelle `+1` zu `—`, einmal wechselt eine Farbe GOOD->MUTED (Schwelle `> 0.05`, armament 5050900). **Kein falscher Wert** — aber eine sichtbare Aenderung fuer den Nutzer, die niemand entschieden hat | P3 | Minor | ui-ux-designer, director | Skelettvergleich ueber `tiles_and_panel`, je Fall nachgerechnet | offen | 2026-09-05 |
+| QA-118 | **`tests/test_move_scoped_effects.py` wurde in `99ed022` mitgeaendert, sichert aber nichts.** Seine **alte** Fassung ist gegen das **neue** Programm gruen (5 passed, auch der einzeln nachgefahrene Fall). Die Aenderung war richtig, ist aber keine Regressionssicherung — der Test haette den Faktor auch dann nicht bemerkt, wenn er falsch eingezogen worden waere. Klasse L-007 | P4 | Minor | developer | alte Fassung gegen neues Programm gefahren | offen | 2026-09-05 |
+
+
+## Zyklus 12, T-046: Katalysator-Kennzahl (2026-09-05)
+
+Quelle: `docs/berichte/T-046-developer.md`. 84/84 Fan-Zellen und 28/28
+RPS-Zahlen exakt, fuenf toetende Mutationen gefahren, Messstrecke ueber beide
+Raster: **0 Nicht-Katalysator-Datensaetze mit geaendertem Wert**, groesste
+Abweichung 0 ULP. Suite 438 -> 563. IDs vom Director vergeben.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-119 | **QA-099a verschaerft: die Namenskollision Recluse's Staff ist jetzt sichtbar falsch.** Der Arsenal-Tab zeigt zwei gleichnamige Eintraege mit **128 und 151**, ununterscheidbar; vorher standen beide bei ~25 AR und fielen nicht auf. Die Id ist nur im Auswahldialog sichtbar. Drei unabhaengige Kriterien zeigen auf dieselbe Fremdzeile 33770000 (je 1 von 30). **Geltungsbereich des ersten Kriteriums:** nur *innerhalb* der Katalysator-Familie - 1 764 von 1 793 Waffen haben keinen Zauberplatz | P2 | Major | ui-ux-designer, developer | drei Kriterien je 1 von 30, am echten Datensatz | offen | 2026-09-05 |
+| QA-120 | **Die Golden-Datei friert zwei ungemessene Aufstiegszahlen ein** (236, 184). Belegt ist ausschliesslich die **Basisraritaet**; catalyst_scaling waechst je Aufstiegsstufe monoton, die Stufenlogik ist ungeprueft. Eine Charakterisierung darf das - aber sie sagt es heute nicht, und der naechste Leser haelt eine eingefrorene Zahl fuer eine belegte | P3 | Minor | developer | Golden-Neuaufzeichnung gegen den Geltungsbereich aus T-043 | offen | 2026-09-05 |
+| QA-121 | **Der Zusammenfassungssatz des Arsenal-Tabs (arsenaltab.py:306) definiert nur noch eine der beiden gezeigten Kennzahlen.** Seit Katalysatoren "Spell power" statt physischer AR zeigen, beschreibt der Satz die eine Haelfte des Bildschirms. AK-34 regelt diese Zeichenkette, deshalb vom developer **nicht** angefasst - Vorschlagstext liegt in seinem Bericht | P3 | Minor | ui-ux-designer | Codelesung gegen AK-34 | offen | 2026-09-05 |
+| QA-122 | **Die Oberflaeche hat niemand gesehen.** Alle Qt-Laeufe dieses Zyklus waren offscreen. Ob "Spell power 237" in die 200-px-Arsenal-Kachel passt, ist ungeprueft - zusammen mit QA-117 (89 weggefallene From-attributes-Zeilen, 66 Strich-Zellen, ein Farbwechsel) ist das die erste Aenderung dieses Projekts, die den Bildschirm sichtbar umbaut, ohne dass jemand hingesehen hat. Luecke, kein Beleg | P2 | Major | ui-ux-designer | Selbstmeldung des developer, vom Director uebernommen | offen | 2026-09-05 |
+
+
+## Zyklus 12, T-051: Retest der beiden Kalibrierungen (2026-09-05)
+
+Quelle: `docs/berichte/T-051-qa-engineer.md`. **Alle 4 Abnahmepunkte aus
+T-045 und alle 6 aus T-046 erbracht**, je mit unabhaengig reproduzierter Zahl
+(Mutationslaeufe in frischen Klonen, Golden-Verhaeltnis von Grund auf neu
+gerechnet, direkte Sonden an der Oberflaeche). Der zuvor offene Punkt ist
+geschlossen: Wylder Lv12 / Dagger zeigt **74** auf Kachel ("Common - 74 AR"),
+Tafel ("Total 74") und Arsenal-Tab ("AR 74") - gemessen an einer echten
+headless `Planner`-Instanz. QA-118 gegen vier weitere mitgeaenderte
+Testdateien geprueft: **Einzelfall, keine Klasse**. QA-115 bestaetigt: mit den
+vorhandenen Werkzeugen **nicht** pruefbar, braucht ein neues Skript. QA-120
+bestaetigt ueber das `left_out`-Feld der Datendatei selbst.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-123 | **Die Arsenal-Messstrecke ist fuer sechs Waffen blind.** Die Aufnahme wird ueber die Suche getrieben; bei sechs von 1793 Waffen ist die Familie groesser als die Auto-Aufklapp-Schwelle des Tabs, die Kachel wird nie gezeichnet und der Datensatz zaehlt trotzdem voll mit. Verwandt mit QA-088(b) | P4 | Minor | developer | 6 von 1793 ausgezaehlt, Kachel erzwungen gegengeprueft | offen | 2026-09-05 |
+| QA-124 | **`arsenaltab.recalculate()` liest das angezeigte Level aus dem Slider-Widget statt aus dem Build.** In der Produktion harmlos (beide stimmen ueberein), fuer Testwerkzeug eine Falle: ein headless gesetzter Build ohne Sliderbewegung misst gegen ein anderes Level, als er zu messen glaubt. Genau die Wurzel von QA-088(a) | P4 | Minor | developer | Sonde mit abweichendem Slider- und Build-Level | offen | 2026-09-05 |
+
+
+## Zyklus 13, T-055: Inhaltsaudit der sechs Tabs (2026-09-05)
+
+Quelle: `docs/berichte/T-055-qa-engineer.md`. Grundlage GOAL A10 bis A14.
+Alle Zahlen an headless instanziierten Tabs ausgelesen; zwei Belege aus einer
+Direktlesung von `regulation.bin`. Suite vor und nach dem Lauf: 622 passed,
+5 deselected. Kein Blocker. Keine Doppelmeldung zu DR-008..012,
+QA-116/117/119/121/122/123/124.
+
+**Bestaetigt, kein Befund:** die Everdark-Behauptung „identical figures"
+(8 von 8 Paaren byteweise gleich) · die Begruendung, die fuenf elementaren
+Deep-Raten zu einer Zeile zusammenzulegen (0 Abweichungen ueber 25 Profile x
+5 Tiefen) · die beiden Erklaernoten zu Kataklysmen und Verschleierung
+(Gewichte summieren zu 100) · `Avg > Best` in 0 von 652 Zeilen · die
+Summenbildung im Red-variants-Tab ueber alle 6 Karten.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-125 | **Effects & chances: die Spalte `Pools` zaehlt keine Pools.** Der Tooltip sagt "How many of the game's loot pools can produce this effect"; die Zahl ist die Summe der (Relikt x Effektplatz)-Vorkommen. Zwei unabhaengige Belege: Identitaet 333 167 + 5 760 = **338 927** exakt aufgegangen; und das Spiel definiert nur **598** verschiedene Pool-Tabellen, waehrend der Tab bis **1 110** anzeigt | P2 | Major | developer, ui-ux-designer | Snapshot-Identitaet + Direktlesung `EquipParamAntique` | offen | 2026-09-05 |
+| QA-126 | **Effects & chances: `Avg chance` ist ein ungewichtetes Mittel ueber Farb-/Modus-Eimer** und entspricht weder dem Tooltip ("averaged over every pool") noch der Zusammenfassung ("how likely … on one roll"). **129 von 616** Effekten aendern die angezeigte Zahl bei Gewichtung nach Vorkommen; schlimmster Fall `[Wylder] Improved Mind, Reduced Vigor` **20,4 % gegen 0,91 %** (Faktor 22,3) | P2 | Major | developer, ui-ux-designer | Nachrechnung ueber alle Effekte, Einzelfall aufgeschluesselt | offen | 2026-09-05 |
+| QA-127 | **Effects & chances: `Copies` und `Tier` sind filterabhaengig**, obwohl beide Tooltips sie als Eigenschaft der Spieldaten beschreiben. Gemessen gegen "All colours": 25-39 Namen mit anderer `Copies`-Liste, 17-31 Namen, deren Leitersprosse verschwindet. **Entwarnung: keine Umnummerierung, 0 Faelle** ueber vier Farben und beide Modi | P3 | Major | developer | Filterdurchlauf ueber alle Farben und Modi | offen | 2026-09-05 |
+| QA-128 | **Systemisch (A12): Zahlen ohne Bezugsgroesse auf fuenf der sechs Tabs.** 10 Belegstellen, u. a. `Scaling STR 50` auf **allen 1 792** Waffenkacheln (Einheit und Skala unbenannt; das Spiel zeigt hier Buchstabengrade), `Refills at x0.846` (Rate ohne Zeitbasis), `STATUS BUILDUP 542` (Richtung und Farblegende fehlen), `Reward multiplier x1.47` (**Bezugsgroesse auch im Code unbekannt -> A7-Fall**), `Enemy HP x1.30` (Vergleichsbasis fehlt) | P2 | Major | ui-ux-designer, developer, director | Belegliste mit Umfang je Stelle | offen | 2026-09-05 |
+| QA-129 | **Nightlords: die Debuff-Zahlen stehen bei den falschen Bossen.** `DEBUFF_ON_BREAK` zeigt "x2.0 damage taken / x0.8 attack power" bei Gladius (Daten: 0,815), Caligo (**keine** Down-Stufe) und Heolstor (**keine**) - und **nicht** bei Harmonia und Straghess, deren Daten exakt 0,8 sagen. `ladder["down"]` wird fuer **7 von 10** Bossen nie gezeigt. Die Zeilen tragen die Typografie extrahierter Werte, obwohl der Tab fuer Sichtungen eine eigene Farbe fuehrt | P2 | Major | developer, ui-ux-designer | `ladder.down` aller 10 Bosse gegen die Konstantenliste | offen | 2026-09-05 |
+| QA-130 | **Nightlords: Maris zeigt `Refills at x-1`.** `stance.recovery = -1.0` ist ein Sentinel und wird als Multiplikator gedruckt; die uebrigen neun liegen zwischen 0,154 und 1,462. Derselbe Waechter existiert im selben Modul fuer `>= 999` ("immune"), nur nicht fuer dieses Feld | P3 | Major | developer | Wert am Widget und im Datensatz | offen | 2026-09-05 |
+| QA-131 | **Nightlords: Adels Schwaechen-Abschnitt erscheint nie.** Er ist der einzige Boss mit leerem `weak_damage` (Schwaeche liegt auf vier Status), und `if weak:` umschliesst auch `WEAKNESS_NOTE['Adel']` - die dafuer geschriebene Sichtung erreicht den Bildschirm nicht. Die gruene Markierung der Statusliste hat **keine Legende**; der einzige Ort, der "weakness" erklaert, ist der fehlende Abschnitt | P3 | Major | developer, ui-ux-designer | alle 10 Panels ausgelesen, `weak_status` gegengeprueft | offen | 2026-09-05 |
+| QA-132 | **Red variants: `For example` ignoriert die gewaehlte Karte und ist fuer die groesste Zeile leer.** Identische Beispielnamen auf allen sechs Karten (die Rosterstruktur hat keine Kartendimension); `Ordinary enemies in camps & ruins` (32-38 von 87-134) und `Unidentified enemies` haben **0** benannte Mitglieder. Die Tabelle sagt ueber sich selbst "on the selected map" | P2 | Major | developer, ui-ux-designer | 6 Karten ausgelesen, Roster je Gruppe ausgezaehlt | offen | 2026-09-05 |
+| QA-133 | **World Events: einmalige Belohnungen werden mit einer Dauer gedruckt.** `10,000 runes for 1s` (Buff 8970010, `part.duration = 1.0`) und `restores 100 stamina for 0.3s`. Beim Nachbarfall (`invulnerable for 5s`) ist dieselbe Regel richtig; der Code trennt Wirkdauer und Ausloesefenster nicht. Zusatz: beim `Judgment`-Buff steht `invulnerable` ganz ohne Dauer (`duration = 0.0`) | P2 | Major | developer | Buff-Teile aller 7 Buffs gegen den Bildschirmtext | offen | 2026-09-05 |
+| QA-134 | **World Events: zwei Saetze stehen woertlich auf allen 11 Ereignissen**, und die Tagesverteilung wird dabei verworfen: `Judgment` hat 19 Day-1- gegen 1 Day-2-Muster, `Fire-Summoning Beasts` 9 gegen 21 - angezeigt wird ueberall "Can fire on Day 1 or Day 2". Dazu (A12): "Every other Nightlord: never" ist eine Allaussage ohne Geltungsbereich, und der Extraktor nennt die Prozentzahl ausdruecklich "not a spin probability" - das steht nicht auf dem Bildschirm | P3 | Minor | ui-ux-designer, developer | Gating-Daten aller 11 Ereignisse | offen | 2026-09-05 |
+| QA-135 | **World Events: Herleitungssprache auf dem Bildschirm, gegen die Regel des eigenen Modulkopfs.** Wiki-Namen (fextralife, game8, Eldenpedia, thefifthmatt), "pattern modifier 230", "the row this project had wrong". Gleichzeitig werden `self.unknowns` und `self.rune_scaling` geladen und **nie** angezeigt - letzteres beziffert genau die auf dem Bildschirm stehende Behauptung "rises the more expeditions you have cleared" | P3 | Minor | ui-ux-designer, developer | Bildschirmtext gegen Modul-Docstring, Feldnutzung | offen | 2026-09-05 |
+| QA-136 | **World Events: der `Scale-Bearing Merchant` steht zweimal in der Liste** - einmal als eigener community-berichteter Eintrag, einmal als Aufloesung von `Curse of the Demon` ("It is the Scale-Bearing Merchant"), ohne Verweis aufeinander | P4 | Minor | ui-ux-designer, director | Listeninhalt und beide Detailtexte | offen | 2026-09-05 |
+| QA-137 | **Fuenf der sechs Tabs haben keinen Test, der Unsinn bemerken wuerde.** Sieben Anzeigemutationen gleichzeitig (u. a. Prozente zehnfach, Boss-Debuff x9.9, `WIN_RATING` 999, vertauschte Deep-Zeilen, falsches Tages-Gating) -> **622 passed, 5 deselected, unveraendert**. Kontrollmutation im Arsenal-Tab -> **6 failed**: die Strecke funktioniert. Suchbelege: Modulnamen 0 Treffer, Klassennamen 0 Treffer in `tests/`. **Herabgestuft von P1 auf P2**, weil kein Nutzer den Befund selbst ausloest - er ist die Ursache von QA-125 bis QA-136 | P2 | Major | developer, director | 7 Mutationen + 1 Kontrollmutation in frischen Klonen | offen | 2026-09-05 |
+| QA-138 | **Drei der sechs Tabs sagen nicht, welche Frage sie beantworten** (A10). Deep of Night, Red variants und World Events oeffnen mit Ueberschrift und Erklaerabsatz; Effects & chances, Weapons & spells und Nightlords oeffnen mit einer Bestandszaehlung in Grau, 11 px | P3 | Minor | ui-ux-designer | Erstoeffnung aller sechs Tabs | offen | 2026-09-05 |
+| QA-139 | **Derselbe Wert heisst auf einem Bildschirm zweimal anders:** die Kachel sagt `Spell power`, die Zusammenfassung sechs Zeilen darueber sagt "the **spell scaling** the game displays for them". Kein Widerspruch, ein Bezeichnungswechsel - entstanden beim Schliessen von QA-121/DR-010 aus zwei Richtungen (T-046 Kachel, T-053 Satz). AK-34 stellt diese Zeichenkette unter Wortlautkontrolle | P4 | Trivial | ui-ux-designer | Bildschirmtext beider Stellen | offen | 2026-09-05 |
+```
+
+**Beobachtung ohne eigene Nummer (gehört an QA-119):** der Auslöser aus QA-119
+ist auf dem heutigen Datensatz nicht reproduzierbar — `Recluse's Staff` kommt
+genau einmal vor (id 33750000, `Spell power 139`), auf allen vier
+Aufstiegsstufen. Die Klasse besteht weiter: `Scholar's Thrusting Sword` (4×)
+und `Finger Seal` (2×) tragen denselben Namen mehrfach, diesmal mit
+**identischen** Zahlen. Ob QA-119 damit geschlossen ist oder sich nur der
+Datensatz geändert hat, entscheidet der director.
+
+
+## Statusfortschreibung des Directors, 2026-09-05 (nach T-053)
+
+**Geschlossen durch T-053** (Commits 217796a bis 30a98bc, Suite 592 -> 622,
+acht Mutationen gefahren und alle tot):
+
+- **QA-119 / DR-008** — die nicht ausruestbare zweite `Recluse's Staff`-Zeile
+  ist gefiltert. Erkennungsfeld `equipped_spells` neu, `EXTRACT_VERSION` 9->10.
+  Geltungsbereich im Docstring von `model.is_unequippable_catalyst`: 1 von 30
+  Katalysatoren, 1 von 1793 Waffen, 1764 ohne Zauberplatz. **Nebenbefund des
+  developer, der im Review nicht stand:** bei Tier 1 stand die tote Zeile mit
+  110 gegen 93 (Wylder) bzw. 151 gegen 128 (Recluse) **ueber** der echten
+  Waffe und bewegte sich beim Aufstieg nie. Der `qa-engineer` hat in T-055
+  gemeldet, dass der Ausloeser auf dem heutigen Datensatz nicht mehr
+  reproduzierbar ist — **das ist die Wirkung des Fixes, kein Widerspruch.**
+- **QA-121 / DR-010** — Arsenal-Zusammenfassungssatz nach AK-64 ersetzt.
+- **QA-122 / DR-009, DR-012** — die Oberflaeche ist gesehen worden: zehn
+  Screenshots vom gezeigten Fenster unter `docs/screenshots/2026-09-05/` und
+  `.../2026-09-05-T053/`. Wortumbruch behoben, Schwellen benannt und gemessen.
+- **QA-116** — ueberholter Vorbehalt in `UI_SPEC.md` nachgezogen
+  (ui-ux-designer, zwei Nachtraege vom 05.09.).
+- **QA-117** — Schwellen bleiben, sind aber jetzt benannt und ihre Wirkung ist
+  gemessen statt geschaetzt (AK-65).
+
+**Offen und ausdruecklich stehengelassen:** QA-113 (Einbauhoehe wartet auf die
+Nutzermessung, Blindstelle ist benannt), QA-115 (mit **544** statt 574
+geschlossen, siehe T-048), QA-120, QA-123, QA-124.
+
+
+## Zyklus 13, T-059: Abnahme des Tab-Audits gegen A10 bis A14 (2026-09-05)
+
+Quelle: `docs/berichte/T-059-qa-engineer.md`. Gemessen unter **beiden**
+Plattformen und bei fuenf Fensterbreiten. **Urteil: A10 erfuellt (6 von 6),
+A12 erfuellt fuer 4 von 6 Tabs, A13 fuer 3 von 6, A14 = dieser Bericht,
+A11 offen** (braucht den zweiten `power-user`-Lauf). Von QA-125 bis QA-139
+sind **13 behoben, 2 teilweise** — nachgemessen, nicht uebernommen. Sechs von
+sechs nachgefahrenen Mutationen bestaetigen die berichteten Zahlen genau.
+Build planner bei 513 px Fensterhoehe: **kein Befund**.
+
+**Die Zusicherung, die den AK-77-Kompromiss traegt, haelt fuer die Zellen** —
+26 949 gekuerzte Zellen ueber elf Kombinationen, **null** ohne vollen Text im
+Tooltip. Sie haelt **nicht fuer die Spaltenkoepfe**: QA-140.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-140 | **Effects: Spaltenkoepfe mitten im Wort beschnitten; `vg chanc` gegen `est chanc` bei 1067 px** | P3 | Major | developer, ui-ux-designer | Screenshot + `sectionSize` bei 5 Breiten x 2 Plattformen | offen | 2026-09-05 |
+| QA-141 | **Relic picker schneidet die 5. Kartenspalte schon bei seiner eigenen Startbreite an (11 von 55 Karten)** | P2 | Major | developer, director | Screenshot + gerenderte Rechtecke bei 1030/900/700 px | offen | 2026-09-05 |
+| QA-142 | **`vs standard` ordnet seine Gruppen bei jedem Programmstart anders (`set`-Iteration)** | P3 | Minor | developer | 4 Hashseeds, 4 Reihenfolgen | offen | 2026-09-05 |
+| QA-143 | **Weapons: Suche mit mehr als 60 Treffern zeigt wieder die leere Flaeche aus DR-017** | P3 | Minor | ui-ux-designer, director | Widget, 6 Sucheingaben | offen | 2026-09-05 |
+| QA-144 | **Red variants: `Examples (any map)` bei 833 px breiter als `What can be red` (AK-99)** | P3 | Minor | developer | `sectionSize` bei 5 Breiten | offen | 2026-09-05 |
+| QA-145 | **Nightlords: drei Bedeutungen auf `#6fbf73`, dazu `#7fae72` ohne Legende (AK-74)** | P3 | Minor | ui-ux-designer | gerendertes HTML, 10 Panels | offen | 2026-09-05 |
+| QA-146 | **Waechter und Berichtszahlen messen unter `windowsvista`, das Programm laeuft unter `fusion` (bis 58 px Unterschied); offscreen kann 833 px gar nicht darstellen** | P3 | Minor | developer, director | dieselbe Messung unter 4 Kombinationen | offen | 2026-09-05 |
+| QA-147 | **Nightlords bei 833 px: leeres Detailpanel haelt 330 von 833 px** | P4 | Minor | ui-ux-designer | Screenshot | offen | 2026-09-05 |
+| QA-148 | **World Events: Runen-Leiter ohne Bezugspunkte, Satzrest nach dem Entfernen des Param-Namens** | P4 | Trivial | developer, ui-ux-designer | Bildschirmtext gegen Datensatz | offen | 2026-09-05 |
+| QA-149 | **Nightlords: `IT BUFFS ITSELF` und `BODY PARTS` ohne Bezugsgroesse, die Nachbarabschnitte mit** | P4 | Minor | ui-ux-designer | 10 Panels | offen | 2026-09-05 |
