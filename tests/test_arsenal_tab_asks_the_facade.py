@@ -437,3 +437,47 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
     assert f"at level {from_the_slider}," not in tab.summary.text(), (
         f"the summary names the slider's level, not the build's: "
         f"{tab.summary.text()!r}")
+
+
+#: The sentence `UI_SPEC.md` AK-64 puts between the attack-rating definition
+#: and the spell sentence, verbatim. Written out here rather than imported
+#: from the tab, or the case would agree with whatever the tab happens to say.
+CATALYST_SENTENCE = ("Staves and seals show the spell scaling the game "
+                     "displays for them instead of an attack rating.")
+
+
+def test_the_summary_defines_both_figures_the_grid_can_show(planner,
+                                                            game_data, hero):
+    """QA-121: the grid shows two quantities, the sentence knew one.
+
+    Since T-046 a staff or a seal is headed by its spell scaling, and a search
+    for a staff's name fills the grid with cards whose figure the first
+    sentence does not describe -- the state DR-008's screenshot was taken in.
+    AK-64 answers it with a sentence that stands whatever the search shows,
+    so both halves are checked: with the whole arsenal on screen, and with a
+    grid holding nothing but catalysts.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+
+    assert CATALYST_SENTENCE in tab.summary.text(), (
+        f"the summary does not define the figure a catalyst card shows: "
+        f"{tab.summary.text()!r}")
+
+    catalyst = cases.weapon_by_id(
+        game_data, cases.first_of_family(game_data, "Glintstone Staff"))
+    tab.search.setText(f'"{catalyst["name"]}"')
+    tab.recalculate()
+
+    drawn = tab.scroll.widget().findChildren(arsenaltab.Tile)
+    assert drawn, "this search drew no card, so the grid shows nothing"
+    for tile in drawn:
+        weapon = next(w for w in game_data["weapons"]
+                      if w["name"] == tile_name(tile))
+        assert model.weapon_class(weapon) == "catalyst", (
+            f"{tile_name(tile)!r} is not a catalyst, so this grid is not the "
+            f"catalyst-only case QA-121 is about")
+
+    assert CATALYST_SENTENCE in tab.summary.text(), (
+        f"with only catalysts on screen the summary still explains only the "
+        f"attack rating: {tab.summary.text()!r}")

@@ -307,11 +307,20 @@ class ArsenalTab(QWidget):
         # Der bisherige 60%-Satz entfaellt ersatzlos (AK-34: die Zeichenketten
         # "60%", "under investigation" und "ranking between weapons is
         # unaffected" duerfen im Baum nicht mehr vorkommen).
+        #
+        # Der mittlere Satz ist AK-64 (Nachtrag zu AK-34/QA-121, 2026-09-05):
+        # seit T-046 zeigt dasselbe Raster zwei verschiedene Kennzahlen, und
+        # eine Suche nach einem Stab- oder Siegelnamen fuellt es ganz mit
+        # Karten, deren Zahl der erste Satz nicht beschreibt. Er steht
+        # unabhaengig von der Trefferliste, weil die Zeile fuer das ganze
+        # Arsenal gilt und nicht fuer den gefilterten Ausschnitt.
         self.summary.setText(
             f"{self.header_text}. {shown} shown. Attack rating is base "
             f"damage, plus what your stats add to it, plus the +% attack "
-            f"effects your equipped relics grant. Spell damage is not in "
-            f"the game's data, so spells show their costs instead."
+            f"effects your equipped relics grant. Staves and seals show the "
+            f"spell scaling the game displays for them instead of an attack "
+            f"rating. Spell damage is not in the game's data, so spells show "
+            f"their costs instead."
         )
 
     def _build_weapons(self, outer, predicate) -> int:

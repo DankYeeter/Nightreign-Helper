@@ -989,6 +989,24 @@ MUTATIONS: dict[str, Mutation] = {
             "case uses: if the two coincided, that case would fail for a "
             "reason that has nothing to do with this mutation."),
     ),
+    "arsenal-summary-defines-one-figure-of-two": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""            f"effects your equipped relics grant. Staves and seals show the "
+            f"spell scaling the game displays for them instead of an attack "
+            f"rating. Spell damage is not in the game's data, so spells show "
+""",
+        new="""            f"effects your equipped relics grant. Spell damage is not in "
+            f"the game's data, so spells show "
+""",
+        survival_means=(
+            "the line under the search box is read by no test. It would go "
+            "back to defining `Attack rating` alone while half the cards the "
+            "grid can show are headed `Spell power` -- and a search for a "
+            "staff's name fills the grid with nothing else, which is the "
+            "screen QA-121 was raised on. Killed by "
+            "tests/test_arsenal_tab_asks_the_facade.py::"
+            "test_the_summary_defines_both_figures_the_grid_can_show."),
+    ),
     "figure-name-broken-across-the-wrap": Mutation(
         path="nrplanner/weaponslots.py",
         old="""            label = rating.headline_label.replace(" ", NO_BREAK_SPACE)
