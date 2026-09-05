@@ -7,12 +7,11 @@ two of the three lines this field can carry, and both are pinned here
 literally: a paraphrase would pass a test written on "does it mention the
 colour" while showing the player something nobody chose.
 
-The one that is **not** settled is the conversion line (QA-113). It reached
-the code in T-048, after the two sentences above were drafted, and the
-decision names neither it nor its subject -- it says the field carries at
-most two sentences, and the field carries three. So it goes on wearing the
-marker that says its text is a stand-in, and the case at the bottom of this
-file is what keeps a stand-in from being shipped as though it were decided.
+The third, the conversion line (QA-113), reached the code in T-048 wearing a
+`[wording pending: QA-113]` marker, because the decision of that morning
+settled the other two and named neither it nor its subject. The Nachtrag of
+the same day settled it too and lifted the field's ceiling from two sentences
+to three, so all three are pinned literally here and the marker is gone.
 """
 
 from __future__ import annotations
@@ -48,6 +47,15 @@ CONDITIONAL_SINGULAR = (
 CONDITIONAL_PLURAL = (
     "2 of your relics carry effects that only apply under a condition. They "
     "were not counted.")
+
+CONVERSION_SINGULAR = (
+    "1 of your relics changes what damage type your starting armament deals "
+    "(to magic, fire, lightning, or holy). This figure does not count that "
+    "change.")
+CONVERSION_PLURAL = (
+    "2 of your relics change what damage type your starting armament deals "
+    "(to magic, fire, lightning, or holy). This figure does not count that "
+    "change.")
 
 
 @pytest.fixture(scope="module")
@@ -143,8 +151,8 @@ def test_the_conditional_line_word_for_word(game_data, wylder, count,
     lines = [line for line in pool.unknowns if "condition" in line]
 
     assert lines == [expected]
-    assert candidates.WORDING_PENDING not in lines[0], (
-        "the settled sentence still carries the stand-in marker")
+    assert "wording pending" not in lines[0], (
+        "the settled sentence still carries a stand-in marker")
 
 
 def test_the_handle_line_comes_before_the_conditional_one(game_data, wylder):
@@ -164,35 +172,41 @@ def test_the_handle_line_comes_before_the_conditional_one(game_data, wylder):
     assert pool.unknowns[1] == CONDITIONAL_SINGULAR
 
 
-# -- the line whose wording is still open ----------------------------------
+# -- the conversion line (QA-113), settled the same day ---------------------
 
-def test_an_undecided_line_says_so_on_its_face(game_data, wylder):
-    """The conversion line is a stand-in and has to look like one.
+@pytest.mark.parametrize("count, expected", [
+    (1, CONVERSION_SINGULAR),
+    (2, CONVERSION_PLURAL),
+])
+def test_the_conversion_line_word_for_word(game_data, wylder, count,
+                                           expected):
+    """AK-67's third sentence, and no marker in front of it any more.
 
-    AK-67 settled the other two sentences of this field and states that it
-    carries at most two; the conversion line (QA-113) is a third, drafted by
-    the `developer` in T-048 and named in no wording decision. Until one names
-    it, the marker in front of it is what keeps a placeholder from being read
-    as finished text -- by a player if the picker is built, and by the next
-    reader of this module either way.
+    The case this replaces was written to fail on the day the wording was
+    decided -- "the marker has to be removed deliberately, not survive because
+    nothing was watching". The Nachtrag of 2026-09-05 decided it, so what the
+    marker was standing in for is now what is pinned.
 
-    This case is meant to fail the day the wording is decided. That is what
-    it is for: the marker has to be removed deliberately, not survive because
-    nothing was watching.
+    The four elements are named in the sentence because QA-113 is a closed set
+    of four relics. No size and no direction: the sentence says the figure
+    does not count the change and claims nothing about how large it would be,
+    which is the only true thing anyone can say until it is read in the
+    running game.
     """
     converting = advisor.a_damage_type_conversion(game_data)
-    inventory = advisor.make_inventory(game_data, wylder, count=1,
-                                       rolls=[[converting]])
+    plain = advisor.raising_effects(game_data, wylder, 1)[0]
+    rolls = [[converting]] * count + [plain] * (3 - count)
+    inventory = advisor.make_inventory(game_data, wylder, count=3,
+                                       rolls=rolls)
     ctx = advisor.context(game_data, wylder)
 
     pool = pool_for(inventory, advisor.problem([advisor.RED]), 0, ctx)
-    lines = [line for line in pool.unknowns if "convert" in line]
+    lines = [line for line in pool.unknowns if "damage type" in line]
 
-    assert len(lines) == 1, (
-        f"one relic converts, so one line: {pool.unknowns!r}")
-    assert lines[0].startswith(candidates.WORDING_PENDING), (
-        f"the conversion line reads as decided text and is not: "
-        f"{lines[0]!r}")
-    assert "QA-113" in candidates.WORDING_PENDING, (
-        "the marker no longer says which decision is missing, which is the "
-        "only thing that makes it actionable")
+    assert lines == [expected]
+    assert "wording pending" not in lines[0], (
+        "the settled sentence still carries a stand-in marker")
+    assert not hasattr(candidates, "WORDING_PENDING"), (
+        "the module still holds a stand-in marker constant, and every line "
+        "of this field is decided -- a marker with nothing to mark is how "
+        "one gets put back in front of settled text")

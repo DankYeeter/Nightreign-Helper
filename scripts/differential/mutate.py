@@ -1039,25 +1039,28 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/advisor/candidates.py",
         old="""    return (f"{count} of your relics {carry} under a condition. "
 """,
-        new="""    return (f"{WORDING_PENDING}{count} of your relics {carry} under a condition. "
+        new="""    return (f"[wording pending: QA-113] {count} of your relics {carry} under a condition. "
 """,
         survival_means=(
             "a stand-in marker can travel to the screen in front of a "
             "sentence that was decided -- the state T-048 left this line in "
             "on purpose and AK-67 ended. Nothing else in the suite reads "
             "these strings whole, so a wording that drifts from the one the "
-            "`ui-ux-designer` settled would ship unnoticed. Killed by "
+            "`ui-ux-designer` settled would ship unnoticed. The marker is "
+            "written out as a literal rather than as the constant it used to "
+            "be: the constant is gone with T-057, and a mutation naming it "
+            "would go red on a NameError -- red for the wrong reason is not "
+            "evidence that the wording is guarded (L-007). Killed by "
             "tests/test_pool_finding_wording.py::"
             "test_the_conditional_line_word_for_word."),
     ),
     "arsenal-summary-defines-one-figure-of-two": Mutation(
         path="nrplanner/arsenaltab.py",
-        old="""            f"effects your equipped relics grant. Staves and seals show the "
-            f"spell scaling the game displays for them instead of an attack "
-            f"rating. Spell damage is not in the game's data, so spells show "
+        old="""            f"effects your equipped relics grant. {CATALYST_SENTENCE} "
+            f"{SCALING_SENTENCE} {BUILDUP_SENTENCE}"
 """,
-        new="""            f"effects your equipped relics grant. Spell damage is not in "
-            f"the game's data, so spells show "
+        new="""            f"effects your equipped relics grant. "
+            f"{SCALING_SENTENCE} {BUILDUP_SENTENCE}"
 """,
         survival_means=(
             "the line under the search box is read by no test. It would go "
@@ -1122,9 +1125,14 @@ MUTATIONS: dict[str, Mutation] = {
 def newline_of(raw: bytes) -> bytes:
     """The line ending the file already uses.
 
-    `app.py` is CRLF in the working tree and the other modules are LF. A
-    mutation that normalised the whole file would show up in every later diff
-    as a change nobody made.
+    Measured 2026-09-05, because the reason written here had gone stale by
+    half. A tree extracted the way the header of this module says to extract
+    one -- `git archive HEAD | tar -x` -- is LF throughout, `.gitattributes`
+    carrying `* text=auto eol=lf`, so nothing in that tree needs this. The
+    **working tree** is a different matter: `app.py` sits there in CRLF while
+    every other module is LF, and a copy of the working tree is a tree someone
+    will eventually mutate. Reading the ending out of the file costs one line
+    and keeps a mutation from rewriting a file it was only supposed to edit.
     """
     return b"\r\n" if b"\r\n" in raw else b"\n"
 

@@ -112,17 +112,6 @@ def _without_a_handle_line(count: int, slot: types.Slot) -> str:
             f"applied to a slot.")
 
 
-#: A line whose wording the `ui-ux-designer` has not settled carries this in
-#: front of it, so that nobody -- reader or player -- mistakes the stand-in
-#: for decided text. One line still does: the conversion line below. Its
-#: subject, QA-113, reached the code in T-048 and is named nowhere in the
-#: wording decision of 2026-09-05, which settled the other two lines of this
-#: field (AK-67) and states that `SlotPool.unknowns` carries at most two
-#: sentences. It carries three. Guessing the third would be inventing the
-#: decision rather than waiting for it.
-WORDING_PENDING = "[wording pending: QA-113] "
-
-
 def _conditional_line(count: int) -> str:
     """The A7 line for candidates whose effect no total counted (AD-004).
 
@@ -175,14 +164,22 @@ def _unmodelled_conversion_line(count: int) -> str:
     says the figure does not carry a damage-type conversion, and this says how
     many of the relics in front of the player are affected by that (AD-025,
     QA-113).
+
+    Wording settled by AK-67 on 2026-09-05 and written out verbatim. It stood
+    behind a `[wording pending: QA-113]` marker from T-048 until then, because
+    the decision of that morning settled the field's other two lines and named
+    neither this one nor its subject.
+
+    The four elements are spelled out because QA-113 is a closed set of four
+    relics, not an example from an open one -- unlike the conditional line
+    above, where naming a condition would have to hold for every relic it
+    counts. The sentence claims no size and no direction: what the difference
+    would be can only come from a reading in the running game.
     """
     one = count == 1
-    return (f"{WORDING_PENDING}{count} of the "
-            f"{'relic' if one else 'relics'} offered for this slot "
-            f"{'converts' if one else 'convert'} damage from one type to "
-            f"another. The game files do not say how much of it arrives, so "
-            f"the figure beside {'it' if one else 'them'} leaves the "
-            f"conversion out entirely.")
+    return (f"{count} of your relics {'changes' if one else 'change'} what "
+            f"damage type your starting armament deals (to magic, fire, "
+            f"lightning, or holy). This figure does not count that change.")
 
 
 def _converts_a_damage_type(candidate: types.Candidate,
@@ -223,8 +220,9 @@ def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
     The order is fixed and AK-67 gives its reason: the handle line names
     candidates that were **never** counted, the conditional line names ones
     that were counted and then set to zero -- rising order of how far into the
-    calculation the relic got. The conversion line, whose wording is still
-    the `ui-ux-designer`'s to settle, sits behind both on the same reading.
+    calculation the relic got. The conversion line sits behind both on the
+    same reading: those relics are in the pool and were counted, and it is a
+    missing kind of arithmetic rather than a condition that zeroed them.
 
     The slot is taken rather than the colour alone because the handle line
     asks about the reach of `inventory.relics_for`, which is a property of the
