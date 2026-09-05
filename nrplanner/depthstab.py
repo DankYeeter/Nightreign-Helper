@@ -57,6 +57,11 @@ EXAMPLES_TIP = (
     "them per map, so these names are not tied to the map selected above.")
 NO_NAMES = "— the files name none"
 
+#: Where the two text columns sit. Named so the width rule below reads as a
+#: rule about them rather than about two numbers.
+NAME_COLUMN = 0
+EXAMPLES_COLUMN = 1
+
 ZERO_COLOUR = QColor("#4a4a4a")
 BAR_COLOUR = QColor("#9a6fc4")
 
@@ -83,6 +88,57 @@ PLAYER_GROUPS: list[tuple[str, list[int]]] = [
     ("Merchants", [103]),
     ("Unidentified enemies", [130, 131]),
 ]
+
+
+class VariantTable(QTableWidget):
+    """A table whose examples never outgrow the column they illustrate.
+
+    AK-99 ends with "and the column is **never** wider than `What can be
+    red`", and that sentence was left to `QHeaderView.ResizeToContents`, which
+    hands a column its natural width whatever is left over for the rest. From
+    1 067 px up the natural widths happened to fall the right way round and
+    the rule looked kept; at an 833 px window they did not, and the examples
+    took **349** px against **281** for the column saying what the row is
+    (QA-144, measured on Windows at 150 % scale under Fusion).
+
+    The rule here is a share, not a cap in pixels: the examples take at most
+    half of what the two text columns have between them. The name column is
+    the stretch column and takes the remainder, so half is exactly the largest
+    share that leaves it the wider of the two at every width.
+    """
+
+    def __init__(self, columns: int):
+        super().__init__(0, columns)
+        self._natural_examples = 0
+
+    def measure_columns(self) -> None:
+        """Note what the examples would like, then share the width out.
+
+        Asked once per refresh: the widest cell does not change with the
+        window, and asking twenty-two rows how wide they are is the expensive
+        part.
+        """
+        header = self.horizontalHeader()
+        self._natural_examples = max(
+            self.sizeHintForColumn(EXAMPLES_COLUMN),
+            header.sectionSizeHint(EXAMPLES_COLUMN))
+        self.fit_columns()
+
+    def fit_columns(self) -> None:
+        available = self.viewport().width()
+        if available <= 0 or not self._natural_examples:
+            return
+        header = self.horizontalHeader()
+        depths = sum(header.sectionSize(column)
+                     for column in range(EXAMPLES_COLUMN + 1,
+                                         self.columnCount()))
+        share = max(available - depths, 0) // 2
+        header.resizeSection(EXAMPLES_COLUMN,
+                             min(self._natural_examples, share))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self.fit_columns()
 
 
 class DepthsTab(QWidget):
@@ -146,9 +202,9 @@ class DepthsTab(QWidget):
         headers = [NAME_HEADER, EXAMPLES_HEADER] + [
             self._depth_header(group) for group in self.depth_groups
         ]
-        self.table = QTableWidget(0, len(headers))
+        self.table = VariantTable(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
-        item = self.table.horizontalHeaderItem(1)
+        item = self.table.horizontalHeaderItem(EXAMPLES_COLUMN)
         if item is not None:
             item.setToolTip(EXAMPLES_TIP)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -163,9 +219,13 @@ class DepthsTab(QWidget):
         # not to the one carrying up to three names (AK-99). The other way
         # round made the examples the widest column of the table while the
         # names themselves were the same on every map.
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        for column in range(2, len(headers)):
+        header.setSectionResizeMode(NAME_COLUMN, QHeaderView.Stretch)
+        # Interactive, because `ResizeToContents` kept the examples at their
+        # natural width however little was left for the name column, which is
+        # how AK-99's last sentence came apart at 833 px (QA-144). The table
+        # sizes this one itself; see `VariantTable.fit_columns`.
+        header.setSectionResizeMode(EXAMPLES_COLUMN, QHeaderView.Interactive)
+        for column in range(EXAMPLES_COLUMN + 1, len(headers)):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
@@ -260,11 +320,11 @@ class DepthsTab(QWidget):
             name = QTableWidgetItem(label)
             if is_total:
                 name.setForeground(QColor(ACCENT))
-            self.table.setItem(r, 0, name)
+            self.table.setItem(r, NAME_COLUMN, name)
 
             example = QTableWidgetItem(examples)
             example.setForeground(QColor("#b8b8b8"))
-            self.table.setItem(r, 1, example)
+            self.table.setItem(r, EXAMPLES_COLUMN, example)
 
             # One cell per column, and a column may stand for more than one
             # depth. Every member of a group carries the same figure by the
@@ -282,7 +342,9 @@ class DepthsTab(QWidget):
                     item.setBackground(shade)
                 else:
                     item.setForeground(QColor(ACCENT))
-                self.table.setItem(r, 2 + i, item)
+                self.table.setItem(r, EXAMPLES_COLUMN + 1 + i, item)
+
+        self.table.measure_columns()
 
         joined = [label for label, _ex, counts in rows[:-1] if not counts[0]]
         pieces = [
