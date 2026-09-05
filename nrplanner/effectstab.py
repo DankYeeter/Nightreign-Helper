@@ -5,12 +5,12 @@ from __future__ import annotations
 import collections
 import json
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QStyle, QStyleOptionHeader, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QStyle, QStyleOptionHeader, QTableWidget, QTableWidgetItem, QToolTip,
+    QVBoxLayout, QWidget,
 )
 
 from . import effecttext, model, stacking, tabheader
@@ -121,6 +121,129 @@ class ChanceItem(QTableWidgetItem):
         return self.value < getattr(other, "value", 0.0)
 
 
+#: What a shortened heading divides the style's own tooltip delay by.
+#:
+#: The style's figure is the reference rather than a millisecond count of
+#: this module's own, so the wait stays proportional under a style that
+#: thinks differently about hovering. Under Fusion, which is what
+#: `nrplanner.app.main` sets and therefore what a player runs,
+#: `SH_ToolTip_WakeUpDelay` is 700 ms and a quarter of it is 175.
+#:
+#: It sits between two bounds with room either side. Above: anything near 700
+#: changes nothing, and 700 ms is the wait the player of 2026-09-05 gave up
+#: before reaching. Below: a pointer merely sweeping across the table on its
+#: way somewhere else spends about 100 ms over the widest heading this table
+#: ever shortens -- the label columns are capped at 160 logical px, and a
+#: sweep across a 1600 px window in one second crosses 160 px in 100 ms
+#: (Windows, 150 % scale, Fusion, logical px) -- and a delay under that would
+#: open tooltips at a reader who was not asking. How long a reader who *is*
+#: asking holds still is measured nowhere, and a figure invented for it would
+#: be the guess A7 forbids; a quarter is taken because it clears both bounds
+#: by a factor, not because it is the only value that does.
+WAKE_UP_DIVISOR = 4
+
+
+class HeadingHint(QObject):
+    """Open a shortened heading's tooltip sooner than the style would.
+
+    A heading this table had to cut short carries its whole name in its
+    tooltip (QA-140), and T-064 measured at the running window that the
+    tooltip does appear -- after **750-800 ms** of a pointer held still, which
+    is Fusion's own `SH_ToolTip_WakeUpDelay` of 700 ms plus the platform's
+    overhead. The player of 2026-09-05 "waited only briefly" over
+    `Comes with c…` and saw nothing. That is QA-151 whole: information being
+    on the screen is not the same as a reader reaching it inside the time he
+    gives a hover, and at 833 px three headings read `Co…` with no way to
+    tell them apart until he does.
+
+    **The shorter wait is deliberate and not a side effect.** It is granted to
+    nothing but a heading this table has itself shortened; a heading drawn
+    whole is left entirely to the style. So the quick answer appears exactly
+    where something was taken away, and its appearing is itself the sign that
+    there is more to see -- the half of the finding an ellipsis alone did not
+    cover.
+
+    Nothing is said twice on screen for it. The tooltip that opens is the one
+    `set_headings` already wrote; what changed is when.
+    """
+
+    def __init__(self, table: EffectTable):
+        super().__init__(table)
+        self._table = table
+        self._section = -1
+        self._at = QPoint()
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._answer)
+        table.horizontalHeader().viewport().installEventFilter(self)
+
+    def delay(self) -> int:
+        """How long a pointer rests on a shortened heading before it opens.
+
+        Asked of the style on every hover rather than worked out once, for
+        the same reason `_label_room` asks: the program runs under Fusion
+        while the suite used to render under windowsvista, and a figure cached
+        at construction would be the wrong style's figure whenever the two
+        differ.
+        """
+        header = self._table.horizontalHeader()
+        asked = header.style().styleHint(QStyle.SH_ToolTip_WakeUpDelay,
+                                         None, header)
+        return max(1, asked // WAKE_UP_DIVISOR)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        """Watch the header for a pointer resting on a shortened heading.
+
+        Nothing is ever swallowed. The style's own tooltip machinery goes on
+        working untouched behind this, which is what keeps the heading
+        reachable even where this object is never reached at all.
+        """
+        if event.type() == QEvent.MouseMove:
+            self._aim(event.position().toPoint(),
+                      event.globalPosition().toPoint())
+        elif event.type() in (QEvent.Leave, QEvent.MouseButtonPress,
+                              QEvent.Wheel):
+            self._forget()
+        return False
+
+    def _aim(self, where: QPoint, globally: QPoint) -> None:
+        """Start counting, if the heading under `where` was cut short."""
+        header = self._table.horizontalHeader()
+        section = header.logicalIndexAt(where)
+        item = (self._table.horizontalHeaderItem(section)
+                if section >= 0 else None)
+        if item is None or item.text() == self._table.heading(section):
+            self._forget()
+            return
+        self._at = globally
+        # Not restarted while the pointer stays on the same heading: a reader
+        # holding still over one column is one hover, and a pixel of movement
+        # inside it would otherwise put the answer off again indefinitely.
+        if section != self._section:
+            self._section = section
+            self._timer.start(self.delay())
+
+    def _forget(self) -> None:
+        self._timer.stop()
+        self._section = -1
+
+    def _answer(self) -> None:
+        if self._section < 0:
+            return
+        header = self._table.horizontalHeader()
+        item = self._table.horizontalHeaderItem(self._section)
+        if item is None:
+            return
+        # The section's own rectangle travels with the text, so Qt takes the
+        # tooltip away by itself the moment the pointer leaves the heading it
+        # belongs to. Without it a quick answer would follow the reader across
+        # the table naming a column he is no longer over.
+        QToolTip.showText(
+            self._at, item.toolTip(), header.viewport(),
+            QRect(header.sectionViewportPosition(self._section), 0,
+                  header.sectionSize(self._section), header.height()))
+
+
 class EffectTable(QTableWidget):
     """A table that shares its width out by what the reader came for.
 
@@ -159,6 +282,10 @@ class EffectTable(QTableWidget):
         super().__init__(0, columns)
         self._natural = [0] * columns
         self._headings: list[str] = []
+        # Owned by the table, because what it answers with -- the full name --
+        # is the table's own, and no other heading on this tab is ever
+        # shortened. See HeadingHint for why the wait is not the style's.
+        self.hint = HeadingHint(self)
 
     @property
     def _description_column(self) -> int:
