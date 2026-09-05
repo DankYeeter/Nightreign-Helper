@@ -105,7 +105,11 @@ _ATTACK_RATING_SCOPE = (
     "Attack rating matches the game's own display for ordinary armaments at "
     "their own rarity; reinforced rarities, infused variants, Scholar and "
     "Undertaker were not measured.",
-    "For staves and seals the figure is the spell scaling the game shows, "
+    # `spell power`, not `spell scaling`: AK-88, and the director's addendum
+    # of 05.09. that binds it to displayed text. The arsenal tile says
+    # `Spell power` on up to 1 792 cards; this sentence is drawn once, so it
+    # is the sentence that gives way.
+    "For staves and seals the figure is the spell power the game shows, "
     "measured at their own rarity only, and it is that display and not what "
     "a spell hits for.",
     "Spell damage is not in the game data, so spells are not rated.",
