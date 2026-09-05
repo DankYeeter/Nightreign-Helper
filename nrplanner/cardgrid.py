@@ -43,6 +43,21 @@ def columns_for(width: int, card_width: int, spacing: int = SPACING) -> int:
     return max(1, (width + spacing) // (card_width + spacing))
 
 
+def room_for(columns: int, card_width: int, spacing: int = SPACING) -> int:
+    """How much room `columns` cards need side by side.
+
+    The inverse of `columns_for`, and it exists because a window that opens at
+    a size chosen by hand and a grid that reflows to the size it is given are
+    two rules that can disagree. The relic picker opened at `card_width *
+    columns + 80`, which left out the grid's own margins: five 190 px cards
+    need 982 px, the viewport got 988 and the grid asked for 1 002, so eleven
+    of fifty-five cards were drawn past the right-hand edge before the reader
+    had touched anything (QA-141). Deriving the opening size from the same
+    arithmetic the reflow uses is what keeps the two from parting again.
+    """
+    return columns * card_width + max(0, columns - 1) * spacing
+
+
 class CardGrid(QWidget):
     """Cards laid out across as many columns as the current width allows.
 
