@@ -1086,6 +1086,156 @@ MUTATIONS: dict[str, Mutation] = {
             "by tests/test_weapon_slot_tile_wrap.py, which lays the tile's "
             "own text out at a width in the dangerous band."),
     ),
+    "deep-win-rating-at-999": Mutation(
+        path="nrplanner/deeptab.py",
+        old="""WIN_RATING = 200
+""",
+        new="""WIN_RATING = 999
+""",
+        survival_means=(
+            "the Deep of Night tab is read by no test at all. Every cell of "
+            "the win row would say `+999`, and the sentence under the table "
+            "would add the two bonuses to it -- on a figure that is in no "
+            "param and was confirmed in the running game by this project's "
+            "owner. Measured surviving on 2026-09-05, with the six below: "
+            "622 of 622 green (QA-137, mutation M1). Killed by "
+            "tests/test_deep_tab_display.py::"
+            "test_the_win_row_shows_the_rating_confirmed_in_game, which "
+            "writes 200 out with its provenance rather than importing the "
+            "constant it guards."),
+    ),
+    "deep-scaling-rows-swapped": Mutation(
+        path="nrplanner/deeptab.py",
+        old="""        ("Stance damage they take", "saReceiveDamageRate"),
+        ("Stamina drain on block", "staminaAttackRate"),
+""",
+        new="""        ("Stance damage they take", "staminaAttackRate"),
+        ("Stamina drain on block", "saReceiveDamageRate"),
+""",
+        survival_means=(
+            "the two similarly named fields can be labelled the wrong way "
+            "round again -- the mix-up the comment above these lines records "
+            "as having happened once already. One is stamina an enemy's blows "
+            "drain from you and the other is stance damage the enemy takes, "
+            "so only one of them answers 'are they harder to break'. No "
+            "figure on the tab changes; only which row each belongs to. "
+            "Measured surviving on 2026-09-05: 622 of 622 green (QA-137, "
+            "mutation M2). Killed by tests/test_deep_tab_display.py::"
+            "test_each_scaling_row_holds_the_field_its_label_names, which "
+            "aggregates the two fields itself instead of calling `_summary`."),
+    ),
+    "red-variants-evergaol-row-folded-away": Mutation(
+        path="nrplanner/depthstab.py",
+        old="""    ("Ordinary enemies in camps & ruins", [100, 105, 140, 141, 150, 151]),
+""",
+        new="""    ("Ordinary enemies in camps & ruins", [100, 105, 140, 141, 150, 151, 160]),
+""",
+        survival_means=(
+            "the Red variants table can be told a different story about what "
+            "is in each row and nothing notices. Category 160 is the evergaol "
+            "bosses; folded into the ordinary-enemy row, that row's figures "
+            "rise, the evergaol row leaves the table entirely, and the totals "
+            "still add up because nothing was lost -- only misfiled. Measured "
+            "surviving on 2026-09-05: 622 of 622 green (QA-137, mutation M3). "
+            "Killed by tests/test_red_variants_display.py::"
+            "test_every_row_counts_the_categories_its_label_names, which "
+            "writes the category ids out again rather than importing "
+            "PLAYER_GROUPS -- a case importing the grouping would follow 160 "
+            "wherever it was moved to."),
+    ),
+    "effects-percentages-times-ten": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        return f"{value * 100:.1f}%"
+    return f"{value * 100:.2f}%"
+""",
+        new="""        return f"{value * 1000:.1f}%"
+    return f"{value * 1000:.2f}%"
+""",
+        survival_means=(
+            "every percentage on the effects tab can read ten times over and "
+            "no test sees it -- 652 rows, two chance columns each, on the tab "
+            "whose chance column is the reason a player opens it. Measured "
+            "surviving on 2026-09-05: 622 of 622 green (QA-137, mutation M4). "
+            "Killed by tests/test_effects_tab_display.py, which formats the "
+            "expected percentage from the rule rather than calling "
+            "`format_chance` -- the function this mutation breaks."),
+    ),
+    "effects-average-over-buckets-again": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""            avg = (sum(c["avg"] * c["pools"] for c in relevant) / slots
+                   if slots else 0.0)
+""",
+        new="""            avg = (sum(c["avg"] for c in relevant) / len(relevant)
+                   if relevant else 0.0)
+""",
+        survival_means=(
+            "the chance column can go back to averaging the (colour x mode) "
+            "buckets instead of the slots, which is QA-126 as it was found: "
+            "129 of 616 effects move, and `[Wylder] Improved Mind, Reduced "
+            "Vigor` reads 20.4% where a player rolls it on 0.91% of slots. "
+            "This is the arithmetic behind the display and the entry above is "
+            "the formatting, so both are kept: one guard cannot hold two "
+            "different breakages. Killed by "
+            "tests/test_effects_tab_display.py::"
+            "test_the_average_is_weighted_by_how_many_slots_each_entry_stands"
+            "_for."),
+    ),
+    "events-day-sentence-for-every-event": Mutation(
+        path="nrplanner/eventstab.py",
+        old="""            if day1 and day2:
+                when = (f"Can fire on Day 1 or Day 2 — {day1} of the "
+                        f"{day1 + day2} map patterns that carry it are Day 1")
+            elif day1:
+""",
+        new="""            if day1 or day2:
+                when = "Fires on Day 2 only"
+            elif day1:
+""",
+        survival_means=(
+            "one sentence can stand on all eleven world events again and be "
+            "false on ten of them. Judgment fires on Day 1 in 19 of the 20 "
+            "map patterns that carry it; this tells a player it fires on Day "
+            "2 only. Measured surviving on 2026-09-05: 622 of 622 green "
+            "(QA-137, mutation M5). Killed by "
+            "tests/test_world_events_display.py::"
+            "test_the_day_sentence_names_this_event_s_own_split, which builds "
+            "the expected sentence from `gating` and refuses to pass if all "
+            "eleven come out the same."),
+    ),
+    "nightlord-weakened-step-inflated": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""                bits = [f"x{entry['attack']:g} its attack power"]
+""",
+        new="""                bits = [f"x{entry['attack'] * 9.9:g} its attack power"]
+""",
+        survival_means=(
+            "the Nightlord panel can put an invented magnitude on a boss "
+            "again. This is QA-137's mutation M6 in the shape T-057 left the "
+            "panel in: the two typed-in figures it named (`x2.0 damage "
+            "taken`, `x0.8 attack power`) no longer exist, and what stands "
+            "there now is `ladder.down` read from the dataset -- so this "
+            "inflates the read figure where M6 inflated the typed one. The "
+            "original form left 622 of 622 green on 2026-09-05. Killed by "
+            "tests/test_nightlord_panel_display.py::"
+            "test_every_weakened_step_in_the_data_reaches_the_panel, which "
+            "compares each figure with `weakness.profile` and never with a "
+            "constant in the module it guards."),
+    ),
+    "arsenal-attack-rating-redefined": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""            f"{self.header_text}. {shown} shown. Attack rating is base "
+""",
+        new="""            f"{self.header_text}. {shown} shown. Attack rating is raw base "
+""",
+        survival_means=(
+            "the definition of the headline figure of the whole tab can be "
+            "reworded and nothing reads it. `raw base` is a different claim "
+            "from `base` about what the number beside it already contains, on "
+            "a line standing over up to 1 952 cards. Measured surviving on "
+            "2026-09-05: 622 of 622 green (QA-137, mutation M7). Killed by "
+            "tests/test_arsenal_tab_asks_the_facade.py::"
+            "test_the_summary_defines_every_figure_a_tile_can_carry."),
+    ),
     "unequippable-catalyst-offered-again": Mutation(
         path="nrplanner/model.py",
         old="""    if weapon_class(weapon) != "catalyst":

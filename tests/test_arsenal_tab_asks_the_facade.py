@@ -448,6 +448,109 @@ CATALYST_SENTENCE = ("Staves and seals show the spell power the game "
                      "displays for them instead of an attack rating.")
 
 
+#: The three sentences that say what a figure on a tile is measured against,
+#: verbatim: the attack rating (AK-34), the scaling row (AK-85) and the
+#: buildup rows (AK-86). Written out here rather than imported for the same
+#: reason as `CATALYST_SENTENCE` above.
+#:
+#: The first is where QA-137's mutation M7 lands -- "base" to "raw base"
+#: changes the definition of the headline figure of the whole tab, and left
+#: 622 of 622 green.
+ATTACK_RATING_SENTENCE = (
+    "Attack rating is base damage, plus what your stats add to it, plus the "
+    "+% attack effects your equipped relics grant.")
+SCALING_SENTENCE = (
+    "Scaling is the game's own per-stat figure behind the letter grade it "
+    "shows in menus. Compare these figures with each other; the files do not "
+    "say which letter a figure earns.")
+BUILDUP_SENTENCE = (
+    "Buildup figures come straight from the game's weapon data. The files do "
+    "not say what they are counted against, so use them to compare "
+    "armaments, not as a number of hits.")
+
+
+def test_the_summary_defines_every_figure_a_tile_can_carry(planner,
+                                                           game_data, hero):
+    """QA-128 and AK-85/AK-86: two rows on every tile with no scale at all.
+
+    `Scaling` stands on 1 792 tiles and the letter grade the game shows in its
+    own menus cannot be derived from it, so the tab says which of the two it
+    is showing. The buildup rows are the same case: read straight off the
+    weapon data with nothing saying what they are counted against.
+
+    The attack-rating sentence is checked here too, because that is the one
+    QA-137's mutation M7 edits, and nothing in the suite read it.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    summary = planner.weapons_tab.summary.text()
+
+    for sentence in (ATTACK_RATING_SENTENCE, SCALING_SENTENCE,
+                     BUILDUP_SENTENCE):
+        assert sentence in summary, (
+            f"the summary does not carry this sentence: {sentence!r}\n"
+            f"summary reads: {summary!r}")
+
+    # The rows the two sentences are about are really on the tiles, or the
+    # sentences explain something that is not there.
+    weapon = cases.weapon_by_id(game_data, hero["starting_weapon"])
+    tiles = drawn_tiles(planner.weapons_tab, weapon)
+    assert tiles, f"the tab drew no tile for {weapon['name']!r}"
+    labels_on_tile = [label for label, _value in tile_rows(tiles[0])]
+    assert "Scaling" in labels_on_tile, (
+        f"no `Scaling` row on the tile the scaling sentence explains: "
+        f"{labels_on_tile!r}")
+
+
+def test_a_spell_tile_names_its_figures_as_costs(planner, game_data, hero):
+    """AK-87: `FP 12` on a card whose only figures are what it costs.
+
+    Read off a rendered spell tile. `_build_spells` says the figures
+    themselves stay unguarded on purpose -- they are looked up, not computed
+    -- and that is untouched here: this reads the labels, not the numbers.
+    """
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+    spell = next(s for s in game_data["spells"] if s.get("fp"))
+
+    tab.search.setText(f'"{spell["name"]}"')
+    tab.recalculate()
+    tiles = [tile for tile in tab.scroll.widget().findChildren(arsenaltab.Tile)
+             if tile_name(tile) == spell["name"]]
+    assert tiles, f"the tab drew no tile for the spell {spell['name']!r}"
+
+    # Read straight off the tile's labels rather than through `tile_rows`: a
+    # spell tile ends in the game's own caption, so its labels are not a whole
+    # number of (label, value) pairs and that helper would refuse it.
+    on_tile = [label.text() for label in tiles[0].findChildren(QLabel)]
+    for wanted in ("FP cost", "Stamina cost", "Spell slots"):
+        assert wanted in on_tile, f"{wanted!r} missing from {on_tile!r}"
+    for bare in ("FP", "Stamina", "Slots"):
+        assert bare not in on_tile, (
+            f"a bare `{bare}` row is back on the spell tile, and every figure "
+            f"on this card is a cost: {on_tile!r}")
+
+
+def test_the_tab_opens_with_the_question_it_answers(planner, game_data, hero):
+    """AK-68 and AK-82: the first line was `Wylder at level 1, +1 — VIG 10`.
+
+    A reader met the stat sheet of a build before anything said what the tab
+    was for. The spell sentence moves up with the question, out of the end of
+    the summary where it sat after the figures it explains -- and it may not
+    stand twice on one screen.
+    """
+    from tests import tabtext
+
+    prepare(planner, game_data, hero, empty_slots())
+    tab = planner.weapons_tab
+    lines = tabtext.labels(tab)
+
+    assert lines[0] == arsenaltab.HEADING
+    assert lines[1] == arsenaltab.QUESTION
+    assert tabtext.everything(tab).count(
+        "Spell damage is not in the game's data") == 1, (
+        "the spell sentence stands twice on this tab")
+
+
 def test_the_summary_defines_both_figures_the_grid_can_show(planner,
                                                             game_data, hero):
     """QA-121: the grid shows two quantities, the sentence knew one.
