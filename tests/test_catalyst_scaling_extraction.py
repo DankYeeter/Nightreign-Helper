@@ -20,12 +20,19 @@ snapshot.
 **Its killing mutation**, registered in `scripts/differential/mutate.py`:
 `catalyst-scaling-field-renamed` -- `extract.CATALYST_SCALING_FIELD` to a
 name the paramdef does not carry, which is exactly the Paramdex update this
-guards against. `test_a_well_formed_table_hands_back_every_rate` below is
-what fails: the stub rows are written with the real field name, so a
-constant naming another field finds nothing and the guard refuses. The two
-refusal cases stay green under that mutation on their own -- a guard that
-only ever refuses is satisfied by refusing everything -- which is why the
-positive case is in this file beside them.
+guards against, only from the other side. `test_a_well_formed_table_hands_
+back_every_rate` below is what fails under it.
+
+That works because `PARAMDEX_NAME` is **written out here** rather than read
+off the code under test. A stub built from `extract.CATALYST_SCALING_FIELD`
+agrees with whatever the extractor happens to be looking for, so it would
+pass while the extractor read a field the game data does not have -- which
+is the whole failure. The literal is the fact about the data; the constant
+is the claim about it, and the two are held against each other.
+
+The refusal cases below stay green under that mutation on their own -- a
+guard that only ever refuses is satisfied by refusing everything -- which is
+why the positive case is in this file beside them.
 """
 
 from __future__ import annotations
@@ -34,11 +41,19 @@ import pytest
 
 from nrdata import extract, param
 
-FIELD = extract.CATALYST_SCALING_FIELD
+#: What the Paramdex calls the field at offset 128 of a ReinforceParamWeapon
+#: row today (`vendor/Paramdex/NR/Defs/ReinforceParamWeapon.xml`). Written
+#: out rather than imported: see the module docstring.
+PARAMDEX_NAME = "unknown_1"
+
+#: A name the paramdef does not carry, for the refusal case. Deliberately
+#: the sort of name a Paramdex update would give this field, so the case
+#: reads as the event it stands for.
+RENAMED = "spellScalingRate"
 
 
 def table(rates: dict[int, float], *,
-          field_name: str = FIELD) -> param.ParamTable:
+          field_name: str = PARAMDEX_NAME) -> param.ParamTable:
     """A ReinforceParamWeapon-shaped table carrying only what is read here.
 
     The rows hold one further field, so a row that is missing the catalyst
@@ -76,10 +91,10 @@ def test_a_table_without_the_field_is_refused():
     """The Paramdex update this exists for: the field under another name."""
     with pytest.raises(ValueError) as refused:
         extract.catalyst_scaling_rates(
-            table({3000: 1.0, 3400: 1.5675}, field_name="spellScalingRate"))
+            table({3000: 1.0, 3400: 1.5675}, field_name=RENAMED))
 
     message = str(refused.value)
-    assert FIELD in message, (
+    assert extract.CATALYST_SCALING_FIELD in message, (
         "the refusal does not name the field that is missing, so the reader "
         "cannot find out what to look for at offset 128")
     assert "CATALYST_SCALING_FIELD" in message, (
