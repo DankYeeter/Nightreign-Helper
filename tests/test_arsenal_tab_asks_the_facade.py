@@ -439,10 +439,12 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
         f"{tab.summary.text()!r}")
 
 
-#: The sentence `UI_SPEC.md` AK-64 puts between the attack-rating definition
-#: and the spell sentence, verbatim. Written out here rather than imported
-#: from the tab, or the case would agree with whatever the tab happens to say.
-CATALYST_SENTENCE = ("Staves and seals show the spell scaling the game "
+#: The sentence `UI_SPEC.md` AK-64 puts after the attack-rating definition,
+#: verbatim, with the one word AK-88 settled: the tile heads a catalyst
+#: `Spell power`, so the sentence says `spell power` too. Written out here
+#: rather than imported from the tab, or the case would agree with whatever
+#: the tab happens to say.
+CATALYST_SENTENCE = ("Staves and seals show the spell power the game "
                      "displays for them instead of an attack rating.")
 
 
@@ -450,7 +452,7 @@ def test_the_summary_defines_both_figures_the_grid_can_show(planner,
                                                             game_data, hero):
     """QA-121: the grid shows two quantities, the sentence knew one.
 
-    Since T-046 a staff or a seal is headed by its spell scaling, and a search
+    Since T-046 a staff or a seal is headed by its spell power, and a search
     for a staff's name fills the grid with cards whose figure the first
     sentence does not describe -- the state DR-008's screenshot was taken in.
     AK-64 answers it with a sentence that stands whatever the search shows,

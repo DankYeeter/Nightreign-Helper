@@ -9,12 +9,45 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import damage, search, weapons
+from . import damage, search, tabheader, weapons
 from .weapons import RARITY_TIERS
 
 COLUMNS = 5
 ICON = 52
 CARD_WIDTH = 200
+
+#: What this tab is for, above the controls and above the count (AK-68,
+#: AK-82). The spell half of the sentence used to sit at the end of the
+#: summary line, where a reader arrived at it after the figures it explains.
+HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
+QUESTION = (
+    "Every armament and spell in the game, rated for the Nightfarer, level "
+    "and upgrade set above. Spell damage is not in the game's data, so "
+    "spells show what they cost you instead.")
+
+#: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
+#: say it on up to 1 792 cards, so the sentence says it too rather than the
+#: other way round.
+CATALYST_SENTENCE = (
+    "Staves and seals show the spell power the game displays for them "
+    "instead of an attack rating.")
+
+#: AK-85. `Scaling` stands on every one of the 1 792 weapon tiles with no
+#: unit and no scale beside it, and the letter grade the game shows in its own
+#: menus is not derivable from it -- so the tab says which of the two it is
+#: showing, and says the other one is not in the files.
+SCALING_SENTENCE = (
+    "Scaling is the game's own per-stat figure behind the letter grade it "
+    "shows in menus. Compare these figures with each other; the files do not "
+    "say which letter a figure earns.")
+
+#: AK-86, the same case one row down: the buildup figures are read straight
+#: off the weapon data and nothing in the files says what they are counted
+#: against, so they compare armaments and do not count hits (A7).
+BUILDUP_SENTENCE = (
+    "Buildup figures come straight from the game's weapon data. The files do "
+    "not say what they are counted against, so use them to compare "
+    "armaments, not as a number of hits.")
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -191,6 +224,9 @@ class ArsenalTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
 
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
+
         controls = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText(
@@ -314,13 +350,16 @@ class ArsenalTab(QWidget):
         # Karten, deren Zahl der erste Satz nicht beschreibt. Er steht
         # unabhaengig von der Trefferliste, weil die Zeile fuer das ganze
         # Arsenal gilt und nicht fuer den gefilterten Ausschnitt.
+        #
+        # Die letzten beiden Saetze sind AK-85 und AK-86 (T-056): jede Kachel
+        # traegt eine `Scaling`-Zeile und viele eine `… buildup`-Zeile, und
+        # beide standen ohne Bezugsgroesse da. Der Satz zum Zauberschaden ist
+        # nach oben in QUESTION gewandert und darf hier nicht zweimal stehen.
         self.summary.setText(
             f"{self.header_text}. {shown} shown. Attack rating is base "
             f"damage, plus what your stats add to it, plus the +% attack "
-            f"effects your equipped relics grant. Staves and seals show the "
-            f"spell scaling the game displays for them instead of an attack "
-            f"rating. Spell damage is not in the game's data, so spells show "
-            f"their costs instead."
+            f"effects your equipped relics grant. {CATALYST_SENTENCE} "
+            f"{SCALING_SENTENCE} {BUILDUP_SENTENCE}"
         )
 
     def _build_weapons(self, outer, predicate) -> int:
@@ -475,12 +514,15 @@ class ArsenalTab(QWidget):
         def build_family(entries):
             tiles = []
             for spell in sorted(entries, key=lambda s: s["name"].lower()):
-                lines = [("FP", str(spell.get("fp") or 0))]
+                # Named as costs, because that is what they are: `FP` and
+                # `Stamina` beside a figure read as something the spell gives
+                # you, on a card whose whole point is what it costs (AK-87).
+                lines = [("FP cost", str(spell.get("fp") or 0))]
                 if spell.get("fp_charged"):
-                    lines.append(("FP charged", str(spell["fp_charged"])))
+                    lines.append(("FP cost charged", str(spell["fp_charged"])))
                 if spell.get("stamina"):
-                    lines.append(("Stamina", str(spell["stamina"])))
-                lines.append(("Slots", str(spell.get("slots") or 1)))
+                    lines.append(("Stamina cost", str(spell["stamina"])))
+                lines.append(("Spell slots", str(spell.get("slots") or 1)))
                 # The game's caption, whitespace reflowed for a card. This is
                 # the only place a spell says what it does.
                 caption = " ".join((spell.get("caption") or "").split())
