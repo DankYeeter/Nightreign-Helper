@@ -8,6 +8,7 @@ gives a relic its three effects.
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSize, Qt
@@ -269,6 +270,8 @@ class WeaponDialog(QDialog):
         self.icons = icons
         self.slot = slot.copy()
         self._bases = base_ids(data["weapons"])
+        self._name_counts = collections.Counter(
+            w["name"] for w in data["weapons"])
         self._effects_by_id = {int(k): v for k, v in data["effects"].items()}
         self._pool: list[dict] = []
         self.setWindowTitle("Armament")
@@ -331,6 +334,26 @@ class WeaponDialog(QDialog):
         self._refresh_list()
 
     # -- weapon list ------------------------------------------------------
+    def _list_label(self, weapon: dict) -> str:
+        """The armament's name, and its id where the name is not its own.
+
+        Three names in the data belong to more than one row: `Recluse's
+        Staff` (33750000 is the Recluse's own, 33770000 cannot hold a spell
+        and carries a different spell scaling), `Finger Seal` and `Scholar's
+        Thrusting Sword`. Picking one of two identical rows in this list is
+        picking blind, and the two `Recluse's Staff` rows do not even rate
+        alike -- so where a name is shared, the id that tells them apart is
+        put beside it (QA-099 a).
+
+        Whether the unplayable rows belong in the dataset at all is not
+        settled and is not this dialog's to settle; until it is, the player
+        can at least see that there are two and which one they chose.
+        """
+        name = weapon["name"]
+        if self._name_counts[name] > 1:
+            return f"{name} · {weapon['id']}"
+        return name
+
     def _refresh_list(self) -> None:
         term = self.search.text().strip().lower()
         self.list.blockSignals(True)
@@ -340,7 +363,7 @@ class WeaponDialog(QDialog):
         for weapon in sorted(self.data["weapons"], key=lambda w: w["name"]):
             if term and term not in weapon["name"].lower():
                 continue
-            item = QListWidgetItem(weapon["name"])
+            item = QListWidgetItem(self._list_label(weapon))
             item.setData(Qt.UserRole, weapon)
             if weapon.get("effect_pool"):
                 item.setToolTip(f"{len(weapon['effect_pool'])} rollable effects")
