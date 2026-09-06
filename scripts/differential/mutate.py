@@ -1797,7 +1797,7 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "nightlord-hover-drawn-as-the-selection": Mutation(
         path="nrplanner/bosstab.py",
-        old="""HOVER_FILL = "#26272c"
+        old="""HOVER_FILL = "#33343c"
 """,
         new="""HOVER_FILL = SELECTED_FILL
 """,
