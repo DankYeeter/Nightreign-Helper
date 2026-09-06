@@ -90,54 +90,38 @@ Zyklus · L-010 auf fuenf Pruefungen · `power-user` Schritt 0.
 
 ## Beschlossen, nicht beauftragt
 
-Aus T-067, vom Director entschieden am 06.09.2026:
+Vom Director am 06.09.2026 entschieden; Begruendungen in
+`docs/berichte/T-067-developer.md` und `T-078-ui-ux-designer.md`.
 
-- **D-2** Ein Fluch, der im Ergebnis keine Zahl bewegt, **muss trotzdem
-  genannt werden** (`UI_SPEC` §3.2: ein Preis, der erst nach dem Anwenden
-  sichtbar wird, ist eine Falle). Weg: **eigenes Feld auf `AdvisorResult`**,
-  nicht `not_counted` verbreitern. Betrifft 36 von 309 Relikten, darunter
-  drei mit `All Resistances Down`, das echte Zahlen bewegt und **in keinem
-  Feld** auftaucht. Wortlaut vom `ui-ux-designer`, Umsetzung eigener Auftrag.
-- **D-3** `not_counted` behaelt die Bedeutung aus **AD-010** (konditionale
-  Effekte). Die Menge "bewegt keine Zahl" ist eine **andere** und bekommt das
-  Feld aus D-2. `UI_SPEC` 4.9 ist entsprechend zu korrigieren.
-- **D-4** `SlotPool` bekommt ein `rank_by`. Ohne das kann die Suche nicht
-  pruefen, dass Pools und Bewertung dieselbe Zielrichtung meinen — heute eine
-  ungeprueft zugesagte S9-Eigenschaft. Kleiner Auftrag, mit S9.
-- **D-5** **Kein** `top_n`-Stellrad. Die Beam-Breite W bleibt die Zahl der
-  Endzustaende; AD-003.5 bekommt eine Korrekturnotiz.
-- **D-1** `performance-tuner` bekommt `model.compute` (94 % der 941,6 ms),
-  nicht die Fassade — aber **in S11**, nicht jetzt: vor S10 gemessen zu
-  optimieren misst einen Stand, den es so nicht mehr geben wird. Erstlauf im
-  Projekt, also opus.
-- **D-10** Der Maskierungshinweis (`html.escape`, `setTextFormat`) geht
+- **D-2** Ein Fluch ohne Zahlenwirkung **muss genannt werden** — eigenes Feld
+  `curses_without_a_figure` auf `AdvisorResult`, nicht `not_counted`
+  verbreitern. 36 von 309 Relikten, darunter drei mit `All Resistances Down`,
+  das echte Zahlen bewegt und heute **in keinem Feld** steht. Wortlaut steht
+  (AK-138 bis AK-141), Umsetzung offen.
+- **D-3** `not_counted` behaelt AD-010 (konditionale Effekte). `UI_SPEC` 4.9
+  ist in T-078 in 4.9a und 4.9b geteilt.
+- **D-4** `SlotPool` bekommt ein `rank_by` — sonst bleibt eine S9-Zusage
+  ungeprueft. Kleiner Auftrag, mit S9.
+- **D-5** Kein `top_n`-Stellrad; W bleibt die Zahl der Endzustaende.
+  AD-003.5 braucht eine Korrekturnotiz.
+- **D-1** `performance-tuner` auf `model.compute` (94 % der 941,6 ms) —
+  **in S11**, nicht davor. Erstlauf im Projekt, also opus.
+- **D-10** Maskierungshinweis (`html.escape`, `setTextFormat`) geht
   **woertlich** in den S10-Auftrag.
-- **D-11** Doppelte Zahlenformatierung: akzeptiert, zurueckgestellt bis S10.
-  **Der `ui-ux-designer` weist zu Recht darauf hin, dass AK-136 sie teurer
-  macht** — beide Orte muessen nachweisbar dasselbe schreiben. Bleibt
-  zurueckgestellt, aber mit Waechter im S10-Auftrag.
-
-Aus T-078, entschieden am 06.09.2026:
-
-- **Die AD-015-Pflichtzeile wird mit der Zahlzeile desselben Fluchs
-  verschmolzen** und wandert aus `unknowns` in die Slotgruppe. Zugestimmt:
-  dieselbe Sache an zwei Orten ist die Fehlerklasse QA-082/QA-087, und der
-  Reliktname der zweiten Zeile ist ueberfluessig, weil die Gruppe ihn traegt.
-  **AD-015 bekommt eine Korrekturnotiz**, bevor S10 gebaut wird.
-- **Die Datenform bleibt beim `developer`.** Verbindlich ist die
-  **Eigenschaft** (jede Zeile erreicht die Anzeige mit Slotnummer,
-  Fluch-Kennzeichen und den zwei Zaehlungen), nicht die Bauart. Ein neuer Typ
-  in `types.py` liegt in seinem Ermessen; dafuer braucht es keinen
-  `architect`.
-- **`model.compute_resistances` schreibt vorerst nicht nach `sources`** —
-  zurueckgestellt mit Grund: `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende
-  ausdruecklich aus der Kennzahl heraus, also waere eine Quelle ohne
-  Rankingwirkung irrefuehrend. Fuellung (3) der Fluchzeile deckt die drei
-  Relikte ehrlich ab. **Wieder aufzumachen**, sobald eine Zielrichtung
-  Widerstaende rankt.
-- **Der Knopf heisst `Optimize`.** T-024 hat ihn so benannt, nur die
-  Zustandstabelle 4.1-4.14 spricht noch von `Suggest`. Sie wird im
-  S10-Auftrag mitkorrigiert, nicht danach.
+- **D-11** Doppeltes Zahlenformat: zurueckgestellt bis S10, dort aber mit
+  Waechter — AK-136 verlangt jetzt, dass beide Orte dasselbe schreiben.
+- **AD-015-Zeile wird mit der Zahlzeile desselben Fluchs verschmolzen** und
+  wandert aus `unknowns` in die Slotgruppe. AD-015 bekommt vor S10 eine
+  Korrekturnotiz.
+- **Datenform bleibt beim `developer`:** verbindlich ist die Eigenschaft
+  (Slotnummer, Fluch-Kennzeichen, zwei Zaehlungen erreichen die Anzeige
+  getrennt), nicht die Bauart. Kein `architect` noetig.
+- **`compute_resistances` schreibt vorerst nicht nach `sources`** —
+  `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende ausdruecklich aus der Kennzahl,
+  eine Quelle ohne Rankingwirkung waere irrefuehrend. Wieder aufmachen,
+  sobald eine Zielrichtung Widerstaende rankt.
+- **Der Knopf heisst `Optimize`.** Die Zustandstabelle 4.1-4.14 sagt noch
+  `Suggest` und wird im S10-Auftrag mitkorrigiert.
 
 ## Der Rest — in dieser Reihenfolge
 
