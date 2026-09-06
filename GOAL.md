@@ -197,3 +197,35 @@ Inhalte gehen ueber den `product-strategist` und die Freigabe des Nutzers.
 Entwicklungsfassung. Der Lauf gegen ein **gebautes Artefakt** (A9) bleibt
 davon unberuehrt in P9 stehen — er beantwortet eine andere Frage
 (Installation, Erststart, Paketierung).
+
+---
+
+## Nachtrag 06.09.2026 — Erstinstallation (entschieden durch den Nutzer)
+
+**Grund:** Findet die automatische Suche den Spielordner oder den Spielstand
+nicht, endet der Erststart heute in einer Fehlermeldung — der Nutzer kann den
+Pfad **nicht von Hand angeben**. Damit ist die Installation fuer jeden mit
+einem ungewoehnlichen Speicherort eine Sackgasse. Der Nutzer verlangt einen
+Erststart, der "mehr oder weniger seamless" ist.
+
+- **A15 — Der Erststart fuehrt jeden Nutzer bis zu lesbaren Daten, ohne
+  fremde Hilfe.** Findet die Automatik den Spielordner oder den Spielstand,
+  merkt der Nutzer nichts — der Ablauf bleibt wie heute. Findet sie ihn
+  nicht, erscheint **statt der Fehlermeldung** ein Auswahldialog; der
+  gewaehlte Pfad wird geprueft, behalten und beim naechsten Start wieder
+  benutzt. Nachweis: ein `power-user`-Lauf auf einem **gebauten Artefakt**,
+  bei dem die Automatik nachweislich ins Leere laeuft, und der Nutzer
+  trotzdem ohne Abbruch bis zu angezeigten Zahlen kommt.
+
+**Zwei Festlegungen des Directors dazu:** Aus dem Spielordner wird **nichts
+verschoben und nichts entfernt** — das Programm merkt sich den Pfad und baut
+daraus wie bisher seinen Datenabzug unter `%LOCALAPPDATA%\NightreignHelper`.
+Und der Zielort dieses Abzugs bleibt fest; er wird nicht zur dritten
+Einstellung.
+
+**Umfang:** Spielordner **und** Spielstand. Der Spielstand wird heute genauso
+blind gesucht — bei zwei Steam-Konten oder verschobenem Speicherort steht der
+Nutzer vor demselben Problem.
+
+**Verhaeltnis zu A9:** A15 ist der Inhalt, A9 die Pruefumgebung. Beide werden
+in P9 zusammen abgenommen, im selben `clean-room`- und `power-user`-Durchgang.
