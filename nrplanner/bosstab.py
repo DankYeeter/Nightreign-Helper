@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, tabheader
+from . import cardgrid, pressable, tabheader
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -292,13 +292,23 @@ def _split_circle(regular, sovereign, size: int):
     return canvas
 
 
-class BossCard(QFrame):
-    """One expedition: its icon, the boss it ends on, and the flavour text."""
+class BossCard(pressable.PressableFrame):
+    """One expedition: its icon, the boss it ends on, and the flavour text.
+
+    A `PressableFrame` and not a plain frame, so the card can be reached
+    without a mouse: it carries the Nightlord's name for an assistive tool to
+    find it by, stands in the tab order, and answers Enter, Space and the
+    accessibility interface's Press on the same call a click makes (QA-161).
+    """
 
     clicked = Signal(dict)
 
     def __init__(self, boss: dict, icons):
-        super().__init__()
+        # The name is the Nightlord's, because that is what a reader is
+        # looking for; the expedition goes in the description, which is the
+        # second line a screen reader says and the answer to "which of the
+        # ten is this".
+        super().__init__(name=boss["name"], description=boss["expedition"])
         self.boss = boss
         # A minimum rather than a fixed width: the columns share the grid's
         # width, so cards grow to fill it instead of leaving a dead strip on
@@ -418,9 +428,9 @@ class BossCard(QFrame):
         self._set_hovered(False)
         super().leaveEvent(event)
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+    def press(self) -> None:
+        """Open this Nightlord's profile. Every route ends here."""
         self.clicked.emit(self.boss)
-        super().mousePressEvent(event)
 
 
 class BossTab(QWidget):
