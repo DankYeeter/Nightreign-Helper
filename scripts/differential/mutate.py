@@ -1115,6 +1115,44 @@ MUTATIONS: dict[str, Mutation] = {
             "by test_advisor_search.py::"
             "test_a_budget_that_searches_nothing_is_refused."),
     ),
+    "search-bakes-the-direction-into-the-scorer": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
+        return goal.score(evaluate(problem, assignment, ctx), ctx)
+""",
+        new="""    def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
+        from .goals import GOALS
+        return GOALS["max_damage"].score(evaluate(problem, assignment, ctx),
+                                         ctx)
+""",
+        survival_means=(
+            "AD-003's requirement that the scorer be a parameter is "
+            "unenforced, and with it the opening AD-002 option C is held "
+            "for. Every run would rank on damage whatever direction the "
+            "player chose, and the figure shown beside the suggestion would "
+            "come from the direction that was asked for -- so the list would "
+            "be sorted by one number and labelled with another. Killed by "
+            "test_advisor_search.py::"
+            "test_the_search_ranks_by_the_scorer_it_is_handed, which asks "
+            "one set of pools under both directions."),
+    ),
+    "search-hands-back-a-mutable-list-of-choices": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""            choices=tuple(types.SlotChoice(slot_index=choice.slot_index,
+""",
+        new="""            choices=list(types.SlotChoice(slot_index=choice.slot_index,
+""",
+        survival_means=(
+            "QA-066 reaches the search: a `frozen` dataclass handed a "
+            "mutable sequence is frozen in name and shared in fact, and "
+            "AD-006 point 8 sends this object across a thread boundary while "
+            "AD-007 keys a cache on the request it answers. Every figure and "
+            "every lookup goes on working, so the failure would first show "
+            "in S9. Killed by test_advisor_search.py::"
+            "test_a_suggestion_the_search_produced_can_be_a_cache_key, which "
+            "hashes what the search really produced rather than reading its "
+            "annotations."),
+    ),
     "search-takes-any-pools-it-is-handed": Mutation(
         path="nrplanner/advisor/search.py",
         old="""    _refuse_pools_that_are_not_the_free_slots(free, pools)
