@@ -404,3 +404,33 @@ Keine Abweichung. Kein Wortlaut, kein Format und keine Reihenfolge einer
 Zeile hat sich geaendert - die Zeilen stehen nur unter dem Slot, der sie
 verdient hat. Die Halte-Zeile aus T-077s Befund 4 und die Wortlaute aus
 T-078 sind ausdruecklich nicht dieser Auftrag und sind nicht angefasst.
+
+---
+
+## Nachtrag des Directors, 06.09.2026 — die beiden offenen Laeufe sind gelesen
+
+Der `developer` konnte die Ausgaben am Ende seines Laufs nicht mehr oeffnen
+und hat den Status deshalb zu Recht auf `teilweise` gelassen. Ich habe die
+Dateien gelesen; **STATUS ist damit `erledigt`.**
+
+**Frischer Klon** (`git archive HEAD | tar -x`, eigener Lauf des Directors,
+Stand mit dem Fix): **960 passed, 9 skipped, 5 deselected**. Der Lauf des
+`developer` (`scratchpad/verify-run.txt`) zeigt dieselbe Zahl.
+
+**Die vier Gegenbauten im vollen Standardlauf** — jeder toetet, und der im
+Bericht benannte Fall ist jeweils dabei:
+
+| Mutation | Ergebnis | benannter Fall gefallen |
+|---|---|---|
+| `advisor-counts-each-chosen-copy-twice` | 2 failed, 958 passed | `test_each_source_of_an_effect_reaches_the_model_exactly_once` |
+| `explain-attributes-a-figure-by-name-instead-of-by-id` | 5 failed, 955 passed | `test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them` |
+| `explain-loses-the-count-of-what-was-not-counted` | 3 failed, 957 passed | `test_what_was_not_counted_keeps_its_number_and_its_order` |
+| `model-records-a-source-without-saying-which-effect` | 8 failed, 952 passed | `test_the_reasons_name_only_effects_the_suggestion_brought` |
+
+**Eine Beobachtung dazu, die der `qa-engineer` in T-077 vorhergesagt hat:**
+In jedem der vier Laeufe faellt zusaetzlich
+`test_every_mutation_still_finds_its_anchor_in_the_real_source`, bei der
+dritten Mutation sogar fuer einen **fremden** Mutationsnamen. Dieser Test
+prueft kein Verhalten, sondern nur, ob der Anker noch im Quelltext steht —
+wer ihn als Toetungsbeleg zaehlt, zaehlt nichts. Die vier Toetungen oben
+stehen unabhaengig davon, jede an einem Verhaltensfall.
