@@ -2533,3 +2533,617 @@ Wunsch, danach das Layout-Minimum von **760 px**.
 Tastaturbedienung liegt im selben warmen Farbkanal wie die Auswahlmarke. Ein
 Bild liegt im T-071-Bericht bei. **Das ist eine Entscheidung des
 `ui-ux-designer`.**
+
+---
+
+## Der Erststart mit Ordnerauswahl (ui-ux-designer, T-074) — 2026-09-06
+
+### 0. Grundlage, Methode, und was davon **nicht** gesehen ist
+
+**Modus:** Spec. Diese Vorgabe beschreibt einen Ablauf, den es heute **nicht
+gibt**, und gegen den spaeter geprueft wird.
+
+**Methode:** ausschliesslich Codelesung. Der Auftrag T-074 untersagt das
+Starten des Fensters (parallel laufendes T-073, Einzelkopie-Sperre aus T-071).
+**Kein Bildnachweis, keine Messung** aus diesem Lauf. Jede Pixelangabe unten
+ist ein **Sollwert**, keine Messung, und traegt ihre Umgebung (L-009).
+
+**Belegte Ausgangslage** (gelesen, nicht behauptet):
+
+- `nrdata/gamefiles.py:48 find_game_dir()` sucht ueber die Steam-Registry, die
+  Bibliothekliste `libraryfolders.vdf` und die Laufwerke C bis H nach
+  `.../ELDEN RING NIGHTREIGN/Game/regulation.bin`. Ergebnis ist der Ordner,
+  der `regulation.bin` **direkt** enthaelt, also `...\Game`.
+- `nrdata/savefile.py:391 save_roots()` sucht nur unter `%APPDATA%\Nightreign`
+  und `~/AppData/Roaming/Nightreign`; `find_saves()` (Zeile 415) sammelt daraus
+  `*.sl2`.
+- `nrplanner/app.py:3873` ruft `firstrun.ensure_data(find_game_dir())`. Ist der
+  Rueckgabewert `None`, baut `firstrun.what_is_needed(None)` nichts, und
+  `load_data()` faellt in `datasource.py:152` auf `raise FileNotFoundError(
+  _no_data_message())`. Das landet in `app.py:3883` als `QMessageBox.critical`
+  — **die heutige Sackgasse**.
+- **Es gibt im gesamten Anwendungscode keinen Datei- oder Ordnerdialog.**
+  Geprueft mit zwei unabhaengigen Begriffen ueber das ganze Repo:
+  `QFileDialog` und `getExistingDirectory|getOpenFileName` finden Treffer
+  ausschliesslich unter `.venv/` (Bibliothekscode), keinen einzigen in
+  `nrplanner/`, `nrdata/` oder `scripts/`.
+- Ein fehlender **Spielstand** ist heute keine Sackgasse, sondern eine stille
+  Minderung: `app.py:3217` schreibt `"No save file found. Relic slots stay
+  empty; ..."` in `owned_label` und geht weiter. Es gibt keinen Weg, eine Datei
+  anzugeben.
+- Der Ablauf, in den das hier gehoert, ist `nrplanner/firstrun.py:152
+  _Window` — ein `Qt.WindowType.SplashScreen`, feste Groesse `460 x 190`
+  (Erststart) bzw. `460 x 150`, Titel, Erklaerzeile, unbestimmter
+  Fortschrittsbalken, Statuszeile, und auf dem Erststart das Angebot
+  `"Add to my Start Menu"`.
+
+**Messumgebung fuer alle Zahlen dieser Vorgabe (L-009):** Windows 10,
+Qt-Stil `Fusion` mit der dunklen Palette aus `app.apply_appearance`,
+`QT_SCALE_FACTOR` nicht gesetzt (Einstellung `Automatic`), Windows-Anzeige
+100 %, **logische** Pixel. Bei 125 % und 150 % gelten dieselben logischen
+Werte; geprueft wird dort nicht die Zahl, sondern dass nichts abgeschnitten
+ist (AK-129).
+
+### 1. Zweck & Nutzerziel
+
+Ein Spieler, dessen Spiel oder Spielstand an einem Ort liegt, den die
+Automatik nicht kennt, kommt **ohne fremde Hilfe** bis zu angezeigten Zahlen
+(GOAL A15). Er muss dafuer keinen Dateinamen, keinen Ordnernamen und keine
+Konto-Kennung kennen — nur den Weg, den er in Steam ohnehin schon kennt.
+
+**Nicht-Ziel:** eine Einstellungsseite fuer Pfade. Der Ablauf ist eine
+Reparatur, kein Konfigurationsbereich.
+
+### 2. Wann das Panel kommt — die Aufloesungskette
+
+Beides, Spielordner und Spielstand, folgt derselben Kette. **Der Dialog ist
+das letzte Glied, nie das erste.**
+
+**Spielordner**, in dieser Reihenfolge, beim Start vor allem anderen:
+
+1. **Gemerkter Pfad.** Liegt einer vor und enthaelt er `regulation.bin`, wird
+   er genommen. Kein Fenster, kein Klick.
+2. **Automatik.** `find_game_dir()` wie heute. Findet sie etwas, wird es
+   genommen und **als gemerkter Pfad hinterlegt**. Kein Fenster, kein Klick.
+3. **Panel.** Erst wenn 1 und 2 leer ausgehen.
+
+Die Reihenfolge 1 vor 2 ist bewusst: die Angabe des Nutzers schlaegt die
+Vermutung des Programms. Die Reihenfolge 2 nach einem **ungueltig gewordenen**
+1 ist ebenso bewusst: wer sein Spiel neu an den Standardort installiert, soll
+kein Fenster sehen, obwohl sein alter gemerkter Pfad tot ist.
+
+**Spielstand**, beim Aufbau des Build planner:
+
+1. Gemerkte Datei, wenn sie existiert und lesbar ist.
+2. `find_saves()` wie heute (mehrere Funde: der relikreichste gewinnt,
+   `inventory.py:179-201` — unveraendert).
+3. **Kein Panel, kein Modal.** Stattdessen wird die Zeile, die den Fehlschlag
+   heute schon meldet, handlungsfaehig (Abschnitt 5).
+
+### 3. Aufbau: ein Fenster, zwei Zustaende
+
+Das Panel ist **kein zweites Fenster neben** `firstrun._Window`, sondern
+dessen erster Zustand. Reihenfolge im Erststart: *fragen* → *bestaetigen* →
+*bauen* → *fertig*. Der `"Add to my Start Menu"`-Haken bleibt unveraendert im
+Bau-Zustand, wo er heute steht.
+
+**Aenderung an der Fensterart, mit Begruendung.** Der heutige
+`SplashScreen`-Typ ist fuer den Bau-Zustand richtig und fuer den Frage-Zustand
+falsch: er hat keine Titelleiste, keinen Eintrag in der Taskleiste, ist nicht
+verschiebbar und nimmt keine Escape-Taste. Sobald aus dem Panel heraus ein
+**Ordnerdialog des Betriebssystems** geoeffnet wird, ist das ein Fehler mit
+Folgen: der Systemdialog kann hinter dem Panel liegen, und ein Nutzer, der das
+Programm dann in der Taskleiste sucht, findet es nicht. Deshalb:
+
+- **Frage-Zustand:** normales Fenster mit Titelleiste (`Nightreign Helper`),
+  Taskleisteneintrag, verschiebbar, Escape belegt (AK-109/AK-116).
+- **Bau-Zustand:** wie heute.
+
+**Masse (Sollwerte, Umgebung siehe 0):** Breite `460` logische px wie heute,
+damit Frage und Fortschritt gleich breit sind und das Fenster beim Uebergang
+nicht springt. Hoehe **inhaltsabhaengig**, Mindesthoehe `230`; Pfadzeilen
+umbrechen, statt die Breite zu sprengen. Raender wie heute `28/24/28/24`,
+Abstand `10`.
+
+**Reihenfolge von oben nach unten**, in allen Frage-Faellen gleich:
+
+1. Ueberschrift (fett, `+3` Punkt gegenueber der Grundschrift — das Muster aus
+   `firstrun._Window`).
+2. Erklaerung, ein bis zwei Saetze.
+3. **Der Weg**, den der Nutzer gehen soll — der Steam-Satz.
+4. Der zuletzt versuchte Pfad, wenn es einen gibt (eigene Zeile, umbruchfaehig).
+5. Beruhigung: dass nichts angefasst wird (`MUTED`).
+6. Knopfzeile, rechtsbuendig, Standardknopf rechts aussen.
+7. Fusszeile (`MUTED`, klein): was das Schliessen bedeutet.
+
+### 4. Der Spielordner
+
+#### 4.1 Ordner, nicht Datei
+
+Gewaehlt wird ein **Ordner**. Grund: der Name `regulation.bin` ist dem Spieler
+unbekannt, der Ordner dagegen ist genau das, was Steam ihm oeffnet, wenn er
+*Manage → Browse local files* waehlt. Eine Dateiauswahl wuerde ihn zwingen,
+eine Datei zu erkennen, die er nie gesehen hat.
+
+**Startort des Systemdialogs:** der erste existierende aus dieser Liste —
+gemerkter Pfad, dessen Elternordner, Steams `common`-Ordner aus der
+Bibliothekliste, `C:\Program Files (x86)\Steam\steamapps\common`, sonst
+"Dieser PC". Der Nutzer soll moeglichst nah an seinem Ziel aufwachen.
+
+#### 4.2 Der falsche Ordner — gesucht wird nach unten und nach oben
+
+Der Nutzer waehlt fast sicher `...\ELDEN RING NIGHTREIGN`, nicht
+`...\ELDEN RING NIGHTREIGN\Game`. Eine Ablehnung waere hier reine Schikane:
+das Programm steht einen Ordner neben dem Ziel.
+
+**Regel:** aus dem gewaehlten Ordner wird gesucht
+
+- **nach unten** bis **Tiefe 3** (der gewaehlte Ordner ist Tiefe 0). Damit
+  traegt `...\ELDEN RING NIGHTREIGN` (1), der `common`-Ordner (2) und
+  `steamapps` (3) noch;
+- **nach oben** bis **2 Elternebenen**, falls jemand in einem Unterordner des
+  Spiels gelandet ist;
+- **begrenzt**: hoechstens **400 besuchte Verzeichnisse** und hoechstens
+  **2 Sekunden**. Wird die Grenze erreicht, gilt der Ordner als nicht erkannt.
+  Ein Laufwerksstamm darf **nicht** zu einer Volltextsuche ueber die Platte
+  fuehren; der Nutzer wartet sonst minutenlang auf ein Nein.
+
+**Ergebnis** ist immer der Ordner, der `regulation.bin` direkt enthaelt — also
+dieselbe Form, die `find_game_dir()` liefert. Mehrere Treffer: der
+**flachste** gewinnt, bei Gleichstand der zuletzt geaenderte. Weicht das
+Ergebnis vom gewaehlten Ordner ab, sagt die Bestaetigung das (Abschnitt 7).
+
+#### 4.3 Woran erkannt wird, dass es das Richtige ist
+
+**Zwei Stufen, weil `regulation.bin` allein nicht reicht.** ELDEN RING hat
+ebenfalls eine `regulation.bin`, ebenfalls `data*.bhd`-Archive und ebenfalls
+eine Oodle-DLL — die Struktur unterscheidet die beiden Spiele nicht.
+
+- **Stufe 1, Annahmebedingung (hart):** `regulation.bin` vorhanden, lesbar und
+  nicht leer; mindestens eine Datei `data*.bhd` aus `bhd5.ARCHIVE_KEYS`
+  vorhanden; eine der DLLs aus `oodle._DLL_NAMES` vorhanden. Faellt eine davon
+  aus, wird abgelehnt (Abschnitt 7, Text E1).
+- **Stufe 2, Identitaet (weich):** enthaelt weder der Fundordner noch eine
+  seiner drei Elternebenen `NIGHTREIGN` im Namen (Gross-/Kleinschreibung egal,
+  Konstante `gamefiles.INSTALL_DIR`), wird **nicht abgelehnt**, sondern
+  rueckgefragt (Text W1). Grund: eine Umbenennung ist erlaubt und kommt vor;
+  eine Minute Arbeit an ELDEN RING mit anschliessend falschen Zahlen ist der
+  teurere Fehler.
+
+*Nicht geprueft in diesem Lauf:* ob es eine `nightreign.exe` o. ae. gibt, an
+der die Identitaet **hart** haengen koennte. Der Code kennt keinen solchen
+Namen. Verifiziert jemand ihn an einer echten Installation, ist er die
+bessere Stufe 2, und Text W1 entfaellt.
+
+#### 4.4 Was gespeichert wird
+
+Der bestaetigte Ordner wird **sofort** gespeichert, vor dem Bau — sonst
+kostet ein Absturz waehrend der Minute die Angabe. Ablage im vorhandenen
+`QSettings`-Speicher (`favourites.ORG` / `favourites.APP`), Schluessel
+`paths/game`, passend zu `ui/scale` und `ui/panes`. **Keine neue Datei, kein
+neues Format.**
+
+Aus dem Spielordner wird nichts verschoben, kopiert oder geloescht. Der
+Datenabzug entsteht wie heute unter `paths.cache_dir()`, und dieser Ort ist
+**nicht** waehlbar.
+
+### 5. Der Spielstand
+
+**Entscheidung: kein Modal.** Der Spielstand ist laut README ausdruecklich
+optional ("Without one the relic slots stay empty and every other tab works in
+full"). Ein Spieler, der das Spiel auf diesem PC noch nie gestartet hat, hat
+keinen — ihm beim Erststart ein Auswahlfenster vorzusetzen, das er nur
+wegklicken kann, waere genau die Reibung, die A15 beseitigen soll.
+
+**Stattdessen wird der Ort handlungsfaehig, an dem der Fehlschlag heute schon
+gemeldet wird.** `owned_label` in `app.py:3217` sagt bereits "No save file
+found"; daneben stehen bereits die Knoepfe `Rescan save` und `Load equipped`
+(`app.py:1534-1537`). Genau dort kommt ein dritter Knopf `Find my save…` hinzu.
+
+- Sichtbar **nur**, wenn kein Spielstand geladen ist — im geglueckten Fall
+  aendert sich an dieser Zeile nichts (AK-106).
+- Der Knopf ist ein echter `QPushButton` in der Knopfzeile, **nicht** ein Link
+  in der 10-px-`MUTED`-Zeile. Ein Angebot, das der Nutzer uebersieht, loest
+  A15 nicht.
+
+**Auswahl: Datei, nicht Ordner.** Umgekehrt zum Spielordner, und aus
+demselben Grund: hier ist die Datei das, was der Nutzer sieht und meint, und
+bei **mehreren Steam-Konten** ist die Dateiauswahl die einzige Form, in der er
+sagen kann, *welches* Konto er will. Der Automatik-Weg (relikreichster
+Spielstand gewinnt) bleibt unveraendert und wird durch die Wahl nur
+ueberstimmt.
+
+- Filter: `Nightreign save (NR*.sl2)`, dann `Save file (*.sl2)`, dann
+  `All files (*)`. Der dritte Eintrag ist noetig, weil `find_saves()`
+  ausdruecklich auch umbenannte Sicherungen zulaesst.
+- **Startort:** der **aufgeloeste** Pfad des Ordners `Nightreign` im
+  Roaming-Profil, wenn es ihn gibt, sonst das aufgeloeste Roaming-Profil
+  selbst. Dieser Startort ist die eigentliche Hilfe — der Nutzer kann die
+  Umgebungsvariable nicht tippen und soll es auch nicht muessen.
+- Die Variablenschreibweise erscheint **nirgends** in einem Text fuer den
+  Nutzer (AK-127); nur der aufgeloeste Pfad.
+
+**Drei Ausgaenge nach der Wahl:**
+
+1. Lesbar, mit Relikten → die vorhandene Zeile `"{n} relics in {source}"` wie
+   heute, voller Pfad wie heute nur im Tooltip.
+2. Lesbar, ohne Relikte → Text S3. Kein Fehler; der Nutzer sieht, dass er
+   das falsche Konto erwischt haben koennte, und kann erneut waehlen.
+3. Unlesbar → Text S4: ein Satz in Spielersprache **vor** dem technischen
+   Grund. Das ist dieselbe Regel, die DESIGN_REVIEW DR-006 fuer den
+   Erststart-Fehlerdialog fordert; sie gilt hier von Anfang an.
+
+**Speicherung:** Schluessel `paths/save` im selben `QSettings`-Speicher.
+Verschwindet die gemerkte Datei, wird **still** auf `find_saves()`
+zurueckgefallen; erst wenn auch das leer ausgeht, erscheint die Zeile mit dem
+Knopf wieder. Der gemerkte Pfad wird dabei nicht geloescht (AK-121).
+
+**Vertraulichkeit.** Der Spielstandordner ist nach der Steam-Konto-Kennung
+benannt; `app.py:3236-3242` haelt sie deshalb bewusst aus jedem sichtbaren
+Text heraus und zeigt sie nur im Tooltip. Diese Entscheidung gilt hier
+unveraendert weiter: **keine Bestaetigungszeile dieses Ablaufs druckt den
+vollen Spielstandpfad**, nur den Dateinamen (AK-126).
+
+### 6. Beim naechsten Start
+
+**Gemerkter Spielordner gueltig** → nichts passiert, kein Fenster.
+
+**Gemerkter Spielordner ungueltig** (Spiel deinstalliert, verschoben,
+externes Laufwerk nicht angesteckt) → erst die Automatik (Abschnitt 2). Erst
+wenn auch die leer ausgeht, entscheidet der Datenbestand:
+
+- **Ein brauchbarer Datenabzug liegt vor** (`datasource.bundled_path()`
+  existiert): **nicht blockieren.** Das Programm kann arbeiten; ein
+  abgezogenes USB-Laufwerk darf keinen Totalausfall bedeuten. Panel-Text A3
+  mit zwei Knoepfen: `Choose folder…` und `Continue with the data from
+  {Datum}`. Das Datum stammt aus der Aenderungszeit des Abzugs und ist die
+  einzige ehrliche Angabe darueber, wie alt die Zahlen sind.
+- **Kein Abzug** → blockieren, Panel-Text A2.
+
+**Der gemerkte Pfad wird bei einem Fehlschlag nicht geloescht.** Er wird nur
+ersetzt, wenn ein neuer Ordner bestaetigt wurde. Ein Laufwerk kommt wieder.
+
+**Ein heute stiller Fall, der hierher gehoert und den ich melde statt ihn zu
+loesen:** faellt der Spielordner weg, waehrend der Abzug von einer **aelteren**
+Programmfassung stammt, liefert `datasource._load_data` den veralteten Abzug
+kommentarlos zurueck (`datasource.py:129-153`: `_regulation_matches` ist
+`False`, die Live-Extraktion scheitert an `game is None`, und der Abzug wird
+trotzdem gereicht). Der Nutzer sieht dann alte Zahlen ohne jeden Hinweis. Das
+ist kein Teil dieser Vorgabe, aber Text A3 nennt aus genau diesem Grund ein
+Datum.
+
+### 7. Wortlaut — alle Texte, Englisch (A8)
+
+Fenstertitel im Frage-Zustand: `Nightreign Helper`
+
+**A1 — Erststart, nichts gefunden**
+
+```
+Where is ELDEN RING NIGHTREIGN installed?
+
+Nightreign Helper reads every number it shows out of your own copy of the
+game, and it could not find one on this PC.
+
+In Steam, right-click ELDEN RING NIGHTREIGN in your library and choose
+Manage, then Browse local files. Pick the folder that opens.
+
+Nothing in that folder is changed, moved or deleted. It is only read.
+
+[ Quit ]  [ Choose folder... ]
+
+You can close this and come back later. It will ask again.
+```
+
+**A2 — spaeterer Start, gemerkter Ordner weg, keine Daten da**
+
+```
+Your game is not where it was last time.
+
+Nightreign Helper last read it from:
+{Pfad}
+
+That folder is not there now. If the game was moved or reinstalled, or if it
+sits on a drive that is not plugged in right now, point this at the new place.
+
+[ Quit ]  [ Choose folder... ]
+
+You can close this and come back later. It will ask again.
+```
+
+**A3 — spaeterer Start, gemerkter Ordner weg, Daten von frueher da**
+
+```
+Your game is not where it was last time.
+
+Nightreign Helper last read it from:
+{Pfad}
+
+You can carry on with what was read on {Datum}. Those numbers stay right
+until the game is updated.
+
+[ Continue with the data from {Datum} ]  [ Choose folder... ]
+```
+
+**E1 — gewaehlter Ordner nicht erkannt**
+
+```
+That folder does not hold a copy of the game.
+
+You picked:
+{Pfad}
+
+Nothing inside it looked like an installed game. Pick the folder the game
+itself is in: in Steam that is Manage, then Browse local files.
+
+[ Quit ]  [ Choose a different folder... ]
+```
+
+**W1 — Struktur passt, Name passt nicht**
+
+```
+This does not look like ELDEN RING NIGHTREIGN.
+
+There is an installed FromSoftware game here:
+{Pfad}
+
+Its folder is not named after ELDEN RING NIGHTREIGN, so this may be a
+different game. Reading it takes about a minute, and every number would be
+wrong.
+
+[ Use this folder anyway ]  [ Choose a different folder... ]
+```
+
+**C1 — bestaetigt, gleicher Ordner** (`GOOD`, dann sofort der Bau-Zustand)
+
+```
+Found your game in {Pfad}
+```
+
+**C2 — bestaetigt, tiefer gefunden als gewaehlt**
+
+```
+Found your game in {Pfad}, inside the folder you picked.
+```
+
+**S1 — Erklaerung am Spielstand-Knopf** (Tooltip von `Find my save…`)
+
+```
+Your save is a file called NR0000.sl2, in a folder named Nightreign under
+your Windows user profile. This opens there.
+```
+
+**S2 — Titel des Datei-Dialogs**
+
+```
+Choose your Nightreign save file
+```
+
+**S3 — gewaehlter Spielstand lesbar, aber leer**
+
+```
+That save has no relics in it yet. If you play on more than one Steam
+account, this may be the wrong one.
+```
+
+**S4 — gewaehlter Spielstand unlesbar**
+
+```
+That file is not a Nightreign save this can read.
+{technischer Grund}
+```
+
+**S5 — Ersatz fuer die heutige Zeile `app.py:3217`**
+
+```
+No save file found. Relic slots stay empty; the Effects and Weapons tabs
+still work in full. If your save is somewhere else, use Find my save.
+```
+
+**Verbotene Woerter in allen Texten dieses Ablaufs** (AK-127):
+`regulation.bin`, `steamapps`, `libraryfolders.vdf`, die Dateiendung `.sl2`
+ausserhalb von S1 und dem Dateifilter, jede Umgebungsvariable in
+Prozentschreibweise, `AppData`, `Steam ID`, `account id`, `snapshot`, `cache`,
+`param`, `extract`.
+
+### 8. Token
+
+Keine neuen. Verwendet werden ausschliesslich die vorhandenen aus
+`nrplanner/app.py:108-113`:
+
+| Rolle | Token | Wo |
+|---|---|---|
+| Bestaetigung | `GOOD` `#6fbf73` | C1, C2 |
+| Ablehnung, Warnung | `BAD` `#d1655f` | Kopfzeile von E1 und W1 |
+| Nebentext, Fusszeile | `MUTED` `#8a8a8a` | Beruhigungs- und Fusszeile |
+| Grundschrift, Ueberschrift `+3` fett | wie `firstrun._Window` | Ueberschrift |
+
+`MUTED` `#8a8a8a` wird fuer die **Fusszeile** und Nebensaetze benutzt, wie im
+ganzen Programm. Fuer die **Pfadzeile** gilt das nicht: sie ist das, was der
+Nutzer pruefen soll, und steht in der normalen Textfarbe (AK-129).
+
+### 9. Plattform, Tastatur, Skalierung
+
+- **Fluent/WinUI-Konvention:** der bestaetigende Knopf steht rechts, der
+  abbrechende links davon; der Standardknopf ist der bestaetigende. Auslassung
+  in den drei Punkten (`Choose folder...`), weil ein weiterer Dialog folgt.
+- **Der Ordnerdialog ist der Systemdialog** (Qt-Standard, nicht
+  `DontUseNativeDialog`). Er kommt in der hellen Windows-Gestaltung, waehrend
+  das Programm dunkel ist. Das ist **kein Befund**: der Systemdialog ist das,
+  was der Nutzer aus jedem anderen Programm kennt, und ein nachgebauter
+  dunkler Dialog verliert Schnellzugriffe, Netzlaufwerke und OneDrive.
+- **Tastatur:** der ganze Ablauf ohne Maus. Tab erreicht jeden Knopf, der
+  Fokus ist sichtbar, Enter loest den Standardknopf aus.
+- **Escape** bedeutet "aus dieser Frage heraus, mit dem geringsten Verlust":
+  in A1/A2/E1/W1 ist das `Quit`, in A3 `Continue with the data from {Datum}`.
+  Dasselbe gilt fuer das Schliessen ueber das Fensterkreuz. Die Fusszeile sagt
+  in A1/A2, was das Schliessen bedeutet.
+- **Skalierung:** 100 %, 125 % und 150 % (Windows-Anzeige) und zusaetzlich die
+  programmeigenen Faktoren aus `uiscale.CHOICES` bis `200%` — nichts
+  abgeschnitten, keine waagerechte Bildlaufleiste, kein Knopf ausserhalb des
+  Fensters.
+
+### 10. Akzeptanzkriterien
+
+**AK-106** *(A15, Vorgabe "der geglueckte Fall aendert sich nicht")* Findet
+Schritt 1 oder 2 der Kette aus Abschnitt 2 den Spielordner, erscheint **kein**
+zusaetzliches Fenster und **kein** zusaetzlicher Klick gegenueber heute.
+Pruefung: ein Lauf auf einer Maschine mit Standardinstallation zeigt genau die
+Fensterfolge, die er heute zeigt.
+
+**AK-107** Die Aufloesung des Spielordners laeuft in der Reihenfolge
+gemerkter Pfad → `find_game_dir()` → Panel. Pruefung: bei ungueltigem
+gemerktem Pfad und gleichzeitig auffindbarer Standardinstallation erscheint
+**kein** Panel.
+
+**AK-108** Auf einer Maschine ohne auffindbares Spiel und ohne gemerkten Pfad
+erscheint das Panel aus Abschnitt 3 **statt** der heutigen
+`QMessageBox.critical` aus `app.py:3883`. Pruefung: die Zeichenkette
+"No ELDEN RING NIGHTREIGN installation was found." aus
+`datasource._no_data_message` erreicht in diesem Fall keinen Bildschirm mehr.
+
+**AK-109** Das Fenster im Frage-Zustand hat Titelleiste, Taskleisteneintrag
+und ist verschiebbar; der Bau-Zustand bleibt wie heute. Pruefung: sichtbar am
+laufenden Fenster, plus die Fensterflagge im Code.
+
+**AK-110** Der Knopf `Choose folder...` oeffnet eine **Ordner**auswahl, keine
+Dateiauswahl, und startet in dem ersten existierenden Ort aus der Liste in
+4.1.
+
+**AK-111** Waehlt der Nutzer `...\ELDEN RING NIGHTREIGN` statt
+`...\ELDEN RING NIGHTREIGN\Game`, wird das Spiel gefunden und angenommen.
+Dasselbe fuer den `common`- und den `steamapps`-Ordner. Die Suche besucht
+hoechstens 400 Verzeichnisse und dauert hoechstens 2 Sekunden; ein
+Laufwerksstamm fuehrt innerhalb dieser Grenze zu einer Ablehnung, nicht zu
+einer Plattensuche.
+
+**AK-112** Angenommen wird ein Ordner nur, wenn `regulation.bin` lesbar und
+nicht leer ist, mindestens eine `data*.bhd` aus `bhd5.ARCHIVE_KEYS` vorliegt
+und eine DLL aus `oodle._DLL_NAMES` vorliegt. Faellt eine der drei aus,
+erscheint Text E1.
+
+**AK-113** Traegt weder der Fundordner noch eine seiner drei Elternebenen
+`NIGHTREIGN` im Namen, erscheint Text W1 mit den zwei Knoepfen, und der
+Standardknopf ist `Choose a different folder...` — nicht das Weitermachen.
+Der Ordner wird **nicht** abgelehnt.
+
+**AK-114** Nach einer Ablehnung bleibt das Fenster offen, nennt den versuchten
+Pfad, und der Knopf heisst `Choose a different folder...`. Das Programm endet
+an dieser Stelle **nie** von selbst.
+
+**AK-115** Bricht der Nutzer die Systemauswahl ab, kehrt er in das Panel
+zurueck, in genau den Zustand, in dem er es verlassen hat. Nichts wird
+gespeichert, nichts wird gemeldet.
+
+**AK-116** `Quit`, Escape und das Fensterkreuz beenden das Programm ohne
+Fehlerdialog und ohne gespeicherte Angabe. Ausnahme A3: dort fuehren Escape
+und Fensterkreuz zu `Continue with the data from {Datum}`.
+
+**AK-117** Ein bestaetigter Ordner steht **vor** dem Beginn des Baus in
+`QSettings` unter `paths/game` (Speicher `favourites.ORG`/`favourites.APP`).
+Pruefung: Programm nach der Bestaetigung waehrend des Baus hart beenden, neu
+starten — es fragt nicht erneut.
+
+**AK-118** Zwischen der Bestaetigung (C1/C2) und dem Beginn des Baus liegt
+**kein** weiterer Klick. Das Fenster wechselt in den Fortschrittszustand,
+ohne die Breite zu aendern.
+
+**AK-119** Gemerkter Pfad ungueltig, Automatik leer, aber
+`datasource.bundled_path()` existiert: Text A3 erscheint mit dem Datum des
+Abzugs, und `Continue with the data from {Datum}` fuehrt in ein voll
+bedienbares Fenster mit angezeigten Zahlen.
+
+**AK-120** Gemerkter Pfad ungueltig, Automatik leer, kein Abzug: Text A2,
+zwei Knoepfe, kein dritter Weg.
+
+**AK-121** Ein einzelner Fehlschlag loescht weder `paths/game` noch
+`paths/save`. Pruefung: Laufwerk trennen, starten, `Quit`, Laufwerk wieder
+anstecken, starten — es wird nicht erneut gefragt.
+
+**AK-122** Fuer den Spielstand erscheint zu **keinem** Zeitpunkt ein Modal,
+das der Nutzer wegklicken muss. Pruefung: ein Erststart auf einer Maschine
+ohne jeden Spielstand erreicht den Build planner ohne einen einzigen Klick
+mehr als heute.
+
+**AK-123** Ist kein Spielstand geladen, steht in der Knopfzeile neben
+`Rescan save` ein sichtbarer Knopf `Find my save...`. Er oeffnet eine
+**Datei**auswahl mit dem Filter aus Abschnitt 5 und startet im aufgeloesten
+`Nightreign`-Ordner des Roaming-Profils, falls vorhanden. Ist ein Spielstand
+geladen, ist der Knopf nicht da.
+
+**AK-124** Die drei Ausgaenge einer Spielstandwahl sind unterscheidbar und
+tragen die Texte aus Abschnitt 7: Relikte gefunden → die heutige Zeile;
+lesbar ohne Relikte → S3; unlesbar → S4 mit dem Spielersatz **vor** dem
+technischen Grund.
+
+**AK-125** Eine gewaehlte Spielstanddatei wird unter `paths/save` gemerkt und
+beim naechsten Start bevorzugt. Existiert sie nicht mehr, faellt das Programm
+**still** auf `find_saves()` zurueck; erst wenn auch das leer ist, erscheint
+S5 mit dem Knopf.
+
+**AK-126** Kein Text dieses Ablaufs zeigt den vollen Spielstandpfad. Der
+Dateiname ist erlaubt, der Ordner mit der Konto-Kennung nicht; der volle Pfad
+bleibt im Tooltip, wie heute in `app.py:3242`.
+
+**AK-127** Keiner der Texte aus Abschnitt 7 enthaelt eines der dort
+aufgelisteten verbotenen Woerter. Pfade erscheinen ausschliesslich
+**aufgeloest**, nie als Variablenname.
+
+**AK-128** *(A8)* Alle Texte dieses Ablaufs sind Englisch, auch die
+Knopfbeschriftungen, der Fenstertitel und der Titel des Dateidialogs.
+
+**AK-129** Bei Windows-Anzeige 100 %, 125 % und 150 % sowie bei den
+Programmfaktoren bis `200%` ist in allen Zustaenden kein Text abgeschnitten,
+kein Knopf ausserhalb des Fensters, und es gibt keine waagerechte
+Bildlaufleiste. Pfadzeilen umbrechen. **Nachweis am laufenden Fenster mit
+Bildnachweis, nicht am Code** (A13-Muster).
+
+**AK-130** Der gesamte Ablauf ist ohne Maus bedienbar: Tab erreicht jeden
+Knopf, der Fokus ist sichtbar, Enter loest den Standardknopf aus.
+
+**AK-131** Das Panel erscheint **nur** fuer den Fall "kein Spielordner".
+Fehlen die Param-Definitionen (`datasource.defs_dir()` ist `None`) oder
+scheitert das Lesen einer gefundenen Installation, bleiben die heutigen
+Meldungen stehen — ein Ordnerdialog waere dort die falsche Antwort.
+
+**AK-132** *(NH-002, oeffentliches Repo)* Jeder Bildnachweis dieses Panels
+wird aus dem **Fenster** gezogen und zeigt einen Pfad ohne echten
+Windows-Benutzernamen und ohne Steam-Konto-Kennung. Wo das nicht geht, wird
+der Nachweis vorher unkenntlich gemacht.
+
+### 11. Ausdruecklich nicht Teil dieser Vorgabe
+
+- Der Zielort des Datenabzugs. Er bleibt `paths.cache_dir()` und wird nicht
+  waehlbar (Festlegung des Directors).
+- Eine Einstellungsseite, auf der die beiden Pfade nachtraeglich geaendert
+  werden koennen, **ohne** dass etwas fehlschlaegt. Der Spielordner ist
+  danach nur ueber den Fehlerfall erreichbar; ob das reicht, ist offene
+  Frage 1.
+- Die Auswahl **zwischen mehreren gefundenen** Spielstaenden im geglueckten
+  Fall. `inventory.load` entscheidet wie heute nach Relikanzahl.
+- Der stille veraltete Datenabzug aus Abschnitt 6 (gemeldet, nicht geloest).
+- DR-006 (Spielersprache vor technischen Fehlern im Bau-Fehlerdialog). Fuer
+  die **neuen** Texte gilt die Regel hier bereits (S4).
+- Die Deinstallation, QA-158/159/160/162 und die Fokusmarke aus T-071.
+
+### 12. Offene Fragen an den App Designer
+
+1. **Soll der Spielordner auch dann aenderbar sein, wenn nichts kaputt ist?**
+   Diese Vorgabe zeigt das Panel nur im Fehlerfall — so hat der Nutzer es
+   entschieden. Wer zwei Installationen hat (etwa eine zweite Kopie zum
+   Testen), kann dann nicht umschalten. Eine Zeile mit Knopf im Hauptfenster
+   waere die kleine Loesung; sie kostet einen sichtbaren Bedienknopf mehr.
+2. **Soll der Spielstand beim Erststart aktiv angeboten werden?** Ich habe
+   mich dagegen entschieden (Abschnitt 5): kein Modal, dafuer ein Knopf an der
+   Stelle, an der die Frage entsteht. Die Gegenposition ist vertretbar — eine
+   Karte am Ende des Erststarts mit `Find my save...` und
+   `Skip, I do not have one` wuerde das Angebot garantiert sichtbar machen,
+   kostet aber jeden Spieler ohne Spielstand einen Klick.
+3. **Ist `Continue with the data from {Datum}` (A3) der richtige Ausweg,
+   oder soll ein fehlender Spielordner immer blockieren?** Weiterarbeiten mit
+   alten Zahlen ist bequem und ehrlich beschriftet; blockieren ist strenger
+   und verhindert, dass jemand monatelang veraltete Werte liest, ohne es zu
+   merken.
+4. **Der Wortlaut "Manage, then Browse local files".** Er nennt die englischen
+   Steam-Menuepunkte. Bei einem Spieler mit deutschem Steam heissen sie
+   anders. Die Alternative ist eine allgemeinere Formulierung ohne Menuenamen,
+   die dafuer weniger fuehrt.
