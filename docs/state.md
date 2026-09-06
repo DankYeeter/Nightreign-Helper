@@ -55,24 +55,16 @@ belegen nur den programmierten Text — den Sichtnachweis liefert T-076.
 **A15 ist aufgenommen und spezifiziert.** Der Erststart endet heute in einer
 Sackgasse, wenn die Automatik Spielordner oder Spielstand nicht findet — es
 gibt **nirgends** einen Ordnerdialog. Spec: `UI_SPEC.md`, **AK-106 bis
-AK-132**, kompletter englischer Wortlaut. Nutzerentscheid: Dialog **nur** bei
-gescheiterter Automatik, fuer **Spielordner und Spielstand**. Director-
-Festlegungen: aus dem Spielordner wird nichts verschoben, der Zielort des
-Datenabzugs bleibt fest. Vier Designer-Rueckfragen vom Director entschieden
-(kein nachtraegliches Aendern, kein aktives Anbieten des Spielstands, alter
-Abzug wird gezeigt aber mit Datum, keine woertlichen Steam-Menuenamen).
+AK-132**. Dialog **nur** bei gescheiterter Automatik, fuer beide Pfade; aus
+dem Spielordner wird nichts verschoben, der Zielort bleibt fest. Vier
+Designer-Rueckfragen sind im Bericht zu T-074 entschieden.
 
-**Der sechste `power-user`-Lauf misst A11 nicht** (T-075). Seine echten
-Mausklicks kamen nicht an, er wich auf die Bedienungshilfen-Schnittstelle
-aus; und er hat den Effekte-Tab nie geoeffnet, der Fix war nie auf dem
-Schirm. Gueltig bleiben seine zwei Ratestellen: **QA-173** (Gefaess-Auswahl
-unerklaert) und **QA-174** (Build beim Oeffnen schon befuellt).
+**Der sechste `power-user`-Lauf misst A11 nicht** (T-075): seine Klicks kamen
+nicht an, und er hat den Effekte-Tab nie geoeffnet. Gueltig bleiben zwei
+Ratestellen — **QA-173**, **QA-174**.
 
-**Aus beidem sind Teamregeln geworden** (Agenten-Repo `2ef09c1`):
-Fragebogen vor dem Zyklus · L-010 von vier auf fuenf Pruefungen
-(Faehigkeitsprobe gehoert in den Auftrag; Beweisstelle; Messreihen behalten
-ihre Aufgabenliste) · vierte Sorgfaltspflicht des Directors · `power-user`
-Schritt 0.
+**Daraus wurden Teamregeln** (Agenten-Repo `2ef09c1`): Fragebogen vor dem
+Zyklus · L-010 auf fuenf Pruefungen · `power-user` Schritt 0.
 
 ## Offen und niemandem zugeordnet
 
@@ -92,12 +84,10 @@ Schritt 0.
   `_migrate_keys` macht aus `Bleed build` den Namen `%42leed%20build`.
 - **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
   `CharaInitParam` wird nicht gelesen.
-- **Nebenwirkung von T-076:** der Lauf hat die laufende Programmkopie
-  bedient (Held auf Guardian, Fenster verschoben und zweimal in der Groesse
-  geaendert). Sie schreibt in denselben Registrierungsschluessel wie die
-  Installation des Nutzers; moeglich, dass "zuletzt gewaehlter Build" fuer
-  Guardian auf den Standard zurueckfiel. Kein Build geloescht, "Save" nie
-  gedrueckt.
+- **Nebenwirkung von T-076:** der Lauf hat die laufende Kopie bedient (Held,
+  Fenstergroesse). Sie schreibt in den Registrierungsschluessel der echten
+  Installation; moeglich, dass "zuletzt gewaehlter Build" fuer Guardian auf
+  den Standard zurueckfiel. Kein Build geloescht, "Save" nie gedrueckt.
 
 ## Der Rest — in dieser Reihenfolge
 
