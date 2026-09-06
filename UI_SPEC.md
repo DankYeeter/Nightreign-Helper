@@ -2471,3 +2471,65 @@ im Relikt-Picker (`relicpicker.py:16` und `:31`, `weaponslots.py:59`,
 zieht, bekommt DR-016a erneut. `CardGrid` liegt fertig vor. **Der Befund ist
 nicht geschlossen** und wird mit S10 gezogen, weil der Picker dort ohnehin
 umgebaut wird.
+
+
+---
+
+## Nachtrag des Directors zu AK-82 — 2026-09-06 (nach T-068)
+
+**Der Fragesatz des Waffen-Tabs ist geaendert, und das ist beabsichtigt.**
+
+AK-82 hat den alten Wortlaut woertlich gebunden. Der `developer` hat ihn in
+T-068 dennoch ersetzt und die Abweichung gemeldet statt sie zu verschweigen —
+richtig so, denn **der alte Satz war an genau der Stelle falsch, um die es
+geht**: er sagte, der Nightfarer werde "above" eingestellt, waehrend dort nur
+das Upgrade eingestellt wird. Ein `power-user` ist dieser Angabe gefolgt, hat
+den Charakterwaehler nicht gefunden und ihn erst durch Durchklicken aller
+Reiter im `Build planner` entdeckt (QA-155).
+
+**Verbindlich ab jetzt:**
+
+1. Der Satz nennt **beide** Orte getrennt: wo das Upgrade eingestellt wird
+   (hier) und wo Nightfarer und Level eingestellt werden (`Build planner`).
+   Gebauter Wortlaut: `…rated at the upgrade you set here, for the Nightfarer
+   and level you set on the Build planner tab.`
+2. Der zweite Satz (Zauber) bleibt **unveraendert**.
+3. **Es kommt kein zweiter Charakterwaehler in den Waffen-Tab.** Das waere
+   eine neue Funktion und ein zweiter Ort fuer denselben Zustand — die Klasse,
+   die dieser Audit gerade beseitigt hat. Ob dort spaeter einer hingehoert,
+   ist eine Produktfrage und liegt beim App Designer.
+
+**Betroffen:** AK-82 (Wortlaut ersetzt), §3.1. AK-68 und die uebrigen
+Kriterien des Waffen-Tabs sind unberuehrt.
+
+**Offen und ausdruecklich nicht hier entschieden:** der Farbwert der neuen
+Zeigermarke. Gebaut ist `#33343c` (WCAG 1,331 gegen eine unmarkierte Karte;
+die Auswahlmarke erreicht 1,440). Gemessene Alternativen liegen im
+T-068-Bericht — zwei davon reichen weiter, bringen aber einen neuen Farbton
+auf einen Tab, auf dem der Kartenrand schon etwas bedeutet. **Das ist eine
+Entscheidung des `ui-ux-designer`**, die Zahlen liegen bei.
+
+
+---
+
+## Nachtrag des Directors zu AK-05 — 2026-09-06 (nach T-071)
+
+**Die Startbreite ist keine feste Zahl mehr.** AK-05 nannte **1320 px**; das
+war der Wert, bei dem der Spaltenkopf `Comes with curse` beim **ersten Blick**
+gekuerzt war — in drei von vier `power-user`-Laeufen ein Aergernis, und
+niemand hatte je entschieden, dass 1320 richtig ist.
+
+**Verbindlich ab jetzt:** die Oeffnungsbreite wird **aus den Spaltenbreiten
+abgeleitet** (`EffectTable.width_for_full_headings()`), nicht gesetzt. Das
+Kriterium ist nicht eine Pixelzahl, sondern die Aussage: **beim Startmass ist
+keine Spaltenueberschrift gekuerzt.** Gemessen ergibt das heute 1350 x 860 auf
+Windows/Fusion/150 %/Segoe UI 9 — auf einer anderen Maschine eine andere Zahl,
+und das ist der Sinn der Ableitung (L-001, L-009).
+
+Zwei Schranken, in dieser Reihenfolge: **der verfuegbare Schirm** geht vor dem
+Wunsch, danach das Layout-Minimum von **760 px**.
+
+**Offen und ausdruecklich nicht hier entschieden:** die Fokusmarke der
+Tastaturbedienung liegt im selben warmen Farbkanal wie die Auswahlmarke. Ein
+Bild liegt im T-071-Bericht bei. **Das ist eine Entscheidung des
+`ui-ux-designer`.**
