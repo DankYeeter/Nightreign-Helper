@@ -82,6 +82,11 @@ PANES_KEY = "ui/panes"
 # Reset layout button so all three mean the same thing by construction.
 PANE_DEFAULTS = (430, 520, 370)
 
+#: How tall the window opens, in logical px. Unchanged from the size the
+#: window has always given itself; no tab asks for more (AK-71), so nothing
+#: on this side has to be derived.
+OPENING_HEIGHT = 860
+
 TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
@@ -1316,7 +1321,8 @@ class Planner(QMainWindow):
             f"Nightreign Helper {__version__}"
             + ("  —  updated for your installed game version" if stale else "")
         )
-        self.resize(1320, 860)
+        # No resize here. The opening width is derived from the effect
+        # table, which does not exist yet -- see showEvent.
 
         tabs = QTabWidget()
         self.setCentralWidget(tabs)
@@ -1786,7 +1792,83 @@ class Planner(QMainWindow):
         outer.setWidget(panel)
         return outer
 
-    # -- window chrome: pane widths, scale, Start Menu entry -------------
+    # -- window chrome: opening size, pane widths, scale, Start Menu ------
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Size the window on the way to the screen, unless it was sized.
+
+        Here and not in `__init__` for one reason: the width the window opens
+        at depends on how much room the tab page has, and before the first
+        layout pass there is no page -- every rectangle inside the window is
+        a placeholder. Qt sends the show event *before* it maps the window,
+        so a size set here is the first size that ever reaches the screen and
+        there is nothing to see blink.
+
+        `WA_Resized` is Qt's own record of whether anybody has asked for a
+        size, and it is what makes this the *opening* size rather than an
+        override: a caller that resized the window first keeps its width, and
+        showing the window again later -- after a minimise, say -- finds the
+        attribute set and leaves the player's own size alone.
+        """
+        if not self.testAttribute(Qt.WA_Resized):
+            self.resize(self._opening_width(), OPENING_HEIGHT)
+        super().showEvent(event)
+
+    def _opening_width(self, room: int | None = None) -> int:
+        """Wide enough to read every column heading, and no wider.
+
+        Three terms, in the order they bind:
+
+        * what a window has to be for the effect table to get the viewport it
+          asked for, worked out below;
+        * `room`, the width the desktop has. On a machine that cannot show
+          that much, the desktop wins: a window wider than the screen opens
+          with its right-hand edge past the edge of it, which is worse than
+          the shortened heading it was meant to avoid. It defaults to the
+          screen this window is on, and is a parameter so a case can ask what
+          the window would do on a desktop other than the one it runs on;
+        * the window's own minimum. It is the last word because a window
+          narrower than its layout allows is not a width the program can
+          honour anyway.
+        """
+        if room is None:
+            room = self.screen().availableGeometry().width()
+        return max(self.minimumSizeHint().width(),
+                   min(self._width_around_the_effect_table(), room))
+
+    def _width_around_the_effect_table(self) -> int:
+        """A window width that leaves the effect table the viewport it wants.
+
+        **Every term but the first comes from a style or a layout, not from a
+        laid-out rectangle**, and that is the whole of it: the tab in front
+        when this is asked is the Build planner, so the effects tab has never
+        been given the width of a page and every rectangle inside it is a
+        placeholder. Measured on 2026-09-06 with the planner in front, on
+        Windows under Fusion at 150 % scale: the table reports 640 px and its
+        viewport 638, which reads as 2 px of chrome against the 16 it really
+        has -- the scrollbar is not up yet. A window sized against that
+        placeholder came out at 1 802 px and was cut to the screen's 1 707;
+        with the effects tab in front the same code said 1 350. An opening
+        size that depends on which tab happens to be in front is not an
+        opening size.
+
+        The one term that does come off the screen is the page inset, and it
+        can: the tab in front is laid out by definition, and every page of a
+        `QTabWidget` gets the same rectangle.
+        """
+        tabs = self.centralWidget()
+        beside_the_page = self.width() - tabs.currentWidget().width()
+        margins = self.effects_tab.layout().contentsMargins()
+        table = self.effects_tab.table
+        # The scrollbar's own width, whether or not it happens to be up.
+        # 652 effects against a page holding some thirty rows: it is up. If a
+        # later dataset ever fitted without one, the window would open those
+        # px wider than it had to, which costs a reader nothing.
+        bar = table.verticalScrollBar().sizeHint().width()
+        return (table.width_for_full_headings()
+                + 2 * table.frameWidth() + bar
+                + margins.left() + margins.right()
+                + beside_the_page)
+
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""
         if hasattr(self, "panes"):

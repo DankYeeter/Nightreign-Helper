@@ -418,7 +418,7 @@ class EffectTable(QTableWidget):
         item = self.horizontalHeaderItem(column)
         return item.text() if item is not None else ""
 
-    def _label_room(self, column: int) -> int:
+    def _label_room(self, column: int, section: int | None = None) -> int:
         """How many px the style leaves this section's text.
 
         Asked of the style rather than assumed, because the margin around a
@@ -432,6 +432,12 @@ class EffectTable(QTableWidget):
         table sorts on `Type` from the start, and leaving the indicator out of
         the option drew `Type` as `y.` at an 833 px window -- an ellipsis
         clipped in half, which is the very thing being fixed one column over.
+
+        `section` names a width to ask about instead of the one the header
+        happens to have. That is what lets `width_for_full_headings` put a
+        window width to the same style, with the same sort arrow, that will
+        decide the elision once the window is that wide -- rather than
+        assuming the margin and getting it wrong under the next style.
         """
         header = self.horizontalHeader()
         option = QStyleOptionHeader()
@@ -442,8 +448,10 @@ class EffectTable(QTableWidget):
         # field, and without it `Type` came out as `y.` at 833 px.
         option.state |= QStyle.State_Horizontal
         option.section = column
-        option.rect = QRect(0, 0, header.sectionSize(column),
-                            max(header.height(), 1))
+        option.rect = QRect(
+            0, 0,
+            header.sectionSize(column) if section is None else section,
+            max(header.height(), 1))
         if (header.isSortIndicatorShown()
                 and header.sortIndicatorSection() == column):
             option.sortIndicator = (
@@ -475,15 +483,81 @@ class EffectTable(QTableWidget):
         exists for (QA-140). An ellipsis says the name is shortened; the
         tooltip set in `set_headings` says what it was.
         """
-        metrics = self.horizontalHeader().fontMetrics()
         for column, name in enumerate(self._headings):
             item = self.horizontalHeaderItem(column)
             if item is None:
                 continue
-            shown = metrics.elidedText(name, Qt.ElideRight,
-                                       self._label_room(column))
+            shown = self._as_drawn(column, self._label_room(column))
             if item.text() != shown:
                 item.setText(shown)
+
+    def _as_drawn(self, column: int, room: int) -> str:
+        """The heading of `column` as it would read in `room` px of label."""
+        metrics = self.horizontalHeader().fontMetrics()
+        return metrics.elidedText(self._headings[column], Qt.ElideRight, room)
+
+    def headings_as_drawn(self, widths: dict[int, int]) -> list[str]:
+        """Every heading as the header would read at these section widths.
+
+        The question `_elide_headings` answers per column, asked of a whole
+        share-out. Through `_as_drawn`, so there is one elision rule and it
+        is the one the header on screen uses -- a caller here cannot be told
+        a heading is whole while the header shortens it.
+
+        The words and not merely which of them are shortened: a heading that
+        no width can show whole still shows *more* of itself as its column
+        grows, and a width that gave the reader fewer letters than he could
+        have had would be the same fault as the one being fixed.
+        """
+        return [self._as_drawn(column, self._label_room(column, widths[column]))
+                if column in widths else self._headings[column]
+                for column in range(len(self._headings))]
+
+    def width_for_full_headings(self) -> int:
+        """The narrowest viewport width at which the headings read as well
+        as they ever will -- normally, at which none is shortened.
+
+        **Derived, not chosen.** The window used to open at a width set by
+        hand, and at that width one heading of eleven was drawn as
+        `Comes with c…` -- the first thing a reader saw, and the thing two
+        `power-user` runs in a row reported (QA-140, T-069). A wider hand-set
+        number would only move the same problem to the next font: the widths
+        this table needs come out of the data, the style and the font, and
+        all three differ between one machine and the next. Measured on
+        2026-09-06, same tree, same data: the nine middle columns ask for
+        848 px together under Segoe UI 9 on Windows at 150 % scale and for
+        1 185 px under the suite's offscreen font -- 337 px apart for the
+        same eleven words.
+
+        So the number is asked of `column_widths`, the share-out that will
+        actually be applied, and of the style that will actually draw the
+        header:
+
+        * the widest the table ever grows to is the two floors plus what
+          every other column asks for, capped. Past that, extra width goes to
+          `Effect` and `What it does` and no heading gains a letter, so
+          whatever is still shortened there is shortened for good;
+        * from there it steps back one pixel at a time for as long as the
+          header reads word for word the same, and stops at the first pixel
+          that costs a letter.
+
+        Tight by construction, in both directions: one pixel wider buys the
+        reader nothing, one pixel narrower takes something away. Both are
+        what the guard asserts, and both hold whatever the font does --
+        including the case where `OTHER_CAP` bounds a column below what its
+        own name needs, which no width can rescue and which is where the
+        suite's offscreen font puts `Comes with curse`.
+        """
+        floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
+        widest = floors + sum(min(self._natural[column], self.OTHER_CAP)
+                              for column in self._others())
+        best = self.headings_as_drawn(self.column_widths(widest))
+        narrowest = widest
+        while (narrowest > floors
+               and self.headings_as_drawn(
+                   self.column_widths(narrowest - 1)) == best):
+            narrowest -= 1
+        return narrowest
 
     def measure_columns(self) -> None:
         """Note what each column would like, then share the width out.
