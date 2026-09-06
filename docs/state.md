@@ -88,6 +88,32 @@ Zyklus · L-010 auf fuenf Pruefungen · `power-user` Schritt 0.
   Installation; moeglich, dass "zuletzt gewaehlter Build" fuer Guardian auf
   den Standard zurueckfiel. Kein Build geloescht, "Save" nie gedrueckt.
 
+## Beschlossen, nicht beauftragt
+
+Aus T-067, vom Director entschieden am 06.09.2026:
+
+- **D-2** Ein Fluch, der im Ergebnis keine Zahl bewegt, **muss trotzdem
+  genannt werden** (`UI_SPEC` §3.2: ein Preis, der erst nach dem Anwenden
+  sichtbar wird, ist eine Falle). Weg: **eigenes Feld auf `AdvisorResult`**,
+  nicht `not_counted` verbreitern. Betrifft 36 von 309 Relikten, darunter
+  drei mit `All Resistances Down`, das echte Zahlen bewegt und **in keinem
+  Feld** auftaucht. Wortlaut vom `ui-ux-designer`, Umsetzung eigener Auftrag.
+- **D-3** `not_counted` behaelt die Bedeutung aus **AD-010** (konditionale
+  Effekte). Die Menge "bewegt keine Zahl" ist eine **andere** und bekommt das
+  Feld aus D-2. `UI_SPEC` 4.9 ist entsprechend zu korrigieren.
+- **D-4** `SlotPool` bekommt ein `rank_by`. Ohne das kann die Suche nicht
+  pruefen, dass Pools und Bewertung dieselbe Zielrichtung meinen — heute eine
+  ungeprueft zugesagte S9-Eigenschaft. Kleiner Auftrag, mit S9.
+- **D-5** **Kein** `top_n`-Stellrad. Die Beam-Breite W bleibt die Zahl der
+  Endzustaende; AD-003.5 bekommt eine Korrekturnotiz.
+- **D-1** `performance-tuner` bekommt `model.compute` (94 % der 941,6 ms),
+  nicht die Fassade — aber **in S11**, nicht jetzt: vor S10 gemessen zu
+  optimieren misst einen Stand, den es so nicht mehr geben wird. Erstlauf im
+  Projekt, also opus.
+- **D-10** Der Maskierungshinweis (`html.escape`, `setTextFormat`) geht
+  **woertlich** in den S10-Auftrag.
+- **D-11** Doppelte Zahlenformatierung: akzeptiert, zurueckgestellt bis S10.
+
 ## Der Rest — in dieser Reihenfolge
 
 1. **A11 schliessen:** QA-173 braucht eine `ui-ux-designer`-Entscheidung,
