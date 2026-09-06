@@ -58,6 +58,8 @@ A_CANDIDATE = types.Candidate(
     marginals=(types.Marginal("max_damage", 2.25),),
 )
 
+A_LINE = types.ReasonLine(slot_index=1, text="An effect: Strength +1")
+
 #: One instance of every dataclass in the module that is not a context type.
 #: Written out rather than generated: a generated sample would be built from
 #: the annotations, and the claim under test is about what the fields really
@@ -88,6 +90,11 @@ SAMPLES = {
     "SlotPool": types.SlotPool(slot_index=1, candidates=(A_CANDIDATE,)),
     "SlotChoice": types.SlotChoice(slot_index=1, handle=42, relic_id=8,
                                    name="Other relic"),
+    "ReasonLine": A_LINE,
+    "SlotReasons": types.SlotReasons(
+        slot_index=1, relic_name="Other relic", effects_total=2,
+        effects_with_a_figure=1, count_line="1 of its 2 effects moved a "
+        "number in this build.", lines=(A_LINE,)),
     "Suggestion": types.Suggestion(
         choices=(types.SlotChoice(1, 42, 8, "Other relic"),), score=A_SCORE),
     "AdvisorResult": types.AdvisorResult(goal_id="max_damage",

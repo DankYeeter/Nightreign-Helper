@@ -24,9 +24,10 @@ the key knows about the held state it knows through `AdvisorRequest.problem`,
 which carries `held` in the vessel's own order.
 
 The answers (`GoalScore`, `Baseline`, `Marginal`, `Candidate`, `SlotPool`,
-`SlotChoice`, `Suggestion`, `AdvisorResult`) keep the same rule, for a
-different reason: AD-006 point 8 sends them across a thread boundary, and a
-dict field would be frozen in name and shared in fact.
+`SlotChoice`, `ReasonLine`, `SlotReasons`, `Suggestion`, `AdvisorResult`)
+keep the same rule, for a different reason: AD-006 point 8 sends them across
+a thread boundary, and a dict field would be frozen in name and shared in
+fact.
 
 **The two named exceptions are `ReferenceArmament` and `GoalContext`**, and
 they are the whole of the exception: they carry the extracted dataset, which
@@ -457,18 +458,112 @@ class SlotChoice:
     name: str
 
 
+# --- the lines of one suggestion, and what the window must not work out -----
+#
+# `explain.py` writes the words. These two shapes are how the words reach the
+# window without the window reading them, and they exist for one rule
+# (`UI_SPEC` T-078 §6, extended in T-080 §7): **the display never takes a
+# sentence apart.** A line arrives with the slot it belongs under, with
+# whether it is a curse, and with why it carries no figure; a slot arrives
+# with the two counts its heading states. Every one of those was once
+# readable out of the text alone -- and the text contains an em dash in the
+# middle of a field name (`model.RATE_LABELS["regainRate"]` is `Regain — HP
+# won back by attacking after a hit`), so splitting on the dash breaks today
+# rather than at some future relic name. Coupling display to the shape of a
+# sentence is what QA-107 cost this project once already.
+
+#: `ReasonLine.silence` for a line that carries a figure. Everything else is
+#: a reason a line has none, and `explain.py` picks exactly one of them in the
+#: order T-080 §4 lays down.
+CARRIES_A_FIGURE = ""
+#: The effect works for another Nightfarer, so it is dead weight on this one.
+#: Drawn like every other dead effect in the program -- `NOT WORKING` with a
+#: strikethrough, as `effecttext` and the slot cards draw it -- and not as an
+#: ordinary muted line (Director, 06.09.2026): two ways of saying one thing
+#: is one thing for the player to remember, and this is the commonest case
+#: there is.
+SILENT_ANOTHER_NIGHTFARER = "another_nightfarer"
+#: The figure is in the build, from another copy of the same effect or from a
+#: relic the player is holding; this copy added none of it.
+SILENT_ALREADY_COUNTED = "already_counted"
+#: The effect waits on a condition the player can be in -- the same set that
+#: feeds `AdvisorResult.not_counted`, so the two cannot disagree.
+SILENT_UNDER_A_CONDITION = "under_a_condition"
+#: What the effect is worth is a question about the armaments carried.
+SILENT_ARMAMENT_BOUND = "armament_bound"
+#: It works, and nothing here reduces it to a number.
+SILENT_NO_NUMBER_HERE = "no_number_here"
+#: The dataset does not carry this effect, so there is no name to write.
+SILENT_NOT_IN_THE_DATA = "not_in_the_data"
+
+
+@dataclass(frozen=True)
+class ReasonLine:
+    """One drawn line of one slot group, and where it belongs.
+
+    `text` is the whole of what the line says: strip every colour, bullet and
+    strikethrough from it and the statement is still complete (AK-156). The
+    bullet is **not** in here -- `•` for an effect and `✦` for a curse are the
+    window's, taken from `is_curse`, because a window that had to look for a
+    `✦` in the text would be reading the sentence again.
+    """
+
+    slot_index: int
+    text: str
+    is_curse: bool = False
+    silence: str = CARRIES_A_FIGURE
+
+
+@dataclass(frozen=True)
+class SlotReasons:
+    """What one filled slot of a suggestion says for itself (A5).
+
+    `count_line` carries the denominator of the group: how many of the copy's
+    effect roles moved a figure, out of how many there are. It is the sentence
+    that keeps a silent effect from disappearing, and `effects_total -
+    effects_with_a_figure` is exactly the number of silent lines below it
+    (AK-155) -- a claim a case can recompute rather than believe.
+
+    `effects_with_a_figure` counts **effects, not lines**: an effect that
+    moves two figures the stat sheet does not merge is two lines and one
+    effect.
+    """
+
+    slot_index: int
+    relic_name: str
+    effects_total: int
+    effects_with_a_figure: int
+    count_line: str
+    lines: tuple[ReasonLine, ...] = ()
+
+
+def drawn_in_the_block(line: ReasonLine) -> bool:
+    """Does this line stand in the suggestion block, or only in `Why`?
+
+    Decided here rather than at each drawing site, and decided on the shape
+    rather than on the words. **A curse is a trap, a silent effect is not**
+    (Director, 06.09.2026): the price of a suggestion has to be readable
+    before it is applied, so every curse of the suggested copy stands in the
+    block, including the one no figure covers. An effect that merely does
+    nothing here costs no slot the player would not have spent anyway, and it
+    is what made the worst measured card 16 lines tall, so it waits in the
+    `Why` dialog.
+    """
+    return line.is_curse or line.silence == CARRIES_A_FIGURE
+
+
 @dataclass(frozen=True)
 class Suggestion:
     """One complete assignment of the free slots, with its score (AD-010).
 
-    `reasons` are the English lines that say which effects decided it (A5).
-    They are written by `explain.py`, which is S8: this task fixes the shape
-    they travel in and produces none of them.
+    `reasons` are what says which effects decided it (A5): one group per
+    filled slot, in slot order, each with its heading counts and its lines.
+    They are written by `explain.py`, which is S8.
     """
 
     choices: tuple[SlotChoice, ...]
     score: GoalScore
-    reasons: tuple[str, ...] = ()
+    reasons: tuple[SlotReasons, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -503,6 +598,19 @@ class AdvisorResult:
     #: than out of the relic definitions, so a curse that the calculation did
     #: not apply cannot be shown as though it had (AD-015).
     curses: tuple[str, ...] = ()
+    #: The curses of the suggested copies to which the calculation wrote no
+    #: figure at all, and the effects likewise (`UI_SPEC` T-078 §4, T-080 §7).
+    #: The criterion is neither "carries no numbers in the game files" nor
+    #: "conditional": no line was written, which is the one thing this program
+    #: can state about them. How many there are is the length of the tuple.
+    #:
+    #: **These are the same objects the slot groups already carry, not a
+    #: second copy of them** -- the subset of `Suggestion.reasons` whose
+    #: `silence` is set. Drawn once, from the groups; kept here so the status
+    #: line can count them without walking the groups, exactly as `curses` is
+    #: the curse-carrying subset of the same lines (§6 point 4).
+    curses_without_a_figure: tuple[ReasonLine, ...] = ()
+    effects_without_a_figure: tuple[ReasonLine, ...] = ()
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0

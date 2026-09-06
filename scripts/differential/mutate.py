@@ -1546,11 +1546,10 @@ MUTATIONS: dict[str, Mutation] = {
         path="nrplanner/advisor/explain.py",
         old="""    held = _held_slots_line(problem)
     if held:
-        lines.append(held)
+        return (held,)
+    return ()
 """,
-        new="""    held = ""
-    if held:
-        lines.append(held)
+        new="""    return ()
 """,
         survival_means=(
             "a run over three of six slots reads as a run over six. The line "

@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import model
+from nrplanner import effecttext, model
 from nrplanner.advisor import candidates, explain, goals, search, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -152,6 +152,26 @@ def a_context(named: dict[int, str]) -> types.GoalContext:
         weighting=goals.DEFAULT_WEIGHTING)
 
 
+def a_vessel(slots: int) -> types.SlotProblem:
+    """A vessel of this many free slots, held by nothing."""
+    return advisor.problem([advisor.RED] * slots)
+
+
+def lines_of(groups) -> tuple[str, ...]:
+    """The text of every line of every group, in the order it is drawn.
+
+    The groups are what the window reads; this is the flat view a case wants
+    when what it watches is the wording rather than the placing.
+    """
+    return tuple(line.text for group in groups for line in group.lines)
+
+
+def with_a_figure(groups) -> tuple[str, ...]:
+    """The text of the lines that carry a number."""
+    return tuple(line.text for group in groups for line in group.lines
+                 if line.silence == types.CARRIES_A_FIGURE)
+
+
 # -- the reference point ----------------------------------------------------
 
 def test_the_reasons_name_only_effects_the_suggestion_brought(game_data,
@@ -176,8 +196,10 @@ def test_the_reasons_name_only_effects_the_suggestion_brought(game_data,
                         search.goal_scorer(problem, ctx, goals.GOALS[DAMAGE]))
     chosen = explain.chosen_for(found[0], pools)
 
-    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
-                            evaluate(problem, chosen, ctx), ctx)
+    lines = lines_of(explain.reasons(problem, chosen,
+                                     evaluate(problem, (), ctx),
+                                     evaluate(problem, chosen, ctx), ctx,
+                                     goals.GOALS[DAMAGE]))
 
     allowed = set()
     for choice in found[0].choices:
@@ -215,16 +237,23 @@ def test_a_stacking_effect_on_three_copies_is_named_once_per_copy(game_data,
     chosen = tuple(a_copy(index, 100 + index, f"Copy {index}", roll)
                    for index in range(3))
 
-    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
-                            evaluate(problem, chosen, ctx), ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
 
     name = effect_names(game_data, roll).pop()
-    named = [line for line in lines if name in line]
+    named = [line for group in groups for line in group.lines
+             if name in line.text
+             and line.silence == types.CARRIES_A_FIGURE]
     assert len(named) == 3, (
-        f"three copies carry {name!r}; it is named in {len(named)} lines: "
-        f"{named}")
-    assert sorted(line.split(",")[0] for line in named) == [
-        "Slot 1", "Slot 2", "Slot 3"]
+        f"three copies carry {name!r}; it is named in {len(named)} lines "
+        f"that carry a figure: {[line.text for line in named]}")
+    assert sorted(line.slot_index for line in named) == [0, 1, 2], (
+        "the slot a line belongs under travels beside it, never in it: the "
+        "window has to place the line without reading it (AK-147)")
+    assert all(f"Slot {line.slot_index + 1}" not in line.text
+               for line in named), (
+        f"a line still names its own slot: {[line.text for line in named]}")
 
 
 def test_a_copy_whose_effect_the_held_relic_already_caps_is_not_credited(
@@ -262,8 +291,17 @@ def test_a_copy_whose_effect_the_held_relic_already_caps_is_not_credited(
         f"{name!r} stands in no source of the built build, so there is "
         f"nothing here for a reasoning to claim wrongly")
 
-    assert explain.reasons(chosen, base, built, ctx) == (), (
+    groups = explain.reasons(problem, chosen, base, built, ctx,
+                             goals.GOALS[DAMAGE])
+
+    assert with_a_figure(groups) == (), (
         "the chosen copy was credited with the held relic's contribution")
+    assert lines_of(groups) == (
+        f"{name}: another copy of it is already counted, so this one adds "
+        f"nothing.",), (
+        "the copy contributed nothing, and the reason is that the figure is "
+        "already in the build from elsewhere -- not that the effect does "
+        "nothing")
 
 
 def test_a_copy_whose_effect_the_game_refused_to_stack_gets_no_line(
@@ -283,14 +321,20 @@ def test_a_copy_whose_effect_the_game_refused_to_stack_gets_no_line(
     chosen = (a_copy(0, 101, "First copy", [stuck]),
               a_copy(1, 102, "Second copy", [stuck]))
 
-    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
-                            evaluate(problem, chosen, ctx), ctx)
+    first, second = explain.reasons(problem, chosen,
+                                    evaluate(problem, (), ctx),
+                                    evaluate(problem, chosen, ctx), ctx,
+                                    goals.GOALS[DAMAGE])
 
-    assert [line for line in lines if line.startswith("Slot 1")], (
+    assert with_a_figure((first,)), (
         "the first copy was not credited with the effect it did contribute")
-    assert not [line for line in lines if line.startswith("Slot 2")], (
-        f"the second copy of a non-stacking effect was credited with "
-        f"something: {lines}")
+    assert with_a_figure((second,)) == (), (
+        f"the second copy of a non-stacking effect was credited with a "
+        f"figure: {lines_of((second,))}")
+    assert [line.silence for line in second.lines] == [
+        types.SILENT_ALREADY_COUNTED], (
+        f"the second copy says nothing about why it is silent, or says the "
+        f"wrong thing: {lines_of((second,))}")
 
 
 def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
@@ -315,14 +359,16 @@ def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
                      "maxHpRate": [("Increased Maximum HP", 1.1, 6610400)]},
                     rates=("maxHpRate",))
 
-    lines = explain.reasons((a_copy(0, 1, "Vigor relic", [7000090]),
-                             a_copy(1, 2, "Max HP relic", [6610400])),
-                            a_build({}), built, ctx)
+    groups = explain.reasons(a_vessel(2),
+                             (a_copy(0, 1, "Vigor relic", [7000090]),
+                              a_copy(1, 2, "Max HP relic", [6610400])),
+                             a_build({}), built, ctx, goals.GOALS[DAMAGE])
 
-    assert lines == (
-        "Slot 1, Vigor relic — Increased Maximum HP: Vigor +5",
-        "Slot 2, Max HP relic — Increased Maximum HP: Max HP +10.0%",
-    )
+    assert [(group.slot_index, group.relic_name, lines_of((group,)))
+            for group in groups] == [
+        (0, "Vigor relic", ("Increased Maximum HP: Vigor +5",)),
+        (1, "Max HP relic", ("Increased Maximum HP: Max HP +10.0%",)),
+    ]
 
 
 def test_a_name_two_effects_share_in_this_dataset_still_lands_on_two_slots(
@@ -343,19 +389,22 @@ def test_a_name_two_effects_share_in_this_dataset_still_lands_on_two_slots(
     chosen = (a_copy(0, 1, "First relic", [first]),
               a_copy(1, 2, "Second relic", [second]))
 
-    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
-                            evaluate(problem, chosen, ctx), ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
 
     assert effect_names(game_data, [first]) == effect_names(game_data,
                                                             [second]), (
         "the two effects no longer share a name, so this case cannot tell an "
         "attribution by name from one by id")
-    for slot, effect_id in ((1, first), (2, second)):
+    for slot, effect_id in ((0, first), (1, second)):
         labels = labels_moved_by(game_data, wylder, effect_id)
-        said = [line for line in lines if line.startswith(f"Slot {slot},")]
+        group = next(one for one in groups if one.slot_index == slot)
+        said = with_a_figure((group,))
         assert said, (
             f"slot {slot} carries an effect that moves {sorted(labels)} and "
-            f"the reasoning says nothing about it at all: {lines}")
+            f"the reasoning says nothing about it at all: "
+            f"{lines_of(groups)}")
         for line in said:
             assert any(label in line for label in labels), (
                 f"this line stands under slot {slot}, whose effect moves "
@@ -377,12 +426,14 @@ def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number():
                      "Strength": [("Physical Attack Up", 3, 1)]},
                     rates=("physicsAttackRate",))
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
-                            built, ctx)
+    lines = lines_of(explain.reasons(a_vessel(1),
+                                     (a_copy(0, 1, "A relic", [1]),),
+                                     a_build({}), built, ctx,
+                                     goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Slot 1, A relic — Physical Attack Up: Physical Attack +12.0%",
-        "Slot 1, A relic — Physical Attack Up: Strength +3",
+        "Physical Attack Up: Physical Attack +12.0%",
+        "Physical Attack Up: Strength +3",
     )
 
 
@@ -393,6 +444,10 @@ def test_a_figure_that_is_better_small_is_not_called_a_cost_for_falling():
     0.92 is 8 % cheaper: both fall and both are gains. A flask that restores
     15 % less falls the same way and is a loss. `model.is_better_lower` is the
     one place that knows which is which.
+
+    Both are ordinary effects here, not one of them a curse: the marker comes
+    off the direction of the field and not off what carries it, and a curse
+    would drag the direction's own question into a case that is not about it.
     """
     ctx = a_context({1: "Improved Fire Damage Negation +1",
                     2: "Reduced Flask HP Restoration"})
@@ -402,14 +457,15 @@ def test_a_figure_that_is_better_small_is_not_called_a_cost_for_falling():
                                             0.85, 2)]},
         rates=("fireDamageCutRate", "changeHpEstusFlaskCorrectRate"))
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1], [2]),), a_build({}),
-                            built, ctx)
+    lines = lines_of(explain.reasons(a_vessel(1),
+                                     (a_copy(0, 1, "A relic", [1, 2]),),
+                                     a_build({}), built, ctx,
+                                     goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Slot 1, A relic — Improved Fire Damage Negation +1: "
-        "Fire damage taken -15.0%",
-        "Slot 1, A relic — Reduced Flask HP Restoration: "
-        "HP restored per flask -15.0%, counted against it",
+        "Improved Fire Damage Negation +1: Fire damage taken -15.0%",
+        "Reduced Flask HP Restoration: HP restored per flask -15.0%, "
+        "counted against it",
     )
 
 
@@ -426,8 +482,15 @@ def test_a_figure_that_did_not_move_is_no_reason():
                      "Strength": [("Does nothing", 0, 1)]},
                     rates=("physicsAttackRate",))
 
-    assert explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
-                           built, ctx) == ()
+    groups = explain.reasons(a_vessel(1), (a_copy(0, 1, "A relic", [1]),),
+                             a_build({}), built, ctx, goals.GOALS[DAMAGE])
+
+    assert with_a_figure(groups) == ()
+    assert lines_of(groups) == (
+        "Does nothing: no number here shows what this adds.",), (
+        "the effect was recorded, at its own neutral value, by this very "
+        "copy: what it did not do is add a number, and it is not somebody "
+        "else's figure")
 
 
 def test_one_idea_split_over_several_fields_is_not_said_several_times():
@@ -445,13 +508,15 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
     built = a_build({field: [("Reduced FP Consumption", 0.92, 1)]
                      for field in fields}, rates=fields)
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
-                            built, ctx)
+    lines = lines_of(explain.reasons(a_vessel(1),
+                                     (a_copy(0, 1, "A relic", [1]),),
+                                     a_build({}), built, ctx,
+                                     goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Slot 1, A relic — Reduced FP Consumption: Skill FP cost -8.0%",
-        "Slot 1, A relic — Reduced FP Consumption: Spell FP cost -8.0%",
-        "Slot 1, A relic — Reduced FP Consumption: Item use cost -8.0%",
+        "Reduced FP Consumption: Skill FP cost -8.0%",
+        "Reduced FP Consumption: Spell FP cost -8.0%",
+        "Reduced FP Consumption: Item use cost -8.0%",
     )
 
 
@@ -467,11 +532,13 @@ def test_a_buff_bound_to_one_class_of_armament_says_which():
     key = f"{model.WEAPON_CLASS_PREFIX}melee:physicsAttackRate"
     built = a_build({key: [("Improved Melee Attack Power", 1.06, 1)]})
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
-                            built, ctx)
+    lines = lines_of(explain.reasons(a_vessel(1),
+                                     (a_copy(0, 1, "A relic", [1]),),
+                                     a_build({}), built, ctx,
+                                     goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Slot 1, A relic — Improved Melee Attack Power: "
+        "Improved Melee Attack Power: "
         "Physical Attack, melee armaments only +6.0%",
     )
 
@@ -488,29 +555,42 @@ def test_a_buff_the_game_restricts_to_one_move_does_not_say_its_name_twice():
     built = a_build({key: [("Improved Skill Attack Power", 1.15, 1)]},
                     rates=(key,))
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
-                            built, ctx)
+    lines = lines_of(explain.reasons(a_vessel(1),
+                                     (a_copy(0, 1, "A relic", [1]),),
+                                     a_build({}), built, ctx,
+                                     goals.GOALS[DAMAGE]))
 
-    assert lines == (
-        "Slot 1, A relic — Improved Skill Attack Power: +15.0%",
-    )
+    assert lines == ("Improved Skill Attack Power: +15.0%",)
 
 
 def test_an_effect_this_dataset_does_not_carry_is_named_nowhere():
     """`evaluate` skips an unknown id, so it moved nothing to explain.
 
     Inherited from `Planner.selected_effects` on purpose rather than solved
-    in a second place (P4, QA-004/QA-032). What must not happen is a line
-    about it: a reasoning that names an effect the calculation never saw is
+    in a second place (P4, QA-004/QA-032). What must not happen is a figure
+    for it: a reasoning that credits an effect the calculation never saw is
     the fault this step is accepted against.
+
+    It is still counted, and it still gets a line, because the heading says
+    how many of the copy's roles moved a number. An effect that vanished from
+    both would make `2 - 1 = 1` come out as no line at all, and the player
+    would be reading a denominator that does not add up (AK-155).
     """
     ctx = a_context({1: "Known"})
     built = a_build({"Strength": [("Known", 3, 1)]})
 
-    lines = explain.reasons((a_copy(0, 1, "A relic", [1, 4242]),),
-                            a_build({}), built, ctx)
+    group, = explain.reasons(a_vessel(1),
+                             (a_copy(0, 1, "A relic", [1, 4242]),),
+                             a_build({}), built, ctx, goals.GOALS[DAMAGE])
 
-    assert lines == ("Slot 1, A relic — Known: Strength +3",)
+    assert with_a_figure((group,)) == ("Known: Strength +3",)
+    assert lines_of((group,))[1:] == (
+        "One of its effects is not in your game data, so it has no name "
+        "here and counted for nothing.",)
+    assert "4242" not in lines_of((group,))[1]
+    assert (group.effects_total, group.effects_with_a_figure) == (2, 1)
+    assert group.count_line == (
+        "1 of its 2 effects moved a number in this build.")
 
 
 # -- curses -----------------------------------------------------------------
@@ -551,21 +631,579 @@ def test_a_curse_is_among_the_reasons_as_a_cost_that_was_counted(game_data,
     *"Falls meine negativen auf Relikten meine Benefits vernichten, muss ich
     das wissen."* A curse is an ordinary effect in the calculation (AD-015)
     and it has to be an ordinary line in the reasoning, marked for what it is.
+
+    Asked of the direction that **feels** this curse, by construction: one
+    that cannot is told so instead, in its own filling, and that is the case
+    below.
     """
-    biting = cases.curses_lowering_an_attribute(game_data, wylder, 1)[0]
+    biting, _lowered = a_curse_this_armament_cannot_feel(
+        game_data, wylder, armament.weapon)
     problem = advisor.problem([advisor.RED])
     ctx = advisor.context(game_data, wylder, reference=armament)
     chosen = (a_copy(0, 1, "Cursed copy", (), [biting]),)
 
-    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
-                            evaluate(problem, chosen, ctx), ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[SURVIVAL])
 
+    lines = lines_of(groups)
     name = effect_names(game_data, [biting]).pop()
     charged = [line for line in lines if name in line]
     assert charged, f"the curse is named nowhere in the reasoning: {lines}"
+    assert all(line.is_curse for group in groups for line in group.lines), (
+        "the window sets ✦ and CURSE off this flag; without it the only way "
+        "to know is to read the sentence")
     assert all("counted against it" in line for line in charged), (
         f"a curse that lowers an attribute is not marked as counted against "
         f"the relic: {charged}")
+
+
+def test_a_curse_to_which_no_figure_was_written_is_still_named(game_data,
+                                                               wylder,
+                                                               armament):
+    """`UI_SPEC` §3.2: a price that only shows after applying is a trap.
+
+    A curse whose whole content the calculation cannot reduce to a number --
+    the engine-only ones, `Taking Damage Causes Madness Buildup` and its
+    family -- moved nothing, so no ordinary line names it. It is a cost all
+    the same, and the sentence says exactly what is true here: no number
+    beside it, never that the game files carry none (AK-140).
+    """
+    silent = a_curse_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "Cursed copy", (), [silent]),)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    name = effect_names(game_data, [silent]).pop()
+    assert lines_of(groups) == (
+        f"{name}: no number here shows what this costs.",)
+    assert explain.curses_without_a_figure(groups) == groups[0].lines
+    assert explain.effects_without_a_figure(groups) == ()
+
+
+def test_every_curse_of_the_suggested_copy_stands_in_the_block(game_data,
+                                                               wylder,
+                                                               armament):
+    """AK-159 and the Director's correction of 06.09.2026, in one case.
+
+    **A curse is a trap, a silent effect is not.** Every curse of the copy is
+    in the block, the one with a figure and the one without; the effect that
+    merely does nothing here waits in the `Why` dialog, where it costs no
+    height in a card that measured 16 lines at its worst.
+
+    The names are resolved through the dataset, not through the module: what
+    is compared is the set of curse names against `curse_ids`, so a curse
+    dropped and a curse shown twice are both red (AK-138, AK-148).
+    """
+    biting, _lowered = a_curse_this_armament_cannot_feel(
+        game_data, wylder, armament.weapon)
+    silent_curse = a_curse_that_moves_no_number(game_data, wylder)
+    quiet = an_effect_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "Cursed copy", [quiet],
+                     [biting, silent_curse]),)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[SURVIVAL])
+    block = [line for group in groups for line in group.lines
+             if types.drawn_in_the_block(line)]
+    dialog = [line for group in groups for line in group.lines]
+
+    wanted = effect_names(game_data, [biting, silent_curse])
+    named = {name for name in wanted
+             for line in block if line.text.startswith(f"{name}: ")}
+    assert named == wanted, (
+        f"the block names {sorted(named)} where the copy carries "
+        f"{sorted(wanted)}. Names, not lines: a curse that moves two figures "
+        f"stands in two lines and is one name (AK-159)")
+    quiet_name = effect_names(game_data, [quiet]).pop()
+    assert any(line.text.startswith(f"{quiet_name}: ") for line in dialog), (
+        "the silent effect is named nowhere at all")
+    assert not any(line.text.startswith(f"{quiet_name}: ")
+                   for line in block), (
+        "the silent effect stands in the block, where the Director's "
+        "correction of 06.09.2026 keeps it out")
+
+
+# -- the effects that moved nothing -----------------------------------------
+
+def a_curse_that_moves_no_number(data: dict, hero: dict) -> int:
+    """A curse this build records nothing at all for.
+
+    Asked of `model.compute`: it wrote no source entry, which is the
+    criterion the whole filling rests on -- not "the game files carry no
+    numbers", which for `All Resistances Down` would be false.
+    """
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if not effect.get("is_curse"):
+            continue
+        if not model.compute(hero, advisor.LEVEL, [effect], curves).sources:
+            return int(effect["id"])
+    pytest.skip("every curse in this dataset moves a figure, so there is no "
+                "curse without one to say anything about")
+
+
+def an_effect_that_moves_no_number(data: dict, hero: dict) -> int:
+    """An ordinary effect that works here and still moves no figure.
+
+    Not gated, not another Nightfarer's, not tied to the armaments -- the
+    remainder, which is filling (d) and the commonest thing a relic carries
+    that the sheet cannot price. All four questions are asked of the model
+    and of `effecttext`, never of `explain`.
+    """
+    curves = data.get("curves", {})
+    hero_name = str(hero.get("name", ""))
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if effect.get("is_curse") or effecttext.owner(effect):
+            continue
+        if any(gate in (effect.get("modifiers") or {})
+               for gate in model.GATE_FIELDS):
+            continue
+        if not effecttext.works_for(effect, hero_name):
+            continue
+        build = model.compute(hero, advisor.LEVEL, [effect], curves)
+        if not build.sources and not build.situational:
+            return int(effect["id"])
+    pytest.skip("every ungated effect of this dataset moves a figure at this "
+                "level, so filling (d) has no case here")
+
+
+def an_effect_of_this_nightfarer_that_moves_no_number(data: dict,
+                                                      hero: dict) -> int:
+    """A `[Name] ...` effect belonging to the played Nightfarer, and silent.
+
+    The case AK-152 asks for by name: it works here, so it is never the
+    "another Nightfarer" filling, and on anybody else it is exactly that.
+    """
+    curves = data.get("curves", {})
+    hero_name = str(hero.get("name", ""))
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if effecttext.owner(effect) != hero_name:
+            continue
+        if any(gate in (effect.get("modifiers") or {})
+               for gate in model.GATE_FIELDS):
+            continue
+        build = model.compute(hero, advisor.LEVEL, [effect], curves)
+        if not build.sources and not build.situational:
+            return int(effect["id"])
+    pytest.skip(f"no effect of this dataset belongs to {hero_name} and moves "
+                f"no number, so the ownership filling has no case here")
+
+
+def an_armament_bound_effect_that_moves_no_number(data: dict,
+                                                  hero: dict) -> int:
+    """An effect whose worth is a question about the armaments carried.
+
+    Picked by the gate `model.GATE_FIELDS` itself calls "only with a matching
+    weapon type", "needs several of that weapon equipped" or "changes the
+    armament's skill" -- the model's own account of the family -- and only
+    where the model did not park it as a switch, because a switch is the
+    condition filling and comes first.
+    """
+    curves = data.get("curves", {})
+    hero_name = str(hero.get("name", ""))
+    wanted = {field_name for field_name, why in model.GATE_FIELDS.items()
+              if "weapon" in why or "armament" in why}
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if not any(gate in (effect.get("modifiers") or {})
+                   for gate in wanted):
+            continue
+        if not effecttext.works_for(effect, hero_name):
+            continue
+        build = model.compute(hero, advisor.LEVEL, [effect], curves)
+        if not build.sources and not any(not entry.live
+                                         for entry in build.situational):
+            return int(effect["id"])
+    pytest.skip("no armament-bound effect of this dataset is silent without "
+                "also being a switch, so filling (c) has no case here")
+
+
+def test_the_armament_gates_are_the_ones_the_model_names(game_data):
+    """The four field names are `model.GATE_FIELDS` keys, not a private list.
+
+    A family that drifted from the model's would put an effect into the
+    remainder filling and say `no number here shows what this adds.` about
+    something whose whole answer is "carry the other axe".
+    """
+    named = {field_name for field_name, why in model.GATE_FIELDS.items()
+             if "weapon" in why or "armament" in why}
+
+    assert set(explain._ARMAMENT_GATES) == named, (
+        f"the module and the model disagree about which gates are about the "
+        f"armaments: {sorted(set(explain._ARMAMENT_GATES) ^ named)}")
+
+
+def test_an_effect_of_another_nightfarer_says_whose_it_is(game_data, wylder):
+    """AK-152's own check: the same effect, two Nightfarers, two sentences.
+
+    An effect named `[Wylder] ...` is dead weight on Duchess and works on
+    Wylder. The filling that says so is the strongest news a silent line
+    carries -- this one will never do anything in that slot -- and it is the
+    commonest of the six: 150 of 426 on the save the vorgabe was measured on.
+    """
+    duchess = cases.hero_by_name(game_data, "Duchess")
+    quiet = an_effect_of_this_nightfarer_that_moves_no_number(game_data,
+                                                              wylder)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [quiet]),)
+    name = effect_names(game_data, [quiet]).pop()
+
+    said = {}
+    for hero in (wylder, duchess):
+        ctx = advisor.context(game_data, hero)
+        groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                                 evaluate(problem, chosen, ctx), ctx,
+                                 goals.GOALS[DAMAGE])
+        said[hero["name"]] = groups[0].lines
+
+    assert [line.text for line in said["Duchess"]] == [
+        f"{name}: works only for Wylder, and you are Duchess."]
+    assert [line.silence for line in said["Duchess"]] == [
+        types.SILENT_ANOTHER_NIGHTFARER]
+    assert [line.text for line in said["Wylder"]] == [
+        f"{name}: no number here shows what this adds."], (
+        "an effect whose owner is the Nightfarer being played works, and "
+        "must never be reported as another Nightfarer's")
+
+
+def test_an_effect_waiting_on_a_condition_says_so_in_both_places(game_data,
+                                                                 wylder,
+                                                                 armament):
+    """AK-154: the line and the list at the end come out of one set.
+
+    `Build.situational` with `live == False` is that set. Declaring the
+    condition met has to empty both in the **same** run -- two separate
+    findings of one fact is QA-082 and QA-087, and this project has paid for
+    that twice.
+    """
+    waiting = advisor.a_declarable_effect(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [waiting]),)
+    name = effect_names(game_data, [waiting]).pop()
+
+    def both(declared):
+        ctx = advisor.context(game_data, wylder, reference=armament,
+                              declared=declared)
+        built = evaluate(problem, chosen, ctx)
+        groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                                 built, ctx, goals.GOALS[DAMAGE])
+        return lines_of(groups), explain.not_counted(built)
+
+    waiting_lines, waiting_list = both(())
+    declared_lines, declared_list = both(((waiting, 1),))
+
+    assert waiting_lines == (
+        f"{name}: only applies under a condition, so no number here.",)
+    assert name in waiting_list
+    assert name not in declared_list, (
+        "the condition was declared met and the list at the end of the "
+        "dialog still calls it uncounted")
+    assert not any("under a condition" in line for line in declared_lines), (
+        f"the condition was declared met and the line under the relic still "
+        f"says it is waiting: {declared_lines}")
+
+
+def test_an_effect_bound_to_the_armaments_says_that_and_not_the_remainder(
+        game_data, wylder, armament):
+    """QA-104's family, and why it is not the leftover filling.
+
+    What such an effect is worth is a question about the grid -- carry the
+    matching armament and it counts. `no number here shows what this adds.`
+    would be true and useless: it hides the one thing the player can do
+    about it.
+    """
+    bound = an_armament_bound_effect_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "A relic", [bound]),)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    name = effect_names(game_data, [bound]).pop()
+    assert lines_of(groups) == (
+        f"{name}: it depends on the armaments you carry, so no number here.",)
+    assert [line.silence for line in groups[0].lines] == [
+        types.SILENT_ARMAMENT_BOUND]
+
+
+def test_an_effect_that_fits_two_fillings_takes_the_earlier_one(game_data,
+                                                                wylder,
+                                                                armament):
+    """AK-152: the first filling that fits wins, in the order T-080 §4 sets.
+
+    `Improved Attack Power with 3+ Bows Equipped` fits two of them at once --
+    it is a switch the player can declare, and what it is worth is a question
+    about the armaments. The order decides, and it decides for the switch:
+    the player can turn that one on and see the number, which is the more
+    useful half. 226 effects of this dataset carry both, so this is not a
+    corner.
+    """
+    fits_both = an_effect_that_is_both_a_switch_and_armament_bound(game_data,
+                                                                   wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "A relic", [fits_both]),)
+
+    group, = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    name = effect_names(game_data, [fits_both]).pop()
+    assert lines_of((group,)) == (
+        f"{name}: only applies under a condition, so no number here.",)
+
+
+def an_effect_that_is_both_a_switch_and_armament_bound(data: dict,
+                                                       hero: dict) -> int:
+    """An effect the model parks as a switch **and** gates on the armaments.
+
+    Both halves asked of the model: `Build.situational` for the switch, and
+    `model.GATE_FIELDS`' own wording for the armament family.
+    """
+    curves = data.get("curves", {})
+    wanted = {field_name for field_name, why in model.GATE_FIELDS.items()
+              if "weapon" in why or "armament" in why}
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if not any(gate in (effect.get("modifiers") or {})
+                   for gate in wanted):
+            continue
+        build = model.compute(hero, advisor.LEVEL, [effect], curves)
+        if build.sources:
+            continue
+        if any(not entry.live for entry in build.situational):
+            return int(effect["id"])
+    pytest.skip("no effect of this dataset is both a switch and bound to the "
+                "armaments, so the order of the fillings has no case here")
+
+
+def test_a_silent_effect_is_no_curse_and_carries_no_warning(game_data,
+                                                            wylder,
+                                                            armament):
+    """AK-156: it costs nothing, it brings nothing here.
+
+    The marks belong to what they mean: `✦` and `CURSE` to a price, `⚠` to an
+    effect the game refuses to stack. A silent effect is neither, and the
+    window can only know that from the shape -- which is why `is_curse` is a
+    field and not a character in the sentence.
+    """
+    quiet = an_effect_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "A relic", [quiet]),)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    line, = groups[0].lines
+    assert not line.is_curse
+    assert line.silence == types.SILENT_NO_NUMBER_HERE
+    for mark in ("✦", "⚠", "CURSE", "BAD"):
+        assert mark not in line.text, (
+            f"a silent effect carries {mark!r}, which the window uses for a "
+            f"price or for a refusal to stack: {line.text!r}")
+    assert line.text.endswith("."), (
+        "a line that ends on a sentence carries a full stop (AK-136)")
+
+
+def test_the_two_lists_of_what_carried_no_figure_are_the_lines_themselves(
+        game_data, wylder, armament):
+    """AK-139 and AK-153, including the direction that is easy to skip.
+
+    An effect **with** a figure is in neither list, and a **curse** with one
+    is not in the curse list either -- the direction that is easy to leave
+    out, and a list of every curse would pass every other assertion here.
+    The curses and the effects are two lists and not one: the status line
+    says `2 curses carry no number.` about the first and nothing at all about
+    the second.
+    """
+    quiet = an_effect_that_moves_no_number(game_data, wylder)
+    loud = advisor.raising_effects(game_data, wylder, 1)[0]
+    silent_curse = a_curse_that_moves_no_number(game_data, wylder)
+    biting, _lowered = a_curse_this_armament_cannot_feel(
+        game_data, wylder, armament.weapon)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "A relic", tuple(loud) + (quiet,),
+                     [biting, silent_curse]),)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[SURVIVAL])
+
+    biting_name = effect_names(game_data, [biting]).pop()
+    assert any(line.is_curse and biting_name in line.text
+               and line.silence == types.CARRIES_A_FIGURE
+               for group in groups for line in group.lines), (
+        f"{biting_name!r} moved no figure in this build, so this case cannot "
+        f"tell a list of the silent curses from a list of all of them")
+    loud_name = effect_names(game_data, loud).pop()
+    quiet_name = effect_names(game_data, [quiet]).pop()
+    curse_name = effect_names(game_data, [silent_curse]).pop()
+    assert [line.text for line
+            in explain.effects_without_a_figure(groups)] == [
+        f"{quiet_name}: no number here shows what this adds."]
+    assert [line.text for line
+            in explain.curses_without_a_figure(groups)] == [
+        f"{curse_name}: no number here shows what this costs."]
+    assert not any(loud_name in line.text
+                   for line in explain.effects_without_a_figure(groups)
+                   + explain.curses_without_a_figure(groups)), (
+        "an effect that moved a figure is listed as having moved none")
+
+
+def test_the_advisor_says_nothing_about_the_game_files_and_no_jargon(
+        game_data, wylder, armament):
+    """AK-140, AK-144 and AK-157 over the text of one real run.
+
+    Two claims, and the first is about truth rather than tone: `the game
+    files carry no numbers for these` is **false** for `All Resistances
+    Down`, which lowers seven resistances by 80 apiece and is merely not
+    read by anything the advisor consults. What the lines say instead is
+    that no number stands here.
+
+    The second is A11's vocabulary list. It is asked of the wording this
+    module composes, with the names of the effects taken out of the text
+    first: a relic called something with `Field` in it would be the
+    dataset's word, not the program's, and failing on it would train the
+    next reader to loosen the check.
+    """
+    barred = ("field", "pool", "handle", "beam", "scorer", "source",
+              "snapshot", "slot_index", "not_counted", "contribution")
+    inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
+                                       count=6)
+    problem = advisor.problem([advisor.RED, advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    pools = candidates.pools(inventory, problem, ctx, goals.GOALS, DAMAGE)
+    found = search.beam(problem, pools, types.DEFAULT_BUDGET,
+                        search.goal_scorer(problem, ctx, goals.GOALS[DAMAGE]))
+    chosen = explain.chosen_for(found[0], pools)
+    built = evaluate(problem, chosen, ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             built, ctx, goals.GOALS[DAMAGE])
+
+    shown = list(lines_of(groups)) + [group.count_line for group in groups]
+    shown += list(explain.unknowns(problem)) + [explain.data_note(ctx)]
+    assert shown, "nothing was said, so nothing is being read here"
+
+    for text in shown:
+        assert "carry no numbers" not in text and (
+            "carries no numbers" not in text), text
+    names = set()
+    for choice in found[0].choices:
+        copy = owned_by_handle(inventory, choice.handle)
+        names |= effect_names(game_data, copy.effect_ids + copy.curse_ids)
+        names.add(copy.name)
+    for text in shown:
+        stripped = text.lower()
+        for name in names:
+            stripped = stripped.replace(name.lower(), " ")
+        words = set(stripped.translate(
+            str.maketrans(",.:—-%", "      ")).split())
+        for word in barred:
+            assert word not in words, (
+                f"the advisor says {word!r} to the player: {text!r}")
+
+
+# -- the heading of a slot group --------------------------------------------
+
+def test_the_heading_counts_effects_and_not_the_lines_they_produced():
+    """AK-146: one effect that moves two figures is two lines and one effect.
+
+    Counting lines instead would say `2 of its 1 effects`, which is not a
+    sentence anybody can act on, and it would break the arithmetic the
+    heading exists for.
+    """
+    ctx = a_context({1: "Physical Attack Up"})
+    built = a_build({"physicsAttackRate": [("Physical Attack Up", 1.12, 1)],
+                     "Strength": [("Physical Attack Up", 3, 1)]},
+                    rates=("physicsAttackRate",))
+
+    group, = explain.reasons(a_vessel(1), (a_copy(0, 1, "A relic", [1]),),
+                             a_build({}), built, ctx, goals.GOALS[DAMAGE])
+
+    assert len(group.lines) == 2
+    assert (group.effects_total, group.effects_with_a_figure) == (1, 1)
+    assert group.count_line == "Its one effect moved a number in this build."
+
+
+@pytest.mark.parametrize("effects,moved,wording", [
+    ((), (), "This relic carries no effects of its own."),
+    ((1,), (), "Nothing on this relic moved a number in this build — it "
+               "fills the slot without changing the figure."),
+    ((1,), (1,), "Its one effect moved a number in this build."),
+    ((1, 2), (2,), "1 of its 2 effects moved a number in this build."),
+    ((1, 2), (1, 2), "All 2 of its effects moved a number in this build."),
+])
+def test_the_heading_of_a_group_says_which_case_this_is(effects, moved,
+                                                        wording):
+    """The fillings of `UI_SPEC` T-078 §6 and T-080 §5, written out here.
+
+    Stated rather than imported: a case that asked the module for the
+    sentence it is checking would agree with whatever the module said.
+
+    `Murk`, `Sovereign Sigil` and `Scenic Flatstone` are the three relics of
+    this dataset with no effect role at all -- the first filling is theirs
+    and it is not hypothetical.
+    """
+    ctx = a_context({1: "First", 2: "Second"})
+    built = a_build({f"field{one}": [(f"{'First' if one == 1 else 'Second'}",
+                                      one, one)] for one in moved})
+
+    group, = explain.reasons(a_vessel(1),
+                             (a_copy(0, 1, "A relic", effects),),
+                             a_build({}), built, ctx, goals.GOALS[DAMAGE])
+
+    assert group.count_line == wording
+    assert group.effects_total - group.effects_with_a_figure == len(
+        [line for line in group.lines
+         if line.silence != types.CARRIES_A_FIGURE]), (
+        f"the heading claims {group.effects_with_a_figure} of "
+        f"{group.effects_total} moved a number, and the silent lines below "
+        f"it do not add up to the difference (AK-155): "
+        f"{lines_of((group,))}")
+
+
+def test_a_copy_whose_curse_moved_a_number_is_not_told_nothing_moved(
+        game_data, wylder, armament):
+    """The second new filling stops at the curses, and this is why.
+
+    `Nothing on this relic moved a number in this build` would be false where
+    a curse moved one: the figure did change, downwards. What the heading
+    then says is that none of its **effects** did, and the curse line below
+    speaks for itself.
+    """
+    biting, _lowered = a_curse_this_armament_cannot_feel(
+        game_data, wylder, armament.weapon)
+    quiet = an_effect_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "Cursed copy", [quiet], [biting]),)
+
+    group, = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[SURVIVAL])
+
+    assert group.count_line == (
+        "Its one effect moved no number in this build.")
+    assert group.effects_with_a_figure == 0
+    assert with_a_figure((group,)), (
+        "the curse moved no figure either, so this case cannot tell the two "
+        "headings apart")
 
 
 # -- the run findings -------------------------------------------------------
@@ -594,17 +1232,26 @@ def test_a_curse_the_direction_cannot_feel_is_named(game_data, wylder,
         f"survival direction cannot feel it either and there is no contrast "
         f"in this case")
 
-    blind = explain.unknowns(problem, chosen, base, built, ctx,
-                             goals.GOALS[DAMAGE])
-    feeling = explain.unknowns(problem, chosen, base, built, ctx,
-                               goals.GOALS[SURVIVAL])
+    blind = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+    feeling = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                       goals.GOALS[SURVIVAL]))
 
-    assert blind and all(line.startswith("A curse on Cursed copy changes ")
-                         and line.endswith("which this goal does not rank.")
-                         for line in blind), blind
-    assert feeling == (), (
+    name = effect_names(game_data, [biting]).pop()
+    assert blind and all(
+        line.startswith(f"{name}: ")
+        and line.endswith(" — this figure does not count it.")
+        for line in blind), blind
+    assert feeling and not any("does not count it" in line
+                               for line in feeling), (
         f"the direction that ranks on the HP this curse moved was told it "
         f"does not rank it: {feeling}")
+    assert all("counted against it" in line for line in feeling), (
+        f"the direction that does feel the curse has to say it was charged "
+        f"for it (F3): {feeling}")
+    assert explain.unknowns(problem) == (), (
+        "nothing was held, and the curse now speaks for itself in its own "
+        "group instead of a second time at the end of the dialog")
 
 
 def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
@@ -621,8 +1268,7 @@ def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
     ctx = advisor.context(game_data, wylder, reference=armament)
     base = evaluate(problem, (), ctx)
 
-    lines = explain.unknowns(problem, (), base, base, ctx,
-                             goals.GOALS[DAMAGE])
+    lines = explain.unknowns(problem)
 
     assert lines == ("1 of 3 slots is held, so only the other 2 were filled.",)
 
@@ -646,8 +1292,7 @@ def test_the_two_counts_of_the_held_line_each_take_their_own_verb(game_data,
     ctx = advisor.context(game_data, wylder, reference=armament)
     base = evaluate(problem, (), ctx)
 
-    lines = explain.unknowns(problem, (), base, base, ctx,
-                             goals.GOALS[DAMAGE])
+    lines = explain.unknowns(problem)
 
     assert lines == ("1 of 2 slots is held, so only the other 1 was filled.",)
 
@@ -673,29 +1318,20 @@ def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder,
     ctx = advisor.context(game_data, wylder, reference=armament)
     base = evaluate(problem, (), ctx)
 
-    lines = explain.unknowns(problem, (), base, base, ctx,
-                             goals.GOALS[DAMAGE])
+    lines = explain.unknowns(problem)
 
     assert lines == ("All 2 slots are held, so there was nothing to search — "
                      "this is your build as it stands, with its figure.",)
 
 
-def test_a_run_that_left_nothing_out_says_nothing(game_data, wylder,
-                                                  armament):
+def test_a_run_that_left_nothing_out_says_nothing():
     """Empty is a statement, not an omission (AD-025.2).
 
-    Nothing was held and no curse fell outside the figure, so there is no run
-    finding to carry. The procedural sentences of the direction are not here
-    at all -- they are read off `Goal.scope`, once for the screen (AK-50).
+    Nothing was held, so there is no run finding to carry. The procedural
+    sentences of the direction are not here at all -- they are read off
+    `Goal.scope`, once for the screen (AK-50).
     """
-    roll = advisor.raising_effects(game_data, wylder, 1)[0]
-    problem = advisor.problem([advisor.RED])
-    ctx = advisor.context(game_data, wylder, reference=armament)
-    chosen = (a_copy(0, 1, "A relic", roll),)
-
-    lines = explain.unknowns(problem, chosen, evaluate(problem, (), ctx),
-                             evaluate(problem, chosen, ctx), ctx,
-                             goals.GOALS[DAMAGE])
+    lines = explain.unknowns(advisor.problem([advisor.RED, advisor.RED]))
 
     assert lines == ()
     assert goals.GOALS[DAMAGE].scope, (

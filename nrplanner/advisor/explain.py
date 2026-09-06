@@ -25,11 +25,19 @@ the ranking figure, so no line here says a relic placed lower *because of* it.
 What the lines do say is which negatives were counted against it (`GOAL.md`
 F3), because a suggestion whose price only shows after applying it is a trap.
 
-**The two `unknowns` lines this step adds are run findings** in the sense of
-AD-025: one names how many slots were held, the other names a relic and a
-field. Both need a run to be written, so both travel in the result rather than
-in the registry -- where the procedural sentences of the directions live and
-are drawn once for the screen (AK-50).
+**The `unknowns` line this step adds is a run finding** in the sense of
+AD-025: it names how many slots were held. It needs a run to be written, so
+it travels in the result rather than in the registry -- where the procedural
+sentences of the directions live and are drawn once for the screen (AK-50).
+
+**A line arrives knowing where it belongs, and the window never reads it.**
+Every drawn line comes back inside the group of its slot, saying for itself
+whether it is a curse and why it carries no figure (`types.ReasonLine`,
+`types.SlotReasons`). What used to stand in the text -- `Slot 4, <relic> —`
+in front of every line -- is in the heading of the group now, because a
+window that has to split a sentence to place it splits it on the wrong
+character sooner or later: one field of this dataset is called `Regain — HP
+won back by attacking after a hit` (`UI_SPEC` T-078 §6, AK-147).
 
 **What this module cannot say, said here rather than left to be discovered:**
 
@@ -55,7 +63,7 @@ import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .. import model
+from .. import effecttext, model
 from . import types
 from .evaluate import evaluate
 
@@ -247,17 +255,35 @@ def _is_a_cost(key: str, own: float, built: model.Build) -> bool:
 
 
 def _line(contribution: _Contribution, built: model.Build) -> str:
-    """One effect of one slot, as the player reads it.
+    """One effect and one figure it moved, as the player reads it.
 
-    The slot is numbered the way the window numbers it, from one --
-    `SlotChoice.slot_index` counts from zero because it addresses a slot, and
-    this line is read rather than followed.
+    **Neither the slot number nor the relic name is in here** (`UI_SPEC`
+    T-078 §2 and §4). Both stand in the heading of the group this line hangs
+    under, and repeating them cost up to seven consecutive lines the same
+    thirty-five characters -- the longest line on the real save measured 142
+    characters, of which the repetition was a quarter.
     """
     key, own = contribution.field_key, contribution.own
     cost = ", counted against it" if _is_a_cost(key, own, built) else ""
-    return (f"Slot {contribution.candidate.slot_index + 1}, "
-            f"{contribution.candidate.name} — {contribution.effect_name}: "
+    return (f"{contribution.effect_name}: "
             f"{_named(contribution, built)}{cost}")
+
+
+def _line_the_figure_does_not_count(contribution: _Contribution,
+                                    built: model.Build) -> str:
+    """A curse that moved a number this direction does not rank (AD-015).
+
+    One sentence where there were two. The figure stood in `reasons` and a
+    second line in `unknowns` said `A curse on <relic> changes <field>, which
+    this goal does not rank.` -- the same curse said twice, in two places, the
+    second of them naming a relic that the group heading already names
+    (`UI_SPEC` T-078 §3 filling ii).
+
+    No `, counted against it`: it was not counted against the ranking figure,
+    which is the whole of what this filling says.
+    """
+    return (f"{contribution.effect_name}: {_named(contribution, built)} — "
+            f"this figure does not count it.")
 
 
 def _named(contribution: _Contribution, built: model.Build) -> str:
@@ -273,6 +299,107 @@ def _named(contribution: _Contribution, built: model.Build) -> str:
     label = _field_label(key)
     amount = _amount(key, own, built)
     return amount if label == contribution.effect_name else f"{label} {amount}"
+
+
+# --- the effects that moved nothing, and why -------------------------------
+
+#: The gates that make an effect's worth a question about the armaments on
+#: the grid rather than about the build. They are the keys of
+#: `model.GATE_FIELDS` whose wording says so -- "only with a matching weapon
+#: type", "needs several of that weapon equipped", "changes the armament's
+#: skill" -- and they are named here rather than sniffed out of that wording,
+#: because a family picked by searching another module's English would move
+#: the day someone rewrote a sentence. `tests/test_advisor_explain.py` holds
+#: the two lists against each other.
+_ARMAMENT_GATES = ("triggerOnWepType", "wepTypeTrigger", "wepTypeTriggerCount",
+                   "startSwordArtsId")
+
+
+def _silent_effect(candidate: types.Candidate, effect_id: int,
+                   ctx: types.GoalContext, built: model.Build,
+                   counted_elsewhere: bool) -> types.ReasonLine:
+    """An effect of a chosen copy that produced no line, said in one sentence.
+
+    Six fillings, and **the first that fits wins** in the order `UI_SPEC`
+    T-080 §4 sets: the strongest piece of news first. They are not one
+    sentence with six wordings -- what a player can do about a silent effect
+    differs completely between them. An effect that works for another
+    Nightfarer is dead weight in that slot forever; one waiting on a
+    condition counts the moment the condition holds, and the advisor measured
+    150 of the first and 170 of the second among 426 silent effects on one
+    save.
+
+    **Why the reason is asked of the same reckoning that produced the
+    build** (AD-015): `built.situational` is what `model.compute` actually
+    parked, matched by **id** rather than by name, and the ownership gate is
+    `effecttext.works_for`, which is the function `compute_qualitative`
+    itself asks. Nothing here re-decides what an effect does; it reads back
+    why the calculation had nothing to write down.
+    """
+    def said(text: str, silence: str) -> types.ReasonLine:
+        return types.ReasonLine(slot_index=candidate.slot_index, text=text,
+                                silence=silence)
+
+    name = _effect_name(ctx, effect_id)
+    if not name:
+        return said("One of its effects is not in your game data, so it has "
+                    "no name here and counted for nothing.",
+                    types.SILENT_NOT_IN_THE_DATA)
+    effect = ctx.data["effects"][str(effect_id)]
+    hero = str(ctx.hero.get("name", ""))
+    if not effecttext.works_for(effect, hero):
+        owner = effecttext.owner(effect)
+        return said(
+            f"{name}: works only for {owner}, and you are {hero}." if owner
+            else f"{name}: works only for another Nightfarer, not for "
+                 f"{hero}.",
+            types.SILENT_ANOTHER_NIGHTFARER)
+    if counted_elsewhere:
+        return said(f"{name}: another copy of it is already counted, so this "
+                    f"one adds nothing.", types.SILENT_ALREADY_COUNTED)
+    if any(entry.effect_id == effect_id and not entry.live
+           for entry in built.situational):
+        return said(f"{name}: only applies under a condition, so no number "
+                    f"here.", types.SILENT_UNDER_A_CONDITION)
+    if any(gate in (effect.get("modifiers") or {}) for gate in _ARMAMENT_GATES):
+        return said(f"{name}: it depends on the armaments you carry, so no "
+                    f"number here.", types.SILENT_ARMAMENT_BOUND)
+    return said(f"{name}: no number here shows what this adds.",
+                types.SILENT_NO_NUMBER_HERE)
+
+
+def _count_line(effects: int, with_a_figure: int, moved_something: bool
+                ) -> str:
+    """The heading sentence of one slot group, and its denominator (L-013).
+
+    Without it an effect that moved nothing vanishes and the player goes
+    looking for it; with it the group states how many of the copy's roles are
+    accounted for below (`UI_SPEC` T-078 §6, two fillings added in T-080 §5).
+
+    **Precedence, decided here because the two sources leave it open:** a
+    copy that moved nothing at all gets the sentence that says so, even when
+    it carries exactly one effect. T-080 §5 names that filling as the
+    replacement for `None of its {total} effects ...`, and the question it
+    answers -- why is this being suggested to me at all -- is the same
+    question at one effect as at three. `This relic carries no effects of its
+    own.` still wins over it: with no roles there is nothing for the other
+    sentence to be about.
+    """
+    if not effects:
+        return "This relic carries no effects of its own."
+    if not moved_something:
+        return ("Nothing on this relic moved a number in this build — it "
+                "fills the slot without changing the figure.")
+    if effects == 1:
+        return ("Its one effect moved a number in this build."
+                if with_a_figure else
+                "Its one effect moved no number in this build.")
+    if not with_a_figure:
+        return f"None of its {effects} effects moved a number in this build."
+    if with_a_figure == effects:
+        return f"All {effects} of its effects moved a number in this build."
+    return (f"{with_a_figure} of its {effects} effects moved a number in "
+            f"this build.")
 
 
 # --- the lines themselves --------------------------------------------------
@@ -311,24 +438,132 @@ def chosen_for(suggestion: types.Suggestion,
     return tuple(found)
 
 
-def reasons(chosen: Sequence[types.Candidate], base: model.Build,
-            built: model.Build,
-            ctx: types.GoalContext) -> tuple[str, ...]:
-    """Which effects decided this suggestion, one line each (A5, F3).
+def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
+            base: model.Build, built: model.Build, ctx: types.GoalContext,
+            goal: types.Goal) -> tuple[types.SlotReasons, ...]:
+    """Which effects decided this suggestion, one group per slot (A5, F3).
 
-    One line per effect and per figure it moved, in slot order and then in the
-    order the effects sit on the relic -- the relic's own order, which is the
-    order the picker shows them in, and not an order of size: a percentage and
-    a flat bonus cannot be put on one scale without inventing the exchange
-    rate A7 forbids.
+    One line per effect and per figure it moved, then one line for each
+    effect that moved none, then the curses -- in slot order, and inside a
+    slot in the order the effects sit on the relic. That is the order the
+    picker shows and the order the player reads down the card; it is not an
+    order of size, because a percentage and a flat bonus cannot be put on one
+    scale without inventing the exchange rate A7 forbids. **The curses stay
+    last**: the price belongs at the end, not in the middle.
 
     The negatives are in here beside the gains, marked as counted against the
     relic. That is `GOAL.md` F3 -- *"falls meine negativen auf Relikten meine
     Benefits vernichten, muss ich das wissen"* -- and it is why they are not
     quietly dropped for reading better.
+
+    `problem` and `goal` are here for one filling only: whether the ranking
+    figure feels a curse is a question only the direction can answer, and it
+    is answered by scoring the same assignment again without that one curse
+    (AD-015). With no curse to ask about, nothing is scored.
     """
-    return tuple(_line(contribution, built)
-                 for contribution in _attributed(chosen, base, built, ctx))
+    contributions = _attributed(chosen, base, built, ctx)
+    unfelt = _curses_the_goal_cannot_feel(problem, chosen, ctx, goal,
+                                          built, contributions)
+    already = {entry.effect_id for entries in base.sources.values()
+               for entry in entries}
+    groups = []
+    for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
+        mine = [one for one in contributions
+                if one.candidate.slot_index == candidate.slot_index]
+        with_a_figure = {one.effect_id for one in mine}
+        elsewhere = ({one.effect_id for one in contributions} | already
+                     ) - with_a_figure
+        lines: list[types.ReasonLine] = []
+        for effect_id in candidate.effect_ids:
+            if effect_id in with_a_figure:
+                lines.extend(
+                    types.ReasonLine(slot_index=candidate.slot_index,
+                                     text=_line(one, built))
+                    for one in mine if one.effect_id == effect_id)
+            else:
+                lines.append(_silent_effect(candidate, effect_id, ctx, built,
+                                            effect_id in elsewhere))
+        for curse_id in candidate.curse_ids:
+            lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
+                                      unfelt))
+        counted = sum(1 for effect_id in candidate.effect_ids
+                      if effect_id in with_a_figure)
+        groups.append(types.SlotReasons(
+            slot_index=candidate.slot_index,
+            relic_name=candidate.name,
+            effects_total=len(candidate.effect_ids),
+            effects_with_a_figure=counted,
+            count_line=_count_line(len(candidate.effect_ids), counted,
+                                   bool(mine)),
+            lines=tuple(lines)))
+    return tuple(groups)
+
+
+def _curse_lines(candidate: types.Candidate, curse_id: int,
+                 ctx: types.GoalContext, built: model.Build,
+                 mine: Sequence[_Contribution],
+                 unfelt: frozenset[tuple[int, int]]
+                 ) -> tuple[types.ReasonLine, ...]:
+    """One curse of one copy, in whichever of the three fillings fits.
+
+    A curse is read **once**, under the relic that carries it (`UI_SPEC`
+    T-078 §3). It used to fall into up to three places: a line in `reasons`,
+    the same thing again in `curses`, and for AD-015 a third sentence in
+    `unknowns`.
+
+    A curse the dataset does not carry gets no line, because there is no name
+    to write and `evaluate` counted nothing for it either. That is the one
+    place this differs from a silent effect, which does get a line even
+    unnamed: the heading of a group states how many **effects** moved a
+    figure, and a silent effect that said nothing would make that arithmetic
+    wrong (AK-155). No count covers the curses.
+    """
+    moved = [one for one in mine if one.effect_id == curse_id]
+    if not moved:
+        name = _effect_name(ctx, curse_id)
+        if not name:
+            return ()
+        return (types.ReasonLine(
+            slot_index=candidate.slot_index,
+            text=f"{name}: no number here shows what this costs.",
+            is_curse=True, silence=types.SILENT_NO_NUMBER_HERE),)
+    felt = (candidate.slot_index, curse_id) not in unfelt
+    return tuple(
+        types.ReasonLine(
+            slot_index=candidate.slot_index,
+            text=(_line(one, built) if felt
+                  else _line_the_figure_does_not_count(one, built)),
+            is_curse=True)
+        for one in moved)
+
+
+def curses_without_a_figure(groups: Sequence[types.SlotReasons]
+                            ) -> tuple[types.ReasonLine, ...]:
+    """The curses of the suggested copies to which no figure was written.
+
+    Read back off the groups rather than worked out a second time: these are
+    the very lines the block already shows, and a second derivation of the
+    same set is the fault QA-082 and QA-087 each cost this project a round of
+    work for. The criterion is `UI_SPEC` T-078 §4 -- no line was written, not
+    "the game files carry no numbers", which for `All Resistances Down` would
+    be false.
+    """
+    return tuple(line for group in groups for line in group.lines
+                 if line.is_curse and line.silence != types.CARRIES_A_FIGURE)
+
+
+def effects_without_a_figure(groups: Sequence[types.SlotReasons]
+                             ) -> tuple[types.ReasonLine, ...]:
+    """The effects of the suggested copies to which no figure was written.
+
+    The same reading as `curses_without_a_figure`, and the same set the
+    heading of each group counts: one line per silent effect, so that
+    `effects_total - effects_with_a_figure` can be checked against it
+    (AK-155).
+    """
+    return tuple(line for group in groups for line in group.lines
+                 if not line.is_curse
+                 and line.silence != types.CARRIES_A_FIGURE)
 
 
 def curses(chosen: Sequence[types.Candidate], base: model.Build,
@@ -445,9 +680,10 @@ def _without_the_curse(chosen: Sequence[types.Candidate],
 
 def _curses_the_goal_cannot_feel(problem: types.SlotProblem,
                                  chosen: Sequence[types.Candidate],
-                                 base: model.Build, built: model.Build,
-                                 ctx: types.GoalContext,
-                                 goal: types.Goal) -> list[str]:
+                                 ctx: types.GoalContext, goal: types.Goal,
+                                 built: model.Build,
+                                 contributions: Sequence[_Contribution]
+                                 ) -> frozenset[tuple[int, int]]:
     """AD-015's mandatory line: a cost the ranking figure does not carry.
 
     Everything is weighed, one number is **ranked**. A curse that moves a
@@ -466,46 +702,52 @@ def _curses_the_goal_cannot_feel(problem: types.SlotProblem,
     figure and gets no line -- it is visible in the ranking, which is what the
     line exists to supply when it is not. Naming the other half would need a
     per-field question the registry cannot answer.
+
+    What comes back is which curses those are, by slot and id; the sentence
+    they get is `_line_the_figure_does_not_count`, in the group of the relic
+    that carries them. Nothing is scored when no curse moved a figure -- the
+    question has nothing to be about, and asking it anyway would cost a full
+    evaluation per suggestion for an empty answer.
     """
-    ranked = goal.score(built, ctx).value
     by_curse: dict[tuple[int, int], list[_Contribution]] = {}
-    for contribution in _attributed(chosen, base, built, ctx):
+    for contribution in contributions:
         if contribution.is_curse:
             by_curse.setdefault(
                 (contribution.candidate.slot_index, contribution.effect_id),
                 []).append(contribution)
+    if not by_curse:
+        return frozenset()
 
-    lines: list[str] = []
-    for moved in by_curse.values():
+    ranked = goal.score(built, ctx).value
+    unfelt: set[tuple[int, int]] = set()
+    for carried, moved in by_curse.items():
         carrier = moved[0].candidate
         without = _without_the_curse(chosen, carrier, moved[0].effect_id)
         if goal.score(evaluate(problem, without, ctx), ctx).value != ranked:
             continue
-        lines.extend(
-            f"A curse on {carrier.name} changes "
-            f"{_field_label(contribution.field_key)}, which this goal does "
-            f"not rank."
-            for contribution in moved)
-    return lines
+        unfelt.add(carried)
+    return frozenset(unfelt)
 
 
-def unknowns(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
-             base: model.Build, built: model.Build, ctx: types.GoalContext,
-             goal: types.Goal) -> tuple[str, ...]:
+def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:
     """What this run left out, in the player's language (AD-010, A7).
 
-    Both lines are run findings (AD-025.2): the first carries a count of
-    slots, the second names a relic and a field, and neither could be written
-    before the run. The procedural sentences of the direction are not here --
-    they stand in `Goal.scope`, are read from there once for the screen, and
-    repeating them per result is the noise AK-50 is written against.
+    One line, and it is a run finding in the sense of AD-025.2: it carries a
+    count of slots and could not be written before the run. The procedural
+    sentences of the direction are not here -- they stand in `Goal.scope`,
+    are read from there once for the screen, and repeating them per result is
+    the noise AK-50 is written against.
 
-    Empty is an answer: nothing was held and no curse fell outside the figure.
+    The second line this used to carry -- `A curse on <relic> changes
+    <field>, which this goal does not rank.` -- is gone from here on purpose.
+    It said the same thing as the curse's own line two groups further up, and
+    a player should read a curse once, under the relic that carries it
+    (`UI_SPEC` T-078 §3 filling ii). What it said is now the end of that
+    line.
+
+    Empty is an answer: nothing was held.
     """
-    lines = []
     held = _held_slots_line(problem)
     if held:
-        lines.append(held)
-    lines.extend(_curses_the_goal_cannot_feel(problem, chosen, base, built,
-                                              ctx, goal))
-    return tuple(lines)
+        return (held,)
+    return ()
