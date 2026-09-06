@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtGui import QEnterEvent, QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel
 
@@ -210,12 +210,12 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
 # -- QA-154: what the pointer says before the button goes down -------------
 #
 # The finding read as a hit-area fault and is not one. Measured on 2026-09-06
-# on Windows under Fusion at 150 % scale, at a 1600x900 logical-px window
-# (the window reached both figures, so it is the size this note is named
-# for): 3 420 probe points, one every 4 logical px over the whole 302x178
-# card, each delivered through `qApp.notify` so Qt's own propagation decided
-# it -- **3 420 of 3 420 opened that card, 0 dead**. The labels inside the
-# card do not swallow a press.
+# on Windows under Fusion at 150 % scale, at a 1600x900 logical-px window (the
+# window reached both figures, so it is the size this note is named for):
+# 3 420 probe points, one every 4 logical px over the whole 302x178 card, each
+# delivered through `qApp.notify` so Qt's own propagation decided it --
+# **3 420 of 3 420 opened that card, 0 dead**. The labels on the card do not
+# swallow a press.
 #
 # What is dead is the strip between two cards: 8 logical px at every width
 # measured (1600, 1250, 1067), and a click in it opens nothing. Of the grid
@@ -223,9 +223,30 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
 # quarters is the unfilled remainder of the last row (ten cards in four
 # columns) and the rest is that 8 px lattice.
 #
-# So the reader had no way to see which side of an 8 px line he was on. These
-# cases are about that: the pointer names its card before the click, and
-# names nothing when it is between two.
+# So the reader had no way to see which side of an 8 px line he was on: a near
+# miss opened the neighbour and a miss opened nothing, and the grid looked the
+# same in both cases. These cases are about the mark that now says which.
+#
+# **How the pointer is delivered here, and what that does not prove.** The
+# arrival and departure are sent to the card with `QApplication.sendEvent`, so
+# what runs is `QWidget::event` -> `enterEvent` -> the repaint. What does not
+# run is `QApplicationPrivate::dispatchEnterLeave`, which decides *which*
+# widget gets them -- and it cannot be driven from a test on this program:
+# measured 2026-09-06, `QTest.mouseMove` lands where it is aimed only in the
+# first window a process opens. Every window after it inherits a pointer
+# position from the window before, gets an Enter for whatever card sits under
+# it, and never gets the matching Leave, so a second window opens with a card
+# already marked and keeps it marked through every later move. Under the
+# `windows` platform not even the first move lands. A case built on it would
+# pass or skip by test order.
+#
+# That half was measured instead, at a running window, with the real cursor
+# moved by `QCursor.setPos` (Windows, Fusion, 150 % scale, 1600x900 logical
+# px): pointer on the card marks it; pointer on the **name label inside** the
+# card keeps the same card marked and no other; pointer in the 8 px gap marks
+# nothing; pointer on the neighbour hands the mark over. And a card that Qt
+# could not reach with a pointer at all would fail the press case at the foot
+# of this file, which goes through the propagation that decides delivery.
 
 
 def in_the_same_row(tab) -> tuple:
@@ -244,15 +265,52 @@ def in_the_same_row(tab) -> tuple:
     return left, right, gap
 
 
-def point_at(widget) -> None:
-    """Move the pointer onto `widget`, the way a hand moves it.
+def under_the_pointer(tab) -> set:
+    """Cards Qt has WA_UnderMouse set on, whoever put the pointer there."""
+    return {card.boss["name"] for card in cards(tab) if card.underMouse()}
 
-    Through `QTest.mouseMove`, which goes out to the window system and comes
-    back through Qt's own `dispatchEnterLeave` -- so what is exercised is the
-    dispatch a player's mouse uses, not a hand-fed enter event. Measured to
-    reach the widget under the offscreen platform and under the Windows one.
+
+def moved(before, tab, *placed) -> list[str]:
+    """Which cards changed, other than ones no pointer was placed on.
+
+    Under a display the window opens wherever the physical cursor happens to
+    be and Qt marks the card under it -- correct behaviour of the program,
+    and noise in a comparison about a pointer this case placed itself. Only a
+    card that Qt says has the pointer on it **and** that this case never
+    touched is taken out; a third card marked for any other reason is still a
+    failure.
+
+    Under `offscreen`, which the suite runs on, the set taken out is always
+    empty: the only cards with the pointer on them are the ones named in
+    `placed`. Nothing here is loosened for the run that counts.
     """
-    QTest.mouseMove(widget, widget.rect().center())
+    intended = {card.boss["name"] for card in placed}
+    return sorted(set(differing(before, pictures(tab)))
+                  - (under_the_pointer(tab) - intended))
+
+
+def own_the_pointer(tab, *targets) -> None:
+    """Give up if the physical cursor is on a card the case wants to drive."""
+    taken = sorted(under_the_pointer(tab)
+                   & {card.boss["name"] for card in targets})
+    if taken:
+        pytest.skip(
+            f"the physical pointer is sitting on {taken}, which is a card "
+            f"this case places a pointer on itself -- the two cannot be told "
+            f"apart in a picture. Never the case under `offscreen`.")
+
+
+def pointer_onto(card) -> None:
+    """The pointer arrives on `card`."""
+    centre = QPointF(card.rect().center())
+    QApplication.sendEvent(card, QEnterEvent(
+        centre, centre, QPointF(card.mapToGlobal(centre.toPoint()))))
+    rendered.settle()
+
+
+def pointer_off(card) -> None:
+    """The pointer leaves `card` -- for the gap, or for anywhere else."""
+    QApplication.sendEvent(card, QEvent(QEvent.Leave))
     rendered.settle()
 
 
@@ -260,13 +318,13 @@ def test_the_grid_marks_the_card_the_pointer_is_on(game_data, qapp):
     """QA-154. A near miss has to be visible before the button goes down."""
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         target = cards(tab)[2]
+        own_the_pointer(tab, target)
         before = pictures(tab)
-        point_at(target)
-        after = pictures(tab)
+        pointer_onto(target)
 
-        assert differing(before, after) == [target.boss["name"]], (
+        assert moved(before, tab, target) == [target.boss["name"]], (
             f"the pointer resting on the {target.boss['name']} card changed "
-            f"{differing(before, after)} on the grid")
+            f"{moved(before, tab, target)} on the grid")
 
 
 def test_the_mark_moves_to_the_card_the_pointer_moves_to(game_data, qapp):
@@ -278,41 +336,70 @@ def test_the_mark_moves_to_the_card_the_pointer_moves_to(game_data, qapp):
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, right, _gap = in_the_same_row(tab)
+        own_the_pointer(tab, left, right)
         before = pictures(tab)
-        point_at(left)
-        assert differing(before, pictures(tab)) == [left.boss["name"]], (
+        pointer_onto(left)
+        assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing, so this case cannot tell whether "
             "the mark is handed on")
 
-        point_at(right)
-        assert differing(before, pictures(tab)) == [right.boss["name"]], (
+        pointer_off(left)
+        pointer_onto(right)
+        assert moved(before, tab, right) == [right.boss["name"]], (
             f"with the pointer on {right.boss['name']} the grid marks "
-            f"{differing(before, pictures(tab))}")
+            f"{moved(before, tab, right)}")
 
 
-def test_the_gap_between_two_cards_marks_neither(game_data, qapp):
+def test_the_mark_goes_when_the_pointer_leaves_for_the_gap(game_data, qapp):
     """The half of QA-154 a hit area cannot fix.
 
-    Eight logical px separate two cards and a click there opens nothing.
+    Eight logical px separate two cards and a pointer in there is on nothing.
     That is correct behaviour, and it was indistinguishable from a broken
-    program because the grid looked the same either way. With the pointer in
-    the gap, no card may claim it.
+    program because the grid looked the same either way.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        left, right, gap = in_the_same_row(tab)
+        left, _right, _gap = in_the_same_row(tab)
+        own_the_pointer(tab, left)
         before = pictures(tab)
-        point_at(left)
-        assert differing(before, pictures(tab)) == [left.boss["name"]], (
+        pointer_onto(left)
+        assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing on its way in, so this case cannot "
-            "tell whether the gap takes the mark away")
+            "tell whether leaving takes the mark away")
 
-        QTest.mouseMove(tab.cards, gap)
-        rendered.settle()
-        marked = differing(before, pictures(tab))
-
+        pointer_off(left)
+        marked = moved(before, tab)
         assert marked == [], (
-            f"a pointer in the gap between {left.boss['name']} and "
-            f"{right.boss['name']} marks {marked}")
+            f"the mark stayed on {marked} after the pointer left the card")
+
+
+def test_a_click_between_two_cards_opens_nothing(game_data, qapp):
+    """The gap itself, and how narrow it is.
+
+    A press here goes through Qt's own propagation, the same path that makes
+    every pixel of a card live. Nothing opening is the correct outcome; what
+    was missing is any way for a reader to see he was in the gap before he
+    pressed, which the mark above now gives him.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (window, tab):
+        left, right, gap = in_the_same_row(tab)
+        width = (right.mapTo(tab.cards, QPoint(0, 0)).x()
+                 - left.mapTo(tab.cards, QPoint(0, 0)).x() - left.width())
+
+        opened: list[str] = []
+        for card in cards(tab):
+            card.clicked.connect(lambda boss: opened.append(boss["name"]))
+        point = tab.cards.mapTo(window, gap)
+        target = window.childAt(point) or window
+        QTest.mouseClick(target, Qt.LeftButton, Qt.NoModifier,
+                         target.mapFrom(window, point))
+        rendered.settle()
+
+        assert width > 0, (
+            f"{left.boss['name']} and {right.boss['name']} are drawn with no "
+            f"gap between them, so this case is pressing on a card")
+        assert opened == [], (
+            f"a press in the {width} px gap between {left.boss['name']} and "
+            f"{right.boss['name']} opened {opened}")
 
 
 def test_the_pointer_mark_and_the_chosen_mark_are_told_apart(game_data, qapp):
@@ -329,13 +416,13 @@ def test_the_pointer_mark_and_the_chosen_mark_are_told_apart(game_data, qapp):
     version of this case, and the border alone was carrying the difference.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        left, _right, gap = in_the_same_row(tab)
+        left, _right, _gap = in_the_same_row(tab)
+        own_the_pointer(tab, left)
         plain = interiors(tab)[left.boss["name"]]
 
-        point_at(left)
+        pointer_onto(left)
         hovered = interiors(tab)[left.boss["name"]]
-        QTest.mouseMove(tab.cards, gap)
-        rendered.settle()
+        pointer_off(left)
 
         tab.show_detail(left.boss)
         rendered.settle()
@@ -357,11 +444,12 @@ def test_the_chosen_card_keeps_its_mark_under_the_pointer(game_data, qapp):
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, _right, _gap = in_the_same_row(tab)
+        own_the_pointer(tab, left)
         tab.show_detail(left.boss)
         rendered.settle()
         chosen = pictures(tab)[left.boss["name"]]
 
-        point_at(left)
+        pointer_onto(left)
         assert pictures(tab)[left.boss["name"]] == chosen, (
             f"the pointer changed how the chosen {left.boss['name']} card is "
             f"drawn, so the panel's card and the pointer's card look alike")
@@ -375,7 +463,8 @@ def test_a_press_on_a_label_inside_a_card_opens_that_card(game_data, qapp):
     single `WA_NoMousePropagation` -- or a label that accepts the event --
     would put a dead patch in the middle of a card with nothing on screen to
     show it. The press goes to the label and is delivered through
-    `qApp.notify`, which is where the propagation lives.
+    `qApp.notify`, which is where the propagation lives; a card Qt could not
+    reach with a pointer at all fails here too.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         target = cards(tab)[1]
