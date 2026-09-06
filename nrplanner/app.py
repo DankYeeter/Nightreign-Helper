@@ -22,8 +22,8 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from . import (chalices, damage, datasource, effecttext, favourites,
-               firstrun, inventory, model, shortcut, uiscale, weaponslots,
-               weapons)
+               firstrun, inventory, model, shortcut, singleinstance, uiscale,
+               weaponslots, weapons)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -3851,6 +3851,17 @@ def main() -> int:
     app = QApplication(sys.argv)
     apply_appearance(app)
 
+    # Before anything is read, written or drawn. A second copy that got as
+    # far as the first-run check would already have touched the player's
+    # files, and one that got as far as a window would be the finding itself:
+    # two windows at the same size in the same place, sharing one settings
+    # store, with clicks landing in whichever happens to be in front
+    # (QA-163).
+    running = singleinstance.RunningCopy()
+    if not running.claim():
+        running.raise_the_running_one()
+        return 0
+
     icon = datasource.icon_path()
     if icon:
         app.setWindowIcon(QIcon(str(icon)))
@@ -3874,6 +3885,10 @@ def main() -> int:
 
     window = Planner(data)
     window.show()
+    # After show(), because a window has no native handle before it has been
+    # to the screen. `running` is held for the run of the program: dropping
+    # it would release the claim and let a second copy in.
+    running.announce(int(window.winId()))
     return app.exec()
 
 
