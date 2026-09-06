@@ -46,24 +46,13 @@ P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 
 ## Was Zyklus 14 gebracht hat
 
-**QA-169 ist behoben und am laufenden Fenster belegt** (T-073, T-076): der
-Satz zu `Comes with curse` steht ohne Hover im Absatz und wortgleich im
-Tooltip, eine Konstante speist beide. **Fuer spaeter:** die vier Tests dazu
-laufen offscreen und belegen nur den programmierten Text.
-
-**A15 ist aufgenommen und spezifiziert.** Der Erststart endet heute in einer
-Sackgasse, wenn die Automatik Spielordner oder Spielstand nicht findet — es
-gibt **nirgends** einen Ordnerdialog. Spec: `UI_SPEC.md`, **AK-106 bis
-AK-132**. Dialog **nur** bei gescheiterter Automatik, fuer beide Pfade; aus
-dem Spielordner wird nichts verschoben, der Zielort bleibt fest. Vier
-Designer-Rueckfragen sind im Bericht zu T-074 entschieden.
-
-**Der sechste `power-user`-Lauf misst A11 nicht** (T-075): seine Klicks kamen
-nicht an, und er hat den Effekte-Tab nie geoeffnet. Gueltig bleiben zwei
-Ratestellen — **QA-173**, **QA-174**.
-
-**Daraus wurden Teamregeln** (Agenten-Repo `2ef09c1`): Fragebogen vor dem
-Zyklus · L-010 auf fuenf Pruefungen · `power-user` Schritt 0.
+Ausfuehrlich in `docs/archiv/state-bis-2026-09-03.md`. Kurz: QA-169 behoben
+und am Fenster belegt · A15 aufgenommen und spezifiziert (AK-106 bis AK-132)
+· der sechste `power-user`-Lauf misst A11 **nicht** (Klicks kamen nicht an,
+Effekte-Tab nie geoeffnet), gueltig bleiben QA-173 und QA-174 · **S7 und S8
+des Beraters gebaut** (Suite 864 -> 952, 41 neue Mutationen, alle toetend) ·
+seine Sprache festgelegt (AK-133 bis AK-150) · daraus Teamregeln im
+Agenten-Repo `2ef09c1`.
 
 ## Offen und niemandem zugeordnet
 
@@ -78,8 +67,8 @@ Zyklus · L-010 auf fuenf Pruefungen · `power-user` Schritt 0.
 - **Wartet auf `developer`:** QA-171 (alter Datenabzug kommentarlos, mit A15
   zu erledigen), QA-172 (Fluchspalte folgt der Filteransicht, 10 von 1064),
   QA-175 (Fenster teilweise ausserhalb des Bildschirms), QA-177.
-- **QA-157 ist groesser als aufgenommen:** 61 Stellen, nicht fuenf.
-- **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken;
+- **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
+  **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken;
   `_migrate_keys` macht aus `Bleed build` den Namen `%42leed%20build`.
 - **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
   `CharaInitParam` wird nicht gelesen.
