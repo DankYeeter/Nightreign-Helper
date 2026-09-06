@@ -138,15 +138,14 @@ vorlegen.
 - **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg nach
   Angriffswert; der Spieler hat "die beste Waffe finden" aufgegeben. Waere
   eine **neue Funktion**.
-- **F-I (neu, T-078)** — Wie viel Fluch vertraegt die Slotkarte? Die Spec
-  zeigt **jeden** Fluch im Vorschlagsblock, auch den ohne Zahl: bei drei
-  Fluchrollen drei rote Zeilen in einer sonst vierzeiligen Karte. Ruhiger
-  waere, stumme Fluche erst im `Why`-Dialog zu zeigen — das verstiesse aber
-  gegen "der Preis darf nicht erst nach dem Anwenden sichtbar werden".
-- **F-J (neu, T-078)** — Soll auch ein **Effekt** ohne Zahlenwirkung beim
-  Namen genannt werden, so wie ein Fluch? Heute sagt die Zeile nur
-  "3 of its 5 effects moved a number in this build" und verschweigt, welche
-  zwei nichts bewegt haben.
+**Erledigt 06.09.:** F-I — **jeder Fluch einzeln auf der Karte** (Fassung des
+`ui-ux-designer`). F-J — **stumme Effekte werden beim Namen genannt**.
+Spielwissen des Nutzers dazu, vom Director gegen die Daten geprueft und
+bestaetigt: Fluche gibt es **nur auf Deep-Relikten** (0 von 597 nicht-Deep),
+**1 bis 3** je Relikt (72/48/24), und nur, wenn der Buff gut genug ist (108
+Deep-Relikte ohne Fluch). Der schlechteste Fall der Slotkarte ist damit
+**drei Effekt- plus drei Fluchzeilen**, nicht mehr.
+
 - **Die Streichliste je Tab** (13 Vorschlaege in `UI_SPEC.md` §8).
 
 ## Regeln
