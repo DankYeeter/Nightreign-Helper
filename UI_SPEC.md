@@ -3147,3 +3147,581 @@ der Nachweis vorher unkenntlich gemacht.
    Steam-Menuepunkte. Bei einem Spieler mit deutschem Steam heissen sie
    anders. Die Alternative ist eine allgemeinere Formulierung ohne Menuenamen,
    die dafuer weniger fuehrt.
+
+---
+
+## Die Sprache des Beraters: eine Zeile je Zahl, und die Fluche, auf die
+## keine Zahl passt (ui-ux-designer, T-078) — 2026-09-06
+
+**Grundlage:** `docs/tasks/T-078.md` · `docs/berichte/T-067-developer.md`
+(Abschnitt 2 mit der Beispielzeile, Abschnitt 5 Punkt 3 mit der Messung ueber
+240 Vorschlaege, Abschnitt 7 D-2, Abschnitt 6 D-3, Abschnitt 9 mit den vier
+Wortlauten) · `nrplanner/advisor/explain.py` (alle sechs Funktionen und
+`_line`, `_named`, `_amount`, `_is_a_cost`) · `nrplanner/advisor/types.py`
+(`Candidate`, `Suggestion`, `AdvisorResult`) · `nrplanner/advisor/goals.py`
+(`_ATTACK_RATING_SCOPE`, `_DAMAGE_TAKEN_SCOPE`) · `nrplanner/model.py`
+(`Build.sources`, `Build.qualitative`, `Build.situational`, `label_for`,
+`is_better_lower`, `collapse_by_label`, `compute_qualitative`) ·
+`nrplanner/app.py` (`_show_breakdown`, `_sync_mode`, Zeilen 664-742: `•`,
+`✦`, `⚠`, `CURSE`) · `ARCHITECTURE.md` AD-010, AD-015, AD-025 (Nachtrag VI,
+insbesondere 25.5 und 25.6) · `UI_SPEC.md` §3.2, §3.4, 4.9, AK-18 bis AK-22,
+AK-29/AK-30, T-024 §3.3, §3.6, §4.1, §5.1, den Nachtrag zu OF-20/QA-108/
+QA-113, §1.2 bis §1.5 des T-056-Abschnitts · `GOAL.md` A5, A7, A8, A11, A12,
+A13, F3, OF-13.
+
+**Methode und was davon nicht gesehen ist.** Der Berater hat noch keine
+Oberflaeche (S10 fehlt), das Fenster wurde auf Weisung des Auftrags **nicht**
+gestartet, und im selben Arbeitsbaum arbeitet der `qa-engineer`. Diese Vorgabe
+ist deshalb **vollstaendig aus Bericht, Spec und Quelltext** gearbeitet; keine
+Zeile davon ist am laufenden Programm gesehen. Alle Zahlen ueber die heutige
+Ausgabe (10 bis 43 Zeilen je Vorschlag, Median 21, bis zu sieben Zeilen je
+Slot, laengste Zeile 142 Zeichen, 36 von 309 Relikten mit stummem Fluch)
+stammen aus der Messung des `developer` in T-067 und sind hier **nicht
+nachgemessen**. Wo unten eine Hoehe oder eine Breite zugesichert wird, steht
+sie als **Pruefauftrag mit Messumgebung** (L-009), nicht als Befund.
+
+---
+
+### 1. Die Formfrage: §3.2 gegen §3.4 — entschieden zugunsten der Zeilen
+
+**Der Konflikt.** §3.2 verlangt fuer den Vorschlagsblock **einen** Satz je
+Slot, hoechstens 160 Zeichen (`Chosen for +15.0% Skill Attack Power and +6.0%
+all damage — the largest gain of any Blue relic you own.`). §3.4 Punkt 2
+verlangt im `Why`-Dialog je Slot den Reliktnamen und **darunter die Effekte
+mit ihrem Beitrag**. Gebaut ist die zweite Form.
+
+**Entscheidung: die zweite Form gilt, an beiden Orten. §3.2s Einzelsatz wird
+aufgehoben — ersatzlos, nicht gekuerzt.** Drei Gruende, der erste ist der
+zwingende:
+
+1. **Der Einzelsatz ist nicht ehrlich schreibbar.** Er behauptet in jeder
+   denkbaren Fassung eine Rangfolge unter den Beitraegen ("chosen **for** X",
+   "the largest gain"). Eine solche Rangfolge gibt es nicht: ein Prozentsatz
+   und ein flacher Bonus lassen sich ohne einen Umrechnungskurs nicht
+   vergleichen, den die Spieldateien nicht hergeben — dieselbe Grenze, die
+   AD-023 und OF-13 schon fuer den Fluch gezogen haben und die `explain.py`
+   in seinem Docstring ausdruecklich benennt. Der Satz aus §3.2 ist damit ein
+   **A7-Verstoss meiner eigenen Vorgabe**. Er faellt.
+2. **Ein Auszug braeuchte einen Nenner, und der Nenner kostet mehr als die
+   Zeilen.** Jede Kuerzung ("and 3 more") muesste nach A7/L-013 sagen, wovon
+   sie ein Teil ist, und der Spieler muesste danach doch den `Why`-Dialog
+   oeffnen. Zwei Formen derselben Aussage an zwei Orten ist genau die
+   Fehlerklasse, die dieses Projekt zweimal getroffen hat (QA-082, QA-087)
+   und gegen die AD-024 entschieden hat.
+3. **Der Platz gibt es her.** §3.2 zeigt heute schon **eine
+   Aufzaehlungszeile je Effekt** (`• Improved Melee Attack Power`, aus
+   `_sync_mode`). Die neue Form **ersetzt** diese Zeilen, sie kommt nicht zu
+   ihnen dazu: aus `• <Effektname>` wird `• <Effektname>: <Groesse> <Zahl>`.
+   Der gemessene Median ist 21 Zeilen auf sechs Slots, also **rund 3,5 Zeilen
+   je Slot** — ungefaehr die Zahl der Aufzaehlungszeichen, die dort ohnehin
+   stehen. Teurer wird nur der schlechteste Slot (sieben statt drei Zeilen),
+   und die Slots scrollen (§3.1: die Leiste steht ausserhalb der
+   `QScrollArea`, die Karten stehen darin).
+
+**Was dadurch entfaellt:** der Begruendungssatz aus §3.2 und mit ihm die
+160-Zeichen-Grenze; AK-18 in seiner heutigen Fassung. **Was bleibt:** A5 und
+F3 unveraendert — sie werden von den Zeilen erfuellt, jede nennt einen Effekt
+beim Namen mit dem, was er bewegt hat, und die Negativa sind darunter
+ausgewiesen.
+
+---
+
+### 2. Die Zeilengrammatik (verbindlich, Englisch, A8)
+
+**Eine Zeile ist ein Effekt und eine Groesse, die er bewegt hat.** Bewegt ein
+Effekt zwei Groessen, die `model.collapse_by_label` nicht zusammenfasst, sind
+das zwei Zeilen — das ist die heutige, gebaute Form und sie bleibt.
+
+```
+{effect name}: {figure label} {amount}
+{effect name}: {figure label} {amount}, counted against it
+{effect name}: {amount}
+```
+
+- **`{effect name}`** ist der Name aus dem Datensatz, wie ihn `Build.sources`
+  fuehrt.
+- **`{figure label}`** ist `model.label_for`, bei einem auf eine Waffenklasse
+  beschraenkten Buff mit dem Zusatz `, {class} armaments only` — beides
+  Bestand aus `explain.py::_field_label` und unveraendert.
+- **`{amount}`** ist das Format des Statblatts: `+15.0%` fuer einen
+  Multiplikator, `+1` fuer alles, was addiert (`explain.py::_amount`,
+  identisch mit `app.py::_show_breakdown`). **Keine typografischen
+  Minuszeichen** — das Statblatt schreibt ASCII, und eine zweite Schreibweise
+  waere eine zweite Regel.
+- **Die dritte Fassung ohne `{figure label}`** gilt genau dort, wo die
+  Beschriftung der Groesse dem Effektnamen gleicht — ein Buff, den das Spiel
+  auf eine Bewegung beschraenkt, traegt seinen eigenen Namen als
+  Feldbezeichnung. `Improved Skill Attack Power: Improved Skill Attack Power
+  +15.0%` waere die laengere Art, nichts zu sagen. **Uebernommen wie gebaut**
+  (`explain.py::_named`).
+- **`, counted against it`** steht genau dann, wenn der Beitrag seine Groesse
+  **schlechter** macht, entschieden ueber `model.is_better_lower` und nie
+  ueber das Vorzeichen. **Uebernommen wie gebaut**, Wortlaut bestaetigt: er
+  sagt, dass gegengerechnet wurde, ohne zu behaupten, wie viel es gekostet
+  hat — genau die Auskunft, die F3 verlangt.
+
+**Was aus der Zeile verschwindet: `Slot 4, ` und der Reliktname.** Beide
+stehen im Kopf der Gruppe, unter der die Zeile haengt (§6). Die heutige Zeile
+
+```
+Slot 4, Deep Grand Burning Scene — Physical Attack Up +4: Physical Attack +12.0%
+```
+
+wiederholt auf bis zu sieben aufeinanderfolgenden Zeilen dieselben rund 35
+Zeichen. Das ist die Antwort auf die vierte Frage des Auftrags: **die
+Slotnummer ist doppelt und faellt aus der Zeile**, nicht aus dem Kopf. Der
+Reliktname faellt aus demselben Grund mit. Ergebnis: die laengste Zeile sinkt
+von gemessenen 142 auf rund 105 Zeichen.
+
+**Satzzeichen.** Eine Zeile, die auf einer Zahl oder auf `counted against it`
+endet, traegt **keinen** Punkt — sie ist ein Wert, kein Satz, und das
+Statblatt setzt dort auch keinen. Eine Zeile, die auf einem vollstaendigen
+Satz endet (§3, Fuellung ii und iii), traegt einen.
+
+**Reihenfolge innerhalb einer Slotgruppe:** erst die Effekte in der Ordnung,
+in der sie auf dem Relikt stehen (die Ordnung, die auch der Picker zeigt),
+danach die Fluche. So ist es gebaut, und es ist die richtige Reihenfolge: der
+Preis steht am Ende, nicht dazwischen.
+
+---
+
+### 3. Die Fluchzeilen — drei Fuellungen, eine Familie
+
+Heute zerfaellt ein Fluch auf bis zu drei Orte: eine Zeile in `reasons`, eine
+inhaltsgleiche in `curses`, und im Fall von AD-015 zusaetzlich ein eigener
+Satz in `unknowns`. Ein Spieler soll einen Fluch **einmal** lesen, an der
+Stelle, an der das Relikt steht. Deshalb: **eine Zeile je Fluch und Groesse,
+mit `✦` und in `CURSE`, in der Gruppe ihres Slots**, in einer von drei
+Fuellungen.
+
+**(i) Der Fluch bewegt eine Zahl, die diese Zielrichtung zaehlt.**
+
+> `✦ {curse name}: {figure label} {amount}, counted against it`
+
+(ohne den Zusatz, wenn er die Groesse ausnahmsweise besser macht). Kein Satz
+sagt, das Relikt sei **wegen** des Fluchs schlechter platziert — der Preis
+steht in seiner eigenen Einheit, das Verrechnen bleibt dem Spieler (OF-13,
+AD-023).
+
+**(ii) Der Fluch bewegt eine Zahl, die diese Zielrichtung nicht zaehlt.**
+
+> `✦ {curse name}: {figure label} {amount} — this figure does not count it.`
+
+Das ist die AD-015-Pflichtzeile, **umgebaut von zwei Zeilen auf eine**. Heute
+steht dieselbe Sache zweimal da: die Zahl in `reasons`/`curses` und daneben
+`A curse on <relic> changes <field>, which this goal does not rank.` in
+`unknowns`. Beide Haelften gehoeren in einen Satz, und der Reliktname darin
+ist ueberfluessig, weil die Gruppe ihn traegt. Der Wortlaut folgt der
+Familie, die im Picker schon steht (T-024 §3.6: `Its curse changes <field>,
+which neither figure counts.`) und der QA-113-Zeile (`This figure does not
+count that change.`) — "figure" ist in diesem Programm das Wort fuer die
+Rankingzahl, und der Spieler liest es dort schon.
+
+*Geltungsbereich, unveraendert aus `explain.py`:* die Frage wird **je Fluch**
+gestellt und **an der Rankingzahl** beantwortet (dieselbe Belegung ohne
+diesen einen Fluch noch einmal bewertet). Ein Fluch, der zwei Groessen bewegt
+und davon eine gezaehlte, bewegt die Zahl und bekommt Fuellung (i) — er ist
+im Ranking sichtbar, und genau dafuer gibt es (ii) nicht.
+
+**(iii) Der Fluch bewegt hier gar keine Zahl** (D-2, Abschnitt 4).
+
+> `✦ {curse name}: no number here shows what this costs.`
+
+**Kein Wort ueber die Spieldateien.** Der Satz sagt, was wahr ist — in diesem
+Block steht keine Zahl dazu —, und behauptet **nicht**, dass es keine gaebe.
+Bei drei der betroffenen Relikte gibt es sie (`All Resistances Down` senkt
+sieben Widerstandswerte um je 80); nur die Rechnung des Beraters fuehrt sie
+nirgends. Ein Satz wie "the game files carry no numbers for these" waere dort
+schlicht falsch — er steht heute in 4.9 und wird in Abschnitt 5 entfernt.
+
+**Der Schlusssatz, genau einmal je `Why`-Dialog**, unter allen Slotgruppen,
+`MUTED`, 11 px:
+
+> `✦ marks a curse. A cost with no number beside it is still a cost — weigh it before you apply.`
+
+Er ist zugleich die Legende fuer `✦` (§1.4 des T-056-Abschnitts: eine
+Farbrolle braucht eine Legende) und die einzige Stelle, an der die
+Aufforderung steht. **Nicht je Zeile und nicht je Slot** — sechs Slots
+wuerden ihn sechsmal tragen, und das ist das Rauschen, gegen das AK-50
+geschrieben ist.
+
+---
+
+### 4. Das neue Feld: Fluche ohne Zahl (D-2, Director-Entscheidung)
+
+**Der Befund** (Messung des `developer`, T-067 Abschnitt 7, hier nicht
+nachgemessen): **36 von 309** besessenen Relikten tragen einen Fluch, den das
+Ergebnis in **keinem** Feld nennt — 33 mit reinen Engine-Feldern
+(`Taking Damage Causes Madness Buildup` und Verwandte, sie landen in
+`Build.qualitative`, das kein Feld von `AdvisorResult` fuehrt) und 3 mit
+`All Resistances Down`, das echte Zahlen bewegt, aber weder in `sources` noch
+in `qualitative` steht. §3.2 sagt dazu: *"Ein Vorschlag, dessen Preis erst
+nach dem Anwenden sichtbar wird, ist eine Falle."*
+
+**Vorgabe:** `AdvisorResult` bekommt ein **eigenes Feld** —
+`curses_without_a_figure` — und **nicht** eine Verbreiterung von
+`not_counted` (D-3, Abschnitt 5). Der Name sagt das Kriterium: Fluche der
+**vorgeschlagenen** Kopien, zu denen die Rechnung keine Zahl gefuehrt hat.
+
+**Kriterium, in einem Satz:** ein Fluch einer vorgeschlagenen Kopie, der
+keine Zeile nach §2 erzeugt hat. Nicht "ohne Zahlen in den Spieldateien",
+nicht "konditional" — schlicht: die Rechnung hat nichts zu ihm
+aufgeschrieben.
+
+**Warum das Kriterium so und nicht enger:** es ist **vorwaertskompatibel**.
+Schreibt `model.compute_resistances` eines Tages nach `sources` (Empfehlung
+an den `director`, Abschnitt 11), wandern die drei
+`All Resistances Down`-Relikte von selbst aus Fuellung (iii) in Fuellung (i)
+oder (ii) — ohne dass hier ein Satz oder eine Zahl nachgezogen wird. Eine
+Vorgabe, die "die 36" festschreibt, waere am naechsten Datensatz falsch.
+
+**Was das Feld traegt:** je Fluch **einen** Eintrag, in derselben Zuordnung
+zu einem Slot wie die uebrigen Zeilen (§6). Der gezeigte Text ist Fuellung
+(iii). **Kein Zaehlfeld daneben** — die Anzahl ist die Laenge, wie bei
+`not_counted` (`types.py` sagt das dort schon).
+
+**Die Statuszeile nennt es** (§5): `· {n} curses carry no number.`
+
+---
+
+### 5. Korrektur an 4.9 (D-3, Director-Entscheidung)
+
+**4.9 vermischt heute zwei Mengen.** Der Zustand heisst "Teilweise stumm" und
+sagt `· some effects carry no numbers.`, der `Why`-Dialog dazu `The game
+files carry no numbers for these, so they counted for nothing:`. Gemeint war
+einmal "Effekte ohne Zahlen"; `not_counted` traegt nach AD-010 aber
+**konditionale** Effekte, und das sind zwei verschiedene Dinge: ein
+konditionaler Effekt traegt Zahlen, ein Fluch ohne Zahlen ist nicht
+konditional. **`not_counted` behaelt die Bedeutung aus AD-010.** 4.9 wird
+geteilt.
+
+**4.9 neu — zwei Klauseln, die unabhaengig voneinander auftreten koennen.**
+Sie haengen mit `  ·  ` an den Ergebnissatz aus 4.6 an, in dieser Reihenfolge
+(erst der Preis, dann das Weggelassene), und der ungekuerzte Text steht wie
+jeder Statuszeilentext im Tooltip (§3.1):
+
+| Fall | Klausel (woertlich) |
+|---|---|
+| 4.9a — Fluche ohne Zahl (das neue Feld) | Einzahl `1 curse carries no number.` · Mehrzahl `{n} curses carry no number.` |
+| 4.9b — konditionale Effekte (`not_counted`) | Einzahl `1 effect was left out: it only applies under a condition.` · Mehrzahl `{n} effects were left out: they only apply under a condition.` |
+
+Beispiel mit beidem:
+`Maximise damage — 6 of 6 slots filled  ·  2 curses carry no number.  ·  3 effects were left out: they only apply under a condition.`
+
+**Im `Why`-Dialog** erscheinen die beiden Mengen an **verschiedenen** Orten,
+weil es zwei verschiedene Fragen sind:
+
+- **4.9a steht bei seinem Relikt**, als Fuellung (iii) in der Slotgruppe. Ein
+  Preis gehoert an das Ding, das ihn kostet; eine Sammelliste am Ende des
+  Dialogs verlangt vom Spieler, den Namen zurueckzusuchen.
+- **4.9b steht als eigener Abschnitt** unter den Slotgruppen, mit dieser
+  Ueberschrift, danach die Namen aus `not_counted`, einer je Zeile:
+
+  > `These effects only apply under a condition, so this ranking did not count them:`
+
+  Der alte Satz `The game files carry no numbers for these, so they counted
+  for nothing:` **entfaellt ersatzlos** — er beschreibt keine der beiden
+  Mengen richtig.
+
+**Duplikate bleiben stehen** (zwei Relikte mit derselben ungezaehlten
+Bedingung sind zwei ungezaehlte Effekte; `types.py` begruendet das dort
+bereits). 4.9 und 4.10 bleiben getrennt wie bisher.
+
+---
+
+### 6. Der Kopf einer Slotgruppe, und was die Anzeige nicht selbst herausfinden darf
+
+**Der Kopf.** Jede Slotgruppe traegt zwei Zeilen, danach die Zeilen aus §2
+und §3:
+
+```
+Slot 4 — Deep Grand Burning Scene        (nur im Why-Dialog; im Block steht
+                                          nur der Reliktname)
+3 of its 5 effects moved a number in this build.
+```
+
+Die zweite Zeile ist `MUTED`, 11 px, und sie ist **kein Schmuck**: ohne sie
+verschwindet ein Effekt, der nichts bewegt hat, spurlos, und der Spieler
+sucht ihn. Mit ihr traegt der Auszug seinen Nenner (L-013). Fuellungen,
+woertlich:
+
+| Fall | Wortlaut |
+|---|---|
+| keiner von mehreren | `None of its {total} effects moved a number in this build.` |
+| einige von mehreren | `{n} of its {total} effects moved a number in this build.` |
+| alle von mehreren | `All {total} of its effects moved a number in this build.` |
+| genau ein Effekt, er bewegte nichts | `Its one effect moved no number in this build.` |
+| genau ein Effekt, er bewegte etwas | `Its one effect moved a number in this build.` |
+
+`{total}` sind die Effekte der **Kopie** ohne ihre Fluche
+(`Candidate.effect_ids`); `{n}` sind die davon, die mindestens eine Zeile
+nach §2 erzeugt haben — **Effekte gezaehlt, nicht Zeilen**: ein Effekt, der
+zwei Groessen bewegt, ist einer.
+
+**Strukturelle Auflage — die Anzeige liest keinen Satz.** Alle Zeilen kommen
+heute als flache `tuple[str, ...]` und tragen ihren Slot **im Text**. Sobald
+die Zeilen je Slot gruppiert gezeichnet werden — und §3.2 verlangt genau das,
+denn der Block sitzt in der Slotkarte —, muesste das Fenster den Satz
+zerlegen, um zu wissen, wohin er gehoert. **Das ist verboten.** Ein
+Anzeigecode, der eine Zeichenkette aus `explain.py` nach `Slot `, `—` oder
+`: ` durchsucht, ist genau die Kopplung, an der dieses Projekt schon einmal
+haengengeblieben ist (QA-107), und sie bricht am ersten Reliktnamen, der
+einen Gedankenstrich enthaelt.
+
+Verbindlich ist deshalb die **Eigenschaft**, nicht ihre Bauart — die
+Datenform entscheiden `architect` und `developer`:
+
+1. Jede Zeile erreicht die Anzeige **mit ihrer Slotnummer** (nullbasiert im
+   Datenweg, weil sie einen Slot adressiert; einsbasiert erst im gezeichneten
+   Kopf, wie das Fenster zaehlt).
+2. Jede Zeile erreicht die Anzeige **mit der Auskunft, ob sie ein Fluch ist**.
+   Ohne sie kann das Fenster `✦` und `CURSE` nicht setzen, ohne den Text zu
+   durchsuchen.
+3. Je Slot erreichen die Anzeige die **beiden Zaehlungen** `{n}` und
+   `{total}` aus dem Kopf. Beide entstehen in `explain.py` beilaeufig; im
+   Fenster waeren sie nur durch Zerlegen zu bekommen.
+4. **`reasons` und `curses` werden nie beide gezeichnet.** `curses` ist heute
+   die fluchtragende **Teilmenge** von `reasons` (beide entstehen aus
+   `_attributed`); wer beide Listen zeichnet, zeigt jeden Fluch zweimal. Das
+   Feld bleibt, weil AD-010 es verlangt — gezeichnet wird `reasons`, und die
+   Fluchzeilen darin sind markiert.
+
+---
+
+### 7. Der Vorschlagsblock (§3.2 neu) und der `Why`-Dialog (§3.4 neu)
+
+**§3.2 neu — Vorschlagsblock in der Slotkarte.** Rahmen, Radius, Farbe,
+Innenabstand, Kopfzeile, `Use`-Knopf und der Sonderfall
+`Already equipped — nothing to change here.` bleiben **unveraendert**. Neu
+ist der Rumpf:
+
+```
+SUGGESTED — MAXIMISE DAMAGE                                   [ Use ]
+The Will of the Balancers
+3 of its 5 effects moved a number in this build.
+• Improved Melee Attack Power: Physical Attack +12.0%
+• Improved Skill Attack Power: +15.0%
+• Continuous FP Recovery: FP restored per second +1
+✦ Ultimate Art Charging Impaired: Ultimate Art auto-charge speed -15.0%, counted against it
+✦ Taking Damage Causes Madness Buildup: no number here shows what this costs.
+```
+
+- Aufzaehlungszeichen `•` fuer Effekte, `✦` fuer Fluche, `CURSE` fuer die
+  Fluchzeilen, `⚠` fuer nicht stapelnde Effekte — alles Bestand aus
+  `_sync_mode`, unveraendert.
+- **Keine Slotnummer** (die Karte **ist** der Slot) und **kein**
+  Begruendungssatz mehr.
+- Jede Zeile `setWordWrap(True)`, nichts wird elidiert (4.14 gilt fort).
+
+**§3.4 neu — `Why`-Dialog.** Titel, Groesse, `Close`-Knopf und das Verbot
+eines `Apply` bleiben unveraendert. Inhalt in dieser Reihenfolge:
+
+1. **Kopf:** Ziel, Nightfarer, Vessel, Deep of Night an/aus, wie viele
+   Relikte betrachtet wurden (unveraendert).
+2. **Die Halte-Zeile**, wenn es eine gibt (§8) — sie erklaert, warum
+   moeglicherweise nicht sechs Gruppen folgen, und gehoert deshalb **vor**
+   sie.
+3. **Je Slot eine Gruppe:** Kopf `Slot {n} — {Reliktname}`, Zaehlzeile,
+   Effektzeilen, Fluchzeilen. Slots in ihrer eigenen Ordnung, nicht nach
+   Beitrag sortiert.
+4. **`These effects only apply under a condition, so this ranking did not
+   count them:`** mit den Namen aus `not_counted`, wenn es welche gibt
+   (4.9b).
+5. **Der Schlusssatz mit der `✦`-Legende** (§3), wenn mindestens eine
+   Fluchzeile der Fuellung (ii) oder (iii) im Dialog steht.
+6. **Fusszeile, `MUTED`:** die Verfahrenssaetze der gewaehlten Zielrichtung
+   (`Goal.scope`, einmal je Bildschirm nach AD-025 und AK-50) und darunter die
+   `data_note` (§8). Der Vorbehalt zum Angriffswert steckt seit T-046 in
+   `_ATTACK_RATING_SCOPE` und wird damit von AK-22 ("genau einmal, nicht je
+   Zeile") weiterhin erfuellt — er wird hier nicht ein zweites Mal
+   hingeschrieben.
+
+---
+
+### 8. Die Halte-Zeile und die `data_note`
+
+**Halte-Zeile — uebernommen, mit einer Korrektur am dritten Fall.** Der
+`developer` hat sie richtig gebaut: sie traegt ihren Nenner, sie benutzt
+`held`, also genau das Wort, das der Knopf in der Slotkopfzeile traegt
+(T-024 §4.1: `Hold` / `Held`), und sie erklaert die Folge statt nur den
+Zustand.
+
+> Einzahl: `1 of {slots} slots is held, so only the other {rest} were filled.`
+> Mehrzahl: `{held} of {slots} slots are held, so only the other {rest} were filled.`
+> Alle: `All {slots} slots are held, so there was nothing to search — this is your build as it stands, with its figure.`
+
+Geaendert ist allein der letzte Fall. Gebaut ist heute `…, so nothing was
+searched: this is the build as it stands, scored.` — "scored" steht dort als
+alleinstehendes Partizip am Satzende und ist die Sorte Verkuerzung, bei der
+ein nicht-technischer Spieler raten muss (A11). "with its figure" nennt
+stattdessen das, was er auf dem Schirm sieht, in dem Wort, das der Rest des
+Beraters dafuer benutzt. `the build` → `your build`, weil es seiner ist.
+
+**`data_note` — uebernommen, mit einer Korrektur am Wort `snapshot`.**
+
+> Mit Version, gespeichert: `Ranked on game data version {version}, read from your game files earlier and kept since.`
+> Mit Version, frisch gelesen: `Ranked on game data version {version}, read from your game files just now.`
+> Ohne Version: `Ranked on game data read from your game files {earlier and kept since | just now}. It does not say which game version it is from, so these figures cannot be tied to a patch.`
+
+**Warum `snapshot` faellt:** das Wort steht in AK-127 auf der Verbotsliste des
+Erststarts — ein Spieler weiss nicht, was ein "stored snapshot" ist, und es
+gibt keinen Grund, dasselbe Wort auf einem anderen Schirm doch zu benutzen.
+Die Auskunft, auf die es ankommt, ist nicht der Speicherort, sondern der
+**Zeitpunkt**: sind das die Zahlen meiner heutigen Installation oder aeltere?
+Genau das sagen `earlier and kept since` und `just now`.
+
+Die Versionsnummer bleibt ungeschmueckt stehen (`version 10350000`): sie ist
+die Kennung des Spiels selbst, und der Satz nennt ihren Geltungsbereich
+("game data version"), was A12 verlangt.
+
+---
+
+### 9. Akzeptanzkriterien
+
+Fortlaufend ab **AK-133**. Pruefbar, binaer. Wo eine Pruefung das laufende
+Fenster braucht, ist sie als solche benannt; alle uebrigen sind am Ergebnis
+oder am Quelltext pruefbar, also auch ohne Spielinstallation.
+
+**Form**
+
+- **AK-133** Der Vorschlagsblock zeigt **keinen** zusammenfassenden
+  Begruendungssatz. Die Zeichenkette `Chosen for` kommt im Programm nicht
+  vor, und keine gezeigte Zeile endet auf eine Kuerzungsformel (`and {n}
+  more`, `…` am Zeilenende ausserhalb der Statuszeile).
+- **AK-134** Die Zahl der in einer Slotgruppe gezeichneten Effekt- und
+  Fluchzeilen ist gleich der Zahl der Zeilen, die das Ergebnis fuer diesen
+  Slot traegt. Keine wird ausgelassen, keine zusammengefasst. *Ersetzt
+  AK-18*, dessen "genau ein Begruendungssatz je Slot" mit §1 aufgehoben ist;
+  A5 und AK-19 gelten unveraendert weiter.
+- **AK-135** Keine gezeichnete Zeile nennt die Slotnummer oder den
+  Reliktnamen, die im Kopf ihrer Gruppe stehen. Die Slotnummer erscheint
+  **einsbasiert** und **nur** im Kopf der Gruppe im `Why`-Dialog.
+- **AK-136** Jede Zeile folgt einer der Fassungen aus §2 bzw. §3, woertlich,
+  einschliesslich der Satzzeichenregel: eine Zeile, die auf einer Zahl oder
+  auf `counted against it` endet, traegt keinen Punkt; eine Zeile, die auf
+  einem Satz endet, traegt einen.
+- **AK-137** `, counted against it` steht genau an den Zeilen, deren Beitrag
+  ihre Groesse nach `model.is_better_lower` schlechter macht — nie nach dem
+  Vorzeichen entschieden. Pruefweg: ein Fall mit einem Feld, das kleiner
+  besser ist (FP-Kosten), und eine Senkung darin; die Zeile traegt den Zusatz
+  **nicht**.
+
+**Fluche**
+
+- **AK-138** Fuer jede vorgeschlagene Kopie gilt: die Menge der Fluchnamen in
+  ihrer Slotgruppe ist **gleich** der Menge ihrer `curse_ids`, ueber den
+  Datensatz in Namen aufgeloest. Kein Fluch fehlt, keiner steht doppelt, und
+  jeder steht in genau einer der drei Fuellungen aus §3. Pruefweg: die
+  Aufloesung laeuft unabhaengig von `explain.py` ueber `ctx.data["effects"]`
+  — derselbe Weg, den `test_the_reasons_name_only_effects_the_suggestion_brought`
+  schon geht.
+- **AK-139** `AdvisorResult` traegt ein Feld fuer die Fluche ohne Zahl
+  (`curses_without_a_figure`), getrennt von `not_counted`. Es enthaelt genau
+  die Fluche der vorgeschlagenen Kopien, zu denen keine Zeile nach §2
+  entstanden ist — gepruefte Gegenrichtung: ein Fluch mit einer Zeile ist
+  **nicht** darin.
+- **AK-140** Kein vom Berater gezeigter Text behauptet, die Spieldateien
+  traegen fuer einen Fluch keine Zahlen. Die Zeichenketten `carry no numbers`
+  und `carries no numbers` kommen im Berater nicht vor. (Grund: bei
+  `All Resistances Down` waere die Behauptung falsch.)
+- **AK-141** Der Schlusssatz mit der `✦`-Legende steht **genau einmal** je
+  `Why`-Dialog und in **keinem** Vorschlagsblock.
+
+**4.9 und die Statuszeile**
+
+- **AK-142** `not_counted` enthaelt ausschliesslich konditionale Effekte nach
+  AD-010 (`Build.situational`, `live == False`). Der Satz `The game files
+  carry no numbers for these, so they counted for nothing:` erscheint
+  nirgends mehr. *Ersetzt AK-21.*
+- **AK-143** Die beiden Klauseln aus 4.9a und 4.9b erscheinen woertlich wie
+  in §5, in dieser Reihenfolge, jede nur wenn ihre Menge nicht leer ist, mit
+  richtig gewaehltem Singular/Plural. Der ungekuerzte Statuszeilentext steht
+  im Tooltip.
+
+**Sprache (A11, A12)**
+
+- **AK-144** Der gesamte vom Berater gezeigte Text (Block, `Why`-Dialog,
+  Statuszeile, Tooltips) enthaelt keines der Woerter `field`, `pool`,
+  `handle`, `beam`, `scorer`, `source`, `snapshot`, `slot_index`,
+  `not_counted`, `contribution`. Pruefweg: der ausgelesene Text eines Laufs
+  gegen eine Wortliste.
+- **AK-145** Die Halte-Zeile und die `data_note` folgen §8 woertlich, in
+  allen dort genannten Fuellungen.
+- **AK-146** Die Zaehlzeile im Kopf jeder Slotgruppe folgt §6 woertlich;
+  `{n}` zaehlt **Effekte**, nicht Zeilen. Pruefweg: ein Effekt, der zwei
+  nicht zusammenfassbare Groessen bewegt, ergibt zwei Zeilen und erhoeht
+  `{n}` um eins.
+
+**Struktur und Sicherheit**
+
+- **AK-147** Kein Anzeigecode zerlegt, durchsucht oder schneidet eine
+  Zeichenkette, die aus `explain.py` stammt. Pruefbar per Grep ueber den
+  S10-Code: auf den Ergebnisfeldern mit Zeilen (`reasons`, `curses`, das Feld
+  aus AK-139, `unknowns`) kein `.split(`, `.startswith(`, `.find(`,
+  `.index(`, kein `re.`, kein `in`-Test auf Teilzeichenketten. Slot,
+  Fluch-Eigenschaft und die beiden Zaehlungen kommen aus der Datenform (§6).
+- **AK-148** In keiner Slotgruppe erscheint ein Fluchname zweimal.
+  Insbesondere zeichnet die Oberflaeche nicht `reasons` **und** `curses`.
+- **AK-149** AK-29 und AK-30 gelten unveraendert fuer jede neue Zeile: jedes
+  neue Textelement setzt `setTextFormat()` ausdruecklich, und ein Relikt-,
+  Effekt- oder Fluchname mit `<b>x</b><img src=x>&lt;` erscheint in Block,
+  Dialog, Statuszeile und Tooltip buchstabengetreu.
+
+**Am laufenden Fenster (A13), mit Messumgebung nach L-009**
+
+- **AK-150** Schlechtester gemessener Fall des `developer` nachgestellt —
+  sechs belegte Slots, darunter einer mit **sieben** Effektzeilen und
+  **zwei** Fluchzeilen, laengster Reliktname des Spielstands: in der
+  mittleren Spalte des Build planner entsteht **keine waagerechte**
+  Bildlaufleiste, keine Zeile ist abgeschnitten, keine bricht mitten in einem
+  Begriff (AK-73), und jede ist durch senkrechtes Scrollen erreichbar. Zu
+  messen bei Fensterbreite 1320 px (Startbreite) und UI scale `Automatic`
+  **sowie** 150 %, auf einem 100-%-Bildschirm, unter dem Qt-Stil, mit dem das
+  Programm ausgeliefert wird. **Die Messung nennt Plattform, Stil,
+  Skalierung und ob die Zahlen physisch oder logisch sind** — ohne diese
+  Angaben zaehlt sie nicht.
+
+---
+
+### 10. Ausdruecklich nicht Teil dieser Vorgabe
+
+- **Die Oberflaeche des Beraters insgesamt (S10).** Hier steht die Sprache
+  und die Form der Bloecke, nicht die Anordnung der Leiste, nicht die
+  Nebenlaeufigkeit, nicht das Anwenden.
+- **Die Datenform, in der die Zeilen reisen.** §6 nennt vier Eigenschaften,
+  die sie haben muss. Ob das ein Tupel von Tupeln, ein zweites Feld auf
+  `Suggestion` oder ein eigener Datensatz je Slot wird, entscheiden
+  `architect` und `developer`.
+- **Ob `model.compute_resistances` nach `sources` schreiben soll.**
+  Empfehlung in Abschnitt 11, Entscheidung beim `director`; diese Vorgabe
+  funktioniert in beiden Faellen.
+- **Die Reihenfolge der Vorschlaege untereinander** und alles, was mehr als
+  einen Vorschlag gleichzeitig zeigt.
+- **Die Formatierung einer Differenz** (OF-21) — sie gehoert zum Picker,
+  nicht hierher.
+- **Effekte ohne Zahl, die keine Fluche sind.** Sie sind in der Zaehlzeile
+  (§6) als Differenz sichtbar, bekommen aber keine eigene Zeile. Siehe
+  Abschnitt 11, Frage 2.
+
+---
+
+### 11. Offene Fragen an den App Designer
+
+1. **Wie viel Fluch vertraegt die Slotkarte?** Diese Vorgabe zeigt jeden
+   Fluch eines vorgeschlagenen Relikts im Block, auch den, zu dem es keine
+   Zahl gibt. Bei einem Relikt mit drei Fluchrollen sind das drei rote Zeilen
+   in einer Karte, die sonst vier Zeilen hat. Die Gegenposition waere: im
+   Block nur die Fluche mit Zahl, die stummen erst im `Why`-Dialog. Ich habe
+   mich dagegen entschieden (§3.2: der Preis darf nicht erst nach dem
+   Anwenden sichtbar werden), aber es ist eine Geschmacks- und
+   Vertrauensfrage, keine, die die Daten beantworten.
+2. **Soll ein Effekt ohne Zahl im Block genannt werden, so wie ein Fluch ohne
+   Zahl?** Heute sagt die Zaehlzeile `3 of its 5 effects moved a number in
+   this build.` und schweigt darueber, welche zwei nichts bewegt haben. Sie
+   beim Namen zu nennen waere ehrlicher, kostet aber je Slot bis zu zwei
+   weitere Zeilen fuer Information, die niemanden vor einer Falle bewahrt.
+3. **`Optimize` gegen `Suggest`.** Die Zustandstabelle 4.1-4.14 und mehrere
+   AK sprechen noch vom Knopf `Suggest`; T-024 §5.1 hat ihn in `Optimize`
+   umbenannt. Diese Vorgabe benutzt `Optimize`. Falls der Name doch wieder
+   `Suggest` heissen soll, ist das eine Ersetzung an rund einem Dutzend
+   Stellen — besser jetzt als nach S10.
