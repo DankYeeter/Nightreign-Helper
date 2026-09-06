@@ -127,6 +127,33 @@ QA-078 · QA-087 · QA-088 · QA-066 · QA-019
 DR-004 bis DR-007 · QA-029 · QA-067 · QA-089
 
 ## P9 — Releasefaehigkeit
+
+**Zusaetzlich, Nutzerentscheid 06.09.2026: `pyinstaller` aus den
+Laufzeit-Abhaengigkeiten nehmen** — aber **hier**, nicht frueher.
+
+Heute steht das Bauwerkzeug in `requirements.txt`. Wer das Programm nur aus
+dem Quellcode starten will, installiert ein Paketierwerkzeug mit, das er nie
+braucht. **Kein Defekt:** die `.spec` analysiert `run.py`, und `run.py`
+importiert `pyinstaller` nicht — es landet nicht im Artefakt. Nur Unordnung.
+
+**Warum erst hier:** `release.yml` installiert genau `requirements.txt` und
+ruft danach `pyinstaller` auf. Ein Verschieben ohne Aenderung am Workflow
+**bricht den Release-Build** — und dieser Workflow ist das einzige Stueck des
+Projekts, das **noch nie ausgefuehrt** wurde (A9). Eine ungepruefte Pipeline
+zu aendern, ohne sie danach laufen lassen zu koennen, tauscht Ordnung gegen
+Risiko.
+
+**Vorgehen:** eine eigene **`requirements-build.txt`** statt einer Verschiebung
+nach `requirements-dev.txt` — das trennt "Tests" von "Paketieren", statt
+beides in einen Topf zu werfen, und entspricht dem Vorgehen im
+ApplicationHelper-Projekt desselben Nutzers. `release.yml` installiert dann
+`requirements-build.txt`, `tests.yml` bleibt bei `requirements-dev.txt`.
+**Der Waechter aus `tests.yml`** (pytest darf nicht in `requirements.txt`
+stehen) wird um denselben Fall fuer `pyinstaller` erweitert.
+
+**Abnahme:** derselbe `release-manager`-Lauf, der ohnehin `build` und
+`clean-room` faehrt. Bricht er, ist die Aenderung dort und sofort sichtbar.
+
 QA-036 (Icon-Pack: in ein temporaeres Verzeichnis bauen und umbenennen) ·
 SEC-009 (zwei Punkte, < 10 Zeilen YAML) · `compliance-agent` (`auflagen`) ·
 `technical-writer` · `release-manager` (`build`, `clean-room`) ·
@@ -180,10 +207,15 @@ eine Auftragsdatei.** In Zyklus 13 zweimal gebrochen (T-060 und T-061 liefen
 ohne Datei, dazu zwei Nachtraege per Nachricht).
 
 ## Zurueckgestellt, mit Grund
-- **`ruff`** — dritte Erwaehnung. Ohne Linter ist "Linter sauber" aus der DoD
-  unpruefbar. Eine neue Abhaengigkeit zieht `researcher` und
-  `compliance-agent` (`lizenzen`) nach. Entscheidung des Nutzers, wenn P1 bis
-  P3 stehen.
+- **`ruff` / Linter — entschieden am 06.09.2026, Option B: kein Linter.**
+  Der Nutzer hat die Abnahmezeile abgeschafft statt das Werkzeug zu
+  beschaffen. Begruendung: der tote Code, den dieses Projekt tatsaechlich
+  gefunden hat (QA-061, QA-071, QA-038), liegt auf **Modulebene** — genau
+  das findet `ruff` in der Grundeinstellung **nicht**. Die Funde kamen aus
+  Aufruferanalysen und Mutationslaeufen, nicht aus einem Linter. Die
+  DoD-Zeile ist im Agenten-Repo bedingt gemacht: ohne konfigurierten Linter
+  **entfaellt der Punkt**, und das ist **keine Luecke**. Wird nicht erneut
+  vorgelegt.
 - **C-002** — auf Anweisung des Nutzers ignoriert, nicht erneut vorlegen.
 
 ## Regeln, die fuer jeden Schritt gelten

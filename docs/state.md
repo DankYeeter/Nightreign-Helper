@@ -101,8 +101,10 @@ Anzeigetests.
 
 ## Gesammelte Fragen an den App Designer
 
-- **F-A `ruff` als Linter?** Fuenfte Erwaehnung; ohne ihn ist "Linter sauber"
-  in jeder DoD unpruefbar.
+**Erledigt 06.09.:** F-A (`ruff`) — **Option B gewaehlt**, keine
+Linter-Abhaengigkeit; die DoD-Zeile entfaellt, wo kein Linter konfiguriert
+ist. Nicht erneut vorlegen.
+
 - **F-B QA-096** — Raider x1,18 auf Greataxe/Great Hammer, **keine
   Param-Quelle** (Nenner: 252 Tabellen, 6,66 Mio. Zellen). Lv15-Messung.
 - **F-C QA-097** — Cursed Claws x0,88 fuer alle ausser dem Revenant.
