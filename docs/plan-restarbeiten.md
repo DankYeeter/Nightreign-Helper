@@ -161,6 +161,20 @@ gebrochen.
 **NH-**. docs/lessons.md bleibt Verlauf. L-008 bis L-011 sind teamweite
 Nummern aus der Retrospektive.
 
+**NH-002: Nachweise werden aus dem Qt-Fenster gezogen, nie vom Bildschirm.**
+Am 05.09.2026 lagen vier volle Desktop-Abzuege (2560x1600 = Bildschirm-
+aufloesung) im **oeffentlichen** Repo — mit Desktop-Symbolen, Taskleiste,
+einem fremden Fenstertitel und einem Wetter-Widget mit Ortsbezug. Aufgefallen
+ist es nur, weil ein spaeterer Lauf demselben Fehler aufsass, ihn **selbst
+bemerkte** und vor dem Commit meldete. Entfernt in `264d328`; das Restrisiko
+ueber die alte Commit-Kennung hat der Nutzer ausdruecklich akzeptiert.
+
+Verbindlich: `grab()`/`render()` auf dem Widget oder `PrintWindow` auf dem
+eigenen HWND — **kein** Bildschirmabzug, auch nicht zugeschnitten. Ein
+Zuschnitt kann sich erweitern; ein Fensterabzug kann nichts einfangen, was
+nicht zum Programm gehoert. Wer ein Bild ablegt, prueft vorher seine
+Abmessungen gegen die Bildschirmaufloesung.
+
 **NH-001 (war L-004): jede nicht-triviale Arbeit bekommt eine T-Nummer und
 eine Auftragsdatei.** In Zyklus 13 zweimal gebrochen (T-060 und T-061 liefen
 ohne Datei, dazu zwei Nachtraege per Nachricht).
