@@ -3725,3 +3725,499 @@ oder am Quelltext pruefbar, also auch ohne Spielinstallation.
    umbenannt. Diese Vorgabe benutzt `Optimize`. Falls der Name doch wieder
    `Suggest` heissen soll, ist das eine Ersetzung an rund einem Dutzend
    Stellen — besser jetzt als nach S10.
+
+---
+
+## Nachtrag zu T-078: der stumme Effekt bekommt seinen Namen, und der
+## schlechteste Fall einer Slotkarte ist gemessen statt geschaetzt
+## (ui-ux-designer, T-080) — 2026-09-06
+
+**Grundlage:** `docs/tasks/T-080.md` (die beiden Antworten des App Designers
+und die Gegenpruefung des `director` am Datensatz) · der T-078-Abschnitt
+dieser Datei, insbesondere §2 (Zeilengrammatik), §3 (die drei Fluchfuellungen),
+§4 (`curses_without_a_figure`), §5 (4.9a/4.9b), §6 (Kopf der Slotgruppe und
+die Strukturauflage), §7 (Block und `Why`-Dialog), §9 (AK-133 bis AK-150),
+§11 (die beiden Fragen) · `nrplanner/advisor/explain.py` (`_attributed`,
+`_effect_name`, `reasons`, `curses`, `not_counted`) · `nrplanner/model.py`
+(`compute_qualitative` mit den `why`-Texten, `Situational`, `Build.sources`,
+`Build.qualitative`, `compute_resistances`) · `nrplanner/effecttext.py`
+(`name`, `owner`, `works_for`) · `GOAL.md` A5, A7, A8, A11, A12, F3 ·
+`ARCHITECTURE.md` AD-010, AD-015, AD-023, AD-025.
+
+**Was dieser Nachtrag aendert:** er ergaenzt T-078 um die stumme Effektzeile,
+haelt die Entscheidung zu Frage 1 fest und **ersetzt AK-150**. Alles uebrige
+aus AK-133 bis AK-149 gilt woertlich weiter.
+
+---
+
+### 0. Messumgebung (L-009) — diesmal ist gemessen, nicht geschaetzt
+
+Der T-078-Abschnitt musste seine Zahlen aus dem Bericht des `developer`
+uebernehmen. Fuer diesen Nachtrag ist **selbst gemessen**, headless und ohne
+das Fenster zu starten. Jede Zahl unten stammt aus dieser einen Umgebung:
+
+- **Datensatz:** `nightreign_data.json` aus dem Nutzerverzeichnis,
+  `data_version` **10350000**, 849 Relikte, 2076 Effekte, 252 davon Deep.
+- **Spielstand:** der eigene Spielstand des App Designers, **309 besessene
+  Relikte**, gelesen ueber `nrplanner.inventory.load` — nur lesend.
+- **Rechenumgebung:** Nightfarer **Wylder**, **Stufe 15**, seine
+  Startwaffe als Bezugswaffe **und** als einzige gefuehrte Waffe, **keine**
+  Bedingung als erfuellt erklaert, `weighting=goals.DEFAULT_WEIGHTING`.
+- **Verfahren:** je besessenem Relikt **ein** `Candidate` in Slot 0 gegen
+  einen Grundzustand ohne Reliktwirkung, ausgewertet mit **`explain.reasons`
+  und `explain.curses` selbst** — kein Nachbau der Zeilenlogik. Windows,
+  Python aus `.venv`, 06.09.2026.
+- **Wiederholrezept:** `paths.snapshot_path()` laden, `model.configure`,
+  `inventory.load`, je Relikt `model.compute(hero, 15, [seine Effekt- und
+  Fluchrecords], curves, weapon=Startwaffe, weapons_held=[Startwaffe])`,
+  daraus `explain.reasons([candidate], base, built, ctx)`. Der Aufbau steht in
+  `scripts/measure_advisor_picker.py` bis auf die letzten drei Zeilen schon da.
+
+**Grenzen dieser Messung, ausdruecklich:** sie sieht **einen** Nightfarer und
+**eine** Stufe. Ein Effekt, der nur fuer Ironeye arbeitet, ist hier stumm und
+waere es auf Ironeye nicht. Sie sieht **ein Relikt je Gruppe**; Effekte, die
+sich ueber mehrere Slots nicht stapeln, kann sie nicht zeigen. Und sie ist
+**keine Messung am Fenster**: alle Angaben sind Zeilen und Zeichen, **keine
+Pixel**. Wo unten eine Karte "16 Zeilen" traegt, sind das 16 Zeilen vor dem
+Umbruch — was daraus auf dem Schirm wird, ist AK-160 und noch offen.
+
+---
+
+### 1. Frage 1 ist entschieden und wird nicht wieder aufgemacht
+
+**Jeder Fluch einer vorgeschlagenen Kopie steht im Vorschlagsblock, mit
+Namen — auch der, zu dem es keine Zahl gibt.** Der `Why`-Dialog zeigt
+dieselben Zeilen, nicht mehr und nicht weniger. Entschieden vom App Designer
+am 06.09.2026; T-078 §3 und §7 bleiben damit unveraendert in Kraft.
+
+Die Sorge um die Kartenhoehe aus T-078 §11 Frage 1 ist **entkraeftet**, und
+zwar durch die Daten: ein Relikt traegt **hoechstens drei** Fluche (§2), nicht
+sieben, und drei Fluchrollen gibt es nur dort, wo ohnehin drei Effektrollen
+stehen. Die Zeilenzahl bleibt trotzdem der Punkt, an dem diese Vorgabe am
+Fenster scheitern kann — deshalb §9 und AK-160.
+
+---
+
+### 2. Was auf einem Relikt ueberhaupt stehen kann (Spielwissen, belegt)
+
+Spielwissen des App Designers, hier am Datensatz nachgezaehlt:
+
+> Auf Relikten gibt es 1-3 positive Effekte und dann 1-3 Fluche. Fluche gibt
+> es nur bei Deep-of-Night-Relikten und auch nur, wenn der Effekt gut genug
+> fuer einen Fluch ist.
+
+**Nachgezaehlt ueber alle 849 Relikte des Datensatzes:**
+
+| Aussage | Befund |
+|---|---|
+| Fluche nur auf Deep-Relikten | **0 von 597** nicht-Deep-Relikten traegt einen Fluch — kein einziges |
+| Fluche pro Deep-Relikt | 108 ohne, **72 mit einem, 48 mit zwei, 24 mit drei** — nie mehr |
+| Effektrollen pro Relikt | 230 mit einer, 267 mit zwei, 349 mit drei, **3 mit keiner** |
+
+**Nachgezaehlt ueber die 309 besessenen Relikte des Spielstands:**
+6 Relikte mit einem Effekt, 70 mit zwei, 233 mit drei; 233 ohne Fluch, 46 mit
+einem, 24 mit zwei, **6 mit drei**. Der Fall "drei plus drei" ist also nicht
+theoretisch — er liegt im Inventar.
+
+**Die drei Relikte ohne jede Effektrolle** heissen `Murk`, `Sovereign Sigil`
+und `Scenic Flatstone` (alle rot, alle nicht Deep). Sie sind der Grund, warum
+die Zaehlzeile aus T-078 §6 eine Fuellung fuer `{total} == 0` braucht, die
+dort fehlt — nachgetragen in §5 unten.
+
+**Zwei Beispiele in T-078 sind damit unmoeglich und werden hier berichtigt:**
+`{total}` ist hoechstens **3**, nie 5. Der Beispielkopf in T-078 §6 (`3 of its
+5 effects moved a number in this build.`) und der Beispielblock in T-078 §7
+(`The Will of the Balancers` mit fuenf Effekten) zeigen ein Relikt, das es im
+Spiel nicht gibt. Die **Wortlaute** dort gelten unveraendert; nur die Zahl im
+Beispiel ist falsch. Der Ersatz steht in §3 unten und ist eine echte Kopie aus
+dem Spielstand.
+
+**Wovon diese Grenze nichts sagt: von der Zahl der Zeilen.** Ein Effekt kann
+mehrere Groessen bewegen und dann mehrere Zeilen erzeugen. Gemessen ueber die
+483 Effekte, die auf einem Relikt ueberhaupt rollen koennen: einer erzeugt bis
+zu **fuenf** Zeilen, ein fluchfaehiger bis zu **vier**. Auf dem Spielstand
+erzeugt das echte Relikte mit **neun** Effektzeilen und **vier** Fluchzeilen.
+**"Drei plus drei" begrenzt die Namen, nicht die Zeilen** — wer daraus eine
+Kartenhoehe ableitet, rechnet um den Faktor drei zu klein.
+
+---
+
+### 3. Der stumme Effekt bekommt seinen Namen (Antwort auf Frage 2)
+
+**Entscheidung des App Designers:** ein Effekt der vorgeschlagenen Kopie, zu
+dem keine Zeile nach T-078 §2 entstanden ist, wird **beim Namen genannt** —
+nicht nur als Differenz in der Zaehlzeile.
+
+**Wie oft das vorkommt** (Messumgebung §0): von 309 besessenen Relikten
+tragen **272 mindestens einen** stummen Effekt — 149 einen, 92 zwei, 31 alle
+drei. **49 Relikte haben ueberhaupt keinen Effekt, der eine Zahl bewegt.** Das
+ist kein Randfall, das ist der Normalfall, und genau deshalb ist die
+Zaehlzeile allein zu wenig gewesen: sie sagt "3 von 5" und laesst den Spieler
+raten, welche zwei.
+
+**Er ist kein Fluch und wird nicht wie einer gezeigt.** Kein `✦`, kein
+`CURSE`, keine Warnfarbe, kein `⚠` (das bleibt, was es ist: die Marke fuer
+Effekte, die sich nicht stapeln). Er kostet nichts, er bringt hier nur nichts.
+
+**Form und Ort — eine Zeile in der Slotgruppe, wie die uebrigen:**
+
+- Aufzaehlungszeichen **`•`**, dasselbe wie bei jedem anderen Effekt.
+- **In der Ordnung des Relikts**, zwischen den Zeilen mit Zahl, **nicht** ans
+  Ende der Effekte sortiert. Die Ordnung ist die, die auch der Picker zeigt,
+  und ein Spieler soll die dritte Zeile der dritten Rolle zuordnen koennen.
+  Die Fluche bleiben trotzdem zuletzt (T-078 §2, unveraendert): der Preis
+  steht am Ende.
+- **Farbrolle `MUTED`** (`#8a8a8a`, 4,77:1 auf `PANEL` — reicht fuer
+  Fliesstext), **11 px wie jede andere Effektzeile**. Keine neue Farbe, keine
+  neue Groesse.
+- **Die Farbe traegt keine Information.** Was die Zeile sagt, steht in ihren
+  Worten; nimmt man ihr die Farbe, bleibt die Aussage vollstaendig. `MUTED`
+  ist Betonung, nicht Bedeutung (AK-156).
+- **Gleiche Zeilen in Block und `Why`-Dialog.** Zwei Formen derselben Aussage
+  an zwei Orten ist die Fehlerklasse aus QA-082/QA-087, gegen die T-078 §1
+  schon entschieden hat.
+
+**So sieht eine Slotkarte damit aus.** Kein erfundenes Beispiel: das ist die
+Kopie von `Deep Grand Drizzly Scene` mit dem Handle `3229614356` aus dem
+Spielstand des App Designers, in der Umgebung aus §0 ausgerechnet und in der
+Ordnung, in der die Rollen auf ihr stehen:
+
+```
+SUGGESTED — MAXIMISE DAMAGE                                   [ Use ]
+Deep Grand Drizzly Scene
+2 of its 3 effects moved a number in this build.
+• Partial HP Restoration upon Post-Damage Attacks +2: Regain — HP won back by attacking after a hit +35.0%
+• Improved Damage Negation at Low HP: only applies under a condition, so no number here.
+• Physical Attack Up +3: Physical Attack +10.5%
+✦ Taking Damage Causes Poison Buildup: no number here shows what this costs.
+✦ All Resistances Down: no number here shows what this costs.
+```
+
+Drei Dinge, die dieses eine echte Beispiel zeigt und ein erfundenes verdeckt
+haette: die stumme Zeile steht **mitten** zwischen den Zahlzeilen, weil sie
+dort auf dem Relikt steht; **beide** Fluche sind stumm (der zweite ist
+`All Resistances Down` aus §8, dessen Zahlen es sehr wohl gibt); und die
+erste Zeile enthaelt einen **Gedankenstrich mitten im Feldnamen** —
+`model.RATE_LABELS["regainRate"]` heisst woertlich `Regain — HP won back by
+attacking after a hit`. Anzeigecode, der eine Zeile an `—` zerlegt, bricht
+also **heute** und nicht erst an einem hypothetischen Reliktnamen (AK-147).
+
+---
+
+### 4. Der Wortlaut — sechs Fuellungen, in dieser Reihenfolge geprueft
+
+Die Grammatik ist die von T-078 §2: **Name, Doppelpunkt, was zu sagen ist.**
+Ein Spieler liest in einer Slotgruppe immer dasselbe Muster.
+
+Warum nicht **eine** Fuellung fuer alles: der Grund, warum ein Effekt stumm
+ist, steht bereits berechnet in `Build.qualitative` und `Build.situational`,
+und er ist fuer den Spieler **verschieden viel wert**. Gemessen ueber die 426
+stummen Effekte der 309 besessenen Relikte: **150** davon arbeiten fuer einen
+anderen Nightfarer und sind auf dieser Figur **totes Gewicht**, waehrend
+**170** nur auf eine Bedingung warten und jederzeit zaehlen koennen. Diese
+beiden in einen Satz zu werfen waere die bequeme Ungenauigkeit, die A11
+verbietet.
+
+**Genau eine Fuellung je Zeile. Die erste zutreffende gewinnt, in dieser
+Reihenfolge** — die staerkste Nachricht zuerst:
+
+**(a) Der Effekt gehoert einem anderen Nightfarer** — `effecttext.works_for`
+sagt Nein (150 von 426 gemessen):
+
+> `{effect name}: works only for {owner}, and you are {hero}.`
+
+Kennt der Datensatz keinen Besitzer und schliesst nur die Erlaubnisliste die
+Figur aus:
+
+> `{effect name}: works only for another Nightfarer, not for {hero}.`
+
+**Abgrenzung, die niemand einebnen darf:** ein Effekt, dessen Besitzer die
+**eigene** Figur ist (`[Wylder] …` auf Wylder, 15 Faelle gemessen),
+funktioniert — er bekommt **nie** Fuellung (a), sondern (d).
+
+**(a2) Eine andere Kopie hat ihn schon beigetragen** (`model.NON_ACCUMULATING`,
+im Fenster heute mit `⚠` markiert):
+
+> `{effect name}: another copy of it is already counted, so this one adds nothing.`
+
+Dieser Fall kann nur ueber mehrere Slots auftreten; die Messung aus §0 rechnet
+ein Relikt je Gruppe und sieht ihn nicht — **Haeufigkeit unbekannt, nicht
+gemessen**. Er steht hier, weil er sonst stillschweigend in (d) landen wuerde
+und dort das Falsche saegte: die Zahl gibt es, sie steht nur in einer anderen
+Slotgruppe. **Traegt** das Ergebnis diese Auskunft nicht, faellt der Fall auf
+(d) — das ist zulaessig und behauptet nichts Falsches.
+
+**(b) Der Effekt wartet auf eine Bedingung, in der der Spieler sein kann** —
+er steht als `Situational` mit `live == False` im Build, also in derselben
+Menge, aus der `not_counted` gespeist wird (170 von 426):
+
+> `{effect name}: only applies under a condition, so no number here.`
+
+Woertlich dieselben Worte wie die Ueberschrift aus T-078 §5 (`These effects
+only apply under a condition, …`), damit ein Spieler die Zeile und die Liste
+am Ende des Dialogs als **dieselbe** Sache erkennt.
+
+**(c) Der Effekt haengt an den Armaturen** — die Gattung, die
+`Build.qualitative` mit "only with a matching weapon type", "needs several of
+that weapon equipped" oder "changes the armament's skill" begruendet (58 von
+426), und die nach QA-104 ausdruecklich **nicht** in `not_counted` gehoert:
+
+> `{effect name}: it depends on the armaments you carry, so no number here.`
+
+**(d) Alles Uebrige** — er wirkt, laesst sich hier aber auf keine Zahl bringen
+(48 von 426: reine Engine-Wirkung, "Wylder-specific", Zeitfenster, und die 33
+Widerstandseffekte aus §8):
+
+> `{effect name}: no number here shows what this adds.`
+
+Dieselbe Familie wie die Fluchfuellung (iii) aus T-078 §3 — **ein** Wort
+anders: `costs` dort, `adds` hier. **Kein Wort ueber die Spieldateien**
+(AK-140 gilt fort): der Satz sagt, dass hier keine Zahl steht, und nicht, dass
+es keine gaebe. Bei den 33 Widerstandseffekten gaebe es sie.
+
+**(e) Der Datensatz kennt den Effekt nicht** — `_effect_name` gibt `None`, es
+gibt also **keinen Namen**, den man hinschreiben koennte:
+
+> `One of its effects is not in your game data, so it has no name here and counted for nothing.`
+
+Auf dem heutigen Spielstand kommt dieser Fall **null Mal** vor (309 Relikte,
+alle Effekt- und Fluch-Ids im Datensatz aufloesbar). Er ist trotzdem
+spezifiziert: `explain._effect_name` hat diesen Zweig, QA-004/QA-032 sind
+genau dieser Fall, und ohne die Zeile verschwaende ein Effekt spurlos aus der
+Rechnung der Zaehlzeile — der stille Fehler, den A7 verbietet.
+
+**Laenge, gemessen:** die laengste stumme Zeile, die dieser Spielstand
+erzeugen kann, ist **rund 150 Zeichen** — der Effektname
+`[Wylder] Standard attacks enhanced with fiery follow-ups when using Character
+Skill (greatsword only)` ist allein 101 Zeichen lang. Das ist **laenger als
+alles, was T-078 kannte** (142 Zeichen in der alten Form, ~106 in der neuen).
+Die Zeile bricht um, sie wird nicht gekuerzt (4.14, AK-160).
+
+---
+
+### 5. Die Zaehlzeile bleibt — und wird dadurch nachrechenbar
+
+Sie bleibt woertlich wie in T-078 §6, aus drei Gruenden:
+
+1. Sie traegt den Nenner (L-013). `{total}` ist die Zahl der Effektrollen der
+   Kopie, und die steht nirgends sonst.
+2. Sie ist jetzt **pruefbar gegen das, was darunter steht**: `{total} − {n}`
+   muss genau die Zahl der stummen Zeilen sein. Aus einer Behauptung wird eine
+   Rechnung, die ein Test nachvollziehen kann (AK-155).
+3. Eine Regel mit Ausnahme ("die Zeile entfaellt, wenn alle Effekte genannt
+   sind") kostet mehr, als die eine Zeile spart, die sie einspart.
+
+**Zwei Fuellungen kommen dazu**, die T-078 §6 fehlen:
+
+| Fall | Wortlaut |
+|---|---|
+| die Kopie hat **keine** Effektrolle (`Murk`, `Sovereign Sigil`, `Scenic Flatstone`) | `This relic carries no effects of its own.` |
+| **kein** Effekt und **kein** Fluch der Kopie hat eine Zahl bewegt | `Nothing on this relic moved a number in this build — it fills the slot without changing the figure.` |
+
+Die zweite ersetzt in diesem Fall die Fuellung `None of its {total} effects
+moved a number in this build.` und beantwortet die Frage, die ein Spieler dann
+zu Recht stellt: warum schlaegt es mir das dann vor? Die ehrliche Antwort ist
+die, die dort steht — der Slot wird gefuellt, die Zahl bewegt sich nicht. Ein
+Satz ueber die Suche ("das Beste, was deine Farben hergeben") waere eine
+Behauptung ueber den Suchlauf, die diese Zeile nicht belegen kann.
+
+Bewegt zwar kein Effekt, aber ein **Fluch** eine Zahl, bleibt es bei `None of
+its {total} effects moved a number in this build.` — die Fluchzeile spricht
+dann fuer sich, und "nothing moved a number" waere schlicht falsch.
+
+**49 der 309 besessenen Relikte** fallen in diese Gegend (kein Effekt mit
+Zahl); wie viele davon je vorgeschlagen werden, ist **nicht gemessen** — dafuer
+braucht es einen vollstaendigen Lauf des Beraters, den es ohne S9/S10 noch
+nicht gibt.
+
+---
+
+### 6. Verhaeltnis zur Liste 4.9b — beide bleiben, aus einer Menge
+
+170 der 426 stummen Effekte sind konditional und stehen damit **auch** in der
+Liste, die T-078 §5 unter die Slotgruppen setzt (`These effects only apply
+under a condition, so this ranking did not count them:`). Ein Name kann also
+zweimal im `Why`-Dialog stehen.
+
+**Das bleibt so, und die Liste wird nicht gekuerzt.** Sie ist **buildweit** —
+sie deckt auch gehaltene Slots, die gar keine Slotgruppe haben; wer sie auf
+"was in keiner Gruppe steht" zusammenstreicht, nimmt ihr den Nenner und
+schafft eine dritte Menge, die niemand erklaeren kann. Die Slotgruppe
+beantwortet "was tut dieses Relikt fuer mich", die Liste beantwortet "was hat
+die Rechnung ausgelassen". Detail und Sammelblick, nicht zwei Fassungen
+derselben Aussage.
+
+**Was verhindert wird, ist das Auseinanderlaufen:** beide Ansichten muessen
+aus **einer** Menge entstehen — den `Situational`-Eintraegen mit
+`live == False` —, die eine ueber die Zuordnung `Situational.effect_id` zu
+`Candidate.effect_ids` gefiltert, die andere ungefiltert. Zwei getrennte
+Ermittlungen desselben Sachverhalts sind QA-082/QA-087, und die kosten dieses
+Projekt zum dritten Mal Zeit (AK-154).
+
+Die Statuszeilenklausel 4.9b bleibt buildweit und unveraendert.
+
+---
+
+### 7. Was das Ergebnis tragen muss (Fortschreibung von T-078 §6)
+
+`AdvisorResult` bekommt neben `curses_without_a_figure` ein zweites Feld,
+**`effects_without_a_figure`**, mit demselben Kriterium und derselben
+Begruendung: ein Effekt einer **vorgeschlagenen** Kopie, zu dem die Rechnung
+**keine** Zeile nach T-078 §2 aufgeschrieben hat. Nicht "ohne Zahlen in den
+Spieldateien", nicht "konditional" — schlicht: es ist keine Zeile entstanden.
+Kein Zaehlfeld daneben; die Anzahl ist die Laenge.
+
+Die vier strukturellen Auflagen aus T-078 §6 gelten fuer diese Zeilen
+unveraendert weiter, mit zwei Ergaenzungen:
+
+5. **Jede stumme Zeile erreicht die Anzeige mit ihrer Fuellung** (a, a2, b, c,
+   d, e) **als eigener Auskunft** und mit den einzusetzenden Namen
+   (`{owner}`, `{hero}`). Das Fenster darf die Fuellung **nicht** aus dem Text
+   erschliessen — kein Suchen nach `works only for`, kein Vergleich von
+   Zeichenketten. Das ist AK-147, hier fortgeschrieben.
+6. **Die Fuellung kommt aus derselben Rechnung, die `Build.qualitative` und
+   `Build.situational` fuellt** (AD-015: keine zweite Meinung ueber denselben
+   Effektsatz). `explain.py` liest sie ab, es liest den Effektsatz nicht ein
+   zweites Mal.
+
+---
+
+### 8. Nebenbefund fuer den `director`: die Widerstandsluecke ist groesser als
+### T-078 wusste
+
+T-078 §4 nannte drei besessene Relikte mit `All Resistances Down`, deren
+Zahlen weder in `sources` noch in `qualitative` stehen, weil
+`model.compute_resistances` nirgendwohin schreibt, was `explain.py` liest.
+
+**Gemessen: es sind nicht nur die Fluche.** Von den 426 stummen **positiven**
+Effekten sind **33** Widerstandseffekte (`Improved Poison Resistance`,
+`Improved Frost Resistance` und ihre `+1`-Varianten) — sie stehen in
+`Build.qualitative` **nicht** und in `sources` **nicht**. Sie sind heute die
+einzige Gruppe stummer Effekte, fuer die das Programm **keinen** Grund kennt,
+und sie bekommen deshalb Fuellung (d), obwohl es die Zahl gibt.
+
+Das aendert an dieser Vorgabe **nichts** — sie ist vorwaertskompatibel
+gebaut: schreibt `compute_resistances` eines Tages nach `sources`, wandern
+diese 33 Effekte und die drei `All Resistances Down`-Fluche von selbst in
+gewoehnliche Zeilen nach T-078 §2. Es erhoeht aber das Gewicht der Empfehlung
+aus T-078 §11: die Luecke betrifft **36 Zeilen auf einem einzigen
+Spielstand**, nicht drei.
+
+---
+
+### 9. Akzeptanzkriterien (ab AK-151)
+
+**Der stumme Effekt**
+
+- **AK-151** Jeder Effekt einer vorgeschlagenen Kopie, zu dem keine Zeile nach
+  T-078 §2 entstanden ist, erscheint **mit Namen** in der Slotgruppe seines
+  Slots, **genau einmal**, mit `•`, in der Ordnung des Relikts. Gegenrichtung
+  geprueft: ein Effekt **mit** Zahlzeile bekommt **keine** stumme Zeile. Gilt
+  im Vorschlagsblock **und** im `Why`-Dialog, mit identischem Text.
+- **AK-152** Der Wortlaut jeder stummen Zeile ist einer der aus §4, woertlich,
+  mit Punkt am Ende. Die Fuellung wird in der dort genannten Reihenfolge
+  bestimmt (a → a2 → b → c → d → e), und ein Effekt, dessen Besitzer die
+  gespielte Figur **ist**, bekommt nie Fuellung (a). Pruefweg: ein
+  `[Wylder]`-Effekt ohne Zahl ergibt auf Wylder (d), auf Duchess (a).
+- **AK-153** `AdvisorResult` traegt `effects_without_a_figure` getrennt von
+  `curses_without_a_figure` und von `not_counted`. Es enthaelt genau die
+  Effekte der vorgeschlagenen Kopien ohne Zeile nach T-078 §2.
+- **AK-154** Die stummen Zeilen der Fuellung (b) und die Liste aus 4.9b
+  entstehen aus **einer** Menge (`Build.situational`, `live == False`).
+  Pruefweg: dieselbe Bedingung als erfuellt erklaeren — der Effekt
+  verschwindet in **demselben** Lauf aus beiden, oder aus keinem.
+- **AK-155** In jeder Slotgruppe gilt `{total} − {n}` **genau** gleich der
+  Zahl der gezeichneten stummen Zeilen — ohne Ausnahme, auch fuer Effekte
+  ohne Namen im Datensatz (Fuellung e). Pruefweg: ein Ergebnis mit einer
+  Effekt-Id, die der Datensatz nicht kennt.
+- **AK-156** Keine stumme Zeile benutzt `✦`, `CURSE`/`BAD`, `⚠` oder eine
+  Warnfarbe; die einzige verwendete Farbrolle ist `MUTED`, die Schriftgroesse
+  ist die der uebrigen Effektzeilen (11 px). Pruefweg: der Text der Zeile ohne
+  jede Formatierung gelesen sagt vollstaendig, was sie sagt.
+- **AK-157** Keine stumme Zeile behauptet etwas ueber die Spieldateien; die
+  Zeichenketten `carry no numbers` und `carries no numbers` kommen im Berater
+  weiterhin nicht vor (AK-140 fortgeschrieben), und keines der Woerter aus
+  AK-144 erscheint in ihr.
+
+**Die Zaehlzeile**
+
+- **AK-158** Die Zaehlzeile aus T-078 §6 steht in **jeder** Slotgruppe, auch
+  wenn jeder Effekt darunter genannt ist, und benutzt die beiden neuen
+  Fuellungen aus §5 in genau den dort genannten Faellen. Pruefweg: eine Kopie
+  ohne Effektrollen (`Murk`) und eine Kopie, deren Effekte und Fluche alle
+  stumm sind.
+
+**Die Fluche (Entscheidung zu Frage 1, festgehalten)**
+
+- **AK-159** Die Menge der Fluchnamen im **Vorschlagsblock** einer Slotkarte
+  ist gleich der Menge der `curse_ids` der vorgeschlagenen Kopie, in Namen
+  aufgeloest — nicht nur im `Why`-Dialog. Verglichen werden **Namen, nicht
+  Zeilen**: ein Fluch, der zwei Groessen bewegt, steht in zwei Zeilen und ist
+  ein Name. (Das ist AK-138 fuer den Block; beide gelten.)
+
+**Am laufenden Fenster (A13), mit Messumgebung nach L-009 — ersetzt AK-150**
+
+- **AK-160** *Ersetzt AK-150 vollstaendig.* Der schlechteste Fall ist
+  **gemessen**, nicht geschaetzt, und er ist groesser als AK-150 annahm:
+
+  | Groesse | AK-150 nahm an | gemessen (Umgebung §0) |
+  |---|---|---|
+  | Zeilen je Slotgruppe | 7 Effekt- + 2 Fluchzeilen = 9 | **14** gezeichnete Zeilen |
+  | schlimmstes Relikt | unbenannt | `Deep Grand Tranquil Scene`: 3 Effekte → **9** Zahlzeilen, 3 Fluche → **4** Zahlzeilen + **1** stumme |
+  | dazu je Gruppe | — | Reliktname + Zaehlzeile = **16 Zeilen** in einer Karte |
+  | laengste Zahlzeile | ~105 Zeichen geschaetzt | **106** Zeichen (`[Wylder] Improved Intelligence and Faith, Reduced Strength and Dexterity: Dexterity -5, counted against it`) |
+  | laengste Zeile ueberhaupt | nicht bedacht | **rund 150** Zeichen: ein stummer Effekt mit 101-Zeichen-Namen plus Fuellung (b) |
+  | laengster Reliktname | "laengster des Spielstands" | `Deep Polished Tranquil Scene`, 28 Zeichen |
+
+  **Zu pruefen:** sechs belegte Slots, darunter die Kopie von `Deep Grand
+  Tranquil Scene`, die diese 14 Zeilen erzeugt. In der mittleren Spalte des
+  Build planner entsteht **keine waagerechte** Bildlaufleiste, keine Zeile ist
+  abgeschnitten, keine bricht mitten in einem Begriff (AK-73), jede ist durch
+  senkrechtes Scrollen erreichbar, und die 150-Zeichen-Zeile **bricht um**,
+  statt elidiert zu werden (4.14). Zu messen bei Fensterbreite **1320 px**
+  (Startbreite) und UI scale `Automatic` **sowie** 150 %, auf einem
+  100-%-Bildschirm, unter dem Qt-Stil, mit dem das Programm ausgeliefert wird.
+  **Die Messung nennt Plattform, Stil, Skalierung und ob die Zahlen physisch
+  oder logisch sind** — ohne diese Angaben zaehlt sie nicht (L-009).
+- **AK-161** Die Zeilenzahl je Vorschlag wird nach dem Einbau **neu gemessen**
+  und im Bericht genannt. Die Zahlen aus T-067 (10 bis 43 Zeilen je Vorschlag,
+  Median 21) sind **vor** den stummen Zeilen entstanden und tragen nicht mehr;
+  ein Vorschlag kann jetzt bis zu sechs Slotgruppen mit je bis zu 16 Zeilen
+  haben.
+
+---
+
+### 10. Ausdruecklich nicht Teil dieses Nachtrags
+
+- **Ob der Berater ein Relikt vorschlagen soll, dessen Effekte allesamt stumm
+  sind.** Das ist eine Frage an die Rangfolge, nicht an die Sprache. Diese
+  Vorgabe sagt nur, wie es dasteht, wenn es passiert.
+- **Ob `model.compute_resistances` nach `sources` schreibt** (§8) —
+  Entscheidung beim `director`, diese Vorgabe funktioniert in beiden Faellen.
+- **Die Oberflaeche des Beraters (S10)**, die Zustandstabelle 4.1-4.14 und der
+  Name des Knopfes.
+- **Pixel.** §0 misst Zeilen und Zeichen. Was daraus auf dem Schirm wird,
+  entscheidet AK-160 am laufenden Fenster.
+
+---
+
+### 11. Offene Fragen an den App Designer
+
+1. **Der Effekt, der auf dieser Figur totes Gewicht ist — reicht ihm
+   `MUTED`?** Fuellung (a) trifft **150 der 426** stummen Effekte auf dem
+   eigenen Spielstand, und sie ist die einzige, die sagt: dieser Effekt tut
+   hier **nie** etwas. Der Rest des Programms zeigt genau das auf den
+   Slotkarten als `NOT WORKING` mit Durchstreichung. Im Vorschlagsblock steht
+   er nach dieser Vorgabe still und grau wie die anderen Fuellungen — weil der
+   App Designer gesagt hat: keine Warnfarbe, er kostet nichts. Das ist
+   richtig, solange man "kostet" als Rechengroesse liest. Als **Slotplatz**
+   kostet er sehr wohl. Soll Fuellung (a) die Behandlung bekommen, die der
+   Rest des Programms ihr gibt?
+2. **Sollen die stummen Zeilen im Vorschlagsblock stehen, oder nur im
+   `Why`-Dialog?** Diese Vorgabe zeigt sie an beiden Orten, weil zwei Formen
+   an zwei Orten die Fehlerklasse aus QA-082 sind. Der Preis ist Hoehe: die
+   Karte waechst im gemessenen schlimmsten Fall auf 16 Zeilen, und eine davon
+   ist 150 Zeichen lang. Die Gegenposition waere: im Block nur die Zeilen mit
+   Zahl und die Fluche, die stummen Effekte erst im Dialog — anders als beim
+   Fluch waere das kein verstecktes Risiko, denn ein stummer Effekt ist keine
+   Falle.
