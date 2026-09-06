@@ -1449,12 +1449,304 @@ MUTATIONS: dict[str, Mutation] = {
             "tests/test_relic_picker_geometry.py::"
             "test_the_picker_opens_wide_enough_for_the_cards_it_opens_with."),
     ),
+    "nightlord-card-without-a-name": Mutation(
+        path="nrplanner/pressable.py",
+        old="""        self.setAccessibleName(name)
+""",
+        new="""        self.setAccessibleName("")
+""",
+        survival_means=(
+            "the cards go back to being nameless to every assistive tool. "
+            "Measured before the fix on Windows under Fusion at 150 % scale "
+            "with the .NET UIAutomationClient: the only element in the whole "
+            "window called `Fulghor` was the QLabel inside the card, and the "
+            "card itself was ControlType.Custom with no name -- so a client "
+            "looking for the Nightlord found something it could not press "
+            "(QA-161). Killed by tests/test_card_is_pressable.py::"
+            "test_a_card_carries_the_nightlords_name_for_a_reader_without_eyes."),
+    ),
+    "nightlord-card-is-furniture-not-a-control": Mutation(
+        path="nrplanner/pressable.py",
+        old="""        super().__init__(widget, QAccessible.Button)
+""",
+        new="""        super().__init__(widget, QAccessible.Border)
+""",
+        survival_means=(
+            "the card can be pressed and no reader is ever offered it. "
+            "Assistive tools list the controls on a screen; a border is not "
+            "one, and a card with a Press action and the role of a frame is a "
+            "control nobody is told about. Killed by "
+            "tests/test_card_is_pressable.py::"
+            "test_a_card_says_it_is_a_control_and_not_furniture."),
+    ),
+    "nightlord-card-press-that-reports-and-does-nothing": Mutation(
+        path="nrplanner/pressable.py",
+        old="""            self.widget().press()
+            return
+""",
+        new="""            return
+""",
+        survival_means=(
+            "QA-161 exactly as it was: the accessibility interface answers "
+            "INVOKE_OK and the detail panel does not move, so a client cannot "
+            "tell `it worked` from `there was nothing to do`. Two of four "
+            "power-user runs gave up on the Nightlords tab for this, and the "
+            "second raised a regression report against a release that had "
+            "none. Killed by tests/test_card_is_pressable.py::"
+            "test_the_accessible_press_opens_the_profile."),
+    ),
+    "nightlord-card-out-of-the-tab-order": Mutation(
+        path="nrplanner/pressable.py",
+        old="""        self.setFocusPolicy(Qt.StrongFocus)
+""",
+        new="""        self.setFocusPolicy(Qt.NoFocus)
+""",
+        survival_means=(
+            "the cards cannot be reached with a keyboard at all. Every key "
+            "the card handles is then unreachable, because nothing puts the "
+            "keyboard on the card in the first place, and no other control on "
+            "the tab leads to one. Killed by tests/test_card_is_pressable.py::"
+            "test_tab_moves_from_one_card_to_the_next."),
+    ),
+    "nightlord-card-keys-that-do-nothing": Mutation(
+        path="nrplanner/pressable.py",
+        old="""        if event.key() in PRESS_KEYS:
+            self.press()
+""",
+        new="""        if False:
+            self.press()
+""",
+        survival_means=(
+            "Enter and Space land on the card and nothing opens, while the "
+            "accessibility interface goes on announcing both of them as ways "
+            "to press it. An announced key that does nothing is worse than no "
+            "announcement. Killed by tests/test_card_is_pressable.py::"
+            "test_each_press_key_opens_the_profile and ::"
+            "test_every_key_the_card_announces_really_presses_it."),
+    ),
+    "nightlord-card-focus-nobody-can-see": Mutation(
+        path="nrplanner/pressable.py",
+        old="""        if not self.hasFocus():
+            return
+""",
+        new="""        if True:
+            return
+""",
+        survival_means=(
+            "the keyboard walks the grid invisibly. A reader tabbing through "
+            "ten cards has no way to tell which one Enter would open, which "
+            "makes the keyboard route present and unusable. Killed by "
+            "tests/test_card_is_pressable.py::"
+            "test_the_keyboard_can_be_seen_on_the_grid."),
+    ),
+    "pointer-mark-left-to-enter-and-leave": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        self._set_hovered(self._pointer_is_here())
+""",
+        new="""        return
+""",
+        survival_means=(
+            "QA-164 whole: the mark is kept by Enter and Leave alone again, "
+            "so it is only ever as current as the last time the reader moved "
+            "his hand. Measured before the fix: hovered == ['Fulghor'] before "
+            "and after a reflow from three columns to two, with no card under "
+            "the pointer at all; and a card brought under a resting pointer "
+            "took no mark. This is the mutation for the mechanism -- the "
+            "three events it hangs on overlap for every reflow this suite can "
+            "stage, so removing any one of them on its own changes nothing "
+            "and proves nothing. Killed by "
+            "tests/test_pointer_mark_follows_the_layout.py, all three cases."),
+    ),
+    "window-opens-at-a-width-set-by-hand": Mutation(
+        path="nrplanner/app.py",
+        old="""
+        return (table.width_for_full_headings()
+                + 2 * table.frameWidth() + bar
+                + margins.left() + margins.right()
+                + beside_the_page)
+""",
+        new="""        return 1320
+""",
+        survival_means=(
+            "the window goes back to opening at the width it opened at "
+            "before, at which `Comes with curse` is drawn `Comes with c...` "
+            "on Windows under Fusion at 150 % scale. Two power-user runs in a "
+            "row reported that heading, and a third reading of it opened a "
+            "regression investigation against a release with no regression "
+            "(T-066, T-069, T-070). Killed by tests/test_opening_width.py::"
+            "test_the_window_opens_wide_enough_that_more_width_would_add_nothing."),
+    ),
+    "window-opening-width-that-forgets-its-chrome": Mutation(
+        path="nrplanner/app.py",
+        old="""
+        return (table.width_for_full_headings()
+                + 2 * table.frameWidth() + bar
+                + margins.left() + margins.right()
+                + beside_the_page)
+""",
+        new="""        return table.width_for_full_headings()
+""",
+        survival_means=(
+            "the window opens the width of the table's viewport rather than "
+            "the width of a window holding it -- 48 logical px short under "
+            "both platforms measured, being the tab page inset, the tab's "
+            "layout margins, the table frame and the scrollbar. Short by less "
+            "than a heading, and enough to shorten one. Killed by "
+            "tests/test_opening_width.py::"
+            "test_the_window_opens_wide_enough_that_more_width_would_add_nothing."),
+    ),
+    "opening-width-measured-off-a-tab-that-is-not-in-front": Mutation(
+        path="nrplanner/app.py",
+        old="""        beside_the_page = self.width() - tabs.currentWidget().width()
+""",
+        new="""        beside_the_page = self.width() - self.effects_tab.width()
+""",
+        survival_means=(
+            "the opening width depends on which tab happens to be in front "
+            "when the window is shown -- and the program opens on the Build "
+            "planner, so the effects tab has never been given the width of a "
+            "page. Measured on 2026-09-06 on Windows under Fusion at 150 %: "
+            "1 350 px with the effects tab in front, 1 802 px cut to the "
+            "screen's 1 707 with the Build planner in front, from the same "
+            "code. Found by hand against the running window; every case in "
+            "the file opened the effects tab first and passed on either. "
+            "Killed by tests/test_opening_width.py::"
+            "test_the_opening_width_does_not_depend_on_which_tab_is_in_front."),
+    ),
+    "window-opening-width-that-ignores-the-desktop": Mutation(
+        path="nrplanner/app.py",
+        old="""        return max(self.minimumSizeHint().width(),
+                   min(self._width_around_the_effect_table(), room))
+""",
+        new="""        return max(self.minimumSizeHint().width(),
+                   self._width_around_the_effect_table())
+""",
+        survival_means=(
+            "on a machine whose desktop is narrower than the table wants, the "
+            "window opens with its right-hand edge past the edge of the "
+            "screen, the title bar and the close button along with it. Worse "
+            "than the shortened heading the width was raised for. Killed by "
+            "tests/test_opening_width.py::"
+            "test_the_window_does_not_open_wider_than_the_desktop."),
+    ),
+    "window-that-never-takes-its-opening-size": Mutation(
+        path="nrplanner/app.py",
+        old="""        if not self.testAttribute(Qt.WA_Resized):
+            self.resize(self._opening_width(), OPENING_HEIGHT)
+""",
+        new="",
+        survival_means=(
+            "the derivation is computed and thrown away: the window opens at "
+            "whatever size Qt's layout arrives at, which is the sum of every "
+            "tab's size hint and has nothing to do with what the effect table "
+            "needs. Killed by tests/test_opening_width.py::"
+            "test_the_window_puts_itself_at_its_opening_size_on_the_way_to_"
+            "the_screen."),
+    ),
+    "opening-size-that-overrules-the-caller": Mutation(
+        path="nrplanner/app.py",
+        old="""        if not self.testAttribute(Qt.WA_Resized):
+            self.resize(self._opening_width(), OPENING_HEIGHT)
+""",
+        new="""        self.resize(self._opening_width(), OPENING_HEIGHT)
+""",
+        survival_means=(
+            "the opening size stops being an opening size and becomes an "
+            "override: a window sized by its caller is resized behind its "
+            "back on the way to the screen, and a remembered geometry could "
+            "never be restored. Killed by tests/test_opening_width.py::"
+            "test_a_window_that_was_given_a_size_opens_at_that_size."),
+    ),
+    "pointer-mark-that-misses-a-scroll": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        scroll.verticalScrollBar().valueChanged.connect(
+            self._follow_the_pointer)
+""",
+        new="",
+        survival_means=(
+            "scrolling brings a different Nightlord under a resting pointer "
+            "and the mark stays on the one that scrolled away. No card can "
+            "catch this for itself: the holder moves and the cards keep their "
+            "places inside it. Killed by "
+            "tests/test_pointer_mark_follows_the_layout.py::"
+            "test_the_mark_follows_the_cards_a_scroll_brings_under_the_pointer."),
+    ),
+    "heading-width-that-stops-at-the-widest-it-could-be": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        best = self.headings_as_drawn(self.column_widths(widest))
+        narrowest = widest
+        while (narrowest > floors
+               and self.headings_as_drawn(
+                   self.column_widths(narrowest - 1)) == best):
+            narrowest -= 1
+        return narrowest
+""",
+        new="""        return widest
+""",
+        survival_means=(
+            "the window opens wider than it needs to and takes desktop for "
+            "nothing: measured on Windows under Fusion at 150 % scale, 1 428 "
+            "px of viewport against the 1 302 at which the last heading "
+            "becomes whole -- 126 px of screen bought with no letter of gain. "
+            "The reader loses nothing he can read, which is exactly why only "
+            "a tightness case catches it. Killed by "
+            "tests/test_opening_width.py::"
+            "test_the_width_the_table_asks_for_is_the_last_pixel_that_buys_a_heading."),
+    ),
+    "second-copy-let-in": Mutation(
+        path="nrplanner/singleinstance.py",
+        old="""        if self._memory.create(HANDLE_BYTES):
+            self._claimed = True
+            self.announce(0)
+            return True
+        return self._memory.error() != QSharedMemory.AlreadyExists
+""",
+        new="""        self._claimed = self._memory.create(HANDLE_BYTES)
+        return True
+""",
+        survival_means=(
+            "QA-163 unchanged: two copies open at the same size in the same "
+            "place under the same title, clicks land in whichever is in "
+            "front, and both write the same settings. Reproduced on "
+            "2026-09-06: a click aimed at window A was taken by window B, and "
+            "A stayed on `Select a Nightlord`. Killed by "
+            "tests/test_single_instance.py::"
+            "test_a_second_copy_is_refused_while_the_first_holds_it."),
+    ),
+    "second-copy-that-cannot-find-the-window": Mutation(
+        path="nrplanner/singleinstance.py",
+        old="""            return int.from_bytes(
+                bytes(self._memory.constData())[:HANDLE_BYTES], _BYTE_ORDER)
+""",
+        new="""            return 0
+""",
+        survival_means=(
+            "the second copy stands down and raises nothing, so a "
+            "double-click on the shortcut looks like a program that will not "
+            "start. Two copies of this program carry the same window title, "
+            "so there is no second way to find the running one. Killed by "
+            "tests/test_single_instance.py::"
+            "test_the_second_copy_is_told_which_window_to_raise."),
+    ),
+    "copy-that-stood-down-and-wrote-anyway": Mutation(
+        path="nrplanner/singleinstance.py",
+        old="""        if not self._claimed:
+            return
+        self._memory.lock()
+""",
+        new="""        self._memory.lock()
+""",
+        survival_means=(
+            "a copy that lost the claim writes its own window handle over the "
+            "running copy's, and the copy after that is sent to a window that "
+            "never existed. Killed by tests/test_single_instance.py::"
+            "test_a_copy_that_never_claimed_announces_nothing."),
+    ),
     "effect-headings-drawn-whole-or-not-at-all": Mutation(
         path="nrplanner/effectstab.py",
-        old="""            shown = metrics.elidedText(name, Qt.ElideRight,
-                                       self._label_room(column))
+        old="""            shown = self._as_drawn(column, self._label_room(column))
 """,
-        new="""            shown = name
+        new="""            shown = self._headings[column]
 """,
         survival_means=(
             "the column headings go back to being clipped at both ends by "
