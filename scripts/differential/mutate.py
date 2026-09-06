@@ -847,6 +847,287 @@ MUTATIONS: dict[str, Mutation] = {
             "test_the_conditional_line_counts_this_pool_and_not_the_held_"
             "bundle."),
     ),
+    # -- the beam over the free slots (T-067: S7) ---------------------------
+    #
+    # Sixteen edits, because the search keeps sixteen rules that a green suite
+    # would not notice the loss of: what a state may still take, what makes
+    # two slots alike, what order the answer comes back in, and when a run is
+    # allowed to stop. Each was run against
+    # `tests/test_advisor_search.py` in a copy of the tree on 2026-09-06 and
+    # each was killed there.
+    "search-forgets-the-copies-a-branch-has-spent": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""                            spent=state.spent | {offer.handle},
+""",
+        new="""                            spent=state.spent,
+""",
+        survival_means=(
+            "AD-013 point 2 is unenforced in the search state itself: one "
+            "copy would be laid in two slots, with a plausible score and "
+            "every relic in the save. On a vessel with two slots of one "
+            "colour the symmetry rule hides that -- ascending order already "
+            "forbids the repeat -- so the case that sees it is the one on a "
+            "vessel with a **white** slot beside a coloured one, where the "
+            "two are offered the same copies and are not interchangeable. "
+            "Killed by test_advisor_search.py::"
+            "test_a_white_slot_does_not_take_the_copy_a_coloured_slot_"
+            "already_has."),
+    ),
+    "search-starts-with-no-copies-spent": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    live = [_State(chosen=(), spent=types.held_handles(problem),
+""",
+        new="""    live = [_State(chosen=(), spent=frozenset(),
+""",
+        survival_means=(
+            "AD-014.5 is unenforced: the base state no longer occupies the "
+            "handles of the relics the player is holding, so a held copy can "
+            "be suggested for a second slot. `candidates.pool` leaves it out "
+            "as well, so a run through the pools would not show it -- the "
+            "case therefore hands the search a pool that carries the held "
+            "copy, which is the only way to ask whether the beam keeps the "
+            "rule of its own. Killed by test_advisor_search.py::"
+            "test_the_search_spends_the_copies_the_held_relics_occupy."),
+    ),
+    "search-branches-on-the-first-k-of-the-list": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    out: list[types.Candidate] = []
+    for rank, offer in enumerate(offers):
+        if rank < floor or offer.handle in state.spent:
+            continue
+        out.append(offer)
+        if len(out) == width:
+            break
+    return out
+""",
+        new="""    out: list[types.Candidate] = []
+    for rank, offer in enumerate(offers[:width]):
+        if rank < floor or offer.handle in state.spent:
+            continue
+        out.append(offer)
+    return out
+""",
+        survival_means=(
+            "AD-013 point 2's second half is unenforced -- the first K of the "
+            "list with some of them missing, instead of the first K "
+            "available. The branching then narrows at the deeper slots, "
+            "quietly, and worst where the vessel repeats a colour, which is "
+            "where the ownership rule bites hardest. Measured on the case: "
+            "three slots of one colour give four suggestions correctly and "
+            "none at all under this edit. Killed by test_advisor_search.py::"
+            "test_the_branching_takes_the_first_available_and_not_the_first_"
+            "listed."),
+    ),
+    "search-without-the-symmetry-rule": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    taken = [rank_of[choice.handle] for choice in state.chosen
+             if choice.slot_index in group]
+    return max(taken) + 1 if taken else 0
+""",
+        new="""    return 0
+""",
+        survival_means=(
+            "AD-003 point 2 is unenforced: the result list shows one build "
+            "twice with two interchangeable slots swapped, and the tree it "
+            "was meant to cut is twice the size. Six copies in two red slots "
+            "come back as thirty suggestions where there are fifteen pairs. "
+            "Killed by test_advisor_search.py::"
+            "test_two_slots_of_one_colour_are_not_offered_the_same_pair_"
+            "twice."),
+    ),
+    "search-groups-by-what-a-slot-is-offered-rather-than-by-its-colour":
+        Mutation(
+            path="nrplanner/advisor/search.py",
+            old="""    taken = [rank_of[choice.handle] for choice in state.chosen
+             if choice.slot_index in group]
+""",
+            new="""    taken = [rank_of[choice.handle] for choice in state.chosen
+             if choice.handle in rank_of]
+""",
+            survival_means=(
+                "the symmetry group stops being 'these slots are alike' and "
+                "becomes 'this copy is on offer here too'. The two coincide "
+                "for coloured slots and part company at a **white** one, "
+                "which sees every copy the red slot sees and more besides: "
+                "the white slot could then take nothing the red slot ranked "
+                "above, and one of the two builds a player could wear goes "
+                "missing. Killed by test_advisor_search.py::"
+                "test_a_white_slot_is_not_interchangeable_with_a_coloured_"
+                "one."),
+        ),
+    "search-groups-the-deep-slots-with-the-ordinary-ones": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    return slot.colour, slot.deep
+""",
+        new="""    return slot.colour, False
+""",
+        survival_means=(
+            "the Deep separation stops reaching the symmetry rule. A Deep "
+            "slot and an ordinary slot of one colour would be one group "
+            "although `inventory.relics_for` offers them different relics, "
+            "and the Deep pair would inherit a floor read off a copy that is "
+            "not in its list at all. Killed by test_advisor_search.py::"
+            "test_a_deep_slot_and_an_ordinary_slot_of_one_colour_are_not_one_"
+            "group."),
+    ),
+    "search-keeps-the-build-the-symmetry-rule-emptied": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        return [] if _branches(state, offers, 0, 1) else [state]
+""",
+        new="""        return [state]
+""",
+        survival_means=(
+            "the branch that the symmetry floor emptied is kept as though "
+            "the slot had nothing to offer, and the result list carries a "
+            "half-filled build beside the whole one it is a permutation of. "
+            "The window would say `1 of 2 slots filled` about a vessel that "
+            "had a relic for both. Killed by test_advisor_search.py::"
+            "test_a_slot_the_symmetry_rule_empties_is_not_a_half_filled_"
+            "build."),
+    ),
+    "search-orders-equal-builds-by-how-they-were-found": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    return -state.score.value, tuple(choice.handle for choice in state.chosen)
+""",
+        new="""    return -state.score.value, ()
+""",
+        survival_means=(
+            "the order among equal builds becomes the order the loop "
+            "generated them in rather than a property of what is in them. "
+            "Python's sort is stable, so it holds today and moves the day "
+            "the loop is touched -- and ties are the common case here, not "
+            "the exception, because the scaling curves are piecewise linear. "
+            "Killed by test_advisor_search.py::"
+            "test_the_order_among_equals_follows_the_copies_and_not_the_pre_"
+            "sort."),
+    ),
+    "search-cuts-the-beam-before-it-is-ordered": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        grown.sort(key=_order)
+        live = grown[:budget.beam_width]
+""",
+        new="""        live = grown[:budget.beam_width]
+""",
+        survival_means=(
+            "the beam keeps the first W states it happened to generate "
+            "instead of the best W, which is greedy by pre-sort order and "
+            "throws away the coupling between the slots that AD-003 chose "
+            "this method for. The answer still looks like a ranked list. "
+            "Killed by test_advisor_search.py::"
+            "test_the_best_found_is_the_first_of_the_list."),
+    ),
+    "search-dedupes-the-beam-through-a-set": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        grown.sort(key=_order)
+        live = grown[:budget.beam_width]
+""",
+        new="""        ordered = sorted(set(grown), key=lambda s: -s.score.value)
+        live = ordered[:budget.beam_width]
+""",
+        survival_means=(
+            "QA-059 and QA-142 reach the advisor: a set of states iterates "
+            "in the order the process's hash seed gives it, and with a key "
+            "that only reads the value the equal builds come back in that "
+            "order. Two starts of the program would then answer one request "
+            "two ways, which is the property AD-009 point 6 needs for the "
+            "cache to be checkable at all. Not visible in one process -- the "
+            "case that sees it runs three of them. Killed by "
+            "test_advisor_search.py::"
+            "test_two_processes_under_two_hash_seeds_answer_the_same."),
+    ),
+    "search-never-asks-whether-it-was-stopped": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        if should_cancel():
+            raise Cancelled(
+                f"stopped after {level} of {len(free)} slots")
+""",
+        new="""""",
+        survival_means=(
+            "AD-006 point 6 is unenforced: `Cancel` in the window would stop "
+            "nothing, and a run the player abandoned would go on holding the "
+            "worker until it finished. Killed by test_advisor_search.py::"
+            "test_a_stopped_run_says_so_instead_of_answering_short."),
+    ),
+    "search-asks-inside-the-level-instead-of-between": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        for state in live:
+            grown.extend(_successors(
+""",
+        new="""        for state in live:
+            if should_cancel():
+                raise Cancelled(
+                    f"stopped after {level} of {len(free)} slots")
+            grown.extend(_successors(
+""",
+        survival_means=(
+            "AD-003 point 4 is unenforced. The check moves inside a level, "
+            "where it runs once per state instead of once per slot -- forty "
+            "times as often at W=40 -- and AD-006 point 6 costed that out: "
+            "between the levels the coarse reaction time is about a sixth of "
+            "a run, and asking more often costs more than it buys. Killed by "
+            "test_advisor_search.py::"
+            "test_a_run_is_asked_once_before_every_level, which counts the "
+            "questions rather than watching that one is asked."),
+    ),
+    "search-reads-one-pool-for-every-level": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        offers = candidates.shortlist(pools[level], budget, len(free))
+""",
+        new="""        offers = candidates.shortlist(pools[0], budget, len(free))
+""",
+        survival_means=(
+            "every level branches on the first slot's pool, so a blue slot "
+            "is offered the red list and A4's colour rule is broken after "
+            "the pools were built correctly -- the failure is in the search "
+            "and not where the rule is written. Killed by "
+            "test_advisor_search.py::"
+            "test_no_suggestion_puts_a_copy_in_a_slot_that_cannot_hold_it, "
+            "which asks `inventory.relics_for` about every choice rather "
+            "than trusting the pool it came from."),
+    ),
+    "search-refuses-a-vessel-with-every-slot-held": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    live = [_State(chosen=(), spent=types.held_handles(problem),
+                   score=scorer(()))]
+""",
+        new="""    if not free:
+        return ()
+    live = [_State(chosen=(), spent=types.held_handles(problem),
+                   score=scorer(()))]
+""",
+        survival_means=(
+            "AD-014.2's last sentence is unenforced: with every slot held "
+            "the run answers nothing instead of answering the build as it "
+            "stands, scored. An empty answer is already the shape of "
+            "`Stopped. Nothing was changed.`, so the window would say the "
+            "wrong one of the two. Killed by test_advisor_search.py::"
+            "test_every_slot_held_is_no_search_and_the_build_as_it_stands."),
+    ),
+    "search-lets-a-budget-of-zero-answer-nothing": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    _refuse_a_budget_that_searches_nothing(budget)
+""",
+        new="""""",
+        survival_means=(
+            "a budget of K=0 or W=0 empties the beam at the first level and "
+            "the run comes back with nothing -- which is the shape of two "
+            "other states the window says something different about. Killed "
+            "by test_advisor_search.py::"
+            "test_a_budget_that_searches_nothing_is_refused."),
+    ),
+    "search-takes-any-pools-it-is-handed": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    _refuse_pools_that_are_not_the_free_slots(free, pools)
+""",
+        new="""""",
+        survival_means=(
+            "a pool list out of step with the vessel fills the right shape "
+            "with the wrong contents: the suggestion carries slot indices "
+            "and the window puts a copy where they point, so every figure "
+            "would look reasonable and the relic would land in the wrong "
+            "slot. Killed by test_advisor_search.py::"
+            "test_pools_that_are_not_the_free_slots_are_refused."),
+    ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
         old="""    answers.sort(key=lambda answer: (-answer.final_headline,

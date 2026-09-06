@@ -12,7 +12,7 @@ the order they are listed in:
     evaluate   the one door to `model.compute` (AD-014.1)
     candidates what may go into a slot, and what it is worth there
     goals      the named directions to optimise in
-    search     the beam over the free slots           -- S7, not yet built
+    search     the beam over the free slots
     explain    `Build.sources` turned into English    -- S8, not yet built
     worker     the QThread and the cache              -- S9, not yet built
 
