@@ -16,9 +16,11 @@ import html
 import pathlib
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtGui import (
+    QColor, QCursor, QPainter, QPainterPath, QPen, QPixmap,
+)
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QScrollArea,
+    QApplication, QFrame, QHBoxLayout, QLabel, QScrollArea,
     QVBoxLayout, QWidget,
 )
 
@@ -428,6 +430,42 @@ class BossCard(pressable.PressableFrame):
         self._set_hovered(False)
         super().leaveEvent(event)
 
+    def _pointer_is_here(self) -> bool:
+        """Is the pointer standing on this card at this instant?
+
+        Asked of the screen instead of remembering the last Enter and Leave,
+        because Qt sends those on pointer movement only. `widgetAt` answers
+        for this application's windows and takes clipping and stacking with
+        it, so a card scrolled out of sight or covered by another program
+        does not claim the pointer.
+        """
+        under = QApplication.widgetAt(QCursor.pos())
+        return under is not None and (under is self or self.isAncestorOf(under))
+
+    def follow_the_pointer(self) -> None:
+        """Put the mark where the pointer actually is, not where it was.
+
+        QA-164: the grid reflows from three columns to two while the pointer
+        rests, and the mark stays on a card that is no longer under it -- or
+        a card appears under a resting pointer and never takes the mark at
+        all. Both are the same gap: geometry changed and no pointer event
+        followed. The card's own move, resize and show are exactly the
+        moments that happens, so it re-reads the pointer there.
+        """
+        self._set_hovered(self._pointer_is_here())
+
+    def moveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().moveEvent(event)
+        self.follow_the_pointer()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self.follow_the_pointer()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().showEvent(event)
+        self.follow_the_pointer()
+
     def press(self) -> None:
         """Open this Nightlord's profile. Every route ends here."""
         self.clicked.emit(self.boss)
@@ -462,6 +500,13 @@ class BossTab(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        # Scrolling brings other cards under a pointer that has not moved,
+        # and Qt sends no pointer event for it -- the QA-164 gap reached by a
+        # third route. A card cannot notice this one for itself: the holder
+        # is what moves, and the cards keep their places inside it, so not
+        # one of them sees a move of its own.
+        scroll.verticalScrollBar().valueChanged.connect(
+            self._follow_the_pointer)
         self.holder = QWidget()
         self.grid_outer = QVBoxLayout(self.holder)
         self.grid_outer.setContentsMargins(0, 0, 0, 0)
@@ -478,6 +523,11 @@ class BossTab(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
         self._share_the_width()
+
+    def _follow_the_pointer(self) -> None:
+        """Every card re-reads the pointer, because the grid moved under it."""
+        for card in self.holder.findChildren(BossCard):
+            card.follow_the_pointer()
 
     def _share_the_width(self) -> None:
         """Give the detail panel its width, which depends on the tab's.
