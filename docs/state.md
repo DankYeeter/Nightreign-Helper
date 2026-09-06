@@ -105,7 +105,12 @@ Vom Director am 06.09.2026 entschieden; Begruendungen in
 - **Datenform bleibt beim `developer`:** verbindlich ist die Eigenschaft
   (Slotnummer, Fluch-Kennzeichen, zwei Zaehlungen erreichen die Anzeige
   getrennt), nicht die Bauart. Kein `architect` noetig.
-- **`compute_resistances` schreibt vorerst nicht nach `sources`** —
+- **`compute_resistances` — Zurueckstellung wieder offen.** T-080 zaehlt
+  nicht nur drei Fluche, sondern zusaetzlich **33 stumme positive Effekte**
+  (`Improved Poison Resistance` und Verwandte), die weder in `sources` noch
+  in `qualitative` stehen: **36 Zeilen auf einem Spielstand** haengen an
+  dieser Rechnung. **Vor der Bestaetigung nachmessen.** Bisheriger Stand:
+  schreibt nicht nach `sources` —
   `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende ausdruecklich aus der Kennzahl,
   eine Quelle ohne Rankingwirkung waere irrefuehrend. Wieder aufmachen,
   sobald eine Zielrichtung Widerstaende rankt.
@@ -138,8 +143,14 @@ vorlegen.
 - **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg nach
   Angriffswert; der Spieler hat "die beste Waffe finden" aufgegeben. Waere
   eine **neue Funktion**.
-**Erledigt 06.09.:** F-I — **jeder Fluch einzeln auf der Karte** (Fassung des
-`ui-ux-designer`). F-J — **stumme Effekte werden beim Namen genannt**.
+**Erledigt 06.09.:** F-I — **jeder Fluch einzeln auf der Karte**, stumme
+Effektzeilen dagegen **nur im `Why`-Dialog** (revidiert, nachdem der
+gemessene Schlechtfall vorlag: **14 gezeichnete Zeilen**, nicht sechs — ein
+Effekt erzeugt bis zu fuenf Zeilen, ein Fluch bis zu vier). Begruendung der
+Trennung: ein Fluch ist eine Falle, ein stummer Effekt nicht. F-J — **stumme
+Effekte werden beim Namen genannt**, und der haeufigste Fall (Effekt gehoert
+einer anderen Figur, 150 von 426) wird gezeichnet wie im uebrigen Programm:
+`NOT WORKING`, durchgestrichen.
 Spielwissen des Nutzers dazu, vom Director gegen die Daten geprueft und
 bestaetigt: Fluche gibt es **nur auf Deep-Relikten** (0 von 597 nicht-Deep),
 **1 bis 3** je Relikt (72/48/24), und nur, wenn der Buff gut genug ist (108
