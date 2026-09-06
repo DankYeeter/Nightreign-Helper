@@ -10,8 +10,8 @@ Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 **Nummernkreise:** T ab **T-077** · QA ab **QA-180** · AK ab **AK-133** ·
 DR ab **DR-019** · R ab **R-007** · projekteigene Regeln ab **NH-003**.
 
-**Suite:** `-m "not slow"` **864 passed, 9 skipped, 5 deselected**;
-`-m "slow"` **5 passed**. 18 registrierte Mutationen, alle toetend.
+**Suite:** **864 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
+5 passed. 18 Mutationen, alle toetend.
 
 ## Auftragslage (Nutzer)
 
@@ -24,8 +24,8 @@ Pruefung im laufenden Spiel macht der Nutzer ganz am Ende.**
 gilt damit **innerhalb** eines Zyklus, nicht ueber Zyklen hinweg — vor dem
 ersten Auftrag eines neuen Zyklus steht der Director beim Nutzer.
 
-P6 auf zwei Punkte (SEC-009, Label-Fabrik SEC-019/015) · P5 auf einen
-Auftrag (QA-044/048/054 sind **eine** Wurzel) · P7 vollstaendig.
+P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
+(QA-044/048/054 sind **eine** Wurzel) · P7 vollstaendig.
 
 ## Stand gegen `GOAL.md`
 
@@ -46,11 +46,10 @@ Auftrag (QA-044/048/054 sind **eine** Wurzel) · P7 vollstaendig.
 
 ## Was Zyklus 14 gebracht hat
 
-**QA-169 ist behoben und am laufenden Fenster belegt** (T-073, T-076). Der
-Erklaersatz zu `Comes with curse` steht ohne Hover im Absatz und wortgleich
-im Kopf-Tooltip; eine Konstante speist beide, Rot-vorher je Verwendungsstelle
-einzeln. **Wichtig fuer spaeter:** die vier Tests dazu laufen offscreen und
-belegen nur den programmierten Text — den Sichtnachweis liefert T-076.
+**QA-169 ist behoben und am laufenden Fenster belegt** (T-073, T-076): der
+Satz zu `Comes with curse` steht ohne Hover im Absatz und wortgleich im
+Tooltip, eine Konstante speist beide. **Fuer spaeter:** die vier Tests dazu
+laufen offscreen und belegen nur den programmierten Text.
 
 **A15 ist aufgenommen und spezifiziert.** Der Erststart endet heute in einer
 Sackgasse, wenn die Automatik Spielordner oder Spielstand nicht findet — es
@@ -122,12 +121,9 @@ vorlegen.
 
 ## Regeln
 
-In `docs/plan-restarbeiten.md`, nur dort gepflegt. Teamweit: **L-008**
-(Gegenbau) · **L-009** (Messumgebung) · **L-010** (Director: **fuenf**
-Pruefungen vor jedem Dispatch) · **L-012** (Bildnachweise aus dem Fenster) ·
-**L-013** (Absenz-Behauptung traegt ihren Nenner). Dazu **NH-001** (jede
-Arbeit hat eine T-Nummer und eine Datei) und **NH-002** (keine
-Bildschirmabzuege).
+Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008, L-009,
+L-010 (jetzt **fuenf** Pruefungen), L-012, L-013; projekteigen NH-001,
+NH-002.
 
 **Nie geprueft:** ein gebautes Artefakt (A9) · Linux/macOS · ein
 angekommener echter Mausklick.
