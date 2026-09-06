@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
 # SpEffect field -> the attribute it adds to.
 ATTRIBUTE_FIELDS = {
@@ -774,6 +775,26 @@ class Warning:
 FORCED = "_declared_live"
 
 
+class SourceEntry(NamedTuple):
+    """One effect's own share of one field: what it is called, what it moved,
+    and **which effect it was**.
+
+    The id is what tells two effects apart that the game gives one name to.
+    `7000090` and `6610400` are both called `Increased Maximum HP` and move
+    different fields; without the id anything reading this back has only the
+    name to go on, and then one relic is credited with the other's figure
+    while the other looks as though it contributed nothing (QA-180).
+
+    Read by the breakdown popup in `app.py`, which shows `name` and `own`, and
+    by `advisor/explain.py`, which needs the id to say which relic a figure
+    came off.
+    """
+
+    name: str
+    own: float
+    effect_id: int
+
+
 @dataclass
 class Situational:
     """A gated effect the player can switch on, and how many times it applies.
@@ -829,8 +850,8 @@ class Build:
     # player controls or can count, never a hero or weapon mismatch.
     situational: list["Situational"] = field(default_factory=list)
     # Which effects produced each total, so a figure can be broken back down
-    # into the buffs behind it. field name -> [(effect name, its own value)]
-    sources: dict[str, list[tuple[str, float]]] = field(default_factory=dict)
+    # into the buffs behind it. field name -> [SourceEntry, ...]
+    sources: dict[str, list[SourceEntry]] = field(default_factory=dict)
 
 
 def compute_derived(curves: dict, build: "Build") -> None:
@@ -991,9 +1012,15 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
         # The five rates carry one number between them, not five, so it is
         # applied once rather than raised to the fifth power.
         label = " ".join(str(eff.get("name", "")).split())
+        # The id travels beside the name because the name does not identify
+        # the effect: this dataset gives 160 of its 707 effect names to more
+        # than one id (QA-180). Whoever reads `sources` back has to be able to
+        # tell them apart, and only the id does that.
+        effect_id = int(eff["id"])
 
         def record(key: str, own: float) -> None:
-            build.sources.setdefault(key, []).append((label, own))
+            build.sources.setdefault(key, []).append(
+                SourceEntry(label, own, effect_id))
 
         # A stat swap moves attributes and nothing else, and its numbers come
         # from HeroStatusParam rather than from `modifiers`, so it is applied

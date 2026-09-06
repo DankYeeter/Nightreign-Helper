@@ -1190,20 +1190,20 @@ MUTATIONS: dict[str, Mutation] = {
     # 2026-09-06 and each was killed.
     "explain-reasons-against-the-empty-build": Mutation(
         path="nrplanner/advisor/explain.py",
-        old="""    out: list[tuple[str, str, float]] = []
+        old="""    out: list[tuple[str, model.SourceEntry]] = []
     for key, entries in built.sources.items():
         before = list(base.sources.get(key, ()))
-        for name, own in entries:
-            if (name, own) in before:
-                before.remove((name, own))
+        for entry in entries:
+            if entry in before:
+                before.remove(entry)
                 continue
-            out.append((key, name, own))
+            out.append((key, entry))
     return out
 """,
-        new="""    out: list[tuple[str, str, float]] = []
+        new="""    out: list[tuple[str, model.SourceEntry]] = []
     for key, entries in built.sources.items():
-        for name, own in entries:
-            out.append((key, name, own))
+        for entry in entries:
+            out.append((key, entry))
     return out
 """,
         survival_means=(
@@ -1233,11 +1233,12 @@ MUTATIONS: dict[str, Mutation] = {
             if name is None:
                 continue
             moved: dict[str, float] = {}
-            for position, (key, entry, own) in enumerate(added):
-                if claimed[position] or entry != name or key in moved:
+            for position, (key, entry) in enumerate(added):
+                if (claimed[position] or entry.effect_id != effect_id
+                        or key in moved):
                     continue
                 claimed[position] = True
-                moved[key] = own
+                moved[key] = entry.own
             for key, own in model.collapse_by_label(moved).items():
                 if _moved_nothing(key, own, built):
                     continue
@@ -1250,12 +1251,13 @@ MUTATIONS: dict[str, Mutation] = {
         new="""    first = sorted(chosen, key=lambda copy: copy.slot_index)[0]
     out: list[_Contribution] = []
     for key, entries in built.sources.items():
-        for name, own in entries:
-            if _moved_nothing(key, own, built):
+        for entry in entries:
+            if _moved_nothing(key, entry.own, built):
                 continue
             out.append(_Contribution(
-                candidate=first, effect_id=0, effect_name=name,
-                is_curse=False, field_key=key, own=own))
+                candidate=first, effect_id=entry.effect_id,
+                effect_name=entry.name, is_curse=False, field_key=key,
+                own=entry.own))
     return tuple(out)
 """,
         survival_means=(
@@ -1270,11 +1272,61 @@ MUTATIONS: dict[str, Mutation] = {
             "which works out what a line may name from the inventory and the "
             "dataset rather than from the attribution it is watching."),
     ),
+    # -- the three findings of the first review (T-079: QA-180 to QA-182) ---
+    "explain-attributes-a-figure-by-name-instead-of-by-id": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""                if (claimed[position] or entry.effect_id != effect_id
+                        or key in moved):
+""",
+        new="""                if (claimed[position] or entry.name != name
+                        or key in moved):
+""",
+        survival_means=(
+            "A5 is not a checkable statement: two effects this dataset gives "
+            "one name to are one effect to the attribution, so the copy in "
+            "the lower slot is credited with a figure its effect cannot move "
+            "and the other slot gets no line at all. This is the state "
+            "before T-079 and it was measured on the real save: 130 wrong "
+            "lines over 592 suggestions, 23 of the 296 best suggestions with "
+            "a silent slot, and all 23 of those slots had moved the ranking "
+            "figure -- one of them by +162.15 Effective HP, the largest "
+            "single contribution of its build (QA-180). The acceptance case "
+            "that was watching could not go red: it asked whether a line "
+            "names *a* name of the chosen copies, and the shared name is "
+            "such a name whichever slot it is printed under. Killed by "
+            "test_advisor_explain.py::"
+            "test_two_effects_of_one_name_are_credited_to_the_slot_that_"
+            "carries_them and ::"
+            "test_a_name_two_effects_share_in_this_dataset_still_lands_on_"
+            "two_slots."),
+    ),
+    "model-records-a-source-without-saying-which-effect": Mutation(
+        path="nrplanner/model.py",
+        old="""        def record(key: str, own: float) -> None:
+            build.sources.setdefault(key, []).append(
+                SourceEntry(label, own, effect_id))
+""",
+        new="""        def record(key: str, own: float) -> None:
+            build.sources.setdefault(key, []).append(
+                SourceEntry(label, own, 0))
+""",
+        survival_means=(
+            "the other half of QA-180: the id is in the shape and not in the "
+            "data, so everything reading `Build.sources` back is on the name "
+            "again. The reasoning would then say nothing at all about any "
+            "slot, because no entry matches any effect the copies carry -- "
+            "silent rather than wrong, and a suggestion without a reason is "
+            "an A5 failure either way. Killed by test_advisor_explain.py::"
+            "test_a_name_two_effects_share_in_this_dataset_still_lands_on_"
+            "two_slots, which computes against the dataset instead of "
+            "stating `sources` outright."),
+    ),
     "explain-lets-one-copy-claim-every-entry-of-its-name": Mutation(
         path="nrplanner/advisor/explain.py",
-        old="""                if claimed[position] or entry != name or key in moved:
+        old="""                if (claimed[position] or entry.effect_id != effect_id
+                        or key in moved):
 """,
-        new="""                if claimed[position] or entry != name:
+        new="""                if claimed[position] or entry.effect_id != effect_id:
 """,
         survival_means=(
             "one copy claims every entry filed under its effect's name, so "
@@ -1286,9 +1338,9 @@ MUTATIONS: dict[str, Mutation] = {
     "explain-credits-every-copy-with-the-same-entry": Mutation(
         path="nrplanner/advisor/explain.py",
         old="""                claimed[position] = True
-                moved[key] = own
+                moved[key] = entry.own
 """,
-        new="""                moved[key] = own
+        new="""                moved[key] = entry.own
 """,
         survival_means=(
             "an entry is claimed by every copy that carries the effect "

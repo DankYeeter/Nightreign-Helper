@@ -40,11 +40,13 @@ are drawn once for the screen (AK-50).
   opinion AD-015 forbids;
 * an effect the dataset no longer carries contributes nothing and is named
   nowhere, exactly as `evaluate` skips it (P4, QA-004/QA-032);
-* two effects that share a name and were both counted are told apart by the
-  order they sit in on the relics, because `sources` records names and not
-  ids. That is right for the case it was built for -- one effect on three
-  relics, three entries, one per relic -- and it is a guess where a dataset
-  gives one name to two different effects.
+* two effects that share a name are told apart by their **id**, which
+  `Build.sources` carries beside the figure. Attributing by name was the
+  guess this module used to make, and on the real save it put 130 lines under
+  a relic that cannot produce them and left 23 of 296 best suggestions with a
+  filled slot the reasoning says nothing about (QA-180): `7000090` and
+  `6610400` are both `Increased Maximum HP`, so the first relic claimed both
+  figures and the second looked as though it had contributed nothing.
 """
 
 from __future__ import annotations
@@ -80,11 +82,11 @@ class _Contribution:
 def _effect_name(ctx: types.GoalContext, effect_id: int) -> str | None:
     """This effect's name as `Build.sources` writes it, or `None`.
 
-    Whitespace-folded the same way `model.compute` folds it, because the name
-    in `sources` is what has to be matched and a name that differs by a line
-    break matches nothing. `None` for an id this dataset does not carry:
-    `evaluate` skips those, so they moved nothing and there is nothing to say
-    about them.
+    Whitespace-folded the same way `model.compute` folds it, so that the name
+    on a line here and the name in the breakdown popup are the same string --
+    several effect names in this dataset end in a line break. `None` for an id
+    this dataset does not carry: `evaluate` skips those, so they moved nothing
+    and there is nothing to say about them.
     """
     effect = ctx.data["effects"].get(str(effect_id))
     if effect is None:
@@ -92,23 +94,28 @@ def _effect_name(ctx: types.GoalContext, effect_id: int) -> str | None:
     return " ".join(str(effect.get("name", "")).split())
 
 
-def _added(base: model.Build, built: model.Build) -> list[tuple[str, str,
-                                                                float]]:
+def _added(base: model.Build,
+           built: model.Build) -> list[tuple[str, model.SourceEntry]]:
     """What the chosen copies added to `sources`, entry by entry.
 
     A multiset difference rather than a subtraction of totals: two relics
     carrying one stacking effect are two entries under one name, and the base
     state's own copy of that effect has to cancel exactly one of them. The
     order is `built`'s, which is the order `model.compute` counted them in.
+
+    An entry cancels only against an entry of the **same effect**, id and all.
+    Two effects this dataset gives one name to are two entries and not two
+    copies of one (QA-180), and the base state's `Increased Maximum HP` must
+    not swallow a chosen copy's differently-numbered one.
     """
-    out: list[tuple[str, str, float]] = []
+    out: list[tuple[str, model.SourceEntry]] = []
     for key, entries in built.sources.items():
         before = list(base.sources.get(key, ()))
-        for name, own in entries:
-            if (name, own) in before:
-                before.remove((name, own))
+        for entry in entries:
+            if entry in before:
+                before.remove(entry)
                 continue
-            out.append((key, name, own))
+            out.append((key, entry))
     return out
 
 
@@ -127,6 +134,12 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
                 built: model.Build,
                 ctx: types.GoalContext) -> tuple[_Contribution, ...]:
     """Which chosen copy each added entry belongs to, in slot order.
+
+    **Matched on the effect id, never on the name** (QA-180). The name is
+    what the line says; the id is what says whose figure it is. Two effects
+    this dataset calls `Increased Maximum HP` moved two different fields, and
+    matching by name gave both figures to the copy in the lower slot and left
+    the other slot without a line -- 130 such lines on the real save.
 
     Every entry is claimed by exactly one copy, so a stacking effect that
     three relics carry gives three contributions and one apiece -- and an
@@ -149,11 +162,12 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
             if name is None:
                 continue
             moved: dict[str, float] = {}
-            for position, (key, entry, own) in enumerate(added):
-                if claimed[position] or entry != name or key in moved:
+            for position, (key, entry) in enumerate(added):
+                if (claimed[position] or entry.effect_id != effect_id
+                        or key in moved):
                     continue
                 claimed[position] = True
-                moved[key] = own
+                moved[key] = entry.own
             for key, own in model.collapse_by_label(moved).items():
                 if _moved_nothing(key, own, built):
                     continue

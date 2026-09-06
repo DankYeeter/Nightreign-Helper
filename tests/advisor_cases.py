@@ -91,6 +91,50 @@ def a_non_stacking_effect(data: dict, hero: dict, field_name: str) -> int:
                       f"{field_name}")
 
 
+def two_effects_the_dataset_gives_one_name(data: dict,
+                                           hero: dict) -> tuple[int, int]:
+    """Two effect ids that share a name and move **different** fields (QA-180).
+
+    The dataset gives 160 of its 707 effect names to more than one id, and
+    `7000090` / `6610400` are the pair that names this finding: both are
+    `Increased Maximum HP`, one adds Vigor and the other multiplies max HP.
+    Anything that attributes a figure by name cannot tell such a pair apart.
+
+    Which fields an effect moves is asked of `model.compute` on that one
+    effect, never of the module under test, and the pair is only accepted
+    when the two field sets are disjoint -- a pair moving the same field
+    would let an attribution by name look right.
+
+    Lowest name and lowest ids first, so two runs over one dataset pick the
+    same pair.
+    """
+    from nrplanner import model
+
+    curves = data.get("curves", {})
+    by_name: dict[str, list[int]] = {}
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        name = " ".join(str(effect.get("name", "")).split())
+        by_name.setdefault(name, []).append(int(effect["id"]))
+
+    def fields_of(effect_id: int) -> set[str]:
+        effect = data["effects"][str(effect_id)]
+        return set(model.compute(hero, LEVEL, [effect], curves).sources)
+
+    for name in sorted(by_name):
+        ids = by_name[name]
+        if not name or len(ids) < 2:
+            continue
+        for index, first in enumerate(ids):
+            for second in ids[index + 1:]:
+                one, other = fields_of(first), fields_of(second)
+                if one and other and not (one & other):
+                    return first, second
+    pytest.skip("this dataset gives no name to two effects that move "
+                "different fields, so nothing here can tell an attribution "
+                "by name from one by id")
+
+
 def a_damage_type_conversion(data: dict) -> int:
     """An effect that converts damage from one type into another (QA-113).
 

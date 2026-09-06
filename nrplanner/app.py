@@ -2946,22 +2946,22 @@ class Planner(QMainWindow):
 
         multiplicative = model.real_field(key) in self.last_rates
         rows = [f"<b>{label}</b>"]
-        for name, value in entries:
+        for entry in entries:
             if multiplicative:
-                shown = f"{(value - 1.0) * 100:+.1f}%"
+                shown = f"{(entry.own - 1.0) * 100:+.1f}%"
             else:
-                shown = f"{value:+g}"
-            rows.append(f"&nbsp;&nbsp;{name} &nbsp; <b>{shown}</b>")
+                shown = f"{entry.own:+g}"
+            rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
 
         if multiplicative and len(entries) > 1:
             total = 1.0
-            for _n, v in entries:
-                total *= v
+            for entry in entries:
+                total *= entry.own
             rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
                         f"{(total - 1.0) * 100:+.1f}%</i>")
         elif not multiplicative and len(entries) > 1:
-            rows.append(f"&nbsp;&nbsp;<i>total {sum(v for _n, v in entries):+g}"
-                        f"</i>")
+            rows.append(f"&nbsp;&nbsp;<i>total "
+                        f"{sum(entry.own for entry in entries):+g}</i>")
 
         # Offset to the right of the cursor so the number stays readable.
         QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
@@ -3012,13 +3012,14 @@ class Planner(QMainWindow):
             if weapon_class:
                 scoped = (f"{model.WEAPON_CLASS_PREFIX}{weapon_class}:"
                           f"{field_name}")
-                entries += [(f"{name} — {weapon_class} armaments only", own)
-                            for name, own in
-                            self.last_sources.get(scoped, [])]
-            for name, own in entries:
+                entries += [
+                    entry._replace(
+                        name=f"{entry.name} — {weapon_class} armaments only")
+                    for entry in self.last_sources.get(scoped, [])]
+            for entry in entries:
                 rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
-                            f"<span style='color:{MUTED}'>{name} "
-                            f"{(own - 1.0) * 100:+.1f}%</span>")
+                            f"<span style='color:{MUTED}'>{entry.name} "
+                            f"{(entry.own - 1.0) * 100:+.1f}%</span>")
 
         if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
             rows.append(f"&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")

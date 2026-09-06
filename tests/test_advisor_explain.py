@@ -64,6 +64,24 @@ def effect_names(data: dict, effect_ids) -> set[str]:
     return found
 
 
+def labels_moved_by(data: dict, hero: dict, effect_id: int) -> set[str]:
+    """What the stat sheet calls the figures this one effect moves.
+
+    Asked of `model.compute` on the single effect and named through
+    `model.label_for`, so the expectation comes from the model rather than
+    from the attribution being watched. Merged through
+    `model.collapse_by_label` for the same reason the reasoning merges: the
+    game splits one idea over several fields and the sheet shows it once.
+    """
+    build = model.compute(hero, advisor.LEVEL,
+                          [data["effects"][str(effect_id)]],
+                          data.get("curves", {}))
+    merged = model.collapse_by_label({key: entries[0].own
+                                      for key, entries in
+                                      build.sources.items()})
+    return {model.label_for(key) for key in merged}
+
+
 def owned_by_handle(inventory, handle: int):
     return next(relic for relic in inventory.relics if relic.handle == handle)
 
@@ -82,9 +100,15 @@ def a_build(sources: dict, rates=()) -> model.Build:
 
     `rates` is what tells `explain` a figure scales rather than adds -- the
     same reading `app.py`'s breakdown takes off `last_rates`.
+
+    An entry is `(name, own, effect id)`, the three things `model.compute`
+    records. The id is stated rather than derived from the name, because the
+    attribution under test is the one that must not go by name (QA-180).
     """
-    return model.Build(sources=dict(sources),
-                       rates={key: 1.0 for key in rates})
+    return model.Build(
+        sources={key: [model.SourceEntry(*entry) for entry in entries]
+                 for key, entries in sources.items()},
+        rates={key: 1.0 for key in rates})
 
 
 def a_curse_this_armament_cannot_feel(data: dict, hero: dict,
@@ -233,8 +257,8 @@ def test_a_copy_whose_effect_the_held_relic_already_caps_is_not_credited(
     built = evaluate(problem, chosen, ctx)
 
     name = effect_names(game_data, [stuck]).pop()
-    assert any(name == entry for entries in built.sources.values()
-               for entry, _own in entries), (
+    assert any(entry.name == name for entries in built.sources.values()
+               for entry in entries), (
         f"{name!r} stands in no source of the built build, so there is "
         f"nothing here for a reasoning to claim wrongly")
 
@@ -269,6 +293,75 @@ def test_a_copy_whose_effect_the_game_refused_to_stack_gets_no_line(
         f"something: {lines}")
 
 
+def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
+    """QA-180's smallest case: one name, two ids, two slots.
+
+    The dataset calls both `7000090` (Vigor +5) and `6610400` (Max HP +10 %)
+    `Increased Maximum HP`. Attributing by name gives the copy in the lower
+    slot both figures -- one of which its effect cannot move -- and leaves the
+    other slot without a line at all. On the real save that was 130 lines
+    over 592 suggestions and 23 of the 296 best suggestions with a silent
+    slot, every one of which had moved the ranking figure.
+
+    **The expectation is stated, not derived.** The case that used to watch
+    this checked that every line names *a* name of the suggested copies, and
+    `Increased Maximum HP` is such a name whichever slot it is printed under,
+    so it could not go red. What is asserted here is the slot each figure is
+    printed under, which is the thing that was wrong.
+    """
+    ctx = a_context({7000090: "Increased Maximum HP",
+                     6610400: "Increased Maximum HP"})
+    built = a_build({"Vigor": [("Increased Maximum HP", 5, 7000090)],
+                     "maxHpRate": [("Increased Maximum HP", 1.1, 6610400)]},
+                    rates=("maxHpRate",))
+
+    lines = explain.reasons((a_copy(0, 1, "Vigor relic", [7000090]),
+                             a_copy(1, 2, "Max HP relic", [6610400])),
+                            a_build({}), built, ctx)
+
+    assert lines == (
+        "Slot 1, Vigor relic — Increased Maximum HP: Vigor +5",
+        "Slot 2, Max HP relic — Increased Maximum HP: Max HP +10.0%",
+    )
+
+
+def test_a_name_two_effects_share_in_this_dataset_still_lands_on_two_slots(
+        game_data, wylder, armament):
+    """The same rule against the dataset, with the figures it really records.
+
+    The pair is looked up rather than named -- 160 of this dataset's 707
+    effect names are carried by more than one id -- and what each of the two
+    moves is asked of `model.compute` on that one effect. Nothing here reads
+    the attribution it is watching, and the two field sets are disjoint by
+    construction, so a line under the wrong slot names a figure that slot's
+    relic cannot produce.
+    """
+    first, second = advisor.two_effects_the_dataset_gives_one_name(game_data,
+                                                                   wylder)
+    problem = advisor.problem([advisor.RED, advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "First relic", [first]),
+              a_copy(1, 2, "Second relic", [second]))
+
+    lines = explain.reasons(chosen, evaluate(problem, (), ctx),
+                            evaluate(problem, chosen, ctx), ctx)
+
+    assert effect_names(game_data, [first]) == effect_names(game_data,
+                                                            [second]), (
+        "the two effects no longer share a name, so this case cannot tell an "
+        "attribution by name from one by id")
+    for slot, effect_id in ((1, first), (2, second)):
+        labels = labels_moved_by(game_data, wylder, effect_id)
+        said = [line for line in lines if line.startswith(f"Slot {slot},")]
+        assert said, (
+            f"slot {slot} carries an effect that moves {sorted(labels)} and "
+            f"the reasoning says nothing about it at all: {lines}")
+        for line in said:
+            assert any(label in line for label in labels), (
+                f"this line stands under slot {slot}, whose effect moves "
+                f"{sorted(labels)}, and names none of them: {line!r}")
+
+
 # -- how one figure is written down -----------------------------------------
 
 def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number():
@@ -280,8 +373,8 @@ def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number():
     calculation, and QA-011 is what that costs.
     """
     ctx = a_context({1: "Physical Attack Up"})
-    built = a_build({"physicsAttackRate": [("Physical Attack Up", 1.12)],
-                     "Strength": [("Physical Attack Up", 3)]},
+    built = a_build({"physicsAttackRate": [("Physical Attack Up", 1.12, 1)],
+                     "Strength": [("Physical Attack Up", 3, 1)]},
                     rates=("physicsAttackRate",))
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
@@ -304,9 +397,9 @@ def test_a_figure_that_is_better_small_is_not_called_a_cost_for_falling():
     ctx = a_context({1: "Improved Fire Damage Negation +1",
                     2: "Reduced Flask HP Restoration"})
     built = a_build(
-        {"fireDamageCutRate": [("Improved Fire Damage Negation +1", 0.85)],
+        {"fireDamageCutRate": [("Improved Fire Damage Negation +1", 0.85, 1)],
          "changeHpEstusFlaskCorrectRate": [("Reduced Flask HP Restoration",
-                                            0.85)]},
+                                            0.85, 2)]},
         rates=("fireDamageCutRate", "changeHpEstusFlaskCorrectRate"))
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1], [2]),), a_build({}),
@@ -329,8 +422,8 @@ def test_a_figure_that_did_not_move_is_no_reason():
     neutral.
     """
     ctx = a_context({1: "Does nothing"})
-    built = a_build({"physicsAttackRate": [("Does nothing", 1.0)],
-                     "Strength": [("Does nothing", 0)]},
+    built = a_build({"physicsAttackRate": [("Does nothing", 1.0, 1)],
+                     "Strength": [("Does nothing", 0, 1)]},
                     rates=("physicsAttackRate",))
 
     assert explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
@@ -349,7 +442,7 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
     fields = ("artsConsumptionRate", "magicConsumptionRate",
               "shamanConsumptionRate", "miracleConsumptionRate",
               "goodsConsumptionRate")
-    built = a_build({field: [("Reduced FP Consumption", 0.92)]
+    built = a_build({field: [("Reduced FP Consumption", 0.92, 1)]
                      for field in fields}, rates=fields)
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
@@ -372,7 +465,7 @@ def test_a_buff_bound_to_one_class_of_armament_says_which():
     """
     ctx = a_context({1: "Improved Melee Attack Power"})
     key = f"{model.WEAPON_CLASS_PREFIX}melee:physicsAttackRate"
-    built = a_build({key: [("Improved Melee Attack Power", 1.06)]})
+    built = a_build({key: [("Improved Melee Attack Power", 1.06, 1)]})
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
                             built, ctx)
@@ -392,7 +485,7 @@ def test_a_buff_the_game_restricts_to_one_move_does_not_say_its_name_twice():
     """
     ctx = a_context({1: "Improved Skill Attack Power"})
     key = f"{model.SCOPED_PREFIX}Improved Skill Attack Power"
-    built = a_build({key: [("Improved Skill Attack Power", 1.15)]},
+    built = a_build({key: [("Improved Skill Attack Power", 1.15, 1)]},
                     rates=(key,))
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1]),), a_build({}),
@@ -412,7 +505,7 @@ def test_an_effect_this_dataset_does_not_carry_is_named_nowhere():
     the fault this step is accepted against.
     """
     ctx = a_context({1: "Known"})
-    built = a_build({"Strength": [("Known", 3)]})
+    built = a_build({"Strength": [("Known", 3, 1)]})
 
     lines = explain.reasons((a_copy(0, 1, "A relic", [1, 4242]),),
                             a_build({}), built, ctx)

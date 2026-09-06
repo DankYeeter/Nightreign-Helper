@@ -226,8 +226,8 @@ def test_a_text_scoped_buff_is_kept_out_of_the_rating_and_not_out_of_sight(
         f"the relic left no line at all: {sorted(build.rates)}")
     assert build.rates[key] == (effect["modifiers"] or {})["physicsAttackRate"]
     assert model.label_for(key) == effect["name"].strip()
-    assert any(name == effect["name"].strip()
-               for name, _ in build.sources.get(key, [])), (
+    assert any(entry.name == effect["name"].strip()
+               for entry in build.sources.get(key, [])), (
         "the line names no source, so a click on it would explain nothing")
 
     for field_name in model.ELEMENT_ATTACK_RATES:
