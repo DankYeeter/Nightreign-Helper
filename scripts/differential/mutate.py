@@ -1575,8 +1575,8 @@ MUTATIONS: dict[str, Mutation] = {
     "explain-does-not-say-that-nothing-was-searched": Mutation(
         path="nrplanner/advisor/explain.py",
         old="""    if held == slots:
-        return (f"All {slots} slots are held, so nothing was searched: this "
-                f"is the build as it stands, scored.")
+        return (f"All {slots} slots are held, so there was nothing to search "
+                f"— this is your build as it stands, with its figure.")
 """,
         new="""""",
         survival_means=(
@@ -1605,31 +1605,34 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "explain-does-not-say-where-the-data-came-from": Mutation(
         path="nrplanner/advisor/explain.py",
-        old="""    where = ("read from the installed game" if meta.get("regenerated")
-             else "from the stored snapshot")
+        old="""    where = ("read from your game files just now" if meta.get("regenerated")
+             else "read from your game files earlier and kept since")
 """,
-        new="""    where = "from the stored snapshot"
+        new="""    where = "read from your game files earlier and kept since"
 """,
         survival_means=(
             "AD-010's `data_note` loses half its content (F7): a run against "
-            "a dataset read fresh from the installation claims to be from a "
-            "snapshot, so a player checking why a figure moved after a game "
-            "patch is told the opposite of what happened. Killed by "
+            "a dataset read fresh from the installation claims to be older "
+            "data kept since an earlier read, so a player checking why a "
+            "figure moved after a game patch is told the opposite of what "
+            "happened. Killed by "
             "test_advisor_explain.py::"
             "test_the_data_note_names_the_version_and_where_it_was_read."),
     ),
     "explain-interpolates-a-version-that-is-not-there": Mutation(
         path="nrplanner/advisor/explain.py",
         old="""    if not version:
-        return (f"Ranked on game data {where}, which records no version, so "
-                f"there is no way to say which patch it is from.")
+        return (f"Ranked on game data {where}. It does not say which game "
+                f"version it is from, so these figures cannot be tied to a "
+                f"patch.")
 """,
         new="""""",
         survival_means=(
             "a dataset that records no version produces `Ranked on game data "
-            "version , from the stored snapshot.` -- a provenance claim with "
-            "a hole in it where A7 asks the program to say that it does not "
-            "know. Killed by test_advisor_explain.py::"
+            "version , read from your game files earlier and kept since.` -- "
+            "a provenance claim with a hole in it where A7 asks the program "
+            "to say that it does not know. Killed by "
+            "test_advisor_explain.py::"
             "test_a_dataset_that_records_no_version_says_so."),
     ),
     "explain-writes-every-figure-as-a-flat-number": Mutation(

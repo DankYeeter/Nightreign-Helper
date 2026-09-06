@@ -627,13 +627,42 @@ def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
     assert lines == ("1 of 3 slots is held, so only the other 2 were filled.",)
 
 
+def test_the_two_counts_of_the_held_line_each_take_their_own_verb(game_data,
+                                                                  wylder,
+                                                                  armament):
+    """QA-183: `is`/`are` follows the held slots, `was`/`were` the rest.
+
+    One held slot of two leaves one filled, and the sentence carried the
+    singular in front and the plural behind: `1 of 2 slots is held, so only
+    the other 1 were filled.` The two numbers are different numbers, and the
+    case that saw it needs a vessel where they disagree -- on three slots
+    both halves read plural and the fault is invisible.
+    """
+    inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
+                                       count=2)
+    kept = inventory.relics_for(advisor.RED, False)[0]
+    problem = advisor.problem([advisor.RED, advisor.RED],
+                              held={0: advisor.held_relic(kept)})
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    base = evaluate(problem, (), ctx)
+
+    lines = explain.unknowns(problem, (), base, base, ctx,
+                             goals.GOALS[DAMAGE])
+
+    assert lines == ("1 of 2 slots is held, so only the other 1 was filled.",)
+
+
 def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder,
                                                         armament):
     """Checkpoint 14: with everything held the answer is the build as it is.
 
-    The search says so by returning that build, scored; this line is the half
-    the player reads. `2 of 2 slots are held` would be true and would leave
-    the reader to work out that nothing was searched at all.
+    The search says so by returning that build with its figure; this line is
+    the half the player reads. `2 of 2 slots are held` would be true and
+    would leave the reader to work out that nothing was searched at all.
+
+    The last three words are the correction of T-078 §8: the sentence ended
+    on `scored.`, a participle standing alone, where A11 asks for the word
+    the player sees on the screen beside it.
     """
     inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
                                        count=2)
@@ -647,8 +676,8 @@ def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder,
     lines = explain.unknowns(problem, (), base, base, ctx,
                              goals.GOALS[DAMAGE])
 
-    assert lines == ("All 2 slots are held, so nothing was searched: this is "
-                     "the build as it stands, scored.",)
+    assert lines == ("All 2 slots are held, so there was nothing to search — "
+                     "this is your build as it stands, with its figure.",)
 
 
 def test_a_run_that_left_nothing_out_says_nothing(game_data, wylder,
@@ -735,34 +764,63 @@ def test_the_data_note_names_the_version_and_where_it_was_read(game_data,
                                                                wylder):
     """AD-010, F7: two different reasons to distrust a figure.
 
-    Which version of the game's data, and whether it was read from the
-    installation now or has been sitting in a snapshot since the last patch.
-    `datasource` marks a fresh extraction with `regenerated`.
+    Which version of the game's data, and **when** it was read from the
+    installation. `datasource` marks a fresh extraction with `regenerated`.
+
+    The wording is `UI_SPEC` T-078 §8 and it is written out here rather than
+    imported: a case that asks the module for the sentence it is checking
+    agrees with whatever the module says.
     """
     stored = advisor.context(game_data, wylder)
     version = game_data["meta"]["data_version"]
 
     assert explain.data_note(stored) == (
-        f"Ranked on game data version {version}, from the stored snapshot.")
+        f"Ranked on game data version {version}, read from your game files "
+        f"earlier and kept since.")
 
     fresh = dict(game_data, meta=dict(game_data["meta"], regenerated=True))
     assert explain.data_note(
         advisor.context(fresh, wylder)) == (
-        f"Ranked on game data version {version}, read from the installed "
-        f"game.")
+        f"Ranked on game data version {version}, read from your game files "
+        f"just now.")
+
+
+def test_the_data_note_says_when_and_never_where_it_is_kept(game_data,
+                                                            wylder):
+    """The word `snapshot` is barred from the advisor's own sentences.
+
+    AK-127 keeps it off the first-run screen because a player does not know
+    what a stored snapshot is, and a word that has to be avoided in one place
+    is not honest in another (T-078 §8). What the note has to answer is
+    *when*, not *where it lives*.
+    """
+    fresh = dict(game_data, meta=dict(game_data["meta"], regenerated=True))
+    notes = (explain.data_note(advisor.context(game_data, wylder)),
+             explain.data_note(advisor.context(fresh, wylder)),
+             explain.data_note(advisor.context(dict(game_data, meta={}),
+                                               wylder)))
+
+    for note in notes:
+        assert "snapshot" not in note.lower(), note
+    assert all(("just now" in note) != ("earlier and kept since" in note)
+               for note in notes), (
+        f"every filling says when the data was read, and says it once: "
+        f"{notes}")
 
 
 def test_a_dataset_that_records_no_version_says_so(game_data, wylder):
     """A7: where the data gives no answer, the program says so.
 
     An empty version silently interpolated reads as a version, and every
-    figure of the run would then claim a provenance it does not have.
+    figure of the run would then claim a provenance it does not have. The
+    sentence still carries the time, because that half is known.
     """
     nameless = advisor.context(dict(game_data, meta={}), wylder)
 
     assert explain.data_note(nameless) == (
-        "Ranked on game data from the stored snapshot, which records no "
-        "version, so there is no way to say which patch it is from.")
+        "Ranked on game data read from your game files earlier and kept "
+        "since. It does not say which game version it is from, so these "
+        "figures cannot be tied to a patch.")
 
 
 # -- reading a suggestion back ----------------------------------------------

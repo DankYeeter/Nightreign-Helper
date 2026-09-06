@@ -380,17 +380,24 @@ def data_note(ctx: types.GoalContext) -> str:
     """Which dataset this run was ranked on (AD-010, F7).
 
     Two things, because they are two different reasons to distrust a figure:
-    which version of the game's data it came from, and whether that data was
-    read from the installation now or has been sitting in a snapshot since
-    the last time. `datasource` marks a fresh extraction with `regenerated`.
+    which version of the game's data it came from, and **when** that data was
+    read from the installation. `datasource` marks a fresh extraction with
+    `regenerated`.
+
+    The second half says the time and not the storage place, and the word
+    `snapshot` is gone with it (`UI_SPEC` T-078 §8): a player does not know
+    what a stored snapshot is -- AK-127 bars the word from the first-run
+    screen -- and what they need to know is whether these are today's figures
+    or older ones.
     """
     meta = ctx.data.get("meta") or {}
-    where = ("read from the installed game" if meta.get("regenerated")
-             else "from the stored snapshot")
+    where = ("read from your game files just now" if meta.get("regenerated")
+             else "read from your game files earlier and kept since")
     version = str(meta.get("data_version") or "")
     if not version:
-        return (f"Ranked on game data {where}, which records no version, so "
-                f"there is no way to say which patch it is from.")
+        return (f"Ranked on game data {where}. It does not say which game "
+                f"version it is from, so these figures cannot be tied to a "
+                f"patch.")
     return f"Ranked on game data version {version}, {where}."
 
 
@@ -401,17 +408,27 @@ def _held_slots_line(problem: types.SlotProblem) -> str:
     stands at all is settled by the run. The two fillings are two different
     pieces of news: some slots held is a smaller search, every slot held is
     **no** search, and the answer is then the build as it stands (AD-014.2).
+
+    **Two counts, two verbs** (QA-183). `is`/`are` follows the slots that are
+    held; `was`/`were` follows the ones that were filled, which is the *rest*.
+    On a two-slot vessel with one held they disagree, and the sentence read
+    `1 of 2 slots is held, so only the other 1 were filled.`
+
+    The last filling says what the player is looking at in the words the rest
+    of the advisor uses for it (`UI_SPEC` T-078 §8). It read `scored.`, a
+    participle on its own at the end of a sentence, where A11 asks for a word
+    the player can already see on the screen.
     """
     held = len(problem.held)
     slots = len(problem.slots)
     if not held:
         return ""
     if held == slots:
-        return (f"All {slots} slots are held, so nothing was searched: this "
-                f"is the build as it stands, scored.")
-    one = held == 1
-    return (f"{held} of {slots} slots {'is' if one else 'are'} held, so only "
-            f"the other {slots - held} were filled.")
+        return (f"All {slots} slots are held, so there was nothing to search "
+                f"— this is your build as it stands, with its figure.")
+    rest = slots - held
+    return (f"{held} of {slots} slots {'is' if held == 1 else 'are'} held, so "
+            f"only the other {rest} {'was' if rest == 1 else 'were'} filled.")
 
 
 def _without_the_curse(chosen: Sequence[types.Candidate],
