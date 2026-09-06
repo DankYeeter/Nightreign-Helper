@@ -1321,6 +1321,30 @@ MUTATIONS: dict[str, Mutation] = {
             "two_slots, which computes against the dataset instead of "
             "stating `sources` outright."),
     ),
+    "advisor-counts-each-chosen-copy-twice": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""    for candidate in sorted(assignment, key=lambda chosen: chosen.slot_index):
+        ids.extend(candidate.effect_ids)
+        ids.extend(candidate.curse_ids)
+""",
+        new="""    for candidate in sorted(assignment, key=lambda chosen: chosen.slot_index):
+        ids.extend(candidate.effect_ids)
+        ids.extend(candidate.effect_ids)
+        ids.extend(candidate.curse_ids)
+""",
+        survival_means=(
+            "`GOAL.md` A4's stacking clause is unguarded at the advisor's "
+            "edge: every chosen copy counts twice, so a relic carrying "
+            "`Physical Attack Up +4` gives 1.2544 where the sheet beside it "
+            "says 1.1200 and `max_damage` rises 2.6 %. `model.compute` holds "
+            "the rule over the list it is handed; nothing held that the "
+            "advisor hands it the right list. Measured surviving on "
+            "2026-09-06: 952 passed, 9 skipped, 5 deselected, identical to "
+            "the run before it (QA-181). Killed by "
+            "test_advisor_evaluate.py::"
+            "test_each_source_of_an_effect_reaches_the_model_exactly_once, "
+            "which compares a multiset built from the three inputs."),
+    ),
     "explain-lets-one-copy-claim-every-entry-of-its-name": Mutation(
         path="nrplanner/advisor/explain.py",
         old="""                if (claimed[position] or entry.effect_id != effect_id

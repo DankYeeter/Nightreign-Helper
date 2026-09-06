@@ -375,6 +375,50 @@ def test_the_armaments_own_effects_reach_the_build(game_data):
     assert with_it.attributes["Strength"] > without.attributes["Strength"]
 
 
+def test_each_source_of_an_effect_reaches_the_model_exactly_once(game_data):
+    """A4's stacking clause where the advisor meets the model: **how often**.
+
+    `model.compute` refuses to count an `isStrongestEffect` twice, but only
+    over the list it is handed, and `effect_ids_of` is what hands it that
+    list. Nothing said how many times a chosen copy may put its effects into
+    it. Adding a second `ids.extend(candidate.effect_ids)` therefore raised
+    `physicsAttackRate` from 1.1200 to 1.2544 and `max_damage` by 2.6 % --
+    and the whole suite stayed green (QA-181).
+
+    The expectation is a multiset built here out of the three inputs, the
+    problem, the assignment and the context, and never out of the list the
+    function returns. The cases already in this file cannot see it: they ask
+    **which** sources arrive and in what order, never how often, and the
+    comparison against the window compares two builds, which a doubling on
+    both sides would move alike.
+    """
+    from collections import Counter
+
+    hero = cases.hero_by_name(game_data, "Wylder")
+    inventory = advisor.make_inventory(game_data, hero, count=3)
+    kept, first, second = inventory.relics[:3]
+    on_the_armament = advisor.a_gated_attribute_effect(game_data, hero)
+    problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED],
+                              held={0: advisor.held_relic(kept)})
+    ctx = advisor.context(game_data, hero,
+                          armament_effect_ids=(on_the_armament,))
+    assignment = (model_candidate(first, slot_index=1),
+                  model_candidate(second, slot_index=2))
+
+    expected: Counter[int] = Counter()
+    for relic in (kept, first, second):
+        expected.update(relic.effect_ids)
+        expected.update(relic.curse_ids)
+    expected.update(ctx.armament_effect_ids)
+
+    assert (kept.effect_ids and first.effect_ids and second.effect_ids
+            and ctx.armament_effect_ids), (
+        "one of the four sources carries nothing, so a doubled list would "
+        "not be visible at it")
+    assert Counter(evaluate_module.effect_ids_of(
+        problem, assignment, ctx)) == expected
+
+
 def test_a_declared_conditional_reaches_the_build(game_data):
     """A gated effect counts exactly as often as the player says it is live.
 
