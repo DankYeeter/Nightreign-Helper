@@ -1657,3 +1657,163 @@ Tooltip. Sie haelt **nicht fuer die Spaltenkoepfe**: QA-140.
 | QA-147 | **Nightlords bei 833 px: leeres Detailpanel haelt 330 von 833 px** | P4 | Minor | ui-ux-designer | Screenshot | offen | 2026-09-05 |
 | QA-148 | **World Events: Runen-Leiter ohne Bezugspunkte, Satzrest nach dem Entfernen des Param-Namens** | P4 | Trivial | developer, ui-ux-designer | Bildschirmtext gegen Datensatz | offen | 2026-09-05 |
 | QA-149 | **Nightlords: `IT BUFFS ITSELF` und `BODY PARTS` ohne Bezugsgroesse, die Nachbarabschnitte mit** | P4 | Minor | ui-ux-designer | 10 Panels | offen | 2026-09-05 |
+
+
+## Zyklus 13, T-064: Retest der Tab-Audit-Restbefunde (2026-09-05)
+
+Quelle: `docs/berichte/T-064-qa-engineer.md`. **QA-140 bis QA-149: 10 von 10
+behoben**, sechs davon durch frisch gefahrene, unabhaengige Mutationen
+bestaetigt — darunter die eine, die im ersten Anlauf zahnlos war. **Null
+Abweichungen** von den in T-060 berichteten Zahlen. Suite in einem frischen
+Klon nachgemessen: 759 passed, 9 skipped, 5 deselected.
+
+**Der Tooltip-Widerspruch aus T-063 ist geklaert: Lesart (b).** Der Tooltip
+existiert, ist korrekt verdrahtet und erscheint am **laufenden** Fenster bei
+echtem OS-Hover — bei 1320 px (dem Startmass), 1067 und 833 px, und bei genau
+der Spalte, die der `power-user` zitiert hat. Er braucht aber **~750-800 ms**
+ruhigen Hovers (Qts `SH_ToolTip_WakeUpDelay` unter Fusion = 700 ms). Die
+Beobachtung des Spielers war eine Grenze seiner kurzen Sitzung, keine
+Programmluecke. **Meine AK-77-Genehmigung haelt.**
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-150 | **Das Nightlord-Kartenraster zeigt keine aktive Auswahl.** `show_detail()` aktualisiert nur das Detailpanel; Suche nach Auswahl-Feedback im Modul: **0 Treffer**. Bei 8 px Kartenabstand waehlt ein knapper Fehlklick die falsche Karte, und das Raster sieht davor wie danach identisch aus. **Reproduziert am echten `power-user`-Lauf** (Gnoster statt Adel, unbemerkt bis zum Detailtext). Ein Spieler kann gegen den falschen Nachtlord planen, ohne es zu merken | P3 | Minor | ui-ux-designer | Codelesung, 0 Treffer, plus der Spielerbericht | offen | 2026-09-05 |
+| QA-151 | **Der Spaltenkopf-Tooltip braucht ~750-800 ms ruhigen Hovers, und nichts signalisiert das.** Die Auslassungspunkte sagen "gekuerzt", nicht "hier steht mehr". Am schaerfsten bei 833 px, wo **drei** Koepfe identisch `Co…` zeigen. Der Wert ist Qts Fusion-Stilhinweis, kein Zufall dieser Maschine. **Beruehrt A11 unmittelbar:** dass die Information da ist, ist nicht dasselbe wie dass ein Spieler sie in der Zeit findet, die er einem Hover gibt | P3 | Minor | ui-ux-designer | am laufenden Fenster feinaufgeloest gemessen, drei Breiten | offen | 2026-09-05 |
+| QA-152 | AK-94-Luecke: `bosstab.py:737`/`:743` drucken kuratierte Beobachtungen in gewoehnlicher statt Sichtungsfarbe. Vom `developer` selbst gemeldet (T-060), hier unabhaengig bestaetigt | P4 | Minor | ui-ux-designer, developer | zwei Stellen gelesen | offen | 2026-09-05 |
+| QA-153 | `tests/golden/weapon_damage.json` traegt `extract_version: 10`, der Extraktor steht auf **11**; kein Test vergleicht den Stempel. Vom `developer` selbst gemeldet, bestaetigt offen und **folgenlos** | P4 | Trivial | developer | Datei gegen Konstante | offen | 2026-09-05 |
+
+
+## Zyklus 13, T-066: dritter power-user-Durchgang (2026-09-06)
+
+Quelle: `docs/berichte/T-066-power-user.md`. **Alle sechs Aufgaben geschafft,
+kein Abbruch** (Runde 1: zwei "mit Muehe", eine "teilweise"). Der Befund aus
+Runde 2 ist weg — er liest `Comes with curse` vollstaendig. **A11 aber noch
+nicht erfuellt: zwei "ich haette geraten" bleiben.**
+
+Grenze seiner Sitzung, ausdruecklich: er konnte optisch nicht beurteilen, ob
+etwas abgeschnitten ist (sein Auslesewerkzeug liefert immer den vollen Text),
+und den Tooltip nicht ausloesen. Beides ist durch T-064 am laufenden Fenster
+bereits gemessen — kein neuer Befund.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-154 | **Der Klick auf eine Nightlord-Karte ist unzuverlaessig — sein Beinahe-Abbruch.** Zwei Klicks bewirkten nichts, der dritte oeffnete den **falschen** Nachtlord, erst der vierte den gewollten. Woertlich: *"Als Spieler haette ich das Programm fuer kaputt gehalten."* Es gibt keine Rueckmeldung, dass ein Klick ankam und nichts bewirkte. **Vorbehalt:** teilweise durch seine skriptgesteuerte Klickmethode erklaerbar — die Trefferflaeche und die fehlende Rueckmeldung sind es nicht | P2 | Major | ui-ux-designer, developer | vier Klickversuche protokolliert | offen | 2026-09-06 |
+| QA-155 | **Die Charakterauswahl fuer den Waffenvergleich sitzt im `Build planner`**, also ausserhalb des Tabs, der sie braucht. Er suchte sie im Waffen-Tab und fand sie nur durch Durchklicken aller Reiter. Zusaetzlich tragen die zehn Nightfarer-Kacheln **keine Textbeschriftung**, nur Bilder — er musste klicken und an anderer Stelle nachlesen, wen er ausgewaehlt hatte | P3 | Major | ui-ux-designer | Suchweg protokolliert | offen | 2026-09-06 |
+| QA-156 | **Zwei "ich haette geraten" — die letzten offenen A11-Stellen.** (a) Die Spalte `Copies` (Werte meist 1 oder 2) wird nirgends erklaert; seine Vermutung: "wie viele gleiche Kopien in verschiedenen Slots existieren", unsicher. (b) Die vier Filtermenues im Effects-Tab tragen **keine sichtbare Beschriftung** — er musste aus dem eingestellten Wert ("All colours") erraten, wofuer das Feld ist | P2 | Major | ui-ux-designer, developer | woertliche Selbstauskunft, beide Stellen benannt | offen | 2026-09-06 |
+
+
+## Zyklus 13, T-068: die letzten A11-Luecken und der L-006-Durchgang (2026-09-06)
+
+Quelle: `docs/berichte/T-068-developer.md`. QA-154 bis QA-156 **behoben**;
+Suite 781 -> **815 passed, 9 skipped**; 20 Mutationen gefahren, alle rot.
+
+**Zwei Ergebnisse, die eine Vermutung widerlegt haben:**
+- **QA-154 war nicht die Trefferflaeche.** 3 420 Pruefpunkte ueber die ganze
+  Karte, **3 420 von 3 420 oeffnen sie** — die Labels schlucken nichts. Tot
+  ist nur der **8-px-Streifen zwischen** zwei Karten, und der Spieler konnte
+  nicht sehen, auf welcher Seite er stand. Behoben durch eine **Zeigermarke**,
+  nicht durch eine groessere Klickflaeche.
+- **Die Vermutung des Spielers zu `Copies` war falsch.** Nicht "Kopien in
+  verschiedenen Slots" (das ist `Relic slots`), sondern **wie oft die
+  Effekttabelle des Spiels denselben Effekt getrennt definiert** (2 076 Zeilen
+  -> 1 064 Effekte). Ihn raten zu lassen haette ihn in die Irre gefuehrt.
+
+**Drei ueberlebende Gegenbauten wurden gemeldet statt still nachgebessert**
+(L-008, am Tag der Einfuehrung), einer davon ist nachweislich nicht zu toeten
+— der zahnlose Fall wurde geloescht. Und eine **Beinahe-Falschmeldung**
+gefangen: vier gewoehnliche Labels hoben den Offscreen-Fensterboden von 964
+auf 1276 px, **47 Faelle uebersprangen sich still** (L-009).
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-157 | **Fuenf anklickbare Flaechen ohne Zeichen, welche der Zeiger trifft** — dieselbe Klasse wie QA-154, an fuenf weiteren Stellen: `relicpicker.py:136` (die Relikt-Karten, **gleiche Kartenform, gleiche 8-px-Luecken**), `relicpicker.py:210`, `relicpicker.py:253`, `weaponslots.py:200` (hat einen Aktiv-Zustand, aber keine Zeigermarke), `app.py:199`. Drei unabhaengige Suchmasken, Trefferzahlen im Bericht | P3 | Minor | ui-ux-designer, developer | L-006-Durchgang, 3 Masken | offen | 2026-09-06 |
+| QA-158 | **`FavouriteMenu` zeigt dieselben zehn Nightfarer als reine Portraits, Name nur im Tooltip** (`relicpicker.py:258`) — **wortgleich QA-155(b) an einer zweiten Stelle**. Der Fall `app.py:1124` ist kein Treffer, dort ist das Bild der Inhalt | P3 | Minor | ui-ux-designer, developer | L-006-Durchgang, 2 Masken | offen | 2026-09-06 |
+| QA-159 | **Sechs von elf Spalten des Effects-Tabs haben ihre Bedeutung nirgends ausserhalb eines Tooltips** (`Colours`, `Relic slots`, `Avg chance`, `Best chance`, `Stacking`, `Comes with curse`); drei weitere (`Effect`, `Type`, `What it does`) tragen ueberhaupt keine Erklaerung. Beruehrt **A12**. Ob das ein Mangel ist, entscheidet nicht der Code — **Entscheidung des `ui-ux-designer`** | P3 | Minor | ui-ux-designer | am Tab ausgezaehlt | offen | 2026-09-06 |
+| QA-160 | **Die geschlossenen Filtermenues schneiden ihren eigenen Wert ab.** Textraum 81 px; `Buffs and curses` braucht 86, `Strongest only (adds + multiplies)` 178. **Vorbestand**, durch T-068 unveraendert, gegen den Basisbaum gemessen | P3 | Minor | developer | Breitenmessung gegen den Basisbaum | offen | 2026-09-06 |
+
+
+## Zyklus 13, T-070: Regressionsverdacht gegen T-068 — **widerlegt** (2026-09-06)
+
+Quelle: `docs/berichte/T-070-qa-engineer.md`. Messumgebung: Plattform
+`windows`, Stil `fusion` + dunkle Palette, dpr 1.5, Fenster 1320x860 logisch
+(Zahl erreicht), Kopf `46a8d24` gegen Basis `264d328`, gleiches Skript und
+gleicher Datensatz.
+
+**Kein Schaden durch T-068, an keiner der beiden Stellen.** Spaltenbreiten
+**byteidentisch** an 12 von 12 Breiten (760-1700); `Comes with c…` war auch
+**vorher** gekuerzt; **3 510 von 3 510** Pruefpunkten oeffnen die Karte in
+beiden Baeumen; Tooltip 266 ms gegen 279 ms. Die vier `FilterCaption` kosten
+die Tabelle **0 px**. Die 175-ms-Weckverzoegerung stammt aus T-065, nicht aus
+T-068.
+
+**Beide vom Director genannten Fehlerquellen tragen** — die tote 8-px-Luecke,
+und die zwei Fenster: nachgestellt, zwei Kopien legen sich deckungsgleich
+uebereinander, `WindowFromPoint` liefert B, der Klick oeffnet in B, A bleibt
+bei "Select a Nightlord".
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-161 | **Eine Nightlord-Karte ist ueber die Bedienungshilfen-Schnittstelle nicht bedienbar — und die Schnittstelle meldet Erfolg.** 90 von 90 exponierten Elementen melden `InvokePattern`; das einzige Element namens `Fulghor` ist ein `QLabel`, die Karte selbst ist `ControlType.Custom` **ohne Namen**. `Invoke` quittiert `INVOKE_OK` und bewirkt **nichts**. Gegenprobe: `Invoke` auf `TabItem "Deep of Night"` wechselt den Reiter wirklich. **Bestand**, in `264d328` identisch. Hat in **2 von 4** `power-user`-Laeufen Aufgabe 3 gekostet. Ein Element, das Erfolg meldet und nichts tut, ist schlechter als eines, das schweigt | P2 | Major | developer | 90 Elemente ausgezaehlt, Gegenprobe an einem Reiter | offen | 2026-09-06 |
+| QA-162 | **Der gekuerzte Spaltenkopf gibt der Schnittstelle nur `Comes with c…`** (13 Zeichen, letztes U+2026); `HelpText` ist bei **allen elf** Koepfen leer. Der volle Text lebt nur als Name eines **eigenen Top-Level-Fensters** (`QTipLabel`) ausserhalb des Programmbaums. Bei 833 px sind `Copies`/`Colours`/`Comes with curse` darueber nicht unterscheidbar. Bestand | P3 | Minor | developer, ui-ux-designer | UIA-Baum ausgelesen, elf Koepfe | offen | 2026-09-06 |
+| QA-163 | **Kein Schutz gegen eine zweite Instanz** (drei Suchmasken, 0 Treffer). Nachgestellt: zwei Kopien starten ohne Widerspruch, legen sich deckungsgleich auf (60,60); ein Klick landet im zweiten Fenster, waehrend das erste unveraendert bleibt. Beide schreiben denselben QSettings-Bereich; belegt ist `_store_layout` beim Beenden. **Erklaert den T-069-Bericht vollstaendig** | P3 | Major | developer, director | nachgestellt, `WindowFromPoint` gemessen | offen | 2026-09-06 |
+| QA-164 | **Die Zeigermarke wird nur durch Zeigerbewegung aktualisiert**, zwei Belegfaelle: (a) nach Umbruch 1320 -> 900 px ohne Bewegung steht `hovered == ["Fulghor"]`, obwohl keine Karte mehr unter dem Zeiger liegt; (b) eine unter ruhendem Zeiger erscheinende Karte traegt keine Marke. **Neu mit T-068**, heilt bei der naechsten Bewegung | P4 | Minor | developer, ui-ux-designer | zwei Faelle gemessen | offen | 2026-09-06 |
+
+**Statuskorrektur des Directors, 2026-09-06:** **QA-151 ist behoben, nicht
+offen.** Der Eintrag nannte "~750-800 ms" und beschrieb damit einen Stand, den
+es seit T-065 nicht mehr gibt: Sollwert **175 ms**, am laufenden Fenster
+sichtbar nach **266 ms** (Basis 279 ms). Der `qa-engineer` hat die veraltete
+Zeile gemeldet, statt sie weiterzureichen — genau der Fall, gegen den die
+Regel gegen veraltete Register-Zeilen gebaut ist.
+
+
+## Zyklus 13, T-071: Bedienungshilfen, Startbreite, zweite Instanz (2026-09-06)
+
+Quelle: `docs/berichte/T-071-developer.md`. Suite 815 -> **860 passed**,
+9 skipped, 5 deselected; 18 registrierte Mutationen, alle toetend im
+Standardlauf.
+
+**Behoben:** **QA-161** (`BossCard` ist jetzt `ControlType.Button` mit Namen,
+echter `Press`-Aktion auf derselben Methode wie der Mausklick, Tab-Fokus und
+Enter/Leertaste; am laufenden Fenster geprueft: `Invoke` -> Detailtafel
+`Fulghor`) · **QA-163** (zweite Kopie holt die laufende nach vorn und endet) ·
+**QA-164** (Marke folgt Umbruch, Scrollen und Reiterwechsel — der Scroll-Fall
+stand nicht im Befund, war aber noetig, damit das Kriterium haelt).
+
+**Startbreite:** aus `EffectTable.width_for_full_headings()` abgeleitet statt
+als nackte Zahl gesetzt — **1350 x 860** auf Windows/Fusion/150 %/Segoe UI 9,
+**0 von 11 Ueberschriften gekuerzt**. Schranken: erst der Schirm, dann das
+Layout-Minimum 760.
+
+**Selbst gefunden und gemeldet:** die Startbreite hing davon ab, **welcher
+Reiter vorn war** (1350 gegen 1802) — gefunden nur von der Handpruefung, nicht
+von der Suite. Zwei Gegenbauten ueberlebten, weil sich drei Haken ueberlappen,
+und wurden als Befund gemeldet statt nachgebessert (L-008).
+
+**QA-157 praezisiert:** der Laufzeit-Durchgang ueber 395 Widgets findet
+**61** mit derselben Eigenschaft — 6 `WeaponTile`, 54 `RelicCard`,
+1 `CustomRelicCard`. Der Befund ist damit deutlich groesser als die fuenf
+Quelltextstellen, unter denen er aufgenommen wurde.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-165 | **Zwei gleichzeitig laufende Kopien verlieren die Reihenfolge der Builds und die "versteckt"-Marken.** Gemessen: **kein** gespeicherter Build verloren (120/120, Nutzlast korrekt), aber **3 von 120** Positionen der Reihenfolge und **34 von 60** Verstecken-Marken. Durch den QA-163-Fix heute nicht mehr ausloesbar, der Schreibweg bleibt aber unveraendert | P3 | Minor | developer | zwei Instanzen nachgestellt, Bestand ausgezaehlt | offen | 2026-09-06 |
+| QA-166 | **`_migrate_keys` verstuemmelt Build-Namen bei einem veralteten Schema-Lesevorgang**: aus `Bleed build` wird `%42leed%20build`. **Die Daten bleiben intakt, die Namen nicht.** Reproduziert | P3 | Major | developer | Reproduktion am Speicher | offen | 2026-09-06 |
+| QA-167 | **`widgetAt` laeuft bei jeder Zeigerbewegung ueber einer Karte.** Vom `developer` als Performance-Beobachtung gemeldet, **nicht gemessen** — gehoert in die S11-Messung, nicht in einen eigenen Auftrag | P4 | Trivial | performance-tuner | Selbstmeldung, ungemessen | offen | 2026-09-06 |
+| QA-168 | **`UI_SPEC.md` AK-05 nennt weiterhin 1320 px als Startbreite**, waehrend sie seit T-071 abgeleitet wird und 1350 betraegt. Vom Director am selben Tag nachgezogen — hier nur zur Nachvollziehbarkeit gefuehrt | P4 | Trivial | director | Spec gegen Code | **behoben** 2026-09-06 | 2026-09-06 |
+
+
+## Zyklus 13, T-072: fuenfter power-user-Durchgang (2026-09-06)
+
+Quelle: `docs/berichte/T-072-power-user.md`. **Beide Reparaturen aus T-071
+sind am Nutzerweg bestaetigt:** der Nachtlord oeffnete sich mit **einem Klick,
+einem Anlauf** (zuvor vier bzw. gar nicht), und der Waffen-Tab sagt jetzt von
+selbst, wo der Charakter eingestellt wird — er musste nicht suchen. Der
+Erklaerabsatz der Effekt-Tabelle greift "fast jede Spalte einzeln" auf.
+
+**A11 ist an genau einer Stelle offen** (QA-169). Alles andere: kein Raten,
+kein Abbruch.
+
+| ID | Befund | Prio | Schwere | Adressat | Nachweis | Status | Datum |
+|---|---|---|---|---|---|---|---|
+| QA-169 | **`Comes with curse` ist die einzige Spalte, die der Erklaerabsatz auslaesst** — und die einzige, bei der der Spieler raten musste. Woertlich: *"hier musste ich raten"*; seine Vermutung (zeigt, ob ein Buff manchmal mit einem Fluch gekoppelt vorkommt) ist richtig, **stand aber nirgends**. Der Kopf ist seit T-071 vollstaendig lesbar; es fehlt die **Bedeutung**, nicht die Beschriftung. Instanz von QA-159. **Das ist der letzte offene Punkt von A11** — ein Satz im vorhandenen Absatz | P2 | Major | developer | woertliche Selbstauskunft, fuenfter Durchgang | offen | 2026-09-06 |
+| QA-170 | **Keine Sortierung ueber Waffenkategorien hinweg nach Angriffswert.** Der Spieler hat den Teilaspekt "die beste Waffe insgesamt finden" **aufgegeben** — er haette jede der Kategorien einzeln aufklappen und im Kopf vergleichen muessen. Zwei Waffen vergleichen ging problemlos. **Neue Funktion, kein Mangel an vorhandenem** — Nicht-Ziel der A10-A14-Erweiterung, also **Frage an den App Designer**, nicht an den developer | P3 | Minor | director, product | Abbruch des Teilaspekts protokolliert | offen — Nutzerentscheidung | 2026-09-06 |
