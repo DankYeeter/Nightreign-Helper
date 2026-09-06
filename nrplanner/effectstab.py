@@ -61,6 +61,42 @@ COPIES_DEFINITION = (
     "'Relic slots' says how many slots can roll it, 'Stacking' what a second "
     "one does.")
 
+#: The one definition of the `Comes with curse` column, and the only one.
+#:
+#: QA-169: the paragraph over the table explained ten of this tab's eleven
+#: columns and left this one out. The player of 2026-09-06 guessed right --
+#: but guessed, which is the finding the sentence below closes: the answer
+#: existed only in a header tooltip he never reached.
+#:
+#: 'Sometimes' and 'always cursed' are not two strengths of one warning --
+#: they answer whether picking a different relic lets you dodge the curse
+#: at all. 'Sometimes': some of the relics carrying the effect also carry a
+#: curse and some do not, so the choice is yours. 'Always cursed': none do
+#: not, so there is no dodging it.
+#:
+#: What this sentence deliberately does not claim: that the verdict holds
+#: under every filter above. It is worked out once per effect in
+#: `nrdata/extract.py`, from which of the effect's relics carry a curse
+#: slot, not from what is currently searched or filtered for -- but ten of
+#: the game's 1 064 distinct effects exist as two data rows that disagree
+#: on it (`sometimes` on one row, `never` on the other -- same name, same
+#: modifiers), and the merge in `refresh()` below shows whichever row
+#: survives the active filters rather than combining them the way it
+#: already does for `Colours` (AK-81). Unticking `Rollable on relics only`
+#: with `All colours` selected exposes it: those ten effects then read
+#: blank instead of `sometimes`. Found while writing this constant and
+#: reported rather than fixed here -- T-073 is one sentence, not a rewrite
+#: of the merge.
+#:
+#: Written once and used twice, exactly as `COPIES_DEFINITION`: in the
+#: sentence over the table and in the header tooltip (`COL_CURSE` entry).
+CURSE_DEFINITION = (
+    "'Comes with curse' says whether rolling this effect can also bring "
+    "you a curse. 'Sometimes' means only some of the relics that carry "
+    "the effect also carry a curse, so which one you take decides it. "
+    "'Always cursed' means every one of them does, so the effect never "
+    "comes without one.")
+
 #: The chance cell of an effect no slot can reach under the current filters.
 #: It carries the signal the `Pools` column used to carry with a bare `0`
 #: (AK-78): a rung of a ladder can exist while nothing on offer rolls it.
@@ -114,8 +150,7 @@ HEADER_TIPS = {
     COL_STACKS: "What a second copy of the effect does: adds, multiplies, "
                 "or is wasted. Hover a cell for the evidence behind its "
                 "verdict.",
-    COL_CURSE: "Whether relics carrying this effect can also roll a curse "
-               "— 'sometimes' by relic, 'always cursed' without exception.",
+    COL_CURSE: CURSE_DEFINITION,
 }
 
 #: What stands beside each of the four filter boxes (QA-156).
@@ -910,7 +945,7 @@ class EffectsTab(QWidget):
             f"(red).{note}{missing} {CHANCE_DEFINITION} Where an effect can "
             f"come from several slots you see its average and its best. "
             f"'Tier' marks effects that come in a ladder of strengths under "
-            f"one name. {COPIES_DEFINITION}"
+            f"one name. {COPIES_DEFINITION} {CURSE_DEFINITION}"
         )
 
         self.table.setSortingEnabled(False)

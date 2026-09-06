@@ -2187,9 +2187,9 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "copies-explained-only-on-the-header": Mutation(
         path="nrplanner/effectstab.py",
-        old="""            f"one name. {COPIES_DEFINITION}"
+        old="""            f"one name. {COPIES_DEFINITION} {CURSE_DEFINITION}"
 """,
-        new="""            f"one name."
+        new="""            f"one name. {CURSE_DEFINITION}"
 """,
         survival_means=(
             "what the `Copies` column counts is reachable only by holding a "

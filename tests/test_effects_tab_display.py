@@ -486,6 +486,108 @@ def test_the_copies_count_does_not_move_when_a_filter_hides_a_copy(tab):
         f"(name, filter, unfiltered, filtered): {moved[:5]}")
 
 
+# -- QA-169: the one column the paragraph left out --------------------------
+#
+# `Comes with curse` was the only column of the eleven the paragraph over the
+# table never explained, and the only place a `power-user` run had to guess
+# rather than read (his guess was right; that is not the same as the answer
+# being on screen). AK-79's pattern applies again: one constant, used in the
+# sentence over the table and in the header tooltip.
+
+#: The heading QA-169 is about. Written out rather than imported, for the
+#: reason at the top of this file.
+CURSE_HEADER = "Comes with curse"
+
+#: The sentence `effectstab.CURSE_DEFINITION` is meant to say, verbatim, and
+#: not imported from it -- L-008. A test that imported the constant and
+#: checked the tab against itself would go green no matter what the constant
+#: said; the wording the tab owes the player is written out again here on
+#: purpose, so a change to one without the other is what turns this red.
+CURSE_DEFINITION = (
+    "'Comes with curse' says whether rolling this effect can also bring "
+    "you a curse. 'Sometimes' means only some of the relics that carry "
+    "the effect also carry a curse, so which one you take decides it. "
+    "'Always cursed' means every one of them does, so the effect never "
+    "comes without one.")
+
+#: An effect with exactly one entry in the game's own data (`Copies` = 1),
+#: not a curse, and a description of its own -- so searching for it by name
+#: leaves a paragraph with none of the other clauses `refresh` can add:
+#: no duplicate-merge note, no missing-description note, and the buff/curse
+#: count line reads zero curses. Picked by scanning the dataset for a name
+#: meeting all three at once (2026-09-06); if the dataset ever stops
+#: carrying it the search below returns no row and the case fails loudly
+#: rather than passing on an empty table.
+SPARSE_PARAGRAPH_EFFECT = "Physical Attack Up +3"
+
+
+def test_curse_is_explained_where_the_reader_is_already_looking(tab):
+    """QA-169. The answer may not live only in a tooltip.
+
+    Same criterion QA-156a already applied to `Copies`: the always-visible
+    text of the tab, tooltips excluded.
+    """
+    heading = headings(tab)[column_of(tab, CURSE_HEADER)]
+    shown = visible(tab)
+    assert heading in shown, (
+        f"nothing a reader can see without hovering names the {heading!r} "
+        f"column: {shown!r}")
+
+
+def test_the_curse_sentence_is_in_the_paragraph(tab):
+    """Rot-vorher (1/2): the paragraph over the table carries the sentence.
+
+    Checked against the tab's own default filters -- the view QA-169 was
+    found in, table full.
+    """
+    shown = tabtext.plain(tab.summary.text())
+    assert CURSE_DEFINITION in shown, (
+        f"the paragraph over the table does not say what {CURSE_HEADER!r} "
+        f"means: {shown!r}")
+
+
+def test_the_curse_sentence_is_in_the_header_tooltip(tab):
+    """Rot-vorher (2/2): the header tooltip carries the same sentence.
+
+    Independent of the paragraph test above -- removing the sentence from
+    the tooltip alone must not leave this green, which is why it reads the
+    tooltip and nothing else.
+    """
+    column = column_of(tab, CURSE_HEADER)
+    tip = tabtext.plain(tab.table.horizontalHeaderItem(column).toolTip())
+    assert CURSE_DEFINITION in tip, (
+        f"the {CURSE_HEADER!r} header tooltip does not say what the column "
+        f"means: {tip!r}")
+
+
+def test_the_curse_sentence_survives_a_paragraph_with_nothing_else_extra(
+        tab):
+    """Second sample: a view where every other optional clause is absent.
+
+    Searching for `SPARSE_PARAGRAPH_EFFECT` leaves one row, no duplicates
+    merged, no missing description and zero curses -- the paragraph's three
+    conditional clauses all empty. `CHANCE_DEFINITION` and `COPIES_DEFINITION`
+    already survive this because they are written unconditionally into the
+    f-string; the new sentence has to be built the same way, and this is
+    what would catch it if it were not.
+    """
+    tab.search.setText(SPARSE_PARAGRAPH_EFFECT)
+    assert tab.table.rowCount() == 1, (
+        f"{SPARSE_PARAGRAPH_EFFECT!r} no longer isolates to one row; pick "
+        f"another effect meeting the same three conditions")
+    shown = tab.summary.text()
+    assert "duplicates merged" not in shown, (
+        f"this sample was meant to have no duplicate-merge note: {shown!r}")
+    assert "gives nothing beyond the name" not in shown, (
+        f"this sample was meant to have no missing-description note: "
+        f"{shown!r}")
+    assert shown.startswith("1 buffs (blue) then 0 curses"), (
+        f"this sample was meant to show zero curses: {shown!r}")
+    assert CURSE_DEFINITION in tabtext.plain(shown), (
+        f"the curse sentence is missing from a paragraph that dropped "
+        f"every other optional clause: {shown!r}")
+
+
 def test_every_filter_box_says_what_it_filters(tab):
     """QA-156b. Four drop-downs and no caption on any of them.
 
