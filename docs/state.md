@@ -10,8 +10,8 @@ Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 **Nummernkreise:** T ab **T-077** · QA ab **QA-180** · AK ab **AK-133** ·
 DR ab **DR-019** · R ab **R-007** · projekteigene Regeln ab **NH-003**.
 
-**Suite:** **864 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
-5 passed. 18 Mutationen, alle toetend.
+**Suite:** **985 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
+5 passed; die 985 aus einem frischen Klon. Mutationen: alle toetend.
 
 ## Auftragslage (Nutzer)
 
@@ -114,11 +114,22 @@ Vom Director am 06.09.2026 entschieden; Begruendungen in
   `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende ausdruecklich aus der Kennzahl,
   eine Quelle ohne Rankingwirkung waere irrefuehrend. Wieder aufmachen,
   sobald eine Zielrichtung Widerstaende rankt.
+- **Die Grenze zwischen den Fuellungen (c) und (d) der stummen Zeilen ist
+  offen.** Die in der Spec **angeschriebene** Regel ergibt 13 Faelle, der
+  `ui-ux-designer` hatte 58 gezaehlt; die Summe (106) stimmt exakt, nur die
+  Grenze liegt anders. **Im S10-Review zu klaeren** — bis dahin ist nichts
+  sichtbar, also kostet die Verschiebung nichts.
+- **`Build.qualitative` traegt keine Effekt-Id.** Deshalb liest der Berater
+  die Fuellungen (a) und (c) am Effektsatz statt an `qualitative`. Die
+  saubere Behebung liegt in `model.py` und gehoert zu **QA-185**.
 - **Der Knopf heisst `Optimize`.** Die Zustandstabelle 4.1-4.14 sagt noch
   `Suggest` und wird im S10-Auftrag mitkorrigiert.
 
 ## Der Rest — in dieser Reihenfolge
 
+0. **S9** — Rechnung in den Hintergrund, Entprellung, Cache, dazu D-4
+   (`rank_by`). Danach **S10**, die Oberflaeche: der erste Schritt, den der
+   Nutzer sieht. Dann **S11** mit dem `performance-tuner`.
 1. **A11 schliessen:** QA-173 braucht eine `ui-ux-designer`-Entscheidung,
    danach ein `developer`-Auftrag, danach ein siebter Durchgang — mit
    **fester** Aufgabenliste und Faehigkeitsprobe als Schritt 0.
