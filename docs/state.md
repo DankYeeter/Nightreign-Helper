@@ -113,6 +113,31 @@ Aus T-067, vom Director entschieden am 06.09.2026:
 - **D-10** Der Maskierungshinweis (`html.escape`, `setTextFormat`) geht
   **woertlich** in den S10-Auftrag.
 - **D-11** Doppelte Zahlenformatierung: akzeptiert, zurueckgestellt bis S10.
+  **Der `ui-ux-designer` weist zu Recht darauf hin, dass AK-136 sie teurer
+  macht** — beide Orte muessen nachweisbar dasselbe schreiben. Bleibt
+  zurueckgestellt, aber mit Waechter im S10-Auftrag.
+
+Aus T-078, entschieden am 06.09.2026:
+
+- **Die AD-015-Pflichtzeile wird mit der Zahlzeile desselben Fluchs
+  verschmolzen** und wandert aus `unknowns` in die Slotgruppe. Zugestimmt:
+  dieselbe Sache an zwei Orten ist die Fehlerklasse QA-082/QA-087, und der
+  Reliktname der zweiten Zeile ist ueberfluessig, weil die Gruppe ihn traegt.
+  **AD-015 bekommt eine Korrekturnotiz**, bevor S10 gebaut wird.
+- **Die Datenform bleibt beim `developer`.** Verbindlich ist die
+  **Eigenschaft** (jede Zeile erreicht die Anzeige mit Slotnummer,
+  Fluch-Kennzeichen und den zwei Zaehlungen), nicht die Bauart. Ein neuer Typ
+  in `types.py` liegt in seinem Ermessen; dafuer braucht es keinen
+  `architect`.
+- **`model.compute_resistances` schreibt vorerst nicht nach `sources`** —
+  zurueckgestellt mit Grund: `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende
+  ausdruecklich aus der Kennzahl heraus, also waere eine Quelle ohne
+  Rankingwirkung irrefuehrend. Fuellung (3) der Fluchzeile deckt die drei
+  Relikte ehrlich ab. **Wieder aufzumachen**, sobald eine Zielrichtung
+  Widerstaende rankt.
+- **Der Knopf heisst `Optimize`.** T-024 hat ihn so benannt, nur die
+  Zustandstabelle 4.1-4.14 spricht noch von `Suggest`. Sie wird im
+  S10-Auftrag mitkorrigiert, nicht danach.
 
 ## Der Rest — in dieser Reihenfolge
 
@@ -140,6 +165,15 @@ vorlegen.
 - **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg nach
   Angriffswert; der Spieler hat "die beste Waffe finden" aufgegeben. Waere
   eine **neue Funktion**.
+- **F-I (neu, T-078)** — Wie viel Fluch vertraegt die Slotkarte? Die Spec
+  zeigt **jeden** Fluch im Vorschlagsblock, auch den ohne Zahl: bei drei
+  Fluchrollen drei rote Zeilen in einer sonst vierzeiligen Karte. Ruhiger
+  waere, stumme Fluche erst im `Why`-Dialog zu zeigen — das verstiesse aber
+  gegen "der Preis darf nicht erst nach dem Anwenden sichtbar werden".
+- **F-J (neu, T-078)** — Soll auch ein **Effekt** ohne Zahlenwirkung beim
+  Namen genannt werden, so wie ein Fluch? Heute sagt die Zeile nur
+  "3 of its 5 effects moved a number in this build" und verschweigt, welche
+  zwei nichts bewegt haben.
 - **Die Streichliste je Tab** (13 Vorschlaege in `UI_SPEC.md` §8).
 
 ## Regeln
