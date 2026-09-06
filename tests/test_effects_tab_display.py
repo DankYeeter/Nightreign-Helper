@@ -265,3 +265,311 @@ def test_the_tab_opens_with_the_question_it_answers(tab):
     assert lines[1] == effectstab.QUESTION
     assert not any(character.isdigit() for character in lines[0]), (
         f"the first line of the tab carries a figure: {lines[0]!r}")
+
+
+# -- QA-156: the last two "I would have guessed" ---------------------------
+#
+# A11 is measured on a player finishing without guessing, and after T-065 two
+# guesses were left on this tab. Both are a reader having to work out what he
+# is looking at from something other than words on the screen.
+#
+# (a) `Copies` showed a bare 1 or 2 and was explained only in a header
+#     tooltip, which opens after about three quarters of a second of a
+#     pointer held still. He never reached it and guessed "how many identical
+#     copies exist in different slots" -- which is what `Relic slots` counts.
+#     Measured against the dataset on 2026-09-06: 2 076 effect rows resolve
+#     to 1 064 distinct effects, and under the tab's opening filters 620 rows
+#     say 1, 29 say 2, two say 3 and one says 4. So the column counts entries
+#     in the game's own table -- and 29 of the 68 repeated effects differ
+#     between their copies in the colours they can roll on, which is why the
+#     count has to be the game's and not the view's, and why saying so is
+#     part of the definition rather than a footnote.
+#
+# (b) The four filter boxes carried no caption, so he read the value each one
+#     happened to be showing and worked backwards to the question.
+
+#: The heading whose meaning QA-156 says is unreachable. Written out rather
+#: than imported, for the reason at the top of this file.
+COPIES_HEADER = "Copies"
+
+#: The two columns the definition of `Copies` has to keep it apart from. The
+#: first is the reading the player actually arrived at.
+NOT_COPIES = ("Relic slots", "Stacking")
+
+#: Which filter box narrows which column of the table. The mode box is absent
+#: on purpose: choosing between ordinary and Deep of Night relics is not a
+#: column of this table, and inventing one to caption it would be a rule made
+#: to be tidy rather than to be true.
+BOX_COLUMNS = (("colour_box", "Colours"),
+               ("stacking_box", "Stacking"),
+               ("kind_box", "Type"))
+
+
+def headings(tab) -> list[str]:
+    """Every column heading, as the table itself would draw it whole."""
+    return [tab.table.heading(column)
+            for column in range(tab.table.columnCount())]
+
+
+def column_of(tab, heading: str) -> int:
+    found = headings(tab)
+    assert heading in found, (
+        f"no column of this table is headed {heading!r} any more; it shows "
+        f"{found}")
+    return found.index(heading)
+
+
+def row_key(tab, row) -> tuple:
+    """What tells one row of this table from another.
+
+    Not the name: 46 of the 652 rows share a display name with another row,
+    because the game gives two genuinely different effects the same words.
+    The rung and the description are properties of the effect itself and do
+    not move when a filter narrows the view, which is what a case comparing
+    two views needs.
+    """
+    return tuple(tab.table.item(row, column_of(tab, heading)).text()
+                 for heading in ("Effect", "Tier", "What it does"))
+
+
+def visible(widget) -> str:
+    """Every piece of text the tab shows without being hovered.
+
+    `tabtext.everything` counts tooltips too, and a tooltip is exactly what
+    QA-156 says the reader did not reach. This is the half of the tab that is
+    simply there.
+    """
+    return "\n".join(tabtext.labels(widget))
+
+
+def place_of(tab, box):
+    """The layout row `box` sits in, and where in it -- walking the real tree.
+
+    Not `findChildren`: what the case needs is the row a reader sees, which
+    is one layout and an index in it, and the ordering is the whole point of
+    "the caption stands beside the box".
+    """
+    pending = [tab.layout()]
+    while pending:
+        layout = pending.pop()
+        for index in range(layout.count()):
+            item = layout.itemAt(index)
+            if item.widget() is box:
+                return layout, index
+            if item.layout() is not None:
+                pending.append(item.layout())
+    return None, -1
+
+
+def caption_before(tab, box):
+    """The label immediately before `box` in its own row, if there is one."""
+    from PySide6.QtWidgets import QLabel
+
+    row, index = place_of(tab, box)
+    if row is None:
+        return None
+    for back in range(index - 1, -1, -1):
+        widget = row.itemAt(back).widget()
+        if isinstance(widget, QLabel):
+            return widget
+        if widget is not None:
+            return None
+    return None
+
+
+def filter_boxes(tab) -> list:
+    """The four drop-downs of the filter row."""
+    return [tab.colour_box, tab.mode_box, tab.stacking_box, tab.kind_box]
+
+
+def test_copies_is_explained_where_the_reader_is_already_looking(tab):
+    """QA-156a. The answer may not live only in a tooltip.
+
+    `Tier` is explained in the sentence over the table and the player read it
+    there; `Copies` was explained on the header alone and he did not. So the
+    criterion is the always-visible text of the tab, tooltips excluded.
+    """
+    heading = headings(tab)[column_of(tab, COPIES_HEADER)]
+    shown = visible(tab)
+    assert heading in shown, (
+        f"nothing a reader can see without hovering names the {heading!r} "
+        f"column: {shown!r}")
+
+
+def test_the_explanation_of_copies_keeps_it_apart_from_the_two_it_is_not(tab):
+    """The guess itself, refuted on screen.
+
+    "How many identical copies exist in different slots" is `Relic slots`,
+    and "what a second one is worth" is `Stacking`. A sentence that said what
+    `Copies` counts without saying which of its neighbours it is not would
+    leave the reading he arrived at standing.
+    """
+    shown = visible(tab)
+    for column in NOT_COPIES:
+        assert column in headings(tab), (
+            f"this table has no {column!r} column any more, so the sentence "
+            f"under test would be pointing at nothing")
+    missing = [column for column in NOT_COPIES if column not in shown]
+    assert not missing, (
+        f"the visible text of the tab never names {missing}, so nothing "
+        f"tells a reader that {COPIES_HEADER!r} is not one of them")
+
+
+def test_the_header_and_the_sentence_say_one_thing_about_copies(tab):
+    """One definition in two places, and it has to be the same one.
+
+    Both are wanted: the sentence over the table for a reader scanning it,
+    the header tooltip for a reader who meets a heading shortened to `Co...`.
+    What must not happen is the two drifting apart, which is AK-79's finding
+    with another column's name on it. So the tooltip's explanation has to
+    stand verbatim in the visible text.
+    """
+    column = column_of(tab, COPIES_HEADER)
+    tip = tabtext.plain(tab.table.horizontalHeaderItem(column).toolTip())
+    assert tip.startswith(COPIES_HEADER), (
+        f"the header tooltip no longer leads with the column's own name: "
+        f"{tip!r}")
+    explanation = tip[len(COPIES_HEADER):].strip()
+    assert explanation, (
+        f"the {COPIES_HEADER!r} header carries nothing but its own name, so "
+        f"a heading shortened to `Co...` answers with nothing")
+    assert explanation in tabtext.plain(visible(tab)), (
+        f"the header explains {COPIES_HEADER!r} in words the rest of the tab "
+        f"does not use, so the two can drift apart: {explanation!r}")
+
+
+def test_the_copies_count_does_not_move_when_a_filter_hides_a_copy(tab):
+    """AK-81 for `Copies`, and the clause of the definition that needs it.
+
+    The definition says the count is of the game's own entries "whatever the
+    filters show". That is only true while it is: 29 of the 68 repeated
+    effects differ between their copies in the colours they roll on, so a
+    colour filter can leave one copy out of the view. If the count followed
+    the view, the sentence over the table would be a false statement about a
+    number the reader can see beside it.
+    """
+    column = column_of(tab, COPIES_HEADER)
+    tab.colour_box.setCurrentIndex(0)
+    assert tab.colour_box.currentData() == -1, "expected `All colours` first"
+
+    unfiltered = {}
+    for row in range(tab.table.rowCount()):
+        unfiltered.setdefault(row_key(tab, row), []).append(
+            tab.table.item(row, column).text())
+    # A name alone does not name a row: 46 of the 652 rows share a display
+    # name with another (the same words over genuinely different effects --
+    # `Increased Maximum HP` is Max HP +10 % on one row and Vigor +5 on
+    # another). Keyed by name alone this case reported the Copies count as
+    # following the filter when what had changed was which of two rows the
+    # name matched. Rows whose key is still not unique are left out rather
+    # than compared to the wrong twin.
+    settled = {key: counts[0] for key, counts in unfiltered.items()
+               if len(counts) == 1}
+    repeated = [key for key, count in settled.items() if count != "1"]
+    assert repeated, (
+        "no effect in this dataset is defined more than once, so this case "
+        "is watching nothing")
+
+    moved = []
+    for index in range(tab.colour_box.count()):
+        if tab.colour_box.itemData(index) == -1:
+            continue
+        tab.colour_box.setCurrentIndex(index)
+        colour = tab.colour_box.itemText(index)
+        for row in range(tab.table.rowCount()):
+            key = row_key(tab, row)
+            here = tab.table.item(row, column).text()
+            if key in settled and here != settled[key]:
+                moved.append((key[0], colour, settled[key], here))
+    assert not moved, (
+        f"the {COPIES_HEADER!r} count follows the filter for these rows "
+        f"(name, filter, unfiltered, filtered): {moved[:5]}")
+
+
+def test_every_filter_box_says_what_it_filters(tab):
+    """QA-156b. Four drop-downs and no caption on any of them.
+
+    The caption is read off the layout, and it has to be a label rather than
+    one of the box's own values: a box captioned `All colours` would be the
+    state the finding describes, where the reader works out the question from
+    the answer currently showing.
+    """
+    unlabelled = []
+    for box in filter_boxes(tab):
+        label = caption_before(tab, box)
+        values = [box.itemText(i) for i in range(box.count())]
+        if label is None or not label.text().strip():
+            unlabelled.append((values[0], "no caption"))
+        elif label.text() in values:
+            unlabelled.append((values[0], f"captioned {label.text()!r}, "
+                                          f"which is one of its own values"))
+    assert not unlabelled, (
+        f"these filter boxes do not say what they filter: {unlabelled}")
+
+
+def test_the_filter_captions_are_the_names_the_table_uses(tab):
+    """One word per idea, on the row and in the table (A13).
+
+    A row that said `Kind` where the table says `Type` would make a reader
+    check whether the two are the same thing.
+
+    Three of the four boxes narrow a column of the table and are held to that
+    column's heading, singular or plural. The fourth chooses between ordinary
+    and Deep of Night relics, which is not a column of anything -- so it is
+    held only to having a caption at all, by the case above. Requiring a
+    column for it would be a rule invented to be tidy.
+    """
+    known = set(headings(tab))
+    for box, heading in BOX_COLUMNS:
+        caption = caption_before(tab, getattr(tab, box))
+        assert caption is not None, (
+            f"{box} has no caption, which the case above is about")
+        assert heading in known, (
+            f"this table has no {heading!r} column, so {box} cannot be held "
+            f"to it; the headings are {sorted(known)}")
+        assert caption.text() in (heading, heading.rstrip("s")), (
+            f"{box} is captioned {caption.text()!r} while the column it "
+            f"narrows is headed {heading!r}")
+
+    captions = [caption_before(tab, box) for box in filter_boxes(tab)]
+    words = [caption.text() for caption in captions if caption is not None]
+    assert len(set(words)) == len(words), (
+        f"two filter boxes carry the same caption: {words}")
+
+
+def test_the_filter_captions_do_not_set_the_window_floor(tab):
+    """What the captions may cost, measured by taking them away again.
+
+    `QTabWidget` hands the widest page's minimum width to the whole window, so
+    a word on this row is a floor under the program. Four plain `QLabel`s cost
+    the tab 160 logical px on Windows and, under the font the suite renders
+    with, took the window's floor from 964 px to 1276 -- above three of the
+    four widths the geometry cases measure at, so 47 of them skipped
+    themselves in one run and the suite went green anyway. A silent skip is
+    the most expensive way this repository has found to lose a guard.
+
+    The allowance is the row's own spacing, read off the layout: a widget in a
+    layout costs at least the gap in front of it however narrow it is, and no
+    caption can give that back. Everything above that would be text setting a
+    floor.
+    """
+    row, _index = place_of(tab, tab.colour_box)
+    captions = [caption_before(tab, box) for box in filter_boxes(tab)]
+    assert all(caption is not None for caption in captions), (
+        "a filter box has no caption, so this case is measuring nothing")
+
+    with_captions = tab.minimumSizeHint().width()
+    for caption in captions:
+        caption.hide()
+    tab.layout().activate()
+    without = tab.minimumSizeHint().width()
+    for caption in captions:
+        caption.show()
+    tab.layout().activate()
+
+    allowed = row.spacing() * len(captions)
+    assert with_captions - without <= allowed, (
+        f"the four filter captions add {with_captions - without} px to the "
+        f"tab's minimum width, and only the row's own spacing "
+        f"({row.spacing()} px each, {allowed} px in all) is free. A word on "
+        f"this row becomes the whole window's floor.")

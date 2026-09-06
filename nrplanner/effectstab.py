@@ -5,8 +5,8 @@ from __future__ import annotations
 import collections
 import json
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QStyle, QStyleOptionHeader, QTableWidget, QTableWidgetItem, QToolTip,
@@ -32,6 +32,34 @@ QUESTION = (
 CHANCE_DEFINITION = (
     "Chance is per relic effect slot, over every slot that can roll the "
     "effect under the filters above — not per relic and not per run.")
+
+#: The one definition of the `Copies` column, and the only one.
+#:
+#: The column showed a bare 1 or 2 and was explained on the header alone, in
+#: a tooltip that opens after three quarters of a second of a pointer held
+#: still. The player of 2026-09-06 never reached it and guessed: "how many
+#: identical copies exist in different slots" -- which is what `Relic slots`
+#: counts, not this. What it really counts is entries in the game's own
+#: effect table: 2 076 rows in the current dataset resolve to 1 064 distinct
+#: effects, and under the tab's opening filters 620 rows say 1, 29 say 2, two
+#: say 3 and one says 4.
+#:
+#: Two things the wording has to get right. The count is the game's and not
+#: the view's (AK-81): 29 of the 68 repeated effects differ between their
+#: copies in the colours they roll on, so a filter can hide a copy while the
+#: number keeps counting it. And it is not a quantity a player carries, which
+#: is exactly the reading he had.
+#:
+#: Written once and used twice -- in the sentence over the table where `Tier`
+#: is explained and it worked, and in the header tooltip that a shortened
+#: `Co...` still has to answer with. One string, so the two cannot drift into
+#: the disagreement AK-79 is about.
+COPIES_DEFINITION = (
+    "'Copies' is how many separate entries the game's own data holds for one "
+    "and the same effect — merged into a single row here, and counted over "
+    "all of them whatever the filters show. It is not something you carry: "
+    "'Relic slots' says how many slots can roll it, 'Stacking' what a second "
+    "one does.")
 
 #: The chance cell of an effect no slot can reach under the current filters.
 #: It carries the signal the `Pools` column used to carry with a bare `0`
@@ -72,8 +100,7 @@ CURSE_LABEL = {
 HEADER_TIPS = {
     2: "Some effects come as a ladder of strengths under one name — "
        "'1 of 3' is the weakest rung, and each rung is its own effect.",
-    COL_COPIES: "How many identical copies of this effect the game defines. "
-                "They are merged into this one row.",
+    COL_COPIES: COPIES_DEFINITION,
     4: "Relic colours this effect can appear on.",
     COL_SLOTS: "How many of the game's relic effect slots can roll this "
                "effect, counted over every relic and every slot on it. It is "
@@ -90,6 +117,26 @@ HEADER_TIPS = {
     COL_CURSE: "Whether relics carrying this effect can also roll a curse "
                "— 'sometimes' by relic, 'always cursed' without exception.",
 }
+
+#: What stands beside each of the four filter boxes (QA-156).
+#:
+#: The boxes carried no caption at all, so a reader had to work out what a
+#: box was for from the value it happened to be showing -- "All colours"
+#: suggests a colour filter, and the other three suggest nothing. Each label
+#: is the name of the column the box filters, so the row and the table say
+#: the same word for the same thing.
+#:
+#: They are drawn as `FilterCaption`, and that is not decoration: as plain
+#: labels they cost the tab 160 logical px of minimum width and the window 56
+#: (760 to 816) on Windows under Fusion at 150 % scale -- and, under the wider
+#: font the suite renders with, they took the window's floor from 964 to
+#: **1276** px, at which point every case that asks for a 833, 1067 or 1250 px
+#: window skips itself rather than measuring the wrong thing. 47 cases went
+#: quiet in one run. As `FilterCaption` they cost the window nothing.
+COLOUR_LABEL = "Colour"
+MODE_LABEL = "Relics"
+STACKING_LABEL = "Stacking"
+KIND_LABEL = "Type"
 
 # Buffs read blue, curses red, so which is which never has to be worked out
 # from the wording.
@@ -141,6 +188,50 @@ class ChanceItem(QTableWidgetItem):
 #: be the guess A7 forbids; a quarter is taken because it clears both bounds
 #: by a factor, not because it is the only value that does.
 WAKE_UP_DIVISOR = 4
+
+
+class FilterCaption(QLabel):
+    """The word beside a filter box, which gives up room before the box does.
+
+    A plain `QLabel` reports its whole text as its minimum width, a layout
+    hands that on to its page and `QTabWidget` hands the widest page's minimum
+    to the window -- so four captions on this row set the floor for the whole
+    program. Measured on 2026-09-06 in logical px: on Windows under Fusion at
+    150 % scale the four cost the tab 160 px and the window 56 (760 to 816),
+    and under the suite's own wider font they took the window's floor from
+    964 to 1276, at which every case measuring a 833, 1067 or 1250 px window
+    skipped itself. The captions were bought with the coverage of 47 cases.
+
+    So they follow the rule the combo boxes beside them already follow: shrink
+    below your widest text, and show it in full wherever there is room. The
+    minimum is nothing; the preferred size is still the whole word, so the
+    word is what stands on any window that has room for it, and where a window
+    has not the caption shortens rather than the box it belongs to.
+
+    What is left of the price, measured the same way: the four cost the tab
+    24 logical px -- the row's own 6 px of spacing four times over, which no
+    widget can give back -- and the window nothing at all, 760 px before and
+    760 after. Under the suite's font the window's floor goes from 964 to 988,
+    which leaves every width the suite measures at reachable.
+    """
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        """No width at all. The height stays whatever the font asks for."""
+        return QSize(0, super().minimumSizeHint().height())
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Draw the caption, shortened to the room it was given.
+
+        `QLabel` clips instead of shortening, which turns `Stacking` into
+        `Stackin` with nothing to say that anything was taken -- the exact
+        complaint QA-140 records about the table headings one row down.
+        """
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        painter.drawText(
+            self.contentsRect(), int(self.alignment()),
+            self.fontMetrics().elidedText(self.text(), Qt.ElideRight,
+                                          self.contentsRect().width()))
 
 
 class HeadingHint(QObject):
@@ -566,6 +657,7 @@ class EffectsTab(QWidget):
         self.search.textChanged.connect(self.refresh)
         controls.addWidget(self.search, 1)
 
+        controls.addWidget(FilterCaption(COLOUR_LABEL))
         self.colour_box = QComboBox()
         self.colour_box.addItem("All colours", -1)
         for value, name in model.COLOUR_NAMES.items():
@@ -575,6 +667,7 @@ class EffectsTab(QWidget):
         self.colour_box.currentIndexChanged.connect(self.refresh)
         controls.addWidget(self.colour_box)
 
+        controls.addWidget(FilterCaption(MODE_LABEL))
         self.mode_box = QComboBox()
         self.mode_box.addItem("Normal + Deep", "all")
         self.mode_box.addItem("Normal relics", "normal")
@@ -591,6 +684,7 @@ class EffectsTab(QWidget):
         # never a yes/no: whether a second copy counts and whether the number
         # adds or multiplies are separate questions with separate answers, and
         # the old pair could only express the first of them.
+        controls.addWidget(FilterCaption(STACKING_LABEL))
         self.stacking_box = QComboBox()
         self.stacking_box.addItem("Any stacking", "all")
         for label in self._stacking_classes(data):
@@ -601,6 +695,7 @@ class EffectsTab(QWidget):
         self.stacking_box.currentIndexChanged.connect(self.refresh)
         controls.addWidget(self.stacking_box)
 
+        controls.addWidget(FilterCaption(KIND_LABEL))
         self.kind_box = QComboBox()
         self.kind_box.addItem("Buffs and curses", "all")
         self.kind_box.addItem("Buffs only", "buffs")
@@ -741,7 +836,7 @@ class EffectsTab(QWidget):
             f"(red).{note}{missing} {CHANCE_DEFINITION} Where an effect can "
             f"come from several slots you see its average and its best. "
             f"'Tier' marks effects that come in a ladder of strengths under "
-            f"one name."
+            f"one name. {COPIES_DEFINITION}"
         )
 
         self.table.setSortingEnabled(False)
