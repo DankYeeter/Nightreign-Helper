@@ -1345,6 +1345,25 @@ MUTATIONS: dict[str, Mutation] = {
             "test_each_source_of_an_effect_reaches_the_model_exactly_once, "
             "which compares a multiset built from the three inputs."),
     ),
+    "explain-loses-the-count-of-what-was-not-counted": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    return tuple(entry.name for entry in built.situational if not entry.live)
+""",
+        new="""    return tuple({entry.name for entry in built.situational
+                  if not entry.live})
+""",
+        survival_means=(
+            "AD-010 asks for a count and the count is wrong: two relics "
+            "carrying one uncounted condition are reported as one, and the "
+            "order is whatever the set happens to hand back rather than the "
+            "order `model.compute` parked them in. On the real save 199 such "
+            "entries arise over 309 relics, with duplicates among them. "
+            "Measured surviving on 2026-09-06: 952 passed, 9 skipped, 5 "
+            "deselected, identical to the run before it -- the only case "
+            "watching this line asked whether a name was in the list "
+            "(QA-182). Killed by test_advisor_explain.py::"
+            "test_what_was_not_counted_keeps_its_number_and_its_order."),
+    ),
     "explain-lets-one-copy-claim-every-entry-of-its-name": Mutation(
         path="nrplanner/advisor/explain.py",
         old="""                if (claimed[position] or entry.effect_id != effect_id

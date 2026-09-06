@@ -699,6 +699,36 @@ def test_a_condition_the_player_declared_is_not_reported_as_uncounted(
                                                     declared))
 
 
+def test_what_was_not_counted_keeps_its_number_and_its_order():
+    """AD-010 asks for a count, so the duplicates and the order are the point.
+
+    Two relics carrying one uncounted condition are two effects that did not
+    count, and `len(not_counted)` is what AD-010 asks for. The order is the
+    one `model.compute` parked them in, which is the order the relics sit in.
+
+    Stated rather than computed, and stated so that the two ways of losing it
+    are different answers: run through a `set()` the list would be two long
+    instead of three, and sorted it would lead with `Alpha`. Neither is
+    visible to a case that only asks whether a name is in the list -- which
+    was the whole of what watched this, and is why the two edits above
+    survived a full run (QA-182).
+    """
+    def gated(effect_id: int, name: str, count: int = 0) -> model.Situational:
+        return model.Situational(effect_id=effect_id, name=name,
+                                 detail="under some condition",
+                                 why="the sheet cannot know",
+                                 accumulates=False, count=count)
+
+    built = model.Build(situational=[
+        gated(30, "Gamma"),
+        gated(10, "Alpha", count=1),
+        gated(11, "Alpha"),
+        gated(12, "Alpha"),
+    ])
+
+    assert explain.not_counted(built) == ("Gamma", "Alpha", "Alpha")
+
+
 # -- where the numbers came from --------------------------------------------
 
 def test_the_data_note_names_the_version_and_where_it_was_read(game_data,
