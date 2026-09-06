@@ -18,11 +18,21 @@ CARD_WIDTH = 200
 #: What this tab is for, above the controls and above the count (AK-68,
 #: AK-82). The spell half of the sentence used to sit at the end of the
 #: summary line, where a reader arrived at it after the figures it explains.
+#:
+#: The first sentence says where the Nightfarer comes from (QA-155). AK-82's
+#: wording was `rated for the Nightfarer, level and upgrade set above`, and
+#: only the upgrade is set above: the other two belong to the `Build planner`
+#: and there is no way to change them from here. A player looking for the
+#: character picker on this tab was doing what this sentence told him to, and
+#: found it only by opening every tab in turn. Naming the tab is the whole
+#: change; a second picker would be a second home for one state and is the
+#: App Designer's call, not this file's.
 HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
 QUESTION = (
-    "Every armament and spell in the game, rated for the Nightfarer, level "
-    "and upgrade set above. Spell damage is not in the game's data, so "
-    "spells show what they cost you instead.")
+    "Every armament and spell in the game, rated at the upgrade you set "
+    "here, for the Nightfarer and level you set on the Build planner tab. "
+    "Spell damage is not in the game's data, so spells show what they cost "
+    "you instead.")
 
 #: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
 #: say it on up to 1 792 cards, so the sentence says it too rather than the

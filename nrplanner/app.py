@@ -86,6 +86,20 @@ TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
 
+#: What the Nightfarer's name is set in on its tile, in points (QA-155).
+#:
+#: The ten portraits carried no text at all, so a player had to click one and
+#: read the answer somewhere else to find out whom he had picked. The name has
+#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
+#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
+#: widening the tile would push the whole window's minimum out. Measured on
+#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
+#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
+#: against the 52 px a 56 px tile has inside its border. Seven is the size at
+#: which all ten stand whole; Qt shortens anything that does not fit and the
+#: tooltip has carried the full name all along.
+NAME_POINT_SIZE = 7
+
 ACCENT = "#c8a45c"
 GOOD = "#6fbf73"
 BAD = "#d1655f"
@@ -1150,10 +1164,15 @@ class VariantDialog(QDialog):
 
 
 class HeroTile(QToolButton):
-    """One portrait in the 2x5 Nightfarer grid.
+    """One portrait in the 2x5 Nightfarer grid, with the name under it.
 
     Left click selects the Nightfarer; right click offers that character's
     alternate illustrations so the tile can show a preferred one.
+
+    The name is drawn on the tile because the artwork alone did not say who
+    it was (QA-155): the player of 2026-09-06 clicked a portrait and then had
+    to find the answer elsewhere on the screen. See NAME_POINT_SIZE for what
+    decides the size of it.
     """
 
     def __init__(self, index: int, hero: dict, icons):
@@ -1165,21 +1184,37 @@ class HeroTile(QToolButton):
 
         self.setCheckable(True)
         self.setAutoRaise(True)
-        self.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.setText(hero["name"])
+        font = self.font()
+        font.setPointSize(NAME_POINT_SIZE)
+        self.setFont(font)
         self.setIconSize(QSize(TILE_SIZE, TILE_SIZE))
-        self.setFixedSize(TILE_SIZE + TILE_PAD, TILE_SIZE + TILE_PAD)
+        # Before the height is fixed, and that order is load-bearing:
+        # `QToolButton::initStyleOption` reports a button with no icon and
+        # some text as text-only however it was configured, so a size asked
+        # for here first comes back 19 px tall -- one line of name and no
+        # portrait at all.
+        self._apply_image()
+        # The width is the grid's to keep; the height is whatever the name
+        # needs under the portrait, asked of Qt rather than added up here, so
+        # a different font or a different scale still gets a whole line.
+        self.setFixedSize(TILE_SIZE + TILE_PAD, self.sizeHint().height())
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         # A visible frame keeps neighbouring portraits from reading as one
-        # continuous image, since the artwork itself has no margin.
+        # continuous image, since the artwork itself has no margin. Two pixels
+        # in both states: a border that thickened on selection would narrow
+        # the room the name has by 2 px, and the longest of the ten would
+        # shorten itself the moment it was picked.
         self.setStyleSheet(
-            f"QToolButton {{ border: 1px solid {BORDER}; border-radius: 4px;"
-            f" background: {PANEL}; padding: 0px; }}"
-            f"QToolButton:checked {{ border: 2px solid {ACCENT}; }}"
+            f"QToolButton {{ border: 2px solid {BORDER}; border-radius: 4px;"
+            f" background: {PANEL}; padding: 0px; color: {MUTED}; }}"
+            f"QToolButton:checked {{ border: 2px solid {ACCENT};"
+            f" color: {ACCENT}; }}"
         )
         self.setToolTip(f"{hero['name']}\nRight-click to change the artwork")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_variants)
-        self._apply_image()
 
     def current_pixmap(self):
         if self.variant_id is not None:
