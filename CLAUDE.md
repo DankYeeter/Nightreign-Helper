@@ -2,7 +2,14 @@
 
 ## Repo-Kategorie
 
-**Kategorie: privat**
+**Kategorie: privat** — das bezieht sich auf die **Herkunft**, nicht auf die
+Sichtbarkeit: kein Firmencode, keine Firmendaten, ausschliesslich Daniels
+persoenlicher Account. **Das GitHub-Repository selbst ist oeffentlich**
+(`gh repo view`: `PUBLIC`, geprueft 06.09.2026). Beides gilt gleichzeitig und
+hat schon zu einem gemeldeten Widerspruch gefuehrt. Fuer die Arbeit heisst
+das: **alles, was hier committet wird, ist fuer jeden lesbar** — daher
+NH-002 (keine Bildschirmabzuege) und die Regel, dass Bildnachweise nur aus
+dem Programmfenster stammen.
 
 Erlaubte Remotes: ausschließlich der persönliche GitHub-Account
 `github.com/DankYeeter`.
