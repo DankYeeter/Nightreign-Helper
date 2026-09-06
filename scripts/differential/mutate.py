@@ -1115,6 +1115,20 @@ MUTATIONS: dict[str, Mutation] = {
             "by test_advisor_search.py::"
             "test_a_budget_that_searches_nothing_is_refused."),
     ),
+    "search-a-slot-with-nothing-ends-the-branch": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        return [] if _branches(state, offers, 0, 1) else [state]
+""",
+        new="""        return []
+""",
+        survival_means=(
+            "a vessel with one slot the save has nothing for answers "
+            "nothing at all, where `UI_SPEC` 4.11 asks for `3 of 4 slots "
+            "filled` and a line saying which slot had no choice. The empty "
+            "beam that comes back is also the shape of `Stopped. Nothing was "
+            "changed.` Killed by test_advisor_search.py::"
+            "test_a_slot_with_nothing_to_choose_from_does_not_end_the_run."),
+    ),
     "search-bakes-the-direction-into-the-scorer": Mutation(
         path="nrplanner/advisor/search.py",
         old="""    def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
@@ -1522,6 +1536,39 @@ MUTATIONS: dict[str, Mutation] = {
             "a hole in it where A7 asks the program to say that it does not "
             "know. Killed by test_advisor_explain.py::"
             "test_a_dataset_that_records_no_version_says_so."),
+    ),
+    "explain-writes-every-figure-as-a-flat-number": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    if _scales(key, built):
+        return f"{(own - 1.0) * 100:+.1f}%"
+    return f"{own:+g}"
+""",
+        new="""    return f"{own:+g}"
+""",
+        survival_means=(
+            "`UI_SPEC` 3.2 asks for the number formats of the stat sheet, "
+            "and every multiplier would be printed raw: `Physical Attack "
+            "+1.12` where the sheet says `+12.0%`, and a damage-cut rate as "
+            "`+0.85`, which reads as a gain of nothing rather than 15 % less "
+            "damage taken. Killed by test_advisor_explain.py::"
+            "test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_"
+            "number."),
+    ),
+    "explain-reads-back-whatever-the-pool-leads-with": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""        offer = next((entry for entry in pool.candidates
+                      if entry.handle == choice.handle), None)
+""",
+        new="""        offer = next((entry for entry in pool.candidates), None)
+""",
+        survival_means=(
+            "a suggestion is read back as the copy its pool happens to lead "
+            "with rather than as the copy it names. The reasoning would then "
+            "describe the best-ranked relic for each slot while the "
+            "suggestion applies a different one -- correct in form, wrong in "
+            "every effect it names, and only ever right for the top "
+            "suggestion. Killed by test_advisor_explain.py::"
+            "test_a_suggestion_is_read_back_as_the_copies_it_came_from."),
     ),
     "explain-takes-a-suggestion-from-any-run": Mutation(
         path="nrplanner/advisor/explain.py",
