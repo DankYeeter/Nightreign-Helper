@@ -1682,9 +1682,14 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "nightlord-selection-only-on-the-edge": Mutation(
         path="nrplanner/bosstab.py",
-        old="""        fill = SELECTED_FILL if self._selected else PANEL
+        old="""        if self._selected:
+            fill = SELECTED_FILL
+        elif self._hovered:
+            fill = HOVER_FILL
+        else:
+            fill = PANEL
 """,
-        new="""        fill = PANEL
+        new="""        fill = HOVER_FILL if self._hovered else PANEL
 """,
         survival_means=(
             "the chosen card is marked on its one pixel border and nowhere "
@@ -1772,6 +1777,188 @@ MUTATIONS: dict[str, Mutation] = {
             "on up to 1 792 tiles and `spell scaling` in the reservation "
             "under them (AK-88, QA-139). Killed by "
             "tests/test_one_name_per_figure.py, by both of its searches."),
+    ),
+    "nightlord-card-without-a-hover-mark": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        self._set_hovered(True)
+        super().enterEvent(event)
+""",
+        new="""        super().enterEvent(event)
+""",
+        survival_means=(
+            "the grid says nothing about which of the ten cards the pointer "
+            "is on. The hit area is not the fault here and was measured not "
+            "to be: 3 420 of 3 420 probe points over a whole card open that "
+            "card. What a reader could not see is the 8 logical px between "
+            "two cards, so a near miss opened the neighbour and a miss "
+            "opened nothing, with the grid looking identical in both cases "
+            "(QA-154). Killed by tests/test_nightlord_selection.py, three "
+            "cases."),
+    ),
+    "nightlord-hover-drawn-as-the-selection": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""HOVER_FILL = "#26272c"
+""",
+        new="""HOVER_FILL = SELECTED_FILL
+""",
+        survival_means=(
+            "a card merely under the pointer is filled exactly as the chosen "
+            "card is, so the only thing telling them apart is the one pixel "
+            "border -- and a reader is told he has already opened the "
+            "Nightlord he is only pointing at. This is the mutation that "
+            "survived the first version of its own case, which compared "
+            "whole cards and so was reading the border difference (QA-154). "
+            "Killed by tests/test_nightlord_selection.py::"
+            "test_the_pointer_mark_and_the_chosen_mark_are_told_apart, which "
+            "reads inside the border."),
+    ),
+    "nightlord-card-keeps-the-hover-mark": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        self._set_hovered(False)
+        super().leaveEvent(event)
+""",
+        new="""        super().leaveEvent(event)
+""",
+        survival_means=(
+            "a card marked once stays marked after the pointer has gone, so "
+            "the grid ends up claiming several targets at once and the mark "
+            "says where the pointer has been rather than where it is. The "
+            "8 px gap between two cards then looks exactly like the card the "
+            "reader has just left (QA-154). Killed by "
+            "tests/test_nightlord_selection.py, two cases."),
+    ),
+    "nightlord-hover-outranks-the-selection": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        if self._selected:
+            fill = SELECTED_FILL
+        elif self._hovered:
+            fill = HOVER_FILL
+""",
+        new="""        if self._hovered:
+            fill = HOVER_FILL
+        elif self._selected:
+            fill = SELECTED_FILL
+""",
+        survival_means=(
+            "the card the detail panel is describing loses its mark the "
+            "moment the pointer passes over it, which is exactly when a "
+            "reader is looking for it -- he is running the pointer along the "
+            "row to find the next Nightlord and the one he is reading about "
+            "goes quiet. Killed by tests/test_nightlord_selection.py::"
+            "test_the_chosen_card_keeps_its_mark_under_the_pointer."),
+    ),
+    "nightlord-card-labels-eat-the-press": Mutation(
+        path="nrplanner/bosstab.py",
+        old="""        description.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+""",
+        new="""        description.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        description.setAttribute(Qt.WA_NoMousePropagation, True)
+""",
+        survival_means=(
+            "a patch in the middle of every Nightlord card stops opening it, "
+            "with nothing on screen to say so. The card is live edge to edge "
+            "only because the labels on it ignore a press and Qt hands it to "
+            "the frame; one attribute takes that away (QA-154). Killed by "
+            "tests/test_nightlord_selection.py::"
+            "test_a_press_on_a_label_inside_a_card_opens_that_card."),
+    ),
+    "nightfarer-tiles-without-names": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+""",
+        new="""        self.setToolButtonStyle(Qt.ToolButtonIconOnly)
+""",
+        survival_means=(
+            "the ten Nightfarer portraits go back to carrying no text, so a "
+            "player has to click one and read the answer elsewhere on the "
+            "screen to learn whom he picked (QA-155). Killed by "
+            "tests/test_nightfarer_is_named.py::"
+            "test_every_nightfarer_tile_draws_its_own_name, which renders "
+            "each tile with its name and without it and requires the two to "
+            "differ."),
+    ),
+    "arsenal-question-back-to-set-above": Mutation(
+        path="nrplanner/arsenaltab.py",
+        old="""    "Every armament and spell in the game, rated at the upgrade you set "
+    "here, for the Nightfarer and level you set on the Build planner tab. "
+""",
+        new="""    "Every armament and spell in the game, rated for the Nightfarer, level "
+    "and upgrade set above. "
+""",
+        survival_means=(
+            "the weapons tab tells the reader that the Nightfarer is set on "
+            "the tab he is looking at, where there is no way to change it. "
+            "That sentence is what sent the player of 2026-09-06 hunting "
+            "this tab for a character picker; he found the real one by "
+            "opening every tab in turn (QA-155). Killed by "
+            "tests/test_nightfarer_is_named.py, three cases."),
+    ),
+    "copies-explained-only-on-the-header": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""            f"one name. {COPIES_DEFINITION}"
+""",
+        new="""            f"one name."
+""",
+        survival_means=(
+            "what the `Copies` column counts is reachable only by holding a "
+            "pointer still on the heading for about three quarters of a "
+            "second. The player of 2026-09-06 did not reach it and guessed "
+            "\"how many identical copies exist in different slots\", which "
+            "is what `Relic slots` counts (QA-156a). Killed by "
+            "tests/test_effects_tab_display.py, three cases, all of which "
+            "read the tab's visible labels and no tooltip."),
+    ),
+    "copies-counted-from-the-filtered-view": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        rows = [(eff, sorted(colours), self._copies[identity(eff)])
+                for eff, colours in merged.values()]
+""",
+        new="""        seen = collections.Counter(identity(e) for e, _c in candidates)
+        rows = [(eff, sorted(colours), seen[identity(eff)])
+                for eff, colours in merged.values()]
+""",
+        survival_means=(
+            "the `Copies` number counts what the filters left rather than "
+            "what the game defines, which is AK-81 undone -- and it makes "
+            "the sentence over the table, which says the count holds "
+            "whatever the filters show, a false statement about a figure "
+            "beside it. 29 of the 68 repeated effects differ between their "
+            "copies in the colours they roll on, so a colour filter really "
+            "does hide one. Killed by tests/test_effects_tab_display.py::"
+            "test_the_copies_count_does_not_move_when_a_filter_hides_a_"
+            "copy."),
+    ),
+    "filter-captions-set-the-window-floor": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""    def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        \"\"\"No width at all. The height stays whatever the font asks for.\"\"\"
+        return QSize(0, super().minimumSizeHint().height())
+""",
+        new="""""",
+        survival_means=(
+            "each filter caption reports its whole word as a minimum width "
+            "again, the filter row hands that to the effects tab and "
+            "QTabWidget hands it to the window. Measured on 2026-09-06 in "
+            "logical px: the tab's floor goes 676 to 812 and the window's 760 "
+            "to 816 on Windows under Fusion at 150 % scale, and under the "
+            "font the suite renders with the window's floor goes 988 to "
+            "1276 -- past three of the four widths the geometry cases "
+            "measure at, so 47 of them skip themselves and the suite reports "
+            "green. Killed by tests/test_effects_tab_display.py::"
+            "test_the_filter_captions_do_not_set_the_window_floor."),
+    ),
+    "filter-boxes-without-a-caption": Mutation(
+        path="nrplanner/effectstab.py",
+        old="""        controls.addWidget(FilterCaption(COLOUR_LABEL))
+""",
+        new="""""",
+        survival_means=(
+            "a filter box stands with no word saying what it filters, so a "
+            "reader works the question out backwards from the value the box "
+            "happens to be showing -- which is what the player of "
+            "2026-09-06 did for all four of them (QA-156b). Killed by "
+            "tests/test_effects_tab_display.py, two cases, both reading the "
+            "label out of the layout row rather than out of the module."),
     ),
 }
 
