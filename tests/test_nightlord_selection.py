@@ -25,9 +25,10 @@ well inside the border and requires the selection to have changed that too.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QLabel
 
 from nrplanner import bosstab
 
@@ -204,3 +205,193 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
         assert differing(opening, pictures(tab)) == [], (
             "the grid still marks a card while the panel says `Select a "
             "Nightlord`")
+
+
+# -- QA-154: what the pointer says before the button goes down -------------
+#
+# The finding read as a hit-area fault and is not one. Measured on 2026-09-06
+# on Windows under Fusion at 150 % scale, at a 1600x900 logical-px window
+# (the window reached both figures, so it is the size this note is named
+# for): 3 420 probe points, one every 4 logical px over the whole 302x178
+# card, each delivered through `qApp.notify` so Qt's own propagation decided
+# it -- **3 420 of 3 420 opened that card, 0 dead**. The labels inside the
+# card do not swallow a press.
+#
+# What is dead is the strip between two cards: 8 logical px at every width
+# measured (1600, 1250, 1067), and a click in it opens nothing. Of the grid
+# rectangle at 1600 px, 79.3 % is card; of the 20.7 % that is not, three
+# quarters is the unfilled remainder of the last row (ten cards in four
+# columns) and the rest is that 8 px lattice.
+#
+# So the reader had no way to see which side of an 8 px line he was on. These
+# cases are about that: the pointer names its card before the click, and
+# names nothing when it is between two.
+
+
+def in_the_same_row(tab) -> tuple:
+    """Two cards side by side, and the point of the gap between them."""
+    placed = [(card.mapTo(tab.cards, QPoint(0, 0)), card)
+              for card in cards(tab)]
+    top = min(point.y() for point, _card in placed)
+    row = sorted((entry for entry in placed if entry[0].y() == top),
+                 key=lambda entry: entry[0].x())
+    if len(row) < 2:
+        pytest.skip("this window is one card wide, so it has no gap between "
+                    "two cards for this case to stand in")
+    (left_at, left), (right_at, right) = row[0], row[1]
+    gap = QPoint((left_at.x() + left.width() + right_at.x()) // 2,
+                 left_at.y() + left.height() // 2)
+    return left, right, gap
+
+
+def point_at(widget) -> None:
+    """Move the pointer onto `widget`, the way a hand moves it.
+
+    Through `QTest.mouseMove`, which goes out to the window system and comes
+    back through Qt's own `dispatchEnterLeave` -- so what is exercised is the
+    dispatch a player's mouse uses, not a hand-fed enter event. Measured to
+    reach the widget under the offscreen platform and under the Windows one.
+    """
+    QTest.mouseMove(widget, widget.rect().center())
+    rendered.settle()
+
+
+def test_the_grid_marks_the_card_the_pointer_is_on(game_data, qapp):
+    """QA-154. A near miss has to be visible before the button goes down."""
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        target = cards(tab)[2]
+        before = pictures(tab)
+        point_at(target)
+        after = pictures(tab)
+
+        assert differing(before, after) == [target.boss["name"]], (
+            f"the pointer resting on the {target.boss['name']} card changed "
+            f"{differing(before, after)} on the grid")
+
+
+def test_the_mark_moves_to_the_card_the_pointer_moves_to(game_data, qapp):
+    """One card at a time, which is the whole point of a pointer mark.
+
+    A mark that was added and never taken away would leave the row claiming
+    two targets at once -- the state QA-150's own marker is guarded against
+    two cases above, arrived at from the other direction.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        left, right, _gap = in_the_same_row(tab)
+        before = pictures(tab)
+        point_at(left)
+        assert differing(before, pictures(tab)) == [left.boss["name"]], (
+            "the pointer marked nothing, so this case cannot tell whether "
+            "the mark is handed on")
+
+        point_at(right)
+        assert differing(before, pictures(tab)) == [right.boss["name"]], (
+            f"with the pointer on {right.boss['name']} the grid marks "
+            f"{differing(before, pictures(tab))}")
+
+
+def test_the_gap_between_two_cards_marks_neither(game_data, qapp):
+    """The half of QA-154 a hit area cannot fix.
+
+    Eight logical px separate two cards and a click there opens nothing.
+    That is correct behaviour, and it was indistinguishable from a broken
+    program because the grid looked the same either way. With the pointer in
+    the gap, no card may claim it.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        left, right, gap = in_the_same_row(tab)
+        before = pictures(tab)
+        point_at(left)
+        assert differing(before, pictures(tab)) == [left.boss["name"]], (
+            "the pointer marked nothing on its way in, so this case cannot "
+            "tell whether the gap takes the mark away")
+
+        QTest.mouseMove(tab.cards, gap)
+        rendered.settle()
+        marked = differing(before, pictures(tab))
+
+        assert marked == [], (
+            f"a pointer in the gap between {left.boss['name']} and "
+            f"{right.boss['name']} marks {marked}")
+
+
+def test_the_pointer_mark_and_the_chosen_mark_are_told_apart(game_data, qapp):
+    """Three states, three pictures.
+
+    A hover drawn as the selection is drawn would tell a reader he had
+    already chosen the card he is merely pointing at -- which is the mistake
+    QA-150's marker exists to prevent, made the other way round.
+
+    Read inside the border, for the reason the Everdark case above is: the
+    selection changes the one pixel edge as well as the fill, so a whole-card
+    comparison stays green with the two fills set to the very same colour.
+    It did: the counter-build `HOVER_FILL = SELECTED_FILL` survived the first
+    version of this case, and the border alone was carrying the difference.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        left, _right, gap = in_the_same_row(tab)
+        plain = interiors(tab)[left.boss["name"]]
+
+        point_at(left)
+        hovered = interiors(tab)[left.boss["name"]]
+        QTest.mouseMove(tab.cards, gap)
+        rendered.settle()
+
+        tab.show_detail(left.boss)
+        rendered.settle()
+        chosen = interiors(tab)[left.boss["name"]]
+
+        assert hovered != plain, (
+            f"the pointer on {left.boss['name']} draws its inside exactly as "
+            f"it is drawn untouched")
+        assert hovered != chosen, (
+            f"inside its border, {left.boss['name']} looks the same under "
+            f"the pointer as it does when the panel is describing it")
+
+
+def test_the_chosen_card_keeps_its_mark_under_the_pointer(game_data, qapp):
+    """Selection outranks hover.
+
+    A reader running the pointer along the row to find the next Nightlord
+    must not lose sight of the one the panel is describing.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        left, _right, _gap = in_the_same_row(tab)
+        tab.show_detail(left.boss)
+        rendered.settle()
+        chosen = pictures(tab)[left.boss["name"]]
+
+        point_at(left)
+        assert pictures(tab)[left.boss["name"]] == chosen, (
+            f"the pointer changed how the chosen {left.boss['name']} card is "
+            f"drawn, so the panel's card and the pointer's card look alike")
+
+
+def test_a_press_on_a_label_inside_a_card_opens_that_card(game_data, qapp):
+    """The hit area, guarded rather than assumed.
+
+    Every pixel of the card is live because the labels on it ignore a press
+    and Qt hands it to the frame underneath. That is Qt's default, and a
+    single `WA_NoMousePropagation` -- or a label that accepts the event --
+    would put a dead patch in the middle of a card with nothing on screen to
+    show it. The press goes to the label and is delivered through
+    `qApp.notify`, which is where the propagation lives.
+    """
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        target = cards(tab)[1]
+        labels = target.findChildren(QLabel)
+        assert labels, "the card carries no labels, so nothing is covered"
+
+        opened: list[str] = []
+        target.clicked.connect(lambda boss: opened.append(boss["name"]))
+        missed = []
+        for label in labels:
+            opened.clear()
+            QTest.mouseClick(label, Qt.LeftButton, Qt.NoModifier,
+                             label.rect().center())
+            if opened != [target.boss["name"]]:
+                missed.append((label.text() or "<image>", list(opened)))
+
+        assert not missed, (
+            f"a press on these parts of the {target.boss['name']} card did "
+            f"not open it: {missed}")

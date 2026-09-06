@@ -47,6 +47,23 @@ CARD_WIDTH = 250
 SELECTED_EDGE = ACCENT
 SELECTED_FILL = "rgba(200, 164, 92, 60)"
 
+#: How the grid shows which card the pointer is standing on (QA-154).
+#:
+#: The finding is not the hit area. Measured on 2026-09-06 on Windows under
+#: Fusion at 150 % scale, at a 1600x900 logical-px window: every one of 3 420
+#: probe points, one every 4 logical px over the whole 302x178 card, opened
+#: that card -- the labels inside it ignore a press and Qt hands it to the
+#: frame. What is dead is the 8 logical px between two neighbours, and a
+#: reader had no way to see which side of that line he was on: a near miss
+#: opened the wrong Nightlord and a miss opened nothing, and the grid looked
+#: identical in both cases.
+#:
+#: So the marker is on the pointer rather than on the click. A third channel
+#: again: fill only, edge untouched. Selection changes both, an Everdark twin
+#: owns DEEP on the edge, and hover changes the one thing neither of those
+#: two moves -- so the three states stay apart at a glance.
+HOVER_FILL = "#26272c"
+
 #: What the detail panel is given where there is room for it, and the least it
 #: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
 #: an 833 px window the panel held 330 px of `Select a Nightlord` while the
@@ -272,6 +289,7 @@ class BossCard(QFrame):
 
         self._edge = DEEP if boss.get("everdark") else BORDER
         self._selected = False
+        self._hovered = False
         self._apply_appearance()
 
         layout = QVBoxLayout(self)
@@ -325,9 +343,18 @@ class BossCard(QFrame):
         Border width is the same either way. A selected card that grew its
         border would push its own contents a pixel inwards, and the grid
         would twitch every time a reader tried another Nightlord.
+
+        Selection outranks hover, and deliberately: the card the panel is
+        describing must keep saying so while a reader runs the pointer along
+        the row looking for the next one.
         """
         edge = SELECTED_EDGE if self._selected else self._edge
-        fill = SELECTED_FILL if self._selected else PANEL
+        if self._selected:
+            fill = SELECTED_FILL
+        elif self._hovered:
+            fill = HOVER_FILL
+        else:
+            fill = PANEL
         self.setStyleSheet(
             f"#card {{ background: {fill}; border: 1px solid {edge};"
             f" border-radius: 7px; }}"
@@ -345,6 +372,31 @@ class BossCard(QFrame):
             return
         self._selected = selected
         self._apply_appearance()
+
+    @property
+    def hovered(self) -> bool:
+        """Is the pointer on this card, its own area or a label inside it?"""
+        return self._hovered
+
+    def _set_hovered(self, hovered: bool) -> None:
+        if hovered == self._hovered:
+            return
+        self._hovered = hovered
+        self._apply_appearance()
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """The pointer arrived, here or on one of the labels.
+
+        Qt sends Enter down the whole chain under the pointer and Leave only
+        to the widgets it actually left, so moving from the card onto the
+        name inside it is not a departure and this card stays marked.
+        """
+        self._set_hovered(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._set_hovered(False)
+        super().leaveEvent(event)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
         self.clicked.emit(self.boss)
