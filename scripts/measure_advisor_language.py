@@ -100,7 +100,7 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
     headings = collections.Counter()
     effects = 0
     curse_lines = 0
-    worst = ("", 0)
+    worst = ("", 0, 0)
     for relic, group in every_relic(data, owned, ctx):
         quiet = [line for line in group.lines if not line.is_curse
                  and line.silence != types.CARRIES_A_FIGURE]
@@ -123,8 +123,10 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
         headings[group.count_line.split(" ")[0]] += 1
         assert group.effects_total - group.effects_with_a_figure == len(quiet)
         card = len(group.lines) + 2
+        in_block = len([line for line in group.lines
+                        if types.drawn_in_the_block(line)]) + 2
         if card > worst[1]:
-            worst = (relic.name, card)
+            worst = (relic.name, card, in_block)
 
     total_silent = sum(silent.values())
     print(f"\n{owned.relic_count} relics owned, {effects} effect roles on "
@@ -143,7 +145,8 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
     for word, count in headings.most_common():
         print(f"    {word:<10s} {count:4d}")
     print(f"\n  the tallest card one owned relic can make: {worst[1]} lines "
-          f"including its two headings, on {worst[0]!r}")
+          f"in the Why dialog and {worst[2]} in the block, both counting its "
+          f"two headings, on {worst[0]!r}")
     print("\n  not seen by this part: (a2) across two slots -- one relic per "
           "run here -- and the ownership answer of any Nightfarer but "
           f"{HERO}.")
