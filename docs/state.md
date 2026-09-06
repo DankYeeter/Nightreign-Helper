@@ -114,9 +114,6 @@ vorlegen.
 - **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg nach
   Angriffswert; der Spieler hat "die beste Waffe finden" aufgegeben. Waere
   eine **neue Funktion**.
-- **F-H QA-172 (neu)** — widersprechen sich zwei Roheintraege desselben
-  Effekts beim Fluch, was soll der Spieler sehen: die vorsichtige Aussage
-  (*sometimes*) oder die Datenlage?
 - **Die Streichliste je Tab** (13 Vorschlaege in `UI_SPEC.md` §8).
 
 ## Regeln
