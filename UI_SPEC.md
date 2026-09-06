@@ -4221,3 +4221,44 @@ Spielstand**, nicht drei.
    Zahl und die Fluche, die stummen Effekte erst im Dialog — anders als beim
    Fluch waere das kein verstecktes Risiko, denn ein stummer Effekt ist keine
    Falle.
+
+---
+
+## Director-Korrektur zu T-078/T-080 — 06.09.2026, entschieden vom App Designer
+
+Der App Designer hat entschieden, nachdem der gemessene Schlechtfall
+(14 gezeichnete Zeilen plus zwei Kopfzeilen, AK-160) vorlag. Beide Punkte
+gehen den Vorgaben oben vor.
+
+**1. Stumme Zeilen stehen nur im `Why`-Dialog.** AK-151s letzter Satz ("Gilt
+im Vorschlagsblock **und** im `Why`-Dialog, mit identischem Text") wird
+ersetzt: die stummen Effektzeilen erscheinen **ausschliesslich im
+`Why`-Dialog**. Im Vorschlagsblock steht davon nur die Zaehlzeile (AK-155,
+AK-158).
+
+Begruendung, die auch die Abgrenzung traegt: **ein Fluch ist eine Falle, ein
+stummer Effekt nicht.** Der Preis muss vor dem Anwenden sichtbar sein, das
+Nichts nicht. **AK-159 bleibt daher unveraendert** — jeder Fluch der
+vorgeschlagenen Kopie steht weiterhin einzeln im Block, auch der ohne Zahl.
+
+Folge fuer AK-160: der Schlechtfall des **Blocks** faellt entsprechend
+kleiner aus als dort gemessen; die 14 Zeilen gelten fuer den **Dialog**.
+AK-161 (nach dem Einbau neu messen) gilt fuer beide Orte getrennt.
+
+**2. Fuellung (a) wird dargestellt wie im uebrigen Programm.** Ein Effekt,
+der einer anderen Figur gehoert, ist im Programm bereits als
+`NOT WORKING` mit Durchstreichung gezeichnet (`nrplanner/effecttext.py`,
+`nrplanner/app.py:3767` und `:3786`). Die stumme Zeile dieser Fuellung
+uebernimmt **diese Darstellung**, nicht `MUTED`. Zwei Darstellungen fuer
+dieselbe Sache waeren die Inkonsistenz, die sich ein Spieler merken muesste;
+es ist mit 150 von 426 der haeufigste Fall ueberhaupt.
+
+**Der Wortlaut bleibt der aus §4 (a)** — `{effect name}: works only for
+{owner}, and you are {hero}.` Er nennt den Besitzer, was der bestehende Text
+`NOT WORKING -- another Nightfarer only` nicht tut. Uebernommen wird die
+**Darstellung**, nicht der Satz.
+
+**AK-156 gilt unveraendert fuer alle uebrigen Fuellungen** (a2, b, c, d, e):
+kein `✦`, kein `CURSE`/`BAD`, kein `⚠`, keine Warnfarbe, nur `MUTED`.
+Fuellung (a) ist die benannte Ausnahme, und sie ist keine Warnung, sondern
+dieselbe Aussage, die das Programm anderswo schon macht.
