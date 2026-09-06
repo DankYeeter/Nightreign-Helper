@@ -31,6 +31,8 @@ five fields, instead of hunting the dataset for one and hoping it stays.
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 
 from nrplanner import effecttext, model
@@ -1064,6 +1066,70 @@ def test_the_two_lists_of_what_carried_no_figure_are_the_lines_themselves(
                    for line in explain.effects_without_a_figure(groups)
                    + explain.curses_without_a_figure(groups)), (
         "an effect that moved a figure is listed as having moved none")
+
+
+def test_a_line_that_ends_on_a_figure_carries_no_full_stop(game_data, wylder,
+                                                           armament):
+    """AK-136's punctuation rule, over every line of one real suggestion.
+
+    A line ending on a figure is a value and takes no full stop -- the stat
+    sheet sets none either, and this reasoning is read beside it. A line
+    ending on a sentence takes one. `, counted against it` is the one ending
+    that is neither a figure nor a sentence, and it goes without: it is a
+    clause on the value in front of it.
+    """
+    loud = advisor.raising_effects(game_data, wylder, 1)[0]
+    quiet = an_effect_that_moves_no_number(game_data, wylder)
+    biting, _lowered = a_curse_this_armament_cannot_feel(
+        game_data, wylder, armament.weapon)
+    silent_curse = a_curse_that_moves_no_number(game_data, wylder)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "A relic", tuple(loud) + (quiet,),
+                     [biting, silent_curse]),)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[SURVIVAL])
+
+    seen = set()
+    for line in [one for group in groups for one in group.lines]:
+        a_value = line.text.endswith("counted against it") or (
+            line.text[-1] in "0123456789%")
+        seen.add(a_value)
+        assert a_value != line.text.endswith("."), (
+            f"this line ends on {'a value' if a_value else 'a sentence'} and "
+            f"punctuates it the other way round: {line.text!r}")
+    for group in groups:
+        assert group.count_line.endswith("."), group.count_line
+    assert seen == {True, False}, (
+        f"this suggestion has only one kind of ending, so the case says "
+        f"nothing about the other: {lines_of(groups)}")
+
+
+def test_the_advisor_carries_none_of_the_barred_sentences_at_all():
+    """AK-133, AK-140, AK-142 and AK-157, searched over the module itself.
+
+    The case above reads one run; this one reads the source, so a sentence
+    that only appears for a dataset nobody here owns cannot hide. `Chosen
+    for` was the summary the block used to promise (T-078 §1 struck it, and
+    it cannot be written honestly: it claims a rank among contributions that
+    no exchange rate in the game files supports). The other two are claims
+    about the game files that are simply false for `All Resistances Down`.
+    """
+    barred = ("Chosen for", "carry no numbers", "carries no numbers",
+              "counted for nothing:")
+    advisor_package = pathlib.Path(explain.__file__).parent
+
+    found = {}
+    for module in sorted(advisor_package.glob("*.py")):
+        text = module.read_text(encoding="utf-8")
+        for sentence in barred:
+            if sentence in text:
+                found.setdefault(sentence, []).append(module.name)
+
+    assert not found, (
+        f"the advisor carries sentences it is not allowed to say, even in a "
+        f"comment where the next reader will copy them: {found}")
 
 
 def test_the_advisor_says_nothing_about_the_game_files_and_no_jargon(

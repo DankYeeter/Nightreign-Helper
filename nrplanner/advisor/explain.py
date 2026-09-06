@@ -544,9 +544,10 @@ def curses_without_a_figure(groups: Sequence[types.SlotReasons]
     Read back off the groups rather than worked out a second time: these are
     the very lines the block already shows, and a second derivation of the
     same set is the fault QA-082 and QA-087 each cost this project a round of
-    work for. The criterion is `UI_SPEC` T-078 §4 -- no line was written, not
-    "the game files carry no numbers", which for `All Resistances Down` would
-    be false.
+    work for. The criterion is `UI_SPEC` T-078 §4 -- no line was written --
+    and never a claim about what the game files hold, which for
+    `All Resistances Down` would be false: it lowers seven resistances by 80
+    apiece and nothing the advisor reads carries the figure.
     """
     return tuple(line for group in groups for line in group.lines
                  if line.is_curse and line.silence != types.CARRIES_A_FIGURE)

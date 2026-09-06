@@ -600,7 +600,7 @@ class AdvisorResult:
     curses: tuple[str, ...] = ()
     #: The curses of the suggested copies to which the calculation wrote no
     #: figure at all, and the effects likewise (`UI_SPEC` T-078 §4, T-080 §7).
-    #: The criterion is neither "carries no numbers in the game files" nor
+    #: The criterion is neither a claim about what the game files hold nor
     #: "conditional": no line was written, which is the one thing this program
     #: can state about them. How many there are is the length of the tuple.
     #:
