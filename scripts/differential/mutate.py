@@ -1128,6 +1128,384 @@ MUTATIONS: dict[str, Mutation] = {
             "slot. Killed by test_advisor_search.py::"
             "test_pools_that_are_not_the_free_slots_are_refused."),
     ),
+    # -- the reasoning (T-067: S8) ------------------------------------------
+    #
+    # Twenty edits. The first two are the reference point, and they are not
+    # one edit twice: `_added` protects the chosen copy from being credited
+    # with what the base state contributed, and the attribution protects the
+    # reasoning from naming an effect no chosen copy carries. Each was run
+    # against `tests/test_advisor_explain.py` in a copy of the tree on
+    # 2026-09-06 and each was killed.
+    "explain-reasons-against-the-empty-build": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    out: list[tuple[str, str, float]] = []
+    for key, entries in built.sources.items():
+        before = list(base.sources.get(key, ()))
+        for name, own in entries:
+            if (name, own) in before:
+                before.remove((name, own))
+                continue
+            out.append((key, name, own))
+    return out
+""",
+        new="""    out: list[tuple[str, str, float]] = []
+    for key, entries in built.sources.items():
+        for name, own in entries:
+            out.append((key, name, own))
+    return out
+""",
+        survival_means=(
+            "S8+/AD-014.6 is unenforced: the reasoning is formed against the "
+            "empty build instead of the base state. The case that sees it is "
+            "narrower than it looks -- naming a held relic's effects is "
+            "already impossible, because only the chosen copies' own effect "
+            "ids are ever named -- and it is the sharp one: a held relic "
+            "carrying an `isStrongestEffect` and a chosen copy carrying the "
+            "same one. The entry in `sources` is the held relic's, the "
+            "chosen copy added nothing, and without the difference it is "
+            "credited with the whole figure. That is AD-014.3's first-named "
+            "failure written out as prose. Killed by "
+            "test_advisor_explain.py::"
+            "test_a_copy_whose_effect_the_held_relic_already_caps_is_not_"
+            "credited."),
+    ),
+    "explain-renders-every-figure-in-the-build": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    added = _added(base, built)
+    claimed = [False] * len(added)
+    out: list[_Contribution] = []
+    for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
+        curses = set(candidate.curse_ids)
+        for effect_id in tuple(candidate.effect_ids) + candidate.curse_ids:
+            name = _effect_name(ctx, effect_id)
+            if name is None:
+                continue
+            moved: dict[str, float] = {}
+            for position, (key, entry, own) in enumerate(added):
+                if claimed[position] or entry != name or key in moved:
+                    continue
+                claimed[position] = True
+                moved[key] = own
+            for key, own in model.collapse_by_label(moved).items():
+                if _moved_nothing(key, own, built):
+                    continue
+                out.append(_Contribution(
+                    candidate=candidate, effect_id=effect_id,
+                    effect_name=name, is_curse=effect_id in curses,
+                    field_key=key, own=own))
+    return tuple(out)
+""",
+        new="""    first = sorted(chosen, key=lambda copy: copy.slot_index)[0]
+    out: list[_Contribution] = []
+    for key, entries in built.sources.items():
+        for name, own in entries:
+            if _moved_nothing(key, own, built):
+                continue
+            out.append(_Contribution(
+                candidate=first, effect_id=0, effect_name=name,
+                is_curse=False, field_key=key, own=own))
+    return tuple(out)
+""",
+        survival_means=(
+            "the step table's own acceptance is unenforced: the reasoning "
+            "renders whatever stands in the build instead of what the chosen "
+            "copies brought, so it names the held relic's effects and the "
+            "armaments' -- plausible sentences about effects that are not in "
+            "the suggestion, which is the fault this step is accepted "
+            "against. This is the naive reading of `Build.sources` a reader "
+            "would reach for. Killed by test_advisor_explain.py::"
+            "test_the_reasons_name_only_effects_the_suggestion_brought, "
+            "which works out what a line may name from the inventory and the "
+            "dataset rather than from the attribution it is watching."),
+    ),
+    "explain-lets-one-copy-claim-every-entry-of-its-name": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""                if claimed[position] or entry != name or key in moved:
+""",
+        new="""                if claimed[position] or entry != name:
+""",
+        survival_means=(
+            "one copy claims every entry filed under its effect's name, so "
+            "`Physical Attack Up +4` on three Deep relics is credited to the "
+            "first of them three times and the other two look as though they "
+            "contributed nothing. Killed by test_advisor_explain.py::"
+            "test_a_stacking_effect_on_three_copies_is_named_once_per_copy."),
+    ),
+    "explain-credits-every-copy-with-the-same-entry": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""                claimed[position] = True
+                moved[key] = own
+""",
+        new="""                moved[key] = own
+""",
+        survival_means=(
+            "an entry is claimed by every copy that carries the effect "
+            "instead of by one, so the second copy of an `isStrongestEffect` "
+            "is credited with a figure the build does not contain -- "
+            "`model.compute` counted it once and reported the rest as "
+            "duplicates. Killed by test_advisor_explain.py::"
+            "test_a_copy_whose_effect_the_game_refused_to_stack_gets_no_"
+            "line."),
+    ),
+    "explain-guesses-the-number-format-from-the-field-name": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    if key.startswith(model.WEAPON_CLASS_PREFIX):
+        return True
+    return key in built.rates
+""",
+        new="""    return model.is_multiplier(_real_field(key))
+""",
+        survival_means=(
+            "whether a figure scales or adds stops being read off the build "
+            "it came from and is guessed from the field name -- the fallback "
+            "`model.is_multiplier` uses before `configure` has run, and a "
+            "different calculation rather than a rougher one (QA-011). A buff "
+            "the game restricts to one move is filed under the effect's own "
+            "name, which ends in no `Rate`, so `1.15` would be printed as "
+            "`+1.15` where the sheet says `+15.0%`. Killed by "
+            "test_advisor_explain.py::"
+            "test_a_buff_the_game_restricts_to_one_move_does_not_say_its_"
+            "name_twice."),
+    ),
+    "explain-calls-a-smaller-cost-a-penalty": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    above = own - 1.0 if _scales(key, built) else own
+    return (above > 0) == model.is_better_lower(_real_field(key))
+""",
+        new="""    above = own - 1.0 if _scales(key, built) else own
+    return above < 0
+""",
+        survival_means=(
+            "`GOAL.md` F3 is answered backwards for every field that is "
+            "better small. A relic cutting fire damage taken by 15 % or FP "
+            "cost by 8 % would be listed as having been counted **against** "
+            "itself, which is the colouring bug `model.INVERTED_RATES` was "
+            "written for, in a new place. Killed by test_advisor_explain.py::"
+            "test_a_figure_that_is_better_small_is_not_called_a_cost_for_"
+            "falling."),
+    ),
+    "explain-reports-a-figure-that-did-not-move": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""                if _moved_nothing(key, own, built):
+                    continue
+""",
+        new="""""",
+        survival_means=(
+            "a field an effect carries at its own neutral value is offered "
+            "as a reason: `+0.0%`, and marked as counted against the relic, "
+            "because it is not above neutral. Killed by "
+            "test_advisor_explain.py::"
+            "test_a_figure_that_did_not_move_is_no_reason."),
+    ),
+    "explain-says-one-idea-once-per-field-it-touches": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""            for key, own in model.collapse_by_label(moved).items():
+""",
+        new="""            for key, own in moved.items():
+""",
+        survival_means=(
+            "the merge `model.collapse_by_label` performs for the stat sheet "
+            "stops reaching the reasoning, so one relic says five times that "
+            "FP costs 8 % less -- the game splits that one idea across five "
+            "fields. Killed by test_advisor_explain.py::"
+            "test_one_idea_split_over_several_fields_is_not_said_several_"
+            "times."),
+    ),
+    "explain-drops-the-armament-class-from-a-scoped-buff": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""        _prefix, weapon_class, field_name = key.split(":", 2)
+        return f"{model.label_for(field_name)}, {weapon_class} armaments only"
+""",
+        new="""        return model.label_for(key.split(":", 2)[2])
+""",
+        survival_means=(
+            "`Physical Attack +6.0%` is claimed for the whole grid where the "
+            "buff lifts melee armaments only -- the same addition `app.py` "
+            "makes in the attack-rating breakdown, for the same reason. "
+            "Killed by test_advisor_explain.py::"
+            "test_a_buff_bound_to_one_class_of_armament_says_which."),
+    ),
+    "explain-reads-the-curses-off-the-relic-instead-of-the-reckoning":
+        Mutation(
+            path="nrplanner/advisor/explain.py",
+            old="""    return tuple(
+        f"Slot {contribution.candidate.slot_index + 1}, "
+        f"{contribution.candidate.name} — {contribution.effect_name}: "
+        f"{_named(contribution, built)}"
+        for contribution in _attributed(chosen, base, built, ctx)
+        if contribution.is_curse)
+""",
+            new="""    return tuple(
+        f"Slot {copy.slot_index + 1}, {copy.name} — "
+        f"{_effect_name(ctx, curse_id)}"
+        for copy in sorted(chosen, key=lambda one: one.slot_index)
+        for curse_id in copy.curse_ids)
+""",
+            survival_means=(
+                "AD-015's second bullet is unenforced: the curses are read "
+                "off the relic definition instead of out of `Build.sources`, "
+                "so a curse the calculation did not apply -- a conditional "
+                "one -- is shown as a price of the suggestion while the "
+                "figure beside it does not contain it. Killed by "
+                "test_advisor_explain.py::"
+                "test_the_curses_are_the_ones_the_calculation_applied."),
+        ),
+    "explain-does-not-mark-what-was-counted-against-the-relic": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    cost = ", counted against it" if _is_a_cost(key, own, built) else ""
+""",
+        new="""    cost = ""
+""",
+        survival_means=(
+            "`GOAL.md` F3 goes unanswered -- *\"falls meine negativen auf "
+            "Relikten meine Benefits vernichten, muss ich das wissen\"*. The "
+            "costs are still in the list and nothing marks them as costs, so "
+            "a reader has to read the sign of every figure and know for each "
+            "field which way is good. Killed by test_advisor_explain.py::"
+            "test_a_curse_is_among_the_reasons_as_a_cost_that_was_counted."),
+    ),
+    "explain-names-every-curse-as-one-the-goal-cannot-feel": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""        if goal.score(evaluate(problem, without, ctx), ctx).value != ranked:
+            continue
+""",
+        new="""        if False:
+            continue
+""",
+        survival_means=(
+            "AD-015's mandatory line is written for every curse, including "
+            "the ones the ranking figure does carry: the result would tell "
+            "the player that `Minimise damage taken` does not rank the HP a "
+            "curse just took away. Killed by test_advisor_explain.py::"
+            "test_a_curse_the_direction_cannot_feel_is_named, which asks the "
+            "same curse under both directions."),
+    ),
+    "explain-never-names-a-curse-the-figure-cannot-feel": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""        if goal.score(evaluate(problem, without, ctx), ctx).value != ranked:
+            continue
+""",
+        new="""        if True:
+            continue
+""",
+        survival_means=(
+            "the other half of the same rule: the line is never written, so "
+            "a cost the ranking figure cannot feel is invisible. AD-015 "
+            "names the suggestion block as the only place such a curse "
+            "becomes visible at all. Killed by test_advisor_explain.py::"
+            "test_a_curse_the_direction_cannot_feel_is_named."),
+    ),
+    "explain-says-nothing-about-the-held-slots": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    held = _held_slots_line(problem)
+    if held:
+        lines.append(held)
+""",
+        new="""    held = ""
+    if held:
+        lines.append(held)
+""",
+        survival_means=(
+            "a run over three of six slots reads as a run over six. The line "
+            "is a run finding in the sense of AD-025 -- it carries a count -- "
+            "and it is the only thing that says the search was bounded. "
+            "Killed by test_advisor_explain.py::"
+            "test_the_held_slots_are_named_with_a_count."),
+    ),
+    "explain-counts-held-slots-where-none-are-held": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    if not held:
+        return ""
+""",
+        new="""""",
+        survival_means=(
+            "a run with nothing held says `0 of 6 slots are held`, which is "
+            "noise where AD-025.2 asks for silence: an empty `unknowns` is "
+            "the statement that nothing was left out. Killed by "
+            "test_advisor_explain.py::"
+            "test_a_run_that_left_nothing_out_says_nothing."),
+    ),
+    "explain-does-not-say-that-nothing-was-searched": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    if held == slots:
+        return (f"All {slots} slots are held, so nothing was searched: this "
+                f"is the build as it stands, scored.")
+""",
+        new="""""",
+        survival_means=(
+            "checkpoint 14's second half is unenforced. With every slot held "
+            "the result would say `6 of 6 slots are held, so only the other "
+            "0 were filled.` -- true, and it leaves the reader to work out "
+            "that no search ran and that what they are looking at is their "
+            "own build. Killed by test_advisor_explain.py::"
+            "test_every_slot_held_says_that_nothing_was_searched."),
+    ),
+    "explain-reports-a-declared-condition-as-uncounted": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    return tuple(entry.name for entry in built.situational if not entry.live)
+""",
+        new="""    return tuple(entry.name for entry in built.situational)
+""",
+        survival_means=(
+            "an effect the player declared live is reported as having "
+            "counted for nothing, while the figure beside it already "
+            "contains it. Declaring the condition is the one thing the sheet "
+            "cannot work out for itself, which is why this is read off what "
+            "`model.compute` parked and not off the effect records. Killed "
+            "by test_advisor_explain.py::"
+            "test_a_condition_the_player_declared_is_not_reported_as_"
+            "uncounted."),
+    ),
+    "explain-does-not-say-where-the-data-came-from": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    where = ("read from the installed game" if meta.get("regenerated")
+             else "from the stored snapshot")
+""",
+        new="""    where = "from the stored snapshot"
+""",
+        survival_means=(
+            "AD-010's `data_note` loses half its content (F7): a run against "
+            "a dataset read fresh from the installation claims to be from a "
+            "snapshot, so a player checking why a figure moved after a game "
+            "patch is told the opposite of what happened. Killed by "
+            "test_advisor_explain.py::"
+            "test_the_data_note_names_the_version_and_where_it_was_read."),
+    ),
+    "explain-interpolates-a-version-that-is-not-there": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""    if not version:
+        return (f"Ranked on game data {where}, which records no version, so "
+                f"there is no way to say which patch it is from.")
+""",
+        new="""""",
+        survival_means=(
+            "a dataset that records no version produces `Ranked on game data "
+            "version , from the stored snapshot.` -- a provenance claim with "
+            "a hole in it where A7 asks the program to say that it does not "
+            "know. Killed by test_advisor_explain.py::"
+            "test_a_dataset_that_records_no_version_says_so."),
+    ),
+    "explain-takes-a-suggestion-from-any-run": Mutation(
+        path="nrplanner/advisor/explain.py",
+        old="""        offer = next((entry for entry in pool.candidates
+                      if entry.handle == choice.handle), None)
+        if offer is None:
+            raise KeyError(
+                f"slot {choice.slot_index} was filled with handle "
+                f"{choice.handle}, which its pool does not offer")
+        found.append(offer)
+""",
+        new="""        offer = next((entry for entry in pool.candidates
+                      if entry.handle == choice.handle), pool.candidates[0])
+        found.append(offer)
+""",
+        survival_means=(
+            "a suggestion explained with another run's pools quietly picks "
+            "whatever copy that pool leads with, and the reasoning then "
+            "describes a build nobody has -- correct in form, wrong in every "
+            "effect it names. Killed by test_advisor_explain.py::"
+            "test_a_suggestion_from_another_run_is_refused."),
+    ),
     "ranking-without-the-tie-break": Mutation(
         path="nrplanner/damage.py",
         old="""    answers.sort(key=lambda answer: (-answer.final_headline,

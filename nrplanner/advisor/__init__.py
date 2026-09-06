@@ -13,7 +13,7 @@ the order they are listed in:
     candidates what may go into a slot, and what it is worth there
     goals      the named directions to optimise in
     search     the beam over the free slots
-    explain    `Build.sources` turned into English    -- S8, not yet built
+    explain    `Build.sources` turned into English
     worker     the QThread and the cache              -- S9, not yet built
 
 `types` imports nothing from this package. `candidates` takes its goals as a
