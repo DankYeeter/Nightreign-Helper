@@ -1,145 +1,128 @@
 # Stand
 
-2026-09-05, **Zyklus 12 laufend**. Branch `docs/audit-and-advisor-design`,
-`main` geschuetzt, PR #16 offen — Merge gehoert dem Nutzer.
+2026-09-06, **Ende von Zyklus 13**. Branch `docs/audit-and-advisor-design`.
+`main` ist geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
+Einstieg fuer eine neue Session: `docs/handover-2026-09-06.md`.
 Verlauf Zyklen 1-11: `docs/archiv/state-bis-2026-09-03.md`.
 Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 `security/findings.md`. Berichte: `docs/berichte/T-###-<rolle>.md`.
-Nummernkreise: T ab **T-053**, R ab **R-007**, QA ab **QA-125**, DR ab
-**DR-013**, AK ab **AK-68**.
 
-## Auftragslage (Nutzer, 03.09.2026, "Audit 3")
+**Nummernkreise:** T ab **T-073** · QA ab **QA-171** · AK ab **AK-106** ·
+DR ab **DR-019** · R ab **R-007** · projekteigene Regeln ab **NH-003**.
 
-Alle offenen Punkte abarbeiten, autonom weiterlaufen, **erst zurueckkommen bei
-einer echten Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**
-(Liste unten), nicht einzeln vorgelegt. **Die Pruefung im laufenden Spiel
-macht der Nutzer ganz am Ende** — bis dahin wartet kein Auftrag auf sie.
-Obergrenze: die Liste P3-P9. Ein Kriterium aus `GOAL.md` gilt erst als
-erfuellt, wenn der `qa-engineer` es geprueft hat.
+**Suite:** `-m "not slow"` **860 passed, 9 skipped, 5 deselected**;
+`-m "slow"` **5 passed**. 18 registrierte Mutationen aus T-071, alle toetend
+im Standardlauf.
 
-Die zweite Session ("Scaling Questions") hat abgegeben; Handover in
-`docs/handover-scaling-2026-09-03.md`. Ihre Ergebnisse sind unten eingearbeitet.
+## Auftragslage (Nutzer)
 
-## Was in Zyklus 12 fertig und abgenommen ist
+Alle offenen Punkte abarbeiten, autonom, **erst zurueckkommen bei einer echten
+Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**. **Die
+Pruefung im laufenden Spiel macht der Nutzer ganz am Ende** — bis dahin
+wartet kein Auftrag auf sie.
 
-- **T-037 Rechenkern des Beraters.** `nrplanner/advisor/` (`types`, `evaluate`,
-  `candidates`, `goals`), Qt-frei. Suite 291 -> 398.
-- **T-041 QA-Erstdurchlauf.** Kein Blocker; 15 von 15 Mutationen unabhaengig
-  nachgefahren, Regression am Fenster **null**. Befunde QA-100 bis QA-112.
-- **T-045 Faktor 0,6** (Nutzerentscheid F4). Belegt: 97 745 Zahlen um 0,6
-  mitgezogen, 17 224 bitgleich (jede ein Multiplikator), 870 um 2-3 ULP
-  daneben (alle Summen ueber Schadensarten), **0 von 589 840** Bildschirm-
-  zahlen ausserhalb Abschneiden/Runden.
-- **T-046 Katalysator-Kennzahl** (Nutzerentscheid "replace physical attack
-  with spell power"). 84/84 und 28/28 exakt, **0** Nicht-Katalysator-Werte
-  bewegt. Carian Regal Scepter reiht jetzt vor Rotten Crystal Staff.
-- **T-051 Retest: alle 4 + 6 Abnahmepunkte erbracht.** Der zuvor offene Punkt
-  ist geschlossen — Wylder Lv12 / Dagger zeigt **74** auf Kachel, Tafel und
-  Arsenal-Tab, gemessen an einer echten headless `Planner`-Instanz.
-- **T-047 `architect`: AD-025** plus Praezisierungen zu AD-004, AD-009,
-  AD-010, AD-016. Kern: die Klasse eines Vorbehalts ist Eigenschaft seines
-  **Wohnorts**, nicht seines Wortlauts — Verfahrenssatz in die Registry
-  (`Goal.scope`), Laufbefund ins Ergebnis (`*.unknowns`).
-- **T-052 Design-Review** am laufenden Fenster: DR-008 bis DR-012,
-  AK-63 bis AK-67, Screenshots unter `docs/screenshots/2026-09-05/`.
+Eingedampft am 05.09.: **P6 auf zwei Punkte** (SEC-009 und die Label-Fabrik
+SEC-019/015; SEC-011/016/017/018/020 gestrichen), **P5 auf einen Auftrag**
+(QA-044/048/054 sind **eine** Wurzel: der Speicher adressiert einen Build
+ueber einen nicht umkehrbaren abgeleiteten Schluessel, und die Migration setzt
+ihren Marker zu frueh). **P7 bleibt vollstaendig** — ausdruecklicher
+Nutzerentscheid: die Waechter sichern alles ab, was noch kommt.
 
-Suite vor T-048: **563 passed, 5 deselected**; `-m "slow"` 5 passed.
-
-## In Arbeit und als Naechstes
-
-**Neuer Nutzerauftrag 05.09.2026: Inhaltsaudit der sechs Tabs** —
-`GOAL.md` **A10 bis A14**. Nicht nur Formatierung: zuerst, ob der Inhalt eine
-benennbare Spielerfrage beantwortet, dann Verstaendlichkeit ohne Vorwissen,
-dann Gestaltung. `Build planner` ist ausgenommen ("der erste passt").
-**Abschluss-Deliverable an den Nutzer: eine Streichliste je Tab** — was wuerde
-ich entfernen, und was verliert ein Spieler dadurch. Streichen selbst ist
-seine Entscheidung, nicht meine.
-
-Reihenfolge, sequenziell, nie zwei Agenten auf demselben Code:
+## Stand gegen `GOAL.md`
 
 | | | |
 |---|---|---|
-| **T-048** `developer` | Ergebnisform nach AD-025, QA-100 (der Waechter ueber dem Fenster faengt heute keinen seiner Gegenbauten), QA-101/113/114/115/120/124 | laeuft |
-| **T-053** `developer` | Oberflaeche: DR-008 bis DR-012, AK-63 bis AK-67, QA-117/119/121 | geschrieben |
-| **T-054** `power-user` + **T-055** `qa-engineer` | die sechs Tabs, parallel und mit verschiedenen Fragen: kommt ein Mensch ans Ziel — stimmt das Gezeigte | geschrieben |
-| dann | `ui-ux-designer` (Spec) -> `developer` -> Retest, so oft wie noetig | |
-| dann | P3 weiter: S7 Suche · S8 Erklaerung · S9 Worker · S10 · S11 | |
-| dann | P4 bis P9 | |
+| A1 | Audit-Bericht mit priorisierten Befunden | weitgehend — 170 QA, 20 SEC |
+| A2 | kritisch/hoch behoben oder zurueckgestellt | offen (SEC-009) |
+| **A3-A6** | **der Build-Berater** | **offen — der ganze Rest der Arbeit** |
+| A7 | sagen, wo die Daten nichts hergeben | weitgehend |
+| A8 | alles Englisch | haelt, ohne Waechter |
+| A9 | QA gegen ein **gebautes Artefakt** | **nie geprueft** |
+| A10 | jeder Tab nennt seine Frage | **erfuellt, 6 von 6** |
+| A11 | ein Spieler kommt ohne Raten ans Ziel | **ein Satz fehlt** (QA-169) |
+| A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
+| A13 | Gestaltung, nichts abgeschnitten | 3 von 6 Tabs |
+| A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
 
-**T-053 laeuft vor T-054/T-055**, sonst meldet der `power-user` Fehler, die
-das Design-Review schon kennt.
+## Was Zyklus 12 und 13 gebracht haben
 
-## Entscheidungen des Directors in Zyklus 12
+**Die Zahlenbasis ist erstmals gegen das Spiel belegt.** Faktor **0,6** in
+`weapons.rate` (97 745 Zahlen mitgezogen, 17 224 bitgleich und jede davon ein
+Multiplikator, 0 von 589 840 Bildschirmzahlen ausserhalb Abschneiden/Runden).
+Katalysatoren zeigen **Spell power** statt physischer AR (84/84 und 28/28
+exakt). Beides vom Nutzer freigegeben und per Retest abgenommen.
 
-- **AK-47 ist eingetreten, nicht geaendert** — QA-018 geschlossen, `unverified`
-  entfaellt; der Vorbehaltssatz blieb, bis T-045 ihn durch den Geltungsbereich
-  ersetzte.
-- **QA-101: `damage.equipped` bleibt.** Die Behauptung "die Rangfolge waere bei
-  `candidate` dieselbe" ist **widerlegt** (−12,36 gegen +21,36, Reihenfolge
-  gedreht, 10 von 309 Relikten). Entscheidung richtiger als ihre Begruendung.
-- **D1 bis D4** (Vorbehalts-Klassen, konditionale Zeile, positionsabhaengiger
-  Cache-Schluessel, doppelte Pruefpunktnummer) — vom `architect` in AD-025 und
-  vier Praezisierungen ausgearbeitet. Er hat **zwei meiner Vorgaben
-  korrigiert**, beide zu Recht: der Massstab brauchte "und die Frage, ob er
-  gilt", und meine Begruendung fuer D3 trug nicht (die Entscheidung schon).
-- **QA-115: das fehlende Messskript wird gebaut**, nicht der Kommentar
-  entschaerft — der `qa-engineer` hat bestaetigt, dass die per-Typ-Aussage
-  sonst unpruefbar bleibt.
-- **`ratios.py` bleibt im Repo** — es macht die Abnahmezahl nachfahrbar,
-  genau das, dessen Fehlen QA-115 zum Befund macht.
-- **QA-113 wird benannt, nicht gefuellt.** Die Einbauhoehe ist ohne
-  Spielmessung nicht entscheidbar und wird nicht geraten (F-F).
-- **Kein `security-reviewer` in Zyklus 12** — kein Datei-, Socket-, Shell- oder
-  Pfadzugriff, keine neue Abhaengigkeit. Bewusst uebersprungen.
+**Der Rechenkern des Beraters steht** (`nrplanner/advisor/`: `types`,
+`evaluate`, `candidates`, `goals`, Qt-frei) und ist zweimal geprueft.
+**AD-025** regelt, wo ein Vorbehalt wohnt: Verfahrenssatz in die Registry,
+Laufbefund ins Ergebnis.
 
-## Kleine offene Punkte, die im naechsten developer-Lauf mitlaufen
+**Der Tab-Audit ist fachlich durch.** Drei falsche Zahlen berichtigt (die
+Boss-Zeile stand bei den falschen Bossen — 7 von 10 zeigen jetzt eine
+**belegte** Stufe, vorher null; `Avg chance` war ungewichtet; `Pools` zaehlte
+keine Pools). Sichtbarkeit: alle zehn Nightlords ab **833** statt 1600 px ·
+Fenster-Mindesthoehe 1225 → **513** · abgeschnittene Effektnamen 573 → **80** ·
+Waffenkacheln beim Oeffnen **0 → 77** · Startbreite jetzt **aus den
+Spaltenbreiten abgeleitet**, 0 von 11 Ueberschriften gekuerzt. Deckung:
+fuenf Tabs hatten **keinen** Test, der Unsinn bemerkt haette — jetzt 40+
+Anzeigetests.
 
-- **Platzhalter ersetzen:** `[wording pending: QA-113]` in
-  `advisor/candidates.py` — der Wortlaut ist seit 05.09. in **AK-67**
-  festgelegt ("{n} of your relics change what damage type your starting
-  armament deals ..."). AK-67 erlaubt jetzt **drei** Saetze statt zwei.
-- **`ARCHITECTURE.md` nennt `held_fingerprint` an vier Stellen ausserhalb
-  von Nachtrag VI weiter als geltend** (Z. 1438, 1627, 2434, 2468) — gehoert
-  dem `architect`, ueberholte Zusicherung.
-- **`model.Build.level`** ist neu (fuer QA-124 noetig) und im Entwurf noch
-  nicht nachgetragen — ebenfalls `architect`.
-- **`mutate.py::newline_of`** begruendet sich mit CRLF in `app.py`; der Baum
-  ist durchgehend LF. Code richtig, Begruendung veraltet.
+**Fuenf `power-user`-Durchgaenge**, der Fortschritt ist messbar: Runde 1 zwei
+"mit Muehe" und eine "teilweise"; Runde 5 **kein Abbruch, ein einziges
+"geraten"**. Der Nachtlord oeffnet sich mit **einem** Klick statt vier.
 
-## Beschlossen, nicht beauftragt
+## Der Rest — in dieser Reihenfolge
 
-- **`ruff`** (vierte Erwaehnung) — ohne Linter ist "Linter sauber" in der DoD
-  jeder Rolle unpruefbar. Frage F-A.
-- **AD-013.4 gegen `inventory.copy_key`** — ohne lesbare Handles waere **jeder**
-  Pool leer (QA-108). Latent: 0 von 309.
-- **`CharaInitParam` liest der Extractor nicht** (Startausruestung aller zehn
-  Nightfarer) — beruehrt AD-020.3, kein Beleg fuer einen Fehler.
-- **QA-066** (`damage.Rating` nicht hashbar) bleibt offen, P7 — im Berater
-  umgangen, nicht behoben.
-- **QA-123** (Arsenal-Messstrecke fuer 6 von 1793 Waffen blind) — P7.
+1. **QA-169 (P2, ein Satz):** `Comes with curse` ist die **einzige** Spalte,
+   die der Erklaerabsatz auslaesst, und die einzige, bei der der Spieler
+   raten musste. Danach **A11 mit einem sechsten `power-user`-Lauf
+   bestaetigen** — sonst ist "erfuellt" meine Behauptung, keine Messung.
+2. **P3, der Build-Berater** — der eigentliche Rest. **`docs/tasks/T-067.md`
+   liegt fertig** (S7 Suche, S8 Begruendung). Danach S9 Worker, S10
+   Oberflaeche, S11 Budget.
+3. **P4** Save/Inventar · **P5** ein Auftrag · **P6** zwei Punkte ·
+   **P7** vollstaendig · **P8** · **P9** mit **A9**.
 
-## Gesammelte Fragen an den App Designer (fuer das Sessionende)
+## Offene Befunde, die niemandem zugeordnet sind
 
-- **F-A `ruff` als Linter aufnehmen?** Neue Abhaengigkeit, zieht `researcher`
-  und `compliance-agent` (`lizenzen`) nach.
-- **F-B QA-096** — Raider trifft mit Greataxe/Great Hammer exakt x1,18 (25/25),
-  **keine Param-Quelle** (Negativliste mit Nenner: 252 Tabellen, 6,66 Mio.
-  Zellen). Der Nutzer misst auf Lv15. Bestaetigt die Messung ihn, ist zu
-  entscheiden, ob eine Zahl ohne Beleg eingebaut wird — A7-Abwaegung.
-- **F-C QA-097** — Cursed Claws x0,88 fuer jeden ausser dem Revenant (8/8).
-  Spielregel oder geschaetzte Zellen der Fan-Quelle? Nutzermessung Lv15.
-- **F-F QA-113, die Einbauhoehe.** Vier Relikte tragen in den Params eine echte
-  Umwandlung, das Programm bewegt dafuer **exakt 0**, waehrend die Karte die
-  Zahlen nennt. Drei Lesarten; **eine Ablesung im Spiel entscheidet**:
-  Grundwert 114, die Lesarten sagen **91 / 116 / 117**. Gehoert in dieselbe
-  Lv15-Runde wie F-B und F-C.
+- **Wartet auf eine `ui-ux-designer`-Entscheidung:** QA-158 (Favoriten-
+  Portraits ohne Namen), QA-159 (sechs Spalten nur im Tooltip erklaert —
+  QA-169 ist eine Instanz davon), QA-160 (Filtermenues schneiden ihren
+  eigenen Wert ab), QA-162, die Fokusmarke aus T-071 (liegt im selben warmen
+  Kanal wie die Auswahl).
+- **QA-157 ist groesser als aufgenommen:** der Laufzeit-Durchgang ueber 395
+  Widgets findet **61** Stellen mit derselben Eigenschaft (6 `WeaponTile`,
+  54 `RelicCard`, 1 `CustomRelicCard`), nicht fuenf.
+- **QA-165/166:** zwei Instanzen kosten **keinen** Build (120/120), aber die
+  Reihenfolge (3 von 120) und 34 von 60 Verstecken-Marken; `_migrate_keys`
+  macht aus `Bleed build` den Namen `%42leed%20build`.
+- **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
+  `CharaInitParam` wird nicht gelesen.
 
-## Regeln und Ungeprueftes
+## Gesammelte Fragen an den App Designer
 
-Arbeitsregeln stehen wortgleich in `docs/plan-restarbeiten.md` und werden nur
-dort gepflegt: toetende Mutation je Waechter · ungerundete Zahl fuer
-Charakterisierungen · Messstrecke benutzen, nicht neu bauen · **jede
-Zusicherung nennt ihren Geltungsbereich**.
+- **F-A `ruff` als Linter?** Fuenfte Erwaehnung; ohne ihn ist "Linter sauber"
+  in jeder DoD unpruefbar.
+- **F-B QA-096** — Raider x1,18 auf Greataxe/Great Hammer, **keine
+  Param-Quelle** (Nenner: 252 Tabellen, 6,66 Mio. Zellen). Lv15-Messung.
+- **F-C QA-097** — Cursed Claws x0,88 fuer alle ausser dem Revenant.
+- **F-F QA-113** — vier Relikte wandeln Schadensart um, das Programm bewegt
+  **exakt 0**. **Eine Ablesung entscheidet:** Grundwert 114, die drei
+  Lesarten sagen **91 / 116 / 117**.
+- **F-G QA-170 (neu)** — keine Sortierung ueber Waffenkategorien hinweg nach
+  Angriffswert; der Spieler hat "die beste Waffe finden" **aufgegeben**. Waere
+  eine **neue Funktion**, also Nicht-Ziel der A10-A14-Erweiterung.
+- **Die Streichliste je Tab** (13 Vorschlaege in `UI_SPEC.md` §8).
 
-Nie geprueft: die Oberflaeche als **benutztes Programm** (`power-user`, nach
-P9) · ein **gebautes Artefakt** (GOAL A9) · Linux/macOS (Windows-only).
+## Regeln
+
+In `docs/plan-restarbeiten.md`, nur dort gepflegt. Seit 06.09. teamweit:
+**L-008** (Gegenbau: rot im Standardlauf · Erwartung nicht aus der bewachten
+Stelle · Ueberlebender ist ein Befund) · **L-009** (jede Oberflaechenzahl
+nennt ihre Messumgebung, jede Messung prueft, dass sie ihren Namen erreicht
+hat) · **L-010** (Director: Medium, Werkzeug, Quelle vor jedem Dispatch) ·
+**L-012** (Bildnachweise aus dem Fenster, nie vom Bildschirm) · **L-013**
+(Absenz-Behauptung traegt ihren Nenner). Dazu **NH-001** (jede Arbeit hat eine
+T-Nummer und eine Datei) und **NH-002** (keine Bildschirmabzuege).
+
+**Nie geprueft:** ein gebautes Artefakt (A9) · Linux/macOS.
