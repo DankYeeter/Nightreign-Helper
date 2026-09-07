@@ -270,8 +270,12 @@ class Asking:
     relics: int
 
 
-def _held_slot(index: int, card) -> types.HeldSlot:
+def held_slot(index: int, card) -> types.HeldSlot:
     """One slot the player is holding, as the search has to read it.
+
+    Public because the relic picker asks the same question of every slot but
+    the open one (AD-018.1, `UI_SPEC` §3.1): the two screens read a slot card
+    the same way or they are ranking against two different builds.
 
     A held slot with nothing in it is `relic=None`, which the search reads as
     "held and staying empty" (AD-014.7) -- a different instruction from a slot
@@ -321,7 +325,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     slots = tuple(types.Slot(index=index, colour=slot.colour, deep=slot.deep)
                   for index, slot in enumerate(cards))
     holding = planner.held_slot_indices()
-    held = tuple(_held_slot(index, card) for index, card in enumerate(cards)
+    held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held)
 
