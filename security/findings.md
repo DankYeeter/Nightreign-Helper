@@ -418,3 +418,50 @@ und an `git log`, nicht an der Notiz.
 **Damit ist A2 nur noch durch SEC-009 gesperrt** — der einzige verbleibende
 Hoch-Befund. SEC-019 hat der Nutzer am 02.09.2026 auf Mittel gesenkt, SEC-021
 ist nach T-096 auf Niedrig herabgestuft, SEC-023 ist Niedrig.
+
+---
+
+## SEC-009 — behoben (T-105, 07.09.2026), vom Director gegengeprueft
+
+Commit `d92bab9`. Beide vom Nutzer am 02.09.2026 als release-sperrend
+benannten Teile sind gebaut:
+
+- **Action-Pin auf Commit-SHA.** `actions/checkout@11d5960…` (v4.4.0),
+  `actions/setup-python@a26af69…` (v5.6.0),
+  `softprops/action-gh-release@3bb1273…` (v2.6.2), jeweils mit lesbarem
+  Versionskommentar. **Der Director hat alle drei unabhaengig gegen
+  `gh api` aufgeloest** (Tag-Objekt → Commit, 07.09.2026): drei von drei
+  stimmen. Der Pin des Entwicklers wurde also nicht uebernommen, sondern
+  nachgerechnet.
+- **SHA-256-Pruefsumme.** Neuer Schritt nach dem Bau erzeugt
+  `dist/NightreignHelper.exe.sha256`; die Datei geht als zweites Artefakt in
+  `files:` mit. Der Nutzer prueft sie ohne Zusatzwerkzeug mit
+  `Get-FileHash NightreignHelper.exe -Algorithm SHA256` bzw.
+  `certutil -hashfile NightreignHelper.exe SHA256`.
+
+Signatur und `pip --require-hashes` bleiben als tragbares Restrisiko draussen —
+Nutzerentscheid, unveraendert.
+
+**Damit ist kein Hoch-Befund mehr offen. A2 ist erfuellt**, vorbehaltlich der
+Bestaetigung durch den `security-reviewer` in der naechsten Pruefphase — die
+Selbstbestaetigung des Directors genuegt dafuer nicht.
+
+**Offene Luecke im Nachweis:** der Pruefsummenschritt laeuft mit
+`shell: pwsh`. Lokal verifiziert wurde er mit Windows PowerShell 5.1, weil
+PowerShell 7 auf diesem Rechner nicht installiert ist. Auf `windows-latest`
+ist `pwsh` vorhanden; belegt ist es hier nicht. Faellt beim ersten echten
+Release auf.
+
+## SEC-025 — `tests.yml` hat dieselbe unpinned-Tag-Schwaeche
+
+**Prioritaet: P4 · Schwere: Niedrig · Status: offen · 2026-09-07 · Adressat:
+developer**
+
+Gemeldet vom `developer` in T-105, ausserhalb seines Auftragsscopes und
+bewusst nicht behoben. `.github/workflows/tests.yml:28/30` benutzt bewegliche
+Tags statt Commit-SHAs — dieselbe Form wie SEC-009.
+
+**Warum trotzdem niedriger:** dieser Workflow baut nicht das ausgelieferte
+Artefakt. Ein uebernommenes Action-Repository kann hier Testergebnisse
+faelschen und im Rahmen der Workflow-Rechte im Repo wirken, aber nichts in die
+EXE schreiben. **Sperrt A2 nicht.** Gehoert in den Fix-Stapel von Zyklus 17.
