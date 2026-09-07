@@ -399,3 +399,22 @@ Repository ist oeffentlich, und ein Bildnachweis wuerde die Id mittragen.
 **Behebungsrichtung:** die Ausnahme auf ihre Klasse abbilden und eine eigene
 Formulierung zeigen, den Pfad in den Tooltip — nicht `str(exc)` auf die
 Flaeche.
+
+---
+
+## Statuskorrektur 2026-09-07 (zweite), vom Director am Code geprueft
+
+Zwei Hoch-Befunde standen weiter auf "offen", obwohl beide Deckel im Code
+stehen und committet sind. Die Statuszeilen wurden nach dem Fix nie
+nachgezogen — **dieselbe Klasse wie die Statuskorrektur nach T-095**, und
+derselbe Buchfuehrungsfehler des Directors. Geprueft wurde diesmal am Code
+und an `git log`, nicht an der Notiz.
+
+| Befund | neuer Status | Beleg |
+|---|---|---|
+| **SEC-022** | **behoben** | `nrdata/savefile.py:173` `MIN_BYTES_PER_RELIC_RECORD = 64`, Deckel in `read_owned_relics` (198, 233-234) — laut ausfallend, nicht still kuerzend, wie die Behebungsrichtung verlangt. Zweiter Deckel in `inventory.relics_for`. `should_cancel` in der Vorsortierung: `f79f770`. |
+| **SEC-024** | **behoben** | Commit `912a39a`. `nrdata/savefile.py:312/345/353-361`: `MIN_BYTES_PER_LOADOUT_TABLE`, `allowed_starts`, lauter Abbruch an dem Marker, der die Grenze reisst. |
+
+**Damit ist A2 nur noch durch SEC-009 gesperrt** — der einzige verbleibende
+Hoch-Befund. SEC-019 hat der Nutzer am 02.09.2026 auf Mittel gesenkt, SEC-021
+ist nach T-096 auf Niedrig herabgestuft, SEC-023 ist Niedrig.

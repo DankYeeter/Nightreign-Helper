@@ -1983,3 +1983,15 @@ daraufhin null Faelle ein und mussten wiederholt werden.
 Temp-Verzeichnis. Zwei gleichzeitige Rollen raeumen einander die Messdaten
 weg. Zusammen mit QA-196 heisst das: **parallele Auftraege sind derzeit nicht
 verlaesslich isoliert**, obwohl die Regel sie zum Normalfall erklaert.
+
+---
+
+## Statuskorrektur 2026-09-07 (zweite), vom Director am Code geprueft
+
+| Befund | neuer Status | Beleg |
+|---|---|---|
+| **QA-194** | **behoben** | Commit `2570d86`. `tests/test_settings_store.py:178-192` schliesst `.claude/worktrees/` aus und haelt den Fall mit einem eigenen Fall fest. Die parallele Arbeitsweise faerbt die Suite nicht mehr falsch rot. |
+
+Anlass der Pruefung: derselbe Befund stand in `docs/state.md` als erledigt und
+in dieser Liste als offen. Die Regel dagegen steht seit dem 07.09. in der
+Director-Definition — **ein Befundstatus wird geprueft, nicht erinnert.**
