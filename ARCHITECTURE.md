@@ -3476,3 +3476,445 @@ Gefässe, mit der A3 überhaupt vollständig prüfbar wird). D3 hebt das erste
 auf. Ich lese das zweite als **unberührt**, weil es nicht am Cache hängt.
 Falls der `director` das anders sieht, ist der Prüfumfang für A3 neu zu
 bemessen, und das trifft den `qa-engineer`, nicht den `developer`.
+
+---
+
+## Nachtrag VII 2026-09-07 — Was `not_counted` zählt, wenn die Schranke eine Waffe ist (AD-026), und zwei Korrekturnotizen
+
+**Anlass:** Der `ui-ux-designer` hat in T-084 gemeldet, dass
+`explain.not_counted` seinen eigenen Docstring nicht einhält. Der Docstring
+sagt, ein Effekt an einer **nicht geführten Armatur** sei nicht in
+`not_counted`; die Rechnung legt ihn dort ab. Der `director` hat den
+Mechanismus im Code nachgelesen und bestätigt. Entschieden wird hier keine
+Reparatur, sondern eine **Bedeutung**: ob „ich führe diese Waffe gerade
+nicht" eine Bedingung ist, in die der Spieler sich versetzen kann.
+
+### 0. Messumgebung, für jede Zahl dieses Nachtrags (L-001, L-009)
+
+Alle Zahlen unten sind **erschöpfende Zählungen über eine feste
+Grundgesamtheit**, keine Stichproben — es gibt daher keinen
+Stichprobenfehler, und keine Zahl dient als Schranke. Die Unsicherheit liegt
+nicht in der Zählung, sondern in der **Grundgesamtheit**: ein Spielstand,
+ein Datenabzug, zwei von zehn Nightfarern.
+
+- **Datenabzug:** `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`,
+  `data_version` 10350000, `extract_version` 11, `effect_count` 2076. Nur
+  gelesen.
+- **Bestand:** 309 besessene Kopien, 845 Effektrollen, 426 bzw. 434 stumme
+  Effektzeilen (je nach Nightfarer).
+- **Codestand:** `fd9f2bc`. Gegengeprüft mit
+  `git diff --stat fd9f2bc -- nrplanner/`: die einzige Abweichung im
+  Arbeitsbaum ist `nrplanner/app.py` (T-083, läuft parallel).
+  `model.py`, `inventory.py` und das ganze `advisor/`-Paket sind
+  byteweise `fd9f2bc`, und nur diese importieren die Messungen.
+- **Umgebung A (die des Befunds):** Wylder, `Wylder's Greatsword`
+  (`id` 3750000, `wep_type` 5), Stufe 15, `weapons_held` = dieselbe eine
+  Armatur, Zielrichtung `max_damage`, `weighting` = `EVEN_WEIGHTING`.
+- **Umgebung B (die zweite, vom Auftrag verlangt):** Ironeye,
+  `Ironeye's Bow` (`id` 41750000, `wep_type` 51), Stufe 15, sonst gleich.
+  Anderer Nightfarer **und** andere Waffengattung — Fernkampf gegen Nahkampf
+  ist der Fall, an dem sich eine Waffenschranke am ehesten anders verhält.
+- **Rezept, in Prosa statt als Datei**, weil die Messskripte auftragsgemäss
+  im Scratchpad liegen und nicht im Repo:
+  1. `model.configure(data)`, `inventory.load(data)`.
+  2. Je besessener Kopie ein Einzelslot-Problem in ihrer eigenen Farbe und
+     Deep-Lage, `base = evaluate(problem, (), ctx)`,
+     `built = evaluate(problem, (cand,), ctx)`.
+  3. Gezählt werden (i) die `ReasonLine` aus `explain.reasons`, die weder
+     `is_curse` noch `CARRIES_A_FIGURE` sind, nach ihrer `silence`-Marke,
+     und (ii) `len(explain.not_counted(built))`.
+  4. Für die Spalte „AK-167" wird eine Zeile mit
+     `SILENT_UNDER_A_CONDITION` nach `SILENT_ARMAMENT_BOUND` umgehängt, wenn
+     ihr Effekt eines der vier Felder aus `explain._ARMAMENT_GATES` trägt
+     und `model.satisfied_by_weapon` dafür **falsch** ist; umgekehrt fällt
+     eine Zeile `SILENT_ARMAMENT_BOUND` mit **erfüllter** Schranke nach
+     `SILENT_NO_NUMBER_HERE`.
+  5. Für die Zahl, die der Spieler wirklich liest, zusätzlich **volle Läufe**
+     über `advisor.run.run`: 2 Zielrichtungen × 88 Slotformen (die 74 Gefässe
+     des Datensatzes, mit und ohne Deep, entdoppelt) = **176 Läufe** je
+     Umgebung.
+  6. Für die verworfene Lesart wird `model.CONDITIONAL_FIELDS` **im
+     Speicher** um die drei Waffenfelder erleichtert und alles wiederholt.
+     Nichts wird geschrieben.
+- **Reproduktion der Fremdmessung:** Umgebung A gibt die Tabelle des
+  `ui-ux-designer` aus T-084 Zeichen für Zeichen wieder (150 / 0 / 170 / 13 /
+  93 / 0 gebaut, 150 / 0 / 124 / 58 / 94 / 0 nach AK-167, Summe 426 in
+  beiden). Seine Zahlen stehen.
+
+---
+
+### AD-026 — Eine unerfüllte Waffentyp-Schranke ist eine Bedingung, in die der Spieler sich versetzen kann, und bleibt in `Build.situational`; falsch ist nicht die Rechnung, sondern der Docstring (2026-09-07, Status: aktiv; präzisiert AD-010, bestätigt D-3)
+
+**Kontext.** `not_counted` liest `Build.situational` ab, gefiltert auf
+`not entry.live`. `model.is_conditional` wertet eine unerfüllte
+Waffentyp-Schranke als Bedingung, und `compute_qualitative` schreibt denselben
+Effekt in **beide** Listen — nach `qualitative` immer, nach `situational`
+zusätzlich, sofern er zum Nightfarer passt und nicht in `NO_SWITCH` steht.
+Der Docstring behauptet daraus, `situational` halte solche Effekte nicht.
+
+**Der Docstring ist nicht schlicht falsch, sondern ein ausgedehnter
+Randbedingungssatz.** Er beruft sich auf **QA-104**, und QA-104 ist wahr —
+aber über einen **anderen** Fall. QA-104 misst den *klassengebundenen*
+Angriffsbuff (`magicSubCategoryChange` 130 / 113 / 118, „melee" bzw.
+„ranged"). Nachgemessen: **8 solche Effekte im Datensatz, 0 davon
+konditional**, keiner erreicht je `Build.situational` — sie landen in
+`Build.class_rates`. Für sie stimmt der Satz. Angewendet wurde er auf die
+*typgebundene* Schranke (`triggerOnWepType`, `wepTypeTrigger`,
+`wepTypeTriggerCount`), und dort stimmt er nicht. Zwei verschiedene
+Mechanismen, ein Satz. Das ist genau der Fehler, den die Regel „jede
+tragende Aussage nennt ihre Randbedingung" verhindern soll — und
+`ARCHITECTURE.md` hatte es an seiner eigenen Stelle **richtig** stehen:
+Präzisierung AD-004, Punkt 6 sagt „Waffen**klasse**", nicht Waffentyp. Der
+Docstring hat die Klasse zum Typ verallgemeinert.
+
+**Kräfte.** Der Spieler kann eine Waffe wechseln, einen Nightfarer nicht —
+das spricht für „Bedingung". Der Docstring, QA-104 und D-3 sprechen dem
+Wortlaut nach für „Ausrüstungseigenschaft". Dahinter steht die härtere
+Frage: was der Schalter im Planer verspricht, und was eine Zahl in der
+Statuszeile behauptet.
+
+**Optionen.**
+
+- **K — konditional (Bestand).** Die unerfüllte Waffentyp-Schranke bleibt in
+  `CONDITIONAL_FIELDS`, der Effekt bleibt in `situational`, bekommt seinen
+  Schalter und zählt in `not_counted` und damit in 4.9b. *Konsequenz:* nichts
+  am Rechenkern, nichts am `Build planner`-Tab, den der App Designer
+  ausdrücklich für gut befunden hat. Der Docstring wird richtiggestellt. Der
+  Preis: derselbe Effekt kann im `Why`-Dialog zweimal vorkommen — als Zeile
+  „it depends on the armaments you carry" (Füllung c nach AK-167) und als
+  Name im Abschnitt 4.9b.
+- **E — ausrüstungsgebunden, naheliegend umgesetzt.** Die drei Waffenfelder
+  fallen aus `CONDITIONAL_FIELDS`. *Konsequenz, gemessen statt vermutet:*
+  **17 von 309 besessenen Kopien bekommen eine Zahl, die der Spieler nicht
+  hat.** `Grand Tranquil Scene` zeigt dann +9 % auf allen fünf
+  Angriffsraten, `Deep Polished Tranquil Scene` +20 % — für eine Waffe, die
+  nicht auf dem Raster liegt. Die stummen Zeilen fallen von 426 auf 409 (A)
+  und von 434 auf 417 (B), weil diese 17 nicht mehr stumm sind, sondern
+  falsch beziffert. Das ist wörtlich der Fehler, gegen den der Kommentar an
+  `CONDITIONAL_FIELDS` geschrieben ist („a real +12 % Physical Attack was
+  displayed as +2.5 %"), und ein A7-Bruch: eine Zahl, vor der niemand gewarnt
+  hat.
+- **E' — ausrüstungsgebunden, sauber umgesetzt.** Eine dritte Ablage: gated,
+  in keine Summe, **ohne** Schalter. *Konsequenz:* `compute_qualitative`,
+  `Situational` und `Build` bekommen eine dritte Klasse; der Planer verliert
+  46 Schalter, die heute eine beantwortbare Frage beantworten („was wäre das
+  wert, wenn ich eine Axt trüge?"). Umbau des Rechenkerns nach S9 — in
+  diesem Zyklus nicht umsetzbar, und er ändert einen Tab, der nicht zur
+  Debatte steht.
+
+**Entscheidung: K.** Drei Gründe, in dieser Reihenfolge:
+
+1. **Der Bestand hat die Frage schon beantwortet, in Nutzersprache.** Der
+   leere Zustand des Planers sagt heute: *„Effects that only work below a HP
+   threshold, **with a particular armament**, or on a trigger would be listed
+   here."* Die Armatur steht dort als eine von drei Bedingungen, unter der
+   Überschrift `Conditional & situational`. Eine Architekturentscheidung, die
+   das Gegenteil festlegt, führt ein zweites Muster für dasselbe Problem ein.
+2. **Der Schalter ist der Beweis der Klasse.** Ein Schalter existiert, um zu
+   beantworten „was wäre das wert, wenn die Bedingung hielte". Bei
+   „unter 85 % HP" kann der Spieler die Bedingung herstellen; bei „mit einer
+   Axt" auch — er wechselt die Waffe. Bei „ein anderer Nightfarer" kann er es
+   nicht, und genau dort setzt `compute_qualitative` den Schalter schon heute
+   nicht (`effecttext.works_for`). Die Grenze verläuft an der
+   **Herstellbarkeit**, nicht an der Frage, ob eine Waffe im Spiel ist.
+3. **E kostet Wahrheit, nicht nur Arbeit.** 17 falsche Zahlen sind ein
+   messbarer Rückschritt gegen A7; E' kostet 46 Schalter und einen Umbau. K
+   kostet einen Docstring.
+
+**Was das an der Zahl ändert, die der Nutzer liest.** Die 46 aus dem Befund
+sind eine Eigenschaft der **Kandidatenmenge**, nicht des Vorschlags. Über
+176 volle Läufe je Umgebung:
+
+| | Umgebung A (Wylder / Greatsword) | Umgebung B (Ironeye / Bow) |
+|---|---|---|
+| Läufe (2 Zielrichtungen × 88 Slotformen) | 176 | 176 |
+| `not_counted`-Einträge zusammen | 565 | 473 |
+| Mittel je Lauf | 3,21 | 2,69 |
+| Schlechtester Lauf | 9 | 8 |
+| davon waffengeschrankt | **1** | **1** |
+
+**Die Entscheidung bewegt die Statuszeile 4.9b in 175 von 176 Läufen um
+null.** Der Grund ist strukturell und nicht zufällig: die Beam-Suche rankt
+nach der Punktzahl, und ein Effekt, der in keine Summe eingeht, trägt genau 0
+bei — sie wählt solche Relikte fast nie. Sichtbar wird die Klasse im
+**Picker**, wo jeder Kandidat seine Zeilen bekommt, und dort entscheidet
+nicht `not_counted`, sondern die Füllung (AK-167/168). Damit hängt an dieser
+Entscheidung weniger, als der Befund vermuten liess — aber die Zeile, die
+`not_counted` **beschreibt**, hängt ganz daran.
+
+**Ob eine zweite Gattung im selben Topf liegt — geprüft, mit Zahlen.**
+Untersucht wurden `CONDITIONAL_FIELDS`, `CONDITIONAL_FIELD_VALUES` und
+`timed_window` über alle 2076 Effekte:
+
+| Gattung | Feld | Effekte | Urteil |
+|---|---|---|---|
+| Zustand des Spielers | `invocationConditionsStateChange1/2` | 202 / 6 | Bedingung, herstellbar |
+| Waffentyp | `triggerOnWepType` | 144 | Bedingung, herstellbar — **diese AD** |
+| Waffenzahl | `wepTypeTriggerCount` | 82 | Bedingung, herstellbar; **das Programm kann sie nie prüfen** |
+| Waffentyp | `wepTypeTrigger` | 30 | wie `triggerOnWepType` |
+| Lebenspunkte | `conditionHp`, `conditionHpRate` | 26 / 8 | Bedingung, herstellbar |
+| Zeitfenster | `effectEndurance` > 0 | 20 | Bedingung, herstellbar, nur für N Sekunden |
+| Gegnerzustand | `enemyStateInfoTrigger` | 9 | Bedingung, herstellbar |
+| Zähler | `saveCategory` = 9 | 8 | **keine Ja/Nein-Bedingung**, sondern ein Zähler |
+
+**Ergebnis: keine Gattung muss aus `situational` heraus.** Zwei sind aber
+ausdrücklich zu nennen, weil sie nicht dasselbe sind wie die Waffe:
+
+- **Der Zähler (`saveCategory` 9, 8 Effekte)** ist keine Bedingung, sondern
+  eine Menge. Er trägt sein eigenes Kennzeichen (`Situational.accumulates`,
+  `count`), und `live` heisst dort „count > 0". Er ist bereits getrennt und
+  bleibt es. Kein Handlungsbedarf, aber `not_counted` zählt ihn mit, und das
+  ist richtig: bei count 0 ist nichts gezählt worden.
+- **`wepTypeTriggerCount` (82 Effekte im Datensatz, 28 Einträge je Umgebung —
+  also die *Mehrheit* der 46 bzw. 47)** ist die Gattung, die man beim
+  Entscheiden übersieht. Sie steht **absichtlich nicht** in
+  `WEAPON_TYPE_GATES`: die Schranke will mehrere Armaturen desselben Typs,
+  und `satisfied_by_weapon` kann das nicht beantworten. Sie bleibt daher
+  **auch dann konditional, wenn der Spieler die Waffen wirklich trägt.** Das
+  ist unter K richtig — der Spieler kann die Bedingung herstellen, das
+  Programm kann es nur nicht sehen, und ein Schalter ist genau die ehrliche
+  Antwort darauf. Es ist aber **kein** Fall, den „wechsle die Waffe" löst,
+  und wer die 46 pauschal als „Waffe wechseln" liest, liest 28 davon falsch.
+
+**Eine dritte Familie, latent, ausdrücklich benannt:** 72 der 144
+`triggerOnWepType`-Effekte tragen einen Wert, der **kein Waffentyp ist**
+(256 auf 70 Effekten, 512 auf 2). Kein Armaturenwechsel erfüllt sie je; was
+sie bedeuten, geben die Spieldateien nicht her. Auf diesem Spielstand
+erreichen sie `not_counted` **nicht** (0 Einträge in beiden Umgebungen), weil
+keine besessene Kopie sie trägt. Sie sind damit kein Fall dieser
+Entscheidung, aber eine Falle für die Anzeige: `GATE_FIELDS` beschriftet sie
+mit *„only with a matching weapon type"*, und einen passenden Typ gibt es
+nicht. Das ist ein Befund, kein Auftrag (siehe OF-23).
+
+**Konsequenzen.** Leicht wird — nichts am Rechenkern, nichts am
+`Build planner`, `AK-142` bleibt Wort für Wort gültig, und die Grenze von
+`not_counted` ist ab jetzt an der Herstellbarkeit begründet statt an einer
+Aufzählung. Dauerhaft schwer wird — der Satz in 4.9b muss eine Bedingung
+beschreiben, die auch „du trägst diese Waffe nicht" und „du trägst nicht
+genug davon" abdeckt, ohne den Spieler auf eine Suche zu schicken. Und ein
+Effekt kann im `Why`-Dialog zweimal auftauchen; das ist gewollt und war schon
+vor dieser AD so (`UI_SPEC` T-084-Nachtrag §6).
+
+**Umkehrbarkeit: mittel.** K zurückzunehmen heisst E' zu bauen — eine dritte
+Ablage in `compute_qualitative`, ein drittes Feld auf `Build`, und der
+Planer verliert Schalter, die heute etwas beantworten. Der Rückweg ist
+benannt und teuer; K selbst kostet nichts, weil es der Bestand ist.
+
+---
+
+### Was der `developer` zu tun hat (Fixrichtung, kein Patch)
+
+1. **`explain.not_counted`: den Abschnitt „Scope" ersetzen.** Er muss sagen,
+   was drin ist — jede Bedingung, in die der Spieler sich versetzen kann,
+   **einschliesslich** einer Armatur, die er gerade nicht führt oder nicht oft
+   genug führt — und was nicht: ein Effekt, der einem anderen Nightfarer
+   gehört (`compute_qualitative` gibt ihm keinen Schalter), und ein
+   **klassen**gebundener Angriffsbuff, der ohne Referenzarmatur 0 zählt
+   (QA-104, 8 Effekte, keiner konditional). Der Verweis auf QA-104 bleibt
+   stehen, aber als Beleg für die **Ausnahme**, nicht für die Regel.
+2. **Sonst nichts.** Keine Änderung an `CONDITIONAL_FIELDS`,
+   `WEAPON_TYPE_GATES`, `is_conditional`, `compute_qualitative`,
+   `Situational`, `not_counted` selbst oder an einer Zahl. „Keine Änderung,
+   aber der Docstring wird richtiggestellt" ist das vollständige Ergebnis
+   dieser AD.
+3. **Zwei Regressionsfälle**, weil ein Docstring nicht testbar ist, die
+   Grenze aber schon.
+
+**Der Regressionstest, und was ihn heute rot färbt** (L-002, L-008):
+
+`tests/test_advisor_explain.py`, zwei Fälle gegen **eine** Grenze. Der
+Baustein steht schon da: `tests/advisor_cases.py::an_armament_type_gate`
+liefert `(effect id, Armatur des verlangten Typs, Armatur eines anderen)`.
+
+- **Fall 1 — die Schranke ist unerfüllt:** Kontext nur mit `other` auf dem
+  Raster. Erwartet: der Effektname **ist** in `explain.not_counted(built)`,
+  und `len(...) == 1`.
+- **Fall 2 — dieselbe Schranke ist erfüllt:** Kontext mit `carrier`
+  zusätzlich auf dem Raster. Erwartet: der Name ist **nicht** darin, und
+  `len(...) == 0`.
+
+**Beide Erwartungen stehen als Literal im Fall**, nicht gerechnet aus
+`built.situational`, `CONDITIONAL_FIELDS` oder `_ARMAMENT_GATES` — sonst
+bleibt der Fall grün, gleichgültig was die bewachte Stelle sagt (L-008 b).
+Beide laufen im **Standardlauf** (L-008 a); `an_armament_type_gate` braucht
+den echten Datensatz, der Fall trägt also dieselbe Markierung wie seine
+Nachbarn und wird auf einem Runner ohne Spielinstallation übersprungen — das
+ist QA-106 und keine neue Lücke, muss aber im Bericht stehen.
+
+**Die Änderung, die sie heute rot färbt** — der Gegenbau, ohne den der
+`director` den Fix nicht abnimmt: in `nrplanner/model.py`
+`CONDITIONAL_FIELDS` um `"triggerOnWepType"`, `"wepTypeTrigger"` und
+`"wepTypeTriggerCount"` erleichtern. Das ist genau Option E. Fall 1 wird
+dann rot (die Liste ist leer). Ein zweiter, unabhängiger Gegenbau: in
+`explain.not_counted` einen Filter einziehen, der Einträge mit einem der
+`_ARMAMENT_GATES` überspringt — auch dann wird Fall 1 rot, und Fall 2 bleibt
+grün. Fall 2 wird rot, wenn `satisfied_by_weapon` die Grid-Menge nicht mehr
+durchsucht (`isinstance`-Zweig entfernt).
+
+**Überlebt einer der Gegenbauten, ist das ein Befund und wird berichtet,
+nicht nachgebessert** (L-008 c).
+
+---
+
+### AK-167 und AK-168 — nachgeprüft, nicht übernommen
+
+Der `ui-ux-designer` sagt, seine Vorgabe funktioniere unter beiden Lesarten.
+**Gemessen: sie tut es — die Regel und ihre tragende Zahl. Ihre
+Partitionssumme tut es nicht.**
+
+| | A: K (Entscheidung) | A: E | B: K | B: E |
+|---|---|---|---|---|
+| (a) anderer Nightfarer | 150 | 150 | 159 | 159 |
+| (a2) anderswo gezählt | 0 | 0 | 0 | 0 |
+| **(b) Bedingung** | **124** | **124** | **127** | **127** |
+| (c) Armaturen | 58 | 41 | 47 | 30 |
+| (d) Rest | 94 | 94 | 101 | 101 |
+| (e) nicht im Datensatz | 0 | 0 | 0 | 0 |
+| **Summe** | **426** | **409** | **434** | **417** |
+
+- **Die Prüfreihenfolge (AK-167 i) hält unter beiden Lesarten**, und (b)
+  ergibt unter beiden dieselbe Zahl — 124 in A, 127 in B. Genau die Zahl, mit
+  der er argumentiert, ist gegen die Lesart unempfindlich. Sein Satz ist
+  bestätigt.
+- **Die Reihenfolge ist unter K nicht überflüssig, sondern tragend.** Unter K
+  überschneiden sich (b) und (c) auf 46 bzw. 47 Zeilen, und erst die
+  Voranstellung von (c) entscheidet sie. Unter E überschneiden sie sich fast
+  nicht mehr. Die Regel arbeitet also genau dort, wo diese AD entscheidet.
+- **AK-168 (ii) hält unabhängig von der Lesart.** Der Test auf die
+  **unerfüllte** Schranke ist es, der die 13 falschen Zeilen aus A entfernt
+  (`HP Restoration upon Greatsword Attacks` bei geführtem Greatsword). In B
+  sind es 0 gebaute (c)-Zeilen — die Regel ändert dort nichts Falsches,
+  weil kein Bogeneffekt dieser Art auf einer besessenen Kopie liegt. Der
+  Fall ist damit in einer Umgebung wirksam und in der anderen leer; beides
+  ist erwartet.
+- **Was unter E nicht überlebt, ist seine Summe.** 426 fällt auf 409, weil 17
+  Zeilen aufhören, stumm zu sein — sie bekommen eine Zahl, die der Spieler
+  nicht hat. AK-169 („die sechs Füllungen sind eine Partition, Rezept und
+  Zahlen dabei") bliebe formal wahr, aber mit anderen Zahlen. Unter der hier
+  getroffenen Entscheidung K bleibt AK-169 Wort für Wort und Zahl für Zahl
+  gültig.
+
+**Kein Auftragswechsel nötig.** Die Reihenfolge der beiden Aufträge bleibt,
+wie der `director` sie gesetzt hat.
+
+---
+
+### Korrekturnotiz zu AD-015 (2026-09-07; Herkunft: Entscheidung des `director` vom 06.09.2026, umgesetzt in `explain.py` seit T-081)
+
+**Ersetzt** in AD-015 den Absatz „*Pflichtzeile in `unknowns`, sobald ein
+vorgeschlagenes Relikt einen Fluch trägt, dessen Felder ausserhalb der
+Zielgrösse liegen:* `"A curse on <relic> changes <field>, which this goal
+does not rank."`".
+
+**Der ursprüngliche Wortlaut bleibt dort stehen und wird nicht gelöscht** —
+er ist der Beleg dafür, wie die Zusage einmal lautete.
+
+**Neu verbindlich:** Die AD-015-Pflichtzeile **wandert aus `unknowns` in die
+Slotgruppe** und wird **mit der Zahlzeile desselben Fluchs verschmolzen** —
+aus zwei Zeilen wird eine:
+
+```
+✦ {curse name}: {figure label} {amount} — this figure does not count it.
+```
+
+**Begründung:** Beide Hälften sagten dieselbe Sache an zwei Orten — die Zahl
+in `reasons`/`curses`, die Einordnung in `unknowns`. Ein Spieler soll einen
+Fluch **einmal** lesen, unter dem Relikt, das ihn trägt. Der Reliktname im
+alten Wortlaut war ausserdem überflüssig, weil die Slotgruppe ihn in ihrer
+Überschrift führt.
+
+**Unberührt bleibt alles Tragende von AD-015:** Flüche gehen als gewöhnliche
+Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus
+`Build.sources`; die Frage „fühlt die Rankingzahl diesen Fluch" wird **je
+Fluch** gestellt und an der Rankingzahl beantwortet; kein Satz sagt, ein
+Relikt sei **wegen** seines Fluchs schlechter platziert (OF-13, AD-023).
+Geändert hat sich der **Ort** und die **Form** der Zeile, nicht die Zusage.
+
+**Stand im Code (`fd9f2bc`, geprüft):** `explain.unknowns` trägt die Zeile
+nicht mehr und begründet das in seinem eigenen Docstring; der Wortlaut steht
+in `UI_SPEC` T-078 §3, Füllung (ii). Die Notiz holt `ARCHITECTURE.md`
+nach — sie ordnet nichts Neues an.
+
+---
+
+### Korrekturnotiz zu AD-003.5 (2026-09-07; Herkunft: D-5 des `director` vom 06.09.2026, gemeldet vom `developer` in T-067)
+
+**Ersetzt** AD-003, Ausgestaltung Punkt 5: „*Ausgabe: die besten `top_n`
+Endzustände, nicht nur der beste*".
+
+**Der ursprüngliche Wortlaut bleibt stehen.**
+
+**Neu verbindlich:** **Es gibt kein `top_n`.** Die Beam-Breite **W ist die
+Zahl der Endzustände**; `search.beam` gibt sie geordnet zurück, bester
+zuerst, und ein Aufrufer, der weniger will, nimmt den Kopf der Liste.
+
+**Begründung, in der Reihenfolge ihres Gewichts:**
+
+1. **Ein `top_n` wäre eine zweite Zahl mit eigener Herleitung.** AD-003 hat
+   K und W gemessen begründet (K=20, W=40, ungünstigster realer Fall unter
+   einer halben Sekunde). Eine dritte Stellschraube ohne eigene Messung
+   verstiesse gegen L-001.
+2. **Sie wäre eine dritte Grösse im Cache-Schlüssel** und damit ein weiterer
+   Weg, an dem zwei Läufe sich für denselben halten können.
+3. **Sie hat keinen Leser.** `top_n` kommt in `nrplanner/` nicht vor
+   (Volltextsuche gegen `fd9f2bc`: ein Treffer, und der steht im Docstring
+   von `search.py:321`, wo er genau diesen Sachverhalt erklärt).
+
+**Die Zusage aus AD-003 bleibt vollständig erfüllt:** der Spieler sieht
+Alternativen und kann Begründungen vergleichen (A5) — er sieht W davon statt
+`top_n` davon.
+
+**Was das nicht ist:** kein Verzicht auf ein Bedienelement, das es je gab.
+D-5 sagt ausdrücklich „kein `top_n`-Stellrad" — die Frage war, ob der Nutzer
+die Zahl der gezeigten Vorschläge selbst dreht, und die Antwort ist nein.
+Kommt sie je, ist es eine Entscheidung des `ui-ux-designer` über eine
+Anzeigemenge, nicht eine zweite Suchbreite.
+
+---
+
+### Bewusst nicht getan, Ergänzung
+
+- **Die Waffentyp-Schranke nicht aus `CONDITIONAL_FIELDS` genommen**
+  (Option E). *Wieder interessant, wenn:* jemand die dritte Ablage aus E'
+  ohnehin baut — also eine Klasse „gated, in keine Summe, kein Schalter". Vor
+  E' muss messbar sein, dass die 46 Schalter dem Spieler nichts wert sind;
+  heute beantworten sie eine Frage, die er durch Waffenwechsel wirklich
+  beantworten kann.
+- **`wepTypeTriggerCount` nicht auswertbar gemacht.** Das Raster hält sechs
+  Armaturen; man **könnte** zählen, wie viele davon den verlangten Typ
+  tragen, und die Schranke damit erfüllen. *Wieder interessant, wenn:* eine
+  Ablesung im laufenden Spiel bestätigt, welche Zahl das Feld meint. Ohne
+  diese Ablesung wäre es geraten — 82 Effekte hängen daran, und A7 verbietet
+  die Vermutung.
+- **QA-185 nicht mitbehoben** (`Build.qualitative` trägt keine Effekt-Id).
+  Diese AD **berührt** sie: die richtige Grenze zwischen `qualitative` und
+  `situational` wird erst prüfbar, wenn beide Listen dieselbe Id führen —
+  heute muss `explain` über den Namen zurückschliessen. Die Entscheidung
+  hängt nicht daran, der spätere Wächter schon. Eigener Auftrag, eigener
+  Code, gerade in fremder Hand.
+- **Den Wortlaut von 4.9b nicht angefasst.** Er gehört dem
+  `ui-ux-designer`; diese AD sagt nur, **welche Menge** er beschreiben muss.
+
+---
+
+### Offene Fragen, neu
+
+**OF-23 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
+`GATE_FIELDS["triggerOnWepType"]` beschriftet **72 Effekte** des Datensatzes
+(Wert 256 auf 70, 512 auf 2) mit *„only with a matching weapon type"*,
+obwohl **kein** Waffentyp des Spiels diesen Wert trägt — der Spieler sucht
+eine Waffe, die es nicht gibt. Auf diesem Spielstand ist der Fall **latent**
+(0 von 197 bzw. 201 `not_counted`-Einträgen in beiden Umgebungen), weil keine
+besessene Kopie einen solchen Effekt trägt; ein anderer Bestand kann ihn
+sichtbar machen. Es ist eine A11-Frage („ich habe geraten"), kein
+Rechenfehler. Der Text steht in `model.py`, die Entscheidung über den Text
+nicht bei mir.
+
+**OF-24 — an den `director`:** Der Befund aus T-084 nennt „46 von 170" als
+Anteil an einer Zahl, die der Nutzer liest. Gemessen ist das der Anteil an
+der **Kandidatenmenge**; die Zahl in der Statuszeile 4.9b bewegt sich in 175
+von 176 vollen Läufen um **null** (Umgebung A: 1 von 565; B: 1 von 473).
+Falls Priorität oder Reihenfolge eines Auftrags an der Grösse dieses
+Befundes hing, ist die Grundlage jetzt eine andere — die Klasse ist trotzdem
+zu entscheiden gewesen, weil der Docstring die **Beschreibung** der Menge
+falsch führt und Füllung (c) im Picker jede der 46 Zeilen betrifft.
