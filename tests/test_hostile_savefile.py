@@ -19,6 +19,11 @@ of these three states; that is the whole reason they went unnoticed.
 * **SEC-004**, `test_the_save_slot_name_is_shown_as_text`: the label that
   names the loaded save was on Qt's AutoText, which decides for itself whether
   what it was given is markup.
+* **SEC-022**, `test_a_slot_packed_with_relic_records_*`: the inventory scan
+  walked the character slot without any limit on how many records it would
+  take out of it. A prepared file yields 131 069 records per MiB, and the
+  program reads every save it finds at startup and keeps the best-populated
+  one, so the prepared file wins and the window never appears.
 """
 
 from __future__ import annotations
@@ -261,3 +266,116 @@ def test_the_save_slot_name_is_shown_as_text(planner):
         "the label under test is no wider than one that renders the markup, "
         "so it is not showing the name as text"
     )
+
+
+# --------------------------------------------------------------------------
+# SEC-022: a character slot claiming more relics than it has room for
+
+
+# One relic id the reader will accept. The records built below carry no
+# effects: what is under test is how many records a slot may claim, not what
+# they hold.
+KNOWN_RELIC_ID = 1234
+DOUBLED_ID = struct.pack("<II", KNOWN_RELIC_ID | savefile.RELIC_ID_FLAG,
+                         KNOWN_RELIC_ID | savefile.RELIC_ID_FLAG)
+
+
+def relic_records(byte_length: int, stride: int) -> bytes:
+    """A decrypted character slot with one relic record every `stride` bytes.
+
+    A record here is the doubled relic id and nothing else, because that is
+    what `read_owned_relics` anchors on. `stride` is what makes these cases
+    about a density rather than a count: the game writes records 80 bytes
+    apart, a prepared file writes them 8 bytes apart, and the reader's limit
+    of one per 64 bytes sits between the two.
+
+    Built byte by byte and never written to disk. A `.sl2` in the save folder
+    is precisely the attack these cases are about, and the player has a copy
+    of the program running.
+    """
+    buffer = bytearray(byte_length)
+    for off in range(0, byte_length - 24, stride):
+        buffer[off:off + len(DOUBLED_ID)] = DOUBLED_ID
+    return bytes(buffer)
+
+
+def read_records(blob: bytes, effect_ids: set[int] | None = None):
+    return savefile.read_owned_relics(blob, {KNOWN_RELIC_ID},
+                                      effect_ids or set())
+
+
+def test_a_slot_packed_with_relic_records_is_a_data_error():
+    """One record every eight bytes is what a prepared file writes.
+
+    Measured by the `security-reviewer` on the reader as it stood: 131 069
+    records per MiB, 3,31 s and 41 MB of memory per MiB of member, linear in
+    the size of the file. Nineteen MB of that is a minute of frozen window
+    before the player has touched anything.
+    """
+    blob = relic_records(64 * 1024, stride=8)
+
+    with pytest.raises(ValueError,
+                       match="denser than one record per 64 bytes"):
+        within_time_limit(lambda: read_records(blob))
+
+
+def test_the_refusal_over_a_packed_slot_names_no_file_path():
+    """What the player is shown says what to do and does not name the file.
+
+    The save folder is named after the Steam account id, so a message that
+    named the file would put that id into every screenshot and bug report the
+    failure produces -- which is a finding of its own (SEC-023) and not one
+    this message may enlarge.
+    """
+    with pytest.raises(ValueError) as raised:
+        read_records(relic_records(64 * 1024, stride=8))
+
+    message = str(raised.value)
+    assert "\\" not in message and "/" not in message, message
+    assert ".sl2" not in message.lower(), message
+    assert "save folder" in message and "rescan" in message, message
+
+
+def test_a_slot_filled_to_the_limit_is_read_in_full():
+    """The control at the boundary: the limit must not cost the last record.
+
+    A case that only proved the error path would pass just as well against a
+    reader that refuses everything, and one that proved it two orders of
+    magnitude away from the limit would say nothing about where the limit is.
+    """
+    blob = relic_records(6400, stride=64)
+
+    assert len(read_records(blob)) == 6400 // 64
+
+
+def test_one_record_more_than_the_slot_can_hold_is_a_data_error():
+    """The other side of the same boundary, one record further on.
+
+    6 432 bytes have room for 100 records at one per 64; this slot claims 101.
+    """
+    blob = relic_records(6432, stride=64)
+
+    with pytest.raises(ValueError, match="more than 100 relic records"):
+        within_time_limit(lambda: read_records(blob))
+
+
+def test_a_slot_at_a_real_saves_density_is_read_with_its_effects():
+    """The control the limit exists for: an ordinary inventory still reads.
+
+    Stride 80 is the record width the game writes. The real save on this
+    machine holds 309 records in 1 048 608 bytes of character slot -- one per
+    3 394 bytes, a factor 53 below the limit -- and this is that shape in
+    miniature, three records in 4 096 bytes.
+    """
+    effect_id = 7
+    buffer = bytearray(4096)
+    for index in range(3):
+        off = index * 80
+        buffer[off:off + len(DOUBLED_ID)] = DOUBLED_ID
+        for delta in savefile.EFFECT_OFFSETS:
+            struct.pack_into("<I", buffer, off + delta, effect_id)
+
+    owned = read_records(bytes(buffer), {effect_id})
+
+    assert [entry.offset for entry in owned] == [0, 80, 160]
+    assert [entry.effect_ids for entry in owned] == [[effect_id] * 3] * 3

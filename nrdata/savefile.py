@@ -153,6 +153,25 @@ HANDLE_OFFSET = -4
 # well inside the record they are read from and are not bleeding into the next.
 CURSE_OFFSETS = (52, 56, 60)
 
+# The fewest bytes of save one relic record can honestly occupy (SEC-022).
+#
+# A record is 80 bytes wide on the real save and every field this reader looks
+# at sits inside those 80, so a file the game wrote cannot pack records tighter
+# than that. 64 is the next power of two below 80: near enough that a real
+# record can never fall under it, loose enough that it states nothing about how
+# the game lays its inventory out.
+#
+# The three densities, so the distance is on the record rather than asserted:
+#   * a real save, both files on this machine, 2026-09-07: the fuller character
+#     slot holds 309 records in 1 048 608 bytes -- one per 3 394 bytes, a
+#     factor 53 below this limit;
+#   * this limit: one per 64 bytes, 16 384 records per MiB of slot;
+#   * a prepared file (security-reviewer, T-096, measured): 131 069 records per
+#     MiB, a factor 8 above the limit, and it grows linearly with the file.
+# So a save has to become 53 times denser than the real one before the reader
+# says anything, and a prepared one is refused eight times over.
+MIN_BYTES_PER_RELIC_RECORD = 64
+
 
 @dataclass
 class OwnedRelic:
@@ -172,6 +191,11 @@ def read_owned_relics(
     """
     out: list[OwnedRelic] = []
     seen_offsets: set[int] = set()
+    # What this slot could hold at all (SEC-022). Relative to the slot's own
+    # size, because an absolute count would be a guess about how big a future
+    # inventory may grow. The floor of one record is not a concession: a buffer
+    # with no room for a second record has no density to judge.
+    limit = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
 
     for off in range(0, len(slot_data) - 24, 4):
         first, second = struct.unpack_from("<II", slot_data, off)
@@ -199,6 +223,17 @@ def read_owned_relics(
                 curses.append(value)
 
         out.append(OwnedRelic(relic_id, effects, off, curses))
+        # Loud, and at the record that crosses the line rather than at the end
+        # (SEC-022, the form SEC-002 uses in this module). Cutting the list
+        # here instead would hand back a short inventory that looks like the
+        # player's own, and nothing downstream could tell it from one.
+        if len(out) > limit:
+            raise ValueError(
+                f"a save slot of {len(slot_data)} bytes holds more than "
+                f"{limit} relic records, denser than one record per "
+                f"{MIN_BYTES_PER_RELIC_RECORD} bytes, which is not an "
+                f"inventory; the file is damaged or was not written by the "
+                f"game. Take it out of the save folder and rescan.")
 
     return out
 
