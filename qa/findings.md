@@ -1893,3 +1893,46 @@ ueber die beraternahen Oberflaechendateien finden **null** deutsche Woerter.
 Aber es gibt **keinen Waechter** — die Regel haengt allein daran, dass jede
 Rolle sie einhaelt. Ein einzelner Test ueber die Oberflaechendateien bindet
 A8 dauerhaft und kostet einmal Aufwand.
+
+## SEC-024 — `find_loadout_table` friert den Start ein, vom SEC-022-Deckel nicht gedeckt
+
+**Prioritaet: Hoch · Status: offen · 2026-09-07 · Adressat: developer**
+
+`nrdata/savefile.py`, `find_loadout_table`: startet an **jedem** Offset mit dem
+Marker `HERO_MARKER_BASE+1` zwei geschachtelte Schleifen. Gemessen vom
+`developer` in T-098 am gleichen Slot gleicher Groesse: echter Slot **0,049 s**,
+markergefuellter Slot **1,251 s** — Faktor 25, linear rund 1,25 s je MiB. Eine
+19-MB-Datei ergaebe rund **24 s eingefrorenes Fenster beim Start**.
+
+Erreichbar ueber `_scan_save` → `read_loadouts`. **Die beiden Deckel aus
+SEC-022 greifen nicht** — ein einziger gueltiger Reliktdatensatz genuegt, der
+Rest der Datei kann aus Markern bestehen. Dieselbe Vertrauensgrenze wie
+SEC-022 (heruntergeladenes Save) und dieselbe Form; deshalb dieselbe
+Einstufung.
+
+## QA-193 — Der zweite SEC-022-Deckel hat keinen Anzeigeweg
+
+**Prioritaet: P3 · Schwere: Minor · Adressat: developer · offen · 2026-09-07**
+
+Der Deckel in `inventory.relics_for` wirft denselben Wortlaut wie der erste,
+aber seine Aufrufer (`app.py:1020`, `relicpicker.py:325`) fangen die Ausnahme
+nicht. Statt des Satzes sieht der Spieler einen Traceback. Der erste Deckel ist
+ueber `app.py:3409-3414` sauber angebunden und belegt.
+
+Zweite Kante derselben Aenderung: `source_bytes is None` schaltet den zweiten
+Deckel ab, und gesetzt wird das Feld allein von `_scan_save`. Fuer kuenftige
+Leser ist der Schutz damit opt-in.
+
+## QA-194 — Der Wächter gegen fest verdrahtete QSettings sieht in fremde Worktrees
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-07**
+
+`test_settings_store` sucht `QSettings(...)`-Aufrufe im Baum und schliesst nur
+`.venv`, `.git`, `__pycache__`, `build` und `dist` aus. **`.claude/worktrees/`
+fehlt.** Laeuft parallel ein Agent in einem Worktree, findet der Waechter
+dessen Kopie von `app.py` und faellt — ein Fehlschlag, der nichts mit dem
+geprueften Code zu tun hat. Am 07.09.2026 hat das eine Suite-Zahl unbrauchbar
+gemacht, waehrend die Ursache in einem **laufenden** fremden Lauf lag.
+
+**Folge:** solange das so ist, kostet jede Parallelisierung eine falsche rote
+Zahl — also genau die Arbeitsweise, die gerade eingefuehrt wird.
