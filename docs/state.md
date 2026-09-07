@@ -2,25 +2,22 @@
 
 2026-09-07, **mitten in Zyklus 15**. Branch `docs/audit-and-advisor-design`.
 `main` ist geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
-Verlauf Zyklen 1-14: `docs/archiv/state-bis-2026-09-03.md`. Reihenfolge:
-`docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
-`security/findings.md`. Berichte: `docs/berichte/T-###-<rolle>.md`.
+Verlauf: `docs/archiv/state-bis-2026-09-03.md`. Reihenfolge:
+`docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`, `security/findings.md`.
+Berichte: `docs/berichte/T-###-<rolle>.md`.
 
 **Nummernkreise:** T ab **T-090** · QA ab **QA-187** · AK ab **AK-182** ·
 AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** · NH ab **NH-003**.
-
-**Suite:** **1107 passed, 9 skipped, 5 deselected** (`not slow`), gemessen
-07.09. in T-088; `slow` 5 passed.
+**Suite:** **1107 passed, 9 skipped, 5 deselected** (`not slow`, T-088,
+07.09.); `slow` 5 passed.
 
 ## Auftragslage (Nutzer)
 
 Alle offenen Punkte abarbeiten, autonom, **erst zurueckkommen bei einer echten
-Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**. **Die
-Pruefung im laufenden Spiel macht der Nutzer ganz am Ende.** Der Fragebogen vor
-dem Zyklus haelt auch im autonomen Lauf an (06.09.): autonom gilt
-**innerhalb** eines Zyklus, nicht darueber hinaus.
-
-P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
+Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**. **Die Pruefung
+im laufenden Spiel macht der Nutzer ganz am Ende.** Der Fragebogen vor dem
+Zyklus haelt auch im autonomen Lauf an — autonom gilt **innerhalb** eines
+Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 (QA-044/048/054 sind **eine** Wurzel) · P7 vollstaendig.
 
 ## Stand gegen `GOAL.md`
@@ -38,35 +35,24 @@ P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
 | A13 | Gestaltung, nichts abgeschnitten | 3 von 6 Tabs |
 | A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
-| A15 | Erststart fuehrt ohne fremde Hilfe zu Daten | Spec liegt (AK-106-132), Umsetzung offen |
+| A15 | Erststart fuehrt zu Daten | Spec liegt (AK-106-132), Umsetzung offen |
 
 ## Zyklus 15 bisher
 
-Einzelheiten in den Berichten, hier nur, was weiterwirkt:
-
-- **T-083 Advisor bar** (S10a): Zustandsautomat 4.1-4.14, `status_line()`
-  Qt-frei als **einzige** Stelle der Wortlaute, vier Signale fuer die
-  Slotkarte. 473 ms am echten Save, **0 px** Zuwachs gegen `3da8428`.
-  Gefaess-Streifen und Build-Zeile scrollen seitdem **nicht** mehr mit.
-- **T-084/T-086 Spec**: AK-162 bis AK-181. AK-63 nennt beide Quellen (OF-19
-  zu), 4.7 lautet
-  `Your build changed while this was working out — use Optimize again.`
-- **T-085 AD-026**: eine unerfuellte Waffentyp-Schranke **ist** eine
-  Bedingung, in die der Spieler sich versetzen kann; Rechenkern unveraendert.
-  Dazu die Korrekturnotizen zu AD-015 und AD-003.5.
-- **T-087/T-088**: Docstring von `not_counted` plus zwei Regressionsfaelle.
+Gebaut: **Advisor bar** (T-083) · Spec fuer Slotkarte und Picker (T-084/T-086,
+AK-162 bis AK-181) · **AD-026** (T-085) · Docstring von `not_counted` mit zwei
+Regressionsfaellen (T-087/T-088). Was weiterwirkt, steht im Archiv.
 
 ## Entscheidungen des Directors, 07.09.2026
 
-- **4.10 bleibt ohne Erzeuger.** Beide Zielrichtungen liefern immer eine Zahl.
-  Einen Ausloeser zu bauen hiesse, ein Kriterium zu erfinden — das verbietet
-  A7. **AK-20 ist im Test pruefbar, nicht am echten Lauf**; die QA sucht nicht
+- **4.10 bleibt ohne Erzeuger.** Beide Zielrichtungen liefern immer eine Zahl;
+  einen Ausloeser zu bauen hiesse, ein Kriterium zu erfinden — das verbietet
+  A7. **AK-20 ist im Test pruefbar, nicht am echten Lauf**, die QA sucht nicht
   danach. Wieder aufmachen bei einer dritten Zielrichtung.
 - **S10b geteilt:** T-089 zeichnet und erklaert, T-090 wendet an und haelt
-  fest. Anwenden ist **eine** Sache mit **einem** Rueckgaengig-Modell. Der
+  fest. Anwenden ist **eine** Sache mit **einem** Rueckgaengig-Modell; der
   `Use`-Knopf wird in T-089 **nicht** gezeichnet, auch nicht wirkungslos.
-- **QA-186 nach der Slotkarte**, nicht davor — er liegt im Build planner und
-  ist von S10 unabhaengig.
+- **QA-186 nach der Slotkarte** — er liegt im Build planner, unabhaengig von S10.
 
 ## Beschlossen, nicht beauftragt
 
@@ -79,7 +65,7 @@ Einzelheiten in den Berichten, hier nur, was weiterwirkt:
   dasselbe schreiben.
 - **`compute_resistances`** — Zurueckstellung wieder offen: T-080 zaehlt drei
   Fluche und **33 stumme positive Effekte**, zusammen **36 Zeilen auf einem
-  Spielstand**. Vor der Bestaetigung nachmessen. Wieder aufmachen, sobald eine
+  Spielstand**. Vor der Bestaetigung nachmessen; wieder aufmachen, sobald eine
   Zielrichtung Widerstaende rankt.
 - **QA-185, Klassenmassnahme:** vor der naechsten Aenderung entscheiden, ob
   `sources` durchgaengig ueber Ids gefuehrt wird. **QA-180 ist die Instanz und
@@ -92,7 +78,7 @@ Einzelheiten in den Berichten, hier nur, was weiterwirkt:
   "Vorschlag hat seinen Build ueberlebt"; 4.9 und 4.11 koennen zusammen
   zutreffen; der Plural von 4.11 ist ungeprueft; die Statuszeile bekommt bei
   1320 px nur 158 px; der gepinnte obere Block.
-- **`developer`:** QA-171 (mit A15), QA-172, QA-175, QA-177, QA-180, QA-186.
+- **`developer`:** QA-171 (mit A15), QA-172, QA-175, QA-177, QA-180, QA-186 ·
   Debt `app.py:3294` (Tooltip ohne `<span>`, `&` erscheint als `&amp;`).
 - **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
   **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken.
@@ -114,27 +100,24 @@ Einzelheiten in den Berichten, hier nur, was weiterwirkt:
 
 ## Beim Nutzer — offen
 
-**Erledigt 06.09.:** F-A (kein Linter), F-I, F-J. **Erledigt 07.09.:** die
-Klickfrage (Handprobe: Klicks kommen an, Tooltip beim Ueberfahren) · zwei
-Teamregeln angenommen (siehe unten).
+**Erledigt 06.09.:** F-A (kein Linter), F-I, F-J. **07.09.:** die Klickfrage
+(Handprobe: Klicks kommen an, Tooltip beim Ueberfahren) · zwei Teamregeln.
 
-- **F-B QA-096** — Raider x1,18 auf Greataxe/Great Hammer, **keine
-  Param-Quelle** (252 Tabellen, 6,66 Mio. Zellen). Lv15-Messung.
-- **F-C QA-097** — Cursed Claws x0,88 fuer alle ausser dem Revenant.
-- **F-F QA-113** — vier Relikte wandeln Schadensart um, das Programm bewegt
+- **F-B QA-096** Raider x1,18 auf Greataxe/Great Hammer, **keine Param-Quelle**
+  (252 Tabellen, 6,66 Mio. Zellen) · **F-C QA-097** Cursed Claws x0,88 fuer
+  alle ausser dem Revenant. Beide: Lv15-Messung im Spiel.
+- **F-F QA-113** vier Relikte wandeln Schadensart um, das Programm bewegt
   **exakt 0**. Eine Ablesung entscheidet: Grundwert 114, die drei Lesarten
   sagen **91 / 116 / 117**.
-- **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg. Waere eine
-  **neue Funktion**.
-- **Die Streichliste je Tab** (13 Vorschlaege, `UI_SPEC.md` §8).
+- **F-G QA-170** keine Sortierung ueber Waffenkategorien hinweg — waere eine
+  **neue Funktion** · **die Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
 
 ## Regeln
 
 Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008, L-009,
 L-010 (fuenf Pruefungen), L-012, L-013; projekteigen NH-001, NH-002.
-
-**Neu 07.09.2026, vom Nutzer angenommen, Agenten-Repo `a2db0db`** — beide im
-Rahmenblock von `templates/task.md`, damit teamweit: **kein Hintergrundlauf,
+**Neu 07.09.2026, vom Nutzer angenommen, Agenten-Repo `a2db0db`**, beide im
+Rahmenblock von `templates/task.md` und damit teamweit: **kein Hintergrundlauf,
 auf dessen Ende der Agent wartet** (acht Berichte ohne Uebergabe-Kontrakt, der
 juengste bei 79 von 150 Zuegen — nicht die Zugschwelle) · **ein Feldname ist
 keine Beschreibung**, drei Gegenproben vor jedem Nutzertext an einem Datenfeld
