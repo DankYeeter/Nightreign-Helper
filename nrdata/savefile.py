@@ -287,6 +287,30 @@ class Loadout:
 # gives up. Generous on purpose: it only bounds a scan.
 MAX_GRAILS = 12
 
+# How much slot one equipped-loadout table takes up, and with it how many
+# places in a slot may begin one (SEC-024). Relative to the slot's own size
+# for the reason MIN_BYTES_PER_RELIC_RECORD is: an absolute count would be a
+# guess about a save this reader has not met.
+#
+# Derived from the table and not chosen. The widest table this reader will
+# read is MAX_HEROES groups of the width the game writes them, LOADOUT_GROUP
+# bytes: 16 x 120 = 1 920. One table per 1 920 bytes of slot is therefore
+# already shoulder to shoulder, and a slot has one Table A in it.
+#
+# The three densities, so the distance is on the save rather than asserted:
+#   * a real save, both files on this machine, 2026-09-07: the character slot
+#     that carries the table has exactly **one** 0x0000ff01 on a four-byte
+#     boundary in 1 048 608 bytes -- the table's own -- and the thirteen other
+#     slots of that file have none at all;
+#   * this limit: one per 1 920 bytes, 546 starts per MiB of slot, a factor
+#     546 above the real save;
+#   * a prepared file: a slot filled with the marker offers 262 144 starts per
+#     MiB, a factor 480 above the limit, and it grows with the file.
+# So a slot has to begin 546 times as many tables per megabyte as the real one
+# before the reader says anything, and the file that made this a finding is
+# refused 480 times over.
+MIN_BYTES_PER_LOADOUT_TABLE = MAX_HEROES * LOADOUT_GROUP
+
 
 def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     """Table A as a list of (group offset, Grail-record count), one per
@@ -312,10 +336,30 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     (8 + k x 28 bytes), each Nightfarer with its own k.
     """
     limit = len(slot_data)
+    # How many places in this slot may begin a table at all (SEC-024). Each
+    # one that does costs a walk of up to MAX_HEROES groups with MAX_GRAILS
+    # probes apiece, so a slot that is nothing but the first marker used to
+    # buy that walk for every fourth byte: measured on this machine, 1,03 s
+    # per MiB of slot against 36 ms for the real save, and the file is read
+    # at startup on the thread that builds the window.
+    allowed_starts = max(1, limit // MIN_BYTES_PER_LOADOUT_TABLE)
+    starts = 0
     best: list[tuple[int, int]] = []
     for off in range(0, max(limit - 8, 0), 4):
         if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
             continue
+        starts += 1
+        # Loud, and at the marker that crosses the line rather than at the
+        # end (SEC-022, the form SEC-002 uses in this module). Walking on and
+        # returning what was found would hand back a table that looks like
+        # the player's own, at the price this limit exists to refuse.
+        if starts > allowed_starts:
+            raise ValueError(
+                f"a save slot of {limit} bytes begins a Nightfarer loadout "
+                f"table at more than {allowed_starts} places, denser than "
+                f"one table per {MIN_BYTES_PER_LOADOUT_TABLE} bytes, which "
+                f"is not a save; the file is damaged or was not written by "
+                f"the game. Take it out of the save folder and rescan.")
         groups: list[tuple[int, int]] = []
         pos = off
         hero = 1

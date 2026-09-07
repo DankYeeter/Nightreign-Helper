@@ -28,14 +28,23 @@ of these three states; that is the whole reason they went unnoticed.
   the class stays shut by a property rather than by a line: the reader
   refuses to build such a list, and the inventory refuses to offer one
   whatever built it.
+* **SEC-024**, `test_a_slot_packed_with_table_starts_*`: the search for the
+  equipped-loadout table began a walk of up to sixteen groups at every place
+  the first Nightfarer marker stood, and a prepared slot stands it at every
+  fourth byte. Measured on this machine: 1,03 s per MiB of slot against 36 ms
+  for the real save, so a 19 MB file was 24 s of frozen window at startup.
+  Neither SEC-022 limit reaches it -- one well-formed relic record is all such
+  a file needs to be read at all.
 """
 
 from __future__ import annotations
 
+import pathlib
 import struct
 import threading
 
 import pytest
+from Crypto.Cipher import AES
 
 from nrdata import binary, savefile
 from nrplanner import inventory
@@ -450,3 +459,179 @@ def test_the_advisor_is_not_handed_an_inventory_of_that_density():
 
     with pytest.raises(ValueError, match="denser than one per 64 bytes"):
         advisor_run.frozen_inventory(owned, problem)
+
+
+# --------------------------------------------------------------------------
+# SEC-024: a character slot that begins a Nightfarer table everywhere
+
+
+# The vessel id the group header and the Grail records below carry. The reader
+# counts the last group's records by the 19000 band a shared Grail sits in, so
+# a table built out of any other number would be a table it reads short.
+A_SHARED_GRAIL = 19001
+
+
+def first_marker() -> bytes:
+    """The four bytes every walk in `find_loadout_table` starts from."""
+    return struct.pack("<I", savefile.HERO_MARKER_BASE + 1)
+
+
+def loadout_table(heroes: int = 10) -> bytes:
+    """Table A as the game writes it: one group per Nightfarer, in order.
+
+    A group is that Nightfarer's marker, the vessel it has selected, and one
+    record per shared Grail -- the 120 bytes of `LOADOUT_GROUP`. Ten groups is
+    what the real save on this machine carries.
+    """
+    out = bytearray()
+    for hero in range(1, heroes + 1):
+        out += struct.pack("<II", savefile.HERO_MARKER_BASE + hero,
+                           A_SHARED_GRAIL)
+        for _ in range(savefile.GRAILS_PER_HERO):
+            out += (struct.pack("<I", A_SHARED_GRAIL)
+                    + bytes(savefile.LOADOUT_RECORD - 4))
+    return bytes(out)
+
+
+def slot_with_table_starts(byte_length: int, starts: int) -> bytes:
+    """A slot holding one well-formed table and `starts` first markers in all.
+
+    The extra markers are spread evenly over what follows the table and stand
+    in empty bytes, so each one is a place a walk begins and none of them is a
+    table: what these cases vary is how many walks the slot asks for.
+    """
+    table = loadout_table()
+    buffer = bytearray(byte_length)
+    buffer[:len(table)] = table
+    stride = (byte_length - len(table)) // max(starts - 1, 1)
+    stride -= stride % 4
+    for index in range(starts - 1):
+        off = len(table) + index * stride
+        buffer[off:off + 4] = first_marker()
+    return bytes(buffer)
+
+
+def prepared_save(folder: pathlib.Path, slot: bytes) -> pathlib.Path:
+    """A .sl2 carrying this one character slot, encrypted as the game does.
+
+    Written into the test's own temporary folder and never into the player's
+    save folder: a prepared file there is the attack these cases are about,
+    and the player has a copy of the program running.
+    """
+    name = "USER_DATA000".encode("utf-16-le") + b"\0\0"
+    iv = bytes(range(16))
+    member = iv + AES.new(savefile.SAVE_KEY, AES.MODE_CBC, iv).encrypt(slot)
+
+    header = bytearray(0x40)
+    header[0:4] = b"BND4"
+    struct.pack_into("<I", header, 0x0C, 1)          # one member
+    struct.pack_into("<Q", header, 0x20, 0x20)       # bytes per member header
+    header[0x30] = 1                                 # names are UTF-16
+    entry = bytearray(0x20)
+    struct.pack_into("<Q", entry, 8, len(member))
+    struct.pack_into("<I", entry, 16, 0x60 + len(name))
+    struct.pack_into("<I", entry, 20, 0x60)
+
+    path = folder / "NR0000.sl2"
+    path.write_bytes(bytes(header) + bytes(entry) + name + member)
+    return path
+
+
+def test_a_slot_packed_with_table_starts_is_a_data_error():
+    """Every fourth byte a first marker, which is what a prepared file writes.
+
+    Measured on this machine before the limit: 1,03 s per MiB of slot against
+    36 ms for the real save, linear in the file, and every save found is read
+    at startup on the thread that builds the window -- 24 s of nothing before
+    the player has touched anything. Neither SEC-022 limit sees it: the slot
+    needs a single well-formed relic record and no more.
+    """
+    blob = first_marker() * (64 * 1024 // 4)
+
+    with pytest.raises(ValueError,
+                       match="denser than one table per 1920 bytes"):
+        within_time_limit(lambda: savefile.find_loadout_table(blob))
+
+
+def test_the_refusal_over_packed_table_starts_names_no_file_path():
+    """The rule the packed-inventory message is held to as well (SEC-023).
+
+    The save folder is named after the Steam account id, so a message that
+    named the file would put that id into every screenshot and bug report the
+    failure produces.
+    """
+    with pytest.raises(ValueError) as raised:
+        savefile.find_loadout_table(first_marker() * (64 * 1024 // 4))
+
+    message = str(raised.value)
+    assert "\\" not in message and "/" not in message, message
+    assert ".sl2" not in message.lower(), message
+    assert "save folder" in message and "rescan" in message, message
+
+
+def test_a_slot_with_as_many_table_starts_as_it_has_room_for_is_read():
+    """The control at the boundary: the limit must not cost a real table.
+
+    7 680 bytes have room for four tables at one per 1 920, and this slot
+    begins four -- the well-formed one and three bare markers. A case that
+    only proved the error path would pass just as well against a reader that
+    refuses everything.
+    """
+    blob = slot_with_table_starts(7680, starts=4)
+
+    groups = savefile.find_loadout_table(blob)
+
+    assert [off for off, _ in groups] == [n * savefile.LOADOUT_GROUP
+                                          for n in range(10)]
+    assert {records for _, records in groups} == {savefile.GRAILS_PER_HERO}
+
+
+def test_one_table_start_more_than_the_slot_can_hold_is_a_data_error():
+    """The other side of that boundary, one marker further on."""
+    blob = slot_with_table_starts(7680, starts=5)
+
+    with pytest.raises(ValueError, match="more than 4 places"):
+        within_time_limit(lambda: savefile.find_loadout_table(blob))
+
+
+def test_a_slot_at_a_real_saves_table_density_is_read_in_full():
+    """The control the limit exists for: an ordinary save still reads.
+
+    The real save on this machine, read read-only on 2026-09-07: the one
+    character slot that carries a table has a single first marker on a
+    four-byte boundary in 1 048 608 bytes, and the thirteen other slots of
+    that file have none. This is that shape in miniature -- one table in
+    64 KiB, where the limit allows 34.
+    """
+    blob = slot_with_table_starts(64 * 1024, starts=1)
+
+    groups = savefile.find_loadout_table(blob)
+
+    assert len(groups) == 10
+
+
+def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
+    """Where the sentence lands: the note under the save on the Build page.
+
+    `_scan_save` catches ValueError out of `read_loadouts` and keeps it as
+    `Inventory.loadout_error`, which the label prints after "no stored builds
+    could be read". So this file reads its one relic, reports no builds and
+    says why -- rather than reaching the player as a traceback, which is where
+    the second SEC-022 limit still stands (QA-193).
+
+    One valid relic record and the rest markers is the whole of the attack: it
+    is enough to have an inventory built, and neither SEC-022 limit has
+    anything to say about a slot this sparse.
+    """
+    slot = bytearray(first_marker() * (64 * 1024 // 4))
+    slot[0:len(DOUBLED_ID)] = DOUBLED_ID
+    path = prepared_save(tmp_path, bytes(slot))
+    relic_meta = {KNOWN_RELIC_ID: {"id": KNOWN_RELIC_ID, "name": "Test relic",
+                                   "colour": 0}}
+
+    inv = within_time_limit(lambda: inventory._scan_save(
+        path, relic_meta, {KNOWN_RELIC_ID}, set(), None))
+
+    assert inv is not None and inv.relic_count == 1
+    assert inv.loadouts == []
+    assert "denser than one table per 1920 bytes" in inv.loadout_error
