@@ -115,6 +115,39 @@ def relic_cards(dialog):
     return holder.findChildren(relicpicker.RelicCard)
 
 
+def a_card(slot, item, values=None, chip=""):
+    """One card as the picker builds it, optionally already given figures."""
+    card = relicpicker.RelicCard(
+        item, slot.effect_names(item), None, False, lambda _i: None,
+        captions=[relicpicker.VALUE_CAPTIONS[goal_id]
+                  for goal_id in relicpicker.VALUE_DIRECTIONS])
+    card.setFixedWidth(relicpicker.CARD_WIDTH)
+    if values is not None:
+        card.show_values(values, chip)
+    return card
+
+
+def card_height(card) -> tuple[int, int]:
+    """The card's height, read both ways.
+
+    **Two readings, because neither alone is sensitive to both faults.**
+    `heightForWidth` is what the grid gives a row and is what moves when a
+    label wraps to another line; `sizeHint` is what moves when a widget is
+    added or taken away.
+
+    **Measured on a card built that way, never on one changed afterwards.**
+    Against the counterbuild that builds the value block only once the
+    figures are there, a card that was measured, then filled and measured
+    again reported 169 px both times although the block's own `sizeHint` had
+    gone from 3 px to 31: the layout caches are cleared by a layout request
+    that nothing delivers without an event loop, and invalidating every
+    layout in the card by hand did not clear them either. Two cards, each
+    measured once, have no cache to be stale.
+    """
+    return (card.sizeHint().height(),
+            card.heightForWidth(relicpicker.CARD_WIDTH))
+
+
 def values_of(card) -> list[str]:
     return [label.text() for label in card.block.values]
 
@@ -178,27 +211,22 @@ def test_the_block_stands_between_the_header_and_the_effects(slot):
 def test_a_card_is_the_same_height_before_the_figures_and_after(slot):
     """AK-41, the measurement: difference 0 px.
 
-    Asked of `heightForWidth` at the card's own width, which is what the grid
-    gives a row -- a wrapped label's `sizeHint` is the one long line it would
-    rather have, and sizing anything on that measures a layout the dialog
-    never has.
+    Two cards of the same relic, one still carrying `…` and one carrying the
+    longest text a direction can produce. With 29 cards a block that arrived
+    with the answer would move the whole grid under the reader's hand.
     """
     item = slot.available_items()[0]
-    card = relicpicker.RelicCard(
-        item, slot.effect_names(item), None, False, lambda _i: None,
-        captions=[relicpicker.VALUE_CAPTIONS[goal_id]
-                  for goal_id in relicpicker.VALUE_DIRECTIONS])
-    card.setFixedWidth(relicpicker.CARD_WIDTH)
-    before = card.heightForWidth(relicpicker.CARD_WIDTH)
-    assert values_of(card) == [relicpicker.PENDING] * 2, (
+    waiting = a_card(slot, item)
+    answered = a_card(slot, item, [LONGEST, LONGEST],
+                      relicpicker.chip_text("max_damage"))
+    assert card_height(answered) == card_height(waiting), (
+        f"the card measures {card_height(waiting)} while it waits and "
+        f"{card_height(answered)} once the figures are in (sizeHint, "
+        f"heightForWidth); with 29 cards that moves the whole grid")
+    assert values_of(waiting) == [relicpicker.PENDING] * 2, (
         "the block has to be built with the room already reserved")
-    card.show_values([LONGEST, LONGEST],
-                     relicpicker.chip_text("max_damage"))
-    after = card.heightForWidth(relicpicker.CARD_WIDTH)
-    assert after == before, (
-        f"the card is {after - before} px taller once the figures are in; "
-        f"with 29 cards that moves the whole grid")
-    card.deleteLater()
+    waiting.deleteLater()
+    answered.deleteLater()
 
 
 def test_the_block_asks_for_no_more_width_than_the_card_has(slot):
@@ -377,14 +405,12 @@ def test_the_mark_names_the_direction_it_is_about(slot):
 def test_the_mark_does_not_change_the_card_it_is_on(slot):
     """AK-41 again, from the chip's side: the strip is there either way."""
     item = slot.available_items()[0]
-    card = relicpicker.RelicCard(
-        item, slot.effect_names(item), None, False, lambda _i: None,
-        captions=["Damage", "Damage taken"])
-    card.setFixedWidth(relicpicker.CARD_WIDTH)
-    before = card.heightForWidth(relicpicker.CARD_WIDTH)
-    card.show_values(["+1.0 AR", "-2.0 effective HP"], "BEST FOR DAMAGE")
-    assert card.heightForWidth(relicpicker.CARD_WIDTH) == before
-    card.deleteLater()
+    plain = a_card(slot, item, ["+1.0 AR", "-2.0 effective HP"])
+    marked = a_card(slot, item, ["+1.0 AR", "-2.0 effective HP"],
+                    "BEST FOR DAMAGE")
+    assert card_height(marked) == card_height(plain)
+    plain.deleteLater()
+    marked.deleteLater()
 
 
 def test_no_card_and_no_header_carries_an_ordinal(slot):
