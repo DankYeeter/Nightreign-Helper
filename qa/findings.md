@@ -1936,3 +1936,50 @@ gemacht, waehrend die Ursache in einem **laufenden** fremden Lauf lag.
 
 **Folge:** solange das so ist, kostet jede Parallelisierung eine falsche rote
 Zahl — also genau die Arbeitsweise, die gerade eingefuehrt wird.
+
+## QA-195 — Testeinstellungen liegen unter der Organisation des Spielers
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-07**
+
+Gefunden vom `developer` in T-099. `HKCU\Software\DankYeeter` haelt neben
+`NightreignHelper` einen Unterschluessel **`NightreignHelperTests`** — die
+Tests schreiben also in dieselbe Organisation wie das ausgelieferte Programm.
+Das ist die Klasse der **drei Datenverluste** aus Zyklus 4 und 5. Dazu **141
+verwaiste Unterschluessel** unter `DankYeeterTests` aus frueheren
+Messskripten; die Suite selbst legt heute keine an.
+
+Nicht von den Laeufen dieses Zyklus verursacht, nicht angefasst. Richtung:
+eigene Organisation fuer Tests, und die verwaisten Schluessel einmal raeumen.
+
+## QA-196 — Der Worktree eines Auftrags stand sechs Tage zurueck
+
+**Prioritaet: P2 · Schwere: Major · Adressat: director · offen · 2026-09-07**
+
+T-099 lief mit `isolation: "worktree"`. Sein Arbeitsbaum stand auf `fa2de4c`
+vom **01.09.2026** — 313 Dateien, **kein `tests/`, keine `pytest.ini`, keine
+`requirements-dev.txt`, kein `docs/tasks/`**. Der Auftrag war dort nicht
+lesbar und die Suite nicht ausfuehrbar; der Lauf musste sich einen eigenen
+Klon auf die richtige Revision ziehen, um ueberhaupt messen zu koennen.
+
+**Das trifft die Arbeitsweise, die gerade eingefuehrt wird.** Der Director hat
+am selben Tag die Regel geschaerft, dass Worktrees der Normalfall sind (PR
+`claude-agent-team#1`). Wenn ein Worktree nicht auf dem Stand des Auftrags
+steht, ist jeder darin gemessene Wert wertlos — und das faellt nur auf, wenn
+die Rolle es bemerkt.
+
+**Zu klaeren, bevor der naechste Worktree-Auftrag rausgeht:** woher der Stand
+kommt, und ob er sich festlegen laesst.
+
+## QA-197 — Der Scratchpad ist zwischen gleichzeitigen Rollen geteilt
+
+**Prioritaet: P2 · Schwere: Major · Adressat: director · offen · 2026-09-07**
+
+T-099 hat seinen Messbaum im Scratchpad abgelegt. Er wurde **um 19:25 mitten
+im Messstapel geleert**, waehrend Dateien eines gleichzeitig laufenden
+T-100-Laufs daneben lagen (19:20-19:22). Zwei der sechs Messungen sammelten
+daraufhin null Faelle ein und mussten wiederholt werden.
+
+`isolation: "worktree"` trennt den **Arbeitsbaum**, nicht das
+Temp-Verzeichnis. Zwei gleichzeitige Rollen raeumen einander die Messdaten
+weg. Zusammen mit QA-196 heisst das: **parallele Auftraege sind derzeit nicht
+verlaesslich isoliert**, obwohl die Regel sie zum Normalfall erklaert.
