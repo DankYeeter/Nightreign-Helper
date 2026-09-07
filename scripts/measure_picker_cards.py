@@ -145,8 +145,50 @@ def main() -> int:
           f"{relicpicker.CARD_WIDTH - 16}")
 
     dialog.close()
+    second_sample(app, window)
     window.close()
     return 0
+
+
+def second_sample(app: QApplication, window) -> None:
+    """The same reading on both slot kinds and two Nightfarers.
+
+    The fillings and the candidate sets are strongly hero-dependent, so one
+    slot of one Nightfarer is not a sample. Deep of Night is switched on so
+    that a Deep slot exists to open at all.
+    """
+    print("")
+    print("-- second sample: both slot kinds, two Nightfarers --")
+    window.deep_check.setChecked(True)
+    settle(app)
+    for index in range(2):
+        window.select_hero(index)
+        settle(app)
+        hero = window.current_hero()["name"]
+        slots = window.active_slots()
+        kinds = [next((s for s in slots if not s.deep), None),
+                 next((s for s in slots if s.deep), None)]
+        for slot in kinds:
+            if slot is None:
+                print(f"  {hero}: no slot of this kind on this vessel")
+                continue
+            picker = relicpicker.RelicPicker(slot, window.icons, "",
+                                             lambda _t: None)
+            picker.show()
+            settle(app)
+            cards = picker.scroll.widget().findChildren(relicpicker.RelicCard)
+            shown = [label.text() for card in cards[:3]
+                     for label in card.block.values]
+            marked = sum(1 for card in cards if card.chip.text())
+            pool = None if picker.ranking is None else picker.ranking.pool
+            print(f"  {hero} {slot.slot_name()}: {len(cards)} cards, "
+                  f"{0 if pool is None else len(pool.candidates)} candidates, "
+                  f"{marked} marked best, top rows {shown}")
+            print(f"      headline {picker.headline.text()!r}")
+            print(f"      line 3b  {picker.findings.text()[:110]!r}")
+            picker.close()
+            picker.deleteLater()
+            settle(app)
 
 
 if __name__ == "__main__":
