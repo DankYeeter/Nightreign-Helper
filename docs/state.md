@@ -27,16 +27,11 @@ Ziel **A9 und A2**. **A2 ist seit T-105 erfuellt** — SEC-009 behoben und
 gegengeprueft (`d92bab9`), kein Hoch-Befund mehr offen; Bestaetigung durch den
 `security-reviewer` steht aus.
 
-**Falsche Praemisse, korrigiert 07.09.2026.** Die Zeile "es gibt bis heute
-keine EXE" stand seit Zyklen hier und war falsch: **12 veroeffentlichte
-Releases, alle mit `NightreignHelper.exe`, juengstes `v1.7.1` vom 24.08.2026,
-25 Downloads** (`gh release list`, vom Director nachgeprueft; gefunden vom
-`release-manager` in T-106). Der Director hat sie ungeprueft in den
-Fragebogen, in drei Auftragsdateien und in den Bericht an den Nutzer
-getragen. **Folge:** A9 bleibt offen (kein `qa-engineer` lief je gegen ein
-Artefakt), aber der Risikoweg ist das **Update ueber eine vorhandene
-Installationsbasis**, nicht die Erstinstallation — und die Rechtsschwelle aus
-C-003 liegt bereits hinter uns (T-108 laeuft).
+**Falsche Praemisse, korrigiert 07.09.2026:** "es gibt bis heute keine EXE"
+war falsch — **12 Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads**.
+A9 bleibt offen (nie lief ein `qa-engineer` gegen ein Artefakt), aber der
+Risikoweg ist das **Update**, nicht die Erstinstallation, und die
+Rechtsschwelle aus C-003 liegt hinter uns (T-108). Hergang im Verlauf.
 
 Kette: T-104 `compliance-agent` ✔ **+** T-105 `developer` ✔ (parallel) →
 **T-106** `release-manager` (`plan`) **+ T-107** `technical-writer` (parallel,
@@ -83,14 +78,12 @@ Messgeraet.
   `sources` durchgaengig ueber Ids gefuehrt wird. Latent (0 von 456 Paaren).
 - **A16/A17**, spezifiziert in AK-182 bis AK-194, **nicht gebaut**. Zyklus 17.
 
-## Buchfuehrung des Directors — zwei Korrekturen am 07.09.
+## Buchfuehrung des Directors
 
-**SEC-022, SEC-024, QA-194** standen faelschlich auf "offen", sind belegt
-behoben; zweiter Fall derselben Klasse an einem Tag. **T-104 behauptete,
-`docs/legal/AUFLAGEN.md` existiere nicht** — sie existiert seit dem 01.09.;
-eine Absenz-Behauptung ohne Durchsicht. **QA-196/QA-197 sind geklaert** und
-stehen in der Rollendefinition (Worktree braucht Schritt 0, Scratchpad ein
-Unterverzeichnis je T-Nummer).
+**Drei Fehler am 07.09.**, alle gleicher Art — eine Notiz statt einer Messung:
+SEC-022/SEC-024/QA-194 standen faelschlich auf "offen" · `AUFLAGEN.md` galt als
+nicht vorhanden und existiert seit dem 01.09. · "keine EXE" (oben). Hergang im
+Verlauf. **QA-196/QA-197 sind geklaert** und stehen in der Rollendefinition.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
