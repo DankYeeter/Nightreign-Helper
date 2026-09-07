@@ -233,7 +233,7 @@ slot-spezifischen Aussagen zusaetzlich den Vorschlagsblock.
 | 4.4 | Rechnet, ≥ 3 s | `Working out maximise damage — 292 relics, 6 slots.` | Zahlen nur, wenn der Scorer sie liefert; sonst bleibt 4.3 stehen |
 | 4.5 | Abgebrochen | `Stopped. Nothing was changed.` | Vorschlagsbloecke verschwinden |
 | 4.6 | Ergebnis | `Maximise damage — 6 of 6 slots filled.` | Vorschlagsbloecke in allen Slots; `Apply all` / `Why` / `Clear` |
-| 4.7 | Ergebnis veraltet (Nightfarer, Vessel, Deep, Level oder eine Slot-Belegung hat sich waehrend der Rechnung geaendert) | `Your build changed while this was working out. Optimize again.` | Ergebnis wird **verworfen**, nicht angezeigt |
+| 4.7 | Ergebnis veraltet (Nightfarer, Vessel, Deep, Level oder eine Slot-Belegung hat sich waehrend der Rechnung geaendert) | `Your build changed while this was working out — use Optimize again.` *(T-084, ersetzt `… working out. Optimize again.`)* | Ergebnis wird **verworfen**, nicht angezeigt |
 | 4.8 | Kein Save gelesen (`owned is None`) | `No save was read, so there are no relics to choose from — use Rescan save.` | Zielwahl und `Optimize` deaktiviert |
 | 4.9 | Teilweise stumm | `Maximise damage — 6 of 6 slots filled  ·  some effects carry no numbers.` | im `Why`-Dialog: `The game files carry no numbers for these, so they counted for nothing:` gefolgt von den Effektnamen |
 | 4.10 | Ziel gar nicht bewertbar | `The game files carry no figures this goal can be ranked on for <Nightfarer>, so there is nothing to suggest.` | kein Vorschlagsblock; `Why` bleibt erreichbar und erklaert es lang |
@@ -462,6 +462,10 @@ Pruefbar, binaer, vom `qa-engineer` gegen ein gebautes Artefakt (GOAL A9).
 - **F4 — Name.** `Advisor` ist gesetzt, weil kurz und in der Leiste tragbar.
   Alternativen waeren `Suggest a build` oder `Build advisor`. Reine
   Geschmacksfrage, aber sie steht dauerhaft auf dem Bildschirm.
+  *(T-084, 07.09.2026: hier geht es um den Namen des **Bereichs**, nicht um
+  den Knopf. Der Knopf heisst seit T-024 §5.1 `Optimize` — die beiden Woerter
+  `Suggest a build` oben sind ein verworfener Bereichsname, keine
+  Knopfbeschriftung. AK-176.)*
 
 ---
 
@@ -883,9 +887,12 @@ aber sie darf ihn auch nicht vorher bestritten haben.
 
 #### 5.1 Ort und Beschriftung
 
-`Optimize` ist der heutige `Suggest`-Knopf der Advisor bar (§3.1 oben),
-umbenannt. Er bleibt in der mittleren Spalte des Build planner, ueber den
-Slots, ausserhalb der `QScrollArea`.
+`Optimize` ist der Knopf der Advisor bar (§3.1 oben), der in der Fassung vom
+01.09.2026 noch `Suggest` hiess — umbenannt. Er bleibt in der mittleren Spalte
+des Build planner, ueber den Slots, ausserhalb der `QScrollArea`.
+*(Nachgezogen T-084, 07.09.2026: „der heutige `Suggest`-Knopf" war seit dem
+Tag der Umbenennung falsch. Der Knopf heisst **ueberall** `Optimize`; das Wort
+`Suggest` steht hier nur noch als Verlauf. AK-176.)*
 
 **Warum nicht in den Picker:** Der Picker ist ein modaler Dialog **je Slot**.
 Ein Knopf, der ueber **alle** Slots rechnet und mehrere davon veraendert,
@@ -3720,11 +3727,18 @@ oder am Quelltext pruefbar, also auch ohne Spielinstallation.
    this build.` und schweigt darueber, welche zwei nichts bewegt haben. Sie
    beim Namen zu nennen waere ehrlicher, kostet aber je Slot bis zu zwei
    weitere Zeilen fuer Information, die niemanden vor einer Falle bewahrt.
-3. **`Optimize` gegen `Suggest`.** Die Zustandstabelle 4.1-4.14 und mehrere
-   AK sprechen noch vom Knopf `Suggest`; T-024 §5.1 hat ihn in `Optimize`
+3. **`Optimize` gegen `Suggest`.** ~~Die Zustandstabelle 4.1-4.14 und mehrere
+   AK sprechen noch vom Knopf `Suggest`~~; T-024 §5.1 hat ihn in `Optimize`
    umbenannt. Diese Vorgabe benutzt `Optimize`. Falls der Name doch wieder
    `Suggest` heissen soll, ist das eine Ersetzung an rund einem Dutzend
    Stellen — besser jetzt als nach S10.
+
+   **BEANTWORTET (Director, GOAL F4; nachgezogen T-084, 07.09.2026):** der
+   Knopf heisst `Optimize`, dauerhaft. Die Zustandstabelle 4.1-4.14 ist seit
+   Commit `bafc3e1` durchgehend nachgezogen, die letzte Fliesstextstelle
+   (§5.1, „der heutige `Suggest`-Knopf") mit diesem Nachtrag. Die Frage wird
+   **nicht geloescht**, weil die Begruendung von damals — der Preis einer
+   spaeteren Umbenennung — der Grund war, sie vor S10 zu stellen. AK-176.
 
 ---
 
@@ -3921,6 +3935,16 @@ verbietet.
 **Genau eine Fuellung je Zeile. Die erste zutreffende gewinnt, in dieser
 Reihenfolge** — die staerkste Nachricht zuerst:
 
+*(Nachgezogen T-086, 07.09.2026: **die Reihenfolge unten ist ersetzt** — sie
+lautet seit AK-167 (a), (a2), **(c)**, **(b)**, (d), (e). Ebenso sind die
+Zahlen in den Klammern der einzelnen Fuellungen ersetzt: sie stammen aus der
+**gebauten** Lesart und aus einer Rechnung, in der sich (b) und (c)
+ueberschnitten. Verbindlich sind die Zahlen aus **AK-180** — in Umgebung A
+(Wylder, `Wylder's Greatsword`, Stufe 15, 309 Kopien, 845 Effektrollen)
+150 / 0 / 144 / 38 / 94 / 0 = 426. **Die Wortlaute selbst sind unveraendert
+gueltig**; ersetzt sind nur die Reihenfolge, der Test von (c) (AK-177 bis
+AK-179) und die Zahlen. AK-180, AK-181.)*
+
 **(a) Der Effekt gehoert einem anderen Nightfarer** — `effecttext.works_for`
 sagt Nein (150 von 426 gemessen):
 
@@ -4038,6 +4062,21 @@ nicht gibt.
 Liste, die T-078 §5 unter die Slotgruppen setzt (`These effects only apply
 under a condition, so this ranking did not count them:`). Ein Name kann also
 zweimal im `Why`-Dialog stehen.
+
+*(Nachgezogen T-086, 07.09.2026, auf Meldung des `architect` aus T-085 §6.3.
+**Der Satz oben zaehlt die Liste, nicht die Fuellung** — und beide Zahlen
+gelten gleichzeitig. Die **170** ist die Zahl der stummen Zeilen, deren Effekt
+in `Build.situational` mit `live == False` steht, also in der Menge, aus der
+diese Liste und `not_counted` gespeist werden; sie haengt **nicht** an der
+Pruefreihenfolge der Fuellungen und aendert sich durch AK-167/168 und
+AK-177/178 nicht. Die **124** in der Tabelle des T-084-Abschnitts und die
+**144** in der Tabelle des T-086-Abschnitts sind etwas anderes: die Zahl der
+Zeilen, die Fuellung (b) **bekommen**. Sie ist kleiner, weil (a), (a2) und (c)
+in der Reihenfolge nach AK-167 vorher zugreifen und die Zeile aus der
+**Fuellung** nehmen, nicht aus der **Liste**. Beide Zahlen sind in Umgebung §0
+des T-084-Abschnitts gemessen — Wylder, `Wylder's Greatsword`, Stufe 15, 309
+Kopien, 845 Effektrollen; in Umgebung B des T-086-Abschnitts lauten sie 174
+und 149 von 434. AK-181.)*
 
 **Das bleibt so, und die Liste wird nicht gekuerzt.** Sie ist **buildweit** —
 sie deckt auch gehaltene Slots, die gar keine Slotgruppe haben; wer sie auf
@@ -4262,3 +4301,811 @@ es ist mit 150 von 426 der haeufigste Fall ueberhaupt.
 kein `✦`, kein `CURSE`/`BAD`, kein `⚠`, keine Warnfarbe, nur `MUTED`.
 Fuellung (a) ist die benannte Ausnahme, und sie ist keine Warnung, sondern
 dieselbe Aussage, die das Programm anderswo schon macht.
+
+---
+
+## Nachtrag zu AK-63, 4.7, `budget_note` und der Grenze (c)/(d):
+## vier Wortlaute und eine Zaehlgrenze vor S10b/S10c
+## (ui-ux-designer, T-084) — 2026-09-07
+
+**Grundlage:** `docs/tasks/T-084.md` · `ARCHITECTURE.md` Nachtrag VI (AD-025,
+Pruefpunkte 29-33, OF-19, die Risikozeile bei Zeile 3393) und AD-010 ·
+der Nachtrag zu QA-116 oben (T-052, Zeile 1229 ff., aus dem AK-63 stammt) und
+der Nachtrag zu OF-20/QA-108/QA-113 (AK-67, Zeile 1509 ff.) ·
+`nrplanner/advisor/goals.py` (`_ATTACK_RATING_SCOPE`, `_DAMAGE_TAKEN_SCOPE`,
+`_NO_ARMAMENT`, `_NO_ARMAMENT_NOTE`, `EVEN_WEIGHTING`) ·
+`nrplanner/advisor/types.py` (`Goal`, `GoalScore`, `Baseline`, `SlotPool`,
+`AdvisorResult`, die sechs `SILENT_*`-Marken) ·
+`nrplanner/advisor/explain.py` (`_silent_effect`, `_ARMAMENT_GATES`,
+`reasons`, `not_counted`) · `nrplanner/advisor/run.py` (Modul-Docstring zu
+`budget_note`) · `nrplanner/model.py` (`GATE_FIELDS`, `satisfied_by_weapon`,
+`is_conditional`, `compute_qualitative`) · `qa/findings.md` QA-104, QA-108 ·
+der T-078- und der T-080-Abschnitt dieser Datei.
+
+**Was dieser Nachtrag ist:** vier fehlende Nutzertexte und eine falsch
+angeschriebene Zaehlgrenze, geschlossen **bevor** die Oberflaeche gebaut wird.
+Er fuegt keinen Zustand und kein Bedienelement hinzu. Neue
+Akzeptanzkriterien: **AK-162 bis AK-176**.
+
+---
+
+### 0. Messumgebung (L-009) — woran die Zahlen unten gemessen sind
+
+Alle Zaehlungen in §2 stammen aus **einer** Umgebung und gelten nur fuer sie:
+
+| | |
+|---|---|
+| Datensatz | `paths.snapshot_path()`, der gebaute Abzug dieser Maschine, nur gelesen |
+| Bestand | der Spielstand des App Designers, **309** besessene Kopien, **845** Effektrollen darauf |
+| Nightfarer | Wylder, Stufe 15 |
+| Armatur | `Wylder's Greatsword` als Bezugs- **und** einzige gefuehrte Waffe |
+| Bedingungen | keine als erfuellt erklaert (`declared` leer) |
+| Aufbau | **ein** Relikt je Slotgruppe, Slot 0, kein gehaltener Slot |
+| Gerechnet mit | `explain.reasons` selbst, nicht mit einer Nachbildung der Zeilenlogik |
+
+**Was diese Zahlen nicht decken:** einen anderen Nightfarer (Fuellung (a) ist
+eine Wylder-Zahl), eine andere Waffengattung (die Grenze in §2 haengt an
+`satisfied_by_weapon`, also am gefuehrten Waffentyp), einen Lauf ueber mehrere
+Slots (Fuellung (a2) bleibt ungemessen, wie in T-080) und jede Pixelbreite
+(kein Fenster gestartet, siehe §4).
+
+---
+
+### 1. AK-63 neu: die Anzeige liest **zwei** Quellen (OF-19)
+
+**Der Fehler, den das verhindert.** AD-025 hat die Vorbehalte in zwei Klassen
+geteilt: der **Verfahrenssatz** wohnt in der Registry (`Goal.scope`, nie
+leer), der **Laufbefund** im Ergebnis (`Baseline.unknowns`,
+`Baseline.weights_note`, `SlotPool.unknowns`, `AdvisorResult.unknowns`,
+`AdvisorResult.weights_note`). Die Fassung von AK-63 aus T-052 nennt fuer den
+Picker nur `Goal.scope` (Zeile 4) und `SlotPool.unknowns` (Zeile 3b). Die
+**dritte** Haelfte — die Laufbefunde der Zielrichtung — hat bis heute keinen
+Ort. Wer AK-63 spec-treu umsetzt, laesst im Lauf **ohne** Referenzwaffe den
+Satz `No armament selected — ranked on attack multipliers only, without
+weapon scaling.` (`goals._NO_ARMAMENT`) ersatzlos verschwinden. Das ist genau
+der A7-Rueckschritt, vor dem die Risikozeile in `ARCHITECTURE.md` warnt, und
+er faellt auf dem Hauptweg des Beraters an (AD-018).
+
+**Verbindlich, ersetzt die AK-63-Fassung aus T-052** (die dortige Begruendung
+bleibt gueltig und bleibt stehen; ersetzt wird nur, **welche Felder** gelesen
+werden):
+
+**(1) Die Registry-Haelfte — Zeile 4 des Pickers, Punkt 4 des `Why`-Dialogs.**
+Unveraendert gegenueber T-052: im Picker zuerst die feste
+AD-018.3-Pflichtzeile, danach die Saetze aus `Goal.scope` der gewaehlten
+Zielrichtung, wortgleich, in Tupel-Reihenfolge, vollstaendig. Fuer `Name`
+(AK-49) entfaellt die Zeile ganz. Im `Why`-Dialog dieselben Saetze, einmal, im
+Dialogkopf.
+
+**(2) Die Ergebnis-Haelfte im Picker — Zeile 3b, jetzt mit zwei Quellen.**
+Zeile 3b traegt **alle** Laufbefunde des angezeigten Ergebnisses, in **einem**
+umbrechenden Textblock, Saetze mit `  ·  ` getrennt (AK-67 gilt fort), in
+dieser Reihenfolge:
+
+1. die Saetze aus `Baseline.unknowns` **der Zielrichtung, nach der der Pool
+   geordnet ist** (`SlotPool.rank_by`) — heute genau `_NO_ARMAMENT`, und nur
+   ohne Referenzwaffe;
+2. danach die Saetze aus `SlotPool.unknowns` — heute die bis zu drei Saetze
+   aus AK-67.
+
+Reihenfolge und Grund: der erste Satz betrifft die **Zahl** auf jeder Karte,
+der zweite den **Bestand**, aus dem die Karten stammen. Der Spieler liest die
+Zahl zuerst.
+
+Zeile 3b **entfaellt vollstaendig**, wenn beide Quellen leer sind — der
+Normalfall mit gewaehlter Waffe (0 von 309 Kopien ohne Handle, `unknowns` der
+Zielrichtung leer). Leer ist nach AD-025.2 eine Aussage, keine Luecke.
+
+**(3) `weights_note` erscheint im Picker nicht, solange es kein Bedienelement
+fuer die Gewichtung gibt (OF-3).** Grund, und er ist kein Platzargument: bei
+`Minimise damage taken` ist `Baseline.weights_note` **nie** leer
+(`EVEN_WEIGHTING.note`), und er beginnt mit denselben acht Woertern wie der
+zweite Satz aus `MIN_DAMAGE_TAKEN.scope` in Zeile 4 — *"The game data gives no
+relative frequency of damage types, so …"*. Zwei Zeilen untereinander, die
+gleich anfangen und verschieden enden, liest niemand als zwei Aussagen; er
+liest sie als Wiederholung und ueberspringt beide. Der Satz steht deshalb im
+`Why`-Dialog (siehe (4)). **Sobald** OF-3 ein Bedienelement fuer die
+Gewichtung bringt, gehoert er neben dieses Bedienelement — dann sagt er,
+welche Wahl gerade gilt, und ist keine Wiederholung mehr.
+
+**(4) Die Ergebnis-Haelfte beim `Optimize`-Lauf — `Why`-Dialog, Punkt 4.**
+Unter den `Goal.scope`-Saetzen, in dieser Reihenfolge, jeder Teil nur wenn
+nicht leer:
+
+1. die Saetze aus `AdvisorResult.unknowns`,
+2. danach `AdvisorResult.weights_note` als eigene Zeile.
+
+Die gleichlautenden Felder der `Baseline`-Eintraege desselben Ergebnisses
+werden **nicht zusaetzlich** gezeichnet — sie tragen dieselbe Auskunft je
+Zielrichtung, und zweimal gezeichnet ist es die Fehlerklasse aus AK-148
+(`reasons` **und** `curses`). `SlotPool.unknowns` bleibt beim Slot (§3.4
+Punkt 2, T-052 unveraendert).
+
+**(5) Was gilt, wenn beide Haelften etwas zu sagen haben:** beide werden
+gezeichnet, jede an ihrem Ort, keine unterdrueckt die andere, und die Anzeige
+vergleicht die beiden Listen **nicht**. Ein Satz, der in beiden Klassen steht,
+ist ein Fehler der Rechnung (AD-025.4, Pruefpunkt 30) und wird sichtbar
+gemacht, nicht weggefiltert: eine Anzeige, die entdoppelt, versteckt genau den
+Fehler, gegen den der Pruefpunkt geschrieben ist. Das ist AK-147, hier
+fortgeschrieben.
+
+**Akzeptanzkriterien**
+
+- **AK-162** *(Registry-Haelfte, ersetzt die erste Haelfte von AK-63.)*
+  Zeile 4 des Pickers und Punkt 4 des `Why`-Dialogs zeigen die Saetze aus
+  `Goal.scope` der gewaehlten Zielrichtung wortgleich, in Tupel-Reihenfolge,
+  vollstaendig — daneben kein im UI-Code verdrahteter Vorbehaltssatz.
+  Pruefweg: `advisor/goals.py` um einen sechsten `scope`-Satz erweitern; er
+  steht danach an beiden Orten, ohne dass eine UI-Zeichenkette angefasst
+  wurde. *Rot-vorher:* eine Umsetzung, die den Attack-Rating-Vorbehalt als
+  Konstante in den Picker schreibt, bleibt bei `Minimise damage taken` auf dem
+  falschen Satz stehen.
+- **AK-163** *(Ergebnis-Haelfte im Picker, ersetzt die zweite Haelfte von
+  AK-63.)* Zeile 3b traegt zuerst jeden String aus `Baseline.unknowns` der
+  Zielrichtung aus `SlotPool.rank_by`, danach jeden String aus
+  `SlotPool.unknowns`, jeweils wortgleich und in Tupel-Reihenfolge, in einem
+  Block; sie entfaellt genau dann, wenn beide leer sind. *Rot-vorher:* die
+  heutige AK-63-Fassung liest nur `SlotPool.unknowns` — ein Lauf **ohne**
+  Referenzwaffe zeigt dann keine einzige Zeile darueber, dass ohne Waffe
+  gerechnet wurde, obwohl `goals.py` den Satz liefert.
+- **AK-164** *(Ergebnis-Haelfte beim Lauf.)* Punkt 4 des `Why`-Dialogs zeigt
+  unter den `Goal.scope`-Saetzen `AdvisorResult.unknowns` und danach
+  `AdvisorResult.weights_note`, wortgleich, jeweils nur wenn nicht leer; die
+  `unknowns`/`weights_note` der `Baseline`-Eintraege desselben Ergebnisses
+  werden nicht zusaetzlich gezeichnet. *Rot-vorher:* eine Umsetzung, die ueber
+  `result.baseline` iteriert **und** `result.unknowns` zeichnet, zeigt
+  `No armament selected — …` zweimal untereinander.
+- **AK-165** *(keine Chirurgie, keine Entdopplung.)* Kein Anzeigecode
+  vergleicht, filtert, sortiert oder entdoppelt die Saetze der beiden
+  Haelften; er zeichnet sie in der gelieferten Reihenfolge. Pruefbar per Grep
+  ueber den S10-Code: auf `scope`, `unknowns`, `weights_note` kein `set(`,
+  kein `sorted(`, kein `if … not in …`. *Rot-vorher:*
+  `for s in dict.fromkeys(scope + unknowns)` — sieht sauber aus und macht
+  Pruefpunkt 30 blind.
+- **AK-166** *(`weights_note` im Picker.)* Solange es kein Bedienelement fuer
+  die Gewichtung gibt, kommt der Text von `EVEN_WEIGHTING.note` im Picker
+  **nicht** vor. Pruefweg: ausgelesener Text des Pickers gegen die
+  Zeichenkette. *Rot-vorher:* eine Umsetzung, die `weights_note` an Zeile 3b
+  haengt, zeigt bei `Minimise damage taken` zwei Zeilen untereinander, die mit
+  *"The game data gives no relative frequency of damage types"* anfangen.
+
+---
+
+### 2. Die Grenze zwischen Fuellung (c) und (d) — gezaehlt, und sie lag woanders als vermutet
+
+**Der Befund zuerst, weil er die Frage des Auftrags berichtigt.** Der Auftrag
+geht davon aus, die Grenze liege **innerhalb** der 106 Zeilen, die heute (c)
+und (d) tragen, und die Summe 106 sei deshalb unveraendert. Gezaehlt am
+Bestand stimmt das nicht: die Grenze liegt zwischen **(b) und (c)**, und
+(c)+(d) waechst von 106 auf 152. Die Summe ueber **alle** Fuellungen bleibt
+426.
+
+**Warum die 48 aus T-080 nie gemessen waren.** Die Tabelle in
+`docs/berichte/T-080-ui-ux-designer.md` §3 nennt 150 / 170 / 58 / 48. Die
+ersten drei sind gemessen, die vierte ist ein **Rest**: 426 − 150 − 170 − 58.
+Diese Rechnung setzt voraus, dass die vier Toepfe sich nicht ueberschneiden —
+und genau das tun sie. **46 der 58 armaturgebundenen Effekte stehen zugleich
+in den 170**, weil eine unerfuellte Waffentyp-Schranke den Effekt nach
+`Build.situational` bringt (`model.compute_qualitative`) und Fuellung (b) ihn
+in der angeschriebenen Reihenfolge **vor** (c) abfaengt. Der echte Rest ist
+94, nicht 48. Der Fehler steckte in der Reihenfolge, nicht in der Zaehlung.
+
+**Die Zahlen, beide Lesarten, eine Grundgesamtheit** (Umgebung §0;
+Grundgesamtheit: 845 Effektrollen auf 309 Kopien, davon **426** stumme
+Effektzeilen — Fluchzeilen zaehlen nicht mit):
+
+| Fuellung | **(b) vor (c)** — heute angeschrieben und heute gebaut | **(c) vor (b)** — diese Vorgabe |
+|---|---|---|
+| (a) anderer Nightfarer | 150 | 150 |
+| (a2) anderswo gezaehlt | 0 (bei einem Relikt je Gruppe nicht herstellbar) | 0 |
+| (b) Bedingung | **170** | **124** |
+| (c) Armaturen | **13** | **58** |
+| (d) Rest | **93** | **94** |
+| (e) nicht im Datensatz | 0 | 0 |
+| **Summe** | **426** | **426** |
+| (c) + (d) | 106 | **152** |
+
+**Die Regel, neu angeschrieben — zwei Aenderungen an §4 des T-080-Abschnitts:**
+
+**(i) Die Pruefreihenfolge ist (a), (a2), (c), (b), (d), (e).** Fuellung (c)
+wird **vor** (b) geprueft. Grund: fuer einen Effekt, dessen Schranke die
+Armatur ist, ist *"it depends on the armaments you carry"* die staerkere
+Nachricht — sie nennt den Hebel (eine andere Waffe fuehren), waehrend *"only
+applies under a condition"* den Spieler auf die Suche nach einer Bedingung
+schickt. Das ist dieselbe Begruendung, mit der (a) vor allem anderen steht. Es
+ist ausserdem die Lesart, die der Rest des Systems bereits behauptet:
+`explain.not_counted` sagt in seinem eigenen Docstring, ein Effekt an einer
+nicht gefuehrten Armatur sei *nicht* in `not_counted`, unter Berufung auf
+QA-104 — und der T-080-Text zu (c) sagt denselben Satz.
+
+**(ii) Der Test von (c) fragt nach der unerfuellten Schranke, nicht nach dem
+Feld.** Fuellung (c) trifft zu, wenn der Effekt eines der vier
+Armaturenfelder traegt — `triggerOnWepType`, `wepTypeTrigger`,
+`wepTypeTriggerCount`, `startSwordArtsId` — **und** `model.satisfied_by_weapon`
+fuer dieses Feld gegen die gefuehrten Waffentypen falsch ist. Die heutige
+Fassung fragt nur, ob das Feld vorhanden ist, und schreibt deshalb an genau
+einer Stelle des Bestands etwas Falsches: `HP Restoration upon Greatsword
+Attacks` bekommt bei gefuehrtem `Wylder's Greatsword` die Zeile *"it depends
+on the armaments you carry"*, obwohl der Spieler den Greatsword traegt und die
+Armaturenfrage beantwortet ist. Diese eine Zeile faellt mit (ii) nach (d), wo
+sie hingehoert: sie ist stumm, weil sie beim Angriff ausloest
+(`atkOccurrenceSpEffectId`), nicht wegen der Waffe.
+
+**Die Wortlaute (b), (c) und (d) aendern sich nicht** — nur, welche Zeile
+welchen bekommt.
+
+**Was diese Verschiebung nicht anfasst: 4.9b und `not_counted`.** Die Liste
+unter den Slotgruppen und die Statuszeilenklausel 4.9b bleiben
+`Build.situational, live == False` (AK-142 unveraendert, AD-010 unveraendert).
+Fuellung (c) nimmt einen Effekt aus der **Zeile**, nicht aus der **Liste**:
+die Zeile beantwortet *"warum steht bei diesem Effekt keine Zahl"*, die Liste
+beantwortet *"wie viel hat die Rangfolge weggelassen"*. Beide Antworten sind
+wahr, und die Ueberschrift der Liste (*"These effects only apply under a
+condition, …"*) bleibt fuer einen waffengebundenen Effekt richtig — sie ist
+nur allgemeiner als die Zeile. **AK-154 gilt fort mit dieser Praezisierung:**
+die Fuellungen (b) und (c) entstehen weiterhin aus **einer** Rechnung, und der
+dort genannte Pruefweg haelt fuer beide — dieselbe Bedingung als erfuellt
+erklaert, und der Effekt verschwindet in demselben Lauf aus der Liste **und**
+aus den stummen Zeilen.
+
+**Akzeptanzkriterien**
+
+- **AK-167** *(Reihenfolge.)* Die sechs Fuellungen werden in der Reihenfolge
+  (a), (a2), (c), (b), (d), (e) geprueft, erste zutreffende gewinnt.
+  *Rot-vorher:* die heute gebaute Reihenfolge gibt in der Umgebung §0 **46**
+  Zeilen `… : only applies under a condition, so no number here.` fuer
+  Effekte, deren einziger Grund eine nicht gefuehrte Waffengattung ist.
+- **AK-168** *(Test von (c).)* Fuellung (c) trifft genau dann zu, wenn der
+  Effekt eines der vier Armaturenfelder traegt **und** `satisfied_by_weapon`
+  fuer dieses Feld gegen die gefuehrten Waffentypen falsch ist. *Rot-vorher:*
+  die heutige Fassung fragt nur nach dem Vorhandensein des Feldes und sagt in
+  der Umgebung §0 fuer `HP Restoration upon Greatsword Attacks` bei
+  gefuehrtem Greatsword *"it depends on the armaments you carry"*.
+- **AK-169** *(Partition, mit Rezept.)* Die sechs Fuellungen sind eine
+  **Partition** der stummen Effektzeilen: jede stumme Zeile traegt genau eine,
+  und die Summe der sechs ist die Zahl der stummen Zeilen. Pruefweg: ueber den
+  Bestand zaehlen, mit `explain.reasons` selbst; in der Umgebung §0 ergibt das
+  150 / 0 / 124 / 58 / 94 / 0 = **426** von 845 Effektrollen auf 309 Kopien.
+  *Rot-vorher:* die Tabelle aus T-080 §3 (150 / 170 / 58 / 48) ist **keine**
+  Partition — 46 Zeilen sind doppelt gezaehlt, und die 48 ist ein Rest aus
+  einer Subtraktion, kein Messwert.
+
+---
+
+### 3. `AdvisorResult.budget_note` — kein Satz jetzt, und warum das Feld trotzdem bleibt
+
+**Entscheidung: das Feld bekommt jetzt keinen Wortlaut, bleibt leer, und die
+Oberflaeche zeichnet fuer ein leeres Feld nichts.** Es wird **nicht**
+gestrichen.
+
+**Warum kein Satz.** Eine Budgetnotiz sagt, dass dieser Lauf seine Suche
+**vorzeitig beendet** hat. Die Groesse, an der sich das entscheidet, setzt der
+`performance-tuner` erst in S11; ein Text, der heute eine Breite oder eine
+Zahl nennt, verspricht eine Groesse, die niemand gemessen hat, und das ist
+genau der Fall, den A12 ausschliesst.
+
+**Warum auch kein zahlenfreier Ersatzsatz.** Der naheliegende Ausweg waere ein
+Satz ohne Zahl — etwa *"Not every combination was tried."* Der ist wahr, aber
+er ist in **jedem** Lauf wahr, und ein Satz, der jeden Lauf ueberlebt, ist
+nach AD-025 ein **Verfahrenssatz** und gehoert in die Registry, nicht ins
+Ergebnis (Pruefpunkt 31 wuerde ihn dort rot faerben). Die Aussage ist
+ausserdem schon getragen: AD-025.5 haelt `Best found` und `Top suggestions`
+als verbindliche Nutzersprache fest und verbietet `Optimal` und
+`Best possible`. Es geht heute also nichts verloren.
+
+**Warum das Feld bleibt.** AD-010 verlangt es, der Fall, fuer den es da ist,
+kommt in S11 wirklich, und `run.py` sagt in seinem Docstring bereits, dass es
+leer bleibt, bis der Satz existiert. Ein Feld zu streichen und drei Wochen
+spaeter wieder einzubauen kostet mehr als eine leere Zeichenkette. **Das ist
+kein Befund an den `architect`** — die Vorgabe des Auftrags fuer diesen Fall
+("dann wird das Feld entfernt") greift nicht, weil die Antwort nicht "gar
+nicht" lautet, sondern "noch nicht".
+
+**Der Ort, fuer den Tag, an dem der Satz existiert:** der `Why`-Dialog, als
+eigene Zeile unmittelbar unter den Saetzen aus Punkt 4 — **nicht** die
+Statuszeile. Grund: die Statuszeile kuerzt (§3.1), und eine Aussage darueber,
+was die Suche **nicht** versucht hat, waere die letzte im Satz und damit die
+erste, die verschwindet. Was der Nutzer dort verpasst, ist genau die
+Einschraenkung, um derentwillen der Satz geschrieben wurde.
+
+**Akzeptanzkriterien**
+
+- **AK-170** Solange `AdvisorResult.budget_note` leer ist, zeichnet die
+  Oberflaeche dafuer **nichts** — keine Ueberschrift, keinen Platzhalter,
+  keinen leeren Aufzaehlungspunkt, kein `—`. *Rot-vorher:* ein `Why`-Dialog,
+  der eine Zeile `Search budget: —` oder einen leeren Absatz zeigt, weil das
+  Feld bedingungslos gezeichnet wird.
+- **AK-171** Ist das Feld nicht leer, steht sein Satz im `Why`-Dialog als
+  eigene Zeile unmittelbar unter den Saetzen aus Punkt 4, und **nirgends** in
+  der Statuszeile. *Rot-vorher:* eine dritte Klausel `  ·  the search was cut
+  short.` an 4.6 — sie faellt bei der gemessenen Statuszeilenlaenge als erste
+  der Kuerzung zum Opfer.
+- **AK-172** In `budget_note` steht kein Satz, der in jedem Lauf zutraefe.
+  Pruefweg: zwei herstellbare Laeufe derselben Zielrichtung; ein Satz, der in
+  beiden dasteht, gehoert nach `Goal.scope` (AD-025, Pruefpunkt 31).
+  *Rot-vorher:* `budget_note = "Not every combination was tried."` als feste
+  Zuweisung in `run.py`.
+
+---
+
+### 4. Die Statuszeile 4.7 — die Aussage wird bestaetigt, ihre Form nicht
+
+**Heute in der Tabelle:** `Your build changed while this was working out.
+Optimize again.` Die zweite Haelfte hat der `developer` in T-082 selbst
+formuliert, weil keine vorlag.
+
+**Die Aussage ist richtig und bleibt.** Der Nutzer muss zwei Dinge erfahren:
+dass das Ergebnis verworfen wurde, und dass ein neuer Lauf es zurueckholt.
+`Optimize again.` sagt das zweite und ist keine Ruege — der Berater schreibt
+ohnehin in keinen Slot ohne Zustimmung (§5.1), es ist also nichts kaputt
+gegangen, das der Nutzer verursacht haette.
+
+**Die Form aendert sich.** `Optimize again.` ist in der ganzen Tabelle
+4.1-4.14 der **einzige** nackte Imperativ. Der Weg nach vorn wird sonst als
+Angebot mit dem Namen des Bedienelements gegeben (4.8: `… — use Rescan
+save.`) oder als Feststellung (4.13: `Applied. Undo puts your slots back as
+they were.`). Ein Imperativ nach einem Satz, der eine Stoerung beschreibt,
+liest sich als Zuweisung; dieselbe Auskunft im Hausmuster liest sich als
+Angebot. **Verbindlich, 4.7 lautet:**
+
+> `Your build changed while this was working out — use Optimize again.`
+
+**Zur Breite, ehrlich gesagt: nicht in Pixeln gemessen.** Die Advisor bar
+existiert zur Zeit dieses Nachtrags nicht (T-083 baut sie parallel), und eine
+Offscreen-Messung waere hier wertlos: `QApplication.font()` liefert unter
+`QT_QPA_PLATFORM=offscreen` auf dieser Maschine eine Ersatzschrift mit **exakt
+12,0 px je Zeichen** ueber alle 17 gemessenen Statustexte — ein Artefakt der
+Ersatzschrift, keine Messung (L-009), und `Segoe UI` wird dorthin substituiert
+statt geladen. Was ohne Fenster belastbar ist, ist der **Vergleich in
+Zeichen** gegen die bereits abgenommenen Statustexte:
+
+| Statuszeile | Zeichen |
+|---|---|
+| 4.9, beide Klauseln | 131 |
+| 4.10 | 102 |
+| 4.11 | 76 |
+| 4.8 | 74 |
+| 4.9, eine Klausel | 72 |
+| **4.7 neu** | **67** |
+| 4.7 heute | 62 |
+
+4.7 bleibt damit kuerzer als vier bereits abgenommene Zustaende und traegt
+**kein neues** Kuerzungsrisiko in die Leiste. Das ist eine Aussage ueber die
+Rangfolge, **nicht** ueber die Sichtbarkeit: ob der Satz an der Mindestbreite
+ungekuerzt ankommt, entscheidet erst das laufende Fenster (AK-174).
+
+**Akzeptanzkriterien**
+
+- **AK-173** 4.7 lautet buchstabengetreu `Your build changed while this was
+  working out — use Optimize again.`, mit demselben Gedankenstrich `—` wie
+  4.8, in Statuszeile, Tooltip und `Why`-Dialog gleich. *Rot-vorher:* der heutige Wortlaut mit dem
+  nackten `Optimize again.` — der einzige Imperativ ohne Nennung des
+  Bedienelements unter den vierzehn Zustaenden.
+- **AK-174** Der Satz aus 4.7 erreicht den Nutzer **ungekuerzt in der
+  Statuszeile**, an der Mindestbreite des Build planner. Reicht der Platz
+  nicht, gibt die Anordnung der Leiste nach (schmalere Zielwahl, weniger
+  Abstand), nicht der Satz. Gemessen wird am laufenden Fenster mit
+  Messumgebung nach L-009 (Stil, Skalierung, physisch oder logisch).
+  *Rot-vorher:* eine Umsetzung, bei der `— use Optimize again.` als erstes
+  elidiert und die Handlungsanweisung nur noch im Tooltip steht — eine
+  Aussage, die nur im Tooltip ankommt, ist keine.
+- **AK-175** Keine Statuszeile des Beraters gibt dem Nutzer die Schuld: keine
+  Zeile enthaelt `you changed`, `you must`, `please`, `try again` oder ein
+  Ausrufezeichen. Pruefweg: der ausgelesene Text aller vierzehn Zustaende
+  gegen diese Wortliste. *Rot-vorher:* `You changed your build while this was
+  working out!`
+
+---
+
+### 5. `Suggest` im Fliesstext — je Stelle einzeln entschieden
+
+Der Knopf heisst `Optimize` (GOAL F4, Director). Die Zustandstabelle 4.1-4.14
+ist seit `bafc3e1` nachgezogen. Die sechs verbliebenen Stellen:
+
+| Stelle | Befund | Getan |
+|---|---|---|
+| §5.1 ("`Optimize` ist der heutige `Suggest`-Knopf") | **geltende Vorgabe, falsch** — "heutige" behauptet einen Knopf, den es nicht gibt | umgeschrieben auf "der in der Fassung vom 01.09.2026 noch `Suggest` hiess", mit Datumsvermerk |
+| F4 der T-004-Fragen ("Alternativen waeren `Suggest a build`") | **Historie**, und sie meint den Namen des **Bereichs**, nicht den Knopf | stehen gelassen, Zusatz angehaengt, der die Verwechslung ausschliesst |
+| T-024 §1 ("der Knopf heisst `Optimize` statt `Suggest`") | **geltende Vorgabe, richtig** — das ist die Umbenennung selbst | unveraendert |
+| offene Frage 3 des T-078-Abschnitts | **offene Frage, beantwortet** | als beantwortet markiert, nicht geloescht; die Begruendung von damals bleibt |
+| T-078 "Grundlage" (`Candidate`, `Suggestion`, …) | **Typname**, kein Bedienelement | unveraendert |
+| T-078 "nicht Teil dieser Vorgabe" (`Suggestion` als Datenform) | **Typname** | unveraendert |
+
+- **AK-176** In `UI_SPEC.md` bezeichnet `Suggest` kein heutiges Bedienelement
+  mehr: jede verbleibende Fundstelle ist entweder ein Typname (`Suggestion`)
+  oder ausdruecklich als Verlauf gekennzeichnet. Pruefweg: Volltextsuche nach
+  `Suggest`, jede Fundstelle einer der beiden Klassen zuordenbar.
+  *Rot-vorher:* §5.1 in der Fassung vor diesem Nachtrag — wer nur dort liest,
+  baut einen Knopf, der zwei Namen hat.
+
+---
+
+### 6. Was dieser Nachtrag ausdruecklich **nicht** entscheidet
+
+- **Ob `explain.not_counted` seinen eigenen Docstring einhaelt.** Er sagt, ein
+  Effekt an einer nicht gefuehrten Armatur sei nicht darin (unter Berufung auf
+  QA-104); gemessen sind **46 von 170** es doch. Entweder der Docstring oder
+  die Rechnung ist falsch — das ist AD-010 und gehoert dem `architect`, nicht
+  der Anzeige. Diese Vorgabe funktioniert in **beiden** Faellen: §2 verschiebt
+  nur die **Zeile**, nicht die Liste.
+- **Die Formatierung einer Differenz je Zielrichtung** (OF-21). Unberuehrt.
+- **Der Wortlaut, wenn OF-3 ein Bedienelement fuer die Gewichtung bringt.**
+  §1 Punkt (3) sagt nur, wohin `weights_note` dann gehoert, nicht wie das
+  Bedienelement aussieht.
+- **Die dreizehn Streichvorschlaege je Tab (§8)** und die vier gesammelten
+  Fragen an den App Designer (F-B, F-C, F-F, F-G). Unberuehrt.
+
+---
+
+## (ui-ux-designer, T-086) — 2026-09-07
+
+**Grundlage:** `docs/tasks/T-086.md` · `docs/berichte/T-085-architect.md`
+(AD-026 und die zwei Befunde daraus, Umgebung Ironeye/Bow) ·
+`ARCHITECTURE.md` Nachtrag VII (nur gelesen) · der T-084-Abschnitt dieser
+Datei (§0, §2, AK-167 bis AK-169) und §4/§6 des T-080-Abschnitts · gegen den
+Commit `fd9f2bc` gelesen und gemessen: `nrplanner/model.py`
+(`CONDITIONAL_FIELDS`, `WEAPON_TYPE_GATES`, `satisfied_by_weapon`,
+`is_conditional`, `GATE_FIELDS`, `ENGINE_FIELDS`),
+`nrplanner/advisor/explain.py` (`_ARMAMENT_GATES`, `_silent_effect`,
+`reasons`, `not_counted`), `evaluate.py`, `goals.py`, `types.py`,
+`nrplanner/inventory.py`.
+
+**Was dieser Nachtrag ist:** eine Praezisierung von AK-168 und eine
+Zahlenangabe im Fliesstext. **Kein neuer Zustand, kein neues Bedienelement,
+kein geaenderter Nutzertext** — die sechs Fuellungen behalten ihren Wortlaut
+Buchstabe fuer Buchstabe; es aendert sich nur, welche Zeile welchen bekommt.
+
+- **AK-167 bleibt unveraendert.** Die Pruefreihenfolge (a), (a2), (c), (b),
+  (d), (e) ist richtig und traegt.
+- **AK-168 wird praezisiert, nicht ersetzt.** Sein Test — die *unerfuellte*
+  Schranke statt des blossen Feldes — ist richtig; er ist nur **zu weit
+  gefasst**. AK-177 und AK-178 ziehen die Grenze nach.
+- **AK-169 behaelt seine Regel** (die Fuellungen sind eine Partition, mit
+  Rezept); **seine Zahlen sind durch AK-180 fortgeschrieben** und dort als
+  ersetzt gekennzeichnet.
+
+Neue Akzeptanzkriterien: **AK-177 bis AK-181**.
+
+---
+
+### 0. Messumgebung (L-009) — woran die Zahlen unten gemessen sind
+
+Zwei Umgebungen, beide erschoepfend ausgezaehlt. **Keine Stichprobe, also
+kein Stichprobenfehler und kein Sicherheitsabstand**; die Unsicherheit liegt
+in der Grundgesamtheit — ein Spielstand, ein Datenabzug, zwei von zehn
+Nightfarern. Alle Zahlen sind **Zeilen im `Why`-Dialog**, nicht Effekt-Ids und
+nicht Pixel.
+
+| | **Umgebung A** | **Umgebung B** |
+|---|---|---|
+| Nightfarer | Wylder, Stufe 15 | Ironeye, Stufe 15 |
+| Armatur | `Wylder's Greatsword` (`wep_type` 5), Bezugs- **und** einzige gefuehrte Waffe | `Ironeye's Bow` (`wep_type` 51), dito |
+| Datenabzug | `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`, `meta.extract_version` 11, `meta.data_version` 10350000, 2076 Effekte, 1793 Waffen — **nur gelesen** | derselbe |
+| Bestand | Spielstand des App Designers, **309** besessene Kopien, **845** Effektrollen | derselbe |
+| Bedingungen | keine als erfuellt erklaert (`declared` leer) | dito |
+| Aufbau | **ein** Relikt je Slotgruppe, Slot 0, kein gehaltener Slot | dito |
+| Zielrichtung / Gewichtung | `max_damage`, `EVEN_WEIGHTING` | dito |
+| Gerechnet mit | `explain.reasons` selbst, nicht mit einer Nachbildung | dito |
+| Codestand | `fd9f2bc`; `model.py`, `inventory.py`, `effecttext.py` und das ganze `advisor/`-Paket sind byteweise `fd9f2bc` (einzeln mit `git diff --quiet` geprueft) — im Arbeitsbaum weichen nur `advisorbar.py` und `app.py` ab (T-083), und keines davon wird hier importiert | dito |
+| stumme Effektzeilen | **426** von 845 | **434** von 845 |
+
+Messskripte im Scratchpad, auftragsgemaess nicht im Repo; das Rezept steht in
+Prosa in §1.2. **Kein Fenster gestartet, kein Bildnachweis** (NH-002).
+
+*(Nachtrag am Ende desselben Tages, ehrlichkeitshalber: waehrend dieser
+Vorgabe hat ein `developer` den Docstring von `explain.not_counted` nach
+AD-026 ersetzt — die Datei weicht seitdem von `fd9f2bc` ab. Die Aenderung ist
+**ausschliesslich Docstring** (9 Zeilen ein, 4 aus, alle innerhalb der
+Zeichenkette), aendert also keinen der Zahlen oben. Zum Zeitpunkt der Messung
+war die Datei byteweise `fd9f2bc`.)*
+
+---
+
+### 1. Fuellung (c) trifft nur noch dort, wo das Programm die Armaturenfrage wirklich beantwortet hat
+
+#### 1.1 Der Befund — und er ist groesser als die Meldung
+
+Der `architect` meldet (T-085 §2d): von den 46 Zeilen, die AK-167/168 in
+Umgebung A von (b) nach (c) verschieben, haengen **28 an
+`wepTypeTriggerCount`**, einem Feld, das `satisfied_by_weapon` nicht
+beantworten kann — *"wechsle die Waffe"* loest sie nicht.
+
+**Nachgezaehlt, in beiden Umgebungen: die 28 stimmen. Sie zerfallen aber in
+zwei Haelften, die nicht dasselbe Problem haben.**
+
+| Zeilen mit unerfuellter Armaturenschranke, Fuellung (c) nach AK-167/168 | **A** | **B** |
+|---|---|---|
+| nur `triggerOnWepType` unerfuellt — echte Typschranke, Hebel vorhanden | 18 | 19 |
+| `wepTypeTrigger` **und** `wepTypeTriggerCount` unerfuellt — z. B. `Improved Attack Power with 3+ Bows Equipped`; der Typ ist pruefbar und unerfuellt, der Effektname nennt die Anzahl selbst | 8 | 6 |
+| **nur `wepTypeTriggerCount` unerfuellt** | **20** | **22** |
+| `startSwordArtsId` — der Effekt tauscht die Waffenkunst der passenden Armatur | 12 | 0 |
+| **Summe Fuellung (c)** | **58** | **47** |
+
+Die 28 des `architect` sind die zweite plus die dritte Zeile (8 + 20 = 28 in
+A, 6 + 22 = 28 in B — in beiden Umgebungen dieselbe Summe aus einer anderen
+Mischung). **Nur die dritte Zeile ist das Problem**, und sie ist schlimmer,
+als die Meldung sagt. Aufgeschluesselt nach dem Wert, den
+`wepTypeTriggerCount` traegt:
+
+| Wert | A: Zeilen / verschiedene Effekte | B: Zeilen / verschiedene Effekte | wie die Effekte heissen |
+|---|---|---|---|
+| 256 | 9 / 6 | 9 / 6 | `Crimsonburst Crystal Tear in possession at start of expedition`, `Stonesword Key in possession …` |
+| 512 | 9 / 6 | 9 / 6 | `Fire Pots in possession at start of expedition`, `Starlight Shards in possession …` |
+| 1024 | 1 / 1 | 1 / 1 | `Poisonbone Darts in possession at start of expedition` |
+| **3** | **1 / 1** | **3 / 2** | `Improved Attack Power with 3+ Daggers Equipped` |
+
+**19 der 20 Zeilen in A und 19 der 22 in B gehoeren zu Effekten, die mit
+Armaturen ueberhaupt nichts zu tun haben.** Sie geben dem Spieler einen
+Gegenstand zu Beginn der Expedition. Die heutige Fuellung (c) wuerde ihnen
+*"it depends on the armaments you carry"* anschreiben — das ist nicht vage,
+das ist **falsch**, und es ist derselbe A7-Bruch, den AK-167/168 schliessen
+sollten, nur eine Ebene tiefer.
+
+**Belegt, ohne eine Vermutung ueber die Spieldateien** (AK-140/AK-157): im
+Abzug tragen **alle 51** `wepTypeTriggerCount`-Effekte mit einem anderen Wert
+als 3 **zugleich `startGoodsId`**, und **alle 31** mit dem Wert 3 tragen es
+**nicht** — eine saubere Trennung, 82 von 82. `GATE_FIELDS` beschriftet
+`startGoodsId` selbst mit *"grants an item at the start of an expedition"*.
+Was 256, 512, 768 und 1024 in diesem Feld **bedeuten**, sagt der Abzug nicht,
+und dieser Nachtrag behauptet es auch nicht.
+
+**Genau ein Effekt im ganzen Abzug** (2076 Effekte) ist eine echte
+Waffen*anzahl* ohne pruefbares Typfeld: `Improved Attack Power with 3+
+Daggers Equipped` (7080000). Die uebrigen 30 Effekte mit Wert 3 tragen
+zusaetzlich `wepTypeTrigger`, das pruefbar ist.
+
+**Der latente zweite Fall, unabhaengig nachgemessen:** von den 144
+`triggerOnWepType`-Effekten tragen **72** einen Wert, den keine der 1793
+Waffen des Abzugs als `wep_type` fuehrt (**70** auf 256, **2** auf 512; der
+Vorrat umfasst 34 Waffentypen). Kein Armaturenwechsel erfuellt sie je. Auf
+diesem Spielstand ist **keiner** davon besessen (0 von 314 entdoppelten
+besessenen Effekt-Ids, 0 Zeilen in beiden Umgebungen). `wepTypeTrigger` hat
+diesen Fall nicht (0 von 30).
+
+#### 1.2 Die Entscheidung
+
+**Fuellung (c) trifft nur noch zu, wenn das Programm die Armaturenfrage
+gestellt und mit Nein beantwortet bekommen hat.** Das sind genau zwei Faelle:
+
+1. Der Effekt traegt ein Feld aus `model.WEAPON_TYPE_GATES` —
+   `triggerOnWepType` oder `wepTypeTrigger` —, `model.satisfied_by_weapon`
+   ist dafuer gegen die gefuehrten Waffentypen **falsch**, **und** der
+   verlangte Wert ist der `wep_type` mindestens einer Waffe des Datenabzugs.
+2. Der Effekt traegt `startSwordArtsId`. Er tauscht die Waffenkunst der
+   passenden Armatur; dass es an der Armatur haengt, steht in seinem eigenen
+   Namen (`Changes compatible armament's skill to …`, 20 von 20 Effekten des
+   Abzugs).
+
+**`wepTypeTriggerCount` allein schickt keine Zeile mehr nach (c).** Eine
+Zeile, deren einzige unerfuellte Armaturenschranke dieses Feld ist, faellt
+auf **(b)** — sie steht als `Situational` mit `live == False` im Build, also
+genau dort, wo (b) hingehoert, und bekommt
+
+> `{effect name}: only applies under a condition, so no number here.`
+
+Das ist wahr, deckungsgleich mit der Liste 4.9b, in der derselbe Effekt
+steht, und es verspricht keinen Hebel. **Die Klassenfrage wird damit nicht
+wieder aufgemacht** (AD-026 steht): der Effekt bleibt konditional, bleibt in
+`not_counted`, behaelt seinen Schalter. Es geht ausschliesslich um den
+**Wortlaut der Zeile**.
+
+**Das Rezept, mit dem die Zahlen unten entstanden sind** (Umgebung §0,
+gerechnet mit `explain.reasons`, nicht nachgebaut):
+
+1. `data = json.loads(paths.snapshot_path().read_text())`,
+   `model.configure(data)`, `owned = inventory.load(data)`.
+2. `ctx = types.GoalContext(data, hero, level=15,
+   reference=ReferenceArmament(Startwaffe des Nightfarers, tier=1,
+   slot_index=0), weighting=goals.DEFAULT_WEIGHTING,
+   weapons_held=(dieselbe Waffe,))`.
+3. Je besessener Kopie: `problem = SlotProblem(slots=(Slot(0, colour, deep),),
+   held=())`, `base = evaluate(problem, (), ctx)`,
+   `built = evaluate(problem, (cand,), ctx)`,
+   `groups = explain.reasons(problem, (cand,), base, built, ctx,
+   goals.GOALS["max_damage"])`.
+4. Gezaehlt werden die `ReasonLine`, die weder `is_curse` noch
+   `silence == CARRIES_A_FIGURE` sind. Die Zeile wird ueber den Namensanfang
+   `f"{name}: "` ihrem Effekt zugeordnet.
+5. Fuellung (c) wird je Zeile nach der Regel aus 1.2 neu bestimmt; (a), (a2)
+   und (e) gewinnen weiterhin **vor** (c) (AK-167).
+
+#### 1.3 Die Zahlen nach der neuen Regel
+
+| Fuellung | A gebaut | A nach AK-167/168 | **A nach AK-177/178** | B gebaut | B nach AK-167/168 | **B nach AK-177/178** |
+|---|---|---|---|---|---|---|
+| (a) anderer Nightfarer | 150 | 150 | **150** | 159 | 159 | **159** |
+| (a2) anderswo gezaehlt | 0 | 0 | **0** | 0 | 0 | **0** |
+| (b) Bedingung | 170 | 124 | **144** | 174 | 127 | **149** |
+| (c) Armaturen | 13 | 58 | **38** | 0 | 47 | **25** |
+| (d) Rest | 93 | 94 | **94** | 101 | 101 | **101** |
+| (e) nicht im Datensatz | 0 | 0 | **0** | 0 | 0 | **0** |
+| **Summe** | **426** | **426** | **426** | **434** | **434** | **434** |
+
+**Zwei Unterschiede zwischen A und B sind erklaerungsbeduerftig und
+erklaert:**
+
+- **(c) ist in B um 13 kleiner als in A.** Das sind die zwoelf
+  `startSwordArtsId`-Zeilen plus eine: fuer Ironeye sagt
+  `effecttext.works_for` bei allen zehn besessenen
+  `Changes compatible armament's skill to …`-Effekten **Nein**, sie bekommen
+  also Fuellung (a) und erreichen (c) gar nicht. In A gilt das nicht.
+- **Die Verschiebung ist in beiden Umgebungen dieselbe Groesse:** 20 Zeilen
+  in A, 22 in B wandern von (c) nach (b). Die Regel haengt nicht am
+  Nightfarer und nicht an der Waffengattung.
+
+**Der Preis, ausdruecklich benannt** (A12: was diese Zusicherung nicht
+deckt):
+
+- **1 Zeile in A und 3 in B verlieren die konkrete Auskunft**, obwohl sie
+  wirklich an einer Waffenanzahl haengen (`Improved Attack Power with 3+
+  Daggers Equipped`, in B zusaetzlich `… with 3+ Bows Equipped`). Sie
+  bekommen (b) statt (c). **Der Spieler verliert dabei nichts**, weil der
+  Effektname selbst *"with 3+ Daggers Equipped"* sagt — die Auskunft steht
+  bereits vor dem Doppelpunkt.
+- **Wer einer (c)-Zeile folgt und die Waffe anlegt, kann auf (b) landen.**
+  Umgebung B zeigt es: `Improved Attack Power with 3+ Bows Equipped` bekommt
+  fuer Wylder (c), fuer den bogenfuehrenden Ironeye aber (b), weil dann nur
+  noch die Anzahl fehlt. Das ist kein Widerspruch und keine Luege — die
+  zweite Zeile ist nur schwaecher als die erste. Eine Fuellung, die *"you
+  need three of them"* sagt, waere eine Aussage ueber die Spieldateien, die
+  der Abzug fuer den Wert 3 nicht hergibt; sie wird deshalb **nicht**
+  geschrieben.
+- **Nicht gemessen:** wie oft eine dieser Zeilen in einem **vollen Lauf** des
+  Beraters wirklich vor dem Spieler steht. Der `architect` hat fuer die
+  benachbarte Frage 1 von 176 Laeufen gemessen (T-085 §2c); die Zahlen hier
+  beschreiben die **Kandidatenmenge** des Pickers, nicht den Vorschlag.
+
+#### 1.4 Verworfene Wege, und warum
+
+- **Eine siebte Fuellung, die die Anzahl benennt** (der erste Weg des
+  Auftrags). **Verworfen, und die Messung ist der Grund:** ein Satz wie
+  *"you need several of that weapon equipped"* waere auf 19 der 20 Zeilen
+  **neu falsch** — `Stonesword Key in possession at start of expedition` hat
+  keine Waffenanzahl. Der Weg setzt voraus, dass der Feldname sagt, was der
+  Effekt tut, und genau das tut er hier nicht. Zusaetzlich haette er AK-169
+  aufgemacht und die Zahl der Fuellungen um eine erhoeht, ohne einen Fall
+  sauber zu treffen.
+- **(c) vager umformulieren, sodass ein Satz beide Faelle traegt** (der
+  zweite Weg). **Verworfen:** kein Satz ueber Armaturen ist fuer
+  `Fire Pots in possession at start of expedition` wahr, auch kein vager. Der
+  Weg haette ausserdem den 26 Zeilen in A (18 + 8) die konkrete Auskunft
+  genommen, bei denen der Hebel wirklich existiert — er zahlt den Preis
+  zweimal und behebt den Fehler nicht.
+- **Die 28 nach (d)** (der dritte Weg). **Verworfen aus zwei Gruenden.**
+  Erstens ist er so nicht herstellbar: (d) ist die letzte Fuellung, und diese
+  Zeilen sind `Situational live == False`, fallen also auf (b), sobald (c)
+  sie nicht mehr faengt — nach (d) kaeme man nur mit einer zusaetzlichen
+  Ausnahme. Zweitens waere (d) (*"no number here shows what this adds"*) die
+  schwaechere Auskunft: (b) sagt zutreffend, dass eine Bedingung im Weg
+  steht, und stimmt mit der Liste 4.9b ueberein, in der derselbe Effekt
+  aufgefuehrt ist. Ein Effekt, der in der Liste unter *"only apply under a
+  condition"* steht und in der Zeile *"no number here shows what this adds"*
+  liest, laesst den Spieler zwei Antworten auf eine Frage sehen.
+- **8 der 28 in (c) belassen** ist keine Ausnahme, sondern folgt aus der
+  Regel: sie tragen `wepTypeTrigger`, das pruefbar und unerfuellt ist. Fuer
+  sie ist *"it depends on the armaments you carry"* wahr.
+- **`wepTypeTriggerCount` auswertbar machen** ist ausdruecklich nicht Teil
+  dieser Vorgabe (Scope T-086, und `ARCHITECTURE.md` fuehrt es unter
+  „Bewusst nicht getan"). Wird die Zahl der gefuehrten Waffen eines Typs
+  eines Tages bekannt, aendert sich diese Vorgabe; bis dahin beschreibt sie,
+  was das Programm **weiss**.
+
+#### 1.5 Akzeptanzkriterien
+
+- **AK-177** *(der Test von (c) fragt, was das Programm beantwortet hat.)*
+  **Praezisiert AK-168, ersetzt es nicht.** Fuellung (c) trifft genau dann
+  zu, wenn (1) der Effekt ein Feld aus `model.WEAPON_TYPE_GATES` traegt,
+  `model.satisfied_by_weapon` dafuer gegen die gefuehrten Waffentypen falsch
+  ist **und** der verlangte Wert der `wep_type` mindestens einer Waffe des
+  Datenabzugs ist, **oder** (2) der Effekt `startSwordArtsId` traegt.
+  Pruefweg: ueber den Bestand zaehlen, mit `explain.reasons` selbst; in
+  Umgebung §0 ergibt (c) **38** (A) bzw. **25** (B).
+  *Rot-vorher:* eine Umsetzung nach dem Wortlaut von AK-168 — also
+  `_ARMAMENT_GATES` unveraendert als Trigger von (c) — gibt in Umgebung A
+  **20** Zeilen und in B **22** Zeilen
+  `… : it depends on the armaments you carry, so no number here.`, von denen
+  je **19** zu Effekten gehoeren, die einen **Gegenstand** zu Beginn der
+  Expedition geben (`Stonesword Key in possession at start of expedition`)
+  und keine Armatur verlangen.
+
+- **AK-178** *(`wepTypeTriggerCount` allein nennt keinen Hebel.)* Traegt eine
+  stumme Zeile als einzige unerfuellte Armaturenschranke
+  `wepTypeTriggerCount`, so lautet sie
+  `{effect name}: only applies under a condition, so no number here.`
+  (Fuellung (b), Wortlaut unveraendert) und enthaelt **nirgends** die
+  Zeichenfolge `armaments you carry`. Pruefweg: ueber den Bestand alle
+  stummen Zeilen erzeugen und die Teilmenge pruefen; in Umgebung §0 sind das
+  **20** Zeilen (A) bzw. **22** (B), und (b) waechst von 124 auf **144** (A)
+  bzw. von 127 auf **149** (B).
+  *Rot-vorher:* dieselbe Umsetzung wie bei AK-177 — die Zeile
+  `Stonesword Key in possession at start of expedition: it depends on the
+  armaments you carry, so no number here.` ist der einzelne Fall, an dem es
+  sichtbar wird.
+
+- **AK-179** *(eine Schranke auf einen Waffentyp, den es nicht gibt, ist kein
+  Armaturenfall.)* Eine Zeile bekommt Fuellung (c) nur, wenn der von der
+  Schranke verlangte Wert der `wep_type` mindestens einer Waffe des
+  Datenabzugs ist. Trifft das nicht zu, faellt sie auf (b). Pruefweg: den
+  Wertevorrat `{w["wep_type"] for w in data["weapons"]}` bilden (in Umgebung
+  §0: **34** Werte ueber 1793 Waffen) und jede (c)-Zeile dagegen halten.
+  **Dieses Kriterium bewegt auf dem heutigen Spielstand null Zeilen** (0 von
+  426 bzw. 0 von 434) — es bewacht einen Fall, der im Abzug existiert und im
+  Bestand nicht: **72 von 144** `triggerOnWepType`-Effekten tragen 256 oder
+  512, was kein Waffentyp ist.
+  *Rot-vorher:* eine Umsetzung ohne diese Bedingung schreibt, sobald der
+  Spieler eine Kopie mit einem dieser 72 Effekte findet,
+  *"it depends on the armaments you carry"* an eine Schranke, die **keine
+  Waffe des Spiels** erfuellen kann — nachstellbar, indem man dem Test einen
+  Effekt mit `triggerOnWepType = 256` unterschiebt.
+
+- **AK-180** *(Partition, Zahlen fortgeschrieben.)* **Ersetzt die Zahlenreihe
+  in AK-169; dessen Regel und Pruefweg bleiben unveraendert gueltig.** Die
+  sechs Fuellungen sind eine Partition der stummen Effektzeilen: jede stumme
+  Zeile traegt genau eine, und die Summe der sechs ist die Zahl der stummen
+  Zeilen. In Umgebung §0 ergibt das **150 / 0 / 144 / 38 / 94 / 0 = 426**
+  (A) und **159 / 0 / 149 / 25 / 101 / 0 = 434** (B), jeweils in der
+  Reihenfolge (a) / (a2) / (b) / (c) / (d) / (e).
+  *Rot-vorher:* die Zahlenreihe aus AK-169 (150 / 0 / 124 / 58 / 94 / 0)
+  summiert sich zwar ebenfalls auf 426, verteilt aber 20 Zeilen auf die
+  falsche Fuellung; die Summe allein ist deshalb **kein** ausreichender
+  Waechter.
+
+**Was dieser Nachtrag ausdruecklich nicht anfasst:** die Liste 4.9b und
+`not_counted` bleiben `Build.situational, live == False` (AK-142
+unveraendert, AD-010 und AD-026 unveraendert). Die Wortlaute aller sechs
+Fuellungen bleiben Buchstabe fuer Buchstabe stehen. AK-154 gilt fort mit der
+Praezisierung aus dem T-084-Abschnitt.
+
+---
+
+### 2. §6 des T-080-Abschnitts — welche Zahl zu welcher Lesart gehoert
+
+Der `architect` meldet (T-085 §6.3), dass der Satz *„170 der 426 stummen
+Effekte sind konditional …"* neben einer Tabelle steht, die an derselben
+Stelle 124 nennt, und sich deshalb wie eine Aussage ueber diese Tabelle
+liest. Der Satz ist **richtig**, aber er beschreibt die **Liste**, nicht die
+**Zeile**:
+
+- **170** ist die Zahl der stummen Zeilen, deren Effekt in
+  `Build.situational` mit `live == False` steht — also derselben Menge, aus
+  der die Liste 4.9b und `not_counted` gespeist werden. **Nachgemessen in
+  Umgebung §0, unabhaengig von jeder Fuellungsreihenfolge: 170 (A), 174
+  (B).** Diese Zahl aendert sich durch AK-167/168 und AK-177/178 **nicht**.
+- **124** bzw. **144** ist die Zahl der Zeilen, die Fuellung (b)
+  *bekommen*. Sie ist kleiner, weil (a), (a2) und (c) in der Reihenfolge
+  nach AK-167 vorher zugreifen — sie nehmen die Zeile aus der **Fuellung**,
+  nicht aus der **Liste**.
+
+Der Satz in §6 ist deshalb **nicht korrigiert, sondern mit einem Nachtrag
+angeschrieben** worden, der beide Zahlen ihrer Lesart zuordnet.
+
+- **AK-181** *(jede Zahl im Fliesstext nennt ihre Lesart.)* Wo `UI_SPEC.md`
+  eine Zahl ueber die stummen Effektzeilen nennt, steht dabei, ob sie die
+  **Liste** (`Build.situational`, `live == False`) oder eine **Fuellung**
+  (die Zeile im `Why`-Dialog) zaehlt. Die Messumgebung darf dabei auf den
+  §0-Abschnitt des eigenen Nachtrags verweisen; sie darf nicht fehlen.
+  Pruefweg: Volltextsuche nach `426` und `434` in dieser Datei, jede
+  Fundstelle einer der beiden Lesarten zuordenbar.
+  *Rot-vorher:* der Satz in §6 des T-080-Abschnitts vor diesem Nachtrag — wer
+  ihn neben der Tabelle des T-084-Abschnitts liest, haelt 170 und 124 fuer
+  zwei Messungen derselben Groesse und eine davon fuer falsch.
+
+---
+
+### 3. Was dieser Nachtrag ausdruecklich **nicht** entscheidet
+
+- **Ob `wepTypeTriggerCount` auswertbar gemacht wird.** Scope-Grenze des
+  Auftrags; `ARCHITECTURE.md` fuehrt es unter „Bewusst nicht getan".
+- **Was 256, 512, 768 und 1024 in den Waffenfeldern bedeuten.** Der Abzug
+  sagt es nicht, und AK-140/AK-157 verbieten die Vermutung. Diese Vorgabe
+  braucht die Antwort nicht: sie fragt, ob ein Wert im Waffentyp-Vorrat des
+  Abzugs vorkommt, und das ist eine Nachschau, keine Deutung.
+- **Die Beschriftungen in `model.GATE_FIELDS`**, die im Build planner unter
+  `Conditional & situational` stehen. Dort steht heute *"needs several of
+  that weapon equipped"* an 51 Effekten, die einen Gegenstand geben, und
+  *"only with a matching weapon type"* an 72 Effekten mit einem Wert, den
+  keine Waffe traegt. Das ist **eine andere Oberflaeche** als die Zeile im
+  `Why`-Dialog und als Befund gemeldet
+  (`docs/berichte/T-086-ui-ux-designer.md`), nicht hier entschieden.
+- **Die vier Fragen an den App Designer** (F-B, F-C, F-F, F-G) und die
+  dreizehn Streichvorschlaege je Tab. Unberuehrt.
