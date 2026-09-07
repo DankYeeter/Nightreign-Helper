@@ -20,3 +20,9 @@ vessel_art.png
 # Rollengedaechtnis der Agenten - gehoert nicht ins Projekt
 .claude/agent-memory/
 **/.claude/agent-memory/
+# Und die Worktrees paralleler Laeufe: jeder ist eine zweite Kopie dieses
+# Repositories auf einem aelteren Commit. Am 07.09.2026 lagen dort 55
+# unversionierte .py eines fremden Laufs; ein `git add .` haette sie in dieses
+# **oeffentliche** Repository committet. Gemeldet vom developer in T-100.
+.claude/worktrees/
+**/.claude/worktrees/
