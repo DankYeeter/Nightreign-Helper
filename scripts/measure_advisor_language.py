@@ -35,6 +35,7 @@ import json
 import pathlib
 import statistics
 import sys
+from collections.abc import Sequence
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -43,8 +44,10 @@ from nrplanner import model, paths  # noqa: E402
 from nrplanner.advisor import candidates, explain, goals, search, types  # noqa: E402
 from nrplanner.advisor.evaluate import evaluate  # noqa: E402
 
-HERO = "Wylder"
-VESSEL = "Wylder's Chalice"
+DEFAULT_HERO = "Wylder"
+#: The vessel part 2 fills, named from the Nightfarer: the Chalice is the
+#: six-slot one, so it is the widest question that Nightfarer can be asked.
+VESSEL_OF = "{hero}'s Chalice"
 LEVEL = 15
 GOAL = "max_damage"
 #: The white slot is colour 4: it takes a relic of any colour, so one slot of
@@ -77,7 +80,12 @@ def one_slot(deep: bool) -> types.SlotProblem:
 
 
 def every_relic(data: dict, owned, ctx: types.GoalContext):
-    """One group per owned relic, that relic alone in one slot."""
+    """One group per owned relic, that relic alone in one slot.
+
+    Hands back the build beside the group: the fillings are counted off the
+    lines and the list 4.9b off `Build.situational`, and the two readings
+    have to come out of one run to be comparable at all (AK-181).
+    """
     goal = goals.GOALS[GOAL]
     for relic in owned.relics:
         problem = one_slot(relic.is_deep)
@@ -89,7 +97,7 @@ def every_relic(data: dict, owned, ctx: types.GoalContext):
         base = evaluate(problem, (), ctx)
         built = evaluate(problem, (copy,), ctx)
         groups = explain.reasons(problem, (copy,), base, built, ctx, goal)
-        yield relic, groups[0]
+        yield relic, groups[0], built
 
 
 def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
@@ -100,8 +108,10 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
     headings = collections.Counter()
     effects = 0
     curse_lines = 0
+    left_out = 0
     worst = ("", 0, 0)
-    for relic, group in every_relic(data, owned, ctx):
+    for relic, group, built in every_relic(data, owned, ctx):
+        left_out += len(explain.not_counted(built))
         quiet = [line for line in group.lines if not line.is_curse
                  and line.silence != types.CARRIES_A_FIGURE]
         effects += group.effects_total
@@ -131,6 +141,9 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
     total_silent = sum(silent.values())
     print(f"\n{owned.relic_count} relics owned, {effects} effect roles on "
           f"them, {total_silent} of those moved no figure")
+    print(f"  the list 4.9b (`not_counted`: `Build.situational` with "
+          f"live == False) holds {left_out} of them -- a **list** count and "
+          f"not a filling count (AK-181)")
     print(f"  {relics_with_a_silent_effect} relics carry at least one silent "
           f"effect, {relics_with_no_figure_at_all} carry no effect with a "
           f"figure at all")
@@ -149,7 +162,7 @@ def count_the_fillings(data: dict, owned, ctx: types.GoalContext) -> None:
           f"two headings, on {worst[0]!r}")
     print("\n  not seen by this part: (a2) across two slots -- one relic per "
           "run here -- and the ownership answer of any Nightfarer but "
-          f"{HERO}.")
+          f"{ctx.hero['name']}.")
 
 
 def measure_the_suggestions(data: dict, owned, ctx: types.GoalContext) -> None:
@@ -159,7 +172,8 @@ def measure_the_suggestions(data: dict, owned, ctx: types.GoalContext) -> None:
     the silent lines existed and before the block and the dialog came apart,
     so they do not carry.
     """
-    vessel = next(v for v in data["vessels"] if v["name"] == VESSEL)
+    wanted = VESSEL_OF.format(hero=ctx.hero["name"])
+    vessel = next(v for v in data["vessels"] if v["name"] == wanted)
     colours = list(vessel["slots"]) + list(vessel["deep_slots"])
     slots = tuple(types.Slot(index=i, colour=colour, deep=i >= 3)
                   for i, colour in enumerate(colours))
@@ -193,7 +207,7 @@ def measure_the_suggestions(data: dict, owned, ctx: types.GoalContext) -> None:
         print(f"  {name:<28s} {min(counts):3d} to {max(counts):3d} lines, "
               f"median {statistics.median(counts):5.1f}")
 
-    print(f"\n{len(found)} suggestions over {VESSEL}, {len(slots)} free "
+    print(f"\n{len(found)} suggestions over {wanted}, {len(slots)} free "
           f"slots, direction {goal.label!r}")
     spread("whole suggestion, block", block)
     spread("whole suggestion, Why dialog", dialog)
@@ -206,17 +220,23 @@ def measure_the_suggestions(data: dict, owned, ctx: types.GoalContext) -> None:
         print(f"    {label:<44s} {silent[silence]:4d} of {total}")
 
 
-def main() -> int:
+def main(argv: Sequence[str]) -> int:
+    name = argv[1] if len(argv) > 1 else DEFAULT_HERO
     data = json.loads(paths.snapshot_path().read_text(encoding="utf-8"))
     model.configure(data)
     owned = inventory_module.load(data)
     if owned is None:
         print("no save on this machine, so there is nothing to measure")
         return 1
-    hero = next(one for one in data["heroes"] if one["name"] == HERO)
+    hero = next((one for one in data["heroes"] if one["name"] == name), None)
+    if hero is None:
+        known = ", ".join(one["name"] for one in data["heroes"])
+        print(f"no Nightfarer called {name!r} in this dataset; it knows "
+              f"{known}")
+        return 2
     version = (data.get("meta") or {}).get("data_version")
     print(f"data_version {version}, {len(data['effects'])} effects, "
-          f"{HERO} at level {LEVEL}, his starting armament held and rated, "
+          f"{name} at level {LEVEL}, the starting armament held and rated, "
           f"no condition declared met")
 
     ctx = a_context(data, hero)
@@ -226,4 +246,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv))
