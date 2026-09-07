@@ -268,3 +268,27 @@ vertrauenswuerdiger Bereich.** Folgen, ohne Ausnahme angewandt:
 - **Die Zusage "kein Netzwerkzugriff" muss dennoch umformuliert werden**,
   bevor etwas veroeffentlicht wird. Eine Zusage, die der Code nicht haelt,
   wird nicht dadurch richtig, dass der Ausloeser unwahrscheinlich ist.
+
+## SEC-021 — Bestand der Slotkarte interpoliert Namen ungefiltert in Rich Text
+
+**Gefunden:** vom `developer` in T-089, beim Bau der Maskierung fuer den Berater.
+Es ist **dieselbe** Luecke, die AK-29/AK-30 fuer den Berater schliessen, nur im
+Bestand der Slotkarte — und damit heute im Programm.
+
+**Fundstellen:** `nrplanner/app.py`, `RelicSlot._sync_mode` (650-687, die
+Markup-Zeile ist 684) und `curse_tooltip` (746). Beide interpolieren Relikt-,
+Effekt- und Fluchnamen per f-String ungefiltert in Rich Text bzw. in einen
+Tooltip; Qt erkennt Rich Text auch in Tooltips selbsttaetig.
+
+**Angriffspfad:** ein praeparierter Name aus Save- oder Spieldateien wird als
+Markup gerendert statt buchstabengetreu gezeigt; `<img src=…>` laedt eine
+Ressource. Die eigene Spielinstallation gilt laut Nutzerentscheid vom
+02.09.2026 als vertrauenswuerdig, **ein heruntergeladenes Save nicht** — dort
+verlaeuft die scharfe Vertrauensgrenze, und der Reliktname kommt aus dem Save.
+
+**Behebungsrichtung:** `html.escape` an den drei Interpolationsstellen, und
+`setTextFormat` ausdruecklich setzen statt `Qt.AutoText` entscheiden zu lassen.
+Der Berater macht es seit T-083/T-089 genau so — die Vorlage steht im Haus.
+
+**Prio:** P3 · **Schwere:** Major · **Adressat:** developer, nach Bestaetigung
+durch den `security-reviewer` · **Status:** offen · 2026-09-07
