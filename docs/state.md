@@ -2,13 +2,13 @@
 
 2026-09-07, **Zyklus 16 laeuft**. Branch `docs/audit-and-advisor-design`.
 `main` ist geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
-Verlauf: `docs/archiv/state-bis-2026-09-03.md`. Reihenfolge:
-`docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`, `security/findings.md`.
+Verlauf: `docs/archiv/`. Reihenfolge: `docs/plan-restarbeiten.md`. Befunde:
+`qa/findings.md`, `security/findings.md`. Auflagen: `docs/legal/AUFLAGEN.md`.
 Berichte: `docs/berichte/T-###-<rolle>.md`.
 
-**Nummernkreise:** T ab **T-106** · QA ab **QA-198** · AK ab **AK-195** ·
-AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** · NH ab **NH-003** ·
-C ab **C-001** · A (Auflagen) ab **A-001**.
+**Nummernkreise:** T ab **T-108** · QA ab **QA-198** · SEC ab **SEC-026** ·
+AK ab **AK-195** · AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** ·
+NH ab **NH-003** · C ab **C-004** · A (Auflagen) ab **A-033**.
 **Suite:** **1256 passed, 9 skipped, 0 failed** (T-102, 07.09.). `pytest -n auto`
 **127 s** statt 840 s seriell (`4431c7a`), Namensvergleich ueber 1265 Faelle ohne
 Abweichung. **`-n auto` ist bewusst keine Voreinstellung** — eine einzeln
@@ -64,17 +64,14 @@ Messgeraet.
 
 ## Beschlossen, nicht beauftragt
 
-- **D-1** `performance-tuner` auf `model.compute` (94 % der 941,6 ms) — in
-  **S11**, Erstlauf im Projekt, also opus.
-- **D-11** Doppeltes Zahlenformat: Waechter, AK-136 verlangt, dass beide Orte
-  dasselbe schreiben.
-- **`compute_resistances`** — Zurueckstellung wieder offen: T-080 zaehlt drei
-  Fluche und **33 stumme positive Effekte**, zusammen 36 Zeilen auf einem
-  Spielstand. Vor der Bestaetigung nachmessen.
+- **D-1** `performance-tuner` auf `model.compute` (94 % der 941,6 ms) — S11,
+  Erstlauf im Projekt, also opus. · **D-11** doppeltes Zahlenformat: Waechter
+  nach AK-136.
+- **`compute_resistances`** — Zurueckstellung wieder offen: T-080 zaehlt 36
+  stumme Zeilen auf einem Spielstand. Vor der Bestaetigung nachmessen.
 - **QA-185, Klassenmassnahme:** vor der naechsten Aenderung entscheiden, ob
   `sources` durchgaengig ueber Ids gefuehrt wird. Latent (0 von 456 Paaren).
-- **A16/A17** (schlechtester/bester Fall, Rangfolge ohne Bezugswaffe),
-  spezifiziert in AK-182 bis AK-194, **nicht gebaut**. Zyklus 17.
+- **A16/A17**, spezifiziert in AK-182 bis AK-194, **nicht gebaut**. Zyklus 17.
 
 ## Buchfuehrung des Directors — zwei Korrekturen am 07.09.
 
@@ -90,8 +87,8 @@ Unterverzeichnis je T-Nummer).
 QA-181 (Stacking unbewacht) · QA-182 · QA-184 · **QA-186** (GATE_FIELDS
 beschriftet 51 Gegenstandseffekte falsch, seit T-090 sichtbar
 widerspruechlich) · QA-188 · QA-190 (zwei `UI_SPEC`-§3.3-Anzeigen nie gebaut) ·
-QA-191 (acht Nightfarer ungetestet) · QA-192 · QA-193 · QA-195 ·
-SEC-019/SEC-015 (Mittel) · SEC-021, SEC-023 (Niedrig).
+QA-191 (acht Nightfarer ungetestet) · QA-192 · QA-193 · QA-195 · **SEC-025**
+(`tests.yml` unpinned) · SEC-019/015 (Mittel) · SEC-021, SEC-023 (Niedrig).
 
 ## Der Rest — in dieser Reihenfolge
 
