@@ -232,18 +232,28 @@ class Ranking:
                 return baseline.unit
         raise KeyError(f"this pool carries no baseline for goal {goal_id!r}")
 
-    def best_text(self, goal_id: str) -> str | None:
-        """The top figure of the whole pool as a card would show it.
+    def top_handles(self, goal_id: str) -> frozenset:
+        """Handles earning AK-46's chip under one direction, or none.
 
-        **Of the pool, not of what a filter left on screen.** The mark is the
-        answer to "is this the best you own here", and a mark that moved as
-        the player typed would answer a different question with every
-        keystroke. `None` when the pool is empty -- nothing fits this slot,
-        which the header then says once.
+        **The one computation AK-46's chip and AK-195's ordering both read
+        from** (T-094 Vorgaben point 1): a second maximum computed apart from
+        this one is the duplication the task was written against. Equality is
+        decided on the rounded text a card would show (AK-45), not the raw
+        float, so two gains that display alike both count.
+
+        Empty under the same three conditions AK-46 marks no card at all: the
+        pool is empty, the top figure is `no change`, or it is negative.
         """
-        gains = [advisor_types.marginal_for(candidate, goal_id)
+        pairs = [(candidate.handle, advisor_types.marginal_for(candidate, goal_id))
                  for candidate in self.pool.candidates]
-        return gain_text(max(gains), self.unit(goal_id)) if gains else None
+        if not pairs:
+            return frozenset()
+        unit = self.unit(goal_id)
+        top = gain_text(max(gain for _handle, gain in pairs), unit)
+        if top == NO_CHANGE or top.startswith("-"):
+            return frozenset()
+        return frozenset(handle for handle, gain in pairs
+                         if gain_text(gain, unit) == top)
 
     def texts_for(self, item) -> list[str]:
         """The value rows of one card, both directions, in order."""
@@ -1007,7 +1017,7 @@ class RelicPicker(QDialog):
         return self._in_the_chosen_order(items), text.strip()
 
     def _in_the_chosen_order(self, items):
-        """`items` as `Sort by` asks for them (§3.4, AK-44).
+        """`items` as `Sort by` asks for them (§3.4, AK-44, AK-195).
 
         **Stable, on top of the order the grid would have anyway.** Two
         candidates inside one segment of a piecewise-linear curve are worth
@@ -1018,16 +1028,39 @@ class RelicPicker(QDialog):
 
         A copy the pool does not carry has no place in a value order and goes
         to the end, keeping the order it had among its own kind.
+
+        **AK-195: the chip-bearing cards of both directions lead, ahead of
+        the value order** -- the sorted direction's first, then the other
+        direction's, each in the favourite/name order `items` already
+        carries rather than by value: a real tie among them has no order the
+        figure decided, and AK-44 forbids inventing one. The set for each
+        direction is `Ranking.top_handles`, read once and not recomputed
+        (Vorgaben point 1); a card the filter already dropped from `items`
+        cannot be promoted, so a hidden top pick gets no substitute
+        (Vorgaben point 3). `Sort by` = `Name` promotes nothing at all.
         """
         if self.sort_box.currentData() == NAME_ORDER or self.ranking is None:
             return items
         goal_id = self.ranking.goal_id
+        other_id = next(g for g in VALUE_DIRECTIONS if g != goal_id)
 
         def worth(item):
             gain = self.ranking.gain(item, goal_id)
             return (1, 0.0) if gain is None else (0, -gain)
 
-        return sorted(items, key=worth)
+        by_value = sorted(items, key=worth)
+
+        leading = self.ranking.top_handles(goal_id)
+        trailing = self.ranking.top_handles(other_id) - leading
+
+        def handle_of(item):
+            return getattr(item, "handle", None)
+
+        first = [item for item in items if handle_of(item) in leading]
+        second = [item for item in items if handle_of(item) in trailing]
+        rest = [item for item in by_value
+                if handle_of(item) not in leading and handle_of(item) not in trailing]
+        return first + second + rest
 
     def _heroes(self) -> list[dict]:
         return getattr(self.slot.window(), "heroes", None) or []
@@ -1149,7 +1182,10 @@ class RelicPicker(QDialog):
         **The mark is decided on the text, not on the float** (AK-45): two
         cards showing `+12.4` carry the same mark whatever their unrounded
         gains are, because the worst thing this screen could do is show two
-        equal numbers of which only one is marked.
+        equal numbers of which only one is marked. `Ranking.top_handles` is
+        the one place that decision is made -- `_in_the_chosen_order` reads
+        the very same set to promote these cards to the top of the grid
+        (AK-195, T-094 Vorgaben point 1).
 
         With no ranking every card says `—` (AK-49). Not `0`, and not an
         empty row: the block stands either way, so the card is the same
@@ -1162,19 +1198,15 @@ class RelicPicker(QDialog):
             return
 
         goal_id = self.ranking.goal_id
-        column = VALUE_DIRECTIONS.index(goal_id)
-        rows = [(card, self.ranking.texts_for(item)) for item, card in pairs]
-        best = self.ranking.best_text(goal_id)
+        top = self.ranking.top_handles(goal_id)
         # Twenty cards marked `BEST FOR DAMAGE` at a top value of nothing
         # would be a lie in bold (§3.5 point 5). The header says it once
         # instead, and no card is marked.
-        marked = best is not None and not (best == NO_CHANGE
-                                           or best.startswith("-"))
-        for card, texts in rows:
+        for item, card in pairs:
             card.show_values(
-                texts,
-                chip_text(goal_id) if marked and texts[column] == best else "")
-        self._headline("" if marked else nothing_raises(goal_id))
+                self.ranking.texts_for(item),
+                chip_text(goal_id) if getattr(item, "handle", None) in top else "")
+        self._headline("" if top else nothing_raises(goal_id))
 
     def _say_what_was_left_out(self) -> None:
         """Lines 3b and 4, the two halves of what this figure cannot know.

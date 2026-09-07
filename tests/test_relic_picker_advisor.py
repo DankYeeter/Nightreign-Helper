@@ -614,6 +614,115 @@ def test_the_custom_tile_leads_the_grid_in_every_order(slot):
             dialog.deleteLater()
 
 
+# --- both top picks lead the grid (AK-195) ----------------------------------
+
+def handles_in_order(dialog) -> list:
+    return [card.item.handle for card in relic_cards(dialog)]
+
+
+def test_the_survival_top_pick_leads_when_sorted_by_damage(slot):
+    """AK-195, the core case: sorted by damage, the best survival card too.
+
+    Four candidates, all with a damage figure so their plain value order is
+    unambiguous: index 1 is the best on damage, index 0 the worst -- and,
+    being the only one with a *negative* damage gain, the best on survival.
+    Under plain value order alone index 0 would sink to the very back,
+    behind index 2 and index 3; AK-195 says it leads right after index 1
+    instead, which is the one thing that tells this case apart from a
+    picker that only ever promoted the sorted direction.
+    """
+    items = slot.available_items()
+    dialog = open_picker(slot, {0: -5.0, 1: 12.0, 2: 8.0, 3: 6.0})
+    try:
+        order = handles_in_order(dialog)
+        assert order[:2] == [items[1].handle, items[0].handle], (
+            "the best survival card does not lead right after the best "
+            "damage card when sorted by damage")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_damage_top_pick_leads_when_sorted_by_survival(slot):
+    """AK-195, the other variant ("in beiden Varianten"): sorted by survival,
+    the best damage card leads right after the best survival card.
+
+    The mirror of the case above: index 1 is the best on survival, index 0
+    the worst -- and, being the only one with a positive damage gain, the
+    best on damage. Under plain value order it would sink behind index 2
+    and index 3; AK-195 keeps it right after index 1.
+    """
+    items = slot.available_items()
+    dialog = open_picker(slot, {0: -5.0, 1: 12.0, 2: 8.0, 3: 6.0},
+                         goal_id="min_damage_taken")
+    try:
+        order = handles_in_order(dialog)
+        assert order[:2] == [items[1].handle, items[0].handle], (
+            "the best damage card does not lead right after the best "
+            "survival card when sorted by survival")
+    finally:
+        dialog.deleteLater()
+
+
+def test_no_promotion_when_sort_by_name(slot):
+    """AK-195 Gegenbau 2: `Sort by` = `Name` promotes nothing at all."""
+    advice = FakeAdvice({"max_damage": pool_of(slot, {0: -5.0, 1: 12.0})},
+                        goal_id="max_damage")
+    dialog = picker_for(slot, advice)
+    plain = picker_for(slot, FakeAdvice({}))
+    try:
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
+        dialog._sort_chosen(box.currentIndex())
+        assert names_in_order(dialog) == names_in_order(plain), (
+            "cards were promoted although `Sort by` stands on `Name`")
+    finally:
+        dialog.deleteLater()
+        plain.deleteLater()
+
+
+def test_no_promotion_when_the_other_top_is_no_change(slot):
+    """AK-195 Gegenbau 3: a `no change` top pulls nothing for that direction.
+
+    Sorted by damage: index 1 (5.0) leads as the damage top. Index 2 (2.0)
+    is the second-best damage card. Index 0's damage gain is exactly 0.0, so
+    its survival figure -- the pool's own maximum on that direction -- is
+    also exactly 0.0, `no change`, and AK-46 marks no card at all. It must
+    therefore stay in its ordinary value position, behind index 2, and not
+    be spliced in as a second-direction leader.
+    """
+    items = slot.available_items()
+    dialog = open_picker(slot, {0: 0.0, 1: 5.0, 2: 2.0})
+    try:
+        order = handles_in_order(dialog)
+        h0, h1, h2 = items[0].handle, items[1].handle, items[2].handle
+        assert order.index(h1) < order.index(h2) < order.index(h0), (
+            "a 'no change' top pick was promoted, where AK-46 would give it "
+            "no chip at all")
+    finally:
+        dialog.deleteLater()
+
+
+def test_tied_top_picks_keep_favourite_then_name_order(slot):
+    """AK-195 Gegenbau 4: a real tie among the leaders is not reordered by
+    value -- AK-44 forbids a rank the figure did not decide.
+
+    Index 0 and 1 have different *raw* gains (12.36 and 12.44) that round to
+    the identical *displayed* figure (AK-45), so both earn the chip and
+    both lead. Only the raw figure could tell them apart, and AK-44 forbids
+    a rank drawn on it: they must stay in the order the grid has without an
+    advisor at all -- index 0 before index 1, not the other way round.
+    """
+    items = slot.available_items()
+    dialog = open_picker(slot, {0: 12.36, 1: 12.44})
+    try:
+        order = handles_in_order(dialog)
+        assert order[:2] == [items[0].handle, items[1].handle], (
+            "the tied top picks were reordered by value instead of keeping "
+            "the favourite/name order the grid has without an advisor")
+    finally:
+        dialog.deleteLater()
+
+
 def focus_chain(dialog) -> list:
     """Every widget of the dialog, in the order tabbing walks them."""
     walked = []
