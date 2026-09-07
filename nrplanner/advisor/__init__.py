@@ -3,7 +3,8 @@
 A package rather than a module, and Qt-free rather than convenient (AD-001).
 The whole calculation has to run without a display or it cannot be tested,
 and an advisor that cannot be tested cannot be accepted (A9). The one file
-that will import PySide6 is `worker.py`, which does not exist yet.
+that imports PySide6 is `worker.py`, and it holds the thread and nothing
+else: what it runs is `run.run`, which knows nothing about threads.
 
 The order the modules may depend on each other in is fixed (AD-001) and is
 the order they are listed in:
@@ -14,7 +15,8 @@ the order they are listed in:
     goals      the named directions to optimise in
     search     the beam over the free slots
     explain    `Build.sources` turned into English
-    worker     the QThread and the cache              -- S9, not yet built
+    run        one question answered whole, and the memo of the answer
+    worker     the QThread, the debounce and the generation counter
 
 `types` imports nothing from this package. `candidates` takes its goals as a
 parameter rather than importing the registry, so the two below it stay

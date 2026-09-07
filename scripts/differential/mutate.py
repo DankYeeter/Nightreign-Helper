@@ -1226,6 +1226,164 @@ MUTATIONS: dict[str, Mutation] = {
             "test_advisor_candidates.py::"
             "test_a_pool_says_which_direction_put_it_in_this_order."),
     ),
+    # -- the whole run and the memo of it (T-082: S9) -----------------------
+    #
+    # Nine edits. The cache is the dangerous half: every one of them leaves a
+    # run that computes correctly and hands back the answer to another
+    # question, which is the one failure shape a green suite is worst at.
+    "advisor-run-takes-a-request-about-another-run": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    _refuse_a_request_that_asks_about_another_run(request, inventory, ctx)
+""",
+        new="""""",
+        survival_means=(
+            "the cache key is free to describe a run that did not happen. "
+            "The run itself would be right -- it reads the context -- and "
+            "the answer would be filed under a request naming another level, "
+            "another Nightfarer or another save, where the next question "
+            "with those fields right hits it. Killed by "
+            "test_advisor_run.py::"
+            "test_a_request_that_describes_another_run_is_refused, seven "
+            "fields."),
+    ),
+    "advisor-run-walks-into-the-search-after-a-stop": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    if should_cancel():
+        raise search.Cancelled("stopped after the pre-sort, before the search")
+""",
+        new="""""",
+        survival_means=(
+            "a run abandoned during the pre-sort walks into the search and "
+            "holds the worker for the whole of it. The pre-sort is 43 ms and "
+            "the search 916 ms of a 960 ms run on the worst real case, so "
+            "this is the difference between stopping in a twentieth of a run "
+            "and stopping in all of it. Killed by test_advisor_run.py::"
+            "test_a_run_stopped_before_the_search_says_so and by "
+            "test_a_run_asks_once_between_the_pre_sort_and_the_search, which "
+            "counts the questions instead of watching for one."),
+    ),
+    "advisor-run-explains-only-the-best-suggestion": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""        explained, chosen, built = _explained(suggestion, problem, pools,
+                                              base, ctx, goal)
+""",
+        new="""        if index:
+            suggestions.append(suggestion)
+            continue
+        explained, chosen, built = _explained(suggestion, problem, pools,
+                                              base, ctx, goal)
+""",
+        survival_means=(
+            "the beam comes back as one shape with two meanings: the head "
+            "carries its reasons and the rest carry none, so a window that "
+            "drew the second-best build would show a suggestion with nothing "
+            "said for it -- and A5 asks for the reason beside every one. "
+            "Killed by test_advisor_run.py::"
+            "test_every_suggestion_carries_its_reasons_and_not_only_the_"
+            "first."),
+    ),
+    "advisor-gain-against-the-empty-build": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    base = evaluate(problem, (), ctx)
+    base_scores = {goal_id: entry.score(base, ctx)
+""",
+        new="""    base = evaluate(dataclasses.replace(problem, held=()), (), ctx)
+    base_scores = {goal_id: entry.score(base, ctx)
+""",
+        survival_means=(
+            "AD-014 point 6 is unenforced. The gain would be measured "
+            "against the build with nothing held, so the suggestion would be "
+            "credited with the effects of the relics the player is keeping: "
+            "the bigger the hold, the better the advisor's own work looks. "
+            "That is the reference point S8/AD-010 originally named and "
+            "AD-014.6 corrected. Killed by test_advisor_run.py::"
+            "test_the_gain_is_the_difference_to_the_build_as_it_stands."),
+    ),
+    "advisor-cache-key-keeps-the-generation": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    return dataclasses.replace(request, generation=0)
+""",
+        new="""    return request
+""",
+        survival_means=(
+            "the cache is dead and nothing says so: the generation rises "
+            "with every question, so every key is new, every answer is "
+            "computed again and the memory fills with answers that can never "
+            "be hit. A case that merely asked twice would stay green -- the "
+            "second answer is right, only paid for twice. Killed by "
+            "test_advisor_run.py::"
+            "test_the_generation_is_not_part_of_the_question."),
+    ),
+    "advisor-cache-key-forgets-the-held-state": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    return dataclasses.replace(request, generation=0)
+""",
+        new="""    return dataclasses.replace(
+        request, generation=0,
+        problem=types.SlotProblem(slots=request.problem.slots))
+""",
+        survival_means=(
+            "a question with a slot held hits the answer of the question "
+            "without it, and the answer carries slot indices and handles: "
+            "the window would fill a slot the player deliberately kept, with "
+            "a copy chosen for a build that is not this one. AD-016 point 2 "
+            "is exactly this, and it is the reason the key is the request "
+            "itself. Killed by test_advisor_run.py::"
+            "test_a_question_that_differs_in_which_slot_is_held_misses."),
+    ),
+    "advisor-cache-hands-back-a-stale-generation": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""        self._answers.move_to_end(key)
+        return dataclasses.replace(found, generation=request.generation)
+""",
+        new="""        self._answers.move_to_end(key)
+        return found
+""",
+        survival_means=(
+            "every hit arrives carrying the generation of the run that "
+            "produced it, and the controller drops results whose generation "
+            "is not the current one (AD-006 point 3) -- so it would throw "
+            "away the answer it had just fetched, and the cache would be a "
+            "silent no-op with a hit rate. Killed by test_advisor_run.py::"
+            "test_the_generation_is_not_part_of_the_question, which reads "
+            "the generation of the hit."),
+    ),
+    "advisor-snapshot-decides-the-colour-rule-itself": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""            offers[pair] = tuple(_copy_of(relic) for relic
+                                 in inventory.relics_for(slot.colour,
+                                                         slot.deep))
+""",
+        new="""            offers[pair] = tuple(
+                _copy_of(relic) for relic in inventory.relics
+                if relic.is_deep == slot.deep and relic.colour == slot.colour)
+""",
+        survival_means=(
+            "the snapshot works out for itself what fits a slot, which is "
+            "the one rule `candidates.py` says must be asked and not "
+            "restated: a white slot draws every colour, and this reading "
+            "gives it nothing at all. The advisor and the picker would then "
+            "offer different relics for one slot. Killed by "
+            "test_advisor_run.py::"
+            "test_the_snapshot_asks_the_inventory_what_fits_and_does_not_"
+            "decide_it."),
+    ),
+    "advisor-fingerprint-without-the-handle": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""            str(relic.handle),
+            str(relic.relic_id),
+""",
+        new="""            str(relic.relic_id),
+""",
+        survival_means=(
+            "the fingerprint goes back to the original wording of AD-007, "
+            "which its own correction of 2026-09-01 overturned: handles are "
+            "handed out again when a relic is melted down or the save moves "
+            "to another machine, and the answer names copies by handle "
+            "(AD-013). A hit across a re-issue recommends copies that are "
+            "somewhere else or nowhere. Killed by test_advisor_run.py::"
+            "test_the_fingerprint_changes_when_a_copy_gets_another_handle."),
+    ),
     # -- the reasoning (T-067: S8) ------------------------------------------
     #
     # Twenty edits. The first two are the reference point, and they are not
