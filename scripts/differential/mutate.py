@@ -1384,6 +1384,119 @@ MUTATIONS: dict[str, Mutation] = {
             "somewhere else or nowhere. Killed by test_advisor_run.py::"
             "test_the_fingerprint_changes_when_a_copy_gets_another_handle."),
     ),
+    # -- the thread and the generation counter (T-082: S9) ------------------
+    #
+    # Six edits, and five of them leave a program that answers correctly. The
+    # sixth answers correctly too -- in the main thread, with the window
+    # frozen for the length of every run.
+    "advisor-controller-shows-an-overtaken-answer": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        if result.generation != self._generation:
+            return
+        self.ready.emit(result)
+""",
+        new="""        self.ready.emit(result)
+""",
+        survival_means=(
+            "AD-006 point 3 is unenforced, and cancelling alone does not "
+            "cover it: a run standing between its last check and its `emit` "
+            "has already sent its answer while the player is changing the "
+            "vessel. The window would apply a build worked out for a "
+            "Nightfarer, a vessel or a hold that is no longer on screen -- "
+            "`UI_SPEC` §5.5 and 4.7. Killed by test_advisor_worker.py::"
+            "test_an_overtaken_answer_never_reaches_the_window and "
+            "test_a_cancelled_run_never_answers_even_if_it_finishes, both of "
+            "which let the run get past its last cancel check first."),
+    ),
+    "advisor-controller-waits-for-the-worker-before-it-says-it-stopped": (
+        Mutation(
+            path="nrplanner/advisor/worker.py",
+            old="""        self._interrupt_the_running_worker()
+        self.stopped.emit()
+        return True
+""",
+            new="""        self._interrupt_the_running_worker()
+        if self._thread is not None:
+            self._thread.wait()
+        self.stopped.emit()
+        return True
+""",
+            survival_means=(
+                "AK-11 is unenforced and the main thread is blocked in the "
+                "one place the player is most impatient: `Cancel` would wait "
+                "for the search to reach its next check -- up to a slot "
+                "level, about 200 ms on the worst real case -- before the "
+                "window said anything, and it would do the waiting with the "
+                "event loop stopped, so the window would not even repaint. "
+                "Killed by test_advisor_worker.py::"
+                "test_cancel_is_visible_at_once_however_long_the_worker_"
+                "takes, which measures from the call to the signal."),
+        )),
+    "advisor-controller-answers-every-keystroke": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._interrupt_the_running_worker()
+        self._timer.start(self._debounce_ms)
+        return self._generation
+""",
+        new="""        self._interrupt_the_running_worker()
+        self._timer.start(0)
+        return self._generation
+""",
+        survival_means=(
+            "AD-006 point 5 is unenforced: a dragged level slider starts a "
+            "run per step, each one cancelling the last, and the machine "
+            "does the work of forty runs to answer the fortieth. Killed by "
+            "test_advisor_worker.py::test_a_burst_of_questions_is_one_run, "
+            "which counts the runs rather than the answers."),
+    ),
+    "advisor-controller-runs-in-the-main-thread": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._thread.started.connect(self._worker.work)
+""",
+        new="""        self._thread.started.connect(
+            lambda: self._worker.work() if False else None)
+        QTimer.singleShot(0, self._worker.work)
+""",
+        survival_means=(
+            "the whole of A6. A worker that was moved into a thread and is "
+            "then called through the main thread's own event loop looks "
+            "identical from the outside -- the same signals arrive in the "
+            "same order -- and the window is frozen for the length of every "
+            "run. Killed by test_advisor_worker.py::"
+            "test_the_run_happens_in_another_thread_and_the_answer_comes_"
+            "back, which asks the scorer which thread it was called in, and "
+            "by test_the_window_keeps_its_event_loop_while_the_run_goes_on."),
+    ),
+    "advisor-controller-keeps-the-answers-through-a-data-rebuild": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self.cancel()
+        self._cache.clear()
+""",
+        new="""        self.cancel()
+""",
+        survival_means=(
+            "AD-006 point 7 is half unenforced: the run is stopped and the "
+            "answers worked out on the old dataset stay. After a game patch "
+            "or a rescan of the save the advisor would hand back a build "
+            "over relics the player may no longer own, from figures of a "
+            "version that is gone -- and it would hand it back instantly, "
+            "which is the most convincing form of a wrong answer. Killed by "
+            "test_advisor_worker.py::"
+            "test_a_data_rebuild_stops_the_run_and_forgets_every_answer."),
+    ),
+    "advisor-controller-forgets-what-it-has-worked-out": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._cache.put(self._running.request, result)
+""",
+        new="""""",
+        survival_means=(
+            "AD-007 is a dead letter: nothing is ever stored, so every "
+            "return to a vessel the player has already looked at costs "
+            "another second, and the cache stands there looking like a "
+            "cache. Killed by test_advisor_worker.py::"
+            "test_a_question_already_answered_is_not_computed_again, which "
+            "counts the scorings instead of the answers."),
+    ),
     # -- the reasoning (T-067: S8) ------------------------------------------
     #
     # Twenty edits. The first two are the reference point, and they are not
