@@ -24,6 +24,7 @@ from . import __version__
 from . import (chalices, damage, datasource, effecttext, favourites,
                firstrun, inventory, model, shortcut, singleinstance, uiscale,
                weaponslots, weapons)
+from .advisorbar import AdvisorBar, asking_from
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -1575,12 +1576,28 @@ class Planner(QMainWindow):
         return panel
 
     def _build_middle(self) -> QWidget:
-        outer = QScrollArea()
-        outer.setWidgetResizable(True)
-        outer.setFrameShape(QFrame.NoFrame)
+        # Three pieces stacked: what does not scroll, the advisor's row, and
+        # the slots. The row has to sit under the "Build" line and stay put
+        # while the slots scroll (`UI_SPEC` §3.1, AK-02) -- and a "Build"
+        # line that slid away from above a pinned row would read as the
+        # program having mislaid it, so everything above the row is pinned
+        # with it.
+        column = QWidget()
+        stack = QVBoxLayout(column)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.setSpacing(0)
 
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
+        # `Ignored` horizontally, here and on the advisor row: inside a
+        # scroll area a wide row costs the window nothing, and outside one it
+        # costs the window's floor pixel for pixel. Measured 2026-09-07 in
+        # this tree, UI scale Automatic: under the Windows platform the
+        # window's minimum width (760) *is* the Build planner page (756), and
+        # this block asks for 382 of its own. AK-03 says that floor may not
+        # grow, so neither of the two asks for anything and both take the
+        # width the column has.
+        top = QWidget()
+        top.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        layout = QVBoxLayout(top)
         layout.setContentsMargins(0, 0, 6, 0)
 
         # The heading and, opposite it, the way out of a build. Equipped
@@ -1638,6 +1655,24 @@ class Planner(QMainWindow):
             lambda *_: self.refresh_build_list())
         builds.addWidget(self.show_hidden_check)
         layout.addLayout(builds)
+        stack.addWidget(top)
+
+        # The advisor's row, between the "Build" line and the hint and
+        # outside the scroll area below: a run that is being waited for may
+        # not scroll out of sight (§3.1). It is handed a way to ask the
+        # window what it would be asked right now, and nothing else -- it
+        # reads no widget of this window and writes to none.
+        self.advisor_bar = AdvisorBar(
+            lambda goal_id: asking_from(self, goal_id), column)
+        stack.addWidget(self.advisor_bar)
+
+        outer = QScrollArea()
+        outer.setWidgetResizable(True)
+        outer.setFrameShape(QFrame.NoFrame)
+
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 6, 0)
 
         # No search box here. A single filter across every slot narrowed each
         # slot's own list, so a relic already chosen could stop matching and be
@@ -1671,7 +1706,8 @@ class Planner(QMainWindow):
 
         layout.addStretch()
         outer.setWidget(panel)
-        return outer
+        stack.addWidget(outer, 1)
+        return column
 
     def _build_right(self) -> QWidget:
         # The whole sheet scrolls. With six relics equipped the conditional and
@@ -1812,6 +1848,17 @@ class Planner(QMainWindow):
         if not self.testAttribute(Qt.WA_Resized):
             self.resize(self._opening_width(), OPENING_HEIGHT)
         super().showEvent(event)
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Stop the advisor's thread and wait for it before the window goes.
+
+        The one place a `wait()` in the main thread is right (AD-006 point 4):
+        a `QThread` that outlives the window it belongs to is destroyed while
+        its run is still going, and that ends the process rather than the
+        run.
+        """
+        self.advisor_bar.shutdown()
+        super().closeEvent(event)
 
     def _opening_width(self, room: int | None = None) -> int:
         """Wide enough to read every column heading, and no wider.
@@ -3207,6 +3254,10 @@ class Planner(QMainWindow):
 
     def rescan_save(self, initial: bool = False) -> None:
         """Re-read the save so newly found relics show up without a restart."""
+        # Before the relics are replaced, not after (AD-006.7): a search
+        # already running was asked about the inventory that is about to go,
+        # and every answer in the cache was worked out on it.
+        self.advisor_bar.the_data_is_changing()
         try:
             self.owned = inventory.load(self.data)
         except Exception as exc:  # noqa: BLE001
@@ -3253,6 +3304,10 @@ class Planner(QMainWindow):
         Reads the vessel that Nightfarer has selected and the relics sitting in
         it, so the planner starts from the real build rather than an empty one.
         """
+        # Same reason as in rescan_save: the slots of every chalice are about
+        # to be written from the save, so nothing may still be searching
+        # against what they held (AD-006.7).
+        self.advisor_bar.the_data_is_changing()
         if self.owned is None:
             self.owned_label.setText("No save loaded, so there is nothing to import.")
             return
@@ -3524,11 +3579,18 @@ class Planner(QMainWindow):
         return self._build
 
     def recompute(self) -> None:
-        if not hasattr(self, "level_slider"):
+        # Both halves of the guard say the same thing -- the window is still
+        # being built -- and both are needed: the level slider is made in the
+        # left pane and the advisor's row in the middle one, so between the
+        # two there is a moment when a signal could reach here.
+        if not hasattr(self, "level_slider") or not hasattr(self, "advisor_bar"):
             return
         # Every path that changes a vessel, a mode or a relic ends here, so
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()
+        # ...and the one place the advisor can hear that the build it was
+        # asked about is not the build any more (AK-12).
+        self.advisor_bar.the_build_changed()
         hero = self.current_hero()
         level = self.level_slider.value()
         self.level_label.setText(str(level))
