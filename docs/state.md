@@ -8,8 +8,11 @@ Berichte: `docs/berichte/T-###-<rolle>.md`.
 
 **Nummernkreise:** T ab **T-090** · QA ab **QA-187** · AK ab **AK-182** ·
 AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** · NH ab **NH-003**.
-**Suite:** **1107 passed, 9 skipped, 5 deselected** (`not slow`, T-088,
-07.09.); `slow` 5 passed.
+**Suite:** **1256 passed, 9 skipped, 0 failed** (T-102, 07.09.). Seit
+`4431c7a` laeuft sie parallel: `pytest -n auto` **127 s** statt 840 s seriell,
+Faktor 6,6, Namensvergleich ueber 1265 Faelle ohne Abweichung. **`-n auto` ist
+bewusst keine Voreinstellung** — eine gezielt genannte Einzeldatei stiege von
+1,2 auf 4,0 s, und genau die verlangt die Gegenproben-Regel.
 
 ## Auftragslage (Nutzer)
 
@@ -25,8 +28,8 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 | | | |
 |---|---|---|
 | A1 | Audit mit priorisierten Befunden | weitgehend — 186 QA, 20 SEC |
-| A2 | kritisch/hoch behoben oder zurueckgestellt | offen (SEC-009) |
-| A3-A6 | der Build-Berater | **in Arbeit** — Kern und Leiste fertig, Slotkarte und Picker offen |
+| A2 | kritisch/hoch behoben oder zurueckgestellt | offen (SEC-009); SEC-022 und SEC-024 behoben |
+| A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker. QA: sechsmal CONCERNS |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 ist ein neuer Bruch** |
 | A8 | alles Englisch | haelt, ohne Waechter |
 | A9 | QA gegen ein **gebautes Artefakt** | **nie geprueft**; es gibt bis heute keine EXE |
@@ -79,6 +82,33 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
   **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken.
 - **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
   `CharaInitParam` wird nicht gelesen.
+
+## Stand am Ende des 07.09.2026
+
+Der Build-Berater ist im Build planner **vollstaendig** und vom App Designer
+am laufenden Fenster gesehen; seine einzige Aenderung (beide Spitzenreiter
+oben) ist gebaut. Die Pruefphase ist gelaufen: QA **sechsmal CONCERNS**,
+Sicherheit **FAIL** wegen SEC-022 — beide Hoch-Befunde (SEC-022, SEC-024) sind
+seitdem behoben und belegt.
+
+**Neu entschieden und noch nicht gebaut:** A16 (schlechtester/bester Fall) und
+A17 (Rangfolge ohne Bezugswaffe), spezifiziert in AK-182 bis AK-194.
+
+**Offen aus der Pruefphase:** QA-181 (Stacking unbewacht), QA-186, QA-190,
+QA-191 (acht Nightfarer ungetestet), QA-192 (kein Englisch-Waechter), QA-193,
+QA-195 bis QA-197, SEC-021, SEC-023.
+
+**Beim Director, nicht beim Code:** QA-196 (ein Worktree stand sechs Tage
+zurueck) und QA-197 (der Scratchpad ist zwischen gleichzeitigen Rollen
+geteilt). Beide treffen die parallele Arbeitsweise selbst und sind zu klaeren,
+bevor der naechste Worktree-Auftrag rausgeht.
+
+**Im Agenten-Repo, PR `claude-agent-team#1`:** der gemeinsame Rahmen
+(`agents/_rahmen.md`), auf den alle Rollen ausser dem `power-user` verweisen,
+plus ein Selbsttest, der den Verweis erzwingt. Anlass: beim Umzug des Rahmens
+aus der Auftragsvorlage in die Rollendefinitionen fielen **sechs von sieben
+Regeln** aus — drei kamen in null von fuenfzehn Rollen an —, und vier Stunden
+spaeter starb ein Lauf an genau der Regel, die verlorenging.
 
 ## Der Rest — in dieser Reihenfolge
 
