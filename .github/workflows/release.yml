@@ -92,10 +92,34 @@ jobs:
           $hash = (Get-FileHash -Path dist/NightreignHelper.exe -Algorithm SHA256).Hash
           "$hash  NightreignHelper.exe" | Out-File -FilePath dist/NightreignHelper.exe.sha256 -Encoding ascii -NoNewline
 
+      # LGPL-3.0 4(a)/(b) and BSD-3 clause 2 require the notice and licence
+      # texts to accompany every copy. A file merely present in the repo does
+      # not satisfy "accompany" -- it has to travel with the release asset.
+      # Each required path is checked before packing so that a missing file
+      # fails the step loudly instead of shipping an incomplete archive that
+      # still claims completeness.
+      - name: Package licence notices
+        shell: pwsh
+        run: |
+          $required = @(
+            "LICENSE",
+            "THIRD_PARTY.md",
+            "licenses",
+            "vendor/Paramdex/NOTICE"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path -Path $path)) {
+              Write-Host "::error::Missing notice file or directory: $path"
+              exit 1
+            }
+          }
+          Compress-Archive -Path $required -DestinationPath dist/NightreignHelper-notices.zip
+
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             dist/NightreignHelper.exe
             dist/NightreignHelper.exe.sha256
+            dist/NightreignHelper-notices.zip
           generate_release_notes: true
