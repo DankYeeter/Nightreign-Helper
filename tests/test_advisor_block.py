@@ -181,15 +181,39 @@ def test_the_block_names_the_goal_and_the_relic(block):
     assert block.relic_name.text() == "The Will of the Balancers"
 
 
-def test_the_block_carries_no_control(block):
-    """The `Use` button of §3.2 is not drawn, not even doing nothing.
+def test_the_block_carries_the_one_control_of_the_section(block):
+    """§3.2: `Use`, at the right end of the heading, and nothing else.
 
-    Applying is one thing with one undo model and belongs in one task; a
-    button that is on screen and does nothing is worse than no button.
+    Asked of every button the block owns rather than of the one this case
+    remembers: `Apply all`, `Undo apply` and `Why` belong to the bar, and a
+    second place to reach them would make the action harder to find rather
+    than easier -- the same reason §3.4 keeps `Apply` out of the dialog.
     """
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
-    assert block.findChildren(QAbstractButton) == []
+    buttons = block.findChildren(QAbstractButton)
+    assert [button.text() for button in buttons] == ["Use"]
+    assert buttons[0].isVisibleTo(block)
+
+
+def test_use_says_it_was_pressed_and_changes_nothing_itself(block):
+    """The block holds no relics, so it can only ask (`use_requested`)."""
+    asked = []
+    block.use_requested.connect(lambda: asked.append(True))
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    block.use_button.click()
+
+    assert asked == [True]
+
+
+def test_a_slot_that_may_not_be_used_is_drawn_without_the_button(block):
+    """§5.4: no applying touches a held slot, so none is offered for one."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              may_be_used=False)
+
+    assert not block.use_button.isVisibleTo(block)
+    assert block.lines.isVisibleTo(block), (
+        "the block itself is drawn, so this is about the control alone")
 
 
 def test_a_suggestion_already_in_the_slot_is_one_line(block):
@@ -205,7 +229,7 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
     assert block.already_equipped.text() == (
         "Already equipped — nothing to change here.")
     for hidden in (block.heading, block.relic_name, block.count_line,
-                   block.lines):
+                   block.lines, block.use_button):
         assert not hidden.isVisibleTo(block)
 
 

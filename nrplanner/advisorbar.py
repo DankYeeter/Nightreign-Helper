@@ -9,11 +9,12 @@ function of a `Situation` and of nothing else: no widget, no controller, no
 clock. Every row of the table is one case of it, and a case can be read
 beside the row it comes from.
 
-**What this file does not do.** It draws no suggestion, applies nothing and
-never touches a relic slot: `Optimize` asks, the status line reports, and the
-answer is handed on as it arrived (`suggestion_changed`). The block in the
-slot card, `Apply all`, `Undo apply` and the `Why` dialog are S10b; they dock
-onto the signals below without this row changing shape.
+**What this file does not do.** It draws no suggestion and never touches a
+relic slot: `Optimize` asks, the status line reports, and the answer is handed
+on as it arrived (`suggestion_changed`). The three action buttons say what the
+player asked for and nothing more -- the window owns the slots, so the window
+is what puts a relic in one and what takes it out again. This row only knows
+that it happened, because 4.13 is a state of the row.
 
 **Why the row forces no width.** Release 1.7.1 was cut for a label that put a
 3900 px minimum on the window (`UI_SPEC` §7), and the measurement that
@@ -36,6 +37,7 @@ change the other's behaviour.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import enum
 import html
@@ -115,9 +117,14 @@ class Situation:
     slots_filled: int = 0
     #: Slots the run had nothing to offer for (4.11).
     slots_without_a_choice: int = 0
-    #: Effects the run wrote no figure for, plus the conditional ones it did
-    #: not count (4.9). The two are told apart in the `Why` dialog, not here.
-    silent_effects: int = 0
+    #: The two clauses of 4.9, counted apart because they are two different
+    #: things (AK-142/AK-143): a curse of a suggested copy that the run wrote
+    #: no figure for is a **price** nobody put a number on, and an effect left
+    #: out is one the ranking declined to count because it is conditional.
+    #: Each clause appears only when its own count is not zero, so a
+    #: `Situation` with both at zero is not this state at all.
+    curses_without_a_number: int = 0
+    effects_left_out: int = 0
     #: The Nightfarer named in 4.10, and the one-line reason of 4.12.
     nightfarer: str = ""
     reason: str = ""
@@ -142,6 +149,34 @@ def _slots_with_nothing(count: int) -> str:
     if count == 1:
         return "1 slot has nothing to choose from"
     return f"{count} slots have nothing to choose from"
+
+
+def _curses_with_no_number(count: int) -> str:
+    """Clause 4.9a, in the number the run came back with.
+
+    Verbs and nouns both move with the number, which is why this is a
+    function and not an f-string with a plural `s` glued on.
+    """
+    if count == 1:
+        return "1 curse carries no number."
+    return f"{count} curses carry no number."
+
+
+def _effects_left_out(count: int) -> str:
+    """Clause 4.9b: the conditional effects the ranking declined to count."""
+    if count == 1:
+        return "1 effect was left out: it only applies under a condition."
+    return (f"{count} effects were left out: they only apply under a "
+            f"condition.")
+
+
+def _clauses(head: str, *clauses: str) -> str:
+    """A result sentence with whichever of its clauses have something to say.
+
+    The order is the table's own -- first the price, then what was left out
+    -- and an empty clause is not written, not written as an empty one.
+    """
+    return head + "".join(CLAUSES + clause for clause in clauses if clause)
 
 
 def status_line(situation: Situation) -> str:
@@ -170,15 +205,19 @@ def status_line(situation: Situation) -> str:
         return (f"{goal} — {situation.slots_filled} of "
                 f"{situation.slots} slots filled.")
     if state is State.OUTDATED:
-        return ("Your build changed while this was working out. Optimize "
-                "again.")
+        return ("Your build changed while this was working out — use "
+                "Optimize again.")
     if state is State.NO_SAVE:
         return ("No save was read, so there are no relics to choose from "
                 "— use Rescan save.")
     if state is State.SUGGESTED_WITH_SILENT_EFFECTS:
-        return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled{CLAUSES}"
-                f"some effects carry no numbers.")
+        return _clauses(
+            f"{goal} — {situation.slots_filled} of "
+            f"{situation.slots} slots filled",
+            _curses_with_no_number(situation.curses_without_a_number)
+            if situation.curses_without_a_number else "",
+            _effects_left_out(situation.effects_left_out)
+            if situation.effects_left_out else "")
     if state is State.NOT_RANKABLE:
         return (f"The game files carry no figures this goal can be ranked "
                 f"on for {situation.nightfarer}, so there is nothing to "
@@ -205,6 +244,11 @@ ANSWERED_STATES = frozenset({State.SUGGESTED,
                              State.SUGGESTED_WITH_SILENT_EFFECTS,
                              State.SUGGESTED_WITH_AN_EMPTY_SLOT,
                              State.NOT_RANKABLE})
+
+#: Which states have an answer the player can still act on. 4.13 is one of
+#: them: the answer is still standing after it has been applied, which is
+#: what `Undo apply` and `Why` are still there for.
+ACTING_STATES = ANSWERED_STATES | {State.APPLIED}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -351,9 +395,8 @@ class AdvisorBar(QWidget):
     #: The answer that is standing on screen, or `None` when none is. S10b
     #: draws the blocks from this; nothing else here reads it.
     suggestion_changed = Signal(object)
-    #: The three actions that need a slot card to mean anything (S10b). They
-    #: are emitted by controls this task does not build, and are named here
-    #: so that adding those controls does not change this row's shape.
+    #: The three actions that need a slot card to mean anything. The row asks
+    #: for them and does none of them: the window owns the slots.
     apply_all_requested = Signal()
     undo_apply_requested = Signal()
     why_requested = Signal()
@@ -374,6 +417,15 @@ class AdvisorBar(QWidget):
         #: to travel beside it: the player's `Cancel` is 4.5, a build that
         #: changed under a running search is 4.7.
         self._stop_shows = None
+        #: The line the row carried before the answer was applied, so that
+        #: `Undo apply` puts the row back where it puts the slots back.
+        self._applied_over = None
+        #: True while the window is changing the build **because this row was
+        #: asked to**. Applying is a change to the build like any other, so
+        #: without this the answer would be thrown away as outdated (AK-12)
+        #: between the first slot and the second, and there would be nothing
+        #: left to undo.
+        self._applying = False
 
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
         row = QHBoxLayout(self)
@@ -413,6 +465,19 @@ class AdvisorBar(QWidget):
         self.progress.setMinimumWidth(0)
         self.progress.setVisible(False)
         row.addWidget(self.progress)
+
+        # The three action buttons of §3.1, in the order that section writes
+        # them. `Apply all` and `Undo apply` are one button because they are
+        # one action seen from two sides -- two buttons would have to disagree
+        # about which of them is live, and the table gives the row one state
+        # for it (4.13).
+        self.apply_button = QPushButton("Apply all")
+        self.apply_button.clicked.connect(self._apply_or_undo)
+        row.addWidget(self.apply_button)
+
+        self.why_button = QPushButton("Why")
+        self.why_button.clicked.connect(self.why_requested)
+        row.addWidget(self.why_button)
 
         self.clear_button = QPushButton("Clear")
         self.clear_button.setToolTip("Put the suggestion away")
@@ -455,7 +520,15 @@ class AdvisorBar(QWidget):
         the same reason -- §4 has no line for a suggestion that outlived its
         build, so the row goes back to saying that nothing is suggested,
         which is then true.
+
+        **Applying is the one change that is not an outdating.** `Apply all`,
+        `Undo apply` and `Use` all change the build, and every change to the
+        build ends up here -- so an answer being applied would throw itself
+        away half way through. `while_the_player_applies_it` is how the
+        window says that this change is the one the row asked for.
         """
+        if self._applying:
+            return
         if self._situation.state in WORKING_STATES:
             self._stop_shows = Situation(State.OUTDATED)
             self._controller.cancel()
@@ -484,6 +557,47 @@ class AdvisorBar(QWidget):
         self._forget_the_answer()
         self._show(self._resting())
 
+    @contextlib.contextmanager
+    def while_the_player_applies_it(self):
+        """The build is about to change because this row was asked to change
+        it.
+
+        A context manager rather than a flag the window sets and clears: an
+        exception raised half way through an apply would otherwise leave the
+        row deaf to every later change of the build, and a row that never
+        hears about a change is a row that shows a suggestion for a build
+        that is gone -- exactly what AK-12 exists to prevent.
+        """
+        was_applying = self._applying
+        self._applying = True
+        try:
+            yield
+        finally:
+            self._applying = was_applying
+
+    def the_suggestion_was_applied(self) -> None:
+        """The window has put the answer into the slots: 4.13.
+
+        The answer is kept, because `Undo apply` and `Why` are both still
+        about it. The line the row was carrying is kept too -- undoing puts
+        the row back exactly as far as it puts the slots back.
+        """
+        if self._answer is None:
+            return
+        if self._situation.state is not State.APPLIED:
+            self._applied_over = self._situation
+        self._show(Situation(State.APPLIED))
+
+    def the_suggestion_was_undone(self) -> None:
+        """The window has put the slots back: the row goes back with them."""
+        situation = self._applied_over or self._resting()
+        self._applied_over = None
+        self._show(situation)
+
+    def has_been_applied(self) -> bool:
+        """Is there an applying that `Undo apply` would take back?"""
+        return self._situation.state is State.APPLIED
+
     # -- the controls -------------------------------------------------------
 
     def _goal_chosen(self, _index: int) -> None:
@@ -494,6 +608,18 @@ class AdvisorBar(QWidget):
         reading the list.
         """
         self.the_build_changed()
+
+    def _apply_or_undo(self) -> None:
+        """One button, and which of the two actions it is is the row's state.
+
+        Asked of the state rather than of the caption: the caption is drawn
+        from the state, and a control that read its own label back would be
+        two sources for one fact.
+        """
+        if self.has_been_applied():
+            self.undo_apply_requested.emit()
+            return
+        self.apply_all_requested.emit()
 
     def _optimize_or_cancel(self) -> None:
         if self._situation.state in WORKING_STATES:
@@ -548,16 +674,19 @@ class AdvisorBar(QWidget):
         slots = len(self._asked.request.problem.slots) if self._asked else 0
         best = result.suggestions[0] if result.suggestions else None
         filled = len(best.choices) if best is not None else 0
-        silent = len(result.effects_without_a_figure) + len(result.not_counted)
+        curses = len(result.curses_without_a_figure)
+        left_out = len(result.not_counted)
         if slots - filled > 0:
             situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT,
                                   goal_label=label, slots=slots,
                                   slots_filled=filled,
                                   slots_without_a_choice=slots - filled)
-        elif silent:
+        elif curses or left_out:
             situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
                                   goal_label=label, slots=slots,
-                                  slots_filled=filled, silent_effects=silent)
+                                  slots_filled=filled,
+                                  curses_without_a_number=curses,
+                                  effects_left_out=left_out)
         else:
             situation = Situation(State.SUGGESTED, goal_label=label,
                                   slots=slots, slots_filled=filled)
@@ -597,6 +726,13 @@ class AdvisorBar(QWidget):
         self._figures_timer.stop()
 
     def _forget_the_answer(self) -> None:
+        """Drop the answer and everything that was only true about it.
+
+        The line to undo back to goes with the answer: it describes a state
+        of a suggestion that no longer stands, and a later applying would
+        otherwise undo into it.
+        """
+        self._applied_over = None
         if self._answer is None:
             return
         self._answer = None
@@ -627,4 +763,31 @@ class AdvisorBar(QWidget):
         answerable = situation.state is not State.NO_SAVE
         self.goal_box.setEnabled(answerable)
         self.optimize_button.setEnabled(answerable)
-        self.clear_button.setVisible(situation.state in ANSWERED_STATES)
+        self._show_the_actions(situation)
+
+    def _show_the_actions(self, situation: Situation) -> None:
+        """The action group of §3.1: none, or three, and never a fourth.
+
+        Three states of the group, in the section's own words -- no answer
+        offers none; a living answer offers `Apply all`, `Why` and `Clear`;
+        an applied one offers `Undo apply`, `Why` and `Clear`.
+
+        **4.10 offers two, and that is the same rule.** An answer that could
+        not be ranked carries no suggestion, so there is nothing to apply: a
+        drawn `Apply all` there would be a control with no work to do, and
+        the section's first case ("no suggestion: none") is what covers it.
+        `Why` stays, because 4.10 says in the table that it does.
+        """
+        acting = situation.state in ACTING_STATES
+        applied = situation.state is State.APPLIED
+        self.apply_button.setText("Undo apply" if applied else "Apply all")
+        self.apply_button.setVisible(acting and (applied
+                                                 or self._can_be_applied()))
+        self.why_button.setVisible(acting)
+        self.clear_button.setVisible(acting)
+
+    def _can_be_applied(self) -> bool:
+        """Does the answer on screen name a relic for any slot at all?"""
+        answer = self._answer
+        return bool(answer is not None and answer.suggestions
+                    and answer.suggestions[0].choices)

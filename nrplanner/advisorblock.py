@@ -26,9 +26,11 @@ save or the game files goes through `html.escape` first. A tooltip has no
 text format in Qt, so it is wrapped as rich text and escaped, which is the
 only form that shows a name carrying `<b>` letter for letter (AK-30).
 
-**No `Use` button.** Applying a suggestion is one thing with one undo model
-and belongs in one task; a button that is drawn but does nothing is worse
-than none at all.
+**The `Use` button, and nothing else.** Applying is one thing with one undo
+model, so the block asks for it and does not do it: `use_requested` says the
+player pressed it and the window is what puts the relic in the slot. The
+button is drawn only where there is something to press it for -- a suggestion
+that is already lying in the slot draws the one line of §3.2 and no control.
 """
 
 from __future__ import annotations
@@ -36,7 +38,7 @@ from __future__ import annotations
 import html
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
                                QVBoxLayout, QWidget)
@@ -159,9 +161,12 @@ class SuggestionBlock(QFrame):
     program dashed means "planned, not real", which is exactly what a
     suggestion is until it is applied (`UI_SPEC` §3.2).
 
-    Nothing here is a control. The block is what the player reads; `Use`,
-    `Apply all` and `Undo apply` are one task with one undo model.
+    One control, `Use`, and it changes nothing here: the block holds no
+    relics, so it says the player asked and the window does the rest.
     """
+
+    #: `Use` was pressed on this block (`UI_SPEC` §3.2: only this one slot).
+    use_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -189,7 +194,18 @@ class SuggestionBlock(QFrame):
         # the block has to stand for itself once the bar has scrolled away.
         self.heading = _heading("Suggested")
         self.heading.setTextFormat(Qt.PlainText)
-        column.addWidget(self.heading)
+        # §3.2 draws the heading and `Use` on one line, the button at the
+        # right end of it. The stretch is what keeps the button there and is
+        # also why the row asks for no width of its own beyond the button
+        # itself: the heading is a `_heading`, which does not grow.
+        head = QHBoxLayout()
+        head.setContentsMargins(0, 0, 0, 0)
+        head.addWidget(self.heading)
+        head.addStretch()
+        self.use_button = QPushButton("Use")
+        self.use_button.clicked.connect(self.use_requested)
+        head.addWidget(self.use_button)
+        column.addLayout(head)
 
         self.relic_name = _plain()
         column.addWidget(self.relic_name)
@@ -212,15 +228,20 @@ class SuggestionBlock(QFrame):
     def show_the_suggestion(self, goal_label: str,
                             group: types.SlotReasons, *,
                             already_equipped: bool = False,
+                            may_be_used: bool = True,
                             curse_tooltip: str = "") -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
         the suggested copy is the copy in the slot is a question about the
-        handle in the slot, and the block holds no relics.
+        handle in the slot, and the block holds no relics. `may_be_used` is
+        the window's answer for the same reason -- whether this slot is held
+        is a fact about the window, and a held slot is one no applying may
+        touch (`UI_SPEC` §5.4).
         """
         self.heading.setText(f"Suggested — {goal_label}".upper())
         self.heading.setVisible(not already_equipped)
+        self.use_button.setVisible(may_be_used and not already_equipped)
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
         self.count_line.setText(group.count_line)

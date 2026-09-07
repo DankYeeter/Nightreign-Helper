@@ -1349,6 +1349,13 @@ class Planner(QMainWindow):
         # slot holds the same physical one. The stored build is then left as
         # it was, so the player can still decide which slot keeps it.
         self._unresolved_clash = False
+        # What every slot held before the answer on screen was first applied,
+        # as stored keys, or None while there is nothing to undo. Taken once
+        # per answer and not once per applying: `Use` on three slots one after
+        # another is one act of applying seen from three cards, and 4.13 says
+        # `Undo puts your slots back as they were` -- as they were before any
+        # of it, which is the only reading a single button can carry.
+        self._slots_before_applying: list[str] | None = None
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -3506,20 +3513,148 @@ class Planner(QMainWindow):
         self.recompute()
 
     def _wire_the_advisor(self) -> None:
-        """The two ways an answer leaves the bar and reaches the player.
+        """Every way an answer leaves the bar or a card and reaches the slots.
 
         The bar is handed nothing here and reads no widget of this window: it
-        says an answer stands or has gone (`suggestion_changed`) and that the
-        player asked for the long form (`why_requested`), and this window
-        decides what that means for the cards.
+        says an answer stands or has gone (`suggestion_changed`), that the
+        player asked for the long form (`why_requested`) and that they asked
+        for the answer to be applied or taken back. This window decides what
+        each of those means for the cards, because this window owns them.
 
-        **Nothing emits `why_requested` yet.** §3.1 puts a `Why` button in the
-        bar beside `Apply all`, and that row of controls belongs to the task
-        that builds applying; the dialog is connected here so that adding the
-        button is one line and no rewiring.
+        `Use` is wired per card and carries the card with it: the block knows
+        which slot it is drawn in only by being in it, and a signal that
+        arrived without saying which slot it came from would have to be
+        matched back to one by looking at the screen.
         """
-        self.advisor_bar.suggestion_changed.connect(self.show_the_suggestion)
+        self.advisor_bar.suggestion_changed.connect(self._the_suggestion_changed)
         self.advisor_bar.why_requested.connect(self.open_why)
+        self.advisor_bar.apply_all_requested.connect(self.apply_all)
+        self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
+        for card in list(self.base_slots) + list(self.deep_slots):
+            card.suggestion.use_requested.connect(
+                lambda slot=card: self.use_the_suggestion(slot))
+
+    def _the_suggestion_changed(self, result) -> None:
+        """A different answer stands, or none does.
+
+        What the slots held before the last applying goes with it: it was the
+        state to undo **that** answer into, and an answer that has been
+        replaced cannot be undone any more -- `Apply all` on the new one
+        would otherwise offer to put back a build the player has not seen
+        since.
+        """
+        self._slots_before_applying = None
+        self.show_the_suggestion(result)
+
+    # -- applying an answer -------------------------------------------------
+
+    def _all_slots(self) -> list:
+        """Every slot panel of this vessel, Deep ones included and in order.
+
+        The order is the one `active_slots` counts in and the one
+        `_restore_slot_keys` writes in, which is why a slot index out of an
+        answer can be used against this list without translating.
+        """
+        return list(self.base_slots) + list(self.deep_slots)
+
+    def apply_all(self) -> None:
+        """`Apply all`: every suggested slot the player is not holding."""
+        self._apply_the_answer_to(None)
+
+    def use_the_suggestion(self, card) -> None:
+        """`Use` on one card: that slot and no other (`UI_SPEC` §3.2)."""
+        slots = self._all_slots()
+        if card not in slots:
+            return
+        self._apply_the_answer_to({slots.index(card)})
+
+    def _apply_the_answer_to(self, only: set | None) -> None:
+        """Put the suggested copies into the slots, the way a restore does.
+
+        `only` names the slots to touch, or `None` for all of them.
+
+        **The existing road, not a second one.** AK-14 asks that the state
+        after applying be the state that choosing the relics one at a time in
+        the picker would have left, persistence per chalice included, and the
+        way this window already reaches that state is `_restore_slot_keys`
+        over a list of stored keys. So applying writes the keys it wants into
+        the list the slots are holding now and hands the whole list to that.
+        An empty slot, a custom relic and a copy named by handle all travel
+        as keys already, which is also what makes `Undo apply` a list of the
+        same kind and not a second mechanism (AK-15).
+
+        **Only copies the save has.** A choice whose handle is not in the
+        inventory is passed over rather than guessed at: AK-16 forbids
+        suggesting a relic that is not owned, and this is where that would
+        otherwise become a relic in a slot.
+        """
+        result = self.advisor_bar.answer
+        if result is None or not result.suggestions:
+            return
+        slots = self._all_slots()
+        before = [slot.saved_key() for slot in slots]
+        keys = list(before)
+        by_handle = self._relics_by_handle()
+        for choice in result.suggestions[0].choices:
+            index = choice.slot_index
+            if index >= len(slots):
+                continue
+            if only is not None and index not in only:
+                continue
+            copy = by_handle.get(choice.handle)
+            if copy is None:
+                continue
+            keys[index] = chalices.slot_key(copy)
+        if keys == before:
+            return
+        if self._slots_before_applying is None:
+            self._slots_before_applying = before
+        self._put_these_keys_in_the_slots(keys)
+        self.advisor_bar.the_suggestion_was_applied()
+        self.show_the_suggestion(result)
+
+    def undo_apply(self) -> None:
+        """`Undo apply`: the slots exactly as they were before (AK-15).
+
+        Exactly, and that word is the whole criterion: a slot that was empty
+        goes back to empty and a slot that held a custom relic gets that
+        custom relic back, both of which fall out of restoring the keys
+        rather than the relics -- an empty slot is the empty key and a custom
+        relic is a key that carries its own effects.
+        """
+        before = self._slots_before_applying
+        if before is None:
+            return
+        self._slots_before_applying = None
+        self._put_these_keys_in_the_slots(list(before))
+        self.advisor_bar.the_suggestion_was_undone()
+        self.show_the_suggestion(self.advisor_bar.answer)
+
+    def _put_these_keys_in_the_slots(self, keys: list[str]) -> None:
+        """Set every slot from a list of stored keys, as a restore does.
+
+        The same four steps `_apply_stored_build` ends on, and for the same
+        reasons: the restore itself, then the clash resolution, then the one
+        recomputation, then the store. The vessel and the Deep switch are not
+        touched here -- applying a suggestion changes what is in the slots
+        and never which slots there are.
+
+        Wrapped in `while_the_player_applies_it` because every one of those
+        steps ends in `recompute`, which tells the advisor that the build has
+        changed (AK-12). It has -- but by the row's own doing, and an answer
+        that threw itself away as it was being applied would leave `Undo
+        apply` with nothing to undo.
+        """
+        slots = self._all_slots()
+        with self.advisor_bar.while_the_player_applies_it():
+            self._restoring = True
+            try:
+                self._restore_slot_keys(slots, keys)
+            finally:
+                self._restoring = False
+            self._settle_slots()
+            self.recompute()
+            self._store_chalice()
 
     def show_the_suggestion(self, result) -> None:
         """Put the living answer on the slot cards, or take it off them.

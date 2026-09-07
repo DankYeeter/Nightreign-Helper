@@ -15,6 +15,7 @@ with the module whatever either of them said.
 
 from __future__ import annotations
 
+import dataclasses
 import html
 import time
 
@@ -61,16 +62,27 @@ TABLE = [
                                  slots_filled=6),
      "Maximise damage — 6 of 6 slots filled."),
     ("4.7", advisorbar.Situation(advisorbar.State.OUTDATED),
-     "Your build changed while this was working out. Optimize again."),
+     "Your build changed while this was working out — use Optimize again."),
     ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
      "No save was read, so there are no relics to choose from — use Rescan "
      "save."),
-    ("4.9", advisorbar.Situation(
+    ("4.9a", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
         goal_label="Maximise damage", slots=6, slots_filled=6,
-        silent_effects=2),
-     "Maximise damage — 6 of 6 slots filled  ·  some effects carry no "
-     "numbers."),
+        curses_without_a_number=1),
+     "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no number."),
+    ("4.9b", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
+        goal_label="Maximise damage", slots=6, slots_filled=6,
+        effects_left_out=1),
+     "Maximise damage — 6 of 6 slots filled  ·  1 effect was left out: it "
+     "only applies under a condition."),
+    ("4.9a+b", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
+        goal_label="Maximise damage", slots=6, slots_filled=6,
+        curses_without_a_number=2, effects_left_out=3),
+     "Maximise damage — 6 of 6 slots filled  ·  2 curses carry no number.  "
+     "·  3 effects were left out: they only apply under a condition."),
     ("4.10", advisorbar.Situation(advisorbar.State.NOT_RANKABLE,
                                   nightfarer="Wylder"),
      "The game files carry no figures this goal can be ranked on for Wylder, "
@@ -205,7 +217,7 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
                              nightfarer="Wylder", relics=relics)
 
 
-def _an_answer(filled: int = 6, silent: tuple = (),
+def _an_answer(filled: int = 6, curses: tuple = (),
                not_counted: tuple = ()) -> types.AdvisorResult:
     """An answer that fills `filled` slots of the question above."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
@@ -215,7 +227,7 @@ def _an_answer(filled: int = 6, silent: tuple = (),
     return types.AdvisorResult(
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
-        effects_without_a_figure=silent, not_counted=not_counted)
+        curses_without_a_figure=curses, not_counted=not_counted)
 
 
 @pytest.fixture
@@ -366,7 +378,8 @@ def test_a_build_that_changes_under_a_run_ends_in_4_7_and_not_in_4_5(bar):
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.OUTDATED
     assert bar.status.whole_text() == (
-        "Your build changed while this was working out. Optimize again.")
+        "Your build changed while this was working out — use Optimize "
+        "again.")
     assert bar.progress.isHidden()
     assert bar.optimize_button.text() == "Optimize"
 
@@ -401,20 +414,47 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
 
 
 def test_an_answer_with_silent_effects_says_that_much(bar):
-    """4.9: both kinds of silence count -- no figure written, and not counted.
+    """4.9, from the answer's own two fields (AK-142/AK-143).
 
-    They are two different questions in the `Why` dialog and one sentence
-    here, which is what the table asks for.
+    Two different questions, two clauses, and they arrive from two different
+    fields of the result: a curse of a suggested copy that no figure covers,
+    and an effect the ranking left out because it is conditional. Driven
+    through the answer rather than through a `Situation` so that the reading
+    of the fields is measured as well as the wording.
+    """
+    curse = types.ReasonLine(slot_index=0, text="Taking Damage Causes Madness",
+                             is_curse=True,
+                             silence=types.SILENT_NO_NUMBER_HERE)
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(curses=(curse,),
+                                       not_counted=("Under a condition",)))
+    assert bar.situation.state is (
+        advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS)
+    assert bar.status.whole_text() == (
+        "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no "
+        "number.  ·  1 effect was left out: it only applies under a "
+        "condition.")
+
+
+def test_an_effect_with_no_figure_is_not_a_clause_of_the_status_line(bar):
+    """The set that lost its clause in T-084, and 4.6 is what is left.
+
+    `effects_without_a_figure` used to be counted into 4.9's one sentence.
+    The table now writes two clauses and neither is about it -- 4.9a is
+    curses and 4.9b is what was left out -- so an answer carrying only that
+    set is a plain result. Written down because it is the half of QA-188 a
+    wording comparison does not show.
     """
     line = types.ReasonLine(slot_index=0, text="Improved Melee Attack Power",
                             silence=types.SILENT_NO_NUMBER_HERE)
+    answer = _an_answer()
+    answer = dataclasses.replace(answer, effects_without_a_figure=(line,))
     bar.optimize_button.click()
     bar._controller.begins()
-    bar._controller.answers(_an_answer(silent=(line,),
-                                       not_counted=("Under a condition",)))
-    assert bar.status.whole_text() == (
-        "Maximise damage — 6 of 6 slots filled  ·  some effects carry no "
-        "numbers.")
+    bar._controller.answers(answer)
+    assert bar.situation.state is advisorbar.State.SUGGESTED
+    assert bar.status.whole_text() == "Maximise damage — 6 of 6 slots filled."
 
 
 def test_clear_puts_the_answer_away_and_is_offered_only_while_there_is_one(bar):
@@ -432,11 +472,11 @@ def test_clear_puts_the_answer_away_and_is_offered_only_while_there_is_one(bar):
 
 
 def test_never_more_than_three_actions_stand_beside_the_status(bar):
-    """AK-07, in the state that will hold the most of them.
+    """AK-07, in the state that holds the most of them.
 
-    Today the row offers `Clear` and nothing else, because `Apply all`,
-    `Undo apply` and `Why` need the slot card S10b builds. The count is
-    asserted where they will be added rather than where it is trivially one.
+    A living answer is the busiest the row gets -- `Apply all`, `Why` and
+    `Clear`. Every other state is walked in `test_advisor_apply.py`, which is
+    where the fourth button would first appear.
     """
     bar.optimize_button.click()
     bar._controller.begins()
