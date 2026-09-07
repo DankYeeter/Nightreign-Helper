@@ -36,7 +36,6 @@ from PySide6.QtCore import QEventLoop, QTimer
 from nrplanner.advisor import goals, run, types, worker
 
 from tests import advisor_cases as advisor
-from tests import test_advisor_run as run_cases
 from tests import weapon_damage_cases as cases
 
 DAMAGE = "max_damage"
@@ -149,7 +148,7 @@ def scorings_of(question) -> int:
 @pytest.fixture
 def question(game_data, wylder):
     """One small question, and the material it is asked against."""
-    return run_cases.a_question(game_data, wylder, count=4)
+    return advisor.a_question(game_data, wylder, count=4)
 
 
 @pytest.fixture
@@ -316,7 +315,7 @@ def test_an_overtaken_answer_never_reaches_the_window(qapp, controller,
     correct, and the first one is about a build the player has left.
     """
     inventory, problem, ctx, request = question
-    other = run_cases.a_question(game_data, wylder, count=4,
+    other = advisor.a_question(game_data, wylder, count=4,
                                  goal_id=SURVIVAL)
     costs = scorings_of(question)
     watched = Watched()
@@ -506,7 +505,7 @@ def test_the_thread_reads_a_snapshot_and_not_the_living_inventory(
                           reference=advisor.scaling_armament(game_data,
                                                              wylder))
     frozen = run.frozen_inventory(inventory, problem)
-    request = run_cases.request_for(problem, ctx, frozen)
+    request = advisor.request_for(problem, ctx, frozen)
     advisor_controller = controller()
     seen = Recorder(advisor_controller)
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from nrplanner import inventory
-from nrplanner.advisor import types
+from nrplanner.advisor import run, types
 
 from tests import relics as relic_helpers
 from tests import weapon_damage_cases as cases
@@ -440,6 +440,51 @@ def scaling_armament(data: dict, hero: dict, attribute: str = "Strength"
         raise LookupError(
             f"no armament in this dataset visibly scales on {attribute}")
     return types.ReferenceArmament(weapon=best[1], tier=1, slot_index=0)
+
+
+def request_for(problem: types.SlotProblem, ctx: types.GoalContext,
+                inventory, goal_id: str = "max_damage",
+                generation: int = 0) -> types.AdvisorRequest:
+    """The request the window would build for this question.
+
+    Derived from the context beside it, which is what the window does and
+    what `run.run` insists on: the request is the cache key, so a field of it
+    that does not describe the run would be a key standing for a run that
+    never happened. The cases that break that on purpose do it by name.
+    """
+    meta = ctx.data.get("meta") or {}
+    return types.AdvisorRequest(
+        hero_id=ctx.hero["id"],
+        level=ctx.level,
+        problem=problem,
+        goal_id=goal_id,
+        weighting_id=ctx.weighting.id,
+        reference_weapon_id=(None if ctx.reference is None
+                             else ctx.reference.weapon["id"]),
+        declared=tuple(ctx.declared),
+        data_version=str(meta.get("data_version") or ""),
+        inventory_fingerprint=run.inventory_fingerprint(inventory),
+        generation=generation,
+    )
+
+
+def a_question(data: dict, hero: dict, *, colours=(RED, RED),
+               deep: bool = False, count: int = 4, held=None,
+               goal_id: str = "max_damage", generation: int = 0):
+    """Inventory, problem, context and request for one small question.
+
+    The inventory that comes back is the **frozen** one, because that is what
+    a run reads: the controller takes the snapshot in the thread that owns
+    the save (AD-006 point 8), and a case that handed the living object to
+    `run.run` would be testing a path the program does not take.
+    """
+    owned = make_inventory(data, hero, colour=RED, count=count,
+                           deep_count=len(colours) if deep else 0)
+    question = problem(colours, deep=deep, held=held)
+    ctx = context(data, hero, reference=scaling_armament(data, hero))
+    frozen = run.frozen_inventory(owned, question)
+    return frozen, question, ctx, request_for(question, ctx, frozen, goal_id,
+                                              generation)
 
 
 def context(data: dict, hero: dict, *,

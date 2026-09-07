@@ -43,48 +43,6 @@ def wylder(game_data):
     return cases.hero_by_name(game_data, "Wylder")
 
 
-def request_for(problem: types.SlotProblem, ctx: types.GoalContext, inventory,
-                goal_id: str = DAMAGE,
-                generation: int = 0) -> types.AdvisorRequest:
-    """The request the window would build for this question.
-
-    Derived from the context beside it, which is what the window does and
-    what `run.run` insists on: the request is the cache key, so a field of it
-    that does not describe the run would be a key standing for a run that
-    never happened. The cases that break that on purpose do it by name,
-    below.
-    """
-    meta = ctx.data.get("meta") or {}
-    return types.AdvisorRequest(
-        hero_id=ctx.hero["id"],
-        level=ctx.level,
-        problem=problem,
-        goal_id=goal_id,
-        weighting_id=ctx.weighting.id,
-        reference_weapon_id=(None if ctx.reference is None
-                             else ctx.reference.weapon["id"]),
-        declared=tuple(ctx.declared),
-        data_version=str(meta.get("data_version") or ""),
-        inventory_fingerprint=run.inventory_fingerprint(inventory),
-        generation=generation,
-    )
-
-
-def a_question(game_data, hero, *, colours=(advisor.RED, advisor.RED),
-               deep: bool = False, count: int = 4, held=None,
-               goal_id: str = DAMAGE, generation: int = 0):
-    """Inventory, problem, context and request for one small question."""
-    inventory = advisor.make_inventory(game_data, hero, colour=advisor.RED,
-                                       count=count,
-                                       deep_count=len(colours) if deep else 0)
-    problem = advisor.problem(colours, deep=deep, held=held)
-    ctx = advisor.context(game_data, hero,
-                          reference=advisor.scaling_armament(game_data, hero))
-    frozen = run.frozen_inventory(inventory, problem)
-    return frozen, problem, ctx, request_for(problem, ctx, frozen, goal_id,
-                                             generation)
-
-
 class Counter:
     """A cancel check that counts, and stops after so many questions."""
 
@@ -107,7 +65,7 @@ def test_the_run_answers_with_every_field_the_result_promises(game_data,
     would go in it is the `ui-ux-designer`'s and does not exist, and a run
     that invented one would put words on the screen nobody decided on.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
     result = run.run(request, inventory, ctx, goals.GOALS)
 
@@ -132,7 +90,7 @@ def test_the_gain_is_the_difference_to_the_build_as_it_stands(game_data,
     """
     kept = advisor.make_inventory(game_data, wylder, count=4)
     held = advisor.held_relic(kept.relics_for(advisor.RED, False)[0])
-    inventory, problem, ctx, request = a_question(
+    inventory, problem, ctx, request = advisor.a_question(
         game_data, wylder, colours=(advisor.RED, advisor.RED), held={0: held})
 
     result = run.run(request, inventory, ctx, goals.GOALS)
@@ -172,7 +130,7 @@ def test_every_suggestion_carries_its_reasons_and_not_only_the_first(
     """A beam whose head is explained and whose tail is not is one shape with
     two meanings, and the window may draw any of them.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
     result = run.run(request, inventory, ctx, goals.GOALS)
 
@@ -191,7 +149,7 @@ def test_the_singular_fields_belong_to_the_best_suggestion(game_data, wylder):
     suggestion are looked up by handle and their curse ids are what the
     dataset gives them names for.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder, count=6)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder, count=6)
 
     result = run.run(request, inventory, ctx, goals.GOALS)
 
@@ -225,7 +183,7 @@ def test_a_run_stopped_before_the_search_says_so(game_data, wylder):
     them: on the worst real case the pre-sort is 43 ms of a 960 ms run
     (`scripts/measure_advisor_search.py`), so it is not cut in two.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
     with pytest.raises(search.Cancelled, match="pre-sort"):
         run.run(request, inventory, ctx, goals.GOALS, Counter(stop_at=0))
@@ -240,7 +198,7 @@ def test_a_run_asks_once_between_the_pre_sort_and_the_search(game_data,
     one that ran per candidate would cost more than the reaction time it buys
     (AD-006 point 6).
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
     watch = Counter()
 
     run.run(request, inventory, ctx, goals.GOALS, watch)
@@ -260,7 +218,7 @@ def test_a_run_stopped_inside_the_search_says_so(game_data, wylder):
     a list of suggestions are two states of the window (`UI_SPEC` 4.5
     against 4.6).
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
     with pytest.raises(search.Cancelled, match="1 of 2 slots"):
         run.run(request, inventory, ctx, goals.GOALS, Counter(stop_at=2))
@@ -286,7 +244,7 @@ def test_a_request_that_describes_another_run_is_refused(game_data, wylder,
     under a key that means something else. The next question with those
     fields right would then hit it.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
     lying = dataclasses.replace(request, **{field: wrong})
 
     with pytest.raises(ValueError, match=field.split()[0]):
@@ -295,7 +253,7 @@ def test_a_request_that_describes_another_run_is_refused(game_data, wylder,
 
 def test_a_request_that_names_an_unknown_direction_is_refused(game_data,
                                                               wylder):
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
     with pytest.raises(KeyError, match="invented"):
         run.run(dataclasses.replace(request, goal_id="invented"), inventory,
@@ -438,7 +396,7 @@ def test_a_hit_is_what_a_fresh_run_would_have_said(game_data, wylder,
     cache does not answer differently from computing again -- which is also
     the claim that computing again answers the same way at all.
     """
-    inventory, problem, ctx, request = a_question(
+    inventory, problem, ctx, request = advisor.a_question(
         game_data, wylder, colours=(advisor.RED, advisor.RED), deep=deep,
         goal_id=goal_id)
     cache = run.ResultCache()
@@ -491,7 +449,7 @@ def test_a_question_that_differs_in_anything_the_run_reads_misses(game_data,
     indices and handles, so a hit across a changed hold overwrites a slot the
     player deliberately kept (AD-016).
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
     cache = run.ResultCache()
     cache.put(request, run.run(request, inventory, ctx, goals.GOALS))
 
@@ -512,7 +470,7 @@ def test_a_question_that_differs_in_which_slot_is_held_misses(game_data,
     """
     kept = advisor.make_inventory(game_data, wylder, count=4)
     held = advisor.held_relic(kept.relics_for(advisor.RED, False)[0])
-    inventory, problem, ctx, request = a_question(
+    inventory, problem, ctx, request = advisor.a_question(
         game_data, wylder, colours=(advisor.RED, advisor.RED),
         held={0: held})
     cache = run.ResultCache()
@@ -534,7 +492,7 @@ def test_the_generation_is_not_part_of_the_question(game_data, wylder):
     case that merely asked twice would notice -- the second answer would be
     right, only computed again.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder,
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder,
                                                   generation=1)
     cache = run.ResultCache()
     cache.put(request, run.run(request, inventory, ctx, goals.GOALS))
@@ -555,7 +513,7 @@ def test_the_cache_keeps_the_last_answers_and_forgets_the_oldest(game_data,
     The size is a parameter here rather than 32, because a case that stored
     33 answers would be timing a full run 33 times to watch one eviction.
     """
-    inventory, problem, ctx, request = a_question(game_data, wylder)
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
     answer = run.run(request, inventory, ctx, goals.GOALS)
     cache = run.ResultCache(size=2)
 
