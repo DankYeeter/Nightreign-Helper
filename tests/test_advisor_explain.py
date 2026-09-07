@@ -31,6 +31,7 @@ five fields, instead of hunting the dataset for one and hoping it stays.
 
 from __future__ import annotations
 
+import dataclasses
 import pathlib
 
 import pytest
@@ -1428,6 +1429,54 @@ def test_a_condition_the_player_declared_is_not_reported_as_uncounted(
     assert name in explain.not_counted(evaluate(problem, chosen, silent))
     assert name not in explain.not_counted(evaluate(problem, chosen,
                                                     declared))
+
+
+def test_an_unmet_weapon_type_gate_is_reported_as_uncounted(
+        game_data, wylder):
+    """A weapon type is a condition the player can put themself in (AD-026).
+
+    The gate in `advisor.an_armament_type_gate` names no other Nightfarer and
+    no class -- only an armament this grid does not carry. The docstring's
+    Scope paragraph says that belongs in `not_counted` just as much as a
+    below-40%-HP switch does (AD-026); the previous wording read the gate as
+    though it belonged with the Nightfarer and class exceptions instead.
+    """
+    gated, carrier, other = advisor.an_armament_type_gate(game_data, wylder)
+    reference = types.ReferenceArmament(weapon=other, tier=1, slot_index=0)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [gated]),)
+    name = effect_names(game_data, [gated]).pop()
+
+    blind = advisor.context(game_data, wylder, reference=reference)
+
+    result = explain.not_counted(evaluate(problem, chosen, blind))
+
+    assert name in result
+    assert len(result) == 1
+
+
+def test_a_weapon_type_gate_met_by_the_grid_is_not_reported_as_uncounted(
+        game_data, wylder):
+    """The same gate, the same effect -- only the grid changed.
+
+    `carrier` is not the weapon being rated; it only sits on the grid beside
+    it, which `model.satisfied_by_weapon` already treats as enough
+    (`weapons_held` in `types.GoalContext`). Once it does, the effect counted
+    and has no business in `not_counted` any more.
+    """
+    gated, carrier, other = advisor.an_armament_type_gate(game_data, wylder)
+    reference = types.ReferenceArmament(weapon=other, tier=1, slot_index=0)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [gated]),)
+    name = effect_names(game_data, [gated]).pop()
+
+    blind = advisor.context(game_data, wylder, reference=reference)
+    seeing = dataclasses.replace(blind, weapons_held=(other, carrier))
+
+    result = explain.not_counted(evaluate(problem, chosen, seeing))
+
+    assert name not in result
+    assert len(result) == 0
 
 
 def test_what_was_not_counted_keeps_its_number_and_its_order():
