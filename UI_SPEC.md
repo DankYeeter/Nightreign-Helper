@@ -100,7 +100,7 @@ und dem Hinweistext "Open a slot to choose a relic …"**, ausserhalb der
 Eine einzige Zeile, in dieser Reihenfolge:
 
 ```
-ADVISOR  [ Maximise damage   v ]  [ Suggest ]   <status …>   [ Apply all ] [ Why ] [ Clear ]
+ADVISOR  [ Maximise damage   v ]  [ Optimize ]   <status …>   [ Apply all ] [ Why ] [ Clear ]
 ```
 
 - `ADVISOR` in der Schrift von `app._heading` (8 pt, fett, +1.2 Sperrung,
@@ -109,7 +109,7 @@ ADVISOR  [ Maximise damage   v ]  [ Suggest ]   <status …>   [ Apply all ] [ W
   `setMaximumWidth(200)`. Eintraege in dieser Reihenfolge:
   `Maximise damage`, `Minimise damage taken`. Bewusst eine Combobox und nicht
   zwei Knoepfe, damit weitere Ziele ohne Layoutaenderung dazukommen koennen.
-- `Suggest`: `QPushButton`. Waehrend der Rechnung traegt derselbe Knopf
+- `Optimize`: `QPushButton`. Waehrend der Rechnung traegt derselbe Knopf
   `Cancel`.
 - Statusbereich: `QLabel`, **darf zur Breite der Leiste nichts beitragen**
   (horizontal `QSizePolicy.Ignored`, Text bei Platzmangel per `QFontMetrics`
@@ -227,14 +227,14 @@ slot-spezifischen Aussagen zusaetzlich den Vorschlagsblock.
 
 | # | Zustand | Statuszeile (woertlich) | Sonst |
 |---|---|---|---|
-| 4.1 | Ruhe, nie gerechnet | `Nothing suggested yet.` | Tooltip auf `Suggest`: `Fills every slot from the relics in your save. Nothing changes until you apply it.` |
+| 4.1 | Ruhe, nie gerechnet | `Nothing suggested yet.` | Tooltip auf `Optimize`: `Fills every slot from the relics in your save. Nothing changes until you apply it.` |
 | 4.2 | Rechnet, < 250 ms | *nichts* | keine Progressanzeige, kein Aufblitzen |
-| 4.3 | Rechnet, ≥ 250 ms | `Working out maximise damage…` | Progressbar sichtbar, `Suggest` heisst `Cancel` |
+| 4.3 | Rechnet, ≥ 250 ms | `Working out maximise damage…` | Progressbar sichtbar, `Optimize` heisst `Cancel` |
 | 4.4 | Rechnet, ≥ 3 s | `Working out maximise damage — 292 relics, 6 slots.` | Zahlen nur, wenn der Scorer sie liefert; sonst bleibt 4.3 stehen |
 | 4.5 | Abgebrochen | `Stopped. Nothing was changed.` | Vorschlagsbloecke verschwinden |
 | 4.6 | Ergebnis | `Maximise damage — 6 of 6 slots filled.` | Vorschlagsbloecke in allen Slots; `Apply all` / `Why` / `Clear` |
-| 4.7 | Ergebnis veraltet (Nightfarer, Vessel, Deep, Level oder eine Slot-Belegung hat sich waehrend der Rechnung geaendert) | `Your build changed while this was working out. Suggest again.` | Ergebnis wird **verworfen**, nicht angezeigt |
-| 4.8 | Kein Save gelesen (`owned is None`) | `No save was read, so there are no relics to choose from — use Rescan save.` | Zielwahl und `Suggest` deaktiviert |
+| 4.7 | Ergebnis veraltet (Nightfarer, Vessel, Deep, Level oder eine Slot-Belegung hat sich waehrend der Rechnung geaendert) | `Your build changed while this was working out. Optimize again.` | Ergebnis wird **verworfen**, nicht angezeigt |
+| 4.8 | Kein Save gelesen (`owned is None`) | `No save was read, so there are no relics to choose from — use Rescan save.` | Zielwahl und `Optimize` deaktiviert |
 | 4.9 | Teilweise stumm | `Maximise damage — 6 of 6 slots filled  ·  some effects carry no numbers.` | im `Why`-Dialog: `The game files carry no numbers for these, so they counted for nothing:` gefolgt von den Effektnamen |
 | 4.10 | Ziel gar nicht bewertbar | `The game files carry no figures this goal can be ranked on for <Nightfarer>, so there is nothing to suggest.` | kein Vorschlagsblock; `Why` bleibt erreichbar und erklaert es lang |
 | 4.11 | Keine Relikte fuer eine Slot-Farbe | `Maximise damage — 3 of 4 slots filled  ·  1 slot has nothing to choose from.` | betroffener Slot: `No <colour> relic in your save fits this slot.` |
@@ -251,7 +251,7 @@ kann, einmal so, dass ein Teil der Kandidaten unbewertet blieb. Die Hausregel
 
 ### 5. Interaktion, Tastatur, Nebenlaeufigkeit
 
-1. **Nichts aendert sich ohne Zustimmung.** `Suggest` schreibt in keinen Slot.
+1. **Nichts aendert sich ohne Zustimmung.** `Optimize` schreibt in keinen Slot.
    Erst `Apply all` bzw. `Use` belegen Slots.
 2. **Anwenden geht durch den bestehenden Weg**, den auch der Picker benutzt
    (`RelicSlot.relic_box.setCurrentIndex` → `_on_relic_changed` → `recompute`).
@@ -270,7 +270,7 @@ kann, einmal so, dass ein Teil der Kandidaten unbewertet blieb. Die Hausregel
 5. **Ein ueberholtes Ergebnis wird nie angewendet** (4.7).
 6. **Nur Relikte aus dem Besitz.** Nie "Custom relic", nie ein Relikt, das der
    Save nicht hergibt (GOAL A3).
-7. **Tab-Reihenfolge**: Zielwahl → `Suggest`/`Cancel` → `Apply all`/`Undo
+7. **Tab-Reihenfolge**: Zielwahl → `Optimize`/`Cancel` → `Apply all`/`Undo
    apply` → `Why` → `Clear` → erster Slot. Innerhalb eines Slots liegt `Use`
    direkt hinter dem Reliktknopf des Slots.
 8. Jede Aktion des Beraters ist ohne Maus erreichbar; jedes fokussierte
@@ -359,14 +359,14 @@ Pruefbar, binaer, vom `qa-engineer` gegen ein gebautes Artefakt (GOAL A9).
 - **AK-09** Eine Rechnung unter 250 ms zeigt weder Fortschrittsbalken noch
   Wartetext (kein Aufblitzen).
 - **AK-10** Eine Rechnung ueber 250 ms zeigt Fortschrittsbalken und Wartetext,
-  und `Suggest` traegt `Cancel`.
+  und `Optimize` traegt `Cancel`.
 - **AK-11** `Cancel` fuehrt binnen 200 ms nach dem Klick sichtbar in Zustand
   4.5, auch wenn der Arbeiter laenger zum Beenden braucht.
 - **AK-12** Aendert sich Nightfarer, Vessel, Deep of Night, Level oder eine
   Slot-Belegung waehrend der Rechnung, wird das Ergebnis verworfen und 4.7
   angezeigt. Es wird nie ein Vorschlag zu einem Zustand gezeigt, der nicht mehr
   gilt.
-- **AK-13** `Suggest` veraendert keinen Slot: nach `Suggest` ohne Anwenden sind
+- **AK-13** `Optimize` veraendert keinen Slot: nach `Optimize` ohne Anwenden sind
   Slot-Belegung, Statblatt und der Eintrag der Build-Liste unveraendert.
 - **AK-14** Nach `Apply all` zeigt das Statblatt die angewendeten Relikte, und
   der Zustand ist derselbe, als waeren die Relikte einzeln im Picker gewaehlt
@@ -400,7 +400,7 @@ Pruefbar, binaer, vom `qa-engineer` gegen ein gebautes Artefakt (GOAL A9).
 
 **Tastatur und Suche**
 
-- **AK-25** Jede Aktion des Beraters (Zielwahl, Suggest, Cancel, Apply all, Use
+- **AK-25** Jede Aktion des Beraters (Zielwahl, Optimize, Cancel, Apply all, Use
   je Slot, Why, Clear, Undo apply) ist allein mit Tab / Umschalt+Tab und
   Enter / Leertaste erreichbar und ausloesbar.
 - **AK-26** Die Tab-Reihenfolge entspricht 5.7; der Fokusring ist auf jedem
