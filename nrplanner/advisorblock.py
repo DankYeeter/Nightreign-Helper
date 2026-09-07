@@ -38,7 +38,8 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
-                               QPushButton, QScrollArea, QVBoxLayout, QWidget)
+                               QPushButton, QScrollArea, QSizePolicy,
+                               QVBoxLayout, QWidget)
 
 from .advisor import goals as advisor_goals
 from .advisor import types
@@ -170,6 +171,15 @@ class SuggestionBlock(QFrame):
             f"QFrame {{ background: {PANEL};"
             f" border: 1px dashed {ACCENT}; border-radius: 5px; }}"
         )
+        # The block asks for no width of its own, exactly as §3.1 has the
+        # advisor's row ask for none: it sits in a card inside the middle
+        # column's scroll area, and a widget that states a minimum width
+        # there widens the card past the viewport and puts a **horizontal**
+        # scrollbar under six cards that are all too wide (AK-160). Measured
+        # on `Wylder's Goblet` at 1320 logical px offscreen: the middle
+        # column scrolls 0..11 px without the advisor and 0..25 px with it
+        # while this line is missing.
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         column = QVBoxLayout(self)
         column.setContentsMargins(8, 8, 8, 8)
         column.setSpacing(2)

@@ -622,3 +622,29 @@ def test_why_with_no_answer_on_screen_opens_nothing(planner, monkeypatch):
     monkeypatch.setattr(advisorblock, "WhyDialog", _refuse)
     planner.advisor_bar._answer = None
     planner.advisor_bar.why_requested.emit()
+
+
+def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
+    """AK-160: no horizontal scrollbar in the middle column of the planner.
+
+    The cards live in a `QScrollArea` that is only as wide as the column, so
+    a widget in one of them that states a minimum width widens **every** card
+    past the viewport and puts a horizontal scrollbar under all six. A relic
+    name or an effect name with no space in it is all it takes: measured
+    offscreen at 1320 logical px, one 400-character line takes the column's
+    content from 479 px to 4846 while the viewport stays at 454.
+
+    The relation and not the number, because the number is a font: the card
+    asks for exactly as much room with a block on it as without one.
+    """
+    from nrplanner.app import RelicSlot
+
+    card = RelicSlot(0, False, lambda: None)
+    card.show()
+    without = card.minimumSizeHint().width()
+    card.show_the_suggestion(
+        "Maximise damage", a_group(a_line("A" * 400), relic="B" * 400), None)
+    qapp.processEvents()
+
+    assert card.minimumSizeHint().width() == without
+    card.deleteLater()
