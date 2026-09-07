@@ -292,3 +292,110 @@ Der Berater macht es seit T-083/T-089 genau so — die Vorlage steht im Haus.
 
 **Prio:** P3 · **Schwere:** Major · **Adressat:** developer, nach Bestaetigung
 durch den `security-reviewer` · **Status:** offen · 2026-09-07
+
+---
+
+## Nachtrag 2026-09-07 nach T-096 (Pruefung des Build-Beraters)
+
+### SEC-021 — korrigiert und herabgestuft, nicht behoben
+
+Der Befundtext oben behauptet die **Save-Grenze**. Sie haelt nicht, und der
+Director hat sie ungeprueft aus einem Entwicklerbericht uebernommen. Der
+`security-reviewer` hat an der Primaerquelle belegt: der Reliktname kommt aus
+dem **Datenabzug** (`inventory.py:237`, `relic_meta` aus `data["relics"]`),
+nicht aus dem Save. Der Save liefert dort ausschliesslich Ganzzahlen, und
+`savefile.py:181/190/198` prueft Relikt-, Effekt- **und** Fluch-Ids gegen den
+Abzug.
+
+**Neue Einstufung: Niedrig, Instanz von SEC-019**, gefuehrt wie SEC-012 und
+SEC-015. Die Vertrauensgrenze ist Spielinstallation → Anzeige, nicht Save →
+Anzeige. **SEC-021 sperrt A2 nicht.** Zeilennummern des urspruenglichen
+Befundtexts sind veraltet: `_sync_mode` steht heute in `app.py:734-778`,
+Markup in 752 und 768-774, `curse_lines` 780-799, `curse_tooltip` 835-848.
+
+**Randbedingung der Herabstufung:** sie haelt nur, solange `inventory.py` den
+Namen aus `relic_meta` nimmt und `read_owned_relics` Effekt- und Fluch-Ids
+gegen den Abzug prueft. Faellt eine der beiden — etwa durch einen im Save
+gespeicherten Spitznamen —, steht der Befund wieder auf der Save-Grenze.
+
+### SEC-019 — praezisiert, Einstufung unveraendert (Mittel)
+
+Gemessen auf PySide6 6.11.1: ein `QLabel` auf `AutoText` laedt
+`file:`- und `data:`-Ressourcen (`sizeHint` gibt die echten Bildmasse zurueck),
+**nicht** `http(s)` (16x16 Platzhalter in 0,023 s), nicht `qrc:`, nicht
+relative Pfade. Der Ausleitungsweg ist damit **nicht HTTP**, sondern der
+UNC-Umweg: `QUrl("file://host/share/x.png").toLocalFile()` ergibt
+`//host/share/x.png`, das `QFile` als SMB-Ziel oeffnet. Der letzte Schritt
+wurde nicht ausgeloest (Richtlinie).
+
+Neuer Nenner: **43** `setToolTip`-Aufrufe in `nrplanner/`, **22** mit
+nicht-literalem Argument, **3** davon escapt. Die alte Zahl im Register
+(35 von 36) beschrieb einen anderen Stand.
+
+**Fuer den Audit-Bericht nach A1:** die Zusage "kein Netzwerkzugriff" muss die
+Praezisierung tragen — auf Programmebene kein Netzzugriff (zwei unabhaengige
+Masken, 1 Treffer ohne I/O), aber die Qt-Darstellung oeffnet benannte
+`file:`/`data:`/UNC-Ressourcen.
+
+## SEC-022 — Reliktdatensaetze aus einem Save sind unbegrenzt
+
+**Prioritaet: Hoch · Status: offen · 2026-09-07 · Adressat: developer**
+**Dieser Befund sperrt A2 und damit das Release.**
+
+**Vertrauensgrenze:** heruntergeladenes Save → Programm. Genau die Grenze, die
+der Nutzer am 02.09.2026 ausdruecklich scharf gelassen hat.
+
+**Fundstellen:** `nrdata/savefile.py:165-203` (`read_owned_relics`, Schleife
+ohne Deckel), `nrplanner/inventory.py:228-267` und `:289` (der bestbefuellte
+Save gewinnt), `nrplanner/app.py:1575` (Ausloeser beim Start).
+**Verstaerker:** `nrplanner/advisor/candidates.py:297-311` zusammen mit
+`nrplanner/advisor/run.py:370-372` — `should_cancel` wird **erst nach** der
+Vorsortierung gefragt, `Cancel` erreicht den Lauf also nicht.
+
+**Angriffspfad:** Der AES-Schluessel ist eine oeffentliche Konstante, und
+`inventory._decrypt_slots` ruft `decrypt_member` **nicht** auf — die
+MD5-Pruefsumme wird auf diesem Weg nie geprueft. `find_saves` sucht mit
+`*/*.sl2`, der Dateiname ist gleichgueltig. Wer eine praeparierte Datei ins
+Save-Verzeichnis legt, verdraengt beim naechsten Start den echten Save.
+
+**Gemessen** (Rezept im Bericht `docs/berichte/T-096-security-reviewer.md`):
+**131 069 Datensaetze je MiB**, 3,31 s und +41,0 MB je MiB, linear ueber 1 und
+4 MiB. Zum Vergleich: ein echter Save traegt 284 Relikte bei ~19 MB — Faktor
+**8 800**. Hochgerechnet ergibt eine 19-MiB-Datei rund 2,5 Mio. Datensaetze,
+etwa 63 s Scan und ~780 MB allein fuer die Liste. Die Vorsortierung des
+Beraters kostet gemessen **0,084 ms je Relikt je freiem Slot** — bei 2,5 Mio.
+Relikten und sechs Slots rund **21 Minuten**, unabbrechbar.
+
+**Auswirkung:** reine Verfuegbarkeit — kein Datenabfluss, keine
+Rechteausweitung, kein Verlust gespeicherter Builds. Aber ohne
+Nutzerinteraktion nach dem Ablegen der Datei, und in derselben Form wie
+SEC-001, den der Director damals als Release-Sperre gefuehrt hat.
+
+**Behebungsrichtung:** ein Deckel auf die Zahl der Datensaetze, **laut
+ausfallend statt still kuerzend** — die Form, die SEC-002 im selben Modul
+schon benutzt und die der Nutzer bei SEC-006 angenommen hat. Die Schranke ist
+**relativ**, nicht geraten: mehr als etwa ein Datensatz je 64 Byte Member ist
+keine Inventardichte mehr. Ein zweiter, unabhaengiger Deckel an
+`inventory.relics_for` bzw. `candidates.pool`, damit die Klasse zubleibt, wenn
+jemand die erste Grenze umgeht. Zusaetzlich `should_cancel` **in** die
+Vorsortierschleife.
+
+## SEC-023 — Save-Pfad mit Steam-Konto-Id kann auf der Fensterflaeche landen
+
+**Prioritaet: Niedrig · Status: offen · 2026-09-07 · Adressat: developer**
+
+`nrplanner/app.py:3413` schreibt `f"Save could not be read: {exc}"` auf die
+Flaeche. `inventory.load:199` sortiert die gefundenen Saves mit `p.stat()`
+**ausserhalb** des `try` von `_scan_save`; verschwindet oder sperrt eine Datei
+zwischen `glob` und `stat` — das Spiel schreibt den Save im Betrieb neu —,
+traegt der Ausnahmetext den vollen Pfad samt `…\Steam\userdata\<Konto-Id>\…`.
+
+Das bricht eine Zusage, die derselbe Code zwei Zeilen weiter einhaelt
+(`app.py:3434-3442`: der Ordner steht im Tooltip, nicht auf der Flaeche, weil
+er nach der Steam-Konto-Id benannt ist). **NH-002 macht es scharf:** das
+Repository ist oeffentlich, und ein Bildnachweis wuerde die Id mittragen.
+
+**Nicht ausgeloest**, sondern Senke und Pfad am Code belegt.
+**Behebungsrichtung:** die Ausnahme auf ihre Klasse abbilden und eine eigene
+Formulierung zeigen, den Pfad in den Tooltip — nicht `str(exc)` auf die
+Flaeche.
