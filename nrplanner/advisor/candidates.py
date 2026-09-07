@@ -51,7 +51,7 @@ parameter, so a third goal reaches the pre-sort without a line changing here
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from .. import model
 from . import types
@@ -240,7 +240,9 @@ def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
 
 def pool(inventory, problem: types.SlotProblem, slot_index: int,
          ctx: types.GoalContext, goals: Mapping[str, types.Goal],
-         rank_by: str) -> types.SlotPool:
+         rank_by: str,
+         should_cancel: Callable[[], bool] = types.never_cancelled
+         ) -> types.SlotPool:
     """Every relic that may go into one slot, best first under `rank_by`.
 
     The colour rule -- and with it "a white slot draws every colour" -- is
@@ -295,6 +297,14 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
     conditional = 0
     converting = 0
     for relic in offered:
+        # Asked here and not once the pool is finished (SEC-022, AK-11). One
+        # `evaluate` per offered relic is the unit of work in this loop, so
+        # this is the finest grain a stopped run can be noticed at without
+        # splitting one candidate's measurement in two.
+        if should_cancel():
+            raise types.Cancelled(
+                f"stopped during the pre-sort of slot {slot_index}, after "
+                f"{len(measured)} candidates")
         if relic.handle is None or relic.handle in taken:
             continue
         candidate = _offer(slot, relic)
@@ -326,7 +336,9 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
 
 def pools(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
           goals: Mapping[str, types.Goal],
-          rank_by: str) -> tuple[types.SlotPool, ...]:
+          rank_by: str,
+          should_cancel: Callable[[], bool] = types.never_cancelled
+          ) -> tuple[types.SlotPool, ...]:
     """One pool per **free** slot, in the vessel's own order.
 
     Held slots get no pool: they are a boundary condition and the search does
@@ -334,7 +346,8 @@ def pools(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
     and that is an answer rather than a failure -- the run's result is then
     the current build, evaluated.
     """
-    return tuple(pool(inventory, problem, slot.index, ctx, goals, rank_by)
+    return tuple(pool(inventory, problem, slot.index, ctx, goals, rank_by,
+                      should_cancel)
                  for slot in types.free_slots(problem))
 
 

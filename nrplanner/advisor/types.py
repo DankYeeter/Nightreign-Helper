@@ -53,6 +53,28 @@ from dataclasses import dataclass
 from .. import model
 
 
+# --- stopping a run --------------------------------------------------------
+
+class Cancelled(Exception):
+    """Raised when a run was stopped before it had an answer (AD-006 point 6).
+
+    An exception rather than a short result, because a truncated beam and a
+    finished one are the same shape: the window says `Stopped. Nothing was
+    changed.` for the first and shows suggestions for the second (`UI_SPEC`
+    4.5 against 4.6), and a caller that has to tell them apart by counting
+    slots would get it wrong on the vessel where a slot had nothing to choose
+    from anyway.
+
+    It lives here rather than in `search.py` because the pre-sort raises it
+    too, and `candidates.py` is imported *by* `search.py`.
+    """
+
+
+def never_cancelled() -> bool:
+    """The default check: nothing is stopping this run."""
+    return False
+
+
 # --- the question ----------------------------------------------------------
 
 @dataclass(frozen=True)

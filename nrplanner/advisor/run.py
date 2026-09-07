@@ -47,11 +47,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .. import model
 from . import candidates, explain, search, types
 from .evaluate import evaluate
-
-
-def _never_cancelled() -> bool:
-    """The default check: nothing is stopping this run."""
-    return False
+from .types import never_cancelled
 
 
 # --- what the run reads, frozen at the moment it is handed over ------------
@@ -334,7 +330,7 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
 
 def run(request: types.AdvisorRequest, inventory,
         ctx: types.GoalContext, goals: Mapping[str, types.Goal],
-        should_cancel: Callable[[], bool] = _never_cancelled
+        should_cancel: Callable[[], bool] = never_cancelled
         ) -> types.AdvisorResult:
     """The whole answer to one question (AD-010), or `search.Cancelled`.
 
@@ -343,15 +339,22 @@ def run(request: types.AdvisorRequest, inventory,
     say about it. Every figure in the answer comes out of the run that
     produced it and none is recomputed on the way to the screen.
 
-    **Where a stopped run is noticed.** `should_cancel` is asked between the
-    pre-sort and the search, and inside the search between the slot levels
-    (AD-003 point 4). The pre-sort is not cut in two, and that is a measured
-    decision rather than a convenient one: on the worst real case -- 309
-    relics, `Wylder's Chalice` with Deep of Night, six free slots -- it costs
-    **43 ms of a 960 ms run** (`scripts/measure_advisor_search.py`, median of
-    three, this machine), a fifth of the 200 ms `UI_SPEC` AK-11 allows. The
-    search is where the time is (916 ms), and the widest of its levels is
-    where the coarse reaction time comes from.
+    **Where a stopped run is noticed.** `should_cancel` is asked inside the
+    pre-sort, once per offered relic, between the pre-sort and the search, and
+    inside the search between the slot levels (AD-003 point 4). The pre-sort
+    used to be left whole, on the measurement that it costs only 43 ms of a
+    960 ms run on the worst *real* case -- 309 relics, `Wylder's Chalice` with
+    Deep of Night, six free slots. That measurement stands and was the wrong
+    thing to reason from: the cost is linear in the relics, 0,084 ms per relic
+    per free slot as the `security-reviewer` measured it in T-096, and the
+    relic count comes out of a file, so a save the player did not write makes
+    the pre-sort the whole run and `Cancel` reaches nothing (SEC-022). The
+    limits in `savefile.read_owned_relics` and `Inventory.relics_for` keep
+    such a list from arriving; this keeps the run answerable whatever arrives.
+    Asking per relic is affordable and measured rather than assumed: the check
+    the window carries -- `QThread.isInterruptionRequested` -- costs 0,077 us,
+    against 175,6 us for the offered relic it precedes, 0,04 % of the pre-sort
+    (`scripts/measure_advisor_cancel.py`, this machine, 2026-09-07).
 
     **Every suggestion is explained, not only the first.** `Suggestion`
     carries its own reasons and the window may draw any of them; a beam whose
@@ -367,7 +370,8 @@ def run(request: types.AdvisorRequest, inventory,
     goal = goals[request.goal_id]
     problem = request.problem
 
-    pools = candidates.pools(inventory, problem, ctx, goals, request.goal_id)
+    pools = candidates.pools(inventory, problem, ctx, goals, request.goal_id,
+                             should_cancel)
     if should_cancel():
         raise search.Cancelled("stopped after the pre-sort, before the search")
     found = search.beam(problem, pools, request.budget,

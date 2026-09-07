@@ -178,25 +178,64 @@ def test_the_singular_fields_belong_to_the_best_suggestion(game_data, wylder):
 
 # -- stopping ---------------------------------------------------------------
 
-def test_a_run_stopped_before_the_search_says_so(game_data, wylder):
-    """The pre-sort and the search are two steps, and the check is between
-    them: on the worst real case the pre-sort is 43 ms of a 960 ms run
-    (`scripts/measure_advisor_search.py`), so it is not cut in two.
+def whole_pre_sort(inventory, problem) -> int:
+    """How many questions a pre-sort that runs to the end asks.
+
+    Worked out from the snapshot rather than read back out of `candidates`:
+    the pre-sort offers every relic `relics_for` answers with, once per free
+    slot, so this is what the loop under test has to come to. A number taken
+    from the loop itself would agree with it however wrong it was.
+    """
+    return sum(len(inventory.relics_for(slot.colour, slot.deep))
+               for slot in types.free_slots(problem))
+
+
+def test_a_run_stopped_inside_the_pre_sort_says_so(game_data, wylder):
+    """The first question is asked before the first candidate is measured.
+
+    The pre-sort used to be left whole, on the measurement that it is 43 ms
+    of a 960 ms run on the worst *real* case (`scripts/measure_advisor_search
+    .py`). That held only while the number of relics came from a save the
+    player wrote: a prepared file makes the pre-sort the entire run
+    (SEC-022), and a run that cannot be stopped there cannot be stopped at
+    all -- which is what `UI_SPEC` AK-11 asks for within 200 ms.
     """
     inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
 
-    with pytest.raises(search.Cancelled, match="pre-sort"):
+    with pytest.raises(search.Cancelled,
+                       match="during the pre-sort of slot 0, after 0"):
         run.run(request, inventory, ctx, goals.GOALS, Counter(stop_at=0))
 
 
-def test_a_run_asks_once_between_the_pre_sort_and_the_search(game_data,
-                                                             wylder):
-    """The question is asked, and it is asked in the place that was costed.
+def test_a_run_stopped_between_the_pre_sort_and_the_search_says_so(game_data,
+                                                                   wylder):
+    """The check between the two steps is still there and still its own.
+
+    Stopped one question after the last relic of the last pool, so the
+    pre-sort finishes and the next answer is the one taken between the
+    steps. Without that check the same question would be the search's first
+    and would name a slot level instead.
+    """
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
+
+    with pytest.raises(search.Cancelled,
+                       match="after the pre-sort, before the search"):
+        run.run(request, inventory, ctx, goals.GOALS,
+                Counter(stop_at=whole_pre_sort(inventory, problem)))
+
+
+def test_a_run_asks_once_per_offered_relic_and_once_per_level(game_data,
+                                                              wylder):
+    """The questions are asked, and asked in the places that were costed.
 
     Counted rather than watched: a check that ran only inside the search
     would leave the pre-sort uninterruptible without any case going red, and
-    one that ran per candidate would cost more than the reaction time it buys
-    (AD-006 point 6).
+    the pre-sort is where a hostile inventory spends the run (SEC-022). One
+    question per offered relic is the finest grain the loop has -- the unit
+    of work is one `evaluate` -- and it is affordable there: the check the
+    window carries costs 0,077 us against the 175,6 us one offered relic
+    costs, 0,04 % of the pre-sort (`scripts/measure_advisor_cancel.py`,
+    this machine, 2026-09-07).
     """
     inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
     watch = Counter()
@@ -204,9 +243,11 @@ def test_a_run_asks_once_between_the_pre_sort_and_the_search(game_data,
     run.run(request, inventory, ctx, goals.GOALS, watch)
 
     free = len(types.free_slots(problem))
-    assert watch.asked == free + 1, (
-        f"one question between the pre-sort and the search plus one before "
-        f"each of the {free} levels is {free + 1}; this run asked "
+    offered = whole_pre_sort(inventory, problem)
+    assert watch.asked == offered + 1 + free, (
+        f"one question per offered relic over the free slots ({offered}), "
+        f"one between the pre-sort and the search, and one before each of "
+        f"the {free} levels is {offered + 1 + free}; this run asked "
         f"{watch.asked} times")
 
 
@@ -219,9 +260,13 @@ def test_a_run_stopped_inside_the_search_says_so(game_data, wylder):
     against 4.6).
     """
     inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
+    # The whole pre-sort, the question between the steps, and the first slot
+    # level all answered "keep going"; the second level is the one stopped.
+    before_the_second_level = whole_pre_sort(inventory, problem) + 2
 
     with pytest.raises(search.Cancelled, match="1 of 2 slots"):
-        run.run(request, inventory, ctx, goals.GOALS, Counter(stop_at=2))
+        run.run(request, inventory, ctx, goals.GOALS,
+                Counter(stop_at=before_the_second_level))
 
 
 # -- the key describes the run ----------------------------------------------

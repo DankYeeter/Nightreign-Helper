@@ -13,8 +13,9 @@ must stay answerable, so this starts the run, connects `ready`, and returns
 `wait()` in the main thread except when the window is closing.
 
 **Two things stop a run, and they are not the same thing.** The interruption
-flag stops the *worker*, cooperatively, at the places `run.run` looks: after
-the pre-sort and between the slot levels. The generation counter stops the
+flag stops the *worker*, cooperatively, at the places `run.run` looks: inside
+the pre-sort once per offered relic, after the pre-sort, and between the slot
+levels. The generation counter stops the
 *answer*: every question carries the generation it was asked under, the
 answer carries it back, and an answer whose generation is no longer the
 current one is dropped without a word (AD-006 point 3). Cancelling alone

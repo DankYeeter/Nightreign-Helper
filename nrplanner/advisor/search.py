@@ -53,18 +53,7 @@ from dataclasses import dataclass
 
 from . import candidates, types
 from .evaluate import evaluate
-
-
-class Cancelled(Exception):
-    """Raised when a run was stopped between two levels (AD-006 point 6).
-
-    An exception rather than a short result, because a truncated beam and a
-    finished one are the same shape: the window says `Stopped. Nothing was
-    changed.` for the first and shows suggestions for the second (`UI_SPEC`
-    4.5 against 4.6), and a caller that has to tell them apart by counting
-    slots would get it wrong on the vessel where a slot had nothing to choose
-    from anyway.
-    """
+from .types import Cancelled, never_cancelled
 
 
 @dataclass(frozen=True)
@@ -108,11 +97,6 @@ def goal_scorer(problem: types.SlotProblem, ctx: types.GoalContext,
         return goal.score(evaluate(problem, assignment, ctx), ctx)
 
     return Scorer(goal_id=goal.id, score=score)
-
-
-def _never_cancelled() -> bool:
-    """The default check: nothing is stopping this run."""
-    return False
 
 
 @dataclass(frozen=True)
@@ -300,7 +284,7 @@ def _refuse_a_budget_that_searches_nothing(budget: types.Budget) -> None:
 
 def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
          budget: types.Budget, scorer: Scorer,
-         should_cancel: Callable[[], bool] = _never_cancelled
+         should_cancel: Callable[[], bool] = never_cancelled
          ) -> tuple[types.Suggestion, ...]:
     """The best complete assignments this budget finds, best first.
 
