@@ -5788,3 +5788,70 @@ sondern die Aussage der Lesart.
   diese Vorgabe sagt nur, **was** gelten muss (§2.3, AK-186).
 - **Die vier Fragen an den App Designer** (F-B, F-C, F-F, F-G) und die
   dreizehn Streichvorschlaege je Tab. Unberuehrt.
+
+---
+
+## Director-Korrektur zum Relic Picker — 2026-09-07, entschieden vom App Designer
+
+Der App Designer hat den gebauten Picker am laufenden Fenster gesehen und
+zwei Dinge entschieden. Beide gehen den Vorgaben oben vor.
+
+**1. Die beiden Spitzenreiter stehen oben.** Woertlich: *"zeig mir aber immer
+den top pick für dmg und survival als erstes. in beiden varianten."*
+
+Bisher fuehrte bei einer Zielsortierung der **Wert** (§3.4), und der
+Spitzenwert war nur durch den Chip `BEST FOR …` gekennzeichnet (AK-46). Wer
+nach Schaden sortierte, fand das beste Ueberlebensrelikt irgendwo weiter
+unten. Genau das war der Punkt: **beide Zahlen stehen auf jeder Karte, aber
+nur eine ordnete das Raster.**
+
+Neu, als **AK-195**: In beiden Zielsortierungen stehen die Karten mit dem
+Spitzenwert **beider** Zielrichtungen an der Spitze des Rasters, vor allen
+uebrigen. Es sind genau die Karten, die nach AK-46 einen `BEST FOR …`-Chip
+tragen — die Anordnung sagt damit nichts, was der Chip nicht schon sagt, sie
+macht es nur auffindbar.
+
+- **Reihenfolge an der Spitze:** die Custom-Karte fuehrt wie bisher das Raster
+  in jeder Sortierung (Bestand). Danach die Spitzenreiter der **sortierten**
+  Zielrichtung, danach die der anderen. Eine Karte, die fuer beide
+  Spitzenreiter ist, steht einmal, an der ersten dieser Stellen.
+- **Gleichstaende bleiben Gleichstaende.** Tragen fuenf Karten den Chip,
+  stehen fuenf Karten oben, in der Ordnung, die ohne Berater gaelte
+  (Favoriten, dann Name). **Keine Ordnungszahl, kein Rangabzeichen** — AK-44
+  gilt unveraendert.
+- **Ist der Spitzenwert einer Richtung `no change` oder negativ**, wird fuer
+  diese Richtung **nichts** vorgezogen — dieselbe Bedingung, unter der AK-46
+  keinen Chip vergibt. Zwanzig vorgezogene Karten bei durchgehend Null waeren
+  dieselbe Luege wie zwanzig Chips.
+- **Bei `Sort by` = `Name`** wird **nichts** vorgezogen. Diese Sortierung
+  existiert, um ein bestimmtes Relikt zu finden; zwei vorgezogene Karten
+  wuerden die alphabetische Ordnung genau dort brechen, wo sie der einzige
+  Zweck ist. *Director-Entscheidung, nicht vom App Designer gesagt — seine
+  Formulierung "in beiden varianten" liest der Director als die beiden
+  Zielsortierungen. Widerspricht er, ist das eine Zeile.*
+- **Die Ordnung bleibt stabil** (AK-44): zweimal derselbe Zustand ergibt
+  zweimal dieselbe Reihenfolge.
+
+**Rot-vorher:** Nach Schaden sortieren; die Karte mit dem hoechsten
+`Damage taken`-Wert steht nicht in den ersten Positionen hinter der
+Custom-Karte.
+
+**2. AK-51 ist unerfuellbar geschrieben und wird auf das Messbare
+zurueckgenommen.** Der `developer` hat in T-093 nachgemessen: drei ganze
+Kartenzeilen brauchen **1122 px**, verfuegbar sind **1027 px** auf dem
+Bildschirm des Nutzers. Breiter oeffnen macht es schlechter (1148 / 1213 /
+1213 px bei sechs, sieben, acht Spalten). **Die Bedingung war schon vor dem
+Wertblock verletzt**, mit nur zwei Textzeilen ueber dem Raster — sie ist also
+keine Folge des Beraters.
+
+Neu, als **AK-196**, und **ersetzt die zweite Haelfte von AK-51**: Am
+Standardmass des Pickers erscheint **keine waagerechte Bildlaufleiste**, und
+es sind mindestens **zwei vollstaendige Kartenzeilen** sichtbar. Die erste
+Haelfte von AK-51 (keine waagerechte Bildlaufleiste; im Konfliktfall das
+Standardmass vergroessern statt den Inhalt zu kuerzen) gilt unveraendert.
+
+*Begruendung der Zahl:* zwei Zeilen sind das, was auf dem einzigen Bildschirm,
+auf dem gemessen wurde, mit dem vorgegebenen Inhalt erreichbar ist. Drei waren
+eine Zusicherung ohne Messung. Wer sie zurueckhaben will, muss Inhalt ueber
+dem Raster streichen — das ist eine Frage an den App Designer, keine an die
+Umsetzung.
