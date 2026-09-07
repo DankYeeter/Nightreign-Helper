@@ -303,38 +303,124 @@ def _named(contribution: _Contribution, built: model.Build) -> str:
 
 # --- the effects that moved nothing, and why -------------------------------
 
-#: The gates that make an effect's worth a question about the armaments on
-#: the grid rather than about the build. They are the keys of
-#: `model.GATE_FIELDS` whose wording says so -- "only with a matching weapon
-#: type", "needs several of that weapon equipped", "changes the armament's
-#: skill" -- and they are named here rather than sniffed out of that wording,
-#: because a family picked by searching another module's English would move
-#: the day someone rewrote a sentence. `tests/test_advisor_explain.py` holds
-#: the two lists against each other.
-_ARMAMENT_GATES = ("triggerOnWepType", "wepTypeTrigger", "wepTypeTriggerCount",
-                   "startSwordArtsId")
+#: The armament gates whose bare presence is the whole answer: this one
+#: swaps the skill of whatever matching armament is carried, and the effect's
+#: own name says which armament that is. There is no value here to hold
+#: against anything, so there is nothing to test.
+#:
+#: **`wepTypeTriggerCount` is deliberately not one of them** (AK-178). It
+#: asks how many armaments of a type are equipped, a number nothing in this
+#: extraction knows, so the gate reads unmet even while the player is
+#: carrying the weapon and *"change your armaments"* moves nothing. It
+#: carries a second meaning besides: of the 82 effects holding it in this
+#: dataset, the 51 whose value is not 3 also hold `startGoodsId` and hand the
+#: player an **item** at the start of the expedition, which is not an
+#: armament question at all. Letting it back in here is what
+#: `tests/test_advisor_explain.py` watches for.
+_GATES_THE_NAME_ANSWERS = ("startSwordArtsId",)
+
+#: The armament gates that demand a weapon type, and so have a value worth
+#: testing: `model.WEAPON_TYPE_GATES`, the very tuple `model.compute` gated
+#: the build on. Taken from the model rather than restated, so the two cannot
+#: drift apart, and asked through `model.satisfied_by_weapon` for the same
+#: reason.
+#:
+#: Together with the family above these are the keys of `model.GATE_FIELDS`
+#: whose wording is about armaments -- "only with a matching weapon type",
+#: "changes the armament's skill" -- minus the counting gate. They are named
+#: rather than sniffed out of that wording, because a family picked by
+#: searching another module's English would move the day someone rewrote a
+#: sentence; the test holds the union against `model.GATE_FIELDS`.
+_GATES_WITH_A_WEAPON_TYPE = model.WEAPON_TYPE_GATES
+
+
+@dataclass(frozen=True)
+class _Armaments:
+    """What a weapon-type gate is held against, read once per run.
+
+    `held` is the set of `wep_type` values `model.compute` itself gated on --
+    every armament on the grid, not only the one being rated -- so a sentence
+    here cannot disagree with the calculation that produced the build.
+
+    `in_the_data` is every `wep_type` the extraction knows (AK-179): 34
+    values over 1793 armaments in the dataset this was measured on. A gate
+    demanding a value outside it can be met by no armament in the game, so
+    *"it depends on the armaments you carry"* would send the player shopping
+    for a weapon that does not exist. 72 of the 144 `triggerOnWepType`
+    effects in this dataset demand 256 or 512 and are exactly that case.
+    """
+
+    held: frozenset
+    in_the_data: frozenset
+
+
+def _armaments(ctx: types.GoalContext) -> _Armaments:
+    """The two sets above, built the way `model.compute` builds the first.
+
+    Same fallback as the model's: with no armament grid given, the reference
+    armament is the one being held, or there is no weapon type at all.
+    """
+    held = {weapon.get("wep_type") for weapon in ctx.weapons_held if weapon}
+    if not held and ctx.reference is not None:
+        held = {ctx.reference.weapon.get("wep_type")}
+    held.discard(None)
+    known = {weapon.get("wep_type") for weapon in ctx.data.get("weapons") or ()}
+    known.discard(None)
+    return _Armaments(held=frozenset(held), in_the_data=frozenset(known))
+
+
+def _armament_bound(effect: dict, armaments: _Armaments) -> bool:
+    """Is "carry a different armament" the answer for this effect (AK-177)?
+
+    Not "does it carry an armament gate" -- that question is too wide by 20
+    lines on the save this was measured on, and 19 of those 20 belong to
+    effects that hand the player an **item**. The two ways it can be true:
+
+    * a weapon-type gate the calculation found unmet, asked of
+      `model.satisfied_by_weapon` itself rather than re-decided here, whose
+      demanded value some armament of the game actually carries (AK-179);
+    * a gate whose name is the answer, which needs no asking.
+    """
+    mods = effect.get("modifiers") or {}
+    if any(gate in mods for gate in _GATES_THE_NAME_ANSWERS):
+        return True
+    for gate in _GATES_WITH_A_WEAPON_TYPE:
+        if gate not in mods:
+            continue
+        wanted = mods[gate]
+        if (not model.satisfied_by_weapon(gate, wanted, armaments.held)
+                and wanted in armaments.in_the_data):
+            return True
+    return False
 
 
 def _silent_effect(candidate: types.Candidate, effect_id: int,
                    ctx: types.GoalContext, built: model.Build,
-                   counted_elsewhere: bool) -> types.ReasonLine:
+                   counted_elsewhere: bool,
+                   armaments: _Armaments) -> types.ReasonLine:
     """An effect of a chosen copy that produced no line, said in one sentence.
 
-    Six fillings, and **the first that fits wins** in the order `UI_SPEC`
-    T-080 §4 sets: the strongest piece of news first. They are not one
-    sentence with six wordings -- what a player can do about a silent effect
-    differs completely between them. An effect that works for another
-    Nightfarer is dead weight in that slot forever; one waiting on a
-    condition counts the moment the condition holds, and the advisor measured
-    150 of the first and 170 of the second among 426 silent effects on one
-    save.
+    Six fillings, and **the first that fits wins** in the order AK-167 sets:
+    (a), (a2), **(c)**, **(b)**, (d), (e) -- the strongest piece of news
+    first. They are not one sentence with six wordings; what a player can do
+    about a silent effect differs completely between them. An effect that
+    works for another Nightfarer is dead weight in that slot forever, and one
+    whose gate is the armament names the lever, which is why (c) is asked
+    before (b): *"only applies under a condition"* would be true of it and
+    send the player looking for the condition the program already knows.
+
+    Measured over the fillings of the 426 silent **lines** on one save
+    (AK-180, AK-181 -- these count lines, not `Build.situational` entries):
+    150 / 0 / 144 / 38 / 94 / 0 in the order (a) / (a2) / (b) / (c) / (d) /
+    (e).
 
     **Why the reason is asked of the same reckoning that produced the
     build** (AD-015): `built.situational` is what `model.compute` actually
-    parked, matched by **id** rather than by name, and the ownership gate is
-    `effecttext.works_for`, which is the function `compute_qualitative`
-    itself asks. Nothing here re-decides what an effect does; it reads back
-    why the calculation had nothing to write down.
+    parked, matched by **id** rather than by name, the ownership gate is
+    `effecttext.works_for`, and the armament gate is
+    `model.satisfied_by_weapon` -- all three the functions
+    `compute_qualitative` itself asks. Nothing here re-decides what an effect
+    does; it reads back why the calculation had nothing to write down.
     """
     def said(text: str, silence: str) -> types.ReasonLine:
         return types.ReasonLine(slot_index=candidate.slot_index, text=text,
@@ -357,13 +443,13 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     if counted_elsewhere:
         return said(f"{name}: another copy of it is already counted, so this "
                     f"one adds nothing.", types.SILENT_ALREADY_COUNTED)
+    if _armament_bound(effect, armaments):
+        return said(f"{name}: it depends on the armaments you carry, so no "
+                    f"number here.", types.SILENT_ARMAMENT_BOUND)
     if any(entry.effect_id == effect_id and not entry.live
            for entry in built.situational):
         return said(f"{name}: only applies under a condition, so no number "
                     f"here.", types.SILENT_UNDER_A_CONDITION)
-    if any(gate in (effect.get("modifiers") or {}) for gate in _ARMAMENT_GATES):
-        return said(f"{name}: it depends on the armaments you carry, so no "
-                    f"number here.", types.SILENT_ARMAMENT_BOUND)
     return said(f"{name}: no number here shows what this adds.",
                 types.SILENT_NO_NUMBER_HERE)
 
@@ -466,6 +552,9 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                                           built, contributions)
     already = {entry.effect_id for entries in base.sources.values()
                for entry in entries}
+    # Read once: the armament grid does not change inside one run, and the
+    # weapon-type pool is a sweep over every armament of the extraction.
+    armaments = _armaments(ctx)
     groups = []
     for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
         mine = [one for one in contributions
@@ -482,7 +571,8 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                     for one in mine if one.effect_id == effect_id)
             else:
                 lines.append(_silent_effect(candidate, effect_id, ctx, built,
-                                            effect_id in elsewhere))
+                                            effect_id in elsewhere,
+                                            armaments))
         for curse_id in candidate.curse_ids:
             lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
                                       unfelt))

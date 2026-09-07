@@ -832,19 +832,32 @@ def an_armament_bound_effect_that_moves_no_number(data: dict,
                 "also being a switch, so filling (c) has no case here")
 
 
-def test_the_armament_gates_are_the_ones_the_model_names(game_data):
-    """The four field names are `model.GATE_FIELDS` keys, not a private list.
+def test_the_armament_gates_are_the_ones_the_model_names_bar_the_counting_one(
+        game_data):
+    """`model.GATE_FIELDS`' own armament family, minus what AK-178 excludes.
 
     A family that drifted from the model's would put an effect into the
     remainder filling and say `no number here shows what this adds.` about
-    something whose whole answer is "carry the other axe".
+    something whose whole answer is "carry the other axe". So the union of
+    the two families the module keeps is held against the model's wording,
+    and the one deliberate difference is named here rather than left to be
+    noticed: `wepTypeTriggerCount` is an armament gate by that wording and is
+    **not** a lever, because nothing in the extraction knows how many
+    armaments of a type are equipped.
     """
     named = {field_name for field_name, why in model.GATE_FIELDS.items()
              if "weapon" in why or "armament" in why}
+    counts_them = "wepTypeTriggerCount"
+    kept = set(explain._GATES_THE_NAME_ANSWERS) | set(
+        explain._GATES_WITH_A_WEAPON_TYPE)
 
-    assert set(explain._ARMAMENT_GATES) == named, (
-        f"the module and the model disagree about which gates are about the "
-        f"armaments: {sorted(set(explain._ARMAMENT_GATES) ^ named)}")
+    assert counts_them in named, (
+        f"the model no longer counts {counts_them} among the armament "
+        f"gates, so the exclusion AK-178 asks for has nothing to exclude and "
+        f"this case has stopped watching anything")
+    assert kept == named - {counts_them}, (
+        f"the module and the model disagree about which gates name a lever "
+        f"the player can pull: {sorted(kept ^ (named - {counts_them}))}")
 
 
 def test_an_effect_of_another_nightfarer_says_whose_it_is(game_data, wylder):
@@ -945,17 +958,19 @@ def test_an_effect_bound_to_the_armaments_says_that_and_not_the_remainder(
 def test_an_effect_that_fits_two_fillings_takes_the_earlier_one(game_data,
                                                                 wylder,
                                                                 armament):
-    """AK-152: the first filling that fits wins, in the order T-080 §4 sets.
+    """AK-167: the first filling that fits wins, and (c) is asked before (b).
 
-    `Improved Attack Power with 3+ Bows Equipped` fits two of them at once --
-    it is a switch the player can declare, and what it is worth is a question
-    about the armaments. The order decides, and it decides for the switch:
-    the player can turn that one on and see the number, which is the more
-    useful half. 226 effects of this dataset carry both, so this is not a
+    An effect such as `Improved Dagger Attack Power` fits two of them at once
+    -- the model parks it as a switch the player can declare, **and** what it
+    is worth is a question about the armaments. The order decides, and since
+    AK-167 it decides for the armaments: that sentence names the lever, while
+    `only applies under a condition` is true of it and sends the player
+    hunting for a condition the program has already identified. 26 lines of
+    the save this was measured on sit in exactly this overlap, so it is not a
     corner.
     """
-    fits_both = an_effect_that_is_both_a_switch_and_armament_bound(game_data,
-                                                                   wylder)
+    fits_both = an_effect_that_is_both_a_switch_and_armament_bound(
+        game_data, wylder, armament)
     problem = advisor.problem([advisor.RED])
     ctx = advisor.context(game_data, wylder, reference=armament)
     chosen = (a_copy(0, 1, "A relic", [fits_both]),)
@@ -966,31 +981,381 @@ def test_an_effect_that_fits_two_fillings_takes_the_earlier_one(game_data,
 
     name = effect_names(game_data, [fits_both]).pop()
     assert lines_of((group,)) == (
-        f"{name}: only applies under a condition, so no number here.",)
+        f"{name}: it depends on the armaments you carry, so no number here.",)
+    assert [line.silence for line in group.lines] == [
+        types.SILENT_ARMAMENT_BOUND]
 
 
-def an_effect_that_is_both_a_switch_and_armament_bound(data: dict,
-                                                       hero: dict) -> int:
+def an_effect_that_is_both_a_switch_and_armament_bound(
+        data: dict, hero: dict,
+        armament: types.ReferenceArmament) -> int:
     """An effect the model parks as a switch **and** gates on the armaments.
 
-    Both halves asked of the model: `Build.situational` for the switch, and
-    `model.GATE_FIELDS`' own wording for the armament family.
+    Both halves asked of something other than `explain`: `Build.situational`
+    for the switch, and for the armament half the dataset itself -- the gate
+    demands a `wep_type` some armament of the game carries and this armament
+    does not, which is a fact about `data["weapons"]` and about the weapon in
+    hand, not about the module being watched.
     """
     curves = data.get("curves", {})
-    wanted = {field_name for field_name, why in model.GATE_FIELDS.items()
-              if "weapon" in why or "armament" in why}
-    for key in sorted(data["effects"], key=int):
-        effect = data["effects"][key]
-        if not any(gate in (effect.get("modifiers") or {})
-                   for gate in wanted):
-            continue
+    held = armament.weapon.get("wep_type")
+    for effect_id in weapon_type_gates_this_armament_does_not_meet(data, held):
+        effect = data["effects"][str(effect_id)]
         build = model.compute(hero, advisor.LEVEL, [effect], curves)
         if build.sources:
             continue
         if any(not entry.live for entry in build.situational):
-            return int(effect["id"])
+            return effect_id
     pytest.skip("no effect of this dataset is both a switch and bound to the "
                 "armaments, so the order of the fillings has no case here")
+
+
+# --- AK-177 to AK-180: which silent line lands in which filling ------------
+
+#: The value AK-179's guard is built for: `triggerOnWepType` carries it on 70
+#: effects of this dataset and no armament of the game has it as a `wep_type`,
+#: so no weapon swap can ever meet such a gate. Constructed into a case below
+#: rather than searched for, because on the real save the guard moves **zero**
+#: lines -- the player owns none of those 72 effects -- and a guard nothing
+#: reaches is a guard nothing watches (AK-179's own note).
+A_WEAPON_TYPE_NO_ARMAMENT_HAS = 256
+
+#: Filling (e) needs an effect id the dataset does not carry. Far above the
+#: seven-digit ids the extraction uses, and asserted absent where it is used.
+AN_ID_THIS_DATASET_DOES_NOT_CARRY = 99_999_999
+
+
+def weapon_types_of_every_armament(data: dict) -> set:
+    """Every `wep_type` the extraction knows -- AK-179's value pool.
+
+    34 values over 1793 armaments in the dataset this was measured on. Read
+    off `data["weapons"]` here, which is the same reading `explain` does, but
+    the *expectation* a case builds on it is which effects fall inside and
+    outside it -- a fact about the dataset, not about the module.
+    """
+    found = {weapon.get("wep_type") for weapon in data["weapons"]}
+    found.discard(None)
+    return found
+
+
+def weapon_type_gates_this_armament_does_not_meet(data: dict, held) -> list:
+    """Effect ids whose weapon-type gate demands another armament of the game.
+
+    "Another armament **of the game**": the demanded value is some real
+    weapon's `wep_type` and is not the one in hand, so swapping weapons is an
+    answer the player can act on. Effects that also carry the counting gate
+    are left out, because AK-178 gives that field cases of its own and a
+    corpus entry has to belong to one filling for one stated reason.
+    """
+    pool = weapon_types_of_every_armament(data)
+    found = []
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        if "wepTypeTriggerCount" in mods:
+            continue
+        demanded = [mods[gate] for gate in model.WEAPON_TYPE_GATES
+                    if gate in mods]
+        if demanded and all(value in pool and value != held
+                            for value in demanded):
+            found.append(int(effect["id"]))
+    return found
+
+
+def an_effect_gated_only_on_how_many_are_equipped(data: dict,
+                                                  hero: dict) -> int:
+    """An effect whose one armament gate is `wepTypeTriggerCount` (AK-178).
+
+    Nothing in the extraction knows how many armaments of a type are
+    equipped, so this gate reads unmet whatever the player carries, and
+    "carry a different weapon" is not an answer to it.
+    """
+    hero_name = str(hero.get("name", ""))
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        if "wepTypeTriggerCount" not in mods:
+            continue
+        if any(gate in mods for gate in model.WEAPON_TYPE_GATES):
+            continue
+        if "startSwordArtsId" in mods:
+            continue
+        if not effecttext.works_for(effect, hero_name):
+            continue
+        if not model.compute(hero, advisor.LEVEL, [effect], curves).sources:
+            return int(effect["id"])
+    pytest.skip("no effect of this dataset is gated on the number of "
+                "armaments alone, so AK-178 has no case here")
+
+
+def an_effect_that_swaps_the_armaments_skill(data: dict, hero: dict) -> int:
+    """An effect carrying `startSwordArtsId` and no weapon-type gate.
+
+    The half of filling (c) that has no value to test: the effect swaps the
+    skill of whatever matching armament is carried, and its own name says
+    which armament that is.
+    """
+    hero_name = str(hero.get("name", ""))
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        if "startSwordArtsId" not in mods:
+            continue
+        if any(gate in mods for gate in model.WEAPON_TYPE_GATES):
+            continue
+        if not effecttext.works_for(effect, hero_name):
+            continue
+        if not model.compute(hero, advisor.LEVEL, [effect], curves).sources:
+            return int(effect["id"])
+    pytest.skip("no effect of this dataset swaps an armament's skill, so "
+                "that half of filling (c) has no case here")
+
+
+def an_effect_of_another_nightfarer(data: dict, hero: dict) -> int:
+    """An effect `effecttext` says belongs to somebody the player is not.
+
+    Asked of `model.compute` as well as of `effecttext`: an effect that still
+    moved a figure would get a figure line rather than a silent one, and a
+    corpus counting silent lines would come out one short for a reason that
+    has nothing to do with the fillings.
+    """
+    hero_name = str(hero.get("name", ""))
+    curves = data.get("curves", {})
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        owner = effecttext.owner(effect)
+        if not owner or owner == hero_name:
+            continue
+        if not model.compute(hero, advisor.LEVEL, [effect], curves).sources:
+            return int(effect["id"])
+    pytest.skip("every effect of this dataset works for everyone, so filling "
+                "(a) has no case here")
+
+
+def a_switch_with_no_armament_gate(data: dict, hero: dict) -> int:
+    """A gated effect the sheet offers as a switch, gated on no armament.
+
+    `advisor.a_declarable_effect` takes the first switch of the dataset,
+    which may well be an armament one; a corpus entry has to belong to one
+    filling for one reason, so this asks for a switch whose condition is
+    about the player rather than about the grid.
+    """
+    curves = data.get("curves", {})
+    armament_gates = {field_name for field_name, why in
+                      model.GATE_FIELDS.items()
+                      if "weapon" in why or "armament" in why}
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        if any(gate in (effect.get("modifiers") or {})
+               for gate in armament_gates):
+            continue
+        build = model.compute(hero, advisor.LEVEL, [effect], curves)
+        if build.sources:
+            continue
+        if any(entry.effect_id == int(effect["id"]) and not entry.live
+               for entry in build.situational):
+            return int(effect["id"])
+    pytest.skip("no effect of this dataset is a switch without also being an "
+                "armament question, so filling (b) has no plain case here")
+
+
+def demanding_a_weapon_type_no_armament_has(data: dict, effect_id: int
+                                            ) -> dict:
+    """`data` with that one effect's weapon-type gate moved out of the pool.
+
+    AK-179's construction, and it is a construction on purpose: the real save
+    reaches none of the 72 effects that carry such a gate, so without this the
+    guard would be unwatched. Exactly one field of one effect changes -- the
+    id, the name and every other modifier stay -- so a case using both
+    datasets differs in the demanded weapon type and in nothing else.
+    """
+    assert A_WEAPON_TYPE_NO_ARMAMENT_HAS not in weapon_types_of_every_armament(
+        data), (
+        f"{A_WEAPON_TYPE_NO_ARMAMENT_HAS} is a real weapon type in this "
+        f"dataset, so it no longer constructs the case AK-179 asks for")
+    effect = dict(data["effects"][str(effect_id)])
+    mods = dict(effect.get("modifiers") or {})
+    gate = next(name for name in model.WEAPON_TYPE_GATES if name in mods)
+    mods[gate] = A_WEAPON_TYPE_NO_ARMAMENT_HAS
+    effect["modifiers"] = mods
+    return {**data, "effects": {**data["effects"], str(effect_id): effect}}
+
+
+def test_a_gate_on_a_weapon_type_no_armament_has_is_not_an_armament_case(
+        game_data, wylder, armament):
+    """AK-179: one effect, two datasets, and only the demanded type differs.
+
+    With a real weapon type the gate names a lever -- buy that weapon, carry
+    it, the effect counts -- and the line says so. With 256 it names nothing:
+    no armament in the game carries that type, so *"it depends on the
+    armaments you carry"* would send the player shopping for a weapon that
+    does not exist, and what is left to say is that a condition holds it
+    back.
+
+    The expectation is not read from `explain` but from `data["weapons"]`:
+    whether some armament carries the demanded type is a fact about the
+    extraction.
+    """
+    real = weapon_type_gates_this_armament_does_not_meet(
+        game_data, armament.weapon.get("wep_type"))
+    if not real:
+        pytest.skip("no effect of this dataset gates on a weapon type this "
+                    "armament does not carry, so AK-179 has no case here")
+    gated = real[0]
+    invented = demanding_a_weapon_type_no_armament_has(game_data, gated)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [gated]),)
+    name = effect_names(game_data, [gated]).pop()
+
+    def said(data: dict) -> tuple[str, ...]:
+        ctx = advisor.context(data, wylder, reference=armament)
+        return lines_of(explain.reasons(problem, chosen,
+                                        evaluate(problem, (), ctx),
+                                        evaluate(problem, chosen, ctx), ctx,
+                                        goals.GOALS[DAMAGE]))
+
+    assert said(game_data) == (
+        f"{name}: it depends on the armaments you carry, so no number here.",)
+    assert said(invented) == (
+        f"{name}: only applies under a condition, so no number here.",), (
+        f"the gate demands weapon type {A_WEAPON_TYPE_NO_ARMAMENT_HAS}, "
+        f"which no armament of this dataset carries, and the line still "
+        f"tells the player to change their armaments")
+
+
+def test_a_gate_on_how_many_are_equipped_never_mentions_the_armaments(
+        game_data, wylder, armament):
+    """AK-178, on the effect the vorgabe names: the Stonesword Key line.
+
+    `Stonesword Key in possession at start of expedition` hands the player an
+    **item**. Its only armament gate is `wepTypeTriggerCount`, a number this
+    program does not have, so the old rule told 20 lines of one save -- 19 of
+    them item effects -- to go and change their weapons. The filling is (b),
+    and the string `armaments you carry` may not appear anywhere in the line.
+    """
+    counted = an_effect_gated_only_on_how_many_are_equipped(game_data, wylder)
+    stonesword = [int(effect["id"]) for effect in game_data["effects"].values()
+                  if " ".join(str(effect.get("name", "")).split())
+                  == "Stonesword Key in possession at start of expedition"]
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+
+    assert stonesword, (
+        "this dataset no longer carries `Stonesword Key in possession at "
+        "start of expedition`, the effect AK-178 names by name")
+
+    # The named one first, so that a failure quotes the line the vorgabe
+    # quotes rather than whichever effect of the family sorts lowest.
+    for effect_id in stonesword + [counted]:
+        chosen = (a_copy(0, 1, "A relic", [effect_id]),)
+        group, = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                                 evaluate(problem, chosen, ctx), ctx,
+                                 goals.GOALS[DAMAGE])
+        name = effect_names(game_data, [effect_id]).pop()
+
+        assert lines_of((group,)) == (
+            f"{name}: only applies under a condition, so no number here.",)
+        assert [line.silence for line in group.lines] == [
+            types.SILENT_UNDER_A_CONDITION]
+        assert "armaments you carry" not in "".join(lines_of((group,))), (
+            f"{name!r} is gated on how many armaments of a type are "
+            f"equipped, a number this program does not have, and the line "
+            f"still sends the player to change their armaments")
+
+
+def a_corpus_of_every_filling(data: dict, hero: dict,
+                              armament: types.ReferenceArmament):
+    """A dataset and, for all six fillings, the effect ids that belong to it.
+
+    Stated one by one, because the point of AK-180 is the **distribution**:
+    the save's 426 silent lines summed correctly all the while 20 of them sat
+    in the wrong filling, so a corpus whose entries are only counted proves
+    nothing. Every entry is picked by a property of the dataset, of the
+    armament in hand or of `model.compute` -- never by asking `explain` what
+    it would say about it.
+
+    The dataset comes back changed in exactly one field: the third
+    weapon-type-gated effect is made to demand a type no armament of the game
+    carries, which is the only way AK-179's guard is reached at all.
+    """
+    gated = weapon_type_gates_this_armament_does_not_meet(
+        data, armament.weapon.get("wep_type"))
+    if len(gated) < 3:
+        pytest.skip("this dataset has fewer than three effects gated on a "
+                    "weapon type the armament in hand does not carry, so the "
+                    "corpus cannot be built")
+    unreachable = gated[2]
+    return demanding_a_weapon_type_no_armament_has(data, unreachable), {
+        types.SILENT_ANOTHER_NIGHTFARER: [
+            an_effect_of_another_nightfarer(data, hero)],
+        types.SILENT_ALREADY_COUNTED: [
+            advisor.a_non_stacking_effect(data, hero, "physicsAttackRate")],
+        types.SILENT_ARMAMENT_BOUND: [
+            gated[0], gated[1],
+            an_effect_that_swaps_the_armaments_skill(data, hero)],
+        types.SILENT_UNDER_A_CONDITION: [
+            an_effect_gated_only_on_how_many_are_equipped(data, hero),
+            a_switch_with_no_armament_gate(data, hero),
+            unreachable],
+        types.SILENT_NO_NUMBER_HERE: [
+            an_effect_that_moves_no_number(data, hero)],
+        types.SILENT_NOT_IN_THE_DATA: [AN_ID_THIS_DATASET_DOES_NOT_CARRY],
+    }
+
+
+def test_every_silent_line_lands_in_the_filling_ak_180_gives_it(game_data,
+                                                                wylder,
+                                                                armament):
+    """The whole distribution at once, filling by filling (AK-167, AK-177+).
+
+    **Why not the numbers of the vorgabe.** AK-180 fixes 150 / 0 / 144 / 38 /
+    94 / 0 in environment A and 159 / 0 / 149 / 25 / 101 / 0 in B, both
+    counted over one player's 309 relics; a fresh clone has no save and
+    cannot reach either. What travels is the property those numbers are
+    evidence for, and this states it on a corpus of its own.
+
+    **The sum is deliberately not the assertion.** The 426 was already right
+    while 20 lines sat in the wrong filling, so a case that counts silent
+    lines and stops is green against QA-187 itself. The distribution is
+    asserted whole, so a line moving between two fillings fails here even
+    though nothing about the total changed.
+
+    The gate demanding a weapon type no armament has (AK-179) is folded in
+    with the rest, which is why the corpus runs on a constructed dataset: on
+    the real save that guard moves zero lines.
+    """
+    invented, wanted = a_corpus_of_every_filling(game_data, wylder, armament)
+    stuck, = wanted[types.SILENT_ALREADY_COUNTED]
+    ids = [effect_id for entries in wanted.values() for effect_id in entries]
+
+    assert len(set(ids)) == len(ids), (
+        f"two fillings of the corpus were given the same effect, so the "
+        f"distribution below could be satisfied two ways: {sorted(ids)}")
+    assert str(AN_ID_THIS_DATASET_DOES_NOT_CARRY) not in invented["effects"]
+
+    problem = advisor.problem([advisor.RED, advisor.RED])
+    ctx = advisor.context(invented, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "First copy", [stuck]),
+              a_copy(1, 2, "The corpus", ids))
+    _, group = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                               evaluate(problem, chosen, ctx), ctx,
+                               goals.GOALS[DAMAGE])
+
+    said = {}
+    for line in group.lines:
+        said.setdefault(line.silence, []).append(line.text)
+    counted = {silence: len(texts) for silence, texts in said.items()}
+    expected = {silence: len(entries) for silence, entries in wanted.items()}
+
+    assert counted == expected, (
+        f"the silent lines are distributed over the fillings differently "
+        f"from the way AK-167 and AK-177 to AK-179 distribute them. Got "
+        f"{counted}, expected {expected}; the lines were {said}")
+    assert sum(counted.values()) == len(ids), (
+        f"the corpus carries {len(ids)} effects and produced "
+        f"{sum(counted.values())} silent lines")
 
 
 def test_a_silent_effect_is_no_curse_and_carries_no_warning(game_data,
