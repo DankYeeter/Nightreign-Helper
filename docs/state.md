@@ -1,17 +1,17 @@
 # Stand
 
-2026-09-06, **Ende von Zyklus 14**. Branch `docs/audit-and-advisor-design`.
+2026-09-07, **mitten in Zyklus 15**. Branch `docs/audit-and-advisor-design`.
 `main` ist geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
-Einstieg fuer eine neue Session: `docs/handover-2026-09-06.md`.
-Verlauf Zyklen 1-13: `docs/archiv/state-bis-2026-09-03.md`.
+Verlauf Zyklen 1-14: `docs/archiv/state-bis-2026-09-03.md`.
 Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 `security/findings.md`. Berichte: `docs/berichte/T-###-<rolle>.md`.
 
-**Nummernkreise:** T ab **T-077** · QA ab **QA-180** · AK ab **AK-133** ·
-DR ab **DR-019** · R ab **R-007** · projekteigene Regeln ab **NH-003**.
+**Nummernkreise:** T ab **T-090** · QA ab **QA-187** · AK ab **AK-182** ·
+AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** · projekteigen ab
+**NH-003**.
 
-**Suite:** **1059 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
-5 passed; die 1059 aus einem frischen Klon. Mutationen: alle toetend.
+**Suite:** **1107 passed, 9 skipped, 5 deselected** (`not slow`), gemessen
+07.09. in T-088; `slow` 5 passed.
 
 ## Auftragslage (Nutzer)
 
@@ -19,10 +19,9 @@ Alle offenen Punkte abarbeiten, autonom, **erst zurueckkommen bei einer echten
 Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**. **Die
 Pruefung im laufenden Spiel macht der Nutzer ganz am Ende.**
 
-**Eingeschraenkt am 06.09.:** Der neue **Fragebogen vor dem Zyklus**
-(`/director`, Nutzerentscheidung) haelt auch im autonomen Lauf an. Autonom
-gilt damit **innerhalb** eines Zyklus, nicht ueber Zyklen hinweg — vor dem
-ersten Auftrag eines neuen Zyklus steht der Director beim Nutzer.
+**Eingeschraenkt am 06.09.:** Der Fragebogen vor dem Zyklus haelt auch im
+autonomen Lauf an. Autonom gilt **innerhalb** eines Zyklus, nicht darueber
+hinaus.
 
 P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 (QA-044/048/054 sind **eine** Wurzel) · P7 vollstaendig.
@@ -31,129 +30,109 @@ P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 
 | | | |
 |---|---|---|
-| A1 | Audit-Bericht mit priorisierten Befunden | weitgehend — 179 QA, 20 SEC |
+| A1 | Audit-Bericht mit priorisierten Befunden | weitgehend — 186 QA, 20 SEC |
 | A2 | kritisch/hoch behoben oder zurueckgestellt | offen (SEC-009) |
-| **A3-A6** | **der Build-Berater** | **offen — der ganze Rest der Arbeit** |
-| A7 | sagen, wo die Daten nichts hergeben | weitgehend |
+| A3-A6 | der Build-Berater | **in Arbeit** — Kern fertig, Leiste steht, Slotkarte und Picker offen |
+| A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 ist ein neuer Bruch** |
 | A8 | alles Englisch | haelt, ohne Waechter |
-| A9 | QA gegen ein **gebautes Artefakt** | **nie geprueft** |
+| A9 | QA gegen ein **gebautes Artefakt** | **nie geprueft**; es gibt bis heute keine EXE |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
-| A11 | ein Spieler kommt ohne Raten ans Ziel | **offen — neue Stelle** (QA-173) |
+| A11 | ein Spieler kommt ohne Raten ans Ziel | offen (QA-173); **messbar, seit die Klickfrage beantwortet ist** |
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
 | A13 | Gestaltung, nichts abgeschnitten | 3 von 6 Tabs |
 | A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
-| **A15** | **Erststart fuehrt ohne fremde Hilfe zu Daten** | **neu 06.09., Spec liegt** |
+| A15 | Erststart fuehrt ohne fremde Hilfe zu Daten | Spec liegt (AK-106 bis AK-132), Umsetzung offen |
 
-## Was Zyklus 14 gebracht hat
+## Zyklus 15 — was bisher fertig ist
 
-Ausfuehrlich in `docs/archiv/state-bis-2026-09-03.md`. Kurz: QA-169 behoben
-und am Fenster belegt · A15 aufgenommen und spezifiziert (AK-106 bis AK-132)
-· der sechste `power-user`-Lauf misst A11 **nicht** (Klicks kamen nicht an,
-Effekte-Tab nie geoeffnet), gueltig bleiben QA-173 und QA-174 · **S7 und S8
-des Beraters gebaut** (Suite 864 -> 952, 41 neue Mutationen, alle toetend) ·
-seine Sprache festgelegt (AK-133 bis AK-150) · daraus Teamregeln im
-Agenten-Repo `2ef09c1`.
+- **T-083 die Advisor bar** (S10a): `nrplanner/advisorbar.py`, Zustandsautomat
+  4.1-4.14, `status_line()` Qt-frei als einzige Stelle der Wortlaute, vier
+  Signale fuer die Slotkarte. Am echten Save 473 ms Klick bis Antwort bei 309
+  Relikten. **0 px Zuwachs** an Mindestbreite und -hoehe gegen `3da8428`.
+  Suite 1059 -> 1105, 16 Gegenbauten gefahren, 15 toeten.
+- **T-084/T-086 die Spec** (`ui-ux-designer`): AK-162 bis AK-181. AK-63 nennt
+  jetzt beide Quellen (OF-19 geschlossen), 4.7 lautet
+  `Your build changed while this was working out — use Optimize again.`,
+  `budget_note` bleibt leer und zeichnet nichts, und die Grenze der Fuellungen
+  ist zweimal am echten Spielstand nachgemessen.
+- **T-085 AD-026** (`architect`): eine unerfuellte Waffentyp-Schranke **ist**
+  eine Bedingung, in die der Spieler sich versetzen kann. Rechenkern
+  unveraendert. Verworfene Alternative gemessen schlechter: sie haette 17 von
+  309 Kopien eine Zahl gegeben, die der Spieler nicht hat. Dazu die zwei seit
+  06.09. offenen Korrekturnotizen (AD-015, AD-003.5).
+- **T-087/T-088** der Docstring von `explain.not_counted` und zwei
+  Regressionsfaelle. Drei Gegenbauten, alle toetend. Suite 1107.
 
-## Offen und niemandem zugeordnet
+## Entscheidungen des Directors, 07.09.2026
 
-- **Die Klickfrage ist unentschieden.** T-076 konnte sie nicht beantworten:
-  seine eigenen synthetischen Klicks erreichten **kein einziges Fenster**,
-  auch nicht das des Windows-Rechners. Sein Urteil "Regression
-  unwahrscheinlich" ist eine Abwaegung, keine Messung. **Eine echte
-  Handprobe des Nutzers von zehn Sekunden entscheidet es.**
-- **Wartet auf `ui-ux-designer`:** QA-158, QA-159 (jetzt 6 von 11 Spalten
-  ohne Erklaerung im Absatz), QA-160, QA-162, QA-173, QA-174, QA-179, die
-  Fokusmarke aus T-071.
-- **Wartet auf `developer`:** QA-171 (alter Datenabzug kommentarlos, mit A15
-  zu erledigen), QA-172 (Fluchspalte folgt der Filteransicht, 10 von 1064),
-  QA-175 (Fenster teilweise ausserhalb des Bildschirms), QA-177.
-- **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
-  **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken;
-  `_migrate_keys` macht aus `Bleed build` den Namen `%42leed%20build`.
-- **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
-  `CharaInitParam` wird nicht gelesen.
-- **Nebenwirkung von T-076:** der Lauf hat die laufende Kopie bedient (Held,
-  Fenstergroesse). Sie schreibt in den Registrierungsschluessel der echten
-  Installation; moeglich, dass "zuletzt gewaehlter Build" fuer Guardian auf
-  den Standard zurueckfiel. Kein Build geloescht, "Save" nie gedrueckt.
+- **4.10 bleibt ohne Erzeuger.** Beide Zielrichtungen liefern immer eine Zahl,
+  der Zustand ist also gebaut und getestet, aber aus einem echten Lauf nicht
+  erreichbar. Einen Ausloeser zu bauen hiesse, ein Kriterium zu erfinden — das
+  verbietet A7. **AK-20 ist damit im Test pruefbar, nicht am echten Lauf**;
+  die QA sucht nicht danach. Wieder aufmachen, sobald eine dritte Zielrichtung
+  dazukommt.
+- **S10b ist geteilt:** T-089 zeichnet und erklaert (Block, `Why`-Dialog),
+  T-090 wendet an und haelt fest (`Use`, `Apply all`, `Undo apply`, `Hold`).
+  Grund: Anwenden ist **eine** Sache mit **einem** Rueckgaengig-Modell. Der
+  `Use`-Knopf wird in T-089 **nicht** gezeichnet, auch nicht wirkungslos.
+- **QA-186 wird nach der Slotkarte behoben**, nicht davor — er liegt im Build
+  planner und ist von S10 unabhaengig.
 
 ## Beschlossen, nicht beauftragt
 
-Vom Director am 06.09.2026 entschieden; Begruendungen in
-`docs/berichte/T-067-developer.md` und `T-078-ui-ux-designer.md`.
-
 - **D-2** Ein Fluch ohne Zahlenwirkung **muss genannt werden** — eigenes Feld
-  `curses_without_a_figure` auf `AdvisorResult`, nicht `not_counted`
-  verbreitern. 36 von 309 Relikten, darunter drei mit `All Resistances Down`,
-  das echte Zahlen bewegt und heute **in keinem Feld** steht. Wortlaut steht
-  (AK-138 bis AK-141), Umsetzung offen.
-- **D-3** `not_counted` behaelt AD-010 (konditionale Effekte). `UI_SPEC` 4.9
-  ist in T-078 in 4.9a und 4.9b geteilt.
-- **D-4** `SlotPool` bekommt ein `rank_by` — sonst bleibt eine S9-Zusage
-  ungeprueft. Kleiner Auftrag, mit S9.
-- **D-5** Kein `top_n`-Stellrad; W bleibt die Zahl der Endzustaende.
-  AD-003.5 braucht eine Korrekturnotiz.
+  `curses_without_a_figure`, nicht `not_counted` verbreitern. 36 von 309
+  Relikten. Wortlaut steht (AK-138 bis AK-141). **In T-089 beauftragt.**
+- **D-4/D-5** erledigt (T-082, AD-003.5-Notiz in T-085).
 - **D-1** `performance-tuner` auf `model.compute` (94 % der 941,6 ms) —
-  **in S11**, nicht davor. Erstlauf im Projekt, also opus.
-- **D-10** Maskierungshinweis (`html.escape`, `setTextFormat`) geht
-  **woertlich** in den S10-Auftrag.
-- **D-11** Doppeltes Zahlenformat: zurueckgestellt bis S10, dort aber mit
-  Waechter — AK-136 verlangt jetzt, dass beide Orte dasselbe schreiben.
-- **AD-015-Zeile wird mit der Zahlzeile desselben Fluchs verschmolzen** und
-  wandert aus `unknowns` in die Slotgruppe. AD-015 bekommt vor S10 eine
-  Korrekturnotiz.
-- **Datenform bleibt beim `developer`:** verbindlich ist die Eigenschaft
-  (Slotnummer, Fluch-Kennzeichen, zwei Zaehlungen erreichen die Anzeige
-  getrennt), nicht die Bauart. Kein `architect` noetig.
-- **`compute_resistances` — Zurueckstellung wieder offen.** T-080 zaehlt
-  nicht nur drei Fluche, sondern zusaetzlich **33 stumme positive Effekte**
-  (`Improved Poison Resistance` und Verwandte), die weder in `sources` noch
-  in `qualitative` stehen: **36 Zeilen auf einem Spielstand** haengen an
-  dieser Rechnung. **Vor der Bestaetigung nachmessen.** Bisheriger Stand:
-  schreibt nicht nach `sources` —
-  `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende ausdruecklich aus der Kennzahl,
-  eine Quelle ohne Rankingwirkung waere irrefuehrend. Wieder aufmachen,
+  **in S11**, Erstlauf im Projekt, also opus.
+- **D-11** Doppeltes Zahlenformat: Waechter, AK-136 verlangt, dass beide Orte
+  dasselbe schreiben.
+- **`compute_resistances` — Zurueckstellung wieder offen.** T-080 zaehlt drei
+  Fluche und **33 stumme positive Effekte**, die weder in `sources` noch in
+  `qualitative` stehen: **36 Zeilen auf einem Spielstand**. Vor der
+  Bestaetigung nachmessen. Bisher: schreibt nicht nach `sources`, weil
+  `_DAMAGE_TAKEN_SCOPE` Widerstaende aus der Kennzahl nimmt. Wieder aufmachen,
   sobald eine Zielrichtung Widerstaende rankt.
-- **Zwei Nutzertexte ohne Vorgabe, im S10-Review zu klaeren:** die
-  Statuszeile 4.7 sagt seit T-082 `Optimize again.` (Formulierung des
-  `developer`), und `AdvisorResult.budget_note` fordert AD-010, ohne dass je
-  ein Wortlaut geschrieben wurde — das Feld bleibt vorerst leer.
-- **Kein `progress`-Signal** — vom Director angenommen: die Spec verlangt
-  einen unbestimmten Fortschrittsbalken (`setRange(0, 0)`), der keinen Wert
-  braucht.
-- **Die Grenze zwischen den Fuellungen (c) und (d) der stummen Zeilen ist
-  offen.** Die in der Spec **angeschriebene** Regel ergibt 13 Faelle, der
-  `ui-ux-designer` hatte 58 gezaehlt; die Summe (106) stimmt exakt, nur die
-  Grenze liegt anders. **Im S10-Review zu klaeren** — bis dahin ist nichts
-  sichtbar, also kostet die Verschiebung nichts.
-- **`Build.qualitative` traegt keine Effekt-Id.** Deshalb liest der Berater
-  die Fuellungen (a) und (c) am Effektsatz statt an `qualitative`. Die
-  saubere Behebung liegt in `model.py` und gehoert zu **QA-185**.
-- **Der Knopf heisst `Optimize`.** Die Zustandstabelle 4.1-4.14 sagt noch
-  `Suggest` und wird im S10-Auftrag mitkorrigiert.
+- **`Build.qualitative` traegt keine Effekt-Id** (QA-185). Klassenmassnahme:
+  vor der naechsten Aenderung an einer dieser Stellen entscheiden, ob
+  `sources` durchgaengig ueber Ids gefuehrt wird. **QA-180 ist die Instanz und
+  noch offen** — A5 ist deshalb heute nicht erfuellt.
+
+## Offen und niemandem zugeordnet
+
+- **Wartet auf `ui-ux-designer`:** QA-158, QA-159, QA-160, QA-162, QA-173,
+  QA-174, QA-179, die Fokusmarke aus T-071. Dazu aus T-083: §4 hat keine Zeile
+  fuer "Vorschlag hat seinen Build ueberlebt"; 4.9 und 4.11 koennen zusammen
+  zutreffen; der Plural von 4.11 ist ungeprueft; die Statuszeile bekommt bei
+  1320 px nur 158 px; der gepinnte obere Block.
+- **Wartet auf `developer`:** QA-171 (mit A15), QA-172, QA-175, QA-177,
+  QA-180, QA-186. Dazu Debt `app.py:3294` (Tooltip ohne `<span>`-Wrapper,
+  `&` erscheint als `&amp;`).
+- **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
+  **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken.
+- **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
+  `CharaInitParam` wird nicht gelesen.
 
 ## Der Rest — in dieser Reihenfolge
 
-0. **S9 ist gebaut** (T-082): Worker, Entprellung 250 ms, Cache mit
-   Bestands-Fingerabdruck, `rank_by`. Gemessen: 86 von 87 Taktschlaegen des
-   Hauptthreads fielen **in** den Lauf, Abbruch sichtbar im Median nach
-   0,06 ms (schlechtester Wert 22,8 von 200 erlaubten ms). Als naechstes
-   **S10**, die Oberflaeche — der erste Schritt, den der Nutzer sieht. Dann
-   **S11** mit dem `performance-tuner`.
-1. **A11 schliessen:** QA-173 braucht eine `ui-ux-designer`-Entscheidung,
-   danach ein `developer`-Auftrag, danach ein siebter Durchgang — mit
-   **fester** Aufgabenliste und Faehigkeitsprobe als Schritt 0.
-2. **P3, der Build-Berater** — der eigentliche Rest. **`docs/tasks/T-067.md`
-   liegt fertig** (S7 Suche, S8 Begruendung). Danach S9 Worker, S10
-   Oberflaeche, S11 Budget.
-3. **A15 umsetzen** (Spec liegt), zusammen mit QA-171.
-4. **P4** Save/Inventar · **P5** ein Auftrag · **P6** zwei Punkte ·
+1. **T-089** Vorschlagsblock und `Why`-Dialog (liegt geschrieben bereit).
+2. **T-090** Anwenden und Festhalten.
+3. **S10c** der Relic Picker als Hauptweg (AD-018, AK-41 bis AK-53, AK-62).
+4. **Pruefphase parallel:** `qa-engineer`, `security-reviewer`,
+   `ui-ux-designer` (Review). Erst wenn der Stand eingefroren ist.
+5. **S11** Budget mit dem `performance-tuner`.
+6. **A11 schliessen:** QA-173 entscheiden, beheben, siebter `power-user`-Lauf
+   mit **fester** Aufgabenliste und Faehigkeitsprobe als Schritt 0.
+7. **A15** umsetzen, zusammen mit QA-171. Dann **QA-186**.
+8. **P4** Save/Inventar · **P5** ein Auftrag · **P6** zwei Punkte ·
    **P7** vollstaendig · **P8** · **P9** mit **A9 und A15**.
 
-## Gesammelte Fragen an den App Designer
+## Beim Nutzer — offen
 
-**Erledigt 06.09.:** F-A (`ruff`) — Option B, kein Linter. Nicht erneut
-vorlegen.
+**Erledigt 06.09.:** F-A (`ruff`) — Option B, kein Linter. F-I und F-J.
+**Erledigt 07.09.:** die Klickfrage (Handprobe: Klicks kommen an, Tooltip
+erscheint beim Ueberfahren) · zwei Teamregeln angenommen, siehe unten.
 
 - **F-B QA-096** — Raider x1,18 auf Greataxe/Great Hammer, **keine
   Param-Quelle** (Nenner: 252 Tabellen, 6,66 Mio. Zellen). Lv15-Messung.
@@ -162,29 +141,23 @@ vorlegen.
   **exakt 0**. **Eine Ablesung entscheidet:** Grundwert 114, die drei
   Lesarten sagen **91 / 116 / 117**.
 - **F-G QA-170** — keine Sortierung ueber Waffenkategorien hinweg nach
-  Angriffswert; der Spieler hat "die beste Waffe finden" aufgegeben. Waere
-  eine **neue Funktion**.
-**Erledigt 06.09.:** F-I — **jeder Fluch einzeln auf der Karte**, stumme
-Effektzeilen dagegen **nur im `Why`-Dialog** (revidiert, nachdem der
-gemessene Schlechtfall vorlag: **14 gezeichnete Zeilen**, nicht sechs — ein
-Effekt erzeugt bis zu fuenf Zeilen, ein Fluch bis zu vier). Begruendung der
-Trennung: ein Fluch ist eine Falle, ein stummer Effekt nicht. F-J — **stumme
-Effekte werden beim Namen genannt**, und der haeufigste Fall (Effekt gehoert
-einer anderen Figur, 150 von 426) wird gezeichnet wie im uebrigen Programm:
-`NOT WORKING`, durchgestrichen.
-Spielwissen des Nutzers dazu, vom Director gegen die Daten geprueft und
-bestaetigt: Fluche gibt es **nur auf Deep-Relikten** (0 von 597 nicht-Deep),
-**1 bis 3** je Relikt (72/48/24), und nur, wenn der Buff gut genug ist (108
-Deep-Relikte ohne Fluch). Der schlechteste Fall der Slotkarte ist damit
-**drei Effekt- plus drei Fluchzeilen**, nicht mehr.
-
+  Angriffswert. Waere eine **neue Funktion**.
 - **Die Streichliste je Tab** (13 Vorschlaege in `UI_SPEC.md` §8).
 
 ## Regeln
 
 Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008, L-009,
-L-010 (jetzt **fuenf** Pruefungen), L-012, L-013; projekteigen NH-001,
-NH-002.
+L-010 (fuenf Pruefungen), L-012, L-013; projekteigen NH-001, NH-002.
 
-**Nie geprueft:** ein gebautes Artefakt (A9) · Linux/macOS · ein
-angekommener echter Mausklick.
+**Neu am 07.09.2026, vom Nutzer angenommen, im Agenten-Repo `a2db0db`** —
+beide im Rahmenblock von `templates/task.md`, gelten damit teamweit:
+- **Kein Hintergrundlauf, auf dessen Ende der Agent wartet.** Anlass: acht
+  Berichte ohne Uebergabe-Kontrakt in `~/.claude/state/kontrakt-verstoesse.log`,
+  sechs vollstaendig fehlend. Der juengste Fall lag bei 79 von 150 Zuegen —
+  nicht die Zugschwelle, sondern ein Unteragent, der seinen Zug beendete, um
+  auf eine Benachrichtigung zu warten, die den Director erreicht und nicht ihn.
+- **Ein Feldname ist keine Beschreibung** — drei Gegenproben (Beschriftung,
+  Wertebereich, Effektname), bevor ein Nutzertext an ein Datenfeld gehaengt
+  wird. Anlass: QA-186.
+
+**Nie geprueft:** ein gebautes Artefakt (A9) · Linux/macOS.
