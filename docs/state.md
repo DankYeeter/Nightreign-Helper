@@ -62,8 +62,10 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
   Spielstand**. Vor der Bestaetigung nachmessen; wieder aufmachen, sobald eine
   Zielrichtung Widerstaende rankt.
 - **QA-185, Klassenmassnahme:** vor der naechsten Aenderung entscheiden, ob
-  `sources` durchgaengig ueber Ids gefuehrt wird. **QA-180 ist die Instanz und
-  offen — A5 ist deshalb heute nicht erfuellt.**
+  `sources` durchgaengig ueber Ids gefuehrt wird. QA-185 bleibt latent (0 von
+  456 Paaren). **QA-180 ist behoben** (`90ff81d`) — die frueher hier stehende
+  Aussage "A5 ist deshalb heute nicht erfuellt" war ein Buchfuehrungsfehler
+  des Directors und ist mit T-095 widerlegt.
 
 ## Offen und niemandem zugeordnet
 

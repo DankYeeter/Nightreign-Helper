@@ -1846,3 +1846,50 @@ nebeneinander. Das hebt die Dringlichkeit: vorher war die Beschriftung nur
 falsch, jetzt widerspricht sie sichtbar einer zweiten Stelle. Aufwand klein,
 wenn die Unterscheidung aus `explain._armament_bound` uebernommen wird.
 | QA-190 | **Zwei in `UI_SPEC` §3.3 beschriebene Anzeigen gibt es im Code nirgends.** Der Chip `ADVISOR PICK` in der Kopfzeile der Reliktkarte und die Zusatzzeile der Picker-Zusammenfassung (`  ·  the advisor's pick leads the grid` bzw. `  ·  the advisor's pick is hidden by your filter`) sind spezifiziert, aber nicht gebaut — Volltextsuche ueber den ganzen Baum mit zwei unabhaengigen Begriffen, Treffer nur in der Doku (`developer`, T-094). **Die Wirkung ist nicht kosmetisch:** blendet der Filter die vorgezogene Spitzenkarte aus, sagt das Programm heute **gar nichts** — der Spieler sieht ein Raster ohne Spitzenreiter und ohne Hinweis, warum. Das ist derselbe A7-Bruch wie eine fehlende Bezugsgroesse, nur andersherum. **Der Director hat diese Zeile in T-094 als vorhanden bezeichnet, ohne sie geprueft** — eine Absenz-Behauptung in umgekehrter Richtung, gefunden vom `developer`. Zu klaeren ist ausserdem, ob `ADVISOR PICK` neben `BEST FOR …` ueberhaupt noch eine eigene Aussage hat, seit AK-195 die Spitzenreiter vorzieht | P3 | Major | ui-ux-designer, developer | zwei Suchmasken ueber den Baum, T-094 | offen | 2026-09-07 |
+
+---
+
+## Statuskorrektur 2026-09-07 nach T-095 (QA-Erstpruefung des Beraters)
+
+**Drei Befunde standen faelschlich auf "offen".** Der `qa-engineer` hat sie im
+eingefrorenen Stand nachgemessen und behoben vorgefunden — mit echten
+Regressionstests. Die Fixes kamen am selben oder am Folgetag des Funds, **die
+Statuszeile wurde nie nachgezogen**, und der Director hat den veralteten Stand
+in Auftragsdateien, in `docs/state.md` und in seinem Bericht an den Nutzer
+weitergetragen. Das ist ein Buchfuehrungsfehler des Directors, kein Fehler
+einer Rolle.
+
+| Befund | neuer Status | Beleg |
+|---|---|---|
+| **QA-180** | **behoben** | Commit `90ff81d`, vor dem eingefrorenen Stand. `model.SourceEntry` traegt jetzt `effect_id`; `explain._attributed` (141-186) matcht ueber die Id, nie ueber den Namen — der Docstring sagt es woertlich. Zwei einschlaegige Tests pruefen auf Id und Slot. **Damit ist A5 nicht mehr durch QA-180 blockiert.** |
+| **QA-183** | **behoben** | Eigener Test in `test_advisor_explain.py` haelt die korrigierte Kongruenz der Halte-Zeile fest. |
+| **QA-187** | **behoben** | Commit `4462a88`, vor dem eingefrorenen Stand. Eigener Messlauf trifft die Verteilung aus AK-180 in beiden Umgebungen exakt. |
+
+**Bestaetigt geblieben:** QA-181 (`evaluate.effect_ids_of` strukturell
+ungeschuetzt gegen doppelte Ids — die Stacking-Regel aus A4 ist am Rand des
+Beraters unbewacht) und QA-185 (latent, 0 von 456 Paaren heute betroffen).
+
+**Nicht neu gemessen** (Zeitbudget bzw. ausserhalb des Fokus): QA-182,
+QA-184, QA-186, QA-188. Sie bleiben offen, ohne Bestaetigung und ohne
+Widerlegung.
+
+## QA-191 — Acht von zehn Nightfarern kommen in keinem Berater-Test vor
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-07**
+
+Gefunden in T-095. Die Mechanik des Beraters ist solide getestet, aber die
+Testfaelle laufen fast durchgehend auf Wylder und Ironeye. **A3 verlangt
+ausdruecklich "fuer jeden Nightfarer und jedes bekannte Kelch-Layout".** Ein
+gruener Lauf sagt heute nichts ueber die uebrigen acht Figuren — und die
+Fuellungen der stummen Zeilen sind nachweislich stark heldenabhaengig
+(Wylder 150 von 426 in Fuellung (a), Ironeye 159 von 434).
+
+## QA-192 — Kein Test im ganzen Repository prueft, ob die Oberflaeche Englisch ist
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-07**
+
+A8 haelt heute auf dem geprueften Ausschnitt: zwei unabhaengige Suchmasken
+ueber die beraternahen Oberflaechendateien finden **null** deutsche Woerter.
+Aber es gibt **keinen Waechter** — die Regel haengt allein daran, dass jede
+Rolle sie einhaelt. Ein einzelner Test ueber die Oberflaechendateien bindet
+A8 dauerhaft und kostet einmal Aufwand.
