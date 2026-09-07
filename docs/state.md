@@ -37,12 +37,6 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 | A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
 | A15 | Erststart fuehrt zu Daten | Spec liegt (AK-106-132), Umsetzung offen |
 
-## Zyklus 15 bisher
-
-Gebaut: **Advisor bar** (T-083) · Spec fuer Slotkarte und Picker (T-084/T-086,
-AK-162 bis AK-181) · **AD-026** (T-085) · Docstring von `not_counted` mit zwei
-Regressionsfaellen (T-087/T-088). Was weiterwirkt, steht im Archiv.
-
 ## Entscheidungen des Directors, 07.09.2026
 
 - **4.10 bleibt ohne Erzeuger.** Beide Zielrichtungen liefern immer eine Zahl;
