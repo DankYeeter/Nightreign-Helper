@@ -1088,12 +1088,12 @@ MUTATIONS: dict[str, Mutation] = {
     "search-refuses-a-vessel-with-every-slot-held": Mutation(
         path="nrplanner/advisor/search.py",
         old="""    live = [_State(chosen=(), spent=types.held_handles(problem),
-                   score=scorer(()))]
+                   score=scorer.score(()))]
 """,
         new="""    if not free:
         return ()
     live = [_State(chosen=(), spent=types.held_handles(problem),
-                   score=scorer(()))]
+                   score=scorer.score(()))]
 """,
         survival_means=(
             "AD-014.2's last sentence is unenforced: with every slot held "
@@ -1179,6 +1179,52 @@ MUTATIONS: dict[str, Mutation] = {
             "would look reasonable and the relic would land in the wrong "
             "slot. Killed by test_advisor_search.py::"
             "test_pools_that_are_not_the_free_slots_are_refused."),
+    ),
+    "search-takes-pools-ranked-by-another-direction": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    _refuse_pools_ranked_by_another_direction(pools, scorer)
+""",
+        new="""""",
+        survival_means=(
+            "D-4 is unenforced. The beam branches on the head of each pool "
+            "and reports the figure of the direction it was asked for, so "
+            "pools ordered by the other one give a worse build in the right "
+            "shape with a plausible number and no complaint: measured on "
+            "`Wylder's Chalice` with Deep at the default budget, attack "
+            "rating 290,39 instead of 323,30 -- 10,2 % worse, four of six "
+            "handles different (T-077). Killed by test_advisor_search.py::"
+            "test_pools_ranked_by_another_direction_are_refused."),
+    ),
+    "search-refuses-every-pairing-of-pools-and-scorer": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""    wrong = sorted({pool.rank_by for pool in pools
+                    if pool.rank_by != scorer.goal_id})
+""",
+        new="""    wrong = sorted({pool.rank_by for pool in pools})
+""",
+        survival_means=(
+            "the D-4 check has no reading of its own: it would refuse the "
+            "pairing the advisor really makes as readily as the one it is "
+            "written against, and every run would end in a ValueError. A "
+            "suite that only watched the refusal would stay green on it. "
+            "Killed by test_advisor_search.py::"
+            "test_pools_and_scorer_of_one_direction_are_accepted."),
+    ),
+    "advisor-pool-does-not-say-what-ranked-it": Mutation(
+        path="nrplanner/advisor/candidates.py",
+        old="""        rank_by=rank_by,
+""",
+        new="""        rank_by="max_damage",
+""",
+        survival_means=(
+            "a pool would carry the name of a direction that did not order "
+            "it, which is worse than carrying none: `search.beam` compares "
+            "against this field, so the pairing check would pass on exactly "
+            "the mismatch it exists to catch -- a run ranked by "
+            "`min_damage_taken` would branch on damage-ordered pools and "
+            "report a survival figure. Killed by "
+            "test_advisor_candidates.py::"
+            "test_a_pool_says_which_direction_put_it_in_this_order."),
     ),
     # -- the reasoning (T-067: S8) ------------------------------------------
     #

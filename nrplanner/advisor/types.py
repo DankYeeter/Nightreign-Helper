@@ -435,9 +435,21 @@ class SlotPool:
     there was nothing to leave out, which is the ordinary case; the guarantee
     that a direction always says something is on `Goal.scope`, which the
     registry holds and no run can empty.
+
+    **`rank_by` is which direction put this list in this order** (D-4), and it
+    has no default: a pool that could not say what ranked it is exactly the
+    state this field exists against. The beam branches on the head of the
+    list and scores with a scorer of its own, so pools ranked one way and
+    scored another answer a question nobody asked -- silently, in the right
+    shape, with a plausible figure. Measured on `Wylder's Chalice` with Deep
+    at the default budget, `max_damage` scored over `min_damage_taken` pools:
+    attack rating **290,39 against 323,30**, four of six handles different,
+    and no complaint anywhere (T-077). `search.beam` compares this against
+    `Scorer.goal_id` and refuses the pairing.
     """
 
     slot_index: int
+    rank_by: str
     baseline: tuple[Baseline, ...] = ()
     candidates: tuple[Candidate, ...] = ()
     unknowns: tuple[str, ...] = ()

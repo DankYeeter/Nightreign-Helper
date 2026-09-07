@@ -57,9 +57,9 @@ def counting(scorer: search.Scorer) -> tuple[search.Scorer, list[int]]:
 
     def score(assignment):
         asked[0] += 1
-        return scorer(assignment)
+        return scorer.score(assignment)
 
-    return score, asked
+    return search.Scorer(goal_id=scorer.goal_id, score=score), asked
 
 
 def slots_of(vessel: dict) -> tuple[types.Slot, ...]:

@@ -66,8 +66,17 @@ def offer(slot_index: int, handle: int, worth: float = 0.0,
     )
 
 
-def pool_of(slot_index: int, offers) -> types.SlotPool:
-    return types.SlotPool(slot_index=slot_index, candidates=tuple(offers))
+#: The direction the synthetic scorers below claim, and the one the synthetic
+#: pools are built under. It is deliberately not a goal of the registry: the
+#: pairing D-4 checks is between two names, and a case that used a real goal
+#: id here could pass because the registry happens to hold it.
+SYNTHETIC = "the case's own direction"
+
+
+def pool_of(slot_index: int, offers,
+            rank_by: str = SYNTHETIC) -> types.SlotPool:
+    return types.SlotPool(slot_index=slot_index, rank_by=rank_by,
+                          candidates=tuple(offers))
 
 
 def adding_scorer(worth: dict[int, float]) -> search.Scorer:
@@ -81,7 +90,7 @@ def adding_scorer(worth: dict[int, float]) -> search.Scorer:
         return types.GoalScore(value=total, display=f"{total:.2f}",
                                unit="points")
 
-    return score
+    return search.Scorer(goal_id=SYNTHETIC, score=score)
 
 
 def tied_scorer() -> search.Scorer:
@@ -95,7 +104,7 @@ def tied_scorer() -> search.Scorer:
     def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
         return types.GoalScore(value=1.0, display="1.00", unit="points")
 
-    return score
+    return search.Scorer(goal_id=SYNTHETIC, score=score)
 
 
 def slots_of(*colours, deep: bool = False) -> tuple[types.Slot, ...]:
@@ -553,13 +562,14 @@ def tied(assignment):
     return types.GoalScore(value=1.0, display="1.00", unit="points")
 
 
+scorer = search.Scorer(goal_id="the case's own direction", score=tied)
 slots = tuple(types.Slot(index=i, colour=i, deep=False) for i in range(2))
-pools = [types.SlotPool(slot_index=i,
+pools = [types.SlotPool(slot_index=i, rank_by=scorer.goal_id,
                         candidates=tuple(offer(i, 10 * i + h)
                                          for h in range(5)))
          for i in range(2)]
 found = search.beam(types.SlotProblem(slots=slots), pools,
-                    types.DEFAULT_BUDGET, tied)
+                    types.DEFAULT_BUDGET, scorer)
 for suggestion in found:
     print(" ".join(str(c.handle) for c in suggestion.choices))
 '''
@@ -720,9 +730,14 @@ def test_a_stopped_run_says_so_instead_of_answering_short():
 def test_the_search_ranks_by_the_scorer_it_is_handed(game_data, wylder):
     """AD-003: the scorer is a parameter, so AD-002/C stays reachable.
 
-    The same pools under the two directions of the registry give two
-    different best builds. If the search knew what it was ranking, one of
-    those two answers could not exist.
+    The two directions of the registry give two answers in two units. If the
+    search knew what it was ranking, one of those two could not exist.
+
+    Each direction brings its own pools since D-4: the beam refuses a pool
+    list ordered by another direction, so the one thing that varies here is
+    the direction, top to bottom. That is a stronger reading of the same
+    claim -- the figure now has to come out of the scorer *and* the order it
+    branched on has to be the one that scorer would give.
     """
     inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
                                        count=4)
@@ -730,10 +745,10 @@ def test_the_search_ranks_by_the_scorer_it_is_handed(game_data, wylder):
     ctx = advisor.context(game_data, wylder,
                           reference=advisor.scaling_armament(game_data,
                                                              wylder))
-    pools = candidates.pools(inventory, problem, ctx, goals.GOALS, DAMAGE)
 
     by_direction = {}
     for goal_id in (DAMAGE, SURVIVAL):
+        pools = candidates.pools(inventory, problem, ctx, goals.GOALS, goal_id)
         scorer = search.goal_scorer(problem, ctx, goals.GOALS[goal_id])
         found = search.beam(problem, pools, types.DEFAULT_BUDGET, scorer)
         by_direction[goal_id] = found[0].score
@@ -744,6 +759,47 @@ def test_the_search_ranks_by_the_scorer_it_is_handed(game_data, wylder):
 
 
 # -- preconditions ----------------------------------------------------------
+
+def test_pools_ranked_by_another_direction_are_refused():
+    """D-4: the beam branches on an order, so it has to be the right order.
+
+    The two names are the case's own, not the registry's: what is compared
+    is one string against another, and a case built on two real goal ids
+    could pass because the registry happens to hold them.
+
+    The message has to name both directions. A refusal that said only "the
+    pools are wrong" would send the next reader to the pools, and the mistake
+    is as often on the other side.
+    """
+    problem = types.SlotProblem(slots=slots_of(advisor.RED))
+    pools = [pool_of(0, [offer(0, 10)], rank_by="what the pools were sorted "
+                                                "by")]
+    scorer = search.Scorer(goal_id="what the run is ranking",
+                           score=tied_scorer().score)
+
+    with pytest.raises(ValueError) as refused:
+        search.beam(problem, pools, types.DEFAULT_BUDGET, scorer)
+
+    assert "what the pools were sorted by" in str(refused.value)
+    assert "what the run is ranking" in str(refused.value)
+
+
+def test_pools_and_scorer_of_one_direction_are_accepted():
+    """The other half of the refusal above, and it is not decoration.
+
+    A check that refused everything would leave the case above green while
+    stopping every run there is. This is the pairing the advisor actually
+    makes, and it has to come through.
+    """
+    problem = types.SlotProblem(slots=slots_of(advisor.RED))
+    scorer = adding_scorer({10: 1.0})
+
+    found = search.beam(problem, [pool_of(0, [offer(0, 10, 1.0)],
+                                          rank_by=scorer.goal_id)],
+                        types.DEFAULT_BUDGET, scorer)
+
+    assert handles_of(found[0]) == [10]
+
 
 def test_pools_that_are_not_the_free_slots_are_refused():
     """A pool list out of step with the vessel answers the other question.

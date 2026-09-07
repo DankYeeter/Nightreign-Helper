@@ -267,6 +267,12 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
     could not know about this run. Taking only the figure is what left the
     picker -- the one path the player uses -- with no A7 line at all
     (QA-102, checkpoint 32).
+
+    The direction that ordered the list travels **on** the list (D-4,
+    `SlotPool.rank_by`). The beam branches on the head of it and scores with a
+    scorer of its own, and until the pool said so, nothing downstream could
+    tell an order it wanted from one it did not (T-077: 10,2 % of an attack
+    rating, no complaint).
     """
     if rank_by not in goals:
         raise KeyError(f"nothing ranks by goal {rank_by!r}; this run knows "
@@ -308,6 +314,7 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                                      offer.name, offer.handle))
     return types.SlotPool(
         slot_index=slot_index,
+        rank_by=rank_by,
         baseline=tuple(types.Baseline(goal_id, score.value, score.unit,
                                       score.unknowns, score.weights_note)
                        for goal_id, score in base_scores.items()),

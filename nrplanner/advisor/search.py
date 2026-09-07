@@ -67,11 +67,29 @@ class Cancelled(Exception):
     """
 
 
-#: What a search ranks an assignment by. Takes the copies chosen so far, in
-#: slot order, and gives what that build is worth -- see `goal_scorer` for the
-#: ordinary one. A parameter and not a fixed call, so AD-002 option C stays
-#: reachable without this file changing (AD-003).
-Scorer = Callable[[tuple[types.Candidate, ...]], types.GoalScore]
+@dataclass(frozen=True)
+class Scorer:
+    """What a search ranks an assignment by, and which direction that is.
+
+    `score` takes the copies chosen so far, in slot order, and gives what
+    that build is worth -- see `goal_scorer` for the ordinary one. It is a
+    parameter and not a fixed call, so AD-002 option C stays reachable
+    without this file changing (AD-003).
+
+    `goal_id` is the whole of D-4, and it travels **with** the callable
+    rather than beside it as a second argument to `beam`: a direction handed
+    in separately is a third thing that can disagree with the other two, and
+    the check below would then compare the pools against a label instead of
+    against what really ranks. `goal_scorer` fills it from the goal it was
+    given, so the ordinary path cannot mislabel itself.
+
+    This does not tell the search what it is ranking. It tells the search
+    whether the two things it was handed name the same direction, which is a
+    comparison of two strings and no knowledge of either.
+    """
+
+    goal_id: str
+    score: Callable[[tuple[types.Candidate, ...]], types.GoalScore]
 
 
 def goal_scorer(problem: types.SlotProblem, ctx: types.GoalContext,
@@ -89,7 +107,7 @@ def goal_scorer(problem: types.SlotProblem, ctx: types.GoalContext,
     def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
         return goal.score(evaluate(problem, assignment, ctx), ctx)
 
-    return score
+    return Scorer(goal_id=goal.id, score=score)
 
 
 def _never_cancelled() -> bool:
@@ -198,7 +216,7 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
         chosen = state.chosen + (offer,)
         grown.append(_State(chosen=chosen,
                             spent=state.spent | {offer.handle},
-                            score=scorer(chosen)))
+                            score=scorer.score(chosen)))
     return grown
 
 
@@ -239,6 +257,32 @@ def _refuse_pools_that_are_not_the_free_slots(
             f"order (AD-003 point 1)")
 
 
+def _refuse_pools_ranked_by_another_direction(
+        pools: Sequence[types.SlotPool], scorer: Scorer) -> None:
+    """Refuse pools whose order is not the order this scorer would give.
+
+    D-4. The beam branches on the **head** of each pool -- the first K
+    available copies -- and scores what it builds with the scorer it was
+    handed. Ranked one way and scored another, it therefore searches the best
+    copies of a direction nobody asked about and reports the figure of the one
+    that was asked about: same shape, same number of suggestions, no
+    complaint. Measured on `Wylder's Chalice` with Deep at the default budget:
+    attack rating **290,39 instead of 323,30, 10,2 % worse**, four of the six
+    handles different (T-077).
+
+    Loud, and by the same argument as the two refusals around it: the caller
+    and the vessel would otherwise disagree about what is being searched, and
+    every figure in the answer would look reasonable.
+    """
+    wrong = sorted({pool.rank_by for pool in pools
+                    if pool.rank_by != scorer.goal_id})
+    if wrong:
+        raise ValueError(
+            f"the scorer ranks by {scorer.goal_id!r} and was handed pools "
+            f"ordered by {wrong}; the beam branches on the head of each pool, "
+            f"so pools and scorer have to mean one direction (D-4)")
+
+
 def _refuse_a_budget_that_searches_nothing(budget: types.Budget) -> None:
     """Refuse K or W below one.
 
@@ -267,9 +311,11 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     then keeps the best `budget.beam_width` of what came out.
 
     `pools` are `candidates.pools(...)`, one per free slot and ranked by the
-    same direction `scorer` scores in. That the two agree is the caller's to
-    keep: a `SlotPool` does not record which direction it was ordered by, so
-    nothing here can check it -- see the report to T-067.
+    same direction `scorer` scores in. That the two agree is checked here
+    since D-4: a `SlotPool` records the direction that ordered it and a
+    `Scorer` the direction it ranks, so the pairing is refused instead of
+    being the caller's to keep. It used to be the caller's, and it cost 10,2 %
+    of an attack rating without a word (T-077).
 
     **What comes back is the beam itself**, ordered best first: AD-003 point 5
     asks for the best `top_n` end states, and the width is that number. A
@@ -283,6 +329,7 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     """
     free = types.free_slots(problem)
     _refuse_pools_that_are_not_the_free_slots(free, pools)
+    _refuse_pools_ranked_by_another_direction(pools, scorer)
     _refuse_a_budget_that_searches_nothing(budget)
 
     groups: dict[tuple[int, bool], set[int]] = {}
@@ -290,7 +337,7 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
         groups.setdefault(_symmetry_group(slot), set()).add(slot.index)
 
     live = [_State(chosen=(), spent=types.held_handles(problem),
-                   score=scorer(()))]
+                   score=scorer.score(()))]
     for level, slot in enumerate(free):
         if should_cancel():
             raise Cancelled(

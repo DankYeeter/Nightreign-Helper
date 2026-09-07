@@ -522,6 +522,53 @@ def test_two_runs_over_one_inventory_agree_about_a_tie(game_data, wylder):
     assert names(first) == sorted(names(first))
 
 
+def test_a_pool_says_which_direction_put_it_in_this_order(game_data, wylder):
+    """D-4: the order travels with the name of what made it.
+
+    Asked of both directions, because a pool that carried a fixed id would
+    answer one of them right. What the answer is compared against is the
+    argument the caller passed, never a name read back out of the module.
+    """
+    inventory = advisor.make_inventory(game_data, wylder, count=4)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    problem = advisor.problem([advisor.RED])
+
+    said = {asked: pool_for(inventory, problem, 0, ctx, asked).rank_by
+            for asked in (DAMAGE, SURVIVAL)}
+
+    assert said == {DAMAGE: DAMAGE, SURVIVAL: SURVIVAL}
+
+
+def test_the_two_directions_really_order_one_slot_differently(game_data,
+                                                              wylder):
+    """What the pairing check is protecting, measured rather than assumed.
+
+    T-077 measured the cost on the real save: `max_damage` scored over
+    `min_damage_taken` pools gave 290,39 against 323,30 attack rating, four
+    of six handles different. That is only a cost because the two directions
+    order a slot differently -- if they agreed, `rank_by` would be a label on
+    a distinction without a difference, and the refusal in `search.beam`
+    would guard nothing. This is that premise, on this dataset.
+    """
+    inventory = advisor.make_inventory(game_data, wylder, count=4)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    problem = advisor.problem([advisor.RED])
+
+    ranked = {asked: handles(pool_for(inventory, problem, 0, ctx, asked))
+              for asked in (DAMAGE, SURVIVAL)}
+
+    assert sorted(ranked[DAMAGE]) == sorted(ranked[SURVIVAL]), (
+        "the two directions were offered different copies, so this says "
+        "nothing about the order")
+    assert ranked[DAMAGE] != ranked[SURVIVAL], (
+        f"both directions ordered this slot alike ({ranked[DAMAGE]}), so "
+        f"nothing here can tell a pool of one from a pool of the other")
+
+
 def test_ranking_by_a_goal_nobody_scored_is_refused(game_data, wylder):
     inventory = advisor.make_inventory(game_data, wylder, count=1)
     ctx = advisor.context(game_data, wylder)
