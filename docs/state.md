@@ -85,12 +85,10 @@ braucht ein Unterverzeichnis je T-Nummer. Ab T-104/T-105 angewandt.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
-QA-181 (Stacking unbewacht) · QA-182 · QA-184 · QA-186 (GATE_FIELDS
-beschriftet 51 Gegenstandseffekte falsch, seit T-090 **sichtbar
-widerspruechlich**) · QA-188 (zwei alte Wortlaute in der Leiste) · QA-190
-(zwei Anzeigen aus `UI_SPEC` §3.3 nie gebaut) · QA-191 (acht Nightfarer
-ungetestet) · QA-192 (kein Englisch-Waechter) · QA-193 (zweiter Deckel ohne
-Anzeigeweg) · QA-195 (Testeinstellungen unter der Spieler-Organisation) ·
+QA-181 (Stacking unbewacht) · QA-182 · QA-184 · **QA-186** (GATE_FIELDS
+beschriftet 51 Gegenstandseffekte falsch, seit T-090 sichtbar
+widerspruechlich) · QA-188 · QA-190 (zwei `UI_SPEC`-§3.3-Anzeigen nie gebaut) ·
+QA-191 (acht Nightfarer ungetestet) · QA-192 · QA-193 · QA-195 ·
 SEC-019/SEC-015 (Mittel) · SEC-021, SEC-023 (Niedrig).
 
 ## Der Rest — in dieser Reihenfolge
@@ -112,8 +110,8 @@ SEC-019/SEC-015 (Mittel) · SEC-021, SEC-023 (Niedrig).
 - **F-F QA-113** vier Relikte wandeln Schadensart um, das Programm bewegt
   **exakt 0**. Eine Ablesung entscheidet: Grundwert 114, drei Lesarten sagen
   **91 / 116 / 117**.
-- **F-G QA-170** keine Sortierung ueber Waffenkategorien hinweg, waere eine
-  **neue Funktion** · **Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
+- **F-G QA-170** Sortierung ueber Waffenkategorien hinweg waere eine **neue
+  Funktion** · **Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
 
 ## Regeln
 
