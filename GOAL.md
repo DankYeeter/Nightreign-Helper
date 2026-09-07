@@ -229,3 +229,72 @@ Nutzer vor demselben Problem.
 
 **Verhaeltnis zu A9:** A15 ist der Inhalt, A9 die Pruefumgebung. Beide werden
 in P9 zusammen abgenommen, im selben `clean-room`- und `power-user`-Durchgang.
+
+---
+
+## Nachtrag 07.09.2026 — zwei Praezisierungen des Beraters (entschieden durch den Nutzer)
+
+**Grund:** Beim Durchsprechen des gebauten Beraters hat der Nutzer zwei
+Annahmen widerlegt, auf denen die Rangfolge bisher stand. Das Ziel selbst
+bleibt unveraendert; A3 und A5 bekommen einen praeziseren Gegenstand.
+
+### A16 — Der Berater zeigt den schlechtesten **und** den besten Fall
+
+**Was der Nutzer entschieden hat**, woertlich: *"beim optimieren / berater
+will ich zwischen worst-case und best-case unterscheiden koennen. dann kann
+ich auf nummer sicher gehen oder die risiko variante waehlen."*
+
+**Anlass.** Ein Fluch wird heute wie jeder andere Effekt in die Rechnung
+gegeben — es gibt keinen Fluch-Malus und keinen Sonderzweig. Ein Fluch **mit
+Bedingung** faellt aber wie jeder bedingte Effekt heraus, bis der Spieler die
+Bedingung erklaert. Gemessen am Spielstand des Nutzers (07.09.2026, 309
+Kopien): **24 Flueche im Datensatz, alle 24 auf seinen Relikten, davon 7 mit
+Bedingung** — darunter `Lower Attack When Below Max HP`,
+`Poison Buildup When Below Max HP`, `Rot Buildup When Below Max HP`,
+`Near Death Reduces Max HP` und drei rund um Ausweichen und Flaschentrinken.
+Das sind genau die, die im Kampf fast immer greifen, und sie fehlen heute in
+jeder Zahl.
+
+**Was daraus folgt.** Der Berater bekommt zwei Lesarten derselben Rechnung:
+
+- **Schlechtester Fall** — jede bedingte Fluchwirkung gilt als aktiv, jede
+  bedingte Buffwirkung als inaktiv. Die Zahl, auf die man sich verlassen kann.
+- **Bester Fall** — umgekehrt. Die Zahl, die erreichbar ist, wenn alles passt.
+
+Beide Lesarten sind **Voreinstellungen fuer die Bedingungen**, keine zweite
+Rechnung und keine erfundenen Gewichte: das Feld, mit dem der Spieler eine
+Bedingung heute von Hand erklaert, wird dafuer gesetzt. Damit bleibt A7
+gewahrt — angenommen wird die **Bedingung**, nie die Zahl.
+
+**Abnahme:** Der Spieler kann im Berater zwischen beiden Lesarten wechseln,
+jede Zahl sagt, welche gerade gilt, und die sieben bedingten Flueche seines
+Spielstands bewegen im schlechtesten Fall die Rangfolge nachweislich.
+
+**Nicht-Ziel:** Das Statblatt im Build planner bleibt unberuehrt. Die zwei
+Lesarten gehoeren dem Berater.
+
+### A17 — "Schaden maximieren" rankt ohne Bezugswaffe
+
+**Was der Nutzer entschieden hat**, woertlich: *"wir optimieren die stats und
+passiven am besten weil nur die fix sind. waffen und deren buffs sind alle in
+der runde RNG-basiert."*
+
+**Anlass.** `_max_damage` rankt heute nach dem, was die **Bezugswaffe** trifft
+(`blurb`: "Ranks by what your reference armament hits for."). Sind Waffen und
+ihre Buffs pro Runde ausgewuerfelt, optimiert das auf eine Waffe, die der
+Spieler in der Runde nicht hat.
+
+**Was daraus folgt.** Die Zielrichtung rankt in der Voreinstellung **ohne**
+Bezugswaffe, also nach Angriffsmultiplikatoren, Attributen und Passiven — dem,
+was zwischen Runden fest bleibt. Der Weg dafuer ist gebaut: `_max_damage`
+behandelt `ctx.reference is None` bereits und sagt den zugehoerigen Satz
+(`_NO_ARMAMENT`, `_NO_ARMAMENT_NOTE`).
+
+**Abnahme:** Die Rangfolge einer Zielrichtung aendert sich nicht, wenn eine
+andere Waffe gefuehrt wird; die Zahl nennt ihren Geltungsbereich (A12).
+
+**Offen und ausdruecklich nicht mitentschieden:** ob die Zeile "es haengt an
+den Armaturen, die du fuehrst" (Fuellung (c), 38 Zeilen auf dem Spielstand
+des Nutzers) unter dieser Annahme noch nuetzlich ist. Sie ist wahr, aber sie
+raet zu etwas, das in der Runde nicht in der Hand des Spielers liegt. Gehoert
+in den S10-Review.
