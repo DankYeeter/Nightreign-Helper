@@ -40,17 +40,6 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
 | A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
 | A15 | Erststart fuehrt zu Daten | Spec liegt (AK-106-132), Umsetzung offen |
 
-## Entscheidungen des Directors, 07.09.2026
-
-- **4.10 bleibt ohne Erzeuger.** Beide Zielrichtungen liefern immer eine Zahl;
-  einen Ausloeser zu bauen hiesse, ein Kriterium zu erfinden — das verbietet
-  A7. **AK-20 ist im Test pruefbar, nicht am echten Lauf**, die QA sucht nicht
-  danach. Wieder aufmachen bei einer dritten Zielrichtung.
-- **S10b geteilt:** T-089 zeichnet und erklaert, T-090 wendet an und haelt
-  fest. Anwenden ist **eine** Sache mit **einem** Rueckgaengig-Modell; der
-  `Use`-Knopf wird in T-089 **nicht** gezeichnet, auch nicht wirkungslos.
-- **QA-186 nach der Slotkarte** — er liegt im Build planner, unabhaengig von S10.
-
 ## Beschlossen, nicht beauftragt
 
 - **D-2** Fluch ohne Zahlenwirkung **muss genannt werden** — eigenes Feld
@@ -69,19 +58,6 @@ Zyklus. P6 auf zwei Punkte (SEC-009, SEC-019/015) · P5 auf einen Auftrag
   456 Paaren). **QA-180 ist behoben** (`90ff81d`) — die frueher hier stehende
   Aussage "A5 ist deshalb heute nicht erfuellt" war ein Buchfuehrungsfehler
   des Directors und ist mit T-095 widerlegt.
-
-## Offen und niemandem zugeordnet
-
-- **`ui-ux-designer`:** QA-158, QA-159, QA-160, QA-162, QA-173, QA-174,
-  QA-179, die Fokusmarke aus T-071. Fuenf weitere aus T-083 im Bericht dort:
-  fehlende Zeile in §4, 4.9 und 4.11 zugleich, Plural von 4.11, 158 px fuer
-  die Statuszeile bei 1320 px, der gepinnte obere Block.
-- **`developer`:** QA-171 (mit A15), QA-172, QA-175, QA-177, QA-180, QA-186 ·
-  Debt `app.py:3294` (Tooltip ohne `<span>`, `&` erscheint als `&amp;`).
-- **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
-  **QA-165/166:** Reihenfolge 3 von 120, 34 von 60 Verstecken-Marken.
-- **Zurueckgestellt:** QA-066, QA-123, AD-013.4 gegen `copy_key`,
-  `CharaInitParam` wird nicht gelesen.
 
 ## Stand am Ende des 07.09.2026
 
