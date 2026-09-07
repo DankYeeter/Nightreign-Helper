@@ -133,3 +133,26 @@ wiederhergestellt, sofern keine Anzeige einging. **Datum: —**
   selbst (gebuendelte Versionen, UPX); der Sichtbarkeitsverlauf des Repos
   (A-036); ob "immutable releases" aktiv ist (release-manager); GPL-3.0
   § 6(b); Heilungsklauseln der Bandai-Namco-EULA.
+
+---
+
+## Nutzerentscheidungen 2026-09-07, vom Director eingetragen
+
+Vorgelegt an der Stufengrenze vor Bau und Release, auf der Entscheidungs-
+vorlage aus `docs/legal/C-004.md`.
+
+| Auflage | Entscheidung des Nutzers | Folge |
+|---|---|---|
+| **A-025** | **W1 — fortsetzen und den Bestand nachruesten.** Der Nutzer traegt das Restrisiko aus § 95a Abs. 3 UrhG und EULA 10(i) **bewusst**. Die faktisch durch Handeln gefallene Entscheidung ist damit ausdruecklich bestaetigt. | GRAU **geschlossen**. Kein Anwalt, kein Rueckzug. Der `release-manager` fuehrt A-033 als Nachruestung **aller zwoelf** Releases aus — kein Ausduennen. |
+| **A-035** | **Keine Beanstandung eingegangen** seit dem 11.08.2026 — kein GitHub-Hinweis, keine DMCA-Notice, keine Nachricht eines Rechteinhabers oder Bibliotheksautors, nichts von Steam. | **erfuellt.** Die 60-Tage-Frist aus GPL-3.0 § 8 laeuft ab Abschluss von A-033 ungestoert; die Heilung greift vorlaeufig sofort. A-009 kommt nicht zum Tragen. |
+| **A-036** | **Das Repository war seit dem 11.08.2026 durchgehend oeffentlich.** | **erfuellt.** A-022 ist seit dem ersten Release eingehalten, keine Massnahme. |
+
+**Ausdruecklich nicht beauftragt** (Nutzer, 07.09.2026): US-Recht
+(17 U.S.C. § 1201) · Pruefung des Arbeitsvertrags (seit C-001 offen) ·
+Bewerbung des Releases. Alle drei bleiben offen im Register, ohne Auftrag.
+Die Wahrscheinlichkeitsaussagen in C-003 und C-004 gelten damit weiter fuer
+den gemessenen Stand: 1 Stern, 1 Fork, 25 Downloads in 27 Tagen.
+
+**Was jetzt noch die Veroeffentlichung sperrt:** nur A-033 (Nachruestung des
+Bestands). Der Transport des Hinweispakets ist seit T-109 gebaut, der Inhalt
+seit T-107 fertig.
