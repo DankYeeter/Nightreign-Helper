@@ -23,10 +23,20 @@ Nutzer ganz am Ende.**
 
 ## Zyklus 16 — der Release-Weg (Nutzerentscheid 07.09.2026)
 
-Ziel **A9 und A2**. A9 hatte als einziges Kriterium null Evidenz: es gab nie
-ein gebautes Artefakt. **A2 ist seit T-105 erfuellt** — SEC-009 behoben und
+Ziel **A9 und A2**. **A2 ist seit T-105 erfuellt** — SEC-009 behoben und
 gegengeprueft (`d92bab9`), kein Hoch-Befund mehr offen; Bestaetigung durch den
 `security-reviewer` steht aus.
+
+**Falsche Praemisse, korrigiert 07.09.2026.** Die Zeile "es gibt bis heute
+keine EXE" stand seit Zyklen hier und war falsch: **12 veroeffentlichte
+Releases, alle mit `NightreignHelper.exe`, juengstes `v1.7.1` vom 24.08.2026,
+25 Downloads** (`gh release list`, vom Director nachgeprueft; gefunden vom
+`release-manager` in T-106). Der Director hat sie ungeprueft in den
+Fragebogen, in drei Auftragsdateien und in den Bericht an den Nutzer
+getragen. **Folge:** A9 bleibt offen (kein `qa-engineer` lief je gegen ein
+Artefakt), aber der Risikoweg ist das **Update ueber eine vorhandene
+Installationsbasis**, nicht die Erstinstallation — und die Rechtsschwelle aus
+C-003 liegt bereits hinter uns (T-108 laeuft).
 
 Kette: T-104 `compliance-agent` ✔ **+** T-105 `developer` ✔ (parallel) →
 **T-106** `release-manager` (`plan`) **+ T-107** `technical-writer` (parallel,
@@ -54,7 +64,7 @@ Messgeraet.
 | A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
 | A8 | alles Englisch | haelt, ohne Waechter (QA-192) |
-| A9 | QA gegen ein **gebautes Artefakt** | **Zyklus 16** |
+| A9 | QA gegen ein **gebautes Artefakt** | **Zyklus 16**; 12 Releases gebaut, nie eines geprueft |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
 | A11 | ohne Raten ans Ziel | offen (QA-173) |
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
