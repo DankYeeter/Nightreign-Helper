@@ -17,20 +17,22 @@ genannte Datei stiege von 1,2 auf 4,0 s, und genau die verlangt die Gegenprobe.
 ## Auftragslage (Nutzer)
 
 Alle offenen Punkte abarbeiten, autonom, **erst zurueckkommen bei einer echten
-Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**. **Die Pruefung
-im laufenden Spiel macht der Nutzer ganz am Ende.** Der Fragebogen vor dem
-Zyklus haelt auch im autonomen Lauf an — autonom gilt **innerhalb** eines
-Zyklus.
+Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
+vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
+Nutzer ganz am Ende.**
 
 ## Zyklus 16 — der Release-Weg (Nutzerentscheid 07.09.2026)
 
-Ziel **A9 und A2**. A9 hat als einziges Kriterium null Evidenz: es gab nie ein
-gebautes Artefakt, obwohl `release.yml` und `NightreignHelper.spec` existieren.
-A2 haengt nur noch an SEC-009 — derselbe Weg, dieselbe Datei.
+Ziel **A9 und A2**. A9 hatte als einziges Kriterium null Evidenz: es gab nie
+ein gebautes Artefakt. **A2 ist seit T-105 erfuellt** — SEC-009 behoben und
+gegengeprueft (`d92bab9`), kein Hoch-Befund mehr offen; Bestaetigung durch den
+`security-reviewer` steht aus.
 
-Kette: **T-104** `compliance-agent` (`auflagen`) **+ T-105** `developer`
-(SEC-009) parallel → `technical-writer` → `release-manager` (`build`) →
-`release-manager` (`clean-room`) → `qa-engineer` **+** `power-user` parallel.
+Kette: T-104 `compliance-agent` ✔ **+** T-105 `developer` ✔ (parallel) →
+**T-106** `release-manager` (`plan`) **+ T-107** `technical-writer` (parallel,
+laufen) → `release-manager` (`build`) → (`clean-room`) → `qa-engineer` **+**
+`power-user` parallel. Dazwischen ein `developer` fuer **A-020** (Hinweispaket
+als Release-Asset) — nicht parallel zum `release-manager`.
 
 **Clean-room auf diesem Rechner, isoliert** (leeres Verzeichnis, geleerter
 PATH, keine `.venv`) — A9 gilt danach **mit Vorbehalt** erfuellt: keine echte
@@ -48,7 +50,7 @@ Messgeraet.
 | | | |
 |---|---|---|
 | A1 | Audit mit priorisierten Befunden | weitgehend — 197 QA, 24 SEC |
-| A2 | kritisch/hoch behoben oder zurueckgestellt | **nur noch SEC-009** (T-105) |
+| A2 | kritisch/hoch behoben oder zurueckgestellt | **erfuellt** (T-105), QA-Bestaetigung offen |
 | A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
 | A8 | alles Englisch | haelt, ohne Waechter (QA-192) |
@@ -74,14 +76,14 @@ Messgeraet.
 - **A16/A17** (schlechtester/bester Fall, Rangfolge ohne Bezugswaffe),
   spezifiziert in AK-182 bis AK-194, **nicht gebaut**. Zyklus 17.
 
-## Statuskorrektur 07.09.2026 (zweite), am Code geprueft
+## Buchfuehrung des Directors — zwei Korrekturen am 07.09.
 
 **SEC-022, SEC-024, QA-194** standen faelschlich auf "offen", sind belegt
-behoben (`912a39a`, `2570d86`); Beleg in den Befundlisten. Zweiter Fall
-derselben Klasse an einem Tag. **QA-196/QA-197 (an den Director) sind
-geklaert** und stehen in der Rollendefinition: Worktree startet auf
-`origin/HEAD`, braucht **Schritt 0**; Scratchpad ist pro Sitzung geteilt,
-braucht ein Unterverzeichnis je T-Nummer. Ab T-104/T-105 angewandt.
+behoben; zweiter Fall derselben Klasse an einem Tag. **T-104 behauptete,
+`docs/legal/AUFLAGEN.md` existiere nicht** — sie existiert seit dem 01.09.;
+eine Absenz-Behauptung ohne Durchsicht. **QA-196/QA-197 sind geklaert** und
+stehen in der Rollendefinition (Worktree braucht Schritt 0, Scratchpad ein
+Unterverzeichnis je T-Nummer).
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
@@ -93,23 +95,31 @@ SEC-019/SEC-015 (Mittel) · SEC-021, SEC-023 (Niedrig).
 
 ## Der Rest — in dieser Reihenfolge
 
-1. **Zyklus 16** (laeuft): der Release-Weg, A9 und A2.
-2. **Zyklus 17**: der Fix-Stapel oben, zwei parallele `developer` mit
-   disjunkten Dateilisten, danach parallele Pruefphase.
-3. **A16/A17** aus AK-182 bis AK-194.
-4. **A11 schliessen:** QA-173 entscheiden und beheben, dann die stehende
-   Messreihe erneut fahren.
-5. **A15** mit QA-171. **S11** Budget mit dem `performance-tuner`.
+1. **Zyklus 16** (laeuft): der Release-Weg, A9.
+2. **Zyklus 17**: der Fix-Stapel oben plus SEC-025, zwei parallele
+   `developer` mit disjunkten Dateilisten, danach parallele Pruefphase.
+3. **A16/A17** aus AK-182 bis AK-194. 4. **A11** ueber QA-173, dann die
+   stehende Messreihe erneut. 5. **A15** mit QA-171, **S11** Budget.
 6. **P4** · **P5** · **P7**.
 
 ## Beim Nutzer — offen
 
-- **F-B QA-096** Raider x1,18 auf Greataxe/Great Hammer, **keine Param-Quelle**
-  (252 Tabellen, 6,66 Mio. Zellen) · **F-C QA-097** Cursed Claws x0,88 fuer
-  alle ausser dem Revenant. Beide: Lv15-Messung im Spiel.
-- **F-F QA-113** vier Relikte wandeln Schadensart um, das Programm bewegt
-  **exakt 0**. Eine Ablesung entscheidet: Grundwert 114, drei Lesarten sagen
-  **91 / 116 / 117**.
+**Vor dem ersten Release zu entscheiden (C-003, 07.09.2026).** Ich lege sie
+gebuendelt an der Stufengrenze vor Bau und Release vor; sie halten den
+laufenden Zyklus **nicht** auf, weil Bauen und Pruefen keine Weitergabe ist.
+- **A-025, GRAU:** Die EXE traegt die bekannten Entschluesselungsschluessel.
+  Privatgebrauch ist straflos, **mit dem ersten Release-Asset wird aus Nutzung
+  Verbreitung** (§ 95a Abs. 3 UrhG, EULA 10(i)). Risiko tragen oder vorher
+  anwaltlich klaeren? Alternative ohne das Risiko: Quellcode statt EXE.
+- Bleibt das Repo dauerhaft oeffentlich (LGPL haengt daran, A-022)? · Soll das
+  Release beworben werden? · Beruehrt die Weitergabe deinen Arbeitsvertrag
+  (seit C-001 offen)? · Eigener Auftrag zu US-Recht (17 U.S.C. § 1201)?
+
+**Aus dem Audit, Messung im Spiel:** **F-B QA-096** Raider x1,18 auf
+Greataxe/Great Hammer, keine Param-Quelle · **F-C QA-097** Cursed Claws x0,88
+fuer alle ausser dem Revenant · **F-F QA-113** vier Relikte wandeln
+Schadensart um, das Programm bewegt **exakt 0** (Grundwert 114, drei Lesarten
+sagen 91 / 116 / 117).
 - **F-G QA-170** Sortierung ueber Waffenkategorien hinweg waere eine **neue
   Funktion** · **Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
 
