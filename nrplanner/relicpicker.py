@@ -117,6 +117,14 @@ NO_CHANGE = "no change"
 NO_FIGURES_AT_ALL = ("The game's data carries no figures this goal can be "
                      "ranked on, so these relics are in name order.")
 
+#: The mandatory line of AD-018.3, in the player's language (§5.3), word for
+#: word. It stands in the picker and not at the `Optimize` button, because it
+#: is a warning about choosing one slot at a time and that is what happens
+#: here.
+ONE_SLOT_AT_A_TIME = ("One slot at a time — some relics only pay off "
+                      "together; Optimize on the Build planner looks for "
+                      "those.")
+
 #: The third entry of `Sort by`, and what it stands for: the order the grid
 #: has without an advisor at all. Not a direction, so it changes no goal
 #: setting -- which is why it needs a value of its own that no goal id can
@@ -839,8 +847,35 @@ class RelicPicker(QDialog):
 
         self.summary = QLabel()
         self.summary.setTextFormat(Qt.PlainText)
+        self.summary.setWordWrap(True)
+        self.summary.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
         self.summary.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.summary)
+
+        # Line 3b: what this run could not consider, in the player's language
+        # (AK-163). Two sources, drawn in the order they were handed over and
+        # neither compared, filtered nor de-duplicated -- a sentence that
+        # appears twice is a fault of the calculation and is meant to be seen
+        # (AK-165).
+        self.findings = QLabel()
+        self.findings.setTextFormat(Qt.PlainText)
+        self.findings.setWordWrap(True)
+        self.findings.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
+        self.findings.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        self.findings.setVisible(False)
+        layout.addWidget(self.findings)
+
+        # Line 4: the mandatory line, then what the chosen direction cannot
+        # know whatever the run (AK-162). Not one word of it is written here
+        # -- the reservations live in `Goal.scope`, so a sixth sentence added
+        # to the registry stands here without this file being touched.
+        self.caveats = QLabel()
+        self.caveats.setTextFormat(Qt.PlainText)
+        self.caveats.setWordWrap(True)
+        self.caveats.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
+        self.caveats.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        self.caveats.setVisible(False)
+        layout.addWidget(self.caveats)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -913,6 +948,18 @@ class RelicPicker(QDialog):
         rows = rows[:MINIMUM_ROWS]
         return sum(rows) + max(0, len(rows) - 1) * cardgrid.SPACING
 
+    def wanted_height(self, cards) -> int:
+        """The height AK-51 asks for, before any screen is consulted.
+
+        Kept apart from what the dialog ends up at, because the two are
+        different statements and only the first is about this program: a
+        desktop that cannot hold the dialog is a fact about the desktop. It
+        is also the only one a case can read -- the offscreen desktop is
+        800 px tall, so a guard written on the size the dialog *reaches*
+        would agree with itself whatever this file said.
+        """
+        return self._chrome_height() + self._room_for_three_rows(cards)
+
     def _fit_to_three_rows(self, cards) -> None:
         """Open tall enough to read three whole rows of cards (AK-51).
 
@@ -920,11 +967,20 @@ class RelicPicker(QDialog):
         never cut. Only at opening -- a player who has dragged the dialog to
         a size of their own is not corrected by the next keystroke in the
         filter.
+
+        Bounded by the desktop, because a dialog taller than the screen is
+        one whose bottom row cannot be read at all. Measured on this machine
+        2026-09-07: AK-51 asks for 1122 px against 1027 available, so the
+        three rows are 95 px short of fitting and the picker opens as tall as
+        the desktop allows. That shortfall is reported, not hidden.
         """
         if self._sized or not cards:
             return
         self._sized = True
-        wanted = self._chrome_height() + self._room_for_three_rows(cards)
+        wanted = self.wanted_height(cards)
+        screen = self.screen()
+        if screen is not None:
+            wanted = min(wanted, screen.availableGeometry().height())
         if wanted > self.height():
             self.resize(self.width(), wanted)
 
@@ -1006,12 +1062,21 @@ class RelicPicker(QDialog):
             if self.hero_id is not None and favourites.is_favourite(i, self.hero_id)
         )
         note = f" — {starred} favourited for {self.hero_label}" if starred else ""
+        # The reference size, without which `+12.4` says nothing: the figures
+        # are measured against the build as it stands with **this** slot
+        # emptied -- including for the relic that is sitting in it right now
+        # (AD-018.1).
+        against = (f"  ·  ranked against your build with "
+                   f"{self.slot.slot_name()} empty"
+                   if self.ranking is not None else "")
         self.summary.setText(
             f"{len(items)} of {total} relics"
             + (f" matching “{needle}”" if needle else "")
             + note
+            + against
             + "  ·  right-click a relic to favourite it"
         )
+        self._say_what_was_left_out()
 
         current = self.slot.relic_box.currentData()
 
@@ -1110,6 +1175,39 @@ class RelicPicker(QDialog):
                 texts,
                 chip_text(goal_id) if marked and texts[column] == best else "")
         self._headline("" if marked else nothing_raises(goal_id))
+
+    def _say_what_was_left_out(self) -> None:
+        """Lines 3b and 4, the two halves of what this figure cannot know.
+
+        **Two sources, two places, and neither is edited** (AD-025, AK-165):
+        the run findings belong to *this* pool and stand at the pool summary;
+        the procedural sentences belong to the direction and stand once,
+        below. Nothing here compares the two lists, sorts them or drops a
+        repeat -- a sentence in both classes is a fault of the calculation
+        (checkpoint 30), and an display that de-duplicated would hide exactly
+        the fault the checkpoint is written against.
+
+        `weights_note` is in neither (AK-166). While there is no control for
+        the weighting, `EVEN_WEIGHTING.note` opens with the same eight words
+        as the second `Goal.scope` sentence of the survival direction, and
+        two lines under each other that begin alike are read as one repeat
+        and skipped. It stands in the `Why` dialog instead.
+        """
+        if self.ranking is None:
+            self.findings.setVisible(False)
+            self.caveats.setVisible(False)
+            return
+        pool = self.ranking.pool
+        goal_id = self.ranking.goal_id
+        found = [line
+                 for baseline in pool.baseline if baseline.goal_id == goal_id
+                 for line in baseline.unknowns] + list(pool.unknowns)
+        self.findings.setText(advisorbar.CLAUSES.join(found))
+        self.findings.setVisible(bool(found))
+
+        scope = advisor_goals.GOALS[goal_id].scope
+        self.caveats.setText(" ".join((ONE_SLOT_AT_A_TIME, *scope)))
+        self.caveats.setVisible(True)
 
     def _headline(self, text: str) -> None:
         """The one sentence that stands in for a mark nobody may wear."""

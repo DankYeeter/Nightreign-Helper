@@ -22,6 +22,7 @@ consumes. Three things they keep coming back to:
 from __future__ import annotations
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QLabel
 
 from nrplanner import relicpicker
@@ -68,8 +69,8 @@ def a_slot(planner):
 
 
 def pool_of(slot, gains, taken=(), *, rank_by="max_damage",
-            baseline=(("max_damage", 100.0, "AR"),
-                      ("min_damage_taken", 900.0, "effective HP")),
+            baseline=(("max_damage", 100.0, "AR", ()),
+                      ("min_damage_taken", 900.0, "effective HP", ())),
             unknowns=()):
     """A `SlotPool` over this slot's own copies, with the gains named.
 
@@ -97,8 +98,8 @@ def pool_of(slot, gains, taken=(), *, rank_by="max_damage",
                                    c.handle))
     return types.SlotPool(
         slot_index=slot.index, rank_by=rank_by,
-        baseline=tuple(types.Baseline(goal_id, value, unit)
-                       for goal_id, value, unit in baseline),
+        baseline=tuple(types.Baseline(goal_id, value, unit, found)
+                       for goal_id, value, unit, found in baseline),
         candidates=tuple(candidates), unknowns=unknowns)
 
 
@@ -615,5 +616,166 @@ def test_sort_by_stands_between_the_filter_and_the_cards(slot):
         assert first_card in chain, "no card is reachable by tabbing"
         assert chain.index(dialog.sort_box) < chain.index(first_card), (
             "the reader reaches a card before Sort by")
+    finally:
+        dialog.deleteLater()
+
+
+# --- the lines outside the grid (AK-50, AK-62, AK-162 to AK-166) -----------
+
+def test_line_three_names_the_size_the_figures_are_measured_against(slot):
+    """§3.2: without the reference size `+12.4` says nothing.
+
+    The build as it stands with **this** slot emptied -- including for the
+    relic sitting in it right now, which is what makes it comparable with the
+    ones that might replace it (AD-018.1).
+    """
+    dialog = open_picker(slot, {0: 12.4})
+    try:
+        assert (f"ranked against your build with {slot.slot_name()} empty"
+                in dialog.summary.text())
+    finally:
+        dialog.deleteLater()
+
+
+def test_line_four_carries_the_mandatory_line_and_then_the_registrys(slot):
+    """AK-62 and AK-162: the fixed sentence, then `Goal.scope`, word for word."""
+    from nrplanner.advisor import goals as advisor_goals
+
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        text = dialog.caveats.text()
+        assert dialog.caveats.isVisibleTo(dialog)
+        assert text.startswith(relicpicker.ONE_SLOT_AT_A_TIME)
+        scope = advisor_goals.GOALS["max_damage"].scope
+        at = [text.index(sentence) for sentence in scope]
+        assert at == sorted(at), "the scope sentences are not in tuple order"
+    finally:
+        dialog.deleteLater()
+
+
+def test_line_four_follows_the_direction_it_is_about(slot):
+    """AK-162: the other direction brings its own sentences, not a constant.
+
+    A picker with the attack-rating reservation wired in as a string would
+    stand on the wrong sentence here and the case would not see it, which is
+    why the comparison is against the registry rather than against a wording.
+    """
+    from nrplanner.advisor import goals as advisor_goals
+
+    dialog = open_picker(slot, {0: 1.0}, goal_id="min_damage_taken")
+    try:
+        text = dialog.caveats.text()
+        for sentence in advisor_goals.GOALS["min_damage_taken"].scope:
+            assert sentence in text
+        for sentence in advisor_goals.GOALS["max_damage"].scope:
+            assert sentence not in text
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_sentence_added_to_the_registry_reaches_the_picker(slot,
+                                                             monkeypatch):
+    """AK-162's check: no UI string is touched to add a reservation."""
+    import dataclasses
+
+    from nrplanner.advisor import goals as advisor_goals
+
+    extra = "A sixth sentence nobody has wired into a widget."
+    goal = advisor_goals.GOALS["max_damage"]
+    monkeypatch.setattr(
+        relicpicker.advisor_goals, "GOALS",
+        dict(advisor_goals.GOALS,
+             max_damage=dataclasses.replace(goal, scope=goal.scope + (extra,))))
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        assert extra in dialog.caveats.text()
+    finally:
+        dialog.deleteLater()
+
+
+def test_line_three_b_carries_the_run_findings_in_the_order_handed_over(slot):
+    """AK-163: the direction's findings first, then the pool's.
+
+    The first sentence is about the **figure** on every card, the second
+    about the **stock** the cards came from, and the player reads the figure
+    first.
+    """
+    dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
+        slot, {0: 1.0},
+        baseline=(("max_damage", 100.0, "AR", ("about the figure",)),
+                  ("min_damage_taken", 900.0, "effective HP", ())),
+        unknowns=("about the stock",))}))
+    try:
+        assert dialog.findings.isVisibleTo(dialog)
+        assert dialog.findings.text() == (
+            "about the figure  ·  about the stock")
+    finally:
+        dialog.deleteLater()
+
+
+def test_line_three_b_is_gone_when_both_sources_are_empty(slot):
+    """AK-163: empty is an answer, not a gap -- and not an empty line."""
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        assert dialog.findings.text() == ""
+        assert not dialog.findings.isVisibleTo(dialog)
+        assert dialog.caveats.isVisibleTo(dialog), (
+            "line 4 must stand whether or not there is a run finding")
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_sentence_in_both_sources_is_drawn_twice(slot):
+    """AK-165: the display de-duplicates nothing.
+
+    A sentence in both classes is a fault of the calculation (checkpoint 30).
+    A display that filtered it out would hide exactly the fault the
+    checkpoint is written against.
+    """
+    twice = "Said by both halves."
+    dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
+        slot, {0: 1.0},
+        baseline=(("max_damage", 100.0, "AR", (twice,)),
+                  ("min_damage_taken", 900.0, "", ())),
+        unknowns=(twice,))}))
+    try:
+        assert dialog.findings.text().count(twice) == 2
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_weighting_note_is_nowhere_in_the_picker(slot):
+    """AK-166: while there is no control for it, it would read as a repeat.
+
+    `EVEN_WEIGHTING.note` opens with the same eight words as the second scope
+    sentence of the survival direction, and two lines under each other that
+    begin alike are read as one and skipped.
+    """
+    from nrplanner.advisor import goals as advisor_goals
+
+    note = advisor_goals.EVEN_WEIGHTING.note
+    dialog = picker_for(slot, FakeAdvice({"min_damage_taken": pool_of(
+        slot, {0: 1.0}, rank_by="min_damage_taken",
+        baseline=(("max_damage", 100.0, "AR", ()),
+                  ("min_damage_taken", 900.0, "effective HP", ())))},
+        goal_id="min_damage_taken"))
+    try:
+        drawn = " ".join(label.text()
+                         for label in dialog.findChildren(QLabel))
+        assert note not in drawn
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_three_lines_stand_outside_the_scroll_area_and_wrap(slot):
+    """AK-50: visible without interaction, and never shortened."""
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        layout = dialog.layout()
+        held = [layout.itemAt(i).widget() for i in range(layout.count())]
+        for line in (dialog.summary, dialog.findings, dialog.caveats):
+            assert line in held, "a line was put inside the scroll area"
+            assert line.wordWrap(), "a line that does not wrap gets cut"
+            assert line.textFormat() == Qt.PlainText
     finally:
         dialog.deleteLater()

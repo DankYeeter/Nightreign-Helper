@@ -102,6 +102,16 @@ def main() -> int:
     print(f"horizontal scrollbar: "
           f"{dialog.scroll.horizontalScrollBar().isVisible()}")
     print(f"whole card rows visible: {whole_rows(dialog)}")
+    holder = dialog.scroll.widget()
+    all_cards = ([holder.findChild(relicpicker.CustomRelicCard)]
+                 + holder.findChildren(relicpicker.RelicCard))
+    wanted = dialog.wanted_height([c for c in all_cards if c is not None])
+    room = app.primaryScreen().availableGeometry().height()
+    print(f"AK-51 asks for {wanted} px; this desktop offers {room}")
+    dialog.resize(dialog.width(), wanted)
+    settle(app)
+    print(f"at {wanted} px: viewport {dialog.scroll.viewport().height()}, "
+          f"whole card rows {whole_rows(dialog)}")
 
     if cards:
         card = cards[0]

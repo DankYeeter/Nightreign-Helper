@@ -105,3 +105,55 @@ def test_the_picker_opens_wide_enough_for_the_cards_it_opens_with(picker):
         f"the dialog opens {picker.width()} px wide and fits {first_row} "
         f"cards across, not the {relicpicker.OPENING_COLUMNS} it sized itself "
         f"for")
+
+
+def whole_rows(dialog) -> int:
+    """How many complete rows of cards the viewport shows.
+
+    Per row, because the rows are not the same height: one relic with a long
+    name and two curses makes its own row 100 px taller than its neighbour,
+    and counting every row by the tallest card anywhere in the grid measures
+    a layout that does not exist.
+    """
+    holder = dialog.scroll.widget()
+    drawn = holder.findChildren(relicpicker.RelicCard)
+    bottoms: dict[int, int] = {}
+    for card in drawn:
+        top = card.mapTo(holder, card.rect().topLeft()).y()
+        bottoms[top] = max(bottoms.get(top, 0), top + card.height())
+    room = dialog.scroll.viewport().height()
+    return sum(1 for bottom in bottoms.values() if bottom <= room)
+
+
+def test_the_height_the_picker_asks_for_shows_three_whole_rows(picker):
+    """AK-51, at the height the dialog asks for rather than the one it gets.
+
+    The two are different statements and only the first is about this
+    program: the offscreen desktop is 800 px tall, so a case written on the
+    height the dialog *reaches* would agree with itself whatever the sizing
+    said. Measured on this machine 2026-09-07: the dialog asks for 1122 px
+    and the real desktop offers 1027, so the third row is 95 px short of
+    fitting on the screen -- which is reported, not hidden.
+    """
+    holder = picker.scroll.widget()
+    cards = ([holder.findChild(relicpicker.CustomRelicCard)]
+             + holder.findChildren(relicpicker.RelicCard))
+    picker.resize(picker.width(),
+                  picker.wanted_height([c for c in cards if c is not None]))
+    rendered.settle()
+    assert whole_rows(picker) >= relicpicker.MINIMUM_ROWS, (
+        f"at the height the dialog asks for, {whole_rows(picker)} whole rows "
+        f"of cards are readable, not {relicpicker.MINIMUM_ROWS}")
+    assert not picker.scroll.horizontalScrollBar().isVisible()
+
+
+def test_the_picker_never_opens_taller_than_the_desktop(picker):
+    """A dialog past the bottom edge is one whose last row cannot be read.
+
+    AK-51 asks for more height than this desktop has, so the bound is what
+    decides the opening size here -- and without it the dialog would open
+    322 px past the screen offscreen, where the desktop is 800 px tall.
+    """
+    room = picker.screen().availableGeometry().height()
+    assert picker.height() <= room, (
+        f"the picker opens {picker.height()} px tall on a desktop of {room}")
