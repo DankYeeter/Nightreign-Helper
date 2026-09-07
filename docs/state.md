@@ -74,10 +74,9 @@ Regressionsfaellen (T-087/T-088). Was weiterwirkt, steht im Archiv.
 ## Offen und niemandem zugeordnet
 
 - **`ui-ux-designer`:** QA-158, QA-159, QA-160, QA-162, QA-173, QA-174,
-  QA-179, die Fokusmarke aus T-071. Aus T-083 dazu: §4 hat keine Zeile fuer
-  "Vorschlag hat seinen Build ueberlebt"; 4.9 und 4.11 koennen zusammen
-  zutreffen; der Plural von 4.11 ist ungeprueft; die Statuszeile bekommt bei
-  1320 px nur 158 px; der gepinnte obere Block.
+  QA-179, die Fokusmarke aus T-071. Fuenf weitere aus T-083 im Bericht dort:
+  fehlende Zeile in §4, 4.9 und 4.11 zugleich, Plural von 4.11, 158 px fuer
+  die Statuszeile bei 1320 px, der gepinnte obere Block.
 - **`developer`:** QA-171 (mit A15), QA-172, QA-175, QA-177, QA-180, QA-186 ·
   Debt `app.py:3294` (Tooltip ohne `<span>`, `&` erscheint als `&amp;`).
 - **QA-157** ist groesser als aufgenommen: 61 Stellen, nicht fuenf.
@@ -107,10 +106,10 @@ Regressionsfaellen (T-087/T-088). Was weiterwirkt, steht im Archiv.
   (252 Tabellen, 6,66 Mio. Zellen) · **F-C QA-097** Cursed Claws x0,88 fuer
   alle ausser dem Revenant. Beide: Lv15-Messung im Spiel.
 - **F-F QA-113** vier Relikte wandeln Schadensart um, das Programm bewegt
-  **exakt 0**. Eine Ablesung entscheidet: Grundwert 114, die drei Lesarten
-  sagen **91 / 116 / 117**.
-- **F-G QA-170** keine Sortierung ueber Waffenkategorien hinweg — waere eine
-  **neue Funktion** · **die Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
+  **exakt 0**. Eine Ablesung entscheidet: Grundwert 114, drei Lesarten sagen
+  **91 / 116 / 117**.
+- **F-G QA-170** keine Sortierung ueber Waffenkategorien hinweg, waere eine
+  **neue Funktion** · **Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
 
 ## Regeln
 
