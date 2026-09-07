@@ -530,3 +530,42 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
     planner.undo_apply()
     assert keys_of(planner) == before
     bar.shutdown()
+
+
+def test_at_the_opening_width_no_action_button_is_cut(planner):
+    """AK-05 for the three controls this task put in the row.
+
+    The existing case measures the row in a state where none of them is on
+    screen, so the row's busiest state was never measured at the opening
+    width. Measured, not argued: the row is horizontally `Ignored` and hands
+    its status label whatever is left, and what is left is a figure of the
+    three captions and of the font.
+    """
+    from tests import rendered
+
+    planner.resize(1320, 900)
+    planner.show()
+    rendered.settle()
+    try:
+        if planner.width() != 1320:
+            pytest.skip(f"this platform will not give the window 1320 "
+                        f"logical px: it is {planner.width()} px wide")
+        bar = planner.advisor_bar
+        bar._answer = types.AdvisorResult(
+            goal_id="max_damage", goal_label="Maximise damage",
+            suggestions=(types.Suggestion(
+                choices=(types.SlotChoice(slot_index=0, handle=7, relic_id=1,
+                                          name="X"),),
+                score=types.GoalScore(value=1.0, display="1", unit="")),))
+        bar._show(advisorbar.Situation(advisorbar.State.SUGGESTED,
+                                       goal_label="Maximise damage",
+                                       slots=6, slots_filled=1))
+        rendered.settle()
+        actions = [bar.apply_button, bar.why_button, bar.clear_button]
+        assert [button.isHidden() for button in actions] == [False] * 3, (
+            "no action button is on screen, so this case would pass whatever "
+            "the row's width did")
+        assert rendered.clipped(actions + [bar.goal_box,
+                                           bar.optimize_button], bar) == []
+    finally:
+        planner.close()
