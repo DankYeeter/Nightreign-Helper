@@ -102,6 +102,41 @@ class Inventory:
     # relics but not its builds used to be indistinguishable from one that has
     # no builds stored, which made the failure impossible to report.
     loadout_error: str = ""
+    # How many bytes of character slot these relics were read out of, or None
+    # when this inventory did not come from a save file at all -- a hand-built
+    # one in a test has no save behind it and so makes no claim about density.
+    # `relics_for` needs it for the second SEC-022 check.
+    source_bytes: int | None = None
+
+    def _refuse_a_density_no_save_can_have(self) -> None:
+        """The second SEC-022 limit, on the way out rather than on the way in.
+
+        `savefile.read_owned_relics` already refuses to build a list denser
+        than one record per `MIN_BYTES_PER_RELIC_RECORD` bytes of slot. This
+        asks the same question of the finished list, at the door every reader
+        that wants to know what fits a slot goes through: the planner's slots,
+        and -- by way of `advisor.run.frozen_inventory` -- the advisor's
+        pre-sort, which costs 175,6 us per offered relic
+        (`scripts/measure_advisor_cancel.py`, 309 relics, six free slots, this
+        machine) and so is where an inventory that got past the reader would
+        be felt. Readers that only walk the list, such as the picker's map of
+        handles, are a dict comprehension and not a place a size can hurt.
+
+        Two checks and not one, because a limit in the reader is a property of
+        that function and a player is protected by the property rather than by
+        the line: whoever writes the next reader, or loosens this one, still
+        cannot get such a list as far as the search.
+        """
+        if self.source_bytes is None:
+            return
+        limit = max(1, self.source_bytes // savefile.MIN_BYTES_PER_RELIC_RECORD)
+        if len(self.relics) > limit:
+            raise ValueError(
+                f"this inventory holds {len(self.relics)} relics read from "
+                f"{self.source_bytes} bytes of save slot, denser than one "
+                f"per {savefile.MIN_BYTES_PER_RELIC_RECORD} bytes, which is "
+                f"not an inventory; the file is damaged or was not written "
+                f"by the game. Take it out of the save folder and rescan.")
 
     def loadouts_for(self, hero_id: int) -> list[EquippedLoadout]:
         """Every chalice this Nightfarer has, not only the one worn.
@@ -128,6 +163,7 @@ class Inventory:
 
     def relics_for(self, colour: int, deep: bool, white_slot: int = 4) -> list[OwnedItem]:
         """Relics that may go into a slot of this colour and mode."""
+        self._refuse_a_density_no_save_can_have()
         return sorted(
             (
                 r for r in self.relics
@@ -220,7 +256,8 @@ def _scan_save(path: pathlib.Path, relic_meta: dict, valid_relics: set,
         # The save folder is named after the Steam account id. Naming it in
         # the window puts that id into every screenshot and bug report, so
         # the label says which slot is loaded and the id stays in the path.
-        inv = Inventory(source=name, folder=str(path.parent))
+        inv = Inventory(source=name, folder=str(path.parent),
+                        source_bytes=len(blob))
         by_offset = savefile.read_relic_handles(blob, owned)
         handle_of = {relic.offset: handle for handle, relic in by_offset.items()}
         item_by_handle: dict[int, OwnedItem] = {}

@@ -19,11 +19,15 @@ of these three states; that is the whole reason they went unnoticed.
 * **SEC-004**, `test_the_save_slot_name_is_shown_as_text`: the label that
   names the loaded save was on Qt's AutoText, which decides for itself whether
   what it was given is markup.
-* **SEC-022**, `test_a_slot_packed_with_relic_records_*`: the inventory scan
-  walked the character slot without any limit on how many records it would
-  take out of it. A prepared file yields 131 069 records per MiB, and the
-  program reads every save it finds at startup and keeps the best-populated
-  one, so the prepared file wins and the window never appears.
+* **SEC-022**, `test_a_slot_packed_with_relic_records_*` and
+  `test_an_inventory_denser_than_*`: the inventory scan walked the character
+  slot without any limit on how many records it would take out of it. A
+  prepared file yields 131 069 records per MiB, and the program reads every
+  save it finds at startup and keeps the best-populated one, so the prepared
+  file wins and the window never appears. Two limits at two places, because
+  the class stays shut by a property rather than by a line: the reader
+  refuses to build such a list, and the inventory refuses to offer one
+  whatever built it.
 """
 
 from __future__ import annotations
@@ -34,6 +38,9 @@ import threading
 import pytest
 
 from nrdata import binary, savefile
+from nrplanner import inventory
+from nrplanner.advisor import run as advisor_run
+from nrplanner.advisor import types as advisor_types
 
 # How long a parse may take before the test calls it a hang. Every parse here
 # works on a few hundred bytes and returns in well under a millisecond, so the
@@ -379,3 +386,67 @@ def test_a_slot_at_a_real_saves_density_is_read_with_its_effects():
 
     assert [entry.offset for entry in owned] == [0, 80, 160]
     assert [entry.effect_ids for entry in owned] == [[effect_id] * 3] * 3
+
+
+def owned_relics(count: int) -> list[inventory.OwnedItem]:
+    """`count` copies of one relic, as an `Inventory` carries them."""
+    return [inventory.OwnedItem(relic_id=KNOWN_RELIC_ID, name="Relic",
+                                colour=0, effect_ids=[], is_deep=False,
+                                handle=index, offset=index * 80)
+            for index in range(count)]
+
+
+def test_an_inventory_denser_than_the_slot_it_came_from_offers_nothing():
+    """The second limit, reached without the first one being asked at all.
+
+    This list is built here rather than read, and that is the whole point of
+    it: it never went through `read_owned_relics`, so it stands for the day
+    somebody loosens that limit or writes a second reader beside it. The
+    player is protected by the property and not by the line that carries it
+    today.
+    """
+    owned = inventory.Inventory(source="slot", source_bytes=6400,
+                                relics=owned_relics(101))
+
+    with pytest.raises(ValueError, match="denser than one per 64 bytes"):
+        owned.relics_for(colour=0, deep=False)
+
+
+def test_an_inventory_filled_to_the_limit_still_offers_its_relics():
+    """The control for the second limit, again at the boundary itself."""
+    owned = inventory.Inventory(source="slot", source_bytes=6400,
+                                relics=owned_relics(100))
+
+    assert len(owned.relics_for(colour=0, deep=False)) == 100
+
+
+def test_an_inventory_built_by_hand_makes_no_claim_about_a_save():
+    """No save behind it, no density to judge -- a state, not a hole.
+
+    Every inventory the program builds comes from `_scan_save` and carries the
+    size of the slot it was read from. One built without that is a caller's
+    own object, and holding it to a size it never named would refuse lists
+    that are not claims about any file.
+    """
+    owned = inventory.Inventory(source="test", relics=owned_relics(101))
+
+    assert len(owned.relics_for(colour=0, deep=False)) == 101
+
+
+def test_the_advisor_is_not_handed_an_inventory_of_that_density():
+    """Where the second limit is felt: the advisor's pre-sort.
+
+    `frozen_inventory` is the one door between the living inventory and a
+    run, and it asks `relics_for` for every slot in play. The pre-sort behind
+    that door costs 175,6 us per offered relic
+    (`scripts/measure_advisor_cancel.py`, 309 relics, six free slots, this
+    machine), so an inventory that got past the reader would be spent there
+    rather than reported.
+    """
+    owned = inventory.Inventory(source="slot", source_bytes=6400,
+                                relics=owned_relics(101))
+    problem = advisor_types.SlotProblem(
+        slots=(advisor_types.Slot(index=0, colour=0, deep=False),))
+
+    with pytest.raises(ValueError, match="denser than one per 64 bytes"):
+        advisor_run.frozen_inventory(owned, problem)
