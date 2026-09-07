@@ -5109,3 +5109,682 @@ angeschrieben** worden, der beide Zahlen ihrer Lesart zuordnet.
   (`docs/berichte/T-086-ui-ux-designer.md`), nicht hier entschieden.
 - **Die vier Fragen an den App Designer** (F-B, F-C, F-F, F-G) und die
   dreizehn Streichvorschlaege je Tab. Unberuehrt.
+
+---
+
+## Schlechtester und bester Fall, und die Zahl ohne Waffe
+## (ui-ux-designer, T-092) — 2026-09-07
+
+**Grundlage:** `docs/tasks/T-092.md` · `GOAL.md` Nachtrag 07.09.2026 (A16 und
+A17, woertlich zitiert im Auftrag) · `docs/state.md` vom 07.09.2026 · in
+dieser Datei: §3.1, §3.2, §3.3, §3.4 und §4 des T-004-Abschnitts, §3.2/§3.3/
+§3.4 des T-024-Abschnitts (Picker), §2 bis §6 des T-078-Abschnitts, §4 bis §6
+des T-080-Abschnitts, §1 des T-084-Abschnitts (AK-162 bis AK-166), der ganze
+T-086-Abschnitt (AK-177 bis AK-181). **Gelesen und gemessen gegen den Commit
+`84623a4`**: `nrplanner/model.py`, `nrplanner/inventory.py`,
+`nrplanner/damage.py`, `nrplanner/effecttext.py` und das ganze
+`nrplanner/advisor/`-Paket sind byteweise `84623a4` (je Datei mit
+`git diff --quiet` geprueft). Im Arbeitsbaum weichen nur
+`nrplanner/advisorbar.py` und `tests/test_advisor_bar.py` ab (T-091 laeuft
+parallel); `advisorbar.py` wurde **gelesen, nicht importiert** — jede Zahl
+unten stammt aus dem `advisor/`-Paket und ist von T-091 unberuehrt.
+
+**Was dieser Nachtrag ist:** die Vorgabe fuer zwei Nutzerentscheidungen, die
+noch nicht gebaut sind (A16, A17), plus **eine** wieder aufgemachte Vorgabe
+aus T-086 (Fuellung (c), §4 unten) — der Auftrag erlaubt genau diese eine.
+
+Neue Akzeptanzkriterien: **AK-182 bis AK-194**.
+
+---
+
+### 0. Messumgebung (L-009) — woran die Zahlen unten gemessen sind
+
+Alle Zahlen sind **mit den Produktionsfunktionen selbst erzeugt**
+(`model.compute` ueber `advisor.evaluate.evaluate`, `explain.reasons`,
+`explain.curses_without_a_figure`, `explain.effects_without_a_figure`,
+`explain.not_counted`, `goals.GOALS[...].score`) — keine Nachbildung. Kein
+Fenster gestartet, kein Bildnachweis (NH-002). Messskripte im Scratchpad,
+auftragsgemaess nicht im Repo; das Rezept steht in Prosa unter jeder Tabelle.
+
+| | **Umgebung A** | **Umgebung B** |
+|---|---|---|
+| Nightfarer | Wylder, Stufe 15 | Ironeye, Stufe 15 |
+| Armatur | `Wylder's Greatsword` (`wep_type` 5), Bezugs- und einzige gefuehrte Waffe — ausser wo ausdruecklich „ohne Bezugswaffe" steht | `Ironeye's Bow` (`wep_type` 51), dito |
+| Datenabzug | `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`, `meta.extract_version` 11, `meta.data_version` 10350000, 2076 Effekte, 1793 Waffen, 849 Relikte — **nur gelesen** | derselbe |
+| Bestand | Spielstand des App Designers, **309** besessene Kopien mit Handle, **845** Effektrollen, **112** Fluchrollen | derselbe |
+| Bedingungen | keine vom Spieler erklaert (`declared` leer), ausser wo eine Lesart sie setzt | dito |
+| Aufbau | **ein** Relikt je Slotgruppe, Slot 0, kein gehaltener Slot | dito |
+| Zielrichtung / Gewichtung | `max_damage`, `EVEN_WEIGHTING`, ausser wo `min_damage_taken` dabeisteht | dito |
+| Codestand | `84623a4`, `advisor/`-Paket byteweise sauber | dito |
+| stumme **Effekt**zeilen (Lesart „Fuellung", AK-181) | **426** von 845 | **434** von 845 |
+| stumme **Fluch**zeilen | **67** von 142 gezeichneten Fluchzeilen | **67** von 142 |
+
+**Gegenprobe, dass dieses Rezept dasselbe misst wie T-086:** die Umgebung
+reproduziert AK-180 Zahl fuer Zahl — Fuellung (b) **144** (A) / **149** (B),
+Fuellung (c) **38** (A) / **25** (B), stumme Effektzeilen **426** / **434**.
+Die Zahlen unten sind also mit den T-086-Zahlen vergleichbar und nicht mit
+einer zweiten Rechnung erzeugt.
+
+**Der Fluch-Zensus, den A16 zitiert — nachgezaehlt, und er ist groesser als
+die Meldung.** Rezept: ueber `inventory.load(data).relics`, Feld `curse_ids`
+je Kopie, gegen `model.is_conditional(effect, wep_type)`.
+
+| | Zahl | Lesart |
+|---|---|---|
+| verschiedene Fluch-Ids auf den Relikten des Spielstands | **24** | Ids, nicht Zeilen — das ist die Zahl aus `GOAL.md` A16 |
+| **Fluchrollen** auf den 309 Kopien | **112** | Rollen; eine Kopie kann mehrere tragen |
+| davon **konditional** | **27 Rollen** auf **23 Kopien**, **7** verschiedene Ids | die sieben Namen aus A16, ausgezaehlt |
+| gezeichnete Fluchzeilen heute | **142** | Zeilen; ein Fluch, der zwei Groessen bewegt, ist zwei Zeilen (T-078 §2) |
+
+**Das ist der erste Befund dieses Nachtrags und er berichtigt eine Annahme des
+Auftrags:** die „7 Flueche" sind **7 Ids / 27 Rollen / 23 betroffene Kopien**,
+nicht 7 Zeilen. Beide Lesarten sind wahr, sie zaehlen nur Verschiedenes
+(AK-181 gilt hier fort).
+
+---
+
+### 1. Punkt 1 — das Bedienelement fuer die zwei Lesarten (A16)
+
+#### 1.1 Entscheidung
+
+**Ein eigenes Bedienelement, keine Erweiterung der Zielwahl.** Eine zweite
+`QComboBox` mit genau zwei Eintraegen, **zwischen** der Zielwahl und
+`Optimize`:
+
+```
+ADVISOR  [ Maximise damage v ] [ Worst case v ]  [ Optimize ]   <status …>   [ Apply all ] [ Why ] [ Clear ]
+```
+
+- Eintraege, in dieser Reihenfolge: **`Worst case`**, **`Best case`**.
+  Voreinstellung ist **`Worst case`** — die Zahl, auf die man sich verlassen
+  kann, ist die, die ein Spieler ungefragt bekommen soll; A16 nennt sie so.
+- `setSizeAdjustPolicy(AdjustToContents)`, `setMaximumWidth(140)`.
+- Tooltip (Englisch, A8), **der einzige Ort, an dem beide Lesarten erklaert
+  stehen**:
+
+  > `Which conditions this ranking assumes. Worst case: every conditional curse counts, every conditional buff does not. Best case: the other way round. Conditions you have declared yourself are used as declared either way.`
+
+- **Es ist kein Aktionsknopf.** AK-07 (`nie mehr als drei gleichzeitig
+  sichtbar`) zaehlt die Knoepfe rechts, die etwas **tun** — `Apply all`,
+  `Undo apply`, `Why`, `Clear`. Dies ist eine Einstellung links, in derselben
+  Klasse wie die Zielwahl. **Grenze, damit die Ausnahme keine Tuer ist:
+  links von `Optimize` stehen hoechstens zwei Einstellungen.** Eine dritte
+  (etwa OF-3, die Gewichtung) verlangt eine neue Layoutentscheidung und nicht
+  ein weiteres Kaestchen.
+
+#### 1.2 Warum nicht in die Zielwahl
+
+Vier Eintraege in einer Liste (`Maximise damage (worst case)` …) waeren
+billiger. Verworfen, aus drei Gruenden:
+
+1. **Es ist ein Kreuzprodukt.** Zwei Ziele mal zwei Lesarten sind vier
+   Eintraege, ein drittes Ziel macht sechs. `advisor/goals.py` sagt im
+   Modul-Docstring ausdruecklich zu, dass ein drittes Ziel *"one function and
+   one registry entry"* ist; eine Kreuzprodukt-Liste bricht diese Zusage in
+   der Oberflaeche, ohne sie im Code zu brechen — der teuerste Ort dafuer.
+2. **Die Zielwahl ist im Picker dieselbe Einstellung wie in der Leiste**
+   (T-024 §3.4, ausdruecklich: *"Zwei Zielwahlen waeren der vierte
+   widerspruechliche Ort"*). Die Kartenspalte des Pickers zeigt **beide**
+   Zielrichtungen gleichzeitig (T-024 §3.3, AD-018.2) — eine Lesart, die in
+   der Zielwahl steckt, waere fuer die zweite Spalte nicht gesetzt. Die
+   Lesart gilt fuer **beide** Zahlen einer Karte, die Zielwahl fuer keine.
+3. A16 sagt „**zwei Lesarten derselben Rechnung**". Ein Listeneintrag
+   `Maximise damage (worst case)` behauptet eine andere Zielrichtung.
+
+#### 1.3 Warum diese Woerter
+
+Der Auftrag warnt zu Recht, dass `Worst case` / `Best case` die Frage des
+Spielers („worauf kann ich mich verlassen?") nicht beantwortet. **Die Antwort
+gehoert aber nicht in die Beschriftung, sondern neben die Zahl** — und dort
+steht sie: im Tooltip (1.1) und im Kopf des Vorschlagsblocks und des
+`Why`-Dialogs (§2). Die Beschriftung hat eine andere Pflicht: **sie muss
+dasselbe Wort tragen wie alles andere im Projekt.** `GOAL.md` A16, der
+Auftrag, die Berichte und die kuenftigen Testnamen sagen „schlechtester Fall /
+bester Fall". Eine Leiste, die dazu `Safe` / `Risky` sagt, gibt einer Sache
+zwei Namen — die Fehlerklasse, die dieses Projekt unter D-11 fuehrt, nur in
+Woertern statt in Zahlen.
+
+Verworfen und warum:
+
+- **`Safe` / `Risky`** — die Woerter des Nutzers, und die kuerzesten. Sie
+  benennen aber die **Haltung des Spielers**, nicht die **Annahme der
+  Rechnung**; „safe" neben `Maximise damage` liest sich als „sicherer
+  Schaden". Sie kommen im Tooltip vor, nicht auf dem Element.
+- **Ein Kaestchen `Assume the worst`** — ein Haken nennt genau eine Lesart;
+  die andere haette dann keinen Namen, und der ungehakte Zustand sagt nicht,
+  was gilt. A16 verlangt, dass **jede** Zahl sagt, welche Lesart gerade gilt.
+- **Zwei einrastende Knoepfe (`[ Worst | Best ]`)** — ein Schalter waere
+  schoener zu bedienen, kostet aber die Breite beider Beschriftungen
+  gleichzeitig; die Combobox kostet die Breite der laengeren. Bei einer
+  Statuszeile von 158 px ist das der Unterschied, der entscheidet.
+- **`Assume the worst` / `Assume the best`** — selbsterklaerend, aber 16
+  Zeichen statt 10, und sie fuehren ein drittes Vokabular ein.
+
+#### 1.4 Der Preis in Breite — Rangaussage, keine Pixelzusage
+
+Eine Pixelbreite ist hier **nicht messbar**: unter `QT_QPA_PLATFORM=offscreen`
+liefert dieser Rechner fuer jede Zeichenkette exakt 12,0 px je Zeichen
+(T-084 §0), und ein laufendes Fenster startet dieser Auftrag nicht. Deshalb
+eine **Rangaussage** gegen Zeichenketten, die diese Datei bereits akzeptiert
+hat:
+
+| Zeichenkette | Zeichen |
+|---|---|
+| `Minimise damage taken` (laengster Eintrag der Zielwahl, `maximumWidth(200)`) | 21 |
+| `Worst case` (laengster Eintrag der Lesart) | 10 |
+| `Best case` | 9 |
+
+Die neue Combobox traegt also rund **die Haelfte** des Textes der bestehenden,
+plus einmal Rahmen und Pfeil. **Das ist ein Rang und keine
+Sichtbarkeitszusage** — was davon auf dem Schirm wird, entscheidet AK-194 am
+laufenden Fenster.
+
+---
+
+### 2. Punkt 2 — was die Zahl ueber sich sagt (A16, A12)
+
+#### 2.1 Vier Orte, je einmal — und die Statuszeile ist keiner davon
+
+Die Lesart wird **genau viermal** genannt, nie je Zeile und nie je Slot
+(dieselbe Ueberlegung wie AK-22 und AK-50):
+
+1. **Das Bedienelement selbst** (§1). Es steht dauerhaft im Blick und sagt,
+   was gerade gilt.
+2. **Der Kopf des Vorschlagsblocks** auf der Slotkarte (§3.2 des
+   T-004-Abschnitts): `SUGGESTED — MAXIMISE DAMAGE` wird zu
+   **`SUGGESTED — MAXIMISE DAMAGE, WORST CASE`**. Die Begruendung steht schon
+   dort: der Kopf nennt das Ziel, *"damit der Block auch nach dem Wegscrollen
+   der Leiste fuer sich steht"* — fuer die Lesart gilt derselbe Satz
+   woertlich. Der Kopf bricht um (4.14), er wird nicht gekuerzt.
+3. **Der `Why`-Dialog**: Titel `Why this build — Maximise damage, worst case`
+   und im Kopf (§3.4 Punkt 1) eine eigene Zeile, je nach Lesart eine von
+   diesen beiden:
+
+   > `Worst case: every conditional curse counts, every conditional buff does not. Conditions you have declared yourself are used as declared.`
+   >
+   > `Best case: every conditional buff counts, every conditional curse does not. Conditions you have declared yourself are used as declared.`
+
+4. **Die Zusammenfassungszeile des Relic Pickers** (Zeile 3 in T-024 §3.2,
+   die schon die Bezugsgroesse nennt) bekommt den Zusatz
+   **`  ·  worst case`** bzw. **`  ·  best case`**. Der Picker bekommt
+   **kein zweites Bedienelement** — dieselbe Regel wie fuer die Zielwahl in
+   T-024 §3.4. Grund, und er ist der staerkere: die Karte zeigt **beide**
+   Zielrichtungen; eine Lesart gilt fuer beide Zahlen, also gehoert sie in
+   die Zeile ueber dem Raster und nicht auf 300 Karten.
+
+**Die Statuszeile der Leiste traegt die Lesart nicht.** Zwei Gruende, und der
+zweite ist der wichtigere: erstens steht das Bedienelement daneben und sagt
+dasselbe; zweitens haette der Zusatz `, worst case` in 4.3, 4.4, 4.6, 4.9 und
+4.11 zu stehen — fuenf Zeilen laenger in einer Zeile, die bei 1320 px
+**158 px** hat (gemessen in T-089, Plattform `windows`). Die Lesart wird dort
+genannt, wo eine **Zahl** ohne die Leiste im Blick gelesen wird; die
+Statuszeile ist ein Zustandsbericht, keine Zahl.
+
+#### 2.2 Umschalten verhaelt sich wie ein Zielwechsel — kein neuer Zustand
+
+`advisorbar._goal_chosen` sagt heute: *"A direction is a different question,
+so the old answer goes"*, und ruft `the_build_changed()`. **Die Lesart tut
+genau dasselbe**: ein lebender Vorschlag wird verworfen (die Zeile geht auf
+4.1 `Nothing suggested yet.` zurueck), ein laufender Lauf wird abgebrochen und
+zeigt 4.7. **Kein neuer Zustand in §4, kein neuer Wortlaut, keine neue Zeile.**
+
+Das ist zugleich die Antwort auf die Auflage des Auftrags zu **D-11 (zwei
+Zahlen fuer dieselbe Sache):** es stehen **nie zwei Zahlen nebeneinander**.
+Zu jedem Zeitpunkt lebt hoechstens ein Ergebnis, und es gehoert zu genau der
+Lesart, die das Bedienelement zeigt. Auseinanderlaufen kann nichts, weil es
+nichts Zweites gibt. Gestuetzt wird das im Bestand: `declared` ist Teil des
+Anfrage-Schluessels (`advisor/run.py:269`), eine Lesart kann also keinen alten
+Wert unter neuem Namen ausliefern.
+
+**Nicht gebaut wird ein Nebeneinander beider Zahlen.** Es waere die
+naheliegende Bequemlichkeit („beide sehen") und genau die Fehlerklasse aus
+D-11/QA-082; ausserdem verlangte es eine zweite Rechnung je Kandidat, deren
+Kosten (S11, Budget noch offen) niemand gemessen hat.
+
+#### 2.3 Was die Lesart setzt — und was sie nie setzt
+
+**Sie setzt Bedingungen, nie Zahlen** (A16, AD-023, OF-13). Der Weg ist der
+gebaute: `model.compute(declared=…)` ueber `GoalContext.declared`, das Feld,
+mit dem der Spieler heute von Hand eine Bedingung erklaert.
+
+- **Schlechtester Fall:** jede **konditionale Fluchwirkung** der betrachteten
+  Kopien gilt als erfuellt; konditionale Buffwirkungen bleiben, wie sie heute
+  sind (aussen vor).
+- **Bester Fall:** jede **konditionale Buffwirkung** gilt als erfuellt;
+  konditionale Fluchwirkungen bleiben aussen vor.
+- **Die Erklaerungen des Spielers gewinnen ueber beide.** Hat der Spieler eine
+  Bedingung selbst erklaert, gilt seine Angabe — die Lesart ist eine
+  **Voreinstellung fuer die Bedingungen, die er nicht beantwortet hat**. Alles
+  andere waere eine Annahme gegen ein Wissen (A7), und die Zahl wuerde vom
+  Statblatt daneben abweichen, ohne dass jemand es sagt (QA-001-Klasse).
+- **Keine Gewichte werden angefasst.** `Weighting` bleibt `EVEN_WEIGHTING`,
+  `weights` bleibt unberuehrt. Eine Lesart, die ein Gewicht aendert, ist
+  gebaut falsch.
+
+#### 2.4 Wie sich die Listen und Zaehlzeilen unter jeder Lesart verhalten
+
+**Gemessen** (Umgebung A, Rezept: je besessene Kopie ein Ein-Relikt-Problem,
+`explain.reasons` / `explain.not_counted` /
+`explain.curses_without_a_figure` / `explain.effects_without_a_figure`
+selbst, Summe ueber alle 309 Kopien):
+
+| | heute | schlechtester Fall | bester Fall |
+|---|---|---|---|
+| `not_counted` (speist 4.9b) | **197** | **170** | **27** |
+| `curses_without_a_figure` (speist 4.9a) | **67** | **42** | **67** |
+| `effects_without_a_figure` | **426** | **426** | **323** |
+| gezeichnete Zeilen insgesamt | 1164 | 1281 | 1354 |
+| Fuellung (b) `only applies under a condition` | 144 | 144 | **0** |
+| Fuellung (c) `armaments you carry` | 38 | 38 | 23 |
+
+**Die Zahlen sagen genau das, was A16 verspricht, und sie sind
+nachrechenbar:** `170 + 27 = 197`. Der schlechteste Fall nimmt aus
+`not_counted` **genau** die 27 konditionalen Fluchrollen heraus und ruehrt die
+Buffseite nicht an; der beste Fall nimmt **genau** die konditionalen
+Buffrollen heraus und laesst die 27 Fluchrollen stehen. Jede Lesart bewegt
+**eine** Seite. Nichts wird erfunden, nichts verschwindet: die Eintraege
+wandern von einer Liste in eine Zeile mit Zahl.
+
+**Daraus folgt fuer den Wortlaut: nichts.** 4.9a und 4.9b behalten ihre Saetze
+Buchstabe fuer Buchstabe (AK-143 unveraendert), die Ueberschrift des
+4.9b-Abschnitts im `Why`-Dialog bleibt, die Zaehlzeile aus T-078 §6 bleibt.
+Es aendern sich **nur die Zahlen**, und sie bleiben in sich stimmig: ein
+Fluch, der im schlechtesten Fall zaehlt, hat eine Zahl und steht deshalb
+weder unter „was nicht gezaehlt wurde" noch unter `curses_without_a_figure`
+— gemessen, nicht angenommen (67 → 42).
+
+**AK-155 haelt in beiden Lesarten**: `{total} − {n}` ist weiterhin genau die
+Zahl der stummen Zeilen, weil die Lesart Zeilen zwischen „mit Zahl" und
+„stumm" verschiebt und keine erzeugt.
+
+#### 2.5 Der Preis, ausdruecklich benannt: der schlechteste Fall ist laenger
+
+**Gemessen, Umgebung A, dieselbe Rechnung.** Der Block zaehlt nach der
+Director-Korrektur vom 06.09.: Zeilen mit Zahl plus alle Fluchzeilen plus die
+Zaehlzeile; stumme Zeilen stehen nur im `Why`-Dialog.
+
+| | heute | schlechtester Fall | bester Fall |
+|---|---|---|---|
+| laengste Slotgruppe im `Why`-Dialog | **14** Zeilen | **21** Zeilen | 15 |
+| laengster Vorschlagsblock | **15** Zeilen | **22** Zeilen | 16 |
+| meiste Fluchzeilen auf **einer** Kopie | 5 | **15** | 5 |
+
+Grund: ein konditionaler Fluch, der stumm **eine** Zeile war
+(`✦ {name}: no number here shows what this costs.`), wird als erfuellte
+Bedingung zu **einer Zeile je bewegter Groesse** — die
+Damage-Negation-Flueche bewegen acht Felder. Die 14 Zeilen aus **AK-160**
+sind damit **nicht mehr der schlechteste Fall**; AK-160 bleibt als Messung
+seiner Umgebung gueltig und wird durch AK-189 fortgeschrieben. **AK-161
+(nach dem Einbau neu messen) gilt fuer beide Lesarten getrennt.**
+
+---
+
+### 3. Punkt 3 — der Satz zur fehlenden Waffe wird der Normalfall (A17)
+
+#### 3.1 Entscheidung: `Goal.scope`, und der Satz beschreibt eine Absicht
+
+Nach AD-025 entscheidet die Frage *„laesst sich der Satz schreiben, bevor der
+Lauf bekannt ist?"*. Unter A17 rankt der Berater **immer** ohne Bezugswaffe —
+nicht „in der Voreinstellung, mit Umschaltmoeglichkeit":
+
+- A17s Abnahme (*„Die Rangfolge einer Zielrichtung aendert sich nicht, wenn
+  eine andere Waffe gefuehrt wird"*) ist nur pruefbar, wenn sie **immer**
+  gilt. Eine Umschaltung macht sie zu einer Aussage ueber eine Einstellung.
+- Fuer eine Umschaltung ist in der Leiste kein Platz (§1.1: hoechstens zwei
+  Einstellungen links).
+- Das Statblatt und das Waffenpanel des Build planners bleiben unberuehrt —
+  A16 sagt das fuer das Statblatt ausdruecklich, und fuer die Bezugswaffe gilt
+  dasselbe: sie bleibt genau das, was sie heute im Waffenpanel ist.
+
+Damit ist der Satz **vor jedem Lauf schreibbar** und wandert aus
+`GoalScore.unknowns` in **`MAX_DAMAGE.scope`**. Und er wird umgeschrieben:
+der heutige Wortlaut liest sich als Mangel („No armament selected — …"),
+unter A17 beschreibt er eine Absicht.
+
+**Neu, Englisch (A8), zwei Saetze in `MAX_DAMAGE.scope`, an den Anfang des
+Tupels:**
+
+> `This ranks what stays with you between expeditions — attack multipliers, attributes and passives. Armaments are not part of the figure.`
+>
+> `With no armament in the figure there is nothing to scale, so the five attack multipliers are averaged with equal weight.`
+
+**Was der Satz bewusst nicht sagt:** dass Waffen pro Runde ausgewuerfelt sind.
+Das ist Spielwissen des App Designers und steht so in keinem Datenabzug;
+AK-140 und AK-157 verbieten Saetze, die etwas ueber die Dateien behaupten, und
+dieselbe Zurueckhaltung gilt fuer Behauptungen ueber das Spiel. Der Satz sagt,
+**was die Zahl ist** — nachpruefbar an `goals._attack_multiplier_mean` — und
+laesst den Spieler das Warum aus seiner eigenen Erfahrung mitbringen.
+
+Der zweite Satz ist der heutige `_NO_ARMAMENT_NOTE` mit **einer** Aenderung
+(`chosen` → `in the figure`): seine Praezision ist gut, nur sein Rahmen war
+ein Mangel.
+
+#### 3.2 Was aus den beiden Feldern wird
+
+- **`_NO_ARMAMENT` (heute `GoalScore.unknowns`)** — entfaellt als Laufbefund.
+  Sein Inhalt steht in `MAX_DAMAGE.scope`.
+- **`_NO_ARMAMENT_NOTE` (heute `GoalScore.weights_note`)** — entfaellt als
+  Laufbefund. Sein Inhalt steht in `MAX_DAMAGE.scope`.
+- **Der Zweig mit Bezugswaffe.** Bleibt er im Code stehen, **muss** er einen
+  Laufbefund tragen, der die Waffe nennt — sonst zeigt ein Lauf mit
+  Bezugswaffe den `scope`-Satz „Armaments are not part of the figure", waehrend
+  die Zahl genau daran haengt. Das ist der A7-Bruch, den AD-025.4 und
+  Pruefpunkt 30 suchen. Vorschlag fuer den Wortlaut:
+  > `This run was ranked against {armament}, so the figure moves when you carry something else.`
+
+#### 3.3 Nachziehen von AK-162 bis AK-166 (T-084 §1)
+
+Die Aufteilung „Registry-Haelfte / Ergebnis-Haelfte" bleibt **unveraendert
+richtig**; es wandert nur ein Satz von der einen in die andere:
+
+- **AK-162 gilt unveraendert.** Zeile 4 des Pickers und Punkt 4 des
+  `Why`-Dialogs zeichnen `Goal.scope` vollstaendig — jetzt einschliesslich
+  der zwei neuen Saetze. Der Pruefweg („einen sechsten `scope`-Satz
+  einbauen") funktioniert unveraendert.
+- **AK-163 gilt unveraendert in seiner Regel, verliert aber seinen einzigen
+  heutigen Inhalt.** Zeile 3b liest weiterhin zuerst `Baseline.unknowns`,
+  dann `SlotPool.unknowns`; `Baseline.unknowns` ist unter A17 fuer
+  `max_damage` **leer**, weil der einzige Satz darin nach `scope` gewandert
+  ist. Zeile 3b entfaellt dann genau so, wie AK-163 es beschreibt, wenn beide
+  Quellen leer sind. **Das Rot-vorher von AK-163 ist damit erledigt und wird
+  durch AK-190 ersetzt:** die Gefahr ist nicht mehr, dass der Satz
+  verschwindet, sondern dass er an **zwei** Orten steht.
+- **AK-164 gilt unveraendert.**
+- **AK-165 gilt unveraendert** (keine Chirurgie, keine Entdopplung).
+- **AK-166 gilt unveraendert.** `EVEN_WEIGHTING.note` kommt im Picker weiterhin
+  nicht vor, denn es gibt weiterhin kein Bedienelement fuer die **Gewichtung**
+  (OF-3). Die Lesart aus A16 ist ein Bedienelement fuer eine **andere**
+  Annahme; ihr erklaerender Satz steht nach der Regel, die AK-166 im letzten
+  Satz selbst formuliert, **neben seinem Bedienelement** (Tooltip, §1.1) und
+  im `Why`-Dialog (§2.1) — nicht auf den Karten.
+
+#### 3.4 Der Befund, der A17s Abnahme heute noch scheitern laesst
+
+**Die Bezugswaffe wegzulassen genuegt nicht.** `model.compute` erfuellt
+Waffentyp-Schranken aus **`weapons_held`**, nicht aus der Bezugswaffe — die
+gefuehrte Waffe bleibt also ein Hebel auf die Rangfolge, auch ohne Bezug.
+
+**Gemessen** (Umgebung A, `reference=None`, `max_damage`, Rangfolge ueber alle
+309 Kopien nach marginalem Beitrag, Rezept: `goals.GOALS["max_damage"].score`
+auf `evaluate(problem, (cand,), ctx)` minus `evaluate(problem, (), ctx)`):
+
+| Vergleich | Kopien mit anderer Zahl | Rangfolge |
+|---|---|---|
+| Greatsword gefuehrt gegen Bogen gefuehrt | **2 von 309** | unterscheidet sich **ab Rang 0** |
+| Greatsword gefuehrt gegen nichts gefuehrt | **1 von 309** | unterscheidet sich ab Rang 0 |
+
+Die beiden Kopien und ihr Grund, namentlich: `Deep Polished Drizzly Scene`
+mit `Improved Greatsword Attack Power` (`triggerOnWepType` 5): **+0,09** mit
+Greatsword, **0,00** sonst · `Grand Luminous Scene` mit
+`Improved Bow Attack Power` (`triggerOnWepType` 51): **+0,06** mit Bogen,
+**0,00** sonst. Von den 845 Effektrollen des Bestands tragen **20**
+`triggerOnWepType` und **8** `wepTypeTrigger`.
+
+**Empfehlung, ausdruecklich als Empfehlung und nicht als Vorgabe** (der
+Mechanismus gehoert dem `architect`, die Zielsetzung dem Nutzer): der Berater
+rechnet mit `reference=None` **und** `weapons_held=()`. Erst dann gilt A17s
+Abnahme woertlich. Nach A17s eigener Begruendung ist das folgerichtig — ein
+waffentypgebundener Buff ist genau so wenig „zwischen Runden fest" wie die
+Bezugswaffe.
+
+**Gemessene Folgen dieser Empfehlung** (A / B):
+
+- Fuellung (c) waechst von **38 / 25** auf **40 / 28** Zeilen; Fuellung (b)
+  bleibt bei **144** (A) und geht von 149 auf **147** (B).
+- Die Zahl der stummen Effektzeilen steigt um **1** (A: 426 → 427).
+- Die Rangfolge wird von der gefuehrten Waffe unabhaengig — per Konstruktion,
+  nicht per Zufall.
+- **Preis, benannt:** die Zahl des Beraters weicht damit bewusst von der
+  Zahl des Statblatts daneben ab, das die gefuehrten Waffen sehr wohl zaehlt.
+  Der `GoalContext`-Docstring nennt genau diese Abweichung heute als
+  Fehlerklasse (*"QA-001 in a new place"*). Unter A17 ist sie **gewollt** und
+  muss deshalb dastehen — das leistet der erste `scope`-Satz aus §3.1.
+
+#### 3.5 Was A17 im Picker sonst noch anfasst
+
+Ohne Bezugswaffe ist die Zielpunktzahl **einheitenlos**
+(`GoalScore.unit == ""`, `display` = `Attack multipliers ×1.09`). T-024 §3.3
+hat den Fall vorgesehen: *"Ist die Zielpunktzahl einheitenlos, entfaellt der
+Zusatz `AR`"*. Damit stuende auf der Karte
+
+```
+Damage         +0.09
+```
+
+und das verletzt A12: `+0.09` **wovon**? Die linke Beschriftung muss die
+Groesse nennen, die die Zahl ist. Vorgabe: solange die Zielrichtung ohne
+Armatur rankt, lautet die linke Beschriftung der ersten Zeile
+**`Attack multipliers`** statt `Damage`, ohne Einheit am Wert. Sie folgt damit
+demselben Wort, das `GoalScore.display` fuehrt — eine Quelle, nicht zwei.
+
+*Nicht entschieden und als Frage an den App Designer gestellt (§6):* ob diese
+Zahl stattdessen als Prozentwert gezeigt werden soll.
+
+---
+
+### 4. Punkt 4 — die Armaturenzeile: sie bleibt, mit einem geaenderten Ende
+
+#### 4.1 Entscheidung
+
+Fuellung (c) **bleibt**, und ihr erster Teil bleibt Wort fuer Wort. Ihr Ende
+aendert sich:
+
+| | Wortlaut |
+|---|---|
+| **ersetzt** (T-080 §4, Test nach T-086) | `{effect name}: it depends on the armaments you carry, so no number here.` |
+| **neu, ab A17** | `{effect name}: it depends on the armaments you carry, which this figure leaves out.` |
+
+#### 4.2 Warum sie nicht faellt
+
+Der Auftrag fragt, was der Spieler damit anfangen kann. Zwei Dinge, und
+beide bleiben unter A17 wahr:
+
+1. **Der Startarmatur-Teil ist nicht ausgewuerfelt.** Jeder Nightfarer
+   beginnt jede Expedition mit seiner eigenen Armatur; das Programm rechnet
+   diese Paarung an anderer Stelle sogar aus
+   (`damage.is_starting_armament`, Slot 1). Ein Relikt mit
+   `Improved Greatsword Attack Power` ist fuer Wylder deshalb etwas anderes
+   als fuer Ironeye. Ein Satz, der das verschweigt, waere bequem und falsch.
+2. **Die Zeile erklaert eine Null.** Ohne sie steht neben dem Effekt nichts,
+   und der Spieler haelt das Relikt fuer wertlos, statt zu wissen, dass diese
+   Zahl seine Frage nicht beantwortet.
+
+**Was sich wirklich geaendert hat, ist nicht die Wahrheit der Zeile, sondern
+der Hebel dahinter:** heute bewegt sich die Zahl, wenn der Spieler die passende
+Waffe anlegt (gemessen: +0,09 bzw. +0,06 auf zwei Kopien, §3.4). Unter A17
+bewegt sie sich nicht mehr. Der alte Schluss `so no number here` liest sich
+dann als Aufforderung, an einem Hebel zu ziehen, der nichts mehr bewegt. Der
+neue Schluss `which this figure leaves out` sagt genau das, was gilt, und
+steht in derselben Familie wie die Saetze, die diese Datei schon fuehrt:
+T-078 §3 Fuellung (ii) `— this figure does not count it.`, T-024 §3.6
+`which neither figure counts.`, QA-113 `This figure does not count that
+change.` **„figure" ist in diesem Programm das Wort fuer die Rankingzahl**,
+und der Spieler liest es an drei anderen Stellen bereits.
+
+**Verworfen: die Zeile faellt und die Zeilen gehen nach (b).** Sie wuerden
+`only applies under a condition, so no number here.` lesen — die schwaechere
+Auskunft, und T-086 §1.4 hat denselben Weg fuer dieselben Zeilen schon einmal
+mit derselben Begruendung verworfen. Ausserdem naehme (b) damit Zeilen auf,
+die **nicht** in der Liste 4.9b stehen (QA-104: Armaturenfaelle gehoeren nicht
+in `not_counted`) — der Spieler saehe eine Zeile „only applies under a
+condition" und faende den Effekt in der Liste der bedingten Effekte nicht
+wieder.
+
+#### 4.3 Wie viele Zeilen es betrifft — gemessen
+
+| | A (Wylder) | B (Ironeye) |
+|---|---|---|
+| (c) heute, Bezugswaffe gefuehrt | 38 | 25 |
+| (c) ohne Bezugswaffe, Waffe weiter gefuehrt | 38 | — |
+| (c) ohne Bezugswaffe, **nichts** gefuehrt (Empfehlung §3.4) | **40** | **28** |
+| (c) im **besten** Fall | 23 | 11 |
+
+Im besten Fall schrumpft (c), weil eine erfuellte Bedingung eine Zahl
+erzeugt; im schlechtesten Fall bleibt (c) unveraendert bei 40 / 28, weil der
+beste Fall die Buffseite bewegt und der schlechteste die Fluchseite.
+**Fuellung (b) faellt im besten Fall auf 0** (A und B) — dort bleibt keine
+Bedingung mehr uebrig, die nicht erklaert waere. Das ist keine Luecke,
+sondern die Aussage der Lesart.
+
+---
+
+### 5. Akzeptanzkriterien (ab AK-182)
+
+**Das Bedienelement**
+
+- **AK-182** *(eigenes Element, zwei Eintraege.)* Die Leiste traegt eine
+  zweite `QComboBox` zwischen Zielwahl und `Optimize` mit genau den
+  Eintraegen `Worst case` und `Best case`, in dieser Reihenfolge,
+  `Worst case` voreingestellt; die Zielwahl behaelt genau ihre zwei
+  Eintraege. Links von `Optimize` stehen hoechstens zwei Einstellungen.
+  Pruefweg: ausgelesene Eintraege beider Comboboxen. *Rot-vorher:* eine
+  Umsetzung mit vier Eintraegen in der Zielwahl
+  (`Maximise damage (worst case)` …) bricht die Zusage aus dem
+  `goals.py`-Docstring, dass ein drittes Ziel ein Registry-Eintrag ist — sie
+  braucht dann sechs.
+- **AK-183** *(kein neuer Zustand.)* Eine Aenderung der Lesart verwirft einen
+  lebenden Vorschlag und laesst die Statuszeile 4.1 sagen; ein laufender Lauf
+  wird abgebrochen und zeigt 4.7 — dasselbe Verhalten und derselbe Code-Pfad
+  wie bei einer Aenderung der Zielwahl. §4 bekommt **keine** neue Zeile.
+  *Rot-vorher:* eine Umsetzung, die bei Umschaltung selbsttaetig neu rechnet,
+  startet eine Suche, deren Kosten (S11) niemand gemessen hat, ohne dass der
+  Spieler `Optimize` gedrueckt haette (§5.1).
+- **AK-184** *(nie zwei Zahlen.)* Zu keinem Zeitpunkt zeigt die Oberflaeche
+  fuer dieselbe Kopie zwei Zahlen unter verschiedenen Lesarten. Die Lesart
+  reist in der Anfrage und erreicht den Anfrage-Schluessel, so dass ein
+  Ergebnis nie unter einer anderen Lesart beschriftet werden kann.
+  Pruefweg: zwei Anfragen, die sich nur in der Lesart unterscheiden, ergeben
+  verschiedene Schluessel (`run.py` fuehrt `declared` bereits mit).
+  *Rot-vorher:* ein Nebeneinander „worst / best" auf der Slotkarte ist die
+  Fehlerklasse D-11/QA-082, und die zweite Zahl haette keinen Erzeuger.
+- **AK-194** *(die Breite wird gemessen, nicht geschaetzt.)* Nach dem Einbau
+  wird am **laufenden Fenster** gemessen, wie breit die Statuszeile bei
+  1320 px Fensterbreite noch ist, mit Messumgebung nach L-009 (Plattform,
+  Qt-Stil, Skalierung, physisch oder logisch). Sie muss mindestens **zwei
+  Drittel** ihrer heutigen 158 px behalten (**≥ 105 px**; Zielwert aus einer
+  einzigen gemessenen Zahl abgeleitet, selbst kein gemessener Wert). Wird er
+  unterschritten, heissen die Eintraege `Worst` und `Best`. *Rot-vorher:*
+  eine Umsetzung, die die Breite aus der Zeichenzahl in §1.4 herleitet, hat
+  keine Messung — 12,0 px je Zeichen liefert dieser Rechner offscreen fuer
+  **jede** Zeichenkette (T-084 §0).
+
+**Was die Zahl ueber sich sagt**
+
+- **AK-185** *(genau viermal, nie je Zeile.)* Die Lesart wird genannt: im
+  Bedienelement, im Kopf des Vorschlagsblocks, im `Why`-Dialog (Titel und
+  Kopf) und in der Zusammenfassungszeile des Pickers. In keiner Effekt-,
+  Fluch- oder Zaehlzeile und auf keiner Reliktkarte kommt sie vor.
+  Pruefweg: ausgelesener Text je Ort, Vorkommen von `worst case` /
+  `best case` zaehlen. *Rot-vorher:* eine Umsetzung, die jeder Zeile
+  `(worst case)` anhaengt, erzeugt auf der laengsten Slotgruppe 21
+  Wiederholungen — das Rauschen, gegen das AK-50 geschrieben ist.
+- **AK-186** *(Voreinstellung fuer Bedingungen, nie fuer Zahlen.)* Die Lesart
+  wirkt ausschliesslich ueber `GoalContext.declared`. Eine vom Spieler selbst
+  erklaerte Bedingung bleibt so, wie er sie erklaert hat; kein Gewicht,
+  keine Zahl und kein Feld ausser `declared` wird von der Lesart beruehrt.
+  Pruefweg: zwei Laeufe mit derselben Belegung, einer mit einer vom Spieler
+  erklaerten Bedingung — der erklaerte Wert steht in beiden Lesarten im
+  Ergebnis. *Rot-vorher:* eine Umsetzung, die `declared` je Lesart neu
+  aufbaut, wirft die Angabe „ich fuehre 3 Boegen" weg, und die Zahl des
+  Beraters widerspricht dem Statblatt daneben, ohne dass es jemand sagt.
+- **AK-187** *(die Lesarten teilen `not_counted`, sie erfinden nichts.)* Im
+  schlechtesten Fall enthaelt `not_counted` genau die heutigen Eintraege ohne
+  die konditionalen Flueche; im besten Fall genau die konditionalen Flueche.
+  In Umgebung §0 sind das **170** bzw. **27** gegen heute **197**, und
+  `170 + 27 = 197`. Pruefweg: Summe von `len(explain.not_counted(built))`
+  ueber die 309 Ein-Relikt-Probleme, je Lesart. *Rot-vorher:* eine Umsetzung,
+  die im schlechtesten Fall auch Buffbedingungen setzt (oder umgekehrt),
+  ergibt eine Summe, die diese Identitaet verletzt — sie ist der Waechter.
+- **AK-188** *(die Listen behalten ihre Saetze.)* 4.9a, 4.9b, die Ueberschrift
+  des 4.9b-Abschnitts und die Zaehlzeile aus T-078 §6 bleiben woertlich
+  unveraendert; unter beiden Lesarten aendern sich nur ihre Zahlen. In
+  Umgebung §0: `curses_without_a_figure` **67 → 42** im schlechtesten Fall,
+  `effects_without_a_figure` **426 → 323** im besten. AK-155 gilt in beiden
+  Lesarten. *Rot-vorher:* eine Umsetzung, die fuer den schlechtesten Fall
+  einen eigenen Satz schreibt („counted as if it were active"), gibt
+  derselben Sache einen zweiten Wortlaut und laesst 4.9b und die Zeile
+  auseinanderlaufen.
+- **AK-189** *(der schlechteste Fall ist laenger, und das wird gemessen.)*
+  **Schreibt AK-160 fort, ersetzt es nicht.** In Umgebung §0 waechst die
+  laengste Slotgruppe des `Why`-Dialogs von **14** auf **21** Zeilen und der
+  laengste Vorschlagsblock von **15** auf **22** Zeilen; die meisten
+  Fluchzeilen auf einer Kopie steigen von 5 auf 15. Nach dem Einbau wird
+  beides nach AK-161 **je Lesart getrennt** neu gemessen. *Rot-vorher:* eine
+  Slotkarte, die auf den 14 Zeilen aus AK-160 ausgelegt ist, schneidet im
+  schlechtesten Fall ab oder waechst ueber den Bildschirm — 4.14 verlangt
+  Umbruch, nicht Kuerzung.
+
+**Die Zahl ohne Waffe**
+
+- **AK-190** *(der Satz wandert und wird umgeschrieben.)* Die beiden Saetze
+  aus §3.1 stehen in `MAX_DAMAGE.scope`; `_NO_ARMAMENT` und
+  `_NO_ARMAMENT_NOTE` erscheinen in keinem `GoalScore` mehr, und der alte
+  Wortlaut `No armament selected — ranked on attack multipliers only, without
+  weapon scaling.` kommt in der Oberflaeche nicht mehr vor. Bleibt der Zweig
+  mit Bezugswaffe erhalten, traegt **er** einen Laufbefund, der die Armatur
+  nennt. Pruefweg: Volltextsuche im ausgelesenen Text von Picker und
+  `Why`-Dialog. *Rot-vorher:* eine Umsetzung, die den Satz in `scope`
+  schreibt **und** als `unknowns` stehen laesst, zeigt ihn im `Why`-Dialog
+  zweimal untereinander — die Fehlerklasse aus AK-164.
+- **AK-191** *(die Rangfolge haengt an keiner gefuehrten Waffe.)* Zwei
+  Laeufe, die sich nur in der gefuehrten Armatur unterscheiden, ergeben
+  dieselbe Rangfolge und dieselben Zahlen — fuer beide Zielrichtungen.
+  Pruefweg: ueber den Bestand ranken, einmal mit Greatsword, einmal mit
+  Bogen. *Rot-vorher, gemessen:* wird nur die **Bezugswaffe** weggelassen und
+  `weapons_held` weiter gefuellt, aendern in Umgebung A **2 von 309** Kopien
+  ihre Zahl und die Rangfolge unterscheidet sich **ab Rang 0** —
+  `Deep Polished Drizzly Scene` (`Improved Greatsword Attack Power`, +0,09
+  mit Greatsword, 0,00 mit Bogen) und `Grand Luminous Scene`
+  (`Improved Bow Attack Power`, +0,06 mit Bogen, 0,00 mit Greatsword).
+- **AK-192** *(die Armaturenzeile nennt die Zahl, nicht den Hebel.)* Fuellung
+  (c) lautet
+  `{effect name}: it depends on the armaments you carry, which this figure
+  leaves out.` Die Zeichenfolge `armaments you carry, so no number here`
+  kommt nirgends mehr vor. Der Test von (c) bleibt AK-177 bis AK-179
+  unveraendert. In Umgebung §0 sind das **40** Zeilen (A) und **28** (B),
+  wenn nichts gefuehrt wird, und **23** (A) / **11** (B) im besten Fall.
+  *Rot-vorher:* der heutige Wortlaut raet unter A17 zu etwas, das die Zahl
+  nicht mehr bewegt — der Spieler legt die Waffe an und die Rangfolge bleibt,
+  wo sie war.
+- **AK-193** *(die Spalte nennt die Groesse, die sie zeigt.)* Solange die
+  Zielrichtung ohne Armatur rankt, traegt die erste Zeile der Wertspalte im
+  Picker die Beschriftung `Attack multipliers` und der Wert keine Einheit;
+  das Wort kommt aus derselben Quelle wie `GoalScore.display`. *Rot-vorher:*
+  `Damage  +0.09` — eine Zahl ohne Groesse und ohne Einheit, also A12
+  gebrochen; `+12.4 AR` waere zusaetzlich falsch, weil kein Angriffswert mehr
+  gerechnet wird.
+
+---
+
+### 6. Offene Fragen an den App Designer
+
+- **F-K (A17, Darstellung der Zahl).** Ohne Armatur ist die Zielpunktzahl ein
+  Mittel aus fuenf Angriffsmultiplikatoren; auf der Karte steht dann etwa
+  `Attack multipliers +0.09`. Soll sie stattdessen als Prozentwert gezeigt
+  werden (`+9 %`)? **Empfehlung: nein** — die Umrechnung eines *Unterschieds
+  zweier Mittelwerte* in einen Prozentsatz behauptet einen Anteil am Schaden,
+  den die Zahl nicht traegt. Geschmacks- und Verstaendlichkeitsfrage,
+  deshalb hier.
+- **F-L (A17, gefuehrte Waffen).** §3.4 zeigt gemessen, dass A17s Abnahme
+  erst haelt, wenn der Berater auch **ohne gefuehrte Waffen** rechnet. Das
+  entkoppelt die Zahl des Beraters bewusst von der Zahl des Statblatts
+  daneben. Ist das gewollt? **Empfehlung: ja** — es folgt A17s eigener
+  Begruendung, und der erste `scope`-Satz sagt es dem Spieler.
+
+---
+
+### 7. Was dieser Nachtrag ausdruecklich **nicht** entscheidet
+
+- **Das Statblatt und das Waffenpanel des Build planners.** Unberuehrt, A16
+  sagt das ausdruecklich.
+- **Der Relic Picker als Ganzes** (AK-41 bis AK-53, S10c). Nur die drei
+  Stellen, an denen A16 oder A17 ihn beruehren: die Zusammenfassungszeile
+  (§2.1), Zeile 3b / Zeile 4 (§3.3) und die Beschriftung der Wertspalte
+  (§3.5).
+- **Ob `wepTypeTriggerCount` auswertbar gemacht wird**, und was 256/512/768/
+  1024 in den Waffenfeldern bedeuten. Unveraendert Scope-Grenze aus T-086.
+- **Der Mechanismus, mit dem die Lesart in `declared` landet**, und ob dafuer
+  ein Registry-Typ neben `Weighting` entsteht. Das gehoert dem `architect`;
+  diese Vorgabe sagt nur, **was** gelten muss (§2.3, AK-186).
+- **Die vier Fragen an den App Designer** (F-B, F-C, F-F, F-G) und die
+  dreizehn Streichvorschlaege je Tab. Unberuehrt.

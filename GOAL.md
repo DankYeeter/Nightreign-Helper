@@ -248,12 +248,21 @@ ich auf nummer sicher gehen oder die risiko variante waehlen."*
 gegeben — es gibt keinen Fluch-Malus und keinen Sonderzweig. Ein Fluch **mit
 Bedingung** faellt aber wie jeder bedingte Effekt heraus, bis der Spieler die
 Bedingung erklaert. Gemessen am Spielstand des Nutzers (07.09.2026, 309
-Kopien): **24 Flueche im Datensatz, alle 24 auf seinen Relikten, davon 7 mit
+Kopien): **24 Fluch-Ids im Datensatz, alle 24 auf seinen Relikten, davon 7 mit
 Bedingung** — darunter `Lower Attack When Below Max HP`,
 `Poison Buildup When Below Max HP`, `Rot Buildup When Below Max HP`,
 `Near Death Reduces Max HP` und drei rund um Ausweichen und Flaschentrinken.
-Das sind genau die, die im Kampf fast immer greifen, und sie fehlen heute in
-jeder Zahl.
+**Korrektur des Directors, 07.09.2026 (T-092):** Die Zahlen oben zaehlen
+**Ids**, nicht Vorkommen — der Director hat sie so gemessen und so
+weitergegeben, was sich als "sieben Flueche auf deinen Relikten" liest und
+das nicht ist. Nachgezaehlt vom `ui-ux-designer`: **112 Fluchrollen**, davon
+**27 konditional auf 23 Kopien**, **142 gezeichnete Fluchzeilen**. Und die
+Wirkung ist kleiner als der Director sie dargestellt hat: im schlechtesten
+Fall aendern **8 von 309 Kopien** ihre `max_damage`-Zahl und **11** ihre
+`min_damage_taken`-Zahl. Das Kriterium bleibt erfuellbar und die Entscheidung
+richtig — der Spieler bekommt eine Zahl, auf die er sich verlassen kann —,
+aber "greifen im Kampf fast immer" war eine Behauptung ueber die Spielpraxis,
+die keine Messung stuetzt.
 
 **Was daraus folgt.** Der Berater bekommt zwei Lesarten derselben Rechnung:
 
