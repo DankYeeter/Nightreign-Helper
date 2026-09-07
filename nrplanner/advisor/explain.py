@@ -600,10 +600,15 @@ def not_counted(built: model.Build) -> tuple[str, ...]:
     opinion this module does not give.
 
     **Scope, because a list without one is read as a list of everything:**
-    these are the conditions the player can be in. An effect gated on a
-    Nightfarer you are not or an armament you are not carrying went into no
-    total either and is not in here; `Build.qualitative` holds those, and
-    they are a different sentence (QA-104).
+    in here is every condition the player can put themself in -- including an
+    armament they are not currently carrying (AD-026). Not in here: an effect
+    that belongs to a Nightfarer they are not, and the **class**-bound attack
+    buff QA-104 names (`magicSubCategoryChange`, 8 effects in this dataset,
+    none of them conditional -- they land in `Build.class_rates`, never in
+    `Build.situational`). The line to draw is "can the player make this
+    true", not "does `Build.qualitative` hold it": `qualitative` and
+    `situational` can both carry the very same effect at once, and reading
+    that as a contradiction was this note's own mistake (AD-026).
 
     Duplicates are kept. Two relics carrying one uncounted condition are two
     effects that did not count, and `len(not_counted)` is the count AD-010
