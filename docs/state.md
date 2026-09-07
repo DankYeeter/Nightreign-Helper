@@ -94,20 +94,18 @@ Unterverzeichnis je T-Nummer).
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
-QA-181 (Stacking unbewacht) · QA-182 · QA-184 · **QA-186** (GATE_FIELDS
-beschriftet 51 Gegenstandseffekte falsch, seit T-090 sichtbar
-widerspruechlich) · QA-188 · QA-190 (zwei `UI_SPEC`-§3.3-Anzeigen nie gebaut) ·
-QA-191 (acht Nightfarer ungetestet) · QA-192 · QA-193 · QA-195 · **SEC-025**
-(`tests.yml` unpinned) · SEC-019/015 (Mittel) · SEC-021, SEC-023 (Niedrig).
+QA-181 · QA-182 · QA-184 · **QA-186** (GATE_FIELDS beschriftet 51
+Gegenstandseffekte falsch, seit T-090 sichtbar widerspruechlich) · QA-188 ·
+QA-190 · QA-191 · QA-192 · QA-193 · QA-195 · **SEC-025**. Wortlaut und
+Adressat je Befund in `qa/findings.md` bzw. `security/findings.md`.
 
 ## Der Rest — in dieser Reihenfolge
 
-1. **Zyklus 16** (laeuft): der Release-Weg, A9.
-2. **Zyklus 17**: der Fix-Stapel oben plus SEC-025, zwei parallele
-   `developer` mit disjunkten Dateilisten, danach parallele Pruefphase.
-3. **A16/A17** aus AK-182 bis AK-194. 4. **A11** ueber QA-173, dann die
-   stehende Messreihe erneut. 5. **A15** mit QA-171, **S11** Budget.
-6. **P4** · **P5** · **P7**.
+1. **Zyklus 16** (laeuft): der Release-Weg, A9. 2. **Zyklus 17**: der
+Fix-Stapel oben, zwei parallele `developer` mit disjunkten Dateilisten, dann
+parallele Pruefphase. 3. **A16/A17** (AK-182-194). 4. **A11** ueber QA-173.
+5. **A15** mit QA-171, **S11** Budget. 6. **P4** · **P5** · **P7**.
+Ausfuehrlich in `docs/plan-restarbeiten.md`.
 
 ## Beim Nutzer — offen
 
