@@ -3524,10 +3524,13 @@ class Planner(QMainWindow):
     def show_the_suggestion(self, result) -> None:
         """Put the living answer on the slot cards, or take it off them.
 
-        Every card is cleared first, the Deep ones included: a vessel whose
-        Deep switch has just been turned off still holds three cards with a
-        block on them, and a block that outlives its answer names a relic for
-        a slot that is no longer in play.
+        Every card is cleared first, the Deep ones included. That breadth is
+        belt to a brace and has **no case that can catch it**: `recompute`
+        tells the bar the build changed, the bar drops the answer, and this
+        runs with `None` before the Deep cards can leave `active_slots`. It
+        stays because the rule it states -- no card keeps a block when no
+        answer stands -- is this method's own, and reading it off another
+        module's order of calls is how a stale block would arrive one day.
 
         A group naming a slot this vessel does not have means the answer and
         the window are describing different builds. Nothing is drawn then --

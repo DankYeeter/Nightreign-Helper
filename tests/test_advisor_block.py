@@ -615,13 +615,18 @@ def test_why_opens_on_the_answer_that_is_on_screen(planner, monkeypatch):
 
 
 def test_why_with_no_answer_on_screen_opens_nothing(planner, monkeypatch):
-    """4.1: nothing is suggested, so there is nothing to explain."""
+    """4.1: nothing is suggested, so there is nothing to explain.
+
+    Called straight rather than through the signal: an exception inside a Qt
+    slot does not come back out of `emit`, so a version that walked into the
+    absent answer and raised would pass through a case written that way.
+    """
     def _refuse(*_args, **_kw):
         raise AssertionError("a dialog was opened with no answer behind it")
 
     monkeypatch.setattr(advisorblock, "WhyDialog", _refuse)
     planner.advisor_bar._answer = None
-    planner.advisor_bar.why_requested.emit()
+    planner.open_why()
 
 
 def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
