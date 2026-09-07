@@ -412,7 +412,13 @@ entries fit on screen at once.
 
 ## Where your data lives
 
-Everything the tool extracts goes to:
+**What it reads.** Two places on your machine, both read-only: the ELDEN RING
+NIGHTREIGN installation folder (its `regulation.bin` and data archives) and
+your save file. It decrypts both locally, using decryption keys that have
+been publicly known in the modding community for years. Nothing is ever
+written back to either one — not the installation, not the save.
+
+**What it writes.** Everything the tool extracts goes to:
 
 ```
 %LOCALAPPDATA%\NightreignHelper
@@ -425,7 +431,12 @@ under `HKCU\Software\DankYeeter`, and
 the Start Menu entry — if you accept it — is one shortcut in your own profile.
 **Nothing is written anywhere else**, and nothing is sent anywhere: the tool
 makes no network connections at all. Uninstalling means deleting that folder,
-that registry key, the shortcut and the EXE.
+that registry key, the shortcut and the EXE — nothing survives outside those
+four places, and nothing ever left the machine to begin with.
+
+**Back up your save before running any third-party tool against it,** this
+one included. This one is read-only by design and "AS IS" under the MIT
+licence — see [Licence](#licence) — which is not the same as a guarantee.
 
 The snapshot is rebuilt when it no longer matches. That is either because the
 game was patched, so `regulation.bin` changed, or because a new version of the
@@ -578,9 +589,10 @@ endorsed by, sponsored by, or approved by** FromSoftware, Inc. or Bandai Namco
 Entertainment Inc.
 
 ELDEN RING NIGHTREIGN, its data, artwork, text and trademarks are the property of
-their respective owners. This project distributes none of that content. All game
-values and images the tool displays are read at runtime from the copy of the game
-on the user's own machine, into that machine's local storage only.
+their respective owners. The released executable contains no game data; it reads
+your own installation. All game values and images the tool displays are read at
+runtime from the copy of the game on the user's own machine, into that machine's
+local storage only.
 
 Screenshots in this README show the tool's own interface displaying data read
 from a personal installation.
