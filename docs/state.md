@@ -10,8 +10,8 @@ Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 **Nummernkreise:** T ab **T-077** · QA ab **QA-180** · AK ab **AK-133** ·
 DR ab **DR-019** · R ab **R-007** · projekteigene Regeln ab **NH-003**.
 
-**Suite:** **985 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
-5 passed; die 985 aus einem frischen Klon. Mutationen: alle toetend.
+**Suite:** **1059 passed, 9 skipped, 5 deselected** (`not slow`), `slow`
+5 passed; die 1059 aus einem frischen Klon. Mutationen: alle toetend.
 
 ## Auftragslage (Nutzer)
 
@@ -114,6 +114,13 @@ Vom Director am 06.09.2026 entschieden; Begruendungen in
   `_DAMAGE_TAKEN_SCOPE` nimmt Widerstaende ausdruecklich aus der Kennzahl,
   eine Quelle ohne Rankingwirkung waere irrefuehrend. Wieder aufmachen,
   sobald eine Zielrichtung Widerstaende rankt.
+- **Zwei Nutzertexte ohne Vorgabe, im S10-Review zu klaeren:** die
+  Statuszeile 4.7 sagt seit T-082 `Optimize again.` (Formulierung des
+  `developer`), und `AdvisorResult.budget_note` fordert AD-010, ohne dass je
+  ein Wortlaut geschrieben wurde — das Feld bleibt vorerst leer.
+- **Kein `progress`-Signal** — vom Director angenommen: die Spec verlangt
+  einen unbestimmten Fortschrittsbalken (`setRange(0, 0)`), der keinen Wert
+  braucht.
 - **Die Grenze zwischen den Fuellungen (c) und (d) der stummen Zeilen ist
   offen.** Die in der Spec **angeschriebene** Regel ergibt 13 Faelle, der
   `ui-ux-designer` hatte 58 gezaehlt; die Summe (106) stimmt exakt, nur die
@@ -127,9 +134,12 @@ Vom Director am 06.09.2026 entschieden; Begruendungen in
 
 ## Der Rest — in dieser Reihenfolge
 
-0. **S9** — Rechnung in den Hintergrund, Entprellung, Cache, dazu D-4
-   (`rank_by`). Danach **S10**, die Oberflaeche: der erste Schritt, den der
-   Nutzer sieht. Dann **S11** mit dem `performance-tuner`.
+0. **S9 ist gebaut** (T-082): Worker, Entprellung 250 ms, Cache mit
+   Bestands-Fingerabdruck, `rank_by`. Gemessen: 86 von 87 Taktschlaegen des
+   Hauptthreads fielen **in** den Lauf, Abbruch sichtbar im Median nach
+   0,06 ms (schlechtester Wert 22,8 von 200 erlaubten ms). Als naechstes
+   **S10**, die Oberflaeche — der erste Schritt, den der Nutzer sieht. Dann
+   **S11** mit dem `performance-tuner`.
 1. **A11 schliessen:** QA-173 braucht eine `ui-ux-designer`-Entscheidung,
    danach ein `developer`-Auftrag, danach ein siebter Durchgang — mit
    **fester** Aufgabenliste und Faehigkeitsprobe als Schritt 0.

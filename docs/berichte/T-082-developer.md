@@ -459,3 +459,21 @@ Lauf:
 
 Der Arbeitsbaum ist sauber (`git status` leer), HEAD ist `c609e87`. Es liegt
 nichts Uncommittetes herum.
+
+---
+
+## Nachtrag des Directors, 07.09.2026 — der fehlende Suitenlauf
+
+Der `developer` kam nicht mehr dazu; ich habe ihn gefahren. Frischer Klon
+(`git archive HEAD | tar -x`) vom Stand `5fa50c1`:
+
+```
+1059 passed, 9 skipped, 5 deselected in 447.65s (0:07:27)
+```
+
+**Die Erwartung im Bericht lautete 1056.** Es sind **drei mehr**. Alle gruen,
+also kein Defekt — aber die Herleitung im Bericht traf nicht zu, und das
+gehoert hingeschrieben statt geglaettet. Wer die Zahl das naechste Mal
+herleitet, rechnet gegen 1059, nicht gegen die Herleitung.
+
+**STATUS ist damit `erledigt`.**
