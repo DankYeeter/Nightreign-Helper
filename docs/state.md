@@ -9,11 +9,10 @@ Berichte: `docs/berichte/T-###-<rolle>.md`.
 **Nummernkreise:** T ab **T-106** · QA ab **QA-198** · AK ab **AK-195** ·
 AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** · NH ab **NH-003** ·
 C ab **C-001** · A (Auflagen) ab **A-001**.
-**Suite:** **1256 passed, 9 skipped, 0 failed** (T-102, 07.09.). Seit
-`4431c7a` laeuft sie parallel: `pytest -n auto` **127 s** statt 840 s seriell,
-Faktor 6,6, Namensvergleich ueber 1265 Faelle ohne Abweichung. **`-n auto` ist
-bewusst keine Voreinstellung** — eine gezielt genannte Einzeldatei stiege von
-1,2 auf 4,0 s, und genau die verlangt die Gegenproben-Regel.
+**Suite:** **1256 passed, 9 skipped, 0 failed** (T-102, 07.09.). `pytest -n auto`
+**127 s** statt 840 s seriell (`4431c7a`), Namensvergleich ueber 1265 Faelle ohne
+Abweichung. **`-n auto` ist bewusst keine Voreinstellung** — eine einzeln
+genannte Datei stiege von 1,2 auf 4,0 s, und genau die verlangt die Gegenprobe.
 
 ## Auftragslage (Nutzer)
 
@@ -25,35 +24,24 @@ Zyklus.
 
 ## Zyklus 16 — der Release-Weg (Nutzerentscheid 07.09.2026)
 
-Ziel: **A9 und A2**. A9 ist das einzige Abnahmekriterium ohne jede Evidenz —
-es hat in diesem Projekt noch nie ein gebautes Artefakt gegeben, obwohl
-`.github/workflows/release.yml` und `NightreignHelper.spec` existieren. A2
-haengt nur noch an SEC-009, und SEC-009 sitzt in derselben Datei.
+Ziel **A9 und A2**. A9 hat als einziges Kriterium null Evidenz: es gab nie ein
+gebautes Artefakt, obwohl `release.yml` und `NightreignHelper.spec` existieren.
+A2 haengt nur noch an SEC-009 — derselbe Weg, dieselbe Datei.
 
 Kette: **T-104** `compliance-agent` (`auflagen`) **+ T-105** `developer`
 (SEC-009) parallel → `technical-writer` → `release-manager` (`build`) →
 `release-manager` (`clean-room`) → `qa-engineer` **+** `power-user` parallel.
 
-**Zwei Nutzerentscheide dazu:**
-- **Clean-room auf diesem Rechner, isoliert** — leeres Verzeichnis, geleerter
-  PATH, keine `.venv`. A9 gilt danach **mit benanntem Vorbehalt** erfuellt:
-  keine echte Fremdinstallation geprueft.
-- **Die `power-user`-Aufgabenliste wird festgelegt und bleibt stehen** (unten).
-  Ab dann aendert sich nur das Programm, nie das Messgeraet.
+**Clean-room auf diesem Rechner, isoliert** (leeres Verzeichnis, geleerter
+PATH, keine `.venv`) — A9 gilt danach **mit Vorbehalt** erfuellt: keine echte
+Fremdinstallation. **GOAL-Wortlaut beachten:** A9 verlangt den
+**`qa-engineer`** am Artefakt, nicht den `power-user`.
 
-**Achtung, GOAL-Wortlaut:** A9 verlangt einen **`qa-engineer`**-Durchlauf
-gegen das Artefakt, nicht den `power-user`. Der `power-user`-Lauf ist die
-Messreihe fuer A11 und die Bedienbarkeit; beide laufen am eingefrorenen
-Artefakt parallel.
-
-## Stehende Messreihe `power-user` (ab 07.09.2026 unveraendert)
-
-Sechs Aufgaben, in Nutzersprache, ohne Bedienschritte, ohne Codekontext:
-Erststart ohne Vorwissen · den eigenen Spielstand finden lassen · im Build
-planner ein Relikt tauschen · den Vorschlag des Beraters anwenden · eine Zahl
-im Arsenal-Tab deuten · beenden und neu starten. Der Wortlaut steht in der
-jeweiligen Auftragsdatei und wird von Lauf zu Lauf **kopiert, nicht neu
-geschrieben**.
+**Stehende `power-user`-Messreihe, ab jetzt unveraendert kopiert:** Erststart
+ohne Vorwissen · Spielstand finden lassen · im Build planner ein Relikt
+tauschen · den Beratervorschlag anwenden · eine Zahl im Arsenal-Tab deuten ·
+beenden und neu starten. Ab jetzt aendert sich nur das Programm, nie das
+Messgeraet.
 
 ## Stand gegen `GOAL.md`
 
@@ -88,16 +76,12 @@ geschrieben**.
 
 ## Statuskorrektur 07.09.2026 (zweite), am Code geprueft
 
-**SEC-022, SEC-024 und QA-194 standen faelschlich auf "offen"** und sind
-belegt behoben (`912a39a`, `2570d86`, `MIN_BYTES_PER_RELIC_RECORD`,
-`MIN_BYTES_PER_LOADOUT_TABLE`). Zweiter Fall derselben Klasse an einem Tag —
-die Statuszeile ist eine Notiz des Directors, kein Messwert.
-
-**QA-196 und QA-197 (an den Director adressiert) sind geklaert** und in die
-Rollendefinition uebernommen: ein Worktree startet auf `origin/HEAD` und
-braucht einen **Schritt 0** im Auftrag, sonst misst er gegen `origin/main`;
-der Scratchpad ist **pro Sitzung** geteilt, nicht pro Rolle, und braucht ein
-Unterverzeichnis je T-Nummer. Beides wird ab T-104/T-105 angewandt.
+**SEC-022, SEC-024, QA-194** standen faelschlich auf "offen", sind belegt
+behoben (`912a39a`, `2570d86`); Beleg in den Befundlisten. Zweiter Fall
+derselben Klasse an einem Tag. **QA-196/QA-197 (an den Director) sind
+geklaert** und stehen in der Rollendefinition: Worktree startet auf
+`origin/HEAD`, braucht **Schritt 0**; Scratchpad ist pro Sitzung geteilt,
+braucht ein Unterverzeichnis je T-Nummer. Ab T-104/T-105 angewandt.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
@@ -133,10 +117,9 @@ SEC-019/SEC-015 (Mittel) · SEC-021, SEC-023 (Niedrig).
 
 ## Regeln
 
-Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008, L-009,
-L-010 (fuenf Pruefungen), L-012, L-013; projekteigen NH-001, NH-002.
-Seit 07.09.2026 teamweit im Rahmenblock: **kein Hintergrundlauf, auf dessen
-Ende der Agent wartet** · **ein Feldname ist keine Beschreibung**, drei
-Gegenproben vor jedem Nutzertext an einem Datenfeld (Anlass QA-186).
+Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008 bis L-013;
+projekteigen NH-001, NH-002. Neu 07.09. im Rahmenblock: **kein Hintergrundlauf,
+auf dessen Ende der Agent wartet** · **ein Feldname ist keine Beschreibung**
+(drei Gegenproben vor jedem Nutzertext an einem Datenfeld, Anlass QA-186).
 
 **Nie geprueft:** Linux/macOS · eine echte Fremdinstallation.
