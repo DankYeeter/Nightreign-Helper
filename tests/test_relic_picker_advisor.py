@@ -424,3 +424,196 @@ def test_the_figure_on_a_card_is_the_pools_own_float(planner):
             assert (ranking.gain(item, goal_id).hex()
                     == types.marginal_for(candidate, goal_id).hex()), (
                 f"{candidate.name} is shown a figure the pool did not carry")
+
+
+# --- one goal setting in the whole program (AK-43, AK-44, AK-52) -----------
+
+def test_sort_by_offers_the_two_directions_and_name(slot):
+    """§3.4: the registry's own labels, in the registry's own order."""
+    from nrplanner.advisor import goals as advisor_goals
+
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        box = dialog.sort_box
+        assert [box.itemData(i) for i in range(box.count())] == [
+            "max_damage", "min_damage_taken", relicpicker.NAME_ORDER]
+        assert [box.itemText(i) for i in range(box.count())] == [
+            advisor_goals.GOALS["max_damage"].label,
+            advisor_goals.GOALS["min_damage_taken"].label,
+            "Name"]
+        assert box.maximumWidth() == relicpicker.SORT_BOX_WIDTH
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_bar_decides_what_sort_by_opens_on(slot):
+    """AK-43, one direction of the coupling: the setting reaches the picker."""
+    for goal_id in ("min_damage_taken", "max_damage"):
+        dialog = picker_for(slot, FakeAdvice(
+            {goal_id: pool_of(slot, {0: 1.0}, rank_by=goal_id)},
+            goal_id=goal_id))
+        try:
+            assert dialog.sort_box.currentData() == goal_id
+        finally:
+            dialog.deleteLater()
+
+
+def test_choosing_a_direction_in_the_picker_moves_the_one_setting(slot):
+    """AK-43, the other direction: the picker writes the same setting.
+
+    Written to the advice rather than kept here, because a `Sort by` with a
+    setting of its own would be the fourth place in the program that can say
+    which direction the player is asking about.
+    """
+    advice = FakeAdvice(
+        {"max_damage": pool_of(slot, {0: 1.0, 1: 2.0}),
+         "min_damage_taken": pool_of(slot, {0: 3.0},
+                                     rank_by="min_damage_taken")},
+        goal_id="max_damage")
+    dialog = picker_for(slot, advice)
+    try:
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData("min_damage_taken"))
+        dialog._sort_chosen(box.currentIndex())
+        assert advice.chosen == ["min_damage_taken"]
+        assert advice.goal_id() == "min_damage_taken"
+        assert dialog.ranking.goal_id == "min_damage_taken"
+    finally:
+        dialog.deleteLater()
+
+
+def test_choosing_name_order_changes_no_direction(slot):
+    """§3.4: `Name` is a way of looking, not a question."""
+    advice = FakeAdvice({"max_damage": pool_of(slot, {0: 1.0})},
+                        goal_id="max_damage")
+    dialog = picker_for(slot, advice)
+    try:
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
+        dialog._sort_chosen(box.currentIndex())
+        assert advice.chosen == []
+        assert advice.goal_id() == "max_damage"
+    finally:
+        dialog.deleteLater()
+
+
+def names_in_order(dialog) -> list[str]:
+    return [card.item.name for card in relic_cards(dialog)]
+
+
+def test_the_value_leads_the_order_and_ties_keep_the_order_they_had(slot):
+    """AK-44: the figure sorts, and where it cannot, nothing moves.
+
+    Three copies worth the same and one worth more: the one worth more comes
+    first, and the three keep the order the grid would have had without any
+    advisor at all.
+    """
+    items = slot.available_items()
+    if len(items) < 4:
+        pytest.skip("this slot offers fewer than four relics")
+    gains = {0: 1.0, 1: 1.0, 2: 1.0, 3: 9.0}
+    plain = picker_for(slot, FakeAdvice({}))
+    try:
+        untouched = names_in_order(plain)
+    finally:
+        plain.deleteLater()
+    dialog = open_picker(slot, gains)
+    try:
+        ranked = names_in_order(dialog)
+        assert ranked[0] == untouched[3], (
+            "the copy worth the most does not lead the grid")
+        assert ranked[1:4] == [untouched[0], untouched[1], untouched[2]], (
+            "the three tied copies were reordered by something that is not "
+            "the figure")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_same_state_opens_in_the_same_order_twice(slot):
+    """AK-44: nothing wobbles between two openings."""
+    gains = {0: 2.0, 1: 2.0, 2: 5.0, 3: 5.0}
+    first = open_picker(slot, gains)
+    second = open_picker(slot, gains)
+    try:
+        assert names_in_order(first) == names_in_order(second)
+    finally:
+        first.deleteLater()
+        second.deleteLater()
+
+
+def test_name_order_puts_the_grid_back_the_way_it_was(slot):
+    """§3.4: with `Name` the grid is the one the picker has always had."""
+    advice = FakeAdvice({"max_damage": pool_of(slot, {0: 1.0, 1: 9.0})},
+                        goal_id="max_damage")
+    dialog = picker_for(slot, advice)
+    plain = picker_for(slot, FakeAdvice({}))
+    try:
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
+        dialog._sort_chosen(box.currentIndex())
+        assert names_in_order(dialog) == names_in_order(plain)
+    finally:
+        dialog.deleteLater()
+        plain.deleteLater()
+
+
+def test_both_directions_still_stand_on_every_card_in_name_order(slot):
+    """AK-42: whatever the sorting, both figures are there."""
+    advice = FakeAdvice({"max_damage": pool_of(slot, {0: 1.0, 1: 9.0})},
+                        goal_id="max_damage")
+    dialog = picker_for(slot, advice)
+    try:
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
+        dialog._sort_chosen(box.currentIndex())
+        shown = values_of(relic_cards(dialog)[0])
+        assert len(shown) == 2 and relicpicker.PENDING not in shown
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_custom_tile_leads_the_grid_in_every_order(slot):
+    """§3.4, unchanged: the answer to "none of these" is never sorted away."""
+    for order in ("max_damage", relicpicker.NAME_ORDER):
+        dialog = open_picker(slot, {0: 1.0, 1: 9.0})
+        try:
+            box = dialog.sort_box
+            box.setCurrentIndex(box.findData(order))
+            dialog._sort_chosen(box.currentIndex())
+            holder = dialog.scroll.widget()
+            first = holder.layout().itemAtPosition(0, 0).widget()
+            assert isinstance(first, relicpicker.CustomRelicCard)
+        finally:
+            dialog.deleteLater()
+
+
+def focus_chain(dialog) -> list:
+    """Every widget of the dialog, in the order tabbing walks them."""
+    walked = []
+    widget = dialog.search
+    for _ in range(2000):
+        widget = widget.nextInFocusChain()
+        if widget is dialog.search:
+            break
+        walked.append(widget)
+    return walked
+
+
+def test_sort_by_stands_between_the_filter_and_the_cards(slot):
+    """AK-52: after the filter field, before the first card.
+
+    Walked rather than read off the layout: `setTabOrder` is what decides
+    this, and a layout order that happened to agree today would keep the case
+    green after the widget moved.
+    """
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        chain = focus_chain(dialog)
+        first_card = relic_cards(dialog)[0].button
+        assert dialog.sort_box in chain, (
+            "Sort by is not in the dialog's tab order at all")
+        assert first_card in chain, "no card is reachable by tabbing"
+        assert chain.index(dialog.sort_box) < chain.index(first_card), (
+            "the reader reaches a card before Sort by")
+    finally:
+        dialog.deleteLater()

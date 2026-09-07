@@ -674,6 +674,28 @@ class AdvisorBar(QWidget):
         """The direction the combo is standing on."""
         return self.goal_box.currentData()
 
+    def choose_goal(self, goal_id: str) -> None:
+        """Stand on another direction, asked from outside the row (AK-43).
+
+        The relic picker's `Sort by` is not a second setting, it is this one
+        seen from the other screen, so it comes through here and takes
+        `_goal_chosen`'s consequence with it: the answer on screen was an
+        answer to the other question and goes.
+
+        Silent when the direction is already the one being shown -- a combo
+        set to what it already says is not a change, and throwing an answer
+        away for it would cost the player a search they never asked to
+        repeat.
+        """
+        index = self.goal_box.findData(goal_id)
+        if index < 0:
+            raise KeyError(f"no direction {goal_id!r} in this row; it offers "
+                           f"{list(GOAL_ORDER)}")
+        if index == self.goal_box.currentIndex():
+            return
+        self.goal_box.setCurrentIndex(index)
+        self._goal_chosen(index)
+
     # -- what the controller says -------------------------------------------
 
     def _on_started(self) -> None:

@@ -22,9 +22,9 @@ import dataclasses
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMenu, QPushButton, QScrollArea, QSizePolicy, QToolButton,
-    QVBoxLayout, QWidget, QWidgetAction,
+    QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+    QListWidget, QListWidgetItem, QMenu, QPushButton, QScrollArea,
+    QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
 from . import advisorbar, cardgrid, effecttext, favourites, model
@@ -116,6 +116,20 @@ NO_CHANGE = "no change"
 #: statement does not wander to another one while the player reads it.
 NO_FIGURES_AT_ALL = ("The game's data carries no figures this goal can be "
                      "ranked on, so these relics are in name order.")
+
+#: The third entry of `Sort by`, and what it stands for: the order the grid
+#: has without an advisor at all. Not a direction, so it changes no goal
+#: setting -- which is why it needs a value of its own that no goal id can
+#: collide with (`advisor.goals.GOALS` keys the two directions by their own
+#: names).
+NAME_ORDER = "sort-by-name"
+
+#: What `Sort by` calls that entry (§3.4).
+NAME_ORDER_LABEL = "Name"
+
+#: Widest the `Sort by` box may get (§3.4). A combo that sized itself to the
+#: longest direction label would move with the registry.
+SORT_BOX_WIDTH = 220
 
 #: Decimal places every gain is shown at. Ties are decided here and nowhere
 #: else (AK-45): two cards carry the same tie mark exactly when they show the
@@ -787,6 +801,31 @@ class RelicPicker(QDialog):
         top.addWidget(clear)
         layout.addLayout(top)
 
+        # §3.4. The two directions carry the registry's own labels, because
+        # they are the registry's own directions: `Sort by` here and the
+        # advisor bar's box are **one** setting seen from two screens, and a
+        # second list of words would be a second place for them to differ.
+        sorting = QHBoxLayout()
+        sorting.setSpacing(6)
+        caption = QLabel("Sort by")
+        caption.setTextFormat(Qt.PlainText)
+        sorting.addWidget(caption)
+        self.sort_box = QComboBox()
+        self.sort_box.setMaximumWidth(SORT_BOX_WIDTH)
+        for goal_id in VALUE_DIRECTIONS:
+            self.sort_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
+        self.sort_box.addItem(NAME_ORDER_LABEL, NAME_ORDER)
+        standing = (advisorbar.GOAL_ORDER[0] if self.advice is None
+                    else self.advice.goal_id())
+        self.sort_box.setCurrentIndex(self.sort_box.findData(standing))
+        self.sort_box.activated.connect(self._sort_chosen)
+        sorting.addWidget(self.sort_box)
+        sorting.addStretch()
+        layout.addLayout(sorting)
+        # AK-52: between the filter field and the cards, which is where a
+        # reader arrives at it after typing what they are looking for.
+        self.setTabOrder(self.search, self.sort_box)
+
         # The one sentence that replaces a tie mark no card may wear (§3.5
         # point 5, §3.7). Outside the scroll area with the other lines, and
         # wrapped rather than shortened: AK-50 lets none of them be cut.
@@ -909,7 +948,30 @@ class RelicPicker(QDialog):
                 items,
                 key=lambda i: 0 if favourites.is_favourite(i, self.hero_id) else 1,
             )
-        return items, text.strip()
+        return self._in_the_chosen_order(items), text.strip()
+
+    def _in_the_chosen_order(self, items):
+        """`items` as `Sort by` asks for them (§3.4, AK-44).
+
+        **Stable, on top of the order the grid would have anyway.** Two
+        candidates inside one segment of a piecewise-linear curve are worth
+        exactly the same, so ties are the common case rather than the
+        exception; where the figure cannot decide, the order the player knows
+        does -- favourites first, then name. Twice the same state is twice the
+        same list, and no ordinal is ever drawn to suggest otherwise.
+
+        A copy the pool does not carry has no place in a value order and goes
+        to the end, keeping the order it had among its own kind.
+        """
+        if self.sort_box.currentData() == NAME_ORDER or self.ranking is None:
+            return items
+        goal_id = self.ranking.goal_id
+
+        def worth(item):
+            gain = self.ranking.gain(item, goal_id)
+            return (1, 0.0) if gain is None else (0, -gain)
+
+        return sorted(items, key=worth)
 
     def _heroes(self) -> list[dict]:
         return getattr(self.slot.window(), "heroes", None) or []
@@ -995,6 +1057,21 @@ class RelicPicker(QDialog):
         # (QA-141, DR-016a at a place T-058 left out).
         self.scroll.setWidget(cardgrid.CardGrid(CARD_WIDTH, cards))
         self._fit_to_three_rows(cards)
+
+    def _sort_chosen(self, _index: int) -> None:
+        """The player picked an order, and a direction with it (AK-43).
+
+        A direction chosen here is chosen everywhere: it goes to the one
+        setting the program has, and the pool is asked again, because a pool
+        ranked one way and read another is the fault `SlotPool.rank_by`
+        exists against. `Name` is not a direction and changes none: it is a
+        way of looking at the same figures.
+        """
+        chosen = self.sort_box.currentData()
+        if chosen != NAME_ORDER and self.advice is not None:
+            self.advice.choose_goal(chosen)
+            self.ranking = self.advice.ranking(chosen)
+        self._refresh()
 
     def _captions(self) -> list[str]:
         """The value rows every card carries, in order (AK-42)."""
