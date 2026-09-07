@@ -29,7 +29,14 @@ What the scan does not see, and does not claim to:
   literal, which is a store of the right kind under a name two runs can
   share -- a different fault (QA-043), reported and not touched here;
 * anything that is not a .py file, and anything under .venv, which is
-  PySide6's own code and not ours.
+  PySide6's own code and not ours;
+* anything under .claude, which holds no source of this program: an agent's
+  memory, and its worktrees. A worktree is this same repository checked out
+  again at whatever commit that run began from, so a scan of the tree read
+  the two lines above a second time -- out of a copy no run can fix, at a
+  commit that predates the fix -- and reported them as a fault of the source
+  under test. That is what happened while T-098 ran, and it made that run's
+  suite figure unreadable.
 
 There are no exempted call sites. Every construction in the repository names
 the store through `favourites`, and a future one that genuinely cannot -- a
@@ -51,8 +58,10 @@ from nrplanner import favourites
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
-# The virtual environment is PySide6's code and the caches hold no source.
-NOT_OURS = frozenset({".venv", ".git", "__pycache__", "build", "dist"})
+# The virtual environment is PySide6's code, the caches hold no source, and
+# .claude holds another checkout of this repository rather than more of it.
+NOT_OURS = frozenset({".venv", ".git", ".claude", "__pycache__", "build",
+                      "dist"})
 
 # The two module-level names in nrplanner.favourites, in the order QSettings
 # takes them, and the module they are read from.
@@ -161,6 +170,33 @@ def test_no_source_opens_a_settings_store_of_its_own():
         f"player's own settings: {offenders}. Build it from favourites.ORG "
         "and favourites.APP, as every persisting module does."
     )
+
+
+def test_the_walk_reads_our_own_tree_and_not_a_worktree_inside_it(tmp_path):
+    """A second checkout of this repository is not more of this repository.
+
+    An agent works in `.claude/worktrees/<run>/`, which carries the whole
+    tree at the commit that run started from -- app.py included, with the two
+    lines this guard was written for still in it for as long as that run
+    predates their fix. The scan found them there and named them, and the
+    failure was about a copy under another run's hand rather than about the
+    source it was asked to judge.
+
+    Both files below are ours by name and identical in content, so the case
+    can only pass on where they sit. It is red the moment `.claude` leaves
+    NOT_OURS, with or without a worktree on this machine.
+    """
+    ours = tmp_path / "nrplanner"
+    ours.mkdir()
+    (ours / "app.py").write_text("value = 1\n", encoding="utf-8")
+    theirs = tmp_path / ".claude" / "worktrees" / "agent-1" / "nrplanner"
+    theirs.mkdir(parents=True)
+    (theirs / "app.py").write_text("value = 1\n", encoding="utf-8")
+
+    found = {path.relative_to(tmp_path).as_posix()
+             for path in python_modules(tmp_path)}
+
+    assert found == {"nrplanner/app.py"}
 
 
 # One entry per way of opening a store the two names do not reach. A search
