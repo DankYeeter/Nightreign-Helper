@@ -21,9 +21,9 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (chalices, damage, datasource, effecttext, favourites,
-               firstrun, inventory, model, shortcut, singleinstance, uiscale,
-               weaponslots, weapons)
+from . import (advisorblock, chalices, damage, datasource, effecttext,
+               favourites, firstrun, inventory, model, shortcut,
+               singleinstance, uiscale, weaponslots, weapons)
 from .advisorbar import AdvisorBar, asking_from
 from .effectstab import EffectsTab
 from .iconpack import IconPack
@@ -611,6 +611,13 @@ class RelicSlot(QFrame):
         self.rolled_label.setStyleSheet("border: none;")
         layout.addWidget(self.rolled_label)
 
+        # The advisor's block, under the rolled effects and inside the card:
+        # a suggestion for this slot belongs where the slot is (`UI_SPEC`
+        # §3.2). Built here and hidden rather than created on demand, so that
+        # an answer arriving does not change the card's layout order.
+        self.suggestion = advisorblock.SuggestionBlock()
+        layout.addWidget(self.suggestion)
+
     # -- state -----------------------------------------------------------
     def _on_relic_changed(self, *_args) -> None:
         # Whatever this slot was last told to say about being empty is spent:
@@ -702,6 +709,39 @@ class RelicSlot(QFrame):
             what = f"{count} curses" if count > 1 else "a curse"
             return [f"<div style='color:{CURSE}'>✦ comes with {what}</div>"]
         return []
+
+    def show_the_suggestion(self, goal_label: str, group, choice) -> None:
+        """Draw what the advisor would put here, while the answer lives.
+
+        Whether the suggestion is already lying in this slot is decided on
+        the **handle** -- the save's own identifier for one physical copy --
+        and never on the name: several copies of one relic are owned with
+        different rolls, and this save equips the second copy of The Wylder's
+        Earring while the first sits unused (`select_copy`, QA-021).
+        """
+        in_the_slot = getattr(self.relic_box.currentData(), "handle", None)
+        already = (choice is not None and in_the_slot is not None
+                   and in_the_slot == choice.handle)
+        self.suggestion.show_the_suggestion(
+            goal_label, group, already_equipped=already,
+            curse_tooltip=self._suggested_curse_tooltip(choice))
+
+    def put_the_suggestion_away(self) -> None:
+        """No answer names this slot any more."""
+        self.suggestion.put_the_suggestion_away()
+
+    def _suggested_curse_tooltip(self, choice) -> str:
+        """The full wording of the suggested copy's curses, found by handle.
+
+        The block's lines name the curses; what each one does is the same
+        tooltip the slot already offers for the relic it holds, so a player
+        reads a curse the same way whether it is equipped or offered.
+        """
+        if choice is None:
+            return ""
+        copy = next((item for item in self._holdable()
+                     if item.handle == choice.handle), None)
+        return "" if copy is None else self.curse_tooltip(copy)
 
     def curse_tooltip(self, item) -> str:
         """Full wording for each curse, so the cost is legible not cryptic."""
@@ -1393,6 +1433,7 @@ class Planner(QMainWindow):
         self.panes.addWidget(self._build_left())
         self.panes.addWidget(self._build_middle())
         self.panes.addWidget(self._build_right())
+        self._wire_the_advisor()
         # Extra width goes to the slots in the middle; the two edges keep the
         # size they were given, which is what they had before.
         self.panes.setStretchFactor(0, 0)
@@ -3463,6 +3504,71 @@ class Planner(QMainWindow):
                      f"{worn} already worn in another slot.")
         self.owned_label.setText(note)
         self.recompute()
+
+    def _wire_the_advisor(self) -> None:
+        """The two ways an answer leaves the bar and reaches the player.
+
+        The bar is handed nothing here and reads no widget of this window: it
+        says an answer stands or has gone (`suggestion_changed`) and that the
+        player asked for the long form (`why_requested`), and this window
+        decides what that means for the cards.
+
+        **Nothing emits `why_requested` yet.** §3.1 puts a `Why` button in the
+        bar beside `Apply all`, and that row of controls belongs to the task
+        that builds applying; the dialog is connected here so that adding the
+        button is one line and no rewiring.
+        """
+        self.advisor_bar.suggestion_changed.connect(self.show_the_suggestion)
+        self.advisor_bar.why_requested.connect(self.open_why)
+
+    def show_the_suggestion(self, result) -> None:
+        """Put the living answer on the slot cards, or take it off them.
+
+        Every card is cleared first, the Deep ones included: a vessel whose
+        Deep switch has just been turned off still holds three cards with a
+        block on them, and a block that outlives its answer names a relic for
+        a slot that is no longer in play.
+
+        A group naming a slot this vessel does not have means the answer and
+        the window are describing different builds. Nothing is drawn then --
+        `AdvisorBar.the_build_changed` throws such an answer away before it
+        gets here, so this is the belt to that brace and not a state the
+        player can reach.
+        """
+        cards = self.active_slots()
+        for card in list(self.base_slots) + list(self.deep_slots):
+            card.put_the_suggestion_away()
+        if result is None or not result.suggestions:
+            return
+        suggestion = result.suggestions[0]
+        if any(group.slot_index >= len(cards)
+               for group in suggestion.reasons):
+            return
+        by_slot = {choice.slot_index: choice for choice in suggestion.choices}
+        for group in suggestion.reasons:
+            cards[group.slot_index].show_the_suggestion(
+                result.goal_label, group, by_slot.get(group.slot_index))
+
+    def open_why(self) -> None:
+        """The long form of the answer on screen (`UI_SPEC` §3.4).
+
+        The head of the dialog names four things no result carries -- who is
+        being built, on which vessel, with Deep of Night on or off, and out of
+        how many relics -- so they are read off this window at the moment the
+        dialog opens.
+        """
+        result = self.advisor_bar.answer
+        if result is None:
+            return
+        vessel = self.current_vessel() or {}
+        heading = advisorblock.WhyHeading(
+            goal_label=result.goal_label,
+            nightfarer=str(self.current_hero()["name"]),
+            vessel=str(vessel.get("name", "")),
+            deep=self.deep_check.isChecked(),
+            relics=0 if self.owned is None else self.owned.relic_count,
+        )
+        advisorblock.WhyDialog(heading, result, self).exec()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)
