@@ -541,11 +541,35 @@ def _custom_effects(roll: str) -> list[int] | None:
     return parts[1]
 
 
+#: What a held slot's button says, unchecked and checked (`UI_SPEC` §4.1 of
+#: the T-024 section, AK-54). Words rather than a padlock: a padlock reads
+#: "you cannot change this", and a hold binds the **advisor**, not the player.
+HOLD_CAPTIONS = ("Hold", "Held")
+
+#: The tooltip of that button, verbatim (AK-54). The second sentence is the
+#: meaning of the control and the third is AK-59's whole subject -- neither is
+#: decoration, and neither may be dropped to shorten the line.
+HOLD_TOOLTIP = ("Optimize leaves this slot alone. You can still change it "
+                "yourself. Holds are forgotten when the program closes.")
+
+#: What a slot held with nothing in it says (§4.2, AK-55). "Held and staying
+#: empty" is a different instruction from "free", and the search has to be
+#: able to tell them apart (`types.HeldSlot`), so the player does too.
+HELD_EMPTY = "Held empty — Optimize will not fill this slot."
+
+#: What a slot says when its hold fell away because the relic went (§4.3,
+#: AK-56). Said out loud rather than dropped quietly: a hold that vanished in
+#: silence is the case that produces a suggestion the player did not ask for.
+HOLD_RELEASED = ("A relic you were holding is no longer in your inventory, "
+                 "so this slot was released.")
+
+
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
     def __init__(self, index: int, deep: bool, on_change, icons=None,
-                 on_search_changed=None, taken_elsewhere=None):
+                 on_search_changed=None, taken_elsewhere=None,
+                 on_hold_changed=None):
         super().__init__()
         self.index = index
         self.deep = deep
@@ -555,6 +579,11 @@ class RelicSlot(QFrame):
         # Which physical relics the other slots are already holding. A slot on
         # its own knows of no others and so blocks nothing.
         self.taken_elsewhere = taken_elsewhere or (lambda _slot: frozenset())
+        # Said when the player works the `Hold` button, never when the window
+        # draws it: the hold itself lives at the window (AD-017.1), and a card
+        # that told the window about a state the window had just handed it
+        # would be writing over what it was drawing.
+        self.on_hold_changed = on_hold_changed or (lambda _slot, _on: None)
         self.search_text = ""
         # Why this slot is empty, when it was emptied for a reason worth
         # saying. An empty slot otherwise looks the same whether nothing was
@@ -588,6 +617,21 @@ class RelicSlot(QFrame):
         self.title.setStyleSheet("font-weight: bold; border: none;")
         header.addWidget(self.title)
         header.addStretch()
+        # §4.1: a checkable button carrying a word, in the card's own header
+        # and left of the colour chip. The two states are told apart by the
+        # word first and by the colour second, so a player who cannot tell
+        # `MUTED` from `ACCENT` still reads which one this is.
+        self.hold_button = QToolButton()
+        self.hold_button.setCheckable(True)
+        self.hold_button.setToolTip(HOLD_TOOLTIP)
+        self.hold_button.setStyleSheet(
+            f"QToolButton {{ color: {MUTED}; border: none;"
+            f" padding: 1px 6px; }}"
+            f"QToolButton:checked {{ color: {ACCENT};"
+            f" border: 1px solid {ACCENT}; border-radius: 3px; }}"
+        )
+        self.hold_button.toggled.connect(self._hold_toggled)
+        header.addWidget(self.hold_button)
         self.chip = QLabel()
         self.chip.setFixedSize(14, 14)
         header.addWidget(self.chip)
@@ -618,6 +662,11 @@ class RelicSlot(QFrame):
         self.suggestion = advisorblock.SuggestionBlock()
         layout.addWidget(self.suggestion)
 
+        # Last, because it draws the card: the caption of the hold button and
+        # the line an empty held slot carries are both `_sync_mode`'s work,
+        # and `_sync_mode` reads widgets built above.
+        self._draw_the_hold()
+
     # -- state -----------------------------------------------------------
     def _on_relic_changed(self, *_args) -> None:
         # Whatever this slot was last told to say about being empty is spent:
@@ -640,6 +689,41 @@ class RelicSlot(QFrame):
         elif dialog.chosen is None and dialog.result():
             self.relic_box.setCurrentIndex(0)
 
+    # -- holding ----------------------------------------------------------
+    def is_held(self) -> bool:
+        """Is the advisor being told to leave this slot alone?
+
+        The button is the one place this is drawn and the one place it is
+        read: the window keeps the hold and hands it here, and asking two
+        places for one fact is how they come to disagree.
+        """
+        return self.hold_button.isChecked()
+
+    def show_the_hold(self, on: bool) -> None:
+        """Draw the hold the window is holding for this slot.
+
+        Signals blocked, because this is the window telling the card. Left
+        unblocked, the card would tell the window straight back and would
+        overwrite the state it was being handed -- and on a change of vessel
+        it would overwrite it with the vessel being left.
+        """
+        self.hold_button.blockSignals(True)
+        try:
+            self.hold_button.setChecked(on)
+        finally:
+            self.hold_button.blockSignals(False)
+        self._draw_the_hold()
+
+    def _hold_toggled(self, on: bool) -> None:
+        """The player worked the button, so the window is told."""
+        self._draw_the_hold()
+        self.on_hold_changed(self, on)
+
+    def _draw_the_hold(self) -> None:
+        """The caption, and the line an empty held slot carries (AK-55)."""
+        self.hold_button.setText(HOLD_CAPTIONS[self.is_held()])
+        self._sync_mode()
+
     def _forget_a_spent_reason(self) -> None:
         """Drop the reason for being empty once it has stopped being true."""
         if self.empty_reason and self.reason_holds is not None:
@@ -653,16 +737,20 @@ class RelicSlot(QFrame):
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
         if item is None:
-            # An empty slot says nothing unless it was emptied for a reason.
-            # A slot whose relic is worn elsewhere used to read exactly like
-            # one never filled, leaving the player to work out where the
-            # relic went (DR-002).
-            if self.empty_reason:
-                self.rolled_label.setText(
-                    f"<div style='color:{MUTED}'>{self.empty_reason}</div>")
-            else:
-                self.rolled_label.clear()
-            self.rolled_label.setVisible(bool(self.empty_reason))
+            # An empty slot says nothing unless it was emptied for a reason,
+            # or unless it is being held empty on purpose. A slot whose relic
+            # is worn elsewhere used to read exactly like one never filled,
+            # leaving the player to work out where the relic went (DR-002).
+            #
+            # Both lines can stand at once and both are then true: "the
+            # advisor will not fill this" and "this is why it is empty" are
+            # different statements, and dropping either would answer a
+            # question the player did not ask.
+            said = ([HELD_EMPTY] if self.is_held() else []) + (
+                [self.empty_reason] if self.empty_reason else [])
+            self.rolled_label.setText("".join(
+                f"<div style='color:{MUTED}'>{line}</div>" for line in said))
+            self.rolled_label.setVisible(bool(said))
             return
 
         lines = []
@@ -724,6 +812,7 @@ class RelicSlot(QFrame):
                    and in_the_slot == choice.handle)
         self.suggestion.show_the_suggestion(
             goal_label, group, already_equipped=already,
+            may_be_used=not self.is_held(),
             curse_tooltip=self._suggested_curse_tooltip(choice))
 
     def put_the_suggestion_away(self) -> None:
@@ -1356,6 +1445,15 @@ class Planner(QMainWindow):
         # `Undo puts your slots back as they were` -- as they were before any
         # of it, which is the only reading a single button can carry.
         self._slots_before_applying: list[str] | None = None
+        # Which slots the player is holding, per (Nightfarer, vessel, Deep),
+        # and which copy each hold was made on (AD-017.2). Session state of
+        # the window and **nowhere else**: nothing here reaches `QSettings`,
+        # so a hold cannot outlive the program (OF-15) and no stored key
+        # space grows by a byte. Three losses of data in that key space in
+        # cycles 4 and 5 are the reason, not convenience -- a held handle
+        # written down today points at a copy that may be melted tomorrow.
+        self._holds: dict[tuple[int, int | None, bool],
+                          dict[int, int | None]] = {}
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -1736,7 +1834,8 @@ class Planner(QMainWindow):
 
         self.base_slots = [
             RelicSlot(i, False, self._relic_changed, self.icons,
-                      self._set_search, self._relics_taken_elsewhere)
+                      self._set_search, self._relics_taken_elsewhere,
+                      self._hold_changed)
             for i in range(3)
         ]
         for slot in self.base_slots:
@@ -1746,7 +1845,8 @@ class Planner(QMainWindow):
         layout.addWidget(self.deep_heading)
         self.deep_slots = [
             RelicSlot(i, True, self._relic_changed, self.icons,
-                      self._set_search, self._relics_taken_elsewhere)
+                      self._set_search, self._relics_taken_elsewhere,
+                      self._hold_changed)
             for i in range(3)
         ]
         for slot in self.deep_slots:
@@ -3557,6 +3657,102 @@ class Planner(QMainWindow):
         """
         return list(self.base_slots) + list(self.deep_slots)
 
+    # -- holding a slot -----------------------------------------------------
+
+    def _hold_key(self) -> tuple:
+        """Which build a hold belongs to: Nightfarer, vessel, Deep (AD-017.2).
+
+        The Deep switch is part of it because it changes which slots there
+        are: slot 4 of a vessel with Deep of Night on is not slot 4 of the
+        same vessel with it off, and a hold that carried across would be a
+        hold on a slot the player cannot see.
+        """
+        vessel = self.current_vessel()
+        return (self.current_hero()["id"],
+                vessel["id"] if vessel else None,
+                self.deep_check.isChecked())
+
+    def held_slot_indices(self) -> frozenset:
+        """The slots the player is holding in the build now on screen."""
+        return frozenset(self._holds.get(self._hold_key(), {}))
+
+    def _hold_changed(self, card, on: bool) -> None:
+        """The player worked a card's `Hold` button.
+
+        The copy the hold was made on is written down beside it, and that is
+        what makes AK-56 answerable later: once the relic has gone from the
+        save the slot is empty, and an empty held slot is a legitimate state
+        of its own (AK-55) -- so "held on nothing" and "held on a relic that
+        has since gone" cannot be told apart afterwards unless the handle was
+        kept at the moment of holding.
+        """
+        slots = self._all_slots()
+        if card not in slots:
+            return
+        key = self._hold_key()
+        holds = self._holds.setdefault(key, {})
+        if on:
+            holds[slots.index(card)] = getattr(card.current_relic(), "handle",
+                                               None)
+        else:
+            holds.pop(slots.index(card), None)
+        if not holds:
+            self._holds.pop(key, None)
+        # A held slot is one no applying may touch, so the card's own `Use`
+        # comes and goes with the hold.
+        self.show_the_suggestion(self.advisor_bar.answer)
+
+    def _show_the_holds(self) -> None:
+        """Draw the hold state of the build now on screen, and drop the dead.
+
+        Called wherever the build on screen changes -- a vessel, a Nightfarer,
+        the Deep switch, a relic -- because all four change either which holds
+        apply or what they were made on. Going away and coming back therefore
+        carries (AK-60, OF-12): nothing was thrown away when the vessel was
+        left, and this puts it back on the cards.
+
+        **A hold whose copy the save no longer has falls away, and says so**
+        (AK-56, §4.3, AD-017.3). Checked against the inventory rather than
+        against the slot: by the time this runs the slot has already been
+        emptied by the repopulation, and an empty slot is what a legitimately
+        held empty slot looks like too.
+
+        **Never mid-restore.** A restore holds slots that are half the build
+        being left and half the one arriving, and a released hold's sentence
+        written into a slot there is wiped by the restore's own emptying a
+        line later -- so the hold would fall away in silence, which is the
+        one thing §4.3 forbids. Every restoring path ends in `recompute`
+        with the guard down, which is where this really runs.
+        """
+        if self._restoring or getattr(self, "base_slots", None) is None:
+            return
+        slots = self._all_slots()
+        key = self._hold_key()
+        holds = self._holds.get(key, {})
+        # The inventory is only asked when there is a hold to ask about it:
+        # this runs on every recomputation, and with nothing held there is
+        # nothing for the answer to decide.
+        owned_handles = set(self._relics_by_handle()) if holds else set()
+        released = [index for index, handle in holds.items()
+                    if handle is not None and handle not in owned_handles]
+        for index in released:
+            holds.pop(index, None)
+        if not holds:
+            self._holds.pop(key, None)
+        for index, slot in enumerate(slots):
+            slot.show_the_hold(index in holds)
+        # What a surviving hold is now made on, because the player may have
+        # put another relic in that slot themselves since -- the tooltip says
+        # they still can, and a hold left pointing at the relic before would
+        # release itself the next time that one was melted.
+        for index in list(holds):
+            if index < len(slots):
+                holds[index] = getattr(slots[index].current_relic(), "handle",
+                                       None)
+        for index in released:
+            if index < len(slots):
+                slots[index].clear_relic(HOLD_RELEASED)
+
     def apply_all(self) -> None:
         """`Apply all`: every suggested slot the player is not holding."""
         self._apply_the_answer_to(None)
@@ -3583,6 +3779,11 @@ class Planner(QMainWindow):
         as keys already, which is also what makes `Undo apply` a list of the
         same kind and not a second mechanism (AK-15).
 
+        **A held slot is never touched** (AK-57, §5.4). Not because a run
+        ever offers one -- the request takes the held slots out of the search
+        (`asking_from`) -- but because a hold can be made *after* the answer
+        arrived, and the answer standing on screen does then name it.
+
         **Only copies the save has.** A choice whose handle is not in the
         inventory is passed over rather than guessed at: AK-16 forbids
         suggesting a relic that is not owned, and this is where that would
@@ -3594,10 +3795,11 @@ class Planner(QMainWindow):
         slots = self._all_slots()
         before = [slot.saved_key() for slot in slots]
         keys = list(before)
+        held = self.held_slot_indices()
         by_handle = self._relics_by_handle()
         for choice in result.suggestions[0].choices:
             index = choice.slot_index
-            if index >= len(slots):
+            if index >= len(slots) or index in held:
                 continue
             if only is not None and index not in only:
                 continue
@@ -3621,12 +3823,19 @@ class Planner(QMainWindow):
         custom relic back, both of which fall out of restoring the keys
         rather than the relics -- an empty slot is the empty key and a custom
         relic is a key that carries its own effects.
+
+        A slot held since the applying keeps what it holds: no applying put
+        anything of the advisor's there, so there is nothing to take back
+        (§5.4).
         """
         before = self._slots_before_applying
         if before is None:
             return
+        held = self.held_slot_indices()
+        keys = [slot.saved_key() if index in held else before[index]
+                for index, slot in enumerate(self._all_slots())]
         self._slots_before_applying = None
-        self._put_these_keys_in_the_slots(list(before))
+        self._put_these_keys_in_the_slots(keys)
         self.advisor_bar.the_suggestion_was_undone()
         self.show_the_suggestion(self.advisor_bar.answer)
 
@@ -3829,6 +4038,13 @@ class Planner(QMainWindow):
         # two there is a moment when a signal could reach here.
         if not hasattr(self, "level_slider") or not hasattr(self, "advisor_bar"):
             return
+        # ...and the one place the hold state can be drawn, for the same
+        # reason: every change that decides which holds apply -- Nightfarer,
+        # vessel, Deep of Night -- and every change to what a hold was made
+        # on ends here. Drawn from one place rather than from the four that
+        # cause it, because a fifth arrived once already and did not know it
+        # had to say so (see `populate`'s note about narrowing a slot).
+        self._show_the_holds()
         # Every path that changes a vessel, a mode or a relic ends here, so
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()

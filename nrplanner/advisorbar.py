@@ -270,16 +270,41 @@ class Asking:
     relics: int
 
 
+def _held_slot(index: int, card) -> types.HeldSlot:
+    """One slot the player is holding, as the search has to read it.
+
+    A held slot with nothing in it is `relic=None`, which the search reads as
+    "held and staying empty" (AD-014.7) -- a different instruction from a slot
+    that is simply free, and one the player is entitled to give (AK-55).
+
+    Curses travel with the effects and not in a compartment of their own,
+    because the evaluation puts both through the same `model.compute` call
+    (AD-015). A custom relic comes through here as it is: it is an **input**,
+    not a suggestion, so AK-16 is untouched and AK-58 is what applies.
+    """
+    item = card.current_relic()
+    if item is None:
+        return types.HeldSlot(index=index)
+    return types.HeldSlot(index=index, relic=types.HeldRelic(
+        relic_id=item.relic_id,
+        name=item.name,
+        effect_ids=tuple(item.effect_ids),
+        curse_ids=tuple(getattr(item, "curse_ids", ()) or ()),
+        handle=getattr(item, "handle", None)))
+
+
 def asking_from(planner, goal_id: str) -> Asking | None:
     """What the window would ask the advisor right now, or `None` (4.8).
 
     `None` means there is no save to choose relics from, which is a state of
     the window and not a failure -- the caller shows 4.8 and asks nothing.
 
-    **Every slot is free.** `Optimize` says it fills every slot from the
-    relics in the save, so the problem holds no held slots at all; holding is
-    S10b's, and a held slot arriving here would be a boundary condition this
-    row never showed the player.
+    **A held slot is a boundary condition of the question, not a starting
+    value** (AD-014, AD-016): it is named in `problem.held`, its effects go
+    into every evaluation, and the search runs over what is left. That is why
+    holding belongs in the request at all rather than in some state the
+    search could overwrite -- and it is why the hold reaches the run frozen,
+    as part of the cache key, and never as a live reading of the window.
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
@@ -292,9 +317,13 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     hero = planner.current_hero()
     level = planner.level_slider.value()
 
+    cards = planner.active_slots()
     slots = tuple(types.Slot(index=index, colour=slot.colour, deep=slot.deep)
-                  for index, slot in enumerate(planner.active_slots()))
-    problem = types.SlotProblem(slots=slots)
+                  for index, slot in enumerate(cards))
+    holding = planner.held_slot_indices()
+    held = tuple(_held_slot(index, card) for index, card in enumerate(cards)
+                 if index in holding)
+    problem = types.SlotProblem(slots=slots, held=held)
 
     armed = [slot for slot in planner.weapon_slots if slot.filled]
     armaments = tuple(types.ArmamentRef(weapon_id=slot.weapon["id"],
