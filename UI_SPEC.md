@@ -2867,12 +2867,20 @@ game, and it could not find one on this PC.
 In Steam, right-click ELDEN RING NIGHTREIGN in your library and choose
 Manage, then Browse local files. Pick the folder that opens.
 
-Nothing in that folder is changed, moved or deleted. It is only read.
+Nothing in that folder is changed, moved or deleted. To read the game's
+files, Nightreign Helper runs a small program out of that folder, so pick a
+copy of the game you trust — normally the one you play.
 
 [ Quit ]  [ Choose folder... ]
 
 You can close this and come back later. It will ask again.
 ```
+
+> *Nachgezogen am 08.09.2026 (T-145, SEC-027).* Der zweite Satz hiess bis
+> dahin `It is only read.` — das war falsch: aus dem gewaehlten Ordner wird
+> eine Bibliothek **ausgefuehrt**. Begruendung, Wortlaut und Kriterien im
+> Nachtrag „Was aus dem gewaehlten Ordner wirklich passiert" am Ende dieser
+> Datei. Der erste Satz ist unveraendert und bleibt richtig.
 
 **A2 — spaeterer Start, gemerkter Ordner weg, keine Daten da**
 
@@ -2930,8 +2938,16 @@ Its folder is not named after ELDEN RING NIGHTREIGN, so this may be a
 different game. Reading it takes about a minute, and every number would be
 wrong.
 
+To read it, Nightreign Helper runs a small program out of this folder, so
+only carry on with a copy of the game you installed yourself.
+
 [ Use this folder anyway ]  [ Choose a different folder... ]
 ```
+
+> *Nachgezogen am 08.09.2026 (T-145, SEC-027).* Der vierte Absatz ist neu und
+> sagt sinngemaess dasselbe wie A1. W1 ist der Fall, in dem der Ordner schon
+> einmal nicht das ist, wonach er aussieht — hier steht der Satz naeher an der
+> Entscheidung als irgendwo sonst.
 
 **C1 — bestaetigt, gleicher Ordner** (`GOOD`, dann sofort der Bau-Zustand)
 
@@ -2943,6 +2959,27 @@ Found your game in {Pfad}
 
 ```
 Found your game in {Pfad}, inside the folder you picked.
+```
+
+> *Nachgezogen am 08.09.2026 (T-145).* C2 ist unveraendert, steht aber jetzt
+> **hinter** der Rueckfrage C3 statt vor dem Bau. Siehe den Nachtrag am Ende
+> dieser Datei.
+
+**C3 — Rueckfrage, wenn der aufgeloeste Ordner vom gewaehlten abweicht**
+*(neu am 08.09.2026, T-145; Frage-Zustand, nicht Meldung)*
+
+```
+Is this your game?
+
+You picked:
+{gewaehlter Pfad}
+
+The game itself is in:
+{aufgeloester Pfad}
+
+That is the folder Nightreign Helper will read from.
+
+[ Choose a different folder... ]  [ Use this folder ]
 ```
 
 **S1 — Erklaerung am Spielstand-Knopf** (Tooltip von `Find my save…`)
@@ -3083,7 +3120,12 @@ und Fensterkreuz zu `Continue with the data from {Datum}`.
 Pruefung: Programm nach der Bestaetigung waehrend des Baus hart beenden, neu
 starten — es fragt nicht erneut.
 
-**AK-118** Zwischen der Bestaetigung (C1/C2) und dem Beginn des Baus liegt
+**AK-118** *(nachgezogen am 08.09.2026, T-145 — die Fassung unten gilt
+unveraendert fuer **C1**; fuer **C2** liegt seit der Director-Entscheidung vom
+08.09.2026 die Rueckfrage C3 davor. Siehe AK-232 bis AK-239 im Nachtrag am
+Ende dieser Datei; die alte Fassung bleibt hier stehen, damit sichtbar ist,
+wovon abgewichen wird.)*
+Zwischen der Bestaetigung (C1/C2) und dem Beginn des Baus liegt
 **kein** weiterer Klick. Das Fenster wechselt in den Fortschrittszustand,
 ohne die Breite zu aendern.
 
@@ -7783,3 +7825,296 @@ keine gestrichen, und es folgt keine Zeile Anwendungscode.
 gefallen, stand aber in keinem Auftrag; T-135 hat F-R deshalb noch als offen
 gefuehrt (dortiges §4, letzter Punkt). Diese Zeile schliesst die Luecke, damit
 die naechste Rolle nicht dieselbe Frage ein drittes Mal aufmacht.
+
+---
+
+## Was aus dem gewaehlten Ordner wirklich passiert, und die Rueckfrage im
+## Fall C2 (ui-ux-designer, T-145) — 2026-09-08
+
+**Grundlage:** `docs/tasks/T-145.md` · `docs/berichte/T-144-security-reviewer.md`
+(Abschnitt 2 zu SEC-027 und SEC-026, Abschnitt 4 „Sollte" S1, Beobachtung B1)
+· `ARCHITECTURE.md` Nachtrag XI, AD-030 (Aufloesungspunkt und die Kette 1-5)
+und die Bauschritt-Tabelle V1-V5 · `UI_SPEC.md`, Abschnitt „Der Erststart mit
+Ordnerauswahl" (T-074) vollstaendig, insbesondere §3, §4.2, §4.3, §4.4, §7,
+§8, §9 und AK-106 bis AK-132 · `CLAUDE.md` (A8, NH-002).
+
+**Methode:** ausschliesslich Textarbeit. **Das Programm wurde nicht
+gestartet**, es gibt aus diesem Lauf **keinen Bildnachweis und keine
+Messung**; der Ablauf ist ohnehin noch nicht gebaut (V1 und V2 stehen aus).
+Jede Pixelangabe unten ist ein **Sollwert** in der Messumgebung aus §0 des
+T-074-Abschnitts (Windows 10, Fusion, dunkle Palette, Anzeige 100 %,
+**logische** Pixel), keine Messung (L-009).
+
+**Was dieser Nachtrag ist:** zwei Praezisierungen, beide **vor** V2, weil V2
+genau diese Stellen baut. **Kein neuer Entwurf.** Der T-074-Abschnitt bleibt
+im Uebrigen Wort fuer Wort in Kraft.
+
+### 1. SEC-027 — der Satz, den der Code nicht haelt
+
+**Der Befund.** `nrdata/oodle.py:44` laedt mit `ctypes.CDLL` eine native
+Bibliothek **aus dem gewaehlten Ordner**; das ist keine Lesung, sondern eine
+Ausfuehrung, und sie passiert nicht nur bei der Wahl, sondern bei **jedem**
+Datenneuaufbau — nach jedem Spielpatch, ohne Fenster und ohne Klick
+(`extract.py:181`, `icons.py:82`, `bossdata.py:320`, ueber
+`datasource._load_data`). Der Panel-Satz `It is only read.` sagte das
+Gegenteil.
+
+**Warum das ein Oberflaechenbefund ist und kein Codebefund.** Die einzige
+Sicherheitsfunktion dieses Ablaufs ist die Zustimmung des Nutzers zu einem
+Ordner. Der Text macht sie uninformiert — der Angreifer gewinnt keine Rechte,
+die der Nutzer nicht selbst haette geben koennen, sondern **dass der Nutzer
+nicht weiss, dass er sie gegeben hat**. Der Praezedenzfall im Haus
+(`security/findings.md:268-270`, Nutzerentscheid 02.09.2026): *"Eine Zusage,
+die der Code nicht haelt, wird nicht dadurch richtig, dass der Ausloeser
+unwahrscheinlich ist."*
+
+**Was geaendert ist — zwei Textstellen, beide in §7 nachgezogen:**
+
+- **A1**, dritter Absatz. `Nothing in that folder is changed, moved or
+  deleted.` **bleibt** — diese Zusage haelt der Code (§4.4: nichts wird
+  verschoben, kopiert oder geloescht). Ersetzt ist allein `It is only read.`
+- **W1**, neuer vierter Absatz, sinngemaess derselbe Satz.
+
+**Warum dieser Wortlaut.**
+
+1. **Er nennt den Handelnden.** `Nightreign Helper runs …` — nicht „a program
+   is run". Wer laeuft, und auf wessen Rechnung, ist genau die Information,
+   die fehlte.
+2. **Er bindet an den Ordner, nicht an das Spiel im Allgemeinen.** `out of
+   that folder` steht da, weil der Ordner das ist, worueber der Nutzer gerade
+   entscheidet.
+3. **Er sagt, was daraus folgt** — `so pick a copy of the game you trust —
+   normally the one you play.` Ohne diesen Halbsatz ist die Information wahr
+   und nutzlos: der Spieler weiss dann etwas, kann aber nichts damit anfangen.
+4. **Er macht keine Angst.** Kein „warning", kein „malicious", kein
+   Ausrufezeichen, keine `BAD`-Farbe. Der Normalfall ist der eigene
+   Spielordner, und der Satz endet auf genau diesem Normalfall. In W1 ist er
+   eine Spur fester (`only carry on with a copy of the game you installed
+   yourself`), weil W1 der Fall ist, in dem der Ordner schon einmal nicht das
+   ist, wonach er aussieht.
+5. **Spielersprache.** „a small program" statt Bibliothek, DLL oder Dekoder.
+   Der Spieler muss nicht wissen, *welches* Programm — er muss wissen, **dass**
+   eines laeuft.
+6. **Keines der in §7 verbotenen Woerter** kommt vor (AK-127), und beide Saetze
+   sind Englisch (A8, AK-128).
+
+### 2. Die dritte beruehrte Stelle — gemeldet, nicht still umgebaut
+
+Der Auftrag nennt zwei Stellen. Der neue Satz zieht **eine dritte** nach, und
+ich schreibe sie hier aus, statt sie zu verschweigen:
+
+**§3, Reihenfolge Punkt 5, und §8, Tokentabelle.** Punkt 5 heisst heute
+*„Beruhigung: dass nichts angefasst wird (`MUTED`)"*. Beides stimmt nach
+Punkt 1 nicht mehr genau:
+
+- **Der Inhalt** ist nicht mehr nur Beruhigung, sondern **Einordnung**: was
+  mit dem Ordner geschieht und was daraus folgt. Punkt 5 heisst deshalb ab
+  jetzt **„Einordnung: was mit dem Ordner geschieht"**. Position und
+  Reihenfolge bleiben unveraendert.
+- **Die Farbe** ist fuer diesen Block nicht mehr `MUTED`, sondern die normale
+  Textfarbe. **Begruendung, und sie ist im Bestand schon vergeben:** AK-129
+  nimmt die **Pfadzeile** aus `MUTED` heraus, „weil sie das ist, was der
+  Nutzer pruefen soll". Fuer den einzigen Satz, auf dem die Entscheidung
+  ruht, gilt dasselbe Argument. **Nicht** der Grund ist der Kontrast: `MUTED`
+  `#8a8a8a` gegen `PANEL` `#1e1f23` rechnet sich aus den Token zu rund
+  **4,8:1** und liegt damit ueber der AA-Schranke — das ist eine **Rechnung
+  aus zwei Hexwerten, keine Messung am Fenster**, und der Frage-Zustand ist
+  noch nicht gebaut. Der Grund ist die Gewichtung: der schwaechste Text des
+  Fensters darf nicht der sein, der die Zustimmung traegt.
+- **Kein neues Token.** Es wird ein vorhandenes weniger benutzt, keines
+  hinzugefuegt. Die Fusszeile bleibt `MUTED`.
+
+**Nicht geaendert:** die uebrigen Punkte von §3, die Tokenliste selbst, und
+kein anderes Kriterium des T-074-Abschnitts.
+
+### 3. AK-118 nachgezogen — der Fall C2 bekommt eine Rueckfrage
+
+**Die Entscheidung** (Director, 08.09.2026, auf S1 des `security-reviewer`):
+Weicht der **aufgeloeste** Ordner von dem ab, auf den der Mensch gezeigt hat
+(Fall **C2**), wird er **vor dem Bau bestaetigt**. Im Fall **C1** —
+aufgeloest ist gleich gewaehlt — aendert sich **nichts**; A15 und AK-106
+bleiben unberuehrt.
+
+**Warum ueberhaupt.** Beobachtung B1 des `security-reviewer`: der ganze Ablauf
+hat heute **genau eine** Nutzerentscheidung, und die faellt im Systemdialog.
+Der Ordner, aus dem dann Code laeuft, muss nicht derselbe sein — §4.2 sucht
+drei Ebenen nach unten und zwei nach oben. Wer zeigt, sieht sonst nie, was
+genommen wurde.
+
+#### 3.1 Wann C3 kommt, und wann nicht
+
+Nach der Ordnerwahl, in dieser Reihenfolge:
+
+1. **Stufe 1 faellt aus** (§4.3) → **E1**. Kein C3.
+2. **Stufe 2 faellt aus** (Name ohne `NIGHTREIGN`) → **W1**. Wird W1 mit
+   `Use this folder anyway` beantwortet, folgt **kein** C3: W1 zeigt den
+   gefundenen Ordner bereits vollstaendig und stellt genau diese Frage. **Eine
+   Rueckfrage je Wahl, nie zwei.**
+3. **Aufgeloest ist gleich gewaehlt** → **C1**, dann sofort der Bau-Zustand.
+   **Unveraendert, das ist AK-118 in seiner alten Fassung.**
+4. **Aufgeloest weicht ab** → **C3**, dann auf `Use this folder` die
+   vorhandene Zeile **C2** und der Bau-Zustand.
+
+#### 3.2 Was C3 zeigt
+
+Der Frage-Zustand des vorhandenen Fensters, kein zweites Fenster, kein Modal
+darueber. Aufbau nach §3, Breite `460` logische px wie alle anderen Zustaende,
+Hoehe inhaltsabhaengig.
+
+- Ueberschrift `Is this your game?`
+- **Beide Pfade, vollstaendig und ungekuerzt**, jeder mit seiner eigenen
+  Beschriftung (`You picked:` / `The game itself is in:`) und auf einer
+  eigenen, **umbruchfaehigen** Zeile in **normaler Textfarbe** (AK-129).
+  Beide Pfade sind Spielordner — die Vertraulichkeitsregel aus §5 und AK-126
+  betrifft nur den **Spielstand**pfad und ist hier nicht beruehrt.
+- Ein Satz, der sagt, welcher der beiden gilt: `That is the folder Nightreign
+  Helper will read from.`
+- Keine Wiederholung des Satzes aus Punkt 1. Er stand eine Bildschirmseite
+  vorher in A1; ein zweites Mal waere Laerm, und C3 ist keine Warnung.
+- **Keine `BAD`-Farbe, keine Warnmarke.** C3 ist der Normalausgang einer
+  richtigen Wahl, nicht ein Fehler (siehe Punkt 5).
+
+#### 3.3 Wie C3 beantwortet wird
+
+- **Zwei Knoepfe**, Fluent-Konvention wie im ganzen Ablauf: der bestaetigende
+  rechts, der abbrechende links davon.
+  `[ Choose a different folder... ]  [ Use this folder ]`
+- **Standardknopf ist `Use this folder`**, Enter loest ihn aus. Das ist der
+  Unterschied zu **AK-113**, wo der Standardknopf ausdruecklich **nicht** das
+  Weitermachen ist: W1 fragt nach einem Verdacht, C3 fragt nach einer
+  Selbstverstaendlichkeit (§4.2: der Nutzer waehlt fast sicher den
+  Elternordner). Ein Standardknopf, der den Normalfall in den Dateidialog
+  zurueckwirft, waere Schikane.
+- **Tastatur:** Tab erreicht beide Knoepfe, der Fokus ist sichtbar, Enter
+  loest den Standardknopf aus (AK-130 gilt unveraendert weiter).
+- **`Choose a different folder...`** oeffnet erneut den Systemordnerdialog.
+  **Startort ist der zuvor gewaehlte Ordner**, nicht der aufgeloeste — der
+  Nutzer will von dort aus woanders hin. Bricht er den Systemdialog ab, kehrt
+  er nach C3 zurueck, in genau den Zustand, in dem er es verlassen hat; das
+  ist das Muster aus AK-115.
+- **Escape und das Fensterkreuz** bedeuten in C3 dasselbe wie in A1, A2, E1
+  und W1: das Programm endet, **ohne** gespeicherte Angabe (§9). Das ist eine
+  Ergaenzung der Aufzaehlung in §9 um einen Zustand, keine Aenderung ihrer
+  Regel.
+
+#### 3.4 Was gespeichert wird, und wann
+
+**Nichts vor der Antwort.** `paths/game` wird im Fall C2 erst geschrieben,
+wenn `Use this folder` gedrueckt ist — dann aber weiterhin **vor** dem Beginn
+des Baus. **AK-117 bleibt Wort fuer Wort gueltig**; was sich verschiebt, ist
+allein der Zeitpunkt, an dem „bestaetigt" im Fall C2 eintritt. Ein Abbruch in
+C3 laesst den alten Wert unangetastet — er wird auch nicht geloescht
+(AD-030: kein `remove` auf `paths/`).
+
+### 4. Ausdruecklich nicht Teil dieser Praezisierung
+
+- **Ob die geladene Bibliothek geprueft wird** (Signatur, Herkunft, Hash). Das
+  ist eine Frage an den App Designer, sie liegt ihm vor, und sie haengt mit
+  SEC-016/017/018 zusammen. Der Text oben behauptet **keine** Pruefung.
+- **Ob SEC-016/017/018 gestrichen bleiben.**
+- **Eine Rueckfrage beim Start**, ob der gemerkte Ordner noch gewollt ist. Sie
+  bricht AK-106 und ist genau die Reibung, die A15 beseitigt. C3 kommt **nur**
+  nach einer Wahl von Hand.
+- **Ein Klick im Fall C1.** Ausdruecklich nicht.
+- **Der Text des Transparenzabschnitts in README/`docs/anleitung/`.** Der
+  `security-reviewer` weist zu Recht darauf hin, dass dieselbe Aussage dort
+  hingehoert (SEC-006, Nutzerentscheid 02.09.2026). Das ist
+  `technical-writer`, nach V3, und steht in keinem Auftrag.
+
+### 5. Was ich melde, statt es zu entscheiden
+
+**C2 ist nicht der Ausnahmefall, sondern der Regelfall.** §4.2 sagt es
+woertlich: *„Der Nutzer waehlt fast sicher `...\ELDEN RING NIGHTREIGN`, nicht
+`...\ELDEN RING NIGHTREIGN\Game`."* Genau diese Wahl ist C2. Die Begruendung
+der Entscheidung — *„der Klick kostet nur dort, wo das Programm einen anderen
+Ordner nimmt als gezeigt"* — trifft damit **fast jeden**, der das Panel
+ueberhaupt zu sehen bekommt; C1 erreicht nur, wer den `Game`-Ordner selbst
+trifft. **Ich schreibe die Entscheidung wie erteilt aus** und melde die Zahl
+dahinter, weil sie in der Begruendung anders klingt. Drei Dinge federn es ab:
+das Panel sieht nur, wessen Spiel die Automatik nicht findet (AK-106); der
+Standardknopf ist der bestaetigende, ein Enter genuegt; und C3 zeigt dem
+Nutzer zum ersten Mal, **welchen** Ordner das Programm wirklich nimmt — das
+ist auch ohne Sicherheitsargument die bessere Auskunft.
+
+**Zwei Textzeilen mehr in A1.** Der neue Satz ist laenger als der ersetzte;
+bei 460 px Breite rechne ich mit **rund zwei zusaetzlichen Zeilen**. Das ist
+eine Schaetzung aus der Zeichenzahl, **keine Messung** — die Hoehe ist
+inhaltsabhaengig (Mindesthoehe 230), und der Nachweis, dass nichts
+abgeschnitten ist, ist **AK-129** und gehoert an das laufende Fenster.
+
+### 6. Akzeptanzkriterien
+
+*Neu vergeben: **AK-230 bis AK-239**. Gegen `UI_SPEC.md` geprueft, hoechste
+belegte Nummer vor diesem Lauf war AK-229.*
+
+**AK-230** *(SEC-027)* Kein Text dieses Ablaufs sagt oder legt nahe, aus dem
+gewaehlten Ordner werde ausschliesslich gelesen. **A1 und W1 sagen beide, dass
+das Programm etwas aus diesem Ordner ausfuehrt.** Pruefung: der gebaute
+Wortlaut von A1 und W1 ist der aus §7 in der Fassung dieses Nachtrags, Wort
+fuer Wort; die Zeichenkette `It is only read` kommt im gesamten
+Anwendungscode **nicht** vor.
+
+**AK-231** Die drei neuen Textstellen (A1 Absatz 3, W1 Absatz 4, C3) sind
+Englisch (A8, AK-128) und enthalten **keines** der in §7 aufgelisteten
+verbotenen Woerter (AK-127). Pruefung: Wortliste gegen die drei Bloecke,
+Gross-/Kleinschreibung egal.
+
+**AK-232** *(C2 → C3)* Weicht der aufgeloeste Ordner vom gewaehlten ab,
+erscheint **vor** dem Bau der Zustand C3 und zeigt **beide** Pfade
+vollstaendig, jeder mit seiner Beschriftung. Pruefung: den Elternordner der
+Installation waehlen — C3 erscheint, der Bau beginnt nicht, und keine
+Fortschrittsanzeige ist zu sehen.
+
+**AK-233** *(C1 unberuehrt, A15/AK-106)* Ist der aufgeloeste Ordner gleich dem
+gewaehlten, erscheint **kein** C3 und **kein** zusaetzlicher Klick: C1, dann
+sofort der Bau-Zustand. Pruefung: den Ordner waehlen, der `regulation.bin`
+direkt enthaelt — die Fensterfolge ist die aus AK-118 in seiner alten Fassung.
+
+**AK-234** In C3 ist `Use this folder` der Standardknopf und wird von Enter
+ausgeloest; danach erscheint die vorhandene Zeile C2 und der Bau beginnt
+**ohne weiteren Klick**. Pruefung: C3 nur ueber die Tastatur beantworten.
+
+**AK-235** `Choose a different folder...` in C3 oeffnet erneut den
+Systemordnerdialog, dessen Startort der **zuvor gewaehlte** Ordner ist. Wird
+der Systemdialog abgebrochen, steht wieder C3 mit denselben zwei Pfaden.
+Pruefung: zweimal hintereinander abbrechen — das Fenster bleibt in C3, und es
+wird nichts gemeldet und nichts gespeichert.
+
+**AK-236** *(nichts vor der Antwort)* Solange C3 offen ist, ist `paths/game`
+unveraendert. Pruefung: in C3 das Programm hart beenden und neu starten — es
+fragt erneut, und ein zuvor gemerkter Pfad steht noch auf seinem alten Wert.
+
+**AK-237** *(hoechstens eine Rueckfrage je Wahl)* Wurde W1 mit `Use this
+folder anyway` beantwortet, erscheint **kein** C3, auch wenn der aufgeloeste
+Ordner vom gewaehlten abweicht. Pruefung: einen umbenannten Spielordner ueber
+seinen Elternordner waehlen — es kommt genau ein Frage-Zustand, nicht zwei.
+
+**AK-238** Escape und das Fensterkreuz beenden aus C3 heraus das Programm ohne
+Fehlerdialog und ohne gespeicherte Angabe, wie in A1, A2, E1 und W1 (§9).
+
+**AK-239** *(Skalierung, Nachweis am Fenster)* Bei Windows-Anzeige 100 %,
+125 % und 150 % sowie bei den Programmfaktoren bis `200%` ist in A1, W1 und C3
+kein Text abgeschnitten, kein Knopf ausserhalb des Fensters, und es gibt keine
+waagerechte Bildlaufleiste; die beiden Pfadzeilen in C3 brechen um, statt die
+Breite von `460` logischen px zu sprengen. **Nachweis am laufenden Fenster,
+aus dem Fenster gezogen** (AK-129/AK-132-Muster, NH-002).
+
+### 7. Offene Fragen an den App Designer
+
+1. **Soll C3 auch dann kommen, wenn der aufgeloeste Ordner ein *Kind* des
+   gewaehlten ist — also im Normalfall `...\ELDEN RING NIGHTREIGN` →
+   `...\Game`?** So ist es hier vorgegeben, und so ist die Entscheidung
+   erteilt. Die Gegenoption waere, nur den **Aufstieg** (§4.2: bis zu zwei
+   Elternebenen nach oben) und den Wechsel in einen anderen Zweig
+   zurueckzufragen — dann kostet der Klick nur die Faelle, in denen das
+   Programm den Baum **verlaesst**, den der Nutzer gezeigt hat, und der
+   Regelfall bleibt klickfrei. **Empfehlung: erst so lassen wie vorgegeben**
+   und nach dem ersten `power-user`-Lauf entscheiden — die Auskunft „aus
+   diesem Ordner wird gelesen" ist beim Erststart auch fuer sich genommen
+   nuetzlich.
+2. **Soll derselbe Satz auch im Programm sichtbar bleiben, nachdem der Ordner
+   einmal bestaetigt ist** — etwa in der Transparenzzeile des README oder an
+   einer Stelle im Fenster? Diese Vorgabe sagt ihn genau einmal, im Moment der
+   Entscheidung. Der `security-reviewer` haelt den README-Satz fuer faellig
+   (SEC-006, Nutzerentscheid 02.09.2026); das waere `technical-writer`-Arbeit
+   nach V3.
