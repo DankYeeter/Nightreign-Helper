@@ -725,7 +725,15 @@ def test_rescanning_the_save_stops_the_search_before_the_relics_change(
 
     What the window still held at the moment it said so is recorded: a call
     moved below the read would hand the advisor the new inventory to forget.
+
+    Since T-142 the read is in a thread and the moment is the **arrival**, not
+    the asking (AD-029 point 3): while the read is out, every answer in the
+    cache is still about the stock on screen and is still right. The order
+    this case is about is unchanged and is the only thing it asserts -- said
+    before `self.owned` is replaced, and about the inventory being replaced.
     """
+    from tests import conftest
+
     real = planner.advisor_bar.the_data_is_changing
     held = []
 
@@ -736,6 +744,8 @@ def test_rescanning_the_save_stops_the_search_before_the_relics_change(
     monkeypatch.setattr(planner.advisor_bar, "the_data_is_changing", spy)
     before = planner.owned
     planner.rescan_save()
+    assert held == [], "nothing on screen is out of date while the read is out"
+    conftest.wait_for_the_save(planner)
     assert len(held) == 1
     assert held[0] is before
 

@@ -79,10 +79,19 @@ def test_the_save_folder_is_offered_as_text(planner, monkeypatch):
     """
     if planner.owned is None:
         pytest.skip("this machine has no save to read")
+    from tests import conftest
+
     owned = planner.owned
     owned.folder = HOSTILE_NAME
-    monkeypatch.setattr(inventory, "load", lambda _data: owned)
+    # Both halves of the read are stood in for, because the window uses both
+    # since T-142: the records come back from the thread and the inventory is
+    # built from them in the main thread.
+    monkeypatch.setattr(inventory, "scan", lambda _data: inventory.SaveScan(
+        source=owned.source, folder=HOSTILE_NAME, source_bytes=0,
+        owned=[], handle_of={}, loadouts=[]))
+    monkeypatch.setattr(inventory, "build", lambda _data, _found: owned)
     planner.rescan_save()
+    conftest.wait_for_the_save(planner)
     tip = planner.owned_label.toolTip()
     assert "<img" not in tip
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip

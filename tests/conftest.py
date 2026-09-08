@@ -243,8 +243,43 @@ def settings_store(qapp):
     clear_settings()
 
 
+def wait_for_the_save(window, timeout_ms: int = 60000):
+    """Let a window finish reading its save, and hand it back.
+
+    Since T-142 the save is read in a thread (AD-029 stage B), so a window is
+    complete before its relics are. Every case that is about anything else
+    wants the window a synchronous read would have left -- counts in the slot
+    headings, the chalice list on the save's own builds -- and this is how it
+    is asked for, in one place rather than in each of them.
+
+    Waited for as a **state** and not for a span: the loop ends when the read
+    has ended, whenever that is. The deadline is a fuse against a hang, never
+    a claim about how long a read takes, and a case that trips it fails loudly
+    rather than going on with half a window.
+    """
+    import time
+
+    from PySide6.QtCore import QEventLoop
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + timeout_ms / 1000
+    while window.save_reader.is_reading():
+        QApplication.processEvents(QEventLoop.AllEvents, 10)
+        if time.monotonic() > deadline:
+            raise AssertionError(
+                f"the save was still being read after {timeout_ms} ms")
+        time.sleep(0.002)
+    # A few turns more, because the worker's `finished` is queued behind its
+    # `ready`: the answer is in the window before the thread has been cleared
+    # away, and a case that went on at once would leave a `QThread` to be
+    # destroyed by the garbage collector while it was still running.
+    for _ in range(5):
+        QApplication.processEvents(QEventLoop.AllEvents, 10)
+    return window
+
+
 def _new_planner(data: dict):
-    """A real Planner window, never shown.
+    """A real Planner window, never shown, with its save already read.
 
     This is the whole application object: it reads the save if there is one,
     builds every tab and computes a build. Tests that compare what two tabs
@@ -253,7 +288,7 @@ def _new_planner(data: dict):
     from nrplanner import app as appmod
 
     clear_settings()
-    return appmod.Planner(data)
+    return wait_for_the_save(appmod.Planner(data))
 
 
 @pytest.fixture

@@ -72,10 +72,13 @@ def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
     """
     from nrplanner import app as appmod
 
-    from tests.conftest import clear_settings
+    from tests.conftest import clear_settings, wait_for_the_save
 
     clear_settings()
-    window = appmod.Planner(data)
+    # The save is read in a thread since T-142, and the Build planner page is
+    # what sets this window's floor: a measurement taken before the relics
+    # arrive is a measurement of a different page.
+    window = wait_for_the_save(appmod.Planner(data))
     try:
         tab = getattr(window, tab_name)
         window.findChild(QTabWidget).setCurrentWidget(tab)

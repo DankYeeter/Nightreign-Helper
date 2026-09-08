@@ -24,6 +24,7 @@ from __future__ import annotations
 import pytest
 
 from nrplanner import inventory
+from tests import conftest
 from tests.relics import select_vessel, stored_keys, vessel_at
 
 
@@ -132,7 +133,7 @@ def test_a_custom_relic_is_still_there_in_the_next_session(planner, game_data):
     assert stored_keys(planner, vessel["id"])[0], "the premise"
 
     planner.close()
-    next_session = appmod.Planner(game_data)
+    next_session = conftest.wait_for_the_save(appmod.Planner(game_data))
     try:
         worn = next_session.base_slots[0].current_relic()
         assert worn is not None, "the build named it, so the build gets it back"

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import QToolButton
 from nrplanner import advisorbar, app as appmod, chalices, favourites
 from nrplanner.advisor import types
 
+from tests import conftest
 from tests.test_advisor_apply import (a_live_answer, an_answer_for, keys_of,
                                       two_offers)
 
@@ -155,7 +156,7 @@ def test_a_window_opened_afresh_holds_nothing(planner, game_data):
     hold(planner.active_slots()[0])
     assert planner.held_slot_indices()
 
-    restarted = appmod.Planner(game_data)
+    restarted = conftest.wait_for_the_save(appmod.Planner(game_data))
     try:
         assert restarted.held_slot_indices() == frozenset()
         cards = list(restarted.base_slots) + list(restarted.deep_slots)

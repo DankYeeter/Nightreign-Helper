@@ -5,11 +5,13 @@ from __future__ import annotations
 import html
 import os
 import sys
+import traceback
 
-from PySide6.QtCore import QPoint, QPointF, QProcess, QSettings, QSize, Qt
+from PySide6.QtCore import (QObject, QPoint, QPointF, QProcess, QSettings,
+                            QSize, Qt, QThread, Signal)
 from PySide6.QtGui import (
-    QColor, QCursor, QFont, QIcon, QPainter, QPalette, QPen, QPixmap,
-    QLinearGradient, QPolygonF, QRadialGradient,
+    QColor, QCursor, QFont, QFontMetrics, QIcon, QPainter, QPalette, QPen,
+    QPixmap, QLinearGradient, QPolygonF, QRadialGradient,
 )
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFrame,
@@ -566,6 +568,32 @@ HELD_EMPTY = "Held empty — Optimize will not fill this slot."
 HOLD_RELEASED = ("A relic you were holding is no longer in your inventory, "
                  "so this slot was released.")
 
+#: What the save line says while the first read of the session is out
+#: (`UI_SPEC` T-141 §9 (a), AK-221). A state rather than a nothing: an empty
+#: line here cannot be told apart from "no save was found".
+READING_THE_SAVE = "Reading your save."
+
+#: The same state on a `Rescan` (§9 (b)). The second sentence is the promise
+#: of §3 -- everything on screen goes on being true until the answer lands --
+#: and it is why the relic button is shut for exactly as long as it stands.
+READING_THE_SAVE_AGAIN = ("Reading your save again. Nothing changes until it "
+                          "is done.")
+
+#: The line an empty slot card carries while the first read is still out
+#: (§9 (c)). Related to the picker's `Your relics appear here.` and not the
+#: same sentence: there the empty surface is a grid, here it is one card, and
+#: the difference is in the subordinate clause.
+RELICS_AFTER_THE_SAVE = "Your relics appear when the save has been read."
+
+#: What the line says when there was no save to read (§9 (f)), unchanged.
+NO_SAVE_FOUND = ("No save file found. Relic slots stay empty; the Effects and "
+                 "Weapons tabs still work in full.")
+
+#: The one place this prefix is written (§8, AK-229). It stands only where no
+#: inventory came out of the read at all, so nothing behind it may claim that
+#: the save is fine.
+UNREADABLE_SAVE = "Save could not be read: "
+
 
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
@@ -597,6 +625,12 @@ class RelicSlot(QFrame):
         # at every redraw: a reason that has stopped being true is not a
         # reason, it is a leftover (QA-022).
         self.reason_holds = None
+        # Is a read of the save out at this moment? The card draws two things
+        # from it and nothing else keeps it: the relic button is shut while it
+        # is true (AK-223), and while it is true *and* nothing has been read
+        # yet the empty card says why it is empty (AK-221). Written by the
+        # window, which is the one place that knows.
+        self.the_save_is_being_read = False
         self.owned = None
         self.colour = 0
         self.pool: list[dict] = []
@@ -734,11 +768,25 @@ class RelicSlot(QFrame):
                 self.empty_reason = ""
                 self.reason_holds = None
 
+    def show_the_save_is_being_read(self, on: bool) -> None:
+        """Draw the read the window is waiting for, or the end of it.
+
+        Both halves of it at once, because they begin and end together: the
+        button that would open a picker with nothing in it, and the line that
+        says why the card is empty. Nothing else on the card moves.
+        """
+        self.the_save_is_being_read = on
+        self._sync_mode()
+
     def _sync_mode(self) -> None:
         """Show the rolled effects of the relic currently in this slot."""
         self._forget_a_spent_reason()
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
+        # Shut for as long as the read is out, in both situations (AK-223):
+        # at the start it would open on nothing, and on a `Rescan` the stock
+        # under its cards is replaced while it stands.
+        self.choose_button.setEnabled(not self.the_save_is_being_read)
         if item is None:
             # An empty slot says nothing unless it was emptied for a reason,
             # or unless it is being held empty on purpose. A slot whose relic
@@ -749,8 +797,17 @@ class RelicSlot(QFrame):
             # advisor will not fill this" and "this is why it is empty" are
             # different statements, and dropping either would answer a
             # question the player did not ask.
+            # The third line of the same kind, and it is a condition rather
+            # than a stored reason (§9 (c)). It cannot be put into
+            # `empty_reason`: the chalice restore that runs moments after a
+            # read begins calls `clear_relic()` on every slot, which is what
+            # a stored reason is for and would wipe this one -- so the card
+            # would fall silent exactly during the state the line is about.
+            # Same `MUTED` line in the same label as the other two (§10).
+            waiting = self.the_save_is_being_read and self.owned is None
             said = ([HELD_EMPTY] if self.is_held() else []) + (
-                [self.empty_reason] if self.empty_reason else [])
+                [self.empty_reason] if self.empty_reason else []) + (
+                [RELICS_AFTER_THE_SAVE] if waiting else [])
             self.rolled_label.setText("".join(
                 f"<div style='color:{MUTED}'>{line}</div>" for line in said))
             self.rolled_label.setVisible(bool(said))
@@ -1092,10 +1149,16 @@ class RelicSlot(QFrame):
         # "available" rather than "owned": a relic lying in another slot is
         # owned and is not offered here, so counting it would put a number on
         # the heading that the list underneath contradicts.
+        #
+        # No stock, no bracket (AK-222). While nothing has been read the
+        # number is not zero, it is unknown, and `(0 available)` would be a
+        # claim about what the player owns that the program cannot support
+        # (A7) -- and it is the shape that reads like lost data.
+        count = "" if self.owned is None else f"  ({len(items)} available)"
         self.title.setText(
             f"{self.slot_name()} — "
             f"{model.COLOUR_NAMES.get(self.colour, self.colour)}"
-            f"  ({len(items)} available)"
+            f"{count}"
         )
         self._sync_mode()
 
@@ -1404,8 +1467,213 @@ class HeroTile(QToolButton):
             self._apply_image()
 
 
+#: How long the window waits for a running save read when it is closing. A
+#: `wait()` in the main thread is forbidden while the program is running
+#: (AD-006.4) and is the only correct thing here: the alternative is a
+#: `QThread` deleted while its read is still going.
+#:
+#: Derived, not chosen. What this waits for is `inventory.scan`, measured at
+#: 657,2 ms (p50, the player's own save, S11-E carried forward in T-140). Its
+#: worst measured shape is the same read on the same save and the same machine
+#: before the prefilter existed: 6147,6 ms. Ten per cent over that is what is
+#: waited, so a save the prefilter turns out not to help still finishes its
+#: read instead of losing its thread underneath it: 6147,6 x 1,1 = 6762 ms,
+#: rounded up.
+SAVE_READ_SHUTDOWN_WAIT_MS = 6800
+
+
+class _SaveReadWorker(QObject):
+    """One reading of the save, off the main thread. Built once and dropped.
+
+    Never touches a widget, not even to read one: it is built with the dataset
+    it needs and everything it has to say goes out as a signal Qt delivers
+    into the main thread's event loop.
+
+    **The generation is stamped on here and nowhere else**, exactly as the
+    advisor's `_Worker` stamps an answer (AD-006.3): this is the one place
+    that knows both which reading was asked for and what came back, so
+    `inventory.scan` does not have to know that generations exist.
+    """
+
+    #: What the save held, as a `SaveScan` -- or `None` when no save was
+    #: found, which is an answer and not a failure.
+    ready = Signal(int, object)
+    #: A read that could not be finished, in one line and without a traceback.
+    #: An exception that merely propagated would end the thread in silence and
+    #: leave the window on its waiting sentence for ever (AK-224).
+    failed = Signal(int, str)
+    #: Always last, whatever happened, so the thread is quit from one place.
+    finished = Signal()
+
+    def __init__(self, generation: int, data: dict, read) -> None:
+        super().__init__()
+        self._generation = generation
+        self._data = data
+        self._read = read
+
+    def work(self) -> None:
+        try:
+            found = self._read(self._data)
+        except Exception as exc:  # noqa: BLE001 - reported, never raised on
+            traceback.print_exc()
+            self.failed.emit(self._generation,
+                             str(exc) or exc.__class__.__name__)
+        else:
+            self.ready.emit(self._generation, found)
+        self.finished.emit()
+
+
+class SaveReader(QObject):
+    """One reading of the save at a time, in a thread, and never out of date.
+
+    The same build as `AdvisorController` and deliberately not a second
+    mechanism (AD-029, AD-028): a worker in a `QThread`, a generation counter
+    that decides whether an answer still belongs to anybody, and a `shutdown`
+    that is the one place a `wait()` in the main thread is right.
+
+    Three differences, each because the two are asked different questions:
+
+    * **no debounce.** `Rescan save` is a click, not a dragged slider, and a
+      second click while a read is out starts nothing at all (AD-029 point 4)
+      rather than replacing what is running.
+    * **no cache.** A rescan exists to find out what changed on disk; an
+      answer kept from the last one is the one thing it must not hand back.
+    * **no cancelling.** `inventory.scan` has no place to look at a flag, and
+      a read the player abandoned costs the window nothing -- the generation
+      is what keeps its answer off the screen.
+
+    What crosses the thread boundary is a `SaveScan` and nothing else
+    (AD-029 point 1): records read out of bytes, never the living `Inventory`,
+    which the main thread builds out of them at the arrival (AD-006.8).
+
+    **What is read is handed in at construction**, the seam AD-028 built for
+    the advisor's two tracks: a case can state a read that never answers, one
+    that answers at once, or one that fails, and drive the whole real way --
+    thread, signal, generation check, window.
+    """
+
+    #: The scan for the read that is still the current one. Never for an
+    #: overtaken one: those are dropped here, wordlessly.
+    ready = Signal(object)
+    #: A read that could not be finished, in one line.
+    failed = Signal(str)
+
+    def __init__(self, parent: QObject | None = None, *, read=None) -> None:
+        super().__init__(parent)
+        # Looked up when a read starts and not written down here, so that
+        # `None` really means "whatever `inventory.scan` is at that moment".
+        # A default bound at import time would be a different function from
+        # the one a case had put in the module, and the case would pass by
+        # measuring the wrong thing.
+        self._read = read
+        self._generation = 0
+        self._answering = False
+        self._thread: QThread | None = None
+        self._worker: _SaveReadWorker | None = None
+
+    @property
+    def generation(self) -> int:
+        """Which reading is the current one (AD-006.3)."""
+        return self._generation
+
+    def is_reading(self) -> bool:
+        """Is an answer still to come?
+
+        Not "is a thread alive": the window asks this to decide what it may
+        say and what it may do, and from the moment the answer has been handed
+        over there is nothing left to wait for. The two part company for one
+        turn of the event loop -- the worker's `finished` is queued behind its
+        `ready` -- and a window that read the thread instead would refuse, at
+        the arrival, the very import the arrival is there to do.
+        """
+        return self._answering
+
+    def start(self, data: dict) -> bool:
+        """Begin a read, unless one is already out. Says which it did.
+
+        One read at a time (AD-029 point 4). A second `Rescan` while the first
+        is still going does nothing whatever -- it does not queue, it does not
+        replace -- because the line under the button already says what is
+        happening and the answer that is coming is the one the player wants.
+
+        Hands back whether it started one, so the window can tell a read it
+        has to draw a waiting state for from a click that changed nothing.
+        """
+        if self._thread is not None:
+            return False
+        self._generation += 1
+        self._answering = True
+        self._thread = QThread()
+        self._worker = _SaveReadWorker(self._generation, data,
+                                       self._read or inventory.scan)
+        self._worker.moveToThread(self._thread)
+        self._thread.started.connect(self._worker.work)
+        self._worker.ready.connect(self._on_ready)
+        self._worker.failed.connect(self._on_failed)
+        self._worker.finished.connect(self._thread.quit)
+        self._thread.finished.connect(self._on_thread_finished)
+        self._thread.start()
+        return True
+
+    def shutdown(self, timeout_ms: int = SAVE_READ_SHUTDOWN_WAIT_MS) -> None:
+        """Stop caring about the read and wait for it. Closing only.
+
+        **The generation goes up first**, and that line is the whole of the
+        lesson from the advisor's `shutdown` (Nachtrag X-1): a worker that
+        emitted its answer between the last check and the wait has left a
+        `ready` in the main thread's queue, `wait()` does not empty that
+        queue, and the turn of the event loop that the closing itself is would
+        deliver it to a window that is already going. Silence after `shutdown`
+        is meant to be a property of this class, and this is what makes it one
+        rather than a race no guard could watch without flickering.
+
+        Nothing is emitted here and nothing will be. There is nobody left to
+        read a sentence.
+        """
+        self._generation += 1
+        self._answering = False
+        thread = self._thread
+        if thread is not None:
+            thread.wait(timeout_ms)
+
+    def _on_thread_finished(self) -> None:
+        """Clear the read away, so the next `Rescan` can start one."""
+        self._worker.deleteLater()
+        self._thread.deleteLater()
+        self._worker = None
+        self._thread = None
+
+    def _on_ready(self, generation: int, found) -> None:
+        """Pass the scan on, if it is still the reading anybody is waiting for."""
+        self._answering = False
+        if generation != self._generation:
+            return
+        self.ready.emit(found)
+
+    def _on_failed(self, generation: int, reason: str) -> None:
+        """A read that could not be finished, if anyone is still waiting.
+
+        Judged by the same generation as an answer: a failure of a reading
+        nobody is waiting for any more is not news, and the sentence on screen
+        would be about a state that no longer exists.
+        """
+        self._answering = False
+        if generation != self._generation:
+            return
+        self.failed.emit(reason)
+
+
 class Planner(QMainWindow):
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, *, read_save=None):
+        """The window, and what it reads the save with.
+
+        `read_save` is the seam AD-028 built for the advisor's two tracks,
+        here for the one thing about this window that a case cannot otherwise
+        reach: a read that never answers, one that answers at once, one that
+        fails, one that finds no save. `None` is `inventory.scan`, which is
+        what a player always gets, and nothing but the reading goes through
+        it.
+        """
         super().__init__()
         self.data = data
         self.effects = data["effects"]
@@ -1575,7 +1843,21 @@ class Planner(QMainWindow):
         tabs.addTab(self.effects_tab, "Effects && chances")
 
         self.owned = None
+        # Set when the player put something in a slot themselves while the
+        # first read was still out. The stored build of the Nightfarers in it
+        # is then not taken over -- not at the arrival and not at a later
+        # change of Nightfarer either (AK-226). A set of hero ids and not a
+        # setting: it is about this session, and OF-15 is why nothing new goes
+        # into the settings store.
+        self._own_slots_beat_the_stored_build: set[int] = set()
+        self.save_reader = SaveReader(self, read=read_save)
+        self.save_reader.ready.connect(self._on_save_read)
+        self.save_reader.failed.connect(self._on_save_failed)
         self.rescan_save(initial=True)
+        # With the reading in the background this runs on no inventory, which
+        # is the point: every tab that does not come out of the save is
+        # complete in the first paint (AK-220). What the save would have added
+        # is added at the arrival, by `_on_save_read`.
         self.select_hero(0)
 
         self.weapons_tab = ArsenalTab(data, self, self.icons)
@@ -1703,6 +1985,21 @@ class Planner(QMainWindow):
         # is built, rather than at each of the seven places it is written.
         self.owned_label.setTextFormat(Qt.PlainText)
         self.owned_label.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
+        # Room for two lines from the first paint, so that the arrival of the
+        # save does not push what is under this line down (AK-225).
+        #
+        # Measured offscreen under Fusion at this pane's default width of 430
+        # logical px, 100 % scaling, on the player's own save: the waiting
+        # sentence `Reading your save.` takes 10 px and the inventory note
+        # `309 relics in USER_DATA000, 110 stored builds` takes 22 -- so
+        # without a floor the arrival would move everything below it by 12 px.
+        # Two lines, because the ordinary note is one clause and at most one
+        # optional clause (`UI_SPEC` T-141 §9 (e)); the two long endings, the
+        # fall-back note and the failure sentence, may still be higher and are
+        # exempted by AK-225 itself. Taken from the font rather than written
+        # down as a figure, so it follows whoever changes the font.
+        self.owned_label.setMinimumHeight(
+            2 * QFontMetrics(self.owned_label.font()).lineSpacing())
         layout.addWidget(self.owned_label)
 
         layout.addSpacing(8)
@@ -2030,14 +2327,21 @@ class Planner(QMainWindow):
         self.picker_advisor.shutdown()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        """Stop the advisor's threads and wait for them before the window goes.
+        """Stop every thread of this window and wait for it before it goes.
 
         The one place a `wait()` in the main thread is right (AD-006 point 4):
         a `QThread` that outlives the window it belongs to is destroyed while
         its run is still going, and that ends the process rather than the
         run.
+
+        Three threads and not two now: the two advisor tracks and the reading
+        of the save. All three raise their generation before they wait, so an
+        answer already in the main thread's queue cannot be delivered into a
+        window that is on its way out -- which is the defect T-137 measured on
+        the advisor, and there is no reason it would behave differently here.
         """
         self.shutdown_the_advisor()
+        self.save_reader.shutdown()
         super().closeEvent(event)
 
     def _opening_width(self, room: int | None = None) -> int:
@@ -2468,10 +2772,19 @@ class Planner(QMainWindow):
         # It happens once. From then on the chalice the player last had open
         # is what reopens, across sessions, because that choice is theirs;
         # Load equipped is how the save is asked again.
+        #
+        # Except where the player filled the slots themselves while the first
+        # read was still out (AK-226). Their work is what is on screen, and
+        # the save's build would be laid over it -- so it is marked as taken
+        # over without being taken over, which is what stops it turning up at
+        # the next change of Nightfarer instead.
         if (self.owned is not None
                 and not chalices.imported(hero["id"])
                 and self.owned.loadouts_for(hero["id"])):
             chalices.set_imported(hero["id"])
+            if hero["id"] in self._own_slots_beat_the_stored_build:
+                self._keep_the_slots_the_player_filled(first_row)
+                return
             self.load_equipped()
             return
 
@@ -2525,6 +2838,38 @@ class Planner(QMainWindow):
         self._settle_slots()
         # Drawn once the Deep switch and the slots have settled, so every row
         # shows the right number of slots and what that chalice holds.
+        self.refresh_vessel_rows()
+        self.recompute()
+
+    def _keep_the_slots_the_player_filled(self, first_row) -> None:
+        """Put the vessel list back around the slots without touching them.
+
+        The way out of `reload_chalices` for the one case AK-226 is about: the
+        player put something in a slot while the first read was still out, so
+        what is in the slots is theirs and neither the save's build nor a
+        stored one goes over it. The list itself has just been rebuilt and has
+        no current row, so the row of the vessel already applied is selected
+        back -- with the list's signals held, because its handler is what
+        would set the slots from a build.
+        """
+        row = next(
+            (i for i in range(self.chalice_list.count())
+             if (self.chalice_list.item(i).data(Qt.UserRole) or {}).get("id")
+             == getattr(self, "_applied_vessel", None)),
+            first_row,
+        )
+        if row is not None:
+            self.chalice_list.blockSignals(True)
+            self.chalice_list.setCurrentRow(row)
+            self.chalice_list.blockSignals(False)
+        # Written down under the vessel that is on screen, because nothing
+        # else has: the list's own handler is what usually stores a build and
+        # it was held above. Without this the slots the player filled would be
+        # theirs until they changed Nightfarer and back, and the restore would
+        # then find nothing stored and empty them -- which is the same loss by
+        # a longer road (AK-226 asks for both).
+        self._store_chalice()
+        self._settle_slots()
         self.refresh_vessel_rows()
         self.recompute()
 
@@ -3141,7 +3486,15 @@ class Planner(QMainWindow):
         This is also the moment a build the restore had to resolve becomes the
         player's own again: they have just moved a relic, so what the slots
         hold is theirs and is written down from here on.
+
+        That is also what makes this the place to note a slot set while the
+        first read is still out (AK-226). What arrives afterwards must not be
+        laid over it -- neither at the arrival nor at the next change of
+        Nightfarer, which is where a skipped import would otherwise turn up
+        unannounced.
         """
+        if self.save_reader.is_reading() and self.owned is None:
+            self._own_slots_beat_the_stored_build.add(self.current_hero()["id"])
         self._unresolved_clash = False
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
@@ -3433,23 +3786,65 @@ class Planner(QMainWindow):
         self.ar_label.setText("".join(rows))
 
     def rescan_save(self, initial: bool = False) -> None:
-        """Re-read the save so newly found relics show up without a restart."""
-        # Before the relics are replaced, not after (AD-006.7): a search
-        # already running was asked about the inventory that is about to go,
-        # and every answer in the cache was worked out on it.
-        self.the_advisor_data_is_changing()
-        try:
-            self.owned = inventory.load(self.data)
-        except Exception as exc:  # noqa: BLE001
-            self.owned = None
-            self.owned_label.setText(f"Save could not be read: {exc}")
-            return
+        """Ask for the save to be read, in the background, and say so.
 
+        The reading itself is 657,2 ms of the main thread on the player's own
+        save (S11-E, T-140), which is over the 250 ms AK-09 allows a window to
+        be gone for, so it happens in a thread (AD-029 stage B). What this
+        method does is start it and put the window into the state that says
+        so; what comes back arrives at `_on_save_read`.
+
+        **Nothing is invalidated here.** While the read is out, everything on
+        screen is still true -- the relics, the slots and every answer the
+        advisor has given about them -- and it stays true until the moment
+        `self.owned` is replaced. That is AD-029 point 3, and it is the whole
+        difference from the synchronous version, which had to throw the
+        advisor's caches away before it began because the replacement followed
+        immediately.
+
+        A press while a read is out starts nothing and changes nothing on
+        screen (AK-227): the line under the button already says what is
+        happening.
+        """
+        if not self.save_reader.start(self.data):
+            return
+        self._show_the_save_is_being_read(initial)
+
+    def _show_the_save_is_being_read(self, initial: bool) -> None:
+        """The waiting state: one line, one shut button, and nothing else.
+
+        A state and not a nothing (AK-221). No progress bar, no wait cursor,
+        no spinner, no second dialog -- a waiting mark beside a line that says
+        the same thing in words is the same news twice (`UI_SPEC` §4 (4)).
+        """
+        self.owned_label.setText(
+            READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)
+        for slot in self.base_slots + self.deep_slots:
+            slot.show_the_save_is_being_read(True)
+
+    def _the_save_has_been_read(self) -> None:
+        """Leave the waiting state. Every ending of a read comes through here."""
+        for slot in self.base_slots + self.deep_slots:
+            slot.show_the_save_is_being_read(False)
+
+    def _on_save_read(self, found) -> None:
+        """The save has been read: put the window where a synchronous read left it.
+
+        Counts, freed relic buttons, the chalice list on the new stock and --
+        when this was the first read of the session -- the one-off taking over
+        of the displayed Nightfarer's stored build, which `reload_chalices`
+        does and which had nothing to take over from when it last ran.
+
+        The advisor's caches are emptied **here**, not where the read was
+        asked for (AD-029 point 3): every answer in them was worked out on the
+        stock that is being replaced in the next line, and until this line
+        every one of them was right.
+        """
+        self.the_advisor_data_is_changing()
+        self.owned = None if found is None else inventory.build(self.data, found)
+        self._the_save_has_been_read()
         if self.owned is None:
-            self.owned_label.setText(
-                "No save file found. Relic slots stay empty; the Effects and "
-                "Weapons tabs still work in full."
-            )
+            self.owned_label.setText(NO_SAVE_FOUND)
             return
 
         note = f"{self.owned.relic_count} relics in {self.owned.source}"
@@ -3472,11 +3867,45 @@ class Planner(QMainWindow):
         # can contain a "<", so this is depth rather than a hole being shut:
         # the path is shown as the path, whatever it turns out to hold.
         self.owned_label.setToolTip(html.escape(self.owned.folder))
-        if not initial:
-            # reload_chalices, not apply_chalice: the relics have just changed
-            # underneath the slots, so the saved build has to be matched
-            # against the new inventory rather than left pointing at the old.
-            self.reload_chalices()
+        self._hand_the_stock_to_the_slots()
+        # reload_chalices, not apply_chalice: the relics have just changed
+        # underneath the slots, so the saved build has to be matched
+        # against the new inventory rather than left pointing at the old.
+        # Unconditional now, first read included -- when it ran during
+        # `__init__` there was no stock to match anything against.
+        self.reload_chalices()
+
+    def _hand_the_stock_to_the_slots(self) -> None:
+        """Give every card the inventory the window now holds.
+
+        Before the chalices are rebuilt, because the restore chooses out of
+        what the cards can offer: a build put back against an empty stock puts
+        nothing anywhere.
+
+        It is done here and not left to `apply_chalice` because `apply_chalice`
+        is not reached on every path out of `reload_chalices` -- a Nightfarer
+        whose save stores no equipped loadout leaves `load_equipped` before it.
+        While the reading was synchronous that could not be felt: the cards had
+        been given the stock during `select_hero`, long before any chalice was
+        built. With the reading in a thread the arrival is the only moment it
+        can happen, so it happens here, once, whatever the chalices go on to
+        do.
+        """
+        for slot in self.base_slots + self.deep_slots:
+            slot.owned = self.owned
+            slot.populate()
+
+    def _on_save_failed(self, reason: str) -> None:
+        """The read could not be finished. The one place the prefix is written.
+
+        The waiting sentence is never the last word (AK-224), on any of the
+        four ways a read can end, and this is the way that used to be a bare
+        `return` out of a `try`.
+        """
+        self.the_advisor_data_is_changing()
+        self.owned = None
+        self._the_save_has_been_read()
+        self.owned_label.setText(f"{UNREADABLE_SAVE}{reason}")
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
@@ -3484,9 +3913,15 @@ class Planner(QMainWindow):
         Reads the vessel that Nightfarer has selected and the relics sitting in
         it, so the planner starts from the real build rather than an empty one.
         """
-        # Same reason as in rescan_save: the slots of every chalice are about
-        # to be written from the save, so nothing may still be searching
-        # against what they held (AD-006.7).
+        # While a read is out this button does nothing and writes nothing into
+        # the line (`UI_SPEC` T-141 §5). The sentence it would write --
+        # `No save loaded, so there is nothing to import.` -- is one of the
+        # three §9 (h) forbids in this state, and it would be false: a save is
+        # being read at this very moment.
+        if self.save_reader.is_reading():
+            return
+        # The slots of every chalice are about to be written from the save, so
+        # nothing may still be searching against what they held (AD-006.7).
         self.the_advisor_data_is_changing()
         if self.owned is None:
             self.owned_label.setText("No save loaded, so there is nothing to import.")
