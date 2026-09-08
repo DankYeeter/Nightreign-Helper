@@ -198,9 +198,24 @@ class AdvisorController(QObject):
     """One advisor at a time, debounced, cancellable, and never out of date.
 
     The window asks with `ask` and hears back on exactly one of `ready`,
-    `failed` and `stopped`. Everything else -- which thread, which
-    generation, whether the answer was already known -- is settled here, so
-    that no drawing code has to remember any of it.
+    `failed` and `stopped` -- for the question that is still the current one
+    when it ends. Three things end a question without any of the three, and
+    each of them is a decision rather than a gap:
+
+    * **an overtaken question.** A later asking has raised the generation, and
+      the earlier answer is dropped without a word (AD-006 point 3); the later
+      question is the one that will be answered.
+    * **a hit in `ask_and_answer_if_known`.** The answer goes back as the
+      return value and nothing is emitted, so that a known answer can be drawn
+      in the first paint rather than one turn of the event loop later
+      (Nachtrag IX-1.3).
+    * **`shutdown`.** The window is closing. Nothing is emitted, and nothing
+      will be: the generation goes up here as it does in `cancel`, so an
+      answer already on its way cannot arrive after the wait (Nachtrag X-1).
+
+    Everything else -- which thread, which generation, whether the answer was
+    already known -- is settled here, so that no drawing code has to remember
+    any of it.
 
     **Two instances of this class, and the difference is what they were built
     with** (AD-028): `answer` is `run.run` for the Advisor bar and
@@ -374,7 +389,22 @@ class AdvisorController(QObject):
         The one place a `wait()` in the main thread is right: the alternative
         is a `QThread` deleted while its run is still going, which ends the
         process rather than the run.
+
+        **The generation goes up first, exactly as in `cancel`** (Nachtrag
+        X-1). A worker that sent its answer between its last check and the
+        interruption has left a `ready` in the main thread's queue; `wait()`
+        does not empty that queue, and the run of the event loop that the
+        closing itself is would deliver it to `_on_ready` -- which without
+        this line finds the generation unchanged and passes the answer on to
+        a window that is already going. Silence after `shutdown` is meant to
+        be a property of this class, and one line is what makes it one rather
+        than a race no guard could watch without flickering.
+
+        No signal goes out here, and that is a decision rather than an
+        oversight (X-1, option B rejected): `stopped` is a sentence to the
+        player (`UI_SPEC` 4.5, AK-11) and there is nobody left to read it.
         """
+        self._generation += 1
         self._pending = None
         self._timer.stop()
         self._interrupt_the_running_worker()

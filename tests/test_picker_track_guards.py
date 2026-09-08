@@ -492,21 +492,52 @@ def _the_data_is_rebuilt_under_the_run(qapp, question):
     return track, seen
 
 
-#: Every way one question of one opening can end, and how it must end.
+def _the_window_is_closing(qapp, question):
+    """The run is still out when `shutdown` comes, and the answer is late.
+
+    The one ordering the promise of Nachtrag X-0 is about: the worker has
+    been entered, `shutdown` interrupts it and waits with no patience at all
+    (`timeout_ms=0`, so the wait is over before the answer exists), and only
+    then is the answer let through. Whatever the worker sends now is sent
+    after the window has gone.
+    """
+    inventory, _problem, ctx, request = question
+    answers = picker_track.StatedAnswers([a_pool(request)], hold=True)
+    track = a_bare_track(answers)
+    seen = picker_track.Outcomes(track)
+    track.ask(request, inventory, ctx)
+    assert picker_track.spin(qapp, lambda: answers.calls == 1), (
+        "the run never started, so there was nothing still out when the "
+        "window closed and this fixture would be about nothing")
+    track.shutdown(timeout_ms=0)
+    answers.release()
+    picker_track.settle(qapp)
+    return track, seen
+
+
+#: Every way one question of one opening can end, and what the window hears.
 #:
 #: The list is the ways the controller offers, read off `worker.py`: the
 #: answer function returns or raises, and the question is abandoned before it
-#: runs, while it runs, or by a rebuild of the data. `shutdown` is not among
-#: them and is not a hole: it happens when the window is closing, and there is
-#: no grid left to fill.
+#: runs, while it runs, by a rebuild of the data, or by the window closing.
+#:
+#: **The last one is the exception of Nachtrag X-0 and its expectation is an
+#: empty list written out here** (L-008b), never one worked out from what
+#: `shutdown` does: the window is closing, `stopped` would be a sentence to a
+#: player who is no longer there (`UI_SPEC` 4.5, AK-11), and an answer that
+#: was already on its way must not arrive either. What makes that a property
+#: rather than a race is the line `shutdown` shares with `cancel` -- the
+#: generation goes up before the worker is interrupted (Nachtrag X-1,
+#: decision D).
 WAYS_A_QUESTION_ENDS = {
-    "the answer comes back": (_the_answer_comes_back, "ready"),
-    "the answer raises": (_the_answer_raises, "failed"),
+    "the answer comes back": (_the_answer_comes_back, ["ready"]),
+    "the answer raises": (_the_answer_raises, ["failed"]),
     "cancelled before it runs": (_the_question_is_cancelled_before_it_runs,
-                                 "stopped"),
+                                 ["stopped"]),
     "cancelled while it works": (_the_run_is_cancelled_while_it_works,
-                                 "stopped"),
-    "the data is rebuilt": (_the_data_is_rebuilt_under_the_run, "stopped"),
+                                 ["stopped"]),
+    "the data is rebuilt": (_the_data_is_rebuilt_under_the_run, ["stopped"]),
+    "the window is closing": (_the_window_is_closing, []),
 }
 
 
@@ -515,8 +546,9 @@ def test_w6_a_question_ends_in_exactly_one_of_the_three(qapp, question, way):
     """`worker.py`'s own promise, and AK-218 hangs on it.
 
     *"The window asks with `ask` and hears back on exactly one of `ready`,
-    `failed` and `stopped`."* The existing cases hold single instances of that
-    -- `stopped` exactly once, no `ready` after a cancel -- and none of them
+    `failed` and `stopped` -- for the question that is still the current one
+    when it ends."* The existing cases hold single instances of that --
+    `stopped` exactly once, no `ready` after a cancel -- and none of them
     holds the promise itself. Under the empty grid it carries the dialog's
     usability and not merely its completeness: every one of the three fills
     the grid, so an outcome that stayed away leaves a dialog in which no relic
@@ -524,16 +556,19 @@ def test_w6_a_question_ends_in_exactly_one_of_the_three(qapp, question, way):
 
     One list for all three signals, because the claim is about their sum: two
     outcomes are as wrong as none, and three counters would each be right
-    while the sum was two.
+    while the sum was two. The one way out that says nothing at all is the
+    window closing, and it is in the same table because "nothing" is a value
+    of the same measurement, not a case that was left out.
     """
     drive, expected = WAYS_A_QUESTION_ENDS[way]
     track, seen = drive(qapp, question)
     try:
-        assert seen.names == [expected], (
+        assert seen.names == expected, (
             f"a question that ended by '{way}' was answered with "
-            f"{seen.names}; exactly one of ready, failed and stopped is what "
-            f"the window is built on, and every one of the three fills the "
-            f"grid (AK-218)")
+            f"{seen.names} and not with {expected}; exactly one of ready, "
+            f"failed and stopped is what the window is built on -- and after "
+            f"`shutdown` there is nobody left to hear any of them "
+            f"(AK-218, Nachtrag X-0)")
     finally:
         track.shutdown()
 
@@ -592,3 +627,4 @@ def test_w7_an_answer_that_stamps_nothing_still_arrives_stamped(qapp,
             "asked under, so the window has no way to know whose they are")
     finally:
         track.shutdown()
+
