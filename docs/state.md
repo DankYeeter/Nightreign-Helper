@@ -21,54 +21,37 @@ Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
 vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
 Nutzer ganz am Ende.**
 
-## Zyklus 16 - der Release-Weg (Nutzerentscheid 07.09.2026)
+## Zyklus 16 - abgeschlossen 08.09.2026: der Release-Weg
 
-Ziel **A9 und A2**. **A2 ist seit T-105 erfuellt** - SEC-009 behoben und
-gegengeprueft; kein Hoch-Befund mehr offen, Bestaetigung durch den
-`security-reviewer` steht aus.
+**A2 erfuellt** (SEC-009 behoben, T-105). **A9 geprueft** (T-114, Urteil
+CONCERNS): A3, A4, A5, A7, A8 **PASS**, A6 **CONCERNS** — `GOAL.md` traegt
+keinen Zielwert, S11 lief nie.
 
-**Falsche Praemisse, korrigiert 07.09.2026:** "es gibt bis heute keine EXE"
-war falsch - **12 Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads**.
-A9 blieb offen (nie lief ein `qa-engineer` gegen ein Artefakt), aber der
-Risikoweg ist das **Update**, nicht die Erstinstallation. Hergang im Verlauf.
+**Der Nachweis, den es nie gab:** 62 von 62 Modulen bytecode-identisch zum
+Quellstand, genau eine `__file__`-Stelle und die hinter `_MEIPASS`; 440
+Beraterlaeufe am **verpackten** Code ueber 10/10 Nightfarer und 74/74 Kelche,
+2 508 Slot-Vorschlaege, 0 Regelverstoesse, 0 Slots ohne Begruendung.
+**QA-191 ist damit inhaltlich erledigt, strukturell nicht** (QA-205).
 
-**Gelaufen:** T-104 `compliance-agent` · T-105 `developer` (SEC-009) ·
-T-106 `release-manager` `plan` · T-107 `technical-writer` · T-108
-`compliance-agent` (C-004) · T-109 `developer` (1.8.0, A-020-Transport,
-A-030-Waechter) · T-110 `archivist` `sync-out` · T-111 `build` · T-112
-`technical-writer` · T-113 `clean-room` **CONCERNS, Artefakt freigegeben** ·
-T-115 `power-user`. **T-114 `qa-engineer` laeuft - das ist A9 selbst.**
+**Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, SHA-256
+`42B21AA2...F221`, 1.8.0. Update-Weg an einem echten `v1.7.1` belegt (T-113):
+7 von 7 Builds erhalten. Alles gepusht, PR #16 aktualisiert.
 
-**Das Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, SHA-256
-`42B21AA2...F221`, `VersionInfo` 1.8.0. **Der Stand ist eingefroren, solange
-T-114 laeuft.**
-
-**Update-Weg belegt (T-113):** echtes `v1.7.1` von GitHub geladen und
-gestartet, dann 1.8.0 darueber - `EXTRACT_VERSION` 8 auf 11, `__schema` auf 3,
-**7 von 7 Builds namentlich erhalten**. Echte Nutzerdaten unangetastet.
-
-**Isolierung fuer jeden Lauf am Artefakt - drei Umlenkungen, nicht zwei:**
+**Isolierung fuer jeden Lauf am Artefakt - drei Umlenkungen:**
 `NIGHTREIGN_SETTINGS_ORG` (`favourites.py:25`) · `LOCALAPPDATA`
-(`paths.py:20`) · **`APPDATA`** (`shortcut.py:44-49`). Am 07.09. fehlte die
-dritte, und eine Verknuepfung landete im echten Start-Menue des Nutzers
-(entfernt). QA-195 ist die Klasse dahinter.
-
-**Stehende `power-user`-Messreihe, ab jetzt unveraendert kopiert:** Erststart
-ohne Vorwissen · Spielstand finden lassen · im Build planner ein Relikt
-tauschen · den Beratervorschlag anwenden · eine Zahl im Arsenal-Tab deuten ·
-beenden und neu starten. Wortlaut in `docs/tasks/T-115.md`.
+(`paths.py:20`) · `APPDATA` (`shortcut.py:44-49`). Fester Testabzug unter
+`%LOCALAPPDATA%\NightreignHelper-Testabzug` spart den Neubau je Lauf —
+Einzelheiten und die zwei anderen Effizienzregeln in
+`docs/plan-restarbeiten.md` (E-1 bis E-3).
 
 **Was die Veroeffentlichung noch sperrt:** nur **A-033** (Hinweispaket an alle
 zwoelf Bestandsreleases, Text B aus `docs/release/RELEASE_TEXT.md`).
-Nutzerentscheidung 07.09.: **W1**, fortsetzen und nachruesten; das Restrisiko
-aus Paragraf 95a traegt der Nutzer bewusst, A-025 ist als GRAU geschlossen.
+Nutzerentscheid 07.09.: **W1**, fortsetzen und nachruesten; A-025 als GRAU
+geschlossen, das Restrisiko traegt der Nutzer bewusst.
 
-**Effizienz, erkannt 08.09. - noch nicht beauftragt:** jeder Lauf am Artefakt
-baut den Datenabzug neu (107 s bis 5 min, viermal bezahlt), weil jede Rolle
-ein eigenes umgelenktes `LOCALAPPDATA` bekommt. **Ein einmal gebauter,
-schreibgeschuetzter Abzug fuer alle Leselaeufe** ist der groesste Hebel.
-Zweiter: A8 und Teile von A4 sind am Artefakt auch ohne Fenster pruefbar -
-nur A3, A5, A6 brauchen wirklich den Bildschirm.
+**Entschieden 08.09., noch nicht beauftragt:** **S11** (`performance-tuner`,
+Erstlauf, opus) setzt A6 seine Zahl · die zwei fehlenden Waechter werden
+gebaut (QA-204 Englisch, QA-205 A3-Zusage), bevor ausgeliefert wird.
 
 ## Stand gegen `GOAL.md`
 
@@ -79,7 +62,7 @@ nur A3, A5, A6 brauchen wirklich den Bildschirm.
 | A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
 | A8 | alles Englisch | haelt, ohne Waechter (QA-192) |
-| A9 | QA gegen ein **gebautes Artefakt** | **T-114 laeuft**; Artefakt gebaut und freigegeben |
+| A9 | QA gegen ein **gebautes Artefakt** | **5 von 6 PASS**, A6 offen bis S11 |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
 | A11 | ohne Raten ans Ziel | offen (QA-173) |
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
