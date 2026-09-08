@@ -137,7 +137,10 @@ T-Nummer** (`…/scratchpad/T-###/`). Nichts ausserhalb davon anfassen.
 
 ### Der Bericht ist Teil des Auftrags
 
-Eine Rolle **mit** Schreibrecht gilt erst als fertig, wenn
-`docs/berichte/T-###-<rolle>.md` auf der Platte liegt. Am 08.09.2026 hat der
-`power-user` seinen Bericht trotz Schreibrecht nicht abgelegt; der Director
-musste ihn von Hand nachtragen.
+Eine Rolle **mit** `Write` gilt erst als fertig, wenn
+`docs/berichte/T-###-<rolle>.md` auf der Platte liegt. Rollen **ohne** `Write`
+— heute `power-user`, `qa-engineer`, `security-reviewer`, `archivist`,
+`fehlerdiagnostiker` — liefern den Bericht vollstaendig in der Antwort; **der
+Director legt ihn ab, bevor die naechste Rolle startet** (L-010, Pruefung 3).
+Am 08.09.2026 wurde der `power-user`-Bericht zu T-115 vom Director
+nachgetragen; das war **richtig so** und keine Verfehlung der Rolle.

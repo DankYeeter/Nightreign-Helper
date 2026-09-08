@@ -1,9 +1,10 @@
 # T-115 - Siebter Durchgang, erstmals am gebauten Artefakt (power-user)
 
-*Vom Director aus der Rueckmeldung des Laufs abgelegt, unveraendert. Der
-`power-user` hat Schreibrecht und haette den Bericht selbst schreiben sollen;
-sein Kontrakt sagt `GEAENDERT: keine Projektdateien`, die Datei existierte
-nicht. **Befund fuer die `retrospective`.***
+*Vom Director aus der Rueckmeldung des Laufs abgelegt, unveraendert — so wie
+es sich gehoert: der `power-user` hat **kein** `Write`, und seine Definition
+untersagt ihm ausdruecklich, eine Datei zu schreiben. **Korrektur 08.09.2026:**
+hier stand zuvor, er haette den Bericht "trotz Schreibrecht" nicht abgelegt.
+Das war falsch (L-016, gefunden von der `retrospective` in T-119).*
 
 STATUS: erledigt
 AUFTRAG: T-115 — Power-User-Test des Relikt-Build-Planers (NightreignHelper.exe)

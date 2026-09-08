@@ -1996,7 +1996,7 @@ Anlass der Pruefung: derselbe Befund stand in `docs/state.md` als erledigt und
 in dieser Liste als offen. Die Regel dagegen steht seit dem 07.09. in der
 Director-Definition — **ein Befundstatus wird geprueft, nicht erinnert.**
 
-## QA-198 — Der Erstaufbau dauert fuenfmal so lange, wie das Programm ansagt
+## QA-198 — Der Erstaufbau dauert unvorhersagbar lange (107 s bis 5 min), das Programm sagt "etwa eine Minute"
 
 **Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
 
