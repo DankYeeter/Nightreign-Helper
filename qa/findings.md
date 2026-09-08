@@ -2005,9 +2005,25 @@ Artefakt gemessen** — nicht am Quellstand, und deshalb erstmals unter den
 Bedingungen eines echten Nutzers.
 
 Beim ersten Start baut das Programm den Datenabzug und den Symbolvorrat aus
-der Spielinstallation auf. Es sagt dabei **"etwa eine Minute"** an. Gemessen:
-**rund 5 Minuten.** In dieser Zeit steht ein Fenster, das nach Ansage des
-Programms laengst fertig sein muesste.
+der Spielinstallation auf. Es sagt dabei **"etwa eine Minute"** an.
+
+**Zweimal gemessen, zwei verschiedene Zahlen — und das ist der Befund:**
+
+| Lauf | gemessen | Umgebung |
+|---|---|---|
+| T-113 `clean-room` | **rund 5 Minuten** | isoliertes Verzeichnis, nach einem v1.7.1-Lauf |
+| T-115 `power-user` | **107 Sekunden** | frisches Testverzeichnis, erster Aufbau |
+
+**Korrektur des Directors, 08.09.2026.** Dieser Eintrag stand zuerst mit der
+festen Aussage "fuenfmal so lange" da, auf **einer** Messung. Der
+`power-user` maass am selben Artefakt kurz darauf **107 s**. Eine Regel aus
+einer Beobachtung ist eine Hypothese, keine Tatsache — der Director hat sie als
+Tatsache aufgeschrieben.
+
+**Gesichert bleibt:** die Ansage ist in **beiden** Faellen falsch, einmal um
+das Doppelte, einmal um das Fuenffache. Was die Spanne verursacht — warmer
+Dateicache, Zustand des Symbolvorrats, ein vorangegangener Lauf —, ist
+**ungeklaert und vor dem Fix zu klaeren.**
 
 **Warum das mehr als Kosmetik ist:** Es ist derselbe Bruch wie eine Zahl ohne
 Bezugsgroesse, nur zeitlich — das Programm sagt etwas Pruefbares und liegt
@@ -2016,12 +2032,17 @@ haengt. Genau diese Frage stellt sich beim Erststart, wo er dem Programm noch
 nichts glaubt. **Verstoss gegen A12** (jede Zahl nennt Einheit und Bezug) und
 gegen A15 (der Erststart fuehrt bis zu lesbaren Daten).
 
-**Richtung, zu entscheiden:** entweder die Ansage an das Gemessene angleichen
-— dann mit Angabe, wovon es abhaengt (Groesse der Installation, Datentraeger)
-—, oder einen Fortschritt zeigen, der ohne Zeitversprechen auskommt. Die
-zweite Fassung ist die ehrlichere, weil die Dauer nachweislich von der
-Maschine abhaengt. **Vor der Umsetzung ist auf mindestens zwei Umgebungen zu
-messen**, sonst ersetzt eine falsche Zahl die andere.
+**Richtung:** eine Zahl anzugeben ist hier der Fehler, nicht die falsche Zahl.
+Die Spanne 107 s bis 5 min auf **derselben Maschine, demselben Artefakt und
+demselben Spielstand** zeigt, dass die Dauer nicht vorhersagbar ist. Ein
+Fortschritt ohne Zeitversprechen ist die einzige Fassung, die nicht wieder
+falsch wird.
+
+**Entlastend, und es haelt den Befund auf P3:** der `power-user` berichtet
+woertlich, er habe *"zu keinem Zeitpunkt"* geglaubt, das Programm haenge — die
+wechselnden Statuszeilen ("Decoding artwork…", "item icons: 713 of 786
+requested") haben ihm das genommen. Der Schaden ist die falsche Zusage, nicht
+die Ungewissheit.
 
 ## QA-199 — Der A15-Ausweichdialog zur manuellen Pfadwahl existiert nicht
 
@@ -2046,3 +2067,92 @@ nicht in zwei getrennte Auftraege.
 **Nicht selbst nachgestellt** — der Befund stammt aus der Durchsicht des
 Quellstands, nicht aus einem ausgeloesten Fehlschlag. Vor dem Fix ist er zu
 reproduzieren, indem die Erkennung kuenstlich fehlschlaegt.
+
+## QA-200 — Beim Schliessen geht die Arbeit verloren, ohne ein Wort
+
+**Prioritaet: P2 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `power-user` im siebten Durchgang (T-115), **am gebauten
+Artefakt**. Er hatte in Aufgabe 3 ein Relikt getauscht (HP 280 → 340) und in
+Aufgabe 4 den Vorschlag des Beraters mit "Apply all" uebernommen. Nach dem
+Schliessen und Neustart standen dort drei fremde Relikte, der
+Build-Auswahlkasten auf "Equipped in game". Woertlich, als groesstes seiner
+drei Aergernisse:
+
+> Nach dem Schliessen des Programms war meine Arbeit … verschwunden, ohne dass
+> mir irgendwann gesagt wurde, dass ich das haette sichern muessen.
+
+**Vom Director am Code bestaetigt**, nicht nur aus dem Bericht uebernommen:
+`nrplanner/app.py:2000` — `closeEvent` beendet den Thread des Beraters und
+ruft `super().closeEvent(event)`. **Sonst nichts.** Keine Abfrage, kein
+Hinweis, kein Sichern. Der Zustand "Unsaved build"
+(`chalices.py:184 UNSAVED_NAME`) existiert **im laufenden Programm**,
+ueberlebt das Schliessen aber nicht.
+
+**Warum das schwer wiegt:** Es ist kein Bedienfehler des Nutzers, den man
+wegdokumentieren koennte. Das Programm zeigt vier Handgriffe lang Zahlen, die
+sich sichtbar aendern — genau das, was es gut macht —, und wirft sie
+kommentarlos weg. Der Spieler hat gar nicht gewusst, dass es zwei Zustaende
+gibt.
+
+**Richtung, drei Wege, zu entscheiden vom App Designer:** (a) beim Schliessen
+mit ungesicherter Aenderung fragen · (b) den ungesicherten Zustand automatisch
+ueber den Neustart tragen und beim Oeffnen sagen, dass er ungesichert ist ·
+(c) gar nicht erst zwei Zustaende haben. **(a) ist das Uebliche, (b) das
+Freundlichere.** Vor der Umsetzung gehoert das dem `ui-ux-designer`, nicht
+direkt dem `developer` — es ist eine Entwurfsfrage, keine Reparatur.
+
+## QA-201 — "Wie viele Relikte habe ich?" ist nicht auffindbar, nur zufaellig
+
+**Prioritaet: P3 · Schwere: Major · Adressat: ui-ux-designer · offen · 2026-09-08**
+
+Aufgabe 2 des siebten Durchgangs, ausdruecklich gesucht und **nicht gefunden**.
+Der Spieler sah je Slot "Yellow (54 available)", "Green (48 available)",
+"Green (49 available)" und erkannte selbst, dass er sie nicht addieren darf —
+"weil sich Relikte ueber mehrere Slot-Farben eignen koennen". Im Reiter
+"Effects & chances" fand er "577 buffs, 75 curses" und erkannte, dass das die
+Moeglichkeiten des Spiels sind, nicht sein Besitz.
+
+Die richtige Zahl — **"309 relics in USER_DATA000, 110 stored builds"** — sah
+er erst nach dem Neustart, und zwar **beilaeufig**: der Satz steht an der
+Stelle, an der beim ersten Start "Loaded Wylder — 5 chalices …" stand. Eine
+Statuszeile, die von der naechsten Meldung ueberschrieben wird, ist kein Ort
+fuer eine Bestandszahl.
+
+**Verhaeltnis zu QA-174:** dort war unklar, **woher** die vorbelegten Relikte
+kommen; hier ist die Bestandszahl **gar nicht auffindbar**. Dieselbe Ursache —
+die Herkunftszeile traegt eine Information, die anderswo hingehoert.
+**Nicht dasselbe wie QA-170** (dort ging es um Waffen, nicht um Relikte).
+
+## QA-202 — Der zweite Start liest die Spieldaten erneut ein, ungeklaert warum
+
+**Prioritaet: P3 · Schwere: Minor · Adressat: developer · offen · 2026-09-08**
+
+Im siebten Durchgang erschien beim zweiten Start erneut der Aufbaudialog
+(`firstrun.py:169`, "Refreshing your game data — Re-reading your installation
+so the numbers are up to date") und lief **rund 49 Sekunden**, obwohl derselbe
+Abzug 107 Sekunden zuvor in derselben umgelenkten Umgebung gebaut worden war.
+Der Aufbau soll laut Programmtext **einmalig** sein ("This happens once").
+
+**Zwei Teile, sauber getrennt:**
+- **Die 49 Sekunden sind belegt** und ungeklaert. Der Abzug wird neu gebaut,
+  wenn er nicht mehr passt (Spiel gepatcht, oder eine neuere Programmfassung
+  liest mehr aus). Beides traf zwischen den zwei Starts nicht zu.
+- **"Ohne dass ich es erneut gestartet habe" ist ungeprueft.** Der `power-user`
+  hat das so wahrgenommen; ein Programm, das sich nach dem Schliessen selbst
+  startet, waere ein eigener, schwerer Befund. Wahrscheinlicher ist ein
+  Neustart durch sein eigenes Werkzeug. **Nicht als Tatsache uebernehmen** —
+  vor jeder Massnahme nachstellen.
+
+## QA-170 — zum zweiten Mal unabhaengig bestaetigt (2026-09-08)
+
+Der siebte `power-user`-Durchgang ist bei Aufgabe 5 an derselben Stelle
+gescheitert wie der sechste: keine Sortierung nach Angriffswert, keine
+Eingrenzung auf besessene Waffen. Neu und zaehlbar: **1952 Eintraege**, nach
+Waffenfamilien gruppiert, "die AR-Werte springen dabei staendig hoch und
+runter (81, 68, 94, 99, 91, 91, 90 …)". Er gab auf und meldete den besten
+selbst gesichteten Wert (Ripple Blade, 110 AR) ausdruecklich als unsicher.
+
+**Zwei Durchgaenge, dieselbe Aufgabe, dasselbe Aufgeben — der Befund ist damit
+reproduziert, nicht mehr Einzelbeobachtung.** Status unveraendert: **offen,
+Nutzerentscheidung** (F-G), weil es eine neue Funktion waere.
