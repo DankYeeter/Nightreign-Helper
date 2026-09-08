@@ -188,3 +188,35 @@ projekteigen NH-001, NH-002.
   `find_loadout_table`, **365 ms**, groesser als die 250-ms-Schwelle, an der
   AD-029 Stufe B haengt. U3 wuerde sonst einen Wert messen, den T-136 sofort
   verschiebt.
+
+## Autonomer Lauf ab 08.09.2026 abends
+
+**Auftrag des Nutzers:** *"Pruefe in welcher Reihenfolge die Aufgaben am besten
+gehen. Dann arbeite alle nacheinander ab. Nimm dir die ganze Nacht Zeit. Mach
+es fertig."*
+
+**Warteschlange** (alle aus `GOAL.md`, keine selbst erfundenen Kriterien):
+1. Zyklus 18 schliessen — U8 (AD-029 Stufe B), die zwei fehlenden U7-Messungen,
+   Pruefphase (`qa-engineer` + `security-reviewer` parallel).
+2. **A15** Erststart — spezifiziert AK-106 bis AK-132, **null Zeilen gebaut**
+   (geprueft 08.09.: kein `QFileDialog`/`getExistingDirectory` in `nrplanner/`).
+3. **A16/A17** — spezifiziert AK-182 bis AK-194, nicht gebaut (geprueft:
+   kein `worst_case`/`best_case` in `nrplanner/`).
+4. **A12/A13** — die restlichen Tabs.
+5. Eine **einzige** Bau- und Pruefrunde: `compliance-agent` (`auflagen`) →
+   `technical-writer` → `release-manager` (`build`, `clean-room`) →
+   `power-user` → `notes`. A9, A11, A13 und der A15-Nachweis haengen alle am
+   Artefakt; vier Runden dafuer waeren genau die Verschwendung aus E-2.
+
+**Obergrenze:** die Nacht. Sie ersetzt "Stopp nach drei Zyklen"; **alle
+uebrigen Stoppregeln gelten unveraendert.**
+
+**Woran der Lauf endet:** an der Release-Schwelle. Bauen und Pruefen ist keine
+Weitergabe; **das Release selbst haengt an den fuenf Rechtsfragen des Nutzers**
+(A-025 GRAU und die vier daneben, C-003). Dort wird angehalten und vorgelegt.
+Sofortiger Stopp ausserdem bei kritischem Sicherheitsbefund, Verdacht auf
+Datenverlust, oder wenn zwei Zyklen in Folge kein Kriterium messbar naeher
+bringen.
+
+**Kein Merge.** Der Lauf endet pausiert auf `docs/audit-and-advisor-design`,
+PR #16 bleibt beim Nutzer.
