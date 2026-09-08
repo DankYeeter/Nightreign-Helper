@@ -250,3 +250,31 @@ Aussage, die die Daten nicht hergeben.
 Empfehlung entschieden** (der Nutzer schlaeft, beide sind klein und tragen
 seine Empfehlung): **F-S** Rueckfallsatz **dauerhaft**, nicht einmal je Start ·
 **F-T** Reliktknopf auch beim `Rescan` gesperrt. **Am Morgen vorzulegen.**
+
+## Fuer die Retrospektive — vier eigene Verstoesse in einer Nacht, dieselbe Klasse
+
+Alle vier betreffen **die Sorgfalt des Directors beim Schreiben eines
+Auftrags**, keiner betrifft eine Rolle. Alle vier wurden **von der
+beauftragten Rolle gefunden**, nicht von mir:
+
+1. **T-137** aus der Zusammenfassung des `architect` geschrieben statt aus
+   seiner Tabelle — zwei Bauteile fehlten (gefunden vom `developer`, T-137).
+2. **T-140** ebenso — zwei Messungen aus Nachtrag IX fehlten im Auftrag
+   (gefunden vom `performance-tuner`).
+3. **"haelt mittelbar ueber drei Aufrufer"** aus einem Bericht uebernommen
+   und nicht nachgezaehlt; es sind **vier** (gefunden vom `architect`, T-134).
+4. **T-148 trug weder das GOAL-Zitat noch den Stand-Auszug** — Pflicht nach
+   Pruefung 4; der `ui-ux-designer` hat beide selbst nachgelesen und den
+   Mangel gemeldet.
+
+**Die Klasse:** ich schreibe den Auftrag aus dem, was ich gerade gelesen habe,
+statt aus der Quelle, auf die der Bericht verweist. Die fuenf Pruefungen
+stehen seit heute in `templates/task.md` — **sie haben nicht gegriffen**, weil
+ich die Vorlage nicht oeffne, wenn ich die Datei direkt schreibe. Das ist
+derselbe Befund wie B-01: eine Regel wirkt nach ihrem **Ort**, und der Ort
+"Vorlage" erreicht nur den, der die Vorlage benutzt.
+
+**Vorschlag fuer die `retrospective`** (nicht selbst entschieden): ein Hook auf
+`Write`/`Edit` gegen `docs/tasks/T-*.md`, der die vier Pflichtstuecke prueft —
+GOAL-Zitat, Stand-Auszug, Quittung, `Beruehrt Dateien`. Das ist dieselbe
+Bauform wie `require-receipt.ps1`, der schon laeuft.

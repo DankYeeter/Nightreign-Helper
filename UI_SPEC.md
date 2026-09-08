@@ -7681,7 +7681,11 @@ vor.
   Saetze `Nothing you own raises …` oder der Satz aus §9 (f). Mit der Ankunft
   des Bestands steht die Zaehlung in jeder Slotueberschrift.
   *Toetende Mutation:* die Klammer waehrend des Lesens mit `0` stehen lassen.
-- **AK-223** *(gesperrt ist genau eines.)* Im Zustand aus AK-221 ist der
+- **AK-223** *(gesperrt ist genau eines — nachgezogen am 09.09.2026, T-148:
+  in Wahrheit sind es zwei, aus verschiedenen Gruenden. Siehe **AK-243** im
+  Nachtrag „drei Praezisierungen" am Ende dieser Datei; die alte Fassung
+  bleibt hier stehen, damit sichtbar ist, wovon abgewichen wird.)* Im Zustand
+  aus AK-221 ist der
   Reliktknopf (`choose_button`) jeder Slotkarte gesperrt und oeffnet keinen
   Picker; **jedes andere** Bedienelement des Fensters ist freigegeben
   (`isEnabled()`) und nicht ausgegraut — namentlich Nightfarer-Liste, Stufe,
@@ -7690,7 +7694,12 @@ vor.
   Bestand da ist. Das Fenster traegt keinen Wartecursor.
   *Toetende Mutation:* das ganze `Build planner`-Feld sperren; oder den
   Reliktknopf offen lassen — dann oeffnet sich ein Picker ohne Relikte.
-- **AK-224** *(der Wartesatz ist nie das letzte Wort.)* Jedes Lesen endet in
+- **AK-224** *(der Wartesatz ist nie das letzte Wort — nachgezogen am
+  09.09.2026, T-148: es gibt einen fuenften Satz, der beim ersten
+  erfolgreichen Lesen die Bestandsnotiz ueberschreiben kann. Siehe **AK-244**
+  im Nachtrag „drei Praezisierungen" am Ende dieser Datei; die alte Fassung
+  bleibt hier stehen, damit sichtbar ist, wovon abgewichen wird.)* Jedes Lesen
+  endet in
   einem Zustand, in dem die Spielstandzeile **einen der vier Saetze aus §6**
   traegt — die Bestandsnotiz, die Notiz mit dem Zusatz aus §9 (d), den Satz
   „kein Spielstand" oder `Save could not be read: <reason>`. **Ein Ende, nach
@@ -7749,7 +7758,10 @@ vor.
   *Toetende Mutation:* die Id-Pruefung wieder werfen lassen — die Zeile traegt
   dann den Fehlersatz statt der Notiz, und die Relikte fehlen.
 - **AK-229** *(das Praefix behaelt seine Bedeutung — eine Eigenschaft, keine
-  Fundstelle.)* Der Satzanfang `Save could not be read: ` erscheint **nur**,
+  Fundstelle. **Vermerk 09.09.2026, T-148:** bis AK-228 gebaut ist, gilt diese
+  Eigenschaft mit einer benannten, befristeten Ausnahme — siehe den Vermerk im
+  Nachtrag „drei Praezisierungen" am Ende dieser Datei. Keine neue AK-Nummer,
+  keine Aenderung des Textes unten.)* Der Satzanfang `Save could not be read: ` erscheint **nur**,
   wenn am Ende des Lesens kein Bestand vorliegt. Kein Text, der hinter diesem
   Praefix landen kann, sagt, dass mit dem Spielstand alles in Ordnung sei oder
   dass nichts fehle.
@@ -8393,3 +8405,231 @@ ist mit AK-232/AK-240 bis zum Zeitpunkt von V2 spezifiziert.
 - **Frage 2 aus dem T-145-Abschnitt** (README/Release-Text) — bleibt offen,
   geht an den `technical-writer` nach V3.
 - **Jede Zeitmessung.** Wie im T-145-Abschnitt: der Ablauf ist nicht gebaut.
+
+---
+
+## drei Praezisierungen an AK-220 bis AK-229 (ui-ux-designer, T-148) — 2026-09-09
+
+**Nachziehung, kein Neuentwurf.** Der `developer` hat in T-142 den
+Wartezustand aus dem T-141-Abschnitt gebaut (Suite 1417/9/0, `inventory.load`
+byteweise identisch vor/nach der Trennung, AK-225-Messung: 12 px ohne
+Mindesthoehe, 28/28/28 bzw. 32/32/32 mit ihr) und dabei drei Stellen gemeldet,
+an denen die eigenen Kriterien dieser Rolle am Gebauten vorbeigehen. Alle drei
+sind unten aufgeloest — zwei mit neuen, praegnanten Kriterien (**AK-243**,
+**AK-244**), eine mit einem Vermerk statt einer neuen Nummer, wie im Auftrag
+verlangt.
+
+### 0. Grundlage und Methode
+
+**Gelesen:** `docs/tasks/T-148.md` · der vollstaendige T-141-Abschnitt dieser
+Datei (§0 bis §14, AK-220 bis AK-229) · der T-145-Nachtrag (Kontext, nicht
+Gegenstand) · Quelltext (nicht gestartet, kein Bildnachweis, keine eigene
+Messung — L-009 entfaellt, diese drei Praezisierungen enthalten keine
+Oberflaechenzahl): `nrplanner/app.py` (`rescan_save` 3788-3811,
+`_show_the_save_is_being_read` 3813-3823, `_on_save_read` 3830-3876,
+`_on_save_failed` 3898-3908, `load_equipped` 3910-3985, `reload_chalices`
+2718-2830), `nrplanner/advisorbar.py` (`status_line` 182-220, `AdvisorBar`
+419-490, `_ask` 664-671, `_resting` 770-774, `_show` 796-821), `nrplanner/
+chalices.py` (`imported`/`set_imported` 619-633), `nrplanner/inventory.py`
+(`loadouts_for` 141, `loadout_error` 104/249), `tests/
+test_save_read_in_the_background.py` (Zeilen 1-42, 637-701, zur Pruefung von
+Punkt 3 — nicht veraendert, nur gelesen).
+
+### 1. AK-223 — Optimize ist das zweite gesperrte Element, aus einem aelteren Grund
+
+**Der Fall, wie der `developer` ihn belegt hat:** ein Fenster ohne Spielstand
+zeigt `AdvisorBar.optimize_button` gesperrt — nicht waehrend eines Lesens,
+sondern **weil kein Bestand vorliegt**. Das ist keine neue Beobachtung ueber
+unbekanntes Verhalten, sondern eine bereits an anderer Stelle dieser Datei
+spezifizierte Eigenschaft, die AK-223 nur nicht zitiert hat: Zeile 237 dieser
+Datei, Zustand **4.8** der Advisor-Zustandstabelle (`owned is None` →
+`Zielwahl und Optimize deaktiviert`), im Quelltext `advisorbar.py:210-212`
+(Satz `No save was read, so there are no relics to choose from — use Rescan
+save.`), `:318-319` (`_asking` gibt `None` zurueck, wenn `planner.owned is
+None`) und `:818-820` (`answerable = situation.state is not State.NO_SAVE`;
+`self.optimize_button.setEnabled(answerable)`).
+
+**Warum das AK-223 wirklich verfehlt, nicht nur ergaenzt:** AK-223 behauptet
+binaer „gesperrt ist genau eines" und zaehlt in der Freigabe-Liste acht
+Bedienelemente „namentlich" auf, ohne `Optimize`/die Advisor-Leiste
+auszunehmen. Wer AK-223 woertlich als Waechter baut, muesste `Optimize`
+waehrend AK-221 freigegeben verlangen — und genau das waere falsch: ein Klick
+waehrend eines laufenden Lesens zeigte den Satz aus 4.8, der behauptet, es sei
+**kein** Spielstand gelesen worden, waehrend tatsaechlich gerade einer gelesen
+wird. Der `developer` hat richtig gebaut (Zustand 4.8 ist ohnehin aelter als
+AK-221) und richtig gemeldet, dass AK-223 das nicht abbildet.
+
+**Der Unterschied, den AK-223 braucht, um wahr zu bleiben:** der Reliktknopf
+ist gesperrt **durch AK-221** (das Lesen selbst) und wird frei, sobald das
+Lesen endet — auch beim Ende „kein Spielstand gefunden", wo (bereits als
+A7-Bruch bekannt, §12) er heute fehlerhaft freigegeben bleibt. `optimize_
+button` ist gesperrt durch eine **weitere, unabhaengige** Bedingung
+(`owned is None`), die AK-221 nur zeitlich ueberlappt: sie gilt genauso in den
+Enden „kein Spielstand gefunden" (`app.py:3846-3847`, `owned` wird nie
+gesetzt) und „nicht lesbar" (`app.py:3906`, `owned` wird auf `None`
+zurueckgesetzt) — dort bleibt `Optimize` **dauerhaft** gesperrt, nicht nur
+waehrend des Lesens. Das ist kein Fehler, sondern der Zustand 4.8 wie
+spezifiziert: ohne Bestand hat `Optimize` nichts zu tun.
+
+**AK-243** *(gesperrt sind zwei, aus verschiedenen Gruenden — praezisiert
+AK-223)* Im Zustand aus AK-221 sind zwei Bedienelemente gesperrt: der
+Reliktknopf (`choose_button`) jeder Slotkarte — wie AK-223 es beschreibt —
+und `AdvisorBar.optimize_button` (`nrplanner/advisorbar.py:484`, im
+Reliktteil des `Build planner`). Beide sind `isEnabled() == False`; jedes in
+AK-223 „namentlich" genannte uebrige Bedienelement bleibt freigegeben, wie
+dort beschrieben. Der Reliktknopf wird frei, sobald das Lesen endet, gleich
+auf welchem der vier Wege aus §6. `optimize_button` wird frei, sobald `owned`
+zum ersten Mal seit dem letzten Verlust nicht mehr `None` ist — das schliesst
+das Ende „kein Spielstand gefunden" **aus**: dort bleibt `optimize_button`
+gesperrt, solange kein Bestand vorliegt, auch nachdem das Lesen laengst zu
+Ende ist. Die Statuszeile der Advisor-Leiste traegt in diesem Fenster
+`4.1`/`4.8` unveraendert nach eigener Spezifikation und ist nicht Gegenstand
+dieses Kriteriums.
+*Aufbau:* dieselben fuenf Vorrichtungen wie AK-221 (nie antwortendes, sofort
+antwortendes, langsames, scheiterndes, kein-Spielstand-Lesen); zusaetzlich
+`optimize_button.isEnabled()` in jedem Endzustand gepruef, nicht nur waehrend
+des Lesens.
+*Toetende Mutation:* `optimize_button` waehrend AK-221 freigeben — ein Druck
+zeigt dann `No save was read, so there are no relics to choose from — use
+Rescan save.`, waehrend tatsaechlich gerade gelesen wird.
+
+### 2. AK-224 — der fuenfte Satz, ausgeloest durch das automatische Uebernehmen
+
+**Der Fall:** `_on_save_read` setzt die Bestandsnotiz (§9 (e)/(d)) und ruft
+danach unbedingt `reload_chalices()` (`app.py:3876`, seit T-141 „unconditional
+now, first read included"). Hat der gerade gezeigte Nightfarer noch kein
+`chalices.imported(hero_id)` gesetzt (persistiert in `QSettings`, je Held
+einmalig ueber die ganze Programmlebensdauer, `chalices.py:619-632`) und
+speichert sein Spielstand ein ausgeruestetes Build fuer ihn
+(`owned.loadouts_for(hero_id)` nicht leer), ruft `reload_chalices` **selbst**
+`load_equipped()` auf (`app.py:2781-2789`). Scheitert dieser automatische
+Import, schreibt `load_equipped` einen von drei eigenen Saetzen **ueber die
+gerade gesetzte Bestandsnotiz** (`app.py:3955-3963`, `3975-3978`):
+
+1. `This save's stored builds could not be read: <loadout_error>`
+2. `This save stores no equipped loadout for <Nightfarer>.`
+3. `<Nightfarer> has vessel <id> equipped, which is not in this list.`
+
+**Warum AK-224 das nicht kennt und trotzdem verfehlt wird:** AK-224 zaehlt
+„einen der vier Saetze aus §6" und macht daraus einen binaeren Waechter — die
+drei Saetze oben gehoeren zu keinem der vier. Ein Waechter, der AK-224 woertlich
+baut, meldete ein Ende mit einem dieser drei Saetze faelschlich als Fehler
+(„der Wartesatz ist nie das letzte Wort" waere technisch nicht verletzt — es
+ist ja kein Wartesatz mehr —, aber die „vier Vorrichtungen, je eine je Ende"
+aus dem *Aufbau* liessen den Fall unentdeckt durchfallen, weil niemand eine
+fuenfte Vorrichtung dafuer baut).
+
+**Kein Nebeneffekt der Trennung in einen Hintergrundthread — das betont der
+Bericht ausdruecklich:** derselbe Aufruf waere auf dem synchronen Weg genauso
+gefallen, sobald `reload_chalices` beim ersten Lesen unbedingt lief (das ist
+die T-141-Entscheidung „Unconditional now, first read included", nicht die
+T-142-Bauform). Der `developer` hat also keinen neuen Fehler gebaut, sondern
+eine Luecke in der Kriterienzaehlung von AK-224 gefunden, die schon am
+08.09.2026 entstand.
+
+**Wo das passieren kann:** nicht zwingend nur beim allerersten Programmstart
+— sondern bei jedem Lesen, nach dem `owned` fuer den **gerade gezeigten**
+Nightfarer zum ersten Mal in dessen Programmlebensdauer nicht mehr `None` ist
+(das kann auch ein spaeterer `Rescan` sein, wenn der Start selbst keinen
+Bestand fand). **Nicht**, wenn der Spieler zwischen Anstrich und Ankunft
+selbst einen Slot gesetzt hat — dann greift AK-226 zuerst und `load_equipped`
+wird uebersprungen (`app.py:2785-2787`, `_own_slots_beat_the_stored_build`).
+
+**AK-244** *(der Wartesatz ist nie das letzte Wort — und manchmal ist es ein
+fuenftes.)* Erreicht ein Lesen sein Ende und loest dabei das automatische
+Uebernehmen des ausgeruesteten Builds aus (`owned is not None`,
+`chalices.imported(hero_id)` war vor diesem Lesen `False`,
+`owned.loadouts_for(hero_id)` nicht leer, und der Spieler hat seit dem letzten
+Anstrich **keinen** Slot selbst gesetzt), so traegt die Spielstandzeile am
+Ende **entweder** einen der vier Saetze aus AK-224 **oder** einen der drei
+Saetze aus §2 dieses Nachtrags, woertlich — nie den Wartesatz, nie eine
+Mischung, nie einen leeren Text. Scheitert das automatische Uebernehmen
+**nicht**, gilt AK-224 unveraendert und die Bestandsnotiz bleibt stehen.
+*Aufbau:* ein Spielstand mit gespeichertem Build fuer den angezeigten
+Nightfarer, dreimal praepariert, sodass `load_equipped` je einmal in jeden der
+drei Faelle laeuft (Ladefehler, kein ausgeruestetes Build fuer den Helden,
+ausgeruestetes Vessel nicht in der Kelchliste); danach je einmal derselbe
+Spielstand mit einem tatsaechlich uebernehmbaren Build, wo die Bestandsnotiz
+stehen bleiben muss.
+*Toetende Mutation:* `load_equipped` nur den Ruecksprung fuer den
+lesenden Zustand behalten (`app.py:3921-3922`) und die drei Fehlertexte
+unterdruecken, statt sie zu erwarten — dann sammelt der Waechter sie nicht ein
+und ein echtes Scheitern des automatischen Imports faellt unbemerkt durch.
+
+### 3. AK-229, zweite Haelfte — der Vermerk zum befristeten Whitelist-Eintrag
+
+**Was der `developer` gebaut hat, gelesen in
+`tests/test_save_read_in_the_background.py:637-701`:** die Pruefung sammelt
+jeden Text ein, der ueber `raise ValueError(...)` in `nrdata/savefile.py` und
+`nrplanner/inventory.py` erreichbar ist, und verlangt, dass **hoechstens** der
+namentlich genannte `_check_the_prefilter_can_see_every_id` einen der drei
+verbotenen Saetze traegt (`offenders <= {THE_SENTENCE_AK_228_REMOVES}`). Eine
+zweite Pruefung (`test_the_collector_of_the_texts_really_fires`) belegt, dass
+genau dieser eine Fall **heute** noch anschlaegt — und ihr eigener Docstring
+sagt bereits: „When AK-228 lands this case must go, together with the
+exception it names."
+
+**Entspricht das der Absicht: ja.** Der langsame Rueckfallweg (AK-228) existiert
+im Quelltext nicht (§13 Punkt 2), also existiert auch die einzige Stelle nicht,
+die die Id-Pruefung vom Werfen auf das Vermerken umstellen wuerde (§7 Punkt 1).
+Bis dahin **wirft** `_check_the_prefilter_can_see_every_id` weiterhin, und ihr
+Text landet ueber `rescan_save`s Auffangbecken tatsaechlich hinter dem
+Praefix — das ist der lebende Widerspruch aus §8, den diese Vorgabe beheben
+sollte und der ohne den fertigen Rueckfallweg **nicht behoben werden kann**.
+Eine Pruefung, die diesen einen Fall stillschweigend ausliesse, mass ihr
+eigenes Pruefmittel und nicht die Sache (Rahmenregel); eine Pruefung, die ihn
+**benennt und mit einer sich selbst zerstoerenden Positivkontrolle bewacht**,
+tut das Richtige: sie haelt fest, dass die Luecke bekannt und **einzig** ist,
+und sie reisst ab, sobald V4 den Grund fuer die Ausnahme entfernt.
+
+**Warum AK-229 trotzdem einen Vermerk braucht, statt nur „passt schon":**
+AK-229 behauptet heute woertlich „Kein Text, der hinter diesem Praefix landen
+kann, sagt, dass mit dem Spielstand alles in Ordnung sei." Das ist **fuer den
+Spieler noch nicht wahr** — nur fuer den Waechter, der die eine bekannte
+Ausnahme kennt. Ein Spielstand, dessen groesste Relikt-Id heute die
+`RELIC_ID_CEILING` erreicht (der Ausloeser aus §7), zeigt einem echten Spieler
+**vor** V4 noch immer den Satz „Save could not be read: relic id … nothing is
+wrong with the save." — denselben Selbstwiderspruch, den §8 dieser Vorgabe
+beheben wollte. Der gruene Waechter bestaetigt nur, dass diese eine, bekannte
+Luecke nicht durch eine zweite, unbemerkte ergaenzt wurde — er bestaetigt
+nicht, dass sie geschlossen ist.
+
+**Vermerk (kein neues Kriterium, keine Aenderung des AK-229-Textes):**
+AK-229, zweite Haelfte, gilt vollstaendig erst **ab V4** (wenn AK-228 gebaut
+ist und die Id-Pruefung aufhoert zu werfen, §7 Punkt 1). Bis dahin gilt sie
+mit **genau einer** benannten, befristeten Ausnahme:
+`_check_the_prefilter_can_see_every_id` in `nrdata/savefile.py`. Diese
+Ausnahme darf **nicht wachsen** — jede zweite Fundstelle mit einem der drei
+verbotenen Saetze ist ab dem Tag dieses Vermerks ein echter AK-229-Verstoss,
+kein weiterer Ausnahmefall. Landet V4/AK-228, ist der Vermerk hinfaellig, und
+mit ihm der Whitelist-Eintrag im Waechter (der Waechter selbst sagt das
+bereits voraus, §3 oben) — wer AK-228 baut, entfernt beides in **derselben**
+Aenderung. **An den `director`:** der Selbstwiderspruch aus §8 ist damit fuer
+echte Spieler bis V4 **nicht** behoben, nur nicht verschlimmert — falls der
+Ausloeser (ein Spielpatch, der `RELIC_ID_CEILING` erreicht) vor V4 eintritt,
+sehen Spieler weiterhin den widerspruechlichen Satz. Das ist eine
+Priorisierungsfrage, keine Design-Frage, und gehoert an den `director`, nicht
+in eine neue AK-Nummer.
+
+### 4. Reichweite — was sonst noch angesehen und unveraendert befunden wurde
+
+Geprueft und **nicht** veraendert, weil bereits konsistent:
+
+- **§5 (Was bedienbar ist)** nennt `Optimize` gar nicht in seiner Tabelle —
+  im Gegensatz zu AK-223 macht §5 keine erschoepfende Behauptung ueber „jedes
+  andere" Element, sondern zaehlt nur auf; kein Widerspruch, keine Aenderung.
+- **AK-220 bis AK-222, AK-225 bis AK-228** wurden gegen dieselbe Quelltextlage
+  geprueft und halten, was sie versprechen — keine weitere Luecke gefunden.
+- **§9 (h)** („was nie erscheint") ist von den drei Saetzen aus §2 dieses
+  Nachtrags nicht beruehrt: sie sind keine der dort verbotenen Aussagen ueber
+  ungezaehlten Besitz, sondern Meldungen ueber das Uebernehmen eines
+  gespeicherten Builds — ein anderer Sachverhalt.
+
+**Diese Praezisierung beruehrt damit nur die drei im Auftrag genannten
+Stellen — keine vierte.**
+
+### 5. Neu vergebene Kriterien
+
+**AK-243, AK-244** (§1, §2 oben). Keine Nummer gestrichen, keine Millisekunde
+in einem der beiden Texte.
+
