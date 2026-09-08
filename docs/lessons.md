@@ -707,7 +707,7 @@ Gegenprobe: mindestens **eine** Aussage je Zyklus, bei der der Director die
 Primaerquelle im Auftrag mitnennt (z. B. "12 Releases, `gh release list`,
 08.09.").
 
-**Status:** vorgeschlagen
+**Status:** **angenommen und umgesetzt am 08.09.2026** (Nutzer)
 
 ---
 
@@ -760,7 +760,7 @@ Bestandsaussage in `docs/tasks/` entweder eine Quittung oder die Kennzeichnung
 als Annahme; nachpruefbar mit einem `grep` ueber die Auftragsdateien. Und: kein
 Bericht meldet, dass ein zitierter Sachverhalt nicht stimmte.
 
-**Status:** vorgeschlagen
+**Status:** **angenommen und umgesetzt am 08.09.2026** (Nutzer)
 
 ---
 
@@ -819,7 +819,7 @@ Regeltext, keine zusaetzliche Pflicht je Auftrag.
 widerlegt, und kein Auftrag stuetzt sich auf eine Aussage ueber Rollenrechte,
 die die Rollendefinition nicht deckt.
 
-**Status:** vorgeschlagen
+**Status:** **angenommen und umgesetzt am 08.09.2026** (Director, Projektmassnahme)
 
 ---
 
@@ -890,7 +890,7 @@ Textaenderung darin.
 **nicht laenger** als heute (1085 Zeilen), und `docs/state.md` wird hoechstens
 **dreimal** je Zyklus committet.
 
-**Status:** vorgeschlagen
+**Status:** **angenommen und umgesetzt am 08.09.2026** (Nutzer)
 
 ---
 
@@ -932,7 +932,7 @@ der, der eine Regel zitiert — und das ist derselbe Moment wie bei L-017.
 ohne Praefix, das im teamweiten Satz nicht existiert (pruefbar mit einem `grep`
 ueber `claude-agent-team`).
 
-**Status:** vorgeschlagen
+**Status:** **angenommen und umgesetzt am 08.09.2026** (Nutzer)
 
 ---
 
@@ -966,3 +966,29 @@ ueber `claude-agent-team`).
 - **`CHANGELOG.md` existiert nicht** (T-113, git-weite Suche, kein Treffer),
   obwohl `commands/director.md:50` sie als Ergebnis des `release-manager`
   fuehrt. Erstes Vorkommen, gemeldet an den Director, keine Massnahme.
+
+
+---
+
+## Nachtrag 08.09.2026 — die Umsetzung und ihr erster Selbstwiderspruch
+
+**Alle fuenf Massnahmen sind umgesetzt.** L-016 im Projekt (`CLAUDE.md`,
+QA-198-Ueberschrift, Kopf des T-115-Berichts). L-014, L-015, L-017 und L-018
+im Agenten-Repo, Commit `486ac4e`: `hooks/remind-rules.ps1` (durch Ausfuehren
+geprueft, 140 Woerter statt 50), `commands/director.md` Pruefung 4,
+`agents/_rahmen.md` neuer Abschnitt "Regeln pflegen", drei Hook-Kommentare.
+`hooks/selftest.ps1` gruen.
+
+**Und L-017 ist im selben Arbeitsschritt gerissen.** Sein Erfolgskriterium
+lautet: *"Am Ende von Zyklus 17 ist `commands/director.md` nicht laenger als
+heute (1085 Zeilen)."* Die Umsetzung von L-015 hat die Datei auf **1097**
+gebracht — zwoelf Zeilen mehr, eingefuegt vom Director, der die Regel im selben
+Commit angenommen hat.
+
+Das ist kein Argument gegen L-017, sondern sein erster Beleg: der Bestand
+waechst, **auch wenn man gerade beschlossen hat, dass er das nicht soll.**
+L-017 verlangt in diesem Fall einen Satz Begruendung, und hier ist er:
+**L-015 ersetzt nichts, sie schaerft Pruefung 4 an der Stelle, an der die
+Aussage teuer wird.** Die zwoelf Zeilen sind damit belegt, aber nicht getilgt —
+**in Zyklus 17 sind zwoelf Zeilen an anderer Stelle zu streichen**, sonst ist
+das Erfolgskriterium von L-017 verfehlt, bevor es geprueft wird.
