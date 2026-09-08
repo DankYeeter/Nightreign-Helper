@@ -21,34 +21,54 @@ Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
 vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
 Nutzer ganz am Ende.**
 
-## Zyklus 16 — der Release-Weg (Nutzerentscheid 07.09.2026)
+## Zyklus 16 - der Release-Weg (Nutzerentscheid 07.09.2026)
 
-Ziel **A9 und A2**. **A2 ist seit T-105 erfuellt** — SEC-009 behoben und
-gegengeprueft (`d92bab9`), kein Hoch-Befund mehr offen; Bestaetigung durch den
+Ziel **A9 und A2**. **A2 ist seit T-105 erfuellt** - SEC-009 behoben und
+gegengeprueft; kein Hoch-Befund mehr offen, Bestaetigung durch den
 `security-reviewer` steht aus.
 
 **Falsche Praemisse, korrigiert 07.09.2026:** "es gibt bis heute keine EXE"
-war falsch — **12 Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads**.
-A9 bleibt offen (nie lief ein `qa-engineer` gegen ein Artefakt), aber der
-Risikoweg ist das **Update**, nicht die Erstinstallation, und die
-Rechtsschwelle aus C-003 liegt hinter uns (T-108). Hergang im Verlauf.
+war falsch - **12 Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads**.
+A9 blieb offen (nie lief ein `qa-engineer` gegen ein Artefakt), aber der
+Risikoweg ist das **Update**, nicht die Erstinstallation. Hergang im Verlauf.
 
-Kette: T-104 `compliance-agent` ✔ **+** T-105 `developer` ✔ (parallel) →
-**T-106** `release-manager` (`plan`) **+ T-107** `technical-writer` (parallel,
-laufen) → `release-manager` (`build`) → (`clean-room`) → `qa-engineer` **+**
-`power-user` parallel. Dazwischen ein `developer` fuer **A-020** (Hinweispaket
-als Release-Asset) — nicht parallel zum `release-manager`.
+**Gelaufen:** T-104 `compliance-agent` · T-105 `developer` (SEC-009) ·
+T-106 `release-manager` `plan` · T-107 `technical-writer` · T-108
+`compliance-agent` (C-004) · T-109 `developer` (1.8.0, A-020-Transport,
+A-030-Waechter) · T-110 `archivist` `sync-out` · T-111 `build` · T-112
+`technical-writer` · T-113 `clean-room` **CONCERNS, Artefakt freigegeben** ·
+T-115 `power-user`. **T-114 `qa-engineer` laeuft - das ist A9 selbst.**
 
-**Clean-room auf diesem Rechner, isoliert** (leeres Verzeichnis, geleerter
-PATH, keine `.venv`) — A9 gilt danach **mit Vorbehalt** erfuellt: keine echte
-Fremdinstallation. **GOAL-Wortlaut beachten:** A9 verlangt den
-**`qa-engineer`** am Artefakt, nicht den `power-user`.
+**Das Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, SHA-256
+`42B21AA2...F221`, `VersionInfo` 1.8.0. **Der Stand ist eingefroren, solange
+T-114 laeuft.**
+
+**Update-Weg belegt (T-113):** echtes `v1.7.1` von GitHub geladen und
+gestartet, dann 1.8.0 darueber - `EXTRACT_VERSION` 8 auf 11, `__schema` auf 3,
+**7 von 7 Builds namentlich erhalten**. Echte Nutzerdaten unangetastet.
+
+**Isolierung fuer jeden Lauf am Artefakt - drei Umlenkungen, nicht zwei:**
+`NIGHTREIGN_SETTINGS_ORG` (`favourites.py:25`) · `LOCALAPPDATA`
+(`paths.py:20`) · **`APPDATA`** (`shortcut.py:44-49`). Am 07.09. fehlte die
+dritte, und eine Verknuepfung landete im echten Start-Menue des Nutzers
+(entfernt). QA-195 ist die Klasse dahinter.
 
 **Stehende `power-user`-Messreihe, ab jetzt unveraendert kopiert:** Erststart
 ohne Vorwissen · Spielstand finden lassen · im Build planner ein Relikt
 tauschen · den Beratervorschlag anwenden · eine Zahl im Arsenal-Tab deuten ·
-beenden und neu starten. Ab jetzt aendert sich nur das Programm, nie das
-Messgeraet.
+beenden und neu starten. Wortlaut in `docs/tasks/T-115.md`.
+
+**Was die Veroeffentlichung noch sperrt:** nur **A-033** (Hinweispaket an alle
+zwoelf Bestandsreleases, Text B aus `docs/release/RELEASE_TEXT.md`).
+Nutzerentscheidung 07.09.: **W1**, fortsetzen und nachruesten; das Restrisiko
+aus Paragraf 95a traegt der Nutzer bewusst, A-025 ist als GRAU geschlossen.
+
+**Effizienz, erkannt 08.09. - noch nicht beauftragt:** jeder Lauf am Artefakt
+baut den Datenabzug neu (107 s bis 5 min, viermal bezahlt), weil jede Rolle
+ein eigenes umgelenktes `LOCALAPPDATA` bekommt. **Ein einmal gebauter,
+schreibgeschuetzter Abzug fuer alle Leselaeufe** ist der groesste Hebel.
+Zweiter: A8 und Teile von A4 sind am Artefakt auch ohne Fenster pruefbar -
+nur A3, A5, A6 brauchen wirklich den Bildschirm.
 
 ## Stand gegen `GOAL.md`
 
@@ -59,7 +79,7 @@ Messgeraet.
 | A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
 | A8 | alles Englisch | haelt, ohne Waechter (QA-192) |
-| A9 | QA gegen ein **gebautes Artefakt** | **Zyklus 16**; 12 Releases gebaut, nie eines geprueft |
+| A9 | QA gegen ein **gebautes Artefakt** | **T-114 laeuft**; Artefakt gebaut und freigegeben |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
 | A11 | ohne Raten ans Ziel | offen (QA-173) |
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
@@ -87,10 +107,18 @@ Verlauf. **QA-196/QA-197 sind geklaert** und stehen in der Rollendefinition.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
-QA-181 · QA-182 · QA-184 · **QA-186** (GATE_FIELDS beschriftet 51
-Gegenstandseffekte falsch, seit T-090 sichtbar widerspruechlich) · QA-188 ·
-QA-190 · QA-191 · QA-192 · QA-193 · QA-195 · **SEC-025**. Wortlaut und
-Adressat je Befund in `qa/findings.md` bzw. `security/findings.md`.
+QA-181 · QA-182 · QA-184 · **QA-186** · QA-188 · QA-190 · QA-191 · QA-192 ·
+QA-193 · QA-195 · **SEC-025**. Wortlaut je Befund in `qa/findings.md` bzw.
+`security/findings.md`.
+
+**Neu aus Zyklus 16, alle am Artefakt gefunden:** **QA-198** (Erstaufbau sagt
+"etwa eine Minute", gemessen 107 s bzw. 5 min - die Spanne ist der Befund) ·
+**QA-199** (kein Weg, den Spielpfad von Hand anzugeben; dasselbe Loch wie
+QA-171 von der anderen Seite) · **QA-200** (Arbeit geht beim Schliessen
+verloren, ohne Warnung - am Code bestaetigt, `app.py:2000`; Entwurfsfrage an
+den `ui-ux-designer`) · **QA-201** (die eigene Reliktzahl ist nicht auffindbar)
+· **QA-202** (zweiter Start liest erneut ein, ungeklaert). **QA-170 ist mit dem
+siebten Durchgang reproduziert** - zwei Laeufe, dasselbe Aufgeben.
 
 ## Der Rest — in dieser Reihenfolge
 
