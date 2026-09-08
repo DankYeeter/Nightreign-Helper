@@ -181,6 +181,67 @@ class OwnedRelic:
     curse_ids: list[int] = field(default_factory=list)
 
 
+# What the prefilter below assumes about the game's own numbering, and the
+# only thing it assumes: every relic id fits in three bytes.
+#
+# A record begins with `relic_id | RELIC_ID_FLAG`. Below this ceiling that
+# word's top byte is exactly the flag's own, so in little-endian every record
+# carries that byte at its fourth. The largest id in the dataset on 2026-09-08
+# is 2 013 322, a factor 8 below the ceiling.
+#
+# The ceiling is a coupling to data a game patch can renumber, so it is
+# checked on every scan instead of being written down beside it: a scan that
+# stopped seeing a whole band of ids would return a short inventory that looks
+# exactly like an empty one, and nothing downstream could tell the difference
+# (AD-029).
+RELIC_ID_CEILING = 0x01000000
+
+# The byte a record is looked up by. Taken from the flag rather than written
+# out, so the two cannot drift apart.
+_ID_TOP_BYTE = struct.pack("<I", RELIC_ID_FLAG)[3:4]
+
+# Where the fields this scan reads out of a record end, and with it the last
+# offset a record may begin at. A record ends at +24 for the purposes of this
+# reader: the doubled id, the separator, and the three effect ids.
+RELIC_FIELDS_SIZE = 24
+
+
+def _relic_id_offsets(slot_data: bytes):
+    """Every offset in this slot that could still begin a relic record.
+
+    The scan used to look at every fourth byte of the slot, which is 262 144
+    `unpack_from` calls per MiB and, over the 28 slots one startup reads,
+    10 293 488 of them -- 6,15 s on the thread that builds the window, at
+    every start and every rescan (T-118 P2).
+
+    Only 0,22 % of a real slot's bytes are the one a record must carry at its
+    fourth, so `bytes.find` walks the slot in C and hands the loop below only
+    the offsets that can still turn out to be a record. Measured on the
+    player's save: 14 slots in 61,9 ms against 2 802,7 ms.
+
+    Offsets come out ascending and only on a four-byte boundary, both of which
+    the caller relies on: the record's own alignment is what says a doubled id
+    found here is the game's and not a coincidence inside neighbouring data.
+    """
+    end = len(slot_data) - RELIC_FIELDS_SIZE
+    pos = slot_data.find(_ID_TOP_BYTE, 3)
+    while pos >= 0 and pos - 3 < end:
+        if pos % 4 == 3:
+            yield pos - 3
+        pos = slot_data.find(_ID_TOP_BYTE, pos + 1)
+
+
+def _check_the_prefilter_can_see_every_id(valid_relic_ids: set[int]) -> None:
+    """Refuse to scan at all rather than scan half the ids (AD-029)."""
+    biggest = max(valid_relic_ids, default=0)
+    if biggest >= RELIC_ID_CEILING:
+        raise ValueError(
+            f"relic id {biggest} is at or above {RELIC_ID_CEILING}, which "
+            f"the inventory scan of this program cannot find in a save. The "
+            f"game has renumbered its relics and this program is too old to "
+            f"read what it wrote; nothing is wrong with the save.")
+
+
 def read_owned_relics(
     slot_data: bytes, valid_relic_ids: set[int], valid_effect_ids: set[int]
 ) -> list[OwnedRelic]:
@@ -189,6 +250,7 @@ def read_owned_relics(
     Anchors on the doubled relic id rather than a fixed stride, so it stays
     correct even if the surrounding record size changes between patches.
     """
+    _check_the_prefilter_can_see_every_id(valid_relic_ids)
     out: list[OwnedRelic] = []
     seen_offsets: set[int] = set()
     # What this slot could hold at all (SEC-022). Relative to the slot's own
@@ -197,7 +259,7 @@ def read_owned_relics(
     # with no room for a second record has no density to judge.
     limit = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
 
-    for off in range(0, len(slot_data) - 24, 4):
+    for off in _relic_id_offsets(slot_data):
         first, second = struct.unpack_from("<II", slot_data, off)
         if first != second or first < RELIC_ID_FLAG:
             continue
