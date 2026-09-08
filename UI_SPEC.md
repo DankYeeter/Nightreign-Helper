@@ -6738,6 +6738,17 @@ dreien" ist eine Zusage der Architektur (AD-006/AD-028); dass sie unter dieser
 Entscheidung **tragend** wird, ist im Bericht an den `director` fuer den
 `architect` vermerkt.
 
+> **Nachtrag vom 08.09.2026 (T-135, OF-30) — dieser Abschnitt kennt nur einen
+> von zwei Wegen.** Er zitiert den Docstring von `worker.py`, und beide kennen
+> nur das Fragen ueber `ask`. War die Antwort beim Fragen **schon bekannt**,
+> kommt sie als **Rueckgabewert** und ohne jedes Signal (Nachtrag IX-1.3;
+> 30 % der Oeffnungen, S11-F) — dann steht das Raster bereits im ersten
+> Anstrich, und es gab nie eine Leere. Die Zusage dieses Abschnitts gilt
+> unveraendert und deckt diesen Fall erst recht; **verbindlich ist AK-218
+> Fassung 2** im Abschnitt „AK-218 nachgezogen: die Antwort, die schon bekannt
+> war (ui-ux-designer, T-135)" am Ende dieser Datei. Der praezisierte Vertrag
+> des Controllers steht in `ARCHITECTURE.md`, Nachtrag X-0.
+
 ### 7. Der Wortlaut — vollstaendig, Englisch (A8)
 
 Jeder dieser Texte ist `Qt.PlainText`; jeder interpolierte Wert aus Save- oder
@@ -6937,6 +6948,15 @@ Vorrichtungen, mit denen alles davon zu stellen ist.
   *Aufbau:* drei Vorrichtungen — eine Spur, die antwortet, eine, die `failed`
   meldet, eine, die `stopped` meldet.
   *Toetende Mutation:* `stopped` nicht behandeln — das Raster bleibt leer.
+  **Nachgezogen am 08.09.2026 (T-135, OF-30): dies ist Fassung 1 und bleibt
+  hier woertlich stehen; verbindlich ist Fassung 2** im Abschnitt „AK-218
+  nachgezogen: die Antwort, die schon bekannt war (ui-ux-designer, T-135)" am
+  Ende dieser Datei. Grund: der Zwischenspeicher-Treffer endet im
+  **Rueckgabewert** und in keinem der drei Ausgaenge (Nachtrag IX-1.3,
+  `worker.py:288-290`), fuellt das Raster aber schon im ersten Anstrich —
+  Fassung 1 nennt den besten Ausgang einen Fehler. Die Zusage selbst („die
+  Leere ist nie das letzte Wort") ist unveraendert. **Ein Waechter, der die
+  drei Signale zaehlt, prueft Fassung 1 und wird beim Treffer zu Unrecht rot.**
 - **AK-219** *(zwei Zeichen, zwei Aussagen — ersetzt AK-209.)* Auf einer Karte
   bedeuten `—` „nicht gemessen" und `no change` „gemessen, ohne Wirkung"; sie
   stehen nie fuereinander. Ein drittes Zeichen fuer „laeuft noch" gibt es auf
@@ -6973,3 +6993,189 @@ Vorrichtungen, mit denen alles davon zu stellen ist.
   sucht und dabei nie Zahlen braucht, wartet dafuer bei jeder Oeffnung; wenn
   das stoert, ist es eine Zeile in AK-212 („der Wartezustand entfaellt, wenn
   `Sort by` auf `Name` steht").
+
+---
+
+## AK-218 nachgezogen: die Antwort, die schon bekannt war (ui-ux-designer, T-135) — 2026-09-08
+
+**Gegenstand: ein Satz, kein Entwurf.** AK-218 (T-127) verlangt fuer **jede**
+Frage einer Oeffnung einen von drei Ausgaengen. Der haeufigste Weg des
+gebauten Zustands ist keiner von dreien — er endet im Rueckgabewert. Der
+`architect` hat das in `ARCHITECTURE.md` **Nachtrag X** gemeldet (**OF-30**)
+und `UI_SPEC.md` richtigerweise nicht angefasst.
+
+**Was gilt:** Fassung 1 von AK-218 bleibt woertlich stehen (T-127 §9, mit
+Zeiger hierher); **verbindlich ist Fassung 2 in §2 dieses Abschnitts.** Sonst
+ist am T-127-Abschnitt nichts geaendert — AK-211 bis AK-217 und AK-219 gelten
+Wort fuer Wort weiter, und **es ist keine neue AK-Nummer vergeben** (der
+naechste freie Kreis bleibt **AK-220**).
+
+**Die Sache ist unberuehrt.** Aus diesem Nachzug folgt keine Zeile
+Anwendungscode: der Spieler sieht in allen Faellen ein gefuelltes Raster, beim
+Treffer sogar frueher. Was sich aendert, ist, **was ein Waechter behaupten
+darf** — und der wird gerade gebaut (W8).
+
+### 0. Grundlage und Methode
+
+Gelesen am Stand `0128971`: `docs/tasks/T-135.md`, `ARCHITECTURE.md`
+Nachtrag X (X-0 bis X-3 und die Meldung ab Zeile 5250),
+`docs/berichte/T-134-architect.md`, der T-127-Abschnitt dieser Datei,
+`nrplanner/advisor/worker.py` (`ask_and_answer_if_known`, `_question_from`,
+`_cache`), `nrplanner/advisor/run.py` (`ResultCache`, `cache_key`),
+`nrplanner/relicpicker.py` (`SlotAdvice.ask`, der Wartezustand,
+`setModal(True)`), `tests/picker_track.py` und
+`tests/test_picker_track_guards.py` (W6 und seine Vorrichtungen).
+
+**Nichts gestartet, nichts gemessen.** Dieser Abschnitt enthaelt keine Zahl
+ueber die Oberflaeche und braucht deshalb keine Messumgebung (L-009). Die eine
+Zahl, die vorkommt — 30 % der Oeffnungen treffen den Zwischenspeicher —, ist
+aus **S11-F** zitiert, nicht von mir erhoben.
+
+### 1. Was Fassung 1 nicht trifft
+
+Fassung 1 macht die **Leitung** zur Bedingung, auf der die Antwort ankommt:
+`ready`, `failed`, `stopped`. Der Treffer im Zwischenspeicher benutzt diese
+Leitung nicht. `ask_and_answer_if_known` gibt die Antwort als Rueckgabewert
+zurueck und sendet ausdruecklich nichts
+(`nrplanner/advisor/worker.py:288-290`, Aufrufstelle
+`nrplanner/relicpicker.py:413-416`) — so von **Nachtrag IX-1.3** entschieden,
+damit ein bekanntes Ergebnis **im ersten Anstrich** stehen kann statt eine
+Runde der Ereignisschleife spaeter. Das betrifft 30 % der Oeffnungen (S11-F),
+und **IX-1.C ist deshalb Voraussetzung des leeren Rasters, nicht seine
+Ersparnis**.
+
+Am Bildschirm ist dieser Weg der **beste** Ausgang, den es gibt: das Raster
+ist voll, ohne dass je eine Leere zu sehen war. Fassung 1 nennt ihn einen
+Fehler. **Der Fehler steht im Satz, nicht im Programm.**
+
+Folgenlos ist er nicht: W6 zitiert diesen Wortlaut
+(`tests/test_picker_track_guards.py:28` und `:515`), und W8 soll darauf gebaut
+werden. Ein Waechter, der die drei Signale **zaehlt**, wird beim Treffer rot —
+er verteidigt dann eine Zusage, die die Oberflaeche nie gemeint hat, gegen den
+Fall, den die Oberflaeche am liebsten hat.
+
+**Warum es so kommen konnte:** Fassung 1 ist geschrieben worden, als `ask` der
+einzige Weg in den Controller war; der zweite Weg (U5b) stand da schon im
+selben File. Dieselbe Bauform wie bei W1 in Nachtrag X-3 — ein Text, der eine
+Menge von Wegen aufzaehlt, statt den Zustand zu nennen, auf den es ankommt.
+
+### 2. AK-218, Fassung 2 — verbindlich
+
+- **AK-218** *(die Leere ist nie das letzte Wort — Fassung 2, T-135; ersetzt
+  Fassung 1 aus T-127 §9, die dort woertlich stehen bleibt.)*
+
+  Eine Oeffnung des Pickers, die ueberhaupt eine Reliktkarte anzubieten hat,
+  **zeigt Karten**. Sie kommt auf genau einem von zwei Wegen dorthin, und
+  welcher es war, sieht der Spieler nur an der Wartezeile:
+
+  **(a) Die Antwort war beim Fragen schon bekannt.** Sie kommt als
+  Rueckgabewert (Nachtrag IX-1.3), es entsteht **kein** Wartezustand, und das
+  Raster steht **im ersten Anstrich** vollstaendig: Karten in der sortierten
+  Ordnung, beide Wertzeilen, Chips, Kopfzeile, Zeile 3 in der fertigen
+  Fassung. Die Zeile `Your relics appear here.` und der Wartesatz aus AK-214
+  erscheinen dabei **nie**, auch nicht fuer einen Anstrich. Das ist der eine
+  Anstrich, den AK-211 mit „hoechstens zwei Zustaende" ausdruecklich erlaubt —
+  ein Regelfall, kein Sonderfall.
+
+  **(b) Die Frage lief.** Bis zu ihrem Ende gilt AK-212 (das leere Raster als
+  Zustand). Sie endet in genau einem von drei Ausgaengen — `ready`, `failed`,
+  `stopped` —, und **jeder der drei fuellt das Raster**: `ready` mit der
+  sortierten Ordnung; `failed` und `stopped` mit der Namensordnung, `—` in
+  beiden Wertzeilen, ohne Chip, unter der Kopfzeile aus AK-208, bei `stopped`
+  mit `<reason>` = `the search was stopped`.
+
+  **Ein Ende, nach dem das Raster leer bleibt, ist ein Fehler** — gleich ob es
+  ein Signal war, ein Rueckgabewert oder keines von beidem. Das ist der Satz,
+  an dem diese Entscheidung haengt; die Aufzaehlung der Wege ist ihm
+  nachgeordnet und **waechst mit**, wenn ein dritter Weg hinein gebaut wird.
+
+  *Nicht Gegenstand dieses Kriteriums, je mit der Stelle, die es regelt:* die
+  Oeffnung, die keine einzige Reliktkarte anzubieten hat (Ausnahme in AK-212);
+  die Frage, **solange** sie laeuft (AK-212); die Antwort einer frueheren
+  Oeffnung (AK-207); und das Schliessen des Hauptfensters waehrend des Dialogs
+  — der Picker ist modal (`relicpicker.py`, `setModal(True)`), und wo kein
+  Dialog mehr steht, ist kein Raster zu fuellen. `shutdown` ist deshalb eine
+  Ausnahme des **Vertrags** (Nachtrag X-0), aber kein Fall dieses Kriteriums.
+
+  *Aufbau:* vier Vorrichtungen — eine Spur, die sofort antwortet; eine, die
+  `failed` meldet; eine, die `stopped` meldet; und **dieselbe Spur ein zweites
+  Mal fuer denselben Slot geoeffnet**, ohne dass sich dazwischen etwas
+  geaendert hat (Weg (a)).
+
+  *Toetende Mutationen:* `stopped` nicht behandeln — das Raster bleibt leer;
+  und den Treffer ausschalten, so dass `ask_and_answer_if_known` immer `None`
+  liefert — die zweite Oeffnung zeigt dann eine Wartezeile, und Weg (a) wird
+  rot.
+
+### 3. Was ein Waechter daran pruefen kann — ohne Millisekunden
+
+**1. Gezaehlt wird, was im Rollbereich steht, nicht welches Signal geflossen
+ist.** Das ist der ganze Nachzug in einem Satz. Der Zustand je Vorrichtung ist
+mit vorhandenem Werkzeug zu stellen: `cards_in(dialog)` ist nicht leer,
+`area_labels(dialog)` enthaelt `Your relics appear here.` nicht (mehr), und
+Kopfzeile plus Wertzeilen stehen so, wie die Zeile der Tabelle es sagt. Kein
+Zeitmass, keine Uhr.
+
+**2. Der Treffer braucht eine Positivkontrolle, sonst prueft der Waechter sein
+eigenes Pruefmittel.** Eine zweite Oeffnung, die den Zwischenspeicher
+**verfehlt**, sieht am Ende genauso aus wie eine, die ihn trifft — Karten
+stehen, nur einen Anstrich spaeter. Ein Fall, der nur den Endzustand prueft,
+ist deshalb auch dann gruen, wenn er Weg (a) gar nicht gefahren hat. Zwei
+Belege, beide ohne Uhr:
+
+- **`answers.calls == 1` ueber beide Oeffnungen** (`StatedAnswers` zaehlt die
+  Fragen, die die Spur wirklich gerechnet hat) — der Treffer hat keine zweite
+  Rechnung ausgeloest;
+- **im ersten Anstrich der zweiten Oeffnung stehen schon Karten** — geprueft
+  unmittelbar nach dem Bau des Dialogs, **vor** jedem `spin`.
+
+Der zweite Beleg ist der schaerfere: er ist genau die Zusage aus (a) und
+zugleich der Unterschied zwischen „getroffen" und „einen Anstrich spaeter doch
+noch gefuellt".
+
+**3. Faehrt die Vorrichtung den Weg nicht her, ist das ein Befund und keine
+Nachbesserung am Fall.** Ich habe sie nicht gefahren. Nachgesehen habe ich
+zweierlei, und beides traegt sie nur, es beweist sie nicht: der
+Zwischenspeicher-Schluessel nimmt die Generation heraus (`advisor/run.py`,
+`cache_key` und `ResultCache.get`), zwei Oeffnungen desselben Slots koennen
+sich also treffen; und `tests/picker_track.py:a_track` nimmt einen
+Zwischenspeicher entgegen, ein Fall kann ihn also auch vorbelegen statt ihn
+erst zu fuellen. Trifft er trotzdem nicht, gehoert das gemeldet (L-008c) — der
+Befund waere dann groesser als dieses Kriterium.
+
+**4. „Ohne Millisekunden" heisst: keine Frist, an deren Ablauf eine Behauptung
+haengt.** Gewartet wird auf **Zustaende** (`spin(qapp, until)`); die Frist
+darin ist eine Sicherung gegen Haengen und kommt in keiner Behauptung vor.
+Zwei Formulierungen, die W8 **nicht** benutzen darf, weil sie eine Wanduhr
+hereinholen: *„innerhalb von X ms gefuellt"* und *„die Leere dauert hoechstens
+X ms"*. Und eine dritte, die schon fachlich falsch waere: *„der Dialog
+zeichnet zweimal"* — bei Weg (a) zeichnet er einmal.
+
+**5. Die Bauform, die W8 daraus nehmen kann** (dieselbe, die Nachtrag X-2 fuer
+die unterbrechenden Stellen gewaehlt hat): eine Tabelle **„Weg hinein → was
+die Oberflaeche danach zeigt"**, Mengengleichheit in beide Richtungen. Heute
+zwei Zeilen — Rueckgabewert und Signal. Kommt ein dritter Weg hinein dazu,
+ohne Zeile, wird W8 rot, und **genau das haette den heutigen Fall am Tag
+seiner Entstehung (U5b) gefunden**. Was so ein Waechter nicht kann, steht
+schon in X-2: die Abwesenheit einer Aufrufstelle, die niemand geschrieben hat,
+ist nicht bewachbar.
+
+**6. W6 bleibt richtig.** Er faehrt Weg (b) und prueft dort die drei
+Ausgaenge; ihm fehlt nur eine Zeile fuer Weg (a) — das ist W8s Gegenstand,
+nicht seiner. Sein Zitatzeiger auf AK-218 sollte bei der naechsten Beruehrung
+auf **Fassung 2, Weg (b)** lauten; dasselbe gilt fuer die AK-218-Zitate in
+`nrplanner/relicpicker.py`. **Das ist Textpflege am Code, kein Auftrag aus
+diesem Nachzug** — es folgt daraus keine Verhaltensaenderung.
+
+### 4. Was dieser Nachzug ausdruecklich **nicht** ist
+
+- **Keine Wiedervorlage von F-P** und keine Aenderung am leeren Raster. Weg
+  (a) hat es nie gegeben, wo die Antwort schon bekannt war; das ist seit
+  IX-1.3 so gebaut und in AK-211 seit T-127 erlaubt.
+- **Keine neue AK-Nummer und keine gestrichene.** AK-220 bleibt frei.
+- **Kein Auftrag an den `developer`** und keine Zeile Anwendungscode.
+- **Keine Aussage ueber den Vertrag des `AdvisorController`.** Der steht in
+  Nachtrag X-0 und gehoert dem `architect`; dieses Kriterium beschreibt, was
+  auf dem Bildschirm steht, und nennt den Vertrag nur, wo er die Ursache ist.
+- **Keine neue offene Frage an den App Designer.** **F-R** aus T-127 bleibt
+  offen und ist hiervon unberuehrt.

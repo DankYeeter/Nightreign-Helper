@@ -163,3 +163,28 @@ projekteigen NH-001, NH-002.
   Waechter **W6** im Bauauftrag U6.
 - **AK ab AK-220** (T-127 hat AK-211 bis AK-219 vergeben und AK-197, 198, 199,
   200, 202, 203, 209 gestrichen).
+
+## Nachtrag 2, 08.09. (Zyklusende einordnen)
+
+- **Nutzerentscheid 08.09.2026 zur Id-Annahme des Vorfilters:** Bricht ein
+  Spielpatch die Annahme, faellt das Programm auf den **alten, langsamen Weg
+  zurueck und sagt es** — statt den Spielstand fuer unlesbar zu erklaeren
+  (so ist es aus T-133 gebaut). Begruendung: benutzbar bleiben, aber nicht
+  stillschweigend (A7). **Auftrag offen**, Reihenfolge: erst der Wortlaut vom
+  `ui-ux-designer` (zusammen mit der Wortlaut-Reibung an `app.py:3445`, das
+  jeder `ValueError` "Save could not be read: " voranstellt), dann der
+  `developer`.
+- **Meine Zahl war falsch:** "haelt mittelbar ueber **drei** Aufrufer" ist aus
+  T-131 uebernommen und nicht nachgezaehlt. Es sind **vier**
+  (`worker.py:309, 334, 354, 380`), die vierte ist der haeufige Cache-Treffer.
+  Gefunden vom `architect` in T-134.
+- **Mir gehoert:** `W6` bezeichnet in `ARCHITECTURE.md` zwei verschiedene
+  Waechter (AD-019-Kette und Picker). Umbenennung steht aus.
+- **T-133 (U1) gemessen:** `read_owned_relics` **4835,3 → 93,3 ms (51,8x)**,
+  28 von 28 Slots gleich, 543 Records, beide `.sl2`. Zwoelf Mutanten, zwoelf
+  tot. Suite **1336 passed, 9 skipped, 0 failed**. *Das ist der Scan, nicht
+  `inventory.load` — die Nachmessung ist U3.*
+- **T-136 vor U3 gezogen** (Director): derselbe Walk steckt in
+  `find_loadout_table`, **365 ms**, groesser als die 250-ms-Schwelle, an der
+  AD-029 Stufe B haengt. U3 wuerde sonst einen Wert messen, den T-136 sofort
+  verschiebt.

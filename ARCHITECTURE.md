@@ -3982,7 +3982,7 @@ bleibt eine Luecke — Nummern werden in dieser Datei nicht neu vergeben.*
 
 ---
 
-### AD-028 — Der Picker-Weg verlaesst den Hauptthread ueber eine **zweite Instanz derselben** `AdvisorController`-Klasse, nicht ueber die vorhandene und nicht ueber einen eigenen Weg (2026-09-08, Status: aktiv **in der Sache**; **Punkte 1 bis 4, W3 und die Schritte U5a/U5b/U6/U7 nachgezogen durch Nachtrag IX**, 2026-09-08; zieht AD-018 Punkt 4 nach, praezisiert AD-006 und AD-007)
+### AD-028 — Der Picker-Weg verlaesst den Hauptthread ueber eine **zweite Instanz derselben** `AdvisorController`-Klasse, nicht ueber die vorhandene und nicht ueber einen eigenen Weg (2026-09-08, Status: aktiv **in der Sache**; **Punkte 1 bis 4, W3 und die Schritte U5a/U5b/U6/U7 nachgezogen durch Nachtrag IX**, 2026-09-08; **W1 und der Vertrag des `AdvisorController` nachgezogen durch Nachtrag X**, 2026-09-08; zieht AD-018 Punkt 4 nach, praezisiert AD-006 und AD-007)
 
 > **Lesehinweis (T-125, 2026-09-08).** Die Entscheidung — zweite Instanz
 > derselben Klasse, Option D — **steht unveraendert**. Vier ihrer sieben
@@ -4164,6 +4164,12 @@ Drei Dinge, die ich benenne und ausdruecklich **nicht** entwerfe:
   pytest-Test, den kein Buildsystem-Schalter aktiviert; es gibt daher keine
   tragende Zeile, deren Entfernen rot werden muesste. Das ist die
   Herleitung der Unnoetigkeit, nicht ihr Fehlen.
+  *(**Nachgezogen, Nachtrag X-3:** der Wortlaut oben — „keine Datei ausser
+  `advisor/worker.py`" — ist vor U5b geschrieben und steht gegen den gebauten
+  Zustand. **Verbindlich ist Fassung 2 in X-3** mit vier benannten Stellen und
+  „nennt" statt „ruft auf"; die Sache — kein Fenster, kein Dialog, kein Tab
+  bekommt die Rechnung zu fassen — ist unveraendert. Der Wortlaut hier bleibt
+  stehen, damit die Aenderung nachlesbar ist.)*
 - **W2 — der erste Anstrich traegt keine Zahlen.** Der Picker wird mit einer
   Spur geoeffnet, die nie antwortet; jede Karte traegt `PENDING` in beiden
   Wertzeilen, und der Dialog steht.
@@ -4940,3 +4946,413 @@ als Regel aufgeschrieben wird; ein Umbau der Datenformen ist es nicht.
 mir nicht): **AK ab AK-211** (bereits von T-124 gemeldet, Zeile 11 steht noch
 auf AK-195) und **OF ab OF-30**. AD bleibt bei **AD-030** — dieser Nachtrag
 vergibt **keine** neue AD-Nummer, er schreibt AD-028 fort.
+
+---
+
+## Nachtrag X 2026-09-08 — Was der Vertrag des `AdvisorController` wirklich zusagt (drei Nachtraege zu AD-028, **keine neue AD-Nummer**)
+
+**Anlass:** Der `developer` hat beim Bau der Waechter (U6, T-131) drei Punkte
+gemeldet und **nicht behoben**, wie beauftragt. Alle drei betreffen denselben
+Gegenstand: die Zusage im Klassen-Docstring des `AdvisorController` und die
+Frage, wo sie getragen wird. Der `director` hat sie als T-134 gebuendelt
+hierher gegeben.
+
+**Quellen und was ich selbst geprueft habe.** `docs/berichte/T-131-developer.md`
+(Befunde 1 und 2, Abschnitt „Zwei Entscheidungen, die nicht meine sind"),
+`docs/tasks/T-131.md` (W6 und W7, vom `director` entschieden),
+`tests/test_picker_track_guards.py`, `tests/picker_track.py`. **Jede tragende
+Aussage unten ist am Stand `0128971` an einer benannten Zeile nachgeprueft**,
+nicht aus dem Bericht uebernommen; `nrplanner/advisor/worker.py` ist seit
+`1a2cc5b` (U5b) unveraendert, der Bericht und dieser Nachtrag lesen also
+dieselbe Datei. Gemessen wird hier nichts.
+
+**Buchfuehrung:** dieser Nachtrag vergibt **keine** AD-Nummer, er schreibt
+AD-028 fort. Neu vergeben werden **ein** Waechter (**W8**) und **eine** offene
+Frage (**OF-30**); die Umsetzungsschritte heissen **U9** und **U10** (U8 ist
+AD-029 Stufe B und bleibt es).
+
+*Zum W-Kreis, damit es nicht noch einmal jemanden kostet:* **`W6` steht in
+dieser Datei fuer zwei verschiedene Dinge** — die Fassaden-Kette aus AD-019
+(`W0` bis `W6`, „`MULTIPLIERS_FOR[Basis.CANDIDATE]` setzen", Zeile 1835 und
+2662) und die Waechter der Picker-Spur (`W1` bis `W7`, AD-028 und Nachtrag
+IX). Die Kollision besteht seit T-131 und ist mit `W8` nicht schlimmer
+geworden, aber auch nicht besser. Ein Praefix (`AW-1` fuer die Waechter) waere
+die Loesung; sie beruehrt Testnamen und Berichte und ist deshalb **eine
+Entscheidung des `director`**, nicht meine. Bis dahin gilt: ein `W`-Zitat
+nennt die Entscheidung dazu.
+
+---
+
+### X-0 — Die Zusage, praezise: sie gilt fuer die Frage, die beim Ende noch die aktuelle ist
+
+**Der heutige Wortlaut** (`nrplanner/advisor/worker.py:200-201`, woertlich):
+
+> „The window asks with `ask` and hears back on exactly one of `ready`,
+> `failed` and `stopped`."
+
+**Er ist nicht bloss ungenau, er ist zweideutig — und in einer der beiden
+Lesarten falsch.** Gelesen als *„das Fenster hoert je Frage genau einen
+Ausgang"* ist er schon fuer den gewoehnlichen Fall falsch, den AD-006 Punkt 3
+ausdruecklich baut: eine ueberholte Frage endet **wortlos**, und das ist der
+Zweck des Generationszaehlers. Gelesen als *„das Fenster hoert fuer die Frage,
+die gerade gilt, genau einen Ausgang"* stimmt er — und trug bis U5b, als `ask`
+der einzige Weg hinein war. **Seit U5b gibt es einen zweiten Weg hinein**
+(`ask_and_answer_if_known`, IX-1.3), dessen Treffer die Antwort als
+**Rueckgabewert** liefert und ausdruecklich **kein** Signal sendet
+(`worker.py:288-290`, woertlich: *„A hit comes back as the return value and
+**only** as the return value: no `ready`, no `started`, and nothing started"*).
+Die Ausnahme steht also bereits in der Datei — im Docstring der Schwester,
+nicht in der Zusage, die sie einschraenkt. Das ist genau die Bauform, an der
+AD-018 gescheitert ist: **zwei Texte ueber dieselbe Sache, die nicht
+zusammengelesen werden.**
+
+**Entschieden: die Zusage wird praezisiert, und ihre Ausnahmen werden
+aufgezaehlt** — je Ausnahme mit der Entscheidung, die sie traegt. Verbindliche
+Fassung (Docstring, Englisch nach Projektsprache):
+
+```
+The window asks with `ask` and hears back on exactly one of `ready`,
+`failed` and `stopped` -- for the question that is still the current one
+when it ends. Three things end a question without any of the three, and
+each of them is a decision rather than a gap:
+
+* **an overtaken question.** A later asking has raised the generation, and
+  the earlier answer is dropped without a word (AD-006 point 3); the later
+  question is the one that will be answered.
+* **a hit in `ask_and_answer_if_known`.** The answer goes back as the
+  return value and nothing is emitted, so that a known answer can be drawn
+  in the first paint rather than one turn of the event loop later
+  (Nachtrag IX-1.3).
+* **`shutdown`.** The window is closing. Nothing is emitted, and nothing
+  will be: the generation goes up here as it does in `cancel`, so an
+  answer already on its way cannot arrive after the wait (Nachtrag X-1).
+```
+
+**Randbedingung dieser Fassung, benannt:** sie gilt fuer **beide** Instanzen
+(AD-028 Option D — nichts in der Klasse fragt, welche Spur sie ist). Der
+dritte Punkt setzt den Fix aus X-1 voraus; ohne ihn waere er eine Zusage ueber
+einen Wettlauf.
+
+---
+
+### X-1 — `shutdown()`: der Text wird praezisiert, **und** das Schweigen wird zur Eigenschaft gemacht (Punkt 1)
+
+**Der Befund haelt, und er traegt weiter, als er gemeldet wurde.**
+`shutdown` (`worker.py:371-383`) leert `_pending`, stoppt den Zeitgeber,
+unterbricht den Worker und wartet — und sendet keines der drei Signale. So
+weit der Bericht.
+
+**Was er nicht nennt, ist die Randbedingung seines eigenen „im Betrieb
+harmlos":** `shutdown` ist die **einzige** der vier unterbrechenden Stellen,
+die den Generationszaehler **nicht** erhoeht (`cancel` tut es in Zeile 351,
+`_wait_for` und `ask_and_answer_if_known` ueber `_question_from`, Zeile 322).
+Damit ist der Ausgang nach `shutdown` nicht „Schweigen", sondern
+**unbestimmt**: hat der Worker seine Antwort abgeschickt, **bevor** er die
+Unterbrechung bemerkt hat, liegt ein `ready` in der Warteschlange des
+Hauptthreads; `thread.wait()` verarbeitet sie nicht, und `_on_ready`
+(`444-456`) findet die Generation unveraendert und **sendet** `ready` — nach
+`closeEvent`. Ob das eintritt, haengt daran, ob sich die Ereignisschleife
+zwischen dem `emit` des Workers und dem Ende des Prozesses noch einmal dreht;
+`app.py:2039-2041` ruft `shutdown_the_advisor()` und danach
+`super().closeEvent(event)`, das Beenden der Anwendung ist selbst ein
+gebuchtes Ereignis.
+
+**Hergeleitet, nicht gemessen** (L-001): ich behaupte nicht, dass es im Feld
+vorkommt. Ich behaupte, dass die Klasse es nicht ausschliesst — und dass **ein
+Waechter fuer den Fall sonst ein Wettlauf waere**, also kein Waechter.
+
+**Optionen:**
+
+- **A — im Bestand bleiben, nur den Text praezisieren.** Konsequenz: Text und
+  Verhalten stimmen wieder ueberein, aber die Zusage lautet dann „nach
+  `shutdown` kommt **meistens** nichts". Eine Zusage mit „meistens" ist keine.
+  **Verworfen** — sie waere nicht bewachbar, und ein W6-Fall darueber waere
+  flatterhaft gruen.
+- **B — `shutdown` sendet `stopped`.** Konsequenz: `stopped` ist nach
+  `UI_SPEC` 4.5 und AK-11 ein **Satz an den Spieler** (*„Stopped. Nothing was
+  changed."*), und `advisorbar` zeichnet darauf Zustand 4.5 — in ein Fenster,
+  das gerade verschwindet. Das Signal bekaeme zwei Bedeutungen („der Spieler
+  hat abgebrochen" und „das Programm endet"), und beide Spuren muessten die
+  zweite unterscheiden. **Verworfen.**
+- **C — die Ausgaenge buendeln:** `_interrupt_the_running_worker` bekommt ein
+  Argument „was die abgehende Frage hoert", damit keine Stelle mehr
+  versehentlich schweigen kann. Konsequenz: die richtige Form, wenn es einmal
+  fuenf oder sechs Stellen sind; heute vier Aufrufer umbauen, um eine
+  Eigenschaft zu erzwingen, die X-2 auch zaehlend haelt. **Verworfen als
+  Architektur auf Vorrat**; *wieder interessant, wenn* W8 (X-2) zum zweiten
+  Mal wegen einer neuen Aufrufstelle rot wird.
+- **D — A plus eine Zeile: `shutdown` erhoeht die Generation wie `cancel`.**
+  Konsequenz: das Schweigen ist eine **Eigenschaft** statt eines Wettlaufs,
+  die vier unterbrechenden Stellen verhalten sich gleich, und der W6-Fall
+  darueber ist deterministisch schreibbar.
+
+**Entscheidung: D.** Der Docstring bekommt die Fassung aus X-0, und
+`shutdown` erhoeht den Zaehler, bevor es unterbricht.
+
+**Das ist Anwendungscode — also ein Fixauftrag, kein Vollzug** (T-134,
+Vorgabe 3). Er steht als **U9** unten.
+
+**Konsequenzen.** *Leicht wird:* jede unterbrechende Stelle folgt derselben
+Regel („wer unterbricht, erhoeht"), und die Zusage aus X-0 ist ohne „meistens"
+formulierbar. *Dauerhaft schwer wird:* nichts — nach `shutdown` gibt es keine
+Frage mehr, deren Generation noch jemand liest. *Nicht beruehrt:*
+`_on_ready` legt die Antwort weiter **vor** der Generationspruefung in den
+Cache (`453`); das bleibt richtig (AD-007) und ist nach `shutdown` folgenlos,
+weil der Cache mit der Instanz stirbt.
+
+**Umkehrbarkeit: leicht.** Eine Zeile hin, eine zurueck; der Docstring haengt
+daran und waere mitzunehmen.
+
+---
+
+### X-2 — `search.Cancelled` ist kein Ausgang, sondern eine Quittung — und „haelt ueber drei Aufrufer" ist **keine** bewachbare Zusage (Punkt 2)
+
+**Der Befund haelt; seine Zahl haelt nicht.** `_Worker.work` faengt
+`search.Cancelled` und sendet nur `finished` (`worker.py:186-187, 194`).
+Erreichbar ist das, nachdem `requestInterruption()` gelaufen ist — und
+`slot_pool` kann es tatsaechlich ausloesen: es reicht `should_cancel` an die
+Vorsortierung durch, die einmal je angebotenem Relikt fragt
+(`run.py:463-464`), und geworfen wird in `search.py:327`. Der Weg ist also auf
+**beiden** Spuren offen, nicht nur auf der des Gesamtlaufs.
+
+**Aufrufer von `_interrupt_the_running_worker` sind vier, nicht drei.**
+Gezaehlt am Stand `0128971`, `worker.py`: Zeilen **309**
+(`ask_and_answer_if_known`, Cache-Treffer), **334** (`_wait_for`), **354**
+(`cancel`), **380** (`shutdown`); Definition in 387. Die vierte ist keine tote
+Stelle: der Picker ruft `ask_and_answer_if_known` bei **jeder** Oeffnung
+(`relicpicker.py:413-415`), und ein Treffer ist der gemessen haeufige Fall
+(30 % der Oeffnungen, S11-F).
+
+**Das ist die Antwort auf die gestellte Frage.** „Die Zusage haelt ueber drei
+Aufrufer" ist als **Verhaltenszusage nicht bewachbar**: sie behauptet etwas
+ueber das *Komplement* einer Menge von Aufrufstellen — dass es keine fuenfte
+gibt, die schweigend unterbricht —, und kein Fall, den man abspielen kann,
+zeigt die Abwesenheit einer Stelle, die niemand geschrieben hat. **Der Beleg
+dafuer ist die Aussage selbst:** sie wurde am 08.09.2026 mit „drei"
+aufgeschrieben, waehrend die vierte Stelle seit `1a2cc5b` (U5b, derselbe Tag)
+im selben File stand. Eine Zusage, deren Zaehlung am Tag ihrer Niederschrift
+falsch ist, gehoert nicht in Prosa.
+
+**Bewachbar ist sie als Struktur** — dieselbe Form wie W1: eine Tabelle
+erlaubter Stellen **im Test**, nicht abgelesen aus der bewachten Datei
+(L-008b). Verbindlich ist damit **nicht** „drei Aufrufer", sondern:
+
+> **Jede Stelle, die einen laufenden Worker unterbricht, sagt, was die
+> abgehende Frage hoert** — entweder sie sendet in derselben Aufrufung einen
+> der drei Ausgaenge, oder sie stellt in derselben Aufrufung eine
+> Nachfolgefrage, die ihn senden wird, oder sie beendet die Spur ganz.
+
+| Stelle | `worker.py` | was die abgehende Frage hoert |
+|---|---|---|
+| `cancel()` | 354 | **`stopped`**, in derselben Aufrufung (AK-11) |
+| `_wait_for()` | 334 | nichts — die **Nachfolgefrage** ist jetzt die aktuelle und endet in genau einem der drei |
+| `ask_and_answer_if_known()`, Treffer | 309 | nichts — die Antwort ging in derselben Aufrufung als **Rueckgabewert** zurueck (IX-1.3) |
+| `shutdown()` | 380 | nichts, und danach nichts mehr (X-1) |
+
+**Verworfen: `_Worker.work` sendet `stopped`, statt `Cancelled` still zu
+schlucken.** Das ist der naheliegende Fix und er ist falsch: nach `cancel()`
+haette die Frage dann **zwei** `stopped` — eines aus der Aufrufung, eines aus
+dem Worker —, und „genau einer der drei" waere gebrochen, um „genau einer der
+drei" herzustellen. Der Worker kann nicht wissen, wer ihn unterbrochen hat;
+die Zusage gehoert deshalb dorthin, wo es jemand weiss.
+
+**W8 — neu: die unterbrechenden Stellen sind gezaehlt und benannt.** Ein
+reiner Struktur-Test ueber `nrplanner/advisor/worker.py`: die Aufrufstellen
+von `_interrupt_the_running_worker` werden ueber den Syntaxbaum gezaehlt und
+gegen eine **im Test stehende** Tabelle (Methodenname → welcher Ausgang, mit
+Begruendung) verglichen, Mengengleichheit in beide Richtungen.
+*Toetende Mutation:* eine fuenfte Stelle einsetzen — z. B. in
+`before_the_data_changes` `self._interrupt_the_running_worker()`
+**zusaetzlich** zu `self.cancel()` — → rot, weil die Menge der Stellen die
+Tabelle verlaesst.
+*Zweite Mutation, die die andere Richtung deckt:* den Aufruf in `cancel`
+entfernen → rot (die Tabelle nennt eine Stelle, die es nicht mehr gibt).
+*Bau-Konfiguration (L-004):* keine — ein reiner pytest-Test, den kein
+Buildsystem-Schalter aktiviert; das ist die Herleitung der Unnoetigkeit, nicht
+ihr Fehlen.
+*Nachweisweg nach L-002:* Gegenbau (die beiden Mutationen oben).
+
+**Was W8 nicht kann, ausdruecklich:** er prueft die **Zahl und die Namen** der
+Stellen, nicht ihr Verhalten. Dass `cancel` wirklich `stopped` sendet, haelt
+W6; dass die Nachfolgefrage wirklich antwortet, halten W6 und W3. W8 ist der
+Waechter darueber, dass diese drei Waechter **vollstaendig** sind — und genau
+das war die Luecke, die „drei Aufrufer" nicht schliessen konnte.
+
+**Umkehrbarkeit: leicht** — ein Test, der geloescht werden kann. Der Preis des
+Behaltens ist eine Tabellenzeile je neuer Aufrufstelle, und diese Zeile zu
+schreiben ist genau die Ueberlegung, die hier gefehlt hat.
+
+---
+
+### X-3 — W1 erlaubt drei Aufrufstellen: **so ist es gemeint.** Der Wortlaut von AD-028 wird nachgezogen (Punkt 3)
+
+**Geprueft, nicht uebernommen.** Die drei Stellen stehen so in
+`tests/test_picker_track_guards.py:73-88` (`MAY_REACH_THE_CALCULATION`), und
+die beiden zusaetzlichen sind am Quellstand belegt: `app.py` **nennt**
+`run.slot_pool` bei der Konstruktion der zweiten Instanz und ruft es nirgends
+auf (AD-028 Option D verlangt genau das); `run.py` ruft `candidates.pool`,
+weil `slot_pool` die Pool-Funktion **ist**. Beides konnte nach AD-028 gar
+nicht woanders liegen.
+
+**Der Wortlaut steht gegen den gebauten Zustand, also wird er nachgezogen —
+sichtbar, mit beiden Fassungen.**
+
+> **Fassung 1 (AD-028, Nachtrag VIII, 08.09.2026 — bleibt woertlich stehen):**
+> „**W1 — strukturell.** Keine Datei unter `nrplanner/` ausser
+> `advisor/worker.py` ruft `run.run`, die neue Pool-Funktion oder
+> `candidates.pool` auf."
+
+> **Fassung 2 (Nachtrag X, 08.09.2026 — verbindlich):** **W1 — strukturell.**
+> Unter `nrplanner/` **nennt** keine Datei `run.run`, `run.slot_pool`,
+> `candidates.pool` oder `candidates.pools` ausser diesen vier:
+> `advisor/worker.py` → `run.run`; `app.py` → `run.slot_pool`;
+> `advisor/run.py` → `candidates.pool`; `advisor/run.py` → `candidates.pools`.
+> Kein Fenster, kein Dialog und kein Tab bekommt die Rechnung zu fassen — das
+> ist die Sache, und sie ist unveraendert.
+
+**Drei Aenderungen, jede mit Grund:**
+
+1. **„nennt" statt „ruft auf".** Der gebaute Waechter zaehlt Nennungen, und
+   das ist **strenger** und richtig: eine Referenz in `functools.partial` oder
+   an einen Namen gebunden ist ein Aufruf einen Schritt spaeter. Fassung 1 war
+   an dieser Stelle zu schwach, nicht zu streng.
+2. **Die Pool-Funktion heisst jetzt.** „die neue Pool-Funktion" war
+   geschrieben, bevor sie `run.slot_pool` hiess (U5a).
+3. **`candidates.pools` (Mehrzahl) kommt in die Tabelle**, erlaubt nur in
+   `advisor/run.py` (`run.py:379`, innerhalb von `run.run`). *Grund, und er
+   ist kein Vorrat:* IX-5 hat genau diesen Weg als Vorschlag auf dem Tisch
+   gehabt — der `ui-ux-designer` hielt `candidates.pools()` beim Oeffnen des
+   Build planners fuer „die eigentliche Loesung", gemessene **610,7 ms**
+   (S11-C) im Hauptthread. Der Vorschlag ist abgelehnt; ohne diese Zeile
+   bewacht W1 die naechstgelegene Umgehung seiner selbst nicht.
+   *Toetende Mutation dafuer:* `candidates.pools` in `app.py` nennen → rot.
+
+**Verworfen: die Alternative des `developer`** (*„dann muesste die
+Antwortfunktion der Picker-Spur ueber `worker.py` benannt werden"*, T-131,
+Abschnitt „Zwei Entscheidungen"). Sie machte Fassung 1 woertlich wahr und
+kostete den Kern von AD-028 Option D: `worker.py` wuesste dann, welche Spur
+welche ist, waehrend der Klassen-Docstring zu Recht sagt *„Nothing here asks
+which track it is"*. Die Verdrahtung gehoert an die Verdrahtungsstelle;
+`app.py` **darf** nennen, was es zusammensteckt. **Kein Auftrag an den
+`developer` fuer `app.py`.**
+
+**Randbedingung von W1, die bisher nirgends stand:** der Waechter haengt an
+`test_one_build.call_sites` und damit an **Modulkurzname plus Funktionsname**.
+Er sieht die sieben Schreibweisen, die dort aufgezaehlt sind — nicht aber eine
+Rechnung, die unter einem **anderen Namen** in den Hauptthread kaeme (etwa ein
+direkter Griff in `search`). Das ist keine Luecke des Waechters, sondern seine
+Grenze; wer eine neue rechnende Einstiegsfunktion baut, traegt sie in die
+Tabelle ein. *Diese Bedingung gehoert in den Docstring der Tabelle* — Teil von
+U10.
+
+---
+
+### Meldung an den `director`: **AK-218 ist im Wortlaut enger als der gebaute Zustand** — `UI_SPEC.md` habe ich nicht angefasst
+
+AK-218 sagt woertlich: *„Jede Frage einer Oeffnung endet in genau einem von
+drei Ausgaengen — `ready`, `failed`, `stopped` —, und jeder der drei fuellt
+das Raster."* **Der haeufige Fall erfuellt das nicht:** trifft der Cache
+(30 % der Oeffnungen, S11-F), endet die Frage im **Rueckgabewert** von
+`ask_and_answer_if_known` und in keinem der drei Ausgaenge
+(`relicpicker.py:413-417`, `worker.py:288-290`) — so von IX-1.3 entschieden
+und von **AK-211** vorausgesetzt, das *„hoechstens zwei Zustaende"* sagt und
+den einen Anstrich damit ausdruecklich erlaubt.
+
+**Die Sache von AK-218 ist unberuehrt** — „ein Ausgang, der das Raster leer
+laesst, ist ein Fehler" gilt weiter, und der Treffer fuellt das Raster sogar
+im ersten Anstrich. **Betroffen ist nur der Wortlaut**, und zwar in derselben
+Weise wie der von W1: geschrieben, bevor der zweite Weg hinein existierte.
+**Vorschlag an den `ui-ux-designer`** (Spec ist gesetzt, ich aendere sie
+nicht): *„… endet in genau einem von drei Ausgaengen — oder, wenn die Antwort
+beim Fragen schon bekannt war, in dem einen Anstrich, den AK-211 erlaubt."*
+
+*Warum es dem Waechter nicht aufgefallen ist:* W6 faehrt fuenf Vorrichtungen,
+alle ueber `ask` (`tests/test_picker_track_guards.py:436-506`). Der zweite Weg
+hinein kommt in keiner davon vor.
+
+---
+
+### Umsetzung — U9 und U10 (zu den Schritten aus Nachtrag VIII und IX)
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U9** | `developer` | **Anwendungscode, eine Datei:** `shutdown` erhoeht den Generationszaehler vor dem Unterbrechen (X-1, Entscheidung D); Klassen-Docstring `worker.py:198-216` bekommt die Fassung aus X-0; **Regressionstest** = sechster W6-Fall „the window is closing" mit erwarteter Ausgangsliste **leer** als Literal | — |
+| **U10** | `developer` | **Nur `tests/`:** **W8** neu (X-2, Tabelle der vier unterbrechenden Stellen, beide Mutationen); **W1** um die Zeile `candidates.pools` → `advisor/run.py` erweitert (X-3.3) und um die Randbedingung im Docstring der Tabelle (X-3, letzter Absatz) | — |
+
+**U9 und U10 sind unabhaengig voneinander** und beruehren disjunkte Dateien
+(`nrplanner/advisor/worker.py` gegen `tests/test_picker_track_guards.py`) —
+bis auf den sechsten W6-Fall, der zu U9 gehoert, weil er ohne dessen Fix ein
+Wettlauf waere.
+
+**Der sechste W6-Fall, so genau, dass er nicht versehentlich gruen wird:** die
+Vorrichtung haelt die Antwortfunktion fest (`picker_track.StatedAnswers(...,
+hold=True)`), stellt **eine** Frage ueber `ask`, wartet, bis der Lauf
+angefangen hat (`answers.calls == 1`), ruft `track.shutdown(timeout_ms=0)`,
+gibt **danach** die Antwort frei und dreht die Schleife aus. Erwartet wird
+eine **leere** Ausgangsliste, als Literal geschrieben und nicht aus `shutdown`
+gerechnet (L-008b).
+*Toetende Mutation:* die Erhoehung des Generationszaehlers aus `shutdown`
+entfernen → die freigegebene Antwort traegt die noch gueltige Generation,
+`_on_ready` sendet `ready`, die Liste ist einelementig statt leer → rot
+(L-008a: im Standardlauf).
+**Ueberlebt die Mutation, ist das ein Befund und wird berichtet, nicht
+nachgebessert** (L-008c) — dann sagt sie, dass der Fall in der Vorrichtung gar
+nicht hergestellt wird, und der Fall ist wertlos, bis er es tut.
+
+**Was der `developer` ausdruecklich nicht tun soll:**
+
+- **`shutdown` kein Signal senden lassen** (X-1 Option B) — auch nicht „nur
+  `stopped`, nur wenn etwas lief".
+- **`_Worker.work` auf `search.Cancelled` nichts senden lassen** (X-2) — das
+  doppelte den Ausgang nach `cancel()`.
+- **`_interrupt_the_running_worker` keine Signatur geben** (X-1 Option C) —
+  das ist der Umbau, den W8 gerade unnoetig macht.
+- **`app.py` nicht anfassen**, um Fassung 1 von W1 woertlich wahr zu machen
+  (X-3).
+- **`UI_SPEC.md` nicht anfassen.** Die AK-218-Meldung gehoert dem
+  `ui-ux-designer`.
+- **Die Entprellung, die Cache-Groessen und die Antwortformen nicht
+  beruehren** — das sind IX-1, IX-3 und U7.
+
+---
+
+### Risiken und Pruefpunkte, neu (zu Nachtrag VIII und IX)
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Der sechste W6-Fall stellt seinen Fall nicht her und ist immer gruen | die Mutation aus U9 ueberlebt | Fall streichen und als Befund melden; die Zusage aus X-0 traegt dann den dritten Punkt nicht |
+| Eine fuenfte unterbrechende Stelle entsteht und schweigt | **W8** | Tabelle ergaenzen **oder** die Stelle einen Ausgang senden lassen — die Zeile zu schreiben ist die Entscheidung |
+| `shutdown` erhoeht die Generation und etwas anderes las sie mit | die Suite; `ask` gibt die Generation zurueck, `shutdown` an niemanden | eine Zeile zurueck |
+| W1 waechst zur Pflegelast, weil jede neue rechnende Funktion eine Zeile braucht | mehr als zwei neue Zeilen in einem Zyklus | dann ist X-1 Option C (gebuendelte Ausgaenge) und eine Namenskonvention statt einer Tabelle zu pruefen |
+
+---
+
+### Bewusst nicht getan, neu (zu Nachtrag VIII und IX)
+
+- **Kein Signal aus `shutdown`** (X-1 Option B). *Wieder interessant, wenn:*
+  eine Spur einmal ohne schliessendes Fenster beendet wird — dann hoert
+  jemand zu, und Schweigen waere falsch.
+- **Kein gebuendelter Ausgang in `_interrupt_the_running_worker`** (X-1
+  Option C). *Wieder interessant, wenn:* W8 ein zweites Mal wegen einer neuen
+  Aufrufstelle rot wird.
+- **Keine Verhaltenszusage ueber die Zahl der Aufrufer** (X-2). Sie ist als
+  Prosa nicht bewachbar und war am Tag ihrer Niederschrift falsch gezaehlt.
+- **Keine Umbenennung des W-Kreises** (Kopf dieses Nachtrags). Sie beruehrt
+  Testnamen und Berichte und gehoert dem `director`.
+- **Kein Umbau von `app.py` fuer den Wortlaut von W1** (X-3).
+
+---
+
+### Offene Frage, neu
+
+**OF-30 — an den `director`, Adressat `ui-ux-designer`:** AK-218 ist im
+Wortlaut enger als der gebaute Zustand (siehe die Meldung oben); der
+Cache-Treffer endet in keinem der drei Ausgaenge, sondern im Rueckgabewert,
+was IX-1.3 entschieden und AK-211 vorausgesetzt hat. **Vorschlag steht dort;
+`UI_SPEC.md` ist von mir nicht angefasst.** Solange der Wortlaut steht, misst
+AK-218 den haeufigen Fall als Fehler.
+
+**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
+mir nicht): **OF ab OF-31**. **AD bleibt bei AD-030** — dieser Nachtrag
+vergibt keine AD-Nummer. Neu belegt sind ausserdem **W8** (Waechter der
+Picker-Spur) sowie die Umsetzungsschritte **U9** und **U10**.

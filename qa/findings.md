@@ -2380,3 +2380,24 @@ Regel gilt fuer Auftraege — die Suite selbst haelt sie nicht.
 Verwandt mit **QA-195** (Testeinstellungen unter der Organisation des
 Spielers), aber nicht dasselbe: dort geht es um den Schluesselraum der
 Einstellungen, hier um zwei Umgebungsvariablen, die niemand setzt.
+
+## QA-213 — Der pruefsummengesicherte Lesepfad wird nirgends benutzt
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `developer` in T-136, ausserhalb seines Auftrags und nicht
+angefasst. `savefile.read()` bzw. `decrypt_member` ist der Weg **mit**
+MD5-Pruefung; die Produktivfunktion `nrplanner/inventory.py:_decrypt_slots`
+benutzt ihn **nicht**. Beim ersten Messversuch lieferte er **0 von 28 Slots
+mit gueltiger Pruefsumme** auf dem echten Spielstand — die Produktivfunktion
+macht die Pruefung gar nicht erst.
+
+**Zwei Lesarten, und welche stimmt, ist nicht geprueft:** entweder ist der
+Pfad toter Code (dann faellt er, wie QA-061 und QA-071 vorher), oder die
+Pruefsummenpruefung ist gemeint und fehlt im Produktivweg — dann ist es
+**QA-007** ("Pruefsumme wird nie geprueft") mit einer zweiten Fundstelle.
+
+*Der Director hat das nicht nachgemessen; die Zahl 0 von 28 stammt aus dem
+Messaufbau von T-136, nicht aus einem Test.*
+
+**Zusammen mit QA-007 zu behandeln, nicht getrennt.**
