@@ -1,18 +1,18 @@
 # Stand
 
-2026-09-07, **Zyklus 16 laeuft**. Branch `docs/audit-and-advisor-design`.
-`main` ist geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
-Verlauf: `docs/archiv/`. Reihenfolge: `docs/plan-restarbeiten.md`. Befunde:
-`qa/findings.md`, `security/findings.md`. Auflagen: `docs/legal/AUFLAGEN.md`.
-Berichte: `docs/berichte/T-###-<rolle>.md`.
+2026-09-08, **Zyklus 18 laeuft**. Branch `docs/audit-and-advisor-design`.
+`main` ist geschuetzt, PR #16 offen, 411 Commits gegen `origin/main`
+(`gh pr view 16` / `git rev-list --count`, 08.09.) — **Merge gehoert dem
+Nutzer.** Verlauf: `docs/archiv/`. Reihenfolge: `docs/plan-restarbeiten.md`.
+Befunde: `qa/findings.md`, `security/findings.md`. Auflagen:
+`docs/legal/AUFLAGEN.md`. Berichte: `docs/berichte/T-###-<rolle>.md`.
 
-**Nummernkreise:** T ab **T-108** · QA ab **QA-198** · SEC ab **SEC-026** ·
-AK ab **AK-195** · AD ab **AD-027** · DR ab **DR-019** · R ab **R-007** ·
+**Nummernkreise:** T ab **T-124** · QA ab **QA-210** · SEC ab **SEC-026** ·
+AK ab **AK-195** · AD ab **AD-030** · DR ab **DR-019** · R ab **R-007** ·
 NH ab **NH-003** · C ab **C-004** · A (Auflagen) ab **A-033**.
-**Suite:** **1256 passed, 9 skipped, 0 failed** (T-102, 07.09.). `pytest -n auto`
-**127 s** statt 840 s seriell (`4431c7a`), Namensvergleich ueber 1265 Faelle ohne
-Abweichung. **`-n auto` ist bewusst keine Voreinstellung** — eine einzeln
-genannte Datei stiege von 1,2 auf 4,0 s, und genau die verlangt die Gegenprobe.
+**Suite:** **1257 passed, 9 skipped, 0 failed** (T-109, unabhaengig bestaetigt
+in T-111 und T-114 im frischen Klon). *Bis 08.09. stand hier 1256 aus T-102.*
+Testbefehl und die Begruendung gegen `-n auto` als Voreinstellung: `CLAUDE.md`.
 
 ## Auftragslage (Nutzer)
 
@@ -21,67 +21,57 @@ Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
 vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
 Nutzer ganz am Ende.**
 
-## Zyklus 16 abgeschlossen, Zyklus 17 begonnen
+## Zyklus 18 — was laeuft und woran er endet
 
-**Zyklus 16 (Release-Weg), 08.09.2026: A2 und A9 erreicht.** SEC-009 behoben,
-kein Hoch-Befund mehr offen. A9 erstmals geprueft (T-114): A3, A4, A5, A7, A8
-**PASS**, A6 **CONCERNS**. 62 von 62 Modulen bytecode-identisch zum Quellstand,
-440 Beraterlaeufe am verpackten Code ueber 10/10 Nightfarer und 74/74 Kelche,
-0 Regelverstoesse. **A-033 ausgefuehrt und gegengeprueft** (`gh release view`
-je Tag, 08.09.): 12 von 12 Releases tragen das Hinweispaket, der
-Lizenzverstoss ist beendet, GPL Paragraf 8 endgueltig ab 07.11.2026.
+Beauftragt am 08.09.2026, parallel, disjunkte Dateilisten:
 
-**Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, 1.8.0, SHA-256
-`42B21AA2...F221`. Update-Weg an einem echten `v1.7.1` belegt: 7 von 7 Builds
-erhalten. **Nutzerentscheid: 1.8.0 geht erst nach dem Fix-Stapel raus.**
+- **T-122 `architect`** (opus) — AD-028 zu **QA-208** (der Picker-Weg des
+  Beraters rechnet im Hauptthread, AD-018 ist an einer widerlegten Zahl
+  gescheitert: Docstring 51 ms, gemessen 318 ms) und AD-029 zu **QA-209**
+  (Spielstand-Lesen 6,15 s im Hauptthread, Gegenentwurf mit Faktor 45
+  gemessen). Beruehrt nur `ARCHITECTURE.md`.
+- **T-123 `developer`, Stufe normal** — die zwei Waechter **QA-204** (A8,
+  Sprache) und **QA-205** (A3, Vollstaendigkeit ueber alle Nightfarer und
+  Kelche), je mit toetender Mutation nach L-008. Beruehrt nur `tests/`.
 
-**Zyklus 17:** **S11** (T-118) und **Retrospektive** (T-119) sind gelaufen.
-**A6 hat seine Zahl** (T-118, Abschnitt 2.2, woertlich nach `GOAL.md` zu
-uebernehmen): Slot-Frage unter **500 ms** (gemessen 403, haelt) · `Optimize`
-unter **6 s** (5023, haelt) · **Hauptthread hoechstens 50 ms — haelt nicht**
-(318 ms, QA-208). Entprellung 100/250 ms, LRU 64 bedingt.
+**Erfolgreich**, wenn beide AD-Entscheidungen stehen, die zwei Waechter mit
+belegter toetender Mutation laufen und die Suite gruen bleibt. Danach:
+`ui-ux-designer` (nur falls AD-028 sichtbar wird) → `developer` (Fix-Stapel)
+→ Pruefphase → Neubau → Release.
 
-**Der naechste Schritt ist der `architect`, nicht der `developer`:** QA-208 ist
-eine Architekturentscheidung mit widerlegter Begruendung (Docstring nennt
-51 ms, gemessen 318 ms). Danach `developer` mit den zwei Waechtern (QA-204,
-QA-205) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und ausliefern.
+## Drei Nutzerentscheide vom 08.09.2026
 
-## Das Regelwerk wurde am 08.09.2026 umgebaut — was die neue Sitzung vorfindet
-
-Alles im Agenten-Repo, gepusht, Selbsttest gruen (`hooks/selftest.ps1`,
-geprueft 08.09.):
-
-- **`commands/director.md`** trennt Regel und Beleg; die Vorfaelle stehen in
-  `referenz/director-belege.md` (B-01 bis B-24), die alte Fassung in
-  `archiv/`. Zwei neue **Sperren**: `require-receipt.ps1` verweigert
-  Bestandsbehauptungen ohne Quittung in Auftraegen, `state.md` und
-  Befundlisten; `no-root-find.ps1` sperrt Suchen von der Laufwerkswurzel.
-- **Zyklus-Schritt 2 ist neu:** die eigenen Bestandsaussagen werden von einem
-  lesenden `Explore`-Lauf gegengeprueft, bevor der Fragebogen rausgeht.
-- **Rollen geaendert:** `power-user` ohne `memory: project` (die Messreihe war
-  sonst wertlos) · `qa-engineer` mit `Write` · `performance-tuner` bekommt
-  einen QA-Retest · `architect`, `ui-ux-designer`, `release-manager` lesen
-  jetzt die Dateien der ihnen vorgelagerten Rollen.
-- **Projektzeilen stehen in `CLAUDE.md`**, nicht mehr in jedem Auftrag:
-  Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug,
-  Scratchpad je T-Nummer, Projektsprache. Auftraege verweisen darauf.
+1. **A6 hat seine Zahlen** — woertlich aus T-118 nach `GOAL.md` uebernommen:
+   Slot-Frage im Median **unter 500 ms**, `Optimize` **unter 6 s**,
+   **Hauptthread hoechstens 50 ms**. Damit ist **QA-203 geschlossen** und A6
+   entscheidbar. Die 50-ms-Zeile ist heute verletzt (318 ms) — das ist QA-208.
+2. **QA-207** (toter Verweis im Hinweispaket): **nur nach vorn reparieren.**
+   Die zwoelf bereits veroeffentlichten Pakete bleiben unangetastet; A-021
+   verlangt die Beilage, nicht einen Pfad, der Verstoss bleibt beendet.
+3. **QA-209 kommt in den Fix-Stapel vor 1.8.0**, nicht danach — ein Neubau
+   statt zwei. Verzoegert das Release um etwa einen Zyklus.
 
 ## Stand gegen `GOAL.md`
 
 | | | |
 |---|---|---|
-| A1 | Audit mit priorisierten Befunden | weitgehend — 197 QA, 24 SEC |
+| A1 | Audit mit priorisierten Befunden | weitgehend — 209 QA, 25 SEC |
 | A2 | kritisch/hoch behoben oder zurueckgestellt | **erfuellt** (T-105), QA-Bestaetigung offen |
-| A3-A6 | der Build-Berater | **gebaut** — Kern, Leiste, Slotkarte, `Why`-Dialog, Anwenden/Halten, Picker |
+| A3-A5 | der Build-Berater | **gebaut**, in T-114 am Artefakt bestaetigt |
+| A6 | Oberflaeche blockiert nicht | **Zahl gesetzt**, dritte Zeile verletzt (QA-208) |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
-| A8 | alles Englisch | haelt, ohne Waechter (QA-192) |
-| A9 | QA gegen ein **gebautes Artefakt** | **5 von 6 PASS**, A6 offen bis S11 |
+| A8 | alles Englisch | haelt, Waechter in Arbeit (T-123) |
+| A9 | QA gegen ein **gebautes Artefakt** | **5 von 6 PASS**, A6 wieder offen |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
 | A11 | ohne Raten ans Ziel | offen (QA-173) |
 | A12 | jede Zahl nennt Einheit und Bezug | 4 von 6 Tabs |
 | A13 | Gestaltung, nichts abgeschnitten | 3 von 6 Tabs |
 | A14 | QA bestaetigt je Tab einzeln | erfolgt (T-059) |
 | A15 | Erststart fuehrt zu Daten | Spec liegt (AK-106-132), Umsetzung offen |
+
+**Artefakt (Zyklus 16):** `dist/NightreignHelper.exe`, 59 010 777 B, 1.8.0,
+SHA-256 `42B21AA2...F221`. Update-Weg an einem echten `v1.7.1` belegt.
+**1.8.0 geht erst nach dem Fix-Stapel raus.**
 
 ## Beschlossen, nicht beauftragt
 
@@ -91,29 +81,30 @@ geprueft 08.09.):
 - **QA-185, Klassenmassnahme:** vor der naechsten Aenderung entscheiden, ob
   `sources` durchgaengig ueber Ids gefuehrt wird. Latent (0 von 456 Paaren).
 - **A16/A17**, spezifiziert in AK-182 bis AK-194, **nicht gebaut**.
-- **L-014, L-015, L-017, L-018** — teamweite Massnahmen der Retrospektive,
-  **beim Nutzer zur Freigabe**. L-016 ist umgesetzt.
 
 ## Buchfuehrung des Directors
 
-**Zwoelf falsche Aussagen am 08.09.**, alle derselben Bauform: eine Notiz
-wurde fuer eine Messung gehalten. Die Regeln dagegen standen alle bereits im
-Text — die Ursache war ihr Ort. Seitdem sperrt ein Hook statt zu erinnern.
-Hergang: `referenz/director-belege.md` B-22 im Agenten-Repo.
+**Acht falsche Bestandsaussagen am 07./08.09.**, alle derselben Bauform: eine
+Notiz wurde fuer eine Messung gehalten (`referenz/director-belege.md` B-22).
+*Hier stand bis zum 08.09. "zwoelf" — die neunte derselben Bauform.* Die
+Gegenmassnahmen sind **live**: `require-receipt.ps1`, `no-root-find.ps1`,
+`remind-rules.ps1` (L-014), Pruefung 4 mit Quittung (L-015), "Regeln pflegen"
+in `_rahmen.md` (L-017, L-018). Neu: **die fuenf Pruefungen stehen jetzt in
+`templates/task.md`** — am 08.09. beschlossen, nie ausgefuehrt gewesen.
 
-## Offen aus Zyklus 15 und 16
+## Offen aus Zyklus 15 bis 17
 
-QA-181 · QA-182 · QA-184 · **QA-186** · QA-188 · QA-190 · QA-191 · QA-192 ·
-QA-193 · QA-195 · **QA-198 bis QA-209** · **SEC-025**. Wortlaut, Adressat und
-Status je Befund in `qa/findings.md` bzw. `security/findings.md` — **dort
-nachsehen, nicht hier**; diese Liste ist ein Zeiger, kein Messwert.
-Die Reihenfolge der Restarbeiten steht in `docs/plan-restarbeiten.md`.
+QA-181 · QA-182 · QA-184 · **QA-186** · QA-188 · QA-190 · QA-191 · QA-193 ·
+QA-195 · **QA-198 bis QA-202** · **QA-204 bis QA-209** · **SEC-025**.
+Wortlaut, Adressat und Status je Befund in `qa/findings.md` bzw.
+`security/findings.md` — **dort nachsehen, nicht hier**; diese Liste ist ein
+Zeiger, kein Messwert. Reihenfolge: `docs/plan-restarbeiten.md`.
 
 ## Beim Nutzer — offen
 
-**Vor dem ersten Release zu entscheiden (C-003, 07.09.2026).** Ich lege sie
-gebuendelt an der Stufengrenze vor Bau und Release vor; sie halten den
-laufenden Zyklus **nicht** auf, weil Bauen und Pruefen keine Weitergabe ist.
+**Vor dem ersten Release zu entscheiden (C-003, 07.09.2026).** Gebuendelt an
+der Stufengrenze vor Bau und Release; sie halten den laufenden Zyklus **nicht**
+auf, weil Bauen und Pruefen keine Weitergabe ist.
 - **A-025, GRAU:** Die EXE traegt die bekannten Entschluesselungsschluessel.
   Privatgebrauch ist straflos, **mit dem ersten Release-Asset wird aus Nutzung
   Verbreitung** (§ 95a Abs. 3 UrhG, EULA 10(i)). Risiko tragen oder vorher
@@ -122,19 +113,13 @@ laufenden Zyklus **nicht** auf, weil Bauen und Pruefen keine Weitergabe ist.
   Release beworben werden? · Beruehrt die Weitergabe deinen Arbeitsvertrag
   (seit C-001 offen)? · Eigener Auftrag zu US-Recht (17 U.S.C. § 1201)?
 
-**Aus dem Audit, Messung im Spiel:** **F-B QA-096** Raider x1,18 auf
-Greataxe/Great Hammer, keine Param-Quelle · **F-C QA-097** Cursed Claws x0,88
-fuer alle ausser dem Revenant · **F-F QA-113** vier Relikte wandeln
-Schadensart um, das Programm bewegt **exakt 0** (Grundwert 114, drei Lesarten
-sagen 91 / 116 / 117).
-- **F-G QA-170** Sortierung ueber Waffenkategorien hinweg waere eine **neue
-  Funktion** · **Streichliste je Tab** (13 Vorschlaege, `UI_SPEC` §8).
+**Aus dem Audit, Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 ·
+F-G QA-170 (neue Funktion) · Streichliste je Tab (13 Vorschlaege,
+`UI_SPEC` §8). Wortlaut in `qa/findings.md`.
 
 ## Regeln
 
-Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008 bis L-013;
-projekteigen NH-001, NH-002. Neu 07.09. im Rahmenblock: **kein Hintergrundlauf,
-auf dessen Ende der Agent wartet** · **ein Feldname ist keine Beschreibung**
-(drei Gegenproben vor jedem Nutzertext an einem Datenfeld, Anlass QA-186).
+Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008 bis L-018;
+projekteigen NH-001, NH-002.
 
 **Nie geprueft:** Linux/macOS · eine echte Fremdinstallation.

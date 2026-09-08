@@ -34,8 +34,14 @@ eine kurze Begruendung.
   Nutzersprache (welche Effekte den Ausschlag gaben).
 - **A6** Die Berechnung blockiert die Oberflaeche nicht: sie laeuft im
   Hintergrund, das Fenster bleibt bedienbar, und bei grossen Relikt-Bestaenden
-  bleibt die Antwortzeit im gemessenen Budget (Zielwert wird vom
-  performance-tuner gesetzt).
+  bleibt die Antwortzeit im gemessenen Budget — eine **Slot-Frage des Beraters
+  ist im Median unter 500 ms** beantwortet, ein **Gesamtlauf (`Optimize`) unter
+  6 s**, und **keine Beraterrechnung haelt den Hauptthread laenger als 50 ms
+  an**. Messfall: 309 Relikte, 110 gespeicherte Builds, `Wylder's Chalice` mit
+  Deep of Night, sechs freie Slots, Zielgeraet und Messumgebung nach
+  `docs/perf/baselines.md`.
+  *(Die drei Zahlen gesetzt vom `performance-tuner` in S11/T-118, uebernommen
+  am 08.09.2026, freigegeben durch Nutzer. Sie schliessen QA-203.)*
 - **A7** Wo die Spieldateien eine Bewertung nicht hergeben, sagt das Programm
   das, statt zu raten — die bestehende Hausregel gilt auch fuer den Berater.
 - **A8** Alle Texte in der Oberflaeche sind Englisch (bestehende Projektregel).
