@@ -24,6 +24,9 @@ from . import __version__
 from . import (advisorblock, chalices, damage, datasource, effecttext,
                favourites, firstrun, inventory, model, shortcut,
                singleinstance, uiscale, weaponslots, weapons)
+from .advisor import run as advisor_run
+from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
+                             PICKER_DEBOUNCE_MS)
 from .advisorbar import AdvisorBar, asking_from
 from .effectstab import EffectsTab
 from .iconpack import IconPack
@@ -1812,6 +1815,18 @@ class Planner(QMainWindow):
             lambda goal_id: asking_from(self, goal_id), column)
         stack.addWidget(self.advisor_bar)
 
+        # The relic picker's track: the same class, a second instance, and
+        # three figures of its own -- the pool rather than the whole answer,
+        # no debounce and a cache twice the size (AD-028, Nachtrag IX-1.1 and
+        # IX-3). It lives here and not in the dialog because the measured use
+        # of the cache is across openings (30 % hits, S11-F) and a cache in a
+        # dialog dies with it. Owned by the window so that it outlives every
+        # picker and is shut down with the window.
+        self.picker_advisor = AdvisorController(
+            self, answer=advisor_run.slot_pool,
+            cache=advisor_run.ResultCache(PICKER_CACHE_SIZE),
+            debounce_ms=PICKER_DEBOUNCE_MS)
+
         outer = QScrollArea()
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
@@ -1997,15 +2012,32 @@ class Planner(QMainWindow):
             self.resize(self._opening_width(), OPENING_HEIGHT)
         super().showEvent(event)
 
+    def the_advisor_data_is_changing(self) -> None:
+        """Both advisor tracks, from one place (AD-028 point 6).
+
+        Called before the save or the dataset is read again (AD-006.7). With
+        two tracks a forgotten call is a cache that survives a rescan --
+        answers worked out on relics the player no longer owns, handed back
+        with no sign that anything is wrong -- so the distribution stands
+        here once rather than beside every call site.
+        """
+        self.advisor_bar.the_data_is_changing()
+        self.picker_advisor.before_the_data_changes()
+
+    def shutdown_the_advisor(self) -> None:
+        """Stop both tracks and wait for their threads. Closing only."""
+        self.advisor_bar.shutdown()
+        self.picker_advisor.shutdown()
+
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        """Stop the advisor's thread and wait for it before the window goes.
+        """Stop the advisor's threads and wait for them before the window goes.
 
         The one place a `wait()` in the main thread is right (AD-006 point 4):
         a `QThread` that outlives the window it belongs to is destroyed while
         its run is still going, and that ends the process rather than the
         run.
         """
-        self.advisor_bar.shutdown()
+        self.shutdown_the_advisor()
         super().closeEvent(event)
 
     def _opening_width(self, room: int | None = None) -> int:
@@ -3405,7 +3437,7 @@ class Planner(QMainWindow):
         # Before the relics are replaced, not after (AD-006.7): a search
         # already running was asked about the inventory that is about to go,
         # and every answer in the cache was worked out on it.
-        self.advisor_bar.the_data_is_changing()
+        self.the_advisor_data_is_changing()
         try:
             self.owned = inventory.load(self.data)
         except Exception as exc:  # noqa: BLE001
@@ -3455,7 +3487,7 @@ class Planner(QMainWindow):
         # Same reason as in rescan_save: the slots of every chalice are about
         # to be written from the save, so nothing may still be searching
         # against what they held (AD-006.7).
-        self.advisor_bar.the_data_is_changing()
+        self.the_advisor_data_is_changing()
         if self.owned is None:
             self.owned_label.setText("No save loaded, so there is nothing to import.")
             return

@@ -22,7 +22,7 @@ consumes. Three things they keep coming back to:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEventLoop, Qt, QTimer
 from PySide6.QtWidgets import QFrame, QLabel
 
 from nrplanner import relicpicker
@@ -37,16 +37,35 @@ LONGEST = "+1234.5 effective HP"
 class FakeAdvice:
     """A `SlotAdvice` whose pool is stated rather than computed.
 
-    It answers the three questions the picker asks of one -- which direction
-    the program stands on, that it should stand on another, and what this
-    slot's pool is -- and writes down the second, which is how the two
-    directions of AK-43's coupling are told apart.
+    It answers the four things the picker asks of one -- which direction the
+    program stands on, that it should stand on another, this slot's question,
+    and that the dialog is closing -- and writes down the second, which is how
+    the two directions of AK-43's coupling are told apart.
+
+    **It is also the four fixtures the waiting state needs** (`UI_SPEC` §9,
+    AK-211 to AK-218): a track that answers at once (`at_once`, the default),
+    one that never answers (`at_once=False` and nobody calls `answer`), one
+    that fails and one that is stopped. They are one class because they differ
+    in one thing only -- when and with what the one answer of an opening
+    arrives -- and four classes would have hidden that.
+
+    `pools` is keyed by direction, and the pool handed over is the one of the
+    direction the program is standing on when the question is asked. The real
+    track asks under `goals.CANONICAL_POOL_ORDER` whatever is chosen (Nachtrag
+    IX-2); what is under test here is what the picker **draws**, and that is
+    the chosen direction (AK-205), so a case states the pool it wants read.
     """
 
-    def __init__(self, pools: dict, goal_id: str = "max_damage"):
+    def __init__(self, pools: dict, goal_id: str = "max_damage", *,
+                 at_once: bool = True):
         self.pools = pools
         self._goal_id = goal_id
         self.chosen: list[str] = []
+        self.at_once = at_once
+        self.asked = 0
+        self.listening = False
+        self._answered = None
+        self._pool = None
 
     def goal_id(self) -> str:
         return self._goal_id
@@ -55,9 +74,46 @@ class FakeAdvice:
         self._goal_id = goal_id
         self.chosen.append(goal_id)
 
-    def ranking(self, goal_id: str):
-        pool = self.pools.get(goal_id)
-        return None if pool is None else relicpicker.Ranking(pool)
+    def ask(self, answered):
+        pool = self.pools.get(self._goal_id)
+        if pool is None:
+            return None
+        self.asked += 1
+        if self.at_once:
+            return relicpicker.Asked(relicpicker.Ranking(pool))
+        self._pool = pool
+        self._answered = answered
+        self.listening = True
+        return relicpicker.Asked(None)
+
+    def stop_listening(self) -> None:
+        self.listening = False
+        self._answered = None
+
+    def _deliver(self, ranking, reason: str) -> None:
+        """One outcome, and none at all once nobody is listening.
+
+        A dialog that has closed has stopped listening, and the real track
+        drops what belongs to an earlier opening at its generation counter.
+        Delivering into nothing has to be as harmless here as it is there, or
+        the case for AK-207 would be testing this class.
+        """
+        answered = self._answered
+        self.stop_listening()
+        if answered is not None:
+            answered(ranking, reason)
+
+    def answer(self) -> None:
+        """The track's `ready`: the pool this question was asked for."""
+        self._deliver(relicpicker.Ranking(self._pool), "")
+
+    def fail(self, reason: str) -> None:
+        """The track's `failed`, with the one line it carries."""
+        self._deliver(None, reason)
+
+    def stop(self) -> None:
+        """The track's `stopped`, in the picker's own words (AK-218)."""
+        self._deliver(None, relicpicker.SEARCH_WAS_STOPPED)
 
 
 def a_slot(planner):
@@ -101,6 +157,47 @@ def pool_of(slot, gains, taken=(), *, rank_by="max_damage",
         baseline=tuple(types.Baseline(goal_id, value, unit, found)
                        for goal_id, value, unit, found in baseline),
         candidates=tuple(candidates), unknowns=unknowns)
+
+
+#: How long a case waits for the real track before calling it a fault. The
+#: most expensive slot this save has is measured at 318,1 ms (S11-C), and a
+#: machine ten times slower than that one is still well inside this. It is a
+#: fuse against a question that ends in none of its three outcomes -- not a
+#: budget, and nothing here asserts on how long the answer took (AD-028: no
+#: wall clock in the suite).
+ANSWER_FUSE_MS = 30000
+
+
+def the_one_answer(advice, fuse_ms: int = ANSWER_FUSE_MS):
+    """Ask a real `SlotAdvice` and wait for the one answer of the opening.
+
+    The window's track computes in a thread and answers into the event loop,
+    so a case that wants the figures has to give it one. `None` is "there was
+    nothing to ask" -- no save on this machine -- and is the caller's to skip
+    on; a question that ends in none of its three outcomes is a failure here
+    and not a hang.
+    """
+    got = []
+    loop = QEventLoop()
+
+    def answered(ranking, reason):
+        got.append((ranking, reason))
+        loop.quit()
+
+    asked = advice.ask(answered)
+    if asked is None:
+        return None
+    if asked.ranking is not None:
+        return asked.ranking
+    fuse = QTimer()
+    fuse.setSingleShot(True)
+    fuse.timeout.connect(loop.quit)
+    fuse.start(fuse_ms)
+    loop.exec()
+    assert got, "the track ended in none of ready, failed and stopped"
+    ranking, reason = got[0]
+    assert not reason, reason
+    return ranking
 
 
 def picker_for(slot, advice):
@@ -439,7 +536,7 @@ def test_the_figure_on_a_card_is_the_pools_own_float(planner):
     advice = relicpicker.advice_for(slot)
     if advice is None:
         pytest.skip("this window carries no advisor bar")
-    ranking = advice.ranking("max_damage")
+    ranking = the_one_answer(advice)
     if ranking is None or not ranking.pool.candidates:
         pytest.skip("no save to rank against on this machine")
     for candidate in ranking.pool.candidates:
@@ -504,7 +601,13 @@ def test_choosing_a_direction_in_the_picker_moves_the_one_setting(slot):
         dialog._sort_chosen(box.currentIndex())
         assert advice.chosen == ["min_damage_taken"]
         assert advice.goal_id() == "min_damage_taken"
-        assert dialog.ranking.goal_id == "min_damage_taken"
+        # And nothing was asked a second time (AK-206, Nachtrag IX-0): the
+        # answer on screen is the one this opening asked for, and it serves
+        # the other direction as it stands. The direction that is drawn is
+        # the setting, not the pool's `rank_by` (AK-205).
+        assert advice.asked == 1
+        assert dialog.ranking.pool.rank_by == "max_damage"
+        assert dialog._drawn_direction() == "min_damage_taken"
     finally:
         dialog.deleteLater()
 
@@ -912,5 +1015,255 @@ def test_the_three_lines_stand_outside_the_scroll_area_and_wrap(slot):
             assert line in held, "a line was put inside the scroll area"
             assert line.wordWrap(), "a line that does not wrap gets cut"
             assert line.textFormat() == Qt.PlainText
+    finally:
+        dialog.deleteLater()
+
+
+# --- the empty grid, and the one answer that fills it (§3.8 fassung 3) -----
+#
+# Four fixtures, all of them `FakeAdvice`: a track that answers at once, one
+# that never answers, one that fails and one that is stopped. Not one of the
+# cases below reads a clock -- what they state is which state the display is
+# in, which is what the App Designer's decision is about (F-P, F-R).
+
+
+def waiting_picker(slot, gains=None):
+    """The picker over a track that has been asked and has not answered."""
+    pools = {"max_damage": pool_of(slot, {0: 1.0, 1: 9.0}
+                                   if gains is None else gains)}
+    advice = FakeAdvice(pools, goal_id="max_damage", at_once=False)
+    return picker_for(slot, advice), advice
+
+
+def custom_tiles(dialog):
+    return dialog.scroll.widget().findChildren(relicpicker.CustomRelicCard)
+
+
+def area_lines(dialog):
+    """Every line standing in the card area, in order."""
+    return [label.text()
+            for label in dialog.scroll.widget().findChildren(QLabel)]
+
+
+def test_the_card_area_is_empty_until_the_answer_arrives(slot):
+    """AK-212: the waiting state is a state, not an absence.
+
+    The App Designer weighed cards that reorder under the pointer against a
+    third of a second of nothing and chose the nothing (F-P), for every
+    opening including `Sort by` = `Name` (F-R). What stands is one line, at
+    the place the first card will take.
+    """
+    dialog, advice = waiting_picker(slot)
+    try:
+        assert relic_cards(dialog) == []
+        assert custom_tiles(dialog) == [], (
+            "the custom tile is a card and waits with the rest")
+        assert area_lines(dialog) == [relicpicker.NOTHING_YET]
+        assert dialog.summary.text() == relicpicker.working_out(
+            slot.slot_name())
+        assert not dialog.headline.isVisibleTo(dialog)
+        assert advice.asked == 1
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_waiting_line_says_nothing_a_card_would_say(slot):
+    """AK-214: line 3 counts nothing that is not standing."""
+    dialog, _advice = waiting_picker(slot)
+    try:
+        line = dialog.summary.text()
+        assert "relics" not in line
+        assert "ranked against" not in line
+        assert "right-click" not in line
+        assert line.endswith("empty")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_mandatory_lines_do_not_wait(slot):
+    """AK-201: what is true before any run stands from the first paint."""
+    from nrplanner.advisor import goals as advisor_goals
+
+    dialog, _advice = waiting_picker(slot)
+    try:
+        assert dialog.caveats.isVisibleTo(dialog)
+        text = dialog.caveats.text()
+        assert text.startswith(relicpicker.ONE_SLOT_AT_A_TIME)
+        for sentence in advisor_goals.GOALS["max_damage"].scope:
+            assert sentence in text
+        assert not dialog.findings.isVisibleTo(dialog), (
+            "the run findings belong to a pool and are the one line that "
+            "may wait")
+    finally:
+        dialog.deleteLater()
+
+
+def test_nothing_is_locked_while_the_area_is_empty(slot):
+    """AK-213: the dialog is the window, and A6 wants it answerable."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        assert dialog.search.isEnabled()
+        assert dialog.sort_box.isEnabled()
+        assert dialog.scroll.isEnabled()
+        assert dialog.sort_box.currentData() == "max_damage", (
+            "`Sort by` is not put back to Name while the question is out")
+        dialog.search.setText("hp")
+        assert dialog.search.text() == "hp"
+        assert advice.asked == 1, "a keystroke asked a second question"
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_filter_that_matches_nothing_leaves_the_line_standing(slot):
+    """§3's named edge case: the state does not change under a keystroke."""
+    dialog, _advice = waiting_picker(slot)
+    try:
+        dialog.search.setText("nothing matches this at all zzzz")
+        assert area_lines(dialog) == [relicpicker.NOTHING_YET]
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_answer_fills_the_grid_in_one_go(slot):
+    """AK-211: the cards, the figures, the chips and the order together."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        advice.answer()
+        cards = relic_cards(dialog)
+        assert cards, "the answer did not fill the grid"
+        drawn = [label.text() for card in cards
+                 for label in card.findChildren(QLabel)]
+        assert relicpicker.PENDING not in drawn, (
+            "AK-219: no card standing in the area carries the pending mark")
+        assert relicpicker.NOTHING_YET not in area_lines(dialog)
+        assert dialog.summary.text().startswith(f"{len(cards)} of ")
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_failure_fills_the_grid_and_says_why(slot):
+    """AK-208 and AK-218: no figures is not the same as no cards."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        advice.fail("the run gave up")
+        cards = relic_cards(dialog)
+        assert cards
+        assert dialog.headline.isVisibleTo(dialog)
+        assert dialog.headline.text() == (
+            "Could not work out what these are worth — the run gave up. "
+            "They are in name order below.")
+        assert relicpicker.NO_FIGURES_AT_ALL not in dialog.headline.text()
+        for card in cards:
+            values = [label.text()
+                      for block in card.findChildren(relicpicker.ValueBlock)
+                      for label in block.values]
+            assert values == [relicpicker.NO_FIGURE] * len(
+                relicpicker.VALUE_DIRECTIONS)
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_stopped_search_is_a_failure_with_its_own_reason(slot):
+    """AK-218: `stopped` fills the grid too, in the picker's own words."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        advice.stop()
+        assert relic_cards(dialog)
+        assert dialog.headline.text() == relicpicker.could_not_work_out(
+            relicpicker.SEARCH_WAS_STOPPED)
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_closed_dialog_hears_nothing_more(slot):
+    """AK-207: an answer on its way reaches a dialog that has gone."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        dialog.done(0)
+        assert not advice.listening
+        advice.answer()
+        assert relic_cards(dialog) == [], (
+            "an answer after the close still drew into the dialog")
+    finally:
+        dialog.deleteLater()
+
+
+def test_an_opening_with_no_relic_to_offer_does_not_wait(slot):
+    """AK-212's stated exception: nothing to order, nothing to value.
+
+    Stated at the first paint, which is where the exception lives: a filter
+    typed *during* the wait leaves the line where it is (the case above), and
+    a filter that was already typed when the dialog opened never puts it
+    there.
+    """
+    dialog, advice = waiting_picker(slot)
+    try:
+        assert area_lines(dialog) == [relicpicker.NOTHING_YET]
+    finally:
+        dialog.deleteLater()
+    empty = relicpicker.RelicPicker(
+        slot, slot.icons, "zzz no effect is called this zzz",
+        lambda _text: None,
+        advice=FakeAdvice({"max_damage": pool_of(slot, {0: 1.0})},
+                          goal_id="max_damage", at_once=False))
+    try:
+        assert relic_cards(empty) == []
+        assert relicpicker.NOTHING_YET not in area_lines(empty)
+        assert "relics" in empty.summary.text()
+    finally:
+        empty.deleteLater()
+
+
+def test_the_dialog_takes_its_size_at_the_first_paint(slot):
+    """AK-216: the answer must not resize the dialog under the player.
+
+    Both openings of AK-216's own fixture -- one track that never answers,
+    one that answers at once -- and the size across the answer of the first.
+    The figures themselves are reported with their environment rather than
+    written down here: a pixel count is a fact about a style and a scaling
+    (L-009), and what this case states is a relation between two of them.
+    """
+    waiting, advice = waiting_picker(slot)
+    try:
+        before = (waiting.width(), waiting.height())
+        advice.answer()
+        assert (waiting.width(), waiting.height()) == before, (
+            "the dialog changed size when the answer arrived")
+    finally:
+        waiting.deleteLater()
+    at_once = picker_for(slot, FakeAdvice(
+        {"max_damage": pool_of(slot, {0: 1.0, 1: 9.0})}, goal_id="max_damage"))
+    try:
+        assert (at_once.width(), at_once.height()) == before, (
+            "an opening that waits and one that does not took two sizes")
+    finally:
+        at_once.deleteLater()
+
+
+def test_the_drawn_direction_is_the_setting_and_not_the_pools_order(slot):
+    """AK-205: `SlotPool.rank_by` is an ordering, never a choice.
+
+    The picker asks under one fixed direction now (Nachtrag IX-2), so a pool
+    that says `max_damage` is the ordinary case while the player stands on
+    survival. Reading the direction off the pool draws the wrong column, the
+    wrong chip and the wrong sentences -- and agrees with itself most of the
+    time, which is what made the same fault cost 10,2 % silently wrong
+    figures at its twin (T-077).
+    """
+    # Ordered by damage and negative in it, so the figures the player is
+    # reading -- survival -- are the positive ones. A card wears the mark of
+    # the direction it is read in or of none.
+    ordered_by_damage = pool_of(slot, {0: -1.0, 1: -9.0}, rank_by="max_damage")
+    advice = FakeAdvice({"min_damage_taken": ordered_by_damage},
+                        goal_id="min_damage_taken")
+    dialog = picker_for(slot, advice)
+    try:
+        assert dialog.ranking.pool.rank_by == "max_damage"
+        assert dialog._drawn_direction() == "min_damage_taken"
+        chips = [label.text() for card in relic_cards(dialog)
+                 for label in card.findChildren(QLabel)
+                 if label.text().startswith("BEST FOR ")]
+        assert chips, "no card wore the mark of the direction being read"
+        assert set(chips) == {relicpicker.chip_text("min_damage_taken")}
     finally:
         dialog.deleteLater()

@@ -29,11 +29,19 @@ actually drawn, against the viewport that has to contain them.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from nrplanner import relicpicker
 
 from tests import rendered
+
+#: How long the fixture waits for the picker track before calling the opening
+#: a fault. The most expensive slot of this save is measured at 318,1 ms
+#: (S11-C); this is a fuse against a question that never ends, not a budget,
+#: and nothing here asserts on the time.
+ANSWER_FUSE_S = 30.0
 
 #: Widths to open the dialog at, in logical px. `None` means "leave it at the
 #: size it gives itself", which is the case QA-141 was raised on: the defect
@@ -54,6 +62,17 @@ def picker(planner, qapp):
     dialog = relicpicker.RelicPicker(slot, planner.icons, "",
                                      lambda _text: None)
     dialog.show()
+    rendered.settle()
+    # The figures come from the window's picker track now (AD-028), so the
+    # card area is empty until it answers (§3.8 fassung 3). Everything below
+    # measures cards, so the fixture waits for the one answer of this opening
+    # -- and calls a question that ends in none of its three outcomes a
+    # failure rather than a hang. Nothing here reads how long it took.
+    deadline = time.monotonic() + ANSWER_FUSE_S
+    while dialog.waiting and time.monotonic() < deadline:
+        rendered.settle()
+    assert not dialog.waiting, (
+        "the picker track ended in none of ready, failed and stopped")
     rendered.settle()
     yield dialog
     dialog.close()

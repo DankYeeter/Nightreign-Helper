@@ -1439,13 +1439,13 @@ MUTATIONS: dict[str, Mutation] = {
         )),
     "advisor-controller-answers-every-keystroke": Mutation(
         path="nrplanner/advisor/worker.py",
-        old="""        self._interrupt_the_running_worker()
+        old="""        self._pending = question
+        self._interrupt_the_running_worker()
         self._timer.start(self._debounce_ms)
-        return self._generation
 """,
-        new="""        self._interrupt_the_running_worker()
+        new="""        self._pending = question
+        self._interrupt_the_running_worker()
         self._timer.start(0)
-        return self._generation
 """,
         survival_means=(
             "AD-006 point 5 is unenforced: a dragged level slider starts a "
@@ -2563,13 +2563,15 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "picker-back-to-a-fixed-column-count": Mutation(
         path="nrplanner/relicpicker.py",
-        old="""        self.scroll.setWidget(cardgrid.CardGrid(CARD_WIDTH, cards))
+        old="""        self.scroll.setWidget(cardgrid.CardGrid(
+            CARD_WIDTH, [tile] + [card for _item, card in relic_cards]))
 """,
         new="""        holder = QWidget()
         grid = QGridLayout(holder)
         grid.setSpacing(8)
         grid.setAlignment(Qt.AlignTop)
-        for index, card in enumerate(cards):
+        for index, card in enumerate(
+                [tile] + [card for _item, card in relic_cards]):
             grid.addWidget(card, index // OPENING_COLUMNS,
                            index % OPENING_COLUMNS)
         self.scroll.setWidget(holder)

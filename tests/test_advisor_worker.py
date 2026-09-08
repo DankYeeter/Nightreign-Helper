@@ -516,3 +516,152 @@ def test_the_thread_reads_a_snapshot_and_not_the_living_inventory(
     assert seen.ready[0].suggestions[0].choices, (
         "the run read the emptied inventory, so what it answered about is "
         "not what was asked about")
+
+
+# -- two tracks, one class (AD-028, Nachtrag IX-1) --------------------------
+
+
+class Answering:
+    """An answer function of the shape a controller is built with.
+
+    A `SlotPool` rather than an `AdvisorResult`, because that is what the
+    picker's track answers with. **And it does not stamp the generation on
+    purpose**: `candidates.pool` does not, `run.slot_pool` hands back what it
+    built, and an answer that arrives carrying 0 is judged overtaken and
+    dropped without a word -- every time, on every question, and the only
+    sign of it is a dialog that waits for ever. The worker stamps it, and
+    this class is what says so.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.threads: list[int] = []
+
+    def __call__(self, request, inventory, ctx, goals, should_cancel=None):
+        self.calls += 1
+        self.threads.append(threading.get_ident())
+        return types.SlotPool(slot_index=0, rank_by=request.goal_id)
+
+
+def test_a_controller_runs_the_answer_it_was_built_with(qapp, controller,
+                                                        question):
+    """AD-028 option D: the difference between the two tracks is an argument.
+
+    Nothing in `worker.py` names either of them. A second thread path for the
+    picker would have been a second place for the generation, the debounce
+    and the cancelling to be got right.
+    """
+    inventory, _problem, ctx, request = question
+    answering = Answering()
+    track = controller(answer=answering)
+    seen = Recorder(track)
+
+    track.ask(request, inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.ready))
+
+    assert answering.calls == 1
+    assert answering.threads[0] != threading.get_ident(), (
+        "the picker's answer was worked out in the main thread")
+    assert isinstance(seen.ready[0], types.SlotPool)
+    assert seen.ready[0].generation == track.generation, (
+        "the answer did not come back carrying the generation it was asked "
+        "under, so the window has no way to know whose answer it is")
+
+
+def test_a_known_answer_comes_back_in_the_same_call(qapp, controller,
+                                                    question):
+    """Nachtrag IX-1.3: the hit is the return value, and nothing is started.
+
+    This is what lets a dialog draw a known answer in its **first** paint.
+    Without it the empty grid appears and is replaced one turn of the event
+    loop later, at a measured 30 % of openings -- a whole grid flashing up
+    and going again, which is why IX-1.C is a precondition of the empty grid
+    and not a saving.
+    """
+    inventory, _problem, ctx, request = question
+    answering = Answering()
+    track = controller(answer=answering)
+    seen = Recorder(track)
+
+    track.ask(request, inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.ready))
+
+    known = track.ask_and_answer_if_known(request, inventory, ctx)
+
+    assert known is not None, "the answer just given was not recognised"
+    assert answering.calls == 1, "a known answer was worked out again"
+    assert seen.started == 1, "a run was started for an answer already known"
+    assert len(seen.ready) == 1, (
+        "the hit went out as a signal as well as coming back")
+    assert known.generation == track.generation, (
+        "the hit carries the generation of the question that fetched it")
+
+
+def test_the_counter_rises_for_an_answer_that_was_known(qapp, controller,
+                                                        question):
+    """Nachtrag IX-1.4: a hit is a question like any other.
+
+    An answer from an earlier opening that is still on its way would
+    otherwise overwrite the one just handed back -- the same cards, plausible
+    figures, and nothing on the screen to say which question they belong to.
+    """
+    inventory, _problem, ctx, request = question
+    track = controller(answer=Answering())
+    seen = Recorder(track)
+
+    track.ask(request, inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.ready))
+    before = track.generation
+
+    track.ask_and_answer_if_known(request, inventory, ctx)
+
+    assert track.generation == before + 1
+
+
+def test_a_question_nobody_has_answered_yet_is_asked_as_usual(qapp,
+                                                              controller,
+                                                              question):
+    """The other half of IX-1.3: a miss is `None` and takes the usual way."""
+    inventory, _problem, ctx, request = question
+    answering = Answering()
+    track = controller(answer=answering)
+    seen = Recorder(track)
+
+    assert track.ask_and_answer_if_known(request, inventory, ctx) is None
+    assert spin(qapp, lambda: bool(seen.ready))
+    assert answering.calls == 1
+    assert seen.started == 1
+
+
+def test_the_snapshot_is_taken_once_however_the_question_is_asked(
+        qapp, controller, question):
+    """IX-1.3's reason for one private place: the freezing is not free.
+
+    `frozen_inventory` copies every owned relic and `inventory_fingerprint`
+    hashes them. A caller that asked twice -- once to find out whether it
+    need ask at all, once to ask -- would pay for both, and the two would be
+    two snapshots of one moment.
+    """
+    inventory, _problem, ctx, request = question
+    counted = []
+
+    class Counting:
+        """The frozen inventory, counting how often it was taken."""
+
+        def __init__(self, wrapped):
+            self.relics = wrapped.relics
+            self._wrapped = wrapped
+
+        def relics_for(self, colour, deep):
+            counted.append((colour, deep))
+            return self._wrapped.relics_for(colour, deep)
+
+    track = controller(answer=Answering())
+    track.ask_and_answer_if_known(request, Counting(inventory), ctx)
+    once = len(counted)
+    assert once, "nothing was frozen at all"
+
+    counted.clear()
+    track.ask(request, Counting(inventory), ctx)
+    assert len(counted) == once, (
+        "the two ways of asking freeze the inventory differently often")

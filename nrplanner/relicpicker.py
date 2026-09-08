@@ -13,6 +13,13 @@ itself, because the game's own curves are concave.
 search consumes, so the picker and `Optimize` cannot disagree about what a
 relic is worth (AD-018 checkpoint 15). A second arithmetic in this file would
 be exactly the duplication the design was built against.
+
+**And not one figure is computed in this thread either** (AD-028). The pool
+comes from the window's picker track -- a second instance of the same
+`AdvisorController` the Advisor bar uses -- so the dialog opens at once and
+fills in when the answer arrives. Until it does, the card area is empty
+(§3.8 fassung 3): the App Designer weighed a wait against cards that move
+under the pointer and chose the wait.
 """
 
 from __future__ import annotations
@@ -28,9 +35,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import advisorbar, cardgrid, effecttext, favourites, model
-from .advisor import candidates as advisor_candidates
 from .advisor import goals as advisor_goals
-from .advisor import run as advisor_run
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
 
@@ -117,6 +122,28 @@ NO_CHANGE = "no change"
 NO_FIGURES_AT_ALL = ("The game's data carries no figures this goal can be "
                      "ranked on, so these relics are in name order.")
 
+#: What stands where the top left card will stand while the question is out
+#: (§3.8 fassung 3, AK-212). One line and nothing else: an empty area three
+#: card rows tall is not to be told from a dialog that is broken, and a
+#: skeleton of placeholder cards would be the movement this state exists to
+#: avoid. It sits at the origin of the grid's content, so the card that
+#: replaces it lands where it stood.
+NOTHING_YET = "Your relics appear here."
+
+#: What the run could not be, in the player's language (AK-208, AK-218). The
+#: reason is the track's own line, and it is the only place the picker says
+#: anything about a failure: the AK-49 sentence is about the game's data and
+#: would be a claim about the dataset that nothing measured.
+COULD_NOT_WORK_OUT = ("Could not work out what these are worth — {reason}. "
+                      "They are in name order below.")
+
+#: What `<reason>` is when the track was stopped rather than broken (AK-218).
+#: A stop reaches the picker through `before_the_data_changes` and `shutdown`
+#: only, and neither can be triggered while a modal dialog stands -- but an
+#: unhandled `stopped` leaves an empty grid rather than a grid without
+#: figures, which is why the case is built rather than reasoned away.
+SEARCH_WAS_STOPPED = "the search was stopped"
+
 #: The mandatory line of AD-018.3, in the player's language (§5.3), word for
 #: word. It stands in the picker and not at the `Optimize` button, because it
 #: is a warning about choosing one slot at a time and that is what happens
@@ -186,6 +213,22 @@ def chip_text(goal_id: str) -> str:
     return f"BEST FOR {DIRECTION_NOUNS[goal_id].upper()}"
 
 
+def working_out(slot_name: str) -> str:
+    """Line 3 while the question is out (§7(a), AK-214).
+
+    This clause and nothing else: no count, no filter hint, no favourite
+    hint, no right-click sentence. Every one of them is about cards that are
+    not standing, and `29 of 29 relics` over an empty area announces relics
+    the dialog is not showing.
+    """
+    return f"Working out what each relic is worth with {slot_name} empty"
+
+
+def could_not_work_out(reason: str) -> str:
+    """The header of a question that ended in no figures (AK-208, AK-218)."""
+    return COULD_NOT_WORK_OUT.format(reason=reason)
+
+
 def nothing_raises(goal_id: str) -> str:
     """What the header says instead of a chip nobody may wear (AK-46)."""
     return (f"Nothing you own raises {DIRECTION_NOUNS[goal_id]} in this "
@@ -200,17 +243,22 @@ class Ranking:
     and the number the beam search pre-sorted by are the same bits
     (AD-018 checkpoint 15). The lookup is a mapping rather than a scan because
     a slot offers up to 309 copies and the grid asks twice per card.
+
+    **It has no direction of its own, and that is the point** (AK-205,
+    Nachtrag IX-2). Every method here is asked which direction to answer in.
+    The pool does carry one -- `SlotPool.rank_by`, the direction that put the
+    list in this order -- and reading the drawn direction off it was right
+    only while the picker asked under the direction the player had chosen.
+    The picker now asks under one fixed direction whatever is chosen, so
+    `rank_by` says nothing about what the player is looking at; a property
+    here that handed it out would be the one line from which every value row,
+    chip and sentence took the wrong direction at once.
     """
 
     def __init__(self, pool: advisor_types.SlotPool) -> None:
         self.pool = pool
         self._by_handle = {candidate.handle: candidate
                            for candidate in pool.candidates}
-
-    @property
-    def goal_id(self) -> str:
-        """The direction this pool was put in order by (`SlotPool.rank_by`)."""
-        return self.pool.rank_by
 
     def gain(self, item, goal_id: str) -> float | None:
         """What this copy adds under one direction, or `None`.
@@ -265,6 +313,22 @@ class Ranking:
         return rows
 
 
+@dataclasses.dataclass(frozen=True)
+class Asked:
+    """What came of asking: an answer already, or a question on its way.
+
+    Told apart from "there was nothing to ask" -- which is `None` in place of
+    this object -- because the two look the same on screen and are not the
+    same state: a dialog with no save behind it says what AK-49 asks for and
+    waits for nothing, and a dialog whose question is out shows the empty
+    grid. One `None` for both would have made the waiting state the display
+    for "no save".
+    """
+
+    #: The answer, or `None` while it is still out.
+    ranking: Ranking | None
+
+
 class SlotAdvice:
     """Where the picker's figures and its one goal setting come from.
 
@@ -273,17 +337,34 @@ class SlotAdvice:
     writes it: a `Sort by` with a setting of its own would be a fourth place
     that can disagree with the other three.
 
-    The pool is computed here, in the calling thread, and that is deliberate:
-    AD-018 measures the worst slot at ~51 ms against the 250 ms of AK-09, so
-    there is nothing to draw a wait for (§3.8). Because the dialog is modal
-    and the computation returns before it opens, no base state can change
-    underneath a running one -- which is why AD-006.3's generation counter has
-    nothing to guard here and no second one is kept.
+    **Nothing is computed here any more** (AD-028). The pool used to be worked
+    out in this call, in the calling thread, on the measurement that the worst
+    slot cost about 51 ms -- a figure that was never measured but calculated,
+    and that is out by a factor of 6,3: the worst slot is **318,1 ms** (median
+    of 25, S11-C), above the 250 ms at which `UI_SPEC` AK-09 stops allowing a
+    dialog to freeze at all and six times A6's 50 ms for the main thread. The
+    question now goes to the window's picker track, which answers from its
+    cache in the same call if it can and out of a thread otherwise; the
+    dialog's part is in `RelicPicker`.
+
+    **The direction asked under is not the direction drawn in** (Nachtrag
+    IX-2). The track is asked under `goals.CANONICAL_POOL_ORDER`, marked as a
+    `PoolOrder` so no reader can take it for the player's choice: a pool
+    measures every candidate under every direction, so one entry serves both,
+    and the same slot opened under the two directions is one question rather
+    than two. What the screen draws in is `goal_id()` below.
+
+    **The answer may arrive after the dialog has gone.** The track lives at
+    the window and outlives every picker (AD-028 point 5), so this object
+    stops listening when the dialog closes, and the track's own generation
+    counter drops what belongs to an earlier opening.
     """
 
-    def __init__(self, slot, bar) -> None:
+    def __init__(self, slot, bar, track) -> None:
         self._slot = slot
         self._bar = bar
+        self._track = track
+        self._answered = None
 
     def goal_id(self) -> str:
         """The direction the whole program is standing on."""
@@ -293,50 +374,92 @@ class SlotAdvice:
         """Stand on another direction, everywhere at once (AK-43)."""
         self._bar.choose_goal(goal_id)
 
-    def ranking(self, goal_id: str) -> Ranking | None:
-        """This slot's pool under one direction, or `None`.
+    def ask(self, answered) -> Asked | None:
+        """Ask this slot's question once, or `None` if there is none to ask.
 
         `None` is "there is nothing to rank against" -- no save, so no
-        inventory and no build. The picker then shows what AK-49 asks for
-        rather than a figure it made up.
+        inventory and no build, or a slot that is not one of the window's.
+        The picker then shows what AK-49 asks for rather than a figure it made
+        up, and no answer is ever coming.
 
-        **Every other slot is held, held by the player or not** (AD-018.1):
-        the question here is what fits *this* slot beside the build as it
-        stands, so the rest of the build is a boundary condition.
-        `candidates.pool` lifts the hold on this one slot itself, which is
-        what makes the relic already sitting in it comparable with the ones
-        that might replace it.
+        Otherwise the answer is either here already, in `Asked.ranking`, or
+        `answered(ranking, reason)` is called once, later, with exactly one of
+        the track's three outcomes: an answer, a failure with its reason, or a
+        stop. Every one of the three fills the grid (AK-218) -- an outcome
+        that did nothing would leave a dialog in which no relic can be chosen.
+
+        **Every slot but this one is held, held by the player or not**
+        (AD-018.1, AD-028 point 3): the question is what fits *this* slot
+        beside the build as it stands, so the rest of the build is a boundary
+        condition -- and the one slot left free is how the question says which
+        slot it is about, without a field of its own in the key.
         """
         window = self._slot.window()
-        asking = advisorbar.asking_from(window, goal_id)
+        asking = advisorbar.asking_from(
+            window, advisor_types.PoolOrder(advisor_goals.CANONICAL_POOL_ORDER))
         if asking is None:
             return None
         cards = window.active_slots()
         try:
-            slot_index = [card is self._slot for card in cards].index(True)
+            open_index = [card is self._slot for card in cards].index(True)
         except ValueError:
             return None
         problem = dataclasses.replace(
             asking.request.problem,
             held=tuple(advisorbar.held_slot(index, card)
-                       for index, card in enumerate(cards)))
-        # The same reading the run takes, so the picker and `Optimize` are
-        # looking at one inventory rather than at two readings of it.
-        frozen = advisor_run.frozen_inventory(asking.inventory, problem)
-        return Ranking(advisor_candidates.pool(
-            frozen, problem, slot_index, asking.ctx, advisor_goals.GOALS,
-            goal_id))
+                       for index, card in enumerate(cards)
+                       if index != open_index))
+        request = dataclasses.replace(asking.request, problem=problem)
+        known = self._track.ask_and_answer_if_known(
+            request, asking.inventory, asking.ctx)
+        if known is not None:
+            return Asked(Ranking(known))
+        self._answered = answered
+        self._track.ready.connect(self._on_ready)
+        self._track.failed.connect(self._on_failed)
+        self._track.stopped.connect(self._on_stopped)
+        return Asked(None)
+
+    def stop_listening(self) -> None:
+        """Hear nothing more. The dialog is closing, or has its answer."""
+        if self._answered is None:
+            return
+        self._answered = None
+        self._track.ready.disconnect(self._on_ready)
+        self._track.failed.disconnect(self._on_failed)
+        self._track.stopped.disconnect(self._on_stopped)
+
+    def _on_ready(self, pool) -> None:
+        self._deliver(Ranking(pool), "")
+
+    def _on_failed(self, reason: str) -> None:
+        self._deliver(None, reason)
+
+    def _on_stopped(self) -> None:
+        self._deliver(None, SEARCH_WAS_STOPPED)
+
+    def _deliver(self, ranking: Ranking | None, reason: str) -> None:
+        """One outcome, once: stop listening before anything is drawn."""
+        answered = self._answered
+        self.stop_listening()
+        if answered is not None:
+            answered(ranking, reason)
 
 
 def advice_for(slot) -> SlotAdvice | None:
     """The advisor as this slot can reach it, or `None` for a slot on its own.
 
     A `RelicSlot` outside the main window -- which is every slot a test builds
-    by hand -- has no advisor bar and therefore no direction to rank in. That
-    is a state of the window and not a failure, exactly as 4.8 is.
+    by hand -- has neither the advisor bar that holds the one goal setting nor
+    the track that answers, and there is no direction to rank in without them.
+    That is a state of the window and not a failure, exactly as 4.8 is.
     """
-    bar = getattr(slot.window(), "advisor_bar", None)
-    return None if bar is None else SlotAdvice(slot, bar)
+    window = slot.window()
+    bar = getattr(window, "advisor_bar", None)
+    track = getattr(window, "picker_advisor", None)
+    if bar is None or track is None:
+        return None
+    return SlotAdvice(slot, bar, track)
 
 
 class ValueBlock(QWidget):
@@ -779,8 +902,30 @@ class RelicPicker(QDialog):
         # slot otherwise, so no call site loses the figures by forgetting an
         # argument.
         self.advice = advice_for(slot) if advice is None else advice
-        self.ranking = (None if self.advice is None
-                        else self.advice.ranking(self.advice.goal_id()))
+        #: This slot's pool, once there is one. `None` covers three states
+        #: that look alike and are not: the question is still out, it ended
+        #: without figures, and there was never anything to ask. `_waiting`
+        #: and `_failure` are what tell them apart.
+        self.ranking = None
+        #: Whether the answer to this opening's one question is still out.
+        self._waiting = False
+        #: Why there are no figures, in the track's own words -- empty unless
+        #: the question failed or was stopped (AK-208, AK-218).
+        self._failure = ""
+        #: Whether the first paint had cards to wait for. AK-212 excepts the
+        #: opening that offers no relic at all -- a slot nothing fits, or a
+        #: filter that was already typed and matches nothing: there is
+        #: nothing to order and nothing to value, so the dialog draws once
+        #: and says nothing about waiting. Decided at the first paint and not
+        #: at every one, because a filter typed *during* the wait leaves the
+        #: line standing (§3, the named edge case) rather than making the
+        #: dialog change its mind about what state it is in.
+        self._wait_is_drawn = None
+        asked = None if self.advice is None else self.advice.ask(
+            self._the_answer_arrived)
+        if asked is not None:
+            self.ranking = asked.ranking
+            self._waiting = asked.ranking is None
         # Favourites are per Nightfarer, so the picker has to know which one
         # the build is for. A slot outside the main window simply has none.
         window = slot.window()
@@ -902,6 +1047,17 @@ class RelicPicker(QDialog):
 
         self._refresh()
 
+    @property
+    def waiting(self) -> bool:
+        """Whether this opening's one question is still out (§3.8).
+
+        Public because it is the state the display is in, and a caller that
+        wants the figures -- a case measuring a card, a reader of this file --
+        has no other way to tell "the answer is not here yet" from "there is
+        nothing to rank against", which look identical on screen.
+        """
+        return self._waiting
+
     def _opening_width(self) -> int:
         """A width at which `OPENING_COLUMNS` whole cards fit the viewport.
 
@@ -1014,7 +1170,11 @@ class RelicPicker(QDialog):
                 items,
                 key=lambda i: 0 if favourites.is_favourite(i, self.hero_id) else 1,
             )
-        return self._in_the_chosen_order(items), text.strip()
+        # In the order the grid has without an advisor at all -- favourites,
+        # then name. `_refresh` puts the answer's order on top of it, and
+        # keeps this one, because the dialog measures itself against it
+        # (AK-216).
+        return items, text.strip()
 
     def _in_the_chosen_order(self, items):
         """`items` as `Sort by` asks for them (§3.4, AK-44, AK-195).
@@ -1041,7 +1201,7 @@ class RelicPicker(QDialog):
         """
         if self.sort_box.currentData() == NAME_ORDER or self.ranking is None:
             return items
-        goal_id = self.ranking.goal_id
+        goal_id = self._drawn_direction()
         other_id = next(g for g in VALUE_DIRECTIONS if g != goal_id)
 
         def worth(item):
@@ -1061,6 +1221,18 @@ class RelicPicker(QDialog):
         rest = [item for item in by_value
                 if handle_of(item) not in leading and handle_of(item) not in trailing]
         return first + second + rest
+
+    def _drawn_direction(self) -> str:
+        """The direction the value rows, chips and sentences are in (AK-205).
+
+        The one goal setting of the program (AK-43), and **never**
+        `SlotPool.rank_by`: since Nachtrag IX-2 the picker asks under one
+        fixed direction whatever the player has chosen, so the direction that
+        ordered the list says nothing about the direction being read. The two
+        agreed most of the time before, which is worse than never: a fault
+        that shows up sometimes is one nobody catches.
+        """
+        return self.advice.goal_id()
 
     def _heroes(self) -> list[dict]:
         return getattr(self.slot.window(), "heroes", None) or []
@@ -1087,8 +1259,50 @@ class RelicPicker(QDialog):
                 out.append((effecttext.name(eff), effecttext.describe_full(eff)))
         return out
 
+    def _card_for(self, item, current):
+        """One relic's card, with everything but its figures on it."""
+        icon = self.icons.item(item.icon) if item.icon else None
+        return RelicCard(
+            item,
+            self.slot.effect_names(item),
+            icon,
+            selected=current is not None and current.relic_id == item.relic_id
+            and current.effect_ids == item.effect_ids,
+            on_pick=self._pick,
+            curses=self._curses(item),
+            tooltip=self.slot.curse_tooltip(item),
+            favourite=self.hero_id is not None
+            and favourites.is_favourite(item, self.hero_id),
+            on_favourite=self._open_favourites,
+            captions=self._captions(),
+        )
+
+    def _waiting_area(self) -> QWidget:
+        """The scroll area's content while the question is out (AK-212).
+
+        No card, not even the custom tile: a single tile in an otherwise
+        empty area looks more like a fault than the empty area does, and in
+        a third of a second nobody reaches for the fallback. One line, at the
+        origin of the grid's content, so that the first card lands where the
+        line stood and the eye moves by nothing.
+        """
+        holder = QWidget()
+        layout = QVBoxLayout(holder)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        line = QLabel(NOTHING_YET)
+        line.setTextFormat(Qt.PlainText)
+        line.setWordWrap(True)
+        line.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        layout.addWidget(line)
+        return holder
+
     def _refresh(self) -> None:
-        items, needle = self._candidates()
+        plain, needle = self._candidates()
+        items = self._in_the_chosen_order(plain)
+        if self._wait_is_drawn is None:
+            self._wait_is_drawn = self._waiting and bool(plain)
+        waiting = self._waiting and self._wait_is_drawn
         total = len(self.slot.available_items())
         starred = sum(
             1 for i in items
@@ -1103,6 +1317,7 @@ class RelicPicker(QDialog):
                    f"{self.slot.slot_name()} empty"
                    if self.ranking is not None else "")
         self.summary.setText(
+            working_out(self.slot.slot_name()) if waiting else
             f"{len(items)} of {total} relics"
             + (f" matching “{needle}”" if needle else "")
             + note
@@ -1117,34 +1332,32 @@ class RelicPicker(QDialog):
         # answer to "none of these are what I want", so hiding it behind a
         # search that matched nothing would remove it exactly when it is needed.
         custom = getattr(self.slot, "custom_item", None)
-        cards: list[QWidget] = [
-            CustomRelicCard(
-                self.slot.effect_names(custom) if custom is not None else [],
-                selected=current is not None
-                and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
-                on_pick=self._open_custom,
-            )
-        ]
+        tile = CustomRelicCard(
+            self.slot.effect_names(custom) if custom is not None else [],
+            selected=current is not None
+            and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
+            on_pick=self._open_custom,
+        )
+        # Built once, in the order the grid has without an answer, and read
+        # in two orders: the one the grid shows and the one the dialog
+        # measures itself in (AK-216). Two builds of the same cards would be
+        # the one place this state costs real time, and it would be paid
+        # unseen.
+        by_item = {id(item): self._card_for(item, current) for item in plain}
+        for_size: list[QWidget] = [tile] + [by_item[id(item)]
+                                            for item in plain]
 
-        relic_cards = []
-        for item in items:
-            icon = self.icons.item(item.icon) if item.icon else None
-            card = RelicCard(
-                item,
-                self.slot.effect_names(item),
-                icon,
-                selected=current is not None and current.relic_id == item.relic_id
-                and current.effect_ids == item.effect_ids,
-                on_pick=self._pick,
-                curses=self._curses(item),
-                tooltip=self.slot.curse_tooltip(item),
-                favourite=self.hero_id is not None
-                and favourites.is_favourite(item, self.hero_id),
-                on_favourite=self._open_favourites,
-                captions=self._captions(),
-            )
-            cards.append(card)
-            relic_cards.append((item, card))
+        if waiting:
+            # The cards are built and measured, and simply not shown (§4):
+            # what fits the slot and how tall a card is at 190 px has nothing
+            # to do with the advisor, so the dialog can take its final size
+            # at the first paint and never grow under the player's hands.
+            self._headline("")
+            self.scroll.setWidget(self._waiting_area())
+            self._fit_to_three_rows(for_size)
+            return
+
+        relic_cards = [(item, by_item[id(item)]) for item in items]
         self._say_what_they_are_worth(relic_cards)
 
         # As many columns as the dialog is actually wide, not five whatever it
@@ -1153,22 +1366,54 @@ class RelicPicker(QDialog):
         # nothing: eleven of fifty-five cards were sliced at 1 030 px and the
         # same eleven lost 142 of their 190 px at 900, names ending mid-word
         # (QA-141, DR-016a at a place T-058 left out).
-        self.scroll.setWidget(cardgrid.CardGrid(CARD_WIDTH, cards))
-        self._fit_to_three_rows(cards)
+        self.scroll.setWidget(cardgrid.CardGrid(
+            CARD_WIDTH, [tile] + [card for _item, card in relic_cards]))
+        self._fit_to_three_rows(for_size)
+
+    def _the_answer_arrived(self, ranking, reason: str) -> None:
+        """The one answer of this opening, whichever of the three it is.
+
+        `ready`, `failed` and `stopped` all end here and all fill the grid
+        (AK-218): under this design an unhandled outcome is not a grid without
+        figures but a dialog in which no relic can be chosen at all. One
+        `_refresh` for all of it, because everything that hangs on the answer
+        -- the cards, both value rows, the chips, the order, the header and
+        the run findings -- appears in one paint or the grid moves twice
+        (AK-211).
+        """
+        self._waiting = False
+        self.ranking = ranking
+        self._failure = reason
+        self._refresh()
+
+    def done(self, result: int) -> None:  # noqa: N802 - Qt naming
+        """Hear nothing more from the track, whatever closed the dialog.
+
+        The track outlives this dialog (AD-028 point 5), so an answer may
+        arrive after it has gone. It is dropped twice over -- the counter in
+        the controller has moved on, and nothing here is listening any more --
+        because one of the two would be a guard nobody could see fail
+        (AK-207).
+        """
+        if self.advice is not None:
+            self.advice.stop_listening()
+        super().done(result)
 
     def _sort_chosen(self, _index: int) -> None:
         """The player picked an order, and a direction with it (AK-43).
 
         A direction chosen here is chosen everywhere: it goes to the one
-        setting the program has, and the pool is asked again, because a pool
-        ranked one way and read another is the fault `SlotPool.rank_by`
-        exists against. `Name` is not a direction and changes none: it is a
-        way of looking at the same figures.
+        setting the program has. **Nothing is asked again** (Nachtrag IX-0,
+        AK-204, AK-206): a pool measures every candidate under every
+        direction, so the answer already on screen serves the other direction
+        too, and only its order and what is drawn from it change. Asking
+        again cost a measured 318,1 ms in the middle of an interaction and
+        answered with the same figures. `Name` is not a direction and changes
+        none: it is a way of looking at the same figures.
         """
         chosen = self.sort_box.currentData()
         if chosen != NAME_ORDER and self.advice is not None:
             self.advice.choose_goal(chosen)
-            self.ranking = self.advice.ranking(chosen)
         self._refresh()
 
     def _captions(self) -> list[str]:
@@ -1190,14 +1435,22 @@ class RelicPicker(QDialog):
         With no ranking every card says `—` (AK-49). Not `0`, and not an
         empty row: the block stands either way, so the card is the same
         height, and what it says is that nothing was measured.
+
+        **Two ways to have no ranking, two headers** (AK-208, AK-218). One is
+        that there is nothing to rank against -- no save, or a direction the
+        game's data carries no figures for -- and the AK-49 sentence says so.
+        The other is that the question ended without an answer, and then the
+        header names the reason the track gave: the AK-49 sentence would be a
+        statement about the game's data that nothing measured (A7).
         """
         if self.ranking is None:
             for _item, card in pairs:
                 card.show_values([NO_FIGURE] * len(VALUE_DIRECTIONS))
-            self._headline(NO_FIGURES_AT_ALL)
+            self._headline(could_not_work_out(self._failure) if self._failure
+                           else NO_FIGURES_AT_ALL)
             return
 
-        goal_id = self.ranking.goal_id
+        goal_id = self._drawn_direction()
         top = self.ranking.top_handles(goal_id)
         # Twenty cards marked `BEST FOR DAMAGE` at a top value of nothing
         # would be a lie in bold (§3.5 point 5). The header says it once
@@ -1224,16 +1477,27 @@ class RelicPicker(QDialog):
         as the second `Goal.scope` sentence of the survival direction, and
         two lines under each other that begin alike are read as one repeat
         and skipped. It stands in the `Why` dialog instead.
+
+        **Neither of them waits for the answer** (AK-201). The mandatory line
+        and the direction's `scope` sentences are true before any run and
+        stand from the first paint; only the run findings (3b) belong to a
+        pool and wait for one. That is a promise about reading, and it is
+        also what lets the dialog measure itself at the first paint:
+        `_chrome_height` skips what is not visible, so a line that appeared
+        with the answer would be a line the opening size did not include.
         """
-        if self.ranking is None:
+        if self.advice is None:
             self.findings.setVisible(False)
             self.caveats.setVisible(False)
             return
-        pool = self.ranking.pool
-        goal_id = self.ranking.goal_id
-        found = [line
-                 for baseline in pool.baseline if baseline.goal_id == goal_id
-                 for line in baseline.unknowns] + list(pool.unknowns)
+        goal_id = self._drawn_direction()
+        found = []
+        if self.ranking is not None:
+            pool = self.ranking.pool
+            found = [line
+                     for baseline in pool.baseline
+                     if baseline.goal_id == goal_id
+                     for line in baseline.unknowns] + list(pool.unknowns)
         self.findings.setText(advisorbar.CLAUSES.join(found))
         self.findings.setVisible(bool(found))
 

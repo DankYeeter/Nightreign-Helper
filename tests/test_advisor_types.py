@@ -322,3 +322,76 @@ def test_asking_for_a_slot_the_vessel_has_not_got_is_a_failure():
     """Rather than an empty pool, which reads as a poor inventory."""
     with pytest.raises(KeyError):
         types.slot_at(A_PROBLEM, 5)
+
+
+# --- one field, two meanings, told apart in the type (Nachtrag IX-2) -------
+#
+# `AdvisorRequest.goal_id` is the player's choice on the Advisor bar's track
+# and an ordering and nothing else on the picker's, and until the two types
+# below nothing said which. That is the shape of fault that cost this project
+# 10,2 % silently wrong figures at the field's twin (`SlotPool.rank_by`,
+# T-077): plausible shape, plausible figure, no complaint anywhere.
+
+
+def a_request(goal_id) -> types.AdvisorRequest:
+    return types.AdvisorRequest(hero_id=1, level=10, problem=A_PROBLEM,
+                                goal_id=goal_id, weighting_id="even")
+
+
+def test_a_direction_handed_in_plainly_is_the_players_choice():
+    """Every caller but the picker means the choice, and writes a string."""
+    request = a_request("max_damage")
+    assert isinstance(request.goal_id, types.ChosenDirection)
+    assert not isinstance(request.goal_id, types.PoolOrder)
+    assert request.goal_id == "max_damage"
+
+
+def test_the_pickers_direction_says_it_is_an_ordering():
+    """And says it in the type, where a reader cannot miss it."""
+    request = a_request(types.PoolOrder("max_damage"))
+    assert isinstance(request.goal_id, types.PoolOrder)
+    assert not isinstance(request.goal_id, types.ChosenDirection)
+
+
+def test_an_ordering_stays_one_through_every_derived_request():
+    """`dataclasses.replace` is how every request in this program is made.
+
+    The cache key is a `replace`, the controller fills in two fields with
+    one, and the picker builds its question from the window's. A wrapper that
+    came off on the way through would leave the picker's request looking like
+    a choice at exactly the place a reader would trust it.
+    """
+    request = a_request(types.PoolOrder("max_damage"))
+    derived = dataclasses.replace(request, generation=7)
+    assert isinstance(derived.goal_id, types.PoolOrder)
+
+
+def test_the_two_meanings_are_still_one_string():
+    """Equality, hashing and `repr` stay the string's, and must.
+
+    The distinction is for readers and guards; the cache key, the registry
+    lookup and every comparison in the package go on being about the
+    direction itself. A type that compared unequal would have made the two
+    tracks miss one another's entries and every `goals[...]` lookup fail.
+    """
+    ordering = types.PoolOrder("max_damage")
+    choice = types.ChosenDirection("max_damage")
+    assert ordering == choice == "max_damage"
+    assert hash(ordering) == hash("max_damage")
+    assert {ordering: 1}["max_damage"] == 1
+    assert repr(ordering) == repr("max_damage")
+    assert a_request(ordering) == a_request(choice), (
+        "two requests that ask about one direction are one cache key")
+
+
+def test_a_pool_carries_the_generation_of_the_asking_and_nothing_else():
+    """AD-006 point 3: the controller decides by it, so the answer has it.
+
+    Zero for a pool nobody asked for through a controller -- which is every
+    pool the beam search consumes -- so two pools of the same question stay
+    equal whatever was asked in between.
+    """
+    pool = types.SlotPool(slot_index=0, rank_by="max_damage")
+    assert pool.generation == 0
+    assert dataclasses.replace(pool, generation=3).generation == 3
+    assert dataclasses.replace(pool, generation=0) == pool

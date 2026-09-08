@@ -36,6 +36,14 @@ rebuild has to stop every run and empty the cache *before* `model.configure`
 runs again. That is `before_the_data_changes` and it is not optional
 (AD-006 point 7).
 
+**Two tracks, one class** (AD-028, option D). What a controller runs is
+handed to it at construction: the Advisor bar's instance answers with
+`run.run`, the window's second instance with `run.slot_pool`, and nothing
+else about the two differs but three figures -- the debounce, the size of the
+cache, and what comes back. A second thread path written for the picker would
+have been a second place for the generation counter, the debounce and the
+cancelling to be got right, and the two would have drifted.
+
 **No `progress` signal.** AD-006 point 1 names one, and there is nothing for
 it to say: the progress bar of the advisor bar is indeterminate by
 `UI_SPEC` §3.1 (`setRange(0, 0)`), and the figures state 4.4 puts in the
@@ -49,7 +57,7 @@ from __future__ import annotations
 
 import dataclasses
 import traceback
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
@@ -62,6 +70,28 @@ from .goals import GOALS
 #: figure about how fast a player changes their mind, not about this code.
 DEBOUNCE_MS = 250
 
+#: The picker track's debounce, and it is none (Nachtrag IX-1.1). The 250 ms
+#: above damp a player who is still changing their mind -- keystrokes in the
+#: filter field, a dragged level slider. The picker asks **once per opening**
+#: (AK-206) into a modal dialog, so between two of its questions there is a
+#: close and a click; there is nothing to damp, and the constant would be
+#: 100 % of the cost of a cache hit and 24 % of the most expensive measured
+#: question (318,1 ms, S11-C). **When it comes back:** as soon as the picker
+#: track can ask more than once per opening -- that is the return path
+#: `UI_SPEC` §4 keeps for the case that one pool does not serve both
+#: directions after all, and it comes back with 100 ms, in the same commit.
+PICKER_DEBOUNCE_MS = 0
+
+#: How many pool answers the picker track keeps (AD-028 point 2). Sixty-four
+#: against the bar's thirty-two, because the two caches hold different things:
+#: the measured gain of 32 -> 64 was +41 hits and +16,5 s per session for
+#: +1,05 MiB (T-118 3.2, S11-F). **The figure is set, its derivation is not**
+#: (Nachtrag IX-3): it was measured on a 33,4 KiB `AdvisorResult` of 20
+#: suggestions, and this track answers with a whole `SlotPool` of up to 206
+#: candidates. U7 measures an entry of the new shape against the 140 KiB per
+#: entry that IX-3.2 fixes as the fall-back line; above it this drops to 32.
+PICKER_CACHE_SIZE = 64
+
 #: How long the window waits for a running search when it is closing. A
 #: `wait()` in the main thread is forbidden while the program is running
 #: (AD-006 point 4) and is the only correct thing here: the alternative is a
@@ -69,6 +99,13 @@ DEBOUNCE_MS = 250
 #: coarsest reaction time of the search plus room -- one slot level of the
 #: worst real case is about 200 ms (`scripts/measure_advisor_search.py`).
 SHUTDOWN_WAIT_MS = 2000
+
+
+#: What a controller runs, handed to it at construction (AD-028 option D).
+#: `run.run` and `run.slot_pool` are the two, and this is their shared
+#: signature; what comes back is an `AdvisorResult` or a `SlotPool`, and the
+#: only thing this file asks of it is that it carries the generation back.
+Answer = Callable[..., object]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -93,6 +130,11 @@ class _Worker(QObject):
     it needs is in the `Question` it was built with, and everything it has to
     say goes out as a signal that Qt delivers into the main thread's event
     loop.
+
+    **What it runs is handed in** and is one of `run.run` and `run.slot_pool`
+    (AD-028). This class knows nothing about the difference: both take the
+    same five arguments, both may raise `search.Cancelled`, and what comes
+    back travels as one object through `ready`.
     """
 
     #: The whole answer, as an `AdvisorResult`.
@@ -106,11 +148,12 @@ class _Worker(QObject):
     #: is the controller's and was said at the click (AK-11).
     finished = Signal()
 
-    def __init__(self, question: Question,
-                 goals: Mapping[str, types.Goal]) -> None:
+    def __init__(self, question: Question, goals: Mapping[str, types.Goal],
+                 answer: Answer) -> None:
         super().__init__()
         self._question = question
         self._goals = goals
+        self._answer = answer
 
     def _was_stopped(self) -> bool:
         """Qt's own interruption flag, read where `run.run` asks.
@@ -123,18 +166,31 @@ class _Worker(QObject):
         return thread is not None and thread.isInterruptionRequested()
 
     def work(self) -> None:
+        """Answer the one question, and stamp the answer with its asking.
+
+        **The generation is put on here and nowhere else.** AD-006 point 3
+        wants every answer to carry back the generation it was asked under,
+        and this is the one place that knows both the question and the answer
+        -- so an answer function does not have to know that generations
+        exist. `run.slot_pool` hands back what `candidates.pool` built, and
+        the pre-sort knows nothing about controllers, threads or windows; an
+        answer that stamped itself would be a rule kept in as many places as
+        there are answer functions, and the one that forgot it would be
+        dropped as overtaken every single time, silently.
+        """
         try:
-            result = advisor_run.run(self._question.request,
-                                     self._question.inventory,
-                                     self._question.ctx, self._goals,
-                                     self._was_stopped)
+            result = self._answer(self._question.request,
+                                  self._question.inventory,
+                                  self._question.ctx, self._goals,
+                                  self._was_stopped)
         except search.Cancelled:
             pass
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
             traceback.print_exc()
             self.failed.emit(str(exc) or exc.__class__.__name__)
         else:
-            self.ready.emit(result)
+            self.ready.emit(dataclasses.replace(
+                result, generation=self._question.request.generation))
         self.finished.emit()
 
 
@@ -145,6 +201,18 @@ class AdvisorController(QObject):
     `failed` and `stopped`. Everything else -- which thread, which
     generation, whether the answer was already known -- is settled here, so
     that no drawing code has to remember any of it.
+
+    **Two instances of this class, and the difference is what they were built
+    with** (AD-028): `answer` is `run.run` for the Advisor bar and
+    `run.slot_pool` for the picker, and `debounce_ms` and the cache's size are
+    the other two figures that differ. Nothing here asks which track it is;
+    every rule below -- one run at a time, the generation, the cancelling, the
+    cache -- is the same rule on both.
+
+    **`ask_and_answer_if_known` is a second way out, not a second way to
+    compute** (Nachtrag IX-1.3). A caller that can draw an answer it is handed
+    on the spot uses it and is spared the turn of the event loop a signal
+    costs; `ask` is unchanged and is what the Advisor bar goes on using.
     """
 
     #: An answer for the question that is currently being asked. Never for an
@@ -160,10 +228,12 @@ class AdvisorController(QObject):
     stopped = Signal()
 
     def __init__(self, parent: QObject | None = None, *,
+                 answer: Answer = advisor_run.run,
                  goals: Mapping[str, types.Goal] = GOALS,
                  cache: advisor_run.ResultCache | None = None,
                  debounce_ms: int = DEBOUNCE_MS) -> None:
         super().__init__(parent)
+        self._answer = answer
         self._goals = goals
         self._cache = advisor_run.ResultCache() if cache is None else cache
         self._debounce_ms = debounce_ms
@@ -200,18 +270,69 @@ class AdvisorController(QObject):
         reading exactly what it started with, and the living object stays
         where it belongs.
         """
+        self._wait_for(self._question_from(request, inventory, ctx))
+        return self._generation
+
+    def ask_and_answer_if_known(self, request: types.AdvisorRequest,
+                                inventory,
+                                ctx: types.GoalContext) -> object | None:
+        """Ask, and hand the answer straight back if it is already known.
+
+        The question is built exactly as `ask` builds it -- the same snapshot,
+        the same fingerprint, the same counter raised by one -- and that is
+        why the two share `_question_from` rather than each freezing the
+        inventory: `frozen_inventory` copies every owned relic and
+        `inventory_fingerprint` hashes them, and a caller who asked twice to
+        find out whether it need ask at all would pay for both (IX-1.3).
+
+        A hit comes back as the return value and **only** as the return value:
+        no `ready`, no `started`, and nothing started. That is what lets a
+        window draw a known answer in its first paint instead of drawing an
+        empty state and replacing it one turn of the event loop later -- which
+        is a wait that flashes, at a measured 30 % of openings (S11-F,
+        `UI_SPEC` §2, and it is why IX-1.C is a precondition of the empty grid
+        rather than a saving).
+
+        A miss is `None` and is the ordinary course: the question waits for
+        the debounce exactly as `ask` leaves it, and the answer arrives on
+        `ready` as usual. **The counter goes up either way** (IX-1.4) -- an
+        answer from an earlier opening that is still on its way must not
+        overwrite the hit that was just handed back.
+        """
+        question = self._question_from(request, inventory, ctx)
+        known = self._cache.get(question.request)
+        if known is None:
+            self._wait_for(question)
+            return None
+        self._pending = None
+        self._timer.stop()
+        self._interrupt_the_running_worker()
+        return known
+
+    def _question_from(self, request: types.AdvisorRequest, inventory,
+                       ctx: types.GoalContext) -> Question:
+        """This asking, whole: the two fields only this object can fill in.
+
+        One place for both ways of asking, so that a question asked the second
+        way cannot differ by a field from one asked the first -- and the
+        request is the cache key, so a difference of one field is a miss on
+        the answer that is lying there.
+        """
         frozen = advisor_run.frozen_inventory(inventory, request.problem)
         self._generation += 1
-        self._pending = Question(
+        return Question(
             request=dataclasses.replace(
                 request, generation=self._generation,
                 inventory_fingerprint=advisor_run.inventory_fingerprint(
                     frozen)),
             inventory=frozen,
             ctx=ctx)
+
+    def _wait_for(self, question: Question) -> None:
+        """Let this question be the pending one, after the debounce."""
+        self._pending = question
         self._interrupt_the_running_worker()
         self._timer.start(self._debounce_ms)
-        return self._generation
 
     def cancel(self) -> bool:
         """Abandon whatever is running or waiting. Says so at once (AK-11).
@@ -294,7 +415,7 @@ class AdvisorController(QObject):
 
         self._running = question
         self._thread = QThread()
-        self._worker = _Worker(question, self._goals)
+        self._worker = _Worker(question, self._goals, self._answer)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.work)
         self._worker.ready.connect(self._on_ready)
