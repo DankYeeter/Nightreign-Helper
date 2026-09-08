@@ -377,6 +377,50 @@ MAX_GRAILS = 12
 MIN_BYTES_PER_LOADOUT_TABLE = MAX_HEROES * LOADOUT_GROUP
 
 
+# The four bytes of the marker that opens the first Nightfarer's group.
+# Unlike the relic id in _relic_id_offsets, this value is a known constant
+# rather than the game's own data, so bytes.find can search for the whole
+# four bytes at once: no separate unpack_from is needed to confirm a hit,
+# only the four-byte alignment the walk below already required.
+_LOADOUT_MARKER = struct.pack("<I", HERO_MARKER_BASE + 1)
+
+
+def _loadout_marker_offsets(slot_data: bytes):
+    """Every 4-byte-aligned offset in this slot carrying the first
+    Nightfarer marker (0x0000ff01) -- the only offset `find_loadout_table`'s
+    outer walk can start a table at.
+
+    The walk used to look at every fourth byte of the slot regardless of
+    what was there, which on a slot that holds no table at all -- and on a
+    real save only one character slot ever does (see the density comment
+    above `MIN_BYTES_PER_LOADOUT_TABLE`) -- runs to the very end finding
+    nothing (T-136, following the same shape T-133 gave `_relic_id_offsets`).
+    `bytes.find` walks the slot in C for the exact four bytes the marker is;
+    the loop below only pays for a hit and its alignment check, the same two
+    conditions the old walk applied to every offset in the slot.
+
+    Measured 2026-09-08 over the 28 character slots of the two saves on this
+    machine (median of five, same process, slots already decrypted in
+    memory): the one slot without a table falls from 240,6 to 124,4 ms --
+    `bytes.find` still walks the whole slot in C when the marker is not
+    there at all, so the gain here is the move from Python to C rather than
+    skipping bytes, unlike the relic scan's prefilter. The one slot that
+    does carry a table falls from 119,9 to 8,7 ms, because a hit lets the
+    walk stop early. Combined, the module's two full-slot walks fall from
+    360,5 to 133,1 ms.
+
+    Offsets come out ascending and only on a four-byte boundary, which
+    `find_loadout_table` relies on the same way it relied on the range()
+    step of 4 before.
+    """
+    end = max(len(slot_data) - 8, 0)
+    pos = slot_data.find(_LOADOUT_MARKER)
+    while pos >= 0 and pos < end:
+        if pos % 4 == 0:
+            yield pos
+        pos = slot_data.find(_LOADOUT_MARKER, pos + 1)
+
+
 def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     """Table A as a list of (group offset, Grail-record count), one per
     Nightfarer, in marker order.
@@ -410,9 +454,7 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     allowed_starts = max(1, limit // MIN_BYTES_PER_LOADOUT_TABLE)
     starts = 0
     best: list[tuple[int, int]] = []
-    for off in range(0, max(limit - 8, 0), 4):
-        if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
-            continue
+    for off in _loadout_marker_offsets(slot_data):
         starts += 1
         # Loud, and at the marker that crosses the line rather than at the
         # end (SEC-022, the form SEC-002 uses in this module). Walking on and
