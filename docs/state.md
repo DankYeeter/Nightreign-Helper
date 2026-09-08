@@ -35,12 +35,18 @@ tragen das Hinweispaket, der Lizenzverstoss ist beendet (GPL § 8 endgueltig ab
 `42B21AA2...F221`. Update-Weg an echtem `v1.7.1` belegt: 7 von 7 Builds
 erhalten. **Nutzerentscheid 08.09.: 1.8.0 geht erst nach dem Fix-Stapel raus.**
 
-**Zyklus 17, laeuft:** **T-118** `performance-tuner` (S11) — gibt A6 seine Zahl
-und setzt zwei Werte, die `ARCHITECTURE.md` ihm zuweist. **T-119**
-`retrospective` ✔ (L-014 bis L-018, davon vier teamweit und beim Nutzer zur
-Freigabe). **Danach:** `developer` mit den zwei Waechtern (QA-204 Englisch,
-QA-205 A3-Zusage) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und
-ausliefern.
+**Zyklus 17:** **T-118** `performance-tuner` (S11) ✔ und **T-119**
+`retrospective` ✔. **A6 hat seine Zahl** (S11, Abschnitt 2.2, woertlich nach
+`GOAL.md` zu uebernehmen): Slot-Frage unter **500 ms** (gemessen 403 ms,
+haelt) · `Optimize` unter **6 s** (5023 ms, haelt) · **Hauptthread hoechstens
+50 ms — haelt nicht** (318 ms, QA-208). Entprellung **100 ms Picker / 250 ms
+Gesamtlauf**, LRU **64 bedingt**. Alle fuenf Massnahmen L-014 bis L-018 sind
+**angenommen und umgesetzt** (Agenten-Repo `486ac4e`, Projekt L-016).
+
+**Der naechste Schritt ist der `architect`, nicht der `developer`:** QA-208 ist
+eine Architekturentscheidung mit widerlegter Begruendung (Docstring nennt
+51 ms, gemessen 318 ms). Danach `developer` mit den zwei Waechtern (QA-204,
+QA-205) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und ausliefern.
 
 **Alle Projektzeilen fuer Auftraege stehen seit 08.09. in `CLAUDE.md`** —
 Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug, Scratchpad
