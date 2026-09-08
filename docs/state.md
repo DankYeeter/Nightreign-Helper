@@ -7,9 +7,12 @@ Nutzer.** Verlauf: `docs/archiv/`. Reihenfolge: `docs/plan-restarbeiten.md`.
 Befunde: `qa/findings.md`, `security/findings.md`. Auflagen:
 `docs/legal/AUFLAGEN.md`. Berichte: `docs/berichte/T-###-<rolle>.md`.
 
-**Nummernkreise:** T ab **T-124** · QA ab **QA-210** · SEC ab **SEC-026** ·
-AK ab **AK-195** · AD ab **AD-030** · DR ab **DR-019** · R ab **R-007** ·
-NH ab **NH-003** · C ab **C-004** · A (Auflagen) ab **A-033**.
+**Nummernkreise:** T ab **T-129** · QA ab **QA-212** · SEC ab **SEC-026** ·
+AK ab **AK-211** · AD ab **AD-030** · OF ab **OF-30** · DR ab **DR-019** ·
+R ab **R-007** · NH ab **NH-003** · C ab **C-004** · A (Auflagen) ab **A-033**.
+*AK stand bis 08.09. auf AK-195 — falsch, AK-195/196 sind am 07.09. vergeben
+und AK-195 ist in `ea3d016` gebaut, von fuenf Testfaellen gehalten. Gefunden
+vom `ui-ux-designer`, fuenfte Falschaussage des Directors an einem Tag.*
 **Suite:** **1257 passed, 9 skipped, 0 failed** (T-109, unabhaengig bestaetigt
 in T-111 und T-114 im frischen Klon). *Bis 08.09. stand hier 1256 aus T-102.*
 Testbefehl und die Begruendung gegen `-n auto` als Voreinstellung: `CLAUDE.md`.
@@ -30,16 +33,26 @@ Beauftragt am 08.09.2026, parallel, disjunkte Dateilisten:
   gescheitert: Docstring 51 ms, gemessen 318 ms) und AD-029 zu **QA-209**
   (Spielstand-Lesen 6,15 s im Hauptthread, Gegenentwurf mit Faktor 45
   gemessen). Beruehrt nur `ARCHITECTURE.md`.
-- **T-123 `developer`, Stufe normal** — die zwei Waechter **QA-204** (A8,
-  Sprache) und **QA-205** (A3, Vollstaendigkeit ueber alle Nightfarer und
-  Kelche), je mit toetender Mutation nach L-008. Beruehrt nur `tests/`.
+- **T-123 `developer`** — die zwei Waechter, `4d1955d` und `ad291e6`.
+  **T-126 QA-Retest: CONCERNS** — QA-205 geschlossen (Mutation unabhaengig im
+  eigenen Klon unter `pytest -n auto` rot), QA-204 nur teilweise, Rest als
+  **QA-211** eingeplant. Suite **1264 passed, 9 skipped, 0 failed**.
+- **T-124 `ui-ux-designer`** (Spec) — AK-197 bis AK-210, keine Millisekunde
+  darin. **Muss nachgezogen werden**, F-P ging gegen seine Empfehlung.
+- **T-125 `architect`** — AD-028 fortgeschrieben (Nachtrag IX): Picker-Spur
+  **0 ms** Entprellung, bekannte Antwort im selben Aufruf, kanonische
+  Zielrichtung im Cache-Schluessel. **Vorwaermen abgelehnt** (`pools()`
+  rechnet gegen einen anderen Grundzustand). Damit bleibt der Wartezustand,
+  und das leere Raster aus F-P wird gebaut.
+  Naechste Schritte: **U5a** (haengt an nichts) → U5b → U6 → U7; **U1** (der
+  Vorfilter aus AD-029) haengt ebenfalls an nichts.
 
 **Erfolgreich**, wenn beide AD-Entscheidungen stehen, die zwei Waechter mit
 belegter toetender Mutation laufen und die Suite gruen bleibt. Danach:
 `ui-ux-designer` (nur falls AD-028 sichtbar wird) → `developer` (Fix-Stapel)
 → Pruefphase → Neubau → Release.
 
-## Drei Nutzerentscheide vom 08.09.2026
+## Fuenf Nutzerentscheide vom 08.09.2026
 
 1. **A6 hat seine Zahlen** — woertlich aus T-118 nach `GOAL.md` uebernommen:
    Slot-Frage im Median **unter 500 ms**, `Optimize` **unter 6 s**,
@@ -51,6 +64,14 @@ belegter toetender Mutation laufen und die Suite gruen bleibt. Danach:
 3. **QA-209 kommt in den Fix-Stapel vor 1.8.0**, nicht danach — ein Neubau
    statt zwei. Verzoegert das Release um etwa einen Zyklus.
 
+4. **F-P, gegen die Empfehlung des `ui-ux-designer` (Nutzer, 08.09.2026):**
+   Der Relikt-Picker zeigt **ein leeres Raster bis zur Antwort** — keine
+   Karten, keine Namen, keine Filtertreffer, waehrend der Berater rechnet.
+   Keine Bewegung um den Preis einer kurzen Leere. **AK-197 bis AK-210 sind
+   auf der Gegenoption geschrieben und muessen nachgezogen werden.**
+5. **F-Q (Nutzer, 08.09.2026):** `Sort by` ordnet weiter bei **jedem** Schritt
+   sofort um, auch beim Durchtippen mit Pfeiltasten. Bleibt wie gebaut.
+
 ## Stand gegen `GOAL.md`
 
 | | | |
@@ -60,7 +81,7 @@ belegter toetender Mutation laufen und die Suite gruen bleibt. Danach:
 | A3-A5 | der Build-Berater | **gebaut**, in T-114 am Artefakt bestaetigt |
 | A6 | Oberflaeche blockiert nicht | **Zahl gesetzt**, dritte Zeile verletzt (QA-208) |
 | A7 | sagen, wo die Daten nichts hergeben | weitgehend; **QA-186 offen** |
-| A8 | alles Englisch | haelt, Waechter in Arbeit (T-123) |
+| A8 | alles Englisch | Waechter steht (`4d1955d`), **QA-211 offen** |
 | A9 | QA gegen ein **gebautes Artefakt** | **5 von 6 PASS**, A6 wieder offen |
 | A10 | jeder Tab nennt seine Frage | erfuellt, 6 von 6 |
 | A11 | ohne Raten ans Ziel | offen (QA-173) |

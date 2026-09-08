@@ -15,6 +15,21 @@ Bezugsstand: 3da8428 (v1.7.1), 16 737 Zeilen Python, 0 Tests.
 Alle Entwurfsentscheidungen unten stützen sich auf diese Messungen, nicht auf
 Annahmen. Rechner: dieser (Windows 10, CPython 3.12).
 
+> **Warnung, nachgetragen 2026-09-08 (AD-028).** Die **Laufzeiten** dieses
+> Abschnitts sind vom 01.09.2026, ohne protokollierte Umgebung, und sind
+> ueberholt: gemessen am 08.09.2026 kostet eine Bewertung **1,095 ms** statt
+> „0,18–0,25 ms" und ein Gesamtlauf **5,02 s** statt „0,46 s"
+> (`docs/perf/baselines.md`, S11-A/S11-D). Ob das eine Regression ist oder
+> die Umgebung, ist offen (D-1). **Die Mengenangaben** — 849 Vorlagen, 309
+> besessene Kopien, 206 Kandidaten am weissen Slot, 26/47 Slot-Muster — sind
+> davon unberuehrt und tragen weiter.
+> **Fuer jede Zeitzahl gilt ab jetzt `docs/perf/baselines.md` als Quelle**,
+> und keine Entscheidung stuetzt sich auf eine Zeitzahl aus diesem Abschnitt,
+> ohne sie dort nachzuschlagen. Der Anlass ist QA-208: AD-018 hat aus
+> „0,25 ms je Bewertung" mal 205 Kandidaten **~51 ms gerechnet**, die Zahl in
+> drei Dateien geschrieben, und keine der drei sagte, dass sie gerechnet und
+> nicht gemessen war.
+
 **Aus dem Daten-Snapshot der Installation** (gelesen 2026-09-01):
 
 | Grösse | Wert |
@@ -1529,7 +1544,7 @@ die Bedingung oben gilt.
 
 ---
 
-### AD-018 — Der Hauptweg des Beraters ist der Grenzbeitrag je Kandidat im Picker; er ist dieselbe Rechnung wie die Vorsortierung, und der Gesamtlauf bleibt als zweite Frage bestehen (2026-09-02, Status: aktiv; präzisiert AD-014, AD-003, AD-006, AD-016)
+### AD-018 — Der Hauptweg des Beraters ist der Grenzbeitrag je Kandidat im Picker; er ist dieselbe Rechnung wie die Vorsortierung, und der Gesamtlauf bleibt als zweite Frage bestehen (2026-09-02, Status: aktiv in der Sache; **Punkt 4 und die Laufzeittabelle nachgezogen durch AD-028**, 2026-09-08)
 
 **Kontext:** Der Nutzer hat F2 nicht beantwortet, sondern die Fragestellung
 verworfen. Wörtlich: *„Ich will im Relikte-Auswahlfenster Vorschlaege haben.
@@ -1588,6 +1603,11 @@ Nutzer ohnehin weiter will.
 4. **Der Lauf bleibt im Worker.** Auch 50 ms gehören nicht in den
    Hauptthread, wenn sie bei jedem Tastendruck im Filterfeld anfallen können
    (AD-006). Entprellung und Generationszähler gelten unverändert.
+   *(Nachtrag 2026-09-08: dieser Punkt ist gebaut worden als sein Gegenteil —
+   `relicpicker.SlotAdvice.ranking` rechnet im Hauptthread, mit einem
+   Docstring, der es aus der widerlegten `~51 ms`-Zahl begruendet. **AD-028
+   zieht Punkt 4 nach und macht ihn verbindlich**; die Entscheidung hier war
+   richtig und ist an ihrer Zahl gescheitert, nicht an ihrem Argument.)*
 
 **Laufzeit — die entscheidende Verschiebung, gerechnet aus den Grundzahlen.**
 Aus „ein Lauf auf Knopfdruck" wird „ein Lauf bei jeder Interaktion". Die
@@ -1604,6 +1624,24 @@ eine Bewertung je Kandidat des Slots, nicht `Ebenen × W × K`.
 
 (0,25 ms je Bewertung, weil im Picker fast immer ein voller Build bewertet
 wird — der obere Rand der gemessenen Spanne.)
+
+> **Korrektur vom 2026-09-08 (AD-028), ersetzt die Zahlen dieser Tabelle,
+> nicht ihre Aussage.** Jede Zahl der Tabelle ist **gerechnet**, nicht
+> gemessen: 205 Kandidaten mal 0,25 ms. Gemessen wurde sie am 08.09.2026 zum
+> ersten Mal, und beide Faktoren waren daneben — 206 Kandidaten mal
+> **1,095 ms**, ergibt **318,1 ms** (Median, n=25, Spanne 289,6–358,9;
+> `docs/perf/baselines.md` S11-C, Slot 2, weiss; Umgebung: Ryzen 7 5800H bei
+> 1102 von 3201 MHz unter `Legion Quiet Mode`, CPython 3.12.10, Codestand
+> `76f1887` — der konservative Fall, nicht der guenstige).
+> Damit gilt: `~51 ms` → **318,1 ms** · `~25 ms` (weiss, deep) → nicht neu
+> gemessen · farbiger Slot `~5–14 ms` → **32,3–81,7 ms** (S11-C) ·
+> Gesamtlauf `0,46 s` → **5,02 s** (S11-A).
+> **Was daran haelt:** das Verhaeltnis. Der teuerste Picker-Lauf ist rund ein
+> Sechzehntel des Gesamtlaufs, und der unguenstigste Fall des Beraters bleibt
+> der Gesamtlauf. **Was faellt:** der Satz „liegt unter der 250-ms-Schwelle
+> aus AK-09". 318,1 ms liegen **darueber**, und der naechste Absatz — „Auch
+> 50 ms gehoeren nicht in den Hauptthread" — ist damit nicht mehr eine
+> Vorsichtsregel, sondern der Befund QA-208.
 
 Der teuerste Picker-Lauf ist damit rund **ein Neuntel** des Gesamtlaufs und
 liegt unter der 250-ms-Schwelle aus `UI_SPEC` AK-09, ab der überhaupt ein
@@ -3918,3 +3956,987 @@ Falls Priorität oder Reihenfolge eines Auftrags an der Grösse dieses
 Befundes hing, ist die Grundlage jetzt eine andere — die Klasse ist trotzdem
 zu entscheiden gewesen, weil der Docstring die **Beschreibung** der Menge
 falsch führt und Füllung (c) im Picker jede der 46 Zeilen betrifft.
+
+---
+
+## Nachtrag VIII 2026-09-08 — Der Berater rechnet im Hauptthread, und das Lesen des Spielstands auch (AD-028, AD-029)
+
+**Anlass:** Der `performance-tuner` hat in S11 (T-118) am echten Spielstand
+gemessen und dabei zwei Befunde gefunden, die beide Struktur betreffen:
+**QA-208** (der Picker-Weg des Beraters rechnet im Hauptthread — die
+Begruendung von AD-018 Punkt 4 steht auf einer widerlegten Zahl) und
+**QA-209** (das Lesen des Spielstands kostet 6,15 s im Hauptthread, bei jedem
+Start und jedem `Rescan`). Der Nutzer hat am 08.09.2026 entschieden, dass
+QA-209 **vor** dem Release von 1.8.0 angefasst wird.
+
+**Quellen dieser beiden Entscheidungen:** `docs/perf/baselines.md` (S11-A bis
+S11-H, versioniert, mit Umgebung), `docs/berichte/T-118-performance-tuner.md`
+(Abschnitte 2.4, 3.1, 3.2, 4/P2, 4/P3, 6), `qa/findings.md` QA-208 und
+QA-209. **Jede Zahl unten stammt von dort; dieser Nachtrag misst nichts
+selbst.**
+
+*Buchfuehrung: **AD-027 ist nicht vergeben.** Die Nummer existiert in keiner
+Datei des Arbeitsbaums (Volltextsuche ueber das ganze Repository, 08.09.2026,
+0 Treffer); `docs/state.md` fuehrt den Kreis bereits ab AD-030. Die Luecke
+bleibt eine Luecke — Nummern werden in dieser Datei nicht neu vergeben.*
+
+---
+
+### AD-028 — Der Picker-Weg verlaesst den Hauptthread ueber eine **zweite Instanz derselben** `AdvisorController`-Klasse, nicht ueber die vorhandene und nicht ueber einen eigenen Weg (2026-09-08, Status: aktiv **in der Sache**; **Punkte 1 bis 4, W3 und die Schritte U5a/U5b/U6/U7 nachgezogen durch Nachtrag IX**, 2026-09-08; zieht AD-018 Punkt 4 nach, praezisiert AD-006 und AD-007)
+
+> **Lesehinweis (T-125, 2026-09-08).** Die Entscheidung — zweite Instanz
+> derselben Klasse, Option D — **steht unveraendert**. Vier ihrer sieben
+> verbindlichen Punkte tragen aber eine Annahme, die nach `UI_SPEC` AK-197
+> bis AK-210 (T-124) nicht mehr gilt: dass der Zielrichtungswechsel im
+> offenen Dialog eine zweite Frage stellt. Was daraus folgt, steht in
+> **Nachtrag IX**; die Punkte unten bleiben im Wortlaut stehen, damit
+> nachlesbar ist, worauf sie gebaut waren.
+
+**Kontext.** AD-018 Punkt 4 sagt „Der Lauf bleibt im Worker". Gebaut ist das
+Gegenteil, und zwar mit Absicht und Begruendung:
+`relicpicker.SlotAdvice.ranking` ruft `advisor_candidates.pool` direkt auf
+(`nrplanner/relicpicker.py:326-328`), und der Docstring darueber
+(`276-281`) begruendet es mit „AD-018 measures the worst slot at ~51 ms
+against the 250 ms of AK-09, so there is nothing to draw a wait for".
+`AdvisorController` kommt in `relicpicker.py` nirgends vor; sein einziger
+Nutzer ist `advisorbar.py` (52, 438, 441), also der `Optimize`-Weg.
+
+**Die Voraussetzung ist widerlegt, und die Bauform des Fehlers ist die
+eigentliche Lehre.** Die `~51 ms` waren nie gemessen: AD-018 hat sie aus
+„205 Kandidaten mal 0,25 ms je Bewertung" **gerechnet**, die 0,25 ms stammten
+aus einer Bewertung vom 01.09.2026 ohne protokollierte Umgebung, und die
+gerechnete Zahl wurde anschliessend in drei Dateien geschrieben —
+`ARCHITECTURE.md`, `UI_SPEC` §3.8, `relicpicker.py`. Keine der drei sagte,
+dass sie gerechnet war. Gemessen sind **318,1 ms** (Median, n=25, Spanne
+289,6–358,9; S11-C, Slot 2 weiss, 206 Kandidaten; Umgebung Ryzen 7 5800H bei
+1102 von 3201 MHz unter `Legion Quiet Mode`, CPython 3.12.10, `76f1887`) —
+Faktor 6,3, und **oberhalb** der 250-ms-Schwelle aus AK-09, ab der ein
+Wartezustand gezeigt werden **muss**.
+
+**Zwei Stellen sind betroffen, nicht eine.** Das Oeffnen des Pickers am
+weissen Slot haelt das Fenster 318 ms an; `_sort_chosen`
+(`relicpicker.py:1169-1171`) rechnet dieselben 318 ms im **bereits offenen**
+Dialog noch einmal, wenn der Spieler die Zielrichtung wechselt. Das zweite
+ist eine laufende Interaktion, kein Dialogaufbau.
+
+**Kraefte, die im Konflikt stehen:**
+
+| | |
+|---|---|
+| A6, dritte Zeile | keine Beraterrechnung haelt den Hauptthread laenger als **50 ms** an |
+| AK-09 / AK-10 | unter 250 ms **kein** Wartezustand, ueber 250 ms **muss** einer gezeigt werden |
+| AK-08 | waehrend eines laufenden Laufs muss sich ein Slot oeffnen lassen |
+| AD-006.4 | **hoechstens ein Lauf gleichzeitig** — je Controller-Instanz |
+| Antwortform | der Picker braucht den **ganzen** Pool (alle 206 Kandidaten, beide Zielrichtungen); `AdvisorResult` traegt die **besten 20** |
+| Kosten | `run.run` 403,3 ms gegen `candidates.pool` 321,2 ms (S11-B) — 82 ms fuer Erklaerungen, die der Picker nicht zeigt |
+| Bestand | zwei Muster fuer dasselbe Problem sind ein Entwurfsfehler, auch wenn das zweite besser waere |
+
+**Optionen:**
+
+- **A — im Bestand bleiben, nichts Neues einfuehren.** Die Rechnung bleibt im
+  Hauptthread und wird nur billiger: P1a aus T-118 (Text erst bauen, wenn ihn
+  jemand liest) senkt `pool` gemessen von 335,1 auf **245,5 ms** (S11-B).
+  Konsequenz: A6s dritte Zeile bliebe um Faktor 5 verletzt, und 245,5 ms
+  liegen 2 % unter einer 250-ms-Schwelle, deren Messrauschen 16 % betraegt —
+  eine Schranke, die bei jeder zweiten Messung kippt. **Verworfen: die Zahl
+  traegt nicht.**
+- **B — der Picker fragt die vorhandene Instanz der Advisor bar** ueber
+  `run.run`. Konsequenz: eine Instanz ist **eine** Spur (AD-006.4) — das
+  Oeffnen eines Slots braeche einen laufenden `Optimize` ab und hoehlte AK-08
+  aus; die Antwortform passt nicht (20 Vorschlaege statt 206 Kandidaten);
+  +82 ms je Frage. **Verworfen.**
+- **C — ein eigener Weg fuer den Picker:** zweiter QThread, eigene
+  Entprellung, eigener Zaehler, neu geschrieben. Konsequenz: das zweite
+  Muster fuer dasselbe Problem, und der Generationszaehler existierte dann an
+  zwei Stellen mit zwei Regeln. **Verworfen.**
+- **D — dieselbe Klasse, zweite Instanz, zweite Antwortfunktion.** Der
+  `AdvisorController` bekommt die Funktion, die sein Worker ausfuehrt, bei
+  der Konstruktion; die Advisor bar konstruiert ihn mit `run.run`, das
+  Fenster eine zweite Instanz mit einer neuen Qt-freien Funktion in `run.py`,
+  die genau das antwortet, was `SlotAdvice.ranking` heute selbst rechnet.
+  Konsequenz: zwei Spuren, ein Muster, ein Ort fuer Thread, Entprellung,
+  Zaehler und Cache.
+
+**Entscheidung: D.**
+
+**Verbindlich:**
+
+1. **Zwei Instanzen, eine Klasse, drei Zahlen aus S11.** Advisor bar:
+   `run.run`, Entprellung **250 ms**, Cache **32**. Picker-Spur: die neue
+   Pool-Funktion, Entprellung **100 ms**, Cache **64**. Die Bedingung, unter
+   der der `performance-tuner` die 64 gegeben hat — *„sobald der Picker ueber
+   den `AdvisorController` fragt"* — ist mit dieser Entscheidung erfuellt und
+   vorher nicht.
+   *(**Nachgezogen, Nachtrag IX-1:** die Entprellung der Picker-Spur ist
+   **0 ms**. Die 100 ms bleiben als Zahl mit ihrer Wiederkehrbedingung
+   stehen. **Nachtrag IX-3:** die 64 stehen weiter, ihre Herleitung deckt
+   die Antwortform der Picker-Spur aber nicht — U7 misst nach.)*
+2. **Zwei Caches, getrennt bemessen.** Das ist die Antwort auf die Frage, die
+   T-118 Abschnitt 3.2 dem `architect` gestellt hat. Ein Cache mit Eintraegen
+   von **33,4 KiB** (Picker) und **279,9 KiB** (Gesamtlauf) unter **einer**
+   Grenze zwingt eine der beiden Zahlen, falsch zu sein: 64 Gesamtlauf-
+   Eintraege waeren 17,49 MiB fuer gemessene **0** Treffer, 32 Picker-
+   Eintraege liessen **41** gemessene Treffer und 16,5 s je Sitzung liegen.
+   Die Groesse gehoert an die Instanz, nicht an die Klasse.
+   *(**Nachgezogen, Nachtrag IX-3:** die **33,4 KiB** sind an einer
+   `AdvisorResult` mit **20 Suggestions** gemessen, nicht an dem `SlotPool`
+   mit **206 Kandidaten**, den diese Entscheidung der Picker-Spur als
+   Antwortform gibt. Die **Aufteilung** in zwei Caches bleibt richtig; die
+   **Zahl 64** haengt an einer Messung, deren Grundgesamtheit eine andere
+   ist.)*
+3. **Keine zweite Schluesselform** — AD-018 haelt woertlich. Die Picker-Frage
+   ist der kanonische Fall „freie Slots = genau einer": ein `SlotProblem`, in
+   dem jeder Slot **ausser** dem geoeffneten gehalten ist. Der Slot-Index ist
+   dann der einzige nicht gehaltene und braucht **kein** neues Feld in
+   `AdvisorRequest`. `candidates.base_state_for` behandelt beide Formen
+   bereits gleich („For a slot that is already free this is `problem`
+   unchanged"), der Grundzustand ist derselbe. **Nachzuweisen ist das, nicht
+   zu glauben:** derselbe `SlotPool` vorher und nachher, verglichen ueber
+   Handles und Punktzahlen, mit dem differentiellen Aufbau unter
+   `scripts/differential/`.
+   *(**Nachgezogen, Nachtrag IX-2:** „keine zweite Schluesselform" galt fuer
+   den **Slot-Index** — geprueft an `SlotProblem`. Auf das Feld `goal_id`
+   desselben Schluessels trifft die Bedingung **nicht** zu: der Pool haengt
+   nicht an der Zielrichtung, der Schluessel heute schon. Die Picker-Spur
+   fragt deshalb unter einer **kanonischen** Zielrichtung.)*
+4. **Der Generationszaehler gilt jetzt auch im Picker**, und das kehrt den
+   Docstring `276-281` um. Seine Randbedingung war *„die Rechnung kehrt
+   zurueck, bevor der Dialog oeffnet"* — genau die entfaellt. Zwei Faelle,
+   beide heute im Code: der offene Dialog rechnet beim Wechsel der
+   Zielrichtung neu (`1169-1171`), und der Dialog kann geschlossen werden,
+   waehrend eine Antwort unterwegs ist. **Kein zweiter Zaehler**: der Zaehler
+   gehoert der Instanz, und die Picker-Spur ist eine Instanz derselben
+   Klasse. Der Docstring wird ersetzt, nicht ergaenzt — er begruendet heute
+   das Gegenteil dessen, was gilt.
+   *(**Nachgezogen, Nachtrag IX-4:** der **erste** der beiden Faelle —
+   `1169-1171` rechnet beim Richtungswechsel neu — **entfaellt**; er ist nach
+   AK-204/AK-206 keine Frage mehr. Der zweite bleibt und traegt den Zaehler
+   allein; ein dritter kommt hinzu. Der Zaehler bleibt noetig, die
+   Entscheidung kippt nicht.)*
+5. **Die Picker-Spur lebt am Fenster, nicht am Dialog.** Ein Cache im Dialog
+   stirbt mit ihm, und der gemessene Nutzen entsteht gerade ueber
+   Dialoggrenzen hinweg (S11, Spur „beide Ziele x 6 Slots x 4 Zustaende":
+   30 % Treffer). Der Dialog verbindet sich beim Oeffnen und trennt beim
+   Schliessen; eine Antwort, die danach eintrifft, faellt am Zaehler und
+   fasst kein Widget an.
+6. **`before_the_data_changes` und `shutdown` muessen beide Spuren
+   erreichen.** `rescan_save` ruft heute `advisor_bar.the_data_is_changing()`
+   — eine Stelle fuer eine Spur. Mit zwei Spuren ist ein vergessener Aufruf
+   ein Cache, der einen Neu-Scan ueberlebt, also genau der Fehler, gegen den
+   AD-006.7 gebaut ist. Die Verteilung gehoert an **eine** Stelle im Fenster,
+   nicht als zwei Aufrufe nebeneinander an jede Aufrufstelle.
+7. **`relicpicker` fragt den Berater nicht mehr direkt.** Heute importiert es
+   `advisor.candidates` und `advisor.run`. Danach fragt `SlotAdvice` die Spur
+   des Fensters. Abhaengigkeitsrichtung: `relicpicker` → `advisorbar`/Fenster
+   → `advisor.worker` → `advisor.run` → `advisor.candidates`. Kein Zyklus;
+   die Kopplung wird kleiner, nicht groesser.
+
+**Sichtbare Aenderung: ja — der `ui-ux-designer` geht vor dem `developer`.**
+Drei Dinge, die ich benenne und ausdruecklich **nicht** entwerfe:
+
+- **(a)** `UI_SPEC` §3.8 steht woertlich auf der widerlegten Zahl (*„AD-018
+  misst den teuersten Picker-Lauf mit ~51 ms … kein Fortschrittsbalken, kein
+  Wartecursor, kein Aufblitzen"*). Bei 318,1 ms greift die andere Haelfte von
+  AK-09/AK-10. §3.8 muss neu geschrieben werden.
+- **(b)** Der Dialog oeffnet jetzt **vor** den Zahlen. Zur Haelfte ist das
+  bereits spezifiziert und gebaut: §3.3 reserviert den Platz und setzt `…`
+  (`PENDING`), AK-41 verlangt 0 px Hoehenunterschied. **Nicht** spezifiziert
+  ist, was mit **Ordnung, Kopfzeile und Spitzenwert-Chips** geschieht, die
+  heute beim Bauen des Rasters aus der Rangfolge entstehen — eine
+  Neusortierung 320 ms nach dem Oeffnen bewegt Karten unter dem Zeiger.
+  §3.5 Punkt 2 („die Sortierung ist stabil") beantwortet das nicht: dort
+  geht es um zwei Oeffnungen, hier um zwei Anstriche derselben.
+- **(c)** Was der Spieler sieht, wenn er die Zielrichtung im offenen Dialog
+  wechselt und die Antwort 320 ms braucht.
+
+**Der Regressionstest — drei Waechter, jeder mit seiner toetenden Mutation
+(L-008), alle im Standardlauf, keiner mit einer Wanduhr-Schranke:**
+
+- **W1 — strukturell.** Keine Datei unter `nrplanner/` ausser
+  `advisor/worker.py` ruft `run.run`, die neue Pool-Funktion oder
+  `candidates.pool` auf. Form: dieselbe AST-Zaehlung, die
+  `tests/test_one_build.py` fuer `model.compute` schon fuehrt. **Die
+  Erwartung ist eine Liste erlaubter Aufrufer im Test, nicht das, was in
+  `relicpicker.py` steht** (L-008b — eine Erwartung, die aus der bewachten
+  Stelle gerechnet wird, bleibt gruen, was auch immer dort steht).
+  *Toetende Mutation:* den Aufruf `326-328` wieder einsetzen → rot.
+  *Bau-Konfiguration (L-004):* keine. Der Waechter ist ein reiner
+  pytest-Test, den kein Buildsystem-Schalter aktiviert; es gibt daher keine
+  tragende Zeile, deren Entfernen rot werden muesste. Das ist die
+  Herleitung der Unnoetigkeit, nicht ihr Fehlen.
+- **W2 — der erste Anstrich traegt keine Zahlen.** Der Picker wird mit einer
+  Spur geoeffnet, die nie antwortet; jede Karte traegt `PENDING` in beiden
+  Wertzeilen, und der Dialog steht.
+  *Toetende Mutation:* die Rechnung wieder synchron vor dem Oeffnen → die
+  Karten tragen Zahlen → rot. Kein Zeitmass, damit nichts flackert.
+- **W3 — die ueberholte Antwort erreicht nichts.** Zwei Fragen hintereinander
+  (Wechsel der Zielrichtung), die erste Antwort wird **nach** der zweiten
+  zugestellt; auf dem Bildschirm steht die zweite, und die erste hat nichts
+  angefasst.
+  *Toetende Mutation:* die Generationspruefung ausbauen → rot.
+  *(**Nachgezogen, Nachtrag IX-4:** die Vorrichtung „Wechsel der
+  Zielrichtung" **gibt es nicht mehr** — sie stellt keine zweite Frage. W3
+  bekommt in Nachtrag IX eine Vorrichtung, die es noch gibt; sonst waere der
+  Waechter gruen, weil sein Fall nicht herstellbar ist.)*
+- **Ausdruecklich nicht in der Suite: die 50-ms-Zeile von A6.** Sie ist eine
+  Messgroesse und gehoert in `docs/perf/baselines.md` zum
+  `performance-tuner`. Eine Wanduhr-Schranke in der Suite misst auf jeder
+  Maschine etwas anderes und waere genau die Zahl ohne Rezept, an der AD-018
+  gescheitert ist (L-001, L-009).
+- **Ein ueberlebender Gegenbau ist ein Befund** und wird berichtet, nicht
+  stillschweigend nachgebessert (L-008c).
+
+**Konsequenzen.** *Leicht wird:* A6s dritte Zeile wird auf dem Hauptweg
+ueberhaupt erst erreichbar; die Entprellung von 100 ms entprellt jetzt etwas;
+der LRU-Wert 64 bekommt seinen gemessenen Nutzen; ein Wartezustand im Picker
+wird moeglich, weil es etwas zu warten gibt. *Dauerhaft schwer wird:* **zwei
+Spuren koennen gleichzeitig rechnen.** Das ist gewollt — AK-08 verlangt, dass
+sich waehrend eines `Optimize` ein Slot oeffnen laesst —, kostet aber unter
+dem GIL Durchsatz auf beiden Seiten. **Nicht gemessen; siehe OF-25.** Und:
+der Picker haengt jetzt an einer Objektkette (Slot → Fenster → Spur), die ein
+Test von Hand nicht mehr nebenbei stellt; `advice_for` faengt den Fall
+„Slot ohne Fenster" heute schon ab und muss ihn weiter abfangen.
+
+**Umkehrbarkeit: mittel.** Die Rechnung ist dieselbe Funktion; zurueck ginge
+der Aufruf an einem Tag. Was nicht zurueckgeht, ist die Oberflaeche: ein
+Dialog, der ohne Zahlen oeffnet und sie nachtraegt, ist eine Erwartung des
+Spielers, und §3.8 waere dann ein zweites Mal zu schreiben.
+
+---
+
+### AD-029 — Das Lesen des Spielstands wird **zuerst am Lesen selbst** repariert; die Verlagerung in einen Worker ist eine zweite Stufe, die an eine Messung mit benanntem Ausloeser haengt (2026-09-08, Status: aktiv; beruehrt AD-006.7, AD-006.8, SEC-022)
+
+**Kontext — was die 6,15 s kosten, belegt an T-118 und `baselines.md`
+S11-E:**
+
+| Posten | Wert | Quelle |
+|---|---|---|
+| `inventory.load`, Hauptthread | **6147,6 ms** (p50, n=5, 6091,9–6299,4) | S11-E |
+| davon Scan aller 14 Slots **einer** Datei | 2802,7 ms | S11-E |
+| `savefile.read_owned_relics`, Eigenzeit, 28 Aufrufe | 6,562 s **unter cProfile** | S11-E |
+| darin `struct.unpack_from` | **10 293 488** Aufrufe, 5,576 s **unter cProfile** | S11-E |
+| Prozessstart gesamt | 6593,7 ms | S11-E |
+| Obergrenze eines Gegenentwurfs (Vorfilter) | 14 Slots in **61,9 ms** statt 2802,7 = **45x** | S11-E |
+| Verhaltensgleichheit des Gegenentwurfs | **28 von 28** Slots **beider** Spielstaende, mit Positivkontrolle | T-118 4/P2, 7 |
+
+Die Ursache ist die Schleife `for off in range(0, len(slot_data) - 24, 4)` in
+`nrdata/savefile.py`, die **jeden** 4-Byte-Versatz eines Slots anfasst.
+Gelesen werden **28** Slots — zwei Spielstanddateien mit je 14 —, gebraucht
+wird **einer**: `inventory.load` waehlt den bestbestueckten. Aufgerufen wird
+das im Hauptthread bei jedem Start (`app.py:1575`) und bei jedem `Rescan`
+(`app.py:1682`).
+
+**Die 45x sind ein Faktor ueber den Scan, nicht ueber den Start — und das ist
+die Verwechslung, die diese Entscheidung sonst falsch machen wuerde.**
+Herleitung aus den Posten oben (L-001):
+
+```
+nicht im Scan (Entschluesseln, Records bauen, Loadouts):
+    6147,6 - 2 x 2802,7 = 542,2 ms
+nach dem Vorfilter:
+    542,2 + 2 x 61,9    = 666,0 ms   ->  inventory.load rund 9,2x, nicht 45x
+```
+
+**Annahme darin, ausdruecklich benannt:** die zweite Spielstanddatei kostet so
+viel wie die erste. Separat gemessen ist nur eine (2802,7 ms); die Summe passt
+in das Ganze (5605 von 6148 ms = 91 %), belegt ist die Aufteilung nicht. Die
+Zahl 666 ms ist damit **hergeleitet, nicht gemessen** — sie taugt zum
+Entscheiden ueber die Reihenfolge, nicht als Abnahmewert.
+
+**Optionen:**
+
+- **A — im Bestand bleiben.** Der Nutzer hat am 08.09.2026 anders entschieden
+  (QA-209 in den Fix-Stapel vor 1.8.0). **Entfaellt.**
+- **B — nur verlagern**, das Lesen unveraendert in einen Worker. Konsequenz:
+  6,15 s bleiben 6,15 s, nur woanders; der Start wird nicht schneller, nur die
+  Fenstersperre beim `Rescan` verschwindet. Der groesste gemessene Hebel des
+  Programms bliebe liegen, und der Umbau ist der teurere von beiden.
+- **C — nur das Lesen.** Vollstaendig gemessen, eine Schleife, eine Datei,
+  Verhaltensgleichheit an 28 von 28 Slots belegt. Restwert hergeleitet
+  666 ms.
+- **D — beides in einem Auftrag.**
+
+**Entscheidung: C jetzt; B nur, wenn eine Messung es verlangt — also nicht
+D.** C ist belegt und klein. B verlangt einen **dritten Fensterzustand**
+(„wird gelesen"): `self.owned = None` heisst heute *„kein Spielstand
+gefunden"* und ist der Satz, den der Spieler dann liest — ein Zustand
+„noch nicht da" existiert nicht. Dazu kommen eine neue Thread-Grenze und eine
+Ergaenzung der `UI_SPEC`. Das auf Verdacht zu bauen, bevor die Zahl nach C
+bekannt ist, waere Architektur auf Vorrat.
+
+**Der Ausloeser fuer Stufe B, benannt statt geschaetzt.** Nach C wird
+`inventory.load` am echten Spielstand neu gemessen (`performance-tuner`,
+Szenario S11-E, dasselbe Skript, dieselbe Umgebung, Vorher-Wert 6147,6 ms).
+**Liegt der Median ueber 250 ms, wird B gebaut; darunter nicht.** Die 250 ms
+sind nicht neu erfunden: es ist die Schwelle, die AK-09 bereits traegt fuer
+„der Spieler bekommt keinen Wartezustand gezeigt", und ein **eingefrorenes**
+Fenster ist strenger zu bewerten als eine rechnende Hintergrundspur. Nach der
+Herleitung oben (666 ms) ist zu **erwarten**, dass der Ausloeser greift —
+erwartet ist nicht gemessen, und die Reihenfolge kostet nichts, weil B ohnehin
+auf C aufsetzt: B ohne C verlagerte 6,15 s, statt 5,5 s davon zu beseitigen.
+Die `UI_SPEC`-Ergaenzung fuer den dritten Zustand kann parallel zu C
+entstehen.
+
+**Form von Stufe B, falls der Ausloeser greift — eingegrenzt, nicht
+entworfen:**
+
+1. **Die Thread-Grenze liegt zwischen Lesen und Bauen.** Der Worker liest die
+   Datei, entschluesselt sie und scannt die Records; der Hauptthread baut aus
+   den Records das `Inventory`. Damit bleibt **AD-006.8 unangetastet** — ueber
+   die Grenze gehen nur unveraenderliche Datenklassen (`OwnedRelic` ist eine),
+   nicht das lebende `Inventory` —, und die Grenze liegt genau um den gemessen
+   teuren Teil.
+2. **Kein Wartemuster aus `firstrun.py`** (AD-006.2): kein
+   `processEvents`, keine modale Warteschleife.
+3. **Die Cache-Entwertung wandert vom Beginn an die Ankunft.** Heute ruft
+   `rescan_save` `advisor_bar.the_data_is_changing()` **vor** dem Lesen, was
+   richtig ist, solange das Lesen synchron ist. Asynchron gilt der alte
+   Bestand waehrend des Lesens weiter; entwertet wird in dem Moment, in dem
+   `self.owned` ersetzt wird. (`rescan_save` ruft `model.configure` **nicht**
+   auf — die Gefahr F4 aus AD-006.7 betrifft den Datenneuaufbau, nicht den
+   Neu-Scan.)
+4. **Ein Lesen zur Zeit** (AD-006.4 sinngemaess): ein zweiter `Rescan`-Klick
+   waehrend eines laufenden Lesens startet kein zweites.
+5. **Der dritte Fensterzustand ist Oberflaeche** und gehoert dem
+   `ui-ux-designer`, nicht dieser Entscheidung.
+
+**Die Vertrauensgrenze wird beruehrt — Fall fuer den `security-reviewer`.**
+Der Vorfilter entscheidet, **welche** Versaetze ueberhaupt geprueft werden.
+Drei Dinge folgen daraus:
+
+1. Die Dichteschranke aus **SEC-022** (`MIN_BYTES_PER_RELIC_RECORD = 64`, der
+   laute `raise` an dem Record, der die Linie ueberschreitet) zaehlt
+   **gefundene** Records. Ein Filter, der weniger findet, verschiebt sie. Er
+   darf sie nicht antasten.
+2. Die Verhaltensgleichheit ist an **28 von 28 Slots zweier echter
+   Spielstaende** belegt — also gerade **nicht** an der Dateiklasse, fuer die
+   SEC-022 gebaut ist. Der `security-reviewer` hat aus T-096 eine praeparierte
+   Datei (131 069 Records je MiB, Faktor 8 ueber der Schranke); die Gleichheit
+   gehoert **auch dort** gezeigt, bevor der Fix als abgeschlossen gilt.
+   Argument, das dafuer spricht und die Pruefung nicht ersetzt: ein Record
+   verlangt `first == second` und `first >= RELIC_ID_FLAG`, traegt also
+   zwangslaeufig das Byte, auf das der Filter vorsortiert.
+3. Die tragende Annahme **`relic_id < 0x01000000`** (groesste Id im heutigen
+   Datensatz: 2 013 322) ist eine Kopplung an die Spieldaten, die ein
+   Spiel-Patch aendern kann. Sie gehoert als Pruefung in den Code, nicht als
+   Kommentar daneben — laut werden, nicht still danebenliegen.
+
+Der eigene Spielstand gilt seit 02.09.2026 als vertrauenswuerdig; ein
+**heruntergeladener** bleibt die scharfe Grenze, und der Vorfilter laeuft auf
+beiden.
+
+**Der zweite Hebel, den T-118 dem `architect` ausdruecklich vorgelegt hat —
+„28 Slots lesen, um einen zu benutzen; darf `load()` frueher aufhoeren?": Nein,
+nicht anfassen.** Die Regel „der bestbestueckte gewinnt" ist gegen einen
+realen Fall gebaut (zweites Steam-Konto, wiederhergestelltes Backup,
+Ueberrest einer Neuinstallation) und steht als Begruendung im Docstring von
+`load`. Nach dem Vorfilter kosten alle 28 Slots zusammen noch rund 124 ms von
+666 ms. Eine Korrektheitsregel, die den **falschen** Spielstand waehlen kann,
+gegen einen Bruchteil einer bereits behobenen Zeit zu tauschen, ist der
+schlechteste Tausch im ganzen Befund. *Wieder interessant, wenn:* der
+Vorfilter sich als unhaltbar erweist — dann ist ohnehin der `array`-Rueckfall
+aus T-118 Abschnitt 6 dran (2,1x statt 45x), und die Frage stellt sich neu.
+
+**Umfang in Dateien** (fuer den Schnitt der Auftraege, Obergrenze fuenf):
+
+| Schritt | Rolle | Produktivdateien | Dazu |
+|---|---|---|---|
+| C — Vorfilter + Id-Pruefung | `developer` | **1** (`nrdata/savefile.py`) | Tests |
+| Pruefung an der praeparierten Datei | `security-reviewer` | **0** (lesend) | — |
+| Nachmessung, Ausloeser fuer B | `performance-tuner` | **0** (`docs/perf/baselines.md`) | — |
+| B, falls ausgeloest | `developer` | **3** (`nrplanner/inventory.py`, ein neues kleines Qt-Modul fuer die Spur, `nrplanner/app.py`) | Tests, **nach** der `UI_SPEC`-Ergaenzung |
+
+**Konsequenzen.** *Leicht wird:* der Programmstart faellt hergeleitet von
+6,59 s auf rund 1,1 s, und das ist der groesste einzelne Hebel, den das
+Programm hat. *Dauerhaft schwer wird:* der Scan wird eine Spur trickreicher,
+und er traegt eine Annahme ueber die Spieldaten, die ein Patch brechen kann —
+deshalb muss sie laut sein. Faellt Stufe B, kommt ein Fensterzustand dazu,
+den es heute nicht gibt.
+
+**Umkehrbarkeit.** C: **leicht** — eine Schleife, mit einem gemessenen
+Rueckfallweg daneben. B: **mittel** — Zustand und Thread-Grenze zurueckzubauen
+kostet mehr als sie zu bauen, und die `UI_SPEC` haette den Zustand dann zu
+streichen.
+
+---
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (Nachtrag VIII)
+
+Reihenfolge und Abhaengigkeiten; jeder Schritt ist fuer sich lauffaehig und
+fuer sich pruefbar. **U1 haengt an nichts** und kann sofort parallel laufen.
+
+> **Ueberholt am 2026-09-08 (Nachtrag IX, T-125) fuer U5a, U5b, U6 und U7.**
+> U1 bis U4 und U8 gelten unveraendert; **U4 ist erledigt** (T-124). Wer
+> U5a, U5b, U6 oder U7 beauftragt oder umsetzt, nimmt die Fassung aus
+> Nachtrag IX — die Zeilen unten bleiben als Verlauf stehen.
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U1** | `developer` | AD-029 Stufe C: Vorfilter in `nrdata/savefile.py`, Id-Annahme als Pruefung im Code, Gleichheitsprobe gegen den heutigen Scan, Dichteschranke unangetastet | — |
+| **U2** | `security-reviewer` | Vorfilter gegen die praeparierte Datei aus T-096 und gegen SEC-022; lesend | U1 |
+| **U3** | `performance-tuner` | `inventory.load` und den Prozessstart nachmessen (S11-E fortschreiben); **entscheidet den Ausloeser fuer Stufe B** | U1 |
+| **U4** | `ui-ux-designer` | `UI_SPEC` §3.8 neu; erster Anstrich ohne Zahlen; Ordnung, Kopfzeile und Chips beim Nachliefern; Zielrichtungswechsel im offenen Dialog | — |
+| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`, kanonische Form nach Punkt 3, `SlotPool`-Gleichheit vorher/nachher belegt | — |
+| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion, zweite Instanz am Fenster (100 ms / 64), `SlotAdvice` fragt die Spur, Verteilung von `before_the_data_changes`/`shutdown`, Docstring `276-281` ersetzt, direkte `advisor`-Importe aus `relicpicker` entfernt | U4, U5a |
+| **U6** | `developer` | W1, W2, W3 mit ihren toetenden Mutationen | U5b |
+| **U7** | `performance-tuner` | 318,1 ms nachmessen; **den Hauptthread-Rest messen** (OF-26); Ueberlappung zweier Spuren messen (OF-25) | U5b |
+| **U8** | `developer` | Stufe B aus AD-029 — **nur**, wenn U3 den Ausloeser gemeldet hat | U3, Spec fuer den dritten Zustand |
+
+**Was der `developer` ausdruecklich nicht tun soll:** keine Oberflaeche
+entwerfen (U4 geht vor U5b); die Rechnung nicht schneller machen, um sie im
+Hauptthread zu behalten (P1a ist ein eigener Auftrag und ersetzt AD-028
+nicht); keinen zweiten Generationszaehler und keinen zweiten Thread-Weg
+bauen; die Dichteschranke SEC-022 nicht anfassen; `load()` nicht frueher
+abbrechen lassen; keine Zeitschranke in die Suite schreiben.
+
+---
+
+### Risiken und Pruefpunkte, neu
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Zwei Spuren rechnen gleichzeitig und A6s 6-s-Zeile faellt | U7 misst `Optimize` mit gleichzeitig laufender Picker-Frage | A6 bekommt die Randbedingung „ohne gleichzeitige zweite Spur", **oder** die Picker-Spur bekommt Vorrang. Beides ist eine Entscheidung, kein Fix — sie faellt an der Zahl. |
+| Der Hauptthread-Rest ist selbst groesser als 50 ms | U7 misst Anfragebau + `frozen_inventory` (309 Kopien) + `inventory_fingerprint` (sha256 ueber 309 Zeilen) **getrennt** vom Lauf | Das Einfrieren einmal je Bestandsaenderung statt einmal je Frage; das ist ein eigener Entwurf und beruehrt AD-007s Fingerabdruck. |
+| Die kanonische Form nach Punkt 3 liefert einen anderen `SlotPool` | U5a vergleicht vorher/nachher ueber Handles und Punktzahlen | Slot-Index doch als Feld in `AdvisorRequest` — dann ist AD-018s „keine zweite Schluesselform" ausdruecklich zu revidieren, nicht stillschweigend. |
+| Der Vorfilter findet auf einer praeparierten Datei weniger als der heutige Scan | U2 | `array`-Rueckfall aus T-118 Abschnitt 6 (2,1x statt 45x). |
+| Der Wartezustand blitzt bei schnellen Slots auf (32–82 ms, S11-C) | am laufenden Fenster, nach U5b | Die 100-ms-Entprellung deckt den Fall bereits — der Wartezustand darf erst **nach** dem Start des Laufs erscheinen, wie AK-09 es fuer die Advisor bar schon regelt (`WAIT_VISIBLE_MS`). |
+
+---
+
+### Bewusst nicht getan, neu
+
+- **Kein eigener Thread-Weg fuer den Picker** (AD-028 Option C). *Wieder
+  interessant, wenn:* die beiden Antwortformen so weit auseinanderlaufen,
+  dass eine Klasse zwei Betriebsarten haette statt einer austauschbaren
+  Funktion.
+- **Der Picker rechnet nicht „nur schneller" im Hauptthread** (AD-028
+  Option A). *Wieder interessant, wenn:* die Slot-Frage je unter 50 ms faellt
+  — nach P1a sind es gemessen 245,5 ms, also Faktor 5 zu weit.
+- **`load()` bricht nicht frueher ab** (AD-029). Grund und
+  Reaktivierungsbedingung stehen dort.
+- **Der Ergebnis-Cache bleibt im Speicher** (AD-007 haelt). Die Bedingung aus
+  T-118 Abschnitt 6 — „wenn der Prozessstart nach AD-029 den Berater
+  dominiert" — ist nach Stufe C zu pruefen: bei hergeleiteten 1,1 s Start
+  gegen 5,02 s Gesamtlauf tut er es weiter nicht.
+- **Keine Zeitschranke in der Testsuite.** Zeiten gehoeren in
+  `docs/perf/baselines.md`, mit Umgebung und Streuung (L-001, L-009).
+
+---
+
+### Offene Fragen, neu
+
+**OF-25 — an den `director`, auszufuehren vom `performance-tuner`:** Nach
+AD-028 koennen zwei Spuren gleichzeitig rechnen (AK-08 verlangt es). **A6s
+6-s-Zahl fuer `Optimize` ist gemessen, waehrend sonst nichts rechnete** —
+`docs/perf/baselines.md` S11-A sagt nichts ueber eine gleichzeitige zweite
+Spur, und unter dem GIL teilen sich zwei rechnende Python-Threads einen Kern.
+Bei 5023,6 ms gemessen und 6 s Schranke bleiben 19 % Luft; eine Halbierung
+des Durchsatzes waere mehr. **Zu messen:** `Optimize` mit einer gleichzeitig
+laufenden Picker-Frage, gegen S11-A. Faellt die Zahl durch, ist es eine
+Entscheidung fuer den `director` (Randbedingung an A6 oder Vorrang der
+Picker-Spur), keine Nachbesserung.
+
+**OF-26 — an den `director`, auszufuehren vom `performance-tuner`:** Der
+**Hauptthread-Rest** einer Beraterfrage ist nie gemessen worden — auf keinem
+der beiden Wege. Auch nach AD-028 bleiben im Hauptthread: der Bau der
+Anfrage, `run.frozen_inventory` (309 Kopien plus die Angebotslisten je
+Slot-Farbe) und `run.inventory_fingerprint` (sha256 ueber 309 sortierte
+Zeilen). **A6s dritte Zeile steht und faellt mit dieser Zahl**, und sie gilt
+schon heute fuer den `Optimize`-Weg, der als „haelt" gefuehrt wird. Zu messen
+getrennt vom Lauf, im selben Szenario wie S11-B.
+
+**OF-27 — an den `director`:** `UI_SPEC` §3.8, `ARCHITECTURE.md` (hier
+korrigiert) und `relicpicker.py:276-281` tragen **dieselbe** gerechnete Zahl,
+und keine der drei Stellen sagte, dass sie gerechnet war. Zwei davon sind
+jetzt richtiggestellt, die dritte gehoert dem `ui-ux-designer` (U4). **Die
+Frage dahinter ist allgemeiner:** ob eine Zahl, die in einem Entwurfstext
+eine Entscheidung traegt, kuenftig ihre Herkunft mitfuehren muss — gemessen
+oder gerechnet, mit Datum und Quelle. L-001 verlangt das fuer Testschranken
+und Architekturkennwerte; QA-208 ist der Fall, in dem eine **gerechnete**
+Zahl drei Dateien weit gewandert ist. Entscheidung des `director`, ob das als
+Regel aufgeschrieben wird.
+
+---
+
+## Nachtrag IX 2026-09-08 — Der Zielrichtungswechsel war nie eine Frage (Nachtraege zu AD-028, Fassung 2 von U5a bis U7)
+
+**Anlass.** Der `ui-ux-designer` hat in T-124 die Oberflaeche des wartenden
+Pickers vorgegeben (`UI_SPEC.md`, AK-197 bis AK-210) und dabei drei Punkte an
+AD-028 zurueckgegeben. Der `director` hat sie als T-125 hierher gegeben, mit
+der ausdruecklichen Auflage, den tragenden Befund **nachzupruefen** statt ihn
+zu uebernehmen.
+
+**Was hier geprueft wurde und was nicht.** Alle Aussagen unten sind am
+**Quellstand gelesen** (`nrplanner/relicpicker.py`,
+`nrplanner/advisor/candidates.py`, `advisor/worker.py`, `advisor/run.py`,
+`advisor/types.py`, `advisor/goals.py`, `nrplanner/advisorbar.py`), mit
+Fundstelle. **Es wurde nichts gestartet und nichts gemessen** — jede Zahl ist
+aus `docs/perf/baselines.md` oder `docs/berichte/T-118-performance-tuner.md`
+zitiert; wo eine Zahl aus zitierten Zahlen **gerechnet** ist, steht das dabei
+(L-001). Die `UI_SPEC` ist gesetzt und wurde nicht angefasst.
+
+---
+
+### IX-0 — Die Nachpruefung: der Befund haelt, an einer Stelle weiter als behauptet, an einer anderen nicht
+
+**Behauptung aus T-124 (Abschnitt 3 seines Berichts):** `candidates.pool`
+bewertet ohnehin jedes Ziel fuer jeden Kandidaten, der Dialog ist modal, also
+braucht der Zielrichtungswechsel im offenen Dialog **gar keine Rechnung**; die
+318 ms in `_sort_chosen` (`relicpicker.py:1169-1171`) sind reine Verschwendung.
+
+**Geprueft — er haelt.** Die Stuecke, jedes an einer Zeile:
+
+| Stueck | Fundstelle | Befund |
+|---|---|---|
+| Der Picker uebergibt **die ganze Registry** als `goals` | `relicpicker.py:325-327` (`advisor_goals.GOALS`) | ja — das ist die Voraussetzung, die T-124 **nicht** genannt hat, und ohne die der Rest nicht traegt |
+| `marginals` je Kandidat ueber **alle** Ziele | `candidates.py:316-320` | ja |
+| `baseline` je Ziel, `candidates` ungekuerzt | `candidates.py:328-331` | ja |
+| `rank_by` wirkt **nur** auf `measured.sort(...)` und auf das Feld selbst | `candidates.py:323`, `327` | ja — der **Inhalt** des Pools ist richtungsfrei, nur seine **Reihenfolge** nicht |
+| `unknowns` haengt an Slot und Bestand, nicht an der Richtung | `candidates.py:_pool_findings` ueber `without_handle`/`conditional`/`converting` | ja |
+| Grundzustand am Slot, nicht an der Richtung | `candidates.py:61-79` (`base_state_for`) | ja |
+| `ctx` traegt keine Richtung | `advisorbar.asking_from` (`weighting = DEFAULT_WEIGHTING`) | ja |
+| Der Dialog ist modal | `relicpicker.py`, `self.setModal(True)` im `__init__` | ja |
+| Die Anzeige ordnet selbst um und liest ueber Handles nach | `relicpicker.py:1019-1060` (`_in_the_chosen_order`), `Ranking.gain`, `Ranking.top_handles` | ja — beide Richtungen werden dort ohnehin schon gelesen (`top_handles(other_id)`, Zeile 1054) |
+
+**Die Randbedingung, die T-124 nicht genannt hat und die den Befund traegt:**
+Ein Pool bedient beide Richtungen nur, solange **jede Richtung, die der Picker
+zeichnen kann, auch in dem `goals` steckt, mit dem der Pool gebaut wurde.**
+Heute sind das zwei getrennt geschriebene Stellen:
+`advisorbar.GOAL_ORDER = ("max_damage", "min_damage_taken")` (Zeile 67 — was
+der Picker zeichnet, ueber `relicpicker.VALUE_DIRECTIONS = advisorbar.GOAL_ORDER`)
+und `advisor/goals.py:302-305` `GOALS` (was gerechnet wird). Sie stimmen heute
+ueberein und **koennen auseinanderlaufen** — eine dritte Zielrichtung, die in
+`GOAL_ORDER` steht und nicht in `GOALS`, laesst den ganzen
+Wiederverwendungsschluss still fallen. Dagegen steht unten **W4**.
+
+**Die zweite Stelle, die dieser Befund trifft und die T-124 nicht gesehen hat:
+der Cache-Schluessel.** `run.cache_key` nimmt **jedes** Feld der
+`AdvisorRequest` ausser `generation` (`run.py:170-180`), also auch `goal_id`.
+Damit ist die Antwort richtungsfrei, der Schluessel darueber aber nicht: eine
+Oeffnung desselben Slots unter der anderen Richtung ist ein **anderer**
+Schluessel, ein Fehltreffer und dieselben 318 ms noch einmal. Das ist genau
+die Verschwendung aus `_sort_chosen`, nur ueber Dialoggrenzen hinweg statt
+innerhalb einer Oeffnung — und sie ist gemessen: T-118 Abschnitt 3.2, Spur
+**„Zielrichtung umschalten": 8 Fragen, 2 verschiedene, 75 % Treffer.** Diese
+Spur besteht ausschliesslich aus dieser Doppelung. Siehe **IX-2**.
+
+**Was am Befund nicht haelt:** die Nebenbemerkung, `candidates.pools()` sei
+„die eigentliche Loesung" — siehe **IX-5**. `pools()` rechnet etwas anderes.
+
+---
+
+### IX-1 — Die Entprellung der Picker-Spur ist **0 ms**, und eine bereits bekannte Antwort wird **sofort** zurueckgegeben, nicht ueber den Zeitgeber
+
+**Kontext.** AD-028 Punkt 1 gibt der Picker-Spur die 100 ms aus AD-006.5. Die
+Zahl stammt dort aus einem Fall, den es in der Picker-Spur nicht gibt:
+gedaempft wurden **Tastendruecke im Filterfeld und ein gezogener
+Level-Schieber** — vierzig Fragen, von denen der Spieler neununddreissig schon
+verworfen hat, waehrend er sie stellt. Die Randbedingung dieser Zahl ist
+„zwischen zwei Fragen liegt weniger als eine Ueberlegung", und **fuer die
+Picker-Spur trifft sie nicht zu**:
+
+- Nach `UI_SPEC` AK-206 gibt es **eine Frage je Oeffnung**; Filter, Bildlauf,
+  Favoriten und `Name` fragen nicht, und nach IX-0 fragt auch der
+  Richtungswechsel nicht.
+- Der Dialog ist **modal**: waehrend einer Oeffnung kann keine zweite Frage
+  entstehen.
+- Zwischen zwei Oeffnungen liegt mindestens ein Schliessen und ein Klick, also
+  ein Vielfaches von 100 ms. Die Kette „ein Lauf zur Zeit" haelt auch ohne
+  Entprellung: `_start_what_is_pending` steigt aus, solange ein Thread lebt,
+  und `_on_thread_finished` holt die wartende Frage nach
+  (`worker.py:285-286`, `307-321`).
+
+**Was die 100 ms stattdessen kosten** — gerechnet aus gemessenen Zahlen, keine
+eigene Messung:
+
+| Fall | gemessen (S11-C) | mit 100 ms Entprellung | Anteil der Konstante |
+|---|---|---|---|
+| teuerster Slot (2, weiss, 206 Kandidaten) | 318,1 ms | 418,1 ms | 24 % |
+| billigster Slot (5, Deep, 21 Kandidaten) | 32,3 ms | 132,3 ms | 76 % |
+| Cache-Treffer | 0 ms | 100 ms | 100 % |
+
+Gegen **A6** („eine Slot-Frage ist im Median unter 500 ms beantwortet")
+schrumpft der Abstand von 36 % auf 16 % — und der **Hauptthread-Rest** einer
+Frage (Anfragebau, `frozen_inventory` ueber 309 Kopien, `inventory_fingerprint`)
+ist in dieser Rechnung noch gar nicht enthalten, weil er nie gemessen wurde
+(OF-26). Eine Konstante, die 24 % eines Budgets aufbraucht, das an einer
+ungemessenen Stelle noch belastet wird, ist nicht zu rechtfertigen, wenn sie
+nichts daempft.
+
+**Der Cache-Treffer ist der schaerfere Teil.** Der `AdvisorController` sieht
+im Cache erst **nach** dem Zeitgeber nach: `ask` armiert den Timer
+(`worker.py:213`), die Abfrage steht in `_start_what_is_pending`
+(`worker.py:290-293`). Eine bekannte Antwort kommt damit **nie** vor dem
+ersten Anstrich an — auch bei 0 ms nicht, weil ein `QTimer` fruehestens im
+naechsten Durchlauf der Ereignisschleife feuert. `UI_SPEC` §2 sieht aber
+ausdruecklich vor: *„Liegt die Antwort schon beim Bau des Rasters vor
+(Cache-Treffer), wird der Wartezustand nicht betreten: dann gibt es einen
+einzigen Anstrich, wie heute."* **Dieser Satz ist mit dem heutigen
+Kontrollfluss nicht baubar.** Kein Widerspruch zur Spec — eine Vorgabe, die
+diese Entscheidung erst einloest.
+
+**Optionen:**
+
+- **A — im Bestand bleiben** (100 ms, Cache hinter dem Zeitgeber).
+  Konsequenz: 100 ms auf jede Frage, ein Cache-Treffer verliert seinen ganzen
+  gemessenen Wert (er spart die Rechnung, nicht die Wartezeit), und der
+  Cache-Treffer-Satz der `UI_SPEC` bleibt unerfuellbar. **Verworfen.**
+- **B — Entprellung 0 ms, sonst nichts.** Konsequenz: 100 ms gespart, der
+  Cache-Treffer kommt weiter als **zweiter** Anstrich. Billig, laesst aber die
+  Haelfte liegen.
+- **C — Entprellung 0 ms, und der Controller beantwortet eine bereits bekannte
+  Frage im selben Aufruf.** Konsequenz: ein zweiter Rueckgabeweg an einer
+  Klasse, die zwei Instanzen bedient.
+- **D — die Klasse sieht generell vor dem Zeitgeber im Cache nach.**
+  Konsequenz: **aendert die Advisor bar mit** — ein gezogener Level-Schieber
+  zeichnete den Streifen bei jedem Treffer neu, also genau das Flackern, gegen
+  das AD-006.5 gebaut ist. **Verworfen.**
+
+**Entscheidung: C.**
+
+**Verbindlich:**
+
+1. **Die Picker-Spur wird mit `debounce_ms = 0` konstruiert.** Die Advisor bar
+   behaelt ihre 250 ms.
+2. **Die 100 ms werden nicht geloescht, sondern mit ihrer Wiederkehrbedingung
+   aufgeschrieben:** *sobald die Picker-Spur mehr als eine Frage je Oeffnung
+   stellen kann.* Das ist genau der Rueckweg, den `UI_SPEC` §4 fuer den Fall
+   vorsieht, dass ein Pool die andere Richtung doch nicht bedient — dann fragt
+   jeder Schritt durch die `Sort by`-Liste erneut (mit Pfeiltasten auch
+   ungewollt, siehe F-Q in T-124), und die 100 ms sind sofort wieder richtig.
+   **Wer diesen Rueckweg baut, holt die 100 ms zurueck; beides gehoert in
+   denselben Commit.**
+3. **Ein zweiter Rueckgabeweg, kein zweiter Antwortweg.** Der Controller
+   bekommt **eine** zusaetzliche Methode („frag, und gib mir die Antwort
+   sofort, falls du sie schon hast"), die
+   (a) die Frage genau so baut wie `ask` — dieselbe Momentaufnahme, derselbe
+   Fingerabdruck, **derselbe** Generationszaehler, hochgezaehlt;
+   (b) im Cache nachsieht und einen Treffer **zurueckgibt**, ohne `ready`,
+   ohne `started`, ohne etwas zu starten;
+   (c) sonst wie heute den Zeitgeber armiert und `None` zurueckgibt.
+   Das Teure (`frozen_inventory`, `inventory_fingerprint`) wird dabei
+   **einmal** getan, nicht zweimal: es liegt in einer gemeinsamen privaten
+   Stelle, die `ask` und die neue Methode teilen. **Die Advisor bar ruft
+   weiter `ask` und ist damit nachweislich unveraendert.**
+4. **Der Generationszaehler laeuft auch fuer die sofort beantwortete Frage
+   hoch.** Sonst kann eine Antwort aus einer frueheren Oeffnung, die noch
+   unterwegs ist, den Cache-Treffer auf dem Bildschirm ueberschreiben.
+
+**Konsequenzen.** *Leicht wird:* der Picker antwortet im teuersten gemessenen
+Fall in 318,1 ms statt in gerechneten 418,1 ms; ein Cache-Treffer kostet
+nichts und zeichnet **einen** Anstrich, wie `UI_SPEC` §2 es verlangt.
+*Dauerhaft schwer wird:* der Picker hat zwei Wege, eine Antwort zu bekommen —
+Rueckgabewert und Signal —, und ein `developer`, der nur einen baut, faellt
+nicht auf. Dagegen steht **W5**.
+
+**Umkehrbarkeit: leicht.** Zwei Konstanten und eine Methode; der Rueckbau ist
+ein Tag und beruehrt keine Datenform.
+
+---
+
+### IX-2 — Die Picker-Spur fragt unter einer **kanonischen** Zielrichtung; die gewaehlte Richtung ist Sache der Anzeige
+
+**Kontext.** AD-028 Punkt 3 sagt „keine zweite Schluesselform". **Die
+Randbedingung dieser Aussage war der Slot-Index** — geprueft an der Frage, ob
+`AdvisorRequest` ein neues Feld braucht. Auf das Feld `goal_id` desselben
+Schluessels trifft sie nicht zu, und genau das ist hier der Fall: nach IX-0
+haengt der **Inhalt** eines Pools nicht an der Zielrichtung, sein
+**Schluessel** aber schon (`run.cache_key`, `run.py:170-180`).
+
+**Optionen:**
+
+- **A — im Bestand bleiben.** Die Picker-Spur fragt mit der gewaehlten
+  Richtung. Konsequenz: derselbe Pool wird unter zwei Schluesseln zweimal
+  gerechnet und zweimal abgelegt; die gemessene Spur „Zielrichtung
+  umschalten" (8 Fragen, 2 verschiedene) bleibt genau deshalb eine Spur.
+  Und: `Ranking.goal_id` (= `pool.rank_by`) liefert **zufaellig meistens** die
+  richtige Richtung — der Fehler, gegen den AK-205 geschrieben ist, waere
+  unregelmaessig und damit schwer zu fangen.
+- **B — die Picker-Spur fragt immer unter derselben, festen Richtung**, und
+  die Anzeige nimmt ihre Richtung aus der einen Einstellung des Programms
+  (AK-43, AK-205). Konsequenz: ein Eintrag bedient beide Richtungen; die Zahl
+  der Picker-Schluessel halbiert sich; das Feld `goal_id` der Picker-Anfrage
+  sagt nicht mehr, was der Spieler gewaehlt hat.
+
+**Entscheidung: B.**
+
+**Verbindlich:**
+
+1. Die Anfrage der Picker-Spur traegt in `goal_id` eine **benannte Konstante
+   der Picker-Spur**, nicht die Einstellung des Spielers. Sie muss an ihrer
+   Definition sagen, dass sie eine Ordnung ist und keine Wahl. Als Wert bietet
+   sich der erste Eintrag von `advisorbar.GOAL_ORDER` an, damit die Ordnung im
+   Pool die haeufigste bleibt; der Wert ist frei, die **Festigkeit** ist der
+   Punkt.
+2. **D-4 bleibt wahr, nicht ausgehebelt.** `SlotPool.rank_by` sagt weiterhin,
+   was diese Liste geordnet hat — die Liste **ist** so geordnet. Was nicht mehr
+   gilt, ist der stille Kurzschluss „was geordnet hat, ist auch, was gelesen
+   wird". Genau den verbietet AK-205.
+3. **Der Fehler wird dadurch regelmaessig statt zufaellig** — das ist ein
+   Vorteil und der eigentliche Grund fuer B: wer AK-205 nicht baut, zeigt
+   **immer** die kanonische Richtung an, nicht nur manchmal. Der Gegenbau
+   beisst (L-008a).
+4. **`run`s Ablehnungspruefung wird nicht beruehrt:**
+   `_refuse_a_request_that_asks_about_another_run` (`run.py:241-283`) prueft
+   `goal_id` **nicht** — der Kontext traegt keine Richtung. Geprueft, nicht
+   vermutet.
+5. **Nur die Picker-Spur.** Die Advisor bar fragt weiter unter der gewaehlten
+   Richtung: ihre Antwort (`AdvisorResult`) **haengt** an ihr — sie traegt
+   `goal_id`, `goal_label`, eine nach dieser Richtung gebaute Vorschlagsliste
+   und deren Begruendungen (`types.py:604-649`).
+
+**Konsequenzen.** *Leicht wird:* ein Richtungswechsel kostet nie wieder eine
+Rechnung, weder im offenen Dialog noch ueber Oeffnungen hinweg. *Dauerhaft
+schwer wird:* ein Feld der Picker-Anfrage sagt etwas anderes, als sein Name
+nahelegt; wer die Picker-Anfrage einmal an etwas uebergibt, das `goal_id` als
+„die Richtung des Spielers" liest, baut einen stillen Fehler. Heute gibt es
+diesen Leser nicht (die Picker-Antwort ist ein `SlotPool` und traegt kein
+`goal_label`), und **W1** haelt fest, dass es bei einem Aufrufer bleibt.
+
+**Umkehrbarkeit: leicht** — eine Konstante zurueck auf die Einstellung.
+
+---
+
+### IX-3 — Die 64 bleibt stehen, ihre Herleitung deckt die neue Antwortform nicht; U7 misst nach
+
+**Der Fund.** AD-028 Punkt 2 bemisst die beiden Caches mit **33,4 KiB**
+(Picker) gegen **279,9 KiB** (Gesamtlauf) und begruendet den Sprung von 32 auf
+64 mit „+41 Treffer (+16,5 s) fuer +1,05 MiB" (T-118 Abschnitt 3.2, S11-F).
+Die 33,4 KiB sind gemessen an einer **`AdvisorResult` mit 20 Suggestions**
+(S11-F woertlich: *„Picker-Antwort mit 20 Vorschlaegen"*). Die Antwortform,
+die AD-028 der Picker-Spur gibt, ist eine andere: **der ganze `SlotPool`, alle
+206 Kandidaten mit je zwei `Marginal`** — AD-028 sagt das selbst in seiner
+Kraeftetabelle (*„der Picker braucht den ganzen Pool"*). Eine `AdvisorResult`
+traegt den Pool nicht (`types.py:604-649`: `suggestions`, `baseline`, `gain`,
+`held`, `unknowns`, …). **Die Zahl gilt fuer eine Antwortform, die die
+Picker-Spur gerade nicht traegt.** Das ist zum dritten Mal in diesem Vorhaben
+dieselbe Bauart von Fehler: eine Zahl, deren Grundgesamtheit eine andere ist
+als die des Satzes daneben (QA-208, QA-209).
+
+**Der zweite Riss in derselben Herleitung:** die Trefferquoten stammen aus
+Spuren, in denen jeder Slot **zweimal** vorkommt, einmal je Richtung — die
+tragende Spur heisst woertlich „beide Ziele x 6 Slots x 4 Zustaende" (60
+Fragen, 42 verschieden). Nach IX-2 gibt es diese Doppelung nicht mehr;
+dieselbe Bedienung stellt dann rund 30 Fragen mit rund 21 verschiedenen
+Schluesseln und passt in 32. Ob der Knick bei 64 bleibt, entscheidet die
+**andere** tragende Spur („Level-Schieber weit 15-5-15", 126 Fragen, 66
+verschieden) — und ob deren Schluessel richtungsbehaftet sind, geht aus T-118
+nicht hervor.
+
+**Entscheidung: die 64 bleibt — und bekommt eine Messauflage mit
+Rueckfallschranke.** Ich ersetze eine gemessene Zahl nicht durch eine
+geschaetzte.
+
+1. **U7 misst die Groesse eines Picker-Cache-Eintrags in der neuen
+   Antwortform** (`SlotPool`, weisser Slot, 206 Kandidaten), mit derselben
+   tiefen Zaehlung und derselben Umgebung wie S11-F, und schreibt S11-F fort.
+2. **Rueckfallschranke, mit Rezept:** die Entscheidung fuer 64 wurde auf
+   `64 x 33,4 KiB = 2,09 MiB` getroffen — 4,4 % des gemessenen
+   Grundverbrauchs von 47,7 MiB (S11-F). Der Wert, den AD-028 selbst als
+   „nicht billig" fuehrt, ist die **8,75 MiB** des Gesamtlauf-Falls. Daraus
+   die Schranke: `8,75 MiB / 64 = 140 KiB` je Eintrag. **Misst U7 mehr als
+   140 KiB, faellt die Picker-Spur auf 32 zurueck und die Groessenfrage kommt
+   zurueck zu mir** — dann ist es eine Entscheidung zwischen Speicher und
+   Trefferquote, keine Nachbesserung.
+3. **U7 misst die Trefferquote der beiden tragenden Spuren aus T-118
+   Abschnitt 3.2 unter dem Schluessel nach IX-2** (ohne Richtung). Faellt der
+   Knick bei 64 weg, ist 32 die richtige Zahl und spart 1,05 MiB.
+4. Bis diese beiden Messungen vorliegen gilt: **die 64 ist gesetzt, ihre
+   Begruendung ist es nicht.** Wer sie zitiert, zitiert diesen Absatz mit.
+
+---
+
+### IX-4 — AD-028 Punkt 4 nachgezogen, W3 neu gegruendet, W4 und W5 dazu
+
+**Punkt 4 verliert seinen ersten Fall.** Der Text nennt zwei Faelle, in denen
+der Generationszaehler im Picker gebraucht wird. Der erste — *„der offene
+Dialog rechnet beim Wechsel der Zielrichtung neu (`1169-1171`)"* — **entfaellt
+ersatzlos**: nach IX-0 und `UI_SPEC` AK-204/AK-206 ist der Wechsel keine Frage
+mehr, und `_sort_chosen` ruft `advice.ranking` nicht mehr auf. Der zweite —
+*„der Dialog kann geschlossen werden, waehrend eine Antwort unterwegs ist"* —
+**bleibt**, und ein dritter kommt hinzu:
+
+3. **Zwei Oeffnungen hintereinander an einer Spur.** Die Spur lebt am Fenster
+   (AD-028.5). Wird Slot A geoeffnet und geschlossen, bevor seine Antwort da
+   ist, und danach Slot B geoeffnet, dann trifft As Antwort ein, waehrend Bs
+   Dialog steht. Ohne Zaehler traegt Bs Raster As Zahlen — dieselben Karten,
+   plausible Werte, kein Fehler, den irgendjemand sieht.
+
+**Der Zaehler bleibt noetig; AD-028 Punkt 4 kippt nicht.** Was kippt, ist
+seine Begruendung zur Haelfte — und mit ihr die Vorrichtung von W3.
+
+**W3 neu.** Der alte Wortlaut stellt die zweite Frage durch einen **Wechsel
+der Zielrichtung**. Diesen Fall gibt es nicht mehr; ein Test, der ihn
+herstellen will, muss `advice.ranking` von Hand aufrufen und prueft dann eine
+Bedienung, die es nicht gibt — gruen, ohne etwas zu belegen (L-008b).
+**Neue Fassung:**
+
+> **W3 — die ueberholte Antwort erreicht nichts.** Zwei Fragen an **einer**
+> Picker-Spur, gestellt durch **zwei Oeffnungen zweier Slots**; die Antwort
+> der ersten wird **nach** der zweiten Frage zugestellt. Auf dem Bildschirm
+> steht die zweite, und die erste hat kein Widget angefasst.
+> *Toetende Mutation:* die Generationspruefung in `_on_ready` ausbauen → rot.
+> *Zweite Vorrichtung fuer denselben Waechter, weil sie den ueberlebenden Fall
+> abdeckt:* die Antwort trifft ein, **nachdem** der Dialog geschlossen wurde —
+> nichts wird angefasst, nichts wirft.
+
+**W4 — neu, haelt die Randbedingung aus IX-0.** `advisorbar.GOAL_ORDER` (was
+der Picker zeichnet) ist eine Teilmenge der Schluessel von
+`advisor.goals.GOALS` (was der Pool bewertet). Ein reiner Struktur-Test, ohne
+Fenster.
+*Toetende Mutation:* eine dritte Id in `GOAL_ORDER` eintragen, ohne sie in
+`GOALS` einzutragen → rot. **Ohne diesen Waechter ist die ganze
+Wiederverwendung aus IX-0 eine Annahme ueber zwei Dateien, die niemand
+zusammenhaelt.**
+*Bau-Konfiguration (L-004):* keine — ein reiner pytest-Test, den kein
+Buildsystem-Schalter aktiviert; das ist die Herleitung der Unnoetigkeit, nicht
+ihr Fehlen.
+
+**W5 — neu, haelt IX-1 Punkt 3.** Eine Spur, deren Cache die Antwort schon
+haelt: der Dialog baut sein Raster **genau einmal** und trug zu keinem
+Zeitpunkt `PENDING`. Gezaehlt wird der Bau des Rasters (Signalvorrat plus
+Zaehlbeleg nach L-002), **nicht** die Zeit — keine Wanduhr.
+*Toetende Mutation:* den Cache-Treffer wieder ueber den Zeitgeber und das
+Signal leiten → zwei Anstriche → rot.
+*Gegenprobe im selben Test:* dieselbe Spur ohne Cache-Eintrag baut das Raster
+**zweimal**. Ohne diese Gegenprobe waere auch ein Raster gruen, das nie neu
+gebaut wird.
+
+**Ein ueberlebender Gegenbau ist ein Befund** und wird berichtet, nicht
+stillschweigend nachgebessert (L-008c). Das gilt fuer W3 bis W5 wie fuer W1
+und W2.
+
+---
+
+### IX-5 — Vorwaermen: **Backlog-Vorschlag**, weder Ersatz fuer AD-028 noch Zusatz zu ihm
+
+Der `ui-ux-designer` haelt `candidates.pools()` beim Oeffnen des Build
+planners fuer „die eigentliche Loesung". **Entschieden: nein — aus vier
+Gruenden, von denen der erste die Frage selbst korrigiert.**
+
+1. **Das genannte Mittel rechnet etwas anderes.** `candidates.pools()` liefert
+   **einen Pool je freiem Slot** (`candidates.py:337-350`), und jeder davon
+   wird gegen einen Grundzustand gerechnet, in dem **die uebrigen freien Slots
+   leer sind** — `base_state_for` gibt fuer einen bereits freien Slot
+   `problem` unveraendert zurueck (`candidates.py:61-79`, Docstring woertlich:
+   *„For a slot that is already free this is `problem` unchanged, which is the
+   Optimize case"*). Die Picker-Frage ist die umgekehrte: **jeder Slot ausser
+   dem geoeffneten ist gehalten, mit seinem heutigen Inhalt** (AD-018.1,
+   `relicpicker.py:318-322`). In dieser Form ist `free_slots(problem)` **leer**
+   und `pools()` gaebe `()` zurueck. Vorwaermen fuer den Picker heisst also
+   **sechs einzelne `pool`-Aufrufe**, nicht einen `pools()`-Aufruf.
+2. **Der Preis ist damit die Summe, nicht der teuerste Slot:** gemessen
+   **610,7 ms** fuer alle sechs Slots (S11-C, Median n=25, Spanne
+   577,7–655,2 ms, `76f1887`, Ryzen 7 5800H bei 1102 von 3201 MHz) — gegen
+   einen Gewinn von hoechstens 318,1 ms **einmal**, denn der Spieler oeffnet
+   einen Slot, nicht sechs. Und dieser Vorrat verfaellt bei **jeder**
+   Aenderung an Build, Level, Waffe, Nightfarer oder Haltezustand; wie oft das
+   ist, steht in T-118: die Spur „Level-Schieber weit 15-5-15" zaehlt 126
+   Fragen ueber 66 verschiedene Zustaende.
+3. **Es waere eine dritte rechnende Spur, bevor die zweite gemessen ist.**
+   Unter dem GIL teilen sich rechnende Python-Threads einen Kern; `Optimize`
+   liegt gemessen bei 5023,6 ms gegen A6s 6-s-Schranke, also 19 % Luft, und
+   die Ueberlappung **zweier** Spuren ist bis heute nicht gemessen (OF-25).
+   Eine dritte hinzuzufuegen, bevor OF-25 beantwortet ist, ist Architektur auf
+   Vorrat gegen ein Budget, das schon knapp ist.
+4. **Ein warmer Vorrat verdraengt kalte Treffer.** Sechs vorgewaermte
+   Eintraege je Buildzustand laufen durch denselben LRU wie die Antworten auf
+   Fragen, die der Spieler wirklich gestellt hat. Der gemessene Nutzen des
+   Caches (30 % ueber Dialoggrenzen) haengt daran, dass alte **echte** Fragen
+   drinbleiben. Das ist kein Nebeneffekt, sondern eine Wechselwirkung mit
+   AD-028 Punkt 2 und mit IX-3.
+
+**Und es ist nicht noetig:** mit IX-1 antwortet der teuerste gemessene Slot in
+318,1 ms gegen A6s 500-ms-Median. Vorgewaermt wuerde ein Wert optimiert, der
+in seinem Budget liegt.
+
+**Als Backlog-Vorschlag aufgenommen, mit der Bedingung, unter der er wieder
+interessant wird** (fuer den `director`, von mir nicht eingeplant): *wenn U7
+den Hauptthread-Rest (OF-26) oder die Ueberlappung (OF-25) so misst, dass eine
+Slot-Frage im Median ueber 500 ms liegt.* Die dann billigere Form ist **nicht**
+`pools()`, sondern **ein** `pool`-Aufruf fuer den Slot, den der Spieler zuletzt
+offen hatte — ein Eintrag, 32 bis 318 ms, kein Verdraengen.
+
+---
+
+### Umsetzung — Fassung 2 von U5a bis U7 (ersetzt die entsprechenden Zeilen in Nachtrag VIII)
+
+**U1 bis U3 und U8 gelten unveraendert. U4 ist erledigt** (T-124,
+`UI_SPEC.md`, AK-197 bis AK-210).
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`; kanonische Form nach AD-028.3; sie nimmt ihr `rank_by` aus `request.goal_id`; **die benannte Konstante fuer die kanonische Zielrichtung (IX-2.1) entsteht hier**; `SlotPool`-Gleichheit vorher/nachher ueber Handles und Punktzahlen belegt | — |
+| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion; zweite Instanz am Fenster mit **Entprellung 0 ms** und Cache **64** (IX-1.1, IX-3); die zusaetzliche Methode „antworte sofort, falls bekannt" samt gemeinsamer privater Frageerzeugung (IX-1.3); `SlotAdvice` fragt die Spur; `_sort_chosen` fragt **nicht** mehr (IX-0); die Anzeige liest ihre Richtung aus der Einstellung, nicht aus `SlotPool.rank_by` (AK-205); Verteilung von `before_the_data_changes`/`shutdown` an **beide** Spuren; Docstring `relicpicker.py:276-281` ersetzt (er begruendet heute das Gegenteil **und** traegt die widerlegten ~51 ms — OF-27, dritte Fundstelle); direkte `advisor`-Importe aus `relicpicker` entfernt | U5a |
+| **U6** | `developer` | **W1, W2, W3 (neue Fassung IX-4), W4, W5** mit ihren toetenden Mutationen, alle im Standardlauf, keine Wanduhr-Schranke | U5b |
+| **U7** | `performance-tuner` | 318,1 ms nachmessen; **Groesse eines Picker-Cache-Eintrags in der neuen Antwortform gegen die 140-KiB-Schranke aus IX-3.2**; **Trefferquote der beiden tragenden Spuren unter dem Schluessel ohne Richtung (IX-3.3)**; Hauptthread-Rest (OF-26); Ueberlappung zweier Spuren (OF-25) | U5b |
+
+**U5b haengt jetzt nur noch an U5a**, weil U4 geliefert ist.
+
+**Was der `developer` ausdruecklich nicht tun soll** (zusaetzlich zur Liste in
+Nachtrag VIII):
+
+- **Die Entprellung nicht auf der Klasse aendern.** Die 0 ms gehoeren der
+  Instanz; die Advisor bar behaelt 250 ms.
+- **Den Cache nicht generell vor den Zeitgeber ziehen** (Option D in IX-1) —
+  das aendert die Advisor bar mit.
+- **`UI_SPEC` §4s Rueckweg nicht stillschweigend bauen.** Stellt sich beim
+  Bauen heraus, dass ein Pool die andere Richtung doch nicht bedient, ist das
+  ein **Befund** (L-008c): melden; dann bekommt der Richtungswechsel seinen
+  Wartezustand **und** die 100-ms-Entprellung kommt zurueck (IX-1.2).
+- **Nicht vorwaermen** (IX-5), auch nicht „nur den einen Slot".
+- **`AdvisorResult` nicht um den Pool erweitern**, um beide Spuren dieselbe
+  Antwortform tragen zu lassen — das machte jeden Gesamtlauf-Eintrag um die
+  Kandidatenliste schwerer, gegen 279,9 KiB, die schon der teure Fall sind.
+
+---
+
+### Risiken und Pruefpunkte, neu (zu den Zeilen aus Nachtrag VIII)
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Ein Picker-Cache-Eintrag ist viel groesser als die 33,4 KiB, auf denen die 64 steht | U7 misst ihn gegen die 140-KiB-Schranke (IX-3.2) | zurueck auf 32; die Groessenfrage kommt zum `architect` |
+| Der `developer` baut nur einen der beiden Antwortwege (Rueckgabewert **oder** Signal) | W5 samt Gegenprobe | — |
+| `GOAL_ORDER` und `GOALS` laufen auseinander, und die Wiederverwendung des Pools faellt still | W4 | — |
+| Die Anzeige liest ihre Richtung weiter aus `SlotPool.rank_by` | mit IX-2 **immer** falsch statt manchmal; AK-205 und sein Gegenbau | — |
+| Die 0 ms verstopfen die Spur, weil doch zwei Fragen kurz hintereinander kommen | am laufenden Fenster: zwei Oeffnungen in Folge; „ein Lauf zur Zeit" haelt ohnehin (`worker.py:285-286`, `307-321`) | die 100 ms zurueck (IX-1.2) |
+
+---
+
+### Bewusst nicht getan, neu (zu Nachtrag VIII)
+
+- **Kein Vorwaermen der Slot-Pools** (IX-5). Grund und Wiederkehrbedingung
+  stehen dort; das Mittel waere dann nicht `pools()`.
+- **Kein Cache-Blick vor dem Zeitgeber fuer beide Spuren** (IX-1 Option D).
+  *Wieder interessant, wenn:* die Advisor bar ihren Wartezustand so umbaut,
+  dass ein sofort gezeichneter Treffer nicht mehr flackern kann.
+- **Die 100-ms-Entprellung wird nicht geloescht, nur auf 0 gesetzt** (IX-1.2).
+  Sie ist die richtige Zahl fuer den Fall, den `UI_SPEC` §4 als Rueckweg
+  vorsieht.
+- **Kein Feld `slot_index` in `AdvisorRequest`** — AD-028.3 haelt; nur das Feld
+  `goal_id` wird fuer die Picker-Spur kanonisch belegt (IX-2).
+
+---
+
+### Offene Fragen, neu
+
+**OF-28 — an den `director`, auszufuehren vom `performance-tuner` (U7):** Die
+Groesse eines Picker-Cache-Eintrags ist **in der Antwortform, die AD-028 der
+Picker-Spur gibt, nie gemessen worden**; die 33,4 KiB, auf denen die 64 steht,
+gelten fuer eine `AdvisorResult` mit 20 Suggestions. Schranke und Rueckweg
+stehen in IX-3.2. **Solange diese Messung fehlt, ist die 64 eine gesetzte Zahl
+ohne gueltige Herleitung** — sie steht, aber sie belegt nichts.
+
+**OF-29 — an den `director`:** Nach IX-2 traegt die Picker-Anfrage in
+`goal_id` eine Ordnungskonstante und nicht die Wahl des Spielers. Das ist die
+zweite Stelle in diesem Vorhaben, an der ein Feldname mehr verspricht, als das
+Feld haelt (die erste war `SlotPool.rank_by`, D-4/T-077). Die allgemeinere
+Frage, die schon OF-27 stellt, wird damit dringender: **ob ein Feld, das nur
+unter einer Randbedingung bedeutet, was sein Name sagt, diese Bedingung im Typ
+tragen muss** statt im Docstring daneben. Entscheidung des `director`, ob das
+als Regel aufgeschrieben wird; ein Umbau der Datenformen ist es nicht.
+
+**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
+mir nicht): **AK ab AK-211** (bereits von T-124 gemeldet, Zeile 11 steht noch
+auf AK-195) und **OF ab OF-30**. AD bleibt bei **AD-030** — dieser Nachtrag
+vergibt **keine** neue AD-Nummer, er schreibt AD-028 fort.

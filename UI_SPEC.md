@@ -824,7 +824,32 @@ Traegt die gewaehlte Zielrichtung fuer diesen Nightfarer keine Zahlen:
 - Die Ordnung faellt auf `Name` zurueck; die `Sort by`-Auswahl bleibt sichtbar
   auf der gewaehlten Zielrichtung stehen, damit die Aussage nicht wandert.
 
-#### 3.8 Warten
+#### 3.8 Warten *(ueberholt am 08.09.2026 — ersetzt durch „Der Picker oeffnet vor seinen Zahlen" am Ende dieser Datei, T-124)*
+
+> **Korrektur vom 08.09.2026 (T-124, aus AD-028), ersetzt den Absatz
+> darunter — der Absatz bleibt stehen, damit sichtbar bleibt, dass hier
+> einmal anders entschieden wurde und woran.**
+>
+> **Die `~51 ms` waren nie gemessen.** AD-018 hat sie aus „205 Kandidaten mal
+> 0,25 ms je Bewertung" **gerechnet**; die 0,25 ms stammten aus einer
+> Bewertung vom 01.09.2026 ohne protokollierte Umgebung. **Gemessen sind
+> 318,1 ms** (Median, n=25, Spanne 289,6–358,9; `docs/perf/baselines.md`
+> S11-C, Slot 2 weiss, 206 Kandidaten; Ryzen 7 5800H bei 1102 von 3201 MHz
+> unter `Legion Quiet Mode`, CPython 3.12.10, Commit `76f1887`) — Faktor 6,3,
+> und **oberhalb** der 250-ms-Schwelle, unter der dieser Absatz seine ganze
+> Begruendung hatte.
+>
+> **Was faellt:** der Schluss „unter der Schwelle, also nichts zu zeigen".
+> **Was bleibt:** kein Fortschrittsbalken und kein Wartecursor — aber aus
+> einem anderen Grund, und nicht mehr „kein Aufblitzen, also gar nichts".
+> **Was dazukommt:** der Dialog oeffnet jetzt **vor** seinen Zahlen (AD-028),
+> also gibt es einen Zustand, den es vorher nicht gab. Der Generationszaehler
+> aus AD-006.3, den dieser Absatz fuer gegenstandslos hielt, gilt jetzt auch
+> hier.
+>
+> Verbindlich ist der Abschnitt **„Der Picker oeffnet vor seinen Zahlen
+> (ui-ux-designer, T-124) — 2026-09-08"** am Ende dieser Datei, AK-197 bis
+> AK-210.
 
 AD-018 misst den teuersten Picker-Lauf mit ~51 ms, also unter der
 250-ms-Schwelle aus AK-09. Deshalb: **kein Fortschrittsbalken, kein
@@ -5855,3 +5880,542 @@ auf dem gemessen wurde, mit dem vorgegebenen Inhalt erreichbar ist. Drei waren
 eine Zusicherung ohne Messung. Wer sie zurueckhaben will, muss Inhalt ueber
 dem Raster streichen — das ist eine Frage an den App Designer, keine an die
 Umsetzung.
+
+---
+
+## Der Picker oeffnet vor seinen Zahlen (ui-ux-designer, T-124) — 2026-09-08
+
+**Ersetzt §3.8 des T-024-Abschnitts.** Der alte Absatz bleibt an seinem Platz
+stehen, mit einem Korrekturkasten davor; hier steht, was gilt.
+
+### 0. Grundlage, Methode, und was davon **gesehen** ist
+
+**Gelesen:** `docs/tasks/T-124.md` · `ARCHITECTURE.md` (Nachtrag VIII ganz —
+AD-028, AD-029, U1–U8, Risiken, OF-25 bis OF-27; dazu AD-018 mit dem
+nachgezogenen Punkt 4 und der korrigierten Laufzeittabelle, AD-006) ·
+`docs/berichte/T-122-architect.md` · `UI_SPEC.md` §3.2 bis §3.8, AK-08 bis
+AK-13, AK-41 bis AK-53, AK-165/166, AK-195/AK-196 · `CLAUDE.md` · `GOAL.md`
+A6/A7/A8/A12 in der Fassung, die der Auftrag woertlich zitiert.
+
+**Am Quellstand gelesen** (lesend, nichts veraendert, nichts gestartet):
+`nrplanner/relicpicker.py`, `nrplanner/advisorbar.py`,
+`nrplanner/advisor/candidates.py`, `nrplanner/advisor/types.py`.
+
+**Nicht gesehen:** kein laufendes Fenster, kein Bildnachweis, keine eigene
+Messung. Der Auftrag sagt „du entwirfst, du misst nicht"; jede Zahl unten ist
+zitiert, mit Fundstelle. Aussagen, die nur aus dem Quelltext stammen, sind als
+**(Quelltext)** gekennzeichnet — sie sind pruefbar, aber nicht am laufenden
+Programm bestaetigt.
+
+**Nummernkreis, korrigiert.** Der Auftrag nennt **AK-195** als freien Kreis;
+`docs/state.md` Zeile 11 ebenfalls. **Beide sind ueberholt:** AK-195 und
+AK-196 sind am 07.09.2026 in der „Director-Korrektur zum Relic Picker"
+vergeben, AK-195 ist in `ea3d016` gebaut und wird von fuenf Testfaellen in
+`tests/test_relic_picker_advisor.py` gehalten. Diese Vorgabe beginnt deshalb
+bei **AK-197**. `docs/state.md` gehoert nicht mir und ist nicht angefasst; die
+Korrektur steht im Bericht.
+
+### 1. Was faellt, was gilt — beide Zahlen
+
+| | Zahl | Herkunft |
+|---|---|---|
+| **alt, widerlegt** | **~51 ms** fuer den teuersten Picker-Lauf | **gerechnet**, nicht gemessen: 205 Kandidaten x 0,25 ms je Bewertung; die 0,25 ms aus einer Bewertung vom 01.09.2026 **ohne protokollierte Umgebung** (AD-028) |
+| **neu, gemessen** | **318,1 ms** (Median, n=25, Spanne 289,6–358,9) | `docs/perf/baselines.md` S11-C — Slot 2 weiss, 206 Kandidaten, Ryzen 7 5800H bei 1102 von 3201 MHz unter `Legion Quiet Mode`, CPython 3.12.10, `76f1887` (L-009) |
+
+Faktor **6,3**. Die alte Zahl lag unter der 250-ms-Schwelle und begruendete
+damit, dass der Picker **keinen** Wartezustand zeigt; die gemessene liegt
+darueber. Dieselbe gerechnete Zahl stand in drei Dateien
+(`ARCHITECTURE.md`, `UI_SPEC` §3.8, `relicpicker.py:276-281`) und keine der
+drei sagte, dass sie gerechnet war (OF-27). Die ersten beiden sind
+richtiggestellt, die dritte ist Sache des `developer` in U5b.
+
+**Die alte Zahl wird nicht geloescht.** Wer sie nur entfernt, laesst den
+naechsten Leser glauben, es habe hier nie eine Entscheidung gegeben — und
+genau so ist der Fehler drei Dateien weit gewandert.
+
+**Bandbreite, die mitentscheidet** (S11-C, ueber die Slots): der billigste
+Slot kostet **32–82 ms**, der teuerste **318,1 ms**; ein Treffer im
+Ergebnis-Cache (LRU 64 nach AD-028.1, gemessen 30 % ueber Dialoggrenzen
+hinweg) kostet **nichts**. Ein Entwurf, der nur den teuersten Fall bedient,
+laesst im billigsten etwas aufblitzen. Deshalb ist unten **kein Element**
+vorgesehen, das erscheint und wieder verschwindet.
+
+### 2. §3.8 neu — Warten im Picker
+
+> **Der Dialog oeffnet sofort und ohne Zahlen.** Die Rechnung laeuft in der
+> Picker-Spur des Beraters (AD-028); der Dialog wartet nicht auf sie, bevor
+> er sich zeigt. Es gibt **genau zwei Anstriche** je Oeffnung: den ohne
+> Antwort und den mit ihr. Alles, was an der Antwort haengt — Zahlen, Chips,
+> Ordnung, Laufbefunde — wechselt in **einem** davon, nie in zweien
+> nacheinander.
+>
+> **Kein Fortschrittsbalken, kein Wartecursor, kein zweiter Dialog, kein
+> deaktiviertes Bedienelement.** Ein 6-px-Balken, der nach einem Drittel
+> einer Sekunde wieder verschwindet, ist genau das Aufblitzen, das AK-09
+> verbietet; und der Picker hat etwas Besseres als einen Balken: **29
+> Platzhalter, die an der Stelle stehen, an der die fehlende Information
+> landen wird.** Ein Balken sagt „es passiert etwas", die Platzhalter sagen
+> „hier, und hier, und hier".
+>
+> **Der Wartezustand besteht aus genau zwei Dingen**, beide vom ersten
+> Anstrich an da, beide ohne eigenes Widget:
+> 1. In beiden Wertzeilen jeder Karte steht `…` statt einer Zahl (§3.3, im
+>    Code `PENDING`). Der Block ist ohnehin gebaut, die Kartenhoehe aendert
+>    sich nicht (AK-41).
+> 2. In der Zusammenfassungszeile (§3.2, Zeile 3) steht **statt** des
+>    Bezugsgroessen-Satzes der Wartesatz aus §6 unten. Es kommt keine Zeile
+>    dazu und es faellt keine weg — **ein Nebensatz wechselt seinen
+>    Wortlaut**.
+>
+> **Es gibt keine Zeitschwelle und keinen Verzoegerungstimer.** Der
+> Wartezustand wird betreten, wenn beim Bau des Rasters keine Antwort
+> vorliegt, und verlassen, wenn sie vorliegt — sonst nichts. Das ist
+> moeglich, **weil nichts erscheint und nichts verschwindet**: ein Glyph wird
+> zur Zahl, ein Nebensatz zu einem anderen. Damit gibt es auch bei 32 ms
+> nichts, was blitzen koennte, und die Vorgabe ist ohne Wanduhr pruefbar
+> (Vorgabe 7 des Auftrags).
+>
+> **Liegt die Antwort schon beim Bau des Rasters vor** (Cache-Treffer), wird
+> der Wartezustand **nicht** betreten: dann gibt es einen einzigen Anstrich,
+> wie heute.
+>
+> **Was der Wartezustand nicht behauptet:** kein `BEST FOR …`-Chip, keine
+> vorgezogene Karte (AK-195), kein Satz `Nothing you own raises … in this
+> slot.` und kein Satz `The game's data carries no figures …`. Alle vier sind
+> Aussagen ueber ein Maximum oder ueber die Spieldateien; ohne Antwort gibt
+> es weder das eine noch das andere (A7).
+>
+> **Der Dialog bleibt modal** (Bestand, AD-028 unberuehrt). Diese Vorgabe
+> ruehrt nicht daran. Daraus folgt eine Vereinfachung, die tragend ist: der
+> Grundzustand kann sich waehrend einer Oeffnung **nicht** aendern — der
+> Spieler kommt an Nightfarer, Vessel, Level und die uebrigen Slots nicht
+> heran. Deshalb genuegt **eine** Frage je Oeffnung (§4).
+>
+> **Kein `Cancel`.** AK-10 verlangt fuer die Advisor bar, dass `Optimize`
+> waehrend des Laufs `Cancel` traegt. Der Picker bekommt kein Gegenstueck:
+> Abbrechen heisst hier den Dialog schliessen, und das geht seit jeher mit
+> Esc. Ein `Cancel`, das den Dialog stehen laesst, hinterliesse einen Picker,
+> der nie Zahlen zeigen kann — ein totes Ende mit einem Knopf davor.
+>
+> **Der Generationszaehler aus AD-006.3 gilt jetzt auch hier** (AD-028.4).
+> Eine Antwort, die nach dem Schliessen eintrifft, fasst kein Widget an. Der
+> Fall, den der alte Absatz fuer unmoeglich hielt, ist der Normalfall
+> geworden.
+
+**AK-09 und AK-10 gelten weiter — fuer die Advisor bar.** Sie sind im
+T-004-Abschnitt fuer **einen** Statusstreifen mit **einer** Statuszeile und
+**einem** Knopf geschrieben; der Picker hat 29 bis 55 Karten mit je zwei
+Wertzeilen und keinen Knopf. AK-197 bis AK-202 sind das Gegenstueck fuer den
+Picker und **verdraengen AK-09/AK-10 dort**, nicht anderswo. Der Zweck von
+AK-10 — ueber 250 ms wird das Warten gezeigt — ist erfuellt, nur mit anderen
+Mitteln als einem Balken.
+
+### 3. Ordnung, Kopfzeile, Chips — die eigentliche Frage
+
+Das ist der Punkt, den AD-028 (b) ausdruecklich offen gelassen hat: heute
+entstehen Ordnung, Kopfzeile und Chips beim Bauen des Rasters aus der
+Rangfolge; liegt die Rangfolge erst 320 ms spaeter vor, muss etwas geschehen.
+
+**Entschieden: die Karten stehen sofort da, in der beraterfreien Ordnung, und
+das Raster ordnet sich genau einmal um, wenn die Antwort kommt.**
+
+#### 3.1 Warum nicht die Alternative
+
+Die naheliegende Gegenoption — **das Raster bleibt leer, bis die Antwort da
+ist** — bewegt nichts und ist trotzdem verworfen:
+
+- **Die Karten haengen am Berater nicht.** Welche Relikte in diesen Slot
+  passen, ihre Namen, Effekte, Fluche, Favoriten und Symbole stehen ohne jede
+  Beraterrechnung fest (Quelltext: `slot.available_items()` fragt den
+  Bestand, nicht den Berater). Bekanntes zurueckzuhalten, um eine unbekannte
+  Ordnung zu schuetzen, ist die falsche Richtung — und sie steht gegen die
+  Hausregel dieses Programms, zu zeigen was man weiss und zu sagen was man
+  nicht weiss (A7).
+- **Der haeufigste Weg braucht die Zahlen gar nicht.** Wer ein bestimmtes
+  Relikt sucht, tippt in das Filterfeld und liest Namen. Fuer ihn waere ein
+  leeres Raster ein Drittel einer Sekunde reiner Verlust.
+- **Die Dialoggroesse haengt an den Karten** (Quelltext: `_fit_to_three_rows`
+  misst die Karten und vergroessert den Dialog **einmal**). Ein leeres Raster
+  beim ersten Anstrich hiesse, dass der Dialog seine Groesse erst bei der
+  Antwort findet — ein Fenster, das sich 320 ms nach dem Oeffnen selbst
+  vergroessert, ist eine groessere Bewegung als jede Umsortierung darin.
+
+Die dritte Gegenoption — **die Namensordnung bleibt die ganze Oeffnung ueber
+stehen, es wird nie umsortiert** — ist verworfen, weil sie AK-195 auf der
+wichtigsten Oeffnung ausser Kraft setzt. Der App Designer hat woertlich
+verlangt, den Spitzenreiter beider Richtungen zuerst zu sehen; eine Ordnung,
+die diese Zusage nur ab der zweiten Sortieraenderung einloest, bricht sie.
+
+#### 3.2 Was beim ersten Anstrich steht
+
+- **Ordnung:** Favoriten zuerst, dann Name — genau die Ordnung, die
+  `Sort by` = `Name` ergibt und die das Raster ohne Berater ohnehin haette
+  (§3.4). Sie ist keine zweite Rangfolge und behauptet keine; sie ist die
+  Ordnung, die dieser Bildschirm hat, wenn niemand rechnet.
+- **`Sort by`** steht unveraendert auf der gewaehlten Zielrichtung. Es wird
+  nicht auf `Name` umgestellt — die Einstellung gilt programmweit (AK-43),
+  und sie im Picker still umzulegen waere eine Aenderung an der Advisor bar,
+  die der Spieler nicht vorgenommen hat.
+- **Dass die Ordnung noch nicht die sortierte ist, sagt der Wartesatz** in
+  Zeile 3. Das ist der Grund, warum dieser Satz mehr traegt als „es rechnet":
+  er ist die Stelle, an der die Zusammenfassungszeile sonst **behauptet**,
+  gegen den Build gerankt zu haben (`ranked against your build with Slot 3
+  empty`). Diese Behauptung darf nicht dastehen, solange nichts gerankt ist
+  (A7, A12).
+- **Kein Chip, keine Vorziehung, keine Kopfzeile.**
+- **Die beiden Textzeilen ueber dem Raster stehen vollstaendig** — die
+  Pflichtzeile aus AD-018.3 und die `scope`-Saetze der Zielrichtung. Beide
+  brauchen keine Rechnung: die erste ist eine Konstante, die zweite kommt aus
+  der Registry (Quelltext: `advisor_goals.GOALS[goal_id].scope`). **Heute
+  werden beide ausgeblendet, solange keine Rangfolge vorliegt** (Quelltext:
+  `_say_what_was_left_out` versteckt `findings` **und** `caveats`, wenn
+  `ranking is None`). Bliebe das so, verschwaende der Attack-Rating-Vorbehalt
+  fuer 320 ms und erschiene dann — das ist ein Bruch von AK-50 waehrend des
+  Wartens und, schlimmer, ein Hoehensprung ueber dem Raster, der das ganze
+  Raster nach unten schiebt. **Das ist die groessere Bewegung, nicht die
+  Umsortierung.** Beide Zeilen stehen vom ersten Anstrich an.
+
+#### 3.3 Was beim zweiten Anstrich geschieht
+
+In **einem** Anstrich, gemeinsam: die Zahlen ersetzen die `…`, die Chips
+erscheinen, das Raster nimmt seine sortierte Ordnung samt AK-195-Vorziehung
+an, die Kopfzeile erscheint falls AK-46 sie verlangt, und die Laufbefunde
+(Zeile 3b) erscheinen, falls es welche gibt.
+
+Was dabei **nicht** geschieht:
+
+- **Der Bildlauf wandert nicht.** Der sichtbare Ausschnitt bleibt an
+  derselben Stelle. Wer beim Oeffnen nichts getan hat, steht oben und sieht
+  genau die vorgezogenen Spitzenreiter, um die es AK-195 geht; wer bereits
+  gescrollt hat, wird nicht dorthin zurueckgerissen.
+- **Der Tastaturfokus wandert nicht.** Er bleibt auf demselben Bedienelement;
+  liegt er auf einer Reliktkarte, liegt er danach auf der Karte **desselben
+  Relikts**, auch wenn sie inzwischen woanders steht. Das Raster wird
+  vollstaendig neu gebaut (Quelltext), also muss der Fokus ausdruecklich
+  wiederhergestellt werden — sonst faellt er beim Warten auf den Dialog
+  zurueck und AK-52 gilt nur bis zur 320. Millisekunde.
+- **Der Dialog aendert seine Aussenmasse nicht.**
+- **Die Kartenhoehe aendert sich nicht** (AK-41, Bestand).
+
+#### 3.4 Die eine Bewegung, die bleibt — und ihre Grenze
+
+Zwei Dinge bewegen sich, und beide sind gewollt:
+
+1. **Die Karten nehmen ihre Ordnung ein.** Das ist die Antwort selbst; ohne
+   sie gaebe es keine Rangfolge. Angekuendigt ist sie durch den Wartesatz.
+2. **Die Laufbefund-Zeile (3b) erscheint, falls es Befunde gibt**, und
+   schiebt die Oberkante des Rasters nach unten. Sie ist die **einzige**
+   Anzeige ueber dem Raster, die ohne Antwort nicht existieren kann
+   (Quelltext: sie kommt aus `pool.unknowns` und `baseline.unknowns`).
+
+**Auflage zu Punkt 2, weil der Dialog sich nur einmal misst:** Der
+`developer` misst am gebauten Stand, um wie viele Pixel die Oberkante des
+Rasters wandert, wenn die Befundzeile im schlechtesten realen Fall erscheint
+(Bestand des Nutzers, Standardmass des Pickers), und nennt die Zahl **mit
+Umgebung** (L-009) im Bericht. Bleibt danach weniger als zwei vollstaendige
+Kartenzeilen sichtbar, ist **AK-196 verletzt** und die Loesung ist nicht der
+Wortlaut, sondern der Platz der Zeile — dann kommt die Frage zu mir zurueck.
+Geschaetzt wird hier nichts.
+
+### 4. Der Zielrichtungswechsel im offenen Dialog
+
+AD-028 fuehrt `relicpicker.py:1169-1171` als **zweiten** Fall, der 318 ms
+kostet: der offene Dialog rechnet neu, wenn der Spieler `Sort by` umstellt.
+Der Auftrag fragt, ob dieser Fall denselben Wartezustand bekommt.
+
+**Antwort: er bekommt gar keinen — weil er nichts zu rechnen hat.**
+
+**Belegt am Quelltext, nicht vermutet:**
+
+| Beleg | Fundstelle |
+|---|---|
+| „Every goal in `goals` is scored for every candidate, whichever one `rank_by` names." | `advisor/candidates.py:254-259`, Docstring von `pool` |
+| Jeder Kandidat traegt `marginals` fuer **jedes** Ziel, gebaut in einer Schleife ueber `goals.items()` | `advisor/candidates.py:316-320` |
+| `baseline` traegt je Ziel Wert, Einheit, `unknowns` und `weights_note` — beide Richtungen | `advisor/candidates.py:328-330` |
+| `candidates` ist die **vollstaendige** Liste `measured`, nicht gekuerzt | `advisor/candidates.py:331` |
+| Die Anzeige liest ohnehin ueber Handles nach und sortiert selbst um | `relicpicker.py` `Ranking.gain`, `_in_the_chosen_order` |
+| Der Grundzustand haengt am Slot, nicht an der Richtung | `candidates.base_state_for(problem, slot_index)` |
+
+Ein Pool, der fuer `max_damage` gerechnet wurde, traegt also **alles**, was
+die Anzeige fuer `min_damage_taken` braucht. Richtungsabhaengig sind nur die
+Ordnung, die Chips, die Kopfzeile und die `scope`-Saetze — und die drei
+ersten rechnet die Anzeige selbst, den vierten liest sie aus der Registry.
+Weil der Dialog modal ist, kann sich der Grundzustand waehrend einer Oeffnung
+ausserdem nicht aendern.
+
+**Daraus die Vorgabe:** eine Oeffnung des Pickers stellt **eine** Frage. Ein
+Wechsel der Zielrichtung im offenen Dialog stellt **keine zweite**; er ordnet
+um, setzt die Chips neu und tauscht die `scope`-Saetze — sofort, in einem
+Anstrich, **ohne** `…` und ohne Wartesatz. Auch der Filter, der Bildlauf und
+die Favoritenvergabe stellen keine Frage.
+
+**Die Falle dabei, ausdruecklich benannt:** `SlotPool.rank_by` sagt, in
+welcher Richtung der Pool **sortiert wurde** — nicht, in welcher der Spieler
+gerade liest. Heute liest die Anzeige ihre Richtung aus genau diesem Feld
+(Quelltext: `Ranking.goal_id` gibt `pool.rank_by` zurueck). Wird ein Pool
+weiterverwendet, muss die Richtung aus der **einen** Zieleinstellung des
+Programms kommen (AK-43), nicht aus dem Feld. Sonst zeigt der Picker still
+die alte Richtung an — genau der Fehler, gegen den D-4 dieses Feld
+eingefuehrt hat, und der in T-077 unbemerkt 10,2 % eines Angriffswerts
+gekostet hat.
+
+**Wechselt der Spieler die Richtung, waehrend die Antwort noch unterwegs
+ist**, wird **nicht** neu gefragt und der Wartezustand **nicht** neu
+begonnen. Es ist dieselbe eine Antwort; sie wird gezeichnet in der Richtung,
+die in dem Moment gewaehlt ist, in dem sie eintrifft.
+
+**`Sort by` = `Name` waehrend des Wartens:** die Ordnung ist damit schon die
+endgueltige, also ordnet der zweite Anstrich nichts um — die Zahlen kommen
+nur in die Spalten. Der Wartezustand bleibt bis dahin bestehen, denn die
+Zahlen fehlen weiterhin.
+
+**Rueckweg, falls die Belege oben nicht tragen.** Stellt der `developer` in
+U5b fest, dass ein Pool die andere Richtung doch nicht vollstaendig bedient
+(etwa weil `goals` beim Bau nicht beide Richtungen enthielt), dann — und nur
+dann — bekommt der Zielrichtungswechsel **denselben** Wartezustand wie das
+Oeffnen, mit denselben Regeln aus §2 und §3.3, mit einem Unterschied: die
+bereits stehende Ordnung bleibt waehrend des Wartens stehen, sie faellt nicht
+auf Namensordnung zurueck. Das ist **ein Befund und wird berichtet**, nicht
+stillschweigend gebaut (L-008c).
+
+### 5. Was in der Zahlenspalte steht — drei Zeichen, drei Aussagen
+
+Der Auftrag fragt, ob das `…` aus §3.3 noch traegt, seit die Wartezeit benannt
+ist. **Es traegt** — unter einer Bedingung: die drei Zustaende duerfen sich
+nie vermischen.
+
+| steht da | heisst | wann |
+|---|---|---|
+| `…` | **noch nicht gemessen** — die Frage laeuft | Wartezustand, beide Wertzeilen jeder Karte |
+| `—` | **nichts gemessen** — es gibt keine Zahl zu dieser Richtung, und es wird auch keine kommen | AK-49 (§3.7) und der Fehlerfall aus §6 |
+| `no change` | **gemessen, und es kam nichts dabei heraus** | AK-42 (Bestand) |
+
+- **`…` und nicht ein Wort.** Ein `working…` in der rechtsbuendigen,
+  fettgesetzten Wertspalte einer 190 px breiten Karte (`CARD_WIDTH`,
+  logische Pixel, Quelltext) waere breiter als jede
+  Zahl, die dort je stehen wird, und wuerde die Spalte beim Eintreffen der
+  Zahlen schmaler machen — eine Bewegung in 29 Karten gleichzeitig. Die Worte
+  gehoeren in die Zusammenfassungszeile, wo Platz fuer sie ist und wo sie
+  einmal statt 58-mal stehen.
+- **A12 ist erfuellt, aber nicht vom Zeichen.** `…` nennt weder Einheit noch
+  Geltungsbereich — es ist auch keine Zahl. Einheit und Geltungsbereich
+  stehen in derselben Zeile, in der sie auch fuer die fertige Zahl stehen:
+  die Beschriftung links (`Damage`, `Damage taken`) und der Bezugssatz in
+  Zeile 3. Der Wartesatz aus §6 nennt den Slot ausdruecklich mit, damit der
+  Geltungsbereich waehrend des Wartens nicht ausfaellt.
+- **A7 ist erfuellt, weil der Platzhalter nichts behauptet.** Das war die
+  Sorge des Auftrags („kein Platzhalter, der wie eine Aussage aussieht"). Ein
+  `0`, ein `+0.0` oder ein leeres Feld waere eine; drei Punkte sind es nicht.
+- **Der Name `PENDING` ist ein Codename, kein Anzeigetext.** Der `architect`
+  hat ihn in W2 als Platzhalter benutzt und die Entscheidung mir ueberlassen:
+  **die Konstante heisst weiter `PENDING`, der Text bleibt `…`.** W2 ist an
+  der Konstante zu schreiben, nicht am Wort.
+
+### 6. Der Wortlaut — vollstaendig, Englisch (A8)
+
+Woertlich, damit nichts erfunden werden muss. Jeder dieser Texte ist
+`Qt.PlainText`; jeder interpolierte Wert aus Save- oder Spieldateien laeuft
+vorher durch `html.escape()` (AK-53 gilt unveraendert).
+
+**(a) Zeile 3 waehrend des Wartens** — ersetzt **nur** den mittleren
+Nebensatz, die Zeile behaelt Zaehlung, Favoritenhinweis und Rechtsklick-Satz:
+
+```
+29 of 29 relics  ·  working out what each is worth with Slot 3 empty  ·  right-click a relic to favourite it
+```
+
+Der wechselnde Nebensatz, isoliert:
+
+| Zustand | Nebensatz |
+|---|---|
+| Warten | `working out what each is worth with <slot> empty` |
+| Antwort da (Bestand, unveraendert) | `ranked against your build with <slot> empty` |
+
+`<slot>` ist `slot.slot_name()`, dieselbe Quelle wie heute. Die beiden
+Fassungen sind absichtlich gleich gebaut und fast gleich lang (mit
+`Slot 3` eingesetzt: 48 gegen 43 Zeichen), damit die Zeile beim Wechsel nicht
+umbricht.
+
+**(b) Wertspalte waehrend des Wartens:** `…` — die Konstante `PENDING`,
+unveraendert.
+
+**(c) Kopfzeile waehrend des Wartens:** leer, keine.
+
+**(d) Der Fehlerfall — die Frage ist gestellt worden und fehlgeschlagen.**
+Den gibt es erst, seit die Rechnung in einer Spur laeuft (AD-028; heute kann
+ein direkter Aufruf nur durchschlagen). Er darf **nicht** mit AK-49 verwechselt
+werden — der Satz dort behauptet etwas ueber die **Spieldateien**, und das
+waere bei einem Fehlschlag der Spur falsch (A7). Kopfzeile, woertlich:
+
+```
+Could not work out what these are worth — <reason>. They are in name order below.
+```
+
+`<reason>` ist der Grund, den die Spur meldet, escaped. Die Karten zeigen dann
+`—` in beiden Wertzeilen, kein Chip, Namensordnung — dieselbe Darstellung wie
+AK-49, aber mit dieser Kopfzeile statt jener. Der Satz folgt dem Hausmuster
+der Advisor bar (`Could not work that out — {reason}.`).
+
+**(e) Unveraendert und hier nur zur Vollstaendigkeit**, weil sie im
+Wartezustand **nicht** erscheinen duerfen:
+
+```
+Nothing you own raises damage in this slot.
+Nothing you own raises survival in this slot.
+The game's data carries no figures this goal can be ranked on, so these relics are in name order.
+```
+
+### 7. Token
+
+**Kein neuer Farbwert, keine neue Schriftgroesse, kein neues Widget.** Der
+Wartesatz steht in derselben Zusammenfassungszeile wie heute (`MUTED`, 11 px);
+`…` steht in derselben Wertzeile wie die Zahl, die es ersetzt (fett, 12 px).
+Die Kopfzeile des Fehlerfalls benutzt das vorhandene `headline`-Label.
+
+Das ist die Begruendung, aus der der ganze Entwurf haengt: **weil kein Element
+dazukommt und keines verschwindet, braucht es keine Zeitschwelle** — und ohne
+Zeitschwelle ist die Vorgabe ohne Wanduhr pruefbar.
+
+### 8. Akzeptanzkriterien (ab AK-197)
+
+Pruefbar, binaer, an **Zustaenden** festgemacht und nicht an Millisekunden
+(Vorgabe 7 des Auftrags). „Eine Spur, die nie antwortet" und „eine Spur, die
+sofort antwortet" sind die beiden Vorrichtungen, mit denen fast alles davon
+zu stellen ist.
+
+- **AK-197** *(zwei Anstriche, nicht drei.)* Je Oeffnung des Pickers gibt es
+  hoechstens zwei Zustaende der Anzeige: ohne Antwort und mit ihr. Alles, was
+  an der Antwort haengt — die Zahlen beider Wertzeilen, die `BEST FOR …`-Chips,
+  die Kartenordnung samt AK-195-Vorziehung, die Kopfzeile und die
+  Laufbefundzeile — wechselt gemeinsam. Es gibt keinen Zwischenzustand, in
+  dem eine Karte eine Zahl traegt und eine andere `…`, oder in dem die
+  Ordnung sortiert ist und die Zahlen fehlen.
+  *Toetende Mutation:* Zahlen und Ordnung in zwei Schritten setzen.
+- **AK-198** *(der erste Anstrich behauptet nichts.)* Wird der Picker mit
+  einer Spur geoeffnet, die nie antwortet, so gilt dauerhaft: beide
+  Wertzeilen **jeder** Karte tragen `…`; **keine** Karte traegt einen
+  `BEST FOR …`-Chip; **keine** Karte ist vorgezogen; die Kopfzeile ist leer;
+  und der Dialog steht bedienbar (Filter, `Sort by`, Bildlauf, Auswahl einer
+  Karte). Dies ist der Waechter **W2** aus AD-028.
+  *Toetende Mutation:* die Rechnung wieder synchron vor dem Oeffnen — die
+  Karten tragen Zahlen. Kein Zeitmass.
+- **AK-199** *(die Ordnung ohne Antwort ist die beraterfreie.)* Im Zustand
+  aus AK-198 steht das Raster in der Ordnung „Favoriten, dann Name" — Karte
+  fuer Karte dieselbe Liste wie bei `Sort by` = `Name` im selben Zustand. Die
+  `Sort by`-Auswahl selbst steht dabei unveraendert auf der gewaehlten
+  Zielrichtung und wird nicht umgestellt.
+- **AK-200** *(die Zusammenfassungszeile behauptet keine Rangfolge, die es
+  nicht gibt.)* Solange die Zahlen fehlen, traegt Zeile 3 den Nebensatz
+  `working out what each is worth with <slot> empty`; der Nebensatz
+  `ranked against your build with <slot> empty` erscheint **nicht**, bevor
+  die Zahlen auf den Karten stehen. Die Zeile hat in beiden Zustaenden
+  dieselbe Anzahl gezeichneter Zeilen am Standardmass des Pickers — gemessen,
+  mit Umgebung genannt (L-009); ist sie es nicht, wird die **Warte**fassung
+  gekuerzt, nicht die fertige.
+- **AK-201** *(die Pflichtzeilen warten nicht.)* Im Zustand aus AK-198 stehen
+  die beiden Textzeilen aus §3.2 vollstaendig: die Pflichtzeile
+  `One slot at a time — …` und die `scope`-Saetze der gewaehlten
+  Zielrichtung, sichtbar, ungekuerzt, nicht elidiert (AK-50 gilt ab dem
+  ersten Anstrich). Einzige Anzeige ueber dem Raster, die auf die Antwort
+  warten darf, ist die Laufbefundzeile (3b).
+  *Toetende Mutation:* das heutige Ausblenden beider Zeilen bei fehlender
+  Rangfolge stehen lassen.
+- **AK-202** *(nichts erscheint, nichts verschwindet, nichts ist gesperrt.)*
+  Zwischen dem ersten und dem zweiten Anstrich kommt kein Widget hinzu und
+  faellt keines weg — kein Fortschrittsbalken, kein Wartetext als eigene
+  Zeile, kein Wartecursor, kein zweiter Dialog, kein deaktiviertes
+  Bedienelement, keine Zeitschwelle und kein Verzoegerungstimer. **Ersetzt
+  AK-09 und AK-10 fuer den Picker**, nicht fuer die Advisor bar.
+- **AK-203** *(die Antwort bewegt nur, was sie bewegen muss.)* Ueber den
+  Wechsel vom ersten zum zweiten Anstrich hinweg sind identisch: der
+  Bildlaufwert der `QScrollArea`, die Aussenmasse des Dialogs und die Hoehe
+  jeder einzelnen Karte (AK-41). Das Bedienelement mit dem Tastaturfokus
+  behaelt ihn; lag er auf einer Reliktkarte, liegt er danach auf der Karte
+  desselben Relikts.
+  *Toetende Mutation:* das Raster nach der Umsortierung nach oben scrollen
+  lassen; den Fokus nicht wiederherstellen.
+- **AK-204** *(der Zielrichtungswechsel wartet nicht.)* Steht eine Antwort,
+  und der Spieler wechselt `Sort by` zwischen den beiden Zielrichtungen, so
+  traegt zu **keinem** Zeitpunkt eine Karte `…`, und Zeile 3 traegt zu keinem
+  Zeitpunkt den Wartesatz. Ordnung, Chips, Kopfzeile und `scope`-Saetze
+  wechseln in einem Anstrich.
+  *Toetende Mutation:* beim Wechsel erneut fragen.
+- **AK-205** *(gezeichnet wird die gewaehlte Richtung, nicht die sortierte.)*
+  Die Richtung, in der Wertspalten, Chips, Kopfzeile und `scope`-Saetze
+  gezeichnet werden, ist die eine Zieleinstellung des Programms (AK-43) und
+  **nicht** `SlotPool.rank_by`. Aufbau: eine Antwort, die fuer die eine
+  Richtung sortiert wurde, wird in der anderen gelesen — Chips und Ordnung
+  gehoeren zur gelesenen.
+  *Toetende Mutation:* die Richtung aus `pool.rank_by` nehmen.
+- **AK-206** *(eine Frage je Oeffnung.)* Vom Oeffnen bis zum Schliessen
+  erreicht die Spur hoechstens **eine** Anfrage. Filtern, Bildlauf,
+  Favoritenvergabe, ein Wechsel der Zielrichtung und ein Wechsel auf `Name`
+  loesen keine weitere aus. Wechselt der Spieler die Richtung, waehrend die
+  Antwort noch aussteht, wird weder neu gefragt noch der Wartezustand neu
+  begonnen; die eintreffende Antwort wird in der dann gewaehlten Richtung
+  gezeichnet.
+  *Toetende Mutation:* im offenen Dialog ein zweites Mal fragen.
+- **AK-207** *(die ueberholte Antwort erreicht nichts.)* Wird der Picker
+  geschlossen, waehrend eine Antwort unterwegs ist, schliesst er sofort; die
+  spaeter eintreffende Antwort fasst kein Widget an, wirft nichts und
+  veraendert die Slot-Belegung nicht. Eine im Wartezustand ausgewaehlte Karte
+  wird uebernommen wie sonst auch. Zusammen mit **W3** aus AD-028.
+- **AK-208** *(der Fehlschlag hat seinen eigenen Satz.)* Meldet die Spur
+  einen Fehlschlag, steht in der Kopfzeile woertlich
+  `Could not work out what these are worth — <reason>. They are in name order below.`;
+  die Karten tragen `—`, keinen Chip, und stehen in Namensordnung. Der Satz
+  `The game's data carries no figures …` erscheint in diesem Fall **nicht**.
+  *Toetende Mutation:* den Fehlschlag auf den AK-49-Satz abbilden.
+- **AK-209** *(drei Zeichen, drei Aussagen, nie vertauscht.)* `…`, `—` und
+  `no change` bedeuten „laeuft noch", „nicht gemessen" und „gemessen, ohne
+  Wirkung" und stehen nie fuereinander: keine Karte zeigt `…`, nachdem ihre
+  Zahlen eingetroffen sind; keine Karte zeigt `—` oder `no change`, solange
+  die Frage laeuft.
+- **AK-210** *(die Zusagen des Bestands ueberleben den Umbau.)* Nach dem
+  zweiten Anstrich gilt unveraendert: AK-41 (0 px Hoehenunterschied), AK-42
+  (beide Richtungen auf jeder Karte), AK-44 (keine Ordnungszahl; zweimal
+  derselbe Zustand ergibt zweimal dieselbe Reihenfolge — gemessen am
+  **zweiten** Anstrich, denn der erste ist keine Rangfolge), AK-45, AK-46,
+  AK-50, AK-52 und AK-195/AK-196.
+
+### 9. Ausdruecklich **nicht** Teil dieser Vorgabe
+
+- **Die Modalitaet des Pickers.** Sie bleibt, wie sie ist. Diese Vorgabe
+  ruehrt nicht daran — sie **stuetzt sich** darauf (§2, §4). Wollte jemand den
+  Dialog nichtmodal machen, faellt die Begruendung „eine Frage je Oeffnung"
+  weg, und die Frage geht an den `architect`, nicht in diese Datei.
+- **Wie die Spur gebaut ist.** Zweite Instanz, Entprellung, Cachegroesse,
+  Generationszaehler, Abhaengigkeitsrichtung — alles AD-028, alles
+  `architect`.
+- **Der `Optimize`-Weg.** Er hat seinen Wartezustand (AK-09 bis AK-11), und
+  dieser Abschnitt aendert ihn nicht.
+- **`inventory.load` und der Erststart** (AD-029 Stufe B). Faellt die Stufe,
+  braucht das Fenster einen dritten Zustand („wird gelesen"); das ist eine
+  eigene Vorgabe und nicht diese.
+- **Der Satz fuer „kein Spielstand" im Picker.** Heute zeigt der Picker den
+  AK-49-Satz ueber die **Spieldateien** auch dann, wenn der wirkliche Grund
+  „es wurde kein Spielstand gelesen" ist (Quelltext: `asking_from` gibt
+  `None` fuer „kein Save", `_say_what_they_are_worth` bildet das auf
+  `NO_FIGURES_AT_ALL` ab). Das ist ein A7-Bruch, aelter als AD-028 und **kein
+  Teil dieses Auftrags**; er ist im Bericht als Befund an den `director`
+  gemeldet, mit fertigem Wortlaut. Hier steht er nur, damit ihn niemand
+  versehentlich als von AK-208 erledigt ansieht — das ist er nicht.
+- **Die uebrigen Tabs, die Streichliste aus §8, A16/A17.** Unberuehrt.
+
+### 10. Offene Fragen an den App Designer
+
+- **F-P (Bewegung gegen fruehe Inhalte).** Diese Vorgabe zeigt die Karten
+  sofort und ordnet sie rund ein Drittel einer Sekunde spaeter einmal um. Die
+  Gegenoption waere ein leeres Raster, bis die Zahlen da sind: **gar keine
+  Bewegung**, dafuer eine drittel Sekunde ohne Namen, ohne Filtertreffer und
+  ohne Dialoggroesse. **Empfehlung: so wie hier vorgegeben** — die Namen
+  haengen am Berater nicht, und wer ein bestimmtes Relikt sucht, braucht die
+  Zahlen nie. Der App Designer hat den Picker am laufenden Fenster gesehen und
+  ist der Einzige, der weiss, wie er ihn benutzt; wenn ihn Bewegung mehr
+  stoert als Warten, ist das eine Zeile.
+- **F-Q (`Sort by` beim Durchtippen).** Der Zielrichtungswechsel kostet nach
+  §4 nichts mehr. Damit ordnet sich das Raster bei jedem Schritt durch die
+  `Sort by`-Liste sofort um — mit Pfeiltasten also auch fuer die Eintraege,
+  bei denen der Spieler gar nicht stehen bleiben will. **Empfehlung: so
+  lassen** (sofort ist ehrlicher als „erst bei Enter", und es kostet nichts).
+  Reine Geschmacksfrage, deshalb hier.

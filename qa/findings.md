@@ -2310,3 +2310,44 @@ entscheidbar** — die alte Zahl stammt aus T-067 und trug ihren Messfall nicht
 mit. **Kein Auftrag daraus**, solange nicht geklaert ist, was damals gemessen
 wurde; als Warnung notiert, dass eine Zahl ohne Messfall spaeter niemandem
 mehr nuetzt.
+
+---
+
+## Statuskorrektur 2026-09-08, Zyklus 18 (Director, je Befund an der Quelle geprueft)
+
+| Befund | neuer Status | Beleg |
+|---|---|---|
+| **QA-203** | **geschlossen** | A6 traegt seit `1eb3039` die drei Zahlen aus S11/T-118 woertlich in `GOAL.md`, freigegeben durch den Nutzer am 08.09.2026. Die Luecke war das fehlende Ziel, nicht das Programm. |
+| **QA-205** | **behoben** | Commit `ad291e6`, `tests/test_advisor_covers_every_chalice.py`. Vom `qa-engineer` im eigenen Klon nachgeprueft (T-126): Mutation M1 (`candidates.py:293`, Recluse bekommt nichts) wird unter dem Standardbefehl `pytest -n auto` rot, die uebrige Suite bleibt gruen. Der Zahlenwiderspruch 110 gegen 74 ist aufgeloest und keiner: 110 = 70 eigene + 40 Gral-Wiederholungen je Held, 74 = 70 + 4 einmalig gezaehlte Grale. |
+| **QA-204** | **teilweise behoben** | Commit `4d1955d`, `tests/test_interface_language.py`. Beide Haelften (Quelltext und Fenstertext) wirken wie beschrieben; Mutation `firstrun.py:169` toetet die Quelltexthaelfte, die uebrige Suite bleibt gruen. **Offen bleibt der Rest**, den der Retest gefunden hat: siehe QA-211. |
+| **QA-191** | **inhaltlich erledigt, strukturell geschlossen** | T-114 belegte die Wirkung mit 440 Laeufen, `ad291e6` haelt sie jetzt fest. **Rest-Debt, nicht angefasst:** die alten Berater-Tests laufen weiter ueber die `wylder`-Fixture. |
+
+## QA-211 — Ausnahmetexte umgehen beide Sprachwaechter
+
+**Prioritaet: P3 · Schwere: Minor · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `qa-engineer` im Retest T-126, unmittelbar nachdem die zwei
+Waechter aus T-123 standen. **Text, der zur Laufzeit aus `str(exc)` gebildet
+wird, unterlaeuft beide Pruefungen** — die Quelltextsuche sieht ihn nicht, weil
+er dort nicht steht, und der Fenstertext-Fall erreicht ihn nicht, weil er nur
+im Fehlerfall entsteht. Fuenf Fundstellen in
+`nrplanner/{app,firstrun,shortcut}.py` und `nrplanner/advisor/worker.py`.
+
+**Zwei davon sind alltaeglich**, kein Randfall: der Klick auf den
+Start-Menue-Knopf und ein fehlgeschlagener Spielstand-Reread. Die Meldung
+eines Betriebssystems ist in der Sprache des Systems — auf einem deutschen
+Windows steht dann deutscher Text im Fenster, und A8 ist verletzt, ohne dass
+ein Test rot wird.
+
+**Testbarkeits-Luecke, kein bestaetigter Live-Verstoss:** der `qa-engineer` hat
+die Fundstellen gelesen, nicht ausgeloest. **Vor dem Fix zu klaeren, und das
+ist die eigentliche Frage:** ob die Systemmeldung ueberhaupt gezeigt werden
+soll, oder ob an ihre Stelle ein eigener englischer Satz gehoert, der sagt,
+was zu tun ist. Die zweite Lesart ist die bessere Bedienung und schliesst A8
+nebenbei — sie kostet aber die technische Ursache, die heute mit angezeigt
+wird.
+
+**Director-Entscheidung 08.09.2026: eingeplant, nicht zurueckgestellt.** Der
+Befund geht in den Fix-Stapel vor 1.8.0, zusammen mit QA-207. Grund: die zwei
+alltaeglichen Wege treffen jeden Nutzer mit deutschem Windows, und der Fix ist
+klein.
