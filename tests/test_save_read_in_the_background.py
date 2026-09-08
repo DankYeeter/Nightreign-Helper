@@ -739,3 +739,203 @@ def test_the_prefix_appears_only_where_no_inventory_came_out(game_data, qapp,
         assert window.owned is None
     finally:
         close(window, read)
+
+
+# -- AK-243: two controls are shut, and they open on different things -------
+
+def relic_buttons(window) -> list:
+    return [card.choose_button for card in cards(window)]
+
+
+def optimize(window):
+    """The second shut control, in the relic half of the Build planner."""
+    return window.advisor_bar.optimize_button
+
+
+def test_the_two_shut_controls_come_free_on_different_conditions(game_data,
+                                                                 qapp, a_scan):
+    """AK-243, which is AK-223 made true rather than replaced.
+
+    Shut while a read is out are two: the relic button of every slot card,
+    and `Optimize`. They are not shut for the same reason and so do not open
+    at the same moment -- the relic button is shut by the read and comes free
+    when the read ends, whichever way it ends; `Optimize` is shut by the
+    absence of a stock (`UI_SPEC` 4.8, `advisorbar.py:818-820`) and stays shut
+    after a read that brought none.
+
+    The five devices of AK-221, each in its own ending: a read that never
+    answers, one that answers at once, one that is held and then let go, one
+    that fails, and one that finds no save.
+    """
+    # The stored builds taken out: the takeover they set off writes a line of
+    # its own, and this case is about buttons rather than about that line.
+    without_builds = dataclasses.replace(a_scan, loadouts=[])
+
+    held = StatedRead(without_builds, hold=True)
+    window = a_window(game_data, held)
+    try:
+        window.show()
+        rendered.settle()
+        held.began.wait(READ_FUSE_S)
+
+        assert window.save_reader.is_reading(), "the premise: the read is out"
+        assert all(not button.isEnabled() for button in relic_buttons(window))
+        assert not optimize(window).isEnabled()
+
+        held.release()
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        # A stock arrived, so both are free -- the second one only now.
+        assert window.owned is not None
+        assert all(button.isEnabled() for button in relic_buttons(window))
+        assert optimize(window).isEnabled()
+    finally:
+        close(window, held)
+
+    at_once = StatedRead(without_builds)
+    window = a_window(game_data, at_once)
+    try:
+        conftest.wait_for_the_save(window)
+        window.show()
+        rendered.settle()
+
+        assert all(button.isEnabled() for button in relic_buttons(window))
+        assert optimize(window).isEnabled()
+    finally:
+        close(window, at_once)
+
+    # And the two endings that leave no stock behind: the read is over, so
+    # the relic buttons are open, and `Optimize` is not -- it is waiting on
+    # something the read did not bring, not on the read.
+    barren = {
+        "no save": StatedRead(None),
+        "unreadable": StatedRead(raises=ValueError("this is not a save")),
+    }
+    for name, read in barren.items():
+        window = a_window(game_data, read)
+        try:
+            conftest.wait_for_the_save(window)
+            window.show()
+            rendered.settle()
+
+            assert not window.save_reader.is_reading(), name
+            assert window.owned is None, name
+            assert all(button.isEnabled()
+                       for button in relic_buttons(window)), name
+            assert not optimize(window).isEnabled(), name
+        finally:
+            close(window, read)
+
+
+# -- AK-244: the fifth sentence, written by the automatic takeover ----------
+
+@dataclasses.dataclass(frozen=True)
+class AStoredBuild:
+    """One loadout as the save hands it over, before `inventory.build`.
+
+    The three failures of `load_equipped` are states of the save, not of the
+    window, so they are stated here rather than arranged on disk: a real save
+    with a readable build table cannot be made to fail three different ways.
+    """
+
+    hero_id: int
+    vessel_id: int
+    selected: bool
+    handles: tuple = ()
+
+
+def the_nightfarer_the_window_opens_on(game_data):
+    """Which Nightfarer is shown at the start, and a vessel it really has."""
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        hero = window.current_hero()
+        vessels = [window.chalice_list.item(row).data(Qt.UserRole)
+                   for row in range(window.chalice_list.count())]
+        ids = [vessel["id"] for vessel in vessels if vessel and vessel.get("id")]
+        assert ids, "the premise: this Nightfarer has chalices to be in"
+        return hero, ids[0]
+    finally:
+        close(window, read)
+
+
+def test_a_failed_takeover_writes_its_own_sentence_and_not_the_waiting_one(
+        game_data, qapp, a_scan):
+    """AK-244. Three endings AK-224 does not know, and each says something.
+
+    `_on_save_read` calls `reload_chalices` unconditionally, and on the first
+    read for a Nightfarer whose save stores a build that calls `load_equipped`
+    itself. When *that* fails it writes one of three sentences over the stock
+    note -- a fifth kind of ending, which the four of `UI_SPEC` §6 do not
+    cover. What matters is what they have in common with the four: the
+    waiting sentence is never what is left standing.
+    """
+    hero, a_vessel = the_nightfarer_the_window_opens_on(game_data)
+    not_in_the_list = 9_999_999
+    endings = {
+        "the build table could not be read": (
+            [AStoredBuild(hero["id"], a_vessel, False)],
+            "the table is damaged",
+            "This save's stored builds could not be read: the table is "
+            "damaged"),
+        "no equipped loadout for this Nightfarer": (
+            [AStoredBuild(hero["id"], a_vessel, False)],
+            "",
+            f"This save stores no equipped loadout for {hero['name']}."),
+        "a vessel this list does not hold": (
+            [AStoredBuild(hero["id"], not_in_the_list, True)],
+            "",
+            f"{hero['name']} has vessel {not_in_the_list} equipped, which is "
+            "not in this list."),
+    }
+    for name, (loadouts, error, sentence) in endings.items():
+        found = dataclasses.replace(a_scan, loadouts=loadouts,
+                                    loadout_error=error)
+        read = StatedRead(found)
+        window = a_window(game_data, read)
+        try:
+            conftest.wait_for_the_save(window)
+            rendered.settle()
+            line = the_line(window)
+
+            assert chalices.imported(hero["id"]), f"{name}: the premise"
+            assert line not in WAITING_SENTENCES, name
+            assert line, f"{name}: an empty line says nothing at all"
+            assert line == sentence, name
+        finally:
+            close(window, read)
+
+
+def test_a_takeover_that_works_leaves_no_waiting_sentence_either(game_data,
+                                                                 qapp, a_scan):
+    """AK-244's other half, as far as the built program carries it.
+
+    **Reported, not asserted:** AK-244 says that where the takeover does not
+    fail "die Bestandsnotiz bleibt stehen". It does not: the way out of
+    `load_equipped` writes `Loaded {Nightfarer} - ...` over it
+    (`app.py:4079`), on this path and on the synchronous one before it. That
+    is a fifth sentence of a fifth kind and it is not one of AK-224's four
+    either. This case therefore holds what both halves of AK-244 really rest
+    on -- the waiting sentence is never the last word, and the line is never
+    empty and never a mixture -- and the disagreement over which sentence
+    stands is in the report for the `ui-ux-designer`, not decided here.
+    """
+    hero, a_vessel = the_nightfarer_the_window_opens_on(game_data)
+    found = dataclasses.replace(
+        a_scan, loadouts=[AStoredBuild(hero["id"], a_vessel, True)],
+        loadout_error="")
+    read = StatedRead(found)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+        line = the_line(window)
+
+        assert chalices.imported(hero["id"]), "the premise: it was taken over"
+        assert line not in WAITING_SENTENCES
+        assert line, "an empty line says nothing at all"
+        assert not [word for word in WAITING_SENTENCES if word in line]
+    finally:
+        close(window, read)
