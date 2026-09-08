@@ -2156,3 +2156,80 @@ selbst gesichteten Wert (Ripple Blade, 110 AR) ausdruecklich als unsicher.
 **Zwei Durchgaenge, dieselbe Aufgabe, dasselbe Aufgeben — der Befund ist damit
 reproduziert, nicht mehr Einzelbeobachtung.** Status unveraendert: **offen,
 Nutzerentscheidung** (F-G), weil es eine neue Funktion waere.
+
+---
+
+## A9 — geprueft am 08.09.2026 (T-114), Urteil CONCERNS
+
+Erster `qa-engineer`-Durchlauf gegen ein gebautes Artefakt in der Geschichte
+dieses Projekts. Artefakt `dist/NightreignHelper.exe`, SHA-256 `42B21AA2…F221`,
+nicht neu gebaut. Schritt 0 mit Positiv- **und** Gegenprobe bestanden; echte
+Registry, echter Cache und echtes Startmenue vorher/nachher byteidentisch.
+
+| A3 | A4 | A5 | A6 | A7 | A8 |
+|---|---|---|---|---|---|
+| PASS | PASS | PASS | **CONCERNS** | PASS | PASS |
+
+**Die Kernfrage — haelt der Quellstand verpackt? — ist mit Ja beantwortet und
+belegt:** 62 von 62 Modulen bytecode-identisch zum Quellstand (Positivkontrolle:
+eine eingefuegte Zeile wird erkannt), 236 Paramdefs und `data/icon.ico` im
+Bundle, Qt-Plugins vollstaendig, genau **eine** `__file__`-Stelle und die steht
+hinter `_MEIPASS`. **Ohne `_MEIPASS` liefern `icon_path()` und `defs_dir()`
+`None`** — genau der Unterschied, den ein Test am Quellstand strukturell nicht
+sehen kann.
+
+**Am verpackten Code gemessen:** 440 Beraterlaeufe ueber **10/10 Nightfarer und
+74/74 Kelche**, beide Ziele, mit und ohne Deep of Night, echte 309 Relikte —
+2 508 Slot-Vorschlaege, **0** Farb-, Deep- oder Doppelverwendungs-Verstoesse,
+12 640 Begruendungszeilen, **0** Slots ohne Begruendung, 423 Laeufe mit
+Nichtwissens-Saetzen. Stacking an der gerankten Zahl: 50 von 84 nicht
+stapelbaren Effekten bewegen etwas, alle 50 zweimal = einmal (Positivkontrolle
+202/206).
+
+**Damit sind QA-191 und ein Teil von QA-181 empirisch erledigt** — die acht
+ungetesteten Nightfarer sind hier durchgelaufen, und die Stacking-Regel haelt
+an der Zahl. **Die Testluecke bleibt**: siehe QA-204, QA-205.
+
+## QA-203 — A6 hat keinen Zielwert, also ist die zweite Haelfte nicht entscheidbar
+
+**Prioritaet: P3 · Schwere: Minor · Adressat: director · offen · 2026-09-08**
+
+`GOAL.md` A6 verlangt woertlich, dass *"bei grossen Relikt-Bestaenden die
+Antwortzeit im gemessenen Budget bleibt (Zielwert wird vom `performance-tuner`
+gesetzt)"*. **S11 ist nie gelaufen, es gibt keinen Zielwert.** Die erste
+Haelfte (Oberflaeche blockiert nicht) ist geprueft und haelt; die zweite ist
+mangels Zahl weder erfuellt noch verletzt.
+
+**Keine Schwaeche des Programms, eine Luecke im Zielbild** — und sie gehoert
+dem Director, nicht dem `developer`. **Entscheidung 08.09.2026: `S11` wird
+beauftragt** (`performance-tuner`, Erstlauf im Projekt, also opus; D-1 aus
+`docs/state.md`). Er setzt die Zahl, danach ist A6 entscheidbar.
+
+## QA-204 — A8 hat ueber 71 Testdateien hinweg keinen einzigen Waechter
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+Bestaetigt und praezisiert QA-192, jetzt mit Nenner: **drei unabhaengige Masken
+ueber 71 Testdateien, null Treffer.** A8 ("alle Texte in der Oberflaeche sind
+Englisch") haelt heute allein daran, dass jede Rolle sich daran erinnert. Der
+T-114-Lauf hat die Luecke **einmal** geschlossen; ein Test wuerde es bei jedem
+Commit tun.
+
+## QA-205 — Die A3-Zusage steht in keinem Testfall
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+A3 verlangt zwei benannte Zielrichtungen **fuer jeden Nightfarer und jedes
+bekannte Kelch-Layout**. Die vorhandenen Tests pruefen nur die
+Ziel-Registerkarte — dass beide Ziele existieren und auswaehlbar sind —, nicht
+die Zusage ueber die Vollstaendigkeit. T-114 hat sie mit 440 Laeufen belegt;
+kein Test haelt sie fest. **QA-191 ist damit inhaltlich erledigt, strukturell
+nicht.**
+
+## QA-206 — Der Neubau des Symbolvorrats nennt einen falschen Grund
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: ui-ux-designer · offen · 2026-09-08**
+
+Gefunden in T-114. Verwandt mit QA-202: der zweite Start liest erneut ein und
+begruendet es mit einer Ursache, die nicht zutrifft. Zusammen mit QA-202 zu
+behandeln, nicht getrennt.
