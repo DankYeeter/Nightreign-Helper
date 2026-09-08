@@ -629,9 +629,11 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
     relic_meta = {KNOWN_RELIC_ID: {"id": KNOWN_RELIC_ID, "name": "Test relic",
                                    "colour": 0}}
 
-    inv = within_time_limit(lambda: inventory._scan_save(
-        path, relic_meta, {KNOWN_RELIC_ID}, set(), None))
+    found = within_time_limit(lambda: inventory._scan_save(
+        path, {KNOWN_RELIC_ID}, set(), None))
+    assert found is not None
+    inv = inventory.build({"relics": list(relic_meta.values())}, found)
 
-    assert inv is not None and inv.relic_count == 1
+    assert inv.relic_count == 1
     assert inv.loadouts == []
     assert "denser than one table per 1920 bytes" in inv.loadout_error

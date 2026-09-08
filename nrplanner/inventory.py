@@ -212,8 +212,58 @@ def _decrypt_slots(path: pathlib.Path) -> dict[str, bytes]:
     return out
 
 
+@dataclass(frozen=True)
+class SaveScan:
+    """One character slot as it came off the disk, before it is an `Inventory`.
+
+    The boundary AD-029 point 1 draws: everything expensive -- finding the
+    files, decrypting them, walking the records -- happens on one side of this
+    object, and building the planner's living `Inventory` out of it happens on
+    the other. That is what lets the reading run in a thread of its own while
+    AD-006.8 stands: what crosses is this, and everything in it is a record
+    read out of bytes, never a widget and never the `Inventory` the window
+    holds.
+
+    Frozen for the reason the advisor's `Question` is frozen: it is handed to
+    a thread that must not be able to change what the main thread will read
+    back. The lists inside are not deep-frozen -- Python has no such thing --
+    but nothing on either side writes to them, and the worker is thrown away
+    the moment it has emitted this.
+    """
+
+    #: The save's own slot name, which is what the window shows.
+    source: str
+    #: The folder the file was found in. Kept apart from `source` because it
+    #: contains the Steam account id (see `Inventory.folder`).
+    folder: str
+    #: How many bytes of character slot the records were read out of, for the
+    #: second SEC-022 check.
+    source_bytes: int
+    #: Every relic record this slot holds, as `savefile` read it.
+    owned: list
+    #: Record offset -> this copy's handle in the save.
+    handle_of: dict
+    #: Every stored loadout, or empty when the table could not be read.
+    loadouts: list
+    #: Why the loadouts are missing, when they are.
+    loadout_error: str = ""
+
+
 def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
     """Scan the player's saves and return what they own, or None.
+
+    The two halves in one call, for every caller that has no thread to put the
+    first half in -- the tests, the measuring scripts, and any code that wants
+    the inventory and nothing else. The window uses `scan` and `build`
+    separately (AD-029 point 1); this is the same work in the same order, so
+    the two cannot come to mean different things by one save.
+    """
+    found = scan(data, save_path)
+    return None if found is None else build(data, found)
+
+
+def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
+    """Read the player's saves off the disk. The expensive half, and no Qt.
 
     Every save found is tried, newest first, rather than only the newest one.
     A machine can hold more than one -- a second Steam account folder, a save
@@ -221,24 +271,102 @@ def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
     modification time alone would pick the wrong one and then report the whole
     installation as unreadable. The best-populated save wins, which is the
     same rule already used to choose between the slots inside one file.
+
+    "Best-populated" counts records here rather than the relics the planner
+    ends up with, and the two are the same number: `read_owned_relics` is
+    given the ids of the dataset as its filter, so every record it hands back
+    has an entry in the metadata `build` looks it up in. Counting records is
+    what lets the choice be made on this side of the boundary, which is the
+    side that has the bytes.
+
+    Nothing here touches a widget, the settings store or the dataset beyond
+    reading two of its fields, so it is safe to run in a thread of its own --
+    which is the whole point of the split (AD-029 point 1).
     """
     saves = [save_path] if save_path else savefile.find_saves()
     saves = [p for p in saves if p and p.exists()]
     if not saves:
         return None
 
-    relic_meta = {r["id"]: r for r in data["relics"]}
-    valid_relics = set(relic_meta)
+    valid_relics = {r["id"] for r in data["relics"]}
     valid_effects = {int(k) for k in data["effects"]}
 
-    best: Inventory | None = None
+    best: SaveScan | None = None
     for path in sorted(saves, key=lambda p: p.stat().st_mtime, reverse=True):
-        best = _scan_save(path, relic_meta, valid_relics, valid_effects, best)
+        best = _scan_save(path, valid_relics, valid_effects, best)
     return best
 
 
-def _scan_save(path: pathlib.Path, relic_meta: dict, valid_relics: set,
-               valid_effects: set, best: Inventory | None) -> Inventory | None:
+def build(data: dict, found: SaveScan) -> Inventory:
+    """Turn one scanned save into what the planner reads. The cheap half.
+
+    Records in, `OwnedItem`s out: this is where the dataset's names, colours
+    and icons are put on what the save had, and it is the only half that knows
+    what a relic is called. It stays in the thread that owns the `Inventory`
+    (AD-006.8).
+    """
+    relic_meta = {r["id"]: r for r in data["relics"]}
+    inv = Inventory(source=found.source, folder=found.folder,
+                    source_bytes=found.source_bytes,
+                    loadout_error=found.loadout_error)
+    item_by_handle: dict[int, OwnedItem] = {}
+
+    for entry in found.owned:
+        meta = relic_meta.get(entry.relic_id)
+        if meta is None:
+            continue
+        colour = meta["colour"]
+        inv.effects_by_colour.setdefault(colour, set()).update(entry.effect_ids)
+        handle = found.handle_of.get(entry.offset)
+        item = OwnedItem(
+            relic_id=entry.relic_id,
+            name=meta["name"].strip(),
+            colour=colour,
+            effect_ids=entry.effect_ids,
+            is_deep=bool(meta.get("is_deep")),
+            has_curse=bool(meta.get("has_curse")),
+            icon=meta.get("icon"),
+            caption=meta.get("caption", ""),
+            curse_ids=list(entry.curse_ids),
+            handle=handle,
+            offset=entry.offset,
+        )
+        inv.relics.append(item)
+        if handle is not None:
+            item_by_handle[handle] = item
+    # One record, one relic. This used to count distinct *rolls* instead,
+    # to correct an over-count of 275 found against 273 shown -- the two
+    # extras being byte-identical duplicates of a real relic.
+    #
+    # That correction was aimed at the wrong thing. Re-measured 2026-08-14
+    # against a settled file: 284 records read, 284 relics shown in game,
+    # an exact match with nothing to collapse. The over-count came from
+    # reading the save while it was being written, which _read_settled now
+    # refuses to do; it was never a surplus of records to be deduplicated.
+    # The old correction did not even close the gap it was written for --
+    # it took 290 down to 288 against a true 284.
+    #
+    # Keeping it would be actively wrong. Collapsing rolls can only ever
+    # lower the number, the number is already exact, and the day two relics
+    # roll identically -- which is ordinary, not exotic -- it would quietly
+    # report one relic fewer than the player owns.
+    inv.relic_count = len(inv.relics)
+
+    for entry in found.loadouts:
+        inv.loadouts.append(
+            EquippedLoadout(
+                hero_id=entry.hero_id,
+                vessel_id=entry.vessel_id,
+                selected=entry.selected,
+                relics=[item_by_handle.get(h) if h else None
+                        for h in entry.handles],
+            )
+        )
+    return inv
+
+
+def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
+               best: SaveScan | None) -> SaveScan | None:
     """Read one save file, returning it if it beats what was found so far."""
     try:
         slots = _decrypt_slots(path)
@@ -253,77 +381,32 @@ def _scan_save(path: pathlib.Path, relic_meta: dict, valid_relics: set,
         if not owned:
             continue
 
-        # The save folder is named after the Steam account id. Naming it in
-        # the window puts that id into every screenshot and bug report, so
-        # the label says which slot is loaded and the id stays in the path.
-        inv = Inventory(source=name, folder=str(path.parent),
-                        source_bytes=len(blob))
         by_offset = savefile.read_relic_handles(blob, owned)
-        handle_of = {relic.offset: handle for handle, relic in by_offset.items()}
-        item_by_handle: dict[int, OwnedItem] = {}
-
-        for entry in owned:
-            meta = relic_meta.get(entry.relic_id)
-            if meta is None:
-                continue
-            colour = meta["colour"]
-            inv.effects_by_colour.setdefault(colour, set()).update(entry.effect_ids)
-            handle = handle_of.get(entry.offset)
-            item = OwnedItem(
-                relic_id=entry.relic_id,
-                name=meta["name"].strip(),
-                colour=colour,
-                effect_ids=entry.effect_ids,
-                is_deep=bool(meta.get("is_deep")),
-                has_curse=bool(meta.get("has_curse")),
-                icon=meta.get("icon"),
-                caption=meta.get("caption", ""),
-                curse_ids=list(entry.curse_ids),
-                handle=handle,
-                offset=entry.offset,
-            )
-            inv.relics.append(item)
-            if handle is not None:
-                item_by_handle[handle] = item
-        # One record, one relic. This used to count distinct *rolls* instead,
-        # to correct an over-count of 275 found against 273 shown -- the two
-        # extras being byte-identical duplicates of a real relic.
-        #
-        # That correction was aimed at the wrong thing. Re-measured 2026-08-14
-        # against a settled file: 284 records read, 284 relics shown in game,
-        # an exact match with nothing to collapse. The over-count came from
-        # reading the save while it was being written, which _read_settled now
-        # refuses to do; it was never a surplus of records to be deduplicated.
-        # The old correction did not even close the gap it was written for --
-        # it took 290 down to 288 against a true 284.
-        #
-        # Keeping it would be actively wrong. Collapsing rolls can only ever
-        # lower the number, the number is already exact, and the day two relics
-        # roll identically -- which is ordinary, not exotic -- it would quietly
-        # report one relic fewer than the player owns.
-        inv.relic_count = len(inv.relics)
-
         # The equipped-loadout table lives in the same member as the inventory.
         # A save from before the table existed, or one this reader does not
         # recognise, simply leaves the list empty -- the planner then behaves
         # exactly as it did before.
+        loadout_error = ""
         try:
             stored = savefile.read_loadouts(blob)
         except (ValueError, struct.error) as exc:
             stored = []
-            inv.loadout_error = str(exc)
-        for entry in stored:
-            inv.loadouts.append(
-                EquippedLoadout(
-                    hero_id=entry.hero_id,
-                    vessel_id=entry.vessel_id,
-                    selected=entry.selected,
-                    relics=[item_by_handle.get(h) if h else None
-                            for h in entry.handles],
-                )
-            )
+            loadout_error = str(exc)
 
-        if best is None or inv.relic_count > best.relic_count:
-            best = inv
+        # The save folder is named after the Steam account id. Naming it in
+        # the window puts that id into every screenshot and bug report, so
+        # the label says which slot is loaded and the id stays in the path.
+        found = SaveScan(
+            source=name,
+            folder=str(path.parent),
+            source_bytes=len(blob),
+            owned=owned,
+            handle_of={relic.offset: handle
+                       for handle, relic in by_offset.items()},
+            loadouts=stored,
+            loadout_error=loadout_error,
+        )
+        if best is None or len(found.owned) > len(best.owned):
+            best = found
 
     return best
