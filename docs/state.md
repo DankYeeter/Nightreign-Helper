@@ -48,6 +48,13 @@ eine Architekturentscheidung mit widerlegter Begruendung (Docstring nennt
 51 ms, gemessen 318 ms). Danach `developer` mit den zwei Waechtern (QA-204,
 QA-205) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und ausliefern.
 
+**Messumgebung, wichtig fuer jede kuenftige Zahl:** S11 hat gemessen, dass der
+Rechner unter `Legion Quiet Mode` auf **1102 von 3201 MHz** lief. Jede Zahl aus
+diesem Projekt gilt fuer diese Umgebung; wer sie vergleicht, nennt sie mit.
+Genau daran scheitert der Vergleich mit D-1 (T-067 nannte keine Umgebung).
+**E-1 gemessen:** der feste Testabzug spart **99,2 %** — 2,54 s Kopie gegen
+293,8-310,1 s Neubau.
+
 **Alle Projektzeilen fuer Auftraege stehen seit 08.09. in `CLAUDE.md`** —
 Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug, Scratchpad
 je T-Nummer, verbotene Zugriffe, Projektsprache. Auftraege verweisen darauf,

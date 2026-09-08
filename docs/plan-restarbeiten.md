@@ -280,9 +280,10 @@ Dann baut das Programm ihn ohnehin neu; der erste Lauf, dem das passiert,
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.
 
-**Ersparnis erwartet, nicht gemessen.** Die Probe verlangt einen GUI-Start, und
-der haette dem laufenden A9-Lauf in die Quere kommen koennen. **Der erste
-Auftrag, der die Vorlage benutzt, misst sie und traegt die Zahl hier ein.**
+**Ersparnis gemessen (S11, T-118, 08.09.2026): 99,2 %.** Neubau
+**293,8-310,1 s** gegen Kopie **2,54 s**. Der Neubau ist inhaltsgleich zur
+Vorlage — gleicher Fingerabdruck, 841 Dateien; bis dahin war das eine Annahme,
+jetzt ist es geprueft.
 
 ## E-2 — Am Artefakt wird nur geprueft, was das Fenster wirklich braucht
 
