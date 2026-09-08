@@ -21,45 +21,50 @@ Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
 vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
 Nutzer ganz am Ende.**
 
-## Zyklus 16 abgeschlossen, Zyklus 17 laeuft
+## Zyklus 16 abgeschlossen, Zyklus 17 begonnen
 
-**Zyklus 16 (Release-Weg), 08.09.2026:** A2 erfuellt (SEC-009 behoben) · **A9
-geprueft** (T-114): A3, A4, A5, A7, A8 **PASS**, A6 **CONCERNS** mangels
-Zielwert. 62 von 62 Modulen bytecode-identisch zum Quellstand, 440
-Beraterlaeufe am **verpackten** Code ueber 10/10 Nightfarer und 74/74 Kelche,
-0 Regelverstoesse. **A-033 ausgefuehrt und gegengeprueft:** 12 von 12 Releases
-tragen das Hinweispaket, der Lizenzverstoss ist beendet (GPL § 8 endgueltig ab
-07.11.2026). **Nichts sperrt die Veroeffentlichung mehr.**
+**Zyklus 16 (Release-Weg), 08.09.2026: A2 und A9 erreicht.** SEC-009 behoben,
+kein Hoch-Befund mehr offen. A9 erstmals geprueft (T-114): A3, A4, A5, A7, A8
+**PASS**, A6 **CONCERNS**. 62 von 62 Modulen bytecode-identisch zum Quellstand,
+440 Beraterlaeufe am verpackten Code ueber 10/10 Nightfarer und 74/74 Kelche,
+0 Regelverstoesse. **A-033 ausgefuehrt und gegengeprueft** (`gh release view`
+je Tag, 08.09.): 12 von 12 Releases tragen das Hinweispaket, der
+Lizenzverstoss ist beendet, GPL Paragraf 8 endgueltig ab 07.11.2026.
 
 **Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, 1.8.0, SHA-256
-`42B21AA2...F221`. Update-Weg an echtem `v1.7.1` belegt: 7 von 7 Builds
-erhalten. **Nutzerentscheid 08.09.: 1.8.0 geht erst nach dem Fix-Stapel raus.**
+`42B21AA2...F221`. Update-Weg an einem echten `v1.7.1` belegt: 7 von 7 Builds
+erhalten. **Nutzerentscheid: 1.8.0 geht erst nach dem Fix-Stapel raus.**
 
-**Zyklus 17:** **T-118** `performance-tuner` (S11) ✔ und **T-119**
-`retrospective` ✔. **A6 hat seine Zahl** (S11, Abschnitt 2.2, woertlich nach
-`GOAL.md` zu uebernehmen): Slot-Frage unter **500 ms** (gemessen 403 ms,
-haelt) · `Optimize` unter **6 s** (5023 ms, haelt) · **Hauptthread hoechstens
-50 ms — haelt nicht** (318 ms, QA-208). Entprellung **100 ms Picker / 250 ms
-Gesamtlauf**, LRU **64 bedingt**. Alle fuenf Massnahmen L-014 bis L-018 sind
-**angenommen und umgesetzt** (Agenten-Repo `486ac4e`, Projekt L-016).
+**Zyklus 17:** **S11** (T-118) und **Retrospektive** (T-119) sind gelaufen.
+**A6 hat seine Zahl** (T-118, Abschnitt 2.2, woertlich nach `GOAL.md` zu
+uebernehmen): Slot-Frage unter **500 ms** (gemessen 403, haelt) · `Optimize`
+unter **6 s** (5023, haelt) · **Hauptthread hoechstens 50 ms — haelt nicht**
+(318 ms, QA-208). Entprellung 100/250 ms, LRU 64 bedingt.
 
 **Der naechste Schritt ist der `architect`, nicht der `developer`:** QA-208 ist
 eine Architekturentscheidung mit widerlegter Begruendung (Docstring nennt
 51 ms, gemessen 318 ms). Danach `developer` mit den zwei Waechtern (QA-204,
 QA-205) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und ausliefern.
 
-**Messumgebung, wichtig fuer jede kuenftige Zahl:** S11 hat gemessen, dass der
-Rechner unter `Legion Quiet Mode` auf **1102 von 3201 MHz** lief. Jede Zahl aus
-diesem Projekt gilt fuer diese Umgebung; wer sie vergleicht, nennt sie mit.
-Genau daran scheitert der Vergleich mit D-1 (T-067 nannte keine Umgebung).
-**E-1 gemessen:** der feste Testabzug spart **99,2 %** — 2,54 s Kopie gegen
-293,8-310,1 s Neubau.
+## Das Regelwerk wurde am 08.09.2026 umgebaut — was die neue Sitzung vorfindet
 
-**Alle Projektzeilen fuer Auftraege stehen seit 08.09. in `CLAUDE.md`** —
-Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug, Scratchpad
-je T-Nummer, verbotene Zugriffe, Projektsprache. Auftraege verweisen darauf,
-statt sie abzuschreiben (32-mal die Scratchpad-Regel, 7-mal die Umlenkungen).
-Effizienzregeln E-1 bis E-3 in `docs/plan-restarbeiten.md`.
+Alles im Agenten-Repo, gepusht, Selbsttest gruen (`hooks/selftest.ps1`,
+geprueft 08.09.):
+
+- **`commands/director.md`** trennt Regel und Beleg; die Vorfaelle stehen in
+  `referenz/director-belege.md` (B-01 bis B-24), die alte Fassung in
+  `archiv/`. Zwei neue **Sperren**: `require-receipt.ps1` verweigert
+  Bestandsbehauptungen ohne Quittung in Auftraegen, `state.md` und
+  Befundlisten; `no-root-find.ps1` sperrt Suchen von der Laufwerkswurzel.
+- **Zyklus-Schritt 2 ist neu:** die eigenen Bestandsaussagen werden von einem
+  lesenden `Explore`-Lauf gegengeprueft, bevor der Fragebogen rausgeht.
+- **Rollen geaendert:** `power-user` ohne `memory: project` (die Messreihe war
+  sonst wertlos) · `qa-engineer` mit `Write` · `performance-tuner` bekommt
+  einen QA-Retest · `architect`, `ui-ux-designer`, `release-manager` lesen
+  jetzt die Dateien der ihnen vorgelagerten Rollen.
+- **Projektzeilen stehen in `CLAUDE.md`**, nicht mehr in jedem Auftrag:
+  Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug,
+  Scratchpad je T-Nummer, Projektsprache. Auftraege verweisen darauf.
 
 ## Stand gegen `GOAL.md`
 
@@ -91,13 +96,10 @@ Effizienzregeln E-1 bis E-3 in `docs/plan-restarbeiten.md`.
 
 ## Buchfuehrung des Directors
 
-**Acht Fehler in Zyklus 16**, alle derselben Form: eine Notiz wurde fuer eine
-Messung gehalten. Fuenf falsche Befundstatus · die Praemisse "es gibt keine
-EXE" (es gab zwoelf Releases) · ein Befund als Tatsache aus einer Messung
-(QA-198) · eine falsche Aussage ueber Rollenrechte in `CLAUDE.md`. **Die
-Regeln dagegen standen alle bereits woertlich in `commands/director.md`** —
-die Ursache ist ihr Ort, nicht ihr Fehlen (L-014, belegt in T-119).
-Alle drei Korrekturen des Zyklus kamen von **Rollen**, keine aus dem Bestand.
+**Zwoelf falsche Aussagen am 08.09.**, alle derselben Bauform: eine Notiz
+wurde fuer eine Messung gehalten. Die Regeln dagegen standen alle bereits im
+Text — die Ursache war ihr Ort. Seitdem sperrt ein Hook statt zu erinnern.
+Hergang: `referenz/director-belege.md` B-22 im Agenten-Repo.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
