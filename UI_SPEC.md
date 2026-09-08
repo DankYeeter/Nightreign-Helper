@@ -824,7 +824,7 @@ Traegt die gewaehlte Zielrichtung fuer diesen Nightfarer keine Zahlen:
 - Die Ordnung faellt auf `Name` zurueck; die `Sort by`-Auswahl bleibt sichtbar
   auf der gewaehlten Zielrichtung stehen, damit die Aussage nicht wandert.
 
-#### 3.8 Warten *(ueberholt am 08.09.2026 — ersetzt durch „Der Picker oeffnet vor seinen Zahlen" am Ende dieser Datei, T-124)*
+#### 3.8 Warten *(ueberholt am 08.09.2026 — ersetzt durch „Der Picker oeffnet vor seinen Zahlen" (T-124) und, nach der Entscheidung des App Designers zu F-P, durch „Leeres Raster bis zur Antwort" (T-127); beide am Ende dieser Datei, verbindlich ist der zweite)*
 
 > **Korrektur vom 08.09.2026 (T-124, aus AD-028), ersetzt den Absatz
 > darunter — der Absatz bleibt stehen, damit sichtbar bleibt, dass hier
@@ -850,6 +850,14 @@ Traegt die gewaehlte Zielrichtung fuer diesen Nightfarer keine Zahlen:
 > Verbindlich ist der Abschnitt **„Der Picker oeffnet vor seinen Zahlen
 > (ui-ux-designer, T-124) — 2026-09-08"** am Ende dieser Datei, AK-197 bis
 > AK-210.
+>
+> **Nachtrag vom 08.09.2026 (T-127):** Der App Designer hat F-P entschieden —
+> **leeres Raster bis zur Antwort**. Der T-124-Abschnitt bleibt vollstaendig
+> stehen (auch seine Abwaegung), verbindlich ist jetzt der letzte Abschnitt
+> dieser Datei: **„Leeres Raster bis zur Antwort (ui-ux-designer, T-127) —
+> 2026-09-08"**, AK-211 bis AK-219. Aus T-124 gestrichen sind dort AK-197,
+> AK-198, AK-199, AK-200, AK-202, AK-203 und AK-209; AK-201, AK-204 bis
+> AK-208 und AK-210 gelten weiter.
 
 AD-018 misst den teuersten Picker-Lauf mit ~51 ms, also unter der
 250-ms-Schwelle aus AK-09. Deshalb: **kein Fortschrittsbalken, kein
@@ -5888,6 +5896,17 @@ Umsetzung.
 **Ersetzt §3.8 des T-024-Abschnitts.** Der alte Absatz bleibt an seinem Platz
 stehen, mit einem Korrekturkasten davor; hier steht, was gilt.
 
+> **Teilweise ueberholt am 08.09.2026 (T-127), und zwar durch eine
+> Entscheidung, nicht durch einen Fehler.** Der App Designer hat **F-P** aus
+> §10 dieses Abschnitts **gegen die Empfehlung** entschieden: der Picker
+> zeigt **ein leeres Raster bis zur Antwort**. Dieser Abschnitt bleibt
+> vollstaendig stehen — samt §3.1, der die jetzt gewaehlte Option verwirft —,
+> damit sichtbar bleibt, dass abgewogen wurde und woran. **Verbindlich ist
+> der Abschnitt „Leeres Raster bis zur Antwort (ui-ux-designer, T-127) —
+> 2026-09-08" am Ende dieser Datei.** Was dort steht, geht dem hier vor; was
+> dort nicht angefasst ist, gilt hier unveraendert weiter. Die Streichliste
+> steht in T-127 §9.
+
 ### 0. Grundlage, Methode, und was davon **gesehen** ist
 
 **Gelesen:** `docs/tasks/T-124.md` · `ARCHITECTURE.md` (Nachtrag VIII ganz —
@@ -6419,3 +6438,538 @@ zu stellen ist.
   bei denen der Spieler gar nicht stehen bleiben will. **Empfehlung: so
   lassen** (sofort ist ehrlicher als „erst bei Enter", und es kostet nichts).
   Reine Geschmacksfrage, deshalb hier.
+
+---
+
+## Leeres Raster bis zur Antwort (ui-ux-designer, T-127) — 2026-09-08
+
+**Nachzug an einer Entscheidung des App Designers, kein Neuentwurf.** Der
+Abschnitt darueber (T-124) bleibt vollstaendig stehen, samt seiner Abwaegung
+und samt der Begruendung, mit der er die hier vorgegebene Option verworfen
+hat. Was hier steht, geht ihm vor; was hier nicht angefasst ist, gilt dort
+unveraendert weiter.
+
+### 0. Die Entscheidung, woertlich, und was sie nicht ist
+
+**App Designer, 08.09.2026, zu F-P:**
+
+> **Leeres Raster bis zur Antwort** — gar keine Bewegung, dafuer eine drittel
+> Sekunde ohne Namen, ohne Filtertreffer und ohne Dialoggroesse. Ruhiger, aber
+> der Dialog wirkt kurz leer.
+
+**Die Empfehlung aus T-124 §10 war die Gegenoption; sie ist nicht widerlegt,
+sondern ueberstimmt.** Der App Designer gewichtet Bewegung hoeher als Warten.
+Das ist seine Entscheidung, sie ist getroffen, und dieser Abschnitt setzt sie
+um — nicht als angehaengte Ausnahme, sondern als die Fassung, gegen die gebaut
+und geprueft wird.
+
+**Was die Entscheidung nicht ist:** sie schafft keine Bewegungsfreiheit,
+sondern **tauscht** eine Bewegung gegen eine andere. Statt einer einmaligen
+Umsortierung stehender Karten erscheint einmal das ganze Raster. Das ist die
+ruhigere von beiden, weil aus dem Nichts nichts unter dem Zeiger wegrutscht —
+aber es ist nicht „keine Bewegung", und der naechste Leser soll das nicht aus
+dem Wortlaut der Abstimmung schliessen muessen.
+
+**Eine der drei genannten Kosten faellt weg, und zwar ohne Gegenleistung:**
+die **Dialoggroesse**. Die Vorlage hat „ohne Dialoggroesse" als Preis genannt;
+§4 unten loest das, ohne die Entscheidung anzutasten — ein Fenster, das sich
+nach dem Oeffnen selbst vergroessert, waere die groesste Bewegung von allen
+und stuende damit gegen genau das, wofuer der App Designer gestimmt hat. Die
+beiden anderen Kosten — **keine Namen, keine Filtertreffer** waehrend der
+Leere — treten wie angekuendigt ein und stehen unten ausdruecklich.
+
+**Was hier nicht noch einmal aufgemacht wird:** F-P selbst. **F-Q** ist
+ebenfalls entschieden (`Sort by` ordnet bei jedem Schritt sofort um) und
+braucht keinen Nachzug; AK-204 und AK-206 bleiben unveraendert.
+
+### 1. Grundlage und Methode
+
+**Gelesen:** `docs/tasks/T-127.md` · `ARCHITECTURE.md` Nachtrag IX ganz
+(IX-0 bis IX-5, U5a bis U7, Risiken, OF-28/OF-29) und AD-028 samt W1/W2 ·
+`UI_SPEC.md` Abschnitt T-124 vollstaendig (AK-197 bis AK-210), §3.2 bis §3.8,
+AK-09/AK-10, AK-41 bis AK-53, AK-195/AK-196 · `GOAL.md` A6, A7, A8, A12, A13.
+**Am Quellstand gelesen** (lesend, nichts veraendert, nichts gestartet):
+`nrplanner/relicpicker.py`, `nrplanner/advisor/worker.py`,
+`nrplanner/advisorbar.py`, `nrplanner/app.py`.
+
+**Nicht gesehen:** kein laufendes Fenster, kein Bildnachweis, keine eigene
+Messung (parallel laeuft ein `developer` im selben Baum; ein zweiter Start ist
+nach `singleinstance` ohnehin folgenlos). Aussagen, die nur aus dem Quelltext
+stammen, sind **(Quelltext)** gekennzeichnet.
+
+**Der Wartezustand wird tatsaechlich gebaut.** Der `architect` hat in
+Nachtrag IX-5 das Vorwaermen abgelehnt (`candidates.pools()` rechnet gegen
+einen anderen Grundzustand und gaebe fuer die Picker-Form `()` zurueck), und
+IX-0 hat den Befund aus T-124 bestaetigt: **der Zielrichtungswechsel im
+offenen Dialog hat nichts zu rechnen.** Der Wartezustand betrifft damit **nur
+das Oeffnen** — und dort den Fall, in dem die Antwort nicht schon im Cache
+liegt (IX-1 Entscheidung C).
+
+**Eine Abhaengigkeit wird durch diese Entscheidung tragend, die vorher
+bequem war: IX-1.C.** Beantwortet der Controller eine bereits bekannte Frage
+**nicht** im selben Aufruf, wird der Wartezustand auch bei einem
+Cache-Treffer betreten — und dann steht das Raster bei jeder dritten Oeffnung
+(gemessene 30 % Trefferquote ueber Dialoggrenzen, S11-F) fuer die Dauer eines
+Ereignisschleifendurchlaufs leer und fuellt sich danach. Unter „Karten sofort"
+waere das ein kaum sichtbarer Zahlenwechsel gewesen; unter „leeres Raster" ist
+es ein Aufblitzen des ganzen Rasters. **IX-1.C ist damit nicht mehr nur eine
+Ersparnis, sondern Voraussetzung dieser Vorgabe** (W5 haelt es).
+
+### 2. §3.8, Fassung 3 — Warten im Picker
+
+> **Der Dialog oeffnet sofort, mit seiner endgueltigen Groesse, und mit einem
+> leeren Kartenbereich.** Die Rechnung laeuft in der Picker-Spur des Beraters
+> (AD-028); der Dialog wartet nicht auf sie, bevor er sich zeigt. Es gibt
+> **genau zwei Anstriche** je Oeffnung: den ohne Antwort und den mit ihr.
+> Alles, was an der Antwort haengt — **die Karten selbst**, ihre Zahlen, ihre
+> Chips, ihre Ordnung samt AK-195-Vorziehung, die Kopfzeile und die
+> Laufbefundzeile — erscheint in **einem** davon, nie in zweien nacheinander.
+>
+> **Der Wartezustand besteht aus genau drei Dingen**, alle drei vom ersten
+> Anstrich an da:
+> 1. Der Kartenbereich ist leer: **kein** Kartenwidget, auch nicht die
+>    Custom-Kachel; kein Reliktname, keine Zahl, kein Chip.
+> 2. An der Stelle, an der die linke obere Karte stehen wird, steht **eine**
+>    Zeile: `Your relics appear here.` (§7). Sie ist der Unterschied zwischen
+>    einem leeren Zustand und einem Dialog, der kaputt aussieht.
+> 3. In der Zusammenfassungszeile (§3.2, Zeile 3) steht **statt** der
+>    Zaehlung und des Bezugsgroessen-Satzes der Wartesatz aus §7. Es kommt
+>    keine Zeile dazu und es faellt keine weg — die Zeile wechselt ihren
+>    Wortlaut.
+>
+> **Kein Fortschrittsbalken, kein Wartecursor, kein Spinner, keine animierten
+> Punkte, kein zweiter Dialog, kein deaktiviertes Bedienelement.** Der Grund
+> ist jetzt ein anderer als in Fassung 2: nicht, weil nichts erscheinen darf —
+> das Raster erscheint —, sondern weil ein Wartezeichen **neben** einer Zeile,
+> die dasselbe in Worten sagt, doppelt ist, und weil jedes bewegte Element
+> genau die Ruhe zerstoert, um derentwillen diese Fassung gewaehlt wurde.
+>
+> **Es gibt keine Zeitschwelle und keinen Verzoegerungstimer.** Der
+> Wartezustand wird betreten, wenn beim Bau des Rasters keine Antwort
+> vorliegt, und verlassen, wenn die Frage endet — sonst nichts.
+>
+> **Was Fassung 2 an dieser Stelle noch behaupten konnte und Fassung 3 nicht
+> mehr kann:** „nichts erscheint, nichts verschwindet, also kann auch nichts
+> blitzen". Unter dieser Entscheidung erscheint das Raster, und im billigsten
+> gemessenen Slot (32,3 ms, S11-C) tut es das so schnell, dass die Wartezeile
+> nur kurz zu sehen ist. **Das ist ein Preis der Entscheidung, kein Fehler des
+> Entwurfs, und er ist ohne Wanduhr nicht zu beheben** — das einzige Mittel
+> waere eine Verzoegerungsschwelle, und die ist ausgeschlossen (Vorgabe des
+> Auftrags und AK-215). Gemildert ist er dadurch, dass die Wartezeile im
+> stillsten vorhandenen Token steht, genau dort, wo gleich die erste Karte
+> steht, und nichts tut.
+>
+> **Liegt die Antwort schon beim Bau des Rasters vor** (Cache-Treffer nach
+> IX-1.C), wird der Wartezustand **nicht** betreten: ein einziger Anstrich,
+> wie heute.
+>
+> **Bietet der Picker beim Oeffnen keine einzige Reliktkarte an** — ein Slot,
+> fuer den der Spieler nichts besitzt, oder ein voreingestellter Filter ohne
+> Treffer —, gibt es ebenfalls keinen Wartezustand: es gibt nichts zu ordnen
+> und nichts zu bewerten, der Dialog zeichnet einmal, wie heute.
+>
+> **Der Dialog bleibt modal** (Bestand, AD-028 unberuehrt). Daraus folgt
+> unveraendert: der Grundzustand kann sich waehrend einer Oeffnung nicht
+> aendern, deshalb genuegt **eine** Frage je Oeffnung (T-124 §4, AK-206).
+>
+> **Kein `Cancel`.** Unveraendert aus Fassung 2: Abbrechen heisst hier den
+> Dialog schliessen, und das geht mit Esc.
+
+**AK-09 und AK-10 gelten weiter — fuer die Advisor bar.** Fuer den Picker
+verdraengt sie jetzt AK-215, nicht mehr AK-202.
+
+### 3. Was im leeren Raster steht (Frage 1 des Auftrags)
+
+**Eine Zeile, und sonst nichts.** Woertlich: `Your relics appear here.`
+
+**Wo:** im Rollbereich, linksbuendig und oben, an der Stelle, an der die linke
+obere Karte des Rasters stehen wird (Ursprung des Rasterinhalts, mit den
+Raendern, die `CardGrid` ohnehin setzt). **Nicht** in der Mitte der Flaeche:
+die Karte, die diese Zeile ersetzt, landet dort, wo die Zeile stand, und damit
+wandert das Auge beim Wechsel um Null. Eine mittig gesetzte Zeile waere ein
+zweiter Ort, an dem etwas passiert.
+
+**Warum diese Aufteilung und nicht eine Zeile mehr oder weniger:**
+
+- **Warum ueberhaupt eine Zeile.** Eine leere Flaeche von drei Kartenreihen
+  Hoehe ist von einem Fehler nicht zu unterscheiden. Der Auftrag sagt es
+  richtig: nichts ist kein Zustand.
+- **Warum nur eine, und warum diese.** Die Zeile sagt, was mit der Flaeche ist
+  („hier kommen deine Relikte hin"). Was gerade geschieht, sagt Zeile 3 ueber
+  dem Raster (`Working out what each relic is worth with Slot 3 empty`). Zwei
+  Saetze, zwei Aussagen, kein Satz doppelt.
+- **Warum kein Skelett, keine Platzhalterkarten, kein Umriss.** Karten in
+  Kartenform sind Karten; der App Designer hat „keine Karten" entschieden.
+  Ausserdem waere ein Skelett das bewegte Element, das §2 ausschliesst.
+- **Warum die Zaehlung `29 of 29 relics` waehrend der Leere nicht dasteht.**
+  Sie ist ohne Berater bekannt (Quelltext: `slot.available_items()`), aber sie
+  waere eine Aussage ueber eine Anzeige, die es nicht gibt: 29 Relikte
+  ankuendigen und keines zeigen. Sobald ein Filter getippt ist, ist sie
+  ausserdem genau der **Filtertreffer**, dessen Verlust der App Designer
+  ausdruecklich in Kauf genommen hat. Sie kommt mit den Karten.
+- **Warum die Custom-Kachel nicht steht.** Sie haengt am Berater nicht und
+  koennte stehen. Eine einzelne Kachel in einer sonst leeren Flaeche sieht
+  aber mehr nach Fehler aus als die leere Flaeche selbst, und in einem Drittel
+  einer Sekunde greift niemand nach der Ausweichkachel. Sie fuehrt das Raster
+  an, sobald es steht — unveraendert (Quelltext: sie steht immer vorn und wird
+  nie gefiltert).
+- **Keine Bildlaufleiste waehrend der Leere.** Es gibt nichts zu rollen. Ihr
+  Platz ist trotzdem schon reserviert, weil die Oeffnungsbreite sie einrechnet
+  (Quelltext: `_opening_width`), also rutscht beim Erscheinen der Karten
+  nichts zur Seite.
+
+**Der Randfall, der bleibt und benannt wird:** tippt der Spieler **waehrend**
+der Leere einen Filter, der auf nichts passt, steht die Zeile
+`Your relics appear here.` bis zum Ende der Frage weiter da, obwohl danach
+keine Karte erscheint. Das ist fuer die Dauer eines Wartens hinnehmbar und
+wird **nicht** durch eine zweite Fassung der Zeile behandelt: eine Zeile, die
+waehrend der Leere ihren Wortlaut nach Filtertreffern wechselt, waere genau
+der Filtertreffer-Anzeiger, den diese Entscheidung nicht will.
+
+### 4. Die Dialoggroesse — die scharfe Stelle (Frage 2 des Auftrags)
+
+**Kein Blocker. Der Dialog misst sich beim ersten Anstrich, an den Karten, die
+er nicht zeigt.**
+
+**Der Befund, der die Frage erzeugt** (Quelltext, `relicpicker.py`):
+`_refresh` baut die Kartenwidgets, setzt sie ins Raster und ruft
+`_fit_to_three_rows(cards)`; das misst **einmal** (`self._sized`), ueber
+`wanted_height` = `_chrome_height()` + `_room_for_three_rows(cards)`, und
+`_room_for_three_rows` fragt jede Karte mit `heightForWidth` bei 190 px. Ein
+Raster ohne Karten hat nichts, woran der Dialog sich messen koennte.
+
+**Die Aufloesung: die Karten werden gebaut und gemessen, nur nicht gezeigt.**
+Welche Relikte in den Slot passen und wie hoch ihre Karten bei 190 px werden,
+haengt am Berater nicht (Quelltext: `slot.available_items()`,
+`slot.effect_names`, `self._curses`); die Messung ist ohnehin schon eine
+Messung ausserhalb des Bildschirms (Quelltext, Docstring von
+`_room_for_three_rows`: *„Measured offscreen at 190 px cards on this save"*).
+Die Entscheidung des App Designers ist eine Entscheidung darueber, **was der
+Spieler sieht**, nicht darueber, was das Programm rechnet.
+
+**Daraus vier verbindliche Saetze:**
+
+1. **Der Dialog nimmt seine Aussenmasse beim ersten Anstrich an**, aus
+   derselben Kartenliste und derselben Rechnung wie heute, in der
+   beraterfreien Ordnung (Favoriten, dann Name). `_sized` bleibt, wie es ist:
+   einmal.
+2. **Beim zweiten Anstrich aendert sich die Groesse nicht.** Auch dann nicht,
+   wenn die sortierte Ordnung in ihren ersten drei Reihen hoehere Karten
+   haette — das ist unveraendert der Stand von heute (`_sized`) und keine neue
+   Einschraenkung.
+3. **Ein Fenster, das sich nach dem Oeffnen selbst vergroessert, ist
+   ausgeschlossen.** Es waere die groesste Bewegung, die dieser Dialog machen
+   kann, und stuende gegen den Zweck der Entscheidung.
+4. **Wie die Messung technisch zustande kommt, ist nicht Sache dieser
+   Vorgabe** — ob die Karten einmal gebaut und bis zum zweiten Anstrich
+   gehalten oder zweimal gebaut werden, entscheidet der `developer` (der
+   zweite Bau ist die einzige Stelle, an der diese Entscheidung Rechenzeit
+   **kostet**, und er soll sie nicht unbemerkt zweimal zahlen). Verbindlich
+   ist nur das Ergebnis, und dafuer steht die Messauflage in **AK-216**:
+   derselbe Wert wie auf dem heutigen Weg, Differenz 0 px, mit Umgebung
+   genannt (L-009). Jede andere Differenz ist ein Befund und kommt zurueck
+   zu mir.
+
+**Was dabei aufpassen muss** (Quelltext): `_chrome_height()` ueberspringt
+Widgets, die nicht sichtbar sind (`isVisibleTo`). Der Dialog misst also nur
+dann richtig, wenn die Textzeilen ueber dem Raster beim ersten Anstrich
+wirklich stehen — genau das verlangt **AK-201** (unveraendert aus T-124), und
+genau das tut der heutige Stand **nicht** (`_say_what_was_left_out` versteckt
+`findings` und `caveats`, solange keine Rangfolge vorliegt). AK-201 ist damit
+nicht nur eine Lesbarkeitszusage, sondern eine Voraussetzung von AK-216.
+
+### 5. Bedienung waehrend der Leere (Frage 3 des Auftrags)
+
+**Alles ist da, alles ist freigegeben, nichts geht verloren — A6 verlangt ein
+bedienbares Fenster, und ein modaler Dialog ist in diesem Moment das Fenster.**
+
+| Bedienelement | waehrend der Leere |
+|---|---|
+| Filterfeld | freigegeben, beschreibbar, behaelt den getippten Text; er wirkt auf die Karten, sobald sie erscheinen |
+| `Sort by` | freigegeben, steht unveraendert auf der gewaehlten Zielrichtung; **wird nicht auf `Name` umgestellt** (AK-43: die Einstellung gilt programmweit) |
+| Bildlauf | freigegeben; es gibt nichts zu rollen |
+| Karten | gibt es nicht — also auch keine Auswahl, kein Rechtsklick, kein Favorit |
+| Esc, Fensterknopf | schliessen wie sonst (AK-207) |
+| Tastaturfokus | bleibt, wo er ist; beim Erscheinen der Karten springt er **nicht** auf eine Karte |
+
+**Kein Anschlag geht verloren, und keiner stellt eine zweite Frage** (AK-206).
+Wer waehrend der Leere tippt, sieht seinen Text im Feld — das ist die
+sichtbare Reaktion, die es in diesem Zustand geben kann; die Trefferzahl gibt
+es nicht (§3), und das ist die zweite der drei angekuendigten Kosten.
+
+**Was dabei nicht passieren darf:** Filterfeld oder `Sort by` waehrend der
+Leere zu sperren oder auszugrauen. Das waere ein Bedienelement, das erscheint
+und verschwindet (AK-215), und es waere ein Fenster, das waehrend einer
+Rechnung nicht bedienbar ist (A6).
+
+### 6. Das Ende der Frage — und warum die Leere nie das letzte Wort ist (Frage 4)
+
+Unter „Karten sofort" war ein ausbleibendes Ergebnis ein Verlust von Zahlen.
+Unter „leeres Raster" ist es der Verlust des ganzen Bildschirms: ein Dialog,
+in dem der Spieler kein Relikt waehlen kann. **Der Unterschied zwischen „kurz
+leer" und „kaputt" ist deshalb keine Feinheit, sondern die Bedingung, unter
+der diese Entscheidung tragbar ist.**
+
+**Der Controller sagt drei Ausgaenge zu** (Quelltext, `worker.py`,
+Klassen-Docstring woertlich: *„The window asks with `ask` and hears back on
+exactly one of `ready`, `failed` and `stopped`"*). **Jeder der drei fuellt das
+Raster:**
+
+| Ausgang | was der Spieler sieht |
+|---|---|
+| `ready` | die Karten in der sortierten Ordnung, mit Zahlen, Chips, Kopfzeile, Laufbefunden — der zweite Anstrich |
+| `failed` | die Karten in **Namensordnung**, `—` in beiden Wertzeilen, kein Chip, darueber die Kopfzeile aus AK-208 mit dem gemeldeten Grund |
+| `stopped` | dasselbe wie `failed`, mit `<reason>` = `the search was stopped` |
+
+`stopped` erreicht den Picker heute nur ueber `before_the_data_changes` und
+`shutdown`; beide sind an Bedienungen des Hauptfensters gebunden
+(`rescan_save`, `load_equipped`, Schliessen — Quelltext, `app.py`), die
+waehrend eines modalen Dialogs nicht ausgeloest werden koennen. **Der Fall ist
+trotzdem zu bauen**, weil Nachtrag IX U5b beide Spuren mit
+`before_the_data_changes`/`shutdown` verdrahtet und weil ein unbehandeltes
+`stopped` unter dieser Entscheidung nicht „keine Zahlen", sondern „nichts"
+bedeutet.
+
+**Was ausserhalb dieser Vorgabe liegt und gemeldet ist:** ein vierter Ausgang
+— eine Frage, die in **keinem** der drei Signale endet — laesst das Raster
+dauerhaft leer. Mit den Mitteln der Oberflaeche ist das nur ueber eine
+Wanduhr zu behandeln, und die ist ausgeschlossen. Die Zusage „genau einer von
+dreien" ist eine Zusage der Architektur (AD-006/AD-028); dass sie unter dieser
+Entscheidung **tragend** wird, ist im Bericht an den `director` fuer den
+`architect` vermerkt.
+
+### 7. Der Wortlaut — vollstaendig, Englisch (A8)
+
+Jeder dieser Texte ist `Qt.PlainText`; jeder interpolierte Wert aus Save- oder
+Spieldateien laeuft vorher durch `html.escape()` (AK-53 unveraendert).
+
+**(a) Zeile 3 waehrend des Wartens** — die Zeile traegt in diesem Zustand
+**nur** diesen einen Satzteil, keine Zaehlung, keinen Filterhinweis, keinen
+Favoritenhinweis, keinen Rechtsklick-Satz:
+
+```
+Working out what each relic is worth with Slot 3 empty
+```
+
+| Zustand | Zeile 3 |
+|---|---|
+| Warten | `Working out what each relic is worth with <slot> empty` |
+| Antwort da (Bestand, unveraendert) | `29 of 29 relics  ·  ranked against your build with <slot> empty  ·  right-click a relic to favourite it` |
+
+`<slot>` ist `slot.slot_name()`, dieselbe Quelle wie heute. **Der
+Rechtsklick-Satz faellt waehrend des Wartens weg**, weil er auf etwas zeigt,
+was nicht dasteht. **Laengenrang statt Pixelzusage** (T-084: eine Textbreite
+ist auf dieser Maschine headless nicht messbar): die Wartefassung ist mit
+`Slot 3` eingesetzt **53 Zeichen** lang, die fertige Fassung **103**; die
+fertige steht heute am Standardmass auf einer Zeile, also steht die kuerzere
+es auch. Die Zahl bleibt trotzdem zu messen — AK-214.
+
+**(b) Der Kartenbereich waehrend des Wartens** — eine Zeile, an der Stelle der
+linken oberen Karte:
+
+```
+Your relics appear here.
+```
+
+**(c) Kopfzeile waehrend des Wartens:** leer, keine.
+
+**(d) Fehlschlag und Abbruch** — unveraendert aus T-124 §6(d), jetzt auch fuer
+`stopped`:
+
+```
+Could not work out what these are worth — <reason>. They are in name order below.
+```
+
+Bei `stopped` ist `<reason>` woertlich `the search was stopped`. Die Karten
+tragen dann `—` in beiden Wertzeilen, keinen Chip, und stehen in
+Namensordnung. Der Satz `The game's data carries no figures …` erscheint in
+diesem Fall **nicht** (A7: er behauptet etwas ueber die Spieldateien).
+
+**(e) Unveraendert, und hier nur, weil sie im Wartezustand nicht erscheinen
+duerfen:**
+
+```
+Nothing you own raises damage in this slot.
+Nothing you own raises survival in this slot.
+The game's data carries no figures this goal can be ranked on, so these relics are in name order.
+```
+
+**(f) `…` (`PENDING`) ist kein Anzeigetext dieses Zustands mehr.** Die
+Konstante bleibt, wo sie ist — die Karte wird weiterhin mit Platzhalterzeilen
+gebaut und danach gefuellt (§3.3, AK-41 unveraendert) —, aber **auf dem
+Bildschirm steht sie nie**: solange die Frage laeuft, steht keine Karte da.
+Siehe AK-219 und die Meldung zu W2 im Bericht.
+
+### 8. Token
+
+**Kein neuer Farbwert, keine neue Schriftgroesse, kein neues Widget-Muster.**
+Die Wartezeile im Kartenbereich steht im vorhandenen Muster der ruhigen
+Erklaerzeilen dieses Dialogs: `MUTED`, 11 px, `Qt.PlainText`, `WordWrap` —
+dieselben Werte wie `summary`, `headline`, `findings` und `caveats`
+(Quelltext). Zeile 3 wechselt nur ihren Wortlaut. Ein Umbruch dieser
+Wartezeile ist folgenlos (sie steht in einer sonst leeren Flaeche) — im
+Unterschied zu Zeile 3, wo er es nicht ist (AK-214).
+
+### 9. Akzeptanzkriterien — Streichliste und AK-211 bis AK-219
+
+**Was aus T-124 faellt und wodurch es ersetzt wird:**
+
+| gestrichen | Grund | ersetzt durch |
+|---|---|---|
+| **AK-197** | zaehlt auf, was gemeinsam wechselt — die Karten fehlten in der Liste | **AK-211** |
+| **AK-198** | verlangt `…` auf jeder Karte im ersten Anstrich; es gibt keine Karten | **AK-212** |
+| **AK-199** | beschreibt die Ordnung des ersten Anstrichs; es gibt keine | **AK-212**, **AK-213** (die `Sort by`-Zusage) |
+| **AK-200** | schreibt Zeile 3 mit Zaehlung fest | **AK-214** |
+| **AK-202** | „nichts erscheint, nichts verschwindet" — das Raster erscheint | **AK-215** |
+| **AK-203** | Groesse, Bildlauf, Fokus in einem; die Groessenfrage ist jetzt die scharfe | **AK-216** (Groesse), **AK-217** (Fokus, Bildlauf) |
+| **AK-209** | drei Zeichen; `…` hat keinen sichtbaren Ort mehr | **AK-219** |
+
+**Was aus T-124 unveraendert gilt:** **AK-201** (die Pflichtzeilen warten
+nicht — jetzt zusaetzlich Voraussetzung von AK-216), **AK-204** (der
+Zielrichtungswechsel wartet nicht), **AK-205** (gezeichnet wird die gewaehlte
+Richtung, nicht `pool.rank_by`), **AK-206** (eine Frage je Oeffnung),
+**AK-207** (die ueberholte Antwort erreicht nichts — die zweite Zusage,
+*„eine im Wartezustand ausgewaehlte Karte wird uebernommen"*, entfaellt
+gegenstandslos: waehrend der Leere gibt es keine Karte zum Auswaehlen),
+**AK-208** (der Fehlschlag hat seinen eigenen Satz — erweitert durch AK-218),
+**AK-210** (die Zusagen des Bestands ueberleben den Umbau; AK-44 wird
+unveraendert am **zweiten** Anstrich gemessen, der jetzt der einzige mit
+Karten ist).
+
+**Neu, ab AK-211.** Pruefbar, binaer, an Zustaenden festgemacht, **keine
+Millisekunde**. „Eine Spur, die nie antwortet", „eine, die sofort antwortet",
+„eine, die `failed` meldet" und „eine, die `stopped` meldet" sind die
+Vorrichtungen, mit denen alles davon zu stellen ist.
+
+- **AK-211** *(zwei Anstriche, nicht drei — ersetzt AK-197.)* Je Oeffnung des
+  Pickers gibt es hoechstens zwei Zustaende der Anzeige: den ohne Antwort
+  (leeres Raster) und den mit ihr. Alles, was an der Antwort haengt — **die
+  Karten selbst**, die Zahlen beider Wertzeilen, die `BEST FOR …`-Chips, die
+  Ordnung samt AK-195-Vorziehung, die Kopfzeile und die Laufbefundzeile —
+  erscheint in **einem** Anstrich. Es gibt keinen Zwischenzustand, in dem
+  Karten ohne Zahlen stehen, in dem ein Teil der Karten steht, oder in dem die
+  Wartezeile neben Karten steht.
+  *Toetende Mutation:* Karten und Zahlen in zwei Schritten setzen.
+- **AK-212** *(das leere Raster ist ein Zustand, kein Nichts — ersetzt AK-198;
+  dies ist der Waechter **W2**.)* Wird der Picker mit einer Spur geoeffnet,
+  die nie antwortet, so gilt dauerhaft: im Rollbereich steht **kein**
+  Kartenwidget — keine Reliktkarte und auch nicht die Custom-Kachel —, kein
+  Reliktname, keine Zahl, kein Chip; keine Karte ist mit Tab erreichbar; an
+  der Stelle der linken oberen Karte steht die eine Zeile
+  `Your relics appear here.`; die Kopfzeile ist leer; Zeile 3 traegt den
+  Wartesatz aus AK-214; die beiden Textzeilen aus AK-201 stehen vollstaendig;
+  und der Dialog ist bedienbar nach AK-213.
+  *Toetende Mutation:* die Rechnung wieder synchron vor dem Oeffnen — die
+  Karten stehen sofort. Kein Zeitmass.
+  *Ausnahme, ausdruecklich:* bietet der Picker beim ersten Anstrich keine
+  einzige Reliktkarte an (leerer Slot, oder ein voreingestellter Filter ohne
+  Treffer), gibt es keinen Wartezustand und keine Wartezeile; der Dialog
+  zeichnet einmal.
+- **AK-213** *(waehrend der Leere ist nichts gesperrt und nichts geht
+  verloren — nimmt die `Sort by`-Zusage aus AK-199 auf.)* Im Zustand aus
+  AK-212 sind Filterfeld, `Sort by`, Bildlaufleiste und jedes andere
+  Bedienelement des Dialogs freigegeben (`isEnabled()`), keines ist
+  ausgegraut, und der Dialog traegt keinen Wartecursor. `Sort by` steht
+  unveraendert auf der gewaehlten Zielrichtung und wird nicht auf `Name`
+  umgestellt. Text, den der Spieler waehrend der Leere in das Filterfeld
+  tippt, steht danach unveraendert im Feld und wirkt auf die Karten, sobald
+  sie erscheinen; er loest keine zweite Frage aus (AK-206). Esc schliesst den
+  Dialog.
+  *Toetende Mutation:* Filterfeld oder `Sort by` waehrend der Leere sperren.
+- **AK-214** *(Zeile 3 behauptet keine Rangfolge und zaehlt nichts, was nicht
+  dasteht — ersetzt AK-200.)* Solange keine Karte steht, traegt Zeile 3
+  woertlich `Working out what each relic is worth with <slot> empty` und
+  **nichts sonst**: keine Zaehlung `x of y relics`, keinen Filterhinweis,
+  keinen Favoritenhinweis, keinen Rechtsklick-Satz. Der Nebensatz
+  `ranked against your build with <slot> empty` erscheint nicht, bevor die
+  Karten stehen. Die Wartefassung wird am Standardmass des Pickers **nicht
+  hoeher gezeichnet** als die fertige — gemessen, mit Umgebung genannt
+  (L-009: Stil, Skalierung, physisch oder logisch); ist sie es doch, wird die
+  **Warte**fassung gekuerzt, nicht die fertige.
+  *Toetende Mutation:* den Zaehlteil der Zeile waehrend der Leere stehen
+  lassen.
+- **AK-215** *(was erscheinen darf, und wo — ersetzt AK-202.)* Zwischen dem
+  ersten und dem zweiten Anstrich aendert sich **ausserhalb** des Rollbereichs
+  kein Widgetbestand: kein Fortschrittsbalken, kein Wartetext als eigene
+  Zeile, kein Wartecursor, kein Spinner, keine animierten Punkte, keine
+  Laufschrift, kein zweiter Dialog, kein gesperrtes Bedienelement, keine
+  Zeitschwelle, kein Verzoegerungstimer. **Innerhalb** des Rollbereichs gibt
+  es genau **einen** Wechsel: die Zeile `Your relics appear here.` weicht den
+  Karten. **Ersetzt AK-09 und AK-10 fuer den Picker**, nicht fuer die Advisor
+  bar.
+  *Toetende Mutation:* einen Fortschrittsbalken oder eine
+  Verzoegerungsschwelle einbauen.
+- **AK-216** *(die Groesse steht beim ersten Anstrich, nicht bei der Antwort —
+  ersetzt die Groessenhaelfte von AK-203; die scharfe Stelle dieser
+  Entscheidung.)* Der Dialog nimmt seine Aussenmasse beim **ersten** Anstrich
+  an, und zwar dieselben, die er mit denselben Karten in der beraterfreien
+  Ordnung annaehme; ueber den Wechsel zum zweiten Anstrich hinweg sind
+  `width()` und `height()` identisch, und er misst sich kein zweites Mal
+  (`_sized`). Die Hoehe jeder einzelnen Karte ist unveraendert (AK-41).
+  *Aufbau:* derselbe Slot zweimal geoeffnet, einmal mit einer Spur, die nie
+  antwortet, einmal mit einer, die sofort antwortet — beide Male dieselben
+  Aussenmasse.
+  *Toetende Mutation:* die Groesse erst beim Eintreffen der Antwort bestimmen
+  (der Dialog waechst nach dem Oeffnen); `_sized` beim zweiten Anstrich
+  zuruecksetzen.
+  *Messauflage an den `developer` (L-009):* er misst `wanted_height` fuer
+  dieselbe Kartenliste zweimal — einmal auf dem heutigen Weg (Karten im
+  Raster) und einmal auf dem Weg des Wartezustands — und nennt **beide Zahlen
+  mit ihrer Umgebung** (Qt-Stil, Skalierung, physisch oder logisch, Bestand
+  des Nutzers, Standardmass des Pickers). **Jede Differenz ausser 0 px ist ein
+  Befund und kommt zurueck zu mir**, nicht in eine Nachbesserung.
+- **AK-217** *(Fokus und Bildlauf — ersetzt die zweite Haelfte von AK-203.)*
+  Beim Erscheinen der Karten behaelt das Bedienelement mit dem Tastaturfokus
+  ihn; der Fokus springt **nicht** auf eine Karte, und der Bildlauf steht
+  danach am Anfang. Fuer jeden **spaeteren** Neubau des Rasters in derselben
+  Oeffnung — Filteranschlag, Zielrichtungswechsel, Favoritenvergabe — gilt
+  unveraendert AK-52: der Bildlaufwert bleibt, und lag der Fokus auf einer
+  Reliktkarte, liegt er danach auf der Karte desselben Relikts.
+  *Toetende Mutation:* den Fokus beim Erscheinen der Karten auf die erste
+  Karte legen.
+- **AK-218** *(die Leere ist nie das letzte Wort.)* Jede Frage einer Oeffnung
+  endet in genau einem von drei Ausgaengen — `ready`, `failed`, `stopped` —,
+  und **jeder der drei fuellt das Raster**: `ready` mit der sortierten
+  Ordnung; `failed` und `stopped` mit der Namensordnung, `—` in beiden
+  Wertzeilen, ohne Chip, unter der Kopfzeile aus AK-208, bei `stopped` mit
+  `<reason>` = `the search was stopped`. Ein Ausgang, der das Raster leer
+  laesst, ist ein Fehler.
+  *Aufbau:* drei Vorrichtungen — eine Spur, die antwortet, eine, die `failed`
+  meldet, eine, die `stopped` meldet.
+  *Toetende Mutation:* `stopped` nicht behandeln — das Raster bleibt leer.
+- **AK-219** *(zwei Zeichen, zwei Aussagen — ersetzt AK-209.)* Auf einer Karte
+  bedeuten `—` „nicht gemessen" und `no change` „gemessen, ohne Wirkung"; sie
+  stehen nie fuereinander. Ein drittes Zeichen fuer „laeuft noch" gibt es auf
+  dem Bildschirm nicht mehr: **keine im Rollbereich stehende Karte traegt je
+  `…` (`PENDING`)** — solange die Frage laeuft, steht keine Karte da. Die
+  Konstante selbst bleibt als Platzhalter beim Bau der Karte (§3.3, AK-41).
+  *Toetende Mutation:* das Raster waehrend der Leere mit Karten fuellen, die
+  `…` tragen — das ist die T-124-Fassung, und sie muss rot werden.
+
+### 10. Ausdruecklich **nicht** Teil dieser Vorgabe
+
+- **F-P selbst.** Entschieden. Diese Vorgabe setzt um, sie wiegt nicht ab.
+- **Die Modalitaet des Pickers**, **wie die Spur gebaut ist** (AD-028,
+  Nachtrag IX), **der `Optimize`-Weg** (AK-09 bis AK-11), **`inventory.load`
+  und der Erststart** (AD-029 Stufe B), **der Satz fuer „kein Spielstand" im
+  Picker** (A7-Bruch, aelter als AD-028, in T-124 gemeldet und weiterhin
+  offen), **die uebrigen Tabs, A16/A17** — alles unveraendert aus T-124 §9.
+- **Wie die Karten gemessen werden, ohne gezeigt zu werden** (§4 Punkt 4).
+  Verbindlich ist das Ergebnis, nicht der Weg.
+- **Ein Waechter gegen eine Frage, die in keinem der drei Signale endet.** Das
+  ist Architektur, nicht Oberflaeche; gemeldet, nicht hier entschieden.
+
+### 11. Offene Frage an den App Designer
+
+- **F-R (`Sort by` = `Name`: die einzige Oeffnung, bei der nichts umsortiert
+  wuerde).** **Dies ist keine Wiedervorlage von F-P** — F-P ist entschieden
+  und wird umgesetzt. Es geht um einen Sonderfall, den die Entscheidung erst
+  sichtbar macht: steht `Sort by` auf `Name`, ist die Ordnung der Karten schon
+  die endgueltige, und die Antwort wuerde nur Zahlen und Chips in stehende
+  Karten setzen — es gaebe also nichts umzusortieren. Diese Vorgabe laesst das
+  Raster **trotzdem** leer, damit der Picker **eine** Art hat, sich zu
+  oeffnen, statt zweier, deren Unterschied der Spieler nicht sieht.
+  **Empfehlung: so lassen wie hier vorgegeben.** Wer haeufig in `Name`-Ordnung
+  sucht und dabei nie Zahlen braucht, wartet dafuer bei jeder Oeffnung; wenn
+  das stoert, ist es eine Zeile in AK-212 („der Wartezustand entfaellt, wenn
+  `Sort by` auf `Name` steht").

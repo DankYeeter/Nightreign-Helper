@@ -144,3 +144,22 @@ Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008 bis L-018;
 projekteigen NH-001, NH-002.
 
 **Nie geprueft:** Linux/macOS · eine echte Fremdinstallation.
+
+## Nachtrag 08.09., waehrend T-128 laeuft (wird beim Zyklusende eingeordnet)
+
+- **F-R (Nutzer, 08.09.2026):** Das Raster bleibt **immer** leer bis zur
+  Antwort, auch bei `Sort by` = `Name`. Eine Oeffnungsart statt zweier.
+- **Director-Entscheidung statt drittem Entwurfslauf:** W2 nimmt seine Form
+  aus **AK-212**, nicht aus der ueberholten `PENDING`-Fassung des `architect`
+  (W5s PENDING-Satz wird gegenstandslos, seine Zaehlung haelt). Die
+  Sofortantwort aus **IX-1.C** ist keine Ersparnis mehr, sondern
+  **Voraussetzung** — ohne sie blitzt bei rund 30 % Cache-Treffern das leere
+  Raster auf. Beides dem `architect` und dem `developer` mitgeteilt.
+- **Geprueft, nicht erinnert:** die Zusage "genau eines von `ready`/`failed`/
+  `stopped`" steht als Docstring in `nrplanner/advisor/worker.py:144`;
+  `tests/test_advisor_worker.py` haelt Einzelfaelle fest (`stopped` genau
+  einmal, kein `ready` nach Abbruch), **kein Test prueft die
+  Ausschliesslichkeit als solche** (gesucht am 08.09. in dieser Datei). Wird
+  Waechter **W6** im Bauauftrag U6.
+- **AK ab AK-220** (T-127 hat AK-211 bis AK-219 vergeben und AK-197, 198, 199,
+  200, 202, 203, 209 gestrichen).
