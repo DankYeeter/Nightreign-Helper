@@ -156,3 +156,20 @@ den gemessenen Stand: 1 Stern, 1 Fork, 25 Downloads in 27 Tagen.
 **Was jetzt noch die Veroeffentlichung sperrt:** nur A-033 (Nachruestung des
 Bestands). Der Transport des Hinweispakets ist seit T-109 gebaut, der Inhalt
 seit T-107 fertig.
+
+## A-033 ausgefuehrt am 08.09.2026 — Nachweis
+
+Der `release-manager` hat in T-117 alle zwoelf Releases nachgeruestet.
+**Vom Director unabhaengig nachgeprueft** (`gh release view` je Tag,
+08.09.2026): **12 von 12** tragen `NightreignHelper-notices.zip`, alle zwoelf
+tragen weiterhin ihre `NightreignHelper.exe` (W1, nicht W2), und in allen
+zwoelf beginnt die Beschreibung mit dem Bestandstext ("Notice package added
+after the fact…"). "Immutable releases" war bei keinem aktiv.
+
+Damit ist der fortdauernde Verstoss gegen LGPL-3.0 § 4 und BSD-3 Kl. 2
+**beendet**. Nach GPL-3.0 § 8 leben die Qt-Rechte vorlaeufig sofort wieder auf;
+endgueltig nach **60 Tagen ohne Anzeige**, also ab dem **07.11.2026**, sofern
+bis dahin keine Beanstandung eingeht (A-035).
+
+**Status A-020 und A-033: ausgefuehrt, Nachweis erbracht — die Abnahme setzt
+der Nutzer**, nicht der Director und nicht der `release-manager`.

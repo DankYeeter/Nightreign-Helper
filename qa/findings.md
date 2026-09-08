@@ -2233,3 +2233,24 @@ nicht.**
 Gefunden in T-114. Verwandt mit QA-202: der zweite Start liest erneut ein und
 begruendet es mit einer Ursache, die nicht zutrifft. Zusammen mit QA-202 zu
 behandeln, nicht getrennt.
+
+## QA-207 — Toter Verweis im bereits ausgelieferten Hinweispaket
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `release-manager` in T-117, waehrend der Nachruestung.
+`THIRD_PARTY.md` verweist intern auf `vendor/Paramdex/NOTICE`; im gepackten
+`NightreignHelper-notices.zip` liegt die Datei aber **flach als `NOTICE`**.
+Wer dem Verweis im Paket folgt, laeuft ins Leere.
+
+**Keine Lizenzluecke:** die Datei **ist** im Paket, nur unter einem anderen
+Pfad. A-021 verlangt ihre Beilage, nicht einen bestimmten Pfad — die
+Nachruestung bleibt gueltig, der Verstoss bleibt beendet.
+
+**Aber es steckt schon in zwoelf oeffentlichen Releases.** Fix: entweder der
+Packschritt in `release.yml` erhaelt die Ordnerstruktur, oder `THIRD_PARTY.md`
+verweist auf den flachen Namen. **Die zweite Loesung ist kleiner, die erste
+ehrlicher** — die Datei heisst im Repository nun einmal so. Zusammen mit dem
+Fix ist zu entscheiden, ob die zwoelf Pakete noch einmal ersetzt werden; **das
+ist eine Frage an den Nutzer**, weil es zwoelf oeffentliche Releases erneut
+anfasst, und nicht dringend.
