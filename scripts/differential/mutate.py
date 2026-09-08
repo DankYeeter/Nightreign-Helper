@@ -1234,8 +1234,10 @@ MUTATIONS: dict[str, Mutation] = {
     "advisor-run-takes-a-request-about-another-run": Mutation(
         path="nrplanner/advisor/run.py",
         old="""    _refuse_a_request_that_asks_about_another_run(request, inventory, ctx)
+    if request.goal_id not in goals:
 """,
-        new="""""",
+        new="""    if request.goal_id not in goals:
+""",
         survival_means=(
             "the cache key is free to describe a run that did not happen. "
             "The run itself would be right -- it reads the context -- and "
@@ -1244,7 +1246,10 @@ MUTATIONS: dict[str, Mutation] = {
             "with those fields right hits it. Killed by "
             "test_advisor_run.py::"
             "test_a_request_that_describes_another_run_is_refused, seven "
-            "fields."),
+            "fields. The anchor carries the line below it because `run` is no "
+            "longer the only caller of this guard: `slot_pool` refuses the "
+            "same way and has a case of its own (T-128), which this edit does "
+            "not touch."),
     ),
     "advisor-run-walks-into-the-search-after-a-stop": Mutation(
         path="nrplanner/advisor/run.py",
