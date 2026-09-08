@@ -24,6 +24,17 @@ physical. Offscreen these are logical pixels on a desktop Qt reports as
 800 x 800, which is *narrower* than the picker opens -- so the row count is
 read off the viewport the dialog asks for, not off what a screen would grant.
 
+**The grid is empty until the answer arrives** (AK-211 to AK-219, T-130).
+Since the picker track was wired to the window's `AdvisorController` the
+pool is worked out in a real `QThread` and delivered by a Qt signal, not
+computed in the call that opens the dialog -- so a fixed number of
+`processEvents()` rounds no longer guarantees the cards exist by the time
+this script reads them; it only happened to, here, because loading the
+snapshot and building the whole window took long enough to mask the race. A
+smaller vessel, a warmer disk cache or a faster machine reads the empty grid
+AK-212 draws instead. This script waits for `dialog.waiting` to turn false --
+the same property the test suite polls -- before it measures anything.
+
 It reads the player's own save, read-only, and writes nothing.
 """
 
@@ -33,6 +44,7 @@ import json
 import pathlib
 import platform
 import sys
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -40,6 +52,7 @@ import os  # noqa: E402
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QEventLoop  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from nrplanner import app as appmod  # noqa: E402
@@ -50,10 +63,32 @@ from nrplanner import model, paths, relicpicker  # noqa: E402
 #: any effective-HP difference this dataset can produce.
 LONGEST = "+1234.5 effective HP"
 
+#: How long to let the picker's own answer arrive before giving up. Ten
+#: times `run.run`'s worst measured real case (960 ms, `Wylder's Chalice`
+#: with Deep of Night, six free slots, S11-C) -- the picker's own pre-sort is
+#: one slot of that, so this is a generous margin and not a tuned figure.
+ANSWER_TIMEOUT_S = 10.0
+
 
 def settle(app: QApplication, rounds: int = 3) -> None:
     for _ in range(rounds):
         app.processEvents()
+
+
+def spin(app: QApplication, still_waiting,
+         timeout: float = ANSWER_TIMEOUT_S) -> bool:
+    """Turn the main thread's event loop until the picker's answer lands.
+
+    Mirrors `tests/test_advisor_worker.py::spin`: the same idiom the suite
+    uses to wait on the real `AdvisorController` thread, so this script
+    watches the same thing the window does while a run goes on. Returns
+    whether the wait ended because the answer arrived rather than because
+    the timeout did.
+    """
+    deadline = time.monotonic() + timeout
+    while still_waiting() and time.monotonic() < deadline:
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 5)
+    return not still_waiting()
 
 
 def whole_rows(dialog) -> int:
@@ -88,6 +123,10 @@ def main() -> int:
     slot = window.base_slots[0]
     dialog = relicpicker.RelicPicker(slot, window.icons, "", lambda _t: None)
     dialog.show()
+    if not spin(app, lambda: dialog.waiting):
+        raise SystemExit(
+            f"the picker's answer for {slot.slot_name()} did not arrive "
+            f"within {ANSWER_TIMEOUT_S:.0f} s; nothing to measure")
     settle(app)
 
     holder = dialog.scroll.widget()
@@ -175,6 +214,13 @@ def second_sample(app: QApplication, window) -> None:
             picker = relicpicker.RelicPicker(slot, window.icons, "",
                                              lambda _t: None)
             picker.show()
+            if not spin(app, lambda: picker.waiting):
+                print(f"  {hero} {slot.slot_name()}: no answer within "
+                      f"{ANSWER_TIMEOUT_S:.0f} s, skipped")
+                picker.close()
+                picker.deleteLater()
+                settle(app)
+                continue
             settle(app)
             cards = picker.scroll.widget().findChildren(relicpicker.RelicCard)
             shown = [label.text() for card in cards[:3]
