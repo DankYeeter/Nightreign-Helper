@@ -4327,6 +4327,14 @@ Drei Dinge folgen daraus:
    Spiel-Patch aendern kann. Sie gehoert als Pruefung in den Code, nicht als
    Kommentar daneben — laut werden, nicht still danebenliegen.
 
+> **Punkt 3 ist abgeloest durch AD-031 (Nachtrag XI, 08.09.2026).** Die
+> Annahme bleibt geprueft; „laut werden" heisst aber nicht mehr
+> **verweigern** (so in T-133 gebaut, `savefile.py:237-246`), sondern
+> **auf den langsamen Weg zurueckfallen und es in der Bestandszeile sagen**
+> — Nutzerentscheid vom 08.09.2026, Wortlaut in `UI_SPEC` AK-228/AK-229.
+> Die Punkte 1 und 2 gelten unveraendert. Wer Punkt 3 zitiert, liest
+> AD-031 mit.
+
 Der eigene Spielstand gilt seit 02.09.2026 als vertrauenswuerdig; ein
 **heruntergeladener** bleibt die scharfe Grenze, und der Vorfilter laeuft auf
 beiden.
@@ -5356,3 +5364,609 @@ AK-218 den haeufigen Fall als Fehler.
 mir nicht): **OF ab OF-31**. **AD bleibt bei AD-030** — dieser Nachtrag
 vergibt keine AD-Nummer. Neu belegt sind ausserdem **W8** (Waechter der
 Picker-Spur) sowie die Umsetzungsschritte **U9** und **U10**.
+
+---
+
+## Nachtrag XI 2026-09-08 — Der Erststart bekommt einen Weg von Hand (AD-030), und der Vorfilter faellt zurueck statt zu verweigern (AD-031)
+
+**Anlass, zwei getrennte:**
+
+1. **A15** ist seit AK-106 bis AK-132 spezifiziert und **null Zeilen gebaut**
+   (QA-199). Die Spec entscheidet die Oberflaeche vollstaendig; sie entscheidet
+   **nicht**, wie der gemerkte Pfad die drei Datenverluste ueberlebt, gegen die
+   OF-15 gebaut ist, und sie entscheidet nicht, **wer im Programm den
+   Spielordner aufloest**. Beides gehoert hierher.
+2. **AD-029, Vertrauensgrenze Punkt 3, ist ueberholt.** Gemeldet vom
+   `ui-ux-designer` in T-141 (`UI_SPEC` §13). Der Nutzerentscheid vom 08.09.2026
+   verlangt den Rueckfall auf den langsamen Weg statt der Verweigerung — und
+   diesen langsamen Weg gibt es im Code nicht mehr.
+
+**Buchfuehrung:** vergeben werden **AD-030** und **AD-031**, die offenen Fragen
+**OF-31** und **OF-32**, und die Umsetzungsschritte **V1 bis V5** (der
+`U`-Kreis ist mit U1–U10 belegt und wird nicht fortgesetzt, damit „U8"
+eindeutig AD-029 Stufe B bleibt). **AD ab AD-032.**
+
+---
+
+### XI-0 — Was ich am Bestand nachgeprueft habe, statt es zu uebernehmen
+
+Stand `a8d31bb`. Kein Lauf, keine Messung; alles gelesen.
+
+| Aussage | Herkunft | Nachpruefung |
+|---|---|---|
+| „Der Code verweigert, statt zurueckzufallen" | T-141 | **haelt.** `nrdata/savefile.py:237-246`, `_check_the_prefilter_can_see_every_id`, Docstring *„Refuse to scan at all rather than scan half the ids"*, `raise ValueError`. Aufgerufen als erste Zeile von `read_owned_relics` (`:257`). |
+| „Den langsamen Weg gibt es nicht mehr" | T-141 | **haelt**, mit zwei eigenen Suchen: `range(0, len(` ueber `nrdata/` und `nrplanner/` → 2 Treffer, beide fremd (`bhd5.py:68`, `relicpicker.py:1113`); `slow (way|path|scan)`, `fallback scan`, `every fourth`, `stride` → kein zweiter Versatz-Erzeuger fuer Relikte. Es gibt genau einen: `_relic_id_offsets`, `savefile.py:209`. |
+| „kein `QFileDialog` in `nrplanner/`" | Auftrag, QA-199 | **haelt**, zwei Suchen: `QFileDialog|getExistingDirectory|getOpenFileName` ueber den ganzen Baum ausser `.venv` → **0 Treffer**; `choose folder|browse local files|find my save` → **0 Treffer**. Ebenso `paths/game|paths/save` → **0 Treffer**. |
+
+**Was T-141 nicht gezaehlt hat und ich nachgezaehlt habe:** `nrdata/savefile.py`
+traegt **zwei** Vorfilter, nicht einen — `_relic_id_offsets` (`:209`) und
+`_loadout_marker_offsets` (`:388`, aus T-136). Ein Rueckfall wird trotzdem nur
+an **einer** Stelle gebraucht, und der Grund steht im Code: der
+Loadout-Vorfilter sucht `HERO_MARKER_BASE + 1`, eine **Programmkonstante**
+(`savefile.py:380-385`), waehrend der Relikt-Vorfilter auf einer **Annahme
+ueber die Spieldaten** steht (`RELIC_ID_CEILING`, `:197`). Nur die zweite kann
+ein Patch still brechen. **Eins von zwei, mit Grund** — nicht „der Vorfilter".
+
+**Was T-141 nicht wissen konnte und die Reihenfolge bestimmt:** U3 (T-140) hat
+den Ausloeser fuer **AD-029 Stufe B** gemeldet — `inventory.load` **657,2 ms**
+gegen die Schwelle 250 ms (`docs/perf/baselines.md`, Zeilen 191 und 213).
+Stufe B ist damit faellig, und `UI_SPEC` §11 (AK-220 bis AK-229) ist ihre
+Vorgabe. Der Rueckfallweg und Stufe B gehoeren deshalb in **eine** Reihenfolge,
+nicht in zwei unabhaengige Straenge: AK-228 verlangt den Rueckfallsatz in
+derselben Zeile, die Stufe B ohnehin umbaut.
+
+---
+
+### AD-030 — Der gemerkte Pfad lebt in **zwei festen Schluesseln** des vorhandenen Speichers, und das Programm hat **einen** Ort, an dem es den Spielordner aufloest (2026-09-08, Status: aktiv; benennt die Reichweite von OF-15, beruehrt AD-013, AK-107, AK-117, AK-121, AK-125)
+
+**Kontext — der Widerspruch, den ich aufloesen soll.**
+
+> **A15** (GOAL, Nachtrag 06.09.2026): „der gewaehlte Pfad wird geprueft,
+> **behalten** und beim naechsten Start wieder benutzt."
+
+> **OF-15** (GOAL, 02.09.2026): „Damit entsteht **kein neuer persistenter
+> Zustand** — nach drei Datenverlusten im QSettings-Schluesselraum (Zyklus 4
+> und 5) ist das die tragende Begruendung, nicht die Bequemlichkeit."
+
+A15 ist die spaetere Entscheidung des Nutzers und gilt. Die Frage ist nicht
+*ob*, sondern *wie* — und die Antwort haengt daran, **was die drei
+Datenverluste tatsaechlich verursacht hat.** Das habe ich nicht aus OF-15
+uebernommen, sondern an der Stelle nachgelesen, an der es dokumentiert ist
+(`nrplanner/chalices.py:190-320`):
+
+| Verlust | Bauform | Beleg |
+|---|---|---|
+| QA-003 | Ein Build hiess `Fire / ice`. QSettings liest `/` als Pfadtrenner: der Name war kein Eintrag, sondern eine **Gruppe** `Fire ` mit dem Eintrag ` ice`. `childKeys()` sah ihn nicht, und das Loeschen der Builds nahm die Gruppe mit. | `chalices.py:193-200` |
+| QA-046 | Ein Schluessel ist auf Windows der Name eines Registry-Wertes, und die Registry unterscheidet Namen **nicht nach Gross-/Kleinschreibung**. `Bleed build` und `bleed build` landeten in **einem** Eintrag; Loeschen des einen nahm den anderen mit. | `chalices.py:215-222` |
+| QA-033 | Beim Umschluesseln wurde waehrend des Laufens entfernt. `remove("Fire ice")` nimmt die **gleichnamige Gruppe** mit — `Fire ice/v2` war geloescht, bevor es gelesen war. | `chalices.py:305-318` |
+
+**Die gemeinsame Randbedingung aller drei — und sie ist die ganze
+Entscheidung:** in allen drei Faellen wurde **Nutzertext zum Schluessel**. Der
+Schluesselraum war unbegrenzt, aus Eingaben abgeleitet, und die zerstoerende
+Operation war `remove`. **Kein einziger** der drei Verluste betrifft einen
+**festen** Schluessel mit veraenderlichem **Wert** — die Bauform von
+`ui/scale` und `ui/panes`, die seit Zyklus 1 nichts verloren hat.
+
+Dazu die zweite tragende Aussage aus OF-15, die auf A15 **nicht** zutrifft:
+*„Ein Halt verweist ausserdem auf einen Handle, und Handles werden beim
+Einschmelzen neu vergeben"* (AD-013). Ein Pfad ist kein Handle. Er ist ein von
+aussen pruefbarer Name, und er wird bei **jedem** Start gegen die Platte
+geprueft, bevor er benutzt wird. Der Fehlermodus, gegen den AD-013 gebaut ist —
+ein gespeicherter Verweis, dessen Ziel sich unbemerkt unter ihm ausgetauscht
+hat — existiert hier nicht.
+
+**Damit ist OF-15s Begruendung nicht widerlegt, sondern in ihrer Reichweite
+benannt:** sie traegt gegen *aus Nutzertext abgeleitete Schluessel* und gegen
+*persistierte Handles*. A15 verlangt keines von beiden.
+
+**Der zweite, unabhaengige Teil des Kontexts — und der ist in der Spec nicht
+entschieden:** `gamefiles.find_game_dir()` wird im Produktivcode an **vier**
+Stellen gerufen, nicht an einer:
+
+```
+nrplanner/app.py:4428        firstrun.ensure_data(gamefiles.find_game_dir())
+nrplanner/datasource.py:96   _regulation_matches  -> "kein Spiel da, der Abzug ist alles, was wir haben"
+nrplanner/datasource.py:142  _load_data           -> Live-Extraktion nach einem Patch
+nrplanner/datasource.py:168  _no_data_message     -> "No ELDEN RING NIGHTREIGN installation was found."
+```
+
+Wird nur `app.py:4428` auf den gemerkten Pfad umgestellt, heisst
+`find_game_dir()` an drei weiteren Stellen weiterhin *„der automatisch
+gefundene Ordner"* und wird dort als *„der Spielordner"* gelesen. Die Folgen
+sind einzeln klein und zusammen genau die Luecke, in der QA-171 schon sitzt:
+`_load_data` extrahiert nach einem Patch **nicht** live aus dem gewaehlten
+Ordner, `_regulation_matches` faellt in den Zweig *„No install to compare
+against; the snapshot is all we have"* und reicht den alten Abzug
+**kommentarlos** durch, und `_no_data_message` behauptet, es sei keine
+Installation gefunden worden, waehrend eine gemerkt ist.
+
+**Optionen.**
+
+- **A — im Bestand bleiben, nichts persistieren.** Der Pfad wird bei jedem
+  Start neu erfragt. Konsequenz: A15s Satz „und beim naechsten Start wieder
+  benutzt" faellt; der Nutzer mit ungewoehnlichem Speicherort klickt bei
+  **jedem** Start. Das ist die Sackgasse, die A15 beseitigen soll, nur einmal
+  pro Start statt einmal. **Entfaellt** — der Nutzer hat A15 nach OF-15
+  entschieden.
+- **B — eigene Datei** (`%LOCALAPPDATA%\NightreignHelper\paths.json`).
+  Konsequenz: umgeht den QSettings-Schluesselraum vollstaendig, kostet aber ein
+  neues Format, einen neuen Lese- und Schreibweg mit eigenen Fehlerfaellen, und
+  legt die Angabe in **dasselbe** Verzeichnis, das das Programm bei einem
+  Neuaufbau ausraeumt. Ausserdem waere sie der erste Zustand des Programms, der
+  nicht im einen Speicher liegt, und `tests/test_settings_store.py` haelt genau
+  die Einheitlichkeit fest, die damit fiele. Widerspricht zudem AK-117.
+- **C — zwei feste Schluessel im vorhandenen Speicher**, Wert = Pfad. Genau die
+  Bauform von `ui/scale` und `ui/panes`, und genau das, was AK-117 und AK-125
+  bereits vorgeben.
+- **D — C, aber zusaetzlich mit einem Aufloesungspunkt**, den alle vier
+  Aufrufstellen benutzen.
+
+**Entscheidung: D.** C allein waere die halbe Entscheidung: sie sagt, **wo**
+der Pfad liegt, aber nicht, **wer ihn liest**, und die vier Aufrufstellen oben
+laufen dann auseinander. Die vier Dinge, die der Auftrag ausdruecklich
+verlangt, im Einzelnen:
+
+**1. Ort.** Der vorhandene `QSettings`-Speicher, geoeffnet ueber
+`favourites.ORG` / `favourites.APP` — nie ueber Literale.
+**Genau zwei Schluessel, fuer immer:**
+
+```
+paths/game   der Ordner, der regulation.bin direkt enthaelt
+paths/save   die Spielstanddatei
+```
+
+Beide sind **fest**. Kein Nutzertext wird je Teil eines Schluessels; der Pfad
+steht ausschliesslich im **Wert**. Damit ist der Schluesselraum, den A15
+hinzufuegt, **konstant zwei** — das ist die direkte Antwort auf die drei
+Datenverluste, die alle drei aus einem *unbegrenzten, aus Eingaben
+abgeleiteten* Schluesselraum kamen.
+
+**2. Format.** Ein `str`: der absolute Pfad, so wie das Betriebssystem ihn
+schreibt, aufgeloest (`os.fspath` des Ordners, der `regulation.bin` direkt
+enthaelt — also **dieselbe Form, die `find_game_dir()` liefert**). Keine Liste,
+kein JSON, kein zweiter Schluessel daneben, keine Zeitstempel, keine Historie.
+
+*Warum das Lesen `type=str` erzwingt und nicht ohne auskommt:* QSettings gibt
+einen Wert ohne Typangabe je nach Speicherform als Liste zurueck, sobald er ein
+Komma enthaelt. Ein Ordnername darf ein Komma enthalten
+(`D:\Games\Elden Ring, alt\...`), und der Wert kaeme dann als `QStringList`
+zurueck — der Pfad waere still ein anderer Gegenstand als der geschriebene.
+`value(key, "", type=str)` schliesst das; die Gegenprobe ist ein Ordnername mit
+Komma, der unveraendert zurueckkommt.
+
+**3. Beschaedigter Eintrag.** Beschaedigt heisst: leer, kein `str`, oder ein
+Text, aus dem sich kein Pfad bauen laesst (`ValueError`/`OSError` aus
+`pathlib.Path`). **Behandlung: wie abwesend.** Kein Dialog, keine Meldung, kein
+Abbruch — die Aufloesung geht weiter zur Automatik. **Und der Eintrag wird
+nicht geloescht.**
+
+*Warum nicht geloescht:* `remove` ist die Operation, an der zwei der drei
+Datenverluste haengen. Ein unbrauchbarer Wert kostet pro Start eine Pruefung
+und nichts sonst; ein `remove` kann mehr treffen als den Schluessel, auf den es
+zeigt. **Invariante, die daraus wird und die einen Waechter bekommt:**
+
+> Das Programm ruft `QSettings.remove` **nie** auf einem Schluessel auf, der
+> mit `paths/` beginnt. Diese beiden Werte werden ausschliesslich
+> **ueberschrieben**, und nur durch einen bestaetigten Pfad.
+
+Das ist strenger als AK-121 („ein einzelner Fehlschlag loescht sie nicht") und
+widerspricht ihm nicht.
+
+**4. Der gemerkte Pfad existiert beim naechsten Start nicht mehr.** Die
+Reihenfolge, vollstaendig, deckungsgleich mit AK-107 und `UI_SPEC` §6:
+
+1. Gemerkter Pfad **gueltig** → benutzt, kein Fenster. Gueltig heisst: er
+   besteht **dieselbe** Stufe-1-Pruefung, unter der er angenommen wurde
+   (AK-112: `regulation.bin` lesbar und nicht leer, eine `data*.bhd` aus
+   `bhd5.ARCHIVE_KEYS`, eine DLL aus `oodle._DLL_NAMES`).
+   **Eine Funktion fuer beides** — Annahme und spaetere Gueltigkeit koennen so
+   nicht auseinanderlaufen; zwei Praedikate fuer dieselbe Frage waeren die
+   Bauform, die `find_loadout_table` laut seinem eigenen Docstring schon zweimal
+   falsch gemacht hat.
+2. Ungueltig, **oder die Pruefung wirft** (Laufwerk weg, Netzpfad tot,
+   Rechteproblem) → jede `OSError` gilt als „ungueltig", nie als Fehler nach
+   oben. Weiter mit `find_game_dir()`.
+3. `find_game_dir()` findet etwas → **benutzt, ohne Fenster** (AK-107) und
+   **ohne den gemerkten Wert zu ueberschreiben**. Geschrieben wird nur, was der
+   Nutzer bestaetigt hat; ein Fund der Automatik ist keine Bestaetigung, und
+   ein Laufwerk kommt wieder (`UI_SPEC` §6).
+4. Auch die Automatik leer → das Panel entscheidet nach Datenlage: Abzug
+   vorhanden → Text A3, kein Abzug → Text A2 (AK-119/AK-120).
+5. Erst eine Bestaetigung (C1/C2) schreibt — **vor** dem Bau (AK-117). Ein
+   Ordner, der bestaetigt wurde und dessen Bau danach scheitert, bleibt
+   gemerkt: er hat die Annahmebedingung bestanden, und der naechste Start
+   versucht den Bau erneut, statt zu fragen.
+
+Fuer `paths/save` gilt dasselbe eine Stufe flacher und ohne Panel (AK-125):
+gemerkte Datei weg → **still** auf `find_saves()` zurueck; auch das leer → die
+Zeile mit `Find my save…`. Der gemerkte Wert bleibt stehen.
+
+**Der Aufloesungspunkt, und wo die Grenze liegt.**
+
+```
+nrdata/gamefiles.py      Qt-frei. Suchen und Erkennen:
+                         find_game_dir()          wie heute, unveraendert
+                         looks_like_the_game(p)   Stufe 1 (AK-112), das eine Praedikat
+                         is_named_nightreign(p)   Stufe 2 (AK-113), weich
+                         search_from(p)           §4.2: 3 runter, 2 rauf, 400 Verzeichnisse, 2 s
+
+nrplanner/gamepath.py    NEU, Qt-Seite. Merken und aufloesen:
+                         GAME_KEY = "paths/game"  SAVE_KEY = "paths/save"
+                         remembered_game()  remember_game(p)
+                         remembered_save()  remember_save(p)
+                         resolve_game() -> Path | None      die Kette 1-4 oben
+```
+
+**Abhaengigkeitsrichtung: `nrplanner` → `nrdata`, nie zurueck.** Die Suche und
+die Erkennung sind reine Pfadlogik und gehoeren zu `find_game_dir`, den sie
+ergaenzen; sie bleiben **Qt-frei** und damit ohne Qt testbar. Das Gedaechtnis
+braucht QSettings und darf deshalb nicht nach `nrdata`. Die Alternative — ein
+`gamefiles.set_override()`, das `app.py` beim Start setzt — waere globaler
+veraenderlicher Zustand in der untersten Schicht und ist verworfen.
+
+**Alle vier Produktivstellen rufen `gamepath.resolve_game()`.**
+`datasource.py` importiert `gamepath` lazy in der Funktion, wie es
+`from nrdata import gamefiles` heute schon tut. `scripts/` bleiben auf
+`find_game_dir()` — sie sind Entwicklerwerkzeuge ohne Fenster und ohne Nutzer,
+der einen Pfad bestaetigt haette; das ist eine **benannte Ausnahme**, keine
+vergessene Stelle.
+
+**Konsequenzen.** *Leicht wird:* der Nutzer mit ungewoehnlichem Speicherort
+kommt an; `_load_data` extrahiert nach einem Patch auch aus einem gewaehlten
+Ordner live; `_no_data_message` kann nicht mehr behaupten, es sei nichts
+gefunden, waehrend etwas gemerkt ist. *Dauerhaft schwer wird:* das Programm hat
+zum ersten Mal einen persistenten Zustand, der auf die **Aussenwelt** zeigt —
+jede kuenftige Aenderung an der Erkennung muss zwei Faelle bedienen (gemerkt
+und gefunden) statt einen. Und: eine Pfadpruefung beim Start kann blockieren,
+wenn der gemerkte Pfad ein nicht erreichbares Netzlaufwerk ist (siehe Risiken).
+
+**Umkehrbarkeit: mittel.** Die zwei Schluessel und das Modul sind in einem Zug
+zurueckzubauen; der Rueckbau kostet aber jeden Nutzer, der einen Pfad gewaehlt
+hat, seine Angabe, und A15 faellt damit. Der **Aufloesungspunkt** allein ist
+**leicht** umkehrbar (vier Zeilen).
+
+**Die Vertrauensgrenze — sie verschiebt sich, und das ist ein Fall fuer den
+`security-reviewer`.** Ich entscheide das nicht; ich benenne, was sich bewegt:
+
+1. **Der Ordnerdialog macht aus einer Menge von rund vierzehn Kandidaten eine
+   beliebige Menge.** Heute liefert `find_game_dir()` ausschliesslich Pfade aus
+   der Steam-Bibliothekliste oder dem Muster
+   `<Laufwerk>:/SteamLibrary/steamapps/common/ELDEN RING NIGHTREIGN/Game`
+   (`gamefiles.py:48-70`). Nach A15 ist der gelesene Ordner der, den der Nutzer
+   benennt.
+2. **Der angenommene Ordner wird nicht nur gelesen — aus ihm wird eine native
+   DLL in den Prozess geladen.** `oodle.load()` ruft
+   `ctypes.CDLL(str(game_dir / name))` (`nrdata/oodle.py:34-46`). AK-112 nimmt
+   einen Ordner **gerade deshalb** an, weil eine dieser DLLs darin liegt. Der
+   Weg „Ordner waehlen → Code aus diesem Ordner laeuft im Prozess" ist neu.
+3. **Drei gestrichene Befunde standen auf genau der Bedingung, die A15
+   verschiebt.** SEC-016, SEC-017 und SEC-018 sind am 05.09.2026 vom Nutzer
+   gestrichen worden, woertlich: *„setzt eine boesartige Spielinstallation oder
+   ein bereits uebernommenes Benutzerkonto voraus; nicht erneut vorlegen"*
+   (`security/findings.md:26-28`). Es sind Entpackbomben im Spieldatenpfad
+   (`dcx.py` ohne Deckel, `tpf.py` 3,2 GiB Spitzenhaufen aus 256 KiB Eingabe).
+   Die Bedingung „boesartige Spielinstallation" war bisher nur ueber ein
+   uebernommenes Konto erreichbar; nach A15 ist sie eine Ordnerauswahl weit
+   entfernt. **Der Befundstatus aendert sich dadurch nicht von selbst** — die
+   Streichung gehoert dem Nutzer, und er hat „nicht erneut vorlegen" gesagt.
+   Aber die **Randbedingung**, unter der er gestrichen hat, gilt fuer den
+   geprueften Fall und nicht fuer den neuen. Das zu melden ist meine Pflicht;
+   was daraus folgt, ist OF-31.
+4. **Der Spielstand:** `Find my save…` traegt nach `UI_SPEC` §5 den dritten
+   Filtereintrag `All files (*)`. Ein **heruntergeladener** Spielstand — die
+   scharfe Grenze, die der Nutzer am 02.09.2026 ausdruecklich stehen gelassen
+   hat — ist damit in einem Klick erreichbar statt nur durch Ablegen im
+   Roaming-Profil. **Die Abwehr dagegen aendert sich nicht** und traegt weiter:
+   SEC-022 (`MIN_BYTES_PER_RELIC_RECORD`, `savefile.py:173`), die zweite
+   Dichtepruefung in `Inventory._refuse_a_density_no_save_can_have`, die Deckel
+   aus SEC-002 und die Id-Pruefung. Was sich aendert, ist die
+   **Erreichbarkeit**, nicht die Haerte. Auch das gehoert dem
+   `security-reviewer`.
+
+---
+
+### AD-031 — Bricht die Id-Annahme, **waehlt** der Scan den langsamen Weg, statt zu verweigern; der langsame Weg wird dafuer wieder gebaut (2026-09-08, Status: aktiv; **loest AD-029 Vertrauensgrenze Punkt 3 ab**)
+
+**Was abgeloest wird, woertlich aus AD-029:**
+
+> Die tragende Annahme `relic_id < 0x01000000` … gehoert als Pruefung in den
+> Code, nicht als Kommentar daneben — laut werden, nicht still danebenliegen.
+
+**Das war richtig und ist zu eng.** „Laut werden" hat der `developer` in T-133
+als `raise` umgesetzt (`savefile.py:237-246`) — die einzige Form, die zur
+Verfuegung stand, denn der langsame Weg war im selben Zug verschwunden. Der
+Nutzerentscheid vom 08.09.2026 verlangt: *benutzbar bleiben, aber nicht
+stillschweigend.* **Die Lautstaerke wandert von der Ausnahme in die
+Bestandszeile** (AK-228); die Annahme bleibt geprueft.
+
+**Kontext, was auf dem Spiel steht.** Ein Spielpatch, der Relikt-Ids ueber
+`0x01000000` vergibt, macht den Vorfilter blind fuer ein ganzes Id-Band. Der
+Scan gaebe eine kurze Liste zurueck, die von einem leeren Inventar nicht zu
+unterscheiden ist — deshalb die Pruefung. Heute endet das Programm dann in
+`app.py:3445`, `"Save could not be read: …"`, obwohl mit dem Spielstand nichts
+ist. Der heutige Text sagt das sogar selbst („nothing is wrong with the save")
+und steht trotzdem hinter dem Praefix, das das Gegenteil behauptet — das ist
+die Reibung, die AK-229 abstellt.
+
+**Optionen.**
+
+- **A — im Bestand bleiben (verweigern).** Konsequenz: nach einem Patch ist das
+  Programm fuer jeden Nutzer tot, bis eine neue Fassung erscheint, obwohl es
+  weiterlesen koennte. Vom Nutzer am 08.09.2026 verworfen.
+- **B — Vorfilter ausbauen, immer langsam scannen.** Konsequenz: gibt die
+  gemessenen 51,8x auf (4835,3 → 93,3 ms, T-133) und damit den groessten
+  einzelnen Hebel des Programms, um einen Fall abzudecken, der heute nicht
+  eintritt. Architektur gegen einen Fall, der nie kommt.
+- **C — beide Wege im Code, die Datenlage waehlt.** Der schnelle Weg, solange
+  die Annahme traegt; der langsame, sobald sie bricht; die Zeile sagt es.
+
+**Entscheidung: C.**
+
+**Form — vier Punkte, und der dritte ist der, an dem es schiefgehen kann.**
+
+1. **Die Wahl haengt an den Daten, nicht an der Datei.** Die Annahme betrifft
+   `valid_relic_ids` — den Datensatz —, nicht den Spielstand. Also wird sie
+   **einmal je Ladevorgang** entschieden, bevor ein Byte gescannt wird:
+
+   ```python
+   # nrdata/savefile.py
+   FAST, SLOW = "fast", "slow"
+
+   def relic_scan_mode(valid_relic_ids: set[int]) -> str:
+       """Which offset generator can see every id in this dataset."""
+       return SLOW if max(valid_relic_ids, default=0) >= RELIC_ID_CEILING else FAST
+   ```
+
+   `read_owned_relics` bekommt ein Schluesselwort `mode: str | None = None`
+   (`None` = selbst fragen). **Der Rueckgabetyp aendert sich nicht.** Damit
+   braucht es weder einen Modulzustand — der bei AD-029 Stufe B in einem Worker
+   liefe und dort falsch waere — noch eine Aenderung an einer Aufrufstelle, die
+   den Weg nicht wissen will.
+
+2. **Ein Rekord-Leser, zwei Versatz-Erzeuger.** Der langsame Weg ist **nur** ein
+   zweiter Generator neben `_relic_id_offsets`:
+
+   ```python
+   def _every_fourth_offset(slot_data: bytes):
+       """Every four-byte-aligned offset a record could begin at."""
+       yield from range(0, len(slot_data) - RELIC_FIELDS_SIZE, 4)
+   ```
+
+   Der Rumpf von `read_owned_relics` — Doppel-Id, Id-Gueltigkeit,
+   `seen_offsets`, Effekte, Fluechte, **und die Dichteschranke SEC-022** —
+   bleibt **einer**. Zwei Rumpfkopien waeren die Bauform, an der
+   `find_loadout_table` laut seinem eigenen Docstring schon zweimal falsch lag.
+
+3. **Der Waechter darf seine Erwartung nicht aus dem Produktivcode nehmen — und
+   diese Falle ist hier bereits gestellt.**
+   `tests/test_relic_scan_prefilter.py:43-80` traegt `full_walk`, eine
+   **absichtliche** dritte Implementierung des ganzen Scans, mit dem Kommentar
+   *„the only one in the tree: it is the independent expectation the prefilter
+   is held against, so sharing code with the thing under test would be the whole
+   point missed."* Zoege der `developer` sie nach `savefile.py` und liesse den
+   Test dann Produktion gegen Produktion vergleichen, waere der Waechter
+   entkernt, ohne dass ein Test rot wuerde — genau L-008 (b).
+   **Also: `full_walk` bleibt, wo es ist, und wird nicht ersetzt.** Der neue
+   Generator wird **gegen** es geprueft, nicht aus ihm gebaut.
+
+4. **Der Weg reist auf dem Bestand, nicht auf einem Signal.** `inventory.load`
+   fragt `relic_scan_mode` einmal, gibt den Wert an jeden
+   `read_owned_relics`-Aufruf weiter und legt ihn als Feld auf das Ergebnis:
+
+   ```python
+   @dataclass
+   class Inventory:
+       ...
+       read_the_slow_way: bool = False
+   ```
+
+   Ein Vorgabewert, also bleiben alle handgebauten `Inventory`-Objekte in den
+   Tests gueltig. Ein `bool` ist unveraenderlich und passiert damit die
+   Thread-Grenze von AD-029 Stufe B ohne Sonderfall (AD-006.8 unangetastet).
+   Die Zeile in `app.py` liest das Feld — **kein** Signal, **keine** Ausnahme,
+   **kein** Modulzustand.
+
+**Was AD-031 ausdruecklich nicht anfasst:** `RELIC_ID_CEILING` und seine
+Herleitung; die Dichteschranke SEC-022 in beiden Wegen;
+`_loadout_marker_offsets` (Programmkonstante, siehe XI-0); die Regel „der
+bestbestueckte Spielstand gewinnt" (AD-029 haelt).
+
+**Konsequenzen.** *Leicht wird:* ein Spielpatch kostet Geschwindigkeit statt
+Benutzbarkeit, und der Nutzer erfaehrt warum. *Dauerhaft schwer wird:* das
+Modul traegt zwei Wege durch dieselbe Schleife, und jede kuenftige Aenderung am
+Rekord-Leser muss beide bedienen — die Gleichheitspruefung ist deshalb kein
+Zusatz, sondern die Bedingung, unter der die Entscheidung traegt.
+*Ausserdem, unangenehm und zu sagen:* faellt der Rueckfall, faellt
+`inventory.load` von den gemessenen 657,2 ms auf die Groessenordnung der
+gemessenen 6147,6 ms zurueck. **Das ist kein geschaetzter Wert, sondern der
+Zustand von 1.7.1** — und genau der Grund, warum AD-029 Stufe B (U8) **vor oder
+unmittelbar nach** dem Rueckfall gebaut gehoert: im Worker ist die Zahl
+ertraeglich, im Hauptthread ist sie ein eingefrorenes Fenster.
+
+**Umkehrbarkeit: leicht.** Ein Generator, ein Schluesselwort, ein Feld. Der
+Rueckweg ist die heutige Fassung, und sie steht in der Historie.
+
+---
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte
+
+Obergrenze fuenf Dateien je Auftrag; die Schaetzung ist eine Schaetzung und als
+solche benannt (kein Messwert, keine Herleitung — sie stuetzt nur die
+Reihenfolge). Jeder Schritt ist fuer sich lauffaehig und fuer sich pruefbar.
+
+| # | Rolle | Inhalt | Produktivdateien | Tests | Schaetzung | haengt an |
+|---|---|---|---|---|---|---|
+| **V1** | `developer` | AD-030, Qt-freie Seite plus Gedaechtnis: `looks_like_the_game`, `is_named_nightreign`, `search_from` (§4.2/§4.3, Budget 400/2 s) in `nrdata/gamefiles.py`; neues `nrplanner/gamepath.py` mit den zwei Schluesseln und `resolve_game()`; die drei Aufrufstellen in `nrplanner/datasource.py` auf `resolve_game()`. **Keine Oberflaeche.** | **3** — `nrdata/gamefiles.py`, `nrplanner/gamepath.py` (neu), `nrplanner/datasource.py` | R1–R6 | 45–60 min | — |
+| **V2** | `developer` | AD-030, das Panel: Frage-Zustand in `firstrun.py` (Fensterart, die Texte aus §7, Ordnerdialog, C1/C2/E1/W1, Speichern **vor** dem Bau); die eine Zeile `app.py:4428`. | **2** — `nrplanner/firstrun.py`, `nrplanner/app.py` | R7–R9 | 60 min, **grenzwertig** | V1 |
+| **V3** | `developer` | AD-030, Spielstand: Knopf `Find my save…`, Dateiauswahl mit den drei Filtern, die drei Ausgaenge S3/S4/die heutige Zeile, `paths/save` schreiben und lesen, `inventory.load(save_path=…)` fuettern (der Parameter existiert bereits). | **2** — `nrplanner/app.py`, `nrplanner/gamepath.py` | R10–R11 | 40–50 min | V1 (**nicht** V2) |
+| **V4** | `developer` | AD-031: `_every_fourth_offset`, `relic_scan_mode`, `mode`-Schluesselwort, `_check_the_prefilter_can_see_every_id` entfaellt; `Inventory.read_the_slow_way`. | **2** — `nrdata/savefile.py`, `nrplanner/inventory.py` | R12–R16 | 40 min | — |
+| **V5** | `developer` | **= U8**, AD-029 Stufe B nach `UI_SPEC` §11: Lesen in den Worker, dritter Fensterzustand, Bestandszeile samt Rueckfallsatz (AK-228) und Praefix-Eigenschaft (AK-229). | **3** — `nrplanner/app.py`, `nrplanner/inventory.py`, ein kleines Qt-Modul fuer die Lesespur | R17–R18 | eigener Auftrag, hier nicht geschnitten | V4, U3 (**gemeldet**, 657,2 ms) |
+
+**Reihenfolge und was daran haengt.** V1 → (V2 ‖ V3), beide auf V1. V4 haengt an
+nichts und kann jederzeit laufen. **V4 vor V5**, und moeglichst **unmittelbar**
+davor: zwischen beiden faellt das Programm im Patch-Fall zwar zurueck, sagt es
+aber noch nicht — ein A7-Bruch, der genau so lange besteht, wie die zwei
+Auftraege auseinanderliegen. Ist eine Luecke absehbar, gehoert V4 hinter V5
+statt davor.
+
+**V2 und V3 fassen beide `app.py` an** und laufen deshalb nacheinander, nicht
+parallel. **`app.py` ist zum Zeitpunkt dieser Entscheidung durch T-142 belegt.**
+
+**Zwei Auflagen haengen daran** (`docs/legal/AUFLAGEN.md`, geprueft 08.09.2026):
+**A-026** („kein Pfad mit Steam-Konto-Id auf der Flaeche", SEC-023) traegt V3
+und wird von R11 gehalten. **A-024/A-027** — der Transparenztext und der
+README-Absatz „What it reads and where it writes" — zaehlen auf, was das
+Programm speichert; A15 fuegt dem **zwei** gespeicherte Werte hinzu. **Das ist
+nach V3 vom `technical-writer` nachzuziehen und steht in keinem Auftrag.**
+**A-032** ist **nicht** ausgeloest: A15 schreibt weder in den Spielstand noch in
+die Installation.
+
+---
+
+### Regressionstests — dieselben fuer `developer` und `qa-engineer`
+
+Der `developer` baut sie, der `qa-engineer` prueft sie nach. Jede Zeile nennt
+ihre **toetende Mutation**; ein Gegenbau zaehlt erst, wenn er im
+**Standardlauf** rot wird und seine Erwartung **nicht** aus der Stelle bezieht,
+die er bewacht (L-008 a/b). Ein **ueberlebender** Gegenbau ist ein Befund und
+wird berichtet, nicht nachgebessert (L-008 c).
+
+| # | Datei | Was gehalten wird | Toetende Mutation |
+|---|---|---|---|
+| **R1** | `tests/test_game_path_memory.py` (neu) | **Die zwei Schluessel heissen `"paths/game"` und `"paths/save"`** — als **Literal** im Test, zusaetzlich `assert gamepath.GAME_KEY == "paths/game"`. Ohne das Literal bliebe ein Umbenennen der Konstante gruen. | Konstante umbenennen. |
+| **R2** | dieselbe | **`remove` wird auf keinem `paths/`-Schluessel gerufen.** Zwei Wege zusammen: (a) Verhalten — nach einem gescheiterten Start ist der gespeicherte Wert **byteweise derselbe**; (b) Klasse — AST-Scan ueber den Baum in der Form von `test_settings_store.py`, kein `remove(...)` mit einem Literal, das mit `paths/` beginnt. **`OFFEN`-Liste: leer**, und ein Fall haelt fest, dass sie nur schrumpfen darf. | Im Fehlerzweig `settings.remove("paths/game")` einfuegen → (a) **und** (b) rot. |
+| **R3** | dieselbe | **Beschaedigter Eintrag = abwesend, nicht Fehler.** Vier Faelle: leer, kein `str`, Text mit `\0`, Text ueber 16 383 Zeichen. Jeder liefert den Wert der Automatik, wirft nicht, und laesst den Speicher unveraendert. | Typ- und Leerpruefung entfernen: `Path("")` loest auf das Arbeitsverzeichnis auf und wuerde angenommen → rot. |
+| **R4** | dieselbe | **Ein Pfad mit Komma kommt unveraendert zurueck** (`D:\Games\Elden Ring, alt\Game`). | `type=str` beim Lesen entfernen → der Wert kommt als Liste → rot. |
+| **R5** | dieselbe | **Die Kette und ihre Zaehlung** (AK-107): gemerkt gueltig → `find_game_dir` wird **0** mal gerufen; gemerkt ungueltig und Automatik findet → Ergebnis der Automatik, **kein** Panel, und der gemerkte Wert ist danach **unveraendert**. Zaehlwerte gegen Literale. | Nach erfolgreicher Automatik `remember_game()` rufen → der Unveraendert-Fall rot. |
+| **R6** | dieselbe | **Ein Aufloesungspunkt** (Klassenwaechter, Form von `test_settings_store.py`): kein Modul unter `nrplanner/` ruft `gamefiles.find_game_dir()` ausser `gamepath`. **Benannte Ausnahme: `scripts/`**, mit Grund im Docstring. Der Scan laesst `.claude/` aus (Worktrees). | Den Aufruf in `datasource.py` wieder einsetzen → rot. |
+| **R7** | `tests/test_first_run_panel.py` (neu) | **Annahme und Ablehnung** (AK-112): nur `regulation.bin` → abgelehnt; + `data*.bhd` → abgelehnt; + DLL → angenommen. Und: **dasselbe Praedikat** entscheidet Annahme und spaetere Gueltigkeit (was angenommen wurde, gilt beim naechsten Start als gueltig, und umgekehrt). | Eine der drei Bedingungen aus `looks_like_the_game` streichen → rot; ein zweites Praedikat fuer die Startpruefung einfuehren → der Umkehrfall rot. |
+| **R8** | dieselbe | **Suche und Budget** (AK-111): `…\ELDEN RING NIGHTREIGN` findet `…\Game`; ein Unterordner von `Game` findet `Game` (2 rauf); ein Baum mit **mehr als 400** Verzeichnissen endet in „nicht erkannt", und die **Zahl besuchter Verzeichnisse** steht gegen das Literal `400`. | Tiefe auf 4 erhoehen oder das Budget entfernen → rot. |
+| **R9** | dieselbe | **Gespeichert wird vor dem Bau** (AK-117): nach der Bestaetigung steht der Wert im Speicher, **bevor** der Bau-Zustand betreten wird — Reihenfolge als Zaehlwert, nicht als Zustandsprobe. Dazu **A8**: die neuen Texte laufen durch `tests/test_interface_language.py`. | Das Speichern hinter den Bau schieben → rot. |
+| **R10** | `tests/test_save_path_memory.py` (neu) | **`paths/save`** (AK-125): gemerkte Datei weg → **still** `find_saves()`, kein Text, kein Dialog, und der gemerkte Wert bleibt stehen. | Bei Fehlschlag loeschen → rot; eine Meldung ausgeben → rot. |
+| **R11** | dieselbe | **Die drei Ausgaenge** (AK-124) und **AK-126**: kein Text ausser dem Tooltip enthaelt den Ordnernamen des Spielstands. | Den vollen Pfad in S3 setzen → rot. |
+| **R12** | `tests/test_relic_scan_prefilter.py` (**vorhanden, erweitert**) | **Beide Wege sagen dasselbe.** `both_scans_agree` laeuft jeden vorhandenen Fall **zweimal**, `mode=FAST` und `mode=SLOW`, je gegen das **unabhaengige** `full_walk` — das bleibt unveraendert im Test und wandert **nicht** in den Produktivcode. | Den langsamen Generator auf Schrittweite 8 oder ohne Ausrichtung setzen → rot. |
+| **R13** | dieselbe | **Die Wahl, an drei Literalen:** `relic_scan_mode({2013322}) == "fast"`, `relic_scan_mode({0x00FFFFFF}) == "fast"`, `relic_scan_mode({0x01000000}) == "slow"`. Erwartungen als Literale, **nicht** aus `RELIC_ID_CEILING` gerechnet. | `>=` zu `>` → der Grenzfall rot. |
+| **R14** | dieselbe | **Es wird nicht mehr verweigert** (AK-228, Kern): bei einer Id ueber der Decke liefert `read_owned_relics` die Records — **Anzahl gegen ein Literal aus der Vorrichtung** — statt zu werfen. Der heutige Fall `test_a_relic_id_above_the_ceiling_is_refused_out_loud` wird **ersetzt**, nicht ergaenzt, und der Ersatz nennt im Docstring, was er abloest. | Den `raise` wieder einsetzen → rot. **Das ist die Mutation, die AK-228 selbst nennt.** |
+| **R15** | dieselbe | **Der Weg steht am Bestand:** ein Datensatz ueber der Decke ergibt `Inventory.read_the_slow_way is True`, einer darunter `False`. | Feld fest auf `False` verdrahten → rot. |
+| **R16** | `tests/test_hostile_savefile.py` (**vorhanden, erweitert**) | **SEC-022 gilt in beiden Wegen.** Die vorhandenen Dichtefaelle laufen zweimal, `FAST` und `SLOW`. | Die Schranke in den schnellen Zweig verschieben → im langsamen Weg rot. |
+| **R17** | V5, `UI_SPEC` AK-228 | Der Rueckfallsatz steht in der Zeile; **dieselbe Reliktzahl** auf beiden Wegen; kein Dialog, keine Farbe ausser `MUTED`, keines der Woerter `error`/`failed`/`warning`/`corrupt`. | Id-Pruefung wieder werfen lassen. |
+| **R18** | V5, `UI_SPEC` AK-229 | Das Praefix `Save could not be read: ` erscheint nur, wenn am Ende kein Bestand vorliegt. **Positivkontrolle:** dieselbe Pruefung gegen den **heutigen** Wortlaut (`… nothing is wrong with the save.`) **muss** anschlagen. | Den Rueckfallsatz wieder als Ausnahme werfen. |
+
+**Was in keinen dieser Tests gehoert:** eine Zeitschranke. Zeiten stehen in
+`docs/perf/baselines.md`, mit Umgebung und Streuung (L-001, L-009). Der
+Rueckfallweg ist **langsam von Bauart**; ein Test, der ihn unter eine
+Millisekundenzahl zwingt, misst den Rechner und nicht den Code.
+
+---
+
+### Was der `developer` ausdruecklich **nicht** tun soll
+
+- **`UI_SPEC.md` nicht anfassen.** AK-106 bis AK-132 und AK-220 bis AK-229
+  gehoeren dem `ui-ux-designer`. Weicht der Bau ab, wird es gemeldet.
+- **Keinen dritten Pfad einstellbar machen.** Der Zielort des Datenabzugs
+  bleibt `paths.cache_dir()` (Festlegung des Directors, `UI_SPEC` §11).
+- **`QSettings` nicht mit Literalen oeffnen.** Immer `favourites.ORG` /
+  `favourites.APP`; `tests/test_settings_store.py` haelt das und hat schon
+  einmal in den Speicher des Nutzers geschrieben.
+- **Keinen `remove` auf `paths/…`.** Nicht beim Fehlschlag, nicht beim
+  Aufraeumen, nicht beim Umschluesseln.
+- **`full_walk` aus `tests/test_relic_scan_prefilter.py` nicht in den
+  Produktivcode ziehen** und nicht durch den neuen Generator ersetzen. Es ist
+  die unabhaengige Erwartung; teilt sie sich Code mit dem Geprueften, belegt
+  der ganze Waechter nichts mehr.
+- **Die Dichteschranke SEC-022 nicht anfassen**, in keinem der beiden Wege.
+- **`RELIC_ID_CEILING` nicht erhoehen**, um den Rueckfall zu vermeiden. Die
+  Decke ist die Bedingung, nicht das Problem.
+- **`load()` nicht frueher abbrechen lassen** (AD-029 haelt).
+- **Aus dem Spielordner nichts verschieben, kopieren oder loeschen** (GOAL,
+  Nachtrag 06.09.2026).
+- **Keine Suche von einer Laufwerkswurzel ohne Budget.** 400 Verzeichnisse,
+  2 Sekunden, und beide Zahlen stehen im Test.
+- **Nicht in `app.py`, `inventory.py` oder `tests/` arbeiten, solange T-142
+  laeuft.**
+
+---
+
+### Risiken und Pruefpunkte
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| **Der gemerkte Pfad zeigt auf ein nicht erreichbares Netzlaufwerk.** Die Gueltigkeitspruefung ist ein `stat` und kann bei totem UNC-Ziel zehn Sekunden blockieren — **vor** dem ersten Fenster. Nicht gemessen; auf diesem Rechner ohne Freigabe nicht messbar. | Ein `power-user`-Lauf mit einem gemerkten UNC-Pfad auf einen abgeschalteten Host: Zeit bis zum ersten Fenster. | Die Pruefung wandert hinter den Splash oder in einen Faden mit Frist. Das ist ein Nachtrag zu AD-030, kein Umbau. |
+| **`datasource` bekommt ueber `gamepath` eine Qt-Abhaengigkeit.** Heute ist es Qt-frei. | Ein Import von `nrplanner.datasource` ohne PySide6 im Pfad. | Lazy-Import in der Funktion (so entworfen). Reicht das nicht, kehrt die Richtung sich um und `app.py` reicht den Pfad als Argument durch — teurer, weil vier Aufrufstellen dann Parameter tragen. |
+| **Der Rueckfall macht den Start wieder sechs Sekunden lang** und friert das Fenster ein, wenn V5 (Stufe B) noch nicht steht. | Trifft nur ein, wenn ein Patch die Ids umnummeriert. | V5 vor oder unmittelbar nach V4 bauen. Sonst bleibt nur die Verweigerung, und die ist verworfen. |
+| **Der Ordnerdialog nimmt einen Ordner an, aus dem eine fremde DLL geladen wird.** | `security-reviewer`, OF-31. | Stufe 2 haerten: ein harter Identitaetsnachweis statt Text W1. `UI_SPEC` §4.3 nennt ihn selbst als offen — *„ob es eine `nightreign.exe` o. ae. gibt, an der die Identitaet hart haengen koennte. Der Code kennt keinen solchen Namen."* Das ist an einer echten Installation zu pruefen. |
+| **V2 ist zu gross** (Fensterart, sieben Texte, Dialog, fuenf Zustaende, Skalierung). | Der Auftrag laeuft ueber 60 Minuten oder ueber die Zugschwelle. | Schnitt entlang der Textlage: erst der Erststart-Zweig (A1/E1/W1/C1/C2), dann der Spaeter-Zweig (A2/A3). A3 haengt am Datum des Abzugs und ist der einzige Teil, der `datasource` befragt. |
+
+---
+
+### Bewusst nicht getan
+
+- **Keine eigene Datei fuer die zwei Pfade** (Option B zu AD-030). *Wieder
+  interessant, wenn:* ein vierter oder fuenfter Pfad dazukaeme oder eine
+  Einstellungsseite entstuende — dann ist ein Format billiger als fuenf
+  Einzelschluessel. Solange es zwei sind, ist der vorhandene Speicher der Ort.
+- **Kein `gamefiles.set_override()`.** Globaler veraenderlicher Zustand in der
+  untersten Schicht, mit einer Reihenfolgeabhaengigkeit beim Start, die kein
+  Test billig festhaelt. *Wieder interessant, wenn:* `nrdata` je ohne
+  `nrplanner` ausgeliefert wuerde.
+- **Kein Loeschen eines unbrauchbaren Eintrags.** *Wieder interessant, wenn:*
+  ein gemessener Fall zeigt, dass ein Altwert einen Nutzer wirklich behindert —
+  bis dahin kostet er einen `stat` je Start, und `remove` hat zwei der drei
+  Datenverluste verursacht.
+- **Keine Einstellungsseite fuer die beiden Pfade.** `UI_SPEC` §11 stellt sie
+  ausdruecklich zurueck; sie ist offene Frage 1 des `ui-ux-designer`.
+- **Kein zweiter Rekord-Leser fuer den langsamen Weg** (AD-031, Punkt 2).
+  *Wieder interessant, wenn:* die beiden Wege je verschiedene Felder lesen
+  muessten — dann sind es zwei Formate und nicht zwei Wege.
+- **Kein Rueckfall fuer `_loadout_marker_offsets`.** Seine Konstante ist die des
+  Programms, nicht die der Spieldaten; ein Bruch waere laut und leer, nicht
+  still und kurz. *Wieder interessant, wenn:* ein Patch die Marker-Basis
+  verschiebt — dann ist es dieselbe Entscheidung ein zweites Mal.
+- **Keine Aenderung an `RELIC_ID_CEILING`.**
+
+---
+
+### Offene Fragen
+
+**OF-31 — an den `director`, Adressat `security-reviewer`, vor V2.** A15
+verschiebt die Vertrauensgrenze an **zwei** Stellen, und eine davon beruehrt
+eine Nutzerentscheidung, die ich nicht aufmachen darf:
+
+1. Der vom Nutzer gewaehlte Ordner wird nicht nur gelesen — `oodle.load()`
+   laedt eine **native DLL** daraus in den Prozess (`nrdata/oodle.py:34-46`),
+   und AK-112 nimmt den Ordner gerade deshalb an, weil sie darin liegt.
+2. **SEC-016, SEC-017 und SEC-018 sind am 05.09.2026 mit der Begruendung
+   gestrichen worden, sie setzten „eine boesartige Spielinstallation oder ein
+   bereits uebernommenes Benutzerkonto voraus"**, samt „nicht erneut vorlegen".
+   Diese Bedingung ist unter A15 keine Kontouebernahme mehr, sondern eine
+   Ordnerauswahl. **Ich lege den Befund nicht erneut vor** — ich melde, dass
+   die **Randbedingung** der Streichung fuer den geprueften Fall galt und fuer
+   den neuen nicht geprueft ist. Ob daraus etwas folgt, entscheidet der Nutzer
+   ueber den `director`.
+3. Der Spielstand-Dialog macht ein **heruntergeladenes** Save in einem Klick
+   erreichbar (Filter `All files (*)`, `UI_SPEC` §5). Die Abwehr aendert sich
+   nicht — SEC-022, die zweite Dichtepruefung, die Deckel aus SEC-002 —, die
+   Erreichbarkeit schon. **Zu pruefen:** ob die vorhandene Abwehr fuer einen
+   Spielstand reicht, den der Nutzer bewusst von aussen holt.
+
+**OF-32 — an den `director`, Adressat `performance-tuner`, nach V1.** Die
+Gueltigkeitspruefung des gemerkten Pfades laeuft **vor** dem ersten Fenster.
+Auf einem toten UNC-Ziel kann ein `stat` zweistellige Sekunden kosten. **Zu
+messen** ist das nicht auf diesem Rechner ohne Freigabe; **zu entscheiden** ist,
+ob die Frist gebaut wird, bevor jemand sie gemessen hat. Meine Empfehlung: erst
+messen — der Fall setzt voraus, dass der Nutzer sein Spiel auf einer Freigabe
+hat, und Architektur auf Vorrat ist teurer als ein Nachtrag.
+
+**Meldung an den `ui-ux-designer`, keine Frage:** Ich habe AK-106 bis AK-132
+und AK-220 bis AK-229 gegen diesen Entwurf gelesen. **Kein Widerspruch
+gefunden.** Was AD-030 hinzufuegt und die Spec nicht sagt: (a) der **eine**
+Aufloesungspunkt, den auch `datasource.py` benutzt; (b) die Invariante, dass
+die zwei Schluessel **nie geloescht**, nur ueberschrieben werden (strenger als
+AK-121, nicht anders); (c) `type=str` beim Lesen; (d) dass **dasselbe**
+Praedikat Annahme (AK-112) und spaetere Gueltigkeit (AK-107) entscheidet.
+Nichts davon ist sichtbar, alles davon ist pruefbar.
+
+**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
+mir nicht): **AD ab AD-032** · **OF ab OF-33**. Neu belegt sind ausserdem die
+Umsetzungsschritte **V1 bis V5** (V5 ist U8 unter neuem Namen; der `U`-Kreis
+wird nicht fortgesetzt) und die Regressionsfaelle **R1 bis R18**.
