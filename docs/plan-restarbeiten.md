@@ -310,9 +310,17 @@ Der Auftrag benennt die Teilung, statt sie der Rolle zu ueberlassen.
   viermal nur, um das Budget zu treffen. Das ist verschwendete Arbeit an einer
   Datei, deren Zweck Uebergabe ist, nicht Aktualitaet im Minutentakt.
 - **Der Bericht ist Teil des Auftrags, nicht sein Nachklang.** Der
-  `power-user` hat in T-115 Schreibrecht gehabt, den Bericht aber nicht
-  abgelegt (`GEAENDERT: keine Projektdateien`); der Director hat ihn von Hand
-  nachgetragen. Kuenftig steht in jedem Auftrag an eine Rolle **mit**
-  Schreibrecht der Satz: *"Der Auftrag gilt erst als erledigt, wenn
-  `docs/berichte/T-###-<rolle>.md` auf der Platte liegt."* Befund fuer die
-  `retrospective` — es war nicht der erste Fall.
+  `power-user` hat in T-115 **kein** Schreibrecht gehabt (`tools:` in
+  `agents/power-user.md` nennt weder `Write` noch `Edit`, nachgezaehlt am
+  08.09.2026), und seine Definition untersagt ihm das Schreiben ausdruecklich.
+  Der Director hat seinen Bericht abgelegt, und **das war richtig so.**
+  Kuenftig steht in jedem Auftrag an eine Rolle **mit** `Write` der Satz:
+  *"Der Auftrag gilt erst als erledigt, wenn
+  `docs/berichte/T-###-<rolle>.md` auf der Platte liegt."*
+
+  *Hier stand bis zum 08.09.2026 das Gegenteil — die dritte Fundstelle
+  derselben widerlegten Aussage. Zwei wurden am selben Tag korrigiert
+  (`CLAUDE.md`, Kopf des T-115-Berichts), diese blieb stehen und wurde von
+  `fable` gefunden. Genau das beschreibt L-016: eine Korrektur schliesst die
+  **Fundstelle**, nicht die **Aussage** — und die Regel hat am Tag ihrer
+  eigenen Annahme nicht gegriffen.*
