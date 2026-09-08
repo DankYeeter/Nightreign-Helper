@@ -1,4 +1,4 @@
-"""Eight guards over the picker's advisor track (U6/U10, AD-028, IX and X).
+"""Nine guards over the picker's advisor track (U6/U10, AD-028, IX and X).
 
 The track was built in U5a and U5b, and the fault T-130 found is what these
 are for: **the way was wired, looked finished and did nothing.**
@@ -12,10 +12,16 @@ to AK-219 without a single millisecond). Where a case turns the event loop it
 turns it *until something is true*, and the timeout it passes is a fuse
 against a hang -- nothing is asserted about how long anything took.
 
+**Every W here is an AD-028 W, and there is a second series.** The facade
+chain of AD-019 counts its own `W0` to `W6` (`ARCHITECTURE.md` 1835, 2650,
+2662), and `AD-019 W6` is not `AD-028 W6`. Neither series is renamed -- both
+stand in tests, reports and drafts -- so every mention carries where it comes
+from (`director`, 08.09.2026). Everything below is **AD-028**.
+
 Which guard is which, and where it comes from:
 
-* **W1** (AD-028) -- nobody under `nrplanner/` reaches the calculation but the
-  three places named below;
+* **W1** (AD-028, wording drawn level by Nachtrag X-3 Fassung 2) -- nobody
+  under `nrplanner/` reaches the calculation but the four places named below;
 * **W2** (AD-028, in the form of AK-212, which is what the App Designer's
   decision of 08.09.2026 left of it) -- the first paint is an empty grid and
   it is a *state*;
@@ -31,7 +37,9 @@ Which guard is which, and where it comes from:
   asked under;
 * **W8** (Nachtrag X, AK-218 Fassung 2) -- every way *into* the track has a
   row in a table here, and every row says what the player then has in front
-  of them.
+  of them;
+* **W9** (Nachtrag X-2) -- every place that *interrupts* a running worker has
+  a row in a table here, and the row says what the outgoing question hears.
 """
 
 from __future__ import annotations
@@ -61,12 +69,12 @@ SURVIVAL = "min_damage_taken"
 
 # --- W1: only one place computes, and it is not the main thread ------------
 
-#: Which file under `nrplanner/` may name each of the three, and why.
+#: Which file under `nrplanner/` may name each of the four, and why.
 #:
-#: **This is wider than AD-028's wording, and the difference is measured, not
-#: assumed.** The decision says "no file but `advisor/worker.py`"; it was
-#: written before U5b existed, and two of the three entries below could not be
-#: anywhere else:
+#: **This is wider than AD-028's first wording, and the difference is
+#: measured, not assumed.** Fassung 1 said "no file but `advisor/worker.py`";
+#: it was written before U5b existed, and two of the entries below could not
+#: be anywhere else:
 #:
 #: * `run.slot_pool` is what `app.py` **hands to** the picker's controller at
 #:   construction (AD-028 option D). It is named there and called nowhere: a
@@ -74,9 +82,26 @@ SURVIVAL = "min_damage_taken"
 #: * `candidates.pool` is called by `run.slot_pool` itself, which is the pool
 #:   function -- forbidding it there would forbid the function.
 #:
+#: Nachtrag X-3 drew the wording level with this table (Fassung 2, binding)
+#: and added the fourth row, `candidates.pools`. That one is not bookkeeping:
+#: it is the **nearest way round this guard**. IX-5 had the plural on the
+#: table as a proposal -- warming the whole set of pools when the Build
+#: planner opens, a measured 610,7 ms in the main thread (S11-C) -- and the
+#: proposal was refused. Without the row, the pool function may not be named
+#: outside the worker's thread while the function that builds *every* pool
+#: may be named anywhere.
+#:
 #: What AD-028 is about survives untouched: no window, no dialog and no tab
 #: reaches the calculation, so nothing but the worker's thread can run it.
 #: The expectation is this table, never what the watched files say (L-008b).
+#:
+#: **Where this guard stops, and it is a boundary rather than a hole**
+#: (Nachtrag X-3, last paragraph): it hangs on `test_one_build.call_sites`
+#: and therefore on **module short name plus function name**. It sees the
+#: seven spellings of the names listed here; it does not see arithmetic that
+#: reaches the main thread under some **other** name -- a direct grip into
+#: `search`, say. Whoever writes a new computing entry point enters it here;
+#: nothing in this file can notice that they did not.
 MAY_REACH_THE_CALCULATION = {
     ("run", "run"): {
         "nrplanner/advisor/worker.py":
@@ -91,6 +116,13 @@ MAY_REACH_THE_CALCULATION = {
         "nrplanner/advisor/run.py":
             "`slot_pool` is the pool function and this is the pre-sort it is "
             "a wrapper for",
+    },
+    ("candidates", "pools"): {
+        "nrplanner/advisor/run.py":
+            "the whole run builds every slot's pool once, inside `run.run` "
+            "and so inside the worker's thread (Nachtrag X-3.3); named "
+            "anywhere else it is IX-5's refused warm-up, 610,7 ms in the "
+            "main thread",
     },
 }
 
@@ -138,11 +170,11 @@ def test_w1_nothing_but_the_named_places_reaches_the_calculation(
         f"run it in the thread it is called from, which is the main one")
 
 
-def test_w1_the_picker_holds_none_of_the_three():
+def test_w1_the_picker_holds_none_of_the_four():
     """The same rule read from the other end, at the file it was written for.
 
     Set equality above says this too, and says it as an absence. This case
-    says it as a presence -- `relicpicker.py` names none of the three -- so
+    says it as a presence -- `relicpicker.py` names none of the four -- so
     that a reader of a failure knows at once which file broke the rule, and so
     that a table entry added by mistake cannot quietly re-admit the picker.
     """
@@ -154,7 +186,8 @@ def test_w1_the_picker_holds_none_of_the_three():
                                            frozenset({function}))
         for module, function in MAY_REACH_THE_CALCULATION}
 
-    assert reached == {"run.run": 0, "run.slot_pool": 0, "candidates.pool": 0}
+    assert reached == {"run.run": 0, "run.slot_pool": 0, "candidates.pool": 0,
+                       "candidates.pools": 0}
 
 
 # --- W2: the empty grid is a state, not an absence (AK-212) ----------------
@@ -923,3 +956,143 @@ def test_w8_every_way_back_leaves_cards_to_choose_from(a_track_to_ask, qapp,
         dialog.done(0)
         dialog.deleteLater()
         track.shutdown()
+
+
+# --- W9: every place that interrupts a run says what the question hears -----
+
+#: The private method every interruption of a running worker goes through
+#: (`worker.py`, "ask the search to stop, and the thread to end when it has").
+#: Counting its call sites is what makes the places countable at all: a place
+#: that stopped a run without it would have to reach into the thread itself.
+THE_INTERRUPTING_CALL = "_interrupt_the_running_worker"
+
+#: The four things the outgoing question can hear, named rather than spelled
+#: out in each row. Nachtrag X-2 states three of them as the rule -- send one
+#: of the three exits in this same call, or ask a successor question in this
+#: same call that will send one, or end the track -- and its own table adds
+#: the fourth, the cache hit that answered by return value (IX-1.3). Prose
+#: and table part company there, and the table is what is binding.
+STOPPED_IN_THE_SAME_CALL = "`stopped`, in this same call"
+THE_SUCCESSOR_QUESTION_WILL_ANSWER = (
+    "nothing here: the successor question is the current one now and ends "
+    "in exactly one of the three")
+THE_RETURN_VALUE_ALREADY_ANSWERED = (
+    "nothing here: the answer went back as the return value of this same "
+    "call")
+NOTHING_HERE_AND_NOTHING_AFTER = "nothing here, and nothing after it"
+
+#: **Every place that interrupts a running worker, and what the outgoing
+#: question hears.** Nachtrag X-2, in the same form as W1 above: the places
+#: are read off the syntax tree of `worker.py` and compared against this
+#: table, set equality in both directions, and the expectation is what stands
+#: here -- never what the watched file says (L-008b).
+#:
+#: **Why a table and not a sentence.** The promise this replaces was prose:
+#: "it holds over three callers". That says something about the *complement*
+#: of a set of call sites -- that no fourth one interrupts in silence -- and
+#: no case that can be played shows the absence of a place nobody has
+#: written. The evidence is the sentence itself: it was written with "three"
+#: on 08.09.2026 while the fourth place had stood in the same file since
+#: `1a2cc5b` of that morning. What can be watched is the table: the day a
+#: fifth place is added, somebody has to write down what the question it
+#: interrupts is going to hear, and that line is exactly the thought that was
+#: missing.
+INTERRUPTING_PLACES = {
+    "AdvisorController.cancel": (
+        STOPPED_IN_THE_SAME_CALL,
+        "AK-11: the window says 4.5 within microseconds, however long the "
+        "worker takes to notice",
+    ),
+    "AdvisorController._wait_for": (
+        THE_SUCCESSOR_QUESTION_WILL_ANSWER,
+        "the caller is asking something else; the run being interrupted is "
+        "the one whose answer nobody wants any more",
+    ),
+    "AdvisorController.ask_and_answer_if_known": (
+        THE_RETURN_VALUE_ALREADY_ANSWERED,
+        "the hit branch, and the commonest opening there is (30 % of them, "
+        "S11-F): no `ready`, no `started`, nothing begun (IX-1.3)",
+    ),
+    "AdvisorController.shutdown": (
+        NOTHING_HERE_AND_NOTHING_AFTER,
+        "the window is closing and there is nobody left to read a sentence; "
+        "the generation goes up first so a late answer is silent too (X-1)",
+    ),
+}
+
+
+def _named_scopes(node, prefix: str = ""):
+    """Every function in the tree under the name a reader would call it by."""
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            name = f"{prefix}{child.name}"
+            yield name, child
+            yield from _named_scopes(child, f"{name}.")
+        elif isinstance(child, ast.ClassDef):
+            yield from _named_scopes(child, f"{prefix}{child.name}.")
+        else:
+            yield from _named_scopes(child, prefix)
+
+
+def _calls_of_this_scope(node, attribute: str) -> int:
+    """How often one method is called here, not counting nested functions.
+
+    Nested functions are counted under their own name by `_named_scopes`, so
+    walking into them here would count one call site twice.
+    """
+    found = 0
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
+                              ast.ClassDef)):
+            continue
+        if (isinstance(child, ast.Call)
+                and isinstance(child.func, ast.Attribute)
+                and child.func.attr == attribute):
+            found += 1
+        found += _calls_of_this_scope(child, attribute)
+    return found
+
+
+def places_that_interrupt_a_running_worker() -> dict[str, int]:
+    """Every place in `worker.py` that interrupts a run, and how often.
+
+    Off the syntax tree and over the whole file, not over one class: a place
+    put in a second class, in a module-level function or in a nested one
+    would interrupt just as effectively, and a walk that only knew
+    `AdvisorController` would report the table as kept.
+    """
+    tree = ast.parse((REPO / "nrplanner" / "advisor" / "worker.py").read_text(
+        encoding="utf-8"))
+    found = {name: _calls_of_this_scope(scope, THE_INTERRUPTING_CALL)
+             for name, scope in _named_scopes(tree)}
+    found["<module>"] = _calls_of_this_scope(tree, THE_INTERRUPTING_CALL)
+    return {name: count for name, count in found.items() if count}
+
+
+def test_w9_every_interrupting_place_has_a_row_and_every_row_a_place():
+    """AD-028 W9 (Nachtrag X-2): the interrupting places are counted and named.
+
+    The binding promise is not a number of callers but this: *every place
+    that interrupts a running worker says what the outgoing question hears* --
+    either it sends one of the three exits in the same call, or it asks a
+    successor question in the same call that will send one, or it ends the
+    track for good.
+
+    What this guard cannot do, and X-2 says so in as many words: it sees the
+    places that exist, never the absence of one nobody has written. What it
+    does see is the day one is added without a decision about what the
+    question it cut off is going to hear.
+
+    It watches the count and the names, not the behaviour. That `cancel`
+    really sends `stopped` is held by AD-028 W6; that the successor question
+    really answers is held by AD-028 W6 and W3. W9 is the guard over those
+    two being **complete** -- the gap "three callers" could not close.
+    """
+    found = places_that_interrupt_a_running_worker()
+
+    assert set(found) == set(INTERRUPTING_PLACES), (
+        f"a running worker is interrupted in {sorted(found)} (counted: "
+        f"{found}) and this table knows {sorted(INTERRUPTING_PLACES)}. A "
+        f"place without a row cuts a question off without anybody having "
+        f"said what the player then waits for; a row without a place is a "
+        f"rule about code that has gone")

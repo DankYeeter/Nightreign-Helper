@@ -3637,6 +3637,79 @@ from PySide6 import QtCore
             "test_the_counter_rises_for_an_answer_that_was_known and "
             "test_a_question_nobody_has_answered_yet_is_asked_as_usual."),
     ),
+    "a-fifth-place-interrupts-the-run": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self.cancel()
+        self._cache.clear()
+""",
+        new="""        self.cancel()
+        self._interrupt_the_running_worker()
+        self._cache.clear()
+""",
+        survival_means=(
+            "AD-028 W9 is blind in the direction it was built for: a fifth "
+            "place cuts a running question off and no table row anywhere "
+            "says what the player then waits for. The edit is harmless in "
+            "behaviour -- `cancel` interrupted the run one line earlier -- "
+            "and that is the point: the guard is over the *decision*, not "
+            "over an effect, because the promise it replaces (\"it holds "
+            "over three callers\", Nachtrag X-2) was written with the wrong "
+            "count on the day it was written and no playable case can show "
+            "the absence of a place nobody wrote. Measured 08.09.2026 in "
+            "the standard run of test_picker_track_guards.py: 1 of 24 cases "
+            "falls, test_w9_every_interrupting_place_has_a_row_and_every_"
+            "row_a_place, and no other."),
+    ),
+    "cancel-interrupts-nothing-and-still-says-stopped": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._timer.stop()
+        self._interrupt_the_running_worker()
+        self.stopped.emit()
+""",
+        new="""        self._timer.stop()
+        self.stopped.emit()
+""",
+        survival_means=(
+            "AD-028 W9 is blind in the other direction: the table names a "
+            "place that is not there any more, and the set equality that "
+            "was supposed to notice does not. In behaviour the worker would "
+            "run the whole search out after `Cancel` -- `stopped` reaches "
+            "the window at once (AK-11) while the thread keeps the dataset "
+            "busy until it is done. Measured 08.09.2026 in the standard run "
+            "of test_picker_track_guards.py: 1 of 24 cases falls, "
+            "test_w9_every_interrupting_place_has_a_row_and_every_row_a_"
+            "place -- and **AD-028 W6 stays green**, which is the reason W9 "
+            "exists: `stopped` still goes out in the same call, so the "
+            "promise about the three exits is kept while the interruption "
+            "behind it has gone."),
+    ),
+    "the-window-holds-the-refused-warm-up": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.picker_advisor = AdvisorController(
+            self, answer=advisor_run.slot_pool,
+            cache=advisor_run.ResultCache(PICKER_CACHE_SIZE),
+            debounce_ms=PICKER_DEBOUNCE_MS)
+""",
+        new="""        from .advisor import candidates
+        self.picker_advisor = AdvisorController(
+            self, answer=advisor_run.slot_pool,
+            cache=advisor_run.ResultCache(PICKER_CACHE_SIZE),
+            debounce_ms=PICKER_DEBOUNCE_MS)
+        self._warm_the_pools = candidates.pools
+""",
+        survival_means=(
+            "AD-028 W1 does not watch the nearest way round itself. The "
+            "window would hold the function that builds *every* slot's "
+            "pool -- IX-5's warm-up, refused because it costs a measured "
+            "610,7 ms in the main thread (S11-C) -- while the single-slot "
+            "pool function it may only be handed is watched. A reference "
+            "held is a call one step later, which is why W1 counts "
+            "mentions and not calls, and why this mutation only names the "
+            "function. Measured 08.09.2026 in the standard run of "
+            "test_picker_track_guards.py: 1 of 24 cases falls, "
+            "test_w1_nothing_but_the_named_places_reaches_the_calculation"
+            "[candidates-pools]."),
+    ),
 }
 
 
