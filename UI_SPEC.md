@@ -6994,6 +6994,14 @@ Vorrichtungen, mit denen alles davon zu stellen ist.
   das stoert, ist es eine Zeile in AK-212 („der Wartezustand entfaellt, wenn
   `Sort by` auf `Name` steht").
 
+  > **Entschieden am 08.09.2026 (App Designer), nachgetragen in T-141:** das
+  > Raster bleibt auch bei `Sort by` = `Name` leer — wie hier empfohlen.
+  > **AK-212 bleibt woertlich, wie es steht**; die oben erwogene zusaetzliche
+  > Zeile wird **nicht** eingefuegt. Ausfuehrlich im Abschnitt „Nachtrag: F-R
+  > ist entschieden (ui-ux-designer, T-141)" am Ende dieser Datei. **F-R ist
+  > damit geschlossen** — T-135 fuehrte sie noch als offen, weil die
+  > Entscheidung in keinem Auftrag stand.
+
 ---
 
 ## AK-218 nachgezogen: die Antwort, die schon bekannt war (ui-ux-designer, T-135) — 2026-09-08
@@ -7179,3 +7187,599 @@ diesem Nachzug** — es folgt daraus keine Verhaltensaenderung.
   auf dem Bildschirm steht, und nennt den Vertrag nur, wo er die Ursache ist.
 - **Keine neue offene Frage an den App Designer.** **F-R** aus T-127 bleibt
   offen und ist hiervon unberuehrt.
+
+## Der Spielstand wird im Hintergrund gelesen — der dritte Fensterzustand,
+## der Rueckfallsatz und das Praefix davor (ui-ux-designer, T-141) — 2026-09-08
+
+**Drei Vorgaben in einem Abschnitt, weil sie denselben Bildschirmbereich
+betreffen** — die Zeile unter `Rescan save` / `Load equipped` und die
+Slotkarten daneben — und weil zwei davon sich heute im Wortlaut
+**widersprechen** (§8). Getrennt geschrieben passten sie nicht zueinander.
+
+### 0. Grundlage und Methode
+
+**Gelesen am Stand `3a30a5b`:** `docs/tasks/T-141.md` · `GOAL.md` A6, A7, A8,
+A12, A15 · `ARCHITECTURE.md` **AD-029** vollstaendig (Kontext, Optionen,
+Ausloeser, Form von Stufe B 1–5, Vertrauensgrenze 1–3, Umfang, Umkehrbarkeit)
+und die Schnitt-Tabelle mit **U8** · `UI_SPEC.md` Abschnitt T-124 (Zeiger),
+T-127 vollstaendig (§2 bis §11, AK-211 bis AK-219) und T-135 (AK-218
+Fassung 2) · der Quellstand von `nrplanner/app.py` (`main()` 4401-4446,
+`Planner.__init__` 1540-1600, `_build_left` 1670-1712, `RelicSlot` 570-760 und
+1095-1130, `rescan_save` 3435-3479, `load_equipped` 3481-3545, `select_hero`
+2465-2480), `nrplanner/inventory.py` (`Inventory` 88-140, `load` 215-330),
+`nrdata/savefile.py` (der Vorfilter 184-247, `read_owned_relics` 248-305, der
+zweite Vorfilter `_loadout_marker_offsets` 381-423).
+
+**Nichts gestartet, nichts gemessen, kein Bildnachweis.** Dieser Abschnitt
+enthaelt **keine eigene Zahl ueber die Oberflaeche** und braucht deshalb keine
+Messumgebung (L-009). Die drei zitierten Zahlen — **6147,6 ms** und
+**657,2 ms** fuer `inventory.load` (p50, Hauptthread, echter Spielstand des
+Nutzers, S11-E, fortgeschrieben in T-140) und die **250-ms-Schwelle** aus
+AD-029/AK-09 — stammen vom `performance-tuner`, nicht von mir, und stehen
+ausschliesslich in der **Begruendung**. In den Kriterien steht keine
+Millisekunde.
+
+Aussagen, die nur aus dem Quelltext stammen, sind **(Quelltext)**
+gekennzeichnet.
+
+### 1. Was schon entschieden war, und was hier entschieden wird
+
+**Nicht Gegenstand, weil entschieden:**
+
+- **Dass Stufe B gebaut wird.** Der `performance-tuner` hat den Ausloeser aus
+  AD-029 gemessen und gemeldet (T-140): `inventory.load` faellt durch die zwei
+  Vorfilter von 6147,6 auf **657,2 ms** und liegt damit weiter ueber der
+  250-ms-Schwelle. Die Entscheidung liegt laut AD-029 bei ihm; sie ist
+  getroffen.
+- **Wie Stufe B gebaut wird.** Thread-Grenze, Entwertung des
+  Zwischenspeichers, „ein Lesen zur Zeit" — AD-029 Form 1 bis 5 und der
+  `developer`. Diese Vorgabe sagt, **was der Spieler sieht**, nicht wie es
+  zustande kommt.
+- **Dass der Rueckfall gesagt wird.** App Designer, 08.09.2026, woertlich aus
+  `docs/state.md`: *„Bricht ein Spielpatch die Annahme, faellt das Programm auf
+  den alten, langsamen Weg zurueck und sagt es — statt den Spielstand fuer
+  unlesbar zu erklaeren."*
+
+**Gegenstand dieser Vorgabe:** der dritte Fensterzustand (§3 bis §6), der
+Wortlaut des Rueckfallsatzes (§7), die Aufloesung der Praefix-Reibung (§8),
+der vollstaendige englische Wortlaut (§9) und **AK-220 bis AK-229** (§11).
+
+### 2. Zweck & Nutzerziel
+
+**Der Spieler startet das Programm und sieht sofort ein Fenster, das ihm
+gehoert.** Was ohne den Spielstand schon feststeht, steht sofort; was aus dem
+Spielstand kommt, kommt kurz danach und sagt in der Zwischenzeit, dass es
+kommt. Beim `Rescan` gilt dasselbe, nur bleibt dort stehen, was schon da war.
+
+**Warum das kein Nebenschauplatz ist:** 657 ms sind lang genug, um gesehen zu
+werden, und es ist **der erste Eindruck des Programms**. Heute (Quelltext:
+`rescan_save(initial=True)` steht in `Planner.__init__`, `app.py:1578`;
+`window.show()` erst in `main()`, `app.py:4442`) ist in dieser Zeit
+**ueberhaupt kein Fenster** zu sehen: der Erststart-Splash ist zu, das Fenster
+noch nicht da. **A15** verlangt, dass der Erststart ohne fremde Hilfe zu
+lesbaren Daten fuehrt — ein leerer Bildschirm ist kein Anfang eines Weges.
+
+**Der Fall ist nicht der des Pickers.** Dort war die Frage „leeres Raster oder
+frueh gefuellte Karten" (F-P): der Dialog hatte Karten, nur keine Zahlen. Hier
+gibt es vor den Daten **nichts** anzuzeigen — kein Relikt, keine Zahl, keine
+Zaehlung. Uebernommen wird aus dem Picker nicht die Loesung, sondern die
+Bauform: **ein Zustand, kein Nichts**; eine ruhige Zeile statt eines
+Wartezeichens; kein Zeitmass.
+
+### 3. Zwei Situationen, ein Zustand — und die Asymmetrie, die alles vereinfacht
+
+| | **Start** (`rescan_save(initial=True)`) | **`Rescan save`** und jedes spaetere Lesen |
+|---|---|---|
+| Was vor dem Lesen dasteht | nichts: `self.owned` ist `None` (Quelltext, `app.py:1577`) | der **vollstaendige vorige Bestand**, und er gilt weiter |
+| Was waehrend des Lesens gilt | die Slots sind leer, weil noch nichts gelesen ist | AD-029 Form 3: entwertet wird **bei der Ankunft**, nicht beim Beginn — bis dahin ist alles auf dem Bildschirm richtig |
+| Was der Spieler verliert | fuer die Dauer des Lesens die Reliktauswahl | **nichts** |
+| Wie oft | einmal je Programmstart | so oft er drueckt |
+
+**Daraus folgt der ganze Entwurf:** der Wartezustand ist beim `Rescan` fast
+unsichtbar (eine Zeile wechselt) und beim Start der Zustand, in dem das
+Programm sich zum ersten Mal zeigt. Beide tragen dieselbe Bauform, aber nicht
+denselben Satz.
+
+### 4. Was der Spieler waehrend des Lesens sieht
+
+**(1) Das Fenster steht sofort und vollstaendig.** Nichts wartet auf den
+Spielstand, was ihn nicht braucht: die Nightfarer-Liste, die Stufe, die
+Kelchliste, `Deep of Night`, die Aufteilung der drei Bereiche und **alle Tabs,
+die aus den Spieldaten leben** (`Effects & chances`, `Weapons & spells`,
+`Nightlords`, `Deep of Night`, `Red variants`) sind im ersten Anstrich fertig
+und bedienbar. **Das ist die A15-Zusage dieses Abschnitts:** wer das Programm
+zum ersten Mal startet, hat sofort lesbare Daten vor sich, auch bevor sein
+Spielstand gelesen ist.
+
+**(2) Die Spielstandzeile sagt, was laeuft.** `owned_label` (Quelltext,
+`app.py:1695-1706`: `MUTED`, 10 px, `Qt.PlainText`, `WordWrap`, direkt unter
+der Knopfzeile `Rescan save` / `Load equipped`) traegt **einen** der beiden
+Wartesaetze aus §9 (a)/(b) — beim Start den kurzen, beim `Rescan` den, der
+sagt, dass nichts sich aendert. Es ist dieselbe Zeile, die danach das Ergebnis
+traegt; es kommt keine Zeile dazu und faellt keine weg.
+
+**(3) Die leeren Slotkarten sagen, warum sie leer sind — nur beim Start.**
+Eine leere Slotkarte sieht heute gleich aus, ob nie etwas darin war oder etwas
+herausgenommen wurde; genau dafuer gibt es `RelicSlot.empty_reason` mit
+`reason_holds` (Quelltext, `app.py:591-599`, gesetzt in `clear_relic`
+1102-1118, gezeichnet in `_sync_mode` 737-757, selbstloeschend in
+`_forget_a_spent_reason` 730-735). **Diese Vorrichtung wird benutzt, keine
+neue gebaut:** waehrend des Erststart-Lesens traegt jede leere Slotkarte die
+eine `MUTED`-Zeile aus §9 (c), und die Bedingung, unter der sie gilt, ist
+„der Spielstand ist noch nicht angekommen" — sie verschwindet damit von selbst
+und an genau einer Stelle. Das sind **drei** Karten, mit `Deep of Night`
+sechs (Quelltext, `app.py:1850-1866`).
+
+**Beim `Rescan` bekommt keine Karte eine Zeile dazu.** Dort steht, was schon
+dastand; eine Zeile „die Relikte kommen noch" waere falsch, die Relikte sind
+da.
+
+**(4) Nichts sonst.** Kein Fortschrittsbalken, kein Wartecursor, kein Spinner,
+keine animierten Punkte, keine Laufschrift, kein zweiter Dialog, keine
+Statusleiste, kein Titelleistenzusatz, keine Zeitschwelle, kein
+Verzoegerungstimer. Begruendung wie in AK-215, und hier zusaetzlich: ein
+Wartezeichen **neben** einer Zeile, die dasselbe in Worten sagt, ist doppelt.
+
+**(5) Keine Zahl, die noch niemand kennt.** Die Ueberschrift einer Slotkarte
+traegt heute die Zaehlung `(n available)` (Quelltext, `app.py:1093-1099`).
+Waehrend des Erststart-Lesens ist diese Zahl **nicht null, sondern
+unbekannt** — die Klammer entfaellt und kommt mit den Relikten.
+`(0 available)` waehrend des Lesens waere eine Behauptung ueber den Besitz des
+Spielers, die das Programm nicht belegen kann (**A7**), und sie waere die
+Zahl, die am ehesten wie ein Datenverlust aussieht.
+
+**(6) Keine Aussage ueber Relikte, die noch niemand gezaehlt hat.** Solange
+kein Bestand vorliegt, sagt auch der Berater nichts ueber ihn — weder
+`Nothing you own raises damage in this slot.` noch eine Rangfolge noch eine
+Zaehlung. Das ist **A7** und deckt jeden Weg, auf dem eine Antwort in diesem
+Moment entstehen koennte.
+
+### 5. Was bedienbar ist
+
+| Bedienelement | waehrend des Lesens |
+|---|---|
+| Nightfarer-Liste, Stufe, Kelchliste, `Deep of Night` | freigegeben, unveraendert |
+| alle Tabs ausser dem Reliktteil des `Build planner` | freigegeben, vollstaendig |
+| `Hold`-Knopf einer Slotkarte | freigegeben — ein Halt gilt dem Slot, nicht dem Relikt |
+| **`Empty slot` / der Reliktknopf einer Karte** | **gesperrt** (`setEnabled(False)`), in **beiden** Situationen; freigegeben, sobald der Bestand ankommt |
+| `Rescan save` | freigegeben; ein Druck waehrend eines laufenden Lesens startet **kein** zweites (AD-029 Form 4) und aendert nichts auf dem Bildschirm — die Zeile darunter sagt bereits, was laeuft |
+| `Load equipped` | freigegeben; waehrend eines Lesens tut er nichts und schreibt nichts in die Zeile |
+| Fenstergroesse, Bereichsteiler, Schliessen, Esc | unveraendert |
+| Tastaturfokus | bleibt, wo er ist; die Ankunft des Bestands nimmt ihn niemandem weg |
+
+**Warum der Reliktknopf als einziges gesperrt wird — und warum das AK-213
+nicht widerspricht.** AK-213 verbietet, ein Bedienelement zu sperren, das
+seine Arbeit noch tun **kann**; das Filterfeld des Pickers nimmt waehrend des
+Wartens Text an, und der Text wirkt hinterher. Hier ist es umgekehrt:
+
+- **Beim Start** hat der Picker nichts anzubieten (Quelltext:
+  `available_items()` gibt bei `self.owned is None` `[]` zurueck,
+  `app.py:2335-2337`). Er wuerde in genau den Zustand oeffnen, der als
+  A7-Bruch seit T-124 offen gemeldet ist: ein Dialog, der aussieht, als
+  besaesse der Spieler nichts.
+- **Beim `Rescan`** haette er etwas anzubieten — aber der Bestand, auf dem er
+  steht, wird waehrend seiner Standzeit ersetzt (AD-029 Form 3). Ein modaler
+  Dialog, dem der Boden unter den Karten weggezogen wird, ist die schaerfere
+  Stoerung; und weil er modal ist, kann der Spieler waehrenddessen ohnehin
+  nichts anderes tun.
+
+Der gesperrte Knopf ist damit **dieselbe Aussage wie die Wartezeile, am Ort
+des Zugriffs**, und er dauert genau so lange wie sie. Er ist die einzige
+Sperre in diesem Zustand; sie gilt fuer nichts sonst.
+
+**Kein Klick geht verloren, und keiner wird nachgeholt.** Ein Druck auf einen
+gesperrten Reliktknopf oeffnet auch nach der Ankunft keinen Picker. Ein
+Dialog, der eine halbe Sekunde nach dem Klick von selbst aufgeht, ist eine
+Ueberraschung und keine Bedienung.
+
+### 6. Wie der Zustand endet
+
+**Der Wartesatz ist nie das Letzte, was in der Zeile steht.** Jedes Lesen —
+Start wie `Rescan` — endet in **einem** der vier Zustaende dieser Tabelle, und
+in jedem steht ein Satz aus §9:
+
+| Ende | was in der Spielstandzeile steht | was sonst geschieht |
+|---|---|---|
+| **gelesen** | die Bestandsnotiz wie heute, §9 (e) | Slots, Zaehlungen, Kelche und Berater stehen auf dem neuen Bestand |
+| **gelesen, auf dem langsamen Weg** | dieselbe Notiz, mit dem Zusatz aus §9 (d) | wie „gelesen"; es fehlt nichts |
+| **kein Spielstand gefunden** | der Satz von heute, §9 (f) | die Slots bleiben leer, die uebrigen Tabs arbeiten voll |
+| **nicht lesbar** | `Save could not be read: <reason>`, §9 (g) | wie heute |
+
+**Ein Lesen, nach dem die Zeile noch den Wartesatz traegt, ist ein Fehler** —
+gleich auf welchem Weg es geendet ist. Das ist der Satz, an dem dieser Zustand
+haengt; die Aufzaehlung der Enden ist ihm nachgeordnet und **waechst mit**,
+wenn ein fuenftes dazukommt (dieselbe Bauform wie AK-218 Fassung 2).
+
+**Die Ankunft stellt den Zustand her, den ein synchrones Lesen hergestellt
+haette** — also den, den der Spieler heute nach dem Start vorfindet:
+Zaehlungen in den Slotueberschriften, freigegebene Reliktknoepfe, die
+Kelchliste am neuen Bestand (`reload_chalices`, heute `if not initial`,
+Quelltext `app.py:3475-3479`) und, beim Start, das einmalige Uebernehmen des
+gespeicherten Builds des angezeigten Nightfarers (Quelltext,
+`app.py:2471-2476`).
+
+**Eine Ausnahme, und sie ist der Grund, warum dieser Absatz hier steht:** hat
+der Spieler zwischen dem ersten Anstrich und der Ankunft **selbst einen Slot
+veraendert**, wird das gespeicherte Build **nicht** uebernommen — weder bei
+der Ankunft noch spaeter in dieser Sitzung. Sonst faende der Spieler seine
+Arbeit ueberschrieben; und wuerde die Uebernahme nur uebersprungen, kaeme sie
+beim naechsten Nightfarer-Wechsel unerwartet nach (Quelltext: sie haengt an
+`chalices.imported(hero_id)` und laeuft, bis sie einmal gelaufen ist).
+`Load equipped` bleibt der ausdrueckliche Weg, den Spielstand doch noch zu
+holen — so steht es schon heute im Quelltext begruendet (`app.py:2890-2898`).
+
+**Die Ankunft bewegt nichts.** Fenstergroesse und Bereichsbreiten aendern sich
+nicht, der Tastaturfokus bleibt, und die Spielstandzeile schiebt nichts unter
+dem Zeiger weg (Messauflage in AK-225).
+
+### 7. Der Rueckfallsatz — wenn die Id-Annahme bricht
+
+**Was heute im Code steht** (Quelltext, `nrdata/savefile.py:237-246`):
+`_check_the_prefilter_can_see_every_id` wirft einen `ValueError`, sobald die
+groesste Relikt-Id im Datensatz die Decke `RELIC_ID_CEILING` erreicht. Der
+Docstring sagt woertlich *„Refuse to scan at all rather than scan half the
+ids"*. Das ist die Form aus AD-029 Vertrauensgrenze 3 („laut werden, nicht
+still danebenliegen") — und sie ist durch den Entscheid des App Designers vom
+08.09.2026 **ueberholt**: nicht verweigern, sondern langsam lesen und es
+sagen.
+
+**Was der Spieler danach erlebt:** alles ist da, alles funktioniert, und das
+Lesen dauert wieder so lange wie vor dem Vorfilter (Groessenordnung 6 s statt
+0,7 s, zitiert aus S11-E/T-140). **Erst der dritte Fensterzustand macht diesen
+Rueckfall ertraeglich** — ohne ihn waere er ein sechs Sekunden totes Fenster.
+Die beiden Vorgaben haengen zusammen, und deshalb stehen sie in einem
+Abschnitt.
+
+**Was der Satz leisten muss** (aus dem Auftrag, und er ist danach zu pruefen):
+
+1. **alles funktioniert** — es fehlt kein Relikt, kein Build, keine Zahl;
+2. **es ist gerade langsamer** — der Spieler soll die Dauer einordnen koennen,
+   statt sie fuer einen Fehler zu halten;
+3. **woran es liegt** — in der Sprache des Spielers, nicht in der des
+   Dateiformats;
+4. **ohne Beunruhigung** — kein `error`, kein `failed`, kein `warning`, kein
+   Ausrufezeichen, keine Farbe ausser `MUTED`, kein Dialog;
+5. **ohne Zumutung** — keine Handlung, die der Spieler ausfuehren soll. Er
+   kann daran nichts beheben; das kann nur eine neuere Fassung des Programms.
+
+**Der Wortlaut steht in §9 (d).** Er haengt an der **Bestandsnotiz**, nicht an
+einer Fehlerzeile: dieselbe Grammatik, die die Notiz schon fuer den
+nicht-toedlichen Mangel `loadout_error` benutzt (Quelltext,
+`app.py:3455-3464`: `note += " — …"`). Ein Mangel, der das Ergebnis nicht
+verhindert, wird an das Ergebnis gehaengt und nicht an seine Stelle gesetzt.
+
+**Er gilt nur fuer das Lesen der Relikte.** Der zweite Vorfilter derselben
+Bauform (`_loadout_marker_offsets`, Quelltext `nrdata/savefile.py:381-423`)
+traegt **keine** Annahme ueber die Spieldaten — er sucht eine bekannte
+Konstante, und der Docstring sagt das ausdruecklich. Es gibt also genau
+**eine** Stelle dieser Bauform, die diesen Satz braucht, nicht zwei.
+
+**Er verschwindet nicht wieder von selbst.** Solange die Spieldaten so
+nummeriert sind, steht er bei jedem Start und jedem `Rescan` — als ruhige
+Fussnote, nicht als Meldung. Das ist richtig so: der Zustand haelt an, also
+haelt die Aussage an. (Gegenoption als **F-S** in §14.)
+
+### 8. Die Reibung am Praefix — und wie sie aufgeloest wird
+
+**Der Widerspruch, wie er heute auf dem Bildschirm entstuende** (Quelltext,
+`app.py:3443-3446`): `rescan_save` faengt **jede** Ausnahme aus
+`inventory.load` und schreibt `f"Save could not be read: {exc}"`. Der Text der
+Id-Pruefung endet mit `nothing is wrong with the save.` Zusammengesetzt ergibt
+das:
+
+```
+Save could not be read: relic id … is at or above … nothing is wrong with the save.
+```
+
+**Ein Satz, der sich selbst widerspricht** — und der neue Rueckfallsatz saehe
+dort noch schlimmer aus: „konnte nicht gelesen werden: es ist alles da".
+
+**Entscheidung: kein bedingtes Praefix. Der Satz nimmt einen anderen Weg.**
+
+1. **Der Rueckfallsatz ist keine Ausnahme.** Die Id-Pruefung hoert auf zu
+   werfen; sie schaltet den Scan auf den alten Weg und vermerkt das **am
+   Ergebnis** — dieselbe Bauform wie `Inventory.loadout_error` (Quelltext,
+   `inventory.py:104`, gefuellt in `load` 310-314, gezeigt in
+   `app.py:3458-3462`). Damit kommt er nie an der Stelle vorbei, die das
+   Praefix setzt.
+2. **Das Praefix behaelt seine Bedeutung, unveraendert:**
+   `Save could not be read: ` steht **nur** dort, wo am Ende **kein** Bestand
+   vorliegt.
+3. **Und es bekommt eine Eigenschaft, die geprueft wird, keine Fundstelle**
+   (AK-229): hinter diesem Praefix steht nie ein Satz, der sagt, dass mit dem
+   Spielstand alles in Ordnung sei.
+
+**Warum nicht das bedingte Praefix.** Es haette die Reibung an genau einer
+Fundstelle geloest und die naechste Ausnahme derselben Art wieder hineinlaufen
+lassen. **Nachgezaehlt** (Quelltext, `grep` nach `raise ValueError` ueber
+`nrdata/savefile.py` und `nrplanner/inventory.py`): **acht** Stellen, davon
+erreichen die Zeile **drei** — die uebrigen fuenf werden vorher gefangen
+(`_scan_save` verschluckt jeden Fehler des Containers, `inventory.py:243-249`;
+die Fehler der Build-Tabelle werden zu `loadout_error`, `inventory.py:310-314`).
+Von den **drei** sagen **zwei** sinngemaess „diese Datei ist beschaedigt oder
+ist kein Spielstand" — fuer sie ist das Praefix richtig und bleibt. **Einer**
+sagt das Gegenteil, und das ist genau der, der nach §7 ohnehin aufhoert zu
+existieren. Nach dem Umbau ist die Menge der widerspruechlichen Saetze
+**leer**, und AK-229 haelt sie leer.
+
+### 9. Der Wortlaut — vollstaendig, Englisch (A8)
+
+Jeder dieser Texte ist `Qt.PlainText` (Quelltext, `app.py:1704`, mit SEC-004
+als Begruendung). Interpolierte Werte aus Save- oder Spieldateien laufen wie
+bisher durch `html.escape()`, wo sie in einen Tooltip gehen (`app.py:3474`).
+Keine Zahl in diesen Texten ohne Einheit und Bezug (**A12**); die einzigen
+Zahlen stehen in der Bestandsnotiz und sind die von heute.
+
+**(a) Die Spielstandzeile waehrend des Lesens — beim Start:**
+
+```
+Reading your save.
+```
+
+**(b) Die Spielstandzeile waehrend des Lesens — beim `Rescan`:**
+
+```
+Reading your save again. Nothing changes until it is done.
+```
+
+Der zweite Satz ist die Zusage aus §3: die Relikte, die Slots und die
+Antworten des Beraters bleiben, wie sie sind — und deshalb ist auch der
+Reliktknopf so lange gesperrt.
+
+**(c) Die Zeile in einer leeren Slotkarte — nur beim Erststart-Lesen:**
+
+```
+Your relics appear when the save has been read.
+```
+
+Verwandt mit `Your relics appear here.` aus AK-212, und aus demselben Grund:
+eine leere Flaeche, die nicht sagt, warum sie leer ist, ist von einem Fehler
+nicht zu unterscheiden. **Nicht** derselbe Satz — dort ist die Flaeche das
+Raster des Pickers, hier ist es eine Karte, und der Unterschied liegt im
+Nebensatz.
+
+**(d) Der Zusatz an der Bestandsnotiz, wenn auf dem alten Weg gelesen wurde**
+— angehaengt wie `loadout_error`, mit demselben Gedankenstrich:
+
+```
+ — read the slow way: this version of the game numbers its relics above what the quick scan looks for. Nothing is missing and nothing needs fixing.
+```
+
+Vollstaendig sieht die Zeile dann so aus (die Zahlen stehen hier nur als
+Form):
+
+```
+309 relics in <slot name>, 110 stored builds — read the slow way: this version of the game numbers its relics above what the quick scan looks for. Nothing is missing and nothing needs fixing.
+```
+
+**(e) Die Bestandsnotiz — unveraendert** (Quelltext, `app.py:3455-3464`), hier
+nur, weil sie das Ende des Wartezustands ist:
+
+```
+<n> relics in <slot name>
+<n> relics in <slot name>, <m> stored builds
+<n> relics in <slot name> — no stored builds could be read: <reason>
+<n> relics in <slot name> — this save stores no builds yet
+```
+
+**(f) Kein Spielstand — unveraendert:**
+
+```
+No save file found. Relic slots stay empty; the Effects and Weapons tabs still work in full.
+```
+
+**(g) Nicht lesbar — unveraendert, und ab jetzt nur noch hier:**
+
+```
+Save could not be read: <reason>
+```
+
+**(h) Was in diesem Zustand nie erscheint:** `…` (`PENDING`), `0 available`,
+`No save loaded, so there is nothing to import.`, jede Zaehlung von Relikten
+und jeder Satz des Beraters ueber den Besitz des Spielers.
+
+### 10. Token
+
+**Kein neuer Farbwert, keine neue Schriftgroesse, kein neues Widget-Muster,
+kein neues Widget.** Die Spielstandzeile ist die vorhandene `owned_label`
+(`MUTED`, 10 px, `Qt.PlainText`, `WordWrap`); die Zeile in der Slotkarte ist
+die vorhandene `empty_reason`-Zeile in `rolled_label` (`MUTED`, in einem
+`<div>` wie die uebrigen Gruende). Der gesperrte Reliktknopf ist der
+vorhandene `choose_button` in Qts eigenem Deaktiviert-Zustand — **kein**
+eigenes Aussehen dafuer.
+
+### 11. Akzeptanzkriterien — AK-220 bis AK-229
+
+Pruefbar, binaer, an **Zustaenden** festgemacht, **keine Millisekunde**.
+Vorrichtungen, mit denen alles davon zu stellen ist: **ein Lesen, das nie
+antwortet**; **eines, das sofort antwortet**; **eines, das den langsamen Weg
+meldet**; **eines, das scheitert**; **eines, das keinen Spielstand findet**.
+Gewartet wird auf **Zustaende**, nicht auf Fristen; eine Frist in einer
+Vorrichtung ist eine Sicherung gegen Haengen und kommt in keiner Behauptung
+vor.
+
+- **AK-220** *(das Fenster ist vor dem Spielstand da.)* Wird das Programm mit
+  einem Lesen gestartet, das nie antwortet, so steht das Hauptfenster
+  trotzdem: sichtbar, mit Titel, in der Taskleiste; und Nightfarer-Liste,
+  Stufe, Kelchliste, `Deep of Night` sowie **jeder Tab ausser dem Reliktteil
+  des `Build planner`** sind vollstaendig gefuellt und bedienbar. Kein
+  Anstrich des Fensters wartet auf den Spielstand.
+  *Toetende Mutation:* das Lesen wieder vor `window.show()` legen — es
+  erscheint dann kein Fenster.
+- **AK-221** *(der Wartezustand ist ein Zustand, kein Nichts.)* Waehrend eines
+  Lesens, das nie antwortet, gilt dauerhaft: die Spielstandzeile traegt
+  **woertlich** einen der beiden Saetze aus §9 (a)/(b) und **nichts sonst** —
+  beim Start (a), sonst (b); beim Start traegt jede **leere** Slotkarte die
+  eine Zeile aus §9 (c); und im ganzen Fenster gibt es keinen
+  Fortschrittsbalken, keinen Wartecursor, keinen Spinner, keine animierten
+  Punkte, keinen zweiten Dialog, keine Statusleiste, keine Zeitschwelle und
+  keinen Verzoegerungstimer.
+  *Toetende Mutation:* die Zeile waehrend des Lesens leer lassen — dann ist
+  der Zustand von „kein Spielstand" nicht zu unterscheiden.
+- **AK-222** *(keine Zahl, die noch niemand kennt, und keine Aussage ueber
+  einen ungelesenen Bestand.)* Solange kein Bestand vorliegt, traegt keine
+  Slotueberschrift die Klammer `(n available)`; nirgends im Fenster steht eine
+  Zaehlung von Relikten, eine Rangfolge, ein `BEST FOR …`-Chip, einer der
+  Saetze `Nothing you own raises …` oder der Satz aus §9 (f). Mit der Ankunft
+  des Bestands steht die Zaehlung in jeder Slotueberschrift.
+  *Toetende Mutation:* die Klammer waehrend des Lesens mit `0` stehen lassen.
+- **AK-223** *(gesperrt ist genau eines.)* Im Zustand aus AK-221 ist der
+  Reliktknopf (`choose_button`) jeder Slotkarte gesperrt und oeffnet keinen
+  Picker; **jedes andere** Bedienelement des Fensters ist freigegeben
+  (`isEnabled()`) und nicht ausgegraut — namentlich Nightfarer-Liste, Stufe,
+  Kelchliste, `Deep of Night`, `Hold`, `Rescan save`, `Load equipped`, die
+  Bereichsteiler und jeder Tab. Der Reliktknopf ist freigegeben, sobald der
+  Bestand da ist. Das Fenster traegt keinen Wartecursor.
+  *Toetende Mutation:* das ganze `Build planner`-Feld sperren; oder den
+  Reliktknopf offen lassen — dann oeffnet sich ein Picker ohne Relikte.
+- **AK-224** *(der Wartesatz ist nie das letzte Wort.)* Jedes Lesen endet in
+  einem Zustand, in dem die Spielstandzeile **einen der vier Saetze aus §6**
+  traegt — die Bestandsnotiz, die Notiz mit dem Zusatz aus §9 (d), den Satz
+  „kein Spielstand" oder `Save could not be read: <reason>`. **Ein Ende, nach
+  dem die Zeile noch einen Wartesatz traegt, ist ein Fehler** — gleich auf
+  welchem Weg es geendet ist; die Aufzaehlung der Enden ist diesem Satz
+  nachgeordnet und waechst mit.
+  *Aufbau:* vier Vorrichtungen, je eine je Ende.
+  *Toetende Mutation:* den Fehlerfall nicht behandeln — die Zeile bleibt beim
+  Wartesatz stehen.
+- **AK-225** *(die Ankunft bewegt nichts.)* Ueber den Wechsel vom
+  Wartezustand zur Bestandsnotiz hinweg sind `width()` und `height()` des
+  Fensters identisch, die Bereichsbreiten sind identisch, und das
+  Bedienelement mit dem Tastaturfokus behaelt ihn. Die Spielstandzeile schiebt
+  dabei nichts nach unten: sie ist im Wartezustand mindestens so hoch wie die
+  Bestandsnotiz, die sie abloest.
+  *Messauflage an den `developer` (L-009):* er misst die Hoehe der
+  Spielstandzeile im Wartezustand und mit der gewoehnlichen Bestandsnotiz an
+  der **Vorgabebreite des linken Bereichs** und nennt **beide Zahlen mit ihrer
+  Umgebung** (Qt-Stil, Windows-Anzeigeskalierung, physisch oder logisch,
+  Bestand des Nutzers). Ist die Wartefassung niedriger, wird ihre Hoehe auf die
+  groessere gesetzt — der Text wird nicht verlaengert.
+  *Ausdrueckliche Ausnahme:* die beiden langen Enden — der Zusatz aus §9 (d)
+  und der Fehlersatz — duerfen hoeher ausfallen; sie sind heute schon die
+  hoechsten Faelle dieser Zeile.
+  *Toetende Mutation:* die Wartefassung auf eine Zeile festnageln, waehrend
+  die Notiz zwei braucht.
+- **AK-226** *(kein nachtraegliches Ueberschreiben.)* Hat der Spieler zwischen
+  dem ersten Anstrich und der Ankunft des Bestands einen Slot selbst
+  veraendert, so steht nach der Ankunft in jedem Slot **das**, was er
+  hineingetan hat; das im Spielstand gespeicherte Build wird dann in dieser
+  Sitzung **weder bei der Ankunft noch bei einem spaeteren Wechsel des
+  Nightfarers** von selbst uebernommen. Hat er nichts veraendert, steht nach
+  der Ankunft dasselbe wie nach einem synchronen Lesen.
+  *Aufbau:* zwei Vorrichtungen mit einem Spielstand, der ein gespeichertes
+  Build hat — eine, in der zwischen Anstrich und Ankunft ein Slot gesetzt
+  wird, und eine ohne Eingriff; in der ersten danach zusaetzlich einmal den
+  Nightfarer wechseln und zurueck.
+  *Toetende Mutation:* die Uebernahme bei der Ankunft ueberspringen, ohne sie
+  als erledigt zu vermerken — sie faellt dann beim naechsten
+  Nightfarer-Wechsel unerwartet ueber die Slots her.
+- **AK-227** *(ein Lesen zur Zeit, und es ist zu sehen.)* Wird `Rescan save`
+  waehrend eines laufenden Lesens gedrueckt, aendert sich nichts auf dem
+  Bildschirm: die Zeile traegt weiter denselben Satz, die Slots stehen
+  unveraendert, und es laeuft kein zweites Lesen — **Zaehlwert gegen ein
+  Literal**: der Spielstand ist genau **einmal** gelesen worden.
+  *Toetende Mutation:* je Druck ein Lesen starten.
+- **AK-228** *(der langsame Weg ist kein Fehlschlag.)* Meldet das Lesen, dass
+  es auf dem alten Weg gelesen hat, so steht in der Spielstandzeile die
+  **vollstaendige Bestandsnotiz** und daran der Zusatz aus §9 (d), woertlich;
+  die Reliktzahl ist dieselbe, die derselbe Spielstand auf dem schnellen Weg
+  ergibt; kein Slot ist leer, der es sonst nicht waere; und im ganzen Fenster
+  erscheint dabei **kein** Dialog, kein Ausrufezeichen, keine Farbe ausser
+  `MUTED` und keines der Woerter `error`, `failed`, `warning`, `corrupt`.
+  *Aufbau:* dieselben Spielstanddaten zweimal gelesen, einmal auf jedem Weg;
+  die Reliktzahl beider Laeufe wird gegeneinander gestellt.
+  *Toetende Mutation:* die Id-Pruefung wieder werfen lassen — die Zeile traegt
+  dann den Fehlersatz statt der Notiz, und die Relikte fehlen.
+- **AK-229** *(das Praefix behaelt seine Bedeutung — eine Eigenschaft, keine
+  Fundstelle.)* Der Satzanfang `Save could not be read: ` erscheint **nur**,
+  wenn am Ende des Lesens kein Bestand vorliegt. Kein Text, der hinter diesem
+  Praefix landen kann, sagt, dass mit dem Spielstand alles in Ordnung sei oder
+  dass nichts fehle.
+  *Aufbau:* alle Texte einsammeln, die auf diesem Weg in die Zeile geraten
+  koennen, und gegen eine Wortliste stellen (`nothing is wrong`,
+  `nothing is missing`, `nothing needs fixing`).
+  *Positivkontrolle, ohne die der Waechter nur sein eigenes Pruefmittel
+  misst:* dieselbe Pruefung gegen den **heutigen** Wortlaut der Id-Pruefung
+  (`… nothing is wrong with the save.`) **muss** anschlagen — sonst sammelt
+  die Vorrichtung die Texte nicht ein, die sie zu sammeln vorgibt.
+  *Toetende Mutation:* den Rueckfallsatz wieder als Ausnahme werfen.
+
+### 12. Ausdruecklich **nicht** Teil dieser Vorgabe
+
+- **Ob und wie Stufe B gebaut wird** (§1). Thread-Grenze, Entwertung des
+  Zwischenspeichers und die Frage, wo die unveraenderlichen Datenklassen die
+  Grenze passieren, sind AD-029 und der `developer`.
+- **Der Picker.** Er ist in T-124, T-127 und T-135 fertig spezifiziert; hier
+  wird nur bestimmt, **dass** er waehrend eines Lesens nicht aufgeht.
+- **Der A7-Bruch „kein Spielstand" im Picker.** Aelter als AD-028, in T-124
+  gemeldet, weiterhin offen — diese Vorgabe umgeht ihn (AK-223), sie behebt
+  ihn nicht.
+- **Der Erststart mit Ordnerauswahl** (T-074). Er kommt **vor** diesem
+  Zustand; findet er keinen Spielstand, endet das Lesen im dritten Ende der
+  Tabelle in §6.
+- **`firstrun`, das Erzeugen des Datenabzugs und der Splash.** Sie laufen vor
+  dem Fenster und sind ein anderer Wartezustand mit einer eigenen Vorgabe.
+- **A16/A17 und die uebrigen Tabs.**
+- **Der Wortlaut der sieben uebrigen Ausnahmetexte** hinter dem Praefix (§8).
+  Sie bleiben, wie sie sind; AK-229 haelt nur ihre Eigenschaft fest.
+
+### 13. Was die Architektur beruehrt — Meldung, nicht Entscheidung
+
+Drei Dinge folgen aus dieser Vorgabe, die **nicht** der Oberflaeche gehoeren
+und die der `architect` bzw. der `director` einordnen muss:
+
+1. **AD-029 Vertrauensgrenze Punkt 3 ist ueberholt.** Dort steht, die Annahme
+   gehoere „als Pruefung in den Code … laut werden, nicht still
+   danebenliegen", und der Code setzt das heute als **Verweigerung** um
+   (`savefile.py:237-246`, Docstring *„Refuse to scan at all …"*). Der
+   Nutzerentscheid vom 08.09.2026 verlangt stattdessen den Rueckfall. Laut
+   bleibt es — die Lautstaerke wandert von der Ausnahme in die Zeile.
+2. **Den alten, langsamen Weg gibt es im Code heute nicht mehr.** Zwei
+   unabhaengig formulierte Suchen ueber `nrdata/savefile.py`
+   (`range(0, len(slot_data)` und `fallback|Rueckfall|every fourth|four-byte`)
+   finden **keinen** zweiten Versatz-Erzeuger fuer Relikte; es gibt genau
+   einen (`_relic_id_offsets`, `savefile.py:209`). Der Satz „read the slow
+   way" ist erst wahr, wenn dieser Weg wieder existiert. **Das ist Arbeit, die
+   in keinem Auftrag steht**, und sie ist Voraussetzung von AK-228.
+3. **Ein Bestand, der waehrend eines offenen modalen Dialogs ersetzt wird**,
+   ist die Stoerung, die AK-223 durch Sperren des Reliktknopfs vermeidet. Will
+   die Architektur den Tausch stattdessen bis zum Schliessen des Dialogs
+   zurueckstellen, ist das eine bessere Loesung derselben Frage — dann kommt
+   AK-223 zurueck zu mir.
+
+### 14. Offene Fragen an den App Designer
+
+- **F-S (der langsame Weg, dauerhaft oder einmalig).** Diese Vorgabe haengt
+  den Rueckfallsatz **dauerhaft** an die Bestandsnotiz: er steht bei jedem
+  Start und jedem `Rescan`, solange die Spieldaten so nummeriert sind. Die
+  Gegenoption waere, ihn nur beim **ersten** Mal je Programmstart zu zeigen
+  und danach die blosse Notiz. **Empfehlung: so lassen wie hier vorgegeben** —
+  der Zustand haelt an, also haelt die Aussage an, und ein Satz, der nach dem
+  ersten Lesen verschwindet, erklaert das langsame `Rescan` nicht mehr.
+- **F-T (der gesperrte Reliktknopf beim `Rescan`).** Beim Start ist die Sperre
+  zwingend (es gibt nichts anzubieten). Beim `Rescan` ist sie eine
+  Vorsichtsmassnahme fuer den Bruchteil einer Sekunde, in dem der Spieler
+  gerade ein Relikt waehlen wollte. **Empfehlung: so lassen** — der Spieler hat
+  soeben selbst `Rescan` gedrueckt, und ein Picker, dem waehrend der Anzeige
+  der Bestand unter den Karten getauscht wird, ist die schaerfere Stoerung.
+  Siehe auch §13 Punkt 3: entscheidet die Architektur anders, entfaellt die
+  Frage.
+
+---
+
+## Nachtrag: F-R ist entschieden (ui-ux-designer, T-141) — 2026-09-08
+
+**F-R aus dem T-127-Abschnitt §11 ist entschieden**, und zwar so, wie es dort
+empfohlen war: **das Raster bleibt auch bei `Sort by` = `Name` leer.** Der
+Picker hat damit **eine** Art, sich zu oeffnen, nicht zwei, deren Unterschied
+der Spieler nicht sieht.
+
+**Folgen: keine.** **AK-212 bleibt Wort fuer Wort, wie es steht** — die dort
+erwogene zusaetzliche Zeile („der Wartezustand entfaellt, wenn `Sort by` auf
+`Name` steht") wird **nicht** eingefuegt. Es ist keine AK-Nummer vergeben,
+keine gestrichen, und es folgt keine Zeile Anwendungscode.
+
+**Warum der Vermerk trotzdem hier steht:** die Entscheidung ist am 08.09.2026
+gefallen, stand aber in keinem Auftrag; T-135 hat F-R deshalb noch als offen
+gefuehrt (dortiges §4, letzter Punkt). Diese Zeile schliesst die Luecke, damit
+die naechste Rolle nicht dieselbe Frage ein drittes Mal aufmacht.

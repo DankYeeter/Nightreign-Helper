@@ -220,3 +220,33 @@ bringen.
 
 **Kein Merge.** Der Lauf endet pausiert auf `docs/audit-and-advisor-design`,
 PR #16 bleibt beim Nutzer.
+
+## Nutzerentscheid 08.09.2026 abends — Streichliste freigegeben
+
+**Woertlich:** *"streiche alles doppelte und unnötige. verschiebe was nötig
+ist. im nightlords bereich will ich keine kopfzeile. kann gern pro boss-karte
+derselbe satz stehen. oder gar nicht da sein. mich interessiert ja nicht das
+label der mit der 5. höchsten poise (oder so) ist."*
+
+**Damit ist GOAL A10 erfuellt** — die Streichungen sind vom App Designer
+entschieden, nicht vom Team. Die dreizehn Vorschlaege aus `UI_SPEC` §8 sind
+freigegeben, samt der drei "verschieben statt loeschen". **Die fuenf
+ausdruecklichen "nicht streichen" bleiben** — sie sind weder doppelt noch
+unnoetig.
+
+**Zusatzvorgabe Nightlords, enger als die Streichliste:** **keine Kopfzeile.**
+Was auf jeder Boss-Karte identisch waere, steht entweder **auf jeder Karte**
+oder **gar nicht** — nicht einmal oben. Der `ui-ux-designer` entscheidet je
+Fall.
+
+**Director-Auslegung, in den Auftrag zu schreiben:** der Zusatz
+`(smallest Harmonia 75, largest Caligo 160)` faellt ersatzlos — sein einziger
+Zweck ist der Vergleich der Bosse untereinander, und genau den nennt der Nutzer
+uninteressant. `Stacks: yes — repeats compound` faellt ebenfalls: die
+Streichliste vermerkt ihn als **ohne Datengrundlage**, und A7 verbietet eine
+Aussage, die die Daten nicht hergeben.
+
+**Zwei Fragen des `ui-ux-designer` aus T-141, ohne Rueckfrage nach seiner
+Empfehlung entschieden** (der Nutzer schlaeft, beide sind klein und tragen
+seine Empfehlung): **F-S** Rueckfallsatz **dauerhaft**, nicht einmal je Start ·
+**F-T** Reliktknopf auch beim `Rescan` gesperrt. **Am Morgen vorzulegen.**
