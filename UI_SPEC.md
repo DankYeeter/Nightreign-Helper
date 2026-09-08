@@ -2961,12 +2961,18 @@ Found your game in {Pfad}
 Found your game in {Pfad}, inside the folder you picked.
 ```
 
-> *Nachgezogen am 08.09.2026 (T-145).* C2 ist unveraendert, steht aber jetzt
-> **hinter** der Rueckfrage C3 statt vor dem Bau. Siehe den Nachtrag am Ende
-> dieser Datei.
+> *Nachgezogen am 08.09.2026 (T-145), dann korrigiert am selben Tag (T-146).*
+> C2 ist unveraendert und steht **vor** dem Bau, **ohne** vorgeschaltete
+> Rueckfrage C3 — das war zwischenzeitlich (T-145) anders entschieden und
+> ist seit der Praezisierung T-146 zurueckgenommen: der Abstiegsfall, den C2
+> beschreibt, ist der Regelfall (§4.2) und bleibt klickfrei. C3 tritt seither
+> **nur noch** auf, wenn der aufgeloeste Ordner den gewaehlten Baum
+> **verlaesst** (Aufstieg, Zweigwechsel, Verzeichnisverknuepfung) — dafuer
+> siehe unten. Siehe den Nachtrag „AK-232 nachgezogen" am Ende dieser Datei.
 
-**C3 — Rueckfrage, wenn der aufgeloeste Ordner vom gewaehlten abweicht**
-*(neu am 08.09.2026, T-145; Frage-Zustand, nicht Meldung)*
+**C3 — Rueckfrage, wenn der aufgeloeste Ordner den gewaehlten Baum verlaesst**
+*(neu am 08.09.2026, T-145; Frage-Zustand, nicht Meldung; Ausloesebedingung
+praezisiert am selben Tag, T-146 — Wortlaut unten in der T-146-Fassung)*
 
 ```
 Is this your game?
@@ -2974,13 +2980,21 @@ Is this your game?
 You picked:
 {gewaehlter Pfad}
 
-The game itself is in:
+The game itself is outside that folder, in:
 {aufgeloester Pfad}
 
 That is the folder Nightreign Helper will read from.
 
 [ Choose a different folder... ]  [ Use this folder ]
 ```
+
+> *Nachgezogen am 08.09.2026 (T-146).* Zweite Pfadzeile umbenannt von `The
+> game itself is in:` zu `The game itself is outside that folder, in:` —
+> unter der praezisierten Regel ist ein Erscheinen von C3 **immer** ein
+> Verlassen des gewaehlten Baumes, nie mehr ein Abstieg; der Text darf das
+> ausdruecklich sagen. Nach `Use this folder` erscheint **nicht** die Zeile
+> C2 (das waere hier falsch, siehe unten), sondern C1. Begruendung, Beispiele
+> und Kriterien im Nachtrag „AK-232 nachgezogen" am Ende dieser Datei.
 
 **S1 — Erklaerung am Spielstand-Knopf** (Tooltip von `Find my save…`)
 
@@ -3120,11 +3134,13 @@ und Fensterkreuz zu `Continue with the data from {Datum}`.
 Pruefung: Programm nach der Bestaetigung waehrend des Baus hart beenden, neu
 starten — es fragt nicht erneut.
 
-**AK-118** *(nachgezogen am 08.09.2026, T-145 — die Fassung unten gilt
-unveraendert fuer **C1**; fuer **C2** liegt seit der Director-Entscheidung vom
-08.09.2026 die Rueckfrage C3 davor. Siehe AK-232 bis AK-239 im Nachtrag am
-Ende dieser Datei; die alte Fassung bleibt hier stehen, damit sichtbar ist,
-wovon abgewichen wird.)*
+**AK-118** *(nachgezogen am 08.09.2026, T-145, dann praezisiert am selben Tag
+T-146 — die Fassung unten gilt seit T-146 wieder **unveraendert fuer C1 und
+C2** (Abstieg bleibt der klickfreie Regelfall, §4.2). Nur fuer den Fall, dass
+der aufgeloeste Ordner den gewaehlten Baum **verlaesst** (Aufstieg,
+Zweigwechsel, Verzeichnisverknuepfung), liegt die Rueckfrage C3 davor. Siehe
+AK-232 bis AK-242 im Nachtrag „AK-232 nachgezogen" am Ende dieser Datei; die
+alte Fassung bleibt hier stehen, damit sichtbar ist, wovon abgewichen wird.)*
 Zwischen der Bestaetigung (C1/C2) und dem Beginn des Baus liegt
 **kein** weiterer Klick. Das Fenster wechselt in den Fortschrittszustand,
 ohne die Breite zu aendern.
@@ -7955,6 +7971,12 @@ Nach der Ordnerwahl, in dieser Reihenfolge:
 4. **Aufgeloest weicht ab** → **C3**, dann auf `Use this folder` die
    vorhandene Zeile **C2** und der Bau-Zustand.
 
+   > *Nachgezogen am 08.09.2026 (T-146):* Punkt 4 gilt in dieser Fassung
+   > **nicht mehr**. Er wird durch zwei Punkte ersetzt — Abstieg (innerhalb
+   > des gewaehlten Baumes) ohne C3, Verlassen (ausserhalb) mit C3 — und die
+   > Zeile nach `Use this folder` ist **C1**, nicht C2. Siehe Nachtrag
+   > „AK-232 nachgezogen" §3 und §4 am Ende dieser Datei.
+
 #### 3.2 Was C3 zeigt
 
 Der Frage-Zustand des vorhandenen Fensters, kein zweites Fenster, kein Modal
@@ -7967,6 +7989,8 @@ Hoehe inhaltsabhaengig.
   eigenen, **umbruchfaehigen** Zeile in **normaler Textfarbe** (AK-129).
   Beide Pfade sind Spielordner — die Vertraulichkeitsregel aus §5 und AK-126
   betrifft nur den **Spielstand**pfad und ist hier nicht beruehrt.
+  *(Nachgezogen T-146: die zweite Beschriftung heisst seither `The game
+  itself is outside that folder, in:`. Siehe Nachtrag §2 am Ende der Datei.)*
 - Ein Satz, der sagt, welcher der beiden gilt: `That is the folder Nightreign
   Helper will read from.`
 - Keine Wiederholung des Satzes aus Punkt 1. Er stand eine Bildschirmseite
@@ -7981,10 +8005,16 @@ Hoehe inhaltsabhaengig.
   `[ Choose a different folder... ]  [ Use this folder ]`
 - **Standardknopf ist `Use this folder`**, Enter loest ihn aus. Das ist der
   Unterschied zu **AK-113**, wo der Standardknopf ausdruecklich **nicht** das
-  Weitermachen ist: W1 fragt nach einem Verdacht, C3 fragt nach einer
-  Selbstverstaendlichkeit (§4.2: der Nutzer waehlt fast sicher den
-  Elternordner). Ein Standardknopf, der den Normalfall in den Dateidialog
-  zurueckwirft, waere Schikane.
+  Weitermachen ist: W1 fragt nach einem Verdacht (ein Name ohne `NIGHTREIGN`),
+  C3 fragt nach dem Ergebnis einer regulaeren Suche (§4.2: Aufstieg bis zu 2
+  Elternebenen, Zweigwechsel, oder eine Verzeichnisverknuepfung) — kein
+  Verdachtsmoment, nur ein selteneres Ergebnis als der Abstiegsfall. Ein
+  Standardknopf, der ein gueltiges Suchergebnis in den Dateidialog
+  zurueckwirft, waere Schikane. *(Begruendung nachgezogen T-146: der
+  urspruengliche Verweis auf „der Nutzer waehlt fast sicher den Elternordner"
+  beschrieb den Abstiegsfall, der seither gar kein C3 mehr ausloest — siehe
+  Nachtrag am Ende der Datei. Die Schlussfolgerung, Standardknopf bleibt
+  `Use this folder`, aendert sich dadurch nicht.)*
 - **Tastatur:** Tab erreicht beide Knoepfe, der Fokus ist sichtbar, Enter
   loest den Standardknopf aus (AK-130 gilt unveraendert weiter).
 - **`Choose a different folder...`** oeffnet erneut den Systemordnerdialog.
@@ -8059,7 +8089,15 @@ Englisch (A8, AK-128) und enthalten **keines** der in §7 aufgelisteten
 verbotenen Woerter (AK-127). Pruefung: Wortliste gegen die drei Bloecke,
 Gross-/Kleinschreibung egal.
 
-**AK-232** *(C2 → C3)* Weicht der aufgeloeste Ordner vom gewaehlten ab,
+**AK-232** *(nachgezogen am 08.09.2026, T-146 — die Fassung unten ist seit der
+Director-Korrektur vom selben Tag **nicht mehr** die geltende Regel: C3 greift
+nicht mehr bei jeder Abweichung, sondern nur, wenn der aufgeloeste Ordner den
+gewaehlten Baum **verlaesst**. Der Abstiegsfall — hier noch als Pruefungs-
+Beispiel benutzt — loest seither **kein** C3 mehr aus, siehe AK-240. Die neue
+Fassung von AK-232 und der Nachtrag insgesamt stehen ganz am Ende dieser
+Datei; die alte bleibt hier stehen, damit sichtbar ist, wovon abgewichen
+wird.)*
+*(C2 → C3)* Weicht der aufgeloeste Ordner vom gewaehlten ab,
 erscheint **vor** dem Bau der Zustand C3 und zeigt **beide** Pfade
 vollstaendig, jeder mit seiner Beschriftung. Pruefung: den Elternordner der
 Installation waehlen — C3 erscheint, der Bau beginnt nicht, und keine
@@ -8069,8 +8107,14 @@ Fortschrittsanzeige ist zu sehen.
 gewaehlten, erscheint **kein** C3 und **kein** zusaetzlicher Klick: C1, dann
 sofort der Bau-Zustand. Pruefung: den Ordner waehlen, der `regulation.bin`
 direkt enthaelt — die Fensterfolge ist die aus AK-118 in seiner alten Fassung.
+*(T-146: unveraendert gueltig, siehe Nachtrag am Ende der Datei.)*
 
-**AK-234** In C3 ist `Use this folder` der Standardknopf und wird von Enter
+**AK-234** *(nachgezogen am 08.09.2026, T-146 — die Zeile, die nach `Use this
+folder` erscheint, ist seit der Praezisierung **nicht** mehr die Zeile C2:
+deren Wortlaut „inside the folder you picked" ist fuer einen Verlassen-Fall
+falsch. Neue Fassung im Nachtrag am Ende der Datei; die alte bleibt hier
+stehen.)*
+In C3 ist `Use this folder` der Standardknopf und wird von Enter
 ausgeloest; danach erscheint die vorhandene Zeile C2 und der Bau beginnt
 **ohne weiteren Klick**. Pruefung: C3 nur ueber die Tastatur beantworten.
 
@@ -8078,13 +8122,19 @@ ausgeloest; danach erscheint die vorhandene Zeile C2 und der Bau beginnt
 Systemordnerdialog, dessen Startort der **zuvor gewaehlte** Ordner ist. Wird
 der Systemdialog abgebrochen, steht wieder C3 mit denselben zwei Pfaden.
 Pruefung: zweimal hintereinander abbrechen — das Fenster bleibt in C3, und es
-wird nichts gemeldet und nichts gespeichert.
+wird nichts gemeldet und nichts gespeichert. *(T-146: unveraendert gueltig.)*
 
 **AK-236** *(nichts vor der Antwort)* Solange C3 offen ist, ist `paths/game`
 unveraendert. Pruefung: in C3 das Programm hart beenden und neu starten — es
 fragt erneut, und ein zuvor gemerkter Pfad steht noch auf seinem alten Wert.
+*(T-146: unveraendert gueltig.)*
 
-**AK-237** *(hoechstens eine Rueckfrage je Wahl)* Wurde W1 mit `Use this
+**AK-237** *(nachgezogen am 08.09.2026, T-146 — das Pruefungsbeispiel unten
+waehlt den Elternordner und damit seit der Praezisierung einen Abstieg, der
+fuer sich genommen gar kein C3 mehr ausloesen wuerde; das Beispiel belegt die
+Regel „hoechstens eine Rueckfrage je Wahl" damit nicht mehr. Neue Fassung im
+Nachtrag am Ende der Datei; die alte bleibt hier stehen.)*
+*(hoechstens eine Rueckfrage je Wahl)* Wurde W1 mit `Use this
 folder anyway` beantwortet, erscheint **kein** C3, auch wenn der aufgeloeste
 Ordner vom gewaehlten abweicht. Pruefung: einen umbenannten Spielordner ueber
 seinen Elternordner waehlen — es kommt genau ein Frage-Zustand, nicht zwei.
@@ -8101,20 +8151,245 @@ aus dem Fenster gezogen** (AK-129/AK-132-Muster, NH-002).
 
 ### 7. Offene Fragen an den App Designer
 
-1. **Soll C3 auch dann kommen, wenn der aufgeloeste Ordner ein *Kind* des
-   gewaehlten ist — also im Normalfall `...\ELDEN RING NIGHTREIGN` →
-   `...\Game`?** So ist es hier vorgegeben, und so ist die Entscheidung
-   erteilt. Die Gegenoption waere, nur den **Aufstieg** (§4.2: bis zu zwei
-   Elternebenen nach oben) und den Wechsel in einen anderen Zweig
-   zurueckzufragen — dann kostet der Klick nur die Faelle, in denen das
-   Programm den Baum **verlaesst**, den der Nutzer gezeigt hat, und der
-   Regelfall bleibt klickfrei. **Empfehlung: erst so lassen wie vorgegeben**
-   und nach dem ersten `power-user`-Lauf entscheiden — die Auskunft „aus
-   diesem Ordner wird gelesen" ist beim Erststart auch fuer sich genommen
-   nuetzlich.
+1. ~~Soll C3 auch dann kommen, wenn der aufgeloeste Ordner ein *Kind* des
+   gewaehlten ist?~~ **Beantwortet — nicht durch den App Designer, sondern durch
+   den Director am 08.09.2026 (T-146), auf Grundlage der Widerlegung unten:**
+   **Nein.** Genau die Gegenoption, die hier noch als „Gegenoption" gefuehrt
+   wurde, ist jetzt die Regel: C3 kommt **nur** beim Verlassen des gewaehlten
+   Baumes (Aufstieg, Zweigwechsel, Verzeichnisverknuepfung), nicht beim
+   Abstieg. Siehe den Nachtrag „AK-232 nachgezogen" am Ende dieser Datei. Der
+   urspruengliche Text der Frage bleibt unten stehen, weil er die Gegenoption
+   ist, die sich als richtig erwiesen hat:
+   > Soll C3 auch dann kommen, wenn der aufgeloeste Ordner ein *Kind* des
+   > gewaehlten ist — also im Normalfall `...\ELDEN RING NIGHTREIGN` →
+   > `...\Game`? So ist es hier vorgegeben, und so ist die Entscheidung
+   > erteilt. Die Gegenoption waere, nur den **Aufstieg** (§4.2: bis zu zwei
+   > Elternebenen nach oben) und den Wechsel in einen anderen Zweig
+   > zurueckzufragen — dann kostet der Klick nur die Faelle, in denen das
+   > Programm den Baum **verlaesst**, den der Nutzer gezeigt hat, und der
+   > Regelfall bleibt klickfrei. Empfehlung: erst so lassen wie vorgegeben und
+   > nach dem ersten `power-user`-Lauf entscheiden — die Auskunft „aus diesem
+   > Ordner wird gelesen" ist beim Erststart auch fuer sich genommen
+   > nuetzlich.
 2. **Soll derselbe Satz auch im Programm sichtbar bleiben, nachdem der Ordner
    einmal bestaetigt ist** — etwa in der Transparenzzeile des README oder an
    einer Stelle im Fenster? Diese Vorgabe sagt ihn genau einmal, im Moment der
    Entscheidung. Der `security-reviewer` haelt den README-Satz fuer faellig
    (SEC-006, Nutzerentscheid 02.09.2026); das waere `technical-writer`-Arbeit
-   nach V3.
+   nach V3. *(Bleibt offen, geht an den `technical-writer` nach V3 — T-146.)*
+
+---
+
+## AK-232 nachgezogen: gefragt wird nur, wenn der Ordner den gewaehlten Baum
+## verlaesst (ui-ux-designer, T-146) — 2026-09-08
+
+**Grundlage:** `docs/tasks/T-146.md` · der eigene T-145-Abschnitt oben (§3
+ganz, §6 „Was ich melde", §7 offene Frage 1) · Director-Korrektur vom
+08.09.2026, die T-145s Begruendung zurueckzieht und die dortige Gegenoption
+uebernimmt · `security/findings.md:482` (SEC-030) und
+`docs/berichte/T-144-security-reviewer.md` Abschnitt zu SEC-030 (gelesen, nicht
+veraendert) · `ARCHITECTURE.md` Nachtrag XI, AD-030, §4.2 dieses Abschnitts
+(Aufloesungskette: Abstieg bis Tiefe 3, Aufstieg bis 2 Elternebenen).
+
+**Methode:** ausschliesslich Textarbeit, wie im T-145-Abschnitt. Kein
+Bildnachweis, keine Messung — der Ablauf ist nicht gebaut (V1/V2 stehen aus).
+
+**Was dieser Nachtrag ist:** eine Praezisierung der Rueckfrage-Bedingung aus
+T-145, **kein** neuer Entwurf. Alles aus dem T-145-Abschnitt, das hier nicht
+ausdruecklich geaendert wird, gilt Wort fuer Wort weiter.
+
+### 1. Die Regel
+
+**Gefragt wird (C3), wenn der aufgeloeste Ordner den gewaehlten Baum
+verlaesst — nicht, wenn er nur davon abweicht.**
+
+- **Abstieg** — der aufgeloeste Ordner liegt **innerhalb** des gewaehlten
+  (§4.2, Suche nach unten bis Tiefe 3: das ist der Regelfall, §4.2 woertlich
+  „der Nutzer waehlt fast sicher `...\ELDEN RING NIGHTREIGN`"): **kein C3.**
+  Sofort **C2**, dann der Bau-Zustand — **derselbe Ablauf wie vor dem
+  T-145-Nachtrag.** Der Klick, den T-145 hier noch verlangte, entfaellt
+  wieder.
+- **Verlassen** — der aufgeloeste Ordner liegt **ausserhalb** des gewaehlten:
+  Aufstieg (§4.2, bis zu 2 Elternebenen), Wechsel in einen anderen Zweig, oder
+  ein Ziel hinter einer Verzeichnisverknuepfung: **C3, vor dem Bau**, wie in
+  T-145 entworfen.
+
+**Die Pruefung ist am aufgeloesten Pfad zu treffen** (`Path.resolve()` gegen
+den gewaehlten Baum), nicht an der Zeichenkette — das galt schon in T-145 und
+bleibt unveraendert. Was sich aendert, ist ausschliesslich, **welches Ergebnis
+dieser Pruefung** C3 ausloest.
+
+**Folge, die schon in AK-233 stand und hier nur bestaetigt wird:** C1 (gleich)
+war nie und ist weiterhin nicht betroffen.
+
+### 2. Was C3 zeigt, wenn er greift — jetzt ausdruecklich
+
+Unter der neuen Regel ist **jedes** Erscheinen von C3 ein Verlassen des
+gewaehlten Baumes; einen C3 wegen Abstieg gibt es nicht mehr. Der Text darf
+das sagen, statt bei der neutralen Formulierung aus T-145 zu bleiben.
+
+**Geaendert: die Beschriftung der zweiten Pfadzeile in C3.** Aus
+`The game itself is in:` wird `The game itself is outside that folder, in:`.
+Die Wortwahl `outside that folder` (nicht `outside the tree` oder aehnlich
+Technisches) bleibt in der Spielersprache des restlichen Ablaufs. Der
+Schlusssatz `That is the folder Nightreign Helper will read from.` bleibt
+unveraendert — er sagt weiterhin, welcher der beiden Pfade gilt, und das ist
+nach wie vor noetig.
+
+**Ton bleibt unveraendert: keine `BAD`-Farbe, keine Warnmarke.** Ein Aufstieg
+oder ein Zweigwechsel ist weiterhin der Normalausgang einer gueltigen Suche
+(§4.2), kein Fehler — nur seltener als vorher angenommen. Nur die
+Beschriftung wird praeziser, nicht die Dringlichkeit.
+
+**C3, neuer Wortlaut:**
+
+```
+Is this your game?
+
+You picked:
+{gewaehlter Pfad}
+
+The game itself is outside that folder, in:
+{aufgeloester Pfad}
+
+That is the folder Nightreign Helper will read from.
+
+[ Choose a different folder... ]  [ Use this folder ]
+```
+
+### 3. Folge fuer §3.1 (Aufloesungskette) — Punkt 4 wird zu zwei Punkten
+
+Der T-145-Abschnitt zaehlte in §3.1 vier Punkte; Punkt 4 („Aufgeloest weicht
+ab → C3") wird durch diesen Nachtrag zu zwei Punkten, weil er zwei Faelle
+zusammenfasste, die jetzt verschieden ausgehen:
+
+1. Stufe 1 faellt aus (§4.3) → E1. Kein C3. *(unveraendert)*
+2. Stufe 2 faellt aus (Name ohne `NIGHTREIGN`) → W1. Wird W1 mit `Use this
+   folder anyway` beantwortet, folgt kein C3. *(unveraendert)*
+3. Aufgeloest ist gleich gewaehlt → C1, dann sofort der Bau-Zustand.
+   *(unveraendert)*
+4. **(nachgezogen)** Aufgeloest liegt **innerhalb** des gewaehlten Baumes
+   (Abstieg, §4.2) → **C2**, dann sofort der Bau-Zustand. **Kein C3.**
+5. **(neu)** Aufgeloest **verlaesst** den gewaehlten Baum (Aufstieg,
+   Zweigwechsel, Verzeichnisverknuepfung) → **C3**, dann auf `Use this folder`
+   die Zeile `Found your game in {Pfad}` — **das ist die Zeile C1, nicht C2**
+   (Begruendung in §4 unten) — und der Bau-Zustand.
+
+### 4. Folge fuer §3.4 und AK-234 — welche Zeile nach C3 erscheint
+
+**Fehler im T-145-Text, durch diesen Nachtrag korrigiert:** §3.1 Punkt 4 und
+AK-234 sagten, nach `Use this folder` in C3 erscheine „die vorhandene Zeile
+C2" — Wortlaut `Found your game in {Pfad}, inside the folder you picked.`.
+Unter der neuen Regel ist das **immer falsch**, weil C3 nur noch bei einem
+Verlassen des Baumes greift: der aufgeloeste Ordner liegt dann gerade
+**nicht** innerhalb des gewaehlten. Der Satz wuerde dem Nutzer im selben Atemzug
+das Gegenteil dessen sagen, was er zwei Zeilen vorher in C3 gelesen und
+bestaetigt hat.
+
+**Fix:** die Zeile nach C3 ist **C1** (`Found your game in {Pfad}`, ohne den
+Ortsbezug-Zusatz), nicht C2. C1s Wortlaut behauptet keine Lagebeziehung und
+ist deshalb fuer Aufstieg, Zweigwechsel und Verzeichnisverknuepfung gleichermassen
+richtig. Eine Wiederholung der C3-Aussage waere Laerm — C3 hat den Unterschied
+gerade vollstaendig gezeigt (§3.2-Prinzip, unveraendert: „Keine Wiederholung
+... ein zweites Mal waere Laerm").
+
+**§3.4, ein Wort korrigiert:** *„`paths/game` wird im Fall C2 erst
+geschrieben, wenn `Use this folder` gedrueckt ist"* muss **„im Fall C3"**
+heissen. Unter der neuen Regel wird ein reiner Abstieg (C2 ohne C3) **sofort**
+gespeichert, exakt wie C1 (§4.4: „Der bestaetigte Ordner wird sofort
+gespeichert, vor dem Bau" — das gilt jetzt fuer C1 **und** C2 gleichermassen).
+Nur der ueber C3 laufende Fall wartet auf die Antwort. AK-117 bleibt davon
+unberuehrt, es bezog sich immer auf den allgemeinen Fall.
+
+### 5. AK-233, AK-235, AK-236, AK-238, AK-239 — gepruefte und unberuehrt
+
+Alle fuenf beziehen sich entweder auf C1 (AK-233) oder auf Verhalten, das
+**innerhalb** des C3-Zustands gilt, unabhaengig davon, wodurch C3 ausgeloest
+wurde (AK-235, AK-236, AK-238, AK-239: Ruecksprung aus dem Systemdialog,
+Speichersperre waehrend C3 offen ist, Escape/Fensterkreuz, Skalierung). Keines
+davon aendert sich durch die engere Ausloesebedingung. **Nachgezogen: nur ein
+Vermerk je Kriterium im Bestand, kein neuer Wortlaut.**
+
+### 6. AK-232 und AK-237 — neue Fassung
+
+**AK-232** *(C3 nur beim Verlassen des Baumes, nachgezogen T-146)* Verlaesst
+der aufgeloeste Ordner den gewaehlten Baum (Aufstieg, Zweigwechsel oder eine
+Verzeichnisverknuepfung, die aus dem Baum herausfuehrt), erscheint **vor** dem
+Bau der Zustand C3 und zeigt **beide** Pfade vollstaendig, jeder mit seiner
+Beschriftung. Liegt der aufgeloeste Ordner dagegen **innerhalb** des
+gewaehlten (Abstieg, §4.2), erscheint **kein** C3. Pruefung: einen Unterordner
+**innerhalb** des Ordners waehlen, der `regulation.bin` direkt enthaelt, so
+dass die Aufloesung um eine Ebene nach oben steigen muss (§4.2) — C3
+erscheint, der Bau beginnt nicht, keine Fortschrittsanzeige ist zu sehen.
+Gegenprobe: den **Elternordner** der Installation waehlen (Abstieg,
+Regelfall) — **kein** C3, C2 erscheint sofort, der Bau beginnt ohne weiteren
+Klick.
+
+**AK-237** *(hoechstens eine Rueckfrage je Wahl, nachgezogen T-146)* Wurde W1
+mit `Use this folder anyway` beantwortet, erscheint **kein** C3, auch wenn der
+aufgeloeste Ordner den gewaehlten Baum verlaesst. Pruefung: einen umbenannten
+Spielordner ueber einen seiner **eigenen Unterordner** waehlen (der
+Namenscheck in Stufe 2 schlaegt fehl **und** die Aufloesung muss aufsteigen,
+also waere ohne W1 zusaetzlich C3 faellig) — es kommt genau **ein**
+Frage-Zustand (W1), nicht zwei.
+
+### 7. Neue Kriterien
+
+**AK-240** *(Abstieg loest kein C3 mehr aus — die Korrektur der T-145-Annahme)*
+Liegt der aufgeloeste Ordner innerhalb des gewaehlten (§4.2, Abstieg bis Tiefe
+3), erscheint **zwischen** der Ordnerwahl und dem Bau-Zustand **kein**
+zusaetzliches Fenster und **kein** zusaetzlicher Klick gegenueber der Fassung
+vor T-145 — die Fensterfolge ist die aus AK-118 in seiner alten Fassung.
+Pruefung: den Elternordner der Installation waehlen (`...\common` statt
+`...\common\NIGHTREIGN`) — C2 erscheint direkt, kein C3 dazwischen.
+
+**AK-241** *(C3 nennt das Verlassen ausdruecklich)* Der gebaute Wortlaut von
+C3 enthaelt fuer die zweite Pfadzeile die Beschriftung `The game itself is
+outside that folder, in:`, nicht die neutrale Fassung aus dem T-145-Abschnitt.
+Pruefung: Wortlautvergleich gegen §2 dieses Nachtrags.
+
+**AK-242** *(die Zeile nach C3 ist C1, nicht C2)* Nach `Use this folder` in C3
+erscheint der Wortlaut `Found your game in {Pfad}` ohne den Zusatz `, inside
+the folder you picked.`. Pruefung: den in AK-240 beschriebenen Aufstiegsfall
+ausloesen, C3 mit `Use this folder` bestaetigen — der angezeigte Satz behauptet
+an keiner Stelle, der Fund liege innerhalb des gewaehlten Ordners.
+
+### 8. SEC-030 — deckt dieser Nachtrag es ab?
+
+**Ja, fuer die Haelfte, um die es sicherheitlich geht — nicht fuer die
+andere.** SEC-030s Befund ist zweigeteilt, und die Praezisierung trifft nur
+den ersten Teil:
+
+- **Stille Annahme eines Ordners ausserhalb des gewaehlten Baumes** (der Teil,
+  den der `security-reviewer` als Vertrauensgrenze beschreibt: „der
+  angenommene Ordner kann ausserhalb des Baumes liegen, den der Nutzer
+  gesehen hat"). **Das schliesst diese Praezisierung.** Eine
+  Verzeichnisverknuepfung, die aus dem gewaehlten Baum herausfuehrt, ist per
+  Definition ein Verlassen (§1) und loest **immer** C3 aus — der Nutzer sieht
+  beide Pfade und muss ausdruecklich zustimmen, statt dass das Programm den
+  Fund kommentarlos uebernimmt. Genau das ist auch die Behebungsrichtung, die
+  der `security-reviewer` selbst nennt: „das Ergebnis ueber `Path.resolve()`
+  gegen den gewaehlten Baum halten" — das ist jetzt UI-seitig die Bedingung
+  fuer C3, nicht nur eine interne Pruefung ohne sichtbare Folge.
+- **Das Betreten der Verzeichnisverknuepfung waehrend der Suche selbst**
+  (Laufzeit- und Schleifensicherheit von `search_from`, bevor ueberhaupt ein
+  Ergebnis vorliegt: verschachtelte oder zirkulaere Junctions koennten das
+  400/2-Sekunden-Budget ausschoepfen oder — falls `search_from` symbolischen
+  Verzeichnisverknuepfungen zirkulaer folgt — in einer Endlosschleife
+  haengen). **Das ist keine Oberflaechenfrage.** Ob die Suche Reparse-Punkte
+  betritt oder ausspart, ist eine Entscheidung im Traversierungscode
+  (`nrdata`/`gamepath.py`, noch ungebaut), die diese Spec nicht trifft und
+  nicht treffen kann.
+
+**Damit bleibt SEC-030 fuer V1 ein eigener Punkt** — aber verkleinert auf den
+Traversierungsteil; der Offenlegungsteil (der Grund, warum SEC-030 ueberhaupt
+mit SEC-026 zusammenfaellt, laut `security-reviewer` „gering und mittelbar")
+ist mit AK-232/AK-240 bis zum Zeitpunkt von V2 spezifiziert.
+
+### 9. Ausdruecklich nicht Teil dieses Nachtrags
+
+- **Ob `search_from` Reparse-Punkte beim Abstieg ueberhaupt betritt** — siehe
+  §8. Das ist `developer`/`security-reviewer`-Arbeit fuer V1.
+- **Frage 2 aus dem T-145-Abschnitt** (README/Release-Text) — bleibt offen,
+  geht an den `technical-writer` nach V3.
+- **Jede Zeitmessung.** Wie im T-145-Abschnitt: der Ablauf ist nicht gebaut.
