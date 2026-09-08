@@ -76,7 +76,7 @@ GERMAN_FUNCTION_WORDS = (
     "eine", "einem", "einen", "einer", "etwas", "fuer", "gegen", "haben",
     "hatte", "ihr", "ihre", "immer", "ist", "jede", "jeder", "jedes", "kann",
     "kein", "keine", "koennen", "mehr", "mit", "muessen", "muss", "nach",
-    "nicht", "nichts", "noch", "nur", "ohne", "oder", "schon", "sehr", "sein",
+    "nicht", "nichts", "noch", "nur", "oder", "ohne", "schon", "sehr", "sein",
     "seine", "sich", "sie", "sind", "soll", "sollen", "sondern", "statt",
     "ueber", "und", "unter", "vom", "von", "vor", "waehrend", "weil", "wenn",
     "werden", "wie", "wieder", "wir", "wird", "zum", "zur", "zwischen",
