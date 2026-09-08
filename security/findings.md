@@ -465,3 +465,48 @@ Tags statt Commit-SHAs — dieselbe Form wie SEC-009.
 Artefakt. Ein uebernommenes Action-Repository kann hier Testergebnisse
 faelschen und im Rahmen der Workflow-Rechte im Repo wirken, aber nichts in die
 EXE schreiben. **Sperrt A2 nicht.** Gehoert in den Fix-Stapel von Zyklus 17.
+
+---
+
+## Zyklus 18, T-144 — A15 verschiebt eine Vertrauensgrenze (2026-09-08)
+
+Anlass: OF-31 des `architect` aus T-143. Vollstaendiger Bericht:
+`docs/berichte/T-144-security-reviewer.md`. **Gesamturteil CONCERNS.**
+
+| ID | Titel | Prioritaet | Status | Letzte Pruefung |
+|---|---|---|---|---|
+| SEC-026 | A15 entzieht der Annahme von SEC-006 ihre Begruendung: `ctypes.CDLL` laedt eine native Bibliothek aus **frei gewaehltem** Ordner (`nrdata/oodle.py:44`, Annahme AK-112, Ladung bei **jedem** Datenneuaufbau) | Mittel (Wirkung Kritisch) | offen — **Vorlage an den Nutzer**, kein Bauauftrag | 2026-09-08 |
+| SEC-027 | Panel-Text A1 verspricht `It is only read`, waehrend aus demselben Ordner eine Bibliothek ausgefuehrt wird (`UI_SPEC.md:2870`, zu bauen in V2) | **Hoch** | offen — Wortlaut **vor V2** | 2026-09-08 |
+| SEC-028 | AK-112 nimmt `regulation.bin` ohne Obergrenze an; danach vollstaendiges `read_bytes()` bei jedem Start (`firstrun.py:31`, `datasource.py:106`, `regulation.py:16`) | Mittel | offen — gehoert in V1 | 2026-09-08 |
+| SEC-029 | `Find my save…` mit Filter `All files (*)` fuehrt jede Datei in ein ungedeckeltes `read_bytes()` **vor** dem ersten SEC-022-Deckel (`inventory.py:194`) | Mittel | offen — gehoert in V3/V4 | 2026-09-08 |
+| SEC-030 | `search_from` (V1, ungebaut) schliesst Reparse-Punkte nicht aus; das 400/2-s-Budget begrenzt Zeit, nicht Ziel | Niedrig | offen — **Hypothese**, Funktion existiert nicht | 2026-09-08 |
+
+### Entscheidungen des Directors, 08.09.2026
+
+**SEC-026 bleibt Mittel.** Der `security-reviewer` hat die Gegenposition
+ausdruecklich offengelegt (Wirkung = Codeausfuehrung → Kritisch → FAIL) und die
+Einstufung dem Director ueberlassen. Ich folge seiner Begruendung: kein
+Rechtegewinn, kein anonymer Ausloeser, der Mechanismus ist unvermeidbar und war
+bereits angenommen — veraltet ist allein die **Begruendung** der Annahme.
+**Kein WAIVED** (dafuer fehlen Eigentuemer, Geltungsbereich und Ablaufdatum,
+und die vergibt nur der Nutzer selbst durch seine Antwort).
+
+**Der Bau geht weiter, die Weitergabe nicht.** SEC-026 blockiert keinen
+Bauschritt; es blockiert das **Release**, bis der Nutzer die eine Frage
+beantwortet hat: gilt die Annahme von SEC-006 in der Fassung *"… oder der
+Nutzer hat auf den Ordner gezeigt"* weiter, oder soll die DLL-Seite geprueft
+werden? **Mit der Randbedingung des Berichts:** wer die DLL haertet, macht
+SEC-016/017/018 wieder scharf.
+
+**S1 / AK-118 — entschieden: ja, der C2-Fall bekommt eine Bestaetigung.**
+Weicht der aufgeloeste Ordner von dem ab, auf den der Mensch gezeigt hat, wird
+er vor dem Bau bestaetigt. Im Fall C1 aendert sich nichts, A15 und AK-106
+bleiben unberuehrt — der Klick kostet nur dort, wo das Programm etwas anderes
+nimmt als gezeigt. Damit hat der Ablauf zwei Nutzerentscheidungen statt einer
+im Systemdialog (Beobachtung B1). **Spec-Aenderung an AK-118 geht an den
+`ui-ux-designer` (T-145), vor V2.**
+
+**Zuordnung:** SEC-027 → T-145 (Wortlaut), dann V2 · SEC-028 und SEC-030 → V1 ·
+SEC-029 → V3/V4 · A-024/A-027 und der ehrliche README-Satz aus SEC-006 →
+`technical-writer` nach V3. **Alle fuenf sind zugeordnet, keiner
+zurueckgestellt.**
