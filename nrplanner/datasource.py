@@ -78,9 +78,9 @@ def _regulation_matches(snapshot: dict) -> bool:
     """
     import hashlib
 
-    from nrdata import gamefiles
-
     from nrdata import extract
+
+    from . import gamepath
 
     # A snapshot built by an older extractor is stale however current the game
     # is. Without this, everything added here only ever reached a machine that
@@ -93,7 +93,7 @@ def _regulation_matches(snapshot: dict) -> bool:
     if not recorded:
         return False
 
-    game = gamefiles.find_game_dir()
+    game = gamepath.resolve_game()
     if game is None:
         # No install to compare against; the snapshot is all we have.
         return True
@@ -137,9 +137,11 @@ def _load_data(prefer_live: bool = True) -> dict:
 
     if prefer_live:
         try:
-            from nrdata import extract, gamefiles
+            from nrdata import extract
 
-            game = gamefiles.find_game_dir()
+            from . import gamepath
+
+            game = gamepath.resolve_game()
             defs = defs_dir()
             if game is not None and defs is not None:
                 fresh = extract.build(game, defs)
@@ -161,11 +163,11 @@ def _no_data_message() -> str:
     content on purpose, which is why an install is required and not merely
     preferred.
     """
-    from nrdata import gamefiles
+    from . import gamepath
 
     lines = ["Nightreign Helper could not read your game data."]
 
-    if gamefiles.find_game_dir() is None:
+    if gamepath.resolve_game() is None:
         lines += [
             "",
             "No ELDEN RING NIGHTREIGN installation was found.",
