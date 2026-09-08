@@ -2351,3 +2351,32 @@ wird.
 Befund geht in den Fix-Stapel vor 1.8.0, zusammen mit QA-207. Grund: die zwei
 alltaeglichen Wege treffen jeden Nutzer mit deutschem Windows, und der Fix ist
 klein.
+
+## QA-212 — Die Suite lenkt nur eines der drei Datenverzeichnisse um
+
+**Prioritaet: P3 · Schwere: Major · Adressat: qa-engineer, dann developer · offen · 2026-09-08**
+
+Aufgefallen als Restpunkt in T-130: der `developer` wollte am Ende pruefen, wie
+`tests/conftest.py` `LOCALAPPDATA` und `APPDATA` behandelt, und die Zugschwelle
+griff genau davor. Der Director hat es nachgeholt.
+
+**Was geprueft ist** (`grep` ueber `tests/`, 08.09.2026): `tests/conftest.py:44`
+setzt `NIGHTREIGN_SETTINGS_ORG` auf `DankYeeterTests`. **Kein einziger Treffer
+fuer `LOCALAPPDATA` oder `APPDATA` in `tests/`** — 0 Dateien von 71.
+
+**Was nicht geprueft ist, und das ist der eigentliche Befund:** ob dadurch
+tatsaechlich ein Test in `%LOCALAPPDATA%\NightreignHelper` oder in das echte
+`%APPDATA%` schreibt. Das haengt daran, welche Testfaelle `nrplanner/paths.py`
+und `nrplanner/shortcut.py` erreichen, und das ist nicht nachgesehen. **Die
+Aussage lautet also: eine der drei Umlenkungen ist gesetzt, zwei sind es
+nicht — nicht, dass die Suite Schaden anrichtet.**
+
+**Warum es trotzdem zaehlt:** `CLAUDE.md` verlangt alle drei Umlenkungen von
+jedem, der das Programm startet, und begruendet das mit **drei Datenverlusten**
+in Zyklus 4 und 5 sowie einer Verknuepfung, die am 07.09.2026 im echten
+Start-Menue landete, weil nur zwei der drei Variablen umgelenkt waren. Die
+Regel gilt fuer Auftraege — die Suite selbst haelt sie nicht.
+
+Verwandt mit **QA-195** (Testeinstellungen unter der Organisation des
+Spielers), aber nicht dasselbe: dort geht es um den Schluesselraum der
+Einstellungen, hier um zwei Umgebungsvariablen, die niemand setzt.
