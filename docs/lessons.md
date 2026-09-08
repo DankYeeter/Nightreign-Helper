@@ -559,3 +559,410 @@ das ihn als ungeprüft kennzeichnet.
   Kein Prozessfehler — es ist bewusst in P9 geparkt —, aber es ist der Punkt,
   an dem die sonst vorbildliche Ehrlichkeit der Berichte eine Lücke seit dem
   ersten Zyklus unverändert offen hält.
+
+---
+
+## Zyklus 16 — 2026-09-08
+
+**Ziel des Zyklus:** der Release-Weg. **15** Auftragsdateien (T-104 bis T-118,
+gezaehlt mit `ls docs/tasks/`; die Zahl "dreizehn" im Auftrag T-119 ist falsch),
+**14** Berichte auf Platte (T-104 bis T-117, T-118 laeuft noch). Erstes gebautes
+und geprueftes Artefakt des Projekts. **A2 erfuellt** (SEC-009, T-105),
+**A9 geprueft** (T-114, 5 von 6 PASS).
+
+**Datengrundlage:** die 14 Berichte, 15 Auftragsdateien, `qa/findings.md`
+(QA-198 bis QA-207), `security/findings.md`, `GOAL.md`, `docs/state.md`,
+`docs/plan-restarbeiten.md`, `CLAUDE.md`, `docs/legal/C-003.md` und
+`C-004.md`, die Git-Historie beider Repositorien (Projekt und
+`claude-agent-team`), die Rollendefinitionen unter `~/.claude/agents/`,
+`~/.claude/commands/director.md`, `~/.claude/settings.json`, die Hooks unter
+`~/.claude/hooks/` und die Protokolle unter `~/.claude/state/`.
+
+**Nummernraum:** L-014 bis L-018 sind als **teamweite** Nummern vergeben
+(L-012/L-013 sind teamweit belegt, L-011 war die letzte hier). Projekteigene
+Regeln tragen weiterhin **NH-** und stehen in `docs/plan-restarbeiten.md`.
+
+### Gut gelaufen (schuetzenswert)
+
+- **Die parallele Pruefphase hat gehalten.** Drei Paare liefen gleichzeitig
+  (T-104/T-105, T-106/T-107, T-114/T-115); **kein** Bericht meldet verlorene
+  oder ueberschriebene Arbeit. T-114 hat einen fremden Prozess
+  (`pytest -q tests/test_wortwahl_oberflaeche.py`, Datei im Baum nicht
+  vorhanden) bemerkt und gemeldet, statt ihn zu ignorieren.
+- **Die parallele Suite ist der groesste Einzelgewinn des Tages:** 840 s → 127 s
+  (`4431c7a`), Namensvergleich ueber 1265 Faelle ohne Abweichung. Sie hat den
+  Volllauf zurueck in den Vordergrund geholt und damit die Klasse "Lauf stirbt
+  im Hintergrundwarten" fuer dieses Projekt geschlossen.
+- **Der Waechter aus T-109 erfuellt L-008 vollstaendig und ohne Aufforderung:**
+  Mutation im Standardlauf rot (`AssertionError` mit genanntem Zusatzeintrag),
+  Erwartung als Literal statt aus der bewachten Konstante, Ruecknahme ueber eine
+  Kopie statt ueber `git checkout --`, danach `git diff` leer. Ein Waechter, ein
+  vollstaendiger Nachweis.
+- **Rollen widersprechen dem Auftrag mit Messung.** T-113 hat die zwei
+  Umlenkungen des Auftrags gegen `nrplanner/shortcut.py` und die `README`
+  geprueft und die dritte eingefordert. T-115 hat am selben Artefakt kurz nach
+  T-113 eine Zahl gemessen, die den frisch eingetragenen Befund QA-198
+  widerlegte — und sie berichtet, statt sie an den Bestand anzupassen.
+- **Absenz-Behauptungen der Rollen tragen ihren Nachweis** (L-013): T-113
+  schreibt "Kein CHANGELOG.md im Repo vorhanden (geprueft: git-weite Suche nach
+  CHANGELOG*, kein Treffer)" statt "gibt es nicht".
+- **NH-002/L-012 haelt:** T-114 hat seine Bildnachweise ueber `PrintWindow` auf
+  dem eigenen HWND gezogen und NH-002 ausdruecklich genannt. In
+  `docs/screenshots` ist im ganzen Zyklus **keine** Datei dazugekommen.
+- **Der Director hat seine eigenen Fehler protokolliert**, in `docs/state.md`
+  ("Buchfuehrung des Directors"), im Kopf von
+  `docs/berichte/T-115-power-user.md` und in der Korrektur unter QA-198. Ohne
+  diese Selbstprotokolle waere diese Retrospektive nicht moeglich gewesen.
+  **Das ist die wertvollste Gewohnheit des Zyklus und darf durch keine
+  Massnahme unattraktiv werden.**
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **L-008** (teamweit) — ein Gegenbau muss beissen | 2026-09-06 | **Wirkt.** Ein neuer Waechter im Zyklus (T-109, A-030), **1 von 1** mit allen drei Bedingungen belegt: Standardlauf rot, Erwartung als Literal, saubere Ruecknahme nachgewiesen. | Keine. |
+| **L-009** (teamweit) — jede Zahl nennt ihre Messumgebung | 2026-09-06 | **Wirkt bei den Rollen.** QA-198 traegt beide Messungen mit Umgebungsspalte (5 min, "isoliertes Verzeichnis, nach einem v1.7.1-Lauf" gegen 107 s, "frisches Testverzeichnis"). Genau diese Spalte macht sichtbar, dass die Spanne der Befund ist. | Keine. |
+| **L-010** (Director) — fuenf Pruefungen vor jedem Dispatch | 2026-09-06 (`commands/director.md:585`) | **Drei von fuenf wirken, eine kippt, eine ist gebrochen.** P1 *Medium*: gehalten — T-115 kam als Nachrichtentext, der Bericht sagt "GELESEN: bewusst nichts — nur der Auftragstext". P3 *Quelle*: gehalten — T-110- und T-111-Bericht lagen vor den abhaengigen Auftraegen. P5 *Beweisstelle/feste Aufgabenliste*: **wirkt** — T-115 lief mit stehender Liste, QA-170 wurde dadurch reproduziert. P4 *Zitat*: formal erfuellt (12 von 15 Auftragsdateien tragen woertliche Zitate; die 3 ohne sind T-110/T-115/T-116, reine Ausfuehrungsauftraege) — **und hat genau dadurch die falsche Praemisse in vier Auftragsdateien getragen**. P2 *Werkzeug*: **gebrochen** — T-113 hatte kein GUI-Automatisierungswerkzeug fuer einen Auftrag, der Bedienung verlangt, und hat Speicherzustaende in der Registry nachgebildet. Das ist der **vierte** Fall dieser Art (T-054, T-061, 06.09., T-113). | P4: Quittungspflicht → **L-015**. P2: kein neuer Regeltext — der Text steht seit dem 06.09. da und wurde nicht ausgefuehrt; das ist **L-014**. |
+| **L-011** (teamweit) — "richtiger als ihre Begruendung", ohne Massnahme | Ausloeser: naechstes Vorkommen | **Kein neuer Fall dieser Bauform belegt.** Kein Bericht des Zyklus meldet Code, der aus einem anderen Grund richtig ist als dem angegebenen. | Bleibt ohne Massnahme, Ausloeser bleibt stehen. |
+| **L-012** (teamweit) — Bildnachweise aus dem Fenster | 2026-09-06 | **Wirkt.** T-114 zieht ueber `PrintWindow` auf das eigene HWND und nennt NH-002; 0 neue Dateien unter `docs/screenshots` im Zyklus (letzter Ordner `2026-09-06-T068`). | Keine. |
+| **L-013** (teamweit) — eine Absenz-Behauptung traegt ihren Nenner | 2026-09-06 | **Wirkt bei den Rollen, wirkt nicht beim Director.** Rolle: T-113s CHANGELOG-Absenz mit genannter Suche. Director: "`AUFLAGEN.md` nicht vorhanden" (die Datei liegt seit `9631cbb`, 02.09. 01:31) und "es gibt bis heute keine EXE" (12 Releases, `gh release list`) — **beide ohne Nenner, beide falsch.** Der Unterschied ist nicht Sorgfalt, sondern **Ort**: L-013 steht in den Rollendefinitionen und in `_rahmen.md`, und `_rahmen.md` bindet den Director nicht (`commands/director.md:520` verweist andere darauf, uebernimmt es nicht). | → **L-014**. |
+| **NH-001** — je nicht-trivialem Auftrag eine Datei | 2026-09-06 | **Wirkt, 15 von 15.** In Zyklus 13 zweimal gebrochen, seither lueckenlos. Auch die zwei kleinsten Auftraege (T-110, T-116, je unter 50 Zeilen) haben eine Datei. | Keine. |
+| **`model: sonnet` beim Retest** | 03.09. als Pflicht, 06.09. als Hook | **Wirkt — aber nur der Hook, nicht die Regel.** `~/.claude/state/dispatch-modell.log`: **4 von 4** qa-Retests am 06./07.09. wurden vom Hook herabgestuft; zweimal kam der Dispatch als "(Standard)", zweimal als "opus". Der Director hat das Modell in **0 von 4** Faellen selbst gesetzt. In Zyklus 16 gab es keinen Retest, also keinen neuen Datenpunkt. | Keine eigene — aber es ist der **Beweis der Bauform**, auf der L-014 aufsetzt: eine Regel im Fliesstext des Directors wirkte in 21 Faellen nicht, dieselbe Regel als Hook wirkt in 4 von 4. |
+| **Parallele Pruefphase** | 07.09. | **Wirkt.** Drei Paare, kein gemeldeter Verlust, ein korrekt gemeldeter Fremdprozess. | Keine. |
+
+---
+
+### L-014 — Der Director liest seine eigenen Notizen als Messung, und die Regel dagegen stand schon da
+
+**Belege — acht Vorkommen in einem Zyklus, alle beim Director, alle derselben
+Form:**
+
+| # | Aussage | Was sie wirklich war | Die Primaerquelle, die es gab | Quelle |
+|---|---|---|---|---|
+| 1 | SEC-022, SEC-024, QA-194 "offen" | Statuszeile, nach dem Fix nie nachgezogen | `git log -S` gegen den Stand | `1b00eb6` |
+| 2 | SEC-009 in der Tabelle "offen" | derselbe Befund stand im Abschnitt darunter als behoben | dieselbe Datei, wenige Zeilen tiefer | `41fba5a`, gefunden vom `release-manager` |
+| 3 | `docs/legal/AUFLAGEN.md` "nicht vorhanden" | Erinnerung | `ls docs/legal/` — die Datei liegt seit `9631cbb`, 02.09. 01:31 | `docs/state.md`, Abschnitt Buchfuehrung |
+| 4 | "es gibt bis heute keine EXE" | eine Zeile aus `docs/state.md`, seit mehreren Zyklen | `gh release list` — **12** Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads | `81547f3`, gefunden vom `release-manager` in T-106 |
+| 5 | zwei Umlenkungen fuer den `clean-room` | uebernommen aus dem T-111-Bericht | `nrplanner/shortcut.py:44-49` und die `README` nennen **drei** | Nachtrag in `docs/tasks/T-113.md`, `a2980bf` |
+| 6 | QA-198 "fuenfmal so lange wie angesagt" | **eine** Messung, als Regel geschrieben | eine zweite Messung; sie kam 90 min spaeter und ergab ein Drittel | `qa/findings.md:1999 ff.` |
+| 7 | "dreizehn Auftraege (T-104 bis T-118)" | geschaetzt | `ls docs/tasks/` — **15** | `docs/tasks/T-119.md:13` |
+| 8 | "der `power-user` hat seinen Bericht **trotz Schreibrecht** nicht abgelegt" | Annahme ueber eine Rollendefinition | `~/.claude/agents/power-user.md`: `tools:` enthaelt **kein** `Write` und **kein** `Edit`; der Fliesstext sagt "**Du schreibst keine Datei.** … abgelegt wird er vom `director`" | `CLAUDE.md`, Abschnitt "Der Bericht ist Teil des Auftrags" (geschrieben 08.09. 10:04, `9f438f9`) |
+
+**Was der Zyklus dafuer bezahlt hat:** Beleg 4 lief in den Fragebogen an den
+Nutzer, in **vier** Auftragsdateien (T-104, T-105, T-106, T-107) und in den
+Bericht an den Nutzer; `docs/legal/C-003.md` (867 Zeilen) setzte darauf auf und
+musste durch `docs/legal/C-004.md` (558 Zeilen) nachgezogen werden. Beleg 5 hat
+eine Verknuepfung im **echten** Start-Menue des Nutzers erzeugt. Beleg 8 steht
+heute unkorrigiert in der Datei, mit der der naechste Zyklus startet — und wenn
+der Director ihr glaubt, legt er den naechsten `power-user`-Bericht **nicht**
+mehr ab, und der Bericht ist dann ganz weg.
+
+**Ursache — und sie ist nicht "zu wenig Sorgfalt":** Die Regeln, die genau diese
+acht Faelle verbieten, **stehen bereits woertlich in `commands/director.md`**:
+
+- *"Ein Befundstatus wird geprueft, nicht erinnert. … Die Statuszeile in
+  `qa/findings.md` ist eine Notiz, kein Messwert"* — Zeile 1019, eingefuegt
+  **07.09. 18:35** (`9b2c986`), also **drei Stunden vor** dem Beginn dieses
+  Zyklus. Im Zyklus fuenfmal gebrochen (Belege 1, 2).
+- *"Absenz-Behauptungen brauchen eine Durchsicht, keinen Grep"* — Zeile 1038,
+  eingefuegt **02.09. 20:44** (`6adba6f`). Zweimal gebrochen (Belege 3, 4).
+- *"Eine Regel aus wenigen Beispielen ist eine Hypothese, keine Tatsache. …
+  Was du nicht gemessen hast, gibst du nicht als gemessen aus"* — Zeile 1047,
+  gleiche Herkunft. Zweimal gebrochen (Belege 6, 7).
+
+Die Ursache ist also der **Ort**, nicht der Wortlaut: `commands/director.md` ist
+von 355 Zeilen (01.09.) auf **1085 Zeilen** (08.09.) gewachsen; die drei Saetze
+stehen in einem Fliesstextkapitel ab Zeile 1019, das die Sitzung **einmal beim
+Aufruf** liest. An keiner Stelle des Ablaufs — Befund eintragen, `state.md`
+schreiben, Auftrag verfassen — wird die Regel ausgeloest. **Der Gegenbeweis
+liegt im selben Repo:** dieselbe Sorte Regel (`model: sonnet` beim Retest)
+wirkte im Fliesstext in 0 von 21 Faellen und als Hook in 4 von 4.
+
+**Massnahme.** Zieldatei: **`hooks/remind-rules.ps1`** (Agenten-Repo
+`claude-agent-team`), registriert in `~/.claude/settings.json` als
+`UserPromptSubmit` — geprueft, der Hook laeuft. Die Variable `$rules` wird
+erweitert; der bestehende Text bleibt woertlich stehen, angehaengt wird:
+
+> ` Director: a status line, a note in state.md or another role's report is a NOTE, not a measurement - before it goes into a task file, into state.md or into a message to the user, check the primary source (git log -S / --grep for finding status, ls or git log for "does not exist", gh release list for releases, the agent definition for what a role may do) and name it. An absence claim without a named search is a guess. One observation is a hypothesis, not a rule - a number you did not count stays out.`
+
+**Wer liest ihn wann:** der Director, bei **jedem** Prompt des Nutzers, ohne
+Zutun. Das ist die einzige Stelle im heutigen Aufbau, die der Director oefter
+als einmal je Sitzung liest.
+
+**Kosten.** Rund 60 Woerter zusaetzlicher Kontext je Nutzer-Prompt (der Hook
+traegt heute rund 50). Ein `git log -S` je Befund-Id kostet Sekunden. Dagegen
+stehen in **einem** Zyklus: 558 Zeilen Rechts-Nacharbeit, vier Auftragsdateien
+auf falschem Sachverhalt, eine Verknuepfung im echten Nutzerprofil.
+
+**Schaerfere, teurere Alternative** (dem Nutzer zur Wahl, nicht als Erstes
+empfohlen): derselbe Text als `PreToolUse`-Hook mit Matcher `Write|Edit`, der
+nur anschlaegt, wenn der Pfad auf `state.md`, `*findings.md` oder
+`docs/tasks/T-*.md` zeigt. Genauer im Ausloeser, aber er feuert auch bei jedem
+Subagenten und ist ein neuer Hook statt einer geaenderten Zeile.
+
+**Erfolgskriterium.** In den naechsten zwei Zyklen steht in `docs/state.md` kein
+Abschnitt "Buchfuehrung des Directors" mit einem Fehler der Bauform "Notiz statt
+Messung", und keine Rolle findet eine solche Aussage in ihrem Auftrag.
+Gegenprobe: mindestens **eine** Aussage je Zyklus, bei der der Director die
+Primaerquelle im Auftrag mitnennt (z. B. "12 Releases, `gh release list`,
+08.09.").
+
+**Status:** vorgeschlagen
+
+---
+
+### L-015 — Pruefung 4 macht `docs/state.md` zur Primaerquelle jeder Rolle
+
+**Belege:**
+
+1. **Die falsche Praemisse reiste als woertliches Zitat.** T-104 zitiert
+   `docs/state.md` im Blockzitat einschliesslich der Tabellenzeile "heute keine
+   EXE"; T-105, T-106 und T-107 tragen denselben Satz. Alle vier Rollen haben
+   ihn korrekt als Vorgabe behandelt — er stand ja im woertlichen Zitat.
+2. **Der `compliance-agent` hat darauf 867 Zeilen aufgebaut**
+   (`docs/legal/C-003.md`), weil sein Auftrag den Sachverhalt zitierte und er
+   ihn per Definition nicht gegenpruefen konnte (`disallowedTools: Bash,
+   PowerShell` — er kann `gh` gar nicht aufrufen). Korrektur: `C-004.md`,
+   558 Zeilen.
+3. **Dieselbe Mechanik hat auch die Korrektur transportiert:** T-109, T-111 und
+   T-114 zitieren den Korrekturabsatz woertlich. Der Kanal ist gut; die Quelle
+   ist es nicht.
+4. **Die Umlenkungen von T-113** kamen aus dem T-111-Bericht in den Auftrag,
+   ohne Abgleich gegen den Code und die `README`, die das Team eine Stunde
+   vorher selbst geschrieben hatte.
+
+**Ursache (ein Satz):** Pruefung 4 verlangt das woertliche Zitat und schafft
+damit Verbindlichkeit — aber sie verlangt nicht, dass das Zitierte selbst eine
+Primaerquelle hat, und macht so aus einer Director-Notiz in jedem Auftrag eine
+Tatsache, der die Rolle nicht widersprechen kann.
+
+**Massnahme.** Zieldatei: **`commands/director.md`**, Pruefung 4 ("Zitat") im
+Abschnitt "Fuenf Pruefungen vor jedem Dispatch" — **ein** Absatz wird
+angehaengt, nichts wird ersetzt:
+
+> Ist das Zitierte eine **Tatsachenbehauptung ueber den Bestand** — ein
+> Befundstatus, "existiert nicht", eine Zahl, eine Dateiliste —, schreibst du
+> **die Quittung dazu**, in Klammern hinter das Zitat: den Befehl und das
+> Datum, mit dem du es zuletzt geprueft hast (`gh release list`, 08.09.). Hast
+> du keine, ist es keine Vorgabe, sondern eine Annahme — dann kennzeichne sie
+> als solche und sag der Rolle ausdruecklich, dass sie ihr widersprechen darf.
+
+**Wer liest ihn wann:** der Director, unmittelbar vor jedem Dispatch —
+Pruefung 4 ist eine Checkliste, die er ohnehin abarbeitet, und sie steht
+**nicht** im Fliesstextkapitel, sondern im Ablaufteil.
+
+**Kosten.** Eine Klammer je zitierter Tatsachenbehauptung, etwa zwei bis vier je
+Auftrag. Sie erzwingt genau die Pruefung aus L-014 an dem Punkt, an dem die
+Aussage teuer wird — der Weitergabe.
+
+**Erfolgskriterium.** In den naechsten zwei Zyklen traegt **jede** zitierte
+Bestandsaussage in `docs/tasks/` entweder eine Quittung oder die Kennzeichnung
+als Annahme; nachpruefbar mit einem `grep` ueber die Auftragsdateien. Und: kein
+Bericht meldet, dass ein zitierter Sachverhalt nicht stimmte.
+
+**Status:** vorgeschlagen
+
+---
+
+### L-016 — Eine Korrektur schliesst die Fundstelle, nicht die Aussage
+
+**Belege:**
+
+1. **QA-198 traegt seine widerlegte Behauptung weiter in der Ueberschrift.**
+   `qa/findings.md:1999` heisst bis heute "Der Erstaufbau dauert **fuenfmal so
+   lange**, wie das Programm ansagt", waehrend zwanzig Zeilen tiefer steht, dass
+   genau das eine Hypothese aus einer einzigen Messung war. Wer die Befundliste
+   ueberfliegt — und das ist die uebliche Benutzung —, liest die widerlegte
+   Fassung.
+2. **`CLAUDE.md` enthaelt seit dem 08.09. 10:04 eine neu geschriebene falsche
+   Aussage:** "Am 08.09.2026 hat der `power-user` seinen Bericht **trotz
+   Schreibrecht** nicht abgelegt." Der `power-user` hat weder `Write` noch
+   `Edit`, und seine Definition untersagt ihm ausdruecklich, eine Datei zu
+   schreiben. Die Regel darueber ("eine Rolle **mit** Schreibrecht gilt erst als
+   fertig, wenn …") ist richtig; ihre Begruendung ist falsch, und sie zeigt auf
+   die falsche Rolle.
+3. Zum Vergleich: fuer **Befunde** gilt teamweit L-006 (Eigenschaft statt
+   Fundstelle, projektweite Suche mit zwei unabhaengigen Masken, Trefferzahl im
+   Bericht) — und die Regel wirkt seit sieben Berichten. Fuer **Aussagen des
+   Directors ueber den Bestand** gilt sie nicht.
+
+**Ursache (ein Satz):** Eine widerlegte Aussage wird dort korrigiert, wo sie
+widerlegt wurde, und nicht dort, wo sie sonst noch steht — obwohl das Team fuer
+Befunde genau diese Suche seit dem 03.09. verbindlich fuehrt.
+
+**Massnahme — zwei konkrete Textaenderungen in diesem Projekt, sofort:**
+
+**(a) Zieldatei `CLAUDE.md`**, Abschnitt "Der Bericht ist Teil des Auftrags",
+die beiden letzten Saetze werden ersetzt durch:
+
+> Eine Rolle **mit** `Write` gilt erst als fertig, wenn
+> `docs/berichte/T-###-<rolle>.md` auf der Platte liegt. Rollen **ohne** `Write`
+> — heute `power-user`, `qa-engineer`, `security-reviewer`, `archivist`,
+> `fehlerdiagnostiker` — liefern den Bericht vollstaendig in der Antwort; **der
+> Director legt ihn ab, bevor die naechste Rolle startet** (L-010, Pruefung 3).
+> Am 08.09.2026 wurde der `power-user`-Bericht zu T-115 vom Director
+> nachgetragen; das war **richtig so** und keine Verfehlung der Rolle.
+
+**(b) Zieldatei `qa/findings.md`**, Ueberschrift QA-198:
+
+> `## QA-198 — Der Erstaufbau dauert unvorhersagbar lange (107 s bis 5 min), das Programm sagt "etwa eine Minute"`
+
+**Wer liest das wann:** `CLAUDE.md` liest jede Rolle in jedem Auftrag (der
+Director verweist seit `9f438f9` auf den Abschnitt "Projektzeilen fuer jeden
+Auftrag"); die Befundueberschrift liest jeder, der die Befundliste ueberfliegt.
+
+**Kosten.** Zwei Textaenderungen, zusammen unter zehn Zeilen. Kein neuer
+Regeltext, keine zusaetzliche Pflicht je Auftrag.
+
+**Erfolgskriterium.** In den naechsten zwei Zyklen enthaelt keine Ueberschrift in
+`qa/findings.md` oder `security/findings.md` eine Aussage, die ihr eigener Text
+widerlegt, und kein Auftrag stuetzt sich auf eine Aussage ueber Rollenrechte,
+die die Rollendefinition nicht deckt.
+
+**Status:** vorgeschlagen
+
+---
+
+### L-017 — Der Regelbestand waechst monoton, und die juengste Regel verdraengt die aeltere
+
+**Belege:**
+
+1. **`commands/director.md`: 355 → 1085 Zeilen in sieben Tagen** (+206 %,
+   gezaehlt ueber 26 Commits seit 01.09.). Die drei Saetze, die die acht Fehler
+   aus L-014 verhindert haetten, liegen ab Zeile 1019.
+2. **Der gemeinsame Rahmen ist in sieben Tagen viermal umgebaut worden** —
+   Fliesstext der Projekte, `templates/task.md`, fuenfzehn Rollendefinitionen,
+   `_rahmen.md` —, jeder Umbau mit einer eigenen Verlustart (verfaellt, kostet
+   Zuege, laeuft auseinander; drei Regeln kamen in **null** Rollen an,
+   `_rahmen.md` Zeilen 6-25).
+3. **Die Wirkung wird nicht gemessen, weil die Protokolle sie nicht hergeben.**
+   `~/.claude/state/kontrakt-verstoesse.log` (36 Zeilen),
+   `dispatch-modell.log` und `zugschwelle.log` fuehren Sitzung, Agent und Rolle,
+   aber **kein Projekt** — die sieben Eintraege im Zeitfenster von Zyklus 16
+   stammen erkennbar aus der parallelen Sitzung eines anderen Projekts, und
+   zuordnen laesst sich das nur ueber Rolle und Uhrzeit.
+4. **Eine Regel kostet mehr, als sie einbringt, und niemand rechnet nach:** das
+   120-Zeilen-Budget fuer `docs/state.md` (`commands/director.md:76` und `:113`)
+   hat in Zyklus 16 **10** Umschriften ausgeloest, **5** davon ausschliesslich
+   fuer das Budget (`bc460d6`, `207257a`, `98d9740`, `732ee4c`, `93b01e9`),
+   zusammen 278 hinzugefuegte und 263 entfernte Zeilen an einer Datei von 142
+   Zeilen — **die das Budget am Ende trotzdem um 22 Zeilen ueberschreitet.**
+
+**Ursache (ein Satz):** Regeln werden hinzugefuegt, wenn etwas schiefgeht, aber
+nie gestrichen, nie an eine Stelle im Ablauf gebunden und nie auf ihre Kosten
+nachgerechnet — deshalb waechst der Text schneller, als er gelesen wird.
+
+**Massnahme.** Zieldatei: **`agents/_rahmen.md`**, ein neuer Abschnitt am Ende;
+er richtet sich an **den, der Regeln pflegt** (Director und Nutzer), nicht an
+die Rollen:
+
+> ## Regeln pflegen
+>
+> **Jede neue Regel nennt ihren Ausloeser** — den Moment im Ablauf, in dem sie
+> greift ("bevor du einen Befundstatus weitergibst", "vor jedem Dispatch"). Eine
+> Regel ohne Ausloeser gehoert nicht in den Fliesstext, sondern in eine Vorlage,
+> eine Checkliste oder einen Hook. Gemessen am 08.09.2026: dieselbe Regel wirkte
+> als Fliesstext in 0 von 21 Faellen und als Hook in 4 von 4.
+>
+> **Wer eine Regel einfuegt, nennt die, die dafuer entfaellt** — oder begruendet
+> in einem Satz, warum der Bestand wachsen muss. `commands/director.md` ist in
+> sieben Tagen von 355 auf 1085 Zeilen gewachsen; die Regel, die den teuersten
+> Fehler des Zyklus verhindert haette, stand seit drei Stunden darin.
+>
+> **Eine Regel, die Arbeit erzeugt, traegt ihre Rechnung.** Das Zeilenbudget
+> fuer `docs/state.md` hat in einem Zyklus fuenf Umschriften erzeugt und wurde
+> am Ende trotzdem gerissen. **Es wird deshalb nur noch am Zyklusende
+> geprueft** — der Satz in `commands/director.md:76` und `:113` heisst ab jetzt
+> "hoechstens 120 Zeilen, **geprueft einmal am Zyklusende**".
+
+**Wer liest das wann:** `_rahmen.md` liest jede Rolle zu Beginn jedes Laufs
+(erzwungen durch `hooks/selftest.ps1`); der Abschnitt richtet sich an den, der
+gerade eine Regel schreibt — und das ist genau der Moment, in dem er die Datei
+offen hat.
+
+**Kosten.** Ein Satz Begruendung je neuer Regel. Ehrliches Risiko: der Abschnitt
+ist selbst eine Regel im Fliesstext und teilt damit die Schwaeche, die er
+beschreibt — er wirkt nur, wenn der Nutzer ihn beim Freigeben von Regeln
+anwendet. Deshalb steht die messbare Haelfte (Zeilenbudget) als konkrete
+Textaenderung darin.
+
+**Erfolgskriterium.** Am Ende von Zyklus 17 ist `commands/director.md`
+**nicht laenger** als heute (1085 Zeilen), und `docs/state.md` wird hoechstens
+**dreimal** je Zyklus committet.
+
+**Status:** vorgeschlagen
+
+---
+
+### L-018 — Vier Nummernraeume, ein Praefix: L-Zitate nennen ihre Herkunft nicht
+
+**Belege:** In `claude-agent-team` werden heute L-Nummern aus **vier**
+verschiedenen Saetzen zitiert: teamweit L-001 bis L-013 (Rollendefinitionen),
+`bt-codec L-005` (`commands/director.md:562`, mit Praefix), **`L-022` bis
+`L-026` ohne jedes Praefix** in drei Hook-Kommentaren
+(`hooks/check-handoff.ps1:109`, `hooks/limit-tool-calls.ps1:90`,
+`hooks/selftest.ps1:376` — sie meinen die `docs/lessons.md` eines anderen
+Projekts, erkennbar nur an "T-112"), und projekteigen NH-001/NH-002 hier. Die am
+05.09. beschlossene Massnahme (**NH-** fuer projekteigene Regeln) hat **eine**
+Seite der Kollision geschlossen: die Nightreign-Nummern werden nicht mehr
+verwechselt. Die andere Seite ist offen — ein `L-022` in einem teamweiten Hook
+zeigt auf eine Datei, die in diesem Projekt nicht existiert.
+
+**Ursache (ein Satz):** Praefixe wurden pro Projekt eingefuehrt, aber nicht fuer
+**Zitate** verlangt, und die teamweiten Dateien zitieren am haeufigsten fremd.
+
+**Massnahme.** Zieldatei: **`agents/_rahmen.md`**, im Abschnitt "Regeln pflegen"
+aus L-017, ein Spiegelstrich:
+
+> **Ein L-Zitat ohne Praefix meint den teamweiten Satz** (Rollendefinitionen und
+> diese Datei). Jede projekteigene Regel traegt ein Projekt-Praefix (`NH-001`),
+> und wer eine fremde Projektregel zitiert, nennt das Projekt davor
+> (`bt-codec L-005`). Ein `L-###` ohne Praefix in einer teamweiten Datei, das im
+> teamweiten Satz nicht existiert, ist ein Fehler.
+
+Dazu drei Ein-Zeilen-Korrekturen: `L-022` bzw. `L-022 bis L-026` in den drei
+genannten Hook-Kommentaren um ihr Projekt-Praefix ergaenzen.
+
+**Wer liest das wann:** jede Rolle liest `_rahmen.md`; entscheidend ist aber
+der, der eine Regel zitiert — und das ist derselbe Moment wie bei L-017.
+
+**Kosten.** Drei Kommentarzeilen, ein Spiegelstrich. Praktisch null.
+
+**Erfolgskriterium.** In zwei Zyklen enthaelt kein teamweiter Text ein `L-###`
+ohne Praefix, das im teamweiten Satz nicht existiert (pruefbar mit einem `grep`
+ueber `claude-agent-team`).
+
+**Status:** vorgeschlagen
+
+---
+
+### Beobachtungen (noch kein Muster)
+
+- **Pruefung 2 (Werkzeug) ist zum vierten Mal ausgefallen, diesmal ohne
+  Schaden (08.09.2026).** T-113 hatte kein GUI-Automatisierungswerkzeug und hat
+  Speicherzustaende in der Registry nachgebildet, statt zu klicken — offen
+  berichtet, mit einem eigenen Abschnitt "Wo ich nicht klicken konnte". Die drei
+  frueheren Faelle (T-054, T-061, 06.09.) betrafen den `power-user` und haben je
+  einen Lauf gekostet; dieser nicht. **Keine eigene Massnahme, weil die Regel
+  bereits existiert und nur nicht ausgefuehrt wurde — das ist L-014.** Wird beim
+  naechsten Vorkommen mit Laufverlust zu einem eigenen Muster.
+- **Der Netzabbruch war billig, die unvollstaendige Isolierung war es nicht
+  (07./08.09.2026, einmalig).** Der erste T-113-Lauf starb nach dem 600-s-Limit
+  des Stream-Waechters; der Director hat **vor** dem Wiederanlauf am
+  Dateisystem geprueft (kein Bericht, `git status` sauber, Zeitstempel der
+  echten Nutzerdaten unveraendert) — vorbildlich, und genau die
+  Primaerquellenpruefung, die an anderer Stelle fehlte. Verloren ging nur der
+  Lauf selbst; teuer war nicht der Abbruch, sondern die fehlende dritte
+  Umlenkung, die er hinterliess. Was ihn haette verkleinern koennen, ist
+  inzwischen beschlossen: der feste Testabzug (E-1) spart 107 s bis 5 min je
+  Artefaktstart. **Die Zahl ist noch nicht gemessen** — der erste Auftrag, der
+  ihn benutzt, traegt sie nach.
+- **Die Protokolle unter `~/.claude/state/` tragen kein Projekt (08.09.2026).**
+  Eine Wirkungskontrolle je Projekt und Zyklus laesst sich daraus nur ueber
+  Rolle und Uhrzeit rekonstruieren, und bei parallel laufenden Sitzungen ist das
+  Raten. Billig zu beheben (ein Feld je Zeile), aber es ist kein Muster, sondern
+  eine fehlende Messmoeglichkeit — hier festgehalten, damit die naechste
+  Retrospektive es nicht wieder von Hand rekonstruiert.
+- **`CHANGELOG.md` existiert nicht** (T-113, git-weite Suche, kein Treffer),
+  obwohl `commands/director.md:50` sie als Ergebnis des `release-manager`
+  fuehrt. Erstes Vorkommen, gemeldet an den Director, keine Massnahme.
