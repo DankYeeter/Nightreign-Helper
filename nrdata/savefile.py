@@ -214,10 +214,13 @@ def _relic_id_offsets(slot_data: bytes):
     10 293 488 of them -- 6,15 s on the thread that builds the window, at
     every start and every rescan (T-118 P2).
 
-    Only 0,22 % of a real slot's bytes are the one a record must carry at its
+    Only 0,20 % of a real slot's bytes are the one a record must carry at its
     fourth, so `bytes.find` walks the slot in C and hands the loop below only
-    the offsets that can still turn out to be a record. Measured on the
-    player's save: 14 slots in 61,9 ms against 2 802,7 ms.
+    the offsets that can still turn out to be a record. Measured 2026-09-08
+    over the 28 slots of the two saves on this machine, 39 060 416 bytes:
+    9 764 936 offsets walked before, 27 320 handed over now, and the scan of
+    all 28 slots falls from 4 835,3 ms to 93,3 ms (median of five, same
+    process, same slots in memory).
 
     Offsets come out ascending and only on a four-byte boundary, both of which
     the caller relies on: the record's own alignment is what says a doubled id
