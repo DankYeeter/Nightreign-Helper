@@ -21,37 +21,32 @@ Frage oder wenn alles fertig ist**. Fragen werden **gesammelt**; der Fragebogen
 vor dem Zyklus haelt trotzdem an. **Die Pruefung im laufenden Spiel macht der
 Nutzer ganz am Ende.**
 
-## Zyklus 16 - abgeschlossen 08.09.2026: der Release-Weg
+## Zyklus 16 abgeschlossen, Zyklus 17 laeuft
 
-**A2 erfuellt** (SEC-009 behoben, T-105). **A9 geprueft** (T-114, Urteil
-CONCERNS): A3, A4, A5, A7, A8 **PASS**, A6 **CONCERNS** — `GOAL.md` traegt
-keinen Zielwert, S11 lief nie.
-
-**Der Nachweis, den es nie gab:** 62 von 62 Modulen bytecode-identisch zum
-Quellstand, genau eine `__file__`-Stelle und die hinter `_MEIPASS`; 440
+**Zyklus 16 (Release-Weg), 08.09.2026:** A2 erfuellt (SEC-009 behoben) · **A9
+geprueft** (T-114): A3, A4, A5, A7, A8 **PASS**, A6 **CONCERNS** mangels
+Zielwert. 62 von 62 Modulen bytecode-identisch zum Quellstand, 440
 Beraterlaeufe am **verpackten** Code ueber 10/10 Nightfarer und 74/74 Kelche,
-2 508 Slot-Vorschlaege, 0 Regelverstoesse, 0 Slots ohne Begruendung.
-**QA-191 ist damit inhaltlich erledigt, strukturell nicht** (QA-205).
+0 Regelverstoesse. **A-033 ausgefuehrt und gegengeprueft:** 12 von 12 Releases
+tragen das Hinweispaket, der Lizenzverstoss ist beendet (GPL § 8 endgueltig ab
+07.11.2026). **Nichts sperrt die Veroeffentlichung mehr.**
 
-**Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, SHA-256
-`42B21AA2...F221`, 1.8.0. Update-Weg an einem echten `v1.7.1` belegt (T-113):
-7 von 7 Builds erhalten. Alles gepusht, PR #16 aktualisiert.
+**Artefakt:** `dist/NightreignHelper.exe`, 59 010 777 B, 1.8.0, SHA-256
+`42B21AA2...F221`. Update-Weg an echtem `v1.7.1` belegt: 7 von 7 Builds
+erhalten. **Nutzerentscheid 08.09.: 1.8.0 geht erst nach dem Fix-Stapel raus.**
 
-**Isolierung fuer jeden Lauf am Artefakt - drei Umlenkungen:**
-`NIGHTREIGN_SETTINGS_ORG` (`favourites.py:25`) · `LOCALAPPDATA`
-(`paths.py:20`) · `APPDATA` (`shortcut.py:44-49`). Fester Testabzug unter
-`%LOCALAPPDATA%\NightreignHelper-Testabzug` spart den Neubau je Lauf —
-Einzelheiten und die zwei anderen Effizienzregeln in
-`docs/plan-restarbeiten.md` (E-1 bis E-3).
+**Zyklus 17, laeuft:** **T-118** `performance-tuner` (S11) — gibt A6 seine Zahl
+und setzt zwei Werte, die `ARCHITECTURE.md` ihm zuweist. **T-119**
+`retrospective` ✔ (L-014 bis L-018, davon vier teamweit und beim Nutzer zur
+Freigabe). **Danach:** `developer` mit den zwei Waechtern (QA-204 Englisch,
+QA-205 A3-Zusage) und dem Fix-Stapel, dann Pruefphase, dann neu bauen und
+ausliefern.
 
-**Was die Veroeffentlichung noch sperrt:** nur **A-033** (Hinweispaket an alle
-zwoelf Bestandsreleases, Text B aus `docs/release/RELEASE_TEXT.md`).
-Nutzerentscheid 07.09.: **W1**, fortsetzen und nachruesten; A-025 als GRAU
-geschlossen, das Restrisiko traegt der Nutzer bewusst.
-
-**Entschieden 08.09., noch nicht beauftragt:** **S11** (`performance-tuner`,
-Erstlauf, opus) setzt A6 seine Zahl · die zwei fehlenden Waechter werden
-gebaut (QA-204 Englisch, QA-205 A3-Zusage), bevor ausgeliefert wird.
+**Alle Projektzeilen fuer Auftraege stehen seit 08.09. in `CLAUDE.md`** —
+Zielsystem, Testbefehl, die drei Umlenkungen, der feste Testabzug, Scratchpad
+je T-Nummer, verbotene Zugriffe, Projektsprache. Auftraege verweisen darauf,
+statt sie abzuschreiben (32-mal die Scratchpad-Regel, 7-mal die Umlenkungen).
+Effizienzregeln E-1 bis E-3 in `docs/plan-restarbeiten.md`.
 
 ## Stand gegen `GOAL.md`
 
@@ -72,21 +67,24 @@ gebaut (QA-204 Englisch, QA-205 A3-Zusage), bevor ausgeliefert wird.
 
 ## Beschlossen, nicht beauftragt
 
-- **D-1** `performance-tuner` auf `model.compute` (94 % der 941,6 ms) — S11,
-  Erstlauf im Projekt, also opus. · **D-11** doppeltes Zahlenformat: Waechter
-  nach AK-136.
-- **`compute_resistances`** — Zurueckstellung wieder offen: T-080 zaehlt 36
-  stumme Zeilen auf einem Spielstand. Vor der Bestaetigung nachmessen.
+- **D-11** doppeltes Zahlenformat: Waechter nach AK-136.
+- **`compute_resistances`** — Zurueckstellung wieder offen: 36 stumme Zeilen
+  auf einem Spielstand (T-080). Vor der Bestaetigung nachmessen.
 - **QA-185, Klassenmassnahme:** vor der naechsten Aenderung entscheiden, ob
   `sources` durchgaengig ueber Ids gefuehrt wird. Latent (0 von 456 Paaren).
-- **A16/A17**, spezifiziert in AK-182 bis AK-194, **nicht gebaut**. Zyklus 17.
+- **A16/A17**, spezifiziert in AK-182 bis AK-194, **nicht gebaut**.
+- **L-014, L-015, L-017, L-018** — teamweite Massnahmen der Retrospektive,
+  **beim Nutzer zur Freigabe**. L-016 ist umgesetzt.
 
 ## Buchfuehrung des Directors
 
-**Drei Fehler am 07.09.**, alle gleicher Art — eine Notiz statt einer Messung:
-SEC-022/SEC-024/QA-194 standen faelschlich auf "offen" · `AUFLAGEN.md` galt als
-nicht vorhanden und existiert seit dem 01.09. · "keine EXE" (oben). Hergang im
-Verlauf. **QA-196/QA-197 sind geklaert** und stehen in der Rollendefinition.
+**Acht Fehler in Zyklus 16**, alle derselben Form: eine Notiz wurde fuer eine
+Messung gehalten. Fuenf falsche Befundstatus · die Praemisse "es gibt keine
+EXE" (es gab zwoelf Releases) · ein Befund als Tatsache aus einer Messung
+(QA-198) · eine falsche Aussage ueber Rollenrechte in `CLAUDE.md`. **Die
+Regeln dagegen standen alle bereits woertlich in `commands/director.md`** —
+die Ursache ist ihr Ort, nicht ihr Fehlen (L-014, belegt in T-119).
+Alle drei Korrekturen des Zyklus kamen von **Rollen**, keine aus dem Bestand.
 
 ## Offen aus der Pruefphase (Zyklus 15)
 
