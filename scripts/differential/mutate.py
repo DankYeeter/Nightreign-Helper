@@ -3417,6 +3417,226 @@ MUTATIONS: dict[str, Mutation] = {
             "tests/test_effects_tab_display.py, two cases, both reading the "
             "label out of the layout row rather than out of the module."),
     ),
+    # -- the picker's question (T-128: AD-028 option D) ---------------------
+    #
+    # Six edits over `run.slot_pool` and the direction it is fixed to
+    # (Nachtrag IX-2). A seventh -- `base_state_for` no longer lifting the
+    # open slot's own hold -- needs no entry here: it is the same line
+    # `advisor-ranks-the-slot-as-it-stands` already mutates, and the pool
+    # equality cases below die on it too. Nachgetragen by T-132, re-measured
+    # against the tree of this commit rather than copied from T-128's own
+    # run, whose numbers were against an earlier state of `run.py`.
+    "slot-pool-asks-the-wrong-slot": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    return candidates.pool(inventory, problem, open_slots[0].index, ctx,
+                           goals, request.goal_id, should_cancel)
+""",
+        new="""    return candidates.pool(inventory, problem, problem.slots[0].index, ctx,
+                           goals, request.goal_id, should_cancel)
+""",
+        survival_means=(
+            "the picker asks about whichever slot happens to be first on the "
+            "vessel instead of the one the player opened. A held slot and "
+            "the open one look alike to the pre-sort, so a request about "
+            "slot 2 would be answered for slot 0 with a plausible pool and "
+            "no complaint, and the suggestion would land on the wrong tile. "
+            "Killed by test_advisor_slot_pool.py::"
+            "test_the_canonical_form_answers_the_pool_the_picker_computes_"
+            "today, "
+            "test_the_canonical_form_names_the_open_slot_by_leaving_it_free "
+            "and "
+            "test_a_stopped_pool_says_so_and_is_asked_once_per_offered_"
+            "relic, whose message names the slot the pre-sort was asked to "
+            "stop on."),
+    ),
+    "slot-pool-accepts-any-number-of-open-slots": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    if len(open_slots) != 1:
+""",
+        new="""    if False:
+""",
+        survival_means=(
+            "AD-028 point 3 is unenforced: a problem with no open slot or "
+            "with two of them is answered instead of refused, and the "
+            "`SlotPool` that comes back is filed in the cache under a key "
+            "that does not say which slot it is about. Killed by "
+            "test_advisor_slot_pool.py::"
+            "test_a_problem_that_is_not_one_open_slot_is_refused, both "
+            "parameters (every slot held, two slots free)."),
+    ),
+    "slot-pool-skips-its-own-guard-against-another-run": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    _refuse_a_request_that_asks_about_another_run(request, inventory, ctx)
+    problem = request.problem
+    open_slots = types.free_slots(problem)
+""",
+        new="""    problem = request.problem
+    open_slots = types.free_slots(problem)
+""",
+        survival_means=(
+            "the guard `run` stands behind does not reach the picker's own "
+            "answer function. A `SlotPool` is filed in the cache under the "
+            "request beside it exactly as an `AdvisorResult` is, so a "
+            "request whose fields disagree with the material it was "
+            "answered from is a key for a run that did not happen -- the "
+            "next hit on it hands back a pool for another level, Nightfarer "
+            "or save. Killed by test_advisor_slot_pool.py::"
+            "test_a_request_that_describes_another_run_is_refused."),
+    ),
+    "slot-pool-does-not-hand-on-should-cancel": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""    return candidates.pool(inventory, problem, open_slots[0].index, ctx,
+                           goals, request.goal_id, should_cancel)
+""",
+        new="""    return candidates.pool(inventory, problem, open_slots[0].index, ctx,
+                           goals, request.goal_id, never_cancelled)
+""",
+        survival_means=(
+            "`Cancel` reaches nothing while the picker's pre-sort runs, "
+            "which is where SEC-022 bites hardest: on a save the player did "
+            "not write, the pre-sort is the whole of this answer. Killed by "
+            "test_advisor_slot_pool.py::"
+            "test_a_stopped_pool_says_so_and_is_asked_once_per_offered_"
+            "relic."),
+    ),
+    "canonical-pool-order-names-no-goal": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""CANONICAL_POOL_ORDER = MAX_DAMAGE.id
+""",
+        new="""CANONICAL_POOL_ORDER = "max_style"
+""",
+        survival_means=(
+            "the picker's fixed direction (Nachtrag IX-2) would name a goal "
+            "that does not exist, so every picker run is refused -- the one "
+            "direction chosen precisely because it has to be answerable "
+            "always. Killed by test_advisor_slot_pool.py::"
+            "test_the_canonical_order_is_a_direction_the_registry_answers_to "
+            "and "
+            "test_one_pool_serves_both_directions_and_only_its_order_"
+            "follows_one."),
+    ),
+    "slot-pool-is-not-qt-free": Mutation(
+        path="nrplanner/advisor/run.py",
+        old="""from .types import never_cancelled
+""",
+        new="""from .types import never_cancelled
+from PySide6 import QtCore
+""",
+        survival_means=(
+            "AD-001 is unenforced for the picker's track: a Qt import "
+            "anywhere below `run.slot_pool` would make the pre-sort "
+            "unrunnable on a machine with no display, and no test that runs "
+            "inside this process -- which already carries PySide6, loaded by "
+            "`conftest` -- could see it. Killed in a child process that "
+            "imports only `advisor.goals` and `advisor.run` and lists every "
+            "loaded `PySide` module. Killed by test_advisor_slot_pool.py::"
+            "test_the_picker_s_answer_is_reachable_without_qt."),
+    ),
+    # -- the picker track, wired to the window (T-130: U5b) ------------------
+    #
+    # Five edits. The two anchors T-130 moved without changing meaning --
+    # `advisor-controller-answers-every-keystroke` and `picker-back-to-a-
+    # fixed-column-count`, both above -- are not repeated here. Nachgetragen
+    # by T-132, re-measured against the tree of this commit.
+    "picker-reads-the-pool-s-order-instead-of-the-setting": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        return self.advice.goal_id()
+""",
+        new="""        return self.ranking.pool.rank_by
+""",
+        survival_means=(
+            "AK-205 is undone, and not gently: `_drawn_direction` is called "
+            "before any ranking exists as well as after, and `self.ranking` "
+            "is `None` for every case that opens a dialog and never lets an "
+            "answer arrive, so most of the file crashes with an "
+            "`AttributeError` rather than merely reading the wrong "
+            "direction. Measured in the standard run of "
+            "test_relic_picker_advisor.py: 17 of 54 cases fall, not only "
+            "test_the_drawn_direction_is_the_setting_and_not_the_pools_"
+            "order -- the property this entry names is the one that test "
+            "reads, the other sixteen are the blast radius of the same "
+            "line."),
+    ),
+    "picker-refresh-never-waits": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        waiting = self._waiting and self._wait_is_drawn
+""",
+        new="""        waiting = False
+""",
+        survival_means=(
+            "AK-212's empty grid never appears, and the dialog draws "
+            "whatever cards happened to be built from the last answer while "
+            "a new one is still on its way -- which is the flashing-grid "
+            "fault IX-1.C exists to prevent, only the other way round. "
+            "Measured in the standard run of test_relic_picker_advisor.py: "
+            "5 of 54 cases fall -- "
+            "test_the_card_area_is_empty_until_the_answer_arrives, "
+            "test_the_waiting_line_says_nothing_a_card_would_say, "
+            "test_a_filter_that_matches_nothing_leaves_the_line_standing, "
+            "and two more that read the waiting state on their way to "
+            "another assertion: "
+            "test_a_closed_dialog_hears_nothing_more and "
+            "test_an_opening_with_no_relic_to_offer_does_not_wait."),
+    ),
+    "picker-waiting-branch-skips-the-size-fit": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""            self.scroll.setWidget(self._waiting_area())
+            self._fit_to_three_rows(for_size)
+            return
+""",
+        new="""            self.scroll.setWidget(self._waiting_area())
+            return
+""",
+        survival_means=(
+            "the dialog no longer takes its final size at the first paint "
+            "(AK-216): it opens at whatever height an empty scroll area "
+            "asks for and grows under the player's hands once the answer "
+            "arrives, which is the very jump AK-216 was written to prevent. "
+            "Killed by test_relic_picker_advisor.py::"
+            "test_the_dialog_takes_its_size_at_the_first_paint."),
+    ),
+    "picker-mandatory-lines-wait-for-the-answer": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        if self.advice is None:
+""",
+        new="""        if self.advice is None or self.ranking is None:
+""",
+        survival_means=(
+            "AK-201 is undone: the mandatory line and the direction's "
+            "`scope` sentences would be hidden until a ranking exists, "
+            "exactly the state the picker was in before T-130 (checkpoint "
+            "32, QA-102). The player would see an empty caveats row during "
+            "the wait and the sentences popping in with the answer, where "
+            "AK-201 says they are true before any run and belong on the "
+            "first paint. Killed by test_relic_picker_advisor.py::"
+            "test_the_mandatory_lines_do_not_wait."),
+    ),
+    "picker-worker-does-not-stamp-the-generation": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""            self.ready.emit(dataclasses.replace(
+                result, generation=self._question.request.generation))
+""",
+        new="""            self.ready.emit(result)
+""",
+        survival_means=(
+            "the one place that stamps every answer with the generation it "
+            "was asked under (AD-006 point 3) stops doing it, which costs "
+            "nothing to an answer function that stamps itself -- `run.run` "
+            "does -- and silently drops every answer of one that does not. "
+            "`run.slot_pool` hands back what `candidates.pool` built, which "
+            "carries generation 0, so `_on_ready` compares it against the "
+            "running generation and discards it without a word: the picker "
+            "dialog waits forever and nothing on screen says why (T-130 "
+            "Befund 1). Measured in the standard run of "
+            "test_advisor_worker.py: 4 of 18 cases fall -- "
+            "test_a_controller_runs_the_answer_it_was_built_with, whose "
+            "answer function deliberately does not stamp, and three more "
+            "that build on the same fixture and never see a `ready` signal "
+            "once it is swallowed: "
+            "test_a_known_answer_comes_back_in_the_same_call, "
+            "test_the_counter_rises_for_an_answer_that_was_known and "
+            "test_a_question_nobody_has_answered_yet_is_asked_as_usual."),
+    ),
 }
 
 
