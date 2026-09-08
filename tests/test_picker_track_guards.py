@@ -1,4 +1,4 @@
-"""Seven guards over the picker's advisor track (U6, AD-028 and Nachtrag IX).
+"""Eight guards over the picker's advisor track (U6/U10, AD-028, IX and X).
 
 The track was built in U5a and U5b, and the fault T-130 found is what these
 are for: **the way was wired, looked finished and did nothing.**
@@ -28,11 +28,15 @@ Which guard is which, and where it comes from:
 * **W6** (`worker.py`'s own promise, AK-218) -- a question ends in exactly one
   of `ready`, `failed` and `stopped`;
 * **W7** (T-130's fault) -- the answer is stamped with the generation it was
-  asked under.
+  asked under;
+* **W8** (Nachtrag X, AK-218 Fassung 2) -- every way *into* the track has a
+  row in a table here, and every row says what the player then has in front
+  of them.
 """
 
 from __future__ import annotations
 
+import ast
 import pathlib
 
 import pytest
@@ -628,3 +632,294 @@ def test_w7_an_answer_that_stamps_nothing_still_arrives_stamped(qapp,
     finally:
         track.shutdown()
 
+
+# --- W8: every way into the track has a row, and the row says what is shown -
+
+#: The one method that turns an asking into a `Question`, and the reason a
+#: way *into* the track can be counted at all: `ask` and
+#: `ask_and_answer_if_known` both go through it (`worker.py`, `_question_from`,
+#: "one place for both ways of asking"), and a third way in would have to as
+#: well or it could not raise the generation, freeze the inventory or build
+#: the cache key.
+THE_ONE_PLACE_A_QUESTION_IS_BUILT = "_question_from"
+
+#: The two ways an answer can get from the track to the dialog. Named rather
+#: than spelled out at each use, because the whole of AK-218 Fassung 2 is that
+#: these two look the same on screen at the end and are told apart by what the
+#: player saw on the way there.
+BY_RETURN_VALUE = "the answer comes back as the return value"
+BY_SIGNAL = "the answer comes back as one of the three signals"
+
+#: What the failing opening's answer function says it could not do. Stated
+#: here so that the reason the dialog draws is the reason the track was given
+#: and not a second spelling of it in the same file.
+BROKEN_RUN = "the dataset lost a curve"
+
+#: **Every way into the track, and how an answer can come back from it.**
+#:
+#: This is the table Nachtrag X-2 chose for the interrupting places, in the
+#: form the `ui-ux-designer` asked for in AK-218 Fassung 2 (§3.5): a way in
+#: per row, what the surface then shows beside it, and set equality in
+#: **both** directions against the source. A third way in without a row here
+#: turns W8 red -- which is the point of the guard: `ask_and_answer_if_known`
+#: was built on the U5b day, AK-218 Fassung 1 counted the three signals and
+#: never grew a row for it, and the criterion was wrong about the commonest
+#: opening there is (30 % of them, S11-F) from that day until T-135 found it.
+#:
+#: The expectation is what stands here, never what `worker.py` says (L-008b).
+WAYS_INTO_THE_TRACK = {
+    "ask": (
+        frozenset({BY_SIGNAL}),
+        "the question always runs: the counter goes up, the debounce starts, "
+        "and the answer arrives on `ready`, `failed` or `stopped`. This is "
+        "the Advisor bar's way in; the picker reaches it through the miss "
+        "branch of the other one.",
+    ),
+    "ask_and_answer_if_known": (
+        frozenset({BY_RETURN_VALUE, BY_SIGNAL}),
+        "a hit hands the answer straight back and emits nothing (Nachtrag "
+        "IX-1.3); a miss leaves the question waiting exactly as `ask` does, "
+        "so this way in can end either way and both are driven below.",
+    ),
+}
+
+
+def asking_methods_of_the_controller() -> set[str]:
+    """Every method of `AdvisorController` that starts a question.
+
+    Off the syntax tree rather than out of a text search: a method that got
+    hold of `_question_from` under an alias, or called it inside a nested
+    function, would be a way in that a search for `def ask` never sees. What
+    is counted is the *calls*, so a method that merely names it in a docstring
+    is not one of them.
+    """
+    source = (REPO / "nrplanner" / "advisor" / "worker.py").read_text(
+        encoding="utf-8")
+    controller = next(
+        node for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ClassDef) and node.name == "AdvisorController")
+    return {
+        method.name
+        for method in controller.body
+        if isinstance(method, ast.FunctionDef)
+        for call in ast.walk(method)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and call.func.attr == THE_ONE_PLACE_A_QUESTION_IS_BUILT}
+
+
+def test_w8_every_way_into_the_track_has_a_row_and_every_row_a_way_in():
+    """AK-218 Fassung 2 (§3.5), and the fault it was written after.
+
+    The criterion is not "the three signals fill the grid" -- that counts the
+    **wiring**, and it goes red at a cache hit, which is the opening the
+    player likes best. It is "an end after which the grid stays empty is a
+    fault", and the ways an end can be reached grow with the code. So they are
+    counted: set equality against `worker.py` in both directions, and each row
+    states what the surface shows below.
+
+    What this cannot do is named in Nachtrag X-2 and holds here too: it sees
+    the ways that exist, never the absence of one nobody has written. What it
+    does see is the day one is added without a decision about what the player
+    then has in front of them.
+    """
+    found = asking_methods_of_the_controller()
+
+    assert found == set(WAYS_INTO_THE_TRACK), (
+        f"the ways into the track are {sorted(found)} and this table knows "
+        f"{sorted(WAYS_INTO_THE_TRACK)}. A way in without a row is a way for "
+        f"which nobody said what the player sees (AK-218 Fassung 2); a row "
+        f"without a way in is a rule about a method that has gone")
+
+
+def test_w8_both_ways_back_are_driven_by_an_opening():
+    """The other set equality: no way back is named and left undriven.
+
+    The table above says which ways back each way in can take; the openings
+    below say what each way back puts on the screen. If the two sets came
+    apart -- a way back named and never opened, or an opening for a way back
+    the table does not know -- the guard would look complete and cover less
+    than it claims.
+    """
+    named = {way for ways, _why in WAYS_INTO_THE_TRACK.values()
+             for way in ways}
+
+    assert named == set(WHAT_THE_SURFACE_SHOWS), (
+        f"the table names the ways back {sorted(named)} and there are "
+        f"openings for {sorted(WHAT_THE_SURFACE_SHOWS)}")
+
+
+def values_on(card) -> list[str]:
+    """The two value rows of one card, as they read."""
+    return [label.text() for label in card.block.values]
+
+
+def _the_answer_is_there_at_once(slot, qapp):
+    """Way (b), `ready`: the question ran and the pool came back."""
+    track, answers = picker_track.a_track([picker_track.pool_for(slot)])
+    dialog = picker_track.picker_over(slot, track)
+    assert picker_track.spin(qapp, lambda: not dialog.waiting), (
+        "no answer arrived, so this opening never reached the state it is "
+        "named after")
+    return track, answers, dialog
+
+
+def _the_answer_fails(slot, qapp):
+    """Way (b), `failed`: the run could not be finished."""
+    track, answers = picker_track.a_track([picker_track.pool_for(slot)],
+                                          raises=BROKEN_RUN)
+    dialog = picker_track.picker_over(slot, track)
+    assert picker_track.spin(qapp, lambda: not dialog.waiting), (
+        "the failure never reached the dialog")
+    return track, answers, dialog
+
+
+def _the_search_is_stopped(slot, qapp):
+    """Way (b), `stopped`: the question was abandoned while it was out."""
+    track, answers = picker_track.a_track([picker_track.pool_for(slot)],
+                                          hold=True)
+    dialog = picker_track.picker_over(slot, track)
+    assert picker_track.spin(qapp, lambda: answers.calls == 1), (
+        "the run never started, so there was nothing to stop")
+    assert track.cancel() is True, "there was nothing running to stop"
+    answers.release()
+    picker_track.spin(qapp, lambda: not dialog.waiting)
+    return track, answers, dialog
+
+
+def _the_answer_was_already_known(slot, qapp):
+    """Way (a): the same slot opened a second time over the same track.
+
+    The first opening is closed before the second is built, exactly as a
+    player closes one dialog and opens another, and nothing between them
+    changes the build -- so the second asking is the same request as the
+    first, the generation being the one field the cache key leaves out
+    (`advisor/run.py`, `cache_key`).
+
+    **The dialog handed back is the second one, and the event loop has not
+    been turned since it was built**: everything the caller reads on it is the
+    first paint.
+    """
+    track, answers = picker_track.a_track([picker_track.pool_for(slot)])
+    first = picker_track.picker_over(slot, track)
+    assert picker_track.spin(qapp, lambda: not first.waiting), (
+        "the first opening never got its answer, so there would be nothing "
+        "in the cache for the second to hit")
+    first.done(0)
+    first.deleteLater()
+    return track, answers, picker_track.picker_over(slot, track)
+
+
+def _a_grid_with_figures(dialog) -> None:
+    """What `ready` and a hit both leave standing (AK-218 (a) and (b))."""
+    cards = picker_track.cards_in(dialog)
+    assert cards, "the grid is empty after an answer that carried figures"
+    assert relicpicker.NOTHING_YET not in area_labels(dialog)
+    assert any(card.chip.text() for card in cards), (
+        "no card carries the mark, so nothing was read out of the pool")
+    assert any(values_on(card) != [relicpicker.NO_FIGURE] * 2
+               for card in cards), (
+        "every card says the no-figure dash, which is the state for an answer "
+        "that carried no figures at all (AK-49), not for one that did")
+    assert not dialog.headline.isVisibleTo(dialog), (
+        "the header stands in for a mark nobody may wear, and this grid has "
+        "its marks")
+
+
+def _a_grid_without_figures(dialog, reason: str) -> None:
+    """What `failed` and `stopped` leave standing (AK-208, AK-218 (b))."""
+    cards = picker_track.cards_in(dialog)
+    assert cards, (
+        "the grid is empty after an outcome that had no figures to show, and "
+        "a dialog in which no relic can be chosen is what AK-218 forbids")
+    assert relicpicker.NOTHING_YET not in area_labels(dialog)
+    assert dialog.headline.isVisibleTo(dialog)
+    assert dialog.headline.text() == relicpicker.could_not_work_out(reason)
+    for card in cards:
+        assert values_on(card) == [relicpicker.NO_FIGURE] * 2
+        assert card.chip.text() == ""
+
+
+def _shows_a_filled_grid(dialog, _answers) -> None:
+    _a_grid_with_figures(dialog)
+
+
+def _shows_the_reason_it_could_not(dialog, _answers) -> None:
+    _a_grid_without_figures(dialog, BROKEN_RUN)
+
+
+def _shows_that_the_search_was_stopped(dialog, _answers) -> None:
+    _a_grid_without_figures(dialog, relicpicker.SEARCH_WAS_STOPPED)
+
+
+def _shows_the_grid_in_the_first_paint(dialog, answers) -> None:
+    """Way (a), and the two beliefs that tell it from way (b) (§3.2).
+
+    A second opening that **missed** the cache ends up looking exactly like
+    one that hit it -- the same cards, the same figures, one paint later. A
+    case that read only the end state would be green without ever driving the
+    way it is named after. So both of the `ui-ux-designer`'s positive controls
+    are here, and neither reads a clock:
+
+    * the track computed **once** over the two openings, so the second answer
+      was not worked out again;
+    * the cards are standing **before** the event loop has been turned at all
+      -- this is the first paint, and the waiting line was never in it.
+    """
+    assert answers.calls == 1, (
+        f"the track computed {answers.calls} times over two openings of the "
+        f"same slot, so the second opening missed the cache and this case is "
+        f"not driving way (a) at all (AK-218 Fassung 2 (§3.3))")
+    assert not dialog.waiting, (
+        "the answer was known and the dialog waited for it anyway")
+    _a_grid_with_figures(dialog)
+
+
+#: Each way back, the openings that reach it, and what stands in the scroll
+#: area afterwards. **Counted is what stands there, never which signal
+#: flowed** -- the whole of AK-218 Fassung 2 (§3.1).
+WHAT_THE_SURFACE_SHOWS = {
+    BY_SIGNAL: {
+        "the answer is there at once": (_the_answer_is_there_at_once,
+                                        _shows_a_filled_grid),
+        "the answer fails": (_the_answer_fails,
+                             _shows_the_reason_it_could_not),
+        "the search is stopped": (_the_search_is_stopped,
+                                  _shows_that_the_search_was_stopped),
+    },
+    BY_RETURN_VALUE: {
+        "the answer was already known": (_the_answer_was_already_known,
+                                         _shows_the_grid_in_the_first_paint),
+    },
+}
+
+
+@pytest.mark.parametrize(
+    "way_back,opening",
+    [(way_back, opening)
+     for way_back, openings in sorted(WHAT_THE_SURFACE_SHOWS.items())
+     for opening in sorted(openings)],
+    ids=lambda part: part)
+def test_w8_every_way_back_leaves_cards_to_choose_from(a_track_to_ask, qapp,
+                                                       way_back, opening):
+    """AK-218 Fassung 2: an end after which the grid stays empty is a fault.
+
+    Four openings, two ways back, one claim: whatever the way, the player is
+    left with cards to choose from -- with figures where there were figures,
+    with the no-figure dash and a sentence where there were none, and never
+    with the waiting line still standing.
+
+    No wall clock anywhere (§3.4): where the event loop is turned it is turned
+    *until a state holds*, the fuse in `spin` is asserted on by nobody, and
+    the opening for way (a) does not turn it at all.
+    """
+    drive, shows = WHAT_THE_SURFACE_SHOWS[way_back][opening]
+    slot, = picker_track.slots_that_offer_relics(a_track_to_ask, 1)
+    track, answers, dialog = drive(slot, qapp)
+    try:
+        shows(dialog, answers)
+    finally:
+        answers.release()
+        dialog.done(0)
+        dialog.deleteLater()
+        track.shutdown()

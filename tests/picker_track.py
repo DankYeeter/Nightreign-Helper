@@ -57,15 +57,23 @@ class StatedAnswers:
     That is "a track that never answers" (`UI_SPEC` §9) as a state rather than
     as a duration: the question really is out, a thread really is on it, and
     nothing arrives until a case says so.
+
+    `raises=<reason>` makes it a track that cannot answer: the question is
+    counted as asked and then gives up with that reason, which is what the
+    worker turns into `failed` and the picker into the AK-208 header. A case
+    that stated the failure with a function of its own would count nothing,
+    and `calls` is what tells a run that happened from one that did not.
     """
 
-    def __init__(self, pools, *, hold: bool = False) -> None:
+    def __init__(self, pools, *, hold: bool = False,
+                 raises: str | None = None) -> None:
         self._pools = list(pools)
         if not self._pools:
             raise ValueError("an answer function needs at least one pool")
         self.calls = 0
         self.threads: list[int] = []
         self.handed_back: list[types.SlotPool] = []
+        self._raises = raises
         self._released = threading.Event()
         if not hold:
             self._released.set()
@@ -78,6 +86,8 @@ class StatedAnswers:
             raise AssertionError(
                 f"the answer was held for {HELD_FUSE_SECONDS} s and never "
                 f"released; the case that held it has to release it")
+        if self._raises is not None:
+            raise ValueError(self._raises)
         pool = self._pools[min(self.calls - 1, len(self._pools) - 1)]
         self.handed_back.append(pool)
         return pool
@@ -115,7 +125,7 @@ class Outcomes:
         return [name for name, _payload in self.signals]
 
 
-def a_track(pools, *, hold: bool = False,
+def a_track(pools, *, hold: bool = False, raises: str | None = None,
             cache: advisor_run.ResultCache | None = None
             ) -> tuple[worker.AdvisorController, StatedAnswers]:
     """A real picker track over stated answers, with the picker's figures.
@@ -125,7 +135,7 @@ def a_track(pools, *, hold: bool = False,
     passing on the day the constant changed, and the debounce is what decides
     whether a second opening's question waits behind the first.
     """
-    answers = StatedAnswers(pools, hold=hold)
+    answers = StatedAnswers(pools, hold=hold, raises=raises)
     controller = worker.AdvisorController(
         answer=answers,
         cache=advisor_run.ResultCache(worker.PICKER_CACHE_SIZE)
