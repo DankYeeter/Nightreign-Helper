@@ -96,7 +96,8 @@ gezeigt), waehrend der Export von `HKCU\Software\DankYeeter` **byte-gleich**
 blieb.
 
 **Abschlusspruefung, vier schutzwuerdige Baeume, sha256 ueber Pfad, Groesse
-und Inhalt jeder Datei:**
+und Inhalt jeder Datei** — zweimal gefahren, nach der Hauptreihe und noch
+einmal nach der Nachmessung zu P1, beide Male mit demselben Ergebnis:
 
 | Baum | vorher | nachher |
 |---|---|---|
@@ -564,9 +565,9 @@ Quotienten aus derselben Reihe und kuerzen den Takt heraus.
 |---|---|---|---|
 | **`bytes.find` je Relikt-Id** statt Vorfilter (P2-Variante) | 128 476,8 ms fuer 14 Slots gegen 2802,7 ms heute — **45x langsamer** | 849 gueltige Relikt-Ids x je ein voller 4-MB-Scan. Meine Hypothese, von der Messung widerlegt. | nie in dieser Form; die Zahl steht hier, damit niemand sie zweimal ausprobiert |
 | **`array`-Vorlauf** statt `unpack_from` (P2-Variante) | 277,7 statt 589,7 ms am groessten Slot = **2,1x** | der Vorfilter aus P2 bringt 45x bei gleichem Aufwand | wenn sich die Annahme aus P2 (`relic_id < 0x01000000`) je als unhaltbar erweist — dann ist das der Rueckfallweg |
-| **`model.compute_resistances` aus dem Suchpfad nehmen** | Gesamtlauf 191,0 ms = **3,6 %**, Picker 6,3 ms = **2,0 %** | beides unter der Signifikanzschwelle (5 % bzw. 16 %) — nicht messbar | **nach P1**: 191 ms von dann rund 2830 ms sind **6,8 %** und damit ueber der Schwelle. Dann lohnt es sich. *(Nebenbefund fuer den offenen Punkt „`compute_resistances` — Zurueckstellung wieder offen" in `docs/state.md`: die Leistungsseite spricht heute **nicht** fuer eine Aenderung.)* |
+| **`model.compute_resistances` aus dem Suchpfad nehmen** | Gesamtlauf 191,0 ms = **3,6 %**, Picker 6,3 ms = **2,0 %** | beides unter der Signifikanzschwelle (5 % bzw. 16 %) — nicht messbar | **nach P1a+P1b**: 191 ms von dann rund 2911 ms sind **6,6 %** und damit ueber der Schwelle. Nach P1a allein (3922 ms) sind es 4,9 % und damit noch **nicht**. *(Nebenbefund fuer den offenen Punkt „`compute_resistances` — Zurueckstellung wieder offen" in `docs/state.md`: die Leistungsseite spricht heute **nicht** fuer eine Aenderung.)* |
 | **`model.compute_derived` aus dem Suchpfad nehmen** | nicht abschaltbar | `goals._min_damage_taken` liest `build.derived["HP"]` und bricht sonst ab | nie — der Block ist tragend |
-| **Entprellung des Gesamtlaufs unter 250 ms** | 150 ms von 5274 ms = **2,8 %** | unter der 5-%-Schwelle des Szenarios | nach P1: 150 ms von dann rund 3080 ms sind 4,9 % — immer noch knapp darunter. Erst wenn der Gesamtlauf unter ~3 s faellt |
+| **Entprellung des Gesamtlaufs unter 250 ms** | 150 ms von 5274 ms = **2,8 %** | unter der 5-%-Schwelle des Szenarios | erst wenn der Gesamtlauf unter **3 s** faellt: bei 2911 ms (P1a+P1b) waeren 150 ms **4,9 %** — immer noch knapp darunter. Der Wert ist praktisch nie wieder interessant, solange der Gesamtlauf Sekunden dauert |
 | **Slots 0, 1, 3, 4, 5 im Picker** | 32,3 bis 81,7 ms | unter der absoluten Untergrenze von 100 ms fuer eine Interaktionsantwort | wenn ein Spielstand mehr Relikte je Farbe traegt; die Kosten sind linear mit **1,53–1,81 ms je Kandidat**, die Grenze liegt also bei rund **60 Kandidaten** je Slot |
 | **Ergebnis-Cache auf Platte** (AD-007 Option C) | nicht gemessen | AD-007 hat es entschieden; ich habe keinen Messwert, der die Entscheidung beruehrt | wenn der Prozessstart nach P2 den Berater dominiert — heute tut er es nicht |
 

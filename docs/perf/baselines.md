@@ -77,9 +77,17 @@ alten Messskripts (`scripts/measure_advisor_search.py`): Vorsortierung
 
 | Block abgeschaltet | Median | Obergrenze des Gewinns |
 |---|---|---|
-| `model.compute_qualitative` | 2828,6 ms | **2426,6 ms = 46,2 %** |
+| `model.compute_qualitative`, ganz | 2828,6 ms | **2426,6 ms = 46,2 %** |
+| `model.compute_qualitative`, nur die Textarbeit (`situational` bleibt) | 3921,9 ms | **1136,8 ms = 22,5 %** |
 | `model.compute_resistances` | 5064,2 ms | 191,0 ms = 3,6 % |
 | `model.compute_derived` | nicht abschaltbar — `min_damage_taken` liest `build.derived["HP"]` | 0 % (tragend) |
+
+*Die Trennung ist noetig, weil `Build.situational` — was
+`compute_qualitative` **parkt** — von der Vorsortierung gelesen wird
+(`candidates.py:157`), der **Text** dazu aber nur von `explain.py`. Rund
+53 % des Blocks sind reiner Text. Zweite Messreihe, deshalb der leicht
+andere Grundwert (5058,7 ms statt 5255,2 ms; beide innerhalb des
+5-%-Rauschbands).*
 
 **Abbruchverhalten** (5 Laeufe je Zeile): Abbruchwunsch sofort → Lauf endet
 nach 2,3 ms; nach 50 ms → 50,4 ms (0,4 ms Nachlauf); nach 250 ms → 449,7 ms
@@ -106,9 +114,11 @@ Weg ueber den `AdvisorController`, den AD-018 beschreibt.
 | 2026-09-08 | 76f1887 | `candidates.pool` (heutiger Picker, Hauptthread) | 310,7 ms | **321,2 ms** | 283,8–382,2 ms | 206 | **ja** | AD-018 rechnete mit ~51 ms — **6,3x daneben** |
 | 2026-09-08 | 76f1887 | `run.run` (Weg ueber den Controller) | 378,9 ms | **403,3 ms** | 355,3–445,8 ms | 206 | **ja** | trägt zusaetzlich Erklaerung und 20 Vorschlaege |
 
-**Obergrenze** (Picker, `pool`, Grundwert 323,8 ms, je 5 Laeufe): ohne
-`compute_qualitative` 162,7 ms → **161,1 ms = 49,8 %**; ohne
-`compute_resistances` 317,5 ms → 6,3 ms = 2,0 %.
+**Obergrenzen** (Picker, `pool`, je 5 Laeufe): ohne `compute_qualitative`
+ganz 162,7 ms von 323,8 ms → **161,1 ms = 49,8 %**; nur ohne die Textarbeit
+(`situational` bleibt, weil `candidates.py:157` es liest) 245,5 ms von
+335,1 ms → **89,6 ms = 26,7 %**; ohne `compute_resistances` 317,5 ms von
+323,8 ms → 6,3 ms = 2,0 %.
 
 **Abbruchverhalten:** sofort → 4,5 ms; nach 50 ms → 50,8 ms; nach 250 ms →
 251,4 ms (1,4 ms Nachlauf). Ein verworfener Picker-Lauf ist also billig.
