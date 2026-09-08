@@ -2254,3 +2254,59 @@ ehrlicher** — die Datei heisst im Repository nun einmal so. Zusammen mit dem
 Fix ist zu entscheiden, ob die zwoelf Pakete noch einmal ersetzt werden; **das
 ist eine Frage an den Nutzer**, weil es zwoelf oeffentliche Releases erneut
 anfasst, und nicht dringend.
+
+## QA-208 — Der Berater rechnet auf dem Hauptweg im Hauptthread
+
+**Prioritaet: P2 · Schwere: Major · Adressat: architect, developer · offen · 2026-09-08**
+
+Gefunden vom `performance-tuner` in S11 (T-118), gemessen am echten Spielstand.
+
+`relicpicker.SlotAdvice.ranking` (`nrplanner/relicpicker.py:325-328`) ruft
+`advisor_candidates.pool` **direkt** auf, nicht ueber den `AdvisorController`.
+Der Docstring daruber (277-281) nennt den Grund woertlich:
+
+> "The pool is computed here, in the calling thread, and that is deliberate:
+> AD-018 measures the worst slot at ~51 ms against the 250 ms of AK-09, so
+> there is nothing to draw a wait for."
+
+**Die Voraussetzung dieser Entscheidung ist widerlegt.** Der schlimmste Slot
+kostet **318,1 ms** (Median, n=25, Spanne 289,6-358,9) — **6,3x** die Annahme
+und **oberhalb** der 250-ms-Schwelle aus AK-09, ab der ein Wartezustand
+gezeigt werden **muss**. AD-018 Punkt 4 sagt selbst: "Auch 50 ms gehoeren
+nicht in den Hauptthread."
+
+**Zwei Folgen, beide mit Zahl:** beim Oeffnen des Pickers am weissen Slot steht
+das Fenster **318 ms** · der Wechsel der Zielrichtung **im offenen Dialog**
+(`relicpicker.py:1171`) rechnet dieselben 318 ms noch einmal — das ist eine
+laufende Interaktion, kein Dialogaufbau.
+
+**Warum T-114 das nicht gesehen hat, und das ist die eigentliche Lehre:** A6s
+erste Haelfte wurde am `Optimize`-Weg geprueft, und **dort haelt sie** — der
+Lauf sitzt im `QThread`, Generationszaehler und Entprellung greifen. Der
+**Picker-Weg ist seit AD-018 der Hauptweg** und wurde nie daran gemessen. Der
+scharfe Fall lag einen Schritt weiter auf derselben Achse.
+
+**Erst an den `architect`**, nicht direkt an den `developer`: die Zeile ist
+eine bewusste Architekturentscheidung mit einer inzwischen falschen
+Begruendung, kein Versehen.
+
+## QA-209 — Der teuerste Posten des Programms ist das Lesen des Spielstands
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+S11, gemessen: **6,15 s im Hauptthread**, bei **jedem** Start und bei jedem
+`Rescan` — mehr als der ganze Berater. Der `performance-tuner` hat die
+Obergrenze eines Gegenentwurfs gemessen: **Faktor 45**.
+
+Das ist der groesste einzelne Hebel des Programms und war bisher niemandem
+aufgefallen, weil alle Messungen dem Berater galten.
+
+## D-1 — nicht bestaetigt und nicht widerlegt
+
+Die Zeile "`model.compute` traegt 94 % der 941,6 ms" aus `docs/state.md` ist
+durch S11 **nicht** bestaetigt: gemessen sind **81 % von rund 5090 ms**. Ob
+das eine Regression ist oder ein anderer Messfall, ist von S11 aus **nicht
+entscheidbar** — die alte Zahl stammt aus T-067 und trug ihren Messfall nicht
+mit. **Kein Auftrag daraus**, solange nicht geklaert ist, was damals gemessen
+wurde; als Warnung notiert, dass eine Zahl ohne Messfall spaeter niemandem
+mehr nuetzt.
