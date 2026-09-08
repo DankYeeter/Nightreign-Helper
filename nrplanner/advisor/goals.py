@@ -303,3 +303,27 @@ GOALS = MappingProxyType({
     MAX_DAMAGE.id: MAX_DAMAGE,
     MIN_DAMAGE_TAKEN.id: MIN_DAMAGE_TAKEN,
 })
+
+#: The direction a slot pool is **put in order** under when the question is
+#: the picker's -- an ordering for the request, never a direction the player
+#: picked (Nachtrag IX-2).
+#:
+#: A pool's *content* does not depend on the direction: `candidates.pool`
+#: measures every candidate under every goal it is given, and only
+#: `measured.sort` reads `rank_by`. The cache key does not know that --
+#: `run.cache_key` keeps every field of the request but `generation` -- so a
+#: picker asking under the player's direction computes and stores one list
+#: twice, once per direction, and a player switching direction pays a full run
+#: for a list that was already there.
+#:
+#: Asking under a fixed direction instead makes one entry serve both. What the
+#: screen ranks by is then the one goal setting of the program (AK-43,
+#: AK-205), read from there and never from `SlotPool.rank_by`: that field goes
+#: on saying what ordered this list, which stays true, and the shortcut "what
+#: ordered it is also what is read off it" is what stops holding here.
+#:
+#: The value is the damage goal's id so that a pool arrives in the commonest
+#: order, and it is taken off the registry entry rather than written out,
+#: because a canonical direction no goal answers to would be refused by every
+#: run that used it. The firmness is the point; the value is not.
+CANONICAL_POOL_ORDER = MAX_DAMAGE.id

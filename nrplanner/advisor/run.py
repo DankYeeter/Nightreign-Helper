@@ -6,6 +6,12 @@ together, `explain.py` what to say about it. This is where the three become
 the one `AdvisorResult` the window draws (AD-010), and where the answer is
 kept in case the same question is asked again (AD-007).
 
+**Two answers, one shape** (AD-028). `run` is the whole answer the Advisor
+bar draws. `slot_pool` is the answer the relic picker draws: one slot's
+pre-sort, whole, without the explanations the picker never shows. Both take
+the same five arguments, because one controller runs either of them and is
+told which at construction; what differs is what comes back.
+
 **Qt-free, like everything below it** (AD-001). The thread is `worker.py`'s
 and nothing here knows about it: a run is a function call that takes a
 `should_cancel` and may raise `search.Cancelled`. That is what lets the whole
@@ -416,3 +422,55 @@ def run(request: types.AdvisorRequest, inventory,
         data_note=explain.data_note(ctx),
         generation=request.generation,
     )
+
+
+# --- the picker's question -------------------------------------------------
+
+def slot_pool(request: types.AdvisorRequest, inventory,
+              ctx: types.GoalContext, goals: Mapping[str, types.Goal],
+              should_cancel: Callable[[], bool] = never_cancelled
+              ) -> types.SlotPool:
+    """What may go into the one open slot, whole -- the picker's answer.
+
+    The same five arguments as `run`, so an `AdvisorController` can be given
+    either of them at construction and knows no more about the difference
+    than that (AD-028, option D). What comes back is the `SlotPool`
+    `candidates.pool` produces and not an `AdvisorResult`: the picker shows
+    every candidate it owns, where a result carries the best twenty and the
+    sentences about them, which cost a measured 82 ms the picker never draws.
+
+    **Which slot is asked about is said by holding the others** (AD-028
+    point 3). Every slot but the open one is held, held by the player or not
+    (AD-018.1), so the open one is the only free slot and there is nothing
+    for it to be named by that is not already in the key. That is why no
+    `slot_index` field joins `AdvisorRequest`: a second form of the key can
+    drift from the state it stands for (`types.AdvisorRequest`), and this
+    form cannot, because it *is* the problem the run reads.
+
+    **The direction is `request.goal_id`, and for this track it is an
+    ordering rather than a choice** (Nachtrag IX-2). The picker asks under
+    `goals.CANONICAL_POOL_ORDER` whatever the player has selected, and the
+    screen takes its own direction from the one goal setting of the program
+    (AK-43, AK-205). Nothing here enforces that -- the caller decides what it
+    asks -- and nothing here needs to: the pool measures every candidate
+    under every goal in `goals` either way, so the list serves both
+    directions whichever one ordered it. Naming the constant here would make
+    this module import the registry, which is what AD-004 keeps out.
+
+    A request that does not describe the material beside it is refused as it
+    is for `run`, and for the same reason: this answer is filed in the cache
+    under the request, so a key that stands for a run that did not happen is
+    a hit on the wrong answer. `should_cancel` is handed on to the pre-sort,
+    which asks it once per offered relic (SEC-022).
+    """
+    _refuse_a_request_that_asks_about_another_run(request, inventory, ctx)
+    problem = request.problem
+    open_slots = types.free_slots(problem)
+    if len(open_slots) != 1:
+        raise ValueError(
+            f"the picker asks about one open slot and says which one by "
+            f"holding all the others (AD-028 point 3); this problem has "
+            f"{len(problem.slots)} slots and leaves {len(open_slots)} of "
+            f"them free: {[slot.index for slot in open_slots]}")
+    return candidates.pool(inventory, problem, open_slots[0].index, ctx,
+                           goals, request.goal_id, should_cancel)
