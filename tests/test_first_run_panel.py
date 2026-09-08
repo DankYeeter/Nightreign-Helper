@@ -26,9 +26,10 @@ import re
 import pytest
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import QLabel
 
 from nrplanner import firstrun, gamepath
-from tests import conftest
+from tests import conftest, rendered
 from tests.test_game_dir_recognition import make_game
 
 # --- the wording, transcribed out of UI_SPEC section 7 --------------------
@@ -684,6 +685,72 @@ def test_enter_presses_the_default_button_and_escape_leaves(qapp):
     press(window, Qt.Key.Key_Escape)
     assert window.answer == firstrun.QUIT
     window.deleteLater()
+
+
+#: Longer than any of these panels was drawn for, and with no space in it at
+#: all -- which is what a real Steam path looks like.
+LONG_PATH = pathlib.Path(r"D:\SteamLibrary\steamapps\common"
+                         r"\ELDEN RING NIGHTREIGN with a very long name\Game")
+
+
+def panels_carrying_a_long_path() -> dict:
+    verdict = firstrun.Verdict(LONG_PATH.parent, LONG_PATH, False,
+                               firstrun.INSIDE)
+    return {
+        "A1": firstrun.a1(),
+        "A2": firstrun.a2(LONG_PATH),
+        "A3": firstrun.a3(LONG_PATH, "8 September 2026"),
+        "E1": firstrun.e1(LONG_PATH.parent),
+        "W1": firstrun.w1(verdict),
+        "C3": firstrun.c3(verdict),
+    }
+
+
+def test_no_panel_cuts_its_own_text_off(qapp):
+    """AK-129, as far as an offscreen window can carry it.
+
+    Not the acceptance proof -- that is a picture out of a real window at
+    100 %, 125 % and 150 % (AK-239, AK-132) -- but the property it rests on:
+    at 460 px the window is as tall as what the text wraps into. Measured
+    offscreen, Fusion, dark palette, logical px.
+
+    **Rot-vorher**, both measured: sizing the window by `adjustSize()`
+    instead of by the content at this width leaves five of the six panels at
+    the 230 px floor with sentences cut off in them; emptying the page
+    instead of replacing it leaves every panel after the first one there.
+    One window for all six on purpose -- the flow reuses it, and each of
+    those two faults only shows from the second panel on.
+    """
+    window = firstrun._Window()
+    try:
+        for name, panel in panels_carrying_a_long_path().items():
+            window.show_the_question(panel)
+            # The geometry the check reads exists once the layout has run.
+            rendered.settle()
+            cut = [label.text()[:30] for label in window.findChildren(QLabel)
+                   if label.heightForWidth(label.width()) > label.height() + 1]
+
+            assert not cut, f"{name}: cut off at {window.height()} px: {cut}"
+            assert window.width() == firstrun.PANEL_WIDTH, name
+            assert window.height() >= firstrun.LEAST_PANEL_HEIGHT, name
+    finally:
+        window.close()
+        window.deleteLater()
+
+
+def test_a_path_is_given_places_to_break_and_nothing_else_is():
+    """AK-129: a path line wraps. It has no spaces, so it is given breaks.
+
+    Invisible and outside the wording: `Line.text` is what the panel says,
+    and it is unchanged -- the breaks are put in as the line is set.
+    """
+    line = firstrun.Line(str(LONG_PATH), firstrun.PATH)
+    written = firstrun._wrappable(line)
+
+    assert written != line.text
+    assert written.replace(firstrun.BREAK_HERE, "") == line.text
+    assert written.count(firstrun.BREAK_HERE) == line.text.count("\\")
+    assert firstrun._wrappable(firstrun.Line("plain words")) == "plain words"
 
 
 def test_every_button_can_be_reached_by_tab(qapp):

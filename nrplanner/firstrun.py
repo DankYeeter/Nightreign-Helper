@@ -161,6 +161,10 @@ CARRY_ON = "carry on"
 TEXT = "text"
 PATH = "path"
 
+#: An invisible break opportunity (U+200B), put after every separator of a
+#: path so that a long one wraps instead of running past the edge (AK-129).
+BREAK_HERE = "\u200b"
+
 #: Where the folder that was found sits, relative to the one that was picked.
 SAME = "same"
 INSIDE = "inside"
@@ -600,10 +604,17 @@ class _Window(QWidget):
     def __init__(self) -> None:
         super().__init__(None, Qt.WindowType.SplashScreen)
         self.setWindowTitle(WINDOW_TITLE)
-        self._body = QVBoxLayout(self)
-        self._body.setContentsMargins(SIDE_MARGIN, TOP_MARGIN,
-                                      SIDE_MARGIN, TOP_MARGIN)
-        self._body.setSpacing(10)
+        # One page at a time inside a frame that adds nothing of its own. A
+        # state gets a page of its own rather than the last one emptied out:
+        # a layout whose items have just been taken out answers -1 for its
+        # height until the deleted widgets are really gone, which is an event
+        # cycle away -- and the second panel of a session came up at the
+        # 230 px floor with its text cut off (measured, AK-129).
+        self._frame = QVBoxLayout(self)
+        self._frame.setContentsMargins(0, 0, 0, 0)
+        self._frame.setSpacing(0)
+        self._page: QWidget | None = None
+        self._body: QVBoxLayout | None = None
 
         self.status = QLabel("")
         self.shortcut_check = None
@@ -625,7 +636,7 @@ class _Window(QWidget):
         gives, so a window that goes away by any means at all has answered
         something, and the flow never waits on a window that is gone.
         """
-        self._strip(self._body)
+        self._new_page()
         self.buttons = {}
         self._asking = True
         self._escape = panel.escape
@@ -643,7 +654,8 @@ class _Window(QWidget):
         self._body.addWidget(heading)
 
         for line in panel.lines:
-            label = QLabel(line.text)
+            label = QLabel(_wrappable(line))
+            label.setTextFormat(Qt.TextFormat.PlainText)
             label.setWordWrap(True)
             self._body.addWidget(label)
 
@@ -672,8 +684,7 @@ class _Window(QWidget):
 
         self.setWindowFlags(Qt.WindowType.Window)
         self.setFixedWidth(PANEL_WIDTH)
-        self.setMinimumHeight(LEAST_PANEL_HEIGHT)
-        self.adjustSize()
+        self.setFixedHeight(self._height_of_the_content())
         self.show()
         self.raise_()
         self.activateWindow()
@@ -693,6 +704,18 @@ class _Window(QWidget):
         finally:
             self._loop = None
         return self._answer
+
+    def _height_of_the_content(self) -> int:
+        """How tall this panel has to be at `PANEL_WIDTH`, and never shorter.
+
+        Asked of the laid-out content at *that* width rather than of
+        `sizeHint`: the hint of a word-wrapped label is its height on one
+        long line, so `adjustSize` leaves a window too short for the text it
+        wraps into. Measured offscreen at 100 %: five of the six panels came
+        up at the 230 px floor with sentences cut off inside them (AK-129).
+        """
+        self._body.activate()
+        return max(LEAST_PANEL_HEIGHT, self._body.heightForWidth(PANEL_WIDTH))
 
     @property
     def answer(self) -> str:
@@ -723,17 +746,19 @@ class _Window(QWidget):
             self.press(self._escape)
         super().closeEvent(event)
 
-    def _strip(self, layout) -> None:
-        """Empty a layout of the state that was in it."""
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
-            elif item.layout() is not None:
-                self._strip(item.layout())
-                item.layout().deleteLater()
+    def _new_page(self) -> None:
+        """Put an empty page in the frame, and the one before it out."""
+        before = self._page
+        self._page = QWidget(self)
+        self._body = QVBoxLayout(self._page)
+        self._body.setContentsMargins(SIDE_MARGIN, TOP_MARGIN,
+                                      SIDE_MARGIN, TOP_MARGIN)
+        self._body.setSpacing(10)
+        self._frame.addWidget(self._page)
+        if before is not None:
+            self._frame.removeWidget(before)
+            before.setParent(None)
+            before.deleteLater()
 
     # --- the build state --------------------------------------------------
 
@@ -745,7 +770,7 @@ class _Window(QWidget):
         of "question, confirmation, build": there is no click between it and
         the build (AK-118).
         """
-        self._strip(self._body)
+        self._new_page()
         self.buttons = {}
         self._asking = False
 
@@ -823,12 +848,27 @@ class _Window(QWidget):
             extra = (confirmation.heightForWidth(PANEL_WIDTH - 2 * SIDE_MARGIN)
                      + layout.spacing())
         self.setWindowFlags(Qt.WindowType.SplashScreen)
-        self.setMinimumHeight(0)
         self.setFixedSize(PANEL_WIDTH, (190 if first_time else 150) + extra)
         self.show()
 
     def wants_shortcut(self) -> bool:
         return bool(self.shortcut_check and self.shortcut_check.isChecked())
+
+
+def _wrappable(line: Line) -> str:
+    """The line as it is set: a path breaks after its separators.
+
+    A label that wraps breaks at spaces, and a Windows path has none -- so it
+    stays on one line and runs out past the edge of a 460 px window, which is
+    the one thing AK-129 says a path line may not do. A zero-width space
+    after each separator puts the break where it belongs anyway. Nothing a
+    player can see changes, and neither does `Line.text`, which is what the
+    wording is held against.
+    """
+    if line.kind != PATH:
+        return line.text
+    return (line.text.replace("\\", "\\" + BREAK_HERE)
+            .replace("/", "/" + BREAK_HERE))
 
 
 def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
