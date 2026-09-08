@@ -3710,6 +3710,648 @@ from PySide6 import QtCore
             "test_w1_nothing_but_the_named_places_reaches_the_calculation"
             "[candidates-pools]."),
     ),
+    # --- the mutations of T-137, run there and registered by T-139 ---
+    "a-third-way-into-the-track": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""    def _question_from(self, request: types.AdvisorRequest, inventory,
+""",
+        new="""    def ask_again(self, request: types.AdvisorRequest, inventory,
+                  ctx: types.GoalContext) -> int:
+        self._wait_for(self._question_from(request, inventory, ctx))
+        return self._generation
+
+    def _question_from(self, request: types.AdvisorRequest, inventory,
+""",
+        survival_means=(
+            "AD-028 W8 is blind: a third method builds a question, and nobody "
+            "has said what the player has in front of them while it runs. "
+            "That is not a hypothetical shape -- `ask_and_answer_if_known` "
+            "was added on the U5b day, AK-218 Fassung 1 counted the three "
+            "signals and never grew a row for it, and the criterion was wrong "
+            "about 30 % of all openings (S11-F) from that day until T-135 "
+            "found it. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 1 failed, 23 passed; what "
+            "falls is test_w8_every_way_into_the_track_has_a_row_and_every_ro "
+            "w_a_way_in."),
+    ),
+    "a-way-into-the-track-goes-away": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        question = self._question_from(request, inventory, ctx)
+        known = self._cache.get(question.request)
+""",
+        new="""        question = Question(request=request, inventory=inventory, ctx=ctx)
+        known = self._cache.get(question.request)
+""",
+        survival_means=(
+            "the same set equality read from the other end: "
+            "`ask_and_answer_if_known` builds its question itself instead of "
+            "going through `_question_from`, so the walk finds one way in "
+            "where the table names two. In behaviour it costs IX-1.4 as well "
+            "-- the counter does not rise for a known answer, and an answer "
+            "still on its way from an earlier opening overwrites the hit that "
+            "was just handed back. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 2 failed, 22 passed; what "
+            "falls is "
+            "test_w3_the_answer_of_a_closed_opening_never_fills_the_next_one, "
+            "test_w8_every_way_into_the_track_has_a_row_and_every_row_a_way_i "
+            "n."),
+    ),
+    "the-table-forgets-the-return-value": Mutation(
+        path="tests/test_picker_track_guards.py",
+        old="""        frozenset({BY_RETURN_VALUE, BY_SIGNAL}),
+""",
+        new="""        frozenset({BY_SIGNAL}),
+""",
+        survival_means=(
+            "the second set equality of AD-028 W8 does not hold: a way back "
+            "is named in the table and driven by no opening, so the guard "
+            "looks complete and covers less than it says. This is one of the "
+            "two entries in this registry that mutate the suite rather than "
+            "the program, and it says so in place: what is watched here is "
+            "the table's own bookkeeping, which no edit under `nrplanner/` "
+            "can break. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 1 failed, 23 passed; what "
+            "falls is test_w8_both_ways_back_are_driven_by_an_opening."),
+    ),
+    "the-cache-never-hits": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        question = self._question_from(request, inventory, ctx)
+        known = self._cache.get(question.request)
+""",
+        new="""        question = self._question_from(request, inventory, ctx)
+        known = None
+""",
+        survival_means=(
+            "IX-1.C falls and with it the precondition of the empty grid: "
+            "every third opening (30 %, S11-F) would flash the whole grid -- "
+            "empty state first, cards one turn of the event loop later -- "
+            "where a known answer is meant to be drawn in the first paint. "
+            "Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 2 failed, 22 passed; what "
+            "falls is test_w5_a_known_answer_is_one_build_of_the_grid_and_nev "
+            "er_pending, test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "the-picker-does-not-handle-stopped": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        self._track.stopped.connect(self._on_stopped)
+""",
+        new="""        pass
+""",
+        survival_means=(
+            "the picker never hears `stopped`: the dialog waits for ever with "
+            "the waiting line standing and nothing to choose from, which is "
+            "exactly the end AK-218 Fassung 2 calls a fault. Before AD-028 W8 "
+            "nothing watched this over the real track at all -- the cases in "
+            "test_relic_picker_advisor.py drive `FakeAdvice` and replace the "
+            "very stretch that breaks here. Measured 08.09.2026 (T-139) "
+            "against tests/test_picker_track_guards.py: 1 failed, 23 passed, "
+            "9 warnings; what falls is "
+            "test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "the-picker-does-not-handle-ready": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        self._track.ready.connect(self._on_ready)
+""",
+        new="""        pass
+""",
+        survival_means=(
+            "the picker never hears `ready`: the answer arrives and the grid "
+            "stays empty. The commonest end of all, and what T-130's fault "
+            "looked like from the outside. Measured 08.09.2026 (T-139) "
+            "against tests/test_picker_track_guards.py: 4 failed, 20 passed, "
+            "7 warnings; what falls is "
+            "test_w3_the_answer_of_a_closed_opening_never_fills_the_next_one, "
+            "test_w5_a_known_answer_is_one_build_of_the_grid_and_never_pendin "
+            "g, test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "the-picker-does-not-handle-failed": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        self._track.failed.connect(self._on_failed)
+""",
+        new="""        pass
+""",
+        survival_means=(
+            "the picker never hears `failed`: a run that threw leaves the "
+            "dialog waiting instead of saying what it could not do. Like "
+            "`stopped` above, nothing over the real track watched this before "
+            "AD-028 W8. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 1 failed, 23 passed, 8 "
+            "warnings; what falls is "
+            "test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "shutdown-does-not-raise-the-generation": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._generation += 1
+        self._pending = None
+        self._timer.stop()
+        self._interrupt_the_running_worker()
+        thread = self._thread
+""",
+        new="""        self._pending = None
+        self._timer.stop()
+        self._interrupt_the_running_worker()
+        thread = self._thread
+""",
+        survival_means=(
+            "Nachtrag X-1 falls: a worker that sent its answer between its "
+            "last check and the interruption has left a `ready` in the main "
+            "thread's queue, `wait()` does not empty that queue, and the turn "
+            "of the event loop that the closing itself is delivers it to "
+            "`_on_ready` -- which finds the generation unchanged and passes "
+            "it on to a window that is already going. Silence after "
+            "`shutdown` is meant to be a property of the class rather than a "
+            "race. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 1 failed, 23 passed; what "
+            "falls is test_w6_a_question_ends_in_exactly_one_of_the_three."),
+    ),
+    # --- the mutations of T-131, run there and registered by T-139 ---
+    "picker-holds-the-pre-sort-again": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        window = self._slot.window()
+        asking = advisorbar.asking_from(
+""",
+        new="""        from .advisor import candidates as advisor_candidates
+
+        pool = advisor_candidates.pool
+        window = self._slot.window()
+        asking = advisorbar.asking_from(
+""",
+        survival_means=(
+            "AD-028 W1 does not watch the file it was written for: the picker "
+            "may take the pre-sort back into the calling thread -- a measured "
+            "318,1 ms (S11-C), six times A6's budget for the main thread -- "
+            "and nothing records that it may not. The mutation only *names* "
+            "the function, which is the whole point of counting mentions: a "
+            "reference held is a call one step later. Measured 08.09.2026 "
+            "(T-139) against tests/test_picker_track_guards.py: 2 failed, 22 "
+            "passed; what falls is "
+            "test_w1_nothing_but_the_named_places_reaches_the_calculation, "
+            "test_w1_the_picker_holds_none_of_the_four."),
+    ),
+    "controller-delivers-an-overtaken-answer": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._cache.put(self._running.request, result)
+        if result.generation != self._generation:
+            return
+""",
+        new="""        self._cache.put(self._running.request, result)
+""",
+        survival_means=(
+            "the answer of an opening that has been closed fills the grid of "
+            "the next one: the same cards, plausible figures, and nothing "
+            "anywhere to say they were worked out for another slot (Nachtrag "
+            "IX-4, case 3). Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 4 failed, 20 passed; what "
+            "falls is "
+            "test_w3_the_answer_of_a_closed_opening_never_fills_the_next_one, "
+            "test_w6_a_question_ends_in_exactly_one_of_the_three."),
+    ),
+    "picker-goes-on-listening-after-it-closes": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        if self.advice is not None:
+            self.advice.stop_listening()
+        super().done(result)
+""",
+        new="""        super().done(result)
+""",
+        survival_means=(
+            "AK-207 falls: an answer draws into a dialog that is gone, "
+            "because the picker never stops listening when it closes. "
+            "Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 2 failed, 22 passed; what "
+            "falls is "
+            "test_w3_an_answer_arriving_after_the_close_touches_nothing, "
+            "test_w3_the_answer_of_a_closed_opening_never_fills_the_next_one."),
+    ),
+    "sort-by-offers-a-direction-nobody-scores": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""GOAL_ORDER = ("max_damage", "min_damage_taken")
+""",
+        new="""GOAL_ORDER = ("max_damage", "min_damage_taken", "max_style")
+""",
+        survival_means=(
+            "AD-028 W4 is blind: the picker and the Advisor bar share one "
+            "list of directions (IX-0), and the picker would offer a "
+            "direction the registry cannot score. Sharing a list is an "
+            "assumption about two files that nothing else holds together. The "
+            "errors alongside are the window fixtures, which cannot build an "
+            "Advisor bar for a direction nobody scores; W4 itself builds no "
+            "window and falls on its own assertion. Measured 08.09.2026 "
+            "(T-139) against tests/test_picker_track_guards.py: 1 failed, 15 "
+            "passed, 8 errors; what falls is "
+            "test_w4_every_direction_the_picker_draws_is_one_the_pool_scores."),
+    ),
+    "a-known-answer-goes-round-by-the-timer": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        question = self._question_from(request, inventory, ctx)
+        known = self._cache.get(question.request)
+        if known is None:
+            self._wait_for(question)
+            return None
+""",
+        new="""        question = self._question_from(request, inventory, ctx)
+        self._wait_for(question)
+        return None
+""",
+        survival_means=(
+            "IX-1.3 falls: a known answer takes the long way round through "
+            "the debounce instead of coming back in the same call, so the "
+            "first paint is the empty state and the grid arrives afterwards "
+            "-- the flash IX-1.C exists to prevent, at 30 % of openings "
+            "(S11-F). Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 2 failed, 22 passed; what "
+            "falls is test_w5_a_known_answer_is_one_build_of_the_grid_and_nev "
+            "er_pending, test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "cancelling-says-nothing": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._interrupt_the_running_worker()
+        self.stopped.emit()
+        return True
+""",
+        new="""        self._interrupt_the_running_worker()
+        return True
+""",
+        survival_means=(
+            "AK-11 and AK-218 break at the third exit: `Cancel` interrupts "
+            "the run and sends nothing, so the grid stays empty for ever and "
+            "no sentence says why. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 4 failed, 20 passed; what "
+            "falls is test_w6_a_question_ends_in_exactly_one_of_the_three, "
+            "test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    "a-run-that-raises-says-nothing": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""            self.failed.emit(str(exc) or exc.__class__.__name__)
+""",
+        new="""            pass
+""",
+        survival_means=(
+            "the same at the second exit: a run that threw ends in silence. "
+            "`traceback.print_exc()` writes into a console no player sees, "
+            "and the dialog waits. Measured 08.09.2026 (T-139) against "
+            "tests/test_picker_track_guards.py: 2 failed, 22 passed; what "
+            "falls is test_w6_a_question_ends_in_exactly_one_of_the_three, "
+            "test_w8_every_way_back_leaves_cards_to_choose_from."),
+    ),
+    # --- the mutations of T-133, run there and registered by T-139 ---
+    "relic-prefilter-drops-the-alignment-check": Mutation(
+        path="nrdata/savefile.py",
+        old="""        if pos % 4 == 3:
+            yield pos - 3""",
+        new="""        if True:
+            yield pos - 3""",
+        survival_means=(
+            "the relic scan's prefilter hands over offsets that are not on "
+            "the four-byte grid, so a byte sequence that happens to carry the "
+            "flag byte is read as a record. Measured 08.09.2026 (T-139) "
+            "against tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; "
+            "what falls is "
+            "test_a_doubled_id_off_the_four_byte_grid_is_not_a_record."),
+    ),
+    "relic-prefilter-starts-one-byte-late": Mutation(
+        path="nrdata/savefile.py",
+        old="""pos = slot_data.find(_ID_TOP_BYTE, 3)""",
+        new="""pos = slot_data.find(_ID_TOP_BYTE, 4)""",
+        survival_means=(
+            "the first record in the slot is invisible: the search begins one "
+            "byte past the place the flag byte of a record at offset 0 sits "
+            "at. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 4 failed, 9 passed; what "
+            "falls is test_a_record_at_the_very_first_offset_is_found, "
+            "test_records_at_the_stride_the_game_writes_are_all_found, "
+            "test_the_largest_id_the_prefilter_can_see_is_read_in_full, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets."),
+    ),
+    "relic-prefilter-reads-one-offset-too-far": Mutation(
+        path="nrdata/savefile.py",
+        old="""while pos >= 0 and pos - 3 < end:""",
+        new="""while pos >= 0 and pos - 3 <= end:""",
+        survival_means=(
+            "the walk reads one offset past its own upper bound, which is a "
+            "record whose fields run off the end of the slot. Measured "
+            "08.09.2026 (T-139) against tests/test_relic_scan_prefilter.py: 1 "
+            "failed, 12 passed; what falls is "
+            "test_a_record_at_the_walks_own_upper_bound_is_not_read."),
+    ),
+    "relic-prefilter-steps-on-by-a-word": Mutation(
+        path="nrdata/savefile.py",
+        old="""pos = slot_data.find(_ID_TOP_BYTE, pos + 1)""",
+        new="""pos = slot_data.find(_ID_TOP_BYTE, pos + 4)""",
+        survival_means=(
+            "a record carrying the flag byte inside itself hides the next "
+            "one: stepping on by a word skips the offsets in between, and "
+            "unlike the loadout marker of T-136 this single byte can overlap "
+            "itself. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
+            "falls is "
+            "test_an_id_carrying_the_flag_byte_inside_itself_is_still_found."),
+    ),
+    "relic-prefilter-yields-the-hit-not-the-record": Mutation(
+        path="nrdata/savefile.py",
+        old="""            yield pos - 3""",
+        new="""            yield pos""",
+        survival_means=(
+            "every offset handed over is three bytes past the record it "
+            "belongs to, so every field of every relic is read from the wrong "
+            "place. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 6 failed, 7 passed; what "
+            "falls is test_a_record_at_the_very_first_offset_is_found, "
+            "test_an_id_carrying_the_flag_byte_inside_itself_is_still_found, "
+            "test_records_at_the_stride_the_game_writes_are_all_found, "
+            "test_the_largest_id_the_prefilter_can_see_is_read_in_full, "
+            "test_the_last_record_the_walk_does_reach_is_read, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets."),
+    ),
+    "relic-prefilter-searches-for-another-byte": Mutation(
+        path="nrdata/savefile.py",
+        old="""_ID_TOP_BYTE = struct.pack("<I", RELIC_ID_FLAG)[3:4]""",
+        new='_ID_TOP_BYTE = b"\\x00"',
+        survival_means=(
+            "the prefilter looks for a byte that has nothing to do with a "
+            "relic id, so what it hands over is unrelated to where the "
+            "records are. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 7 failed, 6 passed; what "
+            "falls is test_a_record_at_the_very_first_offset_is_found, test_a "
+            "_slot_that_is_nothing_but_the_searched_byte_is_still_refused, "
+            "test_an_id_carrying_the_flag_byte_inside_itself_is_still_found, "
+            "test_records_at_the_stride_the_game_writes_are_all_found, "
+            "test_the_largest_id_the_prefilter_can_see_is_read_in_full, "
+            "test_the_last_record_the_walk_does_reach_is_read, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets."),
+    ),
+    "the-id-ceiling-is-never-checked": Mutation(
+        path="nrdata/savefile.py",
+        old="""    _check_the_prefilter_can_see_every_id(valid_relic_ids)
+""",
+        new="",
+        survival_means=(
+            "the assumption the prefilter rests on -- that no valid relic id "
+            "reaches into the top byte -- is never checked against the "
+            "dataset, so a game patch that raised the ids would make the scan "
+            "quietly miss relics instead of saying so. Measured 08.09.2026 "
+            "(T-139) against tests/test_relic_scan_prefilter.py: 2 failed, 11 "
+            "passed; what falls is "
+            "test_a_relic_id_above_the_ceiling_is_refused_out_loud, "
+            "test_the_refusal_says_the_program_is_too_old_and_names_no_file."),
+    ),
+    "the-id-ceiling-is-raised-past-its-assumption": Mutation(
+        path="nrdata/savefile.py",
+        old="""RELIC_ID_CEILING = 0x01000000""",
+        new="""RELIC_ID_CEILING = 0x02000000""",
+        survival_means=(
+            "the ceiling is raised past the value the prefilter's byte search "
+            "can actually see, so the check passes for ids the scan would "
+            "miss. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
+            "falls is "
+            "test_the_largest_id_the_prefilter_can_see_is_read_in_full."),
+    ),
+    "the-id-ceiling-looks-at-the-smallest-id": Mutation(
+        path="nrdata/savefile.py",
+        old="""    biggest = max(valid_relic_ids, default=0)""",
+        new="""    biggest = min(valid_relic_ids, default=0)""",
+        survival_means=(
+            "the check reads the smallest id in the dataset instead of the "
+            "biggest, which is the one shape of this check that can never "
+            "fail. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
+            "falls is test_a_relic_id_above_the_ceiling_is_refused_out_loud."),
+    ),
+    "the-id-ceiling-drops-below-the-games-own-ids": Mutation(
+        path="nrdata/savefile.py",
+        old="""RELIC_ID_CEILING = 0x01000000""",
+        new="""RELIC_ID_CEILING = 0x00000100""",
+        survival_means=(
+            "the ceiling is put below ids the game really uses, so the "
+            "refusal fires on a dataset that is sound -- the guard has to "
+            "bite in both directions or it is measuring nothing. Measured "
+            "08.09.2026 (T-139) against tests/test_relic_scan_prefilter.py: 9 "
+            "failed, 4 passed; what falls is "
+            "test_a_doubled_id_off_the_four_byte_grid_is_not_a_record, "
+            "test_a_record_at_the_very_first_offset_is_found, "
+            "test_a_record_at_the_walks_own_upper_bound_is_not_read, test_a_s "
+            "lot_that_is_nothing_but_the_searched_byte_is_still_refused, "
+            "test_a_slot_too_short_to_hold_a_record_yields_nothing, "
+            "test_an_id_carrying_the_flag_byte_inside_itself_is_still_found, "
+            "test_records_at_the_stride_the_game_writes_are_all_found, "
+            "test_the_games_own_relic_ids_are_all_below_the_ceiling, "
+            "test_the_last_record_the_walk_does_reach_is_read."),
+    ),
+    "the-density-limit-doubled": Mutation(
+        path="nrdata/savefile.py",
+        old="""        if len(out) > limit:""",
+        new="""        if len(out) > limit * 2:""",
+        survival_means=(
+            "**this one is meant to survive its own file** and is registered "
+            "as the control it was run as (T-133): it does not touch the "
+            "prefilter but SEC-022's density limit, whose guard lives in "
+            "tests/test_hostile_savefile.py, and that is where it falls. "
+            "Green in test_relic_scan_prefilter.py says nothing about it; "
+            "green in test_hostile_savefile.py would say the limit is "
+            "unwatched. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py and "
+            "tests/test_hostile_savefile.py: 1 failed, 40 passed; what falls "
+            "is test_one_record_more_than_the_slot_can_hold_is_a_data_error."),
+    ),
+    "relic-prefilter-walks-everything-again": Mutation(
+        path="nrdata/savefile.py",
+        old="""    end = len(slot_data) - RELIC_FIELDS_SIZE
+    pos = slot_data.find(_ID_TOP_BYTE, 3)
+    while pos >= 0 and pos - 3 < end:
+        if pos % 4 == 3:
+            yield pos - 3
+        pos = slot_data.find(_ID_TOP_BYTE, pos + 1)
+""",
+        new="""    end = len(slot_data) - RELIC_FIELDS_SIZE
+    for off in range(0, max(end, 0), 4):
+        yield off
+""",
+        survival_means=(
+            "the prefilter is correct again and only slow: every offset in "
+            "the slot goes downstream, the results are identical, and the "
+            "whole point of T-133 -- reading a fraction of the offsets "
+            "instead of all of them -- is gone with nothing on screen to show "
+            "it. This is the mutation the equality cases cannot catch, and "
+            "the reason "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets states "
+            "the candidate list exactly. Measured 08.09.2026 (T-139) against "
+            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
+            "falls is "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets."),
+    ),
+    # --- the mutations of T-136, run there and registered by T-139 ---
+    "loadout-prefilter-drops-the-alignment-check": Mutation(
+        path="nrdata/savefile.py",
+        old="""        if pos % 4 == 0:
+            yield pos
+""",
+        new="""        if True:
+            yield pos
+""",
+        survival_means=(
+            "the loadout scan hands over offsets off the four-byte grid, so a "
+            "marker found inside another field is read as the start of a "
+            "table. Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 3 failed, 11 passed; what "
+            "falls is test_a_full_table_off_the_four_byte_grid_is_not_found, "
+            "test_a_marker_off_the_four_byte_grid_is_not_a_candidate, "
+            "test_the_prefilter_only_reports_offsets_on_the_four_byte_grid."),
+    ),
+    "loadout-prefilter-starts-one-byte-late": Mutation(
+        path="nrdata/savefile.py",
+        old="""    pos = slot_data.find(_LOADOUT_MARKER)
+""",
+        new="""    pos = slot_data.find(_LOADOUT_MARKER, 1)
+""",
+        survival_means=(
+            "a loadout table at the very start of the slot is invisible. "
+            "Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 3 failed, 11 passed; what "
+            "falls is test_a_marker_at_offset_zero_is_a_candidate, "
+            "test_a_table_at_the_very_first_offset_is_found, "
+            "test_several_real_markers_come_out_ascending."),
+    ),
+    "loadout-prefilter-reads-one-offset-too-far": Mutation(
+        path="nrdata/savefile.py",
+        old="""    while pos >= 0 and pos < end:
+""",
+        new="""    while pos >= 0 and pos <= end:
+""",
+        survival_means=(
+            "the walk reads one offset past its own bound, where the table's "
+            "fields no longer fit in the slot. Measured 08.09.2026 (T-139) "
+            "against tests/test_loadout_table_prefilter.py: 1 failed, 13 "
+            "passed; what falls is "
+            "test_a_marker_at_the_walks_own_upper_bound_is_not_a_candidate."),
+    ),
+    "loadout-prefilter-steps-on-by-a-word": Mutation(
+        path="nrdata/savefile.py",
+        old="""        pos = slot_data.find(_LOADOUT_MARKER, pos + 1)
+""",
+        new="""        pos = slot_data.find(_LOADOUT_MARKER, pos + 4)
+""",
+        survival_means=(
+            "**this one survives, and it is a true equivalent** (T-136, "
+            "reported rather than papered over, L-008c). The marker "
+            "`0x0000ff01` does not overlap itself -- none of its suffixes of "
+            "length 1 to 3 equals the matching prefix -- so two real hits can "
+            "never lie less than four bytes apart, and `find(marker, start)` "
+            "tests `start` itself. Step +1 and step +4 return the same list "
+            "for every input. Killing it would take a test on an "
+            "implementation detail (a call count on `bytes.find`), which is "
+            "not what these guards are for. Measured 08.09.2026 (T-139) "
+            "against tests/test_loadout_table_prefilter.py: 14 passed -- it "
+            "survives, as it did when it was first run, and for the reason "
+            "above."),
+    ),
+    "loadout-prefilter-searches-for-the-wrong-hero": Mutation(
+        path="nrdata/savefile.py",
+        old="""_LOADOUT_MARKER = struct.pack("<I", HERO_MARKER_BASE + 1)
+""",
+        new="""_LOADOUT_MARKER = struct.pack("<I", HERO_MARKER_BASE + 2)
+""",
+        survival_means=(
+            "the scan looks for another hero's marker, so the table it finds "
+            "is not the one it reports. Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 8 failed, 6 passed; what "
+            "falls is test_a_marker_at_offset_zero_is_a_candidate, "
+            "test_a_slot_that_is_nothing_but_the_marker_is_still_refused, "
+            "test_a_table_at_the_very_first_offset_is_found, "
+            "test_several_real_markers_come_out_ascending, "
+            "test_the_last_offset_the_walk_does_reach_is_a_candidate, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets, "
+            "test_the_prefilter_only_reports_offsets_on_the_four_byte_grid, "
+            "test_two_tables_in_one_slot_the_longer_one_wins."),
+    ),
+    "loadout-prefilter-yields-one-word-past-the-marker": Mutation(
+        path="nrdata/savefile.py",
+        old="""        if pos % 4 == 0:
+            yield pos
+""",
+        new="""        if pos % 4 == 0:
+            yield pos + 4
+""",
+        survival_means=(
+            "every offset handed over is a word past the table it belongs to. "
+            "Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 7 failed, 7 passed; what "
+            "falls is test_a_marker_at_offset_zero_is_a_candidate, "
+            "test_a_table_at_the_very_first_offset_is_found, "
+            "test_several_real_markers_come_out_ascending, "
+            "test_the_last_offset_the_walk_does_reach_is_a_candidate, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets, "
+            "test_the_prefilter_only_reports_offsets_on_the_four_byte_grid, "
+            "test_two_tables_in_one_slot_the_longer_one_wins."),
+    ),
+    "loadout-prefilter-ends-one-word-late": Mutation(
+        path="nrdata/savefile.py",
+        old="""    end = max(len(slot_data) - 8, 0)
+""",
+        new="""    end = max(len(slot_data) - 4, 0)
+""",
+        survival_means=(
+            "the walk runs one word further than the table's own length "
+            "allows. Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 1 failed, 13 passed; what "
+            "falls is "
+            "test_a_marker_at_the_walks_own_upper_bound_is_not_a_candidate."),
+    ),
+    "loadout-prefilter-walks-everything-unfiltered": Mutation(
+        path="nrdata/savefile.py",
+        old="""    end = max(len(slot_data) - 8, 0)
+    pos = slot_data.find(_LOADOUT_MARKER)
+    while pos >= 0 and pos < end:
+        if pos % 4 == 0:
+            yield pos
+        pos = slot_data.find(_LOADOUT_MARKER, pos + 1)
+""",
+        new="""    yield from range(0, max(len(slot_data) - 8, 0), 4)
+""",
+        survival_means=(
+            "the prefilter hands over every offset in the slot and there is "
+            "no downstream check to catch it -- unlike T-133's relic scan, "
+            "this one has no second reading behind it. Measured 08.09.2026 "
+            "(T-139) against tests/test_loadout_table_prefilter.py: 12 "
+            "failed, 2 passed; what falls is "
+            "test_a_full_table_off_the_four_byte_grid_is_not_found, "
+            "test_a_lone_marker_amid_unrelated_data_is_still_not_a_table, "
+            "test_a_marker_at_offset_zero_is_a_candidate, "
+            "test_a_marker_at_the_walks_own_upper_bound_is_not_a_candidate, "
+            "test_a_marker_off_the_four_byte_grid_is_not_a_candidate, test_a_ "
+            "slot_with_no_marker_at_all_is_the_expensive_case_made_cheap, "
+            "test_a_table_at_the_very_first_offset_is_found, "
+            "test_several_real_markers_come_out_ascending, "
+            "test_the_last_offset_the_walk_does_reach_is_a_candidate, "
+            "test_the_prefilter_hands_over_a_fraction_of_the_offsets, "
+            "test_the_prefilter_only_reports_offsets_on_the_four_byte_grid, "
+            "test_two_tables_in_one_slot_the_longer_one_wins."),
+    ),
+    "loadout-prefilter-rebuilt-as-the-old-walk": Mutation(
+        path="nrdata/savefile.py",
+        old="""    end = max(len(slot_data) - 8, 0)
+    pos = slot_data.find(_LOADOUT_MARKER)
+    while pos >= 0 and pos < end:
+        if pos % 4 == 0:
+            yield pos
+        pos = slot_data.find(_LOADOUT_MARKER, pos + 1)
+""",
+        new="""    for off in range(0, max(len(slot_data) - 8, 0), 4):
+        if (struct.unpack_from("<I", slot_data, off)[0]
+                == HERO_MARKER_BASE + 1):
+            yield off
+""",
+        survival_means=(
+            "**this one survives too, and it is the second true equivalent** "
+            "(T-136, L-008c): the same filtering written as the old `range` "
+            "plus `unpack_from` walk. Same input, same output, for every "
+            "input -- only slower. Because `find_loadout_table` has no "
+            "downstream check, the only way to make this prefilter quietly "
+            "slow is to reimplement it exactly as specified, and no behaviour "
+            "test can tell the two apart. Measured 08.09.2026 (T-139) against "
+            "tests/test_loadout_table_prefilter.py: 14 passed -- it survives, "
+            "as it did when it was first run, and for the reason above."),
+    ),
 }
 
 
