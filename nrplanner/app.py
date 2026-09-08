@@ -4857,13 +4857,20 @@ def main() -> int:
         app.setWindowIcon(QIcon(str(icon)))
 
     # Nothing ships with the program, so the first launch on a machine has
-    # to read the installed game before there is anything to show.
-    from nrdata import gamefiles
+    # to read the installed game before there is anything to show. Where the
+    # game is, is the resolution point's question and no longer this line's:
+    # a folder the player pointed at himself counts for as much here as it
+    # does everywhere else (AD-030).
+    from . import gamepath
 
-    error = firstrun.ensure_data(gamefiles.find_game_dir())
-    if error:
+    first = firstrun.run(gamepath.resolve_game())
+    if not first.go_on:
+        # He was asked where his game is and said Quit, Escape or the cross.
+        # Nothing to report back to him: he has just said it (AK-116).
+        return 0
+    if first.error:
         QMessageBox.critical(
-            None, "Nightreign Helper", f"Could not read your game:\n\n{error}"
+            None, "Nightreign Helper", f"Could not read your game:\n\n{first.error}"
         )
         return 1
 

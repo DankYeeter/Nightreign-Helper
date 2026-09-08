@@ -373,9 +373,6 @@ ASKING_THE_AUTOMATIC_ROUTE_DIRECTLY = {
     "nrplanner/gamepath.py":
         "is the resolution point; the automatic route is step 3 of its own "
         "chain",
-    "nrplanner/app.py":
-        "the first-run build, still on the automatic route until V2 turns "
-        "it into the panel (Nachtrag XI). Delete this entry with that line",
 }
 
 
