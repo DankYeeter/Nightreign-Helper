@@ -1995,3 +1995,54 @@ verlaesslich isoliert**, obwohl die Regel sie zum Normalfall erklaert.
 Anlass der Pruefung: derselbe Befund stand in `docs/state.md` als erledigt und
 in dieser Liste als offen. Die Regel dagegen steht seit dem 07.09. in der
 Director-Definition — **ein Befundstatus wird geprueft, nicht erinnert.**
+
+## QA-198 — Der Erstaufbau dauert fuenfmal so lange, wie das Programm ansagt
+
+**Prioritaet: P3 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `release-manager` im `clean-room`-Lauf T-113, **am gebauten
+Artefakt gemessen** — nicht am Quellstand, und deshalb erstmals unter den
+Bedingungen eines echten Nutzers.
+
+Beim ersten Start baut das Programm den Datenabzug und den Symbolvorrat aus
+der Spielinstallation auf. Es sagt dabei **"etwa eine Minute"** an. Gemessen:
+**rund 5 Minuten.** In dieser Zeit steht ein Fenster, das nach Ansage des
+Programms laengst fertig sein muesste.
+
+**Warum das mehr als Kosmetik ist:** Es ist derselbe Bruch wie eine Zahl ohne
+Bezugsgroesse, nur zeitlich — das Programm sagt etwas Pruefbares und liegt
+daneben, und der Nutzer kann nicht unterscheiden, ob es noch arbeitet oder
+haengt. Genau diese Frage stellt sich beim Erststart, wo er dem Programm noch
+nichts glaubt. **Verstoss gegen A12** (jede Zahl nennt Einheit und Bezug) und
+gegen A15 (der Erststart fuehrt bis zu lesbaren Daten).
+
+**Richtung, zu entscheiden:** entweder die Ansage an das Gemessene angleichen
+— dann mit Angabe, wovon es abhaengt (Groesse der Installation, Datentraeger)
+—, oder einen Fortschritt zeigen, der ohne Zeitversprechen auskommt. Die
+zweite Fassung ist die ehrlichere, weil die Dauer nachweislich von der
+Maschine abhaengt. **Vor der Umsetzung ist auf mindestens zwei Umgebungen zu
+messen**, sonst ersetzt eine falsche Zahl die andere.
+
+## QA-199 — Der A15-Ausweichdialog zur manuellen Pfadwahl existiert nicht
+
+**Prioritaet: P2 · Schwere: Major · Adressat: developer · offen · 2026-09-08**
+
+Gefunden vom `release-manager` in T-113. Auf der Testmaschine hat das Programm
+die Spielinstallation **selbst gefunden** (`D:\SteamLibrary\...`), der Fall
+trat also nicht ein. Beim Nachsehen im Quellstand zeigte sich: **den Weg, der
+dann greifen soll, gibt es nicht.**
+
+`GOAL.md` A15 verlangt, dass der Erststart **jeden** Nutzer bis zu lesbaren
+Daten fuehrt; die Spec dazu liegt seit AK-106 bis AK-132. Wer eine
+Installation an einem Ort hat, den die Erkennung nicht abdeckt — zweite
+Steam-Bibliothek, verschobener Ordner, Netzlaufwerk —, hat heute **keine
+Moeglichkeit, den Pfad von Hand anzugeben.**
+
+**Verhaeltnis zu QA-171:** dort faellt der Spielordner **nachtraeglich** weg
+und das Programm zeigt kommentarlos den alten Abzug. Hier wird er **nie**
+gefunden. Zwei Enden derselben Luecke; beide gehoeren in die A15-Umsetzung,
+nicht in zwei getrennte Auftraege.
+
+**Nicht selbst nachgestellt** — der Befund stammt aus der Durchsicht des
+Quellstands, nicht aus einem ausgeloesten Fehlschlag. Vor dem Fix ist er zu
+reproduzieren, indem die Erkennung kuenstlich fehlschlaegt.
