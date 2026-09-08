@@ -234,3 +234,84 @@ ohne Datei, dazu zwei Nachtraege per Nachricht).
 - Eine Zusicherung nennt ihren **Geltungsbereich** — das ist die dominante
   Fehlerklasse dieses Projekts (QA-046, 050, 052, 062, 063, 064, 070, 073,
   082, 083, 086, 087).
+
+---
+
+# Arbeitsweise: drei Ineffizienzen, abgestellt am 08.09.2026
+
+*Auf Anweisung des Nutzers ("bessere die Ineffizienzen aus"). Alle drei ohne
+Codeaenderung, also ohne den eingefrorenen Stand von Zyklus 16 anzufassen.*
+
+## E-1 — Der Datenabzug wird nicht mehr je Lauf neu gebaut
+
+**Das Problem, gemessen.** Jeder Lauf am gebauten Artefakt bekommt ein eigenes
+umgelenktes `LOCALAPPDATA` und baut darin den Datenabzug samt Symbolvorrat neu
+auf: **107 s im `power-user`-Lauf, rund 5 min im `clean-room`-Lauf** (QA-198).
+In Zyklus 16 wurde das **viermal** bezahlt, fuer denselben Abzug aus derselben
+Spielinstallation.
+
+**Die Loesung.** Ein einmal gebauter Abzug liegt fest unter
+
+```
+C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug
+```
+
+**841 Dateien, 19,8 MB**, `nightreign_data.json` 8 484 651 B, gebaut am
+08.09.2026 08:04 von Programmfassung **1.8.0** (`EXTRACT_VERSION` 11). Er
+stammt aus dem `power-user`-Lauf T-115 und wurde aus dem Scratchpad
+herausgehoben, damit er Sitzungen ueberlebt.
+
+**So benutzt ihn ein Auftrag.** Vor dem ersten Start des Artefakts den Abzug in
+das umgelenkte `LOCALAPPDATA` **kopieren** (nicht darauf zeigen lassen — das
+Programm schreibt hinein):
+
+```
+Copy-Item "C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug" `
+          "<dein LOCALAPPDATA>\NightreignHelper" -Recurse
+```
+
+**Wann er nicht mehr gilt** — und das gehoert in jeden Auftrag, der ihn
+benutzt: der Abzug wird ungueltig, sobald das **Spiel gepatcht** wird
+(`regulation.bin` aendert sich) oder `EXTRACT_VERSION` **ueber 11** steigt.
+Dann baut das Programm ihn ohnehin neu; der erste Lauf, dem das passiert,
+**ersetzt die Vorlage** und vermerkt es hier.
+
+**Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
+NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
+Projektbaums, nicht bloss in `.gitignore`.
+
+**Ersparnis erwartet, nicht gemessen.** Die Probe verlangt einen GUI-Start, und
+der haette dem laufenden A9-Lauf in die Quere kommen koennen. **Der erste
+Auftrag, der die Vorlage benutzt, misst sie und traegt die Zahl hier ein.**
+
+## E-2 — Am Artefakt wird nur geprueft, was das Fenster wirklich braucht
+
+Die drei Pruefungen am Artefakt in Zyklus 16 kosteten **41 min**
+(`clean-room`), **25 min** (`power-user`) und ueber 40 min (`qa-engineer`).
+Klicken ist langsam, daran aendert kein Modell etwas — der Hebel ist, **was**
+durch die Oberflaeche geht.
+
+**Regel fuer jeden kuenftigen Pruefauftrag am Artefakt:** die Kriterien werden
+vorher geteilt.
+- **Ohne Fenster pruefbar:** A8 (alle Texte Englisch) und grosse Teile von A4
+  (Stacking, Slot-Farben, Deep-of-Night) — am entpackten Bundle bzw. an den
+  mitgelieferten Daten.
+- **Braucht das Fenster:** A3 (je Nightfarer zwei Zielrichtungen), A5 (die
+  Begruendung in Nutzersprache), A6 (die Oberflaeche blockiert nicht), A7 an
+  den Stellen, an denen der Text im Fenster steht.
+
+Der Auftrag benennt die Teilung, statt sie der Rolle zu ueberlassen.
+
+## E-3 — Zwei Gewohnheiten des Directors
+
+- **`docs/state.md` wird einmal je Zyklus geschrieben**, am Ende, auf das
+  Zeilenbudget. In Zyklus 16 wurde sie **sechsmal** umgeschrieben, davon
+  viermal nur, um das Budget zu treffen. Das ist verschwendete Arbeit an einer
+  Datei, deren Zweck Uebergabe ist, nicht Aktualitaet im Minutentakt.
+- **Der Bericht ist Teil des Auftrags, nicht sein Nachklang.** Der
+  `power-user` hat in T-115 Schreibrecht gehabt, den Bericht aber nicht
+  abgelegt (`GEAENDERT: keine Projektdateien`); der Director hat ihn von Hand
+  nachgetragen. Kuenftig steht in jedem Auftrag an eine Rolle **mit**
+  Schreibrecht der Satz: *"Der Auftrag gilt erst als erledigt, wenn
+  `docs/berichte/T-###-<rolle>.md` auf der Platte liegt."* Befund fuer die
+  `retrospective` — es war nicht der erste Fall.
