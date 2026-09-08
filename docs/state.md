@@ -101,28 +101,13 @@ wurde fuer eine Messung gehalten. Die Regeln dagegen standen alle bereits im
 Text — die Ursache war ihr Ort. Seitdem sperrt ein Hook statt zu erinnern.
 Hergang: `referenz/director-belege.md` B-22 im Agenten-Repo.
 
-## Offen aus der Pruefphase (Zyklus 15)
+## Offen aus Zyklus 15 und 16
 
 QA-181 · QA-182 · QA-184 · **QA-186** · QA-188 · QA-190 · QA-191 · QA-192 ·
-QA-193 · QA-195 · **SEC-025**. Wortlaut je Befund in `qa/findings.md` bzw.
-`security/findings.md`.
-
-**Neu aus Zyklus 16, alle am Artefakt gefunden:** **QA-198** (Erstaufbau sagt
-"etwa eine Minute", gemessen 107 s bzw. 5 min - die Spanne ist der Befund) ·
-**QA-199** (kein Weg, den Spielpfad von Hand anzugeben; dasselbe Loch wie
-QA-171 von der anderen Seite) · **QA-200** (Arbeit geht beim Schliessen
-verloren, ohne Warnung - am Code bestaetigt, `app.py:2000`; Entwurfsfrage an
-den `ui-ux-designer`) · **QA-201** (die eigene Reliktzahl ist nicht auffindbar)
-· **QA-202** (zweiter Start liest erneut ein, ungeklaert). **QA-170 ist mit dem
-siebten Durchgang reproduziert** - zwei Laeufe, dasselbe Aufgeben.
-
-## Der Rest — in dieser Reihenfolge
-
-1. **Zyklus 16** (laeuft): der Release-Weg, A9. 2. **Zyklus 17**: der
-Fix-Stapel oben, zwei parallele `developer` mit disjunkten Dateilisten, dann
-parallele Pruefphase. 3. **A16/A17** (AK-182-194). 4. **A11** ueber QA-173.
-5. **A15** mit QA-171, **S11** Budget. 6. **P4** · **P5** · **P7**.
-Ausfuehrlich in `docs/plan-restarbeiten.md`.
+QA-193 · QA-195 · **QA-198 bis QA-209** · **SEC-025**. Wortlaut, Adressat und
+Status je Befund in `qa/findings.md` bzw. `security/findings.md` — **dort
+nachsehen, nicht hier**; diese Liste ist ein Zeiger, kein Messwert.
+Die Reihenfolge der Restarbeiten steht in `docs/plan-restarbeiten.md`.
 
 ## Beim Nutzer — offen
 
