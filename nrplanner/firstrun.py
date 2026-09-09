@@ -425,9 +425,10 @@ def _confirm(verdict: Verdict) -> Settled:
     """Keep the folder the user confirmed, before anything is built.
 
     **The only line in the program that writes `paths/game`** (M3, T-144).
-    The one security function this whole flow has is the user's consent to a
-    folder that a library is then run out of, and a folder nobody consented
-    to -- one the automatic route happened to find -- must not inherit it.
+    That keeps a folder the user never confirmed from being *remembered* as
+    one he did -- it does not stand between a folder and the library run out
+    of it this session; `looks_like_the_game` does that (SEC-031), on every
+    route that hands a folder to the build, confirmed or automatic alike.
     Kept before the build begins, not after, so that a crash during the
     minute does not cost the answer (AK-117).
     """

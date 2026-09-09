@@ -1,12 +1,15 @@
 """The two remembered paths, and the one place that resolves the game.
 
-R1 to R6 of Nachtrag XI. Two of the properties here are the only barrier
-SEC-026 leaves standing, and both would break without a sound:
+R1 to R6 of Nachtrag XI. Two properties held here guard the *store*, not the
+*build*: `looks_like_the_game` is what stands between a folder and the code
+that runs a library out of it (SEC-031), and neither property below changes
+that. Both would still break without a sound:
 
 * `paths/game` is written from a confirmation and from nothing else. A find
   by the automatic route that wrote itself back would turn "the folder the
   user vouched for" into "the folder something found once", and no screen
-  would show the difference;
+  would show the difference -- in what gets *remembered*, not in what gets
+  *used* the moment it is found;
 * the check that says a remembered folder is still valid is the *same
   function* that accepted it. A second predicate for the same question drifts
   from the first, and the drift is only visible as a folder that was good
