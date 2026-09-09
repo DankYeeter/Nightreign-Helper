@@ -131,6 +131,24 @@ def cards(window) -> list:
     return list(window.base_slots) + list(window.deep_slots)
 
 
+def whatever_the_reader_is_running(reader) -> tuple:
+    """The reader's thread and its worker, to be held while a press is made.
+
+    `SaveReader` keeps the only reference to each of them. A reader that
+    started a read while one was already out would overwrite both, and Qt
+    would then destroy a thread that is running and the object that thread is
+    inside: the process dies where it stands, no assertion below is heard,
+    and what comes back names no rule at all (measured, T-142: no summary,
+    and again in T-157 at this very case).
+
+    So every case that presses while a read is out keeps what the reader had.
+    Under the rule this is the same pair after every press and holding it
+    costs nothing; against a reader that broke the rule it is the difference
+    between a sentence and a crash.
+    """
+    return reader._thread, reader._worker
+
+
 def the_line(window) -> str:
     return window.owned_label.text()
 
@@ -569,9 +587,13 @@ def test_pressing_rescan_during_a_read_starts_no_second_one(game_data, qapp,
 
         line = the_line(window)
         before = [card.current_relic() for card in cards(window)]
+        still_running = [whatever_the_reader_is_running(window.save_reader)]
         for _ in range(5):
             window.rescan_button.click()
+            still_running.append(
+                whatever_the_reader_is_running(window.save_reader))
             rendered.settle()
+        assert still_running[0][0] is not None, "the premise: a read is out"
 
         # A count against a literal: one reading at the start of the session
         # and one for the first press. The five presses that followed while it
@@ -603,29 +625,24 @@ def test_the_reader_starts_nothing_while_one_read_is_out(game_data, qapp,
                                                          a_scan):
     """AD-029 point 4, at the controller and without a window in the way.
 
-    **The running read is held here on purpose**, thread and worker both, and
-    those two lines are what let this case say something when the rule is
-    broken. `SaveReader` keeps the only reference to each of them; a reader
-    that began a second read would overwrite both, and Qt would then destroy
-    a thread that is running and an object that thread is executing. The
-    process dies on the spot -- red, but red about a crash, and about the
-    same crash whatever else went wrong. Every assertion below would go
-    unheard (measured, T-142: no summary at all).
-
-    Held, the broken rule is a sentence instead: `assert True is False` on
-    the second press (measured against the same mutation, T-157).
+    Whatever the reader is running is held across every press, for the reason
+    `whatever_the_reader_is_running` gives: without it a reader that broke
+    this rule would take the process down with it and the rule would never be
+    named. Held, the broken rule is a sentence: `assert True is False` on the
+    second press (measured against `a-read-per-press`, T-157).
     """
     read = StatedRead(a_scan, hold=True)
     reader = appmod.SaveReader(read=read)
     try:
         assert reader.start(game_data) is True
         read.began.wait(READ_FUSE_S)
-        running_thread, working_worker = reader._thread, reader._worker
-        assert running_thread is not None and working_worker is not None, (
-            "the premise: a read is out, in a thread, in a worker")
+        still_running = [whatever_the_reader_is_running(reader)]
+        assert still_running[0][0] is not None, "the premise: a read is out"
 
         assert reader.start(game_data) is False
+        still_running.append(whatever_the_reader_is_running(reader))
         assert reader.start(game_data) is False
+        still_running.append(whatever_the_reader_is_running(reader))
         assert read.calls == 1
     finally:
         read.release()
