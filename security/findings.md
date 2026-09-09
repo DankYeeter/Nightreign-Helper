@@ -568,3 +568,28 @@ schon traegt), **SEC-034 und SEC-035 dazu gebuendelt**.
 `tests/test_game_path_memory.py:3-13` und `firstrun._confirm:427-432` und ist
 nach SEC-031 **zu stark**. Wird mit entschaerft — eine falsche Schranke im
 Docstring ist schlimmer als keine.
+
+### Nachtrag zu SEC-033 (09.09.2026) — die vorgeschlagene Behebung traegt nicht
+
+Der `developer` hat in T-161 **die Behebungsrichtung des `security-reviewer`
+widerlegt, mit einer Messung statt einer Behauptung**: `offset + size <=
+len(blob)` bindet den Fall, den der Pruefer **selbst gemessen** hat, **nicht**
+— ein Mitglied mit `offset = 0` und `size = len(blob)` erfuellt die Bedingung.
+
+**Gemessen mit der Fassung des Pruefers:** weiterhin **200,00 MiB**
+(1-MiB-Datei, 200 Mitglieder) und **400,00 MiB** (8 MiB, 50 Mitglieder).
+**Mit der Summenschranke:** 0,002 s bzw. 0,007 s, verweigert. Ehrliche
+Kontrollen unveraendert.
+
+**Gebaut ist die Summenschranke.** Rezept: BND4-Mitglieder sind disjunkt; auf
+beiden echten Spielstaenden belegen sie 19 530 432 von 19 531 312 Byte =
+**99,9955 %**.
+
+**Fuer die Abnahme:** wer SEC-033 nachprueft, prueft die **Summe**, nicht die
+Spanne. Die Spanne allein waere gruen gewesen und haette nichts gebunden.
+
+**SEC-034 gebaut als** `MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD = 16384`
+(= `1 048 608 // 64`, die relative Grenze an der einzigen Slotgroesse, die das
+Spiel schreibt) — Faktor 53 ueber den 309 echten Datensaetzen. Gemessen
+8 MiB/64 B: vorher 131 072 angenommen in 20,121 s, jetzt verweigert nach
+16 385 in 2,121 s.

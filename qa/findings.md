@@ -2471,3 +2471,32 @@ und der `clean-room`-Lauf sind dafuer da.
 Dreifach-Umlenkung nachgewiesen, Testverzeichnisse blieben leer): R10, R12 und
 AK-228 zusaetzlich an echten Byte-Layouts bestaetigt. R10 wurde vierfach
 getoetet, inklusive eines AST-Klassenwaechters.
+
+## QA-217 — Ein Mitglied hinter dem Dateiende meldet einen Fremdtext
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-09**
+
+Gefunden vom `developer` in T-161, ausdruecklich als **Bestand, kein Regress**.
+Ein BND4-Mitglied mit einem Offset hinter dem Dateiende erzeugt eine Meldung
+von `pycryptodome` — `Incorrect IV length` — statt einer eigenen. Der Spieler
+liest damit einen Satz ueber einen Initialisierungsvektor.
+
+**A7-nah, aber kein A7-Bruch:** das Programm raet nicht, es reicht nur eine
+fremde Meldung durch. Zusammen mit QA-218 zu behandeln.
+
+## QA-218 — "Jede Verweigerung traegt ihren Satz ganz im `raise`" ist ein Kommentar
+
+**Prioritaet: P3 · Schwere: Minor · Adressat: developer · offen · 2026-09-09**
+
+Gefunden vom `developer` in T-161, **und er hat es an sich selbst erlebt**:
+seine erste Fassung legte den unterscheidenden Halbsatz in eine Variable neben
+das `raise`. AK-229s Sammler liest die Texte **aus dem `raise`** — der Halbsatz
+war damit unsichtbar, und die Positivkontrolle wurde rot. Er hat es an seiner
+Stelle behoben, **nicht am Waechter**, und das war richtig.
+
+**Die Regel selbst ist heute nur ein Kommentar.** Ein Waechter, der sie
+festhaelt, fehlt. Der naechste, der eine Verweigerung baut, faellt in dieselbe
+Grube — mit dem Unterschied, dass ihn dann vielleicht kein Volllauf erwischt.
+
+*Nebenbefund derselben Bauform: **drei Teillaeufe haben den Fehler nicht
+gesehen, der Volllauf schon.***
