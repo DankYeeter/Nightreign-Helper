@@ -17,8 +17,11 @@ mutation that has to kill it:
   and every case that only counts directories stays green.
 * `find_game_dir` asks `looks_like_the_game` rather than the presence of
   `regulation.bin` alone (SEC-031). Without it, a folder that only has that
-  one file goes straight to the build -- nobody notices until a drive with
-  such a folder is plugged in.
+  one file goes straight to the build, and nobody notices until it happens.
+* `find_game_dir` asks about nothing Steam did not name (SEC-031, second
+  half). The six bare-drive candidates that used to stand beside the library
+  list would come back unremarked: a route that takes a folder off a drive
+  letter and runs a library out of it looks exactly like one that does not.
 
 A folder is built by hand rather than looked for on this machine: the three
 files stage 1 asks about are three empty files and a byte, and a case that
@@ -131,18 +134,17 @@ def test_the_ceiling_leaves_the_measured_installation_room():
 # --- find_game_dir asks the same predicate (SEC-031) ---------------------
 
 # A name that cannot collide with a real install directory anywhere on the
-# machine running the suite, so the bare-drive fallback in find_game_dir
-# (six hard-coded candidates, C: to H:, untouched by this task) never turns
-# up a real folder and confounds the "rejected" cases below.
+# machine running the suite, so no folder this suite did not build can turn
+# up in a "rejected" case below and make it pass for the wrong reason.
 _SENTINEL_INSTALL_DIR = "NRHELPER-TEST-SEC031-INSTALL-DIR"
 
 
 def _the_only_candidate(tmp_path: pathlib.Path, monkeypatch) -> pathlib.Path:
     """Wire find_game_dir's Steam search down to one controlled folder.
 
-    Both the library-derived candidate and the bare-drive fallback are built
-    from INSTALL_DIR, so patching it steers every candidate find_game_dir
-    could construct, not just the one this test cares about.
+    Every candidate is built from INSTALL_DIR under a library, so patching
+    the install directory and both library helpers steers all of them, not
+    just the one this test cares about.
     """
     monkeypatch.setattr(gamefiles, "INSTALL_DIR", _SENTINEL_INSTALL_DIR)
     root = tmp_path / "steam"
@@ -205,6 +207,34 @@ def test_find_game_dir_finds_nothing_when_no_candidate_exists(
     _the_only_candidate(tmp_path, monkeypatch)  # never created on disk
 
     assert gamefiles.find_game_dir() is None
+
+
+def test_find_game_dir_asks_about_nothing_steam_did_not_name(tmp_path,
+                                                             monkeypatch):
+    """SEC-031, second half: the six bare-drive candidates are gone.
+
+    The killing case for the decision of 09.09.2026. Put the fallback back
+    and this counts seven folders instead of one, six of them
+    `?:/SteamLibrary/steamapps/common/.../Game` -- the one candidate an
+    attacker could fill without being in the user's account already, on the
+    one route that has no window between the find and the library it runs.
+
+    Asked as the list of folders the predicate is put to, not as the answer:
+    a candidate that happens not to exist on this machine today is still a
+    candidate, and a case that only read the answer would be green on any
+    machine with nothing plugged in.
+    """
+    asked: list[pathlib.Path] = []
+
+    def watched(path) -> bool:
+        asked.append(pathlib.Path(path))
+        return False
+
+    candidate = _the_only_candidate(tmp_path, monkeypatch)
+    monkeypatch.setattr(gamefiles, "looks_like_the_game", watched)
+
+    assert gamefiles.find_game_dir() is None
+    assert asked == [candidate]
 
 
 # --- stage 2 -------------------------------------------------------------

@@ -51,6 +51,21 @@ def _library_paths(steam_root: pathlib.Path) -> list[pathlib.Path]:
 def find_game_dir() -> pathlib.Path | None:
     """Return the folder the installed game sits in, or None.
 
+    Every candidate comes out of Steam's own account of where its libraries
+    are: the registry, then `libraryfolders.vdf`, then this game's install
+    directory under each library. A library Steam knows about is named in
+    that file, wherever on the machine it sits.
+
+    **Nothing is guessed at beyond that list any more.** Until 09.09.2026 six
+    fixed candidates stood here as well, `C:/SteamLibrary/...` to
+    `H:/SteamLibrary/...`, for a library Steam does not know about. They were
+    the only candidate anybody could fill without already being inside the
+    user's account -- a plugged-in drive that lands on a letter between C and
+    H -- and on this route there is no window and no click between the find
+    and the library that is run out of the folder (SEC-031, decided by the
+    user). The rare layout they were there for now has the folder question
+    instead (A15), which puts the folder to the user before anything is read.
+
     Asks `looks_like_the_game` (SEC-031) rather than the presence of
     `regulation.bin` alone: a folder that fails the ceiling or lacks a
     `.bhd` or the DLL is one nothing could be extracted from anyway, so
@@ -64,12 +79,6 @@ def find_game_dir() -> pathlib.Path | None:
             continue
         for lib in _library_paths(root):
             candidates.append(lib / "common" / INSTALL_DIR / "Game")
-
-    # Bare-drive fallback for non-default library layouts.
-    for drive in "CDEFGH":
-        candidates.append(
-            pathlib.Path(f"{drive}:/SteamLibrary/steamapps/common/{INSTALL_DIR}/Game")
-        )
 
     for path in candidates:
         if looks_like_the_game(path):
