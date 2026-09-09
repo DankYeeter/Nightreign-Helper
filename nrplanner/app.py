@@ -648,6 +648,21 @@ READ_THE_SLOW_WAY_NOTE = (
     "above what the quick scan looks for. Nothing is missing and nothing "
     "needs fixing.")
 
+#: The line of its own that the total belongs on (`UI_SPEC` T-178 §4, AK-251).
+#: `You own` is the scope the player was looking for and tells this number
+#: apart from the two it was confused with: what fits one slot
+#: (`Slot 1 — Red (51 available)`) and what the game knows at all
+#: (`577 buffs, 75 curses`). `in total` is the bearing on the slot number,
+#: without which a bare number stands beside a bare number again.
+OWNED_TOTAL = "You own {count} in total."
+
+#: The tooltip of the same line: where the number was counted from, and the
+#: confusion resolved in as many words. It does not say the slot number is
+#: *smaller* -- it can be equal, when everything the player owns fits the one
+#: slot, and an assurance that breaks in a corner is not one.
+OWNED_TOTAL_TOOLTIP = ("Counted from your save {source}. The number beside a "
+                       "relic slot counts only the relics that fit that slot.")
+
 
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
@@ -2120,6 +2135,36 @@ class Planner(QMainWindow):
         layout.addWidget(self.deep_check)
 
         layout.addSpacing(6)
+        # AK-250: the total gets a line of its own, in the gap that was
+        # already here, at the head of the group that is about the save --
+        # `Rescan save`, `Load equipped`, `Find my save` and the note under
+        # them. The number is a property of the save that was read, so it
+        # stands with the save's controls; the head of this pane belongs to
+        # the Nightfarer's identity, and a stock figure there would sit
+        # beside figures that count something else (`UI_SPEC` T-178 §3.1).
+        #
+        # It is not in `owned_label`, and that is the whole point: the number
+        # was in that line all along and the first `Load equipped` wiped it
+        # (QA-201). Exactly one function writes this widget.
+        self.owned_total_label = QLabel()
+        self.owned_total_label.setWordWrap(True)
+        # A save's own slot name reaches this line through the tooltip, so it
+        # is told once what it is told at every other place a save writes
+        # (SEC-004): text, never markup.
+        self.owned_total_label.setTextFormat(Qt.PlainText)
+        # No colour of its own: the ordinary text colour of the dark palette,
+        # one step above the 10 px note and one below the Nightfarer's name.
+        self.owned_total_label.setStyleSheet("font-size: 12px;")
+        # Polished first, so the height below is asked of the font the style
+        # sheet gives this label and not of the one it was born with.
+        self.owned_total_label.ensurePolished()
+        # Room for its one line from the first paint, empty or not, so that
+        # the arrival of the save does not push the buttons under it down
+        # (AK-252, the same rule AK-225 sets for the note below).
+        self.owned_total_label.setMinimumHeight(
+            self.owned_total_label.fontMetrics().lineSpacing())
+        layout.addWidget(self.owned_total_label)
+
         row = QHBoxLayout()
         self.rescan_button = QPushButton("Rescan save")
         self.rescan_button.clicked.connect(self.rescan_save)
@@ -4038,6 +4083,44 @@ class Planner(QMainWindow):
         """Leave the waiting state. Every ending of a read comes through here."""
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(False)
+        self._say_how_many_relics_are_owned()
+
+    def _say_how_many_relics_are_owned(self) -> None:
+        """The only place the line of its own is written (AK-250).
+
+        Called from the one place every ending of a read passes through, and
+        from nowhere else: a number that shares a line with messages is a
+        number on loan, which is what QA-201 found. The stock it reads is the
+        one this window holds by then -- `_on_save_read` and `_on_save_failed`
+        both settle `self.owned` before they come here.
+
+        Nothing at all until something has been read (AK-252, out of AK-222).
+        Not `0`: that is an assertion about a stock nobody has looked at yet,
+        and it is the one that reads like lost data. Not a waiting sentence
+        either -- the line under this one already carries `Reading your save.`
+        while a read is out, and the same news twice is what `UI_SPEC` §4 (4)
+        rules out.
+
+        "Nothing has been read" is asked as "there is nothing to name", not as
+        "the stock is None". A character slot with no relics in it never
+        becomes an `Inventory` at all (`inventory.py`, `_scan_save`), but
+        `build` drops every record the dataset cannot name -- so a save from a
+        newer game than the snapshot came from would arrive as a stock that
+        counts zero, and `You own 0 relics in total.` is the one sentence
+        AK-252 rules out.
+        """
+        if self.owned is None or not self.owned.relic_count:
+            self.owned_total_label.clear()
+            self.owned_total_label.setToolTip("")
+            return
+        self.owned_total_label.setText(
+            OWNED_TOTAL.format(count=_relic_count(self.owned.relic_count)))
+        # Escaped for the reason the note's own tooltip is escaped: a tooltip
+        # decides for itself whether what it is handed is markup, and no text
+        # format can be set on one (SEC-013). The name comes out of the
+        # player's save file.
+        self.owned_total_label.setToolTip(
+            OWNED_TOTAL_TOOLTIP.format(source=html.escape(self.owned.source)))
 
     def _on_save_read(self, found) -> None:
         """The save has been read: put the window where a synchronous read left it.
