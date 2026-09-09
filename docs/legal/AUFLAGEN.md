@@ -203,3 +203,50 @@ bleibt dokumentiert, wie der Nutzer es wollte; sie blockiert nichts.
 Verbreitung der EXE fortgesetzt, beendet oder anwaltlich geklaert wird) und
 die uebrigen Punkte aus C-003. **A-025 sperrt das Release, nicht den Bau** —
 Bauen und Pruefen ist keine Weitergabe.
+
+---
+
+## Nutzerentscheide, 2026-09-09 (zweite Runde, vor 1.9.0)
+
+**A-025 — GRAU, entschieden: FORTSETZEN.** Der Nutzer traegt das Restrisiko
+aus C-003 Befund 5 ausdruecklich (§ 95a Abs. 3 UrhG, EULA 10(i), Steam SSA
+2.G). Die zwoelf bestehenden Releases bleiben abrufbar; **1.9.0 darf als EXE
+folgen**. Die Haltung "bewusst unentschieden" aus C-004 ist damit ersetzt.
+**Status: entschieden — sperrt nicht mehr.**
+
+*Die beiden Alternativen lagen vor und wurden verworfen: nur Quellcode
+ausliefern (haette A15 seinen Zweck genommen — der Erststart fuer Fremde ist
+genau fuer die gebaut, die kein Python haben) und anwaltlich klaeren lassen.*
+
+**SEC-026 — die Annahme von SEC-006 gilt weiter, in neuer Fassung.**
+Woertlich: *"wer dort schreiben kann, hat den Nutzerkontext ohnehin — **oder
+der Nutzer hat auf den Ordner gezeigt**."*
+
+**Was diese Fassung traegt und was nicht:** Sie traegt, weil die Zustimmung
+seit T-145/T-166 **informiert** ist — der Panel-Text und das README sagen
+beide, dass eine Bibliothek **aus dem gewaehlten Ordner ausgefuehrt** wird.
+Sie traegt **nicht** fuer den Automatikweg ohne Nutzerhandlung; genau deshalb
+ist der Laufwerks-Rueckfall `C`–`H` in T-164 gefallen (SEC-031).
+
+**Ausdruecklich nicht gewaehlt: eine Herkunftspruefung der DLL.** Der
+`security-reviewer` hat die Falle selbst benannt — sie machte
+**SEC-016/017/018 wieder scharf** (Entpackbomben waeren dann der verbleibende
+Weg), und ein falsches Nein machte den Erststart erneut zur Sackgasse.
+**Diese Randbedingung gilt fort und ist mitzuzitieren.**
+
+**Vor der Weitergabe von 1.9.0 vorzubereiten** (alle drei vom Nutzer
+beauftragt):
+
+1. **Hinweispaket neu erzeugen** — es wurde in T-174 beim `rm -rf dist build`
+   versehentlich geloescht (vom `release-manager` selbst gemeldet). Aus vier
+   versionierten Quellen reproduzierbar: `LICENSE`, `THIRD_PARTY.md`,
+   `licenses/`, `vendor/Paramdex/NOTICE` — alle vier vorhanden, vom Director
+   nachgesehen. **Ohne es verletzt ein Release A-020**, das der Nutzer am
+   selben Tag abgenommen hat.
+2. **Release-Beschreibung nachziehen** (A-023, A-024):
+   `docs/release/RELEASE_TEXT.md:41-49` und `:91-99` tragen dieselbe Luecke,
+   die das README bis zum 09.09. hatte — **der Satz ueber die ausgefuehrte
+   Bibliothek fehlt dort.**
+3. **QA-207 — bestaetigt: nur nach vorn.** Die zwoelf bestehenden Pakete
+   bleiben unangetastet; **das neue bekommt die richtige Ordnerstruktur**, so
+   dass der Verweis in `THIRD_PARTY.md` nicht mehr ins Leere laeuft.
