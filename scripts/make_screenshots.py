@@ -15,10 +15,15 @@ Note what ends up in these: the Build planner shot shows the relics the save on
 this machine actually holds. That is intended -- the README says as much -- and
 the one thing that must not appear, the Steam account id, is only ever in a
 tooltip, never on the face of the window.
+
+The save is read in the background (AD-029 stage B, T-142); this script waits
+for that read to end before touching a tab, or the Build planner shot would
+show an empty stock instead of the save's own relics.
 """
 
 import pathlib
 import sys
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -56,6 +61,31 @@ def settle(app: QApplication, ms: int = 900) -> None:
     app.processEvents()
 
 
+#: Ten times `run.run`'s worst measured real case (960 ms), the margin
+#: `measure_picker_cards.py` uses for the advisor's own answer.
+SAVE_READ_TIMEOUT_S = 10.0
+
+
+def wait_for_the_save(app: QApplication, window,
+                      timeout: float = SAVE_READ_TIMEOUT_S) -> None:
+    """Let the window finish reading its save before anything is shot.
+
+    Since T-142 (AD-029 stage B) the save is read in a background `QThread`;
+    a window is complete before its relics are. Without this the Build
+    planner tab would be photographed on an empty stock instead of the
+    save's own relics -- a wrong picture, not a crash, the failure class
+    T-132 found in `measure_picker_cards.py`.
+    """
+    deadline = time.monotonic() + timeout
+    while window.save_reader.is_reading():
+        app.processEvents(QEventLoop.AllEvents, 10)
+        if time.monotonic() > deadline:
+            raise SystemExit(
+                f"the save was still being read after {timeout:.0f} s; "
+                f"nothing to shoot")
+    settle(app, 200)
+
+
 def expand_first(app: QApplication, widget, depth: int = 1) -> None:
     """Open the first folding section, and the first inside it, and so on.
 
@@ -83,6 +113,7 @@ def main() -> None:
     window = Planner(load_data())
     window.resize(WIDTH, HEIGHT)
     window.show()
+    wait_for_the_save(app, window)
     settle(app, 1500)
 
     # Level 15 rather than the slider's starting 1. At level 1 every figure on

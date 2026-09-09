@@ -35,6 +35,13 @@ smaller vessel, a warmer disk cache or a faster machine reads the empty grid
 AK-212 draws instead. This script waits for `dialog.waiting` to turn false --
 the same property the test suite polls -- before it measures anything.
 
+**The save itself is read the same way, and on a thread of its own**
+(AD-029 stage B, T-142): the window is complete before `window.owned` is.
+This script waits for `window.save_reader.is_reading()` to turn false right
+after the window is built, before reading anything that depends on the
+player's stock -- the same class of race as the one above, at an earlier
+point in the same run.
+
 It reads the player's own save, read-only, and writes nothing.
 """
 
@@ -91,6 +98,20 @@ def spin(app: QApplication, still_waiting,
     return not still_waiting()
 
 
+def wait_for_the_save(app: QApplication, window,
+                      timeout: float = ANSWER_TIMEOUT_S) -> bool:
+    """Let the window finish reading its save before anything reads `owned`.
+
+    Since T-142 (AD-029 stage B) the save is read in a background `QThread`
+    of its own, separate from the picker's `AdvisorController` thread that
+    `spin()` below already waits on. A window is complete before its relics
+    are -- this is the wait that `settle()`'s fixed rounds used to cover by
+    accident, until this script's own picker track moved to a thread (T-130)
+    and made that accident visible.
+    """
+    return spin(app, lambda: window.save_reader.is_reading(), timeout)
+
+
 def whole_rows(dialog) -> int:
     """How many complete rows of cards fit the viewport as it stands.
 
@@ -119,6 +140,10 @@ def main() -> int:
 
     window = appmod.Planner(data)
     window.show()
+    if not wait_for_the_save(app, window):
+        raise SystemExit(
+            f"the save was still being read after {ANSWER_TIMEOUT_S:.0f} s; "
+            f"nothing to measure")
     settle(app)
     slot = window.base_slots[0]
     dialog = relicpicker.RelicPicker(slot, window.icons, "", lambda _t: None)

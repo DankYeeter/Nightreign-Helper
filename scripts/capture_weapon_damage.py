@@ -15,6 +15,10 @@ The written file records the dataset it was captured from. Against a
 different game version the test skips rather than fails, because a value
 computed from other inputs is not evidence either way -- re-run this script
 after verifying the numbers, and say in the commit that you did.
+
+The `Planner` this drives reads its save in the background (AD-029 stage B,
+T-142); this script waits for that read to end before driving it, the way
+`tests/conftest.py::wait_for_the_save` does for the suite.
 """
 
 import json
@@ -51,6 +55,38 @@ def load_data() -> dict:
     return data
 
 
+#: Ten times `run.run`'s worst measured real case (960 ms), the margin
+#: `measure_picker_cards.py` uses for the advisor's own answer.
+SAVE_READ_TIMEOUT_S = 10.0
+
+
+def wait_for_the_save(window, timeout: float = SAVE_READ_TIMEOUT_S) -> None:
+    """Let a window finish reading its save before anything drives it.
+
+    Since T-142 (AD-029 stage B) the save is read in a background `QThread`;
+    a `Planner` is complete before its relics are. None of the golden cases
+    this script captures read `owned`, but a `QThread` still running when
+    `planner.close()` runs below is the same hazard T-142 measured for a
+    second read started mid-flight (`a-read-per-press`): the process can
+    abort instead of exiting cleanly. Waited for as a state, not a span.
+    """
+    import time
+
+    from PySide6.QtCore import QEventLoop
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + timeout
+    app = QApplication.instance()
+    while window.save_reader.is_reading():
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 10)
+        if time.monotonic() > deadline:
+            raise SystemExit(
+                f"the save was still being read after {timeout:.0f} s; "
+                f"nothing to capture")
+    for _ in range(5):
+        app.processEvents()
+
+
 def main() -> int:
     from PySide6.QtWidgets import QApplication
 
@@ -60,6 +96,7 @@ def main() -> int:
     data = load_data()
     qapp = QApplication.instance() or QApplication([])
     planner = appmod.Planner(data)
+    wait_for_the_save(planner)
 
     entries = []
     for case in cases.cases(data):

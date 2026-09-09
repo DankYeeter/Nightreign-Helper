@@ -23,8 +23,10 @@ in the environment for the 150 % half of AK-160: Qt fixes the scale when the
 QApplication is made, so one process cannot measure both.
 
 Nothing is written anywhere: the dataset comes from the snapshot, the save is
-read through `inventory.load`, and there are no screen grabs (NH-002 -- this
-repository is public).
+read in the background the way the window itself reads it (AD-029 stage B,
+T-142) and this script waits for `window.save_reader.is_reading()` to turn
+false before reading `window.owned`, and there are no screen grabs (NH-002 --
+this repository is public).
 """
 
 from __future__ import annotations
@@ -33,9 +35,11 @@ import json
 import os
 import pathlib
 import sys
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from PySide6.QtCore import QEventLoop  # noqa: E402
 from PySide6.QtWidgets import QApplication, QScrollArea  # noqa: E402
 
 from nrplanner import advisorblock, model, paths  # noqa: E402
@@ -66,6 +70,33 @@ def the_environment(window) -> str:
 def settle(passes: int = 12) -> None:
     for _ in range(passes):
         QApplication.instance().processEvents()
+
+
+#: Ten times `run.run`'s worst measured real case (960 ms), the same margin
+#: `measure_picker_cards.py` uses for the advisor's own answer -- generous,
+#: not tuned.
+SAVE_READ_TIMEOUT_S = 10.0
+
+
+def wait_for_the_save(window, timeout: float = SAVE_READ_TIMEOUT_S) -> None:
+    """Let the window finish reading its save before anything reads `owned`.
+
+    Since T-142 (AD-029 stage B) the save is read in a background `QThread`;
+    a window is complete before its relics are. Without this, `window.owned`
+    is still `None` when this script gets to it -- not an error, just a wrong
+    answer measured with confidence (the failure class T-132 found in
+    `measure_picker_cards.py`, before the picker track moved to a thread of
+    its own).
+    """
+    deadline = time.monotonic() + timeout
+    app = QApplication.instance()
+    while window.save_reader.is_reading():
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 10)
+        if time.monotonic() > deadline:
+            raise SystemExit(
+                f"the save was still being read after {timeout:.0f} s; "
+                f"nothing to measure")
+    settle(5)
 
 
 def the_slot_scroller(window) -> QScrollArea:
@@ -185,7 +216,7 @@ def a_window(data: dict):
     window = appmod.Planner(data)
     window.resize(AK_160_WIDTH, 900)
     window.show()
-    settle()
+    wait_for_the_save(window)
     return window
 
 

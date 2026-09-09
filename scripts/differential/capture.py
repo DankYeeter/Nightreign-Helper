@@ -25,6 +25,9 @@ Three things this refuses to do rather than produce a number that looks fine:
   comparison is exact and a one-ULP change cannot hide behind rounding.
 
 The game is only ever read.
+
+The `Planner` this drives reads its save in the background (AD-029 stage B,
+T-142); this script waits for that read to end before driving it.
 """
 
 from __future__ import annotations
@@ -117,6 +120,38 @@ def load_harness(root: pathlib.Path):
     return module
 
 
+#: Ten times `run.run`'s worst measured real case (960 ms), the margin
+#: `measure_picker_cards.py` uses for the advisor's own answer.
+SAVE_READ_TIMEOUT_S = 10.0
+
+
+def wait_for_the_save(window, timeout: float = SAVE_READ_TIMEOUT_S) -> None:
+    """Let a window finish reading its save before anything drives it.
+
+    Since T-142 (AD-029 stage B) the save is read in a background `QThread`;
+    a `Planner` is complete before its relics are. No case this harness runs
+    reads `owned`, but a `QThread` still running when `planner.close()` runs
+    below is the same hazard T-142 measured for a second read started
+    mid-flight: the process can abort instead of exiting cleanly. Waited for
+    as a state, not a span.
+    """
+    import time
+
+    from PySide6.QtCore import QEventLoop
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + timeout
+    app = QApplication.instance()
+    while window.save_reader.is_reading():
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 10)
+        if time.monotonic() > deadline:
+            raise SystemExit(
+                f"the save was still being read after {timeout:.0f} s; "
+                f"nothing to capture")
+    for _ in range(5):
+        app.processEvents()
+
+
 def records(planner, data: dict, plan: dict, harness):
     """One record per case: the three display layers, side by side."""
     for index, case in enumerate(plan["cases"]):
@@ -167,6 +202,7 @@ def main(argv: list[str] | None = None) -> int:
 
     qapp = QApplication.instance() or QApplication([])
     planner = appmod.Planner(data)
+    wait_for_the_save(planner)
     written = 0
     with args.out.open("w", encoding="utf-8", newline="\n") as handle:
         for record in records(planner, data, plan, harness):
