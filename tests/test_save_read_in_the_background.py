@@ -1,9 +1,11 @@
 """The save is read in a thread, and the window says so (AD-029 stage B).
 
-`UI_SPEC` T-141, AK-220 to AK-227 and AK-229. AK-228 is not covered here: the
-slow fall-back way of reading exists since AD-031, and `Inventory` says which
-way it was read on, but no state of this window has been given the sentence
-that goes with it yet -- that is V5 and a task of its own.
+`UI_SPEC` T-141, AK-220 to AK-229, AK-243 to AK-245. **AK-228 is covered**,
+since T-153 gave the window the sentence that goes with the slow fall-back
+read: `test_the_slow_way_note_is_said_and_never_a_failure` below, which holds
+the note's wording against a literal and the same line without it. Until then
+this docstring said AK-228 was a gap and V5's own task; it was read as one
+after the gap had been closed (QA-216).
 
 **Everything here is driven through the seam, never around it.** `Planner`
 takes what it reads the save with at construction -- the same device AD-028
@@ -345,11 +347,13 @@ def test_every_ending_of_a_read_leaves_a_sentence_of_its_own(game_data, qapp,
                                                              a_scan):
     """AK-224, over the three endings that exist in this source.
 
-    The fourth of `UI_SPEC` §6 -- read on the slow way -- has no ending of its
-    own in this window yet: AD-031 built the way, V5 gives it its sentence, and
-    it is AK-228's. The rule this case is built on is the one AK-224 hangs on
-    and not the list: whatever way a read ends, the line does not still carry a
-    waiting sentence afterwards.
+    The fourth of `UI_SPEC` §6 -- read on the slow way -- is not one of the
+    three here: it is an ending of the read's *contents*, not of the read, and
+    it has had its own sentence since T-153 built AK-228
+    (`test_the_slow_way_note_is_said_and_never_a_failure` below). The rule
+    this case is built on is the one AK-224 hangs on and not the list:
+    whatever way a read ends, the line does not still carry a waiting sentence
+    afterwards.
     """
     # The save's own records with its stored builds taken out. On the first
     # read of a session the arrival takes a stored build over (§6), and
@@ -1059,19 +1063,34 @@ def test_a_failed_takeover_writes_its_own_sentence_and_not_the_waiting_one(
             close(window, read)
 
 
-def test_a_takeover_that_works_leaves_no_waiting_sentence_either(game_data,
-                                                                 qapp, a_scan):
-    """AK-244's other half, as far as the built program carries it.
+#: What `load_equipped` opens its own sentence with when the takeover works,
+#: quoted from AK-245 ("muss mit `\"Loaded \"` beginnen") and not read out of
+#: `app.py`: an expectation computed from the line it guards would follow that
+#: line wherever it went (L-008 b).
+LOAD_EQUIPPED_OPENS_WITH = "Loaded "
 
-    **Reported, not asserted:** AK-244 says that where the takeover does not
-    fail "die Bestandsnotiz bleibt stehen". It does not: the way out of
-    `load_equipped` writes `Loaded {Nightfarer} - ...` over it
-    (`app.py:4079`), on this path and on the synchronous one before it. That
-    is a fifth sentence of a fifth kind and it is not one of AK-224's four
-    either. This case therefore holds what both halves of AK-244 really rest
-    on -- the waiting sentence is never the last word, and the line is never
-    empty and never a mixture -- and the disagreement over which sentence
-    stands is in the report for the `ui-ux-designer`, not decided here.
+
+def test_a_takeover_that_works_leaves_load_equippeds_own_sentence(game_data,
+                                                                  qapp,
+                                                                  a_scan):
+    """AK-245, the fourth fixture: the rule, where AK-244 counted sentences.
+
+    AK-244's second half said that a takeover which does **not** fail leaves
+    the stock note standing. It does not, and AK-245 settled that the other
+    way round: whenever a read sets the automatic takeover going, what stands
+    at the end is the text `load_equipped` itself wrote last -- never the
+    waiting sentence, never a stock note of the `{n} relics in {slot}` kind,
+    never a mixture and never an empty line, and that regardless of whether
+    the takeover succeeded. The three failing branches are the case above;
+    this is the fourth fixture AK-245 asks for, with a build that really can
+    be taken over.
+
+    Which is where the missing tooth was (QA-215): AK-245 names its own
+    killing mutation -- `self.owned_label.setText(note)` in the success branch
+    of `load_equipped` turned into a no-op -- and the stock note left standing
+    by that mutation is not a waiting sentence, so the three assertions this
+    case had before all stayed green. The prefix is what tells the two texts
+    apart.
     """
     hero, a_vessel = the_nightfarer_the_window_opens_on(game_data)
     found = dataclasses.replace(
@@ -1088,5 +1107,8 @@ def test_a_takeover_that_works_leaves_no_waiting_sentence_either(game_data,
         assert line not in WAITING_SENTENCES
         assert line, "an empty line says nothing at all"
         assert not [word for word in WAITING_SENTENCES if word in line]
+        assert line.startswith(LOAD_EQUIPPED_OPENS_WITH), (
+            "AK-245: the takeover's own sentence is what stands, not the "
+            f"note it was written over: {line!r}")
     finally:
         close(window, read)
