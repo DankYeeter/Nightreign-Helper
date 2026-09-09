@@ -396,19 +396,25 @@ def read_owned_relics(
         # here instead would hand back a short inventory that looks like the
         # player's own, and nothing downstream could tell it from one.
         if len(out) > limit:
-            # Which of the two was reached is said, because the two mean
-            # different things to whoever reads the message: too dense for
-            # the bytes it came from, or more records than a save holds at
-            # any size.
-            why = (f"denser than one record per "
-                   f"{MIN_BYTES_PER_RELIC_RECORD} bytes"
-                   if limit == by_density else
-                   "more records than any save this game writes")
+            # Two whole sentences rather than one with a clause swapped in.
+            # The two mean different things to whoever reads them -- too
+            # dense for the bytes it came from, or more records than a save
+            # holds at any size -- and AK-229's collector reads the texts of
+            # this path out of the `raise` itself: a half kept in a variable
+            # beside it is a half nothing checks.
+            if limit == by_density:
+                raise ValueError(
+                    f"a save slot of {len(slot_data)} bytes holds more than "
+                    f"{limit} relic records, denser than one record per "
+                    f"{MIN_BYTES_PER_RELIC_RECORD} bytes, which is not an "
+                    f"inventory; the file is damaged or was not written by "
+                    f"the game. Take it out of the save folder and rescan.")
             raise ValueError(
                 f"a save slot of {len(slot_data)} bytes holds more than "
-                f"{limit} relic records, {why}, which is not an "
-                f"inventory; the file is damaged or was not written by the "
-                f"game. Take it out of the save folder and rescan.")
+                f"{limit} relic records, more records than any save this "
+                f"game writes, which is not an inventory; the file is "
+                f"damaged or was not written by the game. Take it out of "
+                f"the save folder and rescan.")
 
     return out
 

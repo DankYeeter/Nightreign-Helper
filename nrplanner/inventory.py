@@ -142,15 +142,23 @@ class Inventory:
                          // savefile.MIN_BYTES_PER_RELIC_RECORD)
         limit = min(by_density, savefile.MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD)
         if len(self.relics) > limit:
-            why = (f"denser than one per "
-                   f"{savefile.MIN_BYTES_PER_RELIC_RECORD} bytes"
-                   if limit == by_density else
-                   "more records than any save this game writes")
+            # Whole sentences, for the reason `read_owned_relics` states at
+            # the same place: AK-229 collects what this path can say out of
+            # the `raise` itself.
+            if limit == by_density:
+                raise ValueError(
+                    f"this inventory holds {len(self.relics)} relics read "
+                    f"from {self.source_bytes} bytes of save slot, denser "
+                    f"than one per {savefile.MIN_BYTES_PER_RELIC_RECORD} "
+                    f"bytes, which is not an inventory; the file is damaged "
+                    f"or was not written by the game. Take it out of the "
+                    f"save folder and rescan.")
             raise ValueError(
                 f"this inventory holds {len(self.relics)} relics read from "
-                f"{self.source_bytes} bytes of save slot, {why}, which is "
-                f"not an inventory; the file is damaged or was not written "
-                f"by the game. Take it out of the save folder and rescan.")
+                f"{self.source_bytes} bytes of save slot, more records than "
+                f"any save this game writes, which is not an inventory; the "
+                f"file is damaged or was not written by the game. Take it "
+                f"out of the save folder and rescan.")
 
     def loadouts_for(self, hero_id: int) -> list[EquippedLoadout]:
         """Every chalice this Nightfarer has, not only the one worn.
