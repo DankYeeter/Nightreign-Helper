@@ -144,9 +144,10 @@ SIDE_MARGIN = 28
 TOP_MARGIN = 24
 
 #: The last place worth opening the folder dialog in when nothing nearer is
-#: known (section 4.1). Steam's own library list would be nearer still on a
-#: machine whose Steam sits elsewhere; reading it needs a name `nrdata` does
-#: not offer yet, so it is left out and reported rather than copied in here.
+#: known (section 4.1) -- Steam's own library list, read through
+#: `gamefiles.steam_common_folders`, is tried first in
+#: `where_to_start_looking`; this is only what stands in for it when Steam
+#: itself cannot be found at all.
 STEAM_COMMON = pathlib.Path(r"C:\Program Files (x86)\Steam\steamapps\common")
 
 #: What a button hands back. Plain strings rather than an enum: they are
@@ -450,6 +451,7 @@ def where_to_start_looking(remembered) -> pathlib.Path | None:
     places = []
     if remembered is not None:
         places += [pathlib.Path(remembered), pathlib.Path(remembered).parent]
+    places += gamefiles.steam_common_folders()
     places.append(STEAM_COMMON)
     for place in places:
         try:

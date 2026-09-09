@@ -69,6 +69,29 @@ def find_game_dir() -> pathlib.Path | None:
     return None
 
 
+def steam_common_folders() -> list[pathlib.Path]:
+    """Every Steam library's ``common`` folder, nearest root first.
+
+    Public so a folder-choosing dialog can wake up in the player's own
+    library rather than only the default one (`UI_SPEC` 4.1, AK-110): a
+    library on another drive is nearer to the game than
+    `C:\\Program Files (x86)\\Steam\\steamapps\\common`, the hard-coded
+    fallback that stands in for it when Steam cannot be found at all.
+
+    Existence is for the caller to check, exactly as `find_game_dir` checks
+    it against the same two private helpers above -- a library the vdf
+    names but that is not there (an unplugged drive, a stale entry) is a
+    candidate and not a folder.
+    """
+    folders: list[pathlib.Path] = []
+    for root in _steam_roots():
+        if not root.exists():
+            continue
+        for lib in _library_paths(root):
+            folders.append(lib / "common")
+    return folders
+
+
 # --- Recognising a folder the user picked (UI_SPEC 4.2/4.3, AK-111 to AK-113)
 
 
