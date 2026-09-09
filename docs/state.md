@@ -278,3 +278,30 @@ derselbe Befund wie B-01: eine Regel wirkt nach ihrem **Ort**, und der Ort
 `Write`/`Edit` gegen `docs/tasks/T-*.md`, der die vier Pflichtstuecke prueft —
 GOAL-Zitat, Stand-Auszug, Quittung, `Beruehrt Dateien`. Das ist dieselbe
 Bauform wie `require-receipt.ps1`, der schon laeuft.
+
+## Zwei Entscheidungen des Directors, 09.09.2026
+
+**1. `Beruehrt Dateien` ist eine Whitelist, keine unvollstaendige Angabe.**
+Der `developer` in T-153 hat `nrplanner/firstrun.py` angefasst, weil AK-110
+dort sitzt und die Liste sie nicht nannte — sie stand aber auch nicht auf der
+Sperrliste. Seine Abwaegung war sauber begruendet und ausdruecklich gemeldet,
+und das Ergebnis ist richtig: ohne die Aenderung waere ein oeffentlicher Name
+entstanden, den niemand ruft — toter Code, den `CLAUDE.md` verbietet.
+
+**Trotzdem gilt kuenftig: die Liste bindet.** Sie ist das Mittel, mit dem der
+Director zwei Auftraegen zusichert, dass sie sich nicht ins Gehege kommen;
+wird sie als "unvollstaendige Angabe" gelesen, ist die Zusicherung wertlos.
+**Fehlt eine Datei, wird gemeldet und angehalten, nicht ergaenzt.**
+
+**Der eigentliche Fehler war meiner, und er hat ihn richtig diagnostiziert:**
+ich habe die Liste aus zwei Berichtszitaten zusammengesetzt, **ohne
+nachzusehen, wo der Code fuer AK-110 tatsaechlich sitzt**. Das ist dieselbe
+Klasse wie die vier Faelle darueber — aus dem Bericht geschrieben statt aus
+der Quelle. **Siebter Fall.**
+
+**2. Die fuenf fremden Aenderungen unter `scripts/` sind kein Raetsel.** Sie
+stammen von **T-155**, der zeitgleich lief und genau diese Dateien im Auftrag
+hat (`capture_weapon_damage.py`, `differential/capture.py`,
+`make_screenshots.py`, `measure_advisor_block.py`, `measure_picker_cards.py`).
+T-153 konnte das nicht wissen und hat richtig gehandelt: nichts angefasst,
+nichts verworfen, gemeldet. **Nichts geht verloren.**
