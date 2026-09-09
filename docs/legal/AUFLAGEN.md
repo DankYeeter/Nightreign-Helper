@@ -55,7 +55,7 @@ kollidiert. Bewertung und Status unveraendert aus C-002 (Volltext dort).
 
 | ID | Auflage | Ampel | Adressat | Faellig | Status |
 |---|---|---|---|---|---|
-| A-010 | `nightlords.png` ersetzen: hoechstens eine Spiel-Beschreibungsprosa im Bild, empfohlen keine (Weg N-c) | ROT | developer, ui-ux-designer | vor naechstem Push nach `main` | offen |
+| A-010 | `nightlords.png` ersetzen: hoechstens eine Spiel-Beschreibungsprosa im Bild, empfohlen keine (Weg N-c) | ROT (**sperrt nicht mehr**) | developer, ui-ux-designer | vor naechstem Push nach `main` | **zurueckgestellt durch Nutzer** (C-002-Entscheid 02.09.2026, ins Register nachgezogen 09.09.2026) |
 | A-011 | Nur bei Weg N-b: README Abschnitt 4 setzt sich mit der verbliebenen Beschreibung auseinander | GELB | technical-writer | mit A-010 | offen |
 | A-012 | Quellenangabe (Spiel, Rechteinhaber) an den Einbindungsstellen der Screenshots im README | GELB | technical-writer | vor naechstem Push nach `main` | offen |
 | A-013 | `make_screenshots.py` legt fuer jede Registerkarte mit Detailbereich den gezeigten Eintrag im Code fest | GELB | developer | vor naechster Neuaufnahme | offen |
@@ -78,7 +78,7 @@ moeglich" und fuer das naechste Release "vor dessen Veroeffentlichung".
 
 | ID | Auflage | Ampel | Adressat | Faellig | Status |
 |---|---|---|---|---|---|
-| A-020 | **Sperrt.** Hinweispaket als Release-Asset neben EXE und Pruefsumme: `LICENSE`, Hinweisdatei (A-021), Volltexte LGPL-3.0 und GPL-3.0, `vendor/Paramdex/NOTICE`. Umsetzung in `release.yml` `files:` (Datei bei T-105 — Auflage, keine Aenderung). **Fassung C-004:** gilt fuer die zwoelf bestehenden Releases (Nachruestung ueber A-033) und jedes kuenftige; Heilung nach GPL-3.0 § 8 nur, wenn *alle* abrufbaren Kopien konform sind | ROT bis erfuellt | developer (Workflow); release-manager (Bestand) | **seit 2026-08-11, laufender Verstoss** — so bald wie moeglich | offen |
+| A-020 | **Sperrt.** Hinweispaket als Release-Asset neben EXE und Pruefsumme: `LICENSE`, Hinweisdatei (A-021), Volltexte LGPL-3.0 und GPL-3.0, `vendor/Paramdex/NOTICE`. Umsetzung in `release.yml` `files:` (Datei bei T-105 — Auflage, keine Aenderung). **Fassung C-004:** gilt fuer die zwoelf bestehenden Releases (Nachruestung ueber A-033) und jedes kuenftige; Heilung nach GPL-3.0 § 8 nur, wenn *alle* abrufbaren Kopien konform sind | ROT bis erfuellt | developer (Workflow); release-manager (Bestand) | **seit 2026-08-11, laufender Verstoss** — so bald wie moeglich | **erfuellt, abgenommen durch Nutzer 09.09.2026** |
 | A-021 | Hinweisdatei mit Copyright-Vermerk und vollstaendigem Lizenztext jeder gebuendelten Komponente, Qt/PySide6-Quellfundstelle, Relink-Absatz; Vermerke aus den Wheels | GELB | technical-writer | vor Veroeffentlichung | offen |
 | A-022 | Repo bleibt oeffentlich, solange ein Release abrufbar ist (heute: zwoelf); jedes Release traegt seinen Quell-Tag; PySide6-Lizenz bei jedem Upgrade neu lesen. **Fassung C-004:** bindet seit dem ersten Release und ist nach pruefbarem Ist-Zustand erfuellt (Repo oeffentlich, 12 Tags, Quellarchive) — vorbehaltlich A-036 | GELB | Nutzer, release-manager | **dauerhaft seit 2026-08-11** | erfuellt (Ist); Verlauf offen (A-036) |
 | A-023 | Nicht-Verbundenheits-Hinweis und Rechteinhaber an der Download-Stelle: fester Text der Release-Beschreibung und Hinweispaket; der absolute Satz "distributes none" wird nicht wiederholt (A-003 gilt fort) | GELB | technical-writer, release-manager | vor Veroeffentlichung | offen |
@@ -173,3 +173,33 @@ bis dahin keine Beanstandung eingeht (A-035).
 
 **Status A-020 und A-033: ausgefuehrt, Nachweis erbracht — die Abnahme setzt
 der Nutzer**, nicht der Director und nicht der `release-manager`.
+
+---
+
+## Abnahmen durch den Nutzer, 2026-09-09
+
+Beide Eintraege waren **Buchfuehrungsluecken, keine offenen Arbeiten** — und
+beide konnte nur der Nutzer schliessen. Aufgefallen sind sie, weil der
+`release-manager` in T-167 den Bau **verweigert** hat: seine Rollenregel sperrt
+bei einer offenen roten Auflage auch `plan` und `build`, nicht nur die
+Auslieferung. **Er hat richtig gehandelt** und ausdruecklich nicht selbst
+entschieden, die beiden seien "eigentlich erledigt".
+
+**A-020 — abgenommen, Status `erfuellt`.** Die Arbeit war getan und belegt:
+T-117 hat alle zwoelf Releases nachgeruestet, T-114 hat es je Tag mit
+`gh release view` gegengeprueft (12 von 12 tragen das Hinweispaket). Das
+Register sagte dazu selbst: *"ausgefuehrt, Nachweis erbracht — die Abnahme
+setzt der Nutzer."* Sie liegt jetzt vor.
+
+**A-010 — zurueckgestellt, sperrt nicht mehr.** Sie stammt aus C-002, und dazu
+steht in `GOAL.md` seit dem 02.09.2026: *"C-002 (`nightlords.png`) wird
+ignoriert. Ausdruecklicher Entscheid des Nutzers; die Frage wird nicht erneut
+vorgelegt. Der Befund bleibt in `docs/legal/` dokumentiert, **sperrt aber
+nichts mehr**."* **Diese Entscheidung war nie ins Register uebertragen worden**
+— ein Versaeumnis des Directors, nicht des `compliance-agent`. Die Auflage
+bleibt dokumentiert, wie der Nutzer es wollte; sie blockiert nichts.
+
+**Unveraendert offen und weiterhin Nutzersache:** **A-025** (GRAU — ob die
+Verbreitung der EXE fortgesetzt, beendet oder anwaltlich geklaert wird) und
+die uebrigen Punkte aus C-003. **A-025 sperrt das Release, nicht den Bau** —
+Bauen und Pruefen ist keine Weitergabe.
