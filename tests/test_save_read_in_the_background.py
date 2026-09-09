@@ -766,6 +766,61 @@ def test_the_prefix_appears_only_where_no_inventory_came_out(game_data, qapp,
         close(window, read)
 
 
+# -- AK-228: the fallback read says so ---------------------------------------
+
+#: `UI_SPEC` §9 (d), copied here rather than read off `appmod`'s own
+#: constant: a check against `appmod.READ_THE_SLOW_WAY_NOTE` would measure
+#: the constant against itself and stay green through a typo in it (L-008).
+THE_SLOW_WAY_NOTE = (
+    " — read the slow way: this version of the game numbers its relics "
+    "above what the quick scan looks for. Nothing is missing and nothing "
+    "needs fixing.")
+
+
+def test_the_slow_way_note_is_said_and_never_a_failure(game_data, qapp,
+                                                        monkeypatch):
+    """AK-228, and AK-229's second half made checkable: this is what it was
+    written for -- A7 is closed by this test, not by the fallback existing.
+
+    A hand-built `Inventory` rather than `a_scan`: the point is the note's
+    wording and its place in the line, not a real save's own numbers, and a
+    save that reads on the slow way is not something this machine can be
+    made to have. `dataclasses.replace` keeps both cases identical apart
+    from the one flag the note is about.
+
+    `StatedRead` stands in for `read_the_save`, whose real answer is the raw
+    `found` that `inventory.build` turns into an `Inventory` (AD-006.8) --
+    not an `Inventory` itself. `inventory.build` is patched to hand back
+    exactly what it is given, so `StatedRead` can carry the finished
+    `Inventory` straight through, the same seam AD-028 built for the advisor.
+    """
+    monkeypatch.setattr(inventory, "build", lambda _data, found: found)
+    # hero_id=-1 matches no real Nightfarer, so `reload_chalices` finds no
+    # loadout for whichever hero the window opens on and never runs the
+    # automatic take-over (AK-224) that would overwrite the note under test.
+    fast = inventory.Inventory(
+        source="Character 1", relic_count=3,
+        loadouts=[inventory.EquippedLoadout(
+            hero_id=-1, vessel_id=1, selected=True, relics=[None] * 6)])
+    slow = dataclasses.replace(fast, read_the_slow_way=True)
+
+    for owned, says_it in ((fast, False), (slow, True)):
+        read = StatedRead(owned)
+        window = a_window(game_data, read)
+        try:
+            conftest.wait_for_the_save(window)
+            line = the_line(window)
+            assert (THE_SLOW_WAY_NOTE in line) == says_it, owned
+            assert not line.startswith(appmod.UNREADABLE_SAVE)
+            expected = (f"{owned.relic_count} relics in {owned.source}, "
+                       f"{len(owned.loadouts)} stored builds")
+            if says_it:
+                expected += THE_SLOW_WAY_NOTE
+            assert line == expected
+        finally:
+            close(window, read)
+
+
 # -- AK-243: two controls are shut, and they open on different things -------
 
 def relic_buttons(window) -> list:

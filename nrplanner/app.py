@@ -637,6 +637,17 @@ CHOSEN_SAVE_UNREADABLE = "That file is not a Nightreign save this can read."
 #: the save is fine.
 UNREADABLE_SAVE = "Save could not be read: "
 
+#: §9 (d), appended to the inventory note exactly like `loadout_error` --
+#: same leading dash, same "on to whatever the note already says". Said when
+#: `Inventory.read_the_slow_way` is set (AD-031, AK-228): the fast prefilter
+#: could not see every id this save's relics use, so the slower walk was read
+#: instead. Written only on to a note that already names a relic count, so it
+#: can never land behind the prefix above (AK-229): the read still worked.
+READ_THE_SLOW_WAY_NOTE = (
+    " — read the slow way: this version of the game numbers its relics "
+    "above what the quick scan looks for. Nothing is missing and nothing "
+    "needs fixing.")
+
 
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
@@ -4088,6 +4099,8 @@ class Planner(QMainWindow):
             note += f" — no stored builds could be read: {self.owned.loadout_error}"
         else:
             note += " — this save stores no builds yet"
+        if self.owned.read_the_slow_way:
+            note += READ_THE_SLOW_WAY_NOTE
         self.owned_label.setText(note)
         # The folder is named after the Steam account id, so it is offered on
         # hover rather than printed where every screenshot would carry it.
