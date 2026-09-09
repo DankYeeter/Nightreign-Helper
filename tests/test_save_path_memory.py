@@ -1,7 +1,8 @@
 """The save file the player picked: what keeps it, and what it answers.
 
-R10 and R11 of Nachtrag XI (AK-123 to AK-126), and the half of SEC-029 that
-sits in the caller rather than in `inventory`.
+R10 and R11 of Nachtrag XI (AK-123 to AK-126), the half of SEC-029 that
+sits in the caller rather than in `inventory`, and the two endings the
+automatic route used to tell as one (A7).
 
 Three of the properties here break **silently** when they break, and each of
 them has a case written against a named mutation:
@@ -613,6 +614,72 @@ def test_the_limit_is_far_above_a_real_save():
     """
     assert appmod.LARGEST_SAVE_TO_READ == 256 * 1024 * 1024
     assert appmod.LARGEST_SAVE_TO_READ > 13 * A_REAL_SAVE_IS_BYTES
+
+
+# -- A7: a save that was found and could not be read is not "none found" --
+
+
+def test_a_save_that_cannot_be_read_is_not_reported_as_no_save(game_data,
+                                                               monkeypatch,
+                                                               tmp_path):
+    """The A7 break DR-005 named: one unreadable save, and the window said
+    `No save file found.`
+
+    A file exists, it carries the name the game gives its save, and it cannot
+    be read. "Nothing was found" is not a missing answer there but a wrong
+    one, and a wrong one the player acts on: he goes looking for a save he
+    already has. What comes out of here instead is the reason, which the
+    window puts behind `Save could not be read: ` (`UI_SPEC` T-141 §9 (g)).
+    """
+    monkeypatch.setattr(savefile, "find_saves",
+                        lambda: [a_save_file(tmp_path,
+                                             b"this is a screenshot")])
+
+    with pytest.raises(ValueError) as raised:
+        appmod.read_the_save(game_data)
+
+    assert "BND4" in str(raised.value)
+
+
+def test_the_reason_for_an_unopenable_save_carries_no_path(game_data,
+                                                           monkeypatch,
+                                                           tmp_path):
+    """AK-126 on the new way out: an `OSError` writes the path into itself.
+
+    The one failure whose message is written by the operating system rather
+    than by this program, and the folder it would name is the one named after
+    the Steam account id. A folder standing where the file should be is the
+    cheapest way to a real `OSError` from a real read.
+    """
+    folder = tmp_path / AN_ACCOUNT_FOLDER / "NR0000.sl2"
+    folder.mkdir(parents=True)
+    monkeypatch.setattr(savefile, "find_saves", lambda: [folder])
+
+    with pytest.raises(ValueError) as raised:
+        appmod.read_the_save(game_data)
+
+    assert str(raised.value)
+    assert names_no_path(str(raised.value), folder)
+
+
+def test_one_unreadable_save_does_not_hide_a_good_one(game_data, a_real_scan,
+                                                      monkeypatch, tmp_path):
+    """The other side of the same rule, and the reason it is not a `raise`
+    at the first bad file.
+
+    Two files, the good one older than the bad one, so the bad one is read
+    first: a scan that gave up where it stumbled would answer nothing at all.
+    The good one is the player's own save, because "good" here has to mean a
+    file this reader really gets an inventory out of.
+    """
+    good = savefile.find_saves()[0]
+    bad = a_save_file(tmp_path, b"this is a screenshot")
+    monkeypatch.setattr(savefile, "find_saves", lambda: [good, bad])
+
+    found = appmod.read_the_save(game_data)
+
+    assert found is not None, "the bad file took the good one down with it"
+    assert found.owned
 
 
 # -- AK-127 and AK-128: what these texts may not say ----------------------

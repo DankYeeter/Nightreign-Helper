@@ -260,6 +260,23 @@ class SaveScan:
     read_the_slow_way: bool = False
 
 
+class SaveNotReadable(ValueError):
+    """A save file was there and could not be read.
+
+    The difference "nothing was found" was standing in for. A scan that
+    answers None for both says of a save that exists and cannot be opened
+    that there is none, which is not a missing answer but a wrong one -- the
+    one thing GOAL A7 is about. So the two answers are two things: None is
+    "there is no save here", and this carries the reason the one that is
+    here could not be read (`UI_SPEC` T-141 §9 (g)).
+
+    A `ValueError`, because that is what every caller of this module already
+    treats as "this file was no good": the reading worker turns it into the
+    one line the window shows, and nothing has to learn a new exception to
+    keep working.
+    """
+
+
 def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
     """Scan the player's saves and return what they own, or None.
 
@@ -268,6 +285,11 @@ def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
     the inventory and nothing else. The window uses `scan` and `build`
     separately (AD-029 point 1); this is the same work in the same order, so
     the two cannot come to mean different things by one save.
+
+    Which includes the failures: a set of saves of which none can be read
+    raises `SaveNotReadable` out of here exactly as it does out of `scan`.
+    Swallowing it would make this call mean something different from the two
+    halves it stands for.
     """
     found = scan(data, save_path)
     return None if found is None else build(data, found)
@@ -308,8 +330,21 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
     mode = savefile.relic_scan_mode(valid_relics)
 
     best: SaveScan | None = None
+    unreadable = ""
     for path in sorted(saves, key=lambda p: p.stat().st_mtime, reverse=True):
-        best = _scan_save(path, valid_relics, valid_effects, best, mode=mode)
+        try:
+            best = _scan_save(path, valid_relics, valid_effects, best,
+                              mode=mode)
+        except SaveNotReadable as exc:
+            # One file that cannot be read is no reason to abandon the others:
+            # a save half-written by a running game, or a truncated backup,
+            # would otherwise take down the scan before it reached a good one.
+            # The reason is kept in case none of them turns out to be good --
+            # the first one, which is the newest, because that is the file the
+            # player most likely means.
+            unreadable = unreadable or str(exc)
+    if best is None and unreadable:
+        raise SaveNotReadable(unreadable)
     return best
 
 
@@ -384,14 +419,25 @@ def build(data: dict, found: SaveScan) -> Inventory:
 
 def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
                best: SaveScan | None, *, mode: str) -> SaveScan | None:
-    """Read one save file, returning it if it beats what was found so far."""
+    """Read one save file, returning it if it beats what was found so far.
+
+    A file that cannot be read leaves here as `SaveNotReadable` rather than as
+    the untouched `best`: whether the scan goes on to the next file is the
+    caller's decision and it still makes it, but the reason is no longer lost
+    on the way, and a scan that ends with nothing can say which of the two
+    endings it had.
+    """
     try:
         slots = _decrypt_slots(path)
-    except Exception:  # noqa: BLE001
-        # An unreadable file is not a reason to abandon the others. A save
-        # half-written by a running game, or a truncated backup, would
-        # otherwise take down the scan before it reached a good one.
-        return best
+    except OSError as exc:
+        # `str(OSError)` writes the whole path into the message and the save
+        # folder is named after the Steam account id (AK-126). `strerror` is
+        # the half of it that says what happened without saying where.
+        raise SaveNotReadable(
+            exc.strerror or "the file could not be opened") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise SaveNotReadable(
+            str(exc) or exc.__class__.__name__) from exc
 
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
