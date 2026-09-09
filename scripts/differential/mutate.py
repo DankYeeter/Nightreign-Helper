@@ -4836,6 +4836,290 @@ from PySide6 import QtCore
             " test_only_the_resolution_point_asks_where_the_game_is."),
     ),
 
+    # T-149 (M3, AD-030): the first-run panels, the single write to paths/game and SEC-027/SEC-030's share of it. Reconstructed for T-156 from scratchpad/T-149's driver, via T-155's catalog.py.
+    "M3-a-the-find-is-kept-before-it-is-confirmed": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        verdict = look_at(picked)
+""",
+        new="""        verdict = look_at(picked)
+        if verdict.found is not None:
+            gamepath.remember_game(verdict.found)
+""",
+        survival_means=(
+            "the find is written to paths/game before it is confirmed: an unconfirmed"
+            " guess is remembered as if it had been chosen (M3, AD-030's single-writer"
+            " rule). Measured 2026-09-09 (T-156, reconstructed from T-149's scratchpad"
+            " driver) against the file this task's campaign used: 2 failed, 55 passed in"
+            " 4.60s; what falls is"
+            " test_nothing_is_kept_while_the_question_c3_is_still_open,"
+            " test_the_folder_is_kept_before_anything_is_built."),
+    ),
+    "M3-b-an-automatic-find-is-written-back": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    window = None
+    said = ""
+""",
+        new="""    window = None
+    said = ""
+    if game is not None:
+        gamepath.remember_game(game)
+""",
+        survival_means=(
+            "an automatic find is written back inside run() itself (M3 gone a second"
+            " way): an automatic guess is remembered as if the player had chosen it."
+            " Measured 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver)"
+            " against the file this task's campaign used: 1 failed, 56 passed in 4.14s;"
+            " what falls is test_a_find_by_the_automatic_route_is_never_written_back."),
+    ),
+    "M3-c-kept-after-the-build-instead-of-before-it": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    gamepath.remember_game(verdict.found)
+    return Settled(verdict.found, True, found_it(verdict))""",
+        new="""    return Settled(verdict.found, True, found_it(verdict))""",
+        survival_means=(
+            "_confirm no longer saves at all: the one write M3 promises never happens."
+            " Measured 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver)"
+            " against the file this task's campaign used: 2 failed, 55 passed in 4.68s;"
+            " what falls is"
+            " test_a_game_by_another_name_is_asked_about_and_not_turned_down,"
+            " test_the_folder_is_kept_before_anything_is_built."),
+    ),
+    "M3-c2-the-other-half-kept-after-the-build": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    return FirstRun(game, True, _build_what_is_missing(game, window, said))""",
+        new="""    error = _build_what_is_missing(game, window, said)
+    if game is not None:
+        gamepath.remember_game(game)
+    return FirstRun(game, True, error)""",
+        survival_means=(
+            "the save moves to after the build instead of before it: a crash during the"
+            " build loses the write, and the panel that reads the state next sees it"
+            " unconfirmed. Measured 2026-09-09 (T-156, reconstructed from T-149's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 55"
+            " passed in 3.08s; what falls is"
+            " test_the_folder_is_kept_before_anything_is_built,"
+            " test_a_find_by_the_automatic_route_is_never_written_back."),
+    ),
+    "C3-d-any-deviation-asks-as-t145-had-it": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        elif verdict.where == OUTSIDE:""",
+        new="""        elif verdict.where != SAME:""",
+        survival_means=(
+            "C3 asks on every deviation again, the withdrawn T-145 rule reinstated:"
+            " AD-030 narrowed which deviations ask, and this widens it back. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 3 failed, 54 passed in 3.15s; what"
+            " falls is test_the_parent_folder_is_the_ordinary_case_and_costs_no_click,"
+            " test_the_next_dialog_opens_where_the_last_one_was_answered,"
+            " test_the_folder_is_kept_before_anything_is_built."),
+    ),
+    "C3-e-the-picked-path-is-resolved-before-it-is-compared": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    seen = pathlib.PurePath(os.path.normcase(os.path.abspath(picked))).parts""",
+        new="""    seen = pathlib.PurePath(os.path.normcase(str(pathlib.Path(picked).resolve()))).parts""",
+        survival_means=(
+            "the picked path is resolved before the comparison: a junction inside the"
+            " picked folder now compares as SAME instead of OUTSIDE (SEC-030). Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 56 passed in 3.28s; what"
+            " falls is test_a_junction_out_of_the_picked_folder_is_asked_about."),
+    ),
+    "W1-f-the-name-is-not-asked-about": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        elif not verdict.named:""",
+        new="""        elif False:""",
+        survival_means=(
+            "the name is no longer asked about, no W1 (AK-234): a folder that fails the"
+            " name check is accepted in silence. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-149's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 55 passed in 3.24s; what falls is"
+            " test_a_game_by_another_name_is_asked_about_and_not_turned_down,"
+            " test_at_most_one_question_per_pick - As...."),
+    ),
+    "C2-g-the-confirmation-always-claims-it-was-inside": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    if verdict.where == INSIDE:""",
+        new="""    if True:""",
+        survival_means=(
+            "the confirmation always claims 'inside the folder you picked' (AK-242"
+            " gone): a folder that was never entered is described as entered. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 3 failed, 54 passed in 3.36s; what"
+            " falls is test_the_confirmation_says_inside_only_when_it_is_inside,"
+            " test_the_game_folder_itself_confirms_without_the_place_it_was_found_in,"
+            " test_a_climb_out_of_the_picked_folder_is_asked_about."),
+    ),
+    "default-h-the-leftmost-button-is-the-default": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        return self.buttons[-1]""",
+        new="""        return self.buttons[0]""",
+        survival_means=(
+            "the leftmost button becomes the default instead of the right one"
+            " (AK-113/section 9): Enter now confirms the least safe choice. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 7 failed, 50 passed in 3.56s; what"
+            " falls is test_the_default_button_is_the_rightmost_one[A1-choose],"
+            " test_the_default_button_is_the_rightmost_one[A2-choose],"
+            " test_the_default_button_is_the_rightmost_one[A3-choose],"
+            " test_the_default_button_is_the_rightmost_one[E1-choose],"
+            " test_the_default_button_is_the_rightmost_one[W1-choose],"
+            " test_the_default_button_is_the_rightmost_one[C3-use],"
+            " test_enter_presses_the_default_button_and_escape_leaves."),
+    ),
+    "cancel-i-cancelling-the-dialog-ends-the-program": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""            # AK-115: back to the panel he left, in the state he left it.
+            continue""",
+        new="""            return Settled(None, False)""",
+        survival_means=(
+            "cancelling the system dialog ends the program instead of returning to the"
+            " panel the player left (AK-115). Measured 2026-09-09 (T-156, reconstructed"
+            " from T-149's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 56 passed in 2.96s; what falls is"
+            " test_cancelling_the_dialog_comes_back_to_the_same_panel."),
+    ),
+    "panel-j-A2-and-A3-are-the-same-panel": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    return a3(remembered, day) if day else a2(remembered)""",
+        new="""    return a2(remembered)""",
+        survival_means=(
+            "A2 and A3 collapse into the same panel: the day-based branch that tells a"
+            " first run apart from a later one is gone. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-149's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 56 passed in 2.94s; what falls is"
+            " test_a_folder_that_is_gone_opens_with_a3_when_the_data_is_still_there."),
+    ),
+    "due-k-the-question-is-always-due": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    return gamepath.remembered_game() is not None or not bundled_path().exists()""",
+        new="""    return True""",
+        survival_means=(
+            "the question is always due: the check that skips asking again once the game"
+            " is known and bundled data exists is gone. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-149's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 56 passed in 3.12s; what falls is"
+            " test_when_there_is_something_to_ask[None-True-False]."),
+    ),
+    "escape-l-A3-quits-on-escape": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        escape=CARRY_ON,
+    )""",
+        new="""        escape=QUIT,
+    )""",
+        survival_means=(
+            "A3 quits on Escape instead of carrying on: AK-115's escape answer for this"
+            " panel is inverted. Measured 2026-09-09 (T-156, reconstructed from T-149's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 55"
+            " passed in 3.10s; what falls is test_escape_means_the_smallest_loss[A3-carry"
+            " on], test_the_window_cross_answers_the_way_escape_does."),
+    ),
+    "window-m-the-question-stays-a-splash-screen": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        self.setWindowFlags(Qt.WindowType.Window)
+""",
+        new="""""",
+        survival_means=(
+            "the question stays a splash screen: the window flag that turns it into a"
+            " real window is gone, so it has no taskbar entry and no way back to it."
+            " Measured 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver)"
+            " against the file this task's campaign used: 1 failed, 56 passed in 3.11s;"
+            " what falls is test_the_question_is_an_ordinary_window_and_the_build_is_not."),
+    ),
+    "focus-n-the-focus-is-set-before-the-window-is-rebuilt": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        self.buttons[panel.default.answer].setFocus()""",
+        new="""        pass""",
+        survival_means=(
+            "focus is set before the window is rebuilt instead of after: the default"
+            " button has lost focus by the time the panel is actually shown. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 56 passed in 3.22s; what"
+            " falls is test_enter_presses_the_default_button_and_escape_leaves."),
+    ),
+    "sec027-o-the-withdrawn-sentence-is-put-back": Mutation(
+        path="nrplanner/firstrun.py",
+        old=""""Nothing in that folder is changed, moved or deleted. To "
+                 "read the game's files, Nightreign Helper runs a small "
+                 "program out of that folder, so pick a copy of the game you "
+                 "trust — normally the one you play.\"""",
+        new=""""Nothing in that folder is changed, moved or deleted. "
+                 "It is only read.\"""",
+        survival_means=(
+            "the withdrawn sentence comes back (SEC-027): the longer text naming the"
+            " mechanism replaces the short 'It is only read.' Measured 2026-09-09 (T-156,"
+            " reconstructed from T-149's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 55 passed in 3.34s; what falls is"
+            " test_a1_is_word_for_word_the_spec_and_says_a_program_is_run,"
+            " test_the_sentence_that_was_withdrawn_is_nowhere_in_the_program."),
+    ),
+    "keep-p-nothing-is-kept-at-all": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    gamepath.remember_game(verdict.found)
+""",
+        new="""""",
+        survival_means=(
+            "nothing is kept at all: M3's write is gone outright, so even a confirmed"
+            " pick is forgotten. Measured 2026-09-09 (T-156, reconstructed from T-149's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 55"
+            " passed in 3.21s; what falls is"
+            " test_a_game_by_another_name_is_asked_about_and_not_turned_down,"
+            " test_the_folder_is_kept_before_anything_is_built."),
+    ),
+    "size-s-the-window-is-sized-by-its-size-hint": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        self._body.activate()
+        return max(LEAST_PANEL_HEIGHT, self._body.heightForWidth(PANEL_WIDTH))""",
+        new="""        self.adjustSize()
+        return max(LEAST_PANEL_HEIGHT, self.sizeHint().height())""",
+        survival_means=(
+            "the window sizes itself by its own size hint instead of the measured panel"
+            " height: a panel narrower than its content is clipped. Measured 2026-09-09"
+            " (T-156, reconstructed from T-149's scratchpad driver) against the file this"
+            " task's campaign used: 1 failed, 56 passed in 3.17s; what falls is"
+            " test_no_panel_cuts_its_own_text_off - A...."),
+    ),
+    "wrap-t-a-path-line-is-set-like-any-other": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""    return (line.text.replace("\\\\", "\\\\" + BREAK_HERE)
+            .replace("/", "/" + BREAK_HERE))""",
+        new="""    return line.text""",
+        survival_means=(
+            "a path line gets no break points: a long path overflows the panel instead"
+            " of wrapping at the separators. Measured 2026-09-09 (T-156, reconstructed"
+            " from T-149's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 56 passed in 3.63s; what falls is"
+            " test_a_path_is_given_places_to_break_and_nothing_else_is."),
+    ),
+    "AK243-q-optimize-is-free-while-the-save-is-being-read": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""answerable = situation.state is not State.NO_SAVE""",
+        new="""answerable = True""",
+        survival_means=(
+            "Optimize is answerable while the save is still being read (AK-243 gone):"
+            " the advisor can be asked before the inventory it needs exists. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 2 failed, 21 passed in 102.79s"
+            " (0:01:42); what falls is"
+            " test_the_read_shuts_the_relic_button_and_nothing_else,"
+            " test_the_two_shut_controls_come_free_on_different_conditions."),
+    ),
+    "AK244-r-the-three-sentences-of-a-failed-takeover-are-suppressed": Mutation(
+        path="nrplanner/app.py",
+        old="""        loadout = self.owned.selected_loadout(hero["id"])
+        if loadout is None:""",
+        new="""        loadout = self.owned.selected_loadout(hero["id"])
+        if loadout is None:
+            return
+        if False:""",
+        survival_means=(
+            "the three sentences of a failed takeover are suppressed (AK-244 gone): a"
+            " takeover that failed says nothing instead of naming what happened. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-149's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 22 passed in 106.66s"
+            " (0:01:46); what falls is"
+            " test_a_failed_takeover_writes_its_own_sentence_and_not_the_waiting_one."),
+    ),
+
 }
 
 
