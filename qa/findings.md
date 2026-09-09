@@ -2424,3 +2424,50 @@ entfernt, damit die Stelle beim Aufraeumen wiedergefunden wird.
 `app.py` blieb stehen. Das ist die uebliche Folge einer Verlagerung nach
 unten — und genau der Fall, den eine Mutationskampagne findet und ein
 gruener Testlauf nicht.*
+
+## QA-215 — AK-245 nennt seine toetende Mutation, und sie ueberlebt
+
+**Prioritaet: P2 · Schwere: Major · Ausnutzbarkeit: Hoch · Adressat: developer · offen · 2026-09-09**
+
+Gefunden vom `qa-engineer` in der Pruefphase T-159. **AK-245 benennt die
+Mutation, die es festhalten soll** — `nrplanner/app.py:4310`,
+`owned_label.setText(note)` im Erfolgszweig von `load_equipped`, als No-op.
+**Sie ueberlebt den vollen Testlauf unveraendert bei 24/24 gruen.**
+
+**Das Verhalten ist heute richtig.** Was fehlt, ist der Schutz dagegen, dass es
+morgen falsch wird. Ein Kriterium, das seine eigene Mutation nennt und sie
+nicht toetet, ist genau die Bauform, gegen die L-008 geschrieben ist.
+
+*Herkunft: AK-245 stammt aus T-154 und ersetzte eine Satz-Zaehlung durch eine
+Regel ("wer gewinnt"). Die Regel ist richtig; sie hat nur keinen Waechter
+bekommen.*
+
+## QA-216 — Veralteter Docstring behauptet eine fehlende Abdeckung
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-09**
+
+Gefunden in T-159. Ein Docstring behauptet, AK-228 sei nicht abgedeckt — seit
+T-153 stimmt das nicht mehr. Eine falsche Aussage ueber die eigene Abdeckung
+ist teurer als keine: sie laesst die naechste Rolle eine Luecke suchen, die es
+nicht gibt, oder eine schliessen, die schon zu ist.
+
+## Pruefphase T-159 — Urteil und die drei Vorbehalte
+
+**Gesamturteil CONCERNS.** 53 benannte Einzelkriterien: **49 PASS**, 3
+CONCERNS, 1 FAIL (QA-215, auf Testabdeckungs-Ebene — nicht im Verhalten).
+Suitezahl **1674 passed, 9 skipped, 0 failed** (187,79 s), deckungsgleich mit
+der Messung des Directors.
+
+**Die drei Vorbehalte, alle: "nicht am echten Fenster geprueft":**
+- **AK-110** — Systemdialog und mehrere Steam-Bibliotheken.
+- **AK-129** — echte Windows-Skalierung (100/125/150 %).
+- **AK-131** — ohne eigenen Test.
+
+**Alle drei gehoeren in die Baurunde**, nicht in einen weiteren Quellstandlauf:
+sie brauchen ein gebautes Artefakt und ein echtes Fenster. Der `power-user`
+und der `clean-room`-Lauf sind dafuer da.
+
+**Read-only gegen beide echten Steam-Konten** (234 und 309 Relikte,
+Dreifach-Umlenkung nachgewiesen, Testverzeichnisse blieben leer): R10, R12 und
+AK-228 zusaetzlich an echten Byte-Layouts bestaetigt. R10 wurde vierfach
+getoetet, inklusive eines AST-Klassenwaechters.
