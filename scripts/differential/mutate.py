@@ -5236,7 +5236,7 @@ from PySide6 import QtCore
             " test_a_file_too_large_to_be_a_save_is_not_read."),
     ),
     "the-limit-is-under-a-real-save": Mutation(
-        path="nrplanner/app.py",
+        path="nrplanner/inventory.py",
         old="""LARGEST_SAVE_TO_READ = 256 * 1024 * 1024""",
         new="""LARGEST_SAVE_TO_READ = 16 * 1024 * 1024""",
         survival_means=(
