@@ -180,6 +180,45 @@ class Inventory:
         )
 
 
+#: The largest file this program will read as a save (SEC-029).
+#:
+#: Derived, not chosen. The saves on this installation are 19 531 312 bytes
+#: each -- both accounts, measured 09.09.2026 with
+#: `find %APPDATA%/Nightreign -printf "%s"` -- and the file is a fixed layout
+#: of character slots rather than a container that grows with what is in it.
+#: 256 MiB is 13,7 times that, so no save this program will ever meet is cut
+#: off, and the refusal is loud: it carries the size it refused.
+#:
+#: Why a limit at all: `_read_settled` reads whatever it is handed **whole**
+#: before the first check on its contents runs, so a 30 GB disk image would
+#: be allocated in full and only then thrown away. That is true of both ways
+#: a file gets here -- the one the player picked through `Find my save...`,
+#: whose filter is `All files (*)`, and the ones the automatic route takes
+#: out of the profile folder itself, which nobody chose and which the program
+#: therefore knows even less about.
+LARGEST_SAVE_TO_READ = 256 * 1024 * 1024
+
+
+def refuse_a_size_no_save_can_have(size: int) -> None:
+    """Stop before a file too large to be a save is read into memory.
+
+    SEC-029. Size is what can be known without reading anything -- `stat()`
+    costs no bytes -- and it is the only question that has to be answered
+    before the file is in memory rather than after.
+
+    Asked in bytes rather than of a path, because both callers have stat'ed
+    the file already for their own reasons and a second `stat` would be a
+    second answer to a question that has one.
+
+    **No path in the message** (AK-126): the save folder is named after the
+    Steam account id, and this sentence is shown to the player.
+    """
+    if size > LARGEST_SAVE_TO_READ:
+        raise ValueError(
+            f"the file is {size // (1024 * 1024)} MB, far larger than any "
+            f"save this game writes")
+
+
 def _read_settled(path: pathlib.Path, attempts: int = 3) -> bytes:
     """The save's bytes, read while the game was not part-way through writing.
 
@@ -194,10 +233,16 @@ def _read_settled(path: pathlib.Path, attempts: int = 3) -> bytes:
     nothing next to decrypting 19 MB. Three tries, then the last read is
     returned anyway -- a slightly wrong count is a better answer than none, and
     the caller has no better file to offer.
+
+    The size the settling is judged by is the size SEC-029 is judged by, and
+    it is looked at here because this is the line that would allocate it: one
+    `stat` already stands in front of the read, and everything above it in
+    the program has already handed the file on.
     """
     blob = b""
     for _ in range(attempts):
         before = path.stat()
+        refuse_a_size_no_save_can_have(before.st_size)
         blob = path.read_bytes()
         after = path.stat()
         if (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns):

@@ -1535,23 +1535,6 @@ class HeroTile(QToolButton):
 #: rounded up.
 SAVE_READ_SHUTDOWN_WAIT_MS = 6800
 
-#: The largest file this program will read as a save (SEC-029).
-#:
-#: Derived, not chosen. The saves on this installation are 19 531 312 bytes
-#: each -- both accounts, measured 09.09.2026 with
-#: `find %APPDATA%/Nightreign -printf "%s"` -- and the file is a fixed layout
-#: of character slots rather than a container that grows with what is in it.
-#: 256 MiB is 13,7 times that, so no save this program will ever meet is cut
-#: off, and the refusal is loud: it ends in S4 with the size in it.
-#:
-#: Why a limit at all: `Find my save...` carries the filter `All files (*)`,
-#: so what arrives here is any file on the machine, and `_read_settled`
-#: (`inventory.py:194`) reads whatever it is handed **whole** before the
-#: first check on its contents runs. A 30 GB disk image would be allocated in
-#: full and only then thrown away.
-LARGEST_SAVE_TO_READ = 256 * 1024 * 1024
-
-
 def where_saves_usually_are() -> pathlib.Path | None:
     """Where the file dialog opens (AK-123, section 5).
 
@@ -1593,22 +1576,16 @@ def _pick_a_save_file(parent) -> pathlib.Path | None:
 
 
 def _refuse_a_file_no_save_can_be(path: pathlib.Path) -> None:
-    """Stop before a file too large to be a save is read into memory.
+    """Ask SEC-029's question of the file the player named, before any read.
 
-    SEC-029. Size is what can be known without reading anything -- `stat()`
-    costs no bytes -- and it is the only question that has to be answered
-    before the file is in memory rather than after.
-
-    This is the caller's half of that finding. It covers the file the player
-    named, which is the route A15 adds; the automatic route picks its files
-    out of the profile folder itself and still reaches `_read_settled`
-    without a limit, which is the half that sits in `inventory.py`.
+    The limit itself and the sentence it is refused with live in
+    `inventory.refuse_a_size_no_save_can_have`, which the read behind this
+    asks again of every file either route hands it. One number, one wording,
+    two places that can be reached -- and this one is reached first, so that
+    the second read of `read_the_save`, the one that tells S3 from S4, is
+    never given a file this size either.
     """
-    size = path.stat().st_size
-    if size > LARGEST_SAVE_TO_READ:
-        raise ValueError(
-            f"the file is {size // (1024 * 1024)} MB, far larger than any "
-            f"save this game writes")
+    inventory.refuse_a_size_no_save_can_have(path.stat().st_size)
 
 
 def read_the_save(data: dict, save_path: pathlib.Path | None = None):

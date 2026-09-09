@@ -1,8 +1,8 @@
 """The save file the player picked: what keeps it, and what it answers.
 
-R10 and R11 of Nachtrag XI (AK-123 to AK-126), the half of SEC-029 that
-sits in the caller rather than in `inventory`, and the two endings the
-automatic route used to tell as one (A7).
+R10 and R11 of Nachtrag XI (AK-123 to AK-126), the caller's half of SEC-029
+-- the limit itself lives in `inventory` and is asked of both routes there --
+and the two endings the automatic route used to tell as one (A7).
 
 Three of the properties here break **silently** when they break, and each of
 them has a case written against a named mutation:
@@ -575,7 +575,7 @@ def test_a_file_too_large_to_be_a_save_is_not_read(game_data, monkeypatch,
     """
     chosen = a_save_file(tmp_path)
     with open(chosen, "wb") as handle:
-        handle.truncate(appmod.LARGEST_SAVE_TO_READ + 1)
+        handle.truncate(inventory.LARGEST_SAVE_TO_READ + 1)
     monkeypatch.setattr(inventory, "scan",
                         lambda *args, **rest: pytest.fail(
                             "the file was read before its size was looked at"))
@@ -585,6 +585,36 @@ def test_a_file_too_large_to_be_a_save_is_not_read(game_data, monkeypatch,
 
     assert "MB" in str(raised.value)
     assert names_no_path(str(raised.value), chosen)
+
+
+def test_the_automatic_route_is_held_to_the_same_limit(game_data, monkeypatch,
+                                                      tmp_path):
+    """SEC-029's other half, and the one no dialog stands in front of.
+
+    Nobody picked this file: it was lying in the profile folder under the
+    name the game uses, and the automatic route hands it straight to
+    `_read_settled`. The limit therefore cannot live in the caller alone, and
+    this case is the one that says so -- it never goes near
+    `_refuse_a_file_no_save_can_be`.
+
+    The spy is what makes "not read" an assertion rather than a hope:
+    `savefile._members` is the first thing the bytes are handed to, so a run
+    that reached it read the whole file first.
+    """
+    huge = a_save_file(tmp_path)
+    with open(huge, "wb") as handle:
+        handle.truncate(inventory.LARGEST_SAVE_TO_READ + 1)
+    monkeypatch.setattr(savefile, "find_saves", lambda: [huge])
+    monkeypatch.setattr(savefile, "_members",
+                        lambda blob: pytest.fail(
+                            "the file was read whole before its size was "
+                            "looked at"))
+
+    with pytest.raises(ValueError) as raised:
+        appmod.read_the_save(game_data)
+
+    assert "far larger than any save this game writes" in str(raised.value)
+    assert names_no_path(str(raised.value), huge)
 
 
 def test_a_save_of_the_ordinary_size_is_read(game_data, monkeypatch,
@@ -612,8 +642,8 @@ def test_the_limit_is_far_above_a_real_save():
     measurement rather than as the number itself, so that raising it stays a
     decision and lowering it below a save cannot pass unnoticed.
     """
-    assert appmod.LARGEST_SAVE_TO_READ == 256 * 1024 * 1024
-    assert appmod.LARGEST_SAVE_TO_READ > 13 * A_REAL_SAVE_IS_BYTES
+    assert inventory.LARGEST_SAVE_TO_READ == 256 * 1024 * 1024
+    assert inventory.LARGEST_SAVE_TO_READ > 13 * A_REAL_SAVE_IS_BYTES
 
 
 # -- A7: a save that was found and could not be read is not "none found" --
