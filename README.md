@@ -64,6 +64,19 @@ while it runs.
 Download `NightreignHelper.exe` from the [Releases](../../releases) page and run
 it. No Python, no installer, no admin rights.
 
+**Finding your game.** On most machines the tool finds ELDEN RING NIGHTREIGN on
+its own — there is nothing to do. If it cannot, a panel asks you to point at
+the install folder: in Steam, right-click ELDEN RING NIGHTREIGN, choose
+*Manage*, then *Browse local files*, and pick the folder that opens. Nothing in
+that folder is moved, copied or deleted, but reading it does run a small
+program out of it — see [Where your data lives](#where-your-data-lives) for
+what that means. The folder is checked once, then remembered for every later
+launch; if it later goes missing — the game was moved, reinstalled, or sits on
+a drive that is not plugged in — the panel returns and asks again. If the
+folder the tool actually settles on turns out to sit more than one level away
+from the one you picked, or outside it altogether, it shows you that folder
+and waits for you to confirm before reading anything from it.
+
 **First launch takes about a minute.** It reads your installation and builds a
 local copy of the data, and offers to put itself in your Start Menu. Every
 launch after that is immediate, until the data needs rereading — when the game
@@ -182,6 +195,18 @@ Saves are looked for under `%APPDATA%\Nightreign`, and **every** save found is
 tried rather than only the most recently written one. A second Steam account
 folder or a restored backup can otherwise sit in front of the save you actually
 play.
+
+If none is found — or the one that was picked automatically is the wrong
+one — **Find my save…**, next to Rescan save, opens a file picker starting in
+your save folder. Point it at a specific `.sl2` file; the choice is remembered
+for every later launch and overrides the automatic search without turning it
+off. An empty save says so instead of pretending you own nothing, and a file
+that is not a readable Nightreign save says so too.
+
+Reading the save no longer holds up the window: it opens immediately, and
+every tab works while the save loads in the background. The only thing
+waiting on it is the relic button on each slot card, which unlocks the moment
+the read finishes.
 
 **Level** — the slider runs 1 to 15, and the attribute figures come from the
 game's own per-Nightfarer level tables, not a formula.
@@ -418,6 +443,13 @@ your save file. It decrypts both locally, using decryption keys that have
 been publicly known in the modding community for years. Nothing is ever
 written back to either one — not the installation, not the save.
 
+**To read the game's own archives, it also runs a small program out of the
+installation folder** — a decompression library that ships with the game
+itself. That is unavoidable: without it the archives stay locked, no matter
+how the folder was found. It is why the first-run panel (see
+[Install](#install)) asks you to point at a copy of the game you trust, which
+for almost everyone is simply the one they play.
+
 **What it writes.** Everything the tool extracts goes to:
 
 ```
@@ -426,9 +458,11 @@ written back to either one — not the installation, not the save.
 
 That folder holds the data snapshot and the icon pack, both built from your
 installation on first run. Your saved builds, favourites, artwork choices,
-panel widths and interface scale are small enough to live in the registry,
-under `HKCU\Software\DankYeeter`, and
-the Start Menu entry — if you accept it — is one shortcut in your own profile.
+panel widths, interface scale, and — if you ever pointed the tool at them
+yourself through the panel or **Find my save…** — the game folder and save
+file it should use next time, are small enough to live in the registry, under
+`HKCU\Software\DankYeeter`. The Start Menu entry — if you accept it — is one
+shortcut in your own profile.
 **Nothing is written anywhere else**, and nothing is sent anywhere: the tool
 makes no network connections at all. Uninstalling means deleting that folder,
 that registry key, the shortcut and the EXE — nothing survives outside those
