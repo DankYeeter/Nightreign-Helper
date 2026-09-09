@@ -603,25 +603,26 @@ def test_the_reader_starts_nothing_while_one_read_is_out(game_data, qapp,
                                                          a_scan):
     """AD-029 point 4, at the controller and without a window in the way.
 
-    **The running thread is held here on purpose**, and that line is what
-    lets this case say something when the rule is broken. `SaveReader` keeps
-    the only reference to the `QThread` it started; a reader that began a
-    second read would overwrite it, Qt would destroy a thread that is still
-    running, and the process would die on the spot -- red, but red about a
-    crash, and about the same crash whatever else went wrong. Every
-    assertion below would go unheard (measured, T-142: exit code 127 and no
-    summary).
+    **The running read is held here on purpose**, thread and worker both, and
+    those two lines are what let this case say something when the rule is
+    broken. `SaveReader` keeps the only reference to each of them; a reader
+    that began a second read would overwrite both, and Qt would then destroy
+    a thread that is running and an object that thread is executing. The
+    process dies on the spot -- red, but red about a crash, and about the
+    same crash whatever else went wrong. Every assertion below would go
+    unheard (measured, T-142: no summary at all).
 
-    With the thread held, the broken rule is a sentence instead: the second
-    press hands back `True`, or the read was entered twice.
+    Held, the broken rule is a sentence instead: `assert True is False` on
+    the second press (measured against the same mutation, T-157).
     """
     read = StatedRead(a_scan, hold=True)
     reader = appmod.SaveReader(read=read)
     try:
         assert reader.start(game_data) is True
         read.began.wait(READ_FUSE_S)
-        still_running = reader._thread
-        assert still_running is not None, "the premise: a read is out"
+        running_thread, working_worker = reader._thread, reader._worker
+        assert running_thread is not None and working_worker is not None, (
+            "the premise: a read is out, in a thread, in a worker")
 
         assert reader.start(game_data) is False
         assert reader.start(game_data) is False
