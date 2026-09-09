@@ -2528,3 +2528,49 @@ beisst — und er waechst schneller, als er abgetragen wird. **Fuer die
 `retrospective`:** vier Anlaeufe (T-132, T-139, T-155, T-156, T-158), drei
 davon an der Zugschwelle geendet. Das Verfahren selbst ist zu teuer, nicht die
 Disziplin der Rollen.*
+
+## QA-220 — Die D-001-Dauerauflage haengt an keinem Mechanismus
+
+**Prioritaet: P2 · Schwere: Major · Ausnutzbarkeit: Hoch · Adressat: director · offen · 2026-09-09**
+
+Gefunden vom `qa-engineer` im Retest T-172. **Er hat nachgesehen, nicht
+vermutet:**
+
+- `.github/workflows/tests.yml`: der Runner ist `windows-latest` **ohne
+  installiertes Spiel**, und der Kommentar in der Datei sagt ausdruecklich,
+  dass das richtig so ist.
+- `tests/conftest.py:156`: `installed_game` skippt ohne Spiel;
+  `extracted_game_data` haengt daran. **Die ganze `test_extraction.py` — alle
+  sechs Faelle samt dem neuen Regressionstest — wird in der CI bei jedem Lauf
+  uebersprungen, strukturell.**
+- `docs/plan-restarbeiten.md` und `docs/state.md` nach einem wiederkehrenden
+  Pruefpunkt durchsucht: **keiner.**
+
+**Die CI kann die Auflage nicht tragen**, und das ist eine bewusste Grenze
+(NH-002 verbietet Spieldaten im Repo), keine Luecke. Der einzige Ort, an dem
+sie eingeloest werden kann, ist eine Maschine mit echtem Spiel **und** bewusst
+geleertem Cache.
+
+**In T-171 und T-172 wurde sie beide Male nur erfuellt, weil sie woertlich im
+Auftragstext stand.** Ohne diesen Satz haette es niemand getan — dieselbe
+Konstellation, unter der der Fehler aus D-001 **achtzehn Zyklen** unentdeckt
+blieb. **Der konkrete Fall ist repariert, die Struktur nicht.**
+
+### Director-Entscheidung 09.09.2026: Mechanismus statt WAIVED
+
+**Kein WAIVED.** Er waere hier billig zu haben und trotzdem falsch: die
+Fehlerklasse hat bereits achtzehn Zyklen ueberdauert, und ein Ablaufdatum
+wuerde sie nur vertagen.
+
+**Der Mechanismus, den die Diagnose selbst nahelegt:** `extracted_game_data`
+liest heute den Datenabzug, wenn einer erreichbar ist. **Kuenftig baut es
+immer frisch** (`extract.build()`), wenn ein Spiel installiert ist — dann
+laeuft der Pfad, an dem D-001 hing, bei **jedem** Entwicklerlauf mit Spiel,
+ohne dass jemand daran denken muss.
+
+*Das ist **nicht** die Variante, vor der D-001 warnt ("`conftest` einen
+Datenabzug erzwingen lassen") — sie ist ihr Gegenteil: erzwungen wird die
+**abzugsfreie** Seite, also genau die, die bisher blind blieb. Die
+JSON-Gestalt bleibt weiterhin durch den Rundlauf-Test selbst gedeckt.*
+
+**Die CI bleibt unberuehrt** — sie skippt weiter ohne Spiel, wie vorgesehen.
