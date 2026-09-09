@@ -2401,3 +2401,26 @@ Pruefsummenpruefung ist gemeint und fehlt im Produktivweg — dann ist es
 Messaufbau von T-136, nicht aus einem Test.*
 
 **Zusammen mit QA-007 zu behandeln, nicht getrennt.**
+
+## QA-214 — Tote Zeile in `app.py`, entstanden durch den SEC-029-Umbau
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-09**
+
+Gefunden vom `developer` in T-158, beim Wiederholen der T-150-Kampagne. Die
+Mutation `no-reason-for-a-file-that-is-not-a-save` **ueberlebt seit T-157**
+(36 passed, 0 failed) — und er hat den Grund am Quelltext nachgelesen, statt
+den Test passend zu machen:
+
+> `inventory.scan()` wirft seit einem spaeteren Refactor selbst
+> `SaveNotReadable`, bevor `nrplanner/app.py:1620` erreicht wird; die Zeile
+> ist toter Code.
+
+**Kein Fehlverhalten fuer den Nutzer** — die Ausnahme wird geworfen, nur eben
+frueher. Der Registereintrag traegt die Begruendung; er wurde **nicht**
+entfernt, damit die Stelle beim Aufraeumen wiedergefunden wird.
+
+*Herkunft: T-157 hat den Deckel und die Unterscheidung "kein Spielstand" gegen
+"gefunden, nicht lesbar" nach `inventory.py` gezogen. Der alte Zweig in
+`app.py` blieb stehen. Das ist die uebliche Folge einer Verlagerung nach
+unten — und genau der Fall, den eine Mutationskampagne findet und ein
+gruener Testlauf nicht.*
