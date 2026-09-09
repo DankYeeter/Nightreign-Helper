@@ -49,7 +49,15 @@ def _library_paths(steam_root: pathlib.Path) -> list[pathlib.Path]:
 
 
 def find_game_dir() -> pathlib.Path | None:
-    """Return the folder containing regulation.bin, or None."""
+    """Return the folder the installed game sits in, or None.
+
+    Asks `looks_like_the_game` (SEC-031) rather than the presence of
+    `regulation.bin` alone: a folder that fails the ceiling or lacks a
+    `.bhd` or the DLL is one nothing could be extracted from anyway, so
+    checking it here costs nothing real. It closes the gap between what
+    this route used to accept and what the same predicate, asked again
+    the moment a remembered folder is re-checked, would have accepted.
+    """
     candidates: list[pathlib.Path] = []
     for root in _steam_roots():
         if not root.exists():
@@ -64,7 +72,7 @@ def find_game_dir() -> pathlib.Path | None:
         )
 
     for path in candidates:
-        if (path / "regulation.bin").exists():
+        if looks_like_the_game(path):
             return path
     return None
 

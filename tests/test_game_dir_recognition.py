@@ -1,11 +1,12 @@
 """Recognising a game folder, and finding one around the folder picked.
 
 The Qt-free half of AD-030: `looks_like_the_game` (stage 1, AK-112),
-`is_named_nightreign` (stage 2, AK-113) and `search_from` (UI_SPEC 4.2,
-AK-111). Nothing here builds a window -- the panel that shows E1 and W1 is
-V2, and its cases live in `test_first_run_panel.py`.
+`is_named_nightreign` (stage 2, AK-113), `search_from` (UI_SPEC 4.2, AK-111)
+and `find_game_dir` (the Steam-registry route, SEC-031). Nothing here builds
+a window -- the panel that shows E1 and W1 is V2, and its cases live in
+`test_first_run_panel.py`.
 
-Two of the properties held here would break silently, so each names the
+Three of the properties held here would break silently, so each names the
 mutation that has to kill it:
 
 * the ceiling on `regulation.bin` (SEC-028). A missing ceiling is invisible
@@ -14,6 +15,10 @@ mutation that has to kill it:
 * the search does not step through a junction (SEC-030). Without the rule
   the search leaves the tree the user picked -- and can walk in a circle --
   and every case that only counts directories stays green.
+* `find_game_dir` asks `looks_like_the_game` rather than the presence of
+  `regulation.bin` alone (SEC-031). Without it, a folder that only has that
+  one file goes straight to the build -- nobody notices until a drive with
+  such a folder is plugged in.
 
 A folder is built by hand rather than looked for on this machine: the three
 files stage 1 asks about are three empty files and a byte, and a case that
@@ -121,6 +126,85 @@ def test_the_ceiling_leaves_the_measured_installation_room():
     measured_here = 1_974_720
 
     assert gamefiles.MAX_REGULATION_BYTES > 30 * measured_here
+
+
+# --- find_game_dir asks the same predicate (SEC-031) ---------------------
+
+# A name that cannot collide with a real install directory anywhere on the
+# machine running the suite, so the bare-drive fallback in find_game_dir
+# (six hard-coded candidates, C: to H:, untouched by this task) never turns
+# up a real folder and confounds the "rejected" cases below.
+_SENTINEL_INSTALL_DIR = "NRHELPER-TEST-SEC031-INSTALL-DIR"
+
+
+def _the_only_candidate(tmp_path: pathlib.Path, monkeypatch) -> pathlib.Path:
+    """Wire find_game_dir's Steam search down to one controlled folder.
+
+    Both the library-derived candidate and the bare-drive fallback are built
+    from INSTALL_DIR, so patching it steers every candidate find_game_dir
+    could construct, not just the one this test cares about.
+    """
+    monkeypatch.setattr(gamefiles, "INSTALL_DIR", _SENTINEL_INSTALL_DIR)
+    root = tmp_path / "steam"
+    root.mkdir()
+    library = tmp_path / "lib"
+    monkeypatch.setattr(gamefiles, "_steam_roots", lambda: [root])
+    monkeypatch.setattr(gamefiles, "_library_paths", lambda _root: [library])
+    return library / "common" / _SENTINEL_INSTALL_DIR / "Game"
+
+
+def test_find_game_dir_finds_a_folder_that_passes_all_three_conditions(
+        tmp_path, monkeypatch):
+    game = make_game(_the_only_candidate(tmp_path, monkeypatch))
+
+    assert gamefiles.find_game_dir() == game
+
+
+def test_find_game_dir_rejects_regulation_bin_alone(tmp_path, monkeypatch):
+    """SEC-031, the killing case: existence used to be the whole check.
+
+    Dies the moment the loop goes back to
+    `(path / "regulation.bin").exists()` -- the folder below satisfies that
+    and nothing else, and the old find_game_dir handed it straight to the
+    build without ever asking looks_like_the_game.
+    """
+    candidate = _the_only_candidate(tmp_path, monkeypatch)
+    candidate.mkdir(parents=True)
+    (candidate / "regulation.bin").write_bytes(b"x")
+
+    assert gamefiles.find_game_dir() is None
+
+
+def test_find_game_dir_rejects_an_empty_regulation(tmp_path, monkeypatch):
+    """SEC-031's other still value: an empty file also `.exists()`."""
+    candidate = _the_only_candidate(tmp_path, monkeypatch)
+    make_game(candidate, regulation_bytes=0)
+
+    assert gamefiles.find_game_dir() is None
+
+
+def test_find_game_dir_rejects_a_regulation_over_the_ceiling(
+        tmp_path, monkeypatch):
+    candidate = _the_only_candidate(tmp_path, monkeypatch)
+    make_game(candidate, regulation_bytes=gamefiles.MAX_REGULATION_BYTES + 1)
+
+    assert gamefiles.find_game_dir() is None
+
+
+def test_find_game_dir_accepts_a_regulation_at_the_ceiling(
+        tmp_path, monkeypatch):
+    """The control for the case above: the ceiling itself still passes."""
+    candidate = _the_only_candidate(tmp_path, monkeypatch)
+    game = make_game(candidate, regulation_bytes=gamefiles.MAX_REGULATION_BYTES)
+
+    assert gamefiles.find_game_dir() == game
+
+
+def test_find_game_dir_finds_nothing_when_no_candidate_exists(
+        tmp_path, monkeypatch):
+    _the_only_candidate(tmp_path, monkeypatch)  # never created on disk
+
+    assert gamefiles.find_game_dir() is None
 
 
 # --- stage 2 -------------------------------------------------------------
