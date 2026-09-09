@@ -5120,6 +5120,237 @@ from PySide6 import QtCore
             " test_a_failed_takeover_writes_its_own_sentence_and_not_the_waiting_one."),
     ),
 
+    # T-150 (R10/R11, AD-030): the save-path memory, its three endings and SEC-029's size ceiling. Reconstructed for T-156 from scratchpad/T-150's driver, via T-155's catalog.py.
+    "the-lost-file-is-forgotten": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    return remembered if remembered.is_file() else None""",
+        new="""    if remembered.is_file():
+        return remembered
+    _settings().setValue(SAVE_KEY, "")
+    return None""",
+        survival_means=(
+            "a remembered save that turns out to be unreachable is forgotten outright:"
+            " R10 promises the loss stays silent and the entry stays put, and this drops"
+            " the second half. Measured 2026-09-09 (T-156, reconstructed from T-150's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 30"
+            " passed in 34.47s; what falls is"
+            " test_a_picked_file_that_is_gone_falls_back_and_is_not_forgotten,"
+            " test_a_window_whose_picked_file_is_gone_says_nothing_about_it."),
+    ),
+    "the-lost-file-is-read-anyway": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    return remembered if remembered.is_file() else None""",
+        new="""    return remembered""",
+        survival_means=(
+            "the is_file() gate is gone: a remembered path that is no longer a file"
+            " (moved, deleted, replaced by a folder) is read as if it still were one."
+            " Measured 2026-09-09 (T-156, reconstructed from T-150's scratchpad driver)"
+            " against the file this task's campaign used: 3 failed, 29 passed in 34.26s;"
+            " what falls is"
+            " test_a_picked_file_that_is_gone_falls_back_and_is_not_forgotten,"
+            " test_a_folder_where_the_file_was_is_not_a_save,"
+            " test_a_window_whose_picked_file_is_gone_says_nothing_about_it."),
+    ),
+    "existence-is-enough": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    return remembered if remembered.is_file() else None""",
+        new="""    return remembered if remembered.exists() else None""",
+        survival_means=(
+            "the file check loosens to exists(): a folder or any other non-file entry at"
+            " the remembered path passes as a save. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 31 passed in 33.28s; what falls is"
+            " test_a_folder_where_the_file_was_is_not_a_save."),
+    ),
+    "s3-names-the-file": Mutation(
+        path="nrplanner/app.py",
+        old="""            self.owned_label.setText(
+                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else NO_SAVE_FOUND)""",
+        new="""            self.owned_label.setText(
+                f"{CHOSEN_SAVE_IS_EMPTY} {gamepath.remembered_save()}"
+                if self._answers_a_chosen_save else NO_SAVE_FOUND)""",
+        survival_means=(
+            "S3 grows the full account folder name into the sentence, breaking the"
+            " forbidden-word rule of AK-127/AK-128 for the chosen-save case. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-150's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 31 passed in 34.88s; what"
+            " falls is test_a_picked_save_without_relics_says_which_account."),
+    ),
+    "the-two-empty-endings-are-one": Mutation(
+        path="nrplanner/app.py",
+        old="""            self.owned_label.setText(
+                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else NO_SAVE_FOUND)""",
+        new="""            self.owned_label.setText(NO_SAVE_FOUND)""",
+        survival_means=(
+            "S3 and S5 collapse into one sentence (NO_SAVE_FOUND): a chosen, empty save"
+            " is no longer told apart from no save at all. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 31 passed in 34.42s (re-run manually, single-shot"
+            " output was empty in the batch run); what falls is"
+            " test_a_picked_save_without_relics_says_which_account."),
+    ),
+    "no-reason-for-a-file-that-is-not-a-save": Mutation(
+        path="nrplanner/app.py",
+        old="""            savefile.read(save_path)""",
+        new="""            pass""",
+        survival_means=(
+            "the file-is-a-save probe is gone: a file that cannot possibly be a save is"
+            " read anyway instead of refused with a reason. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 31 passed in 34.18s; what falls is"
+            " test_a_file_that_is_not_a_save_is_refused_with_a_reason."),
+    ),
+    "s4-puts-the-reason-first": Mutation(
+        path="nrplanner/app.py",
+        old="""            f"{CHOSEN_SAVE_UNREADABLE}\\n{reason}" if self._answers_a_chosen_save""",
+        new="""            f"{reason}\\n{CHOSEN_SAVE_UNREADABLE}" if self._answers_a_chosen_save""",
+        survival_means=(
+            "S4's prefix order is reversed: the reason comes before 'Save could not be"
+            " read:' instead of after (AK-127). Measured 2026-09-09 (T-156, reconstructed"
+            " from T-150's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 31 passed in 33.80s; what falls is"
+            " test_a_picked_file_that_cannot_be_read_says_so_in_his_words_first."),
+    ),
+    "the-chosen-failure-keeps-the-prefix": Mutation(
+        path="nrplanner/app.py",
+        old="""            f"{CHOSEN_SAVE_UNREADABLE}\\n{reason}" if self._answers_a_chosen_save""",
+        new="""            f"{UNREADABLE_SAVE}{reason}" if self._answers_a_chosen_save""",
+        survival_means=(
+            "a chosen save's failure keeps the generic UNREADABLE_SAVE prefix instead of"
+            " switching to the chosen-save wording. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 31 passed in 29.18s; what falls is"
+            " test_a_picked_file_that_cannot_be_read_says_so_in_his_words_first."),
+    ),
+    "the-size-is-not-looked-at": Mutation(
+        path="nrplanner/app.py",
+        old="""        _refuse_a_file_no_save_can_be(save_path)""",
+        new="""        pass""",
+        survival_means=(
+            "the size probe is gone: SEC-029's ceiling is never checked before the file"
+            " is opened. Measured 2026-09-09 (T-156, reconstructed from T-150's"
+            " scratchpad driver) against the file this task's campaign used: 1 failed, 31"
+            " passed in 35.85s; what falls is"
+            " test_a_file_too_large_to_be_a_save_is_not_read."),
+    ),
+    "the-limit-is-under-a-real-save": Mutation(
+        path="nrplanner/app.py",
+        old="""LARGEST_SAVE_TO_READ = 256 * 1024 * 1024""",
+        new="""LARGEST_SAVE_TO_READ = 16 * 1024 * 1024""",
+        survival_means=(
+            "the ceiling drops from 256 MiB to 16 MiB (SEC-029): a save of ordinary"
+            " size, and the margin the limit is supposed to keep above one, are both"
+            " gone. Measured 2026-09-09 (T-156, reconstructed from T-150's scratchpad"
+            " driver) against the file this task's campaign used: 2 failed, 30 passed in"
+            " 35.27s; what falls is test_a_save_of_the_ordinary_size_is_read,"
+            " test_the_limit_is_far_above_a_real_save."),
+    ),
+    "the-reason-carries-the-path": Mutation(
+        path="nrplanner/app.py",
+        old="""        raise ValueError(exc.strerror or "the file could not be opened") from None""",
+        new="""        raise ValueError(str(exc)) from None""",
+        survival_means=(
+            "the OS error is reported with str(exc) instead of exc.strerror: the failure"
+            " names the machine's own path instead of the sentence alone. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-150's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 31 passed in 34.51s; what"
+            " falls is test_no_file_at_that_place_says_so_without_saying_where."),
+    ),
+    "the-button-never-appears": Mutation(
+        path="nrplanner/app.py",
+        old="""            self.find_save_button.setVisible(True)
+            return""",
+        new="""            self.find_save_button.setVisible(False)
+            return""",
+        survival_means=(
+            "find_save_button stays hidden even when there is nothing to show it for."
+            " Measured 2026-09-09 (T-156, reconstructed from T-150's scratchpad driver)"
+            " against the file this task's campaign used: 2 failed, 30 passed in 33.60s;"
+            " what falls is test_a_picked_save_without_relics_says_which_account,"
+            " test_the_button_appears_when_there_is_nothing_to_show."),
+    ),
+    "the-button-stays-when-a-save-is-loaded": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.find_save_button.setVisible(False)
+        self._hand_the_stock_to_the_slots()""",
+        new="""        self.find_save_button.setVisible(True)
+        self._hand_the_stock_to_the_slots()""",
+        survival_means=(
+            "the button stays visible once a save has been found: it no longer"
+            " disappears now that it is not needed. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 30 passed in 32.07s; what falls is"
+            " test_a_picked_save_with_relics_reads_as_one_always_did,"
+            " test_the_button_is_there_only_while_no_save_is."),
+    ),
+    "an-automatic-find-is-written-back-t150": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.owned_label.setToolTip(html.escape(self.owned.folder))""",
+        new="""        self.owned_label.setToolTip(html.escape(self.owned.folder))
+        gamepath.remember_save(pathlib.Path(self.owned.folder))""",
+        survival_means=(
+            "an ordinary read writes gamepath.remember_save (AD-030's single-writer rule"
+            " broken again, here for the save path: only a pick is supposed to write the"
+            " key). Measured 2026-09-09 (T-156, reconstructed from T-150's scratchpad"
+            " driver) against the file this task's campaign used: 2 failed, 30 passed in"
+            " 33.09s; what falls is test_an_ordinary_read_writes_no_path,"
+            " test_only_the_pick_writes_the_key - As...."),
+    ),
+    "a-cancelled-dialog-writes-something": Mutation(
+        path="nrplanner/app.py",
+        old="""        chosen = _pick_a_save_file(self)
+        if chosen is None:
+            return""",
+        new="""        chosen = _pick_a_save_file(self)
+        if chosen is None:
+            gamepath.remember_save(where_saves_usually_are())
+            return""",
+        survival_means=(
+            "cancelling the file-pick dialog still writes a fallback path instead of"
+            " keeping nothing. Measured 2026-09-09 (T-156, reconstructed from T-150's"
+            " scratchpad driver) against the file this task's campaign used: 1 failed, 31"
+            " passed in 34.70s; what falls is"
+            " test_the_pick_keeps_the_file_and_a_cancelled_pick_keeps_nothing."),
+    ),
+    "a-text-names-the-machinery": Mutation(
+        path="nrplanner/app.py",
+        old="""CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on \"""",
+        new="""CHOSEN_SAVE_IS_EMPTY = ("That save in AppData has no relics in it yet. If you play on \"""",
+        survival_means=(
+            "CHOSEN_SAVE_IS_EMPTY names 'AppData', breaking the forbidden-word rule of"
+            " AK-127/AK-128. Measured 2026-09-09 (T-156, reconstructed from T-150's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 30"
+            " passed in 33.09s; what falls is"
+            " test_a_picked_save_without_relics_says_which_account,"
+            " test_no_text_of_this_flow_says_a_forbidden_word[S3]."),
+    ),
+    "the-file-type-leaks-into-another-text": Mutation(
+        path="nrplanner/app.py",
+        old="""CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on \"""",
+        new="""CHOSEN_SAVE_IS_EMPTY = ("That NR0000.sl2 has no relics in it yet. If you play on \"""",
+        survival_means=(
+            "CHOSEN_SAVE_IS_EMPTY names the file NR0000.sl2, where the rule reserves the"
+            " file type for the one text that needs it. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-150's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 30 passed in 33.44s; what falls is"
+            " test_a_picked_save_without_relics_says_which_account,"
+            " test_the_file_type_is_named_only_where_it_helps."),
+    ),
+    "the-tooltip-stops-naming-the-file": Mutation(
+        path="nrplanner/app.py",
+        old="""FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder \"""",
+        new="""FIND_MY_SAVE_TOOLTIP = ("Your save is a file, in a folder \"""",
+        survival_means=(
+            "the tooltip stops naming the file (a positive control for the"
+            " forbidden-word mask itself). Measured 2026-09-09 (T-156, reconstructed from"
+            " T-150's scratchpad driver) against the file this task's campaign used: 2"
+            " failed, 30 passed in 35.74s; what falls is"
+            " test_the_button_appears_when_there_is_nothing_to_show,"
+            " test_the_file_type_is_named_only_where_it_helps."),
+    ),
+
 }
 
 
