@@ -2638,3 +2638,37 @@ Aus T-170 und T-173, beide ausserhalb des jeweiligen Auftrags:
   Nutzers und wird nicht angefasst.**
 - Eine **Streudatei `nul`** im Projektwurzelverzeichnis, **aelter als diese
   Sitzung**.
+
+## A15 — halb belegt, und die andere Haelfte braucht eine zweite Maschine
+
+**Nutzerentscheid 09.09.2026: offen lassen, spaeter pruefen.**
+
+**Der Befund** (clean-room T-176, vom Director am Code nachgemessen):
+`find_game_dir()` liefert auf dieser Maschine
+`D:\SteamLibrary\steamapps\common\ELDEN RING NIGHTREIGN\Game` — **die
+Automatik findet das Spiel immer**, weil Steam registriert ist. **Der
+A15-Auswahldialog ist hier nicht ausloesbar**, weder beim Erststart noch beim
+Update.
+
+*Der Director hatte im Auftrag zu T-176 geschrieben, auf einem fremden System
+sei der Dialog der Normalfall. **Der `release-manager` hat das widerlegt** —
+diese Maschine ist kein fremdes System in dem Sinne, der zaehlt.*
+
+**Was belegt ist:** die erste Haelfte von A15 — *"Findet die Automatik den
+Spielordner oder den Spielstand, merkt der Nutzer nichts."* Das ist im
+clean-room-Lauf und im `power-user`-Lauf gepruefte Praxis.
+
+**Was nicht belegt ist:** der Auswahldialog von einem Menschen benutzt. Er ist
+durch Tests und Waechter gedeckt (AK-106 bis AK-132, AK-230 bis AK-249, R1 bis
+R18) — **aber nie von jemandem bedient worden, der nicht weiss, wie er
+gemeint ist.**
+
+**Zwei Wege wurden dem Nutzer vorgelegt und von ihm verworfen:** die
+Steam-Registrierung voruebergehend umbenennen (waehrend des Laufs faende auch
+Steam sich nicht; **drei Datenverluste in diesem Projekt stammen aus
+Eingriffen dieser Art**) und den Spielordner umbenennen (**die
+Spielinstallation ist ausdruecklich read-only**).
+
+**Der Nachweis kommt, sobald eine zweite Maschine oder ein frisches Windows
+zur Hand ist.** Bis dahin steht A15 in der GOAL-Tabelle als **halb belegt**,
+nicht als erfuellt — und nicht als offen.
