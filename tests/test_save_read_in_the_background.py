@@ -1,8 +1,9 @@
 """The save is read in a thread, and the window says so (AD-029 stage B).
 
-`UI_SPEC` T-141, AK-220 to AK-227 and AK-229. AK-228 is not covered here and
-cannot be: it is about the slow fall-back way of reading, which does not exist
-in the source (T-141 §13 point 2) and is a task of its own.
+`UI_SPEC` T-141, AK-220 to AK-227 and AK-229. AK-228 is not covered here: the
+slow fall-back way of reading exists since AD-031, and `Inventory` says which
+way it was read on, but no state of this window has been given the sentence
+that goes with it yet -- that is V5 and a task of its own.
 
 **Everything here is driven through the seam, never around it.** `Planner`
 takes what it reads the save with at construction -- the same device AD-028
@@ -45,8 +46,9 @@ CLAIMS_THE_SAVE_IS_FINE = ("nothing is wrong", "nothing is missing",
 class StatedRead:
     """A reading of the save whose answer, and whose moment, the case states.
 
-    Stands where `inventory.scan` stands and is called with what it is called
-    with -- in the worker's thread, once per reading -- so a case gets the
+    Stands where `app.read_the_save` stands and is called with what it is
+    called with -- the dataset and the file the window resolved, in the
+    worker's thread, once per reading -- so a case gets the
     four endings of `UI_SPEC` §6 as inputs rather than having to arrange a
     save on disk for each of them.
 
@@ -60,13 +62,18 @@ class StatedRead:
         self.answer = answer
         self.raises = raises
         self.calls = 0
+        #: The file each reading was asked for, in order. None is "whatever
+        #: the automatic route finds", which is what a window with no picked
+        #: save hands down.
+        self.save_paths: list = []
         self.began = threading.Event()
         self._release = threading.Event()
         if not hold:
             self._release.set()
 
-    def __call__(self, data):
+    def __call__(self, data, save_path=None):
         self.calls += 1
+        self.save_paths.append(save_path)
         self.began.set()
         self._release.wait(READ_FUSE_S)
         if self.raises is not None:
@@ -320,10 +327,11 @@ def test_every_ending_of_a_read_leaves_a_sentence_of_its_own(game_data, qapp,
                                                              a_scan):
     """AK-224, over the three endings that exist in this source.
 
-    The fourth of `UI_SPEC` §6 -- read on the slow way -- has no way to happen
-    yet (T-141 §13 point 2) and is AK-228's. The rule this case is built on is
-    the one AK-224 hangs on and not the list: whatever way a read ends, the
-    line does not still carry a waiting sentence afterwards.
+    The fourth of `UI_SPEC` §6 -- read on the slow way -- has no ending of its
+    own in this window yet: AD-031 built the way, V5 gives it its sentence, and
+    it is AK-228's. The rule this case is built on is the one AK-224 hangs on
+    and not the list: whatever way a read ends, the line does not still carry a
+    waiting sentence afterwards.
     """
     # The save's own records with its stored builds taken out. On the first
     # read of a session the arrival takes a stored build over (§6), and
@@ -638,11 +646,16 @@ def wait_until_idle(reader, timeout_ms: int = 60000) -> None:
 
 READING_PATH = ("nrdata/savefile.py", "nrplanner/inventory.py")
 
-#: The one text on the reading path that says the save is fine, and the one
-#: `UI_SPEC` T-141 §7 takes out of the exception path altogether. Named here
-#: rather than skipped over, so that a **second** such sentence anywhere on
-#: the path is a red case and not a silent addition to a list.
-THE_SENTENCE_AK_228_REMOVES = "_check_the_prefilter_can_see_every_id"
+#: The wording that used to be the one exception on this path, kept as the
+#: mask's own control and nowhere else. It was
+#: `_check_the_prefilter_can_see_every_id`'s, and AD-031 removed the function
+#: with the refusal it belonged to: a dataset numbered above the ceiling is
+#: now read the slow way and said so, not declared unreadable. The whitelist
+#: that named it is gone with it (`UI_SPEC` T-148 §3: "wer AK-228 baut,
+#: entfernt beides in derselben Aenderung").
+THE_WORDING_AD_031_TOOK_OFF_THE_PATH = (
+    "the game has renumbered its relics and this program is too old to read "
+    "what it wrote; nothing is wrong with the save.")
 
 
 def texts_that_can_land_behind_the_prefix() -> dict[str, list[str]]:
@@ -678,27 +691,39 @@ def says_the_save_is_fine(texts: list[str]) -> bool:
 def test_the_collector_of_the_texts_really_fires():
     """AK-229's positive control, without which the guard measures itself.
 
-    The one sentence on the reading path that claims the save is fine is
-    `_check_the_prefilter_can_see_every_id`'s, today, in the source. If this
-    case ever goes green-by-absence the collector below has stopped collecting
-    what it says it collects, and the guard beside it would pass over a real
-    offender in silence.
+    The guard beside this one now asserts the empty set, which is what §8
+    promises and what AD-031 made reachable -- and an empty set is exactly
+    what a collector that has stopped collecting also returns. So the control
+    has to come from somewhere other than the offenders themselves, in two
+    parts: the collector still finds a text that is demonstrably on the path,
+    and the mask still matches the wording it was written for.
 
-    **When AK-228 lands this case must go**, together with the exception it
-    names: §7 takes that sentence off the exception path, and the guard beside
-    it then asserts the empty set, which is what §8 promises.
+    The wording is the one AD-031 took off the path, kept here as a string and
+    not as a place: it is what a future refusal claiming the save is fine
+    would look like, and the mask has to catch it whoever writes it next.
     """
     texts = texts_that_can_land_behind_the_prefix()
-    assert THE_SENTENCE_AK_228_REMOVES in texts
-    assert says_the_save_is_fine(texts[THE_SENTENCE_AK_228_REMOVES])
+
+    assert "read_owned_relics" in texts, sorted(texts)
+    density = texts["read_owned_relics"]
+    assert any("denser than one record per" in text for text in density), density
+
+    assert says_the_save_is_fine([THE_WORDING_AD_031_TOOK_OFF_THE_PATH])
+    assert not says_the_save_is_fine(density)
 
 
-def test_no_other_text_behind_the_prefix_says_the_save_is_fine():
-    """AK-229, second half. A property of the path, not a fixed list of places."""
+def test_no_text_behind_the_prefix_says_the_save_is_fine():
+    """AK-229, second half. A property of the path, not a fixed list of places.
+
+    No exception since AD-031: the one text that claimed the save was fine was
+    the id check's, and it was a refusal of a save that nothing was wrong
+    with. What replaced it is a slower read and a sentence in the window, so
+    nothing raised on this path may say it any more.
+    """
     offenders = {name for name, texts
                  in texts_that_can_land_behind_the_prefix().items()
                  if says_the_save_is_fine(texts)}
-    assert offenders <= {THE_SENTENCE_AK_228_REMOVES}, sorted(offenders)
+    assert offenders == set(), sorted(offenders)
 
 
 def test_the_prefix_is_written_in_exactly_one_place():
