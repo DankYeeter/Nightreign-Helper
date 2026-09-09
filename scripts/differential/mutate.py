@@ -4497,6 +4497,345 @@ from PySide6 import QtCore
             " none of them reach."),
     ),
 
+    # T-147 (V1, AD-030): the game-folder resolution point, SEC-028 and the traversal half of SEC-030. Reconstructed for T-155 from scratchpad/T-147/mutate_driver.py.
+    "ceiling-on-regulation-removed": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""        if not 0 < size <= MAX_REGULATION_BYTES:
+""",
+        new="""        if not 0 < size:
+""",
+        survival_means=(
+            "the size ceiling on regulation.bin is gone: an oversized file is hashed"
+            " without limit again (SEC-028). Measured 2026-09-09 (T-156, reconstructed"
+            " from T-147's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 72 passed in 9.51s; what falls is"
+            " test_a_regulation_over_the_ceiling_is_not_a_game."),
+    ),
+    "ceiling-excludes-its-own-value": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""        if not 0 < size <= MAX_REGULATION_BYTES:
+""",
+        new="""        if not 0 < size < MAX_REGULATION_BYTES:
+""",
+        survival_means=(
+            "the ceiling rejects its own boundary: a regulation.bin of exactly the"
+            " stated size is refused, though the decision behind SEC-028 was inclusive."
+            " Measured 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver)"
+            " against the file this task's campaign used: 1 failed, 72 passed in 9.51s;"
+            " what falls is test_a_regulation_at_the_ceiling_is_still_a_game."),
+    ),
+    "empty-regulation-accepted": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""        if not 0 < size <= MAX_REGULATION_BYTES:
+""",
+        new="""        if not 0 <= size <= MAX_REGULATION_BYTES:
+""",
+        survival_means=(
+            "**this one is meant to survive on its own** (L-008 c): the empty-file"
+            " rejection is carried by two belts, `0 < size` and the read check `if not"
+            " handle.read(1)`, and T-147 measured that dropping the size half alone"
+            " leaves the read half still refusing an empty regulation.bin -- both have"
+            " their own reason (AK-112 wants 'readable' and 'not empty' separately; the"
+            " size check also carries the SEC-028 ceiling), so neither was removed."
+            " Dropping **both** together does kill (T-147,"
+            " `control-both-emptiness-belts-dropped`); this entry proves only that the"
+            " size half is not, on its own, the whole guard."),
+    ),
+    "archive-condition-dropped": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""        if not any((folder / f"{name}.bhd").exists()
+                   for name in bhd5.ARCHIVE_KEYS):
+            return False
+""",
+        new="""""",
+        survival_means=(
+            "the archive check (a data*.bhd) is gone: a folder with only regulation.bin"
+            " and a game DLL passes stage 1 (AK-112). Measured 2026-09-09 (T-156,"
+            " reconstructed from T-147's scratchpad driver) against the file this task's"
+            " campaign used: 1 failed, 72 passed in 11.15s; what falls is"
+            " test_the_dll_alone_is_not_a_game."),
+    ),
+    "dll-condition-dropped": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""        return any((folder / name).exists() for name in oodle._DLL_NAMES)
+""",
+        new="""        return True
+""",
+        survival_means=(
+            "the DLL check is gone: any folder with regulation.bin and an archive passes"
+            " stage 1 (AK-112). Measured 2026-09-09 (T-156, reconstructed from T-147's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 71"
+            " passed in 10.19s; what falls is"
+            " test_regulation_and_an_archive_are_not_a_game,"
+            " test_a_folder_that_is_no_longer_a_game_falls_through."),
+    ),
+    "junctions-walked-into": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""                    if _is_a_door_out_of_the_tree(entry):
+                        continue
+""",
+        new="""""",
+        survival_means=(
+            "the search follows reparse points: a folder outside the tree it was told to"
+            " search can be reached through a junction (SEC-030). Measured 2026-09-09"
+            " (T-156, reconstructed from T-147's scratchpad driver) against the file this"
+            " task's campaign used: 1 failed, 72 passed in 9.27s; what falls is"
+            " test_the_search_does_not_step_through_a_junction."),
+    ),
+    "result-not-resolved": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""    return folder.resolve()
+""",
+        new="""    return folder
+""",
+        survival_means=(
+            "the found folder is handed back unresolved: a junction is returned in place"
+            " of what it points to (SEC-030). Measured 2026-09-09 (T-156, reconstructed"
+            " from T-147's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 72 passed in 11.59s; what falls is"
+            " test_the_answer_is_the_real_folder_when_the_pick_was_a_junction."),
+    ),
+    "directory-budget-removed": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""            if (visited >= MAX_DIRECTORIES
+                    or _monotonic() - started_at >= SEARCH_SECONDS):
+                return _the_best_of(matches), visited
+""",
+        new="""            if (False
+                    or _monotonic() - started_at >= SEARCH_SECONDS):
+                return _the_best_of(matches), visited
+""",
+        survival_means=(
+            "the directory budget is gone: the search can walk the whole disk. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver) against"
+            " the file this task's campaign used: 2 failed, 71 passed in 10.73s; what"
+            " falls is test_the_search_stops_after_four_hundred_directories,"
+            " test_a_game_behind_the_budget_is_not_found."),
+    ),
+    "second-budget-removed": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""            if (visited >= MAX_DIRECTORIES
+                    or _monotonic() - started_at >= SEARCH_SECONDS):
+                return _the_best_of(matches), visited
+""",
+        new="""            if (visited >= MAX_DIRECTORIES
+                    or False):
+                return _the_best_of(matches), visited
+""",
+        survival_means=(
+            "the time budget is gone: the search can run without end. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 72 passed in 10.04s; what"
+            " falls is test_the_search_stops_when_its_seconds_are_up."),
+    ),
+    "directory-budget-raised": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""MAX_DIRECTORIES = 400
+""",
+        new="""MAX_DIRECTORIES = 4000
+""",
+        survival_means=(
+            "the directory budget is ten times its documented value (400 -> 4000): the"
+            " search visits far more than the spec allows. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-147's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 71 passed in 9.14s; what falls is"
+            " test_the_search_stops_after_four_hundred_directories,"
+            " test_a_game_behind_the_budget_is_not_found."),
+    ),
+    "one-level-deeper": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""SEARCH_DEPTH = 3
+""",
+        new="""SEARCH_DEPTH = 4
+""",
+        survival_means=(
+            "the search descends one level further than SEARCH_DEPTH says. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 72 passed in 11.30s; what"
+            " falls is test_four_levels_down_are_not_found."),
+    ),
+    "one-parent-further": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""SEARCH_PARENTS = 2
+""",
+        new="""SEARCH_PARENTS = 3
+""",
+        survival_means=(
+            "the search climbs one parent further than SEARCH_PARENTS says. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 72 passed in 11.02s; what"
+            " falls is test_three_levels_up_are_not_found."),
+    ),
+    "name-check-widened": Mutation(
+        path="nrdata/gamefiles.py",
+        old="""    return any(IDENTITY_WORD in level.name.upper() for level in levels)
+""",
+        new="""    return True
+""",
+        survival_means=(
+            "stage 2 (the NIGHTREIGN name check, AK-113) accepts everything: any folder"
+            " name passes. Measured 2026-09-09 (T-156, reconstructed from T-147's"
+            " scratchpad driver) against the file this task's campaign used: 2 failed, 71"
+            " passed in 9.38s; what falls is"
+            " test_the_name_is_read_off_the_folder_and_three_levels_above[D:\\SteamLibrary\\steamapps\\common\\ELDEN"
+            " RING\\Game-False],"
+            " test_the_name_is_read_off_the_folder_and_three_levels_above[D:\\NIGHTREIGN\\a\\b\\c\\Game-False]."),
+    ),
+    "automatic-find-written-back": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    remembered = remembered_game()
+    if remembered is not None and gamefiles.looks_like_the_game(remembered):
+        return remembered
+    return gamefiles.find_game_dir()
+""",
+        new="""    remembered = remembered_game()
+    if remembered is not None and gamefiles.looks_like_the_game(remembered):
+        return remembered
+    found = gamefiles.find_game_dir()
+    if found is not None:
+        remember_game(found)
+    return found
+""",
+        survival_means=(
+            "an automatic find is written back into paths/game as if the player had"
+            " chosen it (M3, the single-writer rule of AD-030). Measured 2026-09-09"
+            " (T-156, reconstructed from T-147's scratchpad driver) against the file this"
+            " task's campaign used: 8 failed, 65 passed in 10.90s; what falls is"
+            " test_a_damaged_entry_falls_through_to_the_automatic_route[a list, which is"
+            " what a file-backed store makes of a comma],"
+            " test_a_damaged_entry_falls_through_to_the_automatic_route[a null byte in"
+            " the text],"
+            " test_a_damaged_entry_falls_through_to_the_automatic_route[empty],"
+            " test_a_damaged_entry_falls_through_to_the_automatic_route[longer than any"
+            " path], test_a_damaged_entry_falls_through_to_the_automatic_route[not a path"
+            " at all],"
+            " test_a_damaged_entry_falls_through_to_the_automatic_route[relative, so not"
+            " something remember_game wrote],"
+            " test_a_find_by_the_automatic_route_is_not_written_back,"
+            " test_nothing_at_all_is_written_when_there_was_nothing_before."),
+    ),
+    "a-second-predicate-for-the-start-check": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    if remembered is not None and gamefiles.looks_like_the_game(remembered):
+""",
+        new="""    if remembered is not None and remembered.exists():
+""",
+        survival_means=(
+            "the start check is replaced by a plain existence check: a folder that fails"
+            " stage 1 is still trusted as remembered. Measured 2026-09-09 (T-156,"
+            " reconstructed from T-147's scratchpad driver) against the file this task's"
+            " campaign used: 2 failed, 71 passed in 11.07s; what falls is"
+            " test_a_folder_that_is_no_longer_a_game_falls_through,"
+            " test_what_is_accepted_today_is_valid_tomorrow."),
+    ),
+    "remove-on-a-path-key-by-name": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    if not isinstance(raw, str):
+        return None
+""",
+        new="""    if not isinstance(raw, str):
+        _settings().remove(key)
+        return None
+""",
+        survival_means=(
+            "a broken stored value is cleared under the local variable `key` instead of"
+            " the constant it should name. Measured 2026-09-09 (T-156, reconstructed from"
+            " T-147's scratchpad driver) against the file this task's campaign used: 1"
+            " failed, 72 passed in 10.67s; what falls is"
+            " test_the_module_that_owns_the_keys_removes_nothing_at_all."),
+    ),
+    "remove-on-a-path-key-written-out": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    if not isinstance(raw, str):
+        return None
+""",
+        new="""    if not isinstance(raw, str):
+        _settings().remove("paths/game")
+        return None
+""",
+        survival_means=(
+            "a broken stored value is cleared under a hand-written key literal instead"
+            " of the constant, so it drifts if the key ever changes. Measured 2026-09-09"
+            " (T-156, reconstructed from T-147's scratchpad driver) against the file this"
+            " task's campaign used: 2 failed, 71 passed in 10.37s; what falls is"
+            " test_no_source_removes_a_remembered_path,"
+            " test_the_module_that_owns_the_keys_removes_nothing_at_all."),
+    ),
+    "the-key-renamed": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""GAME_KEY = "paths/game"
+""",
+        new="""GAME_KEY = "paths/game-v2"
+""",
+        survival_means=(
+            "the settings key changes name: R1's literal no longer matches what is"
+            " actually read or written. Measured 2026-09-09 (T-156, reconstructed from"
+            " T-147's scratchpad driver) against the file this task's campaign used: 1"
+            " failed, 72 passed in 10.65s; what falls is"
+            " test_the_two_keys_are_named_in_full - ...."),
+    ),
+    "type-str-dropped-when-reading": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    raw = _settings().value(key, "", type=str)
+""",
+        new="""    raw = _settings().value(key, "")
+""",
+        survival_means=(
+            "**this one is meant to survive on its own** (L-008 c): on the native"
+            " Windows registry store `QSettings` never turns a comma-bearing string into"
+            " a list (measured, T-147: `comma, no type` still reads back as one string),"
+            " so the `isinstance(raw, str)` check that follows catches the same danger on"
+            " a file-backed store where a comma *does* split. The two belts cover R4 from"
+            " different sides (`type=str` for INI/Linux stores, `isinstance` for both);"
+            " removing both together kills four cases (T-147,"
+            " `control-type-str-and-isinstance-both-dropped`). This entry proves only"
+            " that `type=str` is not, on its own, the whole guard on this platform."),
+    ),
+    "absolute-check-dropped": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    return stored if stored.is_absolute() else None
+""",
+        new="""    return stored
+""",
+        survival_means=(
+            "a relative stored path is accepted as if it were absolute. Measured"
+            " 2026-09-09 (T-156, reconstructed from T-147's scratchpad driver) against"
+            " the file this task's campaign used: 2 failed, 71 passed in 10.78s; what"
+            " falls is test_a_damaged_entry_reads_as_absent[not a path at all],"
+            " test_a_damaged_entry_reads_as_absent[relative, so not something"
+            " remember_game wrote]."),
+    ),
+    "empty-null-and-length-checks-dropped": Mutation(
+        path="nrplanner/gamepath.py",
+        old="""    if not raw or "\\0" in raw or len(raw) > MAX_STORED_CHARACTERS:
+        return None
+""",
+        new="""""",
+        survival_means=(
+            "an empty value, an embedded NUL or an absurdly long string is accepted as a"
+            " stored path unchanged. Measured 2026-09-09 (T-156, reconstructed from"
+            " T-147's scratchpad driver) against the file this task's campaign used: 2"
+            " failed, 71 passed in 10.54s; what falls is"
+            " test_a_damaged_entry_reads_as_absent[a null byte in the text],"
+            " test_a_damaged_entry_reads_as_absent[longer than any path]."),
+    ),
+    "datasource-asks-the-automatic-route-again": Mutation(
+        path="nrplanner/datasource.py",
+        old="""    game = gamepath.resolve_game()
+    if game is None:
+""",
+        new="""    from nrdata import gamefiles
+    game = gamefiles.find_game_dir()
+    if game is None:
+""",
+        survival_means=(
+            "datasource asks the old automatic route directly again, bypassing the"
+            " remembered path entirely (R6). Measured 2026-09-09 (T-156, reconstructed"
+            " from T-147's scratchpad driver) against the file this task's campaign used:"
+            " 1 failed, 72 passed in 10.15s; what falls is"
+            " test_only_the_resolution_point_asks_where_the_game_is."),
+    ),
+
 }
 
 
