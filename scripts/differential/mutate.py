@@ -5196,11 +5196,19 @@ from PySide6 import QtCore
         old="""            savefile.read(save_path)""",
         new="""            pass""",
         survival_means=(
-            "the file-is-a-save probe is gone: a file that cannot possibly be a save is"
-            " read anyway instead of refused with a reason. Measured 2026-09-09 (T-156,"
-            " reconstructed from T-150's scratchpad driver) against the file this task's"
-            " campaign used: 1 failed, 31 passed in 34.18s; what falls is"
-            " test_a_file_that_is_not_a_save_is_refused_with_a_reason."),
+            "**SURVIVED, and it is a finding, not an accepted gap** (T-158,"
+            " re-running T-150's campaign after T-157 spoiled its measurement"
+            " window): 36 passed, 0 failed. `inventory.scan()` now raises"
+            " `SaveNotReadable` -- a `ValueError` -- straight out of a file"
+            " that cannot be decrypted, before this line is ever reached; for"
+            " a file that decrypts but holds no relics (S3), this line still"
+            " runs but its result is discarded either way, so it changes"
+            " nothing. Both branches make nrplanner/app.py:1620 dead code."
+            " `read_the_save`'s own docstring is stale where it says"
+            " `inventory.scan` 'cannot tell them apart and should not' --"
+            " reported to the director as Technical Debt, not fixed here"
+            " (out of this task's scope, which is scripts/differential/"
+            " mutate.py only)."),
     ),
     "s4-puts-the-reason-first": Mutation(
         path="nrplanner/app.py",
