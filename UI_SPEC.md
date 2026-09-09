@@ -9058,3 +9058,582 @@ Diff dieses Nachtrags beruehrt keine Zeile in `nrdata/gamefiles.py`.
 **AK-246 bis AK-249** (§4 oben). Keine Nummer gestrichen, keine Millisekunde
 im Text.
 
+
+---
+
+## Die Gesamtzahl der Relikte, und der Erststart ohne Zeitversprechen
+## (ui-ux-designer, T-178) — 2026-09-09
+
+**Zwei Vorgaben in einem Abschnitt, weil sie denselben Ursprung haben:** den
+`power-user`-Lauf T-177 am gebauten Artefakt 1.9.0, in dem **A11 gerissen
+ist** — nicht durch Raten, sondern durch Aufgeben. Sie betreffen zwei
+verschiedene Fenster und sind unabhaengig voneinander baubar.
+
+### 0. Grundlage und Methode
+
+**Gelesen am Stand `8c830ef`** (Branch `docs/audit-and-advisor-design`):
+`docs/tasks/T-178.md` · `CLAUDE.md` (Projektsprache, A8) · `GOAL.md`
+A7, A11, A12, A15 · `ARCHITECTURE.md` **AD-029** (Kontext, Punkte 1–3,
+Vertrauensgrenze), **AD-031** und die Nachtragsuebersicht ·
+`UI_SPEC.md` Abschnitt T-074 (§0, §2, die Wortlaute W1/C1/C2), T-124/T-127
+(Zeiger), **T-141 vollstaendig** (§3 bis §11, AK-220 bis AK-229), T-148 und
+T-154 (die Nachtraege zu AK-223/AK-224/AK-244/AK-245) ·
+`qa/findings.md` QA-198, QA-201, QA-222 und der T-177-Block ·
+`DESIGN_REVIEW.md` (Abschnitt „Positiv / beibehalten", 01.09.2026) ·
+Quelltext: `nrplanner/app.py` (`_build_left` 2046-2196, `_heading` 169-177,
+`_relic_count` 534-537, `RelicSlot`-Ueberschrift 1195-1215,
+`_show_the_save_is_being_read` 4024-4035, `_the_save_has_been_read` 4037,
+der Ankunftsweg 4050-4090, `load_equipped` 4140-4310),
+`nrplanner/inventory.py` (`Inventory` 88-140, `scan` 382-430, `_scan_save`
+515-560, `build` 440-500), `nrplanner/firstrun.py` (`what_is_needed` 46-90,
+`_Builder` 576-620, `_height_of_the_content` 744-754, `show_the_build`
+800-890, `_build_what_is_missing` 937-975, W1 bei 346),
+`nrdata/iconbuild.py` (die `report(...)`-Aufrufe 123, 128, 149, 172, 186,
+210/215, 238, 263, 269).
+
+**Nichts gestartet, nichts gemessen, kein Bildnachweis.** Dieser Abschnitt
+enthaelt **keine eigene Zahl ueber die Oberflaeche** und braucht deshalb keine
+Messumgebung (L-009). Die zitierten Laufzeiten (**107 s** und **rund 5 min**
+aus QA-198, **163–283 s** aus dem `clean-room`-Lauf T-176, **rund 5 min** aus
+T-177) stammen vom `release-manager` und vom `power-user`, nicht von mir, und
+stehen **ausschliesslich in der Begruendung**. In den Kriterien steht keine
+Zeit. Wo eine Messung noch fehlt, steht sie als **Messauflage an den
+`developer`** (AK-252, AK-255) mit der Umgebung, die sie nennen muss.
+
+Aussagen, die nur aus dem Quelltext stammen, sind **(Quelltext)**
+gekennzeichnet.
+
+### 1. Was hier entschieden wird — und was nicht
+
+**Gegenstand:** Ort, Bauform und Wortlaut der Gesamtzahl (§2 bis §5);
+der Wortlaut der Erststart-Ansage und die Entscheidung ueber den Fuellstand
+des Balkens (§6 bis §9); **AK-250 bis AK-255** (§10).
+
+**Nicht Gegenstand, weil entschieden oder anderswo zustaendig:**
+
+- **QA-222** (der erste Klick kommt nicht an). Er wird zuerst vom
+  `qa-engineer` am echten Fenster mit echter Maus nachgestellt; der
+  `power-user` hat selbst gesagt, dass er ueber eine
+  Barrierefreiheits-Schnittstelle geklickt hat.
+- **Der dritte Fensterzustand** aus T-141. Diese Vorgabe **baut auf ihm auf**
+  und aendert kein Kriterium daraus; sie erweitert AK-222 und AK-225 auf ein
+  Widget, das es damals nicht gab (§3.3).
+- **Der Bestand selbst**, seine Herkunft und die Regel „der bestbestueckte
+  Spielstand gewinnt" (AD-029, unangetastet).
+
+### 2. Teil 1 — warum die Zahl nicht gefunden wurde
+
+**Die Zahl steht heute schon auf dem Bildschirm.** (Quelltext,
+`app.py:4069-4081`): `f"{self.owned.relic_count} relics in {self.owned.source}"`,
+zum Beispiel `309 relics in USER_DATA000, 110 stored builds`. Sie ist nicht
+falsch und sie fehlt nicht — **sie ist nicht auffindbar.** Drei Gruende, alle
+aus dem Quelltext belegbar, und der dritte ist der schwerste:
+
+1. **Gewicht.** Sie steht in `owned_label`: `MUTED` (`#8a8a8a`), **10 px**,
+   die kleinste Schrift des Fensters, unterhalb der Knopfzeile im linken
+   Bereich (Quelltext, `app.py:2149-2175`).
+2. **Wortlaut.** `309 relics in USER_DATA000` liest sich wie eine Teilmenge an
+   einem technischen Ort, nicht wie „so viele besitzt du". Der Spieler suchte
+   nach seinem Besitz und fand einen Dateibezeichner.
+3. **Die Zeile gehoert ihr nicht.** `owned_label` wird an **zehn** Stellen
+   beschrieben (Quelltext, `grep -c "owned_label.setText" nrplanner/app.py`
+   = 10) — darunter `Loaded Wylder — 5 chalices …`,
+   `This save stores no equipped loadout for …`,
+   `No save loaded, so there is nothing to import.` Genau das hat QA-201
+   festgehalten: *„Eine Statuszeile, die von der naechsten Meldung
+   ueberschrieben wird, ist kein Ort fuer eine Bestandszahl."* Der Spieler in
+   T-115 sah die Zahl erst nach einem **Neustart**, beilaeufig.
+
+**Daraus folgt der ganze Entwurf von Teil 1.** Nicht eine neue Zahl, sondern
+**ein eigener Ort fuer die vorhandene**: ein Widget, das genau eine Funktion
+schreibt und das keine Meldung ueberschreiben kann. Eine Zahl, die eine
+gemeinsam benutzte Statuszeile bewohnt, ist eine Zahl auf Abruf — das ist
+dieselbe Lehre wie in AK-244/AK-245, nur eine Ebene frueher: dort wurde
+entschieden, **wer** die geteilte Zeile gewinnt; hier wird entschieden, dass
+diese Aussage die geteilte Zeile **verlaesst**.
+
+**Was der Spieler stattdessen fand, und warum es ihn nicht weiterbrachte**
+(seine Worte): `Slot 1 — Red (51 available)` und `54 of 54 relics`. Beide
+Zahlen sind richtig und beide sind **slotbezogen** — die erste zaehlt, was
+fuer diesen Slot in Frage kommt (Quelltext, `app.py:1211`, bewusst
+`available` statt `owned`), die zweite dasselbe im Picker. Sie ergeben
+zusammen keine Summe, weil dieselben Relikte in mehreren Farben in Frage
+kommen; der Spieler hat das selbst erkannt und trotzdem keinen Weg zur
+Gesamtzahl gefunden. **Die Aufloesung dieser Verwechslung gehoert deshalb in
+den Tooltip der neuen Zeile** (§4, T2) und nicht in die Slotueberschriften;
+warum die beiden anderen Zahlen unangetastet bleiben, steht in §11.
+
+### 3. Teil 1 — Ort, Bauform, Zustaende
+
+#### 3.1 Ort
+
+**Eine neue Zeile im linken Bereich des `Build planner`, unmittelbar ueber der
+Knopfzeile `Rescan save` / `Load equipped`** — also zwischen
+`Deep of Night (3 extra slots)` und dieser Zeile, in dem Abstand, den
+`layout.addSpacing(6)` dort schon setzt (Quelltext, `app.py:2124-2148`).
+
+**Warum dort und nicht neben `NIGHTFARER`,** wie der Spieler vorgeschlagen
+hat: die Zahl ist eine Eigenschaft des **gelesenen Spielstands**, und die
+Bedienelemente des Spielstands stehen genau hier — `Rescan save`,
+`Load equipped`, `Find my save` und die Spielstandzeile darunter. Die Zahl
+fuehrt diese Gruppe an, die Knoepfe handeln, die 10-px-Zeile berichtet. Der
+Kopfbereich gehoert dagegen der Identitaet des Nightfarers (Liste, Varianten,
+Name in `ACCENT`); eine Bestandszahl dort waere ein Kategorienfehler und
+haette denselben Mangel wie heute — sie stuende neben Zahlen, die etwas
+anderes zaehlen. **Der Ortsvorschlag des Spielers wird damit als einziger
+Punkt seines Wunsches nicht uebernommen; der Wunsch selbst — eine einzige,
+klar benannte Zahl — vollstaendig.** Als **F-U** in §13 liegt die Frage dem
+App Designer vor.
+
+**Nur im `Build planner`.** Der linke Bereich gehoert diesem Reiter
+(Quelltext, `app.py:1960/1992`). Das ist richtig so: „wie viele Relikte
+besitze ich" ist eine Frage der Bauplanung, und A11 verlangt, dass der Spieler
+**auf jedem Reiter sein Ziel** erreicht — nicht, dass jede Zahl auf jedem
+Reiter steht.
+
+#### 3.2 Bauform — eine Zeile, ein Schreiber
+
+**Genau eine Funktion schreibt dieses Widget**, und sie bildet ihren Text
+allein aus dem gelesenen Bestand (`self.owned`). Gerufen wird sie an der
+Stelle, durch die **jedes** Ende eines Lesens laeuft (Quelltext,
+`_the_save_has_been_read`, `app.py:4037`, Docstring: *„Every ending of a read
+comes through here"*), und einmal beim Aufbau des Fensters. **Keine andere
+Stelle schreibt hinein** — das ist die ganze Vorrichtung gegen QA-201, und
+AK-250 prueft sie als Eigenschaft, nicht als Fundstelle.
+
+`owned_label` bleibt, wie es ist. Die Zahl steht danach fuer einen Moment an
+zwei Stellen (in der neuen Zeile und in der Bestandsnotiz darunter) — **das
+ist gewollt und kostet nichts**, solange es dieselbe Zahl ist: die Notiz
+verschwindet bei der naechsten Meldung, die neue Zeile bleibt. Ein Umbau der
+Notiz haette AK-224, AK-228, AK-244 und AK-245 nachgezogen; das waere Arbeit
+an fuenf Kriterien fuer eine Doppelung, die niemandem schadet. AK-251 haelt
+dafuer fest, dass beide Zahlen **dieselbe** sind.
+
+#### 3.3 Zustaende — vollstaendig
+
+| Zustand | was in der neuen Zeile steht |
+|---|---|
+| **Erststart-Lesen laeuft**, nichts gelesen | **leer** |
+| **Bestand gelesen** | `You own <n> relics in total.` (§4, T1) |
+| **`Rescan` laeuft**, voriger Bestand gilt | **unveraendert** die Zahl von vorher |
+| **`Rescan` fertig** | die neue Zahl |
+| **kein Spielstand gefunden** | **leer** |
+| **Spielstand nicht lesbar** | **leer** |
+| **gewaehlter Spielstand ohne Relikte** | **leer** |
+
+**Leer heisst leer:** kein `0`, kein `…`, kein `–`, kein Wartesatz, kein
+Platzhalter. **AK-222 verbietet jede Aussage ueber ungelesenen Bestand**, und
+`You own 0 relics in total.` waere die Aussage, die am ehesten wie ein
+Datenverlust aussieht (dieselbe Begruendung wie fuer `(0 available)` in T-141
+§4 (5), **A7**).
+
+**Ein Wartesatz in dieser Zeile waere doppelt.** Die Spielstandzeile darunter
+traegt waehrend des Lesens bereits `Reading your save.` (T-141 §9 (a)); zwei
+Zeilen uebereinander, die dasselbe sagen, sind dieselbe Nachricht zweimal —
+genau das, was T-141 §4 (4) fuer den Wartezustand ausgeschlossen hat.
+
+**Der Fall „Bestand vorhanden, aber null Relikte" existiert nicht**
+(Quelltext, `inventory.py:529`: ein Charakterslot ohne Relikte wird
+uebersprungen; findet sich keiner, kommt kein `Inventory` zustande, und die
+Spielstandzeile traegt `CHOSEN_SAVE_IS_EMPTY` bzw. `NO_SAVE_FOUND`). Liegt
+also ein Bestand vor, ist `<n>` mindestens 1 — deshalb genuegt dem Wortlaut
+die Einzahlform aus `_relic_count()` und braucht keinen dritten Fall.
+
+**Die Ankunft bewegt nichts** (AK-225 sinngemaess, hier auf das neue Widget
+erweitert): die Zeile hat ihre Hoehe **vom ersten Anstrich an**, auch solange
+sie leer ist. Sonst ruecken bei der Ankunft die Knopfzeile und alles darunter,
+oder die Gefaessliste darueber aendert ihre Hoehe unter dem Zeiger.
+
+### 4. Teil 1 — der Wortlaut, vollstaendig und Englisch (A8)
+
+Beide Texte sind `Qt.PlainText` (dieselbe Begruendung wie SEC-004 fuer
+`owned_label`).
+
+**T1 — die Zeile selbst** (`<n>` ueber `_relic_count()`, Quelltext
+`app.py:534-537`, damit `1 relic` und nicht `1 relics` dasteht):
+
+```
+You own 309 relics in total.
+```
+
+```
+You own 1 relic in total.
+```
+
+**T2 — der Tooltip derselben Zeile** (`<source>` ist der Name des gelesenen
+Spielstands und laeuft durch `html.escape()`, wie beim Tooltip von
+`owned_label`, Quelltext `app.py:4090`):
+
+```
+Counted from your save USER_DATA000. The number beside a relic slot counts only the relics that fit that slot.
+```
+
+**Warum dieser Wortlaut und kein kuerzerer** (**A12**: jede Zahl nennt Einheit
+und Geltungsbereich):
+
+- **`You own`** benennt den Geltungsbereich, den der Spieler gesucht hat, und
+  unterscheidet die Zahl von `available` (was in einen Slot passt) und von
+  `577 buffs, 75 curses` im Reiter `Effects & chances` (was das Spiel kennt).
+- **`relics`** ist die Einheit. Gezaehlt werden **Exemplare**, nicht Rollen und
+  nicht Effekte — ein Datensatz, ein Relikt (Quelltext, `inventory.py:489`,
+  mit der Messnotiz von 2026-08-14 daneben: 284 Datensaetze, 284 im Spiel).
+- **`in total`** ist der Bezug zu genau der Zahl, mit der er sie verwechselt
+  hat: der Slotzahl. Ohne dieses Wort steht wieder eine nackte Zahl neben
+  einer nackten Zahl.
+- **Der Tooltip nennt die Herkunft** (welcher Spielstand gelesen wurde) und
+  loest die Verwechslung ausdruecklich auf. Er sagt **nicht**, die Slotzahl
+  sei „kleiner": sie kann gleich sein, wenn alles, was der Spieler besitzt, in
+  denselben Slot passt. Eine Zusicherung, die in einem Randfall bricht, ist
+  keine.
+- **Der Name des Spielstands steht nicht auf der Zeile selbst**, obwohl er zum
+  Geltungsbereich gehoert: `slot` heisst in diesem Fenster bereits etwas
+  anderes (`Slot 1 — Red`), und `You own 309 relics in save slot USER_DATA000`
+  haette genau die Verwechslung wieder aufgemacht, die die Zeile aufloesen
+  soll. Auf der Zeile steht der Besitz, im Tooltip die Herkunft, in der
+  Bestandsnotiz darunter beides wie bisher.
+
+### 5. Teil 1 — Token
+
+**Kein neuer Farbwert, keine neue Schriftgroesse, kein neues Widget-Muster.**
+Die Zeile ist ein `QLabel` mit `font-size: 12px` **ohne** Farbangabe, also in
+der gewoehnlichen Textfarbe der dunklen Palette — dieselbe Bauform wie
+`relicpicker.py:817` (`self.picked.setStyleSheet("font-size: 12px;")`).
+`WordWrap` an, wie bei `owned_label`.
+
+**Die Rangfolge im linken Bereich ist damit ablesbar und neu geordnet, ohne
+etwas zu verschieben:** Nightfarer-Name 14 px `ACCENT` fett (Identitaet) >
+**Gesamtzahl 12 px normal** (die Antwort) > Abschnittsueberschriften 8 pt fett
+`MUTED` gesperrt > Bestandsnotiz 10 px `MUTED` (Bericht). 12 px ist ein
+belegter Wert des Bestands (neunmal im Anwendungscode), 11 px waere zu nah an
+der Notiz, 13 px zu nah am Namen.
+
+### 6. Teil 2 — was gemessen ist, und was der Balken heute tut
+
+**Die Ansage** (Quelltext, `firstrun.py:820-824`):
+*„Reading your installation. This happens once, and takes about a minute."*
+
+**Vier Messungen, vier verschiedene Ergebnisse, alle groesser als die
+Ansage:**
+
+| Lauf | gemessen | Quelle |
+|---|---|---|
+| `power-user` T-115 | 107 s | QA-198 |
+| `clean-room` T-113 | rund 5 min | QA-198 |
+| `clean-room` T-176 | 163–283 s | QA-198, Nachtrag 08.09. |
+| `power-user` T-177 | rund 5 min | T-177 |
+
+QA-198 haelt fest, dass die Spanne **auf derselben Maschine, demselben
+Artefakt und demselben Spielstand** auftrat und ihre Ursache **ungeklaert**
+ist. Daraus folgt zweierlei: die Ansage ist in **jedem** gemessenen Fall
+falsch, und **eine Erklaerung der Streuung ueber die Maschine des Spielers
+waere ebenfalls falsch** — „depends on your drive" oder „on a slower machine"
+ist durch die Messungen **widerlegt**, nicht gestuetzt. Der neue Satz darf
+also keine Ursache nennen.
+
+**Der Balken** (Quelltext, `firstrun.py:848-850`): `bar.setRange(0, 0)`,
+`setTextVisible(False)` — unbestimmt, ohne Fuellstand und ohne Text. Der
+`power-user` hat das als eigenen Mangel gemeldet: *„Ich wusste die ganze Zeit
+nicht, ob noch 10 Sekunden oder noch 5 Minuten uebrig sind."*
+
+**Was ausdruecklich bleibt**, weil er es gelobt hat (*„besser als ein stummer
+Ladebalken"*): die wechselnde Statuszeile unter dem Balken
+(`builder.progress` an `window.status.setText`, Quelltext
+`firstrun.py:959`) mit `Reading the game's data tables ...`,
+`Decoding artwork ...`, `portraits: 10`, `item icons: 713 of 786 requested`
+und den uebrigen Meldungen aus `nrdata/iconbuild.py`.
+
+### 7. Teil 2 — die Entscheidung: der Balken bekommt **keinen** Fuellstand
+
+**Begruendung, gezaehlt statt geschaetzt:**
+
+1. **Die grossen Schritte sind zwei, und sie sind kein Fortschritt.**
+   `what_is_needed()` liefert vor dem Lauf `["snapshot", "icons"]` (Quelltext,
+   `firstrun.py:46-90`) — die Zahl ist also **bekannt**, aber ein Balken aus
+   zwei Schritten steht die halbe Wartezeit auf 0 und springt dann auf 50.
+   Ein Balken, der minutenlang auf null steht, sagt „es geht nichts voran"
+   und ist damit **schlechter als der unbestimmte**, der wenigstens nichts
+   behauptet.
+2. **Die beiden Haelften sind nicht gleich lang — und niemand hat sie
+   gemessen.** Die einzige Aussage dazu steht im Modul-Docstring
+   (*„roughly half extracting the params, half decoding the icon atlases"*,
+   `firstrun.py:5`); eine Gewichtung darauf zu bauen hiesse, eine Vermutung in
+   eine Prozentzahl zu verwandeln.
+3. **Die feinen Schritte sind nicht zaehlbar.** Die Meldungen des
+   Symbolbaus sind **keine feste Zahl** (Quelltext, `nrdata/iconbuild.py`):
+   sieben Meldungen kommen immer (Zeilen 128, 149, 172, 186, 210/215, 263,
+   269), **eine nur mit installiertem DLC** (Zeile 238, in
+   `if DLC_SOLO_HEADER in arc.entries`), und **je Nightfarer ohne Portraet
+   eine weitere** (Zeile 123, in der Schleife ueber `HeroParam`). Ein Nenner
+   daraus waere genau in den Faellen falsch, die er erklaeren soll.
+4. **Die Gesamtdauer schwankt um den Faktor drei ohne bekannte Ursache**
+   (§6). Jede Umrechnung von Schritten in Zeit erbt diese Streuung.
+
+**Damit gilt die Regel aus dem Auftrag:** *eine Fortschrittsanzeige, die
+falsch schaetzt, ist schlimmer als keine* — **die Schritte sind nicht
+verlaesslich zaehlbar, der Balken bleibt unbestimmt, und der ehrliche Satz
+traegt allein.** AK-254 haelt das fest, damit die Frage nicht in jedem Zyklus
+neu aufgemacht wird.
+
+**Ebenfalls ausgeschlossen, aus demselben Grund:** eine Restzeit
+(„about 2 minutes left"), eine verstrichene Zeit („running for 3:20") und eine
+Schrittzaehlung („Step 1 of 2"). Die ersten beiden sind Schaetzungen, die
+dritte wird als „halb fertig" gelesen und ist es nicht.
+
+**Was der Spieler stattdessen bekommt**, und es beantwortet seine Frage
+(„10 Sekunden oder 5 Minuten?") so genau, wie sie beantwortbar ist: die
+Groessenordnung im Satz (**Minuten, nicht Sekunden**) und den Beleg, dass
+gearbeitet wird, in der Zeile, die er ohnehin schon gelobt hat.
+
+**Fuer die Architektur folgt daraus nichts:** kein neues Signal, keine
+Zahl ueber die Threadgrenze, kein Eingriff in `_Builder` oder in den
+Wartelauf. `progress = Signal(str)` bleibt, wie es ist.
+
+### 8. Teil 2 — der Wortlaut, vollstaendig und Englisch (A8)
+
+**W-A — die Erklaerzeile beim Erststart** (ersetzt *„Reading your
+installation. This happens once, and takes about a minute."*):
+
+```
+Reading your installation. This happens once, and takes minutes rather than seconds — sometimes several. The line below changes as it goes.
+```
+
+**W-B — dieselbe Zeile beim Neuaufbau** (ersetzt *„Re-reading your
+installation so the numbers are up to date."*; die Ueberschrift
+`Refreshing your game data` bleibt):
+
+```
+Re-reading your installation so the numbers are up to date. This takes minutes rather than seconds — sometimes several. The line below changes as it goes.
+```
+
+**W-C — der dritte Satz mit demselben Versprechen**, im Frage-Zustand W1
+(*„This does not look like ELDEN RING NIGHTREIGN"*, Quelltext
+`firstrun.py:344-348`). Geaendert wird **ein** Halbsatz, der Rest des Absatzes
+bleibt Wort fuer Wort:
+
+```
+Its folder is not named after ELDEN RING NIGHTREIGN, so this may be a
+different game. Reading it takes minutes, and every number would be wrong.
+```
+
+**Warum dieser Wortlaut:**
+
+- **`minutes rather than seconds`** kann nicht wieder falsch werden. Er ist
+  wahr fuer 107 s wie fuer 5 min und bliebe wahr, wenn eine Maschine 10 min
+  braucht. Genau das war der Bruch: nicht die Zahl war falsch, sondern **dass
+  eine genannt wurde** (QA-198, woertlich: *„eine Zahl anzugeben ist hier der
+  Fehler, nicht die falsche Zahl"*).
+- **`sometimes several`** ist die Zusage nach oben. Sie nimmt dem Spieler die
+  Enttaeuschung, die „about a minute" erzeugt hat, und sie irrt in die
+  ungefaehrliche Richtung: wer weniger wartet als erwartet, faengt nicht an zu
+  zweifeln.
+- **Keine Ursache.** Kein „on a slow drive", kein „depends on your machine" —
+  die Streuung trat auf **derselben** Maschine auf (§6). Eine erfundene
+  Ursache waere derselbe Fehler noch einmal, nur schwerer zu widerlegen.
+- **`The line below changes as it goes.`** beantwortet die eigentliche Frage
+  hinter der Ungeduld — „haengt es?" — und weist auf das hin, was der
+  `power-user` von sich aus als besten Teil des Fensters benannt hat. Der Satz
+  behauptet **nicht**, die Zeile zeige den Fortschritt; er behauptet, dass sie
+  sich aendert, und das tut sie.
+- **`This happens once`** bleibt, weil es stimmt und weil es der Grund ist,
+  warum das Warten hinnehmbar ist.
+- **W-C behaelt seine Funktion** — Kosten plus Vergeblichkeit — und wird durch
+  die Korrektur staerker: Minuten fuer ein Ergebnis, das ohnehin falsch waere.
+
+**Die Hoehe des Fensters folgt dem Text, nicht umgekehrt.** Der Bau-Zustand
+setzt heute feste `190` bzw. `150` Pixel (Quelltext, `firstrun.py:887`),
+waehrend der Frage-Zustand seine Hoehe misst (`_height_of_the_content`,
+`firstrun.py:744-754`, dort mit der Notiz, dass fuenf von sechs Panels ohne
+diese Messung Text abgeschnitten haben). Die laengeren Saetze machen die
+Messung auch hier noetig: **die Hoehe des Bau-Zustands wird bei
+`PANEL_WIDTH` gemessen und ist nie kleiner als heute** (190 beim Erststart,
+150 beim Neuaufbau), der Zuschlag fuer die Bestaetigungszeile bleibt, wie er
+ist. Kein Satz wird gekuerzt, um in eine Zahl zu passen.
+
+### 9. Teil 2 — Token
+
+**Keine Aenderung.** Ueberschrift, Erklaerzeile, Bestaetigungszeile (`GOOD`),
+Balken, Statuszeile und das Angebot `Add to my Start Menu` behalten Reihenfolge
+und Aussehen. Es kommt kein Widget dazu und faellt keines weg.
+
+### 10. Akzeptanzkriterien — AK-250 bis AK-255
+
+*Neu vergeben: **AK-250 bis AK-255**. Gegen `UI_SPEC.md`, `qa/findings.md`,
+`nrplanner/`, `tests/` und `docs/` geprueft (`grep -rn "AK-2[45][0-9]"`),
+hoechste belegte Nummer vor diesem Lauf war **AK-249**; `docs/state.md` nennt
+`AK ab AK-250` und stimmt damit ueberein.*
+
+Pruefbar, binaer, an **Zustaenden** festgemacht. **Keine Zeit, kein
+Prozentwert, keine Millisekunde in einem Kriterium** — die gemessenen Dauern
+stehen in §6 und werden von keinem Test behauptet.
+
+**AK-250** *(die Gesamtzahl hat eine Zeile, die ihr gehoert)* Im
+`Build planner` steht die Besitzzahl in einem **eigenen** Widget des linken
+Bereichs, oberhalb der Knopfzeile `Rescan save` / `Load equipped`, **nicht**
+in `owned_label`. Nachdem eine der Meldungen gelaufen ist, die heute die
+Spielstandzeile ueberschreiben, traegt diese Zeile **unveraendert** dieselbe
+Zahl.
+*Aufbau:* ein Fenster mit gelesenem Bestand; nacheinander die vier
+`load_equipped`-Enden mit vorhandenem Bestand ausloesen —
+`Loaded <hero> — …`, `This save's stored builds could not be read: …`,
+`This save stores no equipped loadout for <hero>.` und
+`<hero> has vessel <id> equipped, which is not in this list.`; die Zahl der
+eigenen Zeile jedes Mal **gegen ein Literal** stellen.
+*Positivkontrolle, ohne die der Waechter nur sein eigenes Pruefmittel misst:*
+dieselbe Vorrichtung gegen die **heutige** Fassung — die Zahl steht dort in
+`owned_label` und **muss** nach dem ersten `Load equipped` verschwunden sein.
+Schlaegt das nicht an, loest die Vorrichtung die Meldungen nicht wirklich aus.
+*Toetende Mutation:* die Zahl wieder in `owned_label` schreiben.
+
+**AK-251** *(die Zahl nennt Einheit und Geltungsbereich, woertlich)* Die Zeile
+traegt woertlich `You own <n> relics in total.` bzw. bei genau einem Relikt
+`You own 1 relic in total.`; ihr Tooltip traegt woertlich T2 aus §4 mit dem
+Namen des gelesenen Spielstands, und der Name laeuft durch `html.escape()`.
+Das Widget ist `Qt.PlainText`. `<n>` ist **dieselbe** Zahl, die die
+Bestandsnotiz in derselben Sitzung nennt (`<n> relics in <source>`).
+*Aufbau:* ein Bestand mit einem Relikt und einer mit mehreren; beide Zahlen
+im selben Fenster auslesen und gegeneinander stellen.
+*Toetende Mutation:* die Zahl aus `available_items()` eines Slots nehmen statt
+aus dem Bestand — sie weicht dann von der Notiz ab, sobald ein Relikt in einem
+Slot liegt.
+
+**AK-252** *(keine Zahl, bevor gelesen ist — und die Ankunft bewegt nichts)*
+Solange kein Bestand vorliegt, ist die Zeile **leer**: kein `0`, kein `…`,
+kein Wartesatz, kein Platzhalter. Das gilt in **allen vier** Faellen: waehrend
+eines Lesens, das nie antwortet; bei `No save file found…`; bei
+`Save could not be read: …`; und bei einem gewaehlten Spielstand ohne
+Relikte. Ueber den Wechsel von leer zu gefuellt hinweg sind `width()` und
+`height()` des Fensters identisch, die Bereichsbreiten identisch, und **kein
+Bedienelement des linken Bereichs aendert seine Lage oder seine Hoehe** — die
+Gefaessliste eingeschlossen.
+*Messauflage an den `developer` (L-009):* er misst die Hoehe der gefuellten
+Zeile an der Vorgabebreite des linken Bereichs und nennt sie **mit ihrer
+Umgebung** (Qt-Stil, Windows-Anzeigeskalierung, physisch oder logisch, welcher
+Bestand); die leere Zeile bekommt mindestens diese Hoehe, vom ersten Anstrich
+an. Der Text wird dafuer nicht verlaengert.
+*Toetende Mutation:* die Zeile bei fehlendem Bestand verstecken
+(`setVisible(False)`) — bei der Ankunft ruecken Knopfzeile und Notiz.
+
+**AK-253** *(der Erststart verspricht keine Dauer, die er nicht halten kann)*
+Die Erklaerzeile des Bau-Zustands traegt woertlich **W-A** (Erststart) bzw.
+**W-B** (Neuaufbau), und der Absatz W1 traegt woertlich **W-C** (§8). **Kein**
+Text, der in `nrplanner/firstrun.py` auf den Bildschirm kommt, nennt eine
+feste Dauer.
+*Waechter:* Suche ueber die Anzeigetexte des Moduls nach `about a minute`,
+`takes a minute` und einer Ziffer unmittelbar vor `second`, `minute` oder
+`hour` — **kein** Treffer.
+*Positivkontrolle:* dieselbe Suche gegen den **heutigen** Wortlaut **muss**
+zweimal anschlagen (Erklaerzeile und W1) — sonst sammelt sie die Texte nicht
+ein, die sie zu sammeln vorgibt.
+*Toetende Mutation:* „about a minute" wieder einsetzen.
+
+**AK-254** *(kein erfundener Fortschritt — und die gelobte Zeile bleibt)* Der
+Balken des Bau-Zustands hat Minimum und Maximum **beide 0** und keinen
+sichtbaren Text. Im Fenster steht kein Prozentwert, keine Restzeit, keine
+verstrichene Zeit und keine Schrittzaehlung. Jede Meldung, die der Bau abgibt,
+erscheint weiter **woertlich und in derselben Reihenfolge** in der Zeile unter
+dem Balken.
+*Aufbau:* ein Bau mit einer Vorrichtung, die die heutigen Meldungen der Reihe
+nach abgibt; die Zeile traegt sie in dieser Reihenfolge — **Zaehlwert gegen
+ein Literal**: so viele Meldungen abgegeben wie angezeigt.
+*Toetende Mutation:* dem Balken einen Bereich geben und ihn aus der
+Schrittliste treiben — er steht dann fuer den groesseren Teil der Wartezeit
+auf 0 und springt.
+
+**AK-255** *(nichts ist abgeschnitten, an keiner Skalierung)* Die Hoehe des
+Bau-Zustands folgt seinem Inhalt bei `PANEL_WIDTH` und ist nie kleiner als
+heute (Erststart bzw. Neuaufbau, zuzueglich der Bestaetigungszeile wie
+bisher). Bei 100 %, 125 % und 150 % Anzeigeskalierung ist die Erklaerzeile
+vollstaendig zu lesen — dieselbe Pruefung, die **AK-129** fuer die
+Frage-Zustaende verlangt.
+*Messauflage an den `developer` (L-009):* er nennt die gemessene Hoehe beider
+Bau-Zustaende mit ihrer Umgebung (Qt-Stil, Anzeigeskalierung, physisch oder
+logisch).
+*Toetende Mutation:* die festen Hoehen stehen lassen — der laengere Satz wird
+unten abgeschnitten.
+
+### 11. Was diese Vorgabe ausserdem beruehrt — Meldung, keine Entscheidung
+
+**Vier Stellen, die denselben Mangel tragen und ausserhalb meiner Grenzen
+liegen** (`UI_SPEC.md` ist die einzige Datei, die ich schreiben darf). Der
+`director` entscheidet, ob sie in denselben Auftrag gehoeren:
+
+1. **`README.md:80`** — *„First launch takes about a minute."* Nutzertext auf
+   Englisch, dieselbe widerlegte Zusage. **Sollte mit W-A nachgezogen werden**;
+   ohne das steht die falsche Zahl weiter dort, wo ein neuer Nutzer zuerst
+   liest.
+2. **`scripts/setup_check.py:234`** — *„That takes about a minute, and is only
+   needed once per patch."* Erreicht einen Menschen, wenn auch keinen
+   Spieler.
+3. **`nrplanner/firstrun.py:5`** (Modul-Docstring) — *„That takes about a
+   minute"*. Kein Anzeigetext, aber die Quelle des Missverstaendnisses; der
+   `developer` sollte ihn beim Bauen mitnehmen. AK-253 fordert ihn **nicht**,
+   weil er nicht auf dem Bildschirm erscheint.
+4. **`DESIGN_REVIEW.md`, Durchlauf 01.09.2026, „Positiv / beibehalten"** —
+   dort steht, der Erststart-Dialog *„nennt eine ehrliche Zeitangabe (»about a
+   minute«)"*. **Das war meine eigene Rolle, aus einem Bildschirmabzug
+   geurteilt und nie gemessen; die Aussage ist widerlegt.** Ich darf die Datei
+   in diesem Auftrag nicht anfassen — sie gehoert in den naechsten
+   Review-Durchlauf, und dieser Absatz ist der Vermerk dazu.
+
+**Zwei Stellen, die ich bewusst *nicht* anfasse**, obwohl der `power-user`
+ueber sie gestolpert ist:
+
+- **Die Slotueberschrift `Slot 1 — Red (51 available)`** (Quelltext,
+  `app.py:1211`). Das Wort `available` ist bereits die richtige Abgrenzung und
+  wurde in einem frueheren Durchlauf ausdruecklich so gewaehlt.
+- **Die Zusammenfassungszeile des Pickers `54 of 54 relics · …`**
+  (`relicpicker.py:1316-1321`). Sie ist **woertlich** in mehreren Kriterien
+  festgeschrieben (T-024 §3.2, T-127 §-Tabelle, AK-200) und in deren Tests;
+  eine Umformulierung zoege vier bis fuenf Kriterien nach sich.
+
+**Begruendung fuer beide:** sobald die Gesamtzahl an einem eigenen Ort steht,
+haben diese Zahlen einen Bezugspunkt, und der Tooltip T2 sagt den Unterschied
+ausdruecklich. **Ob das genuegt, misst der naechste `power-user`-Lauf, nicht
+diese Vorgabe** — bleibt die Verwechslung, ist die Zusammenfassungszeile der
+naechste Schritt (**F-W**, §13).
+
+**Die Architektur beruehrt diese Vorgabe nicht.** Teil 1 schreibt sein Widget
+im Hauptthread an der Stelle, an der der Bestand ankommt (AD-029 unangetastet,
+AD-006.8 unangetastet); Teil 2 kommt ohne neues Signal und ohne Zahl ueber die
+Threadgrenze aus. Es gibt nichts, was der `architect` entscheiden muesste.
+
+### 12. Ausdruecklich **nicht** Teil dieser Vorgabe
+
+- **QA-222** (der erste Klick) — erst `qa-engineer` am echten Fenster.
+- **Der Wortlaut der Bestandsnotiz** (`<n> relics in <source>, <m> stored
+  builds`) und die Regeln darueber, wer die Spielstandzeile gewinnt
+  (AK-224, AK-244, AK-245). Unveraendert.
+- **Die uebrigen Reiter.** Die Gesamtzahl steht im `Build planner`, wo der
+  Bestand hingehoert.
+- **Eine Aufschluesselung** nach Farbe, Nightfarer oder Tiefe. Der Spieler hat
+  **eine** Zahl gesucht; eine Tabelle waere die Antwort auf eine Frage, die
+  niemand gestellt hat.
+- **Der Fortschritt des Erststarts als Zahl** — §7, entschieden und begruendet,
+  damit die Frage nicht in jedem Zyklus neu aufgemacht wird.
+- **`README.md`, `scripts/` und `DESIGN_REVIEW.md`** — §11, ausserhalb meiner
+  Schreibgrenzen.
+
+### 13. Offene Fragen an den App Designer
+
+- **F-U (der Ort der Gesamtzahl).** Der `power-user` hat sie *„neben
+  `NIGHTFARER` oder irgendwo im Kopfbereich"* gewuenscht; diese Vorgabe stellt
+  sie ueber die Knopfzeile des Spielstands (§3.1). **Empfehlung: so lassen
+  wie hier vorgegeben** — die Zahl kommt aus dem Spielstand und steht bei
+  dessen Knoepfen; der Kopfbereich gehoert dem Nightfarer. Sein eigentlicher
+  Wunsch — eine einzige, klar benannte Zahl — ist in beiden Faellen erfuellt.
+- **F-V (`You own` bei mehreren Charakteren).** Das Programm liest den
+  **bestbestueckten** Charakterslot (Quelltext, `inventory.py:382-430`,
+  AD-029). Wer zwei Charaktere mit verschiedenen Bestaenden hat, bekommt die
+  Zahl des volleren zu sehen, und der Tooltip nennt den Spielstand dazu.
+  **Empfehlung: so lassen** — die Alternative waere eine Auswahl im
+  Bauplaner, und das ist ein eigenes Vorhaben, kein Wortlaut.
+- **F-W (die slotbezogenen Zahlen).** Bleibt die Verwechslung von
+  `54 of 54 relics` mit dem Besitz auch nach dieser Vorgabe bestehen, gehoert
+  die Zusammenfassungszeile des Pickers nachgezogen (§11). **Empfehlung: erst
+  messen, dann aendern** — der naechste `power-user`-Lauf entscheidet, und
+  vier bis fuenf Kriterien haengen daran.
+
+### 14. Neu vergebene Kriterien
+
+**AK-250 bis AK-255** (§10). Keine Nummer gestrichen, keine Zeit und kein
+Prozentwert in einem Kriterium.

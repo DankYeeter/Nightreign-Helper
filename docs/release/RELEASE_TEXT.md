@@ -41,7 +41,11 @@ text and trademarks are the property of their respective owners.
 **What this program does.** It reads and decrypts, locally, the game files
 and the save data of an installed copy of ELDEN RING NIGHTREIGN, using
 decryption keys that have been publicly known in the modding community for
-years. It never writes to the game or to the save file, and it makes no
+years. To open the game's own archives it also runs a small decompression
+program out of that installation folder — a library that ships with the game
+itself, not something this project adds. On first run it asks you to point it
+at a copy of the game you trust, which for almost everyone is simply the one
+they play. It never writes to the game or to the save file, and it makes no
 network connection.
 
 This executable contains no game data; it reads your own installation.
@@ -91,7 +95,11 @@ text and trademarks are the property of their respective owners.
 **What this program does.** It reads and decrypts, locally, the game files
 and the save data of an installed copy of ELDEN RING NIGHTREIGN, using
 decryption keys that have been publicly known in the modding community for
-years. It never writes to the game or to the save file, and it makes no
+years. To open the game's own archives it also runs a small decompression
+program out of that installation folder — a library that ships with the game
+itself, not something this project adds. On first run it asks you to point it
+at a copy of the game you trust, which for almost everyone is simply the one
+they play. It never writes to the game or to the save file, and it makes no
 network connection.
 
 This executable contains no game data; it reads your own installation.

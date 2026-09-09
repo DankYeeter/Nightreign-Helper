@@ -98,6 +98,14 @@ jobs:
       # Each required path is checked before packing so that a missing file
       # fails the step loudly instead of shipping an incomplete archive that
       # still claims completeness.
+      #
+      # QA-207: Compress-Archive flattens a bare file argument to the
+      # archive root -- it does not preserve the path it came from. Passing
+      # "vendor/Paramdex/NOTICE" directly used to land in the zip as a
+      # top-level "NOTICE", while THIRD_PARTY.md links to it as
+      # "vendor/Paramdex/NOTICE" (relative to itself). The link ran into
+      # nothing. Staging the files first, with the directory rebuilt, keeps
+      # the archive's internal layout matching the link.
       - name: Package licence notices
         shell: pwsh
         run: |
@@ -113,7 +121,16 @@ jobs:
               exit 1
             }
           }
-          Compress-Archive -Path $required -DestinationPath dist/NightreignHelper-notices.zip
+          $staging = "dist/notices-staging"
+          if (Test-Path -Path $staging) { Remove-Item -Path $staging -Recurse -Force }
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item -Path "LICENSE" -Destination $staging
+          Copy-Item -Path "THIRD_PARTY.md" -Destination $staging
+          Copy-Item -Path "licenses" -Destination $staging -Recurse
+          New-Item -ItemType Directory -Path "$staging/vendor/Paramdex" -Force | Out-Null
+          Copy-Item -Path "vendor/Paramdex/NOTICE" -Destination "$staging/vendor/Paramdex/NOTICE"
+          Compress-Archive -Path "$staging/*" -DestinationPath dist/NightreignHelper-notices.zip
+          Remove-Item -Path $staging -Recurse -Force
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         if: startsWith(github.ref, 'refs/tags/')
