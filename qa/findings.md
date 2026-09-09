@@ -2672,3 +2672,83 @@ Spielinstallation ist ausdruecklich read-only**).
 **Der Nachweis kommt, sobald eine zweite Maschine oder ein frisches Windows
 zur Hand ist.** Bis dahin steht A15 in der GOAL-Tabelle als **halb belegt**,
 nicht als erfuellt — und nicht als offen.
+
+## Power-User-Lauf T-177 — A11 ist nicht erfuellt
+
+**09.09.2026, auf dem gebauten Artefakt 1.9.0** (`A2180D5D…66EF3`). Persona
+ohne jeden Codekontext, fuenf Ziele in Spielersprache.
+
+**Ergebnis: 3 von 5 Zielen geschafft, 1 mit Muehe, 1 aufgegeben.**
+
+**A11 verlangt**, dass in `power-user`-Berichten *"kein 'ich habe nicht
+verstanden' und kein 'ich habe geraten' mehr steht"*. **Er hat nicht
+geraten — er hat aufgegeben.** Das ist nicht besser.
+
+### QA-201 bestaetigt — die einfachste Frage bleibt unbeantwortet
+
+*"Wie viele Relikte besitze ich?"* war sein **erstes** Ziel. Gesucht im
+Bau-Bildschirm, in der Relikt-Auswahl und im Tab `Effects & chances`.
+Gefunden hat er nur **Slot-Zahlen** (`Slot 1 — Red (51 available)`,
+`54 of 54 relics`), die zusammen keine sinnvolle Summe ergeben. **Aufgegeben.**
+
+Sein Wunsch, woertlich: *"eine einzige Zahl, z. B. neben `NIGHTFARER` oder
+irgendwo im Kopfbereich, à la 'Du besitzt insgesamt X Relikte'."*
+
+### QA-198 bestaetigt, mit neuer Zahl aus dem Artefakt
+
+Die Ersteinrichtung dauerte **rund 5 Minuten**; das Programm sagt **"about a
+minute"**. Der clean-room-Lauf (T-176) hat unabhaengig **163-283 s** gemessen.
+
+**Neu und schaerfer als QA-198:** der Fortschrittsbalken hat **keinen
+Fuellstand** (Minimum und Maximum beide 0 — ein reiner "irgendwas
+passiert"-Balken) und **keine Zeitschaetzung**. Sein Satz: *"Ich wusste die
+ganze Zeit nicht, ob noch 10 Sekunden oder noch 5 Minuten uebrig sind."*
+
+*Was er gelobt hat: die wechselnde Textzeile ("Reading the game's data
+tables…", "portraits: 10") — **besser als ein stummer Balken.***
+
+## QA-222 — Der erste Klick kommt nicht an, wenn das Fenster nicht vorn ist
+
+**Prioritaet: P2 · Schwere: Major · Adressat: qa-engineer (zuerst pruefen), dann developer · offen · 2026-09-09**
+
+Gemeldet vom `power-user` in T-177 an **mindestens vier** Bedienelementen:
+`Optimize`-Knopf, Reiterwechsel, Auswahlliste, `OK` im Speichern-Dialog.
+**Keine Rueckmeldung, kein Ton, nichts** — erst der zweite Klick wirkte.
+
+Seine Einschaetzung: *"Als normale Nutzerin, die zwischendurch mal ins Spiel
+wechselt oder eine andere Anwendung anklickt, haette ich das vermutlich als
+'das Programm reagiert nicht' interpretiert und waere nicht auf die Idee
+gekommen, einfach noch einmal zu klicken."*
+
+**Die Einschraenkung, die er selbst genannt hat, und sie ist entscheidend:**
+er hat **nicht mit der Maus geklickt**, sondern ueber eine
+Barrierefreiheits-Schnittstelle (wie ein Screenreader). **Der Befund kann ein
+Artefakt seines Werkzeugs sein** — Windows aktiviert ein Fenster beim ersten
+Klick und reicht ihn in den meisten Anwendungen trotzdem durch.
+
+**Deshalb zuerst an den `qa-engineer`, nicht an den `developer`:** am
+laufenden Fenster mit echter Maus nachstellen. **Traegt es, ist es ein
+schwerer Bedienfehler; traegt es nicht, ist es eine Grenze der Testmethode
+und gehoert als solche vermerkt.** Nicht reparieren, bevor das entschieden
+ist.
+
+## Was der Lauf bestaetigt hat — die andere Haelfte
+
+**Der Berater ist das Herzstueck und traegt.** Woertlich: *"Sie nennen nicht
+nur ein Relikt, sondern genau, welche seiner Effekte in meinem aktuellen Build
+ueberhaupt etwas bewirken, mit konkreten Zahlen. Den Unterschied zwischen
+'meisten Schaden' und 'wenigsten Schaden einstecken' habe ich **sofort**
+verstanden, ohne nachdenken zu muessen."*
+
+Das ist **A3 und A5 am gebauten Artefakt**, von jemandem ohne Codekontext
+bestaetigt.
+
+**Die Boss-Uebersicht ebenso** — inklusive der Kennzeichnung, was aus den
+Spieldaten stammt und was beobachtet ist (*"ein ehrlicher Hinweis auf
+Unsicherheit"*). Das ist **A7 in der Praxis.**
+
+**Speichern und Wiederfinden** hat zuverlaessig funktioniert, auch ueber einen
+Nightfarer-Wechsel hinweg.
+
+**A15, erste Haelfte, bestaetigt:** die Automatik fand Spiel und Spielstand,
+und er hat davon nichts gemerkt — genau wie das Kriterium es verlangt.
