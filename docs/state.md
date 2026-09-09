@@ -305,3 +305,33 @@ hat (`capture_weapon_damage.py`, `differential/capture.py`,
 `make_screenshots.py`, `measure_advisor_block.py`, `measure_picker_cards.py`).
 T-153 konnte das nicht wissen und hat richtig gehandelt: nichts angefasst,
 nichts verworfen, gemeldet. **Nichts geht verloren.**
+
+## Nutzerentscheid 09.09.2026 — der Laufwerks-Rueckfall faellt
+
+**Frage:** Soll der feste Rueckfall `C:` bis `H:` in `find_game_dir()` fallen?
+**Antwort: ja, fallen lassen.**
+
+**Damit ist SEC-031 vollstaendig zugeordnet.** Die erste Haelfte (dasselbe
+Praedikat auf beiden Wegen) baut T-162. Die zweite ist jetzt entschieden.
+
+**Die Abwaegung, die der Entscheidung zugrunde lag** — vom Director am Code
+nachgesehen (`nrdata/gamefiles.py:51-72`, 09.09.2026), nicht aus einem Bericht
+uebernommen: `find_game_dir()` fragt **zuerst** Steams eigene Liste (Registry
+→ `libraryfolders.vdf` → je Bibliothek `common/<INSTALL_DIR>/Game`) und
+**danach** die sechs festen `<Laufwerk>:/SteamLibrary/...`-Pfade. Der Rueckfall
+hilft also **nur**, wenn Steam die Bibliothek **nicht kennt** — kennt es sie,
+steht sie in der `.vdf`. Fuer diesen seltenen Rest gibt es seit dieser Nacht
+den A15-Auswahldialog.
+
+**Was dadurch verschwindet:** der einzige Kandidat, den ein Angreifer
+bestuecken kann, ohne schon im Nutzerkontext zu sein — ein angestecktes
+Laufwerk mit Buchstabe `C`–`H`. Auf dem automatischen Weg liegt **kein Fenster
+und kein Klick** zwischen Fund und `ctypes.CDLL`.
+
+**Was es kostet:** wer seine Bibliothek von Hand angelegt hat **und** dessen
+Steam sie nicht kennt, bekommt statt der stillen Suche einen Klick.
+
+**Zu pruefen beim Bau:** ob ein Abnahmekriterium den Rueckfall beschreibt
+(AK-107 und die Kette in §4.1 beschreiben den **Startort des Dialogs**, nicht
+die Kandidatenliste der Automatik — das ist **nicht dasselbe** und vor der
+Aenderung nachzusehen).
