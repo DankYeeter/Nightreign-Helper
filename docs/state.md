@@ -104,24 +104,23 @@ Voraussetzung, nicht Ersparnis · `goal_id` traegt die Unterscheidung im Typ ·
 und angehalten · die zwei W-Reihen werden mit Herkunft zitiert, nicht
 umbenannt.
 
-## Buchfuehrung des Directors — sieben eigene Verstoesse, alle von Rollen gefunden
+## Buchfuehrung des Directors — acht eigene Verstoesse, alle von aussen gefunden
 
 Dieselbe Klasse: **den Auftrag aus dem geschrieben, was ich gerade gelesen
 hatte, statt aus der Quelle, auf die der Bericht verweist.** T-137 und T-140
 (Bauteile bzw. Messungen fehlten) · "drei Aufrufer" statt vier · T-148 ohne
 GOAL-Zitat und Stand-Auszug · T-147 sagte "Parallel: nichts", waehrend T-148
 lief · T-150/T-151 als disjunkt bezeichnet und waren es nicht · die
-`Beruehrt Dateien`-Liste aus Berichtszitaten zusammengesetzt, ohne
-nachzusehen, wo der Code sitzt.
+`Beruehrt Dateien`-Liste aus Berichtszitaten zusammengesetzt · **und der
+Commit, der diese Datei "auf Budget" nannte, als sie 132 Zeilen hatte.**
 
 **Die fuenf Pruefungen stehen seit dem 08.09. in `templates/task.md` und haben
 nicht gegriffen** — ich oeffne die Vorlage nicht, wenn ich die Datei direkt
-schreibe. **Vorschlag fuer die `retrospective`:** ein Hook auf `Write`/`Edit`
-gegen `docs/tasks/T-*.md`, der GOAL-Zitat, Stand-Auszug, Quittung und
-`Beruehrt Dateien` prueft — dieselbe Bauform wie `require-receipt.ps1`.
-
-**Zweiter Vorschlag:** das **Mutationsregister** nachzutragen ist in vier
-Anlaeufen dreimal an der Zugschwelle gescheitert. Nicht die Disziplin der
+schreibe. **Zwei Vorschlaege fuer die `retrospective`:** ein Hook auf
+`Write`/`Edit` gegen `docs/tasks/T-*.md`, der GOAL-Zitat, Stand-Auszug,
+Quittung und `Beruehrt Dateien` prueft (Bauform: `require-receipt.ps1`) — und
+ein zweiter Blick auf das **Mutationsregister**, dessen Nachtrag in vier
+Anlaeufen dreimal an der Zugschwelle gescheitert ist: nicht die Disziplin der
 Rollen ist das Problem, sondern das Verfahren.
 
 ## Regeln
