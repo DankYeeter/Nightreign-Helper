@@ -37,6 +37,9 @@ of these three states; that is the whole reason they went unnoticed.
   density and grows with the file, which leaves a prepared file room to be
   large rather than dense. An 8 MiB slot at one record per 64 bytes was read
   in full: 131 072 records and 20,1 s. The count beside it does not grow.
+* **SEC-035**, `test_a_save_that_goes_away_*`: the sort that puts the newest
+  save first stat'ed each file outside every `try`, and the raw `OSError`
+  carried the whole path -- Steam account id included -- into the window.
 * **SEC-024**, `test_a_slot_packed_with_table_starts_*`: the search for the
   equipped-loadout table began a walk of up to sixteen groups at every place
   the first Nightfarer marker stood, and a prepared slot stands it at every
@@ -48,6 +51,7 @@ of these three states; that is the whole reason they went unnoticed.
 
 from __future__ import annotations
 
+import errno
 import pathlib
 import struct
 import threading
@@ -825,3 +829,49 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
     assert inv.loadouts == []
     assert "denser than one table per 1920 bytes" in inv.loadout_error
 
+
+# --------------------------------------------------------------------------
+# SEC-035: a save that goes away between being found and being sorted
+
+
+def test_a_save_that_goes_away_before_it_is_sorted_names_no_path(tmp_path,
+                                                                 monkeypatch):
+    """AK-126 on the one `stat` of the reading path that stood outside a try.
+
+    `scan` sorts the saves it found by modification time, and the sort's key
+    used to be `p.stat().st_mtime` bare. Between finding a file and stat'ing
+    it the file can go -- a removable drive pulled out, a network path
+    dropped, the game rewriting its own -- and the `OSError` then travelled
+    unhandled to `_SaveReadWorker.work`, which puts `str(exc)` into the line
+    under the save. `str(OSError)` carries the whole path, and the save
+    folder is named after the Steam account id.
+
+    Stated rather than raced: the trigger is a window of microseconds and a
+    case that waited for it would be a case that usually proves nothing. What
+    is arranged here is the state that window produces -- a path that answers
+    `exists()` and fails `stat()` -- and what is checked is the two things
+    AK-126 asks: the failure arrives as this module's own `SaveNotReadable`,
+    and no path is in what it says.
+    """
+    gone_path = tmp_path / "NR0000.sl2"
+    gone_path.write_bytes(b"")
+    real_stat = pathlib.Path.stat
+
+    def stat_of_a_file_that_went(self, *args, **kwargs):
+        if self == gone_path:
+            raise OSError(errno.ENOENT,
+                          "The system cannot find the file specified",
+                          str(gone_path))
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "stat", stat_of_a_file_that_went)
+    monkeypatch.setattr(pathlib.Path, "exists", lambda self: True)
+    monkeypatch.setattr(savefile, "find_saves", lambda: [gone_path])
+
+    with pytest.raises(inventory.SaveNotReadable) as raised:
+        inventory.scan({"relics": [], "effects": {}})
+
+    message = str(raised.value)
+    assert str(gone_path) not in message, message
+    assert "\\" not in message and "/" not in message, message
+    assert tmp_path.name not in message, message

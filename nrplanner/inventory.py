@@ -329,6 +329,30 @@ class SaveNotReadable(ValueError):
     """
 
 
+def _changed_at(path: pathlib.Path) -> float:
+    """When this save was last written, or 0.0 when that cannot be asked.
+
+    A sort key and nothing more, so a file that has gone since it was found
+    sorts oldest and is tried last rather than taking the whole scan down
+    with it (SEC-035). The window between finding the saves and stat'ing them
+    is small and real: a removable drive pulled out, a network path dropped,
+    the game rewriting its file.
+
+    Why it may not raise: the raw `OSError` reaches `_SaveReadWorker.work`,
+    which puts `str(exc)` in the line -- and `str(OSError)` carries the whole
+    path, whose folder is named after the Steam account id. AK-126 forbids
+    that text. `_scan_save` already answers the same question this way for
+    the read itself; this is the one `stat` that stood outside it.
+
+    The shape is `gamefiles._changed_at`'s, which answers the same question
+    about the game's folders.
+    """
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
     """Scan the player's saves and return what they own, or None.
 
@@ -383,7 +407,7 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
 
     best: SaveScan | None = None
     unreadable = ""
-    for path in sorted(saves, key=lambda p: p.stat().st_mtime, reverse=True):
+    for path in sorted(saves, key=_changed_at, reverse=True):
         try:
             best = _scan_save(path, valid_relics, valid_effects, best,
                               mode=mode)
