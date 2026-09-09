@@ -2574,3 +2574,67 @@ Datenabzug erzwingen lassen") — sie ist ihr Gegenteil: erzwungen wird die
 JSON-Gestalt bleibt weiterhin durch den Rundlauf-Test selbst gedeckt.*
 
 **Die CI bleibt unberuehrt** — sie skippt weiter ohne Spiel, wie vorgesehen.
+
+## QA-220 — geschlossen durch einen Mechanismus, 09.09.2026
+
+**Status: behoben.** Commit `adaab13` (Waechter), `2bfb274` (Bericht).
+
+**Der `developer` hat die Praemisse des Auftrags widerlegt, bevor er baute** —
+genau wie verlangt: `extracted_game_data` **baute schon immer frisch** und hat
+nie einen Datenabzug gelesen. Der Director hatte angenommen, es lese ihn, wenn
+einer erreichbar ist. **Falsch.**
+
+Statt korrektes Verhalten umzubauen, hat er den **Waechter** gebaut, der es
+festhaelt: `test_extracted_game_data_never_falls_back_to_a_cached_snapshot`.
+Er ersetzt `extract.build` durch einen Spion, stellt einen fuer **jeden
+bekannten Fallback** gueltigen Snapshot bereit und ruft die rohe
+Fixture-Funktion direkt auf.
+
+**Und er laeuft ohne installiertes Spiel — also in der CI**, wo der Rest der
+Datei strukturell uebersprungen wird. Damit sitzt der Mechanismus genau dort,
+wo QA-220 die Luecke gesehen hat.
+
+**Dazu:** `pytestmark` auf Dateiebene durch `@pytest.mark.slow` je Einzelfall
+ersetzt, **damit `-m "not slow"` den neuen Waechter nicht mit ausblendet.**
+
+**Vom Director selbst nachgeprueft** (09.09.2026): `-m "not slow"
+--collect-only` sammelt **1 von 7** (6 abgewaehlt) und der Fall laeuft gruen in
+2,76 s. Zwei Fallback-Mutationen des `developer` (Cache- und Env-Vorrang)
+machen ihn rot.
+
+**Suite: 1704 passed, 9 skipped, 0 failed** — mit Testabzug 173,9 s, **ohne
+erreichbaren Datenabzug 275,5 s**. Differenz 101,6 s gegen die erwarteten
+rund 108 s, kein Befund.
+
+## QA-221 — `CLAUDE.md` verlangt einen ORG-Wert, den `conftest.py` ueberschreibt
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: director · offen · 2026-09-09**
+
+Gemeldet vom `developer` in T-173. `CLAUDE.md` verlangt von jedem Auftrag
+einen **eigenen Wert** fuer `NIGHTREIGN_SETTINGS_ORG` (*"z. B.
+`DankYeeterT-###`"*). `tests/conftest.py` setzt ihn seit **QA-043** fest
+verdrahtet auf `DankYeeterTests` plus PID-Suffix und **ueberschreibt den
+Export unbedingt**.
+
+**Beides ist fuer sich richtig** — die Isolation funktioniert nachweislich
+ueber den festen Namen —, aber die Anweisung in `CLAUDE.md` verlangt etwas,
+das unter `pytest` folgenlos bleibt. **Der Director hat diese Zeile in dieser
+Nacht in rund dreissig Auftragsdateien geschrieben.**
+
+**Zu klaeren:** entweder `CLAUDE.md` sagt, dass der eigene Wert **nur
+ausserhalb von pytest** wirkt (dann ist er fuer Laeufe wichtig, die das
+Programm starten), oder die Anweisung faellt. **Aenderung an `CLAUDE.md` liegt
+beim Nutzer.**
+
+## Zwei Aufraeumpunkte, gemeldet und nicht behoben
+
+Aus T-170 und T-173, beide ausserhalb des jeweiligen Auftrags:
+
+- **Rund 147 Alt-Schluessel unter `HKCU\Software\DankYeeterTests`** und **18
+  weitere Test-Organisationen** (`DankYeeterQA*`, `DankYeeterT-123`,
+  `DankYeeterMeasure`, …) aus frueheren Sitzungen. Der Raeum-Mechanismus
+  funktioniert nachweislich; die Rueckstaende stammen aus Laeufen, die ihn
+  nicht ausgefuehrt haben. **`DankYeeter` selbst ist der echte Bestand des
+  Nutzers und wird nicht angefasst.**
+- Eine **Streudatei `nul`** im Projektwurzelverzeichnis, **aelter als diese
+  Sitzung**.
