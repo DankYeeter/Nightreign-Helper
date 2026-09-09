@@ -732,6 +732,77 @@ def test_carrying_on_with_the_old_data_asks_for_no_folder(monkeypatch):
     assert outcome == firstrun.FirstRun(None, True, None)
 
 
+# --- the two states that are not the folder question (AK-131) -------------
+
+
+class WindowThatMayNotBeAsked(firstrun._Window):
+    """The real window, with the question state wired to a failure.
+
+    AK-131 is about which state comes up, so neither case below may stub out
+    the state it is about: the build runs the way it really runs, in the
+    window it really uses, and opening the question is the failure.
+    """
+
+    def show_the_question(self, panel):
+        raise AssertionError(
+            f"the folder question was opened, at {panel.name}")
+
+
+def _a_build_that_has_to_run(monkeypatch, tmp_path):
+    """Make the first run reach the build: no data, and a real window."""
+    monkeypatch.setattr(firstrun, "_Window", WindowThatMayNotBeAsked)
+    monkeypatch.setattr(firstrun, "bundled_path",
+                        lambda: tmp_path / "nothing built yet.json")
+    monkeypatch.setattr(firstrun.paths, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(firstrun.paths, "snapshot_path",
+                        lambda: tmp_path / "cache" / "nightreign_data.json")
+
+
+def test_missing_param_definitions_do_not_open_the_folder_question(
+        monkeypatch, tmp_path):
+    """AK-131, the first of its two states: today's message, not a dialog.
+
+    There is a game folder; what is missing is the program's own half of the
+    reading. A folder dialog would ask the player to fix that by pointing
+    somewhere, and there is nowhere he could point.
+    """
+    game = an_install(tmp_path)
+    _a_build_that_has_to_run(monkeypatch, tmp_path)
+    monkeypatch.setattr(firstrun, "defs_dir", lambda: None)
+
+    outcome = firstrun.run(game)
+
+    assert outcome.game == game
+    assert outcome.go_on is True
+    assert outcome.error == ("The param definitions are missing, so the game "
+                             "cannot be read. Reinstalling should restore "
+                             "them.")
+    assert gamepath.remembered_game() is None
+
+
+def test_an_installation_that_cannot_be_read_does_not_open_the_question(
+        monkeypatch, tmp_path):
+    """AK-131, the second state: stage 1 said yes, the reading said no.
+
+    The folder holds the three files and the byte stage 1 asks about and
+    nothing behind them, which is as far as any check short of reading it
+    can get. The failure comes back as the error the existing message box
+    shows, and the question stays shut.
+    """
+    game = an_install(tmp_path)
+    definitions = tmp_path / "defs"
+    definitions.mkdir()
+    _a_build_that_has_to_run(monkeypatch, tmp_path)
+    monkeypatch.setattr(firstrun, "defs_dir", lambda: definitions)
+
+    outcome = firstrun.run(game)
+
+    assert outcome.game == game
+    assert outcome.go_on is True
+    assert outcome.error  # the reader's own words, whatever they are
+    assert gamepath.remembered_game() is None
+
+
 # --- the window itself ---------------------------------------------------
 
 
