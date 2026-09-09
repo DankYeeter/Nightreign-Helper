@@ -2970,6 +2970,13 @@ Found your game in {Pfad}, inside the folder you picked.
 > **verlaesst** (Aufstieg, Zweigwechsel, Verzeichnisverknuepfung) — dafuer
 > siehe unten. Siehe den Nachtrag „AK-232 nachgezogen" am Ende dieser Datei.
 
+> *Eingeschraenkt am 09.09.2026 (T-163, SEC-032).* „Der Abstiegsfall bleibt
+> klickfrei" gilt seither **nur noch fuer genau eine Ebene** Abstand
+> (§4.2-Regelfall: `Browse local files` landet eine Ebene ueber `Game`). Ab
+> zwei Ebenen Abstand ist C2 **nicht mehr** die naechste Zeile — dort greift
+> jetzt ebenfalls C3, wie beim Verlassen des Baumes. Grund, Wortlaut und
+> Kriterien im Nachtrag „SEC-032 nachgezogen" am Ende dieser Datei.
+
 **C3 — Rueckfrage, wenn der aufgeloeste Ordner den gewaehlten Baum verlaesst**
 *(neu am 08.09.2026, T-145; Frage-Zustand, nicht Meldung; Ausloesebedingung
 praezisiert am selben Tag, T-146 — Wortlaut unten in der T-146-Fassung)*
@@ -2995,6 +3002,17 @@ That is the folder Nightreign Helper will read from.
 > ausdruecklich sagen. Nach `Use this folder` erscheint **nicht** die Zeile
 > C2 (das waere hier falsch, siehe unten), sondern C1. Begruendung, Beispiele
 > und Kriterien im Nachtrag „AK-232 nachgezogen" am Ende dieser Datei.
+
+> *Wortlaut erneut geaendert am 09.09.2026 (T-163, SEC-032).* Seit diesem
+> Nachtrag loest **auch** ein Abstieg von zwei oder mehr Ebenen C3 aus — dort
+> liegt der gefundene Ordner tatsaechlich noch **innerhalb** des gewaehlten,
+> und die Zeile `outside that folder` waere fuer diesen Fall schlicht falsch.
+> Die zweite Pfadzeile lautet deshalb ab jetzt `The game itself is not
+> directly in that folder. It is in:` — eine schwaechere, aber fuer **beide**
+> Ausloeser (Verlassen des Baumes **und** Abstieg ≥ 2 Ebenen) wahre Aussage.
+> Vollstaendiger Wortlaut, Begruendung und Kriterien im Nachtrag „SEC-032
+> nachgezogen" am Ende dieser Datei; die Fassung oben bleibt stehen, damit
+> sichtbar ist, wovon abgewichen wird.
 
 **S1 — Erklaerung am Spielstand-Knopf** (Tooltip von `Find my save…`)
 
@@ -8189,6 +8207,15 @@ aus dem Fenster gezogen** (AK-129/AK-132-Muster, NH-002).
    Abstieg. Siehe den Nachtrag „AK-232 nachgezogen" am Ende dieser Datei. Der
    urspruengliche Text der Frage bleibt unten stehen, weil er die Gegenoption
    ist, die sich als richtig erwiesen hat:
+   > **Teilweise revidiert am 09.09.2026 (T-163, SEC-032):** das „Nein" gilt
+   > seither nur noch fuer Abstand 1. Ab Abstand 2 ist ein Abstieg wieder ein
+   > eigener C3-Ausloeser — nicht, weil die Widerlegung unten falsch war
+   > (sie bleibt fuer den Regelfall Abstand 1 richtig), sondern weil der
+   > `security-reviewer` mit SEC-032 einen Fall gemessen hat, den weder T-145
+   > noch T-146 betrachtet haben: ein Abstieg von mehr als einer Ebene ist
+   > kein Kind mehr, sondern ein Enkel oder Urenkel, und dehnt die Zustimmung
+   > entsprechend weiter aus. Siehe den Nachtrag „SEC-032 nachgezogen" am Ende
+   > dieser Datei.
    > Soll C3 auch dann kommen, wenn der aufgeloeste Ordner ein *Kind* des
    > gewaehlten ist — also im Normalfall `...\ELDEN RING NIGHTREIGN` →
    > `...\Game`? So ist es hier vorgegeben, und so ist die Entscheidung
@@ -8341,7 +8368,12 @@ Vermerk je Kriterium im Bestand, kein neuer Wortlaut.**
 
 ### 6. AK-232 und AK-237 — neue Fassung
 
-**AK-232** *(C3 nur beim Verlassen des Baumes, nachgezogen T-146)* Verlaesst
+**AK-232** *(C3 nur beim Verlassen des Baumes, nachgezogen T-146 — seit
+09.09.2026, T-163/SEC-032, gilt der Satz „liegt der aufgeloeste Ordner
+innerhalb des gewaehlten, erscheint kein C3" **nur noch bis einschliesslich
+einer Ebene Abstand**. Ab zwei Ebenen gilt AK-246 im Nachtrag „SEC-032
+nachgezogen" am Ende dieser Datei; die Fassung unten bleibt fuer den
+Abstand-1-Fall unveraendert gueltig.)* Verlaesst
 der aufgeloeste Ordner den gewaehlten Baum (Aufstieg, Zweigwechsel oder eine
 Verzeichnisverknuepfung, die aus dem Baum herausfuehrt), erscheint **vor** dem
 Bau der Zustand C3 und zeigt **beide** Pfade vollstaendig, jeder mit seiner
@@ -8354,7 +8386,10 @@ Gegenprobe: den **Elternordner** der Installation waehlen (Abstieg,
 Regelfall) — **kein** C3, C2 erscheint sofort, der Bau beginnt ohne weiteren
 Klick.
 
-**AK-237** *(hoechstens eine Rueckfrage je Wahl, nachgezogen T-146)* Wurde W1
+**AK-237** *(hoechstens eine Rueckfrage je Wahl, nachgezogen T-146 — die
+Garantie gilt seit 09.09.2026, T-163, unveraendert auch fuer den neuen
+C3-Ausloeser „Abstand ≥ 2 Ebenen" aus AK-246; siehe AK-248 im Nachtrag
+„SEC-032 nachgezogen".)* Wurde W1
 mit `Use this folder anyway` beantwortet, erscheint **kein** C3, auch wenn der
 aufgeloeste Ordner den gewaehlten Baum verlaesst. Pruefung: einen umbenannten
 Spielordner ueber einen seiner **eigenen Unterordner** waehlen (der
@@ -8364,7 +8399,12 @@ Frage-Zustand (W1), nicht zwei.
 
 ### 7. Neue Kriterien
 
-**AK-240** *(Abstieg loest kein C3 mehr aus — die Korrektur der T-145-Annahme)*
+**AK-240** *(Abstieg loest kein C3 mehr aus — die Korrektur der T-145-Annahme
+— **eingeschraenkt am 09.09.2026, T-163/SEC-032**: „Abstieg bis Tiefe 3"
+loest hier noch pauschal kein C3 aus; seit AK-246 gilt das nur noch fuer
+Abstand 1. Ein Abstieg auf Abstand 2 oder 3 loest seither C3 aus, siehe den
+Nachtrag „SEC-032 nachgezogen". Die Fassung unten bleibt fuer den
+Abstand-1-Fall unveraendert gueltig.)*
 Liegt der aufgeloeste Ordner innerhalb des gewaehlten (§4.2, Abstieg bis Tiefe
 3), erscheint **zwischen** der Ordnerwahl und dem Bau-Zustand **kein**
 zusaetzliches Fenster und **kein** zusaetzlicher Klick gegenueber der Fassung
@@ -8372,7 +8412,10 @@ vor T-145 — die Fensterfolge ist die aus AK-118 in seiner alten Fassung.
 Pruefung: den Elternordner der Installation waehlen (`...\common` statt
 `...\common\NIGHTREIGN`) — C2 erscheint direkt, kein C3 dazwischen.
 
-**AK-241** *(C3 nennt das Verlassen ausdruecklich)* Der gebaute Wortlaut von
+**AK-241** *(C3 nennt das Verlassen ausdruecklich — **Wortlaut seit
+09.09.2026, T-163/SEC-032, erneut geaendert**, siehe AK-247 im Nachtrag
+„SEC-032 nachgezogen"; die hier genannte Fassung war von T-146 bis T-163
+gueltig.)* Der gebaute Wortlaut von
 C3 enthaelt fuer die zweite Pfadzeile die Beschriftung `The game itself is
 outside that folder, in:`, nicht die neutrale Fassung aus dem T-145-Abschnitt.
 Pruefung: Wortlautvergleich gegen §2 dieses Nachtrags.
@@ -8822,4 +8865,185 @@ oder den Dialog-Startort (§9-§10 des T-074/T-145-Abschnitts).
 ### 6. Neu vergebenes Kriterium
 
 **AK-245** (§4 oben). Keine Nummer gestrichen, keine Millisekunde im Text.
+
+---
+
+## SEC-032 nachgezogen: Ab zwei Ebenen Abstand wird gefragt (ui-ux-designer, T-163) — 2026-09-09
+
+**Grundlage:** `docs/tasks/T-163.md` · `security/findings.md:539` (SEC-032,
+`security-reviewer`, T-160) · `docs/state.md`-Auszug im Auftrag · der eigene
+T-146-Abschnitt oben (§1 „Die Regel", §2 „Was C3 zeigt", §6 „AK-232 und
+AK-237 — neue Fassung", §7 „Neue Kriterien") · `nrdata/gamefiles.py:105-128`
+(`NAMED_LEVELS`, `SEARCH_DEPTH`, `SEARCH_PARENTS`, Kommentare zur Herleitung),
+`:234-276` (`_search_within_budget`, Distanzzaehlung je Richtung) ·
+`nrplanner/firstrun.py:343-412` (`c3`, `found_it`, `_where_it_sits`,
+`look_at`), `:465-505` (`settle_the_game_folder`).
+
+**Methode:** ausschliesslich Textarbeit, wie in den T-145/T-146-Abschnitten.
+Kein Bildnachweis, keine Messung — der Ablauf ist gebaut (T-142/T-147/T-149),
+aber diese Praezisierung ist reine Spec-Arbeit ohne eigenen Programmstart;
+Nachweis am laufenden Fenster bleibt AK-239-Muster fuer die Baurunde.
+
+**Was dieser Nachtrag ist:** eine weitere Praezisierung der C3-Ausloeser-
+bedingung, **kein** neuer Entwurf. Alles aus den T-145/T-146-Abschnitten, das
+hier nicht ausdruecklich geaendert wird, gilt Wort fuer Wort weiter — inklusive
+der gesamten Begruendung, warum C1 unveraendert klickfrei bleibt und warum das
+Programm ueberhaupt sucht, statt stur den gewaehlten Ordner zu verlangen
+(§4.2).
+
+### 1. Der gemessene Fall
+
+Der `security-reviewer` hat in T-160 gezeigt, was die T-146-Regel „Abstieg
+bleibt immer klickfrei" tatsaechlich erlaubt: ein Angreifer verteilt ein Zip
+mit dem korrekt benannten Ordner `ELDEN RING NIGHTREIGN\Game\` darin (Stufe 2,
+der Namenscheck, faellt damit nicht mehr an — W1 greift nicht). Der Nutzer
+entpackt es nach `Downloads` und zeigt im A15-Ordnerdialog auf **`Downloads`**
+selbst, nicht auf den praeparierten Unterordner. `search_from` steigt bis zu
+drei Ebenen ab (`SEARCH_DEPTH = 3`), findet die praeparierte Installation, und
+die T-146-Regel liest das als „Abstieg, also klickfrei" — der Bau beginnt
+ohne Rueckfrage. **Damit haengt die Zustimmung aus SEC-026 nicht mehr am
+gewaehlten Ordner, sondern an jedem Ordner bis zu drei Ebenen darueber.**
+
+**Die enge Frage, die T-160 stellt und die dieser Nachtrag beantwortet:** nicht
+„soll jeder Abstieg einen Klick kosten" (das war die inzwischen
+zurueckgezogene S1-Empfehlung aus T-144 und ist durch T-146 bereits
+richtig entschieden), sondern **ab welchem Abstand ein Abstieg aufhoert, „der
+Ordner, den er gezeigt hat" zu sein.**
+
+### 2. Die Entscheidung
+
+**Ab einem Abstand von zwei Ebenen wird gefragt (C3). Bei genau einer Ebene
+bleibt es klickfrei (C2). `SEARCH_DEPTH` und `SEARCH_PARENTS` bleiben
+unveraendert bei `3` bzw. `2` — diese Entscheidung aendert **keine** Zahl in
+`gamefiles.py`.**
+
+**Abstand** ist die Zahl der Verzeichnisebenen zwischen dem gewaehlten und dem
+gefundenen Ordner. `firstrun._where_it_sits` zerlegt beide Pfade bereits in
+Teile (`seen`, `landed`); der Abstand eines INSIDE-Falls ist
+`len(landed) - len(seen)`, ohne dass die Suche selbst etwas Neues nach aussen
+geben muesste — das ist ein Hinweis auf die billigste Umsetzung, keine
+Vorgabe an den internen Aufbau.
+
+- **Abstand 0** (identisch) → **C1**, unveraendert.
+- **Abstand 1** → **C2**, klickfrei, unveraendert. Das ist der Regelfall aus
+  §4.2 (`Browse local files` landet eine Ebene ueber `Game`) und der Fall, den
+  der `security-reviewer` selbst als Grenze zieht: *„Ein zusaetzlicher Klick
+  im geglueckten Fall waere ein Bruch von A15. Der geglueckte Fall ist ein
+  Abstieg um eine Ebene."* Dieser Fall bleibt unberuehrt.
+- **Abstand ≥ 2** (z. B. der gewaehlte Ordner ist `common` oder `steamapps`)
+  → **C3**, wie beim Verlassen des Baumes. Der Nutzer sieht **beide** Pfade
+  und bestaetigt ausdruecklich, bevor der Bau beginnt.
+- **Verlassen des Baumes** (Aufstieg, Zweigwechsel, Verzeichnisverknuepfung) →
+  **C3**, wie bisher (AK-232, unveraendert).
+
+**Warum nicht die billigere Alternative (`SEARCH_DEPTH` auf 1 oder 2
+senken):** das kostet keinen Klick, aber es kostet **Erfolg**. Ein Nutzer, der
+`...\common` oder `...\steamapps` waehlt — beides Ordner, die §4.2 ausdruecklich
+als unterstuetzt nennt ("traegt … noch") — bekaeme bei gesenkter Tiefe **E1**
+("das ist nicht das Spiel"), einen Abbruch ohne Weg zurueck ausser einer neuen
+Wahl. Eine Rueckfrage ist die freundlichere Antwort auf denselben Fall: das
+Programm hat den Ordner gefunden, sagt das ehrlich mit beiden Pfaden, und der
+Nutzer entscheidet selbst — statt dass die Suche schweigend so tut, als gaebe
+es dort nichts. Die Sicherheitswirkung ist dieselbe: der praeparierte Ordner
+aus §1 wird nicht mehr kommentarlos angenommen, sondern zeigt sich dem Nutzer
+als das, was er ist — ein Pfad, den er nicht selbst gewaehlt hat.
+
+**Warum nicht "so lassen" (die dritte, im Auftrag als vertretbar genannte
+Option):** waere vertretbar gewesen, wenn der Abstiegsfall aus §4.2 tatsaechlich
+ueberwiegend Abstand 1 waere und Abstand 2/3 reine Theorie. Das ist er nicht
+mehr, seit T-160 den Weg gemessen hat, ihn zu erzwingen — ein Angreifer waehlt
+die Zip-Struktur, nicht der Zufall. Der einzige Kostenpunkt eines "so lassen"
+waere gewesen, den `security-reviewer` zwingen, es erneut vorzulegen, ohne dass
+sich etwas an den Kosten geaendert haette (§3 der Kostenrechnung stand schon in
+T-160 exakt so da).
+
+### 3. Der neue Wortlaut von C3
+
+Ein Abstieg auf Abstand ≥ 2 ist **nicht** ein Verlassen des Baumes — der
+gefundene Ordner liegt tatsaechlich noch innerhalb des gewaehlten. Die
+Beschriftung `The game itself is outside that folder, in:` (T-146) waere hier
+falsch. Die zweite Pfadzeile bekommt deshalb eine schwaechere, aber fuer
+**beide** Ausloeser (Verlassen **und** Abstand ≥ 2) wahre Formulierung:
+
+```
+Is this your game?
+
+You picked:
+{gewaehlter Pfad}
+
+The game itself is not directly in that folder. It is in:
+{aufgeloester Pfad}
+
+That is the folder Nightreign Helper will read from.
+
+[ Choose a different folder... ]  [ Use this folder ]
+```
+
+Einzige Aenderung gegenueber der T-146-Fassung: die zweite Pfadzeile. Titel,
+erste Pfadzeile, Schlusssatz und Knopfbeschriftungen sind wortgleich. Nach
+`Use this folder` erscheint weiterhin **C1**, nicht C2 (AK-242, unveraendert
+gueltig — C1s Wortlaut behauptet ohnehin keine Lagebeziehung und passt daher
+zu jedem der drei Ausloeser).
+
+### 4. Akzeptanzkriterien
+
+*Neu vergeben: **AK-246 bis AK-249**. Gegen `UI_SPEC.md` geprueft, hoechste
+belegte Nummer vor diesem Lauf war AK-245.*
+
+**AK-246** *(SEC-032 — die klickfreie Zustimmung reicht nur eine Ebene weit)*
+Liegt der aufgeloeste Ordner **innerhalb** des gewaehlten und ist er davon
+**genau eine** Ebene entfernt, erscheint **kein** C3: sofort C2, dann der
+Bau-Zustand, wie in AK-232/AK-240 beschrieben. Ist er **zwei oder mehr**
+Ebenen entfernt, erscheint **C3** vor dem Bau, mit dem Wortlaut aus §3 oben.
+Pruefung: einen Ordner waehlen, dessen direktes Kind `regulation.bin` traegt
+(Abstand 1) — kein C3, C2 direkt.
+Gegenprobe: den Elternordner davon waehlen (Abstand 2) — C3 erscheint mit
+beiden Pfaden, der Bau beginnt nicht, keine Fortschrittsanzeige ist zu sehen.
+Zweite Gegenprobe (Grenzfall): drei Ordnerebenen ueber der Installation waehlen
+(Abstand 3, das Ende von `SEARCH_DEPTH`) — ebenfalls C3, nicht E1: der Ordner
+wird gefunden, nur nicht mehr stillschweigend angenommen.
+
+**AK-247** *(C3-Wortlaut behauptet fuer keinen seiner beiden Ausloeser die
+falsche Richtung)* Der gebaute Wortlaut von C3 enthaelt fuer die zweite
+Pfadzeile die Beschriftung `The game itself is not directly in that folder.
+It is in:`, nicht mehr `outside that folder, in:` aus der T-146-Fassung.
+Pruefung: Wortlautvergleich gegen §3 dieses Nachtrags — sowohl im
+Verlassen-Fall (Aufstieg) als auch im Abstand-≥-2-Fall (Abstieg) steht exakt
+derselbe Text.
+
+**AK-248** *(hoechstens eine Rueckfrage je Wahl, gilt auch fuer den neuen
+Ausloeser)* Faellt der Namenscheck (Stufe 2, W1) mit einem Abstand ≥ 2
+zusammen, gewinnt weiterhin W1: wird es mit `Use this folder anyway`
+beantwortet, erscheint **kein** zusaetzliches C3, obwohl der Abstand das ohne
+W1 ausloesen wuerde. Pruefung: einen umbenannten Installationsordner ueber
+seinen **Elternordner** (Abstand 2, Name ohne `NIGHTREIGN`) waehlen — es
+kommt genau **ein** Frage-Zustand (W1), nicht zwei. Erweitert AK-237 um den
+neuen Ausloeser, ersetzt ihn nicht.
+
+**AK-249** *(`SEARCH_DEPTH`/`SEARCH_PARENTS` unveraendert)* Diese Entscheidung
+aendert keine Konstante in `nrdata/gamefiles.py`: `SEARCH_DEPTH` bleibt `3`,
+`SEARCH_PARENTS` bleibt `2`. Was sich aendert, ist ausschliesslich, ab welchem
+Ergebnis der Suche das Fenster fragt statt still zu uebernehmen. Pruefung:
+Diff dieses Nachtrags beruehrt keine Zeile in `nrdata/gamefiles.py`.
+
+### 5. Was dieser Nachtrag nicht beruehrt
+
+- **AK-233, AK-235, AK-236, AK-238, AK-239** — unveraendert, wie schon im
+  T-146-Nachtrag §5 begruendet: sie betreffen entweder C1 oder Verhalten
+  *innerhalb* des C3-Zustands, unabhaengig davon, welcher der drei Ausloeser
+  ihn gebracht hat.
+- **AK-242** (die Zeile nach C3 ist C1, nicht C2) — unveraendert; siehe §3
+  oben.
+- **SEC-030 und SEC-031** — beide betreffen die Traversierung bzw. den
+  ungefragten Weg `find_game_dir()`, nicht die Ausloeseschwelle des
+  Dialogwegs. T-162 baut die erste Haelfte von SEC-031 parallel zu diesem
+  Auftrag (dasselbe Praedikat `looks_like_the_game` fuer beide Wege); das
+  beruehrt diese Entscheidung nicht und wird von ihr nicht beruehrt.
+- **AK-131** — siehe den gesonderten Bericht zu diesem Auftrag; keine
+  Aenderung an `UI_SPEC.md` dafuer.
+
+### 6. Neu vergebene Kriterien
+
+**AK-246 bis AK-249** (§4 oben). Keine Nummer gestrichen, keine Millisekunde
+im Text.
 
