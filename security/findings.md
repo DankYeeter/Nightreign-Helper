@@ -510,3 +510,61 @@ im Systemdialog (Beobachtung B1). **Spec-Aenderung an AK-118 geht an den
 SEC-029 → V3/V4 · A-024/A-027 und der ehrliche README-Satz aus SEC-006 →
 `technical-writer` nach V3. **Alle fuenf sind zugeordnet, keiner
 zurueckgestellt.**
+
+---
+
+## Zyklus 18, T-160 — Pruefphase nach dem A15-Bau (2026-09-09)
+
+Anlass: elf Bauauftraege in einer Nacht. Vollstaendiger Bericht:
+`docs/berichte/T-160-security-reviewer.md`. Gemessen gegen `e5c2b7a`.
+**Gesamturteil CONCERNS.** **S1 aus T-144 ist vom Autor zurueckgezogen** — die
+engere Regel des Directors (C3 nur beim Verlassen des Baumes) traegt, was S1
+wollte, ohne den Klick fuer jeden.
+
+### Statusfortschreibung der Befunde aus T-144
+
+| ID | Prioritaet | Status | Beleg |
+|---|---|---|---|
+| **SEC-026** | Mittel (Wirkung Kritisch) | **offen, unveraendert** — Vorlage an den Nutzer | **Neu: die Begruendung "kein anonymer Ausloeser" gilt nur fuer den Dialogweg** — siehe SEC-031. Wer SEC-026 zitiert, zitiert diese Einschraenkung mit. |
+| **SEC-027** | Hoch | **behoben, Retest bestanden** | `It is only read.` in `nrplanner/` und `nrdata/` nicht mehr vorhanden (drei unabhaengige Masken). A1 `firstrun.py:247-250`, W1 `:332-334`, beide ohne `MUTED`. Waechter `tests/test_first_run_panel.py:278-291` mit zweiter Maske. |
+| **SEC-028** | Mittel | **teilweise behoben** | `MAX_REGULATION_BYTES = 64 MiB` in `looks_like_the_game`, Decke gemessen: 67 108 864 an, 67 108 865 ab. **Der Rest laeuft in SEC-031 auf.** |
+| **SEC-029** | Mittel | **behoben, Retest bestanden** | `refuse_a_size_no_save_can_have` in `_read_settled:245`, zweiter Riegel `app.py:1587`. Positivkontrolle mit auf 1024 B gesenkter Decke: **beide** Wege schlagen an, Meldung ohne Pfad (AK-126). |
+| **SEC-030** | Niedrig | **behoben, Retest bestanden** | Traversierung `_is_a_door_out_of_the_tree` + `_subfolders`; Offenlegung ueber `resolve()` und C3. **Mit echten Junctions gemessen**: derselbe Zielordner, Abstieg durch Junction → `None`, ohne Junction → gefunden. |
+
+### Neue Befunde
+
+| ID | Titel | Prioritaet | Status | Letzte Pruefung |
+|---|---|---|---|---|
+| **SEC-031** | `find_game_dir()` umgeht **beides**: die 64-MiB-Decke und die Nutzerbestaetigung. Ein Laufwerk `C`–`H` mit praeparierter `SteamLibrary`-Struktur laedt seine DLL **ohne Fenster und ohne Klick** (`gamefiles.py:51-69` → `gamepath.py:136` → `firstrun.py:968` → `oodle.py:44`). **Korrigiert die Begruendung von M3.** | Mittel (Schwere Hoch) | offen | 2026-09-09 |
+| **SEC-032** | Der Abstieg (`SEARCH_DEPTH = 3`) dehnt eine Zustimmung auf drei Ebenen aus; C2 fragt nicht (`firstrun.py:502-505`). Verbreitert SEC-026 von "waehle meinen Ordner" auf "waehle einen Ordner drei Ebenen darueber". | Mittel | offen | 2026-09-09 |
+| **SEC-033** | `savefile._members` deckelt die Mitgliedertabelle, **nicht** `offset`/`size` je Mitglied. Gemessen: 1-MiB-Datei, 200 Mitglieder → **200,0 MiB / 2,03 s** gegen 0,99 MiB / 0,049 s bei ehrlicher Tabelle. Rechnerisch bis 42,7 GiB, **von der 256-MiB-Decke nicht gebunden**. | Mittel | offen | 2026-09-09 |
+| **SEC-034** | Die SEC-022-Dichtegrenze ist relativ; mit der neuen absoluten Decke erlaubt sie **4 194 304** Datensaetze. Gemessen bei 8 MiB: 131 072 angenommen, 50,6 MiB, 16,37 s. | Niedrig | offen | 2026-09-09 |
+| **SEC-035** | AK-126: `inventory.scan:379` sortiert per `stat()` **ausserhalb jedes `try`**; eine `OSError` traegt den vollen Pfad samt Steam-Konto-Kennung in den Fenstertext. Ausloeser ist ein Rennen, **nicht reproduziert**. | Niedrig | offen | 2026-09-09 |
+
+### Entscheidungen des Directors, 09.09.2026
+
+**SEC-031 bleibt Mittel**, mit offengelegter Gegenposition des Pruefers (wer
+das vollstaendige Fehlen der Zustimmung fuer ausschlaggebend haelt, kommt auf
+Hoch und damit auf FAIL). Begruendung: der Angreifer muss ein Laufwerk an die
+Maschine bringen, **und** die Maschine darf kein auffindbares Spiel haben —
+auf der Maschine des Nutzers greifen die Steam-Kandidaten zuerst. **Kein
+WAIVED.**
+
+**Die erste Haelfte von SEC-031 wird sofort gebaut:** `find_game_dir()` fragt
+kuenftig `looks_like_the_game`. Sie kostet keinen Klick, beruehrt **kein**
+Abnahmekriterium und schliesst zugleich die SEC-028-Restluecke und die
+Praedikat-Drift. **Die zweite Haelfte** — faellt der Laufwerksfallback `C`–`H`?
+— beruehrt AK-107 und ist eine **Frage an den Nutzer**, weil sie entscheidet,
+wer sein Spiel noch automatisch findet.
+
+**SEC-032 ist eine Spec-Frage** an den `ui-ux-designer`: bleibt
+`SEARCH_DEPTH = 3`, oder fragt ein Abstieg von mehr als **einer** Ebene? Der
+Regelfall aus §4.2 — Steams `Browse local files` — ist genau **eine** Ebene.
+
+**SEC-033 wird sofort gebaut** (eine Zeile in der Pruefung, die das Versprechen
+schon traegt), **SEC-034 und SEC-035 dazu gebuendelt**.
+
+**B8:** Der Satz *"the only barrier SEC-026 leaves standing"* steht in
+`tests/test_game_path_memory.py:3-13` und `firstrun._confirm:427-432` und ist
+nach SEC-031 **zu stark**. Wird mit entschaerft — eine falsche Schranke im
+Docstring ist schlimmer als keine.
