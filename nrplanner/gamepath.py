@@ -134,3 +134,37 @@ def resolve_game() -> pathlib.Path | None:
     if remembered is not None and gamefiles.looks_like_the_game(remembered):
         return remembered
     return gamefiles.find_game_dir()
+
+
+def resolve_save() -> pathlib.Path | None:
+    """Which save file to read: the one the user picked, while it is there.
+
+    AK-125, and the whole of it:
+
+    1. a picked file that is still a file is what gets read, and the
+       automatic search does not run;
+    2. picked but gone -- deleted, renamed, drive unplugged, share
+       unreachable -- counts as absent, and **silently**: no text, no dialog,
+       and the entry stays where it is. A drive comes back, and the next
+       start tries it again (`UI_SPEC` section 5, AK-121);
+    3. None means "nobody picked one, decide by the automatic route".
+
+    One step flatter than `resolve_game`, and deliberately so: this hands
+    back None where the game's chain hands back `find_game_dir()`. The caller
+    is `inventory.scan`, which runs `find_saves()` itself for exactly this
+    answer -- a second list of saves put together here would be a second
+    answer to the question that function already answers, and the two would
+    drift the way the four `find_game_dir` call sites did.
+
+    Existence is the whole test, unlike the game folder's. What makes a file
+    the save the player meant is that he pointed at it; whether it can be
+    read is what the reading finds out, and it says so in the line rather
+    than here (the three exits of AK-124).
+    """
+    remembered = remembered_save()
+    if remembered is None:
+        return None
+    # `is_file` answers False for every OSError of its own accord -- a dead
+    # network path, a drive that is not there, a name the file system will
+    # not take -- which is exactly the "counts as absent" of step 2.
+    return remembered if remembered.is_file() else None

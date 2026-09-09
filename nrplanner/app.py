@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import os
+import pathlib
 import sys
 import traceback
 
@@ -14,17 +15,19 @@ from PySide6.QtGui import (
     QPixmap, QLinearGradient, QPolygonF, QRadialGradient,
 )
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFrame,
-    QInputDialog,
+    QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFileDialog,
+    QFrame, QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
     QSlider, QSplitter, QTabWidget, QToolButton, QToolTip, QVBoxLayout,
     QWidget,
 )
 
+from nrdata import savefile
+
 from . import __version__
 from . import (advisorblock, chalices, damage, datasource, effecttext,
-               favourites, firstrun, inventory, model, shortcut,
+               favourites, firstrun, gamepath, inventory, model, shortcut,
                singleinstance, uiscale, weaponslots, weapons)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
@@ -585,9 +588,49 @@ READING_THE_SAVE_AGAIN = ("Reading your save again. Nothing changes until it "
 #: the difference is in the subordinate clause.
 RELICS_AFTER_THE_SAVE = "Your relics appear when the save has been read."
 
-#: What the line says when there was no save to read (§9 (f)), unchanged.
+#: What the line says when there was no save to read (§9 (f), and S5 of the
+#: first-run spec). The last sentence names the button that now stands beside
+#: it: without the button the sentence would be a dead end, and without the
+#: sentence the button is a word the player has no reason to press.
 NO_SAVE_FOUND = ("No save file found. Relic slots stay empty; the Effects and "
-                 "Weapons tabs still work in full.")
+                 "Weapons tabs still work in full. If your save is somewhere "
+                 "else, use Find my save.")
+
+#: The button of AK-123, and the ellipsis is three dots for the reason the
+#: first-run panel's `Choose folder...` has three: another window follows.
+FIND_MY_SAVE = "Find my save..."
+
+#: S1, the one text of this flow that may name the file and the folder --
+#: naming them is its whole job, and it is what makes the button pressable
+#: for somebody who has never seen either.
+FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder "
+                        "named Nightreign under your Windows user profile. "
+                        "This opens there.")
+
+#: S2. Unlike the folder dialog of the first run, whose caption is left to
+#: Qt, this one is written here: the spec gives it as a text of this program
+#: (AK-128), and a file dialog's caption is the only place that says which
+#: file is being asked for.
+CHOOSE_YOUR_SAVE = "Choose your Nightreign save file"
+
+#: The three filter entries of section 5, in that order. The third is not an
+#: oversight: `find_saves` deliberately takes renamed backups as well, so a
+#: dialog that refused them would be stricter than the program behind it.
+SAVE_FILE_FILTERS = ("Nightreign save (NR*.sl2);;"
+                     "Save file (*.sl2);;"
+                     "All files (*)")
+
+#: S3, the second of the three exits (AK-124): the file was read and holds
+#: nothing. Not a failure, and it says the one thing that explains it -- two
+#: Steam accounts, which is the case this whole flow exists for.
+CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on "
+                        "more than one Steam account, this may be the wrong "
+                        "one.")
+
+#: S4, the third exit: the player's sentence, and the technical reason under
+#: it on its own line. The order is DESIGN_REVIEW DR-006 -- what happened
+#: first, why second.
+CHOSEN_SAVE_UNREADABLE = "That file is not a Nightreign save this can read."
 
 #: The one place this prefix is written (§8, AK-229). It stands only where no
 #: inventory came out of the read at all, so nothing behind it may claim that
@@ -1481,6 +1524,116 @@ class HeroTile(QToolButton):
 #: rounded up.
 SAVE_READ_SHUTDOWN_WAIT_MS = 6800
 
+#: The largest file this program will read as a save (SEC-029).
+#:
+#: Derived, not chosen. The saves on this installation are 19 531 312 bytes
+#: each -- both accounts, measured 09.09.2026 with
+#: `find %APPDATA%/Nightreign -printf "%s"` -- and the file is a fixed layout
+#: of character slots rather than a container that grows with what is in it.
+#: 256 MiB is 13,7 times that, so no save this program will ever meet is cut
+#: off, and the refusal is loud: it ends in S4 with the size in it.
+#:
+#: Why a limit at all: `Find my save...` carries the filter `All files (*)`,
+#: so what arrives here is any file on the machine, and `_read_settled`
+#: (`inventory.py:194`) reads whatever it is handed **whole** before the
+#: first check on its contents runs. A 30 GB disk image would be allocated in
+#: full and only then thrown away.
+LARGEST_SAVE_TO_READ = 256 * 1024 * 1024
+
+
+def where_saves_usually_are() -> pathlib.Path | None:
+    """Where the file dialog opens (AK-123, section 5).
+
+    The start location is the actual help in this dialog: the player cannot
+    type the variable his profile lives under and should not have to. So the
+    `Nightreign` folder if it is there, the profile itself if it is not, and
+    None -- "wherever Qt would" -- if neither is.
+
+    Resolved, always, and never named as a variable anywhere he can read it
+    (AK-127): what he sees in the dialog is a path.
+    """
+    roots = savefile.save_roots()
+    for folder in roots:
+        if folder.is_dir():
+            return folder.resolve()
+    for folder in roots:
+        if folder.parent.is_dir():
+            return folder.parent.resolve()
+    return None
+
+
+def _pick_a_save_file(parent) -> pathlib.Path | None:
+    """The system's own file dialog, opened where the saves are.
+
+    Native, for the reason `firstrun._pick_a_folder` gives: it is the dialog
+    the player knows from everything else on his machine, with his quick
+    access places and his network drives in it.
+
+    A file and not a folder, which is the difference from the first run's
+    question and the reason it is the right one here: with two Steam accounts
+    the file is the only thing that says *which* account he means.
+    """
+    start_at = where_saves_usually_are()
+    picked, _chosen_filter = QFileDialog.getOpenFileName(
+        parent, CHOOSE_YOUR_SAVE,
+        "" if start_at is None else os.fspath(start_at),
+        SAVE_FILE_FILTERS)
+    return pathlib.Path(picked) if picked else None
+
+
+def _refuse_a_file_no_save_can_be(path: pathlib.Path) -> None:
+    """Stop before a file too large to be a save is read into memory.
+
+    SEC-029. Size is what can be known without reading anything -- `stat()`
+    costs no bytes -- and it is the only question that has to be answered
+    before the file is in memory rather than after.
+
+    This is the caller's half of that finding. It covers the file the player
+    named, which is the route A15 adds; the automatic route picks its files
+    out of the profile folder itself and still reaches `_read_settled`
+    without a limit, which is the half that sits in `inventory.py`.
+    """
+    size = path.stat().st_size
+    if size > LARGEST_SAVE_TO_READ:
+        raise ValueError(
+            f"the file is {size // (1024 * 1024)} MB, far larger than any "
+            f"save this game writes")
+
+
+def read_the_save(data: dict, save_path: pathlib.Path | None = None):
+    """Read the save the window is to show, and answer for the file it read.
+
+    The default reading of `SaveReader`, and the one place the three exits of
+    AK-124 are told apart. `inventory.scan` cannot tell them apart and should
+    not: it answers None both for "there is no save here" and for "this file
+    holds no relics", and it swallows an unreadable file on purpose, because
+    on the automatic route the next file may well be the good one.
+
+    For a file the **player pointed at** those are three different pieces of
+    news, and he is owed the difference: a scan gives the ordinary line, a
+    None means the file was read and holds nothing (S3), and a raise carries
+    the reason he cannot be expected to guess (S4).
+
+    **No path is ever put into the reason.** The save folder is named after
+    the Steam account id (AK-126), and an `OSError` writes the whole path
+    into its message, so what comes out of one here is its `strerror` and
+    nothing else.
+    """
+    if save_path is None:
+        return inventory.scan(data)
+    try:
+        _refuse_a_file_no_save_can_be(save_path)
+        found = inventory.scan(data, save_path)
+        if found is None:
+            # Reading it again is what tells S3 from S4, and it is only ever
+            # done when the scan came back empty -- so the ordinary case pays
+            # nothing for it, and the two cases that are left are the ones
+            # the player is about to ask about.
+            savefile.read(save_path)
+        return found
+    except OSError as exc:
+        raise ValueError(exc.strerror or "the file could not be opened") from None
+
 
 class _SaveReadWorker(QObject):
     """One reading of the save, off the main thread. Built once and dropped.
@@ -1505,15 +1658,21 @@ class _SaveReadWorker(QObject):
     #: Always last, whatever happened, so the thread is quit from one place.
     finished = Signal()
 
-    def __init__(self, generation: int, data: dict, read) -> None:
+    def __init__(self, generation: int, data: dict, read,
+                 save_path: pathlib.Path | None = None) -> None:
         super().__init__()
         self._generation = generation
         self._data = data
         self._read = read
+        # Which file this reading is about, or None for "whichever the
+        # automatic route finds". Handed in rather than looked up here: the
+        # settings store is the main thread's, and a `stat` on a dead network
+        # path is exactly what this thread exists to keep off it.
+        self._save_path = save_path
 
     def work(self) -> None:
         try:
-            found = self._read(self._data)
+            found = self._read(self._data, self._save_path)
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
             traceback.print_exc()
             self.failed.emit(self._generation,
@@ -1561,7 +1720,7 @@ class SaveReader(QObject):
     def __init__(self, parent: QObject | None = None, *, read=None) -> None:
         super().__init__(parent)
         # Looked up when a read starts and not written down here, so that
-        # `None` really means "whatever `inventory.scan` is at that moment".
+        # `None` really means "whatever `read_the_save` is at that moment".
         # A default bound at import time would be a different function from
         # the one a case had put in the module, and the case would pass by
         # measuring the wrong thing.
@@ -1588,13 +1747,17 @@ class SaveReader(QObject):
         """
         return self._answering
 
-    def start(self, data: dict) -> bool:
+    def start(self, data: dict, save_path: pathlib.Path | None = None) -> bool:
         """Begin a read, unless one is already out. Says which it did.
 
         One read at a time (AD-029 point 4). A second `Rescan` while the first
         is still going does nothing whatever -- it does not queue, it does not
         replace -- because the line under the button already says what is
         happening and the answer that is coming is the one the player wants.
+
+        `save_path` is the file the player picked, resolved by the caller in
+        the main thread (AD-030). None is "let the automatic route decide",
+        which is what it has always been.
 
         Hands back whether it started one, so the window can tell a read it
         has to draw a waiting state for from a click that changed nothing.
@@ -1605,7 +1768,7 @@ class SaveReader(QObject):
         self._answering = True
         self._thread = QThread()
         self._worker = _SaveReadWorker(self._generation, data,
-                                       self._read or inventory.scan)
+                                       self._read or read_the_save, save_path)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.work)
         self._worker.ready.connect(self._on_ready)
@@ -1670,7 +1833,7 @@ class Planner(QMainWindow):
         `read_save` is the seam AD-028 built for the advisor's two tracks,
         here for the one thing about this window that a case cannot otherwise
         reach: a read that never answers, one that answers at once, one that
-        fails, one that finds no save. `None` is `inventory.scan`, which is
+        fails, one that finds no save. `None` is `read_the_save`, which is
         what a player always gets, and nothing but the reading goes through
         it.
         """
@@ -1850,6 +2013,13 @@ class Planner(QMainWindow):
         # setting: it is about this session, and OF-15 is why nothing new goes
         # into the settings store.
         self._own_slots_beat_the_stored_build: set[int] = set()
+        # Is the read that is out the answer to a file the player just
+        # picked? The three exits of AK-124 are the answer to *a choice*: the
+        # same three endings on an ordinary start are the four endings of
+        # `UI_SPEC` section 9, which are worded for a save nobody pointed at.
+        # Session state and nothing else -- OF-15 is why nothing new goes
+        # into the settings store beyond the one path key.
+        self._answers_a_chosen_save = False
         self.save_reader = SaveReader(self, read=read_save)
         self.save_reader.ready.connect(self._on_save_read)
         self.save_reader.failed.connect(self._on_save_failed)
@@ -1972,6 +2142,20 @@ class Planner(QMainWindow):
         )
         self.import_button.clicked.connect(self.load_equipped)
         row.addWidget(self.import_button)
+        # AK-123: a third button, and only while there is no save. A real
+        # button in this row rather than a link in the 10 px line under it --
+        # an offer the player overlooks does not solve A15.
+        #
+        # Hidden at the start and shown by whichever ending of a read finds
+        # no inventory. Not "hidden while a save is loaded": that would make
+        # it appear during the first read and disappear again at the arrival,
+        # and this row is one of the places AK-106 says the successful case
+        # does not change.
+        self.find_save_button = QPushButton(FIND_MY_SAVE)
+        self.find_save_button.setToolTip(FIND_MY_SAVE_TOOLTIP)
+        self.find_save_button.clicked.connect(self.find_my_save)
+        self.find_save_button.setVisible(False)
+        row.addWidget(self.find_save_button)
         layout.addLayout(row)
 
         self.owned_label = QLabel()
@@ -3805,10 +3989,49 @@ class Planner(QMainWindow):
         A press while a read is out starts nothing and changes nothing on
         screen (AK-227): the line under the button already says what is
         happening.
+
+        Which file is read is the resolution point's answer and no longer
+        this method's (AD-030): the file the player picked while it is there,
+        and otherwise -- silently, and without the picked one being forgotten
+        -- whatever the automatic route finds (AK-125).
         """
-        if not self.save_reader.start(self.data):
+        if not self.save_reader.start(self.data, gamepath.resolve_save()):
             return
+        self._answers_a_chosen_save = False
         self._show_the_save_is_being_read(initial)
+
+    def find_my_save(self) -> None:
+        """Let the player say where his save is, keep it, and read it.
+
+        A15 through AK-123 to AK-125. Three steps and nothing else: the
+        system's file dialog, the path into `paths/save`, a read of that file.
+
+        **The write is the confirmation and nothing else is** (AD-030): this
+        is the only place in the program that writes that key, a cancelled
+        dialog writes nothing, and no automatic find ever gets here. It
+        happens before the read rather than after it, for the reason AK-117
+        gives for the game folder: a crash during the read must not cost him
+        the answer he has just given.
+
+        Nothing is written back if the file turns out to be unreadable
+        either. It is the file he pointed at; the line says what came of it
+        (S3, S4), the button is still there, and he can point at another one.
+        A single failure deletes nothing (AK-121).
+
+        While a read is out this button does nothing at all, exactly as
+        `Load equipped` does: the answer that is coming is about the file
+        that was named before it.
+        """
+        if self.save_reader.is_reading():
+            return
+        chosen = _pick_a_save_file(self)
+        if chosen is None:
+            return
+        if not self.save_reader.start(self.data, chosen):
+            return
+        gamepath.remember_save(chosen)
+        self._answers_a_chosen_save = True
+        self._show_the_save_is_being_read(False)
 
     def _show_the_save_is_being_read(self, initial: bool) -> None:
         """The waiting state: one line, one shut button, and nothing else.
@@ -3819,6 +4042,7 @@ class Planner(QMainWindow):
         """
         self.owned_label.setText(
             READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)
+        self.find_save_button.setVisible(False)
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(True)
 
@@ -3844,7 +4068,14 @@ class Planner(QMainWindow):
         self.owned = None if found is None else inventory.build(self.data, found)
         self._the_save_has_been_read()
         if self.owned is None:
-            self.owned_label.setText(NO_SAVE_FOUND)
+            # Two of the three exits of AK-124 meet here. For a file the
+            # player picked, "nothing came back" means that file holds no
+            # relics -- S3, and the reason for it is the one he can act on.
+            # Without a choice behind it, it means no save was found at all.
+            self.owned_label.setText(
+                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else NO_SAVE_FOUND)
+            self.find_save_button.setVisible(True)
             return
 
         note = f"{self.owned.relic_count} relics in {self.owned.source}"
@@ -3867,6 +4098,8 @@ class Planner(QMainWindow):
         # can contain a "<", so this is depth rather than a hole being shut:
         # the path is shown as the path, whatever it turns out to hold.
         self.owned_label.setToolTip(html.escape(self.owned.folder))
+        # A save is loaded, so the offer to find one is gone (AK-123).
+        self.find_save_button.setVisible(False)
         self._hand_the_stock_to_the_slots()
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
@@ -3901,11 +4134,19 @@ class Planner(QMainWindow):
         The waiting sentence is never the last word (AK-224), on any of the
         four ways a read can end, and this is the way that used to be a bare
         `return` out of a `try`.
+
+        For a file the player picked this is the third exit of AK-124, and it
+        is worded the other way round: his sentence first, the reason under
+        it (S4). The prefix stays where it was for every other read, and
+        AK-229 holds either way -- both endings are endings with no stock.
         """
         self.the_advisor_data_is_changing()
         self.owned = None
         self._the_save_has_been_read()
-        self.owned_label.setText(f"{UNREADABLE_SAVE}{reason}")
+        self.owned_label.setText(
+            f"{CHOSEN_SAVE_UNREADABLE}\n{reason}" if self._answers_a_chosen_save
+            else f"{UNREADABLE_SAVE}{reason}")
+        self.find_save_button.setVisible(True)
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
@@ -4861,8 +5102,6 @@ def main() -> int:
     # game is, is the resolution point's question and no longer this line's:
     # a folder the player pointed at himself counts for as much here as it
     # does everywhere else (AD-030).
-    from . import gamepath
-
     first = firstrun.run(gamepath.resolve_game())
     if not first.go_on:
         # He was asked where his game is and said Quit, Escape or the cross.
