@@ -462,6 +462,43 @@ def test_the_stored_build_is_taken_over_when_nobody_touched_a_slot(
         close(window, read)
 
 
+def test_the_cards_get_the_stock_when_no_build_is_worn(game_data, qapp,
+                                                      a_scan):
+    """The one way in which the stock reaches the cards and nothing else does.
+
+    A fresh character is the ordinary case here: he has vessels, and none of
+    them is worn. `reload_chalices` still hands over to `load_equipped`,
+    because the save does store builds for him -- and `load_equipped` leaves
+    at `selected_loadout(...) is None`, before `apply_chalice`, which is what
+    gives the cards the inventory on every other path. So on this path
+    `_hand_the_stock_to_the_slots` is the only thing between the arrival and
+    a player looking at six cards that offer him nothing.
+
+    Read off the count in the heading rather than off the cards' own
+    attribute: `(n available)` is what he sees, and it is written from what
+    the card holds rather than from what the window holds.
+    """
+    worn_by_nobody = dataclasses.replace(
+        a_scan,
+        loadouts=[dataclasses.replace(stored, selected=False)
+                  for stored in a_scan.loadouts])
+    read = StatedRead(worn_by_nobody)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+        hero = window.current_hero()
+        if not window.owned.loadouts_for(hero["id"]):
+            pytest.skip("this save stores no build for the first Nightfarer")
+        assert window.owned.selected_loadout(hero["id"]) is None, (
+            "the premise: this Nightfarer wears none of his builds")
+
+        for card in window.active_slots():
+            assert "available" in card.title.text(), card.title.text()
+    finally:
+        close(window, read)
+
+
 def test_a_slot_set_during_the_read_survives_the_arrival(game_data, qapp,
                                                          a_scan):
     """AK-226's first half, and the change of Nightfarer that used to undo it.
@@ -564,12 +601,28 @@ def test_load_equipped_says_nothing_while_a_read_is_out(game_data, qapp,
 
 def test_the_reader_starts_nothing_while_one_read_is_out(game_data, qapp,
                                                          a_scan):
-    """AD-029 point 4, at the controller and without a window in the way."""
+    """AD-029 point 4, at the controller and without a window in the way.
+
+    **The running thread is held here on purpose**, and that line is what
+    lets this case say something when the rule is broken. `SaveReader` keeps
+    the only reference to the `QThread` it started; a reader that began a
+    second read would overwrite it, Qt would destroy a thread that is still
+    running, and the process would die on the spot -- red, but red about a
+    crash, and about the same crash whatever else went wrong. Every
+    assertion below would go unheard (measured, T-142: exit code 127 and no
+    summary).
+
+    With the thread held, the broken rule is a sentence instead: the second
+    press hands back `True`, or the read was entered twice.
+    """
     read = StatedRead(a_scan, hold=True)
     reader = appmod.SaveReader(read=read)
     try:
         assert reader.start(game_data) is True
         read.began.wait(READ_FUSE_S)
+        still_running = reader._thread
+        assert still_running is not None, "the premise: a read is out"
+
         assert reader.start(game_data) is False
         assert reader.start(game_data) is False
         assert read.calls == 1
