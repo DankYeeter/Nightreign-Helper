@@ -23,6 +23,8 @@ that is recognisably the thing they were asked for.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from nrdata import icons
@@ -34,6 +36,49 @@ def test_a_snapshot_can_be_built_from_the_installed_game(extracted_game_data):
     """regulation, BND4, param and paramdef, end to end."""
     for section in ("relics", "effects", "heroes", "vessels", "weapons"):
         assert extracted_game_data.get(section), f"{section} came back empty"
+
+
+def test_the_built_dataset_survives_a_json_round_trip_unchanged(extracted_game_data):
+    """One dataset, one shape: `extract.build()` == its own reload (D-001).
+
+    The extractor's result and the same result read back out of
+    `nightreign_data.json` used to be two different objects. JSON keys are
+    text and nothing else, so a mapping built with `int` keys came back with
+    `str` ones, and every consumer had to know which of the two it was
+    holding. `model.py` did know and reached for both shapes from the first
+    commit on; the tests were written against the file shape and never ran
+    without a cached snapshot, so the other shape went uncovered for the
+    whole life of the project.
+
+    Asserted as the property, not as the two sites that broke it
+    (`heroes[*]["levels"]`, `bosses[*]["weakness"]["parts"]`): any mapping
+    added later with a non-text key falls here, and the message names its
+    path.
+    """
+    offenders = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            odd = [key for key in node if not isinstance(key, str)]
+            if odd:
+                types = sorted({type(key).__name__ for key in odd})
+                offenders.append(f"{path}: {len(odd)} of {len(node)} keys are "
+                                 f"{'/'.join(types)}, e.g. {odd[0]!r}")
+            for key, value in node.items():
+                walk(value, f"{path}[{key!r}]")
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, f"{path}[{index}]")
+
+    walk(extracted_game_data, "data")
+    assert not offenders, (
+        f"{len(offenders)} mappings would be renamed by a JSON round trip:\n"
+        + "\n".join(offenders[:10])
+    )
+    # The contract itself, and it covers more than the keys: a tuple, a set
+    # or a NaN on the value side does not come back either, and the walk
+    # above says nothing about those.
+    assert json.loads(json.dumps(extracted_game_data)) == extracted_game_data
 
 
 def test_the_message_files_supply_the_names(extracted_game_data):

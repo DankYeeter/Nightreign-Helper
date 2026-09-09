@@ -912,7 +912,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             "guess it from the field names and quietly get some of them "
             "backwards -- Improved Item Discovery reads -60% instead of +40%."
         )
-    base = dict(hero["levels"][str(level)] if str(level) in hero["levels"] else hero["levels"][level])
+    base = dict(hero["levels"][str(level)])
     build = Build(level=level, base_attributes=dict(base),
                   attributes=dict(base))
     # Weapon-type gates are met by any armament being held, not just the one

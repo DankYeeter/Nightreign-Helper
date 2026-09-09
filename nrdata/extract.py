@@ -1906,7 +1906,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if not anchors:
             continue
 
-        levels: dict[int, dict[str, int]] = {}
+        # Keyed by the level as *text*, like every other mapping in this
+        # dataset and like `_swap_anchors` below. JSON has no other kind of
+        # key, so an int here would mean the extractor's result and the same
+        # result read back out of nightreign_data.json are two different
+        # objects and every consumer has to handle both (D-001).
+        levels: dict[str, dict[str, int]] = {}
         exact = {a.values["totalLevel"] for a in anchors}
         for lvl in range(1, MAX_LEVEL + 1):
             lo = max([a for a in anchors if a.values["totalLevel"] <= lvl], key=lambda a: a.values["totalLevel"], default=anchors[0])
@@ -1914,7 +1919,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             lo_lvl, hi_lvl = lo.values["totalLevel"], hi.values["totalLevel"]
             span = hi_lvl - lo_lvl
             t = 0.0 if span == 0 else (lvl - lo_lvl) / span
-            levels[lvl] = {
+            levels[str(lvl)] = {
                 label: round(lo.values[key] + (hi.values[key] - lo.values[key]) * t)
                 for key, label in STAT_FIELDS
             }

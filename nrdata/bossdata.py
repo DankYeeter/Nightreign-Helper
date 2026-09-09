@@ -412,7 +412,12 @@ def derive(game_dir, members: dict, defs: dict,
             "primary": primary,
             "confidence": "exact",
             "profile": _profile(rows_for.get(primary, [])),
-            "parts": {c: _profile(rows_for.get(c, [])) for c in chars},
+            # Character ids as text: this block is written to JSON, which has
+            # no other kind of key, so an int would give the freshly built
+            # dataset a different shape from the one read back (D-001).
+            # `chars` and `primary` stay ints, so a lookup here is
+            # `parts[str(primary)]`.
+            "parts": {str(c): _profile(rows_for.get(c, [])) for c in chars},
         }
 
     # Bosses whose script names the flag but never pairs it with an entity.
@@ -484,7 +489,8 @@ def derive(game_dir, members: dict, defs: dict,
                 "group_boss": group,
                 "placements": placements.get(best),
                 "profile": best_profile,
-                "parts": {best: best_profile},
+                # Text key, for the reason given on the exact path above.
+                "parts": {str(best): best_profile},
             }
             break
 
