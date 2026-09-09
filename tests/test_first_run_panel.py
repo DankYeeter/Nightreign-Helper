@@ -59,8 +59,8 @@ W1 = (
     "There is an installed FromSoftware game here:",
     "{path}",
     "Its folder is not named after ELDEN RING NIGHTREIGN, so this may be a "
-    "different game. Reading it takes about a minute, and every number would "
-    "be wrong.",
+    "different game. Reading it takes minutes, and every number would be "
+    "wrong.",
     "To read it, Nightreign Helper runs a small program out of this folder, "
     "so only carry on with a copy of the game you installed yourself.",
 )

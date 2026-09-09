@@ -2,8 +2,10 @@
 
 The program ships no game content, so on a machine that has never run it
 there is nothing to show until the installed game has been read. That takes
-about a minute: roughly half extracting the params, half decoding the icon
-atlases. Doing it silently would look like a hang, and doing it on every
+minutes rather than seconds, in two steps: extracting the params, then
+decoding the icon atlases. How long each of the two takes has never been
+measured, which is why nothing here counts them out as progress (`UI_SPEC`
+T-178 §7). Doing it silently would look like a hang, and doing it on every
 launch would be intolerable, so it happens once, visibly, into the per-user
 cache, and is reused until the game is patched.
 
@@ -59,7 +61,7 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
         needed.append("snapshot")
     else:
         # A patched game invalidates the snapshot. Hashing 2 MB costs a few
-        # milliseconds, which is worth it to avoid a minute of rebuilding.
+        # milliseconds, which is worth it to avoid minutes of rebuilding.
         try:
             import json
 
@@ -333,7 +335,7 @@ def w1(verdict: Verdict) -> Panel:
 
     Not a rejection -- renaming an install folder is allowed and happens
     (section 4.3) -- but the default button is the way out and not the way on
-    (AK-113): a minute spent on ELDEN RING, and every number afterwards
+    (AK-113): minutes spent on ELDEN RING, and every number afterwards
     wrong, is the more expensive mistake.
     """
     return Panel(
@@ -343,8 +345,8 @@ def w1(verdict: Verdict) -> Panel:
             Line("There is an installed FromSoftware game here:"),
             Line(os.fspath(verdict.found), PATH),
             Line("Its folder is not named after ELDEN RING NIGHTREIGN, so "
-                 "this may be a different game. Reading it takes about a "
-                 "minute, and every number would be wrong."),
+                 "this may be a different game. Reading it takes minutes, "
+                 "and every number would be wrong."),
             Line("To read it, Nightreign Helper runs a small program out of "
                  "this folder, so only carry on with a copy of the game you "
                  "installed yourself."),
@@ -627,7 +629,7 @@ class _Window(QWidget):
 
     **The two states are different kinds of window, and that is the point.**
     The build state is a splash: no title bar, no taskbar entry, nothing to
-    press. That is right for a minute nobody can shorten and wrong for a
+    press. That is right for a wait nobody can shorten and wrong for a
     question, because a question opens the system folder dialog -- which can
     come up behind it, leaving a player looking for this program in a taskbar
     it is not in.
@@ -818,11 +820,23 @@ class _Window(QWidget):
             if first_time
             else "Refreshing your game data"
         )
+        # No figure, on either of them (AK-253). Four measurements of this
+        # build came back at 107 s, 163-283 s and twice at about five minutes,
+        # on the same machine and the same game -- so naming a number is the
+        # mistake here, not the number that was named. `minutes rather than
+        # seconds` stays true across all four and would stay true at ten, and
+        # `sometimes several` errs in the direction that costs nothing: a
+        # player who waits less than he was told does not start doubting.
+        # No cause is offered either, because the spread has none that anybody
+        # has measured (`UI_SPEC` T-178 §6 to §8).
         detail = (
-            "Reading your installation. This happens once, and takes about a "
-            "minute."
+            "Reading your installation. This happens once, and takes minutes "
+            "rather than seconds — sometimes several. The line below changes "
+            "as it goes."
             if first_time
-            else "Re-reading your installation so the numbers are up to date."
+            else "Re-reading your installation so the numbers are up to date. "
+                 "This takes minutes rather than seconds — sometimes several. "
+                 "The line below changes as it goes."
         )
 
         layout = self._body
@@ -854,7 +868,7 @@ class _Window(QWidget):
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
 
-        # This minute of setup is the closest thing the program has to being
+        # This one-off setup is the closest thing the program has to being
         # installed, so it is the natural place to offer what an installer
         # would: an entry in the Start Menu. Offered rather than done, and only
         # on the first run -- a rebuild after a patch is not an install, and
@@ -876,15 +890,24 @@ class _Window(QWidget):
             )
             layout.addWidget(self.shortcut_check)
 
-        # Back to the splash it has always been, at the height it has always
-        # had -- plus whatever the confirmation line needs, which is measured
-        # rather than guessed at: a long path wraps.
+        # Back to the splash it has always been, and never shorter than it has
+        # always been -- plus whatever the confirmation line needs, which is
+        # measured rather than guessed at: a long path wraps.
         extra = 0
         if confirmation is not None:
             extra = (confirmation.heightForWidth(PANEL_WIDTH - 2 * SIDE_MARGIN)
                      + layout.spacing())
+        # The height follows the text, not the other way round (AK-255). The
+        # two figures below were enough for a one-line sentence and are not
+        # enough for the honest one, and a fixed height would cut it off at
+        # the bottom -- which is the fault `_height_of_the_content` was
+        # written for on the question states. They stay as the floor, so no
+        # build state is ever shorter than it is today.
+        layout.activate()
+        floor = (190 if first_time else 150) + extra
         self.setWindowFlags(Qt.WindowType.SplashScreen)
-        self.setFixedSize(PANEL_WIDTH, (190 if first_time else 150) + extra)
+        self.setFixedSize(PANEL_WIDTH,
+                          max(floor, layout.heightForWidth(PANEL_WIDTH)))
         self.show()
 
     def wants_shortcut(self) -> bool:

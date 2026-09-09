@@ -231,7 +231,8 @@ def main() -> int:
         print("The game data has not been built yet. Build it with:")
         print("   .venv\\Scripts\\python.exe scripts\\build_snapshot.py")
         print("   .venv\\Scripts\\python.exe scripts\\build_icons.py")
-        print("That takes about a minute, and is only needed once per patch.")
+        print("That takes minutes rather than seconds, and is only needed")
+        print("once per patch.")
         return 1
     if needs_work:
         print("Environment incomplete. Re-run with --fix to install:")
