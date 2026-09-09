@@ -69,7 +69,7 @@ C3 = (
     "Is this your game?",
     "You picked:",
     "{picked}",
-    "The game itself is outside that folder, in:",
+    "The game itself is not directly in that folder. It is in:",
     "{found}",
     "That is the folder Nightreign Helper will read from.",
 )
@@ -168,15 +168,23 @@ def test_e1_names_the_folder_that_was_turned_down():
         line.format(path=r"C:\nothing") for line in E1)
 
 
-def test_c3_says_the_game_is_outside_the_folder_that_was_picked():
-    """AK-241: the T-146 wording, not the neutral one it replaced."""
+def test_c3_says_the_game_is_not_directly_in_the_folder_that_was_picked():
+    """AK-247: the wording that is true of both triggers, and only that one.
+
+    `outside that folder` (T-146) was true while a leaving was the only way
+    into this panel. Since AK-246 a descent of two levels reaches it too, and
+    that folder is inside the picked one -- so the sentence had to weaken.
+    """
     verdict = firstrun.Verdict(pathlib.Path(r"C:\picked\Game\sub"),
                                pathlib.Path(r"C:\picked\Game"), True,
                                firstrun.OUTSIDE)
+    panel = firstrun.c3(verdict)
 
-    assert a_panel_reads_as(firstrun.c3(verdict)) == tuple(
+    assert a_panel_reads_as(panel) == tuple(
         line.format(picked=r"C:\picked\Game\sub", found=r"C:\picked\Game")
         for line in C3)
+    assert "outside that folder" not in " ".join(
+        line.text for line in panel.lines)
 
 
 def test_the_two_later_panels_name_the_folder_that_is_gone():
@@ -208,7 +216,12 @@ def test_the_two_later_panels_name_the_folder_that_is_gone():
 
 
 def test_the_confirmation_says_inside_only_when_it_is_inside():
-    """AK-242: C2 for a descent, C1 for a leaving and for the folder itself."""
+    """AK-242: C2 for the one-level descent, C1 for all three others.
+
+    A descent of two levels is inside the picked folder as much as a descent
+    of one, and still gets C1: the user has just answered C3 about it, and
+    the sentence under that may not claim a relation of its own.
+    """
     game = pathlib.Path(r"C:\common\ELDEN RING NIGHTREIGN\Game")
     picked = pathlib.Path(r"C:\common\ELDEN RING NIGHTREIGN")
 
@@ -216,11 +229,14 @@ def test_the_confirmation_says_inside_only_when_it_is_inside():
         firstrun.Verdict(picked, game, True, firstrun.INSIDE))
     same = firstrun.found_it(
         firstrun.Verdict(game, game, True, firstrun.SAME))
+    deeper = firstrun.found_it(
+        firstrun.Verdict(picked.parent, game, True, firstrun.DEEPER))
     outside = firstrun.found_it(
         firstrun.Verdict(game / "sub", game, True, firstrun.OUTSIDE))
 
     assert inside == f"Found your game in {game}, inside the folder you picked."
     assert same == f"Found your game in {game}"
+    assert deeper == f"Found your game in {game}"
     assert outside == f"Found your game in {game}"
 
 
@@ -335,7 +351,11 @@ def test_when_there_is_something_to_ask(monkeypatch, tmp_path, remembered,
 
 
 def test_the_parent_folder_is_the_ordinary_case_and_costs_no_click(tmp_path):
-    """AK-240 and AK-111: a descent resolves and confirms, with no question."""
+    """AK-240, AK-111, AK-246: one level down resolves and confirms, no click.
+
+    The case `Browse local files` leaves a player in, and the one descent
+    AK-246 still takes on trust.
+    """
     game = an_install(tmp_path)
     player = Player([firstrun.CHOOSE], [game.parent])
 
@@ -373,6 +393,74 @@ def test_a_climb_out_of_the_picked_folder_is_asked_about(tmp_path):
         line.format(picked=str(inside), found=str(game)) for line in C3)
     assert settled.game == game
     assert settled.said == f"Found your game in {game}"
+
+
+def test_two_levels_down_is_asked_about(tmp_path):
+    """AK-246: inside the folder he picked, and still not the folder he showed.
+
+    The case SEC-032 measured: an archive is unpacked into a folder, the
+    player points at that folder, and the game sits two levels below it.
+    Until AK-246 every descent counted as his own choice, so this went to the
+    build with no window between the find and the library run out of it.
+    """
+    game = an_install(tmp_path)
+    library = game.parent.parent  # ...\common, two levels above the game
+    player = Player([firstrun.CHOOSE, firstrun.USE], [library])
+
+    settled = settle(player)
+
+    assert player.panels == ["A1", "C3"]
+    assert a_panel_reads_as(player.seen[1]) == tuple(
+        line.format(picked=str(library), found=str(game)) for line in C3)
+    assert settled.game == game
+    assert settled.said == f"Found your game in {game}"
+
+
+def test_three_levels_down_is_asked_about_and_not_turned_down(tmp_path):
+    """AK-246 at the far edge of the search: a question, never E1.
+
+    `SEARCH_DEPTH` stays 3 (AK-249). Lowering it would have cost this player
+    the find altogether instead of costing him one click.
+    """
+    game = an_install(tmp_path)
+    player = Player([firstrun.CHOOSE, firstrun.USE], [tmp_path])
+
+    settled = settle(player)
+
+    assert player.panels == ["A1", "C3"]
+    assert settled.game == game
+
+
+def test_the_question_reads_the_same_for_a_climb_and_for_a_descent(tmp_path):
+    """AK-247: one wording, and it is true of both triggers."""
+    game = an_install(tmp_path)
+    below = game / "sound"
+    below.mkdir()
+    library = game.parent.parent
+    climbed = Player([firstrun.CHOOSE, firstrun.USE], [below])
+    descended = Player([firstrun.CHOOSE, firstrun.USE], [library])
+
+    settle(climbed)
+    settle(descended)
+
+    assert climbed.panels == ["A1", "C3"]
+    assert descended.panels == ["A1", "C3"]
+    assert a_panel_reads_as(climbed.seen[1]) == tuple(
+        line.format(picked=str(below), found=str(game)) for line in C3)
+    assert a_panel_reads_as(descended.seen[1]) == tuple(
+        line.format(picked=str(library), found=str(game)) for line in C3)
+
+
+def test_at_most_one_question_when_the_name_fails_two_levels_down(tmp_path):
+    """AK-248: W1 wins over the new trigger as it wins over the old one."""
+    game = an_install(tmp_path, named="my games")
+    library = game.parent.parent
+    player = Player([firstrun.CHOOSE, firstrun.USE], [library])
+
+    settled = settle(player)
+
+    assert player.panels == ["A1", "W1"]
+    assert settled.game == game
 
 
 def test_a_junction_out_of_the_picked_folder_is_asked_about(tmp_path):
@@ -606,6 +694,25 @@ def test_a_find_by_the_automatic_route_is_never_written_back(monkeypatch,
 
     assert outcome == firstrun.FirstRun(game, True, None)
     assert windows == []
+    assert gamepath.remembered_game() is None
+
+
+def test_nothing_is_built_while_the_question_about_a_deep_descent_is_open(
+        monkeypatch, tmp_path):
+    """AK-246's counterproof, as a counted value: no build, nothing kept.
+
+    "The build does not begin" is not something to look at on a screen -- the
+    build is a call, and the case counts whether it was made.
+    """
+    game = an_install(tmp_path)
+    order = []
+
+    outcome, _windows = a_run(monkeypatch,
+                              answers=[firstrun.CHOOSE, firstrun.QUIT],
+                              picks=[game.parent.parent], order=order)
+
+    assert order == []
+    assert outcome == firstrun.FirstRun(None, False, None)
     assert gamepath.remembered_game() is None
 
 

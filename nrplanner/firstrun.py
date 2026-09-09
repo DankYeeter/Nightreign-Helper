@@ -167,9 +167,25 @@ PATH = "path"
 BREAK_HERE = "\u200b"
 
 #: Where the folder that was found sits, relative to the one that was picked.
-SAME = "same"
-INSIDE = "inside"
-OUTSIDE = "outside"
+#: Four answers rather than three since AK-246: how far *into* the picked
+#: folder the search had to go decides as much as whether it stayed in it.
+SAME = "same"        # the folder he picked is the one that holds the game
+INSIDE = "inside"    # one level in: the ordinary case of section 4.2
+DEEPER = "deeper"    # two levels in or more: found, but never shown to him
+OUTSIDE = "outside"  # a climb, another branch, or a junction leading out
+
+#: How far the search may go down into the folder the user picked and still
+#: come back with something that passes for the folder he showed. One level,
+#: because that is the case section 4.2 describes and the whole of it: Steam's
+#: `Browse local files` opens ...\ELDEN RING NIGHTREIGN, one level above the
+#: ...\Game the search returns. From two levels down, what was found is a
+#: folder he never pointed at -- an attacker chooses the shape of the archive
+#: somebody unpacks, so that distance is not a matter of chance (SEC-032) --
+#: and it is put to him as C3 before anything is read (AK-246). The search
+#: itself keeps its reach: SEARCH_DEPTH and SEARCH_PARENTS are unchanged at 3
+#: and 2, because refusing those folders outright would turn a question into
+#: a rejection of cases section 4.2 supports (AK-249).
+LEVELS_TAKEN_ON_TRUST = 1
 
 #: Said under A1 and A2, below the buttons, in MUTED (section 3, point 7).
 COME_BACK_LATER = "You can close this and come back later. It will ask again."
@@ -341,11 +357,15 @@ def w1(verdict: Verdict) -> Panel:
 
 
 def c3(verdict: Verdict) -> Panel:
-    """The search left the tree the user pointed at, so it is put to him.
+    """The search did not come back with the folder he showed, so it is put
+    to him.
 
-    Only ever a leaving -- a climb, a change of branch, or a junction leading
-    out (T-146). A descent is the ordinary case and is not asked about, which
-    is why this text may say `outside that folder` outright.
+    Two triggers since AK-246, and one text for both: the search left the
+    tree he pointed at (a climb, a change of branch, a junction leading out),
+    or it stayed inside it but went two levels down or more. A folder that
+    deep is still inside the one he picked, so `outside that folder` -- the
+    T-146 wording -- would be false there; what is true of both is that the
+    game is not directly in what he pointed at (AK-247).
     """
     return Panel(
         name="C3",
@@ -353,7 +373,7 @@ def c3(verdict: Verdict) -> Panel:
         lines=(
             Line("You picked:"),
             Line(os.fspath(verdict.picked), PATH),
-            Line("The game itself is outside that folder, in:"),
+            Line("The game itself is not directly in that folder. It is in:"),
             Line(os.fspath(verdict.found), PATH),
             Line("That is the folder Nightreign Helper will read from."),
         ),
@@ -364,12 +384,14 @@ def c3(verdict: Verdict) -> Panel:
 
 
 def found_it(verdict: Verdict) -> str:
-    """The confirmation: C2 for a descent, C1 for everything else.
+    """The confirmation: C2 for the one-level descent, C1 for everything else.
 
-    C2 says `inside the folder you picked`, so it may only be said when the
-    folder really is inside it. After C3 -- a leaving, by definition -- that
-    sentence would tell the user the opposite of what he has just read and
-    agreed to, which is why C1 stands there instead (AK-242).
+    C2 says `inside the folder you picked`, so it may only be said where that
+    is the whole news. After a C3 the user has just read both paths and
+    agreed to them, and C1 -- which claims no relation at all -- is what
+    belongs under that (AK-242). That is why a descent of two levels or more
+    gets C1 as well, although the folder really is inside his: it is a folder
+    he was asked about, not one he showed.
     """
     if verdict.where == INSIDE:
         return (f"Found your game in {os.fspath(verdict.found)}, inside the "
@@ -378,7 +400,8 @@ def found_it(verdict: Verdict) -> str:
 
 
 def _where_it_sits(found, picked) -> str:
-    """Did the search stay inside the tree the user saw, or leave it?
+    """Did the search stay inside the tree the user saw, how far in, or did
+    it leave?
 
     Held against the folder **as he was shown it**, and against the
     **resolved** result (T-146, SEC-030). That is what makes a junction
@@ -388,12 +411,17 @@ def _where_it_sits(found, picked) -> str:
     Compared as parts rather than as text, so that a separator or a trailing
     slash cannot decide it, and through `normcase`, because Windows spells
     one folder in more than one way and none of them is a different folder.
+    Counting the parts is also what the distance is: the levels between the
+    two folders, and nothing the search has to hand out to say it.
     """
     seen = pathlib.PurePath(os.path.normcase(os.path.abspath(picked))).parts
     landed = pathlib.PurePath(os.path.normcase(os.path.abspath(found))).parts
     if landed == seen:
         return SAME
-    return INSIDE if landed[:len(seen)] == seen else OUTSIDE
+    if landed[:len(seen)] != seen:
+        return OUTSIDE
+    levels = len(landed) - len(seen)
+    return INSIDE if levels <= LEVELS_TAKEN_ON_TRUST else DEEPER
 
 
 def look_at(picked) -> Verdict:
@@ -501,6 +529,11 @@ def settle_the_game_folder(ask, pick_a_folder, *, remembered=None,
         elif not verdict.named:
             panel = w1(verdict)
         elif verdict.where == OUTSIDE:
+            # The search left the tree he pointed at (AK-232).
+            panel = c3(verdict)
+        elif verdict.where == DEEPER:
+            # It stayed in his tree, but came back with a folder two levels
+            # down or more -- one he was never shown (AK-246, SEC-032).
             panel = c3(verdict)
         else:
             return _confirm(verdict)
