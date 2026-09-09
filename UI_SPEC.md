@@ -7620,10 +7620,27 @@ nur, weil sie das Ende des Wartezustands ist:
 <n> relics in <slot name> — this save stores no builds yet
 ```
 
-**(f) Kein Spielstand — unveraendert:**
+**(f) Kein Spielstand** *(war „unveraendert" bis zur Korrektur am 09.09.2026,
+T-154 — dieser Abschnitt hier ist von **T-141**, 08.09.2026. **Spaeter am
+selben Tag** hat **T-145** derselben Zeile in Abschnitt „Der Erststart mit
+Ordnerauswahl", §7, **S5** einen dritten Satz gegeben, ohne diese Stelle
+nachzuziehen — ein Selbstwiderspruch derselben Datei, gemeldet vom
+`developer` in T-150. **S5 gilt: der `developer` hat danach gebaut**
+(`nrplanner/app.py:595-597`, Konstante `NO_SAVE_FOUND`, dreisaetzig). Der
+Wortlaut unten ist der veraltete, zweisaetzige Stand vor T-145 und bleibt
+hier stehen, damit sichtbar ist, wovon abgewichen wird — er ist **nicht**
+mehr das, was das Programm zeigt.)*:
 
 ```
 No save file found. Relic slots stay empty; the Effects and Weapons tabs still work in full.
+```
+
+**Der gueltige, vollstaendige Wortlaut steht in S5** (Abschnitt „Der Erststart
+mit Ordnerauswahl", §7, T-145):
+
+```
+No save file found. Relic slots stay empty; the Effects and Weapons tabs
+still work in full. If your save is somewhere else, use Find my save.
 ```
 
 **(g) Nicht lesbar — unveraendert, und ab jetzt nur noch hier:**
@@ -8536,7 +8553,16 @@ selbst einen Slot gesetzt hat — dann greift AK-226 zuerst und `load_equipped`
 wird uebersprungen (`app.py:2785-2787`, `_own_slots_beat_the_stored_build`).
 
 **AK-244** *(der Wartesatz ist nie das letzte Wort — und manchmal ist es ein
-fuenftes.)* Erreicht ein Lesen sein Ende und loest dabei das automatische
+fuenftes. **Zweite Haelfte nachgezogen am 09.09.2026, T-154:** der `developer`
+hat in T-149 belegt (`app.py:4079` seinerzeit, heute `load_equipped`s
+Erfolgszweig bis `app.py:4320`), dass die Behauptung „scheitert das
+automatische Uebernehmen nicht, bleibt die Bestandsnotiz stehen" **nicht
+zutrifft** — es gibt einen sechsten, tatsaechlich eine offene Familie von
+Saetzen, die auch der **gelungene** Weg ueber die Notiz schreibt. Siehe
+**AK-245** im Nachtrag „AK-244 nachgezogen — die Regel statt der Liste" am
+Ende dieser Datei; die Fassung unten bleibt stehen, damit sichtbar ist, wovon
+abgewichen wird. Die **erste** Haelfte (die drei Fehlertexte, §2 unten) ist
+unveraendert gueltig.)* Erreicht ein Lesen sein Ende und loest dabei das automatische
 Uebernehmen des ausgeruesteten Builds aus (`owned is not None`,
 `chalices.imported(hero_id)` war vor diesem Lesen `False`,
 `owned.loadouts_for(hero_id)` nicht leer, und der Spieler hat seit dem letzten
@@ -8632,4 +8658,168 @@ Stellen — keine vierte.**
 
 **AK-243, AK-244** (§1, §2 oben). Keine Nummer gestrichen, keine Millisekunde
 in einem der beiden Texte.
+
+---
+
+## AK-244 nachgezogen: die Regel statt der Liste, und der Widerspruch bei S5
+## (ui-ux-designer, T-154) — 2026-09-09
+
+**Zwei Korrekturen an dieser Datei, kein Neubau.** Der `developer` hat in
+T-149/T-150 zwei Stellen gemeldet, an denen der T-148-Nachtrag und ein
+aelterer Abschnitt dieser Datei am Gebauten vorbeigehen. Beide sind unten
+aufgeloest: die erste mit einem neuen Kriterium (**AK-245**), die zweite mit
+einem Vermerk direkt an §9 (f) (siehe dort, keine neue Nummer noetig — kein
+Kriterium haengt an der Zwei- statt Dreisaetzigkeit dieses einen Textes,
+AK-222/AK-224 verweisen nur auf „der Satz aus §9(f)", ohne ihn zu zitieren).
+
+### 0. Grundlage und Methode
+
+**Gelesen:** `docs/tasks/T-154.md` (der Auftrag, mit dem woertlichen Befund
+des `developer`) · der T-148-Nachtrag dieser Datei vollstaendig (§0-§5,
+AK-243/AK-244, oben) · Abschnitt „Der Spielstand wird im Hintergrund gelesen"
+(T-141), §6 und §9 vollstaendig · Abschnitt „Der Erststart mit
+Ordnerauswahl" (T-074/T-145), §7 (S1-S5). Quelltext, nicht gestartet, kein
+Bildnachweis, keine eigene Messung — beide Korrekturen ziehen ein bereits im
+Code stehendes Verhalten nach, L-009 entfaellt: `nrplanner/app.py`
+`reload_chalices` (2902-3050, insbesondere 2965-2973), `load_equipped`
+(4151-4321, insbesondere die fruehen Rueckspruenge 4162-4220 und der
+Erfolgszweig 4287-4320), die Konstante `NO_SAVE_FOUND` (595-597).
+
+### 1. Der sechste Satz ist keiner — es ist eine offene Familie, wie die Bestandsnotiz selbst
+
+**Vollstaendige Zaehlung, einmal, wie der Auftrag verlangt:** jeder Zweig,
+den `load_equipped()` erreichen kann, wenn es der **automatische** Aufruf aus
+`reload_chalices` (Zeile 2972) ist — nicht der Knopfdruck, der dieselben
+Zweige jederzeit ausloesen darf und den AK-224/AK-244 nicht einschraenken:
+
+1. `loadout is None`, `loadout_error` gesetzt → *„This save's stored builds
+   could not be read: …"*
+2. `loadout is None`, kein Fehler → *„This save stores no equipped loadout
+   for {Nightfarer}."*
+3. `row is None` (Vessel nicht in der Liste) → *„{Nightfarer} has vessel
+   {id} equipped, which is not in this list."*
+4. Erfolg, Relikte platziert → *„Loaded {Nightfarer} — {n} chalices, showing
+   the equipped {Vessel} with {n relics}[ (Deep of Night)]."*
+5. Erfolg, nichts platzierbar → *„Loaded {Nightfarer} — {n} chalices.
+   Nothing the equipped {Vessel} holds in game could be placed."*
+6. Erfolg, Vessel leer im Spiel, andere nicht → *„Loaded {Nightfarer} —
+   {n} chalices. The equipped {Vessel} is empty in game; the others are in
+   the list on the left."*
+7. Erfolg, gar keine Chalice importiert → *„Loaded {Nightfarer} — every
+   chalice is empty in game."*
+
+Zu 4-7 kommen wahlweise ein oder zwei angehaengte Saetze ueber nicht
+platzierbare Relikte (`app.py:4312-4319`, unfit/clashed). **Die Menge der
+tatsaechlich moeglichen Zeichenketten ist damit nicht sieben, sondern
+offen** — dieselbe Bauform wie die Bestandsnotiz selbst (§9 (e), vier
+Grundformen mit Anhaengen).
+
+**Das ist der Grund, warum AK-244 als Liste falsch war und als laengere
+Liste falsch bliebe.** Eine Vorrichtung, die „einen von N woertlichen
+Saetzen" verlangt, faellt bei der naechsten Textaenderung in `load_equipped`
+wieder aus, ohne dass sich am eigentlichen Zustand — wer die Zeile am Ende
+eines Lesens besitzt — irgendetwas aendert. **Punkt 2 aus dem Auftrag ist
+damit entschieden: die zweite Lesart gilt.** Ein Kriterium ueber die Regel,
+wer gewinnt, statt ueber die Liste der Saetze.
+
+### 2. Die Regel
+
+Ob `load_equipped()` **ueberhaupt** angestossen wird, entscheidet
+`reload_chalices` (`app.py:2965-2973`) — dieselbe Bedingung, die AK-244 schon
+nannte: `owned is not None`, `chalices.imported(hero_id)` war vor diesem
+Lesen `False`, `owned.loadouts_for(hero_id)` nicht leer, und der Spieler hat
+seit dem letzten Anstrich **keinen** Slot selbst gesetzt
+(`_own_slots_beat_the_stored_build`).
+
+**Wird es angestossen, gewinnt sein eigener Text immer — gleich, ob das
+Uebernehmen gelingt oder scheitert.** Es gibt in `load_equipped()` keinen
+Zweig, der von diesem automatischen Aufruf aus erreichbar ist und
+`owned_label` **nicht** schreibt: jeder Rueckgabepfad ab Zeile 4167 setzt den
+Text, bevor er zurueckspringt; der einzige ungeschriebene Fall
+(`is_reading()`, Zeile 4162) ist zeitlich ausgeschlossen, weil
+`reload_chalices` erst **nach** dem Ende eines Lesens laeuft, nie waehrend
+eines laufenden.
+
+**Wird es nicht angestossen** (Bedingung nicht erfuellt, oder
+`_own_slots_beat_the_stored_build` greift und `_keep_the_slots_the_player_
+filled` laeuft statt `load_equipped`), **gilt AK-224 unveraendert:** die
+Zeile traegt einen der vier §6-Saetze, und nichts aus `load_equipped`
+ueberschreibt sie.
+
+### 3. Soll der sechste (der erfolgreiche) Satz weg?
+
+**Nein — er bleibt, an derselben Stelle, in derselben Reihenfolge (ersetzt,
+statt anzuhaengen).** Er ist keine falsche Aussage und keine Zumutung: er
+erklaert dem Spieler, **warum** seine Chalice-Slots gerade eben Inhalt
+bekommen haben, ohne dass er etwas angeklickt hat. AK-224 selbst begruendet
+die Ausnahme fuer eigene Slot-Aenderungen (§6) mit demselben Argument: „sonst
+faende der Spieler seine Arbeit ueberschrieben." Ein Spieler, der zum ersten
+Mal seit dem Programmstart einen Nightfarer oeffnet und volle Slots
+vorfindet, braucht dieselbe Art Erklaerung, nur bezogen auf die Chalice statt
+auf den Gesamtbestand.
+
+**Die Reihenfolge (ersetzen statt ergaenzen) ist ebenfalls richtig, nicht nur
+gewachsen:** eine Zeile, die beide Auskuenfte gleichzeitig traegt (Bestand
+**und** automatischer Import, dazu noch unfit/clashed-Anhaenge), wuerde die
+MUTED-10-px-Zeile ueber die in AK-225 gemessene Hoehe hinaus verlaengern
+(siehe die Messauflage dort), und der Bestand ist mit dem Wechsel nicht
+verloren: `n relics in {slot}` bleibt in jeder Slotueberschrift selbst
+sichtbar (§9 (e) ist dort redundant, nicht die einzige Quelle der Zahl). Die
+Bestandsnotiz und die Ladeauskunft konkurrieren also nicht um dieselbe
+Information — sie stehen nur nacheinander an derselben Stelle, und die
+juengere gewinnt zu Recht.
+
+### 4. AK-244 nachgezogen
+
+**AK-245** *(load_equipped gewinnt immer, wenn es angestossen wird — ersetzt
+die zweite Haelfte von AK-244)* Loest ein Lesen das automatische Uebernehmen
+des ausgeruesteten Builds aus (Bedingung wie AK-244/§2 oben), so traegt die
+Spielstandzeile am Ende **den Text, den `load_equipped()` selbst zuletzt in
+`owned_label` geschrieben hat** — nie den Wartesatz, nie eine
+Bestandsnotiz-Grundform aus §9 (e), nie eine Mischung, nie einen leeren Text.
+Das gilt **unabhaengig davon, ob das Uebernehmen gelingt oder scheitert.**
+Loest das Lesen das automatische Uebernehmen **nicht** aus, gilt AK-224
+unveraendert.
+*Aufbau:* wie AK-244 (drei Vorrichtungen fuer die scheiternden Zweige aus
+§2 des T-148-Nachtrags), zusaetzlich **eine vierte** mit einem tatsaechlich
+uebernehmbaren Build — dort darf `owned_label` am Ende **nicht** die
+Bestandsnotiz zeigen, sondern muss mit `"Loaded "` beginnen.
+*Toetende Mutation:* im Erfolgszweig `self.owned_label.setText(note)`
+(`app.py:4320`) durch ein No-op ersetzen — die Bestandsnotiz bliebe dann
+stehen, und ein Waechter, der nur die drei Fehlertexte aus AK-244 erwartet,
+faende den Fehler nicht.
+
+**AK-244, zweite Haelfte, ist damit ueberholt** (Vermerk am Kopf von AK-244
+oben, keine geloeschte Nummer): die Behauptung „scheitert das automatische
+Uebernehmen nicht, gilt AK-224 unveraendert und die Bestandsnotiz bleibt
+stehen" traf nicht zu. **AK-244s erste Haelfte** (die drei Fehlertexte,
+Zaehlung 1-3 in §1 oben) **bleibt unveraendert gueltig** — sie ist ein
+Teilfall von AK-245, nicht widerlegt.
+
+### 5. Der zweite Widerspruch: S5 gegen §9 (f) — aufgeloest an §9 (f) selbst
+
+**Nicht hier ausformuliert, sondern direkt an der betroffenen Stelle:** die
+Korrektur steht als Vermerk an **§9 (f)** im Abschnitt „Der Spielstand wird
+im Hintergrund gelesen" (T-141) dieser Datei. Kurzfassung fuer diesen
+Nachtrag: **S5** (Abschnitt „Der Erststart mit Ordnerauswahl", §7, T-145,
+2026-09-08, zeitlich **nach** T-141 vom selben Tag) gibt der Zeile
+`NO_SAVE_FOUND` einen dritten Satz (*„If your save is somewhere else, use
+Find my save."*); §9 (f) desselben Textes nannte sie noch „unveraendert"
+zweisaetzig, weil T-141 vor T-145 geschrieben wurde. Der `developer` hat nach
+S5 gebaut (`app.py:595-597`) — **S5 gilt**, §9 (f) ist der veraltete Stand
+und traegt jetzt den Vermerk samt Verweis. Keine dritte Fundstelle: die
+Kurzquote in §2 des Abschnitts „Der Erststart mit Ordnerauswahl" (Zeile 2611,
+mit „…" abgekuerzt) beschreibt ausdruecklich den **Stand vor** diesem Ablauf
+und erhebt keinen Vollstaendigkeitsanspruch — kein Widerspruch, keine
+Aenderung noetig.
+
+**Keines der drei Kriterien, an denen T-153 parallel baut** (AK-228, AK-229,
+AK-110), ist von einer der beiden Korrekturen dieses Nachtrags beruehrt: alle
+vier betreffen `load_equipped`/`reload_chalices` bzw. die Zeile `No save file
+found`, keines davon den langsamen Rueckfallsatz (§7/§8 des T-141-Abschnitts)
+oder den Dialog-Startort (§9-§10 des T-074/T-145-Abschnitts).
+
+### 6. Neu vergebenes Kriterium
+
+**AK-245** (§4 oben). Keine Nummer gestrichen, keine Millisekunde im Text.
 
