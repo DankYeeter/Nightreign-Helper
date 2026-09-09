@@ -4080,63 +4080,43 @@ from PySide6 import QtCore
             "test_the_last_record_the_walk_does_reach_is_read, "
             "test_the_prefilter_hands_over_a_fraction_of_the_offsets."),
     ),
-    "the-id-ceiling-is-never-checked": Mutation(
-        path="nrdata/savefile.py",
-        old="""    _check_the_prefilter_can_see_every_id(valid_relic_ids)
-""",
-        new="",
-        survival_means=(
-            "the assumption the prefilter rests on -- that no valid relic id "
-            "reaches into the top byte -- is never checked against the "
-            "dataset, so a game patch that raised the ids would make the scan "
-            "quietly miss relics instead of saying so. Measured 08.09.2026 "
-            "(T-139) against tests/test_relic_scan_prefilter.py: 2 failed, 11 "
-            "passed; what falls is "
-            "test_a_relic_id_above_the_ceiling_is_refused_out_loud, "
-            "test_the_refusal_says_the_program_is_too_old_and_names_no_file."),
-    ),
+    # AD-031 (user's decision, 08.09.2026) replaced the refusal these two
+    # ceiling checks used to guard with a fall-back to the slow walk
+    # (`relic_scan_mode`, T-151). The two entries that anchored inside the
+    # removed `_check_the_prefilter_can_see_every_id` --
+    # "the-id-ceiling-is-never-checked" and
+    # "the-id-ceiling-looks-at-the-smallest-id" -- are gone with it: their
+    # subject does not exist any more and is not meant to come back. The two
+    # below still anchor on `RELIC_ID_CEILING` itself, which survived the
+    # rewrite, so they stay and only their measured sentence was stale
+    # (T-152).
     "the-id-ceiling-is-raised-past-its-assumption": Mutation(
         path="nrdata/savefile.py",
         old="""RELIC_ID_CEILING = 0x01000000""",
         new="""RELIC_ID_CEILING = 0x02000000""",
         survival_means=(
             "the ceiling is raised past the value the prefilter's byte search "
-            "can actually see, so the check passes for ids the scan would "
-            "miss. Measured 08.09.2026 (T-139) against "
-            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
-            "falls is "
-            "test_the_largest_id_the_prefilter_can_see_is_read_in_full."),
-    ),
-    "the-id-ceiling-looks-at-the-smallest-id": Mutation(
-        path="nrdata/savefile.py",
-        old="""    biggest = max(valid_relic_ids, default=0)""",
-        new="""    biggest = min(valid_relic_ids, default=0)""",
-        survival_means=(
-            "the check reads the smallest id in the dataset instead of the "
-            "biggest, which is the one shape of this check that can never "
-            "fail. Measured 08.09.2026 (T-139) against "
-            "tests/test_relic_scan_prefilter.py: 1 failed, 12 passed; what "
-            "falls is test_a_relic_id_above_the_ceiling_is_refused_out_loud."),
+            "can actually see, so the choice of walk passes for ids the fast "
+            "one would miss. Measured 09.09.2026 (T-152) against "
+            "tests/test_relic_scan_prefilter.py: 2 failed, 16 passed; what "
+            "falls is test_the_choice_is_made_at_three_stated_ids, "
+            "test_the_largest_id_the_fast_way_can_see_is_read_in_full."),
     ),
     "the-id-ceiling-drops-below-the-games-own-ids": Mutation(
         path="nrdata/savefile.py",
         old="""RELIC_ID_CEILING = 0x01000000""",
         new="""RELIC_ID_CEILING = 0x00000100""",
         survival_means=(
-            "the ceiling is put below ids the game really uses, so the "
-            "refusal fires on a dataset that is sound -- the guard has to "
-            "bite in both directions or it is measuring nothing. Measured "
-            "08.09.2026 (T-139) against tests/test_relic_scan_prefilter.py: 9 "
-            "failed, 4 passed; what falls is "
-            "test_a_doubled_id_off_the_four_byte_grid_is_not_a_record, "
-            "test_a_record_at_the_very_first_offset_is_found, "
-            "test_a_record_at_the_walks_own_upper_bound_is_not_read, test_a_s "
-            "lot_that_is_nothing_but_the_searched_byte_is_still_refused, "
-            "test_a_slot_too_short_to_hold_a_record_yields_nothing, "
-            "test_an_id_carrying_the_flag_byte_inside_itself_is_still_found, "
-            "test_records_at_the_stride_the_game_writes_are_all_found, "
-            "test_the_games_own_relic_ids_are_all_below_the_ceiling, "
-            "test_the_last_record_the_walk_does_reach_is_read."),
+            "the ceiling is put below ids the game really uses, so every "
+            "save on this machine would be read the slow way for no reason "
+            "-- the guard has to bite in both directions or it is measuring "
+            "nothing. Measured 09.09.2026 (T-152) against "
+            "tests/test_relic_scan_prefilter.py: 4 failed, 14 passed; what "
+            "falls is "
+            "test_an_id_above_the_ceiling_is_read_the_slow_way_and_not_refused, "
+            "test_an_inventory_read_the_fast_way_says_that_too, "
+            "test_the_choice_is_made_at_three_stated_ids, "
+            "test_the_games_own_relic_ids_still_allow_the_fast_way."),
     ),
     "the-density-limit-doubled": Mutation(
         path="nrdata/savefile.py",
