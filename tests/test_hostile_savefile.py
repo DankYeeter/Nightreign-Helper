@@ -28,6 +28,15 @@ of these three states; that is the whole reason they went unnoticed.
   the class stays shut by a property rather than by a line: the reader
   refuses to build such a list, and the inventory refuses to offer one
   whatever built it.
+* **SEC-033**, `test_members_each_claiming_*`: the member table is measured
+  against the file's size, but what each member claims of it was not, and
+  every caller slices and keeps what a member claims. A 1 MiB file with 200
+  members each claiming all of it was held 200 times over -- the count times
+  the file size, so the file's own size does not bound it.
+* **SEC-034**, `test_a_slot_too_large_for_the_density_*`: SEC-022's limit is a
+  density and grows with the file, which leaves a prepared file room to be
+  large rather than dense. An 8 MiB slot at one record per 64 bytes was read
+  in full: 131 072 records and 20,1 s. The count beside it does not grow.
 * **SEC-024**, `test_a_slot_packed_with_table_starts_*`: the search for the
   equipped-loadout table began a walk of up to sixteen groups at every place
   the first Nightfarer marker stood, and a prepared slot stands it at every
@@ -213,6 +222,84 @@ def test_a_well_formed_container_still_reads():
     assert len(savefile._members(blob)) == 1
 
 
+# --------------------------------------------------------------------------
+# SEC-033: members that each claim the whole file
+
+
+def container_of_spans(total_bytes: int, spans) -> bytes:
+    """A BND4 of `total_bytes` whose members claim the given (offset, size).
+
+    The spans are what these cases are about, so they are stated rather than
+    laid out: a container whose members overlap cannot be built by writing
+    members one after another.
+    """
+    blob = bytearray(total_bytes)
+    blob[0:4] = b"BND4"
+    struct.pack_into("<I", blob, 0x0C, len(spans))
+    struct.pack_into("<Q", blob, 0x20, 0x20)
+    blob[0x30] = 1                                   # names are UTF-16
+    for index, (offset, size) in enumerate(spans):
+        base = savefile.BND4_HEADER_SIZE + index * 0x20
+        struct.pack_into("<Q", blob, base + 8, size)
+        struct.pack_into("<I", blob, base + 16, offset)
+        struct.pack_into("<I", blob, base + 20, 0)   # positional name
+    return bytes(blob)
+
+
+def test_members_each_claiming_the_whole_file_are_a_data_error():
+    """The shape that costs the member count times the file size.
+
+    Every caller of `_members` slices `blob[offset:offset + size]` and keeps
+    the piece, and Python's slicing clamps rather than complains, so a file
+    whose members all claim the whole of it is held in memory once per member.
+    Measured on this machine before the limit (T-161): a 1 MiB container with
+    200 honest members costs 0,99 MiB held and 0,074 s, the same file with
+    each member claiming all of it 200,00 MiB and 2,347 s -- and at 8 MiB with
+    50 members, 400,00 MiB. Held bytes are the member count times the file
+    size, which is why the file's own size does not bound it.
+    """
+    total = 4096
+    blob = container_of_spans(total, [(0, total)] * 8)
+
+    with pytest.raises(ValueError, match="do not fit"):
+        within_time_limit(lambda: savefile._members(blob))
+
+
+def test_a_member_may_not_claim_more_than_the_file_alone_either():
+    """One member is enough: the sum is asked at the member that crosses it."""
+    blob = container_of_spans(4096, [(0, 4097)])
+
+    with pytest.raises(ValueError, match="do not fit"):
+        within_time_limit(lambda: savefile._members(blob))
+
+
+def test_members_that_together_fill_the_file_exactly_still_read():
+    """The control at the boundary, and it is the real save's own shape.
+
+    A BND4's members are disjoint spans of the container, so their sizes add
+    up to at most its size -- and only just: on both saves of this machine 14
+    members total 19 530 432 of 19 531 312 bytes, 99,9955 %, the remaining 880
+    being the header and the name table. A limit with any less room than this
+    would refuse the file it exists to protect.
+    """
+    total = 4096
+    spans = [(savefile.BND4_HEADER_SIZE + index * 1024, 1024)
+             for index in range(4)]
+
+    assert sum(size for _o, size in spans) == total, "the case's premise"
+    assert len(savefile._members(container_of_spans(total, spans))) == 4
+
+
+def test_one_byte_more_than_the_file_holds_is_a_data_error():
+    """The other side of that boundary, one byte further on."""
+    total = 4096
+    spans = [(savefile.BND4_HEADER_SIZE, 1024)] * 3 + [(0, 1025)]
+
+    with pytest.raises(ValueError, match="do not fit"):
+        within_time_limit(
+            lambda: savefile._members(container_of_spans(total, spans)))
+
+
 def string_table(first_id: int, last_id: int) -> bytes:
     """An FMG whose one group claims to span the ids given.
 
@@ -296,7 +383,7 @@ DOUBLED_ID = struct.pack("<II", KNOWN_RELIC_ID | savefile.RELIC_ID_FLAG,
                          KNOWN_RELIC_ID | savefile.RELIC_ID_FLAG)
 
 
-def relic_records(byte_length: int, stride: int) -> bytes:
+def relic_records(byte_length: int, stride: int, count: int | None = None) -> bytes:
     """A decrypted character slot with one relic record every `stride` bytes.
 
     A record here is the doubled relic id and nothing else, because that is
@@ -305,12 +392,18 @@ def relic_records(byte_length: int, stride: int) -> bytes:
     apart, a prepared file writes them 8 bytes apart, and the reader's limit
     of one per 64 bytes sits between the two.
 
+    `count` stops after that many records where the slot has room for more,
+    which is what tells the two limits apart: the count cases need a slot
+    large enough that the density is no longer the binding one.
+
     Built byte by byte and never written to disk. A `.sl2` in the save folder
     is precisely the attack these cases are about, and the player has a copy
     of the program running.
     """
     buffer = bytearray(byte_length)
-    for off in range(0, byte_length - 24, stride):
+    for index, off in enumerate(range(0, byte_length - 24, stride)):
+        if count is not None and index >= count:
+            break
         buffer[off:off + len(DOUBLED_ID)] = DOUBLED_ID
     return bytes(buffer)
 
@@ -412,6 +505,59 @@ def test_a_slot_at_a_real_saves_density_is_read_with_its_effects(mode):
     assert [entry.effect_ids for entry in owned] == [[effect_id] * 3] * 3
 
 
+# --------------------------------------------------------------------------
+# SEC-034: a slot too large for the density to be the binding limit
+
+
+#: A slot one record wider than the size at which the two limits meet. The
+#: game writes a character slot of 1 048 608 bytes, where one record per 64
+#: bytes is 16 384 records; 64 bytes more and the density admits 16 385, so
+#: this is the smallest slot on which the count is the limit that bites.
+A_SLOT_WIDER_THAN_THE_GAME_WRITES = 1_048_640
+ONE_RECORD_TOO_MANY = 16_385
+
+
+@BOTH_WAYS
+def test_a_slot_too_large_for_the_density_is_bounded_by_the_count(mode):
+    """SEC-034. The density grows with the file; the count does not.
+
+    Measured on this machine before the count was there (T-161): an 8 MiB
+    slot at one record per 64 bytes was admitted in full -- 131 072 records,
+    44,75 MiB and 20,1 s, against 0,183 s for the same 8 MiB at the real
+    save's density -- because 8 MiB of slot admits 131 072 records at that
+    density. Nothing in the file's own size stops that, which is what makes
+    the relative limit alone a limit on the wrong quantity.
+
+    The refusal is checked for a path as well: this is a new sentence on a
+    path AK-126 governs, and a sentence is not covered by the check on its
+    neighbour.
+    """
+    blob = relic_records(A_SLOT_WIDER_THAN_THE_GAME_WRITES, stride=64)
+
+    with pytest.raises(ValueError,
+                       match="more records than any save this game writes") as raised:
+        within_time_limit(lambda: read_records(blob, mode=mode))
+
+    message = str(raised.value)
+    assert "\\" not in message and "/" not in message, message
+    assert ".sl2" not in message.lower(), message
+    assert "save folder" in message and "rescan" in message, message
+
+
+@BOTH_WAYS
+def test_a_slot_holding_as_many_records_as_a_save_may_is_read_in_full(mode):
+    """The control at the count's own boundary, on the same slot.
+
+    Same size, one record fewer, and it reads: the number is where it is
+    stated to be, and the case that proves the refusal is not a case that
+    proves a reader which refuses everything.
+    """
+    blob = relic_records(A_SLOT_WIDER_THAN_THE_GAME_WRITES, stride=64,
+                         count=ONE_RECORD_TOO_MANY - 1)
+
+    assert len(read_records(blob, mode=mode)) == ONE_RECORD_TOO_MANY - 1
+
+
 def owned_relics(count: int) -> list[inventory.OwnedItem]:
     """`count` copies of one relic, as an `Inventory` carries them."""
     return [inventory.OwnedItem(relic_id=KNOWN_RELIC_ID, name="Relic",
@@ -442,6 +588,32 @@ def test_an_inventory_filled_to_the_limit_still_offers_its_relics():
                                 relics=owned_relics(100))
 
     assert len(owned.relics_for(colour=0, deep=False)) == 100
+
+
+def test_an_inventory_longer_than_any_save_offers_nothing():
+    """SEC-034 at the second door, reached without the first being asked.
+
+    Same reason the density has two places (SEC-022): the player is protected
+    by the property and not by the line that carries it today. This list never
+    went through `read_owned_relics`, and the slot it names is wide enough
+    that the density would let all of it through.
+    """
+    owned = inventory.Inventory(source="slot",
+                                source_bytes=A_SLOT_WIDER_THAN_THE_GAME_WRITES,
+                                relics=owned_relics(ONE_RECORD_TOO_MANY))
+
+    with pytest.raises(ValueError,
+                       match="more records than any save this game writes"):
+        owned.relics_for(colour=0, deep=False)
+
+
+def test_an_inventory_as_long_as_a_save_may_be_still_offers_its_relics():
+    """The control for the count at the second door, again at the boundary."""
+    owned = inventory.Inventory(
+        source="slot", source_bytes=A_SLOT_WIDER_THAN_THE_GAME_WRITES,
+        relics=owned_relics(ONE_RECORD_TOO_MANY - 1))
+
+    assert len(owned.relics_for(colour=0, deep=False)) == ONE_RECORD_TOO_MANY - 1
 
 
 def test_an_inventory_built_by_hand_makes_no_claim_about_a_save():
@@ -652,3 +824,4 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
     assert inv.relic_count == 1
     assert inv.loadouts == []
     assert "denser than one table per 1920 bytes" in inv.loadout_error
+

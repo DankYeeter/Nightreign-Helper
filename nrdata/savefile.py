@@ -65,6 +65,28 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
         )
 
     out = []
+    # What the members claim between them, against what the file has to give
+    # (SEC-033). The table above bounds how many members are walked; it says
+    # nothing about how much each one takes, and every caller of this function
+    # slices `blob[offset:offset + size]` and keeps the piece. A file whose
+    # members each claim the whole of it is therefore read as many times over
+    # as it has members: measured on this machine at 1 MiB with 200 members,
+    # 0,99 MiB held and 0,074 s against an honest table, 200,00 MiB and
+    # 2,347 s when each member claims all of it, and 400,00 MiB at 8 MiB with
+    # 50 members -- held bytes are the member count times the file size, so
+    # the cost grows with both.
+    #
+    # The sum is what binds that and a per-member `offset + size <= len(blob)`
+    # is not: offset 0 with size len(blob) satisfies the per-member form, and
+    # that is precisely the file measured above (checked, T-161: with the
+    # per-member bound in place the same file still held 200,00 MiB).
+    #
+    # Members are disjoint spans of the container, so their sizes cannot add
+    # up to more than the container -- and this is exact rather than generous:
+    # on both real saves of this machine, 14 members total 19 530 432 of
+    # 19 531 312 bytes, 99,9955 % of the file, with the header and the name
+    # table making up the remaining 880.
+    claimed = 0
     for i in range(file_count):
         base = BND4_HEADER_SIZE + i * file_header_size
         # Read off the real file: u32 flags, i32 -1, u64 size, u32 offset,
@@ -72,6 +94,17 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
         size = struct.unpack_from("<Q", blob, base + 8)[0]
         offset = struct.unpack_from("<I", blob, base + 16)[0]
         name_offset = struct.unpack_from("<I", blob, base + 20)[0]
+
+        # Loud at the member that crosses the line rather than after the walk,
+        # the form SEC-002 and SEC-022 use: the name below is read from the
+        # file, and there is no reason to read anything more out of a
+        # container that has already claimed more than it holds.
+        claimed += size
+        if claimed > len(blob):
+            raise ValueError(
+                f"save container's first {i + 1} members claim {claimed} "
+                f"bytes between them, which do not fit in {len(blob)} bytes"
+            )
 
         # A name offset of zero is the container saying this member carries no
         # name, which is a state and not a fault, so it keeps its positional
@@ -171,6 +204,30 @@ CURSE_OFFSETS = (52, 56, 60)
 # So a save has to become 53 times denser than the real one before the reader
 # says anything, and a prepared one is refused eight times over.
 MIN_BYTES_PER_RELIC_RECORD = 64
+
+# The most relic records any slot may hand back, whatever its size (SEC-034).
+#
+# The limit above is a density and grows with the file it is asked of, which
+# is right for what it guards against and leaves a prepared file room to be
+# large instead of dense: an 8 MiB slot at one record per 64 bytes is admitted
+# in full -- measured on this machine, 131 072 records, 44,75 MiB and 20,1 s
+# against 0,183 s for the same 8 MiB at the real save's density (T-161). The
+# density is not the thing that hurts there; the count is.
+#
+# Derived from the same measurement that carries MIN_BYTES_PER_RELIC_RECORD,
+# so the two numbers have one recipe: the character slot the game writes is
+# 1 048 608 bytes on both saves of this machine, and the density limit read at
+# that size is 1 048 608 // 64 = 16 384 records. This is therefore the
+# relative limit evaluated at the only slot size the game has been seen to
+# write, and it keeps exactly the distance the relative limit has there -- the
+# fuller real slot holds 309 records, a factor 53 below both.
+#
+# What it costs a real save: nothing. The two limits are equal on a character
+# slot, and on the larger members of the file the absolute one binds first --
+# no slot of either save holds more than 309 records. What it costs a prepared
+# one: the 8 MiB case above is refused after 16 385 records instead of read in
+# full, and a file twice that size is refused after the same 16 385.
+MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD = 16384
 
 
 @dataclass
@@ -298,11 +355,15 @@ def read_owned_relics(
                          f"{FAST!r} and {SLOW!r}")
     out: list[OwnedRelic] = []
     seen_offsets: set[int] = set()
-    # What this slot could hold at all (SEC-022). Relative to the slot's own
-    # size, because an absolute count would be a guess about how big a future
-    # inventory may grow. The floor of one record is not a concession: a buffer
-    # with no room for a second record has no density to judge.
-    limit = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
+    # What this slot could hold at all: a density (SEC-022) and a count
+    # (SEC-034), whichever is reached first. The density is relative to the
+    # slot's own size, because a count on its own would be a guess about how
+    # big a future inventory may grow; the count is what keeps the density
+    # from growing with a prepared file. The floor of one record is not a
+    # concession: a buffer with no room for a second record has no density to
+    # judge.
+    by_density = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
+    limit = min(by_density, MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD)
 
     for off in offsets_of(slot_data):
         first, second = struct.unpack_from("<II", slot_data, off)
@@ -335,10 +396,17 @@ def read_owned_relics(
         # here instead would hand back a short inventory that looks like the
         # player's own, and nothing downstream could tell it from one.
         if len(out) > limit:
+            # Which of the two was reached is said, because the two mean
+            # different things to whoever reads the message: too dense for
+            # the bytes it came from, or more records than a save holds at
+            # any size.
+            why = (f"denser than one record per "
+                   f"{MIN_BYTES_PER_RELIC_RECORD} bytes"
+                   if limit == by_density else
+                   "more records than any save this game writes")
             raise ValueError(
                 f"a save slot of {len(slot_data)} bytes holds more than "
-                f"{limit} relic records, denser than one record per "
-                f"{MIN_BYTES_PER_RELIC_RECORD} bytes, which is not an "
+                f"{limit} relic records, {why}, which is not an "
                 f"inventory; the file is damaged or was not written by the "
                 f"game. Take it out of the save folder and rescan.")
 

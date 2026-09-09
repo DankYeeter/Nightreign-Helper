@@ -116,12 +116,14 @@ class Inventory:
     read_the_slow_way: bool = False
 
     def _refuse_a_density_no_save_can_have(self) -> None:
-        """The second SEC-022 limit, on the way out rather than on the way in.
+        """The second SEC-022/SEC-034 limit, on the way out rather than in.
 
         `savefile.read_owned_relics` already refuses to build a list denser
-        than one record per `MIN_BYTES_PER_RELIC_RECORD` bytes of slot. This
-        asks the same question of the finished list, at the door every reader
-        that wants to know what fits a slot goes through: the planner's slots,
+        than one record per `MIN_BYTES_PER_RELIC_RECORD` bytes of slot, or
+        longer than `MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD` whatever the slot's
+        size. This asks the same two questions of the finished list, at the
+        door every reader that wants to know what fits a slot goes through:
+        the planner's slots,
         and -- by way of `advisor.run.frozen_inventory` -- the advisor's
         pre-sort, which costs 175,6 us per offered relic
         (`scripts/measure_advisor_cancel.py`, 309 relics, six free slots, this
@@ -136,12 +138,17 @@ class Inventory:
         """
         if self.source_bytes is None:
             return
-        limit = max(1, self.source_bytes // savefile.MIN_BYTES_PER_RELIC_RECORD)
+        by_density = max(1, self.source_bytes
+                         // savefile.MIN_BYTES_PER_RELIC_RECORD)
+        limit = min(by_density, savefile.MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD)
         if len(self.relics) > limit:
+            why = (f"denser than one per "
+                   f"{savefile.MIN_BYTES_PER_RELIC_RECORD} bytes"
+                   if limit == by_density else
+                   "more records than any save this game writes")
             raise ValueError(
                 f"this inventory holds {len(self.relics)} relics read from "
-                f"{self.source_bytes} bytes of save slot, denser than one "
-                f"per {savefile.MIN_BYTES_PER_RELIC_RECORD} bytes, which is "
+                f"{self.source_bytes} bytes of save slot, {why}, which is "
                 f"not an inventory; the file is damaged or was not written "
                 f"by the game. Take it out of the save folder and rescan.")
 
