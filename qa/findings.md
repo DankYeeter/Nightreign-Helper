@@ -2500,3 +2500,31 @@ Grube — mit dem Unterschied, dass ihn dann vielleicht kein Volllauf erwischt.
 
 *Nebenbefund derselben Bauform: **drei Teillaeufe haben den Fehler nicht
 gesehen, der Volllauf schon.***
+
+## QA-219 — `_steam_roots()` baut dieselbe Bibliothek mehrfach als Kandidat
+
+**Prioritaet: P4 · Schwere: Minor · Adressat: developer · offen · 2026-09-09**
+
+Gemeldet vom `developer` in T-164, ausdruecklich als **Debt, keine Luecke**:
+`_steam_roots()` liefert die Registry-Wurzel **und** das feste
+`C:\Program Files (x86)\Steam`. Sind beide dasselbe, wird jede Bibliothek
+mehrfach als Kandidat gebaut — in seinem Nachweis vier- bzw. zweimal.
+
+**Keine falschen Ergebnisse, nur Doppelarbeit.** Faellt jetzt staerker ins
+Gewicht als vorher, weil `find_game_dir()` seit T-162 je Kandidat
+`looks_like_the_game()` fragt statt nur `exists()` — die Pruefung ist teurer
+als die alte.
+
+## Offener Rueckstand: das Mutationsregister
+
+**Nicht eingetragen sind die Mutationen aus T-158 (Punkt 3, elf Stueck),
+T-161 (neun), T-162 (Mutationsbeweis manuell gefuehrt) und T-164 (zehn).** Die
+Treiber lagen jeweils im **fluechtigen** Scratchpad.
+
+*Der Rueckstand hat in dieser Nacht schon einmal die Suite rot gemacht
+(T-151/T-152: zwei Anker zeigten auf eine geloeschte Funktion). Er ist kein
+Aufraeumen, sondern die einzige Stelle, an der steht, ob ein Waechter noch
+beisst — und er waechst schneller, als er abgetragen wird. **Fuer die
+`retrospective`:** vier Anlaeufe (T-132, T-139, T-155, T-156, T-158), drei
+davon an der Zugschwelle geendet. Das Verfahren selbst ist zu teuer, nicht die
+Disziplin der Rollen.*

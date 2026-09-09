@@ -2594,6 +2594,17 @@ ist ein **Sollwert**, keine Messung, und traegt ihre Umgebung (L-009).
   Bibliothekliste `libraryfolders.vdf` und die Laufwerke C bis H nach
   `.../ELDEN RING NIGHTREIGN/Game/regulation.bin`. Ergebnis ist der Ordner,
   der `regulation.bin` **direkt** enthaelt, also `...\Game`.
+
+  > **Ueberholt am 09.09.2026 (Director, Nutzerentscheid; gebaut in T-164).**
+  > Zwei Aenderungen an dieser Ausgangslage: **die Laufwerke C bis H sind
+  > raus** — sie waren der einzige Kandidat, den ein Angreifer bestuecken
+  > kann, ohne schon im Nutzerkontext zu sein (SEC-031). Und `find_game_dir()`
+  > fragt nicht mehr nach der blossen Existenz von `regulation.bin`, sondern
+  > `looks_like_the_game()` — **dasselbe Praedikat wie der Dialogweg** (T-162).
+  > Gesucht wird jetzt ausschliesslich ueber Steams eigene Liste; wer seine
+  > Bibliothek von Hand angelegt hat und dessen Steam sie nicht kennt, bekommt
+  > den A15-Auswahldialog. **Der Absatz bleibt als Verlauf stehen** — er
+  > beschreibt, worauf die Vorgaben dieses Abschnitts gebaut waren.
 - `nrdata/savefile.py:391 save_roots()` sucht nur unter `%APPDATA%\Nightreign`
   und `~/AppData/Roaming/Nightreign`; `find_saves()` (Zeile 415) sammelt daraus
   `*.sl2`.
