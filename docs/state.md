@@ -12,9 +12,12 @@ SEC ab **SEC-036** · AK ab **AK-250** · AD ab **AD-033** · OF ab **OF-34** ·
 DR ab **DR-019** · R ab **R-007** · NH ab **NH-003** · C ab **C-004** ·
 A (Auflagen) ab **A-033**.
 
-**Suite: 1699 passed, 9 skipped, 0 failed** (T-164). Der Director hat
-zwischendurch selbst gemessen: **1691/9/0** bei `ef6761b`, 183,5 s,
-Arbeitsbaum sauber. Testbefehl in `CLAUDE.md`.
+**Suite: 1703 passed, 9 skipped, 0 failed — und zwar in BEIDEN
+Datenbedingungen** (mit Testabzug im umgelenkten `LOCALAPPDATA` und ohne),
+Commit `a1172fb`. Vom Director selbst nachgemessen ohne Abzug, 335 s,
+Umlenkung nachgewiesen. **Eine Suitezahl ohne genannte Datenbedingung ist in
+diesem Repo wertlos** — siehe `docs/debug/D-001.md`: vier widerspruechliche
+Messungen entstanden genau daraus. Testbefehl in `CLAUDE.md`.
 
 ## Auftragslage (Nutzer)
 
