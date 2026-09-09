@@ -1,27 +1,37 @@
-"""The prefilter in front of the relic scan finds what the full walk finds.
+"""Both ways of walking a slot find what the full walk finds.
 
 `read_owned_relics` used to look at every fourth byte of every slot: 10 293 488
 `unpack_from` calls and 6,15 s on the thread that builds the window, at every
 start and every rescan (T-118 P2, AD-029). It now asks `bytes.find` for the
 one byte a record must carry and only looks at what comes back.
 
-**Why these cases carry a full mutation proof.** A prefilter that hands over
-too few offsets does not raise, log or crash -- it returns a shorter list, and
-a shorter list of relics is exactly what a player with an empty inventory
-sees. There is no other signal, so the guard is the only one there will be.
+That prefilter rests on one assumption about the game's own numbering, and a
+game patch can break it (`RELIC_ID_CEILING`). When it breaks, the reader falls
+back to the old walk and the window says so, rather than refusing a save that
+is perfectly intact (AD-031, user's decision of 2026-09-08). So there are two
+ways through the same body now, and **every case below runs both**.
 
-The expectation is never taken from the prefilter. `full_walk` below is the
-scan as it stood before it, written out here so a mutation of the prefilter
-has something independent to be caught by.
+**Why these cases carry a full mutation proof.** A way that hands over too few
+offsets does not raise, log or crash -- it returns a shorter list, and a
+shorter list of relics is exactly what a player with an empty inventory sees.
+There is no other signal, so the guard is the only one there will be. That
+holds twice over for the slow way: it is the one nobody runs until a patch
+makes it the only one that works.
+
+The expectation is never taken from either way. `full_walk` below is the scan
+as it stood before the prefilter, written out here so a mutation of either
+generator has something independent to be caught by.
 """
 
 from __future__ import annotations
 
+import functools
 import struct
 
 import pytest
 
 from nrdata import savefile
+from nrplanner import inventory
 
 # One relic id the reader will accept, and one effect id, so a record can be
 # built. Neither number is special; what the cases are about is which offsets
@@ -85,7 +95,7 @@ def outcome(scan, blob: bytes, relic_ids: set[int]):
     """What a scan says about this slot: its records, or that it refused.
 
     Refusals are part of the equality. The density limit (SEC-022) counts
-    records *found*, so a prefilter that found fewer would quietly move it.
+    records *found*, so a way that found fewer would quietly move it.
     """
     try:
         return [(r.relic_id, r.offset, tuple(r.effect_ids), tuple(r.curse_ids))
@@ -95,13 +105,26 @@ def outcome(scan, blob: bytes, relic_ids: set[int]):
 
 
 def both_scans_agree(blob: bytes, relic_ids: set[int] | None = None):
-    """Assert prefilter and full walk say the same, and return what they said."""
+    """Assert both ways and the full walk agree, and return what they said.
+
+    Run for `FAST` and for `SLOW`, each against `full_walk` and never against
+    the other: two ways checked against each other would both be allowed to be
+    wrong in the same way, and the point of `full_walk` is that it is neither
+    of them.
+
+    The mode is passed in rather than left to `relic_scan_mode`, because that
+    function would answer `FAST` for nearly every case in this file -- the
+    slow way would then be walked by no case at all, which is exactly the hole
+    AD-031 has to keep shut.
+    """
     relic_ids = relic_ids if relic_ids is not None else {RELIC_ID}
     expected = outcome(full_walk, blob, relic_ids)
-    got = outcome(savefile.read_owned_relics, blob, relic_ids)
-    assert got == expected, (
-        f"the prefiltered scan found {got}, the full walk over every fourth "
-        f"byte found {expected}")
+    for mode in (savefile.FAST, savefile.SLOW):
+        scan = functools.partial(savefile.read_owned_relics, mode=mode)
+        got = outcome(scan, blob, relic_ids)
+        assert got == expected, (
+            f"the {mode} scan found {got}, the full walk over every fourth "
+            f"byte found {expected}")
     return expected
 
 
@@ -240,65 +263,181 @@ def test_the_prefilter_hands_over_a_fraction_of_the_offsets():
 
 
 # --------------------------------------------------------------------------
-# The assumption the prefilter rests on, checked rather than commented
+# The assumption the prefilter rests on: which way a dataset is read on
 
 
-def test_a_relic_id_above_the_ceiling_is_refused_out_loud():
-    """The failure mode this whole file exists for, made loud.
+def test_the_choice_is_made_at_three_stated_ids():
+    """`relic_scan_mode` at the two sides of the ceiling and at a real id.
 
-    An id at or above the ceiling does not carry the flag byte at its fourth,
-    so the prefilter cannot see it and the player would be shown an inventory
-    missing every relic of that band. The scan refuses instead.
+    The expectations are written out rather than computed from
+    `RELIC_ID_CEILING`: an expectation taken from the constant the choice is
+    made on would agree with any value that constant is given, including one
+    that reads every save on this machine the slow way.
+
+    2 013 322 is the largest id the installed game numbers a relic with
+    (2026-09-08). 0x00FFFFFF is the last id the fast prefilter can see;
+    0x01000000 is the first it cannot.
     """
+    assert savefile.relic_scan_mode({2013322}) == "fast"
+    assert savefile.relic_scan_mode({0x00FFFFFF}) == "fast"
+    assert savefile.relic_scan_mode({0x01000000}) == "slow"
+    assert savefile.relic_scan_mode(set()) == "fast"
+
+
+def test_an_id_above_the_ceiling_is_read_the_slow_way_and_not_refused():
+    """What this file's `..._is_refused_out_loud` case asserted until AD-031.
+
+    That case required a `ValueError` for a dataset numbered above the
+    ceiling, which is the whole save declared unreadable while nothing is
+    wrong with it. The user decided on 2026-09-08 that the program reads such
+    a save the slow way and says so instead (AK-228), so the refusal is gone
+    and this is what stands in its place.
+
+    Three records of an id the fast prefilter is blind to, and the count is
+    written out rather than taken from the loop that builds them: a fall-back
+    that found two of the three would otherwise still be green, and a short
+    inventory is precisely the failure that cannot be seen from outside.
+    """
+    above = savefile.RELIC_ID_CEILING + 42
     buffer = bytearray(4096)
-    record_at(buffer, 0)
+    for index in range(3):
+        record_at(buffer, index * 80, relic_id=above, effects=True)
+    ids = {RELIC_ID, above}
 
-    with pytest.raises(ValueError, match="cannot find"):
-        savefile.read_owned_relics(bytes(buffer),
-                                   {RELIC_ID, savefile.RELIC_ID_CEILING},
-                                   set())
+    found = savefile.read_owned_relics(bytes(buffer), ids, {EFFECT_ID})
+
+    assert [entry.offset for entry in found] == [0, 80, 160]
+    assert [entry.relic_id for entry in found] == [above] * 3
+    # The control that says the slow way is what found them, and not some
+    # other reading of this slot: the fast way, asked for by name, sees none.
+    assert savefile.read_owned_relics(bytes(buffer), ids, {EFFECT_ID},
+                                      mode=savefile.FAST) == []
 
 
-def test_the_refusal_says_the_program_is_too_old_and_names_no_file():
-    """What the player is shown: whose fault it is, and no path.
+def test_a_mode_that_is_neither_way_is_refused_rather_than_guessed():
+    """The keyword is a choice between two ways, not a free string.
 
-    The save folder is named after the Steam account id, so no message out of
-    this module may name a file (SEC-023). And the save is not the broken
-    thing here -- the program is.
+    Falling back to one of them for a value that is neither would pick a way
+    the caller did not ask for, and the wrong pick is invisible in the result
+    -- which is the failure mode this whole file is about.
     """
-    with pytest.raises(ValueError) as raised:
-        savefile.read_owned_relics(b"", {savefile.RELIC_ID_CEILING}, set())
-
-    message = str(raised.value)
-    assert "\\" not in message and "/" not in message, message
-    assert ".sl2" not in message.lower(), message
-    assert "too old" in message, message
+    with pytest.raises(ValueError, match="not a relic scan mode"):
+        savefile.read_owned_relics(b"\x00" * 64, {RELIC_ID}, set(),
+                                   mode="quick")
 
 
-def test_the_largest_id_the_prefilter_can_see_is_read_in_full():
+def test_the_largest_id_the_fast_way_can_see_is_read_in_full():
     """The control at the boundary, one below the ceiling.
 
-    Without it the check would pass just as well set to zero, which would
-    refuse every save on the machine.
+    Without it the choice would pass just as well set to zero, which would
+    read every save on this machine the slow way -- 6 147,6 ms against 657,2,
+    and nothing in the result to tell the two apart.
     """
     biggest = savefile.RELIC_ID_CEILING - 1
     buffer = bytearray(4096)
     record_at(buffer, 0, relic_id=biggest, effects=True)
 
+    assert savefile.relic_scan_mode({biggest}) == savefile.FAST
     assert both_scans_agree(bytes(buffer), {biggest}) == [
         (biggest, 0, (EFFECT_ID,) * 3, ())]
 
 
-def test_the_games_own_relic_ids_are_all_below_the_ceiling(game_data):
+def test_the_games_own_relic_ids_still_allow_the_fast_way(game_data):
     """The coupling itself, against the dataset of the installed game.
 
-    The ceiling is an assumption about numbers this program does not own. The
-    cases above prove the reader is loud when it breaks; this one is what
-    reports that a patch has broken it, on the machine of whoever runs the
-    suite. Largest id on 2026-09-08: 2 013 322, a factor 8 below.
-    """
-    biggest = max(relic["id"] for relic in game_data["relics"])
+    The ceiling is an assumption about numbers this program does not own.
+    Since AD-031 a broken assumption is no longer an error -- the save is
+    still read, on the slow way -- so what this case reports is not a
+    breakage but a cost: the reading of every save on this machine would go
+    from 657,2 ms to the order of 6 147,6 ms (measured 1.7.1, T-140).
 
-    assert biggest < savefile.RELIC_ID_CEILING, (
-        f"the game now numbers a relic {biggest}; the inventory scan cannot "
-        f"find ids at or above {savefile.RELIC_ID_CEILING}")
+    Largest id on 2026-09-08: 2 013 322, a factor 8 below the ceiling.
+    """
+    ids = {relic["id"] for relic in game_data["relics"]}
+
+    assert savefile.relic_scan_mode(ids) == savefile.FAST, (
+        f"the game now numbers a relic {max(ids)}; every save on this machine "
+        f"is now read the slow way, which is correct but far slower")
+
+
+# --------------------------------------------------------------------------
+# The way travels on the inventory, so the window can say which one was used
+
+
+def a_dataset(relic_id: int) -> dict:
+    """The two fields of the dataset an inventory read looks at."""
+    return {"relics": [{"id": relic_id, "name": "Test Relic", "colour": 0}],
+            "effects": {str(EFFECT_ID): {"name": "Test Effect"}}}
+
+
+def an_inventory_read_of(monkeypatch, tmp_path, relic_id: int):
+    """Load an inventory out of one slot holding one record of `relic_id`.
+
+    What is replaced is the decryption, not the choice under test: the whole
+    of `scan` and `build` runs, including the one place the way is decided and
+    the two places it is carried. Writing an encrypted container instead would
+    duplicate `test_hostile_savefile.py`'s builder here and pull Qt into a
+    file that is deliberately free of it.
+    """
+    buffer = bytearray(4096)
+    record_at(buffer, 0, relic_id=relic_id, effects=True)
+    save = tmp_path / "NR0000.sl2"
+    save.write_bytes(b"")
+    monkeypatch.setattr(inventory, "_decrypt_slots",
+                        lambda path: {"USER_DATA000": bytes(buffer)})
+
+    return inventory.load(a_dataset(relic_id), save_path=save)
+
+
+def test_an_inventory_read_the_slow_way_says_so(monkeypatch, tmp_path):
+    """AD-031 point 4: the way stands on the inventory, not on a signal.
+
+    And the relic is there: a fall-back that set the field but found nothing
+    would leave the player an empty planner with a sentence explaining it.
+    """
+    inv = an_inventory_read_of(monkeypatch, tmp_path,
+                               savefile.RELIC_ID_CEILING + 42)
+
+    assert inv.read_the_slow_way is True
+    assert inv.relic_count == 1
+
+
+def test_an_inventory_read_the_fast_way_says_that_too(monkeypatch, tmp_path):
+    """The other side, without which the field could be wired to True."""
+    inv = an_inventory_read_of(monkeypatch, tmp_path, RELIC_ID)
+
+    assert inv.read_the_slow_way is False
+    assert inv.relic_count == 1
+
+
+def test_the_way_is_chosen_once_for_a_load_and_not_once_per_slot(monkeypatch,
+                                                                 tmp_path):
+    """AD-031 point 1, as a count rather than as a state.
+
+    The question is about the dataset, and the dataset does not change between
+    the slots of one read -- a save holds up to fourteen of them. Asking per
+    slot would give the same answer every time and so could never be seen in a
+    result; the count is the only place the difference shows.
+    """
+    buffer = bytearray(4096)
+    for index in range(3):
+        record_at(buffer, index * 80, effects=True)
+    save = tmp_path / "NR0000.sl2"
+    save.write_bytes(b"")
+    monkeypatch.setattr(inventory, "_decrypt_slots", lambda path: {
+        f"USER_DATA00{index}": bytes(buffer) for index in range(3)})
+
+    asked = []
+    real_mode = savefile.relic_scan_mode
+    monkeypatch.setattr(savefile, "relic_scan_mode",
+                        lambda ids: asked.append(ids) or real_mode(ids))
+
+    found = inventory.scan(a_dataset(RELIC_ID), save_path=save)
+
+    assert len(found.owned) == 3, "the premise: three slots were read"
+    assert len(asked) == 1, f"the dataset was asked {len(asked)} times"
+
+
+def test_an_inventory_nobody_read_makes_no_claim_about_a_way():
+    """A hand-built inventory has no save behind it and so no way either."""
+    assert inventory.Inventory(source="by hand").read_the_slow_way is False

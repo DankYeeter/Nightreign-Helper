@@ -315,12 +315,23 @@ def relic_records(byte_length: int, stride: int) -> bytes:
     return bytes(buffer)
 
 
-def read_records(blob: bytes, effect_ids: set[int] | None = None):
+def read_records(blob: bytes, effect_ids: set[int] | None = None,
+                 mode: str | None = None):
     return savefile.read_owned_relics(blob, {KNOWN_RELIC_ID},
-                                      effect_ids or set())
+                                      effect_ids or set(), mode=mode)
 
 
-def test_a_slot_packed_with_relic_records_is_a_data_error():
+#: The two ways a slot is walked since AD-031: the fast prefilter, and the
+#: old walk the reader falls back to when a game patch numbers relics above
+#: what the prefilter can see. The density limit is one body walked by both,
+#: and every case below is asked of both -- a limit that held only on the way
+#: nobody runs until such a patch arrives would be no limit at all, and the
+#: prepared file that gets past it looks like an ordinary inventory.
+BOTH_WAYS = pytest.mark.parametrize("mode", [savefile.FAST, savefile.SLOW])
+
+
+@BOTH_WAYS
+def test_a_slot_packed_with_relic_records_is_a_data_error(mode):
     """One record every eight bytes is what a prepared file writes.
 
     Measured by the `security-reviewer` on the reader as it stood: 131 069
@@ -332,10 +343,11 @@ def test_a_slot_packed_with_relic_records_is_a_data_error():
 
     with pytest.raises(ValueError,
                        match="denser than one record per 64 bytes"):
-        within_time_limit(lambda: read_records(blob))
+        within_time_limit(lambda: read_records(blob, mode=mode))
 
 
-def test_the_refusal_over_a_packed_slot_names_no_file_path():
+@BOTH_WAYS
+def test_the_refusal_over_a_packed_slot_names_no_file_path(mode):
     """What the player is shown says what to do and does not name the file.
 
     The save folder is named after the Steam account id, so a message that
@@ -344,7 +356,7 @@ def test_the_refusal_over_a_packed_slot_names_no_file_path():
     this message may enlarge.
     """
     with pytest.raises(ValueError) as raised:
-        read_records(relic_records(64 * 1024, stride=8))
+        read_records(relic_records(64 * 1024, stride=8), mode=mode)
 
     message = str(raised.value)
     assert "\\" not in message and "/" not in message, message
@@ -352,7 +364,8 @@ def test_the_refusal_over_a_packed_slot_names_no_file_path():
     assert "save folder" in message and "rescan" in message, message
 
 
-def test_a_slot_filled_to_the_limit_is_read_in_full():
+@BOTH_WAYS
+def test_a_slot_filled_to_the_limit_is_read_in_full(mode):
     """The control at the boundary: the limit must not cost the last record.
 
     A case that only proved the error path would pass just as well against a
@@ -361,10 +374,11 @@ def test_a_slot_filled_to_the_limit_is_read_in_full():
     """
     blob = relic_records(6400, stride=64)
 
-    assert len(read_records(blob)) == 6400 // 64
+    assert len(read_records(blob, mode=mode)) == 6400 // 64
 
 
-def test_one_record_more_than_the_slot_can_hold_is_a_data_error():
+@BOTH_WAYS
+def test_one_record_more_than_the_slot_can_hold_is_a_data_error(mode):
     """The other side of the same boundary, one record further on.
 
     6 432 bytes have room for 100 records at one per 64; this slot claims 101.
@@ -372,10 +386,11 @@ def test_one_record_more_than_the_slot_can_hold_is_a_data_error():
     blob = relic_records(6432, stride=64)
 
     with pytest.raises(ValueError, match="more than 100 relic records"):
-        within_time_limit(lambda: read_records(blob))
+        within_time_limit(lambda: read_records(blob, mode=mode))
 
 
-def test_a_slot_at_a_real_saves_density_is_read_with_its_effects():
+@BOTH_WAYS
+def test_a_slot_at_a_real_saves_density_is_read_with_its_effects(mode):
     """The control the limit exists for: an ordinary inventory still reads.
 
     Stride 80 is the record width the game writes. The real save on this
@@ -391,7 +406,7 @@ def test_a_slot_at_a_real_saves_density_is_read_with_its_effects():
         for delta in savefile.EFFECT_OFFSETS:
             struct.pack_into("<I", buffer, off + delta, effect_id)
 
-    owned = read_records(bytes(buffer), {effect_id})
+    owned = read_records(bytes(buffer), {effect_id}, mode=mode)
 
     assert [entry.offset for entry in owned] == [0, 80, 160]
     assert [entry.effect_ids for entry in owned] == [[effect_id] * 3] * 3
@@ -630,7 +645,7 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
                                    "colour": 0}}
 
     found = within_time_limit(lambda: inventory._scan_save(
-        path, {KNOWN_RELIC_ID}, set(), None))
+        path, {KNOWN_RELIC_ID}, set(), None, mode=savefile.FAST))
     assert found is not None
     inv = inventory.build({"relics": list(relic_meta.values())}, found)
 

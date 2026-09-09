@@ -107,6 +107,13 @@ class Inventory:
     # one in a test has no save behind it and so makes no claim about density.
     # `relics_for` needs it for the second SEC-022 check.
     source_bytes: int | None = None
+    # Whether these relics were read on the slow way (AD-031). True when the
+    # dataset numbers a relic at or above `savefile.RELIC_ID_CEILING`, which
+    # the fast prefilter cannot see: the read then falls back to the walk that
+    # assumes nothing about ids, and the window says so (AK-228). A plain bool
+    # with a default, so every hand-built `Inventory` stays valid and the
+    # value crosses the worker's thread boundary unchanged (AD-006.8).
+    read_the_slow_way: bool = False
 
     def _refuse_a_density_no_save_can_have(self) -> None:
         """The second SEC-022 limit, on the way out rather than on the way in.
@@ -247,6 +254,10 @@ class SaveScan:
     loadouts: list
     #: Why the loadouts are missing, when they are.
     loadout_error: str = ""
+    #: Whether this slot was walked the slow way (AD-031). Carried across the
+    #: boundary with everything else the reading half found out, because the
+    #: half that builds the window has no dataset to ask again.
+    read_the_slow_way: bool = False
 
 
 def load(data: dict, save_path: pathlib.Path | None = None) -> Inventory | None:
@@ -290,10 +301,15 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
 
     valid_relics = {r["id"] for r in data["relics"]}
     valid_effects = {int(k) for k in data["effects"]}
+    # Once per load and not once per slot: the question is about the dataset,
+    # which does not change between the slots of a read (AD-031). Deciding it
+    # here also keeps it on this side of the boundary, where the answer can
+    # travel with the records it belongs to.
+    mode = savefile.relic_scan_mode(valid_relics)
 
     best: SaveScan | None = None
     for path in sorted(saves, key=lambda p: p.stat().st_mtime, reverse=True):
-        best = _scan_save(path, valid_relics, valid_effects, best)
+        best = _scan_save(path, valid_relics, valid_effects, best, mode=mode)
     return best
 
 
@@ -308,7 +324,8 @@ def build(data: dict, found: SaveScan) -> Inventory:
     relic_meta = {r["id"]: r for r in data["relics"]}
     inv = Inventory(source=found.source, folder=found.folder,
                     source_bytes=found.source_bytes,
-                    loadout_error=found.loadout_error)
+                    loadout_error=found.loadout_error,
+                    read_the_slow_way=found.read_the_slow_way)
     item_by_handle: dict[int, OwnedItem] = {}
 
     for entry in found.owned:
@@ -366,7 +383,7 @@ def build(data: dict, found: SaveScan) -> Inventory:
 
 
 def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
-               best: SaveScan | None) -> SaveScan | None:
+               best: SaveScan | None, *, mode: str) -> SaveScan | None:
     """Read one save file, returning it if it beats what was found so far."""
     try:
         slots = _decrypt_slots(path)
@@ -377,7 +394,8 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
         return best
 
     for name, blob in slots.items():
-        owned = savefile.read_owned_relics(blob, valid_relics, valid_effects)
+        owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
+                                           mode=mode)
         if not owned:
             continue
 
@@ -405,6 +423,7 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
                        for handle, relic in by_offset.items()},
             loadouts=stored,
             loadout_error=loadout_error,
+            read_the_slow_way=(mode == savefile.SLOW),
         )
         if best is None or len(found.owned) > len(best.owned):
             best = found

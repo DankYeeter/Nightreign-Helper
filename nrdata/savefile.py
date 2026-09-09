@@ -181,19 +181,20 @@ class OwnedRelic:
     curse_ids: list[int] = field(default_factory=list)
 
 
-# What the prefilter below assumes about the game's own numbering, and the
-# only thing it assumes: every relic id fits in three bytes.
+# What the fast prefilter below assumes about the game's own numbering, and
+# the only thing it assumes: every relic id fits in three bytes.
 #
 # A record begins with `relic_id | RELIC_ID_FLAG`. Below this ceiling that
 # word's top byte is exactly the flag's own, so in little-endian every record
 # carries that byte at its fourth. The largest id in the dataset on 2026-09-08
 # is 2 013 322, a factor 8 below the ceiling.
 #
-# The ceiling is a coupling to data a game patch can renumber, so it is
-# checked on every scan instead of being written down beside it: a scan that
+# The ceiling is a coupling to data a game patch can renumber, so it is asked
+# of the dataset on every load rather than written down beside it: a scan that
 # stopped seeing a whole band of ids would return a short inventory that looks
 # exactly like an empty one, and nothing downstream could tell the difference
-# (AD-029).
+# (AD-029). What the answer costs is the way the slot is walked and nothing
+# else -- see `relic_scan_mode` (AD-031).
 RELIC_ID_CEILING = 0x01000000
 
 # The byte a record is looked up by. Taken from the flag rather than written
@@ -234,26 +235,67 @@ def _relic_id_offsets(slot_data: bytes):
         pos = slot_data.find(_ID_TOP_BYTE, pos + 1)
 
 
-def _check_the_prefilter_can_see_every_id(valid_relic_ids: set[int]) -> None:
-    """Refuse to scan at all rather than scan half the ids (AD-029)."""
-    biggest = max(valid_relic_ids, default=0)
-    if biggest >= RELIC_ID_CEILING:
-        raise ValueError(
-            f"relic id {biggest} is at or above {RELIC_ID_CEILING}, which "
-            f"the inventory scan of this program cannot find in a save. The "
-            f"game has renumbered its relics and this program is too old to "
-            f"read what it wrote; nothing is wrong with the save.")
+def _every_fourth_offset(slot_data: bytes):
+    """Every four-byte-aligned offset a record could begin at.
+
+    The walk as it stood before the prefilter, and the way back when a dataset
+    numbers its relics above `RELIC_ID_CEILING` (AD-031). It assumes nothing
+    about the id at all, so it finds every band the fast one is blind to, and
+    it costs what the fast one saves: 262 144 `unpack_from` calls per MiB
+    against the 0,20 % of the slot `bytes.find` hands over (T-118 P2).
+
+    Same two properties the loop relies on as `_relic_id_offsets`: ascending,
+    and only on a four-byte boundary. Both generators must also stop at the
+    same offset -- `len - RELIC_FIELDS_SIZE`, exclusive -- or the two ways
+    would disagree about the last record of a slot.
+    """
+    yield from range(0, len(slot_data) - RELIC_FIELDS_SIZE, 4)
+
+
+# The two ways of walking a slot, and the names the choice travels under.
+FAST, SLOW = "fast", "slow"
+
+_OFFSETS_OF_MODE = {FAST: _relic_id_offsets, SLOW: _every_fourth_offset}
+
+
+def relic_scan_mode(valid_relic_ids: set[int]) -> str:
+    """Which offset generator can see every id in this dataset (AD-031).
+
+    Asked of the dataset, not of the save: the ids are what the fast
+    prefilter's assumption is about, so the answer is the same for every slot
+    of a load and is settled once, before a byte is scanned.
+
+    A game patch that numbers a relic at or above the ceiling makes the fast
+    walk blind to that whole band. The answer to that is the slow walk and a
+    sentence in the window -- not a refusal to read a save that is perfectly
+    intact (user's decision, 2026-09-08; this replaces the refusal T-133 built
+    under AD-029).
+    """
+    return SLOW if max(valid_relic_ids, default=0) >= RELIC_ID_CEILING else FAST
 
 
 def read_owned_relics(
-    slot_data: bytes, valid_relic_ids: set[int], valid_effect_ids: set[int]
+    slot_data: bytes, valid_relic_ids: set[int], valid_effect_ids: set[int],
+    *, mode: str | None = None,
 ) -> list[OwnedRelic]:
     """Scan a decrypted character slot for relic inventory records.
 
     Anchors on the doubled relic id rather than a fixed stride, so it stays
     correct even if the surrounding record size changes between patches.
+
+    `mode` is `FAST`, `SLOW`, or None for "ask `relic_scan_mode` yourself".
+    Only which offsets are looked at changes with it; everything a record is
+    judged by below -- the doubled id, the ids the dataset knows, the density
+    limit of SEC-022 -- is one body and is walked by both ways. A caller that
+    reads several slots of one load passes the answer in rather than having it
+    recomputed per slot; a caller that just wants the relics can leave it.
     """
-    _check_the_prefilter_can_see_every_id(valid_relic_ids)
+    if mode is None:
+        mode = relic_scan_mode(valid_relic_ids)
+    offsets_of = _OFFSETS_OF_MODE.get(mode)
+    if offsets_of is None:
+        raise ValueError(f"{mode!r} is not a relic scan mode; the modes are "
+                         f"{FAST!r} and {SLOW!r}")
     out: list[OwnedRelic] = []
     seen_offsets: set[int] = set()
     # What this slot could hold at all (SEC-022). Relative to the slot's own
@@ -262,7 +304,7 @@ def read_owned_relics(
     # with no room for a second record has no density to judge.
     limit = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
 
-    for off in _relic_id_offsets(slot_data):
+    for off in offsets_of(slot_data):
         first, second = struct.unpack_from("<II", slot_data, off)
         if first != second or first < RELIC_ID_FLAG:
             continue
