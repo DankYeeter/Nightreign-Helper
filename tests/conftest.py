@@ -182,6 +182,15 @@ def extracted_game_data(installed_game) -> dict:
 
     Session-scoped for the same reason `game_data` is: an extraction costs
     about forty seconds and nothing here writes to what it returns.
+
+    Deliberately without `game_data`'s own `_snapshot_from_env` /
+    `_snapshot_from_cache` fallback, and it must stay that way: this is the
+    one dataset the suite is required to build fresh on every developer
+    session with the game installed, which is what let D-001's bug --
+    `extract.build()`'s result differing from its own JSON reload -- run for
+    eighteen cycles before anyone hit it (QA-220). Guarded by
+    `test_extracted_game_data_never_falls_back_to_a_cached_snapshot` in
+    test_extraction.py, which fails if a fallback is added back here.
     """
     from nrdata import extract
 

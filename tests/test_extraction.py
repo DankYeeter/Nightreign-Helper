@@ -29,15 +29,21 @@ import pytest
 
 from nrdata import icons
 
-pytestmark = pytest.mark.slow
+# Marked per test rather than with a module-level pytestmark, because one
+# case below (the guard on extracted_game_data itself) needs the game
+# installed for nothing -- it never touches installed_game -- and a blanket
+# mark would let `pytest -m "not slow"` skip the one guard whose whole job is
+# to run on every developer session (QA-220).
 
 
+@pytest.mark.slow
 def test_a_snapshot_can_be_built_from_the_installed_game(extracted_game_data):
     """regulation, BND4, param and paramdef, end to end."""
     for section in ("relics", "effects", "heroes", "vessels", "weapons"):
         assert extracted_game_data.get(section), f"{section} came back empty"
 
 
+@pytest.mark.slow
 def test_the_built_dataset_survives_a_json_round_trip_unchanged(extracted_game_data):
     """One dataset, one shape: `extract.build()` == its own reload (D-001).
 
@@ -81,6 +87,7 @@ def test_the_built_dataset_survives_a_json_round_trip_unchanged(extracted_game_d
     assert json.loads(json.dumps(extracted_game_data)) == extracted_game_data
 
 
+@pytest.mark.slow
 def test_the_message_files_supply_the_names(extracted_game_data):
     """FMG. Names come from nothing else, so blank names mean it did not run."""
     named = [relic for relic in extracted_game_data["relics"]
@@ -91,6 +98,7 @@ def test_the_message_files_supply_the_names(extracted_game_data):
     assert len({relic["name"] for relic in named}) > 1
 
 
+@pytest.mark.slow
 def test_the_archives_supply_the_boss_resistances(extracted_game_data):
     """dvdbnd, Oodle, the event scripts and the map part names (SEC-014).
 
@@ -105,6 +113,7 @@ def test_the_archives_supply_the_boss_resistances(extracted_game_data):
                                for boss in profiled))
 
 
+@pytest.mark.slow
 def test_the_animation_files_supply_the_buff_ladders(extracted_game_data):
     """TAE. A ladder with a `from` came off an animation and nowhere else."""
     located = [
@@ -117,6 +126,7 @@ def test_the_animation_files_supply_the_buff_ladders(extracted_game_data):
     assert located, "no self-buff was traced to an animation"
 
 
+@pytest.mark.slow
 def test_a_real_icon_can_be_cut_out_of_a_real_atlas(installed_game):
     """TPF, the DDS decoder with its new size check, and the layout reader.
 
@@ -138,3 +148,67 @@ def test_a_real_icon_can_be_cut_out_of_a_real_atlas(installed_game):
                             source.sprites[sprite_name].height)
     finally:
         source.release()
+
+
+def test_extracted_game_data_never_falls_back_to_a_cached_snapshot(
+    monkeypatch, tmp_path
+):
+    """Locks the mechanism T-173 built for QA-220 in place.
+
+    `extracted_game_data` is the one fixture in the suite required to come
+    out of `extract.build()` on every developer session with the game
+    installed. D-001's bug class -- a mapping that differs from its own JSON
+    reload -- only shows on that path; `game_data` hides it behind a
+    snapshot whenever `NIGHTREIGN_TEST_SNAPSHOT` or the program's own cache
+    is reachable, which on a developer machine it usually is.
+
+    Since D-001's fix, a snapshot and a fresh build carry the same shape, so
+    the six cases above cannot tell the two apart any more, and would keep
+    passing even if this fixture grew the same snapshot-first fallback
+    `game_data` already has -- a plausible "speed it up" change, since
+    `game_data` reads like a template for exactly that. Nobody would notice
+    until the next bug of the same class outlived another eighteen cycles.
+
+    So this test does not read `extracted_game_data`'s output; it puts a
+    snapshot every existing fallback would accept on disk and in the
+    environment, replaces `extract.build` with a spy, and calls the
+    fixture's own function directly -- bypassing `installed_game`'s skip, so
+    this runs on a machine without the game too. The fixture must have
+    called the spy and returned exactly what it returned; if it read the
+    snapshot instead, neither is true.
+    """
+    import pathlib
+
+    from nrdata import extract
+    from nrplanner import paths
+    from tests import conftest
+
+    snapshot_file = tmp_path / "nightreign_data.json"
+    snapshot_file.write_text(
+        json.dumps({
+            "meta": {"extract_version": extract.EXTRACT_VERSION},
+            "marker": "from-a-cached-snapshot",
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(paths, "snapshot_path", lambda: snapshot_file)
+    monkeypatch.setenv(conftest.SNAPSHOT_ENV, str(snapshot_file))
+
+    built = {"marker": "from-extract-build"}
+    calls = []
+    monkeypatch.setattr(
+        extract, "build",
+        lambda game_dir, defs_dir: calls.append((game_dir, defs_dir)) or built,
+    )
+
+    game_dir, defs_dir = pathlib.Path("game"), pathlib.Path("defs")
+    result = conftest.extracted_game_data.__wrapped__((game_dir, defs_dir))
+
+    assert calls == [(game_dir, defs_dir)], (
+        "extracted_game_data did not call extract.build with the installed "
+        "game -- it must have read a snapshot instead"
+    )
+    assert result is built, (
+        "extracted_game_data returned something other than extract.build()'s "
+        "own result -- a cached snapshot must have been read instead"
+    )
