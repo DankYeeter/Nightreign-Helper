@@ -4332,6 +4332,171 @@ from PySide6 import QtCore
             "tests/test_loadout_table_prefilter.py: 14 passed -- it survives, "
             "as it did when it was first run, and for the reason above."),
     ),
+    # T-142 (U8, AD-029 stage B): the save read moved to a background thread. Reconstructed for T-155 from the session's surviving scratchpad/T-142/mutate.py, which T-142 itself could not register (scripts/ was outside its file list).
+    "answer-stamped-with-a-dead-generation": Mutation(
+        path="nrplanner/app.py",
+        old="""        self._worker = _SaveReadWorker(self._generation, data,
+                                       self._read or read_the_save, save_path)""",
+        new="""        self._worker = _SaveReadWorker(0, data,
+                                       self._read or read_the_save, save_path)""",
+        survival_means=(
+            "U5b's shape: every answer is dropped as overtaken, in silence. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: 12 failed, 10 passed (T-155,"
+            " transcribed from its report table, not re-run); what falls is (see tail"
+            " below)."),
+    ),
+    "shutdown-does-not-raise-the-generation-t142": Mutation(
+        path="nrplanner/app.py",
+        old="""        self._generation += 1
+        self._answering = False
+        thread = self._thread
+        if thread is not None:
+            thread.wait(timeout_ms)""",
+        new="""        self._answering = False
+        thread = self._thread
+        if thread is not None:
+            thread.wait(timeout_ms)""",
+        survival_means=(
+            "T-137's defect, on the save reader: a late answer arrives after the window"
+            " is gone. Measured 2026-09-09 (T-156, reconstructed from T-142's scratchpad"
+            " driver) against the file this task's campaign used: 1 failed, 22 passed in"
+            " 114.88s (0:01:54); what falls is test_nothing_arrives_after_shutdown."),
+    ),
+    "a-read-per-press": Mutation(
+        path="nrplanner/app.py",
+        old="""        if self._thread is not None:
+            return False
+        self._generation += 1
+        self._answering = True""",
+        new="""        self._generation += 1
+        self._answering = True""",
+        survival_means=(
+            "AD-029 point 4 gone: every Rescan press starts another read. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: process aborted, no pytest summary -- a"
+            " crash, not a named assertion (T-155, transcribed from its report table, not"
+            " re-run); what falls is (see tail below)."),
+    ),
+    "no-waiting-sentence": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.owned_label.setText(
+            READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)""",
+        new="""        self.owned_label.setText("")""",
+        survival_means=(
+            "AK-221 gone: the waiting state is indistinguishable from no save. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: 3 failed, 19 passed (T-155, transcribed"
+            " from its report table, not re-run); what falls is (see tail below)."),
+    ),
+    "no-line-on-the-empty-card": Mutation(
+        path="nrplanner/app.py",
+        old="""            waiting = self.the_save_is_being_read and self.owned is None""",
+        new="""            waiting = False""",
+        survival_means=(
+            "AK-221 gone: the empty card does not say why it is empty. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 21 passed (T-155, transcribed"
+            " from its report table, not re-run); what falls is (see tail below)."),
+    ),
+    "the-bracket-stays-at-zero": Mutation(
+        path="nrplanner/app.py",
+        old="""        count = "" if self.owned is None else f"  ({len(items)} available)\"""",
+        new="""        count = f"  ({len(items)} available)\"""",
+        survival_means=(
+            "AK-222 gone: the heading claims the player owns nothing. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: 2 failed, 20 passed (T-155, transcribed"
+            " from its report table, not re-run); what falls is (see tail below)."),
+    ),
+    "the-relic-button-stays-open": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.choose_button.setEnabled(not self.the_save_is_being_read)""",
+        new="""        self.choose_button.setEnabled(True)""",
+        survival_means=(
+            "AK-223 gone: a picker opens on an empty stock. Measured 2026-09-09 (T-155,"
+            " reconstructed from T-142's scratchpad driver) against the file this task's"
+            " campaign used: 3 failed, 19 passed (T-155, transcribed from its report"
+            " table, not re-run); what falls is (see tail below)."),
+    ),
+    "the-waiting-line-is-one-line-high": Mutation(
+        path="nrplanner/app.py",
+        old="""        self.owned_label.setMinimumHeight(
+            2 * QFontMetrics(self.owned_label.font()).lineSpacing())""",
+        new="""        self.owned_label.setMinimumHeight(0)""",
+        survival_means=(
+            "AK-225 gone: the arrival pushes everything under the line down. Measured"
+            " 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver) against"
+            " the file this task's campaign used: 1 failed, 21 passed (T-155, transcribed"
+            " from its report table, not re-run); what falls is (see tail below)."),
+    ),
+    "the-failure-keeps-the-waiting-sentence": Mutation(
+        path="nrplanner/app.py",
+        old="""        self._the_save_has_been_read()
+        self.owned_label.setText(
+            f"{CHOSEN_SAVE_UNREADABLE}\\n{reason}" if self._answers_a_chosen_save
+            else f"{UNREADABLE_SAVE}{reason}")""",
+        new="""        self._the_save_has_been_read()""",
+        survival_means=(
+            "AK-224 gone: a read that failed leaves the waiting sentence standing."
+            " Measured 2026-09-09 (T-155, reconstructed from T-142's scratchpad driver)"
+            " against the file this task's campaign used: 3 failed, 19 passed after the"
+            " anchor repair (T-155, transcribed from its report table, not re-run); what"
+            " falls is (see tail below)."),
+    ),
+    "skipped-without-being-marked": Mutation(
+        path="nrplanner/app.py",
+        old="""            chalices.set_imported(hero["id"])
+            if hero["id"] in self._own_slots_beat_the_stored_build:""",
+        new="""            if hero["id"] in self._own_slots_beat_the_stored_build:""",
+        survival_means=(
+            "AK-226 gone: the stored build falls on the slots at the next change of"
+            " Nightfarer. Measured 2026-09-09 (T-155, reconstructed from T-142's"
+            " scratchpad driver) against the file this task's campaign used: 4 failed, 18"
+            " passed (T-155, transcribed from its report table, not re-run); what falls"
+            " is (see tail below)."),
+    ),
+    "the-players-slot-is-overwritten": Mutation(
+        path="nrplanner/app.py",
+        old="""            if hero["id"] in self._own_slots_beat_the_stored_build:
+                self._keep_the_slots_the_player_filled(first_row)
+                return""",
+        new="""            if False:
+                self._keep_the_slots_the_player_filled(first_row)
+                return""",
+        survival_means=(
+            "AK-226 gone: what the player put in a slot is laid over at the arrival."
+            " Measured 2026-09-09 (T-156, reconstructed from T-142's scratchpad driver)"
+            " against the file this task's campaign used: 1 failed, 22 passed in 112.69s"
+            " (0:01:52); what falls is"
+            " test_a_slot_set_during_the_read_survives_the_arrival."),
+    ),
+    "load-equipped-speaks-during-the-read": Mutation(
+        path="nrplanner/app.py",
+        old="""        if self.save_reader.is_reading():
+            return
+        # The slots of every chalice are about to be written from the save, so""",
+        new="""        # The slots of every chalice are about to be written from the save, so""",
+        survival_means=(
+            "§9 (h) gone: the import sentence fires during a read. Measured 2026-09-09"
+            " (T-156, reconstructed from T-142's scratchpad driver) against the file this"
+            " task's campaign used: 1 failed, 22 passed in 117.69s (0:01:57); what falls"
+            " is test_load_equipped_says_nothing_while_a_read_is_out."),
+    ),
+    "the-stock-never-reaches-the-cards": Mutation(
+        path="nrplanner/app.py",
+        old="""        self._hand_the_stock_to_the_slots()""",
+        new="""        pass""",
+        survival_means=(
+            "**this one is meant to survive** (T-142, reported and not nachgebessert):"
+            " `self._hand_the_stock_to_the_slots()` in `_on_save_read` is replaced by"
+            " `pass`, and every one of T-142's cases stays green. After `is_reading()`"
+            " turns `False` at arrival, `reload_chalices -> load_equipped ->"
+            " apply_chalice -> set_owned` hands the cards their stock anyway on every"
+            " path those cases reach; the line is redundant there, needed only on a path"
+            " none of them reach."),
+    ),
+
 }
 
 
