@@ -2227,7 +2227,7 @@ Wechsel des `Sort by` — das bricht AK-41 (0 px Unterschied), AK-204
 | | zwei Zeilen | drei Zeilen |
 |---|---|---|
 | Hoehe einer Kartenzeile im Raster | 210 px | **228 px** (+18) |
-| `wanted_height` fuer `MINIMUM_ROWS` = 3 | 1082 px | **1136 px** (+54) |
+| `wanted_height` fuer `MINIMUM_ROWS` = 3 | 1082 px | ~~**1136 px** (+54)~~ **siehe Nachtrag QA-239 unten — kein stabiler Einzelwert** |
 | Hoehe des Dialogs | 1007 px | 1151 px |
 | **ganz sichtbare Kartenzeilen** | 3 | **3** |
 | waagerechte Bildlaufleiste | keine | **keine** |
@@ -2239,6 +2239,25 @@ kuerzen. *Messauflage an den `developer` (wie AK-216):* er misst
 **beide Zahlen mit ihrer Umgebung**. Sind am Standardmass **weniger als zwei
 ganze Kartenzeilen** sichtbar, ist das ein Befund und kommt **zu mir zurueck**
 — nicht in eine Nachbesserung, die Inhalt kuerzt.
+
+> **Nachtrag QA-239, 2026-09-12 (`ui-ux-designer`, T-207).** Die Zahl 1136 in
+> der Zeile oben war die Vorabschaetzung dieses Abschnitts, vor dem Einbau
+> gerechnet. Zwei **spaetere**, unabhaengige Messungen derselben Groesse am
+> echten Programm stimmen **nicht** miteinander ueberein:
+>
+> | Messung | Wert |
+> |---|---|
+> | T-199, reales Fenster (`docs/berichte/T-199-developer.md`) | 1121 px |
+> | T-207, `dialog.wanted_height(cards)` direkt aufgerufen | 1151 px |
+> | T-207, `dialog.height()` ungezwungen nach `_refresh()` | 1061 px |
+>
+> Details, Messweg und Screenshots: `DESIGN_REVIEW.md`, Abschnitt „QA-239
+> nachgemessen" (Review vom 2026-09-12, DR-019). **AK-196 haelt bei jeder
+> der vier genannten Zahlen** (drei ganze Kartenzeilen, keine waagerechte
+> Bildlaufleiste) — die Tabelle fuehrt deshalb bewusst **keinen** fuenften
+> Einzelwert an Stelle des durchgestrichenen. Ein Wert, der in drei
+> Messlaeufen auf derselben Maschine drei verschiedene Zahlen ergibt, ist
+> keine Eigenschaft, die eine Tabellenzelle ehrlich behaupten kann.
 
 *Rot-vorher:* die dritte Zeile nur zeichnen, wenn ihre Richtung gewaehlt ist —
 dann unterscheidet sich die Kartenhoehe vor und nach einem `Sort by`-Wechsel

@@ -1,5 +1,211 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-12 (T-207 — der Relic Picker mit drei Zielrichtungen, plus QA-239)
+
+**Methode:** Live, am laufenden Fenster, **kein Screenshot vom Bildschirm** —
+jedes Bild ist `QWidget.grab()` auf das eigene Dialog-/Fensterobjekt (rendert
+aus Qts eigenem Zeichensystem, beruehrt den Bildschirm nie; strenger als
+`PrintWindow`, erfuellt NH-002/L-012 mit Marge). Echter `Planner` mit dem
+Spielstand des Nutzers, echtem `RelicPicker`, gebaut aus dem festen Testabzug
+(841 Dateien, `EXTRACT_VERSION` 11) — **in** das umgelenkte `LOCALAPPDATA`
+kopiert, nicht darauf verwiesen. Alle drei Variablen vor dem ersten
+`nrplanner`-Import gesetzt und einzeln nachgewiesen (siehe unten). Stil
+`fusion` mit der dunklen Programm-Palette (`app.apply_appearance`), kein
+`QT_QPA_PLATFORM=offscreen` (L-009). Screenshots:
+`design-review/2026-09-12/`.
+
+**Nachweis der Umlenkung (positiver Pfadnachweis, kein Ruecklese-Nachweis —
+QA-237):**
+```
+settings fileName: \HKEY_CURRENT_USER\Software\DankYeeterT-207\NightreignHelper
+cache_dir:         …\scratchpad\T-207\data\Local\NightreignHelper
+style:              fusion
+data_version:       10350000  extract_version: 11
+```
+Skripte: `…/scratchpad/T-207/open_picker.py`, `measure_picker.py`,
+`measure_chips.py`.
+
+**Messumgebung (L-009):** Windows 11, Fusion-Stil/dunkle Palette, Segoe UI
+9 pt, Bildschirm 4096×1728 **logische** px, `devicePixelRatio` 1,25 — jede
+px-Zahl unten ist **logisch**, wie `UI_SPEC.md` §5.4 es selbst verlangt; die
+gesicherten PNGs sind **physisch** (1,25×, z. B. 1280×1326 fuer eine
+1024×1061-logische Ansicht) und im Dateinamen nicht verwechselbar gemacht.
+Save/Slot/Richtung wie in `UI_SPEC.md` §5.4 Stichprobe S2: gelber Slot 1,
+Wylder, 56 Karten (inkl. Custom-Kachel), gelesen `Maximise damage`.
+**Positivkontrolle:** Fuehrende Gruppen 2 (Damage) / 1 (Survival) / 3
+(Attribute) = 6 fuehrende Karten — exakt die Zahlen aus `UI_SPEC.md`s eigener
+Tabelle zu AK-261 fuer S2. Eine Messumgebung, die diese vier Zahlen nicht
+reproduziert, misst etwas anderes als die Vorlage.
+
+**Geprueft:** der Relic Picker mit allen drei Zielrichtungen (AK-256 bis
+AK-263) am echten, gebauten Programm — Oeffnungszustand, sechs vorgezogene
+Karten, drei staendige Wertzeilen, Chip-Zuordnung, Favoritisierung und deren
+Wirkung auf den Chipstreifen, sowie eine erneute, unabhaengige Messung von
+QA-239. **Nicht erneut geprueft:** die sechs Inhalts-Tabs aus dem
+2026-09-05-Durchlauf (DR-013 bis DR-018) — nichts an ihnen hat sich seit
+damals geaendert, der Auftrag nennt sie nicht, und ihr Status ist in
+`qa/findings.md` nirgends als behoben gefuehrt; sie gelten unveraendert
+offen, bis sie erneut angefasst werden.
+
+**Gesamturteil:** Fast fertig. Der Bau der dritten Zielrichtung trifft seine
+eigene Vorgabe auffallend genau — AK-261/AK-262/AK-258/AK-259 halten alle
+Zahl fuer Zahl, wie unten belegt. Was fehlt, ist nicht im Picker selbst,
+sondern in zwei Bereichen daneben: QA-229 (Chip-Abschneidung) bleibt offen
+und wird durch die dritte Richtung **sichtbar exponierter**, nicht rechnerisch
+schlimmer; und die eigene `UI_SPEC.md`-Zahl zu `wanted_height` (QA-239) ist
+nach dieser zweiten, unabhaengigen Messung **nicht** einfach falsch und jetzt
+richtig — sie ist über drei Messlaeufe hinweg drei verschiedene Werte, und
+das ist der eigentliche Befund.
+
+---
+
+### QA-239 nachgemessen — zwei unabhaengige Messungen stimmen nicht ueberein
+
+**Nicht "1136 war falsch, 1121 ist richtig".** Ich habe dieselbe Groesse mit
+zwei verschiedenen, beide legitimen Lesarten gemessen und **beide**
+weichen von den bisher genannten Zahlen ab:
+
+| Lesart | Wert | Quelle |
+|---|---|---|
+| `UI_SPEC.md:2230` (T-192, Vorabschaetzung) | 1136 px | Rechnung vor dem Einbau |
+| T-199 (12.09.2026), reales Fenster | 1121 px | Bericht `docs/berichte/T-199-developer.md` |
+| **Diese Messung: `dialog.wanted_height(cards)` selbst aufgerufen** | **1151 px** | `measure_picker.py`, `_fit_to_three_rows` gepatcht, Argument abgegriffen |
+| **Diese Messung: `dialog.height()`, ungezwungen, nach `_refresh()`** | **1061 px** | dieselbe Session, ohne manuellen `resize()` |
+
+Die berechnete Zahl (1151) trifft nicht meinen eigenen `dialog.height()`
+(1061) — 90 px Differenz, obwohl der Code selbst `if wanted > self.height():
+self.resize(self.width(), wanted)` ausfuehrt und das nachweislich passiert
+(vor dem Aufruf 1061, `wanted`=1151>1061, Bedingung wahr), **aber** unmittelbar
+nach dem `resize()`-Aufruf steht `dialog.height()` wieder auf 1061, nicht auf
+1151 (mit `processEvents()` mehrfach abgeklopft, keine spaetere Aenderung).
+Interessant: 1151 ist exakt die Zahl, die `UI_SPEC.md:2231` fuer „Hoehe des
+Dialogs" (nicht fuer `wanted_height`) fuehrt — meine Rechnung deckt sich also
+mit der **falschen** Zeile der eigenen Tabelle.
+
+**Was haelt: AK-196 selbst.** Bei der tatsaechlichen, ungezwungenen Hoehe
+(1061 px) sind drei ganze Kartenzeilen zu sehen, keine waagerechte
+Bildlaufleiste, eine vierte Zeile beginnt sichtbar am unteren Rand (Beleg
+unten) — funktional unveraendert gegenueber T-199s Urteil, nur bei einer
+anderen Zahl gemessen.
+
+![Natuerliche Dialoghoehe, 1024×1061 logisch, drei ganze Zeilen sichtbar](design-review/2026-09-12/relicpicker-natural-height-1061.png)
+![Dieselbe Liste, von Hand auf die berechnete `wanted_height` (1151) gezwungen — mehr Luft, keine andere Aussage](design-review/2026-09-12/relicpicker-forced-wanted-height-1151.png)
+
+**Einordnung:** kein Nutzerschaden heute — AK-196 haelt bei jeder der vier
+genannten Zahlen. Der Befund ist, dass **dieselbe Groesse auf derselben
+Maschine in vier Messlaeufen vier verschiedene Werte ergeben hat**
+(1136/1121/1151/1061), zwei davon (meine) aus derselben Sitzung. Eine
+Vorgabe, die eine einzelne px-Zahl fuehrt und für bare Muenze nimmt, jagt
+damit einer Zahl hinterher, die nicht stillsteht — das ist ein staerkerer
+Befund als ein einfacher Zahlendreher, und ich korrigiere die Tabelle
+deshalb nicht auf einen fuenften Einzelwert, sondern trage das Messproblem
+selbst ein (`UI_SPEC.md:2230`, Nachtrag unten).
+
+**DR-019 [`nrplanner/relicpicker.py:1170-1192` (`_fit_to_three_rows`),
+`UI_SPEC.md:2230`]** *Nice-to-have, weil ohne heutigen Nutzerschaden — aber
+kein Politur-Punkt: eine Zahl, der niemand zweimal hintereinander traut, ist
+ein Dokumentationsrisiko.* Der interne `resize()`-Aufruf in
+`_fit_to_three_rows` erreicht nachweislich nicht die von derselben Funktion
+berechnete Zielhoehe (1151 vs. 1061 px, diese Messung); ob das an
+`heightForWidth()` vor vollstaendiger `ensurePolished()`-Politur liegt, an
+einer Layout-Rueckstellung durch die `QScrollArea`, oder an etwas drittem,
+habe ich nicht weiter verfolgt — das ist eine Code-Frage, keine
+Vorgabenfrage. **Loesungsrichtung:** ein Test, der `dialog.height()` nach dem
+echten `_refresh()`-Lauf gegen `dialog.wanted_height(cards)` haelt (nicht nur
+gegen `MINIMUM_ROWS`, wie es `test_the_height_the_picker_asks_for_shows_three_whole_rows`
+heute tut, das die Groesse **von Hand** erzwingt und die Abweichung deshalb
+nicht sehen kann), wuerde diese Klasse von Drift in Zukunft fangen, bevor der
+Puffer zwischen berechneter und tatsaechlicher Hoehe aufgebraucht ist und
+AK-196 tatsaechlich reisst.
+
+---
+
+### Der Bau der drei Richtungen selbst — praezise gegen die eigene Vorgabe
+
+**Positiv/beibehalten.** Unabhaengig nachgemessen und bestaetigt, ohne
+Abweichung:
+
+- **AK-261 (sechs fuehrende Karten):** 2 (Damage) + 1 (Survival) + 3
+  (Attribute) = 6, exakt wie `UI_SPEC.md` es fuer S2 vorhersagt. Karten:
+  `Dark Night of the Champion`, `Golden Dew` (Damage); `Grand Luminous Scene`
+  (Survival); drei verschiedene Kopien von `Grand Luminous Scene`
+  (Attribute) — direkt aus dem Gitter gelesen, nicht aus dem Screenshot
+  abgezaehlt.
+- **AK-262 (Chip nennt die eigene Richtung):** alle sechs fuehrenden Karten
+  tragen einen Chip, keine unbeschriftete Karte in der vorgezogenen Reihe —
+  der Zustand, den AK-195 fuer sich beansprucht hatte, aber laut AK-262 nicht
+  einloeste, haelt jetzt.
+- **AK-258 (drei staendige Wertzeilen):** jede der 55 Karten zeigt `Damage`,
+  `Damage taken`, `Offensive attributes` in genau dieser Reihenfolge, auch
+  wo der Wert `no change` ist — keine Karte mit nur zwei Zeilen gefunden.
+- **AK-259 (Beschriftung/Einheit der dritten Zeile):** `Offensive attributes
+  +6.0 pts` u. ae., wie vorgeschrieben, ohne sichtbare Kuerzung.
+
+### QA-229 — offen, unveraendert in der Zahl, exponierter in der Wirkung
+
+**DR-020 [`nrplanner/relicpicker.py:2364-2377` in `UI_SPEC.md` (AK-262-Notiz),
+QA-229]** Nachgemessen mit drei favoritisierten fuehrenden Karten (je eine
+pro Richtung, echter Nightfarer `Wylder`, echte Favoriten-Einstellung):
+
+| Chip | Streifen | benoetigt | Ergebnis |
+|---|---|---|---|
+| `BEST FOR DAMAGE` | 79 px | 91 px | **abgeschnitten** |
+| `BEST FOR SURVIVAL` | 79 px | 95 px | **abgeschnitten** |
+| `BEST FOR STATS` | 79 px | 76 px | passt, 3 px Luft |
+
+Deckungsgleich mit den Zahlen, die T-192 schon fuer die beiden alten Chips
+gefunden hatte, und mit AK-262s eigener Vorabrechnung fuer den neuen — **die
+Zahl ist nicht schlimmer geworden**, `BEST FOR STATS` reisst die 79-px-Grenze
+nicht.
+
+**Aber die Frage des Auftrags war nicht die Zahl, sondern die Wirkung, und
+die ist schlechter:** im selben Bild stehen jetzt drei favoritisierte,
+vorgezogene Karten nebeneinander, von denen eine **sauber lesbar** ist
+(`BEST FOR STATS`) und zwei **mitten im Wort** abbrechen (`BEST FOR DAMA`,
+`BEST FOR SURVI`). Vorher gab es in diesem Streifen kein funktionierendes
+Gegenbeispiel in Sichtweite — jetzt schon, und der Kontrast macht den Fehler
+auffaelliger, nicht unauffaelliger. Dazu kommt: sechs statt vormals bis zu
+drei Karten stehen vorgezogen da, und jede davon ist ein natuerlicher
+Favoriten-Kandidat (das ist der Zweck der Vorziehung) — die Flaeche, auf der
+ein Spieler auf den Fehler trifft, ist grösser geworden, ohne dass QA-229
+selbst sich veraendert haette.
+
+![Drei favoritisierte, vorgezogene Karten: zwei Chips abgeschnitten, einer nicht](design-review/2026-09-12/relicpicker-favourited-chips.png)
+
+**Einordnung:** bestaetigt QA-229 (P2/Major, offen, Zustaendigkeit
+`developer`) unveraendert in der Kennzahl; die Verschaerfung ist eine
+Sichtbarkeits-, keine Rechenfrage, und rechtfertigt keine eigene neue
+QA-Nummer — sie gehoert als Kontext an QA-229 selbst.
+
+### Offene Frage an den App Designer
+
+**DR-021** Sechs vorgezogene Karten statt drei — wie vom App Designer am
+12.09.2026 entschieden (AK-261) — bedeuten in der gemessenen Stichprobe
+(S2), dass **drei der sechs fuehrenden Karten denselben Namen tragen**
+(`Grand Luminous Scene`, dreifacher Gleichstand bei +6,0 Offensiv-Punkten,
+AK-45-konform markiert). Ein Spieler, der die vorgezogene Reihe ueberfliegt,
+um schnell "die beste Karte je Richtung" zu finden, sieht in der
+Attributs-Gruppe drei optisch fast identische Karten (gleicher Titel, gleiche
+`+6.0 pts`-Zahl, unterscheidbar nur an den Stichpunkt-Effekten) — genau die
+Art Verwechslungsgefahr, die AK-46/AK-262 fuer den Chip selbst schon einmal
+loesen mussten (Chip statt Position als Erklaerung), hier aber auf
+Kartenebene erneut auftritt. Zwei legitime Richtungen, keine davon von mir
+entschieden:
+
+1. **So lassen** — die Wertzeilen selbst unterscheiden die drei Karten
+   korrekt (nur eben nicht auf den ersten Blick über den Titel), und
+   Gleichstand ist ein echtes Spielfakt, keine Anzeige-Erfindung.
+2. **Innerhalb einer Gleichstandsgruppe zusaetzlich nach den Stichpunkt-Zeilen
+   sortieren oder gruppieren**, damit gleichnamige Karten nicht zufaellig
+   nebeneinanderstehen, sondern erkennbar als Gruppe — ein Eingriff in die
+   Ordnung, die AK-44 heute bewusst nicht erfindet.
+
+Das ist eine Geschmacks-/Produktentscheidung ohne objektiv richtig/falsch
+(genau der Fall, den der Auftrag mit "als Nutzer fragen" meinte), keine
+eigene Vorgabe von mir.
+
+---
+
 ## Review vom 2026-09-05 (T-056 — Sichtpruefung der sechs Inhalts-Tabs am laufenden Fenster)
 
 **Methode:** Live, am laufenden Fenster (`.venv\Scripts\python.exe run.py`,
