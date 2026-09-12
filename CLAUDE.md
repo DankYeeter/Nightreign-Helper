@@ -65,14 +65,16 @@ pytest <datei>      # eine einzeln genannte Datei OHNE -n; mit -n stiege sie
                     # Gegenproben-Regel
 ```
 
-`-n auto` ist **bewusst keine Voreinstellung** in `pytest.ini`.
-Stand 08.09.2026: **1257 passed, 9 skipped, 0 failed**. Wer die Suite laufen
-laesst, nennt seine Zahl gegen diese.
+`-n auto` ist **bewusst keine Voreinstellung** in `pytest.ini`. Stand
+08.09.2026: **1257 passed, 9 skipped, 0 failed**; aktuell **1781 passed, 9
+skipped, 0 failed** (`pytest -n auto -q`, 12.09.2026, T-199) — Differenz
+ungeklaert. Wer die Suite laufen laesst, nennt seine Zahl gegen den
+aktuellen Stand.
 
 ### Datenverzeichnisse — und die Sperre davor
 
-Das Programm schreibt an **drei** Orten. Wer es zu Test- oder Messzwecken
-startet, lenkt **alle drei** um und **weist jede Umlenkung nach**:
+Das Programm schreibt an **drei** Orten. Ein `PreToolUse`-Hook erzwingt die
+Umlenkung: wer sie vergisst, kommt nicht durch.
 
 | Variable | ausgewertet in | umlenken auf |
 |---|---|---|
@@ -80,11 +82,20 @@ startet, lenkt **alle drei** um und **weist jede Umlenkung nach**:
 | `LOCALAPPDATA` | `nrplanner/paths.py:20` | das eigene Testverzeichnis |
 | `APPDATA` | `nrplanner/shortcut.py:44-49` | das eigene Testverzeichnis |
 
-**Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds im Programm.
-Lesen ja, schreiben nie.** In Zyklus 4 und 5 sind auf diesem Weg **drei
-Datenverluste** entstanden (QA-195); am 07.09.2026 landete eine Verknuepfung
-im echten Start-Menue, weil nur zwei der drei Variablen umgelenkt waren.
-**Gelingt ein Nachweis nicht, wird der Lauf abgebrochen und nur das gemeldet.**
+**Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds. Lesen ja,
+schreiben nie.** Zyklus 4/5: drei Datenverluste (QA-195); 07.09.2026: eine
+Verknuepfung im echten Start-Menue, weil nur zwei der drei Variablen
+umgelenkt waren.
+
+**Positive Pfadaufloesung haelt als Nachweis** — den vom Code berechneten
+Pfad zuruecklesen (z. B. `paths.cache_dir()`). **Abwesenheit haelt nicht**:
+sie blickt durch dieselbe geteilte Ueberlagerung wie der Schreibvorgang
+selbst (QA-237). Die Ueberlagerung ist **kein Sicherheitsnetz**: die
+einzige dokumentierte Flucht (07.09.2026) lief durch `shortcut.create()`,
+das `powershell.exe` als Kindprozess startet, dessen COM-Aufruf ausserhalb
+dieses Prozesses schreibt — Hypothese des `security-reviewer`, belegt,
+nicht gegengeprueft. Die Drei-Variablen-Umlenkung bleibt die einzige
+Absicherung.
 
 Der **Spielstand selbst ist read-only** und darf gelesen werden — er ist die
 einzige realistische Datengrundlage.
@@ -92,30 +103,18 @@ einzige realistische Datengrundlage.
 ### Fester Testabzug statt Neubau
 
 ```
-C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug
+C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug
 ```
 
-> **Stand 12.09.2026: dieses Verzeichnis existiert nicht** (`ls` schlaegt
-> fehl; zuerst gemeldet vom `ui-ux-designer` in T-192, vom Director am
-> Dateisystem nachgeprueft). Bis es neu gebaut ist, zahlt **jeder**
-> Fensterlauf den Neuaufbau — und der echte Cache traegt eine aeltere
-> `extract_version`, auf der ein `Planner` abstuerzt. Gefuehrt als
-> **QA-231**, zu beheben **vor der Baurunde**: `power-user` und
-> `clean-room` sind beide Fensterlaeufe.
-
-Sollwert, wenn er wieder steht: 841 Dateien, 19,8 MB, gebaut von 1.8.0
-(`EXTRACT_VERSION` 11). **In das
-umgelenkte `LOCALAPPDATA` kopieren**, nicht darauf zeigen lassen — das
-Programm schreibt hinein. Spart je Lauf den Neuaufbau des Datenabzugs
-(gemessen 107 s bzw. rund 5 min, QA-198).
-
+Stand 12.09.2026, durch eine Probe des Nutzers am echten System bestaetigt:
+841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0,
+Ersparnis 110,0 s ohne gegen 5,75 s mit. **In das umgelenkte `LOCALAPPDATA`
+kopieren**, nicht darauf zeigen lassen — das Programm schreibt hinein.
+**Nicht unter `%LOCALAPPDATA%`** (QA-237), **nicht im Projektbaum**: er
+stammt aus der Spielinstallation, NH-002 und A-003 verbieten das.
 **Ungueltig**, sobald das Spiel gepatcht wird oder `EXTRACT_VERSION` ueber 11
-steigt. Der erste Lauf, dem das passiert, **ersetzt die Vorlage** und vermerkt
-es in `docs/plan-restarbeiten.md` (E-1).
-
-**Nicht ins Repository** — er stammt aus der Spielinstallation, NH-002 und
-A-003 verbieten das. Er liegt deshalb ausserhalb des Projektbaums, nicht bloss
-in `.gitignore`.
+steigt — der erste Lauf, dem das passiert, **ersetzt die Vorlage** und
+vermerkt es in `docs/plan-restarbeiten.md` (E-1).
 
 ### Scratchpad
 
