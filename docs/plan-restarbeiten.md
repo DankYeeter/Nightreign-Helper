@@ -324,3 +324,59 @@ Der Auftrag benennt die Teilung, statt sie der Rolle zu ueberlassen.
   `fable` gefunden. Genau das beschreibt L-016: eine Korrektur schliesst die
   **Fundstelle**, nicht die **Aussage** — und die Regel hat am Tag ihrer
   eigenen Annahme nicht gegriffen.*
+
+## P10 — Der Ueberbau-Audit vom 12.09.2026 (Korb 3)
+
+*Herkunft: ein Ueberbau-Audit des Directors ueber den ganzen Baum,
+12.09.2026, vom Nutzer in drei Koerbe sortiert. Korb 1 (kleine Eingriffe)
+laeuft in diesem Zyklus, Korb 2 (Loeschungen) liegt beim Nutzer. **Hier steht
+Korb 3: zwei strukturelle Umbauten, die keine Nebenarbeit sind.** Der Nutzer
+hat ausdruecklich verlangt, dass sie als regulaere Aufgaben laufen — Entwurf
+durch den `architect`, dann `developer`, dann QA — und nicht als
+Hauruck-Aktion neben etwas anderem.*
+
+**Gemessene Ausgangslage** (`wc -l`, Arbeitsbaum, HEAD `5989f97`,
+12.09.2026): `nrplanner/` + `nrdata/` 23 916 Zeilen · `tests/` 35 236 ·
+Markdown im Baum 113 477. Von den 23 916 Quellzeilen sind 3 785 Kommentar-
+und 5 761 Docstring-Zeilen (`ast`-Zaehlung), 3 239 leer — also rund 11 100
+Zeilen ausfuehrbarer Code.
+
+### P10-1 — `class Planner` ist 3 318 Zeilen
+
+`nrplanner/app.py:1836` bis `1:5154` (`main()`). Eine Klasse traegt damit
+knapp ein Drittel des gesamten Quellcodes. Die Tabkoerper liegen schon in
+eigenen Modulen (`bosstab.py`, `effectstab.py`, `arsenaltab.py`); der Schnitt
+existiert also bereits und ist nur fuer die Verdrahtung nicht gezogen.
+
+**Reihenfolge:** `architect` (Modulschnitt entlang der bestehenden Naht, mit
+AD-Nummer) → `developer` → QA-Regressionslauf. **Nicht** als Teil eines
+Feature-Auftrags. Der Umbau beruehrt jede Tab-Verdrahtung gleichzeitig und
+sprengt damit die Fuenf-Dateien-Grenze; die Teilung gehoert in den Entwurf,
+nicht in den Bauauftrag.
+
+### P10-2 — Die Mutations-Registry haelt 5 300 Zeilen kopierten Quelltext
+
+`scripts/differential/mutate.py:44` bis `5368` sind handgeschriebene
+Mutationsliterale — je Mutation der exakte alte und der exakte neue
+Quelltext. Darunter liegen rund 100 Zeilen Logik (`newline_of`, `apply`,
+`guard_the_own_tree`, `main`). `tests/test_differential_track.py` bewacht die
+Anker gegen den echten Quelltext, das heisst: **jedes Refactoring am
+Anwendungscode macht diese Datei rot**, und P10-1 macht das sicher.
+
+**Deshalb laeuft P10-2 vor oder mit P10-1, nicht danach.** Zwei Richtungen
+sind zu entwerfen, nicht schon entschieden: die Mutationen aus ihren Ankern
+zur Laufzeit erzeugen, oder die Registry auf die Mutationen einkuerzen, die je
+etwas gefangen haben. **Welche, entscheidet der `architect`** — dazu gehoert
+die Frage, ob der Differenzial-Track ueberhaupt noch traegt, was er kosten
+soll.
+
+### Nicht in Korb 3, sondern schon entschieden
+
+Die Prosakuerzung in `nrplanner/` (Korb 1) laeuft in der Variante
+**"nur belegt Redundantes"** — Nutzerentscheidung 12.09.2026: gekuerzt wird,
+was den Code nachspricht oder doppelt in `ARCHITECTURE.md` / `UI_SPEC.md`
+steht; **jede Zeile mit QA-, AD-, AK- oder SEC-Nummer und jede Deckenangabe
+bleibt woertlich stehen**, und je geloeschtem Block wird die Stelle genannt,
+die dasselbe sagt. Die vom Audit genannten 9 546 Zeilen sind damit **nicht**
+das Ziel; die Begruendungsdocstrings (`chalices.py:325-384` zu QA-041 und
+QA-046, `model.py`) stehen an keiner zweiten Stelle im Repo.
