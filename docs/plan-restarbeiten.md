@@ -481,3 +481,55 @@ selbst belegt. Falsch war durchgaengig dasselbe: **wo er Zeilen gezaehlt und
 daraus auf Redundanz geschlossen hat, lag er daneben; wo er eine Struktur
 benannt hat, lag er richtig.** Ein Zeilenzaehler sieht keine Importrichtung und
 keine geteilte Datei.
+
+### T-206 hat die groesste Audit-Behauptung gemessen — und sie faellt
+
+**Ausbeute: 20 Prosazeilen von 1427. 1,4 %.** Sieben Bloecke von 175, jeder mit
+benannter Ersatzstelle. Suite unveraendert (`1781 passed, 9 skipped`), und der
+Nur-Prosa-Beleg ist selbst gebaut: `ast.dump` ohne Docstrings vor und nach
+identisch, dazu jede Diffzeile gegen Docstring-Spanne und Kommentarmenge
+geprueft — **mit Positivkontrolle**, ein eingebautes `math.floor` → `int`
+schlaegt in beiden Pruefungen an.
+
+**Das Muster laeuft dem Audit entgegen.** `explain.py`, die nach Anteil
+dichteste der drei ("fast reiner Docstring", 49 %), lieferte **eine** Zeile:
+58 % ihrer Bloecke tragen eine Befundnummer und sind damit vor jedem Urteil
+geschuetzt. `model.py`, die kommentarlastige, lieferte 15. **Prosadichte sagt
+nichts ueber Kuerzbarkeit** — wer nach Anteil auswaehlt, waehlt falsch, und ich
+habe die drei Dateien genau so ausgewaehlt.
+
+Von 175 Bloecken waren **98 (56 %) durch "bleibt ohne Ermessen" geschuetzt**,
+bevor irgendein Urteil faellig war. Von den 77 uebrigen waren sieben kuerzbar.
+
+**Entscheidung: die restlichen siebzehn Dateien werden nicht gekuerzt.**
+Erwartung 1-3 %, also 100-300 Zeilen von rund 10 000, gegen einen Opus-Lauf je
+drei Dateien und je Zeile ein Leseurteil. Der `developer` hat es so empfohlen,
+und die Zahl traegt die Empfehlung. **Korb 1 ist damit abgeschlossen** bis auf
+T-203.
+
+**Regelkorrektur fuer eine etwaige Folgerunde.** Meine zwei Regeln kollidierten
+an `damage.py:22`: "jede Zeile mit AD-Nummer bleibt woertlich" gegen "der
+Verweis bleibt, der Wortlaut geht". Der `developer` hat die Kollision vorgelegt
+statt sie zu verstecken. **Ich habe seine Lesart uebernommen** — die Nummer
+bleibt, der nacherzaehlende Satz geht. Kuenftig heisst die Regel: *jede AD-,
+QA-, AK- oder SEC-Nummer bleibt; der Satz, der sie nacherzaehlt, darf gehen.*
+Mein Wortlaut war zu grob, nicht seine Umsetzung.
+
+### Drei Funde aus T-206, die nicht die Prosa betreffen
+
+1. **`scripts/differential/mutate.py:175-183` verankert eine Mutation in vier
+   Kommentarzeilen** (`# Thrusting Counter.`, `# Sorceries`, …). Wer die
+   kuerzt, entwaffnet `move-scope-constant-emptied`, und der Mutationslauf
+   meldet **nichts**. **Das schaerft P10-2:** die Registry haengt nicht nur am
+   Quelltext, sondern auch am Kommentartext — eine Kopplung, die das Audit
+   nicht gesehen hat und die jede Prosaarbeit an diesen Dateien vorher
+   entschaerfen muesste.
+2. **Sechs Zeilennummern-Zitate innerhalb der drei Dateien waren schon vor der
+   Aenderung falsch** (belegt mit `git show HEAD~1:… | sed -n`), und die
+   Kuerzung verschiebt sie um weitere 4 bis 15 Zeilen. **Kein Test prueft sie.**
+   Gefuehrt als QA-240.
+3. **`ARCHITECTURE.md:783-784` (AD-020 Punkt 4) zitiert einen Code-Kommentar
+   als seine Quelle** (`damage.py:502-505`). Dort ist das Dokument **nicht** die
+   Ersatzstelle, sondern das Abgeleitete. **Die Richtung des Belegs ist je Fall
+   zu pruefen** — "steht auch in ARCHITECTURE.md" heisst nicht immer, dass der
+   Code-Kommentar der entbehrliche Teil ist.
