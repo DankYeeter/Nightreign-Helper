@@ -13,6 +13,23 @@ import sys
 BUNDLED_NAME = "nightreign_data.json"
 
 
+class NoGameData(FileNotFoundError):
+    """There is no dataset to start on, and the whole reason is in the text.
+
+    A class of this program's own rather than a bare `FileNotFoundError`,
+    because `main` shows what this raises and `errortext.in_english` may only
+    show an exception's own words when the class was defined here (A8,
+    QA-211). A bare `FileNotFoundError` is what Windows also hands over --
+    worded by `FormatMessageW` in the language of the installation, and
+    carrying the whole path with it -- and nothing in the sink could tell the
+    two apart. This one carries `_no_data_message()`, which is the longest
+    piece of English in the program and the whole of the no-game experience.
+
+    Still a `FileNotFoundError`: every caller that already catches one keeps
+    working, and the failure really is a file that is not there.
+    """
+
+
 def _base_dir() -> pathlib.Path:
     # PyInstaller unpacks bundled data into _MEIPASS.
     meipass = getattr(sys, "_MEIPASS", None)
@@ -151,7 +168,7 @@ def _load_data(prefer_live: bool = True) -> dict:
             pass
 
     if snapshot is None:
-        raise FileNotFoundError(_no_data_message())
+        raise NoGameData(_no_data_message())
     return snapshot
 
 

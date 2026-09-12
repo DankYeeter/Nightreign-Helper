@@ -19,8 +19,13 @@ ones: the Start Menu button and a save re-read that failed.
   own text where a caller can show it, against a list that may only shrink;
 * its positive control, because a scan that has stopped scanning also finds
   nothing;
-* the four sinks QA-211 named and this change closed, driven with an
-  exception worded in German, checked for what comes out;
+* the four sinks QA-211 named and T-190 closed, driven with an exception
+  worded in German, checked for what comes out;
+* the two that were left over and T-193 closed -- the dialog that stands in
+  for the window when there is no dataset, and the save read -- where the
+  repair was a class rather than a line at the sink, so both halves are
+  driven: this program's own English sentence survives, a library's does
+  not;
 * the sentences of `errortext` themselves, which are the text that replaced
   it and are therefore in the window under A8 like any other.
 """
@@ -30,12 +35,14 @@ from __future__ import annotations
 import ast
 import errno
 import pathlib
+import struct
 import subprocess
 
 import pytest
 
+from nrdata import savefile
 from nrplanner import app as appmod
-from nrplanner import errortext, firstrun, inventory, shortcut
+from nrplanner import datasource, errortext, firstrun, inventory, shortcut
 
 #: What Windows says on a German installation when it will not open a file.
 #: A literal and not a call into the running system: the point is a text this
@@ -163,23 +170,22 @@ def everywhere_an_exception_is_quoted() -> dict[tuple[str, str, str], int]:
 #: and every line here is a real place where an exception's own text can
 #: still reach a reader.
 #:
-#: * `app.py::main` -- `load_data` raises `FileNotFoundError` with a message
-#:   this program wrote (`datasource._no_data_message`). Mapping it by class
-#:   would throw that message away, and marking it needs `datasource.py`,
-#:   which is over T-190's file budget.
-#: * `inventory.py::_scan_save`, **twice** -- the slot read and the stored
-#:   builds both quote what `nrdata/savefile.py` refused with. Those refusals
-#:   are English sentences of this repository, collected by AK-229's guard,
-#:   but they arrive as a plain `ValueError` and so cannot be told from
-#:   pycryptodome's. Mapping them by class was tried and threw the sentences
-#:   away; telling them apart needs a class in `nrdata/savefile.py`, also
-#:   over budget.
 #: * `nrdata/extract.py::_bosses` -- a `print` to the console, not a window.
+#:   A8 says "in the interface" and a console is none of it (decided by the
+#:   director on 12.09.2026); the day this program shows a console window,
+#:   the decision lapses and this line is a hole again.
 #: * `nrdata/icons.py::read_subtextures` -- `LayoutError` is this program's
 #:   class, so its text is shown, and it interpolates what ElementTree said.
+#:
+#: **Two lines left here on 12.09.2026** (T-193), and they were the ones the
+#: budget of T-190 could not reach: `app.py::main` and
+#: `inventory.py::_scan_save` (twice). Both are closed by a class rather than
+#: by a line at the sink -- `datasource.NoGameData` and
+#: `nrdata.binary.NotWhatItClaims` -- because the sinks catch everything and
+#: what they needed was a way to tell this program's own English sentence
+#: from Windows' and from a library's. Their cases are at the foot of this
+#: file.
 STILL_QUOTING = {
-    ("nrplanner/app.py", "main", "str(exc)"): 1,
-    ("nrplanner/inventory.py", "_scan_save", "str(exc)"): 2,
     ("nrdata/extract.py", "_bosses", "{exc}"): 1,
     ("nrdata/icons.py", "read_subtextures", "{exc}"): 1,
 }
@@ -436,3 +442,133 @@ def test_the_first_run_keeps_the_sentence_it_wrote_itself(monkeypatch,
 
     assert said == ["The param definitions are missing, so the game cannot be "
                     "read. Reinstalling should restore them."]
+
+
+# -- the two QA-211 left over, closed by a class ----------------------------
+
+def test_the_no_dataset_dialog_keeps_the_long_explanation(monkeypatch):
+    """The one A8 hole a player meets before there is a window at all.
+
+    `main` shows whatever `load_data` raised, and until T-193 it showed
+    `str(exc)`: this program's own explanation when the snapshot was simply
+    missing, and Windows' own wording -- in the language of the installation
+    and with the path in it -- for every other way that call can fail.
+
+    Raised through `_load_data` rather than built here: the point is the
+    class the raising line chose, and an exception constructed in the test
+    would assert nothing about that line. Put `FileNotFoundError` back in
+    `datasource` and the mapping answers by `errno` instead, which for a
+    hand-raised one is "no reason this program can name" -- so the sentence
+    below is what makes the class load-bearing.
+    """
+    monkeypatch.setattr(datasource, "_snapshot", lambda: None)
+
+    with pytest.raises(FileNotFoundError) as raised:
+        datasource._load_data(prefer_live=False)
+
+    said = errortext.in_english(raised.value)
+    assert said == datasource._no_data_message()
+    assert said.isascii(), said
+    assert "Nightreign Helper could not read your game data." in said
+
+
+def test_a_dataset_windows_will_not_hand_over_is_reported_in_english(
+        monkeypatch):
+    """The other half of the same sink: anything that is not ours.
+
+    The snapshot is read off the disk, so this is the everyday failure of
+    that call -- and it is an `OSError`, whose words are Windows'.
+    """
+    def refuse():
+        raise a_refusal_worded_by_windows()
+
+    monkeypatch.setattr(datasource, "_snapshot", refuse)
+
+    with pytest.raises(OSError) as raised:
+        datasource._load_data(prefer_live=False)
+
+    said = errortext.in_english(raised.value)
+    says_nothing_windows_said(said)
+    assert said == errortext.WHAT_THE_SYSTEM_REFUSED[errno.EACCES]
+
+
+def test_a_file_that_is_not_a_save_keeps_this_program_s_own_sentence(tmp_path):
+    """The save read, first half: A8 must not be bought with A7.
+
+    The refusals of the reading path are English sentences of this
+    repository -- AK-229 collects them and SEC-023 reads them for a path --
+    and mapping them by class was what T-190 tried and undid, because a
+    plain `ValueError` of ours is indistinguishable from a library's. What
+    tells them apart is `nrdata.binary.NotWhatItClaims`: take the class off
+    the `raise` in `savefile._members` and the player is told "something
+    went wrong that this program has no sentence for" instead.
+    """
+    path = tmp_path / "NR0000.sl2"
+    path.write_bytes(b"NOPE" + bytes(0x80))
+
+    with pytest.raises(inventory.SaveNotReadable) as raised:
+        inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+
+    assert str(raised.value) == "not a BND4 save container"
+
+
+def test_a_library_s_complaint_about_a_save_is_not_shown(monkeypatch,
+                                                         tmp_path):
+    """The save read, second half: what a library says stays in the library.
+
+    pycryptodome answers a member whose offset lies past the end of the file
+    with "Incorrect IV length" (QA-217), and that is the shape driven here --
+    a plain `ValueError` out of the same call, worded by somebody else.
+    Raised from `_members` rather than provoked with a prepared container,
+    because the question is what the sink does with a foreign class and not
+    which byte produces one.
+    """
+    path = tmp_path / "NR0000.sl2"
+    path.write_bytes(b"BND4" + bytes(0x80))
+
+    def refuse(_blob):
+        raise ValueError(GERMAN_FROM_WINDOWS)
+
+    monkeypatch.setattr(savefile, "_members", refuse)
+
+    with pytest.raises(inventory.SaveNotReadable) as raised:
+        inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+
+    says_nothing_windows_said(str(raised.value))
+    assert "ValueError" in str(raised.value)
+
+
+def test_the_line_about_the_stored_builds_says_it_in_english(monkeypatch,
+                                                             tmp_path):
+    """The second sink in the same function, which the count of two was for.
+
+    "no stored builds could be read: " is followed by whatever
+    `read_loadouts` raised, and a `struct.error` is the everyday one -- the
+    table ends in the middle of a record. The half where the refusal is ours
+    is driven on a real prepared container by
+    `test_hostile_savefile.py::test_the_refusal_reaches_the_window_instead_
+    of_the_console`; what is stubbed here is only the way to that line, not
+    the line, and not the class of what arrives at it.
+    """
+    path = tmp_path / "NR0000.sl2"
+    path.write_bytes(b"BND4" + bytes(0x80))
+    relic = savefile.OwnedRelic(1, [], 0, [])
+
+    def one_slot(_path):
+        return {"slot_0": bytes(64)}
+
+    def refuse(_blob):
+        raise struct.error("unpack_from requires a buffer of at least 8 bytes")
+
+    monkeypatch.setattr(inventory, "_decrypt_slots", one_slot)
+    monkeypatch.setattr(savefile, "read_owned_relics",
+                        lambda *a, **k: [relic])
+    monkeypatch.setattr(savefile, "read_relic_handles", lambda *a, **k: {})
+    monkeypatch.setattr(savefile, "read_loadouts", refuse)
+
+    found = inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+
+    assert found is not None
+    assert found.loadouts == []
+    assert found.loadout_error == \
+        "The file ends in the middle of something this had to read."

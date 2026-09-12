@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from Crypto.Cipher import AES
 
 from nrdata import savefile
+from nrdata.binary import NotWhatItClaims
 
 from . import errortext
 
@@ -148,14 +149,14 @@ class Inventory:
             # the same place: AK-229 collects what this path can say out of
             # the `raise` itself.
             if limit == by_density:
-                raise ValueError(
+                raise NotWhatItClaims(
                     f"this inventory holds {len(self.relics)} relics read "
                     f"from {self.source_bytes} bytes of save slot, denser "
                     f"than one per {savefile.MIN_BYTES_PER_RELIC_RECORD} "
                     f"bytes, which is not an inventory; the file is damaged "
                     f"or was not written by the game. Take it out of the "
                     f"save folder and rescan.")
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"this inventory holds {len(self.relics)} relics read from "
                 f"{self.source_bytes} bytes of save slot, more records than "
                 f"any save this game writes, which is not an inventory; the "
@@ -231,7 +232,7 @@ def refuse_a_size_no_save_can_have(size: int) -> None:
     Steam account id, and this sentence is shown to the player.
     """
     if size > LARGEST_SAVE_TO_READ:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"the file is {size // (1024 * 1024)} MB, far larger than any "
             f"save this game writes")
 
@@ -529,17 +530,15 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
         # saying where and without letting Windows choose the words.
         raise SaveNotReadable(errortext.in_english(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        # Not `errortext` here, and that is QA-211's remainder rather than an
-        # oversight: everything `_decrypt_slots` raises that is not an
-        # `OSError` comes out of `nrdata/savefile.py`, whose refusals are
-        # written in English in this repository and collected by AK-229's
-        # guard -- "not a BND4 save container", the two density refusals. They
-        # arrive as plain `ValueError`, which is indistinguishable from
-        # pycryptodome's, so mapping them by class would throw the sentences
-        # away and buy A8 with A7. Telling them apart needs a class of this
-        # program in `nrdata/savefile.py`; until then this place stands in
-        # `tests/test_exception_text_is_english.py::STILL_QUOTING`.
-        raise SaveNotReadable(str(exc) or exc.__class__.__name__) from exc
+        # QA-211's remainder, and what closed it: the refusals of the reading
+        # path -- "not a BND4 save container", the two density refusals, the
+        # unterminated name -- are English sentences of this repository and
+        # are what AK-229's guard collects, but they used to arrive as plain
+        # `ValueError` and so could not be told from pycryptodome's
+        # "Incorrect IV length". `nrdata.binary.NotWhatItClaims` is that
+        # class, so `errortext` keeps this program's words and maps a
+        # library's (A8 without paying A7).
+        raise SaveNotReadable(errortext.in_english(exc)) from exc
 
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
@@ -557,7 +556,11 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
             stored = savefile.read_loadouts(blob)
         except (ValueError, struct.error) as exc:
             stored = []
-            loadout_error = str(exc)
+            # Behind "no stored builds could be read: " in the window, so it
+            # is surface text under A8 like the line above it. A refusal of
+            # this program keeps its sentence, a `struct.error` from the
+            # standard library gets one written here (QA-211).
+            loadout_error = errortext.in_english(exc)
 
         # The save folder is named after the Steam account id. Naming it in
         # the window puts that id into every screenshot and bug report, so

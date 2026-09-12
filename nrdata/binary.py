@@ -5,6 +5,28 @@ from __future__ import annotations
 import struct
 
 
+class NotWhatItClaims(ValueError):
+    """A file does not hold what its own header promised.
+
+    A `ValueError` with a name, and the name is the whole point. Every
+    refusal raised for this reason carries a sentence written in this
+    repository and in English, and `nrplanner.errortext` shows the words of
+    an exception only when its class was defined here -- a plain
+    `ValueError` is indistinguishable from pycryptodome's "Incorrect IV
+    length" and is therefore mapped rather than quoted (A8, QA-211). Without
+    a class of our own the choice was between showing Windows' and a
+    library's wording on the surface, and throwing this program's own
+    sentences away (A7).
+
+    Raised for what a container says about itself and cannot back up: a
+    missing magic, a member table that does not fit in the file, a string
+    offset past the end, a slot denser than an inventory can be. Not raised
+    for a caller's mistake -- an argument this program's own code got wrong
+    stays a plain `ValueError`, because it is a fault in the program and not
+    in the file, and it has no business reaching a player at all.
+    """
+
+
 class Reader:
     def __init__(self, data: bytes, offset: int = 0, big_endian: bool = False):
         self.data = data
@@ -69,14 +91,14 @@ class Reader:
     def magic(self, expected: bytes) -> None:
         got = self.bytes(len(expected))
         if got != expected:
-            raise ValueError(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
+            raise NotWhatItClaims(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
 
     def cstr_at(self, offset: int, utf16: bool = False) -> str:
         return read_cstring(self.data, offset, utf16)
 
 
 def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
-    """The NUL-terminated string at `offset`, or a ValueError if there is none.
+    """The NUL-terminated string at `offset`, or `NotWhatItClaims` if none.
 
     The bound is the buffer's own length rather than a chosen constant: a name
     is read exactly as far as there are bytes to read it in, and no further.
@@ -96,13 +118,13 @@ def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
     character in half.
     """
     if not 0 <= offset <= len(data):
-        raise ValueError(
+        raise NotWhatItClaims(
             f"string offset {offset} lies outside the {len(data)}-byte buffer"
         )
     if not utf16:
         end = data.find(b"\0", offset)
         if end < 0:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"unterminated string at offset {offset} "
                 f"in a {len(data)}-byte buffer"
             )
@@ -112,7 +134,7 @@ def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
     while True:
         end = data.find(b"\0\0", pos)
         if end < 0:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"unterminated UTF-16 string at offset {offset} "
                 f"in a {len(data)}-byte buffer"
             )

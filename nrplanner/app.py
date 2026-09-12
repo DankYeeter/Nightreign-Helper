@@ -5193,7 +5193,14 @@ def main() -> int:
     try:
         data = load_data()
     except Exception as exc:  # noqa: BLE001
-        QMessageBox.critical(None, "Nightreign Helper", str(exc))
+        # The last A8 hole of QA-211, and the only one a player can reach
+        # before the window exists. `load_data` raises `NoGameData` with the
+        # long English explanation of the no-game case, and `errortext` hands
+        # that through because the class is this program's; anything else --
+        # an `OSError` from reading the snapshot, a library's complaint about
+        # its contents -- is worded here instead of by Windows.
+        QMessageBox.critical(None, "Nightreign Helper",
+                             errortext.in_english(exc))
         return 1
 
     window = Planner(data)

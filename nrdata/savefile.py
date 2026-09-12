@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from Crypto.Cipher import AES
 
-from .binary import read_cstring
+from .binary import NotWhatItClaims, read_cstring
 
 # Where the BND4 member headers begin, and the fields this reader takes out of
 # one. A member header may be larger than that -- the rest is padding this
@@ -41,9 +41,9 @@ class SaveSlot:
 def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     """Yield (index, name, offset, size) for each BND4 member."""
     if blob[:4] != b"BND4":
-        raise ValueError("not a BND4 save container")
+        raise NotWhatItClaims("not a BND4 save container")
     if len(blob) < BND4_HEADER_SIZE:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"save container is {len(blob)} bytes, too short for a BND4 header"
         )
 
@@ -58,7 +58,7 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     # the same place.
     if (file_header_size < MEMBER_FIELDS_SIZE
             or BND4_HEADER_SIZE + file_count * file_header_size > len(blob)):
-        raise ValueError(
+        raise NotWhatItClaims(
             f"save container claims {file_count} members of "
             f"{file_header_size} bytes each, which do not fit in "
             f"{len(blob)} bytes"
@@ -101,7 +101,7 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
         # container that has already claimed more than it holds.
         claimed += size
         if claimed > len(blob):
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"save container's first {i + 1} members claim {claimed} "
                 f"bytes between them, which do not fit in {len(blob)} bytes"
             )
@@ -351,6 +351,10 @@ def read_owned_relics(
         mode = relic_scan_mode(valid_relic_ids)
     offsets_of = _OFFSETS_OF_MODE.get(mode)
     if offsets_of is None:
+        # A plain `ValueError` and not `NotWhatItClaims`: the save said
+        # nothing wrong here, a caller passed a mode that does not exist.
+        # That is a fault in this program, and nothing on the reading path
+        # may present it to the player as something about his file.
         raise ValueError(f"{mode!r} is not a relic scan mode; the modes are "
                          f"{FAST!r} and {SLOW!r}")
     out: list[OwnedRelic] = []
@@ -403,13 +407,13 @@ def read_owned_relics(
             # this path out of the `raise` itself: a half kept in a variable
             # beside it is a half nothing checks.
             if limit == by_density:
-                raise ValueError(
+                raise NotWhatItClaims(
                     f"a save slot of {len(slot_data)} bytes holds more than "
                     f"{limit} relic records, denser than one record per "
                     f"{MIN_BYTES_PER_RELIC_RECORD} bytes, which is not an "
                     f"inventory; the file is damaged or was not written by "
                     f"the game. Take it out of the save folder and rescan.")
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"a save slot of {len(slot_data)} bytes holds more than "
                 f"{limit} relic records, more records than any save this "
                 f"game writes, which is not an inventory; the file is "
@@ -577,7 +581,7 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
         # returning what was found would hand back a table that looks like
         # the player's own, at the price this limit exists to refuse.
         if starts > allowed_starts:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"a save slot of {limit} bytes begins a Nightfarer loadout "
                 f"table at more than {allowed_starts} places, denser than "
                 f"one table per {MIN_BYTES_PER_LOADOUT_TABLE} bytes, which "
@@ -629,7 +633,7 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             hits = slot_data.count(marker)
             if hits:
                 seen.append(f"ff{n:02x}×{hits}")
-        raise ValueError(
+        raise NotWhatItClaims(
             "equipped-loadout table not found in this save slot "
             f"(no ascending run of {MIN_HEROES}+ Nightfarer markers; "
             f"markers present: {', '.join(seen) or 'none'})"
