@@ -20,9 +20,11 @@ the second one:
 
 **Every figure carries the environment it was taken in** (L-009): platform,
 Qt platform plugin, style, UI scale, and whether the pixels are logical or
-physical. Offscreen these are logical pixels on a desktop Qt reports as
-800 x 800, which is *narrower* than the picker opens -- so the row count is
-read off the viewport the dialog asks for, not off what a screen would grant.
+physical. This script refuses to run at all on the `offscreen` Qt platform
+plugin (`refuse_if_offscreen`, T-212): its font metrics differ from a real,
+shown window, and T-199 measured this same class of script 278/271/278 px
+offscreen against the real 228 px -- a wrong number a script like this one
+would hand straight into a spec.
 
 **The grid is empty until the answer arrives** (AK-211 to AK-219, T-130).
 Since the picker track was wired to the window's `AdvisorController` the
@@ -54,10 +56,6 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
-import os  # noqa: E402
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QEventLoop  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -132,10 +130,32 @@ def whole_rows(dialog) -> int:
     return sum(1 for bottom in bottoms.values() if bottom <= room)
 
 
+def refuse_if_offscreen(app: QApplication) -> None:
+    """Refuse to measure geometry on the 'offscreen' Qt platform (L-009).
+
+    The module docstring already names the offscreen desktop's 800x800
+    logical px as a *documented* peculiarity of a reading taken that way --
+    that documentation covered the viewport, not the font metrics. T-199
+    measured this same class of script (a real `Planner`, real relic cards)
+    at 278/271/278 px offscreen against the real 228 px on a shown window.
+    This script's figures are the recipe behind the T-093 report (L-001) and
+    feed AK-41/AK-51, so a wrong number here does not stay in a terminal --
+    it becomes a spec value. Refusing outright, not warning: T-212.
+    """
+    if app.platformName() == "offscreen":
+        raise SystemExit(
+            "refusing to measure geometry on the 'offscreen' Qt platform "
+            "(L-009): its font metrics differ from a real, shown window, and "
+            "the widths and heights this script prints feed the T-093 "
+            "report and AK-41/AK-51. Run this on a machine with a real "
+            "display and without QT_QPA_PLATFORM=offscreen set.")
+
+
 def main() -> int:
     data = json.loads(paths.snapshot_path().read_text(encoding="utf-8"))
     model.configure(data)
     app = QApplication.instance() or QApplication([])
+    refuse_if_offscreen(app)
     appmod.apply_appearance(app)
 
     window = appmod.Planner(data)

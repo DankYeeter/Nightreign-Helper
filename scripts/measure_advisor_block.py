@@ -22,6 +22,13 @@ logical or physical. Widths here are **logical** px, which is what
 in the environment for the 150 % half of AK-160: Qt fixes the scale when the
 QApplication is made, so one process cannot measure both.
 
+This script refuses to run at all on the `offscreen` Qt platform plugin
+(`refuse_if_offscreen`, T-212) instead of printing that environment line and
+measuring anyway: its font metrics differ from a real, shown window, and
+T-199 measured this same class of script 278/271/278 px offscreen against
+the real 228 px -- a figure that feeds AK-160/AK-161 must not be one of
+those.
+
 Nothing is written anywhere: the dataset comes from the snapshot, the save is
 read in the background the way the window itself reads it (AD-029 stage B,
 T-142) and this script waits for `window.save_reader.is_reading()` to turn
@@ -283,13 +290,34 @@ def report(window, nightfarer: str) -> None:
     settle()
 
 
+def refuse_if_offscreen(app: QApplication) -> None:
+    """Refuse to measure geometry on the 'offscreen' Qt platform (L-009).
+
+    This script's line and pixel counts feed the AK-160/AK-161 decisions in
+    `UI_SPEC.md` -- numbers that outlive the one run that produced them, not
+    a figure a human glances at once. T-199 measured this exact class of
+    script -- a real `Planner` window, widget `sizeHint`s and scrollbar
+    ranges -- at 278/271/278 px offscreen against the real 228 px on a shown
+    window, purely from the offscreen plugin's different font metrics. A
+    script whose numbers become a spec value must not hand one back that
+    only looks plausible, so this refuses outright rather than warning: T-212.
+    """
+    if app.platformName() == "offscreen":
+        raise SystemExit(
+            "refusing to measure geometry on the 'offscreen' Qt platform "
+            "(L-009): its font metrics differ from a real, shown window, and "
+            "the widths and heights this script prints feed UI_SPEC.md "
+            "decisions (AK-160/AK-161). Run this on a machine with a real "
+            "display and without QT_QPA_PLATFORM=offscreen set.")
+
+
 def main() -> int:
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     data = json.loads(paths.snapshot_path().read_text(encoding="utf-8"))
     model.configure(data)
     from nrplanner.app import _dark_palette
 
     app = QApplication(sys.argv)
+    refuse_if_offscreen(app)
     app.setStyle("Fusion")
     app.setPalette(_dark_palette())
     window = a_window(data)
