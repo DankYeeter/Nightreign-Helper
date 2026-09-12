@@ -112,7 +112,10 @@ muessen es nicht. Volltext in `C-004.md`.
 
 Nach Abschluss von A-033: Datum der letzten nachgeruesteten Kopie hier
 eintragen; 60 Tage spaeter ist die Qt-Lizenz nach GPL § 8(b) endgueltig
-wiederhergestellt, sofern keine Anzeige einging. **Datum: —**
+wiederhergestellt, sofern keine Anzeige einging. **Datum: 2026-09-08**
+(Nachweis: T-117, vom Director je Tag mit `gh release view` gegengeprueft;
+60-Tage-Ende **2026-11-07**, sofern keine Beanstandung eingeht — nachgetragen
+2026-09-12, T-210, das Feld stand seit dem Nachweis leer).
 
 ## Nicht geprueft
 
@@ -250,3 +253,65 @@ beauftragt):
 3. **QA-207 — bestaetigt: nur nach vorn.** Die zwoelf bestehenden Pakete
    bleiben unangetastet; **das neue bekommt die richtige Ordnerstruktur**, so
    dass der Verweis in `THIRD_PARTY.md` nicht mehr ins Leere laeuft.
+
+---
+
+## Pruefung 2026-09-12 (compliance-agent, T-210, Modus `pruefen`, Stand `7c3a260`)
+
+Ergebnis je Auflage — **Feststellung, keine Abnahme**; "erfuellt" und
+"abgenommen" setzt nur der Nutzer. Volltext, Belege und Fundstellen in
+`docs/berichte/T-210-compliance-agent.md`. **Keine Auflage steht auf ROT.**
+
+| ID | Ampel | Pruefergebnis 2026-09-12 | Beleg / was fehlt |
+|---|---|---|---|
+| A-001 | GRUEN | erfuellt | `tests/golden/weapon_damage.json`: 18 Faelle, nur Namen, IDs, Zahlen, projekteigener Panel-Text; keine Spielprosa |
+| A-002 | GELB | **offen** | kein maschineller Waechter gegen Spielprosa im Fixture gefunden (Suche `prose\|flavour\|A-001\|Beschreibung\|caption` in `tests/` und `scripts/`, 0 einschlaegige Treffer; `capture_weapon_damage.py` filtert nicht). Adressat developer |
+| A-003 | GELB | erfuellt | README trennt: Z. 57 und Disclaimer ("The released executable contains no game data") vs. Z. 631-632 ("Screenshots in this README show the tool's own interface…"); der absolute Satz "distributes none" kommt im README nicht mehr vor (Volltextsuche 0 Treffer) |
+| A-004 | GELB | erfuellt | `THIRD_PARTY.md` Abschnitt "Game data": Aussage auf das Programm/den Release-Lauf bezogen, kein absoluter Repo-Satz |
+| A-005 | — | erfuellt (dauerhaft) | README-Disclaimer Z. 621-623 unveraendert vorhanden |
+| A-006 | — | kein Ereignis | keine Monetarisierung beobachtet |
+| A-007 | — | erfuellt | 18 Faelle (gezaehlt: `"case"`-Vorkommen), unter "einige Dutzend" |
+| A-008 | GELB | **offen** | `release.yml` prueft weiterhin nur `nrplanner/data/` ("Refuse to ship game data", Z. 81-87); kein pytest-Lauf und kein tests/-Waechter (u. a. `test_release_spec_datas.py`) im Release-Lauf — die Absicherung liegt allein in `tests.yml`. Adressat developer |
+| A-009 | — | kein Ereignis | kein Takedown (A-035-Auskunft 07.09.) |
+| A-010 | ROT (sperrt nicht) | zurueckgestellt (Nutzer) | unveraendert; Entscheid 02.09. gilt |
+| A-011 | GELB | ruht | bedingt auf Weg N-b; gegenstandslos, solange A-010 zurueckgestellt ist |
+| A-012 | GELB | **offen** | keine Quellenangabe an den sieben Einbindungsstellen im README (Bilder stehen ohne Bildunterschrift); der Disclaimer-Satz am Ende ist nach C-002 keine Quellenangabe an der Zitatstelle (§ 63 Abs. 1 UrhG). Adressat technical-writer |
+| A-013 | GELB | **teilweise** | Nightlords-Auswahl im Code festgelegt (`make_screenshots.py:136-142`, `bosses[0]`); World-Events-Detailkarte weiterhin nicht festgelegt — genau die Karte, vor der C-002 Befund 7 warnt ("Curse of the Demon", vollstaendig Spielprosa), kann bei der naechsten Neuaufnahme ins Bild rutschen. Faellig vor der naechsten Neuaufnahme. Adressat developer |
+| A-014 | GELB | eingehalten (Ergebnis) | die drei neuen PNG unter `design-review/2026-09-12/` wurden in diesem Lauf gegen A-010 geprueft: keine Spielprosa (nur Reliknamen, funktionale Effektzeilen, eigene Zahlen). **Der Prozess lief nicht von selbst** — die Pruefung fand erst durch T-210 statt, nicht vor dem Commit |
+| A-015 | — | offen (Nutzer) | alte `nightlords.png` weiterhin in der Git-Historie; Entscheidung liegt beim Nutzer |
+| A-016 | GELB | gilt fort | Nutzerentscheidung 01.09. (privat, keine Einnahmen) unveraendert |
+| A-017 | GELB | erfuellt, soweit pruefbar | keine Spielgrafik ausserhalb des Oberflaechenkontexts im Repo gefunden; App-Icon ist eigenerzeugt (README Z. 634-636). **Social-Preview-Bild des Repos ohne `gh` nicht pruefbar** |
+| A-018 | GELB | eingehalten | kein Bild zeigt einen Katalog in nennenswertem Umfang; die Picker-PNG zeigen das eigene Inventar (55 Relikte), nicht den Effektkatalog (652) |
+| A-019 | GELB | eingehalten | README: 0 Treffer fuer "fair use" / "Video Policy" (case-insensitive) |
+| A-020 | ROT→erfuellt | erfuellt, abgenommen (Nutzer 09.09.) | unveraendert |
+| A-021 | GELB | erfuellt (Feststellung) | `THIRD_PARTY.md` ist die Hinweisdatei: woertliche Copyright-Vermerke aus den Wheels je Komponente, Qt-Quellfundstelle, Relink-Absatz; Volltexte in `licenses/` fuer alle sechs gebuendelten Komponenten vorhanden. Abnahme setzt der Nutzer |
+| A-022 | GELB | erfuellt (Ist, Aktenlage) | Repo oeffentlich (geprueft 06.09., `CLAUDE.md`); PySide6 unveraendert 6.11.1 — kein Upgrade, keine Neu-Lektuere faellig |
+| A-023 | GELB | erfuellt fuer den Bestand; Restpflicht beim naechsten Release | Bestand: zwoelf Beschreibungen nachgeruestet (Nachweis Director 08.09.). Kuenftig: `RELEASE_TEXT.md` Variante A liegt fertig vor — **einfuegen muss sie der release-manager beim Release** |
+| A-024 | GELB | erfuellt | README "Where your data lives" und beide Varianten in `RELEASE_TEXT.md` tragen den Transparenztext **einschliesslich des Satzes ueber die ausgefuehrte Bibliothek** (Z. 44-48 bzw. 98-102) — die Registernotiz vom 09.09. (Luecke in Z. 41-49/91-99) ist damit ueberholt |
+| A-025 | GRAU→entschieden | entschieden (Nutzer 09.09.: FORTSETZEN) | laut diesem Register sperrt A-025 nicht mehr. **Hinweis:** der T-210-Auftrag/`docs/state.md` fuehrt A-025 als offen — Widerspruch der Buchfuehrung, vom Director zu klaeren; die Zeile in der C-003-Tabelle oben traegt noch "offen" |
+| A-026 | GRUEN | erfuellt (Feststellung) | SEC-023 "behoben", Retest T-185 vom 12.09. (`security/findings.md` Z. 41) — mit dort dokumentierter Randbedingung (geschlossen an der Quelle, nicht an der Senke) |
+| A-027 | GRUEN | erfuellt | README "Where your data lives": Cache-Pfad `%LOCALAPPDATA%\NightreignHelper` und Loeschung ("Uninstalling means deleting…") |
+| A-028 | GRUEN | erfuellt | README Z. 470-473 und `RELEASE_TEXT.md` beide Varianten ("Before you run it: back up your save…", read-only, AS IS) |
+| A-029 | GRAU | **offen** | was fehlt: das Upstream-Issue bei Paramdex ist nicht belegt, und `vendor/Paramdex/NOTICE` sagt selbst, der Commit sei nicht gepinnt ("Note on provenance"). Faellig bei Gelegenheit bzw. beim naechsten Refresh |
+| A-030 | GRUEN | erfuellt | `tests/test_release_spec_datas.py` existiert (Waechtertest fuer `datas` in der Spec) |
+| A-031 | GELB | **offen — Bedingung ungeklaert** | was fehlt: `NightreignHelper.spec:97` setzt `upx=True`; ob die ausgelieferten EXEs tatsaechlich UPX-gepackt sind, haengt davon ab, ob der Runner UPX hatte (PyInstaller ueberspringt still; ungeprueft). Feststellung am Artefakt oder `upx=False` — Adressat release-manager; falls gepackt: UPX-Lizenzausnahme fehlt im Hinweispaket (`licenses/` enthaelt keine UPX-Datei) |
+| A-032 | — | kein Ereignis | kein Netz, kein Schreiben, keine Monetarisierung, kein Modell, keine Gesellschaft, keine Bewerbung beobachtet |
+| A-033 | GELB | ausgefuehrt, Nachweis erbracht; **Abnahme durch den Nutzer offen** | Datum-Feld oben in diesem Lauf nachgetragen (08.09.; 60-Tage-Ende 07.11.2026) |
+| A-034 | GELB | erfuellt nach letzter Pruefung (08.09.: 12 Tags) | in diesem Lauf nicht neu pruefbar (Rolle ohne git/gh-Zugriff) |
+| A-035 | — | erfuellt | Nutzerauskunft 07.09.: keine Beanstandung |
+| A-036 | — | erfuellt | Nutzerauskunft 07.09.: durchgehend oeffentlich |
+
+**Befund ohne bestehende Auflage (braucht eigene Klaerung, naechste freie
+Nummer ist C-005 — C-004 ist vergeben):** Die drei Programmfenster-Abzuege
+unter `design-review/2026-09-12/` (und die sechs aelteren unter
+`design-review/2026-09-01/` und `2026-09-02/`) sind **keine "Spieldaten" im
+Sinne des Repo-Verbots** (das zielt auf extrahierte Bestaende:
+`nightreign_data.json`, Icon-Pack) und **keine Bildschirmabzuege im Sinne von
+NH-002** (`QWidget.grab()` greift nur das Programmfenster). Der richtige
+Massstab ist C-002 — dessen foermlicher Gegenstand aber nur die sieben Dateien
+unter `docs/screenshots/` waren. Inhaltlich bestehen alle drei PNG die
+C-002-Kriterien (keine Spielprosa, Spielgrafik nur im Oberflaechenkontext,
+kein Katalog in nennenswertem Umfang); **die foermliche Erstreckung des
+C-002-Massstabs auf `design-review/` und kuenftige Bildbestaende ausserhalb
+`docs/screenshots/` ist nie geklaert worden** und legt dieser Lauf
+(Modus `pruefen`) nicht selbst an.
