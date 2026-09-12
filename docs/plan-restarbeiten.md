@@ -424,3 +424,60 @@ zitiert — die Berichte 13-mal, die Auftraege ueber ihren **alten** Pfad
 Verweis ist (ueber 20 Nummern, ungezaehlt). Sie sind der einzige verbleibende
 Kandidat, und die Frage dazu ist nicht "loeschen?", sondern erst "welche
 Verweise haengen daran?".
+
+### Korb 1 — Bilanz nach T-204 (12.09.2026)
+
+**Zwei von drei mechanischen Punkten sind erledigt, einer ist am Bestand
+gescheitert — und das Scheitern ist das wertvollere Ergebnis.**
+
+- **`baseline_for` ist gestrichen** (`7bb927c`), einziger Aufrufer im Test
+  bestaetigt und inline ersetzt. **Netto -6 Zeilen.** Suite unveraendert:
+  `1781 passed, 9 skipped`.
+- **`StrEnum` ist abgelehnt, begruendet.** `nrplanner/advisor/goals.py:56` macht
+  `from . import types`; `types.py` importiert nur `model`. **Die Richtung ist
+  eindeutig** (vom Director am Quelltext nachgeprueft, nicht aus dem Bericht
+  uebernommen): `types.py` kann die Zielrichtungs-Registry nicht lesen, ohne
+  einen Zirkelimport zu bauen. Die einzige Alternative waere, die drei Goal-Ids
+  ein zweites Mal in `types.py` hart zu schreiben — zwei Orte statt einem,
+  gegen das Muster des Moduls selbst, und bei einer vierten Richtung bricht
+  jeder gewoehnliche Aufruf mit `ValueError`, wo er heute nur ungeprueft
+  durchlaeuft. **Der Audit hat die Klassen gesehen und die Importrichtung
+  nicht.**
+- **Offen und ausdruecklich nicht mit erledigt:** der Kommentarsatz
+  *"enforced rather than hoped for"* (`types.py:225`) ist weiterhin ungenau,
+  unabhaengig von der `StrEnum`-Frage — eine leere `str`-Unterklasse erzwingt
+  nichts. Gehoert in die Prosakuerzung oder einen eigenen Punkt.
+- **Wenn `StrEnum` trotzdem gewollt ist**, ist es **kein** Formsache-Auftrag
+  mehr, sondern ein `architect`-Schnitt gegen den Zirkelimport. Nicht
+  beauftragt, und ich empfehle es nicht: der Nutzen ist Typdisziplin an drei
+  Werten, die Kosten sind ein Modulschnitt.
+
+**Nachzuziehen, nicht meine Datei:** `ARCHITECTURE.md:2459` sagt woertlich
+*"`baseline_for(pool, goal_id) -> float` bleibt unveraendert gueltig und liest
+weiterhin `.value`"* — die Funktion existiert seit `7bb927c` nicht mehr
+(Fundstelle vom Director geprueft). **Gehoert dem `architect`** und laeuft mit
+dem naechsten seiner Auftraege (P10 braucht ihn ohnehin). Bis dahin ist es eine
+bekannte Altstelle und kein Versehen.
+
+### Was vom Audit nach dem Kontakt mit dem Bestand uebrig ist
+
+*Stand 12.09.2026, damit die naechste Runde nicht denselben Bogen laeuft.*
+
+| Punkt des Audits | Ergebnis |
+|---|---|
+| 69 207 Zeilen Archive loeschen | **widerlegt** — keine Kopien, die Spec wurde geteilt |
+| Register loeschen (533) | **widerlegt** — `ARCHITECTURE.md:26` nennt es den Einstieg |
+| 146 Berichte loeschen | **zurueckgestellt** — 13-mal aus lebenden Dateien zitiert |
+| `StrEnum` statt zweier `str`-Klassen | **widerlegt** — Zirkelimport |
+| `baseline_for` inlinen | **erledigt**, -6 Zeilen |
+| Kopf von `requirements-dev.txt` | laeuft in T-203 |
+| Prosakuerzung (11 402 Zeilen) | laeuft als **Pilot** auf drei Dateien, T-206 |
+| `Planner`, 3 318 Zeilen | **bestaetigt** als echte Schuld, P10-1 |
+| Mutations-Registry, 5 300 Zeilen | **bestaetigt** — und QA-234 hat die Kopplung noch am selben Tag bewiesen, P10-2 |
+
+**Die Lehre ist nicht "der Audit war falsch".** Seine zwei groessten
+strukturellen Befunde haben gehalten, und einer hat sich binnen Stunden von
+selbst belegt. Falsch war durchgaengig dasselbe: **wo er Zeilen gezaehlt und
+daraus auf Redundanz geschlossen hat, lag er daneben; wo er eine Struktur
+benannt hat, lag er richtig.** Ein Zeilenzaehler sieht keine Importrichtung und
+keine geteilte Datei.
