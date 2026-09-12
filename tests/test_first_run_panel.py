@@ -564,7 +564,8 @@ def test_the_next_dialog_opens_where_the_last_one_was_answered(tmp_path):
     assert settled.game == game
 
 
-def test_the_first_dialog_opens_at_the_folder_that_was_remembered(tmp_path):
+def test_the_first_dialog_opens_at_the_folder_that_was_remembered(
+        tmp_path, monkeypatch):
     """Section 4.1: as near his goal as anything known can put him."""
     game = an_install(tmp_path)
     player = Player([firstrun.QUIT])
@@ -573,7 +574,16 @@ def test_the_first_dialog_opens_at_the_folder_that_was_remembered(tmp_path):
 
     assert firstrun.where_to_start_looking(game) == game
     assert firstrun.where_to_start_looking(game / "gone") == game
-    assert firstrun.where_to_start_looking(None) in (None, firstrun.STEAM_COMMON)
+
+    # QA-235: no Steam library is known here, so the fallback is the last
+    # word -- both are set, not read off whatever Steam this machine has
+    # (or does not have).
+    monkeypatch.setattr(firstrun.gamefiles, "steam_common_folders", lambda: [])
+    fallback = tmp_path / "fallback" / "steamapps" / "common"
+    fallback.mkdir(parents=True)
+    monkeypatch.setattr(firstrun, "STEAM_COMMON", fallback)
+
+    assert firstrun.where_to_start_looking(None) == fallback
 
 
 def test_quitting_keeps_nothing_and_carrying_on_keeps_nothing(tmp_path):
