@@ -765,7 +765,6 @@ def _held_slots_line(problem: types.SlotProblem) -> str:
 def _without_the_curse(chosen: Sequence[types.Candidate],
                        carrier: types.Candidate,
                        curse_id: int) -> tuple[types.Candidate, ...]:
-    """The same assignment with one curse taken off one copy."""
     return tuple(
         dataclasses.replace(
             copy, curse_ids=tuple(other for other in copy.curse_ids

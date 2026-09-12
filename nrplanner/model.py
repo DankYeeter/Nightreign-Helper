@@ -200,9 +200,6 @@ INVERTED_SIGN = {"changeHpPoint", "changeMpPoint"}
 
 # Whether a number multiplies or adds is decided by the field's own neutral
 # value in the game data, not by whether its name happens to end in "Rate".
-# configure() fills these from the snapshot's field_baselines; until it is
-# called the name-based rule below is used, which keeps the module usable on
-# its own but is the less accurate of the two.
 #
 # Five fields ending in "Rate" are additive and were being multiplied:
 # changeHpRate, changeMpRate, bowDistRate, itemDropRate and
@@ -278,7 +275,6 @@ def configure(data: dict) -> None:
 
 
 def is_multiplier(field_name: str) -> bool:
-    """Does this field scale what it touches, rather than add to it?"""
     baseline = FIELD_BASELINE.get(field_name)
     if baseline is None:
         return field_name.endswith("Rate") or field_name in EXTRA_MULTIPLIERS
@@ -321,12 +317,6 @@ def is_sentinel(field_name: str) -> bool:
 RATE_LABELS.update(EXTRA_MULTIPLIERS)
 RATE_LABELS.update(FLAT_BONUSES)
 
-# A critical-hit buff raises all five element rates, exactly as an ordinary
-# attack buff does, and the two were being multiplied into the same figures.
-# That is wrong in both directions: it inflates the Physical Attack line with
-# a bonus that only applies to criticals, and it hides the critical bonus
-# among numbers that look like general damage. Effects carrying this flag are
-# therefore routed into a bucket of their own.
 # Fields that gate an effect on something that is not always true. An effect
 # carrying one of these must NOT be folded into the flat totals: "Lower Attack
 # When Below Max HP" only bites below 85% HP, and counting it unconditionally
@@ -859,8 +849,6 @@ def compute_derived(curves: dict, build: "Build") -> None:
     for label, curve in curves.items():
         attribute = curve["attribute"]
         base = evaluate_curve(curve, build.base_attributes.get(attribute, 0))
-        # Relic attribute bonuses feed back into the curve, then rate
-        # multipliers apply on top of the result.
         raised = evaluate_curve(curve, build.attributes.get(attribute, 0))
         rate = build.rates.get(DERIVED_RATE_FIELD.get(label, ""), 1.0)
         build.derived[label] = (base, raised * rate)
@@ -900,10 +888,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     because the sheet has no way to know. Declaring one counts it exactly as
     though that many copies were equipped.
 
-    Raises RuntimeError until configure() has been given the game data: which
-    fields multiply and which add is read from the data, and the fallback that
-    guesses it from the field name is a different calculation, not a rougher
-    one. A wrong number nobody was warned about is worse than no number.
+    Raises RuntimeError until configure() has been given the game data.
     """
     if not _CONFIGURED:
         raise RuntimeError(

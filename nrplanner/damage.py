@@ -19,11 +19,7 @@ three was wrong on its own. So the choice is made here, once per named
 question, and a display names its question instead of assembling inputs:
 `Question`, `MULTIPLIERS_FOR`, `ATTRIBUTES_FOR`.
 
-What the facade deliberately does *not* flatten is in AD-020: the arsenal tab
-ranks at a chosen target tier, the breakdown's left-hand column stands on the
-level's own attributes, the starting-armament penalty follows a slot-and-hero
-pairing, class-scoped rates stay per weapon class, and the critical rate stays
-out. Five differences that are the questions, not the drift.
+What the facade deliberately does *not* flatten is in AD-020.
 
 **Not every armament is answered with an attack rating.** For a staff or a
 seal the game shows a spell scaling in that place and no attack rating at
