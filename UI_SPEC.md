@@ -1,7 +1,8 @@
 # UI_SPEC — die geltende Oberflaechenvorgabe
 
-**Stand:** 2026-09-12 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`)
-**Umfang:** 255 Akzeptanzkriterien, AK-01 bis AK-255, in sieben
+**Stand:** 2026-09-12 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
+fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263)
+**Umfang:** 263 Akzeptanzkriterien, AK-01 bis AK-263, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -29,9 +30,14 @@ Drei Dateien, drei Fragen:
   umformuliert, gekuerzt oder ergaenzt. Geaendert wurde ausschliesslich die
   **Listeneinrueckung** (aus `- **AK-01** …` wurde `**AK-01** …`), damit ein
   Kriterium mit mehreren Absaetzen, Tabellen und Messreihen lesbar bleibt.
-- **Keine neuen AK-Nummern, keine neuen Kriterien.** Die Nummern laufen von
-  AK-01 bis AK-255 ohne Luecke. AK-28 ist zurueckgezogen und als solches
-  gefuehrt.
+- **Die Konsolidierung T-184 hat keine neuen AK-Nummern vergeben.** Die
+  Nummern laufen von AK-01 bis AK-263 ohne Luecke; AK-28 ist zurueckgezogen
+  und als solches gefuehrt. **AK-256 bis AK-263 sind neu und stammen nicht
+  aus dem Verlauf**: sie sind in T-192 (12.09.2026) hier entstanden und
+  tragen statt der Verlaufszeile den Vermerk *„Neu in T-192"*. Wer nach ihrer
+  Begruendung sucht, findet sie im Kopf von §5.4 und in
+  `docs/berichte/T-192-ui-ux-designer.md`, nicht in
+  `docs/archiv/ui-spec-verlauf.md`.
 - **Hier ist nichts gestrichen worden, nur getrennt.** Die Begruendungen,
   Messreihen, Bildnachweise, Token-Tabellen, „ausdruecklich nicht Teil dieser
   Vorgabe"-Abschnitte und die offenen Fragen der einzelnen Auftraege stehen
@@ -64,7 +70,7 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 | **2** | Der Spielstand wird im Hintergrund gelesen | AK-220 bis AK-229, AK-243 bis AK-245, AK-250 bis AK-252 |
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
-| **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219 |
+| **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263 |
 | **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
@@ -1451,12 +1457,16 @@ nach dem Eintreffen der Werte identisch (Messung: Differenz 0 px).
 #### AK-42
 *Verlauf: A02 Z1045 · zuletzt geaendert durch T-024, 2026-09-02*
 
+*Erweitert: auf **eine Zeile je Zielrichtung** statt auf zwei - AK-258 (T-192, 2026-09-12); die Aussage „beide, in jeder Sortierung" gilt unveraendert fuer alle Richtungen*
+
 **AK-42** Der Wertblock zeigt **beide** Zielrichtungen (`Damage`,
 `Damage taken`) auf jeder Karte, in jeder Sortierung. Ein Wert von Null
 erscheint als `no change`, nie als `+0.0`.
 
 #### AK-43
 *Verlauf: A02 Z1048 · zuletzt geaendert durch T-024, 2026-09-02*
+
+*Ueberholt: **vollstaendig ersetzt durch AK-256** (T-192, 2026-09-12, §5.4). Die Aufzaehlung der drei Eintraege wird mit der dritten Zielrichtung falsch; AK-256 leitet die Eintraege aus `advisorbar.GOAL_ORDER` ab, statt sie zu nennen. Die zweite Haelfte — **eine** Zielwahl im ganzen Programm — gilt unveraendert weiter und steht in AK-256 Punkt 3.*
 
 **AK-43** Der Picker traegt ein `Sort by` mit genau den Eintraegen
 `Maximise damage`, `Minimise damage taken`, `Name`. Eine Aenderung dort
@@ -1480,6 +1490,8 @@ keinen Fall mit gleichem angezeigten Wert und verschiedener Kennzeichnung.
 
 #### AK-46
 *Verlauf: A02 Z1059 · zuletzt geaendert durch T-024, 2026-09-02*
+
+*Erweitert: der Chip gilt seit AK-262 (T-192, 2026-09-12) auch fuer die vorgezogenen Spitzenkarten der **nicht** gelesenen Richtungen; der Chip der dritten Richtung lautet `BEST FOR STATS`. Fuer die gelesene Richtung gilt dieser Wortlaut unveraendert.*
 
 **AK-46** Jede Karte mit dem Maximalwert der sortierten Zielrichtung traegt
 den Textchip `BEST FOR DAMAGE` bzw. `BEST FOR SURVIVAL`, auch wenn es
@@ -1586,6 +1598,8 @@ buchstabengetreu (Erweiterung von AK-29/AK-30 auf die neuen Elemente).
 
 #### AK-195
 *Verlauf: A22 Z5928 · zuletzt geaendert durch Director, 2026-09-07*
+
+*Ueberholt: **ersetzt durch AK-261** (T-192, 2026-09-12, §5.4) — „beide Richtungen" ist mit drei Richtungen unterbestimmt; AK-261 zieht **alle** Spitzengruppen vor und legt ihre Reihenfolge fest. Der Satz „die Anordnung sagt nichts, was der Chip nicht schon sagt" war fuer die nicht gelesene Richtung **nicht wahr** und wird von AK-262 wahr gemacht.*
 
 **1. Die beiden Spitzenreiter stehen oben.** Woertlich: *"zeig mir aber immer
 den top pick für dmg und survival als erstes. in beiden varianten."*
@@ -1790,6 +1804,8 @@ wechseln in einem Anstrich.
 
 #### AK-205
 *Verlauf: A23 Z6449 · zuletzt geaendert durch T-124, 2026-09-08 (A24 Z6927: gilt unveraendert weiter)*
+
+*Ueberholt: **ersetzt durch AK-263** (T-192, 2026-09-12, §5.4). Der tragende Satz — die gelesene Richtung ist die eine Zieleinstellung und nie `SlotPool.rank_by` — gilt unveraendert; die Aufzaehlung „Wertspalten, Chips, Kopfzeile, `scope`-Saetze" stimmt nicht mehr, seit die Wertzeilen **alle** Richtungen zeigen und ein Chip auch eine andere Richtung nennen kann.*
 
 **AK-205** *(gezeichnet wird die gewaehlte Richtung, nicht die sortierte.)*
 Die Richtung, in der Wertspalten, Chips, Kopfzeile und `scope`-Saetze
@@ -2042,6 +2058,353 @@ dem Bildschirm nicht mehr: **keine im Rollbereich stehende Karte traegt je
 Konstante selbst bleibt als Platzhalter beim Bau der Karte (§3.3, AK-41).
 *Toetende Mutation:* das Raster waehrend der Leere mit Karten fuellen, die
 `…` tragen — das ist die T-124-Fassung, und sie muss rot werden.
+
+### 5.4 Die dritte Zielrichtung: Attribute (T-192, 2026-09-12)
+
+**Zweck.** Der App Designer hat am 12.09.2026 **AD-032 Option A+C** gewaehlt:
+der Berater rankt ohne jede Waffe, und die offensiven Attributspunkte werden
+eine **eigene Zielrichtung**. T-191 hat sie gebaut (`6f369a7`,
+`goals.MAX_ATTRIBUTES`), aber `advisorbar.GOAL_ORDER` traegt weiter zwei
+Eintraege — **der Spieler sieht davon nichts** (QA-228). Dieser Abschnitt
+sagt, wie er die Richtung waehlt und wie er ihre Zahl liest.
+
+**Warum es nicht bei einer Ausnahme neben AK-43 bleibt.** AK-43 zaehlt drei
+Eintraege woertlich auf und wird mit dem vierten falsch. Eine zweite
+Aufzaehlung daneben waere in dem Moment wieder falsch, in dem A16 oder eine
+vierte Richtung kommt. AK-256 schreibt das Kriterium deshalb um: das `Sort by`
+ist die **Projektion einer Liste im Code**, nicht eine Liste von Woertern in
+diesem Dokument.
+
+**Die Entscheidung in drei Saetzen.** Der dritte Eintrag heisst
+`Maximise offensive attributes` und steht **hinter** den beiden bisherigen
+(AK-257). Die Karte bekommt eine **dritte**, staendige Wertzeile statt einer,
+die mit der Richtung wechselt (AK-258) — eine wechselnde Zeile aendert die
+Kartenhoehe um gemessene 18 px und bricht damit AK-41, AK-204 und AK-216. Und
+AK-195 wird auf drei Richtungen ausgeschrieben: **alle drei** Spitzengruppen
+fuehren, in fester Reihenfolge, und jede vorgezogene Karte sagt mit ihrem
+Chip, welche Richtung sie vorgezogen hat (AK-261, AK-262) — heute sagt sie es
+nicht, und mit drei Richtungen stuenden bis zu vier unerklaerte Karten vorn.
+
+#### Messumgebung — gilt fuer jede px-Zahl in 5.4 (L-009)
+
+| | |
+|---|---|
+| Plattform | Windows 11, PySide6/Qt, **Stil `fusion`** mit der dunklen Palette des Programms (`app.apply_appearance`) — **nicht** der Vorgabestil `windows11`, unter dem dieselben Eintraege andere Breiten messen |
+| Schrift | Segoe UI 9,0 pt (die Anwendungsschrift), Kartentexte 10/11/12 px aus den Stylesheets von `relicpicker` |
+| Bildschirm | 4096 x 1728 **logische** px, verfuegbar 4096 x 1728; `devicePixelRatio` 1,25 (physisch 5120 x 2160), `logicalDotsPerInch` 96 |
+| Lesart der Zahlen | **logische px**, wie Qt sie in `setMaximumWidth` und `width()` nimmt — nicht physische |
+| Datensatz | frisch aus der Spielinstallation gebaut (nur lesend), `data_version` **10350000**, `extract_version` **11**, 8 484 644 Bytes |
+| Spielstand | der des Nutzers, **nur lesend**, **312** Kopien |
+| Stichprobe S1 | freier **weisser** Slot, nichts gehalten, Grundzustand leer, Wylder Level 15, **210** gewoehnliche Kandidaten — die Grundgesamtheit aus AD-032, ueber `candidates.pool`, kein Fenster |
+| Stichprobe S2 | das **laufende Fenster**: `Planner` mit dem Spielstand des Nutzers, `base_slots[0]` (gelber Slot), **56** Karten samt Custom-Kachel, Picker geoeffnet und beantwortet |
+| Skripte | `…/scratchpad/T-192/measure_promotion.py`, `measure_picker.py`, `measure_chip.py`, gegen einen Klon von `7bcb093`; alle drei Datenverzeichnisse umgelenkt und je Lauf nachgewiesen |
+
+**Positivkontrolle der Messung:** S1 liefert 26 / 37 / 53 unterscheidbare
+Kopien je Richtung, 75 unter A oder C, 104 unter allen dreien, groesste
+Gleichstandsgruppen 184 / 173 / 157 — Zahl fuer Zahl dieselben wie in AD-032
+und T-191. Eine Messeinrichtung, die diese acht Zahlen nicht reproduziert,
+misst etwas anderes als die Vorlage.
+
+#### AK-256
+*Neu in T-192, 2026-09-12 — **ersetzt AK-43***
+
+**AK-256** *(das `Sort by` ist die Projektion der Registry, nicht eine Liste
+von Woertern.)* Das `Sort by` des Pickers traegt **genau einen Eintrag je
+Zielrichtung in `advisorbar.GOAL_ORDER`, in genau dieser Reihenfolge**, jeder
+mit dem `label` seines Eintrags aus `advisor.goals.GOALS`, und danach als
+**letzten** genau einen Eintrag `Name`, der keine Zielrichtung ist. Dabei
+gilt:
+
+1. **Keine Richtung wird bewertet und nicht angeboten:** `set(GOAL_ORDER)` ist
+   gleich `set(goals.GOALS)`. Eine Richtung, die die Registry rechnet und
+   cacht, ist waehlbar.
+2. **Kein Richtungsname steht als Zeichenkette in `relicpicker` oder
+   `advisorbar`** — weder im Bedienelement noch in einem Test, der es prueft;
+   verglichen wird gegen `goals.GOALS[goal_id].label`.
+3. Die Zielwahl bleibt **eine einzige Einstellung im ganzen Programm**: eine
+   Aenderung im `Sort by` aendert die Advisor bar und umgekehrt (die bisherige
+   Zusage von AK-43, unveraendert).
+4. Die Advisor bar zeigt dieselben Richtungseintraege in derselben
+   Reihenfolge und **kein** `Name`: `Name` ist eine Lesart des Rasters, keine
+   Zielrichtung.
+
+*Rot-vorher, drei Faelle, einzeln zu pruefen:* **(a)** Heute faellt Punkt 1:
+`GOAL_ORDER` traegt zwei von drei Richtungen. Genau das haelt
+`tests/test_advisor_goals.py::test_the_third_direction_is_scored_but_not_yet_offered`
+in der Gegenrichtung fest — dieser Test wird mit der Umsetzung **gestrichen**,
+nicht umgedreht; wer ihn stehen laesst, hat zwei Waechter, die einander
+widersprechen. **(b)** Punkt 2: den Wortlaut eines `label` in der Registry
+aendern — zeigt die Box danach das alte Wort, steht es ein zweites Mal
+irgendwo. **(c)** Punkt 4: `Name` an den Anfang oder ein zweites Mal in die
+Liste — die Reihenfolge ist Teil des Kriteriums.
+
+#### AK-257
+*Neu in T-192, 2026-09-12*
+
+**AK-257** *(wie der dritte Eintrag heisst und wo er steht.)* Die dritte
+Zielrichtung traegt das Label **`Maximise offensive attributes`** und steht in
+`GOAL_ORDER` **hinter** `max_damage` und `min_damage_taken`, also an dritter
+Stelle und vor `Name`.
+
+**Warum dieser Wortlaut.** `Maximise attributes` waere kuerzer und falsch: die
+Richtung zaehlt Vigor, Mind und Endurance **nicht** (`OFFENSIVE_ATTRIBUTES`,
+fuenf von acht), und der kuerzere Name verspricht acht. Kuerze ist hier auch
+kein Argument, weil der lange Name **gemessen passt** (siehe unten).
+
+**Warum hinten.** Die beiden bisherigen Richtungen sind das Paar aus `GOAL.md`
+A3; ihre Reihenfolge kennt der Spieler, und `GOAL_ORDER` ist zugleich die
+Reihenfolge der Wertzeilen auf jeder Karte (AK-258). Ein Einschub in der Mitte
+verschoebe eine seit T-024 stehende Zeile ohne Gewinn — und machte zugleich
+AK-193 falsch, das von der **ersten** Zeile der Wertspalte spricht.
+
+**Gemessen (Messumgebung oben), Text- und Bedienelementbreiten:**
+
+| Eintrag | Textbreite | Combo `sizeHint` | Advisor bar, Schranke 200 px | Picker, Schranke 220 px |
+|---|---|---|---|---|
+| `Maximise damage` | 96 px | — | — | — |
+| `Minimise damage taken` (heute laengster) | 127 px | 155 px | passt | passt |
+| **`Maximise offensive attributes`** | **155 px** | **183 px** | **passt, 17 px Luft** | **passt, 37 px Luft** |
+| `Maximise attack attributes` | 139 px | 167 px | passt | passt |
+| `Maximise attack stats` (Rueckfallwortlaut) | 113 px | 155 px | passt, kostet **0 px** | passt |
+
+Im laufenden Fenster (S2) misst die `Sort by`-Box mit den heutigen drei
+Eintraegen **155 px** und mit dem vierten **183 px**; die Schranke
+`SORT_BOX_WIDTH` ist 220 px und bleibt, wie sie ist.
+
+**Die enge Stelle ist die Advisor bar, nicht der Picker.** Deren Box ist
+`AdjustToContents` mit `setMaximumWidth(200)`; was darueber hinausgeht, wird
+gekuerzt und bricht **AK-05** („kein Text abgeschnitten ausser der
+Statuszeile"). *Messauflage an den `developer`:* nach dem Einbau am
+**laufenden Fenster** `goal_box.sizeHint().width()` messen und mit
+Messumgebung nennen. Ergibt sie mehr als 200 px, wird **das Label gekuerzt**
+(Rueckfall `Maximise attack stats`) und **nicht** die Schranke erhoeht — die
+200 px stehen vor der Statuszeile, und deren Breite ist durch AK-194 gebunden.
+
+*Rot-vorher:* **(a)** `Maximise attributes` als Label — das Kriterium nennt
+den Wortlaut, und die Begruendung dafuer ist gemessen: der ehrliche Name
+passt, der kurze hat keinen Breitengrund. **(b)** Den Eintrag vor
+`Minimise damage taken` einsortieren — dann wandert zugleich die zweite
+Wertzeile jeder Karte, und der Test zu AK-258 auf die Zeilenreihenfolge faellt.
+
+#### AK-258
+*Neu in T-192, 2026-09-12 — **erweitert AK-42***
+
+**AK-258** *(drei Wertzeilen, immer — keine Zeile, die mit der Richtung
+kommt und geht.)* Der Wertblock jeder Reliktkarte traegt **eine Zeile je
+Zielrichtung in `GOAL_ORDER`**, in dieser Reihenfolge, **in jeder Sortierung
+und in jeder Zielrichtung** — auch fuer `Name`, auch vor dem Eintreffen der
+Zahlen, auch im Fehlschlag (dann dreimal `—`, AK-208/AK-49). Ein Wert von Null
+erscheint als `no change` (AK-42, unveraendert). Die Zahl der Zeilen wird
+nirgends als Literal geschrieben; sie ist `len(VALUE_DIRECTIONS)`.
+
+**Warum drei staendige Zeilen und nicht eine wechselnde.** Erstens der Grund
+von AK-42 selbst: OF-13 verlangt, dass ein Relikt sagen kann „das kostet dich
+etwas, aber nicht in der Richtung, nach der du fragst" — mit drei Richtungen
+gilt das dreifach, und eine ausgeblendete Zeile ist genau die verschwiegene
+Kosteninformation. Zweitens, **gemessen an S2**: eine Kartenzeile ist mit zwei
+Wertzeilen **210 px** hoch und mit drei **228 px** (+18 px); eine Zeile, die
+mit der Richtung kaeme und ginge, veraenderte die Kartenhoehe bei jedem
+Wechsel des `Sort by` — das bricht AK-41 (0 px Unterschied), AK-204
+(Wechsel ohne Neuaufbau) und AK-216 (Aussenmasse stehen beim ersten Anstrich).
+
+**Was die dritte Zeile kostet, gemessen an S2 (laufendes Fenster):**
+
+| | zwei Zeilen | drei Zeilen |
+|---|---|---|
+| Hoehe einer Kartenzeile im Raster | 210 px | **228 px** (+18) |
+| `wanted_height` fuer `MINIMUM_ROWS` = 3 | 1082 px | **1136 px** (+54) |
+| Hoehe des Dialogs | 1007 px | 1151 px |
+| **ganz sichtbare Kartenzeilen** | 3 | **3** |
+| waagerechte Bildlaufleiste | keine | **keine** |
+
+**AK-196 haelt damit in dieser Umgebung** (zwei ganze Kartenzeilen; gemessen
+sind drei), und AK-51 haelt ebenfalls, weil der Dialog waechst statt zu
+kuerzen. *Messauflage an den `developer` (wie AK-216):* er misst
+`wanted_height` fuer dieselbe Kartenliste vor und nach dem Einbau und nennt
+**beide Zahlen mit ihrer Umgebung**. Sind am Standardmass **weniger als zwei
+ganze Kartenzeilen** sichtbar, ist das ein Befund und kommt **zu mir zurueck**
+— nicht in eine Nachbesserung, die Inhalt kuerzt.
+
+*Rot-vorher:* die dritte Zeile nur zeichnen, wenn ihre Richtung gewaehlt ist —
+dann unterscheidet sich die Kartenhoehe vor und nach einem `Sort by`-Wechsel
+um die gemessenen 18 px, und ein Fall, der die Hoehe derselben Karte in zwei
+Richtungen vergleicht, faellt.
+
+#### AK-259
+*Neu in T-192, 2026-09-12*
+
+**AK-259** *(die dritte Zeile nennt ihre Groesse und ihre Einheit — A12.)* Die
+Beschriftung der dritten Wertzeile lautet **`Offensive attributes`**, und der
+Wert traegt die Einheit **`pts`**, so dass eine Karte
+`Offensive attributes   +3.0 pts` liest. Dabei:
+
+1. Die Beschriftung ist das **Substantiv aus `GoalScore.display`** derselben
+   Richtung (`Offensive attributes {points}`) — dieselbe Quelle, die AK-193
+   fuer die Schadenszeile vorschreibt, damit Spalte und Zahl nicht
+   auseinanderlaufen koennen.
+2. Die Einheit kommt aus **`Baseline.unit`** (also aus
+   `goals.ATTRIBUTE_POINT_UNIT`), **nie** als Literal aus `relicpicker`.
+3. Was die Zahl **nicht** deckt, steht nicht auf der Karte, sondern in Zeile 4
+   aus `MAX_ATTRIBUTES.scope` (AK-162) — insbesondere der Satz, dass nur fuenf
+   der acht Attribute gezaehlt werden und dass Punkte nicht in Schaden
+   umgerechnet sind.
+
+**Gemessen (Platz in einer Wertzeile: 174 px, Abstand 6 px):**
+`Offensive attributes` + `+24.0 pts` = 95 + 53 + 6 = **154 px** — passt, 20 px
+Luft; mit `no change` statt der Zahl 159 px.
+
+*Rot-vorher:* **(a)** Beschriftung `Attributes` — sie verspricht acht
+Attribute und zaehlt fuenf, und der Breitengrund traegt nicht: die ehrliche
+Beschriftung ist gemessen 20 px schmaler als der Platz. **(b)** `pts` als
+Zeichenkette in `relicpicker`: `ATTRIBUTE_POINT_UNIT` aendern — steht danach
+weiter `pts` auf der Karte, kommt die Einheit aus der falschen Quelle.
+
+#### AK-260
+*Neu in T-192, 2026-09-12*
+
+**AK-260** *(die dritte Zahl wird gerundet wie jede andere.)* Der Gewinn der
+Attributszeile wird mit **derselben** Stellenzahl gezeigt wie jeder andere
+Gewinn (`GAIN_DECIMALS`, heute eine Nachkommastelle): `+3.0 pts`, und bei Null
+`no change`. Es gibt **keine** Rundung je Richtung.
+
+**Warum nicht ganzzahlig, obwohl Attributspunkte ganzzahlig aussehen.** Zwei
+Gruende, beide belegbar: `model.compute` kann ueber einen Stat-Swap eine halbe
+Stufe liefern — eine Rundung auf ganze Punkte zeigte `+0.5` als `no change`
+oder als `+1` und entschiede damit am Bildschirm, was die Rechnung nicht
+sagt —, und A13 verlangt **einen** Zahlenstil im ganzen Programm. Gemessen an
+S2 tragen 17 der 55 Reliktkarten eine Zahl in dieser Zeile
+(`+1.0` 2x, `+2.0` 4x, `+3.0` 7x, `+5.0` 1x, `+6.0` 3x), 38 tragen
+`no change`.
+
+*Rot-vorher:* eine eigene Stellenzahl fuer diese Richtung einfuehren und auf
+ganze Punkte runden — ein Fall mit einem Gewinn von 0,5 Punkten zeigt dann
+`no change` oder `+1`, und AK-45 (gleiche angezeigte Zahl, gleiche
+Gleichstandskennzeichnung) entscheidet ueber eine Zahl, die es nicht gibt.
+
+#### AK-261
+*Neu in T-192, 2026-09-12 — **ersetzt AK-195***
+
+**AK-261** *(die Spitzenkarten **jeder** Richtung fuehren, in fester
+Reihenfolge.)* Steht eine Antwort und ist die Ordnung nicht `Name`, so stehen
+vor der Wertordnung des Rasters:
+
+1. die Karten der Spitzengruppe der **gelesenen** Richtung (AK-263),
+2. danach die Spitzengruppen der **uebrigen** Richtungen, in der Reihenfolge
+   von `GOAL_ORDER`, jede ohne die Karten, die schon in einer frueheren Gruppe
+   stehen,
+3. danach alle uebrigen Karten in der Wertordnung der gelesenen Richtung.
+
+Innerhalb jeder Gruppe gilt unveraendert die Ordnung, die das Raster ohnehin
+hat (Favoriten, dann Name) — eine Gleichheit, die die Zahl nicht entschieden
+hat, wird nicht von einer erfundenen Reihenfolge entschieden (AK-44). Die
+Spitzengruppe einer Richtung ist `Ranking.top_handles`, **einmal** gerechnet
+und von Chip und Ordnung gemeinsam gelesen; sie ist leer, wenn der Spitzenwert
+`no change` oder negativ ist (AK-46), und dann fuehrt aus dieser Richtung
+nichts. `Sort by` = `Name` zieht nichts vor. Eine Karte, die der Filter
+ohnehin nicht zeigt, wird nicht vorgezogen und nicht ersetzt.
+
+**Warum alle drei und nicht nur die gelesene.** Der Satz, auf dem AK-195
+steht, ist der des App Designers: *„zeig mir aber immer den top pick für dmg
+und survival als erstes. in beiden varianten."* Die Absicht ist „die Spitze
+jeder Richtung ist immer sichtbar", nicht „genau zwei Richtungen". **Und es
+ist gemessen bezahlbar:**
+
+| Stichprobe | Spitzengruppe Schaden | Ueberleben | Attribute | fuehrend heute (2) | fuehrend mit drei |
+|---|---|---|---|---|---|
+| S1 (weisser Slot, 210 Karten) | 3 | 2 | 1 | 5 | **6** |
+| S2 (gelber Slot, 56 Karten) | 2 | 1 | 3 | 3 | **6** |
+
+Die drei Gruppen sind in S1 paarweise **ueberschneidungsfrei**. Sechs Karten
+sind gut eine Rasterzeile (`OPENING_COLUMNS` = 5), und danach beginnt die
+Wertordnung. **Wird eine Spitzengruppe je so gross, dass die fuehrenden Karten
+mehr als zwei Rasterzeilen fuellen, ist das ein Befund und kommt zu mir
+zurueck** — dann steht die Wertordnung unter dem Sichtrand, und die Vorziehung
+verdeckt, was sie auffindbar machen soll.
+
+*Rot-vorher, gemessen:* `relicpicker.py` bildet die zweite Gruppe heute mit
+`other_id = next(g for g in VALUE_DIRECTIONS if g != goal_id)` — **genau eine**
+weitere Richtung. Mit drei Richtungen fuehren damit in S1 fuenf statt sechs
+Karten, und die Spitzenkarte der Attributsrichtung steht irgendwo im Raster.
+Ein Fall, der die Menge der fuehrenden Handles gegen die Vereinigung der drei
+Spitzengruppen prueft, faellt.
+
+#### AK-262
+*Neu in T-192, 2026-09-12 — **erweitert AK-46***
+
+**AK-262** *(jede vorgezogene Karte sagt, warum sie vorn steht.)* Jede Karte,
+die nach AK-261 vorgezogen ist, traegt einen Chip, und zwar den der Richtung,
+die sie vorgezogen hat: gehoert sie zur Spitzengruppe der gelesenen Richtung,
+deren Chip, sonst den der ersten Richtung in `GOAL_ORDER`, deren Spitzengruppe
+sie enthaelt. Eine Karte, die zu keiner Spitzengruppe gehoert, traegt keinen
+Chip. Der Chip der neuen Richtung lautet **`BEST FOR STATS`**.
+
+**Warum das mehr ist als Kosmetik.** AK-195 begruendet sich selbst damit, die
+Anordnung sage nichts, was der Chip nicht schon sagt — **das stimmt heute
+nicht**: den Chip bekommt nur die gelesene Richtung, die vorgezogenen Karten
+der anderen Richtung stehen unbeschriftet vorn. Gemessen an S2 mit gelesener
+Schadensrichtung: von 3 fuehrenden Karten traegt **1 keinen** Chip; mit drei
+Richtungen waeren es **4 von 6**. Vier unerklaerte Karten vor der Wertordnung
+sind fuer den Leser ein kaputtes Raster, kein Vorteil.
+
+**Warum `stats` und nicht `attributes` — gemessen.** Der Chipstreifen einer
+Karte ist **102 px** breit (190 px Karte, abzueglich Rand und der 62 px des
+Symbols) und auf einer **favorisierten** Karte nur **79 px**, weil der Stern
+daneben steht. Bei 10 px fett misst `BEST FOR ATTRIBUTES` **106 px** und waere
+schon auf der gewoehnlichen Karte um 4 px abgeschnitten; `BEST FOR STATS`
+misst **76 px** und passt in beiden Faellen. Die Genauigkeit traegt nicht der
+Chip, sondern die Beschriftung der Wertzeile (AK-259), der Eintrag im
+`Sort by` (AK-257) und Zeile 4 (`scope`).
+
+*Dazu ein Befund, der nicht von dieser Vorgabe kommt und sie nicht aufhaelt:*
+auf einer favorisierten Karte sind **`BEST FOR DAMAGE` (91 px) und
+`BEST FOR SURVIVAL` (95 px) heute schon abgeschnitten** (79 px Streifen).
+Wird der Chipstreifen dafuer verbreitert, passt auch `BEST FOR ATTRIBUTES`,
+und dieses Kriterium wird neu vorgelegt — bis dahin gilt `BEST FOR STATS`.
+
+*Rot-vorher:* den Chip weiter nur der gelesenen Richtung geben — ein Fall, der
+zaehlt, wie viele der fuehrenden Karten einen Chip tragen, liest 2 von 6 statt
+6 von 6 (S1, gelesene Schadensrichtung: 3 von 6).
+
+#### AK-263
+*Neu in T-192, 2026-09-12 — **ersetzt AK-205***
+
+**AK-263** *(was in der gelesenen Richtung gezeichnet wird, und was gar keine
+Richtung hat.)* Die **gelesene** Richtung ist die eine Zieleinstellung des
+Programms (AK-256) und **nie** `SlotPool.rank_by`. In ihr gezeichnet werden:
+die Kopfzeile (AK-46, AK-49), die `scope`-Saetze der Zeile 4, die Wertordnung
+des Rasters (AK-261 Punkt 3) und der Chip aus AK-46. **Keine Richtung** haben
+dagegen: die drei Wertzeilen jeder Karte, die alle drei immer stehen
+(AK-258), und die Chips der vorgezogenen Karten aus AK-262, die ihre eigene
+Richtung nennen.
+
+*Aufbau:* eine Antwort, die unter `CANONICAL_POOL_ORDER` (`max_damage`)
+sortiert wurde, wird in der Attributsrichtung gelesen.
+*Toetende Mutation:* die Richtung aus `pool.rank_by` nehmen — dann liest ein
+Spieler, der auf `Maximise offensive attributes` steht, die Kopfzeile, die
+`scope`-Saetze und den Chip der Schadensrichtung, waehrend die Wertzeile
+daneben die Attributszahl zeigt.
+
+#### Ausdruecklich **nicht** Teil dieser Vorgabe
+
+- **AK-190, AK-192, AK-193** (A17 Teil 2). Sie kommen nach dieser Vorgabe.
+  Beruehrt sind sie an einer Stelle: AK-193 spricht von der **ersten** Zeile
+  der Wertspalte — sie bleibt die Schadenszeile, weil der dritte Eintrag
+  hinten steht (AK-257).
+- **A16** (schlechtester und bester Fall). Kommt A16 als zweite Auswahlliste,
+  ist sie **keine** Zielrichtung und gehoert nicht in `GOAL_ORDER`.
+- **`MAX_ATTRIBUTES.blurb`.** Geprueft am Bestand: `Goal.blurb` wird in
+  `nrplanner/` von **niemandem** gelesen — kein Bedienelement zeigt ihn. Ein
+  Text, den nichts zeichnet, wird hier nicht festgelegt; wird er je gezeichnet,
+  gilt A12 fuer ihn wie fuer jede andere Zeile.
+- **Der Zuschnitt der Wertzelle.** Gemessen an S2 sind **6 von 56** Karten in
+  der Ueberlebenszeile abgeschnitten (`+64.2 effective HP` will 104 px und hat
+  95 px). Das ist heutiger Stand, wird von der dritten Zeile nicht schlimmer
+  (`+24.0 pts` misst 53 px) und ist als Befund gemeldet.
+- **Die 184 Nullen der Schadensspalte** und die Frage, ob die Oberflaeche
+  „bewegt diese Richtung nicht" von „konnte nicht gerechnet werden"
+  unterscheiden soll (AD-032, offene Frage 2). `—` und `no change` sagen das
+  heute (AK-219); ob der Spieler den Unterschied versteht, ist eine Frage an
+  den `power-user`, nicht an dieses Kriterium.
 
 ---
 

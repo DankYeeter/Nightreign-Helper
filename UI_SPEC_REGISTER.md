@@ -41,6 +41,11 @@ Der Auftrag nennt 256 AK-IDs, gemessen mit
 Teil eines Suchmusters (`grep -rn "AK-2[45][0-9]"`) und ist kein
 Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 
+**Nachtrag 12.09.2026 (T-192):** acht Kriterien sind dazugekommen, **AK-256
+bis AK-263**. Sie stehen in `UI_SPEC.md` §5.4 und **nicht** im Verlauf — sie
+sind dort entstanden. Ihre Fundstelle-Spalte nennt deshalb `UI_SPEC §5.4`
+statt einer `A..`-Kennung. Der Bestand ist damit **263**.
+
 ## Die 33 Abschnitte von UI_SPEC.md
 
 | Kennung | Zeilen | Auftrag | Datum | Ueberschrift |
@@ -125,11 +130,11 @@ Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 | AK-39 | Aufbau: ein Relikt mit Strength +1, sonst nichts. Waffenkachel und Schadenstafel zeigen fuer dieselbe Waffe dieselbe Zahl (nach W3, AD-020 Punkt … | A02 Z1029 | T-024, 2026-09-02 | — |
 | AK-40 | Die Beschriftungen aus AK-31, AK-33, AK-35 und AK-36 werden nicht vor den zugehoerigen Umbauschritten ausgeliefert: | A02 Z1033 | T-024, 2026-09-02 | — |
 | AK-41 | Jede Reliktkarte traegt einen Wertblock als erste Zeile des Kartenkoerpers, unter der Kopfzeile und ueber den Effektpunkten, getrennt durch eine … | A02 Z1041 | T-024, 2026-09-02 | — |
-| AK-42 | Der Wertblock zeigt beide Zielrichtungen (Damage, Damage taken) auf jeder Karte, in jeder Sortierung. | A02 Z1045 | T-024, 2026-09-02 | — |
-| AK-43 | Der Picker traegt ein Sort by mit genau den Eintraegen Maximise damage, Minimise damage taken, Name. | A02 Z1048 | T-024, 2026-09-02 | — |
+| AK-42 | Der Wertblock zeigt beide Zielrichtungen (Damage, Damage taken) auf jeder Karte, in jeder Sortierung. | A02 Z1045 + UI_SPEC §5.4 (AK-258) | T-192, 2026-09-12 | erweitert auf **eine Zeile je Zielrichtung** durch AK-258 (T-192); die Aussage „alle, in jeder Sortierung“ gilt unveraendert |
+| AK-43 | Der Picker traegt ein Sort by mit genau den Eintraegen Maximise damage, Minimise damage taken, Name. | UI_SPEC §5.4 (AK-256) | T-192, 2026-09-12 | **vollstaendig ersetzt durch AK-256** (T-192) — die woertliche Aufzaehlung wird mit der dritten Zielrichtung falsch; die Zusage „eine Zielwahl im ganzen Programm“ steht als AK-256 Punkt 3 weiter |
 | AK-44 | Weder auf einer Karte noch in der Kopfzeile erscheint eine Ordnungszahl, ein Rangabzeichen oder eine Formulierung, die eine strenge Reihenfolge … | A02 Z1052 | T-024, 2026-09-02 | — |
 | AK-45 | Zwei Karten zeigen genau dann denselben Wert in der sortierten Zielrichtung, wenn sie dieselbe Gleichstandskennzeichnung tragen. | A02 Z1056 | T-024, 2026-09-02 | — |
-| AK-46 | Jede Karte mit dem Maximalwert der sortierten Zielrichtung traegt den Textchip BEST FOR DAMAGE bzw. | A02 Z1059 | T-024, 2026-09-02 | — |
+| AK-46 | Jede Karte mit dem Maximalwert der sortierten Zielrichtung traegt den Textchip BEST FOR DAMAGE bzw. | A02 Z1059 + UI_SPEC §5.4 (AK-262) | T-192, 2026-09-12 | erweitert durch AK-262 (T-192): auch die vorgezogenen Spitzenkarten der nicht gelesenen Richtungen tragen ihren Chip; dritte Richtung `BEST FOR STATS` |
 | AK-47 | Solange QA-018 offen ist, steht hinter dem Angriffswert jeder Karte das Wort unverified — sichtbar, nicht in einem Tooltip, nicht aufklappbar. | A02 Z1064 (zweite Haelfte) + A04 Z1221 + A05 Z1269 | T-052, 2026-09-05 | erste Haelfte gegenstandslos (QA-018 geschlossen) - A04 Z1221 (T-037); der in A04 Punkt 2 fest gebundene Satz ist durch A05 Z1269 (T-052) aufgehoben - Zeile 4 zeigt ausschliesslich Goal.scope |
 | AK-48 | Bewegt der Fluch eines Relikts ein Feld, das keine der beiden Zahlen misst, steht unter dem Wertblock genau eine Zeile Its curse changes <field> … | A02 Z1067 | T-024, 2026-09-02 | — |
 | AK-49 | Traegt die gewaehlte Zielrichtung keine Zahlen, steht die Zeile aus §3.7 in der Kopfzeile, jede Karte zeigt — statt einer Zahl, und die Ordnung ist … | A02 Z1072 | T-024, 2026-09-02 | — |
@@ -278,7 +283,7 @@ Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 | AK-192 | die Armaturenzeile nennt die Zahl, nicht den Hebel. | A21 Z5859 | T-092, 2026-09-07 | — |
 | AK-193 | die Spalte nennt die Groesse, die sie zeigt. | A21 Z5869 | T-092, 2026-09-07 | — |
 | AK-194 | die Breite wird gemessen, nicht geschaetzt. | A21 Z5780 | T-092, 2026-09-07 | **widerspruechlich** - schreibt die Messung `bei 1320 px Fensterbreite` vor, obwohl A14 Z2555 (T-071) die feste Startbreite 1320 px aufgehoben und durch eine abgeleitete Breite ersetzt hat |
-| AK-195 | Neu, als AK-195: In beiden Zielsortierungen stehen die Karten mit dem Spitzenwert beider Zielrichtungen an der Spitze des Rasters, vor allen … | A22 Z5928 | Director, 2026-09-07 | — |
+| AK-195 | Neu, als AK-195: In beiden Zielsortierungen stehen die Karten mit dem Spitzenwert beider Zielrichtungen an der Spitze des Rasters, vor allen … | UI_SPEC §5.4 (AK-261) | T-192, 2026-09-12 | **ersetzt durch AK-261** (T-192): „beide Richtungen“ ist mit drei Richtungen unterbestimmt; alle Spitzengruppen fuehren, in fester Reihenfolge |
 | AK-196 | Neu, als AK-196, und ersetzt die zweite Haelfte von AK-51: | A22 Z5967 | Director, 2026-09-07 | — |
 | AK-197 | zwei Anstriche, nicht drei. | A24 Z6942 (AK-211) | T-127, 2026-09-08 | gestrichen, ersetzt durch AK-211 - A24 Z6942 (T-127); Streichliste A24 Z6915 |
 | AK-198 | der erste Anstrich behauptet nichts. | A24 Z6951 (AK-212) | T-127, 2026-09-08 | gestrichen, ersetzt durch AK-212 - A24 Z6951 (T-127); Streichliste A24 Z6916 |
@@ -288,7 +293,7 @@ Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 | AK-202 | nichts erscheint, nichts verschwindet, nichts ist gesperrt. | A24 Z6989 (AK-215) | T-127, 2026-09-08 | gestrichen, ersetzt durch AK-215 - A24 Z6989 (T-127); Streichliste A24 Z6921 |
 | AK-203 | die Antwort bewegt nur, was sie bewegen muss. | A24 Z6994 (AK-216, Groesse) und Z7019 (AK-217, Fokus/Bildlauf) | T-127, 2026-09-08 | gestrichen, ersetzt durch AK-216 und AK-217 - A24 Z6994/Z7019 (T-127); Streichliste A24 Z6922 |
 | AK-204 | der Zielrichtungswechsel wartet nicht. | A23 Z6443 | T-124, 2026-09-08 (A24 Z6926: gilt unveraendert weiter) | — |
-| AK-205 | gezeichnet wird die gewaehlte Richtung, nicht die sortierte. | A23 Z6449 | T-124, 2026-09-08 (A24 Z6927: gilt unveraendert weiter) | — |
+| AK-205 | gezeichnet wird die gewaehlte Richtung, nicht die sortierte. | UI_SPEC §5.4 (AK-263) | T-192, 2026-09-12 | **ersetzt durch AK-263** (T-192): der tragende Satz gilt weiter, die Aufzaehlung nicht mehr — die Wertzeilen haben keine Richtung, ein Chip kann eine andere nennen |
 | AK-206 | eine Frage je Oeffnung. | A23 Z6456 | T-124, 2026-09-08 (A24 Z6928: gilt unveraendert weiter) | — |
 | AK-207 | die ueberholte Antwort erreicht nichts. | A23 Z6464 + A24 Z6929 | T-127, 2026-09-08 | die zweite Zusage (`eine im Wartezustand ausgewaehlte Karte wird uebernommen`) entfaellt gegenstandslos - A24 Z6929 (T-127) |
 | AK-208 | der Fehlschlag hat seinen eigenen Satz. | A23 Z6469 + A24 Z6932 (erweitert durch AK-218) | T-127, 2026-09-08 | — |
@@ -339,6 +344,14 @@ Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 | AK-253 | der Erststart verspricht keine Dauer, die er nicht halten kann | A33 Z9516 | T-178, 2026-09-09 | — |
 | AK-254 | kein erfundener Fortschritt — und die gelobte Zeile bleibt | A33 Z9529 | T-178, 2026-09-09 | — |
 | AK-255 | nichts ist abgeschnitten, an keiner Skalierung | A33 Z9542 | T-178, 2026-09-09 | — |
+| AK-256 | das `Sort by` ist die Projektion der Richtungs-Registry, nicht eine Liste von Woertern — ersetzt AK-43 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-257 | der dritte Eintrag heisst `Maximise offensive attributes` und steht hinter den beiden bisherigen (gemessen: 183 px gegen 200 px Schranke) | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-258 | drei Wertzeilen, immer — keine Zeile, die mit der Richtung kommt und geht (gemessen: +18 px Kartenhoehe) | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-259 | die dritte Zeile nennt ihre Groesse und ihre Einheit: `Offensive attributes` / `pts` (A12) | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-260 | die dritte Zahl wird gerundet wie jede andere — keine Rundung je Richtung | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-261 | die Spitzenkarten jeder Richtung fuehren, in fester Reihenfolge — ersetzt AK-195 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-262 | jede vorgezogene Karte sagt mit ihrem Chip, warum sie vorn steht — erweitert AK-46 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-263 | was in der gelesenen Richtung gezeichnet wird und was gar keine Richtung hat — ersetzt AK-205 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 
 
 ## Widerspruechliche Faelle
