@@ -66,6 +66,10 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 
+#: How many value rows a card carries: one per direction the picker draws,
+#: never a number written down (AK-258).
+ROWS = len(relicpicker.VALUE_DIRECTIONS)
+
 
 # --- W1: only one place computes, and it is not the main thread ------------
 
@@ -368,19 +372,25 @@ def test_w3_an_answer_arriving_after_the_close_touches_nothing(
 def test_w4_every_direction_the_picker_draws_is_one_the_pool_scores():
     """Nachtrag IX-4: the whole of IX-0's reuse rests on this.
 
-    The picker asks under one fixed direction and reads *both* columns out of
-    the one pool that comes back, so a direction offered on screen that the
-    pool never measured would draw an empty column -- or a `Sort by` entry
-    whose label cannot be built at all. Two files, no window, and nobody
-    holding them together but this case.
+    The picker asks under one fixed direction and reads **every** column out
+    of the one pool that comes back, so a direction offered on screen that
+    the pool never measured would draw an empty column -- or a `Sort by`
+    entry whose label cannot be built at all. Two files, no window, and
+    nobody holding them together but this case.
+
+    Since T-194 the relation is equality and not inclusion (AK-256 point 1):
+    the other side of it -- a direction scored on every run that no control
+    offers -- was the state `max_attributes` sat in for two tasks, and an
+    inclusion cannot see it.
     """
     drawn = set(advisorbar.GOAL_ORDER)
     scored = set(advisor_goals.GOALS)
 
-    assert drawn <= scored, (
+    assert drawn == scored, (
         f"the picker and the Advisor bar offer {sorted(drawn - scored)}, "
-        f"which the registry does not score; the pool would carry no figure "
-        f"for it")
+        f"which the registry does not score and the pool carries no figure "
+        f"for; and they leave {sorted(scored - drawn)} scored on every run "
+        f"with no way for a player to read it (AK-256 point 1)")
     assert advisor_goals.CANONICAL_POOL_ORDER in scored, (
         "the order every picker question is asked under is not a direction "
         "the registry scores")
@@ -850,7 +860,7 @@ def _a_grid_with_figures(dialog) -> None:
     assert relicpicker.NOTHING_YET not in area_labels(dialog)
     assert any(card.chip.text() for card in cards), (
         "no card carries the mark, so nothing was read out of the pool")
-    assert any(values_on(card) != [relicpicker.NO_FIGURE] * 2
+    assert any(values_on(card) != [relicpicker.NO_FIGURE] * ROWS
                for card in cards), (
         "every card says the no-figure dash, which is the state for an answer "
         "that carried no figures at all (AK-49), not for one that did")
@@ -869,7 +879,7 @@ def _a_grid_without_figures(dialog, reason: str) -> None:
     assert dialog.headline.isVisibleTo(dialog)
     assert dialog.headline.text() == relicpicker.could_not_work_out(reason)
     for card in cards:
-        assert values_on(card) == [relicpicker.NO_FIGURE] * 2
+        assert values_on(card) == [relicpicker.NO_FIGURE] * ROWS
         assert card.chip.text() == ""
 
 

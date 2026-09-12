@@ -33,9 +33,15 @@ change in `candidates.py`, `evaluate.py` or the search; if it does, the shape
 here is wrong and belongs in `ARCHITECTURE.md` before it is built. The third
 one, `MAX_ATTRIBUTES`, was built that way and needed neither -- what it did
 need is a place on the screen, and that is not here: `advisorbar.GOAL_ORDER`
-is the list a player reads, it is a decision of the `ui-ux-designer`, and a
-direction the registry scores without that list being changed is scored,
-cached and invisible (AK-43, AK-205).
+is the list a player reads and its order is a decision of the
+`ui-ux-designer`. Its **membership** is not a decision any more (AK-256
+point 1): every direction this registry scores stands in that tuple, because
+a direction scored and cached with no way to choose it is one the player pays
+for and cannot reach -- the state this file left behind between T-191 and
+T-194 (QA-228). So a fourth entry here is a fourth entry there, a fourth
+`Sort by` line and a fourth value row on every card, and the guard that says
+so is
+`tests/test_advisor_bar.py::test_every_direction_the_registry_scores_can_be_chosen`.
 """
 
 from __future__ import annotations
@@ -411,12 +417,15 @@ MIN_DAMAGE_TAKEN = types.Goal(
     score=_min_damage_taken,
 )
 
-#: **`label` and `blurb` here are a working title** (T-191): AD-032 chose the
-#: direction, not its wording, and what a control says is the
-#: `ui-ux-designer`'s to settle together with the `UI_SPEC` entries AK-43 and
-#: AK-205 need. Nothing reads them on screen yet -- see the module docstring
-#: on `advisorbar.GOAL_ORDER` -- so the working title is a name in a registry
-#: and not a promise to a player.
+#: **`label` is the wording AK-257 settled**, and it is on screen: the
+#: `Sort by` box and the Advisor bar both draw it from here, so this line is
+#: a promise to a player rather than a name in a registry. It is not
+#: `Maximise attributes`, which would be shorter and would promise eight
+#: attributes where five are counted; the long one was measured to fit the
+#: narrower of the two boxes with 17 px to spare.
+#:
+#: `blurb` is still read by nothing in `nrplanner/` -- AK-256's list is about
+#: labels, and §5.4 leaves the blurb alone until something draws it.
 MAX_ATTRIBUTES = types.Goal(
     id="max_attributes",
     label="Maximise offensive attributes",
@@ -443,14 +452,15 @@ GOALS = MappingProxyType({
 #: `measured.sort` reads `rank_by`. The cache key does not know that --
 #: `run.cache_key` keeps every field of the request but `generation` -- so a
 #: picker asking under the player's direction computes and stores one list
-#: twice, once per direction, and a player switching direction pays a full run
-#: for a list that was already there.
+#: three times over, once per direction, and a player switching direction pays
+#: a full run for a list that was already there.
 #:
-#: Asking under a fixed direction instead makes one entry serve both. What the
-#: screen ranks by is then the one goal setting of the program (AK-43,
-#: AK-205), read from there and never from `SlotPool.rank_by`: that field goes
-#: on saying what ordered this list, which stays true, and the shortcut "what
-#: ordered it is also what is read off it" is what stops holding here.
+#: Asking under a fixed direction instead makes one entry serve all of them.
+#: What the screen ranks by is then the one goal setting of the program
+#: (AK-256), read from there and never from `SlotPool.rank_by` (AK-263): that
+#: field goes on saying what ordered this list, which stays true, and the
+#: shortcut "what ordered it is also what is read off it" is what stops
+#: holding here.
 #:
 #: The value is the damage goal's id so that a pool arrives in the commonest
 #: order, and it is taken off the registry entry rather than written out,

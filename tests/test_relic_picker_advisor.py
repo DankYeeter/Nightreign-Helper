@@ -21,11 +21,15 @@ consumes. Three things they keep coming back to:
 
 from __future__ import annotations
 
+import dataclasses
+from types import MappingProxyType
+
 import pytest
 from PySide6.QtCore import QEventLoop, Qt, QTimer
 from PySide6.QtWidgets import QFrame, QLabel
 
-from nrplanner import relicpicker
+from nrplanner import advisorbar, relicpicker
+from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
 
 #: A value row long enough to stand for the worst real case: the survival
@@ -124,32 +128,69 @@ def a_slot(planner):
     pytest.skip("no slot of this save offers four relics to rank")
 
 
+#: The base state a stated pool stands on: one line per direction the picker
+#: draws. The attribute unit is the registry's own word rather than a literal
+#: here, because it is what the card prints after the figure -- a literal in
+#: this file would let the picker print a literal of its own and no case
+#: would see the difference (AK-259 point 2).
+BASELINE = (("max_damage", 100.0, "AR", ()),
+            ("min_damage_taken", 900.0, "effective HP", ()),
+            ("max_attributes", 40.0, advisor_goals.ATTRIBUTE_POINT_UNIT, ()))
+
+#: How many value rows a card carries: one per direction, never a number
+#: written down (AK-258). A case that says `2` is a case that has to be
+#: edited the day a direction is added, which is the edit AK-258 is about.
+ROWS = len(relicpicker.VALUE_DIRECTIONS)
+
+
+def base_lines(**changes):
+    """`BASELINE` with the unit and the run findings of some lines replaced.
+
+    Keyed by direction, `goal_id=(unit, findings)`. A case that writes the
+    lines out by hand is one line short the day a direction is added, and
+    what it fails with then -- `Ranking.unit` raising a `KeyError` -- says
+    nothing about what the case was for.
+    """
+    unknown = set(changes) - {goal_id for goal_id, *_rest in BASELINE}
+    assert not unknown, f"no such direction in the baseline: {sorted(unknown)}"
+    return tuple((goal_id, value) + changes.get(goal_id, (unit, found))
+                 for goal_id, value, unit, found in BASELINE)
+
+
 def pool_of(slot, gains, taken=(), *, rank_by="max_damage",
-            baseline=(("max_damage", 100.0, "AR", ()),
-                      ("min_damage_taken", 900.0, "effective HP", ())),
-            unknowns=()):
+            baseline=BASELINE, unknowns=(), apart=None):
     """A `SlotPool` over this slot's own copies, with the gains named.
 
     `gains` maps the position of a copy in the slot's list to its gain under
-    `rank_by`; the other direction gets the same figure negated, so a case
-    that reads the wrong column reads a different sign. Copies not named get
-    nothing at all -- which is how the pool says "this save gives me no
-    handle for it".
+    `rank_by`; **every other direction the picker draws** gets the same
+    figure negated, so a case that reads the wrong column reads a different
+    sign. Copies not named get nothing at all -- which is how the pool says
+    "this save gives me no handle for it".
+
+    `apart` names the directions that are not to follow that rule:
+    `{goal_id: {index: gain}}`, read for the copies `gains` already admits.
+    It is what a case about three separate top groups needs -- with the
+    negation rule alone, two directions have the same top card and the third
+    group comes out empty (AK-261).
     """
     items = slot.available_items()
-    other = next(goal_id for goal_id in relicpicker.VALUE_DIRECTIONS
-                 if goal_id != rank_by)
+    apart = apart or {}
+    others = tuple(goal_id for goal_id in relicpicker.VALUE_DIRECTIONS
+                   if goal_id != rank_by)
     candidates = []
     for index, item in enumerate(items):
         if index not in gains or index in taken or item.handle is None:
             continue
         gain = gains[index]
+        marginals = [types.Marginal(rank_by, gain)]
+        for other in others:
+            marginals.append(types.Marginal(
+                other, apart.get(other, {}).get(index, -gain)))
         candidates.append(types.Candidate(
             slot_index=slot.index, handle=item.handle,
             relic_id=item.relic_id, name=item.name, colour=item.colour,
             is_deep=item.is_deep, effect_ids=tuple(item.effect_ids),
-            marginals=(types.Marginal(rank_by, gain),
-                       types.Marginal(other, -gain))))
+            marginals=tuple(marginals)))
     candidates.sort(key=lambda c: (-types.marginal_for(c, rank_by), c.name,
                                    c.handle))
     return types.SlotPool(
@@ -314,13 +355,13 @@ def test_a_card_is_the_same_height_before_the_figures_and_after(slot):
     """
     item = slot.available_items()[0]
     waiting = a_card(slot, item)
-    answered = a_card(slot, item, [LONGEST, LONGEST],
+    answered = a_card(slot, item, [LONGEST] * ROWS,
                       relicpicker.chip_text("max_damage"))
     assert card_height(answered) == card_height(waiting), (
         f"the card measures {card_height(waiting)} while it waits and "
         f"{card_height(answered)} once the figures are in (sizeHint, "
         f"heightForWidth); with 29 cards that moves the whole grid")
-    assert values_of(waiting) == [relicpicker.PENDING] * 2, (
+    assert values_of(waiting) == [relicpicker.PENDING] * ROWS, (
         "the block has to be built with the room already reserved")
     waiting.deleteLater()
     answered.deleteLater()
@@ -342,7 +383,7 @@ def test_the_block_asks_for_no_more_width_than_the_card_has(slot):
     with_block = relicpicker.RelicCard(item, slot.effect_names(item), None,
                                        False, lambda _i: None,
                                        captions=captions)
-    with_block.show_values([LONGEST, LONGEST])
+    with_block.show_values([LONGEST] * ROWS)
     assert (with_block.minimumSizeHint().width()
             == without.minimumSizeHint().width())
     without.deleteLater()
@@ -414,7 +455,7 @@ def test_a_copy_the_pool_does_not_carry_gets_a_dash_not_a_zero(slot):
     try:
         cards = relic_cards(dialog)
         assert len(cards) > 1, "this slot offers one card, so nothing is left out"
-        assert values_of(cards[-1]) == [relicpicker.NO_FIGURE] * 2
+        assert values_of(cards[-1]) == [relicpicker.NO_FIGURE] * ROWS
     finally:
         dialog.deleteLater()
 
@@ -424,7 +465,7 @@ def test_with_no_ranking_every_card_says_so_and_the_header_says_why(slot):
     dialog = picker_for(slot, FakeAdvice({}, goal_id="max_damage"))
     try:
         for card in relic_cards(dialog):
-            assert values_of(card) == [relicpicker.NO_FIGURE] * 2
+            assert values_of(card) == [relicpicker.NO_FIGURE] * ROWS
         assert dialog.headline.text() == relicpicker.NO_FIGURES_AT_ALL
         assert dialog.headline.isVisibleTo(dialog)
     finally:
@@ -467,9 +508,22 @@ def test_two_cards_showing_one_figure_carry_one_mark(slot):
         dialog.deleteLater()
 
 
+def flat(gains):
+    """`apart` that gives every direction but the first the same gains.
+
+    A pool where no direction has a top worth a chip needs all of them said,
+    not only the one being read: since AK-261 every direction leads with its
+    own group, so a case about "nothing is marked" has to leave nothing for
+    any of them to mark.
+    """
+    return {goal_id: dict(gains)
+            for goal_id in relicpicker.VALUE_DIRECTIONS[1:]}
+
+
 def test_nothing_is_marked_best_when_the_best_is_no_change(slot):
     """AK-46: twenty cards marked at a top value of nothing would be a lie."""
-    dialog = open_picker(slot, {0: 0.0, 1: 0.0, 2: -4.0})
+    gains = {0: 0.0, 1: 0.0, 2: -4.0}
+    dialog = open_picker(slot, gains, apart=flat(gains))
     try:
         assert not [card for card in relic_cards(dialog) if card.chip.text()]
         assert dialog.headline.text() == (
@@ -480,11 +534,38 @@ def test_nothing_is_marked_best_when_the_best_is_no_change(slot):
 
 def test_nothing_is_marked_best_when_the_best_is_negative(slot):
     """AK-46, the other half of the same rule."""
-    dialog = open_picker(slot, {0: -1.0, 1: -4.0})
+    gains = {0: -1.0, 1: -4.0}
+    dialog = open_picker(slot, gains, apart=flat(gains))
     try:
         assert not [card for card in relic_cards(dialog) if card.chip.text()]
         assert dialog.headline.text() == (
             "Nothing you own raises damage in this slot.")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_header_speaks_for_the_read_direction_while_another_leads(slot):
+    """AK-46 and AK-263 together, at the state AK-261 made reachable.
+
+    Nothing raises damage here, so the header says so and no card wears
+    `BEST FOR DAMAGE` -- and the survival top pick still leads the grid and
+    still says which direction put it there. The header is about the
+    direction being read and about no other, the chip is about the direction
+    that earned it, and this is the one state where the two disagree.
+    """
+    gains = {0: 0.0, 1: 0.0, 2: -4.0}
+    dialog = open_picker(slot, gains,
+                         apart={"max_attributes": dict(gains)})
+    try:
+        cards = relic_cards(dialog)
+        assert dialog.headline.text() == (
+            "Nothing you own raises damage in this slot.")
+        marked = [card.chip.text() for card in cards if card.chip.text()]
+        assert marked == ["BEST FOR SURVIVAL"], (
+            f"the survival top pick leads unexplained: {marked}")
+        items = slot.available_items()
+        assert cards[0].item.handle == items[2].handle, (
+            "the survival top pick does not lead the grid")
     finally:
         dialog.deleteLater()
 
@@ -502,9 +583,9 @@ def test_the_mark_names_the_direction_it_is_about(slot):
 def test_the_mark_does_not_change_the_card_it_is_on(slot):
     """AK-41 again, from the chip's side: the strip is there either way."""
     item = slot.available_items()[0]
-    plain = a_card(slot, item, ["+1.0 AR", "-2.0 effective HP"])
-    marked = a_card(slot, item, ["+1.0 AR", "-2.0 effective HP"],
-                    "BEST FOR DAMAGE")
+    figures = ["+1.0 AR", "-2.0 effective HP", "+3.0 pts"]
+    plain = a_card(slot, item, figures)
+    marked = a_card(slot, item, figures, "BEST FOR DAMAGE")
     assert card_height(marked) == card_height(plain)
     plain.deleteLater()
     marked.deleteLater()
@@ -552,20 +633,80 @@ def test_the_figure_on_a_card_is_the_pools_own_float(planner):
 
 # --- one goal setting in the whole program (AK-43, AK-44, AK-52) -----------
 
-def test_sort_by_offers_the_two_directions_and_name(slot):
-    """§3.4: the registry's own labels, in the registry's own order."""
-    from nrplanner.advisor import goals as advisor_goals
+def test_sort_by_is_the_registry_projected_and_then_name(slot):
+    """AK-256: one entry per direction in `GOAL_ORDER`, then `Name`, last.
 
+    A projection and not a list: the entries, their order and their words all
+    come from somewhere else, so a direction added to the registry arrives
+    here without this file or `relicpicker` being touched. The three things
+    the criterion names are asserted apart -- which directions, in which
+    order, and that `Name` is one entry and the last one.
+    """
     dialog = open_picker(slot, {0: 1.0})
     try:
         box = dialog.sort_box
-        assert [box.itemData(i) for i in range(box.count())] == [
-            "max_damage", "min_damage_taken", relicpicker.NAME_ORDER]
+        data = [box.itemData(i) for i in range(box.count())]
+        assert data == list(advisorbar.GOAL_ORDER) + [relicpicker.NAME_ORDER]
         assert [box.itemText(i) for i in range(box.count())] == [
-            advisor_goals.GOALS["max_damage"].label,
-            advisor_goals.GOALS["min_damage_taken"].label,
-            "Name"]
+            advisor_goals.GOALS[goal_id].label
+            for goal_id in advisorbar.GOAL_ORDER] + [
+            relicpicker.NAME_ORDER_LABEL]
+        assert data.count(relicpicker.NAME_ORDER) == 1, (
+            "`Name` is a way of reading the grid and stands once")
         assert box.maximumWidth() == relicpicker.SORT_BOX_WIDTH
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_sort_box_takes_its_words_from_the_registry_and_nowhere_else(
+        slot, monkeypatch):
+    """AK-256 point 2, the counterbuild: reword a `label`, read the box.
+
+    The mutation is in the registry and nowhere near `relicpicker`; a box
+    still showing the old wording would be a second copy of the words, which
+    is the thing the criterion forbids. Every direction is reworded, not only
+    the new one, so a copy of any of the three is caught.
+    """
+    reworded = {
+        goal_id: dataclasses.replace(goal, label=f"reworded {goal_id}")
+        for goal_id, goal in advisor_goals.GOALS.items()}
+    monkeypatch.setattr(advisor_goals, "GOALS",
+                        MappingProxyType(reworded), raising=True)
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        box = dialog.sort_box
+        shown = [box.itemText(i) for i in range(box.count())]
+        assert shown == [f"reworded {goal_id}"
+                         for goal_id in advisorbar.GOAL_ORDER] + [
+            relicpicker.NAME_ORDER_LABEL]
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_advisor_row_is_the_narrower_of_the_two_direction_boxes(slot):
+    """AK-257: which of the two boxes the width measurement has to be taken at.
+
+    **The px measurement itself cannot live in this suite**, and that is a
+    stated gap rather than an oversight: the headless platform has no font
+    database at all -- `QFontInfo(QFont("Segoe UI", 9)).family()` comes back
+    empty and every glyph measures 12 px -- so a case asserting that an entry
+    fits would be measuring a font no player has (L-009). Both boxes ask for
+    378 px here against maxima of 200 and 220, with the two old entries alone
+    already at 282 px. The figure from the running window is in the T-194
+    report.
+
+    What is left for a case is the relation the criterion rests on: the
+    Advisor bar is the tight one, so a label measured to fit there fits in
+    the picker as well. Widen the row past `SORT_BOX_WIDTH` and the sentence
+    AK-257 is argued from stops being true.
+    """
+    assert advisorbar.GOAL_BOX_WIDTH < relicpicker.SORT_BOX_WIDTH, (
+        f"the Advisor bar allows {advisorbar.GOAL_BOX_WIDTH} px and the "
+        f"picker {relicpicker.SORT_BOX_WIDTH}, so the measurement AK-257 "
+        f"asks for is no longer taken at the tight one")
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        assert dialog.sort_box.maximumWidth() == relicpicker.SORT_BOX_WIDTH
     finally:
         dialog.deleteLater()
 
@@ -697,7 +838,7 @@ def test_both_directions_still_stand_on_every_card_in_name_order(slot):
         box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
         dialog._sort_chosen(box.currentIndex())
         shown = values_of(relic_cards(dialog)[0])
-        assert len(shown) == 2 and relicpicker.PENDING not in shown
+        assert len(shown) == ROWS and relicpicker.PENDING not in shown
     finally:
         dialog.deleteLater()
 
@@ -826,6 +967,251 @@ def test_tied_top_picks_keep_favourite_then_name_order(slot):
         dialog.deleteLater()
 
 
+# --- three directions on one card, three groups in front (AK-258 to AK-263) -
+
+#: Four copies whose top pick is a different one under each direction, so a
+#: case can tell the three groups of AK-261 apart. With the helper own rule
+#: -- every other direction gets the ranked figure negated -- two directions
+#: share one top card and the third group comes out empty, which is a pool
+#: that cannot show the criterion at all.
+THREE_TOPS = {
+    "max_damage": {0: 1.0, 1: 9.0, 2: 5.0, 3: 3.0},
+    "min_damage_taken": {0: 9.0, 1: 1.0, 2: 2.0, 3: 3.0},
+    "max_attributes": {0: 1.0, 1: 1.0, 2: 1.0, 3: 7.0},
+}
+
+#: Which copy tops which direction in `THREE_TOPS`, by position in the slot.
+TOP_OF = {"max_damage": 1, "min_damage_taken": 0, "max_attributes": 3}
+
+
+def three_tops(slot, read="max_damage"):
+    """A picker over `THREE_TOPS`, read in one named direction."""
+    ranked = "max_damage"
+    pool = pool_of(slot, THREE_TOPS[ranked], rank_by=ranked,
+                   apart={goal_id: gains
+                          for goal_id, gains in THREE_TOPS.items()
+                          if goal_id != ranked})
+    return picker_for(slot, FakeAdvice({read: pool}, goal_id=read))
+
+
+def test_every_direction_has_a_value_row_in_every_direction_read(slot):
+    """AK-258: one row per direction, in `GOAL_ORDER` order, always.
+
+    Read once in each direction, because the fault this rules out is a row
+    that is drawn only while its own direction is chosen. The captions are
+    asserted as well as the count: three rows in the wrong order would be
+    three rows.
+    """
+    wanted = [relicpicker.VALUE_CAPTIONS[goal_id]
+              for goal_id in advisorbar.GOAL_ORDER]
+    for read in advisorbar.GOAL_ORDER:
+        dialog = three_tops(slot, read=read)
+        try:
+            for card in relic_cards(dialog):
+                assert captions_of(card) == wanted, (
+                    f"read in {read}, a card carries {captions_of(card)}")
+                assert len(values_of(card)) == ROWS
+        finally:
+            dialog.deleteLater()
+
+
+def test_a_card_is_the_same_height_in_every_direction(slot):
+    """AK-258 counterbuild, measured: 0 px between two directions.
+
+    A row that came and went with the chosen direction would change the
+    height of every card at every change of `Sort by` -- measured by T-192 at
+    18 px a card and 54 px of dialog -- and with it AK-41, AK-204 and AK-216.
+    Two cards of the same relic, each built once and each given the figures
+    of one direction, because a card measured and then filled reports a
+    stale height (see `card_height`).
+    """
+    item = slot.available_items()[0]
+    per_direction = []
+    for read in advisorbar.GOAL_ORDER:
+        card = a_card(slot, item, [LONGEST] * ROWS,
+                      relicpicker.chip_text(read))
+        per_direction.append((read, card_height(card)))
+        card.deleteLater()
+    heights = {height for _read, height in per_direction}
+    assert len(heights) == 1, (
+        f"the card is not the same height in every direction: "
+        f"{per_direction}")
+
+
+def test_the_third_caption_is_the_noun_the_registry_puts_on_the_figure(
+        planner):
+    """AK-259 point 1: the column and the number come from one word.
+
+    The caption is compared against `GoalScore.display` of the very same
+    direction, asked of the registry with a real build -- not against a
+    literal in this file and not against `VALUE_CAPTIONS`, which is the entry
+    being guarded. `Attributes` fails it, which is the wording AK-259 rules
+    out.
+    """
+    from nrplanner.advisor.evaluate import evaluate
+    from tests import advisor_cases as advisor
+
+    ctx = types.GoalContext(
+        data=planner.data, hero=planner.current_hero(),
+        level=planner.level_slider.value(), reference=None,
+        weighting=advisor_goals.DEFAULT_WEIGHTING, declared=())
+    build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+    display = advisor_goals.GOALS["max_attributes"].score(build, ctx).display
+    caption = relicpicker.VALUE_CAPTIONS["max_attributes"]
+    assert display.startswith(caption + " "), (
+        f"the row is captioned {caption!r} while the registry writes "
+        f"{display!r}; AK-259 asks for the same noun in both")
+
+
+def test_the_unit_of_the_third_row_comes_from_the_pool(slot):
+    """AK-259 point 2: `pts` is the registry word, not the picker.
+
+    The pool states a unit no registry would hand out. A card still saying
+    `pts` would be a card with a literal of its own, which is what the
+    criterion forbids -- and what nothing else here could see, because the
+    honest chain and the literal print the same three letters.
+    """
+    odd = "attribute-points-from-the-pool"
+    dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
+        slot, {0: 3.0}, apart={"max_attributes": {0: 3.0}},
+        baseline=base_lines(max_attributes=(odd, ())))}))
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_attributes")
+        shown = {values_of(card)[column] for card in relic_cards(dialog)}
+        assert f"+3.0 {odd}" in shown, (
+            f"the attribute row reads {sorted(shown)}, not the unit the pool "
+            f"handed over")
+        assert advisor_goals.ATTRIBUTE_POINT_UNIT not in " ".join(shown)
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_attribute_row_is_rounded_like_every_other_figure(slot):
+    """AK-260: `GAIN_DECIMALS` and nothing of its own.
+
+    Half a point is the case that tells the two apart: rounded to whole
+    points it would read `no change` or `+1`, and AK-45 would then decide a
+    tie on a number the run never produced. `no change` at exactly zero
+    stays, which is the App Designer decision of 12.09.2026 -- a relic that
+    moves nothing says so.
+    """
+    unit = advisor_goals.ATTRIBUTE_POINT_UNIT
+    dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
+        slot, {0: 1.0, 1: 2.0},
+        apart={"max_attributes": {0: 0.5, 1: 0.0}})}))
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_attributes")
+        shown = [values_of(card)[column] for card in relic_cards(dialog)]
+        assert f"+0.5 {unit}" in shown, (
+            f"half a point is not shown as half a point: {shown}")
+        assert relicpicker.NO_CHANGE in shown, (
+            f"a gain of nothing does not say so: {shown}")
+    finally:
+        dialog.deleteLater()
+
+
+def test_every_top_group_leads_the_grid_in_the_order_of_goal_order(slot):
+    """AK-261: all three groups in front, the read one first.
+
+    `THREE_TOPS` gives each direction its own top card, so the three groups
+    are told apart by which card leads where. Read in damage: the damage top
+    (index 1), then survival (index 0), then the attribute one (index 3) --
+    and only then the value order of the read direction, which puts index 2
+    next. A picker that promotes one other direction reads
+    `[1, 0, 2, 3]` here, which is the shape of the code T-194 replaced.
+    """
+    items = slot.available_items()
+    dialog = three_tops(slot)
+    try:
+        order = handles_in_order(dialog)
+        assert order[:4] == [items[1].handle, items[0].handle,
+                             items[3].handle, items[2].handle], (
+            "the three top groups do not lead in the order GOAL_ORDER has")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_leading_cards_are_the_union_of_the_top_groups(slot):
+    """AK-261, said as a set rather than as an order.
+
+    The order case above would still pass if a fourth direction group were
+    dropped and its card happened to sort into the same place. This one
+    compares the handles in front against the union of `top_handles` over
+    every direction, so a group left out is a card missing whatever the
+    value order does.
+    """
+    dialog = three_tops(slot)
+    try:
+        ranking = dialog.ranking
+        union = frozenset().union(*(ranking.top_handles(goal_id)
+                                    for goal_id in advisorbar.GOAL_ORDER))
+        order = handles_in_order(dialog)
+        assert set(order[:len(union)]) == set(union), (
+            f"the cards in front are {order[:len(union)]} and the top groups "
+            f"hold {sorted(union)}")
+    finally:
+        dialog.deleteLater()
+
+
+def test_every_promoted_card_wears_the_chip_of_the_direction_that_promoted_it(
+        slot):
+    """AK-262: six of six, and each naming its own direction.
+
+    Before T-194 the chip belonged to the read direction alone, so the cards
+    promoted for the others stood in front unexplained -- one of three
+    measured at S2, and four of six once a third direction leads. A card in
+    no top group wears nothing, which is the other half of the criterion and
+    is why index 2 is in this pool.
+    """
+    items = slot.available_items()
+    dialog = three_tops(slot)
+    try:
+        by_handle = {card.item.handle: card.chip.text()
+                     for card in relic_cards(dialog)}
+        for goal_id, index in TOP_OF.items():
+            assert by_handle[items[index].handle] == relicpicker.chip_text(
+                goal_id), (
+                f"the top pick of {goal_id} wears "
+                f"{by_handle[items[index].handle]!r}")
+        assert by_handle[items[2].handle] == "", (
+            "a card in no top group wears a chip")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_third_chip_says_stats():
+    """AK-262: `BEST FOR STATS`, the wording measured to fit the strip.
+
+    `BEST FOR ATTRIBUTES` is 106 px against a 102 px strip, and 79 px once a
+    favourite star stands beside it; this is the wording the App Designer
+    settled on 12.09.2026 rather than widen the strip.
+    """
+    assert relicpicker.chip_text("max_attributes") == "BEST FOR STATS"
+
+
+def test_the_read_direction_decides_which_group_leads(slot):
+    """AK-263: the one goal setting, never `SlotPool.rank_by`.
+
+    The same pool, ordered by `max_damage` throughout, read in each of the
+    three directions in turn: what changes is which group leads and which
+    chip the leading card wears. Reading the direction off `rank_by` would
+    give the same answer three times -- and would agree with the setting in
+    exactly the one case out of three that a case might have picked.
+    """
+    items = slot.available_items()
+    for read in advisorbar.GOAL_ORDER:
+        dialog = three_tops(slot, read=read)
+        try:
+            assert dialog.ranking.pool.rank_by == "max_damage"
+            assert dialog._drawn_direction() == read
+            first = relic_cards(dialog)[0]
+            assert first.item.handle == items[TOP_OF[read]].handle, (
+                f"read in {read}, the grid is led by another direction top")
+            assert first.chip.text() == relicpicker.chip_text(read)
+        finally:
+            dialog.deleteLater()
+
+
 def focus_chain(dialog) -> list:
     """Every widget of the dialog, in the order tabbing walks them."""
     walked = []
@@ -940,8 +1326,7 @@ def test_line_three_b_carries_the_run_findings_in_the_order_handed_over(slot):
     """
     dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
         slot, {0: 1.0},
-        baseline=(("max_damage", 100.0, "AR", ("about the figure",)),
-                  ("min_damage_taken", 900.0, "effective HP", ())),
+        baseline=base_lines(max_damage=("AR", ("about the figure",))),
         unknowns=("about the stock",))}))
     try:
         assert dialog.findings.isVisibleTo(dialog)
@@ -973,8 +1358,8 @@ def test_a_sentence_in_both_sources_is_drawn_twice(slot):
     twice = "Said by both halves."
     dialog = picker_for(slot, FakeAdvice({"max_damage": pool_of(
         slot, {0: 1.0},
-        baseline=(("max_damage", 100.0, "AR", (twice,)),
-                  ("min_damage_taken", 900.0, "", ())),
+        baseline=base_lines(max_damage=("AR", (twice,)),
+                            min_damage_taken=("", ())),
         unknowns=(twice,))}))
     try:
         assert dialog.findings.text().count(twice) == 2
@@ -993,9 +1378,7 @@ def test_the_weighting_note_is_nowhere_in_the_picker(slot):
 
     note = advisor_goals.EVEN_WEIGHTING.note
     dialog = picker_for(slot, FakeAdvice({"min_damage_taken": pool_of(
-        slot, {0: 1.0}, rank_by="min_damage_taken",
-        baseline=(("max_damage", 100.0, "AR", ()),
-                  ("min_damage_taken", 900.0, "effective HP", ())))},
+        slot, {0: 1.0}, rank_by="min_damage_taken")},
         goal_id="min_damage_taken"))
     try:
         drawn = " ".join(label.text()

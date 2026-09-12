@@ -64,7 +64,24 @@ FIGURES_VISIBLE_MS = 3000
 #: The directions, in the order §3.1 lists them for the combo box. A tuple
 #: rather than `GOALS.keys()`: the registry is a mapping and the order of the
 #: control a player reads is a decision, not an iteration order.
-GOAL_ORDER = ("max_damage", "min_damage_taken")
+#:
+#: **The order is a decision, the membership is not** (AK-256 point 1). Every
+#: direction `advisor.goals.GOALS` scores stands here, because a direction
+#: that is computed, cached and offered nowhere is one the player pays for
+#: and cannot reach -- the state T-191 left behind for `max_attributes`
+#: (QA-228). Where each one stands is still a decision: `max_attributes` goes
+#: last because the two before it are `GOAL.md` A3's pair and the player
+#: already knows their order, and because this tuple is also the order of the
+#: value rows on every relic card (AK-257, AK-258).
+GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
+
+#: Widest the direction box may get (§3.1). The tighter of the two boxes a
+#: direction label has to fit -- the picker's `Sort by` has 220 px -- so a
+#: label measured against this one fits in both, and AK-257 argues from that.
+#: What stands to the right of it is the status line, whose own width is
+#: bound by AK-194, which is why a label that will not fit is shortened and
+#: this number is not raised.
+GOAL_BOX_WIDTH = 200
 
 #: The separator of the two-clause status lines (4.9, 4.11), a middle dot
 #: with two spaces a side. Written once because it is invisible in a diff.
@@ -516,7 +533,7 @@ class AdvisorBar(QWidget):
 
         self.goal_box = QComboBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        self.goal_box.setMaximumWidth(200)
+        self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
         for goal_id in GOAL_ORDER:
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
@@ -716,7 +733,7 @@ class AdvisorBar(QWidget):
         return self.goal_box.currentData()
 
     def choose_goal(self, goal_id: str) -> None:
-        """Stand on another direction, asked from outside the row (AK-43).
+        """Stand on another direction, asked from outside the row (AK-256).
 
         The relic picker's `Sort by` is not a second setting, it is this one
         seen from the other screen, so it comes through here and takes

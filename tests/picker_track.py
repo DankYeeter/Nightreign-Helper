@@ -41,6 +41,17 @@ HELD_FUSE_SECONDS = 30.0
 #: (Nachtrag IX-2). Named here so a helper does not have to repeat it.
 POOL_ORDER = types.PoolOrder(advisor_goals.CANONICAL_POOL_ORDER)
 
+#: The base state a stated pool stands on: one line per direction the picker
+#: draws, with the unit that direction's own registry entry hands out. The
+#: unit is taken from the registry and not written out, because it is what
+#: the card prints after the figure -- a literal here would let the picker
+#: print a literal of its own and no case would notice (AK-259).
+BASE_LINES = (
+    ("max_damage", 100.0, "AR"),
+    ("min_damage_taken", 900.0, "effective HP"),
+    ("max_attributes", 40.0, advisor_goals.ATTRIBUTE_POINT_UNIT),
+)
+
 
 class StatedAnswers:
     """An answer function of the shape a controller is built with.
@@ -195,23 +206,32 @@ def pool_for(slot, *, rank_by: str = advisor_goals.CANONICAL_POOL_ORDER,
     grid of dashes and every claim about "the figures arrived" would be empty.
     The gains descend with the position, which gives the pool a top pick and
     an order without any case having to name figures it does not read.
+
+    **Every direction the picker draws gets a figure and a baseline**, over
+    `VALUE_DIRECTIONS` rather than over a pair written out here: a pool that
+    is short one direction draws a column of dashes, or raises out of
+    `Ranking.unit`, and a guard about the track would fail for a reason that
+    has nothing to do with the track (T-194). The directions other than
+    `rank_by` get the figure negated, so a case reading the wrong column
+    reads a different sign.
     """
     items = [item for item in slot.available_items() if item.handle is not None]
-    other = next(goal_id for goal_id in relicpicker.VALUE_DIRECTIONS
-                 if goal_id != rank_by)
+    others = tuple(goal_id for goal_id in relicpicker.VALUE_DIRECTIONS
+                   if goal_id != rank_by)
     candidates = tuple(
         types.Candidate(
             slot_index=slot.index, handle=item.handle, relic_id=item.relic_id,
             name=item.name, colour=item.colour, is_deep=item.is_deep,
             effect_ids=tuple(item.effect_ids),
-            marginals=(types.Marginal(rank_by, float(len(items) - index)),
-                       types.Marginal(other, -float(len(items) - index))))
+            marginals=((types.Marginal(rank_by, float(len(items) - index)),)
+                       + tuple(types.Marginal(other,
+                                              -float(len(items) - index))
+                               for other in others)))
         for index, item in enumerate(items))
     return types.SlotPool(
         slot_index=slot.index, rank_by=rank_by,
-        baseline=(types.Baseline("max_damage", 100.0, "AR", ()),
-                  types.Baseline("min_damage_taken", 900.0,
-                                 "effective HP", ())),
+        baseline=tuple(types.Baseline(goal_id, value, unit, ())
+                       for goal_id, value, unit in BASE_LINES),
         candidates=candidates, unknowns=unknowns)
 
 

@@ -79,25 +79,44 @@ SLOT_COLOURS = {
 #: The caption of each value row, in one place. `UI_SPEC` AK-193 renames the
 #: damage row to `Attack multipliers` once A17 lands, and that is meant to be
 #: this one entry rather than five string literals spread over the file.
+#:
+#: `Offensive attributes` is the noun `MAX_ATTRIBUTES` puts in front of its
+#: own figure (`GoalScore.display`), and AK-259 asks for exactly that word so
+#: that the column and the number cannot drift apart. It is not `Attributes`:
+#: five of the eight are counted, and a caption that promises eight is the
+#: kind of shortening A12 forbids.
 VALUE_CAPTIONS = {
     "max_damage": "Damage",
     "min_damage_taken": "Damage taken",
+    "max_attributes": "Offensive attributes",
 }
 
 #: What a direction is called where a sentence or a chip needs a noun for it
 #: (`UI_SPEC` §3.5 points 4 and 5). Beside the captions rather than inside
 #: them: `Damage taken` is the row of a figure, `survival` is what the
 #: direction is for, and the two are not interchangeable.
+#:
+#: `stats` and not `attributes` for the third, and the reason is measured
+#: room rather than taste (AK-262): the chip strip of a card is 102 px and
+#: only 79 px once the favourite star stands beside it, where
+#: `BEST FOR ATTRIBUTES` wants 106 px and `BEST FOR STATS` 76 px. The precise
+#: word is carried by the value row's caption, by the `Sort by` entry and by
+#: line 4; the chip is the short one.
 DIRECTION_NOUNS = {
     "max_damage": "damage",
     "min_damage_taken": "survival",
+    "max_attributes": "stats",
 }
 
 #: The directions a card shows, in the order the advisor bar lists them.
-#: **Both, always, whatever the sorting** (AK-42): OF-13 asks for a way to say
-#: "this costs you something, but not in the direction you are asking about"
-#: that does not judge, and two figures side by side are that -- each in its
-#: own unit, with no exchange rate invented between them (AD-023, A7).
+#: **Every one of them, always, whatever the sorting** (AK-42, AK-258): OF-13
+#: asks for a way to say "this costs you something, but not in the direction
+#: you are asking about" that does not judge, and the figures side by side
+#: are that -- each in its own unit, with no exchange rate invented between
+#: them (AD-023, A7). A row that came and went with the chosen direction
+#: would be the withheld cost OF-13 is about, and it would move the height of
+#: every card by a measured 18 px at each change of `Sort by` (AK-41,
+#: AK-204, AK-216).
 VALUE_DIRECTIONS = advisorbar.GOAL_ORDER
 
 #: What stands where a figure will be until it arrives (§3.3). The block is
@@ -253,7 +272,7 @@ class Ranking:
     (AD-018 checkpoint 15). The lookup is a mapping rather than a scan because
     a slot offers up to 309 copies and the grid asks twice per card.
 
-    **It has no direction of its own, and that is the point** (AK-205,
+    **It has no direction of its own, and that is the point** (AK-263,
     Nachtrag IX-2). Every method here is asked which direction to answer in.
     The pool does carry one -- `SlotPool.rank_by`, the direction that put the
     list in this order -- and reading the drawn direction off it was right
@@ -292,7 +311,7 @@ class Ranking:
     def top_handles(self, goal_id: str) -> frozenset:
         """Handles earning AK-46's chip under one direction, or none.
 
-        **The one computation AK-46's chip and AK-195's ordering both read
+        **The one computation AK-46's chip and AK-261's ordering both read
         from** (T-094 Vorgaben point 1): a second maximum computed apart from
         this one is the duplication the task was written against. Equality is
         decided on the rounded text a card would show (AK-45), not the raw
@@ -341,7 +360,7 @@ class Asked:
 class SlotAdvice:
     """Where the picker's figures and its one goal setting come from.
 
-    **There is one goal setting in the program** (AK-43). It lives in the
+    **There is one goal setting in the program** (AK-256). It lives in the
     advisor bar's combo box, and this object is how the picker reads and
     writes it: a `Sort by` with a setting of its own would be a fourth place
     that can disagree with the other three.
@@ -380,7 +399,7 @@ class SlotAdvice:
         return self._bar.goal_id()
 
     def choose_goal(self, goal_id: str) -> None:
-        """Stand on another direction, everywhere at once (AK-43)."""
+        """Stand on another direction, everywhere at once (AK-256)."""
         self._bar.choose_goal(goal_id)
 
     def ask(self, answered) -> Asked | None:
@@ -486,10 +505,23 @@ class ValueBlock(QWidget):
     relic name with no space in it was enough to do it once already. The
     figure is therefore `Ignored` horizontally and takes the room the caption
     leaves.
+
+    **The block itself is `Ignored` as well**, and that is the half the
+    figure's own policy could not cover: a caption is a `QLabel` that has not
+    been told to wrap, so its minimum width *is* its text, and the block
+    handed that minimum up to the card. It went unnoticed while the captions
+    were `Damage` and `Damage taken`, and `Offensive attributes` (AK-259) is
+    the first one long enough to push a card's demand past `CARD_WIDTH`.
+    Stating nothing is the property the docstring already promised; it now
+    holds whatever a caption says rather than while the captions happen to be
+    short. The rows inside are laid out exactly as before -- the policy
+    changes what the block asks of the card, not what it does with what it
+    gets.
     """
 
     def __init__(self, captions):
         super().__init__()
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 2, 0, 0)
         layout.setSpacing(2)
@@ -1185,8 +1217,39 @@ class RelicPicker(QDialog):
         # (AK-216).
         return items, text.strip()
 
+    def _top_groups(self) -> list[tuple[str, frozenset]]:
+        """Which direction leads with which handles, in the order they lead.
+
+        **One computation, read twice** (AK-261, AK-262): the grid order
+        takes the groups in this order, and the chips take the direction each
+        group is named by. A card promoted by one direction and marked with
+        another's chip is exactly the unexplained card AK-262 was written
+        against, and two computations are how they would come apart.
+
+        The direction being read comes first, then the rest in
+        `VALUE_DIRECTIONS` order; a handle an earlier group already claimed
+        is not claimed again, so a card that tops two directions leads once
+        and says the first of them. A group is empty when `Ranking` finds no
+        chip-worthy top at all -- no pool, `no change`, or negative (AK-46) --
+        and then nothing leads from that direction.
+
+        Independent of `Sort by`: the chips of AK-46 stand in name order too,
+        where nothing is promoted at all. `_in_the_chosen_order` is where
+        `Name` stops the promotion.
+        """
+        read_first = self._drawn_direction()
+        order = [read_first] + [goal_id for goal_id in VALUE_DIRECTIONS
+                                if goal_id != read_first]
+        groups: list[tuple[str, frozenset]] = []
+        claimed: frozenset = frozenset()
+        for goal_id in order:
+            handles = self.ranking.top_handles(goal_id) - claimed
+            claimed |= handles
+            groups.append((goal_id, handles))
+        return groups
+
     def _in_the_chosen_order(self, items):
-        """`items` as `Sort by` asks for them (§3.4, AK-44, AK-195).
+        """`items` as `Sort by` asks for them (§3.4, AK-44, AK-261).
 
         **Stable, on top of the order the grid would have anyway.** Two
         candidates inside one segment of a piecewise-linear curve are worth
@@ -1198,20 +1261,19 @@ class RelicPicker(QDialog):
         A copy the pool does not carry has no place in a value order and goes
         to the end, keeping the order it had among its own kind.
 
-        **AK-195: the chip-bearing cards of both directions lead, ahead of
-        the value order** -- the sorted direction's first, then the other
-        direction's, each in the favourite/name order `items` already
-        carries rather than by value: a real tie among them has no order the
-        figure decided, and AK-44 forbids inventing one. The set for each
-        direction is `Ranking.top_handles`, read once and not recomputed
-        (Vorgaben point 1); a card the filter already dropped from `items`
-        cannot be promoted, so a hidden top pick gets no substitute
-        (Vorgaben point 3). `Sort by` = `Name` promotes nothing at all.
+        **AK-261: the top group of every direction leads, ahead of the value
+        order** -- the read direction's first, then the others in
+        `VALUE_DIRECTIONS` order, each in the favourite/name order `items`
+        already carries rather than by value: a real tie among them has no
+        order the figure decided, and AK-44 forbids inventing one. The groups
+        come from `_top_groups`, which the chips read as well; a card the
+        filter already dropped from `items` cannot be promoted, so a hidden
+        top pick gets no substitute. `Sort by` = `Name` promotes nothing at
+        all.
         """
         if self.sort_box.currentData() == NAME_ORDER or self.ranking is None:
             return items
         goal_id = self._drawn_direction()
-        other_id = next(g for g in VALUE_DIRECTIONS if g != goal_id)
 
         def worth(item):
             gain = self.ranking.gain(item, goal_id)
@@ -1219,27 +1281,31 @@ class RelicPicker(QDialog):
 
         by_value = sorted(items, key=worth)
 
-        leading = self.ranking.top_handles(goal_id)
-        trailing = self.ranking.top_handles(other_id) - leading
-
         def handle_of(item):
             return getattr(item, "handle", None)
 
-        first = [item for item in items if handle_of(item) in leading]
-        second = [item for item in items if handle_of(item) in trailing]
-        rest = [item for item in by_value
-                if handle_of(item) not in leading and handle_of(item) not in trailing]
-        return first + second + rest
+        groups = self._top_groups()
+        promoted = frozenset().union(*(handles for _goal, handles in groups))
+        leading = [item for _goal, handles in groups
+                   for item in items if handle_of(item) in handles]
+        rest = [item for item in by_value if handle_of(item) not in promoted]
+        return leading + rest
 
     def _drawn_direction(self) -> str:
-        """The direction the value rows, chips and sentences are in (AK-205).
+        """The direction the value rows, chips and sentences are in (AK-263).
 
-        The one goal setting of the program (AK-43), and **never**
+        The one goal setting of the program (AK-256), and **never**
         `SlotPool.rank_by`: since Nachtrag IX-2 the picker asks under one
         fixed direction whatever the player has chosen, so the direction that
         ordered the list says nothing about the direction being read. The two
         agreed most of the time before, which is worse than never: a fault
         that shows up sometimes is one nobody catches.
+
+        What is drawn in it: the header, the `scope` sentences of line 4, the
+        value order of the grid and the chip of the leading group. What has
+        no direction at all: the value rows, which stand in every direction
+        at once (AK-258), and the chips of the groups behind the first, which
+        name their own (AK-262).
         """
         return self.advice.goal_id()
 
@@ -1409,7 +1475,7 @@ class RelicPicker(QDialog):
         super().done(result)
 
     def _sort_chosen(self, _index: int) -> None:
-        """The player picked an order, and a direction with it (AK-43).
+        """The player picked an order, and a direction with it (AK-256).
 
         A direction chosen here is chosen everywhere: it goes to the one
         setting the program has. **Nothing is asked again** (Nachtrag IX-0,
@@ -1437,9 +1503,15 @@ class RelicPicker(QDialog):
         cards showing `+12.4` carry the same mark whatever their unrounded
         gains are, because the worst thing this screen could do is show two
         equal numbers of which only one is marked. `Ranking.top_handles` is
-        the one place that decision is made -- `_in_the_chosen_order` reads
-        the very same set to promote these cards to the top of the grid
-        (AK-195, T-094 Vorgaben point 1).
+        the one place that decision is made, and `_top_groups` the one place
+        it is shared out -- `_in_the_chosen_order` reads the very same groups
+        to promote these cards to the top of the grid (AK-261, AK-262).
+
+        **Every marked card says which direction marked it** (AK-262). Until
+        the third direction arrived, the chip was the read direction's and
+        the cards promoted for the other stood in front with nothing written
+        on them; with three directions that would be four unexplained cards
+        out of six, which reads as a broken grid rather than as help.
 
         With no ranking every card says `—` (AK-49). Not `0`, and not an
         empty row: the block stands either way, so the card is the same
@@ -1459,16 +1531,25 @@ class RelicPicker(QDialog):
                            else NO_FIGURES_AT_ALL)
             return
 
-        goal_id = self._drawn_direction()
-        top = self.ranking.top_handles(goal_id)
+        groups = self._top_groups()
+        marked = {handle: direction
+                  for direction, handles in groups
+                  for handle in handles}
         # Twenty cards marked `BEST FOR DAMAGE` at a top value of nothing
         # would be a lie in bold (§3.5 point 5). The header says it once
-        # instead, and no card is marked.
+        # instead, and no card is marked -- `_top_groups` hands out an empty
+        # group for such a direction, so the emptiness is decided in one
+        # place for the chip and for the order together.
         for item, card in pairs:
-            card.show_values(
-                self.ranking.texts_for(item),
-                chip_text(goal_id) if getattr(item, "handle", None) in top else "")
-        self._headline("" if top else nothing_raises(goal_id))
+            direction = marked.get(getattr(item, "handle", None))
+            card.show_values(self.ranking.texts_for(item),
+                             chip_text(direction) if direction else "")
+        # The header speaks for the direction being read and for no other --
+        # it is the first group by construction (AK-263). A slot where
+        # nothing raises damage says so even when a relic in it tops the
+        # survival direction and wears that chip (AK-46).
+        read_direction, read_top = groups[0]
+        self._headline("" if read_top else nothing_raises(read_direction))
 
     def _say_what_was_left_out(self) -> None:
         """Lines 3b and 4, the two halves of what this figure cannot know.

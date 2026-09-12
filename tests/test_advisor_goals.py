@@ -509,22 +509,68 @@ def test_the_attribute_points_are_not_a_summand_of_the_damage_figure(
         goals.GOALS[ATTRIBUTES].score(plain, ctx).value
 
 
-def test_the_third_direction_is_scored_but_not_yet_offered(game_data):
-    """What T-191 built and what it deliberately did not (AK-43, AK-205).
+def test_the_third_direction_is_named_and_stands_last(game_data):
+    """AK-257: the wording of the third entry, and where it stands.
 
-    The registry scores three directions; the two controls a player reads
-    offer two, because a third entry is a promise about a label, a unit and
-    a third column on a card, and those are the `ui-ux-designer`'s with
-    `UI_SPEC` entries behind them. This case is here so that the gap is a
-    stated state of the program rather than something a reader finds by
-    opening the window and counting -- and so that closing it has to come
-    through this file.
+    **This case replaces `test_the_third_direction_is_scored_but_not_yet_
+    offered`**, which held the opposite -- that the direction was scored and
+    deliberately not offered (T-191). T-194 offers it, so the old case is
+    not turned round but struck: two guards that contradict each other are
+    worse than one, and what it guarded is now AK-256 point 1 in
+    `test_advisor_bar.py`.
+
+    The wording is a literal here because `UI_SPEC.md` AK-257 writes it out
+    and this is the file that holds the registry against the spec. Nothing
+    in `relicpicker` or `advisorbar` may carry it a second time -- that is
+    AK-256 point 2, and `test_no_direction_label_is_written_into_a_control`
+    is where it is measured.
+
+    `Maximise attributes` is the wording this rules out: the direction counts
+    five of the eight attributes, and the short name promises eight.
     """
-    assert ATTRIBUTES in goals.GOALS
-    assert ATTRIBUTES not in advisorbar.GOAL_ORDER, (
-        "the attribute direction reached the control a player reads; that "
-        "is A17 part 2 and needs the UI_SPEC entries AK-43 and AK-205 name")
-    assert set(advisorbar.GOAL_ORDER) < set(goals.GOALS)
+    assert goals.GOALS[ATTRIBUTES].label == "Maximise offensive attributes"
+    assert advisorbar.GOAL_ORDER[-1] == ATTRIBUTES, (
+        "the third direction does not stand behind the pair of GOAL.md A3, "
+        "so the second value row of every card has moved (AK-258)")
+    assert advisorbar.GOAL_ORDER[:2] == ("max_damage", "min_damage_taken")
+
+
+def test_no_direction_label_is_written_into_a_control(game_data):
+    """AK-256 point 2: the words live in the registry and nowhere else.
+
+    Read out of the source rather than off a widget, because the fault this
+    rules out is a second copy that happens to agree today. Docstrings and
+    module comments are not part of it: `advisorbar._lower_case_first`
+    explains itself with `Maximise damage`, and a rule that forbade an
+    example in prose would buy nothing -- what reaches a player is a string
+    the code evaluates, and that is what is walked here.
+    """
+    import ast
+    import pathlib
+
+    labels = {goal.label for goal in goals.GOALS.values()}
+    root = pathlib.Path(advisorbar.__file__).parent
+    for name in ("advisorbar.py", "relicpicker.py"):
+        path = root / name
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        holders = (ast.Module, ast.ClassDef, ast.FunctionDef,
+                   ast.AsyncFunctionDef)
+        docstrings = set()
+        for node in ast.walk(tree):
+            first = node.body[0] if isinstance(node, holders) and node.body                 else None
+            if (isinstance(first, ast.Expr)
+                    and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                docstrings.add(id(first.value))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant):
+                continue
+            if not isinstance(node.value, str) or id(node) in docstrings:
+                continue
+            for label in labels:
+                assert label not in node.value, (
+                    f"{name} line {node.lineno} writes {label!r} down; the "
+                    f"control is to take it from goals.GOALS[...].label")
 
 
 #: The five attack multipliers, as the damage facade accounts for them.

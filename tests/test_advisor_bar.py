@@ -261,10 +261,72 @@ def test_a_row_at_rest_is_4_1_and_offers_what_optimize_promises(bar):
     assert bar.progress.isHidden()
 
 
-def test_the_two_directions_stand_in_the_order_the_spec_lists_them(bar):
-    """§3.1: `Maximise damage`, then `Minimise damage taken`."""
-    assert [bar.goal_box.itemText(i) for i in range(bar.goal_box.count())] == [
-        "Maximise damage", "Minimise damage taken"]
+def test_every_direction_the_registry_scores_can_be_chosen(bar):
+    """AK-256 point 1: the two sets are the same set.
+
+    Not `<=`: a direction the registry scores and the control does not offer
+    is computed on every run, kept in every cache and reachable by nobody --
+    which is what `max_attributes` was between T-191 and T-194 (QA-228). The
+    other direction of the inequality is the older fault, a control offering
+    a direction no pool carries, and one assertion holds against both.
+    """
+    assert set(advisorbar.GOAL_ORDER) == set(goals.GOALS), (
+        f"scored but not offered: "
+        f"{sorted(set(goals.GOALS) - set(advisorbar.GOAL_ORDER))}; offered "
+        f"but not scored: "
+        f"{sorted(set(advisorbar.GOAL_ORDER) - set(goals.GOALS))}")
+    assert len(set(advisorbar.GOAL_ORDER)) == len(advisorbar.GOAL_ORDER), (
+        "a direction stands in the order twice")
+
+
+def test_the_row_offers_the_registry_projected_and_never_name(bar):
+    """AK-256 points 1 and 4: `GOAL_ORDER`'s entries, in its order, no `Name`.
+
+    **The words come from the registry and not from this file**, which is
+    the one place this module departs from its own rule about literals: the
+    criterion asks for exactly that comparison, because a second list of
+    words is the thing it forbids. `UI_SPEC.md` holds the wording of the
+    third one and `test_advisor_goals.py` measures it against the registry,
+    so the literal is written down once and not nowhere.
+
+    `Name` is the picker's way of reading the grid, not a direction, and a
+    row that offered it would be offering a goal setting that no goal
+    answers to.
+    """
+    box = bar.goal_box
+    assert [box.itemData(i) for i in range(box.count())] == list(
+        advisorbar.GOAL_ORDER)
+    assert [box.itemText(i) for i in range(box.count())] == [
+        goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
+    from nrplanner import relicpicker
+
+    assert relicpicker.NAME_ORDER_LABEL not in [
+        box.itemText(i) for i in range(box.count())]
+
+
+def test_the_row_takes_its_words_from_the_registry_and_nowhere_else(
+        qapp, monkeypatch):
+    """AK-256 point 2, the counterbuild: reword a `label`, read the box.
+
+    The mutation is in the registry, far from this row; a box still showing
+    the old wording would be a second copy of the words. The row is built
+    after the mutation because the entries are added once, at construction.
+    """
+    from types import MappingProxyType
+
+    reworded = {goal_id: dataclasses.replace(goal, label=f"reworded {goal_id}")
+                for goal_id, goal in goals.GOALS.items()}
+    monkeypatch.setattr(goals, "GOALS", MappingProxyType(reworded))
+    widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller())
+    try:
+        box = widget.goal_box
+        assert [box.itemText(i) for i in range(box.count())] == [
+            f"reworded {goal_id}" for goal_id in advisorbar.GOAL_ORDER]
+    finally:
+        widget.deleteLater()
+
+
 
 
 def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
