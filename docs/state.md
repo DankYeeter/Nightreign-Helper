@@ -7,7 +7,6 @@ Reihenfolge: `docs/plan-restarbeiten.md`. Befunde: `qa/findings.md`,
 `security/findings.md` (nur noch Tabelle; Fliesstext in `qa/verlauf.md`,
 `security/verlauf.md`). Register: `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md`.
-
 **Nummernkreise** (nachgezaehlt 12.09.): T ab **T-187** · QA ab **QA-225** ·
 SEC ab **SEC-037** · AK ab **AK-256** · AD ab **AD-032** · OF ab **OF-34** ·
 DR ab **DR-019** · R ab **R-007** · NH ab **NH-003** · C ab **C-004** ·
@@ -73,13 +72,13 @@ aber AD-008 haengt an OF-22.
 
 1. **A16 und A17 bauen** — getrennte Auftraege, Spec liegt vor (AK-182,
    AK-186, AK-187, AK-190 bis AK-193).
-2. **Aufraeumen:** 11 tote Zeilenverweise (7 durch den Registerumbau, 4 alt
-   nach `run.py`, das 11 Zeilen hat) · neun Registerzeilen zeigen auf ganze
+2. **Aufraeumen:** 11 tote Zeilenverweise (7 aus dem Registerumbau, 4 alt nach
+   `run.py`, das 11 Zeilen hat) · neun Registerzeilen zeigen auf ganze
    Abschnitte von 24 bis 232 Zeilen.
 3. **Die Baurunde:** `compliance-agent` (`auflagen`) → `technical-writer` →
    `release-manager` (`build`) → (`clean-room`) → `power-user` → (`notes`).
-   Drei Vorbehalte aus T-159 warten auf ein **echtes Fenster**: AK-110,
-   AK-129, A11/A15.
+   Drei Vorbehalte aus T-159 brauchen ein **echtes Fenster**: AK-110, AK-129,
+   A11/A15.
 
 ## Beim Nutzer — offen
 
@@ -118,5 +117,4 @@ Zeilenverweise ins Leere zeigen lassen.
 ## Regeln
 
 Gepflegt in `docs/plan-restarbeiten.md`, nur dort. Teamweit L-008 bis L-018;
-projekteigen NH-001, NH-002. **Nie geprueft:** Linux/macOS · eine echte
-Fremdinstallation.
+projekteigen NH-001, NH-002. **Nie geprueft:** Linux/macOS, Fremdinstallation.
