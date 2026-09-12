@@ -61,6 +61,7 @@ from collections.abc import Callable, Mapping
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
+from .. import errortext
 from . import run as advisor_run
 from . import search, types
 from .goals import GOALS
@@ -187,7 +188,17 @@ class _Worker(QObject):
             pass
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
             traceback.print_exc()
-            self.failed.emit(str(exc) or exc.__class__.__name__)
+            # `errortext.in_english`, never `str(exc)`: what this emits is
+            # shown in the bar (4.7), and an exception that came out of Qt,
+            # pycryptodome or the operating system carries the language of
+            # the Windows installation with it (A8, QA-211). The console
+            # traceback above keeps the original wording, which is where a
+            # developer wants it and where no player looks. No fallback for
+            # an empty sentence either: `in_english` is total, and the case
+            # the old `or exc.__class__.__name__` covered -- one of this
+            # program's own exceptions raised with nothing to say -- is
+            # `errortext.NOTHING_WAS_SAID` there.
+            self.failed.emit(errortext.in_english(exc))
         else:
             self.ready.emit(dataclasses.replace(
                 result, generation=self._question.request.generation))

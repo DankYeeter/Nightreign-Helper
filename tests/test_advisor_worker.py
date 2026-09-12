@@ -33,6 +33,7 @@ import time
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 
+from nrplanner import errortext
 from nrplanner.advisor import goals, run, types, worker
 
 from tests import advisor_cases as advisor
@@ -455,9 +456,19 @@ def test_a_run_that_raises_is_a_signal_and_not_a_silence(qapp, controller,
                                                          question):
     """AD-006 point 9: an exception in a thread ends it without a word, and
     the window would wait for an answer that is never coming.
+
+    **What comes back is a sentence of this repository, not the exception's
+    own words** (A8, QA-211, closed here by T-191). The scorer raises a
+    `ValueError` -- a class of `builtins`, indistinguishable from one Qt or
+    pycryptodome raised, and on a German Windows one that would carry German
+    into the bar -- so the words it was raised with are exactly what must
+    *not* arrive. That they do not is asserted both ways round: the raised
+    text is absent, and the sentence `errortext` maps the class on to is
+    what the window is handed.
     """
     inventory, problem, ctx, request = question
-    watched = Watched(raises="the dataset lost a curve")
+    raised = "the dataset lost a curve"
+    watched = Watched(raises=raised)
     advisor_controller = controller(goals=watched.registry)
     seen = Recorder(advisor_controller)
 
@@ -465,7 +476,12 @@ def test_a_run_that_raises_is_a_signal_and_not_a_silence(qapp, controller,
     assert spin(qapp, lambda: bool(seen.failed)), "no failure was reported"
 
     assert seen.ready == []
-    assert "the dataset lost a curve" in seen.failed[0]
+    assert seen.failed[0] == errortext.in_english(ValueError(raised)), (
+        "the bar was handed something other than the one English sentence "
+        "this program has for a failure of that class (A8)")
+    assert raised not in seen.failed[0], (
+        "the exception's own words reached the window; on a German Windows "
+        "those words are German and no guard of A8 can see them (QA-211)")
     assert "Traceback" not in seen.failed[0], (
         "`UI_SPEC` 4.12: no stacktrace in the window")
 

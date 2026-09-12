@@ -225,8 +225,17 @@ def working_out(slot_name: str) -> str:
 
 
 def could_not_work_out(reason: str) -> str:
-    """The header of a question that ended in no figures (AK-208, AK-218)."""
-    return COULD_NOT_WORK_OUT.format(reason=reason)
+    """The header of a question that ended in no figures (AK-208, AK-218).
+
+    The reason is a **clause** here -- the template puts the full stop after
+    it -- and since T-191 one of the two reasons that reach this line is a
+    whole sentence: a run that raised now reports through `errortext`, whose
+    entries all end in a full stop by design, because most of them are shown
+    on their own. Stripping it is what `advisorbar` has always done at its
+    own sink (`_on_failed`), and doing it in one place here keeps the two
+    screens from saying the same failure two ways.
+    """
+    return COULD_NOT_WORK_OUT.format(reason=reason.rstrip(". "))
 
 
 def nothing_raises(goal_id: str) -> str:

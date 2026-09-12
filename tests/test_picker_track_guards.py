@@ -51,7 +51,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
-from nrplanner import advisorbar, relicpicker
+from nrplanner import advisorbar, errortext, relicpicker
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import run as advisor_run
 from nrplanner.advisor import types, worker
@@ -878,7 +878,14 @@ def _shows_a_filled_grid(dialog, _answers) -> None:
 
 
 def _shows_the_reason_it_could_not(dialog, _answers) -> None:
-    _a_grid_without_figures(dialog, BROKEN_RUN)
+    # What the window is handed is not what the run raised: since T-191 the
+    # worker maps the exception on to one English sentence of this
+    # repository, because an exception's own words are Windows' or a
+    # library's and on a German machine they are German (A8, QA-211). The
+    # expectation goes through `errortext` for that reason and not through
+    # `BROKEN_RUN`, which is what the *scorer* raised with.
+    _a_grid_without_figures(dialog,
+                            errortext.in_english(ValueError(BROKEN_RUN)))
 
 
 def _shows_that_the_search_was_stopped(dialog, _answers) -> None:

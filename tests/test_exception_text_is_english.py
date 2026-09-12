@@ -163,8 +163,6 @@ def everywhere_an_exception_is_quoted() -> dict[tuple[str, str, str], int]:
 #: and every line here is a real place where an exception's own text can
 #: still reach a reader.
 #:
-#: * `advisor/worker.py` -- out of bounds for T-190 (A17 is being rebuilt
-#:   there). The same sink, one line, the same fix.
 #: * `app.py::main` -- `load_data` raises `FileNotFoundError` with a message
 #:   this program wrote (`datasource._no_data_message`). Mapping it by class
 #:   would throw that message away, and marking it needs `datasource.py`,
@@ -180,7 +178,6 @@ def everywhere_an_exception_is_quoted() -> dict[tuple[str, str, str], int]:
 #: * `nrdata/icons.py::read_subtextures` -- `LayoutError` is this program's
 #:   class, so its text is shown, and it interpolates what ElementTree said.
 STILL_QUOTING = {
-    ("nrplanner/advisor/worker.py", "work", "str(exc)"): 1,
     ("nrplanner/app.py", "main", "str(exc)"): 1,
     ("nrplanner/inventory.py", "_scan_save", "str(exc)"): 2,
     ("nrdata/extract.py", "_bosses", "{exc}"): 1,

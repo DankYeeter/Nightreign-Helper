@@ -3982,7 +3982,7 @@ from PySide6 import QtCore
     ),
     "a-run-that-raises-says-nothing": Mutation(
         path="nrplanner/advisor/worker.py",
-        old="""            self.failed.emit(str(exc) or exc.__class__.__name__)
+        old="""            self.failed.emit(errortext.in_english(exc))
 """,
         new="""            pass
 """,
