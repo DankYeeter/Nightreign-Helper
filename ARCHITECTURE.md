@@ -312,14 +312,18 @@ die Liste dessen, was diese Bewertung nicht wissen kann (A7).
 
 Die Entscheidungen stehen in sechs Themenbereichen. Innerhalb eines Bereichs
 folgt auf eine Entscheidung unmittelbar das, was sie nachzieht oder korrigiert.
-Die Reihenfolge der Vergabe (AD-001 bis AD-031) steht im Verlauf; welche
+Die Reihenfolge der Vergabe (AD-001 bis AD-032) steht im Verlauf; welche
 Nummer wo liegt, sagt `ARCHITECTURE_REGISTER.md` in einer Zeile.
+
+**Eine Entscheidung ist noch keine:** AD-032 liegt als vorgelegte Wahl mit
+vier gemessenen Optionen in Bereich C. Bis der App Designer waehlt, gilt dort
+der gebaute Zustand.
 
 | Bereich | Inhalt | AD |
 |---|---|---|
 | **A** | Schnitt, Rechenautoritaet, Fassade, Benennung | AD-001, AD-002, AD-021, AD-005, AD-019, AD-020, AD-022, AD-023, AD-024 |
 | **B** | Suche, Kandidaten, Haltezustand, Grenzbeitrag | AD-003, AD-008, AD-013, AD-014, AD-016, AD-017, AD-018 |
-| **C** | Zielrichtungen, Vorbehalte, Fluechte | AD-004, AD-010, AD-025, AD-015, AD-026 |
+| **C** | Zielrichtungen, Vorbehalte, Fluechte | AD-004, AD-010, AD-025, AD-015, AD-026, **AD-032 (offen)** |
 | **D** | Nebenlaeufigkeit, Cache, Hauptthread | AD-006, AD-007, AD-028, AD-029 |
 | **E** | Daten lesen, Erststart, Pfade | AD-011, AD-012, AD-030, AD-031 |
 | **F** | Test und Nachweis | AD-009 |
@@ -2926,6 +2930,364 @@ Partitionssumme tut es nicht.**
 wie der `director` sie gesetzt hat.
 
 ---
+
+---
+
+### AD-032 — Worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht (2026-09-12, Status: **offen — vorgelegt, nicht entschieden**; die Wahl trifft der App Designer)
+
+**Diese Entscheidung ist nicht getroffen.** Sie liegt als vier gemessene
+Optionen vor. Was der `developer` daraus baut, steht erst fest, wenn der App
+Designer eine davon waehlt; bis dahin gilt **Option A**, weil sie der
+gebaute Zustand ist. Umgesetzt wird keine, bevor gewaehlt ist — AK-190,
+AK-192 und AK-193 beschreiben sonst eine Zahl, die gleich wieder wechselt.
+
+**Kontext.** T-188 (Commit `43fd992`) hat `advisorbar.asking_from` beide
+Waffenfelder genommen: der Beraterlauf kennt weder `reference` noch
+`weapons_held`. AK-191 ist damit erfuellt. Die Zahl, die uebrig bleibt, ist
+`goals._attack_multiplier_mean` — das Mittel der fuenf Angriffsmultiplikatoren
+aus `damage.AR_RATE_FOR`. Attribute und Passive gehen darin nicht auf.
+
+Damit stehen zwei wahre Saetze gegeneinander:
+
+- Der Docstring von `_attack_multiplier_mean` hat recht: *ohne Armatur gibt
+  es keine Skalierung, die ein Attributsbonus fuettern koennte.* Das ist keine
+  Luecke, das ist die Spielmechanik.
+- `GOAL.md` A17 hat auch recht: die Zielrichtung soll *„nach
+  Angriffsmultiplikatoren, **Attributen** und Passiven"* ranken — und eine
+  Rangfolge, in der **184 von 210** Kopien auf exakt 0,0000 stehen, ist fuer
+  den Spieler keine Rangfolge.
+
+Die Entscheidung ist deshalb nicht „ist der Docstring richtig", sondern:
+**welche feste Groesse tritt an die Stelle der weggefallenen Waffe** — und
+was nimmt man dafuer in die Zahl auf, das zwischen Runden *nicht* fest ist.
+
+**Kraefte.**
+
+1. **Fest gegen aussagekraeftig.** Jede Option, die mehr Kopien unterscheidbar
+   macht, holt etwas herein, das die Runde neu wuerfelt. Das ist kein
+   Nebeneffekt, das ist der Preis.
+2. **A7 gegen Vollstaendigkeit.** Eine erfundene Umrechnung zwischen
+   Attributspunkten und Schaden ist genau das, was AD-023 und OF-13 verbieten.
+   Erlaubt ist eine **benannte Annahme** (Vorbild: `EVEN_WEIGHTING`), nicht
+   ein stiller Gewichtsfaktor.
+3. **Zwei Zahlen, nie eine** (AD-004, AD-023). Eine Groesse, die Schaden und
+   Attribute in einen Wert mischt, bricht die tragende Regel des Bereichs.
+4. **Betreibbarkeit.** Der Grenzbeitrag wird je Kandidat und je Slot
+   gerechnet; das Laufzeitbudget aus AD-018/AD-028 liegt bei Zehntelsekunden
+   je Lauf, nicht bei Sekunden.
+
+#### Messumgebung und Rezept — gilt fuer **jede** Zahl unten
+
+Ohne diese Zeilen ist keine der Zahlen lesbar (L-001, L-009).
+
+| | |
+|---|---|
+| Datensatz | `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`, `data_version` **10350000** |
+| Spielstand | der des Nutzers, **nur lesend** ueber `inventory.load`; **312** Kopien, davon **210** gewoehnliche und 102 Deep |
+| Grundgesamtheit | die **210 gewoehnlichen** Kopien — ein freier **weisser** Slot zieht jede Farbe, nichts gehalten, Grundzustand also leer |
+| Nightfarer | Wylder, sofern nicht anders genannt; Level **15** (`tests/advisor_cases.LEVEL`) |
+| Weg | `candidates.pool(...)` mit einer Zielrichtungs-Registry je Option, `types.marginal_for` je Kandidat — **kein** Programmstart, **kein** `Planner` |
+| „unterscheidbar" heisst | Grenzbeitrag mit `abs(wert) > 1e-9`. Die Schranke ist eine Gleitkomma-Null, kein Sicherheitsabstand: die Werte liegen entweder exakt auf 0 oder ueber 0,01 |
+| Skripte | `…/scratchpad/T-189/measure_options.py`, `measure2.py` … `measure6.py`, gemessen gegen Commit `b8f71a8` |
+| Lesart | **Kopien**, nicht Relikt-Arten und nicht Effekt-Ids |
+
+**Die Zahlen sind gemessen, nicht geschaetzt** — bis auf eine Ausnahme, die
+als solche gekennzeichnet ist (Recluse unter Option B, siehe dort).
+
+**Zwei Zahlen zum Einordnen, bevor die Optionen kommen.** Die Richtung
+„Schaden minimieren" unterscheidet auf demselben Bestand **37 von 210**
+Kopien. Unter beiden heutigen Richtungen zusammen haben **149 von 210**
+Kopien gar keine Zahl. Und die Obergrenze ueberhaupt — jede hier gepruefte
+Grundlage vereinigt, beide Richtungen — liegt bei **111 von 210**: **99
+Kopien** dieses Bestands bewegen weder Schaden noch Ueberleben, unter keiner
+Option. Ein Teil der 184 Nullen ist also nicht Fehler der Zahl, sondern
+Eigenschaft der Sammlung.
+
+#### Was die vorliegenden Recherchen dazu beitragen
+
+Drei der sechs `docs/research/`-Berichte betreffen diese Entscheidung; sie
+sind gelesen und hier verarbeitet, statt bezahlte Recherche zu wiederholen.
+
+- **R-005** (Multiplikatoren kombinieren **multiplikativ**, hoch belegt) ist
+  **kein** Einwand gegen Option A. Das arithmetische Mittel in
+  `_attack_multiplier_mean` mittelt nicht *gestapelte Effekte* — die stapelt
+  `model.compute` bereits multiplikativ —, sondern die **fuenf Schadensarten**.
+  Es ist damit dieselbe Bauform wie `EVEN_WEIGHTING`: eine gleichgewichtete
+  Annahme ueber Schadensarten. Wer das anders gewichten will, uebergibt eine
+  andere `Weighting` — dieselbe Antwort wie bei OF-3.
+- **R-004** (globaler Gesamtfaktor ~0,60, Ursache unbelegt) **stuetzt Option
+  B**: ein konstanter Faktor kuerzt sich aus jeder Rangfolge und jedem
+  Grenzbeitrag heraus. Die dortige Einschraenkung gilt aber auch hier — der
+  Guardian-Versatz von rund 3 % ist nicht konstant, und Option B rankt je
+  Nightfarer gegen eine **andere** Waffe. Zwischen zwei Nightfarern sind die
+  B-Zahlen deshalb nicht vergleichbar. Das ist kein Mangel, solange die
+  Oberflaeche nie zwei Helden nebeneinanderstellt — heute tut sie das nicht.
+- **R-006** (heldengebundene Waffenklassen-Effekte; Claws-Mechanik belegt,
+  Zahl unbelegt, Raider-Fall nur Indiz) trifft **genau** Option B. Zwei
+  Richtungen, und beide sind eher Argumente **fuer** B:
+  1. Der Claws-Malus gilt fuer *fremde* Traeger. Unter B rankt jeder
+     Nightfarer gegen seine **eigene** Startarmatur — der Fall tritt nie ein.
+     Unter Option D dagegen traete er fuer sieben von acht Helden auf, und
+     zwar mit einer Zahl, die R-006 ausdruecklich als unbelegt fuehrt.
+  2. Ein etwaiger Raider-Bonus laege auf genau der Waffenklasse seiner
+     Startarmatur — also auf Bs Anker. Wird R-006 spaeter mit einer
+     Kalibrierung beantwortet, bewegt sie unter B die Zahlen genau eines
+     Helden und ist dort auch sichtbar; unter A bewegt sie gar nichts, weil
+     keine Waffe in der Rechnung ist.
+
+#### Option A — so lassen: das Mittel der fuenf Angriffsmultiplikatoren
+
+**Grundlage.** `build.rates` fuer die fuenf Felder aus `damage.AR_RATE_FOR`.
+Fest zwischen Runden, weil ein Multiplikator auf dem Relikt steht und auf
+nichts sonst wartet.
+
+**Unterscheidbar: 26 von 210** (gemessen). **8** verschiedene Werte, die
+groesste Gruppe gleicher Werte umfasst **184** Kopien. Die 184 werden danach
+nur noch nach Name und Handle sortiert.
+
+**Was der Spieler sieht — ehrlich durchgerechnet.** Eine Liste, deren erste
+26 Zeilen eine Ordnung haben und deren restliche 184 alphabetisch sind, ohne
+dass die Oberflaeche das sagt. Ein reines Staerke-Relikt steht zwischen zwei
+Relikten, die mit Schaden nichts zu tun haben, und traegt dieselbe +0,00.
+**Das ist teilweise die wahre Aussage:** von den 184 bewegen 99 unter
+*keiner* geprueften Grundlage irgendetwas. Fuer die uebrigen 85 ist die Null
+aber eine Aussage ueber die *Rechnung*, nicht ueber das Relikt — und die
+Oberflaeche unterscheidet beides heute nicht.
+
+**Kosten.** Null im Code. Aber zwei Texte werden dann falsch und muessen
+nachgezogen: `GOAL.md` A17 (*„Attributen und Passiven"* — streichen oder auf
+„was die Multiplikatoren tragen" zuruecknehmen) und `MAX_DAMAGE.blurb`, den
+T-188 auf denselben Wortlaut gesetzt hat. AK-190/192/193 bleiben, wie sie
+geschrieben sind; AK-193 (`Attack multipliers`, keine Einheit) passt genau
+auf diese Option und **nur** auf diese.
+
+**Was verlorengeht.** Der Nutzerentscheid *„wir optimieren die stats und
+passiven"* wird nicht eingeloest — Attribute bleiben unsichtbar. Und die
+Zielrichtung „Schaden maximieren" ist fuer 88 % des Bestands keine Rangfolge;
+der Spieler kann daraus nicht ablesen, ob er das Relikt behalten soll.
+
+#### Option B — die Startarmatur des Nightfarers als **feste** Bezugswaffe
+
+**Grundlage.** `hero["starting_weapon"]` — ein Feld des Datensatzes, keine
+Annahme. Die Armatur, mit der ein Nightfarer jede Expedition beginnt, ist die
+**einzige**, die nicht gewuerfelt wird. Der vorhandene Zweig
+`_max_damage` mit `damage.equipped` wird damit wieder der Programmweg, mit
+`slot_index=0` (die Startarmatur-Paarung, AD-020.6) und **ohne** die Rollen
+der Armatur (siehe QA-226 unten).
+
+**Unterscheidbar: 51 von 210** (gemessen, Wylder). **17** verschiedene Werte,
+groesste Gruppe **159**. Je Nightfarer gemessen:
+
+| Wylder | Guardian | Ironeye | Duchess | Raider | Revenant | Executor | Scholar | Undertaker | Recluse |
+|---|---|---|---|---|---|---|---|---|---|
+| 51 | 50 | 47 | 52 | 39 | **56** | 51 | 50 | 51 | **nicht messbar** |
+
+**Der eine freie Parameter ist gemessen keiner.** Welche Stufe die
+Startarmatur hat, ist zwischen Runden nicht fest — sie wird im Lauf
+aufgewertet. Gemessen fuer alle neun messbaren Nightfarer, Stufe 1 bis 4:
+**gleiche Anzahl und gleiche Reihenfolge**, erster Unterschied `None`. Die
+Stufe bewegt die absolute Zahl, nicht die Rangfolge. Der Einwand „welche
+Stufe denn?" ist damit erledigt, nicht weggeredet.
+
+**Recluse ist die Luecke, und sie ist keine Kleinigkeit.** Recluse startet mit
+`Recluse's Staff` (`wep_type` 57). Auf dem heute im System liegenden
+Datenabzug wirft `weapons.rate` dafuer `KeyError` — die `reinforce`-Tabelle
+dieses Abzugs kennt kein `catalyst_scaling`, sie stammt von einem Extraktor
+vor `EXTRACT_VERSION` 9. **Option B ist fuer Recluse ungemessen und wuerde auf
+diesem Abzug abstuerzen.** Vor einer Umsetzung von B ist das auf einem
+frischen Abzug (Version 11) zu messen; die Schaetzung bis dahin lautet „in
+der Groessenordnung der uebrigen, 40 bis 55", und sie ist eine Schaetzung.
+
+**Kosten.** `asking_from` setzt `reference` wieder — aber auf die
+Startarmatur des Helden, nicht auf das, was im Gitter liegt; `weapons_held`
+entsprechend. `AdvisorRequest.reference_weapon_id` wird wieder belegt, sonst
+weist `run._check` die Anfrage zurueck. **AK-193 bricht** (die Spalte heisst
+dann wieder `Attack rating` mit Einheit `AR`) und muss neu geschrieben werden;
+**AK-190** ebenso (`_NO_ARMAMENT` / `_NO_ARMAMENT_NOTE` entfallen, an ihre
+Stelle tritt ein Satz ueber die feste Bezugswaffe); **AK-192** aendert seine
+Zahlen, weil Waffentyp-Schranken wieder erfuellbar sind. **AK-191 haelt
+wortwoertlich**: die Rangfolge haengt weiter an keiner *gefuehrten* Waffe, der
+Bezug ist der Held. Gemessene Laufzeit: 0,023 s statt 0,018 s je Pool von 210
+— ohne Bedeutung. **D-1 aus T-188 loest sich auf** (der Waffenzweig ist nicht
+mehr toter Code), und A16 wird denselben Zweig brauchen.
+
+**Was verlorengeht.** Drei Dinge, und das dritte ist das unangenehme:
+
+1. **15 Kopien, die A heute rankt, verlieren ihre Zahl.** A und B
+   ueberschneiden sich nur in 11 Kopien; 15 sind A-eigen, 40 B-eigen
+   (26 = 15 + 11, 51 = 40 + 11). Die 15 sind Element-Multiplikatoren —
+   `Night of the Lord`, `Dark Night of the Champion`, `Grand Drizzly Scene`
+   — die auf einem physischen Greatsword nichts bewirken. **Man kann das als
+   Gewinn lesen** (sie helfen Wylder nur, wenn er eine magische Waffe findet,
+   und das ist genau das RNG, das A17 aussperrt) **oder als Verlust** (dem
+   Spieler, der auf eine Element-Waffe hin plant, fehlt die Information).
+   Beide Lesarten sind vertretbar; die Wahl gehoert dem App Designer.
+2. **Die Zahl traegt wieder den Namen einer Waffe.** Wer die Startwaffe in
+   Minute fuenf ablegt, rankt Relikte gegen etwas, das er nicht mehr fuehrt.
+   Fest ist die Waffe **am Rundenanfang**, nicht ueber die Runde.
+3. **Der Berater rechnet einen dritten Build.** Nicht den des Statblatts
+   (das kennt die gefuehrte Waffe) und nicht den von heute (der kennt gar
+   keine). Der Waechter aus D-2 (T-188) muss das aushalten.
+
+#### Option C — zwei Zahlen: Multiplikatoren bleiben, Attribute werden eine eigene Zielrichtung
+
+**Grundlage.** Eine dritte `Goal`-Funktion neben `MAX_DAMAGE` und
+`MIN_DAMAGE_TAKEN`: die Summe der zugelegten **offensiven** Attributspunkte
+(Staerke, Geschick, Intelligenz, Glaube, Arkan). Fest zwischen Runden, weil
+ein Attributsbonus auf dem Relikt steht. Keine Umrechnung, keine Gewichte —
+darum vertraeglich mit AD-023 und OF-13.
+
+**Unterscheidbar: 53 von 210** unter der neuen Richtung allein (gemessen);
+**75 von 210** haben unter *mindestens einer* der beiden Schadensspalten eine
+Zahl; mit „Schaden minimieren" dazu **104 von 210**. Die neue Richtung hat
+**8** verschiedene Werte, groesste Gruppe **157** — fuer sich genommen also
+keine bessere Rangfolge als A, aber eine **andere**.
+
+**Kosten.** Eine Funktion und ein Registry-Eintrag — die Bauform aus AD-004
+traegt das ohne Aenderung an `candidates.py`, `evaluate.py` oder der Suche.
+Aber: **AK-43** (das `Sort by` des Pickers fuehrt „genau die Eintraege") und
+**AK-205** bekommen einen dritten Eintrag, `UI_SPEC.md` braucht neue AK fuer
+Beschriftung und Einheit (`pts`), und `CANONICAL_POOL_ORDER` bleibt bei
+`max_damage`. AK-190/192/193 bleiben unveraendert gueltig.
+
+**Was verlorengeht.** **Attributspunkte sind nicht Schaden.** Zehn Punkte
+Glaube auf einem Wylder, der auf Staerke skaliert, zaehlen in dieser Zahl
+genauso viel wie zehn Punkte Staerke — die Richtung ist blind dafuer, ob das
+Attribut ueberhaupt etwas traegt. Wer sie dagegen nach der Skalierung
+gewichtet, hat Option B gebaut, nur mit mehr Schritten. Zweitens: der Spieler
+muss zwei Spalten vergleichen, und die Richtung „Schaden maximieren" behaelt
+ihre 184 Nullen.
+
+#### Option D — Erwartungswert ueber die Armaturen statt Verzicht auf die Armatur
+
+**Grundlage.** Statt die gewuerfelte Waffe *auszublenden*, ueber sie
+**mitteln**: je eine Armatur pro Waffentyp, gleich gewichtet, und der
+Grenzbeitrag ist der Mittelwert. Das Vorbild steht im selben Modul —
+`EVEN_WEIGHTING` mittelt die acht Schadensarten gleich und **sagt, dass das
+eine Annahme ist**. Die Antwort auf „die Waffe ist RNG" waere dann nicht
+„also ignorieren wir sie", sondern „also nehmen wir ihren Erwartungswert".
+
+**Unterscheidbar: 81 von 210** (gemessen als Vereinigung ueber 32 Waffentypen;
+je Typ zwischen **10** und **60**, Median **43**). Das ist zugleich die
+gemessene Obergrenze dessen, was eine waffenbezogene Zahl auf diesem Bestand
+ueberhaupt trennen kann.
+
+**Kosten.** Die hoechsten von allen vieren. Gemessen in der naiven Form — ein
+vollstaendiger Pool je Waffentyp — **0,70 s** fuer 32 Pools von je 210
+Kandidaten, gegen **0,018 s** heute; das ist Faktor 39 und liegt ueber dem
+Budget aus AD-018/AD-028, sechs Slots gerechnet. Eine sparsame Fassung
+(`model.compute` einmal je Kandidat, darueber 32 `weapons.rate`-Aufrufe) ist
+deutlich billiger, **aber ungemessen** — und sie braucht einen Umbau von
+`damage.equipped`, also einen Eingriff in die Fassade (AD-019). Dazu: die
+zwei Katalysator-Typen fallen auf dem heutigen Abzug aus (siehe Option B),
+`Goal.scope` braucht eine neue A7-Zeile, und der Cache-Schluessel waechst um
+die Typmenge.
+
+**Was verlorengeht.** **Das Gewicht ist erfunden.** Der Datensatz sagt nicht,
+wie oft man einen Bogen findet und wie oft einen Greatsword; „alle Waffentypen
+gleich haeufig" ist nachweislich falsch und waere nur als *benannte* Annahme
+tragbar. Und die Zahl beantwortet eine Frage, die kein Spieler stellt: sie
+sagt, was das Relikt im Mittel ueber Waffen wert ist, die er zu 31/32 nicht
+fuehren wird. Zweitens verliert sie die Schaerfe — ein Relikt, das auf einem
+Waffentyp stark ist und auf 31 nichts tut, verschwindet im Mittel.
+
+#### Bewusst nicht als Option vorgelegt
+
+- **Ein Mischindex aus Multiplikatoren und Attributspunkten** (etwa
+  `mittel × (1 + punkte/100)`). Das ist genau der erfundene Umrechnungskurs,
+  den AD-023 und OF-13 verbieten. *Wieder interessant, wenn:* der Datensatz
+  je eine belegte Umrechnung von Attributspunkt zu Angriffswert hergibt —
+  heute tut er das nur ueber eine konkrete Waffe, und das ist Option B.
+- **Eine synthetische „Durchschnittswaffe"** mit gemittelten
+  Skalierungskoeffizienten. Sie sieht wie Option B aus, ist aber eine Waffe,
+  die es im Spiel nicht gibt; die Zahl waere mit nichts vergleichbar, was der
+  Spieler auf dem Bildschirm sieht (A12).
+
+#### Empfehlung des `architect` — eine Empfehlung, keine Entscheidung
+
+**Option B**, aus drei Gruenden, die alle gemessen sind und nicht geraten:
+
+1. „Fest zwischen Runden" ist bei B eine **Eigenschaft des Datensatzes**
+   (`hero["starting_weapon"]`), bei C und D eine Annahme.
+2. Sie verdoppelt die unterscheidbaren Kopien (26 → 51) und liefert als
+   einzige Option, was A17 woertlich verspricht: Attribute bewegen die Zahl.
+3. Ihr einziger freier Parameter — die Stufe — ist gemessen wirkungslos auf
+   die Rangfolge.
+
+**Wogegen die Empfehlung steht, und der App Designer kann es anders sehen:**
+B holt die Waffe zurueck, die der Nutzerentscheid gerade hinauswerfen wollte.
+Wer diesen Satz streng liest, waehlt **A + C** (75 von 210 unterscheidbar,
+keine Waffe in der Rechnung) und nimmt dafuer die 184 Nullen in der
+Schadensspalte in Kauf.
+
+#### QA-226 — die gewuerfelten Buffs der Armaturen: **sie sollten fallen**
+
+**Befund, gemessen.** `ctx.armament_effect_ids` geht heute weiter in jeden
+Build (`evaluate.effect_ids_of`, letzte Zeile). Wirkung auf den Bestand:
+
+- Ein **stapelbarer** Armaturen-Buff (`Physical Attack Up`, id 7001400 u. a.,
+  13 solcher Ids liegen auf den 210 Kopien) bewegt **10 von 210** Zahlen,
+  aber **nicht die Reihenfolge** (erster Unterschied `None`) — ein
+  gemeinsamer Faktor verschiebt alle Grenzbeitraege gleich.
+- Ein **nicht stapelbarer** (`isStrongestEffect`) bewegt die Reihenfolge. Der
+  Datensatz kennt **6** nicht stapelbare Effekte, die eine Angriffsrate
+  bewegen; **keiner** davon liegt auf einer der 210 Kopien, aber jeder ist auf
+  **120 bis 141** Armaturen rollbar. Gemessen, je ein Effekt im Gitter:
+  `Improved Holy Attack Power` — Reihenfolge weicht **ab Rang 3** ab;
+  `Improved Fire Attack Power` — **ab Rang 4**; `Physical Attack Up`
+  (8850550) — **ab Rang 3**; `Improved Magic` / `Improved Lightning` — ab
+  Rang 16.
+
+**Damit ist AK-191 woertlich gelesen heute nicht erfuellt**: zwei Laeufe, die
+sich nur in der gefuehrten Armatur unterscheiden, koennen verschiedene
+Rangfolgen ergeben, sobald die Armaturen etwas gerollt haben. Der Test aus
+T-188 sieht das nicht — seine beiden Armaturen tragen keine Rollen, was der
+`developer` als Luecke gemeldet hat.
+
+**Empfehlung: `armament_effect_ids` faellt — unter jeder der vier Optionen.**
+Der Nutzerentscheid nennt sie ausdruecklich (*„waffen **und deren buffs** sind
+alle in der runde RNG-basiert"*), und sie sind messbar reihenfolgewirksam.
+Unter Option B heisst das ausdruecklich auch: die **Startarmatur geht ohne
+ihre Rollen** in die Rechnung.
+
+**Was dabei verlorengeht:** die Passiven der Waffen verschwinden ganz aus der
+Beraterrechnung, und der Berater entfernt sich ein weiteres Stueck vom
+Statblatt (D-2). **Was dadurch leicht wird:** `armament_effect_ids` kann aus
+`GoalContext` und `AdvisorRequest.armaments` verschwinden — P-1 aus T-188
+(der Cache-Schluessel verfehlt sich beim Waffenwechsel) wird damit ueberhaupt
+erst behebbar.
+
+#### Konsequenzen
+
+**Was jede Wahl gemeinsam nach sich zieht.** `GOAL.md` A17 und
+`MAX_DAMAGE.blurb` muessen mit der gewaehlten Option in Deckung gebracht
+werden — heute behaupten beide „Attribute und Passive" und keine gebaute Zahl
+haelt das. Und die Oberflaeche braucht eine Antwort auf die Nullen: eine Zahl,
+die „dieses Relikt tut fuer diese Richtung nichts" bedeutet, sollte nicht
+aussehen wie eine Zahl, die „hier konnte nicht gerechnet werden" bedeutet.
+Das ist eine Frage an den `ui-ux-designer`, keine an diese AD.
+
+**Umkehrbarkeit.**
+
+| Option | Umkehrbarkeit | was ein Rueckbau kostet |
+|---|---|---|
+| A | — (Ist-Zustand) | — |
+| B | **leicht** | drei Zeilen in `asking_from`, plus die AK-Texte 190/192/193 zurueck. Kein Datenmodell, keine Schnittstelle |
+| C | **mittel** | ein Registry-Eintrag ist billig; der dritte Eintrag im `Sort by` ist ein Oberflaechenversprechen, das man schlecht zurueckzieht, und gespeicherte Zieleinstellungen zeigen dann auf eine Richtung, die es nicht mehr gibt |
+| D | **schwer** | die sparsame Fassung greift in `damage.equipped` und damit in die Fassade (AD-019) ein; der Cache-Schluessel aendert seine Form |
+| QA-226 (Buffs fallen) | **leicht** | ein Feld wieder fuellen; solange es im Cache-Schluessel bleibt, ist nichts stale |
+
+**Offene Fragen, die mit der Wahl beantwortet werden muessen** (Nummern
+vergibt der `director`):
+
+1. Sollen die 15 Element-Kopien, die Option B nicht mehr rankt, als Gewinn
+   (RNG korrekt ausgesperrt) oder als Verlust (Planung auf Element-Waffen)
+   gelten?
+2. Soll die Oberflaeche „bewegt diese Richtung nicht" von „konnte nicht
+   gerechnet werden" unterscheiden? 99 der 210 Kopien bewegen unter **keiner**
+   Grundlage etwas — das ist eine Aussage, die das Programm treffen koennte.
+3. Wird Option B gewaehlt: Recluse muss auf einem Abzug mit
+   `EXTRACT_VERSION` ≥ 9 nachgemessen werden, **bevor** gebaut wird.
 
 ---
 

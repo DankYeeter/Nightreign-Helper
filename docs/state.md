@@ -66,7 +66,7 @@ aber AD-008 haengt an OF-22.
 | A14 | QA je Tab einzeln | erfolgt (T-059) |
 | A15 | Erststart fuehrt zu Daten | **gebaut**, Nachweis am Artefakt offen |
 | A16 | best/worst case | **nicht gebaut** — nachgemessen 12.09.: null Treffer, nur `GoalContext.declared` als Hebel; AK-182 verlangt eine zweite Auswahlliste, `advisorbar.py:476` legt eine an |
-| A17 | Ranking ohne Bezugswaffe | **halb** — nur der alte Ausweichzweig (`goals.py:192-208`); die Voreinstellung rankt weiter mit Waffe. AK-190/192/193 offen. Der einzige Test zementiert den Ist-Zustand |
+| A17 | Ranking ohne Bezugswaffe | Teil 1 gebaut (`43fd992`), **aber AK-191 woertlich noch nicht erfuellt** (QA-226) · 184 von 210 Kopien stehen auf 0,0000 (QA-225) · **AD-032 liegt beim App Designer**, Teil 2 wartet darauf |
 
 ## Was als naechstes kommt
 

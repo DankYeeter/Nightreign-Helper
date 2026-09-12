@@ -61,12 +61,17 @@ OF-Kreis von `ARCHITECTURE.md` / `docs/state.md`.
 | AD-029 | Das Lesen des Spielstands wird **zuerst am Lesen selbst** repariert; die Verlagerung in einen Worker ist Stufe B und haengt an einer Messung mit benanntem Ausloeser. | `### AD-029`, Z. 4213 | AD-031 (Z. 5668) | **Vertrauensgrenze Punkt 3 abgeloest** durch AD-031 (Markierung Z. 4330, Wortlaut des Abgeloesten Z. 5670); der Rest steht |
 | AD-030 | Der gemerkte Pfad lebt in **zwei festen Schluesseln** des vorhandenen Speichers, und das Programm hat **einen** Ort, an dem es den Spielordner aufloest. | `### AD-030`, Z. 5420 | — (2026-09-08, Nachtrag XI) | nichts |
 | AD-031 | Bricht die Id-Annahme, **waehlt** der Scan den langsamen Weg, statt zu verweigern; der langsame Weg wird dafuer wieder gebaut. | `### AD-031`, Z. 5668 | — (2026-09-08, Nachtrag XI) | nichts |
-| AD-032 | **Nicht vergeben.** Nur als naechster freier Kreis genannt („AD ab AD-032", Z. 5387 und Z. 5970); `docs/state.md` fuehrt ihn ebenso. | Nummernkreis-Notiz Nachtrag XI, Z. 5970 | — | entfaellt |
+| AD-032 | **Vergeben am 12.09.2026 (T-189), Status `offen`:** worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht — vier gemessene Optionen (A so lassen 26/210 · B Startarmatur des Nightfarers als feste Bezugswaffe 51/210 · C Attribute als eigene Zielrichtung 53/210, mit A zusammen 75 · D Erwartungswert ueber die Waffentypen 81/210), vorgelegt und **nicht entschieden**. Enthaelt zugleich die Empfehlung zu QA-226 (die gewuerfelten Armaturen-Buffs fallen). | `### AD-032`, Themenbereich C, unmittelbar vor `## Themenbereich D` (Stand `b8f71a8` + T-189: Z. 2936) | — (Urfassung 2026-09-12, T-189) | entfaellt — noch nichts zu ueberholen |
 
-**Zwei der 32 AD-Nummern sind keine Entscheidungen** (AD-027 nie vergeben,
-AD-032 nur der naechste freie Kreis). Gebaute Entscheidungen: **30**.
+**Eine der 32 AD-Nummern ist keine Entscheidung** (AD-027 nie vergeben), und
+**eine ist eine vorgelegte, noch nicht getroffene** (AD-032). Getroffene
+Entscheidungen: **30**.
 **`widerspruechlich`-Faelle: 0** — jede Ueberholung ist an ihrer Stelle
 ausdruecklich markiert.
+
+**AD-032 ist die erste Zeile dieses Registers mit Status `offen`.** Sie wird
+zur normalen Zeile, sobald der App Designer eine der vier Optionen waehlt;
+bis dahin ist die geltende Fassung der **gebaute** Zustand, also Option A.
 
 ---
 
