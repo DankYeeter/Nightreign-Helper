@@ -2061,6 +2061,21 @@ Konstante selbst bleibt als Platzhalter beim Bau der Karte (§3.3, AK-41).
 
 ### 5.4 Die dritte Zielrichtung: Attribute (T-192, 2026-09-12)
 
+> **Die drei offenen Fragen dieses Abschnitts sind am 12.09.2026 vom App
+> Designer beantwortet — alle drei so, wie die Vorgabe sie bereits angelegt
+> hat:**
+>
+> 1. **Alle drei Spitzengruppen fuehren** (AK-261 gilt wie geschrieben), jede
+>    vorgezogene Karte mit dem Chip ihrer Richtung. Sechs Karten stehen damit
+>    vor der Wertordnung statt drei.
+> 2. **Der dritte Chip heisst `BEST FOR STATS`**, der Chipstreifen bleibt wie
+>    er ist. Dass die beiden vorhandenen Chips auf favorisierten Karten schon
+>    heute abgeschnitten sind, wird **nicht** hier mitbehoben — es ist QA-229
+>    und laeuft als eigener Befund.
+> 3. **`no change` bleibt.** Ein Relikt, das an den offensiven Attributen
+>    nichts aendert, sagt das; null ist ein Ergebnis und kein fehlendes
+>    Ergebnis. Damit ist AD-032 Frage 2 erledigt.
+
 **Zweck.** Der App Designer hat am 12.09.2026 **AD-032 Option A+C** gewaehlt:
 der Berater rankt ohne jede Waffe, und die offensiven Attributspunkte werden
 eine **eigene Zielrichtung**. T-191 hat sie gebaut (`6f369a7`,
