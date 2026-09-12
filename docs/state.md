@@ -40,17 +40,15 @@ Beide Verlaufsdateien sind gegen ihren Altstand **bytegleich** geprueft
 (`diff -q`), nichts gestrichen. 217 Auftragsdateien und Berichte unter T-140
 liegen in `docs/archiv/`.
 
-**Die Befundtabellen sind wieder die Wahrheit.** Sie waren seit rund Zyklus 10
-nicht fortgeschrieben: 36 QA- und 10 SEC-Nummern standen nur im Fliesstext.
-Jetzt 227 QA-Zeilen (160 offen, 53 behoben, 6 geschlossen, 5 teilweise, 1
+**Die Befundtabellen sind wieder die Wahrheit** — seit rund Zyklus 10 nicht
+fortgeschrieben, 36 QA- und 10 SEC-Nummern standen nur im Fliesstext. Jetzt
+227 QA-Zeilen (160 offen, 53 behoben, 6 geschlossen, 5 teilweise, 1
 zurueckgestellt, 1 waived, 1 unklar) und 36 SEC-Zeilen (20 behoben, 10 offen,
-6 geschlossen). Jede Statuszelle beginnt mit einem festen Wort — der Status ist
-greppbar statt lesbar.
-
-**Erstmals belegt:** die OF-Bilanz. Von 32 offenen Fragen sind **12 wirklich
-offen** (OF-3, 10, 11, 16, 18, 21, 22, 23, 27, 28, 29, 32), 17 beantwortet,
-eine mit Rest, eine unklar. Bei den AD kein echter Widerspruch — aber AD-008
-haengt an OF-22.
+6 geschlossen), jede Statuszelle mit festem Anfangswort — greppbar statt
+lesbar. **Erstmals belegt** ist die OF-Bilanz: von 32 offenen Fragen sind **12
+wirklich offen** (OF-3, 10, 11, 16, 18, 21, 22, 23, 27, 28, 29, 32), 17
+beantwortet, eine mit Rest, eine unklar. Bei den AD kein echter Widerspruch —
+aber AD-008 haengt an OF-22.
 
 ## Stand gegen `GOAL.md`
 
@@ -95,8 +93,7 @@ haengt an OF-22.
 4. **C-003, vor der ersten Weitergabe:** A-025 (GRAU — die EXE traegt die
    Entschluesselungsschluessel) · Repo dauerhaft oeffentlich? · Release
    bewerben? · Arbeitsvertrag (C-001)? · US-Recht (17 U.S.C. § 1201)?
-5. **Aus dem Audit, Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 ·
-   F-G QA-170.
+5. **Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170.
 
 ## Beschlossen, nicht beauftragt
 
