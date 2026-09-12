@@ -1,4 +1,4 @@
-"""Two named directions, each with what it cannot know written into it.
+"""Three named directions, each with what it cannot know written into it.
 
 AD-004 and `GOAL.md` A3/A7. A goal is not a number, it is a number with a
 stated scope, so the first assertion in this file is not about a figure at
@@ -393,6 +393,140 @@ def test_without_an_armament_the_damage_goal_still_orders_two_builds(
         goals.GOALS["max_damage"].score(plain, ctx).value
 
 
+# -- the third direction: attribute points (AD-032 option C) ----------------
+
+ATTRIBUTES = "max_attributes"
+
+
+def test_the_offensive_attributes_are_the_ones_armaments_scale_on(game_data):
+    """AD-032 named five; the dataset is asked whether it still knows five.
+
+    `goals.OFFENSIVE_ATTRIBUTES` is a decision written out by hand, which is
+    right -- which attributes an "offensive" direction counts is not a
+    reading of the files -- and it is a decision that can go stale. The
+    files can say one thing about it: which attributes an armament's damage
+    actually scales on. Today the two agree exactly, and this is where the
+    day they stop agreeing becomes loud instead of invisible.
+
+    A mis-spelled entry would be caught here as well, and by nothing else:
+    `build.attributes.get("Strenght", 0)` is 0 and adds up perfectly.
+    """
+    scaled_on = {stat for weapon in game_data["weapons"]
+                 for stat, coefficient in (weapon.get("scaling") or {}).items()
+                 if coefficient}
+
+    assert set(goals.OFFENSIVE_ATTRIBUTES) == scaled_on, (
+        f"the registry counts {sorted(goals.OFFENSIVE_ATTRIBUTES)} as the "
+        f"offensive attributes, the armaments of this dataset scale on "
+        f"{sorted(scaled_on)}")
+    assert set(goals.OFFENSIVE_ATTRIBUTES) <= set(model.ATTRIBUTE_ORDER)
+
+
+def test_the_attribute_goal_counts_the_points_and_not_a_conversion(game_data,
+                                                                   wylder):
+    """The figure is the sum of five numbers off the build, to the point.
+
+    Stated as an equality rather than as "it goes up", because what AD-032
+    chose is precisely the unweighted sum: any weighting by scaling, however
+    defensible, is Option B reached the long way round and is the invented
+    exchange rate AD-023 and OF-13 forbid. An equality is the only assertion
+    that a later weight could not slip past.
+    """
+    stronger = cases.effects_raising_attribute(game_data, wylder, "Strength",
+                                               1)
+    raised, ctx = build_with(game_data, wylder, effect_ids=stronger)
+    said = goals.GOALS[ATTRIBUTES].score(raised, ctx)
+
+    assert said.value == float(sum(raised.attributes[attribute]
+                                   for attribute
+                                   in goals.OFFENSIVE_ATTRIBUTES))
+    assert said.unit == goals.ATTRIBUTE_POINT_UNIT
+    assert f"{said.value:.0f}" in said.display, said.display
+
+
+def test_the_attribute_goal_rises_with_the_points_a_relic_brings(game_data,
+                                                                 wylder):
+    """The direction of the direction: more offensive points is more of it.
+
+    Against the build with no relic at all, which is the base state every
+    marginal contribution is formed against -- so this is the same
+    subtraction the pool does, asked of one candidate.
+    """
+    stronger = cases.effects_raising_attribute(game_data, wylder, "Strength",
+                                               1)
+    plain, ctx = build_with(game_data, wylder)
+    raised, _ = build_with(game_data, wylder, effect_ids=stronger)
+
+    assert goals.GOALS[ATTRIBUTES].score(raised, ctx).value > \
+        goals.GOALS[ATTRIBUTES].score(plain, ctx).value
+
+
+def test_the_attribute_goal_leaves_the_other_three_attributes_alone(game_data,
+                                                                    wylder):
+    """Vigor, Mind and Endurance are outside the figure, and it says so.
+
+    The scope line claims it in words; this is the same claim as a number.
+    A relic that raises Vigor is a real relic and a real gain -- it is what
+    the survival direction is for -- and counting it here would make the two
+    directions two names for one figure.
+    """
+    tougher = cases.effects_raising_attribute(game_data, wylder, "Vigor", 1)
+    plain, ctx = build_with(game_data, wylder)
+    raised, _ = build_with(game_data, wylder, effect_ids=tougher)
+
+    assert raised.attributes["Vigor"] > plain.attributes["Vigor"], (
+        "this effect does not raise Vigor in this dataset, so the case "
+        "below would hold whatever the goal counted")
+    assert goals.GOALS[ATTRIBUTES].score(raised, ctx).value == \
+        goals.GOALS[ATTRIBUTES].score(plain, ctx).value
+    assert goals.GOALS["min_damage_taken"].score(raised, ctx).value > \
+        goals.GOALS["min_damage_taken"].score(plain, ctx).value
+
+
+def test_the_attribute_points_are_not_a_summand_of_the_damage_figure(
+        game_data, wylder):
+    """AD-032's first vote, as a property: two figures, not one mixed one.
+
+    The repair this forbids is the one T-189 told the `developer` not to
+    make -- adding attribute points into `_max_damage` so that the 184 zeros
+    go away. Without an armament there is nothing for a point to scale, so
+    the damage figure has to stay exactly where it was while the attribute
+    figure moves; a mixed figure would move both.
+    """
+    stronger = cases.effects_raising_attribute(game_data, wylder, "Strength",
+                                               1)
+    plain, ctx = build_with(game_data, wylder)
+    raised, _ = build_with(game_data, wylder, effect_ids=stronger)
+
+    assert ctx.reference is None, (
+        "with an armament in the context the damage figure scales on the "
+        "attributes by design, and this case would be about the wrong branch")
+    assert goals.GOALS["max_damage"].score(raised, ctx).value == \
+        goals.GOALS["max_damage"].score(plain, ctx).value, (
+        "the attribute points reached the damage figure: AD-032 put them in "
+        "a direction of their own precisely so that they would not")
+    assert goals.GOALS[ATTRIBUTES].score(raised, ctx).value > \
+        goals.GOALS[ATTRIBUTES].score(plain, ctx).value
+
+
+def test_the_third_direction_is_scored_but_not_yet_offered(game_data):
+    """What T-191 built and what it deliberately did not (AK-43, AK-205).
+
+    The registry scores three directions; the two controls a player reads
+    offer two, because a third entry is a promise about a label, a unit and
+    a third column on a card, and those are the `ui-ux-designer`'s with
+    `UI_SPEC` entries behind them. This case is here so that the gap is a
+    stated state of the program rather than something a reader finds by
+    opening the window and counting -- and so that closing it has to come
+    through this file.
+    """
+    assert ATTRIBUTES in goals.GOALS
+    assert ATTRIBUTES not in advisorbar.GOAL_ORDER, (
+        "the attribute direction reached the control a player reads; that "
+        "is A17 part 2 and needs the UI_SPEC entries AK-43 and AK-205 name")
+    assert set(advisorbar.GOAL_ORDER) < set(goals.GOALS)
+
+
 #: The five attack multipliers, as the damage facade accounts for them.
 #: `goals._max_damage` averages exactly these when it ranks without an
 #: armament, so a weapon-type gate that moves none of them cannot tell two
@@ -473,7 +607,9 @@ def an_inventory_telling_two_armaments_apart(game_data, hero):
 
 
 def ranking_with(planner, armament, inventory, question, rank_by, *,
-                 as_the_bar_asked_before_a17: bool = False):
+                 rolls: tuple[int, ...] = (),
+                 as_the_bar_asked_before_a17: bool = False,
+                 as_the_bar_asked_before_ad_032: bool = False):
     """What the pre-sort makes of one inventory while this armament is held.
 
     The context comes out of `advisorbar.asking_from`, because that is where
@@ -481,12 +617,19 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     would be this file agreeing with itself, and the fields A17 moves are
     exactly the ones such a copy would restate.
 
-    `as_the_bar_asked_before_a17` puts those two fields back -- the reference
-    armament and the grid -- and is the counter-case of the invariance, not a
-    second way of asking for it.
+    `rolls` are the buffs this armament rolled, put in the slot the way the
+    weapon panel puts them there -- so a case about them goes through the
+    same reading `asking_from` does, rather than around it.
+
+    The two `as_the_bar_asked_before_*` flags put back what the two decisions
+    took out: A17 the reference armament and the grid, AD-032 the rolls on
+    it. Each is the counter-case of an invariance, not a second way of asking
+    for it -- and each has to be restorable by hand, or the invariance could
+    be holding because nothing in the case can tell two runs apart.
     """
     slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
-    slots[0] = weaponslots.WeaponSlot(weapon=armament)
+    slots[0] = weaponslots.WeaponSlot(weapon=armament,
+                                      effect_ids=list(rolls))
     planner.weapon_slots = slots
     planner.active_weapon = 0
 
@@ -498,6 +641,8 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
                                               tier=slots[0].tier,
                                               slot_index=0),
             weapons_held=(armament,))
+    if as_the_bar_asked_before_ad_032:
+        ctx = dataclasses.replace(ctx, armament_effect_ids=tuple(rolls))
     pool = candidates.pool(inventory, question, 0, ctx, goals.GOALS, rank_by)
     return (tuple((line.goal_id, line.value) for line in pool.baseline),
             tuple((offer.name, offer.handle,
@@ -590,6 +735,182 @@ def test_the_armament_moved_the_ranking_before_a17(planner, game_data):
         "asked the way the Advisor bar asked before A17, these two armaments "
         "give the same order, so this inventory cannot see the difference "
         "A17 removes")
+
+
+def a_stacking_rate_effect(game_data, hero, field_name: str) -> int:
+    """An effect that moves `field_name` and that the game **does** stack.
+
+    The other half of `advisor_cases.a_non_stacking_effect`, and needed for
+    the same reason: whether an effect stacks is a field on the record, and
+    a case that wants one of each may not take "it is not the non-stacking
+    one" as proof that this one stacks.
+    """
+    for effect_id in cases.effects_raising_rate(game_data, hero, field_name,
+                                                count=6):
+        if game_data["effects"][str(effect_id)].get("stacks"):
+            return effect_id
+    pytest.skip(f"this dataset has no stacking effect moving {field_name}")
+
+
+def an_inventory_the_rolls_can_tell_apart(game_data, hero):
+    """Four copies, one of which is worth nothing beside a particular roll.
+
+    The sharp shape of QA-226, stated rather than hoped for. A
+    **non-stacking** effect is worth once whatever else carries it, so the
+    copy that brings it is worth nothing beside an armament that rolled the
+    same effect and worth its full figure beside one that did not -- while
+    the copy carrying a **stacking** rate effect is worth something either
+    way and the two Strength copies are worth nothing to the damage figure
+    and something to the attribute figure. An order over the four is
+    therefore a claim about all three directions at once.
+
+    Which effect stacks and which does not is asked of `model.compute`
+    (`advisor_cases.a_non_stacking_effect`), never read off a name: QA-226
+    counted six non-stacking effects moving an attack rate in this dataset,
+    and this picks whichever of them the dataset offers for the physical
+    rate, so the case cannot quietly start comparing two stacking ones.
+    """
+    non_stacking = advisor.a_non_stacking_effect(game_data, hero,
+                                                 "physicsAttackRate")
+    stacking = a_stacking_rate_effect(game_data, hero, "physicsAttackRate")
+    strength = advisor.raising_effects(game_data, hero, 2)
+    rolls = [[stacking]] + strength + [[non_stacking], [non_stacking]]
+    inventory = advisor.make_inventory(game_data, hero, colour=advisor.RED,
+                                       count=4, rolls=rolls)
+    return inventory, non_stacking, stacking
+
+
+def test_the_ranking_does_not_depend_on_the_rolls_on_the_armament(planner,
+                                                                  game_data):
+    """AK-191 word for word: the *buffs* on the armament move nothing either.
+
+    The decision A17 rests on names them in the same breath as the armament
+    -- *"waffen **und deren buffs** sind alle in der runde RNG-basiert"* --
+    and until AD-032 they were still in every build
+    (`evaluate.effect_ids_of`). T-189 measured what that cost: a stacking
+    roll moved 10 of 210 figures and no place in the order, a non-stacking
+    one moved the order from rank 3 (QA-226). The first is a common factor,
+    the second is not, and this case is written on the second.
+
+    Two runs that differ in the armament **and** in what it rolled. They
+    have to come back identical -- same figures, same order, under every
+    direction in the registry, which is what the loop is for and why the
+    whole answer is compared rather than the head of it.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    hero = planner.current_hero()
+    inventory, non_stacking, stacking = an_inventory_the_rolls_can_tell_apart(
+        game_data, hero)
+    armaments = [armament for _effect_id, armament
+                 in armament_gates(game_data, hero)]
+    question = advisor.problem([advisor.RED, advisor.RED])
+    first, second = armaments
+
+    for rank_by in sorted(goals.GOALS):
+        assert ranking_with(planner, first, inventory, question, rank_by,
+                            rolls=(non_stacking,)) == \
+            ranking_with(planner, second, inventory, question, rank_by,
+                         rolls=(stacking,)), (
+            f"ranked by {rank_by}, swapping the armament and the buffs it "
+            f"rolled moved the answer: the run is still asked about what the "
+            f"expedition happened to roll (AK-191, QA-226)")
+
+
+def asking_with(planner, armament, rolls: tuple[int, ...]):
+    """What the Advisor bar would ask with this armament in slot 1."""
+    slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
+    slots[0] = weaponslots.WeaponSlot(weapon=armament, effect_ids=list(rolls))
+    planner.weapon_slots = slots
+    planner.active_weapon = 0
+    return advisorbar.asking_from(planner, "max_damage")
+
+
+def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
+                                                               game_data):
+    """The other half of AD-032, and the one no ranking can show (P-1).
+
+    Two runs that compute the same answer must not be filed under two keys.
+    Until AD-032 the request carried the armaments and their rolls, so
+    swapping a weapon threw away an answer that was still correct and paid
+    for a second search to get the same list back -- invisible from any
+    figure, because both lists are right.
+
+    The two halves have to go together, which is the second thing asserted
+    here: `run._refuse_a_request_that_asks_about_another_run` compares the
+    rolls in the key against the rolls in the context, so a request that
+    still carried them beside a context that no longer did would refuse
+    every question the player asked.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    hero = planner.current_hero()
+    inventory, non_stacking, stacking = an_inventory_the_rolls_can_tell_apart(
+        game_data, hero)
+    first, second = [armament for _effect_id, armament
+                     in armament_gates(game_data, hero)]
+
+    one = asking_with(planner, first, (non_stacking,))
+    other = asking_with(planner, second, (stacking,))
+
+    assert one.request == other.request, (
+        "the cache key still separates two runs that are asked the same "
+        "question, so the second one pays for a search whose answer was "
+        "already there (P-1)")
+    for asking in (one, other):
+        assert asking.request.armaments == ()
+        assert asking.ctx.armament_effect_ids == ()
+        assert tuple(effect_id for armament in asking.request.armaments
+                     for effect_id in armament.effect_ids) \
+            == asking.ctx.armament_effect_ids, (
+            "the key and the context disagree about the rolls, which is the "
+            "one shape `run.run` refuses outright")
+
+
+def test_the_rolls_on_the_armament_moved_the_ranking_before_ad_032(
+        planner, game_data):
+    """The counter-case the invariance above is worth anything against.
+
+    Same inventory, same two armaments, same two rolls -- and the context as
+    it stood before AD-032, with `armament_effect_ids` put back by hand. If
+    this came back equal, neither the four copies nor the two rolls could
+    tell the two runs apart, and the case above would be green for a reason
+    that has nothing to do with the buffs.
+
+    **The order, not only the figures.** That a roll moves the numbers was
+    true of the stacking half as well, and QA-226 measured that it leaves
+    every place alone; what AD-032 is answering is that a non-stacking roll
+    turns the copy carrying the same effect into a copy worth nothing. Only
+    the damage direction: the attribute figure cannot be reached by an
+    attack-rate roll at all, and the survival figure is not reachable by
+    one in this dataset, so both would come back equal here and prove the
+    opposite of what this case is for.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    hero = planner.current_hero()
+    inventory, non_stacking, stacking = an_inventory_the_rolls_can_tell_apart(
+        game_data, hero)
+    armaments = [armament for _effect_id, armament
+                 in armament_gates(game_data, hero)]
+    question = advisor.problem([advisor.RED, advisor.RED])
+    first, second = armaments
+
+    _baseline_first, order_first = ranking_with(
+        planner, first, inventory, question, "max_damage",
+        rolls=(non_stacking,), as_the_bar_asked_before_ad_032=True)
+    _baseline_second, order_second = ranking_with(
+        planner, second, inventory, question, "max_damage",
+        rolls=(stacking,), as_the_bar_asked_before_ad_032=True)
+
+    assert [offer[:2] for offer in order_first] != \
+        [offer[:2] for offer in order_second], (
+        "asked the way the advisor asked before AD-032, these two sets of "
+        "rolls give the same order, so this inventory cannot see the "
+        "difference AD-032 removes")
 
 
 def test_the_survival_goal_rises_with_hp(game_data, wylder):

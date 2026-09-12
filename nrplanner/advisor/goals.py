@@ -9,12 +9,16 @@ by the question "can the sentence be written before the run is known?", and
 makes the answer a property of where the sentence lives rather than of how it
 was worded.
 
-**Two figures, never one.** There is no conversion between damage dealt and
-damage survived, and inventing an exchange rate is what AD-023 and OF-13
-forbid: a curse that costs HP under "Maximise damage" is counted in the
+**One figure per direction, never a mixed one.** There is no conversion
+between damage dealt and damage survived, and none between an attribute point
+and an attack multiplier either; inventing an exchange rate is what AD-023 and
+OF-13 forbid: a curse that costs HP under "Maximise damage" is counted in the
 build, is *not* in that goal's ranking figure, and is named rather than
 marked down. So every candidate carries a gain under each goal, side by side,
-and the caller decides which one to sort by (`candidates.py`).
+and the caller decides which one to sort by (`candidates.py`). AD-032 settled
+the third direction the same way: the attribute points a relic brings became
+`MAX_ATTRIBUTES` below rather than a summand in `_max_damage`, so the damage
+figure goes on saying what it always said.
 
 **What a goal here does and does not do.** It reads a finished
 `model.Build` and the context. It never sees the base state and never forms a
@@ -24,9 +28,14 @@ figure comes from the facade in `nrplanner/damage.py` and from nowhere else,
 which `tests/test_one_build.py::test_only_the_facade_calls_weapons_rate_or_rank`
 holds for this package as it does for every tab (AD-021).
 
-**Adding a third goal** is one function and one registry entry. It must not
-need a change in `candidates.py`, `evaluate.py` or the search; if it does,
-the shape here is wrong and belongs in `ARCHITECTURE.md` before it is built.
+**Adding a goal** is one function and one registry entry. It must not need a
+change in `candidates.py`, `evaluate.py` or the search; if it does, the shape
+here is wrong and belongs in `ARCHITECTURE.md` before it is built. The third
+one, `MAX_ATTRIBUTES`, was built that way and needed neither -- what it did
+need is a place on the screen, and that is not here: `advisorbar.GOAL_ORDER`
+is the list a player reads, it is a decision of the `ui-ux-designer`, and a
+direction the registry scores without that list being changed is scored,
+cached and invisible (AK-43, AK-205).
 """
 
 from __future__ import annotations
@@ -126,6 +135,44 @@ _NO_ARMAMENT_NOTE = ("With no armament chosen there is nothing to scale, so "
                      "the five attack multipliers are averaged with equal "
                      "weight.")
 
+#: The five attributes an armament's damage scales on -- the ones AD-032
+#: calls offensive. Written out rather than filtered out of
+#: `model.ATTRIBUTE_ORDER` by a name pattern, for the reason
+#: `DAMAGE_CUT_FIELDS` is: a list is read as a list of everything unless it
+#: says otherwise, and the three left out (Vigor, Mind, Endurance) are left
+#: out by a decision, not by their spelling.
+#:
+#: **Which five is a decision and not a reading of the files** -- that is why
+#: it is AD-032's sentence and not a derivation. The dataset agrees with it
+#: today, and `tests/test_advisor_goals.py::
+#: test_the_offensive_attributes_are_the_ones_armaments_scale_on` is where
+#: that agreement is measured rather than assumed; it fails on the day the
+#: game gives a sixth stat a scaling coefficient.
+OFFENSIVE_ATTRIBUTES = ("Strength", "Dexterity", "Intelligence", "Faith",
+                        "Arcane")
+
+#: What the attribute figure is measured in, on the one line that says it and
+#: in `GoalScore.unit` -- AD-032's word, written once so the goal line and
+#: any column header cannot drift apart.
+ATTRIBUTE_POINT_UNIT = "pts"
+
+#: What counting points cannot tell the player, whatever the build -- the
+#: procedural sentences of AD-025.1 for the third direction. The first is the
+#: one that matters: this figure is deliberately *not* weighted by what the
+#: build scales on, because weighting it by scaling is Option B of AD-032
+#: built with more steps, and it needs an armament this run does not have.
+_ATTRIBUTE_SCOPE = (
+    "Attribute points are counted, not converted into damage: ten points of "
+    "Faith count as much as ten of Strength, whatever this build scales on.",
+    "Only the five attributes an armament scales on are counted — Strength, "
+    "Dexterity, Intelligence, Faith and Arcane. Vigor, Mind and Endurance "
+    "are outside this figure.",
+    "Whether a point is worth anything depends on the armament in hand, and "
+    "this direction is asked without one.",
+    "What an attribute unlocks rather than scales — an armament's own "
+    "requirement — is not in this figure.",
+)
+
 _DAMAGE_TAKEN_SCOPE = (
     "Effective HP assumes each damage-reduction rate multiplies the damage "
     "you take; the game files name the fields, not how the engine applies "
@@ -154,7 +201,9 @@ def _attack_multiplier_mean(build: model.Build) -> float:
     of which multiplier reaches which damage type, so this cannot drift from
     the figure the armament branch produces. Attribute bonuses move nothing
     here, and that is correct rather than a gap: without an armament there is
-    no scaling for them to feed.
+    no scaling for them to feed. Where they *are* counted is
+    `MAX_ATTRIBUTES`, a direction of its own: AD-032 put them there rather
+    than into this mean, so that this figure goes on saying what it said.
     """
     rates = [build.rates.get(field_name, 1.0)
              for field_names in damage.AR_RATE_FOR.values()
@@ -303,6 +352,48 @@ def _min_damage_taken(build: model.Build,
     )
 
 
+def _max_attributes(build: model.Build,
+                    ctx: types.GoalContext) -> types.GoalScore:
+    """The offensive attribute points this build stands at (AD-032, C).
+
+    The third direction, and the one the App Designer chose A17 to be read
+    with: *"wir optimieren die stats und passiven am besten weil nur die fix
+    sind"*. An attribute bonus is written on the relic and waits for nothing
+    -- no armament, no roll, no expedition -- so it is fixed between runs in
+    the strongest sense this dataset offers, which is what makes it rankable
+    when the armament is gone.
+
+    **A sum of points and nothing else.** No weight per attribute, no
+    conversion into an attack rating: both would be the invented exchange
+    rate AD-023 and OF-13 forbid, and the weighted version is Option B of
+    AD-032 -- rank against an armament -- reached by a longer road. The price
+    is named in `MAX_ATTRIBUTES.scope` rather than discounted: ten points of
+    Faith on a Wylder count as much here as ten of Strength.
+
+    The absolute standing, not a gain. Like every entry here it reads one
+    finished build and never the base state; the marginal contribution is the
+    caller's subtraction (do-not rule 20), and against an empty base state
+    that difference is exactly the points the relics brought.
+
+    `ctx` is unread, and that is the honest shape rather than an oversight:
+    this figure needs no dataset, no hero and no weighting, because
+    `model.compute` has already applied every stat swap, cap and floor the
+    build has. It stays in the signature because `Goal.score` is one type for
+    every direction.
+    """
+    del ctx  # the signature is the registry's, not this function's need
+    points = sum(build.attributes.get(attribute, 0)
+                 for attribute in OFFENSIVE_ATTRIBUTES)
+    # `value` unrounded like everywhere else (QA-074), even though points are
+    # whole today: a stat swap could yet arrive at a half, and the rule that
+    # the screen's digits never decide a ranking does not take exceptions.
+    return types.GoalScore(
+        value=float(points),
+        display=f"Offensive attributes {points:.0f}",
+        unit=ATTRIBUTE_POINT_UNIT,
+    )
+
+
 MAX_DAMAGE = types.Goal(
     id="max_damage",
     label="Maximise damage",
@@ -320,11 +411,27 @@ MIN_DAMAGE_TAKEN = types.Goal(
     score=_min_damage_taken,
 )
 
+#: **`label` and `blurb` here are a working title** (T-191): AD-032 chose the
+#: direction, not its wording, and what a control says is the
+#: `ui-ux-designer`'s to settle together with the `UI_SPEC` entries AK-43 and
+#: AK-205 need. Nothing reads them on screen yet -- see the module docstring
+#: on `advisorbar.GOAL_ORDER` -- so the working title is a name in a registry
+#: and not a promise to a player.
+MAX_ATTRIBUTES = types.Goal(
+    id="max_attributes",
+    label="Maximise offensive attributes",
+    blurb="Ranks by the attribute points a relic brings — the part of a "
+          "build no expedition rerolls.",
+    scope=_ATTRIBUTE_SCOPE,
+    score=_max_attributes,
+)
+
 #: The registry. Read-only: a goal added at run time would not be in any cache
 #: key, and the entries a run was scored under would stop being knowable.
 GOALS = MappingProxyType({
     MAX_DAMAGE.id: MAX_DAMAGE,
     MIN_DAMAGE_TAKEN.id: MIN_DAMAGE_TAKEN,
+    MAX_ATTRIBUTES.id: MAX_ATTRIBUTES,
 })
 
 #: The direction a slot pool is **put in order** under when the question is

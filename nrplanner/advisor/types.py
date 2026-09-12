@@ -164,6 +164,12 @@ class ArmamentRef:
     armament's id rather than its record, so an `AdvisorRequest` stays
     hashable. `GoalContext` carries the resolved records for the calculation
     itself.
+
+    **No caller in `nrplanner/` builds one today** (AD-032): the advisor is
+    asked about no armament and about none of their rolls, so
+    `AdvisorRequest.armaments` stays empty and this type is reached from
+    tests and from the answer A16 will need. Said here rather than left for
+    a reader to work out from a grep that comes back empty.
     """
 
     weapon_id: int
@@ -404,9 +410,20 @@ class GoalContext:
     order to give the same build the stat sheet shows: every armament held
     (weapon-type gates are met by any armament on the grid, not only the one
     being rated), the effects those armaments rolled, and the conditional
-    effects the player has declared live. Leaving any of them out would make
-    the advisor's figure disagree with the sheet beside it, which is QA-001
-    in a new place.
+    effects the player has declared live.
+
+    **Three of those fields are no longer filled by the program**, and that
+    is A17 rather than an omission: `reference`, `weapons_held` and
+    `armament_effect_ids` all come back empty from `advisorbar.asking_from`
+    (T-188 for the first two, AD-032 for the third). The advisor's build is
+    therefore *not* the stat sheet's build any more -- it answers "what is
+    this relic worth between runs", where the sheet answers "what am I
+    hitting for right now", and the difference is stated in `Goal.scope`
+    (A12) instead of being closed. The fields stay because the other
+    question is still asked from tests and will be asked again by A16; the
+    one thing that must not happen is filling them here and not in
+    `AdvisorRequest`, which `run._refuse_a_request_that_asks_about_another_
+    run` catches.
     """
 
     data: Mapping

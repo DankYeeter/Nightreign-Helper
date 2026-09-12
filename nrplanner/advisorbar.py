@@ -312,8 +312,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
-    another run, because the request is the cache key. The armaments are
-    read once and both halves built from that reading for the same reason.
+    another run, because the request is the cache key. Where a field is left
+    empty it is left empty in **both** halves for that reason, and never in
+    one of them.
 
     **What the run is deliberately not told: which armaments are in hand**
     (`GOAL.md` A17, AK-191). The user's decision, on which the whole feature
@@ -323,8 +324,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     relic ranked against the one on the grid is ranked against something the
     player will not have -- and the ranking would move with it.
 
-    Two fields carry that in, and leaving out either one alone is not
-    enough. `reference` is the armament the figure is formed against.
+    **Three** fields carry that in, and leaving out any one of them alone is
+    not enough. `reference` is the armament the figure is formed against.
     `weapons_held` is the grid, and a weapon-type gate is met by **anything**
     on it (`model.compute`), so "Improved Greatsword Attack Power" would go
     on counting for a greatsword and not for a bow with no reference in
@@ -336,6 +337,27 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     Luminous Scene` (0.0000 against +0.0600, rank 3 of the 210 ordinary
     ones). Two copies are enough: both sat at or near the head of their
     list, which is the part of a ranking anyone reads.
+
+    The third is `armament_effect_ids`, **the rolls on those armaments**, and
+    it left with AD-032 rather than with T-188 -- the sentence above names it
+    (*"und deren buffs"*), and until it went, AK-191 read word for word was
+    not kept. A *stacking* roll was the harmless half: measured over the 210
+    ordinary copies it moved 10 figures and not one place in the order,
+    because a common factor lifts every marginal alike. A **non-stacking**
+    one is the other half. It is worth once whatever else carries it, so a
+    candidate that brings the same effect the armament already rolled is
+    worth nothing beside it and worth something without it -- the order came
+    apart from rank 3 for `Improved Holy Attack Power` and for `Physical
+    Attack Up` (8850550), from rank 4 for `Improved Fire Attack Power`
+    (QA-226, measured in T-189). Six such effects are in the dataset, none of
+    them on a relic of this save, every one of them rollable on 120 to 141
+    armaments -- so this is a state the player reaches by playing, not a
+    constructed one.
+
+    **The request loses the armaments with it.** They were in the cache key
+    only because the run read them; a key that separates two runs which
+    compute the same answer costs a second full search and returns the same
+    list (P-1 from T-188).
 
     The consequence, said out loud because it reverses a rule this file used
     to keep: the advisor's build is no longer the stat sheet's build. The
@@ -357,26 +379,19 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held)
 
-    armed = [slot for slot in planner.weapon_slots if slot.filled]
-    armaments = tuple(types.ArmamentRef(weapon_id=slot.weapon["id"],
-                                        tier=slot.tier,
-                                        effect_ids=tuple(slot.effect_ids))
-                      for slot in armed)
-    armament_effect_ids = tuple(effect_id for armament in armaments
-                                for effect_id in armament.effect_ids)
-
     # Sorted, not in `dict` order: a cache key that depended on the order the
     # player happened to flip the switches would miss its own entries.
     declared = tuple(sorted(planner.declared.items()))
     weighting = advisor_goals.DEFAULT_WEIGHTING
-    # No `reference` and no `weapons_held`: see the docstring, A17.
+    # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
+    # docstring, A17 and AD-032. The armament grid is not read here at all
+    # any more, which is why there is nothing left of it to leave out.
     ctx = types.GoalContext(
         data=planner.data,
         hero=hero,
         level=level,
         reference=None,
         weighting=weighting,
-        armament_effect_ids=armament_effect_ids,
         declared=declared,
     )
     meta = planner.data.get("meta") or {}
@@ -387,10 +402,12 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         goal_id=goal_id,
         weighting_id=weighting.id,
         # The key says what the run was asked, and since A17 the run is not
-        # asked about an armament. Anything else here would be a key
-        # standing for a run that did not happen, and `run.run` refuses it.
+        # asked about an armament -- since AD-032 not about its rolls either,
+        # so `armaments` stays empty as well. Anything else here would be a
+        # key standing for a run that did not happen, and `run.run` refuses
+        # it: it compares the rolls in the key against the rolls in the
+        # context, and one of the two filled would be the disagreement.
         reference_weapon_id=None,
-        armaments=armaments,
         declared=declared,
         data_version=str(meta.get("data_version") or ""),
     )
