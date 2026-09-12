@@ -95,7 +95,16 @@ einzige realistische Datengrundlage.
 C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug
 ```
 
-841 Dateien, 19,8 MB, gebaut von 1.8.0 (`EXTRACT_VERSION` 11). **In das
+> **Stand 12.09.2026: dieses Verzeichnis existiert nicht** (`ls` schlaegt
+> fehl; zuerst gemeldet vom `ui-ux-designer` in T-192, vom Director am
+> Dateisystem nachgeprueft). Bis es neu gebaut ist, zahlt **jeder**
+> Fensterlauf den Neuaufbau — und der echte Cache traegt eine aeltere
+> `extract_version`, auf der ein `Planner` abstuerzt. Gefuehrt als
+> **QA-231**, zu beheben **vor der Baurunde**: `power-user` und
+> `clean-room` sind beide Fensterlaeufe.
+
+Sollwert, wenn er wieder steht: 841 Dateien, 19,8 MB, gebaut von 1.8.0
+(`EXTRACT_VERSION` 11). **In das
 umgelenkte `LOCALAPPDATA` kopieren**, nicht darauf zeigen lassen — das
 Programm schreibt hinein. Spart je Lauf den Neuaufbau des Datenabzugs
 (gemessen 107 s bzw. rund 5 min, QA-198).
