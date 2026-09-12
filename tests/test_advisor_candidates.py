@@ -395,7 +395,9 @@ def test_the_base_state_of_a_slot_is_the_build_with_that_slot_emptied(
     pool = pool_for(inventory, problem, 0, ctx, SURVIVAL)
     emptied = candidates.base_state_for(problem, 0)
 
-    assert types.baseline_for(pool, SURVIVAL) == pytest.approx(
+    baseline_value = next(baseline.value for baseline in pool.baseline
+        if baseline.goal_id == SURVIVAL)
+    assert baseline_value == pytest.approx(
         goals.GOALS[SURVIVAL].score(evaluate(emptied, (), ctx), ctx).value)
     assert sitting.handle in handles(pool), (
         "the relic already in the slot has to be offered for it, or it "

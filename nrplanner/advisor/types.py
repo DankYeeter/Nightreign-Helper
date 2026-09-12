@@ -796,12 +796,3 @@ def marginal_for(candidate: Candidate, goal_id: str) -> float:
             return marginal.gain
     raise KeyError(f"{candidate.name} carries no marginal for goal "
                    f"{goal_id!r}")
-
-
-def baseline_for(pool: SlotPool, goal_id: str) -> float:
-    """The base state's own value under one goal, or `KeyError`."""
-    for baseline in pool.baseline:
-        if baseline.goal_id == goal_id:
-            return baseline.value
-    raise KeyError(f"slot {pool.slot_index} carries no baseline for goal "
-                   f"{goal_id!r}")
