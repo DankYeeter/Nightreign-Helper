@@ -10,6 +10,74 @@ Bezugsstand: 3da8428 (v1.7.1), 16 737 Zeilen Python, 0 Tests.
 
 ---
 
+## Wie dieses Dokument zu lesen ist
+
+*Konsolidiert am 12.09.2026 (T-182). **Keine neue Entscheidung, keine neue
+AD-Nummer, kein geaenderter Wortlaut.** Umgestellt wurde die Reihenfolge:
+frueher chronologisch nach Nachtrag, jetzt nach Themenbereich.*
+
+Bis zum 12.09.2026 wuchs diese Datei chronologisch: elf Nachtraege, in denen
+eine Entscheidung an drei Stellen fortgeschrieben werden konnte. Wer den
+heutigen Vertrag des `AdvisorController` brauchte, las Nachtrag VIII, IX und X
+und entschied selbst, welcher gewinnt. Drei Dateien teilen sich die Arbeit
+jetzt so:
+
+| Datei | Frage, die sie beantwortet |
+|---|---|
+| `ARCHITECTURE_REGISTER.md` | **Welche Fassung gilt heute?** Eine Zeile je AD- und je OF-Nummer, mit Fundstelle und Stand. **Hier faengt man an.** |
+| `ARCHITECTURE.md` (diese Datei) | **Was gilt** — nach Themenbereich A bis F geordnet, jede Entscheidung mit der Begruendung, die zu ihr gehoert. |
+| `docs/archiv/architecture-verlauf.md` | **Wie es dazu kam** — der vollstaendige chronologische Verlauf, unveraendert, mit allen verworfenen Alternativen. |
+
+**Nichts ist gestrichen.** Jede der 5972 Zeilen der bisherigen Fassung steht
+in einer der beiden Dateien; nachgerechnet wurde das als Partition
+(jede Quellzeile genau einmal, keine doppelt, keine fehlend).
+
+**Wo eine Entscheidung nachgezogen wurde, steht der Nachtrag direkt
+darunter** — nicht mehrere hundert Zeilen weiter unten. Der urspruengliche
+Wortlaut bleibt dabei stehen, damit nachlesbar ist, worauf er gebaut war; die
+Nachtragsklammer sagt, was heute gilt. Das ist die Bauform, die Nachtrag VIII
+bis X bereits benutzt haben, und sie wird hier nur zusammengefuehrt.
+
+**Zwei Nummern sind nie vergeben worden** und werden nicht neu belegt:
+**AD-027** und **OF-14**. Die naechste freie AD-Nummer ist **AD-032**.
+
+---
+
+## Überblick
+
+Nightreign Helper liest die Datentabellen der lokal installierten
+Spielinstallation und den lokalen Spielstand und hilft beim Planen von
+Relikt-Builds. Kein Netz, kein Schreibzugriff auf das Spiel.
+
+Drei Schichten, Abhängigkeit strikt von oben nach unten:
+
+```
+  nrdata/      Spieldateien lesen: Archive, Params, Textblöcke, Savefile.
+               Erzeugt einen Snapshot (dict) und die Besitzliste.
+      ^
+  nrplanner/   Domäne: Build-Mathematik (model), Stacking-Regeln (stacking),
+  (Kern)       Effekttexte (effecttext), Waffenwerte (weapons), Besitz
+               (inventory), Persistenz von Builds (chalices, favourites).
+      ^
+  nrplanner/   Oberfläche: app.py (Fenster + Planner-Klasse) und die
+  (Qt)         Tab-Module. PySide6/Qt.
+```
+
+**Datenfluss heute:** `datasource.load_data()` liefert den Snapshot als ein
+grosses `dict` und ruft `model.configure(data)`; `inventory.load(data)` liest
+den Save und liefert eine `Inventory` mit `OwnedItem`-Einträgen;
+`Planner.recompute()` sammelt die Effekte der belegten Slots und ruft
+`model.compute(...) -> model.Build`; die Oberfläche liest aus `Build`.
+
+**Was dazukommt:** ein *Build-Berater* — `nrplanner/advisor/`. Er dreht den
+Fluss um: statt „Slots sind belegt, was kommt dabei heraus?" fragt er „welche
+Belegung aus dem Besitz maximiert eine benannte Zielgrösse?". Er benutzt
+dieselbe `model.compute` als einzige Autorität, sucht im Hintergrund-Thread
+und liefert eine gerankte Liste mit Begründung und einer ausdrücklichen Liste
+dessen, was er *nicht* wissen kann.
+
+---
+
 ## Gemessene Grundzahlen
 
 Alle Entwurfsentscheidungen unten stützen sich auf diese Messungen, nicht auf
@@ -107,56 +175,6 @@ Das ist die Zahl, an der der Entwurf hängt: der ungünstigste reale Fall liegt
 bei K=20/W=40 unter einer halben Sekunde, mit weissem Slot, mit Deep of
 Night — und zwar **mit der echten `model.compute()` an jedem Suchschritt**,
 nicht mit einer Näherung.
-
----
-
-## Überblick
-
-Nightreign Helper liest die Datentabellen der lokal installierten
-Spielinstallation und den lokalen Spielstand und hilft beim Planen von
-Relikt-Builds. Kein Netz, kein Schreibzugriff auf das Spiel.
-
-Drei Schichten, Abhängigkeit strikt von oben nach unten:
-
-```
-  nrdata/      Spieldateien lesen: Archive, Params, Textblöcke, Savefile.
-               Erzeugt einen Snapshot (dict) und die Besitzliste.
-      ^
-  nrplanner/   Domäne: Build-Mathematik (model), Stacking-Regeln (stacking),
-  (Kern)       Effekttexte (effecttext), Waffenwerte (weapons), Besitz
-               (inventory), Persistenz von Builds (chalices, favourites).
-      ^
-  nrplanner/   Oberfläche: app.py (Fenster + Planner-Klasse) und die
-  (Qt)         Tab-Module. PySide6/Qt.
-```
-
-**Datenfluss heute:** `datasource.load_data()` liefert den Snapshot als ein
-grosses `dict` und ruft `model.configure(data)`; `inventory.load(data)` liest
-den Save und liefert eine `Inventory` mit `OwnedItem`-Einträgen;
-`Planner.recompute()` sammelt die Effekte der belegten Slots und ruft
-`model.compute(...) -> model.Build`; die Oberfläche liest aus `Build`.
-
-**Was dazukommt:** ein *Build-Berater* — `nrplanner/advisor/`. Er dreht den
-Fluss um: statt „Slots sind belegt, was kommt dabei heraus?" fragt er „welche
-Belegung aus dem Besitz maximiert eine benannte Zielgrösse?". Er benutzt
-dieselbe `model.compute` als einzige Autorität, sucht im Hintergrund-Thread
-und liefert eine gerankte Liste mit Begründung und einer ausdrücklichen Liste
-dessen, was er *nicht* wissen kann.
-
----
-
-## Wichtige Korrektur zur Auftragslage (erledigt)
-
-T-001 und die erste Fassung von `GOAL.md` sprechen von **Tkinter**. Das
-Programm verwendet **PySide6 (Qt 6.11.1)** — `requirements.txt` und jeder
-Import in `nrplanner/app.py` und den Tab-Modulen. Kein einziges `tkinter` im
-Repo. Der `director` hat das bestätigt und zieht `GOAL.md` nach.
-
-Das ist keine Kosmetik: Qt bringt `QThread`, `Signal`/`Slot` über die
-Thread-Grenze und eine thread-affine Event-Loop mit, und im Repo existiert
-bereits ein funktionierendes Hintergrund-Muster (`nrplanner/firstrun.py`,
-Worker-Objekt per `moveToThread` plus Signale). AD-006 baut darauf auf statt
-auf einer Tkinter-`after()`-Schleife.
 
 ---
 
@@ -292,6 +310,28 @@ die Liste dessen, was diese Bewertung nicht wissen kann (A7).
 
 ## Entscheidungen
 
+Die Entscheidungen stehen in sechs Themenbereichen. Innerhalb eines Bereichs
+folgt auf eine Entscheidung unmittelbar das, was sie nachzieht oder korrigiert.
+Die Reihenfolge der Vergabe (AD-001 bis AD-031) steht im Verlauf; welche
+Nummer wo liegt, sagt `ARCHITECTURE_REGISTER.md` in einer Zeile.
+
+| Bereich | Inhalt | AD |
+|---|---|---|
+| **A** | Schnitt, Rechenautoritaet, Fassade, Benennung | AD-001, AD-002, AD-021, AD-005, AD-019, AD-020, AD-022, AD-023, AD-024 |
+| **B** | Suche, Kandidaten, Haltezustand, Grenzbeitrag | AD-003, AD-008, AD-013, AD-014, AD-016, AD-017, AD-018 |
+| **C** | Zielrichtungen, Vorbehalte, Fluechte | AD-004, AD-010, AD-025, AD-015, AD-026 |
+| **D** | Nebenlaeufigkeit, Cache, Hauptthread | AD-006, AD-007, AD-028, AD-029 |
+| **E** | Daten lesen, Erststart, Pfade | AD-011, AD-012, AD-030, AD-031 |
+| **F** | Test und Nachweis | AD-009 |
+
+---
+
+## Themenbereich A — Schnitt, Rechenautoritaet, Fassade, Benennung
+
+*Wer darf rechnen, wo liegt die eine Formel, und wie heisst, was aus ihr
+herauskommt. AD-002 ist die tragende Entscheidung des Bereichs; AD-021 sagt,
+was der Waechter darueber wirklich zusichert.*
+
 ### AD-001 — Der Berater wird ein eigenes Paket, nicht ein Modul und nicht Teil von `app.py` (2026-09-01, Status: aktiv)
 
 **Kontext:** Der Berater braucht Kandidatenauswahl, Zielfunktionen, ein
@@ -373,248 +413,68 @@ was es tun soll. Kosten dann: die Testinfrastruktur, die heute ohnehin fehlt.
 
 ---
 
-### AD-003 — Beam-Suche über die Slots, nicht Vollprodukt, nicht Greedy, nicht Solver (2026-09-01, Status: aktiv)
+### AD-021 — Der Wächter sichert nicht „ein Aufrufer", sondern „nur die Fassade rechnet"; dasselbe Werkzeug, zwei Zusicherungen (2026-09-02, Status: aktiv; erweitert AD-002 und `test_one_build.py`)
 
-**Kontext (gegen das echte Save gemessen, siehe Grundzahlen):** Der reale
-Bestand von 309 Relikten ergibt 49–54 Kandidaten je Farbe für einen normalen
-Slot, 21–30 für einen Deep-Slot — und **205 für einen weissen Slot**, der
-jede Farbe nimmt. Der ungünstigste reale Fall ist `Wylder's Chalice` mit
-Deep of Night:
-
-- 3 Slots ohne Deep: 50 · 55 · 208 = **5,7 · 10⁵** Belegungen
-- 6 Slots mit Deep: 50 · 55 · 208 · 25 · 27 · 23 = **8,9 · 10⁹** Belegungen
-
-Die Bewertung ist **nicht separabel**: durch Exklusivgruppen,
-`isStrongestEffect` und multiplikative Raten hängt der Wert eines Relikts
-davon ab, was in den anderen Slots liegt.
+**Kontext:** QA-058 stellt die Frage, wie „eine Rechenstelle" für **beide**
+Schichten gelten kann. Der bestehende Wächter
+(`test_one_build.py::test_the_user_interface_holds_exactly_one_call_to_compute`)
+zählt über den Syntaxbaum, kennt alle sechs Aufrufschreibweisen, sucht rekursiv
+unter `nrplanner/` und weiss ausdrücklich, was er nicht sehen kann
+(Laufzeitauflösung, QA-023, festgehalten). Das Werkzeug ist gut; nur seine
+**Zusicherungsform** passt für die obere Schicht nicht: dort gibt es nicht
+einen richtigen Aufrufer, sondern eine richtige Fassade (AD-019).
 
 **Optionen:**
-- **A — Vollprodukt.** Exakt. Für das 3-Slot-Gefäss ist es *nicht* absurd:
-  5,7 · 10⁵ Bewertungen à 0,10 ms sind **~57 s**. Für das 6-Slot-Gefäss sind
-  es **~10 Tage**. Ausgeschlossen — aber ausgeschlossen aus einem gemessenen
-  Grund und nur im Deep-Fall hoffnungslos. Das ist der Grund, warum unten ein
-  *Regler* steht und kein Entweder-oder: bei kleinen Problemen darf die Suche
-  fast erschöpfend sein.
-- **B — Greedy je Slot.** Bestes Relikt je Slot einzeln, unabhängig: ~390
-  Aufrufe, ~0,04 s. Konsequenz: falsch genau dort, wo es interessant wird —
-  zwei Kopien desselben `isStrongestEffect` werden gewählt und die zweite ist
-  wertlos; zwei Effekte einer Exklusivgruppe werden gewählt und nur einer
-  greift. Der Berater empföhle dann Builds, deren Punktzahl er selbst
-  widerlegt.
-- **C — Beam-Suche über die Slots, Bewertung des Teil-Builds bei jedem
-  Schritt mit `model.compute()`.** Beam-Breite W, Kandidatenzahl K. Greedy
-  ist der Sonderfall W=1, Vollprodukt der Grenzfall K=alle, W=∞ — ein Regler
-  statt zweier Extreme. Konsequenz: keine Optimalitätsgarantie (was `GOAL.md`
-  ausdrücklich als Nicht-Ziel führt: „Heuristik-Ratgeber, kein Löser mit
-  Beweis"). Gemessen **0,11 s (3 Slots) bis 0,46 s (6 Slots mit Deep und
-  weissem Slot)** bei K=20/W=40.
-- **D — Ganzzahlige Optimierung (`ortools` CP-SAT / `pulp`).** Beweisbar
-  optimal für lineare Ziele. Konsequenz: **neue Dependency** (ortools ~50 MB
-  im PyInstaller-Bundle für ein 20-MB-Werkzeug), und die Zielfunktion ist
-  nicht linear — multiplikative Raten, „nur der stärkste zählt",
-  Exklusivgruppen. Linearisierbar, aber nur unter Annahmen, die die
-  gemessenen Regeln in `model.py` gerade verneinen. Der Beweis wäre ein
-  Beweis über ein falsches Modell.
+- **A — Den `compute`-Wächter kopieren und auf `rate`/`rank` umbenennen.**
+  Konsequenz: zwei fast gleiche Testdateien, die getrennt driften; und die
+  falsche Zusicherung aus AD-019 Option A.
+- **B — `compute_call_sites` zu `call_sites(source, modules, functions)`
+  verallgemeinern und zweimal aufrufen: einmal mit
+  (`model`, `compute`) → Erwartung `{app.py: 1}`, einmal mit
+  (`weapons`, `rate`/`rank`) → Erwartung `{damage.py: n}` und **überall sonst
+  Null**.** Konsequenz: eine Implementierung, zwei Zusicherungen; der Test
+  „sieht jeden Weg um sich herum" prüft beide mit denselben sieben
+  Schreibweisen.
+- **C — Zusätzlich den Ausdruck `base.get(d,0) + scaled.get(d,0)` im
+  Syntaxbaum verbieten.** Konsequenz: brüchig (jede Umformulierung entkommt),
+  und nach W1 gegenstandslos, weil eine Stelle ohne Zugriff auf `rate` gar
+  keine `WeaponRating` mehr selbst erzeugt.
 
-**Entscheidung:** C. Sie fasst die Kopplung zwischen den Slots exakt (weil
-sie den echten Scorer benutzt), sie ist über zwei Zahlen (K, W) einstellbar,
-und ihre Kosten sind gemessen statt geschätzt.
+**Entscheidung:** B. C wird **nicht** gebaut; die Formel deckt der
+Golden-Test ab, und die Grenze wird im Wächter-Docstring genannt statt
+behauptet.
 
-**Voreinstellung: K=20, W=40.** Der ungünstigste reale Fall bleibt damit
-unter einer halben Sekunde. Der `performance-tuner` bestätigt oder korrigiert
-das in S11.
-
-**Warum die Poolgrösse die Kosten nicht treibt — und was das für K bedeutet.**
-Die Beam-Suche kostet `Slots × W × K` Bewertungen. **K ist eine Obergrenze auf
-die Verzweigung, keine Quote auf den Pool.** Gegenprobe bei K=20/W=40:
-`Wylder's Chalice` (weisser Slot, Pool 208) und `Wylder's Urn` (nur farbig,
-Pool höchstens 56) brauchen **exakt gleich viele Bewertungen — 3 929**. Der
-weisse Slot vervierfacht den rohen Produktraum und ändert die Suchkosten
-nicht. Er verteuert allein den Vorsortierlauf, und der ist eine Bewertung je
-*besessenem Relikt* (309), nicht je Slot-Kandidat.
-
-Die Kehrseite gehört dazu: K=20 behält bei einem farbigen Slot ~40 % des
-Pools, bei einem weissen aber nur ~10 %. Die Vorsortierung trägt an einem
-weissen Slot also deutlich mehr Last. Sie bewertet jedes Relikt **isoliert**,
-also ohne die Wechselwirkungen, um derentwillen es die Beam-Suche überhaupt
-gibt — ein Relikt, das erst neben einem anderen stark wird, kann an einem
-weissen Slot durch das Raster fallen. Das ist die schärfste bekannte Schwäche
-des Verfahrens. Sie ist erträglich, weil `GOAL.md` keine Optimalität verlangt,
-und sie ist **messbar**: Prüfpunkt in der Risikotabelle, K für weisse Slots
-notfalls eigenständig höher setzen. Weil die Kosten linear in K sind und ein
-Lauf 0,46 s dauert, ist dafür Luft.
-
-**Ausgestaltung, verbindlich für `search.py`:**
-1. **Slot-Reihenfolge: die des Gefässes.** Meine erste Fassung schrieb „engste
-   Farbe zuerst, Weiss zuletzt" vor. Gemessen macht das **keinen Unterschied** —
-   gleiche Trefferqualität, 0,46 s gegen 0,48 s. Die Regel wird gestrichen,
-   statt sie ohne Beleg mitzuschleppen. Die Reihenfolge des Gefässes ist
-   ausserdem stabil und damit reproduzierbar, was AD-009 Punkt 6 braucht.
-2. **Farbsymmetrie:** ein Gefäss `[0, 0, 1]` hat zwei austauschbare rote
-   Slots. Innerhalb einer Gruppe gleichfarbiger Slots wird nur in
-   aufsteigender Kandidatenreihenfolge gewählt. Das verkleinert den Baum und
-   verhindert, dass die Ergebnisliste dieselbe Belegung zweimal in
-   vertauschten Slots zeigt.
-3. **Exemplar-Eindeutigkeit über Handles** — siehe AD-013. Nicht optional:
-   ohne sie sind auf `Wylder's Urn` **40 von 40** Vorschlägen nicht tragbar.
-4. **Abbruchprüfung** zwischen den Slot-Ebenen, nicht innerhalb (siehe AD-006).
-5. **Ausgabe:** die besten `top_n` Endzustände, nicht nur der beste — der
-   Spieler sieht Alternativen und kann die Begründung vergleichen (A5).
-
-**Konsequenzen:** Leicht wird — mehr Zielrichtungen, andere Slotzahlen,
-Budgetanpassung durch den `performance-tuner` ohne Codeänderung. Dauerhaft
-schwer wird — jede Aussage der Form „das ist das Beste, was du bauen kannst".
-Der Berater darf so nicht formulieren. Nutzersprache: „Best found" / „Top
-suggestions", nie „Optimal".
-
-**Umkehrbarkeit:** leicht. `search.py` ist rein und hinter
-`AdvisorRequest`/`AdvisorResult` gekapselt; ein anderes Verfahren ersetzt
-genau diese eine Datei.
-
----
-
-### AD-004 — Zielrichtungen als Registry reiner Funktionen `Build -> GoalScore`, mit ausdrücklicher Unwissensliste (2026-09-01, Status: aktiv)
-
-**Kontext:** A3 verlangt mindestens zwei benannte Zielrichtungen und
-Erweiterbarkeit. A7 verlangt, dass das Programm sagt, wo die Spieldateien
-keine Antwort geben. Beides trifft sich an derselben Stelle: eine
-Zielrichtung ist nicht nur eine Zahl, sondern eine Zahl *mit erklärtem
-Geltungsbereich*.
-
-**Optionen:**
-- **A — Ein Gewichtsvektor über Feldnamen** (`{"physicsAttackRate": 1.0, …}`),
-  Zielrichtungen als Datensätze. Sehr einfach erweiterbar, sogar zur Laufzeit.
-  Konsequenz: kann nur linear über `build.rates` — kann kein Attack Rating
-  bilden (das braucht die Waffe, die Attributkurven und die Skalierung), kann
-  kein effektives HP bilden (das braucht `build.derived` mal die
-  Schadensminderung). Die beiden geforderten Zielrichtungen sind genau die,
-  die so nicht ausdrückbar sind.
-- **B — `if goal == "damage": … elif goal == "tank": …` in der Suche.**
-  Konsequenz: jede neue Zielrichtung fasst die Suche an. Genau die Kopplung,
-  die AD-001 vermeiden soll.
-- **C — Eine `Goal`-Datenklasse mit `score(build, ctx) -> GoalScore`, in
-  einem Dict registriert.** Konsequenz: eine neue Zielrichtung ist eine
-  Funktion plus ein Registry-Eintrag; die Suche kennt nur das Protokoll.
-
-**Entscheidung:** C.
+**Form der zweiten Zusicherung (illustrierend):**
 
 ```python
-# advisor/types.py  (illustrierend, kein Anwendungscode)
-@dataclass(frozen=True)
-class GoalScore:
-    value: float                       # die Rankinggrösse, gross = besser
-    display: str                       # "Attack rating 812" (Englisch)
-    unit: str                          # "AR" | "effective HP" | ...
-    unknowns: tuple[str, ...]          # A7: was diese Zahl NICHT weiss
-    weights_note: str                  # die offengelegte eigene Annahme
+ARITHMETIC_ENTRY = ("rate", "rank")   # weapons.py, untere Schicht
+FACADE = "nrplanner/damage.py"        # die einzige Stelle, die sie anfassen darf
 
-@dataclass(frozen=True)
-class Goal:
-    id: str                            # "max_damage"
-    label: str                         # "Maximise damage"       (Englisch)
-    blurb: str                         # ein Satz für die Oberfläche
-    score: Callable[[model.Build, GoalContext], GoalScore]
-
-GOALS: dict[str, Goal] = {...}         # die Registry
+# Erwartung: {FACADE: n}. Jede andere Datei unter nrplanner/ muss 0 haben.
+# Konstanten und Typen aus weapons.py (DAMAGE_TYPES, DAMAGE_LABELS,
+# RARITY_TIERS, WeaponRating) bleiben ausdruecklich erlaubt -- der Waechter
+# zielt auf zwei Funktionsnamen, nicht auf den Import des Moduls.
 ```
 
-**Die zwei ausgelieferten Zielrichtungen:**
+**Reichweite, ausdrücklich, weil ein Wächter mit unausgesprochener Reichweite
+als Wächter ohne Grenzen gelesen wird:**
+- Suchraum bleibt `nrplanner/` (QA-023). `run.py` und `scripts/` liegen
+  ausserhalb; `scripts/capture_weapon_damage.py` ruft die Rechnung
+  absichtlich und ist deshalb kein Verstoss — aber auch nicht gesichert.
+- **Das Berater-Paket muss unter `nrplanner/advisor/` liegen** (AD-001, von
+  `test_the_search_space_reaches_inside_a_package` bereits geprüft), sonst
+  sieht der Wächter es nicht. Diese Bedingung gilt jetzt für **beide**
+  Zusicherungen.
+- Der Berater ruft die Fassade, nicht `weapons.rate`. Damit gilt für ihn
+  dieselbe Regel wie für jeden Tab.
 
-**`max_damage` — „Maximise damage".** Rankinggrösse ist das Attack Rating der
-gewählten Referenzwaffe unter `build.attributes`, mit den Angriffsraten
-darauf — berechnet von `nrplanner/damage.py` (AD-005), also von genau
-derselben Rechnung, die die Waffentafel zeigt.
-`unknowns` enthält *immer mindestens* — **ab AD-025 ist das die Liste von
-`Goal.scope`, nicht die von `GoalScore.unknowns`**:
-- „Attack rating has not been verified against an in-game number." (README
-  Known limits) — **historisch. Seit QA-095 (2256 Vergleiche) ist der Satz
-  falsch; an seiner Stelle steht der Geltungsbereich der Übereinstimmung
-  (`advisor/goals.py`, `UI_SPEC` Nachtrag zu QA-116). Hier stehengelassen
-  als Beleg dafür, wie die Zeile einmal lautete — nicht als geltende
-  Vorgabe (QA-116).**
-- „Spell damage is not in the game data, so spells are not rated." (README)
-- „Critical-only bonuses are excluded — attack rating is the ordinary hit."
-  (bereits so in `_refresh_weapon_damage` entschieden, siehe `model.CRIT_RATE`)
-- bei fehlender Referenzwaffe: „No armament selected — ranked on attack
-  multipliers only, without weapon scaling."
+**Konsequenzen:** Leicht wird — eine fünfte Anzeigestelle, die sich ihre
+Waffenzahl selbst zusammenrechnet, fällt beim Testlauf auf statt beim Spieler.
+Dauerhaft schwer wird — der `developer` kann `weapons.rate` nicht mehr „mal
+eben" für eine Sonderansicht rufen; er muss eine `Basis` beantragen. Das ist
+der Preis und der Zweck.
 
-**`min_damage_taken` — „Minimise damage taken".** Rankinggrösse ist
-effektives HP: `build.derived["HP"]` geteilt durch die Schadensminderung, je
-Schadensart getrennt gerechnet (die vier physischen —
-`slash/blow/thrust/neutralDamageCutRate` — und die vier elementaren —
-`magic/fire/thunder/darkDamageCutRate`), dann zu einem Skalar gemittelt.
-**Die Mittelung ist eine Annahme, und sie wird ausgesprochen:** die
-Spieldateien sagen nichts darüber, wie oft welche Schadensart vorkommt. Daher
-gleiches Gewicht auf allen acht, und `weights_note` sagt genau das im
-Klartext. Wer es besser weiss, verstellt die Gewichte (offene Frage OF-3).
-`unknowns` enthält mindestens:
-- „The game data gives no relative frequency of damage types; all eight are
-  weighted equally."
-- „Ailment and status resistance are not part of this figure."
-- „The break threshold is unknown." (README, sofern relevant angezeigt)
-
-**Nachtrag 2026-09-01 — Beschluss des `director` zu OF-3 und OF-5.**
-
-*OF-5 (bestätigt):* Ohne gewählte Referenzwaffe wird der Lauf **nicht**
-verweigert. `max_damage` rechnet gegen eine benannte Annahme, und die Annahme
-steht sichtbar im Ergebnis. Begründung des `director`, die ich übernehme:
-A7 ist erfüllt, solange die Annahme dasteht — Schweigen wäre der Verstoss,
-nicht die Annahme.
-
-*OF-3 (noch beim Nutzer):* Ob die Gewichtung der acht Schadensarten ein
-Bedienelement wird, ist offen. Der Entwurf muss beides tragen, **ohne die
-Registry umzubauen**. Deshalb verbindlich: die Gewichte sind **Daten im
-`GoalContext`**, nicht Konstanten in der Zielfunktion.
-
-```python
-# advisor/types.py  (illustrierend, kein Anwendungscode)
-@dataclass(frozen=True)
-class Weighting:
-    id: str                            # "even"
-    label: str                         # "All damage types equally" (Englisch)
-    note: str                          # der Satz, der in weights_note landet
-    weights: Mapping[str, float]
-
-@dataclass(frozen=True)
-class GoalContext:
-    data: Mapping
-    hero: Mapping
-    level: int
-    weapon: Mapping | None
-    weighting: Weighting               # Voreinstellung: DEFAULT_WEIGHTING
-```
-
-`score()` liest `ctx.weighting.weights` und schreibt `ctx.weighting.note` nach
-`GoalScore.weights_note`. Bleibt es bei der festen Annahme, liefert der
-`AdvisorController` immer `DEFAULT_WEIGHTING` — ein Bedienelement später
-liefert eine andere Instanz und sonst ändert sich nichts. `weighting.id`
-gehört in den Cache-Schlüssel (AD-007), sonst überlebt ein Ergebnis den
-Wechsel der Gewichtung.
-
-Der Punkt ist die Trennung: **die Zielfunktion kennt keine Zahlen, nur woher
-sie kommen.** Eine Gewichtung fest in `min_damage_taken` einzubacken wäre
-heute drei Zeilen kürzer und machte OF-3 später zu einem Eingriff in die
-Zielrichtung statt in den Aufrufer.
-
-**Gemeinsame `unknowns` für jede Zielrichtung**, von der Suche beigesteuert,
-nicht von der Zielrichtung:
-- „N of your relics carry effects that only apply under a condition. They
-  were not counted." — folgt direkt daraus, dass `model.compute()`
-  konditionale Effekte aus den Totals hält, solange sie nicht `declared` sind.
-  Ohne diesen Satz sähe ein Spieler ein starkes situatives Relikt ungenutzt
-  und hielte den Berater für kaputt.
-- Deep-of-Night-Kennzeichnung und die **Curses** der vorgeschlagenen Relikte:
-  Curses gehören zum Relikt und gehen in die Bewertung ein, genauso wie
-  `Planner.recompute()` es tut (`selected_curses()`). Ein Deep-Vorschlag ohne
-  genannten Curse wäre unehrlich.
-
-**Konsequenzen:** Leicht wird — eine dritte Zielrichtung („maximise FP
-economy", „maximise item discovery") ist eine Funktion und ein Eintrag.
-Dauerhaft schwer wird — Zielrichtungen, die *nicht* aus einem `Build`
-ablesbar sind (etwa etwas über den Spielverlauf). Die müssten
-`GoalContext` erweitern, und das berührt alle.
-
-**Umkehrbarkeit:** leicht.
+**Umkehrbarkeit:** leicht. Ein Test.
 
 ---
 
@@ -657,1032 +517,12 @@ machen; sobald der Berater darauf zeigt, hängt mehr daran.
 
 ---
 
-### AD-006 — Hintergrundlauf über `QThread` + Worker-Objekt + Signale, mit kooperativem Abbruch (2026-09-01, Status: aktiv)
-
-**Kontext:** A6 verlangt, dass die Oberfläche bedienbar bleibt. Gemessen
-0,11 s (3 Slots) bis 0,46 s (6 Slots mit Deep und weissem Slot) reine Python-Rechnung je Lauf. Das Programm ist Qt, nicht Tkinter,
-und `nrplanner/firstrun.py` fährt bereits ein Worker-Objekt per `moveToThread`
-mit `progress`/`finished`-Signalen.
-
-**Optionen:**
-- **A — `QThread` + Worker + Signale.** Ein Muster, das im Projekt schon
-  betrieben wird. Konsequenz: durch den GIL echte Nebenläufigkeit nur bedingt;
-  bei einer halben Sekunde reiner Python-Rechnung sind kurze Ruckler im Hauptthread
-  möglich, aber keine Blockade. Kein neues Konzept, keine Dependency.
-- **B — `multiprocessing` / `ProcessPoolExecutor`.** Echte Parallelität, GIL
-  irrelevant. Konsequenz: der Snapshot (~20 MB JSON) muss in den Kindprozess;
-  unter PyInstaller braucht es `freeze_support()` und ein sauberes
-  Einstiegsverhalten für die gefrorene EXE — ein bekannt fehleranfälliger Weg,
-  bei dem ein Fehler als „Programm startet sich selbst mehrfach" auftritt.
-  Prozessstart plus Übergabe kostet mehr als der Lauf selbst.
-- **C — Häppchenweise im Hauptthread über `QTimer`.** Kein Thread, keine
-  Race-Bedingung mit `model.configure()` (F4). Konsequenz: die Latenz wird
-  schlechter, nicht besser, und die Suchschleife müsste als Zustandsmaschine
-  geschrieben werden — `search.py` verlöre seine Reinheit und damit seine
-  Testbarkeit.
-
-**Entscheidung:** A. Der gemessene Lauf ist zu kurz, als dass B seine
-Betriebskosten wert wäre, und C zahlt mit genau der Eigenschaft, die AD-001
-erkauft hat. Betreibbarkeit zählt: das Team fährt dieses Muster bereits.
-
-**Verbindliche Ausgestaltung:**
-
-1. **Wie das Ergebnis in die Oberfläche kommt.** Ein `QObject`-Worker mit den
-   Signalen `ready(object)`, `failed(str)`, `progress(int, int)` wird per
-   `moveToThread(thread)` in einen `QThread` verschoben; `thread.started`
-   ruft `worker.run`. Die Signale sind über die Thread-Grenze hinweg
-   `Qt.QueuedConnection` — Qt stellt die Nutzlast in die Event-Loop des
-   Empfängers, und der Slot läuft im **Hauptthread**. Nur dort werden Widgets
-   angefasst. **Kein Widget-Zugriff aus dem Worker**, auch nicht lesend.
-2. **Nicht das Muster aus `firstrun.py` kopieren.** Dort steht
-   `while not thread.wait(50): QApplication.processEvents()` — eine modale
-   Wartschleife, richtig für einen Startbildschirm, falsch für den Berater:
-   starten, `ready` verbinden, zurückkehren. Kein `processEvents()`.
-3. **Veraltete Ergebnisse dürfen nicht ankommen.** Der `AdvisorController`
-   führt einen monoton wachsenden **Generationszähler**. Jede Anfrage bekommt
-   die aktuelle Generation mit, und `AdvisorResult` trägt sie zurück. Der
-   Slot im Hauptthread verwirft jedes Ergebnis, dessen Generation nicht die
-   aktuelle ist — **wortlos, ohne die Anzeige anzufassen**. Das ist die
-   einzige Absicherung, die trägt: Abbrechen allein genügt nicht, weil ein
-   Lauf, der zwischen der letzten Abbruchprüfung und dem `emit` steht, sein
-   `ready` bereits abgeschickt hat, während der Spieler das Gefäss wechselt.
-   Der Zähler wird erhöht bei: Wechsel von Nightfarer, Gefäss, Deep-Schalter,
-   Zielrichtung, Level, Referenzwaffe, deklarierten situativen Effekten,
-   Neu-Scan des Saves und Datenneuaufbau — also bei **jeder** Änderung, die
-   in den Cache-Schlüssel aus AD-007 eingeht. Beides aus einer Quelle
-   abzuleiten ist Absicht: was den Cache-Schlüssel ändert, macht ein
-   laufendes Ergebnis veraltet, und umgekehrt. Zwei getrennte Listen liefen
-   auseinander.
-4. **Höchstens ein Lauf gleichzeitig.** Eine neue Anfrage bricht die alte ab
-   und erhöht die Generation. Der `QThread` wird nicht neu erzeugt, solange
-   der alte noch läuft: `requestInterruption`, `quit`, dann auf `finished`
-   den nächsten starten. Kein `terminate()`, kein `wait()` im Hauptthread.
-5. **Anfragen entprellen** über einen `QTimer` mit `setSingleShot(True)`
-   (Vorschlag 250 ms; `performance-tuner` setzt den Wert), damit ein
-   gezogener Level-Regler nicht vierzig Läufe auslöst.
-6. **Kooperativer Abbruch:** `search.beam()` nimmt ein
-   `should_cancel: Callable[[], bool]` und prüft es **zwischen den
-   Slot-Ebenen** — bei 6 Ebenen und höchstens 0,98 s ist die gröbste
-   Reaktionszeit ~0,15 s, fein genug. Innerhalb einer Ebene zu prüfen kostet
-   mehr, als es bringt.
-7. **Race gegen F4:** ein Datenneuaufbau (`load_data` nach Spiel-Patch, oder
-   ein Neu-Scan des Saves) bricht jeden laufenden Lauf ab, erhöht die
-   Generation und verwirft den Cache, *bevor* `model.configure()` erneut
-   läuft. `model` hält Modulglobals; ein Lauf, der währenddessen rechnet,
-   rechnet auf einer halb ersetzten Tabelle.
-8. **Über die Thread-Grenze gehen nur unveränderliche Datenklassen.** Keine
-   Widgets, keine `QSettings` (die sind nicht thread-affin nutzbar wie hier
-   gebraucht), kein `Inventory`-Objekt, das der Hauptthread weiter anfasst.
-   `AdvisorRequest` und `AdvisorResult` sind `frozen`; die Kandidatenliste
-   wird beim Bauen des Requests eingefroren, nicht im Worker aus dem
-   lebenden `Inventory` gelesen.
-9. **Fehler im Worker sind ein Signal, kein Absturz.** `run()` fängt breit
-   und sendet `failed(text)`. Eine Ausnahme in einem `QThread` beendet sonst
-   still den Lauf, und die Oberfläche wartet für immer auf ein `ready`.
-
-**Konsequenzen:** Leicht wird — Abbrechen, Fortschritt anzeigen, Budget
-messen. Dauerhaft schwer wird — mehrere Läufe echt parallel (etwa alle
-Gefässe gleichzeitig); dafür bräuchte es B.
-
-**Umkehrbarkeit:** mittel. Weil `search.py` rein und abbrechbar ist, lässt
-sich B später hinter derselben `AdvisorController`-Fassade nachrüsten.
-Kosten: das PyInstaller-Verhalten des gefrorenen Artefakts.
-
----
-
-### AD-007 — Ergebnis-Cache nur im Speicher (LRU), nichts auf Platte (2026-09-01, Status: aktiv)
-
-**Kontext:** Der Spieler wechselt zwischen Gefässen und Nightfarern hin und
-her. Jeder Wechsel wäre ein Lauf von bis zu 0,46 s.
-
-**Optionen:**
-- **A — Kein Cache.** Einfachst. Konsequenz: Zurückklicken auf ein Gefäss
-  rechnet neu; die Oberfläche fühlt sich zäh an, obwohl die Antwort bekannt ist.
-- **B — LRU im Speicher, an den `AdvisorController` gebunden** (Vorschlag 32
-  Einträge). Konsequenz: ein paar MB, und mit dem Fenster ist er weg.
-- **C — Zusätzlich auf Platte, neben dem Snapshot unter `paths`.** Konsequenz:
-  überlebt Neustarts — und wird falsch, sobald der Spieler ein Relikt
-  einschmilzt, ein neues findet oder das Spiel gepatcht wird. Ein Cache, der
-  einen Vorschlag über ein nicht mehr besessenes Relikt zeigt, verletzt A7
-  direkt. Der Schutz dagegen wäre eine Invalidierungslogik, die teurer zu
-  pflegen ist als der halbsekündige Lauf, den sie spart.
-
-**Entscheidung:** B.
-
-**Cache-Schlüssel — vollständig, damit nichts stillschweigend fehlt:**
-`(snapshot_fingerprint, hero_id, level, canonical_slots, deep, goal_id,
-inventory_fingerprint, weapon_fingerprint, declared_fingerprint, budget)`
-
-- `snapshot_fingerprint` = `meta.regulation_sha256` + `meta.extract_version`.
-- `inventory_fingerprint` = Hash über die sortierten Tupel
-  `(handle, relic_id, sorted(effect_ids), sorted(curse_ids), colour, is_deep)`.
-
-> **Korrektur vom 2026-09-01, ersetzt die ursprüngliche Fassung dieser Zeile.**
-> Ursprünglich stand hier „ausdrücklich **ohne** `handle`", mit der Begründung
-> aus `chalices.py`: Handles werden beim Einschmelzen oder Rechnerwechsel neu
-> vergeben, und ein Handle im Schlüssel entwertete den Cache ohne jede
-> Änderung am Besitz. Diese Begründung ist für sich richtig und **hier
-> trotzdem falsch**, seit AD-013 gilt: das Ergebnis *enthält* Handles. Ein
-> Treffer im Cache nach einer Neuvergabe lieferte Handles, die auf ein anderes
-> oder gar kein Relikt zeigen — ein Vorschlag, den der Spieler nicht tragen
-> kann, also genau der Fehler, den AD-013 verhindern soll. Die Abwägung ist
-> einseitig: ein überflüssiger Cache-Fehlschlag kostet 0,46 s, ein veralteter
-> Handle kostet eine falsche Empfehlung. Handles gehören in den Schlüssel.
-- `declared_fingerprint` deckt die vom Spieler als aktiv erklärten
-  konditionalen Effekte ab — sie ändern die Totals und damit das Ranking.
-
-**Konsequenzen:** Leicht wird — sofortige Antwort beim Hin- und Herwechseln.
-Dauerhaft schwer wird — nichts von Belang; ein Plattencache liesse sich
-nachrüsten, wenn er je gebraucht wird (Bedingung siehe „Bewusst nicht getan").
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-008 — Das Suchproblem wird über die kanonisierte Slot-Farbmenge geschlüsselt, nicht über die Gefäss-Id (2026-09-01, Status: aktiv)
-
-**Kontext (gemessen):** Der Snapshot führt **74 Gefässe**. Nach Sortierung
-der Slotfarben bleiben davon **26 verschiedene 3-Slot-Muster** und **47
-verschiedene 6-Slot-Muster** (mit den Deep-Slots). `[0,0,1]`, `[0,1,0]` und
-`[1,0,0]` sind dasselbe Problem mit vertauschten Spalten; das häufigste
-Muster kommt siebenmal vor.
-
-**Optionen:**
-- **A — Je Gefäss ein Problem.** Naheliegend, denn der Spieler wählt ein
-  Gefäss. Konsequenz: bis zu 74 Läufe für dieselben Antworten; der Cache
-  trifft bei einem Gefässwechsel nie, obwohl die Antwort identisch ist.
-- **B — Kanonische Form: sortiertes Tupel der Slotfarben + Deep-Flag.**
-  Konsequenz: `[0,0,1]`, `[0,1,0]` und `[1,0,0]` sind ein Problem. Beim
-  Anzeigen müssen die Ergebnisse auf die tatsächliche Slot-Reihenfolge des
-  gewählten Gefässes zurückabgebildet werden — ein Permutationsschritt in
-  `worker.py`.
-
-**Entscheidung:** B. Die Rückabbildung ist ein Dutzend Zeilen; der
-Trefferanteil im Cache steigt um ein Vielfaches, und A3 („für jedes bekannte
-Kelch-Layout") wird dadurch überhaupt erst mit vertretbarem Aufwand prüfbar:
-der `qa-engineer` prüft **26 bzw. 47 kanonische Probleme statt 74 Gefässe**,
-und die vollständige Abdeckung aller Layouts für beide Zielrichtungen kostet
-gemessen 47 × 0,46 s ≈ **22 s** statt 74 × 0,46 s ≈ 34 s — pro Zielrichtung,
-im Hintergrund, und nur wenn A3 vollständig durchgeprüft wird.
-
-**Konsequenzen:** Leicht wird — Abdeckung aller Layouts, hohe Cache-Trefferrate.
-Dauerhaft schwer wird — eine künftige Regel, die ein Gefäss *ausser* über
-seine Slotfarben unterscheidet (etwa ein gefässgebundener Bonus). Gäbe es die,
-müsste die Gefäss-Id in den Schlüssel zurück. Der Snapshot kennt heute nichts
-dergleichen: ein `vessels`-Eintrag hat `id`, `name`, `icon`, `hero_type`,
-`slots`, `deep_slots` — und nur die letzten beiden wirken auf einen Build.
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-009 — Testsockel headless, ohne neue Laufzeit-Dependency (2026-09-01, Status: aktiv; Werkzeug auf `pytest` geändert, siehe Nachtrag)
-
-**Kontext:** Kein Test im Repo (F2), und A9 verlangt eine Bestätigung gegen
-ein gebautes Artefakt. Der Berater rankt auf `model.py`, dessen Regeln
-grösstenteils gemessen und nirgends abgesichert sind. AD-005 verschiebt
-funktionierenden Code und braucht einen Regressionsschutz.
-
-**Optionen:**
-- **A — `pytest` + `pytest-qt`.** Komfortabel, parametrisierbar, im
-  Ökosystem üblich. Konsequenz: **zwei neue Dependencies**, freigabepflichtig
-  durch den `director`. Reine Entwicklungsabhängigkeit, also kein Einfluss auf
-  das Bundle — aber `requirements.txt` trennt heute nicht zwischen Laufzeit
-  und Werkzeug (F8), was das Risiko birgt, dass sie im Artefakt landen.
-- **B — `unittest` aus der Standardbibliothek.** Konsequenz: keine Freigabe
-  nötig, kein Bundle-Einfluss, läuft auf jedem Python 3.11+ ohne
-  Vorbereitung; dafür umständlicher bei parametrisierten Tabellen
-  (`subTest` statt `parametrize`).
-- **C — Gar keine Tests, nur manuelle Prüfung durch den `qa-engineer`.**
-  Konsequenz: A9 nicht erfüllbar; und AD-005 würde ohne Netz ausgeführt.
-
-**Entscheidung:** B für diesen Zyklus. Die Tests, die der Berater braucht,
-sind Tests reiner Funktionen über Datenklassen — genau der Fall, in dem
-`unittest` nichts kostet. Damit ist der Sockel nicht von einer Freigabe
-abhängig und die Arbeit kann sofort beginnen. **Der `director` kann A
-freigeben; dann ist der Wechsel trivial**, weil `unittest`-Tests unter
-`pytest` unverändert laufen — die umgekehrte Richtung gilt nicht. Das ist der
-eigentliche Grund für B: es ist die Option, die die andere offenhält.
-
-**Testsockel, Mindestumfang (Vorlage für den `qa-engineer`, T-002):**
-1. **Golden-Test für AD-005:** ein Satz Builds, für die
-   `_refresh_weapon_damage` heute Zahlen liefert; nach der Extraktion muss
-   `damage.py` dieselben liefern. Aufzunehmen **vor** dem Verschieben.
-2. **Stacking-Eigenschaft (bindet F5):** für jeden Effekt der Daten gilt —
-   `stacking.repetition(e) == STACKS` genau dann, wenn zwei Kopien in
-   `model.compute()` das Total doppelt bewegen.
-3. **Farb-Nebenbedingung:** kein Vorschlag legt ein Relikt in einen Slot, den
-   `inventory.relics_for(colour, deep)` dafür nicht zulässt (A4).
-4. **Kein Relikt doppelt (AD-013):** kein Handle erscheint zweimal in einem
-   Vorschlag. Der Test muss ein Gefäss mit **wiederholten Slotfarben**
-   benutzen (`Wylder's Urn`, `[0,0,1]`) — dort schlägt die Regel ohne
-   Absicherung in 40 von 40 Fällen fehl, bei einem Gefäss mit lauter
-   verschiedenen Farben nur in 5 von 40. Ein Test auf dem gutmütigen Gefäss
-   bestünde und bewiese nichts.
-5. **Monotonie:** eine echte Verbesserung im Bestand (ein zusätzliches,
-   streng besseres Relikt) darf die beste gefundene Punktzahl nicht senken.
-6. **Determinismus:** derselbe Request liefert zweimal dasselbe Ergebnis,
-   Reihenfolge eingeschlossen. Ohne das ist der Cache nicht prüfbar.
-7. **Honesty-Vertrag (A7):** jeder `GoalScore` von `max_damage` führt den
-   Attack-Rating-Vorbehalt; jeder `AdvisorResult` mit ungezählten konditionalen
-   Effekten sagt es.
-
-**Nachtrag 2026-09-01 — der `director` hat `pytest` freigegeben.** Damit gilt
-Option A, aber nur unter der Auflage, die den Einwand gegen sie entkräftet:
-**ausschliesslich als Entwicklungs-Abhängigkeit in einer eigenen
-`requirements-dev.txt`**, nicht in `requirements.txt` und nicht im
-PyInstaller-Artefakt. Genau dafür war die Trennung aus F8 ohnehin schon Teil
-von S1; sie ist jetzt keine Aufräumarbeit mehr, sondern Voraussetzung.
-
-Der Kern der Entscheidung bleibt unberührt: headless, keine Laufzeit-
-Abhängigkeit, Tests vor der Extraktion aus AD-005. Nur das Werkzeug ändert
-sich. Der Mindestumfang unten gilt unverändert — er ist als Liste von
-Eigenschaften formuliert, nicht als Liste von Testfunktionen, und ist damit
-vom Rahmenwerk unabhängig.
-
-**Konsequenzen:** Leicht wird — der Umbau in AD-005 ist abgesichert, A9
-bekommt eine Grundlage, und die Eigenschaftstabellen aus Punkt 2 und 3 lassen
-sich parametrisieren statt über `subTest` zu laufen. Dauerhaft schwer wird —
-Tests der Qt-Schicht; die gibt es hier nicht und sie sind auch nicht Teil
-dieses Entwurfs. Der `ui-ux-designer` und der `qa-engineer` prüfen die
-Oberfläche am Artefakt.
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-010 — Die Unwissensliste ist Teil des Ergebnisses, nicht eine Fussnote in der Oberfläche (2026-09-01, Status: aktiv)
-
-**Kontext:** Hausregel und A7. Die naheliegende Umsetzung ist ein statischer
-Hinweistext im Beratungs-Tab. Der taugt nicht: welche Lücken gelten, hängt
-vom konkreten Lauf ab — ob eine Waffe gewählt ist, ob Deep-Slots im Spiel
-sind, wie viele besessene Relikte konditional sind, ob der Datenstand aus dem
-gebündelten Snapshot statt aus der Installation kommt (F7).
-
-**Optionen:**
-- **A — Statischer Warntext im Tab.** Nichts zu bauen. Konsequenz: er sagt
-  immer dasselbe, wird nach dem dritten Mal nicht mehr gelesen, und er sagt
-  nichts über *diesen* Vorschlag.
-- **B — `unknowns` als Pflichtfeld auf `GoalScore` und `AdvisorResult`,
-  vom Rechner gefüllt.** Konsequenz: die Oberfläche kann ihn nicht vergessen,
-  weil er Teil dessen ist, was sie zeichnet; und der Testsockel kann ihn
-  prüfen (AD-009, Punkt 7).
-
-**Entscheidung:** B. A7 ist ein Abnahmekriterium; ein Kriterium, dessen
-Erfüllung von der Sorgfalt beim Zeichnen abhängt, ist nicht erfüllt.
-
-**Verbindlicher Inhalt jedes `AdvisorResult`:**
-- `unknowns` der Zielrichtung (siehe AD-004),
-- `weights_note`, wo der Berater eine eigene Annahme getroffen hat,
-- `not_counted`: konditionale Effekte im Besitz, die nicht in die Totals
-  eingingen, mit Anzahl,
-- `curses`: die Curses der vorgeschlagenen Deep-Relikte, benannt,
-- `data_note`: aus `meta` — gebündelter Snapshot oder frisch aus der
-  Installation, mit `data_version`,
-- `budget_note`: Suchbreite und ob der Lauf abgeschnitten wurde. Ein Ergebnis
-  aus einer beschnittenen Suche muss sagen, dass es beschnitten wurde.
-
-**Nutzersprache, verbindlich:** „Best found", „Top suggestions", „Not
-counted", „Not verified" — nie „Optimal", „Best possible", „Guaranteed".
-
-**Konsequenzen:** Leicht wird — A7 ist prüfbar statt behauptet. Dauerhaft
-schwer wird — der Vorschlag ist textlastiger, als eine reine Rangliste es
-wäre. Das ist der Preis der Hausregel und die Aufgabe des `ui-ux-designer`
-(T-004), nicht ein Grund, die Regel zu lockern.
-
-**Umkehrbarkeit:** mittel. Ein Pflichtfeld wieder zu entfernen ist leicht;
-die Zusage an den Nutzer zurückzunehmen ist es nicht.
-
----
-
-### AD-011 — Prüfvokabular als freie Funktionen in `binary.py`, nicht als Methoden der `Reader`-Klasse (2026-09-01, Status: aktiv, vom `director` angenommen)
-
-**Kontext:** Der `security-reviewer` (T-003) fand an fünf Stellen aus der
-Datei gelesene Zähler, die ungeprüft Schleifen und Allokationen steuern
-(`savefile.py`, `bnd4.py`, `fmg.py`, `dvdbnd.py`, `tae.py`), und vier
-Endlosschleifen beim Lesen UTF-16-terminierter Namen. Sein Vorschlag: eine
-gemeinsame Hilfsfunktion im `binary.Reader` statt fünf Einzelprüfungen. Die
-Stossrichtung ist richtig — eine Regel, ein Ort.
-
-**Nur trägt der vorgeschlagene Ort nicht.** Nachgezählt:
-
-| Modul | benutzt `binary.Reader` | benutzt `struct` direkt |
-|-------|------------------------|-------------------------|
-| `bnd4.py` | ja (5×) | — |
-| `param.py` | ja (3×) | 3× |
-| `savefile.py` | **nein** | 18× |
-| `tae.py` | **nein** | 13× |
-| `fmg.py` | **nein** | 6× |
-| `dvdbnd.py` | **nein** | 5× |
-
-Eine Methode auf `Reader` erreicht **zwei der fünf** Fundstellen. Die drei
-übrigen bleiben ungeprüft — darunter `savefile.py`, ausgerechnet der einzige
-Parser, der eine Datei liest, die nicht die Spielinstallation, sondern der
-laufende Spielprozess schreibt, und der damit am ehesten halbfertige oder
-beschädigte Zähler sieht (`_read_settled` existiert genau deswegen). Die
-Empfehlung würde in ihrer wörtlichen Form die am stärksten exponierte Stelle
-auslassen und dabei so aussehen, als sei das Problem behoben.
-
-Auch die Endlosschleife hat nur einen ihrer vier Auftritte in
-`Reader.cstr_at`: `while self.data[end:end+2] != b"\0\0": end += 2` läuft
-unbegrenzt weiter, wenn der Terminator fehlt oder ungerade ausgerichtet ist
-— Python schneidet über das Ende hinaus zu `b""` ab, und `b"" != b"\0\0"`.
-Die anderen drei stehen in `fmg.py`, `savefile.py` und `tpf.py`.
-
-**Optionen:**
-- **A — Prüfmethoden auf `Reader`, Rest so lassen.** Kleinster Eingriff.
-  Konsequenz: deckt 2 von 5 Zählern und 1 von 4 Schleifen ab, und der Befund
-  gilt als erledigt. Der schlechteste mögliche Ausgang.
-- **B — Prüfmethoden auf `Reader`, und `savefile`/`fmg`/`dvdbnd`/`tae` auf
-  `Reader` migrieren.** Vollständig und am Ende die sauberste Struktur.
-  Konsequenz: vier Parser umschreiben, ~40 `struct`-Aufrufe, **ohne einen
-  einzigen Test** (F2). Genau der Umbau, bei dem ein Vorzeichen- oder
-  Offset-Fehler wochenlang unbemerkt bleibt und den Relikt-Bestand still
-  falsch liest.
-- **C — Freie Prüffunktionen auf Modulebene in `binary.py`, aufrufbar ohne
-  `Reader`.** `Reader` bekommt dünne Methoden, die dorthin delegieren; die
-  vier struct-basierten Parser rufen dieselben Funktionen direkt auf — je
-  eine Zeile an jeder der fünf Zählerstellen, kein Umschreiben.
-
-**Entscheidung:** C.
-
-```python
-# nrdata/binary.py  (illustrierend, kein Anwendungscode)
-def check_count(count, item_size, remaining, what) -> int:
-    """A count read from the file, refused when it cannot fit what is left."""
-
-def cstr16_at(data, offset, limit=None) -> str:
-    """UTF-16 up to the terminator, or to the end of the buffer."""
-```
-
-Der Punkt ist das **Prüfvokabular**, nicht die Klasse. Die Regel steht einmal;
-sie ist von einem `Reader` aus und von rohem `struct`-Code aus gleich
-erreichbar; und ein Zähler ohne `check_count` daneben fällt beim Lesen auf.
-Damit ist auch die Migration nach B später möglich, ohne dass sie jetzt
-erzwungen wird — B ist der richtige Endzustand, aber erst nach dem
-Testsockel aus S1.
-
-**Verhalten im Fehlerfall:** `ValueError` mit dem Namen des Feldes und den
-beiden Zahlen. Nicht abschneiden, nicht auf 0 setzen, nichts still
-reparieren — ein Parser, der einen kaputten Zähler heimlich glättet, liefert
-Daten, die niemand als falsch erkennt. Die Aufrufer fangen bereits breit
-(`inventory._scan_save` überspringt ein unlesbares Save und macht mit dem
-nächsten weiter), so dass eine Ausnahme hier zu einem übersprungenen Save
-führt und nicht zu einem Absturz.
-
-**Einordnung:** Diese Arbeit gehört **nicht** in den Berater-Strang. Sie ist
-ein eigener Auftrag für den `developer`, nach S1 (Testsockel) und unabhängig
-von S2–S11. Sie berührt `nrdata/extract.py` nicht und verletzt damit die
-Scope-Grenze aus T-001 nicht.
-
-**Konsequenzen:** Leicht wird — jede weitere Zählerstelle prüfen, ohne den
-Parser umzubauen. Dauerhaft schwer wird — nichts; C ist ein Zwischenschritt
-auf dem Weg zu B und verbaut ihn nicht.
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-012 — Kein `defusedxml`; stattdessen Grössendeckel vor dem Parsen (2026-09-01, Status: aktiv, vom `director` angenommen samt Neubewertungs-Bedingung)
-
-**Kontext:** `nrdata/icons.py:65` parst `.layout`-XML aus dem Archiv
-`01_common_h.sblytbnd.dcx` der Spielinstallation mit
-`xml.etree.ElementTree.fromstring`. `ElementTree` gilt gegen „billion
-laughs" und quadratische Expansion als verwundbar (externe Entitäten und
-DTD-Abruf sind ab Python 3.7 abgeschaltet). Der Pfad läuft **im
-ausgelieferten Programm**, nicht nur im Build-Skript: `firstrun.py:139` ruft
-`iconbuild.build(...)` beim ersten Start und nach einem Spiel-Patch.
-
-**Bedrohungsmodell, ehrlich zu Ende gedacht:** Die Datei stammt aus dem
-Installationsverzeichnis des Spiels auf dem Rechner des Nutzers. Kein Netz,
-kein fremder Upload — `GOAL.md` schliesst beides als Nicht-Ziel aus. Wer
-diese Datei ersetzen kann, kann auch `nightreign.exe` ersetzen. Der Angreifer
-müsste bereits gewonnen haben, um diesen Weg zu brauchen. Der realistische
-Fall ist nicht Angriff, sondern **Beschädigung**: eine halb heruntergeladene
-oder von einem Mod-Werkzeug verstümmelte Datei. Deren Wirkung ist dieselbe —
-das Programm hängt beim ersten Start mit wachsendem Speicherverbrauch, ohne
-zu sagen, warum.
-
-**Optionen:**
-- **A — `defusedxml`.** Ein Zeilenwechsel im Import, deckt die
-  Expansionsklasse vollständig ab. Konsequenz: eine dritte Partei mehr in
-  einem ~60-MB-Artefakt; Eintrag in `THIRD_PARTY.md` und Pflege durch
-  `scripts/check_licences.py`; und ein Paket, dessen letzte Veröffentlichung
-  (0.7.1) mehrere Jahre zurückliegt — es ist stabil, aber es ist auch nicht
-  in Bewegung. Für **eine** Aufrufstelle mit einer rein lokalen Quelle.
-- **B — Grössendeckel vor dem Parsen**, gegen die entpackte Grösse des
-  Archivmitglieds, plus ein Deckel auf der Elementzahl. Konsequenz: keine
-  neue Abhängigkeit; fängt Expansion **und** Beschädigung; deckt die
-  Entitätenexpansion aber nur über ihre Wirkung ab, nicht über ihre Ursache.
-- **C — Nichts tun**, weil das Bedrohungsmodell es nicht hergibt.
-  Konsequenz: der Beschädigungsfall bleibt ein stiller Hänger beim ersten
-  Start — der schlechteste Ort für einen stillen Hänger.
-
-**Entscheidung: B — Empfehlung an den `director`.** Eine Dependency ist eine
-dauerhafte Verpflichtung; hier stünde sie für eine Aufrufstelle, deren Quelle
-lokal ist und deren realistischer Fehlerfall ein Deckel ohnehin besser fängt
-als eine Entitätenprüfung. Der Deckel kostet drei Zeilen und braucht keine
-Freigabe.
-
-**Ausgestaltung:** vor `fromstring` prüfen, ob das entpackte Mitglied einen
-Deckel überschreitet (Vorschlag 8 MB — die echten `.layout`-Dateien liegen um
-Grössenordnungen darunter; der `security-reviewer` soll den Wert gegen die
-tatsächliche Grösse setzen). Bei Überschreitung: Icon-Aufbau mit klarer
-Meldung überspringen, nicht abstürzen — `iconpack` kommt ohne Icons aus,
-`firstrun` meldet es bereits über seinen `finished`-Signalweg.
-
-**Bedingung für eine Neubewertung — ausdrücklich festgehalten:** Sobald das
-Programm XML aus einer Quelle parst, die **nicht** die lokale
-Spielinstallation ist (importierte Builds, ein Icon-Pack aus fremder Hand,
-irgendetwas aus dem Netz), fällt dieses Bedrohungsmodell in sich zusammen und
-A ist die richtige Antwort. Dann ist es keine Dependency für eine
-Aufrufstelle mehr, sondern die Absicherung einer Vertrauensgrenze.
-
-**Konsequenzen:** Leicht wird — das Artefakt bleibt, wie es ist; kein
-Lizenz- und Pflegeaufwand. Dauerhaft schwer wird — nichts, solange die
-Bedingung oben gilt. Erklärtes Restrisiko: eine bösartig konstruierte
-`.layout`-Datei unterhalb des Deckels könnte immer noch expandieren. Bei
-8 MB Eingabe ist die Expansion durch den Speicher begrenzt, nicht durch die
-Datei — deshalb der zweite Deckel auf der Elementzahl.
-
-**Umkehrbarkeit:** leicht. `defusedxml` nachzuziehen ist ein Import.
-
----
-
-### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv)
-
-**Kontext:** Der Nutzer hat entschieden, dass der Besitz erzwungen wird
-(QA-002): ein bereits belegtes Exemplar wird in den übrigen Slots nicht mehr
-angeboten, freies Planen läuft über „Custom relic". Damit muss der Berater
-dieselbe Regel einhalten — sonst schlägt er Builds vor, die der Spieler nicht
-tragen kann.
-
-Meine erste Fassung wollte in S5 gleiche **Rollen** zu einem Kandidaten
-zusammenfassen (mehrere Kopien mit identischem Effekt-Multiset als ein
-Eintrag, ein Vertreter behält den Handle). Die Messung nimmt dieser Idee
-beide Beine weg:
-
-- **Sie spart nichts.** 309 Exemplare ergeben 306 verschiedene Rollen — drei
-  Kollisionen, 1,0 %.
-- **Sie ist nicht einmal korrekt.** Bei 306 Rollen auf 309 Exemplaren steht
-  ein Eintrag in 99 % der Fälle für genau ein physisches Relikt.
-  Rollen-Identität ersetzt Exemplar-Identität also nicht; sie *verschleiert*
-  sie in den drei Fällen, in denen es darauf ankäme.
-
-**Wie gross der Fehler ohne diese Regel wäre — gemessen, nicht geschätzt.**
-Beam-Suche bei K=20/W=40, ohne Exemplar-Prüfung, Anteil der 40 besten
-Ergebnisse, die dasselbe Relikt mehrfach belegen:
-
-| Gefäss | unbrauchbare Ergebnisse | bester Vorschlag unbrauchbar? |
-|--------|-------------------------|-------------------------------|
-| `Wylder's Chalice` `[Rot, Gelb, Weiss]` + Deep | 5 von 40 | nein |
-| `Wylder's Urn` `[Rot, Rot, Blau]` + Deep | **40 von 40** | **ja** |
-
-Bei einem Gefäss mit wiederholten Slotfarben ist ohne diese Regel **jeder**
-Vorschlag unbrauchbar, der beste eingeschlossen — und zwar auf die
-unauffälligste denkbare Art: die Punktzahl ist plausibel, die Relikte sind
-alle im Besitz, nur liegt eines davon zweimal.
-
-**Optionen:**
-- **A — Rollen-Dedup, Handle nur zur Anzeige.** Konsequenz: siehe oben, in
-  drei Fällen falsch und spart 1 %.
-- **B — Nachträglich filtern:** suchen ohne Prüfung, unbrauchbare Ergebnisse
-  am Ende verwerfen. Konsequenz: auf `Wylder's Urn` bliebe von 40 Ergebnissen
-  nichts übrig. Ein Filter, der die ganze Liste leert, ist keiner.
-- **C — Handles im Suchzustand.** Jeder Beam-Zustand trägt die Menge der
-  bereits belegten Handles; beim Aufklappen eines Slots werden Kandidaten mit
-  belegtem Handle übersprungen.
-
-**Entscheidung:** C.
-
-**Ausgestaltung, verbindlich:**
-1. Der Kandidat ist das **Exemplar** (`OwnedItem.handle`), nicht die Rolle.
-   Kein Dedup.
-2. Jeder Beam-Zustand führt ein `frozenset[int]` der belegten Handles. Beim
-   Aufklappen werden belegte übersprungen, und es werden die ersten K
-   **verfügbaren** genommen — nicht die ersten K der Liste, von denen dann
-   welche wegfallen. Sonst schrumpft die Verzweigung an tiefen Slots still.
-3. Die vorsortierte Kandidatenliste je Slot ist deshalb mindestens
-   `K + (Slotzahl − 1)` lang, damit nach dem Ausschluss immer noch K übrig
-   sind.
-4. `OwnedItem.handle` kann `None` sein (`inventory.py` setzt es aus
-   `read_relic_handles`, und ein Save ohne lesbare Tabelle liefert keine).
-   **Ein Relikt ohne Handle ist kein Kandidat** und wird mit genannter
-   Begründung in `unknowns` aufgeführt (AD-010). Es stillschweigend
-   mitzunehmen hiesse, die Eindeutigkeit für genau die Relikte aufzugeben,
-   für die sie nicht prüfbar ist.
-5. `AdvisorResult` nennt je Slot den **Handle** und daneben Name und Rolle
-   für die Anzeige. Die Oberfläche wählt darüber dasselbe Exemplar aus, das
-   der Picker anbietet.
-
-**Konsequenzen:** Leicht wird — der Vorschlag ist per Konstruktion tragbar,
-und die Übernahme in die Slots ist eine Handle-Zuweisung ohne Suchen. Dauerhaft
-schwer wird — Vorschläge, die den Besitz *überschreiten* („kauf dir noch so
-eins"). Die wären ein anderes Merkmal und bräuchten einen anderen
-Kandidatenraum; siehe „Bewusst nicht getan".
-
-**Umkehrbarkeit:** mittel. Die Handle-Menge sitzt im Suchzustand von
-`search.py` und im Ergebnistyp; sie später herauszunehmen berührt beide, aber
-keinen Aufrufer.
-
----
-
-### AD-014 — Ein festgehaltener Slot ist Randbedingung der Suche, nicht Startwert: er geht als Grundzustand in jede Bewertung ein (2026-09-02, Status: aktiv)
-
-**Kontext:** Der Nutzer hat am 2026-09-02 entschieden (`GOAL.md`, F1): der
-Spieler kann einzelne Slots festhalten, der Berater optimiert nur den Rest.
-Seine Begründung: „Ich will immer vom aktuellen Stand aus optimieren können.
-Falls ich z. B. um 1 Relikt herum bauen will und dann ein Build optimieren
-will, wo es aber um dieses eine 'nicht optimale' Relikt geht."
-
-Die Lesart des `director` — **festgehalten heisst Randbedingung, nicht
-Startwert** — ist am Bestand geprüft und **bestätigt**. Der Beleg ist die
-Signatur, an der alles hängt:
-`model.compute(hero, level, effects, curves, weapon, weapons_held, declared)`
-nimmt **eine flache Effektliste über alle Slots**. Die Bewertung kennt keine
-Slots. Ein festgehaltenes Relikt kann deshalb nur auf einem Weg wirken: seine
-Effekte (und Flüche, AD-015) stehen in *jeder* Liste, die die Suche bewertet.
-Damit ist „optimiere um dieses Relikt herum" tatsächlich ein **anderes
-Suchproblem** — ein Problem über weniger Variablen mit einem anderen
-Grundzustand, nicht dasselbe Problem mit einem anderen Anfangspunkt.
-
-Ein Startwert wäre auch fachlich falsch: er würde in der Beam-Suche in der
-nächsten Ebene wieder verdrängt, und genau der Fall, um dessentwillen der
-Nutzer die Funktion will (ein für sich *nicht* optimales Relikt), ist der
-Fall, in dem er zuerst verdrängt würde.
-
-**Kräfte:** Die Rechnung darf nicht zweimal existieren (AD-002). Der
-Grundzustand darf an keiner Bewertungsstelle vergessen werden — vergisst ihn
-die Vorsortierung, empfiehlt der Berater Kandidaten, deren Beitrag das
-festgehaltene Relikt bereits abdeckt. Und das Budget aus A6 darf nicht kippen.
-
-**Optionen:**
-- **A — Startwert.** Festgehaltene Relikte werden als Anfangsbelegung in den
-  Beam gelegt, die Suche läuft über alle Slots. Konsequenz: der Beam ersetzt
-  sie in der nächsten Ebene wieder; „festhalten" wäre nur eine Vorbelegung
-  und beantwortete die Frage des Nutzers nicht. Verworfen.
-- **B — Nachträglich filtern.** Frei suchen, am Ende nur Ergebnisse behalten,
-  die den festgehaltenen Slot zufällig gleich belegen. Konsequenz: derselbe
-  Fehler wie AD-013 Option B, nur schärfer — bei einem bewusst nicht optimalen
-  Relikt bleibt von 40 Ergebnissen keines übrig. Verworfen.
-- **C — Grundzustand.** Die festgehaltenen Slots bilden einen `held_build`;
-  die Suche läuft nur über die freien Slots, und jede Bewertung — auch die
-  Vorsortierung — bewertet `held_effects + gewählte Effekte`. Konsequenz: die
-  Suche wird kleiner statt grösser, die Stacking-Regeln greifen von selbst
-  (AD-002), und es kommt genau eine Datenstruktur dazu.
-
-**Entscheidung:** C.
-
-**Ausgestaltung, verbindlich:**
-
-1. **Genau eine Bewertungsstelle im Berater.** Neu im Modulschnitt aus
-   AD-001: `nrplanner/advisor/evaluate.py` mit einer Funktion
-
-   ```python
-   # advisor/evaluate.py  (illustrierend, kein Anwendungscode)
-   def evaluate(problem, assignment, ctx) -> model.Build:
-       """The one place under advisor/ that reaches model.compute.
-
-       Held slots, chosen candidates, their curses and the weapon effects are
-       assembled here and nowhere else -- pre-sort, beam step and baseline all
-       come through this door, so none of them can forget the held slots.
-       """
-   ```
-
-   Das ist kein Stilwunsch, sondern die Durchsetzung: „der festgehaltene
-   Beitrag geht in jede Bewertung ein" ist eine Regel, die man an drei Stellen
-   vergessen kann, solange es drei Stellen gibt. `candidates.py`, `search.py`
-   und der Grundlauf rufen `evaluate`; keines von ihnen ruft `model.compute`.
-   Der `compute`-Wächter (`tests/test_one_build.py`) erwartet danach
-   `{"nrplanner/app.py": 1, "nrplanner/advisor/evaluate.py": 1}` — **eine**
-   neue Zeile, und jede zweite fällt auf. Abhängigkeitsrichtung:
-   `types` → `evaluate` → `candidates`/`goals`/`search`/`explain`.
-
-2. **Suchtiefe = Zahl der freien Slots.** Festgehaltene Slots sind keine
-   Ebenen der Beam-Suche. Sind alle Slots festgehalten, findet **keine Suche**
-   statt: das Ergebnis ist der bewertete Ist-Zustand mit einer Zeile, die das
-   sagt. Ein leerer Beam ist kein Fehlerfall.
-
-3. **Die Vorsortierung bewertet gegen den Grundzustand**, nicht isoliert:
-   Rang eines Kandidaten = `goal(evaluate(held + Kandidat))`. Das ist die
-   einzige Stelle, an der das Festhalten die *Qualität* verbessert statt nur
-   den Raum zu verkleinern — die in AD-003 benannte schärfste Schwäche
-   (isolierte Vorsortierung, OF-10) wird für jeden festgehaltenen Slot
-   kleiner, weil der Kontext, den ihr fehlte, jetzt teilweise dasteht.
-
-4. **Farbsymmetrie nur über freie Slots.** AD-003 Punkt 2 schränkt die Wahl
-   innerhalb einer Gruppe gleichfarbiger Slots auf aufsteigende
-   Kandidatenreihenfolge ein. **Diese Regel wurde unter der Bedingung
-   „alle Slots sind frei" geprüft und ist dort richtig; das Festhalten
-   verletzt diese Bedingung.** Beispiel `Wylder's Urn` `[Rot, Rot, Blau]`:
-   ist der erste rote Slot festgehalten, sind die beiden roten Slots **nicht
-   mehr austauschbar**, und die aufsteigende Regel würde jeden roten
-   Kandidaten mit kleinerem Index als das festgehaltene Relikt still
-   ausschliessen. Die Symmetriegruppen werden deshalb **über die freien Slots
-   allein** gebildet. Ein einzelner freier Slot einer Farbe hat keine
-   Symmetrie und keine Einschränkung.
-
-5. **Handles: der Grundzustand belegt vor.** Der Anfangszustand der Suche
-   trägt die Handles der festgehaltenen Relikte in seinem `frozenset`
-   (AD-013 Punkt 2). Damit kann kein festgehaltenes Exemplar ein zweites Mal
-   vorgeschlagen werden. Der Fall „festgehaltenes Relikt **ohne** Handle"
-   (Custom relic, oder ein Save ohne lesbare Handle-Tabelle) trägt sich ohne
-   neue Regel: AD-013 Punkt 4 nimmt handle-lose Relikte bereits aus dem
-   Kandidatenraum, sie können also gar nicht vorgeschlagen werden. Ein
-   festgehaltenes „Custom relic" ist zulässig — es ist eine Randbedingung,
-   kein Vorschlag, und `UI_SPEC` AK-16 (kein Custom relic **im Vorschlag**)
-   bleibt unberührt.
-
-6. **Erklärt wird gegen den Grundzustand, nicht gegen den leeren Build.**
-   S8/AD-010 nannten „die Differenz zum leeren Build". Mit festgehaltenen
-   Slots ist das falsch: die Begründung schriebe dem Vorschlag die Effekte
-   des festgehaltenen Relikts gut. Bezugspunkt ist `evaluate(held, {})`.
-   Die Rangzahl bleibt der **absolute** Wert des ganzen Builds (eine
-   Autorität); zusätzlich weist das Ergebnis den **Zugewinn gegenüber dem
-   Grundzustand** aus. Das kostet genau einen zusätzlichen `evaluate`-Aufruf
-   je Lauf.
-
-7. **Ein festgehaltener leerer Slot bedeutet „bleibt leer"** und wird nicht
-   belegt. Ob die Oberfläche das anbietet, entscheidet der `ui-ux-designer`;
-   die Suche muss es vertragen.
-
-8. **Nichts wird persistiert.** Der Haltezustand ist Teil des
-   `AdvisorRequest` (AD-006 Punkt 8: unveränderliche Datenklassen über die
-   Thread-Grenze), nicht `QSettings`, nicht Platte (AD-007).
-
-**Laufzeit — das Budget hält, und zwar beweisbar ohne neue Messung.** Die
-Kosten der Beam-Suche sind `Ebenen × W × K` Bewertungen; die Kosten *einer*
-Bewertung wachsen mit der Zahl der beitragenden Relikte (0,10 ms bei wenigen,
-0,18–0,25 ms bei vollem Build). Ein Lauf mit `h` festgehaltenen Slots
-bewertet auf seiner ersten Ebene Builds aus `h+1` Relikten, auf seiner
-letzten aus 6 — er zahlt also **genau die tiefsten `6−h` Ebenen des heutigen
-Laufs** und keine einzige zusätzliche. Damit ist er durch die gemessenen
-**0,46 s** des freien Laufs (`Wylder's Chalice` + Deep, weisser Slot,
-K=20/W=40) nach oben beschränkt.
-
-Teurer wird genau eine Stelle: die Vorsortierung. Sie bewertet 309 Relikte,
-und zwar jetzt im Kontext des Grundzustands — bei `h=5` also volle Builds
-statt einzelner Relikte, rund **77 ms statt 31 ms**. Der zugehörige
-Suchanteil ist dann aber nur noch eine Ebene (1 × 40 × 20 × 0,25 ms ≈ 0,2 s),
-Gesamtlauf ≈ 0,28 s.
-
-**Der ungünstigste Fall bleibt derselbe: `Wylder's Chalice` + Deep mit
-nichts festgehalten, 0,46 s.** Bei `h=0` ist der Entwurf verhaltensgleich
-mit dem heutigen — der Grundzustand ist dann der leere Build. Das ist die
-Prüfbedingung, unter der die 0,46 s gemessen wurden, und sie bleibt gültig.
-Der `performance-tuner` bestätigt in S11 zusätzlich einen Lauf mit `h=5`.
-
-**Nebenertrag, ungeplant und für T-004 wichtig:** „Was passt in **diesen**
-Slot?" (die Picker-Frage aus `GOAL.md` F4) ist in diesem Entwurf **kein
-neuer Mechanismus**, sondern derselbe Lauf mit `h = Slotzahl − 1`. Kosten
-nach obiger Rechnung ≈ 0,28 s im schlechtesten Fall. Der `ui-ux-designer`
-kann die beiden Fragen also frei anordnen, ohne dass eine davon Architektur
-kostet.
-
-**Konsequenzen:** Leicht wird — inkrementelles Bauen („von hier aus weiter"),
-die Picker-Frage, und eine bessere Vorsortierung bei jedem festgehaltenen
-Slot. Dauerhaft schwer wird — eine Aussage über den *Wert des Festhaltens*
-selbst („dieses Relikt kostet dich 40 AR"); dafür bräuchte es einen zweiten
-Lauf ohne Haltezustand und einen Vergleich. Das ist möglich (zwei Läufe,
-zwei Cache-Einträge), aber es ist ein Merkmal und keine Nebenwirkung.
-
-**Umkehrbarkeit:** leicht. Ohne Haltezustand ist der Grundzustand der leere
-Build und alles läuft wie bisher; die Struktur ist die allgemeinere Form
-dessen, was ohnehin gebaut wird.
-
----
-
-### AD-015 — Flüche gehen als gewöhnliche Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus `Build.sources`, nicht aus einer zweiten Rechnung (2026-09-02, Status: aktiv)
-
-**Kontext:** `GOAL.md` F3, entschieden vom Nutzer am 2026-09-02: Flüche
-werden mitbewertet und im Ergebnis ausgewiesen. Begründung: „Falls meine
-negativen auf Relikten meine Benefits vernichten, muss ich das wissen."
-
-Am Bestand geprüft: `Planner.current_build()` (`app.py:3300 f.`) reicht
-`self.selected_effects() + self.weapon_effects() + curses` in **einen**
-`model.compute`-Aufruf; der Kommentar dort nennt den Grund („Leaving them out
-meant a curse ... made the sheet quietly wrong for every Deep of Night
-build"). Flüche sind für die Rechnung also längst gewöhnliche Effekte. Für
-den Berater ist F3 damit **keine neue Mechanik**, sondern die Auflage, den
-bestehenden Weg nicht zu verlassen.
-
-**Optionen:**
-- **A — Flüche nur anzeigen, nicht bewerten.** Konsequenz: die Rangliste
-  widerspricht dem Statblatt desselben Programms — genau der Fehler aus
-  QA-001, wegen dessen es den `compute`-Wächter gibt. Und F3 wäre verletzt.
-- **B — Flüche als gewöhnliche Effekte in dieselbe Effektliste**, wie
-  `current_build()` es tut. Konsequenz: das Ranking stimmt mit dem Statblatt
-  überein, ohne dass jemand darauf achten muss; ein Fluch, der den Nutzen
-  auffrisst, senkt die Rangzahl von selbst.
-- **C — Zusätzlicher Fluch-Malus auf die Zielpunktzahl.** Konsequenz: eine
-  zweite Bewertungsautorität mit eigenen Gewichten — gegen AD-002 — und die
-  Gewichte stünden nirgends in den Spieldateien, also gegen A7.
-
-**Entscheidung:** B. C ist die Versuchung, weil ein Malus den blinden Fleck
-unten scheinbar schliesst; er schlösse ihn mit erfundenen Zahlen.
-
-**Ausweisen, ohne zweite Rechnung:** `Build.sources` ist bereits
-`field -> [(Effektname, Einzelwert)]` und enthält die Fluchbeiträge mit
-negativem Vorzeichen, weil sie durch dieselbe Rechnung gelaufen sind.
-`explain.py` liest daraus:
-- je vorgeschlagenem Relikt die Flüche mit Namen **und** dem Feld, das sie
-  bewegt haben, samt Betrag (`UI_SPEC` 3.2 und AK-19 verlangen die Nennung
-  vor dem Anwenden; die Zahl kommt jetzt aus derselben Quelle wie die
-  Begründungszeile),
-- `AdvisorResult.curses` bleibt wie in AD-010 gefordert, wird aber
-  ausdrücklich aus `sources` gefüllt statt aus der Relikt-Definition — sonst
-  stünde ein Fluch da, den die Rechnung gar nicht angewandt hat (etwa ein
-  konditionaler).
-
-**Der blinde Fleck, ausdrücklich benannt (A7).** Bewertet wird alles,
-**gerankt** wird eine Zahl. Ein Fluch, der ein Feld bewegt, das die gewählte
-Zielrichtung nicht misst — etwa `-HP` unter „Maximise damage" —, ist im Build
-korrekt verrechnet, ändert die Rangzahl aber nicht. Dass er im Vorschlagsblock
-steht, ist damit nicht Kosmetik, sondern der einzige Ort, an dem er sichtbar
-wird. Pflichtzeile in `unknowns`, sobald ein vorgeschlagenes Relikt einen
-Fluch trägt, dessen Felder ausserhalb der Zielgrösse liegen:
-`"A curse on <relic> changes <field>, which this goal does not rank."`
-
-Ein Schalter „ohne Flüche" (`UI_SPEC` F3, Alternative) ist damit **nicht**
-entschieden worden und auch nicht nötig: er wäre ein Kandidatenfilter in
-`candidates.py`, eine Zeile, und berührt weder Suche noch Bewertung. Ob er
-kommt, entscheidet der `ui-ux-designer` mit dem Nutzer.
-
-**Konsequenzen:** Leicht wird — F3 kostet im Kern null Struktur, und jede
-künftige Korrektur an der Fluchbehandlung in `model.py` erreicht den Berater
-ohne Zutun. Dauerhaft schwer wird — eine *Abwägung* zwischen Nutzen und Fluch
-über Dimensionen hinweg; die braucht Gewichte, die es nicht gibt (siehe
-OF-13).
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-016 — Der Haltezustand geht in die Kanonisierung, den Cache-Schlüssel und den Generationszähler ein (2026-09-02, Status: aktiv; präzisiert AD-006, AD-007, AD-008)
-
-**Kontext:** AD-008 schlüsselt ein Suchproblem über die **sortierte
-Slot-Farbmenge** statt über die Gefäss-Id — geprüft unter der Bedingung, dass
-alle Slots gleichberechtigt frei sind; dort ist die Sortierung verlustfrei,
-weil ein Slot ausser seiner Farbe keine Eigenschaft hat. **Festhalten führt
-eine zweite Eigenschaft ein** und stösst diese Bedingung um:
-`[Rot(gehalten), Rot(frei), Blau]` und `[Rot(frei), Rot(frei), Blau]` haben
-dieselbe sortierte Farbmenge und sind verschiedene Probleme.
-
-**Optionen:**
-- **A — Cache aus, sobald etwas festgehalten ist.** Immer korrekt, nichts zu
-  bauen. Konsequenz: ausgerechnet der Fall mit den meisten festgehaltenen
-  Slots — die Picker-Frage aus AD-014, sechs Slots nacheinander geöffnet —
-  träfe nie, und dort ist der Nutzen des Caches am grössten.
-- **B — Gefäss-Id plus Slotindizes in den Schlüssel**, Kanonisierung fallen
-  lassen. Konsequenz: korrekt, aber der Trefferanteil aus AD-008 ist weg, und
-  mit ihm das Argument, mit dem der `qa-engineer` A3 über 26 bzw. 47
-  kanonische Probleme statt 74 Gefässe prüft.
-- **C — Kanonische Form erweitern.** Schlüssel ist `(sortierte Farben der
-  **freien** Slots, deep, Fingerabdruck des Haltebündels, …)`. Das Haltebündel
-  wirkt positionsunabhängig — seine Effekte gehen in eine flache Liste, und es
-  belegt Handles —, also genügt ein Fingerabdruck über
-  `(handle, relic_id, sorted(effect_ids), sorted(curse_ids))` je gehaltenem
-  Relikt, sortiert. Konsequenz: die Rückabbildung in `worker.py` bildet nur
-  noch die **freien** Slots zurück, ein paar Zeilen mehr.
-
-**Entscheidung:** C.
-
-**Verbindlich:**
-1. `AdvisorRequest` trägt den Haltezustand als eingefrorene Abbildung
-   Slotindex → Inhalt (Handle, oder ein Custom-Relikt-Inhalt, oder „leer").
-2. Der Cache-Schlüssel aus AD-007 wird um `held_fingerprint` ergänzt. Das ist
-   dieselbe Abwägung wie bei den Handles im Nachtrag zu AD-007: ein
-   überflüssiger Fehlschlag kostet 0,46 s, ein Treffer über den falschen
-   Haltezustand liefert einen Vorschlag, der einen bewusst festgehaltenen
-   Slot überschreibt.
-3. Der Generationszähler aus AD-006 Punkt 3 wird **auch** erhöht, wenn ein
-   Slot festgehalten oder freigegeben wird oder sich der Inhalt eines
-   festgehaltenen Slots ändert. Die dort festgeschriebene Kopplung gilt
-   unverändert: was den Cache-Schlüssel ändert, macht ein laufendes Ergebnis
-   veraltet.
-4. Die Rückabbildung permutiert nur freie Slots; festgehaltene behalten ihren
-   Platz per Konstruktion.
-
-**Konsequenzen:** Leicht wird — der Picker-Fall bleibt cachefähig, und die
-Prüfbarkeit aus AD-008 bleibt erhalten. Dauerhaft schwer wird — nichts von
-Belang; der Schlüssel wird um ein Feld länger.
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-017 — Der Haltezustand gehört zum Paar (Nightfarer, Gefäss) und lebt im Fenster, nicht auf Platte (2026-09-02, Status: aktiv; präzisiert AD-014.8 und die Nicht-tun-Regel 15)
-
-**Kontext:** Antwort des Nutzers auf OF-12, wörtlich: *„Die Relikte selbst
-verfallen beim Wechsel, wenn man zurueck auf das Gefaess oder den Nightfarer
-springt soll es aber noch da sein. Also persistent in dem Gefaess selbst,
-sonst flexibel."* Das ist die dritte Option, die weder mein Vorschlag
-(„verfällt") noch „wandert mit" war: der Haltezustand ist eine Eigenschaft
-des Paars (Held, Gefäss), nicht der Sitzung und nicht des Slots.
-
-**Kräfte:** Die verlangte Wirkung ist „weg und zurück, und es steht wieder
-da". Dagegen steht die Geschichte des Schlüsselraums: Zyklus 4 und 5 haben
-dreimal Nutzerdaten zerstört, es gilt Schema 3, Schlüssel sind prozentkodiert
-und **im Speicher** eindeutig, und jede Migration hält die Nachbedingung
-„erst alles lesen, dann schreiben, dann `sync()`, dann Rücklesung, und nur
-entfernen, was nachweislich steht". Und der Inhalt ist heikel: ein Halt
-verweist auf einen **Handle**, und Handles werden beim Einschmelzen oder
-Rechnerwechsel neu vergeben (Nachtrag zu AD-007).
-
-**Optionen:**
-- **A — `QSettings`, eigener Schlüsselraum je (Held, Gefäss).** Überlebt
-  Neustarts. Konsequenz: ein **neues Schema** mit allem, was daran hängt —
-  Prozentkodierung, Eindeutigkeit im Speicher, Migration mit der
-  Nachbedingung oben, und eine Auflösungsregel für den Fall, dass das
-  gehaltene Relikt beim nächsten Start nicht mehr im Besitz ist. Das ist die
-  volle Maschinerie eines Werks für Ansichtszustand.
-- **B — Im Fenster, Abbildung `(hero_id, vessel_id, deep) -> Haltezustand`,
-  gehalten am `Planner`.** Konsequenz: „weg und zurück" trägt genau so, wie
-  der Nutzer es beschrieben hat; kein Schema, keine Migration, kein
-  Schlüsselraum, kein Datenverlustrisiko. Beim Programmende ist der Halt weg.
-- **C — In den bestehenden Build-Speicher (`chalices.save_build`).**
-  Konsequenz: ein Halt ist kein Bestandteil eines Builds; das Format eines
-  **Werks** würde für Ansichtszustand geändert. Schlechteste Option.
-
-**Entscheidung: B.** Der Nutzer beschreibt Hin- und Herspringen, also einen
-Vorgang **innerhalb** einer Sitzung; B erfüllt das vollständig. Ein Halt ist
-Ansichtszustand, kein Werk — und die Regel des Hauses lautet, ihn im Zweifel
-zu verwerfen statt zu retten. Ein über den Neustart geretteter Halt wäre
-ausserdem genau der Fall, gegen den AD-013 gebaut ist: er zeigt auf ein
-Exemplar, das inzwischen eingeschmolzen sein kann.
-
-**Verbindlich:**
-1. Die Abbildung lebt am `Planner`, **nicht** im `AdvisorController` — sie
-   überdauert einen Beraterlauf, aber nicht das Fenster. Der Berater bekommt
-   sie weiterhin nur als eingefrorenen Teil des `AdvisorRequest` (AD-014.8).
-2. Schlüssel ist `(hero_id, vessel_id, deep)`. Der Deep-Schalter gehört dazu,
-   weil er die Slotmenge ändert.
-3. **Gültigkeit wird beim Bauen des Requests geprüft, nicht beim Speichern.**
-   Ein Halt, dessen Handle nicht mehr im Besitz ist (Neu-Scan des Saves,
-   Einschmelzen), fällt weg und wird in `unknowns` genannt:
-   `"A held slot was released: that relic is no longer in your inventory."`
-   Stillschweigend weiterrechnen wäre die Variante, die einen falschen
-   Vorschlag erzeugt.
-4. **Kein `QSettings`-Eintrag, kein Schema, keine Migration.** Damit ist die
-   Nachbedingung aus Zyklus 4/5 nicht berührt — nicht weil sie eingehalten
-   wird, sondern weil kein persistenter Zustand entsteht.
-5. Nicht-tun-Regel 15 gilt in dieser Fassung weiter: nicht auf Platte, nicht
-   in `QSettings`. Die Ergänzung ist, dass der Zustand **im Fenster** einen
-   definierten Ort bekommt statt gar keinen.
-
-**Bedingung für eine Neubewertung:** Sagt der Nutzer, dass der Halt einen
-**Programmneustart** überleben soll (OF-15), ist A richtig — dann aber mit
-allem: eigenes Schema, Migrationsnachbedingung, und eine ausgesprochene Regel
-für nicht mehr besessene Relikte. Das ist ein eigener Auftrag und nicht Teil
-des Beraters.
-
-**Konsequenzen:** Leicht wird — die Funktion, die der Nutzer beschrieben hat,
-ohne einen Meter neuen Speicherraum. Dauerhaft schwer wird — nichts, solange
-die Bedingung oben gilt.
-
-**Umkehrbarkeit:** leicht.
-
----
-
-### AD-018 — Der Hauptweg des Beraters ist der Grenzbeitrag je Kandidat im Picker; er ist dieselbe Rechnung wie die Vorsortierung, und der Gesamtlauf bleibt als zweite Frage bestehen (2026-09-02, Status: aktiv in der Sache; **Punkt 4 und die Laufzeittabelle nachgezogen durch AD-028**, 2026-09-08)
-
-**Kontext:** Der Nutzer hat F2 nicht beantwortet, sondern die Fragestellung
-verworfen. Wörtlich: *„Ich will im Relikte-Auswahlfenster Vorschlaege haben.
-Diese Vorschlaege sollen immer schon die Berechnung machen vom aktuellen
-Build aus. … Z.B. macht ein +Staerke weniger viel aus, wenn ich schon sehr
-viel Staerke habe, weil der Schaden dann weniger stark steigt."*
-
-**Die Lesart des `director` ist bestätigt, und sie kostet nichts Neues.**
-Der Wert eines Kandidaten ist sein Grenzbeitrag
-`goal(evaluate(held + Kandidat)) − goal(evaluate(held))`. Das ist **wörtlich
-die Vorsortierung aus AD-014.3** — dieselbe Zahl, für denselben Slot, aus
-demselben `evaluate`. Was AD-014 als internen Zwischenschritt beschrieb, ist
-jetzt die sichtbare Hauptausgabe. Es kommt keine Rechnung dazu; es wird eine
-Rechnung, die ohnehin läuft, angezeigt.
-
-Der abnehmende Ertrag, nach dem der Nutzer fragt, fällt tatsächlich von
-selbst heraus: die Attributkurven und die Skalierung stecken in
-`damage.py`/`model.py`, und eine Differenz zweier Punkte auf einer konkaven
-Kurve ist am oberen Ende kleiner. **Er fällt aber nur heraus, wenn die
-Steigung dieser Kurve stimmt — siehe das Risiko unten (QA-018).**
-
-**Optionen:**
-- **A — Beim alten Entwurf bleiben:** Gesamtlauf auf Knopfdruck, Picker zeigt
-  nur eine Markierung (`UI_SPEC` AK-28). Konsequenz: beantwortet die Frage des
-  Nutzers nicht; „was bringt *mir* dieses Relikt jetzt" bliebe unbeantwortet.
-- **B — Picker-Bewertung als alleiniger Weg**, Gesamtlauf streichen.
-  Konsequenz: wer sich Slot für Slot durchklickt, baut **greedy** — und das
-  ist AD-003 Option B, gemessen falsch bei Exklusivgruppen und
-  `isStrongestEffect`. Der Berater verlöre genau die Fähigkeit, für die es die
-  Beam-Suche gibt.
-- **C — Beides, aus einer Rechnung:** der Picker beantwortet „was ist für
-  **diesen** Slot jetzt das Beste" (Grenzbeitrag, h = Slotzahl − 1), der
-  Gesamtlauf „welche **Menge** ist zusammen die beste" (Beam über die freien
-  Slots). Konsequenz: zwei Ansichten, ein `evaluate`, eine Bewertungsautorität.
-
-**Entscheidung:** C. Es sind zwei verschiedene Fragen und nicht zwei
-Darstellungen derselben Antwort — deshalb bleibt der `Optimize`-Lauf, den der
-Nutzer ohnehin weiter will.
-
-**Verbindlich:**
-1. **Grenzbeitrag statt Absolutwert im Picker.** Angezeigt wird die Differenz
-   zum Grundzustand; gerankt wird danach. Der Grundzustand ist der aktuelle
-   Build ohne den geöffneten Slot — dieser Slot ist im Sinne von AD-014 der
-   **einzige freie**, alle anderen sind gehalten, gleichgültig ob der Spieler
-   sie festgehalten hat oder nicht.
-2. **Beide Zielrichtungen kosten fast nichts.** Teuer ist `compute`, nicht
-   `goal`. `evaluate` liefert einen `Build`; ihn unter beiden Zielrichtungen
-   zu bewerten kostet zwei Funktionsaufrufe über fertige Felder. Ob der Picker
-   eine Spalte oder zwei zeigt, ist damit eine Frage des `ui-ux-designer` und
-   keine Kostenfrage.
-3. **Ein Hinweis, der aus dem Verfahren folgt** (A7, Pflichtzeile, sobald der
-   Spieler slotweise wählt): `"Chosen slot by slot. Relics that only pay off
-   together are not visible this way — the Optimize run looks for those."`
-   Ohne diesen Satz behauptet die Picker-Liste eine Optimalität, die AD-003
-   Option B widerlegt hat.
-4. **Der Lauf bleibt im Worker.** Auch 50 ms gehören nicht in den
-   Hauptthread, wenn sie bei jedem Tastendruck im Filterfeld anfallen können
-   (AD-006). Entprellung und Generationszähler gelten unverändert.
-   *(Nachtrag 2026-09-08: dieser Punkt ist gebaut worden als sein Gegenteil —
-   `relicpicker.SlotAdvice.ranking` rechnet im Hauptthread, mit einem
-   Docstring, der es aus der widerlegten `~51 ms`-Zahl begruendet. **AD-028
-   zieht Punkt 4 nach und macht ihn verbindlich**; die Entscheidung hier war
-   richtig und ist an ihrer Zahl gescheitert, nicht an ihrem Argument.)*
-
-**Laufzeit — die entscheidende Verschiebung, gerechnet aus den Grundzahlen.**
-Aus „ein Lauf auf Knopfdruck" wird „ein Lauf bei jeder Interaktion". Die
-gute Nachricht steht in den Zahlen: ein Picker-Lauf ist **eine** Ebene, also
-eine Bewertung je Kandidat des Slots, nicht `Ebenen × W × K`.
-
-| Fall | Bewertungen | Kosten |
-|------|-------------|--------|
-| weisser Slot, normal (grösster Pool) | 205 | ~51 ms |
-| weisser Slot, deep | 101 | ~25 ms |
-| farbiger Slot | 21–55 | ~5–14 ms |
-| Grundzustand je Lauf | 1 | ~0,25 ms |
-| **Gesamtlauf (`Optimize`), unverändert** | 3 929 | **0,46 s** |
-
-(0,25 ms je Bewertung, weil im Picker fast immer ein voller Build bewertet
-wird — der obere Rand der gemessenen Spanne.)
-
-> **Korrektur vom 2026-09-08 (AD-028), ersetzt die Zahlen dieser Tabelle,
-> nicht ihre Aussage.** Jede Zahl der Tabelle ist **gerechnet**, nicht
-> gemessen: 205 Kandidaten mal 0,25 ms. Gemessen wurde sie am 08.09.2026 zum
-> ersten Mal, und beide Faktoren waren daneben — 206 Kandidaten mal
-> **1,095 ms**, ergibt **318,1 ms** (Median, n=25, Spanne 289,6–358,9;
-> `docs/perf/baselines.md` S11-C, Slot 2, weiss; Umgebung: Ryzen 7 5800H bei
-> 1102 von 3201 MHz unter `Legion Quiet Mode`, CPython 3.12.10, Codestand
-> `76f1887` — der konservative Fall, nicht der guenstige).
-> Damit gilt: `~51 ms` → **318,1 ms** · `~25 ms` (weiss, deep) → nicht neu
-> gemessen · farbiger Slot `~5–14 ms` → **32,3–81,7 ms** (S11-C) ·
-> Gesamtlauf `0,46 s` → **5,02 s** (S11-A).
-> **Was daran haelt:** das Verhaeltnis. Der teuerste Picker-Lauf ist rund ein
-> Sechzehntel des Gesamtlaufs, und der unguenstigste Fall des Beraters bleibt
-> der Gesamtlauf. **Was faellt:** der Satz „liegt unter der 250-ms-Schwelle
-> aus AK-09". 318,1 ms liegen **darueber**, und der naechste Absatz — „Auch
-> 50 ms gehoeren nicht in den Hauptthread" — ist damit nicht mehr eine
-> Vorsichtsregel, sondern der Befund QA-208.
-
-Der teuerste Picker-Lauf ist damit rund **ein Neuntel** des Gesamtlaufs und
-liegt unter der 250-ms-Schwelle aus `UI_SPEC` AK-09, ab der überhaupt ein
-Wartezustand gezeigt wird. Der ungünstigste Fall des Beraters bleibt
-unverändert der Gesamtlauf mit nichts festgehalten, 0,46 s.
-
-Was sich verschiebt, ist nicht die Spitze, sondern die **Häufigkeit**: der
-Berater rechnet jetzt beim Öffnen des Pickers und nach jeder Änderung, die
-den Grundzustand bewegt (Level, Waffe, ein anderer Slot, ein deklarierter
-konditionaler Effekt). Deshalb sind die beiden bereits beschlossenen
-Schutzmechanismen jetzt tragend statt vorsorglich: die Entprellung (AD-006.5)
-und der Generationszähler (AD-006.3). Neu ist nur die Empfehlung, die
-Entprellung für den Picker-Pfad **kürzer** zu setzen als für den Gesamtlauf
-(Vorschlag 100 ms gegen 250 ms) — 50 ms Rechnung hinter 250 ms Wartezeit
-fühlt sich träger an, als sie ist. Der `performance-tuner` setzt beide Werte
-in S11.
-
-**Zwischenspeicher und Generation (präzisiert AD-016).** Es entsteht **keine
-zweite Schlüsselform.** Ein Picker-Lauf ist in der Kanonisierung aus AD-016
-der Fall „freie Slots = genau einer": Schlüssel ist
-`(Farbe des freien Slots, deep, held_fingerprint, goal_id, weighting_id,
-inventory, snapshot, weapon, declared, hero, level)`. Zwei Folgen, beide
-gewollt: das Durchklicken durch sechs Slots erzeugt sechs kleine Einträge
-statt eines grossen, und ein zurückgeklickter Slot antwortet aus dem Cache.
-Weil die Einträge nun kleiner und zahlreicher sind, ist die LRU-Grösse aus
-AD-007 (Vorschlag 32) neu zu setzen — Aufgabe des `performance-tuner` in S11,
-Vorschlag 64.
-
-**Konsequenzen:** Leicht wird — die Frage, die der Nutzer tatsächlich stellt,
-und zwar ohne neue Rechnung; ausserdem ist der Picker-Wert *dieselbe* Zahl,
-nach der der Gesamtlauf vorsortiert, die beiden Ansichten können sich also
-nicht widersprechen. Dauerhaft schwer wird — der Berater ist jetzt an der
-Interaktion beteiligt statt daneben; jede künftige Verlangsamung von
-`model.compute()` wird sofort spürbar, nicht erst auf Knopfdruck. Das ist der
-Preis dieser Entscheidung und gehört als Messpunkt in S11.
-
-**Umkehrbarkeit:** mittel. Die Rechnung ist dieselbe; rückgängig wäre nur die
-Anzeige. Was nicht leicht zurückgeht, ist die Erwartung des Nutzers, dass
-jede Auswahl sofort bewertet ist.
-
----
+### Nachtrag III 2026-09-02 — Die zweite Rechenschicht (AD-019 bis AD-021, QA-058)
+
+Anlass: QA-058. Der `compute`-Wächter ist grün und bleibt grün — er sichert
+die Schicht, für die er geschrieben wurde. Die Waffenzahl entsteht eine Etage
+höher, und dort wählen vier Anzeigestellen ihre Eingaben unabhängig. Das ist
+dieselbe Klasse von Befund wie QA-001, nur eine Schicht weiter oben.
 
 ### AD-019 — Eine gemeinsame Fassade über beiden Rechenschichten, kein zweiter Wächter über `weapons.rate` (2026-09-02, Status: aktiv; erweitert AD-005, Vorbedingung für AD-018)
 
@@ -1971,70 +811,39 @@ Eintrag mehr oder weniger kostet nichts.
 
 ---
 
-### AD-021 — Der Wächter sichert nicht „ein Aufrufer", sondern „nur die Fassade rechnet"; dasselbe Werkzeug, zwei Zusicherungen (2026-09-02, Status: aktiv; erweitert AD-002 und `test_one_build.py`)
+### Nachtrag IV 2026-09-02 — Antworten vor W2 (Z1, AD-022, AD-023)
 
-**Kontext:** QA-058 stellt die Frage, wie „eine Rechenstelle" für **beide**
-Schichten gelten kann. Der bestehende Wächter
-(`test_one_build.py::test_the_user_interface_holds_exactly_one_call_to_compute`)
-zählt über den Syntaxbaum, kennt alle sechs Aufrufschreibweisen, sucht rekursiv
-unter `nrplanner/` und weiss ausdrücklich, was er nicht sehen kann
-(Laufzeitauflösung, QA-023, festgehalten). Das Werkzeug ist gut; nur seine
-**Zusicherungsform** passt für die obere Schicht nicht: dort gibt es nicht
-einen richtigen Aufrufer, sondern eine richtige Fassade (AD-019).
+Anlass: der W1-Bericht des `developer` (W0 und W1 gebaut, 30 000
+Differentialfälle, 0 Abweichungen, Vergleicher selbst mutationsgeprüft) und
+eine Korrektur des `ui-ux-designer` an meiner Begründung aus Nachtrag III.
 
-**Optionen:**
-- **A — Den `compute`-Wächter kopieren und auf `rate`/`rank` umbenennen.**
-  Konsequenz: zwei fast gleiche Testdateien, die getrennt driften; und die
-  falsche Zusicherung aus AD-019 Option A.
-- **B — `compute_call_sites` zu `call_sites(source, modules, functions)`
-  verallgemeinern und zweimal aufrufen: einmal mit
-  (`model`, `compute`) → Erwartung `{app.py: 1}`, einmal mit
-  (`weapons`, `rate`/`rank`) → Erwartung `{damage.py: n}` und **überall sonst
-  Null**.** Konsequenz: eine Implementierung, zwei Zusicherungen; der Test
-  „sieht jeden Weg um sich herum" prüft beide mit denselben sieben
-  Schreibweisen.
-- **C — Zusätzlich den Ausdruck `base.get(d,0) + scaled.get(d,0)` im
-  Syntaxbaum verbieten.** Konsequenz: brüchig (jede Umformulierung entkommt),
-  und nach W1 gegenstandslos, weil eine Stelle ohne Zugriff auf `rate` gar
-  keine `WeaponRating` mehr selbst erzeugt.
+### Auflagen für W2
 
-**Entscheidung:** B. C wird **nicht** gebaut; die Formel deckt der
-Golden-Test ab, und die Grenze wird im Wächter-Docstring genannt statt
-behauptet.
+**A1 — Die Fassade bildet kein `total` unabhängig.** Zusicherung Z1 in AD-019,
+mit exaktem Gleichheitstest (`==`, kein `approx`). Die Lesart des `director`
+ist bestätigt und trägt weiter als angenommen: der Grenzbeitrag (AD-018) ist
+eine **Differenz zweier Totals**, und zwei Klammerungen setzen das
+Rauschniveau des Vergleichs statt der Arithmetik.
 
-**Form der zweiten Zusicherung (illustrierend):**
+**A2 — Die doppelte `fields`-Schleife in `attack_rating` darf in W2
+zusammengelegt werden, aber nur unter Erhalt der Multiplikationsreihenfolge.**
+Heute wird je Feld erst `build.rates[f]`, dann `class_rates[f]` an `rate`
+heranmultipliziert; `rates_in_play` benutzt daneben das Produkt beider. Eine
+Zusammenlegung, die stattdessen `value = build.rates[f] * class_rates[f]`
+bildet und `rate *= value` rechnet, ändert die Assoziationsreihenfolge und
+damit potentiell das letzte Bit — W2 ist als bitgleich zugesagt. Also:
+zusammenlegen mit unveränderter Reihenfolge, oder gar nicht. Gelingt es nicht
+sauber, wandert es nach W5, wo keine Bitgleichheit mehr zugesagt ist. Die
+Entscheidung darüber trifft der `developer` am Differentialtest, nicht am
+Augenschein.
 
-```python
-ARITHMETIC_ENTRY = ("rate", "rank")   # weapons.py, untere Schicht
-FACADE = "nrplanner/damage.py"        # die einzige Stelle, die sie anfassen darf
+**A3 — W2 fasst nur `nrplanner/damage.py` an.** Dass `arsenaltab` weiterhin
+`weapons.rank` ruft, ist **richtig und W4**, nicht W2. Bestätigt. Genau
+deshalb kann W2 bitgleich sein: es ändert keinen Aufrufer.
 
-# Erwartung: {FACADE: n}. Jede andere Datei unter nrplanner/ muss 0 haben.
-# Konstanten und Typen aus weapons.py (DAMAGE_TYPES, DAMAGE_LABELS,
-# RARITY_TIERS, WeaponRating) bleiben ausdruecklich erlaubt -- der Waechter
-# zielt auf zwei Funktionsnamen, nicht auf den Import des Moduls.
-```
-
-**Reichweite, ausdrücklich, weil ein Wächter mit unausgesprochener Reichweite
-als Wächter ohne Grenzen gelesen wird:**
-- Suchraum bleibt `nrplanner/` (QA-023). `run.py` und `scripts/` liegen
-  ausserhalb; `scripts/capture_weapon_damage.py` ruft die Rechnung
-  absichtlich und ist deshalb kein Verstoss — aber auch nicht gesichert.
-- **Das Berater-Paket muss unter `nrplanner/advisor/` liegen** (AD-001, von
-  `test_the_search_space_reaches_inside_a_package` bereits geprüft), sonst
-  sieht der Wächter es nicht. Diese Bedingung gilt jetzt für **beide**
-  Zusicherungen.
-- Der Berater ruft die Fassade, nicht `weapons.rate`. Damit gilt für ihn
-  dieselbe Regel wie für jeden Tab.
-
-**Konsequenzen:** Leicht wird — eine fünfte Anzeigestelle, die sich ihre
-Waffenzahl selbst zusammenrechnet, fällt beim Testlauf auf statt beim Spieler.
-Dauerhaft schwer wird — der `developer` kann `weapons.rate` nicht mehr „mal
-eben" für eine Sonderansicht rufen; er muss eine `Basis` beantragen. Das ist
-der Preis und der Zweck.
-
-**Umkehrbarkeit:** leicht. Ein Test.
-
----
+**A4 — W1b geht W2 voraus** (AD-022): reine Umbenennung, durch die bestehende
+Differentialstrecke gedeckt, damit W2 „umbenannt" nicht mit „verändert"
+vermischt.
 
 ### AD-022 — Ein Name je Schicht: `scaled_*` vor der Multiplikatorschicht, `final_*` danach; die Umbenennung ist ein eigener Schritt W1b vor W2 (2026-09-02, Status: aktiv; präzisiert AD-019)
 
@@ -2185,6 +994,63 @@ kann dann entfallen.
 
 ---
 
+### Korrektur an Nachtrag III
+
+Der Abschnitt „Reihenfolge gegenüber dem Berater" in Nachtrag III ist an einer
+Stelle **falsch** und wird durch AD-023 ersetzt: die Invarianz des
+Grenzbeitrags gegenüber W6 gilt nur, solange der Multiplikator aus dem
+**Grundzustand** kommt. Bringt der Kandidat selbst eine Angriffsrate mit, tritt
+ein Term `m·(r−1)·S(B)` hinzu, der am **ganzen** Angriffswert hängt und die
+Rangfolge drehen kann. Die Randbedingung meiner Aussage war benannt gewesen —
+angewendet wurde sie trotzdem auf den allgemeinen Fall.
+
+Was von Nachtrag III **stehen bleibt:** die Fassade muss vor den Berater; der
+**Bau** des Beraters ist ab W5 nicht von der Spielmessung blockiert.
+Was **ersetzt** wird: die Auslieferung einer Rangfolge, die
+AR-Raten-Kandidaten enthält, ist es sehr wohl — mit der berechneten Markierung
+aus AD-023, Punkt 2, statt eines pauschalen Vorbehalts.
+
+### Nachtrag V 2026-09-02 — Die Klammerungsfrage aus W4 (AD-024)
+
+Anlass: der `developer` hat in W4 eine Abweichung gemessen, die zu keinem der
+acht AD-020-Punkte passt, und sie **gemeldet statt einsortiert**. Das war
+richtig; sie gehört in keine der beiden vom `director` vorgeschlagenen Stellen.
+
+### Die drei Antworten in Kurzform
+
+1. **Ort:** weder neunter AD-020-Punkt noch Absatz in AD-022, sondern
+   **AD-024**. AD-020 trennt Absicht von Fehler bei *semantischen*
+   Unterschieden; die Klammerung ist keiner. AD-022 wäre der Ort gewesen,
+   solange es um die Fassade ginge — die Frage betrifft aber inzwischen eine
+   **zweite Stelle** (`bonus`-Schleife in `weapons.rate`), die mit der Fassade
+   nichts zu tun hat und eine **andere** Antwort bekommt. AD-020 erhält einen
+   Punkt 9, der auf AD-024 verweist, damit man sie dort findet, wo man sucht.
+2. **Absicht oder Fehler: keins von beidem, und die vorgelegte Lesart trifft
+   nicht zu.** „Alte Klammerung = Fehler, 584 ULP = Korrektur" behauptet, eine
+   der beiden Summationen sei genauer — das ist nicht belegbar, und gegen das
+   Spiel ist keine von beiden geprüft. **Der Fehler war nie einer der beiden
+   Werte, sondern dass es zwei gab.** Die 584 ULP sind der Preis der
+   Vereinheitlichung; die Messung belegt, dass er unsichtbar ist (0 von 7 172
+   Anzeigetexten).
+3. **W5:** Die Frage verschwindet nicht. Z1 bleibt tragend; Teilsummen bleiben
+   erlaubt, aber nicht auf Gleichheit mit `final_total` prüfbar; und
+   Nicht-tun-Regel 29 (stabiler Zweitschlüssel in `weapons.rank`) ist ab jetzt
+   **gemessen begründet** statt vorsorglich — nahe Gleichstände können durch
+   1 ULP die Plätze tauschen.
+
+### Beide Stellen unter einer Regel
+
+> Die Summationsreihenfolge wird nur geändert, wenn die Änderung **zwei
+> Darstellungen derselben Zahl auf eine reduziert**. Eine Änderung, die nur
+> „genauer" verspricht, wird nicht vorgenommen.
+
+Arsenal-Tab (W4): erfüllt sie, wird gemacht. `bonus`-Schleife: erfüllt sie
+nicht (nur eine Darstellung, 48 100 von 258 192 Karten betroffen), **bleibt
+dauerhaft** eine Schleife. Der dortige Kommentar bindet sie heute an die
+Bitgleichheit eines Schrittes und sagt damit das Falsche — beim nächsten
+Anfassen auf die Begründung aus AD-024 umschreiben. Das ist eine
+Kommentarkorrektur, kein eigener Auftrag.
+
 ### AD-024 — Summationsreihenfolge ist eine Eindeutigkeits-, keine Genauigkeitsentscheidung; sie wird nur geändert, wo sie zwei Darstellungen derselben Zahl beseitigt (2026-09-02, Status: aktiv; folgt aus Zusicherung Z1 in AD-019, ergänzt AD-020)
 
 **Kontext:** Meldung des `developer` aus W4, ausdrücklich **nicht** einsortiert,
@@ -2289,168 +1155,16 @@ mit ihr), leicht für Punkt 2 (es bleibt alles, wie es ist).
 
 ---
 
-## Umsetzung — Schnitt in einzeln lauffähige Schritte
-
-Jeder Schritt ist für sich lauffähig und für sich prüfbar. Reihenfolge ist
-bindend, wo Abhängigkeiten genannt sind.
-
-| Schritt | Inhalt | Hängt ab von | Fertig, wenn |
-|---------|--------|--------------|--------------|
-| **S1** | **Testsockel.** `tests/` mit `pytest` (vom `director` freigegeben, **nur** in `requirements-dev.txt`, nie in `requirements.txt` und nie im Artefakt — F8). Ein Fixture, das einen Snapshot lädt und `model.configure()` ruft, plus eine synthetische `Inventory` ohne Save-Datei, mit Handles. | — | `pytest` läuft grün und ohne Display; ein Build des Artefakts enthält `pytest` nicht. |
-| **S2** | **Golden-Test der Schadensrechnung**, gegen das *heutige* `_refresh_weapon_damage`. Werte werden festgeschrieben, bevor irgendetwas bewegt wird. | S1 | Ein Satz Waffen × Builds ist als erwartete Zahlen hinterlegt. |
-| **S3** | **AD-005: Extraktion** nach `nrplanner/damage.py`, rein, ohne Qt. Konstanten aus F6 mitnehmen. `_refresh_weapon_damage` ruft nur noch und formatiert. **Kein Verhalten ändern.** | S2 | S2 grün, Waffentafel zeigt unverändert dieselben Zahlen. |
-| **S4** | **`advisor/types.py`** — die Datenklassen aus AD-004/AD-006/AD-010, alle `frozen`. Kein Verhalten. | S1 | Importierbar, Testsockel legt Instanzen an. |
-| **S5** | **`advisor/candidates.py`** — `Inventory` + `SlotProblem` → Kandidatenpool je Slot. **Kein Rollen-Dedup** (AD-013: spart 1 % und ist falsch). Farbfilter über `inventory.relics_for` inklusive **weisser Slot = jede Farbe**, Deep-Trennung, Relikte ohne Handle aussortiert und in `unknowns` gemeldet, Vorsortierung nach isoliertem Beitrag, Liste mindestens `K + Slotzahl − 1` lang. | S4 | Tests: Farbregel, weisser Slot zieht alle vier Farben, Deep-Trennung, handle-lose Relikte draussen und gemeldet, Listenlänge. |
-| **S6** | **`advisor/goals.py`** — Registry plus die zwei Zielrichtungen aus AD-004, jede mit gefüllter `unknowns`. | S3, S4 | Tests: beide liefern eine Zahl für einen bekannten Build; `unknowns` nie leer. |
-| **S7** | **`advisor/search.py`** — Beam-Suche nach AD-003, Handle-Menge im Suchzustand nach AD-013, rein, abbrechbar, deterministisch. Scorer als Parameter (offen für AD-002/C). | S5, S6 | Tests 3–6 aus AD-009 grün, Punkt 4 **gegen `Wylder's Urn`**; Laufzeit gegen `Wylder's Chalice` + Deep gemessen und protokolliert. |
-| **S8** | **`advisor/explain.py`** — aus `Build.sources` und der Differenz zum leeren Build englische Begründungszeilen; dazu `not_counted`, `curses`, `data_note` (AD-010). | S7 | Test: jede Zeile nennt einen Effekt, der im Vorschlag tatsächlich vorkommt. |
-| **S9** | **`advisor/worker.py`** — `AdvisorController` nach AD-006: `QThread`, Signale `ready`/`failed`/`progress`, Entprellung, Abbruch, LRU-Cache nach AD-007, Rückabbildung der kanonischen Slots nach AD-008. | S7, S8 | Manuell: Anfrage stellen, Fenster bleibt bedienbar, zweite Anfrage bricht die erste ab. |
-| **S10** | **Anbindung an die Oberfläche** — neues Tab-Modul nach dem Muster von `effectstab.py`. **`app.py` wächst nur um die Instanziierung des Tabs und des Controllers.** Layout nach der Spezifikation des `ui-ux-designer` (T-004). | S9, T-004 | A3, A5, A6, A7, A8 am gebauten Artefakt prüfbar. |
-| **S11** | **Budget setzen.** `performance-tuner` misst K/W gegen den echten Bestand und bestätigt oder korrigiert die Voreinstellung K=20/W=40; A6 bekommt seine Zahl. | S10 | Zielwert in `GOAL.md` A6 eingetragen. |
-
-**Parallelisierbar:** S4 neben S2/S3. S6 und S5 nebeneinander, sobald S4 steht.
-**Kritischer Pfad:** S1 → S2 → S3 → S6 → S7 → S8 → S9 → S10.
-
-**Ausserhalb dieses Strangs, eigener Auftrag:**
-
-| Schritt | Inhalt | Hängt ab von |
-|---------|--------|--------------|
-| **X1** | **AD-011** — Prüfvokabular in `nrdata/binary.py`, aufgerufen an den fünf Zählerstellen und den vier UTF-16-Schleifen. Kein Parser wird umgeschrieben. | S1 |
-| **X2** | **AD-012** — Grössen- und Elementdeckel vor `ElementTree.fromstring` in `nrdata/icons.py`. Wert vom `security-reviewer`. | — |
-
-X1 und X2 laufen unabhängig vom Berater und blockieren ihn nicht.
-
-### Was der `developer` ausdrücklich nicht tun soll
-
-1. **`nrdata/extract.py` nicht anfassen.** Scope-Grenze aus T-001.
-2. **`Planner` nicht umbauen**, ausser der einen Extraktion in S3. F3 ist
-   erkannt und zurückgestellt; ein Aufräumen nebenher macht S3 unprüfbar.
-3. **Keine zweite Bewertungsmathematik.** Wenn eine Zahl fehlt, gehört sie in
-   `model.py` oder `damage.py`, nicht in `advisor/`.
-4. **Kein PySide6-Import unter `advisor/` ausser in `worker.py`.**
-5. **Kein `QApplication.processEvents()`** im Beraterpfad, auch nicht als
-   schnelle Lösung gegen ein hängendes Fenster (AD-006, Punkt 1).
-6. **Keine Dependency installieren**, auch keine Entwicklungsabhängigkeit.
-   Freigabe erteilt der `director`.
-7. **Keine Vorschläge persistieren** und keinen Plattencache anlegen (AD-007).
-8. **Verhalten in S3 nicht verbessern.** Fällt beim Verschieben ein Fehler in
-   der Schadensrechnung auf: melden, nicht beheben. Sonst ist der Golden-Test
-   wertlos.
-9. **Kein „Optimal" in nutzersichtbarem Text** (AD-003, AD-010).
-10. **Layout nicht selbst festlegen** — T-004.
-
 ---
 
-## Risiken und Prüfpunkte
+## Themenbereich B — Suche, Kandidaten, Haltezustand, Grenzbeitrag
 
-| Risiko | Woran man es merkt | Rückweg |
-|--------|--------------------|---------|
-| Beam-Suche findet auf echten Beständen deutlich schlechtere Builds, als der Spieler von Hand baut. | Vergleich gegen die von Daniel bereits gebauten Builds: der Berater sollte sie erreichen oder schlagen. Tut er es nicht, ist die Kandidatenkappung (K) oder die Beam-Breite (W) zu eng. | K und W sind Parameter, nicht Struktur. Erhöhen und neu messen; die Grundzahlen zeigen Luft bis mindestens K=30/W=60 (0,98 s im ungünstigsten realen Fall). |
-| **Die isolierte Vorsortierung wirft an einem weissen Slot gute Kandidaten weg**, weil K=20 dort nur ~10 % von 205 behält und ein Relikt, das erst neben einem anderen stark wird, isoliert schwach aussieht. | Ein von Hand gebauter Build auf einem Gefäss **mit** weissem Slot wird nicht erreicht, während er auf Gefässen ohne weissen Slot erreicht wird. Das ist der Trennschnitt, der diese Ursache von einem allgemein zu engen K unterscheidet. | Eigenes, höheres K für weisse Slots — die Kosten sind linear in K. OF-10 an den `performance-tuner`. |
-| **Ein Vorschlag ist nicht tragbar**, weil dasselbe Exemplar in zwei Slots liegt. | Gemessen: ohne AD-013 auf `Wylder's Urn` 40 von 40 Ergebnissen, der beste eingeschlossen. Mit AD-013 muss es null sein. | Kein Rückweg nötig — Testpunkt 4 in AD-009 fängt es, und er läuft gegen ein Gefäss mit wiederholten Slotfarben, wo die Regel scharf ist. |
-| GIL-Kontention lässt das Fenster ruckeln, obwohl es nicht blockiert. | Sichtbares Stocken beim Ziehen des Level-Reglers während eines Laufs. | Entprellung erhöhen; wenn das nicht reicht, AD-006 Option B (Prozess) — mit den dort genannten PyInstaller-Kosten. |
-| `model.compute()` wird durch eine spätere Korrektur langsamer, und das Budget kippt. | S11 ist eine Messung, kein Gefühl. Sie muss wiederholbar sein. | Der Scorer ist in `search.py` ein Parameter — AD-002 Option C bleibt nachrüstbar. |
-| Die Extraktion in S3 verändert stillschweigend eine Zahl. | S2 schlägt fehl. Genau dafür liegt S2 vor S3. | Zurückrollen; S3 ist ein einzelner, abgegrenzter Commit. |
-| Race zwischen Hintergrundlauf und `model.configure()` (F4). | Sporadisch absurde Werte nach einem Spiel-Patch oder Neu-Scan — schwer zu reproduzieren, also vorbeugen statt entdecken. | AD-006 Punkt 5 ist Pflicht, nicht Empfehlung. Dauerhaft: `model` von Modulglobals befreien (eigener Auftrag). |
-| Der Berater rankt auf einem veralteten Snapshot und sagt es nicht (F7). | `meta.data_version` weicht von der Spielversion ab. | `data_note` in AD-010 macht es sichtbar. Die Ursache in `datasource` zu beheben ist ein eigener Auftrag. |
-| Die Unwissensliste ist so lang, dass sie niemand liest — und A7 damit faktisch nicht erfüllt ist. | Beurteilung durch `ui-ux-designer` in T-004. | Nicht kürzen, sondern schichten: die für diesen Lauf zutreffenden Punkte sichtbar, der Rest aufklappbar. Die Entscheidung darüber gehört T-004, nicht hierher. |
+*Wie aus dem Besitz des Spielers ein Vorschlag wird. AD-003 waehlt das
+Verfahren, AD-013 den Gegenstand, den es bewegt, AD-014 bis AD-017 den
+Haltezustand, und AD-018 dreht den Hauptweg vom Gesamtlauf zum Grenzbeitrag
+im Picker.*
 
----
-
-## Bewusst nicht getan
-
-- **Kein Solver (`ortools`, `pulp`).** Die Zielfunktion ist nicht linear, und
-  eine Linearisierung widerspräche den gemessenen Regeln in `model.py`.
-  *Wieder interessant, wenn:* der Suchraum durch eine künftige Anforderung
-  wächst (etwa: über alle 74 Gefässe gleichzeitig optimieren) **und** sich
-  zeigt, dass die Nichtlinearität auf wenige, modellierbare Fälle beschränkt
-  ist.
-- **Kein zweiter, schneller Scorer.** AD-002. *Wieder interessant, wenn:* die
-  Messung in S11 auf einem echten Bestand über dem Budget landet und K/W nicht
-  weiter zu senken sind, ohne die Qualität der Vorschläge zu verlieren.
-- **Kein `multiprocessing`.** AD-006. *Wieder interessant, wenn:* das Fenster
-  trotz Entprellung sichtbar ruckelt, oder eine Anforderung „alle Gefässe auf
-  einmal" hinzukommt.
-- **Kein Plattencache.** AD-007. *Wieder interessant, wenn:* die Rechnung
-  Sekunden statt Zehntelsekunden dauert **und** eine Invalidierung über
-  `inventory_fingerprint` + `snapshot_fingerprint` als sicher nachgewiesen ist.
-- **Kein Umbau von `Planner`.** F3 ist erkannt und aufgeschrieben. *Fällig,
-  wenn:* der `director` einen eigenen Auftrag dafür schneidet — sinnvoll erst
-  nach dem Testsockel aus S1, vorher fehlt das Netz.
-- **`model.py` behält seine Modulglobals.** F4. Nur entschärft, nicht
-  behoben. *Fällig, wenn:* ein zweiter nebenläufiger Verbraucher dazukommt
-  oder die Tests reihenfolgeabhängig werden.
-- **Keine Zielrichtung, die Spielverlauf oder Bosskenntnis braucht** (etwa
-  „bestes Build gegen Gladius"). `nrdata/bossdata.py` und der Boss-Tab hätten
-  die Daten. *Wieder interessant, wenn:* A3 erfüllt ist und der App Designer
-  es will — es wäre eine dritte `Goal`-Funktion plus ein erweiterter
-  `GoalContext`, kein Strukturbruch.
-- **Keine Vorschläge über Waffen oder Zauber**, nur über Relikte. Der Auftrag
-  nennt Relikte, und Zauberschaden existiert als Feld nicht (README).
-- **Kein Rollen-Dedup im Kandidatenpool.** Gemessen: 309 Exemplare ergeben
-  306 verschiedene Rollen — 1,0 % Ersparnis, und die Zusammenfassung wäre
-  gegen AD-013 sogar falsch. *Wieder interessant, wenn:* nie. Drei Effekte
-  aus einem Pool von 2 079 kollidieren nicht in nennenswerter Zahl, und das
-  ändert sich durch mehr Relikte im Besitz nicht, sondern wird schlimmer.
-  **Ausdrücklich hier festgehalten, damit es niemand ein zweites Mal
-  versucht** — die Idee ist naheliegend und die Messung widerlegt sie.
-- **Der Berater schlägt das Gefäss nicht mit vor.** Entscheidung des Nutzers
-  (OF-4). Es scheitert nicht an der Rechenzeit — 47 kanonische Probleme
-  wären ~23 s — sondern daran, dass der Wartezustand unsichtbar bleiben
-  soll. *Wieder interessant, wenn:* der Nutzer die Frage neu stellt; AD-008
-  hält den Weg offen, es wäre eine Schleife über die kanonischen Probleme
-  und kein neuer Mechanismus.
-- **Keine Vorschläge, die den Besitz überschreiten** („dieses Relikt fehlt
-  dir noch"). AD-013 macht den Kandidatenraum zur Besitzmenge. *Wieder
-  interessant, wenn:* der App Designer einen Wunschzettel-Modus will; das
-  wäre ein zweiter Kandidatenraum aus `data["relics"]` statt aus
-  `Inventory`, und die Suche bliebe unverändert.
-
----
-
-## Offene Fragen
-
-**Erledigt** (Stand 2026-09-01, nach dem Nachtrag des `director`):
-
-| # | Frage | Ergebnis |
-|---|-------|----------|
-| OF-1 | Tkinter oder PySide6 | Fehler in der Auftragsdatei; es ist PySide6. AD-006 steht auf Qt-Grundlage. |
-| OF-2 | Testwerkzeug | **`pytest` freigegeben**, ausschliesslich als Entwicklungs-Abhängigkeit in `requirements-dev.txt`. Nachtrag in AD-009. |
-| OF-4 | Gefäss mitvorschlagen? | **Nein**, Entscheidung des Nutzers. Als Nicht-Ziel aufgenommen. |
-| OF-5 | `max_damage` ohne Referenzwaffe | **Gekennzeichneter Rückfall**, nicht verweigern. Nachtrag in AD-004. |
-| OF-6 | `GOAL.md`-Freigabe | Erteilt; A1–A9 bindend. |
-| OF-7 | echte Bestandszahlen | Vom `qa-engineer` gemessen: 309 Relikte, weisse Slots als Slot-Eigenschaft, Dedup wertlos. Siehe Grundzahlen, AD-003, AD-013. |
-| OF-8 | `defusedxml` | Empfehlung angenommen: kein `defusedxml`, Grössendeckel, mit Neubewertungs-Bedingung. |
-| OF-9 | Prüfung durch `security-reviewer` | Der `director` gibt die Deckelwerte direkt in den Auftrag; nicht abzuwarten. |
-
-**Noch offen:**
-
-**OF-3 — beim Nutzer, über `director`:** Gewichtung der acht Schadensarten
-für `min_damage_taken`. Der Entwurf ist so gebaut, dass die Antwort ihn nicht
-mehr bewegt: die Gewichte sind Daten im `GoalContext` (`Weighting`), die
-Voreinstellung ist benannt und wird im Ergebnis ausgewiesen, und ein
-Bedienelement liefert später eine andere Instanz. Der `developer` kann ohne
-diese Antwort beginnen. **Was sie noch berührt:** `weighting.id` muss in den
-Cache-Schlüssel (AD-007) — das gilt in beiden Fällen und ist eingearbeitet.
-
-**OF-10 — an `performance-tuner`, für S11:** K=20 behält an einem farbigen
-Slot ~40 % des Pools, an einem weissen nur ~10 % (205 Kandidaten). Die
-Vorsortierung bewertet **isoliert**, also ohne die Wechselwirkungen, wegen
-derer es die Beam-Suche gibt. Bitte messen, ob ein weisser Slot ein eigenes,
-höheres K braucht. Die Kosten sind linear in K und ein Lauf dauert 0,46 s,
-also ist Luft da. Das ist die schärfste bekannte Schwäche des Verfahrens und
-die einzige, die ich nicht selbst ausmessen konnte.
-
-**OF-11 — an `qa-engineer`:** `OwnedItem.handle` kann `None` sein, wenn
-`savefile.read_relic_handles` für ein Exemplar nichts liefert. AD-013 nimmt
-solche Relikte aus dem Kandidatenraum und meldet sie. Wie viele der 309 sind
-das tatsächlich? Bei null ist die Regel eine Formalie, bei einer
-nennenswerten Zahl ist sie ein sichtbarer Verlust an Vorschlagsqualität und
-gehört in die Oberfläche statt nur in `unknowns`.
-
----
-
-## Nachtrag 2026-09-02 — Festhalten und Flüche (AD-014 bis AD-016)
+### Nachtrag 2026-09-02 — Festhalten und Flüche (AD-014 bis AD-016)
 
 Dieser Nachtrag schreibt die Umsetzung, die Prüfpunkte, die Risiken und die
 offenen Fragen fort. **Was er nicht anfasst: AD-002.** Die Entscheidung,
@@ -2460,112 +1174,560 @@ festgehaltenen Slots und Flüche in der Bewertung **nichts kosten**. Wären
 die Regeln in einem zweiten Scorer nachgebaut, wäre jede der beiden
 Anforderungen ein eigener Umbau gewesen.
 
-### Änderungen am Umsetzungsschnitt
+### AD-003 — Beam-Suche über die Slots, nicht Vollprodukt, nicht Greedy, nicht Solver (2026-09-01, Status: aktiv)
 
-| Schritt | Änderung |
-|---------|----------|
-| **S4+** | `AdvisorRequest` trägt den Haltezustand (eingefrorene Abbildung Slotindex → Handle / Custom-Inhalt / „leer") und dessen Fingerabdruck. `AdvisorResult` trägt zusätzlich den Wert des Grundzustands und den Zugewinn (AD-014.6) sowie die festgehaltenen Slots. |
-| **S4b (neu, vor S5)** | **`advisor/evaluate.py`** — die einzige Stelle unter `advisor/`, die `model.compute` erreicht (AD-014.1). Die Erwartung im `compute`-Wächter (`tests/test_one_build.py`) wird um **genau diesen einen** Eintrag erweitert. *Fertig, wenn:* Wächter grün mit zwei Einträgen, **und** ein probeweise in `search.py` eingefügter zweiter Aufruf ihn rot macht. |
-| **S5+** | Vorsortierung gegen den Grundzustand statt isoliert (AD-014.3); Handles der festgehaltenen Relikte im Anfangszustand belegt (AD-014.5); Mindestlänge der Kandidatenliste `K + (Zahl der freien Slots − 1)`. |
-| **S7+** | Ebenen der Beam-Suche = **freie** Slots; Symmetriegruppen nur über freie Slots (AD-014.4); alle Slots gehalten ⇒ kein Suchlauf. |
-| **S8+** | Bezugspunkt der Begründung ist der Grundzustand, nicht der leere Build (AD-014.6); Flüche und ihre Beträge aus `Build.sources` (AD-015); neue `unknowns`-Zeilen für gehaltene Slots und zielfremde Flüche. |
-| **S9+** | `held_fingerprint` im Cache-Schlüssel, Generationszähler auch bei Halteänderung, Rückabbildung nur der freien Slots (AD-016). |
-| **S11+** | Der `performance-tuner` misst zusätzlich einen Lauf mit `h=5` (die Picker-Frage) und bestätigt, dass der ungünstigste Fall weiterhin `h=0` ist. |
+**Kontext (gegen das echte Save gemessen, siehe Grundzahlen):** Der reale
+Bestand von 309 Relikten ergibt 49–54 Kandidaten je Farbe für einen normalen
+Slot, 21–30 für einen Deep-Slot — und **205 für einen weissen Slot**, der
+jede Farbe nimmt. Der ungünstigste reale Fall ist `Wylder's Chalice` mit
+Deep of Night:
 
-Die Reihenfolge bleibt: S4 → S4b → S5/S6 → S7 → S8 → S9 → S10.
+- 3 Slots ohne Deep: 50 · 55 · 208 = **5,7 · 10⁵** Belegungen
+- 6 Slots mit Deep: 50 · 55 · 208 · 25 · 27 · 23 = **8,9 · 10⁹** Belegungen
 
-### Prüfpunkte, Ergänzung zum Mindestumfang aus AD-009
+Die Bewertung ist **nicht separabel**: durch Exklusivgruppen,
+`isStrongestEffect` und multiplikative Raten hängt der Wert eines Relikts
+davon ab, was in den anderen Slots liegt.
 
-8. **Ein festgehaltener Slot steht im Ergebnis unverändert** — der Test, der
-   die Lesart „Randbedingung, nicht Startwert" absichert.
-9. **Kein Handle eines festgehaltenen Relikts erscheint in einem freien Slot.**
-10. **Symmetriefalle (AD-014.4):** `Wylder's Urn` `[Rot, Rot, Blau]`, der
-    erste rote Slot festgehalten mit einem Relikt hohen Kandidatenindex. Der
-    freie rote Slot **muss** ein Relikt mit kleinerem Index wählen dürfen.
-    Ohne AD-014.4 fällt dieser Test — und nur dieser; bei einem Gefäss mit
-    lauter verschiedenen Farben bliebe der Fehler unsichtbar. Das ist
-    dieselbe Falle wie bei AD-013 Punkt 4 in AD-009.
-11. **Cache:** gleiches Problem, anderer Halteinhalt ⇒ **kein** Treffer.
-    Determinismus gilt bei festgehaltenem Haltezustand.
-12. **Nullfall:** `h=0` liefert dasselbe Ergebnis wie ein Lauf ohne die
-    Haltefunktion. Das ist die Bedingung, unter der die 0,46 s gemessen
-    wurden, und sie muss messbar erhalten bleiben.
-13. **Fluchbeitrag (AD-015):** ein Build mit verfluchtem Relikt bekommt vom
-    Berater dieselbe Zahl wie über `Planner.current_build()`. Der Vergleich
-    gegen die Oberfläche ist die eigentliche Zusage, nicht die interne
-    Konsistenz des Beraters.
-14. **Alle Slots gehalten:** kein Suchlauf, Ergebnis ist der bewertete
-    Ist-Zustand, und `unknowns` sagt es.
+**Optionen:**
+- **A — Vollprodukt.** Exakt. Für das 3-Slot-Gefäss ist es *nicht* absurd:
+  5,7 · 10⁵ Bewertungen à 0,10 ms sind **~57 s**. Für das 6-Slot-Gefäss sind
+  es **~10 Tage**. Ausgeschlossen — aber ausgeschlossen aus einem gemessenen
+  Grund und nur im Deep-Fall hoffnungslos. Das ist der Grund, warum unten ein
+  *Regler* steht und kein Entweder-oder: bei kleinen Problemen darf die Suche
+  fast erschöpfend sein.
+- **B — Greedy je Slot.** Bestes Relikt je Slot einzeln, unabhängig: ~390
+  Aufrufe, ~0,04 s. Konsequenz: falsch genau dort, wo es interessant wird —
+  zwei Kopien desselben `isStrongestEffect` werden gewählt und die zweite ist
+  wertlos; zwei Effekte einer Exklusivgruppe werden gewählt und nur einer
+  greift. Der Berater empföhle dann Builds, deren Punktzahl er selbst
+  widerlegt.
+- **C — Beam-Suche über die Slots, Bewertung des Teil-Builds bei jedem
+  Schritt mit `model.compute()`.** Beam-Breite W, Kandidatenzahl K. Greedy
+  ist der Sonderfall W=1, Vollprodukt der Grenzfall K=alle, W=∞ — ein Regler
+  statt zweier Extreme. Konsequenz: keine Optimalitätsgarantie (was `GOAL.md`
+  ausdrücklich als Nicht-Ziel führt: „Heuristik-Ratgeber, kein Löser mit
+  Beweis"). Gemessen **0,11 s (3 Slots) bis 0,46 s (6 Slots mit Deep und
+  weissem Slot)** bei K=20/W=40.
+- **D — Ganzzahlige Optimierung (`ortools` CP-SAT / `pulp`).** Beweisbar
+  optimal für lineare Ziele. Konsequenz: **neue Dependency** (ortools ~50 MB
+  im PyInstaller-Bundle für ein 20-MB-Werkzeug), und die Zielfunktion ist
+  nicht linear — multiplikative Raten, „nur der stärkste zählt",
+  Exklusivgruppen. Linearisierbar, aber nur unter Annahmen, die die
+  gemessenen Regeln in `model.py` gerade verneinen. Der Beweis wäre ein
+  Beweis über ein falsches Modell.
 
-### Risiken, Ergänzung
+**Entscheidung:** C. Sie fasst die Kopplung zwischen den Slots exakt (weil
+sie den echten Scorer benutzt), sie ist über zwei Zahlen (K, W) einstellbar,
+und ihre Kosten sind gemessen statt geschätzt.
 
-| Risiko | Woran man es merkt | Rückweg |
-|--------|--------------------|---------|
-| Der Grundzustand wird an **einer** Bewertungsstelle vergessen (typisch: der Vorsortierung). | Vorschläge doppeln einen Effekt, den das festgehaltene Relikt bereits kappt (`NON_ACCUMULATING`, `isStrongestEffect`) — die Punktzahl steigt nicht, der Vorschlag sieht trotzdem plausibel aus. | Es gibt nur eine Bewertungsstelle (AD-014.1), und der `compute`-Wächter erzwingt das. Kein zweiter Rückweg nötig. |
-| Festhalten wird doch als Startwert gebaut. | Der festgehaltene Slot ändert sich im Ergebnis. | Prüfpunkt 8. |
-| Cache liefert ein Ergebnis zum falschen Haltezustand. | Gefäss weg und zurück, danach ist ein gehaltener Slot überschrieben. | Prüfpunkt 11; `held_fingerprint` im Schlüssel (AD-016). |
-| Ein Fluch steht im Vorschlag, ist aber nicht in die Rechnung eingegangen (konditional), oder umgekehrt. | Anzeige und Statblatt widersprechen sich beim selben Relikt. | Flüche werden aus `Build.sources` ausgewiesen, nicht aus der Relikt-Definition (AD-015). |
-| Die isolierte Vorsortierung an weissen Slots (OF-10) bleibt die schärfste Schwäche. | Unverändert wie in AD-003 beschrieben. | Sie **verkleinert** sich mit jedem festgehaltenen Slot, weil die Vorsortierung dann Kontext hat. OF-10 bleibt trotzdem offen — für `h=0` ändert sich nichts. |
+**Voreinstellung: K=20, W=40.** Der ungünstigste reale Fall bleibt damit
+unter einer halben Sekunde. Der `performance-tuner` bestätigt oder korrigiert
+das in S11.
 
-### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+**Warum die Poolgrösse die Kosten nicht treibt — und was das für K bedeutet.**
+Die Beam-Suche kostet `Slots × W × K` Bewertungen. **K ist eine Obergrenze auf
+die Verzweigung, keine Quote auf den Pool.** Gegenprobe bei K=20/W=40:
+`Wylder's Chalice` (weisser Slot, Pool 208) und `Wylder's Urn` (nur farbig,
+Pool höchstens 56) brauchen **exakt gleich viele Bewertungen — 3 929**. Der
+weisse Slot vervierfacht den rohen Produktraum und ändert die Suchkosten
+nicht. Er verteuert allein den Vorsortierlauf, und der ist eine Bewertung je
+*besessenem Relikt* (309), nicht je Slot-Kandidat.
 
-11. **Kein zweiter `model.compute`-Aufruf unter `advisor/`.** Genau einer, in
-    `evaluate.py`. Die Wächtertabelle wird um genau eine Zeile erweitert.
-12. **Festgehaltene Relikte nicht als Anfangsbelegung in den Beam legen.**
-    Sie sind kein Zustand, den die Suche verändern darf.
-13. **Die Vorsortierung nicht gegen den leeren Build laufen lassen**, wenn
-    etwas festgehalten ist.
-14. **Keinen Fluch-Malus, kein Fluch-Gewicht, keinen Fluch-Sonderweg** in der
-    Bewertung. Flüche sind Effekte.
-15. **Den Haltezustand nicht persistieren** — nicht in `QSettings`, nicht auf
-    Platte, auch nicht „nur für die Sitzung".
-16. **Kein Bedienelement erfinden** — ob Schloss, wo es sitzt, wie es heisst,
-    entscheidet der `ui-ux-designer`. Der `developer` baut, was die Suche
-    braucht: den Haltezustand im Request.
+Die Kehrseite gehört dazu: K=20 behält bei einem farbigen Slot ~40 % des
+Pools, bei einem weissen aber nur ~10 %. Die Vorsortierung trägt an einem
+weissen Slot also deutlich mehr Last. Sie bewertet jedes Relikt **isoliert**,
+also ohne die Wechselwirkungen, um derentwillen es die Beam-Suche überhaupt
+gibt — ein Relikt, das erst neben einem anderen stark wird, kann an einem
+weissen Slot durch das Raster fallen. Das ist die schärfste bekannte Schwäche
+des Verfahrens. Sie ist erträglich, weil `GOAL.md` keine Optimalität verlangt,
+und sie ist **messbar**: Prüfpunkt in der Risikotabelle, K für weisse Slots
+notfalls eigenständig höher setzen. Weil die Kosten linear in K sind und ein
+Lauf 0,46 s dauert, ist dafür Luft.
 
-### Folgen für `UI_SPEC.md` — an den `ui-ux-designer`
+**Ausgestaltung, verbindlich für `search.py`:**
+1. **Slot-Reihenfolge: die des Gefässes.** Meine erste Fassung schrieb „engste
+   Farbe zuerst, Weiss zuletzt" vor. Gemessen macht das **keinen Unterschied** —
+   gleiche Trefferqualität, 0,46 s gegen 0,48 s. Die Regel wird gestrichen,
+   statt sie ohne Beleg mitzuschleppen. Die Reihenfolge des Gefässes ist
+   ausserdem stabil und damit reproduzierbar, was AD-009 Punkt 6 braucht.
+2. **Farbsymmetrie:** ein Gefäss `[0, 0, 1]` hat zwei austauschbare rote
+   Slots. Innerhalb einer Gruppe gleichfarbiger Slots wird nur in
+   aufsteigender Kandidatenreihenfolge gewählt. Das verkleinert den Baum und
+   verhindert, dass die Ergebnisliste dieselbe Belegung zweimal in
+   vertauschten Slots zeigt.
+3. **Exemplar-Eindeutigkeit über Handles** — siehe AD-013. Nicht optional:
+   ohne sie sind auf `Wylder's Urn` **40 von 40** Vorschlägen nicht tragbar.
+4. **Abbruchprüfung** zwischen den Slot-Ebenen, nicht innerhalb (siehe AD-006).
+5. **Ausgabe:** die besten `top_n` Endzustände, nicht nur der beste — der
+   Spieler sieht Alternativen und kann die Begründung vergleichen (A5).
 
-Nicht meine Entscheidung, aber es hängt daran: **AK-13, AK-14 und AK-16
-brauchen eine Fassung für den Haltezustand.** „`Apply all` belegt alle Slots"
-und „`Suggest` verändert keinen Slot" sind unter Festhalten nicht mehr
-vollständig — ein festgehaltener Slot darf von `Apply all` nicht angefasst
-werden, und der Inhalt eines festgehaltenen Slots ist eine **Eingabe** der
-Rechnung, kein Vorschlag (AK-16 bleibt für Vorschläge gültig, ein
-festgehaltenes Custom relic ist zulässig). Ausserdem: die Picker-Frage aus
-`GOAL.md` F4 ist algorithmisch derselbe Lauf mit `h = Slotzahl − 1`
-(AD-014) — sie kostet keine Architektur und darf frei angeordnet werden.
+**Konsequenzen:** Leicht wird — mehr Zielrichtungen, andere Slotzahlen,
+Budgetanpassung durch den `performance-tuner` ohne Codeänderung. Dauerhaft
+schwer wird — jede Aussage der Form „das ist das Beste, was du bauen kannst".
+Der Berater darf so nicht formulieren. Nutzersprache: „Best found" / „Top
+suggestions", nie „Optimal".
 
-### Offene Fragen, neu
-
-**OF-12 — an den App Designer, über `director`:** Überlebt ein Haltezustand
-den Wechsel von Gefäss, Nightfarer oder Deep-Schalter? Bei einem Wechsel
-ändern sich Zahl, Farbe und Bedeutung der Slots; ein „Slot 2 gehalten" von
-vorher zeigt danach auf etwas anderes. Die Architektur trägt beides. Der
-Entwurfsvorschlag lautet: **Haltezustand verfällt** bei jeder Änderung, die
-die Slotmenge verändert, und wird nicht über Programmstarts gemerkt. Wird das
-bestätigt, ändert sich an AD-014 bis AD-016 nichts; wird es verneint, braucht
-es eine Regel, welcher Halt auf welchen Slot abgebildet wird.
-
-**OF-13 — an den App Designer, über `director`:** Ein Fluch, der ein Feld
-bewegt, das die gewählte Zielrichtung nicht misst (`-HP` unter „Maximise
-damage"), ist im Build verrechnet, aber nicht in der Rangzahl. Der Entwurf
-**nennt** ihn im Vorschlag und in `unknowns` (AD-015). Genügt Nennen, oder
-soll ein solches Relikt schlechter gerankt oder ausgeschlossen werden? Eine
-Abwertung bräuchte Gewichte über Dimensionen hinweg, die die Spieldateien
-nicht hergeben — sie wäre also eine erfundene Zahl und stünde gegen A7.
-Der `developer` kann ohne diese Antwort beginnen: ein Ausschluss wäre später
-ein Kandidatenfilter in `candidates.py` und berührt weder Suche noch
-Bewertung.
-
-**Erledigt am 2026-09-02** (Nutzerentscheid in `GOAL.md`): `UI_SPEC` F1
-(Slots festhalten — **ja**, siehe AD-014) und F3 (Flüche mitbewerten —
-**ja**, siehe AD-015). `UI_SPEC` F2 und F4 bleiben beim `ui-ux-designer`
-bzw. beim Nutzer; keine der beiden bewegt diesen Entwurf.
-
+**Umkehrbarkeit:** leicht. `search.py` ist rein und hinter
+`AdvisorRequest`/`AdvisorResult` gekapselt; ein anderes Verfahren ersetzt
+genau diese eine Datei.
 
 ---
 
-## Nachtrag II 2026-09-02 — Antworten des Nutzers zu OF-12, OF-13, F2 (AD-017, AD-018)
+### Korrekturnotiz zu AD-003.5 (2026-09-07; Herkunft: D-5 des `director` vom 06.09.2026, gemeldet vom `developer` in T-067)
+
+**Ersetzt** AD-003, Ausgestaltung Punkt 5: „*Ausgabe: die besten `top_n`
+Endzustände, nicht nur der beste*".
+
+**Der ursprüngliche Wortlaut bleibt stehen.**
+
+**Neu verbindlich:** **Es gibt kein `top_n`.** Die Beam-Breite **W ist die
+Zahl der Endzustände**; `search.beam` gibt sie geordnet zurück, bester
+zuerst, und ein Aufrufer, der weniger will, nimmt den Kopf der Liste.
+
+**Begründung, in der Reihenfolge ihres Gewichts:**
+
+1. **Ein `top_n` wäre eine zweite Zahl mit eigener Herleitung.** AD-003 hat
+   K und W gemessen begründet (K=20, W=40, ungünstigster realer Fall unter
+   einer halben Sekunde). Eine dritte Stellschraube ohne eigene Messung
+   verstiesse gegen L-001.
+2. **Sie wäre eine dritte Grösse im Cache-Schlüssel** und damit ein weiterer
+   Weg, an dem zwei Läufe sich für denselben halten können.
+3. **Sie hat keinen Leser.** `top_n` kommt in `nrplanner/` nicht vor
+   (Volltextsuche gegen `fd9f2bc`: ein Treffer, und der steht im Docstring
+   von `search.py:321`, wo er genau diesen Sachverhalt erklärt).
+
+**Die Zusage aus AD-003 bleibt vollständig erfüllt:** der Spieler sieht
+Alternativen und kann Begründungen vergleichen (A5) — er sieht W davon statt
+`top_n` davon.
+
+**Was das nicht ist:** kein Verzicht auf ein Bedienelement, das es je gab.
+D-5 sagt ausdrücklich „kein `top_n`-Stellrad" — die Frage war, ob der Nutzer
+die Zahl der gezeigten Vorschläge selbst dreht, und die Antwort ist nein.
+Kommt sie je, ist es eine Entscheidung des `ui-ux-designer` über eine
+Anzeigemenge, nicht eine zweite Suchbreite.
+
+---
+
+### AD-008 — Das Suchproblem wird über die kanonisierte Slot-Farbmenge geschlüsselt, nicht über die Gefäss-Id (2026-09-01, Status: aktiv)
+
+**Kontext (gemessen):** Der Snapshot führt **74 Gefässe**. Nach Sortierung
+der Slotfarben bleiben davon **26 verschiedene 3-Slot-Muster** und **47
+verschiedene 6-Slot-Muster** (mit den Deep-Slots). `[0,0,1]`, `[0,1,0]` und
+`[1,0,0]` sind dasselbe Problem mit vertauschten Spalten; das häufigste
+Muster kommt siebenmal vor.
+
+**Optionen:**
+- **A — Je Gefäss ein Problem.** Naheliegend, denn der Spieler wählt ein
+  Gefäss. Konsequenz: bis zu 74 Läufe für dieselben Antworten; der Cache
+  trifft bei einem Gefässwechsel nie, obwohl die Antwort identisch ist.
+- **B — Kanonische Form: sortiertes Tupel der Slotfarben + Deep-Flag.**
+  Konsequenz: `[0,0,1]`, `[0,1,0]` und `[1,0,0]` sind ein Problem. Beim
+  Anzeigen müssen die Ergebnisse auf die tatsächliche Slot-Reihenfolge des
+  gewählten Gefässes zurückabgebildet werden — ein Permutationsschritt in
+  `worker.py`.
+
+**Entscheidung:** B. Die Rückabbildung ist ein Dutzend Zeilen; der
+Trefferanteil im Cache steigt um ein Vielfaches, und A3 („für jedes bekannte
+Kelch-Layout") wird dadurch überhaupt erst mit vertretbarem Aufwand prüfbar:
+der `qa-engineer` prüft **26 bzw. 47 kanonische Probleme statt 74 Gefässe**,
+und die vollständige Abdeckung aller Layouts für beide Zielrichtungen kostet
+gemessen 47 × 0,46 s ≈ **22 s** statt 74 × 0,46 s ≈ 34 s — pro Zielrichtung,
+im Hintergrund, und nur wenn A3 vollständig durchgeprüft wird.
+
+**Konsequenzen:** Leicht wird — Abdeckung aller Layouts, hohe Cache-Trefferrate.
+Dauerhaft schwer wird — eine künftige Regel, die ein Gefäss *ausser* über
+seine Slotfarben unterscheidet (etwa ein gefässgebundener Bonus). Gäbe es die,
+müsste die Gefäss-Id in den Schlüssel zurück. Der Snapshot kennt heute nichts
+dergleichen: ein `vessels`-Eintrag hat `id`, `name`, `icon`, `hero_type`,
+`slots`, `deep_slots` — und nur die letzten beiden wirken auf einen Build.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv)
+
+**Kontext:** Der Nutzer hat entschieden, dass der Besitz erzwungen wird
+(QA-002): ein bereits belegtes Exemplar wird in den übrigen Slots nicht mehr
+angeboten, freies Planen läuft über „Custom relic". Damit muss der Berater
+dieselbe Regel einhalten — sonst schlägt er Builds vor, die der Spieler nicht
+tragen kann.
+
+Meine erste Fassung wollte in S5 gleiche **Rollen** zu einem Kandidaten
+zusammenfassen (mehrere Kopien mit identischem Effekt-Multiset als ein
+Eintrag, ein Vertreter behält den Handle). Die Messung nimmt dieser Idee
+beide Beine weg:
+
+- **Sie spart nichts.** 309 Exemplare ergeben 306 verschiedene Rollen — drei
+  Kollisionen, 1,0 %.
+- **Sie ist nicht einmal korrekt.** Bei 306 Rollen auf 309 Exemplaren steht
+  ein Eintrag in 99 % der Fälle für genau ein physisches Relikt.
+  Rollen-Identität ersetzt Exemplar-Identität also nicht; sie *verschleiert*
+  sie in den drei Fällen, in denen es darauf ankäme.
+
+**Wie gross der Fehler ohne diese Regel wäre — gemessen, nicht geschätzt.**
+Beam-Suche bei K=20/W=40, ohne Exemplar-Prüfung, Anteil der 40 besten
+Ergebnisse, die dasselbe Relikt mehrfach belegen:
+
+| Gefäss | unbrauchbare Ergebnisse | bester Vorschlag unbrauchbar? |
+|--------|-------------------------|-------------------------------|
+| `Wylder's Chalice` `[Rot, Gelb, Weiss]` + Deep | 5 von 40 | nein |
+| `Wylder's Urn` `[Rot, Rot, Blau]` + Deep | **40 von 40** | **ja** |
+
+Bei einem Gefäss mit wiederholten Slotfarben ist ohne diese Regel **jeder**
+Vorschlag unbrauchbar, der beste eingeschlossen — und zwar auf die
+unauffälligste denkbare Art: die Punktzahl ist plausibel, die Relikte sind
+alle im Besitz, nur liegt eines davon zweimal.
+
+**Optionen:**
+- **A — Rollen-Dedup, Handle nur zur Anzeige.** Konsequenz: siehe oben, in
+  drei Fällen falsch und spart 1 %.
+- **B — Nachträglich filtern:** suchen ohne Prüfung, unbrauchbare Ergebnisse
+  am Ende verwerfen. Konsequenz: auf `Wylder's Urn` bliebe von 40 Ergebnissen
+  nichts übrig. Ein Filter, der die ganze Liste leert, ist keiner.
+- **C — Handles im Suchzustand.** Jeder Beam-Zustand trägt die Menge der
+  bereits belegten Handles; beim Aufklappen eines Slots werden Kandidaten mit
+  belegtem Handle übersprungen.
+
+**Entscheidung:** C.
+
+**Ausgestaltung, verbindlich:**
+1. Der Kandidat ist das **Exemplar** (`OwnedItem.handle`), nicht die Rolle.
+   Kein Dedup.
+2. Jeder Beam-Zustand führt ein `frozenset[int]` der belegten Handles. Beim
+   Aufklappen werden belegte übersprungen, und es werden die ersten K
+   **verfügbaren** genommen — nicht die ersten K der Liste, von denen dann
+   welche wegfallen. Sonst schrumpft die Verzweigung an tiefen Slots still.
+3. Die vorsortierte Kandidatenliste je Slot ist deshalb mindestens
+   `K + (Slotzahl − 1)` lang, damit nach dem Ausschluss immer noch K übrig
+   sind.
+4. `OwnedItem.handle` kann `None` sein (`inventory.py` setzt es aus
+   `read_relic_handles`, und ein Save ohne lesbare Tabelle liefert keine).
+   **Ein Relikt ohne Handle ist kein Kandidat** und wird mit genannter
+   Begründung in `unknowns` aufgeführt (AD-010). Es stillschweigend
+   mitzunehmen hiesse, die Eindeutigkeit für genau die Relikte aufzugeben,
+   für die sie nicht prüfbar ist.
+5. `AdvisorResult` nennt je Slot den **Handle** und daneben Name und Rolle
+   für die Anzeige. Die Oberfläche wählt darüber dasselbe Exemplar aus, das
+   der Picker anbietet.
+
+**Konsequenzen:** Leicht wird — der Vorschlag ist per Konstruktion tragbar,
+und die Übernahme in die Slots ist eine Handle-Zuweisung ohne Suchen. Dauerhaft
+schwer wird — Vorschläge, die den Besitz *überschreiten* („kauf dir noch so
+eins"). Die wären ein anderes Merkmal und bräuchten einen anderen
+Kandidatenraum; siehe „Bewusst nicht getan".
+
+**Umkehrbarkeit:** mittel. Die Handle-Menge sitzt im Suchzustand von
+`search.py` und im Ergebnistyp; sie später herauszunehmen berührt beide, aber
+keinen Aufrufer.
+
+---
+
+### AD-014 — Ein festgehaltener Slot ist Randbedingung der Suche, nicht Startwert: er geht als Grundzustand in jede Bewertung ein (2026-09-02, Status: aktiv)
+
+**Kontext:** Der Nutzer hat am 2026-09-02 entschieden (`GOAL.md`, F1): der
+Spieler kann einzelne Slots festhalten, der Berater optimiert nur den Rest.
+Seine Begründung: „Ich will immer vom aktuellen Stand aus optimieren können.
+Falls ich z. B. um 1 Relikt herum bauen will und dann ein Build optimieren
+will, wo es aber um dieses eine 'nicht optimale' Relikt geht."
+
+Die Lesart des `director` — **festgehalten heisst Randbedingung, nicht
+Startwert** — ist am Bestand geprüft und **bestätigt**. Der Beleg ist die
+Signatur, an der alles hängt:
+`model.compute(hero, level, effects, curves, weapon, weapons_held, declared)`
+nimmt **eine flache Effektliste über alle Slots**. Die Bewertung kennt keine
+Slots. Ein festgehaltenes Relikt kann deshalb nur auf einem Weg wirken: seine
+Effekte (und Flüche, AD-015) stehen in *jeder* Liste, die die Suche bewertet.
+Damit ist „optimiere um dieses Relikt herum" tatsächlich ein **anderes
+Suchproblem** — ein Problem über weniger Variablen mit einem anderen
+Grundzustand, nicht dasselbe Problem mit einem anderen Anfangspunkt.
+
+Ein Startwert wäre auch fachlich falsch: er würde in der Beam-Suche in der
+nächsten Ebene wieder verdrängt, und genau der Fall, um dessentwillen der
+Nutzer die Funktion will (ein für sich *nicht* optimales Relikt), ist der
+Fall, in dem er zuerst verdrängt würde.
+
+**Kräfte:** Die Rechnung darf nicht zweimal existieren (AD-002). Der
+Grundzustand darf an keiner Bewertungsstelle vergessen werden — vergisst ihn
+die Vorsortierung, empfiehlt der Berater Kandidaten, deren Beitrag das
+festgehaltene Relikt bereits abdeckt. Und das Budget aus A6 darf nicht kippen.
+
+**Optionen:**
+- **A — Startwert.** Festgehaltene Relikte werden als Anfangsbelegung in den
+  Beam gelegt, die Suche läuft über alle Slots. Konsequenz: der Beam ersetzt
+  sie in der nächsten Ebene wieder; „festhalten" wäre nur eine Vorbelegung
+  und beantwortete die Frage des Nutzers nicht. Verworfen.
+- **B — Nachträglich filtern.** Frei suchen, am Ende nur Ergebnisse behalten,
+  die den festgehaltenen Slot zufällig gleich belegen. Konsequenz: derselbe
+  Fehler wie AD-013 Option B, nur schärfer — bei einem bewusst nicht optimalen
+  Relikt bleibt von 40 Ergebnissen keines übrig. Verworfen.
+- **C — Grundzustand.** Die festgehaltenen Slots bilden einen `held_build`;
+  die Suche läuft nur über die freien Slots, und jede Bewertung — auch die
+  Vorsortierung — bewertet `held_effects + gewählte Effekte`. Konsequenz: die
+  Suche wird kleiner statt grösser, die Stacking-Regeln greifen von selbst
+  (AD-002), und es kommt genau eine Datenstruktur dazu.
+
+**Entscheidung:** C.
+
+**Ausgestaltung, verbindlich:**
+
+1. **Genau eine Bewertungsstelle im Berater.** Neu im Modulschnitt aus
+   AD-001: `nrplanner/advisor/evaluate.py` mit einer Funktion
+
+   ```python
+   # advisor/evaluate.py  (illustrierend, kein Anwendungscode)
+   def evaluate(problem, assignment, ctx) -> model.Build:
+       """The one place under advisor/ that reaches model.compute.
+
+       Held slots, chosen candidates, their curses and the weapon effects are
+       assembled here and nowhere else -- pre-sort, beam step and baseline all
+       come through this door, so none of them can forget the held slots.
+       """
+   ```
+
+   Das ist kein Stilwunsch, sondern die Durchsetzung: „der festgehaltene
+   Beitrag geht in jede Bewertung ein" ist eine Regel, die man an drei Stellen
+   vergessen kann, solange es drei Stellen gibt. `candidates.py`, `search.py`
+   und der Grundlauf rufen `evaluate`; keines von ihnen ruft `model.compute`.
+   Der `compute`-Wächter (`tests/test_one_build.py`) erwartet danach
+   `{"nrplanner/app.py": 1, "nrplanner/advisor/evaluate.py": 1}` — **eine**
+   neue Zeile, und jede zweite fällt auf. Abhängigkeitsrichtung:
+   `types` → `evaluate` → `candidates`/`goals`/`search`/`explain`.
+
+2. **Suchtiefe = Zahl der freien Slots.** Festgehaltene Slots sind keine
+   Ebenen der Beam-Suche. Sind alle Slots festgehalten, findet **keine Suche**
+   statt: das Ergebnis ist der bewertete Ist-Zustand mit einer Zeile, die das
+   sagt. Ein leerer Beam ist kein Fehlerfall.
+
+3. **Die Vorsortierung bewertet gegen den Grundzustand**, nicht isoliert:
+   Rang eines Kandidaten = `goal(evaluate(held + Kandidat))`. Das ist die
+   einzige Stelle, an der das Festhalten die *Qualität* verbessert statt nur
+   den Raum zu verkleinern — die in AD-003 benannte schärfste Schwäche
+   (isolierte Vorsortierung, OF-10) wird für jeden festgehaltenen Slot
+   kleiner, weil der Kontext, den ihr fehlte, jetzt teilweise dasteht.
+
+4. **Farbsymmetrie nur über freie Slots.** AD-003 Punkt 2 schränkt die Wahl
+   innerhalb einer Gruppe gleichfarbiger Slots auf aufsteigende
+   Kandidatenreihenfolge ein. **Diese Regel wurde unter der Bedingung
+   „alle Slots sind frei" geprüft und ist dort richtig; das Festhalten
+   verletzt diese Bedingung.** Beispiel `Wylder's Urn` `[Rot, Rot, Blau]`:
+   ist der erste rote Slot festgehalten, sind die beiden roten Slots **nicht
+   mehr austauschbar**, und die aufsteigende Regel würde jeden roten
+   Kandidaten mit kleinerem Index als das festgehaltene Relikt still
+   ausschliessen. Die Symmetriegruppen werden deshalb **über die freien Slots
+   allein** gebildet. Ein einzelner freier Slot einer Farbe hat keine
+   Symmetrie und keine Einschränkung.
+
+5. **Handles: der Grundzustand belegt vor.** Der Anfangszustand der Suche
+   trägt die Handles der festgehaltenen Relikte in seinem `frozenset`
+   (AD-013 Punkt 2). Damit kann kein festgehaltenes Exemplar ein zweites Mal
+   vorgeschlagen werden. Der Fall „festgehaltenes Relikt **ohne** Handle"
+   (Custom relic, oder ein Save ohne lesbare Handle-Tabelle) trägt sich ohne
+   neue Regel: AD-013 Punkt 4 nimmt handle-lose Relikte bereits aus dem
+   Kandidatenraum, sie können also gar nicht vorgeschlagen werden. Ein
+   festgehaltenes „Custom relic" ist zulässig — es ist eine Randbedingung,
+   kein Vorschlag, und `UI_SPEC` AK-16 (kein Custom relic **im Vorschlag**)
+   bleibt unberührt.
+
+6. **Erklärt wird gegen den Grundzustand, nicht gegen den leeren Build.**
+   S8/AD-010 nannten „die Differenz zum leeren Build". Mit festgehaltenen
+   Slots ist das falsch: die Begründung schriebe dem Vorschlag die Effekte
+   des festgehaltenen Relikts gut. Bezugspunkt ist `evaluate(held, {})`.
+   Die Rangzahl bleibt der **absolute** Wert des ganzen Builds (eine
+   Autorität); zusätzlich weist das Ergebnis den **Zugewinn gegenüber dem
+   Grundzustand** aus. Das kostet genau einen zusätzlichen `evaluate`-Aufruf
+   je Lauf.
+
+7. **Ein festgehaltener leerer Slot bedeutet „bleibt leer"** und wird nicht
+   belegt. Ob die Oberfläche das anbietet, entscheidet der `ui-ux-designer`;
+   die Suche muss es vertragen.
+
+8. **Nichts wird persistiert.** Der Haltezustand ist Teil des
+   `AdvisorRequest` (AD-006 Punkt 8: unveränderliche Datenklassen über die
+   Thread-Grenze), nicht `QSettings`, nicht Platte (AD-007).
+
+**Laufzeit — das Budget hält, und zwar beweisbar ohne neue Messung.** Die
+Kosten der Beam-Suche sind `Ebenen × W × K` Bewertungen; die Kosten *einer*
+Bewertung wachsen mit der Zahl der beitragenden Relikte (0,10 ms bei wenigen,
+0,18–0,25 ms bei vollem Build). Ein Lauf mit `h` festgehaltenen Slots
+bewertet auf seiner ersten Ebene Builds aus `h+1` Relikten, auf seiner
+letzten aus 6 — er zahlt also **genau die tiefsten `6−h` Ebenen des heutigen
+Laufs** und keine einzige zusätzliche. Damit ist er durch die gemessenen
+**0,46 s** des freien Laufs (`Wylder's Chalice` + Deep, weisser Slot,
+K=20/W=40) nach oben beschränkt.
+
+Teurer wird genau eine Stelle: die Vorsortierung. Sie bewertet 309 Relikte,
+und zwar jetzt im Kontext des Grundzustands — bei `h=5` also volle Builds
+statt einzelner Relikte, rund **77 ms statt 31 ms**. Der zugehörige
+Suchanteil ist dann aber nur noch eine Ebene (1 × 40 × 20 × 0,25 ms ≈ 0,2 s),
+Gesamtlauf ≈ 0,28 s.
+
+**Der ungünstigste Fall bleibt derselbe: `Wylder's Chalice` + Deep mit
+nichts festgehalten, 0,46 s.** Bei `h=0` ist der Entwurf verhaltensgleich
+mit dem heutigen — der Grundzustand ist dann der leere Build. Das ist die
+Prüfbedingung, unter der die 0,46 s gemessen wurden, und sie bleibt gültig.
+Der `performance-tuner` bestätigt in S11 zusätzlich einen Lauf mit `h=5`.
+
+**Nebenertrag, ungeplant und für T-004 wichtig:** „Was passt in **diesen**
+Slot?" (die Picker-Frage aus `GOAL.md` F4) ist in diesem Entwurf **kein
+neuer Mechanismus**, sondern derselbe Lauf mit `h = Slotzahl − 1`. Kosten
+nach obiger Rechnung ≈ 0,28 s im schlechtesten Fall. Der `ui-ux-designer`
+kann die beiden Fragen also frei anordnen, ohne dass eine davon Architektur
+kostet.
+
+**Konsequenzen:** Leicht wird — inkrementelles Bauen („von hier aus weiter"),
+die Picker-Frage, und eine bessere Vorsortierung bei jedem festgehaltenen
+Slot. Dauerhaft schwer wird — eine Aussage über den *Wert des Festhaltens*
+selbst („dieses Relikt kostet dich 40 AR"); dafür bräuchte es einen zweiten
+Lauf ohne Haltezustand und einen Vergleich. Das ist möglich (zwei Läufe,
+zwei Cache-Einträge), aber es ist ein Merkmal und keine Nebenwirkung.
+
+**Umkehrbarkeit:** leicht. Ohne Haltezustand ist der Grundzustand der leere
+Build und alles läuft wie bisher; die Struktur ist die allgemeinere Form
+dessen, was ohnehin gebaut wird.
+
+---
+
+### AD-016 — Der Haltezustand geht in die Kanonisierung, den Cache-Schlüssel und den Generationszähler ein (2026-09-02, Status: aktiv; präzisiert AD-006, AD-007, AD-008)
+
+**Kontext:** AD-008 schlüsselt ein Suchproblem über die **sortierte
+Slot-Farbmenge** statt über die Gefäss-Id — geprüft unter der Bedingung, dass
+alle Slots gleichberechtigt frei sind; dort ist die Sortierung verlustfrei,
+weil ein Slot ausser seiner Farbe keine Eigenschaft hat. **Festhalten führt
+eine zweite Eigenschaft ein** und stösst diese Bedingung um:
+`[Rot(gehalten), Rot(frei), Blau]` und `[Rot(frei), Rot(frei), Blau]` haben
+dieselbe sortierte Farbmenge und sind verschiedene Probleme.
+
+**Optionen:**
+- **A — Cache aus, sobald etwas festgehalten ist.** Immer korrekt, nichts zu
+  bauen. Konsequenz: ausgerechnet der Fall mit den meisten festgehaltenen
+  Slots — die Picker-Frage aus AD-014, sechs Slots nacheinander geöffnet —
+  träfe nie, und dort ist der Nutzen des Caches am grössten.
+- **B — Gefäss-Id plus Slotindizes in den Schlüssel**, Kanonisierung fallen
+  lassen. Konsequenz: korrekt, aber der Trefferanteil aus AD-008 ist weg, und
+  mit ihm das Argument, mit dem der `qa-engineer` A3 über 26 bzw. 47
+  kanonische Probleme statt 74 Gefässe prüft.
+- **C — Kanonische Form erweitern.** Schlüssel ist `(sortierte Farben der
+  **freien** Slots, deep, Fingerabdruck des Haltebündels, …)`. Das Haltebündel
+  wirkt positionsunabhängig — seine Effekte gehen in eine flache Liste, und es
+  belegt Handles —, also genügt ein Fingerabdruck über
+  `(handle, relic_id, sorted(effect_ids), sorted(curse_ids))` je gehaltenem
+  Relikt, sortiert. Konsequenz: die Rückabbildung in `worker.py` bildet nur
+  noch die **freien** Slots zurück, ein paar Zeilen mehr.
+
+**Entscheidung:** C.
+
+**Verbindlich:**
+1. `AdvisorRequest` trägt den Haltezustand als eingefrorene Abbildung
+   Slotindex → Inhalt (Handle, oder ein Custom-Relikt-Inhalt, oder „leer").
+2. Der Cache-Schlüssel aus AD-007 wird um `held_fingerprint` ergänzt. Das ist
+   dieselbe Abwägung wie bei den Handles im Nachtrag zu AD-007: ein
+   überflüssiger Fehlschlag kostet 0,46 s, ein Treffer über den falschen
+   Haltezustand liefert einen Vorschlag, der einen bewusst festgehaltenen
+   Slot überschreibt.
+3. Der Generationszähler aus AD-006 Punkt 3 wird **auch** erhöht, wenn ein
+   Slot festgehalten oder freigegeben wird oder sich der Inhalt eines
+   festgehaltenen Slots ändert. Die dort festgeschriebene Kopplung gilt
+   unverändert: was den Cache-Schlüssel ändert, macht ein laufendes Ergebnis
+   veraltet.
+4. Die Rückabbildung permutiert nur freie Slots; festgehaltene behalten ihren
+   Platz per Konstruktion.
+
+**Konsequenzen:** Leicht wird — der Picker-Fall bleibt cachefähig, und die
+Prüfbarkeit aus AD-008 bleibt erhalten. Dauerhaft schwer wird — nichts von
+Belang; der Schlüssel wird um ein Feld länger.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### Präzisierung AD-016 — der Cache-Schlüssel ist positionsabhängig, und `held_fingerprint` entfällt (D3, QA-107)
+
+**Der Befund:** `held_fingerprint` ist positionsunabhängig (sortiert, ohne
+Slotindex), der als Schlüssel benannte `AdvisorRequest` ist es nicht — er
+trägt `problem.held` als geordnetes Tupel. Gemessen: Fingerabdruck gleich,
+Request und Hash verschieden. Der Wächter
+`test_where_a_relic_is_held_does_not_change_the_fingerprint` sichert damit
+eine Eigenschaft, die der Schlüssel nicht hat.
+
+**Entscheidung (D3, Vorgabe des `director`): der Schlüssel ist der
+`AdvisorRequest`, positionsabhängig.**
+
+**Meine Entscheidung zur zweiten Hälfte, die der `director` mir überlassen
+hat: `held_fingerprint` wird gestrichen — die Funktion, die Property und der
+Wächter.** Nicht positionsabhängig gemacht. Drei Gründe, in dieser
+Reihenfolge:
+
+1. **Er wäre eine zweite Schlüsselform.** Der Modul-Docstring von
+   `advisor/types.py` verbietet genau das, mit ausgeschriebener Begründung:
+   *„there is no second key form that could drift from the state it stands
+   for."* Heute ist dieser Satz **falsch**, weil der Fingerabdruck da ist.
+   Ihn zu streichen macht den Satz wahr; ihn positionsabhängig zu machen
+   liesse ihn falsch und fügte eine ableitbare Kopie hinzu, die niemand
+   liest.
+2. **Er hat keinen Leser und bekommt keinen.** Der Cache schlüsselt auf den
+   Request (AD-018: *„Es entsteht keine zweite Schlüsselform"*). Der
+   Generationszähler (AD-016.3) braucht nur „ist der Request ein anderer" —
+   `SlotProblem` ist eine gefrorene Datenklasse und vergleicht sich selbst.
+3. **Er ist eine Falle.** Solange er dasteht und behauptet, zwei
+   Haltezustände seien dasselbe, wird ihn irgendwann jemand für etwas
+   Schlüsselartiges benutzen — und dann tritt der Fehler ein, gegen den D3
+   geschrieben ist: ein Treffer über den falschen Haltezustand überschreibt
+   einen bewusst festgehaltenen Slot. Ein positionsabhängiger Fingerabdruck
+   wäre keine Falle mehr, aber auch kein Nutzen; er wäre nur eine Kopie, die
+   driften kann.
+
+**Rückweg, benannt:** braucht S9 doch eine kanonische Form, wird sie dort
+gebaut — **positionsabhängig**, und der Wächter zeigt dann auf den
+**Schlüssel**, nicht auf den abgeleiteten Wert. Das sind zwölf Zeilen.
+
+**Verbindlich, ersetzt AD-016 Punkt 2 und 4:**
+
+- **AD-016.2 (neu):** Der Haltezustand ist im Cache-Schlüssel, **weil
+  `AdvisorRequest.problem` im Schlüssel ist**. Kein abgeleiteter
+  Fingerabdruck, keine zweite Form. Die Abwägung des ursprünglichen Punktes 2
+  gilt unverändert: ein überflüssiger Fehlschlag kostet 0,46 s (Gesamtlauf)
+  bzw. ~51 ms (Picker), ein Treffer über den falschen Haltezustand kostet
+  einen überschriebenen Halt.
+- **AD-016.4 (neu):** Es gibt keine Rückabbildung, weil es keine
+  Kanonisierung gibt. Festgehaltene Slots behalten ihren Platz, weil im
+  Schlüssel steht, wo sie sind.
+- **AD-016.1 und AD-016.3 bleiben unverändert.**
+
+**Was das AD-008 kostet, ausdrücklich benannt, weil eine neue Entscheidung
+einer alten widerspricht:** AD-008 hat entschieden, ein Suchproblem über die
+kanonisierte Slot-Farbmenge zu schlüsseln statt über das Gefäss. Für den
+**Cache-Schlüssel** ist diese Entscheidung damit abgelöst — er ist der
+Request, und der kennt Gefäss und Slotindizes. Der Trefferanteil, mit dem
+AD-008 argumentiert hat (74 Gefässe → 26 bzw. 47 Muster), entfällt.
+**Tragbar, weil:** der Hauptweg nach AD-018 erzeugt ohnehin je Slot einen
+eigenen Eintrag („freie Slots = genau einer"), die Einträge sind klein, und
+die LRU aus AD-007 ist ohnehin in S11 neu zu setzen (Vorschlag 64).
+**Nicht abgelöst ist AD-008 als Prüfäquivalenz:** die 26 bzw. 47 kanonischen
+Probleme bleiben das Mass, an dem der `qa-engineer` A3 vollständig prüft.
+Das war ein zweites, unabhängiges Argument in AD-008 und es hängt nicht am
+Cache. Siehe OF-22.
+
+**Warum D3 richtig ist, obwohl seine Begründung zu eng ist** — das gehört in
+die Akte, weil die Begründung sonst als Regel weiterlebt: der `director`
+begründet die Positionsabhängigkeit damit, dass *„die Slots verschiedene
+Farben tragen und die Menge der freien Slots eine andere ist"*. Der Fall, um
+den es geht, setzt aber voraus, dass **dasselbe** Relikt in beide Slots
+passt, also tragen sie in aller Regel **dieselbe** Farbe; und die Menge der
+freien Slots wäre unter einer Kanonisierung nach Farben gerade **gleich**.
+Der tragende Grund ist ein anderer und stärker: **die Antwort trägt
+Slotindizes** (`SlotChoice.slot_index`, `Candidate.slot_index`,
+`SlotPool.slot_index`). Ein Treffer über eine Permutation gäbe eine Antwort
+zurück, deren Indizes auf die Slots des *anderen* Problems zeigen; das
+geradezuziehen ist genau die Rückabbildung aus AD-016.4, die es nicht gibt
+und die niemand gebaut hat. Solange sie fehlt, ist jeder
+positionsunabhängige Treffer ein überschriebener Halt. Die Entscheidung ist
+damit **richtiger als ihre Begründung** — dieselbe Lage wie bei QA-101.
+
+---
+
+### Nachtrag II 2026-09-02 — Antworten des Nutzers zu OF-12, OF-13, F2 (AD-017, AD-018)
 
 **OF-13 — erledigt, wie vorgeschlagen:** zielfremde Flüche werden genannt,
 nicht abgewertet. AD-015 bleibt unverändert in Kraft.
@@ -2579,330 +1741,228 @@ präzisiert statt aufgehoben.
 Formulierung „Vorschlag erzeugen, dann anwenden" ist damit **abgelöst**; sie
 war unter der Annahme richtig, der Berater sei ein Ereignis auf Knopfdruck.
 
-### Änderungen am Umsetzungsschnitt (zusätzlich zu Nachtrag I)
+### AD-017 — Der Haltezustand gehört zum Paar (Nightfarer, Gefäss) und lebt im Fenster, nicht auf Platte (2026-09-02, Status: aktiv; präzisiert AD-014.8 und die Nicht-tun-Regel 15)
 
-| Schritt | Änderung |
-|---------|----------|
-| **S5++** | Die Vorsortierung ist ab jetzt ein **öffentliches Ergebnis**, nicht ein Zwischenschritt: `candidates` liefert je Kandidat den Grenzbeitrag gegen den Grundzustand, unter beiden Zielrichtungen. `search` verbraucht dieselbe Liste. |
-| **S9++** | Zwei Entprellungswerte (Picker kürzer als Gesamtlauf), LRU-Grösse neu (Vorschlag 64). Kein zweiter Cache, keine zweite Schlüsselform (AD-016). |
-| **S10++** | Der Halt lebt am `Planner` als `(hero_id, vessel_id, deep) -> Haltezustand` (AD-017). Die Anbindung des Pickers gehört ebenfalls hierher — `relicpicker.py` bekommt die bewertete Liste über den Controller, **nicht** einen eigenen Rechenweg. |
-| **S11++** | Zusätzlich zu messen: Picker-Lauf am weissen Slot (Erwartung ~51 ms), beide Entprellungswerte, LRU-Grösse, und ob der Gesamtlauf weiterhin der ungünstigste Fall ist. |
+**Kontext:** Antwort des Nutzers auf OF-12, wörtlich: *„Die Relikte selbst
+verfallen beim Wechsel, wenn man zurueck auf das Gefaess oder den Nightfarer
+springt soll es aber noch da sein. Also persistent in dem Gefaess selbst,
+sonst flexibel."* Das ist die dritte Option, die weder mein Vorschlag
+(„verfällt") noch „wandert mit" war: der Haltezustand ist eine Eigenschaft
+des Paars (Held, Gefäss), nicht der Sitzung und nicht des Slots.
 
-### Prüfpunkte, Ergänzung (zu AD-009 und Nachtrag I)
+**Kräfte:** Die verlangte Wirkung ist „weg und zurück, und es steht wieder
+da". Dagegen steht die Geschichte des Schlüsselraums: Zyklus 4 und 5 haben
+dreimal Nutzerdaten zerstört, es gilt Schema 3, Schlüssel sind prozentkodiert
+und **im Speicher** eindeutig, und jede Migration hält die Nachbedingung
+„erst alles lesen, dann schreiben, dann `sync()`, dann Rücklesung, und nur
+entfernen, was nachweislich steht". Und der Inhalt ist heikel: ein Halt
+verweist auf einen **Handle**, und Handles werden beim Einschmelzen oder
+Rechnerwechsel neu vergeben (Nachtrag zu AD-007).
 
-15. **Grenzbeitrag = Vorsortierwert.** Der im Picker gezeigte Wert eines
-    Kandidaten ist bitgleich die Zahl, nach der der Gesamtlauf denselben
-    Kandidaten für denselben Slot vorsortiert. Zwei Ansichten, eine Zahl.
-16. **Abnehmender Ertrag ist nachweisbar:** derselbe `+Stärke`-Kandidat hat
-    bei hohem Stärkewert einen kleineren Grenzbeitrag als bei niedrigem. Das
-    ist die Zusage des Nutzers an sich selbst und muss ein Test sein, kein
-    Argument. **Fällt dieser Test, ist die Ursache in `damage.py`/`model.py`
-    zu suchen, nicht im Berater.**
-17. **Halt überlebt den Gefässwechsel und kommt zurück** (AD-017), und ein
-    Halt auf ein nicht mehr besessenes Relikt fällt weg und wird genannt.
-18. **Kein `QSettings`-Zugriff im Berater-Pfad.** Der Wächtertest aus QA-049
-    deckt den literalen Aufbau ab; hier genügt, dass unter `advisor/` und im
-    Haltezustand kein `QSettings` vorkommt.
+**Optionen:**
+- **A — `QSettings`, eigener Schlüsselraum je (Held, Gefäss).** Überlebt
+  Neustarts. Konsequenz: ein **neues Schema** mit allem, was daran hängt —
+  Prozentkodierung, Eindeutigkeit im Speicher, Migration mit der
+  Nachbedingung oben, und eine Auflösungsregel für den Fall, dass das
+  gehaltene Relikt beim nächsten Start nicht mehr im Besitz ist. Das ist die
+  volle Maschinerie eines Werks für Ansichtszustand.
+- **B — Im Fenster, Abbildung `(hero_id, vessel_id, deep) -> Haltezustand`,
+  gehalten am `Planner`.** Konsequenz: „weg und zurück" trägt genau so, wie
+  der Nutzer es beschrieben hat; kein Schema, keine Migration, kein
+  Schlüsselraum, kein Datenverlustrisiko. Beim Programmende ist der Halt weg.
+- **C — In den bestehenden Build-Speicher (`chalices.save_build`).**
+  Konsequenz: ein Halt ist kein Bestandteil eines Builds; das Format eines
+  **Werks** würde für Ansichtszustand geändert. Schlechteste Option.
 
-### Risiken, Ergänzung
+**Entscheidung: B.** Der Nutzer beschreibt Hin- und Herspringen, also einen
+Vorgang **innerhalb** einer Sitzung; B erfüllt das vollständig. Ein Halt ist
+Ansichtszustand, kein Werk — und die Regel des Hauses lautet, ihn im Zweifel
+zu verwerfen statt zu retten. Ein über den Neustart geretteter Halt wäre
+ausserdem genau der Fall, gegen den AD-013 gebaut ist: er zeigt auf ein
+Exemplar, das inzwischen eingeschmolzen sein kann.
 
-| Risiko | Woran man es merkt | Rückweg |
-|--------|--------------------|---------|
-| **QA-018 trifft den Kern von AD-018.** Der Waffen-Tab nennt 203,4, die Detailtafel 244,1 für dieselbe Waffe — ein offener, gemessener Widerspruch in genau der Rechnung, aus der der Grenzbeitrag entsteht. Ein konstanter Versatz kürzt sich in einer Differenz heraus, eine falsche **Steigung** nicht — und der abnehmende Ertrag *ist* die Steigung. | Prüfpunkt 16 und der Vergleich der beiden Anzeigen. | **QA-018 ist damit keine Nebenbaustelle mehr, sondern Vorbedingung des Hauptwegs.** Empfehlung an den `director`: vor S10 einplanen. Solange er offen ist, trägt jede Picker-Zeile den Attack-Rating-Vorbehalt aus AD-004 sichtbar, nicht aufklappbar. |
-| Der Berater rechnet jetzt bei jeder Interaktion; eine spätere Verlangsamung von `model.compute()` wird sofort spürbar. | Ruckeln beim Tippen im Picker-Filter. | Entprellung erhöhen; Messpunkt in S11; im Äussersten AD-002 Option C, die weiterhin nachrüstbar ist. |
-| Der Spieler baut sich slotweise einen greedy Build und hält ihn für das Beste. | Der `Optimize`-Lauf findet mehr, als die sechs Picker-Entscheidungen ergaben. | Kein Fehler, sondern die Natur der beiden Fragen — aber die Pflichtzeile aus AD-018.3 muss dastehen. |
-| Ein Halt zeigt auf ein eingeschmolzenes Relikt. | Nach einem Neu-Scan des Saves. | AD-017.3: der Halt fällt beim Bauen des Requests weg und wird genannt. |
+**Verbindlich:**
+1. Die Abbildung lebt am `Planner`, **nicht** im `AdvisorController` — sie
+   überdauert einen Beraterlauf, aber nicht das Fenster. Der Berater bekommt
+   sie weiterhin nur als eingefrorenen Teil des `AdvisorRequest` (AD-014.8).
+2. Schlüssel ist `(hero_id, vessel_id, deep)`. Der Deep-Schalter gehört dazu,
+   weil er die Slotmenge ändert.
+3. **Gültigkeit wird beim Bauen des Requests geprüft, nicht beim Speichern.**
+   Ein Halt, dessen Handle nicht mehr im Besitz ist (Neu-Scan des Saves,
+   Einschmelzen), fällt weg und wird in `unknowns` genannt:
+   `"A held slot was released: that relic is no longer in your inventory."`
+   Stillschweigend weiterrechnen wäre die Variante, die einen falschen
+   Vorschlag erzeugt.
+4. **Kein `QSettings`-Eintrag, kein Schema, keine Migration.** Damit ist die
+   Nachbedingung aus Zyklus 4/5 nicht berührt — nicht weil sie eingehalten
+   wird, sondern weil kein persistenter Zustand entsteht.
+5. Nicht-tun-Regel 15 gilt in dieser Fassung weiter: nicht auf Platte, nicht
+   in `QSettings`. Die Ergänzung ist, dass der Zustand **im Fenster** einen
+   definierten Ort bekommt statt gar keinen.
 
-### Was der `developer` zusätzlich nicht tun soll
+**Bedingung für eine Neubewertung:** Sagt der Nutzer, dass der Halt einen
+**Programmneustart** überleben soll (OF-15), ist A richtig — dann aber mit
+allem: eigenes Schema, Migrationsnachbedingung, und eine ausgesprochene Regel
+für nicht mehr besessene Relikte. Das ist ein eigener Auftrag und nicht Teil
+des Beraters.
 
-17. **Keinen `QSettings`-Eintrag für den Haltezustand** und kein neues Schema
-    (AD-017). Bei Zweifeln: verwerfen, nicht retten.
-18. **Im Picker keine eigene Bewertung.** `relicpicker.py` zeigt an, was der
-    Controller liefert; es gibt weiterhin genau eine `compute`-Stelle
-    (`advisor/evaluate.py`).
-19. **Den Gesamtlauf nicht streichen**, auch wenn der Picker die häufiger
-    benutzte Ansicht wird. Es sind zwei Fragen (AD-018, Option B).
-20. **Den Grenzbeitrag nicht in der Zielfunktion bilden.** `goal` bewertet
-    einen `Build`; die Differenz bildet der Aufrufer. Sonst wandert
-    Grundzustandswissen in die Registry aus AD-004.
+**Konsequenzen:** Leicht wird — die Funktion, die der Nutzer beschrieben hat,
+ohne einen Meter neuen Speicherraum. Dauerhaft schwer wird — nichts, solange
+die Bedingung oben gilt.
 
-### Offene Frage, neu
-
-**OF-15 — an den App Designer, über `director`:** Soll der Haltezustand einen
-**Programmneustart** überleben? AD-017 liest die Antwort des Nutzers als
-„innerhalb der Sitzung, gebunden an Held und Gefäss" und kommt damit ohne
-persistenten Speicher aus. Soll er den Neustart überleben, ist das ein
-eigener Auftrag mit eigenem Schema, der Migrationsnachbedingung aus Zyklus
-4/5 und einer ausgesprochenen Regel für Relikte, die nicht mehr im Besitz
-sind — nicht eine Zeile mehr im Berater.
-
----
-
-## Nachtrag III 2026-09-02 — Die zweite Rechenschicht (AD-019 bis AD-021, QA-058)
-
-Anlass: QA-058. Der `compute`-Wächter ist grün und bleibt grün — er sichert
-die Schicht, für die er geschrieben wurde. Die Waffenzahl entsteht eine Etage
-höher, und dort wählen vier Anzeigestellen ihre Eingaben unabhängig. Das ist
-dieselbe Klasse von Befund wie QA-001, nur eine Schicht weiter oben.
-
-### Änderungen am Umsetzungsschnitt
-
-Vor S10 (Berater-Bau) tritt die Fassaden-Kette **W0 bis W5** aus AD-019. W6
-(ein Wert in `MULTIPLIERS_FOR`) steht ausserhalb der Kette und wartet auf die
-Spielmessung des Nutzers.
-
-| Schritt | Inhalt | Hängt ab von |
-|---------|--------|--------------|
-| **W0** | `nrplanner/weaponstab.py` löschen (QA-057) | — |
-| **W1** | `WeaponRating.per_type()`, drei Ausschreibungen umstellen | W0 |
-| **W2** | Fassade in `damage.py`, Politik mit den **heutigen** Werten | W1 |
-| **W3** | `app.py` Kachel + Tafel auf `damage.equipped()` | W2 |
-| **W4** | `arsenaltab` auf `damage.rank_candidates()`, `target_tier` explizit | W2 |
-| **W5** | Wächter aus AD-021 scharfschalten | W3, W4 |
-| **W6** | `MULTIPLIERS_FOR[Basis.CANDIDATE]` setzen | Spielmessung |
-
-### Reihenfolge gegenüber dem Berater — die Frage des `director`
-
-**Die Fassade kommt vor dem Berater. Die Spielmessung nicht.** Das ist die
-Präzisierung gegenüber dem Nachtrag II, wo QA-018 als Ganzes vor den Berater
-gezogen wurde.
-
-- **Warum die Fassade davor muss:** Der Hauptweg des Beraters ist der
-  Grenzbeitrag über `attack_rating` (AD-018). Solange `attack_rating` eine von
-  vier Lesarten ist, erbt der Berater die Mehrdeutigkeit, und eine falsche
-  **Steigung** kürzt sich in einer Differenz nicht heraus.
-- **Warum die Messung danach kommen darf:** Der Berater vergleicht Kandidaten
-  **bei fester Waffenmenge**. Eine flache Multiplikatorschicht wirkt auf jeden
-  Kandidaten mit demselben Faktor je Schadensart; sie skaliert den
-  Grenzbeitrag, dreht ihn nicht um und verändert den abnehmenden Ertrag nicht.
-  Prüfpunkt 16 (derselbe +Stärke-Kandidat hat bei hohem Stärkewert einen
-  kleineren Grenzbeitrag) ist gegenüber diesem Faktor **invariant**.
-  **Randbedingung dieser Aussage, und sie ist scharf:** sie gilt für
-  Rangfolgen über Relikte bei fester Waffe. Sobald eine Zielrichtung
-  **Waffen gegeneinander** stellt, sind die `class_rates` je Waffe
-  verschieden, und dann entscheidet W6 mit. Zielrichtungen, die Waffen
-  vergleichen, dürfen erst nach W6 scharfgestellt werden.
-
-**Folge für den `director`:** Der Berater-Bau ist ab W5 nicht mehr durch die
-Spielmessung blockiert. Was noch blockiert ist, ist die **angezeigte absolute
-Zahl** — und dafür trägt jede Picker-Zeile weiterhin den
-Attack-Rating-Vorbehalt aus AD-004, bis W6 steht.
-
-### Prüfpunkte, Ergänzung
-
-28. **Untere Schicht bitgleich über den ganzen Umbau.** (Bis 05.09.2026 als
-    Prüfpunkt 18 geführt; umnummeriert in Nachtrag VI, weil Nachtrag II
-    dieselbe Nummer bereits vergeben hatte.) Über die
-    Differentialfälle aus Zyklus 2: `weapons.rate` liefert vor und nach W0–W5
-    dieselben Zahlen. Abweichungen dürfen nur oberhalb der Fassade entstehen.
-19. **Kachel und Tafel nennen dieselbe Zahl.** Nach W3, headless über die
-    echten Widgets: für jeden gefüllten Slot ist die Kachelzahl gleich der
-    Gesamtzahl der Tafel. Das ist der Test, den es zu QA-018 nie gab.
-20. **Das Ziel-Tier überlebt den Umbau.** Nach W4: Slot auf Tier 3, Spinbox
-    auf 1, kein Relikt — der Arsenal-Tab muss weiterhin auf Tier 1 ranken und
-    **darf** von Kachel und Tafel abweichen (AD-020, Punkt 1). Ein Test, der
-    hier Gleichheit fordert, wäre der Fehler, nicht der Befund.
-21. **Der zweite Wächter sieht jeden Weg um sich herum.** Dieselben sieben
-    Schreibweisen wie beim `compute`-Wächter, gegen `weapons.rate`/`rank`.
-22. **Der Golden-Vertrag ist erweitert, bevor er gebrochen wird.** Der
-    Docstring von `test_weapon_damage_golden.py` nennt die zweite erlaubte
-    Neuaufnahme-Bedingung (dokumentierte Entscheidung, AD-/QA-Nummer im
-    Commit), **bevor** W3 die erste Neuaufnahme auslöst.
-
-### Risiken, Ergänzung
-
-| Risiko | Woran man es merkt | Rückweg |
-|--------|--------------------|---------|
-| Die Neuaufnahme des Golden-Stands bei W3/W4 löscht den Beleg, dass die Rechnung unverändert ist. | Ein grüner Lauf, der nichts mehr belegt. | Prüfpunkt 28 (bis 05.09.2026: 18) hängt an der **unteren** Schicht und überlebt die Neuaufnahme. Er ist der eigentliche Beleg; der Golden-Stand ist danach der Beleg für die Anzeige. |
-| Die Fassade vereinheitlicht Achse B mit und der Arsenal-Tab rankt auf dem Slot-Tier. | Prüfpunkt 20 fällt. | AD-020, Punkt 1: `target_tier` ist Pflichtargument ohne Vorgabewert. |
-| W6 wird nie beantwortet und `MULTIPLIERS_FOR[CANDIDATE]` bleibt auf dem Platzhalter stehen. | Nichts — genau das ist die Gefahr. | Der Platzhalter ist keiner: W2 setzt den **heutigen** Wert (`False`), das Verhalten ist damit unverändert und der Vorbehalt aus AD-004 bleibt sichtbar, bis der Nutzer misst. |
-| Eine Zielrichtung des Beraters vergleicht Waffen gegeneinander, bevor W6 steht. | Eine Empfehlung, die die Waffe wechselt. | Solche Zielrichtungen bleiben bis W6 aus der Registry (AD-004) heraus. |
-
-### Was der `developer` zusätzlich ausdrücklich nicht tun soll
-
-21. **Nicht entscheiden, ob 203,4 oder 244,1 richtig ist.** W2 trägt die
-    heutigen Werte ein, nicht die vermuteten. Der Wert ist eine Messung, kein
-    Entwurf.
-22. **`weaponstab.py` nicht migrieren, sondern löschen** (W0). Es hat keinen
-    Importeur und ist bereits gedriftet (`setRange(0, 25)` gegen die
-    Tier-Semantik 1..4). Es zu migrieren hiesse zu entscheiden, was „+17"
-    bedeutet — eine Frage ohne Antwort.
-23. **Kein Vorgabewert für `target_tier`** in `candidate`/`rank_candidates`.
-    Ein Vorgabewert setzt still das Slot-Tier ein und stellt Achse B als
-    Fehler dar.
-24. **Keine vierte `Basis` ohne AD-Eintrag.** Wer eine neue Frage braucht,
-    meldet sie; er stellt sie sich nicht selbst zusammen.
-25. **Den `compute`-Wächter nicht anfassen ausser zur Verallgemeinerung von
-    `compute_call_sites`.** Seine Zusicherung `{app.py: 1}` bleibt wörtlich
-    stehen.
-26. **`scripts/capture_weapon_damage.py` nicht nach `nrplanner/` verschieben**,
-    um den Wächter zufriedenzustellen. Es liegt absichtlich ausserhalb
-    (QA-023); die Grenze wird im Docstring genannt, nicht umgangen.
-
-### Offene Fragen, neu
-
-**OF-16 — an den App Designer, über `director`, entscheidet W6:** Die
-Spielmessung aus `docs/state.md` ist unverändert die offene Frage. Neu ist,
-dass sie **nur noch einen Wert** bestimmt (`MULTIPLIERS_FOR[Basis.CANDIDATE]`)
-und nicht mehr den Bauplan. Sie blockiert ab W5 die angezeigte Zahl, nicht
-mehr den Berater.
-
-**OF-17 — an den `director`:** Darf `tests/golden/weapon_damage.json` bei W3
-und W4 neu aufgenommen werden, mit AD-019 im Commit-Text als Grund? Ohne diese
-Freigabe hält W3 an, weil sein eigener Vertrag die Neuaufnahme heute nur nach
-einem Spiel-Patch erlaubt. **Empfehlung: ja, aber erst nachdem Prüfpunkt 28
-(bis 05.09.2026: 18) grün ist** — sonst gibt es keinen zweiten Beleg mehr.
-
-**OF-18 — an den `ui-ux-designer`, nicht an mich:** `Basis.EQUIPPED`,
-`CANDIDATE` und `BARE` sind drei verschiedene Fragen, die gleichzeitig auf dem
-Schirm stehen können. Die Benennung der Spalten und Beschriftungen (QA-018
-Weg B) sollte diese drei Fragen unterscheidbar machen; welche Wörter, ist
-nicht meine Entscheidung. Der Entwurf liefert `Rating.basis` mit, damit die
-Anzeige benennen **kann**, was sie zeigt.
+**Umkehrbarkeit:** leicht.
 
 ---
 
-## Nachtrag IV 2026-09-02 — Antworten vor W2 (Z1, AD-022, AD-023)
+### AD-018 — Der Hauptweg des Beraters ist der Grenzbeitrag je Kandidat im Picker; er ist dieselbe Rechnung wie die Vorsortierung, und der Gesamtlauf bleibt als zweite Frage bestehen (2026-09-02, Status: aktiv in der Sache; **Punkt 4 und die Laufzeittabelle nachgezogen durch AD-028**, 2026-09-08)
 
-Anlass: der W1-Bericht des `developer` (W0 und W1 gebaut, 30 000
-Differentialfälle, 0 Abweichungen, Vergleicher selbst mutationsgeprüft) und
-eine Korrektur des `ui-ux-designer` an meiner Begründung aus Nachtrag III.
+**Kontext:** Der Nutzer hat F2 nicht beantwortet, sondern die Fragestellung
+verworfen. Wörtlich: *„Ich will im Relikte-Auswahlfenster Vorschlaege haben.
+Diese Vorschlaege sollen immer schon die Berechnung machen vom aktuellen
+Build aus. … Z.B. macht ein +Staerke weniger viel aus, wenn ich schon sehr
+viel Staerke habe, weil der Schaden dann weniger stark steigt."*
 
-### Auflagen für W2
+**Die Lesart des `director` ist bestätigt, und sie kostet nichts Neues.**
+Der Wert eines Kandidaten ist sein Grenzbeitrag
+`goal(evaluate(held + Kandidat)) − goal(evaluate(held))`. Das ist **wörtlich
+die Vorsortierung aus AD-014.3** — dieselbe Zahl, für denselben Slot, aus
+demselben `evaluate`. Was AD-014 als internen Zwischenschritt beschrieb, ist
+jetzt die sichtbare Hauptausgabe. Es kommt keine Rechnung dazu; es wird eine
+Rechnung, die ohnehin läuft, angezeigt.
 
-**A1 — Die Fassade bildet kein `total` unabhängig.** Zusicherung Z1 in AD-019,
-mit exaktem Gleichheitstest (`==`, kein `approx`). Die Lesart des `director`
-ist bestätigt und trägt weiter als angenommen: der Grenzbeitrag (AD-018) ist
-eine **Differenz zweier Totals**, und zwei Klammerungen setzen das
-Rauschniveau des Vergleichs statt der Arithmetik.
+Der abnehmende Ertrag, nach dem der Nutzer fragt, fällt tatsächlich von
+selbst heraus: die Attributkurven und die Skalierung stecken in
+`damage.py`/`model.py`, und eine Differenz zweier Punkte auf einer konkaven
+Kurve ist am oberen Ende kleiner. **Er fällt aber nur heraus, wenn die
+Steigung dieser Kurve stimmt — siehe das Risiko unten (QA-018).**
 
-**A2 — Die doppelte `fields`-Schleife in `attack_rating` darf in W2
-zusammengelegt werden, aber nur unter Erhalt der Multiplikationsreihenfolge.**
-Heute wird je Feld erst `build.rates[f]`, dann `class_rates[f]` an `rate`
-heranmultipliziert; `rates_in_play` benutzt daneben das Produkt beider. Eine
-Zusammenlegung, die stattdessen `value = build.rates[f] * class_rates[f]`
-bildet und `rate *= value` rechnet, ändert die Assoziationsreihenfolge und
-damit potentiell das letzte Bit — W2 ist als bitgleich zugesagt. Also:
-zusammenlegen mit unveränderter Reihenfolge, oder gar nicht. Gelingt es nicht
-sauber, wandert es nach W5, wo keine Bitgleichheit mehr zugesagt ist. Die
-Entscheidung darüber trifft der `developer` am Differentialtest, nicht am
-Augenschein.
+**Optionen:**
+- **A — Beim alten Entwurf bleiben:** Gesamtlauf auf Knopfdruck, Picker zeigt
+  nur eine Markierung (`UI_SPEC` AK-28). Konsequenz: beantwortet die Frage des
+  Nutzers nicht; „was bringt *mir* dieses Relikt jetzt" bliebe unbeantwortet.
+- **B — Picker-Bewertung als alleiniger Weg**, Gesamtlauf streichen.
+  Konsequenz: wer sich Slot für Slot durchklickt, baut **greedy** — und das
+  ist AD-003 Option B, gemessen falsch bei Exklusivgruppen und
+  `isStrongestEffect`. Der Berater verlöre genau die Fähigkeit, für die es die
+  Beam-Suche gibt.
+- **C — Beides, aus einer Rechnung:** der Picker beantwortet „was ist für
+  **diesen** Slot jetzt das Beste" (Grenzbeitrag, h = Slotzahl − 1), der
+  Gesamtlauf „welche **Menge** ist zusammen die beste" (Beam über die freien
+  Slots). Konsequenz: zwei Ansichten, ein `evaluate`, eine Bewertungsautorität.
 
-**A3 — W2 fasst nur `nrplanner/damage.py` an.** Dass `arsenaltab` weiterhin
-`weapons.rank` ruft, ist **richtig und W4**, nicht W2. Bestätigt. Genau
-deshalb kann W2 bitgleich sein: es ändert keinen Aufrufer.
+**Entscheidung:** C. Es sind zwei verschiedene Fragen und nicht zwei
+Darstellungen derselben Antwort — deshalb bleibt der `Optimize`-Lauf, den der
+Nutzer ohnehin weiter will.
 
-**A4 — W1b geht W2 voraus** (AD-022): reine Umbenennung, durch die bestehende
-Differentialstrecke gedeckt, damit W2 „umbenannt" nicht mit „verändert"
-vermischt.
+**Verbindlich:**
+1. **Grenzbeitrag statt Absolutwert im Picker.** Angezeigt wird die Differenz
+   zum Grundzustand; gerankt wird danach. Der Grundzustand ist der aktuelle
+   Build ohne den geöffneten Slot — dieser Slot ist im Sinne von AD-014 der
+   **einzige freie**, alle anderen sind gehalten, gleichgültig ob der Spieler
+   sie festgehalten hat oder nicht.
+2. **Beide Zielrichtungen kosten fast nichts.** Teuer ist `compute`, nicht
+   `goal`. `evaluate` liefert einen `Build`; ihn unter beiden Zielrichtungen
+   zu bewerten kostet zwei Funktionsaufrufe über fertige Felder. Ob der Picker
+   eine Spalte oder zwei zeigt, ist damit eine Frage des `ui-ux-designer` und
+   keine Kostenfrage.
+3. **Ein Hinweis, der aus dem Verfahren folgt** (A7, Pflichtzeile, sobald der
+   Spieler slotweise wählt): `"Chosen slot by slot. Relics that only pay off
+   together are not visible this way — the Optimize run looks for those."`
+   Ohne diesen Satz behauptet die Picker-Liste eine Optimalität, die AD-003
+   Option B widerlegt hat.
+4. **Der Lauf bleibt im Worker.** Auch 50 ms gehören nicht in den
+   Hauptthread, wenn sie bei jedem Tastendruck im Filterfeld anfallen können
+   (AD-006). Entprellung und Generationszähler gelten unverändert.
+   *(Nachtrag 2026-09-08: dieser Punkt ist gebaut worden als sein Gegenteil —
+   `relicpicker.SlotAdvice.ranking` rechnet im Hauptthread, mit einem
+   Docstring, der es aus der widerlegten `~51 ms`-Zahl begruendet. **AD-028
+   zieht Punkt 4 nach und macht ihn verbindlich**; die Entscheidung hier war
+   richtig und ist an ihrer Zahl gescheitert, nicht an ihrem Argument.)*
 
-### Korrektur an Nachtrag III
+**Laufzeit — die entscheidende Verschiebung, gerechnet aus den Grundzahlen.**
+Aus „ein Lauf auf Knopfdruck" wird „ein Lauf bei jeder Interaktion". Die
+gute Nachricht steht in den Zahlen: ein Picker-Lauf ist **eine** Ebene, also
+eine Bewertung je Kandidat des Slots, nicht `Ebenen × W × K`.
 
-Der Abschnitt „Reihenfolge gegenüber dem Berater" in Nachtrag III ist an einer
-Stelle **falsch** und wird durch AD-023 ersetzt: die Invarianz des
-Grenzbeitrags gegenüber W6 gilt nur, solange der Multiplikator aus dem
-**Grundzustand** kommt. Bringt der Kandidat selbst eine Angriffsrate mit, tritt
-ein Term `m·(r−1)·S(B)` hinzu, der am **ganzen** Angriffswert hängt und die
-Rangfolge drehen kann. Die Randbedingung meiner Aussage war benannt gewesen —
-angewendet wurde sie trotzdem auf den allgemeinen Fall.
+| Fall | Bewertungen | Kosten |
+|------|-------------|--------|
+| weisser Slot, normal (grösster Pool) | 205 | ~51 ms |
+| weisser Slot, deep | 101 | ~25 ms |
+| farbiger Slot | 21–55 | ~5–14 ms |
+| Grundzustand je Lauf | 1 | ~0,25 ms |
+| **Gesamtlauf (`Optimize`), unverändert** | 3 929 | **0,46 s** |
 
-Was von Nachtrag III **stehen bleibt:** die Fassade muss vor den Berater; der
-**Bau** des Beraters ist ab W5 nicht von der Spielmessung blockiert.
-Was **ersetzt** wird: die Auslieferung einer Rangfolge, die
-AR-Raten-Kandidaten enthält, ist es sehr wohl — mit der berechneten Markierung
-aus AD-023, Punkt 2, statt eines pauschalen Vorbehalts.
+(0,25 ms je Bewertung, weil im Picker fast immer ein voller Build bewertet
+wird — der obere Rand der gemessenen Spanne.)
 
-### Prüfpunkte, Ergänzung
+> **Korrektur vom 2026-09-08 (AD-028), ersetzt die Zahlen dieser Tabelle,
+> nicht ihre Aussage.** Jede Zahl der Tabelle ist **gerechnet**, nicht
+> gemessen: 205 Kandidaten mal 0,25 ms. Gemessen wurde sie am 08.09.2026 zum
+> ersten Mal, und beide Faktoren waren daneben — 206 Kandidaten mal
+> **1,095 ms**, ergibt **318,1 ms** (Median, n=25, Spanne 289,6–358,9;
+> `docs/perf/baselines.md` S11-C, Slot 2, weiss; Umgebung: Ryzen 7 5800H bei
+> 1102 von 3201 MHz unter `Legion Quiet Mode`, CPython 3.12.10, Codestand
+> `76f1887` — der konservative Fall, nicht der guenstige).
+> Damit gilt: `~51 ms` → **318,1 ms** · `~25 ms` (weiss, deep) → nicht neu
+> gemessen · farbiger Slot `~5–14 ms` → **32,3–81,7 ms** (S11-C) ·
+> Gesamtlauf `0,46 s` → **5,02 s** (S11-A).
+> **Was daran haelt:** das Verhaeltnis. Der teuerste Picker-Lauf ist rund ein
+> Sechzehntel des Gesamtlaufs, und der unguenstigste Fall des Beraters bleibt
+> der Gesamtlauf. **Was faellt:** der Satz „liegt unter der 250-ms-Schwelle
+> aus AK-09". 318,1 ms liegen **darueber**, und der naechste Absatz — „Auch
+> 50 ms gehoeren nicht in den Hauptthread" — ist damit nicht mehr eine
+> Vorsichtsregel, sondern der Befund QA-208.
 
-23. **`total == sum(per_type.values())` exakt**, je Schicht, über die
-    Differentialfälle aus W1.
-24. **Der Vorbehalt aus AD-023 erscheint genau dann**, wenn das Kandidatenfeld
-    mindestens einen Effekt mit einem Feld aus `AR_RATE_FOR` oder dessen
-    klassengebundener Variante enthält — und sonst nicht. Zwei Fälle, beide
-    konstruierbar, weil die Familie vollständig aufgezählt ist.
-25. **Nach W5 gibt es im Programm genau eine Summation** der Schadensarten:
-    `WeaponRating.total` hat keinen Leser mehr oder existiert nicht mehr.
+Der teuerste Picker-Lauf ist damit rund **ein Neuntel** des Gesamtlaufs und
+liegt unter der 250-ms-Schwelle aus `UI_SPEC` AK-09, ab der überhaupt ein
+Wartezustand gezeigt wird. Der ungünstigste Fall des Beraters bleibt
+unverändert der Gesamtlauf mit nichts festgehalten, 0,46 s.
 
-### Was der `developer` zusätzlich nicht tun soll
+Was sich verschiebt, ist nicht die Spitze, sondern die **Häufigkeit**: der
+Berater rechnet jetzt beim Öffnen des Pickers und nach jeder Änderung, die
+den Grundzustand bewegt (Level, Waffe, ein anderer Slot, ein deklarierter
+konditionaler Effekt). Deshalb sind die beiden bereits beschlossenen
+Schutzmechanismen jetzt tragend statt vorsorglich: die Entprellung (AD-006.5)
+und der Generationszähler (AD-006.3). Neu ist nur die Empfehlung, die
+Entprellung für den Picker-Pfad **kürzer** zu setzen als für den Gesamtlauf
+(Vorschlag 100 ms gegen 250 ms) — 50 ms Rechnung hinter 250 ms Wartezeit
+fühlt sich träger an, als sie ist. Der `performance-tuner` setzt beide Werte
+in S11.
 
-27. **`weapons.WeaponRating.total` vor W5 nicht umdefinieren.** Solange es zwei
-    Pfade gibt, ist es der Bezugspunkt der Differentialprüfung; eine
-    Neuklammerung dort macht die Prüfung uninterpretierbar.
-28. **Keine Toleranz in der Z1-Prüfung.** `pytest.approx` würde genau die
-    Drift verstecken, wegen der die Zusicherung existiert.
-29. **Beim Fallenlassen von `WeaponRating.total` in W5 die Sortierung von
-    `weapons.rank` nicht ohne Zweitschlüssel lassen.** QA-059 hat gerade
-    belegt, dass nicht reproduzierbare Sortierung in diesem Programm real ist;
-    `(-summe, weapon["id"])`.
+**Zwischenspeicher und Generation (präzisiert AD-016).** Es entsteht **keine
+zweite Schlüsselform.** Ein Picker-Lauf ist in der Kanonisierung aus AD-016
+der Fall „freie Slots = genau einer": Schlüssel ist
+`(Farbe des freien Slots, deep, held_fingerprint, goal_id, weighting_id,
+inventory, snapshot, weapon, declared, hero, level)`. Zwei Folgen, beide
+gewollt: das Durchklicken durch sechs Slots erzeugt sechs kleine Einträge
+statt eines grossen, und ein zurückgeklickter Slot antwortet aus dem Cache.
+Weil die Einträge nun kleiner und zahlreicher sind, ist die LRU-Grösse aus
+AD-007 (Vorschlag 32) neu zu setzen — Aufgabe des `performance-tuner` in S11,
+Vorschlag 64.
+
+**Konsequenzen:** Leicht wird — die Frage, die der Nutzer tatsächlich stellt,
+und zwar ohne neue Rechnung; ausserdem ist der Picker-Wert *dieselbe* Zahl,
+nach der der Gesamtlauf vorsortiert, die beiden Ansichten können sich also
+nicht widersprechen. Dauerhaft schwer wird — der Berater ist jetzt an der
+Interaktion beteiligt statt daneben; jede künftige Verlangsamung von
+`model.compute()` wird sofort spürbar, nicht erst auf Knopfdruck. Das ist der
+Preis dieser Entscheidung und gehört als Messpunkt in S11.
+
+**Umkehrbarkeit:** mittel. Die Rechnung ist dieselbe; rückgängig wäre nur die
+Anzeige. Was nicht leicht zurückgeht, ist die Erwartung des Nutzers, dass
+jede Auswahl sofort bewertet ist.
 
 ---
 
-## Nachtrag V 2026-09-02 — Die Klammerungsfrage aus W4 (AD-024)
-
-Anlass: der `developer` hat in W4 eine Abweichung gemessen, die zu keinem der
-acht AD-020-Punkte passt, und sie **gemeldet statt einsortiert**. Das war
-richtig; sie gehört in keine der beiden vom `director` vorgeschlagenen Stellen.
-
-### Die drei Antworten in Kurzform
-
-1. **Ort:** weder neunter AD-020-Punkt noch Absatz in AD-022, sondern
-   **AD-024**. AD-020 trennt Absicht von Fehler bei *semantischen*
-   Unterschieden; die Klammerung ist keiner. AD-022 wäre der Ort gewesen,
-   solange es um die Fassade ginge — die Frage betrifft aber inzwischen eine
-   **zweite Stelle** (`bonus`-Schleife in `weapons.rate`), die mit der Fassade
-   nichts zu tun hat und eine **andere** Antwort bekommt. AD-020 erhält einen
-   Punkt 9, der auf AD-024 verweist, damit man sie dort findet, wo man sucht.
-2. **Absicht oder Fehler: keins von beidem, und die vorgelegte Lesart trifft
-   nicht zu.** „Alte Klammerung = Fehler, 584 ULP = Korrektur" behauptet, eine
-   der beiden Summationen sei genauer — das ist nicht belegbar, und gegen das
-   Spiel ist keine von beiden geprüft. **Der Fehler war nie einer der beiden
-   Werte, sondern dass es zwei gab.** Die 584 ULP sind der Preis der
-   Vereinheitlichung; die Messung belegt, dass er unsichtbar ist (0 von 7 172
-   Anzeigetexten).
-3. **W5:** Die Frage verschwindet nicht. Z1 bleibt tragend; Teilsummen bleiben
-   erlaubt, aber nicht auf Gleichheit mit `final_total` prüfbar; und
-   Nicht-tun-Regel 29 (stabiler Zweitschlüssel in `weapons.rank`) ist ab jetzt
-   **gemessen begründet** statt vorsorglich — nahe Gleichstände können durch
-   1 ULP die Plätze tauschen.
-
-### Beide Stellen unter einer Regel
-
-> Die Summationsreihenfolge wird nur geändert, wenn die Änderung **zwei
-> Darstellungen derselben Zahl auf eine reduziert**. Eine Änderung, die nur
-> „genauer" verspricht, wird nicht vorgenommen.
-
-Arsenal-Tab (W4): erfüllt sie, wird gemacht. `bonus`-Schleife: erfüllt sie
-nicht (nur eine Darstellung, 48 100 von 258 192 Karten betroffen), **bleibt
-dauerhaft** eine Schleife. Der dortige Kommentar bindet sie heute an die
-Bitgleichheit eines Schrittes und sagt damit das Falsche — beim nächsten
-Anfassen auf die Begründung aus AD-024 umschreiben. Das ist eine
-Kommentarkorrektur, kein eigener Auftrag.
-
-### Prüfpunkte, Ergänzung
-
-26. **Einartige Armaturen sind gegenüber der Klammerung invariant.** Bei einer
-    Schadensart sind beide Klammerungen identisch — das ist der Gegenprobe-Fall
-    zur Messung des `developer` und eine billige Zusicherung, dass die
-    gemessene Verschiebung wirklich aus der Klammerung stammt und nicht aus
-    etwas anderem, das W4 mitgebracht hat.
-27. **Nach W5 sortiert `weapons.rank` reproduzierbar**, auch bei
-    ULP-Gleichstand: zweimal derselbe Lauf, byteweise dieselbe Reihenfolge.
-    Verwandt mit QA-059, aber ein eigener Fall.
-
-### Was der `developer` zusätzlich nicht tun soll
-
-30. **Die `bonus`-Schleife in `weapons.rate` nicht auf `sum()`, `math.fsum()`
-    oder kompensierte Summation umstellen** — auch nicht „im Vorbeigehen" bei
-    W5. AD-024, Punkt 2.
-31. **Keine der beiden Klammerungen als „genauer" bezeichnen**, weder im Code
-    noch im Commit. Sie ist verbindlich, weil Z1 sie festlegt; sie ist nicht
-    besser.
-32. **Teilsummen über ausgewählte Schadensarten nicht gegen `final_total`
-    prüfen.** Sie werden aus `final_per_type` gebildet und dort belassen.
-
 ---
 
-## Nachtrag VI 2026-09-05 — Zwei Klassen von Vorbehalten, die Ergebnisform des Pickers, und vier Präzisierungen (AD-025)
+## Themenbereich C — Zielrichtungen, Vorbehalte, Fluechte
+
+*Was eine Zielrichtung ist, und was das Programm sagt, wo die Spieldateien
+nichts hergeben. Das ist der Bereich, an dem A7 haengt: keine erfundene Zahl,
+und der Vorbehalt gehoert ins Ergebnis, nicht in eine Fussnote.*
+
+### Nachtrag VI 2026-09-05 — Zwei Klassen von Vorbehalten, die Ergebnisform des Pickers, und vier Präzisierungen (AD-025)
 
 Anlass: der Erstdurchlauf des `qa-engineer` über den Rechenkern (T-041) hat
 zwei Entwurfslücken gefunden, die er ausdrücklich nicht selbst geschlossen
@@ -2915,6 +1975,286 @@ getroffen (D1 bis D4); dieser Nachtrag arbeitet sie aus.
 Schwellenwert. D1 bis D4 betreffen ausschliesslich **Form und Text**. Der
 Rechenkern rechnet nach diesem Nachtrag dasselbe wie davor; er sagt mehr
 darüber.
+
+---
+
+### AD-004 — Zielrichtungen als Registry reiner Funktionen `Build -> GoalScore`, mit ausdrücklicher Unwissensliste (2026-09-01, Status: aktiv)
+
+**Kontext:** A3 verlangt mindestens zwei benannte Zielrichtungen und
+Erweiterbarkeit. A7 verlangt, dass das Programm sagt, wo die Spieldateien
+keine Antwort geben. Beides trifft sich an derselben Stelle: eine
+Zielrichtung ist nicht nur eine Zahl, sondern eine Zahl *mit erklärtem
+Geltungsbereich*.
+
+**Optionen:**
+- **A — Ein Gewichtsvektor über Feldnamen** (`{"physicsAttackRate": 1.0, …}`),
+  Zielrichtungen als Datensätze. Sehr einfach erweiterbar, sogar zur Laufzeit.
+  Konsequenz: kann nur linear über `build.rates` — kann kein Attack Rating
+  bilden (das braucht die Waffe, die Attributkurven und die Skalierung), kann
+  kein effektives HP bilden (das braucht `build.derived` mal die
+  Schadensminderung). Die beiden geforderten Zielrichtungen sind genau die,
+  die so nicht ausdrückbar sind.
+- **B — `if goal == "damage": … elif goal == "tank": …` in der Suche.**
+  Konsequenz: jede neue Zielrichtung fasst die Suche an. Genau die Kopplung,
+  die AD-001 vermeiden soll.
+- **C — Eine `Goal`-Datenklasse mit `score(build, ctx) -> GoalScore`, in
+  einem Dict registriert.** Konsequenz: eine neue Zielrichtung ist eine
+  Funktion plus ein Registry-Eintrag; die Suche kennt nur das Protokoll.
+
+**Entscheidung:** C.
+
+```python
+# advisor/types.py  (illustrierend, kein Anwendungscode)
+@dataclass(frozen=True)
+class GoalScore:
+    value: float                       # die Rankinggrösse, gross = besser
+    display: str                       # "Attack rating 812" (Englisch)
+    unit: str                          # "AR" | "effective HP" | ...
+    unknowns: tuple[str, ...]          # A7: was diese Zahl NICHT weiss
+    weights_note: str                  # die offengelegte eigene Annahme
+
+@dataclass(frozen=True)
+class Goal:
+    id: str                            # "max_damage"
+    label: str                         # "Maximise damage"       (Englisch)
+    blurb: str                         # ein Satz für die Oberfläche
+    score: Callable[[model.Build, GoalContext], GoalScore]
+
+GOALS: dict[str, Goal] = {...}         # die Registry
+```
+
+**Die zwei ausgelieferten Zielrichtungen:**
+
+**`max_damage` — „Maximise damage".** Rankinggrösse ist das Attack Rating der
+gewählten Referenzwaffe unter `build.attributes`, mit den Angriffsraten
+darauf — berechnet von `nrplanner/damage.py` (AD-005), also von genau
+derselben Rechnung, die die Waffentafel zeigt.
+`unknowns` enthält *immer mindestens* — **ab AD-025 ist das die Liste von
+`Goal.scope`, nicht die von `GoalScore.unknowns`**:
+- „Attack rating has not been verified against an in-game number." (README
+  Known limits) — **historisch. Seit QA-095 (2256 Vergleiche) ist der Satz
+  falsch; an seiner Stelle steht der Geltungsbereich der Übereinstimmung
+  (`advisor/goals.py`, `UI_SPEC` Nachtrag zu QA-116). Hier stehengelassen
+  als Beleg dafür, wie die Zeile einmal lautete — nicht als geltende
+  Vorgabe (QA-116).**
+- „Spell damage is not in the game data, so spells are not rated." (README)
+- „Critical-only bonuses are excluded — attack rating is the ordinary hit."
+  (bereits so in `_refresh_weapon_damage` entschieden, siehe `model.CRIT_RATE`)
+- bei fehlender Referenzwaffe: „No armament selected — ranked on attack
+  multipliers only, without weapon scaling."
+
+**`min_damage_taken` — „Minimise damage taken".** Rankinggrösse ist
+effektives HP: `build.derived["HP"]` geteilt durch die Schadensminderung, je
+Schadensart getrennt gerechnet (die vier physischen —
+`slash/blow/thrust/neutralDamageCutRate` — und die vier elementaren —
+`magic/fire/thunder/darkDamageCutRate`), dann zu einem Skalar gemittelt.
+**Die Mittelung ist eine Annahme, und sie wird ausgesprochen:** die
+Spieldateien sagen nichts darüber, wie oft welche Schadensart vorkommt. Daher
+gleiches Gewicht auf allen acht, und `weights_note` sagt genau das im
+Klartext. Wer es besser weiss, verstellt die Gewichte (offene Frage OF-3).
+`unknowns` enthält mindestens:
+- „The game data gives no relative frequency of damage types; all eight are
+  weighted equally."
+- „Ailment and status resistance are not part of this figure."
+- „The break threshold is unknown." (README, sofern relevant angezeigt)
+
+**Nachtrag 2026-09-01 — Beschluss des `director` zu OF-3 und OF-5.**
+
+*OF-5 (bestätigt):* Ohne gewählte Referenzwaffe wird der Lauf **nicht**
+verweigert. `max_damage` rechnet gegen eine benannte Annahme, und die Annahme
+steht sichtbar im Ergebnis. Begründung des `director`, die ich übernehme:
+A7 ist erfüllt, solange die Annahme dasteht — Schweigen wäre der Verstoss,
+nicht die Annahme.
+
+*OF-3 (noch beim Nutzer):* Ob die Gewichtung der acht Schadensarten ein
+Bedienelement wird, ist offen. Der Entwurf muss beides tragen, **ohne die
+Registry umzubauen**. Deshalb verbindlich: die Gewichte sind **Daten im
+`GoalContext`**, nicht Konstanten in der Zielfunktion.
+
+```python
+# advisor/types.py  (illustrierend, kein Anwendungscode)
+@dataclass(frozen=True)
+class Weighting:
+    id: str                            # "even"
+    label: str                         # "All damage types equally" (Englisch)
+    note: str                          # der Satz, der in weights_note landet
+    weights: Mapping[str, float]
+
+@dataclass(frozen=True)
+class GoalContext:
+    data: Mapping
+    hero: Mapping
+    level: int
+    weapon: Mapping | None
+    weighting: Weighting               # Voreinstellung: DEFAULT_WEIGHTING
+```
+
+`score()` liest `ctx.weighting.weights` und schreibt `ctx.weighting.note` nach
+`GoalScore.weights_note`. Bleibt es bei der festen Annahme, liefert der
+`AdvisorController` immer `DEFAULT_WEIGHTING` — ein Bedienelement später
+liefert eine andere Instanz und sonst ändert sich nichts. `weighting.id`
+gehört in den Cache-Schlüssel (AD-007), sonst überlebt ein Ergebnis den
+Wechsel der Gewichtung.
+
+Der Punkt ist die Trennung: **die Zielfunktion kennt keine Zahlen, nur woher
+sie kommen.** Eine Gewichtung fest in `min_damage_taken` einzubacken wäre
+heute drei Zeilen kürzer und machte OF-3 später zu einem Eingriff in die
+Zielrichtung statt in den Aufrufer.
+
+**Gemeinsame `unknowns` für jede Zielrichtung**, von der Suche beigesteuert,
+nicht von der Zielrichtung:
+- „N of your relics carry effects that only apply under a condition. They
+  were not counted." — folgt direkt daraus, dass `model.compute()`
+  konditionale Effekte aus den Totals hält, solange sie nicht `declared` sind.
+  Ohne diesen Satz sähe ein Spieler ein starkes situatives Relikt ungenutzt
+  und hielte den Berater für kaputt.
+- Deep-of-Night-Kennzeichnung und die **Curses** der vorgeschlagenen Relikte:
+  Curses gehören zum Relikt und gehen in die Bewertung ein, genauso wie
+  `Planner.recompute()` es tut (`selected_curses()`). Ein Deep-Vorschlag ohne
+  genannten Curse wäre unehrlich.
+
+**Konsequenzen:** Leicht wird — eine dritte Zielrichtung („maximise FP
+economy", „maximise item discovery") ist eine Funktion und ein Eintrag.
+Dauerhaft schwer wird — Zielrichtungen, die *nicht* aus einem `Build`
+ablesbar sind (etwa etwas über den Spielverlauf). Die müssten
+`GoalContext` erweitern, und das berührt alle.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### Präzisierung AD-004 — die `unknowns` einer Zielrichtung zerfallen, und die konditionale Zeile bekommt einen Ort (D2)
+
+AD-004 bleibt in der Sache unverändert: eine Zielrichtung ist eine Zahl mit
+erklärtem Geltungsbereich, als Registry reiner Funktionen. Präzisiert wird,
+**wo** der Geltungsbereich steht.
+
+1. **Die Liste „`unknowns` enthält *immer mindestens* …" in AD-004 ist ab
+   jetzt die Liste von `Goal.scope`**, nicht die von `GoalScore.unknowns`.
+   „Immer mindestens" war schon in AD-004 die Beschreibung eines
+   Verfahrenssatzes; das Feld war nur das falsche.
+2. **Der dort zitierte Wortlaut ist historisch, nicht geltend.** Die Zeile
+   *„Attack rating has not been verified against an in-game number."*
+   (ARCHITECTURE.md in AD-004, von QA-116 gemeldet) ist seit QA-095 **falsch**
+   — 2256 Vergleiche haben die Übereinstimmung belegt. Was heute in
+   `goals.py` steht, ist der **Geltungsbereich** dieser Übereinstimmung. Der
+   verbindliche Wortlaut ist keiner der beiden alten: `UI_SPEC`, Nachtrag zu
+   QA-116 (T-052, 2026-09-05) entscheidet, dass die Anzeige die Sätze aus dem
+   Programm liest statt einen eigenen zu führen. AD-004s Zitat steht ab jetzt
+   als Beleg dafür, wie die Zeile einmal lautete.
+3. **Die gemeinsame konditionale Zeile ist übersehen, nicht verschoben**
+   (D2). *„N of your relics carry effects that only apply under a condition.
+   They were not counted."* existiert nirgends im Paket (zwei unabhängige
+   Volltextsuchen, T-041). Sie trägt eine Anzahl, ist also ein **Laufbefund**,
+   und sie wird gebaut.
+4. **Wo sie entsteht: in `candidates.pool()`, gezählt über die Kandidaten
+   *dieses* Pools**, und sie geht nach `SlotPool.unknowns`. Begründung: die
+   Zeile existiert nach AD-004s eigener Begründung dafür, dass *„ein Spieler
+   ein starkes situatives Relikt ungenutzt sähe und den Berater für kaputt
+   hielte"* — dieses Bild entsteht in der Kandidatenliste des Pickers, und
+   nur dort kann der Spieler die Zahl gegen das prüfen, was auf dem Schirm
+   steht. Eine Zählung über den ganzen Bestand nennte Relikte mit, die
+   farblich gar nicht in diesen Slot passen.
+5. **Woraus gezählt wird, damit die Zahl nicht widerspricht, was gerechnet
+   wurde:** aus dem `Build`, den der Pool für den Kandidaten ohnehin bildet —
+   `Build.situational` mit `live == False`. Das ist dieselbe Disziplin wie
+   AD-015 bei den Flüchen (*„aus `Build.sources` statt aus den
+   Relikt-Definitionen, damit ein Fluch, den die Rechnung nicht angewandt
+   hat, nicht so gezeigt wird, als hätte sie es"*). **Ausdrücklich nicht**
+   erlaubt ist eine zweite, in `candidates.py` selbst geschriebene Ableitung
+   des Waffentyps für `model.is_conditional` — `model.compute` leitet ihn
+   heute in `model.py` aus `weapons_held`/`weapon` ab, und eine zweite
+   Ableitung ist eine zweite Meinung darüber, was gezählt wurde.
+6. **Der Geltungsbereich dieser Zeile, ausgesprochen:** `Build.situational`
+   führt nur Bedingungen, die der Spieler erklären kann — **nicht** einen
+   Effekt, der an einer nicht getragenen Waffenklasse hängt. Dieser Fall ist
+   QA-104 und bekommt seine eigene Zeile; er wird von der konditionalen Zeile
+   nicht mitgezählt und darf es nicht, sonst nennt eine Zahl zwei
+   verschiedene Sachverhalte.
+7. **Ein Kriterium, zwei Darstellungen.** Derselbe Sachverhalt erscheint auf
+   dem Ergebnisweg als `AdvisorResult.not_counted` (Effektnamen, S7/S9) und
+   auf dem Pickerweg als Zeile mit einer Anzahl von **Relikten**. Die
+   Nenner sind verschieden und das ist gewollt; das **Kriterium** ist
+   dasselbe und darf nur einmal geschrieben werden.
+8. **Der Wortlaut ist nicht meiner.** AD-004 sagt „N of your relics", gezählt
+   wird dieser Pool. Der `ui-ux-designer` entscheidet den Satz (OF-20); bis
+   dahin baut der `developer` ihn mit dem gezählten Bestand im Text, nicht
+   mit „your relics".
+
+---
+
+### AD-010 — Die Unwissensliste ist Teil des Ergebnisses, nicht eine Fussnote in der Oberfläche (2026-09-01, Status: aktiv)
+
+**Kontext:** Hausregel und A7. Die naheliegende Umsetzung ist ein statischer
+Hinweistext im Beratungs-Tab. Der taugt nicht: welche Lücken gelten, hängt
+vom konkreten Lauf ab — ob eine Waffe gewählt ist, ob Deep-Slots im Spiel
+sind, wie viele besessene Relikte konditional sind, ob der Datenstand aus dem
+gebündelten Snapshot statt aus der Installation kommt (F7).
+
+**Optionen:**
+- **A — Statischer Warntext im Tab.** Nichts zu bauen. Konsequenz: er sagt
+  immer dasselbe, wird nach dem dritten Mal nicht mehr gelesen, und er sagt
+  nichts über *diesen* Vorschlag.
+- **B — `unknowns` als Pflichtfeld auf `GoalScore` und `AdvisorResult`,
+  vom Rechner gefüllt.** Konsequenz: die Oberfläche kann ihn nicht vergessen,
+  weil er Teil dessen ist, was sie zeichnet; und der Testsockel kann ihn
+  prüfen (AD-009, Punkt 7).
+
+**Entscheidung:** B. A7 ist ein Abnahmekriterium; ein Kriterium, dessen
+Erfüllung von der Sorgfalt beim Zeichnen abhängt, ist nicht erfüllt.
+
+**Verbindlicher Inhalt jedes `AdvisorResult`:**
+- `unknowns` der Zielrichtung (siehe AD-004),
+- `weights_note`, wo der Berater eine eigene Annahme getroffen hat,
+- `not_counted`: konditionale Effekte im Besitz, die nicht in die Totals
+  eingingen, mit Anzahl,
+- `curses`: die Curses der vorgeschlagenen Deep-Relikte, benannt,
+- `data_note`: aus `meta` — gebündelter Snapshot oder frisch aus der
+  Installation, mit `data_version`,
+- `budget_note`: Suchbreite und ob der Lauf abgeschnitten wurde. Ein Ergebnis
+  aus einer beschnittenen Suche muss sagen, dass es beschnitten wurde.
+
+**Nutzersprache, verbindlich:** „Best found", „Top suggestions", „Not
+counted", „Not verified" — nie „Optimal", „Best possible", „Guaranteed".
+
+**Konsequenzen:** Leicht wird — A7 ist prüfbar statt behauptet. Dauerhaft
+schwer wird — der Vorschlag ist textlastiger, als eine reine Rangliste es
+wäre. Das ist der Preis der Hausregel und die Aufgabe des `ui-ux-designer`
+(T-004), nicht ein Grund, die Regel zu lockern.
+
+**Umkehrbarkeit:** mittel. Ein Pflichtfeld wieder zu entfernen ist leicht;
+die Zusage an den Nutzer zurückzunehmen ist es nicht.
+
+---
+
+### Präzisierung AD-010 — was „Pflichtfeld im Ergebnis" nach D1 heisst, und warum AK-50 nicht widerspricht
+
+AD-010 bleibt gültig, mit einer geschärften Reichweite.
+
+1. **AD-010 hat eine statische Liste *aller denkbaren* Lücken verworfen** —
+   einen Text, der immer dasselbe sagt, gleichgültig ob die Lücke im Lauf
+   überhaupt eingetreten ist. Es hat **nicht** einen festen Satz über eine
+   Eigenschaft des Verfahrens verworfen. Die Bedingung, unter der Option A
+   geprüft wurde (*„welche Lücken gelten, hängt vom konkreten Lauf ab"*),
+   trifft auf einen Verfahrenssatz nicht zu. `UI_SPEC` AK-50 ist damit nicht
+   die von AD-010 verworfene Option A.
+2. **Pflicht im Ergebnis ist der Laufbefund**, und zwar vollständig: was in
+   diesem Lauf weggefallen ist, fährt mit und erscheint dort, wo es entstand.
+   `unknowns` **darf leer sein**; leer heisst „in diesem Lauf ist nichts
+   weggefallen" und ist eine Aussage, keine Auslassung.
+3. **Pflicht in der Registry ist der Verfahrenssatz**, und dort gilt „nie
+   leer": eine Zielrichtung ohne `scope` ist keine. Die Zusage aus AD-010,
+   dass immer etwas dasteht, wandert damit von `GoalScore.unknowns` auf
+   `Goal.scope` — sie wird nicht schwächer, sie wird prüfbar ohne
+   Datensatz (QA-106).
+4. **Die verbindliche Inhaltsliste jedes `AdvisorResult`** (AD-010) bleibt
+   Wort für Wort bestehen und ist nach dieser AD durchweg Laufbefund:
+   `unknowns`, `weights_note`, `not_counted`, `curses`, `data_note`,
+   `budget_note`. Das ist kein Zufall — AD-010 hat die Klasse schon richtig
+   getroffen, ohne sie zu benennen.
+5. **Nutzersprache bleibt verbindlich:** „Best found", „Top suggestions",
+   „Not counted", „Not verified" — nie „Optimal", „Best possible",
+   „Guaranteed". Für beide Klassen.
 
 ---
 
@@ -3163,361 +2503,111 @@ wollen, und das wäre der falsche Ort. Siehe OF-21.
 
 ---
 
-### Präzisierung AD-004 — die `unknowns` einer Zielrichtung zerfallen, und die konditionale Zeile bekommt einen Ort (D2)
+### AD-015 — Flüche gehen als gewöhnliche Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus `Build.sources`, nicht aus einer zweiten Rechnung (2026-09-02, Status: aktiv)
 
-AD-004 bleibt in der Sache unverändert: eine Zielrichtung ist eine Zahl mit
-erklärtem Geltungsbereich, als Registry reiner Funktionen. Präzisiert wird,
-**wo** der Geltungsbereich steht.
+**Kontext:** `GOAL.md` F3, entschieden vom Nutzer am 2026-09-02: Flüche
+werden mitbewertet und im Ergebnis ausgewiesen. Begründung: „Falls meine
+negativen auf Relikten meine Benefits vernichten, muss ich das wissen."
 
-1. **Die Liste „`unknowns` enthält *immer mindestens* …" in AD-004 ist ab
-   jetzt die Liste von `Goal.scope`**, nicht die von `GoalScore.unknowns`.
-   „Immer mindestens" war schon in AD-004 die Beschreibung eines
-   Verfahrenssatzes; das Feld war nur das falsche.
-2. **Der dort zitierte Wortlaut ist historisch, nicht geltend.** Die Zeile
-   *„Attack rating has not been verified against an in-game number."*
-   (ARCHITECTURE.md in AD-004, von QA-116 gemeldet) ist seit QA-095 **falsch**
-   — 2256 Vergleiche haben die Übereinstimmung belegt. Was heute in
-   `goals.py` steht, ist der **Geltungsbereich** dieser Übereinstimmung. Der
-   verbindliche Wortlaut ist keiner der beiden alten: `UI_SPEC`, Nachtrag zu
-   QA-116 (T-052, 2026-09-05) entscheidet, dass die Anzeige die Sätze aus dem
-   Programm liest statt einen eigenen zu führen. AD-004s Zitat steht ab jetzt
-   als Beleg dafür, wie die Zeile einmal lautete.
-3. **Die gemeinsame konditionale Zeile ist übersehen, nicht verschoben**
-   (D2). *„N of your relics carry effects that only apply under a condition.
-   They were not counted."* existiert nirgends im Paket (zwei unabhängige
-   Volltextsuchen, T-041). Sie trägt eine Anzahl, ist also ein **Laufbefund**,
-   und sie wird gebaut.
-4. **Wo sie entsteht: in `candidates.pool()`, gezählt über die Kandidaten
-   *dieses* Pools**, und sie geht nach `SlotPool.unknowns`. Begründung: die
-   Zeile existiert nach AD-004s eigener Begründung dafür, dass *„ein Spieler
-   ein starkes situatives Relikt ungenutzt sähe und den Berater für kaputt
-   hielte"* — dieses Bild entsteht in der Kandidatenliste des Pickers, und
-   nur dort kann der Spieler die Zahl gegen das prüfen, was auf dem Schirm
-   steht. Eine Zählung über den ganzen Bestand nennte Relikte mit, die
-   farblich gar nicht in diesen Slot passen.
-5. **Woraus gezählt wird, damit die Zahl nicht widerspricht, was gerechnet
-   wurde:** aus dem `Build`, den der Pool für den Kandidaten ohnehin bildet —
-   `Build.situational` mit `live == False`. Das ist dieselbe Disziplin wie
-   AD-015 bei den Flüchen (*„aus `Build.sources` statt aus den
-   Relikt-Definitionen, damit ein Fluch, den die Rechnung nicht angewandt
-   hat, nicht so gezeigt wird, als hätte sie es"*). **Ausdrücklich nicht**
-   erlaubt ist eine zweite, in `candidates.py` selbst geschriebene Ableitung
-   des Waffentyps für `model.is_conditional` — `model.compute` leitet ihn
-   heute in `model.py` aus `weapons_held`/`weapon` ab, und eine zweite
-   Ableitung ist eine zweite Meinung darüber, was gezählt wurde.
-6. **Der Geltungsbereich dieser Zeile, ausgesprochen:** `Build.situational`
-   führt nur Bedingungen, die der Spieler erklären kann — **nicht** einen
-   Effekt, der an einer nicht getragenen Waffenklasse hängt. Dieser Fall ist
-   QA-104 und bekommt seine eigene Zeile; er wird von der konditionalen Zeile
-   nicht mitgezählt und darf es nicht, sonst nennt eine Zahl zwei
-   verschiedene Sachverhalte.
-7. **Ein Kriterium, zwei Darstellungen.** Derselbe Sachverhalt erscheint auf
-   dem Ergebnisweg als `AdvisorResult.not_counted` (Effektnamen, S7/S9) und
-   auf dem Pickerweg als Zeile mit einer Anzahl von **Relikten**. Die
-   Nenner sind verschieden und das ist gewollt; das **Kriterium** ist
-   dasselbe und darf nur einmal geschrieben werden.
-8. **Der Wortlaut ist nicht meiner.** AD-004 sagt „N of your relics", gezählt
-   wird dieser Pool. Der `ui-ux-designer` entscheidet den Satz (OF-20); bis
-   dahin baut der `developer` ihn mit dem gezählten Bestand im Text, nicht
-   mit „your relics".
+Am Bestand geprüft: `Planner.current_build()` (`app.py:3300 f.`) reicht
+`self.selected_effects() + self.weapon_effects() + curses` in **einen**
+`model.compute`-Aufruf; der Kommentar dort nennt den Grund („Leaving them out
+meant a curse ... made the sheet quietly wrong for every Deep of Night
+build"). Flüche sind für die Rechnung also längst gewöhnliche Effekte. Für
+den Berater ist F3 damit **keine neue Mechanik**, sondern die Auflage, den
+bestehenden Weg nicht zu verlassen.
 
----
+**Optionen:**
+- **A — Flüche nur anzeigen, nicht bewerten.** Konsequenz: die Rangliste
+  widerspricht dem Statblatt desselben Programms — genau der Fehler aus
+  QA-001, wegen dessen es den `compute`-Wächter gibt. Und F3 wäre verletzt.
+- **B — Flüche als gewöhnliche Effekte in dieselbe Effektliste**, wie
+  `current_build()` es tut. Konsequenz: das Ranking stimmt mit dem Statblatt
+  überein, ohne dass jemand darauf achten muss; ein Fluch, der den Nutzen
+  auffrisst, senkt die Rangzahl von selbst.
+- **C — Zusätzlicher Fluch-Malus auf die Zielpunktzahl.** Konsequenz: eine
+  zweite Bewertungsautorität mit eigenen Gewichten — gegen AD-002 — und die
+  Gewichte stünden nirgends in den Spieldateien, also gegen A7.
 
-### Präzisierung AD-010 — was „Pflichtfeld im Ergebnis" nach D1 heisst, und warum AK-50 nicht widerspricht
+**Entscheidung:** B. C ist die Versuchung, weil ein Malus den blinden Fleck
+unten scheinbar schliesst; er schlösse ihn mit erfundenen Zahlen.
 
-AD-010 bleibt gültig, mit einer geschärften Reichweite.
+**Ausweisen, ohne zweite Rechnung:** `Build.sources` ist bereits
+`field -> [(Effektname, Einzelwert)]` und enthält die Fluchbeiträge mit
+negativem Vorzeichen, weil sie durch dieselbe Rechnung gelaufen sind.
+`explain.py` liest daraus:
+- je vorgeschlagenem Relikt die Flüche mit Namen **und** dem Feld, das sie
+  bewegt haben, samt Betrag (`UI_SPEC` 3.2 und AK-19 verlangen die Nennung
+  vor dem Anwenden; die Zahl kommt jetzt aus derselben Quelle wie die
+  Begründungszeile),
+- `AdvisorResult.curses` bleibt wie in AD-010 gefordert, wird aber
+  ausdrücklich aus `sources` gefüllt statt aus der Relikt-Definition — sonst
+  stünde ein Fluch da, den die Rechnung gar nicht angewandt hat (etwa ein
+  konditionaler).
 
-1. **AD-010 hat eine statische Liste *aller denkbaren* Lücken verworfen** —
-   einen Text, der immer dasselbe sagt, gleichgültig ob die Lücke im Lauf
-   überhaupt eingetreten ist. Es hat **nicht** einen festen Satz über eine
-   Eigenschaft des Verfahrens verworfen. Die Bedingung, unter der Option A
-   geprüft wurde (*„welche Lücken gelten, hängt vom konkreten Lauf ab"*),
-   trifft auf einen Verfahrenssatz nicht zu. `UI_SPEC` AK-50 ist damit nicht
-   die von AD-010 verworfene Option A.
-2. **Pflicht im Ergebnis ist der Laufbefund**, und zwar vollständig: was in
-   diesem Lauf weggefallen ist, fährt mit und erscheint dort, wo es entstand.
-   `unknowns` **darf leer sein**; leer heisst „in diesem Lauf ist nichts
-   weggefallen" und ist eine Aussage, keine Auslassung.
-3. **Pflicht in der Registry ist der Verfahrenssatz**, und dort gilt „nie
-   leer": eine Zielrichtung ohne `scope` ist keine. Die Zusage aus AD-010,
-   dass immer etwas dasteht, wandert damit von `GoalScore.unknowns` auf
-   `Goal.scope` — sie wird nicht schwächer, sie wird prüfbar ohne
-   Datensatz (QA-106).
-4. **Die verbindliche Inhaltsliste jedes `AdvisorResult`** (AD-010) bleibt
-   Wort für Wort bestehen und ist nach dieser AD durchweg Laufbefund:
-   `unknowns`, `weights_note`, `not_counted`, `curses`, `data_note`,
-   `budget_note`. Das ist kein Zufall — AD-010 hat die Klasse schon richtig
-   getroffen, ohne sie zu benennen.
-5. **Nutzersprache bleibt verbindlich:** „Best found", „Top suggestions",
-   „Not counted", „Not verified" — nie „Optimal", „Best possible",
-   „Guaranteed". Für beide Klassen.
+**Der blinde Fleck, ausdrücklich benannt (A7).** Bewertet wird alles,
+**gerankt** wird eine Zahl. Ein Fluch, der ein Feld bewegt, das die gewählte
+Zielrichtung nicht misst — etwa `-HP` unter „Maximise damage" —, ist im Build
+korrekt verrechnet, ändert die Rangzahl aber nicht. Dass er im Vorschlagsblock
+steht, ist damit nicht Kosmetik, sondern der einzige Ort, an dem er sichtbar
+wird. Pflichtzeile in `unknowns`, sobald ein vorgeschlagenes Relikt einen
+Fluch trägt, dessen Felder ausserhalb der Zielgrösse liegen:
+`"A curse on <relic> changes <field>, which this goal does not rank."`
+
+Ein Schalter „ohne Flüche" (`UI_SPEC` F3, Alternative) ist damit **nicht**
+entschieden worden und auch nicht nötig: er wäre ein Kandidatenfilter in
+`candidates.py`, eine Zeile, und berührt weder Suche noch Bewertung. Ob er
+kommt, entscheidet der `ui-ux-designer` mit dem Nutzer.
+
+**Konsequenzen:** Leicht wird — F3 kostet im Kern null Struktur, und jede
+künftige Korrektur an der Fluchbehandlung in `model.py` erreicht den Berater
+ohne Zutun. Dauerhaft schwer wird — eine *Abwägung* zwischen Nutzen und Fluch
+über Dimensionen hinweg; die braucht Gewichte, die es nicht gibt (siehe
+OF-13).
+
+**Umkehrbarkeit:** leicht.
 
 ---
 
-### Präzisierung AD-016 — der Cache-Schlüssel ist positionsabhängig, und `held_fingerprint` entfällt (D3, QA-107)
+### Korrekturnotiz zu AD-015 (2026-09-07; Herkunft: Entscheidung des `director` vom 06.09.2026, umgesetzt in `explain.py` seit T-081)
 
-**Der Befund:** `held_fingerprint` ist positionsunabhängig (sortiert, ohne
-Slotindex), der als Schlüssel benannte `AdvisorRequest` ist es nicht — er
-trägt `problem.held` als geordnetes Tupel. Gemessen: Fingerabdruck gleich,
-Request und Hash verschieden. Der Wächter
-`test_where_a_relic_is_held_does_not_change_the_fingerprint` sichert damit
-eine Eigenschaft, die der Schlüssel nicht hat.
+**Ersetzt** in AD-015 den Absatz „*Pflichtzeile in `unknowns`, sobald ein
+vorgeschlagenes Relikt einen Fluch trägt, dessen Felder ausserhalb der
+Zielgrösse liegen:* `"A curse on <relic> changes <field>, which this goal
+does not rank."`".
 
-**Entscheidung (D3, Vorgabe des `director`): der Schlüssel ist der
-`AdvisorRequest`, positionsabhängig.**
+**Der ursprüngliche Wortlaut bleibt dort stehen und wird nicht gelöscht** —
+er ist der Beleg dafür, wie die Zusage einmal lautete.
 
-**Meine Entscheidung zur zweiten Hälfte, die der `director` mir überlassen
-hat: `held_fingerprint` wird gestrichen — die Funktion, die Property und der
-Wächter.** Nicht positionsabhängig gemacht. Drei Gründe, in dieser
-Reihenfolge:
+**Neu verbindlich:** Die AD-015-Pflichtzeile **wandert aus `unknowns` in die
+Slotgruppe** und wird **mit der Zahlzeile desselben Fluchs verschmolzen** —
+aus zwei Zeilen wird eine:
 
-1. **Er wäre eine zweite Schlüsselform.** Der Modul-Docstring von
-   `advisor/types.py` verbietet genau das, mit ausgeschriebener Begründung:
-   *„there is no second key form that could drift from the state it stands
-   for."* Heute ist dieser Satz **falsch**, weil der Fingerabdruck da ist.
-   Ihn zu streichen macht den Satz wahr; ihn positionsabhängig zu machen
-   liesse ihn falsch und fügte eine ableitbare Kopie hinzu, die niemand
-   liest.
-2. **Er hat keinen Leser und bekommt keinen.** Der Cache schlüsselt auf den
-   Request (AD-018: *„Es entsteht keine zweite Schlüsselform"*). Der
-   Generationszähler (AD-016.3) braucht nur „ist der Request ein anderer" —
-   `SlotProblem` ist eine gefrorene Datenklasse und vergleicht sich selbst.
-3. **Er ist eine Falle.** Solange er dasteht und behauptet, zwei
-   Haltezustände seien dasselbe, wird ihn irgendwann jemand für etwas
-   Schlüsselartiges benutzen — und dann tritt der Fehler ein, gegen den D3
-   geschrieben ist: ein Treffer über den falschen Haltezustand überschreibt
-   einen bewusst festgehaltenen Slot. Ein positionsabhängiger Fingerabdruck
-   wäre keine Falle mehr, aber auch kein Nutzen; er wäre nur eine Kopie, die
-   driften kann.
+```
+✦ {curse name}: {figure label} {amount} — this figure does not count it.
+```
 
-**Rückweg, benannt:** braucht S9 doch eine kanonische Form, wird sie dort
-gebaut — **positionsabhängig**, und der Wächter zeigt dann auf den
-**Schlüssel**, nicht auf den abgeleiteten Wert. Das sind zwölf Zeilen.
+**Begründung:** Beide Hälften sagten dieselbe Sache an zwei Orten — die Zahl
+in `reasons`/`curses`, die Einordnung in `unknowns`. Ein Spieler soll einen
+Fluch **einmal** lesen, unter dem Relikt, das ihn trägt. Der Reliktname im
+alten Wortlaut war ausserdem überflüssig, weil die Slotgruppe ihn in ihrer
+Überschrift führt.
 
-**Verbindlich, ersetzt AD-016 Punkt 2 und 4:**
+**Unberührt bleibt alles Tragende von AD-015:** Flüche gehen als gewöhnliche
+Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus
+`Build.sources`; die Frage „fühlt die Rankingzahl diesen Fluch" wird **je
+Fluch** gestellt und an der Rankingzahl beantwortet; kein Satz sagt, ein
+Relikt sei **wegen** seines Fluchs schlechter platziert (OF-13, AD-023).
+Geändert hat sich der **Ort** und die **Form** der Zeile, nicht die Zusage.
 
-- **AD-016.2 (neu):** Der Haltezustand ist im Cache-Schlüssel, **weil
-  `AdvisorRequest.problem` im Schlüssel ist**. Kein abgeleiteter
-  Fingerabdruck, keine zweite Form. Die Abwägung des ursprünglichen Punktes 2
-  gilt unverändert: ein überflüssiger Fehlschlag kostet 0,46 s (Gesamtlauf)
-  bzw. ~51 ms (Picker), ein Treffer über den falschen Haltezustand kostet
-  einen überschriebenen Halt.
-- **AD-016.4 (neu):** Es gibt keine Rückabbildung, weil es keine
-  Kanonisierung gibt. Festgehaltene Slots behalten ihren Platz, weil im
-  Schlüssel steht, wo sie sind.
-- **AD-016.1 und AD-016.3 bleiben unverändert.**
-
-**Was das AD-008 kostet, ausdrücklich benannt, weil eine neue Entscheidung
-einer alten widerspricht:** AD-008 hat entschieden, ein Suchproblem über die
-kanonisierte Slot-Farbmenge zu schlüsseln statt über das Gefäss. Für den
-**Cache-Schlüssel** ist diese Entscheidung damit abgelöst — er ist der
-Request, und der kennt Gefäss und Slotindizes. Der Trefferanteil, mit dem
-AD-008 argumentiert hat (74 Gefässe → 26 bzw. 47 Muster), entfällt.
-**Tragbar, weil:** der Hauptweg nach AD-018 erzeugt ohnehin je Slot einen
-eigenen Eintrag („freie Slots = genau einer"), die Einträge sind klein, und
-die LRU aus AD-007 ist ohnehin in S11 neu zu setzen (Vorschlag 64).
-**Nicht abgelöst ist AD-008 als Prüfäquivalenz:** die 26 bzw. 47 kanonischen
-Probleme bleiben das Mass, an dem der `qa-engineer` A3 vollständig prüft.
-Das war ein zweites, unabhängiges Argument in AD-008 und es hängt nicht am
-Cache. Siehe OF-22.
-
-**Warum D3 richtig ist, obwohl seine Begründung zu eng ist** — das gehört in
-die Akte, weil die Begründung sonst als Regel weiterlebt: der `director`
-begründet die Positionsabhängigkeit damit, dass *„die Slots verschiedene
-Farben tragen und die Menge der freien Slots eine andere ist"*. Der Fall, um
-den es geht, setzt aber voraus, dass **dasselbe** Relikt in beide Slots
-passt, also tragen sie in aller Regel **dieselbe** Farbe; und die Menge der
-freien Slots wäre unter einer Kanonisierung nach Farben gerade **gleich**.
-Der tragende Grund ist ein anderer und stärker: **die Antwort trägt
-Slotindizes** (`SlotChoice.slot_index`, `Candidate.slot_index`,
-`SlotPool.slot_index`). Ein Treffer über eine Permutation gäbe eine Antwort
-zurück, deren Indizes auf die Slots des *anderen* Problems zeigen; das
-geradezuziehen ist genau die Rückabbildung aus AD-016.4, die es nicht gibt
-und die niemand gebaut hat. Solange sie fehlt, ist jeder
-positionsunabhängige Treffer ein überschriebener Halt. Die Entscheidung ist
-damit **richtiger als ihre Begründung** — dieselbe Lage wie bei QA-101.
+**Stand im Code (`fd9f2bc`, geprüft):** `explain.unknowns` trägt die Zeile
+nicht mehr und begründet das in seinem eigenen Docstring; der Wortlaut steht
+in `UI_SPEC` T-078 §3, Füllung (ii). Die Notiz holt `ARCHITECTURE.md`
+nach — sie ordnet nichts Neues an.
 
 ---
 
-### Präzisierung AD-009 — die Nummer 18 war zweimal vergeben (D4)
-
-**Befund:** Nachtrag II vergibt Prüfpunkt **18** an *„Kein
-`QSettings`-Zugriff im Berater-Pfad"*, Nachtrag III vergibt dieselbe **18**
-an *„Untere Schicht bitgleich über den ganzen Umbau"*. Beide sind vom
-2026-09-02. Nachtrag III vergibt danach 19 bis 22, die frei waren; die
-Kollision betrifft **nur** die 18.
-
-**Auflösung, mit zwei unabhängigen Gründen, die auf dasselbe zeigen:**
-
-- **Prüfpunkt 18 bleibt bei Nachtrag II:** „Kein `QSettings`-Zugriff im
-  Berater-Pfad". Er hat den ersten Anspruch auf die Nummer (Nachtrag II
-  steht vor Nachtrag III), **und** er ist der einzige der beiden, der noch
-  **offen** ist: QA-110 zeigt auf ihn und geht an den `developer`. Eine
-  offene Zusicherung umzunummerieren heisst, in einem laufenden Befund eine
-  falsche Nummer stehen zu lassen.
-- **Nachtrag IIIs Prüfpunkt wird Prüfpunkt 28:** „Untere Schicht bitgleich
-  über den ganzen Umbau". Er ist **erledigt** — der Umbau W0–W5 ist
-  abgeschlossen, und die Stellen, die auf ihn zeigen (`docs/tasks/T-027.md`,
-  `T-029.md`, `T-030.md`, `qa/findings.md` bei der Golden-Neuaufnahme), sind
-  Verläufe passierter Tore, keine offenen Aufträge. 28 ist die nächste freie
-  Nummer nach Nachtrag V.
-
-**Ab jetzt gilt:**
-
-| Zusicherung | Nummer bis 05.09.2026 | Nummer ab jetzt |
-|---|---|---|
-| Kein `QSettings`-Zugriff im Berater-Pfad (Nachtrag II) | 18 | **18** (unverändert) |
-| Untere Schicht bitgleich über den ganzen Umbau (Nachtrag III) | 18 | **28** |
-
-Die Verweise in dieser Datei sind nachgezogen. Wer in
-`docs/tasks/T-027.md`, `T-029.md`, `T-030.md`, `docs/berichte/` vor dem
-05.09.2026 oder in `qa/findings.md` auf „Prüfpunkt 18" trifft, liest ihn im
-Licht dieser Tabelle: im Zusammenhang mit der Golden-Neuaufnahme und mit
-`weapons.rate` ist die 28 gemeint, im Zusammenhang mit dem Berater und
-QA-110 die 18.
-
-**Regel, damit es nicht wieder passiert:** Prüfpunkte werden wie AD-Nummern
-**fortlaufend** vergeben und **nie neu**. Ein Nachtrag schaut auf die höchste
-vergebene Nummer im ganzen Dokument, nicht auf die höchste in seinem eigenen
-Abschnitt. Höchste vergebene Nummer nach diesem Nachtrag: **34**.
-
----
-
-### Prüfpunkte, Ergänzung (zu AD-009, Nachträge I bis V)
-
-29. **Jede Zielrichtung hat einen Geltungsbereich, und zwar ohne
-    Spielinstallation.** Für jeden Eintrag der Registry ist `Goal.scope`
-    nicht leer, geprüft **ohne** `game_data`, ohne `Build`, ohne Bestand.
-    Das ist der Fall, der QA-106 nicht trifft: er läuft auf jedem Runner.
-    **Gegenbau:** `scope` einer Zielrichtung leeren ⇒ rot.
-30. **Kein Satz steht in beiden Klassen.** Kein String aus `Goal.scope`
-    erscheint in `GoalScore.unknowns`, `Baseline.unknowns` oder
-    `SlotPool.unknowns` desselben Laufs. **Gegenbau:** einen Satz aus
-    `scope` zusätzlich in `unknowns` legen ⇒ rot. Läuft ohne Datensatz,
-    soweit über die Modulkonstanten geprüft.
-31. **Ein Laufbefund überlebt nicht jeden Lauf.** Über mindestens zwei
-    wirklich herstellbare Kontexte derselben Zielrichtung (mit und ohne
-    Referenzwaffe) ist der **Durchschnitt** der `unknowns`-Mengen leer: ein
-    Satz, der in jedem Lauf dasteht, ist ein Verfahrenssatz und gehört nach
-    `Goal.scope`. **Gegenbau:** einen der vier Geltungsbereichssätze zurück
-    in `unknowns` schieben ⇒ er steht in beiden Läufen ⇒ rot. Braucht den
-    Datensatz und überspringt ohne Spielinstallation (QA-106, stehende
-    Einschränkung).
-32. **Der Pool trägt, was die Zielrichtung nicht wusste.** Für jeden Pool und
-    jede Zielrichtung gilt: `Baseline.unknowns` und `weights_note` sind
-    wortgleich das, was `goal.score(base_build, ctx)` geliefert hat, und
-    `unit` ebenso. **Gegenbau:** in `pool()` wieder nur `.value` übernehmen
-    ⇒ rot. Das ist der Wächter über QA-102.
-33. **Die konditionale Zeile zählt, was wirklich nicht gezählt wurde.** Ein
-    Bestand mit K Relikten, deren Effekt gated und nicht deklariert ist,
-    ergibt eine Zeile mit K; derselbe Bestand mit denselben Effekten
-    **deklariert** ergibt **keine** Zeile. **Gegenbau:** die Zeile aus einer
-    zweiten Ableitung über die Relikt-Definitionen bilden statt aus dem
-    `Build` ⇒ der deklarierte Fall zählt weiter mit ⇒ rot.
-34. **Der Haltezustand ist im Schlüssel, ohne zweite Form.** Zwei Requests,
-    die sich nur im Halt unterscheiden — auch nur darin, **in welchem Slot**
-    gehalten wird —, sind verschieden und hashen verschieden. Ein
-    gehaltenes Custom-Relikt (`handle=None`) neben einem besessenen bricht
-    weder Gleichheit noch Hash. **Gegenbau:** `SlotProblem.held` aus dem
-    Request nehmen oder zu einer sortierten Menge machen ⇒ rot. Ersetzt den
-    Wächter über `held_fingerprint`.
-
----
-
-### Risiken, Ergänzung
-
-| Risiko | Woran man es merkt | Rückweg |
-|--------|--------------------|---------|
-| Die Trennung wird gebaut, aber die Oberfläche liest nur eine Hälfte — `UI_SPEC` AK-63 nennt heute genau eine Quelle. Dann zeigt der Picker **weniger** als vorher, und A7 ist auf dem Hauptweg schlechter statt besser. | Zeile 4 des Pickers steht leer oder trägt nur die AD-018.3-Pflichtzeile. | OF-19: `UI_SPEC` nachziehen, **bevor** S10 gebaut wird. Prüfpunkt 29 hält die Registry-Hälfte, Prüfpunkt 32 die Ergebnis-Hälfte; die Anzeige selbst hält beides erst, wenn AK-63 zwei Quellen nennt. |
-| Die konditionale Zeile nennt eine Anzahl, die der Spieler auf dem Schirm nicht nachzählen kann (weil sie über einen anderen Bestand gebildet wurde als den angezeigten). | Ein Spieler zählt vier situative Relikte und die Zeile sagt sieben. | Prüfpunkt 33 und die Festlegung „gezählt über die Kandidaten dieses Pools, gebildet aus dem `Build`". |
-| `held_fingerprint` wird gestrichen, und mit ihm fällt still eine echte Zusicherung weg: dass ein **gehaltenes Custom-Relikt** (`handle=None`) den Schlüssel nicht sprengt. Der heutige Fall prüft das über den `repr`-Sort des Fingerabdrucks. | Nichts — bis ein Spieler ein Custom-Relikt festhält. | Prüfpunkt 34, zweiter Satz. Der Fall wird **nicht gelöscht**, sondern auf `AdvisorRequest` umgehängt. |
-| Der Cache trifft seltener als AD-008 versprochen hat, und S11 misst es als Regression. | Trefferquote in S11 unter der Erwartung aus AD-008. | Das ist die bewusste Folge von D3 und keine Regression; die Zahl aus AD-008 gilt für den Schlüssel nicht mehr. Wenn es doch drückt: kanonische Form in S9 nachrüsten, **mit** Rückabbildung, nicht ohne. |
-| Der `developer` baut aus QA-102 heraus auch `display` in den Pool und der Picker zeigt den Absolutwert des Grundzustands als Kandidatenwert. | Eine Karte zeigt „Attack rating 122" statt „+12.4". | „Was ausdrücklich nicht über die Poolgrenze fährt", Punkt 1, und Nicht-tun-Regel 33. |
-
----
-
-### Was der `developer` zusätzlich ausdrücklich nicht tun soll
-
-33. **`GoalScore.display` nicht in den Pool durchreichen.** Es formatiert den
-    Absolutwert des Grundzustands; der Picker zeigt eine Differenz. Wer eine
-    Formatregel für eine Differenz braucht, meldet sie (OF-21) und baut sie
-    nicht nebenbei.
-34. **`GoalScore.unknowns` nicht umbenennen** und `Baseline` nicht durch
-    einen neuen per-Ziel-Typ ersetzen. Beides wäre Vereinheitlichung ohne
-    Ertrag und zieht `UI_SPEC` AK-63 und drei Testdateien mit.
-35. **Keinen `dict`- und keinen `list`-Typ in die neuen Felder.** Die Regel
-    des Modul-Docstrings gilt unverändert (QA-066): die Formen, die eine
-    Frage oder eine Antwort beschreiben, tragen kein Mapping und keine
-    Liste.
-36. **Keine zweite Ableitung des Waffentyps** für `model.is_conditional` in
-    `candidates.py`. Die Zahl muss beschreiben, was `model.compute`
-    tatsächlich weggelassen hat, nicht was eine zweite Rechnung dafür hält.
-37. **`held_fingerprint` nicht „vorsichtshalber" stehenlassen**, auch nicht
-    als private Funktion. Streichen heisst streichen; die drei Testfälle, die
-    ihn benutzen, werden umgehängt oder gelöscht, nicht deaktiviert.
-38. **Den Wortlaut der konditionalen Zeile nicht als endgültig setzen.** Er
-    gehört dem `ui-ux-designer` (OF-20); im Code steht bis dahin die
-    Fassung, die den **gezählten** Bestand beschreibt, nicht „your relics".
-
----
-
-### Bewusst nicht getan, Ergänzung
-
-- **`held_fingerprint` nicht positionsabhängig gemacht, sondern gestrichen.**
-  *Wieder interessant, wenn:* S9 eine kanonische Form braucht — dann
-  positionsabhängig, mit Rückabbildung, und mit dem Wächter auf dem
-  Schlüssel statt auf dem abgeleiteten Wert.
-- **Die kanonische Form aus AD-008 nicht als Cache-Schlüssel gebaut.**
-  *Wieder interessant, wenn:* S11 misst, dass die Trefferquote drückt, **und**
-  die Rückabbildung der freien Slots gebaut ist. Ohne die Rückabbildung ist
-  die kanonische Form kein Schlüssel, sondern ein überschriebener Halt.
-- **Keine Formatregel für eine Differenz je Zielrichtung.** *Wieder
-  interessant, wenn:* S8/S10 gebaut werden — dann als Entscheidung des
-  `ui-ux-designer`, nicht als Feld, das im Vorbeigehen im Pool landet.
-- **Kein Kennzeichen am einzelnen Satz** (Option B). *Wieder interessant,
-  wenn:* eine dritte Klasse auftaucht, die weder in die Registry noch ins
-  Ergebnis passt. Bis dahin ist der Ort die Klasse.
-
----
-
-### Offene Fragen, neu
-
-**OF-19 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
-`UI_SPEC` AK-63 (T-052, 2026-09-05) legt fest, dass Zeile 4 des Pickers und
-Punkt 4 des Why-Dialogs **ausschliesslich** die Sätze aus
-`GoalScore.unknowns` der gewählten Zielrichtung zeigen. Nach AD-025 sind es
-**zwei** Quellen: `Goal.scope` (der Geltungsbereich, immer) und die
-Laufbefunde des Pools (`Baseline.unknowns`, `SlotPool.unknowns`,
-`weights_note`). Die **Absicht** von AK-63 bleibt vollständig erfüllbar — ein
-fünfter Satz in `advisor/goals.py` erscheint danach an beiden Anzeigeorten,
-ohne dass ein UI-String angefasst wird. Der **Wortlaut** von AK-63 nennt eine
-Quelle, wo es zwei gibt. Wird AK-63 nicht nachgezogen, zeigt eine
-spec-treue Umsetzung nach der Trennung **weniger** als heute. Das ist der
-einzige Punkt dieses Nachtrags, der A7 verschlechtern kann.
-
-**OF-20 — an den `ui-ux-designer`, über den `director`:** der Wortlaut der
-konditionalen Zeile. AD-004 sagt „N of your relics", gezählt wird nach dieser
-AD über die Kandidaten **dieses Pools**. Gehört in dieselbe Runde wie QA-108
-(„of this colour" stimmt am weissen Slot nicht) — es sind zwei Zeilen
-desselben Bautyps im selben Feld, und sie sollten zusammen geschrieben
-werden.
-
-**OF-21 — an den `director`:** die Formatierung einer **Differenz** je
-Zielrichtung (`+12.4 AR` gegen `−18`) hat heute nirgends einen Ort. Ich lese
-sie als S8/S10 und ausdrücklich **nicht** als Teil von T-048. Bestätigung
-erbeten, weil QA-102 „`display` fällt weg" meldet und der nächstliegende
-Griff der falsche wäre.
-
-**OF-22 — an den `director`:** AD-008 hatte zwei Argumente — Trefferquote im
-Cache **und** Prüfäquivalenz (26 bzw. 47 kanonische Probleme statt 74
-Gefässe, mit der A3 überhaupt vollständig prüfbar wird). D3 hebt das erste
-auf. Ich lese das zweite als **unberührt**, weil es nicht am Cache hängt.
-Falls der `director` das anders sieht, ist der Prüfumfang für A3 neu zu
-bemessen, und das trifft den `qa-engineer`, nicht den `developer`.
-
----
-
-## Nachtrag VII 2026-09-07 — Was `not_counted` zählt, wenn die Schranke eine Waffe ist (AD-026), und zwei Korrekturnotizen
+### Nachtrag VII 2026-09-07 — Was `not_counted` zählt, wenn die Schranke eine Waffe ist (AD-026), und zwei Korrekturnotizen
 
 **Anlass:** Der `ui-ux-designer` hat in T-084 gemeldet, dass
 `explain.not_counted` seinen eigenen Docstring nicht einhält. Der Docstring
@@ -3837,129 +2927,160 @@ wie der `director` sie gesetzt hat.
 
 ---
 
-### Korrekturnotiz zu AD-015 (2026-09-07; Herkunft: Entscheidung des `director` vom 06.09.2026, umgesetzt in `explain.py` seit T-081)
+---
 
-**Ersetzt** in AD-015 den Absatz „*Pflichtzeile in `unknowns`, sobald ein
-vorgeschlagenes Relikt einen Fluch trägt, dessen Felder ausserhalb der
-Zielgrösse liegen:* `"A curse on <relic> changes <field>, which this goal
-does not rank."`".
+## Themenbereich D — Nebenlaeufigkeit, Cache, Hauptthread
 
-**Der ursprüngliche Wortlaut bleibt dort stehen und wird nicht gelöscht** —
-er ist der Beleg dafür, wie die Zusage einmal lautete.
+*Wo gerechnet wird und wer dabei wartet. AD-006 und AD-007 legen die Bauform
+fest; AD-028 zieht den Picker-Weg nach, nachdem gemessen war, dass er im
+Hauptthread rechnet. **AD-028 ist die Entscheidung mit den meisten
+Nachtraegen** — Nachtrag IX zieht die Punkte 1 bis 4 und W3 nach, Nachtrag X
+den Vertrag des `AdvisorController` und W1. Beide beruehren disjunkte Punkte;
+wo welcher gilt, steht als Klammer an der Stelle selbst.*
 
-**Neu verbindlich:** Die AD-015-Pflichtzeile **wandert aus `unknowns` in die
-Slotgruppe** und wird **mit der Zahlzeile desselben Fluchs verschmolzen** —
-aus zwei Zeilen wird eine:
+### AD-006 — Hintergrundlauf über `QThread` + Worker-Objekt + Signale, mit kooperativem Abbruch (2026-09-01, Status: aktiv)
 
-```
-✦ {curse name}: {figure label} {amount} — this figure does not count it.
-```
+**Kontext:** A6 verlangt, dass die Oberfläche bedienbar bleibt. Gemessen
+0,11 s (3 Slots) bis 0,46 s (6 Slots mit Deep und weissem Slot) reine Python-Rechnung je Lauf. Das Programm ist Qt, nicht Tkinter,
+und `nrplanner/firstrun.py` fährt bereits ein Worker-Objekt per `moveToThread`
+mit `progress`/`finished`-Signalen.
 
-**Begründung:** Beide Hälften sagten dieselbe Sache an zwei Orten — die Zahl
-in `reasons`/`curses`, die Einordnung in `unknowns`. Ein Spieler soll einen
-Fluch **einmal** lesen, unter dem Relikt, das ihn trägt. Der Reliktname im
-alten Wortlaut war ausserdem überflüssig, weil die Slotgruppe ihn in ihrer
-Überschrift führt.
+**Optionen:**
+- **A — `QThread` + Worker + Signale.** Ein Muster, das im Projekt schon
+  betrieben wird. Konsequenz: durch den GIL echte Nebenläufigkeit nur bedingt;
+  bei einer halben Sekunde reiner Python-Rechnung sind kurze Ruckler im Hauptthread
+  möglich, aber keine Blockade. Kein neues Konzept, keine Dependency.
+- **B — `multiprocessing` / `ProcessPoolExecutor`.** Echte Parallelität, GIL
+  irrelevant. Konsequenz: der Snapshot (~20 MB JSON) muss in den Kindprozess;
+  unter PyInstaller braucht es `freeze_support()` und ein sauberes
+  Einstiegsverhalten für die gefrorene EXE — ein bekannt fehleranfälliger Weg,
+  bei dem ein Fehler als „Programm startet sich selbst mehrfach" auftritt.
+  Prozessstart plus Übergabe kostet mehr als der Lauf selbst.
+- **C — Häppchenweise im Hauptthread über `QTimer`.** Kein Thread, keine
+  Race-Bedingung mit `model.configure()` (F4). Konsequenz: die Latenz wird
+  schlechter, nicht besser, und die Suchschleife müsste als Zustandsmaschine
+  geschrieben werden — `search.py` verlöre seine Reinheit und damit seine
+  Testbarkeit.
 
-**Unberührt bleibt alles Tragende von AD-015:** Flüche gehen als gewöhnliche
-Effekte in dieselbe `compute()`-Bewertung; ausgewiesen werden sie aus
-`Build.sources`; die Frage „fühlt die Rankingzahl diesen Fluch" wird **je
-Fluch** gestellt und an der Rankingzahl beantwortet; kein Satz sagt, ein
-Relikt sei **wegen** seines Fluchs schlechter platziert (OF-13, AD-023).
-Geändert hat sich der **Ort** und die **Form** der Zeile, nicht die Zusage.
+**Entscheidung:** A. Der gemessene Lauf ist zu kurz, als dass B seine
+Betriebskosten wert wäre, und C zahlt mit genau der Eigenschaft, die AD-001
+erkauft hat. Betreibbarkeit zählt: das Team fährt dieses Muster bereits.
 
-**Stand im Code (`fd9f2bc`, geprüft):** `explain.unknowns` trägt die Zeile
-nicht mehr und begründet das in seinem eigenen Docstring; der Wortlaut steht
-in `UI_SPEC` T-078 §3, Füllung (ii). Die Notiz holt `ARCHITECTURE.md`
-nach — sie ordnet nichts Neues an.
+**Verbindliche Ausgestaltung:**
+
+1. **Wie das Ergebnis in die Oberfläche kommt.** Ein `QObject`-Worker mit den
+   Signalen `ready(object)`, `failed(str)`, `progress(int, int)` wird per
+   `moveToThread(thread)` in einen `QThread` verschoben; `thread.started`
+   ruft `worker.run`. Die Signale sind über die Thread-Grenze hinweg
+   `Qt.QueuedConnection` — Qt stellt die Nutzlast in die Event-Loop des
+   Empfängers, und der Slot läuft im **Hauptthread**. Nur dort werden Widgets
+   angefasst. **Kein Widget-Zugriff aus dem Worker**, auch nicht lesend.
+2. **Nicht das Muster aus `firstrun.py` kopieren.** Dort steht
+   `while not thread.wait(50): QApplication.processEvents()` — eine modale
+   Wartschleife, richtig für einen Startbildschirm, falsch für den Berater:
+   starten, `ready` verbinden, zurückkehren. Kein `processEvents()`.
+3. **Veraltete Ergebnisse dürfen nicht ankommen.** Der `AdvisorController`
+   führt einen monoton wachsenden **Generationszähler**. Jede Anfrage bekommt
+   die aktuelle Generation mit, und `AdvisorResult` trägt sie zurück. Der
+   Slot im Hauptthread verwirft jedes Ergebnis, dessen Generation nicht die
+   aktuelle ist — **wortlos, ohne die Anzeige anzufassen**. Das ist die
+   einzige Absicherung, die trägt: Abbrechen allein genügt nicht, weil ein
+   Lauf, der zwischen der letzten Abbruchprüfung und dem `emit` steht, sein
+   `ready` bereits abgeschickt hat, während der Spieler das Gefäss wechselt.
+   Der Zähler wird erhöht bei: Wechsel von Nightfarer, Gefäss, Deep-Schalter,
+   Zielrichtung, Level, Referenzwaffe, deklarierten situativen Effekten,
+   Neu-Scan des Saves und Datenneuaufbau — also bei **jeder** Änderung, die
+   in den Cache-Schlüssel aus AD-007 eingeht. Beides aus einer Quelle
+   abzuleiten ist Absicht: was den Cache-Schlüssel ändert, macht ein
+   laufendes Ergebnis veraltet, und umgekehrt. Zwei getrennte Listen liefen
+   auseinander.
+4. **Höchstens ein Lauf gleichzeitig.** Eine neue Anfrage bricht die alte ab
+   und erhöht die Generation. Der `QThread` wird nicht neu erzeugt, solange
+   der alte noch läuft: `requestInterruption`, `quit`, dann auf `finished`
+   den nächsten starten. Kein `terminate()`, kein `wait()` im Hauptthread.
+5. **Anfragen entprellen** über einen `QTimer` mit `setSingleShot(True)`
+   (Vorschlag 250 ms; `performance-tuner` setzt den Wert), damit ein
+   gezogener Level-Regler nicht vierzig Läufe auslöst.
+6. **Kooperativer Abbruch:** `search.beam()` nimmt ein
+   `should_cancel: Callable[[], bool]` und prüft es **zwischen den
+   Slot-Ebenen** — bei 6 Ebenen und höchstens 0,98 s ist die gröbste
+   Reaktionszeit ~0,15 s, fein genug. Innerhalb einer Ebene zu prüfen kostet
+   mehr, als es bringt.
+7. **Race gegen F4:** ein Datenneuaufbau (`load_data` nach Spiel-Patch, oder
+   ein Neu-Scan des Saves) bricht jeden laufenden Lauf ab, erhöht die
+   Generation und verwirft den Cache, *bevor* `model.configure()` erneut
+   läuft. `model` hält Modulglobals; ein Lauf, der währenddessen rechnet,
+   rechnet auf einer halb ersetzten Tabelle.
+8. **Über die Thread-Grenze gehen nur unveränderliche Datenklassen.** Keine
+   Widgets, keine `QSettings` (die sind nicht thread-affin nutzbar wie hier
+   gebraucht), kein `Inventory`-Objekt, das der Hauptthread weiter anfasst.
+   `AdvisorRequest` und `AdvisorResult` sind `frozen`; die Kandidatenliste
+   wird beim Bauen des Requests eingefroren, nicht im Worker aus dem
+   lebenden `Inventory` gelesen.
+9. **Fehler im Worker sind ein Signal, kein Absturz.** `run()` fängt breit
+   und sendet `failed(text)`. Eine Ausnahme in einem `QThread` beendet sonst
+   still den Lauf, und die Oberfläche wartet für immer auf ein `ready`.
+
+**Konsequenzen:** Leicht wird — Abbrechen, Fortschritt anzeigen, Budget
+messen. Dauerhaft schwer wird — mehrere Läufe echt parallel (etwa alle
+Gefässe gleichzeitig); dafür bräuchte es B.
+
+**Umkehrbarkeit:** mittel. Weil `search.py` rein und abbrechbar ist, lässt
+sich B später hinter derselben `AdvisorController`-Fassade nachrüsten.
+Kosten: das PyInstaller-Verhalten des gefrorenen Artefakts.
 
 ---
 
-### Korrekturnotiz zu AD-003.5 (2026-09-07; Herkunft: D-5 des `director` vom 06.09.2026, gemeldet vom `developer` in T-067)
+### AD-007 — Ergebnis-Cache nur im Speicher (LRU), nichts auf Platte (2026-09-01, Status: aktiv)
 
-**Ersetzt** AD-003, Ausgestaltung Punkt 5: „*Ausgabe: die besten `top_n`
-Endzustände, nicht nur der beste*".
+**Kontext:** Der Spieler wechselt zwischen Gefässen und Nightfarern hin und
+her. Jeder Wechsel wäre ein Lauf von bis zu 0,46 s.
 
-**Der ursprüngliche Wortlaut bleibt stehen.**
+**Optionen:**
+- **A — Kein Cache.** Einfachst. Konsequenz: Zurückklicken auf ein Gefäss
+  rechnet neu; die Oberfläche fühlt sich zäh an, obwohl die Antwort bekannt ist.
+- **B — LRU im Speicher, an den `AdvisorController` gebunden** (Vorschlag 32
+  Einträge). Konsequenz: ein paar MB, und mit dem Fenster ist er weg.
+- **C — Zusätzlich auf Platte, neben dem Snapshot unter `paths`.** Konsequenz:
+  überlebt Neustarts — und wird falsch, sobald der Spieler ein Relikt
+  einschmilzt, ein neues findet oder das Spiel gepatcht wird. Ein Cache, der
+  einen Vorschlag über ein nicht mehr besessenes Relikt zeigt, verletzt A7
+  direkt. Der Schutz dagegen wäre eine Invalidierungslogik, die teurer zu
+  pflegen ist als der halbsekündige Lauf, den sie spart.
 
-**Neu verbindlich:** **Es gibt kein `top_n`.** Die Beam-Breite **W ist die
-Zahl der Endzustände**; `search.beam` gibt sie geordnet zurück, bester
-zuerst, und ein Aufrufer, der weniger will, nimmt den Kopf der Liste.
+**Entscheidung:** B.
 
-**Begründung, in der Reihenfolge ihres Gewichts:**
+**Cache-Schlüssel — vollständig, damit nichts stillschweigend fehlt:**
+`(snapshot_fingerprint, hero_id, level, canonical_slots, deep, goal_id,
+inventory_fingerprint, weapon_fingerprint, declared_fingerprint, budget)`
 
-1. **Ein `top_n` wäre eine zweite Zahl mit eigener Herleitung.** AD-003 hat
-   K und W gemessen begründet (K=20, W=40, ungünstigster realer Fall unter
-   einer halben Sekunde). Eine dritte Stellschraube ohne eigene Messung
-   verstiesse gegen L-001.
-2. **Sie wäre eine dritte Grösse im Cache-Schlüssel** und damit ein weiterer
-   Weg, an dem zwei Läufe sich für denselben halten können.
-3. **Sie hat keinen Leser.** `top_n` kommt in `nrplanner/` nicht vor
-   (Volltextsuche gegen `fd9f2bc`: ein Treffer, und der steht im Docstring
-   von `search.py:321`, wo er genau diesen Sachverhalt erklärt).
+- `snapshot_fingerprint` = `meta.regulation_sha256` + `meta.extract_version`.
+- `inventory_fingerprint` = Hash über die sortierten Tupel
+  `(handle, relic_id, sorted(effect_ids), sorted(curse_ids), colour, is_deep)`.
 
-**Die Zusage aus AD-003 bleibt vollständig erfüllt:** der Spieler sieht
-Alternativen und kann Begründungen vergleichen (A5) — er sieht W davon statt
-`top_n` davon.
+> **Korrektur vom 2026-09-01, ersetzt die ursprüngliche Fassung dieser Zeile.**
+> Ursprünglich stand hier „ausdrücklich **ohne** `handle`", mit der Begründung
+> aus `chalices.py`: Handles werden beim Einschmelzen oder Rechnerwechsel neu
+> vergeben, und ein Handle im Schlüssel entwertete den Cache ohne jede
+> Änderung am Besitz. Diese Begründung ist für sich richtig und **hier
+> trotzdem falsch**, seit AD-013 gilt: das Ergebnis *enthält* Handles. Ein
+> Treffer im Cache nach einer Neuvergabe lieferte Handles, die auf ein anderes
+> oder gar kein Relikt zeigen — ein Vorschlag, den der Spieler nicht tragen
+> kann, also genau der Fehler, den AD-013 verhindern soll. Die Abwägung ist
+> einseitig: ein überflüssiger Cache-Fehlschlag kostet 0,46 s, ein veralteter
+> Handle kostet eine falsche Empfehlung. Handles gehören in den Schlüssel.
+- `declared_fingerprint` deckt die vom Spieler als aktiv erklärten
+  konditionalen Effekte ab — sie ändern die Totals und damit das Ranking.
 
-**Was das nicht ist:** kein Verzicht auf ein Bedienelement, das es je gab.
-D-5 sagt ausdrücklich „kein `top_n`-Stellrad" — die Frage war, ob der Nutzer
-die Zahl der gezeigten Vorschläge selbst dreht, und die Antwort ist nein.
-Kommt sie je, ist es eine Entscheidung des `ui-ux-designer` über eine
-Anzeigemenge, nicht eine zweite Suchbreite.
+**Konsequenzen:** Leicht wird — sofortige Antwort beim Hin- und Herwechseln.
+Dauerhaft schwer wird — nichts von Belang; ein Plattencache liesse sich
+nachrüsten, wenn er je gebraucht wird (Bedingung siehe „Bewusst nicht getan").
 
----
-
-### Bewusst nicht getan, Ergänzung
-
-- **Die Waffentyp-Schranke nicht aus `CONDITIONAL_FIELDS` genommen**
-  (Option E). *Wieder interessant, wenn:* jemand die dritte Ablage aus E'
-  ohnehin baut — also eine Klasse „gated, in keine Summe, kein Schalter". Vor
-  E' muss messbar sein, dass die 46 Schalter dem Spieler nichts wert sind;
-  heute beantworten sie eine Frage, die er durch Waffenwechsel wirklich
-  beantworten kann.
-- **`wepTypeTriggerCount` nicht auswertbar gemacht.** Das Raster hält sechs
-  Armaturen; man **könnte** zählen, wie viele davon den verlangten Typ
-  tragen, und die Schranke damit erfüllen. *Wieder interessant, wenn:* eine
-  Ablesung im laufenden Spiel bestätigt, welche Zahl das Feld meint. Ohne
-  diese Ablesung wäre es geraten — 82 Effekte hängen daran, und A7 verbietet
-  die Vermutung.
-- **QA-185 nicht mitbehoben** (`Build.qualitative` trägt keine Effekt-Id).
-  Diese AD **berührt** sie: die richtige Grenze zwischen `qualitative` und
-  `situational` wird erst prüfbar, wenn beide Listen dieselbe Id führen —
-  heute muss `explain` über den Namen zurückschliessen. Die Entscheidung
-  hängt nicht daran, der spätere Wächter schon. Eigener Auftrag, eigener
-  Code, gerade in fremder Hand.
-- **Den Wortlaut von 4.9b nicht angefasst.** Er gehört dem
-  `ui-ux-designer`; diese AD sagt nur, **welche Menge** er beschreiben muss.
+**Umkehrbarkeit:** leicht.
 
 ---
 
-### Offene Fragen, neu
-
-**OF-23 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
-`GATE_FIELDS["triggerOnWepType"]` beschriftet **72 Effekte** des Datensatzes
-(Wert 256 auf 70, 512 auf 2) mit *„only with a matching weapon type"*,
-obwohl **kein** Waffentyp des Spiels diesen Wert trägt — der Spieler sucht
-eine Waffe, die es nicht gibt. Auf diesem Spielstand ist der Fall **latent**
-(0 von 197 bzw. 201 `not_counted`-Einträgen in beiden Umgebungen), weil keine
-besessene Kopie einen solchen Effekt trägt; ein anderer Bestand kann ihn
-sichtbar machen. Es ist eine A11-Frage („ich habe geraten"), kein
-Rechenfehler. Der Text steht in `model.py`, die Entscheidung über den Text
-nicht bei mir.
-
-**OF-24 — an den `director`:** Der Befund aus T-084 nennt „46 von 170" als
-Anteil an einer Zahl, die der Nutzer liest. Gemessen ist das der Anteil an
-der **Kandidatenmenge**; die Zahl in der Statuszeile 4.9b bewegt sich in 175
-von 176 vollen Läufen um **null** (Umgebung A: 1 von 565; B: 1 von 473).
-Falls Priorität oder Reihenfolge eines Auftrags an der Grösse dieses
-Befundes hing, ist die Grundlage jetzt eine andere — die Klasse ist trotzdem
-zu entscheiden gewesen, weil der Docstring die **Beschreibung** der Menge
-falsch führt und Füllung (c) im Picker jede der 46 Zeilen betrifft.
-
----
-
-## Nachtrag VIII 2026-09-08 — Der Berater rechnet im Hauptthread, und das Lesen des Spielstands auch (AD-028, AD-029)
+### Nachtrag VIII 2026-09-08 — Der Berater rechnet im Hauptthread, und das Lesen des Spielstands auch (AD-028, AD-029)
 
 **Anlass:** Der `performance-tuner` hat in S11 (T-118) am echten Spielstand
 gemessen und dabei zwei Befunde gefunden, die beide Struktur betreffen:
@@ -4210,269 +3331,7 @@ Spielers, und §3.8 waere dann ein zweites Mal zu schreiben.
 
 ---
 
-### AD-029 — Das Lesen des Spielstands wird **zuerst am Lesen selbst** repariert; die Verlagerung in einen Worker ist eine zweite Stufe, die an eine Messung mit benanntem Ausloeser haengt (2026-09-08, Status: aktiv; beruehrt AD-006.7, AD-006.8, SEC-022)
-
-**Kontext — was die 6,15 s kosten, belegt an T-118 und `baselines.md`
-S11-E:**
-
-| Posten | Wert | Quelle |
-|---|---|---|
-| `inventory.load`, Hauptthread | **6147,6 ms** (p50, n=5, 6091,9–6299,4) | S11-E |
-| davon Scan aller 14 Slots **einer** Datei | 2802,7 ms | S11-E |
-| `savefile.read_owned_relics`, Eigenzeit, 28 Aufrufe | 6,562 s **unter cProfile** | S11-E |
-| darin `struct.unpack_from` | **10 293 488** Aufrufe, 5,576 s **unter cProfile** | S11-E |
-| Prozessstart gesamt | 6593,7 ms | S11-E |
-| Obergrenze eines Gegenentwurfs (Vorfilter) | 14 Slots in **61,9 ms** statt 2802,7 = **45x** | S11-E |
-| Verhaltensgleichheit des Gegenentwurfs | **28 von 28** Slots **beider** Spielstaende, mit Positivkontrolle | T-118 4/P2, 7 |
-
-Die Ursache ist die Schleife `for off in range(0, len(slot_data) - 24, 4)` in
-`nrdata/savefile.py`, die **jeden** 4-Byte-Versatz eines Slots anfasst.
-Gelesen werden **28** Slots — zwei Spielstanddateien mit je 14 —, gebraucht
-wird **einer**: `inventory.load` waehlt den bestbestueckten. Aufgerufen wird
-das im Hauptthread bei jedem Start (`app.py:1575`) und bei jedem `Rescan`
-(`app.py:1682`).
-
-**Die 45x sind ein Faktor ueber den Scan, nicht ueber den Start — und das ist
-die Verwechslung, die diese Entscheidung sonst falsch machen wuerde.**
-Herleitung aus den Posten oben (L-001):
-
-```
-nicht im Scan (Entschluesseln, Records bauen, Loadouts):
-    6147,6 - 2 x 2802,7 = 542,2 ms
-nach dem Vorfilter:
-    542,2 + 2 x 61,9    = 666,0 ms   ->  inventory.load rund 9,2x, nicht 45x
-```
-
-**Annahme darin, ausdruecklich benannt:** die zweite Spielstanddatei kostet so
-viel wie die erste. Separat gemessen ist nur eine (2802,7 ms); die Summe passt
-in das Ganze (5605 von 6148 ms = 91 %), belegt ist die Aufteilung nicht. Die
-Zahl 666 ms ist damit **hergeleitet, nicht gemessen** — sie taugt zum
-Entscheiden ueber die Reihenfolge, nicht als Abnahmewert.
-
-**Optionen:**
-
-- **A — im Bestand bleiben.** Der Nutzer hat am 08.09.2026 anders entschieden
-  (QA-209 in den Fix-Stapel vor 1.8.0). **Entfaellt.**
-- **B — nur verlagern**, das Lesen unveraendert in einen Worker. Konsequenz:
-  6,15 s bleiben 6,15 s, nur woanders; der Start wird nicht schneller, nur die
-  Fenstersperre beim `Rescan` verschwindet. Der groesste gemessene Hebel des
-  Programms bliebe liegen, und der Umbau ist der teurere von beiden.
-- **C — nur das Lesen.** Vollstaendig gemessen, eine Schleife, eine Datei,
-  Verhaltensgleichheit an 28 von 28 Slots belegt. Restwert hergeleitet
-  666 ms.
-- **D — beides in einem Auftrag.**
-
-**Entscheidung: C jetzt; B nur, wenn eine Messung es verlangt — also nicht
-D.** C ist belegt und klein. B verlangt einen **dritten Fensterzustand**
-(„wird gelesen"): `self.owned = None` heisst heute *„kein Spielstand
-gefunden"* und ist der Satz, den der Spieler dann liest — ein Zustand
-„noch nicht da" existiert nicht. Dazu kommen eine neue Thread-Grenze und eine
-Ergaenzung der `UI_SPEC`. Das auf Verdacht zu bauen, bevor die Zahl nach C
-bekannt ist, waere Architektur auf Vorrat.
-
-**Der Ausloeser fuer Stufe B, benannt statt geschaetzt.** Nach C wird
-`inventory.load` am echten Spielstand neu gemessen (`performance-tuner`,
-Szenario S11-E, dasselbe Skript, dieselbe Umgebung, Vorher-Wert 6147,6 ms).
-**Liegt der Median ueber 250 ms, wird B gebaut; darunter nicht.** Die 250 ms
-sind nicht neu erfunden: es ist die Schwelle, die AK-09 bereits traegt fuer
-„der Spieler bekommt keinen Wartezustand gezeigt", und ein **eingefrorenes**
-Fenster ist strenger zu bewerten als eine rechnende Hintergrundspur. Nach der
-Herleitung oben (666 ms) ist zu **erwarten**, dass der Ausloeser greift —
-erwartet ist nicht gemessen, und die Reihenfolge kostet nichts, weil B ohnehin
-auf C aufsetzt: B ohne C verlagerte 6,15 s, statt 5,5 s davon zu beseitigen.
-Die `UI_SPEC`-Ergaenzung fuer den dritten Zustand kann parallel zu C
-entstehen.
-
-**Form von Stufe B, falls der Ausloeser greift — eingegrenzt, nicht
-entworfen:**
-
-1. **Die Thread-Grenze liegt zwischen Lesen und Bauen.** Der Worker liest die
-   Datei, entschluesselt sie und scannt die Records; der Hauptthread baut aus
-   den Records das `Inventory`. Damit bleibt **AD-006.8 unangetastet** — ueber
-   die Grenze gehen nur unveraenderliche Datenklassen (`OwnedRelic` ist eine),
-   nicht das lebende `Inventory` —, und die Grenze liegt genau um den gemessen
-   teuren Teil.
-2. **Kein Wartemuster aus `firstrun.py`** (AD-006.2): kein
-   `processEvents`, keine modale Warteschleife.
-3. **Die Cache-Entwertung wandert vom Beginn an die Ankunft.** Heute ruft
-   `rescan_save` `advisor_bar.the_data_is_changing()` **vor** dem Lesen, was
-   richtig ist, solange das Lesen synchron ist. Asynchron gilt der alte
-   Bestand waehrend des Lesens weiter; entwertet wird in dem Moment, in dem
-   `self.owned` ersetzt wird. (`rescan_save` ruft `model.configure` **nicht**
-   auf — die Gefahr F4 aus AD-006.7 betrifft den Datenneuaufbau, nicht den
-   Neu-Scan.)
-4. **Ein Lesen zur Zeit** (AD-006.4 sinngemaess): ein zweiter `Rescan`-Klick
-   waehrend eines laufenden Lesens startet kein zweites.
-5. **Der dritte Fensterzustand ist Oberflaeche** und gehoert dem
-   `ui-ux-designer`, nicht dieser Entscheidung.
-
-**Die Vertrauensgrenze wird beruehrt — Fall fuer den `security-reviewer`.**
-Der Vorfilter entscheidet, **welche** Versaetze ueberhaupt geprueft werden.
-Drei Dinge folgen daraus:
-
-1. Die Dichteschranke aus **SEC-022** (`MIN_BYTES_PER_RELIC_RECORD = 64`, der
-   laute `raise` an dem Record, der die Linie ueberschreitet) zaehlt
-   **gefundene** Records. Ein Filter, der weniger findet, verschiebt sie. Er
-   darf sie nicht antasten.
-2. Die Verhaltensgleichheit ist an **28 von 28 Slots zweier echter
-   Spielstaende** belegt — also gerade **nicht** an der Dateiklasse, fuer die
-   SEC-022 gebaut ist. Der `security-reviewer` hat aus T-096 eine praeparierte
-   Datei (131 069 Records je MiB, Faktor 8 ueber der Schranke); die Gleichheit
-   gehoert **auch dort** gezeigt, bevor der Fix als abgeschlossen gilt.
-   Argument, das dafuer spricht und die Pruefung nicht ersetzt: ein Record
-   verlangt `first == second` und `first >= RELIC_ID_FLAG`, traegt also
-   zwangslaeufig das Byte, auf das der Filter vorsortiert.
-3. Die tragende Annahme **`relic_id < 0x01000000`** (groesste Id im heutigen
-   Datensatz: 2 013 322) ist eine Kopplung an die Spieldaten, die ein
-   Spiel-Patch aendern kann. Sie gehoert als Pruefung in den Code, nicht als
-   Kommentar daneben — laut werden, nicht still danebenliegen.
-
-> **Punkt 3 ist abgeloest durch AD-031 (Nachtrag XI, 08.09.2026).** Die
-> Annahme bleibt geprueft; „laut werden" heisst aber nicht mehr
-> **verweigern** (so in T-133 gebaut, `savefile.py:237-246`), sondern
-> **auf den langsamen Weg zurueckfallen und es in der Bestandszeile sagen**
-> — Nutzerentscheid vom 08.09.2026, Wortlaut in `UI_SPEC` AK-228/AK-229.
-> Die Punkte 1 und 2 gelten unveraendert. Wer Punkt 3 zitiert, liest
-> AD-031 mit.
-
-Der eigene Spielstand gilt seit 02.09.2026 als vertrauenswuerdig; ein
-**heruntergeladener** bleibt die scharfe Grenze, und der Vorfilter laeuft auf
-beiden.
-
-**Der zweite Hebel, den T-118 dem `architect` ausdruecklich vorgelegt hat —
-„28 Slots lesen, um einen zu benutzen; darf `load()` frueher aufhoeren?": Nein,
-nicht anfassen.** Die Regel „der bestbestueckte gewinnt" ist gegen einen
-realen Fall gebaut (zweites Steam-Konto, wiederhergestelltes Backup,
-Ueberrest einer Neuinstallation) und steht als Begruendung im Docstring von
-`load`. Nach dem Vorfilter kosten alle 28 Slots zusammen noch rund 124 ms von
-666 ms. Eine Korrektheitsregel, die den **falschen** Spielstand waehlen kann,
-gegen einen Bruchteil einer bereits behobenen Zeit zu tauschen, ist der
-schlechteste Tausch im ganzen Befund. *Wieder interessant, wenn:* der
-Vorfilter sich als unhaltbar erweist — dann ist ohnehin der `array`-Rueckfall
-aus T-118 Abschnitt 6 dran (2,1x statt 45x), und die Frage stellt sich neu.
-
-**Umfang in Dateien** (fuer den Schnitt der Auftraege, Obergrenze fuenf):
-
-| Schritt | Rolle | Produktivdateien | Dazu |
-|---|---|---|---|
-| C — Vorfilter + Id-Pruefung | `developer` | **1** (`nrdata/savefile.py`) | Tests |
-| Pruefung an der praeparierten Datei | `security-reviewer` | **0** (lesend) | — |
-| Nachmessung, Ausloeser fuer B | `performance-tuner` | **0** (`docs/perf/baselines.md`) | — |
-| B, falls ausgeloest | `developer` | **3** (`nrplanner/inventory.py`, ein neues kleines Qt-Modul fuer die Spur, `nrplanner/app.py`) | Tests, **nach** der `UI_SPEC`-Ergaenzung |
-
-**Konsequenzen.** *Leicht wird:* der Programmstart faellt hergeleitet von
-6,59 s auf rund 1,1 s, und das ist der groesste einzelne Hebel, den das
-Programm hat. *Dauerhaft schwer wird:* der Scan wird eine Spur trickreicher,
-und er traegt eine Annahme ueber die Spieldaten, die ein Patch brechen kann —
-deshalb muss sie laut sein. Faellt Stufe B, kommt ein Fensterzustand dazu,
-den es heute nicht gibt.
-
-**Umkehrbarkeit.** C: **leicht** — eine Schleife, mit einem gemessenen
-Rueckfallweg daneben. B: **mittel** — Zustand und Thread-Grenze zurueckzubauen
-kostet mehr als sie zu bauen, und die `UI_SPEC` haette den Zustand dann zu
-streichen.
-
----
-
-### Umsetzung — Schnitt in einzeln lauffaehige Schritte (Nachtrag VIII)
-
-Reihenfolge und Abhaengigkeiten; jeder Schritt ist fuer sich lauffaehig und
-fuer sich pruefbar. **U1 haengt an nichts** und kann sofort parallel laufen.
-
-> **Ueberholt am 2026-09-08 (Nachtrag IX, T-125) fuer U5a, U5b, U6 und U7.**
-> U1 bis U4 und U8 gelten unveraendert; **U4 ist erledigt** (T-124). Wer
-> U5a, U5b, U6 oder U7 beauftragt oder umsetzt, nimmt die Fassung aus
-> Nachtrag IX — die Zeilen unten bleiben als Verlauf stehen.
-
-| # | Rolle | Inhalt | haengt an |
-|---|---|---|---|
-| **U1** | `developer` | AD-029 Stufe C: Vorfilter in `nrdata/savefile.py`, Id-Annahme als Pruefung im Code, Gleichheitsprobe gegen den heutigen Scan, Dichteschranke unangetastet | — |
-| **U2** | `security-reviewer` | Vorfilter gegen die praeparierte Datei aus T-096 und gegen SEC-022; lesend | U1 |
-| **U3** | `performance-tuner` | `inventory.load` und den Prozessstart nachmessen (S11-E fortschreiben); **entscheidet den Ausloeser fuer Stufe B** | U1 |
-| **U4** | `ui-ux-designer` | `UI_SPEC` §3.8 neu; erster Anstrich ohne Zahlen; Ordnung, Kopfzeile und Chips beim Nachliefern; Zielrichtungswechsel im offenen Dialog | — |
-| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`, kanonische Form nach Punkt 3, `SlotPool`-Gleichheit vorher/nachher belegt | — |
-| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion, zweite Instanz am Fenster (100 ms / 64), `SlotAdvice` fragt die Spur, Verteilung von `before_the_data_changes`/`shutdown`, Docstring `276-281` ersetzt, direkte `advisor`-Importe aus `relicpicker` entfernt | U4, U5a |
-| **U6** | `developer` | W1, W2, W3 mit ihren toetenden Mutationen | U5b |
-| **U7** | `performance-tuner` | 318,1 ms nachmessen; **den Hauptthread-Rest messen** (OF-26); Ueberlappung zweier Spuren messen (OF-25) | U5b |
-| **U8** | `developer` | Stufe B aus AD-029 — **nur**, wenn U3 den Ausloeser gemeldet hat | U3, Spec fuer den dritten Zustand |
-
-**Was der `developer` ausdruecklich nicht tun soll:** keine Oberflaeche
-entwerfen (U4 geht vor U5b); die Rechnung nicht schneller machen, um sie im
-Hauptthread zu behalten (P1a ist ein eigener Auftrag und ersetzt AD-028
-nicht); keinen zweiten Generationszaehler und keinen zweiten Thread-Weg
-bauen; die Dichteschranke SEC-022 nicht anfassen; `load()` nicht frueher
-abbrechen lassen; keine Zeitschranke in die Suite schreiben.
-
----
-
-### Risiken und Pruefpunkte, neu
-
-| Risiko | Woran man es merkt | Rueckweg |
-|---|---|---|
-| Zwei Spuren rechnen gleichzeitig und A6s 6-s-Zeile faellt | U7 misst `Optimize` mit gleichzeitig laufender Picker-Frage | A6 bekommt die Randbedingung „ohne gleichzeitige zweite Spur", **oder** die Picker-Spur bekommt Vorrang. Beides ist eine Entscheidung, kein Fix — sie faellt an der Zahl. |
-| Der Hauptthread-Rest ist selbst groesser als 50 ms | U7 misst Anfragebau + `frozen_inventory` (309 Kopien) + `inventory_fingerprint` (sha256 ueber 309 Zeilen) **getrennt** vom Lauf | Das Einfrieren einmal je Bestandsaenderung statt einmal je Frage; das ist ein eigener Entwurf und beruehrt AD-007s Fingerabdruck. |
-| Die kanonische Form nach Punkt 3 liefert einen anderen `SlotPool` | U5a vergleicht vorher/nachher ueber Handles und Punktzahlen | Slot-Index doch als Feld in `AdvisorRequest` — dann ist AD-018s „keine zweite Schluesselform" ausdruecklich zu revidieren, nicht stillschweigend. |
-| Der Vorfilter findet auf einer praeparierten Datei weniger als der heutige Scan | U2 | `array`-Rueckfall aus T-118 Abschnitt 6 (2,1x statt 45x). |
-| Der Wartezustand blitzt bei schnellen Slots auf (32–82 ms, S11-C) | am laufenden Fenster, nach U5b | Die 100-ms-Entprellung deckt den Fall bereits — der Wartezustand darf erst **nach** dem Start des Laufs erscheinen, wie AK-09 es fuer die Advisor bar schon regelt (`WAIT_VISIBLE_MS`). |
-
----
-
-### Bewusst nicht getan, neu
-
-- **Kein eigener Thread-Weg fuer den Picker** (AD-028 Option C). *Wieder
-  interessant, wenn:* die beiden Antwortformen so weit auseinanderlaufen,
-  dass eine Klasse zwei Betriebsarten haette statt einer austauschbaren
-  Funktion.
-- **Der Picker rechnet nicht „nur schneller" im Hauptthread** (AD-028
-  Option A). *Wieder interessant, wenn:* die Slot-Frage je unter 50 ms faellt
-  — nach P1a sind es gemessen 245,5 ms, also Faktor 5 zu weit.
-- **`load()` bricht nicht frueher ab** (AD-029). Grund und
-  Reaktivierungsbedingung stehen dort.
-- **Der Ergebnis-Cache bleibt im Speicher** (AD-007 haelt). Die Bedingung aus
-  T-118 Abschnitt 6 — „wenn der Prozessstart nach AD-029 den Berater
-  dominiert" — ist nach Stufe C zu pruefen: bei hergeleiteten 1,1 s Start
-  gegen 5,02 s Gesamtlauf tut er es weiter nicht.
-- **Keine Zeitschranke in der Testsuite.** Zeiten gehoeren in
-  `docs/perf/baselines.md`, mit Umgebung und Streuung (L-001, L-009).
-
----
-
-### Offene Fragen, neu
-
-**OF-25 — an den `director`, auszufuehren vom `performance-tuner`:** Nach
-AD-028 koennen zwei Spuren gleichzeitig rechnen (AK-08 verlangt es). **A6s
-6-s-Zahl fuer `Optimize` ist gemessen, waehrend sonst nichts rechnete** —
-`docs/perf/baselines.md` S11-A sagt nichts ueber eine gleichzeitige zweite
-Spur, und unter dem GIL teilen sich zwei rechnende Python-Threads einen Kern.
-Bei 5023,6 ms gemessen und 6 s Schranke bleiben 19 % Luft; eine Halbierung
-des Durchsatzes waere mehr. **Zu messen:** `Optimize` mit einer gleichzeitig
-laufenden Picker-Frage, gegen S11-A. Faellt die Zahl durch, ist es eine
-Entscheidung fuer den `director` (Randbedingung an A6 oder Vorrang der
-Picker-Spur), keine Nachbesserung.
-
-**OF-26 — an den `director`, auszufuehren vom `performance-tuner`:** Der
-**Hauptthread-Rest** einer Beraterfrage ist nie gemessen worden — auf keinem
-der beiden Wege. Auch nach AD-028 bleiben im Hauptthread: der Bau der
-Anfrage, `run.frozen_inventory` (309 Kopien plus die Angebotslisten je
-Slot-Farbe) und `run.inventory_fingerprint` (sha256 ueber 309 sortierte
-Zeilen). **A6s dritte Zeile steht und faellt mit dieser Zahl**, und sie gilt
-schon heute fuer den `Optimize`-Weg, der als „haelt" gefuehrt wird. Zu messen
-getrennt vom Lauf, im selben Szenario wie S11-B.
-
-**OF-27 — an den `director`:** `UI_SPEC` §3.8, `ARCHITECTURE.md` (hier
-korrigiert) und `relicpicker.py:276-281` tragen **dieselbe** gerechnete Zahl,
-und keine der drei Stellen sagte, dass sie gerechnet war. Zwei davon sind
-jetzt richtiggestellt, die dritte gehoert dem `ui-ux-designer` (U4). **Die
-Frage dahinter ist allgemeiner:** ob eine Zahl, die in einem Entwurfstext
-eine Entscheidung traegt, kuenftig ihre Herkunft mitfuehren muss — gemessen
-oder gerechnet, mit Datum und Quelle. L-001 verlangt das fuer Testschranken
-und Architekturkennwerte; QA-208 ist der Fall, in dem eine **gerechnete**
-Zahl drei Dateien weit gewandert ist. Entscheidung des `director`, ob das als
-Regel aufgeschrieben wird.
-
----
-
-## Nachtrag IX 2026-09-08 — Der Zielrichtungswechsel war nie eine Frage (Nachtraege zu AD-028, Fassung 2 von U5a bis U7)
+### Nachtrag IX 2026-09-08 — Der Zielrichtungswechsel war nie eine Frage (Nachtraege zu AD-028, Fassung 2 von U5a bis U7)
 
 **Anlass.** Der `ui-ux-designer` hat in T-124 die Oberflaeche des wartenden
 Pickers vorgegeben (`UI_SPEC.md`, AK-197 bis AK-210) und dabei drei Punkte an
@@ -4873,91 +3732,7 @@ offen hatte — ein Eintrag, 32 bis 318 ms, kein Verdraengen.
 
 ---
 
-### Umsetzung — Fassung 2 von U5a bis U7 (ersetzt die entsprechenden Zeilen in Nachtrag VIII)
-
-**U1 bis U3 und U8 gelten unveraendert. U4 ist erledigt** (T-124,
-`UI_SPEC.md`, AK-197 bis AK-210).
-
-| # | Rolle | Inhalt | haengt an |
-|---|---|---|---|
-| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`; kanonische Form nach AD-028.3; sie nimmt ihr `rank_by` aus `request.goal_id`; **die benannte Konstante fuer die kanonische Zielrichtung (IX-2.1) entsteht hier**; `SlotPool`-Gleichheit vorher/nachher ueber Handles und Punktzahlen belegt | — |
-| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion; zweite Instanz am Fenster mit **Entprellung 0 ms** und Cache **64** (IX-1.1, IX-3); die zusaetzliche Methode „antworte sofort, falls bekannt" samt gemeinsamer privater Frageerzeugung (IX-1.3); `SlotAdvice` fragt die Spur; `_sort_chosen` fragt **nicht** mehr (IX-0); die Anzeige liest ihre Richtung aus der Einstellung, nicht aus `SlotPool.rank_by` (AK-205); Verteilung von `before_the_data_changes`/`shutdown` an **beide** Spuren; Docstring `relicpicker.py:276-281` ersetzt (er begruendet heute das Gegenteil **und** traegt die widerlegten ~51 ms — OF-27, dritte Fundstelle); direkte `advisor`-Importe aus `relicpicker` entfernt | U5a |
-| **U6** | `developer` | **W1, W2, W3 (neue Fassung IX-4), W4, W5** mit ihren toetenden Mutationen, alle im Standardlauf, keine Wanduhr-Schranke | U5b |
-| **U7** | `performance-tuner` | 318,1 ms nachmessen; **Groesse eines Picker-Cache-Eintrags in der neuen Antwortform gegen die 140-KiB-Schranke aus IX-3.2**; **Trefferquote der beiden tragenden Spuren unter dem Schluessel ohne Richtung (IX-3.3)**; Hauptthread-Rest (OF-26); Ueberlappung zweier Spuren (OF-25) | U5b |
-
-**U5b haengt jetzt nur noch an U5a**, weil U4 geliefert ist.
-
-**Was der `developer` ausdruecklich nicht tun soll** (zusaetzlich zur Liste in
-Nachtrag VIII):
-
-- **Die Entprellung nicht auf der Klasse aendern.** Die 0 ms gehoeren der
-  Instanz; die Advisor bar behaelt 250 ms.
-- **Den Cache nicht generell vor den Zeitgeber ziehen** (Option D in IX-1) —
-  das aendert die Advisor bar mit.
-- **`UI_SPEC` §4s Rueckweg nicht stillschweigend bauen.** Stellt sich beim
-  Bauen heraus, dass ein Pool die andere Richtung doch nicht bedient, ist das
-  ein **Befund** (L-008c): melden; dann bekommt der Richtungswechsel seinen
-  Wartezustand **und** die 100-ms-Entprellung kommt zurueck (IX-1.2).
-- **Nicht vorwaermen** (IX-5), auch nicht „nur den einen Slot".
-- **`AdvisorResult` nicht um den Pool erweitern**, um beide Spuren dieselbe
-  Antwortform tragen zu lassen — das machte jeden Gesamtlauf-Eintrag um die
-  Kandidatenliste schwerer, gegen 279,9 KiB, die schon der teure Fall sind.
-
----
-
-### Risiken und Pruefpunkte, neu (zu den Zeilen aus Nachtrag VIII)
-
-| Risiko | Woran man es merkt | Rueckweg |
-|---|---|---|
-| Ein Picker-Cache-Eintrag ist viel groesser als die 33,4 KiB, auf denen die 64 steht | U7 misst ihn gegen die 140-KiB-Schranke (IX-3.2) | zurueck auf 32; die Groessenfrage kommt zum `architect` |
-| Der `developer` baut nur einen der beiden Antwortwege (Rueckgabewert **oder** Signal) | W5 samt Gegenprobe | — |
-| `GOAL_ORDER` und `GOALS` laufen auseinander, und die Wiederverwendung des Pools faellt still | W4 | — |
-| Die Anzeige liest ihre Richtung weiter aus `SlotPool.rank_by` | mit IX-2 **immer** falsch statt manchmal; AK-205 und sein Gegenbau | — |
-| Die 0 ms verstopfen die Spur, weil doch zwei Fragen kurz hintereinander kommen | am laufenden Fenster: zwei Oeffnungen in Folge; „ein Lauf zur Zeit" haelt ohnehin (`worker.py:285-286`, `307-321`) | die 100 ms zurueck (IX-1.2) |
-
----
-
-### Bewusst nicht getan, neu (zu Nachtrag VIII)
-
-- **Kein Vorwaermen der Slot-Pools** (IX-5). Grund und Wiederkehrbedingung
-  stehen dort; das Mittel waere dann nicht `pools()`.
-- **Kein Cache-Blick vor dem Zeitgeber fuer beide Spuren** (IX-1 Option D).
-  *Wieder interessant, wenn:* die Advisor bar ihren Wartezustand so umbaut,
-  dass ein sofort gezeichneter Treffer nicht mehr flackern kann.
-- **Die 100-ms-Entprellung wird nicht geloescht, nur auf 0 gesetzt** (IX-1.2).
-  Sie ist die richtige Zahl fuer den Fall, den `UI_SPEC` §4 als Rueckweg
-  vorsieht.
-- **Kein Feld `slot_index` in `AdvisorRequest`** — AD-028.3 haelt; nur das Feld
-  `goal_id` wird fuer die Picker-Spur kanonisch belegt (IX-2).
-
----
-
-### Offene Fragen, neu
-
-**OF-28 — an den `director`, auszufuehren vom `performance-tuner` (U7):** Die
-Groesse eines Picker-Cache-Eintrags ist **in der Antwortform, die AD-028 der
-Picker-Spur gibt, nie gemessen worden**; die 33,4 KiB, auf denen die 64 steht,
-gelten fuer eine `AdvisorResult` mit 20 Suggestions. Schranke und Rueckweg
-stehen in IX-3.2. **Solange diese Messung fehlt, ist die 64 eine gesetzte Zahl
-ohne gueltige Herleitung** — sie steht, aber sie belegt nichts.
-
-**OF-29 — an den `director`:** Nach IX-2 traegt die Picker-Anfrage in
-`goal_id` eine Ordnungskonstante und nicht die Wahl des Spielers. Das ist die
-zweite Stelle in diesem Vorhaben, an der ein Feldname mehr verspricht, als das
-Feld haelt (die erste war `SlotPool.rank_by`, D-4/T-077). Die allgemeinere
-Frage, die schon OF-27 stellt, wird damit dringender: **ob ein Feld, das nur
-unter einer Randbedingung bedeutet, was sein Name sagt, diese Bedingung im Typ
-tragen muss** statt im Docstring daneben. Entscheidung des `director`, ob das
-als Regel aufgeschrieben wird; ein Umbau der Datenformen ist es nicht.
-
-**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
-mir nicht): **AK ab AK-211** (bereits von T-124 gemeldet, Zeile 11 steht noch
-auf AK-195) und **OF ab OF-30**. AD bleibt bei **AD-030** — dieser Nachtrag
-vergibt **keine** neue AD-Nummer, er schreibt AD-028 fort.
-
----
-
-## Nachtrag X 2026-09-08 — Was der Vertrag des `AdvisorController` wirklich zusagt (drei Nachtraege zu AD-028, **keine neue AD-Nummer**)
+### Nachtrag X 2026-09-08 — Was der Vertrag des `AdvisorController` wirklich zusagt (drei Nachtraege zu AD-028, **keine neue AD-Nummer**)
 
 **Anlass:** Der `developer` hat beim Bau der Waechter (U6, T-131) drei Punkte
 gemeldet und **nicht behoben**, wie beauftragt. Alle drei betreffen denselben
@@ -5280,94 +4055,333 @@ hinein kommt in keiner davon vor.
 
 ---
 
-### Umsetzung — U9 und U10 (zu den Schritten aus Nachtrag VIII und IX)
+### AD-029 — Das Lesen des Spielstands wird **zuerst am Lesen selbst** repariert; die Verlagerung in einen Worker ist eine zweite Stufe, die an eine Messung mit benanntem Ausloeser haengt (2026-09-08, Status: aktiv; beruehrt AD-006.7, AD-006.8, SEC-022)
 
-| # | Rolle | Inhalt | haengt an |
-|---|---|---|---|
-| **U9** | `developer` | **Anwendungscode, eine Datei:** `shutdown` erhoeht den Generationszaehler vor dem Unterbrechen (X-1, Entscheidung D); Klassen-Docstring `worker.py:198-216` bekommt die Fassung aus X-0; **Regressionstest** = sechster W6-Fall „the window is closing" mit erwarteter Ausgangsliste **leer** als Literal | — |
-| **U10** | `developer` | **Nur `tests/`:** **W8** neu (X-2, Tabelle der vier unterbrechenden Stellen, beide Mutationen); **W1** um die Zeile `candidates.pools` → `advisor/run.py` erweitert (X-3.3) und um die Randbedingung im Docstring der Tabelle (X-3, letzter Absatz) | — |
+**Kontext — was die 6,15 s kosten, belegt an T-118 und `baselines.md`
+S11-E:**
 
-**U9 und U10 sind unabhaengig voneinander** und beruehren disjunkte Dateien
-(`nrplanner/advisor/worker.py` gegen `tests/test_picker_track_guards.py`) —
-bis auf den sechsten W6-Fall, der zu U9 gehoert, weil er ohne dessen Fix ein
-Wettlauf waere.
-
-**Der sechste W6-Fall, so genau, dass er nicht versehentlich gruen wird:** die
-Vorrichtung haelt die Antwortfunktion fest (`picker_track.StatedAnswers(...,
-hold=True)`), stellt **eine** Frage ueber `ask`, wartet, bis der Lauf
-angefangen hat (`answers.calls == 1`), ruft `track.shutdown(timeout_ms=0)`,
-gibt **danach** die Antwort frei und dreht die Schleife aus. Erwartet wird
-eine **leere** Ausgangsliste, als Literal geschrieben und nicht aus `shutdown`
-gerechnet (L-008b).
-*Toetende Mutation:* die Erhoehung des Generationszaehlers aus `shutdown`
-entfernen → die freigegebene Antwort traegt die noch gueltige Generation,
-`_on_ready` sendet `ready`, die Liste ist einelementig statt leer → rot
-(L-008a: im Standardlauf).
-**Ueberlebt die Mutation, ist das ein Befund und wird berichtet, nicht
-nachgebessert** (L-008c) — dann sagt sie, dass der Fall in der Vorrichtung gar
-nicht hergestellt wird, und der Fall ist wertlos, bis er es tut.
-
-**Was der `developer` ausdruecklich nicht tun soll:**
-
-- **`shutdown` kein Signal senden lassen** (X-1 Option B) — auch nicht „nur
-  `stopped`, nur wenn etwas lief".
-- **`_Worker.work` auf `search.Cancelled` nichts senden lassen** (X-2) — das
-  doppelte den Ausgang nach `cancel()`.
-- **`_interrupt_the_running_worker` keine Signatur geben** (X-1 Option C) —
-  das ist der Umbau, den W8 gerade unnoetig macht.
-- **`app.py` nicht anfassen**, um Fassung 1 von W1 woertlich wahr zu machen
-  (X-3).
-- **`UI_SPEC.md` nicht anfassen.** Die AK-218-Meldung gehoert dem
-  `ui-ux-designer`.
-- **Die Entprellung, die Cache-Groessen und die Antwortformen nicht
-  beruehren** — das sind IX-1, IX-3 und U7.
-
----
-
-### Risiken und Pruefpunkte, neu (zu Nachtrag VIII und IX)
-
-| Risiko | Woran man es merkt | Rueckweg |
+| Posten | Wert | Quelle |
 |---|---|---|
-| Der sechste W6-Fall stellt seinen Fall nicht her und ist immer gruen | die Mutation aus U9 ueberlebt | Fall streichen und als Befund melden; die Zusage aus X-0 traegt dann den dritten Punkt nicht |
-| Eine fuenfte unterbrechende Stelle entsteht und schweigt | **W8** | Tabelle ergaenzen **oder** die Stelle einen Ausgang senden lassen — die Zeile zu schreiben ist die Entscheidung |
-| `shutdown` erhoeht die Generation und etwas anderes las sie mit | die Suite; `ask` gibt die Generation zurueck, `shutdown` an niemanden | eine Zeile zurueck |
-| W1 waechst zur Pflegelast, weil jede neue rechnende Funktion eine Zeile braucht | mehr als zwei neue Zeilen in einem Zyklus | dann ist X-1 Option C (gebuendelte Ausgaenge) und eine Namenskonvention statt einer Tabelle zu pruefen |
+| `inventory.load`, Hauptthread | **6147,6 ms** (p50, n=5, 6091,9–6299,4) | S11-E |
+| davon Scan aller 14 Slots **einer** Datei | 2802,7 ms | S11-E |
+| `savefile.read_owned_relics`, Eigenzeit, 28 Aufrufe | 6,562 s **unter cProfile** | S11-E |
+| darin `struct.unpack_from` | **10 293 488** Aufrufe, 5,576 s **unter cProfile** | S11-E |
+| Prozessstart gesamt | 6593,7 ms | S11-E |
+| Obergrenze eines Gegenentwurfs (Vorfilter) | 14 Slots in **61,9 ms** statt 2802,7 = **45x** | S11-E |
+| Verhaltensgleichheit des Gegenentwurfs | **28 von 28** Slots **beider** Spielstaende, mit Positivkontrolle | T-118 4/P2, 7 |
+
+Die Ursache ist die Schleife `for off in range(0, len(slot_data) - 24, 4)` in
+`nrdata/savefile.py`, die **jeden** 4-Byte-Versatz eines Slots anfasst.
+Gelesen werden **28** Slots — zwei Spielstanddateien mit je 14 —, gebraucht
+wird **einer**: `inventory.load` waehlt den bestbestueckten. Aufgerufen wird
+das im Hauptthread bei jedem Start (`app.py:1575`) und bei jedem `Rescan`
+(`app.py:1682`).
+
+**Die 45x sind ein Faktor ueber den Scan, nicht ueber den Start — und das ist
+die Verwechslung, die diese Entscheidung sonst falsch machen wuerde.**
+Herleitung aus den Posten oben (L-001):
+
+```
+nicht im Scan (Entschluesseln, Records bauen, Loadouts):
+    6147,6 - 2 x 2802,7 = 542,2 ms
+nach dem Vorfilter:
+    542,2 + 2 x 61,9    = 666,0 ms   ->  inventory.load rund 9,2x, nicht 45x
+```
+
+**Annahme darin, ausdruecklich benannt:** die zweite Spielstanddatei kostet so
+viel wie die erste. Separat gemessen ist nur eine (2802,7 ms); die Summe passt
+in das Ganze (5605 von 6148 ms = 91 %), belegt ist die Aufteilung nicht. Die
+Zahl 666 ms ist damit **hergeleitet, nicht gemessen** — sie taugt zum
+Entscheiden ueber die Reihenfolge, nicht als Abnahmewert.
+
+**Optionen:**
+
+- **A — im Bestand bleiben.** Der Nutzer hat am 08.09.2026 anders entschieden
+  (QA-209 in den Fix-Stapel vor 1.8.0). **Entfaellt.**
+- **B — nur verlagern**, das Lesen unveraendert in einen Worker. Konsequenz:
+  6,15 s bleiben 6,15 s, nur woanders; der Start wird nicht schneller, nur die
+  Fenstersperre beim `Rescan` verschwindet. Der groesste gemessene Hebel des
+  Programms bliebe liegen, und der Umbau ist der teurere von beiden.
+- **C — nur das Lesen.** Vollstaendig gemessen, eine Schleife, eine Datei,
+  Verhaltensgleichheit an 28 von 28 Slots belegt. Restwert hergeleitet
+  666 ms.
+- **D — beides in einem Auftrag.**
+
+**Entscheidung: C jetzt; B nur, wenn eine Messung es verlangt — also nicht
+D.** C ist belegt und klein. B verlangt einen **dritten Fensterzustand**
+(„wird gelesen"): `self.owned = None` heisst heute *„kein Spielstand
+gefunden"* und ist der Satz, den der Spieler dann liest — ein Zustand
+„noch nicht da" existiert nicht. Dazu kommen eine neue Thread-Grenze und eine
+Ergaenzung der `UI_SPEC`. Das auf Verdacht zu bauen, bevor die Zahl nach C
+bekannt ist, waere Architektur auf Vorrat.
+
+**Der Ausloeser fuer Stufe B, benannt statt geschaetzt.** Nach C wird
+`inventory.load` am echten Spielstand neu gemessen (`performance-tuner`,
+Szenario S11-E, dasselbe Skript, dieselbe Umgebung, Vorher-Wert 6147,6 ms).
+**Liegt der Median ueber 250 ms, wird B gebaut; darunter nicht.** Die 250 ms
+sind nicht neu erfunden: es ist die Schwelle, die AK-09 bereits traegt fuer
+„der Spieler bekommt keinen Wartezustand gezeigt", und ein **eingefrorenes**
+Fenster ist strenger zu bewerten als eine rechnende Hintergrundspur. Nach der
+Herleitung oben (666 ms) ist zu **erwarten**, dass der Ausloeser greift —
+erwartet ist nicht gemessen, und die Reihenfolge kostet nichts, weil B ohnehin
+auf C aufsetzt: B ohne C verlagerte 6,15 s, statt 5,5 s davon zu beseitigen.
+Die `UI_SPEC`-Ergaenzung fuer den dritten Zustand kann parallel zu C
+entstehen.
+
+**Form von Stufe B, falls der Ausloeser greift — eingegrenzt, nicht
+entworfen:**
+
+1. **Die Thread-Grenze liegt zwischen Lesen und Bauen.** Der Worker liest die
+   Datei, entschluesselt sie und scannt die Records; der Hauptthread baut aus
+   den Records das `Inventory`. Damit bleibt **AD-006.8 unangetastet** — ueber
+   die Grenze gehen nur unveraenderliche Datenklassen (`OwnedRelic` ist eine),
+   nicht das lebende `Inventory` —, und die Grenze liegt genau um den gemessen
+   teuren Teil.
+2. **Kein Wartemuster aus `firstrun.py`** (AD-006.2): kein
+   `processEvents`, keine modale Warteschleife.
+3. **Die Cache-Entwertung wandert vom Beginn an die Ankunft.** Heute ruft
+   `rescan_save` `advisor_bar.the_data_is_changing()` **vor** dem Lesen, was
+   richtig ist, solange das Lesen synchron ist. Asynchron gilt der alte
+   Bestand waehrend des Lesens weiter; entwertet wird in dem Moment, in dem
+   `self.owned` ersetzt wird. (`rescan_save` ruft `model.configure` **nicht**
+   auf — die Gefahr F4 aus AD-006.7 betrifft den Datenneuaufbau, nicht den
+   Neu-Scan.)
+4. **Ein Lesen zur Zeit** (AD-006.4 sinngemaess): ein zweiter `Rescan`-Klick
+   waehrend eines laufenden Lesens startet kein zweites.
+5. **Der dritte Fensterzustand ist Oberflaeche** und gehoert dem
+   `ui-ux-designer`, nicht dieser Entscheidung.
+
+**Die Vertrauensgrenze wird beruehrt — Fall fuer den `security-reviewer`.**
+Der Vorfilter entscheidet, **welche** Versaetze ueberhaupt geprueft werden.
+Drei Dinge folgen daraus:
+
+1. Die Dichteschranke aus **SEC-022** (`MIN_BYTES_PER_RELIC_RECORD = 64`, der
+   laute `raise` an dem Record, der die Linie ueberschreitet) zaehlt
+   **gefundene** Records. Ein Filter, der weniger findet, verschiebt sie. Er
+   darf sie nicht antasten.
+2. Die Verhaltensgleichheit ist an **28 von 28 Slots zweier echter
+   Spielstaende** belegt — also gerade **nicht** an der Dateiklasse, fuer die
+   SEC-022 gebaut ist. Der `security-reviewer` hat aus T-096 eine praeparierte
+   Datei (131 069 Records je MiB, Faktor 8 ueber der Schranke); die Gleichheit
+   gehoert **auch dort** gezeigt, bevor der Fix als abgeschlossen gilt.
+   Argument, das dafuer spricht und die Pruefung nicht ersetzt: ein Record
+   verlangt `first == second` und `first >= RELIC_ID_FLAG`, traegt also
+   zwangslaeufig das Byte, auf das der Filter vorsortiert.
+3. Die tragende Annahme **`relic_id < 0x01000000`** (groesste Id im heutigen
+   Datensatz: 2 013 322) ist eine Kopplung an die Spieldaten, die ein
+   Spiel-Patch aendern kann. Sie gehoert als Pruefung in den Code, nicht als
+   Kommentar daneben — laut werden, nicht still danebenliegen.
+
+> **Punkt 3 ist abgeloest durch AD-031 (Nachtrag XI, 08.09.2026).** Die
+> Annahme bleibt geprueft; „laut werden" heisst aber nicht mehr
+> **verweigern** (so in T-133 gebaut, `savefile.py:237-246`), sondern
+> **auf den langsamen Weg zurueckfallen und es in der Bestandszeile sagen**
+> — Nutzerentscheid vom 08.09.2026, Wortlaut in `UI_SPEC` AK-228/AK-229.
+> Die Punkte 1 und 2 gelten unveraendert. Wer Punkt 3 zitiert, liest
+> AD-031 mit.
+
+Der eigene Spielstand gilt seit 02.09.2026 als vertrauenswuerdig; ein
+**heruntergeladener** bleibt die scharfe Grenze, und der Vorfilter laeuft auf
+beiden.
+
+**Der zweite Hebel, den T-118 dem `architect` ausdruecklich vorgelegt hat —
+„28 Slots lesen, um einen zu benutzen; darf `load()` frueher aufhoeren?": Nein,
+nicht anfassen.** Die Regel „der bestbestueckte gewinnt" ist gegen einen
+realen Fall gebaut (zweites Steam-Konto, wiederhergestelltes Backup,
+Ueberrest einer Neuinstallation) und steht als Begruendung im Docstring von
+`load`. Nach dem Vorfilter kosten alle 28 Slots zusammen noch rund 124 ms von
+666 ms. Eine Korrektheitsregel, die den **falschen** Spielstand waehlen kann,
+gegen einen Bruchteil einer bereits behobenen Zeit zu tauschen, ist der
+schlechteste Tausch im ganzen Befund. *Wieder interessant, wenn:* der
+Vorfilter sich als unhaltbar erweist — dann ist ohnehin der `array`-Rueckfall
+aus T-118 Abschnitt 6 dran (2,1x statt 45x), und die Frage stellt sich neu.
+
+**Umfang in Dateien** (fuer den Schnitt der Auftraege, Obergrenze fuenf):
+
+| Schritt | Rolle | Produktivdateien | Dazu |
+|---|---|---|---|
+| C — Vorfilter + Id-Pruefung | `developer` | **1** (`nrdata/savefile.py`) | Tests |
+| Pruefung an der praeparierten Datei | `security-reviewer` | **0** (lesend) | — |
+| Nachmessung, Ausloeser fuer B | `performance-tuner` | **0** (`docs/perf/baselines.md`) | — |
+| B, falls ausgeloest | `developer` | **3** (`nrplanner/inventory.py`, ein neues kleines Qt-Modul fuer die Spur, `nrplanner/app.py`) | Tests, **nach** der `UI_SPEC`-Ergaenzung |
+
+**Konsequenzen.** *Leicht wird:* der Programmstart faellt hergeleitet von
+6,59 s auf rund 1,1 s, und das ist der groesste einzelne Hebel, den das
+Programm hat. *Dauerhaft schwer wird:* der Scan wird eine Spur trickreicher,
+und er traegt eine Annahme ueber die Spieldaten, die ein Patch brechen kann —
+deshalb muss sie laut sein. Faellt Stufe B, kommt ein Fensterzustand dazu,
+den es heute nicht gibt.
+
+**Umkehrbarkeit.** C: **leicht** — eine Schleife, mit einem gemessenen
+Rueckfallweg daneben. B: **mittel** — Zustand und Thread-Grenze zurueckzubauen
+kostet mehr als sie zu bauen, und die `UI_SPEC` haette den Zustand dann zu
+streichen.
 
 ---
 
-### Bewusst nicht getan, neu (zu Nachtrag VIII und IX)
+---
 
-- **Kein Signal aus `shutdown`** (X-1 Option B). *Wieder interessant, wenn:*
-  eine Spur einmal ohne schliessendes Fenster beendet wird — dann hoert
-  jemand zu, und Schweigen waere falsch.
-- **Kein gebuendelter Ausgang in `_interrupt_the_running_worker`** (X-1
-  Option C). *Wieder interessant, wenn:* W8 ein zweites Mal wegen einer neuen
-  Aufrufstelle rot wird.
-- **Keine Verhaltenszusage ueber die Zahl der Aufrufer** (X-2). Sie ist als
-  Prosa nicht bewachbar und war am Tag ihrer Niederschrift falsch gezaehlt.
-- **Keine Umbenennung des W-Kreises** (Kopf dieses Nachtrags). Sie beruehrt
-  Testnamen und Berichte und gehoert dem `director`.
-- **Kein Umbau von `app.py` fuer den Wortlaut von W1** (X-3).
+## Themenbereich E — Daten lesen, Erststart, Pfade
+
+*Wie das Programm an die Spieldaten kommt. AD-011 und AD-012 sichern das
+Lesen; AD-030 und AD-031 tragen A15 — der Erststart bekommt einen Weg von
+Hand, und der Vorfilter faellt zurueck, statt zu verweigern.*
+
+### AD-011 — Prüfvokabular als freie Funktionen in `binary.py`, nicht als Methoden der `Reader`-Klasse (2026-09-01, Status: aktiv, vom `director` angenommen)
+
+**Kontext:** Der `security-reviewer` (T-003) fand an fünf Stellen aus der
+Datei gelesene Zähler, die ungeprüft Schleifen und Allokationen steuern
+(`savefile.py`, `bnd4.py`, `fmg.py`, `dvdbnd.py`, `tae.py`), und vier
+Endlosschleifen beim Lesen UTF-16-terminierter Namen. Sein Vorschlag: eine
+gemeinsame Hilfsfunktion im `binary.Reader` statt fünf Einzelprüfungen. Die
+Stossrichtung ist richtig — eine Regel, ein Ort.
+
+**Nur trägt der vorgeschlagene Ort nicht.** Nachgezählt:
+
+| Modul | benutzt `binary.Reader` | benutzt `struct` direkt |
+|-------|------------------------|-------------------------|
+| `bnd4.py` | ja (5×) | — |
+| `param.py` | ja (3×) | 3× |
+| `savefile.py` | **nein** | 18× |
+| `tae.py` | **nein** | 13× |
+| `fmg.py` | **nein** | 6× |
+| `dvdbnd.py` | **nein** | 5× |
+
+Eine Methode auf `Reader` erreicht **zwei der fünf** Fundstellen. Die drei
+übrigen bleiben ungeprüft — darunter `savefile.py`, ausgerechnet der einzige
+Parser, der eine Datei liest, die nicht die Spielinstallation, sondern der
+laufende Spielprozess schreibt, und der damit am ehesten halbfertige oder
+beschädigte Zähler sieht (`_read_settled` existiert genau deswegen). Die
+Empfehlung würde in ihrer wörtlichen Form die am stärksten exponierte Stelle
+auslassen und dabei so aussehen, als sei das Problem behoben.
+
+Auch die Endlosschleife hat nur einen ihrer vier Auftritte in
+`Reader.cstr_at`: `while self.data[end:end+2] != b"\0\0": end += 2` läuft
+unbegrenzt weiter, wenn der Terminator fehlt oder ungerade ausgerichtet ist
+— Python schneidet über das Ende hinaus zu `b""` ab, und `b"" != b"\0\0"`.
+Die anderen drei stehen in `fmg.py`, `savefile.py` und `tpf.py`.
+
+**Optionen:**
+- **A — Prüfmethoden auf `Reader`, Rest so lassen.** Kleinster Eingriff.
+  Konsequenz: deckt 2 von 5 Zählern und 1 von 4 Schleifen ab, und der Befund
+  gilt als erledigt. Der schlechteste mögliche Ausgang.
+- **B — Prüfmethoden auf `Reader`, und `savefile`/`fmg`/`dvdbnd`/`tae` auf
+  `Reader` migrieren.** Vollständig und am Ende die sauberste Struktur.
+  Konsequenz: vier Parser umschreiben, ~40 `struct`-Aufrufe, **ohne einen
+  einzigen Test** (F2). Genau der Umbau, bei dem ein Vorzeichen- oder
+  Offset-Fehler wochenlang unbemerkt bleibt und den Relikt-Bestand still
+  falsch liest.
+- **C — Freie Prüffunktionen auf Modulebene in `binary.py`, aufrufbar ohne
+  `Reader`.** `Reader` bekommt dünne Methoden, die dorthin delegieren; die
+  vier struct-basierten Parser rufen dieselben Funktionen direkt auf — je
+  eine Zeile an jeder der fünf Zählerstellen, kein Umschreiben.
+
+**Entscheidung:** C.
+
+```python
+# nrdata/binary.py  (illustrierend, kein Anwendungscode)
+def check_count(count, item_size, remaining, what) -> int:
+    """A count read from the file, refused when it cannot fit what is left."""
+
+def cstr16_at(data, offset, limit=None) -> str:
+    """UTF-16 up to the terminator, or to the end of the buffer."""
+```
+
+Der Punkt ist das **Prüfvokabular**, nicht die Klasse. Die Regel steht einmal;
+sie ist von einem `Reader` aus und von rohem `struct`-Code aus gleich
+erreichbar; und ein Zähler ohne `check_count` daneben fällt beim Lesen auf.
+Damit ist auch die Migration nach B später möglich, ohne dass sie jetzt
+erzwungen wird — B ist der richtige Endzustand, aber erst nach dem
+Testsockel aus S1.
+
+**Verhalten im Fehlerfall:** `ValueError` mit dem Namen des Feldes und den
+beiden Zahlen. Nicht abschneiden, nicht auf 0 setzen, nichts still
+reparieren — ein Parser, der einen kaputten Zähler heimlich glättet, liefert
+Daten, die niemand als falsch erkennt. Die Aufrufer fangen bereits breit
+(`inventory._scan_save` überspringt ein unlesbares Save und macht mit dem
+nächsten weiter), so dass eine Ausnahme hier zu einem übersprungenen Save
+führt und nicht zu einem Absturz.
+
+**Einordnung:** Diese Arbeit gehört **nicht** in den Berater-Strang. Sie ist
+ein eigener Auftrag für den `developer`, nach S1 (Testsockel) und unabhängig
+von S2–S11. Sie berührt `nrdata/extract.py` nicht und verletzt damit die
+Scope-Grenze aus T-001 nicht.
+
+**Konsequenzen:** Leicht wird — jede weitere Zählerstelle prüfen, ohne den
+Parser umzubauen. Dauerhaft schwer wird — nichts; C ist ein Zwischenschritt
+auf dem Weg zu B und verbaut ihn nicht.
+
+**Umkehrbarkeit:** leicht.
 
 ---
 
-### Offene Frage, neu
+### AD-012 — Kein `defusedxml`; stattdessen Grössendeckel vor dem Parsen (2026-09-01, Status: aktiv, vom `director` angenommen samt Neubewertungs-Bedingung)
 
-**OF-30 — an den `director`, Adressat `ui-ux-designer`:** AK-218 ist im
-Wortlaut enger als der gebaute Zustand (siehe die Meldung oben); der
-Cache-Treffer endet in keinem der drei Ausgaenge, sondern im Rueckgabewert,
-was IX-1.3 entschieden und AK-211 vorausgesetzt hat. **Vorschlag steht dort;
-`UI_SPEC.md` ist von mir nicht angefasst.** Solange der Wortlaut steht, misst
-AK-218 den haeufigen Fall als Fehler.
+**Kontext:** `nrdata/icons.py:65` parst `.layout`-XML aus dem Archiv
+`01_common_h.sblytbnd.dcx` der Spielinstallation mit
+`xml.etree.ElementTree.fromstring`. `ElementTree` gilt gegen „billion
+laughs" und quadratische Expansion als verwundbar (externe Entitäten und
+DTD-Abruf sind ab Python 3.7 abgeschaltet). Der Pfad läuft **im
+ausgelieferten Programm**, nicht nur im Build-Skript: `firstrun.py:139` ruft
+`iconbuild.build(...)` beim ersten Start und nach einem Spiel-Patch.
 
-**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
-mir nicht): **OF ab OF-31**. **AD bleibt bei AD-030** — dieser Nachtrag
-vergibt keine AD-Nummer. Neu belegt sind ausserdem **W8** (Waechter der
-Picker-Spur) sowie die Umsetzungsschritte **U9** und **U10**.
+**Bedrohungsmodell, ehrlich zu Ende gedacht:** Die Datei stammt aus dem
+Installationsverzeichnis des Spiels auf dem Rechner des Nutzers. Kein Netz,
+kein fremder Upload — `GOAL.md` schliesst beides als Nicht-Ziel aus. Wer
+diese Datei ersetzen kann, kann auch `nightreign.exe` ersetzen. Der Angreifer
+müsste bereits gewonnen haben, um diesen Weg zu brauchen. Der realistische
+Fall ist nicht Angriff, sondern **Beschädigung**: eine halb heruntergeladene
+oder von einem Mod-Werkzeug verstümmelte Datei. Deren Wirkung ist dieselbe —
+das Programm hängt beim ersten Start mit wachsendem Speicherverbrauch, ohne
+zu sagen, warum.
+
+**Optionen:**
+- **A — `defusedxml`.** Ein Zeilenwechsel im Import, deckt die
+  Expansionsklasse vollständig ab. Konsequenz: eine dritte Partei mehr in
+  einem ~60-MB-Artefakt; Eintrag in `THIRD_PARTY.md` und Pflege durch
+  `scripts/check_licences.py`; und ein Paket, dessen letzte Veröffentlichung
+  (0.7.1) mehrere Jahre zurückliegt — es ist stabil, aber es ist auch nicht
+  in Bewegung. Für **eine** Aufrufstelle mit einer rein lokalen Quelle.
+- **B — Grössendeckel vor dem Parsen**, gegen die entpackte Grösse des
+  Archivmitglieds, plus ein Deckel auf der Elementzahl. Konsequenz: keine
+  neue Abhängigkeit; fängt Expansion **und** Beschädigung; deckt die
+  Entitätenexpansion aber nur über ihre Wirkung ab, nicht über ihre Ursache.
+- **C — Nichts tun**, weil das Bedrohungsmodell es nicht hergibt.
+  Konsequenz: der Beschädigungsfall bleibt ein stiller Hänger beim ersten
+  Start — der schlechteste Ort für einen stillen Hänger.
+
+**Entscheidung: B — Empfehlung an den `director`.** Eine Dependency ist eine
+dauerhafte Verpflichtung; hier stünde sie für eine Aufrufstelle, deren Quelle
+lokal ist und deren realistischer Fehlerfall ein Deckel ohnehin besser fängt
+als eine Entitätenprüfung. Der Deckel kostet drei Zeilen und braucht keine
+Freigabe.
+
+**Ausgestaltung:** vor `fromstring` prüfen, ob das entpackte Mitglied einen
+Deckel überschreitet (Vorschlag 8 MB — die echten `.layout`-Dateien liegen um
+Grössenordnungen darunter; der `security-reviewer` soll den Wert gegen die
+tatsächliche Grösse setzen). Bei Überschreitung: Icon-Aufbau mit klarer
+Meldung überspringen, nicht abstürzen — `iconpack` kommt ohne Icons aus,
+`firstrun` meldet es bereits über seinen `finished`-Signalweg.
+
+**Bedingung für eine Neubewertung — ausdrücklich festgehalten:** Sobald das
+Programm XML aus einer Quelle parst, die **nicht** die lokale
+Spielinstallation ist (importierte Builds, ein Icon-Pack aus fremder Hand,
+irgendetwas aus dem Netz), fällt dieses Bedrohungsmodell in sich zusammen und
+A ist die richtige Antwort. Dann ist es keine Dependency für eine
+Aufrufstelle mehr, sondern die Absicherung einer Vertrauensgrenze.
+
+**Konsequenzen:** Leicht wird — das Artefakt bleibt, wie es ist; kein
+Lizenz- und Pflegeaufwand. Dauerhaft schwer wird — nichts, solange die
+Bedingung oben gilt. Erklärtes Restrisiko: eine bösartig konstruierte
+`.layout`-Datei unterhalb des Deckels könnte immer noch expandieren. Bei
+8 MB Eingabe ist die Expansion durch den Speicher begrenzt, nicht durch die
+Datei — deshalb der zweite Deckel auf der Elementzahl.
+
+**Umkehrbarkeit:** leicht. `defusedxml` nachzuziehen ist ein Import.
 
 ---
 
-## Nachtrag XI 2026-09-08 — Der Erststart bekommt einen Weg von Hand (AD-030), und der Vorfilter faellt zurueck statt zu verweigern (AD-031)
+### Nachtrag XI 2026-09-08 — Der Erststart bekommt einen Weg von Hand (AD-030), und der Vorfilter faellt zurueck statt zu verweigern (AD-031)
 
 **Anlass, zwei getrennte:**
 
@@ -5788,6 +4802,345 @@ Rueckweg ist die heutige Fassung, und sie steht in der Historie.
 
 ---
 
+---
+
+## Themenbereich F — Test und Nachweis
+
+*Womit geprueft wird, und welche Pruefpunkte eine Entscheidung tragen muss.*
+
+### AD-009 — Testsockel headless, ohne neue Laufzeit-Dependency (2026-09-01, Status: aktiv; Werkzeug auf `pytest` geändert, siehe Nachtrag)
+
+**Kontext:** Kein Test im Repo (F2), und A9 verlangt eine Bestätigung gegen
+ein gebautes Artefakt. Der Berater rankt auf `model.py`, dessen Regeln
+grösstenteils gemessen und nirgends abgesichert sind. AD-005 verschiebt
+funktionierenden Code und braucht einen Regressionsschutz.
+
+**Optionen:**
+- **A — `pytest` + `pytest-qt`.** Komfortabel, parametrisierbar, im
+  Ökosystem üblich. Konsequenz: **zwei neue Dependencies**, freigabepflichtig
+  durch den `director`. Reine Entwicklungsabhängigkeit, also kein Einfluss auf
+  das Bundle — aber `requirements.txt` trennt heute nicht zwischen Laufzeit
+  und Werkzeug (F8), was das Risiko birgt, dass sie im Artefakt landen.
+- **B — `unittest` aus der Standardbibliothek.** Konsequenz: keine Freigabe
+  nötig, kein Bundle-Einfluss, läuft auf jedem Python 3.11+ ohne
+  Vorbereitung; dafür umständlicher bei parametrisierten Tabellen
+  (`subTest` statt `parametrize`).
+- **C — Gar keine Tests, nur manuelle Prüfung durch den `qa-engineer`.**
+  Konsequenz: A9 nicht erfüllbar; und AD-005 würde ohne Netz ausgeführt.
+
+**Entscheidung:** B für diesen Zyklus. Die Tests, die der Berater braucht,
+sind Tests reiner Funktionen über Datenklassen — genau der Fall, in dem
+`unittest` nichts kostet. Damit ist der Sockel nicht von einer Freigabe
+abhängig und die Arbeit kann sofort beginnen. **Der `director` kann A
+freigeben; dann ist der Wechsel trivial**, weil `unittest`-Tests unter
+`pytest` unverändert laufen — die umgekehrte Richtung gilt nicht. Das ist der
+eigentliche Grund für B: es ist die Option, die die andere offenhält.
+
+**Testsockel, Mindestumfang (Vorlage für den `qa-engineer`, T-002):**
+1. **Golden-Test für AD-005:** ein Satz Builds, für die
+   `_refresh_weapon_damage` heute Zahlen liefert; nach der Extraktion muss
+   `damage.py` dieselben liefern. Aufzunehmen **vor** dem Verschieben.
+2. **Stacking-Eigenschaft (bindet F5):** für jeden Effekt der Daten gilt —
+   `stacking.repetition(e) == STACKS` genau dann, wenn zwei Kopien in
+   `model.compute()` das Total doppelt bewegen.
+3. **Farb-Nebenbedingung:** kein Vorschlag legt ein Relikt in einen Slot, den
+   `inventory.relics_for(colour, deep)` dafür nicht zulässt (A4).
+4. **Kein Relikt doppelt (AD-013):** kein Handle erscheint zweimal in einem
+   Vorschlag. Der Test muss ein Gefäss mit **wiederholten Slotfarben**
+   benutzen (`Wylder's Urn`, `[0,0,1]`) — dort schlägt die Regel ohne
+   Absicherung in 40 von 40 Fällen fehl, bei einem Gefäss mit lauter
+   verschiedenen Farben nur in 5 von 40. Ein Test auf dem gutmütigen Gefäss
+   bestünde und bewiese nichts.
+5. **Monotonie:** eine echte Verbesserung im Bestand (ein zusätzliches,
+   streng besseres Relikt) darf die beste gefundene Punktzahl nicht senken.
+6. **Determinismus:** derselbe Request liefert zweimal dasselbe Ergebnis,
+   Reihenfolge eingeschlossen. Ohne das ist der Cache nicht prüfbar.
+7. **Honesty-Vertrag (A7):** jeder `GoalScore` von `max_damage` führt den
+   Attack-Rating-Vorbehalt; jeder `AdvisorResult` mit ungezählten konditionalen
+   Effekten sagt es.
+
+**Nachtrag 2026-09-01 — der `director` hat `pytest` freigegeben.** Damit gilt
+Option A, aber nur unter der Auflage, die den Einwand gegen sie entkräftet:
+**ausschliesslich als Entwicklungs-Abhängigkeit in einer eigenen
+`requirements-dev.txt`**, nicht in `requirements.txt` und nicht im
+PyInstaller-Artefakt. Genau dafür war die Trennung aus F8 ohnehin schon Teil
+von S1; sie ist jetzt keine Aufräumarbeit mehr, sondern Voraussetzung.
+
+Der Kern der Entscheidung bleibt unberührt: headless, keine Laufzeit-
+Abhängigkeit, Tests vor der Extraktion aus AD-005. Nur das Werkzeug ändert
+sich. Der Mindestumfang unten gilt unverändert — er ist als Liste von
+Eigenschaften formuliert, nicht als Liste von Testfunktionen, und ist damit
+vom Rahmenwerk unabhängig.
+
+**Konsequenzen:** Leicht wird — der Umbau in AD-005 ist abgesichert, A9
+bekommt eine Grundlage, und die Eigenschaftstabellen aus Punkt 2 und 3 lassen
+sich parametrisieren statt über `subTest` zu laufen. Dauerhaft schwer wird —
+Tests der Qt-Schicht; die gibt es hier nicht und sie sind auch nicht Teil
+dieses Entwurfs. Der `ui-ux-designer` und der `qa-engineer` prüfen die
+Oberfläche am Artefakt.
+
+**Umkehrbarkeit:** leicht.
+
+---
+
+### Präzisierung AD-009 — die Nummer 18 war zweimal vergeben (D4)
+
+**Befund:** Nachtrag II vergibt Prüfpunkt **18** an *„Kein
+`QSettings`-Zugriff im Berater-Pfad"*, Nachtrag III vergibt dieselbe **18**
+an *„Untere Schicht bitgleich über den ganzen Umbau"*. Beide sind vom
+2026-09-02. Nachtrag III vergibt danach 19 bis 22, die frei waren; die
+Kollision betrifft **nur** die 18.
+
+**Auflösung, mit zwei unabhängigen Gründen, die auf dasselbe zeigen:**
+
+- **Prüfpunkt 18 bleibt bei Nachtrag II:** „Kein `QSettings`-Zugriff im
+  Berater-Pfad". Er hat den ersten Anspruch auf die Nummer (Nachtrag II
+  steht vor Nachtrag III), **und** er ist der einzige der beiden, der noch
+  **offen** ist: QA-110 zeigt auf ihn und geht an den `developer`. Eine
+  offene Zusicherung umzunummerieren heisst, in einem laufenden Befund eine
+  falsche Nummer stehen zu lassen.
+- **Nachtrag IIIs Prüfpunkt wird Prüfpunkt 28:** „Untere Schicht bitgleich
+  über den ganzen Umbau". Er ist **erledigt** — der Umbau W0–W5 ist
+  abgeschlossen, und die Stellen, die auf ihn zeigen (`docs/tasks/T-027.md`,
+  `T-029.md`, `T-030.md`, `qa/findings.md` bei der Golden-Neuaufnahme), sind
+  Verläufe passierter Tore, keine offenen Aufträge. 28 ist die nächste freie
+  Nummer nach Nachtrag V.
+
+**Ab jetzt gilt:**
+
+| Zusicherung | Nummer bis 05.09.2026 | Nummer ab jetzt |
+|---|---|---|
+| Kein `QSettings`-Zugriff im Berater-Pfad (Nachtrag II) | 18 | **18** (unverändert) |
+| Untere Schicht bitgleich über den ganzen Umbau (Nachtrag III) | 18 | **28** |
+
+Die Verweise in dieser Datei sind nachgezogen. Wer in
+`docs/tasks/T-027.md`, `T-029.md`, `T-030.md`, `docs/berichte/` vor dem
+05.09.2026 oder in `qa/findings.md` auf „Prüfpunkt 18" trifft, liest ihn im
+Licht dieser Tabelle: im Zusammenhang mit der Golden-Neuaufnahme und mit
+`weapons.rate` ist die 28 gemeint, im Zusammenhang mit dem Berater und
+QA-110 die 18.
+
+**Regel, damit es nicht wieder passiert:** Prüfpunkte werden wie AD-Nummern
+**fortlaufend** vergeben und **nie neu**. Ein Nachtrag schaut auf die höchste
+vergebene Nummer im ganzen Dokument, nicht auf die höchste in seinem eigenen
+Abschnitt. Höchste vergebene Nummer nach diesem Nachtrag: **34**.
+
+---
+
+---
+
+*Ab hier steht, was aus den Entscheidungen folgt: der Umsetzungsschnitt, die
+Verbote an den `developer`, die Pruefpunkte, die Risiken, das bewusst nicht
+Getane und die offenen Fragen. Innerhalb jedes Blocks stehen die Fassungen in
+der Reihenfolge, in der sie entstanden sind — die **juengste zuletzt**, und wo
+eine aeltere ueberholt ist, sagt sie es an Ort und Stelle.*
+
+---
+
+## Umsetzung — Schnitt in einzeln lauffähige Schritte
+
+Jeder Schritt ist für sich lauffähig und für sich prüfbar. Reihenfolge ist
+bindend, wo Abhängigkeiten genannt sind.
+
+| Schritt | Inhalt | Hängt ab von | Fertig, wenn |
+|---------|--------|--------------|--------------|
+| **S1** | **Testsockel.** `tests/` mit `pytest` (vom `director` freigegeben, **nur** in `requirements-dev.txt`, nie in `requirements.txt` und nie im Artefakt — F8). Ein Fixture, das einen Snapshot lädt und `model.configure()` ruft, plus eine synthetische `Inventory` ohne Save-Datei, mit Handles. | — | `pytest` läuft grün und ohne Display; ein Build des Artefakts enthält `pytest` nicht. |
+| **S2** | **Golden-Test der Schadensrechnung**, gegen das *heutige* `_refresh_weapon_damage`. Werte werden festgeschrieben, bevor irgendetwas bewegt wird. | S1 | Ein Satz Waffen × Builds ist als erwartete Zahlen hinterlegt. |
+| **S3** | **AD-005: Extraktion** nach `nrplanner/damage.py`, rein, ohne Qt. Konstanten aus F6 mitnehmen. `_refresh_weapon_damage` ruft nur noch und formatiert. **Kein Verhalten ändern.** | S2 | S2 grün, Waffentafel zeigt unverändert dieselben Zahlen. |
+| **S4** | **`advisor/types.py`** — die Datenklassen aus AD-004/AD-006/AD-010, alle `frozen`. Kein Verhalten. | S1 | Importierbar, Testsockel legt Instanzen an. |
+| **S5** | **`advisor/candidates.py`** — `Inventory` + `SlotProblem` → Kandidatenpool je Slot. **Kein Rollen-Dedup** (AD-013: spart 1 % und ist falsch). Farbfilter über `inventory.relics_for` inklusive **weisser Slot = jede Farbe**, Deep-Trennung, Relikte ohne Handle aussortiert und in `unknowns` gemeldet, Vorsortierung nach isoliertem Beitrag, Liste mindestens `K + Slotzahl − 1` lang. | S4 | Tests: Farbregel, weisser Slot zieht alle vier Farben, Deep-Trennung, handle-lose Relikte draussen und gemeldet, Listenlänge. |
+| **S6** | **`advisor/goals.py`** — Registry plus die zwei Zielrichtungen aus AD-004, jede mit gefüllter `unknowns`. | S3, S4 | Tests: beide liefern eine Zahl für einen bekannten Build; `unknowns` nie leer. |
+| **S7** | **`advisor/search.py`** — Beam-Suche nach AD-003, Handle-Menge im Suchzustand nach AD-013, rein, abbrechbar, deterministisch. Scorer als Parameter (offen für AD-002/C). | S5, S6 | Tests 3–6 aus AD-009 grün, Punkt 4 **gegen `Wylder's Urn`**; Laufzeit gegen `Wylder's Chalice` + Deep gemessen und protokolliert. |
+| **S8** | **`advisor/explain.py`** — aus `Build.sources` und der Differenz zum leeren Build englische Begründungszeilen; dazu `not_counted`, `curses`, `data_note` (AD-010). | S7 | Test: jede Zeile nennt einen Effekt, der im Vorschlag tatsächlich vorkommt. |
+| **S9** | **`advisor/worker.py`** — `AdvisorController` nach AD-006: `QThread`, Signale `ready`/`failed`/`progress`, Entprellung, Abbruch, LRU-Cache nach AD-007, Rückabbildung der kanonischen Slots nach AD-008. | S7, S8 | Manuell: Anfrage stellen, Fenster bleibt bedienbar, zweite Anfrage bricht die erste ab. |
+| **S10** | **Anbindung an die Oberfläche** — neues Tab-Modul nach dem Muster von `effectstab.py`. **`app.py` wächst nur um die Instanziierung des Tabs und des Controllers.** Layout nach der Spezifikation des `ui-ux-designer` (T-004). | S9, T-004 | A3, A5, A6, A7, A8 am gebauten Artefakt prüfbar. |
+| **S11** | **Budget setzen.** `performance-tuner` misst K/W gegen den echten Bestand und bestätigt oder korrigiert die Voreinstellung K=20/W=40; A6 bekommt seine Zahl. | S10 | Zielwert in `GOAL.md` A6 eingetragen. |
+
+**Parallelisierbar:** S4 neben S2/S3. S6 und S5 nebeneinander, sobald S4 steht.
+**Kritischer Pfad:** S1 → S2 → S3 → S6 → S7 → S8 → S9 → S10.
+
+**Ausserhalb dieses Strangs, eigener Auftrag:**
+
+| Schritt | Inhalt | Hängt ab von |
+|---------|--------|--------------|
+| **X1** | **AD-011** — Prüfvokabular in `nrdata/binary.py`, aufgerufen an den fünf Zählerstellen und den vier UTF-16-Schleifen. Kein Parser wird umgeschrieben. | S1 |
+| **X2** | **AD-012** — Grössen- und Elementdeckel vor `ElementTree.fromstring` in `nrdata/icons.py`. Wert vom `security-reviewer`. | — |
+
+X1 und X2 laufen unabhängig vom Berater und blockieren ihn nicht.
+
+### Änderungen am Umsetzungsschnitt
+
+| Schritt | Änderung |
+|---------|----------|
+| **S4+** | `AdvisorRequest` trägt den Haltezustand (eingefrorene Abbildung Slotindex → Handle / Custom-Inhalt / „leer") und dessen Fingerabdruck. `AdvisorResult` trägt zusätzlich den Wert des Grundzustands und den Zugewinn (AD-014.6) sowie die festgehaltenen Slots. |
+| **S4b (neu, vor S5)** | **`advisor/evaluate.py`** — die einzige Stelle unter `advisor/`, die `model.compute` erreicht (AD-014.1). Die Erwartung im `compute`-Wächter (`tests/test_one_build.py`) wird um **genau diesen einen** Eintrag erweitert. *Fertig, wenn:* Wächter grün mit zwei Einträgen, **und** ein probeweise in `search.py` eingefügter zweiter Aufruf ihn rot macht. |
+| **S5+** | Vorsortierung gegen den Grundzustand statt isoliert (AD-014.3); Handles der festgehaltenen Relikte im Anfangszustand belegt (AD-014.5); Mindestlänge der Kandidatenliste `K + (Zahl der freien Slots − 1)`. |
+| **S7+** | Ebenen der Beam-Suche = **freie** Slots; Symmetriegruppen nur über freie Slots (AD-014.4); alle Slots gehalten ⇒ kein Suchlauf. |
+| **S8+** | Bezugspunkt der Begründung ist der Grundzustand, nicht der leere Build (AD-014.6); Flüche und ihre Beträge aus `Build.sources` (AD-015); neue `unknowns`-Zeilen für gehaltene Slots und zielfremde Flüche. |
+| **S9+** | `held_fingerprint` im Cache-Schlüssel, Generationszähler auch bei Halteänderung, Rückabbildung nur der freien Slots (AD-016). |
+| **S11+** | Der `performance-tuner` misst zusätzlich einen Lauf mit `h=5` (die Picker-Frage) und bestätigt, dass der ungünstigste Fall weiterhin `h=0` ist. |
+
+Die Reihenfolge bleibt: S4 → S4b → S5/S6 → S7 → S8 → S9 → S10.
+
+### Änderungen am Umsetzungsschnitt (zusätzlich zu Nachtrag I)
+
+| Schritt | Änderung |
+|---------|----------|
+| **S5++** | Die Vorsortierung ist ab jetzt ein **öffentliches Ergebnis**, nicht ein Zwischenschritt: `candidates` liefert je Kandidat den Grenzbeitrag gegen den Grundzustand, unter beiden Zielrichtungen. `search` verbraucht dieselbe Liste. |
+| **S9++** | Zwei Entprellungswerte (Picker kürzer als Gesamtlauf), LRU-Grösse neu (Vorschlag 64). Kein zweiter Cache, keine zweite Schlüsselform (AD-016). |
+| **S10++** | Der Halt lebt am `Planner` als `(hero_id, vessel_id, deep) -> Haltezustand` (AD-017). Die Anbindung des Pickers gehört ebenfalls hierher — `relicpicker.py` bekommt die bewertete Liste über den Controller, **nicht** einen eigenen Rechenweg. |
+| **S11++** | Zusätzlich zu messen: Picker-Lauf am weissen Slot (Erwartung ~51 ms), beide Entprellungswerte, LRU-Grösse, und ob der Gesamtlauf weiterhin der ungünstigste Fall ist. |
+
+### Änderungen am Umsetzungsschnitt
+
+Vor S10 (Berater-Bau) tritt die Fassaden-Kette **W0 bis W5** aus AD-019. W6
+(ein Wert in `MULTIPLIERS_FOR`) steht ausserhalb der Kette und wartet auf die
+Spielmessung des Nutzers.
+
+| Schritt | Inhalt | Hängt ab von |
+|---------|--------|--------------|
+| **W0** | `nrplanner/weaponstab.py` löschen (QA-057) | — |
+| **W1** | `WeaponRating.per_type()`, drei Ausschreibungen umstellen | W0 |
+| **W2** | Fassade in `damage.py`, Politik mit den **heutigen** Werten | W1 |
+| **W3** | `app.py` Kachel + Tafel auf `damage.equipped()` | W2 |
+| **W4** | `arsenaltab` auf `damage.rank_candidates()`, `target_tier` explizit | W2 |
+| **W5** | Wächter aus AD-021 scharfschalten | W3, W4 |
+| **W6** | `MULTIPLIERS_FOR[Basis.CANDIDATE]` setzen | Spielmessung |
+
+### Reihenfolge gegenüber dem Berater — die Frage des `director`
+
+**Die Fassade kommt vor dem Berater. Die Spielmessung nicht.** Das ist die
+Präzisierung gegenüber dem Nachtrag II, wo QA-018 als Ganzes vor den Berater
+gezogen wurde.
+
+- **Warum die Fassade davor muss:** Der Hauptweg des Beraters ist der
+  Grenzbeitrag über `attack_rating` (AD-018). Solange `attack_rating` eine von
+  vier Lesarten ist, erbt der Berater die Mehrdeutigkeit, und eine falsche
+  **Steigung** kürzt sich in einer Differenz nicht heraus.
+- **Warum die Messung danach kommen darf:** Der Berater vergleicht Kandidaten
+  **bei fester Waffenmenge**. Eine flache Multiplikatorschicht wirkt auf jeden
+  Kandidaten mit demselben Faktor je Schadensart; sie skaliert den
+  Grenzbeitrag, dreht ihn nicht um und verändert den abnehmenden Ertrag nicht.
+  Prüfpunkt 16 (derselbe +Stärke-Kandidat hat bei hohem Stärkewert einen
+  kleineren Grenzbeitrag) ist gegenüber diesem Faktor **invariant**.
+  **Randbedingung dieser Aussage, und sie ist scharf:** sie gilt für
+  Rangfolgen über Relikte bei fester Waffe. Sobald eine Zielrichtung
+  **Waffen gegeneinander** stellt, sind die `class_rates` je Waffe
+  verschieden, und dann entscheidet W6 mit. Zielrichtungen, die Waffen
+  vergleichen, dürfen erst nach W6 scharfgestellt werden.
+
+**Folge für den `director`:** Der Berater-Bau ist ab W5 nicht mehr durch die
+Spielmessung blockiert. Was noch blockiert ist, ist die **angezeigte absolute
+Zahl** — und dafür trägt jede Picker-Zeile weiterhin den
+Attack-Rating-Vorbehalt aus AD-004, bis W6 steht.
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (Nachtrag VIII)
+
+Reihenfolge und Abhaengigkeiten; jeder Schritt ist fuer sich lauffaehig und
+fuer sich pruefbar. **U1 haengt an nichts** und kann sofort parallel laufen.
+
+> **Ueberholt am 2026-09-08 (Nachtrag IX, T-125) fuer U5a, U5b, U6 und U7.**
+> U1 bis U4 und U8 gelten unveraendert; **U4 ist erledigt** (T-124). Wer
+> U5a, U5b, U6 oder U7 beauftragt oder umsetzt, nimmt die Fassung aus
+> Nachtrag IX — die Zeilen unten bleiben als Verlauf stehen.
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U1** | `developer` | AD-029 Stufe C: Vorfilter in `nrdata/savefile.py`, Id-Annahme als Pruefung im Code, Gleichheitsprobe gegen den heutigen Scan, Dichteschranke unangetastet | — |
+| **U2** | `security-reviewer` | Vorfilter gegen die praeparierte Datei aus T-096 und gegen SEC-022; lesend | U1 |
+| **U3** | `performance-tuner` | `inventory.load` und den Prozessstart nachmessen (S11-E fortschreiben); **entscheidet den Ausloeser fuer Stufe B** | U1 |
+| **U4** | `ui-ux-designer` | `UI_SPEC` §3.8 neu; erster Anstrich ohne Zahlen; Ordnung, Kopfzeile und Chips beim Nachliefern; Zielrichtungswechsel im offenen Dialog | — |
+| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`, kanonische Form nach Punkt 3, `SlotPool`-Gleichheit vorher/nachher belegt | — |
+| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion, zweite Instanz am Fenster (100 ms / 64), `SlotAdvice` fragt die Spur, Verteilung von `before_the_data_changes`/`shutdown`, Docstring `276-281` ersetzt, direkte `advisor`-Importe aus `relicpicker` entfernt | U4, U5a |
+| **U6** | `developer` | W1, W2, W3 mit ihren toetenden Mutationen | U5b |
+| **U7** | `performance-tuner` | 318,1 ms nachmessen; **den Hauptthread-Rest messen** (OF-26); Ueberlappung zweier Spuren messen (OF-25) | U5b |
+| **U8** | `developer` | Stufe B aus AD-029 — **nur**, wenn U3 den Ausloeser gemeldet hat | U3, Spec fuer den dritten Zustand |
+
+**Was der `developer` ausdruecklich nicht tun soll:** keine Oberflaeche
+entwerfen (U4 geht vor U5b); die Rechnung nicht schneller machen, um sie im
+Hauptthread zu behalten (P1a ist ein eigener Auftrag und ersetzt AD-028
+nicht); keinen zweiten Generationszaehler und keinen zweiten Thread-Weg
+bauen; die Dichteschranke SEC-022 nicht anfassen; `load()` nicht frueher
+abbrechen lassen; keine Zeitschranke in die Suite schreiben.
+
+---
+
+### Umsetzung — Fassung 2 von U5a bis U7 (ersetzt die entsprechenden Zeilen in Nachtrag VIII)
+
+**U1 bis U3 und U8 gelten unveraendert. U4 ist erledigt** (T-124,
+`UI_SPEC.md`, AK-197 bis AK-210).
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U5a** | `developer` | AD-028, Qt-freie Seite: die Pool-Funktion in `advisor/run.py`; kanonische Form nach AD-028.3; sie nimmt ihr `rank_by` aus `request.goal_id`; **die benannte Konstante fuer die kanonische Zielrichtung (IX-2.1) entsteht hier**; `SlotPool`-Gleichheit vorher/nachher ueber Handles und Punktzahlen belegt | — |
+| **U5b** | `developer` | AD-028, Verdrahtung: `AdvisorController` nimmt seine Antwortfunktion; zweite Instanz am Fenster mit **Entprellung 0 ms** und Cache **64** (IX-1.1, IX-3); die zusaetzliche Methode „antworte sofort, falls bekannt" samt gemeinsamer privater Frageerzeugung (IX-1.3); `SlotAdvice` fragt die Spur; `_sort_chosen` fragt **nicht** mehr (IX-0); die Anzeige liest ihre Richtung aus der Einstellung, nicht aus `SlotPool.rank_by` (AK-205); Verteilung von `before_the_data_changes`/`shutdown` an **beide** Spuren; Docstring `relicpicker.py:276-281` ersetzt (er begruendet heute das Gegenteil **und** traegt die widerlegten ~51 ms — OF-27, dritte Fundstelle); direkte `advisor`-Importe aus `relicpicker` entfernt | U5a |
+| **U6** | `developer` | **W1, W2, W3 (neue Fassung IX-4), W4, W5** mit ihren toetenden Mutationen, alle im Standardlauf, keine Wanduhr-Schranke | U5b |
+| **U7** | `performance-tuner` | 318,1 ms nachmessen; **Groesse eines Picker-Cache-Eintrags in der neuen Antwortform gegen die 140-KiB-Schranke aus IX-3.2**; **Trefferquote der beiden tragenden Spuren unter dem Schluessel ohne Richtung (IX-3.3)**; Hauptthread-Rest (OF-26); Ueberlappung zweier Spuren (OF-25) | U5b |
+
+**U5b haengt jetzt nur noch an U5a**, weil U4 geliefert ist.
+
+**Was der `developer` ausdruecklich nicht tun soll** (zusaetzlich zur Liste in
+Nachtrag VIII):
+
+- **Die Entprellung nicht auf der Klasse aendern.** Die 0 ms gehoeren der
+  Instanz; die Advisor bar behaelt 250 ms.
+- **Den Cache nicht generell vor den Zeitgeber ziehen** (Option D in IX-1) —
+  das aendert die Advisor bar mit.
+- **`UI_SPEC` §4s Rueckweg nicht stillschweigend bauen.** Stellt sich beim
+  Bauen heraus, dass ein Pool die andere Richtung doch nicht bedient, ist das
+  ein **Befund** (L-008c): melden; dann bekommt der Richtungswechsel seinen
+  Wartezustand **und** die 100-ms-Entprellung kommt zurueck (IX-1.2).
+- **Nicht vorwaermen** (IX-5), auch nicht „nur den einen Slot".
+- **`AdvisorResult` nicht um den Pool erweitern**, um beide Spuren dieselbe
+  Antwortform tragen zu lassen — das machte jeden Gesamtlauf-Eintrag um die
+  Kandidatenliste schwerer, gegen 279,9 KiB, die schon der teure Fall sind.
+
+---
+
+### Umsetzung — U9 und U10 (zu den Schritten aus Nachtrag VIII und IX)
+
+| # | Rolle | Inhalt | haengt an |
+|---|---|---|---|
+| **U9** | `developer` | **Anwendungscode, eine Datei:** `shutdown` erhoeht den Generationszaehler vor dem Unterbrechen (X-1, Entscheidung D); Klassen-Docstring `worker.py:198-216` bekommt die Fassung aus X-0; **Regressionstest** = sechster W6-Fall „the window is closing" mit erwarteter Ausgangsliste **leer** als Literal | — |
+| **U10** | `developer` | **Nur `tests/`:** **W8** neu (X-2, Tabelle der vier unterbrechenden Stellen, beide Mutationen); **W1** um die Zeile `candidates.pools` → `advisor/run.py` erweitert (X-3.3) und um die Randbedingung im Docstring der Tabelle (X-3, letzter Absatz) | — |
+
+**U9 und U10 sind unabhaengig voneinander** und beruehren disjunkte Dateien
+(`nrplanner/advisor/worker.py` gegen `tests/test_picker_track_guards.py`) —
+bis auf den sechsten W6-Fall, der zu U9 gehoert, weil er ohne dessen Fix ein
+Wettlauf waere.
+
+**Der sechste W6-Fall, so genau, dass er nicht versehentlich gruen wird:** die
+Vorrichtung haelt die Antwortfunktion fest (`picker_track.StatedAnswers(...,
+hold=True)`), stellt **eine** Frage ueber `ask`, wartet, bis der Lauf
+angefangen hat (`answers.calls == 1`), ruft `track.shutdown(timeout_ms=0)`,
+gibt **danach** die Antwort frei und dreht die Schleife aus. Erwartet wird
+eine **leere** Ausgangsliste, als Literal geschrieben und nicht aus `shutdown`
+gerechnet (L-008b).
+*Toetende Mutation:* die Erhoehung des Generationszaehlers aus `shutdown`
+entfernen → die freigegebene Antwort traegt die noch gueltige Generation,
+`_on_ready` sendet `ready`, die Liste ist einelementig statt leer → rot
+(L-008a: im Standardlauf).
+**Ueberlebt die Mutation, ist das ein Befund und wird berichtet, nicht
+nachgebessert** (L-008c) — dann sagt sie, dass der Fall in der Vorrichtung gar
+nicht hergestellt wird, und der Fall ist wertlos, bis er es tut.
+
+**Was der `developer` ausdruecklich nicht tun soll:**
+
+- **`shutdown` kein Signal senden lassen** (X-1 Option B) — auch nicht „nur
+  `stopped`, nur wenn etwas lief".
+- **`_Worker.work` auf `search.Cancelled` nichts senden lassen** (X-2) — das
+  doppelte den Ausgang nach `cancel()`.
+- **`_interrupt_the_running_worker` keine Signatur geben** (X-1 Option C) —
+  das ist der Umbau, den W8 gerade unnoetig macht.
+- **`app.py` nicht anfassen**, um Fassung 1 von W1 woertlich wahr zu machen
+  (X-3).
+- **`UI_SPEC.md` nicht anfassen.** Die AK-218-Meldung gehoert dem
+  `ui-ux-designer`.
+- **Die Entprellung, die Cache-Groessen und die Antwortformen nicht
+  beruehren** — das sind IX-1, IX-3 und U7.
+
+---
+
 ### Umsetzung — Schnitt in einzeln lauffaehige Schritte
 
 Obergrenze fuenf Dateien je Auftrag; die Schaetzung ist eine Schaetzung und als
@@ -5859,6 +5212,138 @@ Millisekundenzahl zwingt, misst den Rechner und nicht den Code.
 
 ---
 
+---
+
+## Was der `developer` ausdruecklich nicht tun soll — alle Fassungen
+
+*Jeder Nachtrag hat diese Liste fortgeschrieben. Sie ist hier zusammengezogen,
+weil eine Verbotsliste, die an sieben Stellen steht, keine Verbotsliste ist.
+Die Fassungen stehen in der Reihenfolge ihrer Entstehung; keine hebt eine
+fruehere auf, jede kommt hinzu.*
+
+### Was der `developer` ausdrücklich nicht tun soll
+
+1. **`nrdata/extract.py` nicht anfassen.** Scope-Grenze aus T-001.
+2. **`Planner` nicht umbauen**, ausser der einen Extraktion in S3. F3 ist
+   erkannt und zurückgestellt; ein Aufräumen nebenher macht S3 unprüfbar.
+3. **Keine zweite Bewertungsmathematik.** Wenn eine Zahl fehlt, gehört sie in
+   `model.py` oder `damage.py`, nicht in `advisor/`.
+4. **Kein PySide6-Import unter `advisor/` ausser in `worker.py`.**
+5. **Kein `QApplication.processEvents()`** im Beraterpfad, auch nicht als
+   schnelle Lösung gegen ein hängendes Fenster (AD-006, Punkt 1).
+6. **Keine Dependency installieren**, auch keine Entwicklungsabhängigkeit.
+   Freigabe erteilt der `director`.
+7. **Keine Vorschläge persistieren** und keinen Plattencache anlegen (AD-007).
+8. **Verhalten in S3 nicht verbessern.** Fällt beim Verschieben ein Fehler in
+   der Schadensrechnung auf: melden, nicht beheben. Sonst ist der Golden-Test
+   wertlos.
+9. **Kein „Optimal" in nutzersichtbarem Text** (AD-003, AD-010).
+10. **Layout nicht selbst festlegen** — T-004.
+
+---
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+11. **Kein zweiter `model.compute`-Aufruf unter `advisor/`.** Genau einer, in
+    `evaluate.py`. Die Wächtertabelle wird um genau eine Zeile erweitert.
+12. **Festgehaltene Relikte nicht als Anfangsbelegung in den Beam legen.**
+    Sie sind kein Zustand, den die Suche verändern darf.
+13. **Die Vorsortierung nicht gegen den leeren Build laufen lassen**, wenn
+    etwas festgehalten ist.
+14. **Keinen Fluch-Malus, kein Fluch-Gewicht, keinen Fluch-Sonderweg** in der
+    Bewertung. Flüche sind Effekte.
+15. **Den Haltezustand nicht persistieren** — nicht in `QSettings`, nicht auf
+    Platte, auch nicht „nur für die Sitzung".
+16. **Kein Bedienelement erfinden** — ob Schloss, wo es sitzt, wie es heisst,
+    entscheidet der `ui-ux-designer`. Der `developer` baut, was die Suche
+    braucht: den Haltezustand im Request.
+
+### Was der `developer` zusätzlich nicht tun soll
+
+17. **Keinen `QSettings`-Eintrag für den Haltezustand** und kein neues Schema
+    (AD-017). Bei Zweifeln: verwerfen, nicht retten.
+18. **Im Picker keine eigene Bewertung.** `relicpicker.py` zeigt an, was der
+    Controller liefert; es gibt weiterhin genau eine `compute`-Stelle
+    (`advisor/evaluate.py`).
+19. **Den Gesamtlauf nicht streichen**, auch wenn der Picker die häufiger
+    benutzte Ansicht wird. Es sind zwei Fragen (AD-018, Option B).
+20. **Den Grenzbeitrag nicht in der Zielfunktion bilden.** `goal` bewertet
+    einen `Build`; die Differenz bildet der Aufrufer. Sonst wandert
+    Grundzustandswissen in die Registry aus AD-004.
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+21. **Nicht entscheiden, ob 203,4 oder 244,1 richtig ist.** W2 trägt die
+    heutigen Werte ein, nicht die vermuteten. Der Wert ist eine Messung, kein
+    Entwurf.
+22. **`weaponstab.py` nicht migrieren, sondern löschen** (W0). Es hat keinen
+    Importeur und ist bereits gedriftet (`setRange(0, 25)` gegen die
+    Tier-Semantik 1..4). Es zu migrieren hiesse zu entscheiden, was „+17"
+    bedeutet — eine Frage ohne Antwort.
+23. **Kein Vorgabewert für `target_tier`** in `candidate`/`rank_candidates`.
+    Ein Vorgabewert setzt still das Slot-Tier ein und stellt Achse B als
+    Fehler dar.
+24. **Keine vierte `Basis` ohne AD-Eintrag.** Wer eine neue Frage braucht,
+    meldet sie; er stellt sie sich nicht selbst zusammen.
+25. **Den `compute`-Wächter nicht anfassen ausser zur Verallgemeinerung von
+    `compute_call_sites`.** Seine Zusicherung `{app.py: 1}` bleibt wörtlich
+    stehen.
+26. **`scripts/capture_weapon_damage.py` nicht nach `nrplanner/` verschieben**,
+    um den Wächter zufriedenzustellen. Es liegt absichtlich ausserhalb
+    (QA-023); die Grenze wird im Docstring genannt, nicht umgangen.
+
+### Was der `developer` zusätzlich nicht tun soll
+
+27. **`weapons.WeaponRating.total` vor W5 nicht umdefinieren.** Solange es zwei
+    Pfade gibt, ist es der Bezugspunkt der Differentialprüfung; eine
+    Neuklammerung dort macht die Prüfung uninterpretierbar.
+28. **Keine Toleranz in der Z1-Prüfung.** `pytest.approx` würde genau die
+    Drift verstecken, wegen der die Zusicherung existiert.
+29. **Beim Fallenlassen von `WeaponRating.total` in W5 die Sortierung von
+    `weapons.rank` nicht ohne Zweitschlüssel lassen.** QA-059 hat gerade
+    belegt, dass nicht reproduzierbare Sortierung in diesem Programm real ist;
+    `(-summe, weapon["id"])`.
+
+---
+
+### Was der `developer` zusätzlich nicht tun soll
+
+30. **Die `bonus`-Schleife in `weapons.rate` nicht auf `sum()`, `math.fsum()`
+    oder kompensierte Summation umstellen** — auch nicht „im Vorbeigehen" bei
+    W5. AD-024, Punkt 2.
+31. **Keine der beiden Klammerungen als „genauer" bezeichnen**, weder im Code
+    noch im Commit. Sie ist verbindlich, weil Z1 sie festlegt; sie ist nicht
+    besser.
+32. **Teilsummen über ausgewählte Schadensarten nicht gegen `final_total`
+    prüfen.** Sie werden aus `final_per_type` gebildet und dort belassen.
+
+---
+
+### Was der `developer` zusätzlich ausdrücklich nicht tun soll
+
+33. **`GoalScore.display` nicht in den Pool durchreichen.** Es formatiert den
+    Absolutwert des Grundzustands; der Picker zeigt eine Differenz. Wer eine
+    Formatregel für eine Differenz braucht, meldet sie (OF-21) und baut sie
+    nicht nebenbei.
+34. **`GoalScore.unknowns` nicht umbenennen** und `Baseline` nicht durch
+    einen neuen per-Ziel-Typ ersetzen. Beides wäre Vereinheitlichung ohne
+    Ertrag und zieht `UI_SPEC` AK-63 und drei Testdateien mit.
+35. **Keinen `dict`- und keinen `list`-Typ in die neuen Felder.** Die Regel
+    des Modul-Docstrings gilt unverändert (QA-066): die Formen, die eine
+    Frage oder eine Antwort beschreiben, tragen kein Mapping und keine
+    Liste.
+36. **Keine zweite Ableitung des Waffentyps** für `model.is_conditional` in
+    `candidates.py`. Die Zahl muss beschreiben, was `model.compute`
+    tatsächlich weggelassen hat, nicht was eine zweite Rechnung dafür hält.
+37. **`held_fingerprint` nicht „vorsichtshalber" stehenlassen**, auch nicht
+    als private Funktion. Streichen heisst streichen; die drei Testfälle, die
+    ihn benutzen, werden umgehängt oder gelöscht, nicht deaktiviert.
+38. **Den Wortlaut der konditionalen Zeile nicht als endgültig setzen.** Er
+    gehört dem `ui-ux-designer` (OF-20); im Code steht bis dahin die
+    Fassung, die den **gezählten** Bestand beschreibt, nicht „your relics".
+
+---
+
 ### Was der `developer` ausdruecklich **nicht** tun soll
 
 - **`UI_SPEC.md` nicht anfassen.** AK-106 bis AK-132 und AK-220 bis AK-229
@@ -5887,6 +5372,230 @@ Millisekundenzahl zwingt, misst den Rechner und nicht den Code.
 
 ---
 
+---
+
+## Pruefpunkte — alle Ergaenzungen
+
+*Der Mindestumfang steht in AD-009 (Themenbereich F); die Nachtraege haben ihn
+sechsmal ergaenzt. **Die Nummer 18 war einmal zweimal vergeben** — das ist in
+der Praezisierung AD-009 (D4) aufgeloest, siehe Themenbereich F.*
+
+### Prüfpunkte, Ergänzung zum Mindestumfang aus AD-009
+
+8. **Ein festgehaltener Slot steht im Ergebnis unverändert** — der Test, der
+   die Lesart „Randbedingung, nicht Startwert" absichert.
+9. **Kein Handle eines festgehaltenen Relikts erscheint in einem freien Slot.**
+10. **Symmetriefalle (AD-014.4):** `Wylder's Urn` `[Rot, Rot, Blau]`, der
+    erste rote Slot festgehalten mit einem Relikt hohen Kandidatenindex. Der
+    freie rote Slot **muss** ein Relikt mit kleinerem Index wählen dürfen.
+    Ohne AD-014.4 fällt dieser Test — und nur dieser; bei einem Gefäss mit
+    lauter verschiedenen Farben bliebe der Fehler unsichtbar. Das ist
+    dieselbe Falle wie bei AD-013 Punkt 4 in AD-009.
+11. **Cache:** gleiches Problem, anderer Halteinhalt ⇒ **kein** Treffer.
+    Determinismus gilt bei festgehaltenem Haltezustand.
+12. **Nullfall:** `h=0` liefert dasselbe Ergebnis wie ein Lauf ohne die
+    Haltefunktion. Das ist die Bedingung, unter der die 0,46 s gemessen
+    wurden, und sie muss messbar erhalten bleiben.
+13. **Fluchbeitrag (AD-015):** ein Build mit verfluchtem Relikt bekommt vom
+    Berater dieselbe Zahl wie über `Planner.current_build()`. Der Vergleich
+    gegen die Oberfläche ist die eigentliche Zusage, nicht die interne
+    Konsistenz des Beraters.
+14. **Alle Slots gehalten:** kein Suchlauf, Ergebnis ist der bewertete
+    Ist-Zustand, und `unknowns` sagt es.
+
+### Prüfpunkte, Ergänzung (zu AD-009 und Nachtrag I)
+
+15. **Grenzbeitrag = Vorsortierwert.** Der im Picker gezeigte Wert eines
+    Kandidaten ist bitgleich die Zahl, nach der der Gesamtlauf denselben
+    Kandidaten für denselben Slot vorsortiert. Zwei Ansichten, eine Zahl.
+16. **Abnehmender Ertrag ist nachweisbar:** derselbe `+Stärke`-Kandidat hat
+    bei hohem Stärkewert einen kleineren Grenzbeitrag als bei niedrigem. Das
+    ist die Zusage des Nutzers an sich selbst und muss ein Test sein, kein
+    Argument. **Fällt dieser Test, ist die Ursache in `damage.py`/`model.py`
+    zu suchen, nicht im Berater.**
+17. **Halt überlebt den Gefässwechsel und kommt zurück** (AD-017), und ein
+    Halt auf ein nicht mehr besessenes Relikt fällt weg und wird genannt.
+18. **Kein `QSettings`-Zugriff im Berater-Pfad.** Der Wächtertest aus QA-049
+    deckt den literalen Aufbau ab; hier genügt, dass unter `advisor/` und im
+    Haltezustand kein `QSettings` vorkommt.
+
+### Prüfpunkte, Ergänzung
+
+28. **Untere Schicht bitgleich über den ganzen Umbau.** (Bis 05.09.2026 als
+    Prüfpunkt 18 geführt; umnummeriert in Nachtrag VI, weil Nachtrag II
+    dieselbe Nummer bereits vergeben hatte.) Über die
+    Differentialfälle aus Zyklus 2: `weapons.rate` liefert vor und nach W0–W5
+    dieselben Zahlen. Abweichungen dürfen nur oberhalb der Fassade entstehen.
+19. **Kachel und Tafel nennen dieselbe Zahl.** Nach W3, headless über die
+    echten Widgets: für jeden gefüllten Slot ist die Kachelzahl gleich der
+    Gesamtzahl der Tafel. Das ist der Test, den es zu QA-018 nie gab.
+20. **Das Ziel-Tier überlebt den Umbau.** Nach W4: Slot auf Tier 3, Spinbox
+    auf 1, kein Relikt — der Arsenal-Tab muss weiterhin auf Tier 1 ranken und
+    **darf** von Kachel und Tafel abweichen (AD-020, Punkt 1). Ein Test, der
+    hier Gleichheit fordert, wäre der Fehler, nicht der Befund.
+21. **Der zweite Wächter sieht jeden Weg um sich herum.** Dieselben sieben
+    Schreibweisen wie beim `compute`-Wächter, gegen `weapons.rate`/`rank`.
+22. **Der Golden-Vertrag ist erweitert, bevor er gebrochen wird.** Der
+    Docstring von `test_weapon_damage_golden.py` nennt die zweite erlaubte
+    Neuaufnahme-Bedingung (dokumentierte Entscheidung, AD-/QA-Nummer im
+    Commit), **bevor** W3 die erste Neuaufnahme auslöst.
+
+### Prüfpunkte, Ergänzung
+
+23. **`total == sum(per_type.values())` exakt**, je Schicht, über die
+    Differentialfälle aus W1.
+24. **Der Vorbehalt aus AD-023 erscheint genau dann**, wenn das Kandidatenfeld
+    mindestens einen Effekt mit einem Feld aus `AR_RATE_FOR` oder dessen
+    klassengebundener Variante enthält — und sonst nicht. Zwei Fälle, beide
+    konstruierbar, weil die Familie vollständig aufgezählt ist.
+25. **Nach W5 gibt es im Programm genau eine Summation** der Schadensarten:
+    `WeaponRating.total` hat keinen Leser mehr oder existiert nicht mehr.
+
+### Prüfpunkte, Ergänzung
+
+26. **Einartige Armaturen sind gegenüber der Klammerung invariant.** Bei einer
+    Schadensart sind beide Klammerungen identisch — das ist der Gegenprobe-Fall
+    zur Messung des `developer` und eine billige Zusicherung, dass die
+    gemessene Verschiebung wirklich aus der Klammerung stammt und nicht aus
+    etwas anderem, das W4 mitgebracht hat.
+27. **Nach W5 sortiert `weapons.rank` reproduzierbar**, auch bei
+    ULP-Gleichstand: zweimal derselbe Lauf, byteweise dieselbe Reihenfolge.
+    Verwandt mit QA-059, aber ein eigener Fall.
+
+### Prüfpunkte, Ergänzung (zu AD-009, Nachträge I bis V)
+
+29. **Jede Zielrichtung hat einen Geltungsbereich, und zwar ohne
+    Spielinstallation.** Für jeden Eintrag der Registry ist `Goal.scope`
+    nicht leer, geprüft **ohne** `game_data`, ohne `Build`, ohne Bestand.
+    Das ist der Fall, der QA-106 nicht trifft: er läuft auf jedem Runner.
+    **Gegenbau:** `scope` einer Zielrichtung leeren ⇒ rot.
+30. **Kein Satz steht in beiden Klassen.** Kein String aus `Goal.scope`
+    erscheint in `GoalScore.unknowns`, `Baseline.unknowns` oder
+    `SlotPool.unknowns` desselben Laufs. **Gegenbau:** einen Satz aus
+    `scope` zusätzlich in `unknowns` legen ⇒ rot. Läuft ohne Datensatz,
+    soweit über die Modulkonstanten geprüft.
+31. **Ein Laufbefund überlebt nicht jeden Lauf.** Über mindestens zwei
+    wirklich herstellbare Kontexte derselben Zielrichtung (mit und ohne
+    Referenzwaffe) ist der **Durchschnitt** der `unknowns`-Mengen leer: ein
+    Satz, der in jedem Lauf dasteht, ist ein Verfahrenssatz und gehört nach
+    `Goal.scope`. **Gegenbau:** einen der vier Geltungsbereichssätze zurück
+    in `unknowns` schieben ⇒ er steht in beiden Läufen ⇒ rot. Braucht den
+    Datensatz und überspringt ohne Spielinstallation (QA-106, stehende
+    Einschränkung).
+32. **Der Pool trägt, was die Zielrichtung nicht wusste.** Für jeden Pool und
+    jede Zielrichtung gilt: `Baseline.unknowns` und `weights_note` sind
+    wortgleich das, was `goal.score(base_build, ctx)` geliefert hat, und
+    `unit` ebenso. **Gegenbau:** in `pool()` wieder nur `.value` übernehmen
+    ⇒ rot. Das ist der Wächter über QA-102.
+33. **Die konditionale Zeile zählt, was wirklich nicht gezählt wurde.** Ein
+    Bestand mit K Relikten, deren Effekt gated und nicht deklariert ist,
+    ergibt eine Zeile mit K; derselbe Bestand mit denselben Effekten
+    **deklariert** ergibt **keine** Zeile. **Gegenbau:** die Zeile aus einer
+    zweiten Ableitung über die Relikt-Definitionen bilden statt aus dem
+    `Build` ⇒ der deklarierte Fall zählt weiter mit ⇒ rot.
+34. **Der Haltezustand ist im Schlüssel, ohne zweite Form.** Zwei Requests,
+    die sich nur im Halt unterscheiden — auch nur darin, **in welchem Slot**
+    gehalten wird —, sind verschieden und hashen verschieden. Ein
+    gehaltenes Custom-Relikt (`handle=None`) neben einem besessenen bricht
+    weder Gleichheit noch Hash. **Gegenbau:** `SlotProblem.held` aus dem
+    Request nehmen oder zu einer sortierten Menge machen ⇒ rot. Ersetzt den
+    Wächter über `held_fingerprint`.
+
+---
+
+---
+
+## Risiken und Prüfpunkte
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Beam-Suche findet auf echten Beständen deutlich schlechtere Builds, als der Spieler von Hand baut. | Vergleich gegen die von Daniel bereits gebauten Builds: der Berater sollte sie erreichen oder schlagen. Tut er es nicht, ist die Kandidatenkappung (K) oder die Beam-Breite (W) zu eng. | K und W sind Parameter, nicht Struktur. Erhöhen und neu messen; die Grundzahlen zeigen Luft bis mindestens K=30/W=60 (0,98 s im ungünstigsten realen Fall). |
+| **Die isolierte Vorsortierung wirft an einem weissen Slot gute Kandidaten weg**, weil K=20 dort nur ~10 % von 205 behält und ein Relikt, das erst neben einem anderen stark wird, isoliert schwach aussieht. | Ein von Hand gebauter Build auf einem Gefäss **mit** weissem Slot wird nicht erreicht, während er auf Gefässen ohne weissen Slot erreicht wird. Das ist der Trennschnitt, der diese Ursache von einem allgemein zu engen K unterscheidet. | Eigenes, höheres K für weisse Slots — die Kosten sind linear in K. OF-10 an den `performance-tuner`. |
+| **Ein Vorschlag ist nicht tragbar**, weil dasselbe Exemplar in zwei Slots liegt. | Gemessen: ohne AD-013 auf `Wylder's Urn` 40 von 40 Ergebnissen, der beste eingeschlossen. Mit AD-013 muss es null sein. | Kein Rückweg nötig — Testpunkt 4 in AD-009 fängt es, und er läuft gegen ein Gefäss mit wiederholten Slotfarben, wo die Regel scharf ist. |
+| GIL-Kontention lässt das Fenster ruckeln, obwohl es nicht blockiert. | Sichtbares Stocken beim Ziehen des Level-Reglers während eines Laufs. | Entprellung erhöhen; wenn das nicht reicht, AD-006 Option B (Prozess) — mit den dort genannten PyInstaller-Kosten. |
+| `model.compute()` wird durch eine spätere Korrektur langsamer, und das Budget kippt. | S11 ist eine Messung, kein Gefühl. Sie muss wiederholbar sein. | Der Scorer ist in `search.py` ein Parameter — AD-002 Option C bleibt nachrüstbar. |
+| Die Extraktion in S3 verändert stillschweigend eine Zahl. | S2 schlägt fehl. Genau dafür liegt S2 vor S3. | Zurückrollen; S3 ist ein einzelner, abgegrenzter Commit. |
+| Race zwischen Hintergrundlauf und `model.configure()` (F4). | Sporadisch absurde Werte nach einem Spiel-Patch oder Neu-Scan — schwer zu reproduzieren, also vorbeugen statt entdecken. | AD-006 Punkt 5 ist Pflicht, nicht Empfehlung. Dauerhaft: `model` von Modulglobals befreien (eigener Auftrag). |
+| Der Berater rankt auf einem veralteten Snapshot und sagt es nicht (F7). | `meta.data_version` weicht von der Spielversion ab. | `data_note` in AD-010 macht es sichtbar. Die Ursache in `datasource` zu beheben ist ein eigener Auftrag. |
+| Die Unwissensliste ist so lang, dass sie niemand liest — und A7 damit faktisch nicht erfüllt ist. | Beurteilung durch `ui-ux-designer` in T-004. | Nicht kürzen, sondern schichten: die für diesen Lauf zutreffenden Punkte sichtbar, der Rest aufklappbar. Die Entscheidung darüber gehört T-004, nicht hierher. |
+
+---
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Der Grundzustand wird an **einer** Bewertungsstelle vergessen (typisch: der Vorsortierung). | Vorschläge doppeln einen Effekt, den das festgehaltene Relikt bereits kappt (`NON_ACCUMULATING`, `isStrongestEffect`) — die Punktzahl steigt nicht, der Vorschlag sieht trotzdem plausibel aus. | Es gibt nur eine Bewertungsstelle (AD-014.1), und der `compute`-Wächter erzwingt das. Kein zweiter Rückweg nötig. |
+| Festhalten wird doch als Startwert gebaut. | Der festgehaltene Slot ändert sich im Ergebnis. | Prüfpunkt 8. |
+| Cache liefert ein Ergebnis zum falschen Haltezustand. | Gefäss weg und zurück, danach ist ein gehaltener Slot überschrieben. | Prüfpunkt 11; `held_fingerprint` im Schlüssel (AD-016). |
+| Ein Fluch steht im Vorschlag, ist aber nicht in die Rechnung eingegangen (konditional), oder umgekehrt. | Anzeige und Statblatt widersprechen sich beim selben Relikt. | Flüche werden aus `Build.sources` ausgewiesen, nicht aus der Relikt-Definition (AD-015). |
+| Die isolierte Vorsortierung an weissen Slots (OF-10) bleibt die schärfste Schwäche. | Unverändert wie in AD-003 beschrieben. | Sie **verkleinert** sich mit jedem festgehaltenen Slot, weil die Vorsortierung dann Kontext hat. OF-10 bleibt trotzdem offen — für `h=0` ändert sich nichts. |
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| **QA-018 trifft den Kern von AD-018.** Der Waffen-Tab nennt 203,4, die Detailtafel 244,1 für dieselbe Waffe — ein offener, gemessener Widerspruch in genau der Rechnung, aus der der Grenzbeitrag entsteht. Ein konstanter Versatz kürzt sich in einer Differenz heraus, eine falsche **Steigung** nicht — und der abnehmende Ertrag *ist* die Steigung. | Prüfpunkt 16 und der Vergleich der beiden Anzeigen. | **QA-018 ist damit keine Nebenbaustelle mehr, sondern Vorbedingung des Hauptwegs.** Empfehlung an den `director`: vor S10 einplanen. Solange er offen ist, trägt jede Picker-Zeile den Attack-Rating-Vorbehalt aus AD-004 sichtbar, nicht aufklappbar. |
+| Der Berater rechnet jetzt bei jeder Interaktion; eine spätere Verlangsamung von `model.compute()` wird sofort spürbar. | Ruckeln beim Tippen im Picker-Filter. | Entprellung erhöhen; Messpunkt in S11; im Äussersten AD-002 Option C, die weiterhin nachrüstbar ist. |
+| Der Spieler baut sich slotweise einen greedy Build und hält ihn für das Beste. | Der `Optimize`-Lauf findet mehr, als die sechs Picker-Entscheidungen ergaben. | Kein Fehler, sondern die Natur der beiden Fragen — aber die Pflichtzeile aus AD-018.3 muss dastehen. |
+| Ein Halt zeigt auf ein eingeschmolzenes Relikt. | Nach einem Neu-Scan des Saves. | AD-017.3: der Halt fällt beim Bauen des Requests weg und wird genannt. |
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Die Neuaufnahme des Golden-Stands bei W3/W4 löscht den Beleg, dass die Rechnung unverändert ist. | Ein grüner Lauf, der nichts mehr belegt. | Prüfpunkt 28 (bis 05.09.2026: 18) hängt an der **unteren** Schicht und überlebt die Neuaufnahme. Er ist der eigentliche Beleg; der Golden-Stand ist danach der Beleg für die Anzeige. |
+| Die Fassade vereinheitlicht Achse B mit und der Arsenal-Tab rankt auf dem Slot-Tier. | Prüfpunkt 20 fällt. | AD-020, Punkt 1: `target_tier` ist Pflichtargument ohne Vorgabewert. |
+| W6 wird nie beantwortet und `MULTIPLIERS_FOR[CANDIDATE]` bleibt auf dem Platzhalter stehen. | Nichts — genau das ist die Gefahr. | Der Platzhalter ist keiner: W2 setzt den **heutigen** Wert (`False`), das Verhalten ist damit unverändert und der Vorbehalt aus AD-004 bleibt sichtbar, bis der Nutzer misst. |
+| Eine Zielrichtung des Beraters vergleicht Waffen gegeneinander, bevor W6 steht. | Eine Empfehlung, die die Waffe wechselt. | Solche Zielrichtungen bleiben bis W6 aus der Registry (AD-004) heraus. |
+
+### Risiken, Ergänzung
+
+| Risiko | Woran man es merkt | Rückweg |
+|--------|--------------------|---------|
+| Die Trennung wird gebaut, aber die Oberfläche liest nur eine Hälfte — `UI_SPEC` AK-63 nennt heute genau eine Quelle. Dann zeigt der Picker **weniger** als vorher, und A7 ist auf dem Hauptweg schlechter statt besser. | Zeile 4 des Pickers steht leer oder trägt nur die AD-018.3-Pflichtzeile. | OF-19: `UI_SPEC` nachziehen, **bevor** S10 gebaut wird. Prüfpunkt 29 hält die Registry-Hälfte, Prüfpunkt 32 die Ergebnis-Hälfte; die Anzeige selbst hält beides erst, wenn AK-63 zwei Quellen nennt. |
+| Die konditionale Zeile nennt eine Anzahl, die der Spieler auf dem Schirm nicht nachzählen kann (weil sie über einen anderen Bestand gebildet wurde als den angezeigten). | Ein Spieler zählt vier situative Relikte und die Zeile sagt sieben. | Prüfpunkt 33 und die Festlegung „gezählt über die Kandidaten dieses Pools, gebildet aus dem `Build`". |
+| `held_fingerprint` wird gestrichen, und mit ihm fällt still eine echte Zusicherung weg: dass ein **gehaltenes Custom-Relikt** (`handle=None`) den Schlüssel nicht sprengt. Der heutige Fall prüft das über den `repr`-Sort des Fingerabdrucks. | Nichts — bis ein Spieler ein Custom-Relikt festhält. | Prüfpunkt 34, zweiter Satz. Der Fall wird **nicht gelöscht**, sondern auf `AdvisorRequest` umgehängt. |
+| Der Cache trifft seltener als AD-008 versprochen hat, und S11 misst es als Regression. | Trefferquote in S11 unter der Erwartung aus AD-008. | Das ist die bewusste Folge von D3 und keine Regression; die Zahl aus AD-008 gilt für den Schlüssel nicht mehr. Wenn es doch drückt: kanonische Form in S9 nachrüsten, **mit** Rückabbildung, nicht ohne. |
+| Der `developer` baut aus QA-102 heraus auch `display` in den Pool und der Picker zeigt den Absolutwert des Grundzustands als Kandidatenwert. | Eine Karte zeigt „Attack rating 122" statt „+12.4". | „Was ausdrücklich nicht über die Poolgrenze fährt", Punkt 1, und Nicht-tun-Regel 33. |
+
+---
+
+### Risiken und Pruefpunkte, neu
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Zwei Spuren rechnen gleichzeitig und A6s 6-s-Zeile faellt | U7 misst `Optimize` mit gleichzeitig laufender Picker-Frage | A6 bekommt die Randbedingung „ohne gleichzeitige zweite Spur", **oder** die Picker-Spur bekommt Vorrang. Beides ist eine Entscheidung, kein Fix — sie faellt an der Zahl. |
+| Der Hauptthread-Rest ist selbst groesser als 50 ms | U7 misst Anfragebau + `frozen_inventory` (309 Kopien) + `inventory_fingerprint` (sha256 ueber 309 Zeilen) **getrennt** vom Lauf | Das Einfrieren einmal je Bestandsaenderung statt einmal je Frage; das ist ein eigener Entwurf und beruehrt AD-007s Fingerabdruck. |
+| Die kanonische Form nach Punkt 3 liefert einen anderen `SlotPool` | U5a vergleicht vorher/nachher ueber Handles und Punktzahlen | Slot-Index doch als Feld in `AdvisorRequest` — dann ist AD-018s „keine zweite Schluesselform" ausdruecklich zu revidieren, nicht stillschweigend. |
+| Der Vorfilter findet auf einer praeparierten Datei weniger als der heutige Scan | U2 | `array`-Rueckfall aus T-118 Abschnitt 6 (2,1x statt 45x). |
+| Der Wartezustand blitzt bei schnellen Slots auf (32–82 ms, S11-C) | am laufenden Fenster, nach U5b | Die 100-ms-Entprellung deckt den Fall bereits — der Wartezustand darf erst **nach** dem Start des Laufs erscheinen, wie AK-09 es fuer die Advisor bar schon regelt (`WAIT_VISIBLE_MS`). |
+
+---
+
+### Risiken und Pruefpunkte, neu (zu den Zeilen aus Nachtrag VIII)
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Ein Picker-Cache-Eintrag ist viel groesser als die 33,4 KiB, auf denen die 64 steht | U7 misst ihn gegen die 140-KiB-Schranke (IX-3.2) | zurueck auf 32; die Groessenfrage kommt zum `architect` |
+| Der `developer` baut nur einen der beiden Antwortwege (Rueckgabewert **oder** Signal) | W5 samt Gegenprobe | — |
+| `GOAL_ORDER` und `GOALS` laufen auseinander, und die Wiederverwendung des Pools faellt still | W4 | — |
+| Die Anzeige liest ihre Richtung weiter aus `SlotPool.rank_by` | mit IX-2 **immer** falsch statt manchmal; AK-205 und sein Gegenbau | — |
+| Die 0 ms verstopfen die Spur, weil doch zwei Fragen kurz hintereinander kommen | am laufenden Fenster: zwei Oeffnungen in Folge; „ein Lauf zur Zeit" haelt ohnehin (`worker.py:285-286`, `307-321`) | die 100 ms zurueck (IX-1.2) |
+
+---
+
+### Risiken und Pruefpunkte, neu (zu Nachtrag VIII und IX)
+
+| Risiko | Woran man es merkt | Rueckweg |
+|---|---|---|
+| Der sechste W6-Fall stellt seinen Fall nicht her und ist immer gruen | die Mutation aus U9 ueberlebt | Fall streichen und als Befund melden; die Zusage aus X-0 traegt dann den dritten Punkt nicht |
+| Eine fuenfte unterbrechende Stelle entsteht und schweigt | **W8** | Tabelle ergaenzen **oder** die Stelle einen Ausgang senden lassen — die Zeile zu schreiben ist die Entscheidung |
+| `shutdown` erhoeht die Generation und etwas anderes las sie mit | die Suite; `ask` gibt die Generation zurueck, `shutdown` an niemanden | eine Zeile zurueck |
+| W1 waechst zur Pflegelast, weil jede neue rechnende Funktion eine Zeile braucht | mehr als zwei neue Zeilen in einem Zyklus | dann ist X-1 Option C (gebuendelte Ausgaenge) und eine Namenskonvention statt einer Tabelle zu pruefen |
+
+---
+
 ### Risiken und Pruefpunkte
 
 | Risiko | Woran man es merkt | Rueckweg |
@@ -5896,6 +5605,154 @@ Millisekundenzahl zwingt, misst den Rechner und nicht den Code.
 | **Der Rueckfall macht den Start wieder sechs Sekunden lang** und friert das Fenster ein, wenn V5 (Stufe B) noch nicht steht. | Trifft nur ein, wenn ein Patch die Ids umnummeriert. | V5 vor oder unmittelbar nach V4 bauen. Sonst bleibt nur die Verweigerung, und die ist verworfen. |
 | **Der Ordnerdialog nimmt einen Ordner an, aus dem eine fremde DLL geladen wird.** | `security-reviewer`, OF-31. | Stufe 2 haerten: ein harter Identitaetsnachweis statt Text W1. `UI_SPEC` §4.3 nennt ihn selbst als offen — *„ob es eine `nightreign.exe` o. ae. gibt, an der die Identitaet hart haengen koennte. Der Code kennt keinen solchen Namen."* Das ist an einer echten Installation zu pruefen. |
 | **V2 ist zu gross** (Fensterart, sieben Texte, Dialog, fuenf Zustaende, Skalierung). | Der Auftrag laeuft ueber 60 Minuten oder ueber die Zugschwelle. | Schnitt entlang der Textlage: erst der Erststart-Zweig (A1/E1/W1/C1/C2), dann der Spaeter-Zweig (A2/A3). A3 haengt am Datum des Abzugs und ist der einzige Teil, der `datasource` befragt. |
+
+---
+
+---
+
+## Bewusst nicht getan
+
+- **Kein Solver (`ortools`, `pulp`).** Die Zielfunktion ist nicht linear, und
+  eine Linearisierung widerspräche den gemessenen Regeln in `model.py`.
+  *Wieder interessant, wenn:* der Suchraum durch eine künftige Anforderung
+  wächst (etwa: über alle 74 Gefässe gleichzeitig optimieren) **und** sich
+  zeigt, dass die Nichtlinearität auf wenige, modellierbare Fälle beschränkt
+  ist.
+- **Kein zweiter, schneller Scorer.** AD-002. *Wieder interessant, wenn:* die
+  Messung in S11 auf einem echten Bestand über dem Budget landet und K/W nicht
+  weiter zu senken sind, ohne die Qualität der Vorschläge zu verlieren.
+- **Kein `multiprocessing`.** AD-006. *Wieder interessant, wenn:* das Fenster
+  trotz Entprellung sichtbar ruckelt, oder eine Anforderung „alle Gefässe auf
+  einmal" hinzukommt.
+- **Kein Plattencache.** AD-007. *Wieder interessant, wenn:* die Rechnung
+  Sekunden statt Zehntelsekunden dauert **und** eine Invalidierung über
+  `inventory_fingerprint` + `snapshot_fingerprint` als sicher nachgewiesen ist.
+- **Kein Umbau von `Planner`.** F3 ist erkannt und aufgeschrieben. *Fällig,
+  wenn:* der `director` einen eigenen Auftrag dafür schneidet — sinnvoll erst
+  nach dem Testsockel aus S1, vorher fehlt das Netz.
+- **`model.py` behält seine Modulglobals.** F4. Nur entschärft, nicht
+  behoben. *Fällig, wenn:* ein zweiter nebenläufiger Verbraucher dazukommt
+  oder die Tests reihenfolgeabhängig werden.
+- **Keine Zielrichtung, die Spielverlauf oder Bosskenntnis braucht** (etwa
+  „bestes Build gegen Gladius"). `nrdata/bossdata.py` und der Boss-Tab hätten
+  die Daten. *Wieder interessant, wenn:* A3 erfüllt ist und der App Designer
+  es will — es wäre eine dritte `Goal`-Funktion plus ein erweiterter
+  `GoalContext`, kein Strukturbruch.
+- **Keine Vorschläge über Waffen oder Zauber**, nur über Relikte. Der Auftrag
+  nennt Relikte, und Zauberschaden existiert als Feld nicht (README).
+- **Kein Rollen-Dedup im Kandidatenpool.** Gemessen: 309 Exemplare ergeben
+  306 verschiedene Rollen — 1,0 % Ersparnis, und die Zusammenfassung wäre
+  gegen AD-013 sogar falsch. *Wieder interessant, wenn:* nie. Drei Effekte
+  aus einem Pool von 2 079 kollidieren nicht in nennenswerter Zahl, und das
+  ändert sich durch mehr Relikte im Besitz nicht, sondern wird schlimmer.
+  **Ausdrücklich hier festgehalten, damit es niemand ein zweites Mal
+  versucht** — die Idee ist naheliegend und die Messung widerlegt sie.
+- **Der Berater schlägt das Gefäss nicht mit vor.** Entscheidung des Nutzers
+  (OF-4). Es scheitert nicht an der Rechenzeit — 47 kanonische Probleme
+  wären ~23 s — sondern daran, dass der Wartezustand unsichtbar bleiben
+  soll. *Wieder interessant, wenn:* der Nutzer die Frage neu stellt; AD-008
+  hält den Weg offen, es wäre eine Schleife über die kanonischen Probleme
+  und kein neuer Mechanismus.
+- **Keine Vorschläge, die den Besitz überschreiten** („dieses Relikt fehlt
+  dir noch"). AD-013 macht den Kandidatenraum zur Besitzmenge. *Wieder
+  interessant, wenn:* der App Designer einen Wunschzettel-Modus will; das
+  wäre ein zweiter Kandidatenraum aus `data["relics"]` statt aus
+  `Inventory`, und die Suche bliebe unverändert.
+
+---
+
+### Bewusst nicht getan, Ergänzung
+
+- **`held_fingerprint` nicht positionsabhängig gemacht, sondern gestrichen.**
+  *Wieder interessant, wenn:* S9 eine kanonische Form braucht — dann
+  positionsabhängig, mit Rückabbildung, und mit dem Wächter auf dem
+  Schlüssel statt auf dem abgeleiteten Wert.
+- **Die kanonische Form aus AD-008 nicht als Cache-Schlüssel gebaut.**
+  *Wieder interessant, wenn:* S11 misst, dass die Trefferquote drückt, **und**
+  die Rückabbildung der freien Slots gebaut ist. Ohne die Rückabbildung ist
+  die kanonische Form kein Schlüssel, sondern ein überschriebener Halt.
+- **Keine Formatregel für eine Differenz je Zielrichtung.** *Wieder
+  interessant, wenn:* S8/S10 gebaut werden — dann als Entscheidung des
+  `ui-ux-designer`, nicht als Feld, das im Vorbeigehen im Pool landet.
+- **Kein Kennzeichen am einzelnen Satz** (Option B). *Wieder interessant,
+  wenn:* eine dritte Klasse auftaucht, die weder in die Registry noch ins
+  Ergebnis passt. Bis dahin ist der Ort die Klasse.
+
+---
+
+### Bewusst nicht getan, Ergänzung
+
+- **Die Waffentyp-Schranke nicht aus `CONDITIONAL_FIELDS` genommen**
+  (Option E). *Wieder interessant, wenn:* jemand die dritte Ablage aus E'
+  ohnehin baut — also eine Klasse „gated, in keine Summe, kein Schalter". Vor
+  E' muss messbar sein, dass die 46 Schalter dem Spieler nichts wert sind;
+  heute beantworten sie eine Frage, die er durch Waffenwechsel wirklich
+  beantworten kann.
+- **`wepTypeTriggerCount` nicht auswertbar gemacht.** Das Raster hält sechs
+  Armaturen; man **könnte** zählen, wie viele davon den verlangten Typ
+  tragen, und die Schranke damit erfüllen. *Wieder interessant, wenn:* eine
+  Ablesung im laufenden Spiel bestätigt, welche Zahl das Feld meint. Ohne
+  diese Ablesung wäre es geraten — 82 Effekte hängen daran, und A7 verbietet
+  die Vermutung.
+- **QA-185 nicht mitbehoben** (`Build.qualitative` trägt keine Effekt-Id).
+  Diese AD **berührt** sie: die richtige Grenze zwischen `qualitative` und
+  `situational` wird erst prüfbar, wenn beide Listen dieselbe Id führen —
+  heute muss `explain` über den Namen zurückschliessen. Die Entscheidung
+  hängt nicht daran, der spätere Wächter schon. Eigener Auftrag, eigener
+  Code, gerade in fremder Hand.
+- **Den Wortlaut von 4.9b nicht angefasst.** Er gehört dem
+  `ui-ux-designer`; diese AD sagt nur, **welche Menge** er beschreiben muss.
+
+---
+
+### Bewusst nicht getan, neu
+
+- **Kein eigener Thread-Weg fuer den Picker** (AD-028 Option C). *Wieder
+  interessant, wenn:* die beiden Antwortformen so weit auseinanderlaufen,
+  dass eine Klasse zwei Betriebsarten haette statt einer austauschbaren
+  Funktion.
+- **Der Picker rechnet nicht „nur schneller" im Hauptthread** (AD-028
+  Option A). *Wieder interessant, wenn:* die Slot-Frage je unter 50 ms faellt
+  — nach P1a sind es gemessen 245,5 ms, also Faktor 5 zu weit.
+- **`load()` bricht nicht frueher ab** (AD-029). Grund und
+  Reaktivierungsbedingung stehen dort.
+- **Der Ergebnis-Cache bleibt im Speicher** (AD-007 haelt). Die Bedingung aus
+  T-118 Abschnitt 6 — „wenn der Prozessstart nach AD-029 den Berater
+  dominiert" — ist nach Stufe C zu pruefen: bei hergeleiteten 1,1 s Start
+  gegen 5,02 s Gesamtlauf tut er es weiter nicht.
+- **Keine Zeitschranke in der Testsuite.** Zeiten gehoeren in
+  `docs/perf/baselines.md`, mit Umgebung und Streuung (L-001, L-009).
+
+---
+
+### Bewusst nicht getan, neu (zu Nachtrag VIII)
+
+- **Kein Vorwaermen der Slot-Pools** (IX-5). Grund und Wiederkehrbedingung
+  stehen dort; das Mittel waere dann nicht `pools()`.
+- **Kein Cache-Blick vor dem Zeitgeber fuer beide Spuren** (IX-1 Option D).
+  *Wieder interessant, wenn:* die Advisor bar ihren Wartezustand so umbaut,
+  dass ein sofort gezeichneter Treffer nicht mehr flackern kann.
+- **Die 100-ms-Entprellung wird nicht geloescht, nur auf 0 gesetzt** (IX-1.2).
+  Sie ist die richtige Zahl fuer den Fall, den `UI_SPEC` §4 als Rueckweg
+  vorsieht.
+- **Kein Feld `slot_index` in `AdvisorRequest`** — AD-028.3 haelt; nur das Feld
+  `goal_id` wird fuer die Picker-Spur kanonisch belegt (IX-2).
+
+---
+
+### Bewusst nicht getan, neu (zu Nachtrag VIII und IX)
+
+- **Kein Signal aus `shutdown`** (X-1 Option B). *Wieder interessant, wenn:*
+  eine Spur einmal ohne schliessendes Fenster beendet wird — dann hoert
+  jemand zu, und Schweigen waere falsch.
+- **Kein gebuendelter Ausgang in `_interrupt_the_running_worker`** (X-1
+  Option C). *Wieder interessant, wenn:* W8 ein zweites Mal wegen einer neuen
+  Aufrufstelle rot wird.
+- **Keine Verhaltenszusage ueber die Zahl der Aufrufer** (X-2). Sie ist als
+  Prosa nicht bewachbar und war am Tag ihrer Niederschrift falsch gezaehlt.
+- **Keine Umbenennung des W-Kreises** (Kopf dieses Nachtrags). Sie beruehrt
+  Testnamen und Berichte und gehoert dem `director`.
+- **Kein Umbau von `app.py` fuer den Wortlaut von W1** (X-3).
 
 ---
 
@@ -5923,6 +5780,259 @@ Millisekundenzahl zwingt, misst den Rechner und nicht den Code.
   still und kurz. *Wieder interessant, wenn:* ein Patch die Marker-Basis
   verschiebt — dann ist es dieselbe Entscheidung ein zweites Mal.
 - **Keine Aenderung an `RELIC_ID_CEILING`.**
+
+---
+
+---
+
+> **Die offenen Fragen stehen ab sofort in `ARCHITECTURE_REGISTER.md`,
+> Tabelle 2.** Dort steht je Nummer, ob sie noch offen ist, wer auf sie
+> wartet, und welche Fundstelle eine Antwort belegt. Stand 12.09.2026:
+> **32 Nummern, davon 12 offen, 17 beantwortet, 1 beantwortet mit benanntem
+> Rest, 1 unklar, 1 nie vergeben.** Der Wortlaut jeder Frage steht unveraendert
+> unten — das Register ersetzt ihn nicht, es sortiert ihn.
+
+## Offene Fragen
+
+**Erledigt** (Stand 2026-09-01, nach dem Nachtrag des `director`):
+
+| # | Frage | Ergebnis |
+|---|-------|----------|
+| OF-1 | Tkinter oder PySide6 | Fehler in der Auftragsdatei; es ist PySide6. AD-006 steht auf Qt-Grundlage. |
+| OF-2 | Testwerkzeug | **`pytest` freigegeben**, ausschliesslich als Entwicklungs-Abhängigkeit in `requirements-dev.txt`. Nachtrag in AD-009. |
+| OF-4 | Gefäss mitvorschlagen? | **Nein**, Entscheidung des Nutzers. Als Nicht-Ziel aufgenommen. |
+| OF-5 | `max_damage` ohne Referenzwaffe | **Gekennzeichneter Rückfall**, nicht verweigern. Nachtrag in AD-004. |
+| OF-6 | `GOAL.md`-Freigabe | Erteilt; A1–A9 bindend. |
+| OF-7 | echte Bestandszahlen | Vom `qa-engineer` gemessen: 309 Relikte, weisse Slots als Slot-Eigenschaft, Dedup wertlos. Siehe Grundzahlen, AD-003, AD-013. |
+| OF-8 | `defusedxml` | Empfehlung angenommen: kein `defusedxml`, Grössendeckel, mit Neubewertungs-Bedingung. |
+| OF-9 | Prüfung durch `security-reviewer` | Der `director` gibt die Deckelwerte direkt in den Auftrag; nicht abzuwarten. |
+
+**Noch offen:**
+
+**OF-3 — beim Nutzer, über `director`:** Gewichtung der acht Schadensarten
+für `min_damage_taken`. Der Entwurf ist so gebaut, dass die Antwort ihn nicht
+mehr bewegt: die Gewichte sind Daten im `GoalContext` (`Weighting`), die
+Voreinstellung ist benannt und wird im Ergebnis ausgewiesen, und ein
+Bedienelement liefert später eine andere Instanz. Der `developer` kann ohne
+diese Antwort beginnen. **Was sie noch berührt:** `weighting.id` muss in den
+Cache-Schlüssel (AD-007) — das gilt in beiden Fällen und ist eingearbeitet.
+
+**OF-10 — an `performance-tuner`, für S11:** K=20 behält an einem farbigen
+Slot ~40 % des Pools, an einem weissen nur ~10 % (205 Kandidaten). Die
+Vorsortierung bewertet **isoliert**, also ohne die Wechselwirkungen, wegen
+derer es die Beam-Suche gibt. Bitte messen, ob ein weisser Slot ein eigenes,
+höheres K braucht. Die Kosten sind linear in K und ein Lauf dauert 0,46 s,
+also ist Luft da. Das ist die schärfste bekannte Schwäche des Verfahrens und
+die einzige, die ich nicht selbst ausmessen konnte.
+
+**OF-11 — an `qa-engineer`:** `OwnedItem.handle` kann `None` sein, wenn
+`savefile.read_relic_handles` für ein Exemplar nichts liefert. AD-013 nimmt
+solche Relikte aus dem Kandidatenraum und meldet sie. Wie viele der 309 sind
+das tatsächlich? Bei null ist die Regel eine Formalie, bei einer
+nennenswerten Zahl ist sie ein sichtbarer Verlust an Vorschlagsqualität und
+gehört in die Oberfläche statt nur in `unknowns`.
+
+---
+
+### Offene Fragen, neu
+
+**OF-12 — an den App Designer, über `director`:** Überlebt ein Haltezustand
+den Wechsel von Gefäss, Nightfarer oder Deep-Schalter? Bei einem Wechsel
+ändern sich Zahl, Farbe und Bedeutung der Slots; ein „Slot 2 gehalten" von
+vorher zeigt danach auf etwas anderes. Die Architektur trägt beides. Der
+Entwurfsvorschlag lautet: **Haltezustand verfällt** bei jeder Änderung, die
+die Slotmenge verändert, und wird nicht über Programmstarts gemerkt. Wird das
+bestätigt, ändert sich an AD-014 bis AD-016 nichts; wird es verneint, braucht
+es eine Regel, welcher Halt auf welchen Slot abgebildet wird.
+
+**OF-13 — an den App Designer, über `director`:** Ein Fluch, der ein Feld
+bewegt, das die gewählte Zielrichtung nicht misst (`-HP` unter „Maximise
+damage"), ist im Build verrechnet, aber nicht in der Rangzahl. Der Entwurf
+**nennt** ihn im Vorschlag und in `unknowns` (AD-015). Genügt Nennen, oder
+soll ein solches Relikt schlechter gerankt oder ausgeschlossen werden? Eine
+Abwertung bräuchte Gewichte über Dimensionen hinweg, die die Spieldateien
+nicht hergeben — sie wäre also eine erfundene Zahl und stünde gegen A7.
+Der `developer` kann ohne diese Antwort beginnen: ein Ausschluss wäre später
+ein Kandidatenfilter in `candidates.py` und berührt weder Suche noch
+Bewertung.
+
+**Erledigt am 2026-09-02** (Nutzerentscheid in `GOAL.md`): `UI_SPEC` F1
+(Slots festhalten — **ja**, siehe AD-014) und F3 (Flüche mitbewerten —
+**ja**, siehe AD-015). `UI_SPEC` F2 und F4 bleiben beim `ui-ux-designer`
+bzw. beim Nutzer; keine der beiden bewegt diesen Entwurf.
+
+
+---
+
+### Offene Frage, neu
+
+**OF-15 — an den App Designer, über `director`:** Soll der Haltezustand einen
+**Programmneustart** überleben? AD-017 liest die Antwort des Nutzers als
+„innerhalb der Sitzung, gebunden an Held und Gefäss" und kommt damit ohne
+persistenten Speicher aus. Soll er den Neustart überleben, ist das ein
+eigener Auftrag mit eigenem Schema, der Migrationsnachbedingung aus Zyklus
+4/5 und einer ausgesprochenen Regel für Relikte, die nicht mehr im Besitz
+sind — nicht eine Zeile mehr im Berater.
+
+---
+
+### Offene Fragen, neu
+
+**OF-16 — an den App Designer, über `director`, entscheidet W6:** Die
+Spielmessung aus `docs/state.md` ist unverändert die offene Frage. Neu ist,
+dass sie **nur noch einen Wert** bestimmt (`MULTIPLIERS_FOR[Basis.CANDIDATE]`)
+und nicht mehr den Bauplan. Sie blockiert ab W5 die angezeigte Zahl, nicht
+mehr den Berater.
+
+**OF-17 — an den `director`:** Darf `tests/golden/weapon_damage.json` bei W3
+und W4 neu aufgenommen werden, mit AD-019 im Commit-Text als Grund? Ohne diese
+Freigabe hält W3 an, weil sein eigener Vertrag die Neuaufnahme heute nur nach
+einem Spiel-Patch erlaubt. **Empfehlung: ja, aber erst nachdem Prüfpunkt 28
+(bis 05.09.2026: 18) grün ist** — sonst gibt es keinen zweiten Beleg mehr.
+
+**OF-18 — an den `ui-ux-designer`, nicht an mich:** `Basis.EQUIPPED`,
+`CANDIDATE` und `BARE` sind drei verschiedene Fragen, die gleichzeitig auf dem
+Schirm stehen können. Die Benennung der Spalten und Beschriftungen (QA-018
+Weg B) sollte diese drei Fragen unterscheidbar machen; welche Wörter, ist
+nicht meine Entscheidung. Der Entwurf liefert `Rating.basis` mit, damit die
+Anzeige benennen **kann**, was sie zeigt.
+
+---
+
+### Offene Fragen, neu
+
+**OF-19 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
+`UI_SPEC` AK-63 (T-052, 2026-09-05) legt fest, dass Zeile 4 des Pickers und
+Punkt 4 des Why-Dialogs **ausschliesslich** die Sätze aus
+`GoalScore.unknowns` der gewählten Zielrichtung zeigen. Nach AD-025 sind es
+**zwei** Quellen: `Goal.scope` (der Geltungsbereich, immer) und die
+Laufbefunde des Pools (`Baseline.unknowns`, `SlotPool.unknowns`,
+`weights_note`). Die **Absicht** von AK-63 bleibt vollständig erfüllbar — ein
+fünfter Satz in `advisor/goals.py` erscheint danach an beiden Anzeigeorten,
+ohne dass ein UI-String angefasst wird. Der **Wortlaut** von AK-63 nennt eine
+Quelle, wo es zwei gibt. Wird AK-63 nicht nachgezogen, zeigt eine
+spec-treue Umsetzung nach der Trennung **weniger** als heute. Das ist der
+einzige Punkt dieses Nachtrags, der A7 verschlechtern kann.
+
+**OF-20 — an den `ui-ux-designer`, über den `director`:** der Wortlaut der
+konditionalen Zeile. AD-004 sagt „N of your relics", gezählt wird nach dieser
+AD über die Kandidaten **dieses Pools**. Gehört in dieselbe Runde wie QA-108
+(„of this colour" stimmt am weissen Slot nicht) — es sind zwei Zeilen
+desselben Bautyps im selben Feld, und sie sollten zusammen geschrieben
+werden.
+
+**OF-21 — an den `director`:** die Formatierung einer **Differenz** je
+Zielrichtung (`+12.4 AR` gegen `−18`) hat heute nirgends einen Ort. Ich lese
+sie als S8/S10 und ausdrücklich **nicht** als Teil von T-048. Bestätigung
+erbeten, weil QA-102 „`display` fällt weg" meldet und der nächstliegende
+Griff der falsche wäre.
+
+**OF-22 — an den `director`:** AD-008 hatte zwei Argumente — Trefferquote im
+Cache **und** Prüfäquivalenz (26 bzw. 47 kanonische Probleme statt 74
+Gefässe, mit der A3 überhaupt vollständig prüfbar wird). D3 hebt das erste
+auf. Ich lese das zweite als **unberührt**, weil es nicht am Cache hängt.
+Falls der `director` das anders sieht, ist der Prüfumfang für A3 neu zu
+bemessen, und das trifft den `qa-engineer`, nicht den `developer`.
+
+---
+
+### Offene Fragen, neu
+
+**OF-23 — an den `director`, weiterzugeben an den `ui-ux-designer`:**
+`GATE_FIELDS["triggerOnWepType"]` beschriftet **72 Effekte** des Datensatzes
+(Wert 256 auf 70, 512 auf 2) mit *„only with a matching weapon type"*,
+obwohl **kein** Waffentyp des Spiels diesen Wert trägt — der Spieler sucht
+eine Waffe, die es nicht gibt. Auf diesem Spielstand ist der Fall **latent**
+(0 von 197 bzw. 201 `not_counted`-Einträgen in beiden Umgebungen), weil keine
+besessene Kopie einen solchen Effekt trägt; ein anderer Bestand kann ihn
+sichtbar machen. Es ist eine A11-Frage („ich habe geraten"), kein
+Rechenfehler. Der Text steht in `model.py`, die Entscheidung über den Text
+nicht bei mir.
+
+**OF-24 — an den `director`:** Der Befund aus T-084 nennt „46 von 170" als
+Anteil an einer Zahl, die der Nutzer liest. Gemessen ist das der Anteil an
+der **Kandidatenmenge**; die Zahl in der Statuszeile 4.9b bewegt sich in 175
+von 176 vollen Läufen um **null** (Umgebung A: 1 von 565; B: 1 von 473).
+Falls Priorität oder Reihenfolge eines Auftrags an der Grösse dieses
+Befundes hing, ist die Grundlage jetzt eine andere — die Klasse ist trotzdem
+zu entscheiden gewesen, weil der Docstring die **Beschreibung** der Menge
+falsch führt und Füllung (c) im Picker jede der 46 Zeilen betrifft.
+
+---
+
+### Offene Fragen, neu
+
+**OF-25 — an den `director`, auszufuehren vom `performance-tuner`:** Nach
+AD-028 koennen zwei Spuren gleichzeitig rechnen (AK-08 verlangt es). **A6s
+6-s-Zahl fuer `Optimize` ist gemessen, waehrend sonst nichts rechnete** —
+`docs/perf/baselines.md` S11-A sagt nichts ueber eine gleichzeitige zweite
+Spur, und unter dem GIL teilen sich zwei rechnende Python-Threads einen Kern.
+Bei 5023,6 ms gemessen und 6 s Schranke bleiben 19 % Luft; eine Halbierung
+des Durchsatzes waere mehr. **Zu messen:** `Optimize` mit einer gleichzeitig
+laufenden Picker-Frage, gegen S11-A. Faellt die Zahl durch, ist es eine
+Entscheidung fuer den `director` (Randbedingung an A6 oder Vorrang der
+Picker-Spur), keine Nachbesserung.
+
+**OF-26 — an den `director`, auszufuehren vom `performance-tuner`:** Der
+**Hauptthread-Rest** einer Beraterfrage ist nie gemessen worden — auf keinem
+der beiden Wege. Auch nach AD-028 bleiben im Hauptthread: der Bau der
+Anfrage, `run.frozen_inventory` (309 Kopien plus die Angebotslisten je
+Slot-Farbe) und `run.inventory_fingerprint` (sha256 ueber 309 sortierte
+Zeilen). **A6s dritte Zeile steht und faellt mit dieser Zahl**, und sie gilt
+schon heute fuer den `Optimize`-Weg, der als „haelt" gefuehrt wird. Zu messen
+getrennt vom Lauf, im selben Szenario wie S11-B.
+
+**OF-27 — an den `director`:** `UI_SPEC` §3.8, `ARCHITECTURE.md` (hier
+korrigiert) und `relicpicker.py:276-281` tragen **dieselbe** gerechnete Zahl,
+und keine der drei Stellen sagte, dass sie gerechnet war. Zwei davon sind
+jetzt richtiggestellt, die dritte gehoert dem `ui-ux-designer` (U4). **Die
+Frage dahinter ist allgemeiner:** ob eine Zahl, die in einem Entwurfstext
+eine Entscheidung traegt, kuenftig ihre Herkunft mitfuehren muss — gemessen
+oder gerechnet, mit Datum und Quelle. L-001 verlangt das fuer Testschranken
+und Architekturkennwerte; QA-208 ist der Fall, in dem eine **gerechnete**
+Zahl drei Dateien weit gewandert ist. Entscheidung des `director`, ob das als
+Regel aufgeschrieben wird.
+
+---
+
+### Offene Fragen, neu
+
+**OF-28 — an den `director`, auszufuehren vom `performance-tuner` (U7):** Die
+Groesse eines Picker-Cache-Eintrags ist **in der Antwortform, die AD-028 der
+Picker-Spur gibt, nie gemessen worden**; die 33,4 KiB, auf denen die 64 steht,
+gelten fuer eine `AdvisorResult` mit 20 Suggestions. Schranke und Rueckweg
+stehen in IX-3.2. **Solange diese Messung fehlt, ist die 64 eine gesetzte Zahl
+ohne gueltige Herleitung** — sie steht, aber sie belegt nichts.
+
+**OF-29 — an den `director`:** Nach IX-2 traegt die Picker-Anfrage in
+`goal_id` eine Ordnungskonstante und nicht die Wahl des Spielers. Das ist die
+zweite Stelle in diesem Vorhaben, an der ein Feldname mehr verspricht, als das
+Feld haelt (die erste war `SlotPool.rank_by`, D-4/T-077). Die allgemeinere
+Frage, die schon OF-27 stellt, wird damit dringender: **ob ein Feld, das nur
+unter einer Randbedingung bedeutet, was sein Name sagt, diese Bedingung im Typ
+tragen muss** statt im Docstring daneben. Entscheidung des `director`, ob das
+als Regel aufgeschrieben wird; ein Umbau der Datenformen ist es nicht.
+
+**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
+mir nicht): **AK ab AK-211** (bereits von T-124 gemeldet, Zeile 11 steht noch
+auf AK-195) und **OF ab OF-30**. AD bleibt bei **AD-030** — dieser Nachtrag
+vergibt **keine** neue AD-Nummer, er schreibt AD-028 fort.
+
+---
+
+### Offene Frage, neu
+
+**OF-30 — an den `director`, Adressat `ui-ux-designer`:** AK-218 ist im
+Wortlaut enger als der gebaute Zustand (siehe die Meldung oben); der
+Cache-Treffer endet in keinem der drei Ausgaenge, sondern im Rueckgabewert,
+was IX-1.3 entschieden und AK-211 vorausgesetzt hat. **Vorschlag steht dort;
+`UI_SPEC.md` ist von mir nicht angefasst.** Solange der Wortlaut steht, misst
+AK-218 den haeufigen Fall als Fehler.
+
+**Nummernkreise, die der `director` nachziehen muss** (`docs/state.md` gehoert
+mir nicht): **OF ab OF-31**. **AD bleibt bei AD-030** — dieser Nachtrag
+vergibt keine AD-Nummer. Neu belegt sind ausserdem **W8** (Waechter der
+Picker-Spur) sowie die Umsetzungsschritte **U9** und **U10**.
 
 ---
 
@@ -5970,3 +6080,50 @@ Nichts davon ist sichtbar, alles davon ist pruefbar.
 mir nicht): **AD ab AD-032** · **OF ab OF-33**. Neu belegt sind ausserdem die
 Umsetzungsschritte **V1 bis V5** (V5 ist U8 unter neuem Namen; der `U`-Kreis
 wird nicht fortgesetzt) und die Regressionsfaelle **R1 bis R18**.
+---
+
+## Erledigtes und Randnotizen
+
+*Zwei Abschnitte, die zu keinem Themenbereich gehoeren und die niemand mehr
+sucht — sie stehen hier, damit sie nicht verloren gehen.*
+
+### Wichtige Korrektur zur Auftragslage (erledigt)
+
+T-001 und die erste Fassung von `GOAL.md` sprechen von **Tkinter**. Das
+Programm verwendet **PySide6 (Qt 6.11.1)** — `requirements.txt` und jeder
+Import in `nrplanner/app.py` und den Tab-Modulen. Kein einziges `tkinter` im
+Repo. Der `director` hat das bestätigt und zieht `GOAL.md` nach.
+
+Das ist keine Kosmetik: Qt bringt `QThread`, `Signal`/`Slot` über die
+Thread-Grenze und eine thread-affine Event-Loop mit, und im Repo existiert
+bereits ein funktionierendes Hintergrund-Muster (`nrplanner/firstrun.py`,
+Worker-Objekt per `moveToThread` plus Signale). AD-006 baut darauf auf statt
+auf einer Tkinter-`after()`-Schleife.
+
+---
+
+### Folgen für `UI_SPEC.md` — an den `ui-ux-designer`
+
+Nicht meine Entscheidung, aber es hängt daran: **AK-13, AK-14 und AK-16
+brauchen eine Fassung für den Haltezustand.** „`Apply all` belegt alle Slots"
+und „`Suggest` verändert keinen Slot" sind unter Festhalten nicht mehr
+vollständig — ein festgehaltener Slot darf von `Apply all` nicht angefasst
+werden, und der Inhalt eines festgehaltenen Slots ist eine **Eingabe** der
+Rechnung, kein Vorschlag (AK-16 bleibt für Vorschläge gültig, ein
+festgehaltenes Custom relic ist zulässig). Ausserdem: die Picker-Frage aus
+`GOAL.md` F4 ist algorithmisch derselbe Lauf mit `h = Slotzahl − 1`
+(AD-014) — sie kostet keine Architektur und darf frei angeordnet werden.
+
+---
+
+## Verlauf
+
+Der vollstaendige chronologische Verlauf dieser Datei — alle elf Nachtraege in
+ihrer urspruenglichen Reihenfolge, mit Inhaltsverzeichnis — steht in
+**`docs/archiv/architecture-verlauf.md`**.
+
+Dort steht nach, wer eine Entscheidung wann und gegen welche Alternative
+getroffen hat. **Bevor eine Entscheidung revidiert wird, gehoert der Verlauf
+gelesen:** die verworfene Alternative ist meistens schon einmal geprueft
+worden, und der Grund, aus dem sie verworfen wurde, ist der teuerste Teil
+dieser Datei.
