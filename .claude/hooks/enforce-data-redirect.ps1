@@ -42,17 +42,27 @@ $cmd = (($cmd -split "`n") | ForEach-Object { $_ -replace '#.*$', '' }) -join ' 
 if ($cmd -match '\bpytest\b') { exit 0 }
 
 # ponytail: erkannte Startformen, aus dem Repository abgeleitet (run.py,
-# NightreignHelper.spec, die Fensterlaeufe in T-199/T-200) - nicht aus
-# Vorstellung. Eine Startform, die hier nicht steht, rutscht durch: kein
-# Start-Process, kein "python -c ...nrplanner.app...", kein Doppelklick auf
-# die .exe (das ist ohnehin kein Werkzeugaufruf). Taucht eine neue Startform
-# in einem Bericht auf, kommt sie hier als weiteres $ist*-Pattern dazu.
+# NightreignHelper.spec, die Fensterlaeufe in T-199/T-200, die beiden
+# fensterbauenden Messskripte aus QA-244/T-214) - nicht aus Vorstellung. Eine
+# Startform, die hier nicht steht, rutscht durch: kein Start-Process, kein
+# "python -c ...nrplanner.app...", kein Doppelklick auf die .exe (das ist
+# ohnehin kein Werkzeugaufruf). Taucht eine neue Startform in einem Bericht
+# auf, kommt sie hier als weiteres $ist*-Pattern dazu.
 # Kein Anker auf Zeilenanfang: "VAR=wert VAR2=wert python run.py" ist ein
 # einzelnes Kommando ohne Trenner vor "python" und muss trotzdem greifen.
 $istQuellstart = $cmd -match '\b(python3?|py)(\.exe)?\b[^;&|]*\brun\.py\b'
 $istExeStart = $cmd -match '(?i)\bNightreignHelper\.exe\b'
 
-if (-not ($istQuellstart -or $istExeStart)) { exit 0 }
+# QA-244: von den acht Skripten unter scripts/measure_*.py bauen nur diese
+# zwei ein echtes Planner-Fenster (appmod.Planner(...), nachgesehen T-214) und
+# lenken NIGHTREIGN_SETTINGS_ORG nicht selbst um. Die anderen sechs oeffnen
+# kein Fenster und ruehren an keiner der drei Variablen - ein Muster auf den
+# ganzen Ordner wuerde sie ohne Grund abweisen. Baut ein kuenftiges Skript ein
+# Fenster, kommt sein Name hier dazu, nicht ein Wildcard auf den Ordner.
+$istFensterMessskript = $cmd -match
+    '\b(python3?|py)(\.exe)?\b[^;&|]*\b(measure_picker_cards|measure_advisor_block)\.py\b'
+
+if (-not ($istQuellstart -or $istExeStart -or $istFensterMessskript)) { exit 0 }
 
 $fehlend = @()
 if ($cmd -notmatch '\bNIGHTREIGN_SETTINGS_ORG\b\s*=') { $fehlend += 'NIGHTREIGN_SETTINGS_ORG' }
