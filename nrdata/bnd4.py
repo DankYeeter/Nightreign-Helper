@@ -15,6 +15,45 @@ FMT_NAMES2 = 0b0000_1000
 FMT_LONG_OFFSETS = 0b0001_0000
 FMT_COMPRESSION = 0b0010_0000
 
+# Where the member headers begin.
+HEADER_SIZE = 0x40
+
+# The fixed part of a member header: 4 bytes of flags and padding, an int32
+# that is always -1, then the compressed size as an int64.
+_ENTRY_FIXED = 16
+
+
+def _entry_fields_size(has_compression: bool, has_long_offsets: bool,
+                       has_ids: bool, has_names: bool) -> int:
+    """How many bytes one member header must hold for this archive's format.
+
+    Derived from the fields the walk below actually reads rather than fixed at
+    a number, because which fields are present is exactly what the format bits
+    have just decided.
+    """
+    return (_ENTRY_FIXED
+            + (8 if has_compression else 0)     # uncompressed size
+            + (8 if has_long_offsets else 4)    # data offset
+            + (4 if has_ids else 0)
+            + (4 if has_names else 0))
+
+
+def _check_entry_table(data: bytes, file_count: int, entry_size: int,
+                       fields_size: int) -> None:
+    """The count and the stride come out of the archive and together they
+    steer the walk over its member headers, so they are measured against the
+    archive's own size before anything is read (SEC-002). Unchecked, a count
+    of four billion is walked as four billion, and a stride too small for the
+    fields it must hold puts every member on top of the last.
+    """
+    if (entry_size < fields_size
+            or HEADER_SIZE + file_count * entry_size > len(data)):
+        raise ValueError(
+            f"archive claims {file_count} members of {entry_size} bytes each, "
+            f"holding {fields_size} bytes of fields, which do not fit in "
+            f"{len(data)} bytes"
+        )
+
 
 @dataclass
 class BinderFile:
@@ -70,9 +109,15 @@ def read_split_header(data: bytes) -> list[SplitEntry]:
     has_ids = bool(fmt & FMT_IDS)
     has_names = bool(fmt & (FMT_NAMES1 | FMT_NAMES2))
 
+    _check_entry_table(
+        data, file_count, file_header_size,
+        _entry_fields_size(has_compression, has_long_offsets,
+                           has_ids, has_names),
+    )
+
     out: list[SplitEntry] = []
     for i in range(file_count):
-        e = Reader(data, 0x40 + i * file_header_size, big_endian)
+        e = Reader(data, HEADER_SIZE + i * file_header_size, big_endian)
         e.skip(4)
         e.i32()
         size = e.u64()
@@ -118,10 +163,15 @@ def read(data: bytes) -> list[BinderFile]:
     has_ids = bool(fmt & FMT_IDS)
     has_names = bool(fmt & (FMT_NAMES1 | FMT_NAMES2))
 
+    _check_entry_table(
+        data, file_count, file_header_size,
+        _entry_fields_size(has_compression, has_long_offsets,
+                           has_ids, has_names),
+    )
+
     files: list[BinderFile] = []
-    header_start = 0x40
     for i in range(file_count):
-        e = Reader(data, header_start + i * file_header_size, big_endian)
+        e = Reader(data, HEADER_SIZE + i * file_header_size, big_endian)
         e.skip(1)  # file flags
         e.skip(3)  # padding
         e.i32()  # always -1

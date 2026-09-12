@@ -8,6 +8,7 @@ gives a relic its three effects.
 
 from __future__ import annotations
 
+import collections
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSize, Qt
@@ -18,14 +19,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import effecttext, weapons
+from . import damage, effecttext, model, weapons
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
 GOOD = "#78b57e"
-BAD = "#d1655f"
 # The red the Effects tab gives a curse, so a negative roll
 # reads the same wherever it appears.
 DEBUFF = "#e07a74"
@@ -40,6 +40,20 @@ RARITY_TEXT = {
     2: "#a97fe0",
     3: "#e0a94a",
 }
+
+# A tile's detail line is one wrapped string in a box about 120 px wide, so
+# Qt breaks it at whichever space happens to fall past the edge. Since T-046
+# the name of a catalyst's figure is two words, and the break landed inside
+# it: `Legendary · 145 Spell` on the first line and `power` alone on the
+# second, which reads as a defect rather than as a layout (DR-009). Joining
+# the label's own words with a no-break space moves the break to the space in
+# front of the term and leaves the term whole.
+#
+# The other way the review offered -- an abbreviation at this one narrow
+# place -- was left alone on purpose: it would give the same figure a second
+# name in the one spot where a player compares it against the arsenal tab,
+# and AK-64 turns down a second name for exactly that reason.
+NO_BREAK_SPACE = "\u00a0"
 
 SLOT_COUNT = 6
 SLOT_COLUMNS = 3
@@ -198,6 +212,20 @@ class WeaponTile(QFrame):
 
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
                   effects: dict | None = None) -> None:
+        """Draw one tile. `rating` is the slot's `damage.Rating`, or None.
+
+        The rating answers `damage.Question.EQUIPPED` -- this armament, in
+        this slot, as it stands -- and the tile shows its finished figure, the
+        one after the attack multipliers, under the name the facade gives it.
+        It is the same number the breakdown panel puts under the grid, out of
+        the same call, which is what W3 of AD-019 was for: the tile used to
+        rate the armament for itself and arrived at a different total for the
+        same slot (QA-056).
+
+        Left untyped for the same reason `damage.equipped` leaves its slot
+        untyped: this module imports Qt and `damage` does not, so the arrow
+        between them only ever points one way.
+        """
         self.active = active
         border = ACCENT if active else BORDER
         width = 2 if active else 1
@@ -225,7 +253,14 @@ class WeaponTile(QFrame):
             tier_name += f" +{upgrade}"
         bits = [tier_name]
         if rating is not None:
-            bits.append(f"<b style='color:{ACCENT}'>{rating.total:.0f}</b> AR")
+            # Figure and label both from the facade: a staff shows the spell
+            # scaling the game shows for it and no attack rating (QA-099).
+            # The label's own words are held together, so a two-word label
+            # cannot be split across the wrap (DR-009, `NO_BREAK_SPACE`).
+            label = rating.headline_label.replace(" ", NO_BREAK_SPACE)
+            bits.append(f"<b style='color:{ACCENT}'>"
+                        f"{damage.displayed(rating.final_headline)}</b>"
+                        f" {label}")
         if slot.effect_ids:
             # Count the negative rolls apart from the rest, in the same red
             # the picker uses, so a tile shows at a glance that one of its
@@ -240,8 +275,6 @@ class WeaponTile(QFrame):
             if bad:
                 bits.append(f"<span style='color:{DEBUFF}'>{bad} debuff"
                             f"{'s' if bad != 1 else ''}</span>")
-        if rating is not None and not rating.meets_requirements:
-            bits.append(f"<span style='color:{BAD}'>requirements unmet</span>")
         self.detail.setText(" · ".join(b for b in bits if b))
 
 
@@ -254,6 +287,16 @@ class WeaponDialog(QDialog):
         self.icons = icons
         self.slot = slot.copy()
         self._bases = base_ids(data["weapons"])
+        # What this dialog offers, and what it counts names over, is the same
+        # list -- the armaments a player can hold (AK-66). Counting names over
+        # the whole dataset instead would keep putting an id beside
+        # `Recluse's Staff` to tell it from a row that is no longer on offer.
+        # `base_ids` above stays on the whole dataset: it works out which row
+        # of an id band is the uninfused one, and a band with a row missing
+        # would answer that differently.
+        self._offered = model.offerable_weapons(data["weapons"])
+        self._name_counts = collections.Counter(
+            w["name"] for w in self._offered)
         self._effects_by_id = {int(k): v for k, v in data["effects"].items()}
         self._pool: list[dict] = []
         self.setWindowTitle("Armament")
@@ -316,16 +359,37 @@ class WeaponDialog(QDialog):
         self._refresh_list()
 
     # -- weapon list ------------------------------------------------------
+    def _list_label(self, weapon: dict) -> str:
+        """The armament's name, and its id where the name is not its own.
+
+        Two names in what this dialog offers still belong to more than one
+        row: `Finger Seal` and `Scholar's Thrusting Sword`. Both collisions
+        are between rows that rate identically, so the choice between them
+        changes no figure -- but picking one of two rows that read alike is
+        picking blind either way, so the id that tells them apart is put
+        beside the name (QA-099 a).
+
+        The third collision is gone from this list rather than labelled: the
+        second `Recluse's Staff` (33770000) can hold no spell and is filtered
+        out of every player-facing list (AK-66, QA-119). It did not rate like
+        its namesake either, so an id beside the two would have asked the
+        player to know which of them is the weapon.
+        """
+        name = weapon["name"]
+        if self._name_counts[name] > 1:
+            return f"{name} · {weapon['id']}"
+        return name
+
     def _refresh_list(self) -> None:
         term = self.search.text().strip().lower()
         self.list.blockSignals(True)
         self.list.clear()
         current = self.slot.weapon["id"] if self.slot.filled else None
         chosen_row = -1
-        for weapon in sorted(self.data["weapons"], key=lambda w: w["name"]):
+        for weapon in sorted(self._offered, key=lambda w: w["name"]):
             if term and term not in weapon["name"].lower():
                 continue
-            item = QListWidgetItem(weapon["name"])
+            item = QListWidgetItem(self._list_label(weapon))
             item.setData(Qt.UserRole, weapon)
             if weapon.get("effect_pool"):
                 item.setToolTip(f"{len(weapon['effect_pool'])} rollable effects")

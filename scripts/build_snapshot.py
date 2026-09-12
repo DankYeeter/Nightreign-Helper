@@ -25,7 +25,7 @@ def main() -> None:
     print(f"\nwrote {OUT} ({OUT.stat().st_size / 1024:.0f} KB)\n")
 
     for hero in data["heroes"]:
-        lv1, lv15 = hero["levels"][1], hero["levels"][15]
+        lv1, lv15 = hero["levels"]["1"], hero["levels"]["15"]
         print(
             f"  {hero['name']:<22} block={hero['status_block']:<4} "
             f"exact={hero['exact_levels']}  "

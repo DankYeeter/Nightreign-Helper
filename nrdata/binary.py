@@ -5,6 +5,28 @@ from __future__ import annotations
 import struct
 
 
+class NotWhatItClaims(ValueError):
+    """A file does not hold what its own header promised.
+
+    A `ValueError` with a name, and the name is the whole point. Every
+    refusal raised for this reason carries a sentence written in this
+    repository and in English, and `nrplanner.errortext` shows the words of
+    an exception only when its class was defined here -- a plain
+    `ValueError` is indistinguishable from pycryptodome's "Incorrect IV
+    length" and is therefore mapped rather than quoted (A8, QA-211). Without
+    a class of our own the choice was between showing Windows' and a
+    library's wording on the surface, and throwing this program's own
+    sentences away (A7).
+
+    Raised for what a container says about itself and cannot back up: a
+    missing magic, a member table that does not fit in the file, a string
+    offset past the end, a slot denser than an inventory can be. Not raised
+    for a caller's mistake -- an argument this program's own code got wrong
+    stays a plain `ValueError`, because it is a fault in the program and not
+    in the file, and it has no business reaching a player at all.
+    """
+
+
 class Reader:
     def __init__(self, data: bytes, offset: int = 0, big_endian: bool = False):
         self.data = data
@@ -69,16 +91,56 @@ class Reader:
     def magic(self, expected: bytes) -> None:
         got = self.bytes(len(expected))
         if got != expected:
-            raise ValueError(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
+            raise NotWhatItClaims(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
 
     def cstr_at(self, offset: int, utf16: bool = False) -> str:
-        if utf16:
-            end = offset
-            while self.data[end : end + 2] != b"\0\0":
-                end += 2
-            return self.data[offset:end].decode("utf-16-le", "replace")
-        end = self.data.index(b"\0", offset)
-        return self.data[offset:end].decode("shift-jis", "replace")
+        return read_cstring(self.data, offset, utf16)
+
+
+def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
+    """The NUL-terminated string at `offset`, or `NotWhatItClaims` if none.
+
+    The bound is the buffer's own length rather than a chosen constant: a name
+    is read exactly as far as there are bytes to read it in, and no further.
+    Reaching that bound means the container said "a string starts here" and the
+    bytes do not back it up. That is a damaged file and is reported as one --
+    not quietly cut short at some invented length, which would hand the caller
+    a name the file never held.
+
+    This replaces four copies of a loop that walked forward until it met a
+    terminator (SEC-001). Past the end of the buffer the two-byte slice it
+    compared is empty forever, so the loop never left, and the copy in the save
+    reader ran on the GUI thread before the player had touched anything.
+
+    The UTF-16 terminator only counts at an even distance from the string's
+    start. A zero pair on an odd boundary is the high byte of one character
+    meeting the low byte of the next, and cutting there would split a
+    character in half.
+    """
+    if not 0 <= offset <= len(data):
+        raise NotWhatItClaims(
+            f"string offset {offset} lies outside the {len(data)}-byte buffer"
+        )
+    if not utf16:
+        end = data.find(b"\0", offset)
+        if end < 0:
+            raise NotWhatItClaims(
+                f"unterminated string at offset {offset} "
+                f"in a {len(data)}-byte buffer"
+            )
+        return data[offset:end].decode("shift-jis", "replace")
+
+    pos = offset
+    while True:
+        end = data.find(b"\0\0", pos)
+        if end < 0:
+            raise NotWhatItClaims(
+                f"unterminated UTF-16 string at offset {offset} "
+                f"in a {len(data)}-byte buffer"
+            )
+        if (end - offset) % 2 == 0:
+            return data[offset:end].decode("utf-16-le", "replace")
+        pos = end + 1
 
 
 def reverse_bits(value: int) -> int:

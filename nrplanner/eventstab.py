@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
 
 ACCENT = "#c8a45c"
@@ -29,14 +30,16 @@ PENALTY = "#c07a6a"
 # looking like the extracted text beside it.
 COMMUNITY = "#6f9ac4"
 
-
-def _heading(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setStyleSheet(
-        f"color: {ACCENT}; font-size: 12px; font-weight: bold;"
-        " letter-spacing: 1px;"
-    )
-    return label
+#: Figures whose reference quantity is not in the files, keyed by the exact
+#: prefix `nrdata.extract._buff_lines` writes them with (AK-70, A7). Naming
+#: the prefix rather than the whole line keeps the entry valid when the
+#: magnitude changes, which is the only part of the line that can.
+UNKNOWN_REFERENCE = {
+    "stamina recovery speed ": (
+        "The stamina recovery figure is the game's own number for that "
+        "field. The files do not say what it is counted in, so read it as "
+        "\"recovers faster\" and not as an amount per second."),
+}
 
 
 def _note(text: str) -> QLabel:
@@ -66,6 +69,24 @@ def _stat(text: str) -> QLabel:
     return label
 
 
+def _grants_an_amount(line: str) -> bool:
+    """Does this line hand over an amount once, rather than name a state?
+
+    A duration belongs to a state -- you are invulnerable *for five seconds*.
+    An amount is handed over and then it is yours, so `10,000 runes for 1s`
+    and `restores 100 stamina for 0.3s` say something that is not true of
+    either (QA-133, AK-103).
+
+    `nrdata.extract._buff_lines` builds exactly two amount-granting shapes,
+    from `soul` and from `changeStaminaPoint`, and both are recognised here by
+    the shape that function gives them. The default is the other way -- an
+    unrecognised line keeps its duration -- because every other field that
+    function words is a state, and losing a real duration would cost a player
+    more than this rule gains.
+    """
+    return line.endswith(" runes") or line.startswith("restores ")
+
+
 class WorldEventsTab(QWidget):
     def __init__(self, data: dict):
         super().__init__()
@@ -83,7 +104,7 @@ class WorldEventsTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        layout.addWidget(_heading("WORLD EVENTS"))
+        layout.addWidget(tabheader.heading("WORLD EVENTS"))
         layout.addWidget(_note(
             "Events that can interrupt an expedition: where each one can "
             "appear, what happens, what you win and what you lose. Blue "
@@ -185,15 +206,26 @@ class WorldEventsTab(QWidget):
             column.addWidget(_stat(bosses))
             day1 = gate.get("day1_patterns", 0)
             day2 = gate.get("day2_patterns", 0)
-            when = ("Can fire on Day 1 or Day 2" if day1 and day2
-                    else "Fires on Day 1" if day1 else "Fires on Day 2")
+            # The split is in the data and used to be thrown away, so all
+            # eleven events carried the same sentence while Judgment is 19
+            # Day-1 patterns against 1 and this one is 9 against 21 (QA-134).
+            if day1 and day2:
+                when = (f"Can fire on Day 1 or Day 2 — {day1} of the "
+                        f"{day1 + day2} map patterns that carry it are Day 1")
+            elif day1:
+                when = "Fires on Day 1"
+            else:
+                when = "Fires on Day 2"
             column.addWidget(_note(
-                f"{when}. Every other Nightlord: never. The percentage is "
-                "how much of that Nightlord's map pool carries the event."))
+                f"{when}. Every other Nightlord: never — across every map "
+                "pattern in the game's data. The percentage is how much of "
+                "that Nightlord's map pool carries the event. The pool is "
+                "drawn with weights, so it is not the chance of seeing it on "
+                "a given run."))
 
         # -- what happens ------------------------------------------------
         if lore.get("what"):
-            column.addWidget(_heading("WHAT HAPPENS"))
+            column.addWidget(tabheader.heading("WHAT HAPPENS"))
             column.addWidget(_community(lore["what"]))
 
         # -- win ----------------------------------------------------------
@@ -201,7 +233,7 @@ class WorldEventsTab(QWidget):
         creature = self.creatures.get(str(lore.get("creature_chr")))
         drops = self.drops.get(str(lore.get("creature_chr")))
         if buff or creature or drops or lore.get("reward"):
-            column.addWidget(_heading("WIN"))
+            column.addWidget(tabheader.heading("WIN"))
         if buff:
             column.addWidget(_stat(f"{buff['name']} — {buff['info']}"))
             figures = list(buff["lines"])
@@ -212,13 +244,25 @@ class WorldEventsTab(QWidget):
             figures += [line + per_trigger_suffix
                         for line in buff["per_trigger"]]
             for part in buff["parts"]:
-                if part["lines"]:
+                # Split before the duration is attached, so a part carrying
+                # both an amount and a state gives the window to the state
+                # alone rather than to whichever came first (AK-103).
+                amounts = [line for line in part["lines"]
+                           if _grants_an_amount(line)]
+                states = [line for line in part["lines"]
+                          if not _grants_an_amount(line)]
+                if amounts:
+                    figures.append(", ".join(amounts))
+                if states:
                     window = (f" for {part['duration']:g}s"
                               if part["duration"] and part["duration"] > 0
                               else "")
-                    figures.append(", ".join(part["lines"]) + window)
+                    figures.append(", ".join(states) + window)
             if figures:
                 column.addWidget(_stat("   ·   ".join(figures)))
+            for prefix, sentence in UNKNOWN_REFERENCE.items():
+                if any(line.startswith(prefix) for line in figures):
+                    column.addWidget(_note(sentence))
             forever = buff["duration"] == -1
             column.addWidget(_note(
                 "Lasts the rest of the expedition — not consumed, no cooldown."
@@ -232,13 +276,18 @@ class WorldEventsTab(QWidget):
             column.addWidget(_stat(
                 f"Runes: {label} base — rises the more expeditions "
                 "you have cleared"))
+            # "Rises" was the tab's one unnumbered claim, while the figures
+            # that number it were loaded on the line above and thrown away
+            # (AK-104). They go here, at the claim, and nowhere else.
+            if self.rune_scaling:
+                column.addWidget(_note(" ".join(self.rune_scaling)))
         if drops:
             column.addWidget(_stat("Drops: " + self._drop_summary(drops)))
 
         # -- lose ---------------------------------------------------------
         state = self.states.get(lore.get("penalty_sp"))
         if state or lore.get("penalty"):
-            column.addWidget(_heading("LOSE"))
+            column.addWidget(tabheader.heading("LOSE"))
         if state:
             forever = state["duration"] == -1
             line = QLabel(
@@ -253,7 +302,7 @@ class WorldEventsTab(QWidget):
 
         # -- the demon's forms -------------------------------------------
         if event.get("variants"):
-            column.addWidget(_heading("WHAT THE DEMON CAN DO"))
+            column.addWidget(tabheader.heading("WHAT THE DEMON CAN DO"))
             for variant in event["variants"]:
                 line = QLabel("•  " + variant["text"])
                 line.setWordWrap(True)
@@ -296,13 +345,13 @@ class WorldEventsTab(QWidget):
             "Everything on this one is community-reported."
         ))
         if entry.get("what"):
-            column.addWidget(_heading("WHAT HAPPENS"))
+            column.addWidget(tabheader.heading("WHAT HAPPENS"))
             column.addWidget(_community(entry["what"]))
         if entry.get("reward"):
-            column.addWidget(_heading("WIN"))
+            column.addWidget(tabheader.heading("WIN"))
             column.addWidget(_community(entry["reward"]))
         if entry.get("penalty") and entry["penalty"] not in ("None.",):
-            column.addWidget(_heading("LOSE"))
+            column.addWidget(tabheader.heading("LOSE"))
             column.addWidget(_community(entry["penalty"]))
         bosses = entry.get("nightlords")
         if bosses:

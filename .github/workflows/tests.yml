@@ -1,0 +1,60 @@
+name: Tests
+
+# The suite runs here and not only on a developer machine. That distinction
+# is the whole reason this file exists: the regression guards the source code
+# cites as its safety net (smoke_dlc_effects.py, smoke_layout.py) live in the
+# private working repo and have never protected anything that was published
+# from this one.
+#
+# The runner has no NIGHTREIGN installation, and that is correct -- this
+# project ships no game data and must never bake any in. Tests that need the
+# player's own game skip themselves with a message saying so, which is why the
+# run below reports its skips instead of hiding them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # A test framework in the runtime requirements would be bundled into the
+      # executable by NightreignHelper.spec, which analyses run.py against the
+      # installed environment. Keeping pytest out of requirements.txt is the
+      # condition under which it was approved, so it is checked rather than
+      # remembered.
+      - name: The test framework stays out of the runtime requirements
+        shell: bash
+        run: |
+          if grep -iq '^pytest' requirements.txt; then
+            echo "::error::pytest is in requirements.txt and would ship in the EXE"
+            exit 1
+          fi
+          if grep -q 'tests' NightreignHelper.spec; then
+            echo "::error::NightreignHelper.spec references the tests directory"
+            exit 1
+          fi
+
+      - name: Tests
+        env:
+          # No display on a runner, and none needed: every Qt object the suite
+          # builds is built and thrown away without being shown.
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -rs

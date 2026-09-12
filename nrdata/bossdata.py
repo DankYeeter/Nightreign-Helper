@@ -30,7 +30,7 @@ from __future__ import annotations
 import struct
 from typing import Any
 
-from . import bnd4, dvdbnd, oodle, param, tae
+from . import binary, bnd4, dvdbnd, oodle, param, tae
 
 INSTRUCTION_RECORD = 32
 
@@ -57,20 +57,6 @@ NEUTRAL_CUT = 1.0
 IMMUNE_RESIST = 999
 # Characters that stand in every arena and are never the boss.
 CREW = {0, 100, 1000, 100, 200}
-
-
-def _utf16(buf: bytes, offset: int) -> str:
-    """A UTF-16 name, terminated on an even boundary.
-
-    Searching for a b"\\0\\0" without alignment lands a byte early on roughly
-    half of these names and decodes the whole string one byte out.
-    """
-    out = bytearray()
-    i = offset
-    while i + 1 < len(buf) and buf[i : i + 2] != b"\0\0":
-        out += buf[i : i + 2]
-        i += 2
-    return out.decode("utf-16-le", "replace")
 
 
 def _param_section(blob: bytes, name: str) -> tuple[list[int], int]:
@@ -136,13 +122,26 @@ def _tuned(rows: list) -> bool:
 
 
 def _parts(blob: bytes) -> list[tuple[str, bytes]]:
+    """(name, record) for every part placed in this map.
+
+    The name goes through the shared bounded reader, which raises when a
+    record says a name starts here and holds no terminator to end it. This
+    file used to walk to the end of the record and hand back whatever it had
+    collected by then -- a name the map never contained, and one a boss is
+    then identified by, since the cNNNN model is read out of it (SEC-014).
+
+    Raising costs this map: both callers already treat an unreadable map as
+    "no parts", so the boss goes unresolved and the tab says it could not be
+    derived. That is an answer the files support. A name that was never in
+    them is the one answer they do not (GOAL A7).
+    """
     entries, end = _param_section(blob, "PARTS_PARAM_ST")
     bounds = entries + [end]
     out = []
     for i, start in enumerate(entries):
         record = blob[start : bounds[i + 1]]
-        out.append((_utf16(record, struct.unpack_from("<Q", record, 0)[0]),
-                    record))
+        name_at = struct.unpack_from("<Q", record, 0)[0]
+        out.append((binary.read_cstring(record, name_at, utf16=True), record))
     return out
 
 
@@ -413,7 +412,12 @@ def derive(game_dir, members: dict, defs: dict,
             "primary": primary,
             "confidence": "exact",
             "profile": _profile(rows_for.get(primary, [])),
-            "parts": {c: _profile(rows_for.get(c, [])) for c in chars},
+            # Character ids as text: this block is written to JSON, which has
+            # no other kind of key, so an int would give the freshly built
+            # dataset a different shape from the one read back (D-001).
+            # `chars` and `primary` stay ints, so a lookup here is
+            # `parts[str(primary)]`.
+            "parts": {str(c): _profile(rows_for.get(c, [])) for c in chars},
         }
 
     # Bosses whose script names the flag but never pairs it with an entity.
@@ -485,7 +489,8 @@ def derive(game_dir, members: dict, defs: dict,
                 "group_boss": group,
                 "placements": placements.get(best),
                 "profile": best_profile,
-                "parts": {best: best_profile},
+                # Text key, for the reason given on the exact path above.
+                "parts": {str(best): best_profile},
             }
             break
 

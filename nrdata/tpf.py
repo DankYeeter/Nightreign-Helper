@@ -9,6 +9,8 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
+from .binary import read_cstring
+
 
 @dataclass
 class Texture:
@@ -43,16 +45,7 @@ def read(data: bytes) -> list[Texture]:
         name_offset = struct.unpack_from(e + "I", data, pos)[0]
         pos += 8  # name offset + unknown
 
-        if encoding == 1:
-            # The terminator must be found on an even boundary; a naive search
-            # can land on the low byte of a character and cut it in half.
-            end = name_offset
-            while data[end : end + 2] != b"\0\0":
-                end += 2
-            name = data[name_offset:end].decode("utf-16-le", "replace")
-        else:
-            end = data.index(b"\0", name_offset)
-            name = data[name_offset:end].decode("shift-jis", "replace")
+        name = read_cstring(data, name_offset, utf16=(encoding == 1))
 
         out.append(
             Texture(

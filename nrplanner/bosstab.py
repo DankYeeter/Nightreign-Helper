@@ -12,14 +12,19 @@ figures; see `merge_everdark`.
 
 from __future__ import annotations
 
+import html
 import pathlib
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtGui import (
+    QColor, QCursor, QPainter, QPainterPath, QPen, QPixmap,
+)
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QScrollArea,
+    QApplication, QFrame, QHBoxLayout, QLabel, QScrollArea,
     QVBoxLayout, QWidget,
 )
+
+from . import cardgrid, pressable, tabheader
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -31,9 +36,82 @@ GOOD = "#6fbf73"
 # Watched in play: above a wiki claim, below a param read.
 OBSERVED_COLOUR = "#7fae72"
 
-COLUMNS = 4
 ICON = 64
 CARD_WIDTH = 250
+
+#: How the grid shows which card the detail panel is describing (QA-150).
+#: Two channels rather than one, because the edge colour is already spoken
+#: for: a Nightlord with an Everdark twin carries DEEP there, and a selection
+#: that only swapped one edge colour for another would be a single hue apart
+#: from the twin marker. The fill is a channel no other marker on this grid
+#: uses, and it is the tint the Red variants table already selects rows with,
+#: so the two tabs say "this one" the same way (A13).
+SELECTED_EDGE = ACCENT
+SELECTED_FILL = "rgba(200, 164, 92, 60)"
+
+#: How the grid shows which card the pointer is standing on (QA-154).
+#:
+#: The finding is not the hit area. Measured on 2026-09-06 on Windows under
+#: Fusion at 150 % scale, at a 1600x900 logical-px window: every one of 3 420
+#: probe points, one every 4 logical px over the whole 302x178 card, opened
+#: that card -- the labels inside it ignore a press and Qt hands it to the
+#: frame. What is dead is the 8 logical px between two neighbours, and a
+#: reader had no way to see which side of that line he was on: a near miss
+#: opened the wrong Nightlord and a miss opened nothing, and the grid looked
+#: identical in both cases.
+#:
+#: So the marker is on the pointer rather than on the click. A third channel
+#: again: fill only, edge untouched. Selection changes both, an Everdark twin
+#: owns DEEP on the edge, and hover changes the one thing neither of those
+#: two moves -- so the three states stay apart at a glance.
+#:
+#: **The value is measured, not chosen by eye.** Sampled off a grab of the
+#: whole window -- a card grabbed alone lands its translucent selection fill
+#: on a transparent pixmap and reads back as the colour the stylesheet names
+#: rather than the colour a reader sees -- on Windows under Fusion at 150 %
+#: scale, at a 1600x900 logical-px window. An unmarked card is (30, 31, 35)
+#: and a chosen one composites to (64, 57, 42), a WCAG contrast of 1.440.
+#: The first hover fill tried here, `#26272c`, composited to (38, 39, 44):
+#: **1.105**, a step small enough that the screenshot had to be measured to
+#: tell whether the pointer was on the card at all. That is not feedback.
+#: This one composites to (51, 52, 60) -- **1.331** against an unmarked card,
+#: nearly the 1.440 the selection's own fill manages, while staying the only
+#: neutral of the three: the selection is the one warm thing on this grid and
+#: keeps its gold edge as well, so hover and selection are apart by hue and
+#: by border even where their luminance is close.
+#:
+#: Cooler fills were measured too and reach further -- `#334055` gives 1.572
+#: and `#3a4a60` 1.825 -- but both put a new hue on a tab where DEEP already
+#: means something on the edge of a card. That is the `ui-ux-designer`'s call
+#: to make with these figures, not this file's.
+HOVER_FILL = "#33343c"
+
+#: What the detail panel is given where there is room for it, and the least it
+#: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
+#: an 833 px window the panel held 330 px of `Select a Nightlord` while the
+#: ten cards it describes stood one to a row in the 463 px left over
+#: (QA-147). The floor is a card's width: under that the damage bars and their
+#: labels stop lining up.
+DETAIL_WIDTH = 330
+DETAIL_FLOOR = CARD_WIDTH
+
+#: At most one part panel to two parts cards. The panel describes one of the
+#: cards beside it, so where there is not room for both it is the panel that
+#: gives way; where there is, it keeps DETAIL_WIDTH and every further pixel
+#: goes to the grid, because a wider window should mean more Nightlords on
+#: screen and not a roomier column of text. Measured on Windows at 150 % scale
+#: under Fusion: at an 833 px window the panel goes from 330 px to 276 and the
+#: cards from 463 to 517; from 1067 px up nothing moves.
+DETAIL_SHARE = 3
+
+#: What this tab is for, in the reader's own words (AK-68, AK-89). Above the
+#: count and above the cards, because a player arrives with the question and
+#: not with the roster.
+HEADING = "HOW TO HURT EACH NIGHTLORD"
+QUESTION = (
+    "What each Nightlord takes extra damage from, what breaks its stance, "
+    "and what it does to you once it is broken. Click a card for the full "
+    "profile.")
 
 # What body part a numbered slot actually is, once someone has watched it.
 #
@@ -52,7 +130,65 @@ PART_NAMES: dict[tuple[str, str], str] = {}
 # all of them do -- Gnoster shows nothing at all -- and the files never say
 # who gets it, so this is a sighting list. Showing the line for every boss
 # would put a flat lie on the page.
+#
+# The two figures this list used to print with -- "x2.0 damage taken" and
+# "x0.8 attack power" -- are gone (QA-129). They were typed in here, and the
+# dataset neither confirms nor places them: `x2.0 damage taken` has no
+# counterpart anywhere in it, and the one field that is an attack-power
+# multiplier for a boss, `ladder.down`, says 0.815 for Gladius and nothing at
+# all for the other two names below, while saying exactly 0.8 for Harmonia and
+# Straghess, who are not on this list. Whether the two describe one mechanism
+# cannot be decided from the files, so the sighting is kept as a sighting -- it
+# says what was watched and admits that the size of it is not in the data (A7).
 DEBUFF_ON_BREAK = {"Gladius", "Heolstor the Nightlord", "Caligo"}
+
+# The sighting itself, without a magnitude. Shown in OBSERVED_COLOUR (AK-94),
+# so a reader can see at a glance that this line was watched rather than read.
+DEBUFF_ON_BREAK_SIGHTING = (
+    "Watched in play: breaking its stance leaves it weakened for a time — a "
+    "golden shine, with damage-down and defence-down icons on its health bar. "
+    "The files do not say by how much.")
+
+# What OBSERVED_COLOUR means, said once on the panel that uses it (AK-74,
+# QA-145). It sat one step from GOOD -- 0x7f against 0x6f in the red channel
+# alone -- with nothing anywhere saying the two were different things. Drawn
+# in the colour it explains, the way the Red variants tab already names its
+# community-reported line.
+#
+# It says what the colour means and stops there. The World Events tab can add
+# "everything else is the game's own data" because on that tab it is true; on
+# this one it is not yet -- `Set off by` and the trigger clause of a defence
+# step are sightings drawn in the ordinary colour (AK-94, reported to the
+# director rather than changed here). A legend that claimed it would be the
+# one false sentence on the panel.
+SIGHTING_LEGEND = (
+    "Lines in this colour were watched in play rather than read from the "
+    "game's files.")
+
+# The reference each block of figures is measured against (A12, AK-91's
+# pattern). Three sections carried one and three did not, which made the
+# missing ones read as an oversight rather than as "nothing to say" (QA-149).
+#
+# `IT BUFFS ITSELF` holds two kinds of line and they differ in exactly the
+# point a reader would have to guess, so one note covers both and separates
+# them.
+BUFF_NOTE = (
+    "Buff steps multiply this Nightlord's own attack and stance figures while "
+    "the step is on; the files give no duration for them, and `always on` "
+    "means no trigger is recorded. Defence steps carry their own duration.")
+
+# The green on `Weakened` is the third meaning GOOD carries on this panel and
+# the one AK-91 does not name (QA-145); the sentence that already stood here
+# gains the clause, rather than a fourth note appearing beside it.
+WEAKENED_NOTE = (
+    "A step the game's own data gives this Nightlord: while it is on, these "
+    "multiply its normal figures — green, because every one of them is in "
+    "your favour. The files do not say what puts it into the step.")
+
+PARTS_NOTE = (
+    "Damage dealt to that part, against the same hit anywhere else on this "
+    "Nightlord. The files number the parts and never say which part is which, "
+    "so a number here is worth more than the name beside it.")
 
 # What sets a boss's self-buff off. The files give the animation id and never
 # what provokes it, so these are sightings. Only bosses actually watched are
@@ -158,22 +294,23 @@ def _split_circle(regular, sovereign, size: int):
     return canvas
 
 
-def _heading(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setStyleSheet(
-        f"color: {ACCENT}; font-size: 12px; font-weight: bold;"
-        " letter-spacing: 1px;"
-    )
-    return label
+class BossCard(pressable.PressableFrame):
+    """One expedition: its icon, the boss it ends on, and the flavour text.
 
-
-class BossCard(QFrame):
-    """One expedition: its icon, the boss it ends on, and the flavour text."""
+    A `PressableFrame` and not a plain frame, so the card can be reached
+    without a mouse: it carries the Nightlord's name for an assistive tool to
+    find it by, stands in the tab order, and answers Enter, Space and the
+    accessibility interface's Press on the same call a click makes (QA-161).
+    """
 
     clicked = Signal(dict)
 
     def __init__(self, boss: dict, icons):
-        super().__init__()
+        # The name is the Nightlord's, because that is what a reader is
+        # looking for; the expedition goes in the description, which is the
+        # second line a screen reader says and the answer to "which of the
+        # ten is this".
+        super().__init__(name=boss["name"], description=boss["expedition"])
         self.boss = boss
         # A minimum rather than a fixed width: the columns share the grid's
         # width, so cards grow to fill it instead of leaving a dead strip on
@@ -182,12 +319,10 @@ class BossCard(QFrame):
         self.setObjectName("card")
         self.setCursor(Qt.PointingHandCursor)
 
-        edge = DEEP if boss.get("everdark") else BORDER
-        self.setStyleSheet(
-            f"#card {{ background: {PANEL}; border: 1px solid {edge};"
-            f" border-radius: 7px; }}"
-            " #card QLabel { background: transparent; border: none; }"
-        )
+        self._edge = DEEP if boss.get("everdark") else BORDER
+        self._selected = False
+        self._hovered = False
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(9, 9, 9, 9)
@@ -234,9 +369,106 @@ class BossCard(QFrame):
         description.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(description, 1)
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+    def _apply_appearance(self) -> None:
+        """Draw the card in the state it is in.
+
+        Border width is the same either way. A selected card that grew its
+        border would push its own contents a pixel inwards, and the grid
+        would twitch every time a reader tried another Nightlord.
+
+        Selection outranks hover, and deliberately: the card the panel is
+        describing must keep saying so while a reader runs the pointer along
+        the row looking for the next one.
+        """
+        edge = SELECTED_EDGE if self._selected else self._edge
+        if self._selected:
+            fill = SELECTED_FILL
+        elif self._hovered:
+            fill = HOVER_FILL
+        else:
+            fill = PANEL
+        self.setStyleSheet(
+            f"#card {{ background: {fill}; border: 1px solid {edge};"
+            f" border-radius: 7px; }}"
+            " #card QLabel { background: transparent; border: none; }"
+        )
+
+    @property
+    def selected(self) -> bool:
+        """Is this the card the detail panel is describing?"""
+        return self._selected
+
+    def set_selected(self, selected: bool) -> None:
+        """Mark, or unmark, this card as the one the panel is describing."""
+        if selected == self._selected:
+            return
+        self._selected = selected
+        self._apply_appearance()
+
+    @property
+    def hovered(self) -> bool:
+        """Is the pointer on this card, its own area or a label inside it?"""
+        return self._hovered
+
+    def _set_hovered(self, hovered: bool) -> None:
+        if hovered == self._hovered:
+            return
+        self._hovered = hovered
+        self._apply_appearance()
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """The pointer arrived, here or on one of the labels.
+
+        Qt sends Enter down the whole chain under the pointer and Leave only
+        to the widgets it actually left, so moving from the card onto the
+        name inside it is not a departure and this card stays marked.
+        """
+        self._set_hovered(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._set_hovered(False)
+        super().leaveEvent(event)
+
+    def _pointer_is_here(self) -> bool:
+        """Is the pointer standing on this card at this instant?
+
+        Asked of the screen instead of remembering the last Enter and Leave,
+        because Qt sends those on pointer movement only. `widgetAt` answers
+        for this application's windows and takes clipping and stacking with
+        it, so a card scrolled out of sight or covered by another program
+        does not claim the pointer.
+        """
+        under = QApplication.widgetAt(QCursor.pos())
+        return under is not None and (under is self or self.isAncestorOf(under))
+
+    def follow_the_pointer(self) -> None:
+        """Put the mark where the pointer actually is, not where it was.
+
+        QA-164: the grid reflows from three columns to two while the pointer
+        rests, and the mark stays on a card that is no longer under it -- or
+        a card appears under a resting pointer and never takes the mark at
+        all. Both are the same gap: geometry changed and no pointer event
+        followed. The card's own move, resize and show are exactly the
+        moments that happens, so it re-reads the pointer there.
+        """
+        self._set_hovered(self._pointer_is_here())
+
+    def moveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().moveEvent(event)
+        self.follow_the_pointer()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self.follow_the_pointer()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().showEvent(event)
+        self.follow_the_pointer()
+
+    def press(self) -> None:
+        """Open this Nightlord's profile. Every route ends here."""
         self.clicked.emit(self.boss)
-        super().mousePressEvent(event)
 
 
 class BossTab(QWidget):
@@ -248,6 +480,9 @@ class BossTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
+
+        layout.addWidget(tabheader.heading(HEADING))
+        layout.addWidget(tabheader.question(QUESTION))
 
         # No filter box. Ten entries all fit on screen at once, so a search
         # field only took up room and gave the list a state it did not need.
@@ -265,6 +500,13 @@ class BossTab(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        # Scrolling brings other cards under a pointer that has not moved,
+        # and Qt sends no pointer event for it -- the QA-164 gap reached by a
+        # third route. A card cannot notice this one for itself: the holder
+        # is what moves, and the cards keep their places inside it, so not
+        # one of them sees a move of its own.
+        scroll.verticalScrollBar().valueChanged.connect(
+            self._follow_the_pointer)
         self.holder = QWidget()
         self.grid_outer = QVBoxLayout(self.holder)
         self.grid_outer.setContentsMargins(0, 0, 0, 0)
@@ -272,10 +514,31 @@ class BossTab(QWidget):
         scroll.setWidget(self.holder)
         body.addWidget(scroll, 1)
 
-        body.addWidget(self._build_detail(), 0)
+        self.detail_panel = self._build_detail()
+        body.addWidget(self.detail_panel, 0)
         layout.addLayout(body, 1)
 
         self.refresh()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self._share_the_width()
+
+    def _follow_the_pointer(self) -> None:
+        """Every card re-reads the pointer, because the grid moved under it."""
+        for card in self.holder.findChildren(BossCard):
+            card.follow_the_pointer()
+
+    def _share_the_width(self) -> None:
+        """Give the detail panel its width, which depends on the tab's.
+
+        `DETAIL_WIDTH` wherever there is room for it, its share of the tab
+        where there is not, and never below `DETAIL_FLOOR`. See DETAIL_SHARE
+        for what the share is and why it is that.
+        """
+        self.detail_panel.setFixedWidth(
+            min(DETAIL_WIDTH,
+                max(DETAIL_FLOOR, self.width() // DETAIL_SHARE)))
 
     def _build_detail(self) -> QWidget:
         """Everything the files hold about one boss, not just its blurb.
@@ -284,7 +547,8 @@ class BossTab(QWidget):
         replaced and grows whenever another link is cracked.
         """
         outer = QScrollArea()
-        outer.setFixedWidth(330)
+        # No width here: `_share_the_width` gives it one on every resize,
+        # because the right width depends on how much tab there is.
         outer.setWidgetResizable(True)
         outer.setFrameShape(QFrame.NoFrame)
 
@@ -308,6 +572,12 @@ class BossTab(QWidget):
 
         self.detail_name = QLabel()
         self.detail_name.setWordWrap(True)
+        # The boss's own name, straight out of the game's FMG text. A QLabel
+        # left on AutoText decides for itself whether what it is handed is
+        # markup, so a name carrying a tag would be rendered as one instead of
+        # shown as the name it is (SEC-012, the same defect as SEC-004). This
+        # label never wants markup, so it is told so where it is built.
+        self.detail_name.setTextFormat(Qt.PlainText)
         self.detail_name.setStyleSheet(
             "color: #e8e8e8; font-size: 15px; font-weight: bold;")
         layout.addWidget(self.detail_name)
@@ -319,6 +589,9 @@ class BossTab(QWidget):
 
         self.detail_text = QLabel()
         self.detail_text.setWordWrap(True)
+        # The boss's description, from the same FMG text and on AutoText for
+        # the same reason (SEC-012).
+        self.detail_text.setTextFormat(Qt.PlainText)
         self.detail_text.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.detail_text)
 
@@ -336,6 +609,16 @@ class BossTab(QWidget):
     def _section(title: str) -> str:
         return (f"<div style='color:{ACCENT}; font-size:10px; font-weight:bold;"
                 f" letter-spacing:1px; margin-top:10px'>{title}</div>")
+
+    @staticmethod
+    def _note(text: str) -> str:
+        """What the figures directly above are measured against (A12).
+
+        Quieter than the figures and directly under them, because it is read
+        once and the figures are read every time.
+        """
+        return (f"<div style='color:{MUTED}; font-size:10px; "
+                f"margin-top:4px'>{text}</div>")
 
     # Chart label -> the game's own damage-type icon, extracted from the
     # relic screen's filter list. The three grey physical icons were pinned
@@ -426,11 +709,19 @@ class BossTab(QWidget):
         return f"<table>{''.join(rows)}</table>"
 
     @staticmethod
-    def _row(label: str, value) -> str:
+    def _row(label: str, value, colour: str = "#d8d8d8") -> str:
+        """A labelled value. `colour` is what the value itself is drawn in.
+
+        The default is the colour the panel gives everything it read out of
+        the game's files. A row whose value was watched in play rather than
+        read passes OBSERVED_COLOUR instead (AK-94); the label keeps the
+        muted colour either way, because the label is this module's word and
+        not the sighting.
+        """
         return (f"<div style='margin-top:2px'>"
                 f"<span style='color:{MUTED}; font-size:11px'>{label}</span>"
-                f"<span style='color:#d8d8d8; font-size:11px'> &nbsp;{value}</span>"
-                f"</div>")
+                f"<span style='color:{colour}; font-size:11px'> &nbsp;{value}"
+                f"</span></div>")
 
     def _stance_rank(self, profile: dict) -> str:
         """Where this boss sits among the ten on how hard it is to stagger.
@@ -449,11 +740,34 @@ class BossTab(QWidget):
             return "-"
         bars.sort()
         place = sum(1 for value, _ in bars if value < mine) + 1
+        # The two names are the game's own text and this string is put into a
+        # rich-text label, so they are escaped rather than concatenated
+        # (SEC-012). Escaping at the point the value enters the markup is the
+        # only place it can be got right: the caller cannot know it will.
         return (f"{place} of {len(bars)} for bar size  "
-                f"(smallest {bars[0][1]} {bars[0][0]:g}, "
-                f"largest {bars[-1][1]} {bars[-1][0]:g})")
+                f"(smallest {html.escape(bars[0][1])} {bars[0][0]:g}, "
+                f"largest {html.escape(bars[-1][1])} {bars[-1][0]:g})")
+
+    def _mark_selected(self, boss: dict | None) -> None:
+        """Put the marker on the card this entry came from, and on no other.
+
+        By name, not by identity. `BossCard.clicked` is declared `Signal(dict)`
+        and Qt marshals the entry across it, so what reaches this method after
+        a click is an equal dict and never the same object the card holds --
+        measured 2026-09-05: `emitted is card.boss` is False, `==` is True. An
+        `is` here would mark nothing at all, and would do it silently.
+        """
+        name = boss["name"] if boss else None
+        for card in self.holder.findChildren(BossCard):
+            card.set_selected(card.boss["name"] == name)
 
     def show_detail(self, boss: dict | None) -> None:
+        # Which card the panel is describing belongs on the grid and not only
+        # in the panel. At 8 px between cards a near miss opens the neighbour,
+        # and with no marker the grid looks exactly as it did before -- so a
+        # player can read a profile, believe it is the Nightlord he aimed at
+        # and plan the fight against a different one (QA-150).
+        self._mark_selected(boss)
         if boss is None:
             self.detail_art.clear()
             self.detail_name.setText("Select a Nightlord")
@@ -489,6 +803,35 @@ class BossTab(QWidget):
         # the first heading crowds straight into it.
         parts.append("<div style='height:14px'></div>")
 
+        told_about_sightings = False
+
+        def legend_once() -> str:
+            """What the sighting colour means, the first time it is used.
+
+            AK-74 asks that a colour carrying a meaning be named once. It is
+            named here rather than at the top of the tab because a panel whose
+            Nightlord has no sighting must not explain a colour that is
+            nowhere on it (QA-145). Separate from `sighting` below because two
+            of the watched lines on this panel are not plain sentences -- a
+            labelled row and a clause inside an extracted line -- and they
+            need the legend just as much (QA-152).
+            """
+            nonlocal told_about_sightings
+            if told_about_sightings:
+                return ""
+            told_about_sightings = True
+            return (f"<div style='color:{OBSERVED_COLOUR}; font-size:11px;"
+                    f" margin-top:3px'><i>{SIGHTING_LEGEND}</i></div>")
+
+        def sighting(text: str) -> str:
+            """A line watched in play, and — the first time — what that means.
+
+            AK-94 gives these lines their own colour.
+            """
+            return (legend_once()
+                    + f"<div style='color:{OBSERVED_COLOUR}; "
+                      f"font-size:11px; margin-top:3px'>{text}</div>")
+
         # Everything here is written for someone about to fight this boss.
         # How a figure was derived, what could not be extracted and which
         # evidence class a claim belongs to are all real questions -- they
@@ -506,45 +849,71 @@ class BossTab(QWidget):
             return
 
         weak = profile.get("weak_damage") or []
-        if weak:
+        weak_status = profile.get("weak_status") or []
+        # Any weakness at all opens the section, damage type or status
+        # (QA-131). Gating it on the damage types alone hid Adel's whole
+        # weakness -- he is the one Nightlord of the ten with no type that
+        # hurts him more than another -- and with it the note written for him.
+        if weak or weak_status:
             parts.append(self._section("WEAKNESS SPECIAL INTERACTION"))
-            parts.append(
-                f"<div style='color:#d8d8d8; font-size:11px'>"
-                f"Pile on <b style='color:{ACCENT}'>{' / '.join(weak)}</b> "
-                "damage. It builds a hidden meter, and filling it breaks the "
-                "boss's stance and opens it up for a critical.</div>"
-            )
-            if boss["name"] in WEAKNESS_NOTE:
+            if weak:
                 parts.append(
-                    f"<div style='color:{OBSERVED_COLOUR}; font-size:11px; "
-                    f"margin-top:3px'>{WEAKNESS_NOTE[boss['name']]}</div>")
+                    f"<div style='color:#d8d8d8; font-size:11px'>"
+                    "Pile on <b style='color:" + ACCENT + "'>"
+                    + " / ".join(weak) + "</b> damage. It builds a hidden "
+                    "meter, and filling it breaks the boss's stance and "
+                    "opens it up for a critical.</div>"
+                )
+            else:
+                # Deliberately not the sentence above. `weak_status` is the
+                # set of lowest buildup thresholds, which is a different claim
+                # from "this type fills the hidden meter", and saying the
+                # second where the files only support the first would be the
+                # guess A7 forbids.
+                parts.append(
+                    f"<div style='color:#d8d8d8; font-size:11px'>"
+                    "No damage type hurts it more than another. Where it "
+                    "gives way is status: it needs least of "
+                    f"<b style='color:{ACCENT}'>{' / '.join(weak_status)}</b>"
+                    ", listed with the rest under STATUS BUILDUP below.</div>"
+                )
+            if boss["name"] in WEAKNESS_NOTE:
+                parts.append(sighting(WEAKNESS_NOTE[boss["name"]]))
             if boss["name"] in DEBUFF_ON_BREAK:
-                for label, value in (("Debuff", "x2.0 damage taken"),
-                                     ("Debuff", "x0.8 attack power")):
-                    parts.append(
-                        f"<div style='margin-top:2px'>"
-                        f"<span style='color:{GOOD}; font-size:11px'>{label}"
-                        f"</span><span style='color:#d8d8d8; font-size:11px'>"
-                        f" &nbsp;{value}</span></div>")
-                parts.append(self._row(
-                    "Tell", "golden shine, damage-down and defence-down "
-                            "icons on its health bar"))
-                parts.append(self._row("Lasts", "temporary"))
+                parts.append(sighting(DEBUFF_ON_BREAK_SIGHTING))
 
         parts.append(self._section("DAMAGE TAKEN"))
         parts.append(self._bars(profile["damage"], profile["weak_damage"]))
+        parts.append(self._note(
+            "Bars compare this Nightlord's damage types with each other, not "
+            "with another Nightlord. Green marks the type it is weak to."))
         parts.append(self._section("STATUS BUILDUP"))
         parts.append(self._status(profile["status"], profile["weak_status"]))
+        parts.append(self._note(
+            "How much status you have to apply before it lands — lower is "
+            "easier. Green marks this Nightlord's easiest statuses."))
 
         stance = profile.get("stance") or {}
         if stance:
             parts.append(self._section("STANCE"))
             if "bar" in stance:
                 parts.append(self._row("Bar to break", f"{stance['bar']:g}"))
-            if "recovery" in stance:
+            recovery = stance.get("recovery")
+            # `-1` is the files' way of saying "no value here", and Maris is
+            # the one Nightlord carrying it. Printing it read as `Refills at
+            # x-1`, an impossible rate on a panel of real ones (QA-130). The
+            # same guard already stands over `immune` in the status list.
+            if isinstance(recovery, (int, float)) and recovery > 0:
+                parts.append(self._row("Refills at", f"x{recovery:g}"))
+            elif "recovery" in stance:
                 parts.append(self._row(
-                    "Refills at", f"x{stance['recovery']:g}"))
+                    "Refills at", "— not in the game's files"))
             parts.append(self._row("Ranking", self._stance_rank(profile)))
+            parts.append(self._note(
+                "Bar to break is in the game's own stance points. The refill "
+                "figure is the rate the files give; they do not say what it "
+                "is per, so compare it between Nightlords rather than reading "
+                "it as a speed."))
 
         ladder = profile.get("ladder") or {}
         defence = profile.get("defence_buffs") or []
@@ -563,31 +932,81 @@ class BossTab(QWidget):
                     f"<span style='color:{BAD}; font-size:11px'>Buff</span>"
                     f"<span style='color:#d8d8d8; font-size:11px'>"
                     f" &nbsp;{'  ·  '.join(bits)}</span></div>")
-            parts.append(self._row("Stacks", "yes — repeats compound"))
+            # Not in the dataset -- it is somebody's sighting, and AK-94 puts
+            # sightings in OBSERVED_COLOUR so a reader can tell it from the
+            # extracted figures directly above it.
+            parts.append(sighting("Stacks: yes — repeats compound"))
             if boss["name"] in BUFF_TRIGGER:
-                parts.append(self._row("Set off by", BUFF_TRIGGER[boss["name"]]))
+                # Watched, like the line above it: the files hold the
+                # animation id and never what provokes it, so BUFF_TRIGGER is
+                # kept in this module from play. It stayed a labelled row
+                # drawn in the colour of the extracted figures above it, which
+                # is the one place on this panel where a sighting read as a
+                # reading (AK-94, QA-152).
+                parts.append(legend_once() + self._row(
+                    "Set off by", BUFF_TRIGGER[boss["name"]],
+                    colour=OBSERVED_COLOUR))
         for entry in defence:
             cut = round((1 - entry["taken"]) * 100)
             bits = [f"takes {cut}% less damage", f"{entry['seconds']:g}s"]
             trigger = DEFENCE_TRIGGER.get((boss["name"], entry["id"]))
+            # The figures come out of the files and the trigger clause out of
+            # play, on one line. So the sighting colour goes on the clause and
+            # not on the line: colouring the whole line would say the figures
+            # beside it were watched too, and leaving the clause in the
+            # ordinary colour said the opposite (AK-94, QA-152).
+            watched = ""
             if trigger:
-                bits.append(trigger)
+                watched = (f"<span style='color:{OBSERVED_COLOUR}; "
+                           f"font-size:11px'>  ·  {trigger}</span>")
             parts.append(
-                f"<div style='margin-top:2px'>"
+                (legend_once() if trigger else "")
+                + f"<div style='margin-top:2px'>"
                 f"<span style='color:{DEEP}; font-size:11px'>Defence</span>"
                 f"<span style='color:#d8d8d8; font-size:11px'>"
-                f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+                f" &nbsp;{'  ·  '.join(bits)}</span>{watched}</div>")
+        # A12, and the reason it is one note over both kinds of line: the two
+        # differ in exactly the point a reader would otherwise have to guess.
+        # `x1.35 attack` stood here with no reference at all, between three
+        # neighbouring sections that each carried one (QA-149).
+        if ladder.get("up") or defence:
+            parts.append(self._note(BUFF_NOTE))
+
+        # The other half of the same ladder, and until QA-129 the tab threw it
+        # away: seven of the ten carry a step that lowers their attack, and not
+        # one of them showed it. What stood there instead were two figures
+        # typed into this module, against three names that are not those seven.
+        #
+        # Its own section rather than a row under "IT BUFFS ITSELF": these
+        # figures move the boss the other way, and the same heading over both
+        # is how a reader ends up taking one for the other.
+        weakened = ladder.get("down") or []
+        if weakened:
+            parts.append(self._section("IT IS WEAKENED"))
+            for entry in weakened:
+                bits = [f"x{entry['attack']:g} its attack power"]
+                stance_taken = entry.get("stance_taken")
+                if stance_taken and abs(stance_taken - 1.0) > 1e-6:
+                    bits.append(f"x{stance_taken:g} the stance damage it "
+                                f"takes")
+                parts.append(
+                    f"<div style='margin-top:2px'>"
+                    f"<span style='color:{GOOD}; font-size:11px'>Weakened"
+                    f"</span><span style='color:#d8d8d8; font-size:11px'>"
+                    f" &nbsp;{'  ·  '.join(bits)}</span></div>")
+            parts.append(self._note(WEAKENED_NOTE))
 
         rates = profile.get("part_rates") or {}
         if rates:
             parts.append(self._section("BODY PARTS"))
             for label, value in rates.items():
                 parts.append(self._row(
-                    PART_NAMES.get((boss["name"], label), label),
+                    html.escape(PART_NAMES.get((boss["name"], label), label)),
                     f"x{value:g} damage"
                     + ("  — armoured" if value < 1 else "  — soft spot")))
             if profile.get("skips_weak_animation"):
                 parts.append(self._row("Hit reaction", "none, ever"))
+            parts.append(self._note(PARTS_NOTE))
 
         if twin:
             parts.append(self._section("EVERDARK"))
@@ -610,26 +1029,25 @@ class BossTab(QWidget):
                 widget.setParent(None)
                 widget.deleteLater()
 
-        grid_host = QWidget()
-        grid = QGridLayout(grid_host)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(8)
-        for i, boss in enumerate(self.bosses):
+        cards = []
+        for boss in self.bosses:
             card = BossCard(boss, self.icons)
             card.clicked.connect(self.show_detail)
-            grid.addWidget(card, i // COLUMNS, i % COLUMNS)
-        for column in range(COLUMNS):
-            grid.setColumnStretch(column, 1)
-        self.grid_outer.addWidget(grid_host)
+            cards.append(card)
+        # As many columns as the width takes, recounted whenever the window
+        # changes. The four hard-coded ones sliced Gnoster, Maris, Caligo and
+        # Harmonia at a 1067 px window and Maris and Harmonia at 1250, while
+        # the line above them said "10 Nightlords" (DR-013).
+        self.cards = cardgrid.CardGrid(CARD_WIDTH, cards, stretch=True)
+        self.grid_outer.addWidget(self.cards)
         self.grid_outer.addStretch(1)
 
         paired = sum(1 for b in self.bosses if b.get("everdark"))
-        # The click hint earns its place: the whole combat profile -- damage
-        # taken, status buildup, stance, self-buffs -- lives behind a card
-        # click, and nothing else on the tab says so.
+        # The click hint has moved into QUESTION above, where it is the first
+        # thing read rather than the last (AK-89). Repeating it here would put
+        # the same instruction twice on one screen.
         self.summary.setText(
             f"{len(self.bosses)} Nightlords  ·  {paired} also have an "
             f"Everdark Sovereign, shown as the upper-right half of each "
-            f"circle  ·  click a card for damage taken, status buildup "
-            f"and more"
+            f"circle"
         )

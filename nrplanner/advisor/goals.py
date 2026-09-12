@@ -1,0 +1,469 @@
+"""The named directions to optimise in, as a registry of pure functions.
+
+AD-004: a goal is not a number, it is a number **with a stated scope**. Each
+entry below therefore carries a `Goal.scope` that is never empty -- where the
+game files do not support a judgement, the registry says so instead of
+guessing (`GOAL.md` A7). What the *run* left out is a different sentence and
+goes back in `GoalScore.unknowns`, which may be empty; AD-025 splits the two
+by the question "can the sentence be written before the run is known?", and
+makes the answer a property of where the sentence lives rather than of how it
+was worded.
+
+**One figure per direction, never a mixed one.** There is no conversion
+between damage dealt and damage survived, and none between an attribute point
+and an attack multiplier either; inventing an exchange rate is what AD-023 and
+OF-13 forbid: a curse that costs HP under "Maximise damage" is counted in the
+build, is *not* in that goal's ranking figure, and is named rather than
+marked down. So every candidate carries a gain under each goal, side by side,
+and the caller decides which one to sort by (`candidates.py`). AD-032 settled
+the third direction the same way: the attribute points a relic brings became
+`MAX_ATTRIBUTES` below rather than a summand in `_max_damage`, so the damage
+figure goes on saying what it always said.
+
+**What a goal here does and does not do.** It reads a finished
+`model.Build` and the context. It never sees the base state and never forms a
+difference -- the marginal contribution is the caller's subtraction (do-not
+rule 20). It never calls `weapons.rate` or `weapons.rank`: an armament's
+figure comes from the facade in `nrplanner/damage.py` and from nowhere else,
+which `tests/test_one_build.py::test_only_the_facade_calls_weapons_rate_or_rank`
+holds for this package as it does for every tab (AD-021).
+
+**Adding a goal** is one function and one registry entry. It must not need a
+change in `candidates.py`, `evaluate.py` or the search; if it does, the shape
+here is wrong and belongs in `ARCHITECTURE.md` before it is built. The third
+one, `MAX_ATTRIBUTES`, was built that way and needed neither -- what it did
+need is a place on the screen, and that is not here: `advisorbar.GOAL_ORDER`
+is the list a player reads and its order is a decision of the
+`ui-ux-designer`. Its **membership** is not a decision any more (AK-256
+point 1): every direction this registry scores stands in that tuple, because
+a direction scored and cached with no way to choose it is one the player pays
+for and cannot reach -- the state this file left behind between T-191 and
+T-194 (QA-228). So a fourth entry here is a fourth entry there, a fourth
+`Sort by` line and a fourth value row on every card, and the guard that says
+so is
+`tests/test_advisor_bar.py::test_every_direction_the_registry_scores_can_be_chosen`.
+"""
+
+from __future__ import annotations
+
+# The standard library's `types`, not the module beside this one: absolute
+# imports mean this line cannot reach `advisor/types.py`, but a reader can be
+# caught by the two names, and this project has already lost a test round to
+# one shadowed module name (QA-072).
+from types import MappingProxyType
+
+from .. import damage, model
+from . import types
+
+
+#: The eight fields that say how much of an incoming hit gets through: the
+#: four physical kinds and the four elemental ones. Neutral is 1.0, below 1.0
+#: is less damage taken.
+#:
+#: **Scope, said out loud because a list without one is read as a list without
+#: limits:** these eight and nothing else. Status ailments
+#: (`bloodDamageRate` and its three relatives), stance damage
+#: (`toughnessDamageCutRate`) and the resistance points in
+#: `model.RESISTANCES` are all real and all outside this figure;
+#: `_DAMAGE_TAKEN_SCOPE` below says so. `model.RATE_LABELS` names all of them,
+#: which is why the list here is written out rather than filtered out of that
+#: table by a name pattern.
+DAMAGE_CUT_FIELDS = (
+    "slashDamageCutRate",
+    "blowDamageCutRate",
+    "thrustDamageCutRate",
+    "neutralDamageCutRate",
+    "magicDamageCutRate",
+    "fireDamageCutRate",
+    "thunderDamageCutRate",
+    "darkDamageCutRate",
+)
+
+EVEN_WEIGHTING = types.Weighting(
+    id="even",
+    label="All damage types equally",
+    note=("The game data gives no relative frequency of damage types, so all "
+          "eight are weighted equally."),
+    weights=tuple((field_name, 1.0) for field_name in DAMAGE_CUT_FIELDS),
+)
+
+#: Until a control for OF-3 exists, every run is asked with this one. Changing
+#: it is a different `Weighting` instance passed by the caller, never an edit
+#: to the goal function -- `weighting.id` is part of the cache key, so a
+#: mutated default would be served stale results.
+DEFAULT_WEIGHTING = EVEN_WEIGHTING
+
+
+# The four things this figure cannot tell the player, whatever the build --
+# procedural sentences in the sense of AD-025.1, so they hang on
+# `MAX_DAMAGE.scope` and not on a score. They used to be a default for both
+# branches of `_max_damage`; the registry is the stronger version of the same
+# guarantee, because a run cannot empty it and a reader needs no dataset to
+# see it (checkpoint 29).
+#
+# The first line used to read "Attack rating has not been verified against an
+# in-game number", and that is simply no longer true: 2256 comparisons
+# against the game's own display settled it (QA-095). What replaces it is not
+# silence but the **scope** of the agreement, because a figure that says it
+# matches the game and does not say where is the failure this project keeps
+# having (A7).
+#
+# The second line used to say that staves and seals were outside the match --
+# that this program showed their physical attack rating where the game showed
+# a spell scaling. Since T-046 it does not: a catalyst is shown and ranked by
+# the game's own figure (QA-099). A reservation against a fault that has been
+# fixed is the stale line the next reader repeats as fact, so it is gone and
+# what stands in its place is the **scope** of the new figure -- the base
+# rarity is what was measured, and the figure is the game's display and not a
+# statement about what a spell hits for.
+_ATTACK_RATING_SCOPE = (
+    "Attack rating matches the game's own display for ordinary armaments at "
+    "their own rarity; reinforced rarities, infused variants, Scholar and "
+    "Undertaker were not measured.",
+    # `spell power`, not `spell scaling`: AK-88, and the director's addendum
+    # of 05.09. that binds it to displayed text. The arsenal tile says
+    # `Spell power` on up to 1 792 cards; this sentence is drawn once, so it
+    # is the sentence that gives way.
+    "For staves and seals the figure is the spell power the game shows, "
+    "measured at their own rarity only, and it is that display and not what "
+    "a spell hits for.",
+    "Spell damage is not in the game data, so spells are not rated.",
+    "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
+    "Effects that convert one damage type into another are not in this "
+    "figure: how the game applies them cannot be read out of the files, so "
+    "they are named rather than guessed at.",
+)
+
+_NO_ARMAMENT = ("No armament selected — ranked on attack multipliers only, "
+                "without weapon scaling.")
+
+_NO_ARMAMENT_NOTE = ("With no armament chosen there is nothing to scale, so "
+                     "the five attack multipliers are averaged with equal "
+                     "weight.")
+
+#: The five attributes an armament's damage scales on -- the ones AD-032
+#: calls offensive. Written out rather than filtered out of
+#: `model.ATTRIBUTE_ORDER` by a name pattern, for the reason
+#: `DAMAGE_CUT_FIELDS` is: a list is read as a list of everything unless it
+#: says otherwise, and the three left out (Vigor, Mind, Endurance) are left
+#: out by a decision, not by their spelling.
+#:
+#: **Which five is a decision and not a reading of the files** -- that is why
+#: it is AD-032's sentence and not a derivation. The dataset agrees with it
+#: today, and `tests/test_advisor_goals.py::
+#: test_the_offensive_attributes_are_the_ones_armaments_scale_on` is where
+#: that agreement is measured rather than assumed; it fails on the day the
+#: game gives a sixth stat a scaling coefficient.
+OFFENSIVE_ATTRIBUTES = ("Strength", "Dexterity", "Intelligence", "Faith",
+                        "Arcane")
+
+#: What the attribute figure is measured in, on the one line that says it and
+#: in `GoalScore.unit` -- AD-032's word, written once so the goal line and
+#: any column header cannot drift apart.
+ATTRIBUTE_POINT_UNIT = "pts"
+
+#: What counting points cannot tell the player, whatever the build -- the
+#: procedural sentences of AD-025.1 for the third direction. The first is the
+#: one that matters: this figure is deliberately *not* weighted by what the
+#: build scales on, because weighting it by scaling is Option B of AD-032
+#: built with more steps, and it needs an armament this run does not have.
+_ATTRIBUTE_SCOPE = (
+    "Attribute points are counted, not converted into damage: ten points of "
+    "Faith count as much as ten of Strength, whatever this build scales on.",
+    "Only the five attributes an armament scales on are counted — Strength, "
+    "Dexterity, Intelligence, Faith and Arcane. Vigor, Mind and Endurance "
+    "are outside this figure.",
+    "Whether a point is worth anything depends on the armament in hand, and "
+    "this direction is asked without one.",
+    "What an attribute unlocks rather than scales — an armament's own "
+    "requirement — is not in this figure.",
+)
+
+_DAMAGE_TAKEN_SCOPE = (
+    "Effective HP assumes each damage-reduction rate multiplies the damage "
+    "you take; the game files name the fields, not how the engine applies "
+    "them.",
+    "The game data gives no relative frequency of damage types, so the "
+    "weighting between them is an assumption.",
+    "Ailment and status resistance are not part of this figure.",
+    "Only the damage reduction the equipped effects carry is counted; "
+    "nothing else that lowers damage in play is in this figure.",
+)
+
+
+def _attack_multiplier_mean(build: model.Build) -> float:
+    """The mean of the five attack multipliers: the figure the program ranks by.
+
+    OF-5, confirmed by the `director`: a run without a reference armament is
+    not refused, it is answered against a named assumption. This is that
+    assumption, and `_NO_ARMAMENT_NOTE` states it in the result.
+
+    Since A17 it is no longer the way out of a run with an empty slot but the
+    ordinary case: the armaments and their buffs are rolled again every
+    expedition, so what a relic is worth is measured without them
+    (`advisorbar.asking_from`, AK-191).
+
+    The five fields come from `damage.AR_RATE_FOR`, the facade's own account
+    of which multiplier reaches which damage type, so this cannot drift from
+    the figure the armament branch produces. Attribute bonuses move nothing
+    here, and that is correct rather than a gap: without an armament there is
+    no scaling for them to feed. Where they *are* counted is
+    `MAX_ATTRIBUTES`, a direction of its own: AD-032 put them there rather
+    than into this mean, so that this figure goes on saying what it said.
+    """
+    rates = [build.rates.get(field_name, 1.0)
+             for field_names in damage.AR_RATE_FOR.values()
+             for field_name in field_names]
+    return sum(rates) / len(rates)
+
+
+def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
+    """What this build hits for -- with an armament only when given one.
+
+    **The branch the program takes is the first one** (`GOAL.md` A17,
+    AK-191). `advisorbar.asking_from` hands in no reference armament and no
+    grid, because both are rolled again every expedition and a relic ranked
+    against them is ranked against something the player will not have. So
+    the figure the Advisor bar and the picker read is the mean of the attack
+    multipliers below, and it is the same figure whatever is in the slot.
+
+    The armament branch below is therefore reached by **no caller inside
+    `nrplanner/` today** -- `advisorbar.asking_from` is the one place a
+    `GoalContext` is built, and it passes `reference=None`. It is kept
+    because it is the answer to a different question, "what does this build
+    hit for with *that* armament", which A16's best and worst case will have
+    to ask again; it is exercised from `tests/test_advisor_goals.py`. That it
+    is unreachable from the program in the meantime is written down here
+    rather than left to be discovered, and was reported with T-188.
+    What follows is about that branch.
+
+    Asked through `damage.equipped`, which is the question the weapon panel
+    asks -- the armament in its slot, at its tier, with the
+    starting-armament pairing worked out from the slot and the Nightfarer
+    rather than handed in (AD-020 point 6). `damage.candidate` would answer a
+    different question: an armament in no slot, which cannot carry the
+    starting-armament penalty at all (AD-020 point 3).
+
+    **The ranking would not survive that swap either**, and the reason this
+    docstring used to say it would is worth keeping: the penalty looks like a
+    constant factor over the candidates, and it is not, because a candidate
+    can **bring it with it**. Three effects of this dataset carry
+    `*AttackPowerRate` 0.85 themselves -- 7120400/500/600, "Starting armament
+    inflicts frost / poison / blood loss" -- and 10 of the 309 relics on the
+    save the `qa-engineer` measured against carry one. Re-measured here on
+    2026-09-05, Wylder at level 15 with his own starting armament in slot 1 at
+    tier 1: a candidate carrying `[7120400, 6001400]` gains −7.4146 asked as
+    `equipped` and +12.8153 asked as `candidate`, while one carrying
+    `[7000300]` gains +0.4977 either way -- so the two change places (QA-101).
+    `equipped` is therefore the more right of the two rather than merely the
+    more exact: a relic that costs the armament 15 % belongs ranked as
+    costing it. AD-014.6 keeps the absolute figure as the one authority, and
+    here the order agrees with it.
+
+    `equipped` returns the bare comparison figure beside the real one; only
+    the second is the ranking size. The first is the breakdown panel's
+    left-hand column and is computed here whether it is read or not, which is
+    a cost worth naming: it is a second `weapons.rate` per evaluation. See
+    the report to the `performance-tuner` for S11.
+    """
+    if ctx.reference is None:
+        mean = _attack_multiplier_mean(build)
+        # No unit: the figure is a ratio, not an attack rating, and `UI_SPEC`
+        # §3.3 drops the "AR" suffix -- and with it the attack-rating
+        # reservation -- exactly when the unit is empty.
+        #
+        # `_NO_ARMAMENT` is the pattern case of a run finding (AD-025.1): the
+        # wording could be written down before any run, but whether it holds
+        # could not, and a sentence that stood there with an armament chosen
+        # would be false. That is why the yardstick asks about both halves.
+        return types.GoalScore(
+            value=mean,
+            display=f"Attack multipliers ×{mean:.2f}",
+            unit="",
+            unknowns=(_NO_ARMAMENT,),
+            weights_note=_NO_ARMAMENT_NOTE,
+        )
+    _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
+                                 build, ctx.hero, ctx.data)
+    # `value` is the unrounded figure and `display` the truncated one, and
+    # they are deliberately not the same number: the ranking and the marginal
+    # contribution are formed from `value`, so a digit that exists only for
+    # the screen cannot decide which relic the advisor recommends (QA-074).
+    # The text goes through the facade's one formatter, so this line and the
+    # weapon panel show the same whole number for the same armament.
+    #
+    # Which figure that is, and what it is called, comes from the facade as
+    # well: with a staff or a seal as the reference armament the goal ranks
+    # on the spell scaling the game shows for it, because the physical rating
+    # it used to rank on is a quantity the game never puts on screen for a
+    # catalyst (QA-099).
+    # No `unknowns`: with an armament chosen this run left nothing out, and
+    # that empty tuple is an answer rather than a gap (AD-025.2). What the
+    # figure cannot know whatever the run stands in `MAX_DAMAGE.scope`.
+    return types.GoalScore(
+        value=now.final_headline,
+        display=f"{now.headline_name} {damage.displayed(now.final_headline)}",
+        unit=now.headline_label,
+    )
+
+
+def _min_damage_taken(build: model.Build,
+                      ctx: types.GoalContext) -> types.GoalScore:
+    """How much this build can take before it falls over, as effective HP.
+
+    HP divided by what gets through, one damage kind at a time, then averaged
+    over the eight with the weights the context carries. Bigger is better, so
+    it ranks the same way round as the damage goal does and one comparison
+    serves both.
+
+    **The averaging is an assumption and it is spoken out loud**, in
+    `weights_note` and again in `MIN_DAMAGE_TAKEN.scope`: nothing in the game
+    files says how often a player meets fire rather than slash. The two are
+    not a repetition -- `weights_note` names *this* run's weighting and comes
+    out of the context, the scope line says that a weighting has to be assumed
+    at all and is true of every run (AD-025.3). Whoever knows better passes a
+    different `Weighting`; the goal holds no numbers of its own (AD-004,
+    OF-3).
+
+    A damage-cut factor is never zero in this dataset: measured over all 2076
+    effects of data_version 10350000 on 2026-09-03, the eight fields carry 421
+    values between them, the smallest of which is 0.52 and none of which is
+    zero or negative -- so a product of them is positive as well. There is
+    therefore no branch here for a zero divisor: a branch no data can reach is
+    the dead code QA-061 had this project delete, and a division that fails
+    loudly beats one that guesses. The two preconditions a caller *can* get
+    wrong are checked instead, because a caller is not the dataset.
+    """
+    weights = dict(ctx.weighting.weights)
+    if not weights:
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} carries no weights, so there is "
+            f"nothing to average the eight damage kinds with")
+    hp = build.derived.get("HP")
+    if hp is None:
+        raise ValueError(
+            "this build has no HP: the dataset handed to the advisor carries "
+            "no attribute curves, so effective HP cannot be formed")
+    # `derived` is (before relics, after relics); the figure the player has is
+    # the second.
+    after = hp[1]
+    total = sum(weights.values())
+    effective = sum(weight * after / build.rates.get(field_name, 1.0)
+                    for field_name, weight in weights.items()) / total
+    return types.GoalScore(
+        value=effective,
+        display=f"Effective HP {effective:.0f}",
+        unit="effective HP",
+        weights_note=ctx.weighting.note,
+    )
+
+
+def _max_attributes(build: model.Build,
+                    ctx: types.GoalContext) -> types.GoalScore:
+    """The offensive attribute points this build stands at (AD-032, C).
+
+    The third direction, and the one the App Designer chose A17 to be read
+    with: *"wir optimieren die stats und passiven am besten weil nur die fix
+    sind"*. An attribute bonus is written on the relic and waits for nothing
+    -- no armament, no roll, no expedition -- so it is fixed between runs in
+    the strongest sense this dataset offers, which is what makes it rankable
+    when the armament is gone.
+
+    **A sum of points and nothing else.** No weight per attribute, no
+    conversion into an attack rating: both would be the invented exchange
+    rate AD-023 and OF-13 forbid, and the weighted version is Option B of
+    AD-032 -- rank against an armament -- reached by a longer road. The price
+    is named in `MAX_ATTRIBUTES.scope` rather than discounted: ten points of
+    Faith on a Wylder count as much here as ten of Strength.
+
+    The absolute standing, not a gain. Like every entry here it reads one
+    finished build and never the base state; the marginal contribution is the
+    caller's subtraction (do-not rule 20), and against an empty base state
+    that difference is exactly the points the relics brought.
+
+    `ctx` is unread, and that is the honest shape rather than an oversight:
+    this figure needs no dataset, no hero and no weighting, because
+    `model.compute` has already applied every stat swap, cap and floor the
+    build has. It stays in the signature because `Goal.score` is one type for
+    every direction.
+    """
+    del ctx  # the signature is the registry's, not this function's need
+    points = sum(build.attributes.get(attribute, 0)
+                 for attribute in OFFENSIVE_ATTRIBUTES)
+    # `value` unrounded like everywhere else (QA-074), even though points are
+    # whole today: a stat swap could yet arrive at a half, and the rule that
+    # the screen's digits never decide a ranking does not take exceptions.
+    return types.GoalScore(
+        value=float(points),
+        display=f"Offensive attributes {points:.0f}",
+        unit=ATTRIBUTE_POINT_UNIT,
+    )
+
+
+MAX_DAMAGE = types.Goal(
+    id="max_damage",
+    label="Maximise damage",
+    blurb="Ranks by attack multipliers, attributes and passives — what "
+          "stays fixed between runs.",
+    scope=_ATTACK_RATING_SCOPE,
+    score=_max_damage,
+)
+
+MIN_DAMAGE_TAKEN = types.Goal(
+    id="min_damage_taken",
+    label="Minimise damage taken",
+    blurb="Ranks by how much punishment the build absorbs.",
+    scope=_DAMAGE_TAKEN_SCOPE,
+    score=_min_damage_taken,
+)
+
+#: **`label` is the wording AK-257 settled**, and it is on screen: the
+#: `Sort by` box and the Advisor bar both draw it from here, so this line is
+#: a promise to a player rather than a name in a registry. It is not
+#: `Maximise attributes`, which would be shorter and would promise eight
+#: attributes where five are counted; the long one was measured to fit the
+#: narrower of the two boxes with 17 px to spare.
+#:
+#: `blurb` is still read by nothing in `nrplanner/` -- AK-256's list is about
+#: labels, and §5.4 leaves the blurb alone until something draws it.
+MAX_ATTRIBUTES = types.Goal(
+    id="max_attributes",
+    label="Maximise offensive attributes",
+    blurb="Ranks by the attribute points a relic brings — the part of a "
+          "build no expedition rerolls.",
+    scope=_ATTRIBUTE_SCOPE,
+    score=_max_attributes,
+)
+
+#: The registry. Read-only: a goal added at run time would not be in any cache
+#: key, and the entries a run was scored under would stop being knowable.
+GOALS = MappingProxyType({
+    MAX_DAMAGE.id: MAX_DAMAGE,
+    MIN_DAMAGE_TAKEN.id: MIN_DAMAGE_TAKEN,
+    MAX_ATTRIBUTES.id: MAX_ATTRIBUTES,
+})
+
+#: The direction a slot pool is **put in order** under when the question is
+#: the picker's -- an ordering for the request, never a direction the player
+#: picked (Nachtrag IX-2).
+#:
+#: A pool's *content* does not depend on the direction: `candidates.pool`
+#: measures every candidate under every goal it is given, and only
+#: `measured.sort` reads `rank_by`. The cache key does not know that --
+#: `run.cache_key` keeps every field of the request but `generation` -- so a
+#: picker asking under the player's direction computes and stores one list
+#: three times over, once per direction, and a player switching direction pays
+#: a full run for a list that was already there.
+#:
+#: Asking under a fixed direction instead makes one entry serve all of them.
+#: What the screen ranks by is then the one goal setting of the program
+#: (AK-256), read from there and never from `SlotPool.rank_by` (AK-263): that
+#: field goes on saying what ordered this list, which stays true, and the
+#: shortcut "what ordered it is also what is read off it" is what stops
+#: holding here.
+#:
+#: The value is the damage goal's id so that a pool arrives in the commonest
+#: order, and it is taken off the registry entry rather than written out,
+#: because a canonical direction no goal answers to would be refused by every
+#: run that used it. The firmness is the point; the value is not.
+CANONICAL_POOL_ORDER = MAX_DAMAGE.id

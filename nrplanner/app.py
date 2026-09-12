@@ -2,27 +2,37 @@
 
 from __future__ import annotations
 
+import html
 import os
+import pathlib
 import sys
+import traceback
 
-from PySide6.QtCore import QPoint, QPointF, QProcess, QSettings, QSize, Qt
+from PySide6.QtCore import (QObject, QPoint, QPointF, QProcess, QSettings,
+                            QSize, Qt, QThread, Signal)
 from PySide6.QtGui import (
-    QColor, QCursor, QFont, QIcon, QPainter, QPalette, QPen, QPixmap,
-    QLinearGradient, QPolygonF, QRadialGradient,
+    QColor, QCursor, QFont, QFontMetrics, QIcon, QPainter, QPalette, QPen,
+    QPixmap, QLinearGradient, QPolygonF, QRadialGradient,
 )
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFrame,
-    QInputDialog,
+    QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFileDialog,
+    QFrame, QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
     QSlider, QSplitter, QTabWidget, QToolButton, QToolTip, QVBoxLayout,
     QWidget,
 )
 
+from nrdata import savefile
+
 from . import __version__
-from . import (chalices, datasource, effecttext, favourites, firstrun,
-               inventory, model, search, shortcut, uiscale, weaponslots,
-               weapons)
+from . import (advisorblock, chalices, damage, datasource, effecttext,
+               errortext, favourites, firstrun, gamepath, inventory, model,
+               shortcut, singleinstance, uiscale, weaponslots, weapons)
+from .advisor import run as advisor_run
+from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
+                             PICKER_DEBOUNCE_MS)
+from .advisorbar import AdvisorBar, asking_from
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -43,6 +53,33 @@ GRAIL_HERO_TYPE = 11
 # it is namespaced to keep it out of the way of the real ones.
 AR_BREAKDOWN_KEY = "ar:total"
 
+# -- what counts as visible on this screen ------------------------------
+#
+# Three thresholds, and each one is half of the smallest unit its own display
+# can print. They say "this is not distinguishable from zero **on screen**",
+# which is a property of the display and not of the game (`UI_SPEC.md` AK-65,
+# QA-117).
+#
+# **They do not move with a calibration factor and must not be made to.**
+# `weapons.GAME_ATTACK_POWER_RATE` made every attack figure 0.6 times what it
+# was, which moved 89 `From attributes` rows below the first of these and
+# turned 66 change cells into a dash; scaling the threshold to 0.3 alongside
+# it would keep no set of cases the same -- rounding a sum of several damage
+# types does not scale linearly with a factor -- and would translate a
+# property of the calibration into a property of the display. Under the
+# threshold the change shown really **is** zero, which is the same honesty
+# rule that writes `no change` instead of `+0.0`.
+#
+# Half of one, for a figure printed as a whole number (`f"{x:+.0f}"`).
+VISIBLE_CHANGE = 0.5
+# Half of a tenth, for a share printed with one decimal (`f"{x:+.1f}%"`).
+VISIBLE_PERCENT = 0.05
+# What earns a change cell a colour rather than the muted grey. Not a
+# rounding boundary at all: a figure below it prints as `+0` or `-0`, and
+# green or red on a zero would tell the player something moved when nothing
+# did. Small enough that everything the display can distinguish is coloured.
+COLOURED_CHANGE = 0.05
+
 # Sentinel for the "build your own relic" entry in a slot's relic list.
 CUSTOM_RELIC = object()
 
@@ -54,9 +91,28 @@ PANES_KEY = "ui/panes"
 # Reset layout button so all three mean the same thing by construction.
 PANE_DEFAULTS = (430, 520, 370)
 
+#: How tall the window opens, in logical px. Unchanged from the size the
+#: window has always given itself; no tab asks for more (AK-71), so nothing
+#: on this side has to be derived.
+OPENING_HEIGHT = 860
+
 TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
+
+#: What the Nightfarer's name is set in on its tile, in points (QA-155).
+#:
+#: The ten portraits carried no text at all, so a player had to click one and
+#: read the answer somewhere else to find out whom he had picked. The name has
+#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
+#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
+#: widening the tile would push the whole window's minimum out. Measured on
+#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
+#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
+#: against the 52 px a 56 px tile has inside its border. Seven is the size at
+#: which all ten stand whole; Qt shortens anything that does not fit and the
+#: tooltip has carried the full name all along.
+NAME_POINT_SIZE = 7
 
 ACCENT = "#c8a45c"
 GOOD = "#6fbf73"
@@ -87,6 +143,27 @@ def _dark_palette() -> QPalette:
     p.setColor(QPalette.Highlight, QColor(ACCENT))
     p.setColor(QPalette.HighlightedText, QColor("#16171a"))
     return p
+
+
+def apply_appearance(app: QApplication) -> None:
+    """Style and palette, exactly as a player's run has them.
+
+    One function so there is one answer. `main` set these two lines itself and
+    the test suite set nothing, so Qt gave the suite `windowsvista` while a
+    player ran Fusion -- and the two do not measure the same. Same data, same
+    width, style the only variable: the `Effect` column of the effects table
+    renders 446 px under windowsvista and 388 under Fusion at a 1600 px
+    window, and the count of effect names too long for it goes from 12 to 44
+    (QA-146). Nothing was falsely green, because the guards are written as
+    relations that hold under both; every absolute figure ever reported from
+    the suite was a figure off a machine nobody runs.
+
+    Called by `main` and by `tests/conftest.py::qapp`. A second place saying
+    what the program looks like is a second place for it to be said
+    differently.
+    """
+    app.setStyle("Fusion")
+    app.setPalette(_dark_palette())
 
 
 def _heading(text: str) -> QLabel:
@@ -440,18 +517,189 @@ class VesselStrip(QWidget):
             self.tiles.append(tile)
 
 
+def _same_copy(one, other) -> bool:
+    """Whether two entries stand for the same physical relic.
+
+    By copy_key where there is one -- the handle the save's loadout table
+    uses, or the record's own place in the save. A relic with neither (a
+    custom one, or an entry that never came out of a save) stands for itself
+    and nothing else.
+    """
+    key = inventory.copy_key(one)
+    if key is None:
+        return one is other
+    return key == inventory.copy_key(other)
+
+
+def _relic_count(how_many: int) -> str:
+    """"1 relic" or "4 relics", because "1 relics" was on screen."""
+    return "1 relic" if how_many == 1 else f"{how_many} relics"
+
+
+def _custom_effects(roll: str) -> list[int] | None:
+    """The effects a stored slot names, when what it names is a custom relic.
+
+    A custom relic is owned by nobody, so a build naming one cannot be put
+    back by looking it up: it is built again out of what was written down.
+    None for every other relic, which is looked up rather than rebuilt.
+    """
+    parts = favourites.parts(roll)
+    if parts is None or parts[0] != inventory.CUSTOM_RELIC_ID:
+        return None
+    return parts[1]
+
+
+#: What a held slot's button says, unchecked and checked (`UI_SPEC` §4.1 of
+#: the T-024 section, AK-54). Words rather than a padlock: a padlock reads
+#: "you cannot change this", and a hold binds the **advisor**, not the player.
+HOLD_CAPTIONS = ("Hold", "Held")
+
+#: The tooltip of that button, verbatim (AK-54). The second sentence is the
+#: meaning of the control and the third is AK-59's whole subject -- neither is
+#: decoration, and neither may be dropped to shorten the line.
+HOLD_TOOLTIP = ("Optimize leaves this slot alone. You can still change it "
+                "yourself. Holds are forgotten when the program closes.")
+
+#: What a slot held with nothing in it says (§4.2, AK-55). "Held and staying
+#: empty" is a different instruction from "free", and the search has to be
+#: able to tell them apart (`types.HeldSlot`), so the player does too.
+HELD_EMPTY = "Held empty — Optimize will not fill this slot."
+
+#: What a slot says when its hold fell away because the relic went (§4.3,
+#: AK-56). Said out loud rather than dropped quietly: a hold that vanished in
+#: silence is the case that produces a suggestion the player did not ask for.
+HOLD_RELEASED = ("A relic you were holding is no longer in your inventory, "
+                 "so this slot was released.")
+
+#: What the save line says while the first read of the session is out
+#: (`UI_SPEC` T-141 §9 (a), AK-221). A state rather than a nothing: an empty
+#: line here cannot be told apart from "no save was found".
+READING_THE_SAVE = "Reading your save."
+
+#: The same state on a `Rescan` (§9 (b)). The second sentence is the promise
+#: of §3 -- everything on screen goes on being true until the answer lands --
+#: and it is why the relic button is shut for exactly as long as it stands.
+READING_THE_SAVE_AGAIN = ("Reading your save again. Nothing changes until it "
+                          "is done.")
+
+#: The line an empty slot card carries while the first read is still out
+#: (§9 (c)). Related to the picker's `Your relics appear here.` and not the
+#: same sentence: there the empty surface is a grid, here it is one card, and
+#: the difference is in the subordinate clause.
+RELICS_AFTER_THE_SAVE = "Your relics appear when the save has been read."
+
+#: What the line says when there was no save to read (§9 (f), and S5 of the
+#: first-run spec). The last sentence names the button that now stands beside
+#: it: without the button the sentence would be a dead end, and without the
+#: sentence the button is a word the player has no reason to press.
+NO_SAVE_FOUND = ("No save file found. Relic slots stay empty; the Effects and "
+                 "Weapons tabs still work in full. If your save is somewhere "
+                 "else, use Find my save.")
+
+#: The button of AK-123, and the ellipsis is three dots for the reason the
+#: first-run panel's `Choose folder...` has three: another window follows.
+FIND_MY_SAVE = "Find my save..."
+
+#: S1, the one text of this flow that may name the file and the folder --
+#: naming them is its whole job, and it is what makes the button pressable
+#: for somebody who has never seen either.
+FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder "
+                        "named Nightreign under your Windows user profile. "
+                        "This opens there.")
+
+#: S2. Unlike the folder dialog of the first run, whose caption is left to
+#: Qt, this one is written here: the spec gives it as a text of this program
+#: (AK-128), and a file dialog's caption is the only place that says which
+#: file is being asked for.
+CHOOSE_YOUR_SAVE = "Choose your Nightreign save file"
+
+#: The three filter entries of section 5, in that order. The third is not an
+#: oversight: `find_saves` deliberately takes renamed backups as well, so a
+#: dialog that refused them would be stricter than the program behind it.
+SAVE_FILE_FILTERS = ("Nightreign save (NR*.sl2);;"
+                     "Save file (*.sl2);;"
+                     "All files (*)")
+
+#: S3, the second of the three exits (AK-124): the file was read and holds
+#: nothing. Not a failure, and it says the one thing that explains it -- two
+#: Steam accounts, which is the case this whole flow exists for.
+CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on "
+                        "more than one Steam account, this may be the wrong "
+                        "one.")
+
+#: S4, the third exit: the player's sentence, and the technical reason under
+#: it on its own line. The order is DESIGN_REVIEW DR-006 -- what happened
+#: first, why second.
+CHOSEN_SAVE_UNREADABLE = "That file is not a Nightreign save this can read."
+
+#: The one place this prefix is written (§8, AK-229). It stands only where no
+#: inventory came out of the read at all, so nothing behind it may claim that
+#: the save is fine.
+UNREADABLE_SAVE = "Save could not be read: "
+
+#: §9 (d), appended to the inventory note exactly like `loadout_error` --
+#: same leading dash, same "on to whatever the note already says". Said when
+#: `Inventory.read_the_slow_way` is set (AD-031, AK-228): the fast prefilter
+#: could not see every id this save's relics use, so the slower walk was read
+#: instead. Written only on to a note that already names a relic count, so it
+#: can never land behind the prefix above (AK-229): the read still worked.
+READ_THE_SLOW_WAY_NOTE = (
+    " — read the slow way: this version of the game numbers its relics "
+    "above what the quick scan looks for. Nothing is missing and nothing "
+    "needs fixing.")
+
+#: The line of its own that the total belongs on (`UI_SPEC` T-178 §4, AK-251).
+#: `You own` is the scope the player was looking for and tells this number
+#: apart from the two it was confused with: what fits one slot
+#: (`Slot 1 — Red (51 available)`) and what the game knows at all
+#: (`577 buffs, 75 curses`). `in total` is the bearing on the slot number,
+#: without which a bare number stands beside a bare number again.
+OWNED_TOTAL = "You own {count} in total."
+
+#: The tooltip of the same line: where the number was counted from, and the
+#: confusion resolved in as many words. It does not say the slot number is
+#: *smaller* -- it can be equal, when everything the player owns fits the one
+#: slot, and an assurance that breaks in a corner is not one.
+OWNED_TOTAL_TOOLTIP = ("Counted from your save {source}. The number beside a "
+                       "relic slot counts only the relics that fit that slot.")
+
+
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
     def __init__(self, index: int, deep: bool, on_change, icons=None,
-                 on_search_changed=None):
+                 on_search_changed=None, taken_elsewhere=None,
+                 on_hold_changed=None):
         super().__init__()
         self.index = index
         self.deep = deep
         self.on_change = on_change
         self.icons = icons
         self.on_search_changed = on_search_changed or (lambda _text: None)
+        # Which physical relics the other slots are already holding. A slot on
+        # its own knows of no others and so blocks nothing.
+        self.taken_elsewhere = taken_elsewhere or (lambda _slot: frozenset())
+        # Said when the player works the `Hold` button, never when the window
+        # draws it: the hold itself lives at the window (AD-017.1), and a card
+        # that told the window about a state the window had just handed it
+        # would be writing over what it was drawing.
+        self.on_hold_changed = on_hold_changed or (lambda _slot, _on: None)
         self.search_text = ""
+        # Why this slot is empty, when it was emptied for a reason worth
+        # saying. An empty slot otherwise looks the same whether nothing was
+        # ever put in it or its relic was taken away by a rule.
+        self.empty_reason = ""
+        # The condition that reason describes, where it is a condition about
+        # something other than this slot. Kept beside the text and asked again
+        # at every redraw: a reason that has stopped being true is not a
+        # reason, it is a leftover (QA-022).
+        self.reason_holds = None
+        # Is a read of the save out at this moment? The card draws two things
+        # from it and nothing else keeps it: the relic button is shut while it
+        # is true (AK-223), and while it is true *and* nothing has been read
+        # yet the empty card says why it is empty (AK-221). Written by the
+        # window, which is the one place that knows.
+        self.the_save_is_being_read = False
         self.owned = None
         self.colour = 0
         self.pool: list[dict] = []
@@ -475,6 +723,21 @@ class RelicSlot(QFrame):
         self.title.setStyleSheet("font-weight: bold; border: none;")
         header.addWidget(self.title)
         header.addStretch()
+        # §4.1: a checkable button carrying a word, in the card's own header
+        # and left of the colour chip. The two states are told apart by the
+        # word first and by the colour second, so a player who cannot tell
+        # `MUTED` from `ACCENT` still reads which one this is.
+        self.hold_button = QToolButton()
+        self.hold_button.setCheckable(True)
+        self.hold_button.setToolTip(HOLD_TOOLTIP)
+        self.hold_button.setStyleSheet(
+            f"QToolButton {{ color: {MUTED}; border: none;"
+            f" padding: 1px 6px; }}"
+            f"QToolButton:checked {{ color: {ACCENT};"
+            f" border: 1px solid {ACCENT}; border-radius: 3px; }}"
+        )
+        self.hold_button.toggled.connect(self._hold_toggled)
+        header.addWidget(self.hold_button)
         self.chip = QLabel()
         self.chip.setFixedSize(14, 14)
         header.addWidget(self.chip)
@@ -498,8 +761,24 @@ class RelicSlot(QFrame):
         self.rolled_label.setStyleSheet("border: none;")
         layout.addWidget(self.rolled_label)
 
+        # The advisor's block, under the rolled effects and inside the card:
+        # a suggestion for this slot belongs where the slot is (`UI_SPEC`
+        # §3.2). Built here and hidden rather than created on demand, so that
+        # an answer arriving does not change the card's layout order.
+        self.suggestion = advisorblock.SuggestionBlock()
+        layout.addWidget(self.suggestion)
+
+        # Last, because it draws the card: the caption of the hold button and
+        # the line an empty held slot carries are both `_sync_mode`'s work,
+        # and `_sync_mode` reads widgets built above.
+        self._draw_the_hold()
+
     # -- state -----------------------------------------------------------
     def _on_relic_changed(self, *_args) -> None:
+        # Whatever this slot was last told to say about being empty is spent:
+        # the player has just put something here or taken it away themselves.
+        self.empty_reason = ""
+        self.reason_holds = None
         self._sync_mode()
         self.on_change()
 
@@ -516,13 +795,91 @@ class RelicSlot(QFrame):
         elif dialog.chosen is None and dialog.result():
             self.relic_box.setCurrentIndex(0)
 
+    # -- holding ----------------------------------------------------------
+    def is_held(self) -> bool:
+        """Is the advisor being told to leave this slot alone?
+
+        The button is the one place this is drawn and the one place it is
+        read: the window keeps the hold and hands it here, and asking two
+        places for one fact is how they come to disagree.
+        """
+        return self.hold_button.isChecked()
+
+    def show_the_hold(self, on: bool) -> None:
+        """Draw the hold the window is holding for this slot.
+
+        Signals blocked, because this is the window telling the card. Left
+        unblocked, the card would tell the window straight back and would
+        overwrite the state it was being handed -- and on a change of vessel
+        it would overwrite it with the vessel being left.
+        """
+        self.hold_button.blockSignals(True)
+        try:
+            self.hold_button.setChecked(on)
+        finally:
+            self.hold_button.blockSignals(False)
+        self._draw_the_hold()
+
+    def _hold_toggled(self, on: bool) -> None:
+        """The player worked the button, so the window is told."""
+        self._draw_the_hold()
+        self.on_hold_changed(self, on)
+
+    def _draw_the_hold(self) -> None:
+        """The caption, and the line an empty held slot carries (AK-55)."""
+        self.hold_button.setText(HOLD_CAPTIONS[self.is_held()])
+        self._sync_mode()
+
+    def _forget_a_spent_reason(self) -> None:
+        """Drop the reason for being empty once it has stopped being true."""
+        if self.empty_reason and self.reason_holds is not None:
+            if not self.reason_holds():
+                self.empty_reason = ""
+                self.reason_holds = None
+
+    def show_the_save_is_being_read(self, on: bool) -> None:
+        """Draw the read the window is waiting for, or the end of it.
+
+        Both halves of it at once, because they begin and end together: the
+        button that would open a picker with nothing in it, and the line that
+        says why the card is empty. Nothing else on the card moves.
+        """
+        self.the_save_is_being_read = on
+        self._sync_mode()
+
     def _sync_mode(self) -> None:
         """Show the rolled effects of the relic currently in this slot."""
+        self._forget_a_spent_reason()
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
+        # Shut for as long as the read is out, in both situations (AK-223):
+        # at the start it would open on nothing, and on a `Rescan` the stock
+        # under its cards is replaced while it stands.
+        self.choose_button.setEnabled(not self.the_save_is_being_read)
         if item is None:
-            self.rolled_label.setVisible(False)
-            self.rolled_label.clear()
+            # An empty slot says nothing unless it was emptied for a reason,
+            # or unless it is being held empty on purpose. A slot whose relic
+            # is worn elsewhere used to read exactly like one never filled,
+            # leaving the player to work out where the relic went (DR-002).
+            #
+            # Both lines can stand at once and both are then true: "the
+            # advisor will not fill this" and "this is why it is empty" are
+            # different statements, and dropping either would answer a
+            # question the player did not ask.
+            # The third line of the same kind, and it is a condition rather
+            # than a stored reason (§9 (c)). It cannot be put into
+            # `empty_reason`: the chalice restore that runs moments after a
+            # read begins calls `clear_relic()` on every slot, which is what
+            # a stored reason is for and would wipe this one -- so the card
+            # would fall silent exactly during the state the line is about.
+            # Same `MUTED` line in the same label as the other two (§10).
+            waiting = self.the_save_is_being_read and self.owned is None
+            said = ([HELD_EMPTY] if self.is_held() else []) + (
+                [self.empty_reason] if self.empty_reason else []) + (
+                [RELICS_AFTER_THE_SAVE] if waiting else [])
+            self.rolled_label.setText("".join(
+                f"<div style='color:{MUTED}'>{line}</div>" for line in said))
+            self.rolled_label.setVisible(bool(said))
             return
 
         lines = []
@@ -570,6 +927,40 @@ class RelicSlot(QFrame):
             return [f"<div style='color:{CURSE}'>✦ comes with {what}</div>"]
         return []
 
+    def show_the_suggestion(self, goal_label: str, group, choice) -> None:
+        """Draw what the advisor would put here, while the answer lives.
+
+        Whether the suggestion is already lying in this slot is decided on
+        the **handle** -- the save's own identifier for one physical copy --
+        and never on the name: several copies of one relic are owned with
+        different rolls, and this save equips the second copy of The Wylder's
+        Earring while the first sits unused (`select_copy`, QA-021).
+        """
+        in_the_slot = getattr(self.relic_box.currentData(), "handle", None)
+        already = (choice is not None and in_the_slot is not None
+                   and in_the_slot == choice.handle)
+        self.suggestion.show_the_suggestion(
+            goal_label, group, already_equipped=already,
+            may_be_used=not self.is_held(),
+            curse_tooltip=self._suggested_curse_tooltip(choice))
+
+    def put_the_suggestion_away(self) -> None:
+        """No answer names this slot any more."""
+        self.suggestion.put_the_suggestion_away()
+
+    def _suggested_curse_tooltip(self, choice) -> str:
+        """The full wording of the suggested copy's curses, found by handle.
+
+        The block's lines name the curses; what each one does is the same
+        tooltip the slot already offers for the relic it holds, so a player
+        reads a curse the same way whether it is equipped or offered.
+        """
+        if choice is None:
+            return ""
+        copy = next((item for item in self._holdable()
+                     if item.handle == choice.handle), None)
+        return "" if copy is None else self.curse_tooltip(copy)
+
     def curse_tooltip(self, item) -> str:
         """Full wording for each curse, so the cost is legible not cryptic."""
         curse_ids = list(getattr(item, "curse_ids", ()) or ())
@@ -611,20 +1002,31 @@ class RelicSlot(QFrame):
         return f"   [{chance}]{mark}"
 
     def set_colour(self, colour: int, all_effects: list[dict], owned=None,
-                   effect_filter: str = "", hero_name: str = "") -> None:
+                   hero_name: str = "") -> None:
+        """Give this slot the colour the chalice says it has, and rebuild it.
+
+        Runs on every apply of the chalice, the Deep of Night switch included,
+        and most of those applies leave this slot's colour exactly as it was.
+        """
         self.hero_name = hero_name or self.hero_name
+        # A custom relic is built for one slot colour, so a colour that has
+        # really changed invalidates it -- and nothing else does. Dropping it
+        # on every rebuild deleted the relic the player had planned at one
+        # click on the Deep switch, took its effects out of the totals, and
+        # left the key the build had written down for it behind, redeemable
+        # by nothing ever again (QA-025). A slot's mode is fixed when the slot
+        # is built, so the colour is the whole of the question.
+        if colour != self.colour:
+            self.custom_item = None
         self.colour = colour
         self.owned = owned
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
-        # A custom relic is built for one slot colour; changing the colour
-        # invalidates it rather than silently leaving an illegal relic in place.
-        self.custom_item = None
         self.chip.setStyleSheet(
             f"background: {SLOT_COLOURS.get(colour, '#888')};"
             f" border: 1px solid {BORDER}; border-radius: 7px;"
         )
-        self.populate(effect_filter)
+        self.populate()
 
     def effect_names(self, item) -> list[str]:
         return [
@@ -651,70 +1053,207 @@ class RelicSlot(QFrame):
         return sorted(out, key=effecttext.name)
 
     def set_custom(self, effect_ids: list[int]) -> None:
+        """Put a made-up relic in this slot, or clear it when given nothing.
+
+        What the player does in the picker. The window is told once, at the
+        end, the way it is told about any other relic landing in a slot.
+        """
+        self._hold_custom(effect_ids)
+        self.on_change()
+
+    def adopt_custom(self, effect_ids: list[int]) -> bool:
+        """Rebuild this slot's custom relic from a stored build, silently.
+
+        A custom relic is owned by nobody, so a build that names one cannot be
+        put back by looking it up -- there is nothing to look it up in. It is
+        rebuilt here out of the effects the build wrote down, which is what
+        lets it outlive a session or a chalice the player wandered through
+        (QA-025).
+
+        Refused when this slot could not have rolled those effects: a relic
+        built for a Red slot has no business reappearing in a Blue one. Asked
+        here and not in `set_custom` because the two are asked by different
+        parties -- the picker offers the player the effects this slot can roll
+        and nothing else, while a stored build was written down when the slot
+        may have had another colour entirely.
+
+        Emits nothing. A restore is one change to the build, not one per slot.
+        """
+        rollable = {e["id"] for e in self.rollable_effects()}
+        if not all(eid in rollable for eid in effect_ids):
+            return False
+        self._hold_custom(effect_ids)
+        return True
+
+    def _hold_custom(self, effect_ids: list[int]) -> None:
         """Put a made-up relic in this slot, or clear it when given nothing."""
         if not effect_ids:
             self.custom_item = None
-        else:
-            self.custom_item = inventory.OwnedItem(
-                relic_id=inventory.CUSTOM_RELIC_ID,
-                name="Custom relic",
-                colour=self.colour,
-                effect_ids=list(effect_ids),
-                is_deep=self.deep,
-            )
-        self.populate(self.search_text)
-        if self.custom_item is not None:
-            index = self.relic_box.findData(self.custom_item)
-            if index >= 0:
-                self.relic_box.setCurrentIndex(index)
-        self.on_change()
+            self.populate()
+            return
+        self.custom_item = inventory.OwnedItem(
+            relic_id=inventory.CUSTOM_RELIC_ID,
+            name="Custom relic",
+            colour=self.colour,
+            effect_ids=list(effect_ids),
+            is_deep=self.deep,
+        )
+        self.populate()
+        index = self.relic_box.findData(self.custom_item)
+        if index >= 0:
+            self._select_index(index)
 
-    def populate(self, effect_filter: str = "") -> None:
-        """List the relics the player owns that fit this slot.
+    def available_items(self) -> list:
+        """The relics this slot may be given.
 
-        A search term keeps only relics carrying a matching effect, which
-        answers "which of my relics has this?" -- the effects themselves are
-        fixed to the relic, exactly as in game.
+        Owned, of a colour and mode this slot takes, and not already lying in
+        another slot: a relic is one physical object and cannot be worn twice.
+        It used to be offered everywhere it fit, and taking the same entry
+        into two slots counted its effects twice -- silently, with no warning
+        and a plausible total (QA-002). With 306 distinct rolls across 309
+        owned relics, an entry in this list stands for exactly one physical
+        relic 99 times out of 100, so the second helping was almost never real.
+        Planning around a relic you do not own is what "Custom relic" is for,
+        and that stays untouched.
+
+        The ownership filter runs *before* the collapse to one entry per roll,
+        not after: a player who owns two copies of the same roll may wear both,
+        and the second copy has to survive to be offered.
+
+        The collapse is a way of showing relics, not a way of counting them.
+        One entry stands for one roll, and while the first copy of that roll
+        is free the second is behind it, unreachable by anything that asks
+        this list. A build names *copies*, so the restore asks by handle and
+        reaches past this list to the copy itself (see `select_copy`) --
+        reading a build out of this list put one physical relic in two slots
+        and emptied the later one (QA-021).
         """
-        self.search_text = effect_filter
-        predicate = search.parse(effect_filter)
-        items = []
-        if self.owned is not None:
-            # The same collapse the picker applies, or the header counts the
-            # save's records while the picker counts distinct rolls and the
-            # two sit one apart on screen ("50 owned" over "49 of 49").
-            items = favourites.distinct(
-                self.owned.relics_for(self.colour, self.deep, WHITE_SLOT))
-        if predicate is not None:
-            items = [i for i in items if predicate(self.effect_names(i))]
+        taken = self.taken_elsewhere(self)
+        free = [item for item in self._holdable()
+                if inventory.copy_key(item) not in taken]
+        # The same collapse the picker applies, or the header counts the
+        # save's records while the picker counts distinct rolls and the
+        # two sit one apart on screen ("50 owned" over "49 of 49").
+        return favourites.distinct(free)
 
-        previous = self.relic_box.currentData()
+    def _holdable(self) -> list:
+        """Every owned copy this slot could take: its colour, its mode.
+
+        One entry per physical relic, before anything is collapsed away. Both
+        questions this slot answers about a relic -- may it be offered, and is
+        this the copy a build names -- are asked of this list, so the two
+        cannot come to mean different things by one relic.
+        """
+        if self.owned is None:
+            return []
+        return self.owned.relics_for(self.colour, self.deep, WHITE_SLOT)
+
+    def slot_name(self) -> str:
+        """What this slot is called on screen, and in anything said about it."""
+        return f"{'Deep ' if self.deep else ''}Slot {self.index + 1}"
+
+    def _may_hold(self, item) -> bool:
+        """Whether this slot could take this relic at all: colour and mode.
+
+        Asked about the relic already in the slot, which stays in the list
+        whatever else is being filtered out -- but not past a change of
+        chalice. A relic of a colour this slot no longer takes belongs to the
+        chalice before it, and keeping such a relic is how a Grail came to own
+        one nobody put there.
+
+        Asked about owned relics only. A custom relic is owned by nobody and
+        is answered for one line earlier, by `custom_item`: it is this slot's
+        own, it is put in the list by `populate` itself, and giving this
+        function a second opinion about it would be two answers to one
+        question (QA-016).
+        """
+        if item is None:
+            return False
+        return any(_same_copy(item, other) for other in self._holdable())
+
+    def _label(self, item) -> str:
+        """One line for the list: the relic's name and what it rolled."""
+        summary = ", ".join(self.effect_names(item))
+        return (f"{item.name} — {summary}" if summary else item.name)[:120]
+
+    def populate(self) -> None:
+        """List the relics this slot may be given, and the one it has.
+
+        What a slot may be given is a question of ownership, colour and mode.
+        Narrowing it by effect is the picker's work: there a filter changes
+        what is being *chosen from* and can disturb nothing that is already
+        equipped. Applied here it dropped the relic out of a slot the moment
+        it stopped matching, and the loss was written down (QA-013) -- one
+        mistyped word in the picker emptied every other slot.
+
+        Whatever is in the slot is in the slot's own list, however that list
+        was arrived at. The rule is enforced here rather than trusted to the
+        callers: two of them already carry a comment saying that narrowing a
+        slot from outside is what makes an equipped relic disappear, and a
+        third arrived and did it anyway, for an unrelated reason.
+        """
+        worn = self.relic_box.currentData()
+        items = self.available_items()
+        if (worn is not None and worn is not self.custom_item
+                and self._may_hold(worn)
+                and not any(_same_copy(worn, item) for item in items)):
+            items = items + [worn]
+
         self.relic_box.blockSignals(True)
         self.relic_box.clear()
         self.relic_box.addItem("Empty slot", None)
         # A custom relic is not owned, so it survives repopulation only by
-        # being re-added here; it ignores the effect filter deliberately, so
-        # searching cannot make the relic you just built disappear.
+        # being re-added here.
         if self.custom_item is not None:
-            summary = ", ".join(self.effect_names(self.custom_item))
-            self.relic_box.addItem(
-                f"Custom relic — {summary}"[:120], self.custom_item)
+            self.relic_box.addItem(self._label(self.custom_item),
+                                   self.custom_item)
         for item in items:
-            summary = ", ".join(self.effect_names(item))
-            label = f"{item.name} — {summary}" if summary else item.name
-            self.relic_box.addItem(label[:120], item)
-        if previous is not None:
-            idx = self.relic_box.findData(previous)
+            self.relic_box.addItem(self._label(item), item)
+        if worn is not None:
+            idx = self.relic_box.findData(worn)
             if idx >= 0:
                 self.relic_box.setCurrentIndex(idx)
         self.relic_box.blockSignals(False)
 
-        suffix = f"{len(items)} match" if predicate else f"{len(items)} owned"
+        # "available" rather than "owned": a relic lying in another slot is
+        # owned and is not offered here, so counting it would put a number on
+        # the heading that the list underneath contradicts.
+        #
+        # No stock, no bracket (AK-222). While nothing has been read the
+        # number is not zero, it is unknown, and `(0 available)` would be a
+        # claim about what the player owns that the program cannot support
+        # (A7) -- and it is the shape that reads like lost data.
+        count = "" if self.owned is None else f"  ({len(items)} available)"
         self.title.setText(
-            f"{'Deep ' if self.deep else ''}Slot {self.index + 1} — "
-            f"{model.COLOUR_NAMES.get(self.colour, self.colour)}  ({suffix})"
+            f"{self.slot_name()} — "
+            f"{model.COLOUR_NAMES.get(self.colour, self.colour)}"
+            f"{count}"
         )
         self._sync_mode()
+
+    def clear_relic(self, reason: str = "", while_true=None) -> None:
+        """Take whatever is in this slot out of it, and say why if there is a why.
+
+        `while_true` is the condition the reason describes, asked again every
+        time the slot is redrawn. "Already worn in Slot 1" is a statement
+        about slot 1, and it was kept as a property of this one: it stayed on
+        screen after slot 1 had given the relic up or been filled with
+        another, so the text was false exactly when the player did what it
+        asked (QA-022). A reason with no condition holds until the slot is
+        changed, which is what the ones about this slot alone need.
+
+        Signals are held back. A slot emptied during a restore is part of
+        setting one build, not six separate changes by the player, and the
+        window settles the slots itself once the restore has finished.
+        """
+        self.empty_reason = reason
+        self.reason_holds = while_true
+        self.relic_box.blockSignals(True)
+        try:
+            self.relic_box.setCurrentIndex(0)
+        finally:
+            self.relic_box.blockSignals(False)
+            self._sync_mode()
 
     def selected_ids(self) -> list[int]:
         item = self.relic_box.currentData()
@@ -733,57 +1272,92 @@ class RelicSlot(QFrame):
         """How this slot's relic is written down for the next session."""
         return chalices.slot_key(self.relic_box.currentData())
 
-    def select_saved(self, key: str) -> bool:
-        """Put back the relic a previous session left here.
-
-        The handle is tried first because it is exact. Falling back to the
-        roll matters when the save has been rewritten since -- handles are
-        renumbered by the game, and a build that came back empty every time
-        the player melted an unrelated relic would not be worth storing.
-        """
-        if not key:
-            return self.select_handle(None)
-        handle, roll = chalices.split_key(key)
-        if handle is not None and self.select_handle(handle):
-            return True
-        if not roll:
-            return False
-        self.relic_box.blockSignals(True)
-        try:
-            for i in range(self.relic_box.count()):
-                item = self.relic_box.itemData(i)
-                if item is not None and favourites.key(item) == roll:
-                    self.relic_box.setCurrentIndex(i)
-                    return True
-            return False
-        finally:
-            self.relic_box.blockSignals(False)
-            self._sync_mode()
-
-    def select_handle(self, handle: int | None) -> bool:
-        """Put the relic with this save handle in the slot, or empty it.
+    def select_copy(self, handle: int) -> bool:
+        """Put one exact physical copy in this slot, list or no list.
 
         Matching on the handle rather than the name matters: several copies of
         one relic can be owned with different rolls, and this save equips the
         second copy of The Wylder's Earring while the first sits unused.
 
+        The list is not asked, it is only tried first. It holds one entry per
+        roll, so a second copy of a roll is not in it -- and a build naming
+        that copy fell through to the roll, landed on the first copy, and left
+        two slots holding one relic, the later of which was then emptied and
+        the loss stored (QA-021). What identifies a copy here is the handle,
+        which is what `copy_key` and `_settle_slots` mean by "the same relic"
+        as well.
+
         Signals are held back so importing six slots recomputes the build once
         at the end rather than six times.
         """
+        # A relic with no handle is not identified by one, and the custom
+        # relic has none: asked for "the copy with handle None", this would
+        # otherwise hand back whatever the player had invented.
+        if handle is None:
+            return False
+        for i in range(self.relic_box.count()):
+            item = self.relic_box.itemData(i)
+            if item is not None and getattr(item, "handle", None) == handle:
+                return self._select_index(i)
+        copy = next((item for item in self._holdable()
+                     if getattr(item, "handle", None) == handle), None)
+        if copy is None:
+            return False
+        return self._select_index(self._offer(copy))
+
+    def select_roll(self, roll: str, taken=frozenset()) -> bool:
+        """Put back a relic named by its roll alone, avoiding copies spoken for.
+
+        The fallback for a build stored before the save was rewritten: handles
+        are renumbered by the game, and a build that came back empty every
+        time the player melted an unrelated relic would not be worth storing.
+
+        `taken` are the copies other slots of this same build have already
+        been given. Without it two slots asking for one roll are both answered
+        with the first copy -- the same loss as QA-021 by another road, and
+        the more so because the player may own the roll twice and be entitled
+        to both.
+        """
+        for i in range(self.relic_box.count()):
+            item = self.relic_box.itemData(i)
+            if (item is not None and favourites.key(item) == roll
+                    and inventory.copy_key(item) not in taken):
+                return self._select_index(i)
+        for item in self._holdable():
+            if (favourites.key(item) == roll
+                    and inventory.copy_key(item) not in taken):
+                return self._select_index(self._offer(item))
+        return False
+
+    def _offer(self, item) -> int:
+        """Add one relic to the end of this slot's list, and say where it went.
+
+        For a copy the collapsed list has no entry of its own for. The next
+        `populate` draws the list up again from what the slots hold by then,
+        and keeps whatever is in this one.
+        """
         self.relic_box.blockSignals(True)
         try:
-            if handle is None:
-                self.relic_box.setCurrentIndex(0)
-                return True
-            for i in range(self.relic_box.count()):
-                item = self.relic_box.itemData(i)
-                if item is not None and getattr(item, "handle", None) == handle:
-                    self.relic_box.setCurrentIndex(i)
-                    return True
-            return False
+            self.relic_box.addItem(self._label(item), item)
+        finally:
+            self.relic_box.blockSignals(False)
+        return self.relic_box.count() - 1
+
+    def _select_index(self, index: int) -> bool:
+        """Make one entry of the list the one in the slot, without emitting.
+
+        Whatever this slot was last told to say about being empty is spent: it
+        is not empty now.
+        """
+        self.empty_reason = ""
+        self.reason_holds = None
+        self.relic_box.blockSignals(True)
+        try:
+            self.relic_box.setCurrentIndex(index)
         finally:
             self.relic_box.blockSignals(False)
             self._sync_mode()
+        return True
 
 
 class VariantDialog(QDialog):
@@ -860,10 +1434,15 @@ class VariantDialog(QDialog):
 
 
 class HeroTile(QToolButton):
-    """One portrait in the 2x5 Nightfarer grid.
+    """One portrait in the 2x5 Nightfarer grid, with the name under it.
 
     Left click selects the Nightfarer; right click offers that character's
     alternate illustrations so the tile can show a preferred one.
+
+    The name is drawn on the tile because the artwork alone did not say who
+    it was (QA-155): the player of 2026-09-06 clicked a portrait and then had
+    to find the answer elsewhere on the screen. See NAME_POINT_SIZE for what
+    decides the size of it.
     """
 
     def __init__(self, index: int, hero: dict, icons):
@@ -875,21 +1454,37 @@ class HeroTile(QToolButton):
 
         self.setCheckable(True)
         self.setAutoRaise(True)
-        self.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.setText(hero["name"])
+        font = self.font()
+        font.setPointSize(NAME_POINT_SIZE)
+        self.setFont(font)
         self.setIconSize(QSize(TILE_SIZE, TILE_SIZE))
-        self.setFixedSize(TILE_SIZE + TILE_PAD, TILE_SIZE + TILE_PAD)
+        # Before the height is fixed, and that order is load-bearing:
+        # `QToolButton::initStyleOption` reports a button with no icon and
+        # some text as text-only however it was configured, so a size asked
+        # for here first comes back 19 px tall -- one line of name and no
+        # portrait at all.
+        self._apply_image()
+        # The width is the grid's to keep; the height is whatever the name
+        # needs under the portrait, asked of Qt rather than added up here, so
+        # a different font or a different scale still gets a whole line.
+        self.setFixedSize(TILE_SIZE + TILE_PAD, self.sizeHint().height())
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         # A visible frame keeps neighbouring portraits from reading as one
-        # continuous image, since the artwork itself has no margin.
+        # continuous image, since the artwork itself has no margin. Two pixels
+        # in both states: a border that thickened on selection would narrow
+        # the room the name has by 2 px, and the longest of the ten would
+        # shorten itself the moment it was picked.
         self.setStyleSheet(
-            f"QToolButton {{ border: 1px solid {BORDER}; border-radius: 4px;"
-            f" background: {PANEL}; padding: 0px; }}"
-            f"QToolButton:checked {{ border: 2px solid {ACCENT}; }}"
+            f"QToolButton {{ border: 2px solid {BORDER}; border-radius: 4px;"
+            f" background: {PANEL}; padding: 0px; color: {MUTED}; }}"
+            f"QToolButton:checked {{ border: 2px solid {ACCENT};"
+            f" color: {ACCENT}; }}"
         )
         self.setToolTip(f"{hero['name']}\nRight-click to change the artwork")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_variants)
-        self._apply_image()
 
     def current_pixmap(self):
         if self.variant_id is not None:
@@ -930,19 +1525,325 @@ class HeroTile(QToolButton):
     def set_variant(self, texture_id: int | None) -> None:
         self.variant_id = texture_id
         self._apply_image()
-        settings = QSettings("DankYeeter", "NightreignHelper")
+        settings = QSettings(favourites.ORG, favourites.APP)
         settings.setValue(f"variant/{self.hero['id']}", texture_id if texture_id else "")
 
     def restore_variant(self) -> None:
-        settings = QSettings("DankYeeter", "NightreignHelper")
+        settings = QSettings(favourites.ORG, favourites.APP)
         stored = settings.value(f"variant/{self.hero['id']}", "")
         if stored:
             self.variant_id = int(stored)
             self._apply_image()
 
 
+#: How long the window waits for a running save read when it is closing. A
+#: `wait()` in the main thread is forbidden while the program is running
+#: (AD-006.4) and is the only correct thing here: the alternative is a
+#: `QThread` deleted while its read is still going.
+#:
+#: Derived, not chosen. What this waits for is `inventory.scan`, measured at
+#: 657,2 ms (p50, the player's own save, S11-E carried forward in T-140). Its
+#: worst measured shape is the same read on the same save and the same machine
+#: before the prefilter existed: 6147,6 ms. Ten per cent over that is what is
+#: waited, so a save the prefilter turns out not to help still finishes its
+#: read instead of losing its thread underneath it: 6147,6 x 1,1 = 6762 ms,
+#: rounded up.
+SAVE_READ_SHUTDOWN_WAIT_MS = 6800
+
+def where_saves_usually_are() -> pathlib.Path | None:
+    """Where the file dialog opens (AK-123, section 5).
+
+    The start location is the actual help in this dialog: the player cannot
+    type the variable his profile lives under and should not have to. So the
+    `Nightreign` folder if it is there, the profile itself if it is not, and
+    None -- "wherever Qt would" -- if neither is.
+
+    Resolved, always, and never named as a variable anywhere he can read it
+    (AK-127): what he sees in the dialog is a path.
+    """
+    roots = savefile.save_roots()
+    for folder in roots:
+        if folder.is_dir():
+            return folder.resolve()
+    for folder in roots:
+        if folder.parent.is_dir():
+            return folder.parent.resolve()
+    return None
+
+
+def _pick_a_save_file(parent) -> pathlib.Path | None:
+    """The system's own file dialog, opened where the saves are.
+
+    Native, for the reason `firstrun._pick_a_folder` gives: it is the dialog
+    the player knows from everything else on his machine, with his quick
+    access places and his network drives in it.
+
+    A file and not a folder, which is the difference from the first run's
+    question and the reason it is the right one here: with two Steam accounts
+    the file is the only thing that says *which* account he means.
+    """
+    start_at = where_saves_usually_are()
+    picked, _chosen_filter = QFileDialog.getOpenFileName(
+        parent, CHOOSE_YOUR_SAVE,
+        "" if start_at is None else os.fspath(start_at),
+        SAVE_FILE_FILTERS)
+    return pathlib.Path(picked) if picked else None
+
+
+def _refuse_a_file_no_save_can_be(path: pathlib.Path) -> None:
+    """Ask SEC-029's question of the file the player named, before any read.
+
+    The limit itself and the sentence it is refused with live in
+    `inventory.refuse_a_size_no_save_can_have`, which the read behind this
+    asks again of every file either route hands it. One number, one wording,
+    two places that can be reached -- and this one is reached first, so that
+    the second read of `read_the_save`, the one that tells S3 from S4, is
+    never given a file this size either.
+    """
+    inventory.refuse_a_size_no_save_can_have(path.stat().st_size)
+
+
+def read_the_save(data: dict, save_path: pathlib.Path | None = None):
+    """Read the save the window is to show, and answer for the file it read.
+
+    The default reading of `SaveReader`, and the one place the three exits of
+    AK-124 are told apart. `inventory.scan` cannot tell them apart and should
+    not: it answers None both for "there is no save here" and for "this file
+    holds no relics", and it swallows an unreadable file on purpose, because
+    on the automatic route the next file may well be the good one.
+
+    For a file the **player pointed at** those are three different pieces of
+    news, and he is owed the difference: a scan gives the ordinary line, a
+    None means the file was read and holds nothing (S3), and a raise carries
+    the reason he cannot be expected to guess (S4).
+
+    **No path and no Windows wording is ever put into the reason.** The save
+    folder is named after the Steam account id (AK-126), and an `OSError`
+    writes the whole path into its message; `strerror` drops the path but is
+    in the language of the Windows installation and broke A8 (QA-211). What
+    comes out of one here is `errortext`'s sentence for its `errno`, and it
+    leaves as this module's own class so that the window may quote it.
+    """
+    if save_path is None:
+        return inventory.scan(data)
+    try:
+        _refuse_a_file_no_save_can_be(save_path)
+        found = inventory.scan(data, save_path)
+        if found is None:
+            # Reading it again is what tells S3 from S4, and it is only ever
+            # done when the scan came back empty -- so the ordinary case pays
+            # nothing for it, and the two cases that are left are the ones
+            # the player is about to ask about.
+            savefile.read(save_path)
+        return found
+    except OSError as exc:
+        raise inventory.SaveNotReadable(errortext.in_english(exc)) from None
+
+
+class _SaveReadWorker(QObject):
+    """One reading of the save, off the main thread. Built once and dropped.
+
+    Never touches a widget, not even to read one: it is built with the dataset
+    it needs and everything it has to say goes out as a signal Qt delivers
+    into the main thread's event loop.
+
+    **The generation is stamped on here and nowhere else**, exactly as the
+    advisor's `_Worker` stamps an answer (AD-006.3): this is the one place
+    that knows both which reading was asked for and what came back, so
+    `inventory.scan` does not have to know that generations exist.
+    """
+
+    #: What the save held, as a `SaveScan` -- or `None` when no save was
+    #: found, which is an answer and not a failure.
+    ready = Signal(int, object)
+    #: A read that could not be finished, in one line and without a traceback.
+    #: An exception that merely propagated would end the thread in silence and
+    #: leave the window on its waiting sentence for ever (AK-224). The line is
+    #: `errortext`'s and never the exception's own: anything at all can come
+    #: out of `self._read`, and whatever Windows would have said here it would
+    #: have said in its own language (QA-211, A8).
+    failed = Signal(int, str)
+    #: Always last, whatever happened, so the thread is quit from one place.
+    finished = Signal()
+
+    def __init__(self, generation: int, data: dict, read,
+                 save_path: pathlib.Path | None = None) -> None:
+        super().__init__()
+        self._generation = generation
+        self._data = data
+        self._read = read
+        # Which file this reading is about, or None for "whichever the
+        # automatic route finds". Handed in rather than looked up here: the
+        # settings store is the main thread's, and a `stat` on a dead network
+        # path is exactly what this thread exists to keep off it.
+        self._save_path = save_path
+
+    def work(self) -> None:
+        try:
+            found = self._read(self._data, self._save_path)
+        except Exception as exc:  # noqa: BLE001 - reported, never raised on
+            traceback.print_exc()
+            self.failed.emit(self._generation, errortext.in_english(exc))
+        else:
+            self.ready.emit(self._generation, found)
+        self.finished.emit()
+
+
+class SaveReader(QObject):
+    """One reading of the save at a time, in a thread, and never out of date.
+
+    The same build as `AdvisorController` and deliberately not a second
+    mechanism (AD-029, AD-028): a worker in a `QThread`, a generation counter
+    that decides whether an answer still belongs to anybody, and a `shutdown`
+    that is the one place a `wait()` in the main thread is right.
+
+    Three differences, each because the two are asked different questions:
+
+    * **no debounce.** `Rescan save` is a click, not a dragged slider, and a
+      second click while a read is out starts nothing at all (AD-029 point 4)
+      rather than replacing what is running.
+    * **no cache.** A rescan exists to find out what changed on disk; an
+      answer kept from the last one is the one thing it must not hand back.
+    * **no cancelling.** `inventory.scan` has no place to look at a flag, and
+      a read the player abandoned costs the window nothing -- the generation
+      is what keeps its answer off the screen.
+
+    What crosses the thread boundary is a `SaveScan` and nothing else
+    (AD-029 point 1): records read out of bytes, never the living `Inventory`,
+    which the main thread builds out of them at the arrival (AD-006.8).
+
+    **What is read is handed in at construction**, the seam AD-028 built for
+    the advisor's two tracks: a case can state a read that never answers, one
+    that answers at once, or one that fails, and drive the whole real way --
+    thread, signal, generation check, window.
+    """
+
+    #: The scan for the read that is still the current one. Never for an
+    #: overtaken one: those are dropped here, wordlessly.
+    ready = Signal(object)
+    #: A read that could not be finished, in one line.
+    failed = Signal(str)
+
+    def __init__(self, parent: QObject | None = None, *, read=None) -> None:
+        super().__init__(parent)
+        # Looked up when a read starts and not written down here, so that
+        # `None` really means "whatever `read_the_save` is at that moment".
+        # A default bound at import time would be a different function from
+        # the one a case had put in the module, and the case would pass by
+        # measuring the wrong thing.
+        self._read = read
+        self._generation = 0
+        self._answering = False
+        self._thread: QThread | None = None
+        self._worker: _SaveReadWorker | None = None
+
+    @property
+    def generation(self) -> int:
+        """Which reading is the current one (AD-006.3)."""
+        return self._generation
+
+    def is_reading(self) -> bool:
+        """Is an answer still to come?
+
+        Not "is a thread alive": the window asks this to decide what it may
+        say and what it may do, and from the moment the answer has been handed
+        over there is nothing left to wait for. The two part company for one
+        turn of the event loop -- the worker's `finished` is queued behind its
+        `ready` -- and a window that read the thread instead would refuse, at
+        the arrival, the very import the arrival is there to do.
+        """
+        return self._answering
+
+    def start(self, data: dict, save_path: pathlib.Path | None = None) -> bool:
+        """Begin a read, unless one is already out. Says which it did.
+
+        One read at a time (AD-029 point 4). A second `Rescan` while the first
+        is still going does nothing whatever -- it does not queue, it does not
+        replace -- because the line under the button already says what is
+        happening and the answer that is coming is the one the player wants.
+
+        `save_path` is the file the player picked, resolved by the caller in
+        the main thread (AD-030). None is "let the automatic route decide",
+        which is what it has always been.
+
+        Hands back whether it started one, so the window can tell a read it
+        has to draw a waiting state for from a click that changed nothing.
+        """
+        if self._thread is not None:
+            return False
+        self._generation += 1
+        self._answering = True
+        self._thread = QThread()
+        self._worker = _SaveReadWorker(self._generation, data,
+                                       self._read or read_the_save, save_path)
+        self._worker.moveToThread(self._thread)
+        self._thread.started.connect(self._worker.work)
+        self._worker.ready.connect(self._on_ready)
+        self._worker.failed.connect(self._on_failed)
+        self._worker.finished.connect(self._thread.quit)
+        self._thread.finished.connect(self._on_thread_finished)
+        self._thread.start()
+        return True
+
+    def shutdown(self, timeout_ms: int = SAVE_READ_SHUTDOWN_WAIT_MS) -> None:
+        """Stop caring about the read and wait for it. Closing only.
+
+        **The generation goes up first**, and that line is the whole of the
+        lesson from the advisor's `shutdown` (Nachtrag X-1): a worker that
+        emitted its answer between the last check and the wait has left a
+        `ready` in the main thread's queue, `wait()` does not empty that
+        queue, and the turn of the event loop that the closing itself is would
+        deliver it to a window that is already going. Silence after `shutdown`
+        is meant to be a property of this class, and this is what makes it one
+        rather than a race no guard could watch without flickering.
+
+        Nothing is emitted here and nothing will be. There is nobody left to
+        read a sentence.
+        """
+        self._generation += 1
+        self._answering = False
+        thread = self._thread
+        if thread is not None:
+            thread.wait(timeout_ms)
+
+    def _on_thread_finished(self) -> None:
+        """Clear the read away, so the next `Rescan` can start one."""
+        self._worker.deleteLater()
+        self._thread.deleteLater()
+        self._worker = None
+        self._thread = None
+
+    def _on_ready(self, generation: int, found) -> None:
+        """Pass the scan on, if it is still the reading anybody is waiting for."""
+        self._answering = False
+        if generation != self._generation:
+            return
+        self.ready.emit(found)
+
+    def _on_failed(self, generation: int, reason: str) -> None:
+        """A read that could not be finished, if anyone is still waiting.
+
+        Judged by the same generation as an answer: a failure of a reading
+        nobody is waiting for any more is not news, and the sentence on screen
+        would be about a state that no longer exists.
+        """
+        self._answering = False
+        if generation != self._generation:
+            return
+        self.failed.emit(reason)
+
+
 class Planner(QMainWindow):
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, *, read_save=None):
+        """The window, and what it reads the save with.
+
+        `read_save` is the seam AD-028 built for the advisor's two tracks,
+        here for the one thing about this window that a case cannot otherwise
+        reach: a read that never answers, one that answers at once, one that
+        fails, one that finds no save. `None` is `read_the_save`, which is
+        what a player always gets, and nothing but the reading goes through
+        it.
+        """
         super().__init__()
         self.data = data
         self.effects = data["effects"]
@@ -967,10 +1868,33 @@ class Planner(QMainWindow):
         # Session state, like the armament tiles: a declaration is about the
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
+        # The build every tab reads, computed once per change by recompute().
+        # None until the first one has been computed.
+        self._build: model.Build | None = None
         # Held while a stored build is being put back, so the act of restoring
         # a vessel and six relics does not write a half-restored build over
         # the one still being read.
         self._restoring = False
+        # Set when a restore had to take a relic out of a slot because another
+        # slot holds the same physical one. The stored build is then left as
+        # it was, so the player can still decide which slot keeps it.
+        self._unresolved_clash = False
+        # What every slot held before the answer on screen was first applied,
+        # as stored keys, or None while there is nothing to undo. Taken once
+        # per answer and not once per applying: `Use` on three slots one after
+        # another is one act of applying seen from three cards, and 4.13 says
+        # `Undo puts your slots back as they were` -- as they were before any
+        # of it, which is the only reading a single button can carry.
+        self._slots_before_applying: list[str] | None = None
+        # Which slots the player is holding, per (Nightfarer, vessel, Deep),
+        # and which copy each hold was made on (AD-017.2). Session state of
+        # the window and **nowhere else**: nothing here reaches `QSettings`,
+        # so a hold cannot outlive the program (OF-15) and no stored key
+        # space grows by a byte. Three losses of data in that key space in
+        # cycles 4 and 5 are the reason, not convenience -- a held handle
+        # written down today points at a copy that may be melted tomorrow.
+        self._holds: dict[tuple[int, int | None, bool],
+                          dict[int, int | None]] = {}
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -984,7 +1908,8 @@ class Planner(QMainWindow):
             f"Nightreign Helper {__version__}"
             + ("  —  updated for your installed game version" if stale else "")
         )
-        self.resize(1320, 860)
+        # No resize here. The opening width is derived from the effect
+        # table, which does not exist yet -- see showEvent.
 
         tabs = QTabWidget()
         self.setCentralWidget(tabs)
@@ -1054,6 +1979,7 @@ class Planner(QMainWindow):
         self.panes.addWidget(self._build_left())
         self.panes.addWidget(self._build_middle())
         self.panes.addWidget(self._build_right())
+        self._wire_the_advisor()
         # Extra width goes to the slots in the middle; the two edges keep the
         # size they were given, which is what they had before.
         self.panes.setStretchFactor(0, 0)
@@ -1087,7 +2013,28 @@ class Planner(QMainWindow):
         tabs.addTab(self.effects_tab, "Effects && chances")
 
         self.owned = None
+        # Set when the player put something in a slot themselves while the
+        # first read was still out. The stored build of the Nightfarers in it
+        # is then not taken over -- not at the arrival and not at a later
+        # change of Nightfarer either (AK-226). A set of hero ids and not a
+        # setting: it is about this session, and OF-15 is why nothing new goes
+        # into the settings store.
+        self._own_slots_beat_the_stored_build: set[int] = set()
+        # Is the read that is out the answer to a file the player just
+        # picked? The three exits of AK-124 are the answer to *a choice*: the
+        # same three endings on an ordinary start are the four endings of
+        # `UI_SPEC` section 9, which are worded for a save nobody pointed at.
+        # Session state and nothing else -- OF-15 is why nothing new goes
+        # into the settings store beyond the one path key.
+        self._answers_a_chosen_save = False
+        self.save_reader = SaveReader(self, read=read_save)
+        self.save_reader.ready.connect(self._on_save_read)
+        self.save_reader.failed.connect(self._on_save_failed)
         self.rescan_save(initial=True)
+        # With the reading in the background this runs on no inventory, which
+        # is the point: every tab that does not come out of the save is
+        # complete in the first paint (AK-220). What the save would have added
+        # is added at the arrival, by `_on_save_read`.
         self.select_hero(0)
 
         self.weapons_tab = ArsenalTab(data, self, self.icons)
@@ -1192,6 +2139,36 @@ class Planner(QMainWindow):
         layout.addWidget(self.deep_check)
 
         layout.addSpacing(6)
+        # AK-250: the total gets a line of its own, in the gap that was
+        # already here, at the head of the group that is about the save --
+        # `Rescan save`, `Load equipped`, `Find my save` and the note under
+        # them. The number is a property of the save that was read, so it
+        # stands with the save's controls; the head of this pane belongs to
+        # the Nightfarer's identity, and a stock figure there would sit
+        # beside figures that count something else (`UI_SPEC` T-178 §3.1).
+        #
+        # It is not in `owned_label`, and that is the whole point: the number
+        # was in that line all along and the first `Load equipped` wiped it
+        # (QA-201). Exactly one function writes this widget.
+        self.owned_total_label = QLabel()
+        self.owned_total_label.setWordWrap(True)
+        # A save's own slot name reaches this line through the tooltip, so it
+        # is told once what it is told at every other place a save writes
+        # (SEC-004): text, never markup.
+        self.owned_total_label.setTextFormat(Qt.PlainText)
+        # No colour of its own: the ordinary text colour of the dark palette,
+        # one step above the 10 px note and one below the Nightfarer's name.
+        self.owned_total_label.setStyleSheet("font-size: 12px;")
+        # Polished first, so the height below is asked of the font the style
+        # sheet gives this label and not of the one it was born with.
+        self.owned_total_label.ensurePolished()
+        # Room for its one line from the first paint, empty or not, so that
+        # the arrival of the save does not push the buttons under it down
+        # (AK-252, the same rule AK-225 sets for the note below).
+        self.owned_total_label.setMinimumHeight(
+            self.owned_total_label.fontMetrics().lineSpacing())
+        layout.addWidget(self.owned_total_label)
+
         row = QHBoxLayout()
         self.rescan_button = QPushButton("Rescan save")
         self.rescan_button.clicked.connect(self.rescan_save)
@@ -1202,11 +2179,48 @@ class Planner(QMainWindow):
         )
         self.import_button.clicked.connect(self.load_equipped)
         row.addWidget(self.import_button)
+        # AK-123: a third button, and only while there is no save. A real
+        # button in this row rather than a link in the 10 px line under it --
+        # an offer the player overlooks does not solve A15.
+        #
+        # Hidden at the start and shown by whichever ending of a read finds
+        # no inventory. Not "hidden while a save is loaded": that would make
+        # it appear during the first read and disappear again at the arrival,
+        # and this row is one of the places AK-106 says the successful case
+        # does not change.
+        self.find_save_button = QPushButton(FIND_MY_SAVE)
+        self.find_save_button.setToolTip(FIND_MY_SAVE_TOOLTIP)
+        self.find_save_button.clicked.connect(self.find_my_save)
+        self.find_save_button.setVisible(False)
+        row.addWidget(self.find_save_button)
         layout.addLayout(row)
 
         self.owned_label = QLabel()
         self.owned_label.setWordWrap(True)
+        # This label prints the save's own slot name, and a save is a file the
+        # player may have been handed by someone else. A QLabel left on
+        # AutoText decides for itself whether what it was given is markup, so
+        # a slot named "<img src='//host/share/x'>" would be rendered as an
+        # image rather than shown as the name it is (SEC-004). Nothing here
+        # ever wants markup, so the label is told so once, at the one place it
+        # is built, rather than at each of the seven places it is written.
+        self.owned_label.setTextFormat(Qt.PlainText)
         self.owned_label.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
+        # Room for two lines from the first paint, so that the arrival of the
+        # save does not push what is under this line down (AK-225).
+        #
+        # Measured offscreen under Fusion at this pane's default width of 430
+        # logical px, 100 % scaling, on the player's own save: the waiting
+        # sentence `Reading your save.` takes 10 px and the inventory note
+        # `309 relics in USER_DATA000, 110 stored builds` takes 22 -- so
+        # without a floor the arrival would move everything below it by 12 px.
+        # Two lines, because the ordinary note is one clause and at most one
+        # optional clause (`UI_SPEC` T-141 §9 (e)); the two long endings, the
+        # fall-back note and the failure sentence, may still be higher and are
+        # exempted by AK-225 itself. Taken from the font rather than written
+        # down as a figure, so it follows whoever changes the font.
+        self.owned_label.setMinimumHeight(
+            2 * QFontMetrics(self.owned_label.font()).lineSpacing())
         layout.addWidget(self.owned_label)
 
         layout.addSpacing(8)
@@ -1229,12 +2243,28 @@ class Planner(QMainWindow):
         return panel
 
     def _build_middle(self) -> QWidget:
-        outer = QScrollArea()
-        outer.setWidgetResizable(True)
-        outer.setFrameShape(QFrame.NoFrame)
+        # Three pieces stacked: what does not scroll, the advisor's row, and
+        # the slots. The row has to sit under the "Build" line and stay put
+        # while the slots scroll (`UI_SPEC` §3.1, AK-02) -- and a "Build"
+        # line that slid away from above a pinned row would read as the
+        # program having mislaid it, so everything above the row is pinned
+        # with it.
+        column = QWidget()
+        stack = QVBoxLayout(column)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.setSpacing(0)
 
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
+        # `Ignored` horizontally, here and on the advisor row: inside a
+        # scroll area a wide row costs the window nothing, and outside one it
+        # costs the window's floor pixel for pixel. Measured 2026-09-07 in
+        # this tree, UI scale Automatic: under the Windows platform the
+        # window's minimum width (760) *is* the Build planner page (756), and
+        # this block asks for 382 of its own. AK-03 says that floor may not
+        # grow, so neither of the two asks for anything and both take the
+        # width the column has.
+        top = QWidget()
+        top.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        layout = QVBoxLayout(top)
         layout.setContentsMargins(0, 0, 6, 0)
 
         # The heading and, opposite it, the way out of a build. Equipped
@@ -1292,6 +2322,36 @@ class Planner(QMainWindow):
             lambda *_: self.refresh_build_list())
         builds.addWidget(self.show_hidden_check)
         layout.addLayout(builds)
+        stack.addWidget(top)
+
+        # The advisor's row, between the "Build" line and the hint and
+        # outside the scroll area below: a run that is being waited for may
+        # not scroll out of sight (§3.1). It is handed a way to ask the
+        # window what it would be asked right now, and nothing else -- it
+        # reads no widget of this window and writes to none.
+        self.advisor_bar = AdvisorBar(
+            lambda goal_id: asking_from(self, goal_id), column)
+        stack.addWidget(self.advisor_bar)
+
+        # The relic picker's track: the same class, a second instance, and
+        # three figures of its own -- the pool rather than the whole answer,
+        # no debounce and a cache twice the size (AD-028, Nachtrag IX-1.1 and
+        # IX-3). It lives here and not in the dialog because the measured use
+        # of the cache is across openings (30 % hits, S11-F) and a cache in a
+        # dialog dies with it. Owned by the window so that it outlives every
+        # picker and is shut down with the window.
+        self.picker_advisor = AdvisorController(
+            self, answer=advisor_run.slot_pool,
+            cache=advisor_run.ResultCache(PICKER_CACHE_SIZE),
+            debounce_ms=PICKER_DEBOUNCE_MS)
+
+        outer = QScrollArea()
+        outer.setWidgetResizable(True)
+        outer.setFrameShape(QFrame.NoFrame)
+
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 6, 0)
 
         # No search box here. A single filter across every slot narrowed each
         # slot's own list, so a relic already chosen could stop matching and be
@@ -1306,7 +2366,9 @@ class Planner(QMainWindow):
         layout.addWidget(hint)
 
         self.base_slots = [
-            RelicSlot(i, False, self.recompute, self.icons, self._set_search)
+            RelicSlot(i, False, self._relic_changed, self.icons,
+                      self._set_search, self._relics_taken_elsewhere,
+                      self._hold_changed)
             for i in range(3)
         ]
         for slot in self.base_slots:
@@ -1315,7 +2377,9 @@ class Planner(QMainWindow):
         self.deep_heading = _heading("Deep of Night slots")
         layout.addWidget(self.deep_heading)
         self.deep_slots = [
-            RelicSlot(i, True, self.recompute, self.icons, self._set_search)
+            RelicSlot(i, True, self._relic_changed, self.icons,
+                      self._set_search, self._relics_taken_elsewhere,
+                      self._hold_changed)
             for i in range(3)
         ]
         for slot in self.deep_slots:
@@ -1323,7 +2387,8 @@ class Planner(QMainWindow):
 
         layout.addStretch()
         outer.setWidget(panel)
-        return outer
+        stack.addWidget(outer, 1)
+        return column
 
     def _build_right(self) -> QWidget:
         # The whole sheet scrolls. With six relics equipped the conditional and
@@ -1444,7 +2509,118 @@ class Planner(QMainWindow):
         outer.setWidget(panel)
         return outer
 
-    # -- window chrome: pane widths, scale, Start Menu entry -------------
+    # -- window chrome: opening size, pane widths, scale, Start Menu ------
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Size the window on the way to the screen, unless it was sized.
+
+        Here and not in `__init__` for one reason: the width the window opens
+        at depends on how much room the tab page has, and before the first
+        layout pass there is no page -- every rectangle inside the window is
+        a placeholder. Qt sends the show event *before* it maps the window,
+        so a size set here is the first size that ever reaches the screen and
+        there is nothing to see blink.
+
+        `WA_Resized` is Qt's own record of whether anybody has asked for a
+        size, and it is what makes this the *opening* size rather than an
+        override: a caller that resized the window first keeps its width, and
+        showing the window again later -- after a minimise, say -- finds the
+        attribute set and leaves the player's own size alone.
+        """
+        if not self.testAttribute(Qt.WA_Resized):
+            self.resize(self._opening_width(), OPENING_HEIGHT)
+        super().showEvent(event)
+
+    def the_advisor_data_is_changing(self) -> None:
+        """Both advisor tracks, from one place (AD-028 point 6).
+
+        Called before the save or the dataset is read again (AD-006.7). With
+        two tracks a forgotten call is a cache that survives a rescan --
+        answers worked out on relics the player no longer owns, handed back
+        with no sign that anything is wrong -- so the distribution stands
+        here once rather than beside every call site.
+        """
+        self.advisor_bar.the_data_is_changing()
+        self.picker_advisor.before_the_data_changes()
+
+    def shutdown_the_advisor(self) -> None:
+        """Stop both tracks and wait for their threads. Closing only."""
+        self.advisor_bar.shutdown()
+        self.picker_advisor.shutdown()
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Stop every thread of this window and wait for it before it goes.
+
+        The one place a `wait()` in the main thread is right (AD-006 point 4):
+        a `QThread` that outlives the window it belongs to is destroyed while
+        its run is still going, and that ends the process rather than the
+        run.
+
+        Three threads and not two now: the two advisor tracks and the reading
+        of the save. All three raise their generation before they wait, so an
+        answer already in the main thread's queue cannot be delivered into a
+        window that is on its way out -- which is the defect T-137 measured on
+        the advisor, and there is no reason it would behave differently here.
+        """
+        self.shutdown_the_advisor()
+        self.save_reader.shutdown()
+        super().closeEvent(event)
+
+    def _opening_width(self, room: int | None = None) -> int:
+        """Wide enough to read every column heading, and no wider.
+
+        Three terms, in the order they bind:
+
+        * what a window has to be for the effect table to get the viewport it
+          asked for, worked out below;
+        * `room`, the width the desktop has. On a machine that cannot show
+          that much, the desktop wins: a window wider than the screen opens
+          with its right-hand edge past the edge of it, which is worse than
+          the shortened heading it was meant to avoid. It defaults to the
+          screen this window is on, and is a parameter so a case can ask what
+          the window would do on a desktop other than the one it runs on;
+        * the window's own minimum. It is the last word because a window
+          narrower than its layout allows is not a width the program can
+          honour anyway.
+        """
+        if room is None:
+            room = self.screen().availableGeometry().width()
+        return max(self.minimumSizeHint().width(),
+                   min(self._width_around_the_effect_table(), room))
+
+    def _width_around_the_effect_table(self) -> int:
+        """A window width that leaves the effect table the viewport it wants.
+
+        **Every term but the first comes from a style or a layout, not from a
+        laid-out rectangle**, and that is the whole of it: the tab in front
+        when this is asked is the Build planner, so the effects tab has never
+        been given the width of a page and every rectangle inside it is a
+        placeholder. Measured on 2026-09-06 with the planner in front, on
+        Windows under Fusion at 150 % scale: the table reports 640 px and its
+        viewport 638, which reads as 2 px of chrome against the 16 it really
+        has -- the scrollbar is not up yet. A window sized against that
+        placeholder came out at 1 802 px and was cut to the screen's 1 707;
+        with the effects tab in front the same code said 1 350. An opening
+        size that depends on which tab happens to be in front is not an
+        opening size.
+
+        The one term that does come off the screen is the page inset, and it
+        can: the tab in front is laid out by definition, and every page of a
+        `QTabWidget` gets the same rectangle.
+        """
+        tabs = self.centralWidget()
+        beside_the_page = self.width() - tabs.currentWidget().width()
+        margins = self.effects_tab.layout().contentsMargins()
+        table = self.effects_tab.table
+        # The scrollbar's own width, whether or not it happens to be up.
+        # 652 effects against a page holding some thirty rows: it is up. If a
+        # later dataset ever fitted without one, the window would open those
+        # px wider than it had to, which costs a reader nothing.
+        bar = table.verticalScrollBar().sizeHint().width()
+        return (table.width_for_full_headings()
+                + 2 * table.frameWidth() + bar
+                + margins.left() + margins.right()
+                + beside_the_page)
+
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""
         if hasattr(self, "panes"):
@@ -1817,10 +2993,19 @@ class Planner(QMainWindow):
         # It happens once. From then on the chalice the player last had open
         # is what reopens, across sessions, because that choice is theirs;
         # Load equipped is how the save is asked again.
+        #
+        # Except where the player filled the slots themselves while the first
+        # read was still out (AK-226). Their work is what is on screen, and
+        # the save's build would be laid over it -- so it is marked as taken
+        # over without being taken over, which is what stops it turning up at
+        # the next change of Nightfarer instead.
         if (self.owned is not None
                 and not chalices.imported(hero["id"])
                 and self.owned.loadouts_for(hero["id"])):
             chalices.set_imported(hero["id"])
+            if hero["id"] in self._own_slots_beat_the_stored_build:
+                self._keep_the_slots_the_player_filled(first_row)
+                return
             self.load_equipped()
             return
 
@@ -1864,18 +3049,102 @@ class Planner(QMainWindow):
             # inherited whatever the Nightfarer before them had on.
             slots = list(self.base_slots) + list(self.deep_slots)
             for slot in slots:
-                slot.select_saved("")
+                slot.clear_relic()
 
             if saved_row is not None and slot_keys:
-                for slot, key in zip(slots, slot_keys):
-                    slot.select_saved(key)
+                self._restore_slot_keys(slots, slot_keys)
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        self._settle_slots()
         # Drawn once the Deep switch and the slots have settled, so every row
         # shows the right number of slots and what that chalice holds.
         self.refresh_vessel_rows()
         self.recompute()
+
+    def _keep_the_slots_the_player_filled(self, first_row) -> None:
+        """Put the vessel list back around the slots without touching them.
+
+        The way out of `reload_chalices` for the one case AK-226 is about: the
+        player put something in a slot while the first read was still out, so
+        what is in the slots is theirs and neither the save's build nor a
+        stored one goes over it. The list itself has just been rebuilt and has
+        no current row, so the row of the vessel already applied is selected
+        back -- with the list's signals held, because its handler is what
+        would set the slots from a build.
+        """
+        row = next(
+            (i for i in range(self.chalice_list.count())
+             if (self.chalice_list.item(i).data(Qt.UserRole) or {}).get("id")
+             == getattr(self, "_applied_vessel", None)),
+            first_row,
+        )
+        if row is not None:
+            self.chalice_list.blockSignals(True)
+            self.chalice_list.setCurrentRow(row)
+            self.chalice_list.blockSignals(False)
+        # Written down under the vessel that is on screen, because nothing
+        # else has: the list's own handler is what usually stores a build and
+        # it was held above. Without this the slots the player filled would be
+        # theirs until they changed Nightfarer and back, and the restore would
+        # then find nothing stored and empty them -- which is the same loss by
+        # a longer road (AK-226 asks for both).
+        self._store_chalice()
+        self._settle_slots()
+        self.refresh_vessel_rows()
+        self.recompute()
+
+    def _restore_slot_keys(self, slots: list, keys: list[str]) -> None:
+        """Put a stored build back into these slots, one physical relic each.
+
+        In two passes over the whole build rather than slot by slot, because
+        the question "which physical relic is this" has to be answered the
+        same way everywhere it is asked (QA-016, QA-021):
+
+        1. the copies each slot names by handle, and the custom relics, which
+           are rebuilt from what the build wrote down because nothing owns
+           them and no list can offer them until they exist again (QA-025);
+        2. the rolls, which are what is left when the save has been rewritten
+           and the handles renumbered -- each answered with a copy no slot of
+           this build has already been given.
+
+        Slot order used to decide the second pass, which is not a rule but an
+        accident of iteration: the earlier slot took the only copy the list
+        offered and the later one was told the relic was already worn.
+
+        A slot whose stored relic cannot be placed is emptied here, and that is
+        why nothing is returned: three callers each had to be told the same
+        thing and one of them was not listening, which is how a slot came to
+        keep the relic of the chalice being left (QA-014). The rule is carried
+        out where it is decided instead of being handed out as an answer.
+        """
+        claimed = set()
+        rolls = []
+        for index, slot in enumerate(slots):
+            key = keys[index] if index < len(keys) else ""
+            if not key:
+                slot.clear_relic()
+                continue
+            handle, roll = chalices.split_key(key)
+            custom = _custom_effects(roll)
+            if custom is not None:
+                if not slot.adopt_custom(custom):
+                    slot.clear_relic()
+                continue
+            if handle is not None and slot.select_copy(handle):
+                claimed.add(inventory.copy_key(slot.current_relic()))
+                continue
+            rolls.append((slot, roll))
+
+        for slot, roll in rolls:
+            if roll and slot.select_roll(roll, claimed):
+                claimed.add(inventory.copy_key(slot.current_relic()))
+                continue
+            # The stored relic is not one this slot can be given -- melted
+            # since, or belonging to another save. Whatever the slot holds
+            # belongs to the chalice being left, so it goes: keeping it would
+            # make that relic part of this chalice's build at the next store.
+            slot.clear_relic()
 
     def _store_chalice(self) -> None:
         """Write down what this Nightfarer is holding, for the next session."""
@@ -1904,6 +3173,14 @@ class Planner(QMainWindow):
         # over a stored one -- Reset Chalice is how a build is forgotten,
         # deliberately and per vessel.
         if not any(keys):
+            return
+        # Nor is a build the restore had to resolve. It names one physical
+        # relic in two slots; which slot keeps it is the player's to decide,
+        # and writing the resolution down decided it for them, irreversibly
+        # and without a word once the note had gone. So the stored build is
+        # left as it was until the player changes something themselves, and
+        # the note comes back with it every time (director, 2026-09-02).
+        if getattr(self, "_unresolved_clash", False):
             return
         chalices.save(
             self.current_hero()["id"],
@@ -2014,12 +3291,15 @@ class Planner(QMainWindow):
                         self.chalice_list.setCurrentRow(i)
                         break
             self.apply_chalice()
-            slots = list(self.base_slots) + list(self.deep_slots)
-            for index, slot in enumerate(slots):
-                slot.select_saved(keys[index] if index < len(keys) else "")
+            # A saved build can name a relic that has since been melted. The
+            # slot it was stored for is empty then, not left holding whatever
+            # the build before it had there.
+            self._restore_slot_keys(
+                list(self.base_slots) + list(self.deep_slots), keys)
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        self._settle_slots()
         self.recompute()
         self._store_chalice()
 
@@ -2038,6 +3318,16 @@ class Planner(QMainWindow):
                 "That name belongs to the build your save has equipped."
                 if name == chalices.EQUIPPED_NAME else
                 "That name means the slots hold no saved build.")
+            return
+        if not chalices.name_fits_the_store(name):
+            # Said here rather than swallowed below: the store cannot write a
+            # name this long, and a name that looks short can still be too
+            # long, so the player has no way of guessing why the build never
+            # appeared (QA-035).
+            QToolTip.showText(
+                QCursor.pos(),
+                "That name is too long to save. Symbols and emoji take up "
+                "several characters each, so try a shorter name.")
             return
         vessel = self.current_vessel()
         slots = list(self.base_slots) + list(self.deep_slots)
@@ -2101,10 +3391,15 @@ class Planner(QMainWindow):
                     break
             self.apply_chalice()
             for slot in list(self.base_slots) + list(self.deep_slots):
-                slot.select_saved("")
+                slot.clear_relic()
             self._mark_vessel_applied()
         finally:
             self._restoring = False
+        # The lists were drawn up while the slots still held the build that
+        # has just been thrown away, so they are missing every relic that was
+        # in it. Nothing else here can put them right: the next rebuild only
+        # happens when a relic changes, and there is nothing left to change.
+        self._settle_slots()
         self.recompute()
         # The picker went on naming the build that was loaded before the
         # reset. An emptied chalice still read as "Test", clicking that entry
@@ -2167,21 +3462,34 @@ class Planner(QMainWindow):
         """The body of apply_chalice, held apart so it cannot nest."""
 
         owned = self.owned
+        # Whether this is a different chalice from the one the slots are
+        # holding, asked before anything is touched: both the emptying just
+        # below and the restore at the end turn on the answer.
+        changed = getattr(self, "_applied_vessel", None) != vessel["id"]
+        # On a change of chalice the slots still hold the one being left, and
+        # they are emptied before the lists are rebuilt rather than after. A
+        # list drawn up around relics that are on their way out treats them as
+        # taken, and the incoming chalice's own build could then not be put
+        # back: its relic was "already worn" by the chalice it was replacing
+        # (QA-014).
+        if changed and not self._restoring:
+            for slot in self.base_slots + self.deep_slots:
+                slot.clear_relic()
         # Slots always list everything they can hold. Narrowing them from
         # outside is what made an equipped relic disappear.
         for i, slot in enumerate(self.base_slots):
-            slot.set_colour(vessel["slots"][i], self.effect_list, owned, "",
+            slot.set_colour(vessel["slots"][i], self.effect_list, owned,
                             hero_name=self.current_hero()["name"])
         for i, slot in enumerate(self.deep_slots):
             slot.set_colour(vessel["deep_slots"][i], self.effect_list, owned,
-                            "", hero_name=self.current_hero()["name"])
+                            hero_name=self.current_hero()["name"])
             slot.setVisible(deep_on)
         self.deep_heading.setVisible(deep_on)
 
         # set_colour above does NOT empty the slots. It repopulates them and
         # deliberately keeps the relic that was in one if that relic still
-        # fits -- which is what a search filter or the Deep switch needs, and
-        # is wrong the moment the chalice itself changes. Every slot the new
+        # fits -- which is what the Deep switch needs, and is wrong the
+        # moment the chalice itself changes. Every slot the new
         # chalice happens to share a colour with the old one kept the old
         # relic, and the write that followed stored it: opening a Grail whose
         # slots are all Yellow inherited the Yellow relic from the chalice
@@ -2189,12 +3497,12 @@ class Planner(QMainWindow):
         #
         # So on a change of chalice the slots are set from that chalice's own
         # stored build and from nothing else, empty included.
+        #
         # The note of which chalice was last applied is only made when the
-        # slots were actually set from it. Marking it here regardless meant a
-        # pass that skipped the restore still claimed the chalice as applied,
-        # so the next pass saw no change and never cleared -- one relic from
-        # the chalice before survived, and was stored.
-        changed = getattr(self, "_applied_vessel", None) != vessel["id"]
+        # slots were actually set from it. Marking it regardless meant a pass
+        # that skipped the restore still claimed the chalice as applied, so
+        # the next pass saw no change and never cleared -- one relic from the
+        # chalice before survived, and was stored.
         if not self._restoring:
             self._applied_vessel = vessel["id"]
             self._restore_vessel_build(vessel, clear=changed)
@@ -2223,11 +3531,63 @@ class Planner(QMainWindow):
             # so toggling the switch reveals the full array instead of an
             # empty half. Only the visible ones reach the totals --
             # selected_effects() reads active_slots().
-            slots = list(self.base_slots) + list(self.deep_slots)
-            for index, slot in enumerate(slots):
-                slot.select_saved(keys[index] if index < len(keys) else "")
+            self._restore_slot_keys(
+                list(self.base_slots) + list(self.deep_slots), keys)
         finally:
             self._restoring = False
+        self._settle_slots()
+
+    def _settle_slots(self) -> int:
+        """Bring the slots into agreement, once a restore has filled them.
+
+        Two things are settled here, and both come of a board being written to
+        while it was being read.
+
+        A build stored before ownership was enforced can name one physical
+        relic in two slots. Restored as written, both slots showed it and both
+        were counted (measured: Endurance 5 where the relic gives 4), and the
+        doubling was then resolved by the *next* change to any slot -- which
+        emptied the lower-numbered of the two, elsewhere on the screen, with
+        nothing said anywhere (QA-015, DR-002). It is resolved here instead:
+        at the restore, once, and the slot that loses the relic says why.
+
+        Then every list is rebuilt, because they were drawn up before the
+        slots were set and each was written down against a board that no
+        longer exists.
+
+        Returns how many slots had to give a relic up, which is the one thing
+        about a restore that only this function knows: the stored build is
+        left exactly as it was, so nothing downstream could work it out again.
+        """
+        worn_in: dict = {}
+        resolved = 0
+        for slot in self.base_slots + self.deep_slots:
+            # An empty slot and a custom relic both answer None: the one has
+            # nothing to clash with, the other is imaginary by design and may
+            # be planned into every slot.
+            key = inventory.copy_key(slot.current_relic())
+            if key is None:
+                continue
+            keeper = worn_in.setdefault(key, slot)
+            if keeper is not slot:
+                resolved += 1
+                # The reason is about the keeper, so it is kept with the
+                # condition it describes: the moment that slot gives the relic
+                # up, this one has nothing to explain any more (QA-022).
+                slot.clear_relic(
+                    f"Already worn in {keeper.slot_name()} — "
+                    "pick another relic for this slot.",
+                    while_true=lambda held=key, by=keeper: (
+                        inventory.copy_key(by.current_relic()) == held),
+                )
+        for slot in self.base_slots + self.deep_slots:
+            slot.populate()
+        # Until the player resolves it themselves. Writing the resolution into
+        # the stored build made it permanent and, one click later, unexplained
+        # -- the note is gone by then and nothing records that a slot was
+        # emptied (director, 2026-09-02).
+        self._unresolved_clash = bool(resolved)
+        return resolved
 
     def _mark_vessel_applied(self) -> None:
         """Note the chalice the slots now hold, after a restore has set them.
@@ -2303,56 +3663,67 @@ class Planner(QMainWindow):
         for slot in self.base_slots + self.deep_slots:
             slot.search_text = text
 
+    def _relics_taken_elsewhere(self, asking: RelicSlot) -> set:
+        """The physical relics the other slots are already holding.
+
+        Asked by a slot while it works out what it can offer. The asking slot
+        is skipped, or a slot would hide the very relic sitting in it.
+
+        Every slot is considered, the hidden Deep ones included: they hold
+        Deep relics, which no ordinary slot can take anyway, so the two
+        never contend -- and a Deep slot that is out of sight still has a
+        relic in it, which is exactly the case where a doubled relic would go
+        unnoticed.
+
+        Not while a restore is running. The slots are then half the build
+        being left and half the one arriving, and an answer drawn from that
+        mixture withheld from the incoming build exactly the relics it was
+        about to be given (QA-014). The board is settled once, at the end of
+        the restore, by _settle_slots.
+        """
+        if self._restoring:
+            return set()
+        taken = set()
+        for slot in self.base_slots + self.deep_slots:
+            if slot is asking:
+                continue
+            key = inventory.copy_key(slot.current_relic())
+            if key is not None:
+                taken.add(key)
+        return taken
+
+    def _relic_changed(self) -> None:
+        """A relic moved, so both the totals and the other slots' lists change.
+
+        The lists have to be rebuilt here and not only when the chalice
+        changes: what a slot may offer depends on what the other five are
+        holding at this moment, and a list built before the choice was made
+        would still be offering the relic that has just been taken.
+
+        The rebuild is about ownership and nothing else. It used to hand each
+        slot the term last typed into the picker, which had nothing to do with
+        the question being asked and everything to do with QA-013.
+
+        This is also the moment a build the restore had to resolve becomes the
+        player's own again: they have just moved a relic, so what the slots
+        hold is theirs and is written down from here on.
+
+        That is also what makes this the place to note a slot set while the
+        first read is still out (AK-226). What arrives afterwards must not be
+        laid over it -- neither at the arrival nor at the next change of
+        Nightfarer, which is where a skipped import would otherwise turn up
+        unannounced.
+        """
+        if self.save_reader.is_reading() and self.owned is None:
+            self._own_slots_beat_the_stored_build.add(self.current_hero()["id"])
+        self._unresolved_clash = False
+        for slot in self.base_slots + self.deep_slots:
+            slot.populate()
+        self.recompute()
+
     # Populated by recompute(), read by the click-to-break-down popup.
     last_sources: dict = {}
     last_rates: dict = {}
-
-    # Which build.rates multiplier applies to which damage type. Attack rates
-    # scale the finished number, so they belong in the comparison as much as
-    # the attribute changes do -- a relic granting Physical Attack +12% moves
-    # the damage without moving a single stat.
-    #
-    # `*AttackRate` is the general buff, carried by 213-216 effects, and it
-    # lifts whatever you are swinging.
-    #
-    # Deliberately NOT here, having checked every attack multiplier in the
-    # data: saAttackPowerRate and staminaAttackRate are stance and guard
-    # damage rather than attack rating, guardCounterAttackRate applies only to
-    # a guard counter, and characterSkillAttackRate only to Duchess' skill.
-    # None of the four scales an ordinary hit.
-    AR_RATE_FOR = {
-        "Physics": ("physicsAttackRate",),
-        "Magic": ("magicAttackRate",),
-        "Fire": ("fireAttackRate",),
-        "Thunder": ("thunderAttackRate",),
-        "Dark": ("darkAttackRate",),
-    }
-
-    # `*AttackPowerRate` is the second family, carried by exactly three effects
-    # -- the "Starting armament inflicts frost / poison / blood loss" relics,
-    # each x0.85 -- and it is the price the game charges for the status: the
-    # armament inflicts it and hits 15% softer for it.
-    #
-    # It is **not** a global debuff, which is how it was implemented until
-    # 1.7.0 and what a player reported from play: it reaches the starting
-    # armament alone -- and "starting armament" means both conditions at
-    # once, the Nightfarer's own default weapon sitting in slot 1 (verified
-    # in play 2026-08-22: moved to another slot it loses the penalty, and a
-    # different weapon in slot 1 never gains it). So it is applied there
-    # and to nothing else, and it
-    # is kept out of the Multipliers section, where an "All damage -15.0%" line
-    # said the whole build was hitting softer.
-    STARTING_AR_RATE_FOR = {
-        "Physics": ("physicsAttackPowerRate",),
-        "Magic": ("magicAttackPowerRate",),
-        "Fire": ("fireAttackPowerRate",),
-        "Thunder": ("thunderAttackPowerRate",),
-        "Dark": ("darkAttackPowerRate",),
-    }
-
-    # Slot 1 holds the armament the expedition starts with -- it is seeded with
-    # the Nightfarer's own starting weapon, see `apply_hero_weapon`.
-    STARTING_SLOT = 0
 
     def _show_breakdown(self, key: str) -> None:
         """Which buffs make up one figure, shown beside the number clicked.
@@ -2376,45 +3747,56 @@ class Planner(QMainWindow):
 
         multiplicative = model.real_field(key) in self.last_rates
         rows = [f"<b>{label}</b>"]
-        for name, value in entries:
+        for entry in entries:
             if multiplicative:
-                shown = f"{(value - 1.0) * 100:+.1f}%"
+                shown = f"{(entry.own - 1.0) * 100:+.1f}%"
             else:
-                shown = f"{value:+g}"
-            rows.append(f"&nbsp;&nbsp;{name} &nbsp; <b>{shown}</b>")
+                shown = f"{entry.own:+g}"
+            rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
 
         if multiplicative and len(entries) > 1:
             total = 1.0
-            for _n, v in entries:
-                total *= v
+            for entry in entries:
+                total *= entry.own
             rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
                         f"{(total - 1.0) * 100:+.1f}%</i>")
         elif not multiplicative and len(entries) > 1:
-            rows.append(f"&nbsp;&nbsp;<i>total {sum(v for _n, v in entries):+g}"
-                        f"</i>")
+            rows.append(f"&nbsp;&nbsp;<i>total "
+                        f"{sum(entry.own for entry in entries):+g}</i>")
 
         # Offset to the right of the cursor so the number stays readable.
         QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
 
-    def _show_ar_breakdown(self) -> None:
+    def _ar_breakdown_text(self) -> str:
         """Where the weapon's attack-rating change came from.
 
         Two different things move this number and they are worth telling apart:
         raising an attribute makes the weapon scale harder, while an attack
         multiplier scales the finished figure. A relic can do either, and "+35"
         alone does not say which -- or whether it came from one relic or six.
+
+        Handed back rather than only shown. Until now this text was built and
+        passed straight to a tooltip, so it existed nowhere a test could reach
+        it: the golden file freezes `last_ar`, and `last_ar` is this display's
+        **input**, never its output. A mutation that swapped `base` for
+        `scaled` therefore changed what the player reads and left the whole
+        suite green (QA-073 b). Returning the text is the whole of the fix --
+        what is shown, and where, is unchanged.
         """
         ar = getattr(self, "last_ar", None)
         if not ar:
-            QToolTip.showText(QCursor.pos(), "No weapon selected.")
-            return
+            return "No weapon selected."
 
         base, scaled, final = ar["base"], ar["scaled"], ar["final"]
-        rows = [f"<b>Attack rating — {ar['weapon']}</b>",
-                f"&nbsp;&nbsp;Base &nbsp; <b>{base:.0f}</b>"]
+        # What the three figures are, named by the facade: for a staff or a
+        # seal they are a spell scaling, and heading them "Attack rating"
+        # would be the right numbers under the wrong name (QA-099).
+        rows = [f"<b>{ar['headline']} — {ar['weapon']}</b>",
+                f"&nbsp;&nbsp;Base &nbsp; "
+                f"<b>{damage.displayed(base)}</b>"]
 
         from_attributes = scaled - base
-        if abs(from_attributes) >= 0.5:
+        if abs(from_attributes) >= VISIBLE_CHANGE:
             rows.append(f"&nbsp;&nbsp;From attributes &nbsp; "
                         f"<b>{from_attributes:+.0f}</b>")
 
@@ -2431,36 +3813,53 @@ class Planner(QMainWindow):
             if weapon_class:
                 scoped = (f"{model.WEAPON_CLASS_PREFIX}{weapon_class}:"
                           f"{field_name}")
-                entries += [(f"{name} — {weapon_class} armaments only", own)
-                            for name, own in
-                            self.last_sources.get(scoped, [])]
-            for name, own in entries:
+                entries += [
+                    entry._replace(
+                        name=f"{entry.name} — {weapon_class} armaments only")
+                    for entry in self.last_sources.get(scoped, [])]
+            for entry in entries:
                 rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
-                            f"<span style='color:{MUTED}'>{name} "
-                            f"{(own - 1.0) * 100:+.1f}%</span>")
+                            f"<span style='color:{MUTED}'>{entry.name} "
+                            f"{(entry.own - 1.0) * 100:+.1f}%</span>")
 
-        if not ar["rates"] and abs(from_attributes) < 0.5:
+        if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
             rows.append(f"&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
 
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
-        rows.append(f"&nbsp;&nbsp;<b>Total {final:.0f}</b> "
+        rows.append(f"&nbsp;&nbsp;<b>Total {damage.displayed(final)}</b> "
                     f"({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
-        QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
+        return "<br>".join(rows)
+
+    def _show_ar_breakdown(self) -> None:
+        """The breakdown, beside the figure that was clicked."""
+        # Offset to the right of the cursor so the number stays readable --
+        # but only where there is a figure to keep clear. The "no weapon"
+        # notice has none, and sat under the cursor before this split did.
+        beside = QPoint(18, 0) if getattr(self, "last_ar", None) else QPoint()
+        QToolTip.showText(QCursor.pos() + beside, self._ar_breakdown_text())
 
     def _refresh_weapon_damage(self, build) -> None:
         """Attack rating before and after everything equipped.
 
         Every tile is rated so each can show its own total; the active one gets
-        the full breakdown underneath.
+        the full breakdown underneath. Both figures come out of one
+        `damage.equipped()` call per slot, so the tile and the panel below it
+        are the same question with the same answer -- until W3 the tile chose
+        the raised attributes without the multipliers and the panel chose
+        both, and a player saw two totals for one armament with nothing to
+        tell them apart (AD-020, point 6; QA-056).
         """
+        hero = self.current_hero()
+        answers: dict[int, tuple] = {}
         for index, slot in enumerate(self.weapon_slots):
-            rating = None
+            equipped = None
             if slot.filled:
-                rating = weapons.rate(slot.weapon, build.attributes,
-                                      self.data, slot.tier)
+                answers[index] = damage.equipped(slot, index, build, hero,
+                                                 self.data)
+                equipped = answers[index][1]
             self.weapon_tiles[index].show_slot(
-                slot, rating, active=index == self.active_weapon,
+                slot, equipped, active=index == self.active_weapon,
                 effects=self.data["effects"])
 
         slot = self.active_slot()
@@ -2473,94 +3872,62 @@ class Planner(QMainWindow):
                 f"</span>")
             return
         weapon = slot.weapon
-        tier = slot.tier
 
-        before = weapons.rate(weapon, build.base_attributes, self.data, tier)
-        after = weapons.rate(weapon, build.attributes, self.data, tier)
-
-        # Apply the attack multipliers on top of the scaled figure.
-        boosted: dict[str, float] = {}
-        # Kept for the click-through breakdown: the figure before any rate is
-        # applied, so the attribute scaling and the multipliers can be shown as
-        # the two separate things they are.
-        scaled_total = 0.0
-        rates_in_play: dict[str, float] = {}
-        # The starting-armament penalty needs both halves: slot 1, holding
-        # this Nightfarer's own starting armament. Verified in play
-        # 2026-08-22 -- the Duchess' Dagger moved to slot 2 loses the
-        # penalty, put back into slot 1 it returns, and a different weapon
-        # in slot 1 never gains it.
-        starting = (self.active_weapon == self.STARTING_SLOT
-                    and weapon["id"] == self.current_hero()
-                    .get("starting_weapon"))
-        for damage in weapons.DAMAGE_TYPES:
-            total = after.base.get(damage, 0.0) + after.scaled.get(damage, 0.0)
-            if not total:
-                continue
-            scaled_total += total
-            fields = self.AR_RATE_FOR.get(damage, ())
-            if starting:
-                fields += self.STARTING_AR_RATE_FOR.get(damage, ())
-            class_here = build.class_rates.get(model.weapon_class(weapon), {})
-            for field_name in fields:
-                value = (build.rates.get(field_name, 1.0)
-                         * class_here.get(field_name, 1.0))
-                if abs(value - 1.0) > 1e-9:
-                    rates_in_play[field_name] = value
-            # Deliberately excludes model.CRIT_RATE: attack rating is the
-            # ordinary hit, and folding a critical-only bonus into it would
-            # overstate the weapon by a fifth.
-            # A buff tied to a weapon *class* covers only that class:
-            # "Improved Melee Attack Power" lifts the greatsword and not the
-            # bow beside it. A buff merely *gated* on a weapon type is not
-            # restricted at all -- that is a flat rate and already counted.
-            by_class = build.class_rates.get(model.weapon_class(weapon), {})
-            rate = 1.0
-            for field_name in fields:
-                rate *= build.rates.get(field_name, 1.0)
-                rate *= by_class.get(field_name, 1.0)
-            boosted[damage] = total * rate
-
-        base_total = before.total
-        final_total = sum(boosted.values())
+        # The figure itself is not computed here. It is the one piece of
+        # domain arithmetic that had ended up inside the window, and the build
+        # advisor needs to ask for it without drawing anything, so it lives in
+        # nrplanner/damage.py and this method formats what comes back. The
+        # tile above this panel was rated in the same call.
+        bare, now = answers[self.active_weapon]
+        # Which figure this armament is headed by, and whether it has
+        # damage-type rows at all, is the facade's answer: a staff has a
+        # spell scaling and no attack rating to break down (QA-099).
+        boosted = now.shown_per_type
+        base_total = bare.scaled_headline
+        final_total = now.final_headline
         delta = final_total - base_total
-        self.last_ar = {
-            "base": base_total,
-            "scaled": scaled_total,
-            "final": final_total,
-            "rates": rates_in_play,
-            "weapon": weapon.get("name", "weapon"),
-            # A class-scoped buff records its source under a prefixed key, so
-            # the breakdown needs to know which class to look under -- without
-            # it, "Improved Ranged Weapon Attacks" raised the total and then
-            # named nothing that did it.
-            "class": model.weapon_class(weapon),
-        }
+        self.last_ar = damage.breakdown_figures(bare, now)
+
+        # The left-hand column of each row: the same armament on the level's
+        # own attributes, before anything equipped raised them. It stays a
+        # different question from the total beside it, and on purpose --
+        # without it the panel has no before to put against its after
+        # (AD-020, point 2).
+        was_per_type = bare.scaled_per_type
 
         rows = []
-        for damage, value in boosted.items():
-            was = before.base.get(damage, 0.0) + before.scaled.get(damage, 0.0)
+        for damage_type, value in boosted.items():
+            was = was_per_type.get(damage_type, 0.0)
             diff = value - was
-            colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
-            change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
+            colour = (GOOD if diff > COLOURED_CHANGE
+                      else BAD if diff < -COLOURED_CHANGE else MUTED)
+            change = (f"{diff:+.0f}" if abs(diff) >= VISIBLE_CHANGE
+                      else "—")
             rows.append(
-                f"<div>{weapons.DAMAGE_LABELS[damage]} "
-                f"<span style='color:{MUTED}'>{was:.0f}</span> "
+                f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
+                f"<span style='color:{MUTED}'>{damage.displayed(was)}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
-                f"<b>{value:.0f}</b></div>"
+                f"<b>{damage.displayed(value)}</b></div>"
             )
 
-        colour = GOOD if delta > 0.05 else (BAD if delta < -0.05 else MUTED)
-        change = f"{delta:+.0f}" if abs(delta) >= 0.5 else "no change"
+        colour = (GOOD if delta > COLOURED_CHANGE
+                  else BAD if delta < -COLOURED_CHANGE else MUTED)
+        change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
+                  else "no change")
         pct = (delta / base_total * 100) if base_total else 0.0
+        # "Total" while there are rows above it to total. A catalyst has
+        # none, so this line is the figure itself and is named after it.
+        total_label = "Total" if boosted else now.headline_name
         rows.append(
-            f"<div style='margin-top:4px'><b>Total</b> "
-            f"<span style='color:{MUTED}'>{base_total:.0f}</span> "
+            f"<div style='margin-top:4px'><b>{total_label}</b> "
+            f"<span style='color:{MUTED}'>"
+            f"{damage.displayed(base_total)}</span> "
             f"<a href='{AR_BREAKDOWN_KEY}' style='color:{colour};"
             f"text-decoration:none'>{change}</a> "
-            f"<b style='color:{ACCENT}'>{final_total:.0f}</b>"
+            f"<b style='color:{ACCENT}'>"
+            f"{damage.displayed(final_total)}</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
-               if abs(pct) >= 0.05 else "") +
+               if abs(pct) >= VISIBLE_PERCENT else "") +
             f"</div>"
         )
 
@@ -2611,8 +3978,10 @@ class Planner(QMainWindow):
             rate = build.rates.get("regainRate", 1.0)
             final_regain = regain * rate
             diff = final_regain - regain
-            colour = GOOD if diff > 0.05 else (BAD if diff < -0.05 else MUTED)
-            change = f"{diff:+.0f}" if abs(diff) >= 0.5 else "—"
+            colour = (GOOD if diff > COLOURED_CHANGE
+                      else BAD if diff < -COLOURED_CHANGE else MUTED)
+            change = (f"{diff:+.0f}" if abs(diff) >= VISIBLE_CHANGE
+                      else "—")
             rows.append(
                 f"<div style='margin-top:6px'>Rally recovery "
                 f"<span style='color:{MUTED}'>{regain:.0f}</span> "
@@ -2630,15 +3999,6 @@ class Planner(QMainWindow):
                 f"HP, so rally relics do nothing with it.</div>"
             )
 
-        if not after.meets_requirements:
-            unmet = ", ".join(
-                f"{stat} {have}/{need}"
-                for stat, (have, need) in after.unmet.items()
-            )
-            rows.append(
-                f"<div style='color:{BAD}; font-size:10px'>requirements not "
-                f"met: {unmet} — scaling from those stats is lost</div>"
-            )
         rows.append(
             f"<div style='color:{MUTED}; font-size:10px; margin-top:2px'>"
             f"Grey is your base at this level; the change is what the equipped "
@@ -2647,19 +4007,150 @@ class Planner(QMainWindow):
         self.ar_label.setText("".join(rows))
 
     def rescan_save(self, initial: bool = False) -> None:
-        """Re-read the save so newly found relics show up without a restart."""
-        try:
-            self.owned = inventory.load(self.data)
-        except Exception as exc:  # noqa: BLE001
-            self.owned = None
-            self.owned_label.setText(f"Save could not be read: {exc}")
-            return
+        """Ask for the save to be read, in the background, and say so.
 
+        The reading itself is 657,2 ms of the main thread on the player's own
+        save (S11-E, T-140), which is over the 250 ms AK-09 allows a window to
+        be gone for, so it happens in a thread (AD-029 stage B). What this
+        method does is start it and put the window into the state that says
+        so; what comes back arrives at `_on_save_read`.
+
+        **Nothing is invalidated here.** While the read is out, everything on
+        screen is still true -- the relics, the slots and every answer the
+        advisor has given about them -- and it stays true until the moment
+        `self.owned` is replaced. That is AD-029 point 3, and it is the whole
+        difference from the synchronous version, which had to throw the
+        advisor's caches away before it began because the replacement followed
+        immediately.
+
+        A press while a read is out starts nothing and changes nothing on
+        screen (AK-227): the line under the button already says what is
+        happening.
+
+        Which file is read is the resolution point's answer and no longer
+        this method's (AD-030): the file the player picked while it is there,
+        and otherwise -- silently, and without the picked one being forgotten
+        -- whatever the automatic route finds (AK-125).
+        """
+        if not self.save_reader.start(self.data, gamepath.resolve_save()):
+            return
+        self._answers_a_chosen_save = False
+        self._show_the_save_is_being_read(initial)
+
+    def find_my_save(self) -> None:
+        """Let the player say where his save is, keep it, and read it.
+
+        A15 through AK-123 to AK-125. Three steps and nothing else: the
+        system's file dialog, the path into `paths/save`, a read of that file.
+
+        **The write is the confirmation and nothing else is** (AD-030): this
+        is the only place in the program that writes that key, a cancelled
+        dialog writes nothing, and no automatic find ever gets here. It
+        happens before the read rather than after it, for the reason AK-117
+        gives for the game folder: a crash during the read must not cost him
+        the answer he has just given.
+
+        Nothing is written back if the file turns out to be unreadable
+        either. It is the file he pointed at; the line says what came of it
+        (S3, S4), the button is still there, and he can point at another one.
+        A single failure deletes nothing (AK-121).
+
+        While a read is out this button does nothing at all, exactly as
+        `Load equipped` does: the answer that is coming is about the file
+        that was named before it.
+        """
+        if self.save_reader.is_reading():
+            return
+        chosen = _pick_a_save_file(self)
+        if chosen is None:
+            return
+        if not self.save_reader.start(self.data, chosen):
+            return
+        gamepath.remember_save(chosen)
+        self._answers_a_chosen_save = True
+        self._show_the_save_is_being_read(False)
+
+    def _show_the_save_is_being_read(self, initial: bool) -> None:
+        """The waiting state: one line, one shut button, and nothing else.
+
+        A state and not a nothing (AK-221). No progress bar, no wait cursor,
+        no spinner, no second dialog -- a waiting mark beside a line that says
+        the same thing in words is the same news twice (`UI_SPEC` §4 (4)).
+        """
+        self.owned_label.setText(
+            READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)
+        self.find_save_button.setVisible(False)
+        for slot in self.base_slots + self.deep_slots:
+            slot.show_the_save_is_being_read(True)
+
+    def _the_save_has_been_read(self) -> None:
+        """Leave the waiting state. Every ending of a read comes through here."""
+        for slot in self.base_slots + self.deep_slots:
+            slot.show_the_save_is_being_read(False)
+        self._say_how_many_relics_are_owned()
+
+    def _say_how_many_relics_are_owned(self) -> None:
+        """The only place the line of its own is written (AK-250).
+
+        Called from the one place every ending of a read passes through, and
+        from nowhere else: a number that shares a line with messages is a
+        number on loan, which is what QA-201 found. The stock it reads is the
+        one this window holds by then -- `_on_save_read` and `_on_save_failed`
+        both settle `self.owned` before they come here.
+
+        Nothing at all until something has been read (AK-252, out of AK-222).
+        Not `0`: that is an assertion about a stock nobody has looked at yet,
+        and it is the one that reads like lost data. Not a waiting sentence
+        either -- the line under this one already carries `Reading your save.`
+        while a read is out, and the same news twice is what `UI_SPEC` §4 (4)
+        rules out.
+
+        "Nothing has been read" is asked as "there is nothing to name", not as
+        "the stock is None". A character slot with no relics in it never
+        becomes an `Inventory` at all (`inventory.py`, `_scan_save`), but
+        `build` drops every record the dataset cannot name -- so a save from a
+        newer game than the snapshot came from would arrive as a stock that
+        counts zero, and `You own 0 relics in total.` is the one sentence
+        AK-252 rules out.
+        """
+        if self.owned is None or not self.owned.relic_count:
+            self.owned_total_label.clear()
+            self.owned_total_label.setToolTip("")
+            return
+        self.owned_total_label.setText(
+            OWNED_TOTAL.format(count=_relic_count(self.owned.relic_count)))
+        # Escaped for the reason the note's own tooltip is escaped: a tooltip
+        # decides for itself whether what it is handed is markup, and no text
+        # format can be set on one (SEC-013). The name comes out of the
+        # player's save file.
+        self.owned_total_label.setToolTip(
+            OWNED_TOTAL_TOOLTIP.format(source=html.escape(self.owned.source)))
+
+    def _on_save_read(self, found) -> None:
+        """The save has been read: put the window where a synchronous read left it.
+
+        Counts, freed relic buttons, the chalice list on the new stock and --
+        when this was the first read of the session -- the one-off taking over
+        of the displayed Nightfarer's stored build, which `reload_chalices`
+        does and which had nothing to take over from when it last ran.
+
+        The advisor's caches are emptied **here**, not where the read was
+        asked for (AD-029 point 3): every answer in them was worked out on the
+        stock that is being replaced in the next line, and until this line
+        every one of them was right.
+        """
+        self.the_advisor_data_is_changing()
+        self.owned = None if found is None else inventory.build(self.data, found)
+        self._the_save_has_been_read()
         if self.owned is None:
+            # Two of the three exits of AK-124 meet here. For a file the
+            # player picked, "nothing came back" means that file holds no
+            # relics -- S3, and the reason for it is the one he can act on.
+            # Without a choice behind it, it means no save was found at all.
             self.owned_label.setText(
-                "No save file found. Relic slots stay empty; the Effects and "
-                "Weapons tabs still work in full."
-            )
+                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else NO_SAVE_FOUND)
+            self.find_save_button.setVisible(True)
             return
 
         note = f"{self.owned.relic_count} relics in {self.owned.source}"
@@ -2672,15 +4163,67 @@ class Planner(QMainWindow):
             note += f" — no stored builds could be read: {self.owned.loadout_error}"
         else:
             note += " — this save stores no builds yet"
+        if self.owned.read_the_slow_way:
+            note += READ_THE_SLOW_WAY_NOTE
         self.owned_label.setText(note)
         # The folder is named after the Steam account id, so it is offered on
         # hover rather than printed where every screenshot would carry it.
-        self.owned_label.setToolTip(self.owned.folder)
-        if not initial:
-            # reload_chalices, not apply_chalice: the relics have just changed
-            # underneath the slots, so the saved build has to be matched
-            # against the new inventory rather than left pointing at the old.
-            self.reload_chalices()
+        #
+        # Escaped, because a tooltip decides for itself whether what it is
+        # given is markup exactly as a QLabel on AutoText does, and setting a
+        # text format is not offered for tooltips (SEC-013). No Windows path
+        # can contain a "<", so this is depth rather than a hole being shut:
+        # the path is shown as the path, whatever it turns out to hold.
+        self.owned_label.setToolTip(html.escape(self.owned.folder))
+        # A save is loaded, so the offer to find one is gone (AK-123).
+        self.find_save_button.setVisible(False)
+        self._hand_the_stock_to_the_slots()
+        # reload_chalices, not apply_chalice: the relics have just changed
+        # underneath the slots, so the saved build has to be matched
+        # against the new inventory rather than left pointing at the old.
+        # Unconditional now, first read included -- when it ran during
+        # `__init__` there was no stock to match anything against.
+        self.reload_chalices()
+
+    def _hand_the_stock_to_the_slots(self) -> None:
+        """Give every card the inventory the window now holds.
+
+        Before the chalices are rebuilt, because the restore chooses out of
+        what the cards can offer: a build put back against an empty stock puts
+        nothing anywhere.
+
+        It is done here and not left to `apply_chalice` because `apply_chalice`
+        is not reached on every path out of `reload_chalices` -- a Nightfarer
+        whose save stores no equipped loadout leaves `load_equipped` before it.
+        While the reading was synchronous that could not be felt: the cards had
+        been given the stock during `select_hero`, long before any chalice was
+        built. With the reading in a thread the arrival is the only moment it
+        can happen, so it happens here, once, whatever the chalices go on to
+        do.
+        """
+        for slot in self.base_slots + self.deep_slots:
+            slot.owned = self.owned
+            slot.populate()
+
+    def _on_save_failed(self, reason: str) -> None:
+        """The read could not be finished. The one place the prefix is written.
+
+        The waiting sentence is never the last word (AK-224), on any of the
+        four ways a read can end, and this is the way that used to be a bare
+        `return` out of a `try`.
+
+        For a file the player picked this is the third exit of AK-124, and it
+        is worded the other way round: his sentence first, the reason under
+        it (S4). The prefix stays where it was for every other read, and
+        AK-229 holds either way -- both endings are endings with no stock.
+        """
+        self.the_advisor_data_is_changing()
+        self.owned = None
+        self._the_save_has_been_read()
+        self.owned_label.setText(
+            f"{CHOSEN_SAVE_UNREADABLE}\n{reason}" if self._answers_a_chosen_save
+            else f"{UNREADABLE_SAVE}{reason}")
+        self.find_save_button.setVisible(True)
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
@@ -2688,6 +4231,16 @@ class Planner(QMainWindow):
         Reads the vessel that Nightfarer has selected and the relics sitting in
         it, so the planner starts from the real build rather than an empty one.
         """
+        # While a read is out this button does nothing and writes nothing into
+        # the line (`UI_SPEC` T-141 §5). The sentence it would write --
+        # `No save loaded, so there is nothing to import.` -- is one of the
+        # three §9 (h) forbids in this state, and it would be false: a save is
+        # being read at this very moment.
+        if self.save_reader.is_reading():
+            return
+        # The slots of every chalice are about to be written from the save, so
+        # nothing may still be searching against what they held (AD-006.7).
+        self.the_advisor_data_is_changing()
         if self.owned is None:
             self.owned_label.setText("No save loaded, so there is nothing to import.")
             return
@@ -2779,10 +4332,25 @@ class Planner(QMainWindow):
             self._restoring = False
 
         slots = list(self.base_slots) + list(self.deep_slots)
-        missing = 0
+        # By copy, not by list entry. The lists hold one entry per roll, and
+        # this save equips two copies of one roll in the same chalice -- the
+        # second was not in any list and could not be placed at all (QA-021).
+        #
+        # A relic the save names and the inventory no longer has arrives here
+        # as None, indistinguishable from an empty slot, so what is left when
+        # a placement fails is a relic this slot will not take: the wrong
+        # colour for it, or the wrong side of Deep of Night. That is what is
+        # said, because it is what happened.
+        unfit = 0
         for slot, item in zip(slots, loadout.relics):
-            if not slot.select_handle(item.handle if item else None):
-                missing += 1
+            if item is not None and slot.select_copy(item.handle):
+                continue
+            if item is not None:
+                unfit += 1
+            # The slot the save names a relic for is empty when that relic
+            # cannot be placed, never left holding the one the chalice
+            # before it had there.
+            slot.clear_relic()
         # These slots are the equipped chalice's now, and the next click on
         # the chalice list has to know it. Without this, clicking back on the
         # chalice that was open *before* Load equipped counted as no change
@@ -2793,24 +4361,346 @@ class Planner(QMainWindow):
         # Every row, not only the one on screen: the import has just filled
         # the other chalices, and they should say so without being clicked.
         self.refresh_vessel_rows()
+        # Before the note is written, because settling can empty a slot and
+        # the note is about what is on screen when it is read.
+        clashed = self._settle_slots()
         vessel_name = self.chalice_list.item(row).data(Qt.UserRole)["name"]
-        filled = sum(1 for r in loadout.relics if r is not None)
         count = f"{imported} {'chalice' if imported == 1 else 'chalices'}"
-        if filled:
+        # What the slots actually hold. Counting the save's relics instead
+        # told the player about six relics they could not see, on a screen
+        # holding none of them (QA-024).
+        placed = sum(1 for slot in slots if slot.current_relic() is not None)
+        if placed:
             note = (f"Loaded {hero['name']} — {count}, showing the equipped "
-                    f"{vessel_name} with {filled} relics"
+                    f"{vessel_name} with {_relic_count(placed)}"
                     f"{' (Deep of Night)' if loadout.deep_used else ''}.")
+        elif unfit or clashed:
+            note = (f"Loaded {hero['name']} — {count}. Nothing the equipped "
+                    f"{vessel_name} holds in game could be placed.")
         elif imported:
             note = (f"Loaded {hero['name']} — {count}. The equipped "
                     f"{vessel_name} is empty in game; the others are in the "
                     "list on the left.")
         else:
             note = (f"Loaded {hero['name']} — every chalice is empty in game.")
-        if missing:
-            # Only reachable if a search filter is hiding an equipped relic.
-            note += f" {missing} could not be placed; clear the search and retry."
+        # Each with the reason it happened for. "Could not be placed" on its
+        # own left the player to guess, and the guess it invited was that the
+        # program had lost the relic.
+        if unfit:
+            fit = ("it does not fit the slot the save has it in" if unfit == 1
+                   else "they do not fit the slots the save has them in")
+            note += f" {_relic_count(unfit)} could not be placed: {fit}."
+        if clashed:
+            worn = "it is" if clashed == 1 else "they are"
+            note += (f" {_relic_count(clashed)} could not be placed: "
+                     f"{worn} already worn in another slot.")
         self.owned_label.setText(note)
         self.recompute()
+
+    def _wire_the_advisor(self) -> None:
+        """Every way an answer leaves the bar or a card and reaches the slots.
+
+        The bar is handed nothing here and reads no widget of this window: it
+        says an answer stands or has gone (`suggestion_changed`), that the
+        player asked for the long form (`why_requested`) and that they asked
+        for the answer to be applied or taken back. This window decides what
+        each of those means for the cards, because this window owns them.
+
+        `Use` is wired per card and carries the card with it: the block knows
+        which slot it is drawn in only by being in it, and a signal that
+        arrived without saying which slot it came from would have to be
+        matched back to one by looking at the screen.
+        """
+        self.advisor_bar.suggestion_changed.connect(self._the_suggestion_changed)
+        self.advisor_bar.why_requested.connect(self.open_why)
+        self.advisor_bar.apply_all_requested.connect(self.apply_all)
+        self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
+        for card in list(self.base_slots) + list(self.deep_slots):
+            card.suggestion.use_requested.connect(
+                lambda slot=card: self.use_the_suggestion(slot))
+
+    def _the_suggestion_changed(self, result) -> None:
+        """A different answer stands, or none does.
+
+        What the slots held before the last applying goes with it: it was the
+        state to undo **that** answer into, and an answer that has been
+        replaced cannot be undone any more -- `Apply all` on the new one
+        would otherwise offer to put back a build the player has not seen
+        since.
+        """
+        self._slots_before_applying = None
+        self.show_the_suggestion(result)
+
+    # -- applying an answer -------------------------------------------------
+
+    def _all_slots(self) -> list:
+        """Every slot panel of this vessel, Deep ones included and in order.
+
+        The order is the one `active_slots` counts in and the one
+        `_restore_slot_keys` writes in, which is why a slot index out of an
+        answer can be used against this list without translating.
+        """
+        return list(self.base_slots) + list(self.deep_slots)
+
+    # -- holding a slot -----------------------------------------------------
+
+    def _hold_key(self) -> tuple:
+        """Which build a hold belongs to: Nightfarer, vessel, Deep (AD-017.2).
+
+        The Deep switch is part of it because it changes which slots there
+        are: slot 4 of a vessel with Deep of Night on is not slot 4 of the
+        same vessel with it off, and a hold that carried across would be a
+        hold on a slot the player cannot see.
+        """
+        vessel = self.current_vessel()
+        return (self.current_hero()["id"],
+                vessel["id"] if vessel else None,
+                self.deep_check.isChecked())
+
+    def held_slot_indices(self) -> frozenset:
+        """The slots the player is holding in the build now on screen."""
+        return frozenset(self._holds.get(self._hold_key(), {}))
+
+    def _hold_changed(self, card, on: bool) -> None:
+        """The player worked a card's `Hold` button.
+
+        The copy the hold was made on is written down beside it, and that is
+        what makes AK-56 answerable later: once the relic has gone from the
+        save the slot is empty, and an empty held slot is a legitimate state
+        of its own (AK-55) -- so "held on nothing" and "held on a relic that
+        has since gone" cannot be told apart afterwards unless the handle was
+        kept at the moment of holding.
+        """
+        slots = self._all_slots()
+        if card not in slots:
+            return
+        key = self._hold_key()
+        holds = self._holds.setdefault(key, {})
+        if on:
+            holds[slots.index(card)] = getattr(card.current_relic(), "handle",
+                                               None)
+        else:
+            holds.pop(slots.index(card), None)
+        if not holds:
+            self._holds.pop(key, None)
+        # A held slot is one no applying may touch, so the card's own `Use`
+        # comes and goes with the hold.
+        self.show_the_suggestion(self.advisor_bar.answer)
+
+    def _show_the_holds(self) -> None:
+        """Draw the hold state of the build now on screen, and drop the dead.
+
+        Called wherever the build on screen changes -- a vessel, a Nightfarer,
+        the Deep switch, a relic -- because all four change either which holds
+        apply or what they were made on. Going away and coming back therefore
+        carries (AK-60, OF-12): nothing was thrown away when the vessel was
+        left, and this puts it back on the cards.
+
+        **A hold whose copy the save no longer has falls away, and says so**
+        (AK-56, §4.3, AD-017.3). Checked against the inventory rather than
+        against the slot: by the time this runs the slot has already been
+        emptied by the repopulation, and an empty slot is what a legitimately
+        held empty slot looks like too.
+
+        **Never mid-restore.** A restore holds slots that are half the build
+        being left and half the one arriving, and a released hold's sentence
+        written into a slot there is wiped by the restore's own emptying a
+        line later -- so the hold would fall away in silence, which is the
+        one thing §4.3 forbids. Every restoring path ends in `recompute`
+        with the guard down, which is where this really runs.
+        """
+        if self._restoring or getattr(self, "base_slots", None) is None:
+            return
+        slots = self._all_slots()
+        key = self._hold_key()
+        holds = self._holds.get(key, {})
+        # The inventory is only asked when there is a hold to ask about it:
+        # this runs on every recomputation, and with nothing held there is
+        # nothing for the answer to decide.
+        owned_handles = set(self._relics_by_handle()) if holds else set()
+        released = [index for index, handle in holds.items()
+                    if handle is not None and handle not in owned_handles]
+        for index in released:
+            holds.pop(index, None)
+        if not holds:
+            self._holds.pop(key, None)
+        for index, slot in enumerate(slots):
+            slot.show_the_hold(index in holds)
+        # What a surviving hold is now made on, because the player may have
+        # put another relic in that slot themselves since -- the tooltip says
+        # they still can, and a hold left pointing at the relic before would
+        # release itself the next time that one was melted.
+        for index in list(holds):
+            if index < len(slots):
+                holds[index] = getattr(slots[index].current_relic(), "handle",
+                                       None)
+        for index in released:
+            if index < len(slots):
+                slots[index].clear_relic(HOLD_RELEASED)
+
+    def apply_all(self) -> None:
+        """`Apply all`: every suggested slot the player is not holding."""
+        self._apply_the_answer_to(None)
+
+    def use_the_suggestion(self, card) -> None:
+        """`Use` on one card: that slot and no other (`UI_SPEC` §3.2)."""
+        slots = self._all_slots()
+        if card not in slots:
+            return
+        self._apply_the_answer_to({slots.index(card)})
+
+    def _apply_the_answer_to(self, only: set | None) -> None:
+        """Put the suggested copies into the slots, the way a restore does.
+
+        `only` names the slots to touch, or `None` for all of them.
+
+        **The existing road, not a second one.** AK-14 asks that the state
+        after applying be the state that choosing the relics one at a time in
+        the picker would have left, persistence per chalice included, and the
+        way this window already reaches that state is `_restore_slot_keys`
+        over a list of stored keys. So applying writes the keys it wants into
+        the list the slots are holding now and hands the whole list to that.
+        An empty slot, a custom relic and a copy named by handle all travel
+        as keys already, which is also what makes `Undo apply` a list of the
+        same kind and not a second mechanism (AK-15).
+
+        **A held slot is never touched** (AK-57, §5.4). Not because a run
+        ever offers one -- the request takes the held slots out of the search
+        (`asking_from`) -- but because a hold can be made *after* the answer
+        arrived, and the answer standing on screen does then name it.
+
+        **Only copies the save has.** A choice whose handle is not in the
+        inventory is passed over rather than guessed at: AK-16 forbids
+        suggesting a relic that is not owned, and this is where that would
+        otherwise become a relic in a slot.
+        """
+        result = self.advisor_bar.answer
+        if result is None or not result.suggestions:
+            return
+        slots = self._all_slots()
+        before = [slot.saved_key() for slot in slots]
+        keys = list(before)
+        held = self.held_slot_indices()
+        by_handle = self._relics_by_handle()
+        for choice in result.suggestions[0].choices:
+            index = choice.slot_index
+            if index >= len(slots) or index in held:
+                continue
+            if only is not None and index not in only:
+                continue
+            copy = by_handle.get(choice.handle)
+            if copy is None:
+                continue
+            keys[index] = chalices.slot_key(copy)
+        if keys == before:
+            return
+        if self._slots_before_applying is None:
+            self._slots_before_applying = before
+        self._put_these_keys_in_the_slots(keys)
+        self.advisor_bar.the_suggestion_was_applied()
+        self.show_the_suggestion(result)
+
+    def undo_apply(self) -> None:
+        """`Undo apply`: the slots exactly as they were before (AK-15).
+
+        Exactly, and that word is the whole criterion: a slot that was empty
+        goes back to empty and a slot that held a custom relic gets that
+        custom relic back, both of which fall out of restoring the keys
+        rather than the relics -- an empty slot is the empty key and a custom
+        relic is a key that carries its own effects.
+
+        A slot held since the applying keeps what it holds: no applying put
+        anything of the advisor's there, so there is nothing to take back
+        (§5.4).
+        """
+        before = self._slots_before_applying
+        if before is None:
+            return
+        held = self.held_slot_indices()
+        keys = [slot.saved_key() if index in held else before[index]
+                for index, slot in enumerate(self._all_slots())]
+        self._slots_before_applying = None
+        self._put_these_keys_in_the_slots(keys)
+        self.advisor_bar.the_suggestion_was_undone()
+        self.show_the_suggestion(self.advisor_bar.answer)
+
+    def _put_these_keys_in_the_slots(self, keys: list[str]) -> None:
+        """Set every slot from a list of stored keys, as a restore does.
+
+        The same four steps `_apply_stored_build` ends on, and for the same
+        reasons: the restore itself, then the clash resolution, then the one
+        recomputation, then the store. The vessel and the Deep switch are not
+        touched here -- applying a suggestion changes what is in the slots
+        and never which slots there are.
+
+        Wrapped in `while_the_player_applies_it` because every one of those
+        steps ends in `recompute`, which tells the advisor that the build has
+        changed (AK-12). It has -- but by the row's own doing, and an answer
+        that threw itself away as it was being applied would leave `Undo
+        apply` with nothing to undo.
+        """
+        slots = self._all_slots()
+        with self.advisor_bar.while_the_player_applies_it():
+            self._restoring = True
+            try:
+                self._restore_slot_keys(slots, keys)
+            finally:
+                self._restoring = False
+            self._settle_slots()
+            self.recompute()
+            self._store_chalice()
+
+    def show_the_suggestion(self, result) -> None:
+        """Put the living answer on the slot cards, or take it off them.
+
+        Every card is cleared first, the Deep ones included. That breadth is
+        belt to a brace and has **no case that can catch it**: `recompute`
+        tells the bar the build changed, the bar drops the answer, and this
+        runs with `None` before the Deep cards can leave `active_slots`. It
+        stays because the rule it states -- no card keeps a block when no
+        answer stands -- is this method's own, and reading it off another
+        module's order of calls is how a stale block would arrive one day.
+
+        A group naming a slot this vessel does not have means the answer and
+        the window are describing different builds. Nothing is drawn then --
+        `AdvisorBar.the_build_changed` throws such an answer away before it
+        gets here, so this is the belt to that brace and not a state the
+        player can reach.
+        """
+        cards = self.active_slots()
+        for card in list(self.base_slots) + list(self.deep_slots):
+            card.put_the_suggestion_away()
+        if result is None or not result.suggestions:
+            return
+        suggestion = result.suggestions[0]
+        if any(group.slot_index >= len(cards)
+               for group in suggestion.reasons):
+            return
+        by_slot = {choice.slot_index: choice for choice in suggestion.choices}
+        for group in suggestion.reasons:
+            cards[group.slot_index].show_the_suggestion(
+                result.goal_label, group, by_slot.get(group.slot_index))
+
+    def open_why(self) -> None:
+        """The long form of the answer on screen (`UI_SPEC` §3.4).
+
+        The head of the dialog names four things no result carries -- who is
+        being built, on which vessel, with Deep of Night on or off, and out of
+        how many relics -- so they are read off this window at the moment the
+        dialog opens.
+        """
+        result = self.advisor_bar.answer
+        if result is None:
+            return
+        vessel = self.current_vessel() or {}
+        heading = advisorblock.WhyHeading(
+            goal_label=result.goal_label,
+            nightfarer=str(self.current_hero()["name"]),
+            vessel=str(vessel.get("name", "")),
+            deep=self.deep_check.isChecked(),
+            relics=0 if self.owned is None else self.owned.relic_count,
+        )
+        advisorblock.WhyDialog(heading, result, self).exec()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)
@@ -2883,12 +4773,69 @@ class Planner(QMainWindow):
         }
         self.recompute()
 
+    def _rebuild(self) -> model.Build:
+        """Turn what is on screen into a build. The only call to the model.
+
+        Everything that reaches a total is gathered in this one place: the
+        relics in the slots, the effects the armaments rolled, the curses
+        those relics carry, the weapon-type gates and whatever conditional
+        effects the player has declared.
+
+        A second caller with an argument list of its own is how the Weapons
+        tab came to rank every armament in the game against a build three
+        attributes away from the one on screen, with nothing on the window to
+        say which was right (QA-001). So there is one caller, and everyone
+        else is handed the result through current_build().
+        """
+        # Curses are part of the relic you equipped, so they count towards the
+        # totals exactly as the good rolls do. Leaving them out meant a curse
+        # reading "Reduced Dexterity and Faith -3" changed no attribute, which
+        # made the sheet quietly wrong for every Deep of Night build.
+        curses = [eff for _source, eff in self.selected_curses()]
+        return model.compute(
+            self.current_hero(), self.level_slider.value(),
+            # Armament effects count towards the sheet alongside the relics.
+            self.selected_effects() + self.weapon_effects() + curses,
+            self.curves,
+            # A weapon-type buff such as "Improved Axe Attack Power" is live
+            # when any armament on the grid is of that type, so the gate is
+            # tested against all six rather than only the active tile.
+            weapon=self.active_slot().weapon,
+            weapons_held=self.equipped_weapons(),
+            declared=self.declared,
+        )
+
+    def current_build(self) -> model.Build:
+        """The build every tab reads.
+
+        Kept up to date by recompute(), which runs on every change that can
+        move a number. Computed on the spot if something asks before the
+        first recompute -- a tab built during startup, for instance.
+        """
+        if self._build is None:
+            self._build = self._rebuild()
+        return self._build
+
     def recompute(self) -> None:
-        if not hasattr(self, "level_slider"):
+        # Both halves of the guard say the same thing -- the window is still
+        # being built -- and both are needed: the level slider is made in the
+        # left pane and the advisor's row in the middle one, so between the
+        # two there is a moment when a signal could reach here.
+        if not hasattr(self, "level_slider") or not hasattr(self, "advisor_bar"):
             return
+        # ...and the one place the hold state can be drawn, for the same
+        # reason: every change that decides which holds apply -- Nightfarer,
+        # vessel, Deep of Night -- and every change to what a hold was made
+        # on ends here. Drawn from one place rather than from the four that
+        # cause it, because a fifth arrived once already and did not know it
+        # had to say so (see `populate`'s note about narrowing a slot).
+        self._show_the_holds()
         # Every path that changes a vessel, a mode or a relic ends here, so
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()
+        # ...and the one place the advisor can hear that the build it was
+        # asked about is not the build any more (AK-12).
+        self.advisor_bar.the_build_changed()
         hero = self.current_hero()
         level = self.level_slider.value()
         self.level_label.setText(str(level))
@@ -2899,24 +4846,7 @@ class Planner(QMainWindow):
             else f"Interpolated — the game defines levels {', '.join(map(str, exact))}."
         )
 
-        # Curses are part of the relic you equipped, so they count towards the
-        # totals exactly as the good rolls do. Leaving them out meant a curse
-        # reading "Reduced Dexterity and Faith -3" changed no attribute, which
-        # made the sheet quietly wrong for every Deep of Night build.
-        curses = self.selected_curses()
-        build = model.compute(
-            hero, level,
-            # Armament effects count towards the sheet alongside the relics.
-            self.selected_effects() + self.weapon_effects()
-            + [eff for _src, eff in curses],
-            self.curves,
-            # A weapon-type buff such as "Improved Axe Attack Power" is live
-            # when any armament on the grid is of that type, so the gate is
-            # tested against all six rather than only the active tile.
-            weapon=self.active_slot().weapon,
-            weapons_held=self.equipped_weapons(),
-            declared=self.declared,
-        )
+        build = self._build = self._rebuild()
 
         for grid in (self.attr_grid, self.derived_grid):
             while grid.count():
@@ -2939,7 +4869,8 @@ class Planner(QMainWindow):
             base_lbl.setAlignment(Qt.AlignRight)
             self.derived_grid.addWidget(base_lbl, r, 1)
 
-            diff = QLabel(f"{delta:+.0f}" if abs(delta) >= 0.5 else "")
+            diff = QLabel(f"{delta:+.0f}"
+                          if abs(delta) >= VISIBLE_CHANGE else "")
             diff.setStyleSheet(f"color: {GOOD if delta > 0 else BAD};")
             diff.setAlignment(Qt.AlignRight)
             self.derived_grid.addWidget(diff, r, 2)
@@ -3226,32 +5157,58 @@ def main() -> int:
     uiscale.apply_to_environment()
 
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    app.setPalette(_dark_palette())
+    apply_appearance(app)
+
+    # Before anything is read, written or drawn. A second copy that got as
+    # far as the first-run check would already have touched the player's
+    # files, and one that got as far as a window would be the finding itself:
+    # two windows at the same size in the same place, sharing one settings
+    # store, with clicks landing in whichever happens to be in front
+    # (QA-163).
+    running = singleinstance.RunningCopy()
+    if not running.claim():
+        running.raise_the_running_one()
+        return 0
 
     icon = datasource.icon_path()
     if icon:
         app.setWindowIcon(QIcon(str(icon)))
 
     # Nothing ships with the program, so the first launch on a machine has
-    # to read the installed game before there is anything to show.
-    from nrdata import gamefiles
-
-    error = firstrun.ensure_data(gamefiles.find_game_dir())
-    if error:
+    # to read the installed game before there is anything to show. Where the
+    # game is, is the resolution point's question and no longer this line's:
+    # a folder the player pointed at himself counts for as much here as it
+    # does everywhere else (AD-030).
+    first = firstrun.run(gamepath.resolve_game())
+    if not first.go_on:
+        # He was asked where his game is and said Quit, Escape or the cross.
+        # Nothing to report back to him: he has just said it (AK-116).
+        return 0
+    if first.error:
         QMessageBox.critical(
-            None, "Nightreign Helper", f"Could not read your game:\n\n{error}"
+            None, "Nightreign Helper", f"Could not read your game:\n\n{first.error}"
         )
         return 1
 
     try:
         data = load_data()
     except Exception as exc:  # noqa: BLE001
-        QMessageBox.critical(None, "Nightreign Helper", str(exc))
+        # The last A8 hole of QA-211, and the only one a player can reach
+        # before the window exists. `load_data` raises `NoGameData` with the
+        # long English explanation of the no-game case, and `errortext` hands
+        # that through because the class is this program's; anything else --
+        # an `OSError` from reading the snapshot, a library's complaint about
+        # its contents -- is worded here instead of by Windows.
+        QMessageBox.critical(None, "Nightreign Helper",
+                             errortext.in_english(exc))
         return 1
 
     window = Planner(data)
     window.show()
+    # After show(), because a window has no native handle before it has been
+    # to the screen. `running` is held for the run of the program: dropping
+    # it would release the claim and let a second copy in.
+    running.announce(int(window.winId()))
     return app.exec()
 
 

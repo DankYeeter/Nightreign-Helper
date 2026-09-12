@@ -64,6 +64,19 @@ while it runs.
 Download `NightreignHelper.exe` from the [Releases](../../releases) page and run
 it. No Python, no installer, no admin rights.
 
+**Finding your game.** On most machines the tool finds ELDEN RING NIGHTREIGN on
+its own — there is nothing to do. If it cannot, a panel asks you to point at
+the install folder: in Steam, right-click ELDEN RING NIGHTREIGN, choose
+*Manage*, then *Browse local files*, and pick the folder that opens. Nothing in
+that folder is moved, copied or deleted, but reading it does run a small
+program out of it — see [Where your data lives](#where-your-data-lives) for
+what that means. The folder is checked once, then remembered for every later
+launch; if it later goes missing — the game was moved, reinstalled, or sits on
+a drive that is not plugged in — the panel returns and asks again. If the
+folder the tool actually settles on turns out to sit more than one level away
+from the one you picked, or outside it altogether, it shows you that folder
+and waits for you to confirm before reading anything from it.
+
 **First launch takes about a minute.** It reads your installation and builds a
 local copy of the data, and offers to put itself in your Start Menu. Every
 launch after that is immediate, until the data needs rereading — when the game
@@ -89,8 +102,26 @@ which any Nightfarer can carry. The vessel decides how many relic slots you get
 and what colour each one is.
 
 **Relic slots** — each slot names its colour and how many relics of that colour
-you own. Open one to choose from a picker that lists only relics which fit. A
-relic's three effects appear under it once slotted.
+are available to it. Open one to choose from a picker that lists only relics
+which fit. A relic's three effects appear under it once slotted.
+
+A relic you have put in one slot is not offered in the others: you own one of
+it, and it can only be worn once. To plan around a relic you have not found
+yet — or a second copy of one you have — use **Custom relic** in the picker,
+which is not limited by what your save holds. It is remembered with the build
+like any other relic and comes back with the chalice it was built in; a chalice
+that gives that slot another colour drops it, because it was built for the
+colour it had.
+
+Two copies of the same roll are two relics, and you may wear both: the picker
+shows one card per roll, but each slot is given a copy of its own.
+
+A build saved before that rule existed can name the same relic in two slots.
+Restoring one sorts it out on screen: the first slot keeps the relic, and the
+other says where it went instead of standing empty for no stated reason. The
+stored build is left exactly as it was — which slot should keep the relic is
+yours to decide, so the note comes back every time you open that chalice until
+you decide it.
 
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A
@@ -165,6 +196,18 @@ tried rather than only the most recently written one. A second Steam account
 folder or a restored backup can otherwise sit in front of the save you actually
 play.
 
+If none is found — or the one that was picked automatically is the wrong
+one — **Find my save…**, next to Rescan save, opens a file picker starting in
+your save folder. Point it at a specific `.sl2` file; the choice is remembered
+for every later launch and overrides the automatic search without turning it
+off. An empty save says so instead of pretending you own nothing, and a file
+that is not a readable Nightreign save says so too.
+
+Reading the save no longer holds up the window: it opens immediately, and
+every tab works while the save loads in the background. The only thing
+waiting on it is the relic button on each slot card, which unlocks the moment
+the read finishes.
+
 **Level** — the slider runs 1 to 15, and the attribute figures come from the
 game's own per-Nightfarer level tables, not a formula.
 
@@ -235,15 +278,14 @@ Every armament, sorcery and incantation, grouped by family with counts.
 
 - **Upgrade to +N** recalculates at that upgrade level.
 - **Rarity** filters to a tier.
-- **Meets requirements** hides what the selected Nightfarer cannot wield at the
-  chosen level.
 
 The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 
-Attack rating is base damage plus what your stats add to it. **Spell damage is
-not in the game data**, so sorceries and incantations show their costs instead of
-an invented figure.
+Attack rating is base damage, plus what your stats add to it, plus the +%
+attack effects your equipped relics grant. **Spell damage is not in the game
+data**, so sorceries and incantations show their costs instead of an invented
+figure.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves
@@ -395,7 +437,20 @@ entries fit on screen at once.
 
 ## Where your data lives
 
-Everything the tool extracts goes to:
+**What it reads.** Two places on your machine, both read-only: the ELDEN RING
+NIGHTREIGN installation folder (its `regulation.bin` and data archives) and
+your save file. It decrypts both locally, using decryption keys that have
+been publicly known in the modding community for years. Nothing is ever
+written back to either one — not the installation, not the save.
+
+**To read the game's own archives, it also runs a small program out of the
+installation folder** — a decompression library that ships with the game
+itself. That is unavoidable: without it the archives stay locked, no matter
+how the folder was found. It is why the first-run panel (see
+[Install](#install)) asks you to point at a copy of the game you trust, which
+for almost everyone is simply the one they play.
+
+**What it writes.** Everything the tool extracts goes to:
 
 ```
 %LOCALAPPDATA%\NightreignHelper
@@ -403,12 +458,19 @@ Everything the tool extracts goes to:
 
 That folder holds the data snapshot and the icon pack, both built from your
 installation on first run. Your saved builds, favourites, artwork choices,
-panel widths and interface scale are small enough to live in the registry,
-under `HKCU\Software\DankYeeter`, and
-the Start Menu entry — if you accept it — is one shortcut in your own profile.
+panel widths, interface scale, and — if you ever pointed the tool at them
+yourself through the panel or **Find my save…** — the game folder and save
+file it should use next time, are small enough to live in the registry, under
+`HKCU\Software\DankYeeter`. The Start Menu entry — if you accept it — is one
+shortcut in your own profile.
 **Nothing is written anywhere else**, and nothing is sent anywhere: the tool
 makes no network connections at all. Uninstalling means deleting that folder,
-that registry key, the shortcut and the EXE.
+that registry key, the shortcut and the EXE — nothing survives outside those
+four places, and nothing ever left the machine to begin with.
+
+**Back up your save before running any third-party tool against it,** this
+one included. This one is read-only by design and "AS IS" under the MIT
+licence — see [Licence](#licence) — which is not the same as a guarantee.
 
 The snapshot is rebuilt when it no longer matches. That is either because the
 game was patched, so `regulation.bin` changed, or because a new version of the
@@ -466,6 +528,24 @@ To refresh the screenshots in this README after a tab changes:
 .venv\Scripts\python.exe scripts\make_screenshots.py
 ```
 
+### Tests
+
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest
+```
+
+They need no display and open no window. Tests that need the game data read
+your own installation, or the snapshot it built; on a machine without
+NIGHTREIGN they skip and say so rather than fail. Nothing in
+`requirements-dev.txt` reaches the packaged EXE.
+
+`tests/golden/weapon_damage.json` holds what the weapon-damage panel said at
+one game version, so a change to the calculation cannot pass unnoticed. It is
+regenerated with `scripts\capture_weapon_damage.py` — but only after the new
+figures have been checked, because regenerating it is how the evidence gets
+thrown away.
+
 ### Layout
 
 | Path | Purpose |
@@ -473,6 +553,7 @@ To refresh the screenshots in this README after a tab changes:
 | `nrdata/` | Reading the game's own formats — archives, params, textures, saves. No GUI code. |
 | `nrplanner/` | The GUI, the build maths, and save inventory. |
 | `scripts/` | Environment check, data builders, icon generator, screenshot generator. |
+| `tests/` | The test suite. Headless; skips what needs a game it cannot find. |
 | `vendor/Paramdex/NR/Defs` | Field schemas for the params. Required to read anything. |
 
 ## How values are derived
@@ -507,9 +588,21 @@ would be dropped rather than displayed.
 
 Stated plainly rather than hidden:
 
-- **Attack rating has not been verified against an in-game number.** The maths
-  follows the game's own fields, but the final figure has not been checked
-  against what the game displays.
+- **Attack rating is checked against the game, within a stated range.** It was
+  held against a community measurement of the game's own armament panel — 310
+  armaments across eight Nightfarers, at level 12, each armament at its own
+  rarity and with no relics equipped. On that range the figure here is the
+  game's exactly for 1901 of 1974 readings and within one for 1933 of them.
+  Outside it nothing has been measured: reinforced rarities, infused variants,
+  Scholar and Undertaker, and levels other than 1, 12 and 15.
+- **Staves and seals carry a different number, and it is the game's.** Where
+  the game shows an armament's attack power it shows a catalyst's spell
+  scaling, so that is what this tool shows and ranks a staff or a seal by;
+  their physical attack rating appears nowhere. It was held against the same
+  measurement, 28 catalysts across three Nightfarers, and matches all 84
+  readings exactly — but only at each catalyst's own rarity, as the readings
+  were taken. Upgraded catalysts are unmeasured. The figure is the one the
+  game displays; what a spell actually hits for is not in the data at all.
 - **Don't scan while the game is saving.** A save read part-way through being
   written gives records that were never there — measured once at 290 against a
   true 284. The reader now waits for the file to settle, and on a settled file
@@ -530,9 +623,10 @@ endorsed by, sponsored by, or approved by** FromSoftware, Inc. or Bandai Namco
 Entertainment Inc.
 
 ELDEN RING NIGHTREIGN, its data, artwork, text and trademarks are the property of
-their respective owners. This project distributes none of that content. All game
-values and images the tool displays are read at runtime from the copy of the game
-on the user's own machine, into that machine's local storage only.
+their respective owners. The released executable contains no game data; it reads
+your own installation. All game values and images the tool displays are read at
+runtime from the copy of the game on the user's own machine, into that machine's
+local storage only.
 
 Screenshots in this README show the tool's own interface displaying data read
 from a personal installation.

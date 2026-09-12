@@ -13,6 +13,23 @@ import sys
 BUNDLED_NAME = "nightreign_data.json"
 
 
+class NoGameData(FileNotFoundError):
+    """There is no dataset to start on, and the whole reason is in the text.
+
+    A class of this program's own rather than a bare `FileNotFoundError`,
+    because `main` shows what this raises and `errortext.in_english` may only
+    show an exception's own words when the class was defined here (A8,
+    QA-211). A bare `FileNotFoundError` is what Windows also hands over --
+    worded by `FormatMessageW` in the language of the installation, and
+    carrying the whole path with it -- and nothing in the sink could tell the
+    two apart. This one carries `_no_data_message()`, which is the longest
+    piece of English in the program and the whole of the no-game experience.
+
+    Still a `FileNotFoundError`: every caller that already catches one keeps
+    working, and the failure really is a file that is not there.
+    """
+
+
 def _base_dir() -> pathlib.Path:
     # PyInstaller unpacks bundled data into _MEIPASS.
     meipass = getattr(sys, "_MEIPASS", None)
@@ -78,9 +95,9 @@ def _regulation_matches(snapshot: dict) -> bool:
     """
     import hashlib
 
-    from nrdata import gamefiles
-
     from nrdata import extract
+
+    from . import gamepath
 
     # A snapshot built by an older extractor is stale however current the game
     # is. Without this, everything added here only ever reached a machine that
@@ -93,7 +110,7 @@ def _regulation_matches(snapshot: dict) -> bool:
     if not recorded:
         return False
 
-    game = gamefiles.find_game_dir()
+    game = gamepath.resolve_game()
     if game is None:
         # No install to compare against; the snapshot is all we have.
         return True
@@ -137,9 +154,11 @@ def _load_data(prefer_live: bool = True) -> dict:
 
     if prefer_live:
         try:
-            from nrdata import extract, gamefiles
+            from nrdata import extract
 
-            game = gamefiles.find_game_dir()
+            from . import gamepath
+
+            game = gamepath.resolve_game()
             defs = defs_dir()
             if game is not None and defs is not None:
                 fresh = extract.build(game, defs)
@@ -149,7 +168,7 @@ def _load_data(prefer_live: bool = True) -> dict:
             pass
 
     if snapshot is None:
-        raise FileNotFoundError(_no_data_message())
+        raise NoGameData(_no_data_message())
     return snapshot
 
 
@@ -161,11 +180,11 @@ def _no_data_message() -> str:
     content on purpose, which is why an install is required and not merely
     preferred.
     """
-    from nrdata import gamefiles
+    from . import gamepath
 
     lines = ["Nightreign Helper could not read your game data."]
 
-    if gamefiles.find_game_dir() is None:
+    if gamepath.resolve_game() is None:
         lines += [
             "",
             "No ELDEN RING NIGHTREIGN installation was found.",

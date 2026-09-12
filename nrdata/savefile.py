@@ -14,6 +14,14 @@ from dataclasses import dataclass, field
 
 from Crypto.Cipher import AES
 
+from .binary import NotWhatItClaims, read_cstring
+
+# Where the BND4 member headers begin, and the fields this reader takes out of
+# one. A member header may be larger than that -- the rest is padding this
+# reader does not touch -- but it can never be smaller and still hold them.
+BND4_HEADER_SIZE = 0x40
+MEMBER_FIELDS_SIZE = 24
+
 # Static save key, shared by Dark Souls 3 and Elden Ring.
 SAVE_KEY = bytes([
     0x18, 0xF6, 0x32, 0x66, 0x05, 0xBD, 0x17, 0x8A,
@@ -33,31 +41,78 @@ class SaveSlot:
 def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     """Yield (index, name, offset, size) for each BND4 member."""
     if blob[:4] != b"BND4":
-        raise ValueError("not a BND4 save container")
+        raise NotWhatItClaims("not a BND4 save container")
+    if len(blob) < BND4_HEADER_SIZE:
+        raise NotWhatItClaims(
+            f"save container is {len(blob)} bytes, too short for a BND4 header"
+        )
 
     file_count = struct.unpack_from("<I", blob, 0x0C)[0]
     file_header_size = struct.unpack_from("<Q", blob, 0x20)[0]
     unicode_names = blob[0x30] != 0
 
+    # Both numbers come out of the file and together they steer the loop below,
+    # so they are measured against the file's own size before anything is read
+    # (SEC-002). A count of four billion members would otherwise be walked as
+    # four billion members, and a header size of zero would put every member at
+    # the same place.
+    if (file_header_size < MEMBER_FIELDS_SIZE
+            or BND4_HEADER_SIZE + file_count * file_header_size > len(blob)):
+        raise NotWhatItClaims(
+            f"save container claims {file_count} members of "
+            f"{file_header_size} bytes each, which do not fit in "
+            f"{len(blob)} bytes"
+        )
+
     out = []
+    # What the members claim between them, against what the file has to give
+    # (SEC-033). The table above bounds how many members are walked; it says
+    # nothing about how much each one takes, and every caller of this function
+    # slices `blob[offset:offset + size]` and keeps the piece. A file whose
+    # members each claim the whole of it is therefore read as many times over
+    # as it has members: measured on this machine at 1 MiB with 200 members,
+    # 0,99 MiB held and 0,074 s against an honest table, 200,00 MiB and
+    # 2,347 s when each member claims all of it, and 400,00 MiB at 8 MiB with
+    # 50 members -- held bytes are the member count times the file size, so
+    # the cost grows with both.
+    #
+    # The sum is what binds that and a per-member `offset + size <= len(blob)`
+    # is not: offset 0 with size len(blob) satisfies the per-member form, and
+    # that is precisely the file measured above (checked, T-161: with the
+    # per-member bound in place the same file still held 200,00 MiB).
+    #
+    # Members are disjoint spans of the container, so their sizes cannot add
+    # up to more than the container -- and this is exact rather than generous:
+    # on both real saves of this machine, 14 members total 19 530 432 of
+    # 19 531 312 bytes, 99,9955 % of the file, with the header and the name
+    # table making up the remaining 880.
+    claimed = 0
     for i in range(file_count):
-        base = 0x40 + i * file_header_size
+        base = BND4_HEADER_SIZE + i * file_header_size
         # Read off the real file: u32 flags, i32 -1, u64 size, u32 offset,
         # u32 name offset, then padding.
         size = struct.unpack_from("<Q", blob, base + 8)[0]
         offset = struct.unpack_from("<I", blob, base + 16)[0]
         name_offset = struct.unpack_from("<I", blob, base + 20)[0]
 
+        # Loud at the member that crosses the line rather than after the walk,
+        # the form SEC-002 and SEC-022 use: the name below is read from the
+        # file, and there is no reason to read anything more out of a
+        # container that has already claimed more than it holds.
+        claimed += size
+        if claimed > len(blob):
+            raise NotWhatItClaims(
+                f"save container's first {i + 1} members claim {claimed} "
+                f"bytes between them, which do not fit in {len(blob)} bytes"
+            )
+
+        # A name offset of zero is the container saying this member carries no
+        # name, which is a state and not a fault, so it keeps its positional
+        # one. Any other offset is a promise about the file, and read_cstring
+        # holds the file to it rather than guessing a name for it.
         name = f"slot_{i}"
-        if name_offset and name_offset < len(blob):
-            end = name_offset
-            if unicode_names:
-                while blob[end : end + 2] != b"\0\0":
-                    end += 2
-                name = blob[name_offset:end].decode("utf-16-le", "replace")
-            else:
-                end = blob.index(b"\0", name_offset)
-                name = blob[name_offset:end].decode("shift-jis", "replace")
+        if name_offset:
+            name = read_cstring(blob, name_offset, utf16=unicode_names)
 
         out.append((i, name, offset, size))
     return out
@@ -131,6 +186,49 @@ HANDLE_OFFSET = -4
 # well inside the record they are read from and are not bleeding into the next.
 CURSE_OFFSETS = (52, 56, 60)
 
+# The fewest bytes of save one relic record can honestly occupy (SEC-022).
+#
+# A record is 80 bytes wide on the real save and every field this reader looks
+# at sits inside those 80, so a file the game wrote cannot pack records tighter
+# than that. 64 is the next power of two below 80: near enough that a real
+# record can never fall under it, loose enough that it states nothing about how
+# the game lays its inventory out.
+#
+# The three densities, so the distance is on the record rather than asserted:
+#   * a real save, both files on this machine, 2026-09-07: the fuller character
+#     slot holds 309 records in 1 048 608 bytes -- one per 3 394 bytes, a
+#     factor 53 below this limit;
+#   * this limit: one per 64 bytes, 16 384 records per MiB of slot;
+#   * a prepared file (security-reviewer, T-096, measured): 131 069 records per
+#     MiB, a factor 8 above the limit, and it grows linearly with the file.
+# So a save has to become 53 times denser than the real one before the reader
+# says anything, and a prepared one is refused eight times over.
+MIN_BYTES_PER_RELIC_RECORD = 64
+
+# The most relic records any slot may hand back, whatever its size (SEC-034).
+#
+# The limit above is a density and grows with the file it is asked of, which
+# is right for what it guards against and leaves a prepared file room to be
+# large instead of dense: an 8 MiB slot at one record per 64 bytes is admitted
+# in full -- measured on this machine, 131 072 records, 44,75 MiB and 20,1 s
+# against 0,183 s for the same 8 MiB at the real save's density (T-161). The
+# density is not the thing that hurts there; the count is.
+#
+# Derived from the same measurement that carries MIN_BYTES_PER_RELIC_RECORD,
+# so the two numbers have one recipe: the character slot the game writes is
+# 1 048 608 bytes on both saves of this machine, and the density limit read at
+# that size is 1 048 608 // 64 = 16 384 records. This is therefore the
+# relative limit evaluated at the only slot size the game has been seen to
+# write, and it keeps exactly the distance the relative limit has there -- the
+# fuller real slot holds 309 records, a factor 53 below both.
+#
+# What it costs a real save: nothing. The two limits are equal on a character
+# slot, and on the larger members of the file the absolute one binds first --
+# no slot of either save holds more than 309 records. What it costs a prepared
+# one: the 8 MiB case above is refused after 16 385 records instead of read in
+# full, and a file twice that size is refused after the same 16 385.
+MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD = 16384
+
 
 @dataclass
 class OwnedRelic:
@@ -140,18 +238,138 @@ class OwnedRelic:
     curse_ids: list[int] = field(default_factory=list)
 
 
+# What the fast prefilter below assumes about the game's own numbering, and
+# the only thing it assumes: every relic id fits in three bytes.
+#
+# A record begins with `relic_id | RELIC_ID_FLAG`. Below this ceiling that
+# word's top byte is exactly the flag's own, so in little-endian every record
+# carries that byte at its fourth. The largest id in the dataset on 2026-09-08
+# is 2 013 322, a factor 8 below the ceiling.
+#
+# The ceiling is a coupling to data a game patch can renumber, so it is asked
+# of the dataset on every load rather than written down beside it: a scan that
+# stopped seeing a whole band of ids would return a short inventory that looks
+# exactly like an empty one, and nothing downstream could tell the difference
+# (AD-029). What the answer costs is the way the slot is walked and nothing
+# else -- see `relic_scan_mode` (AD-031).
+RELIC_ID_CEILING = 0x01000000
+
+# The byte a record is looked up by. Taken from the flag rather than written
+# out, so the two cannot drift apart.
+_ID_TOP_BYTE = struct.pack("<I", RELIC_ID_FLAG)[3:4]
+
+# Where the fields this scan reads out of a record end, and with it the last
+# offset a record may begin at. A record ends at +24 for the purposes of this
+# reader: the doubled id, the separator, and the three effect ids.
+RELIC_FIELDS_SIZE = 24
+
+
+def _relic_id_offsets(slot_data: bytes):
+    """Every offset in this slot that could still begin a relic record.
+
+    The scan used to look at every fourth byte of the slot, which is 262 144
+    `unpack_from` calls per MiB and, over the 28 slots one startup reads,
+    10 293 488 of them -- 6,15 s on the thread that builds the window, at
+    every start and every rescan (T-118 P2).
+
+    Only 0,20 % of a real slot's bytes are the one a record must carry at its
+    fourth, so `bytes.find` walks the slot in C and hands the loop below only
+    the offsets that can still turn out to be a record. Measured 2026-09-08
+    over the 28 slots of the two saves on this machine, 39 060 416 bytes:
+    9 764 936 offsets walked before, 27 320 handed over now, and the scan of
+    all 28 slots falls from 4 835,3 ms to 93,3 ms (median of five, same
+    process, same slots in memory).
+
+    Offsets come out ascending and only on a four-byte boundary, both of which
+    the caller relies on: the record's own alignment is what says a doubled id
+    found here is the game's and not a coincidence inside neighbouring data.
+    """
+    end = len(slot_data) - RELIC_FIELDS_SIZE
+    pos = slot_data.find(_ID_TOP_BYTE, 3)
+    while pos >= 0 and pos - 3 < end:
+        if pos % 4 == 3:
+            yield pos - 3
+        pos = slot_data.find(_ID_TOP_BYTE, pos + 1)
+
+
+def _every_fourth_offset(slot_data: bytes):
+    """Every four-byte-aligned offset a record could begin at.
+
+    The walk as it stood before the prefilter, and the way back when a dataset
+    numbers its relics above `RELIC_ID_CEILING` (AD-031). It assumes nothing
+    about the id at all, so it finds every band the fast one is blind to, and
+    it costs what the fast one saves: 262 144 `unpack_from` calls per MiB
+    against the 0,20 % of the slot `bytes.find` hands over (T-118 P2).
+
+    Same two properties the loop relies on as `_relic_id_offsets`: ascending,
+    and only on a four-byte boundary. Both generators must also stop at the
+    same offset -- `len - RELIC_FIELDS_SIZE`, exclusive -- or the two ways
+    would disagree about the last record of a slot.
+    """
+    yield from range(0, len(slot_data) - RELIC_FIELDS_SIZE, 4)
+
+
+# The two ways of walking a slot, and the names the choice travels under.
+FAST, SLOW = "fast", "slow"
+
+_OFFSETS_OF_MODE = {FAST: _relic_id_offsets, SLOW: _every_fourth_offset}
+
+
+def relic_scan_mode(valid_relic_ids: set[int]) -> str:
+    """Which offset generator can see every id in this dataset (AD-031).
+
+    Asked of the dataset, not of the save: the ids are what the fast
+    prefilter's assumption is about, so the answer is the same for every slot
+    of a load and is settled once, before a byte is scanned.
+
+    A game patch that numbers a relic at or above the ceiling makes the fast
+    walk blind to that whole band. The answer to that is the slow walk and a
+    sentence in the window -- not a refusal to read a save that is perfectly
+    intact (user's decision, 2026-09-08; this replaces the refusal T-133 built
+    under AD-029).
+    """
+    return SLOW if max(valid_relic_ids, default=0) >= RELIC_ID_CEILING else FAST
+
+
 def read_owned_relics(
-    slot_data: bytes, valid_relic_ids: set[int], valid_effect_ids: set[int]
+    slot_data: bytes, valid_relic_ids: set[int], valid_effect_ids: set[int],
+    *, mode: str | None = None,
 ) -> list[OwnedRelic]:
     """Scan a decrypted character slot for relic inventory records.
 
     Anchors on the doubled relic id rather than a fixed stride, so it stays
     correct even if the surrounding record size changes between patches.
+
+    `mode` is `FAST`, `SLOW`, or None for "ask `relic_scan_mode` yourself".
+    Only which offsets are looked at changes with it; everything a record is
+    judged by below -- the doubled id, the ids the dataset knows, the density
+    limit of SEC-022 -- is one body and is walked by both ways. A caller that
+    reads several slots of one load passes the answer in rather than having it
+    recomputed per slot; a caller that just wants the relics can leave it.
     """
+    if mode is None:
+        mode = relic_scan_mode(valid_relic_ids)
+    offsets_of = _OFFSETS_OF_MODE.get(mode)
+    if offsets_of is None:
+        # A plain `ValueError` and not `NotWhatItClaims`: the save said
+        # nothing wrong here, a caller passed a mode that does not exist.
+        # That is a fault in this program, and nothing on the reading path
+        # may present it to the player as something about his file.
+        raise ValueError(f"{mode!r} is not a relic scan mode; the modes are "
+                         f"{FAST!r} and {SLOW!r}")
     out: list[OwnedRelic] = []
     seen_offsets: set[int] = set()
+    # What this slot could hold at all: a density (SEC-022) and a count
+    # (SEC-034), whichever is reached first. The density is relative to the
+    # slot's own size, because a count on its own would be a guess about how
+    # big a future inventory may grow; the count is what keeps the density
+    # from growing with a prepared file. The floor of one record is not a
+    # concession: a buffer with no room for a second record has no density to
+    # judge.
+    by_density = max(1, len(slot_data) // MIN_BYTES_PER_RELIC_RECORD)
+    limit = min(by_density, MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD)
 
-    for off in range(0, len(slot_data) - 24, 4):
+    for off in offsets_of(slot_data):
         first, second = struct.unpack_from("<II", slot_data, off)
         if first != second or first < RELIC_ID_FLAG:
             continue
@@ -177,6 +395,30 @@ def read_owned_relics(
                 curses.append(value)
 
         out.append(OwnedRelic(relic_id, effects, off, curses))
+        # Loud, and at the record that crosses the line rather than at the end
+        # (SEC-022, the form SEC-002 uses in this module). Cutting the list
+        # here instead would hand back a short inventory that looks like the
+        # player's own, and nothing downstream could tell it from one.
+        if len(out) > limit:
+            # Two whole sentences rather than one with a clause swapped in.
+            # The two mean different things to whoever reads them -- too
+            # dense for the bytes it came from, or more records than a save
+            # holds at any size -- and AK-229's collector reads the texts of
+            # this path out of the `raise` itself: a half kept in a variable
+            # beside it is a half nothing checks.
+            if limit == by_density:
+                raise NotWhatItClaims(
+                    f"a save slot of {len(slot_data)} bytes holds more than "
+                    f"{limit} relic records, denser than one record per "
+                    f"{MIN_BYTES_PER_RELIC_RECORD} bytes, which is not an "
+                    f"inventory; the file is damaged or was not written by "
+                    f"the game. Take it out of the save folder and rescan.")
+            raise NotWhatItClaims(
+                f"a save slot of {len(slot_data)} bytes holds more than "
+                f"{limit} relic records, more records than any save this "
+                f"game writes, which is not an inventory; the file is "
+                f"damaged or was not written by the game. Take it out of "
+                f"the save folder and rescan.")
 
     return out
 
@@ -230,6 +472,74 @@ class Loadout:
 # gives up. Generous on purpose: it only bounds a scan.
 MAX_GRAILS = 12
 
+# How much slot one equipped-loadout table takes up, and with it how many
+# places in a slot may begin one (SEC-024). Relative to the slot's own size
+# for the reason MIN_BYTES_PER_RELIC_RECORD is: an absolute count would be a
+# guess about a save this reader has not met.
+#
+# Derived from the table and not chosen. The widest table this reader will
+# read is MAX_HEROES groups of the width the game writes them, LOADOUT_GROUP
+# bytes: 16 x 120 = 1 920. One table per 1 920 bytes of slot is therefore
+# already shoulder to shoulder, and a slot has one Table A in it.
+#
+# The three densities, so the distance is on the save rather than asserted:
+#   * a real save, both files on this machine, 2026-09-07: the character slot
+#     that carries the table has exactly **one** 0x0000ff01 on a four-byte
+#     boundary in 1 048 608 bytes -- the table's own -- and the thirteen other
+#     slots of that file have none at all;
+#   * this limit: one per 1 920 bytes, 546 starts per MiB of slot, a factor
+#     546 above the real save;
+#   * a prepared file: a slot filled with the marker offers 262 144 starts per
+#     MiB, a factor 480 above the limit, and it grows with the file.
+# So a slot has to begin 546 times as many tables per megabyte as the real one
+# before the reader says anything, and the file that made this a finding is
+# refused 480 times over.
+MIN_BYTES_PER_LOADOUT_TABLE = MAX_HEROES * LOADOUT_GROUP
+
+
+# The four bytes of the marker that opens the first Nightfarer's group.
+# Unlike the relic id in _relic_id_offsets, this value is a known constant
+# rather than the game's own data, so bytes.find can search for the whole
+# four bytes at once: no separate unpack_from is needed to confirm a hit,
+# only the four-byte alignment the walk below already required.
+_LOADOUT_MARKER = struct.pack("<I", HERO_MARKER_BASE + 1)
+
+
+def _loadout_marker_offsets(slot_data: bytes):
+    """Every 4-byte-aligned offset in this slot carrying the first
+    Nightfarer marker (0x0000ff01) -- the only offset `find_loadout_table`'s
+    outer walk can start a table at.
+
+    The walk used to look at every fourth byte of the slot regardless of
+    what was there, which on a slot that holds no table at all -- and on a
+    real save only one character slot ever does (see the density comment
+    above `MIN_BYTES_PER_LOADOUT_TABLE`) -- runs to the very end finding
+    nothing (T-136, following the same shape T-133 gave `_relic_id_offsets`).
+    `bytes.find` walks the slot in C for the exact four bytes the marker is;
+    the loop below only pays for a hit and its alignment check, the same two
+    conditions the old walk applied to every offset in the slot.
+
+    Measured 2026-09-08 over the 28 character slots of the two saves on this
+    machine (median of five, same process, slots already decrypted in
+    memory): the one slot without a table falls from 240,6 to 124,4 ms --
+    `bytes.find` still walks the whole slot in C when the marker is not
+    there at all, so the gain here is the move from Python to C rather than
+    skipping bytes, unlike the relic scan's prefilter. The one slot that
+    does carry a table falls from 119,9 to 8,7 ms, because a hit lets the
+    walk stop early. Combined, the module's two full-slot walks fall from
+    360,5 to 133,1 ms.
+
+    Offsets come out ascending and only on a four-byte boundary, which
+    `find_loadout_table` relies on the same way it relied on the range()
+    step of 4 before.
+    """
+    end = max(len(slot_data) - 8, 0)
+    pos = slot_data.find(_LOADOUT_MARKER)
+    while pos >= 0 and pos < end:
+        if pos % 4 == 0:
+            yield pos
+        pos = slot_data.find(_LOADOUT_MARKER, pos + 1)
+
 
 def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     """Table A as a list of (group offset, Grail-record count), one per
@@ -255,10 +565,28 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
     (8 + k x 28 bytes), each Nightfarer with its own k.
     """
     limit = len(slot_data)
+    # How many places in this slot may begin a table at all (SEC-024). Each
+    # one that does costs a walk of up to MAX_HEROES groups with MAX_GRAILS
+    # probes apiece, so a slot that is nothing but the first marker used to
+    # buy that walk for every fourth byte: measured on this machine, 1,03 s
+    # per MiB of slot against 36 ms for the real save, and the file is read
+    # at startup on the thread that builds the window.
+    allowed_starts = max(1, limit // MIN_BYTES_PER_LOADOUT_TABLE)
+    starts = 0
     best: list[tuple[int, int]] = []
-    for off in range(0, max(limit - 8, 0), 4):
-        if struct.unpack_from("<I", slot_data, off)[0] != HERO_MARKER_BASE + 1:
-            continue
+    for off in _loadout_marker_offsets(slot_data):
+        starts += 1
+        # Loud, and at the marker that crosses the line rather than at the
+        # end (SEC-022, the form SEC-002 uses in this module). Walking on and
+        # returning what was found would hand back a table that looks like
+        # the player's own, at the price this limit exists to refuse.
+        if starts > allowed_starts:
+            raise NotWhatItClaims(
+                f"a save slot of {limit} bytes begins a Nightfarer loadout "
+                f"table at more than {allowed_starts} places, denser than "
+                f"one table per {MIN_BYTES_PER_LOADOUT_TABLE} bytes, which "
+                f"is not a save; the file is damaged or was not written by "
+                f"the game. Take it out of the save folder and rescan.")
         groups: list[tuple[int, int]] = []
         pos = off
         hero = 1
@@ -305,7 +633,7 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             hits = slot_data.count(marker)
             if hits:
                 seen.append(f"ff{n:02x}×{hits}")
-        raise ValueError(
+        raise NotWhatItClaims(
             "equipped-loadout table not found in this save slot "
             f"(no ascending run of {MIN_HEROES}+ Nightfarer markers; "
             f"markers present: {', '.join(seen) or 'none'})"
