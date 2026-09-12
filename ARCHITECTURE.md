@@ -315,7 +315,7 @@ folgt auf eine Entscheidung unmittelbar das, was sie nachzieht oder korrigiert.
 Die Reihenfolge der Vergabe (AD-001 bis AD-032) steht im Verlauf; welche
 Nummer wo liegt, sagt `ARCHITECTURE_REGISTER.md` in einer Zeile.
 
-**Eine Entscheidung ist noch keine:** AD-032 liegt als vorgelegte Wahl mit
+**Seit dem 12.09.2026 entschieden:** AD-032 lag als vorgelegte Wahl mit
 vier gemessenen Optionen in Bereich C. Bis der App Designer waehlt, gilt dort
 der gebaute Zustand.
 
@@ -323,7 +323,7 @@ der gebaute Zustand.
 |---|---|---|
 | **A** | Schnitt, Rechenautoritaet, Fassade, Benennung | AD-001, AD-002, AD-021, AD-005, AD-019, AD-020, AD-022, AD-023, AD-024 |
 | **B** | Suche, Kandidaten, Haltezustand, Grenzbeitrag | AD-003, AD-008, AD-013, AD-014, AD-016, AD-017, AD-018 |
-| **C** | Zielrichtungen, Vorbehalte, Fluechte | AD-004, AD-010, AD-025, AD-015, AD-026, **AD-032 (offen)** |
+| **C** | Zielrichtungen, Vorbehalte, Fluechte | AD-004, AD-010, AD-025, AD-015, AD-026, **AD-032** |
 | **D** | Nebenlaeufigkeit, Cache, Hauptthread | AD-006, AD-007, AD-028, AD-029 |
 | **E** | Daten lesen, Erststart, Pfade | AD-011, AD-012, AD-030, AD-031 |
 | **F** | Test und Nachweis | AD-009 |
@@ -2933,7 +2933,29 @@ wie der `director` sie gesetzt hat.
 
 ---
 
-### AD-032 — Worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht (2026-09-12, Status: **offen — vorgelegt, nicht entschieden**; die Wahl trifft der App Designer)
+### AD-032 — Worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht (2026-09-12, Status: **entschieden — Option A+C**, gewaehlt vom App Designer am 12.09.2026)
+
+> **Entscheidung des App Designers, 12.09.2026: Option A+C.** Gerankt wird ohne
+> jede Waffe — der Mittelwert der fuenf Angriffsmultiplikatoren bleibt, und die
+> **Attribute kommen als eigene Zielrichtung** dazu. 75 von 210 gewoehnlichen
+> Kopien werden damit unterscheidbar (gemessen in T-189), gegenueber 26 heute.
+>
+> **Begruendung des Directors, warum nicht B trotz der Empfehlung des
+> `architect`:** der Entscheid, auf dem A17 steht, lautet woertlich *"wir
+> optimieren die stats und passiven am besten weil nur die fix sind"*. "Stats
+> und Passive" **ist** Option C. B holt eine Waffe zurueck — auch eine feste
+> Waffe ist eine Waffe — und traegt zusaetzlich das Recluse-Risiko aus B-1.
+> A+C liefert ausserdem mehr Aufloesung als B (75 gegen 51).
+>
+> **Mitentschieden:** die gewuerfelten Armaturen-Buffs (`armament_effect_ids`)
+> fallen — der `architect` empfiehlt das unter jeder Option, und ohne sie ist
+> AK-191 woertlich nicht erfuellt (QA-226).
+>
+> **Nicht mitentschieden:** die Wortlaute aus A17 Teil 2 (AK-190, AK-192,
+> AK-193). Sie folgen aus dieser Wahl und werden danach gebaut.
+>
+> Die vier Optionen und ihre Messung bleiben unten stehen — sie sind die
+> Begruendung, nicht Beiwerk.
 
 **Diese Entscheidung ist nicht getroffen.** Sie liegt als vier gemessene
 Optionen vor. Was der `developer` daraus baut, steht erst fest, wenn der App
