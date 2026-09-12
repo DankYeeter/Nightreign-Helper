@@ -139,8 +139,13 @@ T-Nummer** (`…/scratchpad/T-###/`). Nichts ausserhalb davon anfassen.
 
 Eine Rolle **mit** `Write` gilt erst als fertig, wenn
 `docs/berichte/T-###-<rolle>.md` auf der Platte liegt. Rollen **ohne** `Write`
-— heute `power-user`, `qa-engineer`, `security-reviewer`, `archivist`,
+— heute `power-user`, `security-reviewer`, `archivist`,
 `fehlerdiagnostiker` — liefern den Bericht vollstaendig in der Antwort; **der
 Director legt ihn ab, bevor die naechste Rolle startet** (L-010, Pruefung 3).
+**Korrektur 12.09.2026:** der `qa-engineer` stand hier bis heute unter den
+Rollen ohne `Write`. Er hat es — `~/.claude/agents/qa-engineer.md` fuehrt
+`tools: Read, Grep, Glob, Bash, Write`. Er legt seinen Bericht also selbst
+ab; der Director wartet darauf, statt ihn abzuschreiben.
+
 Am 08.09.2026 wurde der `power-user`-Bericht zu T-115 vom Director
 nachgetragen; das war **richtig so** und keine Verfehlung der Rolle.
