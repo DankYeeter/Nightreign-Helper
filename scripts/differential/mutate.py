@@ -5257,14 +5257,18 @@ from PySide6 import QtCore
     ),
     "the-reason-carries-the-path": Mutation(
         path="nrplanner/app.py",
-        old="""        raise ValueError(exc.strerror or "the file could not be opened") from None""",
-        new="""        raise ValueError(str(exc)) from None""",
+        old="""        raise inventory.SaveNotReadable(errortext.in_english(exc)) from None""",
+        new="""        raise inventory.SaveNotReadable(str(exc)) from None""",
         survival_means=(
-            "the OS error is reported with str(exc) instead of exc.strerror: the failure"
-            " names the machine's own path instead of the sentence alone. Measured"
-            " 2026-09-09 (T-156, reconstructed from T-150's scratchpad driver) against"
-            " the file this task's campaign used: 1 failed, 31 passed in 34.51s; what"
-            " falls is test_no_file_at_that_place_says_so_without_saying_where."),
+            "the OS error is reported with str(exc) instead of errortext's sentence for"
+            " its errno: the failure names the machine's own path instead of the"
+            " sentence alone, and on a German Windows it says it in German (QA-211)."
+            " The anchor was exc.strerror until T-190 closed that half as well."
+            " Measured 2026-09-12 (T-190) over test_save_path_memory.py and"
+            " test_exception_text_is_english.py: 3 failed, 46 passed in 42.53s; what"
+            " falls is test_no_file_at_that_place_says_so_without_saying_where,"
+            " test_no_new_place_quotes_an_exception,"
+            " test_a_save_windows_will_not_open_is_reported_in_english."),
     ),
     "the-button-never-appears": Mutation(
         path="nrplanner/app.py",
