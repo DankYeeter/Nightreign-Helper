@@ -361,13 +361,18 @@ def test_a_picked_file_that_cannot_be_read_says_so_in_his_words_first(
     DESIGN_REVIEW DR-006. The order is the assertion: a line that began with
     the technical reason, or that carried the `Save could not be read: `
     prefix of a reading nobody asked for, is a different line from this one.
+
+    The reason is raised as `SaveNotReadable`, which is what `read_the_save`
+    raises and, since QA-211, also what says the sentence is this program's
+    own and may be shown. `savefile`'s wording is quoted here rather than
+    invented so that the case stays the one the player meets.
     """
     chosen = a_save_file(tmp_path)
     read = StatedRead(None)
     window = a_window(game_data, read)
     try:
         conftest.wait_for_the_save(window)
-        read.raises = ValueError("not a BND4 save container")
+        read.raises = inventory.SaveNotReadable("not a BND4 save container")
         pick_and_read(window, chosen, read, monkeypatch)
 
         assert the_line(window) == (

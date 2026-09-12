@@ -367,7 +367,13 @@ def test_every_ending_of_a_read_leaves_a_sentence_of_its_own(game_data, qapp,
                  lambda line: line.startswith(
                      f"{len(a_scan.owned)} relics in {a_scan.source}")),
         "no save": (StatedRead(None), lambda line: line == appmod.NO_SAVE_FOUND),
-        "unreadable": (StatedRead(raises=ValueError("this is not a save")),
+        # `SaveNotReadable` and no longer a bare `ValueError`: that is what
+        # `read_the_save` raises, and since QA-211 it is also what decides
+        # whether the words are shown or mapped -- a class of this program
+        # carries a sentence this program wrote, anything else is answered
+        # with `errortext`'s own.
+        "unreadable": (StatedRead(raises=inventory.SaveNotReadable(
+                           "this is not a save")),
                        lambda line: line == (appmod.UNREADABLE_SAVE
                                              + "this is not a save")),
     }
@@ -682,8 +688,13 @@ def test_nothing_arrives_after_shutdown(game_data, qapp, a_scan):
 
 
 def test_a_read_that_fails_is_reported_rather_than_lost(game_data, qapp):
-    """A read that raises ends in one line, not in a thread dying quietly."""
-    read = StatedRead(raises=ValueError("this is not a save"))
+    """A read that raises ends in one line, not in a thread dying quietly.
+
+    What it raises is what `read_the_save` raises. That the line would say
+    something else for an exception of anybody else's is QA-211's half and is
+    held in `tests/test_exception_text_is_english.py`.
+    """
+    read = StatedRead(raises=inventory.SaveNotReadable("this is not a save"))
     reader = appmod.SaveReader(read=read)
     said = []
     reader.failed.connect(said.append)
@@ -798,6 +809,56 @@ def test_no_text_behind_the_prefix_says_the_save_is_fine():
     offenders = {name for name, texts
                  in texts_that_can_land_behind_the_prefix().items()
                  if says_the_save_is_fine(texts)}
+    assert offenders == set(), sorted(offenders)
+
+
+#: What a path looks like in a sentence, as a mask. AK-126 is about the one
+#: folder name that must never be shown -- the save folder is named after the
+#: Steam account id -- and SEC-023 is about the same text arriving by another
+#: road. A separator is the cheapest thing a path cannot be without; the names
+#: beside it are the folders this program actually reads from.
+LOOKS_LIKE_A_PATH = ("\\", "/", "%APPDATA%", "%LOCALAPPDATA%", "userdata",
+                     "appdata", "steamapps")
+
+
+def names_a_path(texts: list[str]) -> bool:
+    whole = " ".join(texts).lower()
+    return any(mark.lower() in whole for mark in LOOKS_LIKE_A_PATH)
+
+
+def test_the_mask_for_a_path_really_fires():
+    """The second mask's positive control, for the same reason as the first.
+
+    Every text on the reading path is free of a path today, so the guard
+    below asserts an empty set -- which is also what a mask that has stopped
+    matching returns. The control is a sentence of the shape the finding is
+    about, held here and matched.
+    """
+    assert names_a_path([r"the file C:\Users\x\AppData\Roaming\NR0000.sl2 "
+                         r"could not be opened"])
+    assert names_a_path(["steamapps/common could not be read"])
+    assert not names_a_path(["the file could not be opened"])
+
+
+def test_no_text_behind_the_prefix_names_a_path():
+    """SEC-023's other half, on the same collection as AK-229's.
+
+    The security review of T-185 left this as the open edge of SEC-023: the
+    path was closed at the **source**, and the **sink** still wrote whatever
+    it was handed. The runtime half of that -- `str(exc)`, which carries the
+    whole path -- is closed in `nrplanner` and guarded by
+    `tests/test_exception_text_is_english.py`. This is the authored half: no
+    sentence written into a `raise` on the reading path may name a place,
+    whoever writes the next one.
+
+    A second mask on the same collection and not a second collection: what it
+    can see is what the first can see, which is every string literal of a
+    `raise`. What it cannot see is text put together at run time -- that is
+    QA-211's half and needs the other file.
+    """
+    offenders = {name for name, texts
+                 in texts_that_can_land_behind_the_prefix().items()
+                 if names_a_path(texts)}
     assert offenders == set(), sorted(offenders)
 
 

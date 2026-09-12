@@ -521,14 +521,25 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
     """
     try:
         slots = _decrypt_slots(path)
-    except Exception as exc:  # noqa: BLE001 - said in one line, never raw
-        # One handler for both, because the answer to both is the same one
-        # sentence. `str(OSError)` writes the whole path into the message and
-        # the save folder is named after the Steam account id (AK-126), while
-        # `strerror` is in the language of the Windows installation and breaks
-        # A8 (QA-211). `errortext` says what happened without saying where and
-        # without letting Windows choose the words.
+    except OSError as exc:
+        # `str(OSError)` writes the whole path into the message and the save
+        # folder is named after the Steam account id (AK-126); `strerror`
+        # drops the path but is in the language of the Windows installation
+        # and broke A8 (QA-211). `errortext` says what happened without
+        # saying where and without letting Windows choose the words.
         raise SaveNotReadable(errortext.in_english(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        # Not `errortext` here, and that is QA-211's remainder rather than an
+        # oversight: everything `_decrypt_slots` raises that is not an
+        # `OSError` comes out of `nrdata/savefile.py`, whose refusals are
+        # written in English in this repository and collected by AK-229's
+        # guard -- "not a BND4 save container", the two density refusals. They
+        # arrive as plain `ValueError`, which is indistinguishable from
+        # pycryptodome's, so mapping them by class would throw the sentences
+        # away and buy A8 with A7. Telling them apart needs a class of this
+        # program in `nrdata/savefile.py`; until then this place stands in
+        # `tests/test_exception_text_is_english.py::STILL_QUOTING`.
+        raise SaveNotReadable(str(exc) or exc.__class__.__name__) from exc
 
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
