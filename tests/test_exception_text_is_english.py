@@ -133,8 +133,13 @@ def _the_function_around(tree: ast.AST, lineno: int) -> str:
     return name
 
 
-def everywhere_an_exception_is_quoted() -> set[tuple[str, str, str]]:
-    """The scan over the two packages, as `(module, function, shape)`.
+def everywhere_an_exception_is_quoted() -> dict[tuple[str, str, str], int]:
+    """The scan over the two packages: `(module, function, shape)` and how many.
+
+    **How many, and not just where.** `_scan_save` writes `str(exc)` twice for
+    two different reasons, and a set would have shown one entry for both -- so
+    repairing one of them would have left the guard saying exactly what it
+    said before. The count is what makes half a repair visible.
 
     Walked from the two package folders and not from the repository root, so
     a worktree checked out under `.claude/` is not read as a second copy of
@@ -142,12 +147,13 @@ def everywhere_an_exception_is_quoted() -> set[tuple[str, str, str]]:
     can repair it).
     """
     root = pathlib.Path(__file__).resolve().parents[1]
-    out: set[tuple[str, str, str]] = set()
+    out: dict[tuple[str, str, str], int] = {}
     for package in SCANNED:
         for path in sorted((root / package).rglob("*.py")):
             source = path.read_text(encoding="utf-8")
             for function, shape in places_that_quote_an_exception(source):
-                out.add((path.relative_to(root).as_posix(), function, shape))
+                here = (path.relative_to(root).as_posix(), function, shape)
+                out[here] = out.get(here, 0) + 1
     return out
 
 
@@ -163,19 +169,22 @@ def everywhere_an_exception_is_quoted() -> set[tuple[str, str, str]]:
 #:   this program wrote (`datasource._no_data_message`). Mapping it by class
 #:   would throw that message away, and marking it needs `datasource.py`,
 #:   which is over T-190's file budget.
-#: * `inventory.py::_scan_save` -- `savefile.read_loadouts` refuses in its
-#:   own English words, collected by AK-229's guard, but as a plain
-#:   `ValueError`; telling it apart from pycryptodome's needs a class in
-#:   `nrdata/savefile.py`, also over budget.
+#: * `inventory.py::_scan_save`, **twice** -- the slot read and the stored
+#:   builds both quote what `nrdata/savefile.py` refused with. Those refusals
+#:   are English sentences of this repository, collected by AK-229's guard,
+#:   but they arrive as a plain `ValueError` and so cannot be told from
+#:   pycryptodome's. Mapping them by class was tried and threw the sentences
+#:   away; telling them apart needs a class in `nrdata/savefile.py`, also
+#:   over budget.
 #: * `nrdata/extract.py::_bosses` -- a `print` to the console, not a window.
 #: * `nrdata/icons.py::read_subtextures` -- `LayoutError` is this program's
 #:   class, so its text is shown, and it interpolates what ElementTree said.
 STILL_QUOTING = {
-    ("nrplanner/advisor/worker.py", "work", "str(exc)"),
-    ("nrplanner/app.py", "main", "str(exc)"),
-    ("nrplanner/inventory.py", "_scan_save", "str(exc)"),
-    ("nrdata/extract.py", "_bosses", "{exc}"),
-    ("nrdata/icons.py", "read_subtextures", "{exc}"),
+    ("nrplanner/advisor/worker.py", "work", "str(exc)"): 1,
+    ("nrplanner/app.py", "main", "str(exc)"): 1,
+    ("nrplanner/inventory.py", "_scan_save", "str(exc)"): 2,
+    ("nrdata/extract.py", "_bosses", "{exc}"): 1,
+    ("nrdata/icons.py", "read_subtextures", "{exc}"): 1,
 }
 
 
@@ -220,8 +229,12 @@ def test_no_new_place_quotes_an_exception():
     repairing it.
     """
     found = everywhere_an_exception_is_quoted()
-    assert found - STILL_QUOTING == set(), sorted(found - STILL_QUOTING)
-    assert found <= STILL_QUOTING
+    assert set(found) - set(STILL_QUOTING) == set(), sorted(set(found)
+                                                            - set(STILL_QUOTING))
+    grown = {where: (many, STILL_QUOTING[where])
+             for where, many in found.items()
+             if many > STILL_QUOTING[where]}
+    assert grown == {}, sorted(grown.items())
 
 
 def test_the_list_of_the_ones_left_is_still_true():
@@ -233,7 +246,12 @@ def test_the_list_of_the_ones_left_is_still_true():
     entry loud instead of comfortable.
     """
     found = everywhere_an_exception_is_quoted()
-    assert STILL_QUOTING - found == set(), sorted(STILL_QUOTING - found)
+    assert set(STILL_QUOTING) - set(found) == set(), sorted(set(STILL_QUOTING)
+                                                            - set(found))
+    shrunk = {where: (found[where], many)
+              for where, many in STILL_QUOTING.items()
+              if found[where] < many}
+    assert shrunk == {}, sorted(shrunk.items())
 
 
 # -- the sentences that replaced it -----------------------------------------
