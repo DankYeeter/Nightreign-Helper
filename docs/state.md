@@ -72,13 +72,13 @@ aber AD-008 haengt an OF-22.
 
 1. **A16 und A17 bauen** — getrennte Auftraege, Spec liegt vor (AK-182,
    AK-186, AK-187, AK-190 bis AK-193).
-2. **Aufraeumen:** 11 tote Zeilenverweise (7 aus dem Registerumbau, 4 alt nach
-   `run.py`, das 11 Zeilen hat) · neun Registerzeilen zeigen auf ganze
-   Abschnitte von 24 bis 232 Zeilen.
+2. **Aufraeumen:** tote Zeilenverweise **erledigt** 12.09. (in lebenden
+   Dokumenten durch stabile Befund-IDs ersetzt; Altberichte bleiben stehen,
+   Hinweis am Kopf der Verlaufsdateien). Offen: neun Registerzeilen zeigen auf
+   ganze Abschnitte von 24 bis 232 Zeilen · Aufraeumlauf gegen toten Code.
 3. **Die Baurunde:** `compliance-agent` (`auflagen`) → `technical-writer` →
    `release-manager` (`build`) → (`clean-room`) → `power-user` → (`notes`).
-   Drei Vorbehalte aus T-159 brauchen ein **echtes Fenster**: AK-110, AK-129,
-   A11/A15.
+   Drei Vorbehalte aus T-159 brauchen ein **echtes Fenster**: AK-110, AK-129, A11/A15.
 
 ## Beim Nutzer — offen
 

@@ -4657,7 +4657,7 @@ hat, seine Angabe, und A15 faellt damit. Der **Aufloesungspunkt** allein ist
    verschiebt.** SEC-016, SEC-017 und SEC-018 sind am 05.09.2026 vom Nutzer
    gestrichen worden, woertlich: *„setzt eine boesartige Spielinstallation oder
    ein bereits uebernommenes Benutzerkonto voraus; nicht erneut vorlegen"*
-   (`security/findings.md:26-28`). Es sind Entpackbomben im Spieldatenpfad
+   (SEC-016/SEC-017 in `security/findings.md`; der Fliesstext dazu steht seit dem 12.09.2026 in `security/verlauf.md`). Es sind Entpackbomben im Spieldatenpfad
    (`dcx.py` ohne Deckel, `tpf.py` 3,2 GiB Spitzenhaufen aus 256 KiB Eingabe).
    Die Bedingung „boesartige Spielinstallation" war bisher nur ueber ein
    uebernommenes Konto erreichbar; nach A15 ist sie eine Ordnerauswahl weit

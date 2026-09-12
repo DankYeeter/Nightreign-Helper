@@ -1,5 +1,13 @@
 # QA-Befunde -- Verlauf
 
+> **Zeilenverweise aus der Zeit vor dem 12.09.2026** meinen die alte,
+> ungeteilte Fassung von `qa/findings.md`. Diese Datei hier ist ihr Ziel, aber
+> **nicht mit gleichem Zeilenversatz** — die Tabellenzeilen sind heraus. Such
+> die Befund-ID statt der Zeilennummer; die ist stabil. Betroffen sind unter
+> anderem die Berichte T-143, T-144 und T-145, die unveraendert bleiben:
+> sie waren richtig, als sie geschrieben wurden.
+
+
 Chronologischer Verlauf, abgetrennt von der Registertabelle in T-180
 (12.09.2026). Enthaelt jede Zeile der Ursprungsdatei, die keine
 Tabellenzeile eines einzelnen Befunds ist (Ueberschriften, Director-

@@ -644,7 +644,7 @@ Form:**
 | 3 | `docs/legal/AUFLAGEN.md` "nicht vorhanden" | Erinnerung | `ls docs/legal/` — die Datei liegt seit `9631cbb`, 02.09. 01:31 | `docs/state.md`, Abschnitt Buchfuehrung |
 | 4 | "es gibt bis heute keine EXE" | eine Zeile aus `docs/state.md`, seit mehreren Zyklen | `gh release list` — **12** Releases, juengstes `v1.7.1` vom 24.08., 25 Downloads | `81547f3`, gefunden vom `release-manager` in T-106 |
 | 5 | zwei Umlenkungen fuer den `clean-room` | uebernommen aus dem T-111-Bericht | `nrplanner/shortcut.py:44-49` und die `README` nennen **drei** | Nachtrag in `docs/tasks/T-113.md`, `a2980bf` |
-| 6 | QA-198 "fuenfmal so lange wie angesagt" | **eine** Messung, als Regel geschrieben | eine zweite Messung; sie kam 90 min spaeter und ergab ein Drittel | `qa/findings.md:1999 ff.` |
+| 6 | QA-198 "fuenfmal so lange wie angesagt" | **eine** Messung, als Regel geschrieben | eine zweite Messung; sie kam 90 min spaeter und ergab ein Drittel | QA-198 (Fliesstext seit dem 12.09.2026 in `qa/verlauf.md`) |
 | 7 | "dreizehn Auftraege (T-104 bis T-118)" | geschaetzt | `ls docs/tasks/` — **15** | `docs/tasks/T-119.md:13` |
 | 8 | "der `power-user` hat seinen Bericht **trotz Schreibrecht** nicht abgelegt" | Annahme ueber eine Rollendefinition | `~/.claude/agents/power-user.md`: `tools:` enthaelt **kein** `Write` und **kein** `Edit`; der Fliesstext sagt "**Du schreibst keine Datei.** … abgelegt wird er vom `director`" | `CLAUDE.md`, Abschnitt "Der Bericht ist Teil des Auftrags" (geschrieben 08.09. 10:04, `9f438f9`) |
 
@@ -769,7 +769,7 @@ Bericht meldet, dass ein zitierter Sachverhalt nicht stimmte.
 **Belege:**
 
 1. **QA-198 traegt seine widerlegte Behauptung weiter in der Ueberschrift.**
-   `qa/findings.md:1999` heisst bis heute "Der Erstaufbau dauert **fuenfmal so
+   QA-198 (Fliesstext seit dem 12.09.2026 in `qa/verlauf.md`) heisst bis heute "Der Erstaufbau dauert **fuenfmal so
    lange**, wie das Programm ansagt", waehrend zwanzig Zeilen tiefer steht, dass
    genau das eine Hypothese aus einer einzigen Messung war. Wer die Befundliste
    ueberfliegt — und das ist die uebliche Benutzung —, liest die widerlegte
