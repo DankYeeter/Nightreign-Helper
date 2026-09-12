@@ -380,3 +380,47 @@ bleibt woertlich stehen**, und je geloeschtem Block wird die Stelle genannt,
 die dasselbe sagt. Die vom Audit genannten 9 546 Zeilen sind damit **nicht**
 das Ziel; die Begruendungsdocstrings (`chalices.py:325-384` zu QA-041 und
 QA-046, `model.py`) stehen an keiner zweiten Stelle im Repo.
+
+### Korb 2 — die Loeschung ist zurueckgezogen, nichts wurde geloescht
+
+*12.09.2026. Der Nutzer hatte drei Gruppen freigegeben (Register,
+Verlaufskopien, archivierte Auftraege — 35 154 Zeilen). **Die Freigabe stand
+auf einer Praemisse des Directors, und die war falsch.** Vor dem Loeschbefehl
+hat eine Pruefung der lebenden Verweise sie widerlegt. Nichts ist geloescht.*
+
+Das Audit nannte die Verlaufsdateien "Vollkopien, deren Vorfassungen git
+ohnehin haelt". Sie sind keine Kopien. T-181 und T-182 haben `UI_SPEC.md` und
+`ARCHITECTURE.md` **geteilt**: der geltende Wortlaut blieb, die Begruendungen
+wanderten heraus. Im Arbeitsbaum stehen sie danach **nur noch** in der
+Verlaufsdatei.
+
+Drei Belege, die je allein reichen:
+
+1. **Der bindende Wortlaut mehrerer Akzeptanzkriterien steht nur im
+   Verlauf.** `UI_SPEC.md:239-241`, `:1017-1019`, `:881-883` und sieben weitere
+   Stellen sagen woertlich: *"Der geltende Wortlaut steht deshalb nicht hier,
+   sondern in `docs/archiv/ui-spec-verlauf.md`"* — betroffen sind unter
+   anderem A28, A29 und A31. `UI_SPEC.md` ist dort ein Zeiger, kein Text.
+2. **Das Register ist der erklaerte Einstieg, kein Index.**
+   `ARCHITECTURE.md:26`: *"**Hier faengt man an.**"* Und `UI_SPEC.md:48-49`:
+   die Abschnittskennungen `A01` bis `A33`, auf denen jede
+   Verlaufs-Zeilenangabe in `UI_SPEC.md` beruht, *"sind in
+   `UI_SPEC_REGISTER.md` aufgeloest"*. Ohne Register ist jeder Verweis der
+   Form `A28 Z8004` nicht mehr aufloesbar.
+3. **`qa/verlauf.md` und `security/verlauf.md` tragen dieselbe Teilung.**
+   `qa/findings.md:5` und `security/findings.md:5`: *"abgetrennt in T-180"*.
+   `docs/lessons.md:772` zitiert den QA-198-Wortlaut von dort.
+
+**Was daraus fuer kuenftige Audits folgt:** eine Zeilenzahl sagt nicht, ob
+Text doppelt vorliegt. Das Audit hat 113 477 Markdown-Zeilen **gezaehlt** und
+daraus auf Redundanz **geschlossen**. Geprueft war sie nicht. Dasselbe Muster
+hatte der Nutzer eine Stufe tiefer schon abgefangen (Docstrings mit QA-Bezug);
+es lag eine Ebene hoeher noch einmal.
+
+**Offen und nicht entschieden:** `docs/archiv/berichte/` (97 Dateien, 36 933
+Zeilen) und `docs/archiv/tasks/` (120 Dateien, 15 468 Zeilen). Beide werden
+zitiert — die Berichte 13-mal, die Auftraege ueber ihren **alten** Pfad
+`docs/tasks/T-0xx`, der durch die Archivierung in `0a59a0f` bereits toter
+Verweis ist (ueber 20 Nummern, ungezaehlt). Sie sind der einzige verbleibende
+Kandidat, und die Frage dazu ist nicht "loeschen?", sondern erst "welche
+Verweise haengen daran?".
