@@ -314,6 +314,34 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     that is not tidiness: `run.run` refuses a request whose fields describe
     another run, because the request is the cache key. The armaments are
     read once and both halves built from that reading for the same reason.
+
+    **What the run is deliberately not told: which armaments are in hand**
+    (`GOAL.md` A17, AK-191). The user's decision, on which the whole feature
+    turns: *"wir optimieren die stats und passiven am besten weil nur die fix
+    sind. waffen und deren buffs sind alle in der runde RNG-basiert."* An
+    armament and the buffs on it are rolled again every expedition, so a
+    relic ranked against the one on the grid is ranked against something the
+    player will not have -- and the ranking would move with it.
+
+    Two fields carry that in, and leaving out either one alone is not
+    enough. `reference` is the armament the figure is formed against.
+    `weapons_held` is the grid, and a weapon-type gate is met by **anything**
+    on it (`model.compute`), so "Improved Greatsword Attack Power" would go
+    on counting for a greatsword and not for a bow with no reference in
+    sight. Measured on 2026-09-12 over the 312 copies of the user's save,
+    Wylder at the probe level, a greatsword against a bow, with the
+    reference armament already left out and the grid still filled: 2 copies
+    changed their figure on the grid alone -- `Deep Polished Drizzly Scene`
+    (+0.0900 against 0.0000, rank 0 of the 102 Deep candidates) and `Grand
+    Luminous Scene` (0.0000 against +0.0600, rank 3 of the 210 ordinary
+    ones). Two copies are enough: both sat at or near the head of their
+    list, which is the part of a ranking anyone reads.
+
+    The consequence, said out loud because it reverses a rule this file used
+    to keep: the advisor's build is no longer the stat sheet's build. The
+    sheet answers "what am I hitting for right now" and keeps both fields;
+    this answers "what is this relic worth between runs" and keeps neither.
+    `GoalScore.scope` is where the figure says which of the two it is (A12).
     """
     owned = planner.owned
     if owned is None:
@@ -337,23 +365,17 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     armament_effect_ids = tuple(effect_id for armament in armaments
                                 for effect_id in armament.effect_ids)
 
-    active = planner.active_slot()
-    reference = None
-    if active.weapon is not None:
-        reference = types.ReferenceArmament(weapon=active.weapon,
-                                            tier=active.tier,
-                                            slot_index=planner.active_weapon)
     # Sorted, not in `dict` order: a cache key that depended on the order the
     # player happened to flip the switches would miss its own entries.
     declared = tuple(sorted(planner.declared.items()))
     weighting = advisor_goals.DEFAULT_WEIGHTING
+    # No `reference` and no `weapons_held`: see the docstring, A17.
     ctx = types.GoalContext(
         data=planner.data,
         hero=hero,
         level=level,
-        reference=reference,
+        reference=None,
         weighting=weighting,
-        weapons_held=tuple(planner.equipped_weapons()),
         armament_effect_ids=armament_effect_ids,
         declared=declared,
     )
@@ -364,8 +386,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         problem=problem,
         goal_id=goal_id,
         weighting_id=weighting.id,
-        reference_weapon_id=(None if reference is None
-                             else reference.weapon["id"]),
+        # The key says what the run was asked, and since A17 the run is not
+        # asked about an armament. Anything else here would be a key
+        # standing for a run that did not happen, and `run.run` refuses it.
+        reference_weapon_id=None,
         armaments=armaments,
         declared=declared,
         data_version=str(meta.get("data_version") or ""),

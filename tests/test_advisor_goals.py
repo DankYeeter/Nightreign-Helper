@@ -36,8 +36,8 @@ import dataclasses
 
 import pytest
 
-from nrplanner import damage, model
-from nrplanner.advisor import goals, types
+from nrplanner import advisorbar, damage, model, weaponslots
+from nrplanner.advisor import candidates, goals, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -367,25 +367,229 @@ def test_the_damage_goal_ranks_a_self_inflicted_penalty_below(game_data,
         "that brought it")
 
 
-def test_without_an_armament_the_damage_goal_says_so(game_data, wylder):
-    """OF-5: the run is not refused, the assumption is stated (AD-004).
+def test_without_an_armament_the_damage_goal_still_orders_two_builds(
+        game_data, wylder):
+    """A17: the armament-free figure is an **order**, not just a fallback.
 
-    Silence would be the breach of A7, not the assumption. The figure is then
-    a ratio rather than an attack rating, so it carries no unit -- which is
-    the signal `UI_SPEC` §3.3 reads to drop the "AR" suffix and the
-    attack-rating reservation with it.
+    What this case asserted until T-188 was the sentence beside the figure --
+    "No armament selected" and an empty unit -- and that was the right claim
+    while the branch was OF-5's way out of a run with no weapon in the slot.
+    Since A17 it is the figure the program ranks by whatever is in the slot,
+    so the claim worth holding here is the one a ranking stands on: more
+    attack multiplier is more of it.
+
+    The wording of the line beside it is AK-190's, is about to change with
+    it, and is deliberately not asserted here -- a case holding both would
+    have to be rewritten again for a change that does not touch this claim.
     """
     buff = cases.effects_raising_rate(game_data, wylder, "physicsAttackRate")
     plain, ctx = build_with(game_data, wylder)
     buffed, _ = build_with(game_data, wylder, effect_ids=buff)
 
-    bare = goals.GOALS["max_damage"].score(plain, ctx)
-    lifted = goals.GOALS["max_damage"].score(buffed, ctx)
+    assert ctx.reference is None, (
+        "this case is about the figure formed without an armament, so the "
+        "context may not carry one")
+    assert goals.GOALS["max_damage"].score(buffed, ctx).value > \
+        goals.GOALS["max_damage"].score(plain, ctx).value
 
-    assert any("No armament selected" in line for line in bare.unknowns)
-    assert bare.unit == ""
-    assert bare.weights_note
-    assert lifted.value > bare.value
+
+#: The five attack multipliers, as the damage facade accounts for them.
+#: `goals._max_damage` averages exactly these when it ranks without an
+#: armament, so a weapon-type gate that moves none of them cannot tell two
+#: armaments apart, and the two cases below would hold vacuously on one.
+AR_RATE_FIELDS = tuple(sorted(field_name
+                              for field_names in damage.AR_RATE_FOR.values()
+                              for field_name in field_names))
+
+
+def armament_gates(game_data, hero, count: int = 2):
+    """`count` (effect id, armament) pairs, each gated on its own weapon type.
+
+    AK-191 names a Greatsword against a Bow as its sample. The pair here is
+    **found** rather than written down: a weapon type is a number in the game
+    files, and pinning 5 and 51 would leave this case quietly comparing an
+    armament with itself the day they move -- the one failure a case about
+    invariance cannot notice, because everything it asserts would still hold.
+
+    Measured through `model.compute`, never read off a modifier name, the way
+    `advisor_cases.an_armament_type_gate` does it. The dataset gives the
+    reason: "Improved Attack Power with 3+ Greatswords Equipped" carries the
+    same weapon-type gate as "Improved Greatsword Attack Power" and a gate on
+    the **count** on top, so it stays conditional whatever is held and moves
+    nothing at all. An effect is taken only where holding its own type moves
+    the five multipliers and holding another type does not.
+
+    Lowest effect id per type, types in ascending order, so two runs over one
+    dataset pick the same pair.
+    """
+    an_armament_of = {}
+    for weapon in game_data["weapons"]:
+        an_armament_of.setdefault(weapon.get("wep_type"), weapon)
+    an_armament_of.pop(None, None)
+    curves = game_data.get("curves", {})
+
+    def multipliers(effect, held):
+        build = model.compute(hero, advisor.LEVEL, [effect], curves,
+                              weapons_held=[held])
+        return [build.rates.get(field_name, 1.0)
+                for field_name in AR_RATE_FIELDS]
+
+    found = {}
+    for key in sorted(game_data["effects"], key=int):
+        effect = game_data["effects"][key]
+        modifiers = effect.get("modifiers") or {}
+        wanted = next((modifiers[field_name]
+                       for field_name in model.WEAPON_TYPE_GATES
+                       if field_name in modifiers), None)
+        if wanted in found or wanted not in an_armament_of:
+            continue
+        elsewhere = next(weapon for wep_type, weapon in an_armament_of.items()
+                         if wep_type != wanted)
+        if multipliers(effect, an_armament_of[wanted]) != \
+                multipliers(effect, elsewhere):
+            found[wanted] = (int(effect["id"]), an_armament_of[wanted])
+        if len(found) == count:
+            return [found[wep_type] for wep_type in sorted(found)]
+    pytest.skip(f"this dataset has fewer than {count} weapon-type gates that "
+                f"move the attack multipliers")
+
+
+def an_inventory_telling_two_armaments_apart(game_data, hero):
+    """Four copies, two of which are worth something only to one armament.
+
+    The two AK-191 measured on -- `Deep Polished Drizzly Scene` with
+    `Improved Greatsword Attack Power` and `Grand Luminous Scene` with
+    `Improved Bow Attack Power` -- are two copies of the player's save
+    carrying one gated effect each. This is that shape, stated: two copies
+    whose worth depends on what is held and two whose worth does not, so an
+    order over them is a claim about both kinds at once.
+    """
+    gates = armament_gates(game_data, hero)
+    rolls = [[effect_id] for effect_id, _armament in gates]
+    rolls += advisor.raising_effects(game_data, hero, 3)
+    inventory = advisor.make_inventory(game_data, hero, colour=advisor.RED,
+                                       count=4, rolls=rolls)
+    return inventory, [armament for _effect_id, armament in gates]
+
+
+def ranking_with(planner, armament, inventory, question, rank_by, *,
+                 as_the_bar_asked_before_a17: bool = False):
+    """What the pre-sort makes of one inventory while this armament is held.
+
+    The context comes out of `advisorbar.asking_from`, because that is where
+    the program decides what a run is asked about. A context assembled here
+    would be this file agreeing with itself, and the fields A17 moves are
+    exactly the ones such a copy would restate.
+
+    `as_the_bar_asked_before_a17` puts those two fields back -- the reference
+    armament and the grid -- and is the counter-case of the invariance, not a
+    second way of asking for it.
+    """
+    slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
+    slots[0] = weaponslots.WeaponSlot(weapon=armament)
+    planner.weapon_slots = slots
+    planner.active_weapon = 0
+
+    ctx = advisorbar.asking_from(planner, rank_by).ctx
+    if as_the_bar_asked_before_a17:
+        ctx = dataclasses.replace(
+            ctx,
+            reference=types.ReferenceArmament(weapon=armament,
+                                              tier=slots[0].tier,
+                                              slot_index=0),
+            weapons_held=(armament,))
+    pool = candidates.pool(inventory, question, 0, ctx, goals.GOALS, rank_by)
+    return (tuple((line.goal_id, line.value) for line in pool.baseline),
+            tuple((offer.name, offer.handle,
+                   tuple((marginal.goal_id, marginal.gain)
+                         for marginal in offer.marginals))
+                  for offer in pool.candidates))
+
+
+def test_the_ranking_does_not_depend_on_the_armament_held(planner, game_data):
+    """AK-191: two runs differing only in the armament rank alike.
+
+    The armaments and the buffs on them are rolled again every expedition, so
+    they are not what a relic is worth optimising against (`GOAL.md` A17).
+    The figures and the order therefore have to come out the same whichever
+    armament is in the slot -- for **both** directions, which is why the pool
+    is asked once under each and the whole answer compared rather than the
+    head of it.
+
+    **Leaving the reference armament out is not enough**, and that is the
+    half this case is written for: a weapon-type gate is met by anything on
+    the grid, so a run with `weapons_held` still filled goes on counting
+    "Improved Greatsword Attack Power" for a greatsword and not for a bow.
+    AK-191 measured that as 2 of 309 copies changing their figure, with the
+    order differing from rank 0;
+    `test_the_armament_moved_the_ranking_before_a17` is that counter-case
+    here.
+
+    The survival direction is asserted and **cannot** be moved by the
+    armament in this dataset: of the effects carrying a weapon-type gate,
+    three touch a damage-cut field and all three demand `wep_type` 256, which
+    no armament in the extraction carries (`explain._Armaments`). It is held
+    all the same, because AK-191 asks for both directions and because an
+    effect that did reach it would otherwise arrive unnoticed.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    hero = planner.current_hero()
+    inventory, armaments = an_inventory_telling_two_armaments_apart(game_data,
+                                                                    hero)
+    question = advisor.problem([advisor.RED, advisor.RED])
+    first, second = armaments
+
+    assert first.get("wep_type") != second.get("wep_type"), (
+        "both runs would hold the same kind of armament, so there is nothing "
+        "for the ranking to depend on")
+
+    for rank_by in sorted(goals.GOALS):
+        assert ranking_with(planner, first, inventory, question, rank_by) == \
+            ranking_with(planner, second, inventory, question, rank_by), (
+            f"ranked by {rank_by}, swapping the armament in the slot moved "
+            f"the answer: the run is still asked about what the player "
+            f"happens to be carrying (AK-191)")
+
+
+def test_the_armament_moved_the_ranking_before_a17(planner, game_data):
+    """The counter-case the invariance above is worth anything against.
+
+    Same inventory, same slot, same two armaments -- and the context of the
+    Advisor bar as it stood before A17, with the reference armament and the
+    grid put back by hand. If this came back equal, neither the pair of
+    armaments nor the four copies could tell the two runs apart, and the case
+    above would hold for a reason that has nothing to do with A17.
+
+    Only the damage direction: the survival figure is not reachable by a
+    weapon-type gate in this dataset, so ranking by it would come back equal
+    here as well and prove the opposite of what this case is for.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    hero = planner.current_hero()
+    inventory, armaments = an_inventory_telling_two_armaments_apart(game_data,
+                                                                    hero)
+    question = advisor.problem([advisor.RED, advisor.RED])
+    first, second = armaments
+
+    _baseline_first, order_first = ranking_with(
+        planner, first, inventory, question, "max_damage",
+        as_the_bar_asked_before_a17=True)
+    _baseline_second, order_second = ranking_with(
+        planner, second, inventory, question, "max_damage",
+        as_the_bar_asked_before_a17=True)
+
+    # By handle as well as by name: `relics.templates_for` hands out four
+    # copies of one relic name, so a list of names alone is the same list
+    # whatever order the copies are in.
+    assert [offer[:2] for offer in order_first] != \
+        [offer[:2] for offer in order_second], (
+        "asked the way the Advisor bar asked before A17, these two armaments "
+        "give the same order, so this inventory cannot see the difference "
+        "A17 removes")
 
 
 def test_the_survival_goal_rises_with_hp(game_data, wylder):

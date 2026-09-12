@@ -139,11 +139,16 @@ _DAMAGE_TAKEN_SCOPE = (
 
 
 def _attack_multiplier_mean(build: model.Build) -> float:
-    """The mean of the five attack multipliers, for a build with no armament.
+    """The mean of the five attack multipliers: the figure the program ranks by.
 
     OF-5, confirmed by the `director`: a run without a reference armament is
     not refused, it is answered against a named assumption. This is that
     assumption, and `_NO_ARMAMENT_NOTE` states it in the result.
+
+    Since A17 it is no longer the way out of a run with an empty slot but the
+    ordinary case: the armaments and their buffs are rolled again every
+    expedition, so what a relic is worth is measured without them
+    (`advisorbar.asking_from`, AK-191).
 
     The five fields come from `damage.AR_RATE_FOR`, the facade's own account
     of which multiplier reaches which damage type, so this cannot drift from
@@ -158,7 +163,24 @@ def _attack_multiplier_mean(build: model.Build) -> float:
 
 
 def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
-    """What this build hits for with the reference armament.
+    """What this build hits for -- with an armament only when given one.
+
+    **The branch the program takes is the first one** (`GOAL.md` A17,
+    AK-191). `advisorbar.asking_from` hands in no reference armament and no
+    grid, because both are rolled again every expedition and a relic ranked
+    against them is ranked against something the player will not have. So
+    the figure the Advisor bar and the picker read is the mean of the attack
+    multipliers below, and it is the same figure whatever is in the slot.
+
+    The armament branch below is therefore reached by **no caller inside
+    `nrplanner/` today** -- `advisorbar.asking_from` is the one place a
+    `GoalContext` is built, and it passes `reference=None`. It is kept
+    because it is the answer to a different question, "what does this build
+    hit for with *that* armament", which A16's best and worst case will have
+    to ask again; it is exercised from `tests/test_advisor_goals.py`. That it
+    is unreachable from the program in the meantime is written down here
+    rather than left to be discovered, and was reported with T-188.
+    What follows is about that branch.
 
     Asked through `damage.equipped`, which is the question the weapon panel
     asks -- the armament in its slot, at its tier, with the
@@ -284,7 +306,8 @@ def _min_damage_taken(build: model.Build,
 MAX_DAMAGE = types.Goal(
     id="max_damage",
     label="Maximise damage",
-    blurb="Ranks by what your reference armament hits for.",
+    blurb="Ranks by attack multipliers, attributes and passives — what "
+          "stays fixed between runs.",
     scope=_ATTACK_RATING_SCOPE,
     score=_max_damage,
 )
