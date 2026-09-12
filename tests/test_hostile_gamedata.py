@@ -31,7 +31,7 @@ import time
 
 import pytest
 
-from nrdata import bossdata, dds, icons, oodle
+from nrdata import binary, bossdata, dds, icons, oodle
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -274,11 +274,11 @@ def test_an_unterminated_part_name_is_a_data_error():
     fabrication is worse than losing the map.
     """
     blob = msb_with_one_part(part_record(PART_NAME, terminated=False))
-    with pytest.raises(ValueError):
+    with pytest.raises(binary.NotWhatItClaims):
         bossdata._parts(blob)
 
 
 def test_a_part_name_offset_past_the_record_is_a_data_error():
     record = struct.pack("<Q", 4096) + PART_NAME.encode("utf-16-le") + b"\0\0"
-    with pytest.raises(ValueError):
+    with pytest.raises(binary.NotWhatItClaims):
         bossdata._parts(msb_with_one_part(record))
