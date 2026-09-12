@@ -23,15 +23,21 @@ auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
 ## HIER WEITERMACHEN
 
 **Zyklus 20 ist abgeschlossen.** Alle drei Pruefrollen durch (QA **PASS**,
-Security **CONCERNS**, UI-Review **fast fertig**), Korb 1 des Ueberbau-Audits
-erledigt, drei Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped**
-(T-211 und T-212 unabhaengig, seither keine `.py` geaendert — geprueft).
+Security **CONCERNS**, UI-Review fast fertig), Korb 1 erledigt, drei
+Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped** (dreimal
+unabhaengig gemessen).
 
-1. **Beim Nutzer, und es haelt `selftest.ps1` rot:** vier Hooks sind in keiner
-   Registrierung (`require-receipt`, `no-root-find`, `remind-sync-out`, neu
-   `state-line-budget`). `~/.claude/settings.json` ist seine Datei, kein Agent
-   fasst sie an. Schnipsel in `docs/berichte/T-213-developer.md`. **101 PASS,
-   4 FAIL**, alle vier sind diese Luecken.
+1. **Achtung, die Teamregeln haben sich unter diesem Zyklus geaendert.** Eine
+   **zweite Claude-Sitzung** hat am 12.09. ab 21:00 im Agenten-Repo gearbeitet
+   (`git reflog show origin/main`: fuenf Pushes, nur zwei Commits aus meinen
+   Auftraegen). Neu und **verbindlich**: `templates/task.md` hat ein Pflichtfeld
+   **Praemissen** — jede Bestandsbehauptung im Auftrag braucht Quelle,
+   Pruefbefehl und Datum, und **die Rolle darf einen Auftrag ohne Quelle
+   zurueckweisen**. Dazu `git-commit-guard` und `id-collision-guard`, und
+   `commands/director.md` hat sich geaendert. **Vor dem ersten Auftrag des
+   naechsten Zyklus:** `git log commands/director.md templates/task.md
+   agents/_rahmen.md` lesen. Die vier Hook-Registrierungen sind **erledigt**,
+   `selftest.ps1` meldet alle Tests gruen.
 2. **Eine Bauwelle** fuer QA-242 (90 px, Ursache unbekannt — erster Anlauf,
    beim zweiten der `fehlerdiagnostiker`), QA-210, QA-232, SEC-037, SEC-038
    (**vor** dem SEC-036-Fix, sonst keine rote Phase), SEC-039.
@@ -40,8 +46,8 @@ erledigt, drei Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped**
 4. **A16 ist nicht gebaut und nicht entschieden** — das einzige offene
    Kriterium, das eine Entscheidung des Nutzers braucht, nicht einen Auftrag.
 5. **Release-Kette** (auflagenseitig frei, GELB ohne ROT): `technical-writer`
-   → `release-manager` (`build`) → `clean-room` → `power-user` (A11) →
-   `notes`. **SEC-027 ist das Release-Tor**, sonst nichts.
+   → `build` → `clean-room` → `power-user` (A11) → `notes`. **SEC-027 ist das
+   Release-Tor**, sonst nichts.
 
 ## Stand gegen `GOAL.md`
 
@@ -50,8 +56,7 @@ erledigt, drei Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped**
 | A2 | kritisch/hoch behoben | **erfuellt** fuer QA; **SEC-027 ist Hoch/offen** (`security/findings.md:45`) und haelt das Release-Tor zu |
 | A3-A5 | der Build-Berater | **gebaut**, T-114 am Artefakt bestaetigt |
 | A6 | Oberflaeche blockiert nicht | **erfuellt und gemessen** |
-| A7 | sagen, wo die Daten nichts hergeben | erfuellt, **QA-210, QA-232, SEC-039 offen** |
-| A8 | alles Englisch | **QA-211 geschlossen**, T-201 mit eigenem Rotlauf bestaetigt; **SEC-039 ist die naechste Senke** |
+| A7/A8 | Datenlage nennen / alles Englisch | **QA-211 geschlossen** (T-201 mit eigenem Rotlauf); QA-210, QA-232 und SEC-039 offen |
 | A9/A11 | gegen ein gebautes Artefakt / ohne Raten ans Ziel | offen — die Baurunde, dann `power-user` |
 | A15 | Erststart fuehrt zu Daten | gebaut; **SEC-037: seine Route hat die Freigabebedingung von SEC-016/017/018 ueberholt** |
 | A16 | best/worst case | **nicht gebaut**, keine Entscheidung getroffen |
@@ -93,8 +98,8 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 - **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **nur fuer die Bauform
   des Befundtexts** (T-202), nicht als "kein Pfad erreicht die Flaeche".
 - **Kein Waechter haelt die Verlaufsdateien eingefroren** (T-183).
-- **Pruefpunkt 13** ist in T-193 auf "gleiche Rechnung bei gleichen Eingaben"
-  eingeengt; ob die alte Zusage formal zurueckgezogen wird, ist offen.
+- **Pruefpunkt 13** ist in T-193 eingeengt; ob die alte Zusage formal
+  zurueckgezogen wird, ist offen.
 
 ## Eigene Fehler, Zyklus 20 — sieben, ausgewertet in T-209
 
@@ -104,15 +109,12 @@ Kurzfassung; Muster, Wirkungskontrolle und Massnahmen stehen in
 1. **Korb 2 zurueckgezogen** — der Audit hat Zeilen gezaehlt und auf Redundanz
    **geschlossen**; die Verlaufsdateien sind keine Kopien (Belege: P10).
 2. **QA-235 doppelt zu QA-224** — nach Status durchsucht, nicht nach Inhalt.
-3. **Fuenf kaputte Tabellenzeilen** (QA-236/237 auf einer Zeile, QA-240 mit
-   neun Spalten, vier Altzeilen) — geheilt, NH-003 bewacht sie jetzt.
+3. **Fuenf kaputte Tabellenzeilen** — geheilt, NH-003 bewacht sie jetzt.
 4. **`docs/state.md` mit 149 Zeilen committet**, Waechterlauf danach statt
    davor. Drittes Mal — daher L-020.
-5. **T-205 und T-208 liefen ohne Auftragsdatei**, T-205 zusaetzlich ohne
-   abgelegten Bericht. Nachgetragen.
+5. **T-205/T-208 ohne Auftragsdatei**, T-205 ohne Bericht. Nachgetragen.
 6. **Drei Auftraege fuer einen Satz** (T-213/214/215): jeder Zuschnitt gab nur
-   **eine** Fundstelle frei, und meine Zeilenangabe war beim zweiten schon
-   veraltet. L-016 in Reinform.
+   **eine** Fundstelle frei; L-016 in Reinform.
 7. **Vier Zahlen von Rollen korrigiert** (Erwartungen, Befundzeilen,
    Messskripte, Hook-Muster) — **jedes Mal lag die Rolle richtig.**
 
