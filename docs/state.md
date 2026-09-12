@@ -38,13 +38,13 @@ unabhaengig gemessen).
    naechsten Zyklus:** `git log commands/director.md templates/task.md
    agents/_rahmen.md` lesen. Die vier Hook-Registrierungen sind **erledigt**,
    `selftest.ps1` meldet alle Tests gruen.
-2. **Eine Bauwelle** fuer QA-242 (90 px, Ursache unbekannt — erster Anlauf,
-   beim zweiten der `fehlerdiagnostiker`), QA-210, QA-232, SEC-037, SEC-038
-   (**vor** dem SEC-036-Fix, sonst keine rote Phase), SEC-039.
+2. **Eine Bauwelle:** QA-242 (90 px, Ursache unbekannt — erster Anlauf, beim
+   zweiten der `fehlerdiagnostiker`), QA-210, QA-232, SEC-037, SEC-039 und
+   SEC-038 (**vor** dem SEC-036-Fix, sonst keine rote Phase).
 3. **P10 braucht den `architect`:** Planner 3 318 Zeilen, Mutations-Registry
-   5 300 — beides bestaetigte Schuld. **P10-2 vor oder mit P10-1.**
-4. **A16 ist nicht gebaut und nicht entschieden** — das einzige offene
-   Kriterium, das eine Entscheidung des Nutzers braucht, nicht einen Auftrag.
+   5 300, beides bestaetigte Schuld. **P10-2 vor oder mit P10-1.**
+4. **A16 ist nicht gebaut und nicht entschieden** — das einzige Kriterium, das
+   eine Entscheidung des Nutzers braucht und keinen Auftrag.
 5. **Release-Kette** (auflagenseitig frei, GELB ohne ROT): `technical-writer`
    → `build` → `clean-room` → `power-user` (A11) → `notes`. **SEC-027 ist das
    Release-Tor**, sonst nichts.
@@ -64,8 +64,7 @@ unabhaengig gemessen).
 
 ## Befunde
 
-**249 QA** (171 offen, 59 behoben, 12 geschlossen, 6 teilweise, 1
-zurueckgestellt), **42 SEC**, **21 DR**.
+**249 QA** (171 offen, 59 behoben, 12 geschlossen, 6 teilweise, 1 zurueckgestellt), **42 SEC**, **21 DR**.
 
 **Pruefphase auf `b33461d` durch** (T-201/T-202) — erste seit T-186 bzw.
 T-185, 13 Dateien und +685/-136 dazwischen. QA **PASS**, Security **CONCERNS**
@@ -103,8 +102,7 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 
 ## Eigene Fehler, Zyklus 20 — sieben, ausgewertet in T-209
 
-Kurzfassung; Muster, Wirkungskontrolle und Massnahmen stehen in
-`docs/lessons.md` (L-019, L-020, NH-003).
+Kurzfassung; Muster und Massnahmen stehen in `docs/lessons.md` (L-019, L-020, NH-003).
 
 1. **Korb 2 zurueckgezogen** — der Audit hat Zeilen gezaehlt und auf Redundanz
    **geschlossen**; die Verlaufsdateien sind keine Kopien (Belege: P10).
