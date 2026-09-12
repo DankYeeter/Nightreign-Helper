@@ -24,6 +24,8 @@ import pathlib
 import subprocess
 import sys
 
+from . import errortext
+
 SHORTCUT_NAME = "Nightreign Helper.lnk"
 
 # Only the packaged executable is worth a Start Menu entry. From a source
@@ -128,7 +130,10 @@ def create() -> str:
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except Exception as exc:  # noqa: BLE001 - reported to the user as text
-        return str(exc) or exc.__class__.__name__
+        # Never the exception's own words: this is a button on the ordinary
+        # screen, and on a German Windows an `OSError` here would put German
+        # in the warning box (QA-211, A8).
+        return errortext.in_english(exc)
 
     if result.returncode != 0 or not path.exists():
         detail = (result.stderr or result.stdout or "").strip().splitlines()
@@ -144,5 +149,5 @@ def remove() -> str:
     try:
         path.unlink(missing_ok=True)
     except OSError as exc:
-        return str(exc)
+        return errortext.in_english(exc)
     return ""

@@ -10,6 +10,8 @@ from Crypto.Cipher import AES
 
 from nrdata import savefile
 
+from . import errortext
+
 
 # Relic id for a hypothetical relic the player does not own, used by the
 # planner's custom-relic tile. Negative so it can never collide with a real
@@ -334,6 +336,11 @@ class SaveNotReadable(ValueError):
     treats as "this file was no good": the reading worker turns it into the
     one line the window shows, and nothing has to learn a new exception to
     keep working.
+
+    Being a class of this program is what lets the window quote it at all:
+    `errortext.in_english` passes the words of an exception this program
+    defines and maps every other exception on to a sentence of its own
+    (QA-211). Everything raised here is therefore written here, in English.
     """
 
 
@@ -346,11 +353,12 @@ def _changed_at(path: pathlib.Path) -> float:
     is small and real: a removable drive pulled out, a network path dropped,
     the game rewriting its file.
 
-    Why it may not raise: the raw `OSError` reaches `_SaveReadWorker.work`,
-    which puts `str(exc)` in the line -- and `str(OSError)` carries the whole
-    path, whose folder is named after the Steam account id. AK-126 forbids
-    that text. `_scan_save` already answers the same question this way for
-    the read itself; this is the one `stat` that stood outside it.
+    Why it may not raise: the raw `OSError` would reach `_SaveReadWorker.work`
+    and be put in the line under the save. Even now that nothing quotes an
+    exception there (QA-211), a failure here is not news the player can act
+    on -- the next file may well be the good one. `_scan_save` already answers
+    the same question this way for the read itself; this is the one `stat`
+    that stood outside it.
 
     The shape is `gamefiles._changed_at`'s, which answers the same question
     about the game's folders.
@@ -426,7 +434,7 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
             # The reason is kept in case none of them turns out to be good --
             # the first one, which is the newest, because that is the file the
             # player most likely means.
-            unreadable = unreadable or str(exc)
+            unreadable = unreadable or errortext.in_english(exc)
     if best is None and unreadable:
         raise SaveNotReadable(unreadable)
     return best
@@ -513,15 +521,14 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
     """
     try:
         slots = _decrypt_slots(path)
-    except OSError as exc:
-        # `str(OSError)` writes the whole path into the message and the save
-        # folder is named after the Steam account id (AK-126). `strerror` is
-        # the half of it that says what happened without saying where.
-        raise SaveNotReadable(
-            exc.strerror or "the file could not be opened") from exc
-    except Exception as exc:  # noqa: BLE001
-        raise SaveNotReadable(
-            str(exc) or exc.__class__.__name__) from exc
+    except Exception as exc:  # noqa: BLE001 - said in one line, never raw
+        # One handler for both, because the answer to both is the same one
+        # sentence. `str(OSError)` writes the whole path into the message and
+        # the save folder is named after the Steam account id (AK-126), while
+        # `strerror` is in the language of the Windows installation and breaks
+        # A8 (QA-211). `errortext` says what happened without saying where and
+        # without letting Windows choose the words.
+        raise SaveNotReadable(errortext.in_english(exc)) from exc
 
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,

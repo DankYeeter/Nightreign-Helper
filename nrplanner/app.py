@@ -27,8 +27,8 @@ from nrdata import savefile
 
 from . import __version__
 from . import (advisorblock, chalices, damage, datasource, effecttext,
-               favourites, firstrun, gamepath, inventory, model, shortcut,
-               singleinstance, uiscale, weaponslots, weapons)
+               errortext, favourites, firstrun, gamepath, inventory, model,
+               shortcut, singleinstance, uiscale, weaponslots, weapons)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
@@ -1617,10 +1617,12 @@ def read_the_save(data: dict, save_path: pathlib.Path | None = None):
     None means the file was read and holds nothing (S3), and a raise carries
     the reason he cannot be expected to guess (S4).
 
-    **No path is ever put into the reason.** The save folder is named after
-    the Steam account id (AK-126), and an `OSError` writes the whole path
-    into its message, so what comes out of one here is its `strerror` and
-    nothing else.
+    **No path and no Windows wording is ever put into the reason.** The save
+    folder is named after the Steam account id (AK-126), and an `OSError`
+    writes the whole path into its message; `strerror` drops the path but is
+    in the language of the Windows installation and broke A8 (QA-211). What
+    comes out of one here is `errortext`'s sentence for its `errno`, and it
+    leaves as this module's own class so that the window may quote it.
     """
     if save_path is None:
         return inventory.scan(data)
@@ -1635,7 +1637,7 @@ def read_the_save(data: dict, save_path: pathlib.Path | None = None):
             savefile.read(save_path)
         return found
     except OSError as exc:
-        raise ValueError(exc.strerror or "the file could not be opened") from None
+        raise inventory.SaveNotReadable(errortext.in_english(exc)) from None
 
 
 class _SaveReadWorker(QObject):
@@ -1656,7 +1658,10 @@ class _SaveReadWorker(QObject):
     ready = Signal(int, object)
     #: A read that could not be finished, in one line and without a traceback.
     #: An exception that merely propagated would end the thread in silence and
-    #: leave the window on its waiting sentence for ever (AK-224).
+    #: leave the window on its waiting sentence for ever (AK-224). The line is
+    #: `errortext`'s and never the exception's own: anything at all can come
+    #: out of `self._read`, and whatever Windows would have said here it would
+    #: have said in its own language (QA-211, A8).
     failed = Signal(int, str)
     #: Always last, whatever happened, so the thread is quit from one place.
     finished = Signal()
@@ -1678,8 +1683,7 @@ class _SaveReadWorker(QObject):
             found = self._read(self._data, self._save_path)
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
             traceback.print_exc()
-            self.failed.emit(self._generation,
-                             str(exc) or exc.__class__.__name__)
+            self.failed.emit(self._generation, errortext.in_english(exc))
         else:
             self.ready.emit(self._generation, found)
         self.finished.emit()

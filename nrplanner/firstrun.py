@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
 
 from nrdata import gamefiles
 
-from . import gamepath, paths, shortcut
+from . import errortext, gamepath, paths, shortcut
 from .datasource import bundled_path, defs_dir
 
 
@@ -575,6 +575,17 @@ def a_question_is_due() -> bool:
     return gamepath.remembered_game() is not None or not bundled_path().exists()
 
 
+class CannotBuild(Exception):
+    """A reason the first run cannot go on, in this program's own words.
+
+    A class of this program rather than a `FileNotFoundError`, because that is
+    what decides whether the dialog may quote it: `errortext.in_english` maps
+    every exception that is not one of ours on to a sentence of its own, and
+    an `OSError` raised here would have come out as the `errno` table's line
+    instead of the sentence written below (QA-211).
+    """
+
+
 class _Builder(QObject):
     """Runs the extraction off the GUI thread."""
 
@@ -590,7 +601,7 @@ class _Builder(QObject):
         try:
             defs = defs_dir()
             if defs is None:
-                raise FileNotFoundError(
+                raise CannotBuild(
                     "The param definitions are missing, so the game cannot be "
                     "read. Reinstalling should restore them."
                 )
@@ -615,7 +626,10 @@ class _Builder(QObject):
                 )
         except Exception as exc:  # noqa: BLE001 - reported in the dialog
             traceback.print_exc()
-            self.finished.emit(str(exc) or exc.__class__.__name__)
+            # `errortext` and not the exception itself: the build reads the
+            # game's own folders, so most of what can fail here is an
+            # `OSError`, and Windows words those in its own language (QA-211).
+            self.finished.emit(errortext.in_english(exc))
             return
 
         self.finished.emit("")
