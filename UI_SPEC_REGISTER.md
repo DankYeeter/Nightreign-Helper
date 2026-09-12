@@ -340,3 +340,22 @@ Akzeptanzkriterium. Die Nummern laufen von AK-01 bis AK-255 **ohne Luecke**.
 | AK-254 | kein erfundener Fortschritt — und die gelobte Zeile bleibt | A33 Z9529 | T-178, 2026-09-09 | — |
 | AK-255 | nichts ist abgeschnitten, an keiner Skalierung | A33 Z9542 | T-178, 2026-09-09 | — |
 
+
+## Widerspruechliche Faelle
+
+*Nachgetragen am 12.09.2026 in T-184. Die Zeile zu AK-05 verweist seit T-181
+auf diesen Abschnitt; er fehlte, weil der T-181-Lauf unmittelbar nach dem
+Schreiben der Tabelle abgebrochen ist. Hier wird nichts entschieden.*
+
+Drei Kriterien tragen in der Spalte *ueberholt durch* den Eintrag
+`widerspruechlich`: **AK-05**, **AK-160**, **AK-194**. Alle drei haengen an
+derselben Sache — der Startbreite **1320 px**, die `A14 Z2555`
+(Director-Nachtrag zu AK-05, 06.09.2026) als feste Zahl aufgehoben hat,
+waehrend zwei spaetere Kriterien sie erneut als Bezugsbreite vorschreiben.
+
+Der Fall ist vollstaendig beschrieben in `UI_SPEC.md`, Abschnitt
+**„Drei widerspruechliche Faelle — Entscheidung des App Designers steht aus"**
+(dort mit dem Wortlaut von `A14` und der Frage, die zu entscheiden ist).
+
+**Die Entscheidung gehoert dem App Designer.** Bis sie faellt, fuehren
+`UI_SPEC.md` und dieses Register beide Fassungen nebeneinander.
