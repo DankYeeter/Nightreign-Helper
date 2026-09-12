@@ -16,10 +16,12 @@ every assertion about an order would hold vacuously.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from nrplanner import inventory
-from nrplanner.advisor import run, types
+from nrplanner.advisor import goals, run, types
 
 from tests import relics as relic_helpers
 from tests import weapon_damage_cases as cases
@@ -376,15 +378,49 @@ def problem_from_planner(planner) -> types.SlotProblem:
     )
 
 
-def context_from_planner(planner, data: dict) -> types.GoalContext:
-    """The window's armament grid, level and declarations as a context.
+#: The direction the context is fetched under. `asking_from` derives every
+#: field of the context from the window and none of them is the goal, so
+#: which one is asked makes no difference to what comes back -- but one has
+#: to be named, and naming it here keeps it out of the callers.
+A_GOAL_ID = goals.MAX_DAMAGE.id
 
-    The three things beyond AD-004's four fields are here for one reason: the
-    window passes them to `model.compute`, so leaving any of them out would
-    make the advisor's build differ from the one on screen -- which is QA-001
-    in a new place rather than a rounding difference.
+
+def context_from_planner(planner, data: dict) -> types.GoalContext:
+    """The program's own context, with the armament grid put back on.
+
+    **The program's, and not a second one built here** (QA-227). This used to
+    assemble a `GoalContext` field by field out of the window, which is what
+    `advisorbar.asking_from` does for the running program -- two
+    implementations of one idea. They came apart in silence: T-188 took
+    `reference` and `weapons_held` out of the program's question and AD-032
+    took `armament_effect_ids`, while this went on filling all three, and
+    checkpoint 13 stayed green for months because both sides of its
+    comparison came from here. Everything except the grid is therefore the
+    program's now, and a field added to `GoalContext` tomorrow arrives here
+    by itself.
+
+    **Why the grid is put back, rather than dropped to match.** The cases
+    this serves compare the advisor's arithmetic against the build the window
+    shows, and the *window* still reads the grid -- A17 changed which question
+    the advisor is asked, not how `model.compute` adds up an answer. Asking
+    the advisor without the grid and the sheet with it would compare two
+    different questions and prove nothing about either. `GoalContext`'s own
+    docstring keeps the three fields for exactly this reason: "the other
+    question is still asked from tests and will be asked again by A16".
+
+    So this is the stat sheet's question put to the advisor's door, and
+    `tests/test_the_fixture_asks_what_the_program_asks.py` is what keeps the
+    two apart in only those three places.
     """
-    from nrplanner.advisor import goals
+    from nrplanner import advisorbar
+
+    assert data is planner.data, (
+        "the advisor's context carries the dataset the window computes on; "
+        "a case that wants a different one is asking a different question")
+    asking = advisorbar.asking_from(planner, A_GOAL_ID)
+    assert asking is not None, (
+        "the program asks nothing without a save, so there is no context to "
+        "take -- skip on `planner.owned is None` before calling this")
 
     active = planner.active_slot()
     reference = None
@@ -395,15 +431,11 @@ def context_from_planner(planner, data: dict) -> types.GoalContext:
     armament_effects: list[int] = []
     for slot in planner.weapon_slots:
         armament_effects.extend(slot.effect_ids)
-    return types.GoalContext(
-        data=data,
-        hero=planner.current_hero(),
-        level=planner.level_slider.value(),
+    return dataclasses.replace(
+        asking.ctx,
         reference=reference,
-        weighting=goals.DEFAULT_WEIGHTING,
         weapons_held=tuple(planner.equipped_weapons()),
         armament_effect_ids=tuple(armament_effects),
-        declared=tuple(sorted(planner.declared.items())),
     )
 
 

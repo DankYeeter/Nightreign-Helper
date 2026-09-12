@@ -134,7 +134,20 @@ def figures(build: model.Build) -> dict:
 
 
 def test_the_advisor_computes_the_build_the_window_shows(planner, game_data):
-    """Checkpoint 13: one build, whoever asks for it.
+    """Checkpoint 13: one build, whoever asks for it -- for one question.
+
+    **What "whoever asks" no longer covers, said before anything else**
+    (QA-227). Since A17 the running program does not put this question to
+    the advisor at all: `advisorbar.asking_from` leaves `reference`,
+    `weapons_held` and `armament_effect_ids` empty, because the armaments
+    are rolled again every expedition, so the advisor's build is deliberately
+    not the stat sheet's. What this case compares is the **arithmetic at the
+    two doors given the same inputs** -- QA-001's fault was a second, shorter
+    argument list, and that fault is still possible and still worth a guard.
+    The context comes from `advisor_cases.context_from_planner`, which is the
+    program's own context with the grid put back on for exactly this
+    comparison; the three places it departs from the program are held to
+    three by `tests/test_the_fixture_asks_what_the_program_asks.py`.
 
     Read off the window's own `current_build()` rather than assembled twice
     in the test: assembling the same argument list here would compare this
