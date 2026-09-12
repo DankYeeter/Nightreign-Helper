@@ -22,24 +22,22 @@ auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
 
 ## HIER WEITERMACHEN
 
-T-203 und T-204 liegen geschrieben, **nicht dispatcht**, und laufen nicht
-parallel — T-203 greift in fremde Werkzeugaufrufe ein.
+Die Pruefphase ist vollstaendig: QA **PASS**, Security **CONCERNS**, UI-Review
+**fast fertig** (DR-019 bis DR-021, 0 kritisch).
 
-1. **T-203 — Waechter statt Nachweispflicht** (Nutzerentscheid 12.09.):
-   `PreToolUse`-Hook, projekteigen, weist Programmstarts ohne alle drei
-   umgelenkten Variablen ab. Zieht `CLAUDE.md` nach und **muss sie kuerzer
-   machen**. Dazu der Kopf von `requirements-dev.txt` (Korb 1).
-2. **T-204 — Korb 1, mechanische Haelfte:** `StrEnum` statt der zwei
-   `str`-Unterklassen (4 Dateien gezaehlt), `baseline_for` inlinen (1 Aufrufer,
-   im Test). Fuenf Dateien = Obergrenze, der Auftrag verlangt **Abbruch** bei
-   einer sechsten.
-3. **UI-Review** (Review-Modus) — Fensterlauf, deshalb allein. Traegt
-   **QA-239**: `UI_SPEC.md:2230` fuehrt `wanted_height` mit 1136 px, gemessen
-   sind **1121**. Seine Datei, seine Zahl.
-4. **Prosakuerzung** (Korb 1, *"nur belegt Redundantes"*) — **noch nicht
-   geschnitten**, ~20 Dateien. Vorschlag: Pilot auf `chalices.py`, `model.py`,
-   `weapons.py`, Ausbeute messen, dann ueber den Rest entscheiden.
-5. **Dann die Baurunde** (A9), davor `compliance-agent` (`pruefen`): 36 Auflagen, 15 GELB.
+1. **Korb 1 ist abgeschlossen** (T-203, T-204, T-206) — rund **-37**
+   Quellzeilen gegen die 120 000 des Audits, dazu ein Waechter, zwei
+   bestaetigte strukturelle Schulden und acht Befunde. Bilanz und die
+   widerlegten Punkte: `docs/plan-restarbeiten.md`.
+2. **QA-241** — der Waechter ist erst **nach Sitzungsneustart** wirksam. Bis
+   dahin schreibt der Director die drei Umlenkungen weiter woertlich in jeden
+   Auftrag; `CLAUDE.md` behauptet inzwischen das Gegenteil.
+3. **QA-242** — `wanted_height()` berechnet 1151 px, die Dialoghoehe erreicht
+   im selben Lauf 1061. **Kein Bildschirmanschlag** (4096x1728 nachgemessen),
+   Ursache unbekannt. Erster Anlauf; scheitert ein zweiter, geht es an den
+   `fehlerdiagnostiker`.
+4. **Dann die Baurunde** (A9), davor `compliance-agent` (`pruefen`): 36
+   Auflagen, 15 GELB.
 
 ## Stand gegen `GOAL.md`
 
@@ -57,8 +55,7 @@ parallel — T-203 greift in fremde Werkzeugaufrufe ein.
 
 ## Befunde
 
-**239 QA:** 163 offen, 58 behoben, 11 geschlossen, 6 teilweise, 1
-zurueckgestellt. **42 SEC**, sechs neu aus T-202 (SEC-037 bis SEC-042).
+**242 QA**, **42 SEC** (sechs neu aus T-202), **21 DR** (drei neu aus T-207).
 
 **Pruefphase auf `b33461d` durch** (T-201/T-202) — erste seit T-186 bzw.
 T-185, 13 Dateien und +685/-136 dazwischen. QA **PASS**, Security **CONCERNS**
