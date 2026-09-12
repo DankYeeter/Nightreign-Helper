@@ -7,8 +7,8 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-211** · QA ab
-**QA-244** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-216** · QA ab
+**QA-247** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
 
@@ -22,22 +22,26 @@ auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
 
 ## HIER WEITERMACHEN
 
-Die Pruefphase ist vollstaendig: QA **PASS**, Security **CONCERNS**, UI-Review
-**fast fertig** (DR-019 bis DR-021, 0 kritisch).
+**Zyklus 20 ist abgeschlossen.** Alle drei Pruefrollen durch (QA **PASS**,
+Security **CONCERNS**, UI-Review **fast fertig**), Korb 1 des Ueberbau-Audits
+erledigt, drei Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped**
+(T-211 und T-212 unabhaengig, seither keine `.py` geaendert — geprueft).
 
-1. **Korb 1 ist abgeschlossen** (T-203, T-204, T-206) — rund **-37**
-   Quellzeilen gegen die 120 000 des Audits, dazu ein Waechter, zwei
-   bestaetigte strukturelle Schulden und acht Befunde. Bilanz und die
-   widerlegten Punkte: `docs/plan-restarbeiten.md`.
-2. **QA-241** — der Waechter wirkt erst **nach Sitzungsneustart**; bis dahin
-   schreibt der Director die drei Umlenkungen weiter in jeden Auftrag.
-3. **QA-242** — `wanted_height()` berechnet 1151 px, die Dialoghoehe erreicht
-   im selben Lauf 1061. **Kein Bildschirmanschlag** (4096x1728 nachgemessen),
-   Ursache unbekannt. Erster Anlauf; scheitert ein zweiter, geht es an den
-   `fehlerdiagnostiker`.
-4. **Die Baurunde** (A9) ist auflagenseitig frei: T-210 meldet **GELB, keine
-   Auflage auf ROT** (21 von 36 erfuellt, 8 offen). Vor einem **Release**
-   offen: A-002, A-008, A-012, A-013, A-031, Abnahme A-021/A-033.
+1. **Beim Nutzer, und es haelt `selftest.ps1` rot:** vier Hooks sind in keiner
+   Registrierung (`require-receipt`, `no-root-find`, `remind-sync-out`, neu
+   `state-line-budget`). `~/.claude/settings.json` ist seine Datei, kein Agent
+   fasst sie an. Schnipsel in `docs/berichte/T-213-developer.md`. **101 PASS,
+   4 FAIL**, alle vier sind diese Luecken.
+2. **Eine Bauwelle** fuer QA-242 (90 px, Ursache unbekannt — erster Anlauf,
+   beim zweiten der `fehlerdiagnostiker`), QA-210, QA-232, SEC-037, SEC-038
+   (**vor** dem SEC-036-Fix, sonst keine rote Phase), SEC-039.
+3. **P10 braucht den `architect`:** Planner 3 318 Zeilen, Mutations-Registry
+   5 300 — beides bestaetigte Schuld. **P10-2 vor oder mit P10-1.**
+4. **A16 ist nicht gebaut und nicht entschieden** — das einzige offene
+   Kriterium, das eine Entscheidung des Nutzers braucht, nicht einen Auftrag.
+5. **Release-Kette** (auflagenseitig frei, GELB ohne ROT): `technical-writer`
+   → `release-manager` (`build`) → `clean-room` → `power-user` (A11) →
+   `notes`. **SEC-027 ist das Release-Tor**, sonst nichts.
 
 ## Stand gegen `GOAL.md`
 
@@ -55,7 +59,8 @@ Die Pruefphase ist vollstaendig: QA **PASS**, Security **CONCERNS**, UI-Review
 
 ## Befunde
 
-**242 QA**, **42 SEC** (sechs neu aus T-202), **21 DR** (drei neu aus T-207).
+**249 QA** (171 offen, 59 behoben, 12 geschlossen, 6 teilweise, 1
+zurueckgestellt), **42 SEC**, **21 DR**.
 
 **Pruefphase auf `b33461d` durch** (T-201/T-202) — erste seit T-186 bzw.
 T-185, 13 Dateien und +685/-136 dazwischen. QA **PASS**, Security **CONCERNS**
@@ -87,34 +92,29 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 
 - **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **nur fuer die Bauform
   des Befundtexts** (T-202), nicht als "kein Pfad erreicht die Flaeche".
-- **Waechter muessen die echte Kandidatenliste messen** statt zu stubben —
-  SEC-038 belegt, dass der SEC-036-Waechter genau das nicht tut.
 - **Kein Waechter haelt die Verlaufsdateien eingefroren** (T-183).
 - **Pruefpunkt 13** ist in T-193 auf "gleiche Rechnung bei gleichen Eingaben"
   eingeengt; ob die alte Zusage formal zurueckgezogen wird, ist offen.
 
-## Eigene Fehler, Zyklus 20 — fuenf an einem Tag
+## Eigene Fehler, Zyklus 20 — sieben, ausgewertet in T-209
 
-1. **Korb 2 ist zurueckgezogen, nichts geloescht.** Der Audit hat Zeilen
-   gezaehlt und auf Redundanz **geschlossen**; die Verlaufsdateien sind keine
-   Kopien, T-181/T-182 haben die Spec **geteilt** (Belege: P10). Dieselbe
-   Klasse zweimal — Docstrings (vom Nutzer abgefangen), Verlauf (von mir, aber
-   erst nach der Freigabe).
-2. **QA-235 ist ein Duplikat von QA-224.** Ich hatte nach **Status**
-   durchsucht, nicht nach **Inhalt**.
-3. **QA-236 und QA-237 standen auf einer Zeile** (2086 Zeichen, fehlender
-   Umbruch). Getrennt.
-4. **Vier Tabellenzeilen strukturell kaputt** — QA-211, QA-225 bis QA-227:
-   doppeltes Datum, fehlende Abschlusspipe, bei QA-211 der Status von einem
-   Datum ueberschrieben. Diese Datei kannte nur drei. Alle repariert.
-5. **Diese Datei wurde mit 149 Zeilen committet**, 29 ueber Budget — der
-   Waechterlauf kam nach dem Commit statt davor. Drittes Mal.
-6. **Zwei Auftraege liefen ohne Auftragsdatei** (T-205, T-208, beide
-   `sync-out`): Nummer im Dispatch verwendet, Datei nicht angelegt.
-   Nachgetragen und als nachgetragen gekennzeichnet.
+Kurzfassung; Muster, Wirkungskontrolle und Massnahmen stehen in
+`docs/lessons.md` (L-019, L-020, NH-003).
 
-**Massnahme, noch ohne Auftrag:** ein Waechter auf Spaltenzahl und
-Abschlusspipe beider Befundtabellen — `tests/` haelt **kein** `.md`-Pfadliteral,
-also bewacht sie heute nichts. Regeln in `docs/plan-restarbeiten.md`, teamweit
-L-008 bis L-018, projekteigen NH-001/NH-002. **Nie geprueft:** Linux/macOS,
-Fremdinstallation.
+1. **Korb 2 zurueckgezogen** — der Audit hat Zeilen gezaehlt und auf Redundanz
+   **geschlossen**; die Verlaufsdateien sind keine Kopien (Belege: P10).
+2. **QA-235 doppelt zu QA-224** — nach Status durchsucht, nicht nach Inhalt.
+3. **Fuenf kaputte Tabellenzeilen** (QA-236/237 auf einer Zeile, QA-240 mit
+   neun Spalten, vier Altzeilen) — geheilt, NH-003 bewacht sie jetzt.
+4. **`docs/state.md` mit 149 Zeilen committet**, Waechterlauf danach statt
+   davor. Drittes Mal — daher L-020.
+5. **T-205 und T-208 liefen ohne Auftragsdatei**, T-205 zusaetzlich ohne
+   abgelegten Bericht. Nachgetragen.
+6. **Drei Auftraege fuer einen Satz** (T-213/214/215): jeder Zuschnitt gab nur
+   **eine** Fundstelle frei, und meine Zeilenangabe war beim zweiten schon
+   veraltet. L-016 in Reinform.
+7. **Vier Zahlen von Rollen korrigiert** (Erwartungen, Befundzeilen,
+   Messskripte, Hook-Muster) — **jedes Mal lag die Rolle richtig.**
+
+Regeln in `docs/plan-restarbeiten.md`, teamweit L-008 bis L-020, projekteigen
+NH-001 bis NH-003. **Nie geprueft:** Linux/macOS, Fremdinstallation.
