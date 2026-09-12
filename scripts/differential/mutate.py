@@ -3925,9 +3925,9 @@ from PySide6 import QtCore
     ),
     "sort-by-offers-a-direction-nobody-scores": Mutation(
         path="nrplanner/advisorbar.py",
-        old="""GOAL_ORDER = ("max_damage", "min_damage_taken")
+        old="""GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
 """,
-        new="""GOAL_ORDER = ("max_damage", "min_damage_taken", "max_style")
+        new="""GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes", "max_style")
 """,
         survival_means=(
             "AD-028 W4 is blind: the picker and the Advisor bar share one "
