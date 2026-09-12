@@ -992,3 +992,511 @@ L-017 verlangt in diesem Fall einen Satz Begruendung, und hier ist er:
 Aussage teuer wird.** Die zwoelf Zeilen sind damit belegt, aber nicht getilgt —
 **in Zyklus 17 sind zwoelf Zeilen an anderer Stelle zu streichen**, sonst ist
 das Erfolgskriterium von L-017 verfehlt, bevor es geprueft wird.
+
+---
+
+## Zyklus 20 — 2026-09-12
+
+**Ziel des Zyklus:** die dritte Zielrichtung sichtbar bauen (A17), die
+Pruefphase darauf fahren, und den Ueberbau-Audit in drei Koerben abarbeiten.
+
+**Datengrundlage:** die Berichte T-196 bis T-208 (**12** auf Platte; zu T-205
+liegt keiner, siehe unten), die **13** Auftragsdateien dazu, `qa/findings.md`
+(QA-228 bis QA-243), `security/findings.md` (SEC-036 bis SEC-042),
+`DESIGN_REVIEW.md` (DR-019 bis DR-021), `docs/plan-restarbeiten.md` (P10,
+Korb 1/2, Bilanzabschnitte), `docs/state.md`, `CLAUDE.md` **von der Platte**
+(nicht die Fassung im Kontext — siehe Beobachtungen), `GOAL.md`,
+`docs/lessons.md` L-001 bis L-018, `git log` beider Repositorien,
+`~/.claude/agents/*.md`, `~/.claude/commands/director.md`,
+`~/.claude/hooks/*.ps1` und `~/.claude/settings.json`.
+
+**Stand, gegen den ich gemessen habe:** `98cdf61`. `docs/state.md` ist waehrend
+dieses Laufs zweimal fortgeschrieben worden (`7c3a260` → `98cdf61`); zwei meiner
+Zwischenbefunde sind dadurch erledigt und stehen als solche unten.
+
+**Nummernraum:** L-019 und L-020 sind als **teamweite** Nummern vergeben —
+beide sind im teamweiten Satz frei (dort endet er bei L-013). **NH-003** ist
+projekteigen und gehoert nach `docs/plan-restarbeiten.md`. Die projekteigene
+Reihe dieser Datei endet weiter bei L-018 und wird nicht fortgeschrieben
+(NH-Beschluss vom 05.09.).
+
+### Gut gelaufen (schuetzenswert)
+
+- **Vier sachliche Korrekturen des Directors, alle vier richtig, alle vier
+  angenommen.** T-197 (`grep` gezaehlt: 15 Treffer, davon **zehn**
+  `pytest.raises(ValueError)`; die Director-Aufstellung hatte Zeile 277/283
+  uebersehen), T-204 (`StrEnum` am Zirkelimport: `goals.py:56` macht
+  `from . import types`, also kann `types.py` die Registry nicht lesen),
+  T-202 F6 (die SEC-036-Notiz behauptete einen Angreifer, den die Messung
+  nicht stuetzt), T-207 (die `UI_SPEC.md`-Zahl 1136 px war eine Schaetzung,
+  gemessen 1121). **Der Director hat in allen vier Faellen die Lesart der
+  Rolle uebernommen** und das in `plan-restarbeiten.md` und den Befunden
+  vermerkt, statt sie zu glaetten. Bei der Prosaregel schreibt er es
+  ausdruecklich hin: *"Mein Wortlaut war zu grob, nicht seine Umsetzung."*
+- **T-199 hat die L-009-Falle selbst gefangen, ohne dass der Auftrag sie
+  nannte.** Erster Lauf offscreen: 278/271/278 px und `wanted_height` 1203.
+  Zweiter Lauf nativ: 228 px, Vorgabe exakt getroffen. Im Bericht steht der
+  Satz, auf den es ankommt: *"Ohne diese Gegenprobe haette ich eine falsche
+  Zahl gemeldet."* Dazu die Umgebungszeile (`platform 'windows'`, Fusion,
+  dPR 1,25, logische px).
+- **T-196 hat einen strukturell unmoeglichen Nachweis als unmoeglich
+  gemeldet** — `STATUS: teilweise`, `BLOCKIERT DURCH: eine Bestaetigung, dass
+  der kopierte Abzug am realen Zielpfad tatsaechlich lesbar ist — meine Tools
+  koennen das nicht zeigen`, dazu ein eigener Abschnitt, der die Grenze
+  eingekreist hat (jeder Leseversuch scheitert, auch auf einer selbst
+  angelegten Testdatei, nicht im Scratchpad). Daraus wurde QA-237.
+- **T-203 hat einen Fehler in seiner eigenen ersten Fassung gefunden** (ein
+  Anker auf Zeilenanfang liess `VAR=x VAR2=y python run.py` durch) und die
+  Werkzeuggrenze seines Waechters gemeldet (QA-241) statt zu behaupten, er
+  laufe.
+- **T-206 hat die groesste Behauptung des Audits gemessen und gegen sie
+  entschieden** — 20 von 1427 Prosazeilen (1,4 %), mit Positivkontrolle, und
+  die Empfehlung, die restlichen 17 Dateien nicht anzufassen.
+- **Die Pruefung zwischen Freigabe und Loeschbefehl.** 35 154 Zeilen waren
+  freigegeben; die Pruefung der lebenden Verweise kam **danach** und hat die
+  Praemisse widerlegt. Nichts wurde geloescht.
+- **Der Director fuehrt seine eigenen Fehler in `docs/state.md`** und hat die
+  Liste noch waehrend dieses Laufs von fuenf auf sechs erweitert. Ohne diesen
+  Abschnitt waere der Lauf nicht moeglich. Das war schon in Zyklus 16 die
+  schuetzenswerteste Gewohnheit und ist es weiter.
+
+### Was ich der Aufzaehlung des Auftrags widerspreche
+
+Der Auftrag hat sieben Beobachtungen als Material uebergeben und ausdruecklich
+verlangt, sie gegen die Quellen zu pruefen. Fuenf halten, zwei tragen nicht:
+
+1. **Beobachtung 3 ist als Beleg wertlos — nicht falsch, sondern ohne
+   Kontrast.** Der Satz *"Widersprich, wenn der Auftrag nicht stimmt"* steht in
+   **12 von 12** damals vorhandenen Auftragsdateien des Zyklus (`grep -ci`, je
+   Datei einzeln) und seit T-180 in **30 von 30** aufeinanderfolgenden
+   Auftraegen. Es gibt im Zyklus keinen Fall ohne den Satz. "In allen vier
+   Faellen stand er im Auftrag" gilt damit genauso fuer die acht Faelle **ohne**
+   Korrektur und trennt nichts. Gegenprobe nach unten: die Strecke T-140 bis
+   T-179 traegt den Satz in 4 von 40 Dateien, und aus ihr liegen mehrere
+   Berichte vor, die dem Auftrag widersprechen — die Klasse ist aelter als der
+   Satz. **Der Satz bleibt, weil er eine Zeile kostet; Ursache ist er nicht.**
+   Die vier Korrekturen kamen aus vier *Messpflichten* der Rollendefinitionen:
+   nachzaehlen (T-197), an der Primaerquelle lesen (T-204), den Angriffspfad
+   messen (T-202), am Fenster nachmessen (T-207). Alle vier binden die Rolle
+   unabhaengig vom Auftragstext. **Und genau diese vier Pflichten binden den
+   Director nicht** — das ist L-013s Wirkungskontrolle vom 08.09., woertlich
+   wiederholt, und es ist der Kern von L-019.
+2. **Beobachtung 6 trifft nicht zu.** "Derselbe Sachverhalt, zwei
+   entgegengesetzte Reaktionen" — die Berichte sagen das Gegenteil. T-196 hat
+   den Rueckleseversuch **nicht** als Nachweis gemeldet: `STATUS: teilweise`,
+   `BLOCKIERT DURCH` nennt genau die fehlende Bestaetigung, und ein eigener
+   Abschnitt *"Offener Punkt, nicht geloest"* grenzt die Ursache ein. T-203 hat
+   es genauso gemacht. **Beide Rollen haben gleich und richtig reagiert; die
+   Asymmetrie steht im Befundtext**, nicht in den Laeufen: QA-237 schreibt
+   *"T-196 hat … den Abzug zurueckgelesen … und genau das hat T-196 als
+   Nachweis gemeldet"*, und das widerspricht T-196s Bericht. Die Frage "woran
+   lag der Unterschied" hat keine Antwort, weil es den Unterschied nicht gibt.
+
+Dazu zwei Praezisierungen, die die Beobachtungen nicht umstossen:
+
+- **Beobachtung 1: die Zahl 120 000 traegt kein Rezept und mischt zwei
+  Grundgesamtheiten.** Sie kommt im ganzen Repo nur an drei Stellen vor
+  (`docs/state.md:29`, `docs/plan-restarbeiten.md:564`, `docs/tasks/T-209.md`)
+  und nirgends mit Herleitung; die gemessene Ausgangslage in P10 nennt 23 916
+  Quellzeilen und 113 477 Markdown-Zeilen. Die Schlagzeile "-37 gegen 120 000"
+  stellt **Quellzeilen** gegen ueberwiegend **Markdown**zeilen. Alles
+  Inhaltliche der Beobachtung haelt (drei widerlegte Punkte, 1,4 %, zwei
+  bestaetigte Strukturbefunde, QA-234 als Selbstbeleg) — nur die
+  Verhaeltniszahl nicht.
+- **Beobachtung 7: L-009 ist nicht "aufgelaufen", L-009 hat gegriffen.** Die
+  *Falle* trat wieder auf (`scripts/measure_picker_cards.py:60` setzt
+  `QT_QPA_PLATFORM=offscreen` als Vorgabe), der *Fehler* nicht — keine falsche
+  Zahl hat einen Bericht verlassen. Der Auftrag war daran unbeteiligt: T-199
+  nennt L-009 dreimal im Bericht, waehrend `docs/tasks/T-199.md` sie **null**
+  Mal nennt; L-009 steht in `agents/developer.md:356`. Auch die zweite Haelfte
+  traegt nicht: L-009 erscheint in **2 von 12** Auftragsdateien des Zyklus
+  (T-201, T-207), nicht "ab T-201 in jedem".
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **L-009** (teamweit) — jede Oberflaechenzahl nennt ihre Messumgebung | 2026-09-06 (Rollendefinitionen), Projektfassung in `plan-restarbeiten.md` | **Wirkt, und zwar dort, wo eine Regel es am schwersten hat: ohne Erinnerung im Auftrag.** T-199 hat die Offscreen-Falle selbst erkannt, gegengemessen und die Umgebungszeile geliefert, obwohl sein Auftrag L-009 nicht nennt. T-201 hat die Fremdmessung genau deshalb als Stichprobe akzeptiert, weil die Umgebung dabeistand. **Die mechanische Haelfte hat aber ein Loch:** T-060 hat `tests/conftest.py` an `apply_appearance` gebunden, nicht die Messskripte — **fuenf** Dateien setzen `QT_QPA_PLATFORM=offscreen` als Vorgabe (`scripts/measure_picker_cards.py:60`, `measure_display_thresholds.py:53`, `measure_advisor_block.py:287`, `capture_weapon_damage.py:33`, `differential/capture.py:77`), drei davon messen Geometrie. `measure_picker_cards.py` ruft `apply_appearance` **und** laeuft offscreen: Stil geschlossen, Plattform offen. | **Kein neuer Regeltext.** Ein Punkt fuer den `developer`, Einordnung beim `director`: die drei Geometriemesser nennen ihre Plattform in jeder Ausgabezeile oder weigern sich unter `offscreen`. Der **Status "vorgeschlagen"** in dieser Datei ist falsch — die Regel steht seit dem 06.09. in fuenf Rollendefinitionen und in `plan-restarbeiten.md` und ist in Kraft. |
+| **L-016** (Projekt) — eine Korrektur schliesst die Fundstelle, nicht die Aussage | 2026-09-08 | **Beide Textaenderungen sind umgesetzt, und das Erfolgskriterium ist dennoch verfehlt — durch die Korrekturen selbst.** Umgesetzt: die QA-198-Ueberschrift heisst heute *"dauert unvorhersagbar lange (107 s bis 5 min)"* (`qa/verlauf.md:1932`); der `CLAUDE.md`-Absatz ist ersetzt. **Verfehlt, vier Vorkommen in vier Tagen:** (a) der **neue** Wortlaut aus L-016 (a) fuehrte den `qa-engineer` unter den Rollen ohne `Write` — falsch, korrigiert erst am 12.09. (`de710a5`); (b) L-018s Umsetzung gab drei Hook-Kommentaren das Praefix `Nightreign-Helper`, obwohl `L-022` bis `L-026` hier nicht existieren; (c) am Tag, an dem vier kaputte Tabellenzeilen repariert wurden, ist in derselben Datei eine fuenfte entstanden (QA-240, `qa/findings.md:263`); (d) `docs/tasks/T-205.md`, geschrieben um 21:30 desselben Tages, sagt *"der Bericht liegt ab"* und nennt `docs/berichte/T-205-archivist.md` — **die Datei existiert nicht** (drei unabhaengige Pruefungen: `ls`, `find docs -iname "*205*"`, `git log --all -- "docs/berichte/T-205*"`, dazu eine Volltextsuche: `T-205` kommt nur in `docs/state.md` und den zwei Auftragsdateien vor). | **Nicht zurueckgenommen** — die Textaenderungen waren richtig. Die Klasse braucht statt weiteren Regeltexts einen Adressaten: → **L-019** (`CLAUDE.md` in den Wachbereich von `require-receipt.ps1`, und den Hook ueberhaupt registrieren) und → **NH-003** (Spaltenwaechter). |
+| **L-008** (teamweit) — ein Gegenbau muss beissen | 2026-09-06 | **Wirkt nicht durchgaengig.** In Zyklus 16 war die Bilanz 1 von 1. In Zyklus 20 hat T-202 einen Waechter gemessen, der die Stelle, die er bewacht, **wegstubbt**: SEC-038, `tests/test_game_dir_recognition.py:143-156`, `monkeypatch.setattr` auf `_steam_roots`, **5 von 5** Fundstellen, waehrend der echte Koerper 26-mal lief. Gefunden hat es der `security-reviewer`, nicht der Mutationslauf. | Keine eigene Massnahme. L-008 (b) verbietet die Erwartung aus der bewachten Stelle; "die bewachte Stelle wegstubben" ist derselbe Mechanismus und vom Wortlaut gedeckt — der Fall ist ein Ausfuehrungs-, kein Formulierungsproblem. **Ein zweites Vorkommen waere ein Muster.** |
+| **L-011** (teamweit) — "richtiger als ihre Begruendung", bewusst ohne Massnahme, mit Ausloeser | Ausloeser stand seit 2026-09-06 | **Der Ausloeser ist eingetreten.** Er lautete: *"ein Fall, in dem eine falsche Begruendung eine Entscheidung bis zum Ende traegt — … sondern in einem umgesetzten Fix, einer freigegebenen Spec oder einer **Nutzerentscheidung** landet."* Genau das ist Beobachtung 2: die Loeschfreigabe des Nutzers fuer 35 154 Zeilen stand auf der Audit-Praemisse *"Vollkopien, deren Vorfassungen git ohnehin haelt"*, und die war falsch — `UI_SPEC.md:239-241`, `:1017-1019`, `:881-883` und sieben weitere Stellen sagen woertlich, dass der geltende Wortlaut **nur** im Verlauf steht. Die Freigabe war erteilt; gerettet hat es eine Pruefung **danach**. In Zyklus 16 war die Bilanz noch "kein neuer Fall dieser Bauform". | **Die von L-011 vorab benannte Massnahme wird faellig** — und sie existiert bereits gebaut: `require-receipt.ps1` verlangt fuer eine Bestandsbehauptung eine genannte Quittung. Sie ist **nicht registriert** (→ **L-019**). Grenze, die ich ausdruecklich nenne: der Hook bewacht `Write`/`Edit`, die teuerste Aussage des Zyklus reiste als **Nachricht an den Nutzer** — dafuer deckt L-019 nichts, und ich schlage dafuer auch nichts vor (Begruendung unter L-020, Absatz "Was ich nicht vorschlage"). |
+| **L-015** (teamweit) — `docs/state.md` ist Primaerquelle jeder Rolle (Pruefung 4) | 2026-09-08 | **Wirkt genau so weit, wie der Auftrag es sagt, und nicht weiter.** Gezaehlt an den `GELESEN`-Zeilen der 12 Berichte: `docs/state.md` in **5**, `GOAL.md` in **3**, `CLAUDE.md` in **5** von 12. Die Korrelation zum Auftragstext ist fast vollstaendig: von den 6 Auftraegen, die `state.md` nennen, nennen 5 Berichte sie; von den 5, die sie nicht nennen, nennt **kein** Bericht sie — 11 von 12. | → als Befund in **L-020** aufgenommen, **und die naheliegende Massnahme dort ausdruecklich verworfen**. |
+| **L-017** (teamweit) — der Regelbestand waechst monoton | 2026-09-08 | **Wirkt.** Erfolgskriterium: `commands/director.md` am Ende von Zyklus 17 nicht laenger als 1085 Zeilen; am Tag der Annahme stand sie auf 1097. Heute: **901** Zeilen (`wc -l`). Die zwoelf Zeilen sind getilgt und 196 weitere dazu. | Keine. Gilt als erfuellt. |
+| **L-018** (teamweit) — L-Zitate nennen ihre Herkunft | 2026-09-08 | **Formal umgesetzt, sachlich halb falsch.** Der Spiegelstrich steht in `agents/_rahmen.md:347-351`. Die drei Hook-Kommentare tragen jetzt ein Praefix — aber **`Nightreign-Helper`**, und in diesem Projekt existieren `L-022` bis `L-026` nicht: diese Datei endet bei L-018, und `T-112` ist hier `T-112-technical-writer.md`, keine `retrospective`. Das Erfolgskriterium ("kein `L-###` ohne Praefix, das im teamweiten Satz nicht existiert") ist wortwoertlich erfuellt und in der Sache verfehlt — jetzt zeigt ein Praefix auf eine Datei, in der die Nummer fehlt. | Eine Ein-Zeilen-Korrektur, kein Regeltext: das Projekt ermitteln, dessen `T-112` eine `retrospective` war, und die drei Kommentare darauf umschreiben. Gehoert dem Nutzer, weil es das Agenten-Repo beruehrt. |
+| **NH-001** — je nicht-trivialem Auftrag eine Datei | 2026-09-06 | **In Zyklus 20 zweimal gebrochen, beide vom Director, beide selbst gemeldet und nachgetragen** (T-205 und T-208, je `archivist`/`sync-out`, Nummer im Dispatch verwendet, Datei nicht angelegt; nachgetragen um 21:30 in `98cdf61`). In Zyklus 13 ebenfalls zweimal, in Zyklus 16 lueckenlos. **Beide Brueche treffen dieselbe Sorte Auftrag** — Arbeit zwischen zwei Auftraegen, ohne Rollenwechsel. | Keine neue Regel: der Ausloeser ist bekannt, die Regel ist bekannt, und der Nachtrag hat funktioniert. **Aber der T-205-Bericht ist dabei verlorengegangen** (siehe L-016 (d) oben) — das ist die Kosten dieses Bruchs und gehoert in die Beobachtungsliste. |
+| **NH-002** — Bildnachweise nur aus dem Programmfenster | 2026-09-05 | **Wirkt.** T-207 legt zwei Nachweise ab und nennt beide ausdruecklich als aus dem Programmfenster gezogen (`design-review/2026-09-12/relicpicker-forced-wanted-height-1151.png`, `-natural-height-1061.png`). | Keine. |
+
+**Bilanz: von neun geprueften Massnahmen wirken vier unverkuerzt (L-009,
+L-017, NH-002, und L-015 im Rahmen dessen, was sie ueberhaupt binden kann);
+zwei wirken an der Fundstelle und nicht an der Klasse (L-016, L-018); zwei
+wirken nicht durchgaengig (L-008, NH-001); eine hat ihren Ausloeser erreicht
+und wird faellig (L-011).**
+
+---
+
+### L-019 — Die Waechter dieses Teams sind gebaut, geprueft und zum Teil nicht angeschlossen
+
+**Belege (jeder einzeln am Bestand geprueft, 12.09.2026):**
+
+1. **Drei Hooks liegen als Datei in `~/.claude/hooks/`, werden von
+   `hooks/selftest.ps1` geprueft und stehen in keiner Registrierung:**
+   `require-receipt.ps1`, `no-root-find.ps1`, `remind-sync-out.ps1`. Nachweis
+   mit zwei unabhaengigen Verfahren: (a) `settings.json` nach JSON geparst und
+   alle `hooks[*].hooks[*].command` aufgelistet — neun Eintraege, keiner der
+   drei; (b) `grep -o` auf die drei Dateinamen in `settings.json` **und**
+   `settings.json.bak-bootstrap` — kein Treffer. Die
+   Projekt-`.claude/settings.json` registriert ausschliesslich
+   `enforce-data-redirect.ps1`. Kein anderer Hook ruft die drei auf.
+2. **Einer der drei ist in der Director-Definition als vorhanden ausgewiesen.**
+   Die Ort-Tabelle (`commands/director.md:890 ff.`) fuehrt unter "Hook" den
+   *"`sync-out`-Zaehler"* als Beispiel — das ist `remind-sync-out.ps1`.
+3. **`selftest.ps1` bleibt gruen, weil er die falsche Frage stellt.** Er prueft
+   je Hook die *Existenz* der Datei und das *Verhalten* ueber `stdin`
+   (`HookAntwort`, ab Zeile 448: vier Faelle fuer `require-receipt`, drei fuer
+   `no-root-find`). **Eine Registrierungspruefung gibt es nicht.** Der
+   Selbsttest nennt die Luecke seit dem 08.09. in seinem eigenen Kommentar
+   (Zeile 376: *"dieselbe Luecke wie bei den Hooks selbst … die Werkzeugschicht
+   hat kein Register"*) — und schliesst sie fuer das Frontmatter der Rollen,
+   nicht fuer die Registrierung der Hooks.
+4. **Der Ort, der einen Hook wirksam macht, ist nicht versioniert.** Die Hooks
+   liegen im Repo `claude-agent-team` und werden per Junction sichtbar;
+   `~/.claude/settings.json` liegt **nicht** in diesem Repo (Wurzel:
+   `BOOTSTRAP.md`, `CLAUDE.md`, `README.md`, `agents`, `archiv`,
+   `bootstrap.ps1`, `commands`, `hooks`, `referenz`, `templates` — keine
+   `settings*.json`). "Waechter gebaut" ist damit in der Git-Historie sichtbar,
+   "Waechter feuert" nicht.
+5. **Der inaktive Hook ist genau der gegen die Fehlerklasse dieses Zyklus.**
+   `require-receipt.ps1` sperrt `Write`/`Edit` der Hauptsitzung auf
+   Auftragsdateien, `docs/state.md` und Befundlisten, wenn eine
+   Bestandsbehauptung ohne genannte Quittung hineingeschrieben wird — sein
+   Kopf sagt: *"Ein Hook, der ERINNERT, ist Fliesstext mit hoeherer Frequenz.
+   Dieser hier SPERRT."* Die **sechs** Eigenfehler aus `docs/state.md` sind
+   alle von dieser Bauform, und der sechste ist waehrend dieses Laufs
+   dazugekommen: eine Praemisse ohne Pruefung (Korb 2), eine Suche nach Status
+   statt nach Inhalt (QA-235), zwei Strukturdefekte beim Schreiben in
+   `qa/findings.md`, eine Budgetangabe ohne Zaehlung, zwei Dispatches ohne
+   Auftragsdatei. Dazu `docs/tasks/T-205.md`: *"der Bericht liegt ab"* fuer eine
+   Datei, die es nicht gibt — **ein `Write` in eine Auftragsdatei mit
+   Bestandsbehauptung ohne Quittung, also genau der Fall, auf den der Hook
+   `deny` antwortet.**
+
+**Ursache (ein Satz):** Eine Massnahme dieses Teams gilt als umgesetzt, wenn
+die Datei existiert und ihr Selbsttest gruen ist — und die Registrierung, die
+sie ueberhaupt erst ausloest, ist weder versioniert noch geprueft.
+
+**Massnahme.** Zieldatei **`hooks/selftest.ps1`** im Agenten-Repo, neuer
+Abschnitt am Ende, dazu **eine Pfadangabe** in `require-receipt.ps1`:
+
+> ```powershell
+> # --- Registrierung: ein Hook, den niemand aufruft, ist kein Waechter -------
+> # Herkunft: Nightreign-Helper Zyklus 20. require-receipt.ps1, no-root-find.ps1
+> # und remind-sync-out.ps1 waren gebaut, hier geprueft und in settings.json
+> # nicht eingetragen - einer davon ist der Waechter gegen die Fehlerklasse, die
+> # im selben Zyklus sechsmal aufgetreten ist. settings.json liegt nicht im
+> # Repo; genau deshalb faellt es in der Historie nicht auf.
+> $OFFEN = @()   # darf nur schrumpfen. Jeder Eintrag nennt seinen Grund.
+> $reg = Get-Content -Raw -LiteralPath (Join-Path $HOME '.claude/settings.json')
+> foreach ($f in Get-ChildItem -LiteralPath $hooks -Filter '*.ps1' -File) {
+>     if ($f.Name -in @('selftest.ps1')) { continue }
+>     $drin = $reg -match [regex]::Escape($f.Name)
+>     Check "$($f.Name) ist in settings.json registriert" `
+>           ($drin -or ($f.Name -in $OFFEN)) `
+>           'nicht registriert - der Hook existiert, feuert aber nie'
+> }
+> ```
+>
+> Und in `require-receipt.ps1` nimmt die Pfadpruefung zusaetzlich `CLAUDE.md`
+> auf. Grund: zwei der vier L-016-Wiederholungen sind beim Schreiben in
+> `CLAUDE.md` entstanden, und der Selbsttest haelt heute ausdruecklich fest,
+> dass `README.md` **nicht** bewacht wird — `CLAUDE.md` ist keine `README`,
+> sondern der Regeltext, den jede Rolle in jedem Auftrag zitiert bekommt.
+
+**Wer liest das wann:** niemand *liest* es — `selftest.ps1` laeuft, und er ist
+die Abnahme jeder Aenderung am Agenten-Repo. Das ist der Punkt: die Massnahme
+haengt an keinem Vorsatz und an keinem Moment, den ein Mensch verpassen kann.
+
+**Ort nach der Tabelle der Director-Definition:** **Hook** (bzw. der
+Pruefcode, der Hooks abnimmt). Ausdruecklich **nicht** Fliesstext: die Zahl
+0 von 21 gegen 4 von 4 ist der Grund, warum dieser Befund ueberhaupt zaehlt.
+
+**Welche Regel entfaellt dafuer:** keine, und der Bestand waechst um **null
+Zeilen Regeltext** — L-019 ist ausschliesslich Pruefcode plus eine Pfadangabe.
+Das ist die Bauform, die `agents/_rahmen.md` fuer das zweite Auftreten einer
+Fehlerklasse verlangt ("einen Waechter, keinen weiteren Regeltext").
+
+**Kosten.** Ein Lesezugriff je Selbsttestlauf. Ein Risiko: der Selbsttest wird
+rot, sobald ein Hook absichtlich unregistriert liegen soll — dafuer ist die
+`OFFEN`-Liste da, und sie kostet eine Zeile mit Grund. **Ein zweites Risiko,
+das ich benennen muss:** `require-receipt.ps1` sperrt. Wird er scharf
+geschaltet, kann er den Director an einer Stelle aufhalten, an der seine
+Aussage richtig und die Quittung nur nicht mitgeschrieben ist. Das ist der
+Preis, und er ist gegen sechs Eigenfehler in einem Zyklus zu rechnen.
+
+**Erfolgskriterium.** In zwei Zyklen: `selftest.ps1` laeuft gruen **und**
+`settings.json` nennt jeden Hook ausser den in `OFFEN` begruendeten; die
+`OFFEN`-Liste ist nicht gewachsen. Zweitens, inhaltlich: mindestens ein `deny`
+von `require-receipt.ps1` ist belegt — feuert er in zwei Zyklen nie, ist
+entweder die Klasse weg oder der Hook trifft nicht, und beides gehoert
+gemessen statt angenommen.
+
+**Status:** vorgeschlagen — **teamweit, Vorschlag fuer das Agenten-Repo**
+(`hooks/selftest.ps1`, `hooks/require-receipt.ps1`, `~/.claude/settings.json`).
+Freigabe nur durch den Nutzer.
+
+---
+
+### L-020 — Das Zeilenbudget von `docs/state.md` ist ein Vorsatz, und Vorsaetze verlieren gegen Commits
+
+**Belege — gezaehlt mit `git show <commit>:docs/state.md | wc -l` ueber die
+letzten zwanzig Commits an der Datei:**
+
+| Commit | Datum | Zeilen | Botschaft |
+|---|---|---|---|
+| `1e3a955` | 09.09. | **132** | "Zyklus 18 abgeschlossen, Verlauf archiviert, **auf Budget**" |
+| `5f15b7d` | 09.09. | **131** | "auf 120 Zeilen gekuerzt — der vorige Commit nannte 132 'auf Budget'" |
+| `405a4ee` | 12.09. | **125** | "Zyklus 19 abgeschlossen, Verlauf archiviert, **auf Budget**" |
+| `5a2d280` | 12.09. | **122** | "auf 120 Zeilen gebracht — der vorige Commit nannte 125 'auf Budget'" |
+| `2f91ad6` | 12.09. | **120** | "120 Zeilen, **diesmal vor dem Commit gezaehlt**" |
+| `8ed62de` | 12.09. | **149** | "Pruefphase durch, Korb 2 zurueckgezogen, vier eigene Fehler" |
+| `de420b6` | 12.09. | **120** | "auf das Zeilenbudget gekuerzt — 149 auf 120" |
+
+**Dreimal ueber Budget committet, viermal per Folgecommit nachgezogen, und zwei
+der vier Korrekturen waren selbst falsch:** `5f15b7d` sagt "auf 120" und ist
+**131**, `5a2d280` sagt "auf 120" und ist **122**. Genau **einmal** wurde
+vorher gezaehlt, und dieser Commit sagt es ausdruecklich. Dazu der aeltere
+Beleg, der schon in `agents/_rahmen.md` steht: *"Das Zeilenbudget fuer
+`docs/state.md` hat in einem Zyklus fuenf Umschriften erzeugt und wurde am Ende
+trotzdem gerissen."*
+
+**Und die Massnahme, die daraus entstand, hat es nicht behoben.** Die
+Konsequenz damals war "**nur noch am Zyklusende geprueft**"
+(`commands/director.md:71`). Danach sind die drei Faelle oben passiert — die
+Lockerung hat die Nacharbeit nicht verkleinert, sondern den Moment der Pruefung
+hinter den Commit verschoben. **Das Budget selbst ist nicht das Problem:** es
+hat die Datei von 337 Zeilen (`b1a2776`, 09.09.) auf 120 gebracht, und das ist
+seine Rechtfertigung. Falsch ist nur sein Ausloeser.
+
+**Ursache (ein Satz):** Die Pruefung haengt an einem Zeitpunkt ("Zyklusende"),
+den in einem durchgehenden autonomen Lauf niemand erkennt — waehrend der
+Commit ein Moment ist, der immer eintritt.
+
+**Massnahme.** Ein Waechter am Schreibzeitpunkt, und der Zeitpunkt verschwindet
+aus der Prosa. Zieldatei **`hooks/state-line-budget.ps1`** (neu, Agenten-Repo),
+registriert auf `PreToolUse` fuer `Write|Edit`:
+
+> ```powershell
+> # state-line-budget.ps1 - PreToolUse auf Write|Edit, nur Hauptsitzung.
+> # Herkunft: Nightreign-Helper Zyklus 20. Das Budget stand als Prosa in
+> # commands/director.md:71 ("geprueft einmal am Zyklusende") und wurde in vier
+> # Tagen dreimal ueberschritten; zwei der vier Korrekturcommits nannten selbst
+> # eine falsche Zahl. Eine Zahl faellt auf, ein Vorsatz nicht.
+> #
+> # MELDET, SPERRT NICHT. Der Inhalt kann richtig und zu lang sein - dann
+> # gehoert die Kuerzung in denselben Zug, nicht in den naechsten Commit.
+> # Die Schranke steht als LITERAL, nicht gerechnet aus der Datei, die sie
+> # bewacht (L-008 b).
+> $BUDGET = 120
+> ```
+>
+> Wirkung: greift nur, wenn der Zielpfad auf `docs/state.md` endet; zaehlt die
+> Zeilen des geschriebenen Inhalts; bei Ueberschreitung eine Zeile Ausgabe —
+> `[state-budget] 149 Zeilen, Budget 120 - kuerzen in diesem Zug, nicht im
+> naechsten Commit.`
+
+**Ort nach der Tabelle der Director-Definition:** **Hook**, plus eine
+Streichung in der **Director-Definition**. Der Hook ist der Adressat, die
+Director-Definition behaelt nur noch die Zahl.
+
+**Welche Regel entfaellt dafuer:** `commands/director.md:71`, der Halbsatz
+*"hoechstens 120 Zeilen, **geprueft einmal am Zyklusende**"*, wird zu
+*"hoechstens 120 Zeilen (`hooks/state-line-budget.ps1` zaehlt beim
+Schreiben)"*. Der Zeitpunkt "Zyklusende" verschwindet aus dem Regelbestand —
+er ist der Teil, der nachweislich nicht getragen hat. Die Director-Definition
+wird dadurch nicht laenger, und eine Bedingung faellt weg.
+
+**Was ich ausdruecklich *nicht* vorschlage — und warum das auch ein Ergebnis
+ist.** Die naheliegende zweite Massnahme aus der L-015-Wirkungskontrolle waere
+ein Hook, der `GELESEN` gegen `GOAL.md` und `docs/state.md` prueft (heute 3
+bzw. 5 von 12). **Verworfen.** Ein solcher Waechter prueft ein Wort, das die
+bewachte Partei selbst schreibt — dieselbe Bauform, die L-008 (b) verbietet
+und die SEC-038 im selben Zyklus als zahnlos belegt hat. Er wuerde die Nennung
+erzwingen und ueber das Lesen nichts sagen; danach waere "12 von 12" kein
+Messwert mehr, sondern eine Formalie, und die Zahl, mit der diese
+Retrospektive L-015 gemessen hat, waere zerstoert. **Der belastbare Teil des
+Befundes bleibt als Beobachtung stehen:** ein Lauf arbeitet mit dem Regelsatz,
+den seine **Rollendefinition** traegt — L-009 hat ohne jede Erwaehnung im
+Auftrag gegriffen — plus dem, was sein **Auftrag** nennt. Dateien, die nur im
+Uebergabe-Kontrakt stehen, erreichen ihn in weniger als der Haelfte der Faelle.
+Wer das aendern will, aendert den Auftrag oder die Rollendefinition, nicht die
+Berichtsform.
+
+**Kosten.** Ein Hook mehr, ein Halbsatz weniger. Der Hook meldet und sperrt
+nicht; ein Fehlalarm kostet eine Zeile Ausgabe.
+
+**Erfolgskriterium.** In zwei Zyklen: kein Commit an `docs/state.md` mit mehr
+als 120 Zeilen, und **kein** Commit, dessen Botschaft die Zeilenzahl des
+Vorgaengers korrigiert. Beides nachzaehlbar mit `git log --oneline --
+docs/state.md` und `git show <c>:docs/state.md | wc -l`, so wie hier.
+
+**Status:** vorgeschlagen — **teamweit, Vorschlag fuer das Agenten-Repo**
+(neuer Hook, `~/.claude/settings.json`, Streichung in
+`commands/director.md:71`). **Reihenfolge: nach L-019.** Ein neuer Hook, der
+vor der Registrierungspruefung angelegt wird, landet mit einiger
+Wahrscheinlichkeit in derselben Schublade wie die drei, die dort schon liegen.
+
+---
+
+### NH-003 — Die Befundtabellen haben keinen Waechter, und die reparierte Klasse ist am Reparaturtag wiedergekommen
+
+*Projekteigene Regel. Gehoert nach `docs/plan-restarbeiten.md`, Abschnitt
+"Regeln, die fuer jeden Schritt gelten" — dort stehen NH-001 und NH-002, und
+die Rollen lesen diese Datei fuer die Reihenfolge.*
+
+**Belege:**
+
+1. **Vier Zeilen waren strukturell kaputt** (QA-211, QA-225 bis QA-227:
+   doppeltes Datum, fehlende Abschlusspipe, ein Status von einem Datum
+   ueberschrieben), repariert am 12.09.; `docs/state.md` kannte nur drei davon.
+2. **Eine fuenfte ist am selben Tag entstanden und steht heute noch da.**
+   Gemessen: je Tabellenzeile die Trenner nach Entfernen der maskierten `\|`
+   gezaehlt und gegen die Kopfzeile gestellt. `qa/findings.md`: Kopf **8**
+   Spalten, 247 Tabellenzeilen, **eine** Abweichung — **Zeile 263 (QA-240)**,
+   neun Spalten, Ursache ein unmaskiertes `|` in
+   `` `git show HEAD~1:<datei> | sed -n` ``. `security/findings.md`: Kopf **5**
+   Spalten, 44 Zeilen, **0** Abweichungen. **Die Konvention existierte und war
+   am 02.09. korrekt benutzt** (Zeile 59 und 78 tragen `a\|b` maskiert) — sie
+   ist nicht unbekannt, sie ist unbewacht.
+3. **`tests/` haelt kein `.md`-Pfadliteral.** Mit zwei unabhaengig
+   formulierten Masken geprueft: (a)
+   `grep -rE "(read_text|open\(|Path\()[^\n]*\.md" tests/ --include=*.py` —
+   **0 Treffer**; (b) `grep -rE "glob\(|rglob\(|os\.walk" tests/ --include=*.py`
+   — 10 Treffer, **alle** auf `*.py`. Die 32 Erwaehnungen von `.md` in `tests/`
+   stehen ausnahmslos in Docstrings und Kommentaren. **Kein Test dieses
+   Projekts liest irgendeine Markdown-Datei.**
+
+**Ursache (ein Satz):** Die beiden Befundtabellen sind die am haeufigsten
+beschriebenen strukturierten Dateien des Projekts und die einzigen
+strukturierten Dateien ohne Test.
+
+**Massnahme.** Neue Datei **`tests/test_findings_tables.py`**, und ein
+Spiegelstrich in `docs/plan-restarbeiten.md`, Abschnitt "Regeln, die fuer jeden
+Schritt gelten":
+
+> - **Die Befundtabellen haben einen Waechter** (NH-003): jede Zeile von
+>   `qa/findings.md` und `security/findings.md`, die mit `|` beginnt, traegt
+>   nach Entfernen der maskierten `\|` genau so viele Trenner wie ihre
+>   Kopfzeile. Die Erwartung steht als **Literal** — 8 Spalten fuer QA, 5 fuer
+>   SEC —, nicht aus dem Kopf gerechnet. Wer ein `|` in einen Befundtext
+>   schreibt, maskiert es als `\|`.
+
+Der Test traegt seine **`OFFEN`-Liste** im Code — heute genau ein Eintrag,
+`qa/findings.md:263 (QA-240)` —, und ein zweiter Test besteht darauf, dass die
+Liste nur schrumpfen darf. **Rot-vorher:** ohne diesen Eintrag ist der Test
+heute rot an Zeile 263, und das ist sein Nachweis; die brechende Aenderung ist
+das Einfuegen einer Zeile mit unmaskiertem `|`. **Er darf nicht von der
+Repo-Wurzel absuchen**, sondern nimmt die zwei Pfade beim Namen — sonst liest
+er Worktrees mit (`agents/_rahmen.md`, Abschnitt Messen und Testen).
+
+**Ort nach der Tabelle der Director-Definition:** **Belegdatei/Test im
+Projekt**, plus ein Spiegelstrich in `docs/plan-restarbeiten.md`. Der Test ist
+der Adressat; der Spiegelstrich sagt nur, warum er existiert.
+
+**Welche Regel entfaellt dafuer:** keine; der Bestand waechst um einen
+Spiegelstrich. Begruendung in einem Satz: **es ist der erste Test dieses
+Projekts, der eine Markdown-Datei ueberhaupt anfasst**, und die Alternative
+waere ein weiterer Absatz gegen eine Klasse, die am Tag ihrer Reparatur
+wiedergekommen ist.
+
+**Wer liest das wann:** niemand — `pytest` laeuft in jedem Bauauftrag.
+
+**Kosten.** Ein Test, Laufzeit unter einer Sekunde, ohne Qt und ohne Spieldaten.
+Die Maskierungspflicht kostet zwei Zeichen je Befundtext mit Pipe (bisher zwei
+Vorkommen in 247 Zeilen).
+
+**Erfolgskriterium.** In zwei Zyklen: die `OFFEN`-Liste ist leer oder kleiner,
+und keine Zeile ausserhalb der Liste weicht ab. Nachzaehlbar mit demselben
+Verfahren, das hier 1 von 247 gefunden hat.
+
+**Status:** vorgeschlagen — **projekteigen**. Ratifiziert die Massnahme, die
+der Director in `docs/state.md` unter "Massnahme, noch ohne Auftrag" schon
+beschlossen hat, und ergaenzt, was dort fehlte: den Algorithmus, die Erwartung
+als Literal, den roten Fall und den Grund, warum der Waechter nicht von der
+Wurzel absuchen darf.
+
+---
+
+### Beobachtungen (noch kein Muster)
+
+- **Die `CLAUDE.md`, die ein Unteragent im Kontext bekommt, kann aelter sein
+  als die auf der Platte (12.09.2026, erstes Vorkommen).** Meine
+  Kontextfassung beschrieb den festen Testabzug unter `%LOCALAPPDATA%` als
+  *"existiert nicht"* und nannte `EXTRACT_VERSION` 11 aus 1.8.0; die Datei auf
+  der Platte nennt seit `f110dd4` den Pfad
+  `…\Desktop\ClaudeCode\NightreignHelper-Testabzug`, 1.9.0 und die
+  Bestaetigung durch den Nutzer. `git status` sauber, `HEAD:CLAUDE.md`
+  159 Zeilen, identisch mit dem Arbeitsbaum. Der Auftrag sagt *"Es gelten die
+  Projektzeilen aus `CLAUDE.md`"* — eine Rolle, die dafuer die Kontextfassung
+  nimmt, arbeitet unter Umstaenden gegen eine ueberholte Regel. Ich habe die
+  Datei deshalb von der Platte gelesen. **Keine Massnahme:** ein Vorkommen,
+  und die Ursache liegt in der Werkzeugschicht, nicht im Vorgehen. Beim
+  zweiten Vorkommen waere die billige Antwort, `CLAUDE.md` in die Leseliste
+  des Uebergabe-Kontrakts aufzunehmen.
+- **Die QA-237-Falle hat mich selbst erwischt, und das schreibe ich hierhin,
+  damit die naechste Retrospektive es nicht neu lernt (12.09.2026).** Beim
+  Pruefen von QA-231 fand ich `%LOCALAPPDATA%\NightreignHelper-Testabzug` mit
+  **841 Dateien** und Zeitstempel 18:46 — und war eine Zeile davon entfernt,
+  daraus "der Befund ist falsch, das Verzeichnis existiert" zu machen. Nach
+  QA-237 ist genau diese Sicht **kein Beleg**: wer in der Ueberlagerung sitzt,
+  sieht seine eigene Schicht. Der Leseversuch auf die Datei darin scheitert mit
+  `Permission denied` — dasselbe Symptom, das T-196 beschrieben hat. **Was von
+  der Pruefung bleibt:** QA-231 ist laut `qa/findings.md` ohnehin **behoben**
+  (T-200, Nachweis durch eine Probe des Nutzers am echten System), und
+  `CLAUDE.md` ist nachgezogen; nur meine Kontextfassung sagte es anders.
+- **Der T-205-Bericht existiert nicht.** `docs/tasks/T-205.md` nennt ihn
+  (*"der Bericht liegt ab"*), drei unabhaengige Pruefungen finden ihn nicht
+  (`ls`, `find docs -iname "*205*"`, `git log --all -- "docs/berichte/T-205*"`),
+  und eine Volltextsuche nach `T-205` trifft nur `docs/state.md` und die zwei
+  nachgetragenen Auftragsdateien. Der `archivist` hat kein `Write`; sein
+  Bericht existierte damit nur als Nachricht — genau der Fall, vor dem
+  `_rahmen.md` warnt (*"Ein Bericht, der nur als Nachricht existiert, ist nach
+  der Uebergabe nur noch die Auswahl des Directors"*). **Das ist die
+  eigentliche Kosten des NH-001-Bruchs** und als Einzelfall hier vermerkt: das
+  Ergebnis (23 Commits gepusht, `a4f275d..de420b6`) steht nur noch in der
+  Auftragsdatei, nicht in einem Bericht.
+- **Der Status in dieser Datei ist nicht mehr die Wahrheit (12.09.2026).**
+  L-009 steht hier als *"vorgeschlagen"* und ist seit dem 06.09. in fuenf
+  Rollendefinitionen und in `docs/plan-restarbeiten.md` in Kraft. Eine
+  Wirkungskontrolle, die dem Statusfeld glaubt, prueft die falschen Regeln —
+  ich habe jede Nummer stattdessen im Agenten-Repo und in
+  `plan-restarbeiten.md` gegengesucht. **Zweites Vorkommen der Klasse "zwei
+  Regelsaetze, ein Nummernraum"** (erstes: L-018). Beim dritten wird daraus
+  ein Muster, und die Massnahme waere, das Statusfeld hier zu streichen und
+  nur noch den Ort zu nennen, an dem die Regel wirklich steht.
+- **`L-022` bis `L-026` existieren in keinem Satz, auf den sie zeigen.** Drei
+  Hook-Kommentare nennen sie mit dem Praefix `Nightreign-Helper`; diese Datei
+  endet bei L-018, und `T-112` ist hier `T-112-technical-writer.md`. Gehoert
+  zur L-018-Wirkungskontrolle oben, hier nur als offene Einzelkorrektur
+  vermerkt.
+- **`docs/state.md` ist waehrend dieses Laufs zweimal fortgeschrieben worden**
+  (`7c3a260`, dann `98cdf61` um 21:30). Zwei meiner Zwischenbefunde — der
+  Nummernkreis nannte "T ab T-205", waehrend T-206 bis T-210 vergeben waren,
+  und die Datei war noch nicht auf Budget — waren beim Schreiben dieses
+  Eintrags bereits behoben. Kein Fehler, aber ein Hinweis fuer die naechste
+  Retrospektive: eine Aussage ueber `docs/state.md` braucht die Commit-Kennung
+  daneben, sonst ist sie eine Stunde spaeter falsch.
+
+---
+
+### Nachtrag — Codeprobleme, die mir aufgefallen sind und nicht meine Sache sind
+
+Fuer den `director`, nicht Teil der Analyse:
+
+1. **Fuenf Skripte setzen `QT_QPA_PLATFORM=offscreen` als Vorgabe**
+   (`scripts/measure_picker_cards.py:60`, `measure_display_thresholds.py:53`,
+   `measure_advisor_block.py:287`, `capture_weapon_damage.py:33`,
+   `scripts/differential/capture.py:77`). Drei davon messen Geometrie. Das ist
+   die Fundstelle der L-009-Falle aus T-199, und der Grund, warum T-199 zwei
+   Laeufe brauchte.
+2. **`qa/findings.md:263` (QA-240) rendert mit neun statt acht Spalten** —
+   unmaskiertes `|` in einem Codespan. Die einzige verbliebene Abweichung in
+   291 Tabellenzeilen beider Befunddateien.
