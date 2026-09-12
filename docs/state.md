@@ -7,9 +7,9 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-205** · QA ab
-**QA-240** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
-· DR **DR-019** · R **R-007** · C **C-004** · A **A-033**. **AD-027 und OF-14
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-211** · QA ab
+**QA-244** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
+· DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
 
 ## Auftragslage (Nutzer, 12.09.2026)
@@ -29,15 +29,15 @@ Die Pruefphase ist vollstaendig: QA **PASS**, Security **CONCERNS**, UI-Review
    Quellzeilen gegen die 120 000 des Audits, dazu ein Waechter, zwei
    bestaetigte strukturelle Schulden und acht Befunde. Bilanz und die
    widerlegten Punkte: `docs/plan-restarbeiten.md`.
-2. **QA-241** — der Waechter ist erst **nach Sitzungsneustart** wirksam. Bis
-   dahin schreibt der Director die drei Umlenkungen weiter woertlich in jeden
-   Auftrag; `CLAUDE.md` behauptet inzwischen das Gegenteil.
+2. **QA-241** — der Waechter wirkt erst **nach Sitzungsneustart**; bis dahin
+   schreibt der Director die drei Umlenkungen weiter in jeden Auftrag.
 3. **QA-242** — `wanted_height()` berechnet 1151 px, die Dialoghoehe erreicht
    im selben Lauf 1061. **Kein Bildschirmanschlag** (4096x1728 nachgemessen),
    Ursache unbekannt. Erster Anlauf; scheitert ein zweiter, geht es an den
    `fehlerdiagnostiker`.
-4. **Dann die Baurunde** (A9), davor `compliance-agent` (`pruefen`): 36
-   Auflagen, 15 GELB.
+4. **Die Baurunde** (A9) ist auflagenseitig frei: T-210 meldet **GELB, keine
+   Auflage auf ROT** (21 von 36 erfuellt, 8 offen). Vor einem **Release**
+   offen: A-002, A-008, A-012, A-013, A-031, Abnahme A-021/A-033.
 
 ## Stand gegen `GOAL.md`
 
@@ -74,21 +74,21 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 1. **SEC-026:** DLL-Seite haerten? **Falle, von T-202 praezisiert:** Haertung
    ueber **Herkunft** haelt SEC-016/017/018 geschlossen, ueber **Zustimmung**
    nicht — ein Klick ist keine Herkunftspruefung. **SEC-027** ist Hoch/offen
-   und das Release-Tor (Wortlaut vor V2).
-2. **C-003, vor der Weitergabe:** A-025 (GRAU) · Repo oeffentlich? · Release
-   bewerben? · Arbeitsvertrag (C-001)? · US-Recht?
+   und damit **das** Release-Tor. **A-020 sperrt nicht mehr** (Nutzer 09.09.,
+   von T-210 belegt) — meine fruehere Angabe hier war veraltet.
+2. **C-003, vor der Weitergabe:** Repo dauerhaft oeffentlich? Release
+   bewerben? Arbeitsvertrag (C-001)? US-Recht? — **A-025 ist entschieden**
+   (FORTSETZEN, Nutzer 09.09.), stand hier faelschlich als offen.
 3. **Drei `widerspruechliche` Faelle** im AK-Register (`UI_SPEC.md` ab Z. 81).
 4. **1320 px als Messumgebung** — gilt sie weiter? AK-05, AK-160, AK-194.
 5. **Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170.
 
 ## Beschlossen, nicht beauftragt
 
-- **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **fuer die Bauform des
-  Befundtexts** (T-202) und darf **nicht** als "kein Pfad erreicht die Flaeche"
-  weiterzitiert werden. Sprachhaelfte braucht eigene Bauform.
+- **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **nur fuer die Bauform
+  des Befundtexts** (T-202), nicht als "kein Pfad erreicht die Flaeche".
 - **Waechter muessen die echte Kandidatenliste messen** statt zu stubben —
-  **T-202 hat belegt, dass der SEC-036-Waechter genau das nicht tut** (SEC-038:
-  5 von 5 Fundstellen Stubs, echter Koerper 26-mal gelaufen).
+  SEC-038 belegt, dass der SEC-036-Waechter genau das nicht tut.
 - **Kein Waechter haelt die Verlaufsdateien eingefroren** (T-183).
 - **Pruefpunkt 13** ist in T-193 auf "gleiche Rechnung bei gleichen Eingaben"
   eingeengt; ob die alte Zusage formal zurueckgezogen wird, ist offen.
@@ -109,6 +109,9 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
    Datum ueberschrieben. Diese Datei kannte nur drei. Alle repariert.
 5. **Diese Datei wurde mit 149 Zeilen committet**, 29 ueber Budget — der
    Waechterlauf kam nach dem Commit statt davor. Drittes Mal.
+6. **Zwei Auftraege liefen ohne Auftragsdatei** (T-205, T-208, beide
+   `sync-out`): Nummer im Dispatch verwendet, Datei nicht angelegt.
+   Nachgetragen und als nachgetragen gekennzeichnet.
 
 **Massnahme, noch ohne Auftrag:** ein Waechter auf Spaltenzahl und
 Abschlusspipe beider Befundtabellen — `tests/` haelt **kein** `.md`-Pfadliteral,
