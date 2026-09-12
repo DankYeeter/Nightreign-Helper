@@ -533,3 +533,35 @@ Mein Wortlaut war zu grob, nicht seine Umsetzung.
    Ersatzstelle, sondern das Abgeleitete. **Die Richtung des Belegs ist je Fall
    zu pruefen** — "steht auch in ARCHITECTURE.md" heisst nicht immer, dass der
    Code-Kommentar der entbehrliche Teil ist.
+
+### T-203 schliesst Korb 1 — mit einer Einschraenkung, die zum Muster passt
+
+**Der Waechter steht:** `.claude/hooks/enforce-data-redirect.ps1`, registriert
+in einem neuen `.claude/settings.json` auf `PreToolUse` fuer `Bash|PowerShell`.
+Die Decke steht als `ponytail:`-Kommentar **im Hook** (Zeile 44) und nicht als
+Absatz in der Doku — eine unbekannte Startform rutscht durch, und der Kommentar
+sagt, wo man sie ergaenzt. `CLAUDE.md` 160 → **159** Zeilen, also gekuerzt wie
+verlangt, obwohl die Positiv-/Abwesenheits-Unterscheidung neu hinzukam.
+`requirements-dev.txt` hat seinen zehnzeiligen Begruendungskopf verloren.
+
+**Der `developer` hat in seiner eigenen ersten Fassung einen Fehler gefunden
+und behoben:** ein Anker auf Zeilenanfang liess
+`VAR=x VAR2=y python run.py` mit fehlenden Variablen durch. Meine Gegenprobe
+bestaetigt, dass dieser Fall jetzt abgewiesen wird.
+
+**Die Einschraenkung ist QA-241** und sie ist dieselbe Klasse, die den Hook
+ueberhaupt noetig gemacht hat: er ist in der Sitzung seiner Installation
+**wirkungslos**, weil Einstellungen beim Sitzungsstart gelesen werden. Der
+`developer` hat das als offenen Punkt gemeldet statt zu behaupten, es laufe;
+der Director hat es live gegengeprueft (durchgelassen) und gegen die
+stdin-Schnittstelle (abgewiesen). **Die Logik ist korrekt, die Ladezeit ist das
+Problem.** Bis zum Neustart schreibt der Director die drei Umlenkungen weiter
+woertlich in jeden Auftrag.
+
+**Korb 1 ist abgeschlossen.** Bilanz: `baseline_for` gestrichen (-6 Zeilen),
+`requirements-dev.txt`-Kopf gestrichen (-10), Prosa 20 Zeilen in drei Dateien
+und **bei 1,4 % gestoppt**, `StrEnum` am Zirkelimport abgelehnt, `CLAUDE.md`
+-1. **Summe rund -37 Quellzeilen** gegen die 120 000, die der Audit in
+Aussicht gestellt hat — und dazu ein Waechter, den es vorher nicht gab, zwei
+bestaetigte strukturelle Schulden (P10) und sieben neue Befunde. **Der Wert
+dieses Korbs lag nicht in den geloeschten Zeilen.**
