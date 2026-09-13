@@ -49,9 +49,8 @@ ANSWER_FUSE_S = 30.0
 PICKER_WIDTHS = (None, 900, 700)
 
 
-@pytest.fixture
-def picker(planner, qapp):
-    """The picker for the first relic slot of a real window.
+def open_the_picker(planner):
+    """The picker for the first relic slot of a real window, answered.
 
     A real slot, not a stub: the card list comes from `available_items()` and
     the count of cards is what makes the grid wide.
@@ -65,15 +64,21 @@ def picker(planner, qapp):
     rendered.settle()
     # The figures come from the window's picker track now (AD-028), so the
     # card area is empty until it answers (§3.8 fassung 3). Everything below
-    # measures cards, so the fixture waits for the one answer of this opening
-    # -- and calls a question that ends in none of its three outcomes a
-    # failure rather than a hang. Nothing here reads how long it took.
+    # measures cards, so this waits for the one answer of this opening --
+    # and calls a question that ends in none of its three outcomes a failure
+    # rather than a hang. Nothing here reads how long it took.
     deadline = time.monotonic() + ANSWER_FUSE_S
     while dialog.waiting and time.monotonic() < deadline:
         rendered.settle()
     assert not dialog.waiting, (
         "the picker track ended in none of ready, failed and stopped")
     rendered.settle()
+    return dialog
+
+
+@pytest.fixture
+def picker(planner, qapp):
+    dialog = open_the_picker(planner)
     yield dialog
     dialog.close()
     dialog.deleteLater()
@@ -164,6 +169,35 @@ def test_the_height_the_picker_asks_for_shows_three_whole_rows(picker):
         f"at the height the dialog asks for, {whole_rows(picker)} whole rows "
         f"of cards are readable, not {relicpicker.MINIMUM_ROWS}")
     assert not picker.scroll.horizontalScrollBar().isVisible()
+
+
+def test_the_height_asked_for_is_the_figure_of_the_sizing_and_stays_it(
+        planner, qapp, monkeypatch):
+    """AK-266: `wanted_height` is what the first paint measured, held.
+
+    The dialog sizes itself in the waiting state (AK-216), where line 3b is
+    not on screen; after the answer the chrome is taller, and a fresh
+    reading of the same function came out 90 px above the height the dialog
+    had given itself (QA-242: 1151 against 1061). The figure at the sizing
+    is read through the sizing itself, because the cards it is measured on
+    are not in the scroll area while the dialog waits.
+    """
+    at_the_sizing = []
+    fit = relicpicker.RelicPicker._fit_to_three_rows
+
+    def fit_and_note(dialog, cards):
+        at_the_sizing.append(dialog.wanted_height(cards))
+        fit(dialog, cards)
+
+    monkeypatch.setattr(relicpicker.RelicPicker, "_fit_to_three_rows",
+                        fit_and_note)
+    dialog = open_the_picker(planner)
+    try:
+        assert dialog.wanted_height(cards(dialog)) == at_the_sizing[0]
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+        rendered.settle(2)
 
 
 def test_the_picker_never_opens_taller_than_the_desktop(picker):

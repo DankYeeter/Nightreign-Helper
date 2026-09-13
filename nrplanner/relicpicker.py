@@ -1086,8 +1086,8 @@ class RelicPicker(QDialog):
         # the vertical scrollbar the card list will need: with 55 cards it is
         # always there, and the width it takes came off the last column. The
         # height follows in `_refresh`, which is where the cards exist.
-        #: Whether the opening size has been fitted to the cards yet.
-        self._sized = False
+        #: The height AK-51 asked for at the sizing, once it has happened.
+        self._wanted: int | None = None
         self.resize(self._opening_width(), OPENING_HEIGHT)
 
         self._refresh()
@@ -1168,8 +1168,16 @@ class RelicPicker(QDialog):
         is also the only one a case can read -- the offscreen desktop is
         800 px tall, so a guard written on the size the dialog *reaches*
         would agree with itself whatever this file said.
+
+        Measured once, at the sizing, and held (AK-266): the chrome grows
+        with the answer -- line 3b appears, the summary gains its reference
+        -- and a fresh reading after it stood 90 px above the height the
+        dialog had given itself (QA-242). The figure of the first paint is
+        the definition; what a later `_chrome_height` would say is not.
         """
-        return self._chrome_height() + self._room_for_three_rows(cards)
+        if self._wanted is None:
+            return self._chrome_height() + self._room_for_three_rows(cards)
+        return self._wanted
 
     def _fit_to_three_rows(self, cards) -> None:
         """Open tall enough to read three whole rows of cards (AK-51).
@@ -1185,10 +1193,9 @@ class RelicPicker(QDialog):
         three rows are 95 px short of fitting and the picker opens as tall as
         the desktop allows. That shortfall is reported, not hidden.
         """
-        if self._sized or not cards:
+        if self._wanted is not None or not cards:
             return
-        self._sized = True
-        wanted = self.wanted_height(cards)
+        self._wanted = wanted = self.wanted_height(cards)
         screen = self.screen()
         if screen is not None:
             wanted = min(wanted, screen.availableGeometry().height())
