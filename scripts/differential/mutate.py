@@ -118,6 +118,74 @@ MUTATIONS: dict[str, Mutation] = {
             "`test_the_reading_is_a_second_box_that_puts_the_answer_away_"
             "and_asks_nothing` (T-224)."),
     ),
+    "e1-headline-ignores-the-origin": Mutation(
+        path="nrplanner/firstrun.py",
+        old="""        headline=("That folder does not hold a copy of the game." if inside
+                  else "That folder is not part of a Steam installation."),
+""",
+        new="""        headline="That folder does not hold a copy of the game.",
+""",
+        survival_means=(
+            "a folder turned down for lying outside every Steam library is "
+            "called `not a copy of the game`, which it may well be (AK-264). "
+            "Killed by `test_e1_says_when_the_folder_lies_outside_every_"
+            "steam_library` and the flow case beside it (T-225)."),
+    ),
+    "wanted-height-is-read-afresh": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        if self._wanted is None:
+            return self._chrome_height() + self._room_for_three_rows(cards)
+        return self._wanted
+""",
+        new="""        return self._chrome_height() + self._room_for_three_rows(cards)
+""",
+        survival_means=(
+            "`wanted_height` after the answer is 90 px above the height the "
+            "dialog gave itself (QA-242, AK-266). Killed by `test_the_height_"
+            "asked_for_is_the_figure_of_the_sizing_and_stays_it` (T-225)."),
+    ),
+    "cards-keep-the-stock-of-a-save-no-longer-held": Mutation(
+        path="nrplanner/app.py",
+        old="""        self._hand_the_stock_to_the_slots()
+        self._say_how_many_relics_are_owned()
+""",
+        new="""        if self.owned is not None:
+            self._hand_the_stock_to_the_slots()
+        self._say_how_many_relics_are_owned()
+""",
+        survival_means=(
+            "a rescan that finds no save leaves the cards holding the old "
+            "relics while the header says no save was read (AK-267, QA-247). "
+            "Killed by `test_a_rescan_that_finds_no_save_takes_the_cards_out_"
+            "of_the_picker` and `test_a_picker_standing_open_loses_its_cards_"
+            "with_the_save` (T-225)."),
+    ),
+    "goal-box-400-px": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
+""",
+        new="""        self.goal_box.setFixedWidth(400)
+""",
+        survival_means=(
+            "the status has no width at the opening width and nothing "
+            "measured it at the running window (AK-05, AK-194). Killed by "
+            "`test_at_the_opening_width_only_the_status_is_shortened` and "
+            "`test_at_the_opening_width_the_status_keeps_some_width` (T-225)."),
+    ),
+    "reading-box-stays-live-without-a-save": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.goal_box.setEnabled(answerable)
+        self.reading_box.setEnabled(answerable)
+        self.optimize_button.setEnabled(answerable)
+""",
+        new="""        self.goal_box.setEnabled(answerable)
+        self.optimize_button.setEnabled(answerable)
+""",
+        survival_means=(
+            "4.8 leaves a reading to choose with nothing to read (AK-268). "
+            "Killed by `test_without_a_save_the_row_says_so_and_disables_its_"
+            "own_two_controls` (T-225)."),
+    ),
 }
 
 
