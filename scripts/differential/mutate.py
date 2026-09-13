@@ -123,6 +123,23 @@ MUTATIONS: dict[str, Mutation] = {
             "counted_copies_of_the_frozen_save` on any machine, and by the "
             "live-save case on this one (T-230e)."),
     ),
+    "cancel-waits-for-the-worker": Mutation(
+        path="nrplanner/advisor/worker.py",
+        old="""        self._interrupt_the_running_worker()
+        self.stopped.emit()
+""",
+        new="""        self._interrupt_the_running_worker()
+        if self._thread is not None:
+            self._thread.wait()
+        self.stopped.emit()
+""",
+        survival_means=(
+            "the window is told it has stopped only once the worker has "
+            "finished, however long that takes (AK-11 broken). A worker that "
+            "was through its scorings before the cancel could not show it; "
+            "one held inside a scoring can. Killed by `test_cancel_is_"
+            "visible_at_once_however_long_the_worker_takes` (T-230f)."),
+    ),
 }
 
 
