@@ -167,6 +167,23 @@ MUTATIONS: dict[str, Mutation] = {
             "reading_that_changes_under_a_run_names_the_reading_not_the_"
             "build` (T-232)."),
     ),
+    "done-repeats-the-disconnect": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        if self._done_already:
+            return
+        self._done_already = True
+        if self.advice is not None:
+""",
+        new="""        if self.advice is not None:
+""",
+        survival_means=(
+            "a dialog closed a second time -- the ordinary shape of a "
+            "test's own cleanup after the scenario already closed it, "
+            "AD-028 point 5 -- repeats `stock_replaced.disconnect()` and "
+            "PySide turns the second, already-disconnected call into a "
+            "`RuntimeWarning`. Killed by `test_closing_a_dialog_a_second_"
+            "time_does_not_repeat_the_disconnect` (T-232)."),
+    ),
 }
 
 
