@@ -966,6 +966,11 @@ class RelicPicker(QDialog):
         #: line standing (§3, the named edge case) rather than making the
         #: dialog change its mind about what state it is in.
         self._wait_is_drawn = None
+        #: Whether `done()` has already run once. A caller may close this
+        #: dialog and then, not knowing that, close it again during cleanup
+        #: (both are ordinary and this class cannot tell them apart) -- the
+        #: second call must not repeat a disconnect that already happened.
+        self._done_already = False
         self._ask()
         # Favourites are per Nightfarer, so the picker has to know which one
         # the build is for. A slot outside the main window simply has none.
@@ -1507,7 +1512,15 @@ class RelicPicker(QDialog):
         the controller has moved on, and nothing here is listening any more --
         because one of the two would be a guard nobody could see fail
         (AK-207).
+
+        Idempotent on purpose: a second call -- Qt's own `reject()` on Escape
+        followed by a caller's own cleanup, say -- must not repeat the
+        `disconnect()` below, which only ever succeeds once and warns on
+        every call after.
         """
+        if self._done_already:
+            return
+        self._done_already = True
         if self.advice is not None:
             self.advice.stop_listening()
         self.slot.stock_replaced.disconnect(self._the_stock_was_replaced)

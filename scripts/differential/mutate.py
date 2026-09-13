@@ -154,6 +154,36 @@ MUTATIONS: dict[str, Mutation] = {
             "sentence at all (DR-023). Killed by `test_a_shortened_status_"
             "keeps_its_whole_sentence_for_the_accessibility_bridge` (T-230g)."),
     ),
+    "reading-change-says-build-changed": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.the_build_changed(reading_changed=True)
+""",
+        new="""        self.the_build_changed()
+""",
+        survival_means=(
+            "a reading change during a run says `Your build changed ...` "
+            "again, the same string a goal change uses -- exactly the "
+            "QA-253 confusion AK-270 exists to fix. Killed by `test_a_"
+            "reading_that_changes_under_a_run_names_the_reading_not_the_"
+            "build` (T-232)."),
+    ),
+    "done-repeats-the-disconnect": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        if self._done_already:
+            return
+        self._done_already = True
+        if self.advice is not None:
+""",
+        new="""        if self.advice is not None:
+""",
+        survival_means=(
+            "a dialog closed a second time -- the ordinary shape of a "
+            "test's own cleanup after the scenario already closed it, "
+            "AD-028 point 5 -- repeats `stock_replaced.disconnect()` and "
+            "PySide turns the second, already-disconnected call into a "
+            "`RuntimeWarning`. Killed by `test_closing_a_dialog_a_second_"
+            "time_does_not_repeat_the_disconnect` (T-232)."),
+    ),
 }
 
 

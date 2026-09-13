@@ -157,6 +157,9 @@ class Situation:
     #: The Nightfarer named in 4.10, and the one-line reason of 4.12.
     nightfarer: str = ""
     reason: str = ""
+    #: 4.7 only (AK-270): the run was abandoned because the *reading*
+    #: changed rather than the build, so the sentence must name that cause.
+    reading_changed: bool = False
 
 
 def _lower_case_first(label: str) -> str:
@@ -234,6 +237,9 @@ def status_line(situation: Situation) -> str:
         return (f"{goal} — {situation.slots_filled} of "
                 f"{situation.slots} slots filled.")
     if state is State.OUTDATED:
+        if situation.reading_changed:
+            return ("The reading changed while this was working out — use "
+                    "Optimize again.")
         return ("Your build changed while this was working out — use "
                 "Optimize again.")
     if state is State.NO_SAVE:
@@ -664,7 +670,7 @@ class AdvisorBar(QWidget):
         """The `AdvisorResult` on screen, or `None`."""
         return self._answer
 
-    def the_build_changed(self) -> None:
+    def the_build_changed(self, *, reading_changed: bool = False) -> None:
         """Nightfarer, vessel, Deep, level or a slot changed (AK-12).
 
         A run in flight is abandoned and says 4.7: it was asked about a build
@@ -679,11 +685,16 @@ class AdvisorBar(QWidget):
         build ends up here -- so an answer being applied would throw itself
         away half way through. `while_the_player_applies_it` is how the
         window says that this change is the one the row asked for.
+
+        `reading_changed` (AK-270) is `True` only when `_reading_chosen`
+        calls this: the abandonment is real either way, but the sentence
+        must not blame the build for a change the reading made.
         """
         if self._applying:
             return
         if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.OUTDATED)
+            self._stop_shows = Situation(State.OUTDATED,
+                                          reading_changed=reading_changed)
             self._controller.cancel()
             return
         self._forget_the_answer()
@@ -764,9 +775,10 @@ class AdvisorBar(QWidget):
 
     def _reading_chosen(self, _index: int) -> None:
         """A reading is a different question too: same path as a direction
-        (AK-183) -- the answer goes, a run in flight says 4.7, none starts."""
+        (AK-183) -- the answer goes, a run in flight says 4.7 naming the
+        reading rather than the build (AK-270), none starts."""
         self.reading_changed.emit(self.reading_box.currentData())
-        self.the_build_changed()
+        self.the_build_changed(reading_changed=True)
 
     def _apply_or_undo(self) -> None:
         """One button, and which of the two actions it is is the row's state.

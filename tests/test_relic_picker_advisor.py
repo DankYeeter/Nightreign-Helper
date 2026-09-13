@@ -1678,6 +1678,23 @@ def test_a_closed_dialog_hears_nothing_more(slot):
         dialog.deleteLater()
 
 
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_closing_a_dialog_a_second_time_does_not_repeat_the_disconnect(slot):
+    """Regression: a second `done()` warned instead of doing nothing.
+
+    Closing a dialog that is already closed is the ordinary shape of a
+    test's own cleanup after the scenario under test has already closed it
+    (`AD-028` point 5, `tests/test_picker_track_guards.py`'s `finally`
+    blocks) -- not a bug in the caller. `done()` ran the same
+    `stock_replaced.disconnect()` on every call, and PySide turns a second
+    disconnect of an already-disconnected signal into a `RuntimeWarning`.
+    """
+    dialog, advice = waiting_picker(slot)
+    dialog.done(0)
+    dialog.done(0)
+    dialog.deleteLater()
+
+
 def test_an_opening_with_no_relic_to_offer_does_not_wait(slot):
     """AK-212's stated exception: nothing to order, nothing to value.
 
