@@ -26,7 +26,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 from nrplanner import advisorbar
 from nrplanner.advisor import goals, types
 from tests import rendered
-from tests.advisor_row_at_the_window import NARROW_DESKTOPS
+from tests.advisor_row_at_the_window import (BELOW_THE_AK_05_FLOOR,
+                                              NARROW_DESKTOPS)
 
 #: How long a case may wait for a real search of the player's own save. The
 #: worst measured run is about 960 ms (`run.py`, 309 relics, six free slots);
@@ -813,13 +814,20 @@ def test_on_a_narrow_desktop_the_boxes_keep_their_captions_and_the_row_carries_t
     Decided 2026-09-13: the boxes come first and the status may go, down
     to 0 px -- so AK-194's `> 0` is not asked here, and a status too narrow
     to hover has its sentence in the row's own tooltip instead.
+
+    AK-05 itself only holds at 1536 px and up (user decision, 2026-09-13):
+    below that floor `goal_box`/`reading_box` may be among the boxes that
+    cut, and the tooltip is asserted regardless -- it is what carries the
+    status text whether or not the boxes gave way too.
     """
     at_room = advisor_row_at_the_window["rooms"][room]
     assert at_room["width"] < advisor_row_at_the_window["width"], (
         "this desktop does not cap the opening width, so the case would "
         "measure the same row twice")
+    allowed_cut = ({"goal_box", "reading_box"}
+                   if int(room) in BELOW_THE_AK_05_FLOOR else set())
     for row in (at_room["failed"], at_room["suggested"]):
-        assert row["cut"] == []
+        assert set(row["cut"]) <= allowed_cut
         assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
 
 
