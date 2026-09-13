@@ -7,7 +7,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-225** · QA ab
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-227** · QA ab
 **QA-248** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-036** · OF **OF-36**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
@@ -43,7 +43,7 @@ Release-Tor ist damit **SEC-026** (T-217).
 
 **Welle 2 (13.09., gepusht bis `59c6cd1`):** T-221 `ui-ux-designer` Spec-Nachtrag
 (**erledigt** `503fbed`: AK-264 E1-Headline `That folder is not part of a Steam installation.` → bauen; AK-265 nur Doku; AK-266 QA-242 **Wahl A** → bauen; AK-267 QA-247 A7-Verstoss → bauen) · T-222 `architect` A16-AD (**erledigt** AD-035 `e593a44`; B-1: Spielstand hat **312** Kopien, `GOAL.md`/`UI_SPEC.md` rechnen mit 309 — **dem Nutzer nennen**, GOAL-Zahl nicht selbst aendern) · T-223
-`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224** `developer` A16 nach AD-035 (Worktree, laeuft; erster Lauf blockiert, weil der Worktree auf origin/HEAD = f1fc79c stand — B-03 erneut; gepusht, Wiederanlauf). **Danach T-225** `developer` klein: AK-264, AK-266, AK-267 (`firstrun.py`, `relicpicker.py`, `app.py` — dieselben Dateien wie T-224, deshalb seriell). Dann AD-034 Schritt 1-3,
+`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224 A16 gebaut** (`9069d83` gemerged, 4 Commits, +482/-52, vier Mutationen getoetet), Suite im Worktree **1 failed / 1509 passed / 9 skipped** — der Fehlschlag ist der AK-05-Waechter (zweite Box laesst der Statuszeile 0 px offscreen, 37 px am Fenster). **Nutzerentscheidung 13.09.:** 1320 px aufgeben, Statuszeile darf schrumpfen (AK-05 auf A14-Startbreite, AK-194 auf > 0 px). Dazu 312 Relikte in `GOAL.md` nachgetragen (`541bba8`). **Laufend:** T-226 `ui-ux-designer` (AK-05/AK-194/4.8/312) und `architect` AD-035-Nachtrag (T-224 Befund 2: GOAL-Test misst Worst gegen heute, nicht gegen Best). **Danach T-225** `developer`: AK-264, AK-266, AK-267, AK-05-Waechter. Dann AD-034 Schritt 1-3,
 QA-242-Fix → Beta-Gate mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen
 in einer Nachricht.
 
@@ -57,7 +57,7 @@ in einer Nachricht.
 | A7/A8 | Datenlage nennen / alles Englisch | **QA-211 geschlossen** (T-201 mit eigenem Rotlauf); QA-210, QA-232 und SEC-039 offen |
 | A9/A11 | gegen ein gebautes Artefakt / ohne Raten ans Ziel | offen — die Baurunde, dann `power-user` |
 | A15 | Erststart fuehrt zu Daten | gebaut; **SEC-037: seine Route hat die Freigabebedingung von SEC-016/017/018 ueberholt** |
-| A16 | best/worst case | **nicht gebaut**, keine Entscheidung getroffen |
+| A16 | best/worst case | **gebaut** (T-224, AD-035), 11 Kopien bewegen die Rangfolge am Spielstand; QA-Pruefung offen, AK-05-Waechter rot bis T-225 |
 | A17 | Ranking ohne Bezugswaffe | **erfuellt und bestaetigt** — `06be06e` gebaut, T-199 gemessen (Kartenzeile 228 px, drei sichtbare Zeilen), T-201 PASS |
 
 ## Befunde
@@ -86,7 +86,7 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
    bewerben? Arbeitsvertrag (C-001)? US-Recht? — **A-025 ist entschieden**
    (FORTSETZEN, Nutzer 09.09.), stand hier faelschlich als offen.
 3. **Drei `widerspruechliche` Faelle** im AK-Register (`UI_SPEC.md` ab Z. 81).
-4. **1320 px als Messumgebung** — gilt sie weiter? AK-05, AK-160, AK-194.
+4. **1320 px als Messumgebung** — **entschieden 13.09.: aufgegeben** (AK-05, AK-194 in T-226); AK-160 prueft der `ui-ux-designer` mit.
 5. **Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170.
 
 ## Beschlossen, nicht beauftragt
