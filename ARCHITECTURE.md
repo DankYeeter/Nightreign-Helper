@@ -5335,7 +5335,7 @@ P10-1 (AD-034), weil der Schnitt sonst 42 Anker der Registry bricht.*
 
 | Was | Zahl | Wie gezaehlt |
 |---|---|---|
-| `scripts/differential/mutate.py` | **5 464** Zeilen, davon **289** Mutationen (`"name": Mutation(`), Literale Z. 61–5368, Logik Z. 5369–5464 (**96** Zeilen: `newline_of`, `apply`, `guard_the_own_tree`, `main`) | `wc -l`, `grep -c` |
+| `scripts/differential/mutate.py` | **5 464** Zeilen, davon **289** Mutationen (`"name": Mutation(`) *(Nachtrag 13.09.2026, T-224/T-223: es sind **301** — die Maske `[a-z0-9-]+` hat zwoelf Namen mit Grossbuchstaben uebersehen, `grep -cE '^    "[^"]+": Mutation\(' auf `f1fc79c`; T-223 hat 301 entfernt; alle Aussagen unten gelten fuer 301)*, Literale Z. 61–5368, Logik Z. 5369–5464 (**96** Zeilen: `newline_of`, `apply`, `guard_the_own_tree`, `main`) | `wc -l`, `grep -c` |
 | Anker in `nrplanner/app.py` | **42** von 289; 35 Dateien insgesamt bewacht | Anker je Mutation gegen den Quelltext aufgeloest (Skript im Scratchpad T-220) |
 | Anker-Waechter | `tests/test_differential_track.py::test_every_mutation_still_finds_its_anchor_in_the_real_source`, **289** von **344** Faellen der Datei; Lauf **59,9 s** auf diesem Rechner (`game_data`-Fixture), nicht die 1,2 s des Auftrags | `pytest tests/test_differential_track.py`, 13.09.2026 |
 | Commits auf `mutate.py` | **69** seit 03.09.2026, davon **7** reine Anker-Nachzieher (`fix(differential)`/`Anker … nachgezogen`) | `git log -- scripts/differential/mutate.py` |
@@ -5409,7 +5409,7 @@ einziger Ertrag nach dem Nachfahren ein P4 war.
   am Commit, den der Bericht nennt.
 
 **Entscheidung: D.** Begruendung in einer Zahl: **1 Fund (P4) aus 289
-dauerhaft gehaltenen Mutationen gegen 7 Anker-Nachzieh-Commits und einen
+*(nachgezaehlt 301, T-223)* dauerhaft gehaltenen Mutationen gegen 7 Anker-Nachzieh-Commits und einen
 sicher gebrochenen 42er-Block bei P10-1.** Reproduzierbarkeit braucht den
 **Commit**, nicht den frischen Anker: eine Mutation gehoert zu dem Stand, fuer
 den sie geschrieben wurde, und `git archive <rev>` ist ohnehin der einzige
@@ -5823,6 +5823,19 @@ Id in beiden). Vorrang der Handeingabe in `tests/test_advisor_bar.py`:
 Mutationen gehen nach AD-033 in `MUTATIONS` und werden gefahren; die
 Registry ist nach T-223 leer, Anker sind keine zu nennen.
 
+> **Nachtrag 13.09.2026 (T-224, gebucht unter T-222):** Die Gegenseite des
+> GOAL-Tests ist **nicht** der Best case, sondern die Leiste **vor A16** —
+> `declared = planner.declared`, nur Handeingabe. Worst gegen Best bewegt
+> auch die 260 bedingten Buffrollen, dann kann "jede bewegte Kopie traegt
+> eine Fluch-Id" nicht gelten; `GOAL.md` misst "11 Kopien im schlechtesten
+> Fall" gegen den Stand ohne Lesart. So gebaut und gemessen (T-224,
+> `9069d83`): **11 Kopien** bewegen `min_damage_taken`, alle mit einer der
+> sieben Fluch-Ids; AK-187 am Spielstand mit 312 Kopien `177 + 27 = 204`.
+> Der Satz oben ("einmal aus `reading_defaults(False)`") ist damit ueberholt;
+> der Testname bleibt. Dateiliste Testseite (T-224 Befund 1): dazu
+> `tests/test_advisor_block.py` und `tests/test_relic_picker_advisor.py`,
+> weil AK-185 dort abgenommen wird — nach OF-34 ausserhalb der Fuenf.
+
 **Was der `developer` nicht tut.** Kein Feld auf `AdvisorRequest`,
 `GoalContext`, `AdvisorResult`; kein Umschalten der Statblatt-Schalter
 (Nicht-Ziel in A16); kein Lauf beim Umschalten (AK-183); keine Lesart in
@@ -5832,7 +5845,9 @@ Effekte; keine Aenderung an `explain`-Saetzen (AK-188).
 **Fuer den `ui-ux-designer`.** Kein neues AK noetig. AK-187/AK-188 nennen
 Zahlen aus Umgebung §0 (309 Kopien); der Spielstand hat heute 312 — die
 Literale werden beim ersten Lauf nachgezaehlt, die Identitaet gilt
-unveraendert.
+unveraendert. *(Nachtrag: `GOAL.md` traegt seit `541bba8` den Nachtrag
+"312 Relikte"; die Zahl dieses Abschnitts ist damit die des Ziels, nicht
+nur eine Messung.)*
 
 ---
 
