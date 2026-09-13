@@ -140,6 +140,20 @@ MUTATIONS: dict[str, Mutation] = {
             "one held inside a scoring can. Killed by `test_cancel_is_"
             "visible_at_once_however_long_the_worker_takes` (T-230f)."),
     ),
+    "status-reports-the-ellipsis-to-the-bridge": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.setAccessibleName(text)
+        self.setAccessibleDescription(text)
+""",
+        new="""        self.setAccessibleName("")
+        self.setAccessibleDescription("")
+""",
+        survival_means=(
+            "a screen reader is read the elided `text()` -- one word and an "
+            "ellipsis at 67 px -- and a keyboard user has no way to the "
+            "sentence at all (DR-023). Killed by `test_a_shortened_status_"
+            "keeps_its_whole_sentence_for_the_accessibility_bridge` (T-230g)."),
+    ),
 }
 
 

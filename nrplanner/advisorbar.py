@@ -478,6 +478,12 @@ class _ElidingLabel(QLabel):
         # five characters `&lt;` rather than as `<`, because Qt reads a text
         # with no `<` in it as plain.
         self.setToolTip(f"<span>{html.escape(text)}</span>" if text else "")
+        # A label with no accessible name of its own reports `text()` to the
+        # accessibility bridge -- the elided one -- so a screen reader never
+        # got past the ellipsis, and a keyboard user has no hover (DR-023).
+        # Plain strings: an accessible name has no text format either.
+        self.setAccessibleName(text)
+        self.setAccessibleDescription(text)
         self._draw()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
