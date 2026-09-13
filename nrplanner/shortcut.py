@@ -136,8 +136,12 @@ def create() -> str:
         return errortext.in_english(exc)
 
     if result.returncode != 0 or not path.exists():
-        detail = (result.stderr or result.stdout or "").strip().splitlines()
-        return detail[0] if detail else "the shortcut could not be written"
+        # PowerShell's own words go to the console and never to the screen:
+        # they carry the .lnk path with the Windows user name in it, wrapped
+        # at 128 columns, and speak the language of the installation
+        # (SEC-039, A7, A8). The sentence the player gets is this program's.
+        print(result.stderr or result.stdout, file=sys.stderr)
+        return "the shortcut could not be written"
     return ""
 
 
