@@ -352,6 +352,10 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-261 | die Spitzenkarten jeder Richtung fuehren, in fester Reihenfolge — ersetzt AK-195 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 | AK-262 | jede vorgezogene Karte sagt mit ihrem Chip, warum sie vorn steht — erweitert AK-46 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 | AK-263 | was in der gelesenen Richtung gezeichnet wird und was gar keine Richtung hat — ersetzt AK-205 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-264 | E1 hat zwei Ursachen und braucht zwei Headlines — Herkunftsfall (SEC-026) traegt `That folder is not part of a Steam installation.` statt der AK-112-Headline | UI_SPEC §1.1 | T-221, 2026-09-13 | — |
+| AK-265 | der AK-49-Satz heisst woertlich `No save was read, so there is nothing to rank these against — use Rescan save.` (`NO_SAVE_WAS_READ`) — ersetzt `NO_FIGURES_AT_ALL`, ergaenzt AK-49, korrigiert das Zitat in AK-208 | UI_SPEC §5.3 (AK-49, AK-208) | T-221, 2026-09-13 | — |
+| AK-266 | QA-242 Entscheidung A: `wanted_height` bleibt die beim ersten Anstrich gemessene Zahl, die 125-px-Ueberschaetzung ist dokumentierte Reserve fuer Zeile 3b, keine Aenderung an `_chrome_height` — AK-51 und AK-196 gelten unveraendert weiter | UI_SPEC §5.3 (Nachtrag zu AK-216) | T-221, 2026-09-13 | — |
+| AK-267 | kein Bestand ueberlebt eine Entwertung des Spielstands — QA-247 ist ein A7-Verstoss, kein Feature; der Picker faellt nach `planner.owned = None` auf den Zustand vor jedem je gelesenen Spielstand zurueck | UI_SPEC §5.3 (Gegenstueck zu AK-210) | T-221, 2026-09-13 | — |
 
 
 ## Widerspruechliche Faelle

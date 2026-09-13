@@ -1,8 +1,9 @@
 # UI_SPEC — die geltende Oberflaechenvorgabe
 
-**Stand:** 2026-09-12 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
-fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263)
-**Umfang:** 263 Akzeptanzkriterien, AK-01 bis AK-263, in sieben
+**Stand:** 2026-09-13 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
+fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263) und **T-221**
+(AK-264 bis AK-267)
+**Umfang:** 267 Akzeptanzkriterien, AK-01 bis AK-267, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -66,11 +67,11 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 
 | Bereich | worum es geht | Kriterien |
 |---|---|---|
-| **1** | Erststart: den Spielordner und den Spielstand waehlen | AK-106 bis AK-132, AK-230 bis AK-242, AK-246 bis AK-249, AK-253 bis AK-255 |
+| **1** | Erststart: den Spielordner und den Spielstand waehlen | AK-106 bis AK-132, AK-230 bis AK-242, AK-246 bis AK-249, AK-253 bis AK-255, AK-264 |
 | **2** | Der Spielstand wird im Hintergrund gelesen | AK-220 bis AK-229, AK-243 bis AK-245, AK-250 bis AK-252 |
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
-| **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263 |
+| **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263, AK-265 bis AK-267 |
 | **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
@@ -178,6 +179,30 @@ einer Plattensuche.
 nicht leer ist, mindestens eine `data*.bhd` aus `bhd5.ARCHIVE_KEYS` vorliegt
 und eine DLL aus `oodle._DLL_NAMES` vorliegt. Faellt eine der drei aus,
 erscheint Text E1.
+
+#### AK-264
+*Neu in T-221, 2026-09-13 (SEC-026, Nutzerentscheidung 13.09.2026 "Haertung
+ueber Herkunft"; ergaenzt AK-112. Verwandt: AK-230 in §1.5, dieselbe
+Ablaufstelle, aber die SEC-027-Ausnahme, nicht diese.)*
+
+**AK-264** *(E1 hat zwei Ursachen und braucht zwei Headlines.)* Faellt die
+Herkunftspruefung aus (`gamefiles.in_a_steam_library`, SEC-026 — der
+aufgeloeste Ordner liegt nicht unter `steamapps/common` einer aus Registry
+und `libraryfolders.vdf` bekannten Bibliothek), traegt E1 statt der Headline
+aus AK-112 (`That folder does not hold a copy of the game.` — fuer diesen
+Fall falsch, der Ordner kann eine echte Kopie sein) die Headline
+`That folder is not part of a Steam installation.` Darunter, als dritte
+Zeile, woertlich (bereits gebaut, T-217):
+
+> That folder is not inside a Steam library, so Nightreign Helper will not run the game's files from there. Pick the folder Steam installed the game in: in Steam that is Manage, then Browse local files.
+
+Die beiden ersten Zeilen von E1 (Pfadnennung, Knopf `Choose a different
+folder...`) bleiben in beiden Faellen unveraendert. Faellt dagegen AK-112
+(Dateien fehlen oder sind unlesbar), bleibt dessen Headline unveraendert und
+die dritte Zeile entfaellt. Pruefung: die Zeichenkette
+`does not hold a copy` erscheint nie zusammen mit der Herkunfts-Zeile im
+selben Panel. **Die Headline ist neu und geht als AK an den `developer`** —
+der Ablehnungssatz selbst steht bereits im Code.
 
 #### AK-113
 *Verlauf: A15 Z3144 · zuletzt geaendert durch T-074, 2026-09-06*
@@ -1543,6 +1568,20 @@ nirgends als Grund fuer eine schlechtere Platzierung dargestellt.
 ist Namensordnung. Es wird nie eine Rangfolge gezeigt, die auf fehlenden
 Daten beruht.
 
+#### AK-265
+*Neu in T-221, 2026-09-13 (QA-210, T-218a — ergaenzt AK-49, ersetzt das
+Zitat in AK-208)*
+
+**AK-265** Der Satz aus AK-49 lautet seit `3798c57` woertlich:
+`No save was read, so there is nothing to rank these against — use Rescan
+save.` (`NO_SAVE_WAS_READ`, ersetzt ersatzlos `NO_FIGURES_AT_ALL`/
+`The game's data carries no figures …`). Er erscheint nicht, weil die
+gewaehlte Zielrichtung keine Zahlen traegt — dafuer gibt es im heutigen
+Programm keinen Ausloeser —, sondern in jedem Zustand `ranking is None` ohne
+Fehlschlag: kein Spielstand wurde je gelesen, oder ein Rescan/`Find my save`
+ohne Fund setzt `planner.owned` auf `None` zurueck (siehe AK-267). AK-49s
+uebrige Aussagen (Karten zeigen `—`, Namensordnung) gelten unveraendert.
+
 #### AK-50
 *Verlauf: A02 Z1076 + A05 Z1360 (gilt fuer drei Zeilen) · zuletzt geaendert durch T-052, 2026-09-05*
 
@@ -1851,8 +1890,10 @@ gegenstandslos: waehrend der Leere gibt es keine Karte zum Auswaehlen),
 einen Fehlschlag, steht in der Kopfzeile woertlich
 `Could not work out what these are worth — <reason>. They are in name order below.`;
 die Karten tragen `—`, keinen Chip, und stehen in Namensordnung. Der Satz
-`The game's data carries no figures …` erscheint in diesem Fall **nicht**.
-*Toetende Mutation:* den Fehlschlag auf den AK-49-Satz abbilden.
+`No save was read, so there is nothing to rank these against — use Rescan
+save.` (frueher `The game's data carries no figures …`; siehe AK-265)
+erscheint in diesem Fall **nicht**.
+*Toetende Mutation:* den Fehlschlag auf den AK-49/AK-265-Satz abbilden.
 
 **Dazu A24 Z6932 — erweitert durch AK-218:**
 
@@ -1881,6 +1922,31 @@ zweiten Anstrich gilt unveraendert: AK-41 (0 px Hoehenunterschied), AK-42
 derselbe Zustand ergibt zweimal dieselbe Reihenfolge — gemessen am
 **zweiten** Anstrich, denn der erste ist keine Rangfolge), AK-45, AK-46,
 AK-50, AK-52 und AK-195/AK-196.
+
+#### AK-267
+*Neu in T-221, 2026-09-13 (QA-247, Nebenfund aus T-218a — Entscheidung:
+A7-Verstoss, kein Feature. Gegenstueck zu AK-210: das meint nur den Umbau
+**innerhalb** derselben Oeffnung, hier geht es um die Entwertung des
+gelesenen Spielstands selbst.)*
+
+**AK-267** *(kein Bestand ueberlebt eine Entwertung des Spielstands.)*
+Setzt ein Rescan oder `Find my save` ohne Fund `planner.owned` auf `None`
+zurueck, zeigt jeder zu diesem Zeitpunkt offene oder danach neu geoeffnete
+Relic Picker fuer betroffene Slots **keinen** Bestand aus dem vorigen,
+jetzt entwerteten Lesevorgang — er zeigt denselben Zustand wie vor jedem je
+gelesenen Spielstand (leeres Raster, `Your relics appear here.`, AK-212;
+ein bereits offener Dialog faellt sofort auf diesen Zustand zurueck).
+Begruendung: die Kopfzeile sagt in diesem Zustand `No save was read`
+(AK-265); ein Raster voller waehlbarer Karten daneben behauptet das
+Gegenteil, und der Spieler koennte ein Relikt aus einem Bestand fuer einen
+Slot uebernehmen, den das Fenster nicht mehr fuehrt. **Das ist kein
+Feature, sondern ein A7-Verstoss** — Architektur AD-029 legt fest, dass die
+Cache-Entwertung „in dem Moment [entwertet], in dem `self.owned` ersetzt
+wird" (ARCHITECTURE.md, AD-029 Punkt 3); der Fensterbestand ist ersetzt,
+der Kartenbestand (`RelicSlot.owned`) nicht — eine Luecke im Bauen dieser
+Entscheidung, keine eigene. *Rot-vorher (heutiger Bestand, T-218a):*
+`RelicSlot.owned` bleibt nach dem Ruecksetzen von `planner.owned`
+unangetastet stehen, die Karten zeigen weiter den alten Bestand.
 
 #### AK-211
 *Verlauf: A24 Z6942 · zuletzt geaendert durch T-127, 2026-09-08*
@@ -1982,6 +2048,39 @@ Raster) und einmal auf dem Weg des Wartezustands — und nennt **beide Zahlen
 mit ihrer Umgebung** (Qt-Stil, Skalierung, physisch oder logisch, Bestand
 des Nutzers, Standardmass des Pickers). **Jede Differenz ausser 0 px ist ein
 Befund und kommt zurueck zu mir**, nicht in eine Nachbesserung.
+
+#### AK-266
+*Neu in T-221, 2026-09-13 (QA-242, T-218d — Nachtrag zu AK-216, Entscheidung
+A gegen die dort dokumentierte Wahl A/B)*
+
+**AK-266** *(Definition schlaegt Nachreservierung.)* `wanted_height()` ist
+und bleibt die Zahl, die AK-216 beim ersten Anstrich in der beraterfreien
+Ordnung misst; jeder spaetere Aufruf derselben Funktion fuer dieselbe
+Kartenliste gibt **diese** Zahl zurueck, auch wenn eine zu diesem spaeteren
+Zeitpunkt isoliert berechnete `_chrome_height` einen anderen Wert ergaebe.
+Der beim ersten Anstrich zu grosse Ansatz — gemessen 125 px, weil
+`_asked_height()` fuer umbrechende `QLabel` `sizeHint()` statt der
+tatsaechlichen Umbruchhoehe nimmt und `layout.spacing()` fuer zu diesem
+Zeitpunkt unsichtbare Zeilen mitzaehlt (T-218d) — bleibt bestehen und ist
+**kein offener Befund mehr**, solange sich an der Rechnung nichts aendert:
+er ist die Reserve fuer die beim ersten Anstrich inhaltlich unbekannte
+Zeile 3b. Der `developer` aendert an `_chrome_height`/`_asked_height`
+**nichts**. Begruendung gegen Option B (bewusste Reserve plus korrekte
+Rechnung): Zeile 3b traegt nach AK-67 **keine Obergrenze** (heute bis zu
+drei Saetze, eine vierte AK kann jederzeit einen weiteren erlauben) — eine
+bewusst bemessene Reserve waere ebenso eine Vermutung ueber ihre kuenftige
+Laenge wie die heutige zufaellige Ueberschaetzung, nur ohne deren
+gemessenen Vorteil: sie deckt den heutigen Bestand nachweislich (drei volle
+Kartenzeilen sichtbar, siehe unten).
+
+**AK-51 und AK-196 gelten unter dieser Entscheidung beide unveraendert
+weiter.** AK-51s erste Haelfte (keine waagerechte Bildlaufleiste;
+Standardmass waechst, Inhalt wird nie gekuerzt) bleibt ohnehin unberuehrt.
+AK-196 (mindestens zwei volle Kartenzeilen) ist die geltende Untergrenze,
+keine Zielgroesse — mit der heutigen, ueberschaetzten Zahl sind es sogar
+drei (830 px Sichtbereich, 745 px fuer drei Zeilen, T-218d). Waechst Zeile
+3b in einer kuenftigen AK so, dass drei Zeilen nicht mehr sicher passen,
+ist das ein neuer Befund gegen AK-196 — keine Reaktivierung von QA-242.
 
 #### AK-217
 *Verlauf: A24 Z7019 · zuletzt geaendert durch T-127, 2026-09-08*
