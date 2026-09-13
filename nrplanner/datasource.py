@@ -123,21 +123,21 @@ def _regulation_matches(snapshot: dict) -> bool:
     return hashlib.sha256(path.read_bytes()).hexdigest() == recorded
 
 
-def load_data(prefer_live: bool = True) -> dict:
+def load_data() -> dict:
     """Return the planner dataset, with the build maths configured for it.
 
     model.configure has to run before anything computes a build: it is what
     tells the model which fields multiply and which add, taken from the data
     rather than guessed from the field name.
     """
-    data = _load_data(prefer_live)
+    data = _load_data()
     from . import model
 
     model.configure(data)
     return data
 
 
-def _load_data(prefer_live: bool = True) -> dict:
+def _load_data() -> dict:
     """Return the planner dataset.
 
     Uses the bundled snapshot whenever it still matches the installed game,
@@ -145,27 +145,26 @@ def _load_data(prefer_live: bool = True) -> dict:
     """
     snapshot = _snapshot()
 
-    if snapshot is not None and prefer_live:
+    if snapshot is not None:
         try:
             if _regulation_matches(snapshot):
                 return snapshot
         except Exception:  # noqa: BLE001 - a failed check must not block startup
             return snapshot
 
-    if prefer_live:
-        try:
-            from nrdata import extract
+    try:
+        from nrdata import extract
 
-            from . import gamepath
+        from . import gamepath
 
-            game = gamepath.resolve_game()
-            defs = defs_dir()
-            if game is not None and defs is not None:
-                fresh = extract.build(game, defs)
-                fresh.setdefault("meta", {})["regenerated"] = True
-                return fresh
-        except Exception:  # noqa: BLE001 - fall back to the snapshot
-            pass
+        game = gamepath.resolve_game()
+        defs = defs_dir()
+        if game is not None and defs is not None:
+            fresh = extract.build(game, defs)
+            fresh.setdefault("meta", {})["regenerated"] = True
+            return fresh
+    except Exception:  # noqa: BLE001 - fall back to the snapshot
+        pass
 
     if snapshot is None:
         raise NoGameData(_no_data_message())

@@ -42,7 +42,8 @@ import pytest
 
 from nrdata import savefile
 from nrplanner import app as appmod
-from nrplanner import datasource, errortext, firstrun, inventory, shortcut
+from nrplanner import (datasource, errortext, firstrun, gamepath, inventory,
+                       shortcut)
 
 #: What Windows says on a German installation when it will not open a file.
 #: A literal and not a call into the running system: the point is a text this
@@ -515,9 +516,10 @@ def test_the_no_dataset_dialog_keeps_the_long_explanation(monkeypatch):
     below is what makes the class load-bearing.
     """
     monkeypatch.setattr(datasource, "_snapshot", lambda: None)
+    monkeypatch.setattr(gamepath, "resolve_game", lambda: None)
 
     with pytest.raises(FileNotFoundError) as raised:
-        datasource._load_data(prefer_live=False)
+        datasource._load_data()
 
     said = errortext.in_english(raised.value)
     assert said == datasource._no_data_message()
@@ -538,7 +540,7 @@ def test_a_dataset_windows_will_not_hand_over_is_reported_in_english(
     monkeypatch.setattr(datasource, "_snapshot", refuse)
 
     with pytest.raises(OSError) as raised:
-        datasource._load_data(prefer_live=False)
+        datasource._load_data()
 
     said = errortext.in_english(raised.value)
     says_nothing_windows_said(said)
