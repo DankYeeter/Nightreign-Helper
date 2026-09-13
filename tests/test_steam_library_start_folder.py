@@ -1,4 +1,5 @@
-"""`gamefiles.steam_common_folders` and the dialog start it feeds (AK-110).
+"""`gamefiles.steam_common_folders`, the dialog start it feeds (AK-110), and
+the origin a game folder has to have (SEC-026, SEC-036).
 
 No mutation proof here (Nutzerentscheidung 08.09.2026, T-153): a wrong
 candidate list, or one `where_to_start_looking` never reaches, shows up the
@@ -6,18 +7,22 @@ moment somebody works through AK-110 by hand -- the dialog opens somewhere
 that is plainly not the player's library -- so the cheaper functional check
 below is the one that was asked for.
 
-Real Steam roots and a real registry are neither built nor read here:
-`_steam_roots` is monkeypatched to a folder this test owns, and
-`libraryfolders.vdf` is a real file written in it, so the parsing this
-function relies on (`gamefiles._library_paths`, untouched) runs for real.
+Real Steam roots and a real registry are neither built nor read here, with
+the two exceptions at the end: `_steam_roots` is monkeypatched to a folder
+this test owns, and `libraryfolders.vdf` is a real file written in it, so the
+parsing this function relies on (`gamefiles._library_paths`, untouched) runs
+for real.
 """
 
 from __future__ import annotations
 
 import pathlib
 
+import pytest
+
 from nrdata import gamefiles
 from nrplanner import firstrun
+from tests.test_game_dir_recognition import make_game
 
 
 def a_steam_root(tmp_path: pathlib.Path, *extra_libraries: pathlib.Path
@@ -83,3 +88,89 @@ def test_the_dialog_starts_in_a_library_the_default_folder_is_not(
     monkeypatch.setattr(gamefiles, "steam_common_folders", lambda: [library])
 
     assert firstrun.where_to_start_looking(None) == library
+
+
+# --- the origin of a game folder (SEC-026, SEC-036, SEC-038) --------------
+
+#: The two registry values `_steam_roots` reads, spelled out once more here
+#: so the measurement below does not go through the function it measures.
+_STEAM_KEYS = ((r"Software\Valve\Steam", "HKEY_CURRENT_USER"),
+               (r"SOFTWARE\WOW6432Node\Valve\Steam", "HKEY_LOCAL_MACHINE"))
+
+
+def _roots_the_registry_names() -> set[pathlib.Path]:
+    import winreg
+
+    named = set()
+    for sub, hive in _STEAM_KEYS:
+        try:
+            with winreg.OpenKey(getattr(winreg, hive), sub) as key:
+                named.add(pathlib.Path(winreg.QueryValueEx(key, "SteamPath")[0]))
+        except OSError:
+            continue
+    return named
+
+
+def test_the_real_root_list_holds_nothing_the_registry_did_not_name():
+    """SEC-038: the guard measures `_steam_roots()` itself, no stub of it.
+
+    SEC-036 is what it guards: until 13.09.2026 `C:/Program Files
+    (x86)/Steam` and `C:/Steam` stood behind the registry entries as fixed
+    roots, and `C:/Steam` is a folder any account on the machine may create.
+    """
+    assert set(gamefiles._steam_roots()) <= _roots_the_registry_names()
+
+
+def test_a_registry_without_steam_offers_no_root_at_all(monkeypatch):
+    """The same guard on a machine that has Steam in its registry: with the
+    registry answering nothing, a fixed root would be the whole list."""
+    import winreg
+
+    def no_steam_here(*_args, **_kwargs):
+        raise OSError("no Steam in this registry")
+
+    monkeypatch.setattr(winreg, "OpenKey", no_steam_here)
+
+    assert gamefiles._steam_roots() == []
+
+
+def test_a_game_outside_every_steam_library_is_not_a_game(tmp_path,
+                                                          monkeypatch):
+    """SEC-026: the folder the DLL is run out of has to come from Steam's
+    own list. A folder that is complete but sits elsewhere is turned down."""
+    root = a_steam_root(tmp_path)
+    monkeypatch.setattr(gamefiles, "_steam_roots", lambda: [root])
+    elsewhere = make_game(tmp_path / "Games" / "ELDEN RING NIGHTREIGN" / "Game")
+
+    assert not gamefiles.in_a_steam_library(elsewhere)
+    assert not gamefiles.looks_like_the_game(elsewhere)
+
+
+def test_a_game_in_a_library_the_vdf_names_is_a_game(tmp_path, monkeypatch):
+    """A second library, named in `libraryfolders.vdf` only, counts as origin
+    -- the shape of a library on another drive, built here on this one."""
+    other_drive = tmp_path / "D_drive" / "SteamLibrary"
+    root = a_steam_root(tmp_path, other_drive)
+    monkeypatch.setattr(gamefiles, "_steam_roots", lambda: [root])
+    game = make_game(other_drive / "steamapps" / "common"
+                     / "ELDEN RING NIGHTREIGN" / "Game")
+
+    assert gamefiles.in_a_steam_library(game)
+    assert gamefiles.looks_like_the_game(game)
+
+
+def test_a_junction_out_of_a_library_is_not_origin(tmp_path, monkeypatch):
+    """The resolved folder decides, not the name it was reached by."""
+    import _winapi
+
+    root = a_steam_root(tmp_path)
+    monkeypatch.setattr(gamefiles, "_steam_roots", lambda: [root])
+    elsewhere = make_game(tmp_path / "Games" / "ELDEN RING NIGHTREIGN" / "Game")
+    door = root / "steamapps" / "common" / "ELDEN RING NIGHTREIGN"
+    door.parent.mkdir(parents=True)
+    try:
+        _winapi.CreateJunction(str(elsewhere.parent), str(door))
+    except (AttributeError, OSError) as exc:  # not Windows, or not permitted
+        pytest.skip(f"no junction could be made here: {exc}")
+
+    assert not gamefiles.in_a_steam_library(door / "Game")

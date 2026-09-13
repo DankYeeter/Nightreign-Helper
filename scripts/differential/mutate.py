@@ -4557,10 +4557,10 @@ from PySide6 import QtCore
     ),
     "dll-condition-dropped": Mutation(
         path="nrdata/gamefiles.py",
-        old="""        return any((folder / name).exists() for name in oodle._DLL_NAMES)
+        old="""        if not any((folder / name).exists() for name in oodle._DLL_NAMES):
+            return False
 """,
-        new="""        return True
-""",
+        new="""""",
         survival_means=(
             "the DLL check is gone: any folder with regulation.bin and an archive passes"
             " stage 1 (AK-112). Measured 2026-09-09 (T-156, reconstructed from T-147's"

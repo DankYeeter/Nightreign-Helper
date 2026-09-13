@@ -37,6 +37,8 @@ import pytest
 
 from nrdata import bhd5, gamefiles, oodle
 
+pytestmark = pytest.mark.usefixtures("tmp_path_is_a_steam_library")
+
 # One name out of each of the two lists the program itself carries, so a case
 # that builds a folder builds the same folder the program would accept.
 AN_ARCHIVE = f"{sorted(bhd5.ARCHIVE_KEYS)[0]}.bhd"

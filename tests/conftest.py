@@ -252,6 +252,23 @@ def settings_store(qapp):
     clear_settings()
 
 
+@pytest.fixture
+def tmp_path_is_a_steam_library(tmp_path, monkeypatch):
+    """Every folder under `tmp_path` counts as lying in a Steam library.
+
+    `looks_like_the_game` asks for that origin last (SEC-026), and the cases
+    of recognition, memory and the first-run panel build their game folders
+    wherever under `tmp_path` suits the case. Set through the one function
+    the origin is read from, so those cases keep speaking about what they
+    are about; the origin itself is measured in
+    `test_steam_library_start_folder.py`, against real roots and a real
+    `libraryfolders.vdf`.
+    """
+    from nrdata import gamefiles
+
+    monkeypatch.setattr(gamefiles, "steam_common_folders", lambda: [tmp_path])
+
+
 def wait_for_the_save(window, timeout_ms: int = 60000):
     """Let a window finish reading its save, and hand it back.
 

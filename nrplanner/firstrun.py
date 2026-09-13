@@ -312,17 +312,31 @@ def a3(remembered, day: str) -> Panel:
     )
 
 
+#: Why E1 turned the folder down. The second is the origin rule (SEC-026):
+#: the program only runs the game's library out of a folder that lies in a
+#: Steam library, so a copy of the game anywhere else is turned down too,
+#: and the sentence says so rather than calling it "not a game".
+NOTHING_LOOKED_LIKE_A_GAME = (
+    "Nothing inside it looked like an installed game. Pick the folder the "
+    "game itself is in: in Steam that is Manage, then Browse local files.")
+NOT_IN_A_STEAM_LIBRARY = (
+    "That folder is not inside a Steam library, so Nightreign Helper will "
+    "not run the game's files from there. Pick the folder Steam installed "
+    "the game in: in Steam that is Manage, then Browse local files.")
+
+
 def e1(picked) -> Panel:
-    """Stage 1 said no: no installed game at or around this folder."""
+    """Stage 1 said no: no installed game at or around this folder, or the
+    folder lies outside every Steam library (SEC-026) -- said apart."""
+    inside = gamefiles.in_a_steam_library(picked)
     return Panel(
         name="E1",
         headline="That folder does not hold a copy of the game.",
         lines=(
             Line("You picked:"),
             Line(os.fspath(picked), PATH),
-            Line("Nothing inside it looked like an installed game. Pick the "
-                 "folder the game itself is in: in Steam that is Manage, then "
-                 "Browse local files."),
+            Line(NOTHING_LOOKED_LIKE_A_GAME if inside
+                 else NOT_IN_A_STEAM_LIBRARY),
         ),
         buttons=(QUIT_BUTTON, ANOTHER_BUTTON),
         escape=QUIT,
