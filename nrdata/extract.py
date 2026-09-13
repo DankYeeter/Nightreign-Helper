@@ -232,10 +232,9 @@ def _modal_baseline(rows: list[param.ParamRow], fields: list[str]) -> dict[str, 
 EVERDARK_SORT_THRESHOLD = 200
 DEEP_MODE_SORT = 300
 
-# The game's own name for the second group and for the mode, so neither label
-# is invented here. 131040 = "Everdark Sovereign", 131150 = "The Deep of Night".
+# The game's own name for the second group, so the label is not invented
+# here. 131040 = "Everdark Sovereign".
 EVERDARK_LABEL_ID = 131040
-DEEP_LABEL_ID = 131150
 
 # TutorialBody row explaining Depth and the rating bands behind it.
 DEEP_RATING_TEXT_ID = 403500
@@ -631,7 +630,6 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
             "cataclysms_1": values["cataclysmWeight_1"],
             "cataclysms_2": values["cataclysmWeight_2"],
         })
-    control_size = 0
 
     # TutorialBody 403500, "The Deep of Night: Depth and Rating" -- the game's
     # own statement of the rating bands behind each Depth.
@@ -903,15 +901,6 @@ def _event_states(members: dict, defs: dict,
             "shares_with_allies": _states_allies(label),
         })
     return out
-
-
-# NpcName ids are structured `90 <4-digit character> <3-digit variant>` --
-# 907540001 is c7540's first named form. That is what lets a creature's name
-# reach its NpcParam rows, and therefore its rune value. Worth knowing that
-# this is the very link that does NOT exist for the Nightlords (section 6c:
-# their names live in CL_MenuText, and no NpcParam row carries a boss nameId);
-# ordinary and event enemies are named the normal way.
-NPC_NAME_PREFIX = 90
 
 
 # Which map-pattern modifier is which world event. This was the blocker for
@@ -2676,7 +2665,6 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # project had already confirmed. Offset 0x2dc is loaded at 0x14043d5d0 and
     # compared against a roll of 0..99, so it is a percentage.
     player_common = members["PlayerCommonParam"]
-    _pc_row = param.read(player_common, None)
     _pc_base = struct.unpack_from("<Q", player_common, 0x48)[0]
 
     def _pc_s32(offset: int) -> int:

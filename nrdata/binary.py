@@ -53,14 +53,10 @@ class Reader:
     def u8(self) -> int:
         return self._unpack("B", 1)
 
-    def i8(self) -> int:
-        return self._unpack("b", 1)
 
     def u16(self) -> int:
         return self._unpack("H", 2)
 
-    def i16(self) -> int:
-        return self._unpack("h", 2)
 
     def u32(self) -> int:
         return self._unpack("I", 4)

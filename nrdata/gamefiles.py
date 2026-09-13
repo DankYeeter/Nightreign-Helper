@@ -7,7 +7,6 @@ import pathlib
 import stat
 import time
 
-STEAM_APP_ID = "2622380"
 INSTALL_DIR = "ELDEN RING NIGHTREIGN"
 
 

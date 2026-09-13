@@ -48,7 +48,6 @@ _COUNTS = 0x20
 _EVENT_ENTRY = 24         # {int64 startTime*, int64 endTime*, int64 data*}
 
 APPLY_SPEFFECT = 66       # param0 is a SpEffectParam row id
-_FLT_MAX = 3.4028234663852886e38
 
 
 @dataclass(frozen=True)
@@ -59,10 +58,6 @@ class Event:
     end: float
     param0: int
 
-    @property
-    def to_end(self) -> bool:
-        """Runs to the end of the animation rather than to a set time."""
-        return self.end >= _FLT_MAX
 
 
 def is_tae(blob: bytes) -> bool:

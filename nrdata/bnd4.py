@@ -153,7 +153,7 @@ def read(data: bytes) -> list[BinderFile]:
     r.u64()  # end of file headers
     unicode_names = r.u8() != 0
     fmt = _read_format(r.u8(), bit_big_endian)
-    extended = r.u8()
+    r.u8()  # extended
     r.skip(1)
     r.u32()
     r.u64()  # buckets offset
