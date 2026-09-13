@@ -12,6 +12,13 @@ INSTALL_DIR = "ELDEN RING NIGHTREIGN"
 
 
 def _steam_roots() -> list[pathlib.Path]:
+    """The Steam installs the registry names, and nothing else.
+
+    No fixed root stands behind the registry any more (SEC-036, 13.09.2026):
+    `C:/Steam` was one, and `C:/` lets any account on the machine create it.
+    A root out of the registry, and every library its `libraryfolders.vdf`
+    names, is the whole origin a game folder may have (`in_a_steam_library`).
+    """
     roots: list[pathlib.Path] = []
     try:
         import winreg
@@ -28,11 +35,6 @@ def _steam_roots() -> list[pathlib.Path]:
                 continue
     except ImportError:
         pass
-
-    roots += [
-        pathlib.Path(r"C:\Program Files (x86)\Steam"),
-        pathlib.Path(r"C:\Steam"),
-    ]
     return roots
 
 
@@ -109,6 +111,27 @@ def steam_common_folders() -> list[pathlib.Path]:
     return folders
 
 
+def in_a_steam_library(path) -> bool:
+    """Does this folder sit under a ``steamapps/common`` Steam itself names?
+
+    The origin the library run out of a game folder has to have (SEC-026,
+    decided by the user on 13.09.2026): a root out of the registry, or a
+    library its `libraryfolders.vdf` names. A click on a folder elsewhere is
+    consent, not origin, and that is the difference SEC-016 to SEC-018 were
+    closed on. Both sides are resolved, so a junction inside a library that
+    leads out of it is not origin either (SEC-030) -- while a library that is
+    itself a junction is still the folder Steam named.
+
+    Any OSError -- an unplugged drive, a dead network path -- means "no".
+    """
+    try:
+        folder = pathlib.Path(path).resolve()
+        return any(folder.is_relative_to(common.resolve())
+                   for common in steam_common_folders())
+    except (OSError, ValueError):
+        return False
+
+
 # --- Recognising a folder the user picked (UI_SPEC 4.2/4.3, AK-111 to AK-113)
 
 
@@ -163,6 +186,13 @@ def looks_like_the_game(path) -> bool:
     Says nothing about *which* game this is; ELDEN RING passes it too. That
     is the question is_named_nightreign answers.
 
+    Asked last, because it costs the most: the folder has to lie in a Steam
+    library (`in_a_steam_library`, SEC-026). Every route that hands a folder
+    to the build comes through here -- `find_game_dir`, the remembered
+    folder in `gamepath.resolve_game`, the picked one in `search_from` -- so
+    this is the one place the origin is checked, and none of the three
+    `oodle.load` callers has to.
+
     Any OSError -- an unplugged drive, a dead network path, a folder that
     cannot be read -- means "not valid", never an error thrown at the caller.
     """
@@ -180,7 +210,9 @@ def looks_like_the_game(path) -> bool:
         if not any((folder / f"{name}.bhd").exists()
                    for name in bhd5.ARCHIVE_KEYS):
             return False
-        return any((folder / name).exists() for name in oodle._DLL_NAMES)
+        if not any((folder / name).exists() for name in oodle._DLL_NAMES):
+            return False
+        return in_a_steam_library(folder)
     except (OSError, ValueError):
         return False
 

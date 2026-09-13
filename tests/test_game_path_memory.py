@@ -45,6 +45,8 @@ from nrdata import gamefiles, oodle
 from nrplanner import favourites, gamepath
 from tests.test_settings_store import python_modules
 
+pytestmark = pytest.mark.usefixtures("tmp_path_is_a_steam_library")
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 # A path that exists nowhere on this machine and is absolute all the same.
@@ -181,6 +183,19 @@ def test_a_folder_that_is_no_longer_a_game_falls_through(
 
     assert gamepath.resolve_game() == automatic.answer
     assert automatic.calls == 1
+
+
+def test_a_remembered_folder_outside_every_steam_library_falls_through(
+        store, tmp_path, monkeypatch):
+    """SEC-026 at the next start: a kept folder that lies where Steam never
+    put it counts as absent (A15), and the automatic route decides."""
+    remembered = a_game_folder(tmp_path / "Games" / "Game")
+    gamepath.remember_game(remembered)
+    monkeypatch.setattr(gamefiles, "steam_common_folders",
+                        lambda: [tmp_path / "Steam" / "steamapps" / "common"])
+    monkeypatch.setattr(gamefiles, "find_game_dir", lambda: None)
+
+    assert gamepath.resolve_game() is None
 
 
 def test_a_find_by_the_automatic_route_is_not_written_back(

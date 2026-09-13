@@ -32,6 +32,8 @@ from nrplanner import firstrun, gamepath
 from tests import conftest, rendered
 from tests.test_game_dir_recognition import make_game
 
+pytestmark = pytest.mark.usefixtures("tmp_path_is_a_steam_library")
+
 # --- the wording, transcribed out of UI_SPEC section 7 --------------------
 
 A1 = (
@@ -52,6 +54,11 @@ E1 = (
     "{path}",
     "Nothing inside it looked like an installed game. Pick the folder the "
     "game itself is in: in Steam that is Manage, then Browse local files.",
+)
+E1_OUTSIDE_STEAM = E1[:3] + (
+    "That folder is not inside a Steam library, so Nightreign Helper will "
+    "not run the game's files from there. Pick the folder Steam installed "
+    "the game in: in Steam that is Manage, then Browse local files.",
 )
 
 W1 = (
@@ -163,9 +170,18 @@ def test_w1_carries_the_same_news_a_shade_firmer():
         line.format(path=r"C:\picked\Game") for line in W1)
 
 
-def test_e1_names_the_folder_that_was_turned_down():
+def test_e1_names_the_folder_that_was_turned_down(tmp_path):
+    nothing = tmp_path / "nothing"
+
+    assert a_panel_reads_as(firstrun.e1(nothing)) == tuple(
+        line.format(path=str(nothing)) for line in E1)
+
+
+def test_e1_says_when_the_folder_lies_outside_every_steam_library():
+    """SEC-026: `C:/nothing` is not under the library `tmp_path` stands for,
+    and the sentence names that rather than "not a game"."""
     assert a_panel_reads_as(firstrun.e1(pathlib.Path(r"C:\nothing"))) == tuple(
-        line.format(path=r"C:\nothing") for line in E1)
+        line.format(path=r"C:\nothing") for line in E1_OUTSIDE_STEAM)
 
 
 def test_c3_says_the_game_is_not_directly_in_the_folder_that_was_picked():
@@ -496,6 +512,27 @@ def test_a_folder_with_no_game_in_it_is_turned_down(tmp_path):
         settle(player)
 
     assert player.panels == ["A1", "E1"]
+    assert gamepath.remembered_game() is None
+
+
+def test_a_complete_game_outside_every_steam_library_is_turned_down(
+        tmp_path, monkeypatch):
+    """SEC-026, through the flow: a folder that has every file the game has,
+    but lies where Steam never put it, is E1 with the origin sentence -- and
+    is not kept."""
+    library = tmp_path / "Steam" / "steamapps" / "common"
+    library.mkdir(parents=True)
+    monkeypatch.setattr(firstrun.gamefiles, "steam_common_folders",
+                        lambda: [library])
+    game = an_install(tmp_path / "Games")
+    player = Player([firstrun.CHOOSE], [game])
+
+    with pytest.raises(LooksLikeAnotherQuestion):
+        settle(player)
+
+    assert player.panels == ["A1", "E1"]
+    assert a_panel_reads_as(player.seen[1]) == tuple(
+        line.format(path=str(game)) for line in E1_OUTSIDE_STEAM)
     assert gamepath.remembered_game() is None
 
 
