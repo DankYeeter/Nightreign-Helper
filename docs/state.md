@@ -7,7 +7,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-227** · QA ab
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-227** (T-225 vergeben) · QA ab
 **QA-248** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-036** · OF **OF-36**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
@@ -43,7 +43,7 @@ Release-Tor ist damit **SEC-026** (T-217).
 
 **Welle 2 (13.09., gepusht bis `59c6cd1`):** T-221 `ui-ux-designer` Spec-Nachtrag
 (**erledigt** `503fbed`: AK-264 E1-Headline `That folder is not part of a Steam installation.` → bauen; AK-265 nur Doku; AK-266 QA-242 **Wahl A** → bauen; AK-267 QA-247 A7-Verstoss → bauen) · T-222 `architect` A16-AD (**erledigt** AD-035 `e593a44`; B-1: Spielstand hat **312** Kopien, `GOAL.md`/`UI_SPEC.md` rechnen mit 309 — **dem Nutzer nennen**, GOAL-Zahl nicht selbst aendern) · T-223
-`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224 A16 gebaut** (`9069d83` gemerged, 4 Commits, +482/-52, vier Mutationen getoetet), Suite im Worktree **1 failed / 1509 passed / 9 skipped** — der Fehlschlag ist der AK-05-Waechter (zweite Box laesst der Statuszeile 0 px offscreen, 37 px am Fenster). **Nutzerentscheidung 13.09.:** 1320 px aufgeben, Statuszeile darf schrumpfen (AK-05 auf A14-Startbreite, AK-194 auf > 0 px). Dazu 312 Relikte in `GOAL.md` nachgetragen (`541bba8`). **Laufend:** T-226 `ui-ux-designer` (AK-05/AK-194/4.8/312) und `architect` AD-035-Nachtrag (T-224 Befund 2: GOAL-Test misst Worst gegen heute, nicht gegen Best). **Danach T-225** `developer`: AK-264, AK-266, AK-267, AK-05-Waechter. Dann AD-034 Schritt 1-3,
+`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224 A16 gebaut** (`9069d83` gemerged, 4 Commits, +482/-52, vier Mutationen getoetet), Suite im Worktree **1 failed / 1509 passed / 9 skipped** — der Fehlschlag ist der AK-05-Waechter (zweite Box laesst der Statuszeile 0 px offscreen, 37 px am Fenster). **Nutzerentscheidung 13.09.:** 1320 px aufgeben, Statuszeile darf schrumpfen (AK-05 auf A14-Startbreite, AK-194 auf > 0 px). Dazu 312 Relikte in `GOAL.md` nachgetragen (`541bba8`). T-226 (`4017938`: AK-05 auf A14-Startbreite, AK-194 > 0 px, AK-268) und AD-035-Nachtrag (`1a37481`) **erledigt**. **Laufend: T-225** `developer` (AK-264, AK-266, AK-267, AK-05/AK-194-Waechter, AK-268; seriell, niemand parallel). **Beschlossen 13.09.:** Bezugsbreite fuer AK-194 = A14-Startbreite wie AK-05 (T-226 liess es offen). Offener Zaehlauftrag: AK-188/AK-169-Zahlen (67/42/426/323) auf 312 Kopien nachzaehlen — in der Pruefphase. Dann AD-034 Schritt 1-3,
 QA-242-Fix → Beta-Gate mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen
 in einer Nachricht.
 
