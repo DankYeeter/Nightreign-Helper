@@ -57,7 +57,68 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "reading-takes-is-debuff-for-curse": Mutation(
+        path="nrplanner/model.py",
+        old="""        (CONDITIONAL_CURSE_IDS if effect.get("is_curse")
+         else CONDITIONAL_BUFF_IDS).add(effect["id"])
+""",
+        new="""        (CONDITIONAL_CURSE_IDS if effect.get("is_debuff")
+         else CONDITIONAL_BUFF_IDS).add(effect["id"])
+""",
+        survival_means=(
+            "the worst case would declare every conditional debuff (78 ids "
+            "carry `is_debuff`, not all of them curses) and miss the curses "
+            "that are not debuffs, and no test reads the seven ids back. "
+            "Killed by `test_reading_defaults_name_the_seven_conditional_"
+            "curses_and_nothing_else` (T-224)."),
+    ),
+    "worst-case-declares-the-buffs": Mutation(
+        path="nrplanner/model.py",
+        old="""    return dict.fromkeys(CONDITIONAL_CURSE_IDS if worst
+                         else CONDITIONAL_BUFF_IDS, 1)
+""",
+        new="""    return dict.fromkeys(CONDITIONAL_BUFF_IDS if worst
+                         else CONDITIONAL_CURSE_IDS, 1)
+""",
+        survival_means=(
+            "the two readings are swapped: `Worst case` counts every "
+            "conditional buff and `Best case` every conditional curse, the "
+            "opposite of `GOAL.md` A16, and the sum of AK-187 still holds. "
+            "Killed by the seven-ids case and by `test_the_worst_case_moves_"
+            "the_ranking_where_a_conditional_curse_sits` (T-224)."),
+    ),
+    "reading-overwrites-the-declaration": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""    declared = tuple(sorted({**model.reading_defaults(planner.worst_case),
+                             **planner.declared}.items()))
+""",
+        new="""    declared = tuple(sorted({**planner.declared,
+                             **model.reading_defaults(planner.worst_case)}.items()))
+""",
+        survival_means=(
+            "the reading wins over the player's own declaration: `I carry 3 "
+            "bows` becomes 1 in the best case and the advisor's figure "
+            "disagrees with the stat sheet beside it (AK-186's Rot-vorher). "
+            "Killed by `test_a_declared_condition_outlives_both_readings` "
+            "(T-224)."),
+    ),
+    "reading-change-starts-a-run": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.reading_changed.emit(self.reading_box.currentData())
+        self.the_build_changed()
+""",
+        new="""        self.reading_changed.emit(self.reading_box.currentData())
+        self.the_build_changed()
+        self._ask()
+""",
+        survival_means=(
+            "switching the reading spends a search nobody asked for, whose "
+            "cost was never measured (AK-183's Rot-vorher, §5.1). Killed by "
+            "`test_the_reading_is_a_second_box_that_puts_the_answer_away_"
+            "and_asks_nothing` (T-224)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:
