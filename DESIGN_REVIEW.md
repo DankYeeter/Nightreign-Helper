@@ -1,5 +1,207 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-13 (T-229c — Beraterleiste mit Lesart-Box, A16/A30-A32)
+
+**Methode:** Live, am laufenden Fenster (Windows, kein `offscreen`, L-009),
+Stil `fusion`/dunkle Palette. Kein Klon: eingefrorener Stand `8ce5b3b`
+(Code `719c46d`), `git status` sauber, `qa-engineer`/`security-reviewer`
+laufen parallel auf demselben eingefrorenen Stand, kein Schreibzugriff auf
+diesen Baum — laut Rezept ([[ui-messung-am-laufenden-fenster]]) ist ein Klon
+dann nicht zwingend. Testabzug (841 Dateien, `EXTRACT_VERSION` 11) in das
+umgelenkte `LOCALAPPDATA` kopiert, `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-229`,
+`APPDATA` umgelenkt. Bildnachweise ausschliesslich `QWidget.grab()` auf das
+eigene Fenster-/Dialogobjekt (NH-002/L-012, kein `PrintWindow`, kein
+Bildschirmabzug). Screenshots: `design-review/2026-09-13/`.
+
+**Nachweis der Umlenkung:**
+```
+settings fileName: \HKEY_CURRENT_USER\Software\DankYeeterT-229\NightreignHelper
+cache_dir:         …\scratchpad\T-229\ui\data\Local\NightreignHelper
+style:              fusion
+```
+Der reale Spielstand wurde trotz umgelenktem `APPDATA` gefunden, weil
+`savefile.save_roots()` **zusaetzlich** `Path.home()/AppData/Roaming`
+durchsucht (bewusster Fallback im Code, nicht meine Umlenkung) — Nachweis:
+`owned relics: 314`. Skripte: `…/scratchpad/T-229/ui/measure_advisor_live.py`,
+`measure_picker_live2.py`, `measure_e1.py`, `measure_why_block.py`,
+`measure_no_save.py`, `check_status_focus.py`.
+
+**Zahlenabweichung, nur als Hinweis an die `qa-engineer`-Nachzaehlung
+(T-229a Punkt 6):** der echte Spielstand traegt **314** Kopien, nicht 312 wie
+in `UI_SPEC.md` AK-187/AK-188/dem Auftragskopf angenommen (`owned.relic_count
+== 314`, `Why`-Dialog druckt „314 relics considered.“ selbst). Kein
+UI-Befund — die Kopfzeilen und der `Why`-Dialog lesen die Zahl korrekt aus
+dem Bestand aus, das Programm behauptet nirgends 312. Die AK-187/188-Zahlen
+(177/204 bzw. 67/42/426/323) bleiben eine Zaehlfrage, keine Oberflaechenfrage.
+
+**Geprueft:** Beraterleiste mit Lesart-Box (AK-182 bis AK-188, AK-268) bei der
+abgeleiteten Startbreite (real gemessen **1608 px**, deckt sich mit A32/T-225);
+E1 im Herkunftsfall (AK-264, beide Headlines); Relic Picker mit realem
+Bestand (AK-51, AK-196, AK-266) und im entwerteten Zustand nach einem Rescan
+ohne Fund bei bereits offenem Dialog (AK-265, AK-267, AK-212); `Why`-Dialog
+und Vorschlagsblock-Kopf (AK-184, AK-185, AK-186); AK-05/AK-194 an der realen
+Startbreite; AK-160/AK-189 (Bezugsbreite, s. Rueckgabe an den Director).
+**Nicht erneut geprueft:** die sechs Inhalts-Tabs (siehe 2026-09-12-Durchlauf,
+weiterhin unveraendert offen).
+
+**Gesamturteil:** Braucht Arbeit. Die Beraterleiste selbst — Reihenfolge,
+Beschriftung, Deaktivierung zu dritt, die vier Nennungen der Lesart — trifft
+ihre eigene Vorgabe wortgetreu und sauber gebaut. Der E1-Dialog trifft
+AK-264 buchstabengetreu. Der Fund, der zaehlt, liegt woanders: **der Relic
+Picker faellt nach einer Entwertung des Spielstands waehrend er offen ist
+nicht in den in AK-212/AK-267 vorgeschriebenen Zustand zurueck**, sondern
+zeigt einen inneren Widerspruch — „0 of 0 relics … ranked against your
+build …“ neben einer weiterhin sichtbaren Custom-Kachel. AK-267s eigene
+Begruendung nennt das Muster beim Namen: „kein Feature, sondern ein
+A7-Verstoss."
+
+---
+
+### DR-022 — Relic Picker faellt nach Entwertung des Spielstands nicht auf AK-212 zurueck
+
+**Kritisch — A7/AK-212/AK-267.** [`nrplanner/relicpicker.py:1006` (`slot.
+stock_replaced.connect(self._refresh)`), `:1387-1460` (`_refresh`),
+`:1543-1547` (`NO_SAVE_WAS_READ`-Zweig)]
+
+**Reproduktion (live, real):** Slot-1-Picker geoeffnet, echter Bestand
+(314 Relikte) beantwortet die Frage normal (`picker-C`). Waehrend der Dialog
+offen bleibt, `nrdata.savefile.find_saves` liefert `[]` und `Rescan save`
+gedrueckt (echter Code-Pfad, keine Attrappe) — genau der AK-267/T-225-Befund-
+3-Fall. `planner.owned` und `slot.owned` werden korrekt auf `None`
+zurueckgesetzt (die QA-247-Behebung selbst haelt). Der **schon offene**
+Picker zeigt danach:
+
+> `0 of 0 relics · ranked against your build with Slot 1 empty, worst case ·
+> right-click a relic to favourite it`
+
+mit weiterhin sichtbarer **Custom-relic-Kachel**.
+
+**Warum das AK-212 bricht, Punkt fuer Punkt:** AK-212 verlangt fuer genau
+diesen Zustand (Spur ohne Antwort/entwerteter Bestand) *„im Rollbereich steht
+kein Kartenwidget — keine Reliktkarte und auch nicht die Custom-Kachel —
+[…]; die Kopfzeile ist leer"*, und AK-267/AK-265 verlangen, dass an dieser
+Stelle **`No save was read, so there is nothing to rank these against — use
+Rescan save.`** steht. Keine der drei Zusagen haelt: die Custom-Kachel bleibt,
+die Kopfzeile ist nicht leer, sondern behauptet eine abgeschlossene Rechnung
+(„ranked against your build …“), und der AK-265-Satz erscheint nirgends.
+
+**Ursache (Code):** `stock_replaced` ist ausschliesslich mit `_refresh()`
+verbunden, nie mit einem erneuten `self.advice.ask(...)`. `self.ranking`
+wird nur an zwei Stellen gesetzt — im Konstruktor auf `None`, und in
+`_the_answer_arrived` auf die echte Antwort — und **nirgends beim
+Entwerten wieder auf `None` zurueckgesetzt**. `_refresh()` liest also weiter
+das alte `ranking`-Objekt (`if self.ranking is not None` bei Zeile 1407 bleibt
+wahr), waehrend `self._candidates()` ueber das jetzt leere
+`slot.available_items()` null Eintraege liefert — daher „0 of 0" statt des
+AK-212-Zustands. Der `NO_SAVE_WAS_READ`-Zweig in `_say_what_they_are_worth`
+(Zeile 1543) wird nie erreicht, weil er an `self.ranking is None` haengt, was
+hier nicht eintritt.
+
+**Einordnung gegenueber T-225 Befund 3 / AK-267:** die urspruengliche
+QA-247-Regression (alte Karten blieben nach dem Reset sichtbar) ist behoben —
+`slot.owned` und `planner.owned` sind korrekt `None`. Das hier ist die
+**Haelfte, die die Behebung ausgelassen hat**: der Picker selbst (nicht der
+Slot) haelt noch am alten Antwortobjekt fest. **Antwort auf die Auftragsfrage
+„entspricht das AK-212?": nein, nicht mehr — die urspruengliche Symptomatik
+ist weg, eine neue, aus derselben Ursachenfamilie, ist an ihre Stelle
+getreten.**
+
+**Loesungsrichtung:** `stock_replaced` darf nicht direkt auf `_refresh()`
+zeigen, sondern auf einen Reset, der `self.ranking = None`, `self._waiting =
+False`, `self._failure = ""` setzt (den AK-212/AK-265-Ausgangszustand
+herstellt) und danach `_refresh()` aufruft — oder, falls ein Weiterfragen
+gewuenscht ist, `self.advice.ask(...)` erneut anstoesst statt der Kachel
+stumm eine leere Antwort unterzuschieben. Der `developer` entscheidet, welche
+der beiden Ursachen (Karte vs. Picker) den gemeinsamen Reset traegt.
+
+![Vor der Entwertung: normaler Zustand, 54 von 54 Relikten](design-review/2026-09-13/dr022-picker-before-invalidation.png)
+![Nach Rescan ohne Fund, Dialog blieb offen: „0 of 0 relics … ranked against your build …“, Custom-Kachel bleibt, Kopfzeile nicht leer](design-review/2026-09-13/dr022-picker-after-invalidation-broken-state.png)
+
+### DR-023 — Statuszeile nur per Maus-Hover vollstaendig lesbar, keine Tastatur-/Screenreader-Route
+
+**Wichtig — Accessibility-Luecke neben einer bereits getroffenen
+Entscheidung.** [`nrplanner/advisorbar.py:451-491` (`_ElidingLabel`)]
+
+AK-05/AK-194 erlauben ausdruecklich, dass die Statuszeile bei der
+abgeleiteten Startbreite schrumpft und ihren vollen Text nur im Tooltip
+traegt — das ist eine bereits getroffene, von mir nicht in Frage gestellte
+Design-Entscheidung (A31/A32) und **haelt**: real gemessen bei
+`opening_width=1608`, `status_width=67` in **beiden** Zustaenden (Ruhe:
+„Nothing s…", Vorschlag: „Maximise …") — genau der Wert, den A32/T-225
+nennen, > 0 px, Tooltip traegt den vollen Satz.
+
+Was die Spec nicht regelt und der Code nicht abfaengt: `_ElidingLabel` ist
+ein `QLabel` mit `focusPolicy() == Qt.NoFocus` und leerem
+`accessibleName()`/`accessibleDescription()` (gemessen,
+`check_status_focus.py`). Ein `QLabel` ohne eigenen `accessibleName` meldet
+sich bei Qts Barrierefreiheits-Bruecke mit seinem `text()` — hier also mit
+dem **elidierten** String, nicht mit `whole_text()`. Ein Tastaturnutzer kann
+das Feld nicht fokussieren (kein Tab-Stop, `NoFocus`), ein Screenreader liest
+den abgeschnittenen Text vor. Der volle Satz ist **ausschliesslich per
+Maus-Hover** erreichbar — bei 67 px ist das ein Wort plus Ellipse, in vielen
+Faellen der einzige Hinweis, ob der letzte Optimize-Lauf ueberhaupt etwas
+gefunden hat.
+
+**Loesungsrichtung:** `setAccessibleName`/`setAccessibleDescription` auf
+`whole_text()` pflegen (auch wenn `text()` elidiert ist), und/oder
+`focusPolicy` auf `Qt.TabFocus` heben, damit `QToolTip` auch per Tab plus
+"was ist das"-Taste (oder Qt-Standard: fokussierte Tooltips) erreichbar wird.
+Kein Eingriff an der Breiten-Entscheidung selbst.
+
+![Ruhezustand bei 1608 px: „Nothing s…"](design-review/2026-09-13/dr023-status-idle-elided.png)
+![Vorschlagszustand bei 1608 px: „Maximise …"](design-review/2026-09-13/dr023-status-suggested-elided.png)
+
+### Nice-to-have
+
+- **DR-024** [`advisorbar.py`, `_ElidingLabel`] Selbst fuer sehende
+  Maus-Nutzer bleibt bei der abgeleiteten Startbreite von der Statuszeile nur
+  ein Wort plus Ellipse sichtbar (67 px, s. DR-023) — die Zeile existiert, um
+  auf einen Blick zu sagen, was zuletzt passiert ist, und genau das leistet
+  sie bei dieser Breite nicht mehr, ohne dass ein Verstoss gegen AK-05/AK-194
+  vorliegt. Anregung, kein Kurswechsel: ein schmales Erfolgs-/Fehler-Symbol
+  neben `Optimize`, unabhaengig von der Textbreite, koennte den
+  Auf-einen-Blick-Zweck zurueckgeben, ohne die getroffene Breiten-Entscheidung
+  anzutasten. Frage an den App Designer, keine an die Umsetzung.
+
+### Backlog (geparkt)
+
+- AK-189-Haelfte (21/22-Zeilen-Worst-Case je Lesart) nicht am realen
+  Spielstand nachgemessen — Zeitbudget dieses Laufs reichte nur fuer die
+  Slotgruppen, die der reale Optimize-Lauf tatsaechlich zeigte (3 Zeilen je
+  Slot); 4.14 (Umbruch statt Kuerzung) hielt dort, wo gemessen wurde.
+  Empfehlung an den naechsten Durchlauf: gezielt den Slot mit der laengsten
+  Fluch-/Effektliste des jetzigen 314er-Bestands warm bauen und bei der
+  abgeleiteten Startbreite (1608 px) nachmessen.
+
+### Positiv / beibehalten
+
+- **AK-182** haelt exakt: Lesart-Box zwischen Zielwahl und `Optimize`,
+  genau `Worst case`/`Best case`, `Worst case` voreingestellt (real
+  ausgelesen).
+- **AK-183** haelt: Umschalten der Lesart waehrend eines lebenden Vorschlags
+  verwirft ihn sofort (`Apply all`/`Why`/`Clear` verschwinden,
+  Statuszeile faellt auf „Nothing suggested yet.", Breite springt von
+  67 auf 325 px) — kein neuer Zustand, derselbe Code-Pfad wie ein
+  Zielwechsel.
+- **AK-184/185/186** halten am realen Optimize-Lauf: die Lesart steht in
+  genau vier Nennungen (Bedienelement, Vorschlagsblock-Kopf „SUGGESTED —
+  MAXIMISE DAMAGE, WORST CASE", `Why`-Dialog-Kopf, Picker-Zusammenfassung),
+  keine Zahl doppelt unter zwei Lesarten gezeigt, erklaerte Bedingungen
+  (`declared`) unangetastet.
+- **AK-268** haelt: ohne Spielstand sind Zielwahl, Lesart-Box und `Optimize`
+  gemeinsam deaktiviert (real geprueft, alle drei `isEnabled() == False`).
+- **AK-264** haelt buchstabengetreu: beide E1-Headlines und die dritte
+  Zeile exakt wie spezifiziert, sauberer Umbruch, kein abgeschnittener Text,
+  Standardknopf `Choose a different folder...` fokussiert.
+- **AK-51/AK-196/AK-266** halten am echten 314-Relikte-Bestand: keine
+  waagerechte Bildlaufleiste, drei volle Kartenzeilen sichtbar (mehr als die
+  geforderten zwei).
+- **AK-05/AK-194** reproduziert: abgeleitete Startbreite real 1608 px,
+  Statuszeile 67 px in Ruhe- und Vorschlagszustand, > 0 px, deckt sich exakt
+  mit A32/T-225 — keine Regression.
+
+---
+
 ## Review vom 2026-09-12 (T-207 — der Relic Picker mit drei Zielrichtungen, plus QA-239)
 
 **Methode:** Live, am laufenden Fenster, **kein Screenshot vom Bildschirm** —
