@@ -495,7 +495,7 @@ def test_the_first_run_keeps_a_refusal_of_the_extraction_path(monkeypatch,
     monkeypatch.setattr(extract, "write_snapshot", a_texture_that_is_not_one)
     builder.run()
 
-    assert said == ["not a DDS file (magic b'RIFF')"]
+    assert said == ["not a DDS file"]
 
 
 # -- the two QA-211 left over, closed by a class ----------------------------

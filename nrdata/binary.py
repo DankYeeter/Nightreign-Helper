@@ -87,7 +87,8 @@ class Reader:
     def magic(self, expected: bytes) -> None:
         got = self.bytes(len(expected))
         if got != expected:
-            raise NotWhatItClaims(f"expected magic {expected!r} at {self.pos - len(expected)}, got {got!r}")
+            raise NotWhatItClaims(
+                f"expected magic {expected!r} at {self.pos - len(expected)}")
 
     def cstr_at(self, offset: int, utf16: bool = False) -> str:
         return read_cstring(self.data, offset, utf16)

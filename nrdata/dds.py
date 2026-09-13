@@ -66,7 +66,7 @@ def payload_needed(width: int, height: int, block_bytes: int) -> int:
 def decode(dds: bytes) -> tuple[int, int, bytes]:
     """Return (width, height, RGBA bytes) for the top mip level."""
     if dds[:4] != b"DDS ":
-        raise NotWhatItClaims(f"not a DDS file (magic {dds[:4]!r})")
+        raise NotWhatItClaims("not a DDS file")
     if len(dds) < HEADER_SIZE:
         raise NotWhatItClaims(
             f"a DDS header is {HEADER_SIZE} bytes, this file is {len(dds)}"

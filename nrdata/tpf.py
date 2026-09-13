@@ -34,7 +34,7 @@ def read(data: bytes) -> list[Texture]:
 
     out: list[Texture] = []
     pos = 0x10
-    for _ in range(file_count):
+    for index in range(file_count):
         file_offset, file_size = struct.unpack_from(e + "II", data, pos)
         fmt, _type, mipmaps, _flags = struct.unpack_from(e + "BBBB", data, pos + 8)
         pos += 12
@@ -49,7 +49,7 @@ def read(data: bytes) -> list[Texture]:
 
         if file_offset + file_size > len(data):
             raise NotWhatItClaims(
-                f"TPF member {name!r} claims {file_size} bytes at offset "
+                f"TPF member {index} claims {file_size} bytes at offset "
                 f"{file_offset}, past the {len(data)}-byte container"
             )
 

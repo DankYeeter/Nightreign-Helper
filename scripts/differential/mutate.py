@@ -98,6 +98,18 @@ MUTATIONS: dict[str, Mutation] = {
             "by `test_a_dcx_whose_payload_belies_its_header_is_refused_in_"
             "its_own_words` (T-230c)."),
     ),
+    "tpf-refusal-quotes-the-member-name": Mutation(
+        path="nrdata/tpf.py",
+        old="""                f"TPF member {index} claims {file_size} bytes at offset "
+""",
+        new="""                f"TPF member {name!r} claims {file_size} bytes at offset "
+""",
+        survival_means=(
+            "a buffer-long string out of a game file is quoted verbatim on "
+            "the surface again (SEC-043, SEC-019 class). Killed by `test_a_"
+            "tpf_member_is_refused_by_its_index_and_not_by_its_name` and by "
+            "`test_no_refusal_quotes_what_a_game_file_wrote` (T-230d)."),
+    ),
 }
 
 
