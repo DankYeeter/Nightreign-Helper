@@ -31,6 +31,7 @@ from PySide6.QtWidgets import QFrame, QLabel
 from nrplanner import advisorbar, relicpicker
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
+from tests import rendered
 
 #: A value row long enough to stand for the worst real case: the survival
 #: direction carries the longer unit, and four digits is more than any
@@ -479,27 +480,51 @@ def test_with_no_ranking_every_card_says_so_and_the_header_says_why(slot):
         dialog.deleteLater()
 
 
-def test_a_rescan_that_finds_no_save_leaves_cards_the_picker_can_show(
-        planner):
-    """QA-210's state is reachable: cards on the screen, no save behind them.
-
-    A read that comes back empty replaces the window's stock and leaves the
-    cards' stock standing (`_on_save_read` returns before
-    `_hand_the_stock_to_the_slots`), so the picker opened from a card has
-    relics to show and `asking_from` has no save to rank them against.
-    """
+def a_rescan_that_finds_no_save(planner) -> None:
+    """A read that comes back empty, waited for."""
     from tests import conftest
 
     planner.save_reader._read = lambda _data, _save_path=None: None
     planner.rescan_button.click()
     conftest.wait_for_the_save(planner)
-
     assert planner.owned is None
+
+
+def test_a_rescan_that_finds_no_save_takes_the_cards_out_of_the_picker(
+        planner):
+    """AK-267: no stock outlives the read that replaced it (QA-247).
+
+    A read that comes back empty replaces the window's stock, and the cards'
+    stock goes with it (AD-029 point 3), so the picker opened afterwards has
+    nothing to show and its header says why. Until T-225 `_on_save_read`
+    returned before `_hand_the_stock_to_the_slots` and the picker offered
+    the relics of a save the header said had not been read.
+    """
     card = a_slot(planner)
+    a_rescan_that_finds_no_save(planner)
     dialog = relicpicker.RelicPicker(card, card.icons, "", lambda _text: None)
     try:
-        assert relic_cards(dialog)
+        assert relic_cards(dialog) == []
         assert dialog.headline.text() == relicpicker.NO_SAVE_WAS_READ
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_picker_standing_open_loses_its_cards_with_the_save(planner):
+    """AK-267's second half: a dialog already open falls back at once.
+
+    The picker is modal, but the read runs in a thread and its ending is
+    delivered into whatever event loop is running -- the dialog's included.
+    """
+    slot = a_slot(planner)
+    dialog = open_picker(slot, {0: 1.0, 1: 9.0})
+    try:
+        dialog.show()
+        rendered.settle()
+        assert relic_cards(dialog), "no cards on screen, nothing to lose"
+        a_rescan_that_finds_no_save(planner)
+        rendered.settle()
+        assert relic_cards(dialog) == []
     finally:
         dialog.deleteLater()
 

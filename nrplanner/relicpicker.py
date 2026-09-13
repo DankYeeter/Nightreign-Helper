@@ -1003,6 +1003,7 @@ class RelicPicker(QDialog):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._refresh)
         top.addWidget(self.search, 1)
+        slot.stock_replaced.connect(self._refresh)
 
         clear = QPushButton("Empty slot")
         clear.clicked.connect(lambda: self._pick(None))
@@ -1485,6 +1486,7 @@ class RelicPicker(QDialog):
         """
         if self.advice is not None:
             self.advice.stop_listening()
+        self.slot.stock_replaced.disconnect(self._refresh)
         super().done(result)
 
     def _sort_chosen(self, _index: int) -> None:

@@ -667,6 +667,11 @@ OWNED_TOTAL_TOOLTIP = ("Counted from your save {source}. The number beside a "
 class RelicSlot(QFrame):
     """One relic slot: a fixed colour from the chalice, up to three effects."""
 
+    #: The window handed this card another stock. A picker standing open
+    #: over the card redraws on it (AK-267): the read runs in a thread and
+    #: its ending is delivered into the dialog's own event loop.
+    stock_replaced = Signal()
+
     def __init__(self, index: int, deep: bool, on_change, icons=None,
                  on_search_changed=None, taken_elsewhere=None,
                  on_hold_changed=None):
@@ -4091,9 +4096,16 @@ class Planner(QMainWindow):
             slot.show_the_save_is_being_read(True)
 
     def _the_save_has_been_read(self) -> None:
-        """Leave the waiting state. Every ending of a read comes through here."""
+        """Leave the waiting state. Every ending of a read comes through here.
+
+        The stock goes to the cards here, on every ending, because an ending
+        without a stock is a replacement too (AK-267, QA-247): a read that
+        came back empty used to leave the cards holding the relics of the
+        save the header said had not been read.
+        """
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(False)
+        self._hand_the_stock_to_the_slots()
         self._say_how_many_relics_are_owned()
 
     def _say_how_many_relics_are_owned(self) -> None:
@@ -4184,7 +4196,6 @@ class Planner(QMainWindow):
         self.owned_label.setToolTip(html.escape(self.owned.folder))
         # A save is loaded, so the offer to find one is gone (AK-123).
         self.find_save_button.setVisible(False)
-        self._hand_the_stock_to_the_slots()
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
@@ -4211,6 +4222,7 @@ class Planner(QMainWindow):
         for slot in self.base_slots + self.deep_slots:
             slot.owned = self.owned
             slot.populate()
+            slot.stock_replaced.emit()
 
     def _on_save_failed(self, reason: str) -> None:
         """The read could not be finished. The one place the prefix is written.
