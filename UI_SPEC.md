@@ -2,8 +2,9 @@
 
 **Stand:** 2026-09-13 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
 fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263), **T-221**
-(AK-264 bis AK-267) und **T-226** (A31: AK-05/AK-194 entschieden bzw.
-verengt, AK-268 neu)
+(AK-264 bis AK-267) und **T-226** (A31: AK-05 entschieden, AK-194 zunaechst
+verengt, AK-268 neu; A32-Nachtrag: AK-194 vollstaendig entschieden, A14
+zieht den Leistenbedarf nach)
 **Umfang:** 268 Akzeptanzkriterien, AK-01 bis AK-268, in sieben
 Oberflaechenbereichen.
 
@@ -117,13 +118,23 @@ Statuszeile darf schrumpfen"* entschieden. Stand danach:
 - **AK-05 — entschieden, nicht mehr Teil dieser Liste.** Neue Bezugsbreite:
   die abgeleitete Startbreite (A14), gemessen am laufenden Fenster. Siehe
   AK-05-Eintrag.
-- **AK-194 — teilweise entschieden.** Die Schranke ist neu (`> 0 px am
-  laufenden Fenster` statt `≥ 105 px bei 1320 px`); **offen** bleibt, gegen
-  welche Breite „laufendes Fenster" gemessen wird. Siehe AK-194-Eintrag.
-- **AK-160 — unveraendert, vollstaendig widerspruechlich.** Dieser Nachtrag
-  fasst AK-160 nicht an; sein Messfenster nennt weiterhin `1320 px
-  (Startbreite)`, die es laut A14 nicht mehr gibt. Damit bleiben **zwei**
-  der drei Faelle offen: **AK-160** und, enger gefasst, **AK-194**.
+- **AK-194 — zunaechst teilentschieden**, seit **A32** ebenfalls
+  **entschieden, nicht mehr Teil dieser Liste** (siehe unten).
+- **AK-160 — unveraendert, vollstaendig widerspruechlich.**
+
+**Nachtrag A32 (Nutzerentscheidung, 13.09.2026, Nachtrag zu T-226,
+QA-248/T-225 Befund 2): AK-194 vollstaendig entschieden.** Kurzform
+`Worst`/`Best` gestrichen (*„Streichen — AK-194 verliert den Rueckfall; die
+Statuszeile darf schrumpfen. Kein Code."*, Grund: T-225 misst
+`minimumSizeHint` bleibt bei 87 px, der Hebel greift nie ohne Boxneubau),
+und die Bezugsbreite fuer „laufendes Fenster" ist (Director) dieselbe
+abgeleitete Startbreite wie AK-05. Damit ist auch **AK-194 aus dieser Liste
+entlassen.** Siehe AK-194-Eintrag.
+
+**Stand nach A31/A32: nur noch ein Fall offen.** Von den drei
+widerspruechlichen Faellen ist **AK-160 der einzige verbleibende** — sein
+Messfenster nennt weiterhin `1320 px (Startbreite)`, die es laut A14 nicht
+mehr gibt, und dieser Nachtrag fasst AK-160 nicht an.
 
 ---
 ## Bereich 1 — Erststart: den Spielordner und den Spielstand waehlen
@@ -1081,6 +1092,34 @@ Fenster ausgelesene Startbreite (kein hartkodiertes `1320`, keine
 
 Die 1320-px-Fassung oben bleibt als **Verlauf** stehen (T-071, vor A31), sie
 ist nicht mehr geltend.
+
+**Dazu A32 — Nutzerentscheidung, 13.09.2026 (Nachtrag zu T-226, QA-248/T-225
+Befund 1): die Startbreite zieht auch den Leistenbedarf nach.**
+
+T-225 (Befund 1) misst: im Vorschlagszustand (`Apply all`/`Why`/`Clear`
+sichtbar) braucht die Advisor-Zeile **683 px**, das Startfenster (1350 px,
+Zeile 498 px) hat nur 498 — Zielwahl, Lesart-Box und Statuszeile werden
+abgeschnitten, Statuszeile faellt auf **0 px**. Woertliche Nutzerwahl:
+*„Startbreite aus Leiste UND Tabelle ableiten — Das Fenster startet so
+breit, dass auch der Vorschlagszustand der Leiste passt (ca. 1540 px statt
+1350). Eine Zeile Code in der Startbreiten-Ableitung, bleibt bei A14
+('abgeleitet'), Leiste bleibt einzeilig."* Gebaut wird das in **T-227**
+(`_opening_width()` bekommt einen zweiten Term); hier zieht die Spec nach:
+
+**A14 (geltender Wortlaut ab A32):** Die abgeleitete Startbreite ist das
+**Maximum** aus (1) dem Platzbedarf der Effekttabelle
+(`EffectTable.width_for_full_headings()`) und (2) dem Platzbedarf der
+Advisor-Zeile **im Vorschlagszustand** (Zielwahl + Lesart-Box + `Apply
+all`/`Why`/`Clear` + Statuszeile, einzeilig), gedeckelt durch die verfuegbare
+Bildschirmflaeche. Sie ist weiterhin keine feste Zahl.
+
+**AK-05 gilt unveraendert im Wortlaut, jetzt ausdruecklich fuer beide
+Zustaende:** kein Text abgeschnitten ausser der (schrumpfbaren) Statuszeile
+— sowohl im Zustand **ohne** lebenden Vorschlag (4.12, kein Aktionsknopf
+sichtbar) als auch **mit** Vorschlag (Zustand mit `Apply all`/`Why`/`Clear`).
+Pruefweg fuer den `developer`: der T-225-Waechter
+`test_at_the_opening_width_no_action_button_is_cut` (Befund 1, aktuell rot)
+wird nach dem A32-Fix in T-227 gruen erwartet, ohne Testabschwaechung.
 
 #### AK-06
 *Verlauf: A01 Z347 · zuletzt geaendert durch T-004, 2026-09-01*
@@ -3437,9 +3476,9 @@ gebrochen; `+12.4 AR` waere zusaetzlich falsch, weil kein Angriffswert mehr
 gerechnet wird.
 
 #### AK-194
-*Verlauf: A21 Z5780 + A31 (Schwelle gesenkt, T-226) · zuletzt geaendert durch T-226, 2026-09-13*
+*Verlauf: A21 Z5780 + A31 (Schwelle gesenkt, T-226) + A32 (Kurzform gestrichen, Bezugsbreite entschieden, Nachtrag zu T-226) · zuletzt geaendert durch T-226, 2026-09-13*
 
-*Ueberholt: **teilweise widerspruechlich** - A31 (T-226) senkt die Schranke und tilgt die feste `1320 px`-Bezugsbreite aus der Schwellenformel; offen bleibt, gegen welche Breite „am laufenden Fenster" gemessen wird (siehe Nachtrag) — siehe Abschnitt `Widerspruechliche Faelle`*
+*Ueberholt: durch A32 (Nachtrag zu T-226, 13.09.2026) entschieden — nicht mehr widerspruechlich, siehe Nachtraege unten*
 
 **AK-194 (Altfassung, T-092, nicht mehr geltend fuer die Schwelle):** Nach
 dem Einbau wird am **laufenden Fenster** gemessen, wie breit die Statuszeile
@@ -3460,24 +3499,44 @@ offscreen, L-009) darf die Statuszeile nie auf **0 px** fallen — sie muss
 **> 0 px** breit bleiben, egal wie schmal das Fenster ist. Die feste
 Bezugsbreite `1320 px` und die Formel `≥ 105 px` entfallen ersatzlos.
 
-**Kurzform `Worst`/`Best`: bleibt als Rueckfall, wird aber seltener
-ausgeloest.** Begruendung in einem Satz: die volle Schreibweise
-`Worst case`/`Best case` bleibt Standard, und die Kurzform greift nur noch
-im Extremfall (sehr kleines Fenster, hohe Windows-Skalierung), in dem sie
-der einzige verbliebene Hebel ist, um die Statuszeile ueberhaupt sichtbar zu
-halten — ihn ersatzlos zu streichen wuerde AK-194 in genau diesem Extremfall
-wieder verletzbar machen.
+**Korrektur dieses Reviews (A31 → A32): die Kurzform-Annahme war falsch,
+nicht nur unentschieden.** Der A31-Absatz oben empfahl "bleibt als
+Rueckfall" mit der Annahme, das sei ein billiges Sicherheitsnetz. T-225
+(Befund 2) misst das Gegenteil: `setItemText` auf `Worst`/`Best` senkt
+`sizeHint` 87 → 61 px, aber `minimumSizeHint` bleibt bei **87 px** — die Box
+wird **nicht** schmaler, nur ein kompletter Neubau der Combobox (Austausch
++ Signal-Neuverdrahtung + Hysterese in einem 26-px-Fensterbreitenband)
+maesse 61 px. Der Rueckfall ist damit kein billiger Hebel, sondern eine
+Design- und Baufrage, und er wird am Startfenster (Statuszeile 67 px, > 0)
+nie ausgeloest.
 
-**Offen (nicht Teil dieses Nachtrags):** bei welcher Fensterbreite „am
-laufenden Fenster" gemessen wird — der abgeleiteten Startbreite wie AK-05,
-oder einer eigenen festen Testbreite — ist damit **nicht** entschieden; das
-haelt den Fall `Widerspruechliche Faelle` fuer AK-194 weiter offen, nur
-enger gefasst als vorher.
+**Dazu A32 — Nutzerentscheidung, 13.09.2026 (Nachtrag zu T-226): Kurzform
+gestrichen, Bezugsbreite entschieden.**
 
-> **Teilweise entschieden — die Bezugsbreite fuer „laufendes Fenster" steht
-> beim App Designer noch aus.** Die Schranke selbst ist entschieden (A31);
-> AK-160 ist von diesem Nachtrag nicht beruehrt und bleibt vollstaendig
-> widerspruechlich.
+Woertlich: *„Streichen — AK-194 verliert den Rueckfall; die Statuszeile darf
+schrumpfen. Kein Code."* Und (Director, 13.09.): die Bezugsbreite fuer „am
+laufenden Fenster" ist **dieselbe abgeleitete Startbreite wie AK-05** (A14,
+seit A32 das Maximum aus Effekttabelle und Leistenbedarf im
+Vorschlagszustand).
+
+**AK-194 (geltender Wortlaut ab A32, ersetzt die A31-Fassung):** An der
+**abgeleiteten Startbreite** (dieselbe Breite wie AK-05), gemessen am
+laufenden Fenster (nicht offscreen, L-009), darf die Statuszeile nie auf
+**0 px** fallen — sie muss **> 0 px** bleiben. **Keinen Rueckfall**: die
+Eintraege der Lesart-Box heissen immer `Worst case`/`Best case`, nie
+`Worst`/`Best`. Wird die Statuszeile dabei sehr schmal, ist das zulaessig
+(AK-05 zweite Haelfte: voller Text im Tooltip). Pruefweg fuer den
+`developer`: `test_at_the_opening_width_...` (T-225) prueft `> 0`, keine
+Kurzform-Assertion; kein Code fuer eine Box, die 61 px nie liefert, solange
+sie nicht neu gebaut wird.
+
+Die A31-Fassung (Schwelle gesenkt, Kurzform als Rueckfall) bleibt als
+**Verlauf** stehen; sie ist nicht mehr geltend.
+
+> **Entschieden (A32) — nicht mehr widerspruechlich.** AK-194 verlaesst die
+> Widerspruch-Liste: Schranke und Bezugsbreite sind beide entschieden.
+> **AK-160 bleibt als einziger der drei Faelle offen**, von diesem Nachtrag
+> unberuehrt.
 
 ---
 
