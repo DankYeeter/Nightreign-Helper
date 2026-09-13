@@ -15,7 +15,7 @@ from PySide6.QtGui import (
     QPixmap, QLinearGradient, QPolygonF, QRadialGradient,
 )
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QCompleter, QDialog, QFileDialog,
+    QApplication, QCheckBox, QComboBox, QFileDialog,
     QFrame, QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
@@ -42,7 +42,6 @@ from .deeptab import DeepTab
 from .depthstab import DepthsTab
 from .eventstab import WorldEventsTab
 
-EFFECTS_PER_RELIC = 3
 WHITE_SLOT = 4
 
 # The four shared Grails sit under their own heroType rather than any
@@ -79,9 +78,6 @@ VISIBLE_PERCENT = 0.05
 # green or red on a zero would tell the player something moved when nothing
 # did. Small enough that everything the display can distinguish is coloured.
 COLOURED_CHANGE = 0.05
-
-# Sentinel for the "build your own relic" entry in a slot's relic list.
-CUSTOM_RELIC = object()
 
 # Where the three panes' widths are kept, so a window sized once stays
 # that way. QSplitter's own encoding, which survives a pane being added.
@@ -427,47 +423,15 @@ class VesselStrip(QWidget):
 
     TILE = 40
     ICON = 30
-    # The relic screen's own slot sprite. It ships greyscale -- the five that
-    # exist are a rarity ladder with no green in it -- so it is tinted to the
-    # slot's colour rather than picked from the set.
-    SPRITE = "MENU_In_RaritySlot_00.png"
 
     def __init__(self, icons=None):
         super().__init__()
         self.icons = icons
-        self._tinted: dict[int, QPixmap] = {}
         self._row = QHBoxLayout(self)
         self._row.setContentsMargins(0, 2, 0, 2)
         self._row.setSpacing(4)
         self._row.addStretch(1)
         self.tiles: list[QLabel] = []
-
-    def _backing(self, colour: int) -> QPixmap | None:
-        """The slot sprite, tinted to one relic colour and cached."""
-        if colour in self._tinted:
-            return self._tinted[colour]
-        base = self.icons.ui(self.SPRITE) if self.icons is not None else None
-        if base is None:
-            return None
-        tile = base.scaled(self.TILE, self.TILE, Qt.KeepAspectRatioByExpanding,
-                           Qt.SmoothTransformation)
-        # Overlay is the blend that reproduces the game's own colouring:
-        # tinting the greyscale sprite this way against the shipped red
-        # variant (RaritySlot_10) matches it almost exactly -- dark interior,
-        # colour-lit smoke -- where multiply buried the sprite and screen
-        # washed it out. Checked side by side, not assumed.
-        tinted = QPixmap(tile.size())
-        tinted.fill(Qt.transparent)
-        painter = QPainter(tinted)
-        painter.drawPixmap(0, 0, tile)
-        painter.setCompositionMode(QPainter.CompositionMode_Overlay)
-        painter.fillRect(tinted.rect(),
-                         QColor(SLOT_COLOURS.get(colour, "#8a8a8a")))
-        painter.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-        painter.drawPixmap(0, 0, tile)
-        painter.end()
-        self._tinted[colour] = tinted
-        return tinted
 
     def show_slots(self, colours: list[int], items: list) -> None:
         """One tile per slot the vessel has: its colour, and its relic."""
@@ -982,31 +946,6 @@ class RelicSlot(QFrame):
             parts.append(f"      {effecttext.describe_full(eff)}")
         return "\n".join(parts)
 
-    def _chance_suffix(self, effect: dict, colour: int) -> str:
-        """Roll chance for this exact slot: its colour and its mode.
-
-        Normal and Deep of Night relics draw from different pools, and the slot
-        knows which it is, so only the matching pools are considered.
-        """
-        chance = effect.get("deep_chance" if self.deep else "chance", {})
-        if colour == WHITE_SLOT:
-            # A White slot accepts any colour, so every colour's pools count.
-            entries = list(chance.values())
-        else:
-            entry = chance.get(str(colour))
-            entries = [entry] if entry else []
-        if not entries:
-            return ""
-
-        avg = sum(e["avg"] for e in entries) / len(entries)
-        best = max(e["max"] for e in entries)
-        fmt = (lambda v: f"{v * 100:.2f}%") if best < 0.01 else (lambda v: f"{v * 100:.1f}%")
-        chance = fmt(avg) if abs(best - avg) < 1e-9 else f"{fmt(avg)}–{fmt(best)}"
-
-        curse = effect.get("curse", "never")
-        mark = "  ✦ cursed" if curse == "always" else "  ✦?" if curse == "sometimes" else ""
-        return f"   [{chance}]{mark}"
-
     def set_colour(self, colour: int, all_effects: list[dict], owned=None,
                    hero_name: str = "") -> None:
         """Give this slot the colour the chalice says it has, and rebuild it.
@@ -1364,79 +1303,6 @@ class RelicSlot(QFrame):
             self.relic_box.blockSignals(False)
             self._sync_mode()
         return True
-
-
-class VariantDialog(QDialog):
-    """Artwork picker: the current image, with the alternatives beneath it."""
-
-    PREVIEW = 200
-
-    def __init__(self, tile: "HeroTile"):
-        super().__init__(tile.window())
-        self.tile = tile
-        self.setWindowTitle(tile.hero["name"])
-        self.setModal(True)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
-
-        self.preview = QLabel()
-        self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setFixedSize(self.PREVIEW, self.PREVIEW)
-        layout.addWidget(self.preview, 0, Qt.AlignHCenter)
-
-        row = QHBoxLayout()
-        row.setSpacing(8)
-
-        choices = [(None, tile.icons.portrait(tile.hero["id"]))]
-        choices += [(v["id"], tile.icons.variant(v["id"]))
-                    for v in tile.icons.variants(tile.hero["id"])]
-
-        for texture_id, pixmap in choices:
-            if pixmap is None:
-                continue
-            button = QToolButton()
-            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-            button.setIconSize(QSize(self.PREVIEW, self.PREVIEW))
-            button.setFixedSize(self.PREVIEW + 8, self.PREVIEW + 8)
-            button.setAutoRaise(True)
-            button.setCheckable(True)
-            button.setChecked(texture_id == tile.variant_id)
-            button.setIcon(QIcon(pixmap))
-            button.clicked.connect(
-                lambda _checked=False, tid=texture_id: self._choose(tid)
-            )
-            row.addWidget(button)
-
-        if row.count() == 0:
-            row.addWidget(QLabel("No artwork available for this Nightfarer."))
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        holder = QWidget()
-        holder.setLayout(row)
-        scroll.setWidget(holder)
-        scroll.setFixedHeight(self.PREVIEW + 30)
-        layout.addWidget(scroll)
-
-        self._refresh_preview()
-
-    def _refresh_preview(self) -> None:
-        pixmap = self.tile.current_pixmap()
-        if pixmap is not None:
-            self.preview.setPixmap(
-                pixmap.scaled(self.PREVIEW, self.PREVIEW,
-                              Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            )
-
-    def _choose(self, texture_id) -> None:
-        self.tile.set_variant(texture_id)
-        self._refresh_preview()
-        self.accept()
 
 
 class HeroTile(QToolButton):
@@ -3862,7 +3728,7 @@ class Planner(QMainWindow):
                             f"{(entry.own - 1.0) * 100:+.1f}%</span>")
 
         if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
-            rows.append(f"&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
+            rows.append("&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
 
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
@@ -3967,7 +3833,7 @@ class Planner(QMainWindow):
             f"{damage.displayed(final_total)}</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
                if abs(pct) >= VISIBLE_PERCENT else "") +
-            f"</div>"
+            "</div>"
         )
 
         # Status the armament applies on a landed hit. This belongs with the

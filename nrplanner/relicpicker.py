@@ -651,7 +651,7 @@ class RelicCard(QFrame):
         for name in effect_names:
             label = QLabel(f"• {name}")
             label.setWordWrap(True)
-            label.setStyleSheet(f"border: none; color: #cfcfcf; font-size: 11px;")
+            label.setStyleSheet("border: none; color: #cfcfcf; font-size: 11px;")
             layout.addWidget(label)
 
         # Name the curses outright. "Comes with a curse" tells the player there

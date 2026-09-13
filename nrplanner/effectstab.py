@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import effecttext, model, stacking, tabheader
-from .effecttext import caption, describe, describe_full  # noqa: F401
+from .effecttext import describe_full
 
 #: What this tab is for, above the filter row and above the counts (AK-68,
 #: AK-76). Until T-057 the first line a reader met was a stock count.

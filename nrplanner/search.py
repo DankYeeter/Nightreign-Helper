@@ -77,8 +77,3 @@ def parse(text: str):
         return False
 
     return predicate
-
-
-def matches(text: str, haystacks) -> bool:
-    predicate = parse(text)
-    return True if predicate is None else predicate(haystacks)

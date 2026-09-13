@@ -858,7 +858,7 @@ class BossTab(QWidget):
             parts.append(self._section("WEAKNESS SPECIAL INTERACTION"))
             if weak:
                 parts.append(
-                    f"<div style='color:#d8d8d8; font-size:11px'>"
+                    "<div style='color:#d8d8d8; font-size:11px'>"
                     "Pile on <b style='color:" + ACCENT + "'>"
                     + " / ".join(weak) + "</b> damage. It builds a hidden "
                     "meter, and filling it breaks the boss's stance and "

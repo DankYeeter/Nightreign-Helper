@@ -25,34 +25,3 @@ independent of each other.
 Everything visible to the player from here is English (`GOAL.md` A8);
 comments and docstrings are German or English as the rest of the project is.
 """
-
-from __future__ import annotations
-
-from .goals import DEFAULT_WEIGHTING, GOALS
-from .types import (
-    AdvisorRequest,
-    AdvisorResult,
-    Candidate,
-    Goal,
-    GoalContext,
-    GoalScore,
-    SlotPool,
-    SlotProblem,
-    Suggestion,
-    Weighting,
-)
-
-__all__ = [
-    "DEFAULT_WEIGHTING",
-    "GOALS",
-    "AdvisorRequest",
-    "AdvisorResult",
-    "Candidate",
-    "Goal",
-    "GoalContext",
-    "GoalScore",
-    "SlotPool",
-    "SlotProblem",
-    "Suggestion",
-    "Weighting",
-]

@@ -978,15 +978,6 @@ def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
     return pathlib.Path(picked) if picked else None
 
 
-def ensure_data(game: pathlib.Path | None) -> str | None:
-    """Build whatever is missing, showing progress. Returns an error or None.
-
-    Returning None also covers "nothing needed to be done", which is the
-    normal case on every launch after the first.
-    """
-    return _build_what_is_missing(game, None)
-
-
 def _build_what_is_missing(game: pathlib.Path | None, window: _Window | None,
                            said: str = "") -> str | None:
     """The build state, in the window the question was asked in if there was one."""

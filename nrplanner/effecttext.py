@@ -375,10 +375,6 @@ def describe_full(effect: dict, fallback: bool = True) -> str:
     return NO_DESCRIPTION if fallback else ""
 
 
-def is_described(effect: dict) -> bool:
-    return bool(caption(effect) or describe(effect))
-
-
 def owner(effect: dict) -> str:
     """The Nightfarer a '[Name] ...' effect belongs to, or '' if general."""
     text = name(effect)

@@ -4,7 +4,7 @@ The one file under `advisor/` that imports Qt (AD-001), and it holds the
 thread and nothing else: what it runs is `run.run`, which knows nothing about
 threads and is checked without one.
 
-**The pattern is `firstrun.ensure_data`'s, minus its waiting loop.** There a
+**The pattern is `firstrun._build_what_is_missing`'s, minus its waiting loop.** There a
 `QObject` worker is moved into a `QThread` and the caller sits in
 `while not thread.wait(50): QApplication.processEvents()` -- right for a
 splash screen that has nothing else to do, and wrong here: the main window

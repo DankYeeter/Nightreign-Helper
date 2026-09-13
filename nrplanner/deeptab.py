@@ -39,15 +39,6 @@ QUESTION = (
     "expedition.")
 
 
-# The five elemental attack rates move together in every profile, so showing
-# five identical columns would be noise. They are collapsed when equal and
-# split apart automatically if a profile ever disagrees.
-ATTACK_FIELDS = [
-    "physicsAttackPowerRate", "magicAttackPowerRate", "fireAttackPowerRate",
-    "thunderAttackPowerRate", "darkAttackPowerRate",
-]
-
-
 # Rating changes per expedition. These are NOT in regulation.bin: no param
 # carries them, no field name anywhere mentions rank or rating, and the text
 # tables state only the band thresholds. They come from play instead, and the
