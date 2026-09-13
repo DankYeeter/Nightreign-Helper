@@ -7,7 +7,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-221** · QA ab
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-224** · QA ab
 **QA-248** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-035** · OF **OF-36**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
@@ -41,9 +41,11 @@ fuehrt es als "behoben, Retest bestanden" (T-146), `It is only read` kommt in
 `nrplanner/`/`nrdata/` nicht vor (grep 13.09.). Registerzeile nachgezogen.
 Release-Tor ist damit **SEC-026** (T-217).
 
-Danach: Worktree-Branches zusammenfuehren → `ui-ux-designer` Spec-Nachtrag
-(Ablehnungssatz T-217, AK-230/A28) → A16 (Spec AK-182 liegt vor) → Beta-Gate
-mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen in einer Nachricht.
+**Welle 2 (13.09., gepusht bis `59c6cd1`):** T-221 `ui-ux-designer` Spec-Nachtrag
+(E1/AK-230, AK-49, QA-242 A/B, QA-247) · T-222 `architect` A16-AD · T-223
+`developer` klein AD-033 Punkt 2. Danach: A16 bauen, AD-034 Schritt 1-3,
+QA-242-Fix → Beta-Gate mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen
+in einer Nachricht.
 
 ## Stand gegen `GOAL.md`
 
