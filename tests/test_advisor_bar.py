@@ -724,25 +724,33 @@ def test_the_row_keeps_the_vertical_budget(planner):
     assert planner.advisor_bar.sizeHint().height() <= 44
 
 
-def test_at_the_opening_width_only_the_status_is_shortened(planner):
-    """AK-05: nothing else in the row is cut at 1320 px, and 4.12 is long."""
-    planner.resize(1320, 900)
-    planner.show()
-    rendered.settle()
-    try:
-        if planner.width() != 1320:
-            pytest.skip(f"this platform will not give the window 1320 "
-                        f"logical px: it is {planner.width()} px wide")
-        bar = planner.advisor_bar
-        bar._on_failed("the dataset carries no attribute curves for this "
-                       "Nightfarer, so nothing could be worked out at all")
-        rendered.settle()
-        assert rendered.clipped([bar.goal_box, bar.optimize_button], bar) == []
-        assert bar.status.text() != bar.status.whole_text()
-        assert bar.status.text().endswith("…")
-        assert html.escape(bar.status.whole_text()) in bar.status.toolTip()
-    finally:
-        planner.close()
+def test_at_the_opening_width_only_the_status_is_shortened(
+        advisor_row_at_the_window):
+    """AK-05 at the derived opening width (A14), measured at the window.
+
+    4.12 is long, so the status is the one thing shortened -- to `…`, with
+    the whole sentence in its tooltip -- and no caption of the row is cut.
+    The figures come from a window under the Windows platform, not from
+    the offscreen one and not from a `1320` written here (T-226, A31).
+    """
+    figures = advisor_row_at_the_window
+    assert figures["width"] == figures["opening_width"]
+    row = figures["failed"]
+    assert row["cut"] == []
+    assert row["status_text"] != row["status_whole_text"]
+    assert row["status_text"].endswith("…")
+    assert html.escape(row["status_whole_text"]) in row["status_tooltip"]
+
+
+def test_at_the_opening_width_the_status_keeps_some_width(
+        advisor_row_at_the_window):
+    """AK-194: the status is never 0 px at the width the window opens at.
+
+    Measured 67 px on 2026-09-13 (T-225; Fusion, Segoe UI 9 pt, ratio
+    1.25, window 1 350 px, row 498). The figure is not written here: the
+    criterion is `> 0`, and the environment is what decides the rest.
+    """
+    assert advisor_row_at_the_window["failed"]["status_width"] > 0
 
 
 def _spin_until(predicate, timeout: float = A_RUN_AT_MOST) -> bool:

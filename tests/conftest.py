@@ -153,6 +153,19 @@ def game_data() -> dict:
 
 
 @pytest.fixture(scope="session")
+def advisor_row_at_the_window(game_data, tmp_path_factory) -> dict:
+    """The Advisor row at the derived opening width, under Windows.
+
+    AK-05 and AK-194 are measured at the running window and not offscreen
+    (L-009); `tests/advisor_row_at_the_window.py` says why and how. Once a
+    session: the figures are the same for every case that reads them.
+    """
+    from tests import advisor_row_at_the_window as at_the_window
+
+    return at_the_window.measure(game_data, tmp_path_factory.mktemp("window"))
+
+
+@pytest.fixture(scope="session")
 def installed_game():
     """(game directory, paramdef directory) of a real installation, or a skip.
 
