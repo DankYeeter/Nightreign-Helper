@@ -2580,10 +2580,14 @@ class Planner(QMainWindow):
     def _opening_width(self, room: int | None = None) -> int:
         """Wide enough to read every column heading, and no wider.
 
-        Three terms, in the order they bind:
+        Four terms, in the order they bind:
 
         * what a window has to be for the effect table to get the viewport it
           asked for, worked out below;
+        * what a window has to be for the advisor row to keep every action
+          button once a suggestion puts them up, `_width_around_the_advisor_
+          row` -- the wider of the two wins, since the window opens once and
+          has to suit both;
         * `room`, the width the desktop has. On a machine that cannot show
           that much, the desktop wins: a window wider than the screen opens
           with its right-hand edge past the edge of it, which is worse than
@@ -2597,7 +2601,8 @@ class Planner(QMainWindow):
         if room is None:
             room = self.screen().availableGeometry().width()
         return max(self.minimumSizeHint().width(),
-                   min(self._width_around_the_effect_table(), room))
+                   min(max(self._width_around_the_effect_table(),
+                           self._width_around_the_advisor_row()), room))
 
     def _width_around_the_effect_table(self) -> int:
         """A window width that leaves the effect table the viewport it wants.
@@ -2632,6 +2637,28 @@ class Planner(QMainWindow):
                 + 2 * table.frameWidth() + bar
                 + margins.left() + margins.right()
                 + beside_the_page)
+
+    def _width_around_the_advisor_row(self) -> int:
+        """A window width that leaves the advisor row every action button.
+
+        Not `_width_around_the_effect_table`'s own trick of subtracting a
+        current width: the advisor row lives inside the middle pane of
+        `self.panes`, the one `QSplitter.setStretchFactor` gives every extra
+        pixel of window to. Before the first layout pass -- which is exactly
+        when `showEvent` first asks this -- that pane is squeezed well below
+        its share, so `self.width() - self.advisor_bar.width()` would read a
+        placeholder split, not the real one (measured: an offset of 836 px
+        pre-layout against 852 px once the window has actually settled).
+
+        What does not depend on that squeeze is the stretch factor itself:
+        every pixel added to the window arrives at the middle pane, and so
+        at the row. So this starts from `_width_around_the_effect_table`'s
+        own result -- a width the window has already opened at for real,
+        never a placeholder -- and adds exactly the extra the row needs,
+        `AdvisorBar.action_buttons_extra_width`.
+        """
+        return (self._width_around_the_effect_table()
+                + self.advisor_bar.action_buttons_extra_width())
 
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""

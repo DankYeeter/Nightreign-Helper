@@ -186,6 +186,20 @@ MUTATIONS: dict[str, Mutation] = {
             "Killed by `test_without_a_save_the_row_says_so_and_disables_its_"
             "own_two_controls` (T-225)."),
     ),
+    "opening-width-ignores-the-advisor-row": Mutation(
+        path="nrplanner/app.py",
+        old="""        return (self._width_around_the_effect_table()
+                + self.advisor_bar.action_buttons_extra_width())
+""",
+        new="""        return self._width_around_the_effect_table()
+""",
+        survival_means=(
+            "the window opens too narrow for the advisor row's action "
+            "buttons once a suggestion puts them up: the goal and reading "
+            "boxes are cut and the status line has no width (AK-05, "
+            "AK-194, QA-248). Killed by `test_at_the_opening_width_no_"
+            "action_button_is_cut` (T-227)."),
+    ),
 }
 
 
