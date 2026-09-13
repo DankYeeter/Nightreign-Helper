@@ -1,13 +1,13 @@
 # Stand
 
-2026-09-12, **Zyklus 20 laeuft**. Branch `docs/audit-and-advisor-design`,
+2026-09-13, **Zyklus 21 laeuft**. Branch `docs/audit-and-advisor-design`,
 `main` geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `qa/findings.md` und `security/findings.md` (Tabelle; Fliesstext in den
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-216** · QA ab
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-221** · QA ab
 **QA-247** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
@@ -22,38 +22,34 @@ auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
 
 ## HIER WEITERMACHEN
 
-**Zyklus 20 ist abgeschlossen.** Alle drei Pruefrollen durch (QA **PASS**,
-Security **CONCERNS**, UI-Review fast fertig), Korb 1 erledigt, drei
-Retrospektiv-Massnahmen gebaut. Suite **1789 passed, 9 skipped** (dreimal
-unabhaengig gemessen).
+**Zyklus 21 laeuft (13.09.2026).** Nutzerentscheidungen 13.09.: Bauwelle +
+P10-Entwurf parallel · SEC-026 **haerten ueber Herkunft** (DLL nur aus
+Registry-/`libraryfolders.vdf`-Bibliotheken, feste Wurzeln raus) · SEC-037
+**Deckel nachziehen**. Teamregeln vom 12./13.09. gelesen (`templates/task.md`
+Praemissen-Pflichtfeld, Gate-Kriterium, Phasenmodell).
 
-1. **Achtung, die Teamregeln haben sich unter diesem Zyklus geaendert.** Eine
-   **zweite Claude-Sitzung** hat am 12.09. ab 21:00 im Agenten-Repo gearbeitet
-   (`git reflog show origin/main`: fuenf Pushes, nur zwei Commits aus meinen
-   Auftraegen). Neu und **verbindlich**: `templates/task.md` hat ein Pflichtfeld
-   **Praemissen** — jede Bestandsbehauptung im Auftrag braucht Quelle,
-   Pruefbefehl und Datum, und **die Rolle darf einen Auftrag ohne Quelle
-   zurueckweisen**. Dazu `git-commit-guard` und `id-collision-guard`, und
-   `commands/director.md` hat sich geaendert. **Vor dem ersten Auftrag des
-   naechsten Zyklus:** `git log commands/director.md templates/task.md
-   agents/_rahmen.md` lesen. Die vier Hook-Registrierungen sind **erledigt**,
-   `selftest.ps1` meldet alle Tests gruen.
-2. **Eine Bauwelle:** QA-242 (90 px, Ursache unbekannt — erster Anlauf, beim
-   zweiten der `fehlerdiagnostiker`), QA-210, QA-232, SEC-037, SEC-039 und
-   SEC-038 (**vor** dem SEC-036-Fix, sonst keine rote Phase).
-3. **P10 braucht den `architect`:** Planner 3 318 Zeilen, Mutations-Registry
-   5 300, beides bestaetigte Schuld. **P10-2 vor oder mit P10-1.**
-4. **A16 ist nicht gebaut und nicht entschieden** — das einzige Kriterium, das
-   eine Entscheidung des Nutzers braucht und keinen Auftrag.
-5. **Release-Kette** (auflagenseitig frei, GELB ohne ROT): `technical-writer`
-   → `build` → `clean-room` → `power-user` (A11) → `notes`. **SEC-027 ist das
-   Release-Tor**, sonst nichts.
+**Dispatch 13.09.:** T-217 `developer` (SEC-038 → SEC-036 → SEC-026) · T-218
+`developer` (QA-210, QA-232, SEC-039, QA-242 erster Anlauf) · T-219
+`developer` klein (SEC-037) · T-220 `architect` (P10-2 und P10-1). Drei
+Worktrees mit Schritt 0 auf `41206be`; dafuer `origin/HEAD` lokal auf
+`docs/audit-and-advisor-design` gesetzt (B-03). **Vorgaben-Vorlauf
+uebersprungen:** die Vorgaben sind die T-202-Befunde selbst, keine neue
+Vertrauensgrenze, keine neue Abhaengigkeit.
+
+**SEC-027 stand hier faelschlich als offenes Release-Tor:** `security/verlauf.md:553`
+fuehrt es als "behoben, Retest bestanden" (T-146), `It is only read` kommt in
+`nrplanner/`/`nrdata/` nicht vor (grep 13.09.). Registerzeile nachgezogen.
+Release-Tor ist damit **SEC-026** (T-217).
+
+Danach: Worktree-Branches zusammenfuehren → `ui-ux-designer` Spec-Nachtrag
+(Ablehnungssatz T-217, AK-230/A28) → A16 (Spec AK-182 liegt vor) → Beta-Gate
+mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen in einer Nachricht.
 
 ## Stand gegen `GOAL.md`
 
 | | | |
 |---|---|---|
-| A2 | kritisch/hoch behoben | **erfuellt** fuer QA; **SEC-027 ist Hoch/offen** (`security/findings.md:45`) und haelt das Release-Tor zu |
+| A2 | kritisch/hoch behoben | **erfuellt** fuer QA; SEC-027 behoben (verlauf:553), Release-Tor jetzt SEC-026 (Mittel, Wirkung kritisch) — T-217 |
 | A3-A5 | der Build-Berater | **gebaut**, T-114 am Artefakt bestaetigt |
 | A6 | Oberflaeche blockiert nicht | **erfuellt und gemessen** |
 | A7/A8 | Datenlage nennen / alles Englisch | **QA-211 geschlossen** (T-201 mit eigenem Rotlauf); QA-210, QA-232 und SEC-039 offen |
@@ -82,8 +78,7 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 
 1. **SEC-026:** DLL-Seite haerten? **Falle, von T-202 praezisiert:** Haertung
    ueber **Herkunft** haelt SEC-016/017/018 geschlossen, ueber **Zustimmung**
-   nicht — ein Klick ist keine Herkunftspruefung. **SEC-027** ist Hoch/offen
-   und damit **das** Release-Tor. **A-020 sperrt nicht mehr** (Nutzer 09.09.,
+   nicht. **Entschieden 13.09.: Herkunft**, T-217. **A-020 sperrt nicht mehr** (Nutzer 09.09.,
    von T-210 belegt) — meine fruehere Angabe hier war veraltet.
 2. **C-003, vor der Weitergabe:** Repo dauerhaft oeffentlich? Release
    bewerben? Arbeitsvertrag (C-001)? US-Recht? — **A-025 ist entschieden**
