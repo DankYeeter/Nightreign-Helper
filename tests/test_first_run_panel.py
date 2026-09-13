@@ -55,7 +55,9 @@ E1 = (
     "Nothing inside it looked like an installed game. Pick the folder the "
     "game itself is in: in Steam that is Manage, then Browse local files.",
 )
-E1_OUTSIDE_STEAM = E1[:3] + (
+E1_OUTSIDE_STEAM = (
+    "That folder is not part of a Steam installation.",
+    *E1[1:3],
     "That folder is not inside a Steam library, so Nightreign Helper will "
     "not run the game's files from there. Pick the folder Steam installed "
     "the game in: in Steam that is Manage, then Browse local files.",

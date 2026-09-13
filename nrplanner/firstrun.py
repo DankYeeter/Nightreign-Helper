@@ -327,11 +327,13 @@ NOT_IN_A_STEAM_LIBRARY = (
 
 def e1(picked) -> Panel:
     """Stage 1 said no: no installed game at or around this folder, or the
-    folder lies outside every Steam library (SEC-026) -- said apart."""
+    folder lies outside every Steam library (SEC-026) -- said apart, headline
+    included (AK-264): a folder outside Steam may well hold a real copy."""
     inside = gamefiles.in_a_steam_library(picked)
     return Panel(
         name="E1",
-        headline="That folder does not hold a copy of the game.",
+        headline=("That folder does not hold a copy of the game." if inside
+                  else "That folder is not part of a Steam installation."),
         lines=(
             Line("You picked:"),
             Line(os.fspath(picked), PATH),
