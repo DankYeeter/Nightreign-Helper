@@ -57,7 +57,20 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "row-tooltip-left-empty": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.setToolTip(self.status.toolTip())
+""",
+        new="""        self.setToolTip("")
+""",
+        survival_means=(
+            "on a desktop that caps the opening width the status shrinks to "
+            "0 px (QA-250) and its sentence is then nowhere to be hovered. "
+            "Killed by `test_on_a_narrow_desktop_the_boxes_keep_their_"
+            "captions_and_the_row_carries_the_status` (T-230a)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:

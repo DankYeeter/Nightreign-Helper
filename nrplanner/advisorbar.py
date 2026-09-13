@@ -923,6 +923,11 @@ class AdvisorBar(QWidget):
         self._situation = situation
         working = situation.state in WORKING_STATES
         self.status.set_whole_text(status_line(situation))
+        # Below the derived opening width the status is the one thing that
+        # gives way, down to 0 px (QA-250: boxes first, the status may go),
+        # and a label 0 px wide has nowhere to be hovered -- so the row
+        # carries the sentence too.
+        self.setToolTip(self.status.toolTip())
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at
         # the same moment, so there is no half-second of a bar on its own.
         # Asked of the situation and not of the widget: `isVisible()` is

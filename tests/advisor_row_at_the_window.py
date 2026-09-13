@@ -16,6 +16,12 @@ against a shown window, none of the figures moves. `pytest.skip` has no place
 here: a machine that cannot open the window is a failure of this guard, not
 an exemption from it (AK-05, "keine offscreen-Plattform").
 
+A desktop narrower than the derived width caps it (`_opening_width`'s
+`room`), and there the status is the one thing that gives way, down to 0 px
+(QA-250, decided 2026-09-13: boxes first, the status may go). So the same
+window is measured again at the width it would open at on each of
+`NARROW_DESKTOPS`, under `rooms`.
+
 Run as `python -m tests.advisor_row_at_the_window <snapshot.json>`; the
 parent side is `measure`, and the `advisor_row_at_the_window` fixture in
 `conftest.py` runs it once for the session.
@@ -30,6 +36,9 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+
+#: Desktops that cap the derived opening width: 1080p at 125 % scaling.
+NARROW_DESKTOPS = (1536,)
 
 #: A 4.12 failure sentence long enough to need shortening at any width.
 A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
@@ -97,16 +106,39 @@ def _the_row(bar, controls) -> dict:
         "status_text": bar.status.text(),
         "status_whole_text": bar.status.whole_text(),
         "status_tooltip": bar.status.toolTip(),
+        "row_tooltip": bar.toolTip(),
     }
+
+
+def _both_states(bar, controls) -> dict:
+    """The row in 4.12 and in the suggested state, at its present width."""
+    from nrplanner import advisorbar
+    from nrplanner.advisor import types
+    from tests import rendered
+
+    bar._on_failed(A_LONG_FAILURE)
+    rendered.settle(20)
+    failed = _the_row(bar, controls)
+
+    bar._answer = types.AdvisorResult(
+        goal_id="max_damage", goal_label="Maximise damage",
+        suggestions=(types.Suggestion(
+            choices=(types.SlotChoice(slot_index=0, handle=7, relic_id=1,
+                                      name="X"),),
+            score=types.GoalScore(value=1.0, display="1", unit="")),))
+    bar._show(advisorbar.Situation(advisorbar.State.SUGGESTED,
+                                   goal_label="Maximise damage",
+                                   slots=6, slots_filled=1))
+    rendered.settle(20)
+    return {"failed": failed, "suggested": _the_row(bar, controls)}
 
 
 def main(snapshot: pathlib.Path) -> dict:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication, QLabel
 
-    from nrplanner import advisorbar, model
+    from nrplanner import model
     from nrplanner import app as appmod
-    from nrplanner.advisor import types
     # After `nrplanner.app`: `conftest` renames the settings store to this
     # process on import, and `favourites` has to have read the parent's name
     # first, so the child writes where the parent's session fixture cleans.
@@ -131,22 +163,6 @@ def main(snapshot: pathlib.Path) -> dict:
                 ("why_button", bar.why_button),
                 ("clear_button", bar.clear_button)]
 
-    bar._on_failed(A_LONG_FAILURE)
-    rendered.settle(20)
-    failed = _the_row(bar, controls)
-
-    bar._answer = types.AdvisorResult(
-        goal_id="max_damage", goal_label="Maximise damage",
-        suggestions=(types.Suggestion(
-            choices=(types.SlotChoice(slot_index=0, handle=7, relic_id=1,
-                                      name="X"),),
-            score=types.GoalScore(value=1.0, display="1", unit="")),))
-    bar._show(advisorbar.Situation(advisorbar.State.SUGGESTED,
-                                   goal_label="Maximise damage",
-                                   slots=6, slots_filled=1))
-    rendered.settle(20)
-    suggested = _the_row(bar, controls)
-
     figures = {
         "platform": app.platformName(),
         "style": app.style().objectName(),
@@ -155,9 +171,15 @@ def main(snapshot: pathlib.Path) -> dict:
         "width": planner.width(),
         "opening_width": planner._opening_width(),
         "row_width": bar.width(),
-        "failed": failed,
-        "suggested": suggested,
+        **_both_states(bar, controls),
+        "rooms": {},
     }
+    for room in NARROW_DESKTOPS:
+        planner.resize(planner._opening_width(room=room), planner.height())
+        rendered.settle(20)
+        figures["rooms"][str(room)] = {"width": planner.width(),
+                                  "row_width": bar.width(),
+                                  **_both_states(bar, controls)}
     planner.close()
     return figures
 
