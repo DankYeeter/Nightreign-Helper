@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .binary import Reader, reverse_bits
+from .binary import NotWhatItClaims, Reader, reverse_bits
 from . import dcx
 
 # Binder format bits, as used by SoulsFormats. Note these apply to the format
@@ -48,7 +48,7 @@ def _check_entry_table(data: bytes, file_count: int, entry_size: int,
     """
     if (entry_size < fields_size
             or HEADER_SIZE + file_count * entry_size > len(data)):
-        raise ValueError(
+        raise NotWhatItClaims(
             f"archive claims {file_count} members of {entry_size} bytes each, "
             f"holding {fields_size} bytes of fields, which do not fit in "
             f"{len(data)} bytes"

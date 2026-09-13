@@ -17,6 +17,8 @@ import struct
 
 import texture2ddecoder
 
+from .binary import NotWhatItClaims
+
 # DXGI formats seen in Nightreign's menu textures.
 DXGI_BC1_UNORM = 71
 DXGI_BC1_UNORM_SRGB = 72
@@ -64,9 +66,9 @@ def payload_needed(width: int, height: int, block_bytes: int) -> int:
 def decode(dds: bytes) -> tuple[int, int, bytes]:
     """Return (width, height, RGBA bytes) for the top mip level."""
     if dds[:4] != b"DDS ":
-        raise ValueError(f"not a DDS file (magic {dds[:4]!r})")
+        raise NotWhatItClaims(f"not a DDS file (magic {dds[:4]!r})")
     if len(dds) < HEADER_SIZE:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"a DDS header is {HEADER_SIZE} bytes, this file is {len(dds)}"
         )
 
@@ -77,7 +79,7 @@ def decode(dds: bytes) -> tuple[int, int, bytes]:
     header_size = HEADER_SIZE
     if fourcc == b"DX10":
         if len(dds) < DX10_HEADER_SIZE:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"a DX10 DDS header is {DX10_HEADER_SIZE} bytes, this file "
                 f"is {len(dds)}"
             )
@@ -102,12 +104,12 @@ def decode(dds: bytes) -> tuple[int, int, bytes]:
     decoder, block_bytes = known
 
     if width <= 0 or height <= 0:
-        raise ValueError(f"DDS header declares a {width}x{height} image")
+        raise NotWhatItClaims(f"DDS header declares a {width}x{height} image")
 
     payload = dds[header_size:]
     needed = payload_needed(width, height, block_bytes)
     if len(payload) < needed:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"DDS payload is {len(payload)} bytes; a {width}x{height} image "
             f"in DXGI format {dxgi} needs {needed}"
         )

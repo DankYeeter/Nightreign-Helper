@@ -134,12 +134,16 @@ NO_FIGURE = "—"
 #: the commonest value there is.
 NO_CHANGE = "no change"
 
-#: The header when the direction being ranked in carries no figures at all
-#: (AK-49, §3.7). The cards then say `—` and stand in name order, and the
-#: `Sort by` box keeps standing on the direction that was chosen, so the
-#: statement does not wander to another one while the player reads it.
-NO_FIGURES_AT_ALL = ("The game's data carries no figures this goal can be "
-                     "ranked on, so these relics are in name order.")
+#: The header when there was nothing to rank these against: no save was
+#: read, so there is no build and no inventory to measure a relic beside
+#: (QA-210, wording from T-124, the advisor bar's 4.8 sentence for the
+#: picker). The cards then say `—` and stand in name order, and the `Sort by`
+#: box keeps standing on the direction that was chosen, so the statement does
+#: not wander to another one while the player reads it. A direction that
+#: carries no figures for what the player owns is a different state, said by
+#: `nothing_raises` under a ranking that exists (AK-46, AK-49).
+NO_SAVE_WAS_READ = ("No save was read, so there is nothing to rank these "
+                    "against — use Rescan save.")
 
 #: What stands where the top left card will stand while the question is out
 #: (§3.8 fassung 3, AK-212). One line and nothing else: an empty area three
@@ -151,8 +155,8 @@ NOTHING_YET = "Your relics appear here."
 
 #: What the run could not be, in the player's language (AK-208, AK-218). The
 #: reason is the track's own line, and it is the only place the picker says
-#: anything about a failure: the AK-49 sentence is about the game's data and
-#: would be a claim about the dataset that nothing measured.
+#: anything about a failure: `NO_SAVE_WAS_READ` is about the save and would
+#: be a claim about the save that nothing measured.
 COULD_NOT_WORK_OUT = ("Could not work out what these are worth — {reason}. "
                       "They are in name order below.")
 
@@ -347,7 +351,7 @@ class Asked:
 
     Told apart from "there was nothing to ask" -- which is `None` in place of
     this object -- because the two look the same on screen and are not the
-    same state: a dialog with no save behind it says what AK-49 asks for and
+    same state: a dialog with no save behind it says `NO_SAVE_WAS_READ` and
     waits for nothing, and a dialog whose question is out shows the empty
     grid. One `None` for both would have made the waiting state the display
     for "no save".
@@ -407,7 +411,7 @@ class SlotAdvice:
 
         `None` is "there is nothing to rank against" -- no save, so no
         inventory and no build, or a slot that is not one of the window's.
-        The picker then shows what AK-49 asks for rather than a figure it made
+        The picker then shows `NO_SAVE_WAS_READ` rather than a figure it made
         up, and no answer is ever coming.
 
         Otherwise the answer is either here already, in `Asked.ranking`, or
@@ -1518,17 +1522,18 @@ class RelicPicker(QDialog):
         height, and what it says is that nothing was measured.
 
         **Two ways to have no ranking, two headers** (AK-208, AK-218). One is
-        that there is nothing to rank against -- no save, or a direction the
-        game's data carries no figures for -- and the AK-49 sentence says so.
-        The other is that the question ended without an answer, and then the
-        header names the reason the track gave: the AK-49 sentence would be a
-        statement about the game's data that nothing measured (A7).
+        that there is nothing to rank against -- no save was read, which is
+        the one reason `SlotAdvice.ask` has for asking nothing -- and the
+        header says that (QA-210). The other is that the question ended
+        without an answer, and then the header names the reason the track
+        gave: a sentence about the save or the game's data would be a
+        statement nothing measured (A7).
         """
         if self.ranking is None:
             for _item, card in pairs:
                 card.show_values([NO_FIGURE] * len(VALUE_DIRECTIONS))
             self._headline(could_not_work_out(self._failure) if self._failure
-                           else NO_FIGURES_AT_ALL)
+                           else NO_SAVE_WAS_READ)
             return
 
         groups = self._top_groups()

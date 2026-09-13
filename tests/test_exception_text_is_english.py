@@ -353,6 +353,34 @@ def test_the_start_menu_button_says_it_in_english(monkeypatch, tmp_path):
     assert said == errortext.WHAT_THE_SYSTEM_REFUSED[errno.EACCES]
 
 
+def test_the_start_menu_button_never_quotes_powershell(monkeypatch, tmp_path,
+                                                       capsys):
+    """SEC-039: a child that fails is reported in this program's sentence.
+
+    Not an exception, so the AST scan above does not see it: PowerShell's
+    `stderr` went to the screen as `detail[0]`, and it carries the `.lnk`
+    path with the Windows user name in it, in the installation's language.
+    The words go to the console instead, where a bug report can read them.
+    """
+    monkeypatch.setattr(shortcut, "available", lambda: True)
+    monkeypatch.setattr(shortcut, "shortcut_path", lambda: tmp_path / "a.lnk")
+    monkeypatch.setattr(shortcut, "powershell_path", lambda: tmp_path / "ps.exe")
+    monkeypatch.setattr(shortcut, "target", lambda: tmp_path / "nrh.exe")
+    what_powershell_said = (f"{GERMAN_FROM_WINDOWS}: {A_SAVE_PATH}\n"
+                            "In Zeile:1 Zeichen:1")
+
+    def fail(*args, **kwargs):
+        return subprocess.CompletedProcess(args, 1, "", what_powershell_said)
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    said = shortcut.create()
+
+    assert said == "the shortcut could not be written"
+    says_nothing_windows_said(said)
+    assert A_SAVE_PATH not in said
+    assert what_powershell_said in capsys.readouterr().err
+
+
 def test_a_save_windows_will_not_open_is_reported_in_english(game_data,
                                                              monkeypatch,
                                                              tmp_path):
@@ -442,6 +470,31 @@ def test_the_first_run_keeps_the_sentence_it_wrote_itself(monkeypatch,
 
     assert said == ["The param definitions are missing, so the game cannot be "
                     "read. Reinstalling should restore them."]
+
+
+def test_the_first_run_keeps_a_refusal_of_the_extraction_path(monkeypatch,
+                                                              tmp_path):
+    """QA-232: a game file that is not what it claims is named, in its words.
+
+    The refusals of the extraction path are `NotWhatItClaims` -- a class of
+    this program -- so the dialog quotes them (A7) where a bare `ValueError`
+    was answered with the sentence for a library's complaint. The refusal
+    here is the real one out of `dds.decode`, not a class built for the case.
+    """
+    from nrdata import dds, extract
+
+    def a_texture_that_is_not_one(game, defs, target):
+        dds.decode(b"RIFF")
+
+    said: list[str] = []
+    builder = firstrun._Builder(tmp_path / "game", ["snapshot"])
+    builder.finished.connect(said.append)
+    monkeypatch.setattr(firstrun, "defs_dir", lambda: tmp_path / "defs")
+    monkeypatch.setattr(firstrun.paths, "cache_dir", lambda: tmp_path)
+    monkeypatch.setattr(extract, "write_snapshot", a_texture_that_is_not_one)
+    builder.run()
+
+    assert said == ["not a DDS file (magic b'RIFF')"]
 
 
 # -- the two QA-211 left over, closed by a class ----------------------------

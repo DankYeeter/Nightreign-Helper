@@ -11,6 +11,7 @@ import ctypes
 import pathlib
 
 from .dcx import MAX_UNCOMPRESSED_SIZE
+from .binary import NotWhatItClaims
 
 _DLL_NAMES = ("oo2core_9_win64.dll", "oo2core_8_win64.dll", "oo2core_6_win64.dll")
 _handle: ctypes.CDLL | None = None
@@ -58,7 +59,7 @@ def decompress(payload: bytes, uncompressed_size: int) -> bytes:
     # The size is checked before the DLL is, because it is the argument that
     # comes out of a file and the other is a fact about this process.
     if not 0 < uncompressed_size <= MAX_UNCOMPRESSED_SIZE:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"archive member claims {uncompressed_size} decompressed bytes, "
             f"outside the 1 to {MAX_UNCOMPRESSED_SIZE} this reader will "
             f"allocate for"
@@ -75,7 +76,7 @@ def decompress(payload: bytes, uncompressed_size: int) -> bytes:
         3,
     )
     if written != uncompressed_size:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"Oodle returned {written} bytes, expected {uncompressed_size}"
         )
     return dst.raw[:uncompressed_size]

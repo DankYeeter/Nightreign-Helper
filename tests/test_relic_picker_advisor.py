@@ -461,13 +461,45 @@ def test_a_copy_the_pool_does_not_carry_gets_a_dash_not_a_zero(slot):
 
 
 def test_with_no_ranking_every_card_says_so_and_the_header_says_why(slot):
-    """AK-49: `—` on every card, and the header sentence, not a made-up rank."""
+    """AK-49 and QA-210: `—` on every card, and a header about the save.
+
+    `ask` answering `None` is "no save was read" (`SlotAdvice.ask`), so the
+    header says that, in T-124's words -- and not a sentence about the game's
+    data, which nothing measured (A7). The literal is the guard.
+    """
     dialog = picker_for(slot, FakeAdvice({}, goal_id="max_damage"))
     try:
         for card in relic_cards(dialog):
             assert values_of(card) == [relicpicker.NO_FIGURE] * ROWS
-        assert dialog.headline.text() == relicpicker.NO_FIGURES_AT_ALL
+        assert dialog.headline.text() == (
+            "No save was read, so there is nothing to rank these against "
+            "— use Rescan save.")
         assert dialog.headline.isVisibleTo(dialog)
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_rescan_that_finds_no_save_leaves_cards_the_picker_can_show(
+        planner):
+    """QA-210's state is reachable: cards on the screen, no save behind them.
+
+    A read that comes back empty replaces the window's stock and leaves the
+    cards' stock standing (`_on_save_read` returns before
+    `_hand_the_stock_to_the_slots`), so the picker opened from a card has
+    relics to show and `asking_from` has no save to rank them against.
+    """
+    from tests import conftest
+
+    planner.save_reader._read = lambda _data, _save_path=None: None
+    planner.rescan_button.click()
+    conftest.wait_for_the_save(planner)
+
+    assert planner.owned is None
+    card = a_slot(planner)
+    dialog = relicpicker.RelicPicker(card, card.icons, "", lambda _text: None)
+    try:
+        assert relic_cards(dialog)
+        assert dialog.headline.text() == relicpicker.NO_SAVE_WAS_READ
     finally:
         dialog.deleteLater()
 
@@ -1535,7 +1567,7 @@ def test_a_failure_fills_the_grid_and_says_why(slot):
         assert dialog.headline.text() == (
             "Could not work out what these are worth — the run gave up. "
             "They are in name order below.")
-        assert relicpicker.NO_FIGURES_AT_ALL not in dialog.headline.text()
+        assert relicpicker.NO_SAVE_WAS_READ not in dialog.headline.text()
         for card in cards:
             values = [label.text()
                       for block in card.findChildren(relicpicker.ValueBlock)
