@@ -110,6 +110,19 @@ MUTATIONS: dict[str, Mutation] = {
             "tpf_member_is_refused_by_its_index_and_not_by_its_name` and by "
             "`test_no_refusal_quotes_what_a_game_file_wrote` (T-230d)."),
     ),
+    "asking-takes-the-other-reading": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""    declared = tuple(sorted({**model.reading_defaults(planner.worst_case),
+""",
+        new="""    declared = tuple(sorted({**model.reading_defaults(not planner.worst_case),
+""",
+        survival_means=(
+            "the run is asked under the reading the player did not choose: "
+            "`Worst case` declares the conditional buffs and moves copies "
+            "without a curse. Killed by `test_the_worst_case_moves_the_"
+            "counted_copies_of_the_frozen_save` on any machine, and by the "
+            "live-save case on this one (T-230e)."),
+    ),
 }
 
 

@@ -1107,10 +1107,10 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: (414 - 1, same count, same day). The best case's vocabulary.
 CONDITIONAL_BUFFS_WITH_A_SWITCH = 413
 
-#: How many of the save's copies change their `min_damage_taken` figure
-#: between the worst case and the bar as it asked before A16 (`GOAL.md` A16
-#: measured 11 of 309 on 2026-09-07; counted again on 2026-09-13 over the
-#: 312 copies of the save on this machine).
+#: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 314
+#: copies) change their `min_damage_taken` figure between the worst case and
+#: the bar as it asked before A16 (`GOAL.md` A16 measured 11 of 309 on
+#: 2026-09-07; 11 of 314 on 2026-09-13).
 COPIES_THE_WORST_CASE_MOVES = 11
 
 SURVIVAL = "min_damage_taken"
@@ -1190,30 +1190,25 @@ def test_the_readings_share_not_counted_and_invent_nothing(planner, game_data):
         "the worst case left a conditional curse uncounted")
 
 
-def test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits(
-        planner):
-    """`GOAL.md` A16, its acceptance: the seven conditional curses of the
-    save move the survival ranking in the worst case, demonstrably.
+def what_the_worst_case_moves(planner, inventory) -> tuple[bool, list[str]]:
+    """(the survival order changed, the copies whose figure changed).
 
     Against the bar as it asked before A16 -- the player's declarations and
-    nothing else -- because that is the ranking the acceptance is measured
-    from: every copy whose figure moves has to carry one of the seven, and
-    the seven have to be enough to change the order. Both kinds of copy,
-    ordinary and Deep, through one white slot each, which is every copy the
-    save holds (`Inventory.relics_for`).
+    nothing else -- because that is the ranking A16's acceptance is measured
+    from. Both kinds of copy, ordinary and Deep, through one white slot
+    each, which is every copy the inventory holds (`Inventory.relics_for`);
+    and every copy whose figure moves has to carry one of the seven.
     """
-    if planner.owned is None:
-        pytest.skip("`asking_from` answers nothing without a save to choose "
-                    "relics from")
     assert planner.worst_case is True, "AK-182: `Worst case` is the default"
-    by_handle = {item.handle: item for item in planner.owned.relics}
+    planner.owned = inventory
+    by_handle = {item.handle: item for item in inventory.relics}
     moved: list[str] = []
     orders_differ = False
     for deep in (False, True):
         question = advisor.problem([advisor.WHITE], deep=deep)
-        _base, worst = ranking_with(planner, None, planner.owned, question,
+        _base, worst = ranking_with(planner, None, inventory, question,
                                     SURVIVAL)
-        _base, before = ranking_with(planner, None, planner.owned, question,
+        _base, before = ranking_with(planner, None, inventory, question,
                                      SURVIVAL,
                                      as_the_bar_asked_before_a16=True)
         orders_differ |= ([offer[:2] for offer in worst]
@@ -1227,5 +1222,32 @@ def test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits(
             assert set(by_handle[handle].curse_ids) & set(
                 CONDITIONAL_CURSES), (
                 f"{name!r} changed its figure without a conditional curse")
+    return orders_differ, moved
+
+
+def test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits(
+        planner):
+    """`GOAL.md` A16, its acceptance, on the save of this machine: the seven
+    conditional curses move the survival ranking in the worst case,
+    demonstrably -- and nothing else does. No count: the save changes with
+    every evening played (QA-252), so the figure lives on the frozen copy.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    orders_differ, moved = what_the_worst_case_moves(planner, planner.owned)
+    assert orders_differ, "the worst case left the survival order as it was"
+    assert moved, "no copy moved, so the order cannot have"
+
+
+def test_the_worst_case_moves_the_counted_copies_of_the_frozen_save(
+        planner, frozen_inventory):
+    """A16's figure, on the same save wherever the suite runs: 11 copies of
+    the 314 frozen on 2026-09-13 change their survival figure, no more and
+    no fewer -- a reading that declared one curse too many or too few moves
+    a different count.
+    """
+    orders_differ, moved = what_the_worst_case_moves(planner,
+                                                     frozen_inventory)
     assert orders_differ, "the worst case left the survival order as it was"
     assert len(moved) == COPIES_THE_WORST_CASE_MOVES, sorted(moved)

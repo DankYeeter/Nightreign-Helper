@@ -339,6 +339,34 @@ def planner(game_data, qapp):
     window.deleteLater()
 
 
+#: The copies of one save, frozen on 2026-09-13 as ids and numbers only
+#: (relic id, handle, effect ids, curse ids) -- no save file, no name out of
+#: `nightreign_data`. A figure counted over a live save changes with every
+#: evening the player spends in the game (QA-252: 312 became 314 in a day),
+#: and on every other machine it was never counted at all.
+FROZEN_INVENTORY = pathlib.Path(__file__).parent / "data" / "frozen_inventory.json"
+
+
+@pytest.fixture
+def frozen_inventory(game_data):
+    """The frozen save as an `Inventory`, named out of the dataset now."""
+    from nrplanner import inventory
+
+    relic_meta = {relic["id"]: relic for relic in game_data["relics"]}
+    frozen = json.loads(FROZEN_INVENTORY.read_text(encoding="utf-8"))
+    relics = []
+    for relic_id, handle, effect_ids, curse_ids in frozen["copies"]:
+        meta = relic_meta[relic_id]
+        relics.append(inventory.OwnedItem(
+            relic_id=relic_id, name=meta["name"].strip(),
+            colour=meta["colour"], effect_ids=list(effect_ids),
+            is_deep=bool(meta.get("is_deep")),
+            has_curse=bool(meta.get("has_curse")),
+            curse_ids=list(curse_ids), handle=handle))
+    return inventory.Inventory(source=f"frozen on {frozen['frozen_on']}",
+                               relic_count=len(relics), relics=relics)
+
+
 def _vessels_in_the_list(planner) -> list[tuple[int, dict]]:
     """(row, vessel) for every selectable row, skipping the caption rows."""
     from PySide6.QtCore import Qt
