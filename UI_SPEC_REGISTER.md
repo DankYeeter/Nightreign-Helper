@@ -93,7 +93,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-02 | Die Advisor bar steht in der mittleren Spalte des Build planner zwischen der "Build"-Zeile und dem Hinweistext und scrollt nicht mit. | A01 Z337 | T-004, 2026-09-01 | — |
 | AK-03 | Planner.minimumSizeHint().width() ist nicht groesser als auf 3da8428 (gleiche Umgebung, gleiche UI scale, gemessen vor dem ersten show()). | A01 Z339 | T-004, 2026-09-01 | — |
 | AK-04 | Die Mindesthoehe des Fensters waechst um hoechstens 44 px gegenueber 3da8428. | A01 Z342 | T-004, 2026-09-01 | — |
-| AK-05 | Bei Fensterbreite 1320 px (Startbreite) ist in der Advisor bar kein Text abgeschnitten ausser der Statuszeile, und deren voller Text steht im Tooltip. | A01 Z344 + A14 Z2555 (Startbreite abgeleitet statt 1320 px) | T-071, 2026-09-06 | **widerspruechlich** - die Pixelzahl 1320 px ist in A14 Z2555 (T-071) aufgehoben, wird aber in AK-160 (A17 Z4336) und AK-194 (A21 Z5782) danach erneut als `Startbreite` vorgeschrieben; siehe Abschnitt `Widerspruechliche Faelle` |
+| AK-05 | Bei der abgeleiteten Startbreite (A14), gemessen am laufenden Fenster, ist in der Advisor bar kein Text abgeschnitten ausser der Statuszeile; die darf schrumpfen, ihr voller Text steht im Tooltip. | A01 Z344 + A14 Z2555 (Startbreite abgeleitet statt 1320 px) + A31 (Nutzerentscheidung, T-226) | T-226, 2026-09-13 | entschieden A31 (T-226, 13.09.2026) — 1320 px aufgegeben, nicht mehr widerspruechlich |
 | AK-06 | Mit UI scale 150 % und sechs belegten Deep-of-Night-Slots samt lebendem Vorschlag entsteht in der mittleren Spalte keine horizontale Bildlaufleiste. | A01 Z347 | T-004, 2026-09-01 | — |
 | AK-07 | Zu keinem Zeitpunkt sind mehr als drei Aktionsknoepfe der Advisor bar gleichzeitig sichtbar. | A01 Z350 | T-004, 2026-09-01 | — |
 | AK-08 | Waehrend einer laufenden Rechnung lassen sich Nightfarer wechseln, Vessel wechseln, ein Slot oeffnen und der Tab wechseln; | A01 Z355 | T-004, 2026-09-01 | — |
@@ -282,7 +282,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-191 | die Rangfolge haengt an keiner gefuehrten Waffe. | A21 Z5849 | T-092, 2026-09-07 | — |
 | AK-192 | die Armaturenzeile nennt die Zahl, nicht den Hebel. | A21 Z5859 | T-092, 2026-09-07 | — |
 | AK-193 | die Spalte nennt die Groesse, die sie zeigt. | A21 Z5869 | T-092, 2026-09-07 | — |
-| AK-194 | die Breite wird gemessen, nicht geschaetzt. | A21 Z5780 | T-092, 2026-09-07 | **widerspruechlich** - schreibt die Messung `bei 1320 px Fensterbreite` vor, obwohl A14 Z2555 (T-071) die feste Startbreite 1320 px aufgehoben und durch eine abgeleitete Breite ersetzt hat |
+| AK-194 | die Statuszeile darf am laufenden Fenster nie auf 0 px fallen (> 0 px); Kurzform `Worst`/`Best` bleibt Rueckfall. | A21 Z5780 + A31 (Schwelle gesenkt, T-226) | T-226, 2026-09-13 | teilweise entschieden A31 (T-226) — Schranke neu, Bezugsbreite fuer „laufendes Fenster" noch offen; **weiterhin widerspruechlich**, siehe Abschnitt `Widerspruechliche Faelle` |
 | AK-195 | Neu, als AK-195: In beiden Zielsortierungen stehen die Karten mit dem Spitzenwert beider Zielrichtungen an der Spitze des Rasters, vor allen … | UI_SPEC §5.4 (AK-261) | T-192, 2026-09-12 | **ersetzt durch AK-261** (T-192): „beide Richtungen“ ist mit drei Richtungen unterbestimmt; alle Spitzengruppen fuehren, in fester Reihenfolge |
 | AK-196 | Neu, als AK-196, und ersetzt die zweite Haelfte von AK-51: | A22 Z5967 | Director, 2026-09-07 | — |
 | AK-197 | zwei Anstriche, nicht drei. | A24 Z6942 (AK-211) | T-127, 2026-09-08 | gestrichen, ersetzt durch AK-211 - A24 Z6942 (T-127); Streichliste A24 Z6915 |
@@ -356,6 +356,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-265 | der AK-49-Satz heisst woertlich `No save was read, so there is nothing to rank these against — use Rescan save.` (`NO_SAVE_WAS_READ`) — ersetzt `NO_FIGURES_AT_ALL`, ergaenzt AK-49, korrigiert das Zitat in AK-208 | UI_SPEC §5.3 (AK-49, AK-208) | T-221, 2026-09-13 | — |
 | AK-266 | QA-242 Entscheidung A: `wanted_height` bleibt die beim ersten Anstrich gemessene Zahl, die 125-px-Ueberschaetzung ist dokumentierte Reserve fuer Zeile 3b, keine Aenderung an `_chrome_height` — AK-51 und AK-196 gelten unveraendert weiter | UI_SPEC §5.3 (Nachtrag zu AK-216) | T-221, 2026-09-13 | — |
 | AK-267 | kein Bestand ueberlebt eine Entwertung des Spielstands — QA-247 ist ein A7-Verstoss, kein Feature; der Picker faellt nach `planner.owned = None` auf den Zustand vor jedem je gelesenen Spielstand zurueck | UI_SPEC §5.3 (Gegenstueck zu AK-210) | T-221, 2026-09-13 | — |
+| AK-268 | 4.8 (kein Spielstand) deaktiviert alle drei Bedienelemente der Zeile — Zielwahl, Lesart-Box und `Optimize`, nicht nur zwei; bestaetigt T-224s Bau | UI_SPEC §6.7 (neben AK-182) | T-226, 2026-09-13 | — |
 
 
 ## Widerspruechliche Faelle
@@ -364,7 +365,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 auf diesen Abschnitt; er fehlte, weil der T-181-Lauf unmittelbar nach dem
 Schreiben der Tabelle abgebrochen ist. Hier wird nichts entschieden.*
 
-Drei Kriterien tragen in der Spalte *ueberholt durch* den Eintrag
+Drei Kriterien trugen in der Spalte *ueberholt durch* den Eintrag
 `widerspruechlich`: **AK-05**, **AK-160**, **AK-194**. Alle drei haengen an
 derselben Sache — der Startbreite **1320 px**, die `A14 Z2555`
 (Director-Nachtrag zu AK-05, 06.09.2026) als feste Zahl aufgehoben hat,
@@ -374,5 +375,21 @@ Der Fall ist vollstaendig beschrieben in `UI_SPEC.md`, Abschnitt
 **„Drei widerspruechliche Faelle — Entscheidung des App Designers steht aus"**
 (dort mit dem Wortlaut von `A14` und der Frage, die zu entscheiden ist).
 
-**Die Entscheidung gehoert dem App Designer.** Bis sie faellt, fuehren
-`UI_SPEC.md` und dieses Register beide Fassungen nebeneinander.
+**Nachtrag A31 (Nutzerentscheidung, 13.09.2026, T-226): eine Antwort liegt
+vor, zwei der drei Faelle bleiben.** Der App Designer hat sich fuer *„1320 px
+aufgeben, Statuszeile darf schrumpfen"* entschieden.
+
+- **AK-05 — entschieden.** Neue Bezugsbreite: die abgeleitete Startbreite
+  (A14), gemessen am laufenden Fenster; `1320 px` ist getilgt.
+- **AK-194 — teilweise entschieden.** Neue Schranke `> 0 px am laufenden
+  Fenster` statt `≥ 105 px bei 1320 px`; **offen**, gegen welche Breite
+  „laufendes Fenster" gemessen wird (dieselbe abgeleitete Startbreite wie
+  AK-05, oder eine eigene feste Testbreite) — **bleibt widerspruechlich**,
+  enger gefasst.
+- **AK-160 — unveraendert.** Von T-226 nicht angefasst; sein Messfenster
+  nennt weiterhin `1320 px (Startbreite)` — **bleibt vollstaendig
+  widerspruechlich.**
+
+**Die verbliebene Entscheidung (Bezugsbreite AK-194, und AK-160 insgesamt)
+gehoert weiter dem App Designer.** Bis sie faellt, fuehren `UI_SPEC.md` und
+dieses Register fuer diese zwei Faelle beide Fassungen nebeneinander.

@@ -1,9 +1,10 @@
 # UI_SPEC — die geltende Oberflaechenvorgabe
 
 **Stand:** 2026-09-13 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
-fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263) und **T-221**
-(AK-264 bis AK-267)
-**Umfang:** 267 Akzeptanzkriterien, AK-01 bis AK-267, in sieben
+fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263), **T-221**
+(AK-264 bis AK-267) und **T-226** (A31: AK-05/AK-194 entschieden bzw.
+verengt, AK-268 neu)
+**Umfang:** 268 Akzeptanzkriterien, AK-01 bis AK-268, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -72,7 +73,7 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
 | **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263, AK-265 bis AK-267 |
-| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194 |
+| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
 Die Reihenfolge folgt dem Weg eines Spielers: erst das Fenster, das ihn nach
@@ -108,6 +109,21 @@ nein, brauchen AK-160 und AK-194 eine neue Bezugsbreite, und die Schranke
 
 Bis dahin gilt in dieser Datei: **beide Fassungen stehen nebeneinander**, und
 jedes der drei Kriterien traegt den Vermerk.
+
+**Nachtrag A31 (Nutzerentscheidung, 13.09.2026, T-226): Antwort ist „nein",
+1320 px aufgegeben.** Der App Designer hat sich fuer *„1320 px aufgeben,
+Statuszeile darf schrumpfen"* entschieden. Stand danach:
+
+- **AK-05 — entschieden, nicht mehr Teil dieser Liste.** Neue Bezugsbreite:
+  die abgeleitete Startbreite (A14), gemessen am laufenden Fenster. Siehe
+  AK-05-Eintrag.
+- **AK-194 — teilweise entschieden.** Die Schranke ist neu (`> 0 px am
+  laufenden Fenster` statt `≥ 105 px bei 1320 px`); **offen** bleibt, gegen
+  welche Breite „laufendes Fenster" gemessen wird. Siehe AK-194-Eintrag.
+- **AK-160 — unveraendert, vollstaendig widerspruechlich.** Dieser Nachtrag
+  fasst AK-160 nicht an; sein Messfenster nennt weiterhin `1320 px
+  (Startbreite)`, die es laut A14 nicht mehr gibt. Damit bleiben **zwei**
+  der drei Faelle offen: **AK-160** und, enger gefasst, **AK-194**.
 
 ---
 ## Bereich 1 — Erststart: den Spielordner und den Spielstand waehlen
@@ -1029,9 +1045,9 @@ zwischen der "Build"-Zeile und dem Hinweistext und scrollt nicht mit.
 gegenueber 3da8428.
 
 #### AK-05
-*Verlauf: A01 Z344 + A14 Z2555 (Startbreite abgeleitet statt 1320 px) · zuletzt geaendert durch T-071, 2026-09-06*
+*Verlauf: A01 Z344 + A14 Z2555 (Startbreite abgeleitet statt 1320 px) + A31 (Nutzerentscheidung, T-226) · zuletzt geaendert durch T-226, 2026-09-13*
 
-*Ueberholt: **widerspruechlich** - die Pixelzahl 1320 px ist in A14 Z2555 (T-071) aufgehoben, wird aber in AK-160 (A17 Z4336) und AK-194 (A21 Z5782) danach erneut als `Startbreite` vorgeschrieben; siehe Abschnitt `Widerspruechliche Faelle`*
+*Ueberholt: durch A31 (T-226, 13.09.2026) entschieden — nicht mehr widerspruechlich, siehe Nachtrag unten*
 
 **AK-05** Bei Fensterbreite 1320 px (Startbreite) ist in der Advisor bar
 kein Text abgeschnitten ausser der Statuszeile, und deren voller Text steht
@@ -1046,9 +1062,25 @@ Absatz. Der geltende Wortlaut steht deshalb nicht hier, sondern in
 > **A14** — Nachtrag des Directors zu AK-05 — 2026-09-06 (nach T-071) (T-071, 2026-09-06)  
 > Verlauf Zeile **2624 bis 2647** (Altstand Z2555 bis Z2578)
 
-> **Widerspruechlich — die Entscheidung steht beim App Designer aus.**
-> Beide Fassungen stehen oben bzw. an den genannten Stellen nebeneinander;
-> dieser Abschnitt loest den Vorrang **nicht** auf.
+**Dazu A31 — Nutzerentscheidung, 13.09.2026 (T-226): entschieden, 1320 px aufgegeben.**
+
+Der App Designer hat woertlich gewaehlt: *„1320 px aufgeben, Statuszeile darf
+schrumpfen — Das Fenster startet ohnehin mit abgeleiteter Breite (A14).
+Statuszeile behaelt ihren vollen Text im Tooltip (AK-05 zweite Haelfte)."*
+Damit gilt ab sofort **nur noch eine Fassung**, die feste Zahl `1320 px` ist
+aus AK-05 getilgt:
+
+**AK-05 (geltender Wortlaut ab T-226):** Bei der **abgeleiteten Startbreite**
+(A14, `EffectTable.width_for_full_headings()`, gemessen am **laufenden
+Fenster**, nicht offscreen) ist in der Advisor bar kein Text abgeschnitten
+ausser der Statuszeile; die Statuszeile darf schrumpfen und abgeschnitten
+sein, ihr voller Text steht unveraendert im Tooltip. Pruefweg fuer den
+`developer`: der AK-05-Waechter misst gegen die tatsaechliche, am laufenden
+Fenster ausgelesene Startbreite (kein hartkodiertes `1320`, keine
+`offscreen`-Plattform — L-009).
+
+Die 1320-px-Fassung oben bleibt als **Verlauf** stehen (T-071, vor A31), sie
+ist nicht mehr geltend.
 
 #### AK-06
 *Verlauf: A01 Z347 · zuletzt geaendert durch T-004, 2026-09-01*
@@ -3036,6 +3068,15 @@ Bestand zaehlen, mit `explain.reasons` selbst; in der Umgebung §0 ergibt das
 Partition — 46 Zeilen sind doppelt gezaehlt, und die 48 ist ein Rest aus
 einer Subtraktion, kein Messwert.
 
+**Dazu A31 — Nachtrag, 13.09.2026 (T-226): §0 hat 312 Kopien, nicht 309.**
+T-222 (B-1) zaehlt den Spielstand nach: `inv.relics` ist **312**, nicht 309.
+Die 845-Effektrollen-Partition (150/0/124/58/94/0 = 426) ist auf **312**
+Kopien **nicht nachgezaehlt** — unverifiziert, bis ein Lauf das nachholt.
+Jede Stelle in dieser Datei, die „309 Kopien" oder eine daraus abgeleitete
+Zahl nennt und **nicht** ausdruecklich einen T-226-Nachtrag traegt (das
+betrifft AK-169 selbst, AK-191, AK-192, AK-160), ist entsprechend
+**veraltet, aber ausserhalb dieses Auftrags nicht nachgezaehlt.**
+
 **Dazu A20 Z5161 — AK-180:**
 
 **AK-180** *(Partition, Zahlen fortgeschrieben.)* **Ersetzt die Zahlenreihe
@@ -3221,6 +3262,23 @@ Umsetzung mit vier Eintraegen in der Zielwahl
 `goals.py`-Docstring, dass ein drittes Ziel ein Registry-Eintrag ist — sie
 braucht dann sechs.
 
+#### AK-268
+*Neu in T-226, 2026-09-13 (A31) — bestaetigt T-224s Bauentscheidung*
+
+**AK-268** *(4.8 deaktiviert alle drei, nicht zwei.)* Ist kein Spielstand
+geladen (4.8), sind Zielwahl, die Lesart-Box (`Worst case`/`Best case`,
+AK-182) **und** `Optimize` deaktiviert — dieselbe `answerable`-Bedingung
+fuer alle drei Bedienelemente dieser Zeile. Pruefweg: `bar.reading_box.
+isEnabled()` ist `False` im selben Test, der `bar.goal_box.isEnabled()` und
+`bar.optimize_button.isEnabled()` gegen `False` prueft (4.8-Guard,
+`test_without_a_save_the_row_says_so_and_disables_its_own_two_controls`
+wird dabei um diese dritte Zusicherung erweitert — der Testname wird nicht
+mitgeaendert, das faellt unter „Repeated text" erst bei naechster
+inhaltlicher Aenderung dieses Tests). *Rot-vorher:* eine Umsetzung, die
+`reading_box` beim Verlust des Spielstands aktiv laesst, zeigt eine
+bedienbare Lesartwahl ohne Wirkung — es gibt nichts zu lesen, solange kein
+Spielstand geladen ist.
+
 #### AK-183
 *Verlauf: A21 Z5765 · zuletzt geaendert durch T-092, 2026-09-07*
 
@@ -3281,6 +3339,13 @@ ueber die 309 Ein-Relikt-Probleme, je Lesart. *Rot-vorher:* eine Umsetzung,
 die im schlechtesten Fall auch Buffbedingungen setzt (oder umgekehrt),
 ergibt eine Summe, die diese Identitaet verletzt — sie ist der Waechter.
 
+**Dazu A31 — Nachtrag, 13.09.2026 (T-226): der Spielstand hat 312 Kopien,
+nicht 309.** T-222 (B-1) und T-224 haben nachgezaehlt: **177 + 27 = 204**
+gegen heute **204** (`inv.relics == 312`, 27 bedingte Fluchrollen
+unveraendert). Die Identitaet `worst + best = heute` gilt weiter, nur mit
+neuen Zahlen. Die 309/170/197-Zahlen oben bleiben als **Verlauf** stehen
+(T-092); geltend fuer den `developer` sind **312/177/204**.
+
 #### AK-188
 *Verlauf: A21 Z5818 · zuletzt geaendert durch T-092, 2026-09-07*
 
@@ -3293,6 +3358,17 @@ Lesarten. *Rot-vorher:* eine Umsetzung, die fuer den schlechtesten Fall
 einen eigenen Satz schreibt („counted as if it were active"), gibt
 derselben Sache einen zweiten Wortlaut und laesst 4.9b und die Zeile
 auseinanderlaufen.
+
+**Dazu A31 — Nachtrag, 13.09.2026 (T-226): 312 statt 309, Zahlen nicht
+nachgezaehlt.** T-222 (B-1) haelt fest, dass der Spielstand 312 statt 309
+Kopien traegt und **67/42/426/323 beim ersten A16-Lauf nachzuzaehlen sind**;
+T-224 hat nur AK-187 nachgezaehlt (dort 177/204), diese beiden Zahlenpaare
+nicht. **Unverifiziert:** die Werte **67/42/426/323** oben gelten fuer 309
+Kopien und sind fuer 312 Kopien nicht gemessen — nach der Absoluts-Evidenzregel
+(„eine Zahl wird gemessen, nicht geschaetzt") schreibt dieser Nachtrag keine
+neuen Zahlen, sondern den offenen Zaehlauftrag fort: der `developer` zaehlt
+`curses_without_a_figure`/`effects_without_a_figure` am 312er-Spielstand vor
+dem naechsten Rot-vorher-Check nach.
 
 #### AK-189
 *Verlauf: A21 Z5827 · zuletzt geaendert durch T-092, 2026-09-07*
@@ -3361,13 +3437,13 @@ gebrochen; `+12.4 AR` waere zusaetzlich falsch, weil kein Angriffswert mehr
 gerechnet wird.
 
 #### AK-194
-*Verlauf: A21 Z5780 · zuletzt geaendert durch T-092, 2026-09-07*
+*Verlauf: A21 Z5780 + A31 (Schwelle gesenkt, T-226) · zuletzt geaendert durch T-226, 2026-09-13*
 
-*Ueberholt: **widerspruechlich** - schreibt die Messung `bei 1320 px Fensterbreite` vor, obwohl A14 Z2555 (T-071) die feste Startbreite 1320 px aufgehoben und durch eine abgeleitete Breite ersetzt hat*
+*Ueberholt: **teilweise widerspruechlich** - A31 (T-226) senkt die Schranke und tilgt die feste `1320 px`-Bezugsbreite aus der Schwellenformel; offen bleibt, gegen welche Breite „am laufenden Fenster" gemessen wird (siehe Nachtrag) — siehe Abschnitt `Widerspruechliche Faelle`*
 
-**AK-194** *(die Breite wird gemessen, nicht geschaetzt.)* Nach dem Einbau
-wird am **laufenden Fenster** gemessen, wie breit die Statuszeile bei
-1320 px Fensterbreite noch ist, mit Messumgebung nach L-009 (Plattform,
+**AK-194 (Altfassung, T-092, nicht mehr geltend fuer die Schwelle):** Nach
+dem Einbau wird am **laufenden Fenster** gemessen, wie breit die Statuszeile
+bei 1320 px Fensterbreite noch ist, mit Messumgebung nach L-009 (Plattform,
 Qt-Stil, Skalierung, physisch oder logisch). Sie muss mindestens **zwei
 Drittel** ihrer heutigen 158 px behalten (**≥ 105 px**; Zielwert aus einer
 einzigen gemessenen Zahl abgeleitet, selbst kein gemessener Wert). Wird er
@@ -3376,9 +3452,32 @@ eine Umsetzung, die die Breite aus der Zeichenzahl in §1.4 herleitet, hat
 keine Messung — 12,0 px je Zeichen liefert dieser Rechner offscreen fuer
 **jede** Zeichenkette (T-084 §0).
 
-> **Widerspruechlich — die Entscheidung steht beim App Designer aus.**
-> Beide Fassungen stehen oben bzw. an den genannten Stellen nebeneinander;
-> dieser Abschnitt loest den Vorrang **nicht** auf.
+**Dazu A31 — Nutzerentscheidung, 13.09.2026 (T-226): Schwelle gesenkt.**
+
+Woertlich: *„AK-194 wird auf 'nicht 0 px am laufenden Fenster' gesenkt."*
+**AK-194 (geltender Wortlaut ab T-226):** Am **laufenden Fenster** (nicht
+offscreen, L-009) darf die Statuszeile nie auf **0 px** fallen — sie muss
+**> 0 px** breit bleiben, egal wie schmal das Fenster ist. Die feste
+Bezugsbreite `1320 px` und die Formel `≥ 105 px` entfallen ersatzlos.
+
+**Kurzform `Worst`/`Best`: bleibt als Rueckfall, wird aber seltener
+ausgeloest.** Begruendung in einem Satz: die volle Schreibweise
+`Worst case`/`Best case` bleibt Standard, und die Kurzform greift nur noch
+im Extremfall (sehr kleines Fenster, hohe Windows-Skalierung), in dem sie
+der einzige verbliebene Hebel ist, um die Statuszeile ueberhaupt sichtbar zu
+halten — ihn ersatzlos zu streichen wuerde AK-194 in genau diesem Extremfall
+wieder verletzbar machen.
+
+**Offen (nicht Teil dieses Nachtrags):** bei welcher Fensterbreite „am
+laufenden Fenster" gemessen wird — der abgeleiteten Startbreite wie AK-05,
+oder einer eigenen festen Testbreite — ist damit **nicht** entschieden; das
+haelt den Fall `Widerspruechliche Faelle` fuer AK-194 weiter offen, nur
+enger gefasst als vorher.
+
+> **Teilweise entschieden — die Bezugsbreite fuer „laufendes Fenster" steht
+> beim App Designer noch aus.** Die Schranke selbst ist entschieden (A31);
+> AK-160 ist von diesem Nachtrag nicht beruehrt und bleibt vollstaendig
+> widerspruechlich.
 
 ---
 
