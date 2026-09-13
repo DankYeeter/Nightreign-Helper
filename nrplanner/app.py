@@ -32,7 +32,7 @@ from . import (advisorblock, chalices, damage, datasource, effecttext,
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
-from .advisorbar import AdvisorBar, asking_from
+from .advisorbar import AdvisorBar, asking_from, reading_label
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -927,7 +927,8 @@ class RelicSlot(QFrame):
             return [f"<div style='color:{CURSE}'>✦ comes with {what}</div>"]
         return []
 
-    def show_the_suggestion(self, goal_label: str, group, choice) -> None:
+    def show_the_suggestion(self, goal_label: str, reading: str, group,
+                            choice) -> None:
         """Draw what the advisor would put here, while the answer lives.
 
         Whether the suggestion is already lying in this slot is decided on
@@ -940,7 +941,7 @@ class RelicSlot(QFrame):
         already = (choice is not None and in_the_slot is not None
                    and in_the_slot == choice.handle)
         self.suggestion.show_the_suggestion(
-            goal_label, group, already_equipped=already,
+            goal_label, reading, group, already_equipped=already,
             may_be_used=not self.is_held(),
             curse_tooltip=self._suggested_curse_tooltip(choice))
 
@@ -1868,6 +1869,12 @@ class Planner(QMainWindow):
         # Session state, like the armament tiles: a declaration is about the
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
+        # The advisor's reading (`GOAL.md` A16, AD-035): True is the worst
+        # case, every conditional curse counted; False the best, every
+        # conditional buff. Window state like `declared`, set by the bar's
+        # `reading_changed`, not persisted -- and it reaches a run only as a
+        # default for `declared`, never as a number.
+        self.worst_case = True
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None
@@ -4412,6 +4419,7 @@ class Planner(QMainWindow):
         matched back to one by looking at the screen.
         """
         self.advisor_bar.suggestion_changed.connect(self._the_suggestion_changed)
+        self.advisor_bar.reading_changed.connect(self._the_reading_changed)
         self.advisor_bar.why_requested.connect(self.open_why)
         self.advisor_bar.apply_all_requested.connect(self.apply_all)
         self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
@@ -4430,6 +4438,10 @@ class Planner(QMainWindow):
         """
         self._slots_before_applying = None
         self.show_the_suggestion(result)
+
+    def _the_reading_changed(self, worst: bool) -> None:
+        """The bar's second box moved; the window holds what it stands on."""
+        self.worst_case = worst
 
     # -- applying an answer -------------------------------------------------
 
@@ -4677,17 +4689,22 @@ class Planner(QMainWindow):
                for group in suggestion.reasons):
             return
         by_slot = {choice.slot_index: choice for choice in suggestion.choices}
+        # The reading is the window's now, and the bar has already thrown
+        # away any answer given under the other one (AK-183), so the head of
+        # every block names the reading its figures were formed under.
+        reading = reading_label(self.worst_case)
         for group in suggestion.reasons:
             cards[group.slot_index].show_the_suggestion(
-                result.goal_label, group, by_slot.get(group.slot_index))
+                result.goal_label, reading, group,
+                by_slot.get(group.slot_index))
 
     def open_why(self) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
 
-        The head of the dialog names four things no result carries -- who is
-        being built, on which vessel, with Deep of Night on or off, and out of
-        how many relics -- so they are read off this window at the moment the
-        dialog opens.
+        The head of the dialog names five things no result carries -- the
+        reading, who is being built, on which vessel, with Deep of Night on
+        or off, and out of how many relics -- so they are read off this
+        window at the moment the dialog opens.
         """
         result = self.advisor_bar.answer
         if result is None:
@@ -4695,6 +4712,7 @@ class Planner(QMainWindow):
         vessel = self.current_vessel() or {}
         heading = advisorblock.WhyHeading(
             goal_label=result.goal_label,
+            reading=reading_label(self.worst_case),
             nightfarer=str(self.current_hero()["name"]),
             vessel=str(vessel.get("name", "")),
             deep=self.deep_check.isChecked(),
