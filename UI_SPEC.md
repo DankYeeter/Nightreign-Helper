@@ -2,10 +2,12 @@
 
 **Stand:** 2026-09-13 · konsolidiert im Auftrag **T-184** (`ui-ux-designer`),
 fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263), **T-221**
-(AK-264 bis AK-267) und **T-226** (A31: AK-05 entschieden, AK-194 zunaechst
+(AK-264 bis AK-267), **T-226** (A31: AK-05 entschieden, AK-194 zunaechst
 verengt, AK-268 neu; A32-Nachtrag: AK-194 vollstaendig entschieden, A14
-zieht den Leistenbedarf nach)
-**Umfang:** 268 Akzeptanzkriterien, AK-01 bis AK-268, in sieben
+zieht den Leistenbedarf nach) und **T-231** (A33: AK-160 aufgeloest —
+Widerspruch-Liste leer, AK-269/AK-270 neu, AK-187/AK-188 auf 314 Kopien
+nachgezaehlt)
+**Umfang:** 270 Akzeptanzkriterien, AK-01 bis AK-270, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -74,14 +76,14 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
 | **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263, AK-265 bis AK-267 |
-| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 |
+| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 bis AK-270 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
 Die Reihenfolge folgt dem Weg eines Spielers: erst das Fenster, das ihn nach
 dem Spielordner fragt, dann der Spielstand, dann der Build planner mit
 Berater und Picker, zuletzt die sechs Inhalts-Tabs, die er nachschlaegt.
 
-## Drei widerspruechliche Faelle — Entscheidung des App Designers steht aus
+## Drei widerspruechliche Faelle — alle drei entschieden (Stand A33, T-231)
 
 Beim Erstellen des Registers (T-181) sind drei Kriterien aufgefallen, bei
 denen zwei Fassungen nebeneinander gelten koennten und der Vorrang **nicht**
@@ -132,9 +134,22 @@ abgeleitete Startbreite wie AK-05. Damit ist auch **AK-194 aus dieser Liste
 entlassen.** Siehe AK-194-Eintrag.
 
 **Stand nach A31/A32: nur noch ein Fall offen.** Von den drei
-widerspruechlichen Faellen ist **AK-160 der einzige verbleibende** — sein
-Messfenster nennt weiterhin `1320 px (Startbreite)`, die es laut A14 nicht
-mehr gibt, und dieser Nachtrag fasst AK-160 nicht an.
+widerspruechlichen Faellen war **AK-160 der einzige verbleibende** — sein
+Messfenster nannte weiterhin `1320 px (Startbreite)`, die es laut A14 nicht
+mehr gibt.
+
+**Nachtrag A33 (Nutzerentscheidung, 13.09.2026, T-231, Vorschlag T-229c):
+AK-160 aufgeloest — die Liste ist leer.** Die Bezugsbreite folgt derselben
+Entscheidung wie AK-05/AK-194: die abgeleitete Startbreite, am laufenden
+Fenster gemessen. Der zweite Teil von AK-160 (als „schlechtester Fall"
+durch AK-189 ueberholt) war bereits im Text selbst geklaert und brauchte nur
+die redaktionelle Klarstellung, die AK-161 schon traegt. **Alle drei Faelle
+— AK-05, AK-194, AK-160 — sind entschieden. Dieser Abschnitt hat ab T-231
+keinen offenen Fall mehr** und bleibt nur als Verlauf stehen.
+
+Dieselbe Nutzerentscheidung (QA-250, A33) legt zusaetzlich fest, was AK-05
+und AK-194 **unterhalb** der abgeleiteten Breite gilt (kleine Bildschirme,
+`room`-Deckel in `_opening_width`): siehe **AK-269**.
 
 ---
 ## Bereich 1 — Erststart: den Spielordner und den Spielstand waehlen
@@ -2942,9 +2957,9 @@ Zeilen**: ein Fluch, der zwei Groessen bewegt, steht in zwei Zeilen und ist
 ein Name. (Das ist AK-138 fuer den Block; beide gelten.)
 
 #### AK-160
-*Verlauf: A17 Z4319 · zuletzt geaendert durch T-092, 2026-09-07 (AK-189 schreibt fort)*
+*Verlauf: A17 Z4319 + A33 (Messfenster entschieden, T-231) · zuletzt geaendert durch T-231, 2026-09-13 (AK-189 schreibt fort)*
 
-*Ueberholt: **widerspruechlich** - als schlechtester Fall ueberholt durch AK-189 (A21 Z5827, T-092); zusaetzlich schreibt sein Messfenster `1320 px (Startbreite)` vor, obwohl A14 Z2555 (T-071) die feste Startbreite aufgehoben hat*
+*Ueberholt: als schlechtester Fall durch AK-189 (A21 Z5827, T-092) fortgeschrieben — bleibt als Messung seiner Umgebung gueltig; Messfenster seit A33 (T-231) entschieden, nicht mehr widerspruechlich*
 
 **AK-160** *Ersetzt AK-150 vollstaendig.* Der schlechteste Fall ist
 **gemessen**, nicht geschaetzt, und er ist groesser als AK-150 annahm:
@@ -2963,15 +2978,20 @@ Tranquil Scene`, die diese 14 Zeilen erzeugt. In der mittleren Spalte des
 Build planner entsteht **keine waagerechte** Bildlaufleiste, keine Zeile ist
 abgeschnitten, keine bricht mitten in einem Begriff (AK-73), jede ist durch
 senkrechtes Scrollen erreichbar, und die 150-Zeichen-Zeile **bricht um**,
-statt elidiert zu werden (4.14). Zu messen bei Fensterbreite **1320 px**
-(Startbreite) und UI scale `Automatic` **sowie** 150 %, auf einem
-100-%-Bildschirm, unter dem Qt-Stil, mit dem das Programm ausgeliefert wird.
-**Die Messung nennt Plattform, Stil, Skalierung und ob die Zahlen physisch
-oder logisch sind** — ohne diese Angaben zaehlt sie nicht (L-009).
+statt elidiert zu werden (4.14). Zu messen bei der **abgeleiteten
+Startbreite** (A14, am laufenden Fenster, wie AK-05) und UI scale
+`Automatic` **sowie** 150 %, auf einem 100-%-Bildschirm, unter dem Qt-Stil,
+mit dem das Programm ausgeliefert wird. **Die Messung nennt Plattform, Stil,
+Skalierung und ob die Zahlen physisch oder logisch sind** — ohne diese
+Angaben zaehlt sie nicht (L-009).
 
-> **Widerspruechlich — die Entscheidung steht beim App Designer aus.**
-> Beide Fassungen stehen oben bzw. an den genannten Stellen nebeneinander;
-> dieser Abschnitt loest den Vorrang **nicht** auf.
+**Dazu A33 — Nutzerentscheidung, 13.09.2026 (T-231): Messfenster
+entschieden, nicht mehr widerspruechlich.** Die Bezugsbreite folgt derselben
+Entscheidung wie AK-05/AK-194 (Director, 13.09.): die abgeleitete
+Startbreite, am laufenden Fenster gemessen, nie eine feste Zahl. Die Zahlen
+der Tabelle selbst sind davon unberuehrt (Zeilen- und Zeichenzaehlung, keine
+Breitenmessung). **AK-160 bleibt als Messung seiner Umgebung gueltig und
+wird durch AK-189 fortgeschrieben** (wortgleich mit AK-161).
 
 #### AK-161
 *Verlauf: A17 Z4344 + A21 Z5537 (je Lesart getrennt) · zuletzt geaendert durch T-092, 2026-09-07*
@@ -3383,7 +3403,23 @@ nicht 309.** T-222 (B-1) und T-224 haben nachgezaehlt: **177 + 27 = 204**
 gegen heute **204** (`inv.relics == 312`, 27 bedingte Fluchrollen
 unveraendert). Die Identitaet `worst + best = heute` gilt weiter, nur mit
 neuen Zahlen. Die 309/170/197-Zahlen oben bleiben als **Verlauf** stehen
-(T-092); geltend fuer den `developer` sind **312/177/204**.
+(T-092); geltend fuer den `developer` waren **312/177/204**.
+
+**Dazu A33 — Nachtrag, 13.09.2026 (T-231, Zahlen aus T-229a Punkt 6): der
+Spielstand hat 314 Kopien, nicht 312.** `NR0000.sl2` wurde am 13.09.2026
+19:17:02 geaendert (nach T-222/T-224); T-229a zaehlt `inv.relics == 314`,
+27 bedingte Fluchrollen unveraendert. Ueber `advisorbar.asking_from` (Rezept
+B, der tatsaechliche Programmpfad — Skript `<scratchpad>/T-229/qa/
+recount.py`): **176 + 27 = 203** gegen heute **203**. Zum Vergleich Rezept A
+(T-092-Umgebung `scripts/measure_advisor_language.py`, Wylder 15 mit
+Bezugswaffe): 174 + 27 = 201 — die beiden Rezepte unterscheiden sich um 2
+Kopien; **geltend fuer AK-187 ist Rezept B**, weil AK-187s eigener Pruefweg
+den Weg des Programms misst. Die 312/177/204-Zahlen aus A31 bleiben als
+**Verlauf** stehen; geltend sind **314/176/203**. **Warnung (T-229a Befund
+6):** diese Zahl haengt an der lebenden Speicherdatei des Nutzers und
+verschiebt sich mit jedem Spielabend — sie ist kein stabiler Ankerwert,
+solange kein eingefrorener Inventar-Fixture existiert (Vorschlag T-229a,
+nicht Gegenstand dieses Nachtrags).
 
 #### AK-188
 *Verlauf: A21 Z5818 · zuletzt geaendert durch T-092, 2026-09-07*
@@ -3402,12 +3438,24 @@ auseinanderlaufen.
 nachgezaehlt.** T-222 (B-1) haelt fest, dass der Spielstand 312 statt 309
 Kopien traegt und **67/42/426/323 beim ersten A16-Lauf nachzuzaehlen sind**;
 T-224 hat nur AK-187 nachgezaehlt (dort 177/204), diese beiden Zahlenpaare
-nicht. **Unverifiziert:** die Werte **67/42/426/323** oben gelten fuer 309
-Kopien und sind fuer 312 Kopien nicht gemessen — nach der Absoluts-Evidenzregel
-(„eine Zahl wird gemessen, nicht geschaetzt") schreibt dieser Nachtrag keine
-neuen Zahlen, sondern den offenen Zaehlauftrag fort: der `developer` zaehlt
-`curses_without_a_figure`/`effects_without_a_figure` am 312er-Spielstand vor
-dem naechsten Rot-vorher-Check nach.
+nicht. Die Werte **67/42/426/323** oben galten fuer 309 Kopien und waren fuer
+312 unverifiziert; **T-229a hat sie inzwischen nachgezaehlt (siehe A33)**.
+
+**Dazu A33 — Nachtrag, 13.09.2026 (T-231, Zahlen aus T-229a Punkt 6): 314
+statt 312/309, jetzt gemessen.** `NR0000.sl2` traegt seit 13.09.2026
+19:17:02 **314** Kopien. Zwei Rezepte, beide am selben Spielstand:
+
+| Zahl | Rezept A (T-092-Umgebung, mit Bezugswaffe) | Rezept B (`asking_from`, Programmpfad) |
+|---|---|---|
+| `curses_without_a_figure` heute | **67** | **67** |
+| dito schlechtester Fall | **42** | **42** |
+| `effects_without_a_figure` heute | **437 von 860** | **438 von 860** |
+| dito bester Fall | **331** | **331** |
+
+**Geltend fuer AK-188 ist Rezept B** (derselbe Grund wie bei AK-187): `67 →
+42`, `438 von 860 → 331`. Die 309er-Zahlen oben bleiben als **Verlauf**
+stehen; dieselbe Warnung wie bei AK-187 (T-229a Befund 6) gilt: der
+Spielstand ist lebendig, diese Zahlen sind kein stabiler Ankerwert.
 
 #### AK-189
 *Verlauf: A21 Z5827 · zuletzt geaendert durch T-092, 2026-09-07*
@@ -3533,10 +3581,64 @@ sie nicht neu gebaut wird.
 Die A31-Fassung (Schwelle gesenkt, Kurzform als Rueckfall) bleibt als
 **Verlauf** stehen; sie ist nicht mehr geltend.
 
-> **Entschieden (A32) — nicht mehr widerspruechlich.** AK-194 verlaesst die
-> Widerspruch-Liste: Schranke und Bezugsbreite sind beide entschieden.
-> **AK-160 bleibt als einziger der drei Faelle offen**, von diesem Nachtrag
-> unberuehrt.
+> **Entschieden (A32/A33) — nicht mehr widerspruechlich.** AK-194 verlaesst
+> die Widerspruch-Liste: Schranke und Bezugsbreite sind beide entschieden.
+> **AK-160 ist seit A33 (T-231) ebenfalls entschieden — die Liste ist leer.**
+
+**Dazu A33 — Nutzerentscheidung, 13.09.2026 (T-231, QA-250): unterhalb der
+abgeleiteten Breite ist AK-194 ausgesetzt.** Siehe **AK-269** fuer den
+vollstaendigen Wortlaut. Kurzfassung: nur **oberhalb** der abgeleiteten
+Breite (kein Bildschirm-Deckel) gilt weiterhin `> 0 px`; **unterhalb** darf
+die Statuszeile auf 0 px fallen, weil Zielwahl und Lesart-Box dort Vorrang
+haben.
+
+#### AK-269
+*Neu in T-231, 2026-09-13 (A33) — Nutzerentscheidung zu QA-250 (T-229a
+Befund 1: Statuszeile 0 px unter 1600 px Bildschirmplatz, Zielwahl/Lesart-Box
+abgeschnitten bei 1366 px)*
+
+**AK-269** *(Boxen haben Vorrang, wenn der Bildschirm deckelt.)* Woertlich
+die gewaehlte Option: *„Boxen haben Vorrang, Statuszeile darf verschwinden —
+Unter der abgeleiteten Breite bekommen Zielwahl und Lesart-Box ihre volle
+Breite, die Statuszeile schrumpft bis 0 und ihr Text wandert in den Tooltip
+der Leiste. AK-05 haelt (kein Text ausser der Statuszeile abgeschnitten),
+AK-194 wird unter der abgeleiteten Breite ausgesetzt."* Damit gilt: deckelt
+der Bildschirm die Startbreite unter das Mass aus A14/A32 (`room` in
+`_opening_width`), behalten Zielwahl und Lesart-Box ihre volle, unabgeschnittene
+Breite; die Statuszeile weicht zuerst und darf bis auf **0 px** schrumpfen;
+ihr voller Text steht dabei unveraendert im Tooltip der Leiste (AK-05 gilt
+unveraendert). **AK-194 (`> 0 px`) ist unterhalb der abgeleiteten Breite
+ausgesetzt** und gilt erst wieder, sobald der Bildschirm die volle
+abgeleitete Breite hergibt.
+
+Pruefweg fuer den `developer` (am laufenden Fenster, nicht offscreen,
+L-009): `_opening_width(room=1366)`, `room=1536` und die ungedeckelte
+Laufmaschine — in allen drei gilt `cut == []` fuer Zielwahl und Lesart-Box;
+die Statuszeile ist `> 0 px` **nur** an der (ungedeckelten) abgeleiteten
+Breite, bei 1366/1536 darf sie 0 sein; der Tooltip der Leiste traegt in
+jedem der drei Faelle den vollen Statustext. *Rot-vorher:* der heutige Bau
+(T-229a Befund 1) zeigt bei `room=1366` `cut == ['goal_box', 'reading_box']`
+(69 px statt 183/87 px) — genau das verbietet AK-269.
+
+#### AK-270
+*Neu in T-231, 2026-09-13 (A33) — QA-253 (T-229a Befund 5: der 4.7-Satz
+sagt bei blossem Lesartwechsel faelschlich, der Build habe sich geaendert)*
+
+**AK-270** *(der Abbruchsatz nennt die Lesart, nicht einen falschen Grund.)*
+Bricht ein laufender `Optimize`-Lauf ab, weil sich waehrend der Rechnung die
+**Lesart** geaendert hat (AK-183), sagt die Statuszeile woertlich:
+
+> `The reading changed while this was working out — use Optimize again.`
+
+Der bisherige, geteilte Satz `Your build changed while this was working out
+— use Optimize again.` bleibt fuer den Zielwechsel-Fall (AK-183, unveraendert
+seit vor A16) unveraendert in Kraft; nur der Lesartwechsel bekommt den neuen
+Satz, weil „build" dort sachlich falsch ist (der Build hat sich nicht
+geaendert, nur die Lesart, unter der er bewertet wird). *Rot-vorher:* der
+heutige Bau zeigt bei einem Lesartwechsel waehrend eines Laufs
+`Your build changed ...` — dieselbe Zeichenkette wie beim Zielwechsel, ohne
+Unterscheidung der Ursache. **Bauauftrag folgt in einem eigenen
+Retest-Fix-Auftrag, nicht in T-230.**
 
 ---
 

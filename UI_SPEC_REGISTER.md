@@ -248,7 +248,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-157 | Keine stumme Zeile behauptet etwas ueber die Spieldateien; | A17 Z4296 | T-078, 2026-09-06 | — |
 | AK-158 | Die Zaehlzeile aus T-078 §6 steht in jeder Slotgruppe, auch wenn jeder Effekt darunter genannt ist, und benutzt die beiden neuen Fuellungen aus §5 … | A17 Z4303 | T-078, 2026-09-06 | — |
 | AK-159 | Die Menge der Fluchnamen im Vorschlagsblock einer Slotkarte ist gleich der Menge der curse_ids der vorgeschlagenen Kopie, in Namen aufgeloest — … | A17 Z4311 | T-078, 2026-09-06 | — |
-| AK-160 | Ersetzt AK-150 vollstaendig. | A17 Z4319 | T-092, 2026-09-07 (AK-189 schreibt fort) | **widerspruechlich** - als schlechtester Fall ueberholt durch AK-189 (A21 Z5827, T-092); zusaetzlich schreibt sein Messfenster `1320 px (Startbreite)` vor, obwohl A14 Z2555 (T-071) die feste Startbreite aufgehoben hat |
+| AK-160 | Ersetzt AK-150 vollstaendig; Messfenster seit A33 die abgeleitete Startbreite (wie AK-05). | A17 Z4319 + A33 (Messfenster, T-231) | T-231, 2026-09-13 (AK-189 schreibt fort) | als schlechtester Fall durch AK-189 (A21 Z5827, T-092) fortgeschrieben, bleibt als Umgebungsmessung gueltig; nicht mehr widerspruechlich (A33, T-231) |
 | AK-161 | Die Zeilenzahl je Vorschlag wird nach dem Einbau neu gemessen und im Bericht genannt. | A17 Z4344 + A21 Z5537 (je Lesart getrennt) | T-092, 2026-09-07 | — |
 | AK-162 | Registry-Haelfte, ersetzt die erste Haelfte von AK-63. | A19 Z4554 | T-084, 2026-09-07 (A21 Z5600: gilt unveraendert) | — |
 | AK-163 | Ergebnis-Haelfte im Picker, ersetzt die zweite Haelfte von AK-63. | A19 Z4563 + A21 Z5606 | T-092, 2026-09-07 | das Rot-vorher von AK-163 - AK-190, A21 Z5606 (T-092); Regel und Pruefweg unveraendert |
@@ -275,8 +275,8 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-184 | nie zwei Zahlen. | A21 Z5772 | T-092, 2026-09-07 | — |
 | AK-185 | genau viermal, nie je Zeile. | A21 Z5793 | T-092, 2026-09-07 | — |
 | AK-186 | Voreinstellung fuer Bedingungen, nie fuer Zahlen. | A21 Z5801 | T-092, 2026-09-07 | — |
-| AK-187 | die Lesarten teilen not_counted, sie erfinden nichts. | A21 Z5810 | T-092, 2026-09-07 | — |
-| AK-188 | die Listen behalten ihre Saetze. | A21 Z5818 | T-092, 2026-09-07 | — |
+| AK-187 | die Lesarten teilen not_counted, sie erfinden nichts — Zahlen zuletzt auf 314 Kopien nachgezaehlt (176 + 27 = 203). | A21 Z5810 + A31 (312er-Nachtrag) + A33 (314er-Nachtrag), beide T-226/T-231 | T-231, 2026-09-13 | Zahlen fortgeschrieben 309 → 312 (A31) → 314 (A33); Regel unveraendert |
+| AK-188 | die Listen behalten ihre Saetze — Zahlen zuletzt auf 314 Kopien nachgezaehlt (67/42/438 von 860/331). | A21 Z5818 + A31 (312er-Nachtrag) + A33 (314er-Nachtrag), beide T-226/T-231 | T-231, 2026-09-13 | Zahlen fortgeschrieben 309 → (312 unverifiziert, A31) → 314 (A33); Regel unveraendert |
 | AK-189 | der schlechteste Fall ist laenger, und das wird gemessen. | A21 Z5827 | T-092, 2026-09-07 | — |
 | AK-190 | der Satz wandert und wird umgeschrieben. | A21 Z5839 | T-092, 2026-09-07 | — |
 | AK-191 | die Rangfolge haengt an keiner gefuehrten Waffe. | A21 Z5849 | T-092, 2026-09-07 | — |
@@ -357,6 +357,8 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-266 | QA-242 Entscheidung A: `wanted_height` bleibt die beim ersten Anstrich gemessene Zahl, die 125-px-Ueberschaetzung ist dokumentierte Reserve fuer Zeile 3b, keine Aenderung an `_chrome_height` — AK-51 und AK-196 gelten unveraendert weiter | UI_SPEC §5.3 (Nachtrag zu AK-216) | T-221, 2026-09-13 | — |
 | AK-267 | kein Bestand ueberlebt eine Entwertung des Spielstands — QA-247 ist ein A7-Verstoss, kein Feature; der Picker faellt nach `planner.owned = None` auf den Zustand vor jedem je gelesenen Spielstand zurueck | UI_SPEC §5.3 (Gegenstueck zu AK-210) | T-221, 2026-09-13 | — |
 | AK-268 | 4.8 (kein Spielstand) deaktiviert alle drei Bedienelemente der Zeile — Zielwahl, Lesart-Box und `Optimize`, nicht nur zwei; bestaetigt T-224s Bau | UI_SPEC §6.7 (neben AK-182) | T-226, 2026-09-13 | — |
+| AK-269 | unterhalb der abgeleiteten Startbreite (Bildschirm-Deckel, QA-250) haben Zielwahl und Lesart-Box Vorrang, Statuszeile darf bis 0 px schrumpfen (Text im Tooltip); AK-194 dort ausgesetzt | UI_SPEC §6.7 (neben AK-05/AK-194) | T-231, 2026-09-13 | — |
+| AK-270 | QA-253: Abbruch eines Laufs durch Lesartwechsel sagt `The reading changed while this was working out — use Optimize again.`, nicht mehr den geteilten `Your build changed ...`-Satz | UI_SPEC §6.5/6.7 (neben AK-183) | T-231, 2026-09-13 | — |
 
 
 ## Widerspruechliche Faelle
@@ -375,8 +377,8 @@ Der Fall ist vollstaendig beschrieben in `UI_SPEC.md`, Abschnitt
 **„Drei widerspruechliche Faelle — Entscheidung des App Designers steht aus"**
 (dort mit dem Wortlaut von `A14` und der Frage, die zu entscheiden ist).
 
-**Nachtrag A31/A32 (Nutzerentscheidungen, 13.09.2026, beide unter T-226
-gebucht): zwei der drei Faelle sind entschieden, einer bleibt.**
+**Nachtrag A31/A32/A33 (Nutzerentscheidungen, 13.09.2026, unter T-226 und
+T-231 gebucht): alle drei Faelle sind entschieden, die Liste ist leer.**
 
 - **AK-05 — entschieden (A31).** Neue Bezugsbreite: die abgeleitete
   Startbreite (A14, seit A32 Maximum aus Effekttabelle und Leistenbedarf im
@@ -385,10 +387,12 @@ gebucht): zwei der drei Faelle sind entschieden, einer bleibt.**
   Schranke `> 0 px am laufenden Fenster`, kein Kurzform-Rueckfall
   (`Worst`/`Best` gestrichen, T-225 Befund 2: der Hebel misst `minimumSizeHint`
   87 px, greift nie ohne Boxneubau), Bezugsbreite dieselbe wie AK-05.
-- **AK-160 — unveraendert, einziger verbleibender Fall.** Von T-226 nicht
-  angefasst; sein Messfenster nennt weiterhin `1320 px (Startbreite)` —
-  **bleibt vollstaendig widerspruechlich.**
+  Unterhalb der abgeleiteten Breite (Bildschirm-Deckel) seit **A33**
+  ausgesetzt, siehe **AK-269**.
+- **AK-160 — entschieden (A33, T-231, Vorschlag T-229c).** Messfenster auf
+  „abgeleitete Startbreite (wie AK-05)" umgestellt; der „schlechtester
+  Fall"-Teil war bereits durch AK-189 geklaert. **Nicht mehr
+  widerspruechlich.**
 
-**Die verbliebene Entscheidung (AK-160) gehoert weiter dem App Designer.**
-Bis sie faellt, fuehren `UI_SPEC.md` und dieses Register fuer diesen einen
-Fall beide Fassungen nebeneinander.
+**Alle drei Faelle sind entschieden — dieser Abschnitt hat keinen offenen
+Fall mehr** und bleibt nur als Verlauf stehen.
