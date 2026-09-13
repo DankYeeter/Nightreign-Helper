@@ -620,6 +620,31 @@ class AdvisorBar(QWidget):
 
         self._show(Situation(State.NOTHING_YET))
 
+    def action_buttons_extra_width(self) -> int:
+        """How many more px the row's minimum needs with `Apply all`/`Why`/
+        `Clear` counted, over its minimum with none of the three counted.
+
+        A hidden widget takes no room in its layout, so simply reading
+        `minimumSizeHint()` right now would answer a different question
+        depending on whether a suggestion happens to be on screen already
+        (S3.1 shows the three action buttons only then). Forcing both ends
+        of the comparison and putting every button back exactly as found
+        answers the same question either way -- `Planner._opening_width`
+        needs that, since it is asked again once a suggestion is up (AK-05)
+        and has to agree with what it said at the window's opening.
+        """
+        buttons = (self.apply_button, self.why_button, self.clear_button)
+        was_hidden = [button.isHidden() for button in buttons]
+        for button in buttons:
+            button.setHidden(False)
+        shown_width = self.minimumSizeHint().width()
+        for button in buttons:
+            button.setHidden(True)
+        hidden_width = self.minimumSizeHint().width()
+        for button, was in zip(buttons, was_hidden):
+            button.setHidden(was)
+        return shown_width - hidden_width
+
     # -- what the window says to the bar ------------------------------------
 
     @property
