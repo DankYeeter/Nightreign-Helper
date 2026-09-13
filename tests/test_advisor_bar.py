@@ -64,6 +64,10 @@ TABLE = [
      "Maximise damage — 6 of 6 slots filled."),
     ("4.7", advisorbar.Situation(advisorbar.State.OUTDATED),
      "Your build changed while this was working out — use Optimize again."),
+    ("4.7-reading", advisorbar.Situation(advisorbar.State.OUTDATED,
+                                         reading_changed=True),
+     "The reading changed while this was working out — use Optimize "
+     "again."),
     ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
      "No save was read, so there are no relics to choose from — use Rescan "
      "save."),
@@ -451,6 +455,26 @@ def test_a_build_that_changes_under_a_run_ends_in_4_7_and_not_in_4_5(bar):
         "again.")
     assert bar.progress.isHidden()
     assert bar.optimize_button.text() == "Optimize"
+
+
+def test_a_reading_that_changes_under_a_run_names_the_reading_not_the_build(
+        bar):
+    """AK-270: the same abandonment, but the sentence must name its cause.
+
+    A goal change and a reading change both cancel a run in flight through
+    `the_build_changed` (AK-183), so the two are told apart by an argument,
+    not by a second code path -- and this is the case that shows the
+    argument actually reaches the sentence.
+    """
+    bar.optimize_button.click()
+    bar._controller.begins()
+    _wait(WAITED_OUT_MS)
+    bar.reading_box.setCurrentIndex(1)
+    bar.reading_box.activated.emit(1)
+    assert bar.situation.state is advisorbar.State.OUTDATED
+    assert bar.status.whole_text() == (
+        "The reading changed while this was working out — use Optimize "
+        "again.")
 
 
 def test_an_answer_that_outlived_its_build_is_thrown_away(bar):

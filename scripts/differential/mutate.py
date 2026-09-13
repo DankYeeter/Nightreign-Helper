@@ -154,6 +154,19 @@ MUTATIONS: dict[str, Mutation] = {
             "sentence at all (DR-023). Killed by `test_a_shortened_status_"
             "keeps_its_whole_sentence_for_the_accessibility_bridge` (T-230g)."),
     ),
+    "reading-change-says-build-changed": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        self.the_build_changed(reading_changed=True)
+""",
+        new="""        self.the_build_changed()
+""",
+        survival_means=(
+            "a reading change during a run says `Your build changed ...` "
+            "again, the same string a goal change uses -- exactly the "
+            "QA-253 confusion AK-270 exists to fix. Killed by `test_a_"
+            "reading_that_changes_under_a_run_names_the_reading_not_the_"
+            "build` (T-232)."),
+    ),
 }
 
 
