@@ -8,7 +8,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
 **Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-221** · QA ab
-**QA-247** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-035** · OF **OF-36**
+**QA-248** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-035** · OF **OF-36**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
 
@@ -29,9 +29,9 @@ Registry-/`libraryfolders.vdf`-Bibliotheken, feste Wurzeln raus) · SEC-037
 Praemissen-Pflichtfeld, Gate-Kriterium, Phasenmodell).
 
 **Dispatch 13.09.:** T-217 `developer` (SEC-038 → SEC-036 → SEC-026, **erledigt** `09f5cdb`+`ffb82dd` Worktree; Befunde: E1-Headline passt nicht zum Herkunftssatz → Spec-Nachtrag; ohne Steam in der Registry wird jeder Ordner abgelehnt → Folge der Entscheidung, **dem Nutzer nennen**) · T-218
-`developer` (QA-210, QA-232, SEC-039, QA-242 erster Anlauf) · T-219
+`developer` (QA-210, QA-232, SEC-039 **behoben**; QA-242 Ursache gemessen, A/B an `ui-ux-designer`; Nebenfund QA-247) · T-219
 `developer` klein (SEC-037, **erledigt** `670d879` auf Worktree-Branch, noch nicht zusammengefuehrt) · T-220 `architect` (**erledigt**: AD-033 Registry als Quittung je Zyklus, `MUTATIONS` einmal leer; AD-034 Planner-Schnitt in drei Schritten `relicslots.py` → `savereader.py` → `statsheet.py`; `ARCHITECTURE.md` ab Z. 5325). **Reihenfolge P10:** erst T-217 zusammenfuehren (aendert Anker in `mutate.py`), dann AD-033 Punkt 2, dann AD-034 Schritte 1-3. Drei
-Worktrees mit Schritt 0 auf `41206be`; dafuer `origin/HEAD` lokal auf
+Worktrees, **zusammengefuehrt** `e465c17` (ein Importkonflikt `oodle.py`, beide Zeilen), Suite auf dem Merge **1805 passed, 9 skipped** (Director, 13.09.); dafuer `origin/HEAD` lokal auf
 `docs/audit-and-advisor-design` gesetzt (B-03). **Vorgaben-Vorlauf
 uebersprungen:** die Vorgaben sind die T-202-Befunde selbst, keine neue
 Vertrauensgrenze, keine neue Abhaengigkeit.
@@ -60,7 +60,7 @@ mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen in einer Nachricht.
 
 ## Befunde
 
-**249 QA** (171 offen, 59 behoben, 12 geschlossen, 6 teilweise, 1 zurueckgestellt), **42 SEC**, **21 DR**.
+**250 QA** (QA-247 neu), **42 SEC**, **21 DR** — Zaehlung nach Status nach der Pruefphase.
 
 **Pruefphase auf `b33461d` durch** (T-201/T-202) — erste seit T-186 bzw.
 T-185, 13 Dateien und +685/-136 dazwischen. QA **PASS**, Security **CONCERNS**
