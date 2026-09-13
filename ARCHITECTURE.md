@@ -330,6 +330,7 @@ der gebaute Zustand.
 | **E** | Daten lesen, Erststart, Pfade | AD-011, AD-012, AD-030, AD-031 |
 | **F** | Test und Nachweis | AD-009 |
 | **G** | Ueberbau: Mutations-Registry, `Planner`-Schnitt (T-220) | AD-033, AD-034 |
+| **H** | Der Berater unter zwei Lesarten, A16 (T-222) | AD-035 |
 
 ---
 
@@ -5679,12 +5680,159 @@ zuerst committet ist — 15 Faelle, alle mit dem Namen der Mutation.
 ### Nachtraege an bestehenden Stellen
 
 - **Z. 42 ("Die naechste freie AD-Nummer ist AD-032")** und **Z. 315**: seit
-  T-189 belegt; nach diesem Abschnitt ist die naechste freie **AD-035**.
-  Massgeblich bleibt `ARCHITECTURE_REGISTER.md`.
+  T-189 belegt; nach diesem Abschnitt ist die naechste freie **AD-035**
+  (seit T-222 vergeben; naechste freie **AD-036**). Massgeblich bleibt
+  `ARCHITECTURE_REGISTER.md`.
 - **Z. 2459 (`baseline_for(pool, goal_id) -> float`)**: Nachtrag steht dort.
 - `docs/plan-restarbeiten.md` P10-2 sagt "5 300 Zeilen kopierten
   Quelltext" — gezaehlt sind 5 325 Literalzeilen (Z. 44–5368) und 96 Zeilen
   Logik; die "rund 100" halten.
+
+---
+
+## Themenbereich H — Der Berater unter zwei Lesarten, A16 (2026-09-13, T-222)
+
+*Angelegt am 13.09.2026 (T-222, `architect`, Entscheidungstiefe klein).
+Bezugsstand HEAD `f1fc79c`. Gegenstand: `GOAL.md` A16 und `UI_SPEC.md`
+AK-182 bis AK-188 (T-092). Eine Entscheidung, AD-035. Keine Aenderung an
+AD-033/AD-034.*
+
+### AD-035 — Die Lesart ist Fensterzustand und erreicht den Lauf nur als Vorbelegung von `declared` (2026-09-13, Status: aktiv)
+
+**Kontext.** A16 verlangt zwei Lesarten derselben Rechnung — *Worst case*:
+jede bedingte Fluchwirkung gilt, keine bedingte Buffwirkung; *Best case*:
+umgekehrt — als **Voreinstellung der Bedingungen**, nicht als zweite
+Rechnung. Der Weg dafuer ist gebaut: `model.compute(..., declared=)`
+ersetzt einen erklaerten bedingten Effekt durch `count` Kopien mit `FORCED`
+(`model.py:913-923`); `advisorbar.asking_from` gibt `planner.declared`
+sortiert in `GoalContext` **und** `AdvisorRequest` (`advisorbar.py:401-428`),
+und `run.run` vergleicht beide (`run.py:271`) — `declared` ist schon Teil des
+Schluessels. Gemessen am Testabzug (`EXTRACT_VERSION` 11) und am Spielstand
+des Nutzers, 13.09.2026, lesend: **24** Effekte mit `is_curse`, davon **7**
+mit Bedingung (`model.is_conditional(eff, None)`: 6850700, 6850800, 6850900,
+6851200, 6851300, 6851400, 6851700 — dieselben sieben wie in `GOAL.md`);
+**414** bedingte Nicht-Fluch-Effekte; der Spielstand hat inzwischen **312**
+Kopien (nicht 309), darauf **27** bedingte Fluchrollen und **260** bedingte
+Buffrollen, davon **103** nur waffentyp-gebunden und 16 gemischt.
+
+**Die vier Fragen des Auftrags, je eine Entscheidung.**
+
+1. **Wo die Lesart lebt: am Fenster, wie der Haltezustand (AD-017.1) und
+   wie `declared` selbst.** `Planner.worst_case: bool = True` (AK-182:
+   `Worst case` voreingestellt); die `AdvisorBar` traegt die zweite
+   `QComboBox` und meldet per Signal `reading_changed(bool)` — dasselbe
+   Muster wie `suggestion_changed` heute und `declared_changed` aus AD-034.
+   Beim Umschalten tut die Leiste, was `_goal_chosen` tut:
+   `the_build_changed()`, kein Lauf (AK-183). Nicht persistiert (OF-15:
+   kein neuer persistenter Zustand). **Verworfen:** ein Feld `reading` auf
+   `AdvisorRequest`/`GoalContext` — es waere eine zweite Darstellung dessen,
+   was `declared` schon traegt (die AD-024-Fehlerklasse), und AK-186 verbietet
+   ein Feld ausser `declared`.
+2. **Wie sie `declared` vorbelegt: `{**model.reading_defaults(worst),
+   **planner.declared}` in `asking_from`.** Handeingabe gewinnt immer —
+   `planner.declared` haelt nur Werte > 0, also ueberschreibt jede erklaerte
+   Bedingung ihre Vorbelegung, in beiden Lesarten (AK-186). Die Vorbelegung
+   ist datensatzweit, nicht je Kandidat: `compute` schlaegt je Effekt in
+   `live` nach, ein Eintrag fuer einen Effekt, der im Build nicht vorkommt,
+   tut nichts. **"Fluch" im Datenmodell ist `effects[id]["is_curse"]`** —
+   gesetzt vom Extraktor fuer jeden Effekt aus den Fluchtabellen
+   `CURSE_FIELDS` (`nrdata/extract.py:100, 2318`), nicht `curse ==
+   "always"/"sometimes"` (das sagt, ob das *Relikt* einen Fluchplatz
+   traegt, 326 Ids) und nicht `is_debuff` (78 Ids, auch Nicht-Fluechte).
+   Vorbelegt wird genau, was am Statblatt einen Schalter hat: bedingt nach
+   `is_conditional(eff, None)` und nicht in `NO_SWITCH` (heute eine Id,
+   7037800). Waffentyp-Tore bleiben **drin** — im besten Fall gilt der Buff
+   "wenn alles passt", und AK-187s Identitaet (`170 + 27 = 197`) ist genau
+   so gerechnet; A17/AD-032 nehmen die Waffe aus der **Voreinstellung**
+   (Worst case), nicht aus dem besten Fall. **Verworfen:** die 103
+   waffentyp-gebundenen Rollen auch im besten Fall auszunehmen — das
+   braeche AK-187 und wuerde eine dritte Lesart erfinden.
+   Die beiden Tabellen entstehen in `model.configure(data)` neben
+   `PERCENT_FIELDS` (ein Durchlauf ueber 2 076 Effekte beim Laden, nicht je
+   Anfrage; OF-26s Hauptthread-Rest bleibt unberuehrt).
+3. **Der Zaehlwert fuer "gilt als aktiv" ist 1** — eine Kopie je Vorkommen,
+   wie ein einfach umgelegter Schalter. Auch fuer zaehlende Effekte
+   (`accumulates`): ein Maximum waere eine erfundene Zahl (A7); wer mehr
+   fuehrt, erklaert es von Hand, und die Handeingabe gewinnt (Punkt 2).
+4. **"Jede Zahl sagt, welche gerade gilt" ohne zweite Rechnung: AK-184 und
+   AK-185, keine neue UI.** Weil die Lesart nur ueber `declared` reist und
+   `declared` im Schluessel steht, kann ein Ergebnis nie unter der anderen
+   Lesart stehen (AK-184, Pruefweg: zwei Anfragen, verschiedene
+   Schluessel). Die Benennung an den genau vier Orten aus AK-185
+   (Bedienelement, Kopf des Vorschlagsblocks, `Why`-Titel und -Kopf,
+   Picker-Zusammenfassung) liest `planner.worst_case`; da AK-183 beim
+   Umschalten den Vorschlag verwirft, zeigt der Kopf nie ein Ergebnis einer
+   anderen Lesart als der eingestellten.
+
+```python
+# nrplanner/model.py -- beside PERCENT_FIELDS, filled by configure(data)
+def reading_defaults(worst: bool) -> dict[int, int]:
+    """Effect id -> 1 for every switchable conditional effect of the reading:
+    the conditional curses (worst) or the conditional buffs (best)."""
+
+# nrplanner/advisorbar.py -- in asking_from, replacing the one line
+declared = tuple(sorted({**model.reading_defaults(planner.worst_case),
+                         **planner.declared}.items()))
+```
+
+**Konsequenzen.** Leicht: der Schalter kostet eine Combobox, ein Signal,
+ein Attribut, eine Funktion und eine Zeile Merge; Cache, Worker, Suche,
+`explain` bleiben unangetastet. Dauerhaft: der Schluessel eines Best-case-
+Laufs traegt ~415 Paare — hashbar und klein, aber wer den Schluessel liest,
+sieht die Vorbelegung, nicht "best case"; das ist gewollt (AK-184).
+
+**Umkehrbarkeit: leicht** — Attribut, Signal und Merge-Zeile entfernen;
+`reading_defaults` bleibt als Qt-freie Funktion nuetzlich oder faellt mit.
+
+**Beruehrte Entscheidungen.** AD-004/AD-025 (Vorbehalte): ein bedingter
+Fluch, der im Worst case zaehlt, verlaesst `not_counted` — AK-187 legt die
+Zahlen fest, nichts an der Registry aendert sich. AD-032/A17: die
+Voreinstellung (Worst case) rankt weiter ohne Waffe; der Best case setzt
+Waffentyp-Tore als erfuellt, was A17s Satz "Waffen sind RNG" nicht
+widerspricht, sondern ihn als *besten* Wurf liest. AD-014/AD-016: der
+Haltezustand ist unberuehrt; `declared` reist wie bisher.
+
+**Umsetzung — ein `developer`-Auftrag, fuenf Anwendungsdateien.**
+`nrplanner/model.py` (zwei Tabellen in `configure`, `reading_defaults`) ·
+`nrplanner/advisorbar.py` (Combobox AK-182, `_reading_chosen` wie
+`_goal_chosen`, Signal, Merge-Zeile, Kopfzeile des Vorschlagsblocks AK-185)
+· `nrplanner/app.py` (`worst_case`, `reading_changed.connect`, Lesart an
+`WhyHeading`) · `nrplanner/advisorblock.py` (`WhyHeading`/`WhyDialog`-Titel
+AK-185) · `nrplanner/relicpicker.py` (Zusammenfassungszeile AK-185). Tests
+(zaehlen nach OF-34 nicht): `tests/test_advisor_goals.py` und
+`tests/test_advisor_bar.py`.
+
+**Der benannte Test fuer die GOAL-Abnahme** (misst am Testabzug plus
+Spielstand des Nutzers, `pytest.skip` ohne Save wie
+`test_the_ranking_does_not_depend_on_the_armament_held`):
+`tests/test_advisor_goals.py::test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits`
+— mit `ranking_with` je Lesart (`declared` einmal aus
+`reading_defaults(True)`, einmal aus `reading_defaults(False)`) ueber alle
+Kopien: die Rangfolge unter `min_damage_taken` **unterscheidet sich**, und
+jede Kopie, deren Zahl sich bewegt, traegt eine der sieben Fluch-Ids in
+`curse_ids` (`GOAL.md` erwartet 11 Kopien bei `min_damage_taken`, 8 bei
+`max_damage`; die Zahl wird im Test als Literal gefuehrt und nach dem ersten
+Lauf am jetzigen Spielstand mit 312 Kopien nachgezaehlt). Zweiter Fall in
+derselben Datei: `test_the_readings_share_not_counted_and_invent_nothing`
+(AK-187: Summe von `len(explain.not_counted(built))` je Lesart,
+`worst + best == today`). Qt-frei dazu:
+`test_reading_defaults_name_the_seven_conditional_curses_and_nothing_else`
+(worst: genau die sieben Ids; best: 414 minus `NO_SWITCH`-Treffer; keine
+Id in beiden). Vorrang der Handeingabe in `tests/test_advisor_bar.py`:
+`test_a_declared_condition_outlives_both_readings` (AK-186). Toetende
+Mutationen gehen nach AD-033 in `MUTATIONS` und werden gefahren; die
+Registry ist nach T-223 leer, Anker sind keine zu nennen.
+
+**Was der `developer` nicht tut.** Kein Feld auf `AdvisorRequest`,
+`GoalContext`, `AdvisorResult`; kein Umschalten der Statblatt-Schalter
+(Nicht-Ziel in A16); kein Lauf beim Umschalten (AK-183); keine Lesart in
+Effekt-, Fluch- oder Zaehlzeilen (AK-185); kein Maximum fuer zaehlende
+Effekte; keine Aenderung an `explain`-Saetzen (AK-188).
+
+**Fuer den `ui-ux-designer`.** Kein neues AK noetig. AK-187/AK-188 nennen
+Zahlen aus Umgebung §0 (309 Kopien); der Spielstand hat heute 312 — die
+Literale werden beim ersten Lauf nachgezaehlt, die Identitaet gilt
+unveraendert.
 
 ---
 
