@@ -4,10 +4,11 @@
 fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263), **T-221**
 (AK-264 bis AK-267), **T-226** (A31: AK-05 entschieden, AK-194 zunaechst
 verengt, AK-268 neu; A32-Nachtrag: AK-194 vollstaendig entschieden, A14
-zieht den Leistenbedarf nach) und **T-231** (A33: AK-160 aufgeloest —
+zieht den Leistenbedarf nach), **T-231** (A33: AK-160 aufgeloest —
 Widerspruch-Liste leer, AK-269/AK-270 neu, AK-187/AK-188 auf 314 Kopien
-nachgezaehlt)
-**Umfang:** 270 Akzeptanzkriterien, AK-01 bis AK-270, in sieben
+nachgezaehlt) und **T-233** (A34: AK-271 neu — Untergrenze 1536 px fuer
+AK-05/AK-269)
+**Umfang:** 271 Akzeptanzkriterien, AK-01 bis AK-271, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -76,7 +77,7 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
 | **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263, AK-265 bis AK-267 |
-| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 bis AK-270 |
+| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 bis AK-271 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
 Die Reihenfolge folgt dem Weg eines Spielers: erst das Fenster, das ihn nach
@@ -1135,6 +1136,11 @@ sichtbar) als auch **mit** Vorschlag (Zustand mit `Apply all`/`Why`/`Clear`).
 Pruefweg fuer den `developer`: der T-225-Waechter
 `test_at_the_opening_width_no_action_button_is_cut` (Befund 1, aktuell rot)
 wird nach dem A32-Fix in T-227 gruen erwartet, ohne Testabschwaechung.
+
+**Dazu A34 — Nutzerentscheidung, 13.09.2026 (T-233): Untergrenze 1536 px.**
+AK-05 gilt in dieser (vollstaendigen) Fassung nur **ab 1536 px logischer
+Breite**; darunter greift AK-271 (Zielwahl/Lesart-Box duerfen abgeschnitten
+sein). Grund und Wortlaut: siehe **AK-271** (Bereich 6, neben AK-269).
 
 #### AK-06
 *Verlauf: A01 Z347 · zuletzt geaendert durch T-004, 2026-09-01*
@@ -3620,6 +3626,18 @@ jedem der drei Faelle den vollen Statustext. *Rot-vorher:* der heutige Bau
 (T-229a Befund 1) zeigt bei `room=1366` `cut == ['goal_box', 'reading_box']`
 (69 px statt 183/87 px) — genau das verbietet AK-269.
 
+**Korrektur (A34, T-233): die Forderung "`cut == []` bei room=1366" war
+nicht erfuellbar, nicht nur ungebaut.** T-230 (Befund 1, developer) misst:
+bei `room=1366` braucht die Leiste im Vorschlagszustand ohne Statuszeile
+683 px, die mittlere Spalte hat nur 514 px — Qt kuerzt zwangslaeufig vom
+groessten Element her, keine Stretch-/Groessenpolitik kann die Reihenfolge
+aendern. Die einzige Politik, die die Boxen schuetzt (`QSizePolicy.Minimum`
+statt `Ignored`), hebt das Fenster-Minimum auf 1381 px — 15 px ueber einem
+1366-px-Desktop — und bricht damit **AK-03** (die Leiste verlangt kein
+Fenstermindestmass). AK-269s eigene Forderung war also intern
+widerspruechlich (schuetzt man die Boxen bei 1366, bricht AK-03; laesst man
+AK-03, brechen die Boxen). **Siehe AK-271** fuer die Aufloesung.
+
 #### AK-270
 *Neu in T-231, 2026-09-13 (A33) — QA-253 (T-229a Befund 5: der 4.7-Satz
 sagt bei blossem Lesartwechsel faelschlich, der Build habe sich geaendert)*
@@ -3639,6 +3657,34 @@ heutige Bau zeigt bei einem Lesartwechsel waehrend eines Laufs
 `Your build changed ...` — dieselbe Zeichenkette wie beim Zielwechsel, ohne
 Unterscheidung der Ursache. **Bauauftrag folgt in einem eigenen
 Retest-Fix-Auftrag, nicht in T-230.**
+
+#### AK-271
+*Neu in T-233, 2026-09-13 (A34) — Nutzerentscheidung zur Untergrenze
+(T-230 Befund 1: bei `room=1366` sind Boxen und Fenster-Minimum (AK-03)
+gegeneinander nicht zu erfuellen)*
+
+**AK-271** *(AK-05/AK-269 gelten ab 1536 px logischer Breite.)* Woertlich
+die gewaehlte Option: *„Untergrenze 1536 px — AK-05 gilt ab 1536 px
+logischer Breite; darunter duerfen die Boxen abgeschnitten sein, README
+nennt die Mindestbreite. Kein Code, ein Spec-Satz und ein Waechterfall."*
+Damit gilt: **ab 1536 px logischer Breite** (1080p bei 125 % — die
+abgeleitete Startbreite selbst kann darueberliegen, A14/A32) gelten AK-05
+und AK-269 unveraendert vollstaendig (kein abgeschnittener Text ausser der
+Statuszeile, Zielwahl/Lesart-Box nie abgeschnitten). **Unterhalb** von
+1536 px logischer Breite (z. B. `room=1366`) duerfen Zielwahl und
+Lesart-Box abgeschnitten sein; die Statuszeile bleibt bei 0 px (AK-269),
+und ihr voller Text steht — wie in jedem Zustand — unveraendert im Tooltip
+der Leiste. AK-03 (die Leiste verlangt selbst kein Fenstermindestmass)
+bleibt in jedem Fall unangetastet.
+
+Pruefweg fuer den `developer`: Waechterfall `room=1366` erwartet `cut`
+**erlaubt** (statt `cut == []`); Waechterfall `room=1536` weiterhin
+`cut == []`, Statuszeile darf dort 0 px sein (AK-269 unveraendert). T-232
+baut den Waechterfall parallel zu diesem Nachtrag.
+
+**Hinweis an den `technical-writer`:** das README nennt die Mindestbreite
+1536 px logische Breite (1080p bei 125 % Skalierung) als empfohlene
+Bildschirmgroesse (Release-Kette, nicht Gegenstand dieser Spec-Datei).
 
 ---
 

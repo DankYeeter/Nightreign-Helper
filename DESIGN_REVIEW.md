@@ -59,6 +59,11 @@ A7-Verstoss."
 
 ### DR-022 — Relic Picker faellt nach Entwertung des Spielstands nicht auf AK-212 zurueck
 
+**Status (T-233, 13.09.2026): gebaut in T-230 (`4e8fec0`), Retest offen.**
+Nicht selbst am laufenden Fenster nachgemessen — dieser Lauf ist Spec-only,
+kein Code-/Bildnachweis. ID bleibt stehen, Befund unten unveraendert, bis
+`qa-engineer` den Retest bestaetigt.
+
 **Kritisch — A7/AK-212/AK-267.** [`nrplanner/relicpicker.py:1006` (`slot.
 stock_replaced.connect(self._refresh)`), `:1387-1460` (`_refresh`),
 `:1543-1547` (`NO_SAVE_WAS_READ`-Zweig)]
@@ -118,6 +123,11 @@ der beiden Ursachen (Karte vs. Picker) den gemeinsamen Reset traegt.
 ![Nach Rescan ohne Fund, Dialog blieb offen: „0 of 0 relics … ranked against your build …“, Custom-Kachel bleibt, Kopfzeile nicht leer](design-review/2026-09-13/dr022-picker-after-invalidation-broken-state.png)
 
 ### DR-023 — Statuszeile nur per Maus-Hover vollstaendig lesbar, keine Tastatur-/Screenreader-Route
+
+**Status (T-233, 13.09.2026): gebaut in T-230 (`781ce3c`), Retest offen.**
+Nicht selbst am laufenden Fenster nachgemessen — dieser Lauf ist Spec-only,
+kein Code-/Bildnachweis. ID bleibt stehen, Befund unten unveraendert, bis
+`qa-engineer` den Retest bestaetigt.
 
 **Wichtig — Accessibility-Luecke neben einer bereits getroffenen
 Entscheidung.** [`nrplanner/advisorbar.py:451-491` (`_ElidingLabel`)]
