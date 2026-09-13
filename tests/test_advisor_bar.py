@@ -330,7 +330,12 @@ def test_the_row_takes_its_words_from_the_registry_and_nowhere_else(
 
 
 def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
-    """4.8, and only this row's controls (AK-08 is about all the others)."""
+    """4.8, and only this row's controls (AK-08 is about all the others).
+
+    Three of them since A16, under one condition (AK-268): a reading box
+    left live with no save behind it would be a choice with nothing to
+    read.
+    """
     bar.asking["value"] = None
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.NO_SAVE
@@ -338,6 +343,7 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
         "No save was read, so there are no relics to choose from — use "
         "Rescan save.")
     assert not bar.goal_box.isEnabled()
+    assert bar.reading_box.isEnabled() is False
     assert not bar.optimize_button.isEnabled()
 
 
