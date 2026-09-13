@@ -70,6 +70,19 @@ MUTATIONS: dict[str, Mutation] = {
             "Killed by `test_on_a_narrow_desktop_the_boxes_keep_their_"
             "captions_and_the_row_carries_the_status` (T-230a)."),
     ),
+    "open-picker-keeps-the-answer-over-a-replaced-stock": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""        slot.stock_replaced.connect(self._the_stock_was_replaced)
+""",
+        new="""        slot.stock_replaced.connect(self._refresh)
+""",
+        survival_means=(
+            "a dialog standing open through a rescan keeps the track's "
+            "answer about the stock that has gone and says `ranked against "
+            "your build` over an empty grid (DR-022). Killed by `test_a_"
+            "picker_standing_open_falls_back_to_the_state_before_any_save` "
+            "(T-230b)."),
+    ),
 }
 
 

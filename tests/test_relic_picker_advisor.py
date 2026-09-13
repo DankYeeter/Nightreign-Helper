@@ -529,6 +529,53 @@ def test_a_picker_standing_open_loses_its_cards_with_the_save(planner):
         dialog.deleteLater()
 
 
+def test_a_picker_standing_open_falls_back_to_the_state_before_any_save(
+        planner):
+    """AK-267 to the letter: the open dialog shows the never-read state.
+
+    Not only the cards (QA-247) but the header and the summary too (DR-022):
+    until T-230 the dialog kept the track's answer about the stock that had
+    gone, and said `0 of 0 relics · ranked against your build` over an
+    empty grid. The measure is a picker opened fresh after the same rescan,
+    which is the state AK-267 names.
+    """
+    slot = a_slot(planner)
+    standing = relicpicker.RelicPicker(slot, slot.icons, "",
+                                       lambda _text: None)
+    try:
+        standing.show()
+        rendered.settle()
+        a_rescan_that_finds_no_save(planner)
+        rendered.settle()
+        fresh = relicpicker.RelicPicker(slot, slot.icons, "",
+                                        lambda _text: None)
+        try:
+            assert relic_cards(standing) == []
+            assert standing.headline.text() == relicpicker.NO_SAVE_WAS_READ
+            assert standing.summary.text() == fresh.summary.text()
+            assert len(custom_tiles(standing)) == len(custom_tiles(fresh))
+        finally:
+            fresh.deleteLater()
+    finally:
+        standing.deleteLater()
+
+
+def test_a_rescan_that_finds_no_save_puts_the_row_into_4_8(planner):
+    """AK-268 after a rescan, not only at the start (QA-251).
+
+    The row's answer goes with the old stock; the row itself has to be put
+    back once the new stock is in, or it goes on offering `Optimize` under
+    a line that says no save was found.
+    """
+    bar = planner.advisor_bar
+    assert bar.optimize_button.isEnabled(), "the premise: a save was read"
+    a_rescan_that_finds_no_save(planner)
+    rendered.settle()
+    assert not bar.goal_box.isEnabled()
+    assert not bar.reading_box.isEnabled()
+    assert not bar.optimize_button.isEnabled()
+
+
 # --- the tie mark (AK-45, AK-46) -------------------------------------------
 
 def test_the_chip_carries_a_word_and_every_card_worth_the_most_wears_it(slot):
