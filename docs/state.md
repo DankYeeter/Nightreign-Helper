@@ -28,7 +28,7 @@ Registry-/`libraryfolders.vdf`-Bibliotheken, feste Wurzeln raus) · SEC-037
 **Deckel nachziehen**. Teamregeln vom 12./13.09. gelesen (`templates/task.md`
 Praemissen-Pflichtfeld, Gate-Kriterium, Phasenmodell).
 
-**Dispatch 13.09.:** T-217 `developer` (SEC-038 → SEC-036 → SEC-026) · T-218
+**Dispatch 13.09.:** T-217 `developer` (SEC-038 → SEC-036 → SEC-026, **erledigt** `09f5cdb`+`ffb82dd` Worktree; Befunde: E1-Headline passt nicht zum Herkunftssatz → Spec-Nachtrag; ohne Steam in der Registry wird jeder Ordner abgelehnt → Folge der Entscheidung, **dem Nutzer nennen**) · T-218
 `developer` (QA-210, QA-232, SEC-039, QA-242 erster Anlauf) · T-219
 `developer` klein (SEC-037, **erledigt** `670d879` auf Worktree-Branch, noch nicht zusammengefuehrt) · T-220 `architect` (P10-2 und P10-1). Drei
 Worktrees mit Schritt 0 auf `41206be`; dafuer `origin/HEAD` lokal auf
