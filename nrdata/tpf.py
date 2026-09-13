@@ -9,7 +9,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
-from .binary import read_cstring
+from .binary import NotWhatItClaims, read_cstring
 
 
 @dataclass
@@ -22,7 +22,7 @@ class Texture:
 
 def read(data: bytes) -> list[Texture]:
     if data[:4] != b"TPF\0":
-        raise ValueError(f"not a TPF container (magic {data[:4]!r})")
+        raise NotWhatItClaims("not a TPF container: missing the TPF\\0 magic")
 
     _data_size, file_count = struct.unpack_from("<II", data, 4)
     platform = data[0x0C]
@@ -46,6 +46,12 @@ def read(data: bytes) -> list[Texture]:
         pos += 8  # name offset + unknown
 
         name = read_cstring(data, name_offset, utf16=(encoding == 1))
+
+        if file_offset + file_size > len(data):
+            raise NotWhatItClaims(
+                f"TPF member {name!r} claims {file_size} bytes at offset "
+                f"{file_offset}, past the {len(data)}-byte container"
+            )
 
         out.append(
             Texture(

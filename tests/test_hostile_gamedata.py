@@ -14,6 +14,10 @@ ever reached by accident.
 * **SEC-006**, `test_a_member_claiming_*`: the decompressed size out of a DCX
   header sized the output buffer with nothing in between. Four bytes could ask
   for four gibibytes.
+* **SEC-037**, `test_a_zstd_member_*`, `test_a_dflt_member_*`,
+  `test_a_tpf_member_*`: SEC-006 closed the KRAK branch alone; the ZSTD and
+  DFLT branches of the same DCX header, and a TPF member table's own offsets,
+  had nothing between the file's claim and an allocation or a slice.
 * **SEC-010**, `test_a_layout_*`: the atlas layout XML went through
   ElementTree, which expands the entities a document declares about itself.
   Thirteen nested ten-fold entities are a gigabyte, and the file decided how
@@ -28,10 +32,11 @@ from __future__ import annotations
 
 import struct
 import time
+import zlib
 
 import pytest
 
-from nrdata import binary, bossdata, dds, icons, oodle
+from nrdata import binary, bossdata, dcx, dds, icons, oodle, tpf
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -152,6 +157,90 @@ def test_the_ceiling_clears_the_largest_member_the_game_ships():
     # that would refuse an asset the planner has to read.
     largest_measured = 982_464_964
     assert oodle.MAX_UNCOMPRESSED_SIZE > largest_measured
+
+
+# ---------------------------------------------------------------------------
+# SEC-037 -- the ZSTD and DFLT branches of the same DCX header, and a TPF
+# member table's own offsets
+
+
+def dcx_container(method: bytes, uncompressed_size: int, payload: bytes) -> bytes:
+    """A minimal DCX container: DCS/DCP/DCA blocks followed by the payload.
+
+    `dca_header_size` is fixed at 8 -- the size of the DCA\\0 tag plus its own
+    length field -- so the payload starts the byte after this function writes
+    it, with no padding to account for.
+    """
+    dca_header_size = 8
+    blob = bytearray(b"DCX\0")
+    blob += b"DCS\0" + struct.pack(">II", uncompressed_size, len(payload))
+    blob += b"DCP\0" + method
+    blob += b"DCA\0" + struct.pack(">I", dca_header_size)
+    blob += payload
+    return bytes(blob)
+
+
+def test_a_zstd_member_over_the_ceiling_is_refused(monkeypatch):
+    monkeypatch.setattr(dcx, "MAX_UNCOMPRESSED_SIZE", 8)
+    container = dcx_container(b"ZSTD", uncompressed_size=9, payload=b"\0" * 4)
+    with pytest.raises(binary.NotWhatItClaims) as raised:
+        dcx.decompress(container)
+    assert "9" in str(raised.value)
+    assert "8" in str(raised.value)
+
+
+def test_a_dflt_member_over_the_ceiling_is_refused(monkeypatch):
+    # zlib.compress on 1000 zero bytes is a stream that still has output left
+    # once a decompressor stops at a much smaller max_length -- the shape of
+    # a header understating what it will actually make the decompressor do.
+    monkeypatch.setattr(dcx, "MAX_UNCOMPRESSED_SIZE", 100)
+    raw = b"\0" * 1000
+    container = dcx_container(b"DFLT", uncompressed_size=len(raw),
+                              payload=zlib.compress(raw))
+    with pytest.raises(binary.NotWhatItClaims) as raised:
+        dcx.decompress(container)
+    assert "1000" in str(raised.value)
+    assert "100" in str(raised.value)
+
+
+def test_a_zstd_member_within_the_ceiling_still_decompresses(monkeypatch):
+    monkeypatch.setattr(dcx, "MAX_UNCOMPRESSED_SIZE", 1024)
+    import zstandard
+
+    raw = b"hello world"
+    container = dcx_container(b"ZSTD", uncompressed_size=len(raw),
+                              payload=zstandard.ZstdCompressor().compress(raw))
+    assert dcx.decompress(container) == raw
+
+
+def tpf_container(file_offset: int, file_size: int) -> bytes:
+    """The smallest TPF `tpf.read` walks: a header and one file entry.
+
+    Platform 0 (little-endian), flag2 0 (no extended header pointer), encoding
+    0 (shift-jis name) keep the entry exactly 20 bytes: offset, size, four
+    format bytes, then the name offset and its trailing unknown field.
+    """
+    name = b"a\0"
+    name_offset = 0x10 + 20
+    entry = struct.pack("<II", file_offset, file_size)
+    entry += struct.pack("<BBBB", 0, 0, 0, 0)
+    entry += struct.pack("<II", name_offset, 0)
+    header = struct.pack("<II", 0, 1) + bytes([0, 0, 0]) + b"\0"
+    assert len(b"TPF\0" + header) == 0x10
+    return b"TPF\0" + header + entry + name
+
+
+def test_a_tpf_member_past_the_container_end_is_refused():
+    container = tpf_container(file_offset=0, file_size=0)
+    oversized = tpf_container(file_offset=0, file_size=len(container) + 1)
+    with pytest.raises(binary.NotWhatItClaims):
+        tpf.read(oversized)
+
+
+def test_a_tpf_member_within_the_container_still_reads():
+    container = tpf_container(file_offset=0, file_size=4)
+    textures = tpf.read(container)
+    assert textures[0].dds == container[0:4]
 
 
 # ---------------------------------------------------------------------------
