@@ -1,159 +1,79 @@
 # Nightreign-Helper
 
-## Repo-Kategorie
+*Nur Projektfakten. Teamregeln stehen in `~/.claude/CLAUDE.md`,
+`~/.claude/agents/_rahmen.md` und `~/.claude/commands/director.md` und werden
+hier nicht wiederholt. Jeder Auftrag verweist auf diese Datei.*
 
-**Kategorie: privat** — das bezieht sich auf die **Herkunft**, nicht auf die
-Sichtbarkeit: kein Firmencode, keine Firmendaten, ausschliesslich Daniels
-persoenlicher Account. **Das GitHub-Repository selbst ist oeffentlich**
-(`gh repo view`: `PUBLIC`, geprueft 06.09.2026). Beides gilt gleichzeitig und
-hat schon zu einem gemeldeten Widerspruch gefuehrt. Fuer die Arbeit heisst
-das: **alles, was hier committet wird, ist fuer jeden lesbar** — daher
-NH-002 (keine Bildschirmabzuege) und die Regel, dass Bildnachweise nur aus
-dem Programmfenster stammen.
-
-Erlaubte Remotes: ausschließlich der persönliche GitHub-Account
-`github.com/DankYeeter`.
-
-Dieses Projekt enthält keinen Firmencode und keine Firmendaten. Es wird
-niemals in ein Firmen-Remote gepusht.
-
-Deklariertes Remote: `https://github.com/DankYeeter/Nightreign-Helper.git`
-
-Der `archivist` prüft vor jedem Push `git remote -v` gegen diese Angabe.
-Weichen Remote und Kategorie voneinander ab, wird **nicht** gepusht,
-sondern gemeldet. Das ist eine arbeitsrechtliche Grenze und hat Vorrang
-vor jeder anderen Regel.
-
----
+**Repo-Kategorie:** privat nach Herkunft (kein Firmencode, nur Daniels
+Account), **das GitHub-Repository ist öffentlich** (`gh repo view`: PUBLIC,
+06.09.2026) — alles Committete ist für jeden lesbar (NH-002). Erlaubtes Remote
+ausschliesslich `https://github.com/DankYeeter/Nightreign-Helper.git`; der
+`archivist` prüft `git remote -v` vor jedem Push, bei Abweichung wird nicht
+gepusht, sondern gemeldet. Arbeitsrechtliche Grenze, Vorrang vor allem.
 
 ## Projektsprache
 
-**Aus der Praxis dieses Repos aufgeschrieben, nicht neu festgelegt**
-(Director, 08.09.2026 — bis dahin stand hier nichts, und die Regel fehlte
-damit in jedem Auftrag):
-
 | wo | Sprache |
 |---|---|
-| **Oberflaeche des Programms** | **Englisch** — Abnahmekriterium **A8**, ohne Ausnahme |
+| Oberfläche des Programms | **Englisch** — Abnahmekriterium A8, ohne Ausnahme |
 | Code, Bezeichner, Docstrings, Kommentare | Englisch |
-| Commit-Messages | Deutsch, Conventional-Commits-Praefix englisch (`docs(state): …`) |
-| Doku im Repo (`docs/`, Auftraege, Berichte, Befunde) | Deutsch |
-| `README.md`, `docs/anleitung/`, `CHANGELOG.md`, Release-Texte | **Englisch** — sie richten sich an die Nutzer |
-| Chat mit dem App Designer | Deutsch |
+| Commit-Messages | Deutsch, Conventional-Commits-Präfix englisch |
+| Doku im Repo (`docs/`, Aufträge, Berichte, Befunde) | Deutsch |
+| `README.md`, `docs/anleitung/`, `CHANGELOG.md`, Release-Texte | Englisch |
 
-Umlaute werden in Doku und Commits **umschrieben** (`ae`, `oe`, `ue`, `ss`).
+Umlaute in Doku und Commits umschrieben (`ae`, `oe`, `ue`, `ss`).
 
-## Projektzeilen fuer jeden Auftrag
+## Zielsystem
 
-*Diese Angaben gehoeren laut Director-Definition in **jeden** Auftrag und
-stehen in keiner Rollendefinition. Bis zum 08.09.2026 hat der Director sie von
-Hand abgeschrieben: 32 Auftragsdateien wiederholen die Scratchpad-Regel, 7 die
-Umlenkungen, 4 den Testbefehl. **Ab jetzt genuegt der Verweis auf diesen
-Abschnitt** — plus das, was fuer den einzelnen Auftrag davon abweicht.*
+Windows 10/11 x64. Linux und macOS nie geprüft, kein Ziel. Artefakt:
+PyInstaller-Einzeldatei ohne Installer.
 
-### Zielsystem
-
-Windows 10/11 x64. Linux und macOS sind **nie geprueft** und kein Ziel.
-Das ausgelieferte Artefakt ist eine PyInstaller-Einzeldatei ohne Installer.
-
-### Testbefehl
+## Testbefehl
 
 ```
-pytest -n auto      # volle Suite, rund 127 s (seriell 840 s)
-pytest <datei>      # eine einzeln genannte Datei OHNE -n; mit -n stiege sie
-                    # von 1,2 auf 4,0 s, und genau die verlangt die
-                    # Gegenproben-Regel
+pytest -n auto      # volle Suite, ~135 s (seriell 840 s); 12.09.2026: 1789 passed, 9 skipped
+pytest <datei>      # gezielt, OHNE -n (1,2 s statt 4,0 s)
 ```
 
-`-n auto` ist **bewusst keine Voreinstellung** in `pytest.ini`. Stand
-08.09.2026: **1257 passed, 9 skipped, 0 failed**; aktuell **1781 passed, 9
-skipped, 0 failed** (`pytest -n auto -q`, 12.09.2026, T-199) — Differenz
-ungeklaert. Wer die Suite laufen laesst, nennt seine Zahl gegen den
-aktuellen Stand.
+`-n auto` ist bewusst keine Voreinstellung in `pytest.ini`.
 
-### Datenverzeichnisse — und die Sperre davor
+## Datenverzeichnisse und Umlenkung
 
-Das Programm schreibt an **drei** Orten. Ein `PreToolUse`-Hook erzwingt die
-Umlenkung: wer sie vergisst, kommt nicht durch.
+Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`
+(PreToolUse) sperrt jeden Programm- oder Messlauf ohne diese Umlenkung:
 
 | Variable | ausgewertet in | umlenken auf |
 |---|---|---|
-| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py:25` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` |
-| `LOCALAPPDATA` | `nrplanner/paths.py:20` | das eigene Testverzeichnis |
-| `APPDATA` | `nrplanner/shortcut.py:44-49` | das eigene Testverzeichnis |
+| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` |
+| `LOCALAPPDATA` | `nrplanner/paths.py` | eigenes Testverzeichnis |
+| `APPDATA` | `nrplanner/shortcut.py` | eigenes Testverzeichnis |
 
-**Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds. Lesen ja,
-schreiben nie.** Zyklus 4/5: drei Datenverluste (QA-195); 07.09.2026: eine
-Verknuepfung im echten Start-Menue, weil nur zwei der drei Variablen
-umgelenkt waren.
+Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds: lesen ja,
+schreiben nie. Positive Pfadauflösung (`paths.cache_dir()` zurücklesen) hält
+als Nachweis; Abwesenheit hält nicht (QA-237: die Überlagerung ist
+Claude-weit). Der Spielstand ist read-only und darf gelesen werden.
 
-**Positive Pfadaufloesung haelt als Nachweis** — den vom Code berechneten
-Pfad zuruecklesen (z. B. `paths.cache_dir()`). **Abwesenheit haelt nicht**:
-sie blickt durch dieselbe geteilte Ueberlagerung wie der Schreibvorgang
-selbst (QA-237). Die Ueberlagerung ist **kein Sicherheitsnetz**: die
-einzige dokumentierte Flucht (07.09.2026) lief durch `shortcut.create()`,
-das `powershell.exe` als Kindprozess startet, dessen COM-Aufruf ausserhalb
-dieses Prozesses schreibt — Hypothese des `security-reviewer`, belegt,
-nicht gegengeprueft. Die Drei-Variablen-Umlenkung bleibt die einzige
-Absicherung.
+**Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
+(841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0; spart
+110 s je Lauf). In das umgelenkte `LOCALAPPDATA` **kopieren**, nicht darauf
+zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im Projektbaum. Ungültig, sobald
+`EXTRACT_VERSION` über 11 steigt — der erste betroffene Lauf ersetzt die
+Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 
-Der **Spielstand selbst ist read-only** und darf gelesen werden — er ist die
-einzige realistische Datengrundlage.
+## Verbotene Zugriffe
 
-### Fester Testabzug statt Neubau
+- Nie in Spielstand oder Spielinstallation schreiben; kein Mod, kein
+  Save-Editor.
+- Kein Netzwerkzugriff im Anwendungscode, keine Telemetrie, keine Wiki-Daten.
+- Keine Bildschirmabzüge (NH-002); Bildnachweise nur per `PrintWindow` aus dem
+  Programmfenster.
+- Keine Spieldaten ins Repository (`nightreign_data.json`, Symbole);
+  `NightreignHelper.spec` zählt genau zwei Quellen, ein Wächtertest hält das.
 
-```
-C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug
-```
+## Besonderheiten
 
-Stand 12.09.2026, durch eine Probe des Nutzers am echten System bestaetigt:
-841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0,
-Ersparnis 110,0 s ohne gegen 5,75 s mit. **In das umgelenkte `LOCALAPPDATA`
-kopieren**, nicht darauf zeigen lassen — das Programm schreibt hinein.
-**Nicht unter `%LOCALAPPDATA%`** (QA-237), **nicht im Projektbaum**: er
-stammt aus der Spielinstallation, NH-002 und A-003 verbieten das.
-**Ungueltig**, sobald das Spiel gepatcht wird oder `EXTRACT_VERSION` ueber 11
-steigt — der erste Lauf, dem das passiert, **ersetzt die Vorlage** und
-vermerkt es in `docs/plan-restarbeiten.md` (E-1).
-
-### Scratchpad
-
-Der Scratchpad ist **pro Sitzung** segmentiert, **nicht pro Rolle** — jede
-gleichzeitig laufende Rolle sieht dieselben Dateien und kann sie loeschen.
-Am 07.09.2026 wurde so ein Messbaum mitten im Messstapel geleert, zwei von
-sechs Messungen mussten wiederholt werden.
-
-**Jeder Auftrag bekommt ein eigenes Unterverzeichnis, benannt nach seiner
-T-Nummer** (`…/scratchpad/T-###/`). Nichts ausserhalb davon anfassen.
-
-### Verbotene Zugriffe
-
-- **Nie** in den Spielstand oder die Spielinstallation schreiben. Der Save ist
-  read-only, das Programm ist kein Mod und kein Save-Editor.
-- **Kein Netzwerkzugriff** im Anwendungscode, keine Telemetrie, keine
-  Wiki-Daten. Das ist ein Nicht-Ziel aus `GOAL.md`.
-- **Keine Bildschirmabzuege** (NH-002). Bildnachweise stammen ausschliesslich
-  aus dem Programmfenster (`PrintWindow`), weil das Repository oeffentlich ist.
-- **Keine Spieldaten ins Repository** — weder `nightreign_data.json` noch
-  Symbole. `NightreignHelper.spec` zaehlt genau zwei Quellen auf
-  (`nrplanner/data/icon.ico`, `vendor/Paramdex/NR/Defs`); ein Waechtertest
-  haelt das fest.
-- **`git commit` immer mit Pfad hinter `--`**, nie `-a`, nie `add -A`, nie
-  `add .`. Vier Vorfaelle, bei denen fremde Dateien in fremde Commits geraten
-  sind; beim vierten wurde die Regel woertlich eingehalten und trotzdem
-  gerissen, weil `commit` **ohne** Pfad den ganzen Index nimmt.
-
-### Der Bericht ist Teil des Auftrags
-
-Eine Rolle **mit** `Write` gilt erst als fertig, wenn
-`docs/berichte/T-###-<rolle>.md` auf der Platte liegt. Rollen **ohne** `Write`
-— heute `power-user`, `security-reviewer`, `archivist`,
-`fehlerdiagnostiker` — liefern den Bericht vollstaendig in der Antwort; **der
-Director legt ihn ab, bevor die naechste Rolle startet** (L-010, Pruefung 3).
-**Korrektur 12.09.2026:** der `qa-engineer` stand hier bis heute unter den
-Rollen ohne `Write`. Er hat es — `~/.claude/agents/qa-engineer.md` fuehrt
-`tools: Read, Grep, Glob, Bash, Write`. Er legt seinen Bericht also selbst
-ab; der Director wartet darauf, statt ihn abzuschreiben.
-
-Am 08.09.2026 wurde der `power-user`-Bericht zu T-115 vom Director
-nachgetragen; das war **richtig so** und keine Verfehlung der Rolle.
+- Projektregeln tragen das Präfix `NH-`; `docs/plan-restarbeiten.md` führt
+  Restarbeiten und Regelpflege.
+- Register `qa/findings.md`, `security/findings.md`: NH-003-Wächter
+  (`tests/`) prüft die Tabellenform bestehender Zeilen; neue Einträge nur
+  anhängen.
