@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import struct
 
-from .binary import read_cstring
+from .binary import NotWhatItClaims, read_cstring
 
 # One group header: {int32 offset index, int32 first id, int32 last id}.
 GROUP_SIZE = 16
@@ -32,12 +32,12 @@ def read(data: bytes) -> dict[int, str]:
     # against the file's own size before it steers anything (SEC-002). All
     # three are read unsigned, so there is nothing to check on the low side.
     if groups_at + group_count * GROUP_SIZE > len(data):
-        raise ValueError(
+        raise NotWhatItClaims(
             f"FMG claims {group_count} groups, which do not fit in "
             f"{len(data)} bytes"
         )
     if offsets_offset + string_count * off_size > len(data):
-        raise ValueError(
+        raise NotWhatItClaims(
             f"FMG claims {string_count} strings, whose offset table does not "
             f"fit in {len(data)} bytes"
         )
@@ -54,7 +54,7 @@ def read(data: bytes) -> dict[int, str]:
         # strings than the file says it holds.
         span = last_id - first_id + 1
         if offset_index < 0 or span <= 0 or span > string_count:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"FMG group {i} spans ids {first_id}..{last_id} from offset "
                 f"index {offset_index}, which is not a run of "
                 f"{string_count} strings"

@@ -15,6 +15,7 @@ import struct
 from typing import Any
 
 from . import bnd4, bossdata, dvdbnd, fmg, oodle, param, paramdef, regulation
+from .binary import NotWhatItClaims
 
 MSG_PATHS = [
     "/msg/engus/item_dlc01.msgbnd.dcx",
@@ -1526,7 +1527,7 @@ def catalyst_scaling_rates(table: param.ParamTable) -> dict[int, float]:
     rates: dict[int, float] = {}
     for row in table.rows:
         if CATALYST_SCALING_FIELD not in row.values:
-            raise ValueError(
+            raise NotWhatItClaims(
                 f"ReinforceParamWeapon has no {CATALYST_SCALING_FIELD!r} "
                 f"field in this paramdef, and it is the only place the spell "
                 f"scaling of staves and seals is written (offset 128, the "
@@ -1539,7 +1540,7 @@ def catalyst_scaling_rates(table: param.ParamTable) -> dict[int, float]:
 
     moving = sum(1 for value in rates.values() if value != 1.0)
     if not moving:
-        raise ValueError(
+        raise NotWhatItClaims(
             f"every one of the {len(rates)} ReinforceParamWeapon rows reads "
             f"{CATALYST_SCALING_FIELD!r} as 1.0, where this game data held "
             f"{CATALYST_SCALING_ROWS_TODAY} rows with another value. A field "

@@ -444,6 +444,31 @@ def test_the_first_run_keeps_the_sentence_it_wrote_itself(monkeypatch,
                     "read. Reinstalling should restore them."]
 
 
+def test_the_first_run_keeps_a_refusal_of_the_extraction_path(monkeypatch,
+                                                              tmp_path):
+    """QA-232: a game file that is not what it claims is named, in its words.
+
+    The refusals of the extraction path are `NotWhatItClaims` -- a class of
+    this program -- so the dialog quotes them (A7) where a bare `ValueError`
+    was answered with the sentence for a library's complaint. The refusal
+    here is the real one out of `dds.decode`, not a class built for the case.
+    """
+    from nrdata import dds, extract
+
+    def a_texture_that_is_not_one(game, defs, target):
+        dds.decode(b"RIFF")
+
+    said: list[str] = []
+    builder = firstrun._Builder(tmp_path / "game", ["snapshot"])
+    builder.finished.connect(said.append)
+    monkeypatch.setattr(firstrun, "defs_dir", lambda: tmp_path / "defs")
+    monkeypatch.setattr(firstrun.paths, "cache_dir", lambda: tmp_path)
+    monkeypatch.setattr(extract, "write_snapshot", a_texture_that_is_not_one)
+    builder.run()
+
+    assert said == ["not a DDS file (magic b'RIFF')"]
+
+
 # -- the two QA-211 left over, closed by a class ----------------------------
 
 def test_the_no_dataset_dialog_keeps_the_long_explanation(monkeypatch):
