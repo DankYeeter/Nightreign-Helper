@@ -83,6 +83,21 @@ MUTATIONS: dict[str, Mutation] = {
             "picker_standing_open_falls_back_to_the_state_before_any_save` "
             "(T-230b)."),
     ),
+    "dcx-size-mismatch-is-a-bare-valueerror": Mutation(
+        path="nrdata/dcx.py",
+        old="""    if len(out) != uncompressed_size:
+        raise NotWhatItClaims(
+""",
+        new="""    if len(out) != uncompressed_size:
+        raise ValueError(
+""",
+        survival_means=(
+            "a DCX whose payload belies its header reaches the surface as "
+            "`Something went wrong that this program has no sentence for "
+            "(ValueError).` instead of its own sentence (QA-232, A7). Killed "
+            "by `test_a_dcx_whose_payload_belies_its_header_is_refused_in_"
+            "its_own_words` (T-230c)."),
+    ),
 }
 
 

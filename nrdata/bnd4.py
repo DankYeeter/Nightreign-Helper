@@ -189,7 +189,9 @@ def read(data: bytes) -> list[BinderFile]:
         if dcx.is_dcx(blob):
             blob = dcx.decompress(blob)
         elif has_compression and uncompressed_size != compressed_size:
-            raise NotImplementedError(f"unhandled inline compression in {name}")
+            raise NotWhatItClaims(
+                f"BND4 member {i} is compressed a way this program does not "
+                f"read")
 
         files.append(BinderFile(id=file_id, name=name, data=blob))
 

@@ -37,6 +37,7 @@ import zlib
 import pytest
 
 from nrdata import binary, bossdata, dcx, dds, icons, oodle, tpf
+from nrplanner import errortext
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -114,7 +115,7 @@ def test_a_dx10_file_without_its_extended_header_is_refused():
 
 
 def test_an_unknown_fourcc_never_reaches_a_decoder():
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(binary.NotWhatItClaims):
         dds.decode(dds_file(b"ZZZZ", IMAGE_EDGE, IMAGE_EDGE,
                             b"\0" * BC1_PAYLOAD_BYTES))
 
@@ -157,6 +158,20 @@ def test_the_ceiling_clears_the_largest_member_the_game_ships():
     # that would refuse an asset the planner has to read.
     largest_measured = 982_464_964
     assert oodle.MAX_UNCOMPRESSED_SIZE > largest_measured
+
+
+def test_a_dcx_whose_payload_belies_its_header_is_refused_in_its_own_words():
+    """QA-232, the rest of it: six refusals of the extraction path -- `dcx`
+    2, `dds` 3, `bnd4` 1 -- were still `NotImplementedError`/`ValueError`
+    and reached the surface as the sentence for a library's complaint (A7).
+    One of them, through the one door to the surface.
+    """
+    container = dcx_container(b"DFLT", uncompressed_size=200,
+                              payload=zlib.compress(bytes(100)))
+    with pytest.raises(binary.NotWhatItClaims) as refused:
+        dcx.decompress(container)
+    assert errortext.in_english(refused.value) == (
+        "a DCX header claims 200 bytes, and its payload came out at 100")
 
 
 # ---------------------------------------------------------------------------
