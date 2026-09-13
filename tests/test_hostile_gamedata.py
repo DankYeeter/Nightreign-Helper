@@ -30,6 +30,9 @@ ever reached by accident.
 
 from __future__ import annotations
 
+import collections
+import pathlib
+import re
 import struct
 import time
 import zlib
@@ -37,6 +40,9 @@ import zlib
 import pytest
 
 from nrdata import binary, bossdata, dcx, dds, icons, oodle, tpf
+from nrplanner import errortext
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
 
 # BC1 stores one 4x4 block of pixels in eight bytes, so an 8x8 image is four
 # blocks and exactly 32 bytes. Every size case below is measured against that.
@@ -114,7 +120,7 @@ def test_a_dx10_file_without_its_extended_header_is_refused():
 
 
 def test_an_unknown_fourcc_never_reaches_a_decoder():
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(binary.NotWhatItClaims):
         dds.decode(dds_file(b"ZZZZ", IMAGE_EDGE, IMAGE_EDGE,
                             b"\0" * BC1_PAYLOAD_BYTES))
 
@@ -157,6 +163,20 @@ def test_the_ceiling_clears_the_largest_member_the_game_ships():
     # that would refuse an asset the planner has to read.
     largest_measured = 982_464_964
     assert oodle.MAX_UNCOMPRESSED_SIZE > largest_measured
+
+
+def test_a_dcx_whose_payload_belies_its_header_is_refused_in_its_own_words():
+    """QA-232, the rest of it: six refusals of the extraction path -- `dcx`
+    2, `dds` 3, `bnd4` 1 -- were still `NotImplementedError`/`ValueError`
+    and reached the surface as the sentence for a library's complaint (A7).
+    One of them, through the one door to the surface.
+    """
+    container = dcx_container(b"DFLT", uncompressed_size=200,
+                              payload=zlib.compress(bytes(100)))
+    with pytest.raises(binary.NotWhatItClaims) as refused:
+        dcx.decompress(container)
+    assert errortext.in_english(refused.value) == (
+        "a DCX header claims 200 bytes, and its payload came out at 100")
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +255,63 @@ def test_a_tpf_member_past_the_container_end_is_refused():
     oversized = tpf_container(file_offset=0, file_size=len(container) + 1)
     with pytest.raises(binary.NotWhatItClaims):
         tpf.read(oversized)
+
+
+def test_a_tpf_member_is_refused_by_its_index_and_not_by_its_name():
+    """SEC-043: the member's name is a buffer-long string out of the file,
+    and a `NotWhatItClaims` sentence is quoted on the surface (A7) -- so the
+    sentence names the member by its index, which the file cannot write.
+    """
+    container = tpf_container(file_offset=0, file_size=0)
+    hostile = tpf_container(file_offset=0, file_size=len(container) + 1)
+    hostile = hostile.replace(b"a\0", b"<\0")
+    with pytest.raises(binary.NotWhatItClaims) as refused:
+        tpf.read(hostile)
+    assert "<" not in str(refused.value)
+    assert "TPF member 0 claims" in str(refused.value)
+
+
+#: What a `NotWhatItClaims` sentence may still quote with `!r` (SEC-043):
+#: constants of this program and names out of the bundled paramdefs -- never
+#: bytes or a string read out of a game file, which the sentence would carry
+#: to the surface verbatim. (file, expression): how many times.
+QUOTED_IN_A_REFUSAL = {
+    ("binary.py", "expected"): 1,
+    ("extract.py", "CATALYST_SCALING_FIELD"): 2,
+    ("paramdef.py", "raw"): 1,
+    ("paramdef.py", "ftype"): 1,
+}
+
+QUOTED = re.compile(r"\{([^{}!]+)!r\}")
+
+
+def quoted_in_refusals(source: str) -> list[str]:
+    """Every `{...!r}` within three lines of a `raise NotWhatItClaims(`."""
+    lines = source.splitlines()
+    found = []
+    for at, line in enumerate(lines):
+        if "raise NotWhatItClaims(" in line:
+            found += QUOTED.findall("\n".join(lines[at:at + 3]))
+    return found
+
+
+def test_the_refusal_scan_really_fires():
+    """The positive control: without it the guard measures its own mask."""
+    held = '''
+def read(data):
+    if data[:4] != MAGIC:
+        raise NotWhatItClaims(
+            f"not a TPF (magic {data[:4]!r})")
+'''
+    assert quoted_in_refusals(held) == ["data[:4]"]
+
+
+def test_no_refusal_quotes_what_a_game_file_wrote():
+    found = collections.Counter(
+        (path.name, expression)
+        for path in sorted((REPO / "nrdata").glob("*.py"))
+        for expression in quoted_in_refusals(path.read_text(encoding="utf-8")))
+    assert dict(found) == QUOTED_IN_A_REFUSAL
 
 
 def test_a_tpf_member_within_the_container_still_reads():

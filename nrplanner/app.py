@@ -4000,6 +4000,12 @@ class Planner(QMainWindow):
             slot.show_the_save_is_being_read(False)
         self._hand_the_stock_to_the_slots()
         self._say_how_many_relics_are_owned()
+        # The row's answer went with the old stock (`the_advisor_data_is_
+        # changing`); now that the new stock is in, the row rests on it --
+        # 4.1 with a save, 4.8 without one (AK-268). Until T-230 nothing put
+        # the row back, and after a rescan that found nothing it went on
+        # offering `Optimize` under a line saying no save was found.
+        self.advisor_bar.clear()
 
     def _say_how_many_relics_are_owned(self) -> None:
         """The only place the line of its own is written (AK-250).

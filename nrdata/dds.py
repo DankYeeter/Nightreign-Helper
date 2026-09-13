@@ -66,7 +66,7 @@ def payload_needed(width: int, height: int, block_bytes: int) -> int:
 def decode(dds: bytes) -> tuple[int, int, bytes]:
     """Return (width, height, RGBA bytes) for the top mip level."""
     if dds[:4] != b"DDS ":
-        raise NotWhatItClaims(f"not a DDS file (magic {dds[:4]!r})")
+        raise NotWhatItClaims("not a DDS file")
     if len(dds) < HEADER_SIZE:
         raise NotWhatItClaims(
             f"a DDS header is {HEADER_SIZE} bytes, this file is {len(dds)}"
@@ -94,13 +94,16 @@ def decode(dds: bytes) -> tuple[int, int, bytes]:
     elif fourcc == b"BC5U":
         dxgi = DXGI_BC5_UNORM
     elif not (pf_flags & 0x4):
-        raise NotImplementedError("uncompressed DDS is not supported")
+        raise NotWhatItClaims(
+            "a DDS stored uncompressed, which this program does not read")
     else:
-        raise NotImplementedError(f"unsupported FourCC {fourcc!r}")
+        raise NotWhatItClaims(
+            "a DDS compressed a way this program does not read")
 
     known = _FORMATS.get(dxgi)
     if known is None:
-        raise NotImplementedError(f"unsupported DXGI format {dxgi}")
+        raise NotWhatItClaims(
+            f"a DDS in DXGI format {dxgi}, which this program does not read")
     decoder, block_bytes = known
 
     if width <= 0 or height <= 0:

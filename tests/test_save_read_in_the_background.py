@@ -35,9 +35,12 @@ from PySide6.QtWidgets import (QAbstractButton, QApplication, QProgressBar,
 from nrplanner import app as appmod, chalices, inventory
 from tests import conftest, rendered
 
-#: How long a held read waits to be let go before it gives up. A fuse against
-#: a hung run and nothing else: in a green run every case releases its read,
-#: so this is never reached, and no assertion anywhere below is about it.
+#: How long a case waits for a held read to **begin** before it calls the
+#: premise broken. A fuse against a worker that never started, and nothing
+#: else. The held read itself waits without a clock: with a fuse on the
+#: release, a window that took longer than the fuse to build under `-n auto`
+#: turned a read that never answers into one that did (QA-249), and every
+#: case lets its read go in a `finally` anyway.
 READ_FUSE_S = 30.0
 
 #: The three sentences AK-229 forbids behind `Save could not be read: `.
@@ -77,7 +80,7 @@ class StatedRead:
         self.calls += 1
         self.save_paths.append(save_path)
         self.began.set()
-        self._release.wait(READ_FUSE_S)
+        self._release.wait()
         if self.raises is not None:
             raise self.raises
         return self.answer

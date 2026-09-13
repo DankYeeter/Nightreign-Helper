@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 from nrplanner import advisorbar
 from nrplanner.advisor import goals, types
 from tests import rendered
+from tests.advisor_row_at_the_window import NARROW_DESKTOPS
 
 #: How long a case may wait for a real search of the player's own save. The
 #: worst measured run is about 960 ms (`run.py`, 309 relics, six free slots);
@@ -581,6 +582,27 @@ def test_foreign_text_in_a_reason_reaches_the_label_as_text(bar):
     assert "<b>relic</b>" not in bar.status.toolTip()
 
 
+def test_a_shortened_status_keeps_its_whole_sentence_for_the_accessibility_bridge(
+        bar):
+    """DR-023: what a screen reader gets is the sentence, not the ellipsis.
+
+    At 67 px -- the width the status has at the derived opening width under
+    Windows (T-225) -- `text()` is one word and `…`, and a `QLabel` reports
+    exactly that to the bridge unless told otherwise. Name and description
+    both carry the whole sentence, so the reader has it whichever it asks.
+    """
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.failed.emit("the dataset carries no attribute curves.")
+    bar.status.resize(67, bar.status.height())
+    whole = bar.status.whole_text()
+    assert bar.status.text() != whole and bar.status.text().endswith("…"), (
+        "the status is not shortened at this width, so the case proves "
+        "nothing")
+    assert bar.status.accessibleName() == whole
+    assert bar.status.accessibleDescription() == whole
+
+
 def test_a_new_direction_puts_the_old_answer_away(bar):
     """A direction is a different question; §5.1 keeps the search on the
     button."""
@@ -757,6 +779,24 @@ def test_at_the_opening_width_the_status_keeps_some_width(
     criterion is `> 0`, and the environment is what decides the rest.
     """
     assert advisor_row_at_the_window["failed"]["status_width"] > 0
+
+
+@pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
+def test_on_a_narrow_desktop_the_boxes_keep_their_captions_and_the_row_carries_the_status(
+        advisor_row_at_the_window, room):
+    """AK-05 on a desktop that caps the opening width (QA-250).
+
+    Decided 2026-09-13: the boxes come first and the status may go, down
+    to 0 px -- so AK-194's `> 0` is not asked here, and a status too narrow
+    to hover has its sentence in the row's own tooltip instead.
+    """
+    at_room = advisor_row_at_the_window["rooms"][room]
+    assert at_room["width"] < advisor_row_at_the_window["width"], (
+        "this desktop does not cap the opening width, so the case would "
+        "measure the same row twice")
+    for row in (at_room["failed"], at_room["suggested"]):
+        assert row["cut"] == []
+        assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
 
 
 def _spin_until(predicate, timeout: float = A_RUN_AT_MOST) -> bool:

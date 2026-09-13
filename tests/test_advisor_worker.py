@@ -48,6 +48,12 @@ SURVIVAL = "min_damage_taken"
 #: a fifth of a second.
 SLOW_SCORE_SECONDS = 0.00002
 
+#: How long a held scoring waits to be let go before it goes on by itself. A
+#: fuse against a controller that waits for the worker -- which would
+#: otherwise hold the case for ever -- and nothing a green run reaches: the
+#: case lets the worker go in a `finally` a few statements after the cancel.
+HOLD_FUSE_S = 10.0
+
 
 @pytest.fixture(scope="module")
 def wylder(game_data):
@@ -81,11 +87,21 @@ class Watched:
     cannot see from the outside.
     """
 
-    def __init__(self, *, delay: float = 0.0, raises: str = "") -> None:
+    def __init__(self, *, delay: float = 0.0, raises: str = "",
+                 hold: bool = False) -> None:
         self.threads: set[int] = set()
         self.calls = 0
+        #: Scorings that have returned. `calls - finished` is how many the
+        #: worker is inside of right now, which is a state a case can hold
+        #: still and look at, where a delay is a race with the machine.
+        self.finished = 0
         self._delay = delay
         self._raises = raises
+        #: `hold=True` is "a worker that is still working" as a state: the
+        #: first scoring blocks until the case lets it go (QA-249).
+        self._release = threading.Event()
+        if not hold:
+            self._release.set()
         self.registry = {goal_id: dataclasses.replace(goal,
                                                       score=self._watch(goal))
                          for goal_id, goal in goals.GOALS.items()}
@@ -98,9 +114,14 @@ class Watched:
                 raise ValueError(self._raises)
             if self._delay:
                 time.sleep(self._delay)
+            self._release.wait(HOLD_FUSE_S)
+            self.finished += 1
             return goal.score(build, ctx)
 
         return score
+
+    def release(self) -> None:
+        self._release.set()
 
 
 def spin(qapp, until, timeout: float = 10.0) -> bool:
@@ -234,34 +255,39 @@ def test_cancel_is_visible_at_once_however_long_the_worker_takes(qapp,
     Two claims, and the timing alone is not enough for either. A run that
     happens to be nearly over would stop inside 200 ms whatever the
     controller did, so this case also asks that the worker was **still
-    working** when the window was told: the scorings that arrive after the
-    signal are the proof that nothing waited for them. That is the half
-    AK-11 words as "even if the worker takes longer to finish".
+    working** when the window was told -- held inside its first scoring,
+    which it has begun and not finished at the moment of the signal. A
+    state, not a head start: with a delay of 20 us the worker was through
+    its three scorings before the cancel under `-n auto` (QA-249). That is
+    the half AK-11 words as "even if the worker takes longer to finish".
     """
     inventory, problem, ctx, request = question
-    watched = Watched(delay=SLOW_SCORE_SECONDS)
+    watched = Watched(hold=True)
     advisor_controller = controller(goals=watched.registry)
     seen = Recorder(advisor_controller)
     at_the_signal = []
     advisor_controller.stopped.connect(
-        lambda: at_the_signal.append(watched.calls))
+        lambda: at_the_signal.append((watched.calls, watched.finished)))
 
     advisor_controller.ask(request, inventory, ctx)
     assert spin(qapp, lambda: watched.calls > 0), "the run never started"
     asked_at = time.perf_counter()
-    assert advisor_controller.cancel() is True
+    try:
+        assert advisor_controller.cancel() is True
 
-    assert len(seen.stopped) == 1
-    visible = seen.stopped[0] - asked_at
-    assert visible < 0.2, (
-        f"the window learned it was stopped after {visible * 1000:.1f} ms, "
-        f"and AK-11 allows 200")
+        assert len(seen.stopped) == 1
+        visible = seen.stopped[0] - asked_at
+        assert visible < 0.2, (
+            f"the window learned it was stopped after {visible * 1000:.1f} "
+            f"ms, and AK-11 allows 200")
+        begun, finished = at_the_signal[0]
+        assert begun > finished, (
+            f"the run had finished every one of its {finished} scorings when "
+            f"the window was told it had stopped, so the window was told "
+            f"after the worker had finished rather than before it noticed")
+    finally:
+        watched.release()
     spin(qapp, lambda: False, timeout=0.5)
-    assert watched.calls > at_the_signal[0], (
-        f"the run had scored {at_the_signal[0]} times when the window was "
-        f"told it had stopped and {watched.calls} in the end, so the window "
-        f"was told after the worker had finished rather than before it "
-        f"noticed")
     assert not seen.ready, "a cancelled run put an answer on the screen"
 
 

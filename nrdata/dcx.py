@@ -71,12 +71,14 @@ def decompress(data: bytes) -> bytes:
 
         out = oodle.decompress(payload, uncompressed_size)
     else:
-        raise NotImplementedError(
-            f"DCX compression {method!r} is not supported (only ZSTD and DFLT)"
+        raise NotWhatItClaims(
+            "a DCX compressed a way this program cannot read (it reads "
+            "ZSTD, DFLT and KRAK)"
         )
 
     if len(out) != uncompressed_size:
-        raise ValueError(
-            f"DCX size mismatch: got {len(out)}, header claims {uncompressed_size}"
+        raise NotWhatItClaims(
+            f"a DCX header claims {uncompressed_size} bytes, and its payload "
+            f"came out at {len(out)}"
         )
     return out

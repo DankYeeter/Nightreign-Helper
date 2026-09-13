@@ -966,11 +966,7 @@ class RelicPicker(QDialog):
         #: line standing (§3, the named edge case) rather than making the
         #: dialog change its mind about what state it is in.
         self._wait_is_drawn = None
-        asked = None if self.advice is None else self.advice.ask(
-            self._the_answer_arrived)
-        if asked is not None:
-            self.ranking = asked.ranking
-            self._waiting = asked.ranking is None
+        self._ask()
         # Favourites are per Nightfarer, so the picker has to know which one
         # the build is for. A slot outside the main window simply has none.
         window = slot.window()
@@ -1003,7 +999,7 @@ class RelicPicker(QDialog):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._refresh)
         top.addWidget(self.search, 1)
-        slot.stock_replaced.connect(self._refresh)
+        slot.stock_replaced.connect(self._the_stock_was_replaced)
 
         clear = QPushButton("Empty slot")
         clear.clicked.connect(lambda: self._pick(None))
@@ -1459,6 +1455,34 @@ class RelicPicker(QDialog):
             CARD_WIDTH, [tile] + [card for _item, card in relic_cards]))
         self._fit_to_three_rows(for_size)
 
+    def _ask(self) -> None:
+        """This opening's one question, from nothing: no answer, no wait."""
+        self.ranking = None
+        self._waiting = False
+        self._failure = ""
+        asked = None if self.advice is None else self.advice.ask(
+            self._the_answer_arrived)
+        if asked is not None:
+            self.ranking = asked.ranking
+            self._waiting = asked.ranking is None
+
+    def _the_stock_was_replaced(self) -> None:
+        """The save was read again under an open dialog (AK-267).
+
+        Whatever the track answered was about the stock that has just gone,
+        so the dialog starts over as if it had been opened now: the question
+        is asked again -- of nothing, when the read brought no save, which
+        is what puts `NO_SAVE_WAS_READ` in the header (AK-265) -- and the
+        first paint decides afresh whether there is a wait to draw. Until
+        T-230 only the cards were refreshed, and the header went on saying
+        `ranked against your build` over an empty grid (DR-022).
+        """
+        if self.advice is not None:
+            self.advice.stop_listening()
+        self._wait_is_drawn = None
+        self._ask()
+        self._refresh()
+
     def _the_answer_arrived(self, ranking, reason: str) -> None:
         """The one answer of this opening, whichever of the three it is.
 
@@ -1486,7 +1510,7 @@ class RelicPicker(QDialog):
         """
         if self.advice is not None:
             self.advice.stop_listening()
-        self.slot.stock_replaced.disconnect(self._refresh)
+        self.slot.stock_replaced.disconnect(self._the_stock_was_replaced)
         super().done(result)
 
     def _sort_chosen(self, _index: int) -> None:

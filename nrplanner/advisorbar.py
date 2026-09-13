@@ -478,6 +478,12 @@ class _ElidingLabel(QLabel):
         # five characters `&lt;` rather than as `<`, because Qt reads a text
         # with no `<` in it as plain.
         self.setToolTip(f"<span>{html.escape(text)}</span>" if text else "")
+        # A label with no accessible name of its own reports `text()` to the
+        # accessibility bridge -- the elided one -- so a screen reader never
+        # got past the ellipsis, and a keyboard user has no hover (DR-023).
+        # Plain strings: an accessible name has no text format either.
+        self.setAccessibleName(text)
+        self.setAccessibleDescription(text)
         self._draw()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
@@ -923,6 +929,11 @@ class AdvisorBar(QWidget):
         self._situation = situation
         working = situation.state in WORKING_STATES
         self.status.set_whole_text(status_line(situation))
+        # Below the derived opening width the status is the one thing that
+        # gives way, down to 0 px (QA-250: boxes first, the status may go),
+        # and a label 0 px wide has nowhere to be hovered -- so the row
+        # carries the sentence too.
+        self.setToolTip(self.status.toolTip())
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at
         # the same moment, so there is no half-second of a bar on its own.
         # Asked of the situation and not of the widget: `isVisible()` is
