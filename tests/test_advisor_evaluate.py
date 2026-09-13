@@ -25,6 +25,8 @@ counter-build is the mutation `advisor-computes-in-a-second-place`.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from nrplanner import model, weaponslots
@@ -192,7 +194,15 @@ def test_the_advisor_computes_the_build_the_window_shows(planner, game_data):
     if not held_curses:
         pytest.skip("this save owns no Deep of Night relic carrying a curse")
 
-    assert figures(evaluate(problem, (), ctx)) == \
+    # The sheet's own declarations, without the reading's defaults on top:
+    # since A16 the advisor's `declared` carries the worst case's seven
+    # conditional curses as well (AD-035), and the sheet is the one thing
+    # A16 leaves untouched -- so the comparison has to ask the sheet's
+    # question, exactly as `ranking_with(..., as_the_bar_asked_before_a16)`
+    # does in `test_advisor_goals.py`.
+    as_the_sheet_declares = dataclasses.replace(
+        ctx, declared=tuple(sorted(planner.declared.items())))
+    assert figures(evaluate(problem, (), as_the_sheet_declares)) == \
         figures(planner.current_build())
 
 

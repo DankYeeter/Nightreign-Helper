@@ -37,7 +37,7 @@ import dataclasses
 import pytest
 
 from nrplanner import advisorbar, damage, model, weaponslots
-from nrplanner.advisor import candidates, goals, types
+from nrplanner.advisor import candidates, explain, goals, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -654,6 +654,7 @@ def an_inventory_telling_two_armaments_apart(game_data, hero):
 
 def ranking_with(planner, armament, inventory, question, rank_by, *,
                  rolls: tuple[int, ...] = (),
+                 as_the_bar_asked_before_a16: bool = False,
                  as_the_bar_asked_before_a17: bool = False,
                  as_the_bar_asked_before_ad_032: bool = False):
     """What the pre-sort makes of one inventory while this armament is held.
@@ -667,11 +668,13 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     weapon panel puts them there -- so a case about them goes through the
     same reading `asking_from` does, rather than around it.
 
-    The two `as_the_bar_asked_before_*` flags put back what the two decisions
-    took out: A17 the reference armament and the grid, AD-032 the rolls on
-    it. Each is the counter-case of an invariance, not a second way of asking
-    for it -- and each has to be restorable by hand, or the invariance could
-    be holding because nothing in the case can tell two runs apart.
+    The `as_the_bar_asked_before_*` flags put back what the decisions took
+    out or in: A17 the reference armament and the grid, AD-032 the rolls on
+    it, A16 the reading's own defaults (the bar asked with the player's
+    declarations alone before). Each is the counter-case of an invariance,
+    not a second way of asking for it -- and each has to be restorable by
+    hand, or the invariance could be holding because nothing in the case can
+    tell two runs apart.
     """
     slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
     slots[0] = weaponslots.WeaponSlot(weapon=armament,
@@ -680,6 +683,9 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     planner.active_weapon = 0
 
     ctx = advisorbar.asking_from(planner, rank_by).ctx
+    if as_the_bar_asked_before_a16:
+        ctx = dataclasses.replace(
+            ctx, declared=tuple(sorted(planner.declared.items())))
     if as_the_bar_asked_before_a17:
         ctx = dataclasses.replace(
             ctx,
@@ -1086,3 +1092,140 @@ def test_the_eight_damage_kinds_are_the_ones_the_model_knows(game_data):
     assert len(goals.DAMAGE_CUT_FIELDS) == 8
     assert dict(goals.EVEN_WEIGHTING.weights).keys() == \
         set(goals.DAMAGE_CUT_FIELDS)
+
+
+# --- the two readings of A16 -----------------------------------------------
+
+#: The conditional curses of this dataset, counted on 2026-09-13 over the
+#: 2 076 effects of the Testabzug (`EXTRACT_VERSION` 11): 24 carry
+#: `is_curse`, and these seven are gated (`model.is_conditional(eff, None)`).
+#: They are the worst case's whole vocabulary (AD-035 point 2).
+CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
+                      6851700)
+
+#: The gated effects that are not curses, less the one in `model.NO_SWITCH`
+#: (414 - 1, same count, same day). The best case's vocabulary.
+CONDITIONAL_BUFFS_WITH_A_SWITCH = 413
+
+#: How many of the save's copies change their `min_damage_taken` figure
+#: between the worst case and the bar as it asked before A16 (`GOAL.md` A16
+#: measured 11 of 309 on 2026-09-07; counted again on 2026-09-13 over the
+#: 312 copies of the save on this machine).
+COPIES_THE_WORST_CASE_MOVES = 11
+
+SURVIVAL = "min_damage_taken"
+
+
+def test_reading_defaults_name_the_seven_conditional_curses_and_nothing_else(
+        game_data):
+    """AD-035 point 2 and 3: what each reading declares, and at what count.
+
+    Qt-free: the tables are filled by `model.configure`, and this asks them
+    against the dataset rather than against `is_curse` restated here -- the
+    seven ids are the literal, so a table that took `is_debuff` (78 ids) or
+    the relic's `curse` slot (326 ids) for "curse" shows up as the wrong
+    list, not as a wrong count.
+    """
+    worst = model.reading_defaults(True)
+    best = model.reading_defaults(False)
+
+    assert tuple(sorted(worst)) == CONDITIONAL_CURSES
+    assert len(best) == CONDITIONAL_BUFFS_WITH_A_SWITCH
+    assert not set(worst) & set(best), "an effect declared in both readings"
+    assert model.NO_SWITCH.isdisjoint(best) and model.NO_SWITCH.isdisjoint(
+        worst), "an effect the sheet offers no switch for is being declared"
+    # One copy per occurrence, a switch simply turned on -- never a maximum
+    # for a counting effect (A7: the condition is assumed, not the number).
+    assert set(worst.values()) == {1} and set(best.values()) == {1}
+
+
+def one_relic_builds(planner, ctx):
+    """Every copy of the save, alone in a white slot of its own kind."""
+    for item in planner.owned.relics:
+        question = advisor.problem([advisor.WHITE], deep=item.is_deep)
+        alone = types.Candidate(
+            slot_index=0, handle=item.handle, relic_id=item.relic_id,
+            name=item.name, colour=item.colour, is_deep=item.is_deep,
+            effect_ids=tuple(item.effect_ids),
+            curse_ids=tuple(item.curse_ids))
+        yield item, evaluate(question, (alone,), ctx)
+
+
+def not_counted_under(planner, ctx) -> list[str]:
+    return [name for _item, built in one_relic_builds(planner, ctx)
+            for name in explain.not_counted(built)]
+
+
+def test_the_readings_share_not_counted_and_invent_nothing(planner, game_data):
+    """AK-187: `worst + best == today`, over the one-relic problems.
+
+    The worst case declares the conditional curses and nothing else, so what
+    it leaves uncounted is today's list without them; the best case declares
+    the conditional buffs, so what it leaves is exactly the curses. A reading
+    that set a buff in the worst case, or a curse in the best, breaks the
+    sum -- and a reading that invented a third kind of entry breaks it too.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    curse_names = {" ".join(game_data["effects"][str(eid)]["name"].split())
+                   for eid in CONDITIONAL_CURSES}
+
+    planner.worst_case = True
+    worst = not_counted_under(planner,
+                              advisorbar.asking_from(planner, SURVIVAL).ctx)
+    planner.worst_case = False
+    best = not_counted_under(planner,
+                             advisorbar.asking_from(planner, SURVIVAL).ctx)
+    today = not_counted_under(planner, dataclasses.replace(
+        advisorbar.asking_from(planner, SURVIVAL).ctx, declared=()))
+
+    assert worst and best, ("a reading that left nothing uncounted proves "
+                            "nothing about the other")
+    assert len(worst) + len(best) == len(today)
+    assert set(best) <= curse_names, (
+        "the best case left something uncounted that is not a conditional "
+        "curse")
+    assert not set(worst) & curse_names, (
+        "the worst case left a conditional curse uncounted")
+
+
+def test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits(
+        planner):
+    """`GOAL.md` A16, its acceptance: the seven conditional curses of the
+    save move the survival ranking in the worst case, demonstrably.
+
+    Against the bar as it asked before A16 -- the player's declarations and
+    nothing else -- because that is the ranking the acceptance is measured
+    from: every copy whose figure moves has to carry one of the seven, and
+    the seven have to be enough to change the order. Both kinds of copy,
+    ordinary and Deep, through one white slot each, which is every copy the
+    save holds (`Inventory.relics_for`).
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    assert planner.worst_case is True, "AK-182: `Worst case` is the default"
+    by_handle = {item.handle: item for item in planner.owned.relics}
+    moved: list[str] = []
+    orders_differ = False
+    for deep in (False, True):
+        question = advisor.problem([advisor.WHITE], deep=deep)
+        _base, worst = ranking_with(planner, None, planner.owned, question,
+                                    SURVIVAL)
+        _base, before = ranking_with(planner, None, planner.owned, question,
+                                     SURVIVAL,
+                                     as_the_bar_asked_before_a16=True)
+        orders_differ |= ([offer[:2] for offer in worst]
+                          != [offer[:2] for offer in before])
+        figures_before = {offer[:2]: dict(offer[2])[SURVIVAL]
+                          for offer in before}
+        for name, handle, marginals in worst:
+            if dict(marginals)[SURVIVAL] == figures_before[(name, handle)]:
+                continue
+            moved.append(name)
+            assert set(by_handle[handle].curse_ids) & set(
+                CONDITIONAL_CURSES), (
+                f"{name!r} changed its figure without a conditional curse")
+    assert orders_differ, "the worst case left the survival order as it was"
+    assert len(moved) == COPIES_THE_WORST_CASE_MOVES, sorted(moved)

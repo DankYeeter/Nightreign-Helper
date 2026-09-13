@@ -590,6 +590,58 @@ def test_a_new_direction_puts_the_old_answer_away(bar):
     assert len(bar._controller.asked) == asked
 
 
+def test_the_reading_is_a_second_box_that_puts_the_answer_away_and_asks_nothing(
+        bar):
+    """AK-182 and AK-183: two entries, `Worst case` first and standing; a
+    change of reading takes `_goal_chosen`'s path and starts no run."""
+    entries = [bar.reading_box.itemText(i)
+               for i in range(bar.reading_box.count())]
+    assert entries == ["Worst case", "Best case"]
+    assert bar.reading_box.currentText() == "Worst case"
+    assert [bar.goal_box.itemText(i) for i in range(bar.goal_box.count())] \
+        == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
+
+    heard = []
+    bar.reading_changed.connect(heard.append)
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    asked = len(bar._controller.asked)
+
+    bar.reading_box.setCurrentIndex(1)
+    bar.reading_box.activated.emit(1)
+    assert heard == [False]
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+    assert len(bar._controller.asked) == asked
+
+
+def test_a_declared_condition_outlives_both_readings(planner):
+    """AK-186: the reading is a default for a condition, never a value.
+
+    A curse the worst case would set to 1 is declared at 3 by the player,
+    and a buff the best case would set to 1 at 2; both readings carry both
+    declarations as the player made them, in the context and in the key.
+    """
+    if planner.owned is None:
+        pytest.skip("this machine has no save to read")
+    from nrplanner import model
+
+    curse = min(model.reading_defaults(True))
+    buff = min(model.reading_defaults(False))
+    planner.declared = {curse: 3, buff: 2}
+
+    for worst in (True, False):
+        planner.worst_case = worst
+        asking = advisorbar.asking_from(planner, "max_damage")
+        declared = dict(asking.ctx.declared)
+        assert declared[curse] == 3 and declared[buff] == 2, (
+            f"worst_case={worst}: the reading overwrote what the player "
+            f"declared")
+        assert asking.request.declared == asking.ctx.declared
+        assert declared.keys() >= set(model.reading_defaults(worst))
+
+
 def test_the_row_stops_the_search_before_the_data_under_it_changes(bar):
     """AD-006.7, and the window is what calls it -- see the window cases."""
     bar.the_data_is_changing()

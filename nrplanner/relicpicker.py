@@ -1391,9 +1391,11 @@ class RelicPicker(QDialog):
         # The reference size, without which `+12.4` says nothing: the figures
         # are measured against the build as it stands with **this** slot
         # emptied -- including for the relic that is sitting in it right now
-        # (AD-018.1).
+        # (AD-018.1) -- and under the window's reading, which is the fourth
+        # and last place that names it (AK-185): once here, on no card.
         against = (f"  ·  ranked against your build with "
-                   f"{self.slot.slot_name()} empty"
+                   f"{self.slot.slot_name()} empty, "
+                   f"{advisorbar.reading_label(self.slot.window().worst_case)}"
                    if self.ranking is not None else "")
         self.summary.setText(
             working_out(self.slot.slot_name()) if waiting else

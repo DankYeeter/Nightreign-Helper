@@ -1287,8 +1287,11 @@ def test_line_three_names_the_size_the_figures_are_measured_against(slot):
     """
     dialog = open_picker(slot, {0: 12.4})
     try:
-        assert (f"ranked against your build with {slot.slot_name()} empty"
-                in dialog.summary.text())
+        # AK-185: the summary is the picker's one place that names the
+        # reading the figures were formed under; the window's, not a
+        # spelling of this dialog's own.
+        assert (f"ranked against your build with {slot.slot_name()} empty, "
+                f"worst case" in dialog.summary.text())
     finally:
         dialog.deleteLater()
 

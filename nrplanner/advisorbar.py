@@ -47,6 +47,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
+from . import model
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -82,6 +83,17 @@ GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
 #: bound by AK-194, which is why a label that will not fit is shortened and
 #: this number is not raised.
 GOAL_BOX_WIDTH = 200
+
+def reading_label(worst: bool) -> str:
+    """`worst case` / `best case`, as a sentence names the reading.
+
+    The one spelling of the four places AK-185 allows -- the box, the head of
+    the suggestion block, the `Why` title and head, the picker's summary --
+    so the box's entries are this, capitalised, and nowhere is a fifth
+    wording of the same thing written.
+    """
+    return "worst case" if worst else "best case"
+
 
 #: The separator of the two-clause status lines (4.9, 4.11), a middle dot
 #: with two spaces a side. Written once because it is invisible in a diff.
@@ -396,9 +408,13 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held)
 
-    # Sorted, not in `dict` order: a cache key that depended on the order the
-    # player happened to flip the switches would miss its own entries.
-    declared = tuple(sorted(planner.declared.items()))
+    # The reading reaches the run only here, as a default for the conditions
+    # (AD-035, AK-186): the player's own declarations are merged over it, so
+    # a condition they declared stands as declared in both readings. Sorted,
+    # not in `dict` order: a cache key that depended on the order the player
+    # happened to flip the switches would miss its own entries.
+    declared = tuple(sorted({**model.reading_defaults(planner.worst_case),
+                             **planner.declared}.items()))
     weighting = advisor_goals.DEFAULT_WEIGHTING
     # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
     # docstring, A17 and AD-032. The armament grid is not read here at all
@@ -486,6 +502,10 @@ class AdvisorBar(QWidget):
     #: The answer that is standing on screen, or `None` when none is. S10b
     #: draws the blocks from this; nothing else here reads it.
     suggestion_changed = Signal(object)
+    #: The reading the player chose, as `Planner.worst_case` (AD-035.1). The
+    #: window keeps it; this row only says it changed, and throws the answer
+    #: away for it exactly as for a direction (AK-183).
+    reading_changed = Signal(bool)
     #: The three actions that need a slot card to mean anything. The row asks
     #: for them and does none of them: the window owns the slots.
     apply_all_requested = Signal()
@@ -538,6 +558,17 @@ class AdvisorBar(QWidget):
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
         row.addWidget(self.goal_box)
+
+        # AK-182: the reading is its own box between the direction and
+        # `Optimize`, never a doubling of the direction's entries -- a third
+        # direction is one registry entry, not two more of these. `Worst
+        # case` first because it is the default: the figure to rely on.
+        self.reading_box = QComboBox()
+        self.reading_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        for worst in (True, False):
+            self.reading_box.addItem(reading_label(worst).capitalize(), worst)
+        self.reading_box.activated.connect(self._reading_chosen)
+        row.addWidget(self.reading_box)
 
         self.optimize_button = QPushButton("Optimize")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
@@ -698,6 +729,12 @@ class AdvisorBar(QWidget):
         combo that computed on selection would spend a search on a player
         reading the list.
         """
+        self.the_build_changed()
+
+    def _reading_chosen(self, _index: int) -> None:
+        """A reading is a different question too: same path as a direction
+        (AK-183) -- the answer goes, a run in flight says 4.7, none starts."""
+        self.reading_changed.emit(self.reading_box.currentData())
         self.the_build_changed()
 
     def _apply_or_undo(self) -> None:
@@ -875,6 +912,7 @@ class AdvisorBar(QWidget):
         # (AK-08) -- disabling belongs to this row alone.
         answerable = situation.state is not State.NO_SAVE
         self.goal_box.setEnabled(answerable)
+        self.reading_box.setEnabled(answerable)
         self.optimize_button.setEnabled(answerable)
         self._show_the_actions(situation)
 
