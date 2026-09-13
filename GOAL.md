@@ -42,6 +42,9 @@ eine kurze Begruendung.
   `docs/perf/baselines.md`.
   *(Die drei Zahlen gesetzt vom `performance-tuner` in S11/T-118, uebernommen
   am 08.09.2026, freigegeben durch Nutzer. Sie schliessen QA-203.)*
+  *(Nachtrag 13.09.2026, Nutzerfreigabe: der Spielstand hat heute **312**
+  Relikte, gezaehlt in T-222/T-224; 309 bleibt die Zahl des Messfalls vom
+  07.09.)*
 - **A7** Wo die Spieldateien eine Bewertung nicht hergeben, sagt das Programm
   das, statt zu raten — die bestehende Hausregel gilt auch fuer den Berater.
 - **A8** Alle Texte in der Oberflaeche sind Englisch (bestehende Projektregel).
@@ -269,6 +272,9 @@ Fall aendern **8 von 309 Kopien** ihre `max_damage`-Zahl und **11** ihre
 richtig — der Spieler bekommt eine Zahl, auf die er sich verlassen kann —,
 aber "greifen im Kampf fast immer" war eine Behauptung ueber die Spielpraxis,
 die keine Messung stuetzt.
+*(Nachtrag 13.09.2026, Nutzerfreigabe: am Spielstand mit **312** Kopien hat
+T-224 gemessen: **11 Kopien** bewegen `min_damage_taken` im schlechtesten Fall,
+alle mit Fluch-Id; die 8/309-Zahl fuer `max_damage` stammt vom 07.09.)*
 
 **Was daraus folgt.** Der Berater bekommt zwei Lesarten derselben Rechnung:
 
