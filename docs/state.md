@@ -42,8 +42,8 @@ fuehrt es als "behoben, Retest bestanden" (T-146), `It is only read` kommt in
 Release-Tor ist damit **SEC-026** (T-217).
 
 **Welle 2 (13.09., gepusht bis `59c6cd1`):** T-221 `ui-ux-designer` Spec-Nachtrag
-(E1/AK-230, AK-49, QA-242 A/B, QA-247) · T-222 `architect` A16-AD (**erledigt** AD-035 `e593a44`; B-1: Spielstand hat **312** Kopien, `GOAL.md`/`UI_SPEC.md` rechnen mit 309 — **dem Nutzer nennen**, GOAL-Zahl nicht selbst aendern) · T-223
-`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224** `developer` A16 nach AD-035 (Worktree, laeuft). Danach: AD-034 Schritt 1-3,
+(**erledigt** `503fbed`: AK-264 E1-Headline `That folder is not part of a Steam installation.` → bauen; AK-265 nur Doku; AK-266 QA-242 **Wahl A** → bauen; AK-267 QA-247 A7-Verstoss → bauen) · T-222 `architect` A16-AD (**erledigt** AD-035 `e593a44`; B-1: Spielstand hat **312** Kopien, `GOAL.md`/`UI_SPEC.md` rechnen mit 309 — **dem Nutzer nennen**, GOAL-Zahl nicht selbst aendern) · T-223
+`developer` klein AD-033 Punkt 2 (**erledigt** `64dd006`, ff-merged: `mutate.py` 5464 → 158 Zeilen, **301** Eintraege entfernt, nicht 289 wie AD-033 sagt — Archiv `git show f1fc79c:scripts/differential/mutate.py`; Suite im Worktree 1501 passed / 10 skipped, Director nicht nachgemessen). **T-224** `developer` A16 nach AD-035 (Worktree, laeuft; erster Lauf blockiert, weil der Worktree auf origin/HEAD = f1fc79c stand — B-03 erneut; gepusht, Wiederanlauf). **Danach T-225** `developer` klein: AK-264, AK-266, AK-267 (`firstrun.py`, `relicpicker.py`, `app.py` — dieselben Dateien wie T-224, deshalb seriell). Dann AD-034 Schritt 1-3,
 QA-242-Fix → Beta-Gate mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen
 in einer Nachricht.
 
