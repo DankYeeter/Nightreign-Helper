@@ -62,10 +62,16 @@ OF-Kreis von `ARCHITECTURE.md` / `docs/state.md`.
 | AD-030 | Der gemerkte Pfad lebt in **zwei festen Schluesseln** des vorhandenen Speichers, und das Programm hat **einen** Ort, an dem es den Spielordner aufloest. | `### AD-030`, Z. 5420 | — (2026-09-08, Nachtrag XI) | nichts |
 | AD-031 | Bricht die Id-Annahme, **waehlt** der Scan den langsamen Weg, statt zu verweigern; der langsame Weg wird dafuer wieder gebaut. | `### AD-031`, Z. 5668 | — (2026-09-08, Nachtrag XI) | nichts |
 | AD-032 | **Entschieden am 12.09.2026 durch den App Designer: Option A+C** (ohne Waffe, Attribute als eigene Zielrichtung, Armaturen-Buffs fallen). Vorgelegt in T-189: worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht — vier gemessene Optionen (A so lassen 26/210 · B Startarmatur des Nightfarers als feste Bezugswaffe 51/210 · C Attribute als eigene Zielrichtung 53/210, mit A zusammen 75 · D Erwartungswert ueber die Waffentypen 81/210), vorgelegt und **nicht entschieden**. Enthaelt zugleich die Empfehlung zu QA-226 (die gewuerfelten Armaturen-Buffs fallen). | `### AD-032`, Themenbereich C, unmittelbar vor `## Themenbereich D` (Stand `b8f71a8` + T-189: Z. 2936) | — (Urfassung 2026-09-12, T-189) | entfaellt — noch nichts zu ueberholen |
+| AD-033 | Die Mutations-Registry ist eine Quittung je Zyklus, kein Dauerbestand: ein Eintrag lebt vom `developer`-Commit bis zum Nachfahren in der Pruefphase und wird dann geloescht; `MUTATIONS` wird einmal auf leer gesetzt, Logik und Anker-Waechter bleiben im Wortlaut. Tragende Zahl: 1 Fund (P4) aus 289 dauerhaft gehaltenen Mutationen. | `### AD-033`, Themenbereich G (Stand `83cfed8` + T-220: Z. 5364) | — (Urfassung 2026-09-13, T-220) | nichts |
+| AD-034 | `Planner` bleibt der Controller des Build-planner-Tabs; ihn verlassen drei Bloecke mit fertiger Naht — `relicslots.py` (Modulumzug, 6 Anker), `savereader.py` (Modulumzug, 6 Anker), `statsheet.py` (`StatSheet(QWidget)` liest das Fenster, spricht per `declared_changed` zurueck, 3 Anker). Gefaesse/Builds, Berater-Glue (AD-017.1) und Chrome bleiben. | `### AD-034`, Themenbereich G (Stand `83cfed8` + T-220: Z. 5467) | — (Urfassung 2026-09-13, T-220) | nichts; beruehrt AD-029/030/031 (Fundstelle des Lesens wird `savereader.py`, Wortlaut gilt) und AD-019/AD-020 Punkt 6 (Zusicherung wandert woertlich mit) |
 
 **Eine der 32 AD-Nummern ist keine Entscheidung** (AD-027 nie vergeben), und
 **eine ist eine vorgelegte, noch nicht getroffene** (AD-032). Getroffene
 Entscheidungen: **30**.
+*(Nachtrag 13.09.2026, T-220: AD-032 ist entschieden, AD-033 und AD-034 kommen
+dazu — 34 Nummern, 33 getroffene Entscheidungen; naechste freie **AD-035**.
+OF-34 und OF-35 in Tabelle 2 angehaengt, beide offen; naechste freie **OF-36**.
+Die Zaehltabellen unter Tabelle 2 sind auf dem Stand vom 12.09.2026.)*
 **`widerspruechlich`-Faelle: 0** — jede Ueberholung ist an ihrer Stelle
 ausdruecklich markiert.
 
@@ -115,6 +121,8 @@ Aussage die Frage beruehrt, sie aber nicht entscheidet.
 | OF-31 | A15 verschiebt die Vertrauensgrenze an zwei Stellen (DLL aus dem gewaehlten Ordner; Streichungsgrund von SEC-016/017/018 gilt fuer den neuen Fall nicht; Save-Dialog mit `All files (*)`). | **beantwortet durch den `security-reviewer` (T-144, 08.09.2026), mit Rest beim Nutzer** — Gesamturteil CONCERNS, neue SEC-Befunde ab `security/findings.md` Z. 473. **Offen bleibt daraus:** zwei Wortlautfragen (SEC-027/SEC-028) beim `director` und die Neubewertung von SEC-006/SEC-016/017/018 beim Nutzer. | Frage: `ARCHITECTURE.md` Z. 5931 (auch Z. 5654, Risikozeile Z. 5897). Antwort: `docs/berichte/T-144-security-reviewer.md`; `security/findings.md` Z. 473 ff. |
 | OF-32 | Die Gueltigkeitspruefung des gemerkten Pfades laeuft vor dem ersten Fenster; auf einem toten UNC-Ziel kann `stat` zweistellige Sekunden kosten. Frist bauen, bevor jemand sie gemessen hat? | **offen** — an den `performance-tuner`, nach V1. Empfehlung des `architect`: erst messen. Auf diesem Rechner ohne Freigabe nicht messbar. | `ARCHITECTURE.md` Z. 5952; `docs/berichte/T-143-architect.md` Z. 209 |
 | OF-33 | **Nicht vergeben.** Nur als naechster freier Kreis genannt („OF ab OF-33"); `docs/state.md` fuehrt inzwischen „OF ab OF-34". | entfaellt | `ARCHITECTURE.md` Z. 5970; `docs/state.md` Z. 10–12 |
+| OF-34 | Zaehlen reine Test-Umbenennungen (`window.X` → `window.stat_sheet.X`, sechs Dateien) gegen die Fuenf-Dateien-Grenze eines `developer`-Auftrags (AD-034 Schritt 3)? | **offen** — an den `director`; Empfehlung des `architect`: nein, ein Auftrag mit 8 Dateien. | `ARCHITECTURE.md` Themenbereich G, „Offene Fragen aus Themenbereich G" |
+| OF-35 | Wer loescht die nachgefahrenen Eintraege aus `MUTATIONS` (AD-033 Punkt 5)? | **offen** — an den `director`; Empfehlung: der `qa-engineer` im Commit seines Pruefphasen-Berichts. Bis zur Antwort gilt die Empfehlung. | `ARCHITECTURE.md` Themenbereich G, „Offene Fragen aus Themenbereich G" |
 
 ### Zaehlung der offenen Fragen
 

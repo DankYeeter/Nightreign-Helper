@@ -40,6 +40,8 @@ bis X bereits benutzt haben, und sie wird hier nur zusammengefuehrt.
 
 **Zwei Nummern sind nie vergeben worden** und werden nicht neu belegt:
 **AD-027** und **OF-14**. Die naechste freie AD-Nummer ist **AD-032**.
+*(Nachtrag 13.09.2026, T-220: AD-032 ist seit T-189 belegt, AD-033 und
+AD-034 vergibt Themenbereich G; naechste freie Nummer **AD-035**.)*
 
 ---
 
@@ -327,6 +329,7 @@ der gebaute Zustand.
 | **D** | Nebenlaeufigkeit, Cache, Hauptthread | AD-006, AD-007, AD-028, AD-029 |
 | **E** | Daten lesen, Erststart, Pfade | AD-011, AD-012, AD-030, AD-031 |
 | **F** | Test und Nachweis | AD-009 |
+| **G** | Ueberbau: Mutations-Registry, `Planner`-Schnitt (T-220) | AD-033, AD-034 |
 
 ---
 
@@ -2458,6 +2461,14 @@ per-Ziel-Datensatz neben `Baseline` hiesse zwei Nachschlagefunktionen, zwei
 Orte, an denen eine `goal_id` fehlen kann, und zwei Datensätze, die
 auseinanderlaufen können. `baseline_for(pool, goal_id) -> float` bleibt
 unverändert gültig und liest weiterhin `.value`.
+
+> **Nachtrag 13.09.2026 (T-220, `architect`):** `baseline_for` existiert seit
+> `7bb927c` nicht mehr (`grep -rn baseline_for nrplanner/`: 0 Treffer,
+> 13.09.2026; Fundstelle vom Director in `docs/plan-restarbeiten.md`
+> gemeldet). Der Satz beschreibt den Stand, auf dem die Entscheidung gebaut
+> wurde; die Sache — `Baseline` traegt die drei Felder, kein zweiter
+> per-Ziel-Datensatz — gilt weiter; `types.Baseline(goal_id, score.value,
+> score.unit, …)` wird in `candidates.py:328` und `run.py:294` gebaut.
 
 **Warum nicht `scores: tuple[GoalScore, ...]`** (der Vorschlag des
 `qa-engineer`, ausdrücklich als tragfähig bezeichnet): `GoalScore.value`
@@ -5308,6 +5319,372 @@ QA-110 die 18.
 **fortlaufend** vergeben und **nie neu**. Ein Nachtrag schaut auf die höchste
 vergebene Nummer im ganzen Dokument, nicht auf die höchste in seinem eigenen
 Abschnitt. Höchste vergebene Nummer nach diesem Nachtrag: **34**.
+
+---
+
+## Themenbereich G — Ueberbau: Mutations-Registry und `Planner`-Schnitt (2026-09-13, T-220)
+
+*Angelegt am 13.09.2026 (T-220, `architect`). Herkunft: Korb 3 des
+Ueberbau-Audits vom 12.09.2026 (`docs/plan-restarbeiten.md`, P10-1 und
+P10-2). Bezugsstand: HEAD `83cfed8`, Arbeitsbaum, alle Zahlen an diesem Tag
+gezaehlt. Zwei Entscheidungen, AD-033 und AD-034; P10-2 (AD-033) laeuft vor
+P10-1 (AD-034), weil der Schnitt sonst 42 Anker der Registry bricht.*
+
+### Gemessene Ausgangslage
+
+| Was | Zahl | Wie gezaehlt |
+|---|---|---|
+| `scripts/differential/mutate.py` | **5 464** Zeilen, davon **289** Mutationen (`"name": Mutation(`), Literale Z. 61–5368, Logik Z. 5369–5464 (**96** Zeilen: `newline_of`, `apply`, `guard_the_own_tree`, `main`) | `wc -l`, `grep -c` |
+| Anker in `nrplanner/app.py` | **42** von 289; 35 Dateien insgesamt bewacht | Anker je Mutation gegen den Quelltext aufgeloest (Skript im Scratchpad T-220) |
+| Anker-Waechter | `tests/test_differential_track.py::test_every_mutation_still_finds_its_anchor_in_the_real_source`, **289** von **344** Faellen der Datei; Lauf **59,9 s** auf diesem Rechner (`game_data`-Fixture), nicht die 1,2 s des Auftrags | `pytest tests/test_differential_track.py`, 13.09.2026 |
+| Commits auf `mutate.py` | **69** seit 03.09.2026, davon **7** reine Anker-Nachzieher (`fix(differential)`/`Anker … nachgezogen`) | `git log -- scripts/differential/mutate.py` |
+| Seit der letzten Pruefphase (`b33461d`, T-201/T-202) hinzugekommen | **0** Mutationen | `git diff b33461d HEAD -- scripts/differential/mutate.py` |
+| `class Planner` | Z. 1836–5153 = **3 318** Zeilen, **94** Methoden (`^    def ` im Klassenbereich; die "160" des Auftrags zaehlen Dekoratoren und die ganze Datei) | `awk`, `grep -c` |
+| `nrplanner/app.py` vor der Klasse | Z. 1–1835: Modulhelfer und sieben Widget-Klassen (`SituationalRow`, `VesselStrip`, `RelicSlot`, `VariantDialog`, `HeroTile`, `_SaveReadWorker`, `SaveReader`) | `grep -n "^class \|^def "` |
+
+**Was der Differenzial-Track je gefangen hat** — gezaehlt ueber
+`qa/findings.md`, `qa/verlauf.md`, `docs/lessons.md` L-008 und alle Berichte
+(zwei Masken: `ueberlebt|survived` und `mutate.py --apply`):
+
+- **Beim Eintragen** (der `developer` schreibt die Mutation, faehrt sie in
+  einer Extraktion, sie ueberlebt): T-060 (2), T-142 (1), T-077 → QA-181 und
+  QA-182, T-159 → QA-215, T-153 (1). L-008 rechnet dem Mutationslauf **8 von
+  13** Waechter-Befunden zu. Das ist der Wert des **Vorgangs**.
+- **Beim Nachfahren durch den `qa-engineer`** im selben Zyklus (T-041, T-051,
+  T-059, T-186): Abweichungen 0, Bestaetigungen mehrere. Das ist der Wert der
+  **Registry als Quittung** — sie muss so lange stehen, bis QA nachgefahren
+  hat.
+- **Beim Wiederholen einer alten Kampagne**: genau **ein** Fund in der ganzen
+  Geschichte, T-158 wiederholt T-150 → QA-214 (**P4**, tote Zeile). Das ist
+  der Wert der Registry als **Dauerbestand**: ein P4 aus 289 Mutationen.
+- QA-234 (12.09.2026) war **kein** Fang, sondern der Anker-Waechter selbst:
+  `06be06e` hat Quelltext geaendert, der Anker zeigte ins Leere. Das ist die
+  Wartung, nicht der Ertrag.
+
+### AD-033 — Die Mutations-Registry ist eine Quittung je Zyklus, kein Dauerbestand (2026-09-13, Status: aktiv)
+
+**Kontext.** Jede Mutation traegt den alten und den neuen Quelltext woertlich;
+der Anker-Waechter haelt alle 289 gegen `HEAD` frisch. Damit bezahlt jedes
+Refactoring — und T-206 zeigt: auch jede Kommentarkuerzung
+(`move-scope-constant-emptied` haengt an vier Kommentarzeilen) — die Pflege
+von Ankern fuer Laeufe, die laengst berichtet und abgenommen sind. P10-1
+allein braeche 42. Die Kraft dagegen: die Mutationsprobe ist eine Institution
+(L-002, L-007, L-008) und hat 8 von 13 zahnlosen Waechtern gefunden; der
+`qa-engineer` faehrt die Mutationen des `developer` nach, und dafuer muss der
+Eintrag im Repo stehen, nicht nur im Bericht.
+
+**Was traegt der Track, was er kostet?** Die vier Messskripte (`plan`,
+`capture`, `compare`, `ratios`, zusammen 1 005 Zeilen) haben jede
+Abnahmezahl ab AD-019 W3 geliefert und kosten in Ruhe nichts: ihre 55 Tests
+laufen gegen Fixtures, nicht gegen Anker. **Sie bleiben unveraendert.** Was
+kostet, ist allein die Dauerhaltung der 289 Literale — 5 325 Zeilen, deren
+einziger Ertrag nach dem Nachfahren ein P4 war.
+
+**Optionen.**
+
+- **A — Mutationen zur Laufzeit aus Ankern erzeugen** (Richtung a des Plans):
+  statt `old` woertlich ein Ortsausdruck (Datei, Funktion, Muster), `new`
+  bleibt Literal. Konsequenz: eine kleine Mustersprache (~150 Zeilen) und ein
+  Treffer, der nicht mehr "genau einmal" heissen kann — genau die Zusicherung,
+  die `apply` heute vertrauenswuerdig macht. Und die Kopplung bleibt: ein
+  Ortsausdruck nennt Bezeichner, und P10-1 aendert bei 42 Mutationen den
+  **Pfad**, den kein Muster ueberlebt. **Verworfen:** mehr Maschine fuer
+  dieselbe Bruchstelle.
+- **B — Einkuerzen auf die Mutationen, die je etwas gefangen haben**
+  (Richtung b): hoechstens neun Eintraege bleiben. Konsequenz: ihr Fund ist
+  laengst durch einen Test geschlossen; ein Wiederholen hat denselben
+  Erwartungsertrag wie bei jeder anderen Mutation, also den einen P4 aus 289.
+  **Verworfen:** die Auswahl nach Geschichte behaelt neun Anker fuer keinen
+  Leser. Das richtige Kriterium ist die **Zeit**, nicht die Historie.
+- **C — Track stilllegen, Waechter behalten** (dritte Richtung, nur als
+  Vorlage zulaessig): **nicht vorgelegt** — die vier Messskripte kosten
+  nichts und werden fuer jede AD-019-Nachmessung gebraucht; die Zahlen tragen
+  die Stilllegung nicht.
+- **D — Die Registry als Quittung je Zyklus: ein Eintrag lebt vom Commit des
+  `developer` bis zum Nachfahren durch den `qa-engineer` in der Pruefphase und
+  wird dann geloescht.** Konsequenz: der Vorgang (schreiben, fahren,
+  nachfahren) bleibt vollstaendig; der Anker-Waechter bewacht nur noch die
+  lebenden Eintraege; die Literale eines abgeschlossenen Laufs stehen in git
+  am Commit, den der Bericht nennt.
+
+**Entscheidung: D.** Begruendung in einer Zahl: **1 Fund (P4) aus 289
+dauerhaft gehaltenen Mutationen gegen 7 Anker-Nachzieh-Commits und einen
+sicher gebrochenen 42er-Block bei P10-1.** Reproduzierbarkeit braucht den
+**Commit**, nicht den frischen Anker: eine Mutation gehoert zu dem Stand, fuer
+den sie geschrieben wurde, und `git archive <rev>` ist ohnehin der einzige
+Weg, sie zu fahren (Kopfkommentar von `mutate.py`). Der Waechter hielt sie
+gegen einen Stand frisch, gegen den sie nie gefahren wird.
+
+**Was sich aendert — und was nicht.**
+
+1. `mutate.py` behaelt `Mutation`, `MUTATIONS`, `newline_of`, `apply`,
+   `guard_the_own_tree`, `main` und den Kopfkommentar **unveraendert**; auch
+   `apply`s Verweigerung bei `count != 1` bleibt — sie ist der Schutz, der
+   ohne Waechter traegt.
+2. `MUTATIONS` wird **einmal auf leer** gesetzt (alle 289 sind seit
+   `b33461d` nachgefahren oder aelter; 0 seit der Pruefphase hinzugekommen).
+   Der loeschende Commit nennt den Stand, an dem die Literale zuletzt gruen
+   gegen den Quelltext standen, in seiner Nachricht: `git show
+   <sha>^:scripts/differential/mutate.py` ist das Archiv. **Keine** neue
+   Archivdatei — git ist die Primaerquelle, und ein zweites Ledger waere eine
+   Kopie, die auseinanderlaufen kann.
+3. Der Anker-Waechter bleibt **im Wortlaut**: parametrisiert ueber
+   `MUTATIONS`, also 0 Faelle bei leerer Registry und n Faelle waehrend einer
+   Bauwelle. Kein Testcode aendert sich.
+4. **Regel fuer den `developer`:** jede Mutation, die ein Auftrag als
+   toetend nennt, wird wie bisher in `MUTATIONS` eingetragen, in einer
+   Extraktion gefahren, und der Bericht nennt Name, Ergebnis und Commit.
+5. **Regel fuer die Pruefphase:** der `qa-engineer` faehrt die lebenden
+   Eintraege nach (wie T-041/T-051/T-186) und loescht sie **im selben
+   Commit wie seinen Bericht**; der Bericht nennt Anzahl und Sha. Die
+   Loeschung ist Teil des Nachfahrens, nicht ein eigener Auftrag.
+6. Die Tests, deren Docstrings eine Mutation beim Namen nennen (6 Dateien,
+   z. B. `test_attack_power_against_the_game.py`), bleiben stehen: der Name
+   plus der Commit des Berichts ist die Fundstelle. Kein Umbenennen.
+
+**Konsequenzen.** Leicht wird: jedes Refactoring, jede Prosakuerzung
+(Korb 1), P10-1. Dauerhaft schwer wird: eine alte Kampagne gegen
+**heutigen** Code wiederholen — dazu muessten die Anker nachgezogen werden,
+was genau der Preis ist, der abgeschafft wird. Der eine Fall, in dem das
+etwas fand (QA-214), war ein P4.
+
+**Umkehrbarkeit: leicht.** `git revert` des loeschenden Commits, dann die
+seither gebrochenen Anker nachziehen. Ein Rueckbau wird interessant, wenn
+eine wiederholte Kampagne zum zweiten Mal einen Befund ab P2 liefert — dann
+ist die Dauerhaltung ihren Preis wert und die Regel unter 5 faellt.
+
+**Randbedingung der tragenden Aussage.** "Ein Fund aus 289" ist ueber die
+Berichte und Register dieses Repos gezaehlt (`docs/berichte/`,
+`docs/archiv/berichte/`, `qa/`), Stand 13.09.2026; Kampagnen, die nur im
+Scratchpad liefen und nichts fanden, sind nicht sichtbar und wuerden die
+Zahl nur nach unten druecken.
+
+**Kopplung an Kommentartext (T-206).** Bleibt bestehen, ist aber jetzt auf
+die lebenden Eintraege begrenzt: wer waehrend einer Bauwelle Kommentare in
+einer Datei kuerzt, die ein lebender Anker nennt, zieht ihn nach. Nach der
+Pruefphase ist die Datei frei.
+
+### AD-034 — `Planner` bleibt der Controller des Build-planner-Tabs; ihn verlassen die drei Bloecke mit eigener Naht (2026-09-13, Status: aktiv)
+
+**Kontext.** 3 318 Zeilen, 94 Methoden, ein Drittel des Quellcodes. Die
+Tabkoerper (`bosstab`, `effectstab`, `arsenaltab`, `deeptab`, `depthstab`,
+`eventstab`) sind schon draussen; die Naht ist gezogen. Was drin ist, wurde
+je Methodengruppe gezaehlt (Skript im Scratchpad T-220, `ast` ueber
+`self.<attr>`):
+
+| Gruppe (Zeilen) | Methoden | `self.`-Attribute | ruft fremde `Planner`-Methoden | Attribute nur hier |
+|---|---|---|---|---|
+| `__init__` + `_build_left/_build_middle` (1836–2392) | 3 | 86 | 26 | 34 |
+| `_build_right` (2393–2512) | 1 | 20 | 5 | 3 |
+| Fensterchrome: Groesse, Skalierung, Neustart, Verknuepfung (2513–2725) | 12 | 18 | **0** | 10 |
+| Held + Waffen-Slots (2726–2806) | 11 | 18 | 4 | 2 |
+| Gefaesse, gespeicherte Builds, Slots einsetzen (2807–3611) | 27 | 43 | 3 | 14 |
+| Variante, Suche, Reliktwechsel (3612–3727) | 5 | 15 | 2 | 2 |
+| Aufschluesselung + Waffenschaden (3728–4008) | 4 | 13 | 3 | 3 |
+| Spielstand lesen, Uebernehmen (4009–4399) | 9 | 25 | 9 | 5 |
+| Berater-Glue, Haltezustand, Anwenden/Rueckgaengig (4400–4704) | 14 | 27 | 8 | 11 |
+| Statblatt zeichnen + `recompute` (4705–5153) | 8 | 41 | 8 | 8 |
+
+Dazu die Testflaeche, die den Schnitt begrenzt: die Suite greift auf das
+Fenster als **flachen Namensraum** zu — `window.owned` in **14** Testdateien,
+`window.base_slots` in **8**, `window.weapon_slots` in **11**,
+`window.advisor` in **22**, `window.chalice_list` in **8**. Ein Schnitt, der
+diese Namen verschiebt, sprengt die Fuenf-Dateien-Grenze allein mit Tests.
+
+**Kraefte.** Kleinere Klasse gegen Testflaeche; echte Grenze gegen
+Fuenf-Dateien-Schritte; "je Schritt ein Modul" gegen Ponytail (keine Schicht
+mit einem Aufrufer).
+
+**Optionen.**
+
+- **A — Mixin-Split:** je Gruppe ein Modul mit einer Mixin-Klasse,
+  `Planner(QMainWindow, ChaliceMixin, …)`. Konsequenz: 2 Dateien je Schritt,
+  0 Testaenderungen, jede Gruppe ≤ 805 Zeilen — und **keine Grenze**: `self`
+  bleibt der gemeinsame Namensraum, jede Gruppe kann weiter alles anfassen.
+  Das ist ein Dateischnitt mit besserem Namen. **Verworfen.**
+- **B — Alles als Panes mit Signalen** (auch Gefaesse/Builds, Berater-Glue,
+  Chrome): Konsequenz: der Gefaess-Block teilt 29 Attribute mit dem Rest
+  (`base_slots`, `deep_slots`, `hero_index`, `owned`, `favourites`) und ist
+  mit `recompute` **der** Controller; ihn herauszuloesen erzeugt entweder
+  Aliasse am Fenster (zwei Namen, ein Objekt) oder ~15 Testdateien je
+  Schritt. Chrome hat 0 Fremdaufrufe, aber ein `QMainWindow`, das seine
+  eigene Geometrie **nicht** kennt, ist eine Schicht mit einem Aufrufer.
+  Berater-Glue traegt den Haltezustand, der laut AD-017.1 **am Fenster**
+  lebt. **Verworfen** fuer diese drei; angenommen fuer die drei Bloecke
+  unten.
+- **C — Im Bestand bleiben:** nichts schneiden. Konsequenz: die drei Bloecke
+  mit fertiger Naht (Statblatt liest nur, Spielstandleser ist schon ein
+  `QObject` mit Signalen, `RelicSlot` ist schon callback-gebunden) bleiben
+  in einer 5 216-Zeilen-Datei, obwohl `weaponslots.py` und `advisorbar.py`
+  das Muster laengst vorleben. **Verworfen.**
+
+**Entscheidung: drei Schnitte entlang des vorhandenen Vertrags, der Rest
+bleibt.** Der Vertrag existiert: `ArsenalTab(data, planner, icons)` liest
+`planner.current_hero()` und `planner.current_build()`;
+`advisorbar.asking_from(planner, goal_id)` liest `owned`, `current_hero()`,
+`level_slider.value()`, `active_slots()`, `held_slot_indices()`, `declared`,
+`data`. Ein Widget, das aus dem Fenster liest und ueber Signale oder
+Callbacks zurueckspricht, ist das Muster dieses Projekts (`AdvisorBar`
+emittiert `suggestion_changed`, `apply_all_requested`; `WeaponTile` und
+`RelicSlot` nehmen Callbacks). Nichts Neues kommt dazu.
+
+**Abhaengigkeitsrichtung.** `app.py` importiert `statsheet`, `savereader`,
+`relicslots`; keines der drei importiert `app`. Ein Pane **liest** das
+Fenster ueber die Abfragemethoden oben und **schreibt nie** ein Attribut des
+Fensters. Was zurueck muss, geht als Signal (`declared_changed`) oder als
+Callback, den das Fenster hineingibt. Damit bleibt `Planner` der einzige
+Ort, an dem `model.compute` gerufen wird (`_rebuild`, QA-001) und der
+einzige Halter von `declared`, `owned`, `_build`, Haltezustand.
+
+**Was bleibt, mit Grund.**
+
+| Bleibt im `Planner` | Zeilen | Grund |
+|---|---|---|
+| Gefaesse, gespeicherte Builds, Slots einsetzen, `_settle_slots` | 805 | ist der Controller; 29 geteilte Attribute; arbeitet auf `RelicSlot`-Widgets, nicht Qt-frei (gemessen an `_restore_slot_keys`, `_settle_slots`) |
+| Berater-Glue, Haltezustand, Anwenden/Rueckgaengig | 305 | AD-017.1: der Halt lebt am Fenster; 8 Fremdaufrufe in den Gefaess-Block |
+| Fensterchrome | 213 | 0 Fremdaufrufe, aber Eigentum des `QMainWindow`; ein Auslagern waere eine Schicht mit einem Aufrufer |
+| Spielstand-**Oberflaeche** (`rescan_save`, `find_my_save`, `_on_save_read`, `load_equipped`) | 391 | 9 Fremdaufrufe in Gefaess-Block und `recompute`; das ist Controller-Arbeit. Der **Leser** dahinter geht (Schritt 2) |
+| `_rebuild`, `current_build`, `selected_*`, `recompute`-Kopf | ~115 | die eine Rechenstelle (QA-001) |
+
+Nach den drei Schritten: `Planner` rund **2 620** Zeilen (3 318 − 120
+`_build_right` − 281 Aufschluesselung − 294 Zeichenhaelfte von `recompute`
+− 38 Situationsschalter + ~35 Verdrahtung), `app.py` rund **3 100** (5 216 −
+1 124 − 283 − 733 + ~40 Importe und Verdrahtung). Das ist kein Drittel mehr, aber auch nicht klein;
+**weiter wird nicht geschnitten**, bis ein Block einen zweiten Aufrufer hat.
+
+**Umsetzung — drei Schritte, jeder gruen und startbar, Reihenfolge nach
+Risiko (klein zuerst).** Voraussetzung: AD-033 Punkt 2 ist committet, sonst
+bricht jeder Schritt die genannten Anker im Waechter. Die Ankerzahlen stehen
+trotzdem hier — sie sind die Kopplung, die P10-2 vorhergesagt hat, und sie
+gelten fuer jeden, der die Literale spaeter gegen einen aelteren Stand
+faehrt.
+
+**Schritt 1 — `nrplanner/relicslots.py`** (Spiegel von `weaponslots.py`).
+Reiner Modulumzug von `app.py` Z. 312–1435: `slot_chip`, `_same_copy`,
+`_relic_count`, `_custom_effects`, `class RelicSlot`, `class VariantDialog`
+(1 124 Zeilen). `HeroTile`, `VesselStrip`, `SituationalRow` bleiben in
+`app.py` (klein, vom Fenster gebaut). `app.py` importiert, was es braucht
+(`RelicSlot`, `_custom_effects` fuer `_restore_slot_keys`, `slot_chip`).
+Dateien: `nrplanner/app.py`, `nrplanner/relicslots.py`,
+`tests/test_advisor_block.py` (zwei `from nrplanner.app import RelicSlot`)
+— **3**. Gebrochene Anker (Pfad wechselt): **6** —
+`the-tooltip-stops-naming-the-file`, `a-text-names-the-machinery`,
+`the-file-type-leaks-into-another-text`, `the-relic-button-stays-open`,
+`no-line-on-the-empty-card`, `the-bracket-stays-at-zero`. AK: keines
+(kein Text, kein Layout). Nebenfund fuer den Director: `VariantDialog` hat
+**keinen Aufrufer** in `nrplanner/` und `tests/` (`grep -rn VariantDialog`,
+13.09.2026) — mitziehen oder streichen entscheidet er, nicht dieser Schritt.
+
+**Schritt 2 — `nrplanner/savereader.py`.** Reiner Modulumzug von `app.py`
+Z. 1553–1835: `where_saves_usually_are`, `_pick_a_save_file`,
+`_refuse_a_file_no_save_can_be`, `read_the_save`, `_SaveReadWorker`,
+`class SaveReader` (283 Zeilen). `app.py` importiert `SaveReader`,
+`read_the_save`, `where_saves_usually_are`. Die Tests, die
+`appmod._pick_a_save_file`/`_refuse_a_file_no_save_can_be` per `monkeypatch`
+ersetzen, muessen `savereader` patchen, weil `read_the_save` seine Helfer im
+eigenen Modul nachschlaegt. Dateien: `nrplanner/app.py`,
+`nrplanner/savereader.py`, `tests/test_save_path_memory.py`,
+`tests/test_save_read_in_the_background.py`,
+`tests/test_exception_text_is_english.py` — **5**. Gebrochene Anker: **6** —
+`the-size-is-not-looked-at`, `no-reason-for-a-file-that-is-not-a-save`,
+`the-reason-carries-the-path`, `a-read-per-press`,
+`answer-stamped-with-a-dead-generation`,
+`shutdown-does-not-raise-the-generation-t142`. Beruehrte Entscheidungen:
+AD-029, AD-030, AD-031 nennen `app.py` als Ort des Lesens — **Wortlaut
+bleibt gueltig**, die Fundstelle wird zu `savereader.py`; Nachtrag in
+Themenbereich E durch den `architect` nach dem Merge, nicht durch den
+`developer`. AK: keines (Texte wandern woertlich).
+
+**Schritt 3 — `nrplanner/statsheet.py`, `class StatSheet(QWidget)`.** Der
+rechte Bereich als Widget: Inhalt von `_build_right` (Grundwerte,
+Attribute, Waffenschaden-Kacheln, Widerstaende, Situationsschalter, Fluch-
+und Warnzeile), dazu `_show_breakdown`, `_ar_breakdown_text`,
+`_show_ar_breakdown`, `_refresh_weapon_damage`, `_sync_situational` und
+die Zeichenhaelfte von `recompute` (ab `build = self._build = …`, Z. 4860
+ff.) als `show(build)`. Zustand, der mitgeht: `last_sources`, `last_rates`,
+`last_ar`, `situational_rows`, `weapon_tiles`. Vertrag:
+
+```python
+class StatSheet(QWidget):
+    declared_changed = Signal(dict)      # the player moved a condition switch
+
+    def __init__(self, planner, icons):  # reads planner.data, .current_hero(),
+        ...                              # .level_slider, .deep_check, .weapon_slots,
+                                         # .active_weapon, .active_slot(),
+                                         # .selected_effects(), .selected_curses()
+    def show(self, build: model.Build, declared: dict) -> None: ...
+```
+
+Die sechs `WeaponTile`s bekommen ihre Callbacks (`_edit_weapon_slot`,
+`_clear_weapon_slot`, `_activate_weapon_slot`, `apply_hero_weapon`) wie
+heute vom Fenster hineingereicht. `Planner.recompute` endet mit
+`self.stat_sheet.show(build, self.declared)`;
+`self.stat_sheet.declared_changed.connect(self._declared_changed)` setzt
+`self.declared` und ruft `recompute` — `declared` bleibt am Fenster
+(`asking_from` liest es, `_rebuild` rechnet damit, A16 setzt es voraus). Dateien: `nrplanner/app.py`, `nrplanner/statsheet.py`,
+`tests/test_breakdown_sources_wiring.py`, `tests/test_display_thresholds.py`,
+`tests/test_one_build.py`, `tests/test_weapon_slot_tile_wrap.py`,
+`tests/test_weapon_tile_and_panel_agree.py`, `tests/weapon_damage_cases.py`
+— **8**, davon 6 Tests mit dem mechanischen Umbau `window.X` →
+`window.stat_sheet.X` (wie heute `window.weapons_tab.X`, 24 Stellen).
+**Offene Frage OF-34** (unten): zaehlen reine Test-Umbenennungen
+gegen die Fuenf? Wenn ja: Schritt 3 wird zu 3a (Pane + `app.py` + 3 Tests)
+und 3b (3 Tests), wobei 3a fuer die drei uebrigen Testdateien **einen
+Alias-Block** am Fenster traegt (`self.ar_label = self.stat_sheet.ar_label`,
+markiert `# ponytail: alias until 3b`), den 3b loescht. Gebrochene Anker:
+**3** — `breakdown-base-and-scaled-swapped`, `active-tile-only`,
+`last-sources-not-assigned`. Beruehrte Entscheidungen: AD-020 Punkt 6 und
+AD-019 (Kachel und Tafel aus einem `damage.equipped()`-Aufruf) — die
+Zusicherung wandert woertlich mit `_refresh_weapon_damage`; `Planner._rebuild`
+bleibt der einzige `model.compute`-Aufrufer (QA-001, AD-002). AK: die
+Anzeige-AKs des Statblatts und der Waffenkacheln bleiben im Wortlaut
+unberuehrt; von den vier `app.py:`-Zeilenzitaten in `UI_SPEC.md` (3242,
+3883, 4079, 4320) wandert nur **3883** (`_refresh_weapon_damage`) — der
+`ui-ux-designer` zieht die Fundstelle nach, nicht der `developer` (QA-240
+fuehrt Zeilenzitate ohnehin als ungeprueft).
+
+**Was der `developer` in P10-1 nicht tut.** Keine Umbenennung ausser der
+Modulzugehoerigkeit; keine Aenderung an Wortlaut, Reihenfolge oder Zahlen
+auf dem Statblatt; kein Alias am Fenster ausser dem in 3a benannten; kein
+Signal, das der Vertrag oben nicht nennt; keine Schreibzugriffe eines Panes
+auf `planner.<attr>`; kein Nachziehen von Ankern in `mutate.py` (AD-033);
+kein Anfassen von `UI_SPEC.md`, `ARCHITECTURE.md`.
+
+**Risiken und Rueckweg.** (1) `read_the_save` wird nach dem Umzug von Tests
+am falschen Modul gepatcht — merkt man an rot in
+`test_save_path_memory.py`; Rueckweg ist der Patchpfad, nicht der Umzug.
+(2) `StatSheet.show` liest `planner.deep_check` fuer die Fluchzeile —
+Reihenfolge der Konstruktion (rechter Bereich vor `deep_check`?) prueft der
+`developer` gegen `__init__`; der bestehende `hasattr`-Wachposten am Kopf
+von `recompute` deckt das. (3) Der Anker-Waechter faellt, wenn AD-033 nicht
+zuerst committet ist — 15 Faelle, alle mit dem Namen der Mutation.
+
+**Umkehrbarkeit: leicht** je Schritt (drei Commits, jeder ein Umzug);
+**mittel** fuer Schritt 3, weil sechs Tests den neuen Pfad lernen.
+
+### Offene Fragen aus Themenbereich G
+
+- **OF-34 (an den `director`):** Zaehlen reine Test-Umbenennungen
+  (`window.X` → `window.stat_sheet.X`, sechs Dateien) gegen die
+  Fuenf-Dateien-Grenze eines `developer`-Auftrags? Empfehlung: **nein** —
+  sie sind mechanisch und muessen im selben Commit gruen sein; Schritt 3
+  laeuft dann als ein Auftrag mit 8 Dateien. Wenn ja: Teilung 3a/3b mit dem
+  benannten Alias-Block.
+- **OF-35 (an den `director`):** Wer loescht die nachgefahrenen Eintraege aus
+  `MUTATIONS`? Empfehlung: der `qa-engineer` im Commit seines
+  Pruefphasen-Berichts (er hat sie gefahren, der Sha steht in seinem
+  Bericht). Alternative: Schritt 0 des ersten `developer`-Auftrags der
+  naechsten Bauwelle. Bis zur Antwort gilt die Empfehlung.
+
+### Nachtraege an bestehenden Stellen
+
+- **Z. 42 ("Die naechste freie AD-Nummer ist AD-032")** und **Z. 315**: seit
+  T-189 belegt; nach diesem Abschnitt ist die naechste freie **AD-035**.
+  Massgeblich bleibt `ARCHITECTURE_REGISTER.md`.
+- **Z. 2459 (`baseline_for(pool, goal_id) -> float`)**: Nachtrag steht dort.
+- `docs/plan-restarbeiten.md` P10-2 sagt "5 300 Zeilen kopierten
+  Quelltext" — gezaehlt sind 5 325 Literalzeilen (Z. 44–5368) und 96 Zeilen
+  Logik; die "rund 100" halten.
 
 ---
 

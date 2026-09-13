@@ -8,7 +8,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
 **Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-221** · QA ab
-**QA-247** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-033** · OF **OF-34**
+**QA-247** · SEC ab **SEC-043** · AK **AK-264** · AD **AD-035** · OF **OF-36**
 · DR **DR-022** · R **R-007** · C **C-005** · A **A-033**. **AD-027 und OF-14
 wurden nie vergeben.**
 
@@ -30,7 +30,7 @@ Praemissen-Pflichtfeld, Gate-Kriterium, Phasenmodell).
 
 **Dispatch 13.09.:** T-217 `developer` (SEC-038 → SEC-036 → SEC-026, **erledigt** `09f5cdb`+`ffb82dd` Worktree; Befunde: E1-Headline passt nicht zum Herkunftssatz → Spec-Nachtrag; ohne Steam in der Registry wird jeder Ordner abgelehnt → Folge der Entscheidung, **dem Nutzer nennen**) · T-218
 `developer` (QA-210, QA-232, SEC-039, QA-242 erster Anlauf) · T-219
-`developer` klein (SEC-037, **erledigt** `670d879` auf Worktree-Branch, noch nicht zusammengefuehrt) · T-220 `architect` (P10-2 und P10-1). Drei
+`developer` klein (SEC-037, **erledigt** `670d879` auf Worktree-Branch, noch nicht zusammengefuehrt) · T-220 `architect` (**erledigt**: AD-033 Registry als Quittung je Zyklus, `MUTATIONS` einmal leer; AD-034 Planner-Schnitt in drei Schritten `relicslots.py` → `savereader.py` → `statsheet.py`; `ARCHITECTURE.md` ab Z. 5325). **Reihenfolge P10:** erst T-217 zusammenfuehren (aendert Anker in `mutate.py`), dann AD-033 Punkt 2, dann AD-034 Schritte 1-3. Drei
 Worktrees mit Schritt 0 auf `41206be`; dafuer `origin/HEAD` lokal auf
 `docs/audit-and-advisor-design` gesetzt (B-03). **Vorgaben-Vorlauf
 uebersprungen:** die Vorgaben sind die T-202-Befunde selbst, keine neue
@@ -89,6 +89,14 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 
 ## Beschlossen, nicht beauftragt
 
+- **OF-34 (13.09.):** reine Test-Umbenennungen zaehlen **nicht** gegen die
+  Fuenf-Dateien-Grenze; AD-034 Schritt 3 ist ein Auftrag mit 2 Code- und 6
+  Testdateien.
+- **OF-35 (13.09.):** die nachgefahrenen `MUTATIONS`-Eintraege loescht der
+  `qa-engineer` im Pruefphasenlauf (er hat `Edit`), der Director committet es
+  mit seiner Buchfuehrung.
+- **T-220 B-1:** `VariantDialog` (`app.py:1363-1435`, kein Aufrufer) wird in
+  AD-034 Schritt 1 **gestrichen**, nicht umgezogen (`delete`).
 - **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **nur fuer die Bauform
   des Befundtexts** (T-202), nicht als "kein Pfad erreicht die Flaeche".
 - **Kein Waechter haelt die Verlaufsdateien eingefroren** (T-183).
