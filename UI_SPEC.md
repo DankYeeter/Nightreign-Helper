@@ -4130,6 +4130,42 @@ unveraendert den 4.7-Satz aus AK-173. **Baut der `architect`/`developer` mit
 AD-036** (Abbruchpfad, welche Aenderung welchen Satz ausloest); dieses
 Kriterium prueft nur den sichtbaren Satz und seine Ausloeser.
 
+#### AK-290
+*Neu in T-248b (ui-ux-designer), 2026-09-14 — Nachtrag: `explain.py`
+(`_excluded_line`, Commit `9423eee`) traegt bereits den AD-036-Platzhalter
+fuer die ausgeschlossene Why-Zeile, aber weder AK-276 noch AK-277 nennen den
+Satz der Pflicht-Zeile oder eine Legende mit allen drei Zustaenden. Kein
+Fensterlauf, reine Wortlautentscheidung.*
+
+**AK-290** *(die drei Saetze/Zeilen, die AK-276/AK-277/AK-289 offen liessen —
+A8 Englisch, A12 dieselbe Wortwahl wie die sechs bestehenden `_silent_effect`-
+Fuellungen.)*
+
+1. **Why-Zeile, ausgeschlossener Effekt** — der gebaute Platzhalter wird
+   endgueltig: `"{name}: you excluded it, so it is not counted."` Er passt
+   ins bestehende Satzmuster (`"{name}: <Ursache>, so <Folge>."`, vgl.
+   `SILENT_ALREADY_COUNTED`) und in die Wortwahl der AK-277-Tooltips
+   (`exclude`/`Don't include`). Keine Aenderung an `_excluded_line` noetig.
+2. **Why-Zeile, Pflicht-Effekt** — neuer Satz, dasselbe Muster gespiegelt:
+   `"{name}: you required it, so it always counts."` Gilt, wo der
+   `architect`/`developer` mit AD-036 eine eigene Textzeile fuer einen als
+   Must include markierten Effekt braucht (z. B. die AK-279-Verwaltungsliste
+   `Effects you require:`, oder eine Zeile ohne eigene Figur, die trotzdem
+   erklaeren muss, warum das Relikt dennoch vorgeschlagen wurde) — Ort und
+   Ausloeser entscheidet AD-036 wie bei AK-281, dieses Kriterium prueft nur
+   den Wortlaut.
+3. **`Why`-Dialog-Legende, alle drei Zustaende** — ersetzt/vervollstaendigt
+   den zweistaatigen Entwurf aus AK-277:
+   `"▲ marks an effect you required, a struck-through effect one you
+   excluded; every other line counts as usual."` Der dritte Halbsatz macht
+   den neutralen Zustand (AK-276) explizit, den AK-277 nur stillschweigend
+   voraussetzte.
+
+*Rot-vorher:* eine Legende, die nur die beiden markierten Zustaende nennt,
+laesst offen, ob eine unmarkierte Zeile ueberhaupt regulaer zaehlt — bei
+drei gegenseitig ausschliessenden Zustaenden (AK-276) ist das keine
+Ausnahme, die man weglassen darf.
+
 ---
 
 ### 6.9 Zweihand-Angriffskraft neben der Einhandzahl (A20)
