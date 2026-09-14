@@ -590,7 +590,7 @@ def test_the_slot_tells_the_suggested_copy_from_the_one_it_holds(qapp):
     have in the slot.
     """
     from nrplanner import inventory
-    from nrplanner.app import RelicSlot
+    from nrplanner.relicslots import RelicSlot
 
     card = RelicSlot(0, False, lambda: None)
     worn = inventory.OwnedItem(relic_id=1, name="The Wylder's Earring",
@@ -667,7 +667,7 @@ def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
     The relation and not the number, because the number is a font: the card
     asks for exactly as much room with a block on it as without one.
     """
-    from nrplanner.app import RelicSlot
+    from nrplanner.relicslots import RelicSlot
 
     card = RelicSlot(0, False, lambda: None)
     card.show()
