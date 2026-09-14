@@ -405,19 +405,37 @@ def _exclusivity_of(ctx: types.GoalContext, effect_id: int) -> int | None:
     return key if isinstance(key, int) and key > 0 else None
 
 
+def _excluded_line(candidate: types.Candidate, name: str, *,
+                   is_curse: bool) -> types.ReasonLine:
+    """The one sentence for an effect the player struck out (A18, AD-036.3).
+
+    Asked before every other filling: the effect never reached the
+    calculation, so "under a condition" or "no number here" would send the
+    player looking for a reason that is their own decision. Placeholder
+    wording from AD-036; `UI_SPEC` §6.8 names none of its own.
+    """
+    return types.ReasonLine(
+        slot_index=candidate.slot_index,
+        text=f"{name}: you excluded it, so it is not counted.",
+        is_curse=is_curse, silence=types.SILENT_EXCLUDED)
+
+
 def _silent_effect(candidate: types.Candidate, effect_id: int,
                    ctx: types.GoalContext, built: model.Build,
                    counted_elsewhere: bool, group_counted: bool,
-                   armaments: _Armaments) -> types.ReasonLine:
+                   armaments: _Armaments,
+                   excluded: frozenset[int]) -> types.ReasonLine:
     """An effect of a chosen copy that produced no line, said in one sentence.
 
     Six fillings, and **the first that fits wins** in the order AK-167 sets:
     (a), (a2), **(c)**, **(b)**, (d), (e) -- the strongest piece of news
-    first. (a2) has two sentences, one for a second copy of the same effect
-    and one for a second member of its exclusivity group (QA-257); they are
-    one filling, because the player can do one thing about either. They are
-    not one sentence with six wordings; what a player can do
-    about a silent effect differs completely between them. An effect that
+    first. Before all six stands the exclusion (AD-036.3), after only the
+    nameless case: a sentence about an effect needs its name. (a2) has two
+    sentences, one for a second copy of the same effect and one for a second
+    member of its exclusivity group (QA-257); they are one filling, because
+    the player can do one thing about either. They are not one sentence with
+    six wordings; what a player can do about a silent effect differs
+    completely between them. An effect that
     works for another Nightfarer is dead weight in that slot forever, and one
     whose gate is the armament names the lever, which is why (c) is asked
     before (b): *"only applies under a condition"* would be true of it and
@@ -445,6 +463,8 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
         return said("One of its effects is not in your game data, so it has "
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
+    if effect_id in excluded:
+        return _excluded_line(candidate, name, is_curse=False)
     effect = ctx.data["effects"][str(effect_id)]
     hero = str(ctx.hero.get("name", ""))
     if not effecttext.works_for(effect, hero):
@@ -598,10 +618,10 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                     candidate, effect_id, ctx, built,
                     effect_id in elsewhere,
                     _exclusivity_of(ctx, effect_id) in groups_counted,
-                    armaments))
+                    armaments, problem.excluded))
         for curse_id in candidate.curse_ids:
             lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
-                                      unfelt))
+                                      unfelt, problem.excluded))
         counted = sum(1 for effect_id in candidate.effect_ids
                       if effect_id in with_a_figure)
         groups.append(types.SlotReasons(
@@ -618,9 +638,10 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
 def _curse_lines(candidate: types.Candidate, curse_id: int,
                  ctx: types.GoalContext, built: model.Build,
                  mine: Sequence[_Contribution],
-                 unfelt: frozenset[tuple[int, int]]
+                 unfelt: frozenset[tuple[int, int]],
+                 excluded: frozenset[int]
                  ) -> tuple[types.ReasonLine, ...]:
-    """One curse of one copy, in whichever of the three fillings fits.
+    """One curse of one copy, in whichever of the four fillings fits.
 
     A curse is read **once**, under the relic that carries it (`UI_SPEC`
     T-078 §3). It used to fall into up to three places: a line in `reasons`,
@@ -633,12 +654,17 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
     unnamed: the heading of a group states how many **effects** moved a
     figure, and a silent effect that said nothing would make that arithmetic
     wrong (AK-155). No count covers the curses.
+
+    A curse the player excluded (A18) is named as excluded, before the
+    no-number filling: `evaluate` struck it, so nothing moved for it.
     """
     moved = [one for one in mine if one.effect_id == curse_id]
     if not moved:
         name = _effect_name(ctx, curse_id)
         if not name:
             return ()
+        if curse_id in excluded:
+            return (_excluded_line(candidate, name, is_curse=True),)
         return (types.ReasonLine(
             slot_index=candidate.slot_index,
             text=f"{name}: no number here shows what this costs.",

@@ -150,10 +150,19 @@ class SlotProblem:
     `slots` are the slots in play, in the vessel's own order (AD-003 point 1),
     which for Deep of Night is the three ordinary slots followed by the three
     Deep ones. A vessel with Deep of Night switched off contributes three.
+
+    `excluded` are the effect ids the player marked `Don't include` (`GOAL.md`
+    A18, AD-036): a boundary condition of the same kind as holding. Such an
+    id -- effect or curse -- is struck before the calculation sees it
+    (`evaluate.effect_ids_of`), so every state, pool, beam and picker ranking
+    of this problem is built without it, and the `Why` says it was excluded
+    rather than that it carried no number. The relic stays a candidate; it
+    is worth whatever its other effects are worth.
     """
 
     slots: tuple[Slot, ...] = ()
     held: tuple[HeldSlot, ...] = ()
+    excluded: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -613,6 +622,9 @@ SILENT_ARMAMENT_BOUND = "armament_bound"
 SILENT_NO_NUMBER_HERE = "no_number_here"
 #: The dataset does not carry this effect, so there is no name to write.
 SILENT_NOT_IN_THE_DATA = "not_in_the_data"
+#: The player excluded it (`SlotProblem.excluded`, A18): it never reached the
+#: calculation, so it is not "waiting on a condition" -- it was not asked.
+SILENT_EXCLUDED = "excluded"
 
 
 @dataclass(frozen=True)

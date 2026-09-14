@@ -930,6 +930,58 @@ def test_an_effect_waiting_on_a_condition_says_so_in_both_places(game_data,
         f"says it is waiting: {declared_lines}")
 
 
+def test_an_excluded_effect_says_so_before_every_other_filling(game_data,
+                                                                wylder,
+                                                                armament):
+    """A18, AD-036.3: the `Why` says "excluded", never "under a condition".
+
+    The effect chosen would take filling (b) if it were asked -- it is a
+    switchable condition -- so the case shows the exclusion wins over a
+    filling that would otherwise fit, and that `not_counted` does not list
+    it either: it was not parked, it was never asked.
+    """
+    waiting = advisor.a_declarable_effect(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  excluded=frozenset({waiting}))
+    chosen = (a_copy(0, 1, "A relic", [waiting]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    name = effect_names(game_data, [waiting]).pop()
+
+    built = evaluate(problem, chosen, ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             built, ctx, goals.GOALS[DAMAGE])
+
+    line, = groups[0].lines
+    assert line.text == f"{name}: you excluded it, so it is not counted."
+    assert line.silence == types.SILENT_EXCLUDED
+    assert not line.is_curse
+    assert name not in explain.not_counted(built)
+    assert groups[0].count_line == explain._count_line(1, 0, False)
+
+
+def test_an_excluded_curse_is_named_as_excluded_not_as_a_price(game_data,
+                                                               wylder,
+                                                               armament):
+    """The same sentence for a curse (A18 names effect ids, not kinds): it
+    stays a curse line, so the block still shows it (`drawn_in_the_block`),
+    but the filling says whose decision it was."""
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  excluded=frozenset({curse}))
+    chosen = (a_copy(0, 1, "Cursed copy", (), [curse]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    name = effect_names(game_data, [curse]).pop()
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    line, = groups[0].lines
+    assert line.text == f"{name}: you excluded it, so it is not counted."
+    assert line.silence == types.SILENT_EXCLUDED
+    assert line.is_curse and types.drawn_in_the_block(line)
+
+
 def test_an_effect_bound_to_the_armaments_says_that_and_not_the_remainder(
         game_data, wylder, armament):
     """QA-104's family, and why it is not the leftover filling.

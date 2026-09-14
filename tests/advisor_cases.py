@@ -64,6 +64,12 @@ def raising_effects(data: dict, hero: dict, count: int) -> list[list[int]]:
     return [[effect_id] for effect_id in found]
 
 
+def a_curse_of_this_dataset(data: dict) -> int:
+    """The lowest-numbered effect the extractor flags `is_curse`."""
+    return min(int(key) for key, effect in data["effects"].items()
+               if effect.get("is_curse"))
+
+
 def a_non_stacking_effect(data: dict, hero: dict, field_name: str) -> int:
     """An effect the game refuses to count twice, that really moves a field.
 

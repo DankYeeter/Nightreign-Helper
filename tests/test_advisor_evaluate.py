@@ -480,6 +480,47 @@ def test_an_effect_this_dataset_does_not_know_is_skipped(game_data):
         evaluate(problem, (), advisor.context(game_data, hero)).attributes
 
 
+def test_an_excluded_id_is_struck_before_the_model_sees_it(monkeypatch,
+                                                           game_data):
+    """`GOAL.md` A18, AD-036.2: an excluded effect reaches no calculation.
+
+    Struck in `effect_ids_of`, the one road every source takes -- held
+    relic, chosen copy, curse -- so the case excludes one id from each of
+    the three and reads the call to `model.compute` itself: a build
+    comparison would show the total, not whether the id was ever asked.
+    Kills the `MUTATIONS` entry `exclusion-ignored` (AD-033).
+    """
+    hero = cases.hero_by_name(game_data, "Wylder")
+    inventory = advisor.make_inventory(game_data, hero, count=2)
+    held, chosen = inventory.relics
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    chosen = dataclasses.replace(chosen, curse_ids=[curse])
+    kept = (held.effect_ids[0], chosen.effect_ids[0], curse)
+    problem = advisor.problem([advisor.RED, advisor.RED],
+                              held={0: advisor.held_relic(held)})
+    struck = dataclasses.replace(problem, excluded=frozenset(kept))
+    ctx = advisor.context(game_data, hero)
+    assignment = (model_candidate(chosen, 1),)
+    seen: list[list[int]] = []
+    real = model.compute
+
+    def recording(hero_arg, level, effects, curves=None, **kwargs):
+        seen.append([int(effect["id"]) for effect in effects])
+        return real(hero_arg, level, effects, curves, **kwargs)
+
+    monkeypatch.setattr(model, "compute", recording)
+
+    assert set(kept) <= set(evaluate_module.effect_ids_of(problem,
+                                                          assignment, ctx))
+    assert evaluate_module.effect_ids_of(struck, assignment, ctx) == ()
+    evaluate(struck, assignment, ctx)
+    assert seen == [[]], "an excluded id reached `model.compute`"
+    assert figures(evaluate(struck, assignment, ctx)) == \
+        figures(evaluate(advisor.problem([advisor.RED, advisor.RED]),
+                         (), ctx)), (
+        "three excluded ids and nothing else is the empty build")
+
+
 # -- helpers ---------------------------------------------------------------
 
 def model_candidate(relic, slot_index: int):

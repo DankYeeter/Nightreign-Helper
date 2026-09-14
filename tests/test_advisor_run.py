@@ -110,6 +110,72 @@ def test_the_gain_is_the_difference_to_the_build_as_it_stands(game_data,
     assert result.held == problem.held
 
 
+def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
+        monkeypatch, game_data, wylder):
+    """`GOAL.md` A18, the Qt-free proof: exclude the effect one copy lives
+    on, and the whole run -- pre-sort, beam, base, reasons -- computes as if
+    that copy carried nothing. Read at `model.compute`, the one place every
+    figure of the run is formed, and against a second run on an inventory
+    where the copy really carries nothing: same copies, same order, same
+    figures. With an empty exclusion the run is the baseline run.
+    """
+    from nrplanner import model
+
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    struck_out = rolls[0][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    bare = advisor.make_inventory(game_data, wylder, count=4,
+                                  rolls=[[]] + rolls[1:])
+    problem = advisor.problem([advisor.RED, advisor.RED])
+    excluding = dataclasses.replace(problem,
+                                    excluded=frozenset({struck_out}))
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    def a_run(question, inventory):
+        frozen = run.frozen_inventory(inventory, question)
+        return run.run(advisor.request_for(question, ctx, frozen), frozen,
+                       ctx, goals.GOALS)
+
+    baseline = a_run(problem, owned)
+    seen: list[int] = []
+    real = model.compute
+
+    def recording(hero_arg, level, effects, curves=None, **kwargs):
+        seen.extend(int(effect["id"]) for effect in effects)
+        return real(hero_arg, level, effects, curves, **kwargs)
+
+    monkeypatch.setattr(model, "compute", recording)
+    excluded = a_run(excluding, owned)
+    monkeypatch.setattr(model, "compute", real)
+
+    assert struck_out not in seen, (
+        "the excluded id reached a calculation of the run")
+    assert _ranking(excluded) == _ranking(a_run(problem, bare))
+    assert _ranking(excluded) != _ranking(baseline), (
+        "the excluded effect decided nothing, so this inventory cannot show "
+        "the exclusion")
+    assert _ranking(a_run(dataclasses.replace(problem,
+                                              excluded=frozenset()),
+                          owned)) == _ranking(baseline)
+
+    name = " ".join(game_data["effects"][str(struck_out)]["name"].split())
+    carrier = owned.relics[0].handle
+    for suggestion in excluded.suggestions:
+        if carrier not in {choice.handle for choice in suggestion.choices}:
+            continue
+        said = [line.text for group in suggestion.reasons
+                for line in group.lines
+                if line.silence == types.SILENT_EXCLUDED]
+        assert said == [f"{name}: you excluded it, so it is not counted."]
+
+
+def _ranking(result) -> list[tuple[tuple[int, ...], float]]:
+    return [(tuple(choice.handle for choice in suggestion.choices),
+             suggestion.score.value) for suggestion in result.suggestions]
+
+
 def _chosen(result, inventory, problem, ctx):
     """The copies the best suggestion names, looked up by handle.
 

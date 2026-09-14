@@ -48,6 +48,11 @@ def effect_ids_of(problem: types.SlotProblem,
     Order matters to `model.compute` in one respect only: duplicates of an
     `isStrongestEffect` are reported in the order they arrive. It does not
     move a total.
+
+    An id in `problem.excluded` is struck here and nowhere else (AD-036.2):
+    this is the one road every effect takes to `model.compute`, so the base
+    build, the pre-sort, the beam, the picker ranking and the `Why` all see
+    the same build without it.
     """
     ids: list[int] = []
     for relic in types.held_relics(problem):
@@ -57,7 +62,7 @@ def effect_ids_of(problem: types.SlotProblem,
         ids.extend(candidate.effect_ids)
         ids.extend(candidate.curse_ids)
     ids.extend(ctx.armament_effect_ids)
-    return tuple(ids)
+    return tuple(eid for eid in ids if eid not in problem.excluded)
 
 
 def _effects(ctx: types.GoalContext,

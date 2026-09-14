@@ -88,6 +88,21 @@ MUTATIONS: dict[str, Mutation] = {
             "copies of the frozen 314) and `test_the_baseline_leaves_no_"
             "switchable_condition_uncounted` (T-248d step 1)."),
     ),
+    "exclusion-ignored": Mutation(
+        path="nrplanner/advisor/evaluate.py",
+        old="""    return tuple(eid for eid in ids if eid not in problem.excluded)
+""",
+        new="""    return tuple(ids)
+""",
+        survival_means=(
+            "an effect the player marked `Don't include` counts in every "
+            "state, pool, beam and picker ranking as before, and the `Why` "
+            "still says it was excluded -- A18 broken silently behind a "
+            "truthful-looking line. Killed by `tests/test_advisor_evaluate."
+            "py::test_an_excluded_id_is_struck_before_the_model_sees_it` and "
+            "`tests/test_advisor_run.py::test_an_excluded_effect_counts_in_"
+            "no_suggestion_and_no_ranking` (T-248d step 2)."),
+    ),
 }
 
 
