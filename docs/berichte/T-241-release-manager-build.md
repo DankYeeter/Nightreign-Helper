@@ -95,3 +95,76 @@ Keine neuen Befunde im Anwendungscode.
 Zu entscheiden/zur Kenntnis:
 1. `.venv` fehlte auf diesem Rechner vollstaendig und wurde neu angelegt - siehe Befund oben. Kein `.gitignore`-Nachtrag noetig (`.venv/` und `dist/` bereits erfasst).
 2. Kein Tag-Vorschlag - das ist `notes` (T-241e), nicht dieser Modus.
+
+---
+
+# Rebuild 0e1269f
+
+**Auftrag:** T-241 Abschnitt T-241c, Rebuild nach QA-257-Fix. Version bleibt 1.10.0; das Artefakt vom 08:03 (Bau oben, Commit `9e8933d`) wurde nie weitergegeben.
+
+## Pflichtlektuere: `docs/legal/AUFLAGEN.md`
+
+Vor Buildbeginn geprueft: HEAD-Stand `83fdcdd` enthaelt `docs/legal/AUFLAGEN.md` unveraendert seit Commit `2730906` ("T-241a Auflagen GRUEN fuer lokalen Bau 1.10.0") — kein neuerer Lauf hat die Datei seither angefasst (`git log -1 -- docs/legal/AUFLAGEN.md`). Die Bewertung aus dem ersten Bau gilt unveraendert: kein Eintrag der Tabelle (A-001 bis A-036) traegt Ampel ROT mit Status `offen`. A-010 (ROT) ist ausdruecklich zurueckgestellt, A-020/A-033 erfuellt, A-025 (Weitergabe) betrifft diesen Bau nicht — Auftrag schliesst Weitergabe ausdruecklich aus. `build` ist nicht gesperrt.
+
+## Ganz oben
+
+| | |
+|---|---|
+| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Groesse** | 59.082.953 Byte (56,35 MiB) — Ergebnis von Lauf 2, siehe unten |
+| **SHA-256** | `473E109DFE32DE9982D9A21BA8FA0C04851DC188F6644EC9C4E792B767FC7283` |
+| **Commit** | `83fdcdd77d1c3149aa91b021c079370549586a4e` (Branch `docs/audit-and-advisor-design`); Code-Stand `0e1269f` ("fix(model): Exklusivgruppe zaehlt genau einmal (QA-257)"), `83fdcdd` ist eine Doku-Commit darueber |
+| **Dauer** | Lauf 1: 37 s. Lauf 2 (echter Kaltstart, `build/`+`dist/` vorher geloescht): 36 s |
+| **UPX** | nicht im `PATH` (`where upx`: kein Treffer, exit 1) — `upx=True` im `.spec` bleibt wirkungslos, wie in jedem vorherigen Bau |
+| **`check_licences.py`** | `OK`, exit 0 — alle drei Pflichtdateien und alle sechs Bibliotheken erfasst |
+
+## Ausgangsstand
+
+`git status --porcelain` vor dem ersten Schritt: leer, sauberer Arbeitsstand. `.venv` liegt aus dem vorigen Lauf bereits vor (`python --version` 3.12.10, `pyinstaller --version` 6.21.0 — deckt sich mit den gepinnten Versionen aus `requirements.txt`/`requirements-dev.txt`; nicht neu angelegt, kein erneuter `pip install`). Werkzeuge sonst unveraendert: Windows 11 Pro 10.0.26200 x64, PySide6 6.11.1.
+
+## Bau, zwei volle Laeufe
+
+Beide Male `build/` und `dist/` vorher vollstaendig geloescht (echter Kaltstart).
+
+| | Lauf 1 | Lauf 2 |
+|---|---|---|
+| `rc` | 0 | 0 |
+| Dauer | 37 s | 36 s |
+| Groesse | 59.081.952 Byte | 59.082.953 Byte |
+| SHA-256 | `B471D23D7BF960AF1EF1868B51FFC0231ABACB4F5935B5850F60C2C84BEAB5E2` | `473E109DFE32DE9982D9A21BA8FA0C04851DC188F6644EC9C4E792B767FC7283` |
+
+**Nicht bit-identisch** — deckt sich mit dem im ersten Bau dokumentierten Befund (`ROLLOUT.md:255-267`): `cmp` zeigt die erste Abweichung bei **Byte 273** (PE-Kopf, Baustempel), 13.468.512 von rund 59 Mio Bytes weichen ab. Kein neuer Befund. Warnungsdatei (`warn-NightreignHelper.txt`) beide Male 37 Zeilen, ausschliesslich Erklaertext und "missing/excluded module named"-Eintraege (u. a. `_frozen_importlib`, `pwd`, `grp`, `posix`, `resource`, `fcntl`, `termios`) — keine `ERROR`-Zeile, keine unerklaerte Warnung, identisch zum ersten Bau.
+
+Artefakt aus Lauf 2 bleibt in `dist/`; Lauf 1 liegt als Vergleichsbeleg im Scratchpad dieser Sitzung.
+
+## Blocker
+
+Keiner fuer diesen Bau.
+
+## Risiken
+
+- Nicht bit-identischer Bau (PE-Baustempel + Modulreihenfolge) — unveraendert, dokumentierte Ursache, kein Hinweis auf Manipulation.
+- Kein UPX auf diesem Bau-Wirt — unveraendert.
+
+## Ungeprueft
+
+- Clean-Room-Installation, Update-Pfad, Rauchtest mit Datenumlenkung, QA/Power-User-Verifikation des QA-257-Fix am Artefakt — das ist T-241d, nicht dieser Lauf.
+
+## An `developer`
+
+Keine neuen Befunde im Anwendungscode.
+
+## An `power-user` / `T-241d` (Ausgangspunkt)
+
+- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Groesse:** 59.082.953 Byte (56,35 MiB)
+- **SHA-256:** `473E109DFE32DE9982D9A21BA8FA0C04851DC188F6644EC9C4E792B767FC7283`
+- **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel — kein Rauchtest in diesem Lauf)
+- Dieses Artefakt ersetzt das vom 08:03 (SHA `314CA35C…`), das nie weitergegeben wurde — bei der Pruefung dieses hier verwenden.
+- Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`, `LOCALAPPDATA`, `APPDATA` — Testabzug kopieren, nicht darauf zeigen (`CLAUDE.md`).
+
+## An `director`
+
+**Empfehlung: freigeben mit benannter Einschraenkung** (fuer den Weiterlauf zu `clean-room`/`qa-engineer`/`power-user` — kein Release-Votum, das bleibt an A-025 und den Nutzerauftrag "keine Weitergabe" gebunden).
+
+Zu entscheiden/zur Kenntnis: keine neuen Punkte gegenueber dem ersten Bau. Das Artefakt vom 08:03 (SHA `314CA35C…`) ist damit ueberholt und sollte nicht mehr verwendet werden.
