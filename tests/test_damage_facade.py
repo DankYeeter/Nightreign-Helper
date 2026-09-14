@@ -464,8 +464,11 @@ def test_a_candidate_carries_the_attack_multipliers(game_data, build):
     # leaves out is one nobody can equip. Asking it about the dataset instead
     # would fail on the missing key and say nothing about the multipliers.
     for weapon in model.offerable_weapons(game_data["weapons"]):
+        # On the build's own Nightfarer, as the facade rates it: the two
+        # measured pairing factors are layer one (T-246), and Revenant's
+        # Cursed Claws would otherwise disagree by exactly x0.88.
         layer_one = weapons.rate(weapon, build.attributes, game_data,
-                                 weapons.MAX_UPGRADE)
+                                 weapons.MAX_UPGRADE, build.nightfarer)
         answer = by_id[weapon["id"]]
         assert answer.scaled_per_type == layer_one.scaled_per_type(), \
             weapon["name"]
