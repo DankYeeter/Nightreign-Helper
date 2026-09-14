@@ -47,8 +47,9 @@ def tile_ar(tile) -> int:
 
 
 def panel_total(planner) -> int:
-    match = PANEL_TOTAL.search(planner.ar_label.text())
-    assert match, f"no total in the panel: {planner.ar_label.text()!r}"
+    match = PANEL_TOTAL.search(planner.stat_sheet.ar_label.text())
+    assert match, (
+        f"no total in the panel: {planner.stat_sheet.ar_label.text()!r}")
     return int(match.group(1))
 
 
@@ -111,7 +112,7 @@ def refresh(planner, game_data, hero, effects, active: int):
         weapon=slots[active].weapon,
         weapons_held=[s.weapon for s in slots if s.filled],
     )
-    planner._refresh_weapon_damage(build)
+    planner.stat_sheet._refresh_weapon_damage(build)
     return build
 
 
@@ -132,7 +133,8 @@ def test_every_filled_tile_names_the_panel_s_own_total(
         build = refresh(planner, game_data, hero, moving_effects, index)
         slot = planner.weapon_slots[index]
 
-        assert tile_ar(planner.weapon_tiles[index]) == panel_total(planner), (
+        tile = planner.stat_sheet.weapon_tiles[index]
+        assert tile_ar(tile) == panel_total(planner), (
             f"slot {index + 1} shows one figure on its tile and another in "
             f"the panel below it")
 
@@ -187,9 +189,10 @@ def test_which_tile_is_ringed_moves_no_tile_s_figure(
     pairs = armaments(game_data, hero)
     fill(planner, game_data, hero, pairs)
     build = refresh(planner, game_data, hero, moving_effects, 0)
-    with_first_ringed = [tile.detail.text() for tile in planner.weapon_tiles]
+    with_first_ringed = [tile.detail.text()
+                         for tile in planner.stat_sheet.weapon_tiles]
 
-    figures = [tile_ar(planner.weapon_tiles[index])
+    figures = [tile_ar(planner.stat_sheet.weapon_tiles[index])
                for index in range(len(pairs))]
     assert len(figures) >= 3 and len(set(figures)) > 1, (
         "this case has fewer than three tiles carrying a figure, or they all "
@@ -197,9 +200,10 @@ def test_which_tile_is_ringed_moves_no_tile_s_figure(
 
     for active in range(1, weaponslots.SLOT_COUNT):
         planner.active_weapon = active
-        planner._refresh_weapon_damage(build)
+        planner.stat_sheet._refresh_weapon_damage(build)
 
-        assert [tile.detail.text() for tile in planner.weapon_tiles] \
+        assert [tile.detail.text()
+                for tile in planner.stat_sheet.weapon_tiles] \
             == with_first_ringed, (
                 f"ringing slot {active + 1} changed what the other tiles say")
 
@@ -219,13 +223,13 @@ def test_the_starting_armament_penalty_reaches_the_tile_too(
 
     fill(planner, game_data, hero, [(own, 3)])
     refresh(planner, game_data, hero, effects, 0)
-    penalised = tile_ar(planner.weapon_tiles[0])
+    penalised = tile_ar(planner.stat_sheet.weapon_tiles[0])
     assert penalised == panel_total(planner)
 
     # The same armament, the same tier, one slot to the right.
     fill(planner, game_data, hero, [(own, 3), (own, 3)])
     refresh(planner, game_data, hero, effects, 1)
-    spared = tile_ar(planner.weapon_tiles[1])
+    spared = tile_ar(planner.stat_sheet.weapon_tiles[1])
     assert spared == panel_total(planner)
 
     assert penalised < spared, (

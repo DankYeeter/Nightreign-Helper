@@ -94,8 +94,8 @@ def catalyst_tile(planner, game_data, hero):
     planner.selected_effects = lambda: []
     build = model.compute(hero, LEVEL, [], game_data.get("curves", {}),
                           weapon=weapon, weapons_held=[weapon])
-    planner._refresh_weapon_damage(build)
-    return planner.weapon_tiles[0]
+    planner.stat_sheet._refresh_weapon_damage(build)
+    return planner.stat_sheet.weapon_tiles[0]
 
 
 def test_the_tile_names_the_spell_figure_at_all(catalyst_tile):

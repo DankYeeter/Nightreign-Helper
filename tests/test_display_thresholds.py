@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import app as appmod
+from nrplanner import statsheet
 from nrplanner import damage, model, weaponslots
 from nrplanner.weapons import GAME_ATTACK_POWER_RATE, MIN_UPGRADE
 
@@ -115,8 +115,8 @@ def breakdown_for(planner, game_data, hero, effect, weapon_id) -> str:
     build = model.compute(hero, LEVEL, [effect],
                           game_data.get("curves", {}),
                           weapon=weapon, weapons_held=[weapon])
-    planner._refresh_weapon_damage(build)
-    return planner._ar_breakdown_text()
+    planner.stat_sheet._refresh_weapon_damage(build)
+    return planner.stat_sheet._ar_breakdown_text()
 
 
 def test_the_threshold_is_half_a_printed_unit_and_not_a_calibrated_one(gaps):
@@ -127,9 +127,9 @@ def test_the_threshold_is_half_a_printed_unit_and_not_a_calibrated_one(gaps):
     edits this rules out are the two the calibration invites: 0.5 x 0.6 and
     0.5 / 0.6, neither of which is half of anything the display prints.
     """
-    assert appmod.VISIBLE_CHANGE == HALF_A_UNIT, (
-        f"the threshold is {appmod.VISIBLE_CHANGE}, which is not half of the "
-        f"{SCREEN_UNIT} this display steps in. Both readings the "
+    assert statsheet.VISIBLE_CHANGE == HALF_A_UNIT, (
+        f"the threshold is {statsheet.VISIBLE_CHANGE}, which is not half of "
+        f"the {SCREEN_UNIT} this display steps in. Both readings the "
         f"calibration invites are here for comparison: {LOWERED} and "
         f"{RAISED}")
     assert LOWERED < HALF_A_UNIT < RAISED, (
@@ -177,11 +177,11 @@ def test_recalibrating_moves_no_threshold(monkeypatch, rate):
     """
     from nrplanner import weapons
 
-    before = (appmod.VISIBLE_CHANGE, appmod.VISIBLE_PERCENT,
-              appmod.COLOURED_CHANGE)
+    before = (statsheet.VISIBLE_CHANGE, statsheet.VISIBLE_PERCENT,
+              statsheet.COLOURED_CHANGE)
     monkeypatch.setattr(weapons, "GAME_ATTACK_POWER_RATE", rate)
 
-    assert (appmod.VISIBLE_CHANGE, appmod.VISIBLE_PERCENT,
-            appmod.COLOURED_CHANGE) == before, (
+    assert (statsheet.VISIBLE_CHANGE, statsheet.VISIBLE_PERCENT,
+            statsheet.COLOURED_CHANGE) == before, (
         f"a calibration of {rate} moved a display threshold, which is the "
         f"one thing AK-65 forbids")
