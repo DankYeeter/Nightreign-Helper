@@ -64,7 +64,9 @@ OF-Kreis von `ARCHITECTURE.md` / `docs/state.md`.
 | AD-032 | **Entschieden am 12.09.2026 durch den App Designer: Option A+C** (ohne Waffe, Attribute als eigene Zielrichtung, Armaturen-Buffs fallen). Vorgelegt in T-189: worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht — vier gemessene Optionen (A so lassen 26/210 · B Startarmatur des Nightfarers als feste Bezugswaffe 51/210 · C Attribute als eigene Zielrichtung 53/210, mit A zusammen 75 · D Erwartungswert ueber die Waffentypen 81/210), vorgelegt und **nicht entschieden**. Enthaelt zugleich die Empfehlung zu QA-226 (die gewuerfelten Armaturen-Buffs fallen). | `### AD-032`, Themenbereich C, unmittelbar vor `## Themenbereich D` (Stand `b8f71a8` + T-189: Z. 2936) | — (Urfassung 2026-09-12, T-189) | entfaellt — noch nichts zu ueberholen |
 | AD-033 | Die Mutations-Registry ist eine Quittung je Zyklus, kein Dauerbestand: ein Eintrag lebt vom `developer`-Commit bis zum Nachfahren in der Pruefphase und wird dann geloescht; `MUTATIONS` wird einmal auf leer gesetzt, Logik und Anker-Waechter bleiben im Wortlaut. Tragende Zahl: 1 Fund (P4) aus 289 dauerhaft gehaltenen Mutationen (nachgezaehlt **301**, T-223). | `### AD-033`, Themenbereich G (Stand `83cfed8` + T-220: Z. 5364) | Nachtragsklammer zur Zahl (T-224/T-223, gebucht unter T-222) | nichts |
 | AD-034 | `Planner` bleibt der Controller des Build-planner-Tabs; ihn verlassen drei Bloecke mit fertiger Naht — `relicslots.py` (Modulumzug, 6 Anker), `savereader.py` (Modulumzug, 6 Anker), `statsheet.py` (`StatSheet(QWidget)` liest das Fenster, spricht per `declared_changed` zurueck, 3 Anker). Gefaesse/Builds, Berater-Glue (AD-017.1) und Chrome bleiben. | `### AD-034`, Themenbereich G; **geltender Vertrag von `StatSheet`** und die Tabelle Vertrag/gebaut im Nachtrag T-239d (14.09.2026, Themenbereich G „AD-034 wie gebaut") | Nachtrag T-239d (14.09.2026, Themenbereich G „AD-034 wie gebaut"): `StatSheet(QScrollArea)`, `draw()` statt `show()`, `Signal(object)`, kein `icons`, `SituationalRow`/`_heading` in `statsheet.py`, `VariantDialog` gestrichen, Wrapper `_refuse_a_file_no_save_can_be` geloescht | nichts; beruehrt AD-029/030/031 (Fundstelle des Lesens wird `savereader.py`, Wortlaut gilt) und AD-019/AD-020 Punkt 6 (Zusicherung wandert woertlich mit) |
-| AD-035 | Die Lesart (Worst/Best case, A16) ist Fensterzustand `Planner.worst_case` und erreicht den Lauf nur als Vorbelegung `{**model.reading_defaults(worst), **planner.declared}` in `asking_from`; Fluch = `effects[id]["is_curse"]`, Zaehlwert 1, Handeingabe gewinnt, kein neues Feld auf Anfrage oder Ergebnis; Benennung nach AK-184/AK-185. Sieben bedingte Fluch-Ids, 414 bedingte Buff-Ids (13.09.2026). | `### AD-035`, Themenbereich H (Stand `f1fc79c` + T-222), **Nachtrag** unter "Der benannte Test" | Nachtrag T-224 (gebucht unter T-222): Gegenseite des GOAL-Tests ist die Leiste vor A16, nicht Best case; 11 Kopien, `177 + 27 = 204` bei 312 Kopien; zwei weitere Testdateien | nichts; beruehrt AD-004/AD-025 (AK-187 legt `not_counted` fest) und AD-032 (Voreinstellung rankt ohne Waffe) |
+| AD-035 | Die Lesart (Worst/Best case, A16) ist Fensterzustand `Planner.worst_case` und erreicht den Lauf nur als Vorbelegung `{**model.reading_defaults(worst), **planner.declared}` in `asking_from`; Fluch = `effects[id]["is_curse"]`, Zaehlwert 1, Handeingabe gewinnt, kein neues Feld auf Anfrage oder Ergebnis; Benennung nach AK-184/AK-185. Sieben bedingte Fluch-Ids, 414 bedingte Buff-Ids (13.09.2026). | `### AD-035`, Themenbereich H (Stand `f1fc79c` + T-222), **Nachtrag** unter "Der benannte Test" | Nachtrag T-224 (gebucht unter T-222): Gegenseite des GOAL-Tests ist die Leiste vor A16, nicht Best case; 11 Kopien, `177 + 27 = 204` bei 312 Kopien; zwei weitere Testdateien | **abgeloest durch AD-036** (14.09.2026, A18): Lesart, `reading_defaults`, `worst_case`, `reading_changed`, AK-184/185-Benennung fallen; `is_curse`-Definition und Zaehlwert 1 gelten in AD-036 fort |
+| AD-036 | Zwei Effektmengen `excluded`/`required` sind Randbedingung der Frage auf `SlotProblem` (wie `held`, AD-014), nicht Zustand der Rechnung: Ausschluss streicht Ids in `evaluate.effect_ids_of` vor `compute`, Pflicht ist Randbedingung des Beams (erzwungene Traeger-Zweige, injektiver Machbarkeits-Schnitt, Dedupe ueber `spent`; kein Nachfilter, A7); Persistenz zwei feste Schluessel `advisor/excluded`, `advisor/required` (AD-030-Bauform, kein `__schema`); Grundlinie ohne Lesart = bisheriger Best case `model.advisor_defaults()`. Vier developer-Schritte, Schritt 1 sechs Dateien (OF-38). | `### AD-036`, Themenbereich I | — (Urfassung T-248a) | nichts; loest AD-035 ab; praezisiert AD-003.2/AD-014.4 (Traeger ausserhalb der `shortlist` setzen den Symmetrie-Boden nicht) und AD-013.3 |
+| AD-037 | Zweihandwert als zweite Antwort derselben Frage: `damage.Rating.two_handed` (`Rating` oder `None`), gefuellt von `_rate`; Regel als gemessene Kalibrierung in `weapons.py` (`rate(two_handed=)`), Scope 124 wird `class_rates["two_handed"]` (Praezedenz `WEAPON_CLASS_SCOPES`); **Bau gesperrt bis R-008** — die Elden-Ring-Regel STR x1.5 trifft keinen Messpunkt (208/169 statt 216/151). Hand der Rangfolge: Nutzerwahl OF-41, Empfehlung (3). | `### AD-037`, Themenbereich J | — (Urfassung T-248a) | nichts; wahrt AD-019/020/022, getrennt von AD-036 |
 
 **Eine der 32 AD-Nummern ist keine Entscheidung** (AD-027 nie vergeben), und
 **eine ist eine vorgelegte, noch nicht getroffene** (AD-032). Getroffene
@@ -81,6 +83,10 @@ offen 12, beantwortet 19, mit Rest 1, unklar 1, nie vergeben 1). Fuenf Debt-Kand
 **ohne** AD-Nummer (K-1 `theme.py` … K-5) stehen in `ARCHITECTURE.md` Themenbereich G,
 „AD-034 wie gebaut"; ein Kandidat bekommt erst mit einem Bauauftrag eine Nummer.
 `ARCHITECTURE.md` an diesem Tag **7189** Zeilen.)*
+*(Nachtrag 14.09.2026, T-248a: **AD-036** (A18/A19) und **AD-037** (A20) vergeben — 37 Nummern, 36 getroffene
+Entscheidungen (AD-027 nie vergeben), AD-035 abgeloest; naechste freie **AD-038**. OF-36 nie vergeben, **OF-37 bis OF-41**
+angehaengt, alle offen; naechste freie **OF-42**. Zaehltabelle darunter weiter auf dem Stand vom 12.09. (heute 40 OF-Zeilen,
+offen 17). `ARCHITECTURE.md` an diesem Tag **7676** Zeilen.)*
 **`widerspruechlich`-Faelle: 0** — jede Ueberholung ist an ihrer Stelle
 ausdruecklich markiert.
 
@@ -132,6 +138,12 @@ Aussage die Frage beruehrt, sie aber nicht entscheidet.
 | OF-33 | **Nicht vergeben.** Nur als naechster freier Kreis genannt („OF ab OF-33"); `docs/state.md` fuehrt inzwischen „OF ab OF-34". | entfaellt | `ARCHITECTURE.md` Z. 5970; `docs/state.md` Z. 10–12 |
 | OF-34 | Zaehlen reine Test-Umbenennungen (`window.X` → `window.stat_sheet.X`, sechs Dateien) gegen die Fuenf-Dateien-Grenze eines `developer`-Auftrags (AD-034 Schritt 3)? | **beantwortet durch den `director` (13.09.2026)** — nein, reine Test-Umbenennungen zaehlen nicht; Schritt 3 lief als ein Auftrag (`dc95c6b`, 12 Testdateien nennen `stat_sheet`). | Frage: `ARCHITECTURE.md` Themenbereich G, „Offene Fragen aus Themenbereich G". Antwort: `docs/state.md` „Beschlossen, nicht beauftragt" |
 | OF-35 | Wer loescht die nachgefahrenen Eintraege aus `MUTATIONS` (AD-033 Punkt 5)? | **beantwortet durch den `director` (13.09.2026)** — der `qa-engineer` loescht im Pruefphasenlauf, der Director committet (erstmals T-229 `43edd95`, dann T-234 `3110b4e`). | Frage: `ARCHITECTURE.md` Themenbereich G, „Offene Fragen aus Themenbereich G". Antwort: `docs/state.md` „Beschlossen, nicht beauftragt" |
+| OF-36 | **Nicht vergeben.** Nur als naechster freier Kreis genannt (`docs/state.md` „OF ab OF-36“); T-248a vergibt ab OF-37. | entfaellt | `docs/state.md` Z. 10–12 |
+| OF-37 | Zaehlt die Grundlinie des Beraters ohne Lesart die sieben bedingten Fluch-Ids (A18 Satz 1 woertlich) oder nicht (A18 „Nachweis“: heutige Best-case-Rangfolge)? Gebaut wird der Nachweis; Wechsel = eine Zeile in `advisor_defaults()`. | **offen** — `director` → App Designer | `ARCHITECTURE.md` Themenbereich I, „Offene Fragen aus Themenbereich I“ |
+| OF-38 | AD-036 Schritt 1 beruehrt sechs Anwendungsdateien (`relicslots.py` zwei Durchreich-Zeilen): ein Auftrag mit Ausnahme oder zwei (1a Anzeigepfad, 1b Combobox/Grundlinie)? | **offen** — `director` | ebd. |
+| OF-39 | Eigener OUTDATED-Satz nach dem Markieren einer Effektmenge (Nachfolger AK-270)? Ohne Antwort faellt `the_build_changed(reading_changed=)` ersatzlos. | **offen** — `director` → `ui-ux-designer` (T-248b) | ebd. |
+| OF-40 | R-008 beauftragen: Zweihandregel, die alle Messpunkte trifft (sechs Zellen Lv15 ohne Relikte, Params zuerst). Ohne R-008 kein Bauauftrag zu AD-037. | **offen** — `director` → `researcher` + `qa-engineer` | `ARCHITECTURE.md` Themenbereich J, „Offene Fragen aus Themenbereich J“ |
+| OF-41 | Hand der Berater-Rangfolge: (1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand (Empfehlung; ohne Bezugswaffe identisch mit (2)). | **offen** — `director` → App Designer | ebd. |
 
 ### Zaehlung der offenen Fragen
 
@@ -157,11 +169,12 @@ verlorener Vorgang. Genau darum sind es 32 OF-Nummern und nicht 33.
 
 | Adressat | wartende OF |
 |---|---|
-| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018 |
-| **`director`** | OF-22, OF-24, OF-27, OF-29; aus OF-31 die Wortlautfragen SEC-027/028 |
+| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018, **OF-37** (Grundlinie und bedingte Flueche), **OF-41** (Hand der Rangfolge) |
+| **`director`** | OF-22, OF-24, OF-27, OF-29; aus OF-31 die Wortlautfragen SEC-027/028; **OF-38** (Schritt-1-Zuschnitt), **OF-40** (R-008 beauftragen) |
 | **`performance-tuner`** | OF-10, OF-28, OF-32 |
 | **`qa-engineer`** | OF-11 |
-| **`ui-ux-designer`** | OF-18, OF-21, OF-23 |
+| **`ui-ux-designer`** | OF-18, OF-21, OF-23, **OF-39** (OUTDATED-Satz) |
+| **`researcher` + `qa-engineer`** | **OF-40** (R-008 Zweihandregel) |
 
 ---
 

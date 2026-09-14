@@ -5833,7 +5833,7 @@ Bezugsstand HEAD `f1fc79c`. Gegenstand: `GOAL.md` A16 und `UI_SPEC.md`
 AK-182 bis AK-188 (T-092). Eine Entscheidung, AD-035. Keine Aenderung an
 AD-033/AD-034.*
 
-### AD-035 — Die Lesart ist Fensterzustand und erreicht den Lauf nur als Vorbelegung von `declared` (2026-09-13, Status: aktiv)
+### AD-035 — Die Lesart ist Fensterzustand und erreicht den Lauf nur als Vorbelegung von `declared` (2026-09-13, Status: **abgeloest durch AD-036**, 14.09.2026 — A18 nimmt die Lesarten zurueck; `is_curse`-Definition und Zaehlwert 1 gelten in AD-036 fort)
 
 **Kontext.** A16 verlangt zwei Lesarten derselben Rechnung — *Worst case*:
 jede bedingte Fluchwirkung gilt, keine bedingte Buffwirkung; *Best case*:
@@ -5984,6 +5984,493 @@ Literale werden beim ersten Lauf nachgezaehlt, die Identitaet gilt
 unveraendert. *(Nachtrag: `GOAL.md` traegt seit `541bba8` den Nachtrag
 "312 Relikte"; die Zahl dieses Abschnitts ist damit die des Ziels, nicht
 nur eine Messung.)*
+
+
+---
+
+## Themenbereich I — Der Berater ohne Lesarten: Ausschluss- und Pflichtmenge, A18/A19 (2026-09-14, T-248a)
+
+*Angelegt am 14.09.2026 (T-248a, `architect`, Entscheidungstiefe Schnitt +
+Datenmodell). Bezugsstand HEAD `d7993ae`, GOAL.md A19 nachgereicht mit
+`d30253a`. Gegenstand: `GOAL.md` A18 (ersetzt A16) und A19. Eine
+Entscheidung, AD-036, die AD-035 abloest. Vorgelagerte `researcher`-/
+`compliance-agent`-Laeufe: keine (`docs/research/`, `docs/legal/` fuehren
+nichts zu T-248).*
+
+### AD-036 — Zwei Effektmengen sind Randbedingung der Frage (`SlotProblem`), nicht Zustand der Rechnung; die Lesart faellt, die Grundlinie ist der bisherige Best case (2026-09-14, Status: aktiv; loest AD-035 ab)
+
+**Kontext.** A18 nimmt den Umschalter Worst/Best case zurueck (QA-261: der
+Nutzer liest "Best case" als Spielsituation) und verlangt stattdessen, dass
+einzelne Effekt-Ids aus jeder Rangfolge des Beraters fallen, ueber Neustart
+gespeichert. A19 verlangt dazu eine Pflichtmenge: jeder Vorschlag traegt jeden
+markierten Effekt ueber mindestens eine gewaehlte Kopie, sonst sagt der Berater,
+dass keine passende Kopie da ist (A7). Beide Mengen: gleiche Bedienung, gleiche
+Persistenz. Nicht-Ziel: Sperrliste fuer Relikte, Bedingungsklassen-Schalter.
+
+**Bestand, am Code geprueft (14.09.2026, `d7993ae`).** Die Lesart erreicht den
+Lauf heute **nur** als Vorbelegung von `declared` (AD-035 Punkt 1):
+`advisorbar.py:422` `{**model.reading_defaults(planner.worst_case),
+**planner.declared}`. **In `advisor/goals.py`, `evaluate.py`, `candidates.py`,
+`search.py` gibt es keine Lesart-Filterung** — `grep reading|worst|CONDITIONAL_`
+trifft dort nur Prosa; `evaluate.py:121` reicht `ctx.declared` an
+`model.compute` durch, mehr nicht. Was faellt, ist deshalb ausschliesslich
+Fenster- und Benennungscode: `model.py:246-247, 284-303`
+(`CONDITIONAL_CURSE_IDS`, `reading_defaults`), `advisorbar.py:87-100`
+(`reading_label`), `:162, :240-242` (`Situation.reading_changed`, AK-270-Satz),
+`:520` (Signal), `:578-583` (zweite Combobox), `:673-697` (kwarg), `:776-781`
+(`_reading_chosen`), `:963`; `app.py:410-415` (`worst_case`), `:2592`,
+`:2612-2614`, `:2865-2868`, `:2885`; `advisorblock.py:228-245, :276-330`
+(`reading` in `show_the_suggestion`, `WhyHeading`); `relicpicker.py:1495`;
+`relicslots.py:479-493` (Durchreichung). `MUTATIONS` traegt drei lebende Anker
+(`model.py` `counted = once_per_group`, `weapons.py` zwei Konstanten) — **keiner
+liegt in einer der Fundstellen; kein Anker faellt.** Tests mit Lesart-Bezug:
+`tests/test_advisor_bar.py` (17 Treffer, u. a. Z. 461, 646, 672),
+`tests/test_advisor_goals.py` (11 Treffer, Z. 1119-1260),
+`tests/test_advisor_block.py` (1), `tests/test_relic_picker_advisor.py` (1).
+
+Ein Ausschluss ist mit `declared` **nicht** darstellbar: `compute` zaehlt einen
+unbedingten Effekt immer, und `declared` kennt nur "Bedingung gilt n-mal". Ein
+Pflicht-Effekt ist keine Frage an die Rechnung, sondern an die Suche.
+
+**Kraefte.** Einfachheit (AD-024: keine zweite Darstellung eines Zustands)
+gegen A7 (ein "keine passende Kopie" darf nicht aus einem Suchschnitt kommen)
+gegen A6 (Optimize < 6 s; gemessen 1229 ms Median auf dem 5900X, T-241d).
+
+**Optionen.**
+
+*Wo die Mengen reisen.*
+- **A — im Bestand bleiben, Ausschluss ueber `declared`:** ausgeschlossene
+  bedingte Effekte aus der Vorbelegung streichen. Null Code im Paket, aber nur
+  bedingte Effekte ausschliessbar, im Why von "nicht erklaert" nur ueber den
+  Wortlaut unterscheidbar, und fuer A19 unbrauchbar. Verworfen.
+- **B — zwei Felder auf `GoalContext` und `AdvisorRequest`:** wie `declared`.
+  Vier Felder, ein Eintrag mehr in `run._refuse_a_request_that_asks_about_
+  another_run` (`run.py:271`), und `search.beam` braeuchte die Pflichtmenge
+  als fuenften Parameter. Verworfen: doppelte Darstellung (AD-024-Klasse).
+- **C — zwei Felder auf `SlotProblem`:** `excluded` und `required` neben
+  `held`. Gewaehlt. `SlotProblem` ist bereits "die Frage mit ihren
+  Randbedingungen" (AD-014: Halten ist Randbedingung, nicht Startwert), und
+  alle drei Verbraucher — `evaluate.effect_ids_of`, `search.beam`,
+  `explain.reasons/unknowns` — bekommen `problem` heute schon. Cache-Schluessel
+  stimmt ohne Zutun (`AdvisorRequest.problem`), `GoalContext` unveraendert, der
+  Picker-Pfad (`relicpicker.py:517` `dataclasses.replace(problem, held=…)`)
+  behaelt beide Mengen automatisch.
+
+*Wie die Pflicht die Suche erreicht.*
+- **N — Nachfilter ueber das Beam-Ergebnis:** W = 40 Endzustaende aus K = 20
+  je Slot; eine Kopie mit dem Pflicht-Effekt, die in keinem Pool unter den
+  ersten K + 5 steht, wird nie verzweigt. "Keine passende Kopie" waere dann
+  eine Aussage ueber den Schnitt, nicht ueber den Besitz — A7-Verstoss.
+  Verworfen.
+- **S — Pool je Slot auf Traeger einschraenken, ein Lauf je Slot:** bis zu
+  sechs Beam-Laeufe fuer einen Effekt, kombinatorisch fuer mehrere. A6-Risiko
+  ohne Not. Verworfen.
+- **R — Randbedingung im Beam, wie gehaltene Slots (AD-014.5):** gewaehlt,
+  drei Griffe in `search.py`, siehe Entscheidung 4.
+
+*Persistenz.*
+- **P1 — Sitzungszustand wie `declared`:** verletzt A18 ("beim naechsten Start
+  wieder angewandt"). Verworfen.
+- **P2 — ein Schluessel je Menge im vorhandenen Speicher, fester Name,
+  veraenderlicher Wert:** gewaehlt. Das ist die Bauform von `ui/scale`,
+  `ui/panes` und der Pfad-Schluessel (AD-030): OF-15s Begruendung traegt gegen
+  Nutzertext als Schluessel und gegen persistierte Handles — hier sind es
+  Effekt-Ids aus dem Datensatz als **Wert**. Kein `__schema`-Schritt:
+  `chalices.SCHEMA_KEY` markiert die Kodierung der Build-Namen unter
+  `builds/<hero>` (`chalices.py:258-347`); ein fester Schluessel, den aeltere
+  Staende nicht kennen, liest sich als leer. Keine Migration.
+- **P3 — je Nightfarer:** A18/A19 nennen keinen Nightfarer; ein Ausschluss
+  ("at low HP kommt bei mir nicht vor") ist eine Spielweise, kein Build.
+  Verworfen; wird interessant, sobald der Nutzer je Nightfarer anders spielt.
+
+**Entscheidung, sechs Punkte.**
+
+1. **Datenmodell.** `SlotProblem` erhaelt `excluded: tuple[int, ...] = ()` und
+   `required: tuple[int, ...] = ()`, beide sortiert, beide Effekt-Ids (Effekt
+   oder Fluch — `Candidate`/`HeldRelic` fuehren `effect_ids` und `curse_ids`,
+   beide zaehlen als Traeger). `__post_init__` weist eine Id, die in beiden
+   Mengen steht, mit `ValueError` ab, wie die uebrigen `_refuse_*` in
+   `search.py`; das Fenster haelt die Mengen disjunkt (Punkt 5).
+   Cache-Schluessel: zwei Anfragen mit verschiedenen Mengen sind verschiedene
+   Schluessel — und sollen es sein, denn die Antwort unterscheidet sich.
+2. **Ausschluss = Streichen vor der Rechnung, an einer Stelle.**
+   `evaluate.effect_ids_of(problem, assignment, ctx)` gibt keine Id aus
+   `problem.excluded` zurueck (eine Zeile). Dadurch sehen Grundzustand,
+   Vorsortierung (`candidates.pool` liest `evaluate`), Beam, Picker-Rangfolge
+   und `explain`s `built` denselben Build ohne den Effekt — A18 "in keinem
+   Vorschlag und in keiner Rangfolge". Das Relikt bleibt Kandidat; traegt es
+   sonst nichts, ist sein Grenzbeitrag 0 und es faellt von selbst nach hinten.
+   `model.compute` bleibt unberuehrt (AD-002/AD-021: die Fassade rechnet, das
+   Paket entscheidet, was sie zu rechnen bekommt). **Akzeptierte Unschaerfe:**
+   `candidates._converts_a_damage_type` liest Effektdatensaetze direkt und
+   zaehlt einen ausgeschlossenen Umwandlungseffekt in der Pool-Zeile "N
+   convert a damage type" mit — eine Zaehlzeile, keine Zahl im Rang.
+3. **Das Why sagt "ausgeschlossen", nicht "no number here".**
+   `explain._silent_effect` und `_curse_lines` pruefen **vor** allen sechs
+   Fuellungen `effect_id in problem.excluded` (neue Fuellung, Konstante
+   `types.SILENT_EXCLUDED = "excluded"` neben `types.py:602-615`);
+   `reasons` reicht `problem` schon heute. Wortlaut: `ui-ux-designer`
+   (T-248b), Platzhalter `{name}: you excluded it, so it is not counted.`
+   `not_counted` (`Build.situational`) enthaelt den Effekt nicht, weil er die
+   Rechnung nie erreicht — richtig so: er ist nicht "nicht gezaehlt, weil
+   bedingt", sondern gar nicht gefragt. Die Anzahl der Ausschluesse zeigt die
+   Leiste aus dem Fensterzustand (T-248b), nicht aus dem Ergebnis.
+4. **Pflicht als Randbedingung des Beams, drei Griffe in `search.py`, alle
+   im Sinn von AD-014.5 (Halten belegt den Anfangszustand).**
+   - *Erfuellt-Menge:* `satisfied(state) = required ∩ (Effekte der gehaltenen
+     Relikte ∪ Effekte von state.chosen)`. Ein gehaltenes Relikt, das den
+     Pflicht-Effekt traegt, erfuellt ihn — eine zweite Kopie waere bei
+     `stacks=False` ein Duplikat ohne Wert.
+   - *Erzwungene Zweige:* `_successors` verzweigt zusaetzlich zu den ersten K
+     verfuegbaren Angeboten fuer jeden noch unerfuellten Pflicht-Effekt die
+     ersten K verfuegbaren **Traeger** aus dem **ganzen** Pool
+     (`pools[level].candidates`, nicht die `shortlist`; Traeger je Effekt und
+     Level einmal vorberechnet). Traeger ausserhalb der `shortlist` setzen
+     den Symmetrie-Boden (AD-003.2/AD-014.4) **nicht** — sonst verloere der
+     Partner-Slot seine ersten K Angebote, der Fehler aus AD-014.4 in
+     Umkehrung. Die dadurch moeglichen Vertauschungs-Dubletten faengt eine
+     Dedupe ueber `state.spent` vor dem W-Schnitt: gleiche Kopienmenge ist
+     fuer `model.compute` derselbe Build (es bekommt eine Effektliste ohne
+     Slot).
+   - *Machbarkeits-Schnitt:* nach jedem Level fallen Zustaende, deren
+     unerfuellte Pflicht-Effekte sich auf die verbleibenden Level nicht mehr
+     **injektiv** verteilen lassen (je Effekt ein spaeterer Pool mit einem
+     Traeger, dessen Handle nicht in `spent` ist; Zuordnung per
+     Brute-Force-Matching, |required| ≤ Handvoll, Level ≤ 6). Am letzten Level
+     ist damit jeder ueberlebende Zustand vollstaendig. `ponytail:` die
+     injektive Bedingung ist konservativ in einem Fall — zwei Pflicht-Effekte,
+     deren einzige Deckung eine **einzelne Kopie** im letzten freien Slot ist,
+     die beide traegt — dort meldet der Beam leer, obwohl eine Konstellation
+     existiert; Aufstieg: Matching ueber Kopien statt Slots, wenn QA den Fall
+     am Spielstand findet.
+   - *A7-Antwort:* liefert `beam` leer bei nichtleerem `required`, haengt
+     `run.run` eine Zeile aus `explain` an `unknowns` (Muster
+     `explain.unknowns(problem)` → `_held_slots_line`), die die Pflicht-
+     Effekte nennt, fuer die kein Pool eines freien Slots einen Traeger hat
+     (je Effekt exakt aus den Pools bestimmt; bleibt die Liste trotz leerem
+     Beam leer, nennt die Zeile alle Pflicht-Effekte als "in keiner
+     Konstellation fuer die freien Slots"). Kein neues Feld auf
+     `AdvisorResult`: die Leiste kennt den Fensterzustand, und ein Wechsel der
+     Mengen wirft den Vorschlag ab (Punkt 5), also passt die Antwort auf dem
+     Schirm immer zur Menge, die sie erzeugt hat.
+   - *A6:* Zweige je Zustand und Level ≤ K + |unerfuellt| · K statt K; bei
+     einem Pflicht-Effekt hoechstens Verdopplung der `compute`-Aufrufe,
+     Matching und Dedupe sind Mengenoperationen ueber ≤ W · 2K Zustaende
+     und gegen 175,6 us je `compute` (T-096) nicht messbar. **Pruefpunkt fuer
+     den `performance-tuner`:** Optimize mit einem und mit drei Pflicht-
+     Effekten am Spielstand des Nutzers (`scripts/measure_*`), Sechs-Slot-
+     Deep-Gefaess; Schwelle A6. Reisst sie, ist der erste Griff, die
+     erzwungenen Zweige je Effekt auf die ersten `K // 2` Traeger zu kuerzen
+     — nie der Machbarkeits-Schnitt, der traegt A7.
+   Die Picker-Rangfolge (`run.slot_pool`) laeuft keinen Beam; `required`
+   wirkt dort nicht, `excluded` ueber Punkt 2 sehr wohl.
+5. **Fensterzustand und Persistenz.** `Planner.excluded: set[int]`,
+   `Planner.required: set[int]`, beim Start aus dem Speicher geladen, jede
+   Aenderung sofort geschrieben. Neues Modul `nrplanner/effectfilters.py`
+   nach dem Muster `uiscale.py` (`stored(kind) -> frozenset[int]`,
+   `store(kind, ids)`), zwei feste Schluessel `advisor/excluded`,
+   `advisor/required`, Wert kommagetrennte Ids als Text, gelesen mit
+   `type=str` und toleranter Zerlegung wie `favourites.heroes_for` (ein
+   Dateispeicher liefert bei Komma sonst eine Liste, `gamepath.py:60-66`).
+   Ein Setzer `Planner.set_effect_filter(effect_id, kind: "excluded" |
+   "required" | None)` haelt die Mengen disjunkt (Setzen in der einen
+   entfernt aus der anderen), schreibt und ruft
+   `advisor_bar.the_build_changed()` — dieselbe Folge wie `_goal_chosen`
+   (AK-183: Antwort weg, kein Lauf). `asking_from` baut
+   `SlotProblem(slots, held, excluded=tuple(sorted(planner.excluded)),
+   required=tuple(sorted(planner.required)))`. Unbekannte Ids (Datensatz
+   hat den Effekt verloren) bleiben gespeichert und reisen mit; sie treffen
+   nichts. **Verworfen:** Ablage in `favourites.py` — dessen Schluessel ist
+   der Wurf eines Relikts, ein zweiter Gegenstand im Modul; und Ablage in
+   `advisorbar.py` — ein 992-Zeilen-Widget-Modul ist kein Speicherort.
+6. **Grundlinie ohne Lesart: `model.advisor_defaults()` =
+   `dict.fromkeys(CONDITIONAL_BUFF_IDS, 1)`** — der bisherige Best case,
+   `CONDITIONAL_CURSE_IDS` und `reading_defaults(worst)` fallen. Die
+   Merge-Zeile lautet `{**model.advisor_defaults(), **planner.declared}`;
+   Handeingabe gewinnt weiter (AK-186 sinngemaess). Ein ausgeschlossener
+   Effekt darf in `declared` stehen bleiben — Punkt 2 streicht ihn vor
+   `compute`, `live.get` trifft nie. `declared` (Situationsschalter im
+   Werteblatt, AD-034 `StatSheet.declared_changed`) bleibt, was es ist: "die
+   Bedingung gilt jetzt n-mal", wirkt in Werteblatt **und** Berater; der
+   Ausschluss wirkt nur im Berater und ueberstimmt dort jede Erklaerung (A18:
+   "zaehlt in keinem Vorschlag").
+   **Randbedingung dieser Wahl — OF-37:** A18 Satz 1 ("bedingte Effekte gehen
+   in die Rechnung ein wie unbedingte") liesse auch die sieben bedingten
+   Fluch-Ids zaehlen; A18 "Nachweis" verlangt aber woertlich, dass die
+   Rangfolge ohne Markierung "der heutigen Best-case-Rangfolge entspricht" —
+   und die zaehlt bedingte Flueche nicht (sie bleiben in `not_counted` und
+   im Why genannt, F3). Gebaut wird der Nachweis-Wortlaut; der Wechsel ist
+   `| CONDITIONAL_CURSE_IDS` in einer Zeile (dann bleibt die Tabelle).
+
+**Konsequenzen.** Leicht: zwei Felder auf einem Typ, den alle Verbraucher
+schon haben; ein `if` in `effect_ids_of`; kein Cache-, Worker-, `compute`-
+Umbau; net Loeschung im Fenstercode (Combobox, Signal, Attribut, Label,
+Durchreichungen). Dauerhaft: `search.beam` kennt eine zweite Randbedingung
+neben `held` und drei zusaetzliche Griffe (Traeger, Matching, Dedupe), die
+jeder Leser des Beams mitlesen muss; und die Antwort "keine passende Kopie"
+haengt an der Exaktheit des Machbarkeits-Schnitts.
+
+**Umkehrbarkeit: leicht** fuer Punkte 1-3, 5, 6 (Felder, eine Zeile, ein
+Modul, zwei Schluessel loeschen); **mittel** fuer Punkt 4 — die drei Griffe
+im Beam sind abgrenzbar, aber die Tests fuer A7 haengen daran.
+
+**Beruehrte Entscheidungen.** AD-035 **abgeloest** (Lesart, `reading_defaults`,
+`worst_case`, `reading_changed`, AK-184/185-Benennung; die Fluch-Definition
+`is_curse` und der Zaehlwert 1 gelten fort). AD-003.2/AD-014.4 (Symmetrie-
+Boden): Traeger ausserhalb der `shortlist` setzen ihn nicht — Praezisierung,
+keine Aufhebung. AD-014 (Halten als Randbedingung): erweitert um zwei
+Randbedingungen gleicher Bauart. AD-013.3 (`shortlist` K + freie − 1): gilt
+fuer die gewoehnlichen Zweige; erzwungene Zweige lesen den ganzen Pool.
+AD-030/OF-15: zwei weitere feste Schluessel, keine Handles, kein Nutzertext.
+AD-024: kein Zustand zweimal dargestellt. A17/AD-032 unberuehrt.
+
+**Umsetzung — vier `developer`-Auftraege, je hoechstens fuenf
+Anwendungsdateien (OF-34: Tests zaehlen nicht). Reihenfolge zwingend 1 → 2
+→ 3 → 4; 2 und 3 sind Qt-frei und einzeln testbar.**
+
+| Schritt | Inhalt | Dateien (Anwendung) | Zeilen (aus den Fundstellen abgeleitet) |
+|---|---|---|---|
+| **1 — Lesart raus, Grundlinie Best case** | Punkt 6. `model.py`: `CONDITIONAL_CURSE_IDS` und `reading_defaults` weg, `advisor_defaults()`, `configure` fuellt eine Tabelle. `advisorbar.py`: `reading_label`, Combobox, `_reading_chosen`, Signal, `Situation.reading_changed` + AK-270-Satz, kwarg von `the_build_changed`, `:963`; Merge-Zeile. `app.py`: `worst_case`, `_the_reading_changed`, `connect`, `reading=`/`reading_label` an drei Stellen. `advisorblock.py`: `show_the_suggestion` ohne `reading`, `WhyHeading` ohne `reading`, Kopfzeilen. `relicpicker.py:1495`, `relicslots.py:479-493`: Parameter raus. | `model.py`, `advisorbar.py`, `app.py`, `advisorblock.py`, `relicpicker.py`, `relicslots.py` = **6**; siehe OF-38 | ca. −120 / +10 |
+| **2 — Ausschluss (A18), Qt-frei** | Punkte 1-3. `types.py`: zwei Felder, `__post_init__`, `SILENT_EXCLUDED`. `evaluate.py`: eine Zeile in `effect_ids_of`. `explain.py`: Fuellung in `_silent_effect` und `_curse_lines`. | `advisor/types.py`, `advisor/evaluate.py`, `advisor/explain.py` = **3** | ca. +30 |
+| **3 — Pflicht (A19), Qt-frei** | Punkt 4. `search.py`: Traeger je Level, erzwungene Zweige in `_successors`, Boden-Ausnahme in `_floor_in_the_group`, Matching, Dedupe vor dem W-Schnitt. `run.py`: A7-Zeile bei leerem Beam. `explain.py`: die Zeile (Wortlaut T-248b). | `advisor/search.py`, `advisor/run.py`, `advisor/explain.py` = **3** | ca. +70 |
+| **4 — Fenster und Speicher** | Punkt 5 und AK-276ff. Neu `effectfilters.py`. `app.py`: zwei Mengen, Laden, `set_effect_filter`. `advisorbar.py`: `asking_from` fuellt `SlotProblem`, Zaehler/A7-Satz der Leiste nach Spec. `relicpicker.py`: Markieren je Effektzeile. `advisorblock.py`: Markieren aus der Why-Zeile. **Nach T-248c** (dieselben zwei Dateien). | `effectfilters.py`, `app.py`, `advisorbar.py`, `relicpicker.py`, `advisorblock.py` = **5** | ca. +150 |
+
+Tests je Schritt (zaehlen nicht): 1 → `tests/test_advisor_bar.py` (Z. 461,
+646, 672 und die AK-05/AK-194-Breitenwaechter nach Neumessung T-248b),
+`tests/test_advisor_goals.py` (Z. 1119-1260: `reading_defaults`-Tests werden
+zu `advisor_defaults`-Tests; der GOAL-Test misst die Grundlinie gegen "nur
+Handeingabe" und bewegt jetzt die Buff-Rollen, Literale nachzaehlen),
+`test_advisor_block.py`, `test_relic_picker_advisor.py`. 2 →
+`test_advisor_evaluate.py`, `test_advisor_explain.py`, `test_advisor_run.py`
+(A18-Nachweis Qt-frei: ein Effekt ausgeschlossen, keine Zeile des besten
+Vorschlags zaehlt ihn, Rangfolge ohne Ausschluss identisch zur Grundlinie).
+3 → `test_advisor_search.py` (jeder Vorschlag traegt jede Pflicht-Id;
+Rangfolge unter den passenden Konstellationen = freie Optimierung, gefiltert;
+leerer Beam nur, wenn kein Pool eines freien Slots einen Traeger hat; Traeger
+jenseits Rang K + 5 wird gefunden; Vertauschungs-Dublette faellt),
+`test_advisor_run.py` (A7-Zeile). 4 → `test_advisor_bar.py`,
+`test_relic_picker_advisor.py`, `test_advisor_block.py`, neu
+`test_effectfilters.py` (Speichern/Lesen, beschaedigter Wert = leer, Umlenkung
+`NIGHTREIGN_SETTINGS_ORG`). Toetende Mutationen nach AD-033 in `MUTATIONS`:
+je Schritt mindestens eine (Vorschlag Schritt 2: `if eid not in
+problem.excluded` → `True`; Schritt 3: Machbarkeits-Schnitt auf `pass`).
+
+**Was der `developer` ausdruecklich nicht tut.** Kein Feld auf `GoalContext`,
+`AdvisorRequest` (ausser ueber `problem`) oder `AdvisorResult`; kein Umbau von
+`model.compute` und keine Sperrliste fuer Relikte; kein Lauf beim Markieren
+(AK-183 sinngemaess); kein Nachfilter ueber das Beam-Ergebnis; kein
+`__schema`-Schritt und kein Nutzertext als Schluessel; kein Ausschluss im
+Werteblatt (`declared`/`StatSheet` bleiben); keine Mengen je Nightfarer; die
+Fluch-Tabelle nicht "vorsorglich" behalten; `relicpicker.py`/`advisorblock.py`
+erst nach T-248c anfassen; Wortlaute aus `UI_SPEC.md` (AK-276ff), nicht aus
+diesem Dokument.
+
+**Pruefpunkte.** (a) Schritt 2: `ranking_with` (Testmuster AD-035) mit und
+ohne `excluded` — ohne identisch zur Grundlinie; (b) Schritt 3:
+`performance-tuner` misst A6 mit einem und drei Pflicht-Effekten; (c) Schritt 4:
+Umlenkung `NIGHTREIGN_SETTINGS_ORG` greift fuer die zwei neuen Schluessel
+(Hook `enforce-data-redirect.ps1`); (d) `qa-engineer`: A18/A19-Nachweise am
+Spielstand (314 Kopien laut T-229), Breitenwaechter AK-05/AK-194 nach T-248b.
+
+**Offene Fragen aus Themenbereich I.**
+
+**OF-37 — an den `director`, Adressat App Designer:** Zaehlt die Grundlinie
+die sieben bedingten Fluch-Ids (A18 Satz 1 woertlich) oder nicht (A18
+"Nachweis": heutige Best-case-Rangfolge)? Gebaut wird der Nachweis; der Wechsel
+ist eine Zeile in `advisor_defaults()`. Betrifft die 11 Kopien aus AD-035.
+
+**OF-38 — an den `director`:** Schritt 1 beruehrt sechs Anwendungsdateien,
+davon `relicslots.py` mit zwei Durchreich-Zeilen. Ein Auftrag mit Ausnahme von
+der Fuenf-Dateien-Grenze, oder zwei (1a Anzeigepfad `advisorblock`/`relicslots`/
+`relicpicker`/`app` ohne `reading`-Parameter bei noch stehender Combobox; 1b
+`model`/`advisorbar`/`app` Combobox, Signal, Attribut, Grundlinie)? Beide
+Zwischenstaende sind lauffaehig; `app.py` wird bei der Teilung zweimal beruehrt.
+
+**OF-39 — an den `director`, Adressat `ui-ux-designer` (T-248b):** Braucht
+der OUTDATED-Zustand nach einem Markieren einen eigenen Satz (Nachfolger von
+AK-270 "The reading changed …")? Ohne Antwort faellt das kwarg
+`the_build_changed(reading_changed=)` in Schritt 1 ersatzlos und der Satz "Your
+build changed …" gilt auch fuer eine geaenderte Menge.
+
+
+---
+
+## Themenbereich J — Zweihand-Angriffskraft, A20 (2026-09-14, T-248a, zweite Ergaenzung)
+
+*Angelegt am 14.09.2026 (T-248a, `architect`). Bezugsstand `75c6d4a`
+(GOAL.md A20). Getrennt von AD-036 gehalten: anderes Datenmodell
+(`weapons`/`damage`), andere Rollen (Recherche vor Bau).*
+
+### AD-037 — Der Zweihandwert ist eine zweite Antwort derselben Frage (`Rating.two_handed`), die Regel dafuer lebt als gemessene Kalibrierung in `weapons.py`, und gebaut wird erst, wenn eine Regel alle Messpunkte trifft (2026-09-14, Status: aktiv, **Bau gesperrt bis R-008**)
+
+**Kontext.** A20: jede Angriffskraft-Anzeige kennt den Zweihandwert neben dem
+Einhandwert, wo die Waffe zweihaendig gefuehrt werden kann; die fuenf Effekte
+mit Bedingung *when Two-Handing* (`8300000-2` Attack Power x1.12/1.15/1.18,
+`7006000-1` Stance-Breaking) rechnen auf den Zweihandwert. Messpunkte (Lv15,
+keine Relikte): Raider Great Stars 188 → **216**, Wylder Great Stars 147 →
+**151**. "Die Regel, die beide trifft, ist die des Programms; trifft keine,
+sagt es das" (A7).
+
+**Bestand.** `weapons.rate(weapon, attributes, data, upgrade, nightfarer)`
+liefert **eine** `WeaponRating` (Schicht 1: Basis + Attributskalierung, mit
+`Calibration` fuer die gemessenen Faktoren `RAIDER_HEAVY_ARMAMENT_RATE` 1.18
+und `BORROWED_CURSED_CLAWS_RATE` 0.88, `weapons.py:110-135`).
+`damage._rate` legt Schicht 2 darueber (`_answer`: `build.rates` x
+`build.class_rates[weapon_class]`, `damage.py:484-540`) und gibt `Rating`
+zurueck; `equipped`/`candidate`/`rank_candidates`/`attack_rating` sind die
+vier Fragen der Fassade (AD-019/AD-020). Die Zweihand-Effekte tragen Scope
+**124** (`model.py:425`, `effecttext.py:76`) und landen heute als
+`scoped:`-Zeile in `build.rates` (`model.py:1085-1099`), also **ausserhalb**
+jeder Angriffskraft — genau wie 130/113/118 landeten, bevor
+`WEAPON_CLASS_SCOPES` sie zu Klassenmultiplikatoren machte. Leser der
+Kopfzahl: 9 Stellen in `statsheet.py`, `weaponslots.py`, `arsenaltab.py`,
+`relicslots.py`; der Berater fragt `damage.equipped` nur mit Bezugswaffe
+(`goals.py:286`), die seit A17 leer ist — ohne Waffe rankt
+`_attack_multiplier_mean` (`goals.py:194-219`) die fuenf AR-Raten aus
+`build.rates`, in denen 124 nicht vorkommt.
+
+**Die Regel ist nicht die aus Elden Ring — nachgerechnet.** Die bekannte
+Regel (STR x1.5 fuer die Skalierung, Deckel 99) am Testabzug (`EXTRACT_VERSION`
+11) mit `weapons.rate` gegen die Messpunkte, lesend und umgelenkt, 14.09.2026:
+Raider (STR 68 → 99 gedeckelt) **208,3** statt 216; Wylder (STR 50 → 75)
+**169,1** statt 151. Kein STR-Faktor trifft Raider (Maximum 208 am Deckel),
+Wylder traefe ein Faktor in **[1,100; 1,119]**. Die beiden Punkte widersprechen
+jeder reinen STR-Regel; im Spiel ist entweder der 1.18-Faktor zweihaendig ein
+anderer, oder die Regel greift an einer anderen Stelle (Basis, Faktor auf die
+Kopfzahl, Attribut-Mix). **Zwei Messpunkte reichen fuer eine Regel mit einem
+freien Parameter plus Wechselwirkung mit einer Kalibrierung nicht** (Rezept
+`Calibration`: Schnitt der `floor`-Bedingungen ueber viele Zellen,
+`weapons.py:94-108`).
+
+**Kraefte.** A7 (keine Zahl ohne Regel) gegen den Wunsch des Nutzers, den
+Wert "drinnen" zu haben; Fassaden-Zusicherung Z1 (ein Ort summiert, AD-019)
+gegen neun Anzeigestellen; Testabzug-Gueltigkeit (`EXTRACT_VERSION` 11) gegen
+ein moegliches neues Extraktorfeld.
+
+**Optionen und Entscheidung, fuenf Punkte.**
+
+1. **Datenmodell — `Rating.two_handed: Rating | None`, gefuellt von
+   `damage._rate`.** Optionen: (a) `rate(..., two_handed: bool)` und jede
+   Anzeige ruft zweimal — neun Aufrufstellen aendern, die Fassade beantwortet
+   dieselbe Frage zweimal getrennt (AD-020 Punkt 6 verletzt: der Aufrufer
+   entscheidet, was er nicht entscheiden soll); (b) zweite `Question` je Hand
+   — `Question` beschreibt Attributsatz und Multiplikatoren, die Hand ist
+   orthogonal dazu, es wuerden sechs statt drei Fragen; (c) **gewaehlt:** die
+   Fassade rechnet den Zweihandwert mit und haengt ihn als geschachteltes
+   `Rating` an (dessen `two_handed` ist `None`). `None`, wo die Waffe nicht
+   zweihaendig gefuehrt wird: `weapons.can_two_hand(weapon)` =
+   `model.weapon_class(weapon) == "melee"` ohne `wep_type` 33 (Unarmed) —
+   Bogen, Armbrust, Ballista werden immer zweihaendig gefuehrt (ihr Einhandwert
+   **ist** der Zweihandwert), Katalysatoren zeigen Spell scaling (QA-099).
+   Kein neues Extraktorfeld, `EXTRACT_VERSION` bleibt 11 — **Randbedingung:**
+   das gilt nur, solange R-008 die Regel nicht in einem heute nicht
+   extrahierten Param findet; dann steigt `EXTRACT_VERSION`, der Testabzug ist
+   ungueltig (CLAUDE.md), und der erste Lauf ersetzt ihn.
+2. **Ort der Regel: `weapons.py`, neben `Calibration`, als gemessene
+   Konstante(n) mit `reason`-Satz** — nicht in `damage.py` (Schicht 2 kennt
+   keine Attribute), nicht in `model.py` (rechnet keine Waffe). Form offen bis
+   R-008: eine Attributtransformation (`attributes -> attributes`), ein Faktor
+   auf `display_rate`, oder beides, je `wep_type` wie
+   `RAIDER_HEAVY_ARMAMENT_TYPES`. `rate(..., two_handed: bool = False)` wendet
+   sie an; der Aufrufer ist ausschliesslich `damage._scaled`. Verworfen: eine
+   "Regel aus Elden Ring" als Voreinstellung — sie trifft keinen der beiden
+   Punkte (oben); ein Faktor je Nightfarer/Waffe aus den zwei Punkten
+   herausgerechnet — das waere die erfundene Zahl, die A7 verbietet.
+3. **Scope 124 verlaesst die `scoped:`-Zeile: `WEAPON_CLASS_SCOPES[124] =
+   "two_handed"`** (Praezedenz 130/113/118, `model.py:429`), landet in
+   `build.class_rates["two_handed"]`, und `damage._answer` multipliziert
+   diesen Eimer **nur** in den Zweihandwert (`two_handed=True`). Die Zeile
+   erscheint im Zweihand-Breakdown (`rates_in_play`), nicht mehr unter den
+   Scoped-Zeilen des Werteblatts. Verworfen: Zeile behalten **und** rechnen —
+   eine Zahl an zwei Orten (AD-024). `7006000-1` (`saAttackPowerRate`) traegt
+   kein AR-Feld und bewegt keine Angriffskraft; er wandert mit, damit die
+   Bedingung an einem Ort steht, aendert aber keine Zahl.
+4. **Welche Hand der Berater rankt — Nutzerentscheidung (A20), drei
+   Optionen, hier nur mit Folgen benannt.** Randbedingung fuer alle drei:
+   seit A17 rankt der Berater **ohne** Waffe (`ctx.reference is None`), also
+   entscheidet die Wahl im Programm nur, ob die drei `8300000`-Raten in
+   `_attack_multiplier_mean` einfliessen; mit Bezugswaffe (Tests, Golden,
+   kuenftige Rueckkehr) entscheidet sie die Kopfzahl.
+   - **(1) Einhand** — Bestand. 124 bleibt aus dem Mittel; ein Relikt
+     "Improved Attack Power when Two-Handing" ist dem Berater 0 wert.
+     Aenderung im Paket: keine. Widerspruch zum Spielstil eines Raiders.
+   - **(2) Zweihand** — `_attack_multiplier_mean` nimmt die Felder aus
+     `class_rates["two_handed"]` dazu; mit Waffe `two_handed.final_headline`
+     (Bogen/Katalysator: der einzige Wert). Aenderung: `goals.py`
+     `_attack_multiplier_mean` und Zweig mit Waffe, zwei Stellen; `Goal.scope`
+     sagt "ranked two-handed" (A12).
+   - **(3) Maximum je Waffe** — `max(one, two)`; da die 124-Raten >= 1 sind
+     und eine Zweihandregel den Wert nicht senkt, ist (3) ohne Waffe identisch
+     mit (2) und mit Waffe (2) mit Rueckfall auf Einhand, wo `two_handed` `None`
+     ist — also dasselbe, was (2) ohnehin tun muss. (3) ist (2) mit einem
+     ehrlicheren Namen. **Empfehlung: (3)**, benannt als "two-handed where the
+     armament allows it".
+   - **Verworfen fuer alle drei:** ein Handschalter im Berater — die
+     QA-261-Klasse (ein Zustand, den der Nutzer als Spielsituation liest),
+     eben mit A18 abgeschafft.
+   Folgen fuer Golden (`tests/test_weapon_damage_golden.py`,
+   `tests/golden/weapon_damage.json`): eine zweite Spalte `two_handed`; die
+   Einhandspalte bleibt bis auf die verschwundene `scoped:`-124-Zeile
+   unveraendert — ein Golden-Diff, der mehr aendert, ist ein Fehler im Bau.
+   Folgen fuer die Kalibrierungstests
+   (`tests/test_attack_power_calibration_against_the_game.py`, T-246): zwei
+   neue Zeilen `("Raider", GREAT_STARS, 216, two_handed=True)`, `("Wylder",
+   GREAT_STARS, 151, two_handed=True)` plus die von R-008 gelieferten Punkte.
+5. **Reihenfolge — Recherche vor Bau, kein Zwischenzustand im Programm.**
+   Verworfen: ein Programmzustand "Zweihandwert noch nicht bestimmt" mit
+   A7-Satz an neun Stellen — Code fuer einen Zustand, der nur bis R-008 lebt.
+   Bis R-008 traegt das Programm den Einhandwert wie heute und sagt darueber
+   nichts Falsches. **Schritt 0 — `researcher` (R-008) mit dem `qa-engineer`
+   am Spiel:** Regel finden, die **alle** Punkte trifft. Mindestmenge, damit
+   das Rezept traegt: je ein Punkt Raider/Nicht-Raider auf Great Hammer
+   (trennt die 1.18-Wechselwirkung), eine reine DEX-Waffe (trennt "STR-Regel"
+   von "Faktor auf die Kopfzahl"), eine STR-Waffe ohne Kalibrierung, Wylder
+   auf zwei Waffen — **sechs Zellen**, alle Lv15 ohne Relikte, dazu eine mit
+   `8300000` am Relikt (prueft Punkt 3). Params zuerst (`EquipParamWeapon`
+   Zweihand-Felder, `PlayerCommonParam` um Offset +664 herum, wo 0.6 lag —
+   `weapons.py:70-75`), dann Messung; Fundstelle in
+   `docs/research/R-008.md`.
+
+**Konsequenzen.** Leicht: ein Feld auf `Rating`, ein Flag auf `rate`, ein
+Eintrag in `WEAPON_CLASS_SCOPES`, neun Anzeigestellen lesen ein zweites
+Attribut — kein Aufrufer aendert seine Frage. Dauerhaft: die Zweihandregel ist
+eine weitere gemessene Konstante im Stil von 0.6/1.18/0.88, mit demselben
+Pflegepfad (Messpunkte im Kalibrierungstest, Mutation in `MUTATIONS`), und
+`Rating` ist einmal geschachtelt.
+
+**Umkehrbarkeit: leicht** — Feld, Flag, Eintrag und Anzeigen entfernen;
+Golden auf eine Spalte zurueck.
+
+**Beruehrte Entscheidungen.** AD-019/AD-020 (Fassade, Zusicherung Z1): eine
+Frage, eine Antwort mit zwei Zahlen — gewahrt. AD-022 (zwei Schichten): beide
+Schichten je Hand, Schicht 2 fuer die Zweihand mit dem 124-Eimer. AD-032/A17:
+unberuehrt, die Wahl in Punkt 4 wirkt ohne Waffe nur ueber drei Raten.
+AD-036: getrennt; der Ausschluss (A18) trifft einen 124-Effekt wie jeden.
+
+**Umsetzung — nach R-008, zwei `developer`-Auftraege.**
+
+| Schritt | Inhalt | Dateien (Anwendung) | Zeilen |
+|---|---|---|---|
+| **0** | R-008 (`researcher`), Messung (`qa-engineer`); Nutzerwahl Punkt 4; Spec AK fuer neun Anzeigen (`ui-ux-designer`). | — | — |
+| **1 — Fassade** | Punkte 1-3 und Regel. `weapons.py`: Konstante(n) + `reason`, `can_two_hand`, `rate(two_handed=)`. `damage.py`: `Rating.two_handed`, `_scaled`/`_answer`/`_rate` mit Flag. `model.py`: `WEAPON_CLASS_SCOPES[124]`. Tests: Kalibrierung (zwei + R-008-Zeilen), Golden zweite Spalte, `test_weapon_damage_golden.py`. Mutation: Regelkonstante neutralisiert (Muster T-246). | `weapons.py`, `damage.py`, `model.py` = **3** | ca. +60 |
+| **2 — Anzeigen und Berater** | Punkt 4 nach Nutzerwahl, AK nach Spec. `weaponslots.py` (Kachel), `statsheet.py` (Panel/Breakdown), `arsenaltab.py`, `relicslots.py` (Berater-Zeile), `advisor/goals.py` (Mittel + Zweig mit Waffe, `scope`-Satz). | **5** | ca. +80 |
+
+**Was der `developer` nicht tut.** Keine Regel bauen, die nicht alle
+R-008-Punkte trifft; keinen Zwischenzustand "noch nicht bestimmt"; keine
+zweite `Question`; keinen zweiten `rate`-Aufruf aus einer Anzeige; kein
+Handschalter im Berater oder Werteblatt; Scope-124-Zeile nicht doppelt
+fuehren; `EXTRACT_VERSION` nur mit Auftrag anheben.
+
+**Offene Fragen aus Themenbereich J.**
+
+**OF-40 — an den `director`, Adressat `researcher` + `qa-engineer`:** R-008
+nach Punkt 5 beauftragen (sechs Zellen, Params zuerst). Ohne R-008 kein
+Bauauftrag zu AD-037.
+
+**OF-41 — an den `director`, Adressat App Designer:** Hand der Rangfolge —
+(1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand
+(Empfehlung, identisch mit (2) ohne Bezugswaffe). Kann parallel zu R-008
+entschieden werden.
 
 ---
 
