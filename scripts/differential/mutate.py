@@ -57,7 +57,50 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "two-handed-rate-neutralised": Mutation(
+        path="nrplanner/weapons.py",
+        old="""TWO_HANDED_RATE = 1.03
+""",
+        new="""TWO_HANDED_RATE = 1.0
+""",
+        survival_means=(
+            "every Nightfarer but the Raider shows the one-handed figure as "
+            "the two-handed one -- 122 / 122 where the game shows 122 / 125. "
+            "Killed by the Duchess, Wylder and Guardian rows of `tests/test_"
+            "attack_power_calibration_against_the_game.py::test_both_hands_"
+            "show_the_numbers_the_game_showed` (T-254b, R-008)."),
+    ),
+    "raider-two-handed-rate-neutralised": Mutation(
+        path="nrplanner/weapons.py",
+        old="""RAIDER_TWO_HANDED_RATE = 1.144
+""",
+        new="""RAIDER_TWO_HANDED_RATE = 1.0
+""",
+        survival_means=(
+            "the Raider two-hands for nothing: 158 / 158 and 188 / 188 where "
+            "the game shows 180 and 216. Killed by the two Raider rows of "
+            "`tests/test_attack_power_calibration_against_the_game.py::test_"
+            "both_hands_show_the_numbers_the_game_showed` and by `test_the_"
+            "two_handed_answer_names_its_factor` (T-254b, R-008)."),
+    ),
+    "two-handing-buff-left-on-the-scoped-line": Mutation(
+        path="nrplanner/model.py",
+        old="""WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged",
+                       124: TWO_HANDED_CLASS}
+""",
+        new="""WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged"}
+""",
+        survival_means=(
+            "`Improved Attack Power when Two-Handing` is back on a `scoped:` "
+            "line outside every attack rating, and the two-handed figure "
+            "ignores the one relic written for it. Killed by `tests/test_"
+            "attack_power_calibration_against_the_game.py::test_a_when_two_"
+            "handing_buff_lifts_the_two_handed_figure_only` and `test_the_"
+            "stance_buff_travels_with_its_condition_and_moves_no_figure` "
+            "(T-254b, AD-037 point 3)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:

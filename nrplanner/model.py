@@ -411,17 +411,24 @@ SCOPED_PREFIX = "scoped:"
 # Source key for a multiplier that only covers one weapon type.
 WEAPON_CLASS_PREFIX = "wepclass:"
 
-# Of the 38 scope values, only three restrict a buff by the *kind of armament*
-# rather than by the kind of attack, and only those can be applied to an
-# ordinary hit. The game's own effect names are what say so:
+# Of the 38 scope values, only four restrict a buff by *how the armament is
+# held* rather than by the kind of attack, and only those can be applied to
+# an ordinary hit. The game's own effect names are what say so:
 #   130       "Improved Melee Attack Power"
 #   113, 118  "Improved Ranged Weapon Attacks"
+#   124       "... when Two-Handing"
 # Everything else narrows to a move or a spell family -- 102 jump attacks, 100
-# charge attacks, 103 guard counters, 104 chain finishers, 124 two-handing,
-# 125 wielding two armaments, 112 skills, 2-12 and 20-26 spell families, and so
-# on. None of those is the plain swing an attack rating describes, so they stay
-# out of it and keep their own scoped line.
-WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged"}
+# charge attacks, 103 guard counters, 104 chain finishers, 125 wielding two
+# armaments, 112 skills, 2-12 and 20-26 spell families, and so on. None of
+# those is the plain swing an attack rating describes, so they stay out of it
+# and keep their own scoped line.
+#
+# 124 is not an armament class but a hand: its bucket multiplies into the
+# two-handed figure of every armament that has one (`damage.Rating.
+# two_handed`, AD-037) and into no one-handed figure.
+TWO_HANDED_CLASS = "two_handed"
+WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged",
+                       124: TWO_HANDED_CLASS}
 
 # Which class an armament belongs to, by its family. Families are named by the
 # game's own buffs (see "Categories come from the buffs"), so this reads them
@@ -436,12 +443,16 @@ def scoped_class(effect: dict) -> str | None:
     All three scope fields are read, not just the first: "Improved Ranged
     Weapon Attacks" carries 105, 113 and 118 together, and the 105 in front
     would otherwise hide the two that name the class. Checked across the data
-    -- only two effect families carry a class scope at all, neither mixes melee
-    with ranged, and the only value they sit beside is 105.
+    -- only three effect families carry a class scope at all, none mixes two
+    classes, and the only value they sit beside is 105.
+
+    Not gated on an attack rate, unlike `attack_scope`: "Improved
+    Stance-Breaking when Two-Handing" (7006000-1) carries 124 and
+    `saAttackPowerRate` alone, and its condition belongs in the same bucket
+    as its siblings' (AD-037, point 3). It moves no attack rating there --
+    `damage._answer` reads only the five attack rates out of a bucket.
     """
     mods = effect.get("modifiers") or {}
-    if not any(f in mods for f in ELEMENT_ATTACK_RATES):
-        return None
     for field_name in SCOPE_FIELDS:
         value = mods.get(field_name)
         if isinstance(value, int) and value in WEAPON_CLASS_SCOPES:

@@ -19,6 +19,13 @@ Stars would still pass the Raider row.
 Each factor has a mutation in `scripts/differential/mutate.py` that sets it
 to 1.0 (`raider-heavy-armament-rate-neutralised`,
 `borrowed-cursed-claws-rate-neutralised`); the row it names fails under it.
+
+The second half holds the two-handing factors (R-008, AD-037) to the six
+cells the App Designer read on the same day: the same figure one-handed and
+then two-handed, every Nightfarer at level 15 with no relics. Mutations
+`two-handed-rate-neutralised` and `raider-two-handed-rate-neutralised` set
+each to 1.0; `two-handing-buff-left-on-the-scoped-line` puts scope 124 back
+outside every attack rating.
 """
 
 from __future__ import annotations
@@ -42,11 +49,12 @@ READINGS = [
 _IDS = [f"{hero} :: {weapon}" for hero, weapon, _shown in READINGS]
 
 
-def _rating(data: dict, hero_name: str, weapon_id: int) -> damage.Rating:
+def _rating(data: dict, hero_name: str, weapon_id: int,
+            effects: list[dict] = ()) -> damage.Rating:
     """Through the facade, the path every display and the advisor take."""
     hero = cases.hero_by_name(data, hero_name)
     weapon = cases.weapon_by_id(data, weapon_id)
-    build = model.compute(hero, LEVEL, [], data.get("curves", {}))
+    build = model.compute(hero, LEVEL, list(effects), data.get("curves", {}))
     return damage.candidate(weapon, weapon.get("rarity", 0) + 1, build, data)
 
 
@@ -103,3 +111,95 @@ def test_the_popup_names_the_factor_and_where_it_is_from(shared_planner,
             "<span style='color:#8a8a8a'>measured, not read from the files; "
             "in every figure here</span>") in text
     assert "<b>Total 188</b>" in text
+
+
+# --- two-handing (R-008, AD-037) -------------------------------------------
+
+#: (Nightfarer, armament id, one-handed, two-handed) -- GOAL.md A20.
+TWO_HANDED_READINGS = [
+    ("Duchess", 1750000, 72, 74),         # dagger, DEX: no STR rule fits
+    ("Wylder", 3750000, 122, 125),        # own greatsword
+    ("Raider", 23750000, 158, 180),       # colossal weapon, no x1.18
+    ("Guardian", 18750000, 107, 110),     # halberd
+    ("Raider", GREAT_STARS, 188, 216),    # x1.18 and the Raider hand factor
+    ("Wylder", GREAT_STARS, 147, 151),    # same armament, neither
+]
+_TWO_HANDED_IDS = [f"{hero} :: {weapon}"
+                   for hero, weapon, _one, _two in TWO_HANDED_READINGS]
+
+WHEN_TWO_HANDING_ATTACK_POWER = 8300000
+WHEN_TWO_HANDING_STANCE = 7006000
+
+
+@pytest.mark.parametrize("hero, weapon, one, two", TWO_HANDED_READINGS,
+                         ids=_TWO_HANDED_IDS)
+def test_both_hands_show_the_numbers_the_game_showed(game_data, hero,
+                                                     weapon, one, two):
+    rating = _rating(game_data, hero, weapon)
+    assert damage.displayed(rating.final_total) == one
+    assert rating.two_handed is not None
+    assert rating.two_handed.two_handed is None, "nested once, not twice"
+    assert damage.displayed(rating.two_handed.final_total) == two, (
+        f"{rating.weapon['name']!r} for {hero} two-handed: the game showed "
+        f"{two}, this program shows "
+        f"{damage.displayed(rating.two_handed.final_total)} "
+        f"(unrounded {rating.two_handed.final_total!r})")
+
+
+def test_the_two_handing_factors_are_the_measured_ones():
+    """Both intervals are R-008's intersections over the six cells."""
+    assert 1.025889 <= weapons.TWO_HANDED_RATE < 1.032358
+    assert 1.143863 <= weapons.RAIDER_TWO_HANDED_RATE < 1.144480
+
+
+def test_the_two_handed_answer_names_its_factor(game_data):
+    rating = _rating(game_data, "Raider", GREAT_STARS)
+    assert rating.weapon_rating.two_handed is None
+    assert rating.two_handed.weapon_rating.two_handed == weapons.Calibration(
+        weapons.RAIDER_TWO_HANDED_RATE, "Raider two-handing")
+    assert rating.two_handed.weapon_rating.calibration == weapons.Calibration(
+        weapons.RAIDER_HEAVY_ARMAMENT_RATE,
+        "Raider with a greataxe or great hammer"), "x1.18 stays in both hands"
+
+
+@pytest.mark.parametrize("family", ["Bow", "Crossbow", "Ballista",
+                                    "Glintstone Staff", "Unarmed"])
+def test_no_second_figure_where_the_game_shows_none(game_data, family):
+    weapon_id = cases.first_of_family(game_data, family)
+    assert _rating(game_data, "Wylder", weapon_id).two_handed is None
+
+
+def test_a_when_two_handing_buff_lifts_the_two_handed_figure_only(game_data):
+    """Scope 124 leaves the `scoped:` line and reaches one hand (AD-037, 3)."""
+    buff = cases.effect_by_id(game_data, WHEN_TWO_HANDING_ATTACK_POWER)
+    plain = _rating(game_data, "Wylder", GREAT_STARS)
+    buffed = _rating(game_data, "Wylder", GREAT_STARS, [buff])
+
+    assert buffed.final_total == plain.final_total
+    assert not buffed.rates
+    assert buffed.two_handed.rates == pytest.approx(
+        {"physicsAttackRate": 1.12}), "Great Stars hits with one type"
+    assert damage.displayed(buffed.two_handed.final_total) == 169  # 151.6 x 1.12
+
+    hero = cases.hero_by_name(game_data, "Wylder")
+    build = model.compute(hero, LEVEL, [buff], game_data.get("curves", {}))
+    assert not any(key.startswith(model.SCOPED_PREFIX) for key in build.rates)
+    assert build.class_rates[model.TWO_HANDED_CLASS]["physicsAttackRate"] \
+        == pytest.approx(1.12)
+
+
+def test_the_stance_buff_travels_with_its_condition_and_moves_no_figure(
+        game_data):
+    stance = cases.effect_by_id(game_data, WHEN_TWO_HANDING_STANCE)
+    hero = cases.hero_by_name(game_data, "Wylder")
+    build = model.compute(hero, LEVEL, [stance], game_data.get("curves", {}))
+
+    assert "saAttackPowerRate" not in build.rates
+    assert build.class_rates[model.TWO_HANDED_CLASS]["saAttackPowerRate"] \
+        == pytest.approx(1.05)
+
+    plain = _rating(game_data, "Wylder", GREAT_STARS)
+    with_stance = _rating(game_data, "Wylder", GREAT_STARS, [stance])
+    assert with_stance.final_total == plain.final_total
+    assert with_stance.two_handed.final_total == plain.two_handed.final_total
+    assert not with_stance.two_handed.rates
