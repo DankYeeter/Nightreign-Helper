@@ -463,14 +463,19 @@ the window is unaffected.
 
 ## Searching
 
-The **relic picker** and the **Weapons** tab take a query syntax:
+The **relic picker** and the **Weapons** tab take a query syntax. Operators
+must be upper case — `AND`, `OR`, `NOT` — so a lower-case word such as "not"
+in an effect's own text is searched as text rather than read as a command:
 
 | Query | Finds |
 |---|---|
 | `poise stamina` | entries matching **both** words |
 | `poise OR stamina` | either |
-| `poise NOT curse` | poise, excluding anything matching *curse* |
+| `poise NOT curse` | poise, excluding relics whose curse (the `✦ ...` line) matches *curse* |
 | `"attack power"` | that exact phrase |
+
+In the relic picker, a curse name is part of the search text even though it
+is shown apart from the plain effects, so `NOT` can rule one out.
 
 The **Effects** box is simpler — a plain substring match, no operators. It
 searches descriptions as well as names. The Nightlords tab has no search: ten

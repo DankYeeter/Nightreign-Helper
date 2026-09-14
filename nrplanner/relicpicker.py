@@ -1301,7 +1301,10 @@ class RelicPicker(QDialog):
         # answer, so the grid and the "x of y" above it cannot disagree.
         items = self.slot.available_items()
         if predicate is not None:
-            items = [i for i in items if predicate(self.slot.effect_names(i))]
+            items = [
+                i for i in items
+                if predicate(self.slot.effect_names(i) + self.slot.curse_names(i))
+            ]
         # Favourites for the Nightfarer currently being planned lead the grid.
         # sorted() is stable, so everything else keeps the name order it had.
         if self.hero_id is not None:

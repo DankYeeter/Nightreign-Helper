@@ -559,6 +559,20 @@ class RelicSlot(QFrame):
             for e in item.effect_ids
         ]
 
+    def curse_names(self, item) -> list[str]:
+        """The names of the curses this relic actually rolled.
+
+        Kept apart from `effect_names` -- that list feeds the card's effect
+        block, and a curse already gets its own `✦ ...` block from
+        `_curses` (`relicpicker.py`); joining them there would show a curse
+        twice. This one exists so the search haystack can include what the
+        card's curse block shows (QA-264).
+        """
+        return [
+            effecttext.name(self.effect_by_id.get(c) or {"name": f"<{c}>"})
+            for c in getattr(item, "curse_ids", ()) or ()
+        ]
+
     def rollable_effects(self) -> list[dict]:
         """Effects that can legitimately appear on a relic in this slot.
 
