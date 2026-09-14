@@ -77,6 +77,13 @@ folder the tool actually settles on turns out to sit more than one level away
 from the one you picked, or outside it altogether, it shows you that folder
 and waits for you to confirm before reading anything from it.
 
+**Only a Steam installation of the game is accepted.** The tool checks the
+folder against Steam's own record of where its libraries are — the same
+place Steam itself would look — not just against the click that picked it.
+A copy of the game moved out of its Steam folder, or installed some other
+way, is turned down with *"That folder is not part of a Steam installation."*
+See [Known limits](#known-limits).
+
 **First launch takes about a minute.** It reads your installation and builds a
 local copy of the data, and offers to put itself in your Start Menu. Every
 launch after that is immediate, until the data needs rereading — when the game
@@ -155,6 +162,34 @@ six slots.
   have finished with and do not want to lose. **Show hidden**, beside it, lists
   the hidden ones again, and selecting one turns the button into **Unhide**.
   What is in the build is untouched by any of this.
+
+**Advisor** — the row between the build list and the relic slots. Pick a
+direction — **Maximise damage**, **Minimise damage taken** or **Maximise
+offensive attributes** — then **Optimize** works out, for every slot that is
+not held, the best relic your save has for it and shows the suggestion inside
+each slot card: nothing is put in a slot until you say so. **Apply all** puts
+every suggestion in its slot at once; a single slot can also be filled from
+its own card. **Undo apply** puts the previous slots back. **Why** opens the
+full account of what the suggestion counted and what it left out; **Clear**
+puts a suggestion away without applying it.
+
+**Hold**, on a slot card, keeps Optimize away from that one slot — you can
+still change it by hand, and a slot held on purpose while empty says so
+rather than looking untouched by accident. Holds are not part of the saved
+build; they are forgotten the next time you open the program.
+
+**Worst case / Best case**, next to the direction, only matters for relics
+with a conditional effect — most relics have none. A handful of curses and
+buffs only apply below a health threshold, on a dodge, after drinking a
+Flask, and the tool cannot know whether that holds for you right now (see
+"About the switches" below), so ranking a relic has to assume something about
+them. **Worst case** assumes every conditional curse applies and no
+conditional buff does — the figure you can rely on. **Best case** assumes the
+opposite — the figure that is reachable if everything lines up. Switching
+between the two does not run a second calculation on a different formula: it
+only changes which conditions Optimize assumes while it ranks, the same
+setting you can make by hand elsewhere on the sheet. Most relics rank the
+same either way; only the ones with a conditional curse or buff can move.
 
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
@@ -420,6 +455,12 @@ relics, saved builds and favourites are kept across that restart. The armament
 tiles and any conditions you have switched on are only kept for the run of the
 program, and start again.
 
+**Below 1536 px of logical width** — narrower than a 1920×1080 screen at
+Windows' common 125% scaling — the Advisor row's direction and Worst
+case/Best case boxes may be cut short. Nothing stops working: the row's own
+tooltip carries the full status text at any width, and every other part of
+the window is unaffected.
+
 ## Searching
 
 The **relic picker** and the **Weapons** tab take a query syntax:
@@ -615,6 +656,11 @@ Stated plainly rather than hidden:
 - **Spell damage is unavailable** — no such field exists in the data.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
+- **A PC with no Steam installed cannot point the tool at the game at all.**
+  The check that a folder belongs to a real Steam library needs Steam's own
+  registry entry to start from; without it, every folder is turned down, a
+  copy of the game included. This follows from checking the game's origin
+  rather than just asking for confirmation — see [Install](#install).
 
 ## Disclaimer
 
