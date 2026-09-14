@@ -600,8 +600,9 @@ CARRIES_A_FIGURE = ""
 #: is one thing for the player to remember, and this is the commonest case
 #: there is.
 SILENT_ANOTHER_NIGHTFARER = "another_nightfarer"
-#: The figure is in the build, from another copy of the same effect or from a
-#: relic the player is holding; this copy added none of it.
+#: The figure is in the build, from another copy of the same effect, from
+#: another member of its exclusivity group, or from a relic the player is
+#: holding; this copy added none of it.
 SILENT_ALREADY_COUNTED = "already_counted"
 #: The effect waits on a condition the player can be in -- the same set that
 #: feeds `AdvisorResult.not_counted`, so the two cannot disagree.

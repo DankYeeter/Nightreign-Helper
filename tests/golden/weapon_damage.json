@@ -269,19 +269,19 @@
         "last_ar": {
           "base": 192.83989,
           "scaled": 192.83989,
-          "final": 118.427807,
+          "final": 163.913911,
           "rates": {
-            "physicsAttackPowerRate": 0.614125
+            "physicsAttackPowerRate": 0.85
           },
           "weapon": "Wylder's Greatsword",
           "class": "melee",
           "headline": "Attack rating"
         },
-        "panel": "<div>Physical <span style='color:#8a8a8a'>192</span> <span style='color:#d1655f'>-74</span> <b>118</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>192</span> <a href='ar:total' style='color:#d1655f;text-decoration:none'>-74</a> <b style='color:#c8a45c'>118</b> <span style='color:#d1655f'>(-38.6%)</span></div><div style='margin-top:6px'>Inflicts Blood Loss <b style='color:#c8a45c'>25</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Frost <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Poison <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
+        "panel": "<div>Physical <span style='color:#8a8a8a'>192</span> <span style='color:#d1655f'>-29</span> <b>163</b></div><div style='margin-top:4px'><b>Total</b> <span style='color:#8a8a8a'>192</span> <a href='ar:total' style='color:#d1655f;text-decoration:none'>-29</a> <b style='color:#c8a45c'>163</b> <span style='color:#d1655f'>(-15.0%)</span></div><div style='margin-top:6px'>Inflicts Blood Loss <b style='color:#c8a45c'>25</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Frost <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Inflicts Poison <b style='color:#c8a45c'>35</b><span style='color:#8a8a8a'> buildup per hit</span></div><div style='margin-top:6px'>Rally recovery <span style='color:#8a8a8a'>60</span> <span style='color:#8a8a8a'>—</span> <b style='color:#c8a45c'>60 HP</b><span style='color:#8a8a8a'> per landed hit</span></div><div style='color:#8a8a8a;font-size:11px'>A flat amount, not a share of the damage you deal, and it varies by attack — some recover nothing.</div><div style='color:#8a8a8a; font-size:10px; margin-top:2px'>Grey is your base at this level; the change is what the equipped relics add, counting stat gains and attack multipliers.</div>",
         "tiles": [
           {
             "title": "<span style='color:#a97fe0'>Wylder's Greatsword</span>",
-            "detail": "Rare +2 · <b style='color:#c8a45c'>118</b> AR"
+            "detail": "Rare +2 · <b style='color:#c8a45c'>163</b> AR"
           },
           {
             "title": "<span style='color:#8a8a8a'>Slot 2 — empty</span>",
@@ -304,7 +304,7 @@
             "detail": "double-click to add an armament"
           }
         ],
-        "breakdown": "<b>Attack rating — Wylder's Greatsword</b><br>&nbsp;&nbsp;Base &nbsp; <b>192</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>-38.6%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Starting armament inflicts frost -15.0%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Starting armament inflicts poison -15.0%</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Starting armament inflicts blood loss -15.0%</span><br>&nbsp;&nbsp;<b>Total 118</b> (-74, -38.6%)"
+        "breakdown": "<b>Attack rating — Wylder's Greatsword</b><br>&nbsp;&nbsp;Base &nbsp; <b>192</b><br>&nbsp;&nbsp;Physical Attack &nbsp; <b>-15.0%</b><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8a8a8a'>Starting armament inflicts frost -15.0%</span><br>&nbsp;&nbsp;<b>Total 163</b> (-29, -15.0%)"
       }
     },
     {

@@ -57,7 +57,22 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "exclusive-group-counts-every-copy": Mutation(
+        path="nrplanner/model.py",
+        old="""    counted = once_per_group
+""",
+        new="""    counted = list(counted)
+""",
+        survival_means=(
+            "every member of an exclusivity group goes into the totals again, "
+            "warned about and counted: two copies of `[Revenant] Improved "
+            "Strength, Reduced Faith` read Strength +50 and the advisor fills "
+            "two slots with them (QA-257, A4). Killed by `tests/test_"
+            "exclusive_group_counts_once.py` and by the golden case `all "
+            "three status penalties at once, slot 1` (T-242)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:

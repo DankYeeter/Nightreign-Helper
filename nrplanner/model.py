@@ -897,6 +897,22 @@ def compute_resistances(build: "Build", effects: list[dict]) -> None:
             build.resistances[label] = (points, rate)
 
 
+def _exclusive_text(kept: dict, dropped: dict, copies: int, key: int) -> str:
+    """The warning for a member of an exclusivity group that will not apply.
+
+    A second copy of the same effect is said the way the duplicate rule says
+    it (`x2`), a different member of the group by both names: the player has
+    to find the relic that adds nothing, and the name is how.
+    """
+    kept_name = " ".join(kept["name"].split())
+    dropped_name = " ".join(dropped["name"].split())
+    grouped = (f"(the game groups them under exclusivity {key}) — "
+               f"only one will apply")
+    if kept_name == dropped_name:
+        return f"{kept_name} x{copies} {grouped}"
+    return f"{dropped_name} and {kept_name} are mutually exclusive {grouped}"
+
+
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
             weapons_held: list[dict] | None = None,
@@ -910,7 +926,9 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     Additive attribute bonuses sum; '*Rate' fields multiply. Effects flagged
     isStrongestEffect (stacks=False) do not add up when picked more than once --
     only the single strongest instance applies -- so duplicates are reported
-    rather than counted twice.
+    rather than counted twice. Effects sharing a positive `exclusivity` are
+    a group of which the game applies one: the first equipped counts, the
+    rest are reported the same way (QA-257).
 
     `declared` maps effect id to how many times the player says its condition
     is met right now. A gated effect is otherwise left out of every total,
@@ -988,29 +1006,29 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     # different things and both carry exclusivityId -1. Only 64 of the 2079
     # effects set the field at all, and effects sharing a positive value are
     # the ones the game actually treats as mutually exclusive.
-    by_exclusivity: dict[int, list[dict]] = {}
+    #
+    # So a group counts once. The first member equipped applies; every later
+    # one -- a second copy of the very same effect included (QA-257) -- is
+    # reported and left out of the totals, exactly as a second copy of an
+    # isStrongestEffect is above. Which member the game itself keeps is not
+    # stated in the params; first-equipped is the reading the duplicate rule
+    # already takes, and the members of one group that move a figure at all
+    # move it by the same amount, so no other choice would change a total.
+    exclusive_seen: dict[int, list[dict]] = {}
+    once_per_group: list[dict] = []
     for eff in counted:
         key = eff.get("exclusivity", -1)
-        if isinstance(key, int) and key > 0:
-            by_exclusivity.setdefault(key, []).append(eff)
-
-    reported: set[tuple[str, str]] = set()
-    for key, group in by_exclusivity.items():
-        for i, a in enumerate(group):
-            for b in group[i + 1:]:
-                pair = tuple(sorted((" ".join(a["name"].split()),
-                                     " ".join(b["name"].split()))))
-                if pair[0] == pair[1] or pair in reported:
-                    continue
-                reported.add(pair)
-                build.warnings.append(
-                    Warning(
-                        "exclusive",
-                        f"{pair[0]} and {pair[1]} are mutually exclusive "
-                        f"(the game groups them under exclusivity {key}) — "
-                        "only one will apply",
-                    )
-                )
+        if not (isinstance(key, int) and key > 0):
+            once_per_group.append(eff)
+            continue
+        group = exclusive_seen.setdefault(key, [])
+        group.append(eff)
+        if len(group) == 1:
+            once_per_group.append(eff)
+            continue
+        build.warnings.append(
+            Warning("exclusive", _exclusive_text(group[0], eff, len(group), key)))
+    counted = once_per_group
 
     for eff in counted:
         mods = eff["modifiers"]

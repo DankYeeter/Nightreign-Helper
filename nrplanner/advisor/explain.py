@@ -394,15 +394,29 @@ def _armament_bound(effect: dict, armaments: _Armaments) -> bool:
     return False
 
 
+def _exclusivity_of(ctx: types.GoalContext, effect_id: int) -> int | None:
+    """The exclusivity group this effect belongs to, or `None` for none.
+
+    Read the way `model.compute` reads it: a positive value is a group the
+    game applies one member of, anything else is no group at all.
+    """
+    effect = ctx.data["effects"].get(str(effect_id)) or {}
+    key = effect.get("exclusivity", -1)
+    return key if isinstance(key, int) and key > 0 else None
+
+
 def _silent_effect(candidate: types.Candidate, effect_id: int,
                    ctx: types.GoalContext, built: model.Build,
-                   counted_elsewhere: bool,
+                   counted_elsewhere: bool, group_counted: bool,
                    armaments: _Armaments) -> types.ReasonLine:
     """An effect of a chosen copy that produced no line, said in one sentence.
 
     Six fillings, and **the first that fits wins** in the order AK-167 sets:
     (a), (a2), **(c)**, **(b)**, (d), (e) -- the strongest piece of news
-    first. They are not one sentence with six wordings; what a player can do
+    first. (a2) has two sentences, one for a second copy of the same effect
+    and one for a second member of its exclusivity group (QA-257); they are
+    one filling, because the player can do one thing about either. They are
+    not one sentence with six wordings; what a player can do
     about a silent effect differs completely between them. An effect that
     works for another Nightfarer is dead weight in that slot forever, and one
     whose gate is the armament names the lever, which is why (c) is asked
@@ -443,6 +457,10 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     if counted_elsewhere:
         return said(f"{name}: another copy of it is already counted, so this "
                     f"one adds nothing.", types.SILENT_ALREADY_COUNTED)
+    if group_counted:
+        return said(f"{name}: the game applies only one effect of its group, "
+                    f"and another one is already counted, so this one adds "
+                    f"nothing.", types.SILENT_ALREADY_COUNTED)
     if _armament_bound(effect, armaments):
         return said(f"{name}: it depends on the armaments you carry, so no "
                     f"number here.", types.SILENT_ARMAMENT_BOUND)
@@ -552,6 +570,13 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                                           built, contributions)
     already = {entry.effect_id for entries in base.sources.values()
                for entry in entries}
+    counted_ids = {one.effect_id for one in contributions} | already
+    # The exclusivity groups that already have a member in the totals: the
+    # game applies one member of such a group, and `model.compute` counted
+    # the first one it met, so a second member -- same effect or not -- is
+    # silent for the same reason a second isStrongestEffect copy is (QA-257).
+    groups_counted = {_exclusivity_of(ctx, effect_id)
+                      for effect_id in counted_ids} - {None}
     # Read once: the armament grid does not change inside one run, and the
     # weapon-type pool is a sweep over every armament of the extraction.
     armaments = _armaments(ctx)
@@ -560,8 +585,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
         mine = [one for one in contributions
                 if one.candidate.slot_index == candidate.slot_index]
         with_a_figure = {one.effect_id for one in mine}
-        elsewhere = ({one.effect_id for one in contributions} | already
-                     ) - with_a_figure
+        elsewhere = counted_ids - with_a_figure
         lines: list[types.ReasonLine] = []
         for effect_id in candidate.effect_ids:
             if effect_id in with_a_figure:
@@ -570,9 +594,11 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                                      text=_line(one, built))
                     for one in mine if one.effect_id == effect_id)
             else:
-                lines.append(_silent_effect(candidate, effect_id, ctx, built,
-                                            effect_id in elsewhere,
-                                            armaments))
+                lines.append(_silent_effect(
+                    candidate, effect_id, ctx, built,
+                    effect_id in elsewhere,
+                    _exclusivity_of(ctx, effect_id) in groups_counted,
+                    armaments))
         for curse_id in candidate.curse_ids:
             lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
                                       unfelt))
