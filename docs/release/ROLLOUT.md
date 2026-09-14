@@ -376,3 +376,40 @@ Kein Blocker. L2 (Update-Pfad) und L6 (Signatur) sind benannte
 Einschraenkungen, keine Sperren fuer den heutigen Eigenlauf — beide werden
 erst bei einer echten Weitergabe/einem Release relevant (dann zusaetzlich
 A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
+
+---
+
+## 1.11.0 — 2026-09-15, Modus `notes`
+
+Stand `8b7b782` (Doku, ruehrt Code nicht an), Code `2a0ca0d`. Artefakt
+`dist/NightreignHelper.exe`, 59.105.391 B, SHA-256
+`f23eb0f784665a8c018c19f353ad114e9809061033076311dcdf21dbb916e8e0`
+(certutil nachgemessen, deckt sich mit Direktors Messung und dem
+Build-Commit `08ddba6` laut `d564205`). `AUFLAGEN.md` gegen Stand 15.09.
+gelesen: keine Auflage steht auf ROT, keine sperrt diesen Lauf. Kein Release,
+kein Push, keine Weitergabe in diesem Lauf (Auftrag: nur `notes`).
+
+### Migration 1.10.1 → 1.11.0
+
+Geprueft (nicht vermutet): `git diff dde2efc..08ddba6 -- nrplanner/favourites.py nrplanner/paths.py`
+zeigt **keine** Aenderung an beiden Dateien. Neu ist `nrplanner/effectfilters.py`
+(neue Datei) mit zwei zusaetzlichen `QSettings`-Schluesseln
+(`advisor/excluded`, `advisor/required`); der Docstring der Datei haelt fest:
+"No `__schema` step either -- a store that never held the key reads back as
+empty". Das ist am Quelltext bestaetigt, nicht an einem echten
+1.10.1→1.11.0-Update-Lauf verifiziert (kein `clean-room` in diesem Auftrag) —
+gleiche Einschraenkung wie L2 aus dem 1.10.0-Abschnitt. Ein 1.10.1-Artefakt
+existiert (`5e19a02`, 59.089.432 B, SHA-256 `dfdeadc4…6a558` laut
+Build-Commit), waere also fuer einen echten Update-Test vorhanden.
+
+### Gegenueber 1.10.0-Abschnitt unveraendert offen
+
+L2 (Update-Pfad nie an einem echten Artefakt geprueft) und L6 (keine Signatur,
+SmartScreen) gelten unveraendert; L2 ist mit dem vorhandenen 1.10.1-Artefakt
+diesmal technisch pruefbar, aber in diesem `notes`-Lauf nicht geprueft.
+
+### Ergebnis
+
+Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe von 1.11.0 gilt dieselbe
+Liste wie bei 1.10.0 (A-020/A-023/A-031 aus `AUFLAGEN.md`) plus ein
+`clean-room`-Update-Test 1.10.1 → 1.11.0, bisher ungeprueft.

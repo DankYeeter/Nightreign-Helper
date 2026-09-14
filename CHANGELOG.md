@@ -4,6 +4,47 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.11.0] - 2026-09-15
+
+### Added
+- Relic suggestions no longer offer a Worst-case/Best-case switch. There is
+  one reading now, and it always counts conditional effects (the ones that
+  only apply under a stated condition), so the suggestion matches what the
+  build actually does.
+- You can mark any effect or curse line, on a relic card or in its "Why"
+  dialog, as "Don't include" or "Must include" for suggestions. A counter in
+  the advisor bar shows how many marks are active, and marks are kept
+  between sessions.
+- When a "Must include" mark can no longer be met by any relic combination,
+  the advisor bar now says so instead of giving no answer.
+- The mark button can be reached and pressed with the keyboard (Enter).
+
+### Fixed
+- Overlapping relic markings could stop the advisor from producing any
+  suggestion at all.
+
+## [1.10.1] - 2026-09-14
+
+### Changed
+- Search operators (AND, OR, NOT) now only work written in capitals; in
+  lowercase they are treated as ordinary search text, matching what the
+  field's hint says. Curse names are now searched along with effects.
+- Each suggestion card in the relic advisor has its own "Why" button, next
+  to "Use", opening the same explanation as the advisor bar's.
+- The effect search field shows a hint on its syntax (AND, OR, NOT, "quoted
+  phrases"), matching the weapon search field.
+- Relic picker cards size themselves from the font in use instead of a
+  fixed width.
+
+### Fixed
+- Starting-armament damage that converts to an element (e.g. "deals fire
+  damage") is now measured as its own step instead of folded into a flat
+  multiplier; corrects three measured damage values (Wylder, Revenant,
+  Duchess).
+- The Raider's attack-power bonus on Greataxes and Great Hammers is now
+  1.18x (was off), and the Revenant's Cursed Claws bonus when carried by
+  another character is now 0.88x (was off).
+
 ## [1.10.0] - 2026-09-14
 
 ### Added
