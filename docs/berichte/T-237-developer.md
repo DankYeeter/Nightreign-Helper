@@ -73,6 +73,6 @@ Suite `pytest -n auto` auf `d40f71d`: **1526 passed, 9 skipped, 168 s**
    (`reg query`: not found), `HKCU\Software\DankYeeter` vorhanden; kein
    Fensterprozess offen; Scratchpad `T-237/` bleibt mit Skript und Bildern.
 
-Ponytail-Review `git diff 49b5a78..HEAD`: net +192 Zeilen (Kindprozess-Modul
+Ponytail-Review `git diff 49b5a78..HEAD`: net +181 Zeilen (196 hinzu, 15 weg; Kindprozess-Modul
 99, Tests 42, Mutationen 26, Picker 25). Kein Streichkandidat: der Kindprozess
 ist der einzige Weg zu echten Schriftbreiten in der Suite.
