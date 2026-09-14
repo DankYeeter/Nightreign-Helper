@@ -186,11 +186,13 @@ again and it is **required**: only relics carrying it are suggested, marked
 `▲`. A third click clears it. The marking sits on the effect, not on the
 relic — every copy carrying the same effect shows the same state — and it
 is remembered across restarts. The **Why** dialog lists everything you have
-marked under *Effects you've excluded* and *Effects you require*, where a
-click clears it again, and the Advisor row's tooltip counts the marks at all
-times. A required effect no relic of yours carries, or one no combination
-of your relics can bring together with the others, is said so by name
-rather than dropped quietly. Conditional effects — a handful of curses and
+marked under *Effects you've excluded* and *Effects you require*: clicking a
+line there runs the same three-click cycle as clicking it anywhere else, so
+a click on an excluded effect makes it required rather than clearing it, and
+a click on a required one is what clears it. The Advisor row's tooltip
+counts the marks at all times. A required effect no relic of yours carries,
+or one no combination of your relics can bring together with the others, is
+said so by name rather than dropped quietly. Conditional effects — a handful of curses and
 buffs that only apply below a health threshold, on a dodge, after drinking a
 Flask — are counted as met unless you say otherwise on the sheet (see
 "About the switches" below).
@@ -645,6 +647,16 @@ Stated plainly rather than hidden:
   game's exactly for 1901 of 1974 readings and within one for 1933 of them.
   Outside it nothing has been measured: reinforced rarities, infused variants,
   Scholar and Undertaker, and levels other than 1, 12 and 15.
+- **Three more figures in that formula are measured, not read from the
+  files.** A Raider wielding a greataxe or a great hammer hits **x1.18**
+  harder than the formula alone gives; Revenant's Cursed Claws in any other
+  Nightfarer's hands rate **x0.88** lower. Both were confirmed in game at
+  level 15 and searched for in 252 param tables without turning up a source.
+  The relics that convert part of a starting weapon's rating to an element
+  ("Starting armament deals fire/magic/lightning/holy damage") were matched
+  the same way, against three in-game readings at level 15 — 122→123,
+  88→91, 72→74, on three different Nightfarers. All three carry the same
+  "measured, not read from the files" note in the weapon breakdown.
 - **Staves and seals carry a different number, and it is the game's.** Where
   the game shows an armament's attack power it shows a catalyst's spell
   scaling, so that is what this tool shows and ranks a staff or a seal by;
