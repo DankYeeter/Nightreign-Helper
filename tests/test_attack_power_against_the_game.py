@@ -27,10 +27,11 @@ not to be a selection of the cases that happen to pass.
   and this file would be silent about the difference between the two rules.
 
 **What it does not check.** Reinforced rarities, infused variants, Scholar
-and Undertaker, catalysts, and the two armament/Nightfarer pairings with a
-measured deviation nobody has explained (QA-096, QA-097). The header of the
-data file lists them; none of them is in the readings, and none of them is
-claimed by this file.
+and Undertaker, catalysts, and the two armament/Nightfarer pairings that
+carry a measured factor of their own (QA-096, QA-097 --
+`tests/test_attack_power_calibration_against_the_game.py` holds those). The
+header of the data file lists them; none of them is in the readings, and none
+of them is claimed by this file.
 """
 
 from __future__ import annotations

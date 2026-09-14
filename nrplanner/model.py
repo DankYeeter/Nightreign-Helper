@@ -847,6 +847,10 @@ class Build:
     #: (QA-124, the root of QA-088 a). 0 means "nobody said", which is what a
     #: hand-built `Build` in a test carries.
     level: int = 0
+    #: The hero's name, as the dataset names heroes (`allowed_heroes`). Two
+    #: measured factors on the attack rating hang on it
+    #: (`weapons.nightfarer_calibration`); "" is a build nobody named.
+    nightfarer: str = ""
     attributes: dict[str, int] = field(default_factory=dict)
     base_attributes: dict[str, int] = field(default_factory=dict)
     rates: dict[str, float] = field(default_factory=dict)
@@ -945,8 +949,8 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             "backwards -- Improved Item Discovery reads -60% instead of +40%."
         )
     base = dict(hero["levels"][str(level)])
-    build = Build(level=level, base_attributes=dict(base),
-                  attributes=dict(base))
+    build = Build(level=level, nightfarer=str(hero.get("name", "")),
+                  base_attributes=dict(base), attributes=dict(base))
     # Weapon-type gates are met by any armament being held, not just the one
     # being broken down. Falls back to the single weapon when no set is given,
     # so older callers keep working.

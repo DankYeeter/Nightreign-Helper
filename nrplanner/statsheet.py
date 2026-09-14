@@ -415,6 +415,16 @@ class StatSheet(QScrollArea):
         if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
             rows.append("&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
 
+        # A factor read off the game for this Nightfarer/armament pairing
+        # (`weapons.nightfarer_calibration`). It is already inside every
+        # figure above; the line says so, and says where the number is from.
+        calibration = ar.get("calibration")
+        if calibration:
+            rows.append(f"&nbsp;&nbsp;{calibration['reason']} &nbsp; "
+                        f"<b>x{calibration['factor']:.2f}</b> "
+                        f"<span style='color:{MUTED}'>measured, not read "
+                        f"from the files; in every figure here</span>")
+
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
         rows.append(f"&nbsp;&nbsp;<b>Total {damage.displayed(final)}</b> "

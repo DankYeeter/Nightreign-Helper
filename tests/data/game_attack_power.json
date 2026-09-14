@@ -9,8 +9,8 @@
     "left_out": [
       "The Duchess column: it is mixed block by block between levels 11 and 12 and is not usable as a source at all (QA-098).",
       "Staves and seals: the game shows the spell scaling for them, not an attack rating, so the factor does not describe them (QA-099).",
-      "Greataxes and great hammers for the Raider: the sheet reads x1.18 above the program there and nobody has found the cause (QA-096).",
-      "Revenant's Cursed Claws: the sheet reads x0.88 below the program for every Nightfarer but the owner (QA-097)."
+      "Greataxes and great hammers for the Raider: the sheet reads x1.18 above the plain formula there; no param carries the figure, so it is declared as measured calibration (QA-096, weapons.nightfarer_calibration) and held to the game in tests/test_attack_power_calibration_against_the_game.py.",
+      "Revenant's Cursed Claws: the sheet reads x0.88 below the plain formula for every Nightfarer but the owner; same treatment (QA-097)."
     ],
     "how_these_rows_were_picked": "Nine armaments that scale off no attribute -- they pin the factor without a curve in the way -- and then, for each Nightfarer in the sheet's own column order, the next representative of a weapon class that no earlier row has used, walking the sheet from the top. Two rounds, so two armaments per Nightfarer in fourteen different classes.",
     "not_a_selection_of_the_hits": "Over the whole sheet with the exclusions above applied, floor(0.6 x rate) reproduces 1900 of 1942 readings exactly (97.8 %). Six of the seven columns miss exactly one armament -- Sword of Night and Flame, the only one with three damage types and two curve ids -- and Ironeye misses one more. The Guardian column misses 35 of 281, 30 of them by exactly 1 low, so a Guardian row here is weaker evidence than the other six. Measured 2026-09-03 for T-045."

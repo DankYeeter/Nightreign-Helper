@@ -445,7 +445,7 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
     than the wrong number, which is the right number under the wrong name
     (QA-099).
     """
-    return {
+    figures = {
         "base": bare.scaled_headline,
         "scaled": now.scaled_headline,
         "final": now.final_headline,
@@ -454,6 +454,14 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
         "class": now.weapon_class,
         "headline": now.headline_name,
     }
+    # Only where one applies: the golden file freezes this dictionary for
+    # pairings none of the two factors reach, and a key that is always None
+    # there would say nothing to the popup and change every frozen record.
+    calibration = now.weapon_rating.calibration
+    if calibration is not None:
+        figures["calibration"] = {"factor": calibration.factor,
+                                  "reason": calibration.reason}
+    return figures
 
 
 def is_starting_armament(weapon: dict, hero: dict, slot_index: int) -> bool:
@@ -470,7 +478,7 @@ def _scaled(weapon: dict, question: Question, tier: int,
             build: model.Build, data: dict) -> weapons.WeaponRating:
     """Layer one, on the attribute set this question stands on."""
     attributes = getattr(build, ATTRIBUTES_FOR[question])
-    return weapons.rate(weapon, attributes, data, tier)
+    return weapons.rate(weapon, attributes, data, tier, build.nightfarer)
 
 
 def _answer(rating: weapons.WeaponRating, question: Question,
@@ -627,7 +635,7 @@ def rank_candidates(build: model.Build, target_tier: int,
     branch in `weapons.rate` it gated are gone together.
     """
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
-    ranked = weapons.rank(data, attributes, target_tier)
+    ranked = weapons.rank(data, attributes, target_tier, build.nightfarer)
     answers = [_answer(rating, Question.CANDIDATE, build)
                for rating in ranked
                if not model.is_unequippable_catalyst(rating.weapon)]

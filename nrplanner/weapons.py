@@ -14,8 +14,10 @@ curve id per damage type comes from the weapon's own correctType_{Type}.
 
 **One term of that first line is not from a param.**
 `GAME_ATTACK_POWER_RATE` is measured against the game and not read out of it;
-its scope and its evidence are written out where it is defined. Every other
-term is a field with a paramdef behind it.
+its scope and its evidence are written out where it is defined. Two more
+measured factors sit beside it and reach exactly two Nightfarer/armament
+pairings, `nightfarer_calibration`. Every other term is a field with a
+paramdef behind it.
 
 **A staff or a seal is not rated by that formula at all.** The game shows a
 catalyst's spell scaling where it shows every other armament's attack power,
@@ -74,6 +76,68 @@ DAMAGE_LABELS = {
 GAME_ATTACK_POWER_RATE = 0.6
 
 
+@dataclass(frozen=True)
+class Calibration:
+    """A measured factor on the attack rating, and the pairing it describes.
+
+    `reason` is what the breakdown panel prints beside the factor, so the
+    player can see that the figure carries a number read off the game and
+    not out of its files (GOAL.md A7).
+    """
+    factor: float
+    reason: str
+
+
+#: Measured against the game, not read from it, the same way as
+#: `GAME_ATTACK_POWER_RATE` -- and searched for the same way, negatively:
+#: 252 param tables, 257 912 rows, 6.66 million float cells including the
+#: undefined bytes, and neither figure is in a place the engine is shown to
+#: read (`qa/findings.md` QA-096/QA-097, addendum T-042). Both are the
+#: intersection of the `floor` conditions the measured cells impose, not a
+#: mean over them:
+#:
+#: * Raider with a greataxe or a great hammer hits x1.18 harder than the
+#:   formula says -- 25 of 25 armaments, m in [1.179733, 1.180116). Not
+#:   colossal weapons (0.998-1.003), not any other Nightfarer on the same
+#:   armaments (0.996-1.003).
+#: * Revenant's Cursed Claws in any other Nightfarer's hands rate x0.88 --
+#:   8 of 8, m in [0.877440, 0.882700); the owner is at 0.9994. The item
+#:   text states the intent ("Only the Revenant can make proper use of this
+#:   weapon"), the number is nowhere.
+#:
+#: Confirmed in play 2026-09-14 at level 15: Raider / Great Stars 188 against
+#: 160 without the factor, Wylder / Cursed Claws 54 against 61.
+RAIDER_HEAVY_ARMAMENT_RATE = 1.18
+#: Greataxe and great hammer, the two `wep_type`s the Raider factor covers.
+RAIDER_HEAVY_ARMAMENT_TYPES = (19, 23)
+BORROWED_CURSED_CLAWS_RATE = 0.88
+CURSED_CLAWS_ID = 21750000
+
+RAIDER = "Raider"
+REVENANT = "Revenant"
+
+
+def nightfarer_calibration(weapon: dict, nightfarer: str) -> Calibration | None:
+    """The measured factor for this Nightfarer on this armament, if any.
+
+    `nightfarer` is the hero's name, the key the dataset itself uses for a
+    hero (`allowed_heroes`). An empty name is a build nobody named -- a
+    hand-built one in a test -- and nothing was measured for nobody, so
+    nothing is applied.
+    """
+    if not nightfarer:
+        return None
+    if (nightfarer == RAIDER
+            and weapon.get("wep_type") in RAIDER_HEAVY_ARMAMENT_TYPES):
+        return Calibration(RAIDER_HEAVY_ARMAMENT_RATE,
+                           "Raider with a greataxe or great hammer")
+    if nightfarer != REVENANT and weapon.get("id") == CURSED_CLAWS_ID:
+        return Calibration(BORROWED_CURSED_CLAWS_RATE,
+                           "Revenant's Cursed Claws in another "
+                           "Nightfarer's hands")
+    return None
+
+
 #: The scale the game lays over a catalyst's spell scaling, the number it
 #: shows for a staff or a seal where it shows an attack rating for everything
 #: else: `floor(CATALYST_DISPLAY_RATE x rate x (1 + curve(attribute)/100))`.
@@ -130,6 +194,10 @@ class WeaponRating:
     #: armament that is not a staff or a seal. `None` rather than 0.0 on
     #: purpose: a zero would sum, sort and print like a figure.
     catalyst_scaling: float | None = None
+    #: The measured per-Nightfarer factor already inside `base` and `scaled`,
+    #: or `None` for the pairings the plain formula describes. Carried so the
+    #: breakdown can name it, never re-applied by a reader.
+    calibration: Calibration | None = None
 
     def scaled_headline(self) -> float:
         """The figure this armament is ranked and shown by, before layer two.
@@ -248,7 +316,7 @@ def _catalyst_scaling(weapon: dict, attributes: dict[str, int],
 
 
 def rate(weapon: dict, attributes: dict[str, int], data: dict,
-         upgrade: int = MIN_UPGRADE) -> WeaponRating:
+         upgrade: int = MIN_UPGRADE, nightfarer: str = "") -> WeaponRating:
     curves = data["calc_curves"]
     reinforce_table = data["reinforce"]
     element_correct = data["element_correct"]
@@ -283,10 +351,18 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         reinforce = {"atk": {}, "correct": {}, CATALYST_SCALING_KEY: None}
 
     aec = element_correct.get(str(weapon.get("element_correct_id")), {})
+    calibration = nightfarer_calibration(weapon, nightfarer)
     result = WeaponRating(
         weapon=weapon, applied_upgrade=applied,
         catalyst_scaling=_catalyst_scaling(weapon, attributes, reinforce,
-                                           curves))
+                                           curves),
+        calibration=calibration)
+    # The game's constant and the measured pairing factor, as one number, so
+    # the two lines below stay the two places the screen's scale is applied.
+    # With no calibration the product is exactly GAME_ATTACK_POWER_RATE and
+    # every figure is bit for bit what it was before the factor existed.
+    display_rate = GAME_ATTACK_POWER_RATE * (
+        calibration.factor if calibration else 1.0)
 
     for damage in DAMAGE_TYPES:
         base = weapon["base"].get(damage, 0)
@@ -298,7 +374,7 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         # into `result` -- see the note beside `result.scaled` below for why
         # this bracketing and not the shorter `base *= GAME_ATTACK_POWER_RATE`
         # on this line.
-        result.base[damage] = base * GAME_ATTACK_POWER_RATE
+        result.base[damage] = base * display_rate
 
         rules = aec.get(damage, {})
         curve_id = str(weapon["curve"].get(damage))
@@ -371,13 +447,13 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         # two counts are of the per-type sum this script forms; the pair that
         # stood here before (480 against 1081) named no definition of "the
         # total" and cannot be matched to one.
-        result.scaled[damage] = base * bonus * GAME_ATTACK_POWER_RATE
+        result.scaled[damage] = base * bonus * display_rate
 
     return result
 
 
 def rank(data: dict, attributes: dict[str, int],
-         upgrade: int = MIN_UPGRADE) -> list[WeaponRating]:
+         upgrade: int = MIN_UPGRADE, nightfarer: str = "") -> list[WeaponRating]:
     """Every armament in the dataset, rated and ordered best first.
 
     `WeaponRating.total` fell in AD-019 step W5 (assurance Z1): it bracketed
@@ -400,7 +476,7 @@ def rank(data: dict, attributes: dict[str, int],
     happened to hand over, and two runs over the same data could disagree
     about rows nobody could tell apart on screen.
     """
-    out = [rate(weapon, attributes, data, upgrade)
+    out = [rate(weapon, attributes, data, upgrade, nightfarer)
            for weapon in data["weapons"]]
     out.sort(key=lambda r: (-r.scaled_headline(), r.weapon["id"]))
     return out
