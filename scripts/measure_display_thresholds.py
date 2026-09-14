@@ -79,7 +79,7 @@ def from_attributes(data: dict, weapon: dict, tier: int, bare_build,
 
 def measure(data: dict, hero_name: str, level: int, tier: int,
             effect_id: int | None) -> dict:
-    from nrplanner import app as appmod
+    from nrplanner import statsheet
     from nrplanner import model
     from nrplanner.weapons import GAME_ATTACK_POWER_RATE
 
@@ -92,7 +92,7 @@ def measure(data: dict, hero_name: str, level: int, tier: int,
     bare_build = model.compute(hero, level, [], curves)
     raised_build = model.compute(hero, level, [effect], curves)
 
-    visible = appmod.VISIBLE_CHANGE
+    visible = statsheet.VISIBLE_CHANGE
     raised_threshold = visible / GAME_ATTACK_POWER_RATE
     lowered_threshold = visible * GAME_ATTACK_POWER_RATE
 
@@ -140,7 +140,7 @@ def _an_attribute_effect(data: dict, hero: dict, level: int) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from nrplanner import app as appmod
+    from nrplanner import statsheet
     from nrplanner.weapons import GAME_ATTACK_POWER_RATE, MIN_UPGRADE
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"{args.hero} at level {args.level}, tier +{args.tier}, "
           f"wearing {counts['effect']!r} ({counts['effect_id']})")
-    print(f"  threshold        {appmod.VISIBLE_CHANGE} "
+    print(f"  threshold        {statsheet.VISIBLE_CHANGE} "
           f"(absolute, AK-65); calibration "
           f"{GAME_ATTACK_POWER_RATE}")
     print(f"  armaments        {counts['armaments']}")
@@ -165,10 +165,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  of those, hidden by the calibration alone "
           f"{counts['hidden_by_the_calibration']}")
     print(f"  lost if the threshold were raised to "
-          f"{appmod.VISIBLE_CHANGE / GAME_ATTACK_POWER_RATE:.4f}: "
+          f"{statsheet.VISIBLE_CHANGE / GAME_ATTACK_POWER_RATE:.4f}: "
           f"{counts['lost_if_raised']}")
     print(f"  gained if it were lowered to "
-          f"{appmod.VISIBLE_CHANGE * GAME_ATTACK_POWER_RATE:.4f}: "
+          f"{statsheet.VISIBLE_CHANGE * GAME_ATTACK_POWER_RATE:.4f}: "
           f"{counts['gained_if_lowered']}")
     return 0
 

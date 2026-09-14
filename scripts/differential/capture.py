@@ -159,7 +159,7 @@ def records(planner, data: dict, plan: dict, harness):
         # `run` rounds `last_ar` to six decimals for the golden file's sake.
         # Here the exact bits are wanted, so they are read off the planner
         # again -- rounding cannot be undone.
-        shown["last_ar"] = hexed(planner.last_ar)
+        shown["last_ar"] = hexed(planner.stat_sheet.last_ar)
         yield {"index": index, "case": case["name"], **shown}
 
 

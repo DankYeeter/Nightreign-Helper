@@ -504,8 +504,8 @@ def run(planner, data: dict, case: dict) -> dict:
     now, so they hang on the same frozen state the panel does.
 
     **`last_sources`/`last_rates` below are set by this function, not by
-    `Planner.recompute()`.** In the running program those two lines are
-    `recompute()`'s own doing, right before it calls the same
+    `StatSheet.draw()`.** In the running program those two lines are
+    `draw()`'s own doing, right before it calls the same
     `_refresh_weapon_damage`; here they are set directly so the captured text
     depends on the case and nothing else, as the comment below explains. That
     means no case in this file exercises the assignment inside `recompute()`
@@ -531,29 +531,29 @@ def run(planner, data: dict, case: dict) -> dict:
     planner.selected_effects = lambda: relic_effects
 
     build = build_for(data, case)
-    # What `Planner.recompute` hands the breakdown before it draws. Set from
+    # What `StatSheet.draw` hands the breakdown before it draws. Set from
     # this case rather than left to whatever the planner last held, so the
     # captured text depends on the case and on nothing else -- otherwise the
     # source lines would follow the order the cases happened to run in.
-    planner.last_sources = dict(build.sources)
-    planner.last_rates = dict(build.rates)
-    planner._refresh_weapon_damage(build)
+    planner.stat_sheet.last_sources = dict(build.sources)
+    planner.stat_sheet.last_rates = dict(build.rates)
+    planner.stat_sheet._refresh_weapon_damage(build)
     shown = {
         # The figures the panel keeps for the click-through breakdown: the
         # calculation's own output, before it is turned into text.
-        "last_ar": rounded(planner.last_ar),
+        "last_ar": rounded(planner.stat_sheet.last_ar),
         # And the text itself, which catches a change in what is shown even
         # when every number behind it stayed the same.
-        "panel": planner.ar_label.text(),
+        "panel": planner.stat_sheet.ar_label.text(),
         # Every tile, including the five that are not ringed. The active one
         # was already held between the golden total and checkpoint 19; the
         # other five were held by nothing at all.
         "tiles": [{"title": tile.title.text(), "detail": tile.detail.text()}
-                  for tile in planner.weapon_tiles],
+                  for tile in planner.stat_sheet.weapon_tiles],
         # What a click on the total actually puts on screen. `last_ar` above
         # is this display's input; without its output a swap of two of those
         # figures changes what the player reads and nothing notices.
-        "breakdown": planner._ar_breakdown_text(),
+        "breakdown": planner.stat_sheet._ar_breakdown_text(),
     }
     # Only when the case asks. A case without an `arsenal` block gets exactly
     # the four keys above, which is what keeps the golden file -- whose cases

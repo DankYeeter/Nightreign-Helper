@@ -1,8 +1,9 @@
 """`recompute()` itself has to wire `last_sources`/`last_rates`, not a test.
 
-`Planner.recompute()` sets `self.last_sources = dict(build.sources)` and
-`self.last_rates = dict(build.rates)` right before it draws the weapon-damage
-panel (`app.py`). `tests/weapon_damage_cases.run` -- the harness behind the
+`StatSheet.draw()`, called from `Planner.recompute()`, sets
+`self.last_sources = dict(build.sources)` and `self.last_rates =
+dict(build.rates)` right before it draws the weapon-damage panel
+(`statsheet.py`). `tests/weapon_damage_cases.run` -- the harness behind the
 golden file -- does not go through `recompute()` at all: it assembles its own
 build (`build_for`, deliberately outside the Planner, so the golden values
 survive a refactor of `Planner._rebuild`) and then sets `last_sources`/
@@ -23,6 +24,7 @@ disagree.
 
 from __future__ import annotations
 
+from tests import advisor_cases
 from tests import weapon_damage_cases as cases
 
 
@@ -39,15 +41,37 @@ def test_recompute_wires_last_sources_and_last_rates_from_its_own_build(
     planner.recompute()
 
     build = planner.current_build()
-    assert planner.last_sources == dict(build.sources)
-    assert planner.last_rates == dict(build.rates)
+    assert planner.stat_sheet.last_sources == dict(build.sources)
+    assert planner.stat_sheet.last_rates == dict(build.rates)
 
     # Not vacuous: both chosen effects have to actually show up as a source,
     # or the equality above would hold for two empty dicts and prove nothing.
-    assert planner.last_sources.get("Strength"), (
+    assert planner.stat_sheet.last_sources.get("Strength"), (
         "the chosen effect left no trace in build.sources, so the equality "
         "above cannot tell a wired recompute() from an unwired one")
-    assert any(field in planner.last_rates for field in
+    assert any(field in planner.stat_sheet.last_rates for field in
                ("physicsAttackRate",)), (
         "the chosen effect left no trace in build.rates, so the equality "
         "above cannot tell a wired recompute() from an unwired one")
+
+
+def test_a_condition_switch_reaches_declared_through_the_window(
+        planner, game_data):
+    """AD-034: the sheet emits `declared_changed`; `declared` stays the
+    window's, which recomputes with it and prunes what is no longer equipped.
+    """
+    hero = planner.current_hero()
+    declarable = advisor_cases.a_declarable_effect(game_data, hero)
+    planner.selected_effects = lambda: [
+        cases.effect_by_id(game_data, declarable)]
+    planner.recompute()
+    assert planner.declared == {}
+
+    planner.stat_sheet.situational_rows[declarable].check.setChecked(True)
+    assert planner.declared == {declarable: 1}
+    assert [entry.live for entry in planner.current_build().situational
+            if entry.effect_id == declarable] == [True]
+
+    planner.selected_effects = lambda: []
+    planner.recompute()
+    assert planner.declared == {}, "a declaration outlived its effect"

@@ -186,7 +186,7 @@ def attributes_on_the_planner_tab(planner) -> dict[str, int]:
     """
     out = {}
     for row, name in enumerate(model.ATTRIBUTE_ORDER):
-        item = planner.attr_grid.itemAtPosition(row, 3)
+        item = planner.stat_sheet.attr_grid.itemAtPosition(row, 3)
         out[name] = int(item.widget().text())
     return out
 
