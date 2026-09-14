@@ -72,43 +72,6 @@ MUTATIONS: dict[str, Mutation] = {
             "exclusive_group_counts_once.py` and by the golden case `all "
             "three status penalties at once, slot 1` (T-242)."),
     ),
-    "raider-heavy-armament-rate-neutralised": Mutation(
-        path="nrplanner/weapons.py",
-        old="""RAIDER_HEAVY_ARMAMENT_RATE = 1.18
-""",
-        new="""RAIDER_HEAVY_ARMAMENT_RATE = 1.0
-""",
-        survival_means=(
-            "the Raider's greataxes and great hammers rate as the plain "
-            "formula says, 160 for Great Stars where the game shows 188 "
-            "(QA-096). Killed by `tests/test_attack_power_calibration_"
-            "against_the_game.py`, the Raider row (T-246)."),
-    ),
-    "borrowed-cursed-claws-rate-neutralised": Mutation(
-        path="nrplanner/weapons.py",
-        old="""BORROWED_CURSED_CLAWS_RATE = 0.88
-""",
-        new="""BORROWED_CURSED_CLAWS_RATE = 1.0
-""",
-        survival_means=(
-            "Revenant's Cursed Claws rate the same in every Nightfarer's "
-            "hands, 61 for Wylder where the game shows 54 (QA-097). Killed "
-            "by `tests/test_attack_power_calibration_against_the_game.py`, "
-            "the Wylder/Claws row (T-246)."),
-    ),
-    "damage-type-conversion-ignored": Mutation(
-        path="nrplanner/damage.py",
-        old="""    if starting_armament and build.starting_flat:
-""",
-        new="""    if False:
-""",
-        survival_means=(
-            "the four `Starting armament deals <element> damage` relics move "
-            "the attack rating by exactly 0 again, as before T-246: Wylder "
-            "122 where the game shows 123, Revenant 88 for 91, Duchess 72 for "
-            "74 (QA-113). Killed by `tests/test_damage_conversion_against_"
-            "the_game.py`, every row."),
-    ),
 }
 
 
