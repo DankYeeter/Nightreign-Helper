@@ -12,13 +12,27 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 · DR **DR-025** · R **R-009** · C **C-005** · A **A-037** (T-241a: vergeben bis A-036). **AD-027 und OF-14
 wurden nie vergeben.**
 
-## Auftragslage (Nutzer, 12.09.2026)
+## Auftragslage (Nutzer, 15.09.2026 00:19)
 
-Autonom durcharbeiten bis zum fertigen Produkt. **Kein Merge, kein Release,
-keine Weitergabe.** Angehalten wird bei kritischem Sicherheitsbefund, Verdacht
-auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
-**Ueberbau-Audit** in drei Koerben: 1 kleine Eingriffe (laeuft), 2 Loeschungen
-(**zurueckgezogen**, Fehler 1), 3 Umbauten (**P10** in `plan-restarbeiten.md`).
+**Autonomer Lauf, 8 Stunden (bis ca. 08:20), alles fertig entwickeln:**
+Zyklus 24 A20 Zweihand → weitere Bauphasen mit allem, was ansteht → Design-
+und andere Optimierungen → Aufraeumen. **Kein Merge, kein Release, keine
+Weitergabe** (12.09.). Entscheidungen 00:19: Effektname reicht in der Why-Zeile
+(A18 Satz 1 erfuellt) · QA-270 Wortlaut aendern · Screenshots neu erzeugen.
+**Bei Fragen annehmen, nicht anhalten** ("keine Roadblocks"); am Ende eine
+Liste der Annahmen mit Alternativen zur Bestaetigung. Annahmen werden hier
+unter "Annahmen des autonomen Laufs" gesammelt. Stopp nur bei kritischem
+Sicherheitsbefund oder Datenverlustverdacht.
+
+### Annahmen des autonomen Laufs (Nutzer bestaetigt am Ende)
+
+- AN-1 Zweihand-Faktoren 1,03 (alle ausser Raider) und 1,144 (Raider) gelten
+  auch fuer die nicht gemessenen Nightfarer (Ironeye, Recluse, Executor,
+  Revenant, Scholar/Undertaker) — Alternative: dort 1H = 2H anzeigen bis zur
+  Messung.
+- AN-2 Der 1H/2H-Umschalter sitzt an der Waffenausruestung (Weapon slot),
+  Voreinstellung **1H**, gespeichert je Build — Alternative: Voreinstellung 2H,
+  oder nicht gespeichert.
 
 ## HIER WEITERMACHEN
 
