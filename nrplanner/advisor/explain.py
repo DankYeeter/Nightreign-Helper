@@ -177,7 +177,11 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
                 claimed[position] = True
                 moved[key] = entry.own
             for key, own in model.collapse_by_label(moved).items():
-                if _moved_nothing(key, own, built):
+                if (_moved_nothing(key, own, built)
+                        or _real_field(key) in effecttext.CONDITIONS):
+                    # A HP threshold is the "40" of "below 40% HP", which
+                    # the effect's own condition text already says -- not a
+                    # bonus, and never a line (AK-295 point 2).
                     continue
                 out.append(_Contribution(
                     candidate=candidate, effect_id=effect_id,
@@ -215,18 +219,21 @@ def _scales(key: str, built: model.Build) -> bool:
     return key in built.rates
 
 
-def _field_label(key: str) -> str:
-    """The name the stat sheet gives this figure.
+def _field_label(key: str) -> str | None:
+    """The name the player reads for this figure, `None` if there is none.
 
-    `model.label_for` for everything the sheet shows plainly, and the class
-    spelled out for a buff that only lifts one kind of armament -- the same
-    addition `app.py` makes in the attack-rating breakdown, because "Physical
-    Attack +20 %" without it is a claim about every armament on the grid.
+    `effecttext.field_label` -- the one lookup (AK-295 point 1) -- and the
+    class spelled out for a buff that only lifts one kind of armament, the
+    same addition `app.py` makes in the attack-rating breakdown, because
+    "Physical Attack +20 %" without it is a claim about every armament on
+    the grid.
     """
     if key.startswith(model.WEAPON_CLASS_PREFIX):
         _prefix, weapon_class, field_name = key.split(":", 2)
-        return f"{model.label_for(field_name)}, {weapon_class} armaments only"
-    return model.label_for(key)
+        label = effecttext.field_label(field_name)
+        return None if label is None else (
+            f"{label}, {weapon_class} armaments only")
+    return effecttext.field_label(key)
 
 
 def _amount(key: str, own: float, built: model.Build) -> str:
@@ -264,9 +271,11 @@ def _line(contribution: _Contribution, built: model.Build) -> str:
     characters, of which the repetition was a quarter.
     """
     key, own = contribution.field_key, contribution.own
+    body = _named(contribution, built)
+    if body == effecttext.UNLABELLED:
+        return f"{contribution.effect_name}: {body}"
     cost = ", counted against it" if _is_a_cost(key, own, built) else ""
-    return (f"{contribution.effect_name}: "
-            f"{_named(contribution, built)}{cost}")
+    return f"{contribution.effect_name}: {body}{cost}"
 
 
 def _line_the_figure_does_not_count(contribution: _Contribution,
@@ -282,7 +291,10 @@ def _line_the_figure_does_not_count(contribution: _Contribution,
     No `, counted against it`: it was not counted against the ranking figure,
     which is the whole of what this filling says.
     """
-    return (f"{contribution.effect_name}: {_named(contribution, built)} — "
+    body = _named(contribution, built)
+    if body == effecttext.UNLABELLED:
+        return f"{contribution.effect_name}: {body}"
+    return (f"{contribution.effect_name}: {body} — "
             f"this figure does not count it.")
 
 
@@ -294,9 +306,15 @@ def _named(contribution: _Contribution, built: model.Build) -> str:
     states the scope. Written out beside the effect it would read
     `Improved Skill Attack Power: Improved Skill Attack Power +15.0%`, which
     is a longer way of saying nothing new.
+
+    A field nothing has named gives `effecttext.UNLABELLED` and no figure
+    (AK-295 point 3): a number without a name, not a number beside a name
+    nobody chose.
     """
     key, own = contribution.field_key, contribution.own
     label = _field_label(key)
+    if label is None:
+        return effecttext.UNLABELLED
     amount = _amount(key, own, built)
     return amount if label == contribution.effect_name else f"{label} {amount}"
 

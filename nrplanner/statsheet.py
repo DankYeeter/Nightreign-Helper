@@ -843,10 +843,22 @@ class StatSheet(QScrollArea):
 
         # Flat additions are not percentages and were being computed into
         # build.other and then never shown at all.
-        if build.other:
+        # A HP threshold is the "40" of "below 40% HP", already said on the
+        # effect's own Situational row -- not a bonus (AK-295 point 2).
+        flat = {fname: value for fname, value in build.other.items()
+                if fname not in effecttext.CONDITIONS}
+        if flat:
             lines = []
-            for fname, value in sorted(
-                    model.collapse_by_label(build.other).items()):
+            for fname, value in sorted(model.collapse_by_label(flat).items()):
+                label = effecttext.field_label(fname)
+                if label is None:
+                    # A number nobody named is not shown as a number at all
+                    # (AK-295 point 3): the effects that carry it, and A7.
+                    carriers = sorted({entry.name for entry
+                                       in build.sources.get(fname, ())})
+                    lines.append(f"<div>{', '.join(carriers)}: "
+                                 f"{effecttext.UNLABELLED}</div>")
+                    continue
                 # Damage taken and resource costs read the other way round:
                 # more of them is worse news, so the colour follows what the
                 # figure means rather than its sign.
@@ -862,7 +874,7 @@ class StatSheet(QScrollArea):
                     # Already reduced to its distance from the neutral 100.
                     unit = "%"
                 lines.append(
-                    f"<div>{model.label_for(fname)} "
+                    f"<div>{label} "
                     f"<a href='{fname}' style='color:{colour}; "
                     f"text-decoration:none'>{shown:+g}{unit}</a></div>"
                 )
