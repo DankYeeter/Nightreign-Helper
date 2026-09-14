@@ -692,14 +692,22 @@ class AdvisorBar(QWidget):
         or unmarked (`effectfilters.EffectFilters.changed`): the abandonment
         is real either way, but the sentence must not blame the build for a
         change the player made to the question.
+
+        **Asked of the controller, not of the row's state** (QA-268). Between
+        the click and `started` a question waits out the debounce while the
+        row still draws 4.1; it is the row's question from the click, and a
+        change in that window outdates it exactly as it outdates a run.
+        `cancel()` says whether there was anything to stop, and `stopped`
+        arrives inside it -- so the reason is laid down first and picked up
+        again when there was nothing.
         """
         if self._applying:
             return
-        if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.OUTDATED,
-                                         marking_changed=marking_changed)
-            self._controller.cancel()
+        self._stop_shows = Situation(State.OUTDATED,
+                                     marking_changed=marking_changed)
+        if self._controller.cancel():
             return
+        self._stop_shows = None
         self._forget_the_answer()
         self._show(self._resting())
 

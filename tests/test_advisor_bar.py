@@ -4,7 +4,7 @@
 through a controller of the test's own, because the states of §4 are about
 *when* a thing is said and a real search cannot be made to take 251 ms on
 demand. The second half builds the real window with the real
-`AdvisorController` and runs a real search over the player's own save: that
+`AdvisorController` and runs a real search over the frozen slot: that
 is the only thing that can show the request the window builds is a request
 the run accepts, and it is where AK-11 and AK-13 are measured.
 
@@ -492,6 +492,30 @@ def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(
     assert bar.status.whole_text() == (
         "The effects you marked changed while this was working out — use "
         "Optimize again.")
+
+
+def test_a_marking_inside_the_debounce_outdates_the_question_that_is_waiting(
+        bar):
+    """QA-268: the question is the row's from the click, not from `started`.
+
+    Between `Optimize` and the controller's `started` the row still says 4.1
+    while a question waits out the debounce. A marking or a build change in
+    that window used to leave the waiting question alone: it then ran with
+    the old sets and its answer was drawn as if it were current. No clock
+    here -- the case's controller never starts, so the whole test *is* the
+    debounce window.
+    """
+    bar.optimize_button.click()
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+
+    bar.the_build_changed(marking_changed=True)
+
+    assert bar._controller.cancels == 1
+    assert bar.situation.state is advisorbar.State.OUTDATED
+    assert bar.status.whole_text() == (
+        "The effects you marked changed while this was working out — use "
+        "Optimize again.")
+    assert not bar._controller.running, "the waiting question was left to run"
 
 
 def test_an_answer_with_silent_effects_says_that_much(bar):
