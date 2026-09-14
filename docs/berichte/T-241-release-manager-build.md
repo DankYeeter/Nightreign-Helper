@@ -168,3 +168,76 @@ Keine neuen Befunde im Anwendungscode.
 **Empfehlung: freigeben mit benannter Einschraenkung** (fuer den Weiterlauf zu `clean-room`/`qa-engineer`/`power-user` — kein Release-Votum, das bleibt an A-025 und den Nutzerauftrag "keine Weitergabe" gebunden).
 
 Zu entscheiden/zur Kenntnis: keine neuen Punkte gegenueber dem ersten Bau. Das Artefakt vom 08:03 (SHA `314CA35C…`) ist damit ueberholt und sollte nicht mehr verwendet werden.
+
+---
+
+# Rebuild 1b36238
+
+**Auftrag:** T-241c, zweiter Rebuild. Anlass: AK-272 Textfix (Klammerzusatz aus Exklusivgruppen-Warnung entfernt), Version bleibt 1.10.0 unveraendert. Gleicher Ablauf wie die zwei vorstehenden Laeufe; ein Lauf genuegt — Nicht-Bit-Identitaet ist bereits zweimal dokumentiert (Byte-273-PE-Baustempel, Modulreihenfolge). Kein Commit, kein Programmstart in diesem Lauf. Niemand laeuft parallel (`git status` vor und nach dem Bau leer).
+
+## Pflichtlektuere: `docs/legal/AUFLAGEN.md`
+
+Vor Buildbeginn geprueft: letzter Commit auf der Datei ist unveraendert `2730906` ("T-241a Auflagen GRUEN fuer lokalen Bau 1.10.0"), HEAD (`1b36238`) hat sie seither nicht angefasst. Bewertung aus den beiden vorigen Bauten gilt unveraendert: kein Eintrag der Tabelle (A-001 bis A-036) traegt Ampel ROT mit Status `offen`. A-010 (ROT) bleibt zurueckgestellt, A-020/A-033 erfuellt, A-025 (Weitergabe) betrifft diesen Bau nicht — der Auftrag schliesst Weitergabe ausdruecklich aus. `build` ist nicht gesperrt.
+
+## Ganz oben
+
+| | |
+|---|---|
+| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Groesse** | 59.083.751 Byte (56,35 MiB) |
+| **SHA-256** | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158` |
+| **Commit** | `1b36238609c0da450c0bfa3ca945ab49f0029602` ("fix(model): AK-272 - Klammerzusatz aus Exklusivgruppen-Warnung entfernen"), Branch `docs/audit-and-advisor-design`, HEAD zum Zeitpunkt dieses Laufs |
+| **Dauer** | 37 s (echter Kaltstart, `build/`+`dist/` vorher geloescht — beide waren bereits leer/nicht vorhanden) |
+| **UPX** | nicht im `PATH` (`where upx`: kein Treffer, exit 1) — unveraendert |
+| **`check_licences.py`** | `OK`, exit 0 — alle drei Pflichtdateien und alle sechs Bibliotheken erfasst |
+
+## Ausgangsstand
+
+`git status --porcelain` vor dem Schritt: leer, sauberer Arbeitsstand — HEAD entspricht exakt dem beauftragten Stand `1b36238` (`git log -1` bestaetigt). `.venv` liegt aus den vorigen Laeufen vor: `pyinstaller --version` → `6.21.0` (gepinnte Version aus `requirements.txt`), Python 3.12.10 — nicht neu angelegt. Werkzeuge sonst unveraendert: Windows 11 Pro 10.0.26200 x64, PySide6 6.11.1.
+
+## Bau, ein Lauf
+
+| | Lauf |
+|---|---|
+| `rc` | 0 |
+| Dauer | 37 s |
+| Groesse | 59.083.751 Byte |
+| SHA-256 | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158` |
+
+Zweiter Lauf entfallen (Auftrag: "ein Lauf genuegt — Nicht-Bit-Identitaet ist dokumentiert"). Warnungsdatei (`warn-NightreignHelper.txt`) 37 Zeilen — gleiche Anzahl wie in beiden Vorlaeufen; keine `ERROR`- oder `Deprecation`-Zeile (`grep -iE "error|deprecat"` liefert keinen Treffer).
+
+Dieses Artefakt ist gegenueber dem Rebuild `0e1269f` (SHA `473E109D…`) nicht bit-identisch erwartbar — dieselbe dokumentierte Ursache (PE-Baustempel + Modulreihenfolge, `ROLLOUT.md:255-267`) gilt weiter, hier nicht erneut per `cmp` verglichen, da der Zwei-Lauf-Vergleich in diesem Auftrag entfaellt.
+
+## Blocker
+
+Keiner fuer diesen Bau.
+
+## Risiken
+
+- Nicht bit-identischer Bau gegenueber fruehen Bauten (PE-Baustempel + Modulreihenfolge) — unveraendert, dokumentierte Ursache, kein Hinweis auf Manipulation.
+- Kein UPX auf diesem Bau-Wirt — unveraendert.
+- Nur ein Lauf in diesem Auftrag: die interne Reproduzierbarkeit dieses konkreten Artefakts (zwei Laeufe desselben Commits, identisch bis auf Baustempel) wurde hier nicht erneut nachgewiesen, sondern aus den beiden Vorlaeufen uebernommen.
+
+## Ungeprueft
+
+- Clean-Room-Installation, Update-Pfad, Rauchtest mit Datenumlenkung, Verifikation des AK-272-Fix am Artefakt — das ist T-241d, nicht dieser Lauf.
+- Fensterstart/Programmstart — Auftrag verlangt ausdruecklich keinen Programmstart in diesem Lauf.
+
+## An `developer`
+
+Keine neuen Befunde im Anwendungscode.
+
+## An `power-user` / `T-241d` (Ausgangspunkt)
+
+- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Groesse:** 59.083.751 Byte (56,35 MiB)
+- **SHA-256:** `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158`
+- **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, unveraendert; ungeprueft am Fenstertitel — kein Rauchtest in diesem Lauf)
+- Dieses Artefakt ersetzt den Rebuild `0e1269f` (SHA `473E109D…`) — bei der Pruefung dieses hier verwenden.
+- Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`, `LOCALAPPDATA`, `APPDATA` — Testabzug kopieren, nicht darauf zeigen (`CLAUDE.md`).
+
+## An `director`
+
+**Empfehlung: freigeben mit benannter Einschraenkung** (fuer den Weiterlauf zu `clean-room`/`qa-engineer`/`power-user` — kein Release-Votum, das bleibt an A-025 und den Nutzerauftrag "keine Weitergabe" gebunden).
+
+Zu entscheiden/zur Kenntnis: keine neuen Punkte gegenueber den beiden vorigen Bauten. Das Artefakt aus dem Rebuild `0e1269f` (SHA `473E109D…`) ist damit ueberholt und sollte nicht mehr verwendet werden.
