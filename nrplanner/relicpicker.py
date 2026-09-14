@@ -1084,7 +1084,9 @@ class RelicPicker(QDialog):
         top.addWidget(chip)
 
         self.search = QLineEdit(search_text)
-        self.search.setPlaceholderText("Filter by effect…")
+        self.search.setPlaceholderText(
+            "Filter by effect — supports AND, OR, NOT and \"quoted phrases\""
+        )
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._refresh)
         top.addWidget(self.search, 1)

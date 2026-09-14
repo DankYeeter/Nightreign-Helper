@@ -29,7 +29,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QAbstractButton, QLabel
 
-from nrplanner import advisorblock
+from nrplanner import advisorbar, advisorblock
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
 
@@ -182,19 +182,22 @@ def test_the_block_names_the_goal_and_the_relic(block):
     assert block.relic_name.text() == "The Will of the Balancers"
 
 
-def test_the_block_carries_the_one_control_of_the_section(block):
-    """§3.2: `Use`, at the right end of the heading, and nothing else.
+def test_the_block_carries_exactly_use_and_why(block):
+    """§3.2 plus AK-274: `Use` and `Why`, at the right end of the heading,
+    and nothing else.
 
-    Asked of every button the block owns rather than of the one this case
-    remembers: `Apply all`, `Undo apply` and `Why` belong to the bar, and a
-    second place to reach them would make the action harder to find rather
-    than easier -- the same reason §3.4 keeps `Apply` out of the dialog.
+    Asked of every button the block owns rather than of the two this case
+    remembers: `Apply all` and `Undo apply` still belong to the bar alone,
+    and a second place to reach them would make the action harder to find
+    rather than easier -- the same reason §3.4 keeps `Apply` out of the
+    dialog. `Why` is the one bar control AK-274 puts on the card too,
+    because it only opens what the bar's own `Why` already shows.
     """
     block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
 
     buttons = block.findChildren(QAbstractButton)
-    assert [button.text() for button in buttons] == ["Use"]
-    assert buttons[0].isVisibleTo(block)
+    assert [button.text() for button in buttons] == ["Use", "Why"]
+    assert all(button.isVisibleTo(block) for button in buttons)
 
 
 def test_use_says_it_was_pressed_and_changes_nothing_itself(block):
@@ -217,6 +220,42 @@ def test_a_slot_that_may_not_be_used_is_drawn_without_the_button(block):
         "the block itself is drawn, so this is about the control alone")
 
 
+def test_a_held_slot_still_offers_why(block):
+    """AK-274: `may_explain` never follows `may_be_used`.
+
+    Holding is about applying, not about reading the account -- a held slot
+    still explains a suggestion it will not accept.
+    """
+    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+                              may_be_used=False)
+
+    assert not block.use_button.isVisibleTo(block)
+    assert block.why_button.isVisibleTo(block)
+
+
+def test_why_says_it_was_pressed_and_changes_nothing_itself(block):
+    """The block asks for the same dialog the bar's `Why` does (AK-274)."""
+    asked = []
+    block.why_requested.connect(lambda: asked.append(True))
+    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.why_button.click()
+
+    assert asked == [True]
+
+
+def test_a_bar_that_is_not_acting_hides_why_on_the_block(block):
+    """AK-274: the same gate as `bar.why_button` (`advisorbar.ACTING_STATES`).
+
+    `Use` stays -- whether the slot may be used is a fact about the hold,
+    untouched by whether the bar is currently offering `Why` of its own.
+    """
+    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+                              may_explain=False)
+
+    assert not block.why_button.isVisibleTo(block)
+    assert block.use_button.isVisibleTo(block)
+
+
 def test_a_suggestion_already_in_the_slot_is_one_line(block):
     """§3.2: everything falls away but the one line.
 
@@ -230,7 +269,7 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
     assert block.already_equipped.text() == (
         "Already equipped — nothing to change here.")
     for hidden in (block.heading, block.relic_name, block.count_line,
-                   block.lines, block.use_button):
+                   block.lines, block.use_button, block.why_button):
         assert not hidden.isVisibleTo(block)
 
 
@@ -652,6 +691,54 @@ def test_why_with_no_answer_on_screen_opens_nothing(planner, monkeypatch):
     monkeypatch.setattr(advisorblock, "WhyDialog", _refuse)
     planner.advisor_bar._answer = None
     planner.open_why()
+
+
+def test_the_cards_why_opens_the_same_dialog_as_the_bars(planner, monkeypatch):
+    """AK-274: one dialog, one handler, reached from either button."""
+    built = []
+
+    class _Stub:
+        def __init__(self, heading, result, parent=None):
+            built.append((heading, result))
+
+        def exec(self):
+            return 0
+
+    monkeypatch.setattr(advisorblock, "WhyDialog", _Stub)
+    answer = an_answer(a_group(a_line("X: Physical Attack +1", slot=0), slot=0))
+    planner.advisor_bar._answer = answer
+    planner.advisor_bar._show(advisorbar.Situation(
+        advisorbar.State.SUGGESTED, goal_label="Maximise damage",
+        slots=len(planner.active_slots()), slots_filled=1))
+    planner.show_the_suggestion(answer)
+
+    card = planner.active_slots()[0]
+    assert card.suggestion.why_button.isVisibleTo(card.suggestion), (
+        "the bar is acting, so the card offers Why too")
+    card.suggestion.why_requested.emit()
+
+    assert len(built) == 1
+    heading, seen = built[0]
+    assert seen is answer
+    assert heading.goal_label == "Maximise damage"
+
+
+def test_the_cards_why_follows_the_bars_own_gate(planner):
+    """AK-274: for one situation, `bar.why_button` and the card agree.
+
+    Drawn with the bar left at its resting state, as a stale redraw could
+    leave it: the bar offers no `Why` of its own, and neither does the card,
+    even though the same call still offers `Use`.
+    """
+    answer = an_answer(a_group(a_line("X: Physical Attack +1", slot=0), slot=0))
+    planner.show_the_suggestion(answer)
+
+    card = planner.active_slots()[0]
+    bar = planner.advisor_bar
+    assert card.suggestion.why_button.isVisibleTo(card.suggestion) == (
+        bar.why_button.isVisibleTo(bar))
+    assert not card.suggestion.why_button.isVisibleTo(card.suggestion)
+    assert card.suggestion.use_button.isVisibleTo(card.suggestion)
 
 
 def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):

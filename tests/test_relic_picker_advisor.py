@@ -1604,6 +1604,21 @@ def test_nothing_is_locked_while_the_area_is_empty(slot):
         dialog.deleteLater()
 
 
+def test_the_main_search_field_names_its_syntax(slot):
+    """AK-275: wortgleicher Suffix wie `arsenaltab.py`'s Waffenfeld.
+
+    The second search field of this picker (`CustomRelicCard`) is not
+    touched by AK-275 -- it filters as a plain substring and carries no
+    Boolean syntax to explain.
+    """
+    dialog = open_picker(slot, {})
+    try:
+        assert dialog.search.placeholderText() == (
+            'Filter by effect — supports AND, OR, NOT and "quoted phrases"')
+    finally:
+        dialog.deleteLater()
+
+
 def test_a_filter_that_matches_nothing_leaves_the_line_standing(slot):
     """§3's named edge case: the state does not change under a keystroke."""
     dialog, _advice = waiting_picker(slot)

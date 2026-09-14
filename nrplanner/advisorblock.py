@@ -161,12 +161,17 @@ class SuggestionBlock(QFrame):
     program dashed means "planned, not real", which is exactly what a
     suggestion is until it is applied (`UI_SPEC` §3.2).
 
-    One control, `Use`, and it changes nothing here: the block holds no
-    relics, so it says the player asked and the window does the rest.
+    Two controls, `Use` and `Why` (AK-274), and neither changes anything
+    here: the block holds no relics, so it says the player asked and the
+    window does the rest.
     """
 
     #: `Use` was pressed on this block (`UI_SPEC` §3.2: only this one slot).
     use_requested = Signal()
+    #: `Why` was pressed on this block. Opens the one dialog the bar's own
+    #: `Why` opens, with the same, whole content -- AK-274 forbids a second,
+    #: card-only account of the answer.
+    why_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -194,10 +199,10 @@ class SuggestionBlock(QFrame):
         # the block has to stand for itself once the bar has scrolled away.
         self.heading = _heading("Suggested")
         self.heading.setTextFormat(Qt.PlainText)
-        # §3.2 draws the heading and `Use` on one line, the button at the
-        # right end of it. The stretch is what keeps the button there and is
-        # also why the row asks for no width of its own beyond the button
-        # itself: the heading is a `_heading`, which does not grow.
+        # §3.2 draws the heading, `Use` and `Why` on one line, the buttons at
+        # the right end of it. The stretch is what keeps them there and is
+        # also why the row asks for no width of its own beyond the buttons
+        # themselves: the heading is a `_heading`, which does not grow.
         head = QHBoxLayout()
         head.setContentsMargins(0, 0, 0, 0)
         head.addWidget(self.heading)
@@ -205,6 +210,10 @@ class SuggestionBlock(QFrame):
         self.use_button = QPushButton("Use")
         self.use_button.clicked.connect(self.use_requested)
         head.addWidget(self.use_button)
+        # AK-274: next to `Use`, never in its place.
+        self.why_button = QPushButton("Why")
+        self.why_button.clicked.connect(self.why_requested)
+        head.addWidget(self.why_button)
         column.addLayout(head)
 
         self.relic_name = _plain()
@@ -229,6 +238,7 @@ class SuggestionBlock(QFrame):
                             group: types.SlotReasons, *,
                             already_equipped: bool = False,
                             may_be_used: bool = True,
+                            may_explain: bool = True,
                             curse_tooltip: str = "") -> None:
         """Draw one slot group, or the one line that replaces it.
 
@@ -240,11 +250,16 @@ class SuggestionBlock(QFrame):
         handle in the slot, and the block holds no relics. `may_be_used` is
         the window's answer for the same reason -- whether this slot is held
         is a fact about the window, and a held slot is one no applying may
-        touch (`UI_SPEC` §5.4).
+        touch (`UI_SPEC` §5.4). `may_explain` is a third, independent fact of
+        the window's: whether the bar's own `Why` is offered right now
+        (`advisorbar.ACTING_STATES`, AK-274). A held slot still explains
+        itself -- holding is about applying, not about reading the account --
+        so this never follows `may_be_used`.
         """
         self.heading.setText(f"Suggested — {goal_label}, {reading}".upper())
         self.heading.setVisible(not already_equipped)
         self.use_button.setVisible(may_be_used and not already_equipped)
+        self.why_button.setVisible(may_explain and not already_equipped)
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
         self.count_line.setText(group.count_line)

@@ -477,7 +477,7 @@ class RelicSlot(QFrame):
         return []
 
     def show_the_suggestion(self, goal_label: str, reading: str, group,
-                            choice) -> None:
+                            choice, *, may_explain: bool = True) -> None:
         """Draw what the advisor would put here, while the answer lives.
 
         Whether the suggestion is already lying in this slot is decided on
@@ -485,13 +485,17 @@ class RelicSlot(QFrame):
         and never on the name: several copies of one relic are owned with
         different rolls, and this save equips the second copy of The Wylder's
         Earring while the first sits unused (`select_copy`, QA-021).
+
+        `may_explain` is the window's own reading of the bar's `Why` gate
+        (AK-274), passed straight through: it names the same fact for every
+        slot at once, and this card has no state of its own to add to it.
         """
         in_the_slot = getattr(self.relic_box.currentData(), "handle", None)
         already = (choice is not None and in_the_slot is not None
                    and in_the_slot == choice.handle)
         self.suggestion.show_the_suggestion(
             goal_label, reading, group, already_equipped=already,
-            may_be_used=not self.is_held(),
+            may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice))
 
     def put_the_suggestion_away(self) -> None:

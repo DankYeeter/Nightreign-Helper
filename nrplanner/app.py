@@ -2596,6 +2596,10 @@ class Planner(QMainWindow):
         for card in list(self.base_slots) + list(self.deep_slots):
             card.suggestion.use_requested.connect(
                 lambda slot=card: self.use_the_suggestion(slot))
+            # AK-274: the card's own `Why` opens the very dialog the bar's
+            # does -- same handler, so there is no second account to keep in
+            # step with the first.
+            card.suggestion.why_requested.connect(self.open_why)
 
     def _the_suggestion_changed(self, result) -> None:
         """A different answer stands, or none does.
@@ -2863,10 +2867,17 @@ class Planner(QMainWindow):
         # away any answer given under the other one (AK-183), so the head of
         # every block names the reading its figures were formed under.
         reading = reading_label(self.worst_case)
+        # AK-274: the card's `Why` follows the bar's own gate
+        # (`advisorbar.ACTING_STATES`), read off the bar's button rather than
+        # duplicated here -- `isVisibleTo` asks only whether the button was
+        # explicitly hidden, not whether the window itself is on screen, so
+        # this holds true offscreen as well.
+        bar = self.advisor_bar
+        may_explain = bar.why_button.isVisibleTo(bar)
         for group in suggestion.reasons:
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, reading, group,
-                by_slot.get(group.slot_index))
+                by_slot.get(group.slot_index), may_explain=may_explain)
 
     def open_why(self) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
