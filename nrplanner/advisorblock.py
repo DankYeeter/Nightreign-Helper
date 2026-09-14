@@ -54,6 +54,7 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QToolButton, QVBoxLayout, QWidget)
 
 from . import effectfilters, effecttext
+from .pressable import PRESS_KEYS
 from .advisor import goals as advisor_goals
 from .advisor import types
 
@@ -91,7 +92,7 @@ MARK_TOOLTIPS = {
     None: ("Counts toward every suggestion. Click to exclude it, click "
            "again to require it."),
     effectfilters.EXCLUDED: ("Don't include — counts in no suggestion or "
-                             "ranking. Click to include it again."),
+                             "ranking. Click to require it instead."),
     effectfilters.REQUIRED: ("Must include — every suggestion carries this "
                              "effect. Click to clear it."),
 }
@@ -242,13 +243,29 @@ def _stacked(widgets) -> QWidget:
     return holder
 
 
+class MarkButton(QToolButton):
+    """The bullet as a button Enter presses too (AK-278, DR-025).
+
+    A `QToolButton` answers to Space alone; `pressable.PRESS_KEYS` is the
+    catalogue every pressable thing in this program answers to, and this is
+    the same rule as `PressableFrame.keyPressEvent`.
+    """
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in PRESS_KEYS:
+            self.click()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
 class MarkedLine(QWidget):
     """One drawn line whose bullet is the marking control (AK-276/AK-277).
 
-    The `QToolButton` stands where the bullet stood, at the line's own font
+    The `MarkButton` stands where the bullet stood, at the line's own font
     height, so the line is no taller than a `QLabel` drawing the same text
     would be; `AutoRaise` and no border, so at rest it *is* the bullet. Tab
-    reaches it and Space presses it (AK-278); the focus ring is drawn in
+    reaches it, Space or Enter presses it (AK-278); the focus ring is drawn in
     `ACCENT`, because a stylesheet without a border takes Fusion's own ring
     with it.
 
@@ -275,7 +292,7 @@ class MarkedLine(QWidget):
         self._base_font = QFont(self.label.font())
         if size:
             self._base_font.setPixelSize(size)
-        self.mark = QToolButton()
+        self.mark = MarkButton()
         self.mark.setAutoRaise(True)
         self.mark.setCursor(Qt.PointingHandCursor)
         self._mark_css = (f"QToolButton {{ border: none; padding: 0; "

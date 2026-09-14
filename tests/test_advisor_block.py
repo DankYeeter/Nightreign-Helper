@@ -30,7 +30,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QAbstractButton, QLabel, QToolButton
 
-from nrplanner import advisorbar, advisorblock, effectfilters
+from nrplanner import advisorbar, advisorblock, effectfilters, pressable
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
 
@@ -847,9 +847,12 @@ def test_an_excluded_curse_keeps_its_curse_bullet(qapp, filters):
     dialog.deleteLater()
 
 
-def test_the_control_is_a_tab_stop_and_space_presses_it(qapp, filters):
+@pytest.mark.parametrize("key", pressable.PRESS_KEYS)
+def test_the_control_is_a_tab_stop_and_every_press_key_presses_it(
+        qapp, filters, key):
     """AK-278, and the ring: a stylesheet without a border loses Fusion's
-    own focus frame, so the control draws one in `ACCENT` itself."""
+    own focus frame, so the control draws one in `ACCENT` itself. Enter as
+    well as Space (DR-025): a bare `QToolButton` answered to Space alone."""
     from nrplanner.app import ACCENT
 
     dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
@@ -859,9 +862,23 @@ def test_the_control_is_a_tab_stop_and_space_presses_it(qapp, filters):
         line.mark.styleSheet())
     dialog.show()
     line.mark.setFocus()
-    QTest.keyClick(line.mark, Qt.Key_Space)
+    QTest.keyClick(line.mark, key)
     assert filters.excluded == {1}
     dialog.deleteLater()
+
+
+def test_the_three_tooltips_say_what_the_next_click_does():
+    """AK-277 as corrected in the T-251c addendum (DR-026): the excluded
+    state's next click *requires*, it does not go back to neutral. Literals
+    out of `UI_SPEC.md`, never imported."""
+    assert advisorblock.MARK_TOOLTIPS == {
+        None: ("Counts toward every suggestion. Click to exclude it, click "
+               "again to require it."),
+        effectfilters.EXCLUDED: ("Don't include — counts in no suggestion or "
+                                 "ranking. Click to require it instead."),
+        effectfilters.REQUIRED: ("Must include — every suggestion carries "
+                                 "this effect. Click to clear it."),
+    }
 
 
 def test_the_lists_and_the_legend_follow_the_sets(qapp, filters):
