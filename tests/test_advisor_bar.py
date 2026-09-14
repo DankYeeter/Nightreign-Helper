@@ -99,6 +99,18 @@ TABLE = [
         slots_without_a_choice=1),
      "Maximise damage — 3 of 4 slots filled  ·  1 slot has nothing to choose "
      "from."),
+    ("4.11 blocked, one", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=1, slots_filled=0,
+        slots_without_a_choice=1, blocked_by_a_requirement=True),
+     "Maximise damage — 0 of 1 slots filled  ·  1 slot is blocked by a "
+     "requirement you marked."),
+    ("4.11 blocked, three", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=3, slots_filled=0,
+        slots_without_a_choice=3, blocked_by_a_requirement=True),
+     "Maximise damage — 0 of 3 slots filled  ·  3 slots are blocked by a "
+     "requirement you marked."),
     ("4.12", advisorbar.Situation(advisorbar.State.FAILED,
                                   reason="the save could not be read"),
      "Could not work that out — the save could not be read."),
@@ -224,7 +236,8 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
 
 
 def _an_answer(filled: int = 6, curses: tuple = (),
-               not_counted: tuple = ()) -> types.AdvisorResult:
+               not_counted: tuple = (),
+               blocked: bool = False) -> types.AdvisorResult:
     """An answer that fills `filled` slots of the question above."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
                                      relic_id=200 + index, name=f"Relic {index}")
@@ -233,7 +246,8 @@ def _an_answer(filled: int = 6, curses: tuple = (),
     return types.AdvisorResult(
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
-        curses_without_a_figure=curses, not_counted=not_counted)
+        curses_without_a_figure=curses, not_counted=not_counted,
+        blocked_by_a_requirement=blocked)
 
 
 @pytest.fixture
@@ -479,6 +493,20 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     assert bar.status.whole_text() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
+
+
+def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
+        bar):
+    """AK-294 (QA-270): the pools were full, the `Must include` effect had no
+    constellation -- the second clause says so instead of claiming the slots
+    had nothing to choose from. Same state 4.11, the other cause."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(filled=0, blocked=True))
+    assert bar.situation.state is advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT
+    assert bar.status.whole_text() == (
+        "Maximise damage — 0 of 6 slots filled  ·  6 slots are blocked by a "
+        "requirement you marked.")
 
 
 def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(

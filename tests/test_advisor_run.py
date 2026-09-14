@@ -199,6 +199,9 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     assert result.unknowns[-1] == (
         f"No copy you own carries {name(nobody_carries)}, which you marked "
         f"as required — no suggestion can meet that.")
+    # AK-294: the status line's second clause reads this flag, and it is
+    # only ever true when the sentence above was written.
+    assert result.blocked_by_a_requirement
 
     one_slot = advisor.problem([advisor.RED])
     result = a_run(dataclasses.replace(
@@ -208,6 +211,7 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
         f"No combination of the copies you own carries "
         f"{', '.join(sorted(name(eid) for eid in (rolls[0][0], rolls[1][0])))}"
         f", which you marked as required — no suggestion can meet that.")
+    assert result.blocked_by_a_requirement
 
     met = a_run(dataclasses.replace(problem,
                                     required=frozenset({rolls[0][0]})))
@@ -215,6 +219,7 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
         owned.relics[0].handle in {c.handle for c in s.choices}
         for s in met.suggestions)
     assert not any("required" in line for line in met.unknowns)
+    assert not met.blocked_by_a_requirement
 
 
 def _ranking(result) -> list[tuple[tuple[int, ...], float]]:

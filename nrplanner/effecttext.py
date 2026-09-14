@@ -175,6 +175,33 @@ REFERENCE_LABELS = {
 # implying the effect is unknown.
 NO_DESCRIPTION = "the game gives no detail beyond the name"
 
+#: What a Why line or the `Flat bonuses` list says instead of a raw field
+#: name beside a number (AK-295 point 3, A7): `{effect name}: ` goes before
+#: it. A figure the program never named is not shown with the name of the
+#: game's own field, which nobody chose for a player to read.
+UNLABELLED = "carries a number this program has not labelled yet."
+
+
+def field_label(field_name: str) -> str | None:
+    """The one player-facing name of a figure, or `None` where none exists.
+
+    The single lookup AK-295 point 1 asks for: an attribute is its own name
+    (`sources` files Vigor under "Vigor"), then `model.label_for` (the
+    sheet's own table, and the scoped and all-damage prefixes), then the
+    tables of this module that `describe` reads. `model.label_for` falls back
+    to the raw key; here that fallback is `None`, so a caller can tell a name
+    from a field nobody named instead of printing the field.
+    """
+    if field_name in model.ATTRIBUTE_FIELDS.values():
+        return field_name
+    named = model.label_for(field_name)
+    if named != field_name:
+        return named
+    for table in (EXTRA_RATE_LABELS, RATE_LIKE_LABELS, FLAT_LABELS):
+        if field_name in table:
+            return table[field_name]
+    return None
+
 
 def _percent(value: float) -> str:
     return f"{(value - 1) * 100:+.0f}%" if abs(value - 1) >= 0.005 else "±0%"

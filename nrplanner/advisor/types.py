@@ -769,6 +769,12 @@ class AdvisorResult:
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0
+    #: The beam came back empty because a `Must include` effect could be met
+    #: by no owned constellation -- `explain.required_but_unmet` wrote the
+    #: sentence for it (AK-291.1). The status line reads this to say "blocked
+    #: by a requirement you marked" instead of "nothing to choose from"
+    #: (AK-294): the pools were not empty, the requirement was unmeetable.
+    blocked_by_a_requirement: bool = False
 
 
 # --- lookups over the shapes above -----------------------------------------
