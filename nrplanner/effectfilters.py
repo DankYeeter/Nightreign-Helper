@@ -10,7 +10,14 @@ program state means by it.
 
 The two sets are disjoint by construction (AK-276: an effect is never
 excluded and required at once). Marking an effect in one set takes it out
-of the other, so the window never has to ask which state it is leaving.
+of the other, so the window never has to ask which state it is leaving. The
+store is not trusted to agree: a process that ended between two writes, or
+a hand in the registry, can leave one id under both keys, and a pair that
+reached `SlotProblem` stopped the advisor at every start (QA-267/SEC-045).
+Loading therefore makes the two disjoint -- `required` wins (Director,
+2026-09-14) -- and writes the repair back; a marking writes both keys
+through one `QSettings` with one `sync()`, so the gap is as small as the
+store allows.
 
 An id the dataset has since lost stays stored and travels with the
 problem; it meets nothing and costs nothing.
@@ -51,8 +58,12 @@ def stored(kind: str) -> frozenset[int]:
     return frozenset(ids)
 
 
-def store(kind: str, ids: Iterable[int]) -> None:
-    _settings().setValue(KEYS[kind], ",".join(str(i) for i in sorted(ids)))
+def store(excluded: Iterable[int], required: Iterable[int]) -> None:
+    """Both sets, through one store object and one `sync()`."""
+    settings = _settings()
+    for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required)):
+        settings.setValue(KEYS[kind], ",".join(str(i) for i in sorted(ids)))
+    settings.sync()
 
 
 class EffectFilters(QObject):
@@ -67,8 +78,11 @@ class EffectFilters(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self.excluded = stored(EXCLUDED)
         self.required = stored(REQUIRED)
+        as_stored = stored(EXCLUDED)
+        self.excluded = as_stored - self.required
+        if self.excluded != as_stored:
+            store(self.excluded, self.required)
 
     def mark(self, effect_id: int, kind: str | None) -> None:
         """Put one effect into the `kind` set, or into neither for `None`."""
@@ -83,6 +97,5 @@ class EffectFilters(QObject):
         if (excluded, required) == (self.excluded, self.required):
             return
         self.excluded, self.required = excluded, required
-        store(EXCLUDED, excluded)
-        store(REQUIRED, required)
+        store(excluded, required)
         self.changed.emit()

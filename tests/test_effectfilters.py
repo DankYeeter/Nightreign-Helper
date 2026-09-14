@@ -15,6 +15,7 @@ import pytest
 from PySide6.QtCore import QSettings
 
 from nrplanner import effectfilters, favourites
+from nrplanner.advisor import types
 
 
 @pytest.fixture
@@ -87,3 +88,44 @@ def test_a_damaged_value_reads_as_whatever_ids_it_still_holds(store, damaged):
     ids = effectfilters.stored(effectfilters.REQUIRED)
     assert ids == {int(part) for part in damaged.split(",")
                    if part.strip().isdigit()}
+
+
+def test_an_id_under_both_keys_is_required_and_no_longer_excluded(store):
+    """QA-267/SEC-045: a store left with one id under both keys -- the
+    process ending between two writes, or a hand in the registry -- used to
+    reach `SlotProblem.__post_init__` as a pair and stop the advisor at
+    every start. Loading makes the two disjoint (`required` wins, Director
+    2026-09-14) and writes the repair back, so the next start reads it too.
+    """
+    store.setValue(effectfilters.KEYS[effectfilters.EXCLUDED], "5,6")
+    store.setValue(effectfilters.KEYS[effectfilters.REQUIRED], "6,7")
+    store.sync()
+
+    filters = effectfilters.EffectFilters()
+
+    assert (filters.excluded, filters.required) == ({5}, {6, 7})
+    assert store.value("advisor/excluded", "", type=str) == "5"
+    assert types.SlotProblem(excluded=filters.excluded,
+                             required=filters.required).required == {6, 7}
+
+
+def test_a_marking_writes_both_keys_through_one_store_object(store,
+                                                            monkeypatch):
+    """SEC-045's other half: one `QSettings` and one `sync()` per marking,
+    so the two keys land together rather than in two visits to the registry
+    with a gap between them for the process to end in."""
+    built = []
+    real = effectfilters.QSettings
+
+    def counting(*args, **kwargs):
+        settings = real(*args, **kwargs)
+        built.append(settings)
+        return settings
+
+    monkeypatch.setattr(effectfilters, "QSettings", counting)
+    filters = effectfilters.EffectFilters()
+    built.clear()
+
+    filters.mark(5, effectfilters.REQUIRED)
+
+    assert len(built) == 1
