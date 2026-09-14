@@ -210,3 +210,45 @@ def test_the_picker_never_opens_taller_than_the_desktop(picker):
     room = picker.screen().availableGeometry().height()
     assert picker.height() <= room, (
         f"the picker opens {picker.height()} px tall on a desktop of {room}")
+
+
+@pytest.fixture(scope="module")
+def card_at_the_window() -> dict:
+    """One relic card under the Windows platform; see the module it names."""
+    from tests import relic_card_at_the_window
+
+    return relic_card_at_the_window.measure()
+
+
+def test_the_chip_is_whole_on_a_favourite_card(card_at_the_window):
+    """QA-229: `BEST FOR SURVIVAL` was `BEST FOR SURVI` beside the star.
+
+    The star stood in the header beside the whole naming column and took
+    23 px off the chip's strip -- 79 px for a 95 px text on every favourite
+    card. Killed by putting the star back beside the name: the chip's strip
+    is then the same on a favourite card as on any other.
+    """
+    figures = card_at_the_window
+    assert figures["platform"] == "windows", figures
+    for state in ("plain", "favourite", "favourite_selected"):
+        assert not figures[state]["chip_cut"], (
+            f"on a {state} card the chip `BEST FOR SURVIVAL` is wider than "
+            f"the {figures[state]['chip_width']} px drawn for it")
+    assert (figures["favourite"]["chip_width"]
+            == figures["plain"]["chip_width"] - 2), (
+        "the favourite star takes room from the chip's strip again; the "
+        "two should differ by the selection border alone")
+
+
+def test_every_value_cell_holds_its_widest_figure(card_at_the_window):
+    """QA-230: `+64.2 effective HP` had 93 px and needed 104.
+
+    The survival row is the longest a card carries -- `Damage taken` beside
+    `+999.9 effective HP` -- and the card is as wide as that row needs, with
+    the selection border on (`CARD_WIDTH`). Killed by narrowing the card.
+    """
+    figures = card_at_the_window
+    for state in ("plain", "favourite", "favourite_selected"):
+        assert figures[state]["cells_cut"] == [], (
+            f"on a {state} card these figures are wider than their cell: "
+            f"{figures[state]['cells_cut']}")
