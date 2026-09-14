@@ -222,6 +222,10 @@ CONTEXT_REACHES_COMPUTE = {
     # The weighting is the goal's business and never the model's: it decides
     # how a figure is averaged after the build exists (AD-004, OF-3).
     "weighting": None,
+    # The hand is the damage direction's business (AK-293): the model books
+    # the `when Two-Handing` bucket either way, the goal decides whether to
+    # count it. No display changes with the switch (AK-293 point 1).
+    "two_handed": None,
 }
 
 
