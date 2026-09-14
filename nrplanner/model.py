@@ -1143,6 +1143,11 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 # -- guessing wrong there is what produced +4900% readings.
                 if abs(float(value) - SENTINEL_BASELINE) < 1e-9:
                     continue
+                if fname in GATE_FIELDS:
+                    # A real (non-sentinel) conditionHp/conditionHpRate is a
+                    # gate value, not a bonus -- compute_qualitative already
+                    # lists it under Conditional & situational via GATE_FIELDS.
+                    continue
                 build.other[fname] = build.other.get(fname, 0) + value
                 record(fname, value)
             elif ((fname.endswith("Rate") or fname in EXTRA_MULTIPLIERS)
