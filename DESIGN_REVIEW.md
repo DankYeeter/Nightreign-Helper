@@ -1,5 +1,130 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-14 (T-251c — Pruefphase A18/A19 auf `528ff78`: AK-276-291)
+
+**Methode:** Code-Analyse (unverifiziert), Fensterlauf **blockiert**. Umlenkung
+war vollstaendig vorbereitet (`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-251ux`,
+eigenes `LOCALAPPDATA`/`APPDATA`, Testabzug — 841 Dateien, 22 MB — hineinkopiert),
+`python run.py` startete jedoch wiederholt lautlos mit Exit-Code 0: Ursache ist
+`singleinstance.RunningCopy` (`nrplanner/singleinstance.py`), ein
+`QSharedMemory`-Schluessel **maschinenweit**, nicht je `NIGHTREIGN_SETTINGS_ORG`
+gescopet. Zwei `NightreignHelper.exe`-Prozesse aus `dist/` liefen zum
+Pruefzeitpunkt bereits (PID 10580 seit 18:01:17, Fenstertitel „Nightreign Helper
+1.10.0", ohne Umlenkung in der Kommandozeile — vermutlich ein Rest der
+Release-Kette `5f2988f`/`1fb9ac8`) und hielten die Sperre; ein neuer Prozess
+tritt dagegen sofort zurueck (`main()`, `if not running.claim(): return 0`).
+Diesen fremden Prozess zu beenden stand nicht in meinem Auftrag und haette ein
+laufendes Programm angefasst, das ich nicht angestossen habe — nach Schritt 0.4
+("wenn ein Start unmoeglich ist, dokumentiere das und weiche auf
+Code-Analyse aus") stattdessen: Quellcode gelesen (`advisorblock.py`,
+`advisorbar.py`, `relicpicker.py`, `explain.py`, `pressable.py`), automatisierte
+Testbelege zitiert (`tests/test_relic_picker_advisor.py::
+test_a_card_is_the_same_height_with_the_control_as_with_a_label`, Teil der
+1597-bestandenen Suite) und die eigene Live-Messung des `developer` aus dessen
+Commit-Nachricht `528ff78` uebernommen (**nicht selbst nachgemessen** — als
+Luecke unten vermerkt). Kein Bild entstanden, weil kein Fenster stand; die
+sonst uebliche Pflicht "Screenshot ansehen" entfaellt dadurch, nicht weil sie
+nicht gaelte. `qa-engineer` und `security-reviewer` sind nicht durch mich
+blockiert — die Sperre betrifft nur ein zweites GUI-Fenster, nicht Tests.
+
+**Geprueft:** AK-276 bis AK-291 (drei Zustaende auf Karte/Why-Dialog, Legende,
+Zaehler-Tooltip AK-280, AK-289-Satz, Leistenbreite AK-285, Why-Gruppenhoehe
+AK-287) gegen `UI_SPEC.md` §6.8, plus die drei im Auftrag genannten
+developer-Fragen.
+
+**Gesamturteil:** fast fertig — die Bau-Logik deckt AK-276/279/280/282/289-291
+im Code korrekt ab, aber zwei AK-278/277-Abweichungen sind codebelegt und ein
+dritter Punkt (Why-Gruppenhoehe) ist hiermit als unkritisch abgenommen. Ein
+Livelauf zur Bestaetigung fehlt (siehe oben) und sollte nachgeholt werden,
+sobald die Fremdinstanz weg ist.
+
+### Wichtig
+
+- **DR-025 [`nrplanner/advisorblock.py`, `MarkedLine.__init__`/`self.mark`]**
+  AK-278 verlangt "mit Leertaste oder Enter bedienbar". Gebaut ist nur
+  Leertaste: `self.mark` ist ein nackter `QToolButton` ohne
+  `keyPressEvent`-Ueberschreibung, und die eigene Klassen-Doku sagt es selbst
+  ("Tab reaches it and Space presses it"). `QAbstractButton` loest `click()`
+  in Qt nur bei `Key_Space` aus, `Key_Return`/`Key_Enter` tun bei einem
+  `QToolButton` ohne `autoDefault` nichts — das Projekt kennt das Muster
+  bereits und hat es fuer genau diesen Fall geloest: `nrplanner/pressable.py`,
+  `PRESS_KEYS = (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space)`. Richtung: `mark`
+  entweder auf denselben Drei-Tasten-Katalog umstellen (eigene
+  `keyPressEvent`, wie `PressableFrame.keyPressEvent`) oder `NEXT_MARK`-Klick
+  zusaetzlich an `Key_Return`/`Key_Enter` binden. Unverifiziert (Code-Analyse)
+  — am laufenden Fenster mit Tab auf die Kontrolle, Enter druecken zu
+  bestaetigen.
+- **DR-026 [`nrplanner/advisorblock.py:93-94`, `MARK_TOOLTIPS[effectfilters.EXCLUDED]`]**
+  Der Tooltip im ausgeschlossenen Zustand sagt "Click to include it again" —
+  liest sich wie "zaehlt wieder normal" (zurueck zu neutral). Tatsaechlich
+  geht der Klick-Zyklus (`NEXT_MARK`) von `Don't include` direkt zu
+  `Must include`, nicht zu neutral zurueck. Ein Spieler, der einen
+  Ausschluss nur zuruecknehmen will, setzt ungewollt eine Pflicht. Eigener
+  Fehler in AK-277 (`UI_SPEC.md`), dort jetzt korrigiert (Nachtrag T-251c,
+  §6.8) auf `"... Click to require it instead."` — der Zyklus selbst bleibt
+  unveraendert, nur der Satz beschreibt ihn jetzt richtig. Developer setzt
+  den korrigierten String um. Unverifiziert (Code-Analyse), aber der
+  Quelltext des Tooltips und von `NEXT_MARK` ist eindeutig.
+
+### Nice-to-have
+
+- **DR-027 [`UI_SPEC.md` AK-290, Z. 4135/4148]** Codename `_excluded_line`
+  war veraltet — `explain.py` nennt die Funktion seit `115dd4e` (T-250a)
+  `_marked_line`. Reiner Doku-Drift, kein Nutzerimpact; im Nachtrag T-251c
+  korrigiert. ✔ 2026-09-14 (in diesem Durchlauf behoben).
+
+### Offen/abgenommen ohne eigenes Finding
+
+- **Why-Gruppenhoehe +4 px bei 21 Zeilen (AK-287-Nachbarfrage, developer
+  T-250b):** `528ff78`s Commit-Nachricht nennt 332→336 px live gemessen. Kein
+  Budget verletzt — `AK-04` bindet nur die Hauptfenster-Mindesthoehe, nicht
+  den `WhyDialog` (eigenes `QDialog`, `resize(640, 620)`, `QScrollArea`
+  scrollt ueberschuessigen Inhalt). **Abgenommen**, keine eigene Massnahme
+  noetig — beantwortet die im Auftrag offene developer-Frage.
+- **AK-285-Leistenbreite (596/338/1608):** vom `developer` selbst live
+  gemessen und in der Commit-Nachricht `528ff78` belegt ("AK-285-Masse
+  596/338/1608 unveraendert"). Ich habe das mangels eigenem Fensterlauf
+  **nicht nachgemessen** — das ist eine Luecke dieses Durchlaufs, keine
+  Bestaetigung aus erster Hand. Empfehlung: `qa-engineer` prueft dies im
+  eigenen (Qt-freien oder spaeteren Fenster-)Durchlauf mit.
+- **AK-276/279/280/282/289/291:** Code deckt die Vorgabe, soweit lesbar,
+  vollstaendig — `RelicCard`/`MarkedLine` tragen die Effekt-Id (nicht die
+  Zeile), die Verwaltungslisten sortieren alphabetisch nach Anzeigename, der
+  Zeilen-Tooltip haengt an `_show()` und damit an jedem der 14 Zustaende, die
+  Markierung wirkt laut `advisorbar.py`/`explain.py` ausschliesslich auf den
+  Berater. Keine eigene Pruefung ersetzt den Livelauf, den `qa-engineer`
+  fuer A18/A19 ohnehin fahren muss (T-251a).
+
+### Backlog (geparkt)
+
+- `WhyDialog`-Slotgruppe: ein als `Don't include`/`Must include` markiertes,
+  sonst stilles Zeilenpaar rendert **nicht** in der 11-px-`MUTED`-Groesse,
+  die andere stille Zeilen derselben Gruppe tragen (`_styled()` setzt `small`
+  nur fuer die vier neutralen Faelle, nicht fuer `EXCLUDED`/`REQUIRED`) — auf
+  der Karte unsichtbar, weil dort `size=SMALL_TEXT` fest vorgegeben ist, im
+  `Why`-Dialog (`size=0`) potenziell ein Zeilenhoehen-/Schriftgroessen-Bruch
+  innerhalb einer Gruppe. Nicht bestaetigt ohne Bild — am naechsten Livelauf
+  gezielt ansehen.
+
+### Positiv / beibehalten
+
+- Die Drei-Zustands-Kontrolle sitzt konsequent an der Effekt-Id
+  (`kind_of`/`EffectFilters`), nicht an der gezeichneten Zeile — genau das
+  AK-276 verlangt und QA-184-Fehlerklasse vermeidet, und ist im Code an
+  keiner der drei Fundstellen (Karte, Why-Gruppe, Verwaltungsliste)
+  durchbrochen.
+- `test_a_card_is_the_same_height_with_the_control_as_with_a_label` ist ein
+  gutes Beispiel dafuer, ein AK-Kriterium (AK-277: kein Breitenzuwachs) als
+  automatisierten Test statt als einmalige Messung zu verankern — haelt auch
+  bei kuenftigen Aenderungen ohne erneuten Fensterlauf.
+
+### Offene Fragen an den App Designer
+
+Keine — beide Korrekturen (DR-025, DR-026) sind technische Praezisierungen
+ohne Geschmacksspielraum.
+
+---
+
 ## Review vom 2026-09-14 (T-239c — Pruefphase Zyklus 22 auf `a68cd3d`: Retests, AK-262-Neuvorlage, Build-planner-Tab nach AD-034)
 
 **Methode:** Live, am laufenden Fenster (Windows, kein `offscreen`, L-009),

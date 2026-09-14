@@ -4201,6 +4201,31 @@ alphabetisch auflistet, wirkt fuer den Spieler willkuerlich sortiert; eine
 neue 4.11b-Zustandsnummer nur fuer den Pflicht-Fall dupliziert den Satz, den
 `Why` schon zeigt, ohne einen zweiten Erkenntnisgewinn zu liefern.
 
+#### Nachtrag T-251c (ui-ux-designer, 2026-09-14) — zwei Korrekturen an AK-277/AK-290
+
+**1. AK-277-Tooltip im ausgeschlossenen Zustand, Wortlaut falsch.** Der oben
+verzeichnete Text `"Don't include — counts in no suggestion or ranking.
+Click to include it again."` ist gebaut wie spezifiziert (`advisorblock.py`,
+`MARK_TOOLTIPS[effectfilters.EXCLUDED]`), aber die eigene Spec irrt: der
+Zyklus (`NEXT_MARK`) geht von **Don't include** direkt zu **Must include**,
+nicht zurueck zu neutral — „Click to include it again" liest sich wie „zaehlt
+wieder normal", tatsaechlich landet der naechste Klick in der staerkeren
+Pflichtmarkierung. Ein Spieler, der einen Ausschluss nur zuruecknehmen will,
+bekommt ungewollt eine Pflicht gesetzt. Korrigierter Wortlaut, derselbe
+Zyklus, nur der Satz stimmt jetzt mit der Zielrichtung des Klicks ueberein:
+
+> `"Don't include — counts in no suggestion or ranking. Click to require it
+> instead."`
+
+Befund dazu: `DESIGN_REVIEW.md` DR-026.
+
+**2. AK-290, Codename veraltet.** Die beiden Verweise oben auf `_excluded_line`
+nennen eine Funktion, die es in `explain.py` nicht mehr gibt: T-250a
+(Commit `115dd4e`) hat sie in `_marked_line` umbenannt und dabei um den
+AK-290.2-Satz (Pflicht-Zeile) erweitert — inhaltlich unveraendert, nur der
+Name ist neu. Wortlaut und Verhalten beider AK-290-Punkte gelten unveraendert
+fort, nur der Codename in Klammern ist ab sofort `_marked_line`.
+
 ---
 
 ### 6.9 Zweihand-Angriffskraft neben der Einhandzahl (A20)
