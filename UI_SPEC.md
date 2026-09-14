@@ -3845,6 +3845,337 @@ Codewissen sie nicht als Spielzustand (z. B. HP-Stand) liest. Pruefweg:
 denselben Satz wie QA-261 einem Testleser vorlegen, der nur die
 Erklaerung/den neuen Namen sieht, nicht den Code.
 
+> **Vermerk 14.09.2026 (T-248b, GOAL A18): AK-273 entfaellt ersatzlos.**
+> `GOAL.md` A18 (Nutzerentscheidung 14.09., 20:35/20:44) streicht den
+> Worst/Best-Umschalter vollstaendig — es gibt keine zweite Lesart mehr, die
+> benannt werden muesste. Die Frage „wie heisst die zweite Lesart" stellt
+> sich nicht mehr. **Mit AK-273 zugleich gegenstandslos:** AK-268 (4.8
+> deaktiviert die `reading_box` — es gibt keine mehr), AK-182 (die Box mit
+> ihren zwei Eintraegen), AK-183/AK-184 (Verhalten bei Lesartwechsel),
+> AK-186/AK-187/AK-188 (Wirkung auf `declared`, `not_counted`-Aufteilung,
+> Zeilenzahlen je Lesart) und AK-189 (Zeilenbudget je Lesart). AK-185 (die
+> Lesart wird an vier Stellen genannt) faellt ebenfalls weg — es gibt nichts
+> mehr zu nennen. Keines dieser Kriterien wird hier einzeln fortgeschrieben;
+> sie sind seit A18 keine Vorgabe mehr, ihr Text bleibt nur als Verlauf
+> stehen. Was A16/A21 an ihrer Stelle einfuehrt, steht ab AK-276 unten.
+
+---
+
+### 6.8 Kein Umschalter mehr — Effekte werden einzeln aus- oder eingeschlossen (A18/A19)
+
+*Neu in T-248 (ui-ux-designer), 2026-09-14 — `GOAL.md` A18 (Nutzerentscheidung
+20:35/20:44, „only optimise for maximum dmg and maximum defense. add the
+option that I can add 'don't include' filters") und A19 (Nachtrag 20:48,
+„zusaetzlich ... eine option 'buff auswaehlen'"), waehrend dieser Auftrag
+lief per Nachtrag ergaenzt. Ersetzt AD-035 (Lesart), der `architect`
+entscheidet den Schnitt in AD-036 parallel (T-248a). Kein Fensterlauf hat
+diesen Bau schon gesehen — AD-036/AK-276ff sind noch nicht gebaut.*
+
+**Zwei Markierungen, eine Bedienung.** A18 gibt dem Spieler *„don't
+include"* je Effekt, A19 (Nachtrag) zusaetzlich *„must include"*. Beide sind
+seit dem Nachtrag ausdruecklich **eine** Kontrolle mit **einem** Ort:
+dieselbe Stelle, dieselbe Interaktion, derselbe Zaehler, derselbe Rueckweg.
+Diese Spec behandelt sie deshalb als ein Bedienelement mit drei Zustaenden
+statt als zwei Funktionen.
+
+#### AK-276
+**AK-276** *(Ort: die Picker-Karte und der `Why`-Dialog, an der Effekt-Id,
+nicht an der Zeile.)* Jede gezeichnete Effekt- und Fluchzeile — auf einer
+`RelicCard` des `RelicPicker` **und** in einer Slotgruppe des `WhyDialog`,
+ohne Ausnahme fuer bedingte oder unbedingte Effekte — traegt ihre eigene
+Kontrolle mit drei Zustaenden: **neutral** (Voreinstellung, zaehlt wie
+heute), **Don't include** (zaehlt in keinem Vorschlag und keiner Rangfolge,
+A18) und **Must include** (nur Konstellationen, die den Effekt tragen,
+werden vorgeschlagen, A19). Die drei Zustaende sind gegenseitig
+ausschliessend — ein Effekt ist nie gleichzeitig ausgeschlossen und
+Pflicht. Die Kontrolle ist an die **Effekt-Id** gebunden, nicht an die
+gezeichnete Zeile oder das Relikt: derselbe Effekt auf zwei verschiedenen
+Relikten (oder zweimal im selben `Why`-Dialog) zeigt in jedem Moment
+denselben Zustand, und ein Klick auf ein Vorkommen aendert alle. *Rot-vorher:*
+eine Umsetzung, die den Zustand am `ReasonLine`-Objekt statt an der
+Effekt-Id haelt, zeigt nach einem Klick zwei Vorkommen desselben Effekts mit
+unterschiedlichem Zustand — dieselbe Fehlerklasse, gegen die AK-184 („nie
+zwei Zahlen") schon steht.
+
+**Warum nicht die kompakte Slotkarte (`SuggestionBlock`).** Ihr Zeilenbudget
+ist bereits auf das gemessene Maximum ausgelegt (AK-160/AK-189, bis zu 22
+Zeilen) und traegt keine Reserve fuer eine zusaetzliche Kontrolle je Zeile,
+ohne AK-04 (Fenster-Mindesthoehe) oder AK-196 (Kartenzeilen im Picker) neu
+zu verhandeln. AK-274 (T-248c, parallel gebaut) gibt jeder Slotkarte einen
+`Why`-Knopf — der `Why`-Dialog ist damit von jeder Karte aus einen Klick
+entfernt, die Markierung verliert dadurch keine Erreichbarkeit.
+
+**Warum nicht ein neuer Katalog (z. B. der `Effects & chances`-Tab).** Der
+Tab dedupliziert Zeilen ueber `effectstab.identity()` (Name + `sp_effect_ids`
++ `modifiers`) auf **eine** Zeile je Wirkung, quer ueber Nightfarer und
+Reliktvarianten. Ob diese Identitaet mit der Id uebereinstimmt, mit der
+AD-036 die Ausschluss-/Pflichtmenge im `AdvisorRequest` fuehrt, ist nicht
+gesichert — die beiden Systeme sind unabhaengig gewachsen. Eine Markierung
+auf der falschen Identitaet waere ein A18/A19-Bruch, der in der Oberflaeche
+nicht auffiele. Picker-Karte und `Why`-Dialog tragen dagegen exakt die Id,
+mit der der Berater bereits rechnet (`ReasonLine`/`SlotChoice`) — kein
+Abgleich, kein Risiko. **Abhaengigkeit an den `architect`:** AD-036 muss der
+Kontrolle dieselbe Effekt-Id mitgeben, die intern gezaehlt wird; ist das
+nicht dieselbe, die auf der Karte/im Dialog steht, ist diese Vorgabe nicht
+baubar wie spezifiziert — das ist keine Geschmacksfrage, sondern ein
+Datenvertrag zwischen AD-036 und AK-276.
+
+#### AK-277
+**AK-277** *(die Kontrolle ist der Aufzaehlpunkt selbst, keine neue
+Breite.)* Der `•`/`✦` am Zeilenanfang wird zum Bedienelement (ein flaches,
+randloses `QToolButton` an Stelle des `QLabel`, `AutoRaise`, linksbuendig,
+gleiche Schriftgroesse), statt eine zusaetzliche Schaltflaeche neben die
+Zeile zu stellen — die Karte und der Dialog werden dadurch **nicht**
+breiter oder hoeher als eine reine `QLabel`-Zeile es waere (Pruefweg:
+`RelicCard`/`WhyDialog`-Messung vor/nach dem Einbau, AK-51/AK-196/AK-160
+duerfen sich nicht verschieben). Die drei Zustaende nutzen ausschliesslich
+Farben, die das Programm schon fuehrt (`app.py`: `ACCENT`, `BAD`, `MUTED`,
+kein neuer Hex-Wert):
+
+| Zustand | Darstellung | Vorbild im Code |
+|---|---|---|
+| neutral | wie heute (`line_markup`, farbig nach `silence`/`is_curse`) | unveraendert |
+| Don't include | durchgestrichen, `BAD` | exakt der Stil von `SILENT_ANOTHER_NIGHTFARER` |
+| Must include | fett, `ACCENT`, Aufzaehlpunkt durch `▲` ersetzt | `ACCENT` wie Kartenrahmen/Chip |
+
+Jede Kontrolle traegt einen Tooltip mit ihrem aktuellen und ihrem naechsten
+Zustand, Englisch (A8), z. B. im neutralen Zustand
+`"Counts toward every suggestion. Click to exclude it, click again to
+require it."`; im ausgeschlossenen Zustand
+`"Don't include — counts in no suggestion or ranking. Click to include it
+again."`; im Pflichtzustand
+`"Must include — every suggestion carries this effect. Click to clear it."`
+Der `Why`-Dialog bekommt eine zweite Legendenzeile nach dem Vorbild von
+`CURSE_LEGEND`/AK-141 (einmal je Dialog, nur wenn mindestens eine Zeile
+einen der beiden Zustaende zeigt): `"▲ marks an effect you required; a
+struck-through effect is one you excluded."`
+
+#### AK-278
+**AK-278** *(Tab, Leertaste/Enter, sichtbarer Fokusring — wie jede andere
+Aktion des Beraters.)* Jede Kontrolle ist Teil der Tab-Reihenfolge ihrer
+Karte bzw. ihrer Slotgruppe (Leserichtung, direkt nach der Zeile, die sie
+gehoert), mit Leertaste oder Enter bedienbar, und der Fokusring ist sichtbar
+(AK-25/AK-26 gelten unveraendert, jetzt auch fuer diese Kontrolle). Da eine
+Karte im Picker-Raster viele Effekt- und Fluchzeilen tragen kann, wird die
+Zahl der Tab-Stopps je Karte im ersten Bau gemessen und im Bericht genannt —
+kein Zielwert hier, nur die Pflicht, es zu messen (Konsistenz mit AK-161).
+
+#### AK-279
+**AK-279** *(Uebersicht und Rueckweg: die bestehende 4.9b-Liste wird zur
+Verwaltungsliste.)* Der Block, der heute unter `CONDITIONAL_HEADING` die
+Namen der nicht gezaehlten bedingten Effekte auflistet (`result.not_counted`,
+bisher ein einzelnes `QLabel` mit `"\n".join`), wird durch zwei eigene,
+gleich aufgebaute Listen ergaenzt, jede Zeile mit derselben Kontrolle wie
+AK-276/AK-277 (dort im Zustand `Don't include` bzw. `Must include`), damit
+ein Klick auf eine Zeile hier genau den Rueckweg ist — ohne zur Karte
+zurueckzumuessen, auf der der Effekt zuerst gesehen wurde:
+
+- `"Effects you've excluded:"` — jede Zeile im Zustand Don't include, egal
+  ob sie in der aktuellen Antwort ueberhaupt vorkommt (die Liste ist die
+  Verwaltung der Markierung, nicht ein Abfallprodukt des Laufs).
+- `"Effects you require:"` — dieselbe Regel fuer Must include.
+
+Beide Listen erscheinen nur, wenn ihre Menge nicht leer ist (wie 4.9a/4.9b,
+AK-143); leer bleibt der bisherige `CONDITIONAL_HEADING`-Block fuer das, was
+aus anderem Grund nicht gezaehlt wird (unveraendert). *Rot-vorher:* eine
+Umsetzung ohne diese zweite Liste zwingt den Spieler, jede Markierung auf
+der Karte wiederzufinden, auf der er sie gesetzt hat — bei 314 Kopien im
+Bestand des Nutzers (A33) ein Rueckweg, den niemand geht.
+
+#### AK-280
+**AK-280** *(Zaehler im Tooltip der Leiste, kein neues Bedienelement.)* Die
+Advisor bar traegt bereits einen Tooltip mit dem vollen Statuszeilentext
+(AK-05, gemessen als `row_tooltip`). Ist mindestens eine der beiden Zahlen
+(ausgeschlossene, geforderte Effekte) ungleich null, bekommt dieser Tooltip
+einen weiteren Satz nach dem `_clauses`-Muster von 4.9 (Trenner `  ·  `):
+`"{n} effect(s) excluded"` bzw. `"{n} effect(s) required"`, beide falls
+beide gesetzt sind, in dieser Reihenfolge. Der Satz steht **in jedem der 14
+Zustaende aus §4**, auch 4.1 und 4.8, weil die Markierung eine stehende
+Einstellung ist, keine Eigenschaft eines einzelnen Laufs — ein Spieler, der
+das Programm neu startet und noch nichts optimiert hat, soll trotzdem sehen,
+dass eine fruehere Markierung noch wirkt. Es entsteht **kein** neues
+sichtbares Bedienelement und keine neue Breitenanforderung an die Zeile
+selbst — ein Tooltip beansprucht keine Breite, AK-05/AK-194/AK-269/AK-271
+bleiben unberuehrt. Pruefweg: `bar.toolTip()` nach einer Markierung, in
+jedem der 14 Zustaende. *Rot-vorher:* eine Umsetzung, die die Zahl nur in
+den Vorschlagszustaenden zeigt, laesst den Spieler im Zustand 4.1/4.8 im
+Unklaren, ob eine Markierung aus einer frueheren Sitzung noch wirkt.
+
+#### AK-281
+**AK-281** *(ein unerfuellbarer Pflicht-Effekt nennt sich selbst, A7/A12.)*
+Kann fuer mindestens einen als Must include markierten Effekt keine
+besessene Kopie gefunden werden, die ihn traegt, sagt die Oberflaeche das
+mit dem Effektnamen — nicht nur, dass nichts vorgeschlagen werden konnte
+(GOAL A7: wo die Rechnung eine Antwort nicht hergibt, sagt das Programm das,
+statt sie stumm fallen zu lassen). Wortvorschlag, nach demselben Muster wie
+AK-265 (`NO_SAVE_WAS_READ`): `"No copy you own carries {effect}, which you
+marked as required — no suggestion can meet that."` Ob dieser Satz einen
+bestehenden Zustand traegt (4.10/4.11 sind beide schon „kein Vorschlag,
+und warum" bzw. „dieser Slot bekommt nichts") oder einen eigenen elften/
+zwoelften Fall braucht, entscheidet der `architect` mit AD-036 — das
+Pruefkriterium hier ist der **Inhalt** des Satzes (nennt den Effekt beim
+Namen), nicht seine Zustandsnummer. *Rot-vorher:* eine Statuszeile, die bei
+einem unerfuellbaren Pflicht-Effekt still den Filter ignoriert und normal
+weiter vorschlaegt, oder eine, die nur 4.10s Standardsatz zeigt, ohne den
+Effekt zu nennen — beides verstoesst gegen den woertlichen Auftrag aus A19
+(„sagt er das, statt den Filter still fallen zu lassen").
+
+#### AK-282
+**AK-282** *(A12 — nur der Berater, nicht das Werteblatt.)* Die
+Markierungen wirken ausschliesslich auf die Rechnung des Beraters
+(`AdvisorRequest`, Vorschlaege, Rangfolge, `Why`-Dialog). Das Statblatt
+(`statsheet.py`) mit seiner eigenen „Conditional & situational"-Sektion und
+den dortigen `declared`-Schaltern (AK-186 galt bisher sinngemaess fuer die
+Lesart, jetzt fuer diese Abgrenzung) bleibt unberuehrt: ein Effekt, den der
+Spieler im Berater ausgeschlossen oder gefordert hat, zeigt sich im
+Statblatt weiterhin exakt so, wie der Spieler die Bedingung dort selbst von
+Hand erklaert hat — zwei getrennte Mechanismen, kein gemeinsamer Zustand.
+Die AK-277-Tooltips nennen das nicht extra (sie sind lang genug); der
+`Why`-Dialog-Kopf (`head_sentence`) bleibt unveraendert.
+Pruefweg: Effekt X im Berater ausschliessen, Statblatt neu zeichnen — der
+`declared`-Schalter fuer denselben Effekt im Statblatt zeigt unveraendert
+den vom Spieler dort gesetzten Wert. **Nicht-Ziel (GOAL A18):** keine
+Sperrliste fuer ganze Relikte, kein Schalter fuer ganze Bedingungsklassen —
+die Markierung sitzt an der einzelnen Effekt-Id, nirgends grober.
+
+#### AK-283
+**AK-283** *(Persistenz ist sichtbares Verhalten, kein Bestaetigungsschritt.)*
+Nach einem Neustart des Programms zeigen alle drei Orte (Picker-Karten,
+`Why`-Dialog, Leisten-Tooltip nach AK-280) exakt die Markierungen, die beim
+letzten Beenden gesetzt waren — ohne Bestaetigungsdialog und ohne manuelles
+Neuladen (Vorbild AK-125: Speicherpfad wird gemerkt und beim naechsten Start
+bevorzugt). Speicherort und Schema entscheidet AD-036 (`architect`); dieses
+Kriterium prueft nur, was der Spieler sieht. Pruefweg: Effekt markieren,
+Programm schliessen, neu starten, Picker oeffnen — Markierung unveraendert.
+
+#### AK-284
+**AK-284** *(A8 — Englisch, wie jede andere Zeichenkette des Beraters.)*
+Jeder neue Text aus AK-276 bis AK-283 (Tooltip, Legende, Zaehlerklausel,
+Uebersichtsueberschriften, der A7-Satz aus AK-281) ist Englisch, ohne
+Ausnahme, und laeuft durch dieselbe `html.escape`/`setTextFormat`-Disziplin
+wie jede bestehende Zeile (AK-29/AK-30/AK-53).
+
+#### AK-285
+*Live gemessen, 2026-09-14 (T-248b) — `python -m` gegen den echten
+Planner unter `QT_QPA_PLATFORM=windows`, Fusion-Stil, dunkle Palette,
+Segoe UI 9pt, DPR 1,25 (Rezept nach `ui-messung-am-laufenden-fenster`),
+Testabzug-Datensatz (`EXTRACT_VERSION` 11), zweimal im selben Lauf und
+zweimal in getrennten Prozessen gemessen — beide Male identisch.*
+
+**AK-285** *(AK-05/AK-194 neu vermessen, ohne den Umschalter: keine
+Aenderung an der geltenden Schranke.)* Die `reading_box` selbst misst
+`minimumSizeHint().width() == 87 px` — derselbe Wert, auf den AK-194 seit
+A31–A34 gemessen war. Ihr Wegfall aus der Zeile senkt das Zeilenminimum der
+Advisor bar um **93 px** (mit den drei Aktionsknoepfen `689 → 596 px`, ohne
+sie `431 → 338 px` — 87 px Combobox plus 6 px Layout-Abstand), aendert aber
+**nichts** an der abgeleiteten Startbreite selbst: `Planner._opening_width()`
+misst **1608 px**, mit und ohne `reading_box` identisch, weil die
+Effekttabelle (§7.1) an diesem Datensatz weiterhin die breitere der beiden
+Anforderungen ist (A14/A32: `max(Effekttabelle, Leistenbedarf)`) — die
+Leiste war nie die bindende Seite dieses Maximums, und ihr Schrumpfen
+verschiebt darum nichts. **Damit gilt:** AK-05 (kein abgeschnittener Text
+ausser der Statuszeile, ab 1536 px) und AK-269/AK-271 (Boxen haben Vorrang,
+Statuszeile darf bis 0 px) **unveraendert fort** — beide waren ohnehin nie
+an die `reading_box` gebunden, sie banden sich an das Zeilenmaximum, das
+jetzt kleiner ist. `goal_box` (183 px) und `Optimize` (80 px Minimum)
+bleiben unveraendert. Pruefweg fuer den `developer`: derselbe
+`tests/advisor_row_at_the_window.py`-Aufbau, `bar.reading_box` entfernt
+statt versteckt (ein `setHidden(True)` allein zaehlt nicht — ein
+verstecktes Widget beansprucht in seinem Layout keinen Platz, aber das
+Kriterium ist erst erfuellt, wenn die Zeile es gar nicht mehr kennt); die
+Zahlen **596/338/1608** sind der Massstab, gegen den ein neuer Bau
+verglichen wird, kein Garantiewert fuer jeden Datensatz. Messskript:
+`<scratchpad>/T-248/ui-ux-designer/measure_row.py` (nicht Teil des Repos,
+Fundstelle im Bericht).
+
+---
+
+### 6.9 Zweihand-Angriffskraft neben der Einhandzahl (A20)
+
+*Neu in T-248 (ui-ux-designer), 2026-09-14 — `GOAL.md` A20 (Nutzer 20:58,
+„dann brauchen wir 2haendig drinnen"), per Nachtrag waehrend dieses
+Auftrags ergaenzt. Betrifft vier bestehende Flaechen aus vier verschiedenen
+Bereichen dieser Spec (Waffenkachel/Bereich 4 — AK-31/AK-35/AK-36,
+Werteblatt/`statsheet.py`, Arsenal-Kachel/Bereich 7.3 — AK-33/AK-73/AK-84,
+Berater-Zeile/Bereich 6); hier gesammelt statt vierfach verstreut, weil eine
+Formatregel alle vier traegt. **Kein Fensterlauf:** die Flaeche existiert im
+heutigen Bau nicht (`damage.py` kennt keine Zweihand-Rechnung), es gibt
+nichts zu messen, bevor sie steht — die Breitenbudgets unten sind zitiert,
+nicht neu vermessen, und muessen nach dem Bau real gegengeprueft werden.*
+
+#### AK-286
+**AK-286** *(eine vierte Form, kein Ersatz der drei aus AK-31.)* Wo eine
+Waffe zweihaendig gefuehrt werden kann, bekommt jede der drei Formen aus
+AK-31 (`AR without relics`, `AR as equipped`, `AR at +<n>`) einen
+Zweihand-Zusatz nach dem Muster des Auftrags: `{Form} {1H-Wert} / {2H-Wert}
+2H`, z. B. `AR as equipped 147 / 151 2H` (Messpunkt Wylder Great Stars, A20).
+Kann die Waffe nicht zweihaendig gefuehrt werden, bleibt die Form
+unveraendert — kein `/ — 2H` fuer eine Option, die nicht existiert (A12: nichts
+behaupten, was nicht zutrifft). AK-32 gilt fort: auch der Zweihand-Wert
+beantwortet dieselbe der drei `damage.Basis`-Fragen wie sein Einhand-Wert
+daneben, ohne Hovern erkennbar (dieselbe Beschriftung deckt beide, keine
+zweite Bildunterschrift noetig). *Rot-vorher:* eine Umsetzung mit einer
+eigenen vierten Beschriftung fuer den Zweihandwert bricht AK-31 wortgleich
+(„nur mit einer dieser drei Formen"), weil sie eine vierte einfuehrt statt
+die drei um einen Zusatz zu erweitern.
+
+#### AK-287
+**AK-287** *(Platzbudget an allen vier Flaechen wird real nachgemessen,
+nicht angenommen.)* Der Zusatz `/ <n> 2H` ist die laengste der vier
+Erweiterungen (Arsenal-Kopfzeile: `AR at +10 216 / 216 2H` bei zweistelligem
+Upgrade und dreistelligem AR — testen mit dem laengsten heute im Datensatz
+vorkommenden Wert). Vor der Auslieferung neu zu pruefen, mit echten Zahlen
+am laufenden Fenster (Rezept `ui-messung-am-laufenden-fenster`):
+
+- **Arsenal-Kachel** (`arsenaltab.py`, `CARD_WIDTH = 200`, AK-33: „bricht bei
+  Kachelbreite 200 px nicht um").
+- **Relikt-/Slotkarte** (`relicpicker.py`, `CARD_WIDTH_FLOOR = 208`, AK-73:
+  „keine Zeichenkette bricht mitten in einem Begriff um").
+- **Werteblatt** (`statsheet.py`), an seiner heutigen Spaltenbreite.
+- **Berater-Zeile** (`advisorbar.py`, `gain_text`/`chip_text`), an der
+  AK-285-Breite.
+
+Bricht der Zusatz an einer der vier eine bestehende Breitenschranke
+(AK-33, AK-73, AK-84, AK-285), ist das ein Befund fuer den ersten Baubericht
+— nicht stillschweigend zu kuerzen (AK-73 gilt unveraendert: kein Umbruch
+mitten im Begriff, also eher zweizeilig als gekuerzt, wo eine Karte das
+traegt).
+
+#### AK-288
+**AK-288** *(A7/A12 — die Regel sagt, wenn sie nicht trifft.)* Trifft die
+Zweihand-Regel auf eine Waffe nicht zu (Waffenklasse ohne Zweihandmodus),
+zeigt keine der vier Flaechen einen Zweihand-Zusatz — nicht `—`, nicht `n/a`,
+schlicht die unveraenderte Einhandform (wie AK-49 fuer eine Zielrichtung
+ohne Zahlen: keine erfundene Leerstelle). Trifft die Regel zu, aber die
+Spieldateien liefern keinen Zweihand-Modifikator fuer diese konkrete Waffe
+(A20: „trifft keine, sagt es das (A7)"), steht an derselben Stelle ein
+kurzer Satz statt der Zahl, nach demselben Baumuster wie `Goal.scope`/
+`SlotPool.unknowns` (AK-70): benennt die Waffe, sagt, dass die Zweihandzahl
+fehlt, keine geschaetzte Zahl. Effekte mit der Bedingung *when Two-Handing*
+(`effecttext.py`, IDs `8300000-2`/`7006000-1`, dort bereits als „only while
+two-handing the armament" gefuehrt) rechnen auf den Zweihandwert — dieselbe
+Wortwahl `two-handing`, keine zweite Uebersetzung derselben Bedingung.
+
+**Offene Frage an den App Designer** (A20: „entscheidet der Nutzer nach dem
+Entwurf des `architect`" — hier die drei Optionen, kurz benannt, nicht
+entschieden):
+
+1. **Immer Einhand.** Der Berater rankt unveraendert auf dem Einhandwert;
+   der Zweihandwert steht nur informativ auf den vier Flaechen.
+2. **Immer Zweihand, wo moeglich.** Kann die Waffe zweihaendig gefuehrt
+   werden, rankt der Berater auf dem Zweihandwert (hoeher, aber nicht die
+   Griffart, die jede Runde tatsaechlich gefuehrt wird — dieselbe RNG-Frage,
+   die A17 fuer die Waffenwahl selbst schon aufgeworfen hat).
+3. **Maximum aus beiden.** Der Berater rankt auf `max(1H, 2H)` je Waffe —
+   die optimistischste Zahl, mit einem Satz, der sagt, welche Griffart sie
+   voraussetzt (A12).
+
+Der `architect` legt mit AD-036 den Schnitt (welches Feld `AdvisorRequest`
+zusaetzlich braucht) so an, dass alle drei Optionen ohne zweite
+Architekturaenderung baubar sind; welche **Voreinstellung** das Programm
+auf Anhieb zeigt, ist Geschmack/Produktentscheidung und geht an den App
+Designer.
+
 ---
 
 ## Bereich 7 — Die sechs Inhalts-Tabs
