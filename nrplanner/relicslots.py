@@ -199,6 +199,16 @@ HOLD_CAPTIONS = ("Hold", "Held")
 HOLD_TOOLTIP = ("Optimize leaves this slot alone. You can still change it "
                 "yourself. Holds are forgotten when the program closes.")
 
+#: The look of a checkable button that carries a word (AK-54): `MUTED`
+#: unchecked, `ACCENT` with a ring checked, so the word and not the colour
+#: alone tells the states apart. The stat sheet's `1H`/`2H` switch wears the
+#: same look (AK-292).
+WORD_BUTTON_STYLE = (
+    f"QToolButton {{ color: {MUTED}; border: none; padding: 1px 6px; }}"
+    f"QToolButton:checked {{ color: {ACCENT};"
+    f" border: 1px solid {ACCENT}; border-radius: 3px; }}"
+)
+
 #: What a slot held with nothing in it says (§4.2, AK-55). "Held and staying
 #: empty" is a different instruction from "free", and the search has to be
 #: able to tell them apart (`types.HeldSlot`), so the player does too.
@@ -282,12 +292,7 @@ class RelicSlot(QFrame):
         self.hold_button = QToolButton()
         self.hold_button.setCheckable(True)
         self.hold_button.setToolTip(HOLD_TOOLTIP)
-        self.hold_button.setStyleSheet(
-            f"QToolButton {{ color: {MUTED}; border: none;"
-            f" padding: 1px 6px; }}"
-            f"QToolButton:checked {{ color: {ACCENT};"
-            f" border: 1px solid {ACCENT}; border-radius: 3px; }}"
-        )
+        self.hold_button.setStyleSheet(WORD_BUTTON_STYLE)
         self.hold_button.toggled.connect(self._hold_toggled)
         header.addWidget(self.hold_button)
         self.chip = QLabel()

@@ -290,8 +290,7 @@ def test_apply_all_leaves_the_stored_build_holding_what_it_applied(planner):
     planner.apply_all()
 
     vessel = planner.current_vessel()
-    _stored, _deep, stored_keys = chalices.load(planner.current_hero()["id"],
-                                                vessel["id"])
+    stored_keys = chalices.load(planner.current_hero()["id"], vessel["id"])[2]
     for index, copy in offers:
         assert stored_keys[index] == chalices.slot_key(copy)
 

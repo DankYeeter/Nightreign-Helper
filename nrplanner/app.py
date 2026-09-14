@@ -523,6 +523,10 @@ class Planner(QMainWindow):
         self.panes.addWidget(self._build_middle())
         self.stat_sheet = StatSheet(self)
         self.stat_sheet.declared_changed.connect(self._declared_changed)
+        # The hand is a feature of the build like the level, so it takes the
+        # same road: `recompute` stores it and tells the advisor (AK-293.5).
+        self.stat_sheet.hand_switch.toggled.connect(
+            lambda _on: self.recompute())
         self.panes.addWidget(self.stat_sheet)
         self.apply_hero_weapon()
         self._wire_the_advisor()
@@ -1325,7 +1329,7 @@ class Planner(QMainWindow):
         Rows other than the selected one have no live slots to read, so the
         stored build is the only account of what is in them.
         """
-        _vessel, _deep, keys = chalices.load(hero_id, vessel_id)
+        keys = chalices.load(hero_id, vessel_id)[2]
         if not keys:
             return None
         out = []
@@ -1468,7 +1472,8 @@ class Planner(QMainWindow):
         # first, because both rebuild the slots and would otherwise empty them
         # again straight after they were filled.
         view_vessel, view_deep = chalices.view(hero["id"])
-        vessel_id, deep_on, slot_keys = chalices.load(hero["id"], view_vessel)
+        vessel_id, deep_on, slot_keys, two_handed = chalices.load(
+            hero["id"], view_vessel)
         # The view wins for both: an empty chalice with Deep on stores no
         # build, and its choice would otherwise be lost on the next launch.
         if view_vessel is not None:
@@ -1489,6 +1494,7 @@ class Planner(QMainWindow):
             if saved_row is not None or view_vessel is not None:
                 with QSignalBlocker(self.deep_check):
                     self.deep_check.setChecked(bool(deep_on))
+            self._set_two_handed(two_handed)
             if saved_row is None and first_row is not None:
                 self.chalice_list.setCurrentRow(first_row)
             self.apply_chalice()
@@ -1639,7 +1645,13 @@ class Planner(QMainWindow):
             vessel["id"] if vessel else None,
             self.deep_check.isChecked(),
             keys,
+            self.stat_sheet.hand_switch.isChecked(),
         )
+
+    def _set_two_handed(self, on: bool) -> None:
+        """Put a stored build's hand on the switch without a recompute."""
+        with QSignalBlocker(self.stat_sheet.hand_switch):
+            self.stat_sheet.hand_switch.setChecked(on)
 
     # -- saved builds ----------------------------------------------------
 
@@ -1725,15 +1737,15 @@ class Planner(QMainWindow):
             self.load_equipped()
             return
         hero_id = self.current_hero()["id"]
-        vessel_id, deep, keys = chalices.load_build(hero_id, name)
-        self._apply_stored_build(vessel_id, deep, keys)
+        self._apply_stored_build(*chalices.load_build(hero_id, name))
 
-    def _apply_stored_build(self, vessel_id, deep, keys) -> None:
+    def _apply_stored_build(self, vessel_id, deep, keys, two_handed) -> None:
         """Put a stored build into the slots, the way a restore does."""
         self._restoring = True
         try:
             with QSignalBlocker(self.deep_check):
                 self.deep_check.setChecked(bool(deep))
+            self._set_two_handed(two_handed)
             if vessel_id is not None:
                 for i in range(self.chalice_list.count()):
                     entry = self.chalice_list.item(i).data(Qt.UserRole)
@@ -1786,6 +1798,7 @@ class Planner(QMainWindow):
             vessel["id"] if vessel else None,
             self.deep_check.isChecked(),
             [slot.saved_key() for slot in slots],
+            self.stat_sheet.hand_switch.isChecked(),
         )
         chalices.set_selected_build(self.current_hero()["id"], name)
         self.refresh_build_list(keep=name)
@@ -1966,12 +1979,13 @@ class Planner(QMainWindow):
         rather than left alone -- the chalice has just changed, and whatever
         is in the slots belongs to the chalice being left.
         """
-        _stored_id, deep, keys = chalices.load(
+        _stored_id, _deep, keys, two_handed = chalices.load(
             self.current_hero()["id"], vessel["id"])
         if not any(keys) and not clear:
             return
         self._restoring = True
         try:
+            self._set_two_handed(two_handed)
             # The Deep of Night switch is left exactly as the player set it.
             # Restoring the stored flag here fought the switch: turning Deep
             # off reloaded a build that had it on and turned it straight back.

@@ -31,6 +31,13 @@ GROUP = "chalices"
 SEPARATOR = "|"
 FIELD = "\x1f"
 
+#: The last field of a build the player ranks two-handed (AK-292: the hand is
+#: part of the build, not of the session). Written only when set, so a build
+#: ranked one-handed is stored exactly as every build before the switch was,
+#: and a record without it reads as one-handed -- no schema step. It cannot
+#: be mistaken for a slot: a slot key always carries `SEPARATOR`.
+TWO_HANDED = "2H"
+
 
 def _settings() -> QSettings:
     return QSettings(favourites.ORG, favourites.APP)
@@ -54,8 +61,9 @@ def split_key(key: str) -> tuple[int | None, str]:
     return handle, roll
 
 
-def save(hero_id: int, vessel_id: int | None, deep: bool, slots: list[str]) -> None:
-    """Remember what this Nightfarer is holding.
+def save(hero_id: int, vessel_id: int | None, deep: bool, slots: list[str],
+         two_handed: bool = False) -> None:
+    """Remember what this Nightfarer is holding, and in how many hands.
 
     An empty build is removed rather than written. Otherwise clearing every
     slot would leave a stored record that says "no vessel, nothing equipped",
@@ -80,11 +88,8 @@ def save(hero_id: int, vessel_id: int | None, deep: bool, slots: list[str]) -> N
     if vessel_id is None and not any(slots):
         settings.remove(path)
         return
-    deep = any(slots[3:6])
-    parts = [str(vessel_id if vessel_id is not None else ""),
-             "1" if deep else "0"]
-    parts.extend(slots)
-    settings.setValue(path, FIELD.join(parts))
+    settings.setValue(path, _encode(vessel_id, any(slots[3:6]), slots,
+                                    two_handed))
 
 
 def save_view(hero_id: int, vessel_id: int | None, deep: bool) -> None:
@@ -123,26 +128,19 @@ def last_vessel(hero_id: int) -> int | None:
         return None
 
 
-def load(hero_id: int, vessel_id: int | None = None) -> tuple[int | None, bool, list[str]]:
-    """(vessel id, Deep of Night on, six slot keys) for one vessel.
+def load(hero_id: int, vessel_id: int | None = None
+         ) -> tuple[int | None, bool, list[str], bool]:
+    """(vessel id, Deep of Night on, six slot keys, two-handed) for one vessel.
 
     With no vessel given, the one this Nightfarer was last on is used, so a
     fresh session opens where the last one stopped.
     """
-    settings = _settings()
     if vessel_id is None:
         vessel_id = view(hero_id)[0] or last_vessel(hero_id)
         if vessel_id is None:
-            return None, False, []
-    raw = settings.value(f"{GROUP}/{hero_id}/{vessel_id}", "", type=str)
-    parts = str(raw).split(FIELD) if raw else []
-    if len(parts) < 2:
-        return None, False, []
-    try:
-        vessel_id = int(parts[0])
-    except ValueError:
-        vessel_id = None
-    return vessel_id, parts[1] == "1", parts[2:]
+            return None, False, [], False
+    return _decode(_settings().value(f"{GROUP}/{hero_id}/{vessel_id}", "",
+                                     type=str))
 
 
 def clear(hero_id: int, vessel_id: int | None = None) -> None:
@@ -457,22 +455,28 @@ def _migrate_keys(hero_id: int) -> None:
         settings.endGroup()
 
 
-def _encode(vessel_id: int | None, deep: bool, slots: list[str]) -> str:
+def _encode(vessel_id: int | None, deep: bool, slots: list[str],
+            two_handed: bool = False) -> str:
     parts = [str(vessel_id if vessel_id is not None else ""),
              "1" if deep else "0"]
     parts.extend(slots)
+    if two_handed:
+        parts.append(TWO_HANDED)
     return FIELD.join(parts)
 
 
-def _decode(raw: str) -> tuple[int | None, bool, list[str]]:
+def _decode(raw: str) -> tuple[int | None, bool, list[str], bool]:
+    """(vessel id, Deep of Night on, slot keys, ranked two-handed)."""
     parts = str(raw).split(FIELD) if raw else []
     if len(parts) < 2:
-        return None, False, []
+        return None, False, [], False
     try:
         vessel_id = int(parts[0])
     except ValueError:
         vessel_id = None
-    return vessel_id, parts[1] == "1", parts[2:]
+    two_handed = parts[-1] == TWO_HANDED
+    slots = parts[2:-1] if two_handed else parts[2:]
+    return vessel_id, parts[1] == "1", slots, two_handed
 
 
 def build_names(hero_id: int) -> list[str]:
@@ -503,7 +507,7 @@ def build_names(hero_id: int) -> list[str]:
 
 
 def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
-               slots: list[str]) -> None:
+               slots: list[str], two_handed: bool = False) -> None:
     """Store a build under a name, replacing one of the same name.
 
     The name is stored exactly as it was given -- a leading space belongs to
@@ -526,7 +530,7 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
-        settings.setValue(key, _encode(vessel_id, deep, slots))
+        settings.setValue(key, _encode(vessel_id, deep, slots, two_handed))
         existing = [k for k in str(
             settings.value("__order", "", type=str)).split(SEPARATOR) if k]
         if key not in existing:
@@ -536,7 +540,8 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
         settings.endGroup()
 
 
-def load_build(hero_id: int, name: str) -> tuple[int | None, bool, list[str]]:
+def load_build(hero_id: int, name: str
+               ) -> tuple[int | None, bool, list[str], bool]:
     _migrate_keys(hero_id)
     settings = _settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")

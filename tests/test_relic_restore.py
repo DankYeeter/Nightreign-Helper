@@ -228,7 +228,7 @@ def test_a_stored_relic_that_cannot_be_placed_empties_its_slot(
 
     keys = ["" for _ in range(6)]
     keys[first] = chalices.slot_key(melted)
-    planner._apply_stored_build(vessel["id"], False, keys)
+    planner._apply_stored_build(vessel["id"], False, keys, False)
 
     assert planner.base_slots[first].current_relic() is None
 

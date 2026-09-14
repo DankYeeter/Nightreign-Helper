@@ -15,10 +15,10 @@ from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QCursor, QFont
 from PySide6.QtWidgets import (
     QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QScrollArea, QToolTip, QVBoxLayout, QWidget,
+    QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import damage, effecttext, model, weapons, weaponslots
+from . import damage, effecttext, model, relicslots, weapons, weaponslots
 
 ACCENT = "#c8a45c"
 GOOD = "#6fbf73"
@@ -55,6 +55,41 @@ VISIBLE_PERCENT = 0.05
 # green or red on a zero would tell the player something moved when nothing
 # did. Small enough that everything the display can distinguish is coloured.
 COLOURED_CHANGE = 0.05
+
+
+#: What the hand switch says, one-handed and two-handed -- the abbreviation
+#: the attack figure already uses (`damage.TWO_HANDED_MARK`, AK-286), so
+#: there is one spelling for the hand (AK-292).
+HAND_CAPTIONS = ("1H", "2H")
+
+#: The tooltip of that switch, one text for both states (AK-292).
+HAND_TOOLTIP = ("Ranks the build's attack power one-handed or two-handed — "
+                "Optimize and effects that only read while two-handing "
+                "follow this switch. Armaments that cannot be two-handed "
+                "keep their one-handed figure either way. Saved with this "
+                "build.")
+
+
+class HandSwitch(QToolButton):
+    """The `1H`/`2H` button: one for the whole build, not one per tile (AK-292).
+
+    Which hand the advisor ranks is one value per build (AN-2). The button
+    changes no figure on screen -- both hands stay side by side (AK-286) --
+    and it wears the look of the `Hold` button (AK-54). The caption follows
+    the check state in `checkStateSet`, which Qt runs for a click and for a
+    `setChecked` alike, so a stored build put on the switch with its signals
+    held still reads right.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setCheckable(True)
+        self.setToolTip(HAND_TOOLTIP)
+        self.setStyleSheet(relicslots.WORD_BUTTON_STYLE)
+        self.checkStateSet()
+
+    def checkStateSet(self) -> None:
+        self.setText(HAND_CAPTIONS[self.isChecked()])
 
 
 def _heading(text: str) -> QLabel:
@@ -252,6 +287,11 @@ class StatSheet(QScrollArea):
             grid.addWidget(tile, index // weaponslots.SLOT_COLUMNS,
                            index % weaponslots.SLOT_COLUMNS)
         layout.addLayout(grid)
+
+        # Every toggle ends in the window's `recompute`, which stores the
+        # build and tells the advisor (AK-293 point 5); the window wires it.
+        self.hand_switch = HandSwitch()
+        layout.addWidget(self.hand_switch, alignment=Qt.AlignLeft)
 
         self.ar_label = QLabel()
         self.ar_label.setWordWrap(True)

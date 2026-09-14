@@ -165,7 +165,7 @@ def test_two_names_never_share_a_key():
 def test_an_awkward_name_is_stored_loaded_and_listed_exactly(qapp):
     chalices.save_build(HERO, AWKWARD_NAME, 7, False, SLOTS_A)
     assert chalices.build_names(HERO) == [AWKWARD_NAME]
-    assert chalices.load_build(HERO, AWKWARD_NAME) == (7, False, SLOTS_A)
+    assert chalices.load_build(HERO, AWKWARD_NAME) == (7, False, SLOTS_A, False)
 
 
 def test_a_name_that_could_collide_does_not_overwrite_the_first(qapp):
@@ -189,7 +189,7 @@ def test_saving_the_same_name_twice_replaces_it_rather_than_repeating_it(qapp):
     chalices.save_build(HERO, AWKWARD_NAME, 1, False, SLOTS_A)
     chalices.save_build(HERO, AWKWARD_NAME, 2, False, SLOTS_B)
     assert chalices.build_names(HERO) == [AWKWARD_NAME]
-    assert chalices.load_build(HERO, AWKWARD_NAME) == (2, False, SLOTS_B)
+    assert chalices.load_build(HERO, AWKWARD_NAME) == (2, False, SLOTS_B, False)
 
 
 def test_a_name_of_nothing_but_whitespace_is_refused(qapp):
@@ -665,7 +665,7 @@ def test_a_build_saved_again_under_a_deleted_name_is_not_hidden(qapp):
 
     assert chalices.build_names(HERO) == ["Ghost"]
     assert chalices.hidden_builds(HERO) == set()
-    assert chalices.load_build(HERO, "Ghost") == (2, False, SLOTS_B)
+    assert chalices.load_build(HERO, "Ghost") == (2, False, SLOTS_B, False)
 
 
 def test_deleting_the_selected_build_leaves_the_equipped_one_selected(qapp):
@@ -791,13 +791,13 @@ def test_two_names_that_differ_only_in_case_are_two_builds(qapp):
     chalices.save_build(HERO, LOWER_CASE_NAME, 2, False, SLOTS_B)
 
     assert chalices.build_names(HERO) == [UPPER_CASE_NAME, LOWER_CASE_NAME]
-    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A)
-    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (2, False, SLOTS_B)
+    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A, False)
+    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (2, False, SLOTS_B, False)
 
     chalices.delete_build(HERO, LOWER_CASE_NAME)
 
     assert chalices.build_names(HERO) == [UPPER_CASE_NAME]
-    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A)
+    assert chalices.load_build(HERO, UPPER_CASE_NAME) == (1, False, SLOTS_A, False)
 
 
 def test_a_hidden_mark_on_one_case_leaves_the_other_showing(qapp):
@@ -828,7 +828,7 @@ def test_every_lookalike_name_keeps_an_entry_of_its_own(qapp):
     assert sorted(chalices.build_names(HERO)) == sorted(LOOKALIKE_NAMES)
     for index, name in enumerate(LOOKALIKE_NAMES):
         assert chalices.load_build(HERO, name) == (
-            index + 1, False, old_slots(index))
+            index + 1, False, old_slots(index), False)
 
 
 def test_deleting_one_lookalike_leaves_every_other_one_standing(qapp):
@@ -925,7 +925,7 @@ def test_the_names_of_a_collided_pair_can_then_be_told_apart(qapp, write):
 
     chalices.save_build(HERO, LOWER_CASE_NAME, 9, False, SLOTS_B)
 
-    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (9, False, SLOTS_B)
+    assert chalices.load_build(HERO, LOWER_CASE_NAME) == (9, False, SLOTS_B, False)
     assert slots_of(chalices.load_build(HERO, UPPER_CASE_NAME)) != SLOTS_B
     chalices.delete_build(HERO, LOWER_CASE_NAME)
     assert chalices.build_names(HERO) == [UPPER_CASE_NAME]
