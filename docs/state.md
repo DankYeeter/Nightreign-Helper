@@ -35,6 +35,9 @@ Sicherheitsbefund oder Datenverlustverdacht.
   oder nicht gespeichert.
 - AN-3 (ui-ux-designer T-254a) Der Umschalter ist **ein** Build-Attribut, nicht
   einer je Waffenslot; Beschriftung `1H`/`2H` — Alternative: je Slot.
+- AN-4 (developer T-254b) Kein Datenfeld fuer Zweihandbarkeit im Extrakt:
+  zweihaendig = Nahkampf ausser wep_type 33; damit bekommen auch Schilde und
+  Fackeln einen 2H-Wert — Alternative: Schilde/Fackeln ohne 2H-Wert.
 
 ## HIER WEITERMACHEN
 
