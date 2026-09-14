@@ -40,6 +40,11 @@ Sicherheitsbefund oder Datenverlustverdacht.
   Fackeln einen 2H-Wert — Alternative: Schilde/Fackeln ohne 2H-Wert.
 - AN-5 (T-255b) Kachelformat `218 / 225 2H AR`; Arsenal-Typzeilen bleiben 1H,
   nur Kopfzeile traegt 2H — Alternative: `218 AR / 225 2H`, Typzeilen beidhaendig.
+- AN-6 (T-255c) Die Hand liegt im Gefaess-Store (`chalices.py`, Feld `2H` nur
+  bei Zweihand, Altzeilen = 1H); ein leerer Build speichert keine Hand (2H auf
+  leerem Gefaess + Neustart = 1H) — Alternative: Hand auch fuer leere Builds.
+- AN-7 (Director) T-255c mit 10 statt 6 Anwendungsdateien angenommen (7
+  unvermeidbar, 3 geteilte Konstanten statt Duplikate).
 
 ## HIER WEITERMACHEN
 
