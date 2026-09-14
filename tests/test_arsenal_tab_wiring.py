@@ -89,8 +89,9 @@ def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
 
     build = planner.current_build()
     low, high = weapons.MIN_UPGRADE, weapons.MAX_UPGRADE
-    expected_low = damage.candidate(weapon, low, build, game_data).final_total
-    expected_high = damage.candidate(weapon, high, build, game_data).final_total
+    at_low = damage.candidate(weapon, low, build, game_data)
+    at_high = damage.candidate(weapon, high, build, game_data)
+    expected_low, expected_high = at_low.final_total, at_high.final_total
     assert (damage.displayed(expected_low)
             != damage.displayed(expected_high)), (
         f"{weapon['name']!r} rates the same at +{low} and +{high}, so this "
@@ -99,7 +100,7 @@ def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
 
     tab.upgrade.setValue(low)
     assert (tile_ar(named_tile(tab, weapon["name"]))
-            == str(damage.displayed(expected_low)))
+            == at_low.displayed_hands(lambda r: r.final_headline))
 
     # The only action under test: nothing here calls recalculate() or
     # rebuild() -- if the spinbox's own signal is wired, this alone has to
@@ -107,7 +108,7 @@ def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
     tab.upgrade.setValue(high)
 
     assert (tile_ar(named_tile(tab, weapon["name"]))
-            == str(damage.displayed(expected_high))), (
+            == at_high.displayed_hands(lambda r: r.final_headline)), (
         "moving the spinbox alone must repaint the tile; reading the +1 "
         "figure here means self.upgrade.valueChanged is not wired to "
         "recalculate() any more")
@@ -145,8 +146,9 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
 
     build = planner.current_build()
     tier = tab.upgrade.value()
-    expected = damage.candidate(weapon, tier, build, game_data).final_total
-    assert str(damage.displayed(expected)) != before, (
+    now = damage.candidate(weapon, tier, build, game_data)
+    expected = now.displayed_hands(lambda r: r.final_headline)
+    assert expected != before, (
         f"raising Strength did not move {weapon['name']!r}'s figure, so "
         f"this case cannot tell the stale build from the current one. Pick "
         f"an effect the armament's damage responds to.")
@@ -162,8 +164,7 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
     # front has to repaint it for the build set up just above.
     tabs.setCurrentWidget(tab)
 
-    assert (tile_ar(named_tile(tab, weapon["name"]))
-            == str(damage.displayed(expected))), (
+    assert tile_ar(named_tile(tab, weapon["name"])) == expected, (
         "switching to the tab alone must repaint it for the current build; "
         "reading the pre-Strength figure here means tabs.currentChanged is "
         "not wired to recalculate() any more")

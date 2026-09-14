@@ -150,9 +150,12 @@ def test_a_one_word_label_is_left_exactly_as_it_was(game_data, hero):
         tile.show_slot(weaponslots.WeaponSlot(weapon=sword, tier=TIER),
                        rating)
         text = tile.detail.text()
-        assert weaponslots.NO_BREAK_SPACE not in text, (
-            f"a no-break space reached a tile with a one-word label: "
-            f"{text!r}")
+        # The figure in front of the label joins its own two-handed twin
+        # with no-break spaces (`damage.displayed_hands`, AK-286); the label
+        # after `</b>` must still be the bare one.
+        after_figure = text.split("</b>", 1)[1]
+        assert weaponslots.NO_BREAK_SPACE not in after_figure, (
+            f"a no-break space reached a tile's one-word label: {text!r}")
         assert f"</b> {damage.ATTACK_RATING_LABEL}" in text
     finally:
         tile.deleteLater()

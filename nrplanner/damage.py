@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import enum
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from . import model, weapons
@@ -141,6 +142,28 @@ def displayed(figure: float) -> int:
     shown figures -- it is the real one, rounded for display.
     """
     return math.floor(figure)
+
+
+# The mark a two-handed figure carries on screen (`147 / 151 2H`, AK-286),
+# and the switch of AK-292 uses the same two letters for the same thing.
+TWO_HANDED_MARK = "2H"
+# Inside the group the three parts never separate: `2H` alone at the start
+# of a line would read as a term of its own (AK-73, DR-009).
+_NO_BREAK_SPACE = "\u00a0"
+
+
+def displayed_hands(one_handed: float, two_handed: float | None) -> str:
+    """`147`, or `147 / 151 2H` where the game offers a second figure.
+
+    AK-286: the two-handed figure is a suffix to the one-handed one under the
+    same label, never a labelled figure of its own; where there is none, the
+    text is the one-handed figure and nothing else (AK-288, no `/ -- 2H`).
+    """
+    shown = str(displayed(one_handed))
+    if two_handed is None:
+        return shown
+    return _NO_BREAK_SPACE.join(
+        (shown, "/", str(displayed(two_handed)), TWO_HANDED_MARK))
 
 
 class Question(enum.Enum):
@@ -313,6 +336,16 @@ class Rating:
             return self.catalyst_scaling
         return self.final_total
 
+    def displayed_hands(self, figure: Callable[[Rating], float]) -> str:
+        """`figure` of this answer, and of its two-handed one where it has one.
+
+        `figure` picks which number (`final_headline`, one type's
+        `scaled_per_type` entry, ...); the same pick is read off both hands,
+        so the two figures beside each other answer the same question.
+        """
+        other = None if self.two_handed is None else figure(self.two_handed)
+        return displayed_hands(figure(self), other)
+
     @property
     def headline_label(self) -> str:
         """"AR" or "Spell power" -- what to write beside the figure."""
@@ -454,6 +487,10 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
     a popup headed "Attack rating" over them would be the one thing worse
     than the wrong number, which is the right number under the wrong name
     (QA-099).
+
+    `two_handed` holds the same `base` and `final` for the other hand, and
+    only where the game offers one (AK-286/AK-288) -- like `calibration`
+    below, a key that is absent rather than None where it says nothing.
     """
     figures = {
         "base": bare.scaled_headline,
@@ -473,6 +510,9 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
                                   "reason": calibration.reason}
     if now.conversion:
         figures["conversion"] = dict(now.conversion)
+    if now.two_handed is not None:
+        figures["two_handed"] = {"base": bare.two_handed.scaled_headline,
+                                 "final": now.two_handed.final_headline}
     return figures
 
 

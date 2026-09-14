@@ -513,7 +513,7 @@ class ArsenalTab(QWidget):
                 # attack rating to show, and which armament that is, is not
                 # this tab's to decide (QA-099).
                 lines = [(rating.headline_label,
-                          f"{damage.displayed(rating.final_headline)}")]
+                          rating.displayed_hands(lambda r: r.final_headline))]
                 # `damage_type`, not `damage`: the loop variable used to
                 # shadow the module of that name, and the resulting
                 # UnboundLocalError only fired when a tile was drawn, never

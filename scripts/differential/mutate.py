@@ -87,7 +87,7 @@ MUTATIONS: dict[str, Mutation] = {
     "two-handing-buff-left-on-the-scoped-line": Mutation(
         path="nrplanner/model.py",
         old="""WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged",
-                       124: TWO_HANDED_CLASS}
+                       TWO_HANDING_SCOPE: TWO_HANDED_CLASS}
 """,
         new="""WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged"}
 """,

@@ -57,6 +57,19 @@ VISIBLE_PERCENT = 0.05
 COLOURED_CHANGE = 0.05
 
 
+def _restricted_to(class_name: str) -> str:
+    """Where a class-scoped multiplier applies, in the sheet's words.
+
+    The `when Two-Handing` bucket is a hand, not an armament class
+    (`model.TWO_HANDED_CLASS`), so it takes the condition's own sentence
+    from `effecttext` rather than `two_handed armaments only` (AK-288,
+    AK-293 point 4).
+    """
+    if class_name == model.TWO_HANDED_CLASS:
+        return effecttext.ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE]
+    return f"{class_name} armaments only"
+
+
 def _heading(text: str) -> QLabel:
     label = QLabel(text.upper())
     font = label.font()
@@ -378,12 +391,17 @@ class StatSheet(QScrollArea):
             return "No weapon selected."
 
         base, scaled, final = ar["base"], ar["scaled"], ar["final"]
+        # The other hand's base and final, where the armament has one
+        # (AK-286); they stand beside the one-handed figure, not on a row
+        # of their own.
+        two_handed = ar.get("two_handed", {})
         # What the three figures are, named by the facade: for a staff or a
         # seal they are a spell scaling, and heading them "Attack rating"
         # would be the right numbers under the wrong name (QA-099).
         rows = [f"<b>{ar['headline']} — {ar['weapon']}</b>",
                 f"&nbsp;&nbsp;Base &nbsp; "
-                f"<b>{damage.displayed(base)}</b>"]
+                f"<b>{damage.displayed_hands(base, two_handed.get('base'))}"
+                f"</b>"]
 
         from_attributes = scaled - base
         if abs(from_attributes) >= VISIBLE_CHANGE:
@@ -440,8 +458,9 @@ class StatSheet(QScrollArea):
 
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
-        rows.append(f"&nbsp;&nbsp;<b>Total {damage.displayed(final)}</b> "
-                    f"({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
+        rows.append(f"&nbsp;&nbsp;<b>Total "
+                    f"{damage.displayed_hands(final, two_handed.get('final'))}"
+                    f"</b> ({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
         return "<br>".join(rows)
 
     def _show_ar_breakdown(self) -> None:
@@ -517,11 +536,17 @@ class StatSheet(QScrollArea):
                       else BAD if diff < -COLOURED_CHANGE else MUTED)
             change = (f"{diff:+.0f}" if abs(diff) >= VISIBLE_CHANGE
                       else "—")
+            # Each figure with its two-handed twin where there is one
+            # (AK-286); the change between them stays the one-handed one.
+            was_shown = bare.displayed_hands(
+                lambda r: r.scaled_per_type.get(damage_type, 0.0))
+            value_shown = now.displayed_hands(
+                lambda r: r.final_per_type.get(damage_type, 0.0))
             rows.append(
                 f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
-                f"<span style='color:{MUTED}'>{damage.displayed(was)}</span> "
+                f"<span style='color:{MUTED}'>{was_shown}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
-                f"<b>{damage.displayed(value)}</b></div>"
+                f"<b>{value_shown}</b></div>"
             )
 
         colour = (GOOD if delta > COLOURED_CHANGE
@@ -535,11 +560,11 @@ class StatSheet(QScrollArea):
         rows.append(
             f"<div style='margin-top:4px'><b>{total_label}</b> "
             f"<span style='color:{MUTED}'>"
-            f"{damage.displayed(base_total)}</span> "
+            f"{bare.displayed_hands(lambda r: r.scaled_headline)}</span> "
             f"<a href='{AR_BREAKDOWN_KEY}' style='color:{colour};"
             f"text-decoration:none'>{change}</a> "
             f"<b style='color:{ACCENT}'>"
-            f"{damage.displayed(final_total)}</b>"
+            f"{now.displayed_hands(lambda r: r.final_headline)}</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
                if abs(pct) >= VISIBLE_PERCENT else "") +
             "</div>"
@@ -826,7 +851,7 @@ class StatSheet(QScrollArea):
 
         restricted: list[tuple[str, str, float]] = []
         for class_name, bucket in sorted(build.class_rates.items()):
-            restricted += spell_out(bucket, f"{class_name} armaments only")
+            restricted += spell_out(bucket, _restricted_to(class_name))
 
         for where, label, value in restricted:
             pct = (value - 1.0) * 100

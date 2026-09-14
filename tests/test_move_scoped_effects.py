@@ -285,7 +285,11 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
     assert tiles, f"the tab drew no tile for {ARMAMENT!r}"
     expected = damage.candidate(greatsword, TIER, planner.current_build(),
                                 game_data)
-    on_the_tab = {tile_headline(tile, expected) for tile in tiles}
+    # The one-handed figure in front of the `/ <n> 2H` twin (AK-286,
+    # `damage.displayed_hands`); `panel_total` reads the same one off the
+    # panel, and the twin has its own guard in `test_two_handed_display.py`.
+    on_the_tab = {tile_headline(tile, expected).split("\u00a0")[0]
+                  for tile in tiles}
     assert len(on_the_tab) == 1, f"the tab drew two figures: {on_the_tab}"
     on_the_panel = f"{panel_total(planner):.0f}"
 
