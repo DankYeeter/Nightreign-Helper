@@ -33,6 +33,8 @@ Sicherheitsbefund oder Datenverlustverdacht.
 - AN-2 Der 1H/2H-Umschalter sitzt an der Waffenausruestung (Weapon slot),
   Voreinstellung **1H**, gespeichert je Build — Alternative: Voreinstellung 2H,
   oder nicht gespeichert.
+- AN-3 (ui-ux-designer T-254a) Der Umschalter ist **ein** Build-Attribut, nicht
+  einer je Waffenslot; Beschriftung `1H`/`2H` — Alternative: je Slot.
 
 ## HIER WEITERMACHEN
 
