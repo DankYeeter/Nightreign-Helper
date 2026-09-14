@@ -28,7 +28,7 @@ kein Merge, kein Release, keine Signatur. Nutzerentscheidungen 14.09.: AD-034
 Schritt 1-3 heute · A12/A13-Befunde **vor** dem Build fixen · QA-237 und
 P3/P4-Schulden zurueckgestellt. **QA-095 war seit `99ed022` (03.09.) behoben**,
 Registerzeile stand falsch (nachgezogen 14.09.); T-235 ist darum AD-034.
-**Bauwelle:** T-235 `developer` AD-034 — **a erledigt** `59c9632` (app.py 5145→4288, relicslots.py 888; VariantDialog war seit `3ee6f7d` weg; QA-249 ist Testisolation, RelicPicker bleibt offen), **b laeuft** ·
+**Bauwelle:** T-235 `developer` AD-034 — **a erledigt** `59c9632` (app.py 5145→4288, relicslots.py 888; VariantDialog war seit `3ee6f7d` weg; QA-249 ist Testisolation, RelicPicker bleibt offen), **b erledigt** `30aa5df` (app.py 3973, savereader.py 332; Suite 1522/10), **c laeuft** (Start 06:50). Fuer den `architect`-Nachtrag: AD-029/030/031 Fundstelle jetzt `savereader.py`; app.py importiert `SaveReader` + `_pick_a_save_file`, nicht die drei aus AD-034 ·
 T-236 **erledigt ohne Code** (alle fuenf bereits behoben, Waechterluecke QA-128 Pkt 10 → Fixauftrag nach Pruefphase) · T-237
 `developer` Planner-Seite (QA-229, QA-141, QA-230, QA-144, DR-016) — drei
 Worktrees, disjunkte Dateilisten. Danach Beta-Gate (Audit, Pruefrollen in
