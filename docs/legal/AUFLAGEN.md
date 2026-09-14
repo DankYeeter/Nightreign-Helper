@@ -68,8 +68,11 @@ kollidiert. Bewertung und Status unveraendert aus C-002 (Volltext dort).
 
 ## Auflagen aus C-003 (T-104, 2026-09-07) — erste Weitergabe der gebauten EXE
 
-Gesamtampel **GELB**; A-020 sperrt das Release; A-025 ist GRAU und
-Nutzerentscheidung. Volltext, Normen und Fundstellen in `C-003.md`.
+Gesamtampel **GELB**. ~~A-020 sperrt das Release; A-025 ist GRAU und
+Nutzerentscheidung.~~ **Stand 14.09.2026 (QA-243 geschlossen):** A-020 ist
+erfuellt und vom Nutzer abgenommen (09.09.), A-025 ist entschieden
+(FORTSETZEN, 09.09.) — **beide sperren nicht mehr**; die Zeilen unten tragen
+den Stand. Volltext, Normen und Fundstellen in `C-003.md`.
 **Fortgeschrieben durch C-004 (2026-09-07):** C-003 nahm an, das erste Release
 stehe bevor; tatsaechlich sind seit 2026-08-11 zwoelf Releases veroeffentlicht.
 A-020, A-022 und A-025 tragen unten die Fassung aus C-004; "vor
@@ -78,12 +81,12 @@ moeglich" und fuer das naechste Release "vor dessen Veroeffentlichung".
 
 | ID | Auflage | Ampel | Adressat | Faellig | Status |
 |---|---|---|---|---|---|
-| A-020 | **Sperrt.** Hinweispaket als Release-Asset neben EXE und Pruefsumme: `LICENSE`, Hinweisdatei (A-021), Volltexte LGPL-3.0 und GPL-3.0, `vendor/Paramdex/NOTICE`. Umsetzung in `release.yml` `files:` (Datei bei T-105 — Auflage, keine Aenderung). **Fassung C-004:** gilt fuer die zwoelf bestehenden Releases (Nachruestung ueber A-033) und jedes kuenftige; Heilung nach GPL-3.0 § 8 nur, wenn *alle* abrufbaren Kopien konform sind | ROT bis erfuellt | developer (Workflow); release-manager (Bestand) | **seit 2026-08-11, laufender Verstoss** — so bald wie moeglich | **erfuellt, abgenommen durch Nutzer 09.09.2026** |
+| A-020 | **Sperrt.** Hinweispaket als Release-Asset neben EXE und Pruefsumme: `LICENSE`, Hinweisdatei (A-021), Volltexte LGPL-3.0 und GPL-3.0, `vendor/Paramdex/NOTICE`. Umsetzung in `release.yml` `files:` (Datei bei T-105 — Auflage, keine Aenderung). **Fassung C-004:** gilt fuer die zwoelf bestehenden Releases (Nachruestung ueber A-033) und jedes kuenftige; Heilung nach GPL-3.0 § 8 nur, wenn *alle* abrufbaren Kopien konform sind | ROT→erfuellt (QA-243, 14.09.) | developer (Workflow); release-manager (Bestand) | ~~seit 2026-08-11, laufender Verstoss~~ Verstoss beendet 08.09.2026 (A-033); bei jedem kuenftigen Release erneut | **erfuellt, abgenommen durch Nutzer 09.09.2026** |
 | A-021 | Hinweisdatei mit Copyright-Vermerk und vollstaendigem Lizenztext jeder gebuendelten Komponente, Qt/PySide6-Quellfundstelle, Relink-Absatz; Vermerke aus den Wheels | GELB | technical-writer | vor Veroeffentlichung | offen |
 | A-022 | Repo bleibt oeffentlich, solange ein Release abrufbar ist (heute: zwoelf); jedes Release traegt seinen Quell-Tag; PySide6-Lizenz bei jedem Upgrade neu lesen. **Fassung C-004:** bindet seit dem ersten Release und ist nach pruefbarem Ist-Zustand erfuellt (Repo oeffentlich, 12 Tags, Quellarchive) — vorbehaltlich A-036 | GELB | Nutzer, release-manager | **dauerhaft seit 2026-08-11** | erfuellt (Ist); Verlauf offen (A-036) |
 | A-023 | Nicht-Verbundenheits-Hinweis und Rechteinhaber an der Download-Stelle: fester Text der Release-Beschreibung und Hinweispaket; der absolute Satz "distributes none" wird nicht wiederholt (A-003 gilt fort) | GELB | technical-writer, release-manager | vor Veroeffentlichung | offen |
 | A-024 | Transparenztext: liest und entschluesselt lokale Spieldateien/Spielstand mit community-bekannten Schluesseln, schreibt nie, kein Netz — README und Release-Beschreibung | GELB | technical-writer | vor Veroeffentlichung | offen |
-| A-025 | **GRAU — Fassung C-004.** Nutzer entscheidet ausdruecklich, ob er die seit 2026-08-11 laufende Verbreitung der EXE (12 Releases, 25 Downloads) **fortsetzt** und das Restrisiko aus C-003 Befund 5 (§ 95a Abs. 3 UrhG, EULA 10(i), Steam SSA 2.G) traegt, sie **beendet** (EXE-Assets entfernen, nur Quellcode) oder **anwaltlich klaeren** laesst. Die Haltung "bewusst unentschieden" (Nutzerentscheidung 2026-09-01, oben) beschreibt seit dem 11.08. keinen bestehenden Zustand mehr | GRAU | Nutzer | **jetzt**, vor dem naechsten Release und unabhaengig davon | offen |
+| A-025 | **GRAU — Fassung C-004.** Nutzer entscheidet ausdruecklich, ob er die seit 2026-08-11 laufende Verbreitung der EXE (12 Releases, 25 Downloads) **fortsetzt** und das Restrisiko aus C-003 Befund 5 (§ 95a Abs. 3 UrhG, EULA 10(i), Steam SSA 2.G) traegt, sie **beendet** (EXE-Assets entfernen, nur Quellcode) oder **anwaltlich klaeren** laesst. Die Haltung "bewusst unentschieden" (Nutzerentscheidung 2026-09-01, oben) beschreibt seit dem 11.08. keinen bestehenden Zustand mehr | GRAU→entschieden (QA-243, 14.09.) | Nutzer | ~~jetzt~~ entschieden 09.09.2026 | **entschieden: FORTSETZEN** (Nutzer 09.09.2026, Abschnitt "Nutzerentscheide, 2026-09-09" unten) — sperrt nicht mehr |
 | A-026 | *Empfohlen:* SEC-023 vor dem ersten Release beheben (kein Pfad mit Steam-Konto-Id auf der Flaeche) | GRUEN | developer | vor Veroeffentlichung | offen |
 | A-027 | *Empfohlen:* README-Absatz "What it reads and where it writes" inkl. Cache-Pfad und Loeschung | GRUEN | technical-writer | vor Veroeffentlichung | offen |
 | A-028 | *Empfohlen:* Klartext "liest nur, schreibt nie; Sicherung empfohlen" in README und Release-Beschreibung | GRUEN | technical-writer | vor Veroeffentlichung | offen |
@@ -156,9 +159,10 @@ Bewerbung des Releases. Alle drei bleiben offen im Register, ohne Auftrag.
 Die Wahrscheinlichkeitsaussagen in C-003 und C-004 gelten damit weiter fuer
 den gemessenen Stand: 1 Stern, 1 Fork, 25 Downloads in 27 Tagen.
 
-**Was jetzt noch die Veroeffentlichung sperrt:** nur A-033 (Nachruestung des
-Bestands). Der Transport des Hinweispakets ist seit T-109 gebaut, der Inhalt
-seit T-107 fertig.
+**Was jetzt noch die Veroeffentlichung sperrt:** ~~nur A-033 (Nachruestung des
+Bestands)~~ — A-033 ausgefuehrt 08.09.2026 (Abschnitt unten); Stand 14.09.:
+**nichts Rotes** (QA-243 geschlossen). Der Transport des Hinweispakets ist
+seit T-109 gebaut, der Inhalt seit T-107 fertig.
 
 ## A-033 ausgefuehrt am 08.09.2026 — Nachweis
 
@@ -315,3 +319,127 @@ kein Katalog in nennenswertem Umfang); **die foermliche Erstreckung des
 C-002-Massstabs auf `design-review/` und kuenftige Bildbestaende ausserhalb
 `docs/screenshots/` ist nie geklaert worden** und legt dieser Lauf
 (Modus `pruefen`) nicht selbst an.
+
+---
+
+## Auflagen fuer ein lokal gebautes, nicht weitergegebenes Artefakt (compliance-agent, T-241a, Modus `auflagen`, Stand `29224fa`, 2026-09-14)
+
+**Frage:** Welche der Auflagen A-001 bis A-036 gelten fuer
+`dist/NightreignHelper.exe` 1.10.0, wenn sie heute nur auf dem Rechner des
+Nutzers gebaut und von ihm selbst gestartet wird — und welche erst bei
+Weitergabe oder Release? **Ampel fuer den heutigen Zweck: GRUEN.** Keine
+Auflage steht auf ROT; keine Auflage wird durch Bau und Eigenlauf ausgeloest.
+
+Keine Rechtsberatung im rechtlichen Sinn; belegte Einschaetzung mit
+offengelegten Quellen. Keine neue Klaerung — C-003 bleibt Massstab, keine
+`C-005.md` angelegt.
+
+**Warum die Weitergabe die Schwelle ist (belegt):**
+
+- **Lizenzpflichten reisen mit der Kopie.** GPL-3.0 § 0: *"To 'convey' a work
+  means any kind of propagation that enables other parties to make or receive
+  copies"*; Ausfuehren und Aendern einer privaten Kopie sind ausdruecklich
+  keine Propagation (`licenses/GPL-3.0.txt` Z. 92-101,
+  <https://www.gnu.org/licenses/gpl-3.0.txt>). LGPL-3.0 § 4 knuepft alle
+  Hinweis- und Relink-Pflichten an *"You may **convey** a Combined Work …
+  if you also do each of the following"* (`licenses/LGPL-3.0.txt` Z. 79-87,
+  <https://www.gnu.org/licenses/lgpl-3.0.txt>). BSD-3/BSD-2 Kl. 2:
+  *"**Redistributions** in binary form must reproduce…"*
+  (`licenses/zstandard-LICENSE.txt` Z. 10, `pycryptodome-LICENSE.rst` Z. 48,
+  `Pillow-LICENSE.txt` Z. 693 ff.). Abrufdatum aller drei: 2026-09-14
+  (Volltexte aus dem Repo, identisch mit den Upstream-Fassungen).
+  → **A-020, A-021, A-023, A-031, A-033 greifen erst bei Weitergabe.**
+- **§ 95a UrhG** (<https://www.gesetze-im-internet.de/urhg/__95a.html>,
+  abgerufen 2026-09-14): Abs. 3 verbietet u. a. Herstellung, Verbreitung und
+  *gewerblichen Zwecken dienenden* Besitz von Umgehungsvorrichtungen nach
+  Nr. 1-3; **§ 108b Abs. 1** stellt die Umgehung nur unter Strafe, *"sofern
+  die Tat nicht ausschliesslich zum eigenen privaten Gebrauch … erfolgt"*,
+  Abs. 2 die Herstellung nur *"zu gewerblichen Zwecken"*
+  (<https://www.gesetze-im-internet.de/urhg/__108b.html>, abgerufen
+  2026-09-14). Der Eigenlauf gegen die eigene Installation ist der
+  privateste denkbare Fall; ob die EXE ueberhaupt eine Vorrichtung nach
+  Abs. 3 Nr. 3 ist, hat C-003 Befund 5 als GRAU bewertet, und der Nutzer hat
+  dieses Restrisiko am 09.09. fuer 13 veroeffentlichte Kopien ausdruecklich
+  uebernommen. **Ein weiterer lokaler Bau fuegt dem nichts hinzu.**
+  Ehrlichkeitshalber: "Herstellung" steht in Abs. 3 neben "Verbreitung" —
+  die Schwelle liegt also nicht bei Null, sondern bei dem GRAU, das bereits
+  entschieden ist.
+- **In einfachen Worten:** Was Daniel auf seinem Rechner fuer sich selbst
+  baut und startet, sieht niemand und bekommt niemand. Alle Pflichten, die
+  das Register kennt, entstehen erst, wenn eine Kopie den Rechner verlaesst
+  — oder sie betreffen das oeffentliche Repo, das vom Bau unberuehrt bleibt.
+
+**Risiko heute:** Haftung Nutzer persoenlich / droht nichts, was nicht schon
+mit den 13 Releases im Raum steht / theoretisch moeglich, praktisch nicht
+relevant (kein Dritter erhaelt eine Kopie, kein Rechteinhaber sieht sie) /
+**Schwelle: die erste Kopie an einen Dritten** — auch per Chat, USB-Stick
+oder Testkopie an einen Freund, nicht nur ein GitHub-Release.
+
+### Einordnung je Auflage (Stand gegen den Baum `29224fa`, 14.09.2026)
+
+Spalte "heute": **ja** = gilt fuer Bau und Eigenlauf · **Repo** = gilt
+unabhaengig vom Artefakt, weil das Repo oeffentlich ist; der Bau aendert
+nichts daran · **Weitergabe** = greift erst mit der ersten Kopie an Dritte ·
+**Ereignis** = greift nur bei dem genannten Ereignis.
+
+| ID | heute | Stand 14.09. gegen Baum | Beleg |
+|---|---|---|---|
+| A-001 | Repo | erfuellt | Fixture 18 Faelle (`"case"` gezaehlt), nur Namen/IDs/Zahlen |
+| A-002 | Repo | **offen** (developer, vor Merge) | Suche `prose\|flavour\|A-001\|description` in `test_weapon_damage_golden.py`, `weapon_damage_cases.py`, `capture_weapon_damage.py`: 0 Treffer — kein Waechter |
+| A-003 | Repo | erfuellt | README Z. 626 "contains no game data" vs. Z. 631 "Screenshots … show the tool's own interface"; "distributes none" 0 Treffer. *README wird parallel vom technical-writer geaendert (T-241b) — nach dessen Lauf neu lesen* |
+| A-004 | Repo | erfuellt | `THIRD_PARTY.md` Z. 106 "Game data — not third party, not distributed at all" |
+| A-005 | Repo | erfuellt | README Z. 621-623 |
+| A-006 | Ereignis | kein Ereignis | — |
+| A-007 | Repo | erfuellt | 18 Faelle |
+| A-008 | Weitergabe (Release-Lauf) | **offen** (developer) | `release.yml` Z. 81-87 prueft nur `nrplanner/data/`; `pytest` kommt in der Datei nicht vor (Suche `pytest`: 0 Treffer) |
+| A-009 | Ereignis | kein Ereignis | — |
+| A-010 | Repo | zurueckgestellt (Nutzer 02.09.) | unveraendert |
+| A-011 | Repo | ruht | bedingt auf A-010 |
+| A-012 | Repo | **offen** (technical-writer) | 7 Bildeinbindungen (`![…](docs/screenshots/…)` Z. 92-390) ohne Quellenangabe an der Stelle |
+| A-013 | Repo (vor Neuaufnahme) | **teilweise** (developer) | `make_screenshots.py:136-142` legt nur Nightlords fest; World Events (Z. 47) ohne festgelegten Eintrag |
+| A-014 | Repo (vor Veroeffentlichung) | eingehalten | keine neuen Registerkarten seit T-210; Chip `BEST FOR ATTRIBUTES` (T-240) ist eigener Text |
+| A-015 | Ereignis | offen (Nutzer) | unveraendert |
+| A-016 | Ereignis | gilt fort | Nutzerentscheid 01.09. |
+| A-017 | Repo | erfuellt, soweit pruefbar | wie T-210; Social Preview ohne `gh` nicht pruefbar |
+| A-018 | Repo | eingehalten | wie T-210 |
+| A-019 | Repo | eingehalten | README "fair use"/"Video Policy" 0 Treffer |
+| A-020 | Weitergabe | erfuellt, abgenommen (09.09.) | fuer 1.10.0 bei Release erneut: Hinweispaket als Asset |
+| A-021 | Weitergabe | erfuellt (Feststellung) | `THIRD_PARTY.md` + 6 Dateien in `licenses/` (gezaehlt) |
+| A-022 | Repo, dauerhaft | erfuellt (Aktenlage) | Repo PUBLIC (06.09., `CLAUDE.md`); `requirements.txt:4` PySide6==6.11.1 unveraendert — keine Neu-Lektuere faellig |
+| A-023 | Weitergabe | Restpflicht beim Release | `RELEASE_TEXT.md` vorhanden; einfuegen beim Release (release-manager) |
+| A-024 | Weitergabe | erfuellt | README "Where your data lives" Z. 438 ff.; `RELEASE_TEXT.md` |
+| A-025 | — | entschieden (FORTSETZEN, 09.09.) | oben an der Fundstelle geschlossen (QA-243) |
+| A-026 | Weitergabe (empfohlen) | erfuellt (Feststellung) | SEC-023 "behoben", `security/findings.md` Z. 41, mit Randbedingung |
+| A-027 | Weitergabe (empfohlen) | erfuellt | README Z. 438 ff. |
+| A-028 | Weitergabe (empfohlen) | erfuellt | README Z. 471 "Back up your save…" |
+| A-029 | Ereignis (Refresh) | **offen** | `vendor/Paramdex/NOTICE` Z. 41-44 "Note on provenance … should be pinned" |
+| A-030 | Weitergabe (empfohlen) | erfuellt | `tests/test_release_spec_datas.py` vorhanden |
+| A-031 | Weitergabe, **bedingt** | offen — Bedingung heute pruefbar | `NightreignHelper.spec:97` `upx=True`; ROLLOUT.md Z. 88-89 und T-174 Z. 64: kein `upx` im PATH, also bisher nicht gepackt. **T-241c meldet `upx` ja/nein** — bei "ja" wird A-031 vor der Weitergabe von 1.10.0 konkret (UPX-Lizenzausnahme ins Hinweispaket) |
+| A-032 | **ja** (Schwellenwaechter) | kein Ereignis | 1.10.0 neu: Steam-Herkunftspruefung liest Registry/`libraryfolders.vdf` — lokal, lesend, kein Netz; keine Schwelle beruehrt |
+| A-033 | Weitergabe (Bestand) | ausgefuehrt 08.09.; Abnahme Nutzer offen | ohne `gh` nicht neu pruefbar |
+| A-034 | Repo, dauerhaft | erfuellt nach letzter Pruefung (08.09.) | ohne `git`/`gh` nicht neu pruefbar |
+| A-035 | Ereignis | erfuellt | Nutzerauskunft 07.09. |
+| A-036 | — | erfuellt | Nutzerauskunft 07.09. |
+
+**Ergebnis:** Fuer den heutigen Zweck gilt nur **A-032** (und die
+dauerhaften Repo-Auflagen, die der Bau nicht beruehrt). **Vor der ersten
+Weitergabe von 1.10.0** sind faellig: A-020 (Hinweispaket als Asset), A-023
+(Release-Beschreibung), A-031 (falls UPX), A-008 (empfohlen dringend, Release-
+Lauf ohne Testabsicherung), A-033-Abnahme durch den Nutzer. Offen und nicht
+weitergabesperrend: A-002, A-012, A-013, A-029.
+
+**QA-243 aufgeloest (14.09.):** Kopftext C-003-Abschnitt, Zeile A-020, Zeile
+A-025 und der Satz "Was jetzt noch die Veroeffentlichung sperrt" an der
+Fundstelle geschlossen (Durchstreichung, Datum, Verweis). Die spaeteren
+Abschnitte bleiben als Verlauf. Volltextsuche nach der veralteten Aussage
+(14.09.): "sperrt das Release" 3 Treffer — Z. 71 durchgestrichen, Z. 211
+Verlauf der ersten Runde 09.09. (durch die zweite Runde direkt darunter
+ueberholt, absichtlich stehen gelassen), Z. 435 dieser Satz;
+"GRAU \| Nutzer \| \*\*jetzt\*\*" 0 Treffer; "ROT bis erfuellt" 0 Treffer.
+
+**Nebenfund (Director):** `docs/state.md:12` fuehrt "A ab **A-033**"; vergeben
+ist bis A-036 (C-004). Kein Handlungsbedarf fuer heute.
+
+**Nachpruefen ab:** erste Weitergabe von 1.10.0 (dann Modus `pruefen` gegen
+A-020/A-023/A-031 am Artefakt) · T-241b-Ergebnis am README (A-003, A-005,
+A-019, A-024, A-027, A-028 neu lesen) · 2026-11-07 (60-Tage-Ende GPL § 8).
