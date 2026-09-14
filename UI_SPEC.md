@@ -4314,6 +4314,176 @@ Architekturaenderung baubar sind; welche **Voreinstellung** das Programm
 auf Anhieb zeigt, ist Geschmack/Produktentscheidung und geht an den App
 Designer.
 
+### 6.10 Zweihand-Umschalter an der Waffenausruestung, Berater-Wahl, zwei Wortlaut-Regeln (A20/AN-2/OF-41, QA-269, QA-270)
+
+*Neu in T-254a (ui-ux-designer), 2026-09-15 — vier Punkte des Auftrags:
+Umschalter 1H/2H (OF-41, AN-2), Abschluss von AK-288, QA-270-Wortlaut,
+QA-269-Regel, hier gesammelt statt vierfach verstreut. **Kein Fensterlauf:**
+derselbe Grund wie bei AK-287 — die Zweihand-Rechnung (AD-037/T-254b) steht
+zum Zeitpunkt dieser Spec noch nicht, Widerspruchsfreiheit mit dem Bestand
+ist am Quelltext geprueft, die Platzierung unten ist zitiert und muss nach
+dem Bau live gegengeprueft werden.*
+
+#### AK-292 — Umschalter 1H/2H
+
+**AK-292** Ein einziger, checkbarer Schalter fuer den ganzen Build (nicht
+einer je Kachel) sitzt als eigene Zeile zwischen dem Sechs-Kachel-Raster und
+der AR-Bildunterschrift aus AK-35 (`statsheet.py`, direkt vor
+`self.ar_label`), linksbuendig, volle Breite des Werteblatts. Er ist eine
+`QToolButton`, checkable, in derselben visuellen Sprache wie der
+`Hold`/`Held`-Knopf aus AK-54 (Wort statt Icon, `MUTED` ungecheckt/`ACCENT`
+gecheckt, kein Schloss/keine Farbe allein):
+
+- **Beschriftung:** `1H` ungecheckt, `2H` gecheckt — dieselbe Abkuerzung, die
+  AK-286 bereits auf der Angriffswertzahl zeigt (`147 / 151 2H`), keine
+  zweite Schreibweise (`One-handed`/`Two-handed`) fuer dieselbe Sache (A12).
+- **Tooltip** (ein Text fuer beide Zustaende, wie `HOLD_TOOLTIP`): `"Ranks
+  the build's attack power one-handed or two-handed — Optimize and effects
+  that only read while two-handing follow this switch. Armaments that
+  cannot be two-handed keep their one-handed figure either way. Saved with
+  this build."`
+- **Voreinstellung 1H** (AN-2) bei einem neuen/leeren Build. Ein
+  gespeicherter Build laedt seinen eigenen Wert; der Schalter ist Teil des
+  Builds, nicht eine Sitzungseinstellung wie `Hold` (AK-54: „Holds are
+  forgotten when the program closes" — dieser Schalter **bleibt**, das ist
+  der Unterschied).
+- **Immer bedienbar**, unabhaengig davon, welche Kachel aktiv ist oder ob
+  irgendeine der sechs Waffen zweihaendig fuehrbar ist (AK-49-Grundsatz:
+  kein erfundenes Disabled ohne Erklaerung — traegt keine der sechs Waffen
+  einen Zweihandmodus, bleibt der Schalter bedienbar, wirkt sich nur auf
+  nichts aus).
+- **Tastatur:** Tab-erreichbar, `Space`/`Enter` schaltet um, Fokusring nach
+  Qt-Fusion-Standard (kein neuer Fokusstil).
+
+*Rot-vorher:* ein Schalter je Kachel liesse sich widerspruechlich stellen
+(Kachel 1 auf `2H`, Kachel 4 auf `1H`) fuer einen Wert, der laut AN-2 **einer**
+je Build ist, nicht einer je Waffe.
+
+#### AK-293 — Wirkung des Umschalters, AK-288 abgeschlossen
+
+**AK-293** *(schliesst AK-288s offene Frage — OF-41, Nutzer 21:15: „welche
+Hand der Berater rankt, folgt einem neuen Umschalter 1H/2H".)* Die drei in
+AK-288 benannten Optionen sind keine feste Programmentscheidung mehr,
+sondern die zwei Zustaende des Schalters aus AK-292 (die dritte Option,
+Maximum, entfaellt — AD-037 Punkt 4 nennt sie „identisch mit (2) ohne
+Bezugswaffe" und empfiehlt sie nur als „ehrlicheren Namen" fuer (2); mit
+einem Schalter, den der Spieler selbst stellt, ist ein automatisches Maximum
+ueberfluessig):
+
+1. **Anzeigen (Kachel, Werteblatt, Arsenal-Kopfzeile) bleiben unveraendert.**
+   AK-286 gilt fort, unabhaengig von der Schalterstellung: jede der drei
+   AK-31-Formen zeigt weiter beide Werte `{1H} / {2H} 2H`. Der Schalter
+   aendert keine einzige angezeigte Zahl — er entscheidet nur, welche davon
+   der Berater fuer sich zaehlt.
+2. **Berater ohne Bezugswaffe** (Regelfall seit A17): bei `1H` bleiben die
+   drei `8300000`-Raten aus `class_rates["two_handed"]` ausserhalb von
+   `_attack_multiplier_mean` (heutiges Verhalten, AD-037 Punkt 4 Option 1);
+   bei `2H` fliessen sie mit ein (Option 2).
+3. **Berater mit Bezugswaffe** (Tests, Golden, kuenftige Rueckkehr): bei `1H`
+   zaehlt `final_headline`, bei `2H` `two_handed.final_headline` — bei einer
+   Waffe, die nicht zweihaendig fuehrbar ist, faellt `2H` auf
+   `final_headline` zurueck (kein Fehler, `Rating.two_handed` ist dort
+   `None`).
+4. **`when Two-Handing`-Effekte** (`8300000-2`, `7006000-1`, Scope 124)
+   zaehlen in jeder Zahl, die der Schalter selbst mitbestimmt (Punkt 2/3),
+   nur bei `2H` — bei `1H` bleiben sie wie heute aussen vor. Im Werteblatt
+   (Multiplikatoren/`Why`) stehen sie unveraendert mit dem AK-288-Satz
+   `only while two-handing the armament`, unabhaengig vom Schalter: der
+   Schalter aendert, ob sie **gezaehlt** werden, nicht, ob sie **gezeigt**
+   werden (A7 gilt fuer beides getrennt).
+5. **Build-Aenderung durch den Schalter:** ein Wechsel waehrend ein
+   `Optimize`-Lauf rechnet bricht ihn ab wie Nightfarer/Vessel/Deep of
+   Night/Level/Slotbelegung (AK-289s Aufzaehlung, derselbe Pfad) — mit dem
+   bestehenden 4.7-Satz `Your build changed while this was working out — use
+   Optimize again.`, **nicht** dem AK-289-Sondersatz (der gilt nur fuer
+   Markierungen, der Schalter ist ein Baumerkmal wie Level, keine
+   Markierung).
+
+*Rot-vorher:* eine Umsetzung, die bei `2H` die Kachel-/Werteblattzahl selbst
+auf den Zweihandwert umstellt, verwechselt „welche Zahl der Berater zaehlt"
+mit „welche Zahl der Bildschirm zeigt" — AK-286 sagt ausdruecklich, dass
+beide immer nebeneinander stehen.
+
+#### AK-294 — QA-270: 4.11 unter unerfuellbarer Pflicht
+
+**AK-294** *(die zweite Klausel von `SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11 nennt
+einen falschen Grund, wenn die Slots tatsaechlich Kandidaten haben —
+QA-270.)* Der Satz `"{count} slot(s) have nothing to choose from"`
+(`advisorbar._slots_with_nothing`) gilt weiter **nur**, wenn ein leerer Beam
+wirklich keinen Kandidaten im Pool hat. Kommt die Leere stattdessen daher,
+dass ein `Must include`-Effekt sich mit keiner Konstellation erfuellen liess
+(derselbe Fall, den `explain.required_but_unmet` bereits fuer den
+`Why`-Footer in Worte fasst, AK-291.1 — egal ob „kein Exemplar traegt den
+Effekt" oder „keine Kombination traegt alle"), zeigt die zweite Klausel
+stattdessen:
+
+> `"1 slot is blocked by a requirement you marked"` (Einzahl)
+> `"{count} slots are blocked by a requirement you marked"` (Mehrzahl)
+
+— wortgleiches Muster zu `_slots_with_nothing` (kein Punkt am Ende, der
+Aufrufer haengt ihn an), „requirement you marked" uebernimmt AK-291s eigene
+Wortwahl (kein neuer Begriff, A12). Die Zustandsnummer bleibt 4.11 (AK-291.2
+gilt fort), nur die zweite Klausel unterscheidet jetzt zwei Ursachen statt
+eine blind zu behaupten. Kriterium: `problem.required` ist nicht leer **und**
+`explain.required_but_unmet(...)` liefert mindestens einen Satz fuer diesen
+Lauf → neue Klausel; sonst die bestehende. Pruefweg (QA-270s eigener Aufbau):
+Pflicht-Effekt ohne erfuellbare Kombination, 53/55/214 passende Kopien in den
+Pools, `0 of 3 slots filled` → Zeile zeigt „blocked by a requirement you
+marked", nicht „have nothing to choose from".
+
+*Offen, nicht Teil dieser Vorgabe:* der seltene Mischfall (ein Teil der
+leeren Beams ohne jeden Kandidaten, ein anderer Teil durch die Pflicht
+blockiert) — der `Why`-Footer nennt die Ursache sowieso zeilenweise; welche
+der beiden Klauseln in der Statuszeile dann fuehrt, melden `developer`/
+`qa-engineer`, falls der Fall real vorkommt.
+
+#### AK-295 — QA-269: Regel fuer Felder ohne Spielername
+
+**AK-295** *(kein Rohschluessel als „Zahl" auf dem Bildschirm — QA-269.)*
+Jede Zahl, die eine Why-Zeile oder die `Flat bonuses`-Liste zeigt, traegt
+einen Spielernamen, nie einen internen Feldnamen (`conditionHp`,
+`physicsAttackPower`, …):
+
+1. **Wo ein Name bereits irgendwo im Baum existiert, wird er benutzt.**
+   `physicsAttackPower`/`magicAttackPower` haben laengst Eintraege in
+   `effecttext.py` (`"Physical attack power"`/`"Magic attack power"`,
+   Z. 116/117) — `model.label_for`/`RATE_LABELS` fallen trotzdem auf den
+   Rohschluessel zurueck, weil sie diese Eintraege nicht lesen. Das ist ein
+   Verdrahtungsfehler, kein fehlender Name: die Regel ist, dass **ein**
+   Nachschlagewerk gilt, nicht eines je Modul, das zufaellig zuerst gefragt
+   wird.
+2. **`conditionHp`/`conditionHpRate` sind keine Boni.** Sie sind der
+   Schwellenwert einer bereits erklaerten Bedingung (`effecttext.CONDITION_TEXT`,
+   „below 40% HP") und gehoeren unter die zugehoerige `Situational`-Zeile
+   (Bereich Conditional & situational), nicht in `build.other`/
+   `Flat bonuses` — dort erscheinen sie ueberhaupt nicht mehr, mit oder ohne
+   Label (Einordnungsfehler, nicht Wortlaut).
+3. **Wo wirklich kein Name existiert** (ein Feld, das nie benannt wurde),
+   zeigt die Zeile nicht den Rohschluessel neben der Zahl, sondern denselben
+   ehrlichen Satz wie `Goal.scope`/`SlotPool.unknowns` (AK-70-Muster, A7):
+   `"{effect name}: carries a number this program has not labelled yet."` —
+   keine Zahl ohne Namen, statt einer Zahl mit einem Namen, den nie jemand
+   gewaehlt hat.
+
+Pruefweg: `frozen_inventory`-Vorschlag `Minimise damage taken` (QA-269s
+eigener Fund) zeigt `Slowly restore HP … when HP is low: below 40% HP`
+(Punkt 2, aus der `Situational`-Zeile, nicht mehr aus `build.other`) und
+`Starting armament deals magic damage: Physical attack power -30` (Punkt 1)
+statt der beiden Rohschluessel.
+
+#### Nachtrag T-254a (ui-ux-designer, 2026-09-15) zu AK-290 — GOAL A18 erfuellt durch den Effektnamen
+
+GOAL.md A18, erster Punkt, der Satz „die Begruendung (A5) nennt bei jedem
+gezaehlten bedingten Effekt seine Bedingung" (der Auftrag nennt ihn „Satz 1").
+Nutzerentscheidung (15.09.2026 00:19): „Effektname reicht vorerst." Der
+GOAL-Satz bleibt wortgleich stehen — er gilt hiermit als erfuellt durch den
+Effektnamen selbst, der die Bedingung bereits im Klartext traegt (`Slowly
+restore HP … when HP is low`), ohne dass die Why-Zeile daneben zusaetzlich
+einen eigens formulierten Bedingungssatz braucht. Beruehrt nicht AK-295:
+dort geht es um die zweite Haelfte derselben Zeile (den Rohschluessel nach
+dem Doppelpunkt), nicht um die Nennung der Bedingung selbst, die A18
+verlangt.
+
 ---
 
 ## Bereich 7 — Die sechs Inhalts-Tabs
