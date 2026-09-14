@@ -2590,6 +2590,30 @@ und dieses Kriterium wird neu vorgelegt — bis dahin gilt `BEST FOR STATS`.
 zaehlt, wie viele der fuehrenden Karten einen Chip tragen, liest 2 von 6 statt
 6 von 6 (S1, gelesene Schadensrichtung: 3 von 6).
 
+**Nachtrag (ui-ux-designer, T-239c, 2026-09-14) — die eigene Bedingung ist
+eingetreten, neu vorgelegt.** T-237 (`5dd0cf7`) hat den Chipstreifen fuer
+QA-229/QA-230 verbreitert; genau das Ereignis, das dieser Absatz oben selbst
+als Ausloeser nennt. Nachgemessen am laufenden Programm (`a68cd3d`, echtes
+`RelicCard`, Fusion/Segoe UI 9 pt, zweimal im selben Lauf: einmal am
+Live-Fenster, einmal per `RelicCard.show_values` direkt):
+
+| Karte | Streifenbreite | `BEST FOR ATTRIBUTES` (106 px) |
+|---|---|---|
+| gewoehnlich | 120 px (Live-Fenster) / 120 px (direkt) | passt, 14 px Rand, nicht abgeschnitten |
+| favorisiert | 118 px (direkt; deckt sich mit `tests/relic_card_at_the_window.py`) | passt, 12 px Rand, nicht abgeschnitten |
+
+Damit ist die im Absatz oben selbst gestellte Bedingung *„wird der
+Chipstreifen dafuer verbreitert, passt auch `BEST FOR ATTRIBUTES`"* erfuellt.
+**Empfehlung:** den Chip der dritten Richtung wieder auf `BEST FOR ATTRIBUTES`
+stellen; `DIRECTION_NOUNS["max_attributes"]` in `nrplanner/relicpicker.py`
+traegt den zugehoerigen Codekommentar bereits mit demselben Befund und wartet
+ausdruecklich auf diese Entscheidung. Die Genauigkeit der ausgeschriebenen
+Attribute bleibt unveraendert bei der Wertzeile (AK-259), `Sort by` (AK-257)
+und Zeile 4 — der Chip war immer die kurze Form, das aendert sich nicht.
+**Entscheidung liegt beim Director/App Designer**, nicht bei mir: eine
+Wortwahl zwischen zwei technisch gleich korrekten Begriffen ist Geschmack,
+kein objektiver Befund.
+
 #### AK-263
 *Neu in T-192, 2026-09-12 — **ersetzt AK-205***
 
@@ -3898,9 +3922,15 @@ ganze Arsenal gilt, nicht nur fuer den gefilterten Ausschnitt.
 #### AK-65
 *Verlauf: A07 Z1482 · zuletzt geaendert durch T-052, 2026-09-05*
 
+*Fundstelle nach AD-034 (T-235, 2026-09-13, ui-ux-designer-Nachtrag T-239c,
+2026-09-14): `nrplanner/app.py` (5145 → 3085 Zeilen) → `nrplanner/statsheet.py`
+— die drei Konstanten heissen dort `VISIBLE_CHANGE` (0.5), `VISIBLE_PERCENT`
+(0.05) und `COLOURED_CHANGE` (0.05) und zitieren AK-65 selbst im Kommentar;
+gemessen, kein Codewechsel. Der Wortlaut unten bleibt unveraendert.*
+
 **AK-65** Die Anzeigeschwellen `>= 0.5` (Sichtbarkeit der Zeile
 `From attributes` und der Aenderungszelle) und `> 0.05` (Farbe GOOD/MUTED der
-Aenderungszelle) in `nrplanner/app.py` bleiben **absolute, an der
+Aenderungszelle) in `nrplanner/statsheet.py` bleiben **absolute, an der
 Bildschirmeinheit gemessene Konstanten** und werden **nicht** mit einem
 Kalibrierungsfaktor multipliziert, auch nicht bei einer kuenftigen
 Neukalibrierung. Ein Test, der die 0,6-Konstante veraendert (z. B. auf 0,5

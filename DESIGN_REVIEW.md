@@ -1,5 +1,160 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-14 (T-239c — Pruefphase Zyklus 22 auf `a68cd3d`: Retests, AK-262-Neuvorlage, Build-planner-Tab nach AD-034)
+
+**Methode:** Live, am laufenden Fenster (Windows, kein `offscreen`, L-009),
+Stil `fusion`/dunkle Palette (`apply_appearance`). Code eingefroren auf
+`a68cd3d`; `qa-engineer`/`security-reviewer`/`architect` laufen parallel,
+niemand aendert `nrplanner/`, `tests/`, `scripts/` — laut Rezept
+([[ui-messung-am-laufenden-fenster]]) ist ein eigener Klon dann nicht
+zwingend, hier ausdruecklich nicht benutzt. Testabzug (841 Dateien,
+`EXTRACT_VERSION` 11) frisch in ein umgelenktes `LOCALAPPDATA` kopiert,
+`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-239`, `APPDATA` umgelenkt. Bildnachweise
+per `PrintWindow` auf das eigene HWND (NH-002, Projekt-`CLAUDE.md`).
+Ergaenzend: eine off-screen `RelicCard`-Konstruktion (gleiche Klasse wie
+`tests/relic_card_at_the_window.py`, `WA_DontShowOnScreen`) fuer die
+AK-262-Chipmessung, weil sie exakter reproduziert als ein Live-Grab.
+Screenshots dauerhaft abgelegt: `design-review/2026-09-14/`.
+
+**Nachweis der Umlenkung:**
+```
+settings fileName: \HKEY_CURRENT_USER\Software\DankYeeterT-239\NightreignHelper
+cache_dir:         …\scratchpad\T-239\ui\data\Local\NightreignHelper
+style:              fusion
+platform:           windows
+owned relic count:  314
+```
+
+### 1. DR-013 bis DR-016, DR-022, DR-023 auf behoben
+
+Alle sechs primaerquellen-gepruefte, nicht nur aus dem Auftragskopf
+uebernommen:
+
+- **DR-022/DR-023** — `qa/findings.md` QA-251/QA-252 („Retest T-234 …
+  bestaetigt … behoben — Retest bestanden"), `docs/state.md`
+  bestaetigt denselben Stand wortgleich. Ich habe den Retest selbst nicht
+  wiederholt (nicht Teil dieses Auftrags); Markierung stuetzt sich auf das
+  primaere QA-Register, nicht auf den Auftragstext. ✔ in `DESIGN_REVIEW.md`
+  markiert, ID und Ursachenbeleg bleiben stehen.
+- **DR-013/DR-014/DR-015/DR-016** — Commits `d5b2035`, `0f270d8`, `82cb18a`,
+  `a39d58f`; Zahlen aus `docs/berichte/T-236-developer.md` und
+  `T-237-developer.md` (Fensterlauf, `PrintWindow`, real gemessen, nicht nur
+  behauptet): 10/10 Nightlord-Karten, `Effect`/`What it does` jetzt die
+  breitesten Spalten, `Deep of Night` in `QScrollArea` (Fenster-Minimum
+  588 px), 0/92 Arsenal-Kacheln abgeschnitten, 0 Wertgruppen mitten im Begriff
+  umgebrochen. ✔ markiert.
+
+### 2. AK-262 neu vorgelegt — Empfehlung `BEST FOR ATTRIBUTES` statt `BEST FOR STATS`
+
+AK-262 (`UI_SPEC.md`) nennt selbst die Bedingung fuer ihre eigene
+Neuvorlage: *„wird der Chipstreifen … verbreitert, passt auch `BEST FOR
+ATTRIBUTES`, und dieses Kriterium wird neu vorgelegt."* T-237 (`5dd0cf7`) hat
+den Streifen genau dafuer verbreitert (QA-229/QA-230). Nachgemessen am
+laufenden Programm, **zweimal im selben Lauf** (QA-239-Lehre: Live-Fenster
+und direkte Konstruktion muessen sich decken, sonst ist die Abweichung selbst
+der Befund):
+
+| Messweg | gewoehnliche Karte | favorisierte Karte |
+|---|---|---|
+| Live-Fenster (echter Bestand, Slot 1, 54 Karten) | Streifen 120 px | — (keine favorisierte Karte im Sample) |
+| direkte `RelicCard`-Konstruktion | Streifen 120 px | Streifen 118 px |
+
+`BEST FOR ATTRIBUTES` misst **106 px** (Segoe UI 9 pt, 10 pt fett) — passt in
+beide Faelle, 12 bis 14 px Rand, `chip_cut == False`. Die bisherigen Chips
+(`BEST FOR DAMAGE` 91 px, `BEST FOR SURVIVAL` 95 px, `BEST FOR STATS` 76 px)
+bleiben ebenfalls unbeschnitten.
+
+**Empfehlung:** auf `BEST FOR ATTRIBUTES` zurueckstellen. Das ist keine neue
+Idee, sondern die eigene, bereits verabschiedete Bedingung von AK-262, die
+jetzt eingetreten ist; der Code (`nrplanner/relicpicker.py`,
+`DIRECTION_NOUNS`-Kommentar) nennt denselben Befund und wartet ausdruecklich
+auf diese Entscheidung. **Trotzdem keine Selbstentscheidung**, weil die Wahl
+zwischen zwei technisch gleich korrekten Woertern Geschmack ist — Entscheidung
+beim Director (Auftragsvorgabe), nicht bei mir. Volltext mit Messtabelle:
+`UI_SPEC.md`, Nachtrag zu AK-262.
+
+### 3. UI_SPEC-Zitat zu AK-65: Fundstelle korrigiert
+
+AD-034 (T-235) hat `nrplanner/app.py` von 5145 auf 3085 Zeilen verkleinert und
+die Anzeigeschwellen `VISIBLE_CHANGE`/`VISIBLE_PERCENT`/`COLOURED_CHANGE`
+(0.5/0.05/0.05) nach `nrplanner/statsheet.py` mitgenommen — gemessen per
+`grep`, nicht vermutet: `app.py` traegt diese Namen nicht mehr, `statsheet.py`
+zitiert AK-65 sogar selbst im Kommentar. `UI_SPEC.md` AK-65 nannte noch
+`nrplanner/app.py`; korrigiert auf `nrplanner/statsheet.py`, Wortlaut des
+Kriteriums selbst unveraendert (der Ort war falsch, die Regel nicht).
+
+### 4. Build-planner-Tab am laufenden Fenster nach AD-034 gegen AK-46/AK-73/AK-212/AK-271
+
+Realer Bestand (314 Relikte), Hauptfenster 1536 px logisch, `Build planner`
+aktiv, dann `RelicPicker` auf Slot 1 geoeffnet (54 verfuegbare Karten, echter
+Bestand):
+
+- **AK-46/AK-262 (Chip auf der Spitzenkarte):** 6 von 55 Karten tragen einen
+  Chip (2× `BEST FOR DAMAGE`, 1× `BEST FOR SURVIVAL`, 3× `BEST FOR STATS`),
+  kein Chip abgeschnitten, Picker oeffnet bei **1114 px** (AD-034-Wert
+  bestaetigt), Karten bei **208 px** (bestaetigt) — haelt.
+- **AK-73 (kein Umbruch mitten im Begriff):** die Waffenkachel der
+  Statuszeile (`statsheet.py`) zeigt auf diesem Bestand nur einen einzelnen
+  `·`-Trenner („Common · 56 AR"), keinen mehrgruppigen Wert wie
+  `STR -7 · ARC +45 · DEX` — nichts, das hier brechen koennte; kein
+  Widerspruch, aber auch kein scharfer Test. Der urspruengliche AK-73-Fall
+  (DR-016b) liegt im `Weapons & spells`-Tab (`arsenaltab.py`), von AD-034
+  nicht beruehrt, weiterhin ✔ (s. oben). Ein eigener Pruefpass fuer
+  mehrgruppige Werte im **neuen** `statsheet.py`-Panel selbst (sechs
+  Waffenkacheln plus Schadenspanel) steht noch aus, sobald ein Bestand mit
+  Attributs-Abzuegen auf dem ausgeruesteten Arsenal vorliegt — Backlog unten.
+- **AK-271 (unter 1536 px darf die Lesart-/Zielbox schrumpfen):** Fenster auf
+  1366 px verkleinert — Statuszeile faellt auf ein abgeschnittenes
+  „Nothing sugg…", alles andere bleibt lesbar, kein Ueberlappen, kein Absturz
+  — haelt unveraendert, keine Regression durch AD-034.
+- **AK-212 (leeres Raster waehrend eine Spur nie antwortet):** **nicht live
+  reproduziert in diesem Lauf** — der Zustand ist zeitkritisch (vor der
+  Antwort des Hintergrund-Threads) und nicht zuverlaessig am realen Fenster
+  zu treffen, ohne den eingefrorenen Code zu stubben. Guard-Tests existieren
+  (`tests/test_relic_picker_advisor.py`, `tests/test_picker_track_guards.py`)
+  und laufen in der parallelen Suite; `qa-engineer` deckt den funktionalen
+  Teil (Wartetext, Rescan) in T-239a Punkt 1 ab. Kein Befund, eine offene
+  Messluecke — wer als naechstes den Picker anfasst, sollte sie schliessen.
+
+**Gesamturteil:** Ship-ready fuer den geprueften Ausschnitt. Sechs fruehere
+Kritisch-/Wichtig-Befunde (DR-013 bis DR-016, DR-022, DR-023) sind mit
+Commit-Beleg auf behoben gezogen, keiner davon zeigt am laufenden Fenster
+eine Regression. AD-034 (App-Aufteilung in `relicslots.py`, `savereader.py`,
+`statsheet.py`) hat die vier gepruefte Akzeptanzkriterien nicht angefasst;
+die einzige offene Stelle ist eine Messluecke (AK-212, zeitkritisch), kein
+Fund. AK-262 ist keine Reparatur, sondern eine faellige Wortentscheidung, die
+die Spec sich selbst vorgeschrieben hat.
+
+![Build planner bei 1536 px nach AD-034, Stat-Sheet rechts, Chipstreifen unveraendert](design-review/2026-09-14/t239c-build-planner-1536.png)
+![Relic Picker, 1114 px, 208 px Karten, drei Chiptypen sichtbar, keiner abgeschnitten](design-review/2026-09-14/t239c-relic-picker.png)
+![Build planner bei 1366 px (unter AK-271-Schwelle): Statuszeile faellt auf „Nothing sugg…", sonst unveraendert lesbar](design-review/2026-09-14/t239c-build-planner-1366.png)
+
+### Backlog (geparkt)
+
+- AK-73 im neuen `statsheet.py`-Panel (sechs Waffenkacheln plus
+  Schadenspanel) noch nicht mit einem mehrgruppigen `·`-Wert gepruefte, weil
+  der reale Bestand des Laufs keinen ausgeruesteten Katalysator/Waffe mit
+  mehreren Attributs-Abzuegen zeigte. Naechster Lauf: gezielt eine Waffe mit
+  `STR`/`ARC`/`DEX`-Mehrfachwert ausruesten und nachmessen.
+- AK-212 zeitkritischer Zustand nicht live reproduziert (s. oben) — auf
+  Guard-Tests und die parallele `qa-engineer`-Pruefung gestuetzt, nicht
+  eigenstaendig am Fenster bestaetigt.
+
+### Positiv / beibehalten
+
+- Chipstreifen (QA-229/QA-230, T-237) haelt unter realer Last: 6 von 6
+  Chips auf dem realen 314er-Bestand vollstaendig lesbar, kein einziger
+  abgeschnitten — die Zahlen aus `T-237-developer.md` reproduzieren sich
+  live unveraendert.
+- Picker-Oeffnungsbreite (1114 px) und Kartenbreite (208 px) sind nach der
+  AD-034-Umstrukturierung exakt so geblieben, wie T-237 sie hinterlassen hat
+  — der App-Split hat die Geometrie nicht angeruehrt.
+- `owned relic count` liest weiterhin korrekt 314 aus dem echten Bestand,
+  auch nach AD-034 (`savereader.py` uebernommen, `app.py` nicht mehr der
+  Ort) — keine stille Regression bei der Kernzahl der Anwendung.
+
+---
+
 ## Review vom 2026-09-13 (T-229c — Beraterleiste mit Lesart-Box, A16/A30-A32)
 
 **Methode:** Live, am laufenden Fenster (Windows, kein `offscreen`, L-009),
@@ -57,12 +212,17 @@ A7-Verstoss."
 
 ---
 
-### DR-022 — Relic Picker faellt nach Entwertung des Spielstands nicht auf AK-212 zurueck
+### DR-022 — Relic Picker faellt nach Entwertung des Spielstands nicht auf AK-212 zurueck ✔ behoben (T-234, 2026-09-13)
 
-**Status (T-233, 13.09.2026): gebaut in T-230 (`4e8fec0`), Retest offen.**
-Nicht selbst am laufenden Fenster nachgemessen — dieser Lauf ist Spec-only,
-kein Code-/Bildnachweis. ID bleibt stehen, Befund unten unveraendert, bis
-`qa-engineer` den Retest bestaetigt.
+**Status (T-239c, 14.09.2026): behoben, Retest bestanden.** Gebaut in T-230
+(`4e8fec0`), Retest in T-234 bestaetigt: `qa/findings.md` QA-251 „bestaetigt
+(mit DR-022), Mutation getoetet … behoben — Retest bestanden", primaerquelle
+`docs/state.md` („Retest T-234: CONCERNS — alle 11 Punkte bestaetigt … DR-022/
+DR-023 zieht der ui-ux-designer im naechsten Lauf auf behoben"). Ich habe den
+Retest selbst nicht am laufenden Fenster wiederholt (ausserhalb des T-239c-
+Auftrags); die Bestaetigung stammt aus dem primaeren QA-Register, nicht aus
+einem Statusfeld. ID bleibt stehen, Befund unten unveraendert als Beleg der
+urspruenglichen Ursache.
 
 **Kritisch — A7/AK-212/AK-267.** [`nrplanner/relicpicker.py:1006` (`slot.
 stock_replaced.connect(self._refresh)`), `:1387-1460` (`_refresh`),
@@ -122,12 +282,14 @@ der beiden Ursachen (Karte vs. Picker) den gemeinsamen Reset traegt.
 ![Vor der Entwertung: normaler Zustand, 54 von 54 Relikten](design-review/2026-09-13/dr022-picker-before-invalidation.png)
 ![Nach Rescan ohne Fund, Dialog blieb offen: „0 of 0 relics … ranked against your build …“, Custom-Kachel bleibt, Kopfzeile nicht leer](design-review/2026-09-13/dr022-picker-after-invalidation-broken-state.png)
 
-### DR-023 — Statuszeile nur per Maus-Hover vollstaendig lesbar, keine Tastatur-/Screenreader-Route
+### DR-023 — Statuszeile nur per Maus-Hover vollstaendig lesbar, keine Tastatur-/Screenreader-Route ✔ behoben (T-234, 2026-09-13)
 
-**Status (T-233, 13.09.2026): gebaut in T-230 (`781ce3c`), Retest offen.**
-Nicht selbst am laufenden Fenster nachgemessen — dieser Lauf ist Spec-only,
-kein Code-/Bildnachweis. ID bleibt stehen, Befund unten unveraendert, bis
-`qa-engineer` den Retest bestaetigt.
+**Status (T-239c, 14.09.2026): behoben, Retest bestanden.** Gebaut in T-230
+(`781ce3c`), Retest in T-234 bestaetigt: `qa/findings.md` QA-252 „bestaetigt …
+behoben — Retest bestanden", primaerquelle `docs/state.md` (s. DR-022). Nicht
+selbst am laufenden Fenster wiederholt gemessen; die Bestaetigung stammt aus
+dem primaeren QA-Register. ID bleibt stehen, Befund unten unveraendert als
+Beleg der urspruenglichen Luecke.
 
 **Wichtig — Accessibility-Luecke neben einer bereits getroffenen
 Entscheidung.** [`nrplanner/advisorbar.py:451-491` (`_ElidingLabel`)]
@@ -452,7 +614,12 @@ Abschnitt T-056, AK-68 bis AK-105.
 
 ### Kritisch
 
-- **DR-013 [`nrplanner/bosstab.py:35` (`COLUMNS = 4`), `:288`
+- **DR-013 ✔ behoben (T-236, 2026-09-14, `d5b2035`)** — am Fenster bestaetigt:
+  10/10 Karten, Raster 4+4+2, kein waagerechter Bildlauf mehr (Beleg
+  `docs/berichte/T-236-developer.md`). Befund unten unveraendert als
+  Ursachenbeleg.
+
+  **[`nrplanner/bosstab.py:35` (`COLUMNS = 4`), `:288`
   (`setFixedWidth(330)`), `:263-277` (`QHBoxLayout`), AK-90/AK-72]** Der
   `Nightlords`-Tab zeigt bei 1600 px Fensterbreite **acht von zehn**
   Nightlords, waehrend seine eigene Kopfzeile „10 Nightlords" sagt. Spalte 3
@@ -470,7 +637,13 @@ Abschnitt T-056, AK-68 bis AK-105.
   ![Acht Nightlords bei 1600 px, Spalte 3 abgeschnitten](docs/screenshots/2026-09-05-T056/tab3-nightlords.png)
   ![Dieselbe Ansicht bei 2100 px: Maris und Harmonia erscheinen](docs/screenshots/2026-09-05-T056/tab3-nightlords-wide2100.png)
 
-- **DR-014 [`nrplanner/effectstab.py:243-245, 445-447`, AK-77]** In der
+- **DR-014 ✔ behoben (T-236, 2026-09-14, `0f270d8`)** — am Fenster bestaetigt:
+  `Effect` 353 px, `What it does` 287 px, jetzt die breitesten Spalten der
+  Tabelle, Rest per Tooltip nach AK-77 (Beleg
+  `docs/berichte/T-236-developer.md`). Befund unten unveraendert als
+  Ursachenbeleg.
+
+  **[`nrplanner/effectstab.py:243-245, 445-447`, AK-77]** In der
   Effektetabelle bekommen die beiden Spalten, die die Frage des Tabs
   beantworten, zusammen **2,8 % der Tabellenbreite**. Gemessen an einer
   echten `EffectsTab` bei 1516 px Tabellenbreite: `Effect` **22 px**,
@@ -493,7 +666,13 @@ Abschnitt T-056, AK-68 bis AK-105.
 
 ### Wichtig
 
-- **DR-015 [`nrplanner/deeptab.py` (keine `QScrollArea`, `:162`
+- **DR-015 ✔ behoben (T-236, 2026-09-14, `82cb18a`)** — am Fenster bestaetigt:
+  `Deep of Night` in einer `QScrollArea`, Fenster-Minimum jetzt 588 px
+  logisch statt vorher 1606 physisch (Beleg
+  `docs/berichte/T-236-developer.md`). Befund unten unveraendert als
+  Ursachenbeleg.
+
+  **[`nrplanner/deeptab.py` (keine `QScrollArea`, `:162`
   `setFixedHeight`), AK-71/AK-97]** Das Fenster hat eine Mindesthoehe von
   **1606 physischen px** (gemessen: `MoveWindow` auf 500/700/1000/1300 px
   Hoehe laesst das Fenster jedes Mal bei 1606). Der Bildschirm ist 1600 px
@@ -513,7 +692,14 @@ Abschnitt T-056, AK-68 bis AK-105.
   ![Deep of Night, Unterkante hinter der Taskleiste](docs/screenshots/2026-09-05-T056/tab4-deep.png)
   ![Dieselbe Stelle, Fenster nach oben geschoben: zwei Zeilen mehr](docs/screenshots/2026-09-05-T056/zoom-deep-bottom.png)
 
-- **DR-016 [`nrplanner/arsenaltab.py:15` (`COLUMNS = 5`), `:44`
+- **DR-016 ✔ behoben (bereits am 05.09.2026, `a39d58f`; Retest T-237,
+  2026-09-14)** — am Fenster bestaetigt: (a) 0 von 92 sichtbaren Kacheln
+  abgeschnitten, kein Bildlauf mehr noetig; (b) 135 mehrgruppige Werte, 46
+  umgebrochen, 0 Gruppen breiter als ihr Label, Umbruch ausschliesslich an
+  ` · ` (Beleg `docs/berichte/T-237-developer.md`). Befund unten unveraendert
+  als Ursachenbeleg.
+
+  **[`nrplanner/arsenaltab.py:15` (`COLUMNS = 5`), `:44`
   (`CARD_WIDTH`), `:88-97` (Wertzeile), AK-84/AK-73]** Zwei Blessuren an
   derselben Kachel. **(a)** Das Kachelraster hat fest fuenf Spalten; die
   letzte wird abgeschnitten, und weil die Werte rechtsbuendig stehen,

@@ -350,7 +350,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-259 | die dritte Zeile nennt ihre Groesse und ihre Einheit: `Offensive attributes` / `pts` (A12) | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 | AK-260 | die dritte Zahl wird gerundet wie jede andere — keine Rundung je Richtung | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 | AK-261 | die Spitzenkarten jeder Richtung fuehren, in fester Reihenfolge — ersetzt AK-195 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
-| AK-262 | jede vorgezogene Karte sagt mit ihrem Chip, warum sie vorn steht — erweitert AK-46 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
+| AK-262 | jede vorgezogene Karte sagt mit ihrem Chip, warum sie vorn steht — erweitert AK-46 | UI_SPEC §5.4 + Nachtrag T-239c | T-192, 2026-09-12 | Wortlaut der dritten Richtung (`BEST FOR STATS`) steht zur Neuvorlage: T-237 hat den Chipstreifen verbreitert, die eigene Bedingung des Kriteriums ist eingetreten; ui-ux-designer empfiehlt `BEST FOR ATTRIBUTES` (T-239c, gemessen 106 px in 118-120 px), Entscheidung beim Director offen |
 | AK-263 | was in der gelesenen Richtung gezeichnet wird und was gar keine Richtung hat — ersetzt AK-205 | UI_SPEC §5.4 | T-192, 2026-09-12 | — |
 | AK-264 | E1 hat zwei Ursachen und braucht zwei Headlines — Herkunftsfall (SEC-026) traegt `That folder is not part of a Steam installation.` statt der AK-112-Headline | UI_SPEC §1.1 | T-221, 2026-09-13 | — |
 | AK-265 | der AK-49-Satz heisst woertlich `No save was read, so there is nothing to rank these against — use Rescan save.` (`NO_SAVE_WAS_READ`) — ersetzt `NO_FIGURES_AT_ALL`, ergaenzt AK-49, korrigiert das Zitat in AK-208 | UI_SPEC §5.3 (AK-49, AK-208) | T-221, 2026-09-13 | — |
