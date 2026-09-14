@@ -236,6 +236,12 @@ class Rating:
     #: scale -- empty where none applies. For the popup; already inside
     #: `scaled_per_type`.
     conversion: dict[str, float] = field(default_factory=dict)
+    #: The same question answered for the armament held in both hands, or
+    #: `None` where the game offers no second figure (`weapons.can_two_hand`)
+    #: -- and `None` on the nested answer itself. One question, one answer
+    #: with two numbers (AD-037): a display reads both off this and never
+    #: asks twice.
+    two_handed: Rating | None = None
 
     @property
     def weapon(self) -> dict:
@@ -481,10 +487,12 @@ def is_starting_armament(weapon: dict, hero: dict, slot_index: int) -> bool:
 
 
 def _scaled(weapon: dict, question: Question, tier: int,
-            build: model.Build, data: dict) -> weapons.WeaponRating:
+            build: model.Build, data: dict, *,
+            two_handed: bool = False) -> weapons.WeaponRating:
     """Layer one, on the attribute set this question stands on."""
     attributes = getattr(build, ATTRIBUTES_FOR[question])
-    return weapons.rate(weapon, attributes, data, tier, build.nightfarer)
+    return weapons.rate(weapon, attributes, data, tier, build.nightfarer,
+                        two_handed=two_handed)
 
 
 def converted(per_type: dict[str, float],
@@ -536,8 +544,15 @@ def converted(per_type: dict[str, float],
 
 
 def _answer(rating: weapons.WeaponRating, question: Question,
-            build: model.Build, *, starting_armament: bool = False) -> Rating:
-    """Layer two: the attack multipliers, where the question includes them."""
+            build: model.Build, *, starting_armament: bool = False,
+            two_handed: Rating | None = None) -> Rating:
+    """Layer two: the attack multipliers, where the question includes them.
+
+    `two_handed` is the finished answer for the other hand, attached as it
+    is; a rating that carries a two-handing factor (`rating.two_handed`)
+    additionally takes the `when Two-Handing` bucket, and no one-handed
+    rating ever does (AD-037, point 3).
+    """
     scaled_per_type = rating.scaled_per_type()
     weapon_class = model.weapon_class(rating.weapon)
 
@@ -548,6 +563,7 @@ def _answer(rating: weapons.WeaponRating, question: Question,
             scaled_per_type=scaled_per_type,
             final_per_type=dict(scaled_per_type),
             weapon_class=weapon_class,
+            two_handed=two_handed,
         )
 
     # The damage-type conversion follows the same pairing as the status
@@ -557,7 +573,9 @@ def _answer(rating: weapons.WeaponRating, question: Question,
         scaled_per_type, conversion = converted(scaled_per_type,
                                                 build.starting_flat)
 
-    class_rates = build.class_rates.get(weapon_class, {})
+    buckets = [build.class_rates.get(weapon_class, {})]
+    if rating.two_handed:
+        buckets.append(build.class_rates.get(model.TWO_HANDED_CLASS, {}))
     final_per_type: dict[str, float] = {}
     rates_in_play: dict[str, float] = {}
 
@@ -575,18 +593,20 @@ def _answer(rating: weapons.WeaponRating, question: Question,
         rate = 1.0
         for field_name in fields:
             from_build = build.rates.get(field_name, 1.0)
-            from_class = class_rates.get(field_name, 1.0)
             # Kept for the click-through breakdown: what the player would read
-            # as one percentage, which is the two sources multiplied.
-            together = from_build * from_class
+            # as one percentage, which is the sources multiplied.
+            together = from_build
+            for bucket in buckets:
+                together *= bucket.get(field_name, 1.0)
             if abs(together - 1.0) > 1e-9:
                 rates_in_play[field_name] = together
             # One factor at a time and in this order, which is the order the
-            # figure has always been multiplied in. Multiplying the two
-            # sources together first and applying the product would regroup
-            # the arithmetic and can move the last bit (AD-019, W2/A2).
+            # figure has always been multiplied in. Multiplying the sources
+            # together first and applying the product would regroup the
+            # arithmetic and can move the last bit (AD-019, W2/A2).
             rate *= from_build
-            rate *= from_class
+            for bucket in buckets:
+                rate *= bucket.get(field_name, 1.0)
         final_per_type[damage] = total * rate
 
     return Rating(
@@ -598,14 +618,29 @@ def _answer(rating: weapons.WeaponRating, question: Question,
         weapon_class=weapon_class,
         starting_armament=starting_armament,
         conversion=conversion,
+        two_handed=two_handed,
     )
+
+
+def _other_hand(weapon: dict, question: Question, tier: int,
+                build: model.Build, data: dict, *,
+                starting_armament: bool = False) -> Rating | None:
+    """The two-handed answer, or `None` where the game offers none."""
+    if not weapons.can_two_hand(weapon):
+        return None
+    return _answer(_scaled(weapon, question, tier, build, data,
+                           two_handed=True),
+                   question, build, starting_armament=starting_armament)
 
 
 def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
           data: dict, *, starting_armament: bool = False) -> Rating:
-    """Both layers for one armament and one question."""
+    """Both layers for one armament and one question, both hands."""
     return _answer(_scaled(weapon, question, tier, build, data),
-                   question, build, starting_armament=starting_armament)
+                   question, build, starting_armament=starting_armament,
+                   two_handed=_other_hand(weapon, question, tier, build,
+                                          data,
+                                          starting_armament=starting_armament))
 
 
 def equipped(slot, slot_index: int, build: model.Build, hero: dict,
@@ -698,7 +733,10 @@ def rank_candidates(build: model.Build, target_tier: int,
     """
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
     ranked = weapons.rank(data, attributes, target_tier, build.nightfarer)
-    answers = [_answer(rating, Question.CANDIDATE, build)
+    answers = [_answer(rating, Question.CANDIDATE, build,
+                       two_handed=_other_hand(rating.weapon,
+                                              Question.CANDIDATE, target_tier,
+                                              build, data))
                for rating in ranked
                if not model.is_unequippable_catalyst(rating.weapon)]
     answers.sort(key=lambda answer: (-answer.final_headline,

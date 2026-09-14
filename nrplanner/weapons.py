@@ -16,7 +16,8 @@ curve id per damage type comes from the weapon's own correctType_{Type}.
 `GAME_ATTACK_POWER_RATE` is measured against the game and not read out of it;
 its scope and its evidence are written out where it is defined. Two more
 measured factors sit beside it and reach exactly two Nightfarer/armament
-pairings, `nightfarer_calibration`. Every other term is a field with a
+pairings, `nightfarer_calibration`; a fourth, `two_handed_calibration`, is
+what two-handing does to the figure. Every other term is a field with a
 paramdef behind it.
 
 **A staff or a seal is not rated by that formula at all.** The game shows a
@@ -138,6 +139,67 @@ def nightfarer_calibration(weapon: dict, nightfarer: str) -> Calibration | None:
     return None
 
 
+#: What two-handing does to the attack rating: a flat factor on the unrounded
+#: one-handed figure, one for the Raider and one for everybody else.
+#:
+#: **Measured, not read from the files** (R-008, `docs/research/R-008.md`).
+#: Six cells read off the game on 2026-09-14, every Nightfarer at level 15
+#: with no relics, each armament at its own rarity; the interval is the
+#: intersection of the `floor` conditions the cells impose, as for every
+#: other factor in this module:
+#:
+#:     Duchess   Duchess' Dagger        72 -> 74     T in [1.019515, 1.033292)
+#:     Wylder    Wylder's Greatsword   122 -> 125    T in [1.024164, 1.032358)
+#:     Guardian  Guardian's Halberd    107 -> 110    T in [1.024648, 1.033963)
+#:     Wylder    Great Stars           147 -> 151    T in [1.025889, 1.032683)
+#:     Raider    Raider's Greataxe     158 -> 180    T in [1.138157, 1.144480)
+#:     Raider    Great Stars           188 -> 216    T in [1.143863, 1.149158)
+#:
+#: Everybody else: [1.025889, 1.032358), and 1.03 is the only two-digit
+#: figure inside it. Raider: [1.143863, 1.144480), on a colossal weapon
+#: without the x1.18 as on a great hammer with it -- so it is a factor of
+#: its own, not the heavy-armament one again. It is 0.0006 wide and Great
+#: Stars two-handed sits 0.03 above the `floor` edge; a seventh Raider cell
+#: can move the digit without moving the shape.
+#:
+#: No attribute rule fits: Elden Ring's STR x1.5 gives 73 / 134 / 119 / 169 /
+#: 175 / 208 for the six cells, 0 of 6, and R-008 shows every STR x k and
+#: every all-attributes x k to be disjoint across the cells as well. The
+#: params carry no field with either figure; the one paramdef text about
+#: two-handing (`AtkParam.isDisableBothHandsAtkBonus`) describes the hit,
+#: not the menu figure this program shows.
+#:
+#: Measured for Wylder, Guardian, Duchess and Raider only. Ironeye, Revenant,
+#: Recluse, Executor, Scholar and Undertaker are given 1.03 until a cell says
+#: otherwise (director, 2026-09-14, on R-008 option a).
+TWO_HANDED_RATE = 1.03
+RAIDER_TWO_HANDED_RATE = 1.144
+
+#: `wep_type` of the one armament that is melee and cannot be two-handed.
+UNARMED_TYPE = 33
+
+
+def can_two_hand(weapon: dict) -> bool:
+    """Does the game offer a two-handed attack rating for this armament?
+
+    A bow, crossbow or ballista is always held in both hands, so the figure
+    it shows **is** its two-handed one; a staff or a seal shows spell scaling
+    and no attack rating at all (QA-099). Neither has a second figure to
+    give. Every other armament does, except bare fists. No extracted field
+    says so -- `EquipParamWeapon.bothHandEquipable` is not in the dataset
+    (R-008) -- and the class rule needs none (AD-037, point 1).
+    """
+    return (weapon_class(weapon) == "melee"
+            and weapon.get("wep_type") != UNARMED_TYPE)
+
+
+def two_handed_calibration(nightfarer: str) -> Calibration:
+    """The two-handing factor for this Nightfarer, with its sentence."""
+    if nightfarer == RAIDER:
+        return Calibration(RAIDER_TWO_HANDED_RATE, "Raider two-handing")
+    return Calibration(TWO_HANDED_RATE, "two-handing")
+
+
 #: The scale the game lays over a catalyst's spell scaling, the number it
 #: shows for a staff or a seal where it shows an attack rating for everything
 #: else: `floor(CATALYST_DISPLAY_RATE x rate x (1 + curve(attribute)/100))`.
@@ -198,6 +260,9 @@ class WeaponRating:
     #: or `None` for the pairings the plain formula describes. Carried so the
     #: breakdown can name it, never re-applied by a reader.
     calibration: Calibration | None = None
+    #: The two-handing factor, likewise already inside `base` and `scaled`,
+    #: or `None` for a one-handed rating.
+    two_handed: Calibration | None = None
 
     def scaled_headline(self) -> float:
         """The figure this armament is ranked and shown by, before layer two.
@@ -316,7 +381,14 @@ def _catalyst_scaling(weapon: dict, attributes: dict[str, int],
 
 
 def rate(weapon: dict, attributes: dict[str, int], data: dict,
-         upgrade: int = MIN_UPGRADE, nightfarer: str = "") -> WeaponRating:
+         upgrade: int = MIN_UPGRADE, nightfarer: str = "",
+         two_handed: bool = False) -> WeaponRating:
+    """Layer one for one armament, one-handed unless `two_handed` is asked.
+
+    `two_handed` is asked by `damage._scaled` and by nothing else: a display
+    reads both hands off one `damage.Rating` (AD-037). The flag does not
+    check `can_two_hand`, because the caller already has.
+    """
     curves = data["calc_curves"]
     reinforce_table = data["reinforce"]
     element_correct = data["element_correct"]
@@ -352,17 +424,20 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
 
     aec = element_correct.get(str(weapon.get("element_correct_id")), {})
     calibration = nightfarer_calibration(weapon, nightfarer)
+    hand = two_handed_calibration(nightfarer) if two_handed else None
     result = WeaponRating(
         weapon=weapon, applied_upgrade=applied,
         catalyst_scaling=_catalyst_scaling(weapon, attributes, reinforce,
                                            curves),
-        calibration=calibration)
-    # The game's constant and the measured pairing factor, as one number, so
-    # the two lines below stay the two places the screen's scale is applied.
+        calibration=calibration, two_handed=hand)
+    # The game's constant and the measured factors, as one number, so the
+    # two lines below stay the two places the screen's scale is applied.
     # With no calibration the product is exactly GAME_ATTACK_POWER_RATE and
     # every figure is bit for bit what it was before the factor existed.
     display_rate = GAME_ATTACK_POWER_RATE * (
         calibration.factor if calibration else 1.0)
+    if hand:
+        display_rate *= hand.factor
 
     for damage in DAMAGE_TYPES:
         base = weapon["base"].get(damage, 0)

@@ -85,9 +85,12 @@ def test_a_rating_has_no_total_to_be_given(game_data, build, starting_weapon):
 
     # `conversion` (T-246) is what the damage-type conversion moved per type,
     # for the popup; the totals still come out of `final_per_type` alone.
+    # `two_handed` (T-254, AD-037) is a nested `Rating` with its own maps,
+    # not a figure: its totals are derived the same way.
     assert field_names == {
         "question", "weapon_rating", "scaled_per_type", "final_per_type",
         "rates", "weapon_class", "starting_armament", "conversion",
+        "two_handed",
     }
 
     rating = damage.candidate(starting_weapon, weapons.MAX_UPGRADE, build,
