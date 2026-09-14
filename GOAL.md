@@ -320,3 +320,36 @@ den Armaturen, die du fuehrst" (Fuellung (c), 38 Zeilen auf dem Spielstand
 des Nutzers) unter dieser Annahme noch nuetzlich ist. Sie ist wahr, aber sie
 raet zu etwas, das in der Runde nicht in der Hand des Spielers liegt. Gehoert
 in den S10-Review.
+
+---
+
+## Nachtrag 14.09.2026 — Lesarten weg, Ausschlussfilter dazu (entschieden durch den Nutzer)
+
+**Was der Nutzer entschieden hat**, woertlich (20:35, auf die Frage nach der
+Benennung der Lesarten): *"only optimise for maximum dmg and maximum defense.
+add the option that I can add 'don't include' filters to remove them from the
+recommendations altogether."* Nachfrage 20:44: der **Worst/Best-Umschalter
+faellt**, die drei Richtungen bleiben; ausgeschlossen werden **einzelne
+Effekte**.
+
+### A18 — Eine Rechnung statt zwei Lesarten; Effekte lassen sich ausschliessen
+
+- **A16 ist ersetzt.** Der Berater hat keinen Umschalter Worst case / Best
+  case mehr. Bedingte Effekte gehen in die Rechnung ein wie unbedingte,
+  sofern der Spieler sie nicht ausgeschlossen hat; die Begruendung (A5)
+  nennt bei jedem gezaehlten bedingten Effekt seine Bedingung.
+- **Ausschlussfilter:** Der Spieler kann einzelne Effekte (z. B. `at low
+  HP`-Varianten) als *don't include* markieren. Ein markierter Effekt zaehlt
+  in keinem Vorschlag und in keiner Rangfolge des Beraters, egal welches
+  Relikt ihn traegt; das Relikt selbst bleibt waehlbar, wenn seine uebrigen
+  Effekte tragen. Die Markierung wird gespeichert und beim naechsten Start
+  wieder angewandt.
+- **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand mit mindestens
+  einem markierten Effekt, dass kein Vorschlag ihn zaehlt, und dass die
+  Rangfolge ohne Markierung der heutigen Best-case-Rangfolge entspricht.
+- **Nicht-Ziel:** Sperrliste fuer ganze Relikte, Bedingungsklassen-Schalter.
+
+*Folgen fuer die Spec: AK-268 (Lesarten) und AK-273 (Benennung) entfallen;
+AK-194/AK-05 (Leistenbreite) neu messen. Folgen fuer die Architektur:
+AD-035 (zwei Lesarten) durch eine Ausschlussmenge im `AdvisorRequest`
+ersetzen — der `architect` entscheidet den Schnitt.*
