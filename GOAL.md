@@ -394,3 +394,8 @@ ausgeschlossen sind. **OF-41/A20** — welche Hand der Berater rankt, folgt
 einem neuen **Umschalter 1H/2H an der Waffenausruestung**; die Rangfolge
 nutzt die dort gewaehlte Hand. Die vier Zweihand-Messzellen (Wylder, Raider,
 Guardian, Duchess: Startwaffe Lv15, 1H und 2H) liefert der Nutzer.*
+
+*A20-Messzellen (Nutzer, 14.09.2026 21:22; Lv15, Startwaffe, keine Relikte,
+Einhand → Zweihand): Duchess 72 → 74 · Wylder 122 → 125 · Raider 158 → 180 ·
+Guardian 107 → 110. Dazu Great Stars uncommon: Raider 188 → 216, Wylder
+147 → 151.*
