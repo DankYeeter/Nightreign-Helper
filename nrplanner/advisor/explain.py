@@ -902,8 +902,8 @@ def required_but_unmet(problem: types.SlotProblem,
     the sentence is a fact about what is owned and never about how wide the
     search looked. When every effect has a carrier somewhere and the beam
     still found no constellation for the free slots together, one sentence
-    names them all; its wording is this module's own placeholder, `UI_SPEC`
-    AK-281 gives the per-effect sentence only.
+    names them all, alphabetically by display name (AK-291: an order by id
+    reads as arbitrary).
     """
     held = types.held_relics(problem)
     unmet = [eid for eid in sorted(problem.required)
@@ -923,9 +923,8 @@ def required_but_unmet(problem: types.SlotProblem,
             f"No copy you own carries {named(eid)}, which you marked as "
             f"required — no suggestion can meet that." for eid in uncarried)
     return (f"No combination of the copies you own carries "
-            f"{', '.join(named(eid) for eid in unmet)} together in the free "
-            f"slots, which you marked as required — no suggestion can meet "
-            f"that.",)
+            f"{', '.join(sorted(named(eid) for eid in unmet))}, which you "
+            f"marked as required — no suggestion can meet that.",)
 
 
 def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:

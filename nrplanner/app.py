@@ -876,7 +876,8 @@ class Planner(QMainWindow):
         # window what it would be asked right now, and nothing else -- it
         # reads no widget of this window and writes to none.
         self.advisor_bar = AdvisorBar(
-            lambda goal_id: asking_from(self, goal_id), column)
+            lambda goal_id: asking_from(self, goal_id), column,
+            filters=self.effect_filters)
         stack.addWidget(self.advisor_bar)
 
         # The relic picker's track: the same class, a second instance, and
@@ -2891,7 +2892,9 @@ class Planner(QMainWindow):
             deep=self.deep_check.isChecked(),
             relics=0 if self.owned is None else self.owned.relic_count,
         )
-        advisorblock.WhyDialog(heading, result, self).exec()
+        advisorblock.WhyDialog(heading, result, self,
+                               filters=self.effect_filters,
+                               effects=self.effects).exec()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)

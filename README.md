@@ -178,18 +178,22 @@ still change it by hand, and a slot held on purpose while empty says so
 rather than looking untouched by accident. Holds are not part of the saved
 build; they are forgotten the next time you open the program.
 
-**Worst case / Best case**, next to the direction, only matters for relics
-with a conditional effect — most relics have none. A handful of curses and
-buffs only apply below a health threshold, on a dodge, after drinking a
-Flask, and the tool cannot know whether that holds for you right now (see
-"About the switches" below), so ranking a relic has to assume something about
-them. **Worst case** assumes every conditional curse applies and no
-conditional buff does — the figure you can rely on. **Best case** assumes the
-opposite — the figure that is reachable if everything lines up. Switching
-between the two does not run a second calculation on a different formula: it
-only changes which conditions Optimize assumes while it ranks, the same
-setting you can make by hand elsewhere on the sheet. Most relics rank the
-same either way; only the ones with a conditional curse or buff can move.
+**Don't include / Must include** — the bullet in front of every effect and
+curse line, on a relic card in the picker and in the **Why** dialog, is a
+button with three states. Click it once and the effect is **excluded**: it
+counts in no suggestion and no ranking, and is drawn struck through. Click
+again and it is **required**: only relics carrying it are suggested, marked
+`▲`. A third click clears it. The marking sits on the effect, not on the
+relic — every copy carrying the same effect shows the same state — and it
+is remembered across restarts. The **Why** dialog lists everything you have
+marked under *Effects you've excluded* and *Effects you require*, where a
+click clears it again, and the Advisor row's tooltip counts the marks at all
+times. A required effect no relic of yours carries, or one no combination
+of your relics can bring together with the others, is said so by name
+rather than dropped quietly. Conditional effects — a handful of curses and
+buffs that only apply below a health threshold, on a dodge, after drinking a
+Flask — are counted as met unless you say otherwise on the sheet (see
+"About the switches" below).
 
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
@@ -456,8 +460,8 @@ tiles and any conditions you have switched on are only kept for the run of the
 program, and start again.
 
 **Below 1536 px of logical width** — narrower than a 1920×1080 screen at
-Windows' common 125% scaling — the Advisor row's direction and Worst
-case/Best case boxes may be cut short. Nothing stops working: the row's own
+Windows' common 125% scaling — the Advisor row's direction box may be cut
+short. Nothing stops working: the row's own
 tooltip carries the full status text at any width, and every other part of
 the window is unaffected.
 

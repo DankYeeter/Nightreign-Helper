@@ -139,6 +139,22 @@ MUTATIONS: dict[str, Mutation] = {
             "window_asks` and `tests/test_relic_picker_advisor.py::test_the_"
             "pickers_question_carries_the_marked_sets` (T-250a)."),
     ),
+    "marked-line-deaf-to-the-filters": Mutation(
+        path="nrplanner/advisorblock.py",
+        old="""        filters.changed.connect(self._redraw)
+        self._redraw()
+""",
+        new="""        self._redraw()
+""",
+        survival_means=(
+            "a line draws the state it had when it was built and never "
+            "hears a later marking: the clicked bullet keeps its old glyph "
+            "while the store already holds the new state, and a second line "
+            "about the same effect (another card, another slot group) shows "
+            "another state than the first -- the AK-276 fault. Killed by "
+            "`tests/test_advisor_block.py::test_every_line_of_the_dialog_is_"
+            "a_control_bound_to_its_id` (T-250b)."),
+    ),
 }
 
 

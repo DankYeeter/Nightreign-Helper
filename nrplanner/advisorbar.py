@@ -192,6 +192,24 @@ def _effects_left_out(count: int) -> str:
             f"condition.")
 
 
+def _marked(count: int, state: str) -> str:
+    """One AK-280 clause: `{n} effect(s) {excluded|required}`."""
+    return f"{count} effect{'' if count == 1 else 's'} {state}"
+
+
+def marking_clauses(filters) -> list[str]:
+    """The AK-280 clauses of the row tooltip: how many effects the player
+    marked, in every one of the fourteen states, because a marking is a
+    standing setting and not a property of one run. `None` -- a row built
+    with no filters behind it -- has nothing to count."""
+    if filters is None:
+        return []
+    return ([_marked(len(filters.excluded), "excluded")]
+            if filters.excluded else []) + (
+            [_marked(len(filters.required), "required")]
+            if filters.required else [])
+
+
 def _clauses(head: str, *clauses: str) -> str:
     """A result sentence with whichever of its clauses have something to say.
 
@@ -516,9 +534,13 @@ class AdvisorBar(QWidget):
     why_requested = Signal()
 
     def __init__(self, asking, parent: QWidget | None = None, *,
-                 controller: AdvisorController | None = None) -> None:
+                 controller: AdvisorController | None = None,
+                 filters=None) -> None:
         super().__init__(parent)
         self._asking = asking
+        #: The two marked sets (`effectfilters.EffectFilters`), read for the
+        #: AK-280 clauses of the tooltip and for nothing else here.
+        self._filters = filters
         self._controller = (AdvisorController(self) if controller is None
                             else controller)
         self._situation = Situation(State.NOTHING_YET)
@@ -918,8 +940,12 @@ class AdvisorBar(QWidget):
         # Below the derived opening width the status is the one thing that
         # gives way, down to 0 px (QA-250: boxes first, the status may go),
         # and a label 0 px wide has nowhere to be hovered -- so the row
-        # carries the sentence too.
-        self.setToolTip(self.status.toolTip())
+        # carries the sentence too, and after it the AK-280 count of what
+        # the player marked. The count is a tooltip and nothing visible: a
+        # tooltip asks for no width, so AK-05/AK-194 do not move.
+        tip = CLAUSES.join(part for part in (
+            status_line(situation), *marking_clauses(self._filters)) if part)
+        self.setToolTip(f"<span>{html.escape(tip)}</span>" if tip else "")
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at
         # the same moment, so there is no half-second of a bar on its own.
         # Asked of the situation and not of the widget: `isVisible()` is

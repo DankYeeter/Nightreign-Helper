@@ -671,10 +671,13 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
 
     planner.effect_filters.mark(11, effectfilters.EXCLUDED)
     planner.effect_filters.mark(22, effectfilters.REQUIRED)
-
-    problem = advisorbar.asking_from(planner, "max_damage").request.problem
-    assert problem.excluded == {11}
-    assert problem.required == {22}
+    try:
+        problem = advisorbar.asking_from(planner, "max_damage").request.problem
+        assert problem.excluded == {11}
+        assert problem.required == {22}
+    finally:
+        for effect_id in (11, 22):
+            planner.effect_filters.mark(effect_id, None)
 
 
 def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
@@ -686,7 +689,38 @@ def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
     monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
                         lambda **kwargs: heard.append(kwargs))
     planner.effect_filters.mark(11, effectfilters.REQUIRED)
-    assert heard == [{"marking_changed": True}]
+    planner.effect_filters.mark(11, None)
+    assert heard == [{"marking_changed": True}] * 2
+
+
+def test_the_row_tooltip_counts_the_marked_effects_in_every_state(qapp):
+    """AK-280: the count is a standing setting, so it stands in 4.1 and 4.8
+    as much as behind an answer -- and only where a set is not empty."""
+    from nrplanner import effectfilters
+
+    filters = effectfilters.EffectFilters()
+    asking = {"value": _an_asking()}
+    widget = advisorbar.AdvisorBar(lambda goal_id: asking["value"],
+                                   controller=_Controller(), filters=filters)
+    try:
+        assert widget.toolTip() == "<span>Nothing suggested yet.</span>"
+        filters.mark(11, effectfilters.EXCLUDED)
+        filters.mark(12, effectfilters.EXCLUDED)
+        filters.mark(13, effectfilters.REQUIRED)
+        widget.the_build_changed(marking_changed=True)
+        assert widget.toolTip() == (
+            "<span>Nothing suggested yet.  ·  2 effects excluded  ·  "
+            "1 effect required</span>")
+        asking["value"] = None
+        widget.the_build_changed()
+        assert widget.toolTip().endswith(
+            "use Rescan save.  ·  2 effects excluded  ·  1 effect required"
+            "</span>")
+        assert advisorbar.marking_clauses(None) == []
+    finally:
+        for effect_id in (11, 12, 13):
+            filters.mark(effect_id, None)
+        widget.deleteLater()
 
 
 def test_the_row_stops_the_search_before_the_data_under_it_changes(bar):

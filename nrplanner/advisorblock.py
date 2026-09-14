@@ -31,6 +31,15 @@ model, so the block asks for it and does not do it: `use_requested` says the
 player pressed it and the window is what puts the relic in the slot. The
 button is drawn only where there is something to press it for -- a suggestion
 that is already lying in the slot draws the one line of §3.2 and no control.
+
+**The bullet is the marking control** (AK-276/AK-277). In the `Why` dialog
+and on a picker card -- `MarkedLine`, shared by both -- the `•`/`✦` at the
+head of a line is a flat `QToolButton` that cycles the effect through
+neutral, `Don't include` and `Must include` (`effectfilters`). It is bound
+to the effect **id**: every line about that id, in every open widget,
+redraws from the one `EffectFilters.changed`, so two lines about one effect
+never show two states. The compact block keeps its plain markup; it has no
+room for a control (AK-160/AK-189) and the card's `Why` is one click away.
 """
 
 from __future__ import annotations
@@ -39,10 +48,12 @@ import html
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
-                               QVBoxLayout, QWidget)
+                               QToolButton, QVBoxLayout, QWidget)
 
+from . import effectfilters, effecttext
 from .advisor import goals as advisor_goals
 from .advisor import types
 
@@ -62,6 +73,32 @@ CONDITIONAL_HEADING = ("These effects only apply under a condition, so this "
 #: The bullets, as `RelicSlot._sync_mode` draws them.
 EFFECT_BULLET = "•"
 CURSE_BULLET = "✦"
+#: The bullet of a line the player marked `Must include` (AK-277).
+REQUIRED_BULLET = "▲"
+
+#: The legend for the two marked states, once per `Why` dialog and only
+#: while a line shows one of them (AK-277, wording AK-290.3).
+MARK_LEGEND = ("▲ marks an effect you required, a struck-through effect one "
+               "you excluded; every other line counts as usual.")
+
+#: The headings of the two management lists under the slot groups (AK-279).
+EXCLUDED_HEADING = "Effects you've excluded:"
+REQUIRED_HEADING = "Effects you require:"
+
+#: What the control says about its state and the next one (AK-277), by
+#: `EffectFilters` kind; `None` is neutral.
+MARK_TOOLTIPS = {
+    None: ("Counts toward every suggestion. Click to exclude it, click "
+           "again to require it."),
+    effectfilters.EXCLUDED: ("Don't include — counts in no suggestion or "
+                             "ranking. Click to include it again."),
+    effectfilters.REQUIRED: ("Must include — every suggestion carries this "
+                             "effect. Click to clear it."),
+}
+#: The cycle a click runs: neutral, excluded, required, neutral.
+NEXT_MARK = {None: effectfilters.EXCLUDED,
+             effectfilters.EXCLUDED: effectfilters.REQUIRED,
+             effectfilters.REQUIRED: None}
 
 #: The colour `RelicSlot._sync_mode` gives a working rolled effect. A literal
 #: there and a literal here on purpose: naming it in one place while the other
@@ -74,11 +111,34 @@ SMALL_TEXT = 11
 
 # --- one line, as the markup that draws it ---------------------------------
 
-def line_markup(line: types.ReasonLine) -> str:
-    """One drawn line, in the bullet and colour its shape asks for.
+def kind_of(filters: effectfilters.EffectFilters, effect_id: int
+            ) -> str | None:
+    """Which of the two sets holds this id, or `None` for neutral."""
+    if effect_id in filters.excluded:
+        return effectfilters.EXCLUDED
+    if effect_id in filters.required:
+        return effectfilters.REQUIRED
+    return None
 
-    Four cases, and all four are read off `is_curse` and `silence` -- never
-    off the words:
+
+@dataclass(frozen=True)
+class LineStyle:
+    """How one line is drawn: the facts `line_markup` turns into markup and
+    `MarkedLine` into a font and a stylesheet, so the two cannot disagree.
+    `small` is the 11 px of a silent effect (AK-156)."""
+
+    bullet: str
+    colour: str
+    struck: bool = False
+    bold: bool = False
+    small: bool = False
+
+
+def _styled(line: types.ReasonLine, kind: str | None) -> LineStyle:
+    """The style of one line in the given marked state (`None`: neutral).
+
+    Four neutral cases, and all four are read off `is_curse` and `silence`
+    -- never off the words:
 
     * a curse: `✦` in `CURSE`, whether or not a figure covers it;
     * an effect that belongs to another Nightfarer: drawn the way the rest of
@@ -89,19 +149,38 @@ def line_markup(line: types.ReasonLine) -> str:
     * any other silent effect: `MUTED`, 11 px, no warning colour, no `⚠`
       (AK-156);
     * an effect with a figure: `•` in the colour `_sync_mode` gives one.
-    """
-    from .app import BAD, CURSE, MUTED
 
-    text = html.escape(line.text)
+    The two marked states override all four (AK-277): `Don't include` is
+    exactly the dead-effect style, `Must include` is bold in `ACCENT` under
+    `▲`. The bullet keeps its kind for an excluded curse, so it is still
+    read as a curse.
+    """
+    from .app import ACCENT, BAD, CURSE, MUTED
+
+    bullet = CURSE_BULLET if line.is_curse else EFFECT_BULLET
+    if kind == effectfilters.EXCLUDED:
+        return LineStyle(bullet, BAD, struck=True)
+    if kind == effectfilters.REQUIRED:
+        return LineStyle(REQUIRED_BULLET, ACCENT, bold=True)
     if line.is_curse:
-        return (f"<div style='color:{CURSE}'>{CURSE_BULLET} {text}</div>")
+        return LineStyle(bullet, CURSE)
     if line.silence == types.SILENT_ANOTHER_NIGHTFARER:
-        return (f"<div style='color:{BAD}'>{EFFECT_BULLET} <s>{text}</s>"
-                f"</div>")
+        return LineStyle(bullet, BAD, struck=True)
     if line.silence != types.CARRIES_A_FIGURE:
-        return (f"<div style='color:{MUTED}; font-size:{SMALL_TEXT}px'>"
-                f"{EFFECT_BULLET} {text}</div>")
-    return f"<div style='color:{EFFECT_TEXT}'>{EFFECT_BULLET} {text}</div>"
+        return LineStyle(bullet, MUTED, small=True)
+    return LineStyle(bullet, EFFECT_TEXT)
+
+
+def line_markup(line: types.ReasonLine) -> str:
+    """One drawn line in its neutral shape, bullet and all -- the block's
+    form, which carries no control."""
+    style = _styled(line, None)
+    text = html.escape(line.text)
+    if style.struck:
+        text = f"<s>{text}</s>"
+    css = f"color:{style.colour}" + (f"; font-size:{SMALL_TEXT}px"
+                                     if style.small else "")
+    return f"<div style='{css}'>{style.bullet} {text}</div>"
 
 
 def lines_markup(lines) -> str:
@@ -150,6 +229,99 @@ def _rich() -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet("border: none;")
     return label
+
+
+def _stacked(widgets) -> QWidget:
+    """These widgets one under the other, as tight as lines of one label."""
+    holder = QWidget()
+    layout = QVBoxLayout(holder)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
+    for widget in widgets:
+        layout.addWidget(widget)
+    return holder
+
+
+class MarkedLine(QWidget):
+    """One drawn line whose bullet is the marking control (AK-276/AK-277).
+
+    The `QToolButton` stands where the bullet stood, at the line's own font
+    height, so the line is no taller than a `QLabel` drawing the same text
+    would be; `AutoRaise` and no border, so at rest it *is* the bullet. Tab
+    reaches it and Space presses it (AK-278); the focus ring is drawn in
+    `ACCENT`, because a stylesheet without a border takes Fusion's own ring
+    with it.
+
+    `size` is the line's font size in px, `0` for the widget default -- the
+    `Why` dialog draws effect lines at the default and a picker card at
+    `SMALL_TEXT`, and the bullet has to match the text beside it.
+    """
+
+    def __init__(self, line: types.ReasonLine,
+                 filters: effectfilters.EffectFilters, *, size: int = 0,
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        from .app import ACCENT
+
+        self.line = line
+        self._filters = filters
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        # Plain text and a font, not markup: the text is a name out of the
+        # game files (AK-29), and a plain label is one px shorter than a
+        # rich one -- the px AK-277 does not allow.
+        self.label = _plain(line.text)
+        self._base_font = QFont(self.label.font())
+        if size:
+            self._base_font.setPixelSize(size)
+        self.mark = QToolButton()
+        self.mark.setAutoRaise(True)
+        self.mark.setCursor(Qt.PointingHandCursor)
+        self._mark_css = (f"QToolButton {{ border: none; padding: 0; "
+                          f"margin: 0; background: transparent; color: %s; "
+                          f"}} QToolButton:focus {{ border: 1px solid "
+                          f"{ACCENT}; }}")
+        # The button is one bullet tall and one bullet wide, read off the
+        # label's own metrics, so the line keeps a label's height (AK-277's
+        # measure) and the text loses only the bullet's width.
+        self._set_font(self.label, small=False)
+        self._set_font(self.mark, small=False)
+        metrics = self.label.fontMetrics()
+        self.mark.setFixedSize(metrics.horizontalAdvance(REQUIRED_BULLET) + 4,
+                               metrics.height())
+        self.mark.clicked.connect(self._cycle)
+        row.addWidget(self.mark, 0, Qt.AlignTop)
+        row.addWidget(self.label, 1)
+        filters.changed.connect(self._redraw)
+        self._redraw()
+
+    def kind(self) -> str | None:
+        return kind_of(self._filters, self.line.effect_id)
+
+    def _cycle(self) -> None:
+        self._filters.mark(self.line.effect_id, NEXT_MARK[self.kind()])
+
+    def _set_font(self, widget: QWidget, *, small: bool,
+                  struck: bool = False, bold: bool = False) -> None:
+        """The base font of this line with the state's marks on it -- from
+        the base every time, so a state that ends takes its mark with it."""
+        font = QFont(self._base_font)
+        if small:
+            font.setPixelSize(SMALL_TEXT)
+        font.setStrikeOut(struck)
+        font.setBold(bold)
+        widget.setFont(font)
+
+    def _redraw(self) -> None:
+        kind = self.kind()
+        style = _styled(self.line, kind)
+        self.mark.setText(style.bullet)
+        self.mark.setStyleSheet(self._mark_css % style.colour)
+        self.mark.setToolTip(MARK_TOOLTIPS[kind])
+        self.label.setStyleSheet(f"border: none; color: {style.colour};")
+        self._set_font(self.label, small=style.small, struck=style.struck,
+                       bold=style.bold)
 
 
 # --- the block in the slot card --------------------------------------------
@@ -328,10 +500,14 @@ class WhyDialog(QDialog):
     """
 
     def __init__(self, heading: WhyHeading, result,
-                 parent: QWidget | None = None) -> None:
+                 parent: QWidget | None = None, *,
+                 filters: effectfilters.EffectFilters,
+                 effects: dict) -> None:
         super().__init__(parent)
         from .app import MUTED
 
+        self._filters = filters
+        self._effects = effects
         self.setModal(True)
         self.setWindowTitle(f"Why this build — {heading.goal_label}")
         self.resize(640, 620)
@@ -348,17 +524,28 @@ class WhyDialog(QDialog):
         self.head = _plain(head_sentence(heading))
         column.addWidget(self.head)
 
-        self.groups: list[tuple[QLabel, QLabel, QLabel]] = []
+        self.groups: list[tuple[QLabel, QLabel, list[MarkedLine]]] = []
         for group in _groups_of(result):
             title = _plain(group_heading(group))
             column.addWidget(title)
             count_line = _plain(group.count_line, colour=MUTED,
                                 size=SMALL_TEXT)
             column.addWidget(count_line)
-            lines = _rich()
-            lines.setText(lines_markup(group.lines))
-            column.addWidget(lines)
+            # One holder per group at spacing 0: the lines used to be the
+            # `<div>`s of one label, and a column gap between line widgets
+            # would make the dialog taller than that label was (AK-277).
+            lines = [MarkedLine(line, filters) for line in group.lines]
+            column.addWidget(_stacked(lines))
             self.groups.append((title, count_line, lines))
+
+        # AK-279: the marking's own two lists, every marked id whether or not
+        # this answer carries it -- the way back from a marking made on a
+        # card long since scrolled away. Rebuilt on every change, because a
+        # click on one of their own lines takes that line out of the list.
+        self.excluded_list = _stacked([])
+        self.required_list = _stacked([])
+        column.addWidget(self.excluded_list)
+        column.addWidget(self.required_list)
 
         # One label rather than one per name: the heading and the names are
         # one statement, they are plain text throughout, and a label apiece
@@ -373,6 +560,10 @@ class WhyDialog(QDialog):
         self.legend = _plain(CURSE_LEGEND, colour=MUTED, size=SMALL_TEXT)
         self.legend.setVisible(_a_curse_is_drawn(result))
         column.addWidget(self.legend)
+        self.mark_legend = _plain(MARK_LEGEND, colour=MUTED, size=SMALL_TEXT)
+        column.addWidget(self.mark_legend)
+        filters.changed.connect(self._show_the_marked_lists)
+        self._show_the_marked_lists()
 
         self.footer = _plain(_footer_text(result), colour=MUTED,
                              size=SMALL_TEXT)
@@ -389,6 +580,42 @@ class WhyDialog(QDialog):
         self.close_button.clicked.connect(self.accept)
         row.addWidget(self.close_button)
         outer.addLayout(row)
+
+    def marked_lines(self) -> list[MarkedLine]:
+        """Every line of the dialog that carries the control, groups first."""
+        return ([line for _t, _c, lines in self.groups for line in lines]
+                + self.excluded_list.findChildren(MarkedLine)
+                + self.required_list.findChildren(MarkedLine))
+
+    def _show_the_marked_lists(self) -> None:
+        for holder, heading, ids in (
+                (self.excluded_list, EXCLUDED_HEADING,
+                 self._filters.excluded),
+                (self.required_list, REQUIRED_HEADING,
+                 self._filters.required)):
+            layout = holder.layout()
+            while layout.count():
+                gone = layout.takeAt(0).widget()
+                gone.setParent(None)
+                gone.deleteLater()
+            if ids:
+                layout.addWidget(_plain(heading))
+                for effect_id in sorted(ids, key=self._name_of):
+                    layout.addWidget(MarkedLine(
+                        types.ReasonLine(slot_index=0, effect_id=effect_id,
+                                         text=self._name_of(effect_id)),
+                        self._filters))
+            holder.setVisible(bool(ids))
+        # A line in a marked state is on screen exactly when a set is not
+        # empty: the lists above show every member of both.
+        self.mark_legend.setVisible(
+            bool(self._filters.excluded or self._filters.required))
+
+    def _name_of(self, effect_id: int) -> str:
+        """The display name, or the id for one the dataset has lost."""
+        effect = self._effects.get(str(effect_id))
+        return (effecttext.name(effect) if effect
+                else f"effect {effect_id}")
 
 
 def _groups_of(result) -> tuple[types.SlotReasons, ...]:

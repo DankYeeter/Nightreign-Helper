@@ -61,10 +61,12 @@ def _one_card(favourite: bool, selected: bool) -> dict:
     from nrplanner import relicpicker
     from tests import rendered
 
+    from nrplanner import effectfilters
+
     item = types.SimpleNamespace(name="Grand Luminous Scene", has_curse=False)
     card = relicpicker.RelicCard(
-        item, ["Vigor +3"], None, selected, lambda _i: None,
-        favourite=favourite,
+        item, [(1, "Vigor +3")], None, selected, lambda _i: None,
+        marks=effectfilters.EffectFilters(), favourite=favourite,
         captions=[relicpicker.VALUE_CAPTIONS[goal_id]
                   for goal_id in relicpicker.VALUE_DIRECTIONS])
     card.setAttribute(Qt.WA_DontShowOnScreen)

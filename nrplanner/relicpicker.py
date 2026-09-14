@@ -34,7 +34,8 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, cardgrid, effecttext, favourites, model
+from . import (advisorbar, advisorblock, cardgrid, effectfilters, effecttext,
+               favourites, model)
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
@@ -637,10 +638,17 @@ class ValueBlock(QWidget):
 
 
 class RelicCard(QFrame):
-    """One relic: its icon, name and the effects it actually rolled."""
+    """One relic: its icon, name and the effects it actually rolled.
 
-    def __init__(self, item, effect_names: list[str], icon, selected: bool,
-                 on_pick, curses: list[tuple[str, str]] | None = None,
+    `effects` are `(id, name)` and `curses` are `(id, name, detail)`: each
+    line is a `MarkedLine` (AK-276), and the control on it is bound to the
+    id, which is why the card is handed ids and not names alone.
+    """
+
+    def __init__(self, item, effects: list[tuple[int, str]], icon,
+                 selected: bool, on_pick, *,
+                 marks: effectfilters.EffectFilters,
+                 curses: list[tuple[int, str, str]] | None = None,
                  tooltip: str = "", favourite: bool = False,
                  on_favourite=None, captions=()):
         super().__init__()
@@ -731,22 +739,19 @@ class RelicCard(QFrame):
         self.block = ValueBlock(captions)
         layout.addWidget(self.block)
 
-        for name in effect_names:
-            label = QLabel(f"• {name}")
-            label.setWordWrap(True)
-            label.setStyleSheet("border: none; color: #cfcfcf; font-size: 11px;")
-            layout.addWidget(label)
-
+        self.lines: list[advisorblock.MarkedLine] = []
+        for effect_id, name in effects:
+            self.lines.append(self._line(effect_id, name, marks))
         # Name the curses outright. "Comes with a curse" tells the player there
         # is a cost but not what it is, which is the one thing they need to
         # know before putting the relic on.
-        for curse_name, curse_detail in (curses or []):
-            label = QLabel(f"✦ {curse_name}")
-            label.setWordWrap(True)
-            label.setStyleSheet(f"border: none; color: {CURSE}; font-size: 11px;")
+        for curse_id, curse_name, curse_detail in (curses or []):
+            line = self._line(curse_id, curse_name, marks, is_curse=True)
             if curse_detail:
-                label.setToolTip(curse_detail)
-            layout.addWidget(label)
+                line.label.setToolTip(curse_detail)
+            self.lines.append(line)
+        for line in self.lines:
+            layout.addWidget(line)
 
         if not curses and item.has_curse:
             count = getattr(item, "curse_count", 0) or 0
@@ -760,6 +765,17 @@ class RelicCard(QFrame):
             self.setToolTip(tooltip)
 
         layout.addStretch()
+
+    @staticmethod
+    def _line(effect_id: int, name: str, marks: effectfilters.EffectFilters,
+              *, is_curse: bool = False) -> advisorblock.MarkedLine:
+        """One effect or curse line at the card's small size, with its
+        control. `slot_index` is the line type's, not the card's: a card
+        line belongs to no slot group."""
+        return advisorblock.MarkedLine(
+            advisor_types.ReasonLine(slot_index=0, effect_id=effect_id,
+                                     text=name, is_curse=is_curse),
+            marks, size=advisorblock.SMALL_TEXT)
 
     def show_values(self, texts, chip: str = "") -> None:
         """The figures for this card, and the tie mark if it has earned one.
@@ -1426,15 +1442,16 @@ class RelicPicker(QDialog):
         if menu.changed:
             self._refresh()
 
-    def _curses(self, item) -> list[tuple[str, str]]:
-        """(name, full description) for each curse this relic actually rolled."""
+    def _curses(self, item) -> list[tuple[int, str, str]]:
+        """(id, name, full description) for each curse this relic rolled."""
         out = []
         for cid in getattr(item, "curse_ids", ()) or ():
             eff = self.slot.effect_by_id.get(cid)
             if eff is None:
-                out.append((f"<{cid}>", ""))
+                out.append((cid, f"<{cid}>", ""))
             else:
-                out.append((effecttext.name(eff), effecttext.describe_full(eff)))
+                out.append((cid, effecttext.name(eff),
+                            effecttext.describe_full(eff)))
         return out
 
     def _card_for(self, item, current):
@@ -1442,11 +1459,12 @@ class RelicPicker(QDialog):
         icon = self.icons.item(item.icon) if item.icon else None
         return RelicCard(
             item,
-            self.slot.effect_names(item),
+            list(zip(item.effect_ids, self.slot.effect_names(item))),
             icon,
             selected=current is not None and current.relic_id == item.relic_id
             and current.effect_ids == item.effect_ids,
             on_pick=self._pick,
+            marks=self.slot.window().effect_filters,
             curses=self._curses(item),
             tooltip=self.slot.curse_tooltip(item),
             favourite=self.hero_id is not None

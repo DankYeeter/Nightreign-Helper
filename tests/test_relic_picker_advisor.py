@@ -26,7 +26,7 @@ from types import MappingProxyType
 
 import pytest
 from PySide6.QtCore import QEventLoop, Qt, QTimer
-from PySide6.QtWidgets import QFrame, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QToolButton
 
 from nrplanner import advisorbar, relicpicker
 from nrplanner.advisor import goals as advisor_goals
@@ -254,10 +254,16 @@ def relic_cards(dialog):
     return holder.findChildren(relicpicker.RelicCard)
 
 
+def effects_of(slot, item) -> list[tuple[int, str]]:
+    """`(id, name)` per rolled effect, as `_card_for` hands them over."""
+    return list(zip(item.effect_ids, slot.effect_names(item)))
+
+
 def a_card(slot, item, values=None, chip=""):
     """One card as the picker builds it, optionally already given figures."""
     card = relicpicker.RelicCard(
-        item, slot.effect_names(item), None, False, lambda _i: None,
+        item, effects_of(slot, item), None, False, lambda _i: None,
+        marks=slot.window().effect_filters,
         captions=[relicpicker.VALUE_CAPTIONS[goal_id]
                   for goal_id in relicpicker.VALUE_DIRECTIONS])
     card.setFixedWidth(relicpicker.CARD_WIDTH)
@@ -316,6 +322,88 @@ def open_picker(slot, gains, **kwargs):
 
 # --- the block, and the room it takes (AK-41) ------------------------------
 
+def test_every_effect_and_curse_line_of_a_card_is_the_marking_control(slot):
+    """AK-276 on the picker card: one `MarkedLine` per rolled effect and per
+    curse, bound to the id the run counts; a click reaches the window's
+    filters, and the tab stops per card are counted for the report
+    (AK-278)."""
+    from nrplanner import advisorblock, effectfilters
+
+    filters = slot.window().effect_filters
+    item = next(i for i in slot.available_items() if i.effect_ids)
+    card = a_card(slot, item)
+    try:
+        ids = [line.line.effect_id for line in card.lines]
+        assert ids == list(item.effect_ids) + list(
+            getattr(item, "curse_ids", ()) or ())
+        assert [line.line.is_curse for line in card.lines] == (
+            [False] * len(item.effect_ids)
+            + [True] * (len(ids) - len(item.effect_ids)))
+        assert card.findChildren(advisorblock.MarkedLine) == card.lines
+        stops = [w for w in card.findChildren(QToolButton)
+                 if w.focusPolicy() & Qt.TabFocus]
+        assert len(stops) >= len(card.lines)
+
+        card.lines[0].mark.click()
+        assert filters.excluded == {ids[0]}
+        assert card.lines[0].kind() == effectfilters.EXCLUDED
+    finally:
+        filters.mark(ids[0], None)
+        card.deleteLater()
+
+
+def test_a_card_is_the_same_height_with_the_control_as_with_a_label(slot):
+    """AK-277: the bullet became the control; the card grew by nothing."""
+    from nrplanner import advisorblock
+
+    item = next(i for i in slot.available_items() if i.effect_ids)
+    card = a_card(slot, item)
+    body = relicpicker.CARD_WIDTH - 2 * relicpicker.CARD_MARGIN
+    for line in card.lines:
+        plain = QLabel(f"• {line.line.text}")
+        plain.setWordWrap(True)
+        plain.setStyleSheet("border: none; color: #cfcfcf; font-size: 11px;")
+        assert (line.layout().heightForWidth(body)
+                <= plain.heightForWidth(body)), line.line.text
+        plain.deleteLater()
+    assert advisorblock.SMALL_TEXT == 11
+    card.deleteLater()
+
+
+def test_a_marking_made_on_a_card_stands_after_a_real_restart(planner,
+                                                               game_data,
+                                                               qapp):
+    """AK-283: mark on a card, close the window, build a new one from the
+    same store -- the new window's picker shows the marking, and the row's
+    tooltip counts it before anything was optimised (AK-280)."""
+    from nrplanner import app as appmod
+    from nrplanner import effectfilters
+    from tests import conftest
+
+    slot = a_slot(planner)
+    dialog = open_picker(slot, {0: 1.0})
+    line = next(line for card in relic_cards(dialog) for line in card.lines)
+    effect_id = line.line.effect_id
+    line.mark.click()
+    assert planner.effect_filters.excluded == {effect_id}
+    dialog.deleteLater()
+    planner.close()
+
+    restarted = conftest.wait_for_the_save(appmod.Planner(game_data))
+    try:
+        assert restarted.effect_filters.excluded == {effect_id}
+        assert "1 effect excluded" in restarted.advisor_bar.toolTip()
+        again = open_picker(a_slot(restarted), {0: 1.0})
+        kinds = {line.kind() for card in relic_cards(again)
+                 for line in card.lines if line.line.effect_id == effect_id}
+        assert kinds == {effectfilters.EXCLUDED}
+        again.deleteLater()
+    finally:
+        restarted.effect_filters.mark(effect_id, None)
+        restarted.close()
+        restarted.deleteLater()
+
+
 def test_the_pickers_question_carries_the_marked_sets(slot):
     """AD-036 option C: the picker's problem is the window's with `held`
     replaced, so both sets arrive without the picker knowing them."""
@@ -328,16 +416,21 @@ def test_the_pickers_question_carries_the_marked_sets(slot):
             self.request = request
             return pool_of(slot, {})
 
-    slot.window().effect_filters.mark(11, effectfilters.EXCLUDED)
-    slot.window().effect_filters.mark(22, effectfilters.REQUIRED)
-    track = Recording()
-    asked = relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
-                                   track).ask(lambda *_: None)
-    assert asked.ranking is not None
-    assert track.request.problem.excluded == {11}
-    assert track.request.problem.required == {22}
-    assert slot.index not in {held.index
-                              for held in track.request.problem.held}
+    filters = slot.window().effect_filters
+    filters.mark(11, effectfilters.EXCLUDED)
+    filters.mark(22, effectfilters.REQUIRED)
+    try:
+        track = Recording()
+        asked = relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
+                                       track).ask(lambda *_: None)
+        assert asked.ranking is not None
+        assert track.request.problem.excluded == {11}
+        assert track.request.problem.required == {22}
+        assert slot.index not in {held.index
+                                  for held in track.request.problem.held}
+    finally:
+        for effect_id in (11, 22):
+            filters.mark(effect_id, None)
 
 
 def test_every_relic_card_carries_a_value_block(slot):
@@ -403,10 +496,11 @@ def test_the_block_asks_for_no_more_width_than_the_card_has(slot):
     item = slot.available_items()[0]
     captions = [relicpicker.VALUE_CAPTIONS[goal_id]
                 for goal_id in relicpicker.VALUE_DIRECTIONS]
-    without = relicpicker.RelicCard(item, slot.effect_names(item), None,
-                                    False, lambda _i: None)
-    with_block = relicpicker.RelicCard(item, slot.effect_names(item), None,
-                                       False, lambda _i: None,
+    marks = slot.window().effect_filters
+    without = relicpicker.RelicCard(item, effects_of(slot, item), None,
+                                    False, lambda _i: None, marks=marks)
+    with_block = relicpicker.RelicCard(item, effects_of(slot, item), None,
+                                       False, lambda _i: None, marks=marks,
                                        captions=captions)
     with_block.show_values([LONGEST] * ROWS)
     assert (with_block.minimumSizeHint().width()

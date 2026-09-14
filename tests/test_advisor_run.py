@@ -206,9 +206,8 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     assert result.suggestions == ()
     assert result.unknowns[-1] == (
         f"No combination of the copies you own carries "
-        f"{', '.join(name(eid) for eid in sorted((rolls[0][0], rolls[1][0])))}"
-        f" together in the free slots, which you marked as required — no "
-        f"suggestion can meet that.")
+        f"{', '.join(sorted(name(eid) for eid in (rolls[0][0], rolls[1][0])))}"
+        f", which you marked as required — no suggestion can meet that.")
 
     met = a_run(dataclasses.replace(problem,
                                     required=frozenset({rolls[0][0]})))

@@ -27,9 +27,10 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QAbstractButton, QLabel
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QAbstractButton, QLabel, QToolButton
 
-from nrplanner import advisorbar, advisorblock
+from nrplanner import advisorbar, advisorblock, effectfilters
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
 
@@ -46,8 +47,9 @@ THE_WORDS_OF_THE_WORKINGS = ("field", "pool", "handle", "beam", "scorer",
 # --- the answers the cases draw --------------------------------------------
 
 def a_line(text: str, *, slot: int = 0, curse: bool = False,
-           silence: str = types.CARRIES_A_FIGURE) -> types.ReasonLine:
-    return types.ReasonLine(slot_index=slot, effect_id=1, text=text,
+           silence: str = types.CARRIES_A_FIGURE,
+           effect_id: int = 1) -> types.ReasonLine:
+    return types.ReasonLine(slot_index=slot, effect_id=effect_id, text=text,
                             is_curse=curse, silence=silence)
 
 
@@ -105,14 +107,40 @@ def block(qapp):
     widget.deleteLater()
 
 
-def a_dialog(qapp, result, **head) -> advisorblock.WhyDialog:
+#: The names the dialog's own lists (AK-279) print for the ids the cases
+#: mark, in the shape `Planner.effects` has.
+EFFECTS = {"1": {"name": "Improved Melee Attack Power"},
+           "2": {"name": "Roar Reduces Damage Taken"},
+           "3": {"name": "Ultimate Art Charging Impaired"}}
+
+
+@pytest.fixture
+def filters():
+    """Marked sets of this case alone, emptied afterwards (the store is the
+    test store, but a marking left behind would reach the next case)."""
+    marks = effectfilters.EffectFilters()
+    yield marks
+    for effect_id in marks.excluded | marks.required:
+        marks.mark(effect_id, None)
+
+
+def a_dialog(qapp, result, filters=None, **head) -> advisorblock.WhyDialog:
     heading = advisorblock.WhyHeading(
         goal_label=head.get("goal_label", "Maximise damage"),
         nightfarer=head.get("nightfarer", "Wylder"),
         vessel=head.get("vessel", "Wylder's Chalice"),
         deep=head.get("deep", True),
         relics=head.get("relics", 309))
-    return advisorblock.WhyDialog(heading, result)
+    return advisorblock.WhyDialog(
+        heading, result,
+        filters=effectfilters.EffectFilters() if filters is None else filters,
+        effects=EFFECTS)
+
+
+def drawn_in(dialog) -> str:
+    """Every group line of the dialog, as its label draws it."""
+    return "\n".join(line.label.text()
+                     for _t, _c, lines in dialog.groups for line in lines)
 
 
 def labels_of(widget) -> list[QLabel]:
@@ -356,7 +384,7 @@ def test_the_dialog_carries_the_lines_the_block_left_out(qapp):
     """The silent effects are not lost, they are one screen further in."""
     dialog = a_dialog(qapp, an_answer(a_mixed_group()))
 
-    drawn = "\n".join(label.text() for _t, _c, label in dialog.groups)
+    drawn = drawn_in(dialog)
     assert "works only for Duchess" in drawn
     assert "only applies under a condition" in drawn
     dialog.deleteLater()
@@ -370,8 +398,7 @@ def test_the_dialog_heads_each_group_with_a_one_based_slot(qapp):
     assert [title.text() for title, _c, _l in dialog.groups] == [
         "Slot 1 — The Will of the Balancers",
         "Slot 4 — The Will of the Balancers"]
-    for _t, _c, lines in dialog.groups:
-        assert "Slot 1" not in lines.text()
+    assert "Slot 1" not in drawn_in(dialog)
     dialog.deleteLater()
 
 
@@ -459,11 +486,15 @@ def test_a_budget_note_stands_under_the_run_findings(qapp):
 
 
 def test_the_dialog_carries_no_apply(qapp):
-    """§3.4: `Close` is the only button. Applying has two places, not three."""
+    """§3.4: `Close` is the only button. Applying has two places, not three.
+
+    The bullets are `QToolButton`s since AK-277, and they mark an effect
+    rather than act on the answer -- so the claim is about push buttons."""
     dialog = a_dialog(qapp, an_answer(a_mixed_group()))
 
     assert [button.text() for button in
-            dialog.findChildren(QAbstractButton)] == ["Close"]
+            dialog.findChildren(QAbstractButton)
+            if not isinstance(button, QToolButton)] == ["Close"]
     dialog.deleteLater()
 
 
@@ -516,8 +547,12 @@ def test_a_hostile_name_is_shown_letter_for_letter(qapp, block):
     # the format is the whole of the answer for them: Qt shows the string.
     assert block.relic_name.textFormat() == Qt.PlainText
     assert block.relic_name.text() == HOSTILE_NAME
+    # The dialog's lines are plain text since AK-277: the name stands in
+    # `text()` letter for letter, and the format is what keeps it so.
     for _t, _c, lines in dialog.groups:
-        assert "<b>Gladius</b>" not in lines.text()
+        for line in lines:
+            assert line.label.textFormat() == Qt.PlainText
+            assert line.label.text() == line.line.text
     assert dialog.conditional.textFormat() == Qt.PlainText
     dialog.deleteLater()
 
@@ -658,7 +693,7 @@ def test_why_opens_on_the_answer_that_is_on_screen(planner, monkeypatch):
     built = []
 
     class _Stub:
-        def __init__(self, heading, result, parent=None):
+        def __init__(self, heading, result, parent=None, **_marking):
             built.append((heading, result))
 
         def exec(self):
@@ -697,7 +732,7 @@ def test_the_cards_why_opens_the_same_dialog_as_the_bars(planner, monkeypatch):
     built = []
 
     class _Stub:
-        def __init__(self, heading, result, parent=None):
+        def __init__(self, heading, result, parent=None, **_marking):
             built.append((heading, result))
 
         def exec(self):
@@ -764,3 +799,139 @@ def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
 
     assert card.minimumSizeHint().width() == without
     card.deleteLater()
+
+
+# --- the marking control (AK-276 to AK-279, AK-290.3) ------------------------
+
+def test_every_line_of_the_dialog_is_a_control_bound_to_its_id(qapp, filters):
+    """AK-276: three states, cycled by the bullet, shown alike on every line
+    about the same id -- here two lines about effect 1 in two groups."""
+    from nrplanner.app import ACCENT, BAD
+
+    dialog = a_dialog(qapp, an_answer(a_mixed_group(slot=0),
+                                      a_mixed_group(slot=1)), filters)
+    first, second = (lines[0] for _t, _c, lines in dialog.groups)
+    assert first.line.effect_id == second.line.effect_id == 1
+    assert first.mark.text() == "•"
+    assert first.mark.toolTip() == advisorblock.MARK_TOOLTIPS[None]
+
+    first.mark.click()
+    assert filters.excluded == {1}
+    for line in (first, second):
+        assert line.kind() == effectfilters.EXCLUDED
+        assert line.label.font().strikeOut() and BAD in line.label.styleSheet()
+        assert line.mark.toolTip() == (
+            advisorblock.MARK_TOOLTIPS[effectfilters.EXCLUDED])
+
+    second.mark.click()
+    assert (filters.excluded, filters.required) == (frozenset(), {1})
+    for line in (first, second):
+        assert line.mark.text() == "▲"
+        assert line.label.font().bold() and ACCENT in line.label.styleSheet()
+        assert not line.label.font().strikeOut()
+
+    first.mark.click()
+    assert filters.required == frozenset()
+    assert second.kind() is None and second.mark.text() == "•"
+    assert not second.label.font().bold()
+    assert second.label.textFormat() == Qt.PlainText
+    dialog.deleteLater()
+
+
+def test_an_excluded_curse_keeps_its_curse_bullet(qapp, filters):
+    dialog = a_dialog(qapp, an_answer(a_group(
+        a_line("A curse: costs.", curse=True, effect_id=3))), filters)
+    line, = dialog.groups[0][2]
+    line.mark.click()
+    assert line.mark.text() == "✦" and line.label.font().strikeOut()
+    dialog.deleteLater()
+
+
+def test_the_control_is_a_tab_stop_and_space_presses_it(qapp, filters):
+    """AK-278, and the ring: a stylesheet without a border loses Fusion's
+    own focus frame, so the control draws one in `ACCENT` itself."""
+    from nrplanner.app import ACCENT
+
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    line = dialog.groups[0][2][0]
+    assert line.mark.focusPolicy() & Qt.TabFocus
+    assert f"QToolButton:focus {{ border: 1px solid {ACCENT}; }}" in (
+        line.mark.styleSheet())
+    dialog.show()
+    line.mark.setFocus()
+    QTest.keyClick(line.mark, Qt.Key_Space)
+    assert filters.excluded == {1}
+    dialog.deleteLater()
+
+
+def test_the_lists_and_the_legend_follow_the_sets(qapp, filters):
+    """AK-279: both lists carry every marked id, alphabetically, with the
+    control in the state that put it there; AK-277/AK-290.3: the legend
+    stands exactly while a line shows one of the two states."""
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    assert not dialog.mark_legend.isVisibleTo(dialog)
+    assert not dialog.excluded_list.isVisibleTo(dialog)
+
+    filters.mark(2, effectfilters.EXCLUDED)
+    filters.mark(3, effectfilters.REQUIRED)
+    filters.mark(1, effectfilters.REQUIRED)
+    assert dialog.mark_legend.text() == advisorblock.MARK_LEGEND
+    assert dialog.mark_legend.isVisibleTo(dialog)
+    headings = [label.text() for holder in (dialog.excluded_list,
+                                            dialog.required_list)
+                for label in holder.findChildren(QLabel)
+                if label.text().startswith("Effects")]
+    assert headings == ["Effects you've excluded:", "Effects you require:"]
+    required = dialog.required_list.findChildren(advisorblock.MarkedLine)
+    assert [line.line.text for line in required] == [
+        "Improved Melee Attack Power", "Ultimate Art Charging Impaired"]
+    assert all(line.kind() == effectfilters.REQUIRED for line in required)
+
+    # The way back: a click on a list line clears it, and the list shrinks.
+    required[0].mark.click()
+    assert filters.required == {3}
+    assert [line.line.text for line in
+            dialog.required_list.findChildren(advisorblock.MarkedLine)
+            ] == ["Ultimate Art Charging Impaired"]
+    dialog.deleteLater()
+
+
+def test_a_marked_line_is_no_taller_than_the_label_it_replaces(qapp, filters):
+    """AK-277: the control is the bullet, not a row beside it -- at the
+    dialog's width, in both font sizes the program draws lines at, and in
+    every one of the three states."""
+    width = 600
+    for size in (0, advisorblock.SMALL_TEXT):
+        line = a_line("Improved Melee Attack Power: Physical Attack +12.0%")
+        marked = advisorblock.MarkedLine(line, filters, size=size)
+        plain = QLabel()
+        plain.setTextFormat(Qt.RichText)
+        plain.setWordWrap(True)
+        plain.setStyleSheet(f"font-size: {size}px;" if size else "")
+        plain.setText(advisorblock.line_markup(line))
+        for kind in (effectfilters.EXCLUDED, effectfilters.REQUIRED, None):
+            assert (marked.layout().heightForWidth(width)
+                    <= plain.heightForWidth(width)), (size, marked.kind())
+            filters.mark(1, kind)
+        marked.deleteLater()
+        plain.deleteLater()
+
+
+def test_a_silent_line_that_stops_being_marked_is_small_again(qapp, filters):
+    """A marked state overrides the 11 px of a silent line; ending it must
+    give the px back, not leave the last state's font behind."""
+    line = a_line("X: only under a condition.",
+                  silence=types.SILENT_UNDER_A_CONDITION)
+    marked = advisorblock.MarkedLine(line, filters)
+    before = marked.label.font().pixelSize()
+    filters.mark(1, effectfilters.REQUIRED)
+    assert marked.label.font().pixelSize() != before
+    filters.mark(1, None)
+    assert marked.label.font().pixelSize() == before == advisorblock.SMALL_TEXT
+    marked.deleteLater()
+
+
+def test_the_block_draws_no_control(block, filters):
+    """AK-277: the compact block has no room for one; `Why` is a click away."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    assert block.findChildren(advisorblock.MarkedLine) == []
