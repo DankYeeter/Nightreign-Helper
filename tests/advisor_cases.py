@@ -500,6 +500,7 @@ def request_for(problem: types.SlotProblem, ctx: types.GoalContext,
         reference_weapon_id=(None if ctx.reference is None
                              else ctx.reference.weapon["id"]),
         declared=tuple(ctx.declared),
+        two_handed=ctx.two_handed,
         data_version=str(meta.get("data_version") or ""),
         inventory_fingerprint=run.inventory_fingerprint(inventory),
         generation=generation,
@@ -529,7 +530,8 @@ def context(data: dict, hero: dict, *,
             reference: types.ReferenceArmament | None = None,
             weighting: types.Weighting | None = None,
             declared: tuple[tuple[int, int], ...] = (),
-            armament_effect_ids: tuple[int, ...] = ()) -> types.GoalContext:
+            armament_effect_ids: tuple[int, ...] = (),
+            two_handed: bool = False) -> types.GoalContext:
     """The context a run is asked in.
 
     `weapons_held` follows the reference armament, because a weapon-type gate
@@ -547,4 +549,5 @@ def context(data: dict, hero: dict, *,
         weapons_held=held,
         armament_effect_ids=armament_effect_ids,
         declared=declared,
+        two_handed=two_handed,
     )

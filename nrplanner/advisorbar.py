@@ -449,6 +449,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     declared = tuple(sorted({**model.advisor_defaults(),
                              **planner.declared}.items()))
     weighting = advisor_goals.DEFAULT_WEIGHTING
+    # The hand is read, although the grid is not: it is a feature of the
+    # build the player sets, not of an armament that is rolled (AK-293).
+    two_handed = planner.stat_sheet.hand_switch.isChecked()
     # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
     # docstring, A17 and AD-032. The armament grid is not read here at all
     # any more, which is why there is nothing left of it to leave out.
@@ -459,6 +462,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference=None,
         weighting=weighting,
         declared=declared,
+        two_handed=two_handed,
     )
     meta = planner.data.get("meta") or {}
     request = types.AdvisorRequest(
@@ -475,6 +479,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         # context, and one of the two filled would be the disagreement.
         reference_weapon_id=None,
         declared=declared,
+        two_handed=two_handed,
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,

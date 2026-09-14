@@ -306,6 +306,9 @@ class AdvisorRequest:
     armaments: tuple[ArmamentRef, ...] = ()
     #: effect id -> how many times the player declares its condition met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: Which hand the damage direction ranks (AK-292/AK-293). In the key
+    #: because a run ranked one-handed is not the answer to a two-handed ask.
+    two_handed: bool = False
     budget: Budget = DEFAULT_BUDGET
     #: `meta.data_version` of the dataset this was asked against.
     data_version: str = ""
@@ -460,6 +463,10 @@ class GoalContext:
     armament_effect_ids: tuple[int, ...] = ()
     #: effect id -> how many times its condition is declared met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
+    #: switch (AK-292). Changes what the direction *counts*, not what any
+    #: display shows (AK-293 point 1).
+    two_handed: bool = False
 
 
 @dataclass(frozen=True)

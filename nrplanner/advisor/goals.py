@@ -191,7 +191,7 @@ _DAMAGE_TAKEN_SCOPE = (
 )
 
 
-def _attack_multiplier_mean(build: model.Build) -> float:
+def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
     """The mean of the five attack multipliers: the figure the program ranks by.
 
     OF-5, confirmed by the `director`: a run without a reference armament is
@@ -210,8 +210,14 @@ def _attack_multiplier_mean(build: model.Build) -> float:
     no scaling for them to feed. Where they *are* counted is
     `MAX_ATTRIBUTES`, a direction of its own: AD-032 put them there rather
     than into this mean, so that this figure goes on saying what it said.
+
+    Two-handed, the `when Two-Handing` bucket multiplies into each field the
+    way `damage._answer` multiplies it into the two-handed figure (AK-293
+    point 2); one-handed it stays out, as it does of every one-handed figure.
     """
-    rates = [build.rates.get(field_name, 1.0)
+    hand = (build.class_rates.get(model.TWO_HANDED_CLASS, {})
+            if two_handed else {})
+    rates = [build.rates.get(field_name, 1.0) * hand.get(field_name, 1.0)
              for field_names in damage.AR_RATE_FOR.values()
              for field_name in field_names]
     return sum(rates) / len(rates)
@@ -267,7 +273,7 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     the report to the `performance-tuner` for S11.
     """
     if ctx.reference is None:
-        mean = _attack_multiplier_mean(build)
+        mean = _attack_multiplier_mean(build, ctx.two_handed)
         # No unit: the figure is a ratio, not an attack rating, and `UI_SPEC`
         # §3.3 drops the "AR" suffix -- and with it the attack-rating
         # reservation -- exactly when the unit is empty.
@@ -285,6 +291,10 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
         )
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data)
+    # Two-handed where the switch says so and the armament allows it; an
+    # armament without a second figure keeps its one (AK-293 point 3).
+    if ctx.two_handed and now.two_handed is not None:
+        now = now.two_handed
     # `value` is the unrounded figure and `display` the truncated one, and
     # they are deliberately not the same number: the ranking and the marginal
     # contribution are formed from `value`, so a digit that exists only for

@@ -269,6 +269,7 @@ def _refuse_a_request_that_asks_about_another_run(
             ("reference_weapon_id", request.reference_weapon_id,
              None if reference is None else reference.weapon.get("id")),
             ("declared", request.declared, tuple(ctx.declared)),
+            ("two_handed", request.two_handed, ctx.two_handed),
             ("data_version", request.data_version,
              str(meta.get("data_version") or "")),
             ("armament effect ids",

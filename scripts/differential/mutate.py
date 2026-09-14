@@ -100,6 +100,50 @@ MUTATIONS: dict[str, Mutation] = {
             "stance_buff_travels_with_its_condition_and_moves_no_figure` "
             "(T-254b, AD-037 point 3)."),
     ),
+    "hand-switch-ignored-by-the-mean": Mutation(
+        path="nrplanner/advisor/goals.py",
+        old="""    hand = (build.class_rates.get(model.TWO_HANDED_CLASS, {})
+            if two_handed else {})
+""",
+        new="""    hand = {}
+""",
+        survival_means=(
+            "the `1H`/`2H` switch changes nothing the advisor ranks: a relic "
+            "`Improved Attack Power when Two-Handing` is worth 0 two-handed "
+            "as well. Killed by `tests/test_two_handed_switch.py::test_the_"
+            "two_handing_bucket_counts_in_the_mean_two_handed_only` and "
+            "`test_the_order_of_two_relics_turns_with_the_hand` (T-255c, "
+            "AK-293 point 2)."),
+    ),
+    "hand-forgotten-by-the-store": Mutation(
+        path="nrplanner/chalices.py",
+        old="""    if two_handed:
+        parts.append(TWO_HANDED)
+""",
+        new="""    if False:
+        parts.append(TWO_HANDED)
+""",
+        survival_means=(
+            "the switch is a session setting after all: every build comes "
+            "back one-handed at the next launch. Killed by `tests/test_two_"
+            "handed_switch.py::test_the_hand_round_trips_through_both_stores` "
+            "and `test_the_hand_survives_a_restart` (T-255c, AK-292)."),
+    ),
+    "hand-left-out-of-the-cache-key": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""        declared=declared,
+        two_handed=two_handed,
+        data_version=str(meta.get("data_version") or ""),
+""",
+        new="""        declared=declared,
+        data_version=str(meta.get("data_version") or ""),
+""",
+        survival_means=(
+            "a run ranked one-handed is handed back for the two-handed ask, "
+            "silently, because the key does not tell the two apart. Killed by "
+            "`tests/test_two_handed_switch.py::test_the_ask_carries_the_hand_"
+            "in_context_and_key` (T-255c, AK-293)."),
+    ),
 }
 
 
