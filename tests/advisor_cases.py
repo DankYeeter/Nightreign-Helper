@@ -141,7 +141,7 @@ def a_damage_type_conversion(data: dict) -> int:
     """An effect that converts damage from one type into another (QA-113).
 
     Found through `model.FLAT_ATTACK_POWER_FIELDS`, which is the model's own
-    account of the fields it has no compartment for -- asking the model rather
+    account of the conversion fields -- asking the model rather
     than naming an id keeps the case pointing at the same thing if the
     dataset's ids move. The lowest id with a negative and a positive entry, so
     it really is a conversion and not a flat bonus.

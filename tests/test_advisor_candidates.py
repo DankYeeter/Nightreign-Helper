@@ -265,21 +265,21 @@ def test_the_conditional_line_counts_this_pool_and_not_the_held_bundle(
 
 
 def test_a_conversion_the_figure_cannot_use_is_named(game_data, wylder):
-    """QA-113: a relic that moves the figure by exactly 0, said out loud.
+    """QA-113: a relic that moves a candidate's figure by exactly 0, said out loud.
 
     Four relics of this dataset convert physical damage into an element --
     `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
-    four payload tiers -- and `model.compute` has no compartment for either
-    field. The card prints the numbers and the attack rating does not move by
-    one part in a million. On the picker that is a relic sitting at `0.00`
-    with nothing saying why, which is the exact picture AD-004 wrote the
-    conditional line to prevent, arriving through a different door.
+    four payload tiers. Since T-246 `damage.converted` counts them, but on the
+    Nightfarer's own armament in slot 1 only, and a candidate sits in no slot
+    (AD-020, point 3): its attack rating does not move by one part in a
+    million. On the picker that is a relic sitting at `0.00` with nothing
+    saying why, which is the exact picture AD-004 wrote the conditional line
+    to prevent, arriving through a different door.
 
-    **What this case does not do**, because nothing in the files settles it:
-    say what the conversion is worth. Three readings of the same four relics
-    give 91, 116 and 117 against a base of 114, and choosing between them
-    needs a figure read off the game (QA-113, F-F). Naming a gap is not the
-    same as filling it, and the gap named wrongly would be worse than either.
+    **What this case does not do**: say what the conversion is worth to a
+    candidate. What it is worth on the starting armament is measured and
+    held in `tests/test_damage_conversion_against_the_game.py`; a candidate
+    has no slot to be the starting armament in.
     """
     converting = advisor.a_damage_type_conversion(game_data)
     inventory = advisor.make_inventory(game_data, wylder, count=2,

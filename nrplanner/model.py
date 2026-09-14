@@ -663,30 +663,24 @@ ELEMENT_ATTACK_POWER_RATES = ("physicsAttackPowerRate", "magicAttackPowerRate",
                               "fireAttackPowerRate", "thunderAttackPowerRate",
                               "darkAttackPowerRate")
 
-#: The five **flat** counterparts of the rates above, and this module has no
-#: compartment for any of them: nothing here reads them, so an effect carrying
-#: one moves the attack rating by exactly 0 while its own card prints the
-#: numbers (QA-113). They are named rather than left unnamed so that a caller
-#: can say so to the player instead of showing a relic that does nothing and
-#: explaining nothing.
-#:
-#: Measured over the 2076 effects of `data_version` 10350000 on 2026-09-05:
-#: **21 effects** carry at least one of them, and none of the six checked
-#: moves any figure of the build. They are the four "Starting armament deals
-#: magic/fire/lightning/holy damage" relics (7120000/100/200/300, each
+#: The five **flat** counterparts of the rates above, field -> damage type.
+#: They are the damage-type conversion of the four "Starting armament deals
+#: magic/fire/lightning/holy damage" relics (7120000/100/200/300:
 #: `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
-#: four payload tiers, rising to -60/+66), sixteen "Add <element> to Weapon"
-#: effects (8110700-8111003), and one Wylder skill effect (7020000).
+#: four payload tiers, rising to -60/+66); sixteen "Add <element> to Weapon"
+#: effects (8110700-8111003) and one Wylder skill effect (7020000) carry them
+#: too (21 effects over the 2076 of `data_version` 10350000, 2026-09-05).
 #:
-#: **Deliberately not modelled here.** What the game does with them cannot be
-#: settled from the files -- three readings of the four relics give 91, 116
-#: and 117 against a base of 114 -- and it needs a reading in play (QA-113,
-#: F-F). Guessing one would put a number on screen that nobody warned the
-#: player about, which is the thing `compute` already refuses to do for a
-#: field whose direction it does not know.
-FLAT_ATTACK_POWER_FIELDS = ("physicsAttackPower", "magicAttackPower",
-                            "fireAttackPower", "thunderAttackPower",
-                            "darkAttackPower")
+#: `compute` sums them into `Build.starting_flat`; where they land is
+#: `damage.converted`, because like the `*AttackPowerRate` penalty they reach
+#: the starting armament in slot 1 and nothing else (QA-113, T-246).
+FLAT_ATTACK_POWER_FIELDS = {
+    "physicsAttackPower": "Physics",
+    "magicAttackPower": "Magic",
+    "fireAttackPower": "Fire",
+    "thunderAttackPower": "Thunder",
+    "darkAttackPower": "Dark",
+}
 # Marks a row that stands for all five damage types at once. The real field
 # name rides behind it so the click-through breakdown still works.
 ALL_DAMAGE_PREFIX = "alldamage:"
@@ -857,6 +851,10 @@ class Build:
     # Multipliers that only cover a class of armament -- "Improved Melee Attack
     # Power" against a bow. Keyed by "melee" / "ranged" / "catalyst".
     class_rates: dict[str, dict[str, float]] = field(default_factory=dict)
+    #: Flat attack-power points per damage type from the "Starting armament
+    #: deals <element> damage" relics (`FLAT_ATTACK_POWER_FIELDS`). Booked
+    #: here, applied by `damage.converted` to the starting armament alone.
+    starting_flat: dict[str, float] = field(default_factory=dict)
     other: dict[str, float] = field(default_factory=dict)
     warnings: list[Warning] = field(default_factory=list)
     # label -> (value before relics, value after relics)
@@ -1107,6 +1105,12 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 attr = ATTRIBUTE_FIELDS[fname]
                 build.attributes[attr] = build.attributes.get(attr, 0) + int(value)
                 record(attr, int(value))
+            elif (fname in FLAT_ATTACK_POWER_FIELDS
+                    and isinstance(value, (int, float))):
+                damage_type = FLAT_ATTACK_POWER_FIELDS[fname]
+                build.starting_flat[damage_type] = (
+                    build.starting_flat.get(damage_type, 0.0) + float(value))
+                record(fname, float(value))
             elif fname in FLAT_BONUSES and isinstance(value, (int, float)):
                 signed = -value if fname in INVERTED_SIGN else value
                 if fname in NON_ACCUMULATING:
@@ -1273,6 +1277,7 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         numeric = numeric or not gated and any(
             f in ATTRIBUTE_FIELDS
             or f in FLAT_BONUSES
+            or f in FLAT_ATTACK_POWER_FIELDS
             or f in EXTRA_MULTIPLIERS
             or (isinstance(v, (int, float)) and f.endswith("Rate"))
             for f, v in mods.items()

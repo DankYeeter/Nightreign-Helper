@@ -71,8 +71,8 @@ AR_RATE_FOR = {
 # belong to** (QA-114). The same three sit in a wider group of "starting
 # armament" relics whose other members convert a damage type instead --
 # "Starting armament deals magic / fire / lightning / holy damage",
-# 7120000/100/200/300, which carry flat `*AttackPower` fields that nothing in
-# this program reads (`model.FLAT_ATTACK_POWER_FIELDS`, QA-113). The claim
+# 7120000/100/200/300, which carry flat `*AttackPower` fields that
+# `converted` below applies (`model.FLAT_ATTACK_POWER_FIELDS`, QA-113). The claim
 # that the game groups all of them under one `stateInfo` is the
 # `qa-engineer`'s reading of the params and **cannot be reproduced from the
 # extracted dataset**, which carries no such field; what can be counted here
@@ -232,6 +232,10 @@ class Rating:
     rates: dict[str, float] = field(default_factory=dict)
     weapon_class: str | None = None
     starting_armament: bool = False
+    #: What the damage-type conversion moved, per type, on the screen's
+    #: scale -- empty where none applies. For the popup; already inside
+    #: `scaled_per_type`.
+    conversion: dict[str, float] = field(default_factory=dict)
 
     @property
     def weapon(self) -> dict:
@@ -461,6 +465,8 @@ def breakdown_figures(bare: Rating, now: Rating) -> dict:
     if calibration is not None:
         figures["calibration"] = {"factor": calibration.factor,
                                   "reason": calibration.reason}
+    if now.conversion:
+        figures["conversion"] = dict(now.conversion)
     return figures
 
 
@@ -481,6 +487,54 @@ def _scaled(weapon: dict, question: Question, tier: int,
     return weapons.rate(weapon, attributes, data, tier, build.nightfarer)
 
 
+def converted(per_type: dict[str, float],
+              flat: dict[str, float]) -> tuple[dict[str, float],
+                                               dict[str, float]]:
+    """The starting armament's per-type figure after a damage-type conversion.
+
+    Hands back `(per type after, what moved per type)`, both on the screen's
+    scale.
+
+    **Measured, not read from the files** (QA-113, T-246). The params say
+    `physicsAttackPower` -30 and `<element>AttackPower` +33 and nothing about
+    where those points land. Three readings in play on 2026-09-14 -- level 15,
+    own starting armament in slot 1, the "Starting armament deals fire
+    damage" relic at its first payload tier, no other relics -- settle it:
+
+        Wylder    Greatsword   122 -> 123   (Physics 80 base)
+        Revenant  Cursed Claws  88 -> 91    (Physics 12, Magic 54)
+        Duchess   Dagger        72 -> 74    (Physics 55)
+
+    The one reading that hits 3 of 3: the points are added **flat** to the
+    scaled figure, before `GAME_ATTACK_POWER_RATE` -- so +3 net is +1.8 on
+    screen -- and a type driven below zero stops at zero. Revenant's claws
+    are the case that needs the floor: 12 x 2.36 - 30 < 0, and without the
+    floor the game would show 90. Scaling the points through the attributes
+    instead (the reading the task started from) gives 126 / 92 / 76 and is
+    ruled out by all three; the next payload tier gives 124 / 98 / 74 and is
+    ruled out by two.
+
+    Applied before the attack multipliers, which no reading has measured
+    against; the three readings had none in play, so the order is a choice
+    and is said to be one. Types stay in `weapons.DAMAGE_TYPES` order so the
+    panel lists them as every other display does; a type the conversion
+    zeroes stays in the map at 0.0, because "your physical damage is gone" is
+    the thing the player is buying the element with.
+    """
+    after: dict[str, float] = {}
+    moved: dict[str, float] = {}
+    for damage_type in weapons.DAMAGE_TYPES:
+        if damage_type not in per_type and damage_type not in flat:
+            continue
+        was = per_type.get(damage_type, 0.0)
+        now = max(0.0, was + flat.get(damage_type, 0.0)
+                  * weapons.GAME_ATTACK_POWER_RATE)
+        after[damage_type] = now
+        if damage_type in flat:
+            moved[damage_type] = now - was
+    return after, moved
+
+
 def _answer(rating: weapons.WeaponRating, question: Question,
             build: model.Build, *, starting_armament: bool = False) -> Rating:
     """Layer two: the attack multipliers, where the question includes them."""
@@ -495,6 +549,13 @@ def _answer(rating: weapons.WeaponRating, question: Question,
             final_per_type=dict(scaled_per_type),
             weapon_class=weapon_class,
         )
+
+    # The damage-type conversion follows the same pairing as the status
+    # penalty below: the Nightfarer's own armament in slot 1, nothing else.
+    conversion: dict[str, float] = {}
+    if starting_armament and build.starting_flat:
+        scaled_per_type, conversion = converted(scaled_per_type,
+                                                build.starting_flat)
 
     class_rates = build.class_rates.get(weapon_class, {})
     final_per_type: dict[str, float] = {}
@@ -536,6 +597,7 @@ def _answer(rating: weapons.WeaponRating, question: Question,
         rates=rates_in_play,
         weapon_class=weapon_class,
         starting_armament=starting_armament,
+        conversion=conversion,
     )
 
 

@@ -418,6 +418,19 @@ class StatSheet(QScrollArea):
         # A factor read off the game for this Nightfarer/armament pairing
         # (`weapons.nightfarer_calibration`). It is already inside every
         # figure above; the line says so, and says where the number is from.
+        # The damage-type conversion of a "Starting armament deals <element>
+        # damage" relic, per type, so the player sees what the element cost
+        # in physical damage (`damage.converted`, measured 3 of 3).
+        conversion = ar.get("conversion")
+        if conversion:
+            moved = ", ".join(
+                f"{weapons.DAMAGE_LABELS[damage_type]} {value:+.0f}"
+                for damage_type, value in conversion.items())
+            rows.append(f"&nbsp;&nbsp;Starting armament conversion &nbsp; "
+                        f"<b>{moved}</b> "
+                        f"<span style='color:{MUTED}'>measured, not read "
+                        f"from the files</span>")
+
         calibration = ar.get("calibration")
         if calibration:
             rows.append(f"&nbsp;&nbsp;{calibration['reason']} &nbsp; "

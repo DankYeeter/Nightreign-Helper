@@ -83,9 +83,11 @@ def test_a_rating_has_no_total_to_be_given(game_data, build, starting_weapon):
     """
     field_names = {f.name for f in dataclasses.fields(damage.Rating)}
 
+    # `conversion` (T-246) is what the damage-type conversion moved per type,
+    # for the popup; the totals still come out of `final_per_type` alone.
     assert field_names == {
         "question", "weapon_rating", "scaled_per_type", "final_per_type",
-        "rates", "weapon_class", "starting_armament",
+        "rates", "weapon_class", "starting_armament", "conversion",
     }
 
     rating = damage.candidate(starting_weapon, weapons.MAX_UPGRADE, build,

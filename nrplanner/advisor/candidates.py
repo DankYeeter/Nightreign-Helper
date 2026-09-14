@@ -28,8 +28,9 @@ offered at all and is reported instead (AD-013 point 4).
 
 **What a pool reports about itself** are run findings and only those
 (AD-025.2): the copies this save gives no handle for, the candidates whose
-effect no total counted, and the candidates whose damage-type conversion this
-figure has no place for (QA-113). Each carries a count, so each belongs to the
+effect no total counted, and the candidates whose damage-type conversion a
+slotless figure cannot carry (QA-113, `damage.converted`). Each carries a
+count, so each belongs to the
 run rather than to the method. What the *direction* cannot know whatever the
 run stands in `Goal.scope` and is read from there; six pools of a Deep vessel
 repeating it six times is the noise AK-50 is written against. The one thing
@@ -184,15 +185,14 @@ def _unmodelled_conversion_line(count: int) -> str:
 
 def _converts_a_damage_type(candidate: types.Candidate,
                             ctx: types.GoalContext) -> bool:
-    """Does this candidate carry a field the attack rating has no place for?
+    """Does this candidate carry a damage-type conversion?
 
-    `model.FLAT_ATTACK_POWER_FIELDS` names them, and the model naming them is
-    the point: the criterion is "the calculation has no compartment for this",
-    which only the calculation can say. Read off the effect records rather
-    than off the build, and that is not the shortcut do-not rule 36 forbids --
-    a conditional effect is one `model.compute` **parked**, and a build can be
-    asked what it parked, but a field nothing reads leaves no trace in a
-    build at all. There is nothing here to ask.
+    `model.FLAT_ATTACK_POWER_FIELDS` names the fields. The calculation counts
+    them on the Nightfarer's own armament in slot 1 and nowhere else
+    (`damage.converted`), and a candidate sits in no slot (AD-020, point 3),
+    so a candidate's figure cannot carry the change and the line says so.
+    Read off the effect records rather than off the build: the build sums
+    the points into `starting_flat` but no longer says which relic did.
     """
     known = ctx.data["effects"]
     for effect_id in tuple(candidate.effect_ids) + tuple(candidate.curse_ids):

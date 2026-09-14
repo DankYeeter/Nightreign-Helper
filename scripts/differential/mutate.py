@@ -96,6 +96,19 @@ MUTATIONS: dict[str, Mutation] = {
             "by `tests/test_attack_power_calibration_against_the_game.py`, "
             "the Wylder/Claws row (T-246)."),
     ),
+    "damage-type-conversion-ignored": Mutation(
+        path="nrplanner/damage.py",
+        old="""    if starting_armament and build.starting_flat:
+""",
+        new="""    if False:
+""",
+        survival_means=(
+            "the four `Starting armament deals <element> damage` relics move "
+            "the attack rating by exactly 0 again, as before T-246: Wylder "
+            "122 where the game shows 123, Revenant 88 for 91, Duchess 72 for "
+            "74 (QA-113). Killed by `tests/test_damage_conversion_against_"
+            "the_game.py`, every row."),
+    ),
 }
 
 
