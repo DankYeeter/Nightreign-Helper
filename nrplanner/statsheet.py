@@ -57,19 +57,6 @@ VISIBLE_PERCENT = 0.05
 COLOURED_CHANGE = 0.05
 
 
-def _restricted_to(class_name: str) -> str:
-    """Where a class-scoped multiplier applies, in the sheet's words.
-
-    The `when Two-Handing` bucket is a hand, not an armament class
-    (`model.TWO_HANDED_CLASS`), so it takes the condition's own sentence
-    from `effecttext` rather than `two_handed armaments only` (AK-288,
-    AK-293 point 4).
-    """
-    if class_name == model.TWO_HANDED_CLASS:
-        return effecttext.ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE]
-    return f"{class_name} armaments only"
-
-
 def _heading(text: str) -> QLabel:
     label = QLabel(text.upper())
     font = label.font()
@@ -851,7 +838,8 @@ class StatSheet(QScrollArea):
 
         restricted: list[tuple[str, str, float]] = []
         for class_name, bucket in sorted(build.class_rates.items()):
-            restricted += spell_out(bucket, _restricted_to(class_name))
+            restricted += spell_out(bucket,
+                                    effecttext.restricted_to(class_name))
 
         for where, label, value in restricted:
             pct = (value - 1.0) * 100

@@ -16,7 +16,8 @@ from __future__ import annotations
 import pytest
 from PySide6.QtWidgets import QLabel
 
-from nrplanner import arsenaltab, damage, effecttext, model, statsheet, weaponslots
+from nrplanner import arsenaltab, damage, effecttext, model, weaponslots
+from nrplanner.advisor.explain import _field_label
 
 from tests import weapon_damage_cases as cases
 
@@ -174,7 +175,18 @@ def test_the_arsenal_tile_shows_both_hands_only_for_a_two_handable_armament(
 
 
 def test_the_two_handing_bucket_is_named_by_its_condition():
-    assert statsheet._restricted_to(model.TWO_HANDED_CLASS) == \
+    assert effecttext.restricted_to(model.TWO_HANDED_CLASS) == \
         effecttext.ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE]
-    assert statsheet._restricted_to("melee") == "melee armaments only"
-    assert "two_handed" not in statsheet._restricted_to(model.TWO_HANDED_CLASS)
+    assert effecttext.restricted_to("melee") == "melee armaments only"
+    assert "two_handed" not in effecttext.restricted_to(model.TWO_HANDED_CLASS)
+
+
+def test_the_why_names_the_two_handing_bucket_by_its_condition():
+    """AK-293 point 4 in the advisor's `Why`: the same sentence as the sheet,
+    through the same function, never the bucket's internal name."""
+    key = f"{model.WEAPON_CLASS_PREFIX}{model.TWO_HANDED_CLASS}:physicsAttackRate"
+    label = _field_label(key)
+    assert label.endswith(effecttext.ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE])
+    assert "two_handed" not in label
+    assert _field_label(f"{model.WEAPON_CLASS_PREFIX}melee:physicsAttackRate"
+                        ).endswith("melee armaments only")

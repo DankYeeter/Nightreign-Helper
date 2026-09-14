@@ -222,17 +222,17 @@ def _scales(key: str, built: model.Build) -> bool:
 def _field_label(key: str) -> str | None:
     """The name the player reads for this figure, `None` if there is none.
 
-    `effecttext.field_label` -- the one lookup (AK-295 point 1) -- and the
-    class spelled out for a buff that only lifts one kind of armament, the
-    same addition `app.py` makes in the attack-rating breakdown, because
-    "Physical Attack +20 %" without it is a claim about every armament on
-    the grid.
+    `effecttext.field_label` -- the one lookup (AK-295 point 1) -- and where
+    the buff applies spelled out for one that only lifts one kind of armament
+    or one hand, in the stat sheet's own words (`effecttext.restricted_to`,
+    AK-293 point 4), because "Physical Attack +20 %" without it is a claim
+    about every armament on the grid.
     """
     if key.startswith(model.WEAPON_CLASS_PREFIX):
         _prefix, weapon_class, field_name = key.split(":", 2)
         label = effecttext.field_label(field_name)
         return None if label is None else (
-            f"{label}, {weapon_class} armaments only")
+            f"{label}, {effecttext.restricted_to(weapon_class)}")
     return effecttext.field_label(key)
 
 

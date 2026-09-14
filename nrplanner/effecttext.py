@@ -76,6 +76,20 @@ ATTACK_CONDITIONS = {
     124: "only while two-handing the armament",
 }
 
+
+def restricted_to(class_name: str) -> str:
+    """Where a class-scoped multiplier applies, in the player's words.
+
+    The `when Two-Handing` bucket is a hand, not an armament class
+    (`model.TWO_HANDED_CLASS`), so it takes the condition's own sentence
+    above rather than `two_handed armaments only` (AK-288, AK-293 point 4).
+    One function for the stat sheet and the advisor's `Why`, so the two
+    cannot name the same bucket differently.
+    """
+    if class_name == model.TWO_HANDED_CLASS:
+        return ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE]
+    return f"{class_name} armaments only"
+
 # Multipliers whose names do not end in "Rate", so the pattern match above
 # never reached them. Each was left showing nothing at all -- notably
 # "Ultimate Art Charging Impaired", whose entire content is a 0.85 here.
