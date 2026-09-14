@@ -601,8 +601,8 @@ def test_the_automatic_route_is_held_to_the_same_limit(game_data, monkeypatch,
     Nobody picked this file: it was lying in the profile folder under the
     name the game uses, and the automatic route hands it straight to
     `_read_settled`. The limit therefore cannot live in the caller alone, and
-    this case is the one that says so -- it never goes near
-    `_refuse_a_file_no_save_can_be`.
+    this case is the one that says so -- it never goes near the size check
+    in `read_the_save`.
 
     The spy is what makes "not read" an assertion rather than a hope:
     `savefile._members` is the first thing the bytes are handed to, so a run
