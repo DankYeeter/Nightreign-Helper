@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import effectstab
+from nrplanner import effectstab, effecttext
 
 from tests import tabtext
 
@@ -675,3 +675,57 @@ def test_the_filter_captions_do_not_set_the_window_floor(tab):
         f"tab's minimum width, and only the row's own spacing "
         f"({row.spacing()} px each, {allowed} px in all) is free. A word on "
         f"this row becomes the whole window's floor.")
+
+
+# -- QA-172: the curse verdict is settled over every row of an effect --------
+
+def test_the_curse_verdict_does_not_follow_the_filter(tab):
+    """QA-172: 23 effects of this dataset exist as data rows that disagree
+    on `Comes with curse` -- `sometimes` on one, `never` on another. The
+    merge kept whichever row survived the filters, so an effect read
+    `sometimes` under one filter and blank under another. The verdict is the
+    game's, worked out here from the rule and not from the tab: every row
+    cursed is `always cursed`, no row cursed is blank, anything between is
+    `sometimes` -- whatever the view shows.
+    """
+    curse_col = column_of(tab, CURSE_HEADER)
+    name_col = column_of(tab, "Effect")
+    what_col = column_of(tab, "What it does")
+
+    def verdict(rows: list[str]) -> str:
+        if all(row == "always" for row in rows):
+            return "always cursed"
+        if any(row != "never" for row in rows):
+            return "sometimes"
+        return ""
+
+    # Keyed the way the table shows a row. A key covering two genuinely
+    # different effects is left out rather than compared to the wrong twin.
+    rows_of, identities = {}, {}
+    for effect in tab.effects:
+        if effect.get("is_curse"):
+            continue
+        key = (effecttext.name(effect), effecttext.describe_full(effect))
+        rows_of.setdefault(key, []).append(effect.get("curse", "never"))
+        identities.setdefault(key, set()).add(effectstab.identity(effect))
+    disagreeing = {key: verdict(rows) for key, rows in rows_of.items()
+                   if len(set(rows)) > 1 and len(identities[key]) == 1}
+    assert disagreeing, (
+        "no effect of this dataset disagrees with itself about its curse, "
+        "so this case is watching nothing")
+
+    tab.rollable_only.setChecked(False)
+    tab.colour_box.setCurrentIndex(0)
+    assert tab.colour_box.currentData() == -1, "expected `All colours` first"
+    shown = {}
+    for row in range(tab.table.rowCount()):
+        key = (tab.table.item(row, name_col).text(),
+               tab.table.item(row, what_col).text())
+        shown.setdefault(key, set()).add(tab.table.item(row, curse_col).text())
+
+    wrong = [(key[0], want, shown.get(key))
+             for key, want in disagreeing.items() if shown.get(key) != {want}]
+    assert not wrong, (
+        f"{len(wrong)} of {len(disagreeing)} effects whose rows disagree on "
+        f"the curse do not show the verdict over all their rows (name, "
+        f"expected, shown): {wrong[:3]}")
