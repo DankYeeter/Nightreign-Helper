@@ -298,14 +298,26 @@ def test_a_curse_reaches_the_advisor_as_an_ordinary_effect(planner,
     The advisor inherits that by holding the curses of a held relic in the
     same list -- so a cursed relic on screen and the same cursed relic held
     produce one set of numbers, not two.
+
+    A copy without a gated roll, because the two sides disagree on gates by
+    design: the advisor's baseline counts a conditional effect (A18), the
+    sheet counts it only while its switch is on. On the frozen slot the first
+    cursed Deep copy carries `Madness in Vicinity Improves Attack Power +1`,
+    and the case would then be about A18 rather than about the curse.
     """
     if planner.owned is None:
         pytest.skip("this machine has no save, so no relic can be equipped")
+
+    def ungated(item) -> bool:
+        return not any(
+            model.is_conditional(game_data["effects"][str(effect_id)], None)
+            for effect_id in [*item.effect_ids, *item.curse_ids])
+
     planner.deep_check.setChecked(True)
     cursed = None
     for slot in planner.deep_slots:
         for item in relic_helpers.offered(slot):
-            if item.curse_ids:
+            if item.curse_ids and ungated(item):
                 relic_helpers.equip(slot, item)
                 cursed = item
                 break

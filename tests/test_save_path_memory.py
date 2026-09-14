@@ -77,7 +77,7 @@ def store():
 
 @pytest.fixture(scope="module")
 def a_real_scan(game_data):
-    """One real reading of the player's save, kept for the whole module.
+    """One reading of the frozen slot by the automatic route, for the module.
 
     Real records rather than built ones, for the case about the exit that
     ends well: what the line says there is the count and the slot name of a
@@ -706,12 +706,21 @@ def test_one_unreadable_save_does_not_hide_a_good_one(game_data, a_real_scan,
 
     Two files, the good one older than the bad one, so the bad one is read
     first: a scan that gave up where it stumbled would answer nothing at all.
-    The good one is the player's own save, because "good" here has to mean a
-    file this reader really gets an inventory out of.
+    The bad file goes through the real reader; the good one stands for the
+    frozen slot (QA-266: the suite reads no living save), and the reader is
+    asked about it only after it has stumbled over the bad one.
     """
-    good = savefile.find_saves()[0]
+    good = a_save_file(tmp_path / "older", b"stands for the frozen slot")
     bad = a_save_file(tmp_path, b"this is a screenshot")
     monkeypatch.setattr(savefile, "find_saves", lambda: [good, bad])
+    real_scan_save = inventory._scan_save
+
+    def the_good_one_is_the_frozen_slot(path, *args, **kwargs):
+        if path == good:
+            return a_real_scan
+        return real_scan_save(path, *args, **kwargs)
+
+    monkeypatch.setattr(inventory, "_scan_save", the_good_one_is_the_frozen_slot)
 
     found = savereader.read_the_save(game_data)
 
@@ -770,3 +779,18 @@ def test_the_file_type_is_named_only_where_it_helps():
              if ".sl2" in text.lower()}
 
     assert named == {"S1", "the filters"}
+
+
+def test_the_automatic_route_of_the_suite_reads_the_frozen_slot(game_data):
+    """QA-266: no case reads the save of whoever sits at the machine.
+
+    Both roots of the automatic route -- `%APPDATA%` and the `Path.home()`
+    fallback -- point somewhere empty for the whole run, and what the route
+    hands back instead is the frozen slot of `tests/data`: the same three
+    window cases were green with one evening's save and red with the next,
+    on one commit, because the vessel chosen in the game had changed.
+    """
+    assert savefile.find_saves() == []
+    assert not any(root.exists() for root in savefile.save_roots())
+    assert inventory.scan(game_data).source == conftest.frozen_scan().source
+    assert inventory.scan(game_data).folder == "frozen save folder"

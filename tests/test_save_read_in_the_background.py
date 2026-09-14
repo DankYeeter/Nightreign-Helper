@@ -102,7 +102,7 @@ class StatedRead:
 
 @pytest.fixture(scope="module")
 def a_scan(game_data):
-    """One real reading of the player's save, kept for the whole module.
+    """One reading of the frozen slot by the automatic route, for the module.
 
     Real records rather than built ones: every case below that is about what
     arrives is about an inventory the planner can actually put into its slots,

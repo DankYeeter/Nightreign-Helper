@@ -7,9 +7,11 @@ created, so it is set before anything imports PySide6 -- at module import
 time, above the imports that matter. A test that needs a window gets one that
 is never shown.
 
-**The player's own files are read and never written.** The dataset comes from
-the installed game or from a snapshot built from it; the save is opened
-read-only by the code under test. Settings are the one thing the program does
+**The player's own files are read and never written -- and the save not even
+read.** The dataset comes from the installed game or from a snapshot built
+from it; the save the automatic route finds is the frozen slot under
+`tests/data`, never the one on the machine (`no_living_save`, QA-266). Settings
+are the one thing the program does
 write, so the suite redirects them to a store of its own through the
 environment variables the program already honours (see nrplanner.favourites).
 Without that redirect a test run would overwrite the builds and favourites of
@@ -339,12 +341,64 @@ def planner(game_data, qapp):
     window.deleteLater()
 
 
-#: The copies of one save, frozen on 2026-09-13 as ids and numbers only
-#: (relic id, handle, effect ids, curse ids) -- no save file, no name out of
+#: One character slot of one save, frozen on 2026-09-14 as ids and numbers
+#: only (relic id, handle, effect ids, curse ids; the stored builds as hero,
+#: vessel, six handles, selected) -- no save file, no name out of
 #: `nightreign_data`. A figure counted over a live save changes with every
-#: evening the player spends in the game (QA-252: 312 became 314 in a day),
-#: and on every other machine it was never counted at all.
+#: evening the player spends in the game (QA-252: 312 became 314 in a day;
+#: QA-266: three window cases turned on which vessel was chosen in the game
+#: that evening), and on every other machine it was never counted at all.
 FROZEN_INVENTORY = pathlib.Path(__file__).parent / "data" / "frozen_inventory.json"
+
+
+def frozen_scan():
+    """The frozen slot as `inventory.scan` would have read it off the disk."""
+    from nrdata import savefile
+    from nrplanner import inventory
+
+    frozen = json.loads(FROZEN_INVENTORY.read_text(encoding="utf-8"))
+    owned = [savefile.OwnedRelic(relic_id, list(effect_ids), offset,
+                                 list(curse_ids))
+             for offset, (relic_id, _handle, effect_ids, curse_ids)
+             in enumerate(frozen["copies"])]
+    handle_of = {offset: copy[1] for offset, copy in enumerate(frozen["copies"])}
+    loadouts = [savefile.Loadout(vessel_id, list(handles), hero_id, selected,
+                                 offset)
+                for offset, (hero_id, vessel_id, handles, selected)
+                in enumerate(frozen["loadouts"])]
+    return inventory.SaveScan(source=frozen["source"], folder=frozen["folder"],
+                              source_bytes=frozen["source_bytes"], owned=owned,
+                              handle_of=handle_of, loadouts=loadouts)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def no_living_save(tmp_path_factory):
+    """The suite never reads the save of whoever is sitting at the machine.
+
+    `savefile.save_roots` is where the automatic route looks -- `%APPDATA%`
+    and the `Path.home()` fallback beside it -- and both are turned to an
+    empty folder of this run. What a window or a fixture then reads by that
+    route is the frozen slot above (QA-266: the same three cases were green
+    with one evening's save and red with the next, on the same commit). A
+    case that names a file of its own, or that patches `find_saves` to one,
+    still reads that file with the real code.
+    """
+    from nrdata import savefile
+    from nrplanner import inventory
+
+    nowhere = tmp_path_factory.mktemp("saves") / "Nightreign"
+    real_scan = inventory.scan
+
+    def frozen_where_the_disk_has_nothing(data, save_path=None):
+        found = real_scan(data, save_path)
+        if found is None and save_path is None:
+            return frozen_scan()
+        return found
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(savefile, "save_roots", lambda: [nowhere])
+        patch.setattr(inventory, "scan", frozen_where_the_disk_has_nothing)
+        yield
 
 
 @pytest.fixture
@@ -352,19 +406,7 @@ def frozen_inventory(game_data):
     """The frozen save as an `Inventory`, named out of the dataset now."""
     from nrplanner import inventory
 
-    relic_meta = {relic["id"]: relic for relic in game_data["relics"]}
-    frozen = json.loads(FROZEN_INVENTORY.read_text(encoding="utf-8"))
-    relics = []
-    for relic_id, handle, effect_ids, curse_ids in frozen["copies"]:
-        meta = relic_meta[relic_id]
-        relics.append(inventory.OwnedItem(
-            relic_id=relic_id, name=meta["name"].strip(),
-            colour=meta["colour"], effect_ids=list(effect_ids),
-            is_deep=bool(meta.get("is_deep")),
-            has_curse=bool(meta.get("has_curse")),
-            curse_ids=list(curse_ids), handle=handle))
-    return inventory.Inventory(source=f"frozen on {frozen['frozen_on']}",
-                               relic_count=len(relics), relics=relics)
+    return inventory.build(game_data, frozen_scan())
 
 
 def _vessels_in_the_list(planner) -> list[tuple[int, dict]]:
@@ -434,7 +476,7 @@ def shared_planner(game_data, qapp):
 
 @pytest.fixture
 def two_copies_of_one_roll(planner):
-    """Two copies of one roll out of the player's own save, and where they fit.
+    """Two copies of one roll out of the frozen slot, and where they fit.
 
     Real copies, not built ones. The restore picks from a list holding one
     entry per roll, so a second copy is only reachable by handle -- and a pair

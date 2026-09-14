@@ -1114,11 +1114,12 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: dataset, counted 2026-09-14). The baseline's whole vocabulary (AD-036.6).
 SWITCHABLE_CONDITIONS = 420
 
-#: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 314
+#: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and
 #: the bar as it asked before A16 -- the player's declarations alone.
-#: Counted 2026-09-14 on the frozen copy.
-COPIES_THE_BASELINE_MOVES = 21
+#: Counted 2026-09-14 on the frozen copy (21 of the 314 frozen the day
+#: before; seven rolls came, six went, T-252).
+COPIES_THE_BASELINE_MOVES = 24
 
 SURVIVAL = "min_damage_taken"
 
@@ -1233,7 +1234,7 @@ def test_the_baseline_moves_the_ranking_where_a_condition_sits(planner):
 def test_the_baseline_moves_the_counted_copies_of_the_frozen_save(
         planner, frozen_inventory):
     """A18's figure, on the same save wherever the suite runs: the copies of
-    the 314 frozen on 2026-09-13 that change their survival figure under
+    the 315 frozen on 2026-09-14 that change their survival figure under
     the baseline, no more and no fewer -- a baseline that declared one
     condition too many or too few moves a different count. Kills the
     `MUTATIONS` entry `baseline-dropped-from-the-ask` (AD-033).

@@ -158,7 +158,10 @@ def main(snapshot: pathlib.Path) -> dict:
     appmod.apply_appearance(app)
     data = json.loads(snapshot.read_text(encoding="utf-8"))
     model.configure(data)
-    planner = conftest.wait_for_the_save(appmod.Planner(data))
+    # The frozen slot, as in the parent: this child is a process of its own
+    # and the session fixture's redirect does not reach it (QA-266).
+    planner = conftest.wait_for_the_save(appmod.Planner(
+        data, read_save=lambda _data, _path: conftest.frozen_scan()))
     planner.setAttribute(Qt.WA_DontShowOnScreen)
     planner.show()
     rendered.settle(20)
