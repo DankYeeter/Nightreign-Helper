@@ -110,7 +110,9 @@ def test_the_popup_names_the_factor_and_where_it_is_from(shared_planner,
     assert ("Raider with a greataxe or great hammer &nbsp; <b>x1.18</b> "
             "<span style='color:#8a8a8a'>measured, not read from the files; "
             "in every figure here</span>") in text
-    assert "<b>Total 188</b>" in text
+    # Both hands on the same row (AK-286): 188 one-handed, and the Raider
+    # two-handing factor of R-008 on top for the second figure.
+    assert "<b>Total 188\u00a0/\u00a0216\u00a02H</b>" in text
 
 
 # --- two-handing (R-008, AD-037) -------------------------------------------

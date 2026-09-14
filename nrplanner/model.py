@@ -427,8 +427,9 @@ WEAPON_CLASS_PREFIX = "wepclass:"
 # two-handed figure of every armament that has one (`damage.Rating.
 # two_handed`, AD-037) and into no one-handed figure.
 TWO_HANDED_CLASS = "two_handed"
+TWO_HANDING_SCOPE = 124
 WEAPON_CLASS_SCOPES = {130: "melee", 113: "ranged", 118: "ranged",
-                       124: TWO_HANDED_CLASS}
+                       TWO_HANDING_SCOPE: TWO_HANDED_CLASS}
 
 # Which class an armament belongs to, by its family. Families are named by the
 # game's own buffs (see "Categories come from the buffs"), so this reads them

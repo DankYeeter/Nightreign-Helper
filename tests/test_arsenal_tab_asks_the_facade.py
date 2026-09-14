@@ -176,8 +176,8 @@ def test_every_tile_shows_the_candidate_answer_for_the_chosen_tier(
             expected = damage.candidate(weapon, tier, build, game_data)
             for tile in tiles:
                 shown = tile_headline(tile, expected)
-                assert shown == str(
-                        damage.displayed(expected.final_headline)), (
+                assert shown == expected.displayed_hands(
+                        lambda r: r.final_headline), (
                     f"{weapon['name']!r} at tier {tier}: the tab and the "
                     f"facade name different figures")
                 seen += 1
@@ -226,8 +226,8 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
     tiles = drawn_tiles(tab, weapon)
     assert tiles, f"the tab drew no tile for {weapon['name']!r}"
     for tile in tiles:
-        assert tile_headline(tile, at_spinbox) == str(
-                damage.displayed(at_spinbox.final_headline)), (
+        assert tile_headline(tile, at_spinbox) == at_spinbox.displayed_hands(
+                lambda r: r.final_headline), (
             f"the tab is ranking {weapon['name']!r} at a tier the spinbox "
             f"does not show")
 
@@ -310,8 +310,8 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
 
     for tile in tiles:
         rows = tile_rows(tile)
-        assert rows[0] == (expected.headline_label, str(damage.displayed(
-            expected.final_headline)))
+        assert rows[0] == (expected.headline_label,
+                           expected.displayed_hands(lambda r: r.final_headline))
 
         type_rows = rows[1:1 + len(expected.shown_per_type)]
         expected_type_rows = [
