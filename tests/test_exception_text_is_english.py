@@ -41,7 +41,7 @@ import subprocess
 import pytest
 
 from nrdata import savefile
-from nrplanner import app as appmod
+from nrplanner import app as appmod, savereader
 from nrplanner import (datasource, errortext, firstrun, gamepath, inventory,
                        shortcut)
 
@@ -393,7 +393,8 @@ def test_a_save_windows_will_not_open_is_reported_in_english(game_data,
     """
     chosen = tmp_path / "NR0000.sl2"
     chosen.write_bytes(b"")
-    monkeypatch.setattr(appmod, "_refuse_a_file_no_save_can_be", lambda _p: None)
+    monkeypatch.setattr(savereader, "_refuse_a_file_no_save_can_be",
+                        lambda _p: None)
 
     def refuse(*args, **kwargs):
         raise a_refusal_worded_by_windows()
@@ -401,7 +402,7 @@ def test_a_save_windows_will_not_open_is_reported_in_english(game_data,
     monkeypatch.setattr(inventory, "scan", refuse)
 
     with pytest.raises(inventory.SaveNotReadable) as raised:
-        appmod.read_the_save(game_data, chosen)
+        savereader.read_the_save(game_data, chosen)
 
     says_nothing_windows_said(str(raised.value))
     assert str(raised.value) == errortext.WHAT_THE_SYSTEM_REFUSED[errno.EACCES]
@@ -420,7 +421,7 @@ def test_the_line_under_the_save_never_carries_windows_words(game_data, qapp):
     def refuse(_data, _path):
         raise a_refusal_worded_by_windows()
 
-    worker = appmod._SaveReadWorker(7, game_data, refuse)
+    worker = savereader._SaveReadWorker(7, game_data, refuse)
     worker.failed.connect(lambda generation, reason: said.append(reason))
     worker.work()
 

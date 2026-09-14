@@ -32,7 +32,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QProgressBar,
                                QTabWidget)
 
-from nrplanner import app as appmod, chalices, inventory, relicslots
+from nrplanner import (app as appmod, chalices, inventory, relicslots,
+                       savereader)
 from tests import conftest, rendered
 
 #: How long a case waits for a held read to **begin** before it calls the
@@ -647,7 +648,7 @@ def test_the_reader_starts_nothing_while_one_read_is_out(game_data, qapp,
     second press (measured against `a-read-per-press`, T-157).
     """
     read = StatedRead(a_scan, hold=True)
-    reader = appmod.SaveReader(read=read)
+    reader = savereader.SaveReader(read=read)
     try:
         assert reader.start(game_data) is True
         read.began.wait(READ_FUSE_S)
@@ -674,7 +675,7 @@ def test_nothing_arrives_after_shutdown(game_data, qapp, a_scan):
     that is on its way out.
     """
     read = StatedRead(a_scan, hold=True)
-    reader = appmod.SaveReader(read=read)
+    reader = savereader.SaveReader(read=read)
     arrived = []
     reader.ready.connect(arrived.append)
     reader.failed.connect(arrived.append)
@@ -700,7 +701,7 @@ def test_a_read_that_fails_is_reported_rather_than_lost(game_data, qapp):
     held in `tests/test_exception_text_is_english.py`.
     """
     read = StatedRead(raises=inventory.SaveNotReadable("this is not a save"))
-    reader = appmod.SaveReader(read=read)
+    reader = savereader.SaveReader(read=read)
     said = []
     reader.failed.connect(said.append)
     try:

@@ -39,7 +39,8 @@ from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
 from nrdata import savefile
-from nrplanner import app as appmod, favourites, gamepath, inventory
+from nrplanner import (app as appmod, favourites, gamepath, inventory,
+                       savereader)
 from tests import conftest, rendered
 from tests.test_save_read_in_the_background import (READ_FUSE_S, StatedRead,
                                                     close)
@@ -217,7 +218,7 @@ def test_a_window_whose_picked_file_is_gone_says_nothing_about_it(
     before = store.value(gamepath.SAVE_KEY, "", type=str)
     picked.unlink()
     asked = []
-    monkeypatch.setattr(appmod, "_pick_a_save_file",
+    monkeypatch.setattr(savereader, "_pick_a_save_file",
                         lambda parent: asked.append(parent))
 
     read = StatedRead(None)
@@ -296,7 +297,7 @@ def test_only_the_pick_writes_the_key():
 
 def pick_and_read(window, chosen: pathlib.Path, read, monkeypatch) -> None:
     """Press `Find my save...`, with the dialog answering `chosen`."""
-    monkeypatch.setattr(appmod, "_pick_a_save_file", lambda parent: chosen)
+    monkeypatch.setattr(savereader, "_pick_a_save_file", lambda parent: chosen)
     window.find_save_button.click()
     read.release()
     conftest.wait_for_the_save(window)
@@ -441,7 +442,8 @@ def test_the_pick_keeps_the_file_and_a_cancelled_pick_keeps_nothing(
     window = a_window(game_data, read)
     try:
         conftest.wait_for_the_save(window)
-        monkeypatch.setattr(appmod, "_pick_a_save_file", lambda parent: None)
+        monkeypatch.setattr(savereader, "_pick_a_save_file",
+                            lambda parent: None)
         window.find_save_button.click()
         rendered.settle()
 
@@ -461,13 +463,13 @@ def test_the_pick_keeps_the_file_and_a_cancelled_pick_keeps_nothing(
 def test_the_dialog_asks_in_english_and_offers_the_three_filters():
     """AK-123 and AK-128, written out rather than read off the constants.
 
-    An expectation taken from `appmod.SAVE_FILE_FILTERS` would follow a
+    An expectation taken from `savereader.SAVE_FILE_FILTERS` would follow a
     rewrite of the filters into the dialog of every player and say nothing
     while it did. The order matters as much as the entries: the first is what
     the dialog opens on.
     """
-    assert appmod.CHOOSE_YOUR_SAVE == "Choose your Nightreign save file"
-    assert appmod.SAVE_FILE_FILTERS.split(";;") == [
+    assert savereader.CHOOSE_YOUR_SAVE == "Choose your Nightreign save file"
+    assert savereader.SAVE_FILE_FILTERS.split(";;") == [
         "Nightreign save (NR*.sl2)",
         "Save file (*.sl2)",
         "All files (*)",
@@ -488,7 +490,7 @@ def test_the_dialog_opens_in_the_save_folder_when_there_is_one(
     roundabout = roaming / "Nightreign" / ".." / "Nightreign"
     monkeypatch.setattr(savefile, "save_roots", lambda: [roundabout])
 
-    assert appmod.where_saves_usually_are() == roaming / "Nightreign"
+    assert savereader.where_saves_usually_are() == roaming / "Nightreign"
 
 
 def test_the_dialog_opens_in_the_profile_when_the_folder_is_missing(
@@ -499,7 +501,7 @@ def test_the_dialog_opens_in_the_profile_when_the_folder_is_missing(
     monkeypatch.setattr(savefile, "save_roots",
                         lambda: [roaming / "Nightreign"])
 
-    assert appmod.where_saves_usually_are() == roaming
+    assert savereader.where_saves_usually_are() == roaming
 
 
 def test_the_dialog_opens_wherever_qt_would_when_neither_is_there(
@@ -508,7 +510,7 @@ def test_the_dialog_opens_wherever_qt_would_when_neither_is_there(
     monkeypatch.setattr(savefile, "save_roots",
                         lambda: [tmp_path / "nowhere" / "Nightreign"])
 
-    assert appmod.where_saves_usually_are() is None
+    assert savereader.where_saves_usually_are() is None
 
 
 # -- read_the_save: which exit a real file falls into ----------------------
@@ -520,7 +522,7 @@ def test_a_file_that_is_not_a_save_is_refused_with_a_reason(game_data,
     chosen = a_save_file(tmp_path, b"this is a screenshot, not a save")
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data, chosen)
+        savereader.read_the_save(game_data, chosen)
 
     assert "BND4" in str(raised.value)
     assert names_no_path(str(raised.value), chosen)
@@ -536,7 +538,7 @@ def test_a_save_that_holds_nothing_is_no_failure(game_data, tmp_path):
     """
     chosen = a_save_file(tmp_path, an_empty_container())
 
-    assert appmod.read_the_save(game_data, chosen) is None
+    assert savereader.read_the_save(game_data, chosen) is None
 
 
 def test_no_file_at_that_place_says_so_without_saying_where(game_data,
@@ -551,7 +553,7 @@ def test_no_file_at_that_place_says_so_without_saying_where(game_data,
     chosen.unlink()
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data, chosen)
+        savereader.read_the_save(game_data, chosen)
 
     assert names_no_path(str(raised.value), chosen)
     assert str(raised.value)
@@ -563,7 +565,7 @@ def test_nothing_picked_reads_the_way_it_always_did(game_data, monkeypatch):
     monkeypatch.setattr(inventory, "scan",
                         lambda data, *rest: asked.append(rest))
 
-    assert appmod.read_the_save(game_data) is None
+    assert savereader.read_the_save(game_data) is None
     assert asked == [()]
 
 
@@ -586,7 +588,7 @@ def test_a_file_too_large_to_be_a_save_is_not_read(game_data, monkeypatch,
                             "the file was read before its size was looked at"))
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data, chosen)
+        savereader.read_the_save(game_data, chosen)
 
     assert "MB" in str(raised.value)
     assert names_no_path(str(raised.value), chosen)
@@ -616,7 +618,7 @@ def test_the_automatic_route_is_held_to_the_same_limit(game_data, monkeypatch,
                             "looked at"))
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data)
+        savereader.read_the_save(game_data)
 
     assert "far larger than any save this game writes" in str(raised.value)
     assert names_no_path(str(raised.value), huge)
@@ -636,7 +638,7 @@ def test_a_save_of_the_ordinary_size_is_read(game_data, monkeypatch,
         handle.write(an_empty_container())
         handle.truncate(A_REAL_SAVE_IS_BYTES)
 
-    assert appmod.read_the_save(game_data, chosen) is None
+    assert savereader.read_the_save(game_data, chosen) is None
 
 
 def test_the_limit_is_far_above_a_real_save():
@@ -671,7 +673,7 @@ def test_a_save_that_cannot_be_read_is_not_reported_as_no_save(game_data,
                                              b"this is a screenshot")])
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data)
+        savereader.read_the_save(game_data)
 
     assert "BND4" in str(raised.value)
 
@@ -691,7 +693,7 @@ def test_the_reason_for_an_unopenable_save_carries_no_path(game_data,
     monkeypatch.setattr(savefile, "find_saves", lambda: [folder])
 
     with pytest.raises(ValueError) as raised:
-        appmod.read_the_save(game_data)
+        savereader.read_the_save(game_data)
 
     assert str(raised.value)
     assert names_no_path(str(raised.value), folder)
@@ -711,7 +713,7 @@ def test_one_unreadable_save_does_not_hide_a_good_one(game_data, a_real_scan,
     bad = a_save_file(tmp_path, b"this is a screenshot")
     monkeypatch.setattr(savefile, "find_saves", lambda: [good, bad])
 
-    found = appmod.read_the_save(game_data)
+    found = savereader.read_the_save(game_data)
 
     assert found is not None, "the bad file took the good one down with it"
     assert found.owned
@@ -733,12 +735,12 @@ def the_texts_of_this_flow() -> dict[str, str]:
     """Every fixed text `Find my save...` can put in front of the player."""
     return {
         "S1": appmod.FIND_MY_SAVE_TOOLTIP,
-        "S2": appmod.CHOOSE_YOUR_SAVE,
+        "S2": savereader.CHOOSE_YOUR_SAVE,
         "S3": appmod.CHOSEN_SAVE_IS_EMPTY,
         "S4": appmod.CHOSEN_SAVE_UNREADABLE,
         "S5": appmod.NO_SAVE_FOUND,
         "the button": appmod.FIND_MY_SAVE,
-        "the filters": appmod.SAVE_FILE_FILTERS,
+        "the filters": savereader.SAVE_FILE_FILTERS,
     }
 
 
