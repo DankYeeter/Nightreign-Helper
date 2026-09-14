@@ -384,6 +384,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-293 | Schliesst AK-288: Anzeigen bleiben unveraendert (AK-286 gilt fort, Schalter aendert keine gezeigte Zahl), Berater zaehlt `when Two-Handing`-Effekte/Zweihandwert nur bei `2H`, Schalterwechsel waehrend `Optimize` bricht mit dem 4.7-Standardsatz ab (nicht dem AK-289-Sondersatz) | UI_SPEC §6.10 (A20, OF-41) | T-254a, 2026-09-15 | — |
 | AK-294 | QA-270: 4.11 zweite Klausel unterscheidet `"… have nothing to choose from"` (leerer Pool) von neuem `"… blocked by a requirement you marked"` (unerfuellbare Pflicht, `explain.required_but_unmet` liefert einen Satz); Zustandsnummer 4.11 bleibt | UI_SPEC §6.10 (neben AK-291) | T-254a, 2026-09-15 | — |
 | AK-295 | QA-269: kein Rohschluessel als Zahl-Beschriftung; ein Nachschlagewerk statt Je-Modul-Fallback (`physicsAttackPower`/`magicAttackPower` haben bereits Labels in `effecttext.py`), `conditionHp`/`conditionHpRate` gehoeren unter `Situational`, nicht `Flat bonuses`; ganz unbenannt → A7-Ehrlichkeitssatz statt Rohschluessel | UI_SPEC §6.10 (neben AK-290) | T-254a, 2026-09-15 | — |
+| AK-296 | QA-173: `chalice_list`-Tooltip erklaert Slotfarben ausgeschrieben, White-Wildcard, Deep-of-Night-Zusatzslots und den festen Erklaersatz "choose by colour and count, not by name"; Trennzeilen (`<hero>'s own` / `Shared Grails`) bekommen erstmals einen Tooltip | UI_SPEC §4.4 | T-256, 2026-09-15 | — |
 
 
 ## Widerspruechliche Faelle

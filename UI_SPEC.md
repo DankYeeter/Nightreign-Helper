@@ -1583,6 +1583,74 @@ Gruppe dieses Slots scrollt oder sie hervorhebt — reine Bequemlichkeit,
 keine Zugaenglichkeitsfrage, heute nicht gebaut. Vorschlag fuer einen
 spaeteren Auftrag, kein Bestandteil dieses Akzeptanzkriteriums.
 
+### 4.4 Die Gefaessliste — Varianten erklaeren
+
+#### AK-296
+*Neu in T-256, 2026-09-15 — QA-173 (woertlich: "geraten, da nirgends erklaert
+wurde, worin sich diese Gefaesse unterscheiden")*
+
+**AK-296** *(die vorhandene Kopfzeile pro Zeile traegt die Erklaerung, kein
+neues Widget)* `chalice_list` bekommt keine zusaetzliche Sichtzeile — der
+Fix bleibt am bestehenden Tooltip-Mechanismus (`item.setToolTip`, `app.py`
+`reload_chalices`), das ist die kleine Loesung, die QA-173 als Aufwand
+einstuft. Vier Anschlussstellen, alle woertlich:
+
+1. **Farben ausgeschrieben.** Der Tooltip jeder Gefaesszeile nennt die
+   Slotfarben nicht mehr als Anfangsbuchstaben (`R B Y`), sondern
+   ausgeschrieben und durch Komma getrennt, aus `model.COLOUR_NAMES`:
+   `Slots: Red, Blue, Yellow`. Hat das Gefaess einen `White`-Slot, folgt im
+   selben Tooltip eine eigene Zeile `White accepts a relic of any colour.`
+2. **Deep-Slot benannt.** Hat das Gefaess `deep_slots` (unabhaengig vom
+   Zustand des Deep-of-Night-Schalters), folgt eine eigene Zeile
+   `Deep of Night adds: <Farbe>, <Farbe>, <Farbe>` mit denselben
+   ausgeschriebenen Namen. Ohne `deep_slots` entfaellt die Zeile ersatzlos.
+3. **Warum mehrere Gefaesse.** Jeder Tooltip einer waehlbaren Zeile (nicht
+   der Trennzeilen) endet mit dem woertlich gleichen, festen Satz:
+   `Each vessel has its own fixed slots — choose by colour and count, not by name.`
+   Der bestehende Zusatz `Equipped in game` (AK unveraendert aus der
+   heutigen Fassung) steht **danach**, als letzte Zeile.
+4. **Gruppenkopf erklaert.** Die beiden Trennzeilen aus `add_separator`
+   bekommen erstmals einen eigenen Tooltip: bei `"<hero>'s own"` woertlich
+   `Only <hero> can equip these.`, bei `"Shared Grails — any Nightfarer"`
+   woertlich `Any Nightfarer can equip these; each keeps its own arrangement.`
+   `<hero>` ist derselbe Name wie in der Zeile selbst.
+
+Reihenfolge im Tooltip einer waehlbaren Zeile (Punkt 1–3, dann ggf.
+`Equipped in game`):
+```
+<name>
+Slots: <Farbe>, <Farbe>, …
+White accepts a relic of any colour.        (nur bei einem White-Slot)
+Deep of Night adds: <Farbe>, <Farbe>, <Farbe>   (nur mit deep_slots)
+Each vessel has its own fixed slots — choose by colour and count, not by name.
+Equipped in game                              (nur beim ausgeruesteten Gefaess)
+```
+
+*Verwendete Token:* keine neuen — `model.COLOUR_NAMES` ist bereits die
+kanonische Quelle fuer die vier Farbnamen plus `White`, nur bislang mit
+`[0]` auf den ersten Buchstaben verkuerzt; diese Kuerzung entfaellt.
+
+*Bezug A8:* jede neue Zeichenkette englisch, woertlich wie oben.
+*Bezug A12 (sinngemaess, Build planner ist von A12 formal ausgenommen,
+siehe GOAL.md):* keine Farbangabe ohne ausgeschriebenen Namen, keine
+Deep-Slot-Zahl ohne das Wort "Deep of Night" daneben.
+
+*Aufbau:* ein Gefaess mit `White`-Slot und `deep_slots`, eines ohne beides;
+Tooltip beider Zeilen sowie beider Trennzeilen per Volltextvergleich gegen
+die vier Bausteine oben pruefen; Deep-of-Night-Schalter dabei einmal an,
+einmal aus — die `Deep of Night adds`-Zeile aendert sich nicht mit dem
+Schalter.
+*Toetende Mutation:* `model.COLOUR_NAMES.get(c, "?")[0]` unveraendert lassen
+(Kuerzung auf den Buchstaben bleibt) — der Volltextvergleich schlaegt dann
+fehl, ein Blick auf die Zeile allein nicht notwendig zuverlaessig.
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** eine dauerhaft sichtbare
+Erklaerzeile oberhalb der Liste (kein Hover noetig) — das waere ein neues
+Widget und damit kein kleiner Fix mehr; QA-173 stuft den Aufwand als klein
+ein, das schliesst einen Layoutumbau aus. Bleibt die Erklaerung trotz
+Tooltip unklar, ist das ein neuer, eigener Befund fuer eine sichtbare Zeile,
+keiner dieses Kriteriums.
+
 ---
 
 ## Bereich 5 — Der Relic Picker
