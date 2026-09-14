@@ -671,8 +671,6 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     the run carries the declaration as the player made it, in the context
     and in the key, and every other switchable condition at the baseline.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     from nrplanner import model
 
     effect = min(model.advisor_defaults())
@@ -689,8 +687,6 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
     """AD-036.5: `asking_from` carries both sets on the `SlotProblem`, so
     they are in the cache key and in every evaluation without a second
     field anywhere (AD-036.1)."""
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     from nrplanner import effectfilters
 
     planner.effect_filters.mark(11, effectfilters.EXCLUDED)
@@ -904,8 +900,6 @@ def test_a_real_optimize_answers_and_changes_no_slot(planner):
     a field that did not describe the run beside it would come back as 4.12,
     and `run.run` refuses such a request by name.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     bar = planner.advisor_bar
     before = _slot_state(planner)
     sheet = planner._build
@@ -939,8 +933,6 @@ def test_cancel_is_visible_within_the_two_hundred_milliseconds(planner):
     The worker is not waited for: the whole point of the figure is that the
     row says `Stopped` while the search is still on its way out.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     bar = planner.advisor_bar
     began_running = []
     bar._controller.started.connect(lambda: began_running.append(True))

@@ -490,9 +490,6 @@ def two_copies_of_one_roll(planner):
     from nrplanner import favourites, inventory, model
     from tests.relics import OwnedPair
 
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
-
     by_roll: dict[str, list] = {}
     for relic in planner.owned.relics:
         by_roll.setdefault(favourites.key(relic), []).append(relic)

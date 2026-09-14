@@ -70,8 +70,6 @@ def two_offers(planner):
     relics, because applying both at once is what `Apply all` does and two
     slots given one copy is the loss QA-021 records.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     cards = planner.active_slots()
     taken: set = set()
     offers = []
@@ -503,8 +501,6 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
 
     from PySide6.QtWidgets import QApplication
 
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     bar = planner.advisor_bar
     before = keys_of(planner)
     bar.optimize_button.click()

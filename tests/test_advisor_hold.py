@@ -220,8 +220,6 @@ def test_a_hold_whose_relic_left_the_save_falls_away_and_says_so(planner):
     copy next door -- the slot would still be full and the case would be
     measuring something else.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     card = planner.active_slots()[0]
     copy = a_relic_for(card)
     card.select_copy(copy.handle)
@@ -248,8 +246,6 @@ def test_a_hold_whose_relic_is_still_owned_survives_a_re_read(planner):
     is read again", which passes the case above and takes the player's work
     with it. Same road, same call -- only the inventory is left alone.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     card = planner.active_slots()[0]
     copy = a_relic_for(card)
     card.select_copy(copy.handle)
@@ -268,8 +264,6 @@ def test_a_hold_whose_relic_is_still_owned_survives_a_re_read(planner):
 
 def test_a_held_slot_is_a_boundary_of_the_question_not_a_free_slot(planner):
     """AD-014/AD-016: `problem.held` names it and `free_slots` does not."""
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     card = planner.active_slots()[0]
     copy = a_relic_for(card)
     card.select_copy(copy.handle)
@@ -287,8 +281,6 @@ def test_a_held_slot_is_a_boundary_of_the_question_not_a_free_slot(planner):
 
 def test_a_slot_held_empty_reaches_the_question_as_held_and_empty(planner):
     """AD-014.7: `relic is None` is an instruction, not a missing value."""
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     card = planner.active_slots()[0]
     card.clear_relic()
     hold(card)
@@ -306,8 +298,6 @@ def test_a_held_custom_relic_travels_as_an_input(planner):
     the search as a suggestion -- which is exactly why AK-16 is untouched by
     it (`types.held_handles` says so in place).
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     card = planner.active_slots()[0]
     effects = [effect["id"] for effect in card.rollable_effects()[:2]]
     if len(effects) < 2:
@@ -325,8 +315,6 @@ def test_a_held_custom_relic_travels_as_an_input(planner):
 
 def test_no_slot_held_means_the_question_holds_nothing(planner):
     """The state every run before this one was asked in, unchanged."""
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     problem = advisorbar.asking_from(planner, "max_damage").request.problem
 
     assert problem.held == ()

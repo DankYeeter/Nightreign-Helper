@@ -83,10 +83,7 @@ def a_real_scan(game_data):
     ends well: what the line says there is the count and the slot name of a
     save the planner could actually fill its slots from.
     """
-    found = inventory.scan(game_data)
-    if found is None:
-        pytest.skip("this machine has no save to read")
-    return found
+    return inventory.scan(game_data)
 
 
 def a_save_file(where: pathlib.Path, body: bytes = b"not a save") -> pathlib.Path:

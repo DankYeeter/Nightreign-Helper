@@ -77,8 +77,6 @@ def test_the_save_folder_is_offered_as_text(planner, monkeypatch):
     every other field the line is built from stays real, so the test cannot
     pass by the label taking an error path instead.
     """
-    if planner.owned is None:
-        pytest.skip("this machine has no save to read")
     from tests import conftest
 
     owned = planner.owned

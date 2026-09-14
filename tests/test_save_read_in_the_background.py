@@ -109,10 +109,7 @@ def a_scan(game_data):
     and the stored builds AK-226 turns on are the player's own. Read once,
     because the reading is what stage B exists to get out of the main thread.
     """
-    found = inventory.scan(game_data)
-    if found is None:
-        pytest.skip("this machine has no save to read")
-    return found
+    return inventory.scan(game_data)
 
 
 def a_window(game_data, read: StatedRead):
