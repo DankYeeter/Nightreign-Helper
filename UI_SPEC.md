@@ -3774,6 +3774,14 @@ heutige Bau zeigt bei einem Lesartwechsel waehrend eines Laufs
 Unterscheidung der Ursache. **Bauauftrag folgt in einem eigenen
 Retest-Fix-Auftrag, nicht in T-230.**
 
+> **Vermerk 14.09.2026 (T-248b, GOAL A18): AK-270 entfaellt ersatzlos.**
+> Der Lesart-Umschalter selbst ist mit A18 gestrichen (siehe Vermerk bei
+> AK-273) — es gibt keinen Lesartwechsel mehr, der einen Lauf abbrechen
+> koennte, der Satz `The reading changed ...` bleibt ungebaut und wird nicht
+> mehr gebraucht. Das Prinzip dahinter (der Abbruchsatz nennt die
+> tatsaechliche Ursache, nicht pauschal „build") gilt fort, siehe **AK-289**
+> unten fuer den Nachfolgefall (OF-39).
+
 #### AK-271
 *Neu in T-233, 2026-09-13 (A34) — Nutzerentscheidung zur Untergrenze
 (T-230 Befund 1: bei `room=1366` sind Boxen und Fenster-Minimum (AK-03)
@@ -4087,6 +4095,40 @@ Zahlen **596/338/1608** sind der Massstab, gegen den ein neuer Bau
 verglichen wird, kein Garantiewert fuer jeden Datensatz. Messskript:
 `<scratchpad>/T-248/ui-ux-designer/measure_row.py` (nicht Teil des Repos,
 Fundstelle im Bericht).
+
+#### AK-289
+*Neu in T-248b (ui-ux-designer), 2026-09-14 — OF-39 (`ARCHITECTURE_REGISTER.md`
+Z. 144: faellt mit A18 der Nachfolgesatz zu AK-270 ersatzlos, oder braucht
+das Markieren einer Effektmenge waehrend eines laufenden `Optimize` einen
+eigenen OUTDATED-Satz?)*
+
+**AK-289** *(derselbe Grundsatz wie das entfallene AK-270: der Abbruchsatz
+nennt die tatsaechliche Ursache, nicht pauschal „build".)* Aendert der
+Spieler eine Markierung (`Don't include`/`Must include`, AK-276) waehrend
+ein `Optimize`-Lauf rechnet, wird der Lauf abgebrochen — derselbe Code-Pfad
+wie AK-12/AK-183 (Nightfarer/Vessel/Deep of Night/Level/Slotbelegung/vormals
+Lesart), weil die laufende Rechnung mit der alten Effektmenge begonnen hat
+und ihr Ergebnis sonst einen Vorschlag zeigen wuerde, der die neue
+Markierung ignoriert. Die Statuszeile sagt **nicht** den 4.7-Satz `Your
+build changed ...` (das Baubild — Nightfarer, Slots, Relikte — hat sich
+nicht geaendert, nur die Filterkriterien der Rechnung; dieselbe Schieflage,
+die AK-270 fuer den Lesartwechsel benannt hatte), sondern woertlich:
+
+> `The effects you marked changed while this was working out — use
+> Optimize again.`
+
+„marked" uebernimmt die bereits eingefuehrte Wortwahl aus AK-281 (`marked
+as required`), kein neuer Begriff (A12). Der Satz gilt in Statuszeile,
+Tooltip und `Why`-Dialog gleich (AK-173-Muster), englisch (A8), mit
+demselben Gedankenstrich `—`. §4 bekommt **keine** neue Zustandsnummer —
+wie AK-183 ist das derselbe 4.7-Fall, nur mit eigenem Satztext, ausgeloest
+durch die Ursache „Markierung geaendert" statt „Zielwahl/Slot geaendert".
+Pruefweg: `Optimize` starten, waehrend der Lauf rechnet einen Effekt
+markieren oder entmarkieren, Statuszeile zeigt den AK-289-Satz statt des
+4.7-Satzes; ein Ziel-/Slotwechsel im selben Lauf zeigt weiterhin
+unveraendert den 4.7-Satz aus AK-173. **Baut der `architect`/`developer` mit
+AD-036** (Abbruchpfad, welche Aenderung welchen Satz ausloest); dieses
+Kriterium prueft nur den sichtbaren Satz und seine Ausloeser.
 
 ---
 
