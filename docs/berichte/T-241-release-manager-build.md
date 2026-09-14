@@ -185,7 +185,7 @@ Vor Buildbeginn geprueft: letzter Commit auf der Datei ist unveraendert `2730906
 |---|---|
 | **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
 | **Groesse** | 59.083.751 Byte (56,35 MiB) |
-| **SHA-256** | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158` |
+| **SHA-256** | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158C` (korrigiert 14.09., release-manager notes-Lauf: certutil-Nachmessung ergab 64 statt 63 Zeichen; Director-Hinweis) |
 | **Commit** | `1b36238609c0da450c0bfa3ca945ab49f0029602` ("fix(model): AK-272 - Klammerzusatz aus Exklusivgruppen-Warnung entfernen"), Branch `docs/audit-and-advisor-design`, HEAD zum Zeitpunkt dieses Laufs |
 | **Dauer** | 37 s (echter Kaltstart, `build/`+`dist/` vorher geloescht — beide waren bereits leer/nicht vorhanden) |
 | **UPX** | nicht im `PATH` (`where upx`: kein Treffer, exit 1) — unveraendert |
@@ -202,7 +202,7 @@ Vor Buildbeginn geprueft: letzter Commit auf der Datei ist unveraendert `2730906
 | `rc` | 0 |
 | Dauer | 37 s |
 | Groesse | 59.083.751 Byte |
-| SHA-256 | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158` |
+| SHA-256 | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158C` (korrigiert 14.09., release-manager notes-Lauf: certutil-Nachmessung ergab 64 statt 63 Zeichen; Director-Hinweis) |
 
 Zweiter Lauf entfallen (Auftrag: "ein Lauf genuegt — Nicht-Bit-Identitaet ist dokumentiert"). Warnungsdatei (`warn-NightreignHelper.txt`) 37 Zeilen — gleiche Anzahl wie in beiden Vorlaeufen; keine `ERROR`- oder `Deprecation`-Zeile (`grep -iE "error|deprecat"` liefert keinen Treffer).
 
@@ -231,7 +231,7 @@ Keine neuen Befunde im Anwendungscode.
 
 - **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
 - **Groesse:** 59.083.751 Byte (56,35 MiB)
-- **SHA-256:** `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158`
+- **SHA-256:** `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158C` (korrigiert 14.09., release-manager notes-Lauf: certutil-Nachmessung ergab 64 statt 63 Zeichen; Director-Hinweis)
 - **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, unveraendert; ungeprueft am Fenstertitel — kein Rauchtest in diesem Lauf)
 - Dieses Artefakt ersetzt den Rebuild `0e1269f` (SHA `473E109D…`) — bei der Pruefung dieses hier verwenden.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`, `LOCALAPPDATA`, `APPDATA` — Testabzug kopieren, nicht darauf zeigen (`CLAUDE.md`).

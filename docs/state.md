@@ -1,14 +1,14 @@
 # Stand
 
-2026-09-13, **Zyklus 21 laeuft**. Branch `docs/audit-and-advisor-design`,
+2026-09-14, **Zyklus 22: Release-Kette abgeschlossen, Artefakt 1.10.0 fuer den Eigenlauf**. Branch `docs/audit-and-advisor-design`,
 `main` geschuetzt, PR #16 offen — **Merge gehoert dem Nutzer.**
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` · Befunde
 `qa/findings.md` und `security/findings.md` (Tabelle; Fliesstext in den
 `verlauf.md` daneben) · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-235** · QA ab
-**QA-255** · SEC ab **SEC-044** · AK **AK-272** · AD **AD-036** · OF **OF-36**
+**Nummernkreise** (nachgezaehlt 12.09. am Register): T ab **T-243** · QA ab
+**QA-259** · SEC ab **SEC-045** · AK **AK-273** · AD **AD-036** · OF **OF-36**
 · DR **DR-025** · R **R-007** · C **C-005** · A **A-037** (T-241a: vergeben bis A-036). **AD-027 und OF-14
 wurden nie vergeben.**
 
@@ -28,7 +28,7 @@ kein Merge, kein Release, keine Signatur. Nutzerentscheidungen 14.09.: AD-034
 Schritt 1-3 heute · A12/A13-Befunde **vor** dem Build fixen · QA-237 und
 P3/P4-Schulden zurueckgestellt. **QA-095 war seit `99ed022` (03.09.) behoben**,
 Registerzeile stand falsch (nachgezogen 14.09.); T-235 ist darum AD-034.
-**Bauwelle abgeschlossen `79de9ba`, Suite 1527 passed / 9 skipped (Director 07:12).** T-235 AD-034 a/b/c erledigt: app.py **5145 → 3085**, neu `relicslots.py` 888, `savereader.py` 332, `statsheet.py` 938. Fuer den `architect`-Nachtrag (AD-034/AD-029-031): `draw()` statt `show()`, `Signal(object)` statt `Signal(dict)` (int-Schluessel, Emit schlug stumm fehl), kein `icons`, `SituationalRow`/`_heading` mit umgezogen, stale-`declared` in `Planner.recompute`, Fundstelle des Lesens jetzt `savereader.py`; Debt: Farbkonstanten in 6 Modulen kopiert (`theme.py`-Kandidat), `app.WHITE_SLOT` doppelt `model.WHITE_SLOT`. T-236 erledigt ohne Code (alle fuenf bereits behoben; Waechterluecke QA-128 Pkt 10). T-237 erledigt (QA-229/QA-230 behoben `5dd0cf7`, zwei Mutationen lebend → QA faehrt nach; QA-141/QA-144/DR-016 seit 05.09. behoben). Spec-Nachtrag `ui-ux-designer`: AK-262 (`BEST FOR ATTRIBUTES` passt in 118 px), DR-013..016 Status, UI_SPEC-Zitat Z. 3883 → statsheet. **Beta-Gate 07:30 auf `a68cd3d`:** Ponytail-Audit (Explore) 7 Funde → T-238 **erledigt** `5817a89`+`a68cd3d` (net -24 Zeilen, Waechter QA-128 Pkt 10), Suite **1528 passed / 9 skipped** (Director). Schuldenbuch: 1 `ponytail:` (Hook), kein Auftrag. pyflakes: 7 Altmeldungen (Tests/`ratios.py`), zurueckgestellt. Nebenfunde ohne Auftrag: `WHITE_SLOT = 4` in zwei `scripts/measure_*.py`, 13. `blockSignals`-Paar `weaponslots.py:385`. **Pruefphase T-239 laeuft (Freigabe 07:31):** `security-reviewer` **PASS** 0/0/0/0 (SEC-029 seit `aec3d05` behoben, Register nachgezogen; SEC-044 Beobachtung stderr-Traceback, zurueckgestellt); `qa-engineer` **PASS** (kein P1/P2; QA-128 komplett behoben — Pkt 1-3 seit `324abf0`; QA-229/230 bestaetigt, Mutationen geleert; AK-188/AK-169 auf 314 Kopien: 67 Curses, 437/860 Effekte, Partition 154/0/147/40/96/0 — Rezept B/`42` nicht nachgerechnet, an `ui-ux-designer`) · `ui-ux-designer` ship-ready, DR-013..016/022/023 geschlossen, AK-262 Empfehlung `BEST FOR ATTRIBUTES` · `architect` Nachtrag `9527517`. **Pruefphase abgeschlossen 07:50, Stand `a68cd3d` unveraendert im Code (nur `MUTATIONS` geleert).** Entschieden 07:52: AK-262 `BEST FOR ATTRIBUTES` (T-240 `982072b`), GOAL.md 314 nachgetragen. **Release-Kette T-241 laeuft:** Version 1.10.0 `9e8933d` · T-241a `compliance-agent` **GRUEN** fuer den lokalen Bau (Schwelle: erste Kopie an Dritte → A-020/A-023/A-031/A-033, dringend A-008 `release.yml` ohne pytest; QA-243 behoben) · T-241b README **erledigt** (Steam-Herkunft, Advisor/Hold/Worst-Best, Mindestbreite 1536 px, Grenze ohne Steam; Befund: `docs/screenshots/build_planner.png` vom 20.08. zeigt den Stand vor dem Berater — Regenerierung `scripts/make_screenshots.py` beruehrt A-010/A-012, **Nutzerentscheidung vor dem naechsten Release**, nicht heute) · T-241c **Build** `dist/NightreignHelper.exe` 1.10.0, 59.083.369 B, SHA-256 `314ca35c…930bd`, Commit `9e8933d` (`.venv` fehlte, neu angelegt) · T-241d: `clean-room` bestanden, **Update-Weg ungeprueft** (kein 1.9.0-Artefakt mehr) · `power-user` 3/6 erreicht, Ziele 3/4 klickkontaminiert · `qa-engineer` **A9 FAIL**: A4 bricht an **QA-257** (Exklusivgruppe doppelt gezaehlt, `model.compute` warnt nur) → **T-242 behoben `0e1269f`** (Suite **1532/9**, Director; Golden Wylder 3 Startwaffen-Strafen 118 → 163 AR; zwei neue A7-Saetze fuer `ui-ux-designer`-Abnahme im Retest), **Rebuild laeuft**, dann Retest A4/A9 am Artefakt; A3/A5/A6/A7/A8 PASS am Artefakt (Optimize 1229 ms Median, Hauptthread max 25,6 ms auf dem 5900X, nicht Zielgeraet); QA-258 Picker-Kartenbau 1,5 s (P3, = T-118 P5) und QA-255 (Save-Fallback `Path.home()`, A15-Spielstandhaelfte am Artefakt nicht provozierbar) zurueckgestellt. Danach (`qa-engineer`, `security-reviewer`, `ui-ux-designer` Review, `architect` AD-034-Nachtrag in einer Nachricht), dann Release-Kette bis `notes`.
+**Bauwelle abgeschlossen `79de9ba`, Suite 1527 passed / 9 skipped (Director 07:12).** T-235 AD-034 a/b/c erledigt: app.py **5145 → 3085**, neu `relicslots.py` 888, `savereader.py` 332, `statsheet.py` 938. Fuer den `architect`-Nachtrag (AD-034/AD-029-031): `draw()` statt `show()`, `Signal(object)` statt `Signal(dict)` (int-Schluessel, Emit schlug stumm fehl), kein `icons`, `SituationalRow`/`_heading` mit umgezogen, stale-`declared` in `Planner.recompute`, Fundstelle des Lesens jetzt `savereader.py`; Debt: Farbkonstanten in 6 Modulen kopiert (`theme.py`-Kandidat), `app.WHITE_SLOT` doppelt `model.WHITE_SLOT`. T-236 erledigt ohne Code (alle fuenf bereits behoben; Waechterluecke QA-128 Pkt 10). T-237 erledigt (QA-229/QA-230 behoben `5dd0cf7`, zwei Mutationen lebend → QA faehrt nach; QA-141/QA-144/DR-016 seit 05.09. behoben). Spec-Nachtrag `ui-ux-designer`: AK-262 (`BEST FOR ATTRIBUTES` passt in 118 px), DR-013..016 Status, UI_SPEC-Zitat Z. 3883 → statsheet. **Beta-Gate 07:30 auf `a68cd3d`:** Ponytail-Audit (Explore) 7 Funde → T-238 **erledigt** `5817a89`+`a68cd3d` (net -24 Zeilen, Waechter QA-128 Pkt 10), Suite **1528 passed / 9 skipped** (Director). Schuldenbuch: 1 `ponytail:` (Hook), kein Auftrag. pyflakes: 7 Altmeldungen (Tests/`ratios.py`), zurueckgestellt. Nebenfunde ohne Auftrag: `WHITE_SLOT = 4` in zwei `scripts/measure_*.py`, 13. `blockSignals`-Paar `weaponslots.py:385`. **Pruefphase T-239 laeuft (Freigabe 07:31):** `security-reviewer` **PASS** 0/0/0/0 (SEC-029 seit `aec3d05` behoben, Register nachgezogen; SEC-044 Beobachtung stderr-Traceback, zurueckgestellt); `qa-engineer` **PASS** (kein P1/P2; QA-128 komplett behoben — Pkt 1-3 seit `324abf0`; QA-229/230 bestaetigt, Mutationen geleert; AK-188/AK-169 auf 314 Kopien: 67 Curses, 437/860 Effekte, Partition 154/0/147/40/96/0 — Rezept B/`42` nicht nachgerechnet, an `ui-ux-designer`) · `ui-ux-designer` ship-ready, DR-013..016/022/023 geschlossen, AK-262 Empfehlung `BEST FOR ATTRIBUTES` · `architect` Nachtrag `9527517`. **Pruefphase abgeschlossen 07:50, Stand `a68cd3d` unveraendert im Code (nur `MUTATIONS` geleert).** Entschieden 07:52: AK-262 `BEST FOR ATTRIBUTES` (T-240 `982072b`), GOAL.md 314 nachgetragen. **Release-Kette T-241 laeuft:** Version 1.10.0 `9e8933d` · T-241a `compliance-agent` **GRUEN** fuer den lokalen Bau (Schwelle: erste Kopie an Dritte → A-020/A-023/A-031/A-033, dringend A-008 `release.yml` ohne pytest; QA-243 behoben) · T-241b README **erledigt** (Steam-Herkunft, Advisor/Hold/Worst-Best, Mindestbreite 1536 px, Grenze ohne Steam; Befund: `docs/screenshots/build_planner.png` vom 20.08. zeigt den Stand vor dem Berater — Regenerierung `scripts/make_screenshots.py` beruehrt A-010/A-012, **Nutzerentscheidung vor dem naechsten Release**, nicht heute) · T-241c **Build** `dist/NightreignHelper.exe` 1.10.0, 59.083.369 B, SHA-256 `314ca35c…930bd`, Commit `9e8933d` (`.venv` fehlte, neu angelegt) · T-241d: `clean-room` bestanden, **Update-Weg ungeprueft** (kein 1.9.0-Artefakt mehr) · `power-user` 3/6 erreicht, Ziele 3/4 klickkontaminiert · `qa-engineer` **A9 FAIL**: A4 bricht an **QA-257** (Exklusivgruppe doppelt gezaehlt, `model.compute` warnt nur) → **T-242 behoben `0e1269f`** (Suite **1532/9**, Director; Golden Wylder 3 Startwaffen-Strafen 118 → 163 AR; zwei neue A7-Saetze fuer `ui-ux-designer`-Abnahme im Retest), Rebuild `473e109d…`, **Retest PASS** (A4/A9), AK-272 Textfix `1b36238` (Spiel-Id raus), **finaler Build `dist/NightreignHelper.exe` 59.083.751 B, SHA-256 `11f5eecd3be4dbc2583ad1dca82dda0f78d54f84b205a4ab6f060f028792158c`**; `notes` erledigt (`CHANGELOG.md` neu, `ROLLOUT.md` 1.10.0). Suite auf `1b36238`: 2x 1532/9, 1x 2 sporadisch rot (Namen nicht erfasst, QA-249-Klasse); A3/A5/A6/A7/A8 PASS am Artefakt (Optimize 1229 ms Median, Hauptthread max 25,6 ms auf dem 5900X, nicht Zielgeraet); QA-258 Picker-Kartenbau 1,5 s (P3, = T-118 P5) und QA-255 (Save-Fallback `Path.home()`, A15-Spielstandhaelfte am Artefakt nicht provozierbar) zurueckgestellt. Danach (`qa-engineer`, `security-reviewer`, `ui-ux-designer` Review, `architect` AD-034-Nachtrag in einer Nachricht), dann Release-Kette bis `notes`.
 
 **Zyklus 21 (13.09.2026), Verlauf.** Nutzerentscheidungen 13.09.: Bauwelle +
 P10-Entwurf parallel · SEC-026 **haerten ueber Herkunft** (DLL nur aus
@@ -55,46 +55,35 @@ Release-Tor ist damit **SEC-026** (T-217).
 QA-242-Fix → Beta-Gate mit `/ponytail-audit`, `/ponytail-debt`, Pruefrollen
 in einer Nachricht.
 
-## Stand gegen `GOAL.md`
+## Stand gegen `GOAL.md` (14.09.2026, 10:00, Artefakt `11f5eecd…158c`)
 
 | | | |
 |---|---|---|
-| A2 | kritisch/hoch behoben | **erfuellt** fuer QA; SEC-027 behoben (verlauf:553), Release-Tor jetzt SEC-026 (Mittel, Wirkung kritisch) — T-217 |
-| A3-A5 | der Build-Berater | **gebaut**, T-114 am Artefakt bestaetigt |
-| A6 | Oberflaeche blockiert nicht | **erfuellt und gemessen** |
-| A7/A8 | Datenlage nennen / alles Englisch | **QA-211 geschlossen** (T-201 mit eigenem Rotlauf); QA-210, QA-232 und SEC-039 offen |
-| A9/A11 | gegen ein gebautes Artefakt / ohne Raten ans Ziel | offen — die Baurunde, dann `power-user` |
-| A15 | Erststart fuehrt zu Daten | gebaut; **SEC-037: seine Route hat die Freigabebedingung von SEC-016/017/018 ueberholt** |
-| A16 | best/worst case | **gebaut** (T-224, AD-035), 11 Kopien bewegen die Rangfolge am Spielstand; QA-Pruefung offen, AK-05-Waechter rot bis T-225 |
-| A17 | Ranking ohne Bezugswaffe | **erfuellt und bestaetigt** — `06be06e` gebaut, T-199 gemessen (Kartenzeile 228 px, drei sichtbare Zeilen), T-201 PASS |
+| A1 | Audit-Bericht mit Status je Befund | laufend: Register `qa/`, `security/`, `DESIGN_REVIEW.md` |
+| A2 | kritisch/hoch behoben | **erfuellt**: QA P1 QA-095 behoben (`99ed022`), QA-237 **zurueckgestellt (Nutzer 14.09.)**; SEC 0 kritisch/hoch |
+| A3-A8 | Berater, A6, A7, A8 | **erfuellt am Artefakt** (T-241d + Retest, PASS); A6 auf dem 5900X gemessen, Zielgeraet offen |
+| A9 | QA gegen gebautes Artefakt | **erfuellt** (T-241d Retest PASS auf `0e1269f`; finaler Build `1b36238` = Textfix) |
+| A10, A14 | Tab-Fragen, QA je Tab | erfuellt (T-059) |
+| A11 | ohne Raten ans Ziel | **teilweise**: power-user 3/6 erreicht, Ziele 3/4 klickkontaminiert, Ziel 5 Produktfrage ("haeufigster Effekt in meinem Besitz") — Ingame-Test des Nutzers heute Abend |
+| A12/A13 | Einheiten, nichts abgeschnitten | **erfuellt** je Tab (T-239a, T-236/T-237) |
+| A15 | Erststart fuehrt zu Daten | gebaut; am Artefakt nur Spielordner-Haelfte pruefbar (QA-255: Save-Fallback `Path.home()`) — **ungeprueft am Artefakt** |
+| A16, A17 | Worst/Best, ohne Bezugswaffe | erfuellt und bestaetigt |
 
 ## Befunde
 
-**253 QA**, **43 SEC**, **24 DR** — Zaehlung nach Status nach dem Retest.
-
-**Pruefphase auf `b33461d` durch** (T-201/T-202; die naechste auf `719c46d`, T-229) — erste seit T-186 bzw.
-T-185, 13 Dateien und +685/-136 dazwischen. QA **PASS**, Security **CONCERNS**
-(0 kritisch, 0 hoch, 2 mittel, 4 niedrig). **Der Diff fuegt keine neue
-Vertrauensgrenzueberschreitung hinzu**, zwei unabhaengige Masken. A1 laufend.
-
-**Offene P1:** QA-095 (Angriffskraft um 1/0,6 zu hoch, seit Zyklus 9 — die
-Zahl, nicht die Rangfolge) · **QA-237** (die Ueberlagerung).
-
-**Drei Entscheidungen aus T-202 liegen bei mir:** SEC-037 (Freigabetext oder
-Deckel nachziehen) · SEC-038 **vor** dem SEC-036-Fix, sonst hat der keine rote
-Phase · ob SEC-039 in die naechste Bauwelle geht.
+**258 QA**, **44 SEC**, **24 DR**. Offen P1: **QA-237** (zurueckgestellt). Offen P2:
+QA-208 (Register veraltet, S11-I/T-241 bestaetigen die Hauptthread-Zeile —
+nachziehen), Rest siehe Register. Neu 14.09.: QA-255 (Save-Fallback), QA-256
+(Instanzsperre bei Paralleltests), QA-258 (Picker-Oeffnen 1,5 s = T-118 P5),
+SEC-044 (stderr-Traceback, zurueckgestellt).
 
 ## Beim Nutzer — offen
 
-1. **SEC-026:** DLL-Seite haerten? **Falle, von T-202 praezisiert:** Haertung
-   ueber **Herkunft** haelt SEC-016/017/018 geschlossen, ueber **Zustimmung**
-   nicht. **Entschieden 13.09.: Herkunft**, T-217. **A-020 sperrt nicht mehr** (Nutzer 09.09.,
-   von T-210 belegt) — meine fruehere Angabe hier war veraltet.
-2. **C-003, vor der Weitergabe:** Repo dauerhaft oeffentlich? Release
-   bewerben? Arbeitsvertrag (C-001)? US-Recht? — **A-025 ist entschieden**
-   (FORTSETZEN, Nutzer 09.09.), stand hier faelschlich als offen.
-4. **1320 px als Messumgebung** — **entschieden 13.09.: aufgegeben** (AK-05, AK-194 in T-226); AK-160 prueft der `ui-ux-designer` mit.
-5. **Messung im Spiel:** F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170.
+1. **Ingame-Test 14.09. Abend** mit `dist/NightreignHelper.exe` 1.10.0: Messung im Spiel F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170; dazu Exklusivgruppen-Regel (QA-257: drei Startwaffen-Strafen zaehlen einmal — 163 statt 118 AR bei Wylder) und `Minimise damage taken` (power-user Ziel 3).
+2. **Screenshots** `docs/screenshots/*.png` vom 20.08. zeigen den Stand vor dem Berater; Regenerierung beruehrt A-010/A-012 — vor dem naechsten Release.
+3. **C-003, vor der Weitergabe:** Repo dauerhaft oeffentlich? Release bewerben? US-Recht? — A-025 entschieden (FORTSETZEN, 09.09.).
+4. **Update-Weg 1.9.0 → 1.10.0** ungeprueft (kein 1.9.0-Artefakt); Migration laut Diff nicht noetig (`__schema` 3, `EXTRACT_VERSION` 11).
+5. **A-008:** `release.yml` faehrt keine Tests — vor einem GitHub-Release.
 
 ## Beschlossen, nicht beauftragt
 

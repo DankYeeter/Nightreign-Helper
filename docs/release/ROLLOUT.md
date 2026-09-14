@@ -320,3 +320,59 @@ geloescht. Sein Ausgangspunkt entsteht im `build`-Lauf und wird dort mit Pfad
 genannt. Vorwarnung fuer seine Sitzung: SmartScreen-Dialog, rund eine Minute
 Erststart, und die Sackgasse aus L5, falls die Automatik das Spiel nicht
 findet.
+
+---
+
+## 1.10.0 — 2026-09-14, T-241e, Modus `notes`
+
+Gemessen gegen Artefakt-Commit `1b36238`, HEAD zum Zeitpunkt dieses Laufs
+`1fb9ac8` (nur `docs/berichte/`, ruehrt den Code nicht an). Artefakt
+`dist/NightreignHelper.exe`, 59.083.751 B, SHA-256
+`11f5eecd3be4dbc2583ad1dca82dda0f78d54f84b205a4ab6f060f028792158c`
+(certutil nachgemessen, siehe Korrektur in
+`docs/berichte/T-241-release-manager-build.md`). Kein Release, kein Push,
+keine Weitergabe in diesem Lauf (Nutzerauftrag 12./14.09.).
+
+### L1-L8, Stand gegen die 1.8.0-Liste oben
+
+| # | 1.8.0-Luecke | Stand 1.10.0 |
+|---|---|---|
+| L1 | `__version__` nicht gebumpt | **gehoben.** `nrplanner/__init__.py` steht auf `1.10.0` (developer, vor T-241c). |
+| L2 | Update-Weg an keinem Artefakt geprueft | **weiterhin offen, jetzt schwerer:** kein 1.9.0-Artefakt mehr vorhanden (`gh release list` zeigt nur `v1.7.1`; lokale Suche nach der 1.9.0-Pruefsumme `A2180D5D…66EF3` aus T-174 findet nichts). T-241d (`clean-room`) weist Schritt 3 deshalb als **ungeprueft** aus, nicht als bestanden. Migration (`__schema`, `EXTRACT_VERSION`) bleibt damit am Artefakt unverifiziert — siehe Migrationsabschnitt unten. |
+| L3 | Kein `CHANGELOG.md` | **gehoben.** `CHANGELOG.md` neu angelegt (Keep-a-Changelog, Englisch), Abschnitt 1.10.0 mit den Nutzeraenderungen seit 1.9.0. |
+| L4 | Lokale Commits nicht am Remote | unveraendert offen, betrifft diesen Lauf nicht (kein Push beauftragt). |
+| L5 | Sackgasse ohne Spielordner nicht gebaut | **gehoben** seit T-217/T-230: Pfaddialog + Steam-Herkunftspruefung (A15) sind im Artefakt, von `clean-room` bestaetigt (Erststart fand den Ordner automatisch ueber die Steam-Registry). |
+| L6 | Keine Signatur → SmartScreen | **unveraendert offen, Nutzerentscheid.** Kein Zertifikat vorgesehen; jeder Erststart zeigt SmartScreen. Liegt bei A-Designer/Nutzer, nicht bei mir. |
+| L7 | Bau nicht bit-identisch | **unveraendert**, dokumentierte Ursache (PE-Baustempel, Modulreihenfolge), erneut beobachtet zwischen den drei T-241c-Rebuilds. |
+| L8 | `release.yml` faehrt keine Tests | **unveraendert offen** (A-008, weiterhin `offen` in `AUFLAGEN.md`). |
+
+Neu gegenueber der 1.8.0-Liste, aus diesem Bau-Lauf: `.venv` fehlte auf dem
+Bau-Rechner vollstaendig (T-241c-Bericht, "Befund: `.venv` fehlte
+vollstaendig") — kein Repo-Fehler (`.venv/` korrekt in `.gitignore`), aber
+ein Hinweis, dass ein dritter Rechner ohne vorbereitetes `.venv` und ohne
+passenden System-Python am selben Punkt scheitert. Fuer diesen Lauf ohne
+Folgen, da `.venv` neu angelegt und mit den gepinnten Versionen befuellt
+wurde.
+
+### Migration 1.9.0 → 1.10.0
+
+Geprueft (nicht vermutet): `git diff 0716911..1b36238 -- nrplanner nrdata`
+zeigt `nrplanner/favourites.py`, `nrplanner/paths.py` und
+`nrdata/extract.py` **nicht** in der Liste der geaenderten Dateien — weder
+`EXTRACT_VERSION` (unveraendert `11`, Datenabzug-Testvorlage in `CLAUDE.md`
+bleibt gueltig) noch das Registrierschema fuer Favoriten/Builds haben sich
+zwischen 1.9.0 und 1.10.0 geaendert. `clean-room` (T-241d) bestaetigt das am
+Artefakt indirekt: `__schema=3` beim Speichern eines Builds, derselbe Wert,
+den T-174 fuer 1.9.0 dokumentiert. **Es gibt keine Schemaaenderung, also
+keine Migrationslogik noetig** — bestehende Registry-Eintraege und der
+Datenabzug eines 1.9.0-Nutzers werden von 1.10.0 unveraendert weitergelesen.
+Einzige offene Frage ist L2: dieser Satz ist aus dem Quelldiff und dem
+`__schema`-Wert abgeleitet, **nicht** an einem tatsaechlichen
+1.9.0→1.10.0-Update-Lauf verifiziert, weil kein 1.9.0-Artefakt mehr existiert.
+
+### Ergebnis fuer den heutigen Zweck (Ingame-Test des Nutzers, keine Weitergabe)
+
+Kein Blocker. L2 (Update-Pfad) und L6 (Signatur) sind benannte
+Einschraenkungen, keine Sperren fuer den heutigen Eigenlauf — beide werden
+erst bei einer echten Weitergabe/einem Release relevant (dann zusaetzlich
+A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
