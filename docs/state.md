@@ -38,6 +38,8 @@ Sicherheitsbefund oder Datenverlustverdacht.
 - AN-4 (developer T-254b) Kein Datenfeld fuer Zweihandbarkeit im Extrakt:
   zweihaendig = Nahkampf ausser wep_type 33; damit bekommen auch Schilde und
   Fackeln einen 2H-Wert — Alternative: Schilde/Fackeln ohne 2H-Wert.
+- AN-5 (T-255b) Kachelformat `218 / 225 2H AR`; Arsenal-Typzeilen bleiben 1H,
+  nur Kopfzeile traegt 2H — Alternative: `218 AR / 225 2H`, Typzeilen beidhaendig.
 
 ## HIER WEITERMACHEN
 
