@@ -387,3 +387,10 @@ effekt XYZ die beste waere."*
 - Welche Richtung die Rangfolge des Beraters nutzt (Einhand, Zweihand,
   Maximum), entscheidet der Nutzer nach dem Entwurf des `architect`.
 - Ersetzt QA-259 (zurueckgestellt) durch ein Ziel.
+
+*Nachtraege 14.09.2026 21:15 (Nutzer): **OF-37** — bedingte Fluechte zaehlen
+in der Grundlinie wie alle bedingten Effekte, solange sie nicht
+ausgeschlossen sind. **OF-41/A20** — welche Hand der Berater rankt, folgt
+einem neuen **Umschalter 1H/2H an der Waffenausruestung**; die Rangfolge
+nutzt die dort gewaehlte Hand. Die vier Zweihand-Messzellen (Wylder, Raider,
+Guardian, Duchess: Startwaffe Lv15, 1H und 2H) liefert der Nutzer.*
