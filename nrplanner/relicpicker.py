@@ -102,17 +102,16 @@ VALUE_CAPTIONS = {
 #: them: `Damage taken` is the row of a figure, `survival` is what the
 #: direction is for, and the two are not interchangeable.
 #:
-#: `stats` and not `attributes` for the third, by AK-262: measured on the
-#: 190 px card of the time, its 102 px chip strip (79 px beside the favourite
-#: star) held `BEST FOR STATS` at 76 px and not `BEST FOR ATTRIBUTES` at 106.
-#: The strip has since grown to 118 px on every card (QA-229, QA-230), and
-#: AK-262 says that reopens the wording -- until it is, `stats` stands. The
-#: precise word is carried by the value row's caption, by the `Sort by` entry
+#: `attributes` for the third, by AK-262 (14.09.2026): the strip has grown to
+#: 118 px on every card (QA-229, QA-230), room enough for `BEST FOR
+#: ATTRIBUTES` at 106 px, and the App Designer settled on the precise word
+#: over the shorter `stats` once the strip stopped forcing the choice. The
+#: same word is carried by the value row's caption, by the `Sort by` entry
 #: and by line 4; the chip is the short one.
 DIRECTION_NOUNS = {
     "max_damage": "damage",
     "min_damage_taken": "survival",
-    "max_attributes": "stats",
+    "max_attributes": "attributes",
 }
 
 #: The directions a card shows, in the order the advisor bar lists them.

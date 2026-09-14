@@ -1283,14 +1283,14 @@ def test_every_promoted_card_wears_the_chip_of_the_direction_that_promoted_it(
         dialog.deleteLater()
 
 
-def test_the_third_chip_says_stats():
-    """AK-262: `BEST FOR STATS`, the wording measured to fit the strip.
+def test_the_third_chip_says_attributes():
+    """AK-262: `BEST FOR ATTRIBUTES`, settled once the strip grew to fit it.
 
-    `BEST FOR ATTRIBUTES` is 106 px against a 102 px strip, and 79 px once a
-    favourite star stands beside it; this is the wording the App Designer
-    settled on 12.09.2026 rather than widen the strip.
+    The strip widened to 118 px for QA-229/QA-230, room enough for the
+    106 px text; the App Designer settled on the precise word over the
+    shorter `stats` on 14.09.2026.
     """
-    assert relicpicker.chip_text("max_attributes") == "BEST FOR STATS"
+    assert relicpicker.chip_text("max_attributes") == "BEST FOR ATTRIBUTES"
 
 
 def test_the_read_direction_decides_which_group_leads(slot):
