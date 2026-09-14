@@ -6,9 +6,10 @@ fortgeschrieben in **T-192** (§5.4, AK-256 bis AK-263), **T-221**
 verengt, AK-268 neu; A32-Nachtrag: AK-194 vollstaendig entschieden, A14
 zieht den Leistenbedarf nach), **T-231** (A33: AK-160 aufgeloest —
 Widerspruch-Liste leer, AK-269/AK-270 neu, AK-187/AK-188 auf 314 Kopien
-nachgezaehlt) und **T-233** (A34: AK-271 neu — Untergrenze 1536 px fuer
-AK-05/AK-269)
-**Umfang:** 271 Akzeptanzkriterien, AK-01 bis AK-271, in sieben
+nachgezaehlt), **T-233** (A34: AK-271 neu — Untergrenze 1536 px fuer
+AK-05/AK-269) und **T-242** (Review-Nachtrag: AK-272 neu — kein A7-, aber
+ein A12-Fund an der Exklusivitaets-Warnung)
+**Umfang:** 272 Akzeptanzkriterien, AK-01 bis AK-272, in sieben
 Oberflaechenbereichen.
 
 ## Wie diese Datei zu lesen ist
@@ -77,7 +78,7 @@ Entscheidung aussteht — siehe den naechsten Abschnitt.
 | **3** | Build planner: die Advisor bar | AK-01 bis AK-30 |
 | **4** | Build planner: Slotkarten, festgehaltene Slots und `Optimize` | AK-31 bis AK-40, AK-54 bis AK-62 |
 | **5** | Der Relic Picker | AK-41 bis AK-53, AK-195 bis AK-219, AK-256 bis AK-263, AK-265 bis AK-267 |
-| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 bis AK-271 |
+| **6** | Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile | AK-63, AK-67, AK-133 bis AK-194, AK-268 bis AK-272 |
 | **7** | Die sechs Inhalts-Tabs | AK-64 bis AK-66, AK-68 bis AK-105 |
 
 Die Reihenfolge folgt dem Weg eines Spielers: erst das Fenster, das ihn nach
@@ -3047,6 +3048,33 @@ seiner Umgebung gueltig und wird durch AK-189 fortgeschrieben. **AK-161
 (nach dem Einbau neu messen) gilt fuer beide Lesarten getrennt.**
 
 <sub>Fundstelle sinngemaess: das Register nennt Z5537; hier steht der Absatz ab Z5532 (Verlauf Z5601).</sub>
+
+#### AK-272
+*Neu in T-242 (Review-Nachtrag, `ui-ux-designer`), 2026-09-14*
+
+**AK-272** *(A7/A12, Review zu T-242 `0e1269f`)* Der Klammerzusatz `(the
+game groups them under exclusivity <n>)` in `model._exclusive_text`
+(Statsheet-Warnung, Kategorie `exclusive`) nennt eine rohe interne
+Gruppen-Id aus den Spieldateien. Kein A7-Verstoss — A7 gilt fuer fehlende,
+nicht fuer vorhandene Daten, und die Zahl ist real, nicht geraten — aber ein
+Bruch mit der in diesem Abschnitt etablierten Sprache (AK-152/156/157:
+stumme und Warnzeilen sagen den Mechanismus in Spielersprache, nie ein
+internes Feld) und mit A12 (jede gezeigte Zahl braucht einen fuer den
+Spieler nutzbaren Geltungsbereich — `exclusivity <n>` nennt keinen; ohne
+Zugriff auf die uebrigen Mitglieder der Gruppe ist die Zahl bedeutungslos).
+
+**Vorgabe:** der Klammerzusatz entfaellt. Die Warnung lautet `<Name> x{copies}
+— only one will apply` (gleicher Name) bzw. `<A> and <B> are mutually
+exclusive — only one will apply` (verschiedene Namen). Der zugehoerige
+Why-Satz in `explain.py` (`SILENT_ALREADY_COUNTED`, `group_counted`-Zweig:
+*"…the game applies only one effect of its group, and another one is
+already counted, so this one adds nothing."*) zeigt bereits keine Gruppen-Id
+und ist unveraendert Vorbild — an ihm aendert sich nichts.
+
+Pruefweg fuer den `developer`: `tests/test_exclusive_group_counts_once.py`
+(Konstante `ONLY_ONE_APPLIES`) nach der Aenderung anpassen; ein Test, der
+`"exclusivity"` im Statsheet-Warnungstext sucht, muss danach 0 Treffer
+liefern.
 
 ### 6.5 Registry, `budget_note` und der Satz 4.7
 

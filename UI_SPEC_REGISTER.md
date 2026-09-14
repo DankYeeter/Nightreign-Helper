@@ -360,6 +360,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-269 | unterhalb der abgeleiteten Startbreite (Bildschirm-Deckel, QA-250) haben Zielwahl und Lesart-Box Vorrang, Statuszeile darf bis 0 px schrumpfen (Text im Tooltip); AK-194 dort ausgesetzt | UI_SPEC §6.7 (neben AK-05/AK-194) | T-233, 2026-09-13 | A34 (T-233): die Forderung `cut == []` bei room=1366 war nicht erfuellbar (T-230 Befund 1, bricht AK-03) — Untergrenze 1536 px siehe AK-271 |
 | AK-270 | QA-253: Abbruch eines Laufs durch Lesartwechsel sagt `The reading changed while this was working out — use Optimize again.`, nicht mehr den geteilten `Your build changed ...`-Satz | UI_SPEC §6.5/6.7 (neben AK-183) | T-231, 2026-09-13 | — |
 | AK-271 | AK-05/AK-269 gelten vollstaendig ab 1536 px logischer Breite (1080p bei 125 %); darunter duerfen Zielwahl/Lesart-Box abgeschnitten sein, Statuszeile bleibt bei 0 px, Tooltip traegt den Text; README nennt die Mindestbreite | UI_SPEC §6.7 (neben AK-05/AK-269) | T-233, 2026-09-13 | — |
+| AK-272 | Review zu T-242 (`0e1269f`): der Klammerzusatz `(the game groups them under exclusivity <n>)` in der Statsheet-Warnung entfaellt — rohe interne Gruppen-Id ohne Geltungsbereich fuer den Spieler (A12), kein A7-Verstoss; der Why-Satz zeigt bereits keine Id und bleibt Vorbild | UI_SPEC §6.4 (neben AK-152/156/157) | T-242, 2026-09-14 | Frage beantwortet: nicht lesbar/nuetzlich fuer den Spieler, daher streichen statt erklaeren |
 
 
 ## Widerspruechliche Faelle
