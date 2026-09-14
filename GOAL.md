@@ -353,3 +353,24 @@ Effekte**.
 AK-194/AK-05 (Leistenbreite) neu messen. Folgen fuer die Architektur:
 AD-035 (zwei Lesarten) durch eine Ausschlussmenge im `AdvisorRequest`
 ersetzen — der `architect` entscheidet den Schnitt.*
+
+### A19 — Pflicht-Effekt: "mit Effekt XYZ die beste Konstellation" (Nutzer, 14.09.2026 20:48)
+
+**Woertlich:** *"zusaetzlich zum weg filtern, auch eine option 'buff
+auswaehlen'. und dann muss das programm rechnen welche konstellation mit
+effekt XYZ die beste waere."*
+
+- Der Spieler kann einen oder mehrere Effekte als **must include** markieren.
+  Der Berater liefert dann nur Konstellationen, in denen mindestens ein
+  gewaehltes Relikt jeden markierten Effekt traegt, und optimiert den Rest
+  nach der gewaehlten Richtung. Gibt es im Besitz keine passende Kopie fuer
+  die freien Slots, sagt er das (A7) statt den Filter still fallen zu lassen.
+- Ausschluss (A18) und Pflicht (A19) sind zwei Listen mit derselben Bedienung
+  und derselben Persistenz.
+- **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand, dass jeder
+  Vorschlag den Pflicht-Effekt enthaelt und die Rangfolge unter den
+  passenden Konstellationen der freien Optimierung entspricht.
+- **Klarstellung zu Debuffs (Nutzerfrage 20:48):** Negativa innerhalb eines
+  Effekts (`Reduced Faith`) gehen heute in die Attributsumme ein; Fluechte
+  werden nach F3/OF-13 gegengerechnet und genannt, zielfremde Fluechte nur
+  genannt (A7). Daran aendert A18/A19 nichts.
