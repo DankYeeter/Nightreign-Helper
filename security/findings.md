@@ -74,3 +74,5 @@ Quelle: T-003, `security-reviewer`, Zyklus 1, sowie alle in
 | SEC-041 | **Statuswechsel (T-230d, 13.09.2026):** `binary.py:90` die vier Bytes gestrichen, derselbe Waechter | Niedrig | behoben -- Retest offen | 2026-09-13 |
 | SEC-043 | **Retest T-234 (13.09.2026):** bestaetigt, Mutation `tpf-refusal-quotes-the-member-name` getoetet, beide Waechter | Niedrig | geschlossen -- Retest bestanden | 2026-09-13 |
 | SEC-041 | **Retest T-234 (13.09.2026):** bestaetigt mit SEC-043 | Niedrig | geschlossen -- Retest bestanden | 2026-09-13 |
+| SEC-029 | **Retest T-239b (14.09.2026):** Deckel `LARGEST_SAVE_TO_READ` 256 MiB auf beiden Wegen seit `aec3d05` (09.09.), in `savereader.read_the_save` jetzt direkt statt Wrapper; Positivtests `test_save_path_memory.py`. Registerzeile vom 08.09. war ueberholt | Mittel | behoben -- Register nachgezogen | 2026-09-14 |
+| SEC-044 | **Beobachtung T-239b (14.09.2026), kein Befund:** `_SaveReadWorker.work` schreibt `traceback.print_exc()` auf stderr, dort kann der Save-Pfad (Steam-Id) stehen; nur lokal, nur bei Konsolenstart, vorbestehend | Niedrig | offen -- zurueckgestellt, kein Angriffspfad | 2026-09-14 |
