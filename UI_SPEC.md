@@ -4166,6 +4166,41 @@ laesst offen, ob eine unmarkierte Zeile ueberhaupt regulaer zaehlt — bei
 drei gegenseitig ausschliessenden Zustaenden (AK-276) ist das keine
 Ausnahme, die man weglassen darf.
 
+#### AK-291
+*Neu in T-248b (ui-ux-designer), 2026-09-14 — Nachtrag zu AK-281: zwei
+Luecken aus `docs/berichte/T-248d-developer.md` Schritt 3. Kein Fensterlauf,
+reine Wortlautentscheidung.*
+
+**AK-291** *(die zweite AK-281-Luecke: alle Traeger vorhanden, keine
+Kombination reicht, A7/A8/A12.)*
+
+1. **Kombinations-Satz, Wortlaut final.** Der gebaute Platzhalter
+   (`explain.required_but_unmet`) wird endgueltig: `"No combination of the
+   copies you own carries {namen}, which you marked as required — no
+   suggestion can meet that."` — Fortsetzung von AK-281s Satzmuster fuer den
+   Fall, dass jeder Pflicht-Effekt einen Traeger im Besitz hat, aber keine
+   Konstellation alle zugleich in die freien Slots bringt. `{namen}` listet
+   **alphabetisch nach Anzeigename** (nicht nach interner Effekt-Id, wie der
+   heutige Bau sortiert — eine Reihenfolge nach Id wirkt fuer den Spieler
+   beliebig, alphabetisch ist scanbar). Erscheint wie AK-281s Einzelsatz in
+   `result.unknowns`, nie in der Statuszeile selbst.
+2. **Zustandsnummer der Leiste: 4.11 bleibt, keine eigene Nummer.** Ein
+   leerer Beam unter Pflicht zaehlt fuer `_on_ready` wie jeder andere leere
+   Beam (`slots - filled > 0`) und faellt in `SUGGESTED_WITH_AN_EMPTY_SLOT`
+   (4.11, `"{goal} — 0 of {n} slots filled …"`); das bleibt so. Der Grund
+   fuer das Leerbleiben ist Sache des `Why`-Dialogs, nicht der Statuszeile —
+   dort steht er bereits als `result.unknowns`-Satz im Footer (AK-281/
+   AK-291), und `Why` ist in 4.11 sichtbar (`ANSWERED_STATES`). Eine eigene
+   Zustandsnummer würde denselben Satz doppelt fuehren, einmal in der
+   schmalen Zeile (die AK-05/AK-194/AK-269/AK-271 bindet) und einmal im
+   Dialog — AK-281 liess die Wahl offen, der Bau hat sie bereits so
+   getroffen, hiermit bestaetigt.
+
+*Rot-vorher:* ein Kombinations-Satz, der Effekte nach interner Id statt
+alphabetisch auflistet, wirkt fuer den Spieler willkuerlich sortiert; eine
+neue 4.11b-Zustandsnummer nur fuer den Pflicht-Fall dupliziert den Satz, den
+`Why` schon zeigt, ohne einen zweiten Erkenntnisgewinn zu liefern.
+
 ---
 
 ### 6.9 Zweihand-Angriffskraft neben der Einhandzahl (A20)
