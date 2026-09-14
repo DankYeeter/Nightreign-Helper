@@ -28,8 +28,8 @@ kein Merge, kein Release, keine Signatur. Nutzerentscheidungen 14.09.: AD-034
 Schritt 1-3 heute · A12/A13-Befunde **vor** dem Build fixen · QA-237 und
 P3/P4-Schulden zurueckgestellt. **QA-095 war seit `99ed022` (03.09.) behoben**,
 Registerzeile stand falsch (nachgezogen 14.09.); T-235 ist darum AD-034.
-**Bauwelle:** T-235 `developer` AD-034 a→b→c (nur `app.py` + neue Module) ·
-T-236 `developer` Datentabs (QA-128, QA-140, DR-013/014/015) · T-237
+**Bauwelle:** T-235 `developer` AD-034 — **a erledigt** `59c9632` (app.py 5145→4288, relicslots.py 888; VariantDialog war seit `3ee6f7d` weg; QA-249 ist Testisolation, RelicPicker bleibt offen), **b laeuft** ·
+T-236 **erledigt ohne Code** (alle fuenf bereits behoben, Waechterluecke QA-128 Pkt 10 → Fixauftrag nach Pruefphase) · T-237
 `developer` Planner-Seite (QA-229, QA-141, QA-230, QA-144, DR-016) — drei
 Worktrees, disjunkte Dateilisten. Danach Beta-Gate (Audit, Pruefrollen in
 einer Nachricht), dann Release-Kette bis `notes`. Zeitgrenze: AD-034 Schritt 3
@@ -109,8 +109,6 @@ Phase · ob SEC-039 in die naechste Bauwelle geht.
 - **OF-35 (13.09.):** die nachgefahrenen `MUTATIONS`-Eintraege loescht der
   `qa-engineer` im Pruefphasenlauf (er hat `Edit`), der Director committet es
   mit seiner Buchfuehrung.
-- **T-220 B-1:** `VariantDialog` (`app.py:1363-1435`, kein Aufrufer) wird in
-  AD-034 Schritt 1 **gestrichen**, nicht umgezogen (`delete`).
 - **Senken-Waechter zu SEC-023:** die Pfadhaelfte haelt **nur fuer die Bauform
   des Befundtexts** (T-202), nicht als "kein Pfad erreicht die Flaeche".
 - **Kein Waechter haelt die Verlaufsdateien eingefroren** (T-183).
