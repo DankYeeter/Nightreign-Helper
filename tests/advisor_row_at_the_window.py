@@ -40,13 +40,13 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 #: Desktops that cap the derived opening width: 1080p at 125 % scaling
 #: (1536) and a legacy 1366-px desktop kept for a lower reading. AK-05's
 #: "boxes never cut" only holds at 1536 px and up (user decision,
-#: 2026-09-13); below that floor `goal_box`/`reading_box` may cut, and the
+#: 2026-09-13); below that floor `goal_box` may cut, and the
 #: row's own tooltip is what still carries the full status (T-233 carries
 #: the wording into `UI_SPEC.md`).
 NARROW_DESKTOPS = (1536, 1366)
 
 #: Desktops in `NARROW_DESKTOPS` that sit below the AK-05 floor: here
-#: `goal_box`/`reading_box` may be among `cut`, everywhere else `cut` must
+#: `goal_box` may be among `cut`, everywhere else `cut` must
 #: stay empty.
 BELOW_THE_AK_05_FLOOR = frozenset({1366})
 
@@ -167,7 +167,6 @@ def main(snapshot: pathlib.Path) -> dict:
                    if label is not bar.status)
     controls = [("heading", heading),
                 ("goal_box", bar.goal_box),
-                ("reading_box", bar.reading_box),
                 ("optimize_button", bar.optimize_button),
                 ("apply_button", bar.apply_button),
                 ("why_button", bar.why_button),

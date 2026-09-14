@@ -72,6 +72,22 @@ MUTATIONS: dict[str, Mutation] = {
             "exclusive_group_counts_once.py` and by the golden case `all "
             "three status penalties at once, slot 1` (T-242)."),
     ),
+    "baseline-dropped-from-the-ask": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""    declared = tuple(sorted({**model.advisor_defaults(),
+                             **planner.declared}.items()))
+""",
+        new="""    declared = tuple(sorted(planner.declared.items()))
+""",
+        survival_means=(
+            "the advisor ranks on the player's hand declarations alone and "
+            "every conditional effect falls out of every suggestion -- the "
+            "ranking A18 measures its acceptance from, presented as the "
+            "baseline. Killed by `tests/test_advisor_goals.py::test_the_"
+            "baseline_moves_the_counted_copies_of_the_frozen_save` (21 "
+            "copies of the frozen 314) and `test_the_baseline_leaves_no_"
+            "switchable_condition_uncounted` (T-248d step 1)."),
+    ),
 }
 
 

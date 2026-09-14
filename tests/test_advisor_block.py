@@ -108,7 +108,6 @@ def block(qapp):
 def a_dialog(qapp, result, **head) -> advisorblock.WhyDialog:
     heading = advisorblock.WhyHeading(
         goal_label=head.get("goal_label", "Maximise damage"),
-        reading=head.get("reading", "worst case"),
         nightfarer=head.get("nightfarer", "Wylder"),
         vessel=head.get("vessel", "Wylder's Chalice"),
         deep=head.get("deep", True),
@@ -136,7 +135,7 @@ def test_the_block_leaves_the_silent_effects_to_the_why_dialog(block):
     tall.
     """
     group = a_mixed_group()
-    block.show_the_suggestion("Maximise damage", "worst case", group)
+    block.show_the_suggestion("Maximise damage", group)
 
     drawn = block.lines.text()
     assert "Improved Melee Attack Power" in drawn
@@ -154,7 +153,7 @@ def test_every_curse_of_the_copy_stands_in_the_block(block):
     drew "the lines that carry a figure, plus the curses among them" would
     lose.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     drawn = block.lines.text()
     assert drawn.count(advisorblock.CURSE_BULLET) == 2
@@ -167,7 +166,7 @@ def test_the_count_line_stands_in_the_block(block):
     It is the whole of what the block says about the three effects it does
     not name.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     assert block.count_line.text() == (
         "1 of its 3 effects moved a number in this build.")
@@ -176,9 +175,9 @@ def test_the_count_line_stands_in_the_block(block):
 
 def test_the_block_names_the_goal_and_the_relic(block):
     """§3.2: the block stands for itself once the bar has scrolled away."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
-    assert block.heading.text() == "SUGGESTED — MAXIMISE DAMAGE, WORST CASE"
+    assert block.heading.text() == "SUGGESTED — MAXIMISE DAMAGE"
     assert block.relic_name.text() == "The Will of the Balancers"
 
 
@@ -193,7 +192,7 @@ def test_the_block_carries_exactly_use_and_why(block):
     dialog. `Why` is the one bar control AK-274 puts on the card too,
     because it only opens what the bar's own `Why` already shows.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     buttons = block.findChildren(QAbstractButton)
     assert [button.text() for button in buttons] == ["Use", "Why"]
@@ -204,7 +203,7 @@ def test_use_says_it_was_pressed_and_changes_nothing_itself(block):
     """The block holds no relics, so it can only ask (`use_requested`)."""
     asked = []
     block.use_requested.connect(lambda: asked.append(True))
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
     block.use_button.click()
 
     assert asked == [True]
@@ -212,7 +211,7 @@ def test_use_says_it_was_pressed_and_changes_nothing_itself(block):
 
 def test_a_slot_that_may_not_be_used_is_drawn_without_the_button(block):
     """§5.4: no applying touches a held slot, so none is offered for one."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
                               may_be_used=False)
 
     assert not block.use_button.isVisibleTo(block)
@@ -226,7 +225,7 @@ def test_a_held_slot_still_offers_why(block):
     Holding is about applying, not about reading the account -- a held slot
     still explains a suggestion it will not accept.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
                               may_be_used=False)
 
     assert not block.use_button.isVisibleTo(block)
@@ -237,7 +236,7 @@ def test_why_says_it_was_pressed_and_changes_nothing_itself(block):
     """The block asks for the same dialog the bar's `Why` does (AK-274)."""
     asked = []
     block.why_requested.connect(lambda: asked.append(True))
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
     block.why_button.click()
 
     assert asked == [True]
@@ -249,7 +248,7 @@ def test_a_bar_that_is_not_acting_hides_why_on_the_block(block):
     `Use` stays -- whether the slot may be used is a fact about the hold,
     untouched by whether the bar is currently offering `Why` of its own.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
                               may_explain=False)
 
     assert not block.why_button.isVisibleTo(block)
@@ -262,7 +261,7 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
     There is nothing to weigh and nothing to change, so the heading, the
     relic name, the count line and the effects all go with it.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group(),
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
                               already_equipped=True)
 
     assert block.already_equipped.isVisibleTo(block)
@@ -275,7 +274,7 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
 
 def test_a_block_put_away_shows_nothing(block):
     """An answer that has gone takes its block with it (AK-12)."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
     block.put_the_suggestion_away()
 
     assert not block.isVisible()
@@ -285,7 +284,7 @@ def test_a_block_put_away_shows_nothing(block):
 
 def test_the_block_shows_no_summary_sentence(block):
     """AK-133: `Chosen for` does not occur, and no line is shortened."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     assert "Chosen for" not in drawn_text(block)
     assert "and 1 more" not in drawn_text(block)
@@ -293,7 +292,7 @@ def test_the_block_shows_no_summary_sentence(block):
 
 def test_the_legend_is_in_no_block(block):
     """AK-141: the `✦` legend belongs to the dialog, once, and nowhere else."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     assert advisorblock.CURSE_LEGEND not in drawn_text(block)
 
@@ -472,7 +471,7 @@ def test_the_dialog_is_modal_and_titled_after_the_goal(qapp):
     dialog = a_dialog(qapp, an_answer(a_mixed_group()))
 
     assert dialog.isModal()
-    assert dialog.windowTitle() == "Why this build — Maximise damage, worst case"
+    assert dialog.windowTitle() == "Why this build — Maximise damage"
     dialog.deleteLater()
 
 
@@ -484,7 +483,7 @@ def test_no_text_element_of_the_advisor_runs_on_autotext(qapp, block):
     Asked of every label the two widgets own, not of a list of the ones this
     case remembered to name.
     """
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
     dialog = a_dialog(qapp, an_answer(a_mixed_group(),
                                       not_counted=("Poise Up",)))
 
@@ -503,7 +502,7 @@ def test_a_hostile_name_is_shown_letter_for_letter(qapp, block):
     """
     group = a_group(a_line(f"{HOSTILE_NAME}: Physical Attack +12.0%"),
                     relic=HOSTILE_NAME)
-    block.show_the_suggestion("Maximise damage", "worst case", group,
+    block.show_the_suggestion("Maximise damage", group,
                               curse_tooltip=f"This relic's curses:\n  • "
                                             f"{HOSTILE_NAME}")
     dialog = a_dialog(qapp, an_answer(group, not_counted=(HOSTILE_NAME,)))
@@ -539,7 +538,7 @@ def test_a_tooltip_is_declared_rich_text_so_the_escaping_shows_as_written():
 
 def test_no_drawn_text_uses_the_words_of_the_workings(qapp, block):
     """AK-144: the player is shown the build, never the machinery."""
-    block.show_the_suggestion("Maximise damage", "worst case", a_mixed_group())
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
     dialog = a_dialog(qapp, an_answer(a_mixed_group(), goal_id="none"))
 
     seen = (drawn_text(block) + drawn_text(dialog)).lower()
@@ -642,10 +641,10 @@ def test_the_slot_tells_the_suggested_copy_from_the_one_it_holds(qapp):
     other = types.SlotChoice(slot_index=0, handle=701, relic_id=1,
                              name="The Wylder's Earring")
 
-    card.show_the_suggestion("Maximise damage", "worst case", group, same)
+    card.show_the_suggestion("Maximise damage", group, same)
     assert card.suggestion.already_equipped.isVisibleTo(card.suggestion)
 
-    card.show_the_suggestion("Maximise damage", "worst case", group, other)
+    card.show_the_suggestion("Maximise damage", group, other)
     assert not card.suggestion.already_equipped.isVisibleTo(card.suggestion)
     card.deleteLater()
 
@@ -760,7 +759,7 @@ def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
     card.show()
     without = card.minimumSizeHint().width()
     card.show_the_suggestion(
-        "Maximise damage", "worst case", a_group(a_line("A" * 400), relic="B" * 400), None)
+        "Maximise damage", a_group(a_line("A" * 400), relic="B" * 400), None)
     qapp.processEvents()
 
     assert card.minimumSizeHint().width() == without

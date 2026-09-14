@@ -561,7 +561,7 @@ def test_a_picker_standing_open_falls_back_to_the_state_before_any_save(
 
 
 def test_a_rescan_that_finds_no_save_puts_the_row_into_4_8(planner):
-    """AK-268 after a rescan, not only at the start (QA-251).
+    """4.8 after a rescan, not only at the start (QA-251).
 
     The row's answer goes with the old stock; the row itself has to be put
     back once the new stock is in, or it goes on offering `Optimize` under
@@ -572,7 +572,6 @@ def test_a_rescan_that_finds_no_save_puts_the_row_into_4_8(planner):
     a_rescan_that_finds_no_save(planner)
     rendered.settle()
     assert not bar.goal_box.isEnabled()
-    assert not bar.reading_box.isEnabled()
     assert not bar.optimize_button.isEnabled()
 
 
@@ -1359,11 +1358,8 @@ def test_line_three_names_the_size_the_figures_are_measured_against(slot):
     """
     dialog = open_picker(slot, {0: 12.4})
     try:
-        # AK-185: the summary is the picker's one place that names the
-        # reading the figures were formed under; the window's, not a
-        # spelling of this dialog's own.
-        assert (f"ranked against your build with {slot.slot_name()} empty, "
-                f"worst case" in dialog.summary.text())
+        assert (f"ranked against your build with {slot.slot_name()} empty"
+                in dialog.summary.text())
     finally:
         dialog.deleteLater()
 

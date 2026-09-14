@@ -84,17 +84,6 @@ GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
 #: this number is not raised.
 GOAL_BOX_WIDTH = 200
 
-def reading_label(worst: bool) -> str:
-    """`worst case` / `best case`, as a sentence names the reading.
-
-    The one spelling of the four places AK-185 allows -- the box, the head of
-    the suggestion block, the `Why` title and head, the picker's summary --
-    so the box's entries are this, capitalised, and nowhere is a fifth
-    wording of the same thing written.
-    """
-    return "worst case" if worst else "best case"
-
-
 #: The separator of the two-clause status lines (4.9, 4.11), a middle dot
 #: with two spaces a side. Written once because it is invisible in a diff.
 CLAUSES = "  ·  "
@@ -157,9 +146,6 @@ class Situation:
     #: The Nightfarer named in 4.10, and the one-line reason of 4.12.
     nightfarer: str = ""
     reason: str = ""
-    #: 4.7 only (AK-270): the run was abandoned because the *reading*
-    #: changed rather than the build, so the sentence must name that cause.
-    reading_changed: bool = False
 
 
 def _lower_case_first(label: str) -> str:
@@ -237,9 +223,6 @@ def status_line(situation: Situation) -> str:
         return (f"{goal} — {situation.slots_filled} of "
                 f"{situation.slots} slots filled.")
     if state is State.OUTDATED:
-        if situation.reading_changed:
-            return ("The reading changed while this was working out — use "
-                    "Optimize again.")
         return ("Your build changed while this was working out — use "
                 "Optimize again.")
     if state is State.NO_SAVE:
@@ -414,12 +397,12 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held)
 
-    # The reading reaches the run only here, as a default for the conditions
-    # (AD-035, AK-186): the player's own declarations are merged over it, so
-    # a condition they declared stands as declared in both readings. Sorted,
-    # not in `dict` order: a cache key that depended on the order the player
-    # happened to flip the switches would miss its own entries.
-    declared = tuple(sorted({**model.reading_defaults(planner.worst_case),
+    # The baseline counts every switchable condition as met (AD-036.6): the
+    # player's own declarations are merged over it, so a condition they
+    # declared stands as declared. Sorted, not in `dict` order: a cache key
+    # that depended on the order the player happened to flip the switches
+    # would miss its own entries.
+    declared = tuple(sorted({**model.advisor_defaults(),
                              **planner.declared}.items()))
     weighting = advisor_goals.DEFAULT_WEIGHTING
     # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
@@ -514,10 +497,6 @@ class AdvisorBar(QWidget):
     #: The answer that is standing on screen, or `None` when none is. S10b
     #: draws the blocks from this; nothing else here reads it.
     suggestion_changed = Signal(object)
-    #: The reading the player chose, as `Planner.worst_case` (AD-035.1). The
-    #: window keeps it; this row only says it changed, and throws the answer
-    #: away for it exactly as for a direction (AK-183).
-    reading_changed = Signal(bool)
     #: The three actions that need a slot card to mean anything. The row asks
     #: for them and does none of them: the window owns the slots.
     apply_all_requested = Signal()
@@ -570,17 +549,6 @@ class AdvisorBar(QWidget):
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
         row.addWidget(self.goal_box)
-
-        # AK-182: the reading is its own box between the direction and
-        # `Optimize`, never a doubling of the direction's entries -- a third
-        # direction is one registry entry, not two more of these. `Worst
-        # case` first because it is the default: the figure to rely on.
-        self.reading_box = QComboBox()
-        self.reading_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        for worst in (True, False):
-            self.reading_box.addItem(reading_label(worst).capitalize(), worst)
-        self.reading_box.activated.connect(self._reading_chosen)
-        row.addWidget(self.reading_box)
 
         self.optimize_button = QPushButton("Optimize")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
@@ -670,7 +638,7 @@ class AdvisorBar(QWidget):
         """The `AdvisorResult` on screen, or `None`."""
         return self._answer
 
-    def the_build_changed(self, *, reading_changed: bool = False) -> None:
+    def the_build_changed(self) -> None:
         """Nightfarer, vessel, Deep, level or a slot changed (AK-12).
 
         A run in flight is abandoned and says 4.7: it was asked about a build
@@ -685,16 +653,11 @@ class AdvisorBar(QWidget):
         build ends up here -- so an answer being applied would throw itself
         away half way through. `while_the_player_applies_it` is how the
         window says that this change is the one the row asked for.
-
-        `reading_changed` (AK-270) is `True` only when `_reading_chosen`
-        calls this: the abandonment is real either way, but the sentence
-        must not blame the build for a change the reading made.
         """
         if self._applying:
             return
         if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.OUTDATED,
-                                          reading_changed=reading_changed)
+            self._stop_shows = Situation(State.OUTDATED)
             self._controller.cancel()
             return
         self._forget_the_answer()
@@ -772,13 +735,6 @@ class AdvisorBar(QWidget):
         reading the list.
         """
         self.the_build_changed()
-
-    def _reading_chosen(self, _index: int) -> None:
-        """A reading is a different question too: same path as a direction
-        (AK-183) -- the answer goes, a run in flight says 4.7 naming the
-        reading rather than the build (AK-270), none starts."""
-        self.reading_changed.emit(self.reading_box.currentData())
-        self.the_build_changed(reading_changed=True)
 
     def _apply_or_undo(self) -> None:
         """One button, and which of the two actions it is is the row's state.
@@ -960,7 +916,6 @@ class AdvisorBar(QWidget):
         # (AK-08) -- disabling belongs to this row alone.
         answerable = situation.state is not State.NO_SAVE
         self.goal_box.setEnabled(answerable)
-        self.reading_box.setEnabled(answerable)
         self.optimize_button.setEnabled(answerable)
         self._show_the_actions(situation)
 

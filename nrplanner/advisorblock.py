@@ -234,7 +234,7 @@ class SuggestionBlock(QFrame):
 
         self.setVisible(False)
 
-    def show_the_suggestion(self, goal_label: str, reading: str,
+    def show_the_suggestion(self, goal_label: str,
                             group: types.SlotReasons, *,
                             already_equipped: bool = False,
                             may_be_used: bool = True,
@@ -242,9 +242,6 @@ class SuggestionBlock(QFrame):
                             curse_tooltip: str = "") -> None:
         """Draw one slot group, or the one line that replaces it.
 
-        `reading` is the window's word for which case the figures were
-        formed under (`advisorbar.reading_label`), named in the head and
-        nowhere below it (AK-185: never on an effect, curse or count line).
         `already_equipped` is the window's answer, not this block's: whether
         the suggested copy is the copy in the slot is a question about the
         handle in the slot, and the block holds no relics. `may_be_used` is
@@ -256,7 +253,7 @@ class SuggestionBlock(QFrame):
         itself -- holding is about applying, not about reading the account --
         so this never follows `may_be_used`.
         """
-        self.heading.setText(f"Suggested — {goal_label}, {reading}".upper())
+        self.heading.setText(f"Suggested — {goal_label}".upper())
         self.heading.setVisible(not already_equipped)
         self.use_button.setVisible(may_be_used and not already_equipped)
         self.why_button.setVisible(may_explain and not already_equipped)
@@ -286,16 +283,13 @@ class SuggestionBlock(QFrame):
 class WhyHeading:
     """What the head of the dialog names, and what no result carries.
 
-    The goal is on the result; the other five are the window's own knowledge
-    at the moment the run was asked (`UI_SPEC` §3.4 point 1, AK-185 for the
-    reading). They travel in one shape so that the dialog takes one argument
-    for the head instead of five positional strings that can be handed over
-    in the wrong order.
+    The goal is on the result; the other four are the window's own knowledge
+    at the moment the run was asked (`UI_SPEC` §3.4 point 1). They travel in
+    one shape so that the dialog takes one argument for the head instead of
+    four positional strings that can be handed over in the wrong order.
     """
 
     goal_label: str
-    #: `worst case` / `best case`, as `advisorbar.reading_label` spells it.
-    reading: str
     nightfarer: str
     vessel: str
     deep: bool
@@ -303,16 +297,14 @@ class WhyHeading:
 
 
 def head_sentence(heading: WhyHeading) -> str:
-    """The head of the dialog: what was asked, under which reading, of what,
-    with how much.
+    """The head of the dialog: what was asked, of what, with how much.
 
     **Wording written by the `developer`, not laid down anywhere** -- §3.4
-    names the facts and no sentence. It is reported as such rather than
+    names the five facts and no sentence. It is reported as such rather than
     presented as a specified text (see the T-089 report).
     """
     relics = "1 relic" if heading.relics == 1 else f"{heading.relics} relics"
-    return (f"{heading.goal_label}, {heading.reading} — {heading.nightfarer}, "
-            f"{heading.vessel}, "
+    return (f"{heading.goal_label} — {heading.nightfarer}, {heading.vessel}, "
             f"Deep of Night {'on' if heading.deep else 'off'}, "
             f"{relics} considered.")
 
@@ -341,8 +333,7 @@ class WhyDialog(QDialog):
         from .app import MUTED
 
         self.setModal(True)
-        self.setWindowTitle(f"Why this build — {heading.goal_label}, "
-                            f"{heading.reading}")
+        self.setWindowTitle(f"Why this build — {heading.goal_label}")
         self.resize(640, 620)
 
         outer = QVBoxLayout(self)

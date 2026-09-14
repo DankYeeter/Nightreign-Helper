@@ -476,7 +476,7 @@ class RelicSlot(QFrame):
             return [f"<div style='color:{CURSE}'>✦ comes with {what}</div>"]
         return []
 
-    def show_the_suggestion(self, goal_label: str, reading: str, group,
+    def show_the_suggestion(self, goal_label: str, group,
                             choice, *, may_explain: bool = True) -> None:
         """Draw what the advisor would put here, while the answer lives.
 
@@ -494,7 +494,7 @@ class RelicSlot(QFrame):
         already = (choice is not None and in_the_slot is not None
                    and in_the_slot == choice.handle)
         self.suggestion.show_the_suggestion(
-            goal_label, reading, group, already_equipped=already,
+            goal_label, group, already_equipped=already,
             may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice))
 

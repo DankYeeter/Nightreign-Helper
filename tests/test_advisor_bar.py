@@ -65,10 +65,6 @@ TABLE = [
      "Maximise damage — 6 of 6 slots filled."),
     ("4.7", advisorbar.Situation(advisorbar.State.OUTDATED),
      "Your build changed while this was working out — use Optimize again."),
-    ("4.7-reading", advisorbar.Situation(advisorbar.State.OUTDATED,
-                                         reading_changed=True),
-     "The reading changed while this was working out — use Optimize "
-     "again."),
     ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
      "No save was read, so there are no relics to choose from — use Rescan "
      "save."),
@@ -336,12 +332,7 @@ def test_the_row_takes_its_words_from_the_registry_and_nowhere_else(
 
 
 def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
-    """4.8, and only this row's controls (AK-08 is about all the others).
-
-    Three of them since A16, under one condition (AK-268): a reading box
-    left live with no save behind it would be a choice with nothing to
-    read.
-    """
+    """4.8, and only this row's controls (AK-08 is about all the others)."""
     bar.asking["value"] = None
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.NO_SAVE
@@ -349,7 +340,6 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
         "No save was read, so there are no relics to choose from — use "
         "Rescan save.")
     assert not bar.goal_box.isEnabled()
-    assert bar.reading_box.isEnabled() is False
     assert not bar.optimize_button.isEnabled()
 
 
@@ -456,26 +446,6 @@ def test_a_build_that_changes_under_a_run_ends_in_4_7_and_not_in_4_5(bar):
         "again.")
     assert bar.progress.isHidden()
     assert bar.optimize_button.text() == "Optimize"
-
-
-def test_a_reading_that_changes_under_a_run_names_the_reading_not_the_build(
-        bar):
-    """AK-270: the same abandonment, but the sentence must name its cause.
-
-    A goal change and a reading change both cancel a run in flight through
-    `the_build_changed` (AK-183), so the two are told apart by an argument,
-    not by a second code path -- and this is the case that shows the
-    argument actually reaches the sentence.
-    """
-    bar.optimize_button.click()
-    bar._controller.begins()
-    _wait(WAITED_OUT_MS)
-    bar.reading_box.setCurrentIndex(1)
-    bar.reading_box.activated.emit(1)
-    assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
-        "The reading changed while this was working out — use Optimize "
-        "again.")
 
 
 def test_an_answer_that_outlived_its_build_is_thrown_away(bar):
@@ -643,56 +613,33 @@ def test_a_new_direction_puts_the_old_answer_away(bar):
     assert len(bar._controller.asked) == asked
 
 
-def test_the_reading_is_a_second_box_that_puts_the_answer_away_and_asks_nothing(
-        bar):
-    """AK-182 and AK-183: two entries, `Worst case` first and standing; a
-    change of reading takes `_goal_chosen`'s path and starts no run."""
-    entries = [bar.reading_box.itemText(i)
-               for i in range(bar.reading_box.count())]
-    assert entries == ["Worst case", "Best case"]
-    assert bar.reading_box.currentText() == "Worst case"
+def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
+    """A18 took the reading box out: one box, the directions in `GOAL_ORDER`,
+    and no second `QComboBox` on the row."""
     assert [bar.goal_box.itemText(i) for i in range(bar.goal_box.count())] \
         == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
-
-    heard = []
-    bar.reading_changed.connect(heard.append)
-    bar.optimize_button.click()
-    bar._controller.begins()
-    bar._controller.answers(_an_answer())
-    asked = len(bar._controller.asked)
-
-    bar.reading_box.setCurrentIndex(1)
-    bar.reading_box.activated.emit(1)
-    assert heard == [False]
-    assert bar.answer is None
-    assert bar.situation.state is advisorbar.State.NOTHING_YET
-    assert len(bar._controller.asked) == asked
+    assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box]
 
 
-def test_a_declared_condition_outlives_both_readings(planner):
-    """AK-186: the reading is a default for a condition, never a value.
+def test_a_declared_condition_outlives_the_baseline(planner):
+    """AD-036.6: the baseline is a default for a condition, never a value.
 
-    A curse the worst case would set to 1 is declared at 3 by the player,
-    and a buff the best case would set to 1 at 2; both readings carry both
-    declarations as the player made them, in the context and in the key.
+    An effect the baseline would set to 1 is declared at 3 by the player;
+    the run carries the declaration as the player made it, in the context
+    and in the key, and every other switchable condition at the baseline.
     """
     if planner.owned is None:
         pytest.skip("this machine has no save to read")
     from nrplanner import model
 
-    curse = min(model.reading_defaults(True))
-    buff = min(model.reading_defaults(False))
-    planner.declared = {curse: 3, buff: 2}
+    effect = min(model.advisor_defaults())
+    planner.declared = {effect: 3}
 
-    for worst in (True, False):
-        planner.worst_case = worst
-        asking = advisorbar.asking_from(planner, "max_damage")
-        declared = dict(asking.ctx.declared)
-        assert declared[curse] == 3 and declared[buff] == 2, (
-            f"worst_case={worst}: the reading overwrote what the player "
-            f"declared")
-        assert asking.request.declared == asking.ctx.declared
-        assert declared.keys() >= set(model.reading_defaults(worst))
+    asking = advisorbar.asking_from(planner, "max_damage")
+    declared = dict(asking.ctx.declared)
+    assert declared[effect] == 3, "the baseline overwrote what the player declared"
+    assert asking.request.declared == asking.ctx.declared
+    assert declared.keys() >= set(model.advisor_defaults())
 
 
 def test_the_row_stops_the_search_before_the_data_under_it_changes(bar):
@@ -816,15 +763,15 @@ def test_on_a_narrow_desktop_the_boxes_keep_their_captions_and_the_row_carries_t
     to hover has its sentence in the row's own tooltip instead.
 
     AK-05 itself only holds at 1536 px and up (user decision, 2026-09-13):
-    below that floor `goal_box`/`reading_box` may be among the boxes that
-    cut, and the tooltip is asserted regardless -- it is what carries the
-    status text whether or not the boxes gave way too.
+    below that floor `goal_box` may be among the boxes that cut, and the
+    tooltip is asserted regardless -- it is what carries the status text
+    whether or not the box gave way too.
     """
     at_room = advisor_row_at_the_window["rooms"][room]
     assert at_room["width"] < advisor_row_at_the_window["width"], (
         "this desktop does not cap the opening width, so the case would "
         "measure the same row twice")
-    allowed_cut = ({"goal_box", "reading_box"}
+    allowed_cut = ({"goal_box"}
                    if int(room) in BELOW_THE_AK_05_FLOOR else set())
     for row in (at_room["failed"], at_room["suggested"]):
         assert set(row["cut"]) <= allowed_cut

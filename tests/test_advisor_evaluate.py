@@ -194,12 +194,12 @@ def test_the_advisor_computes_the_build_the_window_shows(planner, game_data):
     if not held_curses:
         pytest.skip("this save owns no Deep of Night relic carrying a curse")
 
-    # The sheet's own declarations, without the reading's defaults on top:
-    # since A16 the advisor's `declared` carries the worst case's seven
-    # conditional curses as well (AD-035), and the sheet is the one thing
-    # A16 leaves untouched -- so the comparison has to ask the sheet's
-    # question, exactly as `ranking_with(..., as_the_bar_asked_before_a16)`
-    # does in `test_advisor_goals.py`.
+    # The sheet's own declarations, without the advisor's baseline on top:
+    # the advisor's `declared` carries every switchable condition as met
+    # (AD-036.6), and the sheet is the one thing A18 leaves untouched
+    # (AK-282) -- so the comparison has to ask the sheet's question, exactly
+    # as `ranking_with(..., as_the_bar_asked_before_a16)` does in
+    # `test_advisor_goals.py`.
     as_the_sheet_declares = dataclasses.replace(
         ctx, declared=tuple(sorted(planner.declared.items())))
     assert figures(evaluate(problem, (), as_the_sheet_declares)) == \

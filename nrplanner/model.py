@@ -237,14 +237,12 @@ FRACTION_PERCENT_FIELDS = {"itemDropRate"}
 PERCENT_OF_100_BASELINE = 100.0
 PERCENT_OF_100_FIELDS: set[str] = set()
 
-# The two vocabularies of the advisor's readings (`GOAL.md` A16, AD-035):
-# every gated effect the sheet offers a switch for, split by `is_curse` --
-# the extractor's flag for an effect out of the curse tables, not the relic's
-# `curse` slot and not `is_debuff`. Filled by configure(), one pass over the
-# dataset at load time; `compute` looks a declared id up per effect in the
-# build, so an id here for an effect the build does not carry costs nothing.
-CONDITIONAL_CURSE_IDS: set[int] = set()
-CONDITIONAL_BUFF_IDS: set[int] = set()
+# The advisor's baseline vocabulary (`GOAL.md` A18, AD-036.6): every gated
+# effect the sheet offers a switch for, buffs and curses alike (OF-37). Filled
+# by configure(), one pass over the dataset at load time; `compute` looks a
+# declared id up per effect in the build, so an id here for an effect the
+# build does not carry costs nothing.
+CONDITIONAL_EFFECT_IDS: set[int] = set()
 
 
 def percent_value(field_name: str, value: float) -> float:
@@ -280,27 +278,24 @@ def configure(data: dict) -> None:
         elif abs(float(value) - PERCENT_OF_100_BASELINE) < 1e-9:
             PERCENT_OF_100_FIELDS.add(name)
     RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
-    CONDITIONAL_CURSE_IDS.clear()
-    CONDITIONAL_BUFF_IDS.clear()
+    CONDITIONAL_EFFECT_IDS.clear()
     for effect in (data.get("effects") or {}).values():
         if effect["id"] in NO_SWITCH or not is_conditional(effect, None):
             continue
-        (CONDITIONAL_CURSE_IDS if effect.get("is_curse")
-         else CONDITIONAL_BUFF_IDS).add(effect["id"])
+        CONDITIONAL_EFFECT_IDS.add(effect["id"])
     _CONFIGURED = True
 
 
-def reading_defaults(worst: bool) -> dict[int, int]:
-    """Effect id -> 1 for every switchable conditional effect of the reading:
-    the conditional curses (worst) or the conditional buffs (best).
+def advisor_defaults() -> dict[int, int]:
+    """Effect id -> 1 for every switchable conditional effect: the advisor's
+    baseline counts a conditional effect as if its condition held (A18).
 
     One copy per occurrence, as a switch simply turned on -- no maximum for a
     counting effect, because that would be an invented number (A7). The
     player's own declaration wins over this wherever both name an effect
     (`advisorbar.asking_from`).
     """
-    return dict.fromkeys(CONDITIONAL_CURSE_IDS if worst
-                         else CONDITIONAL_BUFF_IDS, 1)
+    return dict.fromkeys(CONDITIONAL_EFFECT_IDS, 1)
 
 
 def is_multiplier(field_name: str) -> bool:

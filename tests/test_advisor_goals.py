@@ -670,8 +670,8 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
 
     The `as_the_bar_asked_before_*` flags put back what the decisions took
     out or in: A17 the reference armament and the grid, AD-032 the rolls on
-    it, A16 the reading's own defaults (the bar asked with the player's
-    declarations alone before). Each is the counter-case of an invariance,
+    it, A16 the advisor's own defaults -- today the A18 baseline (the bar
+    asked with the player's declarations alone before). Each is the counter-case of an invariance,
     not a second way of asking for it -- and each has to be restorable by
     hand, or the invariance could be holding because nothing in the case can
     tell two runs apart.
@@ -762,6 +762,10 @@ def test_the_armament_moved_the_ranking_before_a17(planner, game_data):
     Only the damage direction: the survival figure is not reachable by a
     weapon-type gate in this dataset, so ranking by it would come back equal
     here as well and prove the opposite of what this case is for.
+
+    Before the A18 baseline as well: with every weapon-type gate declared
+    met (AD-036.6) the armament has nothing left to decide, so the two runs
+    could not differ for the reason this case is about.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
@@ -774,10 +778,10 @@ def test_the_armament_moved_the_ranking_before_a17(planner, game_data):
 
     _baseline_first, order_first = ranking_with(
         planner, first, inventory, question, "max_damage",
-        as_the_bar_asked_before_a17=True)
+        as_the_bar_asked_before_a16=True, as_the_bar_asked_before_a17=True)
     _baseline_second, order_second = ranking_with(
         planner, second, inventory, question, "max_damage",
-        as_the_bar_asked_before_a17=True)
+        as_the_bar_asked_before_a16=True, as_the_bar_asked_before_a17=True)
 
     # By handle as well as by name: `relics.templates_for` hands out four
     # copies of one relic name, so a list of names alone is the same list
@@ -1094,49 +1098,51 @@ def test_the_eight_damage_kinds_are_the_ones_the_model_knows(game_data):
         set(goals.DAMAGE_CUT_FIELDS)
 
 
-# --- the two readings of A16 -----------------------------------------------
+# --- the baseline of A18 ----------------------------------------------------
 
 #: The conditional curses of this dataset, counted on 2026-09-13 over the
 #: 2 076 effects of the Testabzug (`EXTRACT_VERSION` 11): 24 carry
 #: `is_curse`, and these seven are gated (`model.is_conditional(eff, None)`).
-#: They are the worst case's whole vocabulary (AD-035 point 2).
+#: They count in the baseline like every other switchable condition (OF-37,
+#: user decision 2026-09-14) -- the case a baseline that took `is_curse` for
+#: "not a condition you can be in" would drop.
 CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
                       6851700)
 
-#: The gated effects that are not curses, less the one in `model.NO_SWITCH`
-#: (414 - 1, same count, same day). The best case's vocabulary.
-CONDITIONAL_BUFFS_WITH_A_SWITCH = 413
+#: Every gated effect the sheet offers a switch for, less the one in
+#: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
+#: dataset, counted 2026-09-14). The baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 420
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 314
-#: copies) change their `min_damage_taken` figure between the worst case and
-#: the bar as it asked before A16 (`GOAL.md` A16 measured 11 of 309 on
-#: 2026-09-07; 11 of 314 on 2026-09-13).
-COPIES_THE_WORST_CASE_MOVES = 11
+#: copies) change their `min_damage_taken` figure between the baseline and
+#: the bar as it asked before A16 -- the player's declarations alone.
+#: Counted 2026-09-14 on the frozen copy.
+COPIES_THE_BASELINE_MOVES = 21
 
 SURVIVAL = "min_damage_taken"
 
 
-def test_reading_defaults_name_the_seven_conditional_curses_and_nothing_else(
-        game_data):
-    """AD-035 point 2 and 3: what each reading declares, and at what count.
+def test_advisor_defaults_name_every_switchable_condition_at_one(game_data):
+    """AD-036.6 with OF-37: the baseline declares every gated effect the
+    sheet offers a switch for -- buffs and curses alike -- at count 1.
 
-    Qt-free: the tables are filled by `model.configure`, and this asks them
-    against the dataset rather than against `is_curse` restated here -- the
-    seven ids are the literal, so a table that took `is_debuff` (78 ids) or
-    the relic's `curse` slot (326 ids) for "curse" shows up as the wrong
-    list, not as a wrong count.
+    Qt-free: the table is filled by `model.configure`, and this asks it
+    against literals counted on the dataset rather than against
+    `is_conditional` restated here -- a table that lost the curses, or took
+    `is_debuff` (78 ids) for "curse", shows up as the wrong count and the
+    missing seven, not as a restatement agreeing with itself.
     """
-    worst = model.reading_defaults(True)
-    best = model.reading_defaults(False)
+    defaults = model.advisor_defaults()
 
-    assert tuple(sorted(worst)) == CONDITIONAL_CURSES
-    assert len(best) == CONDITIONAL_BUFFS_WITH_A_SWITCH
-    assert not set(worst) & set(best), "an effect declared in both readings"
-    assert model.NO_SWITCH.isdisjoint(best) and model.NO_SWITCH.isdisjoint(
-        worst), "an effect the sheet offers no switch for is being declared"
+    assert len(defaults) == SWITCHABLE_CONDITIONS
+    assert set(CONDITIONAL_CURSES) <= set(defaults), (
+        "a conditional curse fell out of the baseline (OF-37)")
+    assert model.NO_SWITCH.isdisjoint(defaults), (
+        "an effect the sheet offers no switch for is being declared")
     # One copy per occurrence, a switch simply turned on -- never a maximum
     # for a counting effect (A7: the condition is assumed, not the number).
-    assert set(worst.values()) == {1} and set(best.values()) == {1}
+    assert set(defaults.values()) == {1}
 
 
 def one_relic_builds(planner, ctx):
@@ -1156,98 +1162,82 @@ def not_counted_under(planner, ctx) -> list[str]:
             for name in explain.not_counted(built)]
 
 
-def test_the_readings_share_not_counted_and_invent_nothing(planner, game_data):
-    """AK-187: `worst + best == today`, over the one-relic problems.
-
-    The worst case declares the conditional curses and nothing else, so what
-    it leaves uncounted is today's list without them; the best case declares
-    the conditional buffs, so what it leaves is exactly the curses. A reading
-    that set a buff in the worst case, or a curse in the best, breaks the
-    sum -- and a reading that invented a third kind of entry breaks it too.
+def test_the_baseline_leaves_no_switchable_condition_uncounted(
+        planner, frozen_inventory):
+    """A18 sentence 1: a conditional effect goes into the figures like an
+    unconditional one. Over the one-relic problems of the frozen save the
+    baseline parks nothing in `not_counted`, where the bar as it asked
+    before A16 parked every gated effect -- so the case can tell the two
+    apart, and a baseline that missed one kind of condition shows up here
+    by name.
     """
-    if planner.owned is None:
-        pytest.skip("`asking_from` answers nothing without a save to choose "
-                    "relics from")
-    curse_names = {" ".join(game_data["effects"][str(eid)]["name"].split())
-                   for eid in CONDITIONAL_CURSES}
+    planner.owned = frozen_inventory
+    ctx = advisorbar.asking_from(planner, SURVIVAL).ctx
 
-    planner.worst_case = True
-    worst = not_counted_under(planner,
-                              advisorbar.asking_from(planner, SURVIVAL).ctx)
-    planner.worst_case = False
-    best = not_counted_under(planner,
-                             advisorbar.asking_from(planner, SURVIVAL).ctx)
-    today = not_counted_under(planner, dataclasses.replace(
-        advisorbar.asking_from(planner, SURVIVAL).ctx, declared=()))
-
-    assert worst and best, ("a reading that left nothing uncounted proves "
-                            "nothing about the other")
-    assert len(worst) + len(best) == len(today)
-    assert set(best) <= curse_names, (
-        "the best case left something uncounted that is not a conditional "
-        "curse")
-    assert not set(worst) & curse_names, (
-        "the worst case left a conditional curse uncounted")
+    before_a16 = not_counted_under(planner, dataclasses.replace(
+        ctx, declared=()))
+    assert before_a16, ("a save whose copies carry no condition proves "
+                        "nothing about the baseline")
+    assert not_counted_under(planner, ctx) == []
 
 
-def what_the_worst_case_moves(planner, inventory) -> tuple[bool, list[str]]:
+def what_the_baseline_moves(planner, inventory) -> tuple[bool, list[str]]:
     """(the survival order changed, the copies whose figure changed).
 
     Against the bar as it asked before A16 -- the player's declarations and
-    nothing else -- because that is the ranking A16's acceptance is measured
+    nothing else -- because that is the ranking A18's acceptance is measured
     from. Both kinds of copy, ordinary and Deep, through one white slot
     each, which is every copy the inventory holds (`Inventory.relics_for`);
-    and every copy whose figure moves has to carry one of the seven.
+    and every copy whose figure moves has to carry a switchable condition.
     """
-    assert planner.worst_case is True, "AK-182: `Worst case` is the default"
     planner.owned = inventory
     by_handle = {item.handle: item for item in inventory.relics}
+    switchable = set(model.advisor_defaults())
     moved: list[str] = []
     orders_differ = False
     for deep in (False, True):
         question = advisor.problem([advisor.WHITE], deep=deep)
-        _base, worst = ranking_with(planner, None, inventory, question,
-                                    SURVIVAL)
+        _base, baseline = ranking_with(planner, None, inventory, question,
+                                       SURVIVAL)
         _base, before = ranking_with(planner, None, inventory, question,
                                      SURVIVAL,
                                      as_the_bar_asked_before_a16=True)
-        orders_differ |= ([offer[:2] for offer in worst]
+        orders_differ |= ([offer[:2] for offer in baseline]
                           != [offer[:2] for offer in before])
         figures_before = {offer[:2]: dict(offer[2])[SURVIVAL]
                           for offer in before}
-        for name, handle, marginals in worst:
+        for name, handle, marginals in baseline:
             if dict(marginals)[SURVIVAL] == figures_before[(name, handle)]:
                 continue
             moved.append(name)
-            assert set(by_handle[handle].curse_ids) & set(
-                CONDITIONAL_CURSES), (
-                f"{name!r} changed its figure without a conditional curse")
+            item = by_handle[handle]
+            assert (set(item.effect_ids) | set(item.curse_ids)) & switchable, (
+                f"{name!r} changed its figure without a switchable condition")
     return orders_differ, moved
 
 
-def test_the_worst_case_moves_the_ranking_where_a_conditional_curse_sits(
-        planner):
-    """`GOAL.md` A16, its acceptance, on the save of this machine: the seven
-    conditional curses move the survival ranking in the worst case,
+def test_the_baseline_moves_the_ranking_where_a_condition_sits(planner):
+    """`GOAL.md` A18, on the save of this machine: the switchable conditions
+    move the survival ranking against the player's declarations alone,
     demonstrably -- and nothing else does. No count: the save changes with
     every evening played (QA-252), so the figure lives on the frozen copy.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
                     "relics from")
-    orders_differ, moved = what_the_worst_case_moves(planner, planner.owned)
-    assert orders_differ, "the worst case left the survival order as it was"
+    orders_differ, moved = what_the_baseline_moves(planner, planner.owned)
+    assert orders_differ, "the baseline left the survival order as it was"
     assert moved, "no copy moved, so the order cannot have"
 
 
-def test_the_worst_case_moves_the_counted_copies_of_the_frozen_save(
+def test_the_baseline_moves_the_counted_copies_of_the_frozen_save(
         planner, frozen_inventory):
-    """A16's figure, on the same save wherever the suite runs: 11 copies of
-    the 314 frozen on 2026-09-13 change their survival figure, no more and
-    no fewer -- a reading that declared one curse too many or too few moves
-    a different count.
+    """A18's figure, on the same save wherever the suite runs: the copies of
+    the 314 frozen on 2026-09-13 that change their survival figure under
+    the baseline, no more and no fewer -- a baseline that declared one
+    condition too many or too few moves a different count. Kills the
+    `MUTATIONS` entry `baseline-dropped-from-the-ask` (AD-033).
     """
-    orders_differ, moved = what_the_worst_case_moves(planner,
-                                                     frozen_inventory)
-    assert orders_differ, "the worst case left the survival order as it was"
-    assert len(moved) == COPIES_THE_WORST_CASE_MOVES, sorted(moved)
+    orders_differ, moved = what_the_baseline_moves(planner, frozen_inventory)
+    assert orders_differ, "the baseline left the survival order as it was"
+    assert len(moved) == COPIES_THE_BASELINE_MOVES, sorted(moved)
