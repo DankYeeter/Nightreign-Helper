@@ -4453,6 +4453,16 @@ hinein kommt in keiner davon vor.
 
 ### AD-029 — Das Lesen des Spielstands wird **zuerst am Lesen selbst** repariert; die Verlagerung in einen Worker ist eine zweite Stufe, die an eine Messung mit benanntem Ausloeser haengt (2026-09-08, Status: aktiv; beruehrt AD-006.7, AD-006.8, SEC-022)
 
+> **Nachtrag 14.09.2026 (T-239d, `architect`, Stand `a68cd3d`):** Der Leser
+> liegt seit AD-034 Schritt 2 (`a6b10b1`) in `nrplanner/savereader.py` —
+> `read_the_save` (Z. 92, Groessendeckel direkt
+> `inventory.refuse_a_size_no_save_can_have`, Z. 116; der Wrapper
+> `_refuse_a_file_no_save_can_be` ist seit T-238 `5817a89` geloescht),
+> `_SaveReadWorker` (Z. 129), `SaveReader` (Z. 178). Die Aufrufer aus dem
+> Kontext (`app.py:1575`/`:1682`) heissen heute `Planner.rescan_save`
+> (`app.py:2174`) und `find_my_save` (`app.py:2205`); sie bleiben im
+> Controller. Wortlaut der Entscheidung unveraendert gueltig.
+
 **Kontext — was die 6,15 s kosten, belegt an T-118 und `baselines.md`
 S11-E:**
 
@@ -4618,6 +4628,16 @@ streichen.
 ---
 
 ## Themenbereich E — Daten lesen, Erststart, Pfade
+
+> **Nachtrag 14.09.2026 (T-239d, `architect`, Stand `a68cd3d`):** AD-030 und
+> AD-031 zitieren `app.py`-Zeilen aus dem Stand vom 08.09. Heute: der
+> Erststart-Einstieg `firstrun.ensure_data(gamefiles.find_game_dir())`
+> (AD-030, „`app.py:4428`") heisst `firstrun.run(gamepath.resolve_game())`
+> (`app.py:3042`; `ensure_data` kommt in `nrplanner/` nicht mehr vor, grep
+> 14.09.). AD-031: das Lesen selbst liegt in `savereader.read_the_save`
+> (Z. 92–128); die Zeile, die `Inventory.read_the_slow_way` liest, bleibt im
+> Controller (`app.py:2344`), ebenso `UNREADABLE_SAVE` (`app.py:243`).
+> Beide Entscheidungen gelten im Wortlaut; nur die Fundstelle wandert.
 
 *Wie das Programm an die Spieldaten kommt. AD-011 und AD-012 sichern das
 Lesen; AD-030 und AD-031 tragen A15 — der Erststart bekommt einen Weg von
@@ -5687,6 +5707,122 @@ zuerst committet ist — 15 Faelle, alle mit dem Namen der Mutation.
 - `docs/plan-restarbeiten.md` P10-2 sagt "5 300 Zeilen kopierten
   Quelltext" — gezaehlt sind 5 325 Literalzeilen (Z. 44–5368) und 96 Zeilen
   Logik; die "rund 100" halten.
+
+### Nachtrag 14.09.2026 (T-239d, `architect`) — AD-034 wie gebaut, Stand `a68cd3d`
+
+*Abgleich des Vertrags aus AD-034 mit den drei Commits `a073ee9` (Schritt 1),
+`a6b10b1` (Schritt 2), `dc95c6b` (Schritt 3) und dem Audit `5817a89`
+(T-238). Diff `7bc8b04..a68cd3d`: `nrplanner/` 5 Dateien +2 230/−2 154,
+`tests/` 16 Dateien +278/−89. `app.py` **3 076** Zeilen (AD-034 sagte rund
+3 100), `relicslots.py` 878, `savereader.py` 314, `statsheet.py` 938;
+`Planner` traegt 100 Methoden. Alle Zahlen `wc -l`/`grep -c "    def "` am
+14.09.2026 auf `a68cd3d`. Der Nachtrag aendert **keine** Entscheidung; er
+schreibt den Vertrag so, wie er gebaut ist, und begruendet jede Abweichung.*
+
+**Vertrag von `StatSheet`, geltende Fassung** (ersetzt den Codeblock unter
+„Schritt 3" oben; die Sache — Pane liest das Fenster, spricht per Signal
+zurueck, `declared` bleibt am Fenster — steht unveraendert):
+
+```python
+class StatSheet(QScrollArea):                 # nicht QWidget: der ganze Bogen scrollt
+    declared_changed = Signal(object)         # effect id -> count, nur Werte > 0
+
+    def __init__(self, planner): ...          # kein `icons`: das Blatt zeichnet keine Symbole
+    def draw(self, build: model.Build, declared: dict) -> None: ...
+```
+
+| Vertrag (T-220) | gebaut (`dc95c6b`) | Grund, gemessen woran |
+|---|---|---|
+| `show(build, declared)` | `draw(build, declared)` | `QWidget.show()` existiert ohne Argumente; ein Pane, dessen `show` zwei nimmt, bricht den ersten Aufrufer, der das andere meint (Docstring `statsheet.py:632`) |
+| `Signal(dict)` | `Signal(object)` | ein `dict`-Signal ist fuer Qt eine `QVariantMap` mit **String**-Schluesseln; Effekt-Ids sind `int`, der Emit schlug **stumm** fehl (Kommentar `statsheet.py:190–192`). Randbedingung: gilt fuer jedes Signal, das ein `dict` mit nicht-String-Schluesseln traegt — `suggestion_changed`/`reading_changed` sind nicht betroffen (Objekt bzw. `bool`) |
+| `__init__(planner, icons)` | `__init__(planner)` | das Blatt zeichnet keine Symbole; `icons` waere ein Parameter ohne Leser |
+| `SituationalRow`, `_heading` bleiben in `app.py` | beide in `statsheet.py`; `app.py` importiert `_heading` zurueck | `StatSheet` baut die Zeilen und die Ueberschriften; blieben sie in `app.py`, muesste `statsheet` `app` importieren — genau die Richtung, die AD-034 verbietet. `app.py` als Leser von `statsheet._heading` haelt die Richtung |
+| `declared`-Bereinigung im Pane | in `Planner.recompute` **nach** `draw` (`app.py:3002–3007`) | `declared` gehoert dem Fenster; ein Pane, das den Fensterzustand ausduennt, waere der verbotene Schreibzugriff |
+| `app.py` importiert `SaveReader`, `read_the_save`, `where_saves_usually_are` | `from . import savereader`; genutzt `savereader.SaveReader` (Z. 578) und `savereader._pick_a_save_file` (Z. 2229) | `read_the_save` ist die Voreinstellung des `read=`-Seams **innerhalb** von `SaveReader`, `where_saves_usually_are` wird nur dort gebraucht — zwei Importe ohne Leser gespart |
+| `_refuse_a_file_no_save_can_be` zieht mit um | Wrapper geloescht (`5817a89`), `read_the_save` ruft `inventory.refuse_a_size_no_save_can_have` direkt (`savereader.py:116`) | eine Funktion mit einem Aufrufer und einer Zeile Inhalt; der Anker `no-reason-for-a-file-that-is-not-a-save` aus Schritt 2 ist damit historisch |
+| `VariantDialog` mitziehen oder streichen (Nebenfund) | **gestrichen**: 0 Treffer in `nrplanner/` und `tests/` (grep 14.09.) | Director-Entscheid in der Bauwelle T-235/T-238 |
+| Tests Schritt 3: 6 Dateien `window.X` → `window.stat_sheet.X` | 12 Testdateien nennen `stat_sheet` (`grep -l`, 14.09.); OF-34 vom Director am 13.09. mit **nein** beantwortet | Umbenennungen zaehlten nicht gegen die Fuenf |
+
+**Abhaengigkeitsrichtung, nachgeprueft:** `app` → `relicslots`, `savereader`,
+`statsheet`; keines der drei importiert `app` (Importkoepfe, 14.09.). Zwei
+**vorbestehende** Lazy-Importe laufen weiter gegen die Richtung:
+`advisorblock.py:173` (`from .app import ACCENT, MUTED, PANEL, _heading`,
+dazu `CURSE` seit `9b68402`) und `advisorbar.py:560` (`from .app import
+_heading`). Sie funktionieren, weil `app.py` `_heading` aus `statsheet`
+re-exportiert — ein stiller Vertrag, der in Kandidat K-1 unten aufgeht.
+
+**Debt-Entscheidungen (Register-Tiefe, kein Bauauftrag).** Jede Zeile nennt,
+was sie weglaesst; ein „Kandidat" bekommt erst eine AD-Nummer, wenn der
+Director einen Auftrag daraus macht.
+
+- **K-1 — Farbkonstanten und Ueberschrift, Kandidat `theme.py`.** Gezaehlt
+  14.09.: `ACCENT` in **11**, `MUTED` in **12**, `PANEL`/`BORDER` in **9**,
+  `BAD` in **4**, `GOOD` in **4** Modulen — **12** Module tragen mindestens
+  eine (`grep -l '^\(ACCENT\|MUTED\|PANEL\|BORDER\|GOOD\|BAD\) ='
+  nrplanner/*.py`; der Auftrag sagte 6 — das war die Zaehlung nur der
+  AD-034-Module). Wertgleich bis auf **eine** Divergenz: `GOOD` ist
+  `#78b57e` in `weaponslots.py:28`, `#6fbf73` in `bosstab`, `firstrun`,
+  `statsheet`. Dazu die zwei Lazy-Importe oben, die Farben aus `app`
+  ziehen. **Entscheidung: Kandidat, nicht bauen.** Weglassen heisst: keine
+  Divergenz auf den sechs A13-Tabs (`weaponslots` liegt im Build planner,
+  von A13 ausgenommen), also kein Abnahmekriterium beruehrt; 12 Importzeilen
+  fuer sechs Strings sind eine Konstantenquelle, keine Schicht — vertretbar,
+  aber nicht dringend. **Ausloeser fuer den Auftrag:** der naechste Auftrag,
+  der einen Farbwert aendert (dann waere es die 13. Kopie), oder der dritte
+  `from .app import` aus einem Modul, das `app` nicht kennen soll. Dann
+  `nrplanner/theme.py` mit den sechs Konstanten und **beiden**
+  Ueberschriftsfunktionen (`tabheader.heading`: Gold 12 px fuer Tab-Titel;
+  `statsheet._heading`: Grau 8 pt Kapitaelchen fuer Abschnitte — zwei
+  Rollen, keine Dublette); `advisorblock`/`advisorbar` importieren dann von
+  dort statt lazy aus `app`. Verworfen: die Konstanten in `app.py` sammeln
+  und von dort importieren — zementiert die verkehrte Richtung.
+- **K-2 — Unterstrich-Namen ueber Modulgrenzen.** Sechs Faelle, gezaehlt
+  14.09.: `_custom_effects`, `_relic_count` (`relicslots` → `app`),
+  `_heading` (`statsheet` → `app` → lazy `advisorbar`, `advisorblock`),
+  `_pick_a_save_file` (`savereader` → `app`), vorbestehend
+  `_read_with_retries` (`iconpack` → `firstrun`), `_base_dir` (`datasource`
+  → `iconpack`). **Entscheidung: keine AD, kein Auftrag.** Benennung, kein
+  Schnitt. Regel fuer den naechsten Auftrag, der eine dieser Dateien ohnehin
+  anfasst: Unterstrich an Definition und allen Importen streichen; Tests
+  patchen keinen der Namen ueber einen Modulpfad (grep `tests/`, 0 Treffer
+  14.09.), der Umbau ist also lokal. Weggelassen: eine Umbenennung als
+  eigener Auftrag — sechs Diffs ohne Verhaltensaenderung.
+- **K-3 — `AttackRating` (QA-071).** Leser 14.09.: `damage.py` und **6**
+  Testdateien, kein Produktionsleser. QA-071 ist seit T-036 geschlossen,
+  Begruendung im Docstring `damage.py:354–380`: die bare Konvention
+  `(weapon, tier, starting_armament)` ohne Slot und Held, die `equipped()`
+  nicht bietet (AD-020 Punkt 6). **Entscheidung: bleibt; nichts Neues.**
+  Wiedervorlage nur, wenn `test_marginal_returns.py` und der Golden-Test
+  die slot-freie Konvention aufgeben — dann ist es eine Loeschung, keine AD.
+- **K-4 — `Weighting` (OF-3).** Eine Klasse (`advisor/types.py:366`), eine
+  Instanz (`EVEN_WEIGHTING`, `goals.py:82`), gelesen von `goals.py` und
+  `relicpicker.py:1634`. Nach Ponytail eine Konfiguration fuer einen Wert,
+  der sich nie aendert — **solange OF-3 offen ist, ist das die Vorbereitung,
+  die AD-004 verlangt, nicht Debt.** **Entscheidung: bleibt, gekoppelt an
+  OF-3.** Antwortet der Nutzer „kein Bedienelement", wird `Weighting` zu
+  einem Tupel in `goals.py` eingeschmolzen (Kandidat, kein Auftrag vor der
+  Antwort); antwortet er „ja", ist die Klasse der Ort dafuer. Der Register-
+  eintrag OF-3 traegt diese Folge.
+- **K-5 — `reading_changed` gegen AD-035.** Gebaut wie AD-035 Punkt 1 sagt:
+  `AdvisorBar.reading_changed = Signal(bool)` (`advisorbar.py:520`), Fenster
+  haelt `worst_case` (`app.py:2612`), `asking_from` liest das Fenster.
+  Die Alternative — `asking_from` liest
+  `planner.advisor_bar.reading_box.currentData()` direkt, kein Signal, kein
+  Attribut — spart ein Signal und eine Kopie, legt aber Fensterzustand in
+  ein Widget; AD-035 hat sie mit „wie `declared` selbst" verworfen.
+  **Entscheidung: deckungsgleich, kein Widerspruch, nichts zu tun.**
+- **Nebenfund, nicht meiner:** `WHITE_SLOT = 4` liegt als Literal in
+  `scripts/measure_advisor_language.py:55` und
+  `scripts/measure_advisor_picker.py:42`; `app.py` traegt seit `a68cd3d`
+  keine Kopie mehr (0 Treffer). Steht schon in `docs/state.md`.
+
+**Historische Zeilen, die dieser Nachtrag ueberholt:** in „Schritt 2" die
+Namen `_refuse_a_file_no_save_can_be` und der Anker
+`no-reason-for-a-file-that-is-not-a-save`; in „Schritt 3" der Codeblock
+und „`StatSheet(QWidget)`"; in „Schritt 1" der `VariantDialog`-Nebenfund.
+Der Wortlaut oben bleibt stehen (Verlauf), massgeblich ist diese Tabelle.
+`ARCHITECTURE.md:2459` (`baseline_for`) traegt seinen Nachtrag bereits seit
+T-220; `grep -rn baseline_for nrplanner/` 14.09.: 0 Treffer, nichts weiter.
 
 ---
 
