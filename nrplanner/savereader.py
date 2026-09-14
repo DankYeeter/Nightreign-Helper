@@ -89,19 +89,6 @@ def _pick_a_save_file(parent) -> pathlib.Path | None:
     return pathlib.Path(picked) if picked else None
 
 
-def _refuse_a_file_no_save_can_be(path: pathlib.Path) -> None:
-    """Ask SEC-029's question of the file the player named, before any read.
-
-    The limit itself and the sentence it is refused with live in
-    `inventory.refuse_a_size_no_save_can_have`, which the read behind this
-    asks again of every file either route hands it. One number, one wording,
-    two places that can be reached -- and this one is reached first, so that
-    the second read of `read_the_save`, the one that tells S3 from S4, is
-    never given a file this size either.
-    """
-    inventory.refuse_a_size_no_save_can_have(path.stat().st_size)
-
-
 def read_the_save(data: dict, save_path: pathlib.Path | None = None):
     """Read the save the window is to show, and answer for the file it read.
 
@@ -126,7 +113,7 @@ def read_the_save(data: dict, save_path: pathlib.Path | None = None):
     if save_path is None:
         return inventory.scan(data)
     try:
-        _refuse_a_file_no_save_can_be(save_path)
+        inventory.refuse_a_size_no_save_can_have(save_path.stat().st_size)
         found = inventory.scan(data, save_path)
         if found is None:
             # Reading it again is what tells S3 from S4, and it is only ever
@@ -235,11 +222,6 @@ class SaveReader(QObject):
         self._answering = False
         self._thread: QThread | None = None
         self._worker: _SaveReadWorker | None = None
-
-    @property
-    def generation(self) -> int:
-        """Which reading is the current one (AD-006.3)."""
-        return self._generation
 
     def is_reading(self) -> bool:
         """Is an answer still to come?

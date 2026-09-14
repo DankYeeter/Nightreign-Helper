@@ -41,7 +41,7 @@ import subprocess
 import pytest
 
 from nrdata import savefile
-from nrplanner import app as appmod, savereader
+from nrplanner import savereader
 from nrplanner import (datasource, errortext, firstrun, gamepath, inventory,
                        shortcut)
 
@@ -393,8 +393,8 @@ def test_a_save_windows_will_not_open_is_reported_in_english(game_data,
     """
     chosen = tmp_path / "NR0000.sl2"
     chosen.write_bytes(b"")
-    monkeypatch.setattr(savereader, "_refuse_a_file_no_save_can_be",
-                        lambda _p: None)
+    monkeypatch.setattr(inventory, "refuse_a_size_no_save_can_have",
+                        lambda _size: None)
 
     def refuse(*args, **kwargs):
         raise a_refusal_worded_by_windows()

@@ -9,7 +9,7 @@ the window (AD-034).
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, Qt, Signal
+from PySide6.QtCore import QPointF, QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
     QColor, QLinearGradient, QPainter, QPixmap, QPolygonF, QRadialGradient,
 )
@@ -365,11 +365,8 @@ class RelicSlot(QFrame):
         overwrite the state it was being handed -- and on a change of vessel
         it would overwrite it with the vessel being left.
         """
-        self.hold_button.blockSignals(True)
-        try:
+        with QSignalBlocker(self.hold_button):
             self.hold_button.setChecked(on)
-        finally:
-            self.hold_button.blockSignals(False)
         self._draw_the_hold()
 
     def _hold_toggled(self, on: bool) -> None:
@@ -727,21 +724,20 @@ class RelicSlot(QFrame):
                 and not any(_same_copy(worn, item) for item in items)):
             items = items + [worn]
 
-        self.relic_box.blockSignals(True)
-        self.relic_box.clear()
-        self.relic_box.addItem("Empty slot", None)
-        # A custom relic is not owned, so it survives repopulation only by
-        # being re-added here.
-        if self.custom_item is not None:
-            self.relic_box.addItem(self._label(self.custom_item),
-                                   self.custom_item)
-        for item in items:
-            self.relic_box.addItem(self._label(item), item)
-        if worn is not None:
-            idx = self.relic_box.findData(worn)
-            if idx >= 0:
-                self.relic_box.setCurrentIndex(idx)
-        self.relic_box.blockSignals(False)
+        with QSignalBlocker(self.relic_box):
+            self.relic_box.clear()
+            self.relic_box.addItem("Empty slot", None)
+            # A custom relic is not owned, so it survives repopulation only by
+            # being re-added here.
+            if self.custom_item is not None:
+                self.relic_box.addItem(
+                    self._label(self.custom_item), self.custom_item)
+            for item in items:
+                self.relic_box.addItem(self._label(item), item)
+            if worn is not None:
+                idx = self.relic_box.findData(worn)
+                if idx >= 0:
+                    self.relic_box.setCurrentIndex(idx)
 
         # "available" rather than "owned": a relic lying in another slot is
         # owned and is not offered here, so counting it would put a number on
@@ -776,12 +772,9 @@ class RelicSlot(QFrame):
         """
         self.empty_reason = reason
         self.reason_holds = while_true
-        self.relic_box.blockSignals(True)
-        try:
+        with QSignalBlocker(self.relic_box):
             self.relic_box.setCurrentIndex(0)
-        finally:
-            self.relic_box.blockSignals(False)
-            self._sync_mode()
+        self._sync_mode()
 
     def selected_ids(self) -> list[int]:
         item = self.relic_box.currentData()
@@ -826,12 +819,14 @@ class RelicSlot(QFrame):
         for i in range(self.relic_box.count()):
             item = self.relic_box.itemData(i)
             if item is not None and getattr(item, "handle", None) == handle:
-                return self._select_index(i)
+                self._select_index(i)
+                return True
         copy = next((item for item in self._holdable()
                      if getattr(item, "handle", None) == handle), None)
         if copy is None:
             return False
-        return self._select_index(self._offer(copy))
+        self._select_index(self._offer(copy))
+        return True
 
     def select_roll(self, roll: str, taken=frozenset()) -> bool:
         """Put back a relic named by its roll alone, avoiding copies spoken for.
@@ -850,11 +845,13 @@ class RelicSlot(QFrame):
             item = self.relic_box.itemData(i)
             if (item is not None and favourites.key(item) == roll
                     and inventory.copy_key(item) not in taken):
-                return self._select_index(i)
+                self._select_index(i)
+                return True
         for item in self._holdable():
             if (favourites.key(item) == roll
                     and inventory.copy_key(item) not in taken):
-                return self._select_index(self._offer(item))
+                self._select_index(self._offer(item))
+                return True
         return False
 
     def _offer(self, item) -> int:
@@ -864,14 +861,11 @@ class RelicSlot(QFrame):
         `populate` draws the list up again from what the slots hold by then,
         and keeps whatever is in this one.
         """
-        self.relic_box.blockSignals(True)
-        try:
+        with QSignalBlocker(self.relic_box):
             self.relic_box.addItem(self._label(item), item)
-        finally:
-            self.relic_box.blockSignals(False)
         return self.relic_box.count() - 1
 
-    def _select_index(self, index: int) -> bool:
+    def _select_index(self, index: int) -> None:
         """Make one entry of the list the one in the slot, without emitting.
 
         Whatever this slot was last told to say about being empty is spent: it
@@ -879,10 +873,6 @@ class RelicSlot(QFrame):
         """
         self.empty_reason = ""
         self.reason_holds = None
-        self.relic_box.blockSignals(True)
-        try:
+        with QSignalBlocker(self.relic_box):
             self.relic_box.setCurrentIndex(index)
-        finally:
-            self.relic_box.blockSignals(False)
-            self._sync_mode()
-        return True
+        self._sync_mode()

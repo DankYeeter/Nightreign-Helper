@@ -6,7 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QProcess, QSettings, QSize, Qt
+from PySide6.QtCore import QProcess, QSettings, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -37,8 +37,6 @@ from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, SLOT_COLOURS, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import StatSheet, _heading
-
-WHITE_SLOT = 4
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -1396,8 +1394,6 @@ class Planner(QMainWindow):
 
     def reload_chalices(self) -> None:
         hero = self.current_hero()
-        self.chalice_list.blockSignals(True)
-        self.chalice_list.clear()
         # A Nightfarer's own vessels, then the four shared Grails. The Grails
         # belong to every Nightfarer, which the save confirms: each one stores
         # its own arrangement of all four.
@@ -1417,30 +1413,31 @@ class Planner(QMainWindow):
 
         worn_id = self._worn_vessel_id()
         first_row = None
-        for group, vessels in ((f"{hero['name']}'s own", own),
-                               ("Shared Grails — any Nightfarer", grails)):
-            if not vessels:
-                continue
-            add_separator(group)
-            for vessel in vessels:
-                item = QListWidgetItem(vessel["name"])
-                item.setData(Qt.UserRole, vessel)
-                item.setIcon(QIcon(self._vessel_row_art(
-                    vessel, None, vessel["id"] == worn_id)))
-                slots = " ".join(
-                    model.COLOUR_NAMES.get(c, "?")[0] for c in vessel["slots"]
-                )
-                tip = f"{vessel['name']} — slots {slots}"
-                if vessel["id"] == worn_id:
-                    # The mark is on the vessel, not after the name: the name
-                    # is what the list is read for, and a label pushed the
-                    # longer chalice names out of the panel.
-                    tip += "\nEquipped in game"
-                item.setToolTip(tip)
-                self.chalice_list.addItem(item)
-                if first_row is None:
-                    first_row = self.chalice_list.count() - 1
-        self.chalice_list.blockSignals(False)
+        with QSignalBlocker(self.chalice_list):
+            self.chalice_list.clear()
+            for group, vessels in ((f"{hero['name']}'s own", own),
+                                   ("Shared Grails — any Nightfarer",
+                                    grails)):
+                if not vessels:
+                    continue
+                add_separator(group)
+                for vessel in vessels:
+                    item = QListWidgetItem(vessel["name"])
+                    item.setData(Qt.UserRole, vessel)
+                    item.setIcon(QIcon(self._vessel_row_art(
+                        vessel, None, vessel["id"] == worn_id)))
+                    slots = " ".join(model.COLOUR_NAMES.get(c, "?")[0]
+                                     for c in vessel["slots"])
+                    tip = f"{vessel['name']} — slots {slots}"
+                    if vessel["id"] == worn_id:
+                        # The mark is on the vessel, not after the name: the
+                        # name is what the list is read for, and a label
+                        # pushed the longer chalice names out of the panel.
+                        tip += "\nEquipped in game"
+                    item.setToolTip(tip)
+                    self.chalice_list.addItem(item)
+                    if first_row is None:
+                        first_row = self.chalice_list.count() - 1
 
         # The first time a Nightfarer is opened, their chalices are read out
         # of the save and the equipped one is the one shown. Until this ran on
@@ -1491,9 +1488,8 @@ class Planner(QMainWindow):
             if saved_row is not None:
                 self.chalice_list.setCurrentRow(saved_row)
             if saved_row is not None or view_vessel is not None:
-                self.deep_check.blockSignals(True)
-                self.deep_check.setChecked(bool(deep_on))
-                self.deep_check.blockSignals(False)
+                with QSignalBlocker(self.deep_check):
+                    self.deep_check.setChecked(bool(deep_on))
             if saved_row is None and first_row is not None:
                 self.chalice_list.setCurrentRow(first_row)
             self.apply_chalice()
@@ -1538,9 +1534,8 @@ class Planner(QMainWindow):
             first_row,
         )
         if row is not None:
-            self.chalice_list.blockSignals(True)
-            self.chalice_list.setCurrentRow(row)
-            self.chalice_list.blockSignals(False)
+            with QSignalBlocker(self.chalice_list):
+                self.chalice_list.setCurrentRow(row)
         # Written down under the vessel that is on screen, because nothing
         # else has: the list's own handler is what usually stores a build and
         # it was held above. Without this the slots the player filled would be
@@ -1690,16 +1685,15 @@ class Planner(QMainWindow):
         show_hidden = getattr(self, "show_hidden_check", None)
         showing = show_hidden is not None and show_hidden.isChecked()
 
-        self.build_box.blockSignals(True)
-        self.build_box.clear()
-        for name in names:
-            if name in hidden and name != keep and not showing:
-                continue
-            label = f"{name}  (hidden)" if name in hidden else name
-            self.build_box.addItem(label, name)
-        index = self.build_box.findData(keep)
-        self.build_box.setCurrentIndex(index if index >= 0 else 0)
-        self.build_box.blockSignals(False)
+        with QSignalBlocker(self.build_box):
+            self.build_box.clear()
+            for name in names:
+                if name in hidden and name != keep and not showing:
+                    continue
+                label = f"{name}  (hidden)" if name in hidden else name
+                self.build_box.addItem(label, name)
+            index = self.build_box.findData(keep)
+            self.build_box.setCurrentIndex(index if index >= 0 else 0)
         self._sync_build_buttons()
 
     def _sync_build_buttons(self) -> None:
@@ -1739,9 +1733,8 @@ class Planner(QMainWindow):
         """Put a stored build into the slots, the way a restore does."""
         self._restoring = True
         try:
-            self.deep_check.blockSignals(True)
-            self.deep_check.setChecked(bool(deep))
-            self.deep_check.blockSignals(False)
+            with QSignalBlocker(self.deep_check):
+                self.deep_check.setChecked(bool(deep))
             if vessel_id is not None:
                 for i in range(self.chalice_list.count()):
                     entry = self.chalice_list.item(i).data(Qt.UserRole)
@@ -1838,9 +1831,8 @@ class Planner(QMainWindow):
                        vessel["id"] if vessel else None)
         self._restoring = True
         try:
-            self.deep_check.blockSignals(True)
-            self.deep_check.setChecked(False)
-            self.deep_check.blockSignals(False)
+            with QSignalBlocker(self.deep_check):
+                self.deep_check.setChecked(False)
             # Row 0 is the group caption, which cannot be selected; the first
             # real vessel is whatever follows it.
             for i in range(self.chalice_list.count()):
@@ -2510,9 +2502,8 @@ class Planner(QMainWindow):
             # off. Slots are filled either way, so nothing is lost by
             # leaving it on.
             if loadout.deep_used and not self.deep_check.isChecked():
-                self.deep_check.blockSignals(True)
-                self.deep_check.setChecked(True)
-                self.deep_check.blockSignals(False)
+                with QSignalBlocker(self.deep_check):
+                    self.deep_check.setChecked(True)
             self.apply_chalice()
         finally:
             self._restoring = False

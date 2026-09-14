@@ -256,3 +256,18 @@ def test_the_rune_ladder_says_which_step_each_figure_belongs_to(tab,
         assert "completed: runs" not in text, (
             "the sentence still begins with the leftover of the param name "
             "that used to stand in it")
+
+
+def test_a_stamina_recovery_figure_says_its_unit_is_not_in_the_files(tab):
+    """QA-128 point 10: the one figure whose reference quantity is unknown.
+
+    `stamina recovery speed +N` is the game's own field value; the files do
+    not say what it is counted in. The sentence saying so has to stand on
+    every card that prints the figure, and on at least one card at all.
+    """
+    pages_with_the_figure = [text for text in every_page(tab).values()
+                             if "stamina recovery speed " in text]
+    assert pages_with_the_figure
+    for text in pages_with_the_figure:
+        assert ("The files do not say what it is counted in, so read it as "
+                "\"recovers faster\" and not as an amount per second.") in text

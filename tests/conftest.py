@@ -445,8 +445,7 @@ def two_copies_of_one_roll(planner):
     Ordinary relics only: a Deep of Night pair would need the switch on and
     would then be testing two things at once.
     """
-    from nrplanner import app as appmod
-    from nrplanner import favourites, inventory
+    from nrplanner import favourites, inventory, model
     from tests.relics import OwnedPair
 
     if planner.owned is None:
@@ -464,7 +463,7 @@ def two_copies_of_one_roll(planner):
     for row, vessel in _vessels_in_the_list(planner):
         for copies in pairs:
             fits = [i for i, c in enumerate(vessel["slots"])
-                    if c == copies[0].colour or c == appmod.WHITE_SLOT]
+                    if c == copies[0].colour or c == model.WHITE_SLOT]
             if len(fits) >= 2:
                 return OwnedPair(row, vessel, fits[0], fits[1], copies)
     pytest.skip("no vessel of this Nightfarer takes two copies of one roll")

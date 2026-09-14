@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import app as appmod
 from nrplanner import chalices, favourites, inventory, model
 from tests.relics import (equip, make_relic, offered, other_vessel_row,
                           select_vessel, some_effect_ids, stored_keys,
@@ -425,10 +424,10 @@ def test_load_equipped_counts_what_it_placed_and_names_the_reason(
     puts it in will not take.
     """
     row, vessel, colour = two_slots_of_one_colour
-    if colour == appmod.WHITE_SLOT:
+    if colour == model.WHITE_SLOT:
         pytest.skip("a White slot takes every colour, so nothing can misfit")
     other_colour = next(c for c in sorted(model.COLOUR_NAMES)
-                        if c not in (colour, appmod.WHITE_SLOT))
+                        if c not in (colour, model.WHITE_SLOT))
     kept = make_relic(templates_for(game_data, colour, 1)[0],
                       handle=WORN_HANDLE, index=0,
                       effects=some_effect_ids(game_data, 2))
