@@ -304,7 +304,7 @@ def test_every_other_silent_line_is_muted_and_unmarked():
 
 def test_a_curse_keeps_its_mark_whether_or_not_a_figure_covers_it():
     """§3.2: `✦` in `CURSE`, for all three fillings of T-078 §3."""
-    from nrplanner.relicslots import CURSE
+    from nrplanner.app import CURSE
 
     for silence in (types.CARRIES_A_FIGURE, types.SILENT_NO_NUMBER_HERE):
         markup = advisorblock.line_markup(

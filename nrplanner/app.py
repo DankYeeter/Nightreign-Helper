@@ -118,6 +118,7 @@ BAD = "#d1655f"
 MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
+CURSE = BAD   # curses are a cost, and read in the same colour as one
 
 
 def _dark_palette() -> QPalette:
