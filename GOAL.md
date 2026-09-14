@@ -374,3 +374,16 @@ effekt XYZ die beste waere."*
   Effekts (`Reduced Faith`) gehen heute in die Attributsumme ein; Fluechte
   werden nach F3/OF-13 gegengerechnet und genannt, zielfremde Fluechte nur
   genannt (A7). Daran aendert A18/A19 nichts.
+
+### A20 — Zweihand-Angriffskraft (Nutzer, 14.09.2026 20:58: "dann brauchen wir 2haendig drinnen. hinzufuegen.")
+
+- Jede Angriffskraft-Anzeige (Kachel, Werteblatt, Arsenal, Berater-Zeile)
+  kennt den Zweihandwert neben dem Einhandwert, wo die Waffe zweihaendig
+  gefuehrt werden kann; Effekte mit Bedingung *when Two-Handing*
+  (`8300000-2`, `7006000-1`) rechnen auf den Zweihandwert.
+- **Messpunkte (Spiel, Lv15, keine Relikte):** Raider Great Stars uncommon
+  188 → **216** zweihaendig; Wylder Great Stars 147 → **151**. Die Regel,
+  die beide trifft, ist die des Programms; trifft keine, sagt es das (A7).
+- Welche Richtung die Rangfolge des Beraters nutzt (Einhand, Zweihand,
+  Maximum), entscheidet der Nutzer nach dem Entwurf des `architect`.
+- Ersetzt QA-259 (zurueckgestellt) durch ein Ziel.
