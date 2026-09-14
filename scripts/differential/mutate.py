@@ -57,7 +57,32 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "favourite-star-back-beside-the-chip": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""            titling.addWidget(star, 0, Qt.AlignTop)
+""",
+        new="""            header.addWidget(star, 0, Qt.AlignTop)
+""",
+        survival_means=(
+            "the favourite star stands beside the whole naming column again "
+            "and leaves the chip 79 px for `BEST FOR SURVIVAL` at 95 -- "
+            "`BEST FOR SURVI` on every favourite card (QA-229). Killed by "
+            "`test_the_chip_is_whole_on_a_favourite_card` (T-237)."),
+    ),
+    "relic-card-back-to-190-px": Mutation(
+        path="nrplanner/relicpicker.py",
+        old="""CARD_WIDTH = 208
+""",
+        new="""CARD_WIDTH = 190
+""",
+        survival_means=(
+            "the survival cell has 93 px for `+64.2 effective HP` at 104 "
+            "and loses its sign and first digit on 6 of 162 cells (QA-230). "
+            "Killed by `test_every_value_cell_holds_its_widest_figure` "
+            "(T-237)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:

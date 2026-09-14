@@ -53,7 +53,13 @@ OPENING_HEIGHT = 720
 #: a letterbox.
 MINIMUM_ROWS = 3
 ICON = 56
-CARD_WIDTH = 190
+#: Wide enough for the longest value row a card can carry, measured under
+#: Fusion, Segoe UI 9 pt (QA-230): the caption `Damage taken` is 70 px, the
+#: row's spacing 6, and `+999.9 effective HP` in 12 px bold 111 -- 187 px
+#: between the card's 8 px margins and its 2 px selection border, so 207 is
+#: the floor and 208 leaves one. At 190 the survival figure had 93 px for a
+#: 104 px text and lost its sign and first digit on 6 of 162 cells.
+CARD_WIDTH = 208
 #: The dialog's own layout margin, one side. Named because the opening width
 #: has to add both of them back.
 MARGIN = 14
@@ -96,12 +102,13 @@ VALUE_CAPTIONS = {
 #: them: `Damage taken` is the row of a figure, `survival` is what the
 #: direction is for, and the two are not interchangeable.
 #:
-#: `stats` and not `attributes` for the third, and the reason is measured
-#: room rather than taste (AK-262): the chip strip of a card is 102 px and
-#: only 79 px once the favourite star stands beside it, where
-#: `BEST FOR ATTRIBUTES` wants 106 px and `BEST FOR STATS` 76 px. The precise
-#: word is carried by the value row's caption, by the `Sort by` entry and by
-#: line 4; the chip is the short one.
+#: `stats` and not `attributes` for the third, by AK-262: measured on the
+#: 190 px card of the time, its 102 px chip strip (79 px beside the favourite
+#: star) held `BEST FOR STATS` at 76 px and not `BEST FOR ATTRIBUTES` at 106.
+#: The strip has since grown to 118 px on every card (QA-229, QA-230), and
+#: AK-262 says that reopens the wording -- until it is, `stats` stands. The
+#: precise word is carried by the value row's caption, by the `Sort by` entry
+#: and by line 4; the chip is the short one.
 DIRECTION_NOUNS = {
     "max_damage": "damage",
     "min_damage_taken": "survival",
@@ -607,12 +614,6 @@ class RelicCard(QFrame):
         self.button.clicked.connect(lambda: on_pick(item))
         header.addWidget(self.button)
 
-        if favourite:
-            star = QLabel("★")
-            star.setStyleSheet(
-                f"border: none; color: {FAVOURITE}; font-size: 13px;")
-            header.addWidget(star, 0, Qt.AlignTop)
-
         # The chip stands above the name, inside the header and beside the
         # icon (§3.5 point 4). It is built empty rather than added when it is
         # earned: a strip that appeared with the figures would move the name
@@ -637,7 +638,21 @@ class RelicCard(QFrame):
             f"border: none; font-weight: bold; "
             f"color: {ACCENT if selected else '#e4e4e4'};"
         )
-        naming.addWidget(title, 1)
+        # The star stands beside the name, not beside the whole naming
+        # column: a star next to the column took 23 px off the chip's strip
+        # and cut `BEST FOR SURVIVAL` to `BEST FOR SURVI` on every favourite
+        # card (QA-229). The name wraps, so it gives the star room for free;
+        # the chip cannot wrap and gets the full strip on every card.
+        titling = QHBoxLayout()
+        titling.setContentsMargins(0, 0, 0, 0)
+        titling.setSpacing(4)
+        titling.addWidget(title, 1)
+        if favourite:
+            star = QLabel("★")
+            star.setStyleSheet(
+                f"border: none; color: {FAVOURITE}; font-size: 13px;")
+            titling.addWidget(star, 0, Qt.AlignTop)
+        naming.addLayout(titling, 1)
         header.addLayout(naming, 1)
         layout.addLayout(header)
 
