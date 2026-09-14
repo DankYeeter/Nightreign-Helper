@@ -109,3 +109,57 @@ Nicht gehalten: nichts ausser QA-257/QA-258.
 - Nativer Dateidialog (`Find my save...`) und A15-Pfaddialog — power-user/clean-room, und wegen QA-255 hier nicht provozierbar.
 - Volle pytest-Suite: nicht gefahren (Auftrag ist das Artefakt; Codestand unveraendert seit 9e8933d; Pruefphase 07:50 laut docs/state.md — abgeleitete Quelle).
 - Statsheet-Zahlen gegen das Spiel (QA-095-Formel), Best-case-Lesart (nur `Worst case` gemessen), Favoriten, Speichern/Loeschen von Builds im umgelenkten Register.
+
+## T-241d Retest nach T-242 (QA-257) — 14.09.2026
+
+**Artefakt:** `dist/NightreignHelper.exe`, 59 082 953 B, SHA-256 `473e109dfe32de9982d9a21ba8fa0c04851dc188f6644ec9c4e792b767fc7283`
+(selbst nachgerechnet), Commit `0e1269f`; `git diff --stat 0e1269f HEAD -- nrplanner nrdata` leer.
+Umlenkung `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-241rt`, eigenes `LOCALAPPDATA`/`APPDATA` (Scratchpad), Testabzug
+kopiert (841 Dateien); Registry-Rueckleser `HKCU\Software\DankYeeterT-241rt\NightreignHelper` = `True` nach dem
+Lauf. Kein anderes Fenster vorher (`tasklist`, QA-256). Gesteuert per .NET UIA aus PowerShell (echte Mausklicks
+fuer Heldenkacheln/Vesselliste/Combobox/Kartenauswahl, Invoke fuer Buttons, RangeValue fuer den Level-Slider —
+wie T-241d).
+
+**Rot-vorher (Quellstand, `git archive 0e1269f` in eigenem Scratch-Klon, Mutation
+`exclusive-group-counts-every-copy` angewandt):** 7 von 7 vorhergesagten Tests rot
+(`tests/test_exclusive_group_counts_once.py` 5/5, `tests/test_weapon_damage_golden.py` Fall
+`all three status penalties at once, slot 1` 2/2) — Mutation toetet wie im Register behauptet.
+Grundstand (unmutiert) `tests/test_exclusive_group_counts_once.py`: 5/5 gruen.
+
+**Artefakt, Hauptfall (Revenant, Revenant's Chalice, Deep of Night an, Stufe 15, `Maximise offensive
+attributes`, `Optimize` → `Apply all`):** Slot 3 (`Grand Luminous Scene`, `[Revenant] Improved Strength,
+Reduced Faith`) und Deep Slot 3 (`Deep Polished Tranquil Scene`, andere Wirkung) — **keine doppelte
+Exklusivgruppe mehr im Vorschlag** (vorher: beide Slots dieselbe Wirkung, Strength +50). `Why` zeigt fuer
+Slot 3 die einzelne Wirkung korrekt (`Strength +25`, `Faith -6, counted against it`), kein zweiter Treffer
+anderswo im Build.
+
+**Edge 1 — gehaltenes Relikt + Kandidat derselben Gruppe:** Slot 3 gehalten (`Hold`), Deep Slot 3 leer,
+Picker gefiltert auf `Improved Strength, Reduced Faith`: 1 Treffer (`Deep Polished Tranquil Scene`),
+Kopfzeile **„Nothing you own raises attributes in this slot."**, Kartenwert **„Offensive attributes: no
+change."** — der Kandidat ist vor der Auswahl schon auf 0 bewertet. Nach der Auswahl: Statsheet Strength
+bleibt **+28** (nicht +53), STACKING-Zeile erscheint neu: **„[Revenant] Improved Strength, Reduced Faith x2
+(the game groups them under exclusivity 1051) — only one will apply."** — Warnsatz vorhanden, Summe nicht
+verdoppelt. (Die rohe `exclusivity 1051`-Kennung in diesem Satz ist der bereits dokumentierte, noch offene
+Fund AK-272 des `ui-ux-designer` (T-242-Nachtrag, unstaged in `UI_SPEC.md`) — kein neuer Fund, A12 statt A4/A7.)
+
+**Edge 2 — drei Startwaffen-Strafen im Arsenal:** ueber das Golden `all three status penalties at once,
+slot 1` bestaetigt (Rate 0.85, AR 163, Panel „-15.0%"), rot-vorher oben. Nicht zusaetzlich durch die
+UI gefahren (gleicher Commit, gleiche Berechnung, Golden deckt exakt dieses Arsenal ab).
+
+**Urteil A4:** **PASS** — QA-257 am Artefakt nicht mehr reproduzierbar, Fix haelt fuer Hauptfall und
+beide vom `developer` genannten Randfaelle.
+
+**Urteil A9 (A3/A5-A8 uebernommen aus dem obigen Lauf, PASS):** **PASS**. Kein offener P1/P2. QA-258
+(P3, Picker-Kartenbau) bleibt offen, blockiert A9 nicht.
+
+### Beobachtungen (keine Befunde)
+- Ein manuell veraendertes Slot nach `Optimize` loescht sofort die Vorschlagsantwort (`Nothing suggested
+  yet.`) und damit `Why`/`Apply all` — konsistent mit T-241d, kein neuer Fund.
+- AK-272 (s. o.) ist im Arbeitsbaum unstaged (`ui-ux-designer`, T-242-Nachtrag) und am Artefakt bestaetigt
+  wortgleich reproduzierbar — Beleg fuer den bestehenden Fund, kein eigener.
+
+### Nicht getestet (Retest)
+- Edge 2 nicht separat am laufenden Fenster (Begruendung oben).
+- Volle `pytest -n auto`-Suite nicht erneut gefahren (Director meldet 1532/9 auf demselben Commit, Code
+  seither unveraendert).
+- A11/A15 (power-user), A6-Zeiten erneut (kein Codepfad-Aenderung seit T-241d).
