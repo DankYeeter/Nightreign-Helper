@@ -897,20 +897,20 @@ def compute_resistances(build: "Build", effects: list[dict]) -> None:
             build.resistances[label] = (points, rate)
 
 
-def _exclusive_text(kept: dict, dropped: dict, copies: int, key: int) -> str:
+def _exclusive_text(kept: dict, dropped: dict, copies: int) -> str:
     """The warning for a member of an exclusivity group that will not apply.
 
     A second copy of the same effect is said the way the duplicate rule says
     it (`x2`), a different member of the group by both names: the player has
-    to find the relic that adds nothing, and the name is how.
+    to find the relic that adds nothing, and the name is how. The group's raw
+    internal id is not shown -- it carries no scope the player can use (AK-272).
     """
     kept_name = " ".join(kept["name"].split())
     dropped_name = " ".join(dropped["name"].split())
-    grouped = (f"(the game groups them under exclusivity {key}) — "
-               f"only one will apply")
     if kept_name == dropped_name:
-        return f"{kept_name} x{copies} {grouped}"
-    return f"{dropped_name} and {kept_name} are mutually exclusive {grouped}"
+        return f"{kept_name} x{copies} — only one will apply"
+    return (f"{dropped_name} and {kept_name} are mutually exclusive — "
+            f"only one will apply")
 
 
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
@@ -1027,7 +1027,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             once_per_group.append(eff)
             continue
         build.warnings.append(
-            Warning("exclusive", _exclusive_text(group[0], eff, len(group), key)))
+            Warning("exclusive", _exclusive_text(group[0], eff, len(group))))
     counted = once_per_group
 
     for eff in counted:
