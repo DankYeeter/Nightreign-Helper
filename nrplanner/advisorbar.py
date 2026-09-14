@@ -146,6 +146,10 @@ class Situation:
     #: The Nightfarer named in 4.10, and the one-line reason of 4.12.
     nightfarer: str = ""
     reason: str = ""
+    #: 4.7 only (AK-289): the run was abandoned because a *marking*
+    #: (`Don't include`/`Must include`) changed rather than the build, so the
+    #: sentence must name that cause.
+    marking_changed: bool = False
 
 
 def _lower_case_first(label: str) -> str:
@@ -223,6 +227,9 @@ def status_line(situation: Situation) -> str:
         return (f"{goal} — {situation.slots_filled} of "
                 f"{situation.slots} slots filled.")
     if state is State.OUTDATED:
+        if situation.marking_changed:
+            return ("The effects you marked changed while this was working "
+                    "out — use Optimize again.")
         return ("Your build changed while this was working out — use "
                 "Optimize again.")
     if state is State.NO_SAVE:
@@ -327,6 +334,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     holding belongs in the request at all rather than in some state the
     search could overwrite -- and it is why the hold reaches the run frozen,
     as part of the cache key, and never as a live reading of the window.
+    The two effect sets the player marked (A18/A19) travel the same way, on
+    the same type (AD-036.1): the picker's own question is built from this
+    one by replacing `held`, so it carries them without knowing.
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
@@ -395,7 +405,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     holding = planner.held_slot_indices()
     held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
-    problem = types.SlotProblem(slots=slots, held=held)
+    problem = types.SlotProblem(slots=slots, held=held,
+                                excluded=planner.effect_filters.excluded,
+                                required=planner.effect_filters.required)
 
     # The baseline counts every switchable condition as met (AD-036.6): the
     # player's own declarations are merged over it, so a condition they
@@ -638,7 +650,7 @@ class AdvisorBar(QWidget):
         """The `AdvisorResult` on screen, or `None`."""
         return self._answer
 
-    def the_build_changed(self) -> None:
+    def the_build_changed(self, *, marking_changed: bool = False) -> None:
         """Nightfarer, vessel, Deep, level or a slot changed (AK-12).
 
         A run in flight is abandoned and says 4.7: it was asked about a build
@@ -653,11 +665,17 @@ class AdvisorBar(QWidget):
         build ends up here -- so an answer being applied would throw itself
         away half way through. `while_the_player_applies_it` is how the
         window says that this change is the one the row asked for.
+
+        `marking_changed` (AK-289) is `True` only when an effect was marked
+        or unmarked (`effectfilters.EffectFilters.changed`): the abandonment
+        is real either way, but the sentence must not blame the build for a
+        change the player made to the question.
         """
         if self._applying:
             return
         if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.OUTDATED)
+            self._stop_shows = Situation(State.OUTDATED,
+                                         marking_changed=marking_changed)
             self._controller.cancel()
             return
         self._forget_the_answer()

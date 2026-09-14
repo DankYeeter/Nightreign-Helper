@@ -405,32 +405,43 @@ def _exclusivity_of(ctx: types.GoalContext, effect_id: int) -> int | None:
     return key if isinstance(key, int) and key > 0 else None
 
 
-def _excluded_line(candidate: types.Candidate, name: str, *,
-                   is_curse: bool) -> types.ReasonLine:
-    """The one sentence for an effect the player struck out (A18, AD-036.3).
+def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
+                 problem: types.SlotProblem, *, is_curse: bool
+                 ) -> types.ReasonLine | None:
+    """The one sentence for an effect the player marked (A18/A19), else None.
 
-    Asked before every other filling: the effect never reached the
+    Asked before every other filling: an excluded effect never reached the
     calculation, so "under a condition" or "no number here" would send the
-    player looking for a reason that is their own decision. Placeholder
-    wording from AD-036; `UI_SPEC` §6.8 names none of its own.
+    player looking for a reason that is their own decision (AD-036.3); a
+    required one that moved no figure is in the build because they asked
+    for it, and that is the whole reason the copy was suggested (AK-290.2).
+    Wording `UI_SPEC` AK-290.1 and AK-290.2, verbatim.
     """
+    if effect_id in problem.excluded:
+        text = f"{name}: you excluded it, so it is not counted."
+        silence = types.SILENT_EXCLUDED
+    elif effect_id in problem.required:
+        text = f"{name}: you required it, so it always counts."
+        silence = types.SILENT_REQUIRED
+    else:
+        return None
     return types.ReasonLine(
-        slot_index=candidate.slot_index,
-        text=f"{name}: you excluded it, so it is not counted.",
-        is_curse=is_curse, silence=types.SILENT_EXCLUDED)
+        slot_index=candidate.slot_index, effect_id=effect_id, text=text,
+        is_curse=is_curse, silence=silence)
 
 
 def _silent_effect(candidate: types.Candidate, effect_id: int,
                    ctx: types.GoalContext, built: model.Build,
                    counted_elsewhere: bool, group_counted: bool,
                    armaments: _Armaments,
-                   excluded: frozenset[int]) -> types.ReasonLine:
+                   problem: types.SlotProblem) -> types.ReasonLine:
     """An effect of a chosen copy that produced no line, said in one sentence.
 
     Six fillings, and **the first that fits wins** in the order AK-167 sets:
     (a), (a2), **(c)**, **(b)**, (d), (e) -- the strongest piece of news
-    first. Before all six stands the exclusion (AD-036.3), after only the
-    nameless case: a sentence about an effect needs its name. (a2) has two
+    first. Before all six stands the player's own marking (AD-036.3,
+    AK-290), after only the nameless case: a sentence about an effect needs
+    its name. (a2) has two
     sentences, one for a second copy of the same effect and one for a second
     member of its exclusivity group (QA-257); they are one filling, because
     the player can do one thing about either. They are not one sentence with
@@ -455,7 +466,8 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     does; it reads back why the calculation had nothing to write down.
     """
     def said(text: str, silence: str) -> types.ReasonLine:
-        return types.ReasonLine(slot_index=candidate.slot_index, text=text,
+        return types.ReasonLine(slot_index=candidate.slot_index,
+                                effect_id=effect_id, text=text,
                                 silence=silence)
 
     name = _effect_name(ctx, effect_id)
@@ -463,8 +475,9 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
         return said("One of its effects is not in your game data, so it has "
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
-    if effect_id in excluded:
-        return _excluded_line(candidate, name, is_curse=False)
+    marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
+    if marked is not None:
+        return marked
     effect = ctx.data["effects"][str(effect_id)]
     hero = str(ctx.hero.get("name", ""))
     if not effecttext.works_for(effect, hero):
@@ -611,6 +624,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
             if effect_id in with_a_figure:
                 lines.extend(
                     types.ReasonLine(slot_index=candidate.slot_index,
+                                     effect_id=effect_id,
                                      text=_line(one, built))
                     for one in mine if one.effect_id == effect_id)
             else:
@@ -618,10 +632,10 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                     candidate, effect_id, ctx, built,
                     effect_id in elsewhere,
                     _exclusivity_of(ctx, effect_id) in groups_counted,
-                    armaments, problem.excluded))
+                    armaments, problem))
         for curse_id in candidate.curse_ids:
             lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
-                                      unfelt, problem.excluded))
+                                      unfelt, problem))
         counted = sum(1 for effect_id in candidate.effect_ids
                       if effect_id in with_a_figure)
         groups.append(types.SlotReasons(
@@ -639,7 +653,7 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
                  ctx: types.GoalContext, built: model.Build,
                  mine: Sequence[_Contribution],
                  unfelt: frozenset[tuple[int, int]],
-                 excluded: frozenset[int]
+                 problem: types.SlotProblem
                  ) -> tuple[types.ReasonLine, ...]:
     """One curse of one copy, in whichever of the four fillings fits.
 
@@ -655,24 +669,26 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
     figure, and a silent effect that said nothing would make that arithmetic
     wrong (AK-155). No count covers the curses.
 
-    A curse the player excluded (A18) is named as excluded, before the
-    no-number filling: `evaluate` struck it, so nothing moved for it.
+    A curse the player marked (A18/A19) is named as excluded or required,
+    before the no-number filling: their decision, not a missing figure.
     """
     moved = [one for one in mine if one.effect_id == curse_id]
     if not moved:
         name = _effect_name(ctx, curse_id)
         if not name:
             return ()
-        if curse_id in excluded:
-            return (_excluded_line(candidate, name, is_curse=True),)
+        marked = _marked_line(candidate, curse_id, name, problem,
+                              is_curse=True)
+        if marked is not None:
+            return (marked,)
         return (types.ReasonLine(
-            slot_index=candidate.slot_index,
+            slot_index=candidate.slot_index, effect_id=curse_id,
             text=f"{name}: no number here shows what this costs.",
             is_curse=True, silence=types.SILENT_NO_NUMBER_HERE),)
     felt = (candidate.slot_index, curse_id) not in unfelt
     return tuple(
         types.ReasonLine(
-            slot_index=candidate.slot_index,
+            slot_index=candidate.slot_index, effect_id=curse_id,
             text=(_line(one, built) if felt
                   else _line_the_figure_does_not_count(one, built)),
             is_curse=True)

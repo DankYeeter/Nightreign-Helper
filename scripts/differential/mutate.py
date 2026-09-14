@@ -121,6 +121,24 @@ MUTATIONS: dict[str, Mutation] = {
             "requirement_no_constellation_meets_is_an_empty_beam_not_a_filter_"
             "dropped` (T-248d step 3)."),
     ),
+    "markings-dropped-from-the-ask": Mutation(
+        path="nrplanner/advisorbar.py",
+        old="""    problem = types.SlotProblem(slots=slots, held=held,
+                                excluded=planner.effect_filters.excluded,
+                                required=planner.effect_filters.required)
+""",
+        new="""    problem = types.SlotProblem(slots=slots, held=held)
+""",
+        survival_means=(
+            "the two sets the player marked are stored, shown and never "
+            "asked: every Optimize and every picker ranking runs as if "
+            "nothing were marked, while the row and the cards go on showing "
+            "the marking -- A18 and A19 both dropped silently at the one "
+            "place the window hands them to the run. Killed by `tests/test_"
+            "advisor_bar.py::test_the_marked_sets_reach_the_problem_the_"
+            "window_asks` and `tests/test_relic_picker_advisor.py::test_the_"
+            "pickers_question_carries_the_marked_sets` (T-250a)."),
+    ),
 }
 
 

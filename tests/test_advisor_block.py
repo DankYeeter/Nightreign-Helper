@@ -47,8 +47,8 @@ THE_WORDS_OF_THE_WORKINGS = ("field", "pool", "handle", "beam", "scorer",
 
 def a_line(text: str, *, slot: int = 0, curse: bool = False,
            silence: str = types.CARRIES_A_FIGURE) -> types.ReasonLine:
-    return types.ReasonLine(slot_index=slot, text=text, is_curse=curse,
-                            silence=silence)
+    return types.ReasonLine(slot_index=slot, effect_id=1, text=text,
+                            is_curse=curse, silence=silence)
 
 
 def a_group(*lines: types.ReasonLine, slot: int = 0,

@@ -65,6 +65,10 @@ TABLE = [
      "Maximise damage — 6 of 6 slots filled."),
     ("4.7", advisorbar.Situation(advisorbar.State.OUTDATED),
      "Your build changed while this was working out — use Optimize again."),
+    ("4.7-marking", advisorbar.Situation(advisorbar.State.OUTDATED,
+                                         marking_changed=True),
+     "The effects you marked changed while this was working out — use "
+     "Optimize again."),
     ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
      "No save was read, so there are no relics to choose from — use Rescan "
      "save."),
@@ -477,6 +481,19 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
         "choose from.")
 
 
+def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(
+        bar):
+    """AK-289: same abandonment as AK-12, other cause, other sentence."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    _wait(WAITED_OUT_MS)
+    bar.the_build_changed(marking_changed=True)
+    assert bar.situation.state is advisorbar.State.OUTDATED
+    assert bar.status.whole_text() == (
+        "The effects you marked changed while this was working out — use "
+        "Optimize again.")
+
+
 def test_an_answer_with_silent_effects_says_that_much(bar):
     """4.9, from the answer's own two fields (AK-142/AK-143).
 
@@ -486,7 +503,8 @@ def test_an_answer_with_silent_effects_says_that_much(bar):
     through the answer rather than through a `Situation` so that the reading
     of the fields is measured as well as the wording.
     """
-    curse = types.ReasonLine(slot_index=0, text="Taking Damage Causes Madness",
+    curse = types.ReasonLine(slot_index=0, effect_id=1,
+                             text="Taking Damage Causes Madness",
                              is_curse=True,
                              silence=types.SILENT_NO_NUMBER_HERE)
     bar.optimize_button.click()
@@ -510,7 +528,8 @@ def test_an_effect_with_no_figure_is_not_a_clause_of_the_status_line(bar):
     set is a plain result. Written down because it is the half of QA-188 a
     wording comparison does not show.
     """
-    line = types.ReasonLine(slot_index=0, text="Improved Melee Attack Power",
+    line = types.ReasonLine(slot_index=0, effect_id=1,
+                            text="Improved Melee Attack Power",
                             silence=types.SILENT_NO_NUMBER_HERE)
     answer = _an_answer()
     answer = dataclasses.replace(answer, effects_without_a_figure=(line,))
@@ -640,6 +659,34 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     assert declared[effect] == 3, "the baseline overwrote what the player declared"
     assert asking.request.declared == asking.ctx.declared
     assert declared.keys() >= set(model.advisor_defaults())
+
+
+def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
+    """AD-036.5: `asking_from` carries both sets on the `SlotProblem`, so
+    they are in the cache key and in every evaluation without a second
+    field anywhere (AD-036.1)."""
+    if planner.owned is None:
+        pytest.skip("this machine has no save to read")
+    from nrplanner import effectfilters
+
+    planner.effect_filters.mark(11, effectfilters.EXCLUDED)
+    planner.effect_filters.mark(22, effectfilters.REQUIRED)
+
+    problem = advisorbar.asking_from(planner, "max_damage").request.problem
+    assert problem.excluded == {11}
+    assert problem.required == {22}
+
+
+def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
+    """The window wires `EffectFilters.changed` to the row with the AK-289
+    cause -- the path a direction change takes (AK-183), no run started."""
+    from nrplanner import effectfilters
+
+    heard = []
+    monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
+                        lambda **kwargs: heard.append(kwargs))
+    planner.effect_filters.mark(11, effectfilters.REQUIRED)
+    assert heard == [{"marking_changed": True}]
 
 
 def test_the_row_stops_the_search_before_the_data_under_it_changes(bar):

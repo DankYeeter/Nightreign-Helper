@@ -316,6 +316,30 @@ def open_picker(slot, gains, **kwargs):
 
 # --- the block, and the room it takes (AK-41) ------------------------------
 
+def test_the_pickers_question_carries_the_marked_sets(slot):
+    """AD-036 option C: the picker's problem is the window's with `held`
+    replaced, so both sets arrive without the picker knowing them."""
+    from nrplanner import effectfilters
+
+    class Recording:
+        request = None
+
+        def ask_and_answer_if_known(self, request, inventory, ctx):
+            self.request = request
+            return pool_of(slot, {})
+
+    slot.window().effect_filters.mark(11, effectfilters.EXCLUDED)
+    slot.window().effect_filters.mark(22, effectfilters.REQUIRED)
+    track = Recording()
+    asked = relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
+                                   track).ask(lambda *_: None)
+    assert asked.ranking is not None
+    assert track.request.problem.excluded == {11}
+    assert track.request.problem.required == {22}
+    assert slot.index not in {held.index
+                              for held in track.request.problem.held}
+
+
 def test_every_relic_card_carries_a_value_block(slot):
     """AK-41: first line of the card body, both directions, on every card."""
     dialog = open_picker(slot, {0: 12.44})

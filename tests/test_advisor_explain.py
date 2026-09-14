@@ -2045,3 +2045,41 @@ def test_a_suggestion_from_another_run_is_refused(game_data, wylder,
         score=found[0].score)
     with pytest.raises(KeyError, match="does not offer"):
         explain.chosen_for(stranger, pools)
+
+
+def test_a_required_effect_with_no_figure_says_it_always_counts(game_data,
+                                                                 wylder,
+                                                                 armament):
+    """AK-290.2: a `Must include` effect that moved nothing explains why the
+    copy was suggested all the same, before "under a condition" could."""
+    waiting = advisor.a_declarable_effect(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({waiting}))
+    chosen = (a_copy(0, 1, "A relic", [waiting]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    name = effect_names(game_data, [waiting]).pop()
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    line, = groups[0].lines
+    assert line.text == f"{name}: you required it, so it always counts."
+    assert line.silence == types.SILENT_REQUIRED
+    assert line.effect_id == waiting
+
+
+def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
+    """AK-276 binds the marking control to the effect id, so every line of
+    every filling -- figure, silent, curse -- has to say which it is."""
+    waiting = advisor.a_declarable_effect(game_data, wylder)
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "A relic", [waiting], [curse]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    assert {line.effect_id for line in groups[0].lines} == {waiting, curse}

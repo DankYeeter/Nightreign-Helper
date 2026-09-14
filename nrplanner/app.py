@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (advisorblock, chalices, datasource, errortext, favourites,
-               firstrun, gamepath, inventory, model, savereader, shortcut,
-               singleinstance, uiscale, weaponslots)
+from . import (advisorblock, chalices, datasource, effectfilters, errortext,
+               favourites, firstrun, gamepath, inventory, model, savereader,
+               shortcut, singleinstance, uiscale, weaponslots)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
@@ -407,6 +407,10 @@ class Planner(QMainWindow):
         # Session state, like the armament tiles: a declaration is about the
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
+        # The effects the player struck out of or pinned into every
+        # suggestion (A18/A19). Not session state: read from the store here,
+        # written on every marking (AD-036.5), so a restart shows them again.
+        self.effect_filters = effectfilters.EffectFilters(self)
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None
@@ -2586,6 +2590,10 @@ class Planner(QMainWindow):
         self.advisor_bar.why_requested.connect(self.open_why)
         self.advisor_bar.apply_all_requested.connect(self.apply_all)
         self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
+        # A marking is a different question, the same way a direction is
+        # (AK-183): the answer goes, a run in flight says AK-289, none starts.
+        self.effect_filters.changed.connect(
+            lambda: self.advisor_bar.the_build_changed(marking_changed=True))
         for card in list(self.base_slots) + list(self.deep_slots):
             card.suggestion.use_requested.connect(
                 lambda slot=card: self.use_the_suggestion(slot))

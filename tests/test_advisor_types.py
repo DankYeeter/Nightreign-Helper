@@ -58,7 +58,8 @@ A_CANDIDATE = types.Candidate(
     marginals=(types.Marginal("max_damage", 2.25),),
 )
 
-A_LINE = types.ReasonLine(slot_index=1, text="An effect: Strength +1")
+A_LINE = types.ReasonLine(slot_index=1, effect_id=7,
+                          text="An effect: Strength +1")
 
 #: One instance of every dataclass in the module that is not a context type.
 #: Written out rather than generated: a generated sample would be built from

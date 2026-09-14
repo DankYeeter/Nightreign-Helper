@@ -641,6 +641,9 @@ SILENT_NOT_IN_THE_DATA = "not_in_the_data"
 #: The player excluded it (`SlotProblem.excluded`, A18): it never reached the
 #: calculation, so it is not "waiting on a condition" -- it was not asked.
 SILENT_EXCLUDED = "excluded"
+#: The player required it (`SlotProblem.required`, A19) and it moved no
+#: figure of its own: the line says why the copy was suggested all the same.
+SILENT_REQUIRED = "required"
 
 
 @dataclass(frozen=True)
@@ -652,9 +655,15 @@ class ReasonLine:
     bullet is **not** in here -- `•` for an effect and `✦` for a curse are the
     window's, taken from `is_curse`, because a window that had to look for a
     `✦` in the text would be reading the sentence again.
+
+    `effect_id` is the id the line is about -- an effect's or a curse's, the
+    same one `SlotProblem.excluded`/`required` name. AK-276 binds the
+    marking control to the id, not to the drawn line: two lines about one
+    effect show one state, and a click on either moves both.
     """
 
     slot_index: int
+    effect_id: int
     text: str
     is_curse: bool = False
     silence: str = CARRIES_A_FIGURE

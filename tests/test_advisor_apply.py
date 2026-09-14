@@ -33,7 +33,7 @@ def a_group(slot: int, relic: str) -> types.SlotReasons:
                              count_line="1 of its 1 effects moved a number "
                                         "in this build.",
                              lines=(types.ReasonLine(
-                                 slot_index=slot,
+                                 slot_index=slot, effect_id=1,
                                  text=f"{relic}: Physical Attack +1"),))
 
 
