@@ -2610,6 +2610,10 @@ traegt den zugehoerigen Codekommentar bereits mit demselben Befund und wartet
 ausdruecklich auf diese Entscheidung. Die Genauigkeit der ausgeschriebenen
 Attribute bleibt unveraendert bei der Wertzeile (AK-259), `Sort by` (AK-257)
 und Zeile 4 — der Chip war immer die kurze Form, das aendert sich nicht.
+
+**Entschieden (Nutzer, 14.09.2026 07:52):** der Chip der dritten Richtung
+heisst **`BEST FOR ATTRIBUTES`**. Bau T-240. Der Satz oben „bis dahin gilt
+`BEST FOR STATS`" ist damit abgelaufen.
 **Entscheidung liegt beim Director/App Designer**, nicht bei mir: eine
 Wortwahl zwischen zwei technisch gleich korrekten Begriffen ist Geschmack,
 kein objektiver Befund.

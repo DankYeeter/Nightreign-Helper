@@ -44,7 +44,8 @@ eine kurze Begruendung.
   am 08.09.2026, freigegeben durch Nutzer. Sie schliessen QA-203.)*
   *(Nachtrag 13.09.2026, Nutzerfreigabe: der Spielstand hat heute **312**
   Relikte, gezaehlt in T-222/T-224; 309 bleibt die Zahl des Messfalls vom
-  07.09.)*
+  07.09. Nachtrag 14.09.2026, Nutzerfreigabe: **314** Kopien, gezaehlt in
+  T-229 und T-239.)*
 - **A7** Wo die Spieldateien eine Bewertung nicht hergeben, sagt das Programm
   das, statt zu raten — die bestehende Hausregel gilt auch fuer den Berater.
 - **A8** Alle Texte in der Oberflaeche sind Englisch (bestehende Projektregel).
