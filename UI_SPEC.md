@@ -1548,6 +1548,41 @@ der mehr als den geoeffneten Slot veraendert.
 **AK-62** Der Satz aus §5.3 steht sichtbar im Picker, in jeder Sortierung und
 in jedem Zustand, in dem Kartenwerte gezeigt werden.
 
+#### AK-274
+*Neu in T-247, 2026-09-14 — QA-260 (woertlich: „why war ganz oben, habe es
+uebersehen. dachte es ist da 'pro relikt'.")*
+
+**AK-274** *(Warum-Zugang aus der Karte, nicht nur aus der Leiste.)* Jede
+`SuggestionBlock`-Karte (§3.2, in `RelicSlot`) traegt in ihrer Kopfzeile —
+neben `Use`, nie an dessen Stelle — einen eigenen `Why`-Knopf. Er oeffnet
+denselben `WhyDialog` mit demselben, vollstaendigen Inhalt wie der
+`Why`-Knopf der Advisor bar (§3.1) — kein zweiter, karteneigener
+Dialoginhalt, keine Aenderung an AK-141/AK-165. Sichtbar/aktiv genau dann,
+wenn die Karte selbst sichtbar ist (`show_the_suggestion` wurde aufgerufen)
+**und** der Zustand der Leiste `Why` ebenfalls zeigt (`ACTING_STATES`); im
+`already_equipped`-Fall zeigt die Karte wie heute nur die eine Zeile und
+keinen Knopf — derselbe Fall, der auch `Use` heute ausblendet. Pruefweg:
+`bar.why_button.isVisible()` und der neue Kartenknopf sind fuer dieselbe
+`Situation` immer gleich sichtbar; ein Klick auf den Kartenknopf oeffnet
+denselben Dialogtext (Volltextvergleich) wie ein Klick auf den
+Leistenknopf.
+
+**Gemessen (Fusion-Stil, `ensurePolished()`, kein Fenster noetig genuegt
+fuer Schriftmasse — siehe Projektnotiz zur UI-Messung, T-247):** `Use`,
+`Why` und `Clear` wollen je 80 px `sizeHint`-Breite (Fusion-Stilminimum,
+nicht die Textbreite) — macht 166 px fuer `Use`+`Why` mit 6 px Abstand. Die
+Karte selbst erzwingt laut eigenem Modulkopf ausdruecklich **keine** eigene
+Breite (`QSizePolicy.Ignored`, gegen AK-160), sitzt aber in der vollen
+Breite der mittleren Spalte — **kein** 208-px-Kartenraster wie beim Relic
+Picker, das ist ein anderes Widget (`relicpicker.CustomRelicCard`). Die im
+Auftrag genannten 208 px/118 px (AK-46/AK-73) sind Picker-Kartenmasse und
+gelten nicht fuer dieses Widget; kein Zielkonflikt gemessen.
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** ob der geoeffnete Dialog zur
+Gruppe dieses Slots scrollt oder sie hervorhebt — reine Bequemlichkeit,
+keine Zugaenglichkeitsfrage, heute nicht gebaut. Vorschlag fuer einen
+spaeteren Auftrag, kein Bestandteil dieses Akzeptanzkriteriums.
+
 ---
 
 ## Bereich 5 — Der Relic Picker
@@ -2660,6 +2695,31 @@ daneben die Attributszahl zeigt.
   heute (AK-219); ob der Spieler den Unterschied versteht, ist eine Frage an
   den `power-user`, nicht an dieses Kriterium.
 
+#### AK-275
+*Neu in T-247, 2026-09-14 — QA-265/T-244 (Suchfeld ohne Syntaxhinweis)*
+
+**AK-275** *(derselbe Hinweis wie beim Waffenfeld, wortgleicher Aufbau,
+A13.)* Das Picker-Suchfeld (`relicpicker.py`, heute Platzhalter
+`Filter by effect…`) nennt seine Syntax im Platzhaltertext, im selben
+Mechanismus wie `arsenaltab.py`s Waffen-/Zauberfeld (Platzhalter, kein
+zusaetzlicher Tooltip) und mit wortgleichem Suffix. Verbindlicher Text:
+`"Filter by effect — supports AND, OR, NOT and \"quoted phrases\""`. Das
+zweite Suchfeld des Pickers (`CustomRelicCard`, Platzhalter
+`Filter effects…`, `relicpicker.py` Zeile 950) ist **nicht** betroffen — es
+filtert nur als Teilstring (`needle in text`), traegt keine Boolesche
+Syntax und braucht keinen Hinweis. Pruefweg: der Platzhalter des
+Hauptsuchfelds (`relicpicker.py` Zeile 1087) enthaelt den Suffix
+`supports AND, OR, NOT` wortgleich mit `arsenaltab.py` Zeile 290.
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** dass `-wort`/`!wort`
+(NOT-Kurzform, `search.py` `NOT_SYMBOLS`) und die Fluchnamen-Mitsuche
+(`effect_names(i) + curse_names(i)`, `relicpicker.py` Zeile 1306) im
+Hinweistext fehlen, gilt fuer **beide** Felder gleichermassen — das
+Waffenfeld nennt sie ebenfalls nicht. Das ist der bestehende, konsistente
+Stand, keine neue Luecke durch dieses Kriterium. Vollstaendigere
+Syntaxdokumentation in beiden Feldern ist eine offene Frage an den App
+Designer, nicht Gegenstand von QA-265.
+
 ---
 
 ## Bereich 6 — Die Sprache der Zahlen: Vorschlagsblock, `Why`-Dialog, Statuszeile
@@ -3741,6 +3801,49 @@ baut den Waechterfall parallel zu diesem Nachtrag.
 **Hinweis an den `technical-writer`:** das README nennt die Mindestbreite
 1536 px logische Breite (1080p bei 125 % Skalierung) als empfohlene
 Bildschirmgroesse (Release-Kette, nicht Gegenstand dieser Spec-Datei).
+
+#### AK-273
+*Neu in T-247, 2026-09-14 — QA-261 (Ingame-Session 14.09.2026, woertlich:
+„best case war viel 'at low hp' und so weiter [...] aber wenn ich low hp
+bin, ist es doch worst case? ich haette 'at full hp' oder 'improved physical
+damage negation' als best case eingestuft.")*
+
+**AK-273** *(Benennung ungeklaert — Wortwahl beim App Designer, der
+Geltungsbereich muss in jeder Variante stehen.)* `Worst case`/`Best case`
+(AK-182, AK-185, AK-194) lesen sich als Spielsituation, sind aber eine
+Rechenannahme ueber bedingte Effekte (`GoalContext.declared`, AK-186/
+AK-187). Zwei Varianten, Empfehlung zuerst:
+
+**Variante 1 (empfohlen) — Umbenennung an allen vier AK-185-Stellen.**
+Ersetzt die Rechenannahme direkt im Namen statt in einem Zusatztext.
+Wortvorschlag, App Designer entscheidet die endgueltige Wortwahl:
+`Guaranteed` / `If every condition triggers`, oder naeher an der
+bestehenden Wortwahl (`CONDITIONAL_HEADING`, `not_counted`, A13):
+`Conditions not counted` / `Conditions counted`. **Folgekosten, nicht von
+mir entschieden:** AK-194 wurde ueber vier Nachtraege (A31–A34) exakt auf
+die Zeichenketten `Worst case`/`Best case` bei 87 px `minimumSizeHint`
+gemessen; eine laengere oder kuerzere Zeichenkette verlangt eine neue
+Breitenmessung am laufenden Fenster, denselben Pruefweg wie AK-05/AK-194,
+keine reine Textaenderung.
+
+**Variante 2 — Erklaerungszeile, Wortlaut unveraendert.** `Worst case`/
+`Best case` bleiben wortgleich (AK-182/AK-185/AK-194 unveraendert, keine
+Breitenfolge). `reading_box` bekommt zusaetzlich einen Tooltip, der den
+Geltungsbereich nennt (A12), Beispiel: `"Worst case counts only guaranteed
+effects. Best case assumes every conditional effect is active — this is
+not about your current HP or buffs."` Tooltip statt fester Zeile: die
+Combobox erzwingt laut AK-03/§3.1 weiterhin keine Mindestbreite.
+
+**Empfehlung:** Variante 1, weil der Name an vier sichtbaren Stellen steht
+(AK-185, u. a. der Kartenkopf und der `Why`-Dialogtitel) und ein Tooltip
+dort nicht hilft, wo niemand hovert. **Entscheidung liegt beim App
+Designer** (Variante **und** Wortwahl), nicht bei mir.
+
+**Akzeptanzkriterium (gilt fuer beide Varianten):** jede der vier AK-185-
+Stellen erklaert oder benennt die Lesart so, dass ein Spieler ohne
+Codewissen sie nicht als Spielzustand (z. B. HP-Stand) liest. Pruefweg:
+denselben Satz wie QA-261 einem Testleser vorlegen, der nur die
+Erklaerung/den neuen Namen sieht, nicht den Code.
 
 ---
 
