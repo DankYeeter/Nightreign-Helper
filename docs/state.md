@@ -22,7 +22,20 @@ auf Datenverlust oder zwei Zyklen ohne messbaren Fortschritt. Dazu der
 
 ## HIER WEITERMACHEN
 
-**Zyklus 21 laeuft (13.09.2026).** Nutzerentscheidungen 13.09.: Bauwelle +
+**Zyklus 22 laeuft (14.09.2026), Plan `~/.claude/plans/nightreign-helper-part-11-graceful-starfish.md`.**
+Ziel: gebautes Artefakt (1.10.0) fuer den Ingame-Test des Nutzers am Abend;
+kein Merge, kein Release, keine Signatur. Nutzerentscheidungen 14.09.: AD-034
+Schritt 1-3 heute · A12/A13-Befunde **vor** dem Build fixen · QA-237 und
+P3/P4-Schulden zurueckgestellt. **QA-095 war seit `99ed022` (03.09.) behoben**,
+Registerzeile stand falsch (nachgezogen 14.09.); T-235 ist darum AD-034.
+**Bauwelle:** T-235 `developer` AD-034 a→b→c (nur `app.py` + neue Module) ·
+T-236 `developer` Datentabs (QA-128, QA-140, DR-013/014/015) · T-237
+`developer` Planner-Seite (QA-229, QA-141, QA-230, QA-144, DR-016) — drei
+Worktrees, disjunkte Dateilisten. Danach Beta-Gate (Audit, Pruefrollen in
+einer Nachricht), dann Release-Kette bis `notes`. Zeitgrenze: AD-034 Schritt 3
+nicht bis 12:00 gestartet → Rueckfrage.
+
+**Zyklus 21 (13.09.2026), Verlauf.** Nutzerentscheidungen 13.09.: Bauwelle +
 P10-Entwurf parallel · SEC-026 **haerten ueber Herkunft** (DLL nur aus
 Registry-/`libraryfolders.vdf`-Bibliotheken, feste Wurzeln raus) · SEC-037
 **Deckel nachziehen**. Teamregeln vom 12./13.09. gelesen (`templates/task.md`
