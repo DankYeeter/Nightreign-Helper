@@ -304,7 +304,7 @@ def test_every_other_silent_line_is_muted_and_unmarked():
 
 def test_a_curse_keeps_its_mark_whether_or_not_a_figure_covers_it():
     """§3.2: `✦` in `CURSE`, for all three fillings of T-078 §3."""
-    from nrplanner.app import CURSE
+    from nrplanner.relicslots import CURSE
 
     for silence in (types.CARRIES_A_FIGURE, types.SILENT_NO_NUMBER_HERE):
         markup = advisorblock.line_markup(
@@ -590,7 +590,7 @@ def test_the_slot_tells_the_suggested_copy_from_the_one_it_holds(qapp):
     have in the slot.
     """
     from nrplanner import inventory
-    from nrplanner.app import RelicSlot
+    from nrplanner.relicslots import RelicSlot
 
     card = RelicSlot(0, False, lambda: None)
     worn = inventory.OwnedItem(relic_id=1, name="The Wylder's Earring",
@@ -667,7 +667,7 @@ def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
     The relation and not the number, because the number is a font: the card
     asks for exactly as much room with a block on it as without one.
     """
-    from nrplanner.app import RelicSlot
+    from nrplanner.relicslots import RelicSlot
 
     card = RelicSlot(0, False, lambda: None)
     card.show()

@@ -26,7 +26,8 @@ import pytest
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtWidgets import QToolButton
 
-from nrplanner import advisorbar, app as appmod, chalices, favourites
+from nrplanner import (advisorbar, app as appmod, chalices, favourites,
+                       relicslots)
 from nrplanner.advisor import types
 
 from tests import conftest
@@ -104,12 +105,12 @@ def test_no_string_of_the_hold_promises_it_will_last(planner):
     keep. The tooltip has to say the limit out loud, so that is asserted as
     well: silence would not be a promise, but §4.4 asks for more than silence.
     """
-    said = " ".join((appmod.HOLD_TOOLTIP, appmod.HELD_EMPTY,
-                     appmod.HOLD_RELEASED) + appmod.HOLD_CAPTIONS).lower()
+    said = " ".join((relicslots.HOLD_TOOLTIP, relicslots.HELD_EMPTY,
+                     appmod.HOLD_RELEASED) + relicslots.HOLD_CAPTIONS).lower()
     for promise in ("saved", "remembered", "stored", "kept", "permanent",
                     "next time", "restart"):
         assert promise not in said, f"{promise!r} promises a hold will last"
-    assert "forgotten when the program closes" in appmod.HOLD_TOOLTIP
+    assert "forgotten when the program closes" in relicslots.HOLD_TOOLTIP
 
 
 def test_a_slot_held_with_nothing_in_it_says_so(planner):
@@ -118,10 +119,10 @@ def test_a_slot_held_with_nothing_in_it_says_so(planner):
     card.clear_relic()
     hold(card)
 
-    assert appmod.HELD_EMPTY in card.rolled_label.text()
+    assert relicslots.HELD_EMPTY in card.rolled_label.text()
     assert card.rolled_label.isVisibleTo(card)
     hold(card, False)
-    assert appmod.HELD_EMPTY not in card.rolled_label.text()
+    assert relicslots.HELD_EMPTY not in card.rolled_label.text()
 
 
 # --- where the hold lives ---------------------------------------------------

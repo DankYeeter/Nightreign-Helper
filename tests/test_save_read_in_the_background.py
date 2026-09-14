@@ -32,7 +32,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QProgressBar,
                                QTabWidget)
 
-from nrplanner import app as appmod, chalices, inventory
+from nrplanner import app as appmod, chalices, inventory, relicslots
 from tests import conftest, rendered
 
 #: How long a case waits for a held read to **begin** before it calls the
@@ -208,7 +208,7 @@ def test_the_waiting_state_is_a_state_and_not_a_nothing(game_data, qapp,
         assert appmod.NO_SAVE_FOUND not in the_line(window)
         for card in cards(window):
             assert card.current_relic() is None, "the premise: nothing read"
-            assert appmod.RELICS_AFTER_THE_SAVE in card.rolled_label.text()
+            assert relicslots.RELICS_AFTER_THE_SAVE in card.rolled_label.text()
         # Shown, not merely written: the Deep of Night cards are hidden while
         # the switch is off, so the ones on screen are the ones asked.
         for card in window.active_slots():
@@ -247,7 +247,8 @@ def test_the_arrival_puts_the_count_back_in_every_heading(game_data, qapp,
         assert window.owned is not None
         for card in window.active_slots():
             assert "available" in card.title.text(), card.title.text()
-            assert appmod.RELICS_AFTER_THE_SAVE not in card.rolled_label.text()
+            assert (relicslots.RELICS_AFTER_THE_SAVE
+                    not in card.rolled_label.text())
     finally:
         close(window, read)
 
@@ -336,7 +337,8 @@ def test_a_rescan_says_that_nothing_changes_until_it_is_done(game_data, qapp,
         for card in cards(window):
             assert not card.choose_button.isEnabled()
             # No card gains a line on a rescan: what stands there is right.
-            assert appmod.RELICS_AFTER_THE_SAVE not in card.rolled_label.text()
+            assert (relicslots.RELICS_AFTER_THE_SAVE
+                    not in card.rolled_label.text())
     finally:
         close(window, first)
 
