@@ -79,7 +79,7 @@ SEC-044 (stderr-Traceback, zurueckgestellt).
 
 ## Beim Nutzer — offen
 
-1. **Ingame-Test 14.09. Abend** mit `dist/NightreignHelper.exe` 1.10.0: Messung im Spiel F-B QA-096 · F-C QA-097 · F-F QA-113 · F-G QA-170; dazu Exklusivgruppen-Regel (QA-257: drei Startwaffen-Strafen zaehlen einmal — 163 statt 118 AR bei Wylder) und `Minimise damage taken` (power-user Ziel 3).
+1. **QA-259 Zweihand-Anzeige:** Umfang entscheiden ("fuer spaeter merken", 14.09.).
 2. **Screenshots** `docs/screenshots/*.png` vom 20.08. zeigen den Stand vor dem Berater; Regenerierung beruehrt A-010/A-012 — vor dem naechsten Release.
 3. **C-003, vor der Weitergabe:** Repo dauerhaft oeffentlich? Release bewerben? US-Recht? — A-025 entschieden (FORTSETZEN, 09.09.).
 4. **Update-Weg 1.9.0 → 1.10.0** ungeprueft (kein 1.9.0-Artefakt); Migration laut Diff nicht noetig (`__schema` 3, `EXTRACT_VERSION` 11).
