@@ -57,11 +57,12 @@ def wylder(game_data):
 # narrower than the pool is stated rather than looked for.
 
 def offer(slot_index: int, handle: int, worth: float = 0.0,
-          colour: int = advisor.RED) -> types.Candidate:
+          colour: int = advisor.RED, effects=(), curses=()) -> types.Candidate:
     """One copy on offer for one slot, with what it is worth on its own."""
     return types.Candidate(
         slot_index=slot_index, handle=handle, relic_id=1000 + handle,
         name=f"Copy {handle}", colour=colour, is_deep=False,
+        effect_ids=tuple(effects), curse_ids=tuple(curses),
         marginals=(types.Marginal(DAMAGE, worth),),
     )
 
@@ -144,6 +145,126 @@ def run_over(inventory, problem, ctx, rank_by=DAMAGE,
     pools = candidates.pools(inventory, problem, ctx, goals.GOALS, rank_by)
     scorer = search.goal_scorer(problem, ctx, goals.GOALS[rank_by])
     return search.beam(problem, pools, budget, scorer)
+
+
+# -- AD-036.4: a required effect is a boundary condition of the beam --------
+
+#: An effect id of the cases below; its only carrier is stated per case.
+WANTED = 777_000
+ALSO_WANTED = 777_001
+
+
+def two_red_slots_over(worth: dict[int, float], carrying: dict[int, tuple],
+                       *, curses: dict[int, tuple] | None = None):
+    """Two interchangeable slots, one pool each over these copies."""
+    problem = types.SlotProblem(slots=slots_of(advisor.RED, advisor.RED))
+    pools = [pool_of(index, [offer(index, handle, value,
+                                   effects=carrying.get(handle, ()),
+                                   curses=(curses or {}).get(handle, ()))
+                             for handle, value in worth.items()])
+             for index in (0, 1)]
+    return problem, pools
+
+
+def test_every_suggestion_carries_every_required_effect_and_ranks_as_the_free_search_would(
+        ):
+    """A19 through the beam: the required copy is the worst-ranked of eight,
+    far beyond the shortlist (`K + free - 1` = 3 at K=2; AD-036 asks for
+    "beyond rank K + 5"), and still every suggestion carries it. Under the
+    constellations that carry it the order is the free search's order,
+    filtered -- the requirement selects, it does not re-weigh.
+    """
+    worth = {10 + i: 8.0 - i for i in range(8)}
+    carrier = 17
+    problem, pools = two_red_slots_over(worth, {carrier: (WANTED,)})
+    wanting = dataclasses.replace(problem, required=frozenset({WANTED}))
+    budget = types.Budget(candidates_per_slot=2, beam_width=40)
+
+    found = search.beam(wanting, pools, budget, adding_scorer(worth))
+    free = search.beam(problem, pools, types.Budget(candidates_per_slot=8,
+                                                    beam_width=40),
+                       adding_scorer(worth))
+
+    assert found, "no constellation found, though copy 17 carries the effect"
+    assert all(carrier in handles_of(s) for s in found), (
+        f"a suggestion without the required copy: "
+        f"{[handles_of(s) for s in found]}")
+    filtered = [(handles_of(s), s.score.value) for s in free
+                if carrier in handles_of(s)]
+    assert [(handles_of(s), s.score.value) for s in found] == \
+        filtered[:len(found)]
+    assert [handles_of(s) for s in found] == [[10, 17], [11, 17]]
+
+
+def test_a_forced_carrier_makes_no_swapped_double_and_no_half_filled_build():
+    """AD-036.4's dedupe: the carrier passes the symmetry floor, so `(10, 17)`
+    and `(17, 10)` both arise; one build is shown once. And a state that the
+    floor emptied still fills both slots, as it always did (AD-003.2)."""
+    worth = {10: 5.0, 11: 4.0, 12: 3.0, 17: 1.0}
+    problem, pools = two_red_slots_over(worth, {17: (WANTED,)})
+    wanting = dataclasses.replace(problem, required=frozenset({WANTED}))
+
+    found = search.beam(wanting, pools, types.DEFAULT_BUDGET,
+                        adding_scorer(worth))
+
+    sets = [frozenset(handles_of(s)) for s in found]
+    assert len(sets) == len(set(sets)), f"one build twice: {sets}"
+    assert all(len(handles_of(s)) == 2 for s in found)
+    assert [handles_of(s) for s in found] == [[10, 17], [11, 17], [12, 17]]
+
+
+def test_a_held_relic_meets_the_requirement_and_a_curse_is_a_carrier_too(
+        game_data, wylder):
+    """Both halves of "carrier" (AD-036.1/4): a held relic that carries the
+    effect leaves the search free, and a curse id is an effect id."""
+    inventory = advisor.make_inventory(game_data, wylder, count=2)
+    kept, spare = inventory.relics_for(advisor.RED, False)
+    holding = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={0: advisor.held_relic(kept)}),
+        required=frozenset({kept.effect_ids[0]}))
+    worth = {spare.handle: 1.0, 300: 2.0}
+    pools = [pool_of(1, [offer(1, 300, 2.0), offer(1, spare.handle, 1.0)])]
+
+    found = search.beam(holding, pools, types.DEFAULT_BUDGET,
+                        adding_scorer(worth))
+    assert [handles_of(s) for s in found] == [[300], [spare.handle]], (
+        "the held relic carries the effect, so the free slot is free")
+
+    problem, pools = two_red_slots_over({10: 5.0, 11: 4.0, 12: 3.0}, {},
+                                        curses={12: (WANTED,)})
+    found = search.beam(
+        dataclasses.replace(problem, required=frozenset({WANTED})), pools,
+        types.DEFAULT_BUDGET, adding_scorer({10: 5.0, 11: 4.0, 12: 3.0}))
+    assert [handles_of(s) for s in found] == [[10, 12], [11, 12]]
+
+
+def test_a_requirement_no_constellation_meets_is_an_empty_beam_not_a_filter_dropped(
+        ):
+    """A7 for A19: no carrier at all, and carriers that cannot share the free
+    slots, both come back empty -- never a suggestion that quietly ignores
+    the mark. The one-slot case is the feasibility cut at work: two effects,
+    two carriers, one slot."""
+    worth = {10: 5.0, 11: 4.0}
+    problem, pools = two_red_slots_over(worth, {})
+    nobody = dataclasses.replace(problem, required=frozenset({WANTED}))
+    assert search.beam(nobody, pools, types.DEFAULT_BUDGET,
+                       adding_scorer(worth)) == ()
+
+    one_slot = types.SlotProblem(slots=slots_of(advisor.RED),
+                                 required=frozenset({WANTED, ALSO_WANTED}))
+    pool = [pool_of(0, [offer(0, 10, 5.0, effects=(WANTED,)),
+                        offer(0, 11, 4.0, effects=(ALSO_WANTED,))])]
+    assert search.beam(one_slot, pool, types.DEFAULT_BUDGET,
+                       adding_scorer(worth)) == ()
+
+    two_slots = dataclasses.replace(
+        problem, required=frozenset({WANTED, ALSO_WANTED}))
+    _, pools = two_red_slots_over(worth, {10: (WANTED,),
+                                          11: (ALSO_WANTED,)})
+    found = search.beam(two_slots, pools, types.DEFAULT_BUDGET,
+                        adding_scorer(worth))
+    assert [handles_of(s) for s in found] == [[10, 11]]
 
 
 # -- AD-009 point 3: the colour rule survives the search --------------------

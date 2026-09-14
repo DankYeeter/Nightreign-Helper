@@ -158,11 +158,27 @@ class SlotProblem:
     of this problem is built without it, and the `Why` says it was excluded
     rather than that it carried no number. The relic stays a candidate; it
     is worth whatever its other effects are worth.
+
+    `required` are the effect ids the player marked `Must include` (A19,
+    AD-036.4): every suggestion carries each of them on a held relic or a
+    chosen copy, or there is no suggestion and the run says which effect no
+    copy could supply (A7). A boundary condition of the beam, like holding
+    (AD-014.5) -- never a filter over its result. An id in both sets is
+    refused: the window keeps them apart, and a problem that asked for both
+    would have no answer that is not a lie about one of them.
     """
 
     slots: tuple[Slot, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     excluded: frozenset[int] = frozenset()
+    required: frozenset[int] = frozenset()
+
+    def __post_init__(self) -> None:
+        both = self.excluded & self.required
+        if both:
+            raise ValueError(
+                f"effects {sorted(both)} are both excluded and required; an "
+                f"effect is one or the other (AD-036.1)")
 
 
 @dataclass(frozen=True)

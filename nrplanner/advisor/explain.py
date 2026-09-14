@@ -876,6 +876,42 @@ def _curses_the_goal_cannot_feel(problem: types.SlotProblem,
     return frozenset(unfelt)
 
 
+def required_but_unmet(problem: types.SlotProblem,
+                       pools: Sequence[types.SlotPool],
+                       ctx: types.GoalContext) -> tuple[str, ...]:
+    """Why an empty beam under a required effect is an answer (A7, AK-281).
+
+    One AK-281 sentence per required effect that no held relic carries and
+    no pool of a free slot offers a carrier for -- decided on the pools, so
+    the sentence is a fact about what is owned and never about how wide the
+    search looked. When every effect has a carrier somewhere and the beam
+    still found no constellation for the free slots together, one sentence
+    names them all; its wording is this module's own placeholder, `UI_SPEC`
+    AK-281 gives the per-effect sentence only.
+    """
+    held = types.held_relics(problem)
+    unmet = [eid for eid in sorted(problem.required)
+             if not any(eid in relic.effect_ids or eid in relic.curse_ids
+                        for relic in held)]
+    if not unmet:
+        return ()
+
+    def named(effect_id: int) -> str:
+        return _effect_name(ctx, effect_id) or f"effect {effect_id}"
+
+    uncarried = [eid for eid in unmet
+                 if not any(eid in copy.effect_ids or eid in copy.curse_ids
+                            for pool in pools for copy in pool.candidates)]
+    if uncarried:
+        return tuple(
+            f"No copy you own carries {named(eid)}, which you marked as "
+            f"required — no suggestion can meet that." for eid in uncarried)
+    return (f"No combination of the copies you own carries "
+            f"{', '.join(named(eid) for eid in unmet)} together in the free "
+            f"slots, which you marked as required — no suggestion can meet "
+            f"that.",)
+
+
 def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:
     """What this run left out, in the player's language (AD-010, A7).
 

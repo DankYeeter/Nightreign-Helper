@@ -406,6 +406,11 @@ def run(request: types.AdvisorRequest, inventory,
     # both halves happen to give is read once (AD-025.2).
     unknowns = tuple(dict.fromkeys(ranked.unknowns
                                    + explain.unknowns(problem)))
+    # A7 for A19: an empty beam under a required effect is not "nothing to
+    # say", it is the answer that no owned constellation meets the condition
+    # (AD-036.4). Decided on the pools, so it names what is owned.
+    if not found and problem.required:
+        unknowns += explain.required_but_unmet(problem, pools, ctx)
     return types.AdvisorResult(
         goal_id=goal.id,
         goal_label=goal.label,

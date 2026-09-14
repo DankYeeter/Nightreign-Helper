@@ -234,6 +234,15 @@ def test_where_a_relic_is_held_is_part_of_the_question():
     assert hash(here) != hash(there)
 
 
+def test_an_effect_both_excluded_and_required_is_refused():
+    """AD-036.1: the window keeps the two marks apart; a problem that carried
+    both would have no honest answer about either."""
+    with pytest.raises(ValueError, match="both excluded and required"):
+        types.SlotProblem(excluded=frozenset({7}), required=frozenset({7}))
+    assert types.SlotProblem(excluded=frozenset({7}),
+                             required=frozenset({8})).required == {8}
+
+
 def test_a_slot_held_empty_is_not_the_same_question_as_a_free_slot():
     """"Leave this one empty" is an instruction, not the absence of one.
 

@@ -35,6 +35,20 @@ is a list, the order it is cut down to is a total order over the *content* of
 a state -- its value first, then the copies it names -- and not over the
 order the states happened to be generated in.
 
+**A required effect is a second boundary condition** (`GOAL.md` A19,
+AD-036.4), of the same family as a held slot: it shapes which states exist,
+never which results are shown. Three grips carry it. Every state knows which
+required effects it has not met yet, and for each of them branches to the
+first K available **carriers** out of the whole pool of the level -- not the
+shortlist, because a carrier ranked 60th is still the only way to meet the
+player's condition. After each level a state is dropped when its unmet
+effects can no longer be matched one-to-one onto the levels still to come, so
+at the last level every surviving state is complete. And because a forced
+carrier ignores the symmetry floor, the same set of copies can arrive in two
+slot orders; one of them is dropped before the W cut, on which copy sits in
+which group of interchangeable slots. A beam that comes back empty under a required effect means no
+constellation of owned copies meets the condition -- `run.run` says so.
+
 **The scorer is a parameter** (AD-003, S7), so AD-002/C can be hung behind
 the same call without touching this file. `goal_scorer` below is the ordinary
 one: evaluate the assignment through the one door and ask a goal what it is
@@ -113,6 +127,79 @@ class _State:
     chosen: tuple[types.Candidate, ...]
     spent: frozenset[int]
     score: types.GoalScore
+    #: The required effects no held relic and no chosen copy carries yet,
+    #: sorted -- a tuple, because the forced branches iterate it and a set's
+    #: order would follow the hash seed (QA-059, QA-142).
+    unmet: tuple[int, ...] = ()
+
+
+def _carries(copy, effect_id: int) -> bool:
+    """Effect or curse: both are effect ids, both meet a requirement."""
+    return effect_id in copy.effect_ids or effect_id in copy.curse_ids
+
+
+def _still_unmet(unmet: tuple[int, ...], offer: types.Candidate
+                 ) -> tuple[int, ...]:
+    return tuple(eid for eid in unmet if not _carries(offer, eid))
+
+
+def _carriers_by_level(problem: types.SlotProblem,
+                       pools: Sequence[types.SlotPool]
+                       ) -> list[dict[int, tuple[types.Candidate, ...]]]:
+    """Per free slot, per required effect, the whole pool's carriers in
+    pool order -- computed once, read at every level and every cut."""
+    return [{eid: tuple(copy for copy in pool.candidates if _carries(copy, eid))
+             for eid in sorted(problem.required)}
+            for pool in pools]
+
+
+def _can_still_be_met(unmet: tuple[int, ...],
+                      later: Sequence[dict[int, tuple[types.Candidate, ...]]],
+                      spent: frozenset[int]) -> bool:
+    """Can the unmet effects be matched one-to-one onto the levels to come?
+
+    Each effect needs a later level whose pool offers a carrier this state
+    has not spent, and no level may serve two effects. Brute force over a
+    handful of effects and at most six levels. ponytail: conservative in one
+    case -- two effects whose only cover is a single copy carrying both, in
+    the last free slot -- there the beam reports empty though a constellation
+    exists; upgrade is a matching over copies instead of levels, if QA finds
+    the case on a save.
+    """
+    if not unmet:
+        return True
+    effect, rest = unmet[0], unmet[1:]
+    for index, carriers in enumerate(later):
+        if not any(copy.handle not in spent
+                   for copy in carriers.get(effect, ())):
+            continue
+        if _can_still_be_met(rest, later[:index] + later[index + 1:], spent):
+            return True
+    return False
+
+
+def _once_per_placement(states: Sequence[_State],
+                        group_of: dict[int, tuple[int, bool]]) -> list[_State]:
+    """Drop a state that is another, better placed one with two
+    interchangeable slots swapped (AD-036.4).
+
+    The key is which copy sits in which **symmetry group**, not which slot:
+    a red and a white slot holding the same two copies the other way round
+    are two builds the player can wear and both stay (AD-014.4), while two
+    red slots holding them the other way round are one build spelled twice --
+    the spelling the symmetry floor would have caught had a forced carrier
+    not passed it by.
+    """
+    seen: set[frozenset[tuple[tuple[int, bool], int]]] = set()
+    kept = []
+    for state in states:
+        placement = frozenset((group_of[choice.slot_index], choice.handle)
+                              for choice in state.chosen)
+        if placement in seen:
+            continue
+        seen.add(placement)
+        kept.append(state)
+    return kept
 
 
 def _symmetry_group(slot: types.Slot) -> tuple[int, bool]:
@@ -142,9 +229,14 @@ def _floor_in_the_group(state: _State, group: frozenset[int],
     the slot before": a slot that had nothing left to choose from contributes
     nothing to the group, and asking the previous slot alone would then need
     a branch for a state no data can produce.
+
+    A forced carrier from outside the shortlist (AD-036.4) has no rank here
+    and sets no floor: raising the floor to "above a copy the list never
+    offered" would take the partner slot its first K offers away -- AD-014.4's
+    fault the other way round.
     """
     taken = [rank_of[choice.handle] for choice in state.chosen
-             if choice.slot_index in group]
+             if choice.slot_index in group and choice.handle in rank_of]
     return max(taken) + 1 if taken else 0
 
 
@@ -173,7 +265,9 @@ def _branches(state: _State, offers: Sequence[types.Candidate],
 
 
 def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
-                budget: types.Budget, scorer: Scorer) -> list[_State]:
+                budget: types.Budget, scorer: Scorer,
+                carriers: dict[int, tuple[types.Candidate, ...]]
+                ) -> list[_State]:
     """This state, one level deeper. Three outcomes, and each has a reason.
 
     The ordinary one is a successor per branch. The state itself is never
@@ -191,8 +285,24 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
     branch is already carrying (AD-003 point 2). Keeping it would put the one
     exception to the rule above on the screen, and it would say `1 of 2 slots
     filled` about a vessel that had a relic for both.
+
+    The forced branches (AD-036.4) come after the ordinary ones: for every
+    required effect this state has not met, the first K available carriers
+    of the whole pool, without the symmetry floor -- a carrier the floor
+    would forbid is not a swapped spelling of a state that exists, because
+    the shortlist never offered it. A carrier already among the ordinary
+    branches is not branched twice.
     """
     branches = _branches(state, offers, floor, budget.candidates_per_slot)
+    if not branches and not state.unmet:
+        return [] if _branches(state, offers, 0, 1) else [state]
+    handles = {offer.handle for offer in branches}
+    for effect in state.unmet:
+        for offer in _branches(state, carriers.get(effect, ()), 0,
+                               budget.candidates_per_slot):
+            if offer.handle not in handles:
+                handles.add(offer.handle)
+                branches.append(offer)
     if not branches:
         return [] if _branches(state, offers, 0, 1) else [state]
     grown = []
@@ -200,7 +310,8 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
         chosen = state.chosen + (offer,)
         grown.append(_State(chosen=chosen,
                             spent=state.spent | {offer.handle},
-                            score=scorer.score(chosen)))
+                            score=scorer.score(chosen),
+                            unmet=_still_unmet(state.unmet, offer)))
     return grown
 
 
@@ -319,9 +430,18 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     groups: dict[tuple[int, bool], set[int]] = {}
     for slot in free:
         groups.setdefault(_symmetry_group(slot), set()).add(slot.index)
+    group_of = {slot.index: _symmetry_group(slot) for slot in free}
 
+    carriers = _carriers_by_level(problem, pools)
+    # A held relic meets a requirement: a second copy of a non-stacking effect
+    # would be a duplicate without value (AD-036.4).
+    unmet = tuple(eid for eid in sorted(problem.required)
+                  if not any(_carries(relic, eid)
+                             for relic in types.held_relics(problem)))
     live = [_State(chosen=(), spent=types.held_handles(problem),
-                   score=scorer.score(()))]
+                   score=scorer.score(()), unmet=unmet)]
+    if not _can_still_be_met(unmet, carriers, live[0].spent):
+        return ()
     for level, slot in enumerate(free):
         if should_cancel():
             raise Cancelled(
@@ -333,9 +453,12 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
         for state in live:
             grown.extend(_successors(
                 state, offers, _floor_in_the_group(state, group, rank_of),
-                budget, scorer))
+                budget, scorer, carriers[level]))
+        grown = [state for state in grown
+                 if _can_still_be_met(state.unmet, carriers[level + 1:],
+                                      state.spent)]
         grown.sort(key=_order)
-        live = grown[:budget.beam_width]
+        live = _once_per_placement(grown, group_of)[:budget.beam_width]
 
     return tuple(
         types.Suggestion(

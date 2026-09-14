@@ -171,6 +171,53 @@ def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
         assert said == [f"{name}: you excluded it, so it is not counted."]
 
 
+def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
+    """A19/A7 through `run.run`, AK-281's sentence: the beam is empty and the
+    answer says which effect no owned copy carries -- and, with a carrier
+    for each but no constellation for the free slots, that no combination
+    does. Decided on the pools, so the sentence is about what is owned.
+    """
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    nobody_carries = rolls[4][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    def a_run(question):
+        frozen = run.frozen_inventory(owned, question)
+        return run.run(advisor.request_for(question, ctx, frozen), frozen,
+                       ctx, goals.GOALS)
+
+    def name(effect_id):
+        return " ".join(game_data["effects"][str(effect_id)]["name"].split())
+
+    problem = advisor.problem([advisor.RED, advisor.RED])
+    result = a_run(dataclasses.replace(
+        problem, required=frozenset({nobody_carries, rolls[0][0]})))
+    assert result.suggestions == ()
+    assert result.unknowns[-1] == (
+        f"No copy you own carries {name(nobody_carries)}, which you marked "
+        f"as required — no suggestion can meet that.")
+
+    one_slot = advisor.problem([advisor.RED])
+    result = a_run(dataclasses.replace(
+        one_slot, required=frozenset({rolls[0][0], rolls[1][0]})))
+    assert result.suggestions == ()
+    assert result.unknowns[-1] == (
+        f"No combination of the copies you own carries "
+        f"{', '.join(name(eid) for eid in sorted((rolls[0][0], rolls[1][0])))}"
+        f" together in the free slots, which you marked as required — no "
+        f"suggestion can meet that.")
+
+    met = a_run(dataclasses.replace(problem,
+                                    required=frozenset({rolls[0][0]})))
+    assert met.suggestions and all(
+        owned.relics[0].handle in {c.handle for c in s.choices}
+        for s in met.suggestions)
+    assert not any("required" in line for line in met.unknowns)
+
+
 def _ranking(result) -> list[tuple[tuple[int, ...], float]]:
     return [(tuple(choice.handle for choice in suggestion.choices),
              suggestion.score.value) for suggestion in result.suggestions]

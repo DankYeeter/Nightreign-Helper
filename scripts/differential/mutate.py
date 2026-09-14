@@ -103,6 +103,24 @@ MUTATIONS: dict[str, Mutation] = {
             "`tests/test_advisor_run.py::test_an_excluded_effect_counts_in_"
             "no_suggestion_and_no_ranking` (T-248d step 2)."),
     ),
+    "feasibility-cut-removed": Mutation(
+        path="nrplanner/advisor/search.py",
+        old="""        grown = [state for state in grown
+                 if _can_still_be_met(state.unmet, carriers[level + 1:],
+                                      state.spent)]
+""",
+        new="""        grown = list(grown)
+""",
+        survival_means=(
+            "states that can no longer meet a required effect survive to the "
+            "last level, so the beam suggests builds without the effect the "
+            "player marked `Must include` -- A19 dropped silently, in the "
+            "right shape, with a plausible figure. Killed by `tests/test_"
+            "advisor_search.py::test_every_suggestion_carries_every_required_"
+            "effect_and_ranks_as_the_free_search_would` and `test_a_"
+            "requirement_no_constellation_meets_is_an_empty_beam_not_a_filter_"
+            "dropped` (T-248d step 3)."),
+    ),
 }
 
 
