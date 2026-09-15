@@ -52,17 +52,25 @@ Sicherheitsbefund oder Datenverlustverdacht.
 
 ## HIER WEITERMACHEN
 
-**Autonomer Lauf 15.09. 00:19-07:30 abgeschlossen.** Stand `bd93476`, Suite
-**1697 passed / 10 skipped** (Director). **Artefakt 1.12.1**
-`dist/NightreignHelper.exe` 59.119.378 B, SHA-256
-`f29eb92d88ed14416a488f32f7ab655bf27fec77e2be74105782d0980904cf1b`, Commit
-`3c2ff23`, im Startmenue; Sicherungen 1.11.0/1.12.0 im Scratchpad
-`artefakte/`. Verlauf des Laufs (Zyklen 24-25): T-254 bis T-268 in
-`docs/tasks/`, Berichte `docs/berichte/T-25x/T-26x-*.md`, CHANGELOG 1.12.0/1.12.1.
+**Pause 15.09. 13:22 auf Nutzerwunsch.** Stand `dd92e5f`, Suite **1726
+passed / 9 skipped** (Director, nach Merge T-277b/c). **Artefakt 1.13.0**
+`dist/NightreignHelper.exe` 59.201.789 B, SHA-256
+`332955ec291308334cd3e2ed6437ba90ebb6e543a4f7fcd7a4a0fa56d3701113`, Commit
+`ffb6b9f` (Startmenue-Verknuepfung zeigt auf dist, also bereits 1.13.0);
+Sicherungen 1.11.0-1.12.3 im Scratchpad `artefakte/`. Heute gebaut: A21
+Effektfilter-Fenster Favourite/Avoid (T-277, AK-300..311, Punkte an den
+Effektzeilen entfallen), AK-312 Enter waehlt Heldenkachel (T-278b), README
+(T-277d). QA-279/281 nicht reproduziert (T-276), QA-280 kein Mechanismus im
+Code (T-278a) — alle drei geschlossen.
 
-**Naechster Schritt:** Nutzer bestaetigt die Annahmen AN-1..AN-8 (oben) und
-entscheidet die Restpunkte unter "Beim Nutzer — offen"; dann Merge PR #16 /
-Release nach seiner Vorgabe (A-020/A-023/A-033 vor der Weitergabe).
+**Naechster Schritt:** T-280 `qa-engineer` am Artefakt 1.13.0 (A21, AK-312,
+Regression; Auftrag steht im Chatverlauf, Nummern ab QA-282) — wurde beim
+Pausieren abgebrochen, ohne Befund; danach `power-user`-Lauf (Favourite/
+Avoid-Bedienung), `release-manager` `notes` (CHANGELOG/ROLLOUT 1.13.0),
+`archivist` sync-out (nichts gepusht seit `6c8ecd5`, Nutzer: erst wenn alles
+fertig), dann Bestaetigungsliste an den Nutzer: Namenskollision "Favourite"
+(Stern je Relikt vs. Effekt-Pflicht, AK-300), `Filters` als Textknopf statt
+Symbol (AK-302, begruendet), R-009 gepaarter Faktor 0,77366, AN-1..AN-9.
 
 ## Stand gegen `GOAL.md` (15.09.2026 07:30, Artefakt 1.12.1)
 
