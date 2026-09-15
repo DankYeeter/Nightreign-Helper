@@ -57,7 +57,40 @@ class Mutation:
 #: The anchors below run past the margin every other line in this repository
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
-MUTATIONS: dict[str, Mutation] = {}
+MUTATIONS: dict[str, Mutation] = {
+    "twinblade-two-handed-rate-neutralised": Mutation(
+        path="nrplanner/weapons.py",
+        old="""    if weapon.get("wep_type") == TWINBLADE_TYPE:
+        return Calibration(TWINBLADE_TWO_HANDED_RATE, "two-handing a twinblade")
+""",
+        new="""    if False:
+        return Calibration(TWINBLADE_TWO_HANDED_RATE, "two-handing a twinblade")
+""",
+        survival_means=(
+            "a twinblade two-hands like a sword: 108 / 111 where the game "
+            "shows 108 / 54, and the Raider's 99 / 114 where it shows 49. "
+            "Killed by the two Twinblade rows of `tests/test_attack_power_"
+            "calibration_against_the_game.py::test_both_hands_show_the_"
+            "numbers_the_game_showed` and by `test_the_shape_of_the_armament_"
+            "names_the_factor_before_the_nightfarer` (T-269a, QA-276)."),
+    ),
+    "paired-two-handed-rate-neutralised": Mutation(
+        path="nrplanner/weapons.py",
+        old="""    if weapon.get(PAIRED_KEY):
+        return Calibration(PAIRED_TWO_HANDED_RATE, "two-handing a pair")
+""",
+        new="""    if False:
+        return Calibration(PAIRED_TWO_HANDED_RATE, "two-handing a pair")
+""",
+        survival_means=(
+            "every fist and claw two-hands at 1.03 again: Caestus 93 / 95 "
+            "where the game shows 71, Hookclaws 80 / 82 where it shows 62. "
+            "Killed by the five pair rows of `tests/test_attack_power_"
+            "calibration_against_the_game.py::test_both_hands_show_the_"
+            "numbers_the_game_showed` and by `test_the_shape_of_the_armament_"
+            "names_the_factor_before_the_nightfarer` (T-269a, QA-276)."),
+    ),
+}
 
 
 def newline_of(raw: bytes) -> bytes:

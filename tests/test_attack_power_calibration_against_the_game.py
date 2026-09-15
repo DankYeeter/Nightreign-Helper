@@ -26,6 +26,12 @@ then two-handed, every Nightfarer at level 15 with no relics. Mutations
 `two-handed-rate-neutralised` and `raider-two-handed-rate-neutralised` set
 each to 1.0; `two-handing-buff-left-on-the-scoped-line` puts scope 124 back
 outside every attack rating.
+
+The thirteen pairs of 2026-09-15 (GOAL.md A20-Messzellen II, QA-276) follow:
+twinblades and pairs two-hand by a rule of their own, and three more single
+armaments and three armaments with no second figure stand guard around them.
+Mutations `twinblade-two-handed-rate-neutralised` and
+`paired-two-handed-rate-neutralised` put each back on the plain factor.
 """
 
 from __future__ import annotations
@@ -38,6 +44,10 @@ from tests import weapon_damage_cases as cases
 
 LEVEL = 15
 GREAT_STARS = 12180000
+TWINBLADE = 10000000
+CAESTUS = 21000000
+HOOKCLAWS = 22000000
+ORNAMENTAL_STRAIGHT_SWORD = 2060000
 
 #: (Nightfarer, armament id, what the game showed)
 READINGS = [
@@ -127,6 +137,19 @@ TWO_HANDED_READINGS = [
     ("Guardian", 18750000, 107, 110),     # halberd
     ("Raider", GREAT_STARS, 188, 216),    # x1.18 and the Raider hand factor
     ("Wylder", GREAT_STARS, 147, 151),    # same armament, neither
+    # 2026-09-15 (QA-276): single armaments stay on 1.03 ...
+    ("Executor", 9750000, 94, 97),
+    ("Scholar", 5750000, 63, 64),
+    ("Undertaker", 11750000, 91, 93),
+    # ... a twinblade halves, for the Raider too ...
+    ("Wylder", TWINBLADE, 108, 54),
+    ("Raider", TWINBLADE, 99, 49),
+    # ... and a pair has its own figure, x0.88 or not.
+    ("Wylder", CAESTUS, 93, 71),
+    ("Wylder", HOOKCLAWS, 80, 62),
+    ("Wylder", ORNAMENTAL_STRAIGHT_SWORD, 161, 124),
+    ("Revenant", weapons.CURSED_CLAWS_ID, 88, 68),
+    ("Revenant", HOOKCLAWS, 59, 46),
 ]
 _TWO_HANDED_IDS = [f"{hero} :: {weapon}"
                    for hero, weapon, _one, _two in TWO_HANDED_READINGS]
@@ -151,9 +174,43 @@ def test_both_hands_show_the_numbers_the_game_showed(game_data, hero,
 
 
 def test_the_two_handing_factors_are_the_measured_ones():
-    """Both intervals are R-008's intersections over the six cells."""
+    """R-008's intersections over its six cells, and QA-276's over its seven:
+    the pair window is nine millionths wide, see the note at the constant."""
     assert 1.025889 <= weapons.TWO_HANDED_RATE < 1.032358
     assert 1.143863 <= weapons.RAIDER_TWO_HANDED_RATE < 1.144480
+    assert 0.497042 <= weapons.TWINBLADE_TWO_HANDED_RATE < 0.501018
+    assert 0.773656 <= weapons.PAIRED_TWO_HANDED_RATE < 0.773665
+
+
+def test_the_paired_flag_reaches_every_fist_and_claw_and_no_twinblade(
+        game_data):
+    """`isDualBlade` as the extractor writes it (EXTRACT_VERSION 12): all 45
+    fists and 32 claws, the Ornamental Straight Sword, the Starscourge
+    Greatsword -- 79 -- and none of the 35 twinblades, which two-hand by
+    their own rule and must not take the pair's."""
+    paired = [w for w in game_data["weapons"] if w[weapons.PAIRED_KEY]]
+    assert len(paired) == 79
+    assert {w["wep_type"] for w in paired} == {3, 7, 35, 37}
+    assert not [w for w in paired if w["wep_type"] == weapons.TWINBLADE_TYPE]
+    assert all(w[weapons.PAIRED_KEY] for w in game_data["weapons"]
+               if w["wep_type"] in (35, 37))
+
+
+@pytest.mark.parametrize("hero, weapon, factor, reason", [
+    ("Raider", TWINBLADE, weapons.TWINBLADE_TWO_HANDED_RATE,
+     "two-handing a twinblade"),
+    ("Raider", CAESTUS, weapons.PAIRED_TWO_HANDED_RATE, "two-handing a pair"),
+    ("Wylder", weapons.CURSED_CLAWS_ID, weapons.PAIRED_TWO_HANDED_RATE,
+     "two-handing a pair"),
+])
+def test_the_shape_of_the_armament_names_the_factor_before_the_nightfarer(
+        game_data, hero, weapon, factor, reason):
+    """The Raider's 1.144 does not reach a twinblade or a pair; the borrowed
+    claws keep their x0.88 in both hands beside the pair's own factor."""
+    rating = _rating(game_data, hero, weapon)
+    assert rating.two_handed.weapon_rating.two_handed == weapons.Calibration(
+        factor, reason)
+    assert rating.two_handed.weapon_rating.calibration ==         rating.weapon_rating.calibration
 
 
 def test_the_two_handed_answer_names_its_factor(game_data):
@@ -167,7 +224,8 @@ def test_the_two_handed_answer_names_its_factor(game_data):
 
 
 @pytest.mark.parametrize("family", ["Bow", "Crossbow", "Ballista",
-                                    "Glintstone Staff", "Unarmed"])
+                                    "Glintstone Staff", "Sacred Seal",
+                                    "Unarmed"])
 def test_no_second_figure_where_the_game_shows_none(game_data, family):
     weapon_id = cases.first_of_family(game_data, family)
     assert _rating(game_data, "Wylder", weapon_id).two_handed is None
