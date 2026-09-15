@@ -120,6 +120,20 @@ class CardGrid(QWidget):
             self._grid.setColumnStretch(
                 column, 1 if (self._stretch and column < columns) else 0)
 
+    def extend(self, cards: list[QWidget]) -> None:
+        """Place `cards` after the ones already here, in the current columns.
+
+        The relic picker builds its grid in paints (QA-258): the rows the
+        dialog opens with at once, the rest from the event loop. Appending
+        rather than rebuilding is what keeps the cards already on screen
+        where the reader saw them.
+        """
+        for card in cards:
+            index = len(self._cards)
+            self._cards.append(card)
+            self._grid.addWidget(card, index // self._columns,
+                                 index % self._columns)
+
     # -- for tests and callers -------------------------------------------
     @property
     def columns(self) -> int:

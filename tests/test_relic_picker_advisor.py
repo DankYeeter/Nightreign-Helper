@@ -248,8 +248,21 @@ def picker_for(slot, advice):
                                    advice=advice)
 
 
+def every_paint(dialog) -> None:
+    """Let the paints after the first arrive (QA-258).
+
+    An answered grid fills in steps of `CARDS_PER_PAINT` off the event loop;
+    a guard about the whole grid reads it after the last step. A state,
+    never a duration: the loop turns until the picker has nothing left to
+    paint.
+    """
+    while dialog._more.isActive():
+        rendered.settle(1)
+
+
 def relic_cards(dialog):
-    """The relic cards in the order the grid holds them."""
+    """The relic cards in the order the grid holds them, all paints in."""
+    every_paint(dialog)
     holder = dialog.scroll.widget()
     return holder.findChildren(relicpicker.RelicCard)
 
@@ -1787,11 +1800,11 @@ def test_the_answer_arriving_does_not_rebuild_the_waiting_paints_cards(
         slot, monkeypatch):
     """QA-258: `_card_for` runs once per relic in one opening, not twice.
 
-    The waiting paint already builds every card to measure it (AK-51); the
-    answered paint used to build the same cards again, which on a white
-    slot's ~211 candidates was measured as two separate blockades of the
-    main thread (QA-258, T-118 P5). A call count, not a clock: it holds
-    however fast or slow the machine is.
+    The waiting paint builds the rows it measures (AK-51); the answered
+    paints build the rest and must not build those again -- on a white
+    slot's ~211 candidates a second build was measured as a second blockade
+    of the main thread (QA-258, T-118 P5). A call count, not a clock: it
+    holds however fast or slow the machine is.
     """
     calls = []
     real = relicpicker.RelicPicker._card_for
@@ -1802,14 +1815,60 @@ def test_the_answer_arriving_does_not_rebuild_the_waiting_paints_cards(
 
     monkeypatch.setattr(relicpicker.RelicPicker, "_card_for", counting)
     dialog, advice = waiting_picker(slot)
-    built_while_waiting = len(calls)
-    assert built_while_waiting, "the waiting paint built no cards to measure"
+    assert calls, "the waiting paint built no cards to measure"
     try:
         advice.answer()
-        assert len(calls) == built_while_waiting, (
-            f"the answer rebuilt {len(calls) - built_while_waiting} of "
-            f"{built_while_waiting} cards the waiting paint had already "
-            f"built")
+        shown = relic_cards(dialog)
+        built = [id(item) for item in calls]
+        assert len(built) == len(set(built)), (
+            f"{len(built) - len(set(built))} cards were built twice in one "
+            f"opening")
+        assert len(built) == len(shown), (
+            f"{len(built)} cards built for {len(shown)} shown")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_first_paint_builds_no_more_than_the_rows_it_opens_with(slot):
+    """QA-258: the dialog is on screen before the last card exists.
+
+    Before the first `show()` no more cards exist than the rows the dialog
+    sizes itself for; the answer puts that many on the grid at once and the
+    rest follow from the event loop, in the order the grid would have had
+    in one go -- the same cards, at the same places, only later. A count
+    and an order, never a clock (AD-028).
+    """
+    dialog, advice = waiting_picker(slot)
+    try:
+        assert 0 < len(dialog._card_cache) <= relicpicker.CARDS_PER_PAINT, (
+            f"the waiting paint built {len(dialog._card_cache)} cards, more "
+            f"than the {relicpicker.CARDS_PER_PAINT} it measures")
+        advice.answer()
+        at_once = dialog.scroll.widget().findChildren(relicpicker.RelicCard)
+        assert len(at_once) == relicpicker.CARDS_PER_PAINT
+        plain, _needle = dialog._candidates()
+        expected = [id(item) for item in dialog._in_the_chosen_order(plain)]
+        assert len(expected) > relicpicker.CARDS_PER_PAINT, (
+            "this slot offers no more cards than one paint holds, so the "
+            "later paints are never exercised")
+        shown = relic_cards(dialog)
+        assert [id(card.item) for card in shown] == expected
+        assert not dialog._more.isActive()
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_refresh_under_pending_paints_replaces_what_was_still_to_come(slot):
+    """A keystroke in the filter while the grid is still filling: the old
+    order's remaining paints are dropped, not appended behind the new
+    grid."""
+    dialog, advice = waiting_picker(slot)
+    try:
+        advice.answer()
+        assert dialog._more.isActive(), "nothing was left to paint"
+        dialog.search.setText("zzzz matches nothing")
+        assert not dialog._more.isActive()
+        assert relic_cards(dialog) == []
     finally:
         dialog.deleteLater()
 
@@ -1820,18 +1879,20 @@ def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
 
     A card carries state a rebuilt twin would not -- its `MarkedLine`
     widgets, its favourite star -- so the criterion is identity, not just a
-    matching count.
+    matching count: every card the waiting paint built is the object the
+    grid shows.
     """
     dialog, advice = waiting_picker(slot)
     built = dict(dialog._card_cache)
+    assert built, "the waiting paint built no cards to measure"
     try:
         advice.answer()
-        shown = relic_cards(dialog)
+        shown = {id(card.item): card for card in relic_cards(dialog)}
         assert shown, "the answer did not fill the grid"
-        for card in shown:
-            assert built.get(id(card.item)) is card, (
-                "a card shown after the answer is not the one the waiting "
-                "paint built and measured")
+        for key, card in built.items():
+            assert shown.get(key) is card, (
+                "a card the waiting paint built and measured is not the one "
+                "shown after the answer")
     finally:
         dialog.deleteLater()
 

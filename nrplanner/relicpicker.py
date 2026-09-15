@@ -27,7 +27,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QFontMetrics, QIcon
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
@@ -54,6 +54,14 @@ OPENING_HEIGHT = 720
 #: (AK-51). Three, because two rows of a 29-card grid is a list seen through
 #: a letterbox.
 MINIMUM_ROWS = 3
+#: How many cards one paint builds before the grid is on screen (QA-258):
+#: the rows the dialog opens with, and no more. A white slot offers ~211
+#: cards and building them all before the first paint held the dialog back
+#: 1,6 s (T-268); everything past this many arrives in paints of the same
+#: size off the event loop, one per `_paint_more`, while the first rows are
+#: already readable. The sizing (AK-51) reads exactly these rows and no
+#: others, so it loses nothing by the rest coming later.
+CARDS_PER_PAINT = OPENING_COLUMNS * MINIMUM_ROWS
 ICON = 56
 #: The dialog's own layout margin, one side. Named because the opening width
 #: has to add both of them back.
@@ -1074,6 +1082,15 @@ class RelicPicker(QDialog):
         #: itself off the filters' own `changed` signal (`advisorblock.py`)
         #: whatever refresh built it, so reuse costs no mark here either.
         self._card_cache: dict[int, RelicCard] = {}
+        #: The cards an answered paint has not built yet, in grid order, and
+        #: the zero-length timer that builds the next `CARDS_PER_PAINT` of
+        #: them once the event loop has drawn what stands. Stopped by every
+        #: `_refresh`, whose new order replaces whatever was still to come.
+        self._unpainted: list = []
+        self._more = QTimer(self)
+        self._more.setSingleShot(True)
+        self._more.setInterval(0)
+        self._more.timeout.connect(self._paint_more)
         self._ask()
         # Favourites are per Nightfarer, so the picker has to know which one
         # the build is for. A slot outside the main window simply has none.
@@ -1510,6 +1527,7 @@ class RelicPicker(QDialog):
         return holder
 
     def _refresh(self) -> None:
+        self._more.stop()
         plain, needle = self._candidates()
         items = self._in_the_chosen_order(plain)
         if self._wait_is_drawn is None:
@@ -1550,39 +1568,33 @@ class RelicPicker(QDialog):
             and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
             on_pick=self._open_custom,
         )
-        # Built once, in the order the grid has without an answer, and read
-        # in two orders: the one the grid shows and the one the dialog
-        # measures itself in (AK-216). Two builds of the same cards would be
-        # the one place this state costs real time, and it would be paid
-        # unseen.
-        #
-        # **Built once across the two paints of one opening, not twice**
-        # (QA-258): `self._card_cache` carries what the waiting paint already
-        # built, so the answered paint asks each item's card of the cache
-        # before it asks `_card_for` for a new one. A slot this call has not
-        # seen before still pays the full price, once.
-        by_item: dict[int, RelicCard] = {}
-        for item in plain:
-            key = id(item)
-            card = self._card_cache.get(key)
-            if card is None:
-                card = self._card_for(item, current)
-                self._card_cache[key] = card
-            by_item[key] = card
-        for_size: list[QWidget] = [tile] + [by_item[id(item)]
-                                            for item in plain]
+        # The dialog measures itself in the order the grid has without an
+        # answer (AK-216), and only at the sizing: `_room_for_three_rows`
+        # reads the first `MINIMUM_ROWS` rows and no card past them, so no
+        # card past them is built for it (QA-258). Once `_wanted` stands, no
+        # card is built for measuring at all.
+        measured = plain[:CARDS_PER_PAINT] if self._wanted is None else []
+        for_size: list[QWidget] = [tile] + [
+            card for _item, card in self._cards_for(measured)]
 
         if waiting:
-            # The cards are built and measured, and simply not shown (§4):
-            # what fits the slot and how tall a card is at 190 px has nothing
-            # to do with the advisor, so the dialog can take its final size
-            # at the first paint and never grow under the player's hands.
+            # The first rows are built and measured, and simply not shown
+            # (§4): what fits the slot and how tall a card is at 190 px has
+            # nothing to do with the advisor, so the dialog can take its
+            # final size at the first paint and never grow under the
+            # player's hands.
             self._headline("")
             self.scroll.setWidget(self._waiting_area())
             self._fit_to_three_rows(for_size)
             return
 
-        relic_cards = [(item, by_item[id(item)]) for item in items]
+        # The rows the dialog opens with, now; the rest in paints of the same
+        # size from the event loop (QA-258), so the first cards are on screen
+        # before the last one is built. Same cache, same order, same figures
+        # -- only the moment each card is built differs.
+        first, self._unpainted = (items[:CARDS_PER_PAINT],
+                                  items[CARDS_PER_PAINT:])
+        relic_cards = self._cards_for(first)
         self._say_what_they_are_worth(relic_cards)
 
         # As many columns as the dialog is actually wide, not five whatever it
@@ -1595,6 +1607,41 @@ class RelicPicker(QDialog):
             card_width(),
             [tile] + [card for _item, card in relic_cards]))
         self._fit_to_three_rows(for_size)
+        if self._unpainted:
+            self._more.start()
+
+    def _cards_for(self, items) -> list[tuple[object, RelicCard]]:
+        """`(item, card)` per item, each card built once per opening.
+
+        **Built once across the paints of one opening, not twice** (QA-258):
+        `self._card_cache` carries what an earlier paint already built, so
+        every paint asks each item's card of the cache before it asks
+        `_card_for` for a new one.
+        """
+        current = self.slot.relic_box.currentData()
+        pairs = []
+        for item in items:
+            card = self._card_cache.get(id(item))
+            if card is None:
+                card = self._card_for(item, current)
+                self._card_cache[id(item)] = card
+            pairs.append((item, card))
+        return pairs
+
+    def _paint_more(self) -> None:
+        """The next `CARDS_PER_PAINT` cards of the answered grid (QA-258).
+
+        Off the event loop, so the dialog has drawn what stands before this
+        runs; the grid only ever grows at its end, so no card the player is
+        looking at moves. Rearmed until nothing is left.
+        """
+        batch, self._unpainted = (self._unpainted[:CARDS_PER_PAINT],
+                                  self._unpainted[CARDS_PER_PAINT:])
+        pairs = self._cards_for(batch)
+        self._say_what_they_are_worth(pairs)
+        self.scroll.widget().extend([card for _item, card in pairs])
+        if self._unpainted:
+            self._more.start()
 
     def _ask(self) -> None:
         """This opening's one question, from nothing: no answer, no wait."""

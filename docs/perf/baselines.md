@@ -498,6 +498,9 @@ darueber und bleiben Ziel dieses und kuenftiger Laeufe.
 | 2026-09-15 | 468f65c | wartender Bau (`_refresh` #1) | 1151,0 ms | 1033,7 ms | -10,2 % (Kartenbau bleibt, keine Wiederverwendung moeglich -- der erste Bau) | 3,3 % / 3,0 % | nein |
 | 2026-09-15 | 468f65c | beantworteter Bau (`_refresh` #2) | 1298,8 ms | 368,8 ms | **-71,6 %** | 2,9 % / 2,8 % | nein |
 | 2026-09-15 | 468f65c | **Summe je Oeffnung (beide Bloecke)** | **2438,2 ms** | **1386,2 ms** | **-43,1 %** | 4,9 % / 4,7 % | **ja** |
+| 2026-09-15 | 22e1d1d (T-271) | Dialog sichtbar (Wartezeile), `Wylder's Chalice` Deep an, weisser Slot 3, 209 Kandidaten, Wanduhr `RelicPicker()`+`show()` bis `isVisible()` | 1007 ms | **115 ms** | **-88,6 %** | 4,4 % / 13,2 % | ja (< 500 ms S11) |
+| 2026-09-15 | 22e1d1d (T-271) | erste Karten im Gitter (15 = `CARDS_PER_PAINT`) | 1494 ms | **320 ms** | **-78,6 %** | 4,2 % / 7,1 % | ja |
+| 2026-09-15 | 22e1d1d (T-271) | alle 209 Karten im Gitter (13 Nachbauten je 65 ms ueber `QTimer(0)`) | 1577 ms | 1753 ms | +11,2 % (Ereignisschleife zwischen den Bauten, kein Block > 71 ms) | 4,3 % / 6,6 % | -- |
 
 **Ursache.** `RelicPicker._refresh()` baute bei jedem Aufruf alle
 `RelicCard`-Widgets der Kandidatenliste neu (`by_item = {id(item):
