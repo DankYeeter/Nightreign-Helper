@@ -16,9 +16,9 @@ curve id per damage type comes from the weapon's own correctType_{Type}.
 `GAME_ATTACK_POWER_RATE` is measured against the game and not read out of it;
 its scope and its evidence are written out where it is defined. Two more
 measured factors sit beside it and reach exactly two Nightfarer/armament
-pairings, `nightfarer_calibration`; a fourth, `two_handed_calibration`, is
-what two-handing does to the figure. Every other term is a field with a
-paramdef behind it.
+pairings, `nightfarer_calibration`; `two_handed_calibration` is what
+two-handing does to the figure, four measured factors by armament shape and
+Nightfarer. Every other term is a field with a paramdef behind it.
 
 **A staff or a seal is not rated by that formula at all.** The game shows a
 catalyst's spell scaling where it shows every other armament's attack power,
@@ -169,11 +169,47 @@ def nightfarer_calibration(weapon: dict, nightfarer: str) -> Calibration | None:
 #: two-handing (`AtkParam.isDisableBothHandsAtkBonus`) describes the hit,
 #: not the menu figure this program shows.
 #:
-#: Measured for Wylder, Guardian, Duchess and Raider only. Ironeye, Revenant,
-#: Recluse, Executor, Scholar and Undertaker are given 1.03 until a cell says
-#: otherwise (director, 2026-09-14, on R-008 option a).
+#: Measured for Wylder, Guardian, Duchess and Raider, and on 2026-09-15 for
+#: Executor (94 -> 97), Scholar (63 -> 64) and Undertaker (91 -> 93), which
+#: 1.03 hits. Ironeye, Revenant and Recluse start with a bow, a pair and a
+#: staff, so no single-armament cell of theirs exists; they are given 1.03
+#: until one says otherwise (director, 2026-09-14, on R-008 option a).
 TWO_HANDED_RATE = 1.03
 RAIDER_TWO_HANDED_RATE = 1.144
+
+#: A twinblade or a pair two-hands by a rule of its own, **in place of** the
+#: factor above -- not on top of it, and not the Raider's either (QA-276).
+#: Seven cells read off the game on 2026-09-15, level 15, no relics, each
+#: armament at its own rarity; each interval is again the intersection of
+#: the `floor` conditions on this program's own unrounded one-handed figure:
+#:
+#:     Wylder    Twinblade                  108 -> 54     T in [0.497042, 0.506246)
+#:     Raider    Twinblade                   99 -> 49     T in [0.490998, 0.501018)
+#:     Wylder    Caestus                     93 -> 71     T in [0.762920, 0.773665)
+#:     Wylder    Hookclaws                   80 -> 62     T in [0.773656, 0.786135)
+#:     Wylder    Ornamental Straight Sword  161 -> 124    T in [0.768849, 0.775050)
+#:     Revenant  Revenant's Cursed Claws     88 -> 68     T in [0.767048, 0.778328)
+#:     Revenant  Hookclaws                   59 -> 46     T in [0.772252, 0.789040)
+#:
+#: Twinblades: [0.497042, 0.501018), and 0.5 sits inside it for the Raider
+#: as for the Wylder -- so no Raider factor here. Pairs: [0.773656,
+#: 0.773665), **nine millionths wide**, pinned between Caestus above and
+#: Hookclaws below. The round reading, 0.75 x 1.03 = 0.7725, is outside it:
+#: it shows Hookclaws at 61 where the game shows 62. The figure below is the
+#: one that reproduces all five cells on this program's arithmetic; the
+#: window is narrow enough that a change to the one-handed figure upstream
+#: (`GAME_ATTACK_POWER_RATE`, bracketing) or a sixth pair can move it -- if
+#: one empties the interval, the flat-factor shape is wrong for pairs, not
+#: the digit. Not measured: the Raider on a pair, the Starscourge Greatsword
+#: (the one pair that is not a fist, a claw or the Ornamental).
+TWINBLADE_TWO_HANDED_RATE = 0.5
+PAIRED_TWO_HANDED_RATE = 0.77366
+
+#: `wep_type` of the twinblades, which the game keeps as one armament
+#: (`isDualBlade` 0 on all 35) and two-hands at half the figure.
+TWINBLADE_TYPE = 14
+#: The key `nrdata.extract` writes `EquipParamWeapon.isDualBlade` under.
+PAIRED_KEY = "paired"
 
 #: `wep_type` of the one armament that is melee and cannot be two-handed.
 UNARMED_TYPE = 33
@@ -193,8 +229,17 @@ def can_two_hand(weapon: dict) -> bool:
             and weapon.get("wep_type") != UNARMED_TYPE)
 
 
-def two_handed_calibration(nightfarer: str) -> Calibration:
-    """The two-handing factor for this Nightfarer, with its sentence."""
+def two_handed_calibration(weapon: dict, nightfarer: str) -> Calibration:
+    """The two-handing factor for this armament in this Nightfarer's hands.
+
+    The armament's shape comes first: a twinblade or a pair has its own
+    figure whoever holds it (QA-276), and only a single armament asks who
+    the Nightfarer is.
+    """
+    if weapon.get("wep_type") == TWINBLADE_TYPE:
+        return Calibration(TWINBLADE_TWO_HANDED_RATE, "two-handing a twinblade")
+    if weapon.get(PAIRED_KEY):
+        return Calibration(PAIRED_TWO_HANDED_RATE, "two-handing a pair")
     if nightfarer == RAIDER:
         return Calibration(RAIDER_TWO_HANDED_RATE, "Raider two-handing")
     return Calibration(TWO_HANDED_RATE, "two-handing")
@@ -586,7 +631,7 @@ def _rate_pair(weapon: dict, attributes: dict[str, int], data: dict,
                                 calibration, per_damage, None)
     two_handed = None
     if can_two_hand(weapon):
-        hand = two_handed_calibration(nightfarer)
+        hand = two_handed_calibration(weapon, nightfarer)
         two_handed = _finish_rating(weapon, applied, catalyst_scaling,
                                     calibration, per_damage, hand)
     return one_handed, two_handed

@@ -272,9 +272,15 @@ Copy-Item "C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug" `
 
 **Wann er nicht mehr gilt** — und das gehoert in jeden Auftrag, der ihn
 benutzt: der Abzug wird ungueltig, sobald das **Spiel gepatcht** wird
-(`regulation.bin` aendert sich) oder `EXTRACT_VERSION` **ueber 11** steigt.
+(`regulation.bin` aendert sich) oder `EXTRACT_VERSION` **ueber 12** steigt.
 Dann baut das Programm ihn ohnehin neu; der erste Lauf, dem das passiert,
 **ersetzt die Vorlage** und vermerkt es hier.
+
+*Ersetzt am 15.09.2026 (T-269a, developer):* `EXTRACT_VERSION` 12 fuegt
+`weapons[].paired` hinzu (QA-276). Nur `nightreign_data.json` neu geschrieben
+(8 522 218 B, Extraktor aus 1.12.1, 39,6 s); die 840 Symboldateien haengen
+nicht an der Version und blieben. Stand der Vorlage: 841 Dateien,
+20 849 867 B, Ort wie in `CLAUDE.md` (`...\Desktop\ClaudeCode\NightreignHelper-Testabzug`).
 
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
