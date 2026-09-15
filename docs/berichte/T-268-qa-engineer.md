@@ -102,3 +102,67 @@ Klick-Helfer). Wichtige Lektion darin bereits verankert: ohne
 `SetProcessDpiAwarenessContext` vor `SetCursorPos` landen Klicks bei 125%
 Skalierung neben kleinen Zielen (den 16×18-px-Markierungspunkten) und
 scheitern lautlos (kein Fehler, nur Wirkungslosigkeit).
+
+## Fortsetzung (15.09.2026): A6-Wandzeit, Hauptthread-Sonde, Slot-Frage
+
+STATUS: erledigt. Neue Instanz (Director hatte die stehen gelassene T-268-Instanz
+beendet, `tasklist` vor dem Start leer), eigene Umlenkung
+`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-268b`, `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`
+im Scratchpad, Testabzug frisch hineinkopiert (841 Dateien, 20 812 293 B, Hash
+gegen die Vorlage geprueft), eingefrorene Savekopie (SHA-256 `f4940e4b…3540`,
+identisch mit T-265d, 319 Relikte) hineinkopiert. Artefakt erneut lokal
+nachgerechnet: `f29eb92d88ed14416a488f32f7ab655bf27fec77e2be74105782d0980904cf1b`
+— stimmt mit dem Auftrag.
+
+**Szenario S11-A** (wie T-265d/T-267b): Wylder, `Wylder's Chalice` (Rot 53 /
+Gelb 55 / Weiss 212-213 verfuegbar + Deep Rot 22 / Blau 33 / Gruen 22), Deep of
+Night an, Stufe 15, sechs leere Slots (`Reset Chalice` vor jedem Aufbau, dann
+Kelch neu waehlen und Deep erneut anhaken — `Reset Chalice` wirft Deep und
+Kelch auf den Ausgangszustand zurueck), `Maximise damage`, Umschalter 1H,
+keine Markierung. Fensterlage einmalig auf `0,37` verschoben (die
+Ausgangsposition lag teilweise ausserhalb des 4096×1728-Bildschirms und
+machte einen Teil der Slot-Knoepfe unklickbar — reines Testartefakt der
+mitgebrachten Fensterposition, kein Programmfehler).
+
+**A6, `Optimize` Invoke bis Antwort sichtbar** (UIA `InvokePattern.Invoke`,
+Cache vor jedem der n=5 Laeufe per `Rescan save` geleert, Wartezeit auf `You own
+319 relics in total.` vor dem naechsten Lauf): 1317 / 1330 / 1358 / 1363 / 1406 ms,
+**Median 1358 ms**. Vorher T-265d 1809 ms → **-25 %**, Zielwert ≤ 1300 ms
+**knapp verfehlt** (+58 ms). Passt zur Quellstand-Zahl aus dem T-268a-Commit
+(`0f1ea0f`, headless S12 1291,9 ms) — der Post-Beam-Anteil (UIA-Latenz,
+`WAIT_VISIBLE_MS`) macht auch nach dem Fix noch rund 60-80 ms des
+Restabstands aus.
+
+**Hauptthread-Blockade-Sonde waehrend `Optimize`** (`SendMessageTimeout`
+mit `WM_NULL`, `SMTO_ABORTIFHUNG`, Kadenz durch die Laufzeit der Probe selbst
+bestimmt, ~15-16 ms typischer Takt, alle drei Umlaeufe zusaetzlich ein
+Antwort-Text-Check): ueber die 5 Laeufe 87-93 Probes je Lauf, **0 von ~450
+Umlaeufen ≥ 50 ms**, maximaler Einzelwert 6,8 ms. Der einzelne T-265d-Ausreisser
+(62,1 ms, erster Kaltlauf nach Programmstart) trat in keinem der 5 Laeufe auf.
+
+**Slot-Frage, weisser Slot 3 (212-213 Kandidaten), Dialog sichtbar** (Klick auf
+den Slot-Knopf, Kelch/Deep vor jedem Lauf per `Reset Chalice` + Neuaufbau
+zurueckgesetzt, damit der Slot wieder leer ist; Fund per UIA-Fensterelement
+als Nachfahre des Hauptfensters, `WindowPattern.Close()` nach jeder Messung):
+1585 / 1624 / 1627 / 1643 / 1663 ms, **Median 1627 ms**. Vorher T-265d 1747 ms
+→ **-7 %**, weiterhin weit ueber dem 500-ms-Budget aus S11. QA-258 bleibt fuer
+den Kartenbau selbst bestehen — der T-260-Fix (`e164a25`) wirkt auf die
+Bewertungsschicht, nicht auf den hier gemessenen Anteil.
+
+**Randbeobachtung (kein Befund):** Relikt-Slot-Knoepfe (`QPushButton`,
+`relicslots.py:311`) reagieren auf einen simulierten `mouse_event`-Linksklick
+zuverlaessig erst, wenn `SetCursorPos` unmittelbar vor dem Klick aufgerufen
+wird und der UIA-Baum unmittelbar davor neu abgefragt wird — ein
+zwischengespeichertes `BoundingRectangle` aus einem vorherigen Dump traf das
+falsche Element (Layoutzeilen verschieben sich bei jedem Optimize-Suchvorschlag
+um bis zu 300 px, weil vorgeschlagene Relikte als Button mit Effektliste an
+derselben Stelle wie der leere Slot-Knopf erscheinen). Reines Testskript-Risiko,
+kein Programmverhalten.
+
+**qa/findings.md:** vier Zeilen angehaengt — QA-258 (Nachtrag mit den A6-Zahlen
+oben, Status weiterhin `teilweise`), QA-273 (`behoben -- Retest bestanden`),
+QA-274 und QA-275 (beide `behoben -- Retest T-268 bestanden`, AK-297/298 laut
+Hauptteil dieses Berichts bestaetigt). Kein Commit.
+
+**Aufraeumen:** eigene Prozesse (`NightreignHelper.exe` PID 32268/35616,
+gestartet aus diesem Lauf) am Ende beendet, `tasklist` danach leer.
