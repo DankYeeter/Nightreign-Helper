@@ -411,3 +411,23 @@ Revenant Hookclaws 59 → 46. Nutzer: Paarwaffen zaehlen zweihaendig als zwei
 Waffen; der Schadens-Split je Typ soll wie in Elden Ring aus den Daten
 kommen. AN-5 geaendert: Weapons-Tab zeigt auch die Typzeilen beidhaendig;
 AN-6 bestaetigt (leere Builds speichern keine Hand).*
+
+### A21 — Effektfilter als eigenes Fenster (Nutzer, 15.09.2026 12:25)
+
+**Woertlich:** *"mir gefaellt nicht wie es eingebunden ist. liefer ein Filter
+Symbol und darin dann Favourite und Avoid marker. eine liste nur von
+effekten die ich habe. nicht gruppiert pro relikt oder so. curses ebenfalls"*
+
+- In der Berater-Leiste ein **Filter-Symbol**; es oeffnet ein Fenster mit
+  **einer flachen Liste aller Effekte und Fluechte, die der Spieler
+  besitzt** (je Effekt eine Zeile, nicht je Relikt), jede Zeile mit zwei
+  Markern **Favourite** (= Must include, A19) und **Avoid** (= Don't
+  include, A18). Suchfeld, Zaehler, Persistenz wie A18/A19.
+- Die Begriffe im Programm heissen ab jetzt **Favourite** und **Avoid**
+  (Legende, Tooltips, Why-Zeilen, Leiste).
+- Nachweis: power-user findet und benutzt beide Marker ohne Hilfe; QA: die
+  Liste zaehlt genau die Effekt-/Fluch-Ids der 31x eigenen Kopien.
+
+*Annahme AN-9 (Director): die Punkte an den Effektzeilen im Picker und im
+Why-Dialog bleiben als Zweitweg mit denselben Begriffen — Alternative: sie
+entfallen, das Fenster ist der einzige Weg.*
