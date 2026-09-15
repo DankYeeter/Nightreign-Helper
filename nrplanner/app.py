@@ -997,10 +997,31 @@ class Planner(QMainWindow):
         override: a caller that resized the window first keeps its width, and
         showing the window again later -- after a minimise, say -- finds the
         attribute set and leaves the player's own size alone.
+
+        The position is re-read after the resize (QA-175). Windows placed the
+        window for the small default size it was created with, and the size
+        set here is then laid over that spot: at 2560x1600 and 150 % the
+        frame ran 266 px past the right edge and 101 px past the bottom.
         """
         if not self.testAttribute(Qt.WA_Resized):
             self.resize(self._opening_width(), OPENING_HEIGHT)
+            self._move_onto_the_screen()
         super().showEvent(event)
+
+    def _move_onto_the_screen(self) -> None:
+        """Push the frame inside the desktop; the top-left corner wins.
+
+        Right and bottom are pushed in first, left and top afterwards, so a
+        window the desktop cannot hold whole keeps its title bar and its
+        left-hand column on screen rather than its far edges.
+        """
+        room = self.screen().availableGeometry()
+        frame = self.frameGeometry()
+        frame.moveRight(min(frame.right(), room.right()))
+        frame.moveBottom(min(frame.bottom(), room.bottom()))
+        frame.moveLeft(max(frame.left(), room.left()))
+        frame.moveTop(max(frame.top(), room.top()))
+        self.move(frame.topLeft())
 
     def the_advisor_data_is_changing(self) -> None:
         """Both advisor tracks, from one place (AD-028 point 6).
