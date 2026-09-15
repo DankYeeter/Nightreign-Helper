@@ -88,7 +88,8 @@ def _effects(ctx: types.GoalContext,
 
 def evaluate(problem: types.SlotProblem,
              assignment: tuple[types.Candidate, ...],
-             ctx: types.GoalContext) -> model.Build:
+             ctx: types.GoalContext,
+             want_qualitative: bool = True) -> model.Build:
     """The build that results from holding `problem` and choosing `assignment`.
 
     `assignment` may only name free slots. A candidate for a held slot is
@@ -100,6 +101,9 @@ def evaluate(problem: types.SlotProblem,
 
     The empty assignment is the base state: `evaluate(problem, (), ctx)` is
     what a marginal contribution is measured against (AD-014.6, AD-018.1).
+
+    `want_qualitative` goes to `model.compute` as is; only the beam's scorer
+    passes `False` (`search.goal_scorer`, T-267).
     """
     free = {slot.index for slot in types.free_slots(problem)}
     seen: set[int] = set()
@@ -124,4 +128,5 @@ def evaluate(problem: types.SlotProblem,
         weapon=reference.weapon if reference is not None else None,
         weapons_held=list(ctx.weapons_held),
         declared=dict(ctx.declared),
+        want_qualitative=want_qualitative,
     )

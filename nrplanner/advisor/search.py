@@ -106,9 +106,15 @@ def goal_scorer(problem: types.SlotProblem, ctx: types.GoalContext,
     The goal arrives as an object rather than as an id, so nothing here
     imports the registry -- the same reason `candidates.py` gives for taking
     its goals as a parameter (AD-004).
+
+    Without the prose: a goal reads the build's numbers, never
+    `Build.qualitative` or `situational`, and the beam asks thousands of
+    times per run (T-267). `run.run` evaluates the explained suggestions
+    again with the prose, so every text the window shows is still built.
     """
     def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
-        return goal.score(evaluate(problem, assignment, ctx), ctx)
+        return goal.score(evaluate(problem, assignment, ctx,
+                                   want_qualitative=False), ctx)
 
     return Scorer(goal_id=goal.id, score=score)
 

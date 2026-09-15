@@ -292,6 +292,48 @@ def test_every_suggestion_carries_its_reasons_and_not_only_the_first(
             f"{len(suggestion.choices)} filled slots")
 
 
+def test_the_beam_builds_no_prose_and_every_explained_suggestion_does(
+        monkeypatch, game_data, wylder):
+    """The text of a build is written once per build somebody reads (T-267).
+
+    The beam evaluates thousands of assignments and reads a score off each;
+    the window reads `Build.qualitative`/`situational` off the base state and
+    the explained suggestions only. A beam that builds prose is the whole
+    regression T-265d measured; an explained suggestion without it is a card
+    with an empty Conditional line. The question carries no curse, so no
+    second evaluation per suggestion (`explain._unfelt`) is in the count.
+    """
+    from nrplanner import model
+
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
+    prose_calls = 0
+    real_qualitative = model.compute_qualitative
+    real_beam = search.beam
+    around_the_beam: list[int] = []
+
+    def counting(*args, **kwargs):
+        nonlocal prose_calls
+        prose_calls += 1
+        return real_qualitative(*args, **kwargs)
+
+    def watched_beam(*args, **kwargs):
+        around_the_beam.append(prose_calls)
+        found = real_beam(*args, **kwargs)
+        around_the_beam.append(prose_calls)
+        return found
+
+    monkeypatch.setattr(model, "compute_qualitative", counting)
+    monkeypatch.setattr(search, "beam", watched_beam)
+    result = run.run(request, inventory, ctx, goals.GOALS)
+
+    assert result.suggestions
+    before, after = around_the_beam
+    assert after == before, f"the beam built prose {after - before} times"
+    assert prose_calls - after == 1 + len(result.suggestions), (
+        "after the beam, prose is built once for the base state and once "
+        "per explained suggestion, nothing more and nothing less")
+
+
 def test_the_singular_fields_belong_to_the_best_suggestion(game_data, wylder):
     """`Apply all` applies the first, so the curses named are the first's.
 

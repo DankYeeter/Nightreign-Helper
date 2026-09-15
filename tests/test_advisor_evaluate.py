@@ -477,6 +477,29 @@ def test_a_declared_conditional_reaches_the_build(game_data):
     assert declared.attributes != silent.attributes
 
 
+def test_without_the_prose_every_number_is_the_same_bit_for_bit(game_data):
+    """`want_qualitative=False` may drop the two text lists and nothing else.
+
+    The beam scores through this switch (T-267), so a number it moved would
+    be a ranking the window's stat sheet -- computed with the prose -- could
+    not reproduce. Compared on a build that does carry prose, or an empty
+    list on both sides would prove the switch was never reached.
+    """
+    hero = cases.hero_by_name(game_data, "Wylder")
+    declarable = advisor.a_declarable_effect(game_data, hero)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, hero, armament_effect_ids=(declarable,))
+
+    told = evaluate(problem, (), ctx)
+    silent = evaluate(problem, (), ctx, want_qualitative=False)
+
+    assert told.qualitative and told.situational, (
+        "the build carries no prose, so the comparison would see nothing")
+    assert silent.qualitative == [] and silent.situational == []
+    assert dataclasses.replace(silent, qualitative=told.qualitative,
+                               situational=told.situational) == told
+
+
 def test_an_effect_this_dataset_does_not_know_is_skipped(game_data):
     """The window skips it too, and agreeing with the window is the point.
 

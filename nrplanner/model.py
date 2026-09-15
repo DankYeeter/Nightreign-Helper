@@ -925,7 +925,8 @@ def _exclusive_text(kept: dict, dropped: dict, copies: int) -> str:
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
             weapons_held: list[dict] | None = None,
-            declared: dict[int, int] | None = None) -> Build:
+            declared: dict[int, int] | None = None,
+            want_qualitative: bool = True) -> Build:
     """Combine the level's base attributes with every selected effect.
 
     `weapon` is the reference weapon shown in the Weapon damage block. It is
@@ -943,6 +944,11 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     is met right now. A gated effect is otherwise left out of every total,
     because the sheet has no way to know. Declaring one counts it exactly as
     though that many copies were equipped.
+
+    `want_qualitative=False` leaves `qualitative` and `situational` empty and
+    changes nothing else. The advisor's beam scores thousands of builds and
+    reads only their numbers; building the prose for each was most of its
+    time once the window stopped passing a reference armament (T-267).
 
     Raises RuntimeError until configure() has been given the game data.
     """
@@ -1199,7 +1205,8 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     if curves:
         compute_derived(curves, build)
     compute_resistances(build, counted)
-    compute_qualitative(build, counted, hero, wep_type, live, dead=dead)
+    if want_qualitative:
+        compute_qualitative(build, counted, hero, wep_type, live, dead=dead)
 
     return build
 
