@@ -690,10 +690,18 @@ Stated plainly rather than hidden:
   with no relics equipped, because no attribute-based rule in the game's own
   formula fits all six: Duchess 72→74, Wylder 122→125, Guardian 107→110,
   Wylder's Great Stars 147→151, the Raider's Greataxe 158→180 and the
-  Raider's Great Stars 188→216. Ironeye, Revenant, Recluse, Executor,
-  Scholar and Undertaker are shown at the non-Raider **x1.03** until a
-  reading of their own confirms or corrects it — six of the ten Nightfarers
-  on an extrapolated number rather than a measured one.
+  Raider's Great Stars 188→216; Executor 94→97, Scholar 63→64 and
+  Undertaker 91→93 confirmed the x1.03 a day later. **Twinblades and paired
+  armaments follow a rule of their own** instead of those factors, whoever
+  holds them: a twinblade two-handed shows **half** its one-handed figure
+  (108→54, and 99→49 for the Raider), and a pair — every fist and claw, the
+  Ornamental Straight Sword, the Starscourge Greatsword, as the game's own
+  `isDualBlade` flag marks them — shows **x0.77366** of it, read off five
+  measurements (93→71, 80→62, 161→124, 88→68, 59→46). That last factor is
+  pinned to a window nine millionths wide; the round reading 0.75 x 1.03
+  misses one of the five by a point. The Raider on a pair and the
+  Starscourge Greatsword are unmeasured. A bow, a staff or a seal shows no
+  second figure at all.
 - **Staves and seals carry a different number, and it is the game's.** Where
   the game shows an armament's attack power it shows a catalyst's spell
   scaling, so that is what this tool shows and ranks a staff or a seal by;
