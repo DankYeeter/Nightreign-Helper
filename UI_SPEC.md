@@ -5071,3 +5071,110 @@ einen Eintrags einen Verweis auf den anderen.
 
 ---
 
+### Nachtrag T-267a (ui-ux-designer, 2026-09-15) — QA-274/QA-275, A11-Befunde aus dem power-user-Lauf 1.12.0 (`docs/berichte/T-265-power-user.md`)
+
+*Kein Fensterlauf noetig (Auftrag): die Instanz lief beim `performance-tuner`,
+beide Punkte sind am Quelltext gepruefte Luecken in bestehenden Kriterien
+(AK-277, AK-292/293), keine neue Flaeche.*
+
+#### AK-297 — sichtbare Legende statt reiner Tooltip, dritte Markierungsstufe auffindbar
+
+**AK-297** *(QA-274 — die dritte Markierungsstufe war nicht auffindbar, weil
+AK-277s Erklaerung ausschliesslich im Tooltip stand und die Why-Dialog-Legende
+(`advisorblock.MARK_LEGEND`) nur erscheint, wenn bereits etwas markiert ist —
+ein Henne-Ei-Fehler: wer die Legende braucht, um zum ersten Mal zu markieren,
+sieht sie noch nicht. Der vom power-user gefundene „Rechtsklick mit zwei
+Eintraegen" ist ein unabhaengiges Favouriten-Menue (`RelicCard.contextMenuEvent`,
+`relicpicker.py`) und traegt nichts zur Markierung bei — Verwechslung, kein
+zweiter Bedienweg.)*
+
+Kleinster Eingriff: eine bestehende Zeile bekommt einen vollstaendigeren Satz
+und verliert ihre Sichtbarkeitsbedingung, keine neue Flaeche, kein zweites
+Bedienelement je Effektzeile.
+
+1. **Picker** (`relicpicker.py`, die `sorting`-Reihe zwischen Filterfeld und
+   Kartenraster, hinter `sorting.addStretch()`): ein `_plain`-Label, `MUTED`,
+   `SMALL_TEXT`, rechtsbuendig, **immer sichtbar**. Die Zeile liegt ausserhalb
+   des Kartenrasters — `CARD_WIDTH_FLOOR = 208` (AK-73) bleibt unberuehrt.
+2. **Why-Dialog** (`advisorblock.py`, `mark_legend`): dieselbe Zeile, aber
+   `self.mark_legend.setVisible(bool(self._filters.excluded or
+   self._filters.required))` entfaellt ersatzlos — die Legende ist immer da,
+   aus demselben Grund wie im Picker.
+3. **Ein Wortlaut fuer beide Orte**, ersetzt `MARK_LEGEND` (das bisher nur
+   erklaerte, was `▲` und Durchstreichung bedeuten, nie aber, dass und wie
+   geklickt wird):
+
+   > `"Click an effect's bullet to exclude it, click again to require it
+   > (▲), and once more to clear it."`
+
+   A12-Probe: beschreibt exakt `NEXT_MARK` (`None → EXCLUDED → REQUIRED →
+   None`), keine vierte Stufe behauptet. A8: Englisch, deckt sich mit dem
+   Wortschatz von `MARK_TOOLTIPS` (kein zweiter Name fuer denselben Zustand).
+
+**Nicht gewaehlt, mit Begruendung** (die beiden anderen im Auftrag genannten
+Optionen):
+- *Zwei getrennte Knoepfe* statt eines zyklischen Buttons: verdoppelt die
+  Bedienelementbreite auf jeder Effektzeile einer 208-px-Karte, die schon
+  mehrzeilig knapp ist (AK-73/AK-196) — der teuerste Vorschlag fuer den
+  kleinsten Gewinn.
+- *Beschriftung am Punkt bei Hover/Fokus*: loest das Grundproblem nicht — wer
+  nicht weiss, dass am Punkt etwas passiert, hovert nicht darueber. Genau das
+  leistet der bestehende Tooltip schon, und der wurde vom power-user nicht
+  gefunden.
+
+**Akzeptanzkriterien:**
+- Die Legendenzeile ist im Picker sichtbar, sobald der Dialog offen ist,
+  unabhaengig davon, ob ein Effekt markiert ist.
+- Die Legendenzeile im Why-Dialog ist sichtbar, sobald der Dialog offen ist,
+  unabhaengig davon, ob ein Effekt markiert ist.
+- Beide zeigen wortgleichen Text.
+- Kein Kartenlayout (Picker-Raster, `CARD_WIDTH_FLOOR`) veraendert sich
+  messbar durch die neue Zeile — Pruefweg wie AK-277 (`RelicCard`-Messung
+  vor/nach).
+
+#### AK-298 — die gewaehlte Hand ist auf Kachel, Werteblatt, Arsenal hervorgehoben
+
+**AK-298** *(QA-275 — der Umschalter aendert laut AK-293 keine angezeigte
+Zahl, nur, welche der Berater zaehlt; fuer den Laien wirkt das, als taete der
+Schalter nichts.)* AK-286/AK-293 gelten unveraendert (**keine** Zahl
+verschwindet, keine wird neu berechnet) — ergaenzt wird ausschliesslich die
+Betonung:
+
+An jeder der drei Flaechen, die `damage.displayed_hands`/
+`Rating.displayed_hands` zeichnen — Waffenkachel (`weaponslots.py`),
+Werteblatt-AR-Zeilen (`statsheet.py`), Arsenal-Kachel (`arsenaltab.py`) —
+steht die Haelfte des Werts, die der aktuellen Stellung des Schalters
+(AK-292) entspricht, in der Betonung, die die Flaeche fuer ihre wichtigste
+Zahl ohnehin schon fuehrt (fett/`ACCENT`, dieselbe, die heute den ganzen
+String `147 / 151 2H` traegt); die andere Haelfte wechselt auf `MUTED`,
+ungefettet. Bei `1H` ist `147` betont und `151` `MUTED`, bei `2H` umgekehrt.
+Wo keine Zweihandform existiert (AK-288, ein einzelner Wert), aendert sich
+nichts — es gibt nichts zu verteilen. Betonung ueber Fettung **und** Farbe
+zugleich, nicht Farbe allein — dieselbe Zwei-Kanal-Regel, die AK-277 fuer
+`Don't include`/`Must include` schon einhaelt.
+
+**Tooltip-Nachtrag** (`statsheet.py`, `HAND_TOOLTIP`, ein eingefuegter
+Halbsatz, sonst wortgleich):
+
+> `"Ranks the build's attack power one-handed or two-handed — Optimize and
+> effects that only read while two-handing follow this switch, and the
+> figure it uses is the one highlighted on every tile, sheet and arsenal
+> row. Armaments that cannot be two-handed keep their one-handed figure
+> either way. Saved with this build."`
+
+**Akzeptanzkriterien:**
+- Beim Umlegen des Schalters wechselt an allen drei Flaechen sichtbar (ohne
+  Neuaufbau/Schliessen der Karte) die betonte Haelfte, fuer jede Waffe, die
+  zweihaendig fuehrbar ist.
+- Fuer eine Waffe ohne Zweihandform bleibt die Darstellung unveraendert (kein
+  erfundener Kontrast, A12).
+- `HandSwitch.setToolTip` traegt den neuen Satz.
+- Kein bestehender Zahlenwert aus AK-286/AK-293 aendert sich durch diese
+  Vorgabe.
+
+*Explizit nicht Teil dieser Vorgabe:* ob `damage.displayed_hands` selbst die
+Markup-Aufteilung uebernimmt oder jeder der drei Aufrufer sie separat baut,
+ist Bausache, keine Designentscheidung.
+
+---
+
