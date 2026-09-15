@@ -29,8 +29,10 @@ the name is drawn at all.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint
-from PySide6.QtWidgets import QGridLayout, QTabWidget
+import pytest
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QGridLayout, QTabWidget, QToolButton
 
 from tests import rendered, tabtext
 
@@ -274,3 +276,31 @@ def test_the_tiles_fit_the_narrowest_the_sidebar_may_become(game_data, qapp):
                     for tile in tiles)
         assert drawn <= pane.width(), (
             f"the tiles reach {drawn} px in a pane {pane.width()} px wide")
+
+
+@pytest.mark.parametrize("key", [Qt.Key_Return, Qt.Key_Enter])
+def test_enter_on_a_focused_tile_chooses_it_like_space_does(
+        game_data, qapp, key):
+    """AK-312 (QA-280). Enter is not a no-op on a tile the keyboard reached.
+
+    `QAbstractButton` answers to Space and nothing else; a player who tabbed
+    to a portrait and pressed Enter saw nothing happen. Enter and Space are
+    sent to two tiles in turn, and the second press has to leave the window
+    in the state the first one would have: same tile checked, same Nightfarer
+    current, same tool button type for a screen reader.
+    """
+    with rendered.laid_out(game_data, "effects_tab", 1250) as (window, _):
+        by_space, by_enter = window.hero_tiles[2], window.hero_tiles[4]
+        QTest.keyClick(by_space, Qt.Key_Space)
+        rendered.settle()
+        assert window.current_hero() is by_space.hero
+        assert by_space.isChecked()
+
+        by_enter.setFocus()
+        QTest.keyClick(by_enter, key)
+        rendered.settle()
+        assert window.current_hero() is by_enter.hero, (
+            f"Enter on the focused {by_enter.hero['name']} tile left "
+            f"{window.current_hero()['name']} current")
+        assert by_enter.isChecked() and not by_space.isChecked()
+        assert isinstance(by_enter, QToolButton) and by_enter.isCheckable()

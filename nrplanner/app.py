@@ -363,6 +363,14 @@ class HeroTile(QToolButton):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_variants)
 
+    def keyPressEvent(self, event) -> None:
+        # AK-312: Enter selects like Space. QAbstractButton only answers to
+        # Space; a focused tile that stayed silent on Enter read as dead.
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.click()
+            return
+        super().keyPressEvent(event)
+
     def current_pixmap(self):
         if self.variant_id is not None:
             pixmap = self.icons.variant(self.variant_id)
