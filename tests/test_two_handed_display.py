@@ -1,7 +1,8 @@
 """The two-handed figure stands beside the one-handed one -- and only there.
 
-AK-286: where the game offers an armament two-handed, every attack figure on
-screen reads `{1H} / {2H} 2H` under the label it already had; where it does
+AK-286/AK-299: where the game offers an armament two-handed, every attack
+figure on screen reads `{1H} 1H / {2H} 2H` under the label it already had;
+where it does
 not (a bow, a staff), the figure is unchanged -- no `/ -- 2H`, no `n/a`
 (AK-288). Three surfaces show the figure: the weapon tile, the stat sheet's
 panel with its click-through popup, and the arsenal tile. T-255b.
@@ -30,6 +31,7 @@ from tests import weapon_damage_cases as cases
 
 LEVEL = 15
 TIER = 3
+ONE_HANDED = "\u00a01H"
 TWO_HANDED = "\u00a02H"
 QUIET = "<span style='color:#8a8a8a; font-weight:normal'>"
 BOLD = 700
@@ -43,17 +45,25 @@ def test_a_lone_figure_is_the_truncated_number_and_nothing_else():
 
 def test_both_hands_join_with_no_break_spaces():
     assert tabtext.unmarked(damage.displayed_hands(147.9, 151.2)) == (
-        "147\u00a0/\u00a0151\u00a02H")
+        "147\u00a01H\u00a0/\u00a0151\u00a02H")
 
 
 def test_the_other_hand_is_the_quiet_one():
     """AK-298: the `/` goes with the quiet half, the `2H` with its figure."""
     assert damage.displayed_hands(147.9, 151.2) == (
-        f"147{QUIET}\u00a0/\u00a0151\u00a02H</span>")
+        f"147\u00a01H{QUIET}\u00a0/\u00a0151\u00a02H</span>")
     assert damage.displayed_hands(147.9, 151.2, True) == (
-        f"{QUIET}147\u00a0/</span>\u00a0151\u00a02H")
+        f"{QUIET}147\u00a01H\u00a0/</span>\u00a0151\u00a02H")
     assert damage.MUTED == weaponslots.MUTED == statsheet.MUTED \
         == arsenaltab.MUTED
+
+
+def test_the_one_handed_mark_is_the_switch_s_own_spelling():
+    """AK-299: `ONE_HANDED_MARK` is `HAND_CAPTIONS`' `1H`, not a second
+    string for the same word (`damage.py`, the constant sits beside
+    `TWO_HANDED_MARK`)."""
+    assert damage.ONE_HANDED_MARK == statsheet.HAND_CAPTIONS[0] == "1H"
+    assert damage.TWO_HANDED_MARK == statsheet.HAND_CAPTIONS[1] == "2H"
 
 
 def fragments(markup: str) -> list[tuple[str, int, str]]:
@@ -105,7 +115,7 @@ def test_the_rating_reads_the_same_figure_off_both_hands(game_data, build,
     assert rating.two_handed is not None
     assert tabtext.unmarked(rating.displayed_hands(
         lambda r: r.final_headline)) == (
-        f"{damage.displayed(rating.final_headline)}\u00a0/\u00a0"
+        f"{damage.displayed(rating.final_headline)}\u00a01H\u00a0/\u00a0"
         f"{damage.displayed(rating.two_handed.final_headline)}\u00a02H")
 
 
@@ -166,10 +176,10 @@ def test_the_tile_bolds_and_colours_the_chosen_hand_only(game_data, build,
         return runs[first:first + 2]
 
     assert figure_runs(_tile_detail(greatsword, rating)) == [
-        (f"{one}", BOLD, loud),
+        (f"{one} 1H", BOLD, loud),
         (f" / {two} 2H", NORMAL, quiet)]
     assert figure_runs(_tile_detail(greatsword, rating, True)) == [
-        (f"{one} /", NORMAL, quiet),
+        (f"{one} 1H /", NORMAL, quiet),
         (f" {two} 2H", BOLD, loud)]
 
 
@@ -263,7 +273,7 @@ def test_the_arsenal_tile_quiets_the_hand_the_switch_is_not_on(
     expected = damage.candidate(greatsword, TIER,
                                 shared_planner.current_build(), game_data)
     assert one_handed.startswith(
-        f"{damage.displayed(expected.final_headline)}{QUIET}")
+        f"{damage.displayed(expected.final_headline)}{ONE_HANDED}{QUIET}")
     try:
         shared_planner.stat_sheet.hand_switch.setChecked(True)
         two_handed = _arsenal_headline(tab, greatsword)
@@ -293,7 +303,8 @@ def test_the_arsenal_type_row_quiets_the_hand_the_switch_is_not_on(
     expected = damage.candidate(greatsword, TIER,
                                 shared_planner.current_build(), game_data)
     assert one_handed.startswith(
-        f"{damage.displayed(expected.final_per_type['Physics'])}{QUIET}")
+        f"{damage.displayed(expected.final_per_type['Physics'])}{ONE_HANDED}"
+        f"{QUIET}")
     try:
         shared_planner.stat_sheet.hand_switch.setChecked(True)
         two_handed = _arsenal_row(tab, greatsword, "Physical")
@@ -327,8 +338,8 @@ def test_flipping_the_switch_moves_the_emphasis_without_a_rebuild(
             assert tabtext.unmarked(was) == tabtext.unmarked(now)
             assert was.count(QUIET) == now.count(QUIET) > 0
         final = damage.displayed(sheet.last_ar["final"])
-        assert f"<b>Total {final}{QUIET}" in before[2]
-        assert f"<b>Total {QUIET}{final}" in after[2]
+        assert f"<b>Total {final}{ONE_HANDED}{QUIET}" in before[2]
+        assert f"<b>Total {QUIET}{final}{ONE_HANDED}" in after[2]
     finally:
         shared_planner.stat_sheet.hand_switch.setChecked(False)
     assert drawn() == before
@@ -337,11 +348,12 @@ def test_flipping_the_switch_moves_the_emphasis_without_a_rebuild(
 def test_the_switch_s_tooltip_says_where_the_hand_shows():
     """AK-298: the one added half-sentence, otherwise AK-292's text."""
     assert statsheet.HAND_TOOLTIP == (
-        "Ranks the build's attack power one-handed or two-handed — Optimize "
-        "and effects that only read while two-handing follow this switch, "
-        "and the figure it uses is the one highlighted on every tile, sheet "
-        "and arsenal row. Armaments that cannot be two-handed keep their "
-        "one-handed figure either way. Saved with this build.")
+        "Ranks the build's attack power 1H or 2H — Optimize and effects "
+        "that only read while two-handing follow this switch, and the "
+        "figure it uses is the one highlighted and tagged 1H or 2H on "
+        "every tile, sheet and arsenal row. Armaments that cannot be "
+        "two-handed keep their 1H figure either way. Saved with this "
+        "build.")
 
 
 def test_the_two_handing_bucket_is_named_by_its_condition():
