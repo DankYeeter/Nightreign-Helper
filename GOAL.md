@@ -399,3 +399,15 @@ Guardian, Duchess: Startwaffe Lv15, 1H und 2H) liefert der Nutzer.*
 Einhand → Zweihand): Duchess 72 → 74 · Wylder 122 → 125 · Raider 158 → 180 ·
 Guardian 107 → 110. Dazu Great Stars uncommon: Raider 188 → 216, Wylder
 147 → 151.*
+
+*A20-Messzellen II (Nutzer, 15.09.2026 08:58/09:14; Lv15, Startwaffe bzw.
+genannte Waffe uncommon, keine Relikte, Einhand → Zweihand): Ironeye 66 → 66
+(Bogen, kein 2H) · Recluse 135 → 135 (Stab, kein 2H) · Executor 94 → 97 ·
+Revenant Siegel 159 → 159 (kein 2H), Revenant's Cursed Claws auf Wylder
+88 → **68** · Scholar 63 → 64 · Undertaker 91 → 93. **Paarwaffen:** Wylder
+Ornamental Straight Sword 161 → 124 · Wylder Twinblade 108 → 54 · Wylder
+Caestus 93 → 71 · Wylder Hookclaws 80 → 62 · Raider Twinblade 99 → 49 ·
+Revenant Hookclaws 59 → 46. Nutzer: Paarwaffen zaehlen zweihaendig als zwei
+Waffen; der Schadens-Split je Typ soll wie in Elden Ring aus den Daten
+kommen. AN-5 geaendert: Weapons-Tab zeigt auch die Typzeilen beidhaendig;
+AN-6 bestaetigt (leere Builds speichern keine Hand).*
