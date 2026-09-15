@@ -53,6 +53,13 @@ answers. Step W3b needed one, and it took the second condition above --
 `tiles` and `breakdown` were added to the capture, and the values already
 frozen were shown not to move first (36 of 36 unchanged) before the file was
 written.
+
+The third took the second condition too: AK-298 (T-268b) wraps the hand the
+switch is not on in a quiet `<span>` on every surface, so `panel`, `tiles`
+and `breakdown` moved in the 13 two-handable cases and nowhere else;
+`last_ar` was shown identical in 18 of 18 first, and the new markup was
+shown to be the only difference (strip the quiet spans, and the files agree
+byte for byte).
 """
 
 from __future__ import annotations

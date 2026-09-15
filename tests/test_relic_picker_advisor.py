@@ -404,6 +404,29 @@ def test_a_marking_made_on_a_card_stands_after_a_real_restart(planner,
         restarted.deleteLater()
 
 
+def test_the_marking_legend_stands_in_the_picker_before_any_marking(slot):
+    """AK-297: the legend is on screen while nothing is marked, word for
+    word the Why dialog's, and outside the grid -- no card moves for it."""
+    from nrplanner import advisorblock
+
+    filters = slot.window().effect_filters
+    assert not (filters.excluded or filters.required)
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        assert dialog.mark_legend.isVisibleTo(dialog)
+        assert dialog.mark_legend.text() == advisorblock.MARK_LEGEND == (
+            "Click an effect's bullet to exclude it, click again to require "
+            "it (▲), and once more to clear it.")
+        assert dialog.mark_legend.textFormat() == Qt.PlainText
+        assert dialog.mark_legend.alignment() & Qt.AlignRight
+        assert not dialog.scroll.isAncestorOf(dialog.mark_legend)
+        assert relicpicker.card_width() >= relicpicker.CARD_WIDTH_FLOOR
+        assert {card.width() for card in relic_cards(dialog)} == {
+            relicpicker.card_width()}
+    finally:
+        dialog.deleteLater()
+
+
 def test_the_pickers_question_carries_the_marked_sets(slot):
     """AD-036 option C: the picker's problem is the window's with `held`
     replaced, so both sets arrive without the picker knowing them."""

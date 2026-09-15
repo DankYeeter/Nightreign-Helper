@@ -1136,6 +1136,15 @@ class RelicPicker(QDialog):
         self.sort_box.activated.connect(self._sort_chosen)
         sorting.addWidget(self.sort_box)
         sorting.addStretch()
+        # AK-297: how to mark a line, in sight before the first marking --
+        # the tooltip on the bullet only reaches a reader who already knows
+        # the bullet does something. Outside the grid, so no card moves.
+        self.mark_legend = QLabel(advisorblock.MARK_LEGEND)
+        self.mark_legend.setTextFormat(Qt.PlainText)
+        self.mark_legend.setWordWrap(True)
+        self.mark_legend.setAlignment(Qt.AlignRight)
+        self.mark_legend.setStyleSheet(CAPTION_STYLE)
+        sorting.addWidget(self.mark_legend, 1)
         layout.addLayout(sorting)
         # AK-52: between the filter field and the cards, which is where a
         # reader arrives at it after typing what they are looking for.

@@ -65,9 +65,10 @@ HAND_CAPTIONS = ("1H", "2H")
 #: The tooltip of that switch, one text for both states (AK-292).
 HAND_TOOLTIP = ("Ranks the build's attack power one-handed or two-handed — "
                 "Optimize and effects that only read while two-handing "
-                "follow this switch. Armaments that cannot be two-handed "
-                "keep their one-handed figure either way. Saved with this "
-                "build.")
+                "follow this switch, and the figure it uses is the one "
+                "highlighted on every tile, sheet and arsenal row. Armaments "
+                "that cannot be two-handed keep their one-handed figure "
+                "either way. Saved with this build.")
 
 
 class HandSwitch(QToolButton):
@@ -422,13 +423,14 @@ class StatSheet(QScrollArea):
         # (AK-286); they stand beside the one-handed figure, not on a row
         # of their own.
         two_handed = ar.get("two_handed", {})
+        two_handing = self.hand_switch.isChecked()
         # What the three figures are, named by the facade: for a staff or a
         # seal they are a spell scaling, and heading them "Attack rating"
         # would be the right numbers under the wrong name (QA-099).
+        shown_base = damage.displayed_hands(base, two_handed.get("base"),
+                                            two_handing)
         rows = [f"<b>{ar['headline']} — {ar['weapon']}</b>",
-                f"&nbsp;&nbsp;Base &nbsp; "
-                f"<b>{damage.displayed_hands(base, two_handed.get('base'))}"
-                f"</b>"]
+                f"&nbsp;&nbsp;Base &nbsp; <b>{shown_base}</b>"]
 
         from_attributes = scaled - base
         if abs(from_attributes) >= VISIBLE_CHANGE:
@@ -485,9 +487,10 @@ class StatSheet(QScrollArea):
 
         delta = final - base
         pct = (delta / base * 100) if base else 0.0
-        rows.append(f"&nbsp;&nbsp;<b>Total "
-                    f"{damage.displayed_hands(final, two_handed.get('final'))}"
-                    f"</b> ({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
+        shown_final = damage.displayed_hands(final, two_handed.get("final"),
+                                             two_handing)
+        rows.append(f"&nbsp;&nbsp;<b>Total {shown_final}</b> "
+                    f"({delta:+.0f}{f', {pct:+.1f}%' if base else ''})")
         return "<br>".join(rows)
 
     def _show_ar_breakdown(self) -> None:
@@ -510,6 +513,9 @@ class StatSheet(QScrollArea):
         tell them apart (AD-020, point 6; QA-056).
         """
         hero = self.planner.current_hero()
+        # The switch's stand goes into every figure that shows both hands
+        # (AK-298); the figures themselves do not move with it (AK-293).
+        two_handing = self.hand_switch.isChecked()
         answers: dict[int, tuple] = {}
         for index, slot in enumerate(self.planner.weapon_slots):
             equipped = None
@@ -519,7 +525,7 @@ class StatSheet(QScrollArea):
                 equipped = answers[index][1]
             self.weapon_tiles[index].show_slot(
                 slot, equipped, active=index == self.planner.active_weapon,
-                effects=self.planner.data["effects"])
+                effects=self.planner.data["effects"], two_handing=two_handing)
 
         slot = self.planner.active_slot()
         if not slot.filled:
@@ -566,9 +572,9 @@ class StatSheet(QScrollArea):
             # Each figure with its two-handed twin where there is one
             # (AK-286); the change between them stays the one-handed one.
             was_shown = bare.displayed_hands(
-                lambda r: r.scaled_per_type.get(damage_type, 0.0))
+                lambda r: r.scaled_per_type.get(damage_type, 0.0), two_handing)
             value_shown = now.displayed_hands(
-                lambda r: r.final_per_type.get(damage_type, 0.0))
+                lambda r: r.final_per_type.get(damage_type, 0.0), two_handing)
             rows.append(
                 f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
                 f"<span style='color:{MUTED}'>{was_shown}</span> "
@@ -587,11 +593,13 @@ class StatSheet(QScrollArea):
         rows.append(
             f"<div style='margin-top:4px'><b>{total_label}</b> "
             f"<span style='color:{MUTED}'>"
-            f"{bare.displayed_hands(lambda r: r.scaled_headline)}</span> "
+            f"{bare.displayed_hands(lambda r: r.scaled_headline, two_handing)}"
+            f"</span> "
             f"<a href='{AR_BREAKDOWN_KEY}' style='color:{colour};"
             f"text-decoration:none'>{change}</a> "
             f"<b style='color:{ACCENT}'>"
-            f"{now.displayed_hands(lambda r: r.final_headline)}</b>"
+            f"{now.displayed_hands(lambda r: r.final_headline, two_handing)}"
+            f"</b>"
             + (f" <span style='color:{colour}'>({pct:+.1f}%)</span>"
                if abs(pct) >= VISIBLE_PERCENT else "") +
             "</div>"

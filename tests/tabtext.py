@@ -44,6 +44,15 @@ def plain(markup: str) -> str:
     return " ".join(text.split())
 
 
+def unmarked(markup: str) -> str:
+    """`markup` with the tags taken out and every character kept.
+
+    For a figure whose no-break spaces are the point (`147 / 151
+    2H`, AK-286): `plain` would fold them into ordinary spaces.
+    """
+    return _TAG.sub("", markup)
+
+
 def labels(widget: QWidget) -> list[str]:
     """Every non-empty label the widget draws, in the order Qt built them.
 
