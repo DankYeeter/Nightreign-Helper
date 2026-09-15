@@ -1901,6 +1901,10 @@ class Planner(QMainWindow):
         try:
             with QSignalBlocker(self.deep_check):
                 self.deep_check.setChecked(False)
+            # The hand is part of the build being forgotten (AK-292), so it
+            # goes back to `1H` with the slots; left on `2H`, the next relic
+            # placed wrote that hand onto the default vessel (QA-272).
+            self._set_two_handed(False)
             # Row 0 is the group caption, which cannot be selected; the first
             # real vessel is whatever follows it.
             for i in range(self.chalice_list.count()):
@@ -2573,6 +2577,11 @@ class Planner(QMainWindow):
             if loadout.deep_used and not self.deep_check.isChecked():
                 with QSignalBlocker(self.deep_check):
                     self.deep_check.setChecked(True)
+            # The save knows no hand, so an imported build is one-handed
+            # (director, T-264). Set before the store below reads the switch:
+            # left as it was, the Nightfarer shown before handed their `2H`
+            # to every build this import wrote (QA-272).
+            self._set_two_handed(False)
             self.apply_chalice()
         finally:
             self._restoring = False

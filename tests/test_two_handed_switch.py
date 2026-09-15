@@ -219,3 +219,49 @@ def test_the_switch_changes_no_figure_the_sheet_shows(game_data, wylder):
     weapon = advisor.scaling_armament(game_data, wylder).weapon
     rating = damage.candidate(weapon, 1, build, game_data)
     assert rating.two_handed.rates and not rating.rates
+
+
+# -- the hand stays with its build (QA-272) ----------------------------------
+#
+# The switch follows the store of the build being opened, never the other way
+# round. The first visit to a Nightfarer imports their chalices out of the
+# save, and the save knows no hand: an imported build is `1H` (director,
+# T-264), whatever the switch showed for the Nightfarer before. Reset Chalice
+# forgets the build, hand included.
+
+def _a_nightfarer_with_a_build_in_the_save(planner, other_than: int) -> int:
+    return next(i for i, hero in enumerate(planner.heroes)
+                if i != other_than and planner.owned.loadouts_for(hero["id"]))
+
+
+def test_the_first_import_of_another_nightfarer_stores_one_handed(planner):
+    first = planner.current_hero()["id"]
+    first_vessel = planner.current_vessel()["id"]
+    planner.stat_sheet.hand_switch.click()
+    assert chalices.load(first, first_vessel)[3] is True
+
+    other = _a_nightfarer_with_a_build_in_the_save(planner, planner.hero_index)
+    planner.select_hero(other)
+    other_id = planner.current_hero()["id"]
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    for entry in planner.owned.loadouts_for(other_id):
+        assert chalices.load(other_id, entry.vessel_id)[3] is False, entry
+
+    planner.select_hero(planner.heroes.index(
+        next(h for h in planner.heroes if h["id"] == first)))
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert chalices.load(first, first_vessel)[3] is True
+
+
+def test_load_equipped_takes_the_save_s_hand_which_is_one(planner):
+    hero = planner.current_hero()["id"]
+    planner.stat_sheet.hand_switch.click()
+    planner.load_equipped()
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert chalices.load(hero, planner.current_vessel()["id"])[3] is False
+
+
+def test_reset_chalice_puts_the_hand_back_to_one(planner):
+    planner.stat_sheet.hand_switch.click()
+    planner.reset_chalice()
+    assert not planner.stat_sheet.hand_switch.isChecked()
