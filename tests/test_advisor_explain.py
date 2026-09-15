@@ -952,7 +952,7 @@ def test_an_excluded_effect_says_so_before_every_other_filling(game_data,
                              built, ctx, goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you excluded it, so it is not counted."
+    assert line.text == f"{name}: you avoided it, so it is not counted."
     assert line.silence == types.SILENT_EXCLUDED
     assert not line.is_curse
     assert name not in explain.not_counted(built)
@@ -977,7 +977,7 @@ def test_an_excluded_curse_is_named_as_excluded_not_as_a_price(game_data,
                              goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you excluded it, so it is not counted."
+    assert line.text == f"{name}: you avoided it, so it is not counted."
     assert line.silence == types.SILENT_EXCLUDED
     assert line.is_curse and types.drawn_in_the_block(line)
 
@@ -2050,7 +2050,7 @@ def test_a_suggestion_from_another_run_is_refused(game_data, wylder,
 def test_a_required_effect_with_no_figure_says_it_always_counts(game_data,
                                                                  wylder,
                                                                  armament):
-    """AK-290.2: a `Must include` effect that moved nothing explains why the
+    """AK-290.2: a `Favourite` effect that moved nothing explains why the
     copy was suggested all the same, before "under a condition" could."""
     waiting = advisor.a_declarable_effect(game_data, wylder)
     problem = dataclasses.replace(advisor.problem([advisor.RED]),
@@ -2064,7 +2064,7 @@ def test_a_required_effect_with_no_figure_says_it_always_counts(game_data,
                              goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you required it, so it always counts."
+    assert line.text == f"{name}: you favourited it, so it always counts."
     assert line.silence == types.SILENT_REQUIRED
     assert line.effect_id == waiting
 

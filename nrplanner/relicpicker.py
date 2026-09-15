@@ -35,8 +35,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import (advisorbar, advisorblock, cardgrid, effectfilters, effecttext,
-               favourites, model)
+from . import advisorbar, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
@@ -92,6 +91,10 @@ SELECTION_BORDER = 2
 #: in the exact styles it gives them. Read again by `card_width`,
 #: which is why they are named here instead of written twice.
 CAPTION_STYLE = f"border: none; color: {MUTED}; font-size: 11px;"
+#: An effect line and a curse line on a card (AK-134): the colour
+#: `RelicSlot._sync_mode` gives a working rolled effect, and `CURSE`.
+EFFECT_LINE_STYLE = "border: none; color: #cfcfcf; font-size: 11px;"
+CURSE_LINE_STYLE = f"border: none; color: {CURSE}; font-size: 11px;"
 VALUE_STYLE = "border: none; font-weight: bold; font-size: 12px;"
 #: The caption and figure `card_width` measures against: the
 #: longest caption paired with the longest figure the survival row can show
@@ -635,15 +638,12 @@ class ValueBlock(QWidget):
 class RelicCard(QFrame):
     """One relic: its icon, name and the effects it actually rolled.
 
-    `effects` are `(id, name)` and `curses` are `(id, name, detail)`: each
-    line is a `MarkedLine` (AK-276), and the control on it is bound to the
-    id, which is why the card is handed ids and not names alone.
+    Effect and curse lines are text (AK-301): a mark on an effect is set and
+    shown in the effect filter window, never on a card.
     """
 
-    def __init__(self, item, effects: list[tuple[int, str]], icon,
-                 selected: bool, on_pick, *,
-                 marks: effectfilters.EffectFilters,
-                 curses: list[tuple[int, str, str]] | None = None,
+    def __init__(self, item, effect_names: list[str], icon, selected: bool,
+                 on_pick, curses: list[tuple[str, str]] | None = None,
                  tooltip: str = "", favourite: bool = False,
                  on_favourite=None, captions=()):
         super().__init__()
@@ -734,16 +734,16 @@ class RelicCard(QFrame):
         self.block = ValueBlock(captions)
         layout.addWidget(self.block)
 
-        self.lines: list[advisorblock.MarkedLine] = []
-        for effect_id, name in effects:
-            self.lines.append(self._line(effect_id, name, marks))
+        self.lines: list[QLabel] = []
+        for name in effect_names:
+            self.lines.append(self._line(f"• {name}", EFFECT_LINE_STYLE))
         # Name the curses outright. "Comes with a curse" tells the player there
         # is a cost but not what it is, which is the one thing they need to
         # know before putting the relic on.
-        for curse_id, curse_name, curse_detail in (curses or []):
-            line = self._line(curse_id, curse_name, marks, is_curse=True)
+        for curse_name, curse_detail in (curses or []):
+            line = self._line(f"✦ {curse_name}", CURSE_LINE_STYLE)
             if curse_detail:
-                line.label.setToolTip(curse_detail)
+                line.setToolTip(curse_detail)
             self.lines.append(line)
         for line in self.lines:
             layout.addWidget(line)
@@ -751,10 +751,8 @@ class RelicCard(QFrame):
         if not curses and item.has_curse:
             count = getattr(item, "curse_count", 0) or 0
             what = f"{count} curses" if count > 1 else "a curse"
-            curse = QLabel(f"✦ comes with {what}")
-            curse.setWordWrap(True)
-            curse.setStyleSheet(f"border: none; color: {CURSE}; font-size: 11px;")
-            layout.addWidget(curse)
+            layout.addWidget(self._line(f"✦ comes with {what}",
+                                        CURSE_LINE_STYLE))
 
         if tooltip:
             self.setToolTip(tooltip)
@@ -762,15 +760,13 @@ class RelicCard(QFrame):
         layout.addStretch()
 
     @staticmethod
-    def _line(effect_id: int, name: str, marks: effectfilters.EffectFilters,
-              *, is_curse: bool = False) -> advisorblock.MarkedLine:
-        """One effect or curse line at the card's small size, with its
-        control. `slot_index` is the line type's, not the card's: a card
-        line belongs to no slot group."""
-        return advisorblock.MarkedLine(
-            advisor_types.ReasonLine(slot_index=0, effect_id=effect_id,
-                                     text=name, is_curse=is_curse),
-            marks, size=advisorblock.SMALL_TEXT)
+    def _line(text: str, style: str) -> QLabel:
+        """One effect or curse line at the card's small size (AK-134)."""
+        label = QLabel(text)
+        label.setTextFormat(Qt.PlainText)
+        label.setWordWrap(True)
+        label.setStyleSheet(style)
+        return label
 
     def show_values(self, texts, chip: str = "") -> None:
         """The figures for this card, and the tie mark if it has earned one.
@@ -1078,9 +1074,7 @@ class RelicPicker(QDialog):
         #: otherwise -- where the cache is dropped whole, exactly where the
         #: rest of this class already starts the opening over. A favourite
         #: toggled through `_open_favourites` drops its one card only: no
-        #: other entry has gone stale, and a card's `MarkedLine` redraws
-        #: itself off the filters' own `changed` signal (`advisorblock.py`)
-        #: whatever refresh built it, so reuse costs no mark here either.
+        #: other entry has gone stale.
         self._card_cache: dict[int, RelicCard] = {}
         #: The cards an answered paint has not built yet, in grid order, and
         #: the zero-length timer that builds the next `CARDS_PER_PAINT` of
@@ -1153,15 +1147,6 @@ class RelicPicker(QDialog):
         self.sort_box.activated.connect(self._sort_chosen)
         sorting.addWidget(self.sort_box)
         sorting.addStretch()
-        # AK-297: how to mark a line, in sight before the first marking --
-        # the tooltip on the bullet only reaches a reader who already knows
-        # the bullet does something. Outside the grid, so no card moves.
-        self.mark_legend = QLabel(advisorblock.MARK_LEGEND)
-        self.mark_legend.setTextFormat(Qt.PlainText)
-        self.mark_legend.setWordWrap(True)
-        self.mark_legend.setAlignment(Qt.AlignRight)
-        self.mark_legend.setStyleSheet(CAPTION_STYLE)
-        sorting.addWidget(self.mark_legend, 1)
         layout.addLayout(sorting)
         # AK-52: between the filter field and the cards, which is where a
         # reader arrives at it after typing what they are looking for.
@@ -1475,15 +1460,15 @@ class RelicPicker(QDialog):
             self._card_cache.pop(id(item), None)
             self._refresh()
 
-    def _curses(self, item) -> list[tuple[int, str, str]]:
-        """(id, name, full description) for each curse this relic rolled."""
+    def _curses(self, item) -> list[tuple[str, str]]:
+        """(name, full description) per curse this relic actually rolled."""
         out = []
         for cid in getattr(item, "curse_ids", ()) or ():
             eff = self.slot.effect_by_id.get(cid)
             if eff is None:
-                out.append((cid, f"<{cid}>", ""))
+                out.append((f"<{cid}>", ""))
             else:
-                out.append((cid, effecttext.name(eff),
+                out.append((effecttext.name(eff),
                             effecttext.describe_full(eff)))
         return out
 
@@ -1492,12 +1477,11 @@ class RelicPicker(QDialog):
         icon = self.icons.item(item.icon) if item.icon else None
         return RelicCard(
             item,
-            list(zip(item.effect_ids, self.slot.effect_names(item))),
+            self.slot.effect_names(item),
             icon,
             selected=current is not None and current.relic_id == item.relic_id
             and current.effect_ids == item.effect_ids,
             on_pick=self._pick,
-            marks=self.slot.window().effect_filters,
             curses=self._curses(item),
             tooltip=self.slot.curse_tooltip(item),
             favourite=self.hero_id is not None

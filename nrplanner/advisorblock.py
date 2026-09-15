@@ -32,14 +32,13 @@ player pressed it and the window is what puts the relic in the slot. The
 button is drawn only where there is something to press it for -- a suggestion
 that is already lying in the slot draws the one line of §3.2 and no control.
 
-**The bullet is the marking control** (AK-276/AK-277). In the `Why` dialog
-and on a picker card -- `MarkedLine`, shared by both -- the `•`/`✦` at the
-head of a line is a flat `QToolButton` that cycles the effect through
-neutral, `Don't include` and `Must include` (`effectfilters`). It is bound
-to the effect **id**: every line about that id, in every open widget,
-redraws from the one `EffectFilters.changed`, so two lines about one effect
-never show two states. The compact block keeps its plain markup; it has no
-room for a control (AK-160/AK-189) and the card's `Why` is one click away.
+**The dialog shows the marks, it does not set them** (AK-301). A line whose
+effect the player favourited or avoided (`effectfilters`) is drawn in that
+state -- `▲` and bold, or struck through -- as a `WhyLine`, a `QLabel` bullet
+beside a `QLabel` text with no control on it: marks are set in the effect
+filter window alone, and the legend says where. The line is bound to the
+effect **id** and redraws from `EffectFilters.changed`, so two lines about
+one effect never show two states. The compact block keeps its plain markup.
 """
 
 from __future__ import annotations
@@ -51,10 +50,9 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
-                               QToolButton, QVBoxLayout, QWidget)
+                               QVBoxLayout, QWidget)
 
 from . import effectfilters, effecttext
-from .pressable import PRESS_KEYS
 from .advisor import goals as advisor_goals
 from .advisor import types
 
@@ -74,33 +72,19 @@ CONDITIONAL_HEADING = ("These effects only apply under a condition, so this "
 #: The bullets, as `RelicSlot._sync_mode` draws them.
 EFFECT_BULLET = "•"
 CURSE_BULLET = "✦"
-#: The bullet of a line the player marked `Must include` (AK-277).
+#: The bullet of a line the player favourited (AK-301).
 REQUIRED_BULLET = "▲"
 
-#: How a line is marked and what the marks mean, once per `Why` dialog and
-#: once in the picker, always on screen (AK-297): the reader who needs it
-#: most has not marked anything yet.
-MARK_LEGEND = ("Click an effect's bullet to exclude it, click again to "
-               "require it (▲), and once more to clear it.")
+#: What the marks mean and where they are set, once per `Why` dialog, always
+#: on screen (AK-301, verbatim from the spec).
+MARK_LEGEND = ("▲ marks an effect you favourited, a struck-through effect one "
+               "you avoided — change these in the effect filter (filter icon "
+               "in the advisor bar).")
 
-#: The headings of the two management lists under the slot groups (AK-279).
-EXCLUDED_HEADING = "Effects you've excluded:"
-REQUIRED_HEADING = "Effects you require:"
-
-#: What the control says about its state and the next one (AK-277), by
-#: `EffectFilters` kind; `None` is neutral.
-MARK_TOOLTIPS = {
-    None: ("Counts toward every suggestion. Click to exclude it, click "
-           "again to require it."),
-    effectfilters.EXCLUDED: ("Don't include — counts in no suggestion or "
-                             "ranking. Click to require it instead."),
-    effectfilters.REQUIRED: ("Must include — every suggestion carries this "
-                             "effect. Click to clear it."),
-}
-#: The cycle a click runs: neutral, excluded, required, neutral.
-NEXT_MARK = {None: effectfilters.EXCLUDED,
-             effectfilters.EXCLUDED: effectfilters.REQUIRED,
-             effectfilters.REQUIRED: None}
+#: The headings of the two read-only lists under the slot groups (AK-279,
+#: wording AK-300).
+EXCLUDED_HEADING = "Effects you've avoided:"
+REQUIRED_HEADING = "Effects you've favourited:"
 
 #: The colour `RelicSlot._sync_mode` gives a working rolled effect. A literal
 #: there and a literal here on purpose: naming it in one place while the other
@@ -116,7 +100,7 @@ SMALL_TEXT = 11
 @dataclass(frozen=True)
 class LineStyle:
     """How one line is drawn: the facts `line_markup` turns into markup and
-    `MarkedLine` into a font and a stylesheet, so the two cannot disagree.
+    `WhyLine` into a font and a stylesheet, so the two cannot disagree.
     `small` is the 11 px of a silent effect (AK-156)."""
 
     bullet: str
@@ -142,10 +126,10 @@ def _styled(line: types.ReasonLine, kind: str | None) -> LineStyle:
       (AK-156);
     * an effect with a figure: `•` in the colour `_sync_mode` gives one.
 
-    The two marked states override all four (AK-277): `Don't include` is
-    exactly the dead-effect style, `Must include` is bold in `ACCENT` under
-    `▲`. The bullet keeps its kind for an excluded curse, so it is still
-    read as a curse.
+    The two marked states override all four (AK-301): `Avoid` is exactly
+    the dead-effect style, `Favourite` is bold in `ACCENT` under `▲`. The
+    bullet keeps its kind for an avoided curse, so it is still read as a
+    curse.
     """
     from .app import ACCENT, BAD, CURSE, MUTED
 
@@ -234,72 +218,30 @@ def _stacked(widgets) -> QWidget:
     return holder
 
 
-class MarkButton(QToolButton):
-    """The bullet as a button Enter presses too (AK-278, DR-025).
+class WhyLine(QWidget):
+    """One drawn line of the `Why` dialog, in the state its effect carries.
 
-    A `QToolButton` answers to Space alone; `pressable.PRESS_KEYS` is the
-    catalogue every pressable thing in this program answers to, and this is
-    the same rule as `PressableFrame.keyPressEvent`.
-    """
-
-    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        if event.key() in PRESS_KEYS:
-            self.click()
-            event.accept()
-            return
-        super().keyPressEvent(event)
-
-
-class MarkedLine(QWidget):
-    """One drawn line whose bullet is the marking control (AK-276/AK-277).
-
-    The `MarkButton` stands where the bullet stood, at the line's own font
-    height, so the line is no taller than a `QLabel` drawing the same text
-    would be; `AutoRaise` and no border, so at rest it *is* the bullet. Tab
-    reaches it, Space or Enter presses it (AK-278); the focus ring is drawn in
-    `ACCENT`, because a stylesheet without a border takes Fusion's own ring
-    with it.
-
-    `size` is the line's font size in px, `0` for the widget default -- the
-    `Why` dialog draws effect lines at the default and a picker card at
-    `SMALL_TEXT`, and the bullet has to match the text beside it.
+    Read-only (AK-301): a `QLabel` bullet beside a `QLabel` text, no tab
+    stop, no click, no tooltip. Plain text and a font, not markup: the text
+    is a name out of the game files (AK-29), and strikethrough and bold are
+    the font's. Redrawn from `EffectFilters.changed`, so a mark set in the
+    filter window while this dialog stands shows here at once.
     """
 
     def __init__(self, line: types.ReasonLine,
-                 filters: effectfilters.EffectFilters, *, size: int = 0,
+                 filters: effectfilters.EffectFilters,
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        from .app import ACCENT
-
         self.line = line
         self._filters = filters
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(4)
-        # Plain text and a font, not markup: the text is a name out of the
-        # game files (AK-29), and a plain label is one px shorter than a
-        # rich one -- the px AK-277 does not allow.
+        self.bullet = _plain()
+        self.bullet.setWordWrap(False)
         self.label = _plain(line.text)
         self._base_font = QFont(self.label.font())
-        if size:
-            self._base_font.setPixelSize(size)
-        self.mark = MarkButton()
-        self.mark.setAutoRaise(True)
-        self.mark.setCursor(Qt.PointingHandCursor)
-        self._mark_css = (f"QToolButton {{ border: none; padding: 0; "
-                          f"margin: 0; background: transparent; color: %s; "
-                          f"}} QToolButton:focus {{ border: 1px solid "
-                          f"{ACCENT}; }}")
-        # The button is one bullet tall and one bullet wide, read off the
-        # label's own metrics, so the line keeps a label's height (AK-277's
-        # measure) and the text loses only the bullet's width.
-        self._set_font(self.label, small=False)
-        self._set_font(self.mark, small=False)
-        metrics = self.label.fontMetrics()
-        self.mark.setFixedSize(metrics.horizontalAdvance(REQUIRED_BULLET) + 4,
-                               metrics.height())
-        self.mark.clicked.connect(self._cycle)
-        row.addWidget(self.mark, 0, Qt.AlignTop)
+        row.addWidget(self.bullet, 0, Qt.AlignTop)
         row.addWidget(self.label, 1)
         filters.changed.connect(self._redraw)
         self._redraw()
@@ -312,29 +254,20 @@ class MarkedLine(QWidget):
             return effectfilters.REQUIRED
         return None
 
-    def _cycle(self) -> None:
-        self._filters.mark(self.line.effect_id, NEXT_MARK[self.kind()])
-
-    def _set_font(self, widget: QWidget, *, small: bool,
-                  struck: bool = False, bold: bool = False) -> None:
-        """The base font of this line with the state's marks on it -- from
-        the base every time, so a state that ends takes its mark with it."""
-        font = QFont(self._base_font)
-        if small:
-            font.setPixelSize(SMALL_TEXT)
-        font.setStrikeOut(struck)
-        font.setBold(bold)
-        widget.setFont(font)
-
     def _redraw(self) -> None:
-        kind = self.kind()
-        style = _styled(self.line, kind)
-        self.mark.setText(style.bullet)
-        self.mark.setStyleSheet(self._mark_css % style.colour)
-        self.mark.setToolTip(MARK_TOOLTIPS[kind])
-        self.label.setStyleSheet(f"border: none; color: {style.colour};")
-        self._set_font(self.label, small=style.small, struck=style.struck,
-                       bold=style.bold)
+        style = _styled(self.line, self.kind())
+        css = f"border: none; color: {style.colour};"
+        self.bullet.setText(style.bullet)
+        self.bullet.setStyleSheet(css)
+        self.label.setStyleSheet(css)
+        # From the base font every time, so a state that ends takes its
+        # mark with it.
+        font = QFont(self._base_font)
+        if style.small:
+            font.setPixelSize(SMALL_TEXT)
+        font.setStrikeOut(style.struck)
+        font.setBold(style.bold)
+        self.label.setFont(font)
 
 
 # --- the block in the slot card --------------------------------------------
@@ -537,7 +470,7 @@ class WhyDialog(QDialog):
         self.head = _plain(head_sentence(heading))
         column.addWidget(self.head)
 
-        self.groups: list[tuple[QLabel, QLabel, list[MarkedLine]]] = []
+        self.groups: list[tuple[QLabel, QLabel, list[WhyLine]]] = []
         for group in _groups_of(result):
             title = _plain(group_heading(group))
             column.addWidget(title)
@@ -546,17 +479,16 @@ class WhyDialog(QDialog):
             column.addWidget(count_line)
             # One holder per group at spacing 0: the lines used to be the
             # `<div>`s of one label, and a column gap between line widgets
-            # would make the dialog taller than that label was (AK-277).
-            lines = [MarkedLine(line, filters) for line in group.lines]
+            # would make the dialog taller than that label was (T-250b).
+            lines = [WhyLine(line, filters) for line in group.lines]
             column.addWidget(_stacked(lines))
             self.groups.append((title, count_line, lines))
 
-        # AK-279: the marking's own two lists, every marked id whether or not
-        # this answer carries it -- the way back from a marking made on a
-        # card long since scrolled away. Rebuilt on every change, because a
-        # click on one of their own lines takes that line out of the list.
-        self.excluded_list = _stacked([])
-        self.required_list = _stacked([])
+        # AK-279/AK-301: the two marked sets, every marked id whether or not
+        # this answer carries it, as a read-only overview -- one plain label
+        # per list, heading and names as one statement, like `conditional`.
+        self.excluded_list = _plain()
+        self.required_list = _plain()
         column.addWidget(self.excluded_list)
         column.addWidget(self.required_list)
 
@@ -595,24 +527,14 @@ class WhyDialog(QDialog):
         outer.addLayout(row)
 
     def _show_the_marked_lists(self) -> None:
-        for holder, heading, ids in (
+        for label, heading, ids in (
                 (self.excluded_list, EXCLUDED_HEADING,
                  self._filters.excluded),
                 (self.required_list, REQUIRED_HEADING,
                  self._filters.required)):
-            layout = holder.layout()
-            while layout.count():
-                gone = layout.takeAt(0).widget()
-                gone.setParent(None)
-                gone.deleteLater()
-            if ids:
-                layout.addWidget(_plain(heading))
-                for effect_id in sorted(ids, key=self._name_of):
-                    layout.addWidget(MarkedLine(
-                        types.ReasonLine(slot_index=0, effect_id=effect_id,
-                                         text=self._name_of(effect_id)),
-                        self._filters))
-            holder.setVisible(bool(ids))
+            names = sorted(self._name_of(effect_id) for effect_id in ids)
+            label.setText("\n".join((heading, *names)))
+            label.setVisible(bool(ids))
 
     def _name_of(self, effect_id: int) -> str:
         """The display name, or the id for one the dataset has lost."""

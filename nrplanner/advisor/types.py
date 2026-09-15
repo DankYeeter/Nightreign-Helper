@@ -151,7 +151,7 @@ class SlotProblem:
     which for Deep of Night is the three ordinary slots followed by the three
     Deep ones. A vessel with Deep of Night switched off contributes three.
 
-    `excluded` are the effect ids the player marked `Don't include` (`GOAL.md`
+    `excluded` are the effect ids the player marked `Avoid` (`GOAL.md`
     A18, AD-036): a boundary condition of the same kind as holding. Such an
     id -- effect or curse -- is struck before the calculation sees it
     (`evaluate.effect_ids_of`), so every state, pool, beam and picker ranking
@@ -159,7 +159,7 @@ class SlotProblem:
     rather than that it carried no number. The relic stays a candidate; it
     is worth whatever its other effects are worth.
 
-    `required` are the effect ids the player marked `Must include` (A19,
+    `required` are the effect ids the player marked `Favourite` (A19,
     AD-036.4): every suggestion carries each of them on a held relic or a
     chosen copy, or there is no suggestion and the run says which effect no
     copy could supply (A7). A boundary condition of the beam, like holding
@@ -776,7 +776,7 @@ class AdvisorResult:
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0
-    #: The beam came back empty because a `Must include` effect could be met
+    #: The beam came back empty because a `Favourite` effect could be met
     #: by no owned constellation -- `explain.required_but_unmet` wrote the
     #: sentence for it (AK-291.1). The status line reads this to say "blocked
     #: by a requirement you marked" instead of "nothing to choose from"

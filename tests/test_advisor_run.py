@@ -168,7 +168,7 @@ def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
         said = [line.text for group in suggestion.reasons
                 for line in group.lines
                 if line.silence == types.SILENT_EXCLUDED]
-        assert said == [f"{name}: you excluded it, so it is not counted."]
+        assert said == [f"{name}: you avoided it, so it is not counted."]
 
 
 def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
@@ -197,8 +197,8 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
         problem, required=frozenset({nobody_carries, rolls[0][0]})))
     assert result.suggestions == ()
     assert result.unknowns[-1] == (
-        f"No copy you own carries {name(nobody_carries)}, which you marked "
-        f"as required — no suggestion can meet that.")
+        f"No copy you own carries {name(nobody_carries)}, which you "
+        f"favourited — no suggestion can meet that.")
     # AK-294: the status line's second clause reads this flag, and it is
     # only ever true when the sentence above was written.
     assert result.blocked_by_a_requirement
@@ -210,7 +210,7 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     assert result.unknowns[-1] == (
         f"No combination of the copies you own carries "
         f"{', '.join(sorted(name(eid) for eid in (rolls[0][0], rolls[1][0])))}"
-        f", which you marked as required — no suggestion can meet that.")
+        f", which you favourited — no suggestion can meet that.")
     assert result.blocked_by_a_requirement
 
     met = a_run(dataclasses.replace(problem,

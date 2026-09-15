@@ -204,11 +204,9 @@ def main() -> int:
 
     # The AK-41 measurement: one card, built as the picker builds it, asked
     # for its height with `…` and again with the longest text.
-    marks = slot.window().effect_filters
-    effects = list(zip(cards[0].item.effect_ids,
-                       slot.effect_names(cards[0].item)))
+    effects = slot.effect_names(cards[0].item)
     probe = relicpicker.RelicCard(
-        cards[0].item, effects, None, False, lambda _i: None, marks=marks,
+        cards[0].item, effects, None, False, lambda _i: None,
         captions=[relicpicker.VALUE_CAPTIONS[g]
                   for g in relicpicker.VALUE_DIRECTIONS])
     probe.setFixedWidth(relicpicker.card_width())
@@ -219,7 +217,7 @@ def main() -> int:
           f"difference {after - before}")
 
     without = relicpicker.RelicCard(
-        cards[0].item, effects, None, False, lambda _i: None, marks=marks)
+        cards[0].item, effects, None, False, lambda _i: None)
     print(f"card height with no value block "
           f"{without.sizeHint().height()}, minimum width "
           f"{without.minimumSizeHint().width()}")

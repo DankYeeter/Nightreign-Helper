@@ -436,10 +436,10 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     Wording `UI_SPEC` AK-290.1 and AK-290.2, verbatim.
     """
     if effect_id in problem.excluded:
-        text = f"{name}: you excluded it, so it is not counted."
+        text = f"{name}: you avoided it, so it is not counted."
         silence = types.SILENT_EXCLUDED
     elif effect_id in problem.required:
-        text = f"{name}: you required it, so it always counts."
+        text = f"{name}: you favourited it, so it always counts."
         silence = types.SILENT_REQUIRED
     else:
         return None
@@ -954,7 +954,7 @@ def required_but_unmet(problem: types.SlotProblem,
             if not owned:
                 lines.append(
                     f"No copy you own carries {named(eid)}, which you "
-                    f"marked as required — no suggestion can meet that.")
+                    f"favourited — no suggestion can meet that.")
                 continue
             noun = "copy" if len(owned) == 1 else "copies"
             reason = (" (Deep of Night is off)"
@@ -966,7 +966,7 @@ def required_but_unmet(problem: types.SlotProblem,
         return tuple(lines)
     return (f"No combination of the copies you own carries "
             f"{', '.join(sorted(named(eid) for eid in unmet))}, which you "
-            f"marked as required — no suggestion can meet that.",)
+            f"favourited — no suggestion can meet that.",)
 
 
 def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:
