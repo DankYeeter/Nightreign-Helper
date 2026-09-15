@@ -883,10 +883,10 @@ def test_the_three_tooltips_say_what_the_next_click_does():
 
 def test_the_lists_and_the_legend_follow_the_sets(qapp, filters):
     """AK-279: both lists carry every marked id, alphabetically, with the
-    control in the state that put it there; AK-277/AK-290.3: the legend
-    stands exactly while a line shows one of the two states."""
+    control in the state that put it there; AK-297: the legend stands
+    before anything is marked, and stays."""
     dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
-    assert not dialog.mark_legend.isVisibleTo(dialog)
+    assert dialog.mark_legend.isVisibleTo(dialog)
     assert not dialog.excluded_list.isVisibleTo(dialog)
 
     filters.mark(2, effectfilters.EXCLUDED)

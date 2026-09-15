@@ -77,10 +77,11 @@ CURSE_BULLET = "✦"
 #: The bullet of a line the player marked `Must include` (AK-277).
 REQUIRED_BULLET = "▲"
 
-#: The legend for the two marked states, once per `Why` dialog and only
-#: while a line shows one of them (AK-277, wording AK-290.3).
-MARK_LEGEND = ("▲ marks an effect you required, a struck-through effect one "
-               "you excluded; every other line counts as usual.")
+#: How a line is marked and what the marks mean, once per `Why` dialog and
+#: once in the picker, always on screen (AK-297): the reader who needs it
+#: most has not marked anything yet.
+MARK_LEGEND = ("Click an effect's bullet to exclude it, click again to "
+               "require it (▲), and once more to clear it.")
 
 #: The headings of the two management lists under the slot groups (AK-279).
 EXCLUDED_HEADING = "Effects you've excluded:"
@@ -612,10 +613,6 @@ class WhyDialog(QDialog):
                                          text=self._name_of(effect_id)),
                         self._filters))
             holder.setVisible(bool(ids))
-        # A line in a marked state is on screen exactly when a set is not
-        # empty: the lists above show every member of both.
-        self.mark_legend.setVisible(
-            bool(self._filters.excluded or self._filters.required))
 
     def _name_of(self, effect_id: int) -> str:
         """The display name, or the id for one the dataset has lost."""
