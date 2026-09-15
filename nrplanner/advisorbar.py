@@ -138,7 +138,7 @@ class Situation:
     slots: int = 0
     slots_filled: int = 0
     #: Slots the run had nothing to offer for (4.11), and whether that is
-    #: because a `Must include` effect could not be met rather than because
+    #: because a `Favourite` effect could not be met rather than because
     #: the pools were empty (AK-294: two causes, two clauses).
     slots_without_a_choice: int = 0
     blocked_by_a_requirement: bool = False
@@ -154,7 +154,7 @@ class Situation:
     nightfarer: str = ""
     reason: str = ""
     #: 4.7 only (AK-289): the run was abandoned because a *marking*
-    #: (`Don't include`/`Must include`) changed rather than the build, so the
+    #: (`Avoid`/`Favourite`) changed rather than the build, so the
     #: sentence must name that cause.
     marking_changed: bool = False
 
@@ -182,7 +182,7 @@ def _slots_with_nothing(count: int) -> str:
 
 def _slots_blocked(count: int) -> str:
     """The second clause of 4.11 when the pools were not empty at all: a
-    `Must include` effect had no owned constellation (AK-294). "requirement
+    `Favourite` effect had no owned constellation (AK-294). "requirement
     you marked" is AK-291's own wording, not a new term (A12)."""
     if count == 1:
         return "1 slot is blocked by a requirement you marked"

@@ -497,7 +497,7 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
 
 def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
         bar):
-    """AK-294 (QA-270): the pools were full, the `Must include` effect had no
+    """AK-294 (QA-270): the pools were full, the `Favourite` effect had no
     constellation -- the second clause says so instead of claiming the slots
     had nothing to choose from. Same state 4.11, the other cause."""
     bar.optimize_button.click()
