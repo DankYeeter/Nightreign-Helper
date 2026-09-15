@@ -400,6 +400,7 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-309 | Drei Leerzustaende mit unterschiedlichem Satz (kein Save / Save ohne Relikte / Suche ohne Treffer), Ton nach `NO_SAVE_WAS_READ`/`CHOSEN_SAVE_IS_EMPTY` | UI_SPEC §3.6 | T-277a, 2026-09-15 | — |
 | AK-310 | A12-Geltungsbereich erweitert AK-282 ausdruecklich auf das neue Fenster: nur der Berater, Statblatt unberuehrt, gehaltene Slots werden durch eine Markierung nie veraendert (AD-036 Punkt 2/4 fuer Avoid/Favourite auf gehaltenen Relikten) | UI_SPEC §3.6 | T-277a, 2026-09-15 | — |
 | AK-311 | AK-283-Persistenz gilt an den drei neuen Orten (Fenster, `Why`-Dialog lesend, `Filters`-Tooltip), Live-Abgleich ueber das bestehende `EffectFilters.changed`-Signal ohne Neustart | UI_SPEC §3.6 | T-277a, 2026-09-15 | — |
+| AK-312 | Enter/Return auf einer fokussierten `HeroTile` waehlt denselben Helden wie die Leertaste (`select_hero`), gleiches UIA-Verhalten; Tab-Reihenfolge und Statuszeilenmeldung zum vermeintlichen Auto-Wechsel ausdruecklich nicht Teil dieser AK (siehe Begruendung im Nachtrag) | UI_SPEC Nachtrag T-278a | T-278a, 2026-09-15 | — |
 
 
 ## Widerspruechliche Faelle

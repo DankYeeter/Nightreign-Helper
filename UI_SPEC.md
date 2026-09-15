@@ -5596,3 +5596,60 @@ Vorgabe und im ersten Baubericht nachzuholen.
 
 ---
 
+### Nachtrag T-278a (ui-ux-designer, 2026-09-15) — QA-280/QA-279: Enter auf Heldenkacheln, und warum hier keine AK zum "automatischen Wechsel" steht
+
+**Vorgeprueft und verworfen:** Der Auftrag nannte AK-225 als die Regel zur
+"Heldenuebernahme beim Eintreffen des Spielstands". Nachgelesen (`UI_SPEC.md`
+Z824-844) regelt AK-225 ausschliesslich Fenstergroesse, Bereichsbreiten und
+Fokuserhalt beim Wechsel Wartesatz→Bestandsnotiz — **keinen** Wechsel der
+gewaehlten Heldenkachel. Im Code (`nrplanner/app.py`) aendert `hero_index`
+sich **nur** durch `select_hero()`, aufgerufen entweder mit `0` beim Start
+(Zeile 628, vor jedem Speicherstand-Lesen) oder durch den Klick-Handler einer
+`HeroTile` (Zeile 674). Kein Pfad aus `_on_save_read`/`load_equipped`/
+`reload_chalices` ruft `select_hero()` erneut auf; auch die Waffe kommt in
+`apply_hero_weapon()` nur aus dem Session-Zustand oder dem Start-Waffentyp
+des *aktuell gewaehlten* Helden, nie aus dem Spielstand. Ein automatischer
+"Wechsel auf den zuletzt gespielten Nightfarer" existiert damit **nicht** im
+gepruefen Stand — QA-280s "Wylder → Duchess" faellt eher in QA-279s eigene
+Hypothese (a): ein Klick, der waehrend/kurz nach dem Hintergrundlesen
+verzoegert ankommt und dem Nutzer als unvermittelter Wechsel erscheint.
+*Deshalb steht hier keine AK zu einer erklaerenden Statuszeilenmeldung* — ein
+Text, der ein nicht existierendes "wir haben automatisch umgeschaltet"
+behaupten wuerde, waere selbst eine Falschauskunft. Empfehlung an den
+`director`: QA-280 vor weiterer UI-Arbeit mit Zeitstempel-Beleg (wie in
+QA-279 bereits begonnen) erneut pruefen, statt Copy fuer ein Phantomverhalten
+zu spezifizieren. Siehe Ruecklauf-Bericht T-278a fuer Details.
+
+#### AK-312 — Enter waehlt eine fokussierte Heldenkachel wie die Leertaste
+*Verlauf: QA-280 (Beobachtung, T-276-Bericht) · neu durch T-278a, 2026-09-15*
+
+**AK-312** *(Enter ist kein Leerlauf.)* Steht der Tastaturfokus auf einer
+`HeroTile` (`nrplanner/app.py`, 2×5-Raster), waehlt `Enter`/`Return` denselben
+Helden aus, den die Leertaste heute schon waehlt: `select_hero(index)` laeuft,
+die Kachel zeigt `checked`, Waffen- und Kelchbereich aktualisieren sich exakt
+wie beim Leertasten-Weg. Kein neues Bedienelement, keine neue Zeichenkette —
+nur dieselbe Aktion ueber einen zweiten Weg, wie es bei anderen fokussierbaren
+Bedienelementen der Oberflaeche (Knoepfe, Listenzeilen) bereits gilt.
+*Aufbau:* `HeroTile` per Tab fokussieren, `Enter`/`Return` druecken, Zustand
+gegen denselben Test mit der Leertaste vergleichen (Kachel `checked`, Held,
+Waffe, Kelchliste).
+*Toetende Mutation:* `Enter` nur auf `QDialogButtonBox`-Standardknoepfen
+abfangen und die Kachel aussen vor lassen — sie bleibt dann bei Enter stumm,
+waehrend Space weiter waehlt.
+
+**Akzeptanzkriterien:**
+- Fokus auf einer `HeroTile`, `Enter` oder `Return` gedrueckt: derselbe Held
+  wird gewaehlt wie bei `Space` (Kachel `checked`, `current_hero()` gewechselt).
+- Kein anderes fokussierbares Bedienelement der Oberflaeche aendert durch
+  diese Vorgabe sein Enter-Verhalten (insbesondere keine versehentliche
+  Dialog-Standardaktion auf Kacheln ausserhalb von Dialogen).
+- Screenreader/UIA meldet weiterhin `QToolButton`/`checked` wie beim
+  Leertasten-Weg — kein neuer Steuerelementtyp.
+
+*Explizit nicht Teil dieser Vorgabe:* die Tab-Reihenfolge selbst (QA-280/
+T-276: Kachel erst nach 20 Tabs erreichbar, ab `Reset Chalice`) — eigener
+Auftrag, hier nur vermerkt. Ebenso nicht Teil: eine Statuszeilenmeldung zum
+vermeintlichen automatischen Heldenwechsel, siehe Begruendung oben.
+
+---
+
