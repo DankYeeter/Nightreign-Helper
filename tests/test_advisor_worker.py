@@ -389,27 +389,26 @@ def test_a_burst_of_questions_is_one_run(qapp, controller, question):
     The event loop turns **between** the questions, which is what makes this
     a burst rather than five calls in a row: a slider sends its steps through
     the same loop the timer is waiting in, so a controller that started a run
-    per step would get to start them. Five turns of 5 ms sit well inside the
-    100 ms the controller is waiting, and the case says so rather than
-    trusting it.
+    per step would get to start them. Whether the five were one burst is read
+    off the controller -- no run started before the last question -- and not
+    off a clock: five turns of 5 ms took 107 ms under `-n auto` (QA-238),
+    which a clock against 100 ms called a broken premise and the timer, had
+    it been given room, would not have noticed.
     """
     inventory, problem, ctx, request = question
     watched = Watched()
-    advisor_controller = controller(goals=watched.registry, debounce_ms=100)
+    advisor_controller = controller(goals=watched.registry, debounce_ms=500)
     seen = Recorder(advisor_controller)
 
-    began = time.perf_counter()
     for level in range(1, 6):
         advisor_controller.ask(dataclasses.replace(request, level=level),
                                inventory, dataclasses.replace(ctx,
                                                               level=level))
         spin(qapp, lambda: False, timeout=0.005)
-    burst = time.perf_counter() - began
 
-    assert burst < 0.1, (
-        f"the burst took {burst * 1000:.0f} ms and the controller waits 100, "
-        f"so the questions were not one burst and this case would say "
-        f"nothing")
+    assert seen.started == 0, (
+        "a run started before the last question was asked, so the questions "
+        "were not one burst and this case would say nothing")
     assert spin(qapp, lambda: bool(seen.ready)), "no answer arrived"
     spin(qapp, lambda: False, timeout=0.3)
 
