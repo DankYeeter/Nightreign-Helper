@@ -31,7 +31,7 @@ PyInstaller-Einzeldatei ohne Installer.
 ## Testbefehl
 
 ```
-pytest -n auto      # volle Suite, ~135 s (seriell 840 s); 12.09.2026: 1789 passed, 9 skipped
+pytest -n auto      # volle Suite, ~135 s (seriell 840 s); 15.09.2026: 1718 passed, 9 skipped
 pytest <datei>      # gezielt, OHNE -n (1,2 s statt 4,0 s)
 ```
 
