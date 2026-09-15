@@ -443,3 +443,83 @@ ist bis A-036 (C-004). Kein Handlungsbedarf fuer heute.
 **Nachpruefen ab:** erste Weitergabe von 1.10.0 (dann Modus `pruefen` gegen
 A-020/A-023/A-031 am Artefakt) · T-241b-Ergebnis am README (A-003, A-005,
 A-019, A-024, A-027, A-028 neu lesen) · 2026-11-07 (60-Tage-Ende GPL § 8).
+
+---
+
+## Auflagen fuer Bau und Eigenlauf 1.12.0 und die Screenshot-Neuaufnahme (compliance-agent, Modus `auflagen`, Stand `02e0721`, 2026-09-15)
+
+**Frage:** Gilt die T-241a-Einordnung (Bau und Eigenlauf: GRUEN) auch fuer
+1.12.0, und welche Bedingung muss die heute neu erzeugte `nightlords.png`
+erfuellen, damit A-010 nicht neu aufreisst? **Ampel Bau/Eigenlauf: GRUEN.
+Ampel Screenshot-Neuaufnahme: GELB** — zulaessig unter den drei Bedingungen
+S1-S3 unten. Keine Rechtsberatung im rechtlichen Sinn; keine neue Klaerung,
+C-002 und C-003 bleiben Massstab, keine `C-005.md` angelegt. Die
+T-241a-Tabelle (A-001 bis A-036) gilt unveraendert fort; nur die Zeilen
+unten sind neu.
+
+### Neu seit 1.10.0 — nichts davon beruehrt eine Auflage oder eine A-032-Schwelle
+
+| Neuerung | Ampel | Befund | Beleg (Baum `02e0721`) |
+|---|---|---|---|
+| Effektmarkierung (A18/A19) | GRUEN | Zwei feste `QSettings`-Schluessel `advisor/excluded`, `advisor/required`; Inhalt ausschliesslich Effekt-IDs (Integer, kommagetrennt) im Profil des Nutzers selbst. Keine Daten Dritter, kein Netz, keine Weitergabe — Haushaltsausnahme Art. 2 Abs. 2 lit. c DSGVO (Norm wie in C-001 belegt, heute nicht neu abgerufen) | `nrplanner/effectfilters.py` Z. 34-36, 61-66 |
+| Zweihand-Kalibrierungen | GRUEN | `Calibration(factor, reason)`: der Faktor ist gemessen, `reason` ist eigener Satz ("Raider two-handing", "two-handing", "Raider with a greataxe or great hammer"); kein Spieltext | `nrplanner/weapons.py` Z. 81, 133-138, 199-200; `damage.py` Z. 507-515 |
+| Gefaess-Tooltip | GRUEN | Gefaessname (Item-Name, Kategorie A-001 "zulaessig"), Farbnamen, drei eigene Konstanten (`WHY_SEVERAL_VESSELS`, `WHITE_SLOT_TAKES_ANY`, "Equipped in game"); keine Spielprosa | `nrplanner/app.py` Z. 232-234, 245-265 |
+| Gate-Wortlaute | GRUEN | `CONDITIONS`, `ATTACK_CONDITIONS`, `restricted_to`: eigener Text. Die Spiel-Caption (`info`) laeuft unveraendert ueber `caption()` und war schon Gegenstand von C-002 (`effects.png`, "funktionale Effektzeilen") — nicht neu | `nrplanner/effecttext.py` Z. 26-30, 74-91, 224-228 |
+| Icon-Manifest-Pruefung | GRUEN | liest das lokale `manifest.json`, baut bei Abweichung neu; kein Netz, UNC-/Absolutpfade gesperrt (SEC-046) | `nrplanner/firstrun.py` Z. 86-149 |
+
+### Screenshots — was das neue Bild erfuellen muss
+
+**Sachverhalt (Bild und Code gelesen 15.09.):** Die heute committete
+`docs/screenshots/nightlords.png` zeigt **zehn vollstaendige
+Beschreibungstexte** auf den Karten und **denselben Text ein elftes Mal** im
+Detailbereich (Gladius) — exakt der Zustand aus C-002 Befund 1.
+`nrplanner/bosstab.py` gibt die Beschreibung weiterhin auf jeder Karte
+(Z. 367) und im Detail (Z. 799) aus; `scripts/make_screenshots.py` waehlt
+`bosses[0]` (Z. 136-142). **Ein Lauf des unveraenderten Skripts erzeugt also
+wieder dasselbe Bild mit denselben elf Prosabloecken.**
+
+**Bewertung:** Der Nutzerentscheid vom 02.09. ("C-002 wird ignoriert, sperrt
+nichts mehr, wird nicht erneut vorgelegt") betrifft den **Befund** — zehn
+Beschreibungen im Nightlords-Bild —, nicht einen Dateihash. Ein neues Bild
+mit **demselben** Inhalt ist derselbe Befund und reisst A-010 nicht neu auf;
+juristisch ist jeder Commit zwar eine neue Vervielfaeltigung (§ 16 UrhG,
+Volltext in C-002), das Risiko aendert sich aber nicht, weil die alte Fassung
+ohnehin in der Historie abrufbar bleibt (A-015). **Neu aufreissen** wuerde
+A-010 nur, wenn das Bild **mehr oder andere** Spielprosa traegt als heute —
+dann ist es ein neuer Sachverhalt, den der Entscheid vom 02.09. nicht deckt,
+und A-014 verlangt die Vorlage. **In einfachen Worten:** Was Daniel am 02.09.
+hingenommen hat, darf so bleiben; es darf nur nicht mehr werden.
+
+**Risiko:** Nutzer persoenlich / DMCA-Takedown, theoretisch Abmahnung /
+praktisch gering, unveraendert seit C-002 / Schwelle: Push nach `main`
+(Repo oeffentlich); verschaerft bei Bewerbung oder weiterer Prosa.
+
+| ID | Auflage | Ampel | Adressat | Faellig | Status |
+|---|---|---|---|---|---|
+| S1 (zu A-010/A-014) | Die neue `nightlords.png` zeigt **hoechstens die Spielprosa der heutigen Fassung**: die zehn Kartenbeschreibungen und einmal die Beschreibung von `bosses[0]` im Detail. Kein zusaetzlicher Prosablock (z. B. eigene Everdark-Beschreibung, weiterer Textabschnitt). Pruefung durch Anschauen des erzeugten Bildes, Zaehlung der Prosabloecke im Bericht (heute: 11) | GELB | technical-writer (Zaehlung), director (Abgleich) | heute, vor dem Commit der Bilder | offen |
+| S2 (zu A-013) | Die neue `world_events.png` zeigt **nicht** die Karte "Curse of the Demon / Libra" (C-002 Befund 7: vollstaendige Spielprosa). `eventstab.py` Z. 163 waehlt Zeile 0 ("Fell Omen"), das ist heute deterministisch, aber **nicht im Skript festgelegt** — A-013 bleibt teilweise. Pruefung am erzeugten Bild | GELB | technical-writer (Pruefung); developer (A-013 im Skript, spaeter) | heute | offen |
+| S3 (zu A-018) | Bildgroesse im Skript unveraendert (2156 x 1140, `make_screenshots.py` Z. 37); die Zahl sichtbarer Effektzeilen in `effects.png` bleibt in der Groessenordnung von C-002 (35 von 652). Nur zaehlen, wenn das Bild erkennbar dichter geworden ist | GRUEN (empfohlen) | technical-writer | heute | offen |
+| A-012 (Stand) | **Unveraendert offen** — 7 Einbindungen ohne Quellenangabe an der Stelle (README Z. 99, 289, 316, 352, 383, 410, 431). Faellig laut C-002 "vor dem naechsten Push nach `main`", also seit 01.09. ueberfaellig. **Inhalt, den die Zeile tragen muss** (kein Fertigtext): Spieltitel ELDEN RING NIGHTREIGN, Rechteinhaber (FromSoftware / Bandai Namco Entertainment), dass Grafiken und Texte im Bild aus dem Spiel stammen — einmal ueber der Bilderfolge oder einmal je Abschnitt, § 63 Abs. 1 UrhG (Fundstelle in C-002). Der technical-writer ist heute im README; die Zeile kostet ihn eine Zeile | GELB | technical-writer | vor dem naechsten Push nach `main` | **offen, ueberfaellig** |
+| A-014 (Stand) | Modul-Docstring von `make_screenshots.py` traegt die A-010-Regel weiterhin nicht (Suche `A-010\|Spielprosa\|game prose\|description text` in `scripts/`: 0 Treffer, 15.09.) | GELB | developer | bei naechster Aenderung des Skripts | offen |
+
+**Weg N-c bleibt billig und bleibt angeboten, nicht verlangt:** die
+Beschreibungslabels vor dem `grab()` auszublenden ist eine Skriptaenderung
+von wenigen Zeilen; der Nutzer hat am 02.09. entschieden, das nicht zu tun.
+Diese Zeile ist keine erneute Vorlage, sondern der Vermerk, dass der Weg
+offen steht.
+
+**Entscheidungsvorlage fuer den Nutzer:** keine — S1-S3 sind Pruefungen,
+A-010 ist entschieden, A-012 ist eine bestehende Pflicht ohne offene Wahl.
+
+**Anwaltlich zu klaeren:** nichts.
+
+**Nicht geprueft:** das gebaute Artefakt 1.12.0 selbst (UPX, A-031 — meldet
+der release-manager); `deep_of_night.png` und die uebrigen vier Bilder
+inhaltlich (unveraenderte Registerkarten laut CHANGELOG 1.10.1-1.11.0;
+`deeptab.py` Z. 272 zitiert die Spiel-Caption gekennzeichnet — die Form, die
+C-002 Befund 7 als Vorlage nennt); `CHANGELOG.md` fuehrt 1.11.0 als letzte
+Version, `nrplanner/__init__.py` sagt 1.12.0 — Nebenfund fuer den
+technical-writer, keine Auflage.
+
+**Nachpruefen ab:** Commit der neuen Bilder (S1-S3 am Ergebnis) · erste
+Weitergabe von 1.12.0 (A-020/A-023/A-031 am Artefakt) · 2026-11-07.
