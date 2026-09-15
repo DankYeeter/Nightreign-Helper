@@ -54,10 +54,11 @@ als Nachweis; Abwesenheit hält nicht (QA-237: die Überlagerung ist
 Claude-weit). Der Spielstand ist read-only und darf gelesen werden.
 
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
-(841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0; spart
-110 s je Lauf). In das umgelenkte `LOCALAPPDATA` **kopieren**, nicht darauf
-zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im Projektbaum. Ungültig, sobald
-`EXTRACT_VERSION` über 11 steigt — der erste betroffene Lauf ersetzt die
+(841 Dateien, 20 849 867 Bytes, `EXTRACT_VERSION` 12, gebaut von 1.12.1 am
+15.09.2026, T-269a; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
+**kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im
+Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 12 steigt — der erste
+betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 
 ## Verbotene Zugriffe

@@ -77,7 +77,11 @@ MAX_LEVEL = 15
 #      dataset's shape; the strings themselves changed, which is exactly what
 #      the version check is for -- a cached snapshot would otherwise keep
 #      showing the old sentence for good.
-EXTRACT_VERSION = 11
+#  12  weapons[].paired -- `EquipParamWeapon.isDualBlade`, the flag that says
+#      an armament is a pair held one in each hand. Two-handing a pair rates
+#      by a rule of its own (QA-276), and until now nothing in the dataset
+#      told a pair from a sword; R-008 had to note the flag as absent.
+EXTRACT_VERSION = 12
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -2480,6 +2484,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 "weight": r.values.get("weight"),
                 "wep_type": r.values.get("wepType"),
                 "rarity": r.values.get("rarity", 0),
+                # A pair held one in each hand -- every fist and claw, the
+                # Ornamental Straight Sword, the Starscourge Greatsword; not
+                # the twinblades, which the game keeps as one armament. The
+                # game rates two-handing a pair by its own rule (QA-276).
+                "paired": bool(r.values.get("isDualBlade", 0)),
                 # Flat HP won back per landed hit under the rally mechanic. It
                 # is a property of the armament, not of the damage dealt, so it
                 # belongs beside the weapon rather than with the relic. 0 means
