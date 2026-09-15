@@ -94,6 +94,11 @@ not. It says so and does it once.
 
 # The guide
 
+*Every screenshot below is this tool's own interface, showing data read from
+a personal ELDEN RING NIGHTREIGN install. ELDEN RING NIGHTREIGN is the
+property of FromSoftware, Inc. and Bandai Namco Entertainment Inc.; see
+[Disclaimer](#disclaimer).*
+
 ## 1. Build planner
 
 ![Build planner](docs/screenshots/build_planner.png)
@@ -167,8 +172,11 @@ six slots.
 direction — **Maximise damage**, **Minimise damage taken** or **Maximise
 offensive attributes** — then **Optimize** works out, for every slot that is
 not held, the best relic your save has for it and shows the suggestion inside
-each slot card: nothing is put in a slot until you say so. **Apply all** puts
-every suggestion in its slot at once; a single slot can also be filled from
+each slot card: nothing is put in a slot until you say so. **Maximise damage**
+and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
+switch (see *Reading the right-hand panel* below) is set to, and count
+effects with the condition *when Two-Handing* only while it is on **2H**.
+**Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
 its own card. **Undo apply** puts the previous slots back. **Why** opens the
 full account of what the suggestion counted and what it left out; **Clear**
 puts a suggestion away without applying it.
@@ -258,11 +266,25 @@ game's own per-Nightfarer level tables, not a formula.
 |---|---|
 | **Base stats** | HP, FP and Stamina — your base, the change, and the total. |
 | **Attributes** | All eight, same three-column layout. |
-| **Weapon damage** | Six armament tiles. Double-click one to choose a weapon, its upgrade tier and the effects it rolled; the panel below breaks its attack rating down. |
+| **Weapon damage** | Six armament tiles; double-click one to choose a weapon, its upgrade tier and the effects it rolled. Where the weapon can be two-handed, its attack rating shows both hands side by side — `122 / 125 2H` — and the panel below breaks either hand's figure down. |
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
 | **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. |
+
+**1H / 2H**, the switch beneath the six weapon tiles, decides which hand's
+attack rating **Optimize** and the Advisor's directions count, and whether
+effects with the condition *when Two-Handing* enter the totals. It changes no
+number on screen — every attack-rating figure already shows both hands side
+by side where an armament can be two-handed — it only decides which of the
+two the ranking uses. Bows, crossbows and ballistas are already shown at
+their two-handed rating and have no second figure to switch between; staves
+and seals show spell scaling instead of an attack rating and are unaffected
+either way. The switch is part of the build like the vessel and the slots: a
+saved build keeps its own setting, a new build or one cleared with **Reset
+Chalice** starts on **1H**, and reading a chalice back in with **Load
+equipped** also sets it to **1H**, because the save itself does not record
+which hand a weapon was held in.
 
 Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
@@ -324,9 +346,12 @@ The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 
 Attack rating is base damage, plus what your stats add to it, plus the +%
-attack effects your equipped relics grant. **Spell damage is not in the game
-data**, so sorceries and incantations show their costs instead of an invented
-figure.
+attack effects your equipped relics grant. Where an armament can be
+two-handed, its rating on this tab shows both hands side by side —
+`144 / 149 2H` — same as the Build planner; this tab has no **1H/2H** switch
+of its own, since it rates every armament in the game rather than one build.
+**Spell damage is not in the game data**, so sorceries and incantations show
+their costs instead of an invented figure.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves
@@ -657,6 +682,18 @@ Stated plainly rather than hidden:
   the same way, against three in-game readings at level 15 — 122→123,
   88→91, 72→74, on three different Nightfarers. All three carry the same
   "measured, not read from the files" note in the weapon breakdown.
+- **Two-handing an armament is a fourth measured factor, kept apart from the
+  three above because nothing on screen labels it.** On **2H** (see the
+  Build planner's **1H/2H** switch), the two-handed rating shown next to the
+  one-handed one is the one-handed figure times **x1.03**, or **x1.144** for
+  the Raider — flat factors read off six in-game measurements at level 15
+  with no relics equipped, because no attribute-based rule in the game's own
+  formula fits all six: Duchess 72→74, Wylder 122→125, Guardian 107→110,
+  Wylder's Great Stars 147→151, the Raider's Greataxe 158→180 and the
+  Raider's Great Stars 188→216. Ironeye, Revenant, Recluse, Executor,
+  Scholar and Undertaker are shown at the non-Raider **x1.03** until a
+  reading of their own confirms or corrects it — six of the ten Nightfarers
+  on an extrapolated number rather than a measured one.
 - **Staves and seals carry a different number, and it is the game's.** Where
   the game shows an armament's attack power it shows a catalyst's spell
   scaling, so that is what this tool shows and ranks a staff or a seal by;
