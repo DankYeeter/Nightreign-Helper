@@ -1,5 +1,125 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-15 (T-263c — Nachtrag zu T-258 auf `478101c`/`97b0d9a`, Zyklus 24 Pruefphase)
+
+**Methode:** Live, am laufenden Fenster — eigener Klon nicht benutzt: `git
+status` sauber, `HEAD` (`97b0d9a`) traegt gegenueber dem eingefrorenen Code
+(`478101c`) nur einen Doku-Commit, kein Codeunterschied, und `qa-engineer`
+war laut Auftrag bis zu diesem Bericht Qt-frei zurueckgehalten — kein
+paralleler Schreibzugriff. Umlenkung `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-263`,
+eigenes `LOCALAPPDATA`/`APPDATA` im Scratchpad, Testabzug (841 Dateien,
+`EXTRACT_VERSION` 11) **in** das umgelenkte `LOCALAPPDATA` kopiert. Nachweis:
+`settings fileName: \HKEY_CURRENT_USER\Software\DankYeeterT-263\
+NightreignHelper`, `cache_dir: …\scratchpad\T-263\Local\NightreignHelper`,
+Stil `fusion`. Registry-Rest nach Abschluss geloescht. Kein
+`dangerouslyDisableSandbox` noetig diesmal (anders als T-258) — der normale
+Sandbox-Pfad rendert das Fenster diesmal durch. Bildnachweis ausschliesslich
+`PrintWindow` auf das eigene HWND (NH-002), per eigenem Scratchpad-Skript
+(`shoot.py`/`verify.py`, kein Repo-Code); jedes Bild mit dem Read-Tool
+angesehen.
+
+**Geprueft:** alle sieben Tabs bei 1536 px (Build planner, Effects & chances,
+Weapons & spells, Nightlords, Deep of Night, Red variants, World Events);
+die vier in T-258 nicht visuell geprueften Content-Tabs (Nightlords, Deep of
+Night, Red variants, World Events) zusaetzlich bei 1608 px; DR-028-Nachweis
+am Werteblatt; DR-029-Retest (Suchfilter „Finger Seal"); AK-292 (Schalter),
+AK-286 (Kachelformat), AK-296 (Gefaess-Tooltip, programmatisch gelesen — ein
+`QToolTip` ist ein eigenes Top-Level-Fenster, das `PrintWindow` auf das
+Hauptfenster nicht mitfaengt) live; AK-294/AK-295 Code gelesen, nicht live
+ausgeloest (siehe unten).
+
+**Gesamturteil:** Ship-ready fuer die in diesem Nachtrag geprueften Flaechen.
+DR-028 bestaetigt sich als Messartefakt, nicht als echter Fund; DR-029 ist
+sichtbar behoben; DR-030 ist durch AN-8 gegenstandslos. Kein neuer Kritisch-
+oder Wichtig-Fund in den elf gepruedften Tab/Breiten-Kombinationen.
+
+### Kritisch
+
+*(keine)*
+
+### Wichtig
+
+*(keine)*
+
+### Nice-to-have
+
+- **DR-031 [`nrplanner/bosstab.py`, `Nightlords`-Tab, rechte Detailflaeche]**
+  Ohne Auswahl zeigt die rechte Haelfte des Tabs nur den Platzhalter „Select
+  a Nightlord" auf sonst leerer Flaeche — bei 1536 px real gemessen rund
+  1360 von 1938 physischen Bildpunkten (≈ 60 % der Fensterbreite) ungenutzt,
+  bei 1608 px genauso. Kein Fehler (A12 verletzt nichts, es wird nichts
+  behauptet), aber die einzige Flaeche im Programm, die im Leerzustand derart
+  viel Platz ungenutzt laesst, waehrend andere Tabs (Build planner, World
+  Events) ihre Randspalten sinnvoll fuellen. Richtung: entweder ein Nightlord
+  vorausgewaehlt (z. B. der erste der Liste) oder ein knapperer, mittig
+  gesetzter Hinweistext statt linksbuendig auf voller Resthoehe. Geschmacks-
+  frage, kein objektiver Fehler — daher Nice-to-have, nicht Wichtig. ![Nightlords bei 1608 px, rechte Haelfte leer](design-review/2026-09-15/t263-nightlords-1608.png)
+
+### Backlog (geparkt)
+
+- AK-294 (4.11-Klausel „blocked by a requirement you marked") und AK-295
+  (kein Rohschluessel auf dem Bildschirm) nicht live ausgeloest — beide
+  brauchen einen praeparierten Build (unerfuellbare Pflicht bzw. ein Feld mit
+  `conditionHp`/unbenanntem Schluessel), den dieser Lauf nicht aufgesetzt hat.
+  Code gelesen (`advisorbar.py:176/184/185`, `effecttext.py:27/28/130/131`,
+  `model.py:1212/1213`) und deckungsgleich mit der Spec — das deckt die
+  Formulierung, nicht das Auftreten am Bildschirm. `qa-engineer`s T-263a
+  deckt QA-269/270 auf Datenebene ab; ein visueller Nachweis steht aus,
+  falls das fuer den Release noch gebraucht wird.
+- Effects & chances-Tabelle bei 1536 px: „What it does"-Spalte kuerzt lange
+  Saetze mit „…" (z. B. „Restores FP upon receiving damage — conditional
+  …") — regulaeres, von T-239a bereits akzeptiertes Verhalten einer breiten
+  Tabelle, kein neuer Fund, nur zur Vollstaendigkeit vermerkt.
+
+### Positiv / beibehalten
+
+- **DR-028 ✔ 2026-09-15 (T-259/T-263c), Messartefakt bestaetigt geschlossen.**
+  Das Werteblatt (BASE STATS/ATTRIBUTES/WEAPON DETAILS mit dem 1H/2H-Schalter/
+  RESISTANCES) ist am laufenden Fenster bei 1536 px vollstaendig lesbar:
+  „Physical 56 / 58 2H — 56 / 58 2H", „Total 56 / 58 2H no change 56 / 58 2H"
+  stehen unabgeschnitten, mit eigener vertikaler Bildlaufleiste fuer den Rest
+  der Liste — genau das Bild, das T-259s programmatischer Beleg (348 px
+  Kindbreite in 356 px Viewport) vorhergesagt hatte. Waechter
+  `tests/test_stat_sheet_at_the_window.py` laeuft gruen (3 passed, erneut
+  ausgefuehrt in diesem Durchlauf) und deckt 1608/1536/1366 px ab. Der
+  T-258-Fund war ein verstecktes Label mit stehengebliebener Alt-Geometrie
+  plus eine `PrintWindow`-Bitmap in physischer statt logischer Aufloesung —
+  beides in T-259 bereits erklaert, hier am echten Fenster gegengeprueft.
+  ![Build planner bei 1536 px, Werteblatt vollstaendig lesbar](design-review/2026-09-15/t263-buildplanner-1536.png)
+- **DR-029 ✔ 2026-09-15, live retestet.** Suchfilter „Finger Seal" auf dem
+  Weapons & spells-Tab zeigt jetzt „Weapons (1)"/„Sacred Seal (1)" bei genau
+  einer sichtbaren Kachel — Kopf- und Gruppenzaehler zaehlen die gezeigten
+  Kacheln, nicht mehr die rohen Spieldaten-Kopien. Behoben `3ceceb9`, hier am
+  laufenden Fenster bestaetigt statt nur am Commit. ![Weapons-Tab, „Finger Seal" gefiltert, Zaehler (1)/(1)](design-review/2026-09-15/t263-weapons-fingerseal-retest.png)
+- **DR-030 gegenstandslos (AN-8, Director 2026-09-15).** AK-288s zweite
+  Klausel (Spieldaten ohne Zweihandmodifikator) trifft unter AN-4s
+  pauschalem Klassenfaktor nicht mehr ein — Datenmodellentscheidung, keine
+  UI-Nacharbeit noetig.
+- **AK-292** (1H/2H-Schalter): bei 1536 px weiterhin genau eine Instanz,
+  Text „1H", lesbar und nicht durch die DR-028-Enge verdeckt.
+- **AK-286** (Zweihand-Zusatz auf der Kachel): Format `{1H} / {2H} 2H`
+  (z. B. „67 / 69 2H", „60 / 62 2H") bei 1536 px auf dem Weapons-Tab erneut
+  ueber ein volles Rasterblatt gepruedft, kein Umbruch, keine Kuerzung.
+- **AK-296** (Gefaess-Tooltip): Wortlaut programmatisch aus dem laufenden
+  `chalice_list`-Widget gelesen — „Soot-Covered Wylder's Urn\nSlots: Blue,
+  Blue, Yellow\nDeep of Night adds: Blue, Blue, Yellow\nEach vessel has its
+  own fixed slots — choose by colour and count, not by name.\nEquipped in
+  game" (equipiert) gegen dieselbe Zeile ohne den letzten Satz bei einem
+  nicht equipierten Gefaess — deckungsgleich mit der Spec, Em-Dash korrekt
+  (U+2014, kein Mojibake in den Rohdaten selbst geprueft).
+- Alle sieben Tabs bei 1536 px und alle vier Content-Tabs zusaetzlich bei
+  1608 px: keine abgeschnittenen Spalten, keine ueberlappenden Elemente,
+  keine leeren/kaputten Icons ausserhalb des bereits bekannten DR-031.
+
+### Offene Fragen an den App Designer
+
+Keine neuen. DR-031 ist eine Geschmacksfrage (vorausgewaehlter Nightlord vs.
+kompakterer Leertext) und wird als Nice-to-have im Backlog gefuehrt statt
+als Frage gestellt — beide Richtungen sind gleichwertig vertretbar, ohne
+Dringlichkeit.
+
+---
+
 ## Review vom 2026-09-15 (T-258 — Design-Review der ganzen Oberflaeche auf `00bad3c`, 1.11.0 + A20 Zweihand + Bauwelle 2)
 
 **Methode:** Live, am laufenden Fenster — eigener Klon nicht benutzt (kein
