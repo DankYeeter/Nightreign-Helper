@@ -379,6 +379,29 @@ A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
 
 ---
 
+## 1.12.3 — 2026-09-15, Modus `notes`
+
+Stand `4b65523`, Code-Commit `2907a66`. Artefakt `dist/NightreignHelper.exe`,
+59.123.168 B, SHA-256
+`1c8b4ff52286928b7fc795cc65597bf7f0a65ed40c987c7fe63d0e9e2bb4dc88`.
+`AUFLAGEN.md` gegen Stand 15.09. gelesen: keine Auflage steht auf ROT, keine
+sperrt diesen Lauf (offene GELB-Punkte betreffen Screenshots und README-
+Quellenangabe, nicht diesen Auftrag). Kein Release, kein Push, keine
+Weitergabe in diesem Lauf (Auftrag: nur `notes`).
+
+### Migration 1.12.2 → 1.12.3
+
+Reiner Fix, kein Schema. `git diff fb23e24..2907a66 -- nrplanner/favourites.py
+nrplanner/paths.py nrplanner/chalices.py nrdata/extract.py` zeigt keine
+Aenderung; `EXTRACT_VERSION` bleibt 12. Keine Migration noetig.
+
+### Ergebnis
+
+Kein Blocker. Fuer eine Weitergabe gilt weiterhin A-020/A-023 aus
+`AUFLAGEN.md`.
+
+---
+
 ## 1.12.2 — 2026-09-15, Modus `notes`
 
 Stand `d2a1598`, Code-Commit `fb23e24`. Artefakt `dist/NightreignHelper.exe`,

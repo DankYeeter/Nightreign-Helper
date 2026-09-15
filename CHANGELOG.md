@@ -4,6 +4,16 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.12.3] - 2026-09-15
+
+### Changed
+- Attack power for both hands is now labelled `147 1H / 151 2H` on the
+  weapon card, the stat sheet, and the arsenal.
+
+### Fixed
+- The relic picker no longer leaves the grid incomplete if you filter, sort,
+  or rescan while cards are still being added to it.
+
 ## [1.12.2] - 2026-09-15
 
 ### Changed
