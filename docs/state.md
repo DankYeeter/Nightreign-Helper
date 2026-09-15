@@ -45,8 +45,8 @@ Sicherheitsbefund oder Datenverlustverdacht.
   leerem Gefaess + Neustart = 1H) — Alternative: Hand auch fuer leere Builds.
 - AN-7 (Director) T-255c mit 10 statt 6 Anwendungsdateien angenommen (7
   unvermeidbar, 3 geteilte Konstanten statt Duplikate).
-- AN-9 (Director, A21) Punkte an den Effektzeilen bleiben als Zweitweg neben
-  dem neuen Filterfenster — Alternative: entfallen.
+- AN-9 entschieden (Nutzer 12:30): Punkte an den Effektzeilen entfallen
+  komplett, Filterfenster ist der einzige Weg.
 - AN-8 (Director) AK-288 zweite Klausel (Spieldaten ohne Zweihandmodifikator)
   ist durch den Pauschalfaktor gegenstandslos; DR-030 geschlossen.
 

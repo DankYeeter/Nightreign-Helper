@@ -428,6 +428,6 @@ effekten die ich habe. nicht gruppiert pro relikt oder so. curses ebenfalls"*
 - Nachweis: power-user findet und benutzt beide Marker ohne Hilfe; QA: die
   Liste zaehlt genau die Effekt-/Fluch-Ids der 31x eigenen Kopien.
 
-*Annahme AN-9 (Director): die Punkte an den Effektzeilen im Picker und im
-Why-Dialog bleiben als Zweitweg mit denselben Begriffen — Alternative: sie
-entfallen, das Fenster ist der einzige Weg.*
+*Nutzerentscheid 12:30: die Punkte an den Effektzeilen im Picker und im
+Why-Dialog **entfallen komplett**; das Filterfenster ist der einzige Weg
+(AK-276-278, AK-297 damit gegenstandslos).*
