@@ -530,6 +530,94 @@ tests/test_relic_restore.py` -- 137 passed.
 
 ---
 
+## S12 — Optimize, das reale Szenario nach AD-032 (`reference=None`), T-267b
+
+**Szenario.** `Wylder`, `Wylder's Chalice` mit Deep of Night, Stufe 15,
+nichts festgehalten, sechs freie Slots (Pools `[56,56,55,33,33,28]`),
+`Maximise damage`, K=20/W=40, 319 Relikte -- sonst S11-A, aber mit dem
+`GoalContext`, den die echte Oberfläche seit AD-032/A17 baut:
+`reference=None`, `weapons_held=()` (`advisorbar.asking_from`, kein Grid
+mehr gelesen). S11-A/`measure_advisor_search.py` setzen dagegen weiterhin
+`reference=<Startwaffe>` -- ein Szenario, das seit AD-032 **keine
+Aufrufstelle im Programm mehr erreicht** (`goals.py:236-244` sagt das
+selbst: "reached by no caller inside `nrplanner/` today"). Die beiden
+Abschnitte sind categorically verschieden, nicht nur zeitversetzt.
+
+Gemessen an drei Stellen, alle warm (Läufe 2-5 eines Prozesses, n=5) auf
+demselben Fenster: `candidates.pools`+`search.beam` direkt (`asking.*` vom
+echten Fenster), der volle `advisor.run.run` headless, und der reale
+Rundweg `AdvisorBar.optimize_button.click()` -> `suggestion_changed(result)`
+über den echten `AdvisorController`/`QThread` (Cache vor jedem Klick mit
+`before_the_data_changes()` geleert -- ohne das wird jeder Wiederholklick
+ein AD-007-Treffer und misst nichts). `QT_QPA_PLATFORM=windows`, reales
+Fenster, `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-267`, eigenes
+`LOCALAPPDATA`/`APPDATA`, Testabzug kopiert, Spielstand eingefroren
+(sha256 `f4940e4b…3540`, identisch mit T-265d).
+
+**Umgebung.** AMD Ryzen 9 5900X, Windows 11 10.0.26200, Python 3.12.10
+(`.venv`), Rechenlastprobe 212,2 ms Median (Spanne 212,1-244,0, n=5) --
+dieselbe Klasse Maschine wie S11-L, **nicht** vergleichbar mit S11-A bis
+S11-K (Ryzen 7 5800H, Quiet Mode). Codestand `24f9d27`, nichts geändert.
+
+**Streuung und Signifikanzschwelle:** 2s/Median der vier `pools+beam`-Läufe
+3,0 %; der fünf Klick-Läufe 2,4 %. Schwelle für dieses Szenario: **5 %**.
+Absolute Untergrenze: A6 (6 s) liegt weit darüber, nicht maßgeblich.
+
+| Messung | Median (n=5) | Spanne | Anteil `model.compute` |
+|---|---|---|---|
+| `measure_advisor_search.py` (S11-A-Szenario, `reference=Startwaffe`, zum Vergleich) | 887,9 ms | — | — |
+| `candidates.pools`+`search.beam`, `asking.ctx` vom echten Fenster (`reference=None`) | 1260,9 ms | 1194,6-1275,3 ms | — |
+| `advisor.run.run` headless, voller Pfad (Presort+Beam+Explain) | 1286,1 ms | 1251,6-1346,5 ms | 88 % (3.29 s von 3.78 s profiliert, 4121 Aufrufe) |
+| `show_the_suggestion` (Kartenaufbau) | 70,3 ms | 69,5-72,5 ms | — |
+| **Klick `Optimize` -> `suggestion_changed`, echter Pfad, Cache je Klick geleert** | **1603,9 ms** | 1594,6-1671,1 ms | 84 % (3,49 s von 4,15 s profiliert, 3883 Aufrufe) |
+
+Die letzte Zeile ist das In-Process-Gegenstück zu T-265d's UI-Automation-Zahl
+(1809 ms): 1603,9 ms Programmlaufzeit plus rund 200 ms UIA-Rundlauf decken
+die 1809 ms weitgehend.
+
+**Ursache.** `goals.py::_max_damage` verzweigt bei `reference=None` in den
+billigen `_attack_multiplier_mean`-Zweig (ein paar dict-Lookups) -- die
+Verzweigung selbst ist nicht das Problem. Das Problem sitzt in
+`model.compute`/`compute_qualitative`: ohne Referenzwaffe kennt jede
+Bewertung keinen `wep_type`, also gelten mehr Effekte als waffentyp-bedingt
+(`is_conditional`/`satisfied_by_weapon` mit `wep_type=None`), und
+`compute_qualitative` baut für jeden davon Text
+(`effecttext.describe/name/owner/works_for`) -- **bei jeder der 3883-4121
+Bewertungen des Beams, nicht nur bei den 40 am Ende erklärten
+Vorschlägen.** Profil (`model.py:925`): 4121 Aufrufe, 3,29 s von 3,78 s
+profilierter Gesamtzeit (Faktor cProfile ca. 2,9x realer Zeit); davon
+`effecttext.*` allein 0,61 s tottime (16 %). Die S11-A-Messreihe
+(`measure_advisor_search.py`) hat diesen Zuwachs nie gesehen, weil sie seit
+AD-032 ein Szenario misst, das das Programm nicht mehr anfragt -- die
+Zahl "Beam unveraendert, 900 vs. 858 ms" in T-265d verglich zwei Läufe des
+falschen Zweigs.
+
+**Getrennt davon, klein:** das explizite "jeder Vorschlag wird erklärt,
+nicht nur der erste" (AD-010/AD-014,
+`test_every_suggestion_carries_its_reasons_and_not_only_the_first`) kostet
+selbst nur rund 60 ms (`explained_all`-Phase, 54,6-63,2 ms über 5 Läufe) --
+das ist gewollte, getestete Architektur und nicht die Ursache des
+gemeldeten Zuwachses.
+
+**Keine Optimierung in diesem Lauf.** Der wirksame Hebel liegt in
+`model.compute`: die Bewertung während des Beams braucht nur `.value`
+(`search.py::score`), nie `build.qualitative`/`build.situational` -- ein
+`want_qualitative`-Schalter, der `compute_qualitative` beim reinen Scoring
+überspringt, würde den 40-%-Anteil der Qualitativ-Verarbeitung an
+`model.compute` für die 3843 reinen Score-Aufrufe sparen. Das ist eine
+Signaturänderung an der am zentralsten genutzten Funktion des Programms
+(`model.py:compute`, gehalten von `tests/test_one_build.py`s
+Ein-Aufrufstellen-Wächter) quer durch `evaluate.py` und `search.py` --
+Architektur, nicht ein lokaler Hotspot. Spec an `developer` im Bericht
+`docs/berichte/T-267-performance-tuner.md`.
+
+**Verworfen (nicht Ursache, kein Handlungsbedarf):**
+`explain.reasons`/"jeder Vorschlag erklärt" (AD-010, s. o., ~60 ms, gewollt);
+`required_but_unmet` (läuft nur bei leerem Beam, hier nicht erreicht);
+`show_the_suggestion`/Fensteraktualisierung (70 ms, klein).
+
+---
+
 ## Ableitungen aus diesen Werten
 
 **Signifikanzschwellen dieses Projekts** (aus der Streuung der Grundwerte,
