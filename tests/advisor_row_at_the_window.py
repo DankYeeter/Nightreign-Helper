@@ -22,6 +22,13 @@ A desktop narrower than the derived width caps it (`_opening_width`'s
 window is measured again at the width it would open at on each of
 `NARROW_DESKTOPS`, under `rooms`.
 
+The stat sheet, the right-hand pane of the same window, is read in the
+same pass (`sheet`): which of its drawn children reach past the pane's
+viewport, at the opening width and on each narrow desktop (DR-028, A13).
+Only drawn children: a hidden label keeps the geometry of the last layout
+pass it took part in, and one hidden before the splitter sized the pane
+still reports 630 px while nothing of it is on screen (T-259).
+
 Run as `python -m tests.advisor_row_at_the_window <snapshot.json>`; the
 parent side is `measure`, and the `advisor_row_at_the_window` fixture in
 `conftest.py` runs it once for the session.
@@ -143,6 +150,33 @@ def _both_states(bar, controls) -> dict:
     return {"failed": failed, "suggested": _the_row(bar, controls)}
 
 
+def _the_sheet(planner) -> dict:
+    """The stat sheet's viewport, and every drawn child cut at its edge.
+
+    The grid labels of the last `draw` but one are still children here,
+    each at Qt's 640-px default because no layout pass ever reached them:
+    this process runs no event loop, so their `deleteLater` is delivered by
+    hand first, as `conftest.deferred_deletes_are_done` does in the suite.
+    """
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from PySide6.QtWidgets import QLabel, QWidget
+
+    from tests import rendered
+
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    rendered.settle(5)
+    sheet = planner.stat_sheet
+    drawn = [child for child in sheet.widget().findChildren(QWidget)
+             if child.isVisible()]
+    return {
+        "viewport_width": sheet.viewport().width(),
+        "cut": [(type(child).__name__,
+                 child.text() if isinstance(child, QLabel) else "",
+                 child.width())
+                for child in rendered.clipped(drawn, sheet.viewport())],
+    }
+
+
 def main(snapshot: pathlib.Path) -> dict:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication, QLabel
@@ -184,6 +218,7 @@ def main(snapshot: pathlib.Path) -> dict:
         "opening_width": planner._opening_width(),
         "row_width": bar.width(),
         **_both_states(bar, controls),
+        "sheet": _the_sheet(planner),
         "rooms": {},
     }
     for room in NARROW_DESKTOPS:
@@ -191,7 +226,8 @@ def main(snapshot: pathlib.Path) -> dict:
         rendered.settle(20)
         figures["rooms"][str(room)] = {"width": planner.width(),
                                   "row_width": bar.width(),
-                                  **_both_states(bar, controls)}
+                                  **_both_states(bar, controls),
+                                  "sheet": _the_sheet(planner)}
     planner.close()
     return figures
 
