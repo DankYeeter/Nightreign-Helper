@@ -186,24 +186,26 @@ still change it by hand, and a slot held on purpose while empty says so
 rather than looking untouched by accident. Holds are not part of the saved
 build; they are forgotten the next time you open the program.
 
-**Don't include / Must include** — the bullet in front of every effect and
-curse line, on a relic card in the picker and in the **Why** dialog, is a
-button with three states. Click it once and the effect is **excluded**: it
-counts in no suggestion and no ranking, and is drawn struck through. Click
-again and it is **required**: only relics carrying it are suggested, marked
-`▲`. A third click clears it. The marking sits on the effect, not on the
-relic — every copy carrying the same effect shows the same state — and it
-is remembered across restarts. The **Why** dialog lists everything you have
-marked under *Effects you've excluded* and *Effects you require*: clicking a
-line there runs the same three-click cycle as clicking it anywhere else, so
-a click on an excluded effect makes it required rather than clearing it, and
-a click on a required one is what clears it. The Advisor row's tooltip
-counts the marks at all times. A required effect no relic of yours carries,
-or one no combination of your relics can bring together with the others, is
-said so by name rather than dropped quietly. Conditional effects — a handful of curses and
-buffs that only apply below a health threshold, on a dodge, after drinking a
-Flask — are counted as met unless you say otherwise on the sheet (see
-"About the switches" below).
+**Filters**, next to the Advisor row, opens a window listing every effect
+and curse a relic of yours carries — one row per effect, not grouped by
+relic, curses included. Each row has two check boxes, **Favourite** and
+**Avoid**: check **Favourite** and every suggestion must carry that effect
+through at least one relic you own; check **Avoid** and the effect counts
+in no suggestion or ranking; checking one clears the other on the same row.
+A search field above the list filters by name, with the same syntax as the
+relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A counter
+above the list reads "{shown} of {total} effects", with "{n} favourited"
+and "{n} avoided" added once either count is above zero. The list sorts
+alphabetically by name; any column header can be clicked to sort by it
+instead. Marks are remembered across restarts. A favourited effect no relic
+of yours carries, or one no combination of your relics can bring together
+with the others, is said so by name rather than dropped quietly. The
+**Why** dialog shows the same marks, but only to read — a `▲` marks a
+favourited effect, a struck-through one an avoided effect, and changing
+either happens in the Filters window, not there. Conditional effects — a
+handful of curses and buffs that only apply below a health threshold, on a
+dodge, after drinking a Flask — are counted as met unless you say otherwise
+on the sheet (see "About the switches" below).
 
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
