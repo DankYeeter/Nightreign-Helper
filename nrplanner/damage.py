@@ -526,15 +526,6 @@ def is_starting_armament(weapon: dict, hero: dict, slot_index: int) -> bool:
             and weapon["id"] == hero.get("starting_weapon"))
 
 
-def _scaled(weapon: dict, question: Question, tier: int,
-            build: model.Build, data: dict, *,
-            two_handed: bool = False) -> weapons.WeaponRating:
-    """Layer one, on the attribute set this question stands on."""
-    attributes = getattr(build, ATTRIBUTES_FOR[question])
-    return weapons.rate(weapon, attributes, data, tier, build.nightfarer,
-                        two_handed=two_handed)
-
-
 def converted(per_type: dict[str, float],
               flat: dict[str, float]) -> tuple[dict[str, float],
                                                dict[str, float]]:
@@ -662,25 +653,24 @@ def _answer(rating: weapons.WeaponRating, question: Question,
     )
 
 
-def _other_hand(weapon: dict, question: Question, tier: int,
-                build: model.Build, data: dict, *,
-                starting_armament: bool = False) -> Rating | None:
-    """The two-handed answer, or `None` where the game offers none."""
-    if not weapons.can_two_hand(weapon):
-        return None
-    return _answer(_scaled(weapon, question, tier, build, data,
-                           two_handed=True),
-                   question, build, starting_armament=starting_armament)
-
-
 def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
           data: dict, *, starting_armament: bool = False) -> Rating:
-    """Both layers for one armament and one question, both hands."""
-    return _answer(_scaled(weapon, question, tier, build, data),
-                   question, build, starting_armament=starting_armament,
-                   two_handed=_other_hand(weapon, question, tier, build,
-                                          data,
-                                          starting_armament=starting_armament))
+    """Both layers for one armament and one question, both hands.
+
+    Both hands come from one `weapons._rate_pair` call, which shares the
+    base/bonus arithmetic between them instead of computing it twice (T-261;
+    until then this called `weapons.rate` once for each hand).
+    """
+    attributes = getattr(build, ATTRIBUTES_FOR[question])
+    one_handed, two_handed_rating = weapons._rate_pair(
+        weapon, attributes, data, tier, build.nightfarer)
+    two_handed = None
+    if two_handed_rating is not None:
+        two_handed = _answer(two_handed_rating, question, build,
+                             starting_armament=starting_armament)
+    return _answer(one_handed, question, build,
+                   starting_armament=starting_armament,
+                   two_handed=two_handed)
 
 
 def equipped(slot, slot_index: int, build: model.Build, hero: dict,
@@ -722,19 +712,20 @@ def rank_candidates(build: model.Build, target_tier: int,
     The filter sits here rather than in the arsenal tab because "candidate"
     already means "something the player might choose", so every list built on
     this answer inherits it -- the tab today, the advisor's own candidate list
-    when it is built. `weapons.rank` below is left seeing the whole dataset:
+    when it is built. `weapons.rank` itself is left seeing the whole dataset:
     it is the rating layer, and a measurement over the game's 30 catalysts has
-    to go on finding 30 of them.
+    to go on finding 30 of them -- unaffected by this function no longer
+    calling it (T-261, see below).
 
     **Best by the figure a display shows, which is `final_headline`.**
-    Ordering is done here and not left to `weapons.rank`, because `rank` sees
-    layer one only: it cannot know the attack multipliers, and since W6 they
-    are part of a candidate's answer. A list ordered by layer one while every
-    row printed layer two would rank a bow above a greatsword whenever a
-    class-scoped rate lifted one of them -- sorted by a number that is nowhere
-    on screen. The layer-one order `rank` hands over is therefore an
-    intermediate result, not this function's answer; it is re-sorted rather
-    than trusted.
+    Ordering is done here and not by layer one, because layer one cannot know
+    the attack multipliers, and since W6 they are part of a candidate's
+    answer. A list ordered by layer one while every row printed layer two
+    would rank a bow above a greatsword whenever a class-scoped rate lifted
+    one of them -- sorted by a number that is nowhere on screen. Until T-261
+    this function took layer one from `weapons.rank` and re-sorted its
+    output, discarding the order it gave; `weapons._rate_pair` now rates
+    each armament directly, since nothing ever trusted that discarded order.
 
     For a staff or a seal that figure is its spell scaling and not its
     physical rating (QA-099), which is the same rule as everywhere else here:
@@ -749,9 +740,10 @@ def rank_candidates(build: model.Build, target_tier: int,
     `WeaponRating.total` sums the base and scaled maps whole, `final_total`
     sums the merged per-type map, and 584 of 7 172 measured records move by
     exactly one (AD-024). Near-ties are common in this dataset, so without a
-    tie-break the order of equal figures would follow whatever `rank` happened
-    to hand over, and two runs could disagree about rows a player cannot tell
-    apart. It carries the catalysts too: `Finger Seal` exists twice in the
+    tie-break the order of equal figures would follow whatever order this
+    function happened to walk the dataset in, and two runs could disagree
+    about rows a player cannot tell apart. It carries the catalysts too:
+    `Finger Seal` exists twice in the
     data with identical figures (QA-099 a), so the two rows are separated by
     their ids and by nothing else.
 
@@ -772,13 +764,17 @@ def rank_candidates(build: model.Build, target_tier: int,
     branch in `weapons.rate` it gated are gone together.
     """
     attributes = getattr(build, ATTRIBUTES_FOR[Question.CANDIDATE])
-    ranked = weapons.rank(data, attributes, target_tier, build.nightfarer)
-    answers = [_answer(rating, Question.CANDIDATE, build,
-                       two_handed=_other_hand(rating.weapon,
-                                              Question.CANDIDATE, target_tier,
-                                              build, data))
-               for rating in ranked
-               if not model.is_unequippable_catalyst(rating.weapon)]
+    answers = []
+    for weapon in data["weapons"]:
+        if model.is_unequippable_catalyst(weapon):
+            continue
+        one_handed, two_handed_rating = weapons._rate_pair(
+            weapon, attributes, data, target_tier, build.nightfarer)
+        two_handed = None
+        if two_handed_rating is not None:
+            two_handed = _answer(two_handed_rating, Question.CANDIDATE, build)
+        answers.append(_answer(one_handed, Question.CANDIDATE, build,
+                               two_handed=two_handed))
     answers.sort(key=lambda answer: (-answer.final_headline,
                                      answer.weapon["id"]))
     return answers

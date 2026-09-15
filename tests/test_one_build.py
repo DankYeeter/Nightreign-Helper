@@ -355,7 +355,11 @@ def test_the_guard_does_not_mistake_a_mention_for_a_call():
 # second summation of a damage type already has (AD-024).
 
 FACADE = "nrplanner/damage.py"
-ARITHMETIC_ENTRY = frozenset({"rate", "rank"})
+#: `_rate_pair` joined `rate`/`rank` here in T-261: `damage._rate` and
+#: `damage.rank_candidates` reach it instead of calling `weapons.rate`
+#: directly for each hand, so it is as much an arithmetic entry point as the
+#: two names AD-021 was written against.
+ARITHMETIC_ENTRY = frozenset({"rate", "rank", "_rate_pair"})
 
 
 def rate_rank_call_sites(source: str) -> int:
@@ -366,11 +370,15 @@ def test_only_the_facade_calls_weapons_rate_or_rank():
     """One facade, not one caller: `damage.py` asks twice, by design.
 
     Unlike `model.compute`, where a second call site is always a second
-    build disagreeing with the first, `damage.py` itself calls `weapons.rate`
-    (in `_scaled`, for one armament) and `weapons.rank` (in
-    `rank_candidates`, for every armament) -- two call sites in the one
-    module that is allowed any. The assurance is not "exactly one call site"
-    but "every call site is in the facade" (AD-021, option B).
+    build disagreeing with the first, `damage.py` itself calls
+    `weapons._rate_pair` twice -- once in `_rate`, for one armament, once in
+    `rank_candidates`, for every armament -- two call sites in the one module
+    that is allowed any. Until T-261 the two call sites were `weapons.rate`
+    (in `_scaled`) and `weapons.rank` (in `rank_candidates`); `_rate_pair`
+    replaced both so that the base/bonus arithmetic a two-handable armament
+    needs is shared between its hands instead of run twice. The assurance is
+    not "exactly one call site" but "every call site is in the facade"
+    (AD-021, option B).
     """
     callers = {
         path.relative_to(REPO).as_posix():

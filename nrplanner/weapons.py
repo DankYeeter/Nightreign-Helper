@@ -380,14 +380,20 @@ def _catalyst_scaling(weapon: dict, attributes: dict[str, int],
     return CATALYST_DISPLAY_RATE * scaling_rate * (1.0 + ratio)
 
 
-def rate(weapon: dict, attributes: dict[str, int], data: dict,
-         upgrade: int = MIN_UPGRADE, nightfarer: str = "",
-         two_handed: bool = False) -> WeaponRating:
-    """Layer one for one armament, one-handed unless `two_handed` is asked.
+def _rate_shared(weapon: dict, attributes: dict[str, int], data: dict,
+                 upgrade: int, nightfarer: str) -> tuple[
+                     int, float | None, Calibration | None,
+                     dict[str, tuple[float, float]]]:
+    """The part of `rate()`'s work neither hand needs done twice.
 
-    `two_handed` is asked by `damage._scaled` and by nothing else: a display
-    reads both hands off one `damage.Rating` (AD-037). The flag does not
-    check `can_two_hand`, because the caller already has.
+    Returns `(applied_upgrade, catalyst_scaling, calibration, per_damage)`,
+    with `per_damage[damage] = (base, bonus)` -- both still without
+    `display_rate`, the one factor that tells a one-handed and a two-handed
+    figure apart. `rate()` and `_rate_pair()` below both call this once and
+    finish the figure with `_finish_rating`; every multiplication either does
+    afterwards is exactly what `rate()` always did, so a hand built this way
+    is bit for bit what an independent `rate()` call for that hand returns
+    (T-261, spec in `docs/berichte/T-260-performance-tuner.md` section 5).
     """
     curves = data["calc_curves"]
     reinforce_table = data["reinforce"]
@@ -424,32 +430,15 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
 
     aec = element_correct.get(str(weapon.get("element_correct_id")), {})
     calibration = nightfarer_calibration(weapon, nightfarer)
-    hand = two_handed_calibration(nightfarer) if two_handed else None
-    result = WeaponRating(
-        weapon=weapon, applied_upgrade=applied,
-        catalyst_scaling=_catalyst_scaling(weapon, attributes, reinforce,
-                                           curves),
-        calibration=calibration, two_handed=hand)
-    # The game's constant and the measured factors, as one number, so the
-    # two lines below stay the two places the screen's scale is applied.
-    # With no calibration the product is exactly GAME_ATTACK_POWER_RATE and
-    # every figure is bit for bit what it was before the factor existed.
-    display_rate = GAME_ATTACK_POWER_RATE * (
-        calibration.factor if calibration else 1.0)
-    if hand:
-        display_rate *= hand.factor
+    catalyst_scaling = _catalyst_scaling(weapon, attributes, reinforce,
+                                         curves)
 
+    per_damage: dict[str, tuple[float, float]] = {}
     for damage in DAMAGE_TYPES:
         base = weapon["base"].get(damage, 0)
         if not base:
             continue
         base *= reinforce["atk"].get(damage, 1.0)
-        # `base` here is still the raw one. The game's constant is applied to
-        # each finished per-type figure instead, at the two lines that write
-        # into `result` -- see the note beside `result.scaled` below for why
-        # this bracketing and not the shorter `base *= GAME_ATTACK_POWER_RATE`
-        # on this line.
-        result.base[damage] = base * display_rate
 
         rules = aec.get(damage, {})
         curve_id = str(weapon["curve"].get(damage))
@@ -486,6 +475,41 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
                 # Influence is stored as a percentage (100 = full effect).
                 influence = rule["influence"] / 100.0
                 bonus += correct * ratio * influence
+
+        per_damage[damage] = (base, bonus)
+
+    return applied, catalyst_scaling, calibration, per_damage
+
+
+def _finish_rating(weapon: dict, applied: int, catalyst_scaling: float | None,
+                   calibration: Calibration | None,
+                   per_damage: dict[str, tuple[float, float]],
+                   hand: Calibration | None) -> WeaponRating:
+    """One hand's `WeaponRating`, from `_rate_shared`'s output and its hand.
+
+    Everything a hand still has to do on its own: `display_rate`, and the two
+    multiplications that carry it -- unchanged from what `rate()` always did
+    in one pass.
+    """
+    result = WeaponRating(
+        weapon=weapon, applied_upgrade=applied,
+        catalyst_scaling=catalyst_scaling,
+        calibration=calibration, two_handed=hand)
+    # The game's constant and the measured factors, as one number, so the
+    # two lines below stay the two places the screen's scale is applied.
+    # With no calibration the product is exactly GAME_ATTACK_POWER_RATE and
+    # every figure is bit for bit what it was before the factor existed.
+    display_rate = GAME_ATTACK_POWER_RATE * (
+        calibration.factor if calibration else 1.0)
+    if hand:
+        display_rate *= hand.factor
+
+    for damage, (base, bonus) in per_damage.items():
+        # `base` here is still the raw one. The game's constant is applied to
+        # each finished per-type figure instead, at the two lines below --
+        # see the note beside `result.scaled` for why this bracketing and not
+        # the shorter `base *= GAME_ATTACK_POWER_RATE` on this line.
+        result.base[damage] = base * display_rate
 
         # The second and last place the game's constant is applied, and the
         # bracketing is measured rather than chosen for looks. Written the
@@ -525,6 +549,58 @@ def rate(weapon: dict, attributes: dict[str, int], data: dict,
         result.scaled[damage] = base * bonus * display_rate
 
     return result
+
+
+def rate(weapon: dict, attributes: dict[str, int], data: dict,
+         upgrade: int = MIN_UPGRADE, nightfarer: str = "",
+         two_handed: bool = False) -> WeaponRating:
+    """Layer one for one armament, one-handed unless `two_handed` is asked.
+
+    `two_handed` was asked by `damage._scaled`, folded away since T-261:
+    production code now takes both hands from `_rate_pair` below, which
+    shares `_rate_shared`'s work instead of calling this function twice. The
+    flag stays -- one call still has to be able to answer one hand alone --
+    and it is what `tests/test_rate_pair.py` asks for, hex for hex, against
+    `_rate_pair`'s own build of the same hand. It does not check
+    `can_two_hand`, because a caller that reaches for it already has.
+    """
+    applied, catalyst_scaling, calibration, per_damage = _rate_shared(
+        weapon, attributes, data, upgrade, nightfarer)
+    hand = two_handed_calibration(nightfarer) if two_handed else None
+    return _finish_rating(weapon, applied, catalyst_scaling, calibration,
+                          per_damage, hand)
+
+
+def _rate_pair(weapon: dict, attributes: dict[str, int], data: dict,
+               upgrade: int = MIN_UPGRADE,
+               nightfarer: str = "") -> tuple[WeaponRating,
+                                              WeaponRating | None]:
+    """One armament, both hands, `_rate_shared`'s work done once for both.
+
+    `(one_handed, two_handed)`; `two_handed` is `None` exactly where
+    `can_two_hand` says the game offers no second figure. Bit for bit what
+    two independent `rate()` calls (`two_handed=False`, then `True`) would
+    return -- `base` and `bonus` per damage type are computed once and
+    reused, and every multiplication after that is the one `rate()` always
+    made, now made once per hand instead of once per call.
+
+    This is the fix for T-260's Optimization 2: `damage._other_hand` used to
+    make a second, independent `weapons.rate` call for every two-handable
+    armament, repeating `_rate_shared`'s loop -- ~29 % of
+    `damage.rank_candidates`, 3529 `weapons.rate` calls profiled for 1792
+    candidates (`docs/berichte/T-260-performance-tuner.md` section 5).
+    `damage._rate` and `damage.rank_candidates` call this instead.
+    """
+    applied, catalyst_scaling, calibration, per_damage = _rate_shared(
+        weapon, attributes, data, upgrade, nightfarer)
+    one_handed = _finish_rating(weapon, applied, catalyst_scaling,
+                                calibration, per_damage, None)
+    two_handed = None
+    if can_two_hand(weapon):
+        hand = two_handed_calibration(nightfarer)
+        two_handed = _finish_rating(weapon, applied, catalyst_scaling,
+                                    calibration, per_damage, hand)
+    return one_handed, two_handed
 
 
 def rank(data: dict, attributes: dict[str, int],
