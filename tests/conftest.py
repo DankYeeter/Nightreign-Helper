@@ -267,6 +267,27 @@ def settings_store(qapp):
     clear_settings()
 
 
+@pytest.fixture(autouse=True)
+def deferred_deletes_are_done():
+    """Every `deleteLater()` of a case has happened before the next case.
+
+    A `deleteLater()` called from test code runs outside any Qt event loop,
+    and at that level `processEvents()` never delivers it: Qt holds the
+    deletion back for an event loop that is not coming. So a shown dialog
+    that a case cleaned up this way stood open, modal and exposed, for every
+    case after it in the same process, until some case ran a nested loop
+    (QA-249: `activeModalWidget()` handed the next case a `RelicPicker`; the
+    offscreen platform's `QCursor.setPos` delivered the pointer to the stale
+    dialog instead of the grid under it). Asked for by type, which is the one
+    call that delivers them at this level.
+    """
+    yield
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    if QCoreApplication.instance() is not None:
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
 @pytest.fixture
 def tmp_path_is_a_steam_library(tmp_path, monkeypatch):
     """Every folder under `tmp_path` counts as lying in a Steam library.
