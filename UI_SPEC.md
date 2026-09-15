@@ -1350,6 +1350,310 @@ Snapshot-Eintrag; der `qa-engineer` legt den Testfall an.)
 
 ---
 
+### 3.6 Das Effektfilter-Fenster (A21) — Favourite/Avoid je Effekt, ein Fenster statt eingebauter Punkte
+
+*Neu in T-277a (ui-ux-designer), 2026-09-15 — `GOAL.md` A21 (Nutzer,
+15.09.2026 12:25, woertlich: „mir gefaellt nicht wie es eingebunden ist.
+liefer ein Filter Symbol und darin dann Favourite und Avoid marker. eine
+liste nur von effekten die ich habe. nicht gruppiert pro relikt oder so.
+curses ebenfalls") und der Director-Nachtrag von 12:30 zu diesem Auftrag:
+**die Markierungspunkte in `RelicCard` und `WhyDialog` entfallen komplett**
+— das Filterfenster ist der einzige Bedienweg fuer `EffectFilters.mark`.
+Ersetzt/ergaenzt §6.8 (AK-276-291) und AK-297 vollstaendig; die dortigen
+AK-Nummern bleiben als Verlauf stehen, ein Vermerk bei AK-297 verweist
+hierher. Kein Fensterlauf (QA haelt die Instanz): Breiten und Massnahmen
+unten sind aus Code (`advisorbar.py`, `relicpicker.py`, `effectstab.py`,
+`effectfilters.py`) und den in AK-285/AK-287 zitierten Messwerten
+abgeleitet, nicht neu am laufenden Fenster gemessen.*
+
+#### AK-300 — Programmweite Begriffe: `Favourite` ersetzt `Must include`, `Avoid` ersetzt `Don't include`
+
+**AK-300** *(A12, GOAL A21 — der Nutzer waehlt die Woerter woertlich.)*
+Ab diesem Auftrag heisst `EffectFilters.REQUIRED` in jedem UI-Text
+**Favourite**, `EffectFilters.EXCLUDED` heisst **Avoid**. Betroffene,
+final geltende Zeichenketten (ersetzen die in AK-277/AK-279/AK-280/AK-281/
+AK-290/AK-291 zitierten Fassungen woertlich):
+
+| Ort | Alt (bis T-267a) | Neu (ab T-277a) |
+|---|---|---|
+| Verwaltungsliste (nur noch lesend, AK-301) | `Effects you've excluded:` | `Effects you've avoided:` |
+| Verwaltungsliste (nur noch lesend, AK-301) | `Effects you require:` | `Effects you've favourited:` |
+| Zaehlerklausel (jetzt am Filters-Knopf, AK-302) | `{n} effect(s) excluded` | `{n} effect(s) avoided` |
+| Zaehlerklausel (jetzt am Filters-Knopf, AK-302) | `{n} effect(s) required` | `{n} effect(s) favourited` |
+| Why-Zeile (AK-290.1) | `{name}: you excluded it, so it is not counted.` | `{name}: you avoided it, so it is not counted.` |
+| Why-Zeile (AK-290.2) | `{name}: you required it, so it always counts.` | `{name}: you favourited it, so it always counts.` |
+| A7-Satz einzeln (AK-281) | `…, which you marked as required — no suggestion can meet that.` | `…, which you favourited — no suggestion can meet that.` |
+| A7-Satz kombiniert (AK-291) | `…, which you marked as required — no suggestion can meet that.` | `…, which you favourited — no suggestion can meet that.` |
+
+Unveraendert, weil das Wort `marked`/`required`/`excluded` dort gar nicht
+vorkam: der QA-273-Zusatz zu AK-281 (`"You own {n} copies carrying
+{effect}, but none fits the open slots"`) und der AK-289-Abbruchsatz
+(`"The effects you marked changed while this was working out — use
+Optimize again."` — `marked` bleibt ein neutrales Verb, kein Zustandsname).
+
+**Offene Frage an den App Designer (Namenskollision, kein Geschmacksurteil):**
+Das Programm fuehrt bereits ein **anderes** Feature mit dem Wort
+*Favourite*: ein Relikt kann je Nightfarer als Favourit markiert werden
+(★, `favourites.py`, `RelicCard.contextMenuEvent` → `FavouriteMenu` mit dem
+sichtbaren Titel `"Favourite for"`, eigene Farbe `FAVOURITE = "#a86fe0"`,
+`relicpicker.py:78`). Das ist ein anderes Konzept (welches Relikt ich gern
+anlege) als A21s neues *Favourite* (welcher **Effekt** in jeder Rechnung
+zwingend zaehlt) — dasselbe Wort, zwei unabhaengige Markierungen an
+verschiedenen Orten. Ich baue nach dem woertlichen Nutzerauftrag, markiere
+die Kollision aber ausdruecklich: ein Spieler, der von „favourite" liest,
+kann nicht wissen, ob damit der Stern am Relikt oder der neue Effekt-Haken
+gemeint ist, ohne den Ort zu sehen. Zwei Abmilderungen, keine davon
+entschieden: (1) im Filterfenster nirgends den Stern ★ verwenden (schon so
+geplant, AK-305: eigenes Glyph), (2) den Fenstertitel/Button explizit
+`Effect filters` nennen, nie nur `Favourites`, damit der Ort den Unterschied
+traegt. Bestaetigung oder Alternativbegriff liegt beim App Designer.
+
+#### AK-301 — Punkte in `RelicCard`/`WhyDialog` entfallen; der Why-Dialog bleibt lesend
+
+**AK-301** *(Director-Nachtrag 15.09.2026 12:30 zu diesem Auftrag.)*
+AK-276, AK-277, AK-278 und AK-297 sind **gegenstandslos**: `RelicCard`
+zeichnet Effekt- und Fluchzeilen wieder genau wie vor T-248 (AK-134,
+ungefaerbt ausser nach `silence`/`is_curse`) — kein `MarkButton`, keine
+Favourite-/Avoid-Anzeige, kein Tab-Stopp, keine Legendenzeile in der
+`sorting`-Reihe. Marken werden ausschliesslich im Filterfenster gesetzt
+(AK-305).
+
+Der `WhyDialog` zeigt weiterhin, **lesend**, welchen Zustand ein Effekt
+traegt — der Spieler soll beim Lesen einer Begruendung sehen, warum ein
+Effekt fehlt oder immer zaehlt, ohne dafuer das Filterfenster zu oeffnen:
+`REQUIRED_BULLET` (`▲`) und `ACCENT`-Fettung fuer Favourite, Durchstreichung
+und `BAD` fuer Avoid — dieselbe `LineStyle`/`_styled`-Zeichnung wie bisher,
+aber ohne `MarkButton`: ein `QLabel`-Bullet, kein Tab-Stopp, kein Klick,
+kein `MARK_TOOLTIPS`. Die beiden Verwaltungslisten (AK-279, jetzt mit den
+AK-300-Ueberschriften) bleiben stehen, aber **ohne** Klick-Rueckweg — sie
+sind reine Uebersicht, keine Bedienung. Die Legende (ersetzt `MARK_LEGEND`
+und den AK-290.3-Entwurf vollstaendig, wortgleich mit dem Director-Nachtrag):
+
+> `"▲ marks an effect you favourited, a struck-through effect one you
+> avoided — change these in the effect filter (filter icon in the advisor
+> bar)."`
+
+*Rot-vorher:* ein Why-Dialog, der weiterhin eine klickbare `MarkedLine`
+zeichnet, oder eine Legende, die noch den alten Klick-Zyklus beschreibt,
+widerspricht dem Director-Nachtrag woertlich. *Rot-vorher (Picker):* eine
+`RelicCard`, die noch irgendeine Favourite-/Avoid-Farbe oder -Faerbung an
+einer Effektzeile zeigt, fuehrt denselben Zustand an zwei Orten (AD-024) —
+das Filterfenster ist seit dem Nachtrag der **einzige** Ort.
+
+**Register-Hinweis:** `UI_SPEC_REGISTER.md` traegt AK-276/277/278/297 ab
+sofort als „Mechanismus entfaellt, siehe §3.6 (T-277a)" in der Spalte
+*ueberholt durch*.
+
+#### AK-302 — Filter-Knopf in der Berater-Leiste: Text statt Symbol, ausserhalb des Drei-Knopf-Budgets
+
+**AK-302** *(Symbolwahl entschieden: Text, keine Bild-/Codepoint-Grafik —
+Begruendung unten.)* Die Leiste bekommt einen neuen, **staendig
+sichtbaren** `QPushButton("Filters")`, unmittelbar rechts von `goal_box`
+und links der bedingten Aktionsknoepfe (`Optimize`/`Cancel`/`Apply
+all`/`Why`/`Clear`/`Undo apply`). Er zaehlt **nicht** zu AK-07s Budget von
+drei Aktionsknoepfen: er ist wie `goal_box` in jedem der 14 Zustaende aus
+§4 sichtbar und aktiv (auch waehrend `Optimize` laeuft — AK-289 setzt eine
+Markierungsaenderung waehrend eines Laufs bereits voraus, also darf der
+Knopf dabei nicht deaktiviert sein; AK-08 gilt: kein Bedienelement
+ausserhalb der Leiste wird durch eine laufende Rechnung gesperrt, dasselbe
+gilt hier fuer den Knopf selbst).
+
+**Warum Text statt Icon.** Der Auftrag nennt drei Optionen (Text-Icon,
+Unicode-Icon, QStyle-Standardicon). Entschieden: **Text**, `"Filters"`.
+Gruende: (1) jeder bestehende Knopf dieser Leiste traegt ein Wort, kein
+Icon (`Optimize`, `Cancel`, `Apply all`, `Why`, `Clear`, `Undo apply`) — ein
+einzelner Icon-Knopf waere der erste Bruch dieser Konvention. (2) Ein
+Unicode-Glyph ohne begleitendes Wort ist genau der Fehler, den AK-297
+gerade behoben hat: der power-user fand den alten Punkt nicht, weil er
+ohne Wort dastand. (3) Ein `QStyle`-Standardicon oder ein Codepoint aus
+`Segoe MDL2 Assets`/`Segoe Fluent Icons` liesse sich fuer „Filter" nicht
+ohne Weiteres verifizieren (ich habe keinen bestaetigten Codepoint
+gefunden) und variiert plattform-/versionsabhaengig im Aussehen — ein
+Risiko ohne Gegenwert, wo ein Wort denselben Platz braucht. Tooltip:
+
+> `"Mark effects you always want (Favourite) or never want (Avoid) in a
+> suggestion."`
+
+Ist mindestens eine der beiden Zahlen ungleich null, haengt der Tooltip
+denselben Klausel-Satz an, den AK-280 bisher an der ganzen Zeile fuehrte
+(`_clauses`-Muster, Trenner `  ·  `): `"{n} effect(s) avoided"` bzw.
+`"{n} effect(s) favourited"`, beide falls beide gesetzt sind — **AK-280
+gilt ab sofort fuer den `Filters`-Knopf, nicht mehr fuer `bar.toolTip()`**
+(praeziserer Ort: die Information gehoert zu dem Knopf, der sie aendert).
+Klick oeffnet das Fenster aus AK-303, egal in welchem Zustand.
+
+**Breitenfolge, zu messen, nicht angenommen (wie AK-287).** Der Knopf ist
+— anders als `Apply all`/`Why`/`Clear` — in **jedem** Zustand sichtbar,
+zaehlt also zu **beiden** Termen von A14/A32 (`max(Effekttabelle,
+Leistenbedarf im Vorschlagszustand)` **und** zum Leistenbedarf des
+Grundzustands ohne Vorschlag, den A32 bisher nicht extra nennt, weil dort
+nichts Bedingtes fehlte). Erster Baubericht misst die reale Breite und
+traegt sie in AK-05/AK-194/A14 nach — ein Uebertrag ohne Messung waere ein
+Regelbruch derselben Klasse wie AK-287 fuer den 2H-Zusatz.
+
+**Akzeptanzkriterien:**
+- Der Knopf ist in jedem der 14 Zustaende sichtbar und aktiv, auch
+  waehrend `Optimize` laeuft.
+- Sein Tooltip traegt die AK-280-Klausel, sobald eine der beiden Zahlen
+  ungleich null ist; `bar.toolTip()` selbst traegt sie **nicht mehr**.
+- Tab erreicht den Knopf; Leertaste/Enter loesen ihn aus; Fokusring
+  sichtbar (AK-25/AK-26).
+
+#### AK-303 — Das Fenster: modal, eigener Titel, Groesse unabhaengig vom 1536-px-Boden
+
+**AK-303** *(modal wie `WhyDialog`/`RelicPicker` — kein neues Interaktions-
+muster, AD-024.)* `EffectFilterWindow(QDialog)`, `setModal(True)`,
+Titel `"Effect filters"`. Startgroesse ca. `520 × 560` px (Schaetzwert aus
+den Spaltenbreiten von AK-304/AK-308, keine Live-Messung — erster
+Baubericht korrigiert), frei in beide Richtungen vergroesserbar,
+`QDialog`-Standardverhalten fuer Escape/Schliessen. Diese Groesse ist
+**bewusst unabhaengig** von der abgeleiteten Startbreite des Hauptfensters
+(A14/A32) und von der 1536-px-Untergrenze aus AK-271: das Fenster ist
+schmal genug, um auch auf einem 1366-px-Bildschirm vollstaendig sichtbar
+zu bleiben, ohne dass AK-269/AK-271 fuer den Hauptfensterinhalt in
+Frage steht. Pruefweg: `EffectFilterWindow` geoeffnet auf einem
+1366×768-Bildschirm — kein Rand ausserhalb des sichtbaren Bereichs.
+
+#### AK-304 — Inhalt: eine Zeile je Effekt-/Fluch-Id, nicht je Relikt; fuenf Spalten
+
+**AK-304** *(GOAL A21 woertlich: „eine liste nur von effekten die ich
+habe. nicht gruppiert pro relikt oder so. curses ebenfalls".)* Die Zeilen
+sind die **Vereinigung** aller `effect_ids` und `curse_ids` ueber jede vom
+Spieler besessene Reliktkopie (`owned`, nicht `RelicCard`-Kandidaten,
+nicht ausgefiltert durch den Picker-Suchtext) — **eine** Zeile je Id, egal
+auf wie vielen Relikten sie vorkommt. Fuenf Spalten, in dieser Reihenfolge
+(Auftrag AK-300ff):
+
+| Spalte | Inhalt |
+|---|---|
+| Marker Favourite | Kontrollkaestchen, siehe AK-305 |
+| Marker Avoid | Kontrollkaestchen, siehe AK-305 |
+| Name | Anzeigename der Id, derselbe Text wie auf der Karte/im Why (kein zweiter Name) |
+| Typ | `Effect` oder `Curse` (aus `is_curse`) |
+| Copies | Zahl der besessenen Reliktkopien, die diese Id tragen |
+
+**Namenskollision mit `effectstab.py`s `Copies`-Spalte, ausdruecklich
+vermieden.** Die „Effects & chances"-Tab fuehrt bereits eine Spalte
+`Copies` mit einer **anderen** Definition (`COPIES_DEFINITION`: Eintraege
+in den Spieldateien, nicht besessene Kopien — genau die Verwechslung, die
+QA dort schon einmal fand). Diese Spalte hier zaehlt **besessene**
+Reliktkopien. Damit dasselbe Wort nicht zweimal etwas anderes bedeutet,
+traegt die Tabelle hier eine eigene Definitionszeile ueber dem Raster, nach
+demselben Baumuster wie `effectstab.py`s `COPIES_DEFINITION`-Zeile:
+
+> `"Copies counts relics you own that carry this effect or curse — not "`
+> `"game-data entries (that count is on the Effects & chances tab)."`
+
+Pruefweg: Ids aus mindestens zwei verschiedenen besessenen Reliktkopien mit
+gemeinsamem Effekt erscheinen als **eine** Zeile mit `Copies = 2`; ein
+Fluch erscheint mit `Typ = Curse`.
+
+**Nicht Teil dieser Vorgabe:** ob ein Effekt, der nur auf einem aktuell
+gehaltenen (`held`) Slot sitzt, im Fenster irgendwie hervorgehoben wird —
+das Fenster listet Besitz, nicht Halte-Status (AK-310 regelt die
+Wechselwirkung inhaltlich, nicht visuell).
+
+#### AK-305 — Marker: zwei unabhaengige Kontrollkaestchen statt eines Klick-Zyklus
+
+**AK-305** *(GOAL A21 woertlich: „Favourite und Avoid marker" — zwei
+Kontrollen, keine dritte, keine Zyklus-Logik wie das entfallene AK-276.)*
+Jede Zeile traegt zwei `QCheckBox`, an dieselbe Id gebunden, disjunkt
+(AK-276s Grundsatz gilt fort, nur die Bedienung aendert sich): Ankreuzen
+von Favourite loescht ein gesetztes Avoid derselben Zeile und umgekehrt,
+beide ueber genau denselben Aufruf wie bisher, `EffectFilters.mark(id,
+kind)`. Anhaken meldet `kind=REQUIRED` bzw. `kind=EXCLUDED`, Abhaken meldet
+`kind=None`. Farbe der aktiven Kaestchen `ACCENT` (Favourite) bzw. `BAD`
+(Avoid) — dieselben Token wie das entfallene AK-277, kein neuer Hex-Wert;
+**nicht** `FAVOURITE` (`#a86fe0`), das Token des Relikt-Sterns (AK-300s
+Kollisionshinweis) bleibt diesem anderen Feature vorbehalten. Tooltip je
+Kaestchen nennt Zustand und Wirkung, z. B. Favourite:
+`"Every suggestion must carry this effect through at least one owned
+copy."`, Avoid: `"This effect counts in no suggestion or ranking."`
+Tab erreicht beide Kaestchen einer Zeile nacheinander (Leserichtung),
+Leertaste schaltet um, Fokusring sichtbar (AK-25/AK-26/AK-278-Grundsatz,
+jetzt hier statt am entfallenen Punkt).
+
+#### AK-306 — Suchfeld, dieselbe Syntax wie der Picker
+
+**AK-306** *(A13 — eine Syntax, nicht zwei.)* Das Suchfeld filtert die
+Zeilen nach Name mit derselben Booleschen Syntax wie das Picker-Hauptfeld
+(AK-275: `AND`, `OR`, `NOT`, `"zitierte Phrasen"`), wortgleicher Platzhalter-
+Aufbau: `"Filter by effect or curse — supports AND, OR, NOT and \"quoted
+phrases\""`. Kein zweites, abweichendes Suchverhalten (AK-275s zweites,
+einfaches Feld ist hier kein Vorbild — es gibt in diesem Fenster nur ein
+Suchfeld).
+
+#### AK-307 — Zaehler, immer sichtbar
+
+**AK-307** *(GOAL A21 „Zaehler" — Format nach dem `_clauses`-Muster, das
+das Programm schon fuehrt.)* Ueber dem Raster steht dauerhaft eine Zeile:
+`"{gezeigt} of {gesamt} effects"`, ergaenzt, sobald eine der beiden Zahlen
+ungleich null ist, um `"  ·  {f} favourited  ·  {a} avoided"` (nur die
+gesetzten Klauseln, wie AK-280/AK-302). `{gezeigt}` ist die Trefferzahl
+nach dem Suchfeld aus AK-306, `{gesamt}` die volle Zeilenzahl aus AK-304 —
+beide `> 0`-Faelle sind eine Regression von AK-27s Grundsatz (eine
+Zusammenfassungszeile sagt, wenn gefiltert wurde), hier auf das neue
+Fenster uebertragen.
+
+#### AK-308 — Sortierung: alphabetisch nach Name, jede Spalte klickbar
+
+**AK-308** *(A12 — alphabetisch ist scanbar, Id-Reihenfolge wirkt beliebig,
+derselbe Grundsatz wie AK-291.)* Voreinstellung: aufsteigend nach `Name`,
+gross-/kleinschreibungsunabhaengig. `QTableWidget.setSortingEnabled(True)`
+wie `effectstab.py` (kein neues Sortiermuster) — jede der fuenf Spalten ist
+per Klick auf den Spaltenkopf sortierbar, inklusive `Copies` (numerisch)
+und `Typ` (Effect vor Curse oder umgekehrt, alphabetisch reicht).
+
+#### AK-309 — Leerzustaende: kein Save, Save ohne Relikte, Suche ohne Treffer
+
+**AK-309** *(A7/A12 — derselbe Ton wie `NO_SAVE_WAS_READ`/
+`CHOSEN_SAVE_IS_EMPTY`, keine neue Sprache erfunden.)* Drei Faelle, das
+Raster bleibt in allen dreien leer:
+
+1. **Kein Save gelesen.** `"No save was read, so there are no effects to
+   filter yet."`
+2. **Save gelesen, keine Relikte besessen.** `"That save has no relics in
+   it yet, so there is nothing to filter."`
+3. **Suche ohne Treffer** (Save vorhanden, Liste nicht leer, Suchtext
+   filtert auf 0). Kein Fliesstext im Raster — der Zaehler aus AK-307
+   zeigt bereits `"0 of {gesamt} effects"`; zusaetzlich ein `MUTED`-Label
+   unter dem leeren Raster: `"No effect matches your search."`
+
+Fall 1 und 2 unterscheiden sich (A7: den tatsaechlichen Grund nennen, nicht
+pauschal „nichts hier") — dieselbe Unterscheidung, die `app.py` fuer
+`NO_SAVE_WAS_READ`/`CHOSEN_SAVE_IS_EMPTY` bereits trifft.
+
+#### AK-310 — Geltungsbereich (A12): nur der Berater, gehaltene Slots unangetastet
+
+**AK-310** *(erweitert AK-282 ausdruecklich auf das neue Fenster.)* Eine
+Markierung aus diesem Fenster wirkt wie zuvor **ausschliesslich** auf die
+Rechnung des Beraters (`SlotProblem.excluded`/`required`, AD-036) — das
+Statblatt bleibt unberuehrt (AK-282 gilt unveraendert). Ein Klick im
+Filterfenster veraendert, entfernt oder ergaenzt **nie** ein Relikt in
+einem gehaltenen (`held`) Slot: Avoid auf einem Effekt, den ein gehaltenes
+Relikt traegt, nimmt das Relikt nicht aus dem Slot, zaehlt seinen Beitrag
+aber nicht in der Rangfolge (AD-036 Punkt 2, unveraendert); ein gehaltenes
+Relikt, das einen als Favourite markierten Effekt bereits traegt, erfuellt
+die Pflicht automatisch, ohne dass ein freier Slot ihn zusaetzlich tragen
+muss (AD-036 Punkt 4, „Erfuellt-Menge"). Das Fenster selbst zeigt diese
+Wechselwirkung nicht an (AK-304, „nicht Teil dieser Vorgabe") — sie steht
+weiterhin im `Why`-Dialog (AK-281/AK-291).
+
+#### AK-311 — Persistenz und Live-Abgleich
+
+**AK-311** *(AK-283 gilt unveraendert, jetzt an den drei neuen Orten.)*
+Nach einem Neustart zeigt das Filterfenster exakt die beim letzten Beenden
+gesetzten Marken (Speicherort/-schema: AD-036, `effectfilters.py`,
+unveraendert). Waehrend das Fenster offen ist, spiegeln `Why`-Dialog
+(sofern gleichzeitig offen — beide sind modal zu ihrem jeweiligen
+Elternfenster, nicht zueinander) und der `Filters`-Knopf-Tooltip (AK-302)
+jede Aenderung ohne Neustart, ueber dasselbe `EffectFilters.changed`-Signal,
+das den Bau seit T-248c schon traegt. Pruefweg: Marke im Fenster setzen,
+Fenster schliessen, `Filters`-Tooltip zeigt die neue Zahl ohne weiteren
+Klick.
+
+---
+
 ## Bereich 4 — Build planner: Slotkarten, festgehaltene Slots und `Optimize`
 
 Drei Fragen, drei Namen: wie die Zahlen auf den Slot- und Waffenkacheln heissen
@@ -5136,6 +5440,17 @@ Optionen):
 - Kein Kartenlayout (Picker-Raster, `CARD_WIDTH_FLOOR`) veraendert sich
   messbar durch die neue Zeile — Pruefweg wie AK-277 (`RelicCard`-Messung
   vor/nach).
+
+> **Vermerk 15.09.2026 (T-277a, GOAL A21, Director-Nachtrag 12:30): AK-276,
+> AK-277, AK-278 und dieses AK-297 entfallen vollstaendig.** Der Nutzer
+> wollte die Markierung nicht laenger in Karte/Dialog eingebunden sehen
+> („mir gefaellt nicht wie es eingebunden ist"); der Director hat
+> entschieden, dass die Punkte **nicht** als Zweitweg bleiben (anders als
+> AN-9 es noch offenliess) — das neue Effektfilter-Fenster (§3.6, AK-300ff)
+> ist der einzige Bedienweg. Der `WhyDialog` zeigt weiterhin lesend, welchen
+> Zustand ein Effekt traegt (AK-301), aber ohne `MarkButton`, ohne Tab-Stopp,
+> ohne diese Legende. Wortlaut und Begruendung oben bleiben als Verlauf
+> stehen; sie sind nicht mehr geltend.
 
 #### AK-298 — die gewaehlte Hand ist auf Kachel, Werteblatt, Arsenal hervorgehoben
 
