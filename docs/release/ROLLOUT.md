@@ -379,6 +379,39 @@ A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
 
 ---
 
+## 1.12.2 — 2026-09-15, Modus `notes`
+
+Stand `d2a1598`, Code-Commit `fb23e24`. Artefakt `dist/NightreignHelper.exe`,
+59.120.312 B, SHA-256
+`7279528507491809616beab5f498ce4d03153c907d8d18c54f92bb4fed67abcf`.
+`AUFLAGEN.md` gegen Stand 15.09. gelesen: keine Auflage steht auf ROT, keine
+sperrt diesen Lauf. Kein Release, kein Push, keine Weitergabe in diesem Lauf
+(Auftrag: nur `notes`).
+
+### Migration 1.12.1 → 1.12.2
+
+Geprueft: `git diff 3c2ff23..fb23e24 -- nrplanner/favourites.py
+nrplanner/paths.py nrplanner/chalices.py` zeigt keine Aenderung — Ablageort
+und Schema unveraendert. Migration liegt stattdessen im Datenextrakt:
+`EXTRACT_VERSION` 11 → 12 (`nrdata/extract.py:84`, neues Feld `paired` aus
+`isDualBlade`). Der Vergleich laeuft automatisch beim Start
+(`nrplanner/firstrun.py:75`, `nrplanner/datasource.py:106`): stimmt die
+gespeicherte `extract_version` im Snapshot nicht mit der aktuellen ueberein,
+wird der Cache verworfen und neu gebaut, ohne Nutzerhandlung. Am Quelltext
+bestaetigt, nicht an einem echten 1.12.1→1.12.2-Update-Lauf (kein
+`clean-room` in diesem Auftrag). Builds und Effektmarkierungen (`QSettings`)
+bleiben unberuehrt, dieselbe Schlussfolgerung wie in den Abschnitten 1.12.0
+und 1.12.1.
+
+### Ergebnis
+
+Kein Blocker. Fuer eine Weitergabe gilt weiterhin A-020/A-023 aus
+`AUFLAGEN.md`; A-031 entfaellt laut T-265 (keine UPX-Sektionen im Artefakt).
+Ungeprueft: der EXTRACT_VERSION-11→12-Uebergang an einem echten Artefakt
+(kein 1.12.1-Cache-Beispiel in diesem Lauf verwendet).
+
+---
+
 ## 1.12.1 — 2026-09-15, Modus `notes`
 
 Stand `6533449`, Code-Commit `3c2ff23`. Artefakt `dist/NightreignHelper.exe`,

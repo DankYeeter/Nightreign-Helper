@@ -4,6 +4,22 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.12.2] - 2026-09-15
+
+### Changed
+- Paired weapons (twinblades, fists, claws, paired swords) now use their own
+  two-handed damage multiplier instead of the single-weapon one, matching
+  measured values (twinblades x0.5, the others x0.77366).
+- On the Weapons tab, the row for a paired weapon's type now shows both the
+  one-handed and two-handed value, like the rest of the tab already does.
+- The relic picker dialog now appears about 0.1 s faster; the relic cards
+  are grouped into batches while drawing instead of all at once.
+
+### Note
+- This release changes how weapon data is extracted. The first start after
+  updating rebuilds the local game-data cache, which takes about 2 minutes;
+  afterwards nothing further is needed.
+
 ## [1.12.1] - 2026-09-15
 
 ### Added
