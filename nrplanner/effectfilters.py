@@ -1,7 +1,7 @@
 """Which effects the player struck out of, or pinned into, every suggestion.
 
-`GOAL.md` A18 gives the player *Don't include* per effect id, A19 *Must
-include*; AD-036.5 puts both in the one settings store the program has,
+`GOAL.md` A18 gives the player *Avoid* per effect id, A19 *Favourite*
+(AK-300); AD-036.5 puts both in the one settings store the program has,
 under one fixed key each. The ids are the **value**, never the key
 (AD-030, OF-15): nothing here derives a key from anything, and the key
 space this adds is two, for good. No `__schema` step either -- a store that

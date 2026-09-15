@@ -1,6 +1,6 @@
 """The two marked effect sets: stored under two fixed keys, disjoint, heard.
 
-AD-036.5 and AK-283: what the player marked `Don't include` or `Must include`
+AD-036.5 and AK-283: what the player marked `Avoid` or `Favourite` (AK-300)
 is written on the marking and read again at the next start -- a new
 `EffectFilters` is that start, as far as the store can tell. The keys live
 in the store `favourites` names, which is the one `NIGHTREIGN_SETTINGS_ORG`

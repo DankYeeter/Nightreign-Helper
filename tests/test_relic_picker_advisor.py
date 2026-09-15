@@ -267,16 +267,10 @@ def relic_cards(dialog):
     return holder.findChildren(relicpicker.RelicCard)
 
 
-def effects_of(slot, item) -> list[tuple[int, str]]:
-    """`(id, name)` per rolled effect, as `_card_for` hands them over."""
-    return list(zip(item.effect_ids, slot.effect_names(item)))
-
-
 def a_card(slot, item, values=None, chip=""):
     """One card as the picker builds it, optionally already given figures."""
     card = relicpicker.RelicCard(
-        item, effects_of(slot, item), None, False, lambda _i: None,
-        marks=slot.window().effect_filters,
+        item, slot.effect_names(item), None, False, lambda _i: None,
         captions=[relicpicker.VALUE_CAPTIONS[goal_id]
                   for goal_id in relicpicker.VALUE_DIRECTIONS])
     card.setFixedWidth(relicpicker.card_width())
@@ -335,104 +329,39 @@ def open_picker(slot, gains, **kwargs):
 
 # --- the block, and the room it takes (AK-41) ------------------------------
 
-def test_every_effect_and_curse_line_of_a_card_is_the_marking_control(slot):
-    """AK-276 on the picker card: one `MarkedLine` per rolled effect and per
-    curse, bound to the id the run counts; a click reaches the window's
-    filters, and the tab stops per card are counted for the report
-    (AK-278)."""
-    from nrplanner import advisorblock, effectfilters
+def test_a_card_draws_its_effect_lines_as_text_and_carries_no_control(slot):
+    """AK-301: one plain label per rolled effect and per curse, bullet in
+    the text, no button and no tab stop -- a marked effect shows no state
+    here, whatever the filters hold."""
+    from nrplanner import effectfilters
 
     filters = slot.window().effect_filters
     item = next(i for i in slot.available_items() if i.effect_ids)
+    filters.mark(item.effect_ids[0], effectfilters.EXCLUDED)
     card = a_card(slot, item)
     try:
-        ids = [line.line.effect_id for line in card.lines]
-        assert ids == list(item.effect_ids) + list(
-            getattr(item, "curse_ids", ()) or ())
-        assert [line.line.is_curse for line in card.lines] == (
-            [False] * len(item.effect_ids)
-            + [True] * (len(ids) - len(item.effect_ids)))
-        assert card.findChildren(advisorblock.MarkedLine) == card.lines
-        stops = [w for w in card.findChildren(QToolButton)
-                 if w.focusPolicy() & Qt.TabFocus]
-        assert len(stops) >= len(card.lines)
-
-        card.lines[0].mark.click()
-        assert filters.excluded == {ids[0]}
-        assert card.lines[0].kind() == effectfilters.EXCLUDED
+        names = slot.effect_names(item)
+        assert [line.text() for line in card.lines[:len(names)]] == [
+            f"• {name}" for name in names]
+        assert all(line.text().startswith("✦ ")
+                   for line in card.lines[len(names):])
+        for line in card.lines:
+            assert isinstance(line, QLabel)
+            assert line.textFormat() == Qt.PlainText
+            assert not line.font().strikeOut()
+        assert card.findChildren(QToolButton) == [card.button]
+        assert not hasattr(card, "mark_legend")
     finally:
-        filters.mark(ids[0], None)
+        filters.mark(item.effect_ids[0], None)
         card.deleteLater()
 
 
-def test_a_card_is_the_same_height_with_the_control_as_with_a_label(slot):
-    """AK-277: the bullet became the control; the card grew by nothing."""
-    from nrplanner import advisorblock
-
-    item = next(i for i in slot.available_items() if i.effect_ids)
-    card = a_card(slot, item)
-    body = relicpicker.card_width() - 2 * relicpicker.CARD_MARGIN
-    for line in card.lines:
-        plain = QLabel(f"• {line.line.text}")
-        plain.setWordWrap(True)
-        plain.setStyleSheet("border: none; color: #cfcfcf; font-size: 11px;")
-        assert (line.layout().heightForWidth(body)
-                <= plain.heightForWidth(body)), line.line.text
-        plain.deleteLater()
-    assert advisorblock.SMALL_TEXT == 11
-    card.deleteLater()
-
-
-def test_a_marking_made_on_a_card_stands_after_a_real_restart(planner,
-                                                               game_data,
-                                                               qapp):
-    """AK-283: mark on a card, close the window, build a new one from the
-    same store -- the new window's picker shows the marking, and the row's
-    tooltip counts it before anything was optimised (AK-280)."""
-    from nrplanner import app as appmod
-    from nrplanner import effectfilters
-    from tests import conftest
-
-    slot = a_slot(planner)
-    dialog = open_picker(slot, {0: 1.0})
-    line = next(line for card in relic_cards(dialog) for line in card.lines)
-    effect_id = line.line.effect_id
-    line.mark.click()
-    assert planner.effect_filters.excluded == {effect_id}
-    dialog.deleteLater()
-    planner.close()
-
-    restarted = conftest.wait_for_the_save(appmod.Planner(game_data))
-    try:
-        assert restarted.effect_filters.excluded == {effect_id}
-        assert "1 effect excluded" in restarted.advisor_bar.toolTip()
-        again = open_picker(a_slot(restarted), {0: 1.0})
-        kinds = {line.kind() for card in relic_cards(again)
-                 for line in card.lines if line.line.effect_id == effect_id}
-        assert kinds == {effectfilters.EXCLUDED}
-        again.deleteLater()
-    finally:
-        restarted.effect_filters.mark(effect_id, None)
-        restarted.close()
-        restarted.deleteLater()
-
-
-def test_the_marking_legend_stands_in_the_picker_before_any_marking(slot):
-    """AK-297: the legend is on screen while nothing is marked, word for
-    word the Why dialog's, and outside the grid -- no card moves for it."""
-    from nrplanner import advisorblock
-
-    filters = slot.window().effect_filters
-    assert not (filters.excluded or filters.required)
+def test_the_picker_carries_no_marking_legend(slot):
+    """AK-301: the legend left the picker with the control; the `sorting`
+    row holds the caption and the box and nothing after them."""
     dialog = open_picker(slot, {0: 1.0})
     try:
-        assert dialog.mark_legend.isVisibleTo(dialog)
-        assert dialog.mark_legend.text() == advisorblock.MARK_LEGEND == (
-            "Click an effect's bullet to exclude it, click again to require "
-            "it (▲), and once more to clear it.")
-        assert dialog.mark_legend.textFormat() == Qt.PlainText
-        assert dialog.mark_legend.alignment() & Qt.AlignRight
-        assert not dialog.scroll.isAncestorOf(dialog.mark_legend)
+        assert not hasattr(dialog, "mark_legend")
         assert relicpicker.card_width() >= relicpicker.CARD_WIDTH_FLOOR
         assert {card.width() for card in relic_cards(dialog)} == {
             relicpicker.card_width()}
@@ -532,11 +461,10 @@ def test_the_block_asks_for_no_more_width_than_the_card_has(slot):
     item = slot.available_items()[0]
     captions = [relicpicker.VALUE_CAPTIONS[goal_id]
                 for goal_id in relicpicker.VALUE_DIRECTIONS]
-    marks = slot.window().effect_filters
-    without = relicpicker.RelicCard(item, effects_of(slot, item), None,
-                                    False, lambda _i: None, marks=marks)
-    with_block = relicpicker.RelicCard(item, effects_of(slot, item), None,
-                                       False, lambda _i: None, marks=marks,
+    without = relicpicker.RelicCard(item, slot.effect_names(item), None,
+                                    False, lambda _i: None)
+    with_block = relicpicker.RelicCard(item, slot.effect_names(item), None,
+                                       False, lambda _i: None,
                                        captions=captions)
     with_block.show_values([LONGEST] * ROWS)
     assert (with_block.minimumSizeHint().width()
@@ -1921,10 +1849,9 @@ def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
         slot):
     """The other half of QA-258's fix: reuse, not merely fewer builds.
 
-    A card carries state a rebuilt twin would not -- its `MarkedLine`
-    widgets, its favourite star -- so the criterion is identity, not just a
-    matching count: every card the waiting paint built is the object the
-    grid shows.
+    A card carries state a rebuilt twin would not -- its figures, its
+    favourite star -- so the criterion is identity, not just a matching
+    count: every card the waiting paint built is the object the grid shows.
     """
     dialog, advice = waiting_picker(slot)
     built = dict(dialog._card_cache)
