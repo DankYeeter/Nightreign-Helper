@@ -5183,3 +5183,101 @@ ist Bausache, keine Designentscheidung.
 
 ---
 
+### Nachtrag (ui-ux-designer, 2026-09-15) — QA-278: beide Haende beschriftet (AK-299)
+
+*QA-278 (`qa/findings.md`, `docs/berichte/T-272-power-user.md` Ziel 5): der
+power-user liest `77 / 88 2H AR` als „Basis / mit Build", nicht als „1H /
+2H" — die AK-298-Hervorhebung (Fett/`ACCENT` vs. `MUTED`) ist fuer UIA und
+fuer den Laien ohne begleitendes Wort kein erkennbares Signal, nur ein
+Farb-/Gewichtsunterschied. **Kein Fensterlauf** (Auftrag): die Breite ist
+gegen die bestehenden, bereits zitierten Budgets aus AK-287/AK-33/AK-84
+gerechnet, am Quelltext geprueft (`damage.displayed_hands`,
+`nrplanner/damage.py:160-181`), nicht neu am laufenden Fenster gemessen —
+das holt der erste Baubericht nach.*
+
+#### AK-299 — `displayed_hands` beschriftet beide Haelften
+
+**AK-299** Ersetzt den unbeschrifteten Zweihand-Zusatz aus AK-286
+(`{1H} / {2H} 2H`) durch **`{1H} 1H / {2H} 2H`** — dieselbe Reihenfolge,
+derselbe Trenner `/`, nur die heute schon vorhandene `2H`-Markierung
+bekommt ein spiegelbildliches `1H` neben der ersten Zahl. Beispiel:
+`AR as equipped 147 1H / 151 2H` statt bisher `147 / 151 2H`. Minimalste
+Aenderung gegenueber AK-286: kein neuer Trenner, keine vierte Form (AK-286
+Rot-vorher gilt fort), nur eine bestehende Asymmetrie behoben — heute
+traegt nur die zweite Zahl eine Handbezeichnung, die erste keine, was genau
+die „Basis / mit Build"-Fehllesung erlaubt.
+
+- **Nicht gewaehlt:** `1H 77 · 2H 88 AR` (Punkt-Trenner, Praefix-Label).
+  Verworfen, weil er einen zweiten Trennertyp einfuehrt, wo `/` im
+  Programm bereits für „zwei zusammengehoerige Zahlen" steht (AK-286
+  selbst, unveraendert seit T-248) — A12: keine zweite Schreibweise fuer
+  dieselbe Sache, wo eine reicht.
+- Gilt fuer alle drei in `damage.displayed_hands` zusammengefuehrten
+  Flaechen gleich (Waffenkachel `weaponslots.py`, Werteblatt
+  `statsheet.py`, Arsenal-Kachel `arsenaltab.py` inkl. der
+  Typzeilen-Erweiterung aus AK-286-Nachtrag T-269b) — eine Funktion, ein
+  Aufruf je Flaeche, kein Format zweimal gepflegt.
+- **AK-298 gilt fort, auf die erweiterte Gruppe:** die Betonung
+  (fett/`ACCENT` vs. `MUTED`) umschliesst pro Hand **Zahl und Label
+  zusammen** als eine Einheit — nie `147` betont und `1H` `MUTED` im selben
+  Atemzug oder umgekehrt. Technisch: der bestehende `_QUIET_HAND`-Wrapper
+  bekommt das Label in seine Spanne aufgenommen, nicht danebengesetzt.
+- **`TWO_HANDED_MARK = "2H"` bekommt ein Gegenstueck `ONE_HANDED_MARK =
+  "1H"`**, dieselbe Konstante, die `HAND_CAPTIONS` (`statsheet.py:63`,
+  AK-292) bereits fuer die Schalterbeschriftung nutzt — keine zweite
+  Zeichenkette fuer „1H" im Baum.
+- **Breite (AK-73/AK-84/AK-33, kein Fensterlauf, am Quelltext gerechnet):**
+  der Zusatz waechst um ` 1H` (3 Zeichen) gegenueber dem heutigen
+  Text — beim laengsten im Auftrag genannten Testwert von `278 / 286 2H`
+  auf `278 1H / 286 2H` (16 → 19 Zeichen, +19 %). Betroffen sind zwei
+  bestehende Budgets unterschiedlich stark:
+  - **Arsenal-Kachel** (`arsenaltab.py`, `CARD_WIDTH = 200`, fest, AK-33):
+    hier war die Zeile schon vor AK-299 der von AK-287 selbst benannte
+    Grenzfall (`AR at +10 216 / 216 2H`); der zusaetzliche `1H`-Zusatz
+    verschaerft genau dieses bereits bekannte Risiko. Bricht der Text bei
+    200 px messbar um, gilt AK-73 unveraendert: **zweizeilig statt
+    gekuerzt** — keine neue Ausnahme durch AK-299.
+  - **Waffenkachel** (`weaponslots.py`) und **Werteblatt** (`statsheet.py`)
+    tragen keine feste Kachelbreite (AK-72: kein Raster mit fester
+    Spaltenzahl) — das Risiko ist hier geringer, ein Umbruch nach AK-73
+    ist die vorgesehene Reaktion, kein Sonderfall.
+  - **Nicht betroffen:** `relicpicker.py`s `CARD_WIDTH_FLOOR = 208`
+    (AK-73/AK-287-Aufzaehlung) misst die Effektwertzeile
+    (`WIDEST_CAPTION`/`WIDEST_VALUE`), nicht die AR-Zeile — `RelicCard`
+    zeigt heute keinen AR-Wert. Die im Auftrag genannte 208-px-Karte ist
+    fuer AK-299 **kein eigenes Risiko**, nur der allgemeine Massstab, an
+    dem AK-73 bereits gilt.
+- **Tooltip** (`statsheet.py`, `HAND_TOOLTIP`, AK-298 fortgeschrieben, ein
+  Wort ersetzt: `one-handed`/`two-handed` durch `1H`/`2H`, wo der Schalter
+  gemeint ist — `two-handing` als Spielbegriff bleibt unveraendert):
+
+  > `"Ranks the build's attack power 1H or 2H — Optimize and effects that
+  > only read while two-handing follow this switch, and the figure it
+  > uses is the one highlighted and tagged 1H or 2H on every tile, sheet
+  > and arsenal row. Armaments that cannot be two-handed keep their 1H
+  > figure either way. Saved with this build."`
+
+**Akzeptanzkriterien:**
+- Jede der drei Flaechen aus AK-286/AK-298 zeigt fuer eine zweihaendig
+  fuehrbare Waffe `{1H} 1H / {2H} 2H`, wortgleich in Trenner und
+  Reihenfolge; ohne Zweihandform bleibt die unveraenderte Einhandform
+  (AK-288 gilt fort).
+- Kein Test/keine Karte zeigt `1H`/`2H` unbeschriftet neben einer Zahl —
+  jede Handbezeichnung steht direkt neben ihrer eigenen Zahl.
+- Die AK-298-Betonung faerbt/fettet pro Hand Zahl und Label als eine
+  Einheit, nie getrennt.
+- `HandSwitch.setToolTip`/`HAND_TOOLTIP` traegt den oben zitierten Satz.
+- Kein bestehender Zahlenwert aus AK-286/AK-293/AK-298 aendert sich durch
+  diese Vorgabe — nur die Beschriftung.
+- Bricht der Zusatz die 200-px-Arsenal-Kachel (AK-33) messbar um, ist das
+  ein Befund fuer den ersten Baubericht, keine stillschweigende Kuerzung
+  (AK-73).
+
+*Explizit nicht Teil dieser Vorgabe:* ob `ONE_HANDED_MARK` als eigene
+Modulkonstante neben `TWO_HANDED_MARK` steht oder `HAND_CAPTIONS`
+wiederverwendet wird, ist Bausache. Die reale Breitenpruefung am laufenden
+Fenster (alle drei Flaechen, DPI 100/125/150 %) ist nicht Teil dieser
+Vorgabe und im ersten Baubericht nachzuholen.
+
+---
+
