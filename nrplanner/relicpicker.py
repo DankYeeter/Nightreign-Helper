@@ -1071,6 +1071,22 @@ class RelicPicker(QDialog):
         #: (both are ordinary and this class cannot tell them apart) -- the
         #: second call must not repeat a disconnect that already happened.
         self._done_already = False
+        #: Built cards, kept across a `_refresh()` and the next one, keyed by
+        #: `id(item)` (QA-258, T-118 P5). Every opening asks its one question
+        #: once and paints twice -- waiting, then answered -- and each paint
+        #: rebuilt all ~211 cards of a white slot from nothing: measured
+        #: 1151/1299 ms median, twice, on the run that opened this slot
+        #: (`docs/perf/baselines.md` S11-L). `plain`'s items keep the
+        #: identity `self.slot.owned` gave them for as long as the stock
+        #: stands, so the same `id()`
+        #: means the same relic until `_the_stock_was_replaced` says
+        #: otherwise -- where the cache is dropped whole, exactly where the
+        #: rest of this class already starts the opening over. A favourite
+        #: toggled through `_open_favourites` drops its one card only: no
+        #: other entry has gone stale, and a card's `MarkedLine` redraws
+        #: itself off the filters' own `changed` signal (`advisorblock.py`)
+        #: whatever refresh built it, so reuse costs no mark here either.
+        self._card_cache: dict[int, RelicCard] = {}
         self._ask()
         # Favourites are per Nightfarer, so the picker has to know which one
         # the build is for. A slot outside the main window simply has none.
@@ -1440,6 +1456,10 @@ class RelicPicker(QDialog):
         # anchored to, so the grid is rebuilt only once the menu has closed.
         menu.exec(position)
         if menu.changed:
+            # This one card's star and border are stale, and no other one's
+            # is -- dropping the whole cache for one toggle would put QA-258
+            # back on every right-click.
+            self._card_cache.pop(id(item), None)
             self._refresh()
 
     def _curses(self, item) -> list[tuple[int, str, str]]:
@@ -1539,7 +1559,20 @@ class RelicPicker(QDialog):
         # measures itself in (AK-216). Two builds of the same cards would be
         # the one place this state costs real time, and it would be paid
         # unseen.
-        by_item = {id(item): self._card_for(item, current) for item in plain}
+        #
+        # **Built once across the two paints of one opening, not twice**
+        # (QA-258): `self._card_cache` carries what the waiting paint already
+        # built, so the answered paint asks each item's card of the cache
+        # before it asks `_card_for` for a new one. A slot this call has not
+        # seen before still pays the full price, once.
+        by_item: dict[int, RelicCard] = {}
+        for item in plain:
+            key = id(item)
+            card = self._card_cache.get(key)
+            if card is None:
+                card = self._card_for(item, current)
+                self._card_cache[key] = card
+            by_item[key] = card
         for_size: list[QWidget] = [tile] + [by_item[id(item)]
                                             for item in plain]
 
@@ -1592,6 +1625,11 @@ class RelicPicker(QDialog):
         if self.advice is not None:
             self.advice.stop_listening()
         self._wait_is_drawn = None
+        # The opening starts over "as if it had been opened now", cards
+        # included: the stock behind `self._card_cache`'s ids has gone, and
+        # keeping the old cards would show relics the new stock may not
+        # carry at all.
+        self._card_cache.clear()
         self._ask()
         self._refresh()
 

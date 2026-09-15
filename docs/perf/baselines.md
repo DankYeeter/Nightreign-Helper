@@ -468,6 +468,68 @@ Frage unberuehrt und ist die tragende Aussage von S11-K.
 
 ---
 
+## S11-L — Picker-Dialog: zwei Kartenbauten je Oeffnung (QA-258, T-260)
+
+**Szenario.** `Executor`, `Deep of Night` an, weisser Slot (Farbe 4),
+211 Kandidaten -- der Fall, den QA-258 auf derselben Maschine mass. Reales
+Fenster (`QT_QPA_PLATFORM=windows`, nicht offscreen -- anders als S11-H),
+frisches `Planner`-Fenster je Wiederholung (n=5), damit der Cache des
+Picker-Tracks keinen zweiten Bau ueberspringt. Gemessen wird die Wanduhr
+innerhalb `RelicPicker._refresh()`, getrennt nach dem wartenden und dem
+beantworteten Aufruf einer Oeffnung (`RelicPicker._card_for` gezaehlt und
+zeitgestempelt per Monkeypatch, Skript ausserhalb des Produktivbaums:
+`measure_picker_open2.py`). Datenumlenkung `NIGHTREIGN_SETTINGS_ORG=
+DankYeeterT-260`, eigenes `LOCALAPPDATA`/`APPDATA`, Testabzug kopiert.
+
+**Umgebung.** AMD Ryzen 9 5900X 12-Kerne (dieselbe Maschine wie QA-258),
+Energieplan `Balanced`, Windows 11 10.0.26200, Python 3.12.10 (`.venv`),
+Rechenlastprobe 3 Mio. `x += i*i`: Median 214,9 ms (Spanne 210,8-216,1,
+n=5) -- deutlich schneller als die Ryzen-7-5800H-Reihen oben (1102 MHz
+Quiet Mode), **nicht** direkt mit S11-A bis S11-K vergleichbar, eigener
+Abschnitt.
+
+**Streuung und Signifikanzschwelle:** 2s/Median vorher 4,9 %, nachher
+4,7 % (Summe je Oeffnung, n=5) -- stabile Umgebung, Schwelle **5 %**.
+Absolute Untergrenze: A6-Geist 50 ms je Block; beide Zeilen liegen weit
+darueber und bleiben Ziel dieses und kuenftiger Laeufe.
+
+| Datum | Commit | Messung | vorher p50 (n=5) | nachher p50 (n=5) | Delta | 2s/Median | Budget |
+|---|---|---|---|---|---|---|---|
+| 2026-09-15 | 468f65c | wartender Bau (`_refresh` #1) | 1151,0 ms | 1033,7 ms | -10,2 % (Kartenbau bleibt, keine Wiederverwendung moeglich -- der erste Bau) | 3,3 % / 3,0 % | nein |
+| 2026-09-15 | 468f65c | beantworteter Bau (`_refresh` #2) | 1298,8 ms | 368,8 ms | **-71,6 %** | 2,9 % / 2,8 % | nein |
+| 2026-09-15 | 468f65c | **Summe je Oeffnung (beide Bloecke)** | **2438,2 ms** | **1386,2 ms** | **-43,1 %** | 4,9 % / 4,7 % | **ja** |
+
+**Ursache.** `RelicPicker._refresh()` baute bei jedem Aufruf alle
+`RelicCard`-Widgets der Kandidatenliste neu (`by_item = {id(item):
+self._card_for(item, current) for item in plain}`), und jede Oeffnung ruft
+`_refresh()` zweimal auf: einmal beim Bau des Dialogs (wartend, nur fuer
+die Groessenmessung nach AK-51), einmal wenn die Antwort des Tracks
+eintrifft (`_the_answer_arrived`). Beide Aufrufe bauten dieselben 211
+Karten aus denselben Objekten.
+
+**Aenderung.** `nrplanner/relicpicker.py`, `RelicPicker`: `self._card_cache`
+(neu, `dict[int, RelicCard]`, Schluessel `id(item)`) haelt eine Karte ueber
+beide Aufrufe einer Oeffnung hinweg; `_refresh()` fragt die Karte zuerst
+beim Cache ab, bevor sie `_card_for` neu ruft. Invalidiert an den zwei
+Stellen, an denen eine Karte veraltet sein kann: `_open_favourites` wirft
+nur die eine umgeschaltete Karte, `_the_stock_was_replaced` den ganzen
+Cache (der Spielstand hinter den `id()`-Schluesseln ist gegangen). Kein
+Verhalten geaendert -- dieselben Karten-Objekte kommen zweimal zum
+Einsatz statt zweimal gebaut zu werden, `MarkedLine` zeichnet ueber das
+`changed`-Signal der Filter ohnehin live nach, unabhaengig davon, welcher
+Aufruf die Karte gebaut hat.
+
+**Risiko:** niedrig. Keine oeffentliche Schnittstelle veraendert, drei
+gezielte Waechter (`tests/test_relic_picker_advisor.py`), volle
+Testdatei plus Nachbardateien gruen (137 von 137).
+
+**Verifikation:** `pytest tests/test_relic_picker_advisor.py
+tests/test_relic_picker_geometry.py tests/test_picker_track_guards.py
+tests/test_search.py tests/test_custom_relic.py
+tests/test_relic_restore.py` -- 137 passed.
+
+---
+
 ## Ableitungen aus diesen Werten
 
 **Signifikanzschwellen dieses Projekts** (aus der Streuung der Grundwerte,

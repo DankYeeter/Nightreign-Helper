@@ -1760,6 +1760,111 @@ def test_the_answer_fills_the_grid_in_one_go(slot):
         dialog.deleteLater()
 
 
+def test_the_answer_arriving_does_not_rebuild_the_waiting_paints_cards(
+        slot, monkeypatch):
+    """QA-258: `_card_for` runs once per relic in one opening, not twice.
+
+    The waiting paint already builds every card to measure it (AK-51); the
+    answered paint used to build the same cards again, which on a white
+    slot's ~211 candidates was measured as two separate blockades of the
+    main thread (QA-258, T-118 P5). A call count, not a clock: it holds
+    however fast or slow the machine is.
+    """
+    calls = []
+    real = relicpicker.RelicPicker._card_for
+
+    def counting(self, item, current):
+        calls.append(item)
+        return real(self, item, current)
+
+    monkeypatch.setattr(relicpicker.RelicPicker, "_card_for", counting)
+    dialog, advice = waiting_picker(slot)
+    built_while_waiting = len(calls)
+    assert built_while_waiting, "the waiting paint built no cards to measure"
+    try:
+        advice.answer()
+        assert len(calls) == built_while_waiting, (
+            f"the answer rebuilt {len(calls) - built_while_waiting} of "
+            f"{built_while_waiting} cards the waiting paint had already "
+            f"built")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
+        slot):
+    """The other half of QA-258's fix: reuse, not merely fewer builds.
+
+    A card carries state a rebuilt twin would not -- its `MarkedLine`
+    widgets, its favourite star -- so the criterion is identity, not just a
+    matching count.
+    """
+    dialog, advice = waiting_picker(slot)
+    built = dict(dialog._card_cache)
+    try:
+        advice.answer()
+        shown = relic_cards(dialog)
+        assert shown, "the answer did not fill the grid"
+        for card in shown:
+            assert built.get(id(card.item)) is card, (
+                "a card shown after the answer is not the one the waiting "
+                "paint built and measured")
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_favourite_toggle_rebuilds_only_that_one_card(slot, monkeypatch):
+    """The cache's one narrow invalidation, through `_open_favourites`
+    itself: a toggled star is not stale, and no other card pays for it.
+
+    Every other card the grid already held stays the object it was -- the
+    toggle is not a reason to rebuild ~211 cards for the sake of one star.
+    `FavouriteMenu.exec` is stubbed rather than driven through a real modal
+    loop; what is under test is `_open_favourites`'s own cache handling, not
+    the menu widget.
+    """
+    from PySide6.QtCore import QPoint
+
+    from nrplanner import favourites
+
+    dialog = open_picker(slot, {0: 1.0, 1: 2.0})
+    try:
+        heroes = dialog._heroes()
+        if not heroes:
+            pytest.skip("this window carries no Nightfarers to favourite for")
+        cards = relic_cards(dialog)
+        target = cards[0]
+        untouched_ids = {id(card.item) for card in cards[1:]}
+        before = dict(dialog._card_cache)
+
+        def fake_exec(self, _position):
+            favourites.toggle(self.item, heroes[0]["id"])
+            self.changed = True
+
+        monkeypatch.setattr(relicpicker.FavouriteMenu, "exec", fake_exec)
+
+        calls = []
+        real = relicpicker.RelicPicker._card_for
+
+        def counting(self, item, current):
+            calls.append(item)
+            return real(self, item, current)
+
+        monkeypatch.setattr(relicpicker.RelicPicker, "_card_for", counting)
+        dialog._open_favourites(target.item, QPoint())
+
+        assert [id(item) for item in calls] == [id(target.item)], (
+            f"a favourite toggle rebuilt {[getattr(i, 'name', i) for i in calls]}"
+            f" instead of only the toggled relic")
+        for key, card in dialog._card_cache.items():
+            if key in untouched_ids:
+                assert before[key] is card, (
+                    "a card nobody toggled was rebuilt anyway")
+    finally:
+        favourites.toggle(target.item, dialog._heroes()[0]["id"])
+        dialog.deleteLater()
+
+
 def test_a_failure_fills_the_grid_and_says_why(slot):
     """AK-208 and AK-218: no figures is not the same as no cards."""
     dialog, advice = waiting_picker(slot)
