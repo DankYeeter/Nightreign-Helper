@@ -1,5 +1,171 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-15 (T-258 — Design-Review der ganzen Oberflaeche auf `00bad3c`, 1.11.0 + A20 Zweihand + Bauwelle 2)
+
+**Methode:** Live, am laufenden Fenster — eigener Klon nicht benutzt (kein
+paralleler Schreibzugriff angeordnet, `git status` sauber auf `00bad3c`
+belassen). Umlenkung `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-258`,
+`LOCALAPPDATA`/`APPDATA` auf ein Scratchpad-Verzeichnis umgelenkt, Testabzug
+(841 Dateien, `EXTRACT_VERSION` 11) **in** das umgelenkte `LOCALAPPDATA`
+kopiert. Nachweis: `settings fileName: \HKEY_CURRENT_USER\Software\
+DankYeeterT-258\NightreignHelper`, `cache_dir: …\scratchpad\T-258\ui\Local\
+NightreignHelper`, Stil `fusion`. Realer Bestand: 319 Relikte. Registry-Rest
+nach Abschluss geloescht.
+
+**Werkzeug-Besonderheit dieses Laufs:** der normale Sandbox-Bash/PowerShell-
+Pfad erzeugt kein echtes GUI-Fenster (Prozess haengt mit 0 CPU-Zeit an einem
+unsichtbaren Handle ohne Desktop-Session fest) — `dangerouslyDisableSandbox`
+war fuer den Programmstart und jede Fenstermessung noetig, sonst kein
+Livelauf moeglich. Bildnachweis per `PrintWindow` auf das eigene HWND
+(NH-002), kein Bildschirmabzug. Ein kleines Kontrollskript
+(`launch.py`, nur in `<scratchpad>/T-258/ui/`, kein Repo-Code) haelt die
+`Planner`-Instanz offen und nimmt `resize`/`tab`/`eval`-Befehle ueber eine
+Kommandodatei entgegen — `eval` liest ausschliesslich Widget-Geometrie/
+-Text aus, schreibt nichts an der Anwendung.
+
+**Geprueft:** Build-planner-Tab (1608 px, dazu 1900 px zur Ursachenklaerung
+einer Panel-Beschneidung), Weapons & spells (Kachelformat AK-286/287,
+QA-099a-Dedup), Effects & chances (Sichtpruefung), Vessel-Tooltip AK-296
+(Text direkt aus `chalice_list`-Items gelesen), 1H/2H-Schalter AK-292
+(Text/Tooltip/Position), DR-025/DR-026 aus dem Vorlauf (Code, `advisorblock.py`).
+**Nicht schafft dieser Durchlauf:** 1536-px-Messung an allen sieben Tabs
+und Nightlords/Deep of Night/Red variants/World Events visuell erneut
+gepruefte Tabs (Zeitbudget ging in die Ursachenklaerung von DR-028, dem mit
+Abstand schwersten Fund) — Luecke unten vermerkt, nicht verschwiegen.
+
+**Gesamturteil:** Braucht Arbeit. Die drei einzeln durchdachten neuen
+Elemente (Schalter AK-292, Kachelformat AK-286/287, Gefaess-Tooltip AK-296)
+sind für sich alle korrekt gebaut — aber das Werteblatt, in dem zwei davon
+stehen, schneidet an der eigenen dokumentierten Startbreite (1608 px) einen
+Grossteil seines Inhalts ab, ohne Bildlauf, ohne Warnung. Das ist der
+Befund, der vor jeder weiteren Politur zuerst behoben gehoert.
+
+### Kritisch
+
+- **DR-028 [`nrplanner/statsheet.py`, `StatSheet`-Pane in `app.py`s
+  `QSplitter self.panes`, Index 2]** Das Werteblatt (BASE STATS, ATTRIBUTES,
+  WEAPON DETAILS mit dem 1H/2H-Schalter AK-292 und den AK-286-AR-Werten,
+  Flat bonuses, RESISTANCES) ist an der eigenen dokumentierten
+  Oeffnungsbreite (1608 px, `Planner._opening_width()`, AK-285) zu weniger
+  als einem Drittel sichtbar. Real gemessen (`window.panes.widget(2).
+  findChildren(...)`): die „Flat bonuses"-Zeilen und mindestens eine
+  benachbarte Zeile sind **630 px breit**, gerendert in einer Splitter-Pane,
+  die laut `window.panes.sizes()` **370 px** hat (`PANE_DEFAULTS = (430, 520,
+  370)`, `app.py:51`) — der Ueberschuss (260 px) reicht bis weit hinter den
+  rechten Fensterrand und wird dort hart abgeschnitten, nicht umgebrochen,
+  nicht gescrollt. Sichtbar sind praktisch nur die kurzen Ueberschriften
+  (`BASE STATS`, `ATTRIBUTE`, `WEAPON D…`) und Ein-Wort-Zeilen (`HP`, `FP`,
+  `Vigor`); die tatsaechlichen Zahlen (`Physical 56/…`, `Total 56/58`,
+  Widerstandswerte) sind unlesbar oder ganz weg. Der 1H/2H-Schalter selbst
+  (`x=1222`, Breite 36 px) sitzt noch innerhalb des Fensters und ist nicht
+  betroffen — betroffen sind die Werte, die er beeinflusst. **Das ist genau
+  die Pruefung, die AK-287 explizit fuer die Auslieferung verlangt** („Werte-
+  blatt (`statsheet.py`), an seiner heutigen Spaltenbreite" — eine der vier
+  zu pruefenden Flaechen) und die Pruefung faellt durch. Getestet mit einem
+  vergroesserten Fenster (1900 px): die Splitter-Stretchfaktoren
+  (`setStretchFactor(1, 1)`, alle Extra-Breite geht an die mittlere Pane)
+  geben der Pane 2 keinen zusaetzlichen Platz — das Problem laesst sich also
+  nicht durch ein breiteres Fenster umgehen, nur durch eine echte Korrektur
+  am Werteblatt selbst (Zeilenumbruch/Kuerzung/eigene Bildlaufleiste in
+  dieser einen Pane, oder `PANE_DEFAULTS`/die Zeilenbreite im Werteblatt
+  aufeinander abstimmen). A12/A13 („nichts wird abgeschnitten ausser der
+  Statuszeile ab 1536 px") verletzt. ![Build planner bei 1608 px, Werteblatt rechts abgeschnitten](design-review/2026-09-15/t258-buildplanner-1608-v2.png)
+
+### Wichtig
+
+- **DR-029 [`nrplanner/arsenaltab.py`, Abschnitts-/Gruppenzaehler
+  (`"Weapons (%d)"`/Untergruppen wie `"Sacred Seal (%d)"`), QA-099a]** Der
+  Zaehler in Kopf- und Gruppenzeile zaehlt weiterhin die rohen
+  Spieldaten-Kopien, nicht die sichtbaren Kacheln: real gemessen (Suche
+  „Finger Seal") zeigt „Weapons (2)" und „Sacred Seal (2)", darunter genau
+  **eine** Kachel — der QA-099a-Dedup selbst ist korrekt gebaut, die Kachel
+  traegt sogar einen guten, A7-gerechten Tooltip („The game lists 2
+  armaments under this name with these numbers; shown once."). Der Zaehler
+  daneben tut aber so, als muessten zwei Kacheln folgen, und widerspricht
+  damit dem, was der Spieler direkt darunter sieht (A12 — nichts behaupten,
+  was der Bildschirm nicht zeigt). **Entscheidung (Konsistenzfrage, kein
+  Geschmack — ich entscheide sie selbst):** die Zaehler sollen die Zahl der
+  **gezeigten Kacheln** zaehlen, nicht die Zahl der zugrundeliegenden
+  Spieldaten-Eintraege — genau das Prinzip, das der Tooltip auf der Kachel
+  selbst schon vormacht. Alternative, falls die rohe Zahl aus anderem Grund
+  bleiben soll: derselbe Klammersatz wie im Tooltip direkt am Zaehler selbst
+  (z. B. „Weapons (2, 1 shown)"), nie eine nackte Zahl ohne Erklaerung, die
+  der sichtbaren Kachelzahl widerspricht. ![Finger Seal gefiltert, Zaehler „(2)", eine Kachel](design-review/2026-09-15/t258-weapons-fingerseal.png)
+- **DR-030 [`nrplanner/damage.py:155-166`, `displayed_hands`, AK-288 zweite
+  Klausel]** AK-288 verlangt zwei getrennte Faelle, wenn kein Zweihandwert
+  gezeigt wird: (1) die Waffenklasse kennt keinen Zweihandmodus — keine
+  Anzeige, korrekt gebaut — und (2) die Klasse kennt ihn, aber „die
+  Spieldateien liefern keinen Zweihand-Modifikator fuer diese konkrete
+  Waffe" — dafuer verlangt AK-288 einen kurzen erklaerenden Satz nach dem
+  `Goal.scope`/`SlotPool.unknowns`-Muster. `displayed_hands` kennt nur einen
+  einzigen `two_handed is None`-Zweig und behandelt beide Faelle gleich
+  (stille Ein-Hand-Zahl, kein Satz) — Fall (2) hat keinen Code-Pfad. Nach
+  AN-4 (`zweihaendig = Nahkampf ausser wep_type 33`, ein **pauschaler**
+  Faktor je Klasse, keine Pro-Waffe-Abfrage der Spieldaten) **koennte**
+  Fall (2) in der jetzigen Kalibrierung gar nicht mehr eintreten — dann ist
+  AK-288s zweite Klausel gegenstandslos und sollte im `UI_SPEC.md` als
+  „durch AN-4 ueberholt" vermerkt werden, statt als offene Bauluecke stehen
+  zu bleiben. Kann ich als UI-Reviewer nicht abschliessend beurteilen (das
+  ist eine Datenmodell-, keine Oberflaechenfrage) — **an `developer`/
+  `architect`:** entweder den fehlenden Satz bauen, oder AK-288 Klausel 2
+  im nächsten Spec-Nachtrag als erledigt/gegenstandslos schliessen.
+
+### Nice-to-have
+
+*(keine eigenen neuen — DR-024 aus dem Vorlauf bleibt unveraendert offen,
+siehe unten.)*
+
+### Backlog (geparkt)
+
+- 1536-px-Messung an allen sieben Tabs steht noch aus (Zeitbudget ging in
+  DR-028); angesichts DR-028 ist zu erwarten, dass das Werteblatt bei 1536 px
+  **nicht besser** wird (`PANE_DEFAULTS` ist breitenunabhaengig) — sollte im
+  selben Zug wie die DR-028-Behebung mitgeprueft werden, nicht separat.
+- Nightlords/Deep of Night/Red variants/World Events nicht erneut visuell
+  geprueft (zuletzt T-056/T-239a, seither keine bekannte Aenderung an diesen
+  vier Tabs selbst).
+- `Effects & chances`-Tabelle schneidet bei 1608 px die Spalte „Comes with
+  curse" am Fensterrand ab (Screenshot `t258-effects-1608.png`) — vermutlich
+  regulaerer horizontaler Bildlauf einer breiten Tabelle (A12/A13 galt hier
+  laut `docs/state.md` T-239a bereits als erfuellt), Bildlaufverhalten in
+  diesem Lauf nicht bestaetigt. Kein eigener Fund, Pruefluecke.
+- Warnung `Could not parse stylesheet of object QListWidget(...)` auf
+  `stderr` bei jedem Start (3x) — kein sichtbarer visueller Fehler in den
+  geprueften Screenshots, aber ein Hinweis auf eine Stylesheet-Regel, die
+  Qt nicht parsen kann; Ursache nicht verfolgt.
+
+### Positiv / beibehalten
+
+- **AK-292** (1H/2H-Schalter): genau eine Instanz im ganzen Fenster, Text
+  `1H`/`2H`, Tooltip wortgleich zur Spec, Voreinstellung ungecheckt (1H,
+  AN-2), Position/Groesse selbst nicht von DR-028 betroffen.
+- **AK-286/AK-287** (Zweihand-Zusatz auf der Arsenal-Kachel): Format
+  `{1H} / {2H} 2H` (z. B. „67 / 69 2H") real gepruedft auf 12 Kacheln bei
+  200 px Kachelbreite (`arsenaltab.py`, `CARD_WIDTH`), kein Umbruch mitten
+  im Begriff, kein Abschneiden — haelt genau dort, wo AK-287 es explizit
+  verlangt hat.
+- **AK-296** (Gefaess-Tooltip): Wortlaut live aus `chalice_list` gelesen,
+  deckungsgleich mit der Spec — Reihenfolge Name/Slots/Deep of Night/
+  Schlusssatz, Trennzeilen-Tooltip „Only Wylder can equip these." exakt wie
+  gefordert.
+- **DR-025/DR-026 (Vorlauf T-251c) bestaetigt behoben**, Code gelesen statt
+  nur ubernommen: `advisorblock.py` traegt jetzt eine eigene `MarkButton`-
+  Klasse mit `keyPressEvent`, die `pressable.PRESS_KEYS` (Return/Enter/
+  Space) abfaengt — Commit `46ad69b` („DR-025/DR-026 - Markierungsknopf auf
+  Enter, Tooltip nach AK-277"). Live per Tab+Enter nicht nachgestellt (Zeit),
+  aber der Code selbst ist eindeutig. ✔ 2026-09-15.
+- QA-099a-Dedup selbst (eine Kachel statt mehrerer bei Namensgleichheit,
+  Tooltip nennt die Anzahl) ist strukturell die richtige Loesung — nur der
+  Zaehler daneben zieht nicht mit (DR-029).
+
+### Offene Fragen an den App Designer
+
+Keine — beide neuen Entscheidungen (DR-029 Zaehlerlogik, DR-030 Ansprache an
+`developer`/`architect`) sind Konsistenz- bzw. Datenmodellfragen ohne
+Geschmacksspielraum.
+
+---
+
 ## Review vom 2026-09-14 (T-251c — Pruefphase A18/A19 auf `528ff78`: AK-276-291)
 
 **Methode:** Code-Analyse (unverifiziert), Fensterlauf **blockiert**. Umlenkung
