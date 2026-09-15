@@ -85,7 +85,8 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
     # Same for the icon pack: whichever one IconPack would find.
     from .iconpack import IconPack
 
-    icon_manifest = IconPack.locate() / "manifest.json"
+    pack = IconPack.locate()
+    icon_manifest = pack / "manifest.json"
     if not icon_manifest.exists():
         needed.append("icons")
     else:
@@ -113,10 +114,31 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
             except (ValueError, UnicodeDecodeError):
                 needed.append("icons")
             else:
-                if built.get("icon_version", 1) != iconbuild.ICON_VERSION:
+                if (built.get("icon_version", 1) != iconbuild.ICON_VERSION
+                        or _a_promised_icon_is_gone(pack, built)):
                     needed.append("icons")
 
     return needed
+
+
+def _a_promised_icon_is_gone(pack: pathlib.Path, manifest: dict) -> bool:
+    """Whether the manifest names a file the pack no longer holds (QA-036).
+
+    A pack on a real machine was 88 percent empty behind a complete manifest,
+    and nothing noticed. Only a file that is definitely gone counts: a file
+    the directory refuses to open right now is the intermittent hold
+    described above, and rebuilding on that would cost minutes per launch.
+    """
+    from nrdata import iconbuild
+
+    for name in iconbuild.manifest_files(manifest):
+        try:
+            (pack / name).stat()
+        except FileNotFoundError:
+            return True
+        except OSError:
+            continue
+    return False
 
 
 # --- Where is the game? ---------------------------------------------------
