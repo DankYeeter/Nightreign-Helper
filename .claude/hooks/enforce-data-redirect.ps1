@@ -18,6 +18,20 @@
 # in derselben Kommandozeile ab - der Beleg ist, dass der Hook nicht
 # ausgeloest hat, nicht mehr ein Blick in ein Verzeichnis.
 #
+# PLATTFORMGRENZE (QA-241, gemessen 15.09.2026): settings.json ruft diesen
+# Hook ueber "$CLAUDE_PROJECT_DIR/.claude/hooks/...ps1" auf. In der Umgebung
+# eines Subagenten (Task-Tool) ist $CLAUDE_PROJECT_DIR leer - Beleg: `echo
+# $CLAUDE_PROJECT_DIR` liefert in einer Subagenten-Bash-Sitzung nichts, und
+# der so gebaute Pfad ("/.claude/hooks/...") loest unter Git Bash auf die
+# Git-Installation statt das Projekt auf ("C:/Program Files/Git/.claude/...").
+# PowerShell findet die Datei nicht, bricht vor der ersten Zeile dieses
+# Skripts ab, und der Zug laeuft ohne deny durch - die Logik unten ist davon
+# nicht betroffen (per stdin direkt geprueft: korrekt). Kein Fix im Skript
+# moeglich, das Skript startet in diesem Fall nie. Bis Claude Code
+# $CLAUDE_PROJECT_DIR fuer Subagenten setzt, bleibt die Umlenkung fuer jede
+# Rolle, die aus einem Subagenten heraus einen Programmstart ausloest,
+# Handregel (CLAUDE.md, Abschnitt "Datenverzeichnisse und Umlenkung").
+#
 # Bewusst ohne Umlaute (PowerShell 5.1 / kein BOM).
 
 $ErrorActionPreference = 'SilentlyContinue'
