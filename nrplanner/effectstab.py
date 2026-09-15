@@ -74,19 +74,11 @@ COPIES_DEFINITION = (
 #: curse and some do not, so the choice is yours. 'Always cursed': none do
 #: not, so there is no dodging it.
 #:
-#: What this sentence deliberately does not claim: that the verdict holds
-#: under every filter above. It is worked out once per effect in
-#: `nrdata/extract.py`, from which of the effect's relics carry a curse
-#: slot, not from what is currently searched or filtered for -- but ten of
-#: the game's 1 064 distinct effects exist as two data rows that disagree
-#: on it (`sometimes` on one row, `never` on the other -- same name, same
-#: modifiers), and the merge in `refresh()` below shows whichever row
-#: survives the active filters rather than combining them the way it
-#: already does for `Colours` (AK-81). Unticking `Rollable on relics only`
-#: with `All colours` selected exposes it: those ten effects then read
-#: blank instead of `sometimes`. Found while writing this constant and
-#: reported rather than fixed here -- T-073 is one sentence, not a rewrite
-#: of the merge.
+#: The verdict is worked out per data row in `nrdata/extract.py`, from which
+#: of the row's relics carry a curse slot. 23 of the game's 1 064 distinct
+#: effects exist as data rows that disagree on it (`sometimes` on one row,
+#: `never` on another -- same name, same modifiers), so the table settles it
+#: once per identity over every row, the way `Copies` is settled (QA-172).
 #:
 #: Written once and used twice, exactly as `COPIES_DEFINITION`: in the
 #: sentence over the table and in the header tooltip (`COL_CURSE` entry).
@@ -693,6 +685,20 @@ def identity(effect: dict) -> tuple:
     )
 
 
+def curse_over(rows: list[dict]) -> str:
+    """The `Comes with curse` verdict of one effect over all its data rows.
+
+    Every row `always` cursed is `always`; no row cursed at all is `never`;
+    anything in between means which relic you take decides it (QA-172).
+    """
+    verdicts = {row.get("curse", "never") for row in rows}
+    if verdicts == {"always"}:
+        return "always"
+    if verdicts <= {"never"}:
+        return "never"
+    return "sometimes"
+
+
 def deduplicate(effects: list[dict]) -> list[tuple[dict, int]]:
     """Collapse identical rows, keeping a count of how many were merged."""
     groups: dict[tuple, list[dict]] = collections.OrderedDict()
@@ -746,6 +752,10 @@ class EffectsTab(QWidget):
         # nothing and printed an empty cell for exactly the effects this is
         # about.
         self._copies = collections.Counter(identity(e) for e in self.effects)
+        rows_of: dict[tuple, list[dict]] = collections.defaultdict(list)
+        for effect in self.effects:
+            rows_of[identity(effect)].append(effect)
+        self._curse = {key: curse_over(rows) for key, rows in rows_of.items()}
         by_name: dict[str, list[dict]] = collections.defaultdict(list)
         for first, _count in deduplicate(self.effects):
             by_name[effecttext.name(first)].append(first)
@@ -919,10 +929,11 @@ class EffectsTab(QWidget):
             else:
                 merged[key] = (eff, set(colours))
 
-        # The copy count is the game's, not the filter's (AK-81): how many
-        # identical rows the params define, whether or not this view shows
-        # them all.
-        rows = [(eff, sorted(colours), self._copies[identity(eff)])
+        # The copy count and the curse verdict are the game's, not the
+        # filter's (AK-81, QA-172): settled over every identical row the
+        # params define, whether or not this view shows them all.
+        rows = [({**eff, "curse": self._curse[identity(eff)]},
+                 sorted(colours), self._copies[identity(eff)])
                 for eff, colours in merged.values()]
 
         # Buffs first, then curses, each alphabetical. Keeping them in one

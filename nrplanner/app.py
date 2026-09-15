@@ -225,6 +225,46 @@ FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder "
                         "named Nightreign under your Windows user profile. "
                         "This opens there.")
 
+#: AK-296: the fixed sentences of the vessel list's tooltips, word for word
+#: out of `UI_SPEC` 4.4. A player picked "Wylder's Chalice" because the name
+#: sounded most like a chalice (QA-173); nothing told him the vessels differ
+#: only in their slots.
+WHY_SEVERAL_VESSELS = ("Each vessel has its own fixed slots — choose by "
+                       "colour and count, not by name.")
+WHITE_SLOT_TAKES_ANY = "White accepts a relic of any colour."
+ONLY_THIS_NIGHTFARER = "Only {hero} can equip these."
+ANY_NIGHTFARER = ("Any Nightfarer can equip these; each keeps its own "
+                  "arrangement.")
+
+
+def colour_names(colours) -> str:
+    """`Red, Blue, Yellow` -- written out, never the first letter (AK-296)."""
+    return ", ".join(model.COLOUR_NAMES.get(c, "?") for c in colours)
+
+
+def vessel_tooltip(vessel: dict, worn: bool) -> str:
+    """The tooltip of one selectable vessel row, in the order `UI_SPEC` 4.4
+    fixes.
+
+    The Deep of Night line follows the vessel, not the switch: what the
+    vessel would add is a fact about the vessel, and the tooltip is where
+    the player compares vessels before he chooses one.
+    """
+    lines = [vessel["name"], f"Slots: {colour_names(vessel['slots'])}"]
+    if model.WHITE_SLOT in vessel["slots"]:
+        lines.append(WHITE_SLOT_TAKES_ANY)
+    if vessel.get("deep_slots"):
+        lines.append(
+            f"Deep of Night adds: {colour_names(vessel['deep_slots'])}")
+    lines.append(WHY_SEVERAL_VESSELS)
+    if worn:
+        # The mark is on the vessel, not after the name: the name is what
+        # the list is read for, and a label pushed the longer chalice names
+        # out of the panel.
+        lines.append("Equipped in game")
+    return "\n".join(lines)
+
+
 #: S3, the second of the three exits (AK-124): the file was read and holds
 #: nothing. Not a failure, and it says the one thing that explains it -- two
 #: Steam accounts, which is the case this whole flow exists for.
@@ -957,10 +997,31 @@ class Planner(QMainWindow):
         override: a caller that resized the window first keeps its width, and
         showing the window again later -- after a minimise, say -- finds the
         attribute set and leaves the player's own size alone.
+
+        The position is re-read after the resize (QA-175). Windows placed the
+        window for the small default size it was created with, and the size
+        set here is then laid over that spot: at 2560x1600 and 150 % the
+        frame ran 266 px past the right edge and 101 px past the bottom.
         """
         if not self.testAttribute(Qt.WA_Resized):
             self.resize(self._opening_width(), OPENING_HEIGHT)
+            self._move_onto_the_screen()
         super().showEvent(event)
+
+    def _move_onto_the_screen(self) -> None:
+        """Push the frame inside the desktop; the top-left corner wins.
+
+        Right and bottom are pushed in first, left and top afterwards, so a
+        window the desktop cannot hold whole keeps its title bar and its
+        left-hand column on screen rather than its far edges.
+        """
+        room = self.screen().availableGeometry()
+        frame = self.frameGeometry()
+        frame.moveRight(min(frame.right(), room.right()))
+        frame.moveBottom(min(frame.bottom(), room.bottom()))
+        frame.moveLeft(max(frame.left(), room.left()))
+        frame.moveTop(max(frame.top(), room.top()))
+        self.move(frame.topLeft())
 
     def the_advisor_data_is_changing(self) -> None:
         """Both advisor tracks, from one place (AD-028 point 6).
@@ -1404,7 +1465,7 @@ class Planner(QMainWindow):
         grails = [v for v in self.vessels if v["hero_type"] == GRAIL_HERO_TYPE]
         self.hero_vessels = own + grails
 
-        def add_separator(text: str) -> None:
+        def add_separator(text: str, tooltip: str) -> None:
             """A caption row. Selecting it would mean nothing, so it cannot be
             picked -- without it the four shared Grails read as four more of
             this Nightfarer's own vessels, and the list looks twice as long as
@@ -1412,32 +1473,28 @@ class Planner(QMainWindow):
             item = QListWidgetItem(text)
             item.setFlags(Qt.NoItemFlags)
             item.setForeground(QColor(MUTED))
+            item.setToolTip(tooltip)
             self.chalice_list.addItem(item)
 
         worn_id = self._worn_vessel_id()
         first_row = None
         with QSignalBlocker(self.chalice_list):
             self.chalice_list.clear()
-            for group, vessels in ((f"{hero['name']}'s own", own),
-                                   ("Shared Grails — any Nightfarer",
-                                    grails)):
+            for group, tooltip, vessels in (
+                    (f"{hero['name']}'s own",
+                     ONLY_THIS_NIGHTFARER.format(hero=hero["name"]), own),
+                    ("Shared Grails — any Nightfarer", ANY_NIGHTFARER,
+                     grails)):
                 if not vessels:
                     continue
-                add_separator(group)
+                add_separator(group, tooltip)
                 for vessel in vessels:
                     item = QListWidgetItem(vessel["name"])
                     item.setData(Qt.UserRole, vessel)
                     item.setIcon(QIcon(self._vessel_row_art(
                         vessel, None, vessel["id"] == worn_id)))
-                    slots = " ".join(model.COLOUR_NAMES.get(c, "?")[0]
-                                     for c in vessel["slots"])
-                    tip = f"{vessel['name']} — slots {slots}"
-                    if vessel["id"] == worn_id:
-                        # The mark is on the vessel, not after the name: the
-                        # name is what the list is read for, and a label
-                        # pushed the longer chalice names out of the panel.
-                        tip += "\nEquipped in game"
-                    item.setToolTip(tip)
+                    item.setToolTip(
+                        vessel_tooltip(vessel, vessel["id"] == worn_id))
                     self.chalice_list.addItem(item)
                     if first_row is None:
                         first_row = self.chalice_list.count() - 1

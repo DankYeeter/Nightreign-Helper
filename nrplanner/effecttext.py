@@ -325,17 +325,7 @@ def describe(effect: dict) -> str:
         elif field_name in RATE_LIKE_LABELS:
             parts.append(f"{RATE_LIKE_LABELS[field_name]} {_percent(value)}")
         elif field_name in FLAT_LABELS:
-            # wepTypeTriggerCount is only a weapon count when a weapon type
-            # sits beside it ("3+ Bows equipped" carries wepTypeTrigger 51,
-            # count 3). The engine reuses the same field on every "item in
-            # possession at start of expedition" effect with values like 256
-            # and 1024, and labelling those produced the review's favourite
-            # nonsense line, "Weapons of the type needed 256". Without the
-            # type sibling the field is not a count and says nothing a
-            # player can use, so it is dropped rather than mistranslated.
-            if (field_name == "wepTypeTriggerCount"
-                    and "wepTypeTrigger" not in (effect.get("modifiers")
-                                                 or {})):
+            if field_name == "wepTypeTriggerCount" and not counts_armaments(effect):
                 continue
             parts.append(f"{FLAT_LABELS[field_name]} {value:g}")
         elif field_name.endswith("Rate"):
@@ -392,6 +382,21 @@ def describe(effect: dict) -> str:
         text = f"{text} ({', '.join(conditions)})" if text else \
             f"conditional ({', '.join(conditions)})"
     return text
+
+
+def counts_armaments(effect: dict) -> bool:
+    """Is this effect's `wepTypeTriggerCount` a count of armaments?
+
+    Only without `startGoodsId` beside it. "3+ Bows equipped" carries count
+    3 and nothing else; the engine reuses the same field on every "item in
+    possession at start of expedition" effect -- 51 of the 82 holders in
+    this dataset, values 256 to 1024 -- where it counts nothing. Labelled as
+    a count those read "Weapons of the type needed 256" in the description
+    and "needs several of that weapon equipped" under Conditional &
+    situational (QA-186), so both readers ask here instead.
+    """
+    mods = effect.get("modifiers") or {}
+    return "wepTypeTriggerCount" in mods and "startGoodsId" not in mods
 
 
 def describe_full(effect: dict, fallback: bool = True) -> str:
