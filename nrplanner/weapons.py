@@ -169,9 +169,11 @@ def nightfarer_calibration(weapon: dict, nightfarer: str) -> Calibration | None:
 #: two-handing (`AtkParam.isDisableBothHandsAtkBonus`) describes the hit,
 #: not the menu figure this program shows.
 #:
-#: Measured for Wylder, Guardian, Duchess and Raider only. Ironeye, Revenant,
-#: Recluse, Executor, Scholar and Undertaker are given 1.03 until a cell says
-#: otherwise (director, 2026-09-14, on R-008 option a).
+#: Measured for Wylder, Guardian, Duchess and Raider, and on 2026-09-15 for
+#: Executor (94 -> 97), Scholar (63 -> 64) and Undertaker (91 -> 93), which
+#: 1.03 hits. Ironeye, Revenant and Recluse start with a bow, a pair and a
+#: staff, so no single-armament cell of theirs exists; they are given 1.03
+#: until one says otherwise (director, 2026-09-14, on R-008 option a).
 TWO_HANDED_RATE = 1.03
 RAIDER_TWO_HANDED_RATE = 1.144
 
