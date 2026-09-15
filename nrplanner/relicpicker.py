@@ -1144,7 +1144,7 @@ class RelicPicker(QDialog):
         self.mark_legend.setWordWrap(True)
         self.mark_legend.setAlignment(Qt.AlignRight)
         self.mark_legend.setStyleSheet(CAPTION_STYLE)
-        sorting.addWidget(self.mark_legend)
+        sorting.addWidget(self.mark_legend, 1)
         layout.addLayout(sorting)
         # AK-52: between the filter field and the cards, which is where a
         # reader arrives at it after typing what they are looking for.
