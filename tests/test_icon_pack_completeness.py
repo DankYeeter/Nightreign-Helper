@@ -76,3 +76,25 @@ def test_a_manifest_write_that_breaks_off_leaves_the_old_one_whole(
         iconbuild.write_manifest({"portraits": {"9": "x.png"}}, tmp_path)
 
     assert json.loads(target.read_text()) == MANIFEST
+
+
+# -- a manifest is untrusted input (SEC-047) ----------------------------------
+#
+# The launch check walks manifest.json, an ordinary file anything running as
+# the player can write. An entry of the wrong shape is skipped by the walk,
+# and a manifest of the wrong shape altogether is a rebuild rather than a
+# crash on launch.
+
+def test_the_walk_skips_a_variant_without_a_file_or_with_a_non_string():
+    manifest = {**MANIFEST, "variants": {"1": [
+        {"id": 1}, {"id": 2, "file": 3}, {"id": 3, "file": None},
+        {"id": 4, "file": "variant_4.png"}, "not a dict"]}}
+    assert sorted(iconbuild.manifest_files(manifest)) == sorted(
+        ["hero_1.png", "item_200.png", "ui_slot.png", "variant_4.png"])
+
+
+@pytest.mark.parametrize("shape", ["[]", "\"text\"", "42",
+                                   '{"variants": {"1": [{"id": 1}]}}'])
+def test_a_manifest_of_the_wrong_shape_is_a_rebuild_not_a_crash(pack, shape):
+    (pack / "manifest.json").write_text(shape)
+    assert "icons" in firstrun.what_is_needed(pack)

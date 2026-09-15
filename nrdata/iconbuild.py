@@ -100,6 +100,10 @@ def manifest_files(manifest: dict) -> Iterator[str]:
     of `{"id", "file"}` entries. One walk for both shapes, so the read-back
     check here and the launch-time check in `firstrun` cannot disagree on
     what the pack is supposed to contain (QA-036).
+
+    Only strings come out. The manifest on disk is anyone's to edit, and a
+    variant without its file or with a number in it used to raise here, at
+    launch (SEC-047).
     """
     for group in manifest.values():
         if not isinstance(group, dict):
@@ -108,7 +112,9 @@ def manifest_files(manifest: dict) -> Iterator[str]:
             if isinstance(entry, str):
                 yield entry
             elif isinstance(entry, list):
-                yield from (v["file"] for v in entry if isinstance(v, dict))
+                yield from (v.get("file") for v in entry
+                            if isinstance(v, dict)
+                            and isinstance(v.get("file"), str))
 
 
 def write_manifest(manifest: dict, out_dir: pathlib.Path) -> None:

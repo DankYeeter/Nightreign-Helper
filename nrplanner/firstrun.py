@@ -109,14 +109,17 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
 
         raw = _read_with_retries(icon_manifest)
         if raw is not None:
+            # A manifest of another shape -- not an object, a variant without
+            # its file -- is not one this build wrote, and is rebuilt rather
+            # than allowed to end the launch in a traceback (SEC-047).
             try:
                 built = json.loads(raw.decode("utf-8"))
-            except (ValueError, UnicodeDecodeError):
-                needed.append("icons")
-            else:
                 if (built.get("icon_version", 1) != iconbuild.ICON_VERSION
                         or _a_promised_icon_is_gone(pack, built)):
                     needed.append("icons")
+            except (ValueError, UnicodeDecodeError, AttributeError, KeyError,
+                    TypeError):
+                needed.append("icons")
 
     return needed
 
