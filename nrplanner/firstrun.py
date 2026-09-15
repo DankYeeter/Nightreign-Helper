@@ -131,12 +131,24 @@ def _a_promised_icon_is_gone(pack: pathlib.Path, manifest: dict) -> bool:
     and nothing noticed. Only a file that is definitely gone counts: a file
     the directory refuses to open right now is the intermittent hold
     described above, and rebuilding on that would cost minutes per launch.
+
+    A name that leaves the pack counts as gone too, and is never stat()ed:
+    an absolute or UNC entry would otherwise be looked up -- on the network,
+    for a share -- at every launch (SEC-046). Gone is the right verdict
+    because the rebuild empties the pack and writes its own manifest over
+    this one, so the entry costs one rebuild and is then no more.
     """
     from nrdata import iconbuild
 
+    from .iconpack import inside_pack
+
+    base = pack.resolve()
     for name in iconbuild.manifest_files(manifest):
+        path = inside_pack(base, name)
+        if path is None:
+            return True
         try:
-            (pack / name).stat()
+            path.stat()
         except FileNotFoundError:
             return True
         except OSError:

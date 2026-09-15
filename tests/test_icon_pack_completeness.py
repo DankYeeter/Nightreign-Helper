@@ -78,12 +78,38 @@ def test_a_manifest_write_that_breaks_off_leaves_the_old_one_whole(
     assert json.loads(target.read_text()) == MANIFEST
 
 
-# -- a manifest is untrusted input (SEC-047) ----------------------------------
+# -- a manifest is untrusted input (SEC-046, SEC-047) -------------------------
 #
 # The launch check walks manifest.json, an ordinary file anything running as
-# the player can write. An entry of the wrong shape is skipped by the walk,
-# and a manifest of the wrong shape altogether is a rebuild rather than a
-# crash on launch.
+# the player can write. A name that leaves the pack is not stat()ed -- the
+# pack is one this build did not write, so it is rebuilt, and the rebuild
+# writes a manifest of its own over it. An entry of the wrong shape is
+# skipped by the walk, and a manifest of the wrong shape altogether is a
+# rebuild rather than a crash on launch.
+
+@pytest.mark.parametrize("elsewhere", [
+    "../outside.png", r"..\outside.png", r"C:\Windows\win.ini",
+    r"\\server\share\x.png",
+])
+def test_a_manifest_entry_outside_the_pack_is_not_stat_ed_and_rebuilds(
+        pack, monkeypatch, elsewhere):
+    for name in PROMISED:
+        (pack / name).write_bytes(b"png")
+    (pack / "manifest.json").write_text(json.dumps(
+        {**MANIFEST, "menu": {"7": elsewhere}}))
+    touched = []
+    real_stat = pathlib.Path.stat
+
+    def watching(self, *args, **kwargs):
+        touched.append(self)
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "stat", watching)
+    assert "icons" in firstrun.what_is_needed(pack)
+    monkeypatch.undo()
+    inside = pack.resolve()
+    assert [p for p in touched if not p.resolve().is_relative_to(inside)] == []
+
 
 def test_the_walk_skips_a_variant_without_a_file_or_with_a_non_string():
     manifest = {**MANIFEST, "variants": {"1": [
