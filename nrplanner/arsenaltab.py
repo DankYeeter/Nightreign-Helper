@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import collections
-
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFrame, QHBoxLayout,
@@ -463,8 +461,6 @@ class ArsenalTab(QWidget):
                 continue
             by_family.setdefault(weapon.get("family", "Other"), []).append(rating)
 
-        total = sum(len(v) for v in by_family.values())
-
         # Infusion variants live as sibling rows in one id band -- Longsword
         # 2000000, Fire Longsword 2000500, Sacred 2000700 -- so the band is
         # the family and the lowest id in it is the standard version the
@@ -505,72 +501,93 @@ class ArsenalTab(QWidget):
                         order.append(stat)
             return order
 
-        def build_family(entries):
-            # Rarest first; inside a rarity band the infusions of one weapon
-            # sit together, ordered by the standard version's name.
+        def tile_lines(rating) -> list[tuple[str, str]]:
+            weapon = rating.weapon
+            # The label comes from the facade rather than from a constant
+            # here: a staff is headed by its spell scaling and has no
+            # attack rating to show, and which armament that is, is not
+            # this tab's to decide (QA-099).
+            lines = [(rating.headline_label,
+                      rating.displayed_hands(lambda r: r.final_headline))]
+            # `damage_type`, not `damage`: the loop variable used to
+            # shadow the module of that name, and the resulting
+            # UnboundLocalError only fired when a tile was drawn, never
+            # on import (QA-072).
+            for damage_type, value in rating.shown_per_type.items():
+                lines.append((weapons.DAMAGE_LABELS[damage_type],
+                              f"{damage.displayed(value)}"))
+            # The status the weapon exists for. Elemental variants always
+            # showed their element; the status variants hid their one
+            # number, so a Poison Cleaver read as a plain cleaver with
+            # less damage.
+            for status, value in sorted(
+                    (weapon.get("inflicts") or {}).items()):
+                lines.append((f"{status} buildup", f"{value:g}"))
+            scaling = weapon.get("scaling") or {}
+            lines.append(("Scaling", scaling_text(scaling)))
+            # An infusion that moves the scaling says by how much, against
+            # the standard version of the same weapon.
+            standard = standards.get(band(rating))
+            if standard is not None and standard["id"] != weapon["id"]:
+                base_scaling = standard.get("scaling") or {}
+                shifts = []
+                for stat in stats_of(scaling, base_scaling):
+                    delta = (scaling.get(stat, 0) or 0) - (
+                        base_scaling.get(stat, 0) or 0)
+                    if delta:
+                        shifts.append(f"{stat[:3].upper()} {delta:+g}")
+                if shifts:
+                    lines.append(("vs standard", " · ".join(shifts)))
+            lines.append(("Rarity", RARITY_NAMES.get(weapon.get("rarity", 0), "?")))
+            own_tier = weapon.get("rarity", 0) + 1
+            reached = min(rating.tier_applied, weapons.MAX_UPGRADE)
+            if rating.tier_applied > own_tier:
+                lines.append(("Upgraded to", f"+{reached} "
+                                             f"{RARITY_NAMES.get(reached - 1, '')}"))
+            return lines
+
+        def tiles_to_show(entries) -> list[tuple]:
+            """(rating, lines, copies) per tile, rarest first; inside a
+            rarity band the infusions of one weapon sit together, ordered by
+            the standard version's name.
+
+            Worked out before any body is built, because the counts in the
+            headings are counts of tiles, not of the game's rows (DR-029):
+            two rows under one name with the same numbers are one tile
+            (QA-099a), and a heading saying `(2)` over one tile contradicts
+            what the reader sees under it.
+            """
             entries = sorted(entries, key=lambda r: (
                 -r.weapon.get("rarity", 0),
                 standards[band(r)]["name"].lower(),
                 r.weapon["id"],
             ))
-            tiles = []
-            tile_of: dict[tuple, Tile] = {}
-            listed: collections.Counter = collections.Counter()
+            shown: dict[tuple, list] = {}
             for rating in entries:
+                lines = tile_lines(rating)
+                same = (rating.weapon["name"], tuple(lines))
+                if same in shown:
+                    shown[same][2] += 1
+                else:
+                    shown[same] = [rating, lines, 1]
+            return [tuple(entry) for entry in shown.values()]
+
+        tiles_by_family = {family: tiles_to_show(entries)
+                           for family, entries in by_family.items()}
+        total = sum(len(v) for v in tiles_by_family.values())
+
+        def build_family(shown):
+            tiles = []
+            for rating, lines, copies in shown:
                 weapon = rating.weapon
-                # The label comes from the facade rather than from a constant
-                # here: a staff is headed by its spell scaling and has no
-                # attack rating to show, and which armament that is, is not
-                # this tab's to decide (QA-099).
-                lines = [(rating.headline_label,
-                          rating.displayed_hands(lambda r: r.final_headline))]
-                # `damage_type`, not `damage`: the loop variable used to
-                # shadow the module of that name, and the resulting
-                # UnboundLocalError only fired when a tile was drawn, never
-                # on import (QA-072).
-                for damage_type, value in rating.shown_per_type.items():
-                    lines.append((weapons.DAMAGE_LABELS[damage_type],
-                                  f"{damage.displayed(value)}"))
-                # The status the weapon exists for. Elemental variants always
-                # showed their element; the status variants hid their one
-                # number, so a Poison Cleaver read as a plain cleaver with
-                # less damage.
-                for status, value in sorted(
-                        (weapon.get("inflicts") or {}).items()):
-                    lines.append((f"{status} buildup", f"{value:g}"))
-                scaling = weapon.get("scaling") or {}
-                lines.append(("Scaling", scaling_text(scaling)))
-                # An infusion that moves the scaling says by how much, against
-                # the standard version of the same weapon.
-                standard = standards.get(band(rating))
-                if standard is not None and standard["id"] != weapon["id"]:
-                    base_scaling = standard.get("scaling") or {}
-                    shifts = []
-                    for stat in stats_of(scaling, base_scaling):
-                        delta = (scaling.get(stat, 0) or 0) - (
-                            base_scaling.get(stat, 0) or 0)
-                        if delta:
-                            shifts.append(f"{stat[:3].upper()} {delta:+g}")
-                    if shifts:
-                        lines.append(("vs standard", " · ".join(shifts)))
-                lines.append(("Rarity", RARITY_NAMES.get(weapon.get("rarity", 0), "?")))
-                own_tier = weapon.get("rarity", 0) + 1
-                reached = min(rating.tier_applied, weapons.MAX_UPGRADE)
-                if rating.tier_applied > own_tier:
-                    lines.append(("Upgraded to", f"+{reached} "
-                                                 f"{RARITY_NAMES.get(reached - 1, '')}"))
-                same = (weapon["name"], tuple(lines))
-                listed[same] += 1
-                if same in tile_of:
-                    tile_of[same].setToolTip(
-                        SAME_NAME_TIP.format(count=listed[same]))
-                    continue
                 # Colour by the rarity the weapon would actually have at the
                 # chosen upgrade target, not its shelf rarity.
-                tile_of[same] = Tile(weapon["name"],
-                                     self.icons.item(weapon.get("icon")),
-                                     lines, rarity=effective_rarity(rating))
-                tiles.append(tile_of[same])
+                tile = Tile(weapon["name"],
+                            self.icons.item(weapon.get("icon")),
+                            lines, rarity=effective_rarity(rating))
+                if copies > 1:
+                    tile.setToolTip(SAME_NAME_TIP.format(count=copies))
+                tiles.append(tile)
             return self._grid(tiles)
 
         def build_body():
@@ -578,11 +595,11 @@ class ArsenalTab(QWidget):
             inner = QVBoxLayout(body)
             inner.setContentsMargins(10, 0, 0, 0)
             inner.setSpacing(4)
-            for family in sorted(by_family):
-                entries = by_family[family]
+            for family in sorted(tiles_by_family):
+                shown = tiles_by_family[family]
                 inner.addWidget(Section(
-                    f"{family}  ({len(entries)})",
-                    lambda e=entries: build_family(e),
+                    f"{family}  ({len(shown)})",
+                    lambda s=shown: build_family(s),
                     level=1,
                 ))
             return body

@@ -374,10 +374,19 @@ def test_the_rarity_filter_agrees_with_the_section_count(
     tier = weapons.MIN_UPGRADE
     band = 0    # "Common"
 
-    expected = sum(
-        1 for rating in damage.rank_candidates(build, tier, game_data)
+    # One tile per name-and-numbers, as the tab shows them (QA-099a,
+    # DR-029): the game's rows under one name with the same figures are
+    # one tile, and the count names tiles. The figures are read off the
+    # facade's rating, not off the tab.
+    expected = len({
+        (rating.weapon["name"], rating.tier_applied, rating.final_headline,
+         tuple(sorted(rating.shown_per_type.items())),
+         tuple(sorted((rating.weapon.get("scaling") or {}).items())),
+         tuple(sorted((rating.weapon.get("inflicts") or {}).items())),
+         rating.weapon.get("rarity", 0))
+        for rating in damage.rank_candidates(build, tier, game_data)
         if min(rating.tier_applied - 1, weapons.RARITY_TIERS - 1) == band
-    )
+    })
     assert 0 < expected < len(game_data["weapons"]), (
         "the 'Common' band at this tier is empty or holds the whole "
         "dataset, so this case cannot tell a correct filter from a broken "

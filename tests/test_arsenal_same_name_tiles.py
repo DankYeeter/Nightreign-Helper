@@ -52,3 +52,31 @@ def test_same_name_same_numbers_is_one_tile_that_says_so(planner, game_data):
     assert tiles[0].toolTip() == (
         f"The game lists {count} armaments under this name with these "
         f"numbers; shown once.")
+
+
+def test_the_headings_count_the_tiles_shown_not_the_rows_merged(
+        planner, game_data):
+    """DR-029: `Weapons (n)` and the family heading count tiles, not rows.
+
+    Searching `Finger Seal` gave `Weapons (2)` and `Sacred Seal (2)` over
+    one tile: the rows were merged (QA-099a) and the counts were not.
+    """
+    name, _count = a_name_listed_more_than_once(game_data)
+    hero = cases.hero_by_name(game_data, "Wylder")
+    planner.hero_index = game_data["heroes"].index(hero)
+    planner.declared = {}
+    planner.recompute()
+    tab = planner.weapons_tab
+    tab.search.setText(f'"{name}"')
+    tab.recalculate()
+
+    tiles = len(tab.scroll.widget().findChildren(arsenaltab.Tile))
+    weapons_section, *_rest = tab._top_sections
+    headings = [weapons_section.toggle.text()] + [
+        section.toggle.text()
+        for section in weapons_section.body.findChildren(arsenaltab.Section)]
+    assert headings, "the search opened no section to read a heading off"
+    for heading in headings:
+        assert heading.endswith(f"({tiles})"), (
+            f"{heading!r} over {tiles} tile(s)")
+    assert f"{tiles} shown" in tab.summary.text()
