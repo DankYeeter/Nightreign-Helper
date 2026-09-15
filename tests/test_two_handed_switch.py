@@ -54,9 +54,9 @@ def test_the_hand_round_trips_through_both_stores(qapp):
     from tests.conftest import clear_settings
 
     clear_settings()
-    chalices.save(HERO, VESSEL, False, SLOTS, True)
+    chalices.save(HERO, VESSEL, SLOTS, True)
     assert chalices.load(HERO, VESSEL) == (VESSEL, False, SLOTS, True)
-    chalices.save(HERO, VESSEL, False, SLOTS)
+    chalices.save(HERO, VESSEL, SLOTS)
     assert chalices.load(HERO, VESSEL)[3] is False
     chalices.save_build(HERO, "both hands", VESSEL, False, SLOTS, True)
     assert chalices.load_build(HERO, "both hands") == (VESSEL, False, SLOTS,

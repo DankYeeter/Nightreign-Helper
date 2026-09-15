@@ -254,7 +254,7 @@ def test_an_old_build_with_one_relic_twice_is_resolved_when_it_is_restored(
     hero_id = planner.current_hero()["id"]
     keys = ["" for _ in range(6)]
     keys[first] = keys[second] = chalices.slot_key(relic)
-    chalices.save(hero_id, vessel["id"], False, keys)
+    chalices.save(hero_id, vessel["id"], keys)
 
     select_vessel(planner, row)
 
@@ -329,7 +329,7 @@ def test_a_roll_falls_back_to_a_copy_no_other_slot_was_given(
     roll_only = chalices.SEPARATOR + favourites.key(one)
     keys = ["" for _ in range(6)]
     keys[pair.first] = keys[pair.second] = roll_only
-    chalices.save(planner.current_hero()["id"], pair.vessel["id"], False, keys)
+    chalices.save(planner.current_hero()["id"], pair.vessel["id"], keys)
 
     select_vessel(planner, pair.row)
 
@@ -356,7 +356,7 @@ def a_build_wearing_one_relic_twice(planner, game_data, two_slots_of_one_colour)
     first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
     keys = ["" for _ in range(6)]
     keys[first] = keys[second] = chalices.slot_key(relic)
-    chalices.save(planner.current_hero()["id"], vessel["id"], False, keys)
+    chalices.save(planner.current_hero()["id"], vessel["id"], keys)
     return row, vessel, first, second, relic, keys
 
 

@@ -25,6 +25,7 @@ under the pointer and chose the wait.
 from __future__ import annotations
 
 import dataclasses
+import functools
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QFontMetrics, QIcon
@@ -69,22 +70,22 @@ CURSE = "#d1655f"
 FAVOURITE = "#a86fe0"
 
 #: The value row's own spacing between caption and figure (`ValueBlock`),
-#: read again below so `_measure_card_width` cannot drift from the layout
+#: read again below so `card_width` cannot drift from the layout
 #: it is measuring.
 ROW_SPACING = 6
 #: The card's own layout margin, one side, on every side (`RelicCard`,
 #: `CustomRelicCard`).
 CARD_MARGIN = 8
 #: The widest border a card can wear -- selected or favourite -- and so the
-#: state with the least room left for the text inside; `_measure_card_width`
+#: state with the least room left for the text inside; `card_width`
 #: sizes against it rather than the plain 1 px border.
 SELECTION_BORDER = 2
 #: The two labels `ValueBlock` builds a value row's caption and figure from,
-#: in the exact styles it gives them. Read again by `_measure_card_width`,
+#: in the exact styles it gives them. Read again by `card_width`,
 #: which is why they are named here instead of written twice.
 CAPTION_STYLE = f"border: none; color: {MUTED}; font-size: 11px;"
 VALUE_STYLE = "border: none; font-weight: bold; font-size: 12px;"
-#: The caption and figure `_measure_card_width` measures against: the
+#: The caption and figure `card_width` measures against: the
 #: longest caption paired with the longest figure the survival row can show
 #: (QA-230). Not the longest caption alone (`Offensive attributes`,
 #: AK-259) -- that row's figure is short, and `ValueBlock`'s own size
@@ -96,13 +97,12 @@ WIDEST_VALUE = "+999.9 effective HP"
 #: effective H` on 6 of 162 cells.
 CARD_WIDTH_FLOOR = 208
 
-#: `_measure_card_width`'s answer, kept after the first call: the font does
-#: not change while the program runs, and every card asks for this.
-_card_width_cache: int | None = None
-
-
-def _measure_card_width() -> int:
+@functools.cache
+def card_width() -> int:
     """How wide a `RelicCard` needs to be, from its own font metrics.
+
+    Cached after the first call: the font does not change while the program
+    runs, and every card asks for this.
 
     `CARD_WIDTH` used to be a number read off one machine's Segoe UI
     (QA-230); a `windows-latest` runner with different metrics read it as
@@ -118,31 +118,18 @@ def _measure_card_width() -> int:
     collection). `CARD_WIDTH_FLOOR` keeps a narrower font from shrinking a
     card below what T-237 already proved every value needs.
     """
-    global _card_width_cache
-    if _card_width_cache is None:
-        caption = QLabel(WIDEST_CAPTION)
-        caption.setStyleSheet(CAPTION_STYLE)
-        caption.ensurePolished()
-        value = QLabel(WIDEST_VALUE)
-        value.setStyleSheet(VALUE_STYLE)
-        value.ensurePolished()
-        row_width = (
-            QFontMetrics(caption.font()).horizontalAdvance(WIDEST_CAPTION)
-            + ROW_SPACING
-            + QFontMetrics(value.font()).horizontalAdvance(WIDEST_VALUE))
-        needed = row_width + 2 * CARD_MARGIN + 2 * SELECTION_BORDER
-        _card_width_cache = max(CARD_WIDTH_FLOOR, needed)
-    return _card_width_cache
-
-
-def __getattr__(name: str):
-    """`relicpicker.CARD_WIDTH`, for callers that still ask for it by that
-    name (tests, `scripts/measure_picker_cards.py`) -- one function behind
-    the one name `_measure_card_width` already is (PEP 562).
-    """
-    if name == "CARD_WIDTH":
-        return _measure_card_width()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    caption = QLabel(WIDEST_CAPTION)
+    caption.setStyleSheet(CAPTION_STYLE)
+    caption.ensurePolished()
+    value = QLabel(WIDEST_VALUE)
+    value.setStyleSheet(VALUE_STYLE)
+    value.ensurePolished()
+    row_width = (
+        QFontMetrics(caption.font()).horizontalAdvance(WIDEST_CAPTION)
+        + ROW_SPACING
+        + QFontMetrics(value.font()).horizontalAdvance(WIDEST_VALUE))
+    needed = row_width + 2 * CARD_MARGIN + 2 * SELECTION_BORDER
+    return max(CARD_WIDTH_FLOOR, needed)
 
 
 # The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
@@ -592,7 +579,7 @@ class ValueBlock(QWidget):
     been told to wrap, so its minimum width *is* its text, and the block
     handed that minimum up to the card. It went unnoticed while the captions
     were `Damage` and `Damage taken`, and `Offensive attributes` (AK-259) is
-    the first one long enough to push a card's demand past `_measure_card_width`.
+    the first one long enough to push a card's demand past `card_width`.
     Stating nothing is the property the docstring already promised; it now
     holds whatever a caption says rather than while the captions happen to be
     short. The rows inside are laid out exactly as before -- the policy
@@ -654,7 +641,7 @@ class RelicCard(QFrame):
         super().__init__()
         self.item = item
         self.on_favourite = on_favourite
-        self.setFixedWidth(_measure_card_width())
+        self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
         # Selection and favourite are different questions -- "is this relic on
         # right now" and "do I want this relic on this character" -- so a card
@@ -812,7 +799,7 @@ class CustomRelicCard(QFrame):
 
     def __init__(self, effect_names: list[str], selected: bool, on_pick):
         super().__init__()
-        self.setFixedWidth(_measure_card_width())
+        self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
@@ -1231,7 +1218,7 @@ class RelicPicker(QDialog):
         scrollbar rather than assuming a figure is what makes this hold under
         a style whose scrollbars are not the width this machine's are.
         """
-        return (cardgrid.room_for(OPENING_COLUMNS, _measure_card_width())
+        return (cardgrid.room_for(OPENING_COLUMNS, card_width())
                 + 2 * MARGIN
                 + self.scroll.verticalScrollBar().sizeHint().width())
 
@@ -1273,7 +1260,7 @@ class RelicPicker(QDialog):
         this save, the difference between the two readings is up to 104 px on
         a single card -- which is most of a row.
         """
-        width = _measure_card_width()
+        width = card_width()
         heights = [_asked_height(card, width, 0) for card in cards]
         rows = [max(heights[start:start + OPENING_COLUMNS])
                 for start in range(0, len(heights), OPENING_COLUMNS)]
@@ -1596,7 +1583,7 @@ class RelicPicker(QDialog):
         # same eleven lost 142 of their 190 px at 900, names ending mid-word
         # (QA-141, DR-016a at a place T-058 left out).
         self.scroll.setWidget(cardgrid.CardGrid(
-            _measure_card_width(),
+            card_width(),
             [tile] + [card for _item, card in relic_cards]))
         self._fit_to_three_rows(for_size)
 

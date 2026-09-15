@@ -211,7 +211,7 @@ def main() -> int:
         cards[0].item, effects, None, False, lambda _i: None, marks=marks,
         captions=[relicpicker.VALUE_CAPTIONS[g]
                   for g in relicpicker.VALUE_DIRECTIONS])
-    probe.setFixedWidth(relicpicker.CARD_WIDTH)
+    probe.setFixedWidth(relicpicker.card_width())
     before = probe.sizeHint().height()
     probe.show_values([LONGEST, LONGEST], relicpicker.chip_text("max_damage"))
     after = probe.sizeHint().height()
@@ -228,7 +228,7 @@ def main() -> int:
     print(f"value block asks {block.sizeHint().width()} x "
           f"{block.sizeHint().height()}, minimum width "
           f"{block.minimumSizeHint().width()}, card body has "
-          f"{relicpicker.CARD_WIDTH - 16}")
+          f"{relicpicker.card_width() - 16}")
 
     dialog.close()
     second_sample(app, window)

@@ -86,8 +86,6 @@ class EffectFilters(QObject):
 
     def mark(self, effect_id: int, kind: str | None) -> None:
         """Put one effect into the `kind` set, or into neither for `None`."""
-        if kind not in (EXCLUDED, REQUIRED, None):
-            raise ValueError(f"no effect filter is called {kind!r}")
         excluded = self.excluded - {effect_id}
         required = self.required - {effect_id}
         if kind == EXCLUDED:

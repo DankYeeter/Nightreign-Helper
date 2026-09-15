@@ -10,10 +10,11 @@ calls for 1792 `rank_candidates` candidates, ~29 % of that function's time).
 
 Two claims, two tests:
 
-* `_rate_pair` is bit for bit what two independent `weapons.rate` calls
-  produce -- over the whole shipped dataset, not just the cases
-  `tests/test_weapon_damage_golden.py` freezes (T-260 section 5, spec item
-  4).
+* `_rate_pair`'s one-handed half is what `weapons.rate` hands out, and its
+  second hand exists exactly where `can_two_hand` says so -- over the whole
+  shipped dataset, not just the cases `tests/test_weapon_damage_golden.py`
+  freezes (T-260 section 5, spec item 4). The two-handed figure itself is
+  frozen by the golden.
 * the doubling is actually gone: `rank_candidates` reaches the shared
   arithmetic exactly once per candidate, never twice.
 """
@@ -45,7 +46,7 @@ def _hex(rating: weapons.WeaponRating) -> tuple:
     )
 
 
-def test_rate_pair_matches_two_independent_rate_calls(game_data):
+def test_rate_pair_matches_rate_and_can_two_hand(game_data):
     curves = game_data.get("curves", {})
     checked = 0
     for hero in game_data["heroes"]:
@@ -61,15 +62,8 @@ def test_rate_pair_matches_two_independent_rate_calls(game_data):
                     assert _hex(one_handed) == _hex(want_one), \
                         weapon.get("name")
 
-                    if weapons.can_two_hand(weapon):
-                        want_two = weapons.rate(
-                            weapon, attributes, game_data, upgrade,
-                            nightfarer, two_handed=True)
-                        assert two_handed is not None, weapon.get("name")
-                        assert _hex(two_handed) == _hex(want_two), \
-                            weapon.get("name")
-                    else:
-                        assert two_handed is None, weapon.get("name")
+                    assert (two_handed is None) == (
+                        not weapons.can_two_hand(weapon)), weapon.get("name")
                     checked += 1
 
     assert checked == (len(game_data["heroes"]) * len(LEVELS) * len(TIERS)

@@ -411,8 +411,10 @@ def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data):
                          damage.ATTRIBUTES_FOR[damage.Question.CANDIDATE])
 
     ranked = damage.rank_candidates(build, tier, game_data)
-    layer_one = [rating.weapon["id"] for rating in
-                 weapons.rank(game_data, attributes, tier)]
+    layer_one = [rating.weapon["id"] for rating in sorted(
+        (weapons.rate(weapon, attributes, game_data, tier)
+         for weapon in game_data["weapons"]),
+        key=lambda r: (-r.scaled_headline(), r.weapon["id"]))]
     place = {weapon_id: index for index, weapon_id in enumerate(layer_one)}
 
     groups: dict[float, list[int]] = {}

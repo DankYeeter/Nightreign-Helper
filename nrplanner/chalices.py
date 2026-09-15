@@ -61,7 +61,7 @@ def split_key(key: str) -> tuple[int | None, str]:
     return handle, roll
 
 
-def save(hero_id: int, vessel_id: int | None, deep: bool, slots: list[str],
+def save(hero_id: int, vessel_id: int | None, slots: list[str],
          two_handed: bool = False) -> None:
     """Remember what this Nightfarer is holding, and in how many hands.
 
@@ -69,12 +69,12 @@ def save(hero_id: int, vessel_id: int | None, deep: bool, slots: list[str],
     slot would leave a stored record that says "no vessel, nothing equipped",
     which reloads as a build and stops the list falling back to its default.
 
-    `deep` records whether this build uses the three Deep of Night slots, and
-    is taken from the slots themselves rather than from the switch on screen.
-    The switch is a view -- it belongs to the player, not to the chalice --
-    and is stored by save_view(). Reading it here meant importing a build
-    while the switch happened to be on marked that build as Deep even when
-    the game says it is not.
+    Whether this build uses the three Deep of Night slots is taken from the
+    slots themselves rather than from the switch on screen. The switch is a
+    view -- it belongs to the player, not to the chalice -- and is stored by
+    save_view(). Reading it here meant importing a build while the switch
+    happened to be on marked that build as Deep even when the game says it
+    is not.
     """
     settings = _settings()
     # Keyed per vessel, not per Nightfarer. With one key per Nightfarer,

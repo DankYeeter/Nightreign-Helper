@@ -712,10 +712,9 @@ def rank_candidates(build: model.Build, target_tier: int,
     The filter sits here rather than in the arsenal tab because "candidate"
     already means "something the player might choose", so every list built on
     this answer inherits it -- the tab today, the advisor's own candidate list
-    when it is built. `weapons.rank` itself is left seeing the whole dataset:
-    it is the rating layer, and a measurement over the game's 30 catalysts has
-    to go on finding 30 of them -- unaffected by this function no longer
-    calling it (T-261, see below).
+    when it is built. The rating layer in `weapons` is left seeing the whole
+    dataset: a measurement over the game's 30 catalysts has to go on finding
+    30 of them.
 
     **Best by the figure a display shows, which is `final_headline`.**
     Ordering is done here and not by layer one, because layer one cannot know

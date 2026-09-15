@@ -2,7 +2,7 @@
 AK-42, QA-229, QA-230).
 
 Both findings are about text that is wider than the label drawn for it, and
-that is a relation between a font and `relicpicker.CARD_WIDTH`. Offscreen the
+that is a relation between a font and `relicpicker.card_width()`. Offscreen the
 fallback font runs about twice as wide as Segoe UI (T-084), so a card that
 holds every text under Windows cuts every text there -- the reading has to
 come from the Windows platform, the way `advisor_row_at_the_window` takes

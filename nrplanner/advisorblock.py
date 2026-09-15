@@ -112,16 +112,6 @@ SMALL_TEXT = 11
 
 # --- one line, as the markup that draws it ---------------------------------
 
-def kind_of(filters: effectfilters.EffectFilters, effect_id: int
-            ) -> str | None:
-    """Which of the two sets holds this id, or `None` for neutral."""
-    if effect_id in filters.excluded:
-        return effectfilters.EXCLUDED
-    if effect_id in filters.required:
-        return effectfilters.REQUIRED
-    return None
-
-
 @dataclass(frozen=True)
 class LineStyle:
     """How one line is drawn: the facts `line_markup` turns into markup and
@@ -314,7 +304,12 @@ class MarkedLine(QWidget):
         self._redraw()
 
     def kind(self) -> str | None:
-        return kind_of(self._filters, self.line.effect_id)
+        """Which of the two sets holds this line's effect, `None` for neutral."""
+        if self.line.effect_id in self._filters.excluded:
+            return effectfilters.EXCLUDED
+        if self.line.effect_id in self._filters.required:
+            return effectfilters.REQUIRED
+        return None
 
     def _cycle(self) -> None:
         self._filters.mark(self.line.effect_id, NEXT_MARK[self.kind()])
@@ -597,12 +592,6 @@ class WhyDialog(QDialog):
         self.close_button.clicked.connect(self.accept)
         row.addWidget(self.close_button)
         outer.addLayout(row)
-
-    def marked_lines(self) -> list[MarkedLine]:
-        """Every line of the dialog that carries the control, groups first."""
-        return ([line for _t, _c, lines in self.groups for line in lines]
-                + self.excluded_list.findChildren(MarkedLine)
-                + self.required_list.findChildren(MarkedLine))
 
     def _show_the_marked_lists(self) -> None:
         for holder, heading, ids in (

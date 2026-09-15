@@ -117,7 +117,7 @@ def call_sites(source: str, module_short_name: str,
     caller.
 
     Generalised from the single-function `model.compute` guard for AD-021:
-    the fassade over `weapons.rate`/`weapons.rank` needs the same seven
+    the fassade over `weapons.rate`/`weapons._rate_pair` needs the same seven
     spellings watched for two function names in one module instead of one,
     and a second copy of this walk would drift from the first one call site
     at a time.
@@ -348,18 +348,18 @@ def test_the_guard_does_not_mistake_a_mention_for_a_call():
 # QA-058 asked how "one rechenstelle" can hold for both layers of the weapon
 # arithmetic. `compute`'s guard above answers "one caller"; the answer for
 # the lower layer is "one facade" (AD-019, AD-021): `nrplanner/damage.py` is
-# allowed to call `weapons.rate`/`weapons.rank`, and nothing else under
+# allowed to call `weapons.rate`/`weapons._rate_pair`, and nothing else under
 # `nrplanner/` may. The same seven-spelling walk that guards `model.compute`
 # guards this, with two function names in one module instead of one -- a
 # second copy of `call_sites` here would drift from the first the same way a
 # second summation of a damage type already has (AD-024).
 
 FACADE = "nrplanner/damage.py"
-#: `_rate_pair` joined `rate`/`rank` here in T-261: `damage._rate` and
+#: `_rate_pair` joined `rate` here in T-261: `damage._rate` and
 #: `damage.rank_candidates` reach it instead of calling `weapons.rate`
 #: directly for each hand, so it is as much an arithmetic entry point as the
-#: two names AD-021 was written against.
-ARITHMETIC_ENTRY = frozenset({"rate", "rank", "_rate_pair"})
+#: names AD-021 was written against (`weapons.rank` itself fell in T-262).
+ARITHMETIC_ENTRY = frozenset({"rate", "_rate_pair"})
 
 
 def rate_rank_call_sites(source: str) -> int:
@@ -389,7 +389,7 @@ def test_only_the_facade_calls_weapons_rate_or_rank():
     assert {name: n for name, n in callers.items() if n} == {
         FACADE: 2
     }, ("every armament rating must go through the facade in damage.py; "
-        f"weapons.rate/weapons.rank is reached in {callers}")
+        f"weapons.rate/weapons._rate_pair is reached in {callers}")
 
 
 #: The same shape as `WAYS_ROUND_THE_GUARD`, against `weapons.rate` -- plus
@@ -411,8 +411,8 @@ WAYS_ROUND_THE_RATE_RANK_GUARD = {
     "handed to functools.partial":
         "import functools\nfrom . import weapons\n"
         "run = functools.partial(weapons.rate, w)\nrun(a, d)\n",
-    "the second function, rank":
-        "from . import weapons\nweapons.rank(d, a)\n",
+    "the second function, _rate_pair":
+        "from . import weapons\nweapons._rate_pair(w, a, d)\n",
 }
 
 

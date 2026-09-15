@@ -389,11 +389,10 @@ def _rate_shared(weapon: dict, attributes: dict[str, int], data: dict,
     Returns `(applied_upgrade, catalyst_scaling, calibration, per_damage)`,
     with `per_damage[damage] = (base, bonus)` -- both still without
     `display_rate`, the one factor that tells a one-handed and a two-handed
-    figure apart. `rate()` and `_rate_pair()` below both call this once and
-    finish the figure with `_finish_rating`; every multiplication either does
-    afterwards is exactly what `rate()` always did, so a hand built this way
-    is bit for bit what an independent `rate()` call for that hand returns
-    (T-261, spec in `docs/berichte/T-260-performance-tuner.md` section 5).
+    figure apart. `_rate_pair()` below calls this once and finishes each
+    hand with `_finish_rating`; every multiplication it does afterwards is
+    exactly what `rate()` always did in one pass (T-261, spec in
+    `docs/berichte/T-260-performance-tuner.md` section 5).
     """
     curves = data["calc_curves"]
     reinforce_table = data["reinforce"]
@@ -552,23 +551,14 @@ def _finish_rating(weapon: dict, applied: int, catalyst_scaling: float | None,
 
 
 def rate(weapon: dict, attributes: dict[str, int], data: dict,
-         upgrade: int = MIN_UPGRADE, nightfarer: str = "",
-         two_handed: bool = False) -> WeaponRating:
-    """Layer one for one armament, one-handed unless `two_handed` is asked.
+         upgrade: int = MIN_UPGRADE, nightfarer: str = "") -> WeaponRating:
+    """Layer one for one armament, one-handed.
 
-    `two_handed` was asked by `damage._scaled`, folded away since T-261:
-    production code now takes both hands from `_rate_pair` below, which
-    shares `_rate_shared`'s work instead of calling this function twice. The
-    flag stays -- one call still has to be able to answer one hand alone --
-    and it is what `tests/test_rate_pair.py` asks for, hex for hex, against
-    `_rate_pair`'s own build of the same hand. It does not check
-    `can_two_hand`, because a caller that reaches for it already has.
+    Since T-261 production code takes both hands from `_rate_pair` below;
+    this is its one-handed half for the callers that want one hand alone
+    (`scripts/bracketing_residue.py`, tests).
     """
-    applied, catalyst_scaling, calibration, per_damage = _rate_shared(
-        weapon, attributes, data, upgrade, nightfarer)
-    hand = two_handed_calibration(nightfarer) if two_handed else None
-    return _finish_rating(weapon, applied, catalyst_scaling, calibration,
-                          per_damage, hand)
+    return _rate_pair(weapon, attributes, data, upgrade, nightfarer)[0]
 
 
 def _rate_pair(weapon: dict, attributes: dict[str, int], data: dict,
@@ -578,11 +568,10 @@ def _rate_pair(weapon: dict, attributes: dict[str, int], data: dict,
     """One armament, both hands, `_rate_shared`'s work done once for both.
 
     `(one_handed, two_handed)`; `two_handed` is `None` exactly where
-    `can_two_hand` says the game offers no second figure. Bit for bit what
-    two independent `rate()` calls (`two_handed=False`, then `True`) would
-    return -- `base` and `bonus` per damage type are computed once and
-    reused, and every multiplication after that is the one `rate()` always
-    made, now made once per hand instead of once per call.
+    `can_two_hand` says the game offers no second figure. `base` and
+    `bonus` per damage type are computed once and reused, and every
+    multiplication after that is the one `rate()` always made, now made
+    once per hand instead of once per call.
 
     This is the fix for T-260's Optimization 2: `damage._other_hand` used to
     make a second, independent `weapons.rate` call for every two-handable
@@ -601,33 +590,3 @@ def _rate_pair(weapon: dict, attributes: dict[str, int], data: dict,
         two_handed = _finish_rating(weapon, applied, catalyst_scaling,
                                     calibration, per_damage, hand)
     return one_handed, two_handed
-
-
-def rank(data: dict, attributes: dict[str, int],
-         upgrade: int = MIN_UPGRADE, nightfarer: str = "") -> list[WeaponRating]:
-    """Every armament in the dataset, rated and ordered best first.
-
-    `WeaponRating.total` fell in AD-019 step W5 (assurance Z1): it bracketed
-    the same addends `scaled_per_type()` sums differently, and after W1 it
-    had no purpose but to be that second bracketing. Sorting on
-    `scaled_headline()` -- which is that one summation for every armament the
-    game shows an attack rating for -- means there is still exactly one
-    summation of a damage type in the whole program, not two that happen to
-    agree to within a ULP.
-
-    Staves and seals are ordered by the figure the game shows for them and
-    not by their physical rating (QA-099): rating them by the latter put
-    Rotten Crystal Staff (182 in game) ahead of Carian Regal Scepter (237),
-    so the list disagreed with the game about which of two catalysts is
-    better. The physical rating of a catalyst now appears in no ranking.
-
-    The second sort key is not decoration (do-not rule 29, AD-024): two
-    orderings of the same addends can disagree by a ULP, so without a
-    tie-break the order of a near-tie would follow whatever this loop
-    happened to hand over, and two runs over the same data could disagree
-    about rows nobody could tell apart on screen.
-    """
-    out = [rate(weapon, attributes, data, upgrade, nightfarer)
-           for weapon in data["weapons"]]
-    out.sort(key=lambda r: (-r.scaled_headline(), r.weapon["id"]))
-    return out

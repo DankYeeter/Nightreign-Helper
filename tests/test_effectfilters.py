@@ -77,11 +77,6 @@ def test_changed_fires_once_per_marking_that_moved_something(store):
     assert len(heard) == 1
 
 
-def test_a_kind_that_is_not_one_of_the_two_is_refused(store):
-    with pytest.raises(ValueError):
-        effectfilters.EffectFilters().mark(5, "held")
-
-
 @pytest.mark.parametrize("damaged", ["", "abc", "1,,x, 2 ,", "3.5"])
 def test_a_damaged_value_reads_as_whatever_ids_it_still_holds(store, damaged):
     store.setValue(effectfilters.KEYS[effectfilters.REQUIRED], damaged)

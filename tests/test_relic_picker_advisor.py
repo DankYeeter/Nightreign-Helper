@@ -266,7 +266,7 @@ def a_card(slot, item, values=None, chip=""):
         marks=slot.window().effect_filters,
         captions=[relicpicker.VALUE_CAPTIONS[goal_id]
                   for goal_id in relicpicker.VALUE_DIRECTIONS])
-    card.setFixedWidth(relicpicker.CARD_WIDTH)
+    card.setFixedWidth(relicpicker.card_width())
     if values is not None:
         card.show_values(values, chip)
     return card
@@ -290,7 +290,7 @@ def card_height(card) -> tuple[int, int]:
     measured once, have no cache to be stale.
     """
     return (card.sizeHint().height(),
-            card.heightForWidth(relicpicker.CARD_WIDTH))
+            card.heightForWidth(relicpicker.card_width()))
 
 
 def values_of(card) -> list[str]:
@@ -358,7 +358,7 @@ def test_a_card_is_the_same_height_with_the_control_as_with_a_label(slot):
 
     item = next(i for i in slot.available_items() if i.effect_ids)
     card = a_card(slot, item)
-    body = relicpicker.CARD_WIDTH - 2 * relicpicker.CARD_MARGIN
+    body = relicpicker.card_width() - 2 * relicpicker.CARD_MARGIN
     for line in card.lines:
         plain = QLabel(f"• {line.line.text}")
         plain.setWordWrap(True)

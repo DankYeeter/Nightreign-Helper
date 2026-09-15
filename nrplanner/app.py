@@ -1700,7 +1700,6 @@ class Planner(QMainWindow):
         chalices.save(
             self.current_hero()["id"],
             vessel["id"] if vessel else None,
-            self.deep_check.isChecked(),
             keys,
             self.stat_sheet.hand_switch.isChecked(),
         )
@@ -2503,7 +2502,7 @@ class Planner(QMainWindow):
             keys = [chalices.slot_key(r) for r in entry.relics]
             keys += [""] * (6 - len(keys))
             if any(keys):
-                chalices.save(hero["id"], entry.vessel_id, entry.deep_used, keys)
+                chalices.save(hero["id"], entry.vessel_id, keys)
                 imported += 1
             else:
                 # Empty in the game means empty here: this button says the
