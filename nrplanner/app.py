@@ -19,9 +19,10 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (advisorblock, chalices, datasource, effectfilters, errortext,
-               favourites, firstrun, gamepath, inventory, model, savereader,
-               shortcut, singleinstance, uiscale, weaponslots)
+from . import (advisorblock, chalices, datasource, effectfilterdialog,
+               effectfilters, errortext, favourites, firstrun, gamepath,
+               inventory, model, savereader, shortcut, singleinstance,
+               uiscale, weaponslots)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
@@ -2668,6 +2669,7 @@ class Planner(QMainWindow):
         """
         self.advisor_bar.suggestion_changed.connect(self._the_suggestion_changed)
         self.advisor_bar.why_requested.connect(self.open_why)
+        self.advisor_bar.filters_requested.connect(self.open_effect_filters)
         self.advisor_bar.apply_all_requested.connect(self.apply_all)
         self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
         # A marking is a different question, the same way a direction is
@@ -2974,6 +2976,24 @@ class Planner(QMainWindow):
         advisorblock.WhyDialog(heading, result, self,
                                filters=self.effect_filters,
                                effects=self.effects).exec()
+
+    def open_effect_filters(self) -> None:
+        """The effect filter window (AK-302/AK-303), over what is owned now.
+
+        A marking made in it travels the AK-289 wiring above on its own:
+        the window writes through `EffectFilters.mark`, and nothing here has
+        to be told. AK-309's first two cases are told apart the way the
+        relic label tells them apart: no save behind the window, or a chosen
+        save with nothing in it.
+        """
+        rows = ([] if self.owned is None
+                else effectfilterdialog.rows_from(self.owned, self.effects))
+        reason = "" if rows else (
+            effectfilterdialog.SAVE_HAS_NO_RELICS
+            if self.owned is not None or self._answers_a_chosen_save
+            else effectfilterdialog.NO_SAVE_WAS_READ)
+        effectfilterdialog.EffectFilterWindow(self.effect_filters, rows,
+                                              reason, self).exec()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)
