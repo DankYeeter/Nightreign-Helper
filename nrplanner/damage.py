@@ -150,20 +150,35 @@ TWO_HANDED_MARK = "2H"
 # Inside the group the three parts never separate: `2H` alone at the start
 # of a line would read as a term of its own (AK-73, DR-009).
 _NO_BREAK_SPACE = "\u00a0"
+# The hand the switch (AK-292) is not set to, on every surface that shows
+# both: the panes' `MUTED`, unbolded, whatever emphasis the surface puts
+# around the whole figure (AK-298).
+MUTED = "#8a8a8a"
+_QUIET_HAND = f"<span style='color:{MUTED}; font-weight:normal'>{{}}</span>"
 
 
-def displayed_hands(one_handed: float, two_handed: float | None) -> str:
+def displayed_hands(one_handed: float, two_handed: float | None,
+                    two_handing: bool = False) -> str:
     """`147`, or `147 / 151 2H` where the game offers a second figure.
 
     AK-286: the two-handed figure is a suffix to the one-handed one under the
     same label, never a labelled figure of its own; where there is none, the
     text is the one-handed figure and nothing else (AK-288, no `/ -- 2H`).
+
+    AK-298: the half the build is not held in -- with the `/` -- is wrapped
+    quiet, so the surface's own emphasis (`<b>`, `ACCENT`, a bold label)
+    lands on the chosen half alone. Rich text, then, wherever both hands
+    show; a lone figure stays the bare number.
     """
     shown = str(displayed(one_handed))
     if two_handed is None:
         return shown
-    return _NO_BREAK_SPACE.join(
-        (shown, "/", str(displayed(two_handed)), TWO_HANDED_MARK))
+    other = _NO_BREAK_SPACE.join((str(displayed(two_handed)), TWO_HANDED_MARK))
+    if two_handing:
+        return (_QUIET_HAND.format(shown + _NO_BREAK_SPACE + "/")
+                + _NO_BREAK_SPACE + other)
+    return shown + _QUIET_HAND.format(_NO_BREAK_SPACE + "/" + _NO_BREAK_SPACE
+                                      + other)
 
 
 class Question(enum.Enum):
@@ -336,15 +351,17 @@ class Rating:
             return self.catalyst_scaling
         return self.final_total
 
-    def displayed_hands(self, figure: Callable[[Rating], float]) -> str:
+    def displayed_hands(self, figure: Callable[[Rating], float],
+                        two_handing: bool = False) -> str:
         """`figure` of this answer, and of its two-handed one where it has one.
 
         `figure` picks which number (`final_headline`, one type's
         `scaled_per_type` entry, ...); the same pick is read off both hands,
         so the two figures beside each other answer the same question.
+        `two_handing` is the switch's stand (AK-298).
         """
         other = None if self.two_handed is None else figure(self.two_handed)
-        return displayed_hands(figure(self), other)
+        return displayed_hands(figure(self), other, two_handing)
 
     @property
     def headline_label(self) -> str:

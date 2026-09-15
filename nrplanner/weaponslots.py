@@ -211,13 +211,15 @@ class WeaponTile(QFrame):
             self.on_edit(self.index)
 
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
-                  effects: dict | None = None) -> None:
+                  effects: dict | None = None,
+                  two_handing: bool = False) -> None:
         """Draw one tile. `rating` is the slot's `damage.Rating`, or None.
 
         The rating answers `damage.Question.EQUIPPED` -- this armament, in
         this slot, as it stands -- and the tile shows its finished figure, the
         one after the attack multipliers, under the name the facade gives it;
-        both hands where the armament has two (`218 / 229 2H AR`, AK-286).
+        both hands where the armament has two (`218 / 229 2H AR`, AK-286),
+        the hand the switch stands on in the bold (`two_handing`, AK-298).
         It is the same number the breakdown panel puts under the grid, out of
         the same call, which is what W3 of AD-019 was for: the tile used to
         rate the armament for itself and arrived at a different total for the
@@ -259,9 +261,9 @@ class WeaponTile(QFrame):
             # The label's own words are held together, so a two-word label
             # cannot be split across the wrap (DR-009, `NO_BREAK_SPACE`).
             label = rating.headline_label.replace(" ", NO_BREAK_SPACE)
-            bits.append(f"<b style='color:{ACCENT}'>"
-                        f"{rating.displayed_hands(lambda r: r.final_headline)}"
-                        f"</b> {label}")
+            figure = rating.displayed_hands(lambda r: r.final_headline,
+                                            two_handing)
+            bits.append(f"<b style='color:{ACCENT}'>{figure}</b> {label}")
         if slot.effect_ids:
             # Count the negative rolls apart from the rest, in the same red
             # the picker uses, so a tile shows at a glance that one of its

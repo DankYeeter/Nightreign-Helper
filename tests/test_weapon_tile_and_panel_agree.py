@@ -34,9 +34,10 @@ from tests import weapon_damage_cases as cases
 LEVEL = 15
 
 # `weaponslots.WeaponTile` writes "<b style='...'>323</b> AR" -- or, for an
-# armament the game offers two-handed, "323 / 339 2H" inside the bold (AK-286,
+# armament the game offers two-handed, "323 / 339 2H" inside the bold, the
+# `/ 339 2H` in a quiet span while the switch stands on `1H` (AK-286, AK-298,
 # `damage.displayed_hands`). This reads the one-handed figure off either.
-TWO_HANDED_SUFFIX = r"(?:\u00a0/\u00a0-?\d+\u00a02H)?"
+TWO_HANDED_SUFFIX = r"(?:<span[^>]*>\u00a0/\u00a0-?\d+\u00a02H</span>)?"
 TILE_AR = re.compile(rf">(-?\d+){TWO_HANDED_SUFFIX}</b> AR")
 # The panel's total row: the bold "Total", the grey before-figure, the change
 # link, and last the accented figure this test is about.

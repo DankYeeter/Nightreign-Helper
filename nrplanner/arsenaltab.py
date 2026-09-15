@@ -501,6 +501,11 @@ class ArsenalTab(QWidget):
                         order.append(stat)
             return order
 
+        # The switch's stand on the planner tab, read when the tiles are
+        # drawn: this tab is rebuilt on coming to the front, so it shows
+        # the hand the switch stood on last (AK-298).
+        two_handing = self.planner.stat_sheet.hand_switch.isChecked()
+
         def tile_lines(rating) -> list[tuple[str, str]]:
             weapon = rating.weapon
             # The label comes from the facade rather than from a constant
@@ -508,7 +513,8 @@ class ArsenalTab(QWidget):
             # attack rating to show, and which armament that is, is not
             # this tab's to decide (QA-099).
             lines = [(rating.headline_label,
-                      rating.displayed_hands(lambda r: r.final_headline))]
+                      rating.displayed_hands(lambda r: r.final_headline,
+                                             two_handing))]
             # `damage_type`, not `damage`: the loop variable used to
             # shadow the module of that name, and the resulting
             # UnboundLocalError only fired when a tile was drawn, never

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import QLabel
 
 from nrplanner import arsenaltab
 
-from tests import rendered
+from tests import rendered, tabtext
 
 #: How the tiles separate the groups of one value, written out here rather
 #: than imported from the module this file exists to check.
@@ -123,11 +123,12 @@ def test_a_value_with_one_group_is_left_as_it_was(value_labels):
     finding asked to be changed -- which is how this was caught: an existing
     case compared the `Upgraded to` row byte for byte.
     """
-    # The headline `147 / 151 2H` arrives already joined: that is
-    # `damage.displayed_hands` holding one figure together (AK-286/AK-73),
-    # not `unbroken` rewriting a value, so it is not what this case guards.
+    # The headline `147 / 151 2H` arrives already joined and marked: that is
+    # `damage.displayed_hands` holding one figure together (AK-286/AK-73)
+    # and quieting one hand (AK-298), not `unbroken` rewriting a value, so
+    # it is not what this case guards.
     joined = [text for text, _ in value_labels
               if SEPARATOR not in text and NO_BREAK_SPACE in text
-              and not text.endswith(f"{NO_BREAK_SPACE}2H")]
+              and not tabtext.unmarked(text).endswith(f"{NO_BREAK_SPACE}2H")]
     assert not joined, (
         f"these single-group values were rewritten anyway: {joined[:3]}")
