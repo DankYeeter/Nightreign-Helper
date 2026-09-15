@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from Crypto.Cipher import AES
 
 from . import bhd5, dcx
+from .binary import NotWhatItClaims
 
 FILE_HEADER_SIZE = 40
 
@@ -36,12 +37,27 @@ class Archive:
         self.bdt_path = bhd_path.with_suffix(".bdt")
         self.header = bhd5.decrypt_header(bhd_path.read_bytes(), pem)
         if self.header[:4] != b"BHD5":
-            raise ValueError(f"{bhd_path.name}: wrong key, no BHD5 magic")
+            raise NotWhatItClaims(f"{bhd_path.name}: wrong key, no BHD5 magic")
 
         bucket_count, buckets_offset = struct.unpack_from("<II", self.header, 0x10)
+        # The bucket count and every per-bucket file count are read out of the
+        # header and steer the two loops below, so each is measured against
+        # the header's own size first (SEC-002). Unchecked, one number in a
+        # damaged header asks for four billion FileEntry objects.
+        size = len(self.header)
+        if buckets_offset + bucket_count * 8 > size:
+            raise NotWhatItClaims(
+                f"{bhd_path.name}: {bucket_count} buckets do not fit in a "
+                f"{size}-byte header"
+            )
         self.entries: dict[int, FileEntry] = {}
         for i in range(bucket_count):
             count, offset = struct.unpack_from("<II", self.header, buckets_offset + i * 8)
+            if offset + count * FILE_HEADER_SIZE > size:
+                raise NotWhatItClaims(
+                    f"{bhd_path.name}: bucket {i} claims {count} files, which "
+                    f"do not fit in a {size}-byte header"
+                )
             for j in range(count):
                 (h, padded, unpadded, off, _sha, aes) = struct.unpack_from(
                     "<QIIQQQ", self.header, offset + j * FILE_HEADER_SIZE
@@ -55,7 +71,7 @@ class Archive:
         """Ranged read of an entry addressed by hash rather than by name."""
         entry = self.entries[name_hash]
         if entry.aes_key_offset:
-            raise ValueError("entry is encrypted; ranged reads are unavailable")
+            raise NotWhatItClaims("entry is encrypted; ranged reads are unavailable")
         with open(self.bdt_path, "rb") as fh:
             fh.seek(entry.offset + offset)
             data = fh.read(size)
@@ -69,7 +85,7 @@ class Archive:
         """
         entry = self.entries[bhd5.path_hash(path)]
         if entry.aes_key_offset:
-            raise ValueError(f"{path} is encrypted; ranged reads are unavailable")
+            raise NotWhatItClaims(f"{path} is encrypted; ranged reads are unavailable")
         with open(self.bdt_path, "rb") as fh:
             fh.seek(entry.offset + offset)
             data = fh.read(size)
@@ -98,9 +114,6 @@ class Archive:
         size = entry.unpadded_size or entry.padded_size
         out = bytes(data[:size])
         return dcx.decompress(out) if dcx.is_dcx(out) else out
-
-    def __contains__hash(self, name_hash: int) -> bool:
-        return name_hash in self.entries
 
     def _decrypt_ranges(self, data: bytearray, key_offset: int) -> None:
         key = self.header[key_offset : key_offset + 16]

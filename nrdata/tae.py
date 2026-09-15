@@ -48,7 +48,6 @@ _COUNTS = 0x20
 _EVENT_ENTRY = 24         # {int64 startTime*, int64 endTime*, int64 data*}
 
 APPLY_SPEFFECT = 66       # param0 is a SpEffectParam row id
-_FLT_MAX = 3.4028234663852886e38
 
 
 @dataclass(frozen=True)
@@ -59,10 +58,6 @@ class Event:
     end: float
     param0: int
 
-    @property
-    def to_end(self) -> bool:
-        """Runs to the end of the animation rather than to a set time."""
-        return self.end >= _FLT_MAX
 
 
 def is_tae(blob: bytes) -> bool:
@@ -77,8 +72,12 @@ def animations(blob: bytes) -> list[tuple[int, int]]:
     start = struct.unpack_from("<q", blob, _ANIM_TABLE)[0]
     end = struct.unpack_from("<q", blob, _ANIM_TABLE_END)[0]
     # The header stores the table's end as well as its start, so the two can
-    # be checked against each other before anything is read.
-    if count <= 0 or start <= 0 or end - start != count * _ANIM_ENTRY:
+    # be checked against each other before anything is read. Agreeing with
+    # each other is not enough, though: both come out of the same file, so a
+    # count that steers the read below is only safe once the table it claims
+    # has been found to fit in the bytes actually present (SEC-002).
+    if (count <= 0 or start <= 0 or end - start != count * _ANIM_ENTRY
+            or end > len(blob)):
         return []
     return [struct.unpack_from("<qq", blob, start + i * _ANIM_ENTRY)
             for i in range(count)]

@@ -186,20 +186,3 @@ def evidence(effect: dict) -> str:
         return "carries no quantity, so nothing combines"
     parts = [f"{f} ({'x' if model.is_multiplier(f) else '+'})" for f in fields]
     return "neutral value of " + ", ".join(parts)
-
-
-def tier_note(effect: dict, siblings: list[dict]) -> str:
-    """Whether this effect is one rung of a same-name ladder, and what that means.
-
-    A ladder -- Grief at +3 / +6 / +9 -- is made of separate effects with
-    their own SpEffect ids, not of one effect at three strengths. Two rungs
-    therefore both apply. This is worth stating outright because the opposite
-    is the natural assumption.
-    """
-    if len(siblings) < 2:
-        return ""
-    if not effect.get("stacks", True):
-        return (f"one of {len(siblings)} strengths under this name; only the "
-                f"strongest applies")
-    return (f"one of {len(siblings)} strengths under this name — separate "
-            f"effects, so two rungs both apply")

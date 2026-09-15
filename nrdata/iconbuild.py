@@ -8,8 +8,9 @@ because the application itself runs it on first launch.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
-from typing import Callable
+from typing import Callable, Iterator
 
 from . import (bnd4, dds, dvdbnd, icons, param, paramdef, regulation, tpf)
 
@@ -88,6 +89,44 @@ UI_SPRITES = {
     "MENU_PropertyIcon_31231.png": "ui_dmg_rot.png",
     "MENU_PropertyIcon_31234.png": "ui_dmg_sleep.png",
 }
+
+MANIFEST_NAME = "manifest.json"
+
+
+def manifest_files(manifest: dict) -> Iterator[str]:
+    """Every file name a manifest promises, across all of its groups.
+
+    Four groups map an id to a file name; `variants` maps a hero to a list
+    of `{"id", "file"}` entries. One walk for both shapes, so the read-back
+    check here and the launch-time check in `firstrun` cannot disagree on
+    what the pack is supposed to contain (QA-036).
+
+    Only strings come out. The manifest on disk is anyone's to edit, and a
+    variant without its file or with a number in it used to raise here, at
+    launch (SEC-047).
+    """
+    for group in manifest.values():
+        if not isinstance(group, dict):
+            continue
+        for entry in group.values():
+            if isinstance(entry, str):
+                yield entry
+            elif isinstance(entry, list):
+                yield from (v.get("file") for v in entry
+                            if isinstance(v, dict)
+                            and isinstance(v.get("file"), str))
+
+
+def write_manifest(manifest: dict, out_dir: pathlib.Path) -> None:
+    """Whole or not at all: written beside, then renamed over (QA-036).
+
+    A manifest cut short mid-write is a pack that names files it cannot
+    find on the next launch; `os.replace` is atomic on NTFS, so the old
+    manifest stays whole until the new one is complete.
+    """
+    staged = out_dir / (MANIFEST_NAME + ".tmp")
+    staged.write_text(json.dumps(manifest, indent=1))
+    os.replace(staged, out_dir / MANIFEST_NAME)
 
 
 def build(
@@ -196,16 +235,11 @@ def build(
     from PIL import Image as _Image
     import io as _io
     bad = []
-    for group in manifest.values():
-        entries = group.items() if isinstance(group, dict) else []
-        for _key, filename in entries:
-            if not isinstance(filename, str):
-                continue
-            target = OUT / filename
-            try:
-                _Image.open(_io.BytesIO(target.read_bytes())).load()
-            except OSError:
-                bad.append(filename)
+    for filename in manifest_files(manifest):
+        try:
+            _Image.open(_io.BytesIO((OUT / filename).read_bytes())).load()
+        except OSError:
+            bad.append(filename)
     if bad:
         report(f"verification: {len(bad)} of the written files failed to "
                f"read back (e.g. {bad[0]}) -- something on this machine is "
@@ -264,7 +298,7 @@ def build(
           f"{len(manifest['variants'])} heroes")
 
     manifest["icon_version"] = ICON_VERSION
-    (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1))
+    write_manifest(manifest, OUT)
     size = sum(f.stat().st_size for f in OUT.iterdir())
     report(f"\nicon pack: {size / 1024 / 1024:.1f} MB in {OUT}")
     return manifest

@@ -76,6 +76,20 @@ ATTACK_CONDITIONS = {
     124: "only while two-handing the armament",
 }
 
+
+def restricted_to(class_name: str) -> str:
+    """Where a class-scoped multiplier applies, in the player's words.
+
+    The `when Two-Handing` bucket is a hand, not an armament class
+    (`model.TWO_HANDED_CLASS`), so it takes the condition's own sentence
+    above rather than `two_handed armaments only` (AK-288, AK-293 point 4).
+    One function for the stat sheet and the advisor's `Why`, so the two
+    cannot name the same bucket differently.
+    """
+    if class_name == model.TWO_HANDED_CLASS:
+        return ATTACK_CONDITIONS[model.TWO_HANDING_SCOPE]
+    return f"{class_name} armaments only"
+
 # Multipliers whose names do not end in "Rate", so the pattern match above
 # never reached them. Each was left showing nothing at all -- notably
 # "Ultimate Art Charging Impaired", whose entire content is a 0.85 here.
@@ -174,6 +188,33 @@ REFERENCE_LABELS = {
 # code can read. The name is still on the row, so say that rather than
 # implying the effect is unknown.
 NO_DESCRIPTION = "the game gives no detail beyond the name"
+
+#: What a Why line or the `Flat bonuses` list says instead of a raw field
+#: name beside a number (AK-295 point 3, A7): `{effect name}: ` goes before
+#: it. A figure the program never named is not shown with the name of the
+#: game's own field, which nobody chose for a player to read.
+UNLABELLED = "carries a number this program has not labelled yet."
+
+
+def field_label(field_name: str) -> str | None:
+    """The one player-facing name of a figure, or `None` where none exists.
+
+    The single lookup AK-295 point 1 asks for: an attribute is its own name
+    (`sources` files Vigor under "Vigor"), then `model.label_for` (the
+    sheet's own table, and the scoped and all-damage prefixes), then the
+    tables of this module that `describe` reads. `model.label_for` falls back
+    to the raw key; here that fallback is `None`, so a caller can tell a name
+    from a field nobody named instead of printing the field.
+    """
+    if field_name in model.ATTRIBUTE_FIELDS.values():
+        return field_name
+    named = model.label_for(field_name)
+    if named != field_name:
+        return named
+    for table in (EXTRA_RATE_LABELS, RATE_LIKE_LABELS, FLAT_LABELS):
+        if field_name in table:
+            return table[field_name]
+    return None
 
 
 def _percent(value: float) -> str:
@@ -284,17 +325,7 @@ def describe(effect: dict) -> str:
         elif field_name in RATE_LIKE_LABELS:
             parts.append(f"{RATE_LIKE_LABELS[field_name]} {_percent(value)}")
         elif field_name in FLAT_LABELS:
-            # wepTypeTriggerCount is only a weapon count when a weapon type
-            # sits beside it ("3+ Bows equipped" carries wepTypeTrigger 51,
-            # count 3). The engine reuses the same field on every "item in
-            # possession at start of expedition" effect with values like 256
-            # and 1024, and labelling those produced the review's favourite
-            # nonsense line, "Weapons of the type needed 256". Without the
-            # type sibling the field is not a count and says nothing a
-            # player can use, so it is dropped rather than mistranslated.
-            if (field_name == "wepTypeTriggerCount"
-                    and "wepTypeTrigger" not in (effect.get("modifiers")
-                                                 or {})):
+            if field_name == "wepTypeTriggerCount" and not counts_armaments(effect):
                 continue
             parts.append(f"{FLAT_LABELS[field_name]} {value:g}")
         elif field_name.endswith("Rate"):
@@ -353,6 +384,21 @@ def describe(effect: dict) -> str:
     return text
 
 
+def counts_armaments(effect: dict) -> bool:
+    """Is this effect's `wepTypeTriggerCount` a count of armaments?
+
+    Only without `startGoodsId` beside it. "3+ Bows equipped" carries count
+    3 and nothing else; the engine reuses the same field on every "item in
+    possession at start of expedition" effect -- 51 of the 82 holders in
+    this dataset, values 256 to 1024 -- where it counts nothing. Labelled as
+    a count those read "Weapons of the type needed 256" in the description
+    and "needs several of that weapon equipped" under Conditional &
+    situational (QA-186), so both readers ask here instead.
+    """
+    mods = effect.get("modifiers") or {}
+    return "wepTypeTriggerCount" in mods and "startGoodsId" not in mods
+
+
 def describe_full(effect: dict, fallback: bool = True) -> str:
     """The game's caption plus the exact numbers, whichever exist.
 
@@ -373,10 +419,6 @@ def describe_full(effect: dict, fallback: bool = True) -> str:
     if result:
         return result
     return NO_DESCRIPTION if fallback else ""
-
-
-def is_described(effect: dict) -> bool:
-    return bool(caption(effect) or describe(effect))
 
 
 def owner(effect: dict) -> str:

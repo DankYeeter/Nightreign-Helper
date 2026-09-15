@@ -9,7 +9,6 @@ from __future__ import annotations
 from Crypto.PublicKey import RSA
 
 BLOCK_IN = 256
-BLOCK_OUT = 255
 
 # Per-archive public keys for Nightreign. Elden Ring's keys do not work here;
 # this was verified against the actual files.

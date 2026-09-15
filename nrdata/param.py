@@ -10,7 +10,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
-from .binary import Reader
+from .binary import NotWhatItClaims, Reader
 from .paramdef import STRUCT_CODES, Field, ParamDef
 
 
@@ -95,7 +95,7 @@ def read(data: bytes, pdef: ParamDef | None = None, strict: bool = False) -> Par
                 f"actual row ({row_size} B) in {param_type or '?'}; refusing to decode"
             )
             if strict:
-                raise ValueError(msg)
+                raise NotWhatItClaims(msg)
             pdef = None
 
     rows: list[ParamRow] = []

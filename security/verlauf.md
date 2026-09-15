@@ -1,0 +1,620 @@
+# Sicherheitsbefunde -- Verlauf
+
+> **Zeilenverweise aus der Zeit vor dem 12.09.2026** meinen die alte,
+> ungeteilte Fassung von `security/findings.md`. Diese Datei hier ist ihr Ziel, aber
+> **nicht mit gleichem Zeilenversatz** — die Tabellenzeilen sind heraus. Such
+> die Befund-ID statt der Zeilennummer; die ist stabil. Betroffen sind unter
+> anderem die Berichte T-143, T-144 und T-145, die unveraendert bleiben:
+> sie waren richtig, als sie geschrieben wurden.
+
+
+Chronologischer Verlauf, abgetrennt von der Registertabelle in T-180
+(12.09.2026). Enthaelt jede Zeile der Ursprungsdatei, die keine
+Tabellenzeile eines einzelnen Befunds ist (Ueberschriften, Director-
+Entscheidungen, Zyklusnotizen, Nachmessungen, eingebettete Status-
+Korrekturtabellen). Reihenfolge unveraendert.
+
+## Abschnittsverzeichnis
+
+- Zeile 42: # Sicherheitsbefunde
+- Zeile 48: ## Log
+- Zeile 53: ## Verifizierte Projektzusagen (2026-09-01)
+- Zeile 70: ## Offene Klaerungen
+- Zeile 84: ## Entscheidungen des Directors
+- Zeile 86: ### Zyklus 3 (2026-09-02)
+- Zeile 125: ## Nicht geprueft
+- Zeile 135: ### Zyklus 3, nach T-018 (2026-09-02)
+- Zeile 168: ### Zyklus 3, nach dem Retest (2026-09-02)
+- Zeile 237: ### Ergaenzung zu "Verifizierte Projektzusagen" (2026-09-02)
+- Zeile 257: ### Nicht geprueft (Stand 2026-09-02)
+- Zeile 273: ### Entscheid des Nutzers, 2026-09-02: die Spielinstallation ist vertrauenswuerdig
+- Zeile 293: ## SEC-021 — Bestand der Slotkarte interpoliert Namen ungefiltert in Rich Text
+- Zeile 319: ## Nachtrag 2026-09-07 nach T-096 (Pruefung des Build-Beraters)
+- Zeile 321: ### SEC-021 — korrigiert und herabgestuft, nicht behoben
+- Zeile 342: ### SEC-019 — praezisiert, Einstufung unveraendert (Mittel)
+- Zeile 361: ## SEC-022 — Reliktdatensaetze aus einem Save sind unbegrenzt
+- Zeile 404: ## SEC-023 — Save-Pfad mit Steam-Konto-Id kann auf der Fensterflaeche landen
+- Zeile 426: ## Statuskorrektur 2026-09-07 (zweite), vom Director am Code geprueft
+- Zeile 445: ## SEC-009 — behoben (T-105, 07.09.2026), vom Director gegengeprueft
+- Zeile 476: ## SEC-025 — `tests.yml` hat dieselbe unpinned-Tag-Schwaeche
+- Zeile 492: ## Zyklus 18, T-144 — A15 verschiebt eine Vertrauensgrenze (2026-09-08)
+- Zeile 500: ### Entscheidungen des Directors, 08.09.2026
+- Zeile 532: ## Zyklus 18, T-160 — Pruefphase nach dem A15-Bau (2026-09-09)
+- Zeile 540: ### Statusfortschreibung der Befunde aus T-144
+- Zeile 550: ### Neue Befunde
+- Zeile 560: ### Entscheidungen des Directors, 09.09.2026
+- Zeile 588: ### Nachtrag zu SEC-033 (09.09.2026) — die vorgeschlagene Behebung traegt nicht
+
+## Inhalt
+
+# Sicherheitsbefunde
+
+Quelle: T-003, `security-reviewer`, Zyklus 1.
+Repo-Stand bei der Pruefung: `3da8428` (v1.7.1).
+Status je Befund: offen | behoben | zurueckgestellt | entkraeftet
+
+## Log
+
+| ID | Titel | Prioritaet | Status | Letzte Pruefung |
+|---|---|---|---|---|
+
+## Verifizierte Projektzusagen (2026-09-01)
+
+Alle drei oeffentlich gemachten Zusagen halten dem Code stand:
+
+- **Save wird read-only geoeffnet** — bestaetigt. Einzige Zugriffe auf `*.sl2`
+  sind `read_bytes()`; kein Schreib-, Loesch- oder Ersetzungsaufruf auf einem
+  Save-Pfad im gesamten Baum.
+- **Kein Netzwerkzugriff** — bestaetigt. Kein `socket`, `urllib`, `requests`,
+  `QtNetwork`; `setOpenExternalLinks` wird nirgends gesetzt. Vorbehalt:
+  SEC-004 koennte ueber einen UNC-Pfad in Rich-Text eine SMB-Verbindung
+  erzwingen (unbelegte Hypothese, siehe unten).
+- **Keine Telemetrie** — bestaetigt. Schreibziele des ausgelieferten Programms
+  sind vollstaendig: `%LOCALAPPDATA%\NightreignHelper\`, `HKCU` via
+  `QSettings`, eine `.lnk` im eigenen Startmenue. Sonst nichts.
+
+Diese drei Aussagen gehoeren in den Audit-Bericht nach GOAL.md A1.
+
+## Offene Klaerungen
+
+- **SEC-005 — beantwortet, Befund bestaetigt.** `docs/research/R-001.md`
+  (T-005, 2026-09-01): `texture2ddecoder` 1.0.6 prueft weder im Bruecken-Code
+  (`pylink.cpp` fuellt `view.len`, vergleicht es aber nie) noch im Decoder
+  (`bcn.cpp` iteriert ueber `ceil(w/4) * ceil(h/4)` Bloecke und rueckt den
+  Eingabezeiger blind um 8 bzw. 16 Byte je Block vor). `copy_block_buffer`
+  prueft nur die Grenzen des *Ausgabe*-Bildes. Eine zu kurze Nutzlast fuehrt
+  zum Lesen jenseits des Puffers in nativem Code.
+  **Prioritaet bleibt Hoch.** Die Eingangspruefung muss der Aufrufer
+  herstellen, weil sie sonst niemand herstellt.
+- **SEC-004**, SMB-Teil: unbelegt, weil der Pruefer PySide6 nicht zur Hand
+  hatte. Die Markup-Injektion selbst ist belegt und genuegt fuer den Fix.
+
+## Entscheidungen des Directors
+
+### Zyklus 3 (2026-09-02)
+
+- **T-017 abgenommen unter Vorbehalt des Retests.** SEC-001, SEC-002 und
+  SEC-004 haben einen Fix mit 13 neuen Regressionstests (Suite 78 -> 91) und
+  einer Mutationspruefung, die 10 von 13 Faellen gegen den Vorher-Stand
+  fehlschlagen liess. Commits `bdff837`, `4c55860`, `511021a`. Status bleibt
+  bis zum Durchlauf von `qa-engineer` und `security-reviewer` auf
+  "Fix vorliegt". **Ein Fix ist kein Nachweis.**
+- **Ausweitung auf `bnd4.read_split_header` bestaetigt.** Die
+  Zwillingsfunktion hat denselben Defekt wie die in SEC-002 genannte; ein
+  "behoben", das sie offenlaesst, waere eine falsche Aussage.
+- **Drei neue Befunde aus dem T-017-Bericht aufgenommen** (SEC-012 bis
+  SEC-014) und in T-018 eingeplant, statt sie einzeln nachzuziehen.
+- **`inventory.py:189` bleibt unveraendert.** Die Abwehr gegen SEC-004 sitzt
+  an der Anzeige, nicht am Ursprung. Eine Laengenbegrenzung am Ursprung waere
+  eine geratene Konstante und neues Verhalten — nicht in einem Sicherheitsfix.
+- **Testsockel-Luecke als Debt aufgenommen, nicht zurueckgestellt:**
+  `tests/conftest.py` nimmt den Snapshot-Cache, wenn er existiert. Damit
+  laufen `fmg`, `bnd4`, `dvdbnd`, `tpf` und `tae` in einem gruenen Lauf gar
+  nicht — **jede kuenftige `nrdata/`-Aenderung sieht getestet aus, ohne es zu
+  sein.** Geht als eigener Punkt in T-018.
+
+- **SEC-001, SEC-002, SEC-004** gehen gemeinsam in einen Fix-Durchgang: sie
+  betreffen denselben Eingabepfad (Savefile → Parser → Anzeige) und werden vom
+  selben Regressionstest abgedeckt.
+- **Kein Release**, bevor SEC-001 behoben ist. Ausloeser ohne
+  Nutzerinteraktion beim Start, Wirkung ist ein dauerhaftes Einfrieren.
+- **SEC-009** laeuft als eigener Strang parallel zum Feature-Zyklus — es
+  beruehrt keine Programmzeile.
+- **SEC-007 wird behoben** (Nutzerentscheid 2026-09-01): absoluter Pfad nach
+  `%SystemRoot%\System32\WindowsPowerShell1.0\powershell.exe`, Existenz
+  pruefen, sonst die Verknuepfung ausfallen lassen. Kostet eine Zeile.
+- **SEC-006 wird dokumentiert statt geschlossen** (Nutzerentscheid
+  2026-09-01): Groessendeckel auf `uncompressed_size` vor der Allokation, und
+  ein ehrlicher Satz im README, dass der Helper eine Bibliothek aus dem
+  Spielordner laedt. Eine Herkunftspruefung der DLL ist nicht vorgesehen — wer
+  dort schreiben kann, hat den Nutzerkontext ohnehin. **Akzeptiertes
+  Restrisiko**, bewusst und dokumentiert.
+
+## Nicht geprueft
+
+- `vendor/Paramdex` inhaltlich (vom Auftrag ausgeschlossen; enthaelt nur
+  226 XML-Dateien, keinen Code, nichts wird zur Laufzeit nachgeladen).
+- `nrdata/extract.py` und `nrplanner/app.py` Zeile fuer Zeile — gezielt an den
+  sicherheitsrelevanten Stellen gelesen.
+- Bekannte CVEs der Abhaengigkeiten (kein Netzzugriff im Pruefauftrag).
+- Git-Historie auf entfernte Secrets.
+- Signaturkette des ausgelieferten EXE (kein Artefakt zur Hand).
+
+### Zyklus 3, nach T-018 (2026-09-02)
+
+- **SEC-012 Befundtext korrigiert.** Der urspruengliche Text benannte
+  `PART_NAMES.get((boss["name"], label), label)`. Das ist aus den Spieldaten
+  **nicht** erreichbar: `label` erzeugt der Extraktor als `"Part N"`
+  (`bossdata._profile`), und `PART_NAMES` ist ein im Quelltext stehendes,
+  derzeit leeres Dict (`bosstab.py:50`) - der Boss-Name ist dort nur der
+  Nachschlage-Schluessel, nicht der eingesetzte Wert. Die tatsaechlich
+  erreichbare Injektion in `detail_body` sitzt in `bosstab.py::_stance_rank`,
+  wo `other["name"]` zweier anderer Bosse per Konkatenation in den HTML-String
+  geht. Der `developer` hat beide Stellen geschlossen und den Befundtext
+  gemeldet, statt formal gegen die falsche Zeile zu liefern. **Der QA-Retest
+  prueft `_stance_rank`, nicht `PART_NAMES`.**
+- **SEC-006-Deckel akzeptiert, Messgrenze dokumentiert.** Gemessen wurde die
+  groesste Oodle-Nutzlast ueber 5 103 unverschluesselte KRAK-Mitglieder:
+  982 464 964 Byte (937 MiB). **24 261 verschluesselte Mitglieder wurden nicht
+  gemessen** - die Zahl ist eine untere Schranke, keine Obergrenze. Der Deckel
+  steht auf 2 GiB, gut das Doppelte, und ein Ueberschreiten faellt als
+  `ValueError` auf, nicht still. Eine vollstaendige Messung waere ein Durchlauf
+  ueber alle 24 261 verschluesselten Eintraege; **das ist den Preis nicht wert,
+  solange der Fehlerfall laut ist.** Bewusst akzeptiert.
+- **Zwei neue Befunde aufgenommen** (SEC-015, SEC-016) statt sie in T-018
+  nachzuschieben - der Stand ist fuer die Pruefphase eingefroren.
+- **`-ExecutionPolicy Bypass` in `shortcut.py` ist kein Befund**, aber es
+  gehoert in den Audit-Bericht nach GOAL A1 erklaert: das Skript kommt aus dem
+  Quelltext, die Pfade gehen ueber die Umgebung.
+- **`ruff` als Entwicklungsabhaengigkeit zurueckgestellt, nicht abgelehnt.**
+  Im Repo existiert kein Linter; die DoD verlangt "Linter sauber" und das ist
+  derzeit nicht pruefbar. Eine neue Abhaengigkeit zieht `researcher` und
+  `compliance-agent` (Modus `lizenzen`) nach sich - das gehoert in einen
+  eigenen Zyklus, nicht in einen Sicherheitszyklus. Vermerkt, damit es nicht
+  verloren geht.
+
+### Zyklus 3, nach dem Retest (2026-09-02)
+
+- **Alle zwoelf Fixes halten dem adversarialen Retest stand.** Kein Fix ist
+  umgehbar. Drei (SEC-005, SEC-008, SEC-010) decken mehr ab, als der Auftrag
+  verlangte. SEC-001, der bisherige Sperrgrund, ist geschlossen - es gibt keine
+  sechste UTF-16-Suche, alle Zaehlerpruefungen stehen vor der Allokation, und
+  ein Integer-Ueberlauf ist in Python-Ints nicht moeglich.
+- **Der Sperrgrund hat gewechselt: SEC-019 sperrt jetzt.** Er ist keine neue
+  Luecke, sondern die alte in ihrer wahren Groesse. SEC-004, SEC-012, SEC-013
+  und SEC-015 waren als "ein Name wird fett gerendert" eingestuft. Gemessen ist
+  die Wirkung: *ein Name entscheidet, welche Datei auf welchem Host geoeffnet
+  wird.* Ein AutoText-`QLabel` mit `<img src="C:/.../probe_64.png">` bekommt
+  `sizeHint` 64x64 - die Groesse der Datei auf der Platte; das Label hat sie
+  gelesen. `QTextDocument.loadResource` wird mit der URL wortgetreu aus dem
+  Text aufgerufen, und `QUrl("file://127.0.0.1/share/a.png").toLocalFile()`
+  liefert einen UNC-Pfad. Der letzte Schritt (SMB-Verbindung, NTLM-Antwort)
+  wurde per Richtlinie **nicht** ausgefuehrt und stuetzt sich auf
+  dokumentiertes Windows-Verhalten.
+- **Behebungsrichtung fuer SEC-019 steht fest, falls der Nutzer sie will:
+  nicht 90 Einzelaenderungen.** Neunzig `setTextFormat`-Aufrufe schliessen den
+  heutigen Stand und oeffnen sich beim naechsten neuen Label wieder. Was die
+  Klasse schliesst, ist eine gemeinsame Fabrik fuer Labels mit
+  Extraktionsdaten (`developer`) plus ein **Waechtertest**, der den gebauten
+  Widget-Baum ueber `findChildren(QLabel)` durchlaeuft und fuer jedes Label
+  mit Snapshot-Text `textFormat() != AutoText` verlangt (`qa-engineer`).
+- **Ursprungsseitiges Escapen bleibt ausgeschlossen - jetzt mit Beleg.** Der
+  echte Spieltext dieser Installation enthaelt `<?codenameIcon?>` und in 30
+  weiteren Zeichenketten ein rohes `&`. Der Ursprung kann Markup nicht von
+  Inhalt unterscheiden, ohne echten Text zu veraendern. Die Abwehr sitzt an
+  der Anzeige.
+- **SEC-016 wird NICHT hochgestuft.** Der Pruefer widerspricht meiner Vermutung
+  begruendet, und er hat recht: `dcx.decompress` ist von einem Savefile aus
+  nicht erreichbar (`savefile.py` ruft `dcx` nirgends auf), und der Pfad laeuft
+  beim **Erst**start bzw. beim Neuaufbau des Snapshots, nicht bei jedem Start.
+  Es ist dieselbe Grenze und dieselbe Wirkung wie SEC-006, das der Nutzer mit
+  Deckel und lautem Fehlerfall angenommen hat. Anheben waere inkonsistent.
+- **SEC-016, SEC-018 und die relative Schranke zu SEC-006 gehen in EINEN
+  Nachtrag.** Es ist derselbe Defekt in drei Codecs. Die tragfaehige Loesung
+  ist keine gemessene Konstante, sondern eine relative Schranke aus der
+  komprimierten Nutzlast, die beim Aufruf ohnehin vorliegt: fuer ein kleines
+  Mitglied schrumpft der schlimmste Fall von 2 GiB auf wenige MiB.
+  **Die Messung der 24 261 verschluesselten Mitglieder wird ausdruecklich
+  nicht nachgeholt** - sie liefert nur eine andere feste Zahl mit demselben
+  Problem.
+- **SEC-009 wird geteilt.** Sperrend sind genau zwei Punkte, zusammen unter
+  zehn Zeilen YAML: `softprops/action-gh-release@v2` auf einen Commit-SHA
+  pinnen (bewegliches Tag in einem Job mit `contents: write` - der einzige Weg
+  zu einer untergeschobenen EXE), und eine SHA-256-Pruefsumme in die
+  Release-Notes. Signatur (kostet Geld, Entscheidung des App Designers) und
+  `--require-hashes` (verlangt Lockdatei und Prozess; `requirements.txt` ist
+  bereits auf sieben exakte Versionen gepinnt) sind tragbares Restrisiko.
+- **`-ExecutionPolicy Bypass` bleibt ein Nicht-Befund, aber die Begruendung im
+  Register war falsch.** Nicht tragend ist "das Skript kommt aus dem
+  Quelltext". Tragend ist: `-ExecutionPolicy` regelt **nur Skriptdateien**, eine
+  `-Command`-Zeichenkette unterliegt ihr gar nicht - der Schalter ist an dieser
+  Stelle wirkungslos und sollte verschwinden, weil er den Leser glauben macht,
+  hier werde ein Schutz abgeschaltet. Und: alles, was den Aufruf beeinflussen
+  koennte (Umgebungsblock, `HKCU`, `PSModulePath`, die `.exe` selbst), steht
+  bereits auf derselben Integritaetsstufe wie der Prozess. Diese Fassung geht
+  in den Audit-Bericht nach GOAL A1.
+- **Offen beim Nutzer, von mir nicht beantwortet:** ob die Spielinstallation
+  eine Vertrauensgrenze ist. Der Pruefer nimmt an, dass modifizierte
+  Spieldateien (Randomizer, Texturpakete, Uebersetzungen) in dieser
+  Spielergemeinschaft ein normaler, von Fremden bezogener Artefakttyp sind, und
+  fuehrt `nrdata/` deshalb gegen "diese Bytes hat ein Fremder geliefert".
+  **Widerspricht der App Designer, sinken SEC-005, SEC-016 bis SEC-019 je eine
+  Stufe** - und SEC-019 waere dann kein Release-Blocker mehr. Das ist eine
+  Produktentscheidung ueber die eigene Bedrohungslage, keine technische.
+
+### Ergaenzung zu "Verifizierte Projektzusagen" (2026-09-02)
+
+Alle drei Zusagen wurden nach den zwoelf Codeaenderungen erneut geprueft.
+**Save read-only** und **keine Telemetrie** halten unveraendert; neu
+hinzugekommen ist nur `urllib.parse` (`chalices.py:24`) als reine
+Zeichenkettenverarbeitung fuer die QA-003-Schluesselableitung, ohne I/O.
+Zusaetzlich wurde die **Git-Historie ueber 79 Commits auf entfernte Secrets**
+geprueft - nichts gefunden; die Schluessel in `keys.py`/`bhd5.py` sind ein
+oeffentlicher AES-Konstantenwert und oeffentliche RSA-Schluessel aus der
+Community-Toolchain.
+
+**Die Zusage "kein Netzwerkzugriff" braucht eine neue Fassung.** Auf
+Programmebene haelt sie (kein `socket`, `urllib.request`, `requests`, `http`,
+`QtNetwork`, `QDesktopServices`, `webbrowser`, kein `setOpenExternalLinks`).
+Der SEC-004-Vorbehalt ist aber von "unbelegte Hypothese" auf **belegt**
+(SEC-019) zu setzen. Ehrliche Fassung: *"Das Programm oeffnet selbst keine
+Verbindung. Qts Rich-Text-Darstellung laedt eine Ressource, die im angezeigten
+Text benannt wird; 90 von 95 Labels reichen Spieltext ungefiltert dorthin."*
+Solange SEC-019 offen ist, darf die kurze Fassung nicht im README stehen.
+
+### Nicht geprueft (Stand 2026-09-02)
+
+- `nrdata/extract.py` und `nrplanner/app.py` Zeile fuer Zeile - gezielt an den
+  Senken gelesen. **Die Aufzaehlung in SEC-019 belegt die Klasse, sie
+  erschoepft sie nicht.**
+- Bekannte CVEs der sieben Abhaengigkeiten (kein Netzzugriff im Pruefauftrag).
+  Bleibt unter "nicht geprueft", nicht unter "in Ordnung" - SEC-011.
+- Signaturkette der ausgelieferten EXE - kein gebautes Artefakt zur Hand,
+  GOAL A9 offen.
+- Die vermutete 4-GiB-Allokation aus `dvdbnd._read_entry`
+  (`fh.read(entry.padded_size)`, u32 ungeprueft): als Hypothese notiert, nicht
+  ausgeloest.
+- Der letzte Schritt der UNC-Kette in SEC-019 (SMB-Verbindung, NTLM-Antwort) -
+  Richtlinie, keine Angriffe gegen laufende Systeme.
+- `vendor/Paramdex` - unveraendert vom Auftrag ausgeschlossen.
+
+### Entscheid des Nutzers, 2026-09-02: die Spielinstallation ist vertrauenswuerdig
+
+Auf die Frage, ob modifizierte Spieldateien (Randomizer, Texturpakete,
+Uebersetzungen) als "von einem Fremden geliefert" zu behandeln sind, hat der
+App Designer entschieden: **nein - die eigene Spielinstallation gilt als
+vertrauenswuerdiger Bereich.** Folgen, ohne Ausnahme angewandt:
+
+- **SEC-015, SEC-016, SEC-017, SEC-018 sinken auf Niedrig**; **SEC-019 sinkt
+  von Hoch auf Mittel.** Grenze A (heruntergeladenes Save) ist davon
+  **nicht** beruehrt - dort bleibt jede Einstufung, wie sie ist.
+- **SEC-019 sperrt das Release nicht mehr.** GOAL A2 ist an dieser Stelle
+  nicht mehr verletzt.
+- **Der Beleg bleibt trotzdem stehen und wird nicht relativiert**: dass ein
+  AutoText-Label eine Datei von einem fremden Host oeffnen kann, ist gemessen,
+  nicht vermutet. Gesunken ist die Wahrscheinlichkeit des Ausloesers, nicht
+  die Wirkung.
+- **Die Zusage "kein Netzwerkzugriff" muss dennoch umformuliert werden**,
+  bevor etwas veroeffentlicht wird. Eine Zusage, die der Code nicht haelt,
+  wird nicht dadurch richtig, dass der Ausloeser unwahrscheinlich ist.
+
+## SEC-021 — Bestand der Slotkarte interpoliert Namen ungefiltert in Rich Text
+
+**Gefunden:** vom `developer` in T-089, beim Bau der Maskierung fuer den Berater.
+Es ist **dieselbe** Luecke, die AK-29/AK-30 fuer den Berater schliessen, nur im
+Bestand der Slotkarte — und damit heute im Programm.
+
+**Fundstellen:** `nrplanner/app.py`, `RelicSlot._sync_mode` (650-687, die
+Markup-Zeile ist 684) und `curse_tooltip` (746). Beide interpolieren Relikt-,
+Effekt- und Fluchnamen per f-String ungefiltert in Rich Text bzw. in einen
+Tooltip; Qt erkennt Rich Text auch in Tooltips selbsttaetig.
+
+**Angriffspfad:** ein praeparierter Name aus Save- oder Spieldateien wird als
+Markup gerendert statt buchstabengetreu gezeigt; `<img src=…>` laedt eine
+Ressource. Die eigene Spielinstallation gilt laut Nutzerentscheid vom
+02.09.2026 als vertrauenswuerdig, **ein heruntergeladenes Save nicht** — dort
+verlaeuft die scharfe Vertrauensgrenze, und der Reliktname kommt aus dem Save.
+
+**Behebungsrichtung:** `html.escape` an den drei Interpolationsstellen, und
+`setTextFormat` ausdruecklich setzen statt `Qt.AutoText` entscheiden zu lassen.
+Der Berater macht es seit T-083/T-089 genau so — die Vorlage steht im Haus.
+
+**Prio:** P3 · **Schwere:** Major · **Adressat:** developer, nach Bestaetigung
+durch den `security-reviewer` · **Status:** offen · 2026-09-07
+
+---
+
+## Nachtrag 2026-09-07 nach T-096 (Pruefung des Build-Beraters)
+
+### SEC-021 — korrigiert und herabgestuft, nicht behoben
+
+Der Befundtext oben behauptet die **Save-Grenze**. Sie haelt nicht, und der
+Director hat sie ungeprueft aus einem Entwicklerbericht uebernommen. Der
+`security-reviewer` hat an der Primaerquelle belegt: der Reliktname kommt aus
+dem **Datenabzug** (`inventory.py:237`, `relic_meta` aus `data["relics"]`),
+nicht aus dem Save. Der Save liefert dort ausschliesslich Ganzzahlen, und
+`savefile.py:181/190/198` prueft Relikt-, Effekt- **und** Fluch-Ids gegen den
+Abzug.
+
+**Neue Einstufung: Niedrig, Instanz von SEC-019**, gefuehrt wie SEC-012 und
+SEC-015. Die Vertrauensgrenze ist Spielinstallation → Anzeige, nicht Save →
+Anzeige. **SEC-021 sperrt A2 nicht.** Zeilennummern des urspruenglichen
+Befundtexts sind veraltet: `_sync_mode` steht heute in `app.py:734-778`,
+Markup in 752 und 768-774, `curse_lines` 780-799, `curse_tooltip` 835-848.
+
+**Randbedingung der Herabstufung:** sie haelt nur, solange `inventory.py` den
+Namen aus `relic_meta` nimmt und `read_owned_relics` Effekt- und Fluch-Ids
+gegen den Abzug prueft. Faellt eine der beiden — etwa durch einen im Save
+gespeicherten Spitznamen —, steht der Befund wieder auf der Save-Grenze.
+
+### SEC-019 — praezisiert, Einstufung unveraendert (Mittel)
+
+Gemessen auf PySide6 6.11.1: ein `QLabel` auf `AutoText` laedt
+`file:`- und `data:`-Ressourcen (`sizeHint` gibt die echten Bildmasse zurueck),
+**nicht** `http(s)` (16x16 Platzhalter in 0,023 s), nicht `qrc:`, nicht
+relative Pfade. Der Ausleitungsweg ist damit **nicht HTTP**, sondern der
+UNC-Umweg: `QUrl("file://host/share/x.png").toLocalFile()` ergibt
+`//host/share/x.png`, das `QFile` als SMB-Ziel oeffnet. Der letzte Schritt
+wurde nicht ausgeloest (Richtlinie).
+
+Neuer Nenner: **43** `setToolTip`-Aufrufe in `nrplanner/`, **22** mit
+nicht-literalem Argument, **3** davon escapt. Die alte Zahl im Register
+(35 von 36) beschrieb einen anderen Stand.
+
+**Fuer den Audit-Bericht nach A1:** die Zusage "kein Netzwerkzugriff" muss die
+Praezisierung tragen — auf Programmebene kein Netzzugriff (zwei unabhaengige
+Masken, 1 Treffer ohne I/O), aber die Qt-Darstellung oeffnet benannte
+`file:`/`data:`/UNC-Ressourcen.
+
+## SEC-022 — Reliktdatensaetze aus einem Save sind unbegrenzt
+
+**Prioritaet: Hoch · Status: offen · 2026-09-07 · Adressat: developer**
+**Dieser Befund sperrt A2 und damit das Release.**
+
+**Vertrauensgrenze:** heruntergeladenes Save → Programm. Genau die Grenze, die
+der Nutzer am 02.09.2026 ausdruecklich scharf gelassen hat.
+
+**Fundstellen:** `nrdata/savefile.py:165-203` (`read_owned_relics`, Schleife
+ohne Deckel), `nrplanner/inventory.py:228-267` und `:289` (der bestbefuellte
+Save gewinnt), `nrplanner/app.py:1575` (Ausloeser beim Start).
+**Verstaerker:** `nrplanner/advisor/candidates.py:297-311` zusammen mit
+`nrplanner/advisor/run.py:370-372` — `should_cancel` wird **erst nach** der
+Vorsortierung gefragt, `Cancel` erreicht den Lauf also nicht.
+
+**Angriffspfad:** Der AES-Schluessel ist eine oeffentliche Konstante, und
+`inventory._decrypt_slots` ruft `decrypt_member` **nicht** auf — die
+MD5-Pruefsumme wird auf diesem Weg nie geprueft. `find_saves` sucht mit
+`*/*.sl2`, der Dateiname ist gleichgueltig. Wer eine praeparierte Datei ins
+Save-Verzeichnis legt, verdraengt beim naechsten Start den echten Save.
+
+**Gemessen** (Rezept im Bericht `docs/berichte/T-096-security-reviewer.md`):
+**131 069 Datensaetze je MiB**, 3,31 s und +41,0 MB je MiB, linear ueber 1 und
+4 MiB. Zum Vergleich: ein echter Save traegt 284 Relikte bei ~19 MB — Faktor
+**8 800**. Hochgerechnet ergibt eine 19-MiB-Datei rund 2,5 Mio. Datensaetze,
+etwa 63 s Scan und ~780 MB allein fuer die Liste. Die Vorsortierung des
+Beraters kostet gemessen **0,084 ms je Relikt je freiem Slot** — bei 2,5 Mio.
+Relikten und sechs Slots rund **21 Minuten**, unabbrechbar.
+
+**Auswirkung:** reine Verfuegbarkeit — kein Datenabfluss, keine
+Rechteausweitung, kein Verlust gespeicherter Builds. Aber ohne
+Nutzerinteraktion nach dem Ablegen der Datei, und in derselben Form wie
+SEC-001, den der Director damals als Release-Sperre gefuehrt hat.
+
+**Behebungsrichtung:** ein Deckel auf die Zahl der Datensaetze, **laut
+ausfallend statt still kuerzend** — die Form, die SEC-002 im selben Modul
+schon benutzt und die der Nutzer bei SEC-006 angenommen hat. Die Schranke ist
+**relativ**, nicht geraten: mehr als etwa ein Datensatz je 64 Byte Member ist
+keine Inventardichte mehr. Ein zweiter, unabhaengiger Deckel an
+`inventory.relics_for` bzw. `candidates.pool`, damit die Klasse zubleibt, wenn
+jemand die erste Grenze umgeht. Zusaetzlich `should_cancel` **in** die
+Vorsortierschleife.
+
+## SEC-023 — Save-Pfad mit Steam-Konto-Id kann auf der Fensterflaeche landen
+
+**Prioritaet: Niedrig · Status: offen · 2026-09-07 · Adressat: developer**
+
+`nrplanner/app.py:3413` schreibt `f"Save could not be read: {exc}"` auf die
+Flaeche. `inventory.load:199` sortiert die gefundenen Saves mit `p.stat()`
+**ausserhalb** des `try` von `_scan_save`; verschwindet oder sperrt eine Datei
+zwischen `glob` und `stat` — das Spiel schreibt den Save im Betrieb neu —,
+traegt der Ausnahmetext den vollen Pfad samt `…\Steam\userdata\<Konto-Id>\…`.
+
+Das bricht eine Zusage, die derselbe Code zwei Zeilen weiter einhaelt
+(`app.py:3434-3442`: der Ordner steht im Tooltip, nicht auf der Flaeche, weil
+er nach der Steam-Konto-Id benannt ist). **NH-002 macht es scharf:** das
+Repository ist oeffentlich, und ein Bildnachweis wuerde die Id mittragen.
+
+**Nicht ausgeloest**, sondern Senke und Pfad am Code belegt.
+**Behebungsrichtung:** die Ausnahme auf ihre Klasse abbilden und eine eigene
+Formulierung zeigen, den Pfad in den Tooltip — nicht `str(exc)` auf die
+Flaeche.
+
+---
+
+## Statuskorrektur 2026-09-07 (zweite), vom Director am Code geprueft
+
+Zwei Hoch-Befunde standen weiter auf "offen", obwohl beide Deckel im Code
+stehen und committet sind. Die Statuszeilen wurden nach dem Fix nie
+nachgezogen — **dieselbe Klasse wie die Statuskorrektur nach T-095**, und
+derselbe Buchfuehrungsfehler des Directors. Geprueft wurde diesmal am Code
+und an `git log`, nicht an der Notiz.
+
+| Befund | neuer Status | Beleg |
+|---|---|---|
+| **SEC-022** | **behoben** | `nrdata/savefile.py:173` `MIN_BYTES_PER_RELIC_RECORD = 64`, Deckel in `read_owned_relics` (198, 233-234) — laut ausfallend, nicht still kuerzend, wie die Behebungsrichtung verlangt. Zweiter Deckel in `inventory.relics_for`. `should_cancel` in der Vorsortierung: `f79f770`. |
+| **SEC-024** | **behoben** | Commit `912a39a`. `nrdata/savefile.py:312/345/353-361`: `MIN_BYTES_PER_LOADOUT_TABLE`, `allowed_starts`, lauter Abbruch an dem Marker, der die Grenze reisst. |
+
+**Damit ist A2 nur noch durch SEC-009 gesperrt** — der einzige verbleibende
+Hoch-Befund. SEC-019 hat der Nutzer am 02.09.2026 auf Mittel gesenkt, SEC-021
+ist nach T-096 auf Niedrig herabgestuft, SEC-023 ist Niedrig.
+
+---
+
+## SEC-009 — behoben (T-105, 07.09.2026), vom Director gegengeprueft
+
+Commit `d92bab9`. Beide vom Nutzer am 02.09.2026 als release-sperrend
+benannten Teile sind gebaut:
+
+- **Action-Pin auf Commit-SHA.** `actions/checkout@11d5960…` (v4.4.0),
+  `actions/setup-python@a26af69…` (v5.6.0),
+  `softprops/action-gh-release@3bb1273…` (v2.6.2), jeweils mit lesbarem
+  Versionskommentar. **Der Director hat alle drei unabhaengig gegen
+  `gh api` aufgeloest** (Tag-Objekt → Commit, 07.09.2026): drei von drei
+  stimmen. Der Pin des Entwicklers wurde also nicht uebernommen, sondern
+  nachgerechnet.
+- **SHA-256-Pruefsumme.** Neuer Schritt nach dem Bau erzeugt
+  `dist/NightreignHelper.exe.sha256`; die Datei geht als zweites Artefakt in
+  `files:` mit. Der Nutzer prueft sie ohne Zusatzwerkzeug mit
+  `Get-FileHash NightreignHelper.exe -Algorithm SHA256` bzw.
+  `certutil -hashfile NightreignHelper.exe SHA256`.
+
+Signatur und `pip --require-hashes` bleiben als tragbares Restrisiko draussen —
+Nutzerentscheid, unveraendert.
+
+**Damit ist kein Hoch-Befund mehr offen. A2 ist erfuellt**, vorbehaltlich der
+Bestaetigung durch den `security-reviewer` in der naechsten Pruefphase — die
+Selbstbestaetigung des Directors genuegt dafuer nicht.
+
+**Offene Luecke im Nachweis:** der Pruefsummenschritt laeuft mit
+`shell: pwsh`. Lokal verifiziert wurde er mit Windows PowerShell 5.1, weil
+PowerShell 7 auf diesem Rechner nicht installiert ist. Auf `windows-latest`
+ist `pwsh` vorhanden; belegt ist es hier nicht. Faellt beim ersten echten
+Release auf.
+
+## SEC-025 — `tests.yml` hat dieselbe unpinned-Tag-Schwaeche
+
+**Prioritaet: P4 · Schwere: Niedrig · Status: offen · 2026-09-07 · Adressat:
+developer**
+
+Gemeldet vom `developer` in T-105, ausserhalb seines Auftragsscopes und
+bewusst nicht behoben. `.github/workflows/tests.yml:28/30` benutzt bewegliche
+Tags statt Commit-SHAs — dieselbe Form wie SEC-009.
+
+**Warum trotzdem niedriger:** dieser Workflow baut nicht das ausgelieferte
+Artefakt. Ein uebernommenes Action-Repository kann hier Testergebnisse
+faelschen und im Rahmen der Workflow-Rechte im Repo wirken, aber nichts in die
+EXE schreiben. **Sperrt A2 nicht.** Gehoert in den Fix-Stapel von Zyklus 17.
+
+---
+
+## Zyklus 18, T-144 — A15 verschiebt eine Vertrauensgrenze (2026-09-08)
+
+Anlass: OF-31 des `architect` aus T-143. Vollstaendiger Bericht:
+`docs/berichte/T-144-security-reviewer.md`. **Gesamturteil CONCERNS.**
+
+| ID | Titel | Prioritaet | Status | Letzte Pruefung |
+|---|---|---|---|---|
+
+### Entscheidungen des Directors, 08.09.2026
+
+**SEC-026 bleibt Mittel.** Der `security-reviewer` hat die Gegenposition
+ausdruecklich offengelegt (Wirkung = Codeausfuehrung → Kritisch → FAIL) und die
+Einstufung dem Director ueberlassen. Ich folge seiner Begruendung: kein
+Rechtegewinn, kein anonymer Ausloeser, der Mechanismus ist unvermeidbar und war
+bereits angenommen — veraltet ist allein die **Begruendung** der Annahme.
+**Kein WAIVED** (dafuer fehlen Eigentuemer, Geltungsbereich und Ablaufdatum,
+und die vergibt nur der Nutzer selbst durch seine Antwort).
+
+**Der Bau geht weiter, die Weitergabe nicht.** SEC-026 blockiert keinen
+Bauschritt; es blockiert das **Release**, bis der Nutzer die eine Frage
+beantwortet hat: gilt die Annahme von SEC-006 in der Fassung *"… oder der
+Nutzer hat auf den Ordner gezeigt"* weiter, oder soll die DLL-Seite geprueft
+werden? **Mit der Randbedingung des Berichts:** wer die DLL haertet, macht
+SEC-016/017/018 wieder scharf.
+
+**S1 / AK-118 — entschieden: ja, der C2-Fall bekommt eine Bestaetigung.**
+Weicht der aufgeloeste Ordner von dem ab, auf den der Mensch gezeigt hat, wird
+er vor dem Bau bestaetigt. Im Fall C1 aendert sich nichts, A15 und AK-106
+bleiben unberuehrt — der Klick kostet nur dort, wo das Programm etwas anderes
+nimmt als gezeigt. Damit hat der Ablauf zwei Nutzerentscheidungen statt einer
+im Systemdialog (Beobachtung B1). **Spec-Aenderung an AK-118 geht an den
+`ui-ux-designer` (T-145), vor V2.**
+
+**Zuordnung:** SEC-027 → T-145 (Wortlaut), dann V2 · SEC-028 und SEC-030 → V1 ·
+SEC-029 → V3/V4 · A-024/A-027 und der ehrliche README-Satz aus SEC-006 →
+`technical-writer` nach V3. **Alle fuenf sind zugeordnet, keiner
+zurueckgestellt.**
+
+---
+
+## Zyklus 18, T-160 — Pruefphase nach dem A15-Bau (2026-09-09)
+
+Anlass: elf Bauauftraege in einer Nacht. Vollstaendiger Bericht:
+`docs/berichte/T-160-security-reviewer.md`. Gemessen gegen `e5c2b7a`.
+**Gesamturteil CONCERNS.** **S1 aus T-144 ist vom Autor zurueckgezogen** — die
+engere Regel des Directors (C3 nur beim Verlassen des Baumes) traegt, was S1
+wollte, ohne den Klick fuer jeden.
+
+### Statusfortschreibung der Befunde aus T-144
+
+| ID | Prioritaet | Status | Beleg |
+|---|---|---|---|
+| **SEC-026** | Mittel (Wirkung Kritisch) | **offen, unveraendert** — Vorlage an den Nutzer | **Neu: die Begruendung "kein anonymer Ausloeser" gilt nur fuer den Dialogweg** — siehe SEC-031. Wer SEC-026 zitiert, zitiert diese Einschraenkung mit. |
+| **SEC-027** | Hoch | **behoben, Retest bestanden** | `It is only read.` in `nrplanner/` und `nrdata/` nicht mehr vorhanden (drei unabhaengige Masken). A1 `firstrun.py:247-250`, W1 `:332-334`, beide ohne `MUTED`. Waechter `tests/test_first_run_panel.py:278-291` mit zweiter Maske. |
+| **SEC-028** | Mittel | **teilweise behoben** | `MAX_REGULATION_BYTES = 64 MiB` in `looks_like_the_game`, Decke gemessen: 67 108 864 an, 67 108 865 ab. **Der Rest laeuft in SEC-031 auf.** |
+| **SEC-029** | Mittel | **behoben, Retest bestanden** | `refuse_a_size_no_save_can_have` in `_read_settled:245`, zweiter Riegel `app.py:1587`. Positivkontrolle mit auf 1024 B gesenkter Decke: **beide** Wege schlagen an, Meldung ohne Pfad (AK-126). |
+| **SEC-030** | Niedrig | **behoben, Retest bestanden** | Traversierung `_is_a_door_out_of_the_tree` + `_subfolders`; Offenlegung ueber `resolve()` und C3. **Mit echten Junctions gemessen**: derselbe Zielordner, Abstieg durch Junction → `None`, ohne Junction → gefunden. |
+
+### Neue Befunde
+
+| ID | Titel | Prioritaet | Status | Letzte Pruefung |
+|---|---|---|---|---|
+| **SEC-031** | `find_game_dir()` umgeht **beides**: die 64-MiB-Decke und die Nutzerbestaetigung. Ein Laufwerk `C`–`H` mit praeparierter `SteamLibrary`-Struktur laedt seine DLL **ohne Fenster und ohne Klick** (`gamefiles.py:51-69` → `gamepath.py:136` → `firstrun.py:968` → `oodle.py:44`). **Korrigiert die Begruendung von M3.** | Mittel (Schwere Hoch) | offen | 2026-09-09 |
+| **SEC-032** | Der Abstieg (`SEARCH_DEPTH = 3`) dehnt eine Zustimmung auf drei Ebenen aus; C2 fragt nicht (`firstrun.py:502-505`). Verbreitert SEC-026 von "waehle meinen Ordner" auf "waehle einen Ordner drei Ebenen darueber". | Mittel | offen | 2026-09-09 |
+| **SEC-033** | `savefile._members` deckelt die Mitgliedertabelle, **nicht** `offset`/`size` je Mitglied. Gemessen: 1-MiB-Datei, 200 Mitglieder → **200,0 MiB / 2,03 s** gegen 0,99 MiB / 0,049 s bei ehrlicher Tabelle. Rechnerisch bis 42,7 GiB, **von der 256-MiB-Decke nicht gebunden**. | Mittel | offen | 2026-09-09 |
+| **SEC-034** | Die SEC-022-Dichtegrenze ist relativ; mit der neuen absoluten Decke erlaubt sie **4 194 304** Datensaetze. Gemessen bei 8 MiB: 131 072 angenommen, 50,6 MiB, 16,37 s. | Niedrig | offen | 2026-09-09 |
+| **SEC-035** | AK-126: `inventory.scan:379` sortiert per `stat()` **ausserhalb jedes `try`**; eine `OSError` traegt den vollen Pfad samt Steam-Konto-Kennung in den Fenstertext. Ausloeser ist ein Rennen, **nicht reproduziert**. | Niedrig | offen | 2026-09-09 |
+
+### Entscheidungen des Directors, 09.09.2026
+
+**SEC-031 bleibt Mittel**, mit offengelegter Gegenposition des Pruefers (wer
+das vollstaendige Fehlen der Zustimmung fuer ausschlaggebend haelt, kommt auf
+Hoch und damit auf FAIL). Begruendung: der Angreifer muss ein Laufwerk an die
+Maschine bringen, **und** die Maschine darf kein auffindbares Spiel haben —
+auf der Maschine des Nutzers greifen die Steam-Kandidaten zuerst. **Kein
+WAIVED.**
+
+**Die erste Haelfte von SEC-031 wird sofort gebaut:** `find_game_dir()` fragt
+kuenftig `looks_like_the_game`. Sie kostet keinen Klick, beruehrt **kein**
+Abnahmekriterium und schliesst zugleich die SEC-028-Restluecke und die
+Praedikat-Drift. **Die zweite Haelfte** — faellt der Laufwerksfallback `C`–`H`?
+— beruehrt AK-107 und ist eine **Frage an den Nutzer**, weil sie entscheidet,
+wer sein Spiel noch automatisch findet.
+
+**SEC-032 ist eine Spec-Frage** an den `ui-ux-designer`: bleibt
+`SEARCH_DEPTH = 3`, oder fragt ein Abstieg von mehr als **einer** Ebene? Der
+Regelfall aus §4.2 — Steams `Browse local files` — ist genau **eine** Ebene.
+
+**SEC-033 wird sofort gebaut** (eine Zeile in der Pruefung, die das Versprechen
+schon traegt), **SEC-034 und SEC-035 dazu gebuendelt**.
+
+**B8:** Der Satz *"the only barrier SEC-026 leaves standing"* steht in
+`tests/test_game_path_memory.py:3-13` und `firstrun._confirm:427-432` und ist
+nach SEC-031 **zu stark**. Wird mit entschaerft — eine falsche Schranke im
+Docstring ist schlimmer als keine.
+
+### Nachtrag zu SEC-033 (09.09.2026) — die vorgeschlagene Behebung traegt nicht
+
+Der `developer` hat in T-161 **die Behebungsrichtung des `security-reviewer`
+widerlegt, mit einer Messung statt einer Behauptung**: `offset + size <=
+len(blob)` bindet den Fall, den der Pruefer **selbst gemessen** hat, **nicht**
+— ein Mitglied mit `offset = 0` und `size = len(blob)` erfuellt die Bedingung.
+
+**Gemessen mit der Fassung des Pruefers:** weiterhin **200,00 MiB**
+(1-MiB-Datei, 200 Mitglieder) und **400,00 MiB** (8 MiB, 50 Mitglieder).
+**Mit der Summenschranke:** 0,002 s bzw. 0,007 s, verweigert. Ehrliche
+Kontrollen unveraendert.
+
+**Gebaut ist die Summenschranke.** Rezept: BND4-Mitglieder sind disjunkt; auf
+beiden echten Spielstaenden belegen sie 19 530 432 von 19 531 312 Byte =
+**99,9955 %**.
+
+**Fuer die Abnahme:** wer SEC-033 nachprueft, prueft die **Summe**, nicht die
+Spanne. Die Spanne allein waere gruen gewesen und haette nichts gebunden.
+
+**SEC-034 gebaut als** `MOST_RELIC_RECORDS_A_SLOT_MAY_HOLD = 16384`
+(= `1 048 608 // 64`, die relative Grenze an der einzigen Slotgroesse, die das
+Spiel schreibt) — Faktor 53 ueber den 309 echten Datensaetzen. Gemessen
+8 MiB/64 B: vorher 131 072 angenommen in 20,121 s, jetzt verweigert nach
+16 385 in 2,121 s.
+

@@ -36,9 +36,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
           cache: pip
@@ -86,8 +86,57 @@ jobs:
             exit 1
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - name: Compute SHA-256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path dist/NightreignHelper.exe -Algorithm SHA256).Hash
+          "$hash  NightreignHelper.exe" | Out-File -FilePath dist/NightreignHelper.exe.sha256 -Encoding ascii -NoNewline
+
+      # LGPL-3.0 4(a)/(b) and BSD-3 clause 2 require the notice and licence
+      # texts to accompany every copy. A file merely present in the repo does
+      # not satisfy "accompany" -- it has to travel with the release asset.
+      # Each required path is checked before packing so that a missing file
+      # fails the step loudly instead of shipping an incomplete archive that
+      # still claims completeness.
+      #
+      # QA-207: Compress-Archive flattens a bare file argument to the
+      # archive root -- it does not preserve the path it came from. Passing
+      # "vendor/Paramdex/NOTICE" directly used to land in the zip as a
+      # top-level "NOTICE", while THIRD_PARTY.md links to it as
+      # "vendor/Paramdex/NOTICE" (relative to itself). The link ran into
+      # nothing. Staging the files first, with the directory rebuilt, keeps
+      # the archive's internal layout matching the link.
+      - name: Package licence notices
+        shell: pwsh
+        run: |
+          $required = @(
+            "LICENSE",
+            "THIRD_PARTY.md",
+            "licenses",
+            "vendor/Paramdex/NOTICE"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path -Path $path)) {
+              Write-Host "::error::Missing notice file or directory: $path"
+              exit 1
+            }
+          }
+          $staging = "dist/notices-staging"
+          if (Test-Path -Path $staging) { Remove-Item -Path $staging -Recurse -Force }
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item -Path "LICENSE" -Destination $staging
+          Copy-Item -Path "THIRD_PARTY.md" -Destination $staging
+          Copy-Item -Path "licenses" -Destination $staging -Recurse
+          New-Item -ItemType Directory -Path "$staging/vendor/Paramdex" -Force | Out-Null
+          Copy-Item -Path "vendor/Paramdex/NOTICE" -Destination "$staging/vendor/Paramdex/NOTICE"
+          Compress-Archive -Path "$staging/*" -DestinationPath dist/NightreignHelper-notices.zip
+          Remove-Item -Path $staging -Recurse -Force
+
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: dist/NightreignHelper.exe
+          files: |
+            dist/NightreignHelper.exe
+            dist/NightreignHelper.exe.sha256
+            dist/NightreignHelper-notices.zip
           generate_release_notes: true

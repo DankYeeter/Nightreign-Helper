@@ -64,6 +64,26 @@ while it runs.
 Download `NightreignHelper.exe` from the [Releases](../../releases) page and run
 it. No Python, no installer, no admin rights.
 
+**Finding your game.** On most machines the tool finds ELDEN RING NIGHTREIGN on
+its own — there is nothing to do. If it cannot, a panel asks you to point at
+the install folder: in Steam, right-click ELDEN RING NIGHTREIGN, choose
+*Manage*, then *Browse local files*, and pick the folder that opens. Nothing in
+that folder is moved, copied or deleted, but reading it does run a small
+program out of it — see [Where your data lives](#where-your-data-lives) for
+what that means. The folder is checked once, then remembered for every later
+launch; if it later goes missing — the game was moved, reinstalled, or sits on
+a drive that is not plugged in — the panel returns and asks again. If the
+folder the tool actually settles on turns out to sit more than one level away
+from the one you picked, or outside it altogether, it shows you that folder
+and waits for you to confirm before reading anything from it.
+
+**Only a Steam installation of the game is accepted.** The tool checks the
+folder against Steam's own record of where its libraries are — the same
+place Steam itself would look — not just against the click that picked it.
+A copy of the game moved out of its Steam folder, or installed some other
+way, is turned down with *"That folder is not part of a Steam installation."*
+See [Known limits](#known-limits).
+
 **First launch takes about a minute.** It reads your installation and builds a
 local copy of the data, and offers to put itself in your Start Menu. Every
 launch after that is immediate, until the data needs rereading — when the game
@@ -73,6 +93,11 @@ not. It says so and does it once.
 ---
 
 # The guide
+
+*Every screenshot below is this tool's own interface, showing data read from
+a personal ELDEN RING NIGHTREIGN install. ELDEN RING NIGHTREIGN is the
+property of FromSoftware, Inc. and Bandai Namco Entertainment Inc.; see
+[Disclaimer](#disclaimer).*
 
 ## 1. Build planner
 
@@ -89,8 +114,26 @@ which any Nightfarer can carry. The vessel decides how many relic slots you get
 and what colour each one is.
 
 **Relic slots** — each slot names its colour and how many relics of that colour
-you own. Open one to choose from a picker that lists only relics which fit. A
-relic's three effects appear under it once slotted.
+are available to it. Open one to choose from a picker that lists only relics
+which fit. A relic's three effects appear under it once slotted.
+
+A relic you have put in one slot is not offered in the others: you own one of
+it, and it can only be worn once. To plan around a relic you have not found
+yet — or a second copy of one you have — use **Custom relic** in the picker,
+which is not limited by what your save holds. It is remembered with the build
+like any other relic and comes back with the chalice it was built in; a chalice
+that gives that slot another colour drops it, because it was built for the
+colour it had.
+
+Two copies of the same roll are two relics, and you may wear both: the picker
+shows one card per roll, but each slot is given a copy of its own.
+
+A build saved before that rule existed can name the same relic in two slots.
+Restoring one sorts it out on screen: the first slot keeps the relic, and the
+other says where it went instead of standing empty for no stated reason. The
+stored build is left exactly as it was — which slot should keep the relic is
+yours to decide, so the note comes back every time you open that chalice until
+you decide it.
 
 **Your build stays put.** The vessel, the Deep of Night toggle and every slot
 are remembered per Nightfarer and come back the next time you open the tool. A
@@ -124,6 +167,43 @@ six slots.
   have finished with and do not want to lose. **Show hidden**, beside it, lists
   the hidden ones again, and selecting one turns the button into **Unhide**.
   What is in the build is untouched by any of this.
+
+**Advisor** — the row between the build list and the relic slots. Pick a
+direction — **Maximise damage**, **Minimise damage taken** or **Maximise
+offensive attributes** — then **Optimize** works out, for every slot that is
+not held, the best relic your save has for it and shows the suggestion inside
+each slot card: nothing is put in a slot until you say so. **Maximise damage**
+and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
+switch (see *Reading the right-hand panel* below) is set to, and count
+effects with the condition *when Two-Handing* only while it is on **2H**.
+**Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
+its own card. **Undo apply** puts the previous slots back. **Why** opens the
+full account of what the suggestion counted and what it left out; **Clear**
+puts a suggestion away without applying it.
+
+**Hold**, on a slot card, keeps Optimize away from that one slot — you can
+still change it by hand, and a slot held on purpose while empty says so
+rather than looking untouched by accident. Holds are not part of the saved
+build; they are forgotten the next time you open the program.
+
+**Don't include / Must include** — the bullet in front of every effect and
+curse line, on a relic card in the picker and in the **Why** dialog, is a
+button with three states. Click it once and the effect is **excluded**: it
+counts in no suggestion and no ranking, and is drawn struck through. Click
+again and it is **required**: only relics carrying it are suggested, marked
+`▲`. A third click clears it. The marking sits on the effect, not on the
+relic — every copy carrying the same effect shows the same state — and it
+is remembered across restarts. The **Why** dialog lists everything you have
+marked under *Effects you've excluded* and *Effects you require*: clicking a
+line there runs the same three-click cycle as clicking it anywhere else, so
+a click on an excluded effect makes it required rather than clearing it, and
+a click on a required one is what clears it. The Advisor row's tooltip
+counts the marks at all times. A required effect no relic of yours carries,
+or one no combination of your relics can bring together with the others, is
+said so by name rather than dropped quietly. Conditional effects — a handful of curses and
+buffs that only apply below a health threshold, on a dodge, after drinking a
+Flask — are counted as met unless you say otherwise on the sheet (see
+"About the switches" below).
 
 **Favourites** — mark a relic in the picker as wanted for one or more
 Nightfarers, and it leads the grid the next time you open a slot for that
@@ -165,6 +245,18 @@ tried rather than only the most recently written one. A second Steam account
 folder or a restored backup can otherwise sit in front of the save you actually
 play.
 
+If none is found — or the one that was picked automatically is the wrong
+one — **Find my save…**, next to Rescan save, opens a file picker starting in
+your save folder. Point it at a specific `.sl2` file; the choice is remembered
+for every later launch and overrides the automatic search without turning it
+off. An empty save says so instead of pretending you own nothing, and a file
+that is not a readable Nightreign save says so too.
+
+Reading the save no longer holds up the window: it opens immediately, and
+every tab works while the save loads in the background. The only thing
+waiting on it is the relic button on each slot card, which unlocks the moment
+the read finishes.
+
 **Level** — the slider runs 1 to 15, and the attribute figures come from the
 game's own per-Nightfarer level tables, not a formula.
 
@@ -174,11 +266,25 @@ game's own per-Nightfarer level tables, not a formula.
 |---|---|
 | **Base stats** | HP, FP and Stamina — your base, the change, and the total. |
 | **Attributes** | All eight, same three-column layout. |
-| **Weapon damage** | Six armament tiles. Double-click one to choose a weapon, its upgrade tier and the effects it rolled; the panel below breaks its attack rating down. |
+| **Weapon damage** | Six armament tiles; double-click one to choose a weapon, its upgrade tier and the effects it rolled. Where the weapon can be two-handed, its attack rating shows both hands side by side — `122 / 125 2H` — and the panel below breaks either hand's figure down. |
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
 | **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. |
+
+**1H / 2H**, the switch beneath the six weapon tiles, decides which hand's
+attack rating **Optimize** and the Advisor's directions count, and whether
+effects with the condition *when Two-Handing* enter the totals. It changes no
+number on screen — every attack-rating figure already shows both hands side
+by side where an armament can be two-handed — it only decides which of the
+two the ranking uses. Bows, crossbows and ballistas are already shown at
+their two-handed rating and have no second figure to switch between; staves
+and seals show spell scaling instead of an attack rating and are unaffected
+either way. The switch is part of the build like the vessel and the slots: a
+saved build keeps its own setting, a new build or one cleared with **Reset
+Chalice** starts on **1H**, and reading a chalice back in with **Load
+equipped** also sets it to **1H**, because the save itself does not record
+which hand a weapon was held in.
 
 Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
@@ -235,15 +341,17 @@ Every armament, sorcery and incantation, grouped by family with counts.
 
 - **Upgrade to +N** recalculates at that upgrade level.
 - **Rarity** filters to a tier.
-- **Meets requirements** hides what the selected Nightfarer cannot wield at the
-  chosen level.
 
 The line under the search box states exactly what is being assumed — the
 Nightfarer, the level, the upgrade, and every attribute feeding the calculation.
 
-Attack rating is base damage plus what your stats add to it. **Spell damage is
-not in the game data**, so sorceries and incantations show their costs instead of
-an invented figure.
+Attack rating is base damage, plus what your stats add to it, plus the +%
+attack effects your equipped relics grant. Where an armament can be
+two-handed, its rating on this tab shows both hands side by side —
+`144 / 149 2H` — same as the Build planner; this tab has no **1H/2H** switch
+of its own, since it rates every armament in the game rather than one build.
+**Spell damage is not in the game data**, so sorceries and incantations show
+their costs instead of an invented figure.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves
@@ -378,16 +486,27 @@ relics, saved builds and favourites are kept across that restart. The armament
 tiles and any conditions you have switched on are only kept for the run of the
 program, and start again.
 
+**Below 1536 px of logical width** — narrower than a 1920×1080 screen at
+Windows' common 125% scaling — the Advisor row's direction box may be cut
+short. Nothing stops working: the row's own
+tooltip carries the full status text at any width, and every other part of
+the window is unaffected.
+
 ## Searching
 
-The **relic picker** and the **Weapons** tab take a query syntax:
+The **relic picker** and the **Weapons** tab take a query syntax. Operators
+must be upper case — `AND`, `OR`, `NOT` — so a lower-case word such as "not"
+in an effect's own text is searched as text rather than read as a command:
 
 | Query | Finds |
 |---|---|
 | `poise stamina` | entries matching **both** words |
 | `poise OR stamina` | either |
-| `poise NOT curse` | poise, excluding anything matching *curse* |
+| `poise NOT curse` | poise, excluding relics whose curse (the `✦ ...` line) matches *curse* |
 | `"attack power"` | that exact phrase |
+
+In the relic picker, a curse name is part of the search text even though it
+is shown apart from the plain effects, so `NOT` can rule one out.
 
 The **Effects** box is simpler — a plain substring match, no operators. It
 searches descriptions as well as names. The Nightlords tab has no search: ten
@@ -395,7 +514,20 @@ entries fit on screen at once.
 
 ## Where your data lives
 
-Everything the tool extracts goes to:
+**What it reads.** Two places on your machine, both read-only: the ELDEN RING
+NIGHTREIGN installation folder (its `regulation.bin` and data archives) and
+your save file. It decrypts both locally, using decryption keys that have
+been publicly known in the modding community for years. Nothing is ever
+written back to either one — not the installation, not the save.
+
+**To read the game's own archives, it also runs a small program out of the
+installation folder** — a decompression library that ships with the game
+itself. That is unavoidable: without it the archives stay locked, no matter
+how the folder was found. It is why the first-run panel (see
+[Install](#install)) asks you to point at a copy of the game you trust, which
+for almost everyone is simply the one they play.
+
+**What it writes.** Everything the tool extracts goes to:
 
 ```
 %LOCALAPPDATA%\NightreignHelper
@@ -403,12 +535,19 @@ Everything the tool extracts goes to:
 
 That folder holds the data snapshot and the icon pack, both built from your
 installation on first run. Your saved builds, favourites, artwork choices,
-panel widths and interface scale are small enough to live in the registry,
-under `HKCU\Software\DankYeeter`, and
-the Start Menu entry — if you accept it — is one shortcut in your own profile.
+panel widths, interface scale, and — if you ever pointed the tool at them
+yourself through the panel or **Find my save…** — the game folder and save
+file it should use next time, are small enough to live in the registry, under
+`HKCU\Software\DankYeeter`. The Start Menu entry — if you accept it — is one
+shortcut in your own profile.
 **Nothing is written anywhere else**, and nothing is sent anywhere: the tool
 makes no network connections at all. Uninstalling means deleting that folder,
-that registry key, the shortcut and the EXE.
+that registry key, the shortcut and the EXE — nothing survives outside those
+four places, and nothing ever left the machine to begin with.
+
+**Back up your save before running any third-party tool against it,** this
+one included. This one is read-only by design and "AS IS" under the MIT
+licence — see [Licence](#licence) — which is not the same as a guarantee.
 
 The snapshot is rebuilt when it no longer matches. That is either because the
 game was patched, so `regulation.bin` changed, or because a new version of the
@@ -466,6 +605,24 @@ To refresh the screenshots in this README after a tab changes:
 .venv\Scripts\python.exe scripts\make_screenshots.py
 ```
 
+### Tests
+
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest
+```
+
+They need no display and open no window. Tests that need the game data read
+your own installation, or the snapshot it built; on a machine without
+NIGHTREIGN they skip and say so rather than fail. Nothing in
+`requirements-dev.txt` reaches the packaged EXE.
+
+`tests/golden/weapon_damage.json` holds what the weapon-damage panel said at
+one game version, so a change to the calculation cannot pass unnoticed. It is
+regenerated with `scripts\capture_weapon_damage.py` — but only after the new
+figures have been checked, because regenerating it is how the evidence gets
+thrown away.
+
 ### Layout
 
 | Path | Purpose |
@@ -473,6 +630,7 @@ To refresh the screenshots in this README after a tab changes:
 | `nrdata/` | Reading the game's own formats — archives, params, textures, saves. No GUI code. |
 | `nrplanner/` | The GUI, the build maths, and save inventory. |
 | `scripts/` | Environment check, data builders, icon generator, screenshot generator. |
+| `tests/` | The test suite. Headless; skips what needs a game it cannot find. |
 | `vendor/Paramdex/NR/Defs` | Field schemas for the params. Required to read anything. |
 
 ## How values are derived
@@ -507,9 +665,43 @@ would be dropped rather than displayed.
 
 Stated plainly rather than hidden:
 
-- **Attack rating has not been verified against an in-game number.** The maths
-  follows the game's own fields, but the final figure has not been checked
-  against what the game displays.
+- **Attack rating is checked against the game, within a stated range.** It was
+  held against a community measurement of the game's own armament panel — 310
+  armaments across eight Nightfarers, at level 12, each armament at its own
+  rarity and with no relics equipped. On that range the figure here is the
+  game's exactly for 1901 of 1974 readings and within one for 1933 of them.
+  Outside it nothing has been measured: reinforced rarities, infused variants,
+  Scholar and Undertaker, and levels other than 1, 12 and 15.
+- **Three more figures in that formula are measured, not read from the
+  files.** A Raider wielding a greataxe or a great hammer hits **x1.18**
+  harder than the formula alone gives; Revenant's Cursed Claws in any other
+  Nightfarer's hands rate **x0.88** lower. Both were confirmed in game at
+  level 15 and searched for in 252 param tables without turning up a source.
+  The relics that convert part of a starting weapon's rating to an element
+  ("Starting armament deals fire/magic/lightning/holy damage") were matched
+  the same way, against three in-game readings at level 15 — 122→123,
+  88→91, 72→74, on three different Nightfarers. All three carry the same
+  "measured, not read from the files" note in the weapon breakdown.
+- **Two-handing an armament is a fourth measured factor, kept apart from the
+  three above because nothing on screen labels it.** On **2H** (see the
+  Build planner's **1H/2H** switch), the two-handed rating shown next to the
+  one-handed one is the one-handed figure times **x1.03**, or **x1.144** for
+  the Raider — flat factors read off six in-game measurements at level 15
+  with no relics equipped, because no attribute-based rule in the game's own
+  formula fits all six: Duchess 72→74, Wylder 122→125, Guardian 107→110,
+  Wylder's Great Stars 147→151, the Raider's Greataxe 158→180 and the
+  Raider's Great Stars 188→216. Ironeye, Revenant, Recluse, Executor,
+  Scholar and Undertaker are shown at the non-Raider **x1.03** until a
+  reading of their own confirms or corrects it — six of the ten Nightfarers
+  on an extrapolated number rather than a measured one.
+- **Staves and seals carry a different number, and it is the game's.** Where
+  the game shows an armament's attack power it shows a catalyst's spell
+  scaling, so that is what this tool shows and ranks a staff or a seal by;
+  their physical attack rating appears nowhere. It was held against the same
+  measurement, 28 catalysts across three Nightfarers, and matches all 84
+  readings exactly — but only at each catalyst's own rarity, as the readings
+  were taken. Upgraded catalysts are unmeasured. The figure is the one the
+  game displays; what a spell actually hits for is not in the data at all.
 - **Don't scan while the game is saving.** A save read part-way through being
   written gives records that were never there — measured once at 290 against a
   true 284. The reader now waits for the file to settle, and on a settled file
@@ -522,6 +714,11 @@ Stated plainly rather than hidden:
 - **Spell damage is unavailable** — no such field exists in the data.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
+- **A PC with no Steam installed cannot point the tool at the game at all.**
+  The check that a folder belongs to a real Steam library needs Steam's own
+  registry entry to start from; without it, every folder is turned down, a
+  copy of the game included. This follows from checking the game's origin
+  rather than just asking for confirmation — see [Install](#install).
 
 ## Disclaimer
 
@@ -530,9 +727,10 @@ endorsed by, sponsored by, or approved by** FromSoftware, Inc. or Bandai Namco
 Entertainment Inc.
 
 ELDEN RING NIGHTREIGN, its data, artwork, text and trademarks are the property of
-their respective owners. This project distributes none of that content. All game
-values and images the tool displays are read at runtime from the copy of the game
-on the user's own machine, into that machine's local storage only.
+their respective owners. The released executable contains no game data; it reads
+your own installation. All game values and images the tool displays are read at
+runtime from the copy of the game on the user's own machine, into that machine's
+local storage only.
 
 Screenshots in this README show the tool's own interface displaying data read
 from a personal installation.

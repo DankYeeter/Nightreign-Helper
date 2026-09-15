@@ -1,0 +1,121 @@
+{
+  "name": "tiles_and_panel",
+  "why": "Every armament through the six tiles, the breakdown panel and the click-through popup. Built for AD-019 W3b (QA-073): five of the six tiles are drawn while a different one is active, and three configurations put the swept armament on a tile that is not the active one -- the state no test saw before. Wylder at level 15 because that is the build QA measured the QA-018 divergence on.",
+  "hero": "Wylder",
+  "level": 15,
+  "step": 1,
+  "configurations": [
+    {
+      "name": "bare, tier 1, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 1}],
+      "effects": []
+    },
+    {
+      "name": "bare, tier 4, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 4}],
+      "effects": []
+    },
+    {
+      "name": "attack multiplier, tier 3, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "attribute gains, tier 3, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [
+        {"attribute": "Strength", "count": 2},
+        {"attribute": "Dexterity", "count": 1}
+      ]
+    },
+    {
+      "name": "multiplier and attributes at once, tier 3, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [
+        {"rate": "physicsAttackRate", "count": 2},
+        {"attribute": "Strength", "count": 2}
+      ]
+    },
+    {
+      "name": "melee-only buff, tier 3, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [{"scoped": "melee"}]
+    },
+    {
+      "name": "ranged-only buff, tier 3, alone and active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [{"scoped": "ranged"}]
+    },
+    {
+      "name": "starting-armament penalty in slot 1, active",
+      "active": 0,
+      "slots": [{"slot": 0, "weapon": "$armament", "tier": 3}],
+      "effects": [{"rate": "physicsAttackPowerRate", "count": 1}]
+    },
+    {
+      "name": "pair with the starting armament, the swept one active",
+      "active": 1,
+      "slots": [
+        {"slot": 0, "weapon": "@starting", "tier": 3},
+        {"slot": 1, "weapon": "$armament", "tier": 3}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "the same pair, the swept armament on the idle tile",
+      "active": 0,
+      "slots": [
+        {"slot": 0, "weapon": "@starting", "tier": 3},
+        {"slot": 1, "weapon": "$armament", "tier": 3}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "three tiles, the swept armament active",
+      "active": 0,
+      "slots": [
+        {"slot": 0, "weapon": "$armament", "tier": 3},
+        {"slot": 1, "weapon": "@first:Bow", "tier": 2},
+        {"slot": 2, "weapon": "@heaviest:Colossal Sword", "tier": 4}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "three tiles, the bow active",
+      "active": 1,
+      "slots": [
+        {"slot": 0, "weapon": "$armament", "tier": 3},
+        {"slot": 1, "weapon": "@first:Bow", "tier": 2},
+        {"slot": 2, "weapon": "@heaviest:Colossal Sword", "tier": 4}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "three tiles, the colossal sword active",
+      "active": 2,
+      "slots": [
+        {"slot": 0, "weapon": "$armament", "tier": 3},
+        {"slot": 1, "weapon": "@first:Bow", "tier": 2},
+        {"slot": 2, "weapon": "@heaviest:Colossal Sword", "tier": 4}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    },
+    {
+      "name": "three tiles and an empty slot active, so none of them is",
+      "active": 3,
+      "slots": [
+        {"slot": 0, "weapon": "$armament", "tier": 3},
+        {"slot": 1, "weapon": "@first:Bow", "tier": 2},
+        {"slot": 2, "weapon": "@heaviest:Colossal Sword", "tier": 4}
+      ],
+      "effects": [{"rate": "physicsAttackRate", "count": 2}]
+    }
+  ]
+}

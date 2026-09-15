@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from xml.etree import ElementTree
 
+from .binary import NotWhatItClaims
+
 # Storage size in bytes for each primitive PARAMDEF type.
 TYPE_SIZES = {
     "s8": 1,
@@ -91,7 +93,7 @@ def parse(path: pathlib.Path | str) -> ParamDef:
         raw = node.get("Def", "")
         m = _DEF_RE.match(raw)
         if not m:
-            raise ValueError(f"cannot parse field definition {raw!r} in {path}")
+            raise NotWhatItClaims(f"cannot parse field definition {raw!r} in {path}")
 
         ftype = m.group("type")
         name = m.group("name")
@@ -107,7 +109,7 @@ def parse(path: pathlib.Path | str) -> ParamDef:
 
         unit = TYPE_SIZES.get(ftype)
         if unit is None:
-            raise ValueError(f"unknown PARAMDEF type {ftype!r} in {path}")
+            raise NotWhatItClaims(f"unknown PARAMDEF type {ftype!r} in {path}")
 
         if bits is not None:
             # dummy8 is just padding; for bit packing it shares storage with u8.
