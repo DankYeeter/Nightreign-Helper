@@ -1143,6 +1143,13 @@ AK-05 gilt in dieser (vollstaendigen) Fassung nur **ab 1536 px logischer
 Breite**; darunter greift AK-271 (Zielwahl/Lesart-Box duerfen abgeschnitten
 sein). Grund und Wortlaut: siehe **AK-271** (Bereich 6, neben AK-269).
 
+**Dazu T-277e — Nachtrag, 2026-09-15: `Filters`-Knopf (AK-302) zieht den
+Leistenbedarf um +86 px nach, der Boden haelt.** Zahlen und Pruefweg siehe
+**AK-302** (§3.6): abgeleitete Startbreite unveraendert 1608 px (Tabelle
+bindet weiterhin, nicht die Leiste), Marge zum 1536-px-Boden unveraendert
+72 px; der gedeckelte Fall (`room=1536`) ist mit dem Knopf noch nicht neu
+vermessen — offener Pruefpunkt, siehe dort.
+
 #### AK-06
 *Verlauf: A01 Z347 · zuletzt geaendert durch T-004, 2026-09-01*
 
@@ -1491,6 +1498,42 @@ nichts Bedingtes fehlte). Erster Baubericht misst die reale Breite und
 traegt sie in AK-05/AK-194/A14 nach — ein Uebertrag ohne Messung waere ein
 Regelbruch derselben Klasse wie AK-287 fuer den 2H-Zusatz.
 
+> **Nachtrag (T-277e, 2026-09-15) — Messung nachgetragen.** Baubericht
+> T-277b (Fusion, DPR 1,25, Stand `e7057ab`, jetzt HEAD `ffb6b9f`): der
+> `Filters`-Knopf misst **80 px**; die Leisten-`minimumSizeHint` steigt
+> dadurch von **338 → 424 px** im Grundzustand (deckt sich exakt mit dem
+> AK-285-Basiswert 338 px). Delta **+86 px** (80 Knopf + 6 Layout-Abstand),
+> laut Baubericht **in jedem Zustand** gleich — also auch im
+> Vorschlagszustand mit den drei Aktionsknoepfen: **596 → 682 px**
+> (rechnerisch aus dem AK-285-Basiswert 596 px fortgeschrieben, nicht
+> gesondert nachgemessen — Unterschied zu den 338/424-Zahlen, die live
+> gemessen sind).
+>
+> **Auswirkung auf `Planner._opening_width()` (A14/A32/AK-285): keine.**
+> Die abgeleitete Startbreite bleibt bei **1608 px**, weil die
+> Effekttabelle weiterhin die breitere Seite des Maximums ist (682 px
+> Leistenbedarf liegt weit darunter) — derselbe Befund wie AK-285 fuer den
+> Wegfall der `reading_box`: die Leiste war nie die bindende Seite.
+>
+> **1536-px-Boden (AK-271): haelt — mit 72 px Marge, nicht knapper als
+> vorher.** Die Pruefung betrifft den **ungedeckelten** Fall (kein
+> Bildschirm-Deckel unter der abgeleiteten Breite): AK-05 gilt dort ab
+> 1536 px logischer Breite, und die tatsaechliche abgeleitete Breite bleibt
+> bei 1608 px (s. o.) — Marge **1608 − 1536 = 72 px**, unveraendert
+> gegenueber vor diesem Nachtrag, weil die Effekttabelle bindet und die
+> Leiste selbst am ungedeckelten Fenster nirgends anstoesst.
+> **Ungeprueft bleibt der gedeckelte Fall** (AK-269/AK-271-Waechterfall
+> `room=1536`, Bildschirm kleiner als die abgeleitete Breite): dort
+> schuetzt AK-269 `goal_box` durch Schrumpfen der Statuszeile auf 0 px, und
+> ob die 682 px des neuen Vorschlagszustands-Leistenbedarfs in der mittleren
+> Spalte bei `room=1536` noch ohne Kuerzung von `goal_box` Platz finden, ist
+> mit den vorliegenden Zahlen **nicht** zu belegen (die 514-px-Spaltenbreite
+> aus T-230 ist fuer `room=1366` gemessen, nicht `room=1536`, und stammt aus
+> der Zeit vor der `reading_box`-Entfernung). Kein geschaetzter Wert nach
+> Projektregel — **offener Pruefpunkt fuer den naechsten Waechterlauf**
+> (`room=1536`-Fixture mit gebautem `Filters`-Knopf), kein Blocker fuer
+> diesen Nachtrag.
+
 **Akzeptanzkriterien:**
 - Der Knopf ist in jedem der 14 Zustaende sichtbar und aktiv, auch
   waehrend `Optimize` laeuft.
@@ -1603,6 +1646,15 @@ gross-/kleinschreibungsunabhaengig. `QTableWidget.setSortingEnabled(True)`
 wie `effectstab.py` (kein neues Sortiermuster) — jede der fuenf Spalten ist
 per Klick auf den Spaltenkopf sortierbar, inklusive `Copies` (numerisch)
 und `Typ` (Effect vor Curse oder umgekehrt, alphabetisch reicht).
+
+> **Nachtrag (T-277e, 2026-09-15) — Vereinfachung bewusst hingenommen.**
+> Der Bau (T-277b) aktualisiert die Sortierreihenfolge nach der
+> Favourite-/Avoid-Spalte erst beim naechsten Klick auf den Spaltenkopf,
+> nicht sofort beim Ankreuzen: **bewusst hingenommen, kein offener
+> Punkt** — dasselbe `setSortingEnabled(True)`-Muster in `effectstab.py`
+> (Zeilen 853/1070) resortiert bei Datenaenderung ebenso wenig live, AK-308
+> verlangt ausdruecklich "kein neues Sortiermuster", und kein AK dieses
+> Fensters fordert einen Live-Resort bei Kaestchenklick.
 
 #### AK-309 — Leerzustaende: kein Save, Save ohne Relikte, Suche ohne Treffer
 
@@ -4085,6 +4137,10 @@ vollstaendigen Wortlaut. Kurzfassung: nur **oberhalb** der abgeleiteten
 Breite (kein Bildschirm-Deckel) gilt weiterhin `> 0 px`; **unterhalb** darf
 die Statuszeile auf 0 px fallen, weil Zielwahl und Lesart-Box dort Vorrang
 haben.
+
+**Dazu T-277e — Nachtrag, 2026-09-15:** derselbe `Filters`-Knopf-Nachtrag
+wie bei AK-05 gilt hier unveraendert (Bezugsbreite ist dieselbe wie AK-05,
+1608 px, unveraendert durch den Knopf) — Zahlen siehe **AK-302** (§3.6).
 
 #### AK-269
 *Neu in T-231, 2026-09-13 (A33) — Nutzerentscheidung zu QA-250 (T-229a
