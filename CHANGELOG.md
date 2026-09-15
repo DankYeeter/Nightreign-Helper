@@ -4,6 +4,53 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.12.1] - 2026-09-15
+
+### Added
+- A legend explaining the relic marking colours (must include / don't
+  include) is now always visible in the relic picker, not just on hover.
+- The hand a build is set to (one-handed or two-handed) is now visually
+  highlighted on the stat sheet and in the arsenal; the unused hand's values
+  are shown dimmed instead of both looking equally current.
+
+### Changed
+- The advisor's sentence for a relic you own but that cannot fill any open
+  slot now says so directly ("you own N copies ... but none fits the open
+  slots"), instead of using the same wording as for a relic you don't own
+  at all.
+
+### Fixed
+- Switching a build to two-handed no longer leaks into the next equipment
+  import or reset; loading equipped gear and resetting the chalice both
+  start from one-handed again, as intended.
+
+## [1.12.0] - 2026-09-15
+
+### Added
+- Weapon damage on the relic card, stat sheet and arsenal now shows a
+  two-handed value next to the one-handed one (e.g. "218 / 225 2H AR").
+- A one-handed/two-handed switch on the stat sheet is saved per build; the
+  relic advisor now ranks suggestions for whichever hand is selected.
+
+### Changed
+- The "comes with a curse" verdict on the effects tab is now decided once
+  per relic identity across all its rows, instead of per row, so it no
+  longer contradicts itself for the same relic.
+- The label next to a starting-item requirement no longer misnames it as a
+  weapon-count condition.
+- Arsenal tiles that only differ by count are now combined into a single
+  tile per name instead of listed separately.
+- The window is kept on screen after opening, even when it would otherwise
+  land partly off a smaller or differently arranged display.
+- The vessel list now has a tooltip explaining what the slot colours mean.
+- Relic-picker cards are cached, cutting the time to open the picker.
+- Relic-advisor recalculation after a change is noticeably faster.
+
+### Fixed
+- The icon pack is now checked against the files actually present, not
+  only against its version number, so a damaged or incomplete pack is
+  caught instead of silently assumed complete.
+
 ## [1.11.0] - 2026-09-15
 
 ### Added

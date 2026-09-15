@@ -379,6 +379,56 @@ A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
 
 ---
 
+## 1.12.1 — 2026-09-15, Modus `notes`
+
+Stand `6533449`, Code-Commit `3c2ff23`. Artefakt `dist/NightreignHelper.exe`,
+59.119.378 B, SHA-256
+`f29eb92d88ed14416a488f32f7ab655bf27fec77e2be74105782d0980904cf1b`
+(Build-Commit `6533449`, T-268). `AUFLAGEN.md` gegen Stand 15.09. gelesen:
+keine Auflage steht auf ROT, keine sperrt diesen Lauf. Kein Release, kein
+Push, keine Weitergabe in diesem Lauf (Auftrag: nur `notes`).
+
+### Migration 1.12.0 → 1.12.1
+
+Geprueft: `git diff 02e0721..3c2ff23 -- nrplanner/favourites.py
+nrplanner/paths.py nrplanner/chalices.py nrdata/extract.py` zeigt keine
+Aenderung. Reiner Fix (AK-297/AK-298, QA-272, SEC-046/047) ohne Schema- oder
+Ablageortaenderung — keine Migrationslogik noetig, kein Update-Test gegen
+1.12.0 fuer diesen Lauf erforderlich.
+
+### Ergebnis
+
+Kein Blocker. Fuer eine Weitergabe gilt weiterhin A-020/A-023/A-031 aus
+`AUFLAGEN.md`; A-031 entfaellt laut T-265 (keine UPX-Sektionen im Artefakt).
+
+---
+
+## 1.12.0 — 2026-09-15, Modus `notes`
+
+Stand `02e0721`. Artefakt-Nachweis aus T-265 (`release-manager`, Modus
+`clean-room`): `dist/NightreignHelper.exe`, 59.118.289 B, SHA-256
+`89c2967acaaaac8ca108935cac0a79c8292d2c7ec0e77831755a15b295f59d8`.
+
+### Migration 1.11.0 → 1.12.0
+
+**Clean-room bestanden**, nicht nur am Diff geprueft:
+`docs/berichte/T-265-release-manager-cleanroom.md`. 1.11.0 installiert, vier
+Builds mit Sonderzeichen im Namen sowie eine Effektmarkierung gespeichert,
+1.12.0 darueber kopiert und gestartet — alle vier Builds (Registry und
+UI-Combo), `__schema=3` und die Effektmarkierung unveraendert vorhanden;
+Zweitstart nach vollstaendigem Prozessende bestand ebenfalls. Einschraenkung
+laut demselben Bericht: die 1H-Voreinstellung fuer Altbuilds ohne
+`2H`-Suffix ist nur am Code (`chalices.py:459-479`), nicht an einem echten
+Schema-2-Datensatz verifiziert — kein solches Artefakt mehr vorhanden. A-031
+(UPX) entfaellt, das Artefakt enthaelt keine UPX-Sektionen.
+
+### Ergebnis
+
+Kein Blocker. Fuer eine Weitergabe von 1.12.0 gilt A-020/A-023 aus
+`AUFLAGEN.md` (A-031 entfaellt).
+
+---
+
 ## 1.11.0 — 2026-09-15, Modus `notes`
 
 Stand `8b7b782` (Doku, ruehrt Code nicht an), Code `2a0ca0d`. Artefakt
