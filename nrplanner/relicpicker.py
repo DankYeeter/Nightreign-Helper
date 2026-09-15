@@ -1528,6 +1528,7 @@ class RelicPicker(QDialog):
 
     def _refresh(self) -> None:
         self._more.stop()
+        self._rescue_cached_cards()
         plain, needle = self._candidates()
         items = self._in_the_chosen_order(plain)
         if self._wait_is_drawn is None:
@@ -1609,6 +1610,27 @@ class RelicPicker(QDialog):
         self._fit_to_three_rows(for_size)
         if self._unpainted:
             self._more.start()
+
+    def _rescue_cached_cards(self) -> None:
+        """Detach every cached card from the grid a refresh may replace
+        (QA-277).
+
+        `self.scroll.setWidget(...)`, a few lines below in both branches of
+        `_refresh`, deletes the widget it replaces -- and a card
+        `_paint_more` still means to paint later, already built and sitting
+        in `self._card_cache`, is still that widget's child until the paint
+        that reuses it runs. A filter typed while the background fill is
+        still going replaces the grid before that paint has its turn, and
+        the card dies with it: `show_values` on the next paint then throws
+        on a `QLabel` shiboken already calls deleted, and the fill stops
+        there for good, well short of the count the header still states.
+        Reparenting every cached card to the dialog itself, before either
+        branch below may swap the grid, keeps all of them alive across the
+        swap -- `CardGrid` reparents, and Qt reshows, the ones a paint
+        actually places.
+        """
+        for card in self._card_cache.values():
+            card.setParent(self)
 
     def _cards_for(self, items) -> list[tuple[object, RelicCard]]:
         """`(item, card)` per item, each card built once per opening.

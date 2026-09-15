@@ -1873,6 +1873,50 @@ def test_a_refresh_under_pending_paints_replaces_what_was_still_to_come(slot):
         dialog.deleteLater()
 
 
+def test_a_sort_change_under_pending_paints_does_not_lose_a_card_the_old_grid_had(
+        slot):
+    """QA-277: a grid still filling in the background survives a `Sort by`
+    change -- and, through the same `_refresh`, a filter keystroke or a
+    rescan.
+
+    `scroll.setWidget` deletes the grid it replaces. A card `_paint_more`
+    had already built for a row that was not on screen yet was still that
+    grid's child, and the paint that later tried to place it threw
+    `RuntimeError: ... QLabel already deleted`, with the grid stuck short
+    of the count the header kept stating (QA-277, reproduced 2/2 by hand).
+    The gains put the highest-index relic first under `max_damage` and the
+    lowest-index one under the other two directions, so switching to `Name`
+    order moves what the first order had already painted -- the high
+    indices -- into the tail of the second order's own still-to-paint rows:
+    the exact shape of the regression, not a reorder that happens to dodge
+    it.
+    """
+    items = slot.available_items()
+    total = len(items)
+    assert total > 3 * relicpicker.CARDS_PER_PAINT, (
+        f"this slot offers {total} candidates, too few of a background "
+        f"fill to still be going when the sort changes")
+    gains = {index: index for index in range(total)}
+    dialog = open_picker(slot, gains, goal_id="max_damage")
+    try:
+        assert dialog._more.isActive(), "nothing was left to paint"
+        while (dialog._more.isActive()
+               and len(dialog._card_cache) < 2 * relicpicker.CARDS_PER_PAINT):
+            rendered.settle(1)
+        assert dialog._more.isActive(), "the whole grid painted before the sort changed"
+
+        box = dialog.sort_box
+        box.setCurrentIndex(box.findData(relicpicker.NAME_ORDER))
+        dialog._sort_chosen(box.currentIndex())  # must not raise (QA-277)
+
+        shown = relic_cards(dialog)
+        assert len(shown) == total, (
+            f"{len(shown)} of {total} relics reached the grid")
+        assert [id(card.item) for card in shown] == [id(item) for item in items]
+    finally:
+        dialog.deleteLater()
+
+
 def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
         slot):
     """The other half of QA-258's fix: reuse, not merely fewer builds.
