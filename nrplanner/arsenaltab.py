@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import collections
+
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFrame, QHBoxLayout,
@@ -64,6 +66,12 @@ BUILDUP_SENTENCE = (
 # source, and a maintainer would have no way to see what this line holds.
 NBSP = "\u00a0"
 GROUP_SEPARATOR = " · "
+
+#: On a tile standing for several armaments the game lists under one name
+#: with the same numbers (QA-099a: `Scholar's Thrusting Sword` four times,
+#: `Recluse's Staff` and `Finger Seal` twice). One tile, and this says why.
+SAME_NAME_TIP = ("The game lists {count} armaments under this name with "
+                 "these numbers; shown once.")
 
 
 def unbroken(value: str) -> str:
@@ -506,6 +514,8 @@ class ArsenalTab(QWidget):
                 r.weapon["id"],
             ))
             tiles = []
+            tile_of: dict[tuple, Tile] = {}
+            listed: collections.Counter = collections.Counter()
             for rating in entries:
                 weapon = rating.weapon
                 # The label comes from the facade rather than from a constant
@@ -549,11 +559,18 @@ class ArsenalTab(QWidget):
                 if rating.tier_applied > own_tier:
                     lines.append(("Upgraded to", f"+{reached} "
                                                  f"{RARITY_NAMES.get(reached - 1, '')}"))
+                same = (weapon["name"], tuple(lines))
+                listed[same] += 1
+                if same in tile_of:
+                    tile_of[same].setToolTip(
+                        SAME_NAME_TIP.format(count=listed[same]))
+                    continue
                 # Colour by the rarity the weapon would actually have at the
                 # chosen upgrade target, not its shelf rarity.
-                tiles.append(Tile(weapon["name"],
-                                  self.icons.item(weapon.get("icon")),
-                                  lines, rarity=effective_rarity(rating)))
+                tile_of[same] = Tile(weapon["name"],
+                                     self.icons.item(weapon.get("icon")),
+                                     lines, rarity=effective_rarity(rating))
+                tiles.append(tile_of[same])
             return self._grid(tiles)
 
         def build_body():
