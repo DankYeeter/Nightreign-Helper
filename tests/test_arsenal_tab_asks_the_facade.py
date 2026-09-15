@@ -314,10 +314,13 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
                            expected.displayed_hands(lambda r: r.final_headline))
 
         type_rows = rows[1:1 + len(expected.shown_per_type)]
+        # AN-5 (Nutzerentscheidung 15.09.2026, T-269b): a type row carries
+        # both hands too, the same way the headline row above does.
         expected_type_rows = [
             (weapons.DAMAGE_LABELS[damage_type],
-             str(damage.displayed(value)))
-            for damage_type, value in expected.shown_per_type.items()
+             expected.displayed_hands(
+                 lambda r, dt=damage_type: r.final_per_type.get(dt, 0.0)))
+            for damage_type in expected.shown_per_type
         ]
         assert type_rows == expected_type_rows, (
             f"{weapon['name']!r}: the damage-type rows are "

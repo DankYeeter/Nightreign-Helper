@@ -519,9 +519,17 @@ class ArsenalTab(QWidget):
             # shadow the module of that name, and the resulting
             # UnboundLocalError only fired when a tile was drawn, never
             # on import (QA-072).
-            for damage_type, value in rating.shown_per_type.items():
+            #
+            # Both hands, same as the headline row above (AN-5, Nutzer
+            # 15.09.): a type row used to show the chosen hand's figure only,
+            # so `Physical` and the headline disagreed about whether a
+            # two-handed grip was in play.
+            for damage_type in rating.shown_per_type:
                 lines.append((weapons.DAMAGE_LABELS[damage_type],
-                              f"{damage.displayed(value)}"))
+                              rating.displayed_hands(
+                                  lambda r, dt=damage_type:
+                                  r.final_per_type.get(dt, 0.0),
+                                  two_handing)))
             # The status the weapon exists for. Elemental variants always
             # showed their element; the status variants hid their one
             # number, so a Poison Cleaver read as a plain cleaver with

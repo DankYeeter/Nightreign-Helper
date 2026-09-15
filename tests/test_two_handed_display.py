@@ -217,14 +217,18 @@ def test_the_panel_leaves_a_bow_s_figures_alone(shared_planner, game_data,
     assert TWO_HANDED not in sheet._ar_breakdown_text()
 
 
-def _arsenal_headline(tab, weapon) -> str:
+def _arsenal_row(tab, weapon, label_text: str) -> str:
     tab.search.setText(f'"{weapon["name"]}"')
     tab.recalculate()
     for tile in tab.scroll.widget().findChildren(arsenaltab.Tile):
         labels = [label.text() for label in tile.findChildren(QLabel)]
         if labels[1] == weapon["name"]:
-            return labels[labels.index(damage.ATTACK_RATING_LABEL) + 1]
+            return labels[labels.index(label_text) + 1]
     raise AssertionError(f"no tile drawn for {weapon['name']!r}")
+
+
+def _arsenal_headline(tab, weapon) -> str:
+    return _arsenal_row(tab, weapon, damage.ATTACK_RATING_LABEL)
 
 
 def _arsenal_over_an_empty_build(shared_planner, game_data, hero):
@@ -266,6 +270,35 @@ def test_the_arsenal_tile_quiets_the_hand_the_switch_is_not_on(
         assert two_handed.startswith(QUIET) and two_handed.endswith(TWO_HANDED)
         assert tabtext.unmarked(two_handed) == tabtext.unmarked(one_handed)
         assert _arsenal_headline(tab, bow) == bow_one_handed
+    finally:
+        shared_planner.stat_sheet.hand_switch.setChecked(False)
+
+
+def test_the_arsenal_type_row_shows_both_hands_too(
+        shared_planner, game_data, hero, greatsword, bow):
+    """AN-5 (Nutzerentscheidung 15.09.2026, T-269b): a type row (`Physical`)
+    carries the same two-hand suffix as the headline, not only the headline
+    -- the two used to disagree about whether a two-handed grip was in play."""
+    tab = _arsenal_over_an_empty_build(shared_planner, game_data, hero)
+    assert tabtext.unmarked(_arsenal_row(tab, greatsword, "Physical")).endswith(
+        TWO_HANDED)
+    assert TWO_HANDED not in _arsenal_row(tab, bow, "Physical")
+
+
+def test_the_arsenal_type_row_quiets_the_hand_the_switch_is_not_on(
+        shared_planner, game_data, hero, greatsword):
+    """AK-298 on a type row, the same contract as the headline (T-269b)."""
+    tab = _arsenal_over_an_empty_build(shared_planner, game_data, hero)
+    one_handed = _arsenal_row(tab, greatsword, "Physical")
+    expected = damage.candidate(greatsword, TIER,
+                                shared_planner.current_build(), game_data)
+    assert one_handed.startswith(
+        f"{damage.displayed(expected.final_per_type['Physics'])}{QUIET}")
+    try:
+        shared_planner.stat_sheet.hand_switch.setChecked(True)
+        two_handed = _arsenal_row(tab, greatsword, "Physical")
+        assert two_handed.startswith(QUIET) and two_handed.endswith(TWO_HANDED)
+        assert tabtext.unmarked(two_handed) == tabtext.unmarked(one_handed)
     finally:
         shared_planner.stat_sheet.hand_switch.setChecked(False)
 

@@ -4332,6 +4332,11 @@ eigenen vierten Beschriftung fuer den Zweihandwert bricht AK-31 wortgleich
 („nur mit einer dieser drei Formen"), weil sie eine vierte einfuehrt statt
 die drei um einen Zusatz zu erweitern.
 
+**Nachtrag (Nutzerentscheidung 15.09.2026, T-269b):** Auf der Arsenal-Kachel
+(`arsenaltab.py`) tragen auch die Typzeilen (`Physical`, `Fire`, ...) den
+Zweihand-Zusatz nach demselben Muster wie die Kopfzeile, mit derselben
+Betonung der gewaehlten Hand (AK-298) — nicht nur die Kopfzeile.
+
 #### AK-287
 **AK-287** *(Platzbudget an allen vier Flaechen wird real nachgemessen,
 nicht angenommen.)* Der Zusatz `/ <n> 2H` ist die laengste der vier
