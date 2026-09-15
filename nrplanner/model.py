@@ -1302,9 +1302,13 @@ def compute_qualitative(build: "Build", effects: list[dict], hero: dict,
         if numeric or touches_resist:
             continue
 
+        # Beside `startGoodsId` the count field counts nothing (QA-186); the
+        # item line that field contributes is the whole of the condition.
         reasons = [text for field_name, text in GATE_FIELDS.items()
                    if field_name in mods
-                   and not satisfied_by_weapon(field_name, mods[field_name], wep_type)]
+                   and not satisfied_by_weapon(field_name, mods[field_name], wep_type)
+                   and (field_name != "wepTypeTriggerCount"
+                        or effecttext.counts_armaments(eff))]
         # Said with its own number rather than from GATE_FIELDS: how long the
         # window lasts is the whole of what makes this one worth switching on.
         seconds = timed_window(eff)
