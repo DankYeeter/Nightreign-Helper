@@ -62,12 +62,12 @@ COLOURED_CHANGE = 0.05
 #: there is one spelling for the hand (AK-292).
 HAND_CAPTIONS = ("1H", "2H")
 
-#: The tooltip of that switch, one text for both states (AK-292).
-HAND_TOOLTIP = ("Ranks the build's attack power one-handed or two-handed — "
-                "Optimize and effects that only read while two-handing "
-                "follow this switch, and the figure it uses is the one "
-                "highlighted on every tile, sheet and arsenal row. Armaments "
-                "that cannot be two-handed keep their one-handed figure "
+#: The tooltip of that switch, one text for both states (AK-292/AK-299).
+HAND_TOOLTIP = ("Ranks the build's attack power 1H or 2H — Optimize and "
+                "effects that only read while two-handing follow this "
+                "switch, and the figure it uses is the one highlighted and "
+                "tagged 1H or 2H on every tile, sheet and arsenal row. "
+                "Armaments that cannot be two-handed keep their 1H figure "
                 "either way. Saved with this build.")
 
 

@@ -144,9 +144,14 @@ def displayed(figure: float) -> int:
     return math.floor(figure)
 
 
-# The mark a two-handed figure carries on screen (`147 / 151 2H`, AK-286),
-# and the switch of AK-292 uses the same two letters for the same thing.
+# The mark a two-handed figure carries on screen (`147 1H / 151 2H`,
+# AK-299), and the switch of AK-292 uses the same two letters for the same
+# thing.
 TWO_HANDED_MARK = "2H"
+# Its one-handed counterpart (AK-299): the earlier `{1H} / {2H} 2H` left the
+# first figure unlabelled, which read as "base / with build" rather than a
+# pair of hands (QA-278).
+ONE_HANDED_MARK = "1H"
 # Inside the group the three parts never separate: `2H` alone at the start
 # of a line would read as a term of its own (AK-73, DR-009).
 _NO_BREAK_SPACE = "\u00a0"
@@ -159,20 +164,23 @@ _QUIET_HAND = f"<span style='color:{MUTED}; font-weight:normal'>{{}}</span>"
 
 def displayed_hands(one_handed: float, two_handed: float | None,
                     two_handing: bool = False) -> str:
-    """`147`, or `147 / 151 2H` where the game offers a second figure.
+    """`147`, or `147 1H / 151 2H` where the game offers a second figure.
 
-    AK-286: the two-handed figure is a suffix to the one-handed one under the
-    same label, never a labelled figure of its own; where there is none, the
-    text is the one-handed figure and nothing else (AK-288, no `/ -- 2H`).
+    AK-286/AK-299: the two-handed figure is a suffix to the one-handed one
+    under the same label, never a labelled figure of its own; where there is
+    none, the text is the one-handed figure and nothing else (AK-288, no
+    `/ -- 2H`). Both halves carry their own hand mark (AK-299) -- the bare
+    first figure used to read as "base" rather than "one-handed" (QA-278).
 
-    AK-298: the half the build is not held in -- with the `/` -- is wrapped
-    quiet, so the surface's own emphasis (`<b>`, `ACCENT`, a bold label)
-    lands on the chosen half alone. Rich text, then, wherever both hands
-    show; a lone figure stays the bare number.
+    AK-298/AK-299: the half the build is not held in -- with the `/` -- is
+    wrapped quiet, number and mark together as one unit, so the surface's
+    own emphasis (`<b>`, `ACCENT`, a bold label) lands on the chosen half's
+    number and mark alone. Rich text, then, wherever both hands show; a lone
+    figure stays the bare number.
     """
-    shown = str(displayed(one_handed))
     if two_handed is None:
-        return shown
+        return str(displayed(one_handed))
+    shown = _NO_BREAK_SPACE.join((str(displayed(one_handed)), ONE_HANDED_MARK))
     other = _NO_BREAK_SPACE.join((str(displayed(two_handed)), TWO_HANDED_MARK))
     if two_handing:
         return (_QUIET_HAND.format(shown + _NO_BREAK_SPACE + "/")
