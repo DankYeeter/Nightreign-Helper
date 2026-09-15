@@ -222,6 +222,38 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     assert not met.blocked_by_a_requirement
 
 
+def test_a_required_effect_owned_only_deep_says_so_when_deep_is_off(
+        game_data, wylder):
+    """QA-273's Vermerk to AK-281: two owned copies carry the required
+    effect, but both are Deep of Night relics and this vessel has no Deep
+    slot in play, so no pool can offer either -- the sentence must say the
+    copies are owned and name the reason, not claim none exists.
+    """
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    deep_effect = rolls[4][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4, deep_count=2,
+                                   rolls=rolls[:4] + [rolls[4], rolls[4]])
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    def name(effect_id):
+        return " ".join(game_data["effects"][str(effect_id)]["name"].split())
+
+    question = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED]),
+        required=frozenset({deep_effect}))
+    frozen = run.frozen_inventory(owned, question)
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen,
+                     ctx, goals.GOALS)
+
+    assert result.suggestions == ()
+    assert result.unknowns[-1] == (
+        f"You own 2 copies carrying {name(deep_effect)}, but none fits the "
+        f"open slots (Deep of Night is off).")
+    assert result.blocked_by_a_requirement
+
+
 def _ranking(result) -> list[tuple[tuple[int, ...], float]]:
     return [(tuple(choice.handle for choice in suggestion.choices),
              suggestion.score.value) for suggestion in result.suggestions]

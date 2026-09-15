@@ -4096,6 +4096,13 @@ weiter vorschlaegt, oder eine, die nur 4.10s Standardsatz zeigt, ohne den
 Effekt zu nennen — beides verstoesst gegen den woertlichen Auftrag aus A19
 („sagt er das, statt den Filter still fallen zu lassen").
 
+> **Vermerk 15.09.2026 (T-266, QA-273): der Satz gilt nur ohne jede
+> besessene Kopie.** Traegt der Spieler Kopien des Effekts, die nur an den
+> offenen Slots scheitern (Farbe oder Deep of Night aus), sagt die
+> Oberflaeche `"You own {n} copies carrying {effect}, but none fits the
+> open slots"`, mit dem Zusatz `" (Deep of Night is off)"`, wenn Deep der
+> alleinige Grund ist.
+
 #### AK-282
 **AK-282** *(A12 — nur der Berater, nicht das Werteblatt.)* Die
 Markierungen wirken ausschliesslich auf die Rechnung des Beraters

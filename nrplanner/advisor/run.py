@@ -409,8 +409,9 @@ def run(request: types.AdvisorRequest, inventory,
                                    + explain.unknowns(problem)))
     # A7 for A19: an empty beam under a required effect is not "nothing to
     # say", it is the answer that no owned constellation meets the condition
-    # (AD-036.4). Decided on the pools, so it names what is owned.
-    blocked = (explain.required_but_unmet(problem, pools, ctx)
+    # (AD-036.4). The pools decide which effect is missing a carrier;
+    # `inventory` decides whether that copy is owned at all (QA-273).
+    blocked = (explain.required_but_unmet(problem, pools, ctx, inventory)
                if not found and problem.required else ())
     unknowns += blocked
     return types.AdvisorResult(
