@@ -92,6 +92,10 @@ CLAUSES = "  ·  "
 OPTIMIZE_TOOLTIP = ("Fills every slot from the relics in your save. Nothing "
                     "changes until you apply it.")
 
+#: AK-302: the `Filters` button, in every state, outside AK-07's budget.
+FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
+                   "(Avoid) in a suggestion.")
+
 
 class State(enum.Enum):
     """The rows of `UI_SPEC` §4, by their number and by a name.
@@ -205,20 +209,20 @@ def _effects_left_out(count: int) -> str:
 
 
 def _marked(count: int, state: str) -> str:
-    """One AK-280 clause: `{n} effect(s) {excluded|required}`."""
+    """One AK-280 clause: `{n} effect(s) {avoided|favourited}` (AK-300)."""
     return f"{count} effect{'' if count == 1 else 's'} {state}"
 
 
 def marking_clauses(filters) -> list[str]:
-    """The AK-280 clauses of the row tooltip: how many effects the player
-    marked, in every one of the fourteen states, because a marking is a
-    standing setting and not a property of one run. `None` -- a row built
-    with no filters behind it -- has nothing to count."""
+    """The AK-280 clauses of the `Filters` tooltip (AK-302): how many effects
+    the player marked, in every one of the fourteen states, because a
+    marking is a standing setting and not a property of one run. `None` -- a
+    row built with no filters behind it -- has nothing to count."""
     if filters is None:
         return []
-    return ([_marked(len(filters.excluded), "excluded")]
+    return ([_marked(len(filters.excluded), "avoided")]
             if filters.excluded else []) + (
-            [_marked(len(filters.required), "required")]
+            [_marked(len(filters.required), "favourited")]
             if filters.required else [])
 
 
@@ -535,7 +539,8 @@ class _ElidingLabel(QLabel):
 
 
 class AdvisorBar(QWidget):
-    """`ADVISOR [ goal ] [ Optimize ] <status> [ Clear ]`, and its states.
+    """`ADVISOR [ goal ] [ Filters ] [ Optimize ] <status> [ Clear ]`, and
+    its states.
 
     Built with a callable rather than with the window: everything the bar
     needs of the planner is "what would you ask right now", which is one
@@ -551,6 +556,9 @@ class AdvisorBar(QWidget):
     apply_all_requested = Signal()
     undo_apply_requested = Signal()
     why_requested = Signal()
+    #: AK-302: the player asked for the effect filter window. The window
+    #: opens it, because the window knows what the player owns.
+    filters_requested = Signal()
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
@@ -602,6 +610,12 @@ class AdvisorBar(QWidget):
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
         row.addWidget(self.goal_box)
+
+        # AK-302: visible and live in all fourteen states, a run in flight
+        # included -- AK-289 presupposes a marking under a run.
+        self.filters_button = QPushButton("Filters")
+        self.filters_button.clicked.connect(self.filters_requested)
+        row.addWidget(self.filters_button)
 
         self.optimize_button = QPushButton("Optimize")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
@@ -969,12 +983,12 @@ class AdvisorBar(QWidget):
         # Below the derived opening width the status is the one thing that
         # gives way, down to 0 px (QA-250: boxes first, the status may go),
         # and a label 0 px wide has nowhere to be hovered -- so the row
-        # carries the sentence too, and after it the AK-280 count of what
-        # the player marked. The count is a tooltip and nothing visible: a
-        # tooltip asks for no width, so AK-05/AK-194 do not move.
-        tip = CLAUSES.join(part for part in (
-            status_line(situation), *marking_clauses(self._filters)) if part)
-        self.setToolTip(f"<span>{html.escape(tip)}</span>" if tip else "")
+        # carries the sentence too. The AK-280 count of what the player
+        # marked stands on the button that changes it (AK-302), not here.
+        line = status_line(situation)
+        self.setToolTip(f"<span>{html.escape(line)}</span>" if line else "")
+        self.filters_button.setToolTip("<span>" + html.escape(CLAUSES.join(
+            (FILTERS_TOOLTIP, *marking_clauses(self._filters)))) + "</span>")
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at
         # the same moment, so there is no half-second of a bar on its own.
         # Asked of the situation and not of the widget: `isVisible()` is

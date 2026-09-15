@@ -100,9 +100,11 @@ def a_live_answer(planner, answer):
 # --- the controls of the row ------------------------------------------------
 
 def visible_actions(bar) -> list[str]:
-    """The captions of the row's action buttons, `Optimize` excluded."""
+    """The captions of the row's action buttons -- `Optimize` and `Filters`
+    excluded, the latter standing outside AK-07's budget (AK-302)."""
     return [button.text() for button in bar.findChildren(QPushButton)
-            if button is not bar.optimize_button and not button.isHidden()]
+            if button not in (bar.optimize_button, bar.filters_button)
+            and not button.isHidden()]
 
 
 def a_bare_bar(qapp, filled: int = 6):

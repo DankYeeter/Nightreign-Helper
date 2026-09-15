@@ -617,7 +617,8 @@ def test_never_more_than_three_actions_stand_beside_the_status(bar):
     bar._controller.begins()
     bar._controller.answers(_an_answer())
     actions = [button for button in bar.findChildren(QPushButton)
-               if button is not bar.optimize_button and not button.isHidden()]
+               if button not in (bar.optimize_button, bar.filters_button)
+               and not button.isHidden()]
     assert 1 <= len(actions) <= 3
 
 
@@ -741,9 +742,10 @@ def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
     assert heard == [{"marking_changed": True}] * 2
 
 
-def test_the_row_tooltip_counts_the_marked_effects_in_every_state(qapp):
-    """AK-280: the count is a standing setting, so it stands in 4.1 and 4.8
-    as much as behind an answer -- and only where a set is not empty."""
+def test_the_filters_tooltip_counts_the_marked_effects_in_every_state(qapp):
+    """AK-280 on the `Filters` button (AK-302, AK-300 words): the count is a
+    standing setting, so it stands in 4.1 and 4.8 as much as behind an
+    answer, only where a set is not empty -- and no longer on the row."""
     from nrplanner import effectfilters
 
     filters = effectfilters.EffectFilters()
@@ -752,23 +754,73 @@ def test_the_row_tooltip_counts_the_marked_effects_in_every_state(qapp):
                                    controller=_Controller(), filters=filters)
     try:
         assert widget.toolTip() == "<span>Nothing suggested yet.</span>"
+        assert widget.filters_button.toolTip() == (
+            f"<span>{advisorbar.FILTERS_TOOLTIP}</span>")
         filters.mark(11, effectfilters.EXCLUDED)
         filters.mark(12, effectfilters.EXCLUDED)
         filters.mark(13, effectfilters.REQUIRED)
         widget.the_build_changed(marking_changed=True)
-        assert widget.toolTip() == (
-            "<span>Nothing suggested yet.  ·  2 effects excluded  ·  "
-            "1 effect required</span>")
+        assert widget.toolTip() == "<span>Nothing suggested yet.</span>"
+        assert widget.filters_button.toolTip() == (
+            f"<span>{advisorbar.FILTERS_TOOLTIP}  ·  2 effects avoided  ·  "
+            "1 effect favourited</span>")
         asking["value"] = None
         widget.the_build_changed()
-        assert widget.toolTip().endswith(
-            "use Rescan save.  ·  2 effects excluded  ·  1 effect required"
-            "</span>")
+        assert widget.toolTip().endswith("use Rescan save.</span>")
+        assert widget.filters_button.toolTip().endswith(
+            "2 effects avoided  ·  1 effect favourited</span>")
         assert advisorbar.marking_clauses(None) == []
     finally:
         for effect_id in (11, 12, 13):
             filters.mark(effect_id, None)
         widget.deleteLater()
+
+
+def test_the_filters_button_stands_live_in_every_state(bar):
+    """AK-302: outside AK-07's budget, so it is neither hidden nor disabled
+    by any of the fourteen states -- not by 4.8, not by a run in flight."""
+    heard = []
+    bar.filters_requested.connect(lambda: heard.append(True))
+    assert bar.filters_button.text() == "Filters"
+    bar.asking["value"] = None
+    bar.the_build_changed()
+    assert bar.situation.state is advisorbar.State.NO_SAVE
+    assert not bar.filters_button.isHidden()
+    assert bar.filters_button.isEnabled()
+    bar.asking["value"] = _an_asking()
+    bar.the_build_changed()
+    bar.optimize_button.click()
+    bar._controller.begins()
+    _wait(advisorbar.WAIT_VISIBLE_MS + 50)
+    assert bar.situation.state in advisorbar.WORKING_STATES
+    assert bar.filters_button.isEnabled()
+    bar.filters_button.click()
+    assert heard == [True]
+
+
+def test_the_filters_button_opens_the_window_over_what_is_owned(planner,
+                                                                 monkeypatch):
+    """The window wires `filters_requested` to the dialog, handing it one row
+    per owned id (AK-304) and the store the row already reads (AK-311)."""
+    from nrplanner import effectfilterdialog
+
+    opened = []
+    monkeypatch.setattr(effectfilterdialog.EffectFilterWindow, "exec",
+                        lambda self: opened.append(self))
+    planner.advisor_bar.filters_button.click()
+    assert len(opened) == 1
+    window = opened[0]
+    assert window._filters is planner.effect_filters
+    assert window.table.rowCount() == len(
+        effectfilterdialog.rows_from(planner.owned, planner.effects)) > 0
+    assert window.empty.isHidden()
+    # AK-309's first two cases, told apart as the relic label tells them.
+    monkeypatch.setattr(planner, "owned", None)
+    planner.open_effect_filters()
+    assert opened[-1].empty.text() == effectfilterdialog.NO_SAVE_WAS_READ
+    monkeypatch.setattr(planner, "_answers_a_chosen_save", True)
+    planner.open_effect_filters()
+    assert opened[-1].empty.text() == effectfilterdialog.SAVE_HAS_NO_RELICS
 
 
 def test_the_row_stops_the_search_before_the_data_under_it_changes(bar):
