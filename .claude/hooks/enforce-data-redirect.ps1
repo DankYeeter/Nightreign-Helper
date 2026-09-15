@@ -18,19 +18,18 @@
 # in derselben Kommandozeile ab - der Beleg ist, dass der Hook nicht
 # ausgeloest hat, nicht mehr ein Blick in ein Verzeichnis.
 #
-# PLATTFORMGRENZE (QA-241, gemessen 15.09.2026): settings.json ruft diesen
-# Hook ueber "$CLAUDE_PROJECT_DIR/.claude/hooks/...ps1" auf. In der Umgebung
-# eines Subagenten (Task-Tool) ist $CLAUDE_PROJECT_DIR leer - Beleg: `echo
-# $CLAUDE_PROJECT_DIR` liefert in einer Subagenten-Bash-Sitzung nichts, und
-# der so gebaute Pfad ("/.claude/hooks/...") loest unter Git Bash auf die
-# Git-Installation statt das Projekt auf ("C:/Program Files/Git/.claude/...").
-# PowerShell findet die Datei nicht, bricht vor der ersten Zeile dieses
-# Skripts ab, und der Zug laeuft ohne deny durch - die Logik unten ist davon
-# nicht betroffen (per stdin direkt geprueft: korrekt). Kein Fix im Skript
-# moeglich, das Skript startet in diesem Fall nie. Bis Claude Code
-# $CLAUDE_PROJECT_DIR fuer Subagenten setzt, bleibt die Umlenkung fuer jede
-# Rolle, die aus einem Subagenten heraus einen Programmstart ausloest,
-# Handregel (CLAUDE.md, Abschnitt "Datenverzeichnisse und Umlenkung").
+# PLATTFORMGRENZE (QA-241, behoben T-270b, 15.09.2026): settings.json rief
+# diesen Hook zuvor ueber "$CLAUDE_PROJECT_DIR/.claude/hooks/...ps1" auf. In
+# der Umgebung eines Subagenten (Task-Tool) ist $CLAUDE_PROJECT_DIR leer, der
+# so gebaute Pfad loeste unter Git Bash auf die Git-Installation statt das
+# Projekt auf, PowerShell fand die Datei nicht und der Zug lief ohne deny
+# durch. Seit T-270b ruft settings.json diese Datei relativ zum Arbeits-
+# verzeichnis auf ("-Command \"if (Test-Path .claude/hooks/...) { & ... }
+# else { exit 2 }\""); die Arbeitsverzeichnisse von Haupt-, Subagenten- und
+# Worktree-Sitzungen zeigen alle auf die jeweilige Projekt- bzw. Worktree-
+# Wurzel, in der diese Datei liegt. Fehlt die Datei trotzdem (z. B. ein
+# Checkout ohne .claude/), liefert der else-Zweig exit 2 (Block) statt still
+# durchzulassen. Keine Handregel mehr fuer diesen Fall.
 #
 # Bewusst ohne Umlaute (PowerShell 5.1 / kein BOM).
 

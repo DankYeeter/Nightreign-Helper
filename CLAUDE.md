@@ -53,12 +53,13 @@ schreiben nie. Positive Pfadauflösung (`paths.cache_dir()` zurücklesen) hält
 als Nachweis; Abwesenheit hält nicht (QA-237: die Überlagerung ist
 Claude-weit). Der Spielstand ist read-only und darf gelesen werden.
 
-**Plattformgrenze (QA-241):** Der Wächter greift nur, wenn `$CLAUDE_PROJECT_DIR`
-gesetzt ist. In einer Subagenten-Sitzung (Task-Tool) ist die Variable leer
-(gemessen 15.09.2026) — der Hook startet dann gar nicht erst, kein `deny`.
-Jede Rolle, die aus einem Subagenten heraus einen Programm- oder Messlauf
-startet, setzt die drei Variablen weiterhin von Hand; der Wächter ist nur in
-der Hauptsitzung ein verlässlicher Nachweis.
+**Plattformgrenze (QA-241, behoben T-270b):** `settings.json` rief den Wächter
+zuvor über `$CLAUDE_PROJECT_DIR` auf, leer in Subagenten-Sitzungen — der Hook
+startete dann gar nicht, kein `deny`. Der Aufruf läuft jetzt relativ zum
+Arbeitsverzeichnis (Haupt-, Subagenten- und Worktree-Sitzungen zeigen alle auf
+die jeweilige Projekt-/Worktree-Wurzel); fehlt die Hook-Datei trotzdem, liefert
+er `deny`. Handregel (Variablen von Hand setzen) nur noch für einen Checkout
+ohne `.claude/`-Ordner.
 
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
 (841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0; spart
