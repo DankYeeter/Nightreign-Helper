@@ -75,6 +75,24 @@ jobs:
           fi
           echo "releasing $source_version"
 
+      # A-008: the executable must not ship without having passed the suite.
+      # Guarded rather than assumed present, same reasoning as the licence
+      # step above -- tests/ and requirements-dev.txt belong to the working
+      # repo and may not exist in the published one. It is a skip, not a
+      # pass: the suite still runs wherever it can, which is here, which is
+      # where releases are built.
+      - name: Install test dependencies
+        if: hashFiles('tests/**') != ''
+        run: pip install -r requirements-dev.txt
+
+      - name: Tests
+        if: hashFiles('tests/**') != ''
+        env:
+          # No display on a runner, and none needed: every Qt object the
+          # suite builds is built and thrown away without being shown.
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -rs
+
       - name: Build
         run: pyinstaller NightreignHelper.spec --noconfirm
 
