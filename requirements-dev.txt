@@ -2,3 +2,11 @@
 
 pytest==9.1.1
 pytest-xdist==3.8.0
+
+# transitiv, SEC-048: gepinnt statt dem Release-Token frei ueberlassen
+colorama==0.4.6
+execnet==2.1.2
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.20.0
