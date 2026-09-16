@@ -1500,3 +1500,348 @@ Fuer den `director`, nicht Teil der Analyse:
 2. **`qa/findings.md:263` (QA-240) rendert mit neun statt acht Spalten** —
    unmaskiertes `|` in einem Codespan. Die einzige verbliebene Abweichung in
    291 Tabellenzeilen beider Befunddateien.
+
+---
+
+## Zyklus 26 — 2026-09-16 (Part 12, Stand `c615b6c`, T-286)
+
+**Ziel des Zyklus:** 1.13.1 fertigstellen und veroeffentlichen — AK-313,
+A-008, Bau, Pruefkette, Release-Texte, clean-room, power-user, Tag `v1.13.1`.
+
+**Datengrundlage:** `docs/state.md` (`c615b6c`, Abschnitt "Lehren dieses
+Zyklus"), `docs/berichte/T-283-qa-engineer.md`,
+`T-285-release-manager-clean-room.md` (334 Zeilen, beide Laeufe),
+`T-285-power-user.md`, dazu die aelteren power-user-Berichte T-241d, T-265,
+T-272, T-275 und `T-241-release-manager-cleanroom.md`,
+`T-265-release-manager-cleanroom.md`; `docs/tasks/T-281.md`, `T-283.md`,
+`T-284.md`, `T-277.md`; `qa/findings.md` (QA-256 drei Zeilen, QA-279,
+QA-282); `docs/release/ROLLOUT.md:305-318`; `CLAUDE.md`,
+`.claude/hooks/enforce-data-redirect.ps1`, `.claude/settings.json`;
+`~/.claude/agents/_rahmen.md`, `power-user.md`, `commands/director.md`,
+`templates/task.md`, `hooks/limit-tool-calls.ps1`, `~/.claude/settings.json`;
+`git log 79664c2..c615b6c` (18 Commits, 17:02-18:30); das teamweite Register
+`ApplicationHelper/docs/lessons.md` (L-001 bis L-033).
+
+**Nummernraum — zuerst geprueft, mit Befund.** Das teamweite Register liegt
+in `ApplicationHelper/docs/lessons.md` und endet bei **L-033** (15.09.). Die
+Eintraege **L-019 und L-020 dieser Datei** (12.09.) wurden damals "als
+teamweite Nummern" vergeben, weil der teamweite Satz "bei L-013 endet" —
+gemessen an den Agentendefinitionen, nicht am Register: dort standen L-019
+(Absenz-Regel gespiegelt) und L-020 (Empfaenger misst nach) seit dem 06.09.
+**Kollision, drittes Vorkommen der Klasse "zwei Regelsaetze, ein
+Nummernraum"** (erstes L-018, zweites Beobachtung 12.09.) — und damit nach
+eigener Ansage ein Muster. Konsequenz hier: **keine neuen `L-`-Nummern in
+dieser Datei.** Neue Projekteintraege heissen `NH-###` (Fortsetzung von
+NH-003; NH-001/002 stehen in `docs/plan-restarbeiten.md`, wo `CLAUDE.md`
+die Regelpflege ansiedelt). L-019/L-020 hier bleiben stehen, weil
+`selftest.ps1:497` sie mit Projektpraefix zitiert; wer sie nennt, schreibt
+"Nightreign-Helper L-020". Ein Vorschlag, der teamweiten Text aendert, ist
+hier ein NH-Eintrag mit dem Vermerk "Kandidat teamweit"; die Nummer L-034 ff.
+vergibt nur, wer das Register in ApplicationHelper fortschreibt. Der
+Auftrag sagte "L-Nummern fortsetzen" — das widerspraeche `_rahmen.md:113`
+und wuerde die Kollision verlaengern; deshalb nicht befolgt, hier begruendet.
+
+### Gut gelaufen (schuetzenswert)
+
+- **88 Minuten von AK-313 bis zum gruenen Release-Run**, 18 Commits, mit
+  voller Pruefkette: QA PASS (T-283a), Security fand SEC-048 (Token in
+  `release.yml`) und der Fix lag 12 Minuten spaeter (`af85fbd`), Compliance
+  empfahl `body_path` (A-037) und der Release-Text traegt ihn.
+- **T-285a hat 28 Minuten gewartet und keinen fremden Prozess beendet** —
+  ANNAHMEN nennt das ausdruecklich ("kein `Stop-Process` auf die fremden
+  PIDs"). Das ist die QA-256-Nachtragsregel vom 14.09. (ein paralleler Lauf
+  hatte damals eine fremde Instanz beendet), und sie hat gehalten. Dass das
+  Warten selbst der Fehler war, steht unter NH-004; das Nichteingreifen war
+  richtig.
+- **T-285a hat sein Werkzeugrezept aufgeschrieben** ("Methodik-Nachtrag …
+  fuer kuenftige clean-room-Laeufe festgehalten"): `Invoke()` ohne Wirkung,
+  `BoundingRectangle` physisch (2010x1075) gegen `GetWindowRect`
+  virtualisiert (1622x898), Dialog nicht unter `RootElement`. Das ist die
+  erste Messung hinter fuenf Klickproblemen (NH-005).
+- **T-283a hat die Abweichung 1729 → 1727 exakt erklaert** (zwei
+  MUTATIONS-Parametrisierungen weniger) statt sie als Flattern abzutun — und
+  die 9 → 10 skipped ehrlich als "nicht nachverfolgt" markiert.
+- **Der Director hat seinen Planungsfehler in die Commit-Botschaft
+  geschrieben** (`a0ce3f6`: "Director-Planungsfehler") und die drei Lehren in
+  `docs/state.md` fuer diese Retrospektive abgelegt. Ohne diesen Abschnitt
+  waere NH-004 nicht in einer Sitzung belegbar.
+- **L-031 hat beim ersten Einsatz in diesem Projekt getragen** (siehe
+  Wirkungskontrolle).
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **L-031** (teamweit) — Klon-Volllauf als feste Vorlagenzeile, Ergebnis nach der Schwelle lesbar | 2026-09-15 (`templates/task.md:52-54`, `limit-tool-calls.ps1:144`) | **Wirkt, 1 von 1.** `docs/tasks/T-281.md:63-65` traegt die Vorlagenzeile woertlich; die Zahl **1729 passed / 9 skipped (Klon)** steht im Director-Stand und als Praemisse in `T-283.md:19`; T-283a hat sie gegen seine eigene Messung gehalten und die Differenz erklaert. Kein Schwellenfall im Zyklus, also ist die Hook-Haelfte hier ungeprueft. | Keine. |
+| **OF-35** (Projekt) — nachgefahrene `MUTATIONS` loescht der `qa-engineer` im Pruefphasenlauf | 2026-09-13 | **Wirkt, vierte Anwendung in Folge** (T-239, T-249, T-251, T-283a). T-283a: zwei Eintraege je in einem `git archive`-Baum nachgefahren, beide Killer rot mit der vorhergesagten Botschaft, geloescht, Director-Commit `a4e8b97`. | Keine. Als eingefahren betrachten; nicht mehr pruefen. |
+| **L-019** (Nightreign-Helper, 12.09.) — Waechter registrieren | 2026-09-12 | **Wirkt.** `~/.claude/settings.json` registriert `require-receipt`, `state-line-budget`, `id-collision-guard`, `count-serial-dispatches`, `limit-tool-calls` (grep 16.09.). | Keine. |
+| **L-020** (Nightreign-Helper, 12.09.) — `docs/state.md` auf Budget | 2026-09-12 | **Wirkt am Stichtag:** 111 Zeilen bei `c615b6c` (`wc -l`). | Keine. |
+| **NH-001** — jede nicht-triviale Arbeit bekommt eine Auftragsdatei | 2026-09-06 | **Tot.** Gezaehlt an `ls docs/tasks`: von T-240 bis T-285 haben **18 von 46** Nummern eine Datei, seit T-263 **5 von 23** (T-263, T-277, T-281, T-283, T-284). T-282 (Bau) und **T-285 (drei Rollen: clean-room, power-user, notes)** liefen ohne Datei. **Die Kosten sind diesmal messbar:** die Vorlage traegt die Felder `Testumgebung` und `Parallel:`; im letzten Auftrag mit Fensterlauf **und** Datei (`T-277.md:52`) hat der Director die Instanzsperre selbst hineingeschrieben ("Fensterlaeufe nur in b"). T-285 hatte keine Datei, kein Feld, keine Reihenfolge — und die Sperre schlug zu. | **Zurueckgenommen als Prosa, ersetzt durch einen Waechter → NH-006.** Nach `_rahmen.md:110-112` bekommt eine Fehlerklasse beim zweiten Mal einen Waechter; dies ist das vierte Vorkommen (Zyklus 13: 2, Zyklus 20: 2, jetzt 28 Nummern). |
+| **NH-002** — Bildnachweise nur aus dem Programmfenster | 2026-09-05 | **Wirkt.** T-285a: `diag1-6.png` per `PrintWindow`, nur im Scratchpad, geloescht, nicht im Repo. | Keine. |
+| **NH-003** — Spaltenwaechter ueber die Befundtabellen | 2026-09-12 | **Wirkt.** `tests/test_findings_tables.py` vorhanden, Suite gruen (T-283a); QA-282 wurde angehaengt, nicht eingefuegt. | Keine. |
+| **QA-256 "Prozessregel: nur ein Fensterlauf gleichzeitig"** (Adressat `director`, Status "offen — Prozessregel") | 2026-09-14 | **Wirkt nicht.** Die Regel hat genau dort gehalten, wo die Rolle sie selbst kannte (T-265d: `qa-engineer` wartete auf den clean-room-Bericht und ein leeres `Get-Process`), und dort versagt, wo sie den Director vor dem Dispatch haette erreichen muessen (T-285). Sie stand in `qa/findings.md:316` (Zeile 316 von 463) und in `ROLLOUT.md:311` — keine der beiden Dateien liest der Director, bevor er eine Pruefkette dispatcht. | → **NH-004**. |
+
+**Bilanz: acht Massnahmen geprueft, sechs wirken (L-031, OF-35, L-019,
+L-020, NH-002, NH-003), zwei nicht (NH-001 tot, QA-256-Prozessregel ohne
+Ort).**
+
+---
+
+### NH-004 — Ein Sachverhalt, der in einem Befundregister mit Adressat "director" steht, erreicht den Director nicht vor dem naechsten Dispatch: die maschinenweite Instanzsperre hat dreimal parallele Fensterlaeufe getroffen
+
+**Belege:**
+1. **T-241d (14.09.)** — `T-241-release-manager-cleanroom.md:37-39`: Auftrag
+   sieht clean-room, qa-engineer und power-user "gleichzeitig dieselbe
+   `dist/`-EXE mit eigenen Umlenkungen" vor; clean-room wartete ~19 min,
+   qa-engineer 23 min (QA-256 und Nachtrag, `qa/findings.md:316,319`).
+   Befund als "Prozessregel: nur ein Fensterlauf gleichzeitig" an den
+   `director`, Status "offen".
+2. **T-265 (15.09.)** — `T-265-release-manager-cleanroom.md:50,67` wiederholt
+   den Befund ("muessen zeitlich nacheinander"); T-265d haelt die Regel, weil
+   der `qa-engineer` sie kennt (`qa/findings.md:434`). Kein Auftragstext.
+3. **T-277 (15.09.)** — `docs/tasks/T-277.md:52`: der Director schreibt die
+   Regel in einen developer-Auftrag ("die Instanzsperre ist maschinenweit
+   (QA-256) — Fensterlaeufe nur in b"). Er kannte sie.
+4. **T-285 (16.09.)** — kein Auftragstext auf Platte; laut
+   `T-285-release-manager-clean-room.md` (ANNAHMEN) sah der Auftrag
+   "parallel mit eigener Umlenkung" vor. power-user-Prozesse PID 21136/26972
+   ab 17:38:08; clean-room-Start PID 5140 stumm beendet; **28 min Wartezeit**
+   (17:38-18:06, drei Pollingfenster 6/9/9 min), Abbruch `a0ce3f6` 18:09,
+   zweiter Lauf 18:10-18:26 nach Beenden der verwaisten Prozesse. Die
+   power-user-Prozesse liefen 22 min nach dessen Bericht (`d603ae2` 17:48)
+   weiter.
+
+**Ursache:** Der Sachverhalt "diese EXE laeuft nur einmal je Maschine" ist
+ein Projektfakt und stand nur in einem 463-zeiligen Befundregister und im
+Ablaufplan des `release-manager` — beides Dateien, die vor einem Dispatch
+niemand liest; `commands/director.md:235-238` zaehlt zudem abschliessend
+drei Gruende fuer Reihenfolge auf, und "beide brauchen dasselbe exklusive
+Betriebsmittel" ist keiner davon.
+
+**Massnahme (zwei Teile, ein Mechanismus):**
+
+(a) **Technischer Riegel, Projekt:** `.claude/hooks/enforce-data-redirect.ps1`,
+einfuegen nach Zeile 78 (`if (-not ($istQuellstart -or …)) { exit 0 }`):
+
+```powershell
+# NH-004: die Instanzsperre ist maschinenweit (nrplanner/singleinstance.py,
+# KEY). Ein zweiter Start endet stumm, und die Rolle wartet (T-241d 23 min,
+# T-285a 28 min). Bei laufender Kopie wird der Start abgewiesen, damit die
+# Rolle sofort `blockiert` meldet statt zu pollen. Nur fuer Startformen, in
+# denen die EXE das Kommando ist - Hash- und ls-Aufrufe nennen sie als Argument.
+$istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
+if ($istQuellstart -or $istFensterMessskript -or $istExeKommando) {
+    $laeuft = @(Get-Process -Name NightreignHelper -ErrorAction SilentlyContinue)
+    $laeuft += @(Get-Process -Name python, pythonw -ErrorAction SilentlyContinue |
+                 Where-Object { $_.MainWindowTitle -like 'Nightreign Helper*' })
+    if ($laeuft.Count -gt 0) {
+        $wer = ($laeuft | ForEach-Object { "$($_.ProcessName) PID $($_.Id) seit $($_.StartTime.ToString('HH:mm:ss'))" }) -join ', '
+        $out = @{ hookSpecificOutput = @{
+            hookEventName = 'PreToolUse'; permissionDecision = 'deny'
+            permissionDecisionReason = "[instanzsperre] Nightreign Helper laeuft bereits ($wer); ein zweiter Start endet stumm (QA-256). Nicht warten, kein Stop-Process auf fremde PIDs: STATUS blockiert melden, der Director reiht die Fensterlaeufe." } }
+        [Console]::Out.WriteLine(($out | ConvertTo-Json -Compress -Depth 5)); exit 0
+    }
+}
+```
+Grenzen, ausdruecklich: ein `cmd /c start …` und ein Quellstart ohne
+Fenstertitel (Ladephase) rutschen durch — dieselbe Grenze, die der Hook
+fuer seine Startformen schon nennt. Der Riegel muss beissen: wer ihn
+einbaut, startet einmal bei laufender Kopie und zeigt das `deny` im Bericht
+(`_rahmen.md:54-55`).
+
+(b) **Projektfakt, `CLAUDE.md`**, Abschnitt "Datenverzeichnisse und
+Umlenkung", nach dem Absatz "Plattformgrenze (QA-241 …)":
+
+> **Ein Fensterlauf je Zeitpunkt (QA-256, NH-004):** Die Instanzsperre ist
+> maschinenweit (`nrplanner/singleinstance.py`, `KEY`); ein zweiter Start
+> endet stumm, der Hook weist ihn ab, solange eine Kopie laeuft.
+> `qa-engineer` am Artefakt, `power-user` und `release-manager` `clean-room`
+> stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
+> `notes`, `security-reviewer`, `compliance-agent` duerfen parallel.
+
+**Ersatz/Streichung:** QA-256 (drei Zeilen, "offen — Prozessregel") bekommt
+eine Abschlusszeile "erledigt — Riegel im Hook, Fakt in CLAUDE.md" (haengt
+der Director an). `ROLLOUT.md:309-312` (Satz zur Sperre in Schritt 4) kann
+auf "siehe CLAUDE.md" verkuerzt werden. Der Zuwachs in `CLAUDE.md` (5
+Zeilen) ist begruendet: es ist ein Fakt ohne Ort, keine weitere Regel.
+**Wer liest es wann:** den Hook liest niemand, er feuert beim Start; die
+`CLAUDE.md` liest der Director beim Sitzungsbeginn und jede Rolle ueber den
+Verweis in jedem Auftrag.
+
+**Verworfen:** ein vierter Grund in `commands/director.md:235` ("beide
+starten dasselbe Programm, das nur einmal je Maschine laeuft"). Der Riegel
+und der Fakt decken das Projekt; fuer andere Projekte gibt es keinen Beleg
+fuer ein exklusives Betriebsmittel, und die Liste ist abschliessend
+formuliert — sie zu verlaengern kostet jeden Dispatch eine Zeile Kontext
+fuer einen Fall, der bisher nur hier vorkam. Als Beobachtung fuer das
+teamweite Register vermerkt.
+
+**Erfolgskriterium:** In den naechsten zwei Zyklen kein Bericht mit
+Wartezeit auf eine fremde Instanz; jeder Auftrag mit zwei Fensterrollen
+nennt eine Reihenfolge; der Hook hat mindestens einmal ein `deny`
+ausgesprochen (sonst ist er nicht angeschlossen, L-019).
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-005 — Das Klickrezept des `power-user` (DPI-Einheit, Koordinatenquelle, Aufraeumen) steht in keiner Datei, die er liest, und wird in jedem Lauf neu gesucht: fuenf von fuenf Artefaktlaeufen mit Klickproblem, A11 deshalb seit drei Laeufen ohne Nachweis
+
+**Belege (alle power-user-Laeufe am Artefakt seit 14.09.):**
+
+| Lauf | Artefakt | Klickproblem | Kosten |
+|---|---|---|---|
+| T-241d (14.09.) | 1.10.0 | "Klickversatz bei 125 %" — `Save build` oeffnete sich statt Optimize | Ziele 3, 4 kontaminiert |
+| T-265 (15.09.) | 1.12.0 | Durchgang 1 an Schritt 0 gescheitert (Klickversatz); Durchgang 2 mit DPI-aware-Shell traf | ein ganzer Durchgang |
+| T-272 (15.09.) | 1.12.2 | "Klicks rutschten auf das Hauptfenster hinter dem Picker" | Ziel 3 aufgegeben (>20 min) |
+| T-275 (15.09.) | 1.12.3 | Raider-Kachel reagierte nicht (5 Klicks) → QA-279; Retest T-276 mit echter Maus: nicht reproduzierbar | Ziel 1 aufgegeben |
+| T-285b (16.09.) | 1.13.1 | nach einem wirksamen Klick kam keiner mehr an → QA-282 | 5 von 6 Zielen nicht erreicht; Prozesse liefen 22 min nach dem Bericht weiter |
+
+Dazu die Messung aus `T-285-release-manager-clean-room.md` (zweiter Lauf):
+`BoundingRectangle` liefert physische Pixel (2010x1075), `GetWindowRect` aus
+einem nicht DPI-bewussten Prozess virtualisierte (1622x898); erst
+`GetWindowRect`-relative Koordinaten trafen. T-276 (QA) traf mit
+`SetProcessDPIAware` + `SetCursorPos`. Beides passt zusammen: **Prozess
+und Koordinatenquelle muessen dieselbe Einheit haben**; gemischt liegt der
+Klick bei 125 % um ein Fuenftel daneben. Ob T-285b genau so gemischt hat,
+laesst sich nicht sagen — seine Werkzeugzeile nennt weder DPI-Bewusstsein
+noch Koordinatenquelle; das ist Teil des Befunds.
+
+**Ursache:** `agents/power-user.md:186-189` schreibt das Klickmittel vor
+(`SetCursorPos`/`SendInput`), nicht die Einheit und die Koordinatenquelle;
+`commands/director.md:194-195` verbietet, dem `power-user` im Auftrag etwas
+anderes als Persona, Ziele und Zugang zu geben; der `power-user` hat kein
+`Write` und beim naechsten Aufruf keinen Kontext — das Rezept kann also
+**nur** in seiner Definition ueberleben, und dort fehlt es. Ein Ende-Ritual
+(Programm beenden, Prozesse pruefen) fehlt ebenfalls (T-241d hinterliess
+Ordner und Registryschluessel, T-285b zwei Prozesse).
+
+**Massnahme (Kandidat teamweit), `~/.claude/agents/power-user.md`:**
+
+Ersetzen (Z. 186-189):
+> den Fensterinhalt als Text auslesen (`UIAutomation` ueber .NET, z. B.
+> `[System.Windows.Automation.AutomationElement]`) und ueber
+> `SetCursorPos`/`SendInput` klicken, dann die Wirkung wieder als Text ablesen.
+
+durch:
+> den Fensterinhalt als Text auslesen (`UIAutomation` ueber .NET, z. B.
+> `[System.Windows.Automation.AutomationElement]`) und ueber
+> `SetCursorPos`/`SendInput` klicken, dann die Wirkung wieder als Text ablesen.
+> **Prozess und Koordinaten in derselben Einheit:** entweder
+> `SetProcessDPIAware()` vor dem ersten Klick und physische Pixel aus
+> `BoundingRectangle` — oder ohne DPI-Bewusstsein und Koordinaten relativ zu
+> `GetWindowRect` des Programmfensters. Gemischt liegt der Klick bei 125 %
+> um ein Fuenftel daneben, bei kleinen Elementen ins Leere und ohne
+> Fehlermeldung. Nach jedem Klick, der etwas oeffnet oder verschiebt, liest
+> du die Position neu. Deine Werkzeugzeile im Bericht nennt beides:
+> DPI-Bewusstsein und Koordinatenquelle. Am Ende beendest du das Programm
+> und pruefst, dass kein Prozess von dir uebrig ist — eine liegengebliebene
+> Kopie sperrt den naechsten Lauf.
+
+**Streichung dafuer** (Z. 93-97, der Belegabsatz zu Schritt 0):
+> **Belegt am 06.09.2026:** ein sechster Durchgang lief vollstaendig durch,
+> alle sechs Ziele erreicht, wirkte gelungen - und war als Nachweis wertlos,
+> weil kein einziger echter Klick angekommen war. Der Lauf war bezahlt, das
+> Kriterium blieb offen.
+
+wird zu:
+> (Belegt 06.09.2026: ein voller Durchgang, sechs Ziele, kein angekommener Klick.)
+
+Netto +5 Zeilen; der Beleg bleibt als Ausloeser erhalten, die Erzaehlung
+faellt. Kein Hook moeglich: der Fehler zeigt sich erst im Klick, nicht im
+Kommando. **Wer liest es wann:** der `power-user` bei jedem Aufruf — es ist
+die einzige Datei, die er ueberhaupt liest.
+
+**Erfolgskriterium:** Die naechsten zwei power-user-Laeufe an diesem Projekt
+nennen DPI-Bewusstsein und Koordinatenquelle in der Werkzeugzeile und
+erreichen entweder mindestens vier von sechs Zielen oder brechen an
+Schritt 0 ab; kein "aufgegeben wegen Klick" mehr; `Get-Process
+NightreignHelper` ist beim Start der Folgerolle leer.
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-006 — NH-001 wird durch einen Waechter ersetzt: ein Dispatch mit T-Nummer ohne Auftragsdatei wird abgewiesen
+
+**Belege:** Wirkungskontrolle NH-001 oben — 5 von 23 Nummern seit T-263 mit
+Datei; T-285 als Fall mit messbaren Kosten (NH-004, Beleg 4). Viertes
+Vorkommen der Klasse; `_rahmen.md:110-112` verlangt ab dem zweiten einen
+Waechter.
+
+**Ursache:** Die Regel adressiert die Rolle, die am Ende eines Zyklus die
+meisten Dispatches in der kuerzesten Zeit schreibt, und hat keinen
+Pruefpunkt — der Nachtrag "Datei spaeter" ist immer moeglich und wird
+deshalb zur Regel.
+
+**Massnahme (Kandidat teamweit, Team-Repo):** neuer Hook
+`~/.claude/hooks/require-task-file.ps1`, registriert in
+`~/.claude/settings.json` als `PreToolUse` mit Matcher `Agent|Task`:
+
+> Liest `tool_input.prompt`. Existiert im Arbeitsverzeichnis kein
+> `docs/tasks/`, Ende ohne Befund. Sonst: hoechste `T-\d{3}` im Prompt
+> (die neue Nummer ist immer die hoechste; aeltere sind Quittungen und
+> duerfen fehlen). Fehlt `docs/tasks/T-###.md`, `deny` mit:
+> `[auftragsdatei] docs/tasks/T-###.md fehlt (NH-001). Vorlage:
+> cp ~/.claude/templates/task.md docs/tasks/T-###.md — Felder Parallel und
+> Testumgebung ausfuellen, dann dispatchen.`
+> Ein Dispatch ohne T-Nummer passiert — das ist die sichtbare Ausnahme fuer
+> Triviales, und `check-handoff.ps1` faengt einen Bericht mit `AUFTRAG:`
+> ohne Nummer.
+
+Der Riegel muss beissen: einmal mit fehlender Datei dispatchen und das
+`deny` zeigen. Nach L-019 gilt: ohne Eintrag in `settings.json` existiert
+der Hook nicht.
+
+**Streichung:** `docs/plan-restarbeiten.md:205-207` (NH-001 als Prosa mit
+Bruchbilanz) wird zu einer Zeile: "NH-001: Waechter
+`require-task-file.ps1` (16.09.)". Kein weiterer Text im Director.
+
+**Wer liest es wann:** niemand; der Hook feuert beim Dispatch.
+
+**Erfolgskriterium:** In zwei Zyklen tragen alle T-Nummern aus den
+Commit-Botschaften des Zyklus eine Datei in `docs/tasks/` (Zaehlung wie
+oben); kein Commit "Auftragsdatei nachgetragen".
+
+**Status:** vorgeschlagen
+
+---
+
+### Beobachtungen (noch kein Muster)
+
+- **Bash-Heredoc mit dem EXE-Namen vom Umlenkungs-Hook gesperrt — zwei
+  Vorkommen am 16.09.:** der Director bei der Buchfuehrung, und diese
+  Retrospektive beim ersten Anhaengen dieses Abschnitts (Ausweg:
+  Scratchpad-Datei per `Write`, dann `cat >>`). `enforce-data-redirect.ps1:67`
+  haelt jede Kommandozeile mit dem EXE-Namen fuer einen Start — auch eine, die
+  Doku schreibt. Fuer den Director steht die Regel schon:
+  `commands/director.md:223-225` ("Dateien aenderst du mit `Edit` und
+  `Write` … nicht mit Ersetzungsskripten ueber Bash"); fuer eine Rolle, die
+  eine Datei nur anhaengt, ist `Write` mit Vollinhalt teuer (diese Datei:
+  1502 Zeilen). **Keine Massnahme**: NH-004 (a) fuehrt ohnehin eine engere
+  Startmaske `$istExeKommando` ein; wird sie auch fuer die Umlenkungspruefung
+  benutzt, verschwindet der Fehlalarm. Beim dritten Vorkommen ist das die
+  Massnahme.
+- **Werkzeugbefunde sammeln sich im QA-Register als "zurueckgestellt —
+  Werkzeug"** (QA-256 P4, QA-279 P2 geschlossen, QA-282 P3, dazu QA-241 und
+  QA-271 "Team-Repo"). Das ist ApplicationHelper L-022 in Projektform
+  ("Werkzeugfehler steht als Programmbefund im QA-Register"). Vorerst nur
+  vermerkt: NH-004 und NH-005 loesen drei davon; bleiben nach dem naechsten
+  Zyklus weitere liegen, braucht das Register eine Spalte oder einen
+  eigenen Abschnitt "Werkzeug".
+- **T-283a: UIA fand die Heldenkacheln nicht unter `ControlType.Button`**,
+  Live-Probe fuer AK-312 abgebrochen, Quellbeleg genuegte. Dieselbe
+  Werkzeugfamilie wie NH-005, andere Rolle; ein Vorkommen.
+- **T-285a hat 28 Minuten gepollt statt `blockiert` zu melden** —
+  `_rahmen.md:37-39` setzt 10 Minuten als Obergrenze, `_rahmen.md:102-103`
+  nennt `blockiert` ein Ergebnis. Zweites Vorkommen nach T-241 (19/23 min).
+  Der NH-004-Riegel macht das Warten unmoeglich; falls er nicht kommt, ist
+  das beim dritten Mal ein eigenes Muster.
+- **Fuer das teamweite Register:** "exklusives Betriebsmittel" als vierter
+  Grund fuer Reihenfolge in `director.md:235` — hier verworfen (NH-004);
+  tritt derselbe Fall in einem zweiten Projekt auf, ist der Ort dort.
+- **Kollision L-019/L-020** (Kopf dieses Abschnitts): der Auftrag an diese
+  Retrospektive verlangte "L-Nummern fortsetzen". Der Director liest diese
+  Datei am Zyklusende; die Nummernregel steht in `_rahmen.md:113`. Ein
+  Satz im Retrospektive-Dispatch ("Projektnummern NH-") wuerde reichen — er
+  gehoert in den Director-Text nur, wenn es noch einmal passiert.
