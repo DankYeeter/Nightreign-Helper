@@ -379,6 +379,54 @@ A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
 
 ---
 
+## 1.13.1 — 2026-09-16, T-285c, Modus `notes`
+
+Stand `cdf4f50`. Artefakt (T-282) `dist/NightreignHelper.exe`,
+59.201.630 B, SHA-256
+`71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C`.
+`AUFLAGEN.md` gegen Stand 16.09. gelesen: **keine Auflage steht auf ROT**;
+Gesamtampel des letzten Auflagenlaufs (T-283c, `1f51485`) ist GELB und
+sperrt weder diesen `notes`-Lauf noch den Bau. Kein Release, kein Push,
+keine Weitergabe in diesem Lauf (Auftrag: nur `notes`).
+
+### Migration von 1.7.1 (letztes oeffentliche Release, `gh release list`) bis 1.13.1
+
+1.13.1 ist das 13. Release; das zwoelfte und bislang letzte oeffentliche war
+`v1.7.1` (24.08.2026). Ein Nutzer, der seit `v1.7.1` nicht aktualisiert hat,
+ueberspringt beim Update auf 1.13.1 alle Zwischenversionen auf einmal. Drei
+Speicherorte geprueft, Quelle je `git show <tag>:<pfad>` gegen den heutigen
+Stand:
+
+| Ort | Bei 1.7.1 | Bei 1.13.1 | Wirkung beim ersten Start |
+|---|---|---|---|
+| `QSettings`-Organisation/Schluessel (`nrplanner/favourites.py:25`, `paths.py:15`) | `ORG = "DankYeeter"`, `APP_NAME = "NightreignHelper"` | **unveraendert** (Diff `v1.7.1..HEAD` auf beide Dateien: nur eine neue Hilfsfunktion `favourites.parts()` fuer Custom-Relikte hinzugekommen, kein Format- oder Ortswechsel) | Bestehende Favoriten, Fenstergroesse und UI-Skalierung werden unveraendert weitergelesen |
+| Gefaess-/Build-Store (`nrplanner/chalices.py`) | **kein Schema** (`SCHEMA_KEY`/`CURRENT_SCHEMA` existieren in `v1.7.1` nicht; Schluessel = Klartextname) | `CURRENT_SCHEMA = CASE_SAFE_KEYS = "3"`; Schluessel URL-kodiert, Vergleich case-gefaltet; Feldformat um ein optionales Suffix `TWO_HANDED = "2H"` erweitert (`_encode`/`_decode`, Z. 458-479) | Erster Zugriff auf einen Helden migriert dessen Schluessel automatisch (`_migrate_keys`, Fundstelle bereits im 1.10.0-Abschnitt oben verifiziert: gleicher Mechanismus, unveraendert seit 1.11.0). Ein 1.7.1-Build ohne `2H`-Suffix decodiert **einhaendig** (`_decode` Z. 477: `two_handed = parts[-1] == TWO_HANDED`, sonst `False`) — der Build erscheint nach dem Update als einhaendig gesetzt, nicht als beschaedigt. **Am Code verifiziert, nicht an einem echten Schema-losen 1.7.1-Datensatz** (kein 1.7.1-Artefakt mehr im Zugriff dieses Laufs) |
+| Datenabzug-Cache (`nrdata/extract.py:84`, `%LOCALAPPDATA%\NightreignHelper`) | `EXTRACT_VERSION = 8` | `EXTRACT_VERSION = 12` | Der Vergleich laeuft automatisch beim Start (`nrplanner/firstrun.py`, `datasource.py`, unveraendert seit dem 1.10.0-Abschnitt oben); die gespeicherte Version im Snapshot (8) weicht von der aktuellen (12) ab, der Cache wird verworfen und neu gebaut — rund eine Minute mit Fortschrittsanzeige, wie beim Ersteinrichten. Kein Datenverlust, nur Wartezeit |
+
+**Was ein 1.7.1-Nutzer beim ersten Start von 1.13.1 erlebt, zusammengefasst:**
+SmartScreen wie gehabt, dann einmalig rund eine Minute Neuextraktion des
+Datenabzugs (EXTRACT_VERSION-Sprung), danach ein Fenster mit allen
+bestehenden Kelchen/Builds — automatisch auf das neue Schluesselformat
+umgeraeumt und, sofern ohne `2H`-Suffix gespeichert, auf einhaendig gesetzt.
+Favoriten, Fenstergroesse und die neuen Effektmarkierungen (Favourite/Avoid,
+seit 1.11.0/1.13.0 im eigenen Filters-Fenster) sind ohne Migrationsschritt
+vorhanden, weil ihr `QSettings`-Schlussel sich nie geaendert hat. **Kein
+Datenverlust in der Kette; die einzige nicht an einem echten 1.7.1-Artefakt
+gepruefte Stelle ist die Schema-lose→Schema-3-Migration selbst** (deckt sich
+mit L2 aus dem 1.8.0-Abschnitt, dort erstmals benannt).
+
+### Ergebnis
+
+Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe: A-008/A-020/A-023/A-030/
+A-031/A-033/A-035 aus `AUFLAGEN.md` (T-283c, GELB) — A-023 verlangt, dass der
+`release-manager` Variante A aus `docs/release/RELEASE_BODY.md` von Hand an
+den Anfang der Release-Beschreibung setzt, `generate_release_notes` tut das
+nicht. **Ungeprueft:** ein echter `clean-room`-Update-Lauf 1.7.1 → 1.13.1 an
+gebauten Artefakten (kein 1.7.1-Artefakt mehr lokal vorhanden; laeuft laut
+Auftrag parallel beim `power-user`/`clean-room`).
+
+---
+
 ## 1.12.3 — 2026-09-15, Modus `notes`
 
 Stand `4b65523`, Code-Commit `2907a66`. Artefakt `dist/NightreignHelper.exe`,

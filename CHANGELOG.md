@@ -4,6 +4,35 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.13.1] - 2026-09-16
+
+### Added
+- The Filters window now explains, in a line under the search field, that
+  Favourite and Avoid control the relic advisor's suggestions and are
+  separate from the star on a relic card.
+
+### Internal
+- Releases are now only built after the full automated test suite has
+  passed; the release workflow's own test dependencies are pinned to exact
+  versions, and it no longer keeps the upload token available once the
+  tests are done.
+
+## [1.13.0] - 2026-09-15
+
+### Added
+- A new Filters window lists every effect and curse carried by relics you
+  own, one row each, with checkboxes to mark it **Favourite** or **Avoid**
+  for the relic advisor; it has its own search field, a count of active
+  marks, and is sorted by name. It replaces the per-line marking dots on
+  relic cards and in a relic's "Why" dialog, which are now plain read-only
+  text. Existing marks are kept.
+- Enter now selects a focused Nightfarer tile, the same as Space already
+  did.
+
+### Changed
+- The advisor's "Must include"/"Don't include" marks are now called
+  **Favourite** and **Avoid** everywhere they appear.
+
 ## [1.12.3] - 2026-09-15
 
 ### Changed
