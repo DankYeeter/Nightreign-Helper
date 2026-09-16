@@ -5709,3 +5709,28 @@ vermeintlichen automatischen Heldenwechsel, siehe Begruendung oben.
 
 ---
 
+
+#### AK-313 — Das Filterfenster sagt, was `Favourite`/`Avoid` hier tun (Nutzer 16.09.2026)
+
+**AK-313** *(A21, Nachtrag zu AK-300/AK-304: der Nutzer nimmt die Woerter an,
+aber "es soll klar sein, dass sie innerhalb ihrer Funktion favorisiert
+sind" — `Favourite` im Filterfenster ist nicht der Stern je Relikt.)*
+Unter dem Suchfeld, oberhalb der Tabelle, steht eine einzeilige, nicht
+fokussierbare Erklaerung (`QLabel`, `wordWrap`, gedaempfte Textfarbe wie
+`COPIES_DEFINITION`):
+
+`Favourite: every suggestion must include this effect. Avoid: it never
+counts. These marks steer Optimize only — they are not the star on a relic.`
+
+Die Spaltenueberschriften `Favourite`/`Avoid` bleiben (AK-304), die
+Tooltips aus T-277b bleiben. Startgroesse AK-303 bleibt; waechst die Hoehe
+durch die Zeile, wird `OPENING_SIZE` nachgezogen und im Bericht gemessen.
+
+**Akzeptanzkriterien:**
+- Der Wortlaut steht exakt so im Fenster, in einer Konstante des Moduls,
+  testbar ohne Anzeige.
+- Die Zeile ist per Tab nicht erreichbar und veraendert die Tab-Reihenfolge
+  Suchfeld → Tabelle → Knoepfe nicht.
+- Auf 1366×768 bleibt das Fenster vollstaendig sichtbar (AK-303).
+
+---
