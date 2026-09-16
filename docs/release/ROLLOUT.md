@@ -306,10 +306,8 @@ echte Releases scheitern.
    Faelle, aus denen QA-003, QA-046 und die Migration entstanden sind) →
    beenden → neue EXE darueber → starten → **sind alle Builds unter ihren
    Namen da?** Danach `reg query` auf `__schema`: steht `3`.
-4. Zweitstart nach Neustart der Umgebung. Die Einzelinstanz-Sperre haengt an
-   einem maschinenweiten `QSharedMemory`-Schluessel
-   (`nrplanner/singleinstance.py:32`): eine noch laufende Entwicklungsfassung
-   faengt den Start ab, und der Test misst nichts.
+4. Zweitstart nach Neustart der Umgebung — siehe CLAUDE.md, Abschnitt
+   "Datenverzeichnisse und Umlenkung" (QA-256, NH-004).
 5. Aufraeumen: Verzeichnis, Wegwerf-`LOCALAPPDATA`, Test-Organisation in der
    Registry, etwaige Verknuepfung. Was liegen bleibt, kommt in den Bericht.
 

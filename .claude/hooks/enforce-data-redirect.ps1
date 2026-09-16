@@ -77,6 +77,25 @@ $istFensterMessskript = $cmd -match
 
 if (-not ($istQuellstart -or $istExeStart -or $istFensterMessskript)) { exit 0 }
 
+# NH-004: die Instanzsperre ist maschinenweit (nrplanner/singleinstance.py,
+# KEY). Ein zweiter Start endet stumm, und die Rolle wartet (T-241d 23 min,
+# T-285a 28 min). Bei laufender Kopie wird der Start abgewiesen, damit die
+# Rolle sofort `blockiert` meldet statt zu pollen. Nur fuer Startformen, in
+# denen die EXE das Kommando ist - Hash- und ls-Aufrufe nennen sie als Argument.
+$istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
+if ($istQuellstart -or $istFensterMessskript -or $istExeKommando) {
+    $laeuft = @(Get-Process -Name NightreignHelper -ErrorAction SilentlyContinue)
+    $laeuft += @(Get-Process -Name python, pythonw -ErrorAction SilentlyContinue |
+                 Where-Object { $_.MainWindowTitle -like 'Nightreign Helper*' })
+    if ($laeuft.Count -gt 0) {
+        $wer = ($laeuft | ForEach-Object { "$($_.ProcessName) PID $($_.Id) seit $($_.StartTime.ToString('HH:mm:ss'))" }) -join ', '
+        $out = @{ hookSpecificOutput = @{
+            hookEventName = 'PreToolUse'; permissionDecision = 'deny'
+            permissionDecisionReason = "[instanzsperre] Nightreign Helper laeuft bereits ($wer); ein zweiter Start endet stumm (QA-256). Nicht warten, kein Stop-Process auf fremde PIDs: STATUS blockiert melden, der Director reiht die Fensterlaeufe." } }
+        [Console]::Out.WriteLine(($out | ConvertTo-Json -Compress -Depth 5)); exit 0
+    }
+}
+
 $fehlend = @()
 if ($cmd -notmatch '\bNIGHTREIGN_SETTINGS_ORG\b\s*=') { $fehlend += 'NIGHTREIGN_SETTINGS_ORG' }
 if ($cmd -notmatch '\bLOCALAPPDATA\b\s*=') { $fehlend += 'LOCALAPPDATA' }

@@ -61,6 +61,13 @@ die jeweilige Projekt-/Worktree-Wurzel); fehlt die Hook-Datei trotzdem, liefert
 er `deny`. Handregel (Variablen von Hand setzen) nur noch für einen Checkout
 ohne `.claude/`-Ordner.
 
+**Ein Fensterlauf je Zeitpunkt (QA-256, NH-004):** Die Instanzsperre ist
+maschinenweit (`nrplanner/singleinstance.py`, `KEY`); ein zweiter Start
+endet stumm, der Hook weist ihn ab, solange eine Kopie läuft.
+`qa-engineer` am Artefakt, `power-user` und `release-manager` `clean-room`
+stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
+`notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
+
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
 (841 Dateien, 20 849 867 Bytes, `EXTRACT_VERSION` 12, gebaut von 1.12.1 am
 15.09.2026, T-269a; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
