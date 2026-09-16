@@ -1,4 +1,8 @@
-STATUS: teilweise - Kernschritte (2-4) durch Fremdprozess blockiert, nicht bestanden und nicht nachgewiesen
+STATUS: fertig - Zweiter Lauf (18:10, nach Freigabe durch den Koordinator: fremde
+Prozesse beendet) hat die Schritte 1-4 vollstaendig nachgeholt, siehe Abschnitt
+"Zweiter Lauf 18:10" unten. Erster Lauf (siehe unten) blieb an Schritten 2-4
+blockiert und ist als Beleg fuer den real eingetretenen Instanzsperren-Konflikt
+stehen gelassen.
 AUFTRAG: T-285a - clean-room-Lauf gegen dist/NightreignHelper.exe 1.13.1 mit
 Update-Weg (release-manager, Modus `clean-room`)
 GELESEN: docs/legal/AUFLAGEN.md (vollstaendig, 559 Zeilen; juengster Abschnitt
@@ -203,3 +207,128 @@ nicht ab.
    anderem Prozessnamen arbeiten (das aendert Anwendungscode/Build und ist
    damit Sache des `developer`, keine Ad-hoc-Loesung von mir).
 4. Kein Tag-Vorschlag (nicht `notes`-Modus).
+
+---
+
+## Zweiter Lauf 18:10 - Schritte 1-4 nachgeholt
+
+Auftrag des Koordinators: fremde Prozesse (PID 21136/26972, verwaister
+power-user-Lauf) beendet, `Get-Process NightreignHelper` lieferte vor Beginn 0
+Treffer (gegengeprueft). Gleiche Umlenkung wie im ersten Lauf, neu aufgesetzt
+(derselbe Scratchpad-Pfad `...\scratchpad\T-285a\`, da der erste Lauf ihn schon
+aufgeraeumt hatte).
+
+**Methodik-Nachtrag (neu gegenueber T-241/T-265):** `InvokePattern.Invoke()` auf
+den Qt-`Save`-Knopf loeste **keine sichtbare Reaktion** aus (kein neues Fenster
+in mehreren Pruefdurchlaeufen, `LegacyIAccessiblePattern` in dieser
+PowerShell-Umgebung nicht auffindbar). Ein echter, koordinatenbasierter
+Mausklick (`SetCursorPos`/`mouse_event`) **hat funktioniert**, aber erst nach
+Korrektur eines DPI-Fallstricks: `AutomationElement.Current.BoundingRectangle`
+lieferte physisch skalierte Koordinaten (2010x1075), waehrend `GetWindowRect`
+aus demselben (nicht DPI-aware) PowerShell-Prozess virtualisierte Koordinaten
+lieferte (1622x898) - identisch mit dem, was `PrintWindow` zeichnet. Erst mit
+`GetWindowRect`-relativen Klickkoordinaten traf der Klick den Knopf. Der
+Save-build-Dialog erschien danach zuverlaessig, wurde aber von einer
+`AutomationElement.RootElement.FindAll(Children, Name="Save build")`-Suche
+**nicht gefunden** - Qt parentet den Dialog offenbar so, dass er in der
+UIA-Baumstruktur nicht als Kind des Desktop-Root erscheint, sondern nur ueber
+`WindowFromPoint`/`GetForegroundWindow` auffindbar war. Texteingabe erfolgte
+per `SendKeys.SendWait`, Bestaetigung per `{ENTER}`. **Fuer kuenftige
+`clean-room`-Laeufe festgehalten**, damit nicht erneut zwei blockierte
+InvokePattern-Versuche Zeit kosten.
+
+### Ergebnis je Schritt (Zweiter Lauf)
+
+**0. Isolierung** - bestanden, wie im ersten Lauf beschrieben (keine VM/kein
+neues Konto, `PATH` nicht geleert).
+
+**1. Nur die EXE, Installation nach README** - bestanden. 1.11.0
+(59.105.391 B, SHA `F23EB0F7...6E8E0`, erneut gegen T-265 verifiziert) in das
+leere Scratchpad-Verzeichnis kopiert, gestartet, Fenstertitel "Nightreign
+Helper 1.11.0" erschien sofort mit vollstaendig geladener Oberflaeche
+(Screenshot `diag1.png`, nur per `PrintWindow` aus dem eigenen Programmfenster,
+NH-002-konform, nicht ins Repo uebernommen). "You own 313 relics in total" -
+der echte Spielstand wurde trotz umgelenktem `APPDATA` gefunden (bekannter
+Befund aus T-241/T-265, `savefile.py`-Fallback, reiner Lesezugriff, siehe
+"Risiken").
+
+**2. Starten, schreibende Aktion, beenden, neu starten** - bestanden. Vier
+Builds ueber den **Save**-Knopf gespeichert: `CleanroomT285a1`,
+`Name/WithSlash`, `Name|WithPipe`, `UPPERCASE`. Registry-Beleg
+`HKCU\Software\DankYeeterT-285a\NightreignHelper\builds\1`: alle vier Namen
+korrekt Percent-kodiert (`%4Eame%2F%57ith%53lash` usw.), `__schema=3`,
+`__order` in Speicherreihenfolge, `__selected` zeigt den zuletzt gespeicherten
+Build. App sauber per `WindowPattern.Close()` beendet, `Get-Process` danach
+leer.
+
+**3. Update-Weg 1.11.0 -> 1.13.1, Kern des Laufs** - bestanden. `dist/NightreignHelper.exe`
+1.13.1 (59.201.630 B, SHA `71E82029...67E1C`, in derselben Kommandozeile
+gegengeprueft) ueber die 1.11.0-Datei kopiert, gestartet. Fenstertitel zeigte
+kurz einen Zwischenzustand ("Nightreign Helper" ohne Version, dann leer), nach
+rund 40 s stabil "Nightreign Helper 1.13.1" - laengere Ladezeit als ein reiner
+Warmstart, plausibel durch Neuaufbau/Pruefung des Datenabzugs zwischen den
+Versionen (EXTRACT_VERSION-Differenz 1.11.0 vs. aktuell 12, nicht am Code
+nachgemessen, nur an der Wartezeit beobachtet - siehe "Ungeprueft"). **Alle
+vier Builds unter ihren Namen vorhanden**: Registry unveraendert (`__schema`
+weiterhin `3`, `__order` identisch, `__selected` weiterhin `UPPERCASE`) und im
+Screenshot (`diag6.png`) die Build-Auswahl "UPPERCASE" bestaetigt, dazu neu in
+1.13.1: der "Filters"-Knopf (1.13.0/1.13.1-Feature) und die 1H/2H-Anzeige
+("56 1H / 58 2H") - beides plausibel zur CHANGELOG-Beschreibung, kein Hinweis
+auf Datenverlust.
+
+**4. Zweitstart nach Neustart der Umgebung** - bestanden, mit der bekannten
+Einschraenkung (kein echter OS-Neustart, nur vollstaendiges Prozessende).
+App vollstaendig beendet (`Get-Process` leer, gegengeprueft), erneut
+gestartet unter derselben Umlenkung - Fenster "Nightreign Helper 1.13.1"
+erschien nach rund 4 s (warmer Cache), alle vier Builds unveraendert in der
+Registry (`__schema=3`, `__order` identisch, `__selected` unveraendert).
+
+**5. Aufraeumen** - bestanden. Scratchpad `...\scratchpad\T-285a\` vollstaendig
+geloescht (Ordner nach dem Lauf nicht mehr vorhanden, uebergeordnetes
+Verzeichnis gegengeprueft). Registryschluessel `HKCU\Software\DankYeeterT-285a`
+vollstaendig geloescht (`Test-Path` -> `False`). Kein eigener Prozess mehr
+aktiv (`Get-Process -Name NightreignHelper` leer). Echte Nutzerdaten
+gegengeprueft: `HKCU\Software\DankYeeter\NightreignHelper` weiterhin
+vorhanden (`Test-Path` -> `True`, Inhalt nicht erneut ausgelesen - Positivnachweis
+genuegt laut CLAUDE.md); echtes `%LOCALAPPDATA%\NightreignHelper` weiterhin
+vorhanden. Keine der vier Diagnose-Screenshots (`diag1-6.png`) wurden ins Repo
+uebernommen; sie lagen ausschliesslich im geloeschten Scratchpad.
+
+### Aktualisiertes Urteil
+
+**Freigeben mit benannter Einschraenkung.** Der Update-Pfad 1.11.0 -> 1.13.1
+ist jetzt am echten Artefakt belegt, inklusive der drei Sonderfall-Namen
+(`/`, `|`, Grossbuchstaben) und `__schema`-Bestand - genau der Punkt, an dem
+laut Ablaufplan "echte Releases scheitern". Kein Datenverlust beobachtet.
+
+### Ungeprueft (Zweiter Lauf, zusaetzlich zu den bereits bekannten Punkten)
+
+- Ob die laengere Ladezeit beim Update-Start (~40 s) tatsaechlich an einer
+  EXTRACT_VERSION-Migration lag oder an etwas anderem - nur die Wartezeit
+  beobachtet, nicht am Code/Log nachgemessen.
+- Echter Windows-Neustart, neues Benutzerkonto, VM/Container - wie immer nicht
+  verfuegbar.
+- SmartScreen-Dialog - nicht ausgeloest (kein Download aus dem Internet in
+  dieser Sitzung, nur lokale Kopie).
+- 1H/2H-Voreinstellung fuer die vier neu angelegten Builds im Detail (sie
+  wurden mit 1.11.0 angelegt, also vor der 2H-Funktion; die UI zeigte nach dem
+  Update keine Fehlermarkierung, eine gezielte Pruefung der Handedness-Spalte
+  je Build wurde nicht durchgefuehrt).
+
+### An `power-user` (aktualisiert)
+
+Ausgangspunkt unveraendert `dist/NightreignHelper.exe`, 59.201.630 B, SHA-256
+`71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C` - **nicht
+loeschen, nicht neu bauen**. Instanzsperre ist maschinenweit: vor eigenem Start
+`Get-Process NightreignHelper` pruefen.
+
+### An `director` (aktualisiert)
+
+**Empfehlung: freigeben mit benannter Einschraenkung.** Alle fuenf
+Ablaufschritte im zweiten Lauf bestanden, Update-Pfad inklusive
+Sonderzeichen-Namen und Zweitstart belegt. Einschraenkungen: keine echte
+Isolierung (Konto/VM), kein echter OS-Neustart, SmartScreen nicht ausgeloest,
+laengere Update-Ladezeit nicht auf ihre Ursache zurueckgefuehrt. Der
+Ablaufkonflikt aus dem ersten Lauf (maschinenweite Instanzsperre bei
+parallelen Rollen) bleibt als Prozessbefund bestehen und sollte bei kuenftiger
+Terminplanung beruecksichtigt werden.
