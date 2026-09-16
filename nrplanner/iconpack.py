@@ -32,6 +32,40 @@ def _read_with_retries(path: pathlib.Path, attempts: int = 4) -> bytes | None:
     return None
 
 
+def inside_pack(base: pathlib.Path, filename: str | None) -> pathlib.Path | None:
+    """The file a manifest entry names, or None if it names another place.
+
+    Every file name here comes out of manifest.json, which is an ordinary
+    file in an ordinary folder: anything that can write there decides which
+    paths this program opens. Joined straight onto the pack folder,
+    "..\\..\\somewhere\\secret.png" and "C:\\somewhere\\secret.png" both
+    leave it -- the second silently, because joining an absolute path onto a
+    folder discards the folder (SEC-008).
+
+    So the join is not trusted; the result is resolved and has to still be
+    under `base`, which the caller hands over resolved. Resolving both sides
+    is what makes that a fact rather than a spelling comparison -- a junction
+    or a "." in the middle changes the text without changing where it lands.
+
+    A name that is absolute, rooted or climbs is refused on sight, before
+    that: `resolve()` stats what it resolves, and for a UNC name that is a
+    question to the network, asked at every launch (SEC-046). Shared with the
+    launch check in `firstrun`, which walks the same manifest and must refuse
+    the same names.
+    """
+    if not filename:
+        return None
+    name = pathlib.PurePath(filename)
+    if name.drive or name.root or ".." in name.parts:
+        return None
+    try:
+        path = (base / filename).resolve()
+    except (OSError, ValueError):
+        # A name Windows will not even resolve is not one of ours.
+        return None
+    return path if path.is_relative_to(base) else None
+
+
 class IconPack:
     @staticmethod
     def locate() -> pathlib.Path:
@@ -71,13 +105,16 @@ class IconPack:
     def available(self) -> bool:
         return bool(self.manifest["portraits"] or self.manifest["items"])
 
+    def _inside_pack(self, filename: str | None) -> pathlib.Path | None:
+        return inside_pack(self.dir.resolve(), filename)
+
     def _pixmap(self, filename: str | None) -> QPixmap | None:
         if not filename:
             return None
         if filename in self._cache:
             return self._cache[filename]
-        path = self.dir / filename
-        if not path.exists():
+        path = self._inside_pack(filename)
+        if path is None or not path.exists():
             return None
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
@@ -114,11 +151,8 @@ class IconPack:
 
     def ui_path(self, sprite: str) -> str | None:
         """Absolute path of a UI sprite, for embedding in rich text."""
-        filename = self.manifest.get("ui", {}).get(sprite)
-        if not filename:
-            return None
-        path = self.dir / filename
-        return str(path) if path.exists() else None
+        path = self._inside_pack(self.manifest.get("ui", {}).get(sprite))
+        return str(path) if path is not None and path.exists() else None
 
     def ui(self, sprite: str) -> QPixmap | None:
         """One of the game's own UI sprites, by its sprite name."""

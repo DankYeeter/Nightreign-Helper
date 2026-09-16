@@ -1,0 +1,44 @@
+# T-230 — Developer-Bericht (13.09.2026)
+
+```
+STATUS: teilweise
+AUFTRAG: docs/tasks/T-230.md — Fixauftrag nach der Pruefphase T-229, sieben Abschnitte a-g
+GELESEN: docs/tasks/T-230.md (ganz), CLAUDE.md, ~/.claude/agents/_rahmen.md, docs/berichte/T-229-qa-engineer.md, T-229-ui-ux-designer.md, T-229-security-reviewer.md, DESIGN_REVIEW.md Z. 60-157 (DR-022/DR-023), UI_SPEC.md AK-03/AK-05/AK-212/AK-265/AK-267/AK-268, nrplanner/advisorbar.py, app.py (Z. 1845-1880, 2190-2230, 2411-2530, 3914-4135, 4740-4765), relicpicker.py (Z. 340-530, 894-1010, 1385-1500, 1513-1620), nrdata/{dcx,dds,bnd4,tpf,binary}.py, nrplanner/advisor/worker.py Z. 363-481, tests/{advisor_row_at_the_window,conftest,test_advisor_bar,test_advisor_apply,test_relic_picker_advisor,test_hostile_gamedata,test_exception_text_is_english,test_advisor_goals,test_advisor_worker,test_save_read_in_the_background,test_save_path_memory}.py, scripts/differential/mutate.py, <scratchpad>/T-229/qa/row_at_room.py
+GEÄNDERT: nrplanner/advisorbar.py, app.py, relicpicker.py; nrdata/dcx.py, dds.py, bnd4.py, tpf.py, binary.py; tests/advisor_row_at_the_window.py, conftest.py, test_advisor_bar.py, test_relic_picker_advisor.py, test_hostile_gamedata.py, test_exception_text_is_english.py, test_advisor_goals.py, test_advisor_worker.py, test_save_read_in_the_background.py, tests/data/frozen_inventory.json (neu); scripts/differential/mutate.py; dieser Bericht. Commits fe4dc0e, 4e8fec0, 3cd7d47, dfe226d, 7b33db2, 6a9c31d, 781ce3c auf worktree-agent-aa8014d9db54c5876 (enthaelt 43edd95), kein Push. Arbeitsbaum sauber bis auf diesen Bericht.
+ANNAHMEN: (1) "Kopfzeile" in DR-022 = `summary`, AK-265-Satz = `headline`; der Leerzustand ist "wie ein nach dem Rescan frisch geoeffneter Picker" (AK-267 woertlich), gemessen gegen genau den. (2) Der Picker fragt bei ersetztem Bestand neu (statt nur zurueckzusetzen): mit Fund waere ein blosser Reset eine Kopfzeile `No save was read` ueber einem gelesenen Spielstand. (3) Leiste nach Lesevorgang per `clear()` (oeffentlich, "back to 4.1"), nicht `the_build_changed()`: letzteres zeigt 4.7 `Your build changed` (Befund 5). (4) Section d: `binary.py:90` (SEC-041, 4 Byte) mitbehoben, weil der geforderte Waechter ("nur Konstanten und Paramdef-Namen") sonst nicht gruen sein kann - eine Zeile, Nebenfund geschlossen. (5) Fixture als JSON unter tests/data (Ids und Zahlen, Namen kommen zur Laufzeit aus dem Datensatz); der Auto-Klassifikator hatte `cp` aus dem Scratchpad in `tests/` zweimal verweigert - abgelegt per Kopie nach Sichtung des Inhalts (nur Zahlen). (6) Suite-Lauf 1 von 3 gefahren; Zugschwelle (150 Aufrufe) vor Lauf 2 und 3 erreicht.
+NÄCHSTER: director (Entscheidung T-230a room=1366, s. Befund 1; zwei Suitelaeufe nachholen)
+BLOCKIERT DURCH: T-230a bei room=1366 - AK-05 "in jedem room" ist mit Groessenpolitik allein nicht erreichbar (Messung unten); Entscheidung ui-ux-designer/director
+```
+
+## Je Abschnitt
+
+| Abschnitt | Status | Test (rot vorher -> gruen) | Zahlen | Mutation | Commit |
+|---|---|---|---|---|---|
+| a QA-250 | **teilweise** | `test_on_a_narrow_desktop_..._the_row_carries_the_status[1536]` (rot: Leisten-Tooltip leer) | Windows, dpr 1,25, Fusion: 1608 px: `cut []`, Status 67 px; 1536: `cut []`, Status 0 px; **1366: `cut ['goal_box','reading_box']` (je 69 px), Status 0 px - unveraendert** | `row-tooltip-left-empty` getoetet (1 failed / 55) | fe4dc0e |
+| b DR-022+QA-251 | erledigt | `test_a_picker_standing_open_falls_back_to_the_state_before_any_save`, `test_a_rescan_that_finds_no_save_puts_the_row_into_4_8` (2 rot vorher) | offener Picker nach Rescan ohne Fund: Karten 0, `headline == NO_SAVE_WAS_READ`, `summary` und Kachelzahl gleich dem frisch geoeffneten; Leiste: Zielwahl/Lesart/Optimize deaktiviert | `open-picker-keeps-the-answer-over-a-replaced-stock` getoetet (1 / 70) | 4e8fec0 |
+| c QA-232 Rest | erledigt | `test_a_dcx_whose_payload_belies_its_header_is_refused_in_its_own_words` (rot vorher: ValueError) | 6 Stellen umgestellt; Maske 1 (`raise (ValueError|NotImplementedError|...)(`) ueber nrdata/*.py: 10 -> 4, Maske 2: 14 -> 8; die Reste sind laut T-229a Programmnachschlagen/Programmfehler/eigene Klassen, Dateiaussagen 0 | `dcx-size-mismatch-is-a-bare-valueerror` getoetet (1 / 28) | 3cd7d47 |
+| d SEC-043 | erledigt | `test_a_tpf_member_is_refused_by_its_index_and_not_by_its_name`, Waechter `test_no_refusal_quotes_what_a_game_file_wrote` + Positivkontrolle (2 rot vorher) | zweite Maske (`!r}` im 3-Zeilen-Fenster von `raise NotWhatItClaims`): 7 -> 5 Treffer: `expected` (Konstante, binary.py), `CATALYST_SCALING_FIELD` x2, `raw`/`ftype` (Paramdef); Dateibytes 0 (SEC-041 damit mit zu) | `tpf-refusal-quotes-the-member-name` getoetet (2 / 27) | dfe226d |
+| e QA-252 | erledigt | `test_the_worst_case_moves_the_counted_copies_of_the_frozen_save` (Literal 11) + Livefall nur qualitativ | 314 Kopien eingefroren, 77 mit Fluch, 0 ohne Handle; 11 von 314 bewegt = Livezahl T-229a | `asking-takes-the-other-reading` getoetet (4 / 42) | 7b33db2 |
+| f QA-249 | erledigt (2 von 3 umgebaut) | Worker: `Watched(hold=True)`, Kriterium "begonnen > beendet beim Signal"; StatedRead: Freigabe ohne Uhr (30-s-Sicherung war die einzige Uhr und erklaert Z. 194) | `test_a_window_whose_picked_file_is_gone_...`: keine Zeitspanne im Test gefunden, Fehlertext nie erfasst - unveraendert, keine xdist-Gruppe (`--dist loadgroup` ist nicht konfiguriert, Gruppe nimmt keine Last weg) | `cancel-waits-for-the-worker` getoetet (1 / 17) | 6a9c31d |
+| g DR-023 | erledigt | `test_a_shortened_status_keeps_its_whole_sentence_for_the_accessibility_bridge` (rot: Name leer) | accessibleName und -Description = `whole_text()`; kein Tab-Stopp | `status-reports-the-ellipsis-to-the-bridge` getoetet (1 / 55) | 781ce3c |
+
+Mutationen: 7 von 7 getoetet, je eigene Extraktion `git archive HEAD` (781ce3c), `PYTHONHASHSEED=0`, nur die Toeterdatei; Skript `<scratchpad>/T-230/run_mutations.py`.
+
+**Suite:** Lauf 1 `pytest -n auto` (Umlenkung `DankYeeterT-230`, Testabzug kopiert, 841 Dateien): **1525 passed / 9 skipped / 2 warnings, 65,2 s**. Laeufe 2 und 3 **nicht gefahren** (Zugschwelle). Die 2 Warnungen stammen aus `relicpicker.py` `stock_replaced.disconnect(self._the_stock_was_replaced)` in `done()` (RuntimeWarning, vermutlich ein Dialog, dessen Slot beim Schliessen schon weg war) - Text nicht vollstaendig erfasst, naechster Lauf soll ihn mitschneiden.
+
+## Befund 1 (an director / ui-ux-designer) — T-230a bei room=1366 ist mit Groessenpolitik nicht erfuellbar
+
+Gemessen (Windows, dpr 1,25, `<scratchpad>/T-230/row_at_room.py` und `row_min_policy.py`): bei `_opening_width(room=1366)` = 1366 px bekommt die mittlere Spalte 514 px (Panes `[430, 514, 370]`, `PANE_DEFAULTS`); die Leiste braucht im Vorschlagszustand **ohne** Statuszeile 683 px (57+183+87+80+80+80+80 + 6x6). Fehlbetrag 169 px. Qt kuerzt unter dem Minimum vom groessten Element her (`qGeomCalc`), deshalb treffen die Boxen; eine Stretch-/Groessenpolitik kann die Reihenfolge nicht aendern.
+
+Einzige Politik, die die Boxen schuetzt: die Leiste meldet ihr Minimum (`QSizePolicy.Minimum` statt `Ignored`). Gemessen: `cut []`, Panes `[300, 689, 340]`, **aber Fenster-Minimum 760 -> 1381 px, Fenster 1381 px auf 1366-px-Desktop** (15 px ueber dem Rand) und AK-03 (`test_the_row_asks_the_window_for_no_width_at_all`) rot. Optionen: (A) AK-05 bekommt eine Untergrenze (gilt ab der Breite, an der die Leiste mit Status 0 px hineinpasst, hier 1536 px), Waechter bei 1366 misst nur "Status 0 px, sonst unveraendert"; (B) zweite Zeile/Umbruch unter dem Deckel (Nutzerentscheid 13.09. einzeilig - waere zu revidieren); (C) `PANE_DEFAULTS` an `room` koppeln (Seitenpanes geben 169 px ab; aendert die Startaufteilung, `_opening_width`-nah, nicht im Scope); (D) Leiste meldet Minimum (AK-03 fallen lassen, Fenster breiter als 1366-Desktop). Empfehlung: A.
+
+## Weitere Punkte an den director
+
+- SEC-041 (`binary.py:90`) ist mit d geschlossen (Bytes gestrichen) - Registerzeile nachziehen.
+- QA-232: 4 Resttreffer der QA-Maske 1 sind keine Dateiaussagen (`bossdata.py:67/70`, `icons.py:133` KeyError-Nachschlagen; `savefile.py:358` Programmfehler laut T-218) - Zeile kann auf behoben.
+- QA-249: dritter Test unveraendert (Begruendung oben); die drei Suitelaeufe stehen aus (1 von 3 gruen).
+- Ponytail-Review des eigenen Diffs (`git diff acbe241..781ce3c`): Guard-Modul um `_both_states` gekuerzt (Doppelcode raus), Fixture-Loader 12 Zeilen, keine Abstraktion ohne zweiten Nutzer; net: +Zeilen wegen Fixture-Daten (314 Zeilen JSON) und Tests, Code selbst Lean already.
+
+## An qa-engineer
+
+Rescan ohne Fund bei offenem Picker **mit** anschliessendem Rescan mit Fund (Picker fragt neu, Wartezustand wird neu entschieden); Rescan waehrend eines Optimize-Laufs (Leiste zeigt danach `Stopped`, nicht 4.7 - Bestand wie vor T-230); DDS/DCX/TPF-Verweigerungen am Erststart-Dialog woertlich; Screenreader-Probe der Statuszeile (NVDA) - nicht selbst geprueft.

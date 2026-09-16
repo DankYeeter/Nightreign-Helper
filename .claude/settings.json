@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path .claude/hooks/enforce-data-redirect.ps1) { & .\\.claude\\hooks\\enforce-data-redirect.ps1 } else { [Console]::Error.WriteLine('[datenumlenkung] Hook-Datei nicht gefunden, Umlenkung ungeprueft - Abbruch.'); exit 2 }\"",
+            "shell": "powershell",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

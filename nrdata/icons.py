@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from xml.etree import ElementTree
+from xml.parsers import expat
 
 from . import bnd4, dds, dvdbnd, oodle, tpf
 
@@ -35,6 +35,44 @@ class Sprite:
     y: int
     width: int
     height: int
+
+
+class LayoutError(ValueError):
+    """A layout XML that will not be read as one."""
+
+
+def read_subtextures(xml: str) -> list[dict[str, str]]:
+    """The attributes of every <SubTexture> in a layout, in document order.
+
+    Expat is driven directly instead of going through ElementTree because
+    ElementTree expands the entities a document declares about itself, and
+    ten nested ten-fold entities are a megabyte, thirteen a gigabyte -- the
+    file decides how much memory the program uses, before any of this code
+    gets a say (SEC-010). Expat offers no switch for that, but it does say
+    when a declaration goes past, and refusing at that point is enough: with
+    no declaration there is nothing to expand, and an undeclared reference is
+    an error expat raises by itself.
+
+    A layout that ships with the game declares no entities and needs no
+    doctype, so refusing one costs nothing and rejects the whole class.
+    """
+    found: list[dict[str, str]] = []
+
+    def entity_declared(*_args) -> None:
+        raise LayoutError("layout XML declares an entity")
+
+    def element_started(name: str, attributes: dict[str, str]) -> None:
+        if name == "SubTexture":
+            found.append(attributes)
+
+    parser = expat.ParserCreate()
+    parser.EntityDeclHandler = entity_declared
+    parser.StartElementHandler = element_started
+    try:
+        parser.Parse(xml, True)
+    except expat.ExpatError as exc:
+        raise LayoutError(f"layout XML is not well formed: {exc}") from exc
+    return found
 
 
 class IconSource:
@@ -62,14 +100,13 @@ class IconSource:
             if not member.basename.endswith(".layout"):
                 continue
             atlas = member.basename[: -len(".layout")]
-            root = ElementTree.fromstring(member.data.decode("utf-8", "replace"))
-            for sub in root.findall("SubTexture"):
+            for sub in read_subtextures(member.data.decode("utf-8", "replace")):
                 self.sprites[sub.get("name")] = Sprite(
                     atlas=atlas,
-                    x=int(sub.get("x")),
-                    y=int(sub.get("y")),
-                    width=int(sub.get("width")),
-                    height=int(sub.get("height")),
+                    x=int(sub["x"]),
+                    y=int(sub["y"]),
+                    width=int(sub["width"]),
+                    height=int(sub["height"]),
                 )
 
     def _atlas_image(self, name: str):

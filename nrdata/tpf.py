@@ -9,6 +9,8 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
+from .binary import NotWhatItClaims, read_cstring
+
 
 @dataclass
 class Texture:
@@ -20,7 +22,7 @@ class Texture:
 
 def read(data: bytes) -> list[Texture]:
     if data[:4] != b"TPF\0":
-        raise ValueError(f"not a TPF container (magic {data[:4]!r})")
+        raise NotWhatItClaims("not a TPF container: missing the TPF\\0 magic")
 
     _data_size, file_count = struct.unpack_from("<II", data, 4)
     platform = data[0x0C]
@@ -32,7 +34,7 @@ def read(data: bytes) -> list[Texture]:
 
     out: list[Texture] = []
     pos = 0x10
-    for _ in range(file_count):
+    for index in range(file_count):
         file_offset, file_size = struct.unpack_from(e + "II", data, pos)
         fmt, _type, mipmaps, _flags = struct.unpack_from(e + "BBBB", data, pos + 8)
         pos += 12
@@ -43,16 +45,13 @@ def read(data: bytes) -> list[Texture]:
         name_offset = struct.unpack_from(e + "I", data, pos)[0]
         pos += 8  # name offset + unknown
 
-        if encoding == 1:
-            # The terminator must be found on an even boundary; a naive search
-            # can land on the low byte of a character and cut it in half.
-            end = name_offset
-            while data[end : end + 2] != b"\0\0":
-                end += 2
-            name = data[name_offset:end].decode("utf-16-le", "replace")
-        else:
-            end = data.index(b"\0", name_offset)
-            name = data[name_offset:end].decode("shift-jis", "replace")
+        name = read_cstring(data, name_offset, utf16=(encoding == 1))
+
+        if file_offset + file_size > len(data):
+            raise NotWhatItClaims(
+                f"TPF member {index} claims {file_size} bytes at offset "
+                f"{file_offset}, past the {len(data)}-byte container"
+            )
 
         out.append(
             Texture(

@@ -56,13 +56,6 @@ def set_stored(value: str) -> None:
     _settings().setValue(KEY, value or "")
 
 
-def label_for(value: str) -> str:
-    for label, stored_value in CHOICES:
-        if stored_value == value:
-            return label
-    return CHOICES[0][0]
-
-
 def apply_to_environment() -> None:
     """Tell Qt the factor, before there is a QApplication to tell.
 

@@ -1,15 +1,19 @@
 """Boolean matching for the effect filter.
 
-Supported syntax, case-insensitive:
-    vigor                 plain substring
-    vigor AND attack      both must appear
-    vigor OR mind         either may appear
+Supported syntax:
+    vigor                 plain substring, case-insensitive
+    vigor AND attack      both must appear (AND must be upper case)
+    vigor OR mind         either may appear (OR must be upper case)
     vigor & attack        same as AND
     vigor | mind          same as OR
     "two handed"          quote a phrase containing a space or an operator
-    NOT curse             exclude
-AND binds tighter than OR, so "a OR b AND c" means "a OR (b AND c)".
-Bare spaces mean AND, which keeps simple typing behaving as before.
+    NOT curse             exclude (NOT must be upper case)
+    -curse, !curse        same as NOT curse
+Lower- or mixed-case "and"/"or"/"not" are searched as plain text, so typing
+an effect description that happens to contain one of those words still
+works (QA-263). AND binds tighter than OR, so "a OR b AND c" means
+"a OR (b AND c)". Bare spaces mean AND, which keeps simple typing behaving
+as before.
 """
 
 from __future__ import annotations
@@ -17,19 +21,22 @@ from __future__ import annotations
 import re
 
 TOKEN = re.compile(r'"[^"]*"|\S+')
-AND_WORDS = {"and", "&", "&&", "+"}
-OR_WORDS = {"or", "|", "||"}
-NOT_WORDS = {"not", "-", "!"}
+AND_SYMBOLS = {"&", "&&", "+"}
+OR_SYMBOLS = {"|", "||"}
+NOT_SYMBOLS = {"-", "!"}
 
 
-def _tokenise(text: str) -> list[str]:
+def _tokenise(text: str) -> list[tuple[str, bool]]:
+    """Split into (token, was_quoted) pairs, case preserved."""
     out = []
     for raw in TOKEN.findall(text):
         if raw.startswith('"') and raw.endswith('"') and len(raw) >= 2:
-            out.append(raw[1:-1].strip().lower())
+            inner = raw[1:-1].strip()
+            if inner:
+                out.append((inner, True))
         else:
-            out.append(raw.lower())
-    return [t for t in out if t]
+            out.append((raw, False))
+    return out
 
 
 def parse(text: str):
@@ -40,28 +47,23 @@ def parse(text: str):
 
     or_groups: list[list[tuple[bool, str]]] = [[]]
     negate_next = False
-    quoted = {
-        raw[1:-1].strip().lower()
-        for raw in TOKEN.findall(text or "")
-        if raw.startswith('"') and raw.endswith('"')
-    }
 
-    for token in tokens:
+    for token, was_quoted in tokens:
         # A quoted phrase is always a term, even if it reads like an operator.
-        if token not in quoted:
-            if token in OR_WORDS:
+        if not was_quoted:
+            if token == "OR" or token in OR_SYMBOLS:
                 or_groups.append([])
                 negate_next = False
                 continue
-            if token in AND_WORDS:
+            if token == "AND" or token in AND_SYMBOLS:
                 continue
-            if token in NOT_WORDS:
+            if token == "NOT" or token in NOT_SYMBOLS:
                 negate_next = True
                 continue
-            if token.startswith("-") and len(token) > 1:
-                or_groups[-1].append((True, token[1:]))
+            if token[0] in NOT_SYMBOLS and len(token) > 1:
+                or_groups[-1].append((True, token[1:].lower()))
                 continue
-        or_groups[-1].append((negate_next, token))
+        or_groups[-1].append((negate_next, token.lower()))
         negate_next = False
 
     or_groups = [g for g in or_groups if g]
@@ -77,8 +79,3 @@ def parse(text: str):
         return False
 
     return predicate
-
-
-def matches(text: str, haystacks) -> bool:
-    predicate = parse(text)
-    return True if predicate is None else predicate(haystacks)
