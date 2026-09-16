@@ -5725,6 +5725,7 @@ counts. These marks steer Optimize only — they are not the star on a relic.`
 Die Spaltenueberschriften `Favourite`/`Avoid` bleiben (AK-304), die
 Tooltips aus T-277b bleiben. Startgroesse AK-303 bleibt; waechst die Hoehe
 durch die Zeile, wird `OPENING_SIZE` nachgezogen und im Bericht gemessen.
+**Gebaut T-281a (`8e1fc9d`):** Zeile kostet 56 px, `OPENING_SIZE` 520 × 616.
 
 **Akzeptanzkriterien:**
 - Der Wortlaut steht exakt so im Fenster, in einer Konstante des Moduls,
