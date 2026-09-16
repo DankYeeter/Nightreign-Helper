@@ -193,7 +193,10 @@ relic, curses included. Each row has two check boxes, **Favourite** and
 through at least one relic you own; check **Avoid** and the effect counts
 in no suggestion or ranking; checking one clears the other on the same row.
 A search field above the list filters by name, with the same syntax as the
-relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A counter
+relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
+the search field says so directly: "Favourite: every suggestion must include
+this effect. Avoid: it never counts. These marks steer Optimize only — they
+are not the star on a relic." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
 and "{n} avoided" added once either count is above zero. The list sorts
 alphabetically by name; any column header can be clicked to sort by it
