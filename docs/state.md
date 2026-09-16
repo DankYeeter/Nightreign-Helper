@@ -40,9 +40,14 @@ Release-Kette T-284/T-285: `docs/release/RELEASE_BODY.md` als `body_path`
 clean-room bestanden (Update 1.11.0→1.13.1, 4 Builds erhalten), power-user
 1/6 (QA-282, Werkzeug). Letztes oeffentliches Release **1.7.1 (24.08.)**.
 
-**Naechster Schritt:** `archivist` sync-out mit Tag `v1.13.1` → `release.yml`
-→ Assets zaehlen (EXE, `.sha256`, `NightreignHelper-notices.zip`) → Nutzer
-mergt PR #16. Danach `retrospective` (Zyklus 26).
+**Veroeffentlicht 16.09. 18:28:** Tag `v1.13.1` auf `798f808`, Run
+35121936228 gruen (Schritt `Tests` success = A-008 nachgewiesen), Release
+https://github.com/DankYeeter/Nightreign-Helper/releases/tag/v1.13.1 mit
+drei Assets: `NightreignHelper.exe` 59.209.044 B (CI-Bau, nicht der lokale),
+`.sha256` 86 B, `NightreignHelper-notices.zip` 46.387 B; Beschreibung
+beginnt mit Variante A (A-023/A-024/A-037 am Release erfuellt — foermlich
+durch `compliance-agent` `pruefen` nachziehen). `@{upstream}..HEAD` = 0.
+**Naechster Schritt:** `retrospective` Zyklus 26, dann Nutzer mergt PR #16.
 
 **Lehren dieses Zyklus (fuer die Retrospektive):** clean-room, power-user
 und QA nie gleichzeitig gegen dieselbe EXE — maschinenweite Instanzsperre
