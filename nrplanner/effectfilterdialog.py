@@ -31,7 +31,10 @@ TITLE = "Effect filters"
 
 #: AK-303. Measured live (T-277b, Fusion, 340 rows): the name column keeps
 #: 227 px beside the four narrow ones, the frame is 520 x 590 with its title.
-OPENING_SIZE = (520, 560)
+#: AK-313 (T-281, offscreen, 16.09.2026): the explanation label above the
+#: table takes 56 px, so the height grows by the same amount to keep the
+#: table at its measured 449 px.
+OPENING_SIZE = (520, 616)
 
 COL_FAVOURITE, COL_AVOID, COL_NAME, COL_TYPE, COL_COPIES = range(5)
 HEADINGS = ("Favourite", "Avoid", "Name", "Type", "Copies")
@@ -40,6 +43,11 @@ HEADINGS = ("Favourite", "Avoid", "Name", "Type", "Copies")
 COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
                      "curse — not game-data entries (that count is on the "
                      "Effects & chances tab).")
+
+#: AK-313: Favourite/Avoid here mark a filter, not the star on a relic.
+MARKS_EXPLANATION = ("Favourite: every suggestion must include this effect. "
+                     "Avoid: it never counts. These marks steer Optimize "
+                     "only — they are not the star on a relic.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
 FAVOURITE_TOOLTIP = ("Every suggestion must carry this effect through at "
@@ -146,6 +154,12 @@ class EffectFilterWindow(QDialog):
         definition.setWordWrap(True)
         definition.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(definition)
+
+        marks_explanation = QLabel(MARKS_EXPLANATION)
+        marks_explanation.setWordWrap(True)
+        marks_explanation.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        marks_explanation.setFocusPolicy(Qt.NoFocus)
+        layout.addWidget(marks_explanation)
 
         self.table = QTableWidget(len(rows), len(HEADINGS))
         self.table.setHorizontalHeaderLabels(HEADINGS)

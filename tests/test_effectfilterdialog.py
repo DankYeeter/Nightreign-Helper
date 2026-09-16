@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 from nrplanner import effectfilterdialog as dlg
 from nrplanner import effectfilters, inventory
@@ -184,3 +184,12 @@ def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
     assert len(rows) == len(ids) > 0
     assert not any(row.name.startswith("effect ") for row in rows)
     assert any(row.is_curse for row in rows)
+
+
+def test_marks_explanation_label_is_present_and_unfocusable(window):
+    """AK-313: the window carries the exact wording, and the label cannot
+    take keyboard focus (it must not join the tab order)."""
+    labels = [label for label in window.findChildren(QLabel)
+              if label.text() == dlg.MARKS_EXPLANATION]
+    assert len(labels) == 1
+    assert labels[0].focusPolicy() == Qt.NoFocus
