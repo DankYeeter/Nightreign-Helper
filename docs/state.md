@@ -47,7 +47,10 @@ drei Assets: `NightreignHelper.exe` 59.209.044 B (CI-Bau, nicht der lokale),
 `.sha256` 86 B, `NightreignHelper-notices.zip` 46.387 B; Beschreibung
 beginnt mit Variante A (A-023/A-024/A-037 am Release erfuellt — foermlich
 durch `compliance-agent` `pruefen` nachziehen). `@{upstream}..HEAD` = 0.
-**Naechster Schritt:** `retrospective` Zyklus 26, dann Nutzer mergt PR #16.
+Retrospektive T-286 (`4b2e931`) und Umsetzung T-287 (`2ca5b00`, `d142f5f`;
+Team-Repo `935233e`; `~/.claude/settings.json` Hook-Eintrag unversioniert,
+liegt ausserhalb jedes Repos) erledigt. **Naechster Schritt:** Nutzer mergt
+PR #16. Zyklus 26 abgeschlossen.
 
 **Lehren dieses Zyklus (fuer die Retrospektive):** clean-room, power-user
 und QA nie gleichzeitig gegen dieselbe EXE — maschinenweite Instanzsperre
