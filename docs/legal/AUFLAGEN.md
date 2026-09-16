@@ -523,3 +523,36 @@ technical-writer, keine Auflage.
 
 **Nachpruefen ab:** Commit der neuen Bilder (S1-S3 am Ergebnis) · erste
 Weitergabe von 1.12.0 (A-020/A-023/A-031 am Artefakt) · 2026-11-07.
+
+---
+
+## Auflagen vor der Veroeffentlichung 1.13.1 (compliance-agent, T-283c, Modus `auflagen`, Stand `1f51485`, 2026-09-16)
+
+**Frage:** Darf 1.13.1 als dreizehntes Release (erstes seit `v1.7.1`) auf
+GitHub erscheinen? **Gesamtampel GELB** — ja, sobald der `release-manager`
+Variante A aus `docs/release/RELEASE_TEXT.md` Z. 36-77 wortgenau an den
+Anfang der Release-Beschreibung setzt und die Asset-Liste drei Dateien zeigt.
+Nichts steht auf ROT. Volltext, Normen, Pflichttext: `C-006.md`. Die
+T-241a-Tabelle gilt fort; nur die genannten Zeilen sind neu bewertet.
+
+| ID | Ampel | Stand 16.09. gegen `1f51485` | Beleg |
+|---|---|---|---|
+| A-008 | GRUEN | **erfuellt** (Baum) | `release.yml` Z. 84-94: `pip install -r requirements-dev.txt` und `python -m pytest -rs` vor dem Bau (Z. 96), bewacht mit `hashFiles('tests/**')`; `requirements-dev.txt` vorhanden; `.gitignore` schliesst `tests/` nicht aus. Wirkung im Job-Log des Tag-Laufs nachweisen (release-manager) |
+| A-020 | GRUEN | erfuellt (Workflow unveraendert) | `release.yml` Z. 127-159: vier Pflichtpfade geprueft, `NightreignHelper-notices.zip` in `files:`; `licenses/` 6 Volltexte (gezaehlt). Nach dem Lauf `gh release view v1.13.1`: drei Assets |
+| A-023 | GELB | Text fertig; **Einsatz beim Release offen** | `RELEASE_TEXT.md` Variante A traegt T2 (1)-(6) vollstaendig; `generate_release_notes` setzt ihn nicht ein — von Hand an den Anfang der Beschreibung (release-manager). Norm: § 23 Abs. 1 Nr. 3, Abs. 2 MarkenG (abgerufen 16.09.) |
+| A-024 | GELB | Text fertig; Einsatz mit A-023 | Variante A Z. 41-51 einschliesslich Bibliothekssatz; README Z. 733-743 und "Where your data lives" unveraendert |
+| A-030 | GRUEN | erfuellt | `test_release_spec_datas.py` Z. 27-30 Literal = Spec Z. 70-73; laeuft seit `c148585` auch im Release-Lauf |
+| A-031 | GRUEN | Bedingung nicht eingetreten | lokal kein UPX (T-282 Z. 34); Runner-Images Windows 2022 (20260907.297.1) und 2025 (20260907.255.1) fuehren kein UPX (runner-images Readmes, abgerufen 16.09.). Nebenfund: `upx=False` in der Spec waere Absicht statt Zufall (developer, bei Gelegenheit) |
+| A-033 | GRUEN | ausgefuehrt 08.09.; **foermliche Abnahme Nutzer offen** | 60-Tage-Ende 2026-11-07 laeuft; ein konformes neues Release unterbricht nichts |
+| A-035 | GRUEN | erfuellt (Auskunft 07.09.) | Nutzer bestaetigt vor dem Tag kurz, dass seither nichts einging |
+| A-037 | GRUEN (empfohlen) | **neu, offen** | Release-Text beim Erzeugen mitgeben (`body_path`/`append_body` in `release.yml`), damit die Download-Seite nie ohne A-023/A-024-Text oeffentlich ist — developer, vor dem uebernaechsten Release |
+
+**Entscheidungsvorlage:** A-033 foermlich abnehmen (A-020-Abnahme vom 09.09.
+deckte dieselbe Arbeit) · A-035: Beanstandung seit 07.09.? · Release-Freigabe
+selbst bleibt Nutzersache (A-025 deckt die EXE-Weitergabe).
+
+**Anwaltlich zu klaeren:** nichts. **Nicht geprueft:** Git-Tracking von
+`tests/` (Rolle ohne git — Annahme aus `.gitignore`); der Tag-Lauf selbst;
+Netz- und Dateizugriffe des Codes (T-283b). **Nachpruefen ab:** Tag-Lauf
+`v1.13.1` (Assets, Job-Log, Text) · 2026-11-07 · Aenderung an `release.yml`,
+Spec oder `RELEASE_TEXT.md`.
