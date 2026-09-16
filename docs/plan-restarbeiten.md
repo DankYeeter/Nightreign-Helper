@@ -202,9 +202,7 @@ Zuschnitt kann sich erweitern; ein Fensterabzug kann nichts einfangen, was
 nicht zum Programm gehoert. Wer ein Bild ablegt, prueft vorher seine
 Abmessungen gegen die Bildschirmaufloesung.
 
-**NH-001 (war L-004): jede nicht-triviale Arbeit bekommt eine T-Nummer und
-eine Auftragsdatei.** In Zyklus 13 zweimal gebrochen (T-060 und T-061 liefen
-ohne Datei, dazu zwei Nachtraege per Nachricht).
+**NH-001: Waechter `require-task-file.ps1`.**
 
 ## Zurueckgestellt, mit Grund
 - **`ruff` / Linter — entschieden am 06.09.2026, Option B: kein Linter.**
