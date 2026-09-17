@@ -4924,6 +4924,96 @@ dort geht es um die zweite Haelfte derselben Zeile (den Rohschluessel nach
 dem Doppelpunkt), nicht um die Nennung der Bedingung selbst, die A18
 verlangt.
 
+#### Nachtrag T-289a (ui-ux-designer, 2026-09-17) — AK-314: der Satz auch im Vorschlagsblock
+
+*Neu in T-289 (Nutzer 17.09. 19:12: "auch direkt unter dem Vorschlag"). Baut
+auf dem in T-288 (`bc4443e`) gebauten Satz aus
+`explain.required_met_by_a_hold`, bisher nur im `Why`-Dialog (`_footer_text`,
+`advisorblock.py:586`). Kein Fensterlauf, reine Wortlaut- und
+Platzierungsentscheidung.*
+
+**AK-314** *(A19/A5 — der Spieler sieht die Erfuellung eines Pflicht-Favoriten
+ohne Klick auf `Why`.)*
+
+1. **Wortlaut, unveraendert vom Dialog.** Der Einzelsatz je Effekt bleibt
+   wortgleich mit dem bereits gebauten (AK-300-Woerter, `favourited`):
+   `"{effect}, which you favourited, is carried by {relic} held in Slot
+   {n}."` `{n}` ist die 1-basierte Slotnummer, im selben Format wie
+   `explain.curses` (`slot_index + 1`) — keine zweite Zaehlweise fuer
+   denselben Sachverhalt. Traegt ein Effekt mehrere gehaltene Kopien, bleibt
+   die bestehende Aufzaehlung mit Komma (`"RelicA held in Slot 2, RelicB
+   held in Slot 3"`) unveraendert.
+2. **Ort im `SuggestionBlock`.** Eine eigene, gedaempfte Zeile unterhalb der
+   bestehenden Effekt-/Fluchzeilen (`self.lines`), oberhalb von
+   `already_equipped` — dieselbe Reihenfolge, in der die Karte heute schon
+   zeigt, was der Vorschlag kostet, bevor sie sagt, dass er schon liegt.
+   Stil: `MUTED`-Farbe und `SMALL_TEXT` (11px), wie `count_line`/
+   `already_equipped` bereits gezeichnet werden; Aufzaehlungspunkt `•` wie
+   eine normale Effektzeile; **kein** Durchstreichen, **kein** Fettdruck,
+   **keine** `ACCENT`-Farbe — die Zeile ist eine Information, keine
+   markierte/klickbare Effektzeile (Verwechslung mit der ▲-Favoriten-
+   Markierung aus AK-301 waere ein neuer, unbeabsichtigter Zustand). Ist der
+   gezeigte Slot selbst `already_equipped`, verschwindet die Zeile mit ihm —
+   dieselbe Regel, die heute schon `relic_name`/`count_line`/`lines`
+   betrifft.
+3. **Genau eine Karte, nicht jede.** Der Satz gehoert zum ganzen Ergebnis
+   (`AdvisorResult.unknowns`), nicht zu einem einzelnen Slot — bei einem
+   `Optimize` mit mehreren offenen Slots zeigten sonst mehrere Karten
+   wortgleich dieselbe Zeile (wirkt wie ein Fehler, kein Erkenntnisgewinn).
+   Die Zeile erscheint darum **nur auf der Karte mit dem niedrigsten
+   `slot_index`** unter den gerade sichtbaren, nicht bereits ausgeruesteten
+   Vorschlaegen; sind alle sichtbaren Vorschlaege `already_equipped`,
+   entfaellt die Zeile ersatzlos und der Satz bleibt ausschliesslich im
+   `Why`-Dialog sichtbar (wie heute).
+4. **Mehrere erfuellte Favoriten.** Bei genau einem Satz zeigt die Karte den
+   vollen Einzelsatz aus Punkt 1. Ab zwei Saetzen fasst die Karte zusammen,
+   um die Kartenhoehe zu schonen (Modulkopf `advisor/types.py:711`: "made
+   the worst measured card 16 lines tall"): `"{n} favourited effects are
+   already carried by relics you hold."` Der volle, einzeln aufgeschluesselte
+   Wortlaut bleibt in jedem Fall vollstaendig im `Why`-Dialog stehen (Punkt
+   5) — die Kartenzeile darf zusammenfassen, der Dialog nie.
+5. **`Why`-Dialog: unveraendert, bleibt zusaetzlich.** `_footer_text` zeigt
+   weiterhin jeden Einzelsatz aus `result.unknowns` einzeln und vollstaendig
+   (AK-165: keine Filterung, kein Dedup) — die neue Kartenzeile ist eine
+   verdichtete Zusammenfassung fuer den schnellen Blick, kein Ersatz fuer das
+   vollstaendige Konto (AK-274-Grundsatz: der Dialog bleibt die eine
+   vollstaendige Fassung, gleich ob ueber den Karten- oder den
+   Leisten-`Why`-Knopf geoeffnet).
+
+*Rot-vorher:* eine Karte, die den Satz nur zeigt, wenn genau dieser Slot den
+Favoriten selbst betrifft (er betrifft nie einen offenen Slot, AD-036.4 — die
+Zeile waere dann nie sichtbar); eine Implementierung, die den Satz auf jeder
+offenen Karte wiederholt; eine Zusammenfassung, die die Slotzahl statt der
+Effektzahl nennt oder umgekehrt zaehlt.
+
+**Akzeptanzkriterien, pruefbar:**
+- AK-314.1: Ein favorisierter Effekt auf einem gehaltenen Relikt (0-basierter
+  Slot-Index 2) zeigt im `SuggestionBlock` `"{effect}, which you favourited,
+  is carried by {relic} held in Slot 3."` — mutationstoetend gegen
+  `slot_index` ohne `+ 1`.
+- AK-314.2: Zwei favorisierte, erfuellte Effekte zeigen im Block genau **eine**
+  Zeile mit der Zahl 2 (`"2 favourited effects are already carried by relics
+  you hold."`), nicht zwei Einzelsaetze — mutationstoetend gegen eine
+  Implementierung, die ab zwei weiterhin jede Zeile einzeln zeigt.
+- AK-314.3: Zwei gleichzeitig offene, vorgeschlagene Slots (Index 1 und 3)
+  zeigen die Zeile nur auf der Karte von Slot 1; die Karte von Slot 3 zeigt
+  sie nicht — mutationstoetend gegen Duplizieren pro Karte.
+- AK-314.4: Ist die Karte mit dem niedrigsten Index `already_equipped`,
+  erscheint die Zeile auf keiner sichtbaren Karte, aber unveraendert im
+  `Why`-Dialog-Footer.
+- AK-314.5: Der `Why`-Dialog zeigt bei zwei Effekten weiterhin zwei
+  Einzelsaetze (nicht die Kartenzusammenfassung) — Volltextvergleich gegen
+  `result.unknowns`.
+- AK-314.6: Die neue Zeile traegt keine Durchstreichung und keine
+  `ACCENT`-Farbe (Stichprobe `line_markup`/Stylesheet-String der Zeile).
+
+**Explizit nicht Teil dieser Vorgabe:** die interne Verdrahtung (ob
+`explain.reasons()` die Zeile in `SlotReasons` einbettet, ob
+`SuggestionBlock.show_the_suggestion` einen neuen Parameter bekommt oder
+`AdvisorResult` einen neuen, gruppierten Datentyp braucht) — Sache von
+AD-036/`architect`/`developer`; dieses Kriterium bindet nur das sichtbare
+Ergebnis. Keine Aenderung an AK-281/AK-291 (Scope-Grenze T-289).
+
 ---
 
 ## Bereich 7 — Die sechs Inhalts-Tabs
