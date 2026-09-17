@@ -6114,3 +6114,12 @@ alten Baubericht uebernommen wird.
 - `MAX_ATTRIBUTES` unveraendert: kein Wort, keine Zahleinheit angefasst.
 
 ---
+
+**Nachtrag AK-315.3 (Director, 17.09.2026, QA-285 Lesart B):** Der Betrag
+haengt an der Zeile des **ersten Attributs des Effekts, das die
+Bezugswaffe skaliert** (Waffendaten), nicht an der ersten Zeile in
+`ATTRIBUTE_ORDER`. Uebrige Attributzeilen des Effekts bleiben nackt;
+skaliert die Waffe keines, bleibt "this figure does not count it".
+Beispiele: Duchess `Dexterity -3 → Attack rating -2, counted against it`,
+Intelligence-Zeile nackt; Recluse `Mind -13` ohne Betrag; `Vigor +3` nie
+mit Attack-Betrag. Umsetzung T-294a.
