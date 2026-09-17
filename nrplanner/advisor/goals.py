@@ -134,21 +134,21 @@ _ATTACK_RATING_SCOPE = (
     "they are named rather than guessed at.",
     # AD-038: the armament the figure is formed against is a property of the
     # Nightfarer, not of the grid (A17), and it is named here so that the
-    # figure says what it is scaled on. Wording provisional until the
-    # `ui-ux-designer` settles it (AD-038.2).
+    # figure says what it is scaled on. Wording AK-318.1.
     "Scaled on the Nightfarer's own starting armament at its lowest tier, "
-    "without the buffs it may roll; one- or two-handed as the stat sheet's "
-    "hand switch says.",
+    "without the roles a carried copy could add; one- or two-handed as the "
+    "stat sheet's hand switch says.",
 )
 
-# Fallback texts (AD-038.1): spoken only when the dataset has no record for
-# the Nightfarer's starting armament, so the run ranks on the multiplier
-# mean and says so instead of inventing a scaling (A7).
-_NO_ARMAMENT = ("No armament selected — ranked on attack multipliers only, "
-                "without weapon scaling.")
+# Fallback texts (AD-038.1, AK-318.2): spoken only when the dataset has no
+# record for the Nightfarer's starting armament, so the run ranks on the
+# multiplier mean and names that cause instead of inventing a scaling (A7).
+_NO_ARMAMENT = ("This Nightfarer's starting armament has no entry in the "
+                "game data, so this run is ranked on attack multipliers "
+                "only, without weapon scaling.")
 
-_NO_ARMAMENT_NOTE = ("With no armament chosen there is nothing to scale, so "
-                     "the five attack multipliers are averaged with equal "
+_NO_ARMAMENT_NOTE = ("With no armament on record there is nothing to scale, "
+                     "so the five attack multipliers are averaged with equal "
                      "weight.")
 
 #: The five attributes an armament's damage scales on -- the ones AD-032
