@@ -481,27 +481,36 @@ class RelicSlot(QFrame):
             return [f"<div style='color:{CURSE}'>✦ comes with {what}</div>"]
         return []
 
-    def show_the_suggestion(self, goal_label: str, group,
-                            choice, *, may_explain: bool = True) -> None:
-        """Draw what the advisor would put here, while the answer lives.
+    def already_equipped(self, choice) -> bool:
+        """Is `choice` the copy already sitting in this slot (QA-021)?
 
-        Whether the suggestion is already lying in this slot is decided on
-        the **handle** -- the save's own identifier for one physical copy --
-        and never on the name: several copies of one relic are owned with
-        different rolls, and this save equips the second copy of The Wylder's
-        Earring while the first sits unused (`select_copy`, QA-021).
+        Decided on the **handle** -- the save's own identifier for one
+        physical copy -- and never on the name: several copies of one relic
+        are owned with different rolls, and this save equips the second copy
+        of The Wylder's Earring while the first sits unused (`select_copy`).
+        Public so the window can ask it before drawing (AK-314.3): which card
+        gets the held-favourite line depends on every card's answer to this.
+        """
+        in_the_slot = getattr(self.relic_box.currentData(), "handle", None)
+        return (choice is not None and in_the_slot is not None
+                and in_the_slot == choice.handle)
+
+    def show_the_suggestion(self, goal_label: str, group,
+                            choice, *, may_explain: bool = True,
+                            held_favourite_line: str = "") -> None:
+        """Draw what the advisor would put here, while the answer lives.
 
         `may_explain` is the window's own reading of the bar's `Why` gate
         (AK-274), passed straight through: it names the same fact for every
         slot at once, and this card has no state of its own to add to it.
+        `held_favourite_line` is the window's own choice of which one card
+        shows it (AK-314.3); this card only draws or withholds it.
         """
-        in_the_slot = getattr(self.relic_box.currentData(), "handle", None)
-        already = (choice is not None and in_the_slot is not None
-                   and in_the_slot == choice.handle)
         self.suggestion.show_the_suggestion(
-            goal_label, group, already_equipped=already,
+            goal_label, group, already_equipped=self.already_equipped(choice),
             may_be_used=not self.is_held(), may_explain=may_explain,
-            curse_tooltip=self._suggested_curse_tooltip(choice))
+            curse_tooltip=self._suggested_curse_tooltip(choice),
+            held_favourite_line=held_favourite_line)
 
     def put_the_suggestion_away(self) -> None:
         """No answer names this slot any more."""

@@ -995,6 +995,19 @@ def required_met_by_a_hold(problem: types.SlotProblem,
     return tuple(lines)
 
 
+def held_favourites_card_line(lines: tuple[str, ...]) -> str:
+    """The one line `SuggestionBlock` shows for `required_met_by_a_hold`
+    (AK-314.1/.2): the full sentence for exactly one, a count for more --
+    the `Why` dialog keeps every sentence regardless (AK-314.5), this is
+    only the card's own, space-saving summary.
+    """
+    if not lines:
+        return ""
+    if len(lines) == 1:
+        return lines[0]
+    return f"{len(lines)} favourited effects are already carried by relics you hold."
+
+
 def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:
     """What this run left out, in the player's language (AD-010, A7).
 

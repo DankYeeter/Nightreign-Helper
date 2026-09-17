@@ -2083,3 +2083,16 @@ def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
                              goals.GOALS[DAMAGE])
 
     assert {line.effect_id for line in groups[0].lines} == {waiting, curse}
+
+
+def test_held_favourites_card_line_summarises_from_two_on():
+    """AK-314.1/.2: one sentence stays whole, two or more become a count --
+    mutation-killing against an implementation that keeps naming each one."""
+    assert explain.held_favourites_card_line(()) == ""
+    one = ("Improved Melee Attack Power, which you favourited, is carried "
+          "by The Will of the Balancers held in Slot 1.",)
+    assert explain.held_favourites_card_line(one) == one[0]
+    two = one + ("Poise Up, which you favourited, is carried by The "
+                "Wylder's Earring held in Slot 2.",)
+    assert explain.held_favourites_card_line(two) == (
+        "2 favourited effects are already carried by relics you hold.")

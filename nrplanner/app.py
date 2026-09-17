@@ -2957,10 +2957,24 @@ class Planner(QMainWindow):
         # this holds true offscreen as well.
         bar = self.advisor_bar
         may_explain = bar.why_button.isVisibleTo(bar)
+        # AK-314.3: the held-favourite line names the whole result, not one
+        # slot, so it is drawn once -- on the lowest-indexed visible card
+        # that is not itself already equipped (that one shows no lines at
+        # all, AK-314.4). `suggestion.reasons` is already in slot order.
+        held_favourite_slot = None
+        if result.favourites_met_line:
+            held_favourite_slot = next(
+                (group.slot_index for group in suggestion.reasons
+                 if not cards[group.slot_index].already_equipped(
+                     by_slot.get(group.slot_index))),
+                None)
         for group in suggestion.reasons:
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, group,
-                by_slot.get(group.slot_index), may_explain=may_explain)
+                by_slot.get(group.slot_index), may_explain=may_explain,
+                held_favourite_line=(result.favourites_met_line
+                                     if group.slot_index == held_favourite_slot
+                                     else ""))
 
     def open_why(self) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).

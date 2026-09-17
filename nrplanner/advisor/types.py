@@ -773,6 +773,12 @@ class AdvisorResult:
     #: the curse-carrying subset of the same lines (§6 point 4).
     curses_without_a_figure: tuple[ReasonLine, ...] = ()
     effects_without_a_figure: tuple[ReasonLine, ...] = ()
+    #: The card's own summary of `explain.required_met_by_a_hold`, empty
+    #: when no favourited effect sits on a held relic (AK-314). The `Why`
+    #: dialog does not read this -- it keeps every sentence of `unknowns`
+    #: unabridged (AK-314.5); this is the space-saving line for the
+    #: `SuggestionBlock` alone.
+    favourites_met_line: str = ""
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0
