@@ -6032,3 +6032,77 @@ Unterschied mehr zu einem regulaeren Effekt.
   sich beim Wechsel aendert.
 
 ---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-318: Bezugswaffen-Satz in `MAX_DAMAGE.scope`, Neufassung AK-190/AK-192/AK-193 (AD-038, OF-44 Teil 3)
+
+*Zweiter Teil von T-292a (Director-Nachtrag nach Commit `fd4dda3`). `T-292b`
+hat den Bau bereits mit einem provisorischen Satz in `_ATTACK_RATING_SCOPE`
+(`nrplanner/advisor/goals.py`) vorweggenommen, Kommentar dort: "Wording
+provisional until the `ui-ux-designer` settles it (AD-038.2)" — dieser
+Nachtrag setzt den endgueltigen Wortlaut. **Alte AKs unveraendert:** AK-190,
+AK-192, AK-193 bleiben wortgleich als Verlauf fuer die Zeit vor AD-038
+stehen; AK-318 nennt, was ab jetzt gilt, und wo es sie einschraenkt statt
+ersetzt.*
+
+**AK-318**
+
+1. **`MAX_DAMAGE.scope`, letzter Satz, endgueltig** (ersetzt den
+   provisorischen Satz in `_ATTACK_RATING_SCOPE` woertlich):
+   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the roles a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
+   „own starting armament" = die feste Bezugswaffe aus AD-038 Punkt 1
+   (Startwaffe des Nightfarers, `weapons.MIN_UPGRADE`,
+   `slot_index=damage.STARTING_SLOT`, OF-42 Nutzerentscheid); „without the
+   roles a carried copy could add" = `weapons_held`/`armament_effect_ids`
+   bleiben leer (AD-038 Punkt 1, „ohne ihre Rollen"); „the stat sheet's hand
+   switch" = der bestehende 1H/2H-Schalter des Statblatts (AD-037,
+   `ctx.two_handed`), kein neues Bedienelement im Berater — OF-41 bleibt
+   davon unberuehrt und unentschieden.
+2. **AK-190, Neufassung.** Der Wortlaut vom 07.09. galt fuer den Regelfall
+   „kein Ziel ohne Waffe" (A17/AD-032). Seit AD-038 ist `_NO_ARMAMENT` kein
+   Regelfall mehr, sondern ein **seltener Datenluecken-Rueckfall**
+   (Startwaffe fehlt im Datensatz, AD-038 Punkt 1). AK-190s Kernaussage gilt
+   **fortgeschrieben**: der Satz „No armament selected — ranked on attack
+   multipliers only, without weapon scaling." erscheint weiterhin
+   **nirgends**, sobald eine Bezugswaffe existiert (jetzt der Normalfall).
+   Fuer den verbleibenden Rueckfall wird `_NO_ARMAMENT` neu gefasst, um die
+   tatsaechliche Ursache zu nennen (A7 — nicht „nichts gewaehlt", sondern
+   „nichts im Datensatz gefunden"):
+   `"This Nightfarer's starting armament has no entry in the game data, so this run is ranked on attack multipliers only, without weapon scaling."`
+   `_NO_ARMAMENT_NOTE` aendert ein Wort, aus demselben Grund:
+   `"With no armament on record there is nothing to scale, so the five attack multipliers are averaged with equal weight."`
+3. **AK-192, Neufassung — Wortlaut unveraendert, Geltung enger.** Fuellung
+   (c) (`"{effect name}: it depends on the armaments you carry, which this figure leaves out."`) bleibt **wortgleich**: `weapons_held`/
+   `armament_effect_ids` sind unter AD-038 weiterhin leer, ein wep-Typ-
+   bedingter Effekt landet also weiterhin hier. **Was sich aendert:** ein
+   attributbewegender Effekt, der mangels Bezugswaffe frueher in Fuellung
+   (c) fiel, hat jetzt eine Zahl (AK-315) und faellt aus dieser Fuellung
+   heraus — die AK-192-Zahlen (40/28/23/11) sind **veraltet und vor dem
+   naechsten Baubericht neu zu messen**, kein geschaetzter Ersatzwert.
+4. **AK-193, Neufassung.** Der Satz gilt **nur noch im Rueckfall**
+   (`ctx.reference is None`, Punkt 2): dort bleibt die Beschriftung `Attack
+   multipliers` wortgleich. Im **Regelfall** (Bezugswaffe vorhanden, seit
+   AD-038 der Normalfall) traegt die erste Zeile der Wertspalte stattdessen
+   `{headline_name} {Zahl}` — `Attack rating {n}` fuer gewoehnliche Waffen,
+   `Spell power {n}` fuer Staebe/Siegel (AK-88, dieselben Woerter) — das,
+   was `GoalScore.display` bereits liefert; kein zusaetzlicher UI-Satz
+   noetig.
+5. **Dritte Richtung (OF-43, bestaetigt behalten).** `MAX_ATTRIBUTES`/
+   `_ATTRIBUTE_SCOPE` sind von AK-318 nicht beruehrt — Wortlaut,
+   Spaltenbeschriftung `Offensive attributes {n}` und Einheit `pts` bleiben
+   unveraendert.
+
+*Rot-vorher:* eine Umsetzung, die den alten `_NO_ARMAMENT`-Satz im
+Regelfall (Bezugswaffe vorhanden) noch zeigt; ein `_NO_ARMAMENT`, das
+weiterhin „No armament selected" sagt, obwohl der Datensatz die Ursache
+ist, nicht eine fehlende Auswahl; eine AK-192-Zahl, die ungemessen aus dem
+alten Baubericht uebernommen wird.
+
+**Akzeptanzkriterien:**
+- `_ATTACK_RATING_SCOPE`s letzter Satz lautet wortgleich wie unter Punkt 1.
+- `_NO_ARMAMENT`/`_NO_ARMAMENT_NOTE` lauten wortgleich wie unter Punkt 2 und
+  erscheinen ausschliesslich, wenn `ctx.reference is None`.
+- Picker-Zeile 3a zeigt bei vorhandener Bezugswaffe `Attack rating {n}`
+  bzw. `Spell power {n}`, nie mehr `Attack multipliers ×{n}`.
+- `MAX_ATTRIBUTES` unveraendert: kein Wort, keine Zahleinheit angefasst.
+
+---
