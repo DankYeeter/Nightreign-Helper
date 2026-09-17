@@ -2947,6 +2947,12 @@ wie der `director` sie gesetzt hat.
 
 ### AD-032 — Worauf „Schaden maximieren" rankt, seit keine Waffe mehr in die Zahl eingeht (2026-09-12, Status: **entschieden — Option A+C**, gewaehlt vom App Designer am 12.09.2026)
 
+> **Nachtrag 17.09.2026 (T-291): Option A ist durch AD-038 abgeloest** — die
+> Startarmatur des Nightfarers wird die feste Bezugswaffe (Option B dieser
+> Entscheidung), weil GOAL A22 die Skalierung einer Waffe verlangt. Option C
+> (`MAX_ATTRIBUTES`) bleibt, ihr Rueckbau ist OF-43. Die Messungen unten
+> gelten weiter; Recluse ist auf dem Abzug v12 gemessen (Spell power 135).
+
 > **Entscheidung des App Designers, 12.09.2026: Option A+C.** Gerankt wird ohne
 > jede Waffe — der Mittelwert der fuenf Angriffsmultiplikatoren bleibt, und die
 > **Attribute kommen als eigene Zielrichtung** dazu. 75 von 210 gewoehnlichen
@@ -6471,6 +6477,436 @@ Bauauftrag zu AD-037.
 (1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand
 (Empfehlung, identisch mit (2) ohne Bezugswaffe). Kann parallel zu R-008
 entschieden werden.
+
+---
+
+## Themenbereich K — Attribute in der Schadenszahl, Familien vermeiden: A22/A23 (2026-09-17, T-291)
+
+*Angelegt am 17.09.2026 (T-291, `architect`, Entscheidungstiefe Modulschnitt,
+Datenmodell, Schluessel). Bezugsstand `2d5fcdd` (Auftrag nennt `63f942c`,
+Vorfahr). Gegenstand: `GOAL.md` Nachtrag 17.09.2026, A22 und A23. Zwei
+Entscheidungen, AD-038 und AD-039. Vorgelagerte Laeufe: keine zu T-291;
+gelesen wurden R-004/R-005/R-006 ueber AD-032 (dort verarbeitet) und
+`docs/legal/` (nichts Einschlaegiges). Datenpruefungen: Testabzug
+`EXTRACT_VERSION` 12 in ein Scratchpad-`LOCALAPPDATA` kopiert,
+`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-291`, Spielstand nur gelesen
+(`inventory.load`, 17.09.2026: **313 Kopien, 340 verschiedene Effekt-/
+Fluch-Ids**; Skripte `<Scratchpad>/T-291/names.py`, `families.py`,
+`starting.py`).*
+
+### AD-038 — Die Startarmatur des Nightfarers wird die feste Bezugswaffe der Schadensrichtung; Attribute erreichen die Zahl ueber die vorhandene Skalierung, der Betrag je Effekt kommt aus einer zweiten Bewertung ohne diesen Effekt (2026-09-17, Status: aktiv; loest AD-032 Option A ab, haelt Option C)
+
+**Kontext.** A22: ein Effekt oder Fluch, der ein Attribut aendert, geht
+ueber die Skalierung der gewaehlten Waffe in die Angriffskraft ein; die
+Why-Zeile nennt den Betrag ("Dexterity -3: Attack -X, counted against it").
+Nachweis des Nutzers: Startwaffe Lv15, ein Relikt mit Attribut-Fluch.
+
+**Bestand, am Code geprueft (17.09.2026, `2d5fcdd`).** Die Schadensrichtung
+rankt heute ohne Waffe: `advisorbar.asking_from` (Z. 458-467) baut den
+`GoalContext` mit `reference=None`, `goals._max_damage` nimmt deshalb den
+ersten Zweig, `_attack_multiplier_mean` — das Mittel der fuenf
+Angriffsmultiplikatoren. **Ohne Waffe gibt es keine Skalierung, in die ein
+Attribut eingehen koennte** (Docstring `_attack_multiplier_mean`, AD-032).
+Darum steht heute unter "Reduced Intelligence and Dexterity: Dexterity -3"
+der Satz "this figure does not count it": `explain._curses_the_goal_cannot_
+feel` (Z. 862) bewertet dieselbe Belegung ohne den Fluch, die Zahl bleibt
+gleich, die Zeile bekommt `_line_the_figure_does_not_count` (Z. 281). Das
+ist nicht OF-13 (nennen statt abwerten), sondern die Folge von AD-032
+Option A. **Alles, was A22 braucht, ist gebaut und nur unerreichbar:**
+`model.compute` summiert `addDexterityStatus` u. a. in `build.attributes`
+und traegt sie als `SourceEntry` unter dem Attributnamen ein (`model.py`
+Z. 1119-1120); `damage.equipped` rechnet die Waffe gegen diese Attribute mit
+den Skalierungskurven (AD-005/AD-019, 2256 Vergleiche QA-095); der zweite
+Zweig von `_max_damage` (`ctx.reference` gesetzt) liefert `final_headline`
+samt Zweihandwert (AD-037, `ctx.two_handed`); `AdvisorRequest.reference_
+weapon_id` steht im Cache-Schluessel und `run._refuse_a_request_that_asks_
+about_another_run` prueft ihn (Z. 267). `Planner.apply_hero_weapon`
+(`app.py` Z. 1319-1332) setzt Kachel 1 auf `hero["starting_weapon"]`.
+
+**Gemessen (Testabzug v12, Lv15, Stufe `weapons.MIN_UPGRADE` = 1, keine
+Relikte, `<Scratchpad>/T-291/starting.py`):** die Startarmatur jedes der
+zehn Nightfarer rechnet ohne Fehler, Recluse eingeschlossen (`Spell power
+135`; die AD-032-Luecke lag am Abzug vor Version 9). Einhand-Werte Wylder
+122, Guardian 107, Ironeye 66, Duchess 72, Raider 158, Revenant 88, Recluse
+135, Executor 94, Scholar 63, Undertaker 91 — **alle zehn gleich den
+A20-Messzellen des Nutzers**, zweihaendig ebenso (125,7/110,6/66,3/74,8/
+180,9/68,6/135,6/97,8/64,9/93,8 gegen 125/110/66/74/180/68/135/97/64/93,
+abgeschnitten). Mit `Reduced Intelligence and Dexterity` (6830200, Dex -3,
+Int -3): Duchess 72 → **70**, Wylder 122 → 120, Scholar 63 → 59, Raider 158
+→ 158 (Greataxe skaliert nicht auf Dex), Recluse 135 → 132. Kosten je
+`evaluate`+`score` (leerer Build, `want_qualitative=False`): 13 us ohne,
+46 us mit Bezugswaffe.
+
+**Kraefte.** A22 (Attribute in der Zahl, ueber die Skalierung einer Waffe)
+gegen A17 (die Rangfolge haengt an keiner gefuehrten Waffe — Waffen sind je
+Runde gewuerfelt) gegen A7 (keine erfundene Umrechnung) gegen A6 (Optimize
+< 6 s, Slot-Frage < 500 ms; T-265d: 1358 ms / Picker 280 ms).
+
+**Optionen.**
+
+- **A — im Bestand bleiben, Attribut-Delta ohne Waffe verrechnen:** nicht
+  moeglich, ohne einen Kurs Attributspunkt → Multiplikator zu erfinden
+  (AD-032 "Bewusst nicht als Option vorgelegt", A7). Verworfen.
+- **B — Startarmatur des Nightfarers als feste Bezugswaffe** (AD-032
+  Option B): `asking_from` fuellt `reference` mit `hero["starting_weapon"]`,
+  `tier=weapons.MIN_UPGRADE`, `slot_index=damage.STARTING_SLOT`. Fest
+  zwischen Runden als Eigenschaft des Datensatzes; A17 haelt woertlich (die
+  *gefuehrte* Waffe bewegt nichts); die Stufe bewegt die Reihenfolge nicht
+  (AD-032, neun Nightfarer, Stufe 1-4 gemessen); der Nachweis-Messpunkt
+  des Nutzers ist genau diese Waffe. **Gewaehlt.**
+- **B' — die aktive Kachel des Build planners** (`planner.active_slot()`,
+  Vor-T-188-Zustand): "gewaehlte Waffe" woertlich; deckt B als Vorgabe
+  (Kachel 1 = Startarmatur), laesst aber die Rangfolge mit jedem Kachelklick
+  wechseln — genau der Entscheid, den A17 hinauswarf —, und braucht die
+  Stufe im Cache-Schluessel. Verworfen; Rueckweg von B nach B' sind drei
+  Zeilen in `asking_from` plus ein Feld auf `AdvisorRequest`. Siehe OF-42.
+- **D — Erwartungswert ueber Waffentypen:** AD-032 Option D, Faktor 39
+  gemessen, erfundenes Gewicht. Verworfen wie dort.
+
+*Betrag in der Why-Zeile.*
+- **W1 — aus der Kurve rechnen:** zweite Rechnung neben `compute`, AD-002/
+  AD-015-Verstoss. Verworfen.
+- **W2 — zweite Bewertung ohne den Effekt, Differenz der Richtungszahl:**
+  der Mechanismus von `_curses_the_goal_cannot_feel`, heute nur fuer Flueche
+  und nur als Ja/Nein. **Gewaehlt**, ausgedehnt auf jeden Effekt, der ein
+  Attribut bewegt, und auf den Betrag.
+
+**Entscheidung, fuenf Punkte.**
+
+1. **Bezugswaffe.** `advisorbar.asking_from` setzt
+   `reference=types.ReferenceArmament(weapon=<Datensatz-Waffe zu
+   hero["starting_weapon"]>, tier=weapons.MIN_UPGRADE,
+   slot_index=damage.STARTING_SLOT)` und `AdvisorRequest.reference_weapon_
+   id=<diese Id>`. `weapons_held` und `armament_effect_ids` bleiben leer
+   (QA-226, AD-032 mitentschieden: die Startarmatur geht **ohne** ihre
+   Rollen ein; `model.compute` faellt fuer Waffentyp-Schranken auf
+   `weapon["wep_type"]` zurueck, Z. 971-972 — Duchess' Dolch erfuellt
+   `triggerOnWepType` 1, `Improved Dagger Attack Power` zaehlt damit fuer
+   sie, `wepTypeTriggerCount` bleibt nach AK-178 unerfuellbar). Fehlt die
+   Startarmatur im Datensatz (`weapon_by_id` liefert `None`), bleibt
+   `reference=None` und der heutige Zweig samt `_NO_ARMAMENT` — das ist der
+   A7-Satz fuer diesen Fall, kein zweiter Code-Weg.
+2. **Kein neuer Rechenweg.** `goals._max_damage` zweiter Zweig, `damage.
+   equipped`, `model.compute` bleiben, wie sie sind; `_attack_multiplier_
+   mean` bleibt als Rueckfall (Punkt 1). `MAX_DAMAGE.scope` bekommt einen
+   Satz ueber die Bezugswaffe (Stufe, ohne Rollen, Hand nach Schalter;
+   Wortlaut `ui-ux-designer`), `_NO_ARMAMENT`/`_NO_ARMAMENT_NOTE` werden
+   Rueckfalltexte. Die Richtung `MAX_ATTRIBUTES` (AD-032 Option C) bleibt
+   unveraendert — ihr Rueckbau ist eine Oberflaechenfrage (Sort-by-Eintrag,
+   gespeicherte Zielwahl), siehe OF-43.
+3. **Betrag je Effekt.** `explain._curses_the_goal_cannot_feel` wird zu
+   `_felt_by_the_goal(problem, chosen, ctx, goal, built, contributions) ->
+   Mapping[tuple[int, int], float]`: fuer jeden Effekt (Buff **oder** Fluch)
+   einer gewaehlten Kopie, der mindestens eine `_Contribution` mit
+   `field_key in model.ATTRIBUTE_ORDER` traegt, einmal `goal.score(evaluate(
+   problem, ohne diesen Effekt, ctx, want_qualitative=False), ctx).value`;
+   Wert = `ranked - ohne`. `_without_the_curse` streicht dafuer die Id aus
+   `effect_ids` **und** `curse_ids` der Traegerkopie. Flueche ohne
+   Attribut werden wie heute nur auf 0 geprueft. Aus dem Mapping folgen:
+   - `unfelt` = Eintraege mit Wert 0 fuer Flueche → unveraendert
+     `_line_the_figure_does_not_count` (Raider mit Dex -3, Vigor/Mind/
+     Endurance unter Schaden: Nebenfrage des Auftrags, kein Sonderfall);
+   - Wert ≠ 0 → `_line` erhaelt den Betrag und haengt ihn **einmal je
+     Effekt** an die erste Attributzeile dieses Effekts (ein Effekt mit
+     zwei Attributen hat einen Betrag, nicht zwei); Format ueber die
+     Richtung (`goal.unit`, `damage.displayed`), Wortlaut `ui-ux-designer`,
+     Platzhalter `Reduced Intelligence and Dexterity: Dexterity -3 → Attack
+     rating -2, counted against it`. Kein neues Feld auf `ReasonLine`; der
+     Nachweistest liest die Zeile wie die heutigen.
+   Kosten: je erklaertem Vorschlag eine Bewertung je Attribut-Effekt (W = 40
+   Vorschlaege, wenige Effekte je Vorschlag, 46 us je Bewertung) — unter
+   10 ms je Optimize, nicht im Beam.
+4. **Cache und Schluessel.** `reference_weapon_id` ist bereits im
+   Schluessel; die Stufe ist Konstante und braucht keinen Platz. Ein
+   Nightfarer-Wechsel wechselt Waffe und `hero_id` zugleich — kein
+   Stale-Fall. Kein Feld kommt hinzu.
+5. **Anzeige.** Die Wertspalte heisst wieder, was `GoalScore.display`/
+   `unit` sagen (`Attack rating 72 AR`, fuer Recluse `Spell power`); AK-190,
+   AK-192, AK-193 sind damit neu zu schreiben (`ui-ux-designer`, T-291b);
+   A17 Teil 2 gilt in der Lesart "keine gefuehrte Waffe".
+
+**Konsequenzen.** Leicht: fuenf Zeilen in `asking_from`, ein Umbau einer
+privaten Funktion in `explain.py`, Texte. Dauerhaft: die Zahl traegt wieder
+den Namen einer Waffe (AD-032 "Was verlorengeht" 2: wer die Startwaffe in
+Minute fuenf ablegt, rankt gegen etwas, das er nicht mehr fuehrt); die 15
+Element-Kopien aus AD-032 B verlieren ihre Zahl in der Schadensspalte
+(Nutzerfrage 1 zu AD-032, nie beantwortet — jetzt OF-42 Teil 2); Beam und
+Vorsortierung rechnen je Bewertung ~3,5-mal laenger (46 gegen 13 us,
+leerer Build) — A6 hat Luft (1358 ms von 6000), aber der `performance-tuner`
+misst (Pruefpunkt a).
+
+**Umkehrbarkeit: leicht** — `reference=None` zurueck, drei Texte zurueck;
+der Betrag in der Why-Zeile faellt dann von selbst auf "does not count it".
+
+**Beruehrte Entscheidungen.** AD-032: **Option A abgeloest durch B, Option C
+bleibt** (der Director-Grund gegen B — "auch eine feste Waffe ist eine
+Waffe" — ist durch A22 vom Nutzer selbst aufgehoben: er verlangt die
+Skalierung einer Waffe). AD-015/OF-13: fuer Attribute aufgehoben (GOAL A22),
+fuer alles andere (HP-Flueche unter Schaden) unveraendert. AD-037: der
+Zweihandwert erreicht die Rangfolge jetzt ueber `now.two_handed` statt nur
+ueber drei Raten (OF-41 wird damit wieder eine echte Wahl zwischen Einhand
+und Zweihand). AD-036: unberuehrt. AD-002/AD-021: gewahrt — die Fassade
+rechnet, `explain` fragt sie nur oefter.
+
+### AD-039 — Eine Familie ist der Effektname ohne Nightfarer-Praefix, Stufe, Waffentyp-, Affinitaets- und Zaehlklausel; Familien-Avoid und Allow sind Fensterzustand mit zwei weiteren festen Schluesseln, und `SlotProblem.excluded` bekommt die aufgeloeste Id-Menge (2026-09-17, Status: aktiv; erweitert AD-036 Punkte 1, 5)
+
+**Kontext.** A23: Familie = gleicher Effektname ohne Stufe und Variante; je
+Familie eine Kopfzeile mit Avoid; Mitglieder einer vermiedenen Familie ein
+drittes Kaestchen Allow ("darf, muss nicht"); Favourite bleibt "muss rein".
+Nachweis: Duchess, Familie "Increased Attack Power (o. ae.)" vermieden,
+"Increased Dagger Attack Power" und "Increased Attack Power with 3+ Daggers"
+auf Allow. **Die Nutzernamen sind Naeherungen** — im Datensatz heissen sie
+`Improved Dagger Attack Power` (7330000, `triggerOnWepType` 1) und
+`Improved Attack Power with 3+ Daggers Equipped` (7080000,
+`wepTypeTriggerCount` 3), `game_category` beide `Dagger`.
+
+**Bestand.** `effectfilters.EffectFilters` (99 Zeilen): zwei `frozenset[int]`,
+zwei feste Schluessel `advisor/excluded`, `advisor/required`, Wert
+kommagetrennte Ids als `type=str`, `mark(effect_id, kind)` haelt die Mengen
+disjunkt, `changed` nach dem Schreiben (AD-036.5). `asking_from` (Z. 444-446)
+reicht beide Mengen als `SlotProblem.excluded/required`; `evaluate.effect_
+ids_of` streicht `excluded` (AD-036.2); `SlotProblem.__post_init__` weist
+eine Id in beiden Mengen ab. Fenster: `effectfilterdialog.py`, eine Zeile je
+Id (340 auf dem Spielstand, AK-304), Spalten Favourite/Avoid/Name/Type/
+Copies, sortierbar (AK-308), Suche. `advisorblock.py:251` und
+`advisorbar.py:223` lesen `filters.excluded` fuer Why-Markierung und
+Zaehler.
+
+**Der Datensatz hat keinen Familienschluessel, der die Nutzerbeispiele
+vereint** (`nightreign_data.json` v12, 2076 Effekte, Feldliste
+`id name info stacks is_debuff sp_effect_ids sp_categories exclusivity
+game_category modifiers …`):
+- `game_category` (61 Werte, 1508 leer; auf den 340 eigenen Ids 52 Werte)
+  ist die Menue-Kategorie des Spiels: `Attack Power` (49 eigene Ids, von
+  `Fire Attack Power Up` bis `Attack power increased for each Night Invader
+  defeated`), `Attributes`, `Demerits (Attributes)`, je ein Wert je
+  Waffentyp. Die beiden Dolch-Beispiele liegen unter `Dagger` — zusammen
+  mit `Dormant Power Helps Discover Daggers`, getrennt von `Improved
+  Greatsword Attack Power` (`Greatsword`). Als Familie kehrt das die
+  Nutzerabsicht um: er muesste 20 Waffentyp-Kategorien einzeln vermeiden,
+  statt eine Familie zu vermeiden und den Dolch zu erlauben. **Verworfen als
+  Schluessel**, brauchbar als Anzeige-Zusatz.
+- Die Id-Struktur (`id // 100` = Stufenreihe: 7001400-7001404 `Physical
+  Attack Up` +0..+4; `id // 10000` = Bauart: 733xx00 `Improved <Typ> Attack
+  Power`, 708xx00 `… with 3+ <Typ>s Equipped`) trennt die beiden
+  Dolch-Beispiele (733 gegen 708) und mischt unter 700 Attribute mit
+  Element-Buffs. Verworfen.
+- `sp_categories` (10/20) ist die Stapelklasse, `exclusivity` die
+  Ausschlussgruppe (fast ueberall -1). Beides keine Wirkungsklasse.
+- Ein Schluessel aus der **Modifikator-Signatur** (Feldnamen ohne Schranken)
+  vereint die Dolch-Beispiele, wirft aber alle Effekte ohne Zahl (Skill-
+  Wechsel, Startgegenstaende, Nightfarer-Effekte) in eine Familie und
+  braeuchte den Namensweg als Rueckfall — zwei Regeln. Verworfen.
+
+**Regel (gewaehlt), am Datensatz geprueft** — `effecttext.family_key(effect,
+weapon_families) -> str`, nacheinander auf `effecttext.name(effect)`
+(Whitespace gefaltet):
+1. `[Nightfarer] `-Praefix ab (dieselbe Klammerregel wie `effecttext.owner`);
+2. Stufe `\s\+\d+$` ab (nur am Ende: `[Wylder] +1 additional Character
+   Skill use` traegt die +1 vorn, das ist keine Stufe);
+3. Varianten-Token ab, als Wort, mit Plural `s`/`es`: die **34 Waffentyp-
+   Namen aus `data["weapon_families"]`** (Datensatzfeld, keine Liste im
+   Code) und die **vier Affinitaeten `Magic`, `Fire`, `Lightning`, `Holy`**
+   (Literal — A23 nennt genau diese vier; `Physical` bewusst nicht, sonst
+   hiesse die Familie von `Physical Attack Up` "Attack Up");
+4. Zaehlklausel `\bwith 3\+\s*Equipped\b` ab (der Rest von `with 3+ Daggers
+   Equipped`, nachdem Schritt 3 den Typ nahm; 31 solche Effekte im
+   Datensatz);
+5. Whitespace falten; leer → der volle Name (kommt im Datensatz nicht vor,
+   0 von 2076).
+Der Schluessel ist zugleich die Beschriftung der Kopfzeile.
+
+**Gemessen (`<Scratchpad>/T-291/families.py`, 17.09.2026).** Eigener
+Bestand: **340 Ids → 222 Familien, 57 davon mit zwei oder mehr Zeilen**
+(165 Einzelne; Groessen 2×34, 3×14, 4×2, 5×2, 6×2, 7, 13, 15). Datensatz,
+relikt-rollbare Ids (`colours` oder `deep_colours` nicht leer): 616 Ids →
+336 Familien, 80 mit ≥ 2, groesste 52. Alle 2076: 453 Familien, **6,9 ms**
+(bestes von 5) — einmal je Programmstart. Zehn Familien am Nutzerbestand:
+
+| Familie (Schluessel = Kopfzeile) | Ids | Mitglieder (Namen) |
+|---|---|---|
+| Attack Power Up | 15 | Fire/Holy/Lightning/Magic Attack Power Up, je +0..+4 soweit besessen |
+| Improved Attack Power | 13 | Improved Bow/Colossal Weapon/**Dagger**/Greataxe/Greatsword/Katana/Twinblade/Whip Attack Power; Improved Attack Power with 3+ Bows/**Daggers**/Great Hammers/Hammers/Thrusting Swords Equipped |
+| Dormant Power Helps Discover | 7 | … Daggers, Fists, Halberds, Reapers, Sacred Seals, Spears, Straight Swords |
+| FP Restoration upon Attacks | 6 | … Claw, Colossal Sword, Curved Sword, Great Spear, Greataxe, Hammer Attacks |
+| Physical Attack Up | 6 | Physical Attack Up, +1, +2 (zwei Ids), +3, +4 |
+| HP Restoration upon Attacks | 5 | … Greatsword, Halberd, Hammer, Thrusting Sword, Twinblade Attacks |
+| Improved Damage Negation | 5 | Improved Fire/Holy/Lightning Damage Negation +1/+2 |
+| Damage Negation Up | 4 | Fire/Holy/Lightning/Magic Damage Negation Up |
+| Dexterity | 3 | Dexterity +1, +2, +3 |
+| +1 additional Character Skill use | 3 | [Ironeye] …, [Wylder] … (zwei Ids) |
+
+Beide Nutzerbeispiele liegen in **einer** Familie (`Improved Attack Power`),
+`Improved Affinity Attack Power` und `+2` in einer, `Improved Melee Attack
+Power` und `Improved Skill Attack Power` bleiben eigene Familien (kein
+Token). Zwei Ids mit gleichem Namen (QA-180: `Physical Attack Up +2`,
+`Starlight Shards …`) sind zwei Zeilen einer Familie — das ist die
+Absicht von "Familie = Name".
+
+**Kraefte.** A23 (Familie vermeiden, Mitglied erlauben, Favourite unberuehrt)
+gegen AD-036 (`search`/`evaluate` sehen nur Ids; `SlotProblem` haelt die
+Mengen disjunkt) gegen AD-030/OF-15 (Nutzertext nie als Schluessel; hier
+sind Namen der **Wert**).
+
+**Optionen.**
+- **Aufloesung im Advisor-Paket** (Familienmengen auf `SlotProblem`,
+  `evaluate` kennt Familien): zweite Darstellung desselben Ausschlusses,
+  Cache-Schluessel mit Namen. Verworfen (AD-024-Klasse).
+- **Aufloesung im Fenster, vor dem Lauf** — `search.py`/`evaluate.py`
+  bleiben bei `excluded`-Ids. **Gewaehlt**; genau die Frage 3 des Auftrags,
+  Antwort ja.
+- **Allow als Ausnahme in `excluded` kodieren** (vermiedene Familie =
+  alle Ids in `excluded` schreiben, Allow = Id wieder streichen): kein
+  neuer Schluessel, aber ein spaeter erworbenes Relikt der Familie waere
+  nicht vermieden, und Familie-Aus/Ein verlaeuft ueber 13 Einzelschreibungen.
+  Verworfen.
+- **Familien je Nightfarer:** wie AD-036 P3 verworfen; der Nachweis nennt
+  Duchess, meint aber die Spielweise.
+
+**Entscheidung, sechs Punkte.**
+
+1. **Schluessel** wie oben, in `effecttext.py` (Qt-frei, neben `name` und
+   `owner`), Parameter `weapon_families: Mapping` aus `data["weapon_
+   families"]` (`data.get(..., {})` tolerant). `Planner.__init__` rechnet
+   einmal `families = {int(i): family_key(e, …) for i, e in
+   data["effects"].items()}` (6,9 ms) und gibt es `EffectFilters`.
+2. **Zustand.** `EffectFilters(parent, families: Mapping[int, str])`
+   bekommt zwei Mengen dazu: `allowed: frozenset[int]` und
+   `avoided_families: frozenset[str]`. Je Id gilt genau ein Zustand aus
+   {keiner, `EXCLUDED`, `REQUIRED`, `ALLOWED`} — `mark(effect_id, kind)`
+   wie heute mit dem dritten Wert `ALLOWED`; `mark_family(key, avoided:
+   bool)` neu. Beide schreiben und senden `changed`.
+3. **Aufloesung, eine Stelle:** `EffectFilters.resolved_excluded ->
+   frozenset[int]` = `(excluded ∪ {id | families[id] ∈ avoided_families})
+   − allowed − required`, nach jeder Aenderung neu (Mengenoperation ueber
+   2076 Ids). **Favourite gewinnt** (wie die Ladereparatur AD-036, Director
+   14.09.): ein favourisiertes Mitglied einer vermiedenen Familie ist damit
+   erlaubt, ohne Allow zu brauchen — A23 "Favourite wird nicht als
+   Ausnahmemechanik benutzt" bleibt gewahrt, weil der Nutzer dafuer Allow
+   hat und Favourite weiter "muss rein" heisst. `asking_from` reicht
+   `excluded=planner.effect_filters.resolved_excluded`; `advisorblock.py:
+   251` und der Zaehler lesen dieselbe Menge (Wortlaut der Zaehlung — Ids
+   oder "N Familien" — beim `ui-ux-designer`). `SlotProblem`, `evaluate`,
+   `search`, `explain`, Cache: **unveraendert**; die aufgeloeste Menge ist
+   Teil des Schluessels ueber `problem.excluded`, wie jede Id heute.
+   Aufgeloest wird ueber **alle** Datensatz-Ids, nicht nur ueber die
+   besessenen: ein spaeter erworbenes Relikt der Familie ist vermieden.
+4. **Persistenz.** Zwei feste Schluessel dazu, Bauform AD-036 P2:
+   `advisor/allowed` (Ids, kommagetrennt, `type=str`, tolerante Zerlegung
+   wie `stored`) und `advisor/avoided_families` (Familienschluessel,
+   **zeilenweise** `\n`-getrennt, `type=str`, leere Teile fallen — ein Komma
+   kommt in Familienschluesseln vor: `Improved Mind and Faith, Reduced
+   Intelligence`; ein Zeilenumbruch nie, `effecttext.name` faltet ihn).
+   `store` schreibt alle vier Schluessel durch ein `QSettings` mit einem
+   `sync()`. Ladereparatur: `allowed −= required`, `excluded −= required ∪
+   allowed`, Rueckschreiben wenn geaendert. Kein `__schema`-Schritt, keine
+   Migration: aeltere Staende lesen zwei leere Schluessel. Ein
+   Familienschluessel, den der Datensatz nach einer Umbenennung nicht mehr
+   bildet, bleibt gespeichert und trifft nichts — dieselbe Regel wie fuer
+   verlorene Ids. `allowed` bleibt auch gespeichert, wenn die Familie nicht
+   mehr vermieden ist (Allow wirkt dann nichts; Ein/Aus einer Familie
+   bringt die alten Ausnahmen wieder).
+5. **Fenster** (`effectfilterdialog.py`, Spec T-291b): Zeilen nach Familie
+   gruppiert; Kopfzeile nur fuer Familien mit **zwei oder mehr Zeilen** im
+   Bestand (57 von 222), Einzelne bleiben eine Zeile ohne Kopf und ohne
+   Allow; Kopfzeile traegt Avoid → `mark_family`; Mitgliedszeile Favourite/
+   Avoid/Allow → `mark`, Allow nur bedienbar, solange die Familie vermieden
+   ist. `rows_from` liefert je Zeile den Familienschluessel aus derselben
+   Abbildung. **Randbedingung fuer die Spec:** AK-308 (Spaltensortierung)
+   und Gruppierung vertragen sich in einem `QTableWidget` nicht; Ordnung
+   (Familie, dann Name) oder ein `QTreeWidget` entscheidet der
+   `ui-ux-designer`.
+6. **Nicht-Ziel:** keine Familien in `types.py`, `search.py`,
+   `evaluate.py`, `explain.py`; keine Kategorie-Familien (`game_category`),
+   keine Zustands-Token (`Poison`, `Rot`, …) — wieder interessant, wenn
+   der Nutzer eine Familie `Taking Damage Causes … Buildup` verlangt (heute
+   sieben Einzelzeilen); keine Familien je Nightfarer.
+
+**Konsequenzen.** Leicht: eine reine Funktion, zwei Mengen, zwei Schluessel,
+eine Aufloesungszeile; das Advisor-Paket sieht nichts davon. Dauerhaft: der
+Familienschluessel ist eine Regel ueber **englische Namen** — eine
+Umbenennung im Spiel ordnet still um; der Waechtertest haelt die Regel an
+den zwei Nutzerbeispielen und an zehn Literalen fest (Pruefpunkt d).
+
+**Umkehrbarkeit: leicht** — zwei Schluessel loeschen, zwei Mengen entfernen,
+`resolved_excluded` = `excluded`; die Kopfzeilen fallen.
+
+**Beruehrte Entscheidungen.** AD-036.1/2 (Ids auf `SlotProblem`, Streichen
+in `effect_ids_of`): unveraendert, erweitert um die Herkunft der Ids.
+AD-036.5 (Fensterzustand, zwei Schluessel): erweitert auf vier. AD-030/
+OF-15: Namen als Wert, nie als Schluessel — gewahrt. AK-304 (eine Zeile je
+Id): bleibt; die Kopfzeile ist keine Effektzeile.
+
+**Umsetzung — vier `developer`-Auftraege, je hoechstens fuenf
+Anwendungsdateien (OF-34). Reihenfolge: 1 → 2 (A22), 3 → 4 (A23); die
+Paare sind voneinander unabhaengig. 2 und 4 nach der Spec T-291b.**
+
+| Schritt | Inhalt | Dateien (Anwendung) | Zeilen |
+|---|---|---|---|
+| **1 — Bezugswaffe (AD-038.1, .2, .4), Qt-frei bis auf `asking_from`** | `advisorbar.py`: `asking_from` fuellt `reference` und `reference_weapon_id` aus `planner.weapon_by_id(hero["starting_weapon"])`, Rueckfall `None`. `advisor/goals.py`: `MAX_DAMAGE.scope`-Satz, `_NO_ARMAMENT*` als Rueckfall kommentiert. `scripts/measure_advisor_search.py`: Rezept ist wieder aktuell (Stufe `MIN_UPGRADE`, `weapons_held=()`). Tests: `test_advisor_bar.py` (asking_from traegt die Startarmatur; Rueckfall), `test_advisor_goals.py` (Duchess Lv15 + 6830200 → Zahl faellt, Literal 72/70), `test_relic_picker_advisor.py`, `test_advisor_apply.py`, `test_advisor_types.py`, `test_field_labels.py`, `test_advisor_explain.py` (6 Stellen `reference=None`/`_NO_ARMAMENT`). Mutation: `reference=None` in `asking_from` (Muster AD-033). | `advisorbar.py`, `advisor/goals.py` = **2** (+ Skript) | ca. +25 |
+| **2 — Betrag in der Why-Zeile (AD-038.3, .5)** | `advisor/explain.py`: `_felt_by_the_goal`, `_without_the_curse` → `_without_the_effect` (beide Id-Listen), `_line` mit Betrag, `reasons`/`_curse_lines` lesen das Mapping. Wortlaut aus T-291b. Tests: `test_advisor_explain.py` (Duchess + 6830200: Zeile traegt Betrag und "counted against it"; Raider + 6830200: "does not count it"; Vigor +3 unter Schaden: kein Betrag; Betrag steht einmal je Effekt). Mutation: `ranked - ohne` → `0.0`. | `advisor/explain.py` = **1** | ca. +40 |
+| **3 — Familienschluessel und Zustand (AD-039.1-4), Qt-frei bis auf den Speicher** | `effecttext.py`: `family_key` + `AFFINITIES`. `effectfilters.py`: `ALLOWED`, `KEYS` × 4, `stored_text`, `store` × 4, `EffectFilters(families)`, `mark(…, ALLOWED)`, `mark_family`, `resolved_excluded`, Ladereparatur. `app.py`: Abbildung bauen, `EffectFilters(self, families)`. `advisorbar.py`: `asking_from` liest `resolved_excluded`; Zaehler. `advisorblock.py:251`: `resolved_excluded`. Tests: neu `test_effecttext_family.py` (zehn Literale aus der Tabelle, beide Dolch-Beispiele eine Familie, `+1 additional` vorn bleibt, leer → Name), `test_effectfilters.py` (vier Schluessel, Reparatur, Aufloesung, Komma im Familienschluessel ueberlebt, Umlenkung). Mutation: `- allowed` in `resolved_excluded` streichen. | `effecttext.py`, `effectfilters.py`, `app.py`, `advisorbar.py`, `advisorblock.py` = **5** | ca. +90 |
+| **4 — Fenster (AD-039.5)** | `effectfilterdialog.py`: Gruppierung, Kopfzeilen, Allow-Kaestchen, Zaehlerzeile nach Spec; `rows_from` mit Familie. Tests: `test_effect_filter_dialog.py` (Kopf nur bei ≥ 2 Zeilen; Allow nur unter vermiedener Familie; Klick → `mark_family`; AK-305-Tab-Reihenfolge; Breite/Hoehe nach Neumessung). | `effectfilterdialog.py` = **1** | ca. +120 |
+
+**Was der `developer` ausdruecklich nicht tut.** Kein Kurs Attribut →
+Multiplikator; keine Berechnung des Betrags aus der Kurve (nur die zweite
+Bewertung); kein Feld auf `GoalContext`/`AdvisorRequest`/`AdvisorResult`/
+`ReasonLine`; die aktive Kachel nicht als Bezugswaffe (OF-42 entscheidet);
+`weapons_held`/`armament_effect_ids` bleiben leer; `MAX_ATTRIBUTES` nicht
+entfernen (OF-43); keine Familienlogik unter `advisor/`; `game_category`
+nicht als Schluessel; keine Token-Liste fuer Waffentypen im Code (Datensatz);
+`Physical` nicht als Token; kein `__schema`; Wortlaute aus `UI_SPEC.md`
+(T-291b), nicht aus diesem Dokument; `EXTRACT_VERSION` unveraendert.
+
+**Pruefpunkte.** (a) `performance-tuner`: Optimize und Slot-Frage mit
+Bezugswaffe am Spielstand (Sechs-Slot-Deep-Gefaess, `scripts/measure_*`),
+Schwellen A6; reisst die Slot-Frage 500 ms, ist der erste Griff die
+`bare`-Zweitbewertung in `damage.equipped` (AD-020, ungenutzt im Berater).
+(b) `qa-engineer` A22 am Artefakt: Duchess Lv15, Relikt mit 6830200 —
+Zahl 72 → 70, Zeile traegt den Betrag; Nutzer-Messpunkt ingame (GOAL A22
+Nachweis) durch den Nutzer. (c) A17-Nachweis bleibt: Kachelwechsel bewegt
+keine Rangfolge. (d) A23 am Artefakt: Familie `Improved Attack Power`
+vermieden, 7330000 und 7080000 auf Allow → nur diese zwei aus der Familie
+in Vorschlaegen, keine erzwungen; **Hinweis fuer QA:** 7080000 zaehlt nach
+AK-178 nie, sichtbar wird nur 7330000. (e) Filterfenster: 340 Zeilen, 57
+Koepfe (nachzaehlen am Tag der Pruefung). (f) Umlenkung greift fuer die zwei
+neuen Schluessel (Hook).
+
+**Risiken.** Die Startarmatur fehlt in einem Datensatz (Rueckfall Punkt 1,
+Zeile `_NO_ARMAMENT` — erkennbar, kein Absturz). Der Familienschluessel
+gruppiert nach einer Spielaktualisierung anders (Waechtertest mit
+Literalen faellt; Rueckweg: Token-Liste anpassen, Schluessel bleiben
+gespeichert). Die Aufloesung ueber alle Ids macht `problem.excluded` gross
+(83 Ids fuer `Improved Attack Power` datensatzweit) — Tupel im
+Cache-Schluessel, kein Laufzeitproblem (Mengentest je Id in
+`effect_ids_of`).
+
+**Bewusst nicht getan.** Kein Erwartungswert ueber Waffen (AD-032 D); keine
+Betrags-Spalte in der Rangliste (die Rangfolge traegt den Betrag schon);
+keine Ailment-/Element-Familien ueber die vier Affinitaeten hinaus; keine
+Kopfzeile fuer Familien mit einer Zeile; kein Rueckbau von
+`MAX_ATTRIBUTES` ohne Entscheid (OF-43); kein zweiter Filtermodus im
+Picker (A21: das Fenster ist der einzige Weg).
+
+**Offene Fragen aus Themenbereich K.**
+
+**OF-42 — an den `director`, Adressat App Designer:** A22 sagt "gewaehlte
+Waffe", A17 "keine gefuehrte Waffe". Gebaut wird die **Startarmatur des
+Nightfarers** (B); soll stattdessen die aktive Kachel des Build planners
+ranken (B', Rangfolge wechselt mit der Kachel, Stufe in den Schluessel)?
+Teil 2 (AD-032 Frage 1, nie beantwortet): die 15 Element-Kopien, die unter
+B in der Schadensspalte auf 0 fallen (`Night of the Lord` u. a., helfen nur
+mit einer Element-Waffe) — Gewinn oder Verlust?
+
+**OF-43 — an den `director`, Adressat App Designer:** Bleibt die dritte
+Richtung `Offensive attributes` (AD-032 C), obwohl Attribute jetzt in der
+Schadenszahl stehen? Empfehlung: fuer 1.14.0 behalten (kein Umbau, keine
+gespeicherte Zielwahl, die ins Leere zeigt), Rueckbau als eigener Entscheid.
+
+**OF-44 — an den `director`, Adressat `ui-ux-designer` (T-291b):** Wortlaut
+des Betrags in der Why-Zeile (`→ Attack rating -2`?), Zaehlung der Leiste
+("3 avoided" — Ids oder Familien?), Neufassung AK-190/192/193 und Scope-
+Satz, Gruppierung gegen AK-308 (Tabelle mit fester Ordnung oder Baum).
 
 ---
 
