@@ -406,7 +406,9 @@ def run(request: types.AdvisorRequest, inventory,
     # allowed to touch. Kept in that order and de-duplicated, so a sentence
     # both halves happen to give is read once (AD-025.2).
     unknowns = tuple(dict.fromkeys(ranked.unknowns
-                                   + explain.unknowns(problem)))
+                                   + explain.unknowns(problem)
+                                   + explain.required_met_by_a_hold(problem,
+                                                                    ctx)))
     # A7 for A19: an empty beam under a required effect is not "nothing to
     # say", it is the answer that no owned constellation meets the condition
     # (AD-036.4). The pools decide which effect is missing a carrier;

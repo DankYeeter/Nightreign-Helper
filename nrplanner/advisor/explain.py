@@ -969,6 +969,32 @@ def required_but_unmet(problem: types.SlotProblem,
             f"favourited — no suggestion can meet that.",)
 
 
+def required_met_by_a_hold(problem: types.SlotProblem,
+                           ctx: types.GoalContext) -> tuple[str, ...]:
+    """A favourited effect a held relic already carries, said by name (A19).
+
+    The search does not add a second carrier for it (AD-036.4), so nothing
+    in the suggested slots names the effect, and a player reading the
+    suggestion sees one of two favourites and no word about the other
+    (T-288: the Night Invader effect sat on the held relic). One sentence
+    per such effect, in `result.unknowns` beside the held-slots line, naming
+    the relic and the slot that carry it.
+    """
+    lines = []
+    for effect_id in sorted(problem.required):
+        carriers = [entry for entry in problem.held
+                    if entry.relic is not None
+                    and (effect_id in entry.relic.effect_ids
+                         or effect_id in entry.relic.curse_ids)]
+        if not carriers:
+            continue
+        where = ", ".join(f"{entry.relic.name} held in Slot {entry.index + 1}"
+                          for entry in carriers)
+        name = _effect_name(ctx, effect_id) or f"effect {effect_id}"
+        lines.append(f"{name}, which you favourited, is carried by {where}.")
+    return tuple(lines)
+
+
 def unknowns(problem: types.SlotProblem) -> tuple[str, ...]:
     """What this run left out, in the player's language (AD-010, A7).
 

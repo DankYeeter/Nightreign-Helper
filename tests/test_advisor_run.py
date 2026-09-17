@@ -222,6 +222,42 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     assert not met.blocked_by_a_requirement
 
 
+def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
+        game_data, wylder):
+    """T-288: two favourited effects, one already on the relic the player
+    holds. The search rightly adds no second carrier for it, so without a
+    sentence the answer shows one favourite and says nothing about the
+    other -- the player read that as the second one dropped. The answer
+    names the held relic and its slot; the free slots still carry the
+    other favourite.
+    """
+    rolls = advisor.raising_effects(game_data, wylder, 4)
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    holding, wanted = owned.relics[0], owned.relics[1]
+    on_the_hold, in_the_open = rolls[0][0], rolls[1][0]
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={0: advisor.held_relic(holding)}),
+        required=frozenset({on_the_hold, in_the_open}))
+    frozen = run.frozen_inventory(owned, problem)
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen,
+                     ctx, goals.GOALS)
+
+    def name(effect_id):
+        return " ".join(game_data["effects"][str(effect_id)]["name"].split())
+
+    assert result.suggestions and all(
+        {choice.handle for choice in suggestion.choices} == {wanted.handle}
+        for suggestion in result.suggestions)
+    assert (f"{name(on_the_hold)}, which you favourited, is carried by "
+            f"{holding.name} held in Slot 1.") in result.unknowns
+    assert not any(name(in_the_open) in line for line in result.unknowns)
+    assert not result.blocked_by_a_requirement
+
+
 def test_a_required_effect_owned_only_deep_says_so_when_deep_is_off(
         game_data, wylder):
     """QA-273's Vermerk to AK-281: two owned copies carry the required
