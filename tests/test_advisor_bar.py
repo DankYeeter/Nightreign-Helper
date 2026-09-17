@@ -861,8 +861,9 @@ def test_the_filters_button_opens_the_window_over_what_is_owned(planner,
     assert len(opened) == 1
     window = opened[0]
     assert window._filters is planner.effect_filters
-    assert window.table.rowCount() == len(
-        effectfilterdialog.rows_from(planner.owned, planner.effects)) > 0
+    assert len(window.shown_ids()) == len(
+        effectfilterdialog.rows_from(planner.owned, planner.effects,
+                                     planner.effect_filters.families)) > 0
     assert window.empty.isHidden()
     # AK-309's first two cases, told apart as the relic label tells them.
     monkeypatch.setattr(planner, "owned", None)

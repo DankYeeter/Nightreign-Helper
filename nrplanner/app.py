@@ -3014,7 +3014,8 @@ class Planner(QMainWindow):
         save with nothing in it.
         """
         rows = ([] if self.owned is None
-                else effectfilterdialog.rows_from(self.owned, self.effects))
+                else effectfilterdialog.rows_from(
+                    self.owned, self.effects, self.effect_filters.families))
         reason = "" if rows else (
             effectfilterdialog.SAVE_HAS_NO_RELICS
             if self.owned is not None or self._answers_a_chosen_save
