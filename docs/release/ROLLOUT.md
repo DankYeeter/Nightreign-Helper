@@ -377,6 +377,26 @@ A-020/A-023/A-031 aus `AUFLAGEN.md`, dort bereits gefuehrt).
 
 ---
 
+## 1.13.2 — 2026-09-17, T-290, Modus `notes`
+
+Stand `c537c8b`. `AUFLAGEN.md` gelesen (Stand T-283c/1.13.1, GELB): keine
+Auflage steht auf ROT, keine sperrt diesen `notes`-Lauf. Kein Build, kein
+Release, keine Weitergabe in diesem Lauf.
+
+### Migration
+
+Keine. Der Aenderung (`bc4443e`, `1be0d9e`, AK-314) liegt kein neuer
+`QSettings`-Schluessel, kein Schema und kein Ablageort zugrunde — nur eine
+zusaetzliche Textzeile im Vorschlag und im Why-Dialog, aus bestehenden Daten
+berechnet. `986216d` (Hook-Fix) beruehrt kein Nutzerdatenformat.
+
+### Ergebnis
+
+Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe gilt dieselbe Liste wie
+im 1.13.1-Abschnitt unten (A-008/A-020/A-023/A-030/A-031/A-033/A-035).
+
+---
+
 ## 1.13.1 — 2026-09-16, T-285c, Modus `notes`
 
 Stand `cdf4f50`. Artefakt (T-282) `dist/NightreignHelper.exe`,

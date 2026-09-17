@@ -4,6 +4,13 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.13.2] - 2026-09-17
+
+### Added
+- If a relic you are already holding carries a Favourite effect, the
+  suggestion now says so directly under its effect lines instead of only in
+  the "Why" dialog.
+
 ## [1.13.1] - 2026-09-16
 
 ### Added

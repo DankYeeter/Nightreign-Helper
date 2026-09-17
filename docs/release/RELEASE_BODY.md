@@ -94,3 +94,6 @@ starts there.
   and that they are separate from the star on a relic card. Enter now
   selects a focused Nightfarer tile the same way Space already does. This
   build is only produced after the full automated test suite has passed.
+- **1.13.2** — if a relic you are already holding carries a Favourite effect,
+  the suggestion now says so directly under its effect lines, not only in
+  the "Why" dialog.
