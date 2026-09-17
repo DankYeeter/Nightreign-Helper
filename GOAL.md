@@ -431,3 +431,45 @@ effekten die ich habe. nicht gruppiert pro relikt oder so. curses ebenfalls"*
 *Nutzerentscheid 12:30: die Punkte an den Effektzeilen im Picker und im
 Why-Dialog **entfallen komplett**; das Filterfenster ist der einzige Weg
 (AK-276-278, AK-297 damit gegenstandslos).*
+
+## Nachtrag 17.09.2026 — Attribute rechnen, Familien vermeiden (entschieden durch den Nutzer, 20:13-20:20)
+
+*Anlass: Ingame-Test von 1.13.2 auf Duchess. Bild: Vorschlag "Deep Grand
+Tranquil Scene" mit vier Fluchzeilen "Reduced Intelligence and Dexterity:
+Dexterity -3 — this figure does not count it." Nutzer: "diese negativen
+muessen mit eingerechnet werden." Und: "ich will 'familys' avoiden koennen.
+Einzelne davon kann ich mit favourite durchwinken … aber das wuerde
+favourite entwaessern."*
+
+### A22 — Attribut-Aenderungen zaehlen in die Schadenszahl (beide Richtungen)
+
+- Ein Effekt oder Fluch, der ein Attribut aendert (Vigor, Mind, Endurance,
+  Strength, Dexterity, Intelligence, Faith, Arcane, ±n), wird ueber die
+  Skalierung der gewaehlten Waffe in die Angriffskraft gerechnet — Flueche
+  senken, Buffs heben die Zahl. Damit ist OF-13 fuer Attribute aufgehoben;
+  fuer Attribute gilt sie nicht mehr als "zielfremd". Die Umrechnung stammt
+  aus den Spieldaten (Skalierungskurven, wie A20), nicht aus einer
+  erfundenen Gewichtung (A7 bleibt).
+- Nachweis: Ein Build mit Dex -3 auf einer Dex-skalierenden Waffe zeigt
+  eine kleinere Angriffskraft als ohne, und die Why-Zeile nennt den Betrag
+  ("Dexterity -3: Attack -X, counted against it"). Ein Messpunkt des
+  Nutzers ingame (Startwaffe Lv15, ein Relikt mit Attribut-Fluch) bestaetigt
+  die Zahl.
+
+### A23 — Familien vermeiden, Mitglieder ausdruecklich erlauben
+
+- **Familie** = gleicher Effektname ohne Stufe und Variante (z. B.
+  "Improved Affinity Attack Power" umfasst +1/+2/+3 und Magic/Fire/
+  Lightning/Holy; "Increased Dagger Attack Power" ist eine eigene Familie).
+  Den Schluessel legt der `architect` fest, abgeleitet aus dem Namen.
+- Das Filterfenster (A21) zeigt je Familie eine Kopfzeile mit **Avoid**.
+  Unter einer vermiedenen Familie tragen die Mitglieder ein drittes Kaestchen
+  **Allow**: das Mitglied darf in Vorschlaege, muss aber nicht. **Favourite**
+  bleibt "muss rein" und wird nicht als Ausnahmemechanik benutzt.
+- Nachweis: Duchess, Familie "Increased Attack Power" (o. ae.) vermieden,
+  "Increased Dagger Attack Power" und "Increased Attack Power with 3+
+  Daggers" auf Allow → Optimize schlaegt nur diese beiden aus der Familie
+  vor, ohne sie zu erzwingen.
+
+*Reihenfolge (Nutzer 20:13): Release 1.13.2 zuerst, A22/A23 als 1.14.0 mit
+eigener Pruefkette.*
