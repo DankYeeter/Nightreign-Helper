@@ -237,17 +237,20 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
 
 def _an_answer(filled: int = 6, curses: tuple = (),
                not_counted: tuple = (),
-               blocked: bool = False) -> types.AdvisorResult:
-    """An answer that fills `filled` slots of the question above."""
+               blocked: bool = False, held: int = 0) -> types.AdvisorResult:
+    """An answer that fills `filled` slots of the question above, with
+    `held` more already decided before the search ran (QA-284)."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
                                      relic_id=200 + index, name=f"Relic {index}")
                     for index in range(filled))
+    held_slots = tuple(types.HeldSlot(index=filled + index)
+                       for index in range(held))
     score = types.GoalScore(value=1.0, display="Attack rating 100", unit="AR")
     return types.AdvisorResult(
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
         curses_without_a_figure=curses, not_counted=not_counted,
-        blocked_by_a_requirement=blocked)
+        blocked_by_a_requirement=blocked, held=held_slots)
 
 
 @pytest.fixture
@@ -490,6 +493,19 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=5))
+    assert bar.status.whole_text() == (
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
+        "choose from.")
+
+
+def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
+    """QA-284: a held slot is a boundary condition the search never looked
+    at (AD-014.2), not a pool it searched and found empty -- one held slot
+    plus one genuinely empty one must say only the empty one has nothing to
+    choose from."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(filled=4, held=1))
     assert bar.status.whole_text() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")

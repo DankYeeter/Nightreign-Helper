@@ -925,7 +925,13 @@ class AdvisorBar(QWidget):
         label = result.goal_label
         slots = len(self._asked.request.problem.slots) if self._asked else 0
         best = result.suggestions[0] if result.suggestions else None
-        filled = len(best.choices) if best is not None else 0
+        chosen = len(best.choices) if best is not None else 0
+        # A held slot already carries its own relic, or is held empty on
+        # purpose (AD-014.2/.7) -- a boundary condition the search never
+        # touched, not a pool it searched and came back empty for. Left out
+        # of `filled` it counted as "nothing to choose from" on every run
+        # that held anything at all (QA-284).
+        filled = chosen + len(result.held)
         curses = len(result.curses_without_a_figure)
         left_out = len(result.not_counted)
         if slots - filled > 0:
