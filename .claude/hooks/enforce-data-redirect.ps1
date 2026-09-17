@@ -63,7 +63,15 @@ if ($cmd -match '\bpytest\b') { exit 0 }
 # auf, kommt sie hier als weiteres $ist*-Pattern dazu.
 # Kein Anker auf Zeilenanfang: "VAR=wert VAR2=wert python run.py" ist ein
 # einzelnes Kommando ohne Trenner vor "python" und muss trotzdem greifen.
-$istQuellstart = $cmd -match '\b(python3?|py)(\.exe)?\b[^;&|]*\brun\.py\b'
+#
+# T-289 NH-004-Nachtrag: "\bpy\b" trifft auch auf die zwei Buchstaben vor der
+# Endung in "run.py" selbst, weil der Punkt davor schon eine Wortgrenze ist -
+# ein reiner Lesebefehl wie "grep -n x nrplanner/advisor/run.py" hat dort sein
+# eigenes "py" und wurde faelschlich als Programmstart erkannt (17.09.,
+# developer T-288 und Director je einmal beobachtet). "(?<!\.)" davor
+# verbietet genau diese Fundstelle: ein echtes "python"/"py" steht nie
+# unmittelbar hinter einem Punkt, ein Dateiname wie "*.py" dagegen immer.
+$istQuellstart = $cmd -match '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\brun\.py\b'
 $istExeStart = $cmd -match '(?i)\bNightreignHelper\.exe\b'
 
 # QA-244: von den acht Skripten unter scripts/measure_*.py bauen nur diese
@@ -72,8 +80,9 @@ $istExeStart = $cmd -match '(?i)\bNightreignHelper\.exe\b'
 # kein Fenster und ruehren an keiner der drei Variablen - ein Muster auf den
 # ganzen Ordner wuerde sie ohne Grund abweisen. Baut ein kuenftiges Skript ein
 # Fenster, kommt sein Name hier dazu, nicht ein Wildcard auf den Ordner.
+# Dieselbe "(?<!\.)"-Sperre wie oben, aus demselben Fund.
 $istFensterMessskript = $cmd -match
-    '\b(python3?|py)(\.exe)?\b[^;&|]*\b(measure_picker_cards|measure_advisor_block)\.py\b'
+    '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\b(measure_picker_cards|measure_advisor_block)\.py\b'
 
 if (-not ($istQuellstart -or $istExeStart -or $istFensterMessskript)) { exit 0 }
 
