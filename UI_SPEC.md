@@ -5825,3 +5825,210 @@ durch die Zeile, wird `OPENING_SIZE` nachgezogen und im Bericht gemessen.
 - Auf 1366×768 bleibt das Fenster vollstaendig sichtbar (AK-303).
 
 ---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-315: der Betrag in der Why-Zeile fuer Attribut-Effekte (AD-038, A22, OF-44 Teil 1)
+
+*Neu in T-292a. Baut auf AK-136/AK-137 (Interpunktion, Bedingung von
+`, counted against it`) und AK-88 (`Attack rating`/`Spell power` als
+bestehende Woerter der Wertspalte). Kein Fensterlauf, reine Wortlaut- und
+Anhaengeregel; die Verdrahtung (`explain._felt_by_the_goal`) baut der
+`developer` (T-292e).*
+
+**AK-315** *(A22 — der Betrag steht an derselben Zeile, die den
+Attributwert schon nennt, nicht in einer zweiten Zeile.)*
+
+1. **Traegerzeile.** Der bestehende `_named`-Text einer Attributzeile
+   (`"{label} {amount}"`, z. B. `Dexterity -3`) bleibt die erste Haelfte
+   unveraendert. Bewegt der Effekt die Angriffszahl der Bezugswaffe
+   (`_felt_by_the_goal` ≠ 0, AD-038 Punkt 3), haengt die Zeile den Betrag
+   nach dem Muster `" → {rating} {delta}"` an: `{rating}` ist das Wort, das
+   die Wertspalte fuer diese Zielrichtung ohnehin traegt (`Attack rating`
+   fuer waffenskalierte Ziele, `Spell power` fuer Staebe/Siegel — AK-88,
+   kein neues Wort); `{delta}` ist vorzeichenbehaftet, in derselben
+   Zahlenform wie die Kopfzahl der Kachel (keine neue Rundungsregel).
+   Beispiel (Duchess, `Reduced Intelligence and Dexterity`, Dex -3, Int -3,
+   gemessen 72 → 70, AD-038):
+   `"Reduced Intelligence and Dexterity: Dexterity -3 → Attack rating -2, counted against it"`
+2. **`, counted against it` nach AK-137, jetzt gegen `{delta}` statt gegen
+   `{amount}`.** Der Zusatz steht, wenn `{delta}` die Richtung des Ziels
+   verschlechtert (`model.is_better_lower` auf das **Zielfeld**, nicht auf
+   das Attributfeld) — bei Angriffswert/Zauberkraft also bei `{delta} < 0`.
+   Ein Buff (`{delta} > 0`) traegt **keinen** Zusatz und endet auf die Zahl:
+   `"Improved Dexterity: Dexterity +3 → Attack rating +2"`. Interpunktion
+   nach AK-136 unveraendert: die Zeile endet nie auf einen Punkt, weder nach
+   der Zahl noch nach `counted against it`.
+3. **Zwei Attribute, ein Betrag.** Bewegt ein Effekt mehrere Attributfelder
+   (wie im Beispiel Dex **und** Int), traegt **nur** die erste Zeile in
+   `model.ATTRIBUTE_ORDER` den Betrag (hier Dexterity, vor Intelligence);
+   jede weitere Attributzeile desselben Effekts bleibt bei der reinen
+   `{label} {amount}`-Form ohne Pfeil und ohne Zusatz — ein Effekt hat einen
+   Betrag, nicht so viele wie Attributfelder (AD-038 Punkt 3, woertlich).
+4. **Kein Betrag (`delta == 0`).** Bewegt der Effekt die Zielzahl nicht
+   (die Bezugswaffe skaliert nicht auf dieses Attribut, z. B. Raider mit
+   Dex-Fluch auf einer Greataxe), bleibt die Zeile beim bestehenden Satz
+   unveraendert: `"{effect_name}: {label} {amount} — this figure does not
+   count it."` (`_line_the_figure_does_not_count`, unveraendert; gilt jetzt
+   fuer Buff **und** Fluch gleichermassen, nicht nur fuer Flueche wie der
+   heutige Funktionsname nahelegt).
+5. **Rueckfall ohne Bezugswaffe (`_NO_ARMAMENT`, Datensatzluecke).** Fehlt
+   die Startwaffe im Datensatz, ist Punkt 4 der einzige Fall (kein
+   `{rating}` ohne Bezugswaffe) — unveraendert zum heutigen Verhalten.
+
+*Rot-vorher:* eine Umsetzung, die den Betrag in einer zweiten Zeile oder
+hinter einem zweiten Doppelpunkt anhaengt (AD-038 Punkt 3 verlangt
+ausdruecklich eine Zeile, keine zwei); ein Buff mit `, counted against it`;
+ein zweiter Betrag an der Intelligence-Zeile desselben Effekts.
+
+**Akzeptanzkriterien:**
+- Duchess Lv15 + Relikt mit `6830200` (Dex -3, Int -3): die Dexterity-Zeile
+  lautet wortgleich `"Reduced Intelligence and Dexterity: Dexterity -3 → Attack rating -2, counted against it"`; die Intelligence-Zeile desselben
+  Effekts traegt keinen Betrag.
+- Ein Buff, der die Zielzahl hebt, endet auf die Zahl, ohne
+  `, counted against it` und ohne Punkt.
+- Raider + `6830200` (Greataxe skaliert nicht auf Dex): die Zeile bleibt
+  `"…: Dexterity -3 — this figure does not count it."`
+- Kein Vorkommen von `does not count it` bei `delta != 0` und keines von
+  `counted against it` bei `delta == 0`.
+
+---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-316: Familien-Kopfzeilen im Filterfenster (AD-039, A23, OF-44 Teile 2 und 4)
+
+*Neu in T-292a, loest die in AD-039 Punkt 5 offen gelassene Frage
+(`QTableWidget` mit fester Ordnung oder `QTreeWidget`). Erweitert AK-304/
+AK-305/AK-306/AK-307/AK-308/AK-311 um die Familienebene; AK-300/AK-302/
+AK-303/AK-309/AK-310 gelten unveraendert. Kein Fensterlauf.*
+
+**AK-316**
+
+1. **Struktur: `QTreeWidget`, nicht `QTableWidget`.** Jede Familie mit
+   **zwei oder mehr** Zeilen (57 von 222, AD-039) ist ein Top-Level-Eintrag
+   mit denselben fuenf AK-304-Spalten, aber nur **Avoid** gesetzt/klickbar
+   in der Kopfzeile (`Copies` = Summe der Mitglieder, `Name` = der
+   Familienschluessel); ihre Ids sind Kindzeilen mit allen fuenf
+   AK-304-Spalten wie bisher, plus einem dritten Kaestchen **Allow**
+   (erweitert AK-305 um `ALLOWED`). Eine Familie mit **einer** Zeile bleibt
+   ein Top-Level-Eintrag ohne Kinder, ohne Kopf-Sonderrolle, ohne Allow —
+   unveraendert zu AK-304/AK-305 (AD-039.5: "Einzelne bleiben eine Zeile
+   ohne Kopf und ohne Allow").
+2. **Sortierung, loest den AK-308-Konflikt.** `setSortingEnabled(True)`
+   bleibt (kein neues Sortiermuster); bei `QTreeWidget` sortiert ein
+   Spaltenklick **Geschwister**: alle Top-Level-Eintraege (Familien +
+   Einzelne) untereinander nach der geklickten Spalte, **und unabhaengig
+   davon** die Kinder jeder Familie untereinander nach derselben Spalte —
+   beides mit Qt-Bordmitteln, ohne eigenen Vergleichscode. Eine Familie
+   bleibt dadurch **immer** geschlossen beisammen, waehrend jede der fuenf
+   Spalten klickbar bleibt (AK-308 vollstaendig erfuellt, nicht nur
+   teilweise). Voreinstellung unveraendert: aufsteigend nach Name.
+3. **Avoid am Kopf.** Ankreuzen der Kopfzeile ruft
+   `EffectFilters.mark_family(key, True)`, Abhaken `mark_family(key,
+   False)` — derselbe Aufruf fuer beide Richtungen wie AK-305 bei `mark`.
+   Der Zustand ist unabhaengig von den eigenen Marken der Mitglieder
+   (AD-039.2/.3): eine vermiedene Familie mit einem eigenen
+   Favourite-Mitglied zeigt beide Zustaende nebeneinander; `resolved_
+   excluded` (AD-039.3) loest den Widerspruch zugunsten von Favourite auf,
+   das Fenster selbst veraendert keine Mitgliedsmarke automatisch.
+4. **Allow nur unter vermiedener Familie.** Das dritte Kaestchen einer
+   Kindzeile ist nur **anklickbar**, waehrend die eigene Familie vermieden
+   ist; ist sie es nicht, bleibt es sichtbar, aber deaktiviert
+   (`setEnabled(False)`) — es zeigt dabei weiterhin seinen gespeicherten
+   Zustand (AD-039.4: `allowed` bleibt gespeichert, auch wenn die Familie
+   nicht mehr vermieden ist), statt sich zu leeren, damit ein erneutes
+   Vermeiden der Familie dieselben Ausnahmen zeigt wie vorher.
+5. **Zaehlerklausel: Ids und Familien getrennt genannt** (OF-44 Teil 2,
+   Entscheidung). Die Zeile aus AK-307 wird:
+   `"{gezeigt} of {gesamt} effects  ·  {f} favourited  ·  {a} avoided  ·  {k} families avoided"`
+   `{a}` zaehlt ausschliesslich einzeln vermiedene Ids (`excluded`,
+   unveraendert AK-307), **nicht** die ueber Familien mitgezogenen; `{k}`
+   zaehlt `avoided_families`. Grund (A7): eine Familie kann bis zu 83 Ids
+   datensatzweit mitziehen (AD-039, Risiko-Absatz) — eine addierte Zahl
+   taeuscht eine kleine, gezielte Auswahl vor, wo tatsaechlich eine ganze
+   Gruppe verschwindet. Derselbe Klauselsatz gilt am `Filters`-Knopf-Tooltip
+   (AK-302, jetzt mit bis zu vier statt zwei Klauseln).
+6. **Suche ueber Kopf und Mitglieder.** AK-306 gilt unveraendert fuer den
+   Text jeder Zeile (Kopf **und** Kind); zusaetzliche Regel fuer die
+   Baumstruktur: trifft der Suchtext den Familiennamen selbst, bleiben alle
+   Mitglieder sichtbar (ungefiltert innerhalb der Gruppe); trifft er nur
+   einzelne Mitglieder, bleiben Kopf und die treffenden Mitglieder sichtbar,
+   die uebrigen werden ausgeblendet; trifft er in einer Familie gar nichts,
+   verschwindet die ganze Gruppe. `{gezeigt}` in Punkt 5 zaehlt nur
+   sichtbare **Id-Zeilen** (Kinder + kopflose Einzelne), keine Kopfzeilen —
+   konsistent mit `{gesamt}` aus AK-304 (340 Ids, nicht 340+57 Zeilen).
+7. **Persistenz, erweitert AK-311.** Nach einem Neustart zeigt das Fenster
+   die beim letzten Beenden gesetzten Familien-Avoid- und Allow-Marken ohne
+   weitere Bedienung; der `Filters`-Tooltip und die Zaehlerklausel aus
+   Punkt 5 zeigen ihre vier Zahlen bereits nach dem Programmstart, auch ohne
+   das Fenster zu oeffnen — dieselbe Regel wie AK-311 fuer die bisherigen
+   zwei Zahlen, jetzt an vier Zahlen.
+
+*Rot-vorher:* eine Umsetzung, die einen eigenen, gruppierenden
+Sortier-Komparator auf einem `QTableWidget` schreibt (AD-024-Klasse: zweite
+Sortierlogik neben der von Qt selbst gefuehrten) statt `QTreeWidget`s
+eingebauter Geschwister-Sortierung; eine Zaehlerzahl, die Ids und Familien
+addiert; ein Allow-Kaestchen, das sich beim Entfernen des Familien-Avoid
+leert statt nur zu deaktivieren; ein Suchtreffer auf einem Mitglied, der die
+ganze Familie ausblendet, weil nur der Kopf geprueft wurde.
+
+**Akzeptanzkriterien:**
+- `Improved Attack Power` (13 Mitglieder) vermieden, `Improved Dagger Attack
+  Power` und `Improved Attack Power with 3+ Daggers Equipped` auf Allow: nur
+  diese zwei tauchen aus der Familie in Vorschlaegen auf (A23-Nachweis,
+  AD-039 Pruefpunkt d).
+- Spaltenklick auf `Copies` sortiert die Top-Level-Eintraege numerisch und,
+  unabhaengig davon, jede Familie ihre Kinder numerisch — keine Familie
+  verliert dabei ein Kind an eine andere Gruppe.
+- Familien-Avoid aus, wieder an: ein zuvor gesetztes Allow-Mitglied zeigt
+  sein Haekchen sofort wieder aktiv.
+- Suchtext, der nur `Dagger` trifft: Kopf `Improved Attack Power` bleibt
+  sichtbar, nur die zwei Dolch-Mitglieder darunter, die uebrigen elf
+  ausgeblendet; `{gezeigt}` zaehlt 2, nicht 13.
+- Zaehlerklausel und Tooltip zeigen `{a}` und `{k}` als zwei getrennte
+  Zahlen, nie addiert.
+
+---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-317: Legende und Tooltips fuer Allow, erweitert AK-313 (OF-44 Teil 3)
+
+*Neu in T-292a. Erweitert AK-313 (Legendenzeile im Filterfenster) und
+AK-305 (Tooltipmuster); AK-301 (`Why`-Dialog-Legende, ▲/Durchstreichung)
+bleibt ausdruecklich unveraendert.*
+
+**AK-317**
+
+1. **Legendenzeile, ersetzt AK-313 woertlich** (gleicher Ort, gleiche
+   Bauweise: `QLabel`, `wordWrap`, gedaempfte Farbe, unter dem Suchfeld):
+   `"Favourite: every suggestion must include this effect. Avoid: it never
+   counts — on a family header, it avoids every member below unless one is
+   set to Allow. Allow lets that one member back in without allowing the
+   rest of the family. These marks steer Optimize only — they are not the
+   star on a relic."`
+2. **Tooltip, Familien-Avoid-Kaestchen** (ergaenzt AK-305 um den
+   Kopfzeilen-Fall): `"Every effect in this family counts in no suggestion
+   or ranking, unless a member below is set to Allow."`
+3. **Tooltip, Allow-Kaestchen, aktivierbar** (Familie vermieden): `"Let
+   this one effect back into suggestions, even though its family is
+   avoided."`
+4. **Tooltip, Allow-Kaestchen, deaktiviert** (Familie nicht vermieden):
+   `"Allow only matters while this effect's family is avoided."`
+5. **Kein neuer Zustand im `Why`-Dialog.** AK-301s Legende (`"▲ marks an
+   effect you favourited, a struck-through effect one you avoided …"`)
+   bleibt wortgleich; ein Effekt, dessen Familie vermieden ist, der selbst
+   aber auf Allow steht, zeichnet im Dialog **weder** ▲ **noch**
+   Durchstreichung — er verhaelt sich wie jeder unmarkierte Effekt, weil er
+   nicht in `resolved_excluded` liegt (AD-039.3).
+
+*Rot-vorher:* eine neue ▲-Variante oder ein neues Glyph fuer "erlaubtes
+Familienmitglied" im `Why`-Dialog — AD-039.3 macht Allow zu einer reinen
+Mengenoperation vor der Rechnung, der Dialog sieht danach keinen
+Unterschied mehr zu einem regulaeren Effekt.
+
+**Akzeptanzkriterien:**
+- Die Legendenzeile steht wortgleich wie oben, als Konstante testbar ohne
+  Anzeige (AK-313-Pruefweg unveraendert).
+- Ein Allow-markiertes Mitglied einer vermiedenen Familie zeigt im
+  `Why`-Dialog keine ▲- und keine Durchstreichungs-Formatierung.
+- Das Allow-Kaestchen zeigt den korrekten Tooltip abhaengig vom aktuellen
+  Familienstatus (aktivierbar/deaktiviert), ohne dass sein Ankreuzzustand
+  sich beim Wechsel aendert.
+
+---
