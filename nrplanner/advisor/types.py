@@ -440,10 +440,14 @@ class GoalContext:
     being rated), the effects those armaments rolled, and the conditional
     effects the player has declared live.
 
-    **Three of those fields are no longer filled by the program**, and that
-    is A17 rather than an omission: `reference`, `weapons_held` and
-    `armament_effect_ids` all come back empty from `advisorbar.asking_from`
-    (T-188 for the first two, AD-032 for the third). The advisor's build is
+    **Two of those fields are no longer filled by the program**, and that
+    is A17 rather than an omission: `weapons_held` and `armament_effect_ids`
+    still come back empty from `advisorbar.asking_from` (T-188 for the first,
+    AD-032 for the second); `reference` is filled again since AD-038, with
+    the Nightfarer's own starting armament, so an attribute a relic moves can
+    reach the ranking figure through its scaling (A22) without any armament
+    the player actually carries moving it (A17 holds all the same). The
+    advisor's build is
     therefore *not* the stat sheet's build any more -- it answers "what is
     this relic worth between runs", where the sheet answers "what am I
     hitting for right now", and the difference is stated in `Goal.scope`

@@ -147,12 +147,20 @@ def a_curse_this_armament_cannot_feel(data: dict, hero: dict,
 
 
 def a_context(named: dict[int, str]) -> types.GoalContext:
-    """A context whose dataset knows exactly these effects, by name."""
+    """A context whose dataset knows exactly these effects, by name.
+
+    `hero["levels"]` and each effect's `modifiers`/`stacks` are the minimum
+    `model.compute` insists on by direct indexing (`nrplanner/model.py`) --
+    empty rather than absent, so a case built from this can still be scored
+    a second time without a reference armament (AD-038.3, `_felt_by_the_goal`)
+    and land on zero, exactly as it would with none of these effects at all.
+    """
     return types.GoalContext(
-        data={"effects": {str(effect_id): {"id": effect_id, "name": name}
+        data={"effects": {str(effect_id): {"id": effect_id, "name": name,
+                                           "modifiers": {}, "stacks": True}
                           for effect_id, name in named.items()}},
-        hero={}, level=advisor.LEVEL, reference=None,
-        weighting=goals.DEFAULT_WEIGHTING)
+        hero={"levels": {str(advisor.LEVEL): {}}}, level=advisor.LEVEL,
+        reference=None, weighting=goals.DEFAULT_WEIGHTING)
 
 
 def a_vessel(slots: int) -> types.SlotProblem:
@@ -340,7 +348,8 @@ def test_a_copy_whose_effect_the_game_refused_to_stack_gets_no_line(
         f"wrong thing: {lines_of((second,))}")
 
 
-def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
+def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them(
+        game_data):
     """QA-180's smallest case: one name, two ids, two slots.
 
     The dataset calls both `7000090` (Vigor +5) and `6610400` (Max HP +10 %)
@@ -355,6 +364,14 @@ def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
     `Increased Maximum HP` is such a name whichever slot it is printed under,
     so it could not go red. What is asserted here is the slot each figure is
     printed under, which is the thing that was wrong.
+
+    **Vigor ends "this figure does not count it"** (AD-038.3): the context has
+    no reference armament, so nothing here can scale on the attribute, and the
+    line says so exactly as a curse on the same field would. That sentence is
+    reached by scoring a second time (`explain._felt_by_the_goal`), so this
+    case takes `game_data` too, unused otherwise, purely for the
+    `model.configure()` its fixture runs -- the same reason every computing
+    case takes it.
     """
     ctx = a_context({7000090: "Increased Maximum HP",
                      6610400: "Increased Maximum HP"})
@@ -369,7 +386,8 @@ def test_two_effects_of_one_name_are_credited_to_the_slot_that_carries_them():
 
     assert [(group.slot_index, group.relic_name, lines_of((group,)))
             for group in groups] == [
-        (0, "Vigor relic", ("Increased Maximum HP: Vigor +5",)),
+        (0, "Vigor relic", ("Increased Maximum HP: Vigor +5 — this figure "
+                            "does not count it.",)),
         (1, "Max HP relic", ("Increased Maximum HP: Max HP +10.0%",)),
     ]
 
@@ -416,13 +434,19 @@ def test_a_name_two_effects_share_in_this_dataset_still_lands_on_two_slots(
 
 # -- how one figure is written down -----------------------------------------
 
-def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number():
+def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number(
+        game_data):
     """`UI_SPEC` 3.2: the field names and number formats of the stat sheet.
 
     Which of the two a figure gets is read off the build it came from, the
     way `app.py`'s breakdown reads it -- a key standing in `Build.rates`
     scales, an attribute adds. Guessing it from the field name is a different
     calculation, and QA-011 is what that costs.
+
+    The attribute line ends "this figure does not count it" (AD-038.3): the
+    context has no reference armament to scale it through. `game_data` is
+    unused beyond the `model.configure()` its fixture runs, needed because
+    that sentence comes from scoring a second time.
     """
     ctx = a_context({1: "Physical Attack Up"})
     built = a_build({"physicsAttackRate": [("Physical Attack Up", 1.12, 1)],
@@ -436,7 +460,7 @@ def test_a_multiplier_reads_as_a_percentage_and_a_bonus_as_a_number():
 
     assert lines == (
         "Physical Attack Up: Physical Attack +12.0%",
-        "Physical Attack Up: Strength +3",
+        "Physical Attack Up: Strength +3 — this figure does not count it.",
     )
 
 
@@ -566,7 +590,7 @@ def test_a_buff_the_game_restricts_to_one_move_does_not_say_its_name_twice():
     assert lines == ("Improved Skill Attack Power: +15.0%",)
 
 
-def test_an_effect_this_dataset_does_not_carry_is_named_nowhere():
+def test_an_effect_this_dataset_does_not_carry_is_named_nowhere(game_data):
     """`evaluate` skips an unknown id, so it moved nothing to explain.
 
     Inherited from `Planner.selected_effects` on purpose rather than solved
@@ -578,6 +602,11 @@ def test_an_effect_this_dataset_does_not_carry_is_named_nowhere():
     how many of the copy's roles moved a number. An effect that vanished from
     both would make `2 - 1 = 1` come out as no line at all, and the player
     would be reading a denominator that does not add up (AK-155).
+
+    The Strength line ends "this figure does not count it" (AD-038.3): the
+    context has no reference armament to scale it through. `game_data` is
+    unused beyond the `model.configure()` its fixture runs, needed because
+    that sentence comes from scoring a second time.
     """
     ctx = a_context({1: "Known"})
     built = a_build({"Strength": [("Known", 3, 1)]})
@@ -586,7 +615,8 @@ def test_an_effect_this_dataset_does_not_carry_is_named_nowhere():
                              (a_copy(0, 1, "A relic", [1, 4242]),),
                              a_build({}), built, ctx, goals.GOALS[DAMAGE])
 
-    assert with_a_figure((group,)) == ("Known: Strength +3",)
+    assert with_a_figure((group,)) == (
+        "Known: Strength +3 — this figure does not count it.",)
     assert lines_of((group,))[1:] == (
         "One of its effects is not in your game data, so it has no name "
         "here and counted for nothing.",)
@@ -656,7 +686,10 @@ def test_a_curse_is_among_the_reasons_as_a_cost_that_was_counted(game_data,
     assert all(line.is_curse for group in groups for line in group.lines), (
         "the window sets ✦ and CURSE off this flag; without it the only way "
         "to know is to read the sentence")
-    assert all("counted against it" in line for line in charged), (
+    # `any`, not `all`: this curse lowers two attributes, and AK-315.3 puts
+    # the amount -- and with it the only ", counted against it" -- on the
+    # first attribute line of the effect, not on every line it touches.
+    assert any("counted against it" in line for line in charged), (
         f"a curse that lowers an attribute is not marked as counted against "
         f"the relic: {charged}")
 
@@ -1605,12 +1638,17 @@ def test_the_advisor_says_nothing_about_the_game_files_and_no_jargon(
 
 # -- the heading of a slot group --------------------------------------------
 
-def test_the_heading_counts_effects_and_not_the_lines_they_produced():
+def test_the_heading_counts_effects_and_not_the_lines_they_produced(
+        game_data):
     """AK-146: one effect that moves two figures is two lines and one effect.
 
     Counting lines instead would say `2 of its 1 effects`, which is not a
     sentence anybody can act on, and it would break the arithmetic the
     heading exists for.
+
+    `game_data` is unused beyond the `model.configure()` its fixture runs:
+    the Strength contribution here is scored a second time (AD-038.3) before
+    this case even reaches the heading it is about.
     """
     ctx = a_context({1: "Physical Attack Up"})
     built = a_build({"physicsAttackRate": [("Physical Attack Up", 1.12, 1)],
@@ -1730,12 +1768,128 @@ def test_a_curse_the_direction_cannot_feel_is_named(game_data, wylder,
                                for line in feeling), (
         f"the direction that ranks on the HP this curse moved was told it "
         f"does not rank it: {feeling}")
-    assert all("counted against it" in line for line in feeling), (
+    # `any`, not `all`: this curse lowers two attributes, and AK-315.3 puts
+    # the amount -- and with it the only ", counted against it" -- on the
+    # first attribute line of the effect, not on every line it touches.
+    assert any("counted against it" in line for line in feeling), (
         f"the direction that does feel the curse has to say it was charged "
         f"for it (F3): {feeling}")
     assert explain.unknowns(problem) == (), (
         "nothing was held, and the curse now speaks for itself in its own "
         "group instead of a second time at the end of the dialog")
+
+
+# -- AD-038's amount on an attribute line (AK-315) ---------------------------
+
+#: `Reduced Intelligence and Dexterity` (Dex -3, Int -3): the curse of the
+#: user's own A22 proof (AD-038), on a Nightfarer whose dagger scales on
+#: Dexterity and on one whose greataxe does not.
+REDUCED_INTELLIGENCE_AND_DEXTERITY = 6830200
+
+
+def _starting_armament(data: dict, hero: dict) -> types.ReferenceArmament:
+    """What `advisorbar.asking_from` would fill `reference` with (AD-038.1).
+
+    Stated here rather than reached through a `planner`, so these cases need
+    only the dataset and stay as light as every other case in this file.
+    """
+    from nrplanner import damage, weapons
+
+    starting = next(w for w in data["weapons"]
+                    if w["id"] == hero["starting_weapon"])
+    return types.ReferenceArmament(weapon=starting, tier=weapons.MIN_UPGRADE,
+                                   slot_index=damage.STARTING_SLOT)
+
+
+def test_an_attribute_curse_carries_its_amount_on_the_why_line(game_data):
+    """AK-315.1/.2/.3: the amount, the cost mark, and only on the first line.
+
+    Duchess at level 15 hits for 72 with her starting dagger and 70 holding
+    `Reduced Intelligence and Dexterity` (AD-038, the user's own A22 proof):
+    the dagger scales on Dexterity, so the curse's -3 there reaches the
+    ranking figure and the Dexterity line says by how much, first in
+    `model.ATTRIBUTE_ORDER`. Intelligence moves nothing of its own on this
+    armament and stays bare.
+    """
+    hero = cases.hero_by_name(game_data, "Duchess")
+    ctx = advisor.context(game_data, hero,
+                          reference=_starting_armament(game_data, hero))
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "Cursed copy", (),
+                     [REDUCED_INTELLIGENCE_AND_DEXTERITY]),)
+    base = evaluate(problem, (), ctx)
+    built = evaluate(problem, chosen, ctx)
+
+    lines = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+
+    dex_line = next(line for line in lines
+                    if line.split(": ", 1)[1].startswith("Dexterity"))
+    int_line = next(line for line in lines
+                    if line.split(": ", 1)[1].startswith("Intelligence"))
+    assert dex_line == (
+        "Reduced Intelligence and Dexterity: Dexterity -3 → Attack "
+        "rating -2, counted against it")
+    assert int_line == "Reduced Intelligence and Dexterity: Intelligence -3"
+
+
+def test_an_attribute_curse_the_reference_armament_cannot_feel(game_data):
+    """AK-315.4: no scaling, no amount -- the existing sentence, unchanged.
+
+    Raider's starting greataxe does not scale on Dexterity or Intelligence
+    (AD-038: 158 -> 158 with this very curse), so neither attribute line
+    gets an amount and both keep the plain "does not count it" filling.
+    """
+    hero = cases.hero_by_name(game_data, "Raider")
+    ctx = advisor.context(game_data, hero,
+                          reference=_starting_armament(game_data, hero))
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "Cursed copy", (),
+                     [REDUCED_INTELLIGENCE_AND_DEXTERITY]),)
+    base = evaluate(problem, (), ctx)
+    built = evaluate(problem, chosen, ctx)
+
+    lines = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+
+    assert set(lines) == {
+        "Reduced Intelligence and Dexterity: Dexterity -3 — this figure "
+        "does not count it.",
+        "Reduced Intelligence and Dexterity: Intelligence -3 — this figure "
+        "does not count it.",
+    }
+
+
+def test_a_buff_that_raises_an_attribute_ends_on_the_number(game_data):
+    """AK-315.2: a gain carries no cost mark and ends on the amount.
+
+    `model.is_better_lower` has nothing to invert here: the ranking figure is
+    always "bigger is better" (`types.GoalScore`), so a Dexterity buff that
+    raises Duchess's attack rating is never shown as counted against the
+    relic that carries it.
+    """
+    hero = cases.hero_by_name(game_data, "Duchess")
+    buff_id = cases.effects_raising_attribute(game_data, hero,
+                                              "Dexterity", 1)[0]
+    assert not game_data["effects"][str(buff_id)].get("is_curse"), (
+        "this case needs a buff, not a curse, to state the other half of "
+        "AK-315.2")
+    ctx = advisor.context(game_data, hero,
+                          reference=_starting_armament(game_data, hero))
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "Buffed copy", [buff_id]),)
+    base = evaluate(problem, (), ctx)
+    built = evaluate(problem, chosen, ctx)
+
+    lines = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+    amount_lines = [line for line in lines if " → Attack rating +" in line]
+
+    assert amount_lines, (
+        f"this buff should raise Duchess's attack rating through the dagger's "
+        f"Dexterity scaling and none of these lines say so: {lines}")
+    assert all("counted against it" not in line and not line.endswith(".")
+              for line in amount_lines), amount_lines
 
 
 def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):

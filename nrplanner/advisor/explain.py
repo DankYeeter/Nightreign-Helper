@@ -63,7 +63,7 @@ import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .. import effecttext, model
+from .. import damage, effecttext, model
 from . import types
 from .evaluate import evaluate
 
@@ -261,7 +261,8 @@ def _is_a_cost(key: str, own: float, built: model.Build) -> bool:
     return (above > 0) == model.is_better_lower(_real_field(key))
 
 
-def _line(contribution: _Contribution, built: model.Build) -> str:
+def _line(contribution: _Contribution, built: model.Build,
+         delta: float = 0.0, rating: str = "") -> str:
     """One effect and one figure it moved, as the player reads it.
 
     **Neither the slot number nor the relic name is in here** (`UI_SPEC`
@@ -269,13 +270,94 @@ def _line(contribution: _Contribution, built: model.Build) -> str:
     under, and repeating them cost up to seven consecutive lines the same
     thirty-five characters -- the longest line on the real save measured 142
     characters, of which the repetition was a quarter.
+
+    **`delta`, non-zero, is AD-038's amount on an attribute line** (AK-315):
+    the line then reads `{body} → {rating} {delta}` instead of plain `{body}`,
+    and whether it costs anything follows `delta` -- the ranking figure's own
+    direction, always "bigger is better" (`types.GoalScore`) -- rather than
+    `_is_a_cost`, which only knows the attribute field's own sign and would
+    call a beneficial trade a cost. The caller passes zero for every line this
+    does not apply to, so the two forms never fight over one line.
     """
     key, own = contribution.field_key, contribution.own
     body = _named(contribution, built)
     if body == effecttext.UNLABELLED:
         return f"{contribution.effect_name}: {body}"
+    if delta:
+        cost = ", counted against it" if delta < 0 else ""
+        return (f"{contribution.effect_name}: {body} → "
+                f"{rating} {_signed_delta(delta)}{cost}")
     cost = ", counted against it" if _is_a_cost(key, own, built) else ""
     return f"{contribution.effect_name}: {body}{cost}"
+
+
+def _signed_delta(delta: float) -> str:
+    """`+2`/`-2`: the amount in the headline's own number form (AK-315.1).
+
+    `damage.displayed` is the one truncation rule a display already uses for
+    this figure; the sign is kept apart from it because that rule has no
+    opinion on signed numbers and floors a negative one towards the wrong end.
+    """
+    sign = "-" if delta < 0 else "+"
+    return f"{sign}{damage.displayed(abs(delta))}"
+
+
+def _rating_word(score: types.GoalScore) -> str:
+    """"Attack rating" or "Spell power" (AK-88), read off the value column.
+
+    `GoalScore.display` already ends in the figure a tile would print for
+    this direction -- the words in front of it are the one place that names
+    it, so this reads them back rather than asking `damage` a second time
+    which word an armament earns (AD-002).
+    """
+    word, _, _ = score.display.rpartition(" ")
+    return word
+
+
+def _first_attribute(contributions: Sequence[_Contribution]
+                     ) -> _Contribution | None:
+    """Which of one effect's attribute fields carries the amount (AK-315.3).
+
+    `model.ATTRIBUTE_ORDER`'s own order, not the order the fields happened to
+    arrive in: an effect named "Reduced Intelligence and Dexterity" still
+    puts the figure on the Dexterity line, because that is where the stat
+    sheet lists it first. `None` when the effect touches no attribute field at
+    all.
+    """
+    attributes = [one for one in contributions
+                 if one.field_key in model.ATTRIBUTE_ORDER]
+    if not attributes:
+        return None
+    return min(attributes,
+              key=lambda one: model.ATTRIBUTE_ORDER.index(one.field_key))
+
+
+def _explained_line(contribution: _Contribution, built: model.Build,
+                    felt: dict[tuple[int, int], float], rating: str,
+                    is_first_attribute: bool) -> str:
+    """One line, with AD-038's amount where AK-315 puts it and nowhere else.
+
+    A contribution that touches no attribute field is unaffected by any of
+    this and reads exactly as `_line` always wrote it. One that does -- buff
+    or curse alike (AK-315.4, which lifts this off curses only) -- is looked
+    up in `felt`: no figure moved (`0.0`) keeps the existing
+    `_line_the_figure_does_not_count`; a figure moved and this is the first
+    attribute line of its effect gets the amount (AK-315.1); every other
+    attribute line of the *same* effect stays bare, because one effect owns
+    one amount, not one per attribute field it touches (AK-315.3).
+    """
+    is_attribute = contribution.field_key in model.ATTRIBUTE_ORDER
+    if not contribution.is_curse and not is_attribute:
+        return _line(contribution, built)
+    delta = felt.get(
+        (contribution.candidate.slot_index, contribution.effect_id), 0.0)
+    if not delta:
+        return _line_the_figure_does_not_count(contribution, built)
+    if not is_attribute:
+        return _line(contribution, built)
+    if not is_first_attribute:
+        return f"{contribution.effect_name}: {_named(contribution, built)}"
+    return _line(contribution, built, delta, rating)
 
 
 def _line_the_figure_does_not_count(contribution: _Contribution,
@@ -612,13 +694,14 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
     quietly dropped for reading better.
 
     `problem` and `goal` are here for one filling only: whether the ranking
-    figure feels a curse is a question only the direction can answer, and it
-    is answered by scoring the same assignment again without that one curse
-    (AD-015). With no curse to ask about, nothing is scored.
+    figure feels an effect that moves an attribute is a question only the
+    direction can answer, and it is answered by scoring the same assignment
+    again without that one effect (AD-015, AD-038.3). With nothing to ask
+    about, nothing is scored.
     """
     contributions = _attributed(chosen, base, built, ctx)
-    unfelt = _curses_the_goal_cannot_feel(problem, chosen, ctx, goal,
-                                          built, contributions)
+    felt = _felt_by_the_goal(problem, chosen, ctx, goal, built, contributions)
+    rating = _rating_word(goal.score(built, ctx)) if felt else ""
     already = {entry.effect_id for entries in base.sources.values()
                for entry in entries}
     counted_ids = {one.effect_id for one in contributions} | already
@@ -640,11 +723,14 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
         lines: list[types.ReasonLine] = []
         for effect_id in candidate.effect_ids:
             if effect_id in with_a_figure:
+                own = [one for one in mine if one.effect_id == effect_id]
+                first_attribute = _first_attribute(own)
                 lines.extend(
-                    types.ReasonLine(slot_index=candidate.slot_index,
-                                     effect_id=effect_id,
-                                     text=_line(one, built))
-                    for one in mine if one.effect_id == effect_id)
+                    types.ReasonLine(
+                        slot_index=candidate.slot_index, effect_id=effect_id,
+                        text=_explained_line(one, built, felt, rating,
+                                             one is first_attribute))
+                    for one in own)
             else:
                 lines.append(_silent_effect(
                     candidate, effect_id, ctx, built,
@@ -653,7 +739,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                     armaments, problem))
         for curse_id in candidate.curse_ids:
             lines.extend(_curse_lines(candidate, curse_id, ctx, built, mine,
-                                      unfelt, problem))
+                                      felt, rating, problem))
         counted = sum(1 for effect_id in candidate.effect_ids
                       if effect_id in with_a_figure)
         groups.append(types.SlotReasons(
@@ -670,7 +756,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
 def _curse_lines(candidate: types.Candidate, curse_id: int,
                  ctx: types.GoalContext, built: model.Build,
                  mine: Sequence[_Contribution],
-                 unfelt: frozenset[tuple[int, int]],
+                 felt: dict[tuple[int, int], float], rating: str,
                  problem: types.SlotProblem
                  ) -> tuple[types.ReasonLine, ...]:
     """One curse of one copy, in whichever of the four fillings fits.
@@ -703,12 +789,12 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
             slot_index=candidate.slot_index, effect_id=curse_id,
             text=f"{name}: no number here shows what this costs.",
             is_curse=True, silence=types.SILENT_NO_NUMBER_HERE),)
-    felt = (candidate.slot_index, curse_id) not in unfelt
+    first_attribute = _first_attribute(moved)
     return tuple(
         types.ReasonLine(
             slot_index=candidate.slot_index, effect_id=curse_id,
-            text=(_line(one, built) if felt
-                  else _line_the_figure_does_not_count(one, built)),
+            text=_explained_line(one, built, felt, rating,
+                                 one is first_attribute),
             is_curse=True)
         for one in moved)
 
@@ -850,64 +936,85 @@ def _held_slots_line(problem: types.SlotProblem) -> str:
 
 def _without_the_curse(chosen: Sequence[types.Candidate],
                        carrier: types.Candidate,
-                       curse_id: int) -> tuple[types.Candidate, ...]:
+                       effect_id: int) -> tuple[types.Candidate, ...]:
+    """`chosen`, with one id of one copy struck from both its roles.
+
+    An id is either a curse or an effect on one `Candidate`, never both, so
+    stripping it from **both** `effect_ids` and `curse_ids` (AD-038.3) is safe
+    and lets one function serve `_felt_by_the_goal` for a buff and a curse
+    alike -- the name stays from when only curses asked this question.
+    """
     return tuple(
         dataclasses.replace(
-            copy, curse_ids=tuple(other for other in copy.curse_ids
-                                  if other != curse_id))
+            copy,
+            effect_ids=tuple(other for other in copy.effect_ids
+                             if other != effect_id),
+            curse_ids=tuple(other for other in copy.curse_ids
+                            if other != effect_id))
         if copy.slot_index == carrier.slot_index else copy
         for copy in chosen)
 
 
-def _curses_the_goal_cannot_feel(problem: types.SlotProblem,
-                                 chosen: Sequence[types.Candidate],
-                                 ctx: types.GoalContext, goal: types.Goal,
-                                 built: model.Build,
-                                 contributions: Sequence[_Contribution]
-                                 ) -> frozenset[tuple[int, int]]:
-    """AD-015's mandatory line: a cost the ranking figure does not carry.
+def _felt_by_the_goal(problem: types.SlotProblem,
+                      chosen: Sequence[types.Candidate],
+                      ctx: types.GoalContext, goal: types.Goal,
+                      built: model.Build,
+                      contributions: Sequence[_Contribution]
+                      ) -> dict[tuple[int, int], float]:
+    """AD-038.3: what one effect, alone, is worth to the ranking figure.
 
-    Everything is weighed, one number is **ranked**. A curse that moves a
+    Everything is weighed, one number is **ranked**. An effect that moves a
     field the chosen direction does not measure -- `-HP` under "Maximise
     damage" -- is correctly counted in the build and moves the ranking figure
-    not at all, so the suggestion block is the only place it becomes visible.
+    not at all, so the suggestion block is the only place that shows it. Since
+    AD-038, an effect that moves an *attribute* can also move the figure
+    through the reference armament's scaling (A22), and by how much is asked
+    the same way: scoring the same assignment once more with that one effect
+    taken off. That is the one authority again and not a second one -- no
+    list here says what a goal measures, so a third direction brings its own
+    answer without a line changing (AD-004).
 
-    Whether the direction feels it is asked of the direction, by scoring the
-    same assignment once more with that one curse taken off. That is the one
-    authority again and not a second one: no list here says what a goal
-    measures, so a third direction brings its own answer without a line
-    changing (AD-004).
+    **Which effects are even asked, two groups.** Every curse, exactly as
+    before AD-038 -- `_line_the_figure_does_not_count` still needs to know
+    whether a curse with no attribute in it (an HP curse under "Maximise
+    damage", say) moved the figure, and that question stays a plain
+    zero-or-not one, unchanged. And, new here, every **buff or curse** that
+    carries at least one `_Contribution` whose `field_key` is an attribute
+    (`model.ATTRIBUTE_ORDER`) -- because AK-315 needs the *amount* for those,
+    not only whether it is zero.
 
-    **Scope:** the question is asked per curse and answered on the figure. A
-    curse that moves two fields, one of which the direction ranks, moves the
-    figure and gets no line -- it is visible in the ranking, which is what the
-    line exists to supply when it is not. Naming the other half would need a
-    per-field question the registry cannot answer.
+    **Scope:** the question is asked per effect and answered on the figure. An
+    effect that moves two fields, one of which the direction ranks, moves the
+    figure and gets no separate answer for the field it does not touch --
+    naming that half would need a per-field question the registry cannot
+    answer.
 
-    What comes back is which curses those are, by slot and id; the sentence
-    they get is `_line_the_figure_does_not_count`, in the group of the relic
-    that carries them. Nothing is scored when no curse moved a figure -- the
-    question has nothing to be about, and asking it anyway would cost a full
-    evaluation per suggestion for an empty answer.
+    What comes back is `ranked - without`, by slot and id, for every effect in
+    either group; `0.0` for an id this asked about and could not move
+    (`felt.get` also reads as `0.0` for an id never asked, which is every
+    buff without an attribute field, correctly). Nothing is scored when
+    nothing qualifies -- the question has nothing to be about, and asking it
+    anyway would cost a full evaluation per suggestion for an empty answer.
     """
-    by_curse: dict[tuple[int, int], list[_Contribution]] = {}
+    by_effect: dict[tuple[int, int], list[_Contribution]] = {}
     for contribution in contributions:
-        if contribution.is_curse:
-            by_curse.setdefault(
+        if (contribution.is_curse
+                or contribution.field_key in model.ATTRIBUTE_ORDER):
+            by_effect.setdefault(
                 (contribution.candidate.slot_index, contribution.effect_id),
                 []).append(contribution)
-    if not by_curse:
-        return frozenset()
+    if not by_effect:
+        return {}
 
     ranked = goal.score(built, ctx).value
-    unfelt: set[tuple[int, int]] = set()
-    for carried, moved in by_curse.items():
+    felt: dict[tuple[int, int], float] = {}
+    for carried, moved in by_effect.items():
         carrier = moved[0].candidate
         without = _without_the_curse(chosen, carrier, moved[0].effect_id)
-        if goal.score(evaluate(problem, without, ctx), ctx).value != ranked:
-            continue
-        unfelt.add(carried)
-    return frozenset(unfelt)
+        without_build = evaluate(problem, without, ctx,
+                                 want_qualitative=False)
+        felt[carried] = ranked - goal.score(without_build, ctx).value
+    return felt
 
 
 def required_but_unmet(problem: types.SlotProblem,
