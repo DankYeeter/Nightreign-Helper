@@ -47,7 +47,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
-from . import model
+from . import damage, model, weapons
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -389,11 +389,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     player will not have -- and the ranking would move with it.
 
     **Three** fields carry that in, and leaving out any one of them alone is
-    not enough. `reference` is the armament the figure is formed against.
-    `weapons_held` is the grid, and a weapon-type gate is met by **anything**
-    on it (`model.compute`), so "Improved Greatsword Attack Power" would go
-    on counting for a greatsword and not for a bow with no reference in
-    sight. Measured on 2026-09-12 over the 312 copies of the user's save,
+    not enough. `reference` is the armament the figure is formed against --
+    since AD-038 the Nightfarer's **own starting armament** at its lowest
+    tier, a property of the dataset and not of the grid, so that an attribute
+    a relic moves reaches the figure through that armament's scaling (A22)
+    while nothing the player carries moves the ranking (A17 holds word for
+    word). `weapons_held` is the grid, and a weapon-type gate is met by
+    **anything** on it (`model.compute`), so "Improved Greatsword Attack
+    Power" would go on counting for a greatsword and not for a bow with no
+    reference in sight. Measured on 2026-09-12 over the 312 copies of the user's save,
     Wylder at the probe level, a greatsword against a bow, with the
     reference armament already left out and the grid still filled: 2 copies
     changed their figure on the grid alone -- `Deep Polished Drizzly Scene`
@@ -421,12 +425,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     **The request loses the armaments with it.** They were in the cache key
     only because the run read them; a key that separates two runs which
     compute the same answer costs a second full search and returns the same
-    list (P-1 from T-188).
+    list (P-1 from T-188). The starting armament's id stays in the key
+    (`reference_weapon_id`): it changes only with the Nightfarer, so it
+    never separates two runs that compute the same answer (AD-038.4).
 
     The consequence, said out loud because it reverses a rule this file used
     to keep: the advisor's build is no longer the stat sheet's build. The
-    sheet answers "what am I hitting for right now" and keeps both fields;
-    this answers "what is this relic worth between runs" and keeps neither.
+    sheet answers "what am I hitting for right now" with the grid and its
+    rolls; this answers "what is this relic worth between runs" against the
+    one armament every expedition starts with and keeps nothing else.
     `GoalScore.scope` is where the figure says which of the two it is (A12).
     """
     owned = planner.owned
@@ -456,14 +463,19 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
     two_handed = planner.stat_sheet.hand_switch.isChecked()
-    # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
-    # docstring, A17 and AD-032. The armament grid is not read here at all
-    # any more, which is why there is nothing left of it to leave out.
+    # The starting armament, without its rolls: `weapons_held` and
+    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
+    # read here at all. Missing from the dataset, the run falls back to the
+    # multiplier mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
+    starting = planner.weapon_by_id(hero.get("starting_weapon"))
+    reference = None if starting is None else types.ReferenceArmament(
+        weapon=starting, tier=weapons.MIN_UPGRADE,
+        slot_index=damage.STARTING_SLOT)
     ctx = types.GoalContext(
         data=planner.data,
         hero=hero,
         level=level,
-        reference=None,
+        reference=reference,
         weighting=weighting,
         declared=declared,
         two_handed=two_handed,
@@ -475,13 +487,13 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         problem=problem,
         goal_id=goal_id,
         weighting_id=weighting.id,
-        # The key says what the run was asked, and since A17 the run is not
-        # asked about an armament -- since AD-032 not about its rolls either,
-        # so `armaments` stays empty as well. Anything else here would be a
-        # key standing for a run that did not happen, and `run.run` refuses
-        # it: it compares the rolls in the key against the rolls in the
-        # context, and one of the two filled would be the disagreement.
-        reference_weapon_id=None,
+        # The key says what the run was asked: since AD-038 about the starting
+        # armament, since AD-032 not about any rolls, so `armaments` stays
+        # empty. Anything else here would be a key standing for a run that
+        # did not happen, and `run.run` refuses it: it compares the id and
+        # the rolls in the key against the context, and one of the two
+        # filled differently would be the disagreement.
+        reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,
         data_version=str(meta.get("data_version") or ""),

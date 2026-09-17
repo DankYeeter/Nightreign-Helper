@@ -44,14 +44,17 @@ from tests import advisor_cases as advisor
 #: agreeing with the thing it checks.
 A_GOAL_ID = goals.MAX_DAMAGE.id
 
-#: What the fixture is allowed to fill that the program leaves empty, and
+#: What the fixture fills from the grid where the program does not, and
 #: why. All three are the armament grid, and the reason is one decision:
 #: A17 takes the armaments out of the advisor's question because they are
 #: rolled again every expedition (AK-191, AD-032). The stat sheet keeps
 #: reading them, so a case that compares the advisor's arithmetic against
 #: the window's build has to put them back -- and `GoalContext`'s own
 #: docstring says as much: the fields stay "because the other question is
-#: still asked from tests and will be asked again by A16".
+#: still asked from tests and will be asked again by A16". Since AD-038 the
+#: program fills `reference` too, with the starting armament at its lowest
+#: tier rather than the active tile at its own -- still a difference, and
+#: still the grid's.
 #:
 #: **This list may only shrink**, the same rule as `STILL_QUOTING`'s in
 #: `test_exception_text_is_english.py`, and for the same reason: growing it
@@ -152,8 +155,9 @@ def test_every_allowance_is_still_a_difference(planner, game_data):
     theirs = advisorbar.asking_from(planner, A_GOAL_ID).ctx
 
     for name in THE_STAT_SHEET_KEEPS:
-        assert not getattr(theirs, name), (
-            f"the program fills {name} again, so the allowance is stale")
+        assert getattr(mine, name) != getattr(theirs, name), (
+            f"the program fills {name} the way the fixture does, so the "
+            f"allowance is stale")
         assert getattr(mine, name), (
             f"the fixture leaves {name} empty, so there is nothing to allow "
             f"-- the state this case builds was supposed to fill it")

@@ -729,6 +729,41 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
             planner.effect_filters.mark(effect_id, None)
 
 
+def test_the_question_carries_the_starting_armament_without_its_rolls(planner):
+    """AD-038.1: the damage direction ranks against the Nightfarer's own
+    starting armament, at its lowest tier, in the starting slot -- and
+    against nothing the player carries: no grid, no rolls (A17, QA-226).
+    The id stands in the key beside it, or `run.run` refuses the question.
+
+    Red with `reference=None` put back into `asking_from`.
+    """
+    from nrplanner import damage, weapons
+
+    hero = planner.current_hero()
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    reference = asking.ctx.reference
+    assert reference.weapon["id"] == hero["starting_weapon"]
+    assert reference.tier == weapons.MIN_UPGRADE
+    assert reference.slot_index == damage.STARTING_SLOT
+    assert asking.request.reference_weapon_id == hero["starting_weapon"]
+    assert asking.ctx.weapons_held == ()
+    assert asking.ctx.armament_effect_ids == ()
+
+
+def test_without_a_record_of_the_starting_armament_the_run_ranks_without_one(
+        planner, monkeypatch):
+    """AD-038.1, the fallback: a dataset with no record for the starting
+    armament leaves `reference` empty in the context **and** in the key,
+    and the run takes the multiplier mean and says so (`_NO_ARMAMENT`)."""
+    monkeypatch.setattr(planner, "weapon_by_id", lambda weapon_id: None)
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    assert asking.ctx.reference is None
+    assert asking.request.reference_weapon_id is None
+
+
 def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
     """The window wires `EffectFilters.changed` to the row with the AK-289
     cause -- the path a direction change takes (AK-183), no run started."""

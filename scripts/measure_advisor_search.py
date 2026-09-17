@@ -33,7 +33,7 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from nrplanner import inventory as inventory_module  # noqa: E402
-from nrplanner import model, paths  # noqa: E402
+from nrplanner import damage, model, paths, weapons  # noqa: E402
 from nrplanner.advisor import candidates, goals, search, types  # noqa: E402
 
 #: The Nightfarer and vessel AD-003 measured its worst real case against:
@@ -83,11 +83,14 @@ def main() -> int:
                     if w["id"] == hero["starting_weapon"])
     slots = slots_of(vessel)
     problem = types.SlotProblem(slots=slots)
+    # The question `advisorbar.asking_from` asks (AD-038): the starting
+    # armament as the reference, at its lowest tier, no grid, no rolls.
     ctx = types.GoalContext(
         data=data, hero=hero, level=LEVEL,
-        reference=types.ReferenceArmament(weapon=starting, tier=1,
-                                          slot_index=0),
-        weighting=goals.DEFAULT_WEIGHTING, weapons_held=(starting,))
+        reference=types.ReferenceArmament(weapon=starting,
+                                          tier=weapons.MIN_UPGRADE,
+                                          slot_index=damage.STARTING_SLOT),
+        weighting=goals.DEFAULT_WEIGHTING)
     budget = types.DEFAULT_BUDGET
 
     print(f"{platform.platform()}, Python "

@@ -132,8 +132,18 @@ _ATTACK_RATING_SCOPE = (
     "Effects that convert one damage type into another are not in this "
     "figure: how the game applies them cannot be read out of the files, so "
     "they are named rather than guessed at.",
+    # AD-038: the armament the figure is formed against is a property of the
+    # Nightfarer, not of the grid (A17), and it is named here so that the
+    # figure says what it is scaled on. Wording provisional until the
+    # `ui-ux-designer` settles it (AD-038.2).
+    "Scaled on the Nightfarer's own starting armament at its lowest tier, "
+    "without the buffs it may roll; one- or two-handed as the stat sheet's "
+    "hand switch says.",
 )
 
+# Fallback texts (AD-038.1): spoken only when the dataset has no record for
+# the Nightfarer's starting armament, so the run ranks on the multiplier
+# mean and says so instead of inventing a scaling (A7).
 _NO_ARMAMENT = ("No armament selected — ranked on attack multipliers only, "
                 "without weapon scaling.")
 
@@ -198,10 +208,10 @@ def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
     not refused, it is answered against a named assumption. This is that
     assumption, and `_NO_ARMAMENT_NOTE` states it in the result.
 
-    Since A17 it is no longer the way out of a run with an empty slot but the
-    ordinary case: the armaments and their buffs are rolled again every
-    expedition, so what a relic is worth is measured without them
-    (`advisorbar.asking_from`, AK-191).
+    Between A17 and AD-038 this was the ordinary case; since AD-038 the
+    program ranks against the Nightfarer's starting armament, and this is
+    reached only when the dataset has no record of it (`advisorbar.
+    asking_from`).
 
     The five fields come from `damage.AR_RATE_FOR`, the facade's own account
     of which multiplier reaches which damage type, so this cannot drift from
@@ -226,22 +236,14 @@ def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
 def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     """What this build hits for -- with an armament only when given one.
 
-    **The branch the program takes is the first one** (`GOAL.md` A17,
-    AK-191). `advisorbar.asking_from` hands in no reference armament and no
-    grid, because both are rolled again every expedition and a relic ranked
-    against them is ranked against something the player will not have. So
-    the figure the Advisor bar and the picker read is the mean of the attack
-    multipliers below, and it is the same figure whatever is in the slot.
-
-    The armament branch below is therefore reached by **no caller inside
-    `nrplanner/` today** -- `advisorbar.asking_from` is the one place a
-    `GoalContext` is built, and it passes `reference=None`. It is kept
-    because it is the answer to a different question, "what does this build
-    hit for with *that* armament", which A16's best and worst case will have
-    to ask again; it is exercised from `tests/test_advisor_goals.py`. That it
-    is unreachable from the program in the meantime is written down here
-    rather than left to be discovered, and was reported with T-188.
-    What follows is about that branch.
+    **The branch the program takes is the second one** (AD-038, `GOAL.md`
+    A22): `advisorbar.asking_from` hands in the Nightfarer's own starting
+    armament as `reference`, at its lowest tier and without its rolls, and
+    no grid. That armament is a property of the dataset rather than of what
+    the player carries, so A17 still holds -- the grid moves nothing -- and
+    an attribute a relic moves reaches the figure through the armament's
+    scaling. The first branch is the fallback for a dataset without that
+    record (AD-038.1). What follows is about the armament branch.
 
     Asked through `damage.equipped`, which is the question the weapon panel
     asks -- the armament in its slot, at its tier, with the
