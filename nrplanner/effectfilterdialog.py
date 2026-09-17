@@ -152,10 +152,9 @@ class EffectFilterWindow(QDialog):
     """AK-303..309, AK-316: search, counter, definition line, the tree, and
     the empty-state label under it.
 
-    Rows come in as `Row`s so the window knows nothing about relics; it is
-    handed the store to write to and reads the sets back from it. `changed`
-    is what redraws the boxes, so a marking made from anywhere is drawn at
-    once.
+    `no_rows_reason` is AK-309's case 1 or 2 when `rows` is empty, and `""`
+    otherwise -- the window cannot tell the two apart from the rows alone,
+    and the caller already does (`NO_SAVE_FOUND`/`CHOSEN_SAVE_IS_EMPTY`).
     """
 
     def __init__(self, filters: effectfilters.EffectFilters, rows: list[Row],
@@ -275,22 +274,19 @@ class EffectFilterWindow(QDialog):
             boxes.append(None)
         self._marks[row.effect_id] = (row, *boxes, item)
 
-    def _id_items(self):
-        """Every id row the search leaves visible, top to bottom."""
+    def shown_ids(self) -> list[int]:
+        """The ids of the rows the search leaves visible, top to bottom --
+        members and headless singles, never a heading (AK-316.6)."""
+        ids = []
         for index in range(self.tree.topLevelItemCount()):
             top = self.tree.topLevelItem(index)
             if top.isHidden():
                 continue
-            if top.childCount() == 0:
-                yield top
-            for child in (top.child(c) for c in range(top.childCount())):
-                if not child.isHidden():
-                    yield child
-
-    def shown_ids(self) -> list[int]:
-        """The ids of the rows the search leaves visible, top to bottom --
-        members and headless singles, never a heading (AK-316.6)."""
-        return [item.data(COL_NAME, Qt.UserRole) for item in self._id_items()]
+            rows = ([top.child(c) for c in range(top.childCount())]
+                    or [top])
+            ids += [row.data(COL_NAME, Qt.UserRole) for row in rows
+                    if not row.isHidden()]
+        return ids
 
     def boxes(self, effect_id: int) -> tuple[QCheckBox, QCheckBox]:
         """The (Favourite, Avoid) boxes of one row."""
@@ -338,8 +334,9 @@ class EffectFilterWindow(QDialog):
         for index in range(self.tree.topLevelItemCount()):
             top = self.tree.topLevelItem(index)
             children = [top.child(c) for c in range(top.childCount())]
-            if not children or matches(top):
-                top.setHidden(not matches(top))
+            head_hit = matches(top)
+            if not children or head_hit:
+                top.setHidden(not head_hit)
                 for child in children:
                     child.setHidden(False)
                 continue
