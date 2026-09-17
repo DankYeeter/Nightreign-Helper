@@ -931,6 +931,30 @@ def test_every_line_of_the_dialog_shows_its_effects_state_and_sets_none(
     dialog.deleteLater()
 
 
+def test_a_member_of_an_avoided_family_is_struck_and_one_on_allow_is_not(
+        qapp):
+    """AD-039.3, AK-317.5: the line reads the resolved set -- a family
+    marking strikes the member through, `Allow` draws it like any
+    unmarked effect, with no glyph of its own."""
+    from nrplanner.app import BAD
+
+    filters = effectfilters.EffectFilters(families={1: "Improved Attack Power"})
+    dialog = a_dialog(qapp, an_answer(a_group(a_line("Attack.", effect_id=1))),
+                      filters)
+    line, = dialog.groups[0][2]
+    try:
+        filters.mark_family("Improved Attack Power", True)
+        assert line.kind() == effectfilters.EXCLUDED
+        assert line.label.font().strikeOut() and BAD in line.label.styleSheet()
+        filters.mark(1, effectfilters.ALLOWED)
+        assert line.kind() is None and line.bullet.text() == "•"
+        assert not line.label.font().strikeOut()
+    finally:
+        filters.mark_family("Improved Attack Power", False)
+        filters.mark(1, None)
+        dialog.deleteLater()
+
+
 def test_an_avoided_curse_keeps_its_curse_bullet(qapp, filters):
     dialog = a_dialog(qapp, an_answer(a_group(
         a_line("A curse: costs.", curse=True, effect_id=3))), filters)

@@ -124,3 +124,93 @@ def test_a_marking_writes_both_keys_through_one_store_object(store,
     filters.mark(5, effectfilters.REQUIRED)
 
     assert len(built) == 1
+
+
+FAMILIES = {1: "Improved Attack Power", 2: "Improved Attack Power",
+            3: "Improved Attack Power", 4: "Dexterity",
+            5: "Improved Mind and Faith, Reduced Intelligence"}
+
+
+def test_a_family_marking_and_an_allow_are_there_again_at_the_next_start(store):
+    """AD-039.4, AK-316.7: the two new keys, read back by a new instance."""
+    filters = effectfilters.EffectFilters(families=FAMILIES)
+    filters.mark_family("Improved Attack Power", True)
+    filters.mark(2, effectfilters.ALLOWED)
+
+    restarted = effectfilters.EffectFilters(families=FAMILIES)
+    assert restarted.avoided_families == {"Improved Attack Power"}
+    assert restarted.allowed == {2}
+    assert store.value("advisor/allowed", "", type=str) == "2"
+    assert store.value("advisor/avoided_families", "",
+                       type=str) == "Improved Attack Power"
+
+
+def test_a_family_key_with_a_comma_survives_the_store(store):
+    """T-292c point 5: through the real `QSettings` store, not a mock -- a
+    comma in the name is not a separator, the line break is."""
+    filters = effectfilters.EffectFilters(families=FAMILIES)
+    filters.mark_family("Improved Mind and Faith, Reduced Intelligence", True)
+    filters.mark_family("Dexterity", True)
+    restarted = effectfilters.EffectFilters(families=FAMILIES)
+    assert restarted.avoided_families == {
+        "Improved Mind and Faith, Reduced Intelligence", "Dexterity"}
+    assert restarted.resolved_excluded == {4, 5}
+
+
+def test_the_resolved_set_is_the_family_less_allow_and_favourite(store):
+    """AD-039.3: every dataset id of an avoided family, less the ones on
+    Allow and the ones favourited (Favourite wins), plus the ids avoided
+    on their own. `changed` fires for a family marking too."""
+    filters = effectfilters.EffectFilters(families=FAMILIES)
+    heard = []
+    filters.changed.connect(lambda: heard.append(True))
+    filters.mark_family("Improved Attack Power", True)
+    filters.mark(2, effectfilters.ALLOWED)
+    filters.mark(3, effectfilters.REQUIRED)
+    filters.mark(4, effectfilters.EXCLUDED)
+    assert filters.resolved_excluded == {1, 4}
+    assert types.SlotProblem(excluded=filters.resolved_excluded,
+                             required=filters.required).required == {3}
+    filters.mark_family("Improved Attack Power", False)
+    assert filters.resolved_excluded == {4}
+    assert filters.allowed == {2}, "Allow stays stored for the next Avoid"
+    filters.mark_family("Improved Attack Power", False)
+    assert len(heard) == 5
+
+
+def test_allow_is_a_third_state_of_the_same_id(store):
+    filters = effectfilters.EffectFilters()
+    filters.mark(5, effectfilters.EXCLUDED)
+    filters.mark(5, effectfilters.ALLOWED)
+    assert (filters.excluded, filters.allowed) == (frozenset(), {5})
+    filters.mark(5, effectfilters.REQUIRED)
+    assert (filters.allowed, filters.required) == (frozenset(), {5})
+
+
+def test_an_id_under_three_keys_is_required_and_under_two_is_allowed(store):
+    """T-292c point 2: loading makes the three id sets disjoint --
+    `required`, then `allowed`, then `excluded` -- and the overlap in every
+    pair reaches `SlotProblem` without a `ValueError`."""
+    store.setValue(effectfilters.KEYS[effectfilters.EXCLUDED], "5,6,7,8")
+    store.setValue(effectfilters.KEYS[effectfilters.REQUIRED], "6,9")
+    store.setValue(effectfilters.KEYS[effectfilters.ALLOWED], "7,9")
+    store.sync()
+
+    filters = effectfilters.EffectFilters(families={5: "a", 9: "a"})
+    filters.mark_family("a", True)
+
+    assert (filters.excluded, filters.required,
+            filters.allowed) == ({5, 8}, {6, 9}, {7})
+    assert store.value("advisor/excluded", "", type=str) == "5,8"
+    assert store.value("advisor/allowed", "", type=str) == "7"
+    assert types.SlotProblem(excluded=filters.resolved_excluded,
+                             required=filters.required).excluded == {5, 8}
+
+
+@pytest.mark.parametrize("damaged, names", [
+    ("", set()), ("\n\n", set()), (" a \r\nb\r\n", {"a", "b"}),
+    ("a, b", {"a, b"})])
+def test_a_damaged_family_value_reads_as_whatever_names_it_still_holds(
+        store, damaged, names):
+    store.setValue(effectfilters.KEYS[effectfilters.AVOIDED_FAMILIES], damaged)
+    assert effectfilters.stored_text(effectfilters.AVOIDED_FAMILIES) == names

@@ -213,17 +213,27 @@ def _marked(count: int, state: str) -> str:
     return f"{count} effect{'' if count == 1 else 's'} {state}"
 
 
+def families_avoided(count: int) -> str:
+    """AK-316.5: the families clause, counted apart from the ids -- one
+    family can pull dozens of ids along, and a sum would read as a small,
+    deliberate selection where a whole group went."""
+    return f"{count} {'family' if count == 1 else 'families'} avoided"
+
+
 def marking_clauses(filters) -> list[str]:
-    """The AK-280 clauses of the `Filters` tooltip (AK-302): how many effects
-    the player marked, in every one of the fourteen states, because a
-    marking is a standing setting and not a property of one run. `None` -- a
-    row built with no filters behind it -- has nothing to count."""
+    """The AK-280 clauses of the `Filters` tooltip (AK-302, AK-316.5): how
+    many effects and families the player marked, in every one of the
+    fourteen states, because a marking is a standing setting and not a
+    property of one run. `None` -- a row built with no filters behind it --
+    has nothing to count."""
     if filters is None:
         return []
     return ([_marked(len(filters.excluded), "avoided")]
             if filters.excluded else []) + (
             [_marked(len(filters.required), "favourited")]
-            if filters.required else [])
+            if filters.required else []) + (
+            [families_avoided(len(filters.avoided_families))]
+            if filters.avoided_families else [])
 
 
 def _clauses(head: str, *clauses: str) -> str:
@@ -449,7 +459,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held,
-                                excluded=planner.effect_filters.excluded,
+                                excluded=planner.effect_filters.resolved_excluded,
                                 required=planner.effect_filters.required)
 
     # The baseline counts every switchable condition as met (AD-036.6): the

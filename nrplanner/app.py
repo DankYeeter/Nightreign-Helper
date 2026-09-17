@@ -20,9 +20,9 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from . import (advisorblock, chalices, datasource, effectfilterdialog,
-               effectfilters, errortext, favourites, firstrun, gamepath,
-               inventory, model, savereader, shortcut, singleinstance,
-               uiscale, weaponslots)
+               effectfilters, effecttext, errortext, favourites, firstrun,
+               gamepath, inventory, model, savereader, shortcut,
+               singleinstance, uiscale, weaponslots)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
@@ -457,9 +457,14 @@ class Planner(QMainWindow):
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
         # The effects the player struck out of or pinned into every
-        # suggestion (A18/A19). Not session state: read from the store here,
-        # written on every marking (AD-036.5), so a restart shows them again.
-        self.effect_filters = effectfilters.EffectFilters(self)
+        # suggestion (A18/A19), and the families they avoid (A23). Not
+        # session state: read from the store here, written on every marking
+        # (AD-036.5), so a restart shows them again. The family of every
+        # dataset id is computed once here (AD-039.1, 11 ms on 2076 ids).
+        self.effect_filters = effectfilters.EffectFilters(self, {
+            int(effect_id): effecttext.family_key(
+                effect, data.get("weapon_families", {}))
+            for effect_id, effect in self.effects.items()})
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None

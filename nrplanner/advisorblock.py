@@ -247,8 +247,11 @@ class WhyLine(QWidget):
         self._redraw()
 
     def kind(self) -> str | None:
-        """Which of the two sets holds this line's effect, `None` for neutral."""
-        if self.line.effect_id in self._filters.excluded:
+        """Which of the two sets holds this line's effect, `None` for
+        neutral. Avoided is the resolved set (AD-039.3): a member of an
+        avoided family is struck through, one on `Allow` is not (AK-317.5).
+        """
+        if self.line.effect_id in self._filters.resolved_excluded:
             return effectfilters.EXCLUDED
         if self.line.effect_id in self._filters.required:
             return effectfilters.REQUIRED

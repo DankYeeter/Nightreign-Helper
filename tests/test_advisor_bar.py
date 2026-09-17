@@ -718,15 +718,23 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
     field anywhere (AD-036.1)."""
     from nrplanner import effectfilters
 
-    planner.effect_filters.mark(11, effectfilters.EXCLUDED)
-    planner.effect_filters.mark(22, effectfilters.REQUIRED)
+    filters = planner.effect_filters
+    family = filters.families[7330000]
+    members = {i for i, key in filters.families.items() if key == family}
+    filters.mark(11, effectfilters.EXCLUDED)
+    filters.mark(22, effectfilters.REQUIRED)
+    filters.mark_family(family, True)
+    filters.mark(7330000, effectfilters.ALLOWED)
     try:
         problem = advisorbar.asking_from(planner, "max_damage").request.problem
-        assert problem.excluded == {11}
+        # AD-039.3: the avoided family, less the member on Allow.
+        assert problem.excluded == {11} | members - {7330000}
+        assert 7080000 in problem.excluded and len(members) > 2
         assert problem.required == {22}
     finally:
-        for effect_id in (11, 22):
-            planner.effect_filters.mark(effect_id, None)
+        filters.mark_family(family, False)
+        for effect_id in (11, 22, 7330000):
+            filters.mark(effect_id, None)
 
 
 def test_the_question_carries_the_starting_armament_without_its_rolls(planner):
@@ -799,6 +807,13 @@ def test_the_filters_tooltip_counts_the_marked_effects_in_every_state(qapp):
         assert widget.filters_button.toolTip() == (
             f"<span>{advisorbar.FILTERS_TOOLTIP}  ·  2 effects avoided  ·  "
             "1 effect favourited</span>")
+        # AK-316.5: families are a clause of their own, never added to the ids.
+        filters.mark_family("Dexterity", True)
+        widget.the_build_changed(marking_changed=True)
+        assert widget.filters_button.toolTip().endswith(
+            "2 effects avoided  ·  1 effect favourited  ·  "
+            "1 family avoided</span>")
+        filters.mark_family("Dexterity", False)
         asking["value"] = None
         widget.the_build_changed()
         assert widget.toolTip().endswith("use Rescan save.</span>")

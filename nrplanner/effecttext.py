@@ -20,6 +20,10 @@ as undescribed rather than given a plausible-sounding guess.
 
 from __future__ import annotations
 
+import functools
+import re
+from collections.abc import Mapping
+
 from . import model
 
 # Fields that gate an effect rather than change a number.
@@ -231,6 +235,56 @@ def caption(effect: dict) -> str:
 def name(effect: dict) -> str:
     """Display name, with the same hard newlines flattened out."""
     return " ".join(str(effect.get("name", "")).split())
+
+
+#: The four affinities A23 names as a variant of one effect (AD-039 rule 3):
+#: `Fire Attack Power Up` and `Holy Attack Power Up` are one family. `Physical`
+#: is deliberately not one, or `Physical Attack Up` would be family `Attack Up`.
+AFFINITIES = ("Magic", "Fire", "Lightning", "Holy")
+
+#: A tier at the end of the name only: `[Wylder] +1 additional Character
+#: Skill use` carries its +1 in front, and that is not a tier.
+_TIER = re.compile(r"\s\+\d+$")
+#: What is left of `with 3+ Daggers Equipped` once the type is gone.
+_COUNT_CLAUSE = re.compile(r"\bwith 3\+\s*Equipped\b")
+
+
+def _variant_names(weapon_families) -> tuple[str, ...]:
+    """The dataset's armament type names, or nothing at all for a field that
+    is missing, not a mapping, or holds anything but strings (SEC: a damaged
+    dataset makes no family, and no `re.error`)."""
+    if not isinstance(weapon_families, Mapping):
+        return ()
+    names = tuple(weapon_families.values())
+    if not all(isinstance(name, str) for name in names):
+        return ()
+    return names
+
+
+@functools.lru_cache(maxsize=4)
+def _variant_pattern(names: tuple[str, ...]) -> re.Pattern:
+    """One compiled pattern per distinct name list: the types and the four
+    affinities as whole words, singular or plural (`Dagger`, `Daggers`,
+    `Torches`), longest first so `Colossal Sword` is taken before `Sword`
+    could be. Every name goes through `re.escape` -- it is a value."""
+    words = sorted(set(names) | set(AFFINITIES), key=len, reverse=True)
+    return re.compile(r"\b(?:%s)(?:es|s)?\b" % "|".join(map(re.escape, words)))
+
+
+def family_key(effect: dict, weapon_families) -> str:
+    """The name of the family this effect belongs to (AD-039 rule): its
+    display name without the Nightfarer prefix, the tier, the armament type
+    or affinity, and the `3+ ... Equipped` count clause. A name that is
+    nothing but those (none in the dataset) keeps its full name. The key is
+    also the heading of the family in the filter window.
+    """
+    text = name(effect)
+    if owner(effect):
+        text = text[text.index("]") + 1:]
+    text = _TIER.sub("", text)
+    text = _variant_pattern(_variant_names(weapon_families)).sub(" ", text)
+    text = _COUNT_CLAUSE.sub(" ", text)
+    return " ".join(text.split()) or name(effect)
 
 
 def describe(effect: dict) -> str:
