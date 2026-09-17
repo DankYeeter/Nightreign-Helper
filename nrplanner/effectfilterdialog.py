@@ -44,7 +44,12 @@ TITLE = "Effect filters"
 #: table at its measured 449 px. AK-316/317 (T-292d, offscreen, Fusion,
 #: 339 rows, 17.09.2026): the `Allow` column asks 88 px more before the name
 #: column has the width it had, the longer legend 26 px more above the tree
-#: -- the tree keeps its 449 px.
+#: -- the tree keeps its 449 px. DR-032/T-294 (offscreen, Fusion,
+#: 17.09.2026): re-measured with three counter clauses on screen at once
+#: (`2 favourited · 1 avoided · 1 family avoided`, the widest the counter
+#: gets, AK-316.5) after giving it `setWordWrap` -- still 608 x 642, where
+#: the unwrapped label had forced 814 x 642 and stayed there once the
+#: clause was gone.
 OPENING_SIZE = (608, 642)
 
 COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_NAME, COL_TYPE, COL_COPIES = range(6)
@@ -183,6 +188,11 @@ class EffectFilterWindow(QDialog):
         layout.addWidget(self.search)
 
         self.counter = QLabel()
+        # DR-032: without this a fourth clause (favourited/avoided/family
+        # avoided, T-292d) demands the whole line's width in one go and
+        # blows the window out past OPENING_SIZE, wrap-around that Qt's
+        # layout minimum then never releases even once the clause is gone.
+        self.counter.setWordWrap(True)
         layout.addWidget(self.counter)
 
         definition = QLabel(COPIES_DEFINITION)

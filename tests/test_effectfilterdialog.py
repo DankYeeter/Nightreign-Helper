@@ -179,6 +179,26 @@ def test_the_counter_says_shown_of_total_and_the_set_counts(window, filters):
         "1 of 6 effects  ·  1 favourited  ·  2 avoided  ·  1 family avoided")
 
 
+def test_a_third_counter_clause_keeps_the_opening_size(window, filters):
+    """DR-032: `setWordWrap` on the counter absorbs a wider line by wrapping
+    it, instead of the label's one-line `minimumSizeHint` forcing the whole
+    window past `OPENING_SIZE` -- and never releasing it again once the
+    clause is gone (measured offscreen at 814x642 before this fix, for
+    exactly this text).
+    """
+    window.show()
+    QApplication.processEvents()
+    filters.mark(10, effectfilters.REQUIRED)
+    filters.mark(11, effectfilters.REQUIRED)
+    filters.mark(90, effectfilters.EXCLUDED)
+    filters.mark_family(FAMILY, True)
+    QApplication.processEvents()
+    assert window.counter.text() == (
+        "6 of 6 effects  ·  2 favourited  ·  1 avoided  ·  1 family avoided")
+    assert (window.width(), window.height()) == dlg.OPENING_SIZE
+    window.close()
+
+
 def test_the_search_speaks_the_picker_syntax(window):
     """AK-306: `NOT` and a quoted phrase, as `search.parse` reads them."""
     assert window.search.placeholderText() == dlg.SEARCH_PLACEHOLDER
