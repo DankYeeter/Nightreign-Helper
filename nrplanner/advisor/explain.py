@@ -60,7 +60,7 @@ won back by attacking after a hit` (`UI_SPEC` T-078 §6, AK-147).
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from .. import damage, effecttext, model
@@ -314,22 +314,42 @@ def _rating_word(score: types.GoalScore) -> str:
     return word
 
 
-def _first_attribute(contributions: Sequence[_Contribution]
-                     ) -> _Contribution | None:
-    """Which of one effect's attribute fields carries the amount (AK-315.3).
+def _weapon_scaling(ctx: types.GoalContext) -> Mapping[str, float]:
+    """The reference weapon's own scaling stats, or none reachable at all.
 
-    `model.ATTRIBUTE_ORDER`'s own order, not the order the fields happened to
-    arrive in: an effect named "Reduced Intelligence and Dexterity" still
-    puts the figure on the Dexterity line, because that is where the stat
-    sheet lists it first. `None` when the effect touches no attribute field at
-    all.
+    `{}` when AD-038's reference armament is unset -- every `.get` on it then
+    reads as "this attribute is not scaled", the same reading a weapon with
+    no scaling at all would give.
+    """
+    return ctx.reference.weapon.get("scaling", {}) if ctx.reference else {}
+
+
+def _first_attribute(contributions: Sequence[_Contribution],
+                     scaling: Mapping[str, float]) -> _Contribution | None:
+    """Which of one effect's attribute fields carries the amount (AK-315.3,
+    Director decision T-294 / QA-285).
+
+    The reference weapon's own scaling picks the line, not
+    `model.ATTRIBUTE_ORDER`'s place for it: a dagger scales Dexterity, so
+    "Reduced Intelligence and Dexterity" puts the figure on the Dexterity
+    line and leaves Intelligence bare; a staff scaled on Intelligence puts a
+    curse's `Mind -13` bare and the amount on its own Intelligence line
+    instead -- `Mind` never carries it, because no weapon's `scaling` ever
+    names it. Several fields the weapon scales still break the tie by
+    `model.ATTRIBUTE_ORDER` (the previous, weapon-blind rule), and an effect
+    whose fields the weapon scales none of falls back to that same order too:
+    with no reference weapon this is the whole rule again, and with one, a
+    non-damage direction (whose scaling is never in the reference weapon's
+    stats) reads exactly as before. `None` when the effect touches no
+    attribute field at all.
     """
     attributes = [one for one in contributions
                  if one.field_key in model.ATTRIBUTE_ORDER]
     if not attributes:
         return None
-    return min(attributes,
-              key=lambda one: model.ATTRIBUTE_ORDER.index(one.field_key))
+    scaled = [one for one in attributes if scaling.get(one.field_key)]
+    pool = scaled or attributes
+    return min(pool, key=lambda one: model.ATTRIBUTE_ORDER.index(one.field_key))
 
 
 def _explained_line(contribution: _Contribution, built: model.Build,
@@ -714,6 +734,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
     # Read once: the armament grid does not change inside one run, and the
     # weapon-type pool is a sweep over every armament of the extraction.
     armaments = _armaments(ctx)
+    scaling = _weapon_scaling(ctx)
     groups = []
     for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
         mine = [one for one in contributions
@@ -724,7 +745,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
         for effect_id in candidate.effect_ids:
             if effect_id in with_a_figure:
                 own = [one for one in mine if one.effect_id == effect_id]
-                first_attribute = _first_attribute(own)
+                first_attribute = _first_attribute(own, scaling)
                 lines.extend(
                     types.ReasonLine(
                         slot_index=candidate.slot_index, effect_id=effect_id,
@@ -789,7 +810,7 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
             slot_index=candidate.slot_index, effect_id=curse_id,
             text=f"{name}: no number here shows what this costs.",
             is_curse=True, silence=types.SILENT_NO_NUMBER_HERE),)
-    first_attribute = _first_attribute(moved)
+    first_attribute = _first_attribute(moved, _weapon_scaling(ctx))
     return tuple(
         types.ReasonLine(
             slot_index=candidate.slot_index, effect_id=curse_id,

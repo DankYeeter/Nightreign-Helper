@@ -1860,6 +1860,65 @@ def test_an_attribute_curse_the_reference_armament_cannot_feel(game_data):
     }
 
 
+def _effect_moving_mind_and_a_scaled_attribute(data: dict, hero: dict,
+                                               weapon: dict) -> int:
+    """The lowest-numbered effect that moves Mind together with an attribute
+    this weapon actually scales -- the shape QA-285 found on the real save.
+
+    Queried rather than a hardcoded id, for the same reason `weapon_damage_
+    cases._pick` is: a dataset that stops carrying this shape should fail
+    loudly here instead of silently testing nothing.
+    """
+    scaled = {name for name, rate in (weapon.get("scaling") or {}).items()
+             if rate}
+    for key in sorted(data["effects"],
+                      key=lambda k: int(data["effects"][k]["id"])):
+        effect = data["effects"][key]
+        if effect.get("is_curse"):
+            continue
+        build = model.compute(hero, cases.PROBE_LEVEL, [effect],
+                              data.get("curves", {}))
+        moved = {name for name in model.ATTRIBUTE_ORDER
+                if build.attributes.get(name, 0)
+                != build.base_attributes.get(name, 0)}
+        if "Mind" in moved and moved & scaled:
+            return int(effect["id"])
+    raise LookupError(
+        "no effect in this dataset moves Mind together with an attribute "
+        f"{weapon.get('name', 'this weapon')!r} scales")
+
+
+def test_a_curse_puts_the_amount_on_the_line_the_weapon_actually_scales(
+        game_data):
+    """AK-315.3, Director decision T-294 (QA-285): the reference weapon's own
+    scaling picks the line, not `model.ATTRIBUTE_ORDER`'s place for it.
+
+    Recluse's starting staff scales Intelligence and never Mind (T-043); an
+    effect that moves both used to put the amount on the Mind line because
+    `model.ATTRIBUTE_ORDER` lists Mind first of the two -- QA-285 caught
+    exactly this reading on the real save ("Mind -13 → Spell power +13").
+    """
+    hero = cases.hero_by_name(game_data, "Recluse")
+    weapon = cases.weapon_by_id(game_data, hero["starting_weapon"])
+    effect_id = _effect_moving_mind_and_a_scaled_attribute(
+        game_data, hero, weapon)
+    ctx = advisor.context(game_data, hero,
+                          reference=_starting_armament(game_data, hero))
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "Copy", [effect_id]),)
+    base = evaluate(problem, (), ctx)
+    built = evaluate(problem, chosen, ctx)
+
+    lines = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+
+    mind_line = next(line for line in lines
+                     if line.split(": ", 1)[1].startswith("Mind"))
+    assert " → " not in mind_line, (
+        f"Mind is never a weapon-scaling attribute, it must stay bare: "
+        f"{mind_line}")
+
+
 def test_a_buff_that_raises_an_attribute_ends_on_the_number(game_data):
     """AK-315.2: a gain carries no cost mark and ends on the amount.
 
