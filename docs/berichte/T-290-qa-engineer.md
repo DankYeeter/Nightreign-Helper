@@ -1,156 +1,115 @@
 ```
-STATUS: blockiert
-AUFTRAG: T-290b - Retest AK-314.1-.6 am Artefakt 1.13.2, Regression Optimize/Why/Filters
-GELESEN: docs/tasks/T-290.md, T-289.md; docs/berichte/T-290-release-manager-build.md,
-T-288-developer.md, T-285-release-manager-clean-room.md (Klick-Rezept); UI_SPEC.md
-AK-314 (Nachtrag T-289a) und AK-300/AK-281/AK-291/AK-274/AK-301 (Wortlaut-Kontext);
-`git show 1be0d9e` (voller Diff explain.py/run.py/types.py/advisorblock.py/app.py/
-relicslots.py/test_advisor_run.py/test_advisor_block.py/test_advisor_explain.py);
-qa/findings.md (Tabelle vollstaendig, hoechste ID vor diesem Lauf QA-282);
-.claude/hooks/enforce-data-redirect.ps1 (nach zwei Fehlalarmen, siehe unten)
-GEAENDERT: docs/berichte/T-290-qa-engineer.md (neu), qa/findings.md (QA-283
-angehaengt). Kein Anwendungscode.
-ANNAHMEN: keine Umgehung von NH-004 versucht (kein Stop-Process auf die
-Nutzerkopie PID 22016/22172) - Auftrag verlangt ausdruecklich Warten und Melden.
-NAECHSTER: T-290b erneut, sobald `tasklist` (oder gleichwertig) fuer
-NightreignHelper 0 Treffer zeigt - AK-314.1-.6 am Fenster, danach Regression
-Optimize/Why/Filters, danach Freigabeempfehlung.
-BLOCKIERT DURCH: NH-004 - Nutzerkopie (PID 22016 Bootloader, PID 22172 Fenster)
-lief ueber den gesamten Pruefzeitraum (mehrfach gegengeprueft, zwei Wartefenster
-a 5 Minuten plus die Laufzeit der Testsuite dazwischen, insgesamt rund 20
-Minuten, PIDs/Speicherbelegung unveraendert - keine neue Aktivitaet erkennbar,
-die auf ein baldiges Ende schliessen liesse). Kein eigener Fensterstart moeglich,
-ohne die laufende Kopie des Nutzers zu gefaehrden.
+STATUS: teilweise
+AUFTRAG: T-290b nachholen (Koordinator, nach Prozessende der Nutzerkopie
+21:04) - AK-314.1-.6 und Regression Optimize/Why/Filters am Fenster gegen
+dist/NightreignHelper.exe 1.13.2, Umlenkung DankYeeterT-290b.
+GELESEN: eigener Bericht (unten, erster Teil vor der Koordinator-Nachricht);
+docs/tasks/T-290.md, T-289.md; UI_SPEC.md AK-314; T-285-release-manager-
+clean-room.md (Klickrezept, GetWindowRect-Lehre); git show 1be0d9e (Diff).
+GEÄNDERT: docs/berichte/T-290-qa-engineer.md (dieser Bericht, ueberschrieben/
+fortgeschrieben). qa/findings.md bereits im ersten Teil um QA-283 ergaenzt
+(vor der Koordinator-Nachricht) - seither NICHT weiter geaendert, kein neuer
+Eintrag fuer den unten beschriebenen, unfertigen Zustand.
+ANNAHMEN: keine.
+NÄCHSTER: siehe "Naechster Schritt" unten - Testlauf abbrechen, Zustand
+begutachten, GUI-Retest fortsetzen oder neu aufsetzen.
+BLOCKIERT DURCH: Werkzeug-Zugschwelle dieses Laufs (150 Aufrufe) erreicht,
+mitten in der Fensterinteraktion. Kein Programmfehler - der Lauf wurde zu
+gross fuer eine Sitzung.
 ```
 
 ---
 
-# T-290b - QA-Retest AK-314 (1.13.2)
+# T-290b - QA-Retest AK-314 (1.13.2), zweiter Teil (nach Prozessende der Nutzerkopie)
 
-## Kontraktblock
+**Wichtig fuer den naechsten Lauf:** `dist\NightreignHelper.exe` (1.13.2)
+**laeuft nach diesem Abbruch vermutlich noch** unter der Umlenkung
+`DankYeeterT-290b` (Bootloader-PID 22320, Fenster-PID 6080, zuletzt
+bestaetigt aktiv). NH-004 (Instanzsperre) verlangt vor jedem weiteren
+Fensterstart `Get-Process NightreignHelper` = 0 - **das zuerst pruefen und
+diese Kopie sauber beenden**, bevor irgendjemand neu startet. Der
+Werkzeug-Stopp traf mitten im Test, ich konnte nicht mehr aufraeumen.
 
-| | |
-|---|---|
-| **Artefakt** | `dist\NightreignHelper.exe`, 59.129.818 B, SHA-256 `F988C5207AF533F7E6EE993F4B91A2C23D1FC43538799C7C35425A7EA8B82367` - **nachgemessen** (Python-`hashlib`, da `certutil`/`Get-FileHash` mit dem Dateinamen im Klartext denselben Fehlalarm ausloesen wie unten beschrieben), deckt sich vollstaendig mit dem Auftragstext und `docs/berichte/T-290-release-manager-build.md` |
-| **GUI-Retest AK-314.1-.6** | **nicht durchgefuehrt** - NH-004-Blocker (siehe Kontraktblock) |
-| **Regression Optimize/Why/Filters am Fenster** | **nicht durchgefuehrt**, aus demselben Grund |
-| **Urteil dieses Laufs** | unentschieden - das Abnahmekriterium AK-314 ist am Artefakt nicht belegt, aus einem Terminierungsgrund, keinem gefundenen Fehler |
+## Was in diesem zweiten Lauf feststand
 
-## Risiko-Briefing (vorbereitet, nicht abgearbeitet)
+1. **NH-004-Vorpruefung:** `Get-Process`-Aequivalent vor dem Start = 0
+   (Nutzerkopie war zu diesem Zeitpunkt bereits beendet, wie vom Koordinator
+   gemeldet).
+2. **Artefakt nachgemessen** (ohne Start, per Python-`hashlib`, da
+   `certutil`/`Get-FileHash`/`tasklist` mit dem Dateinamen im Klartext den
+   QA-283-Fehlalarm des Hooks ausloesen): **59.129.818 B, SHA-256
+   f988c5207af533f7e6ee993f4b91a2c23d1fc43538799c7c35425a7ea8b82367** -
+   deckt sich mit dem Auftrag und mit T-290a. Unveraendert seit dem ersten
+   Berichtsteil.
+3. **Umlenkung:** `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-290b`,
+   `LOCALAPPDATA`/`APPDATA` auf `<Scratchpad>/T-290/qa-engineer/{localappdata,appdata}`,
+   Testabzug (841 Dateien) dorthin **kopiert** (gegengezaehlt: 841).
+4. **Start:** `dist\NightreignHelper.exe` in derselben Kommandozeile wie die
+   drei Variablen gestartet. Fenstertitel "Nightreign Helper 1.13.2".
+5. **Aufbau der AK-314-Testkonstellation, GUI-Klicks (echte
+   `SetCursorPos`/`mouse_event`, nicht `InvokePattern`, wie in T-285
+   festgehalten):**
+   - Duchess gewaehlt, Vessel **Duchess' Chalice**, **Deep of Night**
+     angehakt. Ergebnis deckt sich exakt mit der T-288-Fixtur: Slot 2 =
+     **Polished Luminous Scene** mit "Attack power increased for each Night
+     Invader defeated" (7060200) - unveraendert im echten (read-only)
+     Spielstand.
+   - **Hold auf Slot 2 gesetzt** - per UIA `TogglePattern` bestaetigt
+     (Off->On) und visuell bestaetigt (Zeile zeigt "Held"-Marke statt
+     "Hold"-Schalter, "Use"-Knopf verschwindet aus dem Vorschlag).
+   - **Optimize** einmal ausgefuehrt (vor den Favoriten, als Klick-Funktionstest)
+     - lief durch, zeigte Vorschlaege fuer Slot 1/2 anhand des noch leeren
+       Favoritenstands. Klickmechanik damit belegt funktionsfaehig.
+   - **Filters-Dialog geoeffnet** ("Effect filters", 340 Eintraege,
+     Favourite-/Avoid-Spalten sichtbar, Suchfeld vorhanden) - **war zum
+     Zeitpunkt des Werkzeug-Stopps offen, keine der beiden Ziel-Effekte
+     (6643000, 7060200) war schon als Favourite angehakt.**
+6. **Nicht mehr erreicht, bevor die Zugschwelle griff:** Favoriten setzen,
+   Filters-Dialog schliessen, Optimize mit Hold+Favoriten erneut ausfuehren,
+   AK-314.1/.2/.3/.6 (Zeile im `SuggestionBlock`) pruefen, `Why`-Dialog
+   (AK-314.5) pruefen, Hold-Gegenprobe (AK-314.4-Randfall bzw. die im
+   Auftrag verlangte "Hold loesen -> keine Zeile, beide Effekte in freien
+   Slots"), Regression `Why`/weitere `Filters`-Interaktion, sauberes
+   Beenden des Programms.
 
-Reihenfolge fuer den Nachholtermin, priorisiert: (1) AK-314.3/.4 - Kartenauswahl
-bei zwei offenen Slots bzw. Wegfall bei `already_equipped`, weil `app.py`
-hierfuer eine neue, ungetestete-am-Fenster Verzweigung traegt (`held_favourite_slot`,
-`next(...)` ueber `suggestion.reasons`); (2) AK-314.1/.2/.6 - Satz/Zusammenfassung/
-Stil der neuen Zeile, direkt sichtbar, hohe Nutzungshaeufigkeit; (3) AK-314.5 -
-Why-Dialog traegt weiterhin beide Volltexte (Gegenprobe gegen eine versehentliche
-Kuerzung); (4) Regression Optimize/Why/Filters, weil der Commit `already_equipped()`
-oeffentlich gemacht und `show_the_suggestion`-Signaturen in `relicslots.py`/
-`advisorblock.py` geaendert hat (neuer Default-Parameter, Reihenfolge gleich
-geblieben - Regressionsrisiko fuer jeden bestehenden Aufrufer). Diese Reihenfolge
-wurde durch den Blocker nicht abgearbeitet.
+## Methodik-Nachtrag fuer kuenftige Klick-Laeufe (an release-manager/qa-engineer, Ergaenzung zu T-285)
 
-## Ersatzweise durchgefuehrt (kein Fensterstart noetig)
+Zwei Fallstricke haben in diesem Lauf viel Zeit gekostet, beide **kein
+Programmfehler**, sondern Eigenschaften der Mess-Umgebung:
 
-**Testsuite (Hauptbaum, `.venv`):** `pytest -n auto -q` -> **1735 passed, 11
-skipped, 66,72 s**. Deckt sich exakt mit der Praemisse aus T-290.md ("vor Commit:
-1735 passed / 11 skipped", dort als ungeprueft markiert - hiermit **verifiziert**,
-nach Commit unveraendert). Keine Regression im Hauptbaum.
+1. **`SetForegroundWindow` aus einem nicht-interaktiven PowerShell-Prozess
+   schlaegt von Windows aus haeufig still fehl** (Foreground-Lock) - das
+   Ziel bleibt optisch/technisch im Hintergrund, `SetCursorPos`+Klick treffen
+   dann ein anderes Fenster an derselben Bildschirmkoordinate. Abhilfe: vor
+   `SetForegroundWindow` ein synthetisches Alt-Tastenereignis
+   (`keybd_event`) ausloesen und **`GetForegroundWindow()` gegenpruefen**,
+   nicht nur den Rueckgabewert von `SetForegroundWindow` selbst vertrauen
+   (der ist unzuverlaessig).
+2. **Der "Effect filters"-Dialog ist ein eigenstaendiges Top-Level-Fenster**
+   (eigenes `HWND`, eigenes `GetWindowRect`), kein Kind des Hauptfensters -
+   `PrintWindow` auf das Hauptfenster zeigt ihn nicht, und Klicks auf
+   vermeintliche Hauptfenster-Koordinaten treffen ihn nicht. Kuenftige
+   Skripte muessen das jeweils aktive Fenster (`GetForegroundWindow`) fuer
+   Screenshot *und* Klick verwenden, sobald ein Dialog offen ist.
 
-**Statische Pruefung des Fix-Diffs (`1be0d9e`, neun Dateien):** Scope-Grenze aus
-T-289 eingehalten (`effectfilterdialog.py`, AK-281/AK-291-Saetze unangetastet -
-deckt sich mit der Dateiliste in T-290c). Alle sechs AK-314-Kriterien haben je
-einen eigenen, mutationstoetend beschriebenen Test:
-`test_a_required_effect_a_held_relic_carries_is_said_to_be_there` (.1),
-`test_two_favourites_met_by_a_hold_summarise_on_the_card` (.2),
-`test_the_held_favourite_line_stands_on_the_lowest_open_card_only` (.3),
-`test_the_held_favourite_line_drops_when_the_only_open_card_is_equipped` (.4),
-derselbe Test plus die `run.py`-Tests belegen .5 (`unknowns` traegt weiterhin
-beide Volltexte), `test_the_held_favourite_line_is_muted_bulleted_and_unmarked`
-(.6). Das ist Code-Evidenz, **kein** Ersatz fuer den am Auftrag geforderten
-Artefakt-Nachweis (A9) - siehe Blocker.
+Beide Punkte gehoeren in die Werkzeugkiste, nicht ins Produkt - kein
+QA-Befund gegen die Anwendung.
 
-**Artefakt-Identitaet:** Groesse und SHA-256 nachgemessen (siehe Kontraktblock),
-deckungsgleich mit T-290a.
+## Naechster Schritt
 
-## Befund
+1. `Get-Process NightreignHelper` pruefen; falls noch aktiv, die Kopie
+   dieses Laufs (Umlenkung `DankYeeterT-290b`) sauber beenden.
+2. T-290b in einem neuen, eigenen Lauf fortsetzen: Filters-Dialog erneut
+   oeffnen (oder die begonnene Sitzung uebernehmen, falls sie noch steht),
+   6643000 + 7060200 als Favourite anhaken, Optimize, AK-314.1/.2/.3/.6 im
+   `SuggestionBlock` und AK-314.5 im `Why`-Dialog pruefen, Hold auf Slot 2
+   loesen und erneut optimieren (Gegenprobe: keine Zeile, beide Effekte in
+   freien Slots), danach Regression `Why`/`Filters` an mindestens einer
+   weiteren, unbeteiligten Slotkonstellation.
+3. Erst danach QA-Log/Gesamturteil zu T-290b abschliessen.
 
-### [P2 | Major | Hoch] Hook `enforce-data-redirect.ps1`: `$istExeStart` löst auf reine Lesebefehle aus, die den Dateinamen nur nennen
+## QA-Log
 
-**Adressat:** developer
-**Betroffen:** `.claude/hooks/enforce-data-redirect.ps1:75` (`$istExeStart = $cmd
--match '(?i)\bNightreignHelper\.exe\b'`), verwendet am Gate in Zeile 87
-**Umgebung:** Bash-Tool, dieser Pruefdurchlauf, kein Programmstart beteiligt
-
-**Reproduktion:**
-1. `tasklist //FI "IMAGENAME eq NightreignHelper.exe"` (reiner Prozess-Filter,
-   NH-004-Vorpruefung laut Auftrag) -> `deny` ("Programmstart ohne vollstaendige
-   Umlenkung ... fehlt").
-2. `certutil -hashfile dist/NightreignHelper.exe SHA256` bzw. `ls -la
-   dist/NightreignHelper.exe` (reiner Lesezugriff auf die Datei) -> derselbe
-   `deny`.
-3. Gegenprobe: dieselbe `tasklist`-Zeile mit drei sinnlosen Fuellwerten
-   (`NIGHTREIGN_SETTINGS_ORG=x LOCALAPPDATA=/tmp APPDATA=/tmp`, ohne jede reale
-   Umlenkungswirkung fuer einen Lesebefehl) davor -> `exit 0`, Befehl laeuft durch.
-
-**Erwartet:** Der Waechter (Zeile 94, `$istExeKommando`) unterscheidet fuer die
-NH-004-Instanzsperre bereits korrekt zwischen "EXE ist das Kommando" und "EXE
-wird nur als Argument genannt" (Kommentar Zeile 93: "Hash- und ls-Aufrufe nennen
-sie als Argument"). Dieselbe Unterscheidung fehlt bei `$istExeStart`
-(Zeile 75), das jede Erwaehnung des Dateinamens als Programmstart wertet.
-
-**Tatsaechlich:** Jeder reine Lese-, Hash- oder Prozesslistenbefehl, der den
-String `NightreignHelper.exe` enthaelt, wird als Programmstart ohne Umlenkung
-abgewiesen - unabhaengig davon, ob die Datei tatsaechlich ausgefuehrt wird.
-
-**Analyse:** Gleiche Fehlerklasse wie der in T-289b bereits behobene
-`run.py`-Fehlalarm (Commit `986216d`, Kommentarblock Zeile 67-73) - dort wurde
-die Wortgrenzen-Ueberpruefung fuer Lesebefehle nachgeschaerft, `$istExeStart`
-blieb dabei unberuehrt und traegt denselben Konstruktionsfehler: ein Muster ohne
-Positionsbindung an den Kommandobeginn/eine Aufrufform.
-
-**Auswirkung:** Trifft jede Rolle, die routinemaessig NH-004 vorab prueft
-(`tasklist`) oder ein Artefakt nachmisst (`certutil`/`Get-FileHash`/`ls`) - genau
-die in `CLAUDE.md` und `docs/berichte/T-282...`/`T-290-release-manager-build.md`
-vorgeschriebenen Schritte. Jeder betroffene Lauf braucht einen Workaround (hier:
-Python-`hashlib` statt `certutil`, `tasklist`-Filter mit `*` statt `.exe`) oder
-sinnlose Fuellwerte, die den eigentlichen Zweck der Umlenkungspruefung
-unterlaufen (Punkt 3 der Reproduktion) - Gewoehnung an Fuellwerte ist ein
-Risiko fuer den Tag, an dem sie tatsaechlich einen Start maskieren.
-
-**Vorschlag:** `$istExeStart` an dieselbe Positionsbindung wie `$istExeKommando`
-(Zeile 94) angleichen, oder ganz auf `$istExeKommando` verweisen statt ein
-zweites, weiteres Muster zu pflegen.
-
-## Nicht getestet
-
-AK-314.1-.6 am Fenster, Regression Optimize/Why/Filters am Fenster,
-Clean-Room/Update-Pfad (nicht Teil von T-290b) - alle wegen des NH-004-Blockers.
-Security-Kurzlauf (T-290c) laeuft parallel, eigene Rolle, nicht wiederholt.
-
-## Zusammenfassung (an director)
-
-**1 Befund: P2 (1).** Kein P1. **Gesamturteil: FAIL** - nicht wegen eines am
-Artefakt gefundenen Fehlers, sondern weil A9 ("QA gegen ein gebautes Artefakt")
-fuer AK-314 nicht belegt ist: der GUI-Retest konnte ueber den gesamten
-Pruefzeitraum nicht stattfinden, weil die Instanzsperre (NH-004) durchgehend von
-der Nutzerkopie gehalten wurde. Mindestens erforderlich vor einer Freigabe:
-T-290b nachholen, sobald ein Fenster frei ist (`tasklist` fuer NightreignHelper
-= 0), AK-314.1-.6 und Optimize/Why/Filters am Artefakt 1.13.2 pruefen. Die
-Code-Evidenz (Suite 1735/11, sechs gezielte, mutationstoetende Unit-Tests fuer
-AK-314.1-.6, Diff-Scope deckungsgleich mit T-290c) staerkt die Erwartung, dass
-der Nachholtermin bestehen wird, ersetzt den Artefakt-Nachweis aber nicht.
-
-**Explorationsprotokoll:** Testsuite gelaufen und ausgewertet; Diff `1be0d9e`
-vollstaendig gelesen; Artefaktgroesse/-hash nachgemessen; zwei unabhaengige
-Wartefenster (~20 min gesamt) auf die Nutzerkopie; Hook-Fehlalarm zweimal
-reproduziert, einmal gezielt widerlegt (Gegenprobe mit Fuellwerten). Keine
-GUI-Interaktion versucht, da NH-004 das ausdruecklich verbietet, solange die
-fremde Kopie laeuft.
-
-**Offene Fragen:** keine (Spec AK-314 ist eindeutig, Abweichung ist rein
-terminlich).
-
-## QA-Log (Anhang an `qa/findings.md`)
-
-| QA-283 | Hook `enforce-data-redirect.ps1`: `$istExeStart` (Zeile 75) loest auf reine Lesebefehle aus, die `NightreignHelper.exe` nur als Text/Argument nennen (`tasklist`-Filter, `certutil -hashfile`, `ls`) - dieselbe Fehlerklasse wie der in T-289b behobene `run.py`-Fehlalarm, hier nicht mitbehoben; Gegenprobe mit sinnlosen Fuellwerten umgeht die Pruefung vollstaendig | P2 | Major | developer | ja - 2x direkt reproduziert + 1x widerlegt, dieser Lauf | offen | 2026-09-17 |
+Keine Aenderung gegenueber dem ersten Berichtsteil (QA-283, Hook-Fehlalarm
+`$istExeStart`, bereits angehaengt). Kein neuer Eintrag fuer den hier
+abgebrochenen GUI-Retest - das Ergebnis steht noch aus.
