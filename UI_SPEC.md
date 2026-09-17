@@ -5944,7 +5944,7 @@ AK-303/AK-309/AK-310 gelten unveraendert. Kein Fensterlauf.*
    datensatzweit mitziehen (AD-039, Risiko-Absatz) — eine addierte Zahl
    taeuscht eine kleine, gezielte Auswahl vor, wo tatsaechlich eine ganze
    Gruppe verschwindet. Derselbe Klauselsatz gilt am `Filters`-Knopf-Tooltip
-   (AK-302, jetzt mit bis zu vier statt zwei Klauseln).
+   (AK-302, jetzt mit bis zu drei statt zwei Klauseln [^316-korr]).
 6. **Suche ueber Kopf und Mitglieder.** AK-306 gilt unveraendert fuer den
    Text jeder Zeile (Kopf **und** Kind); zusaetzliche Regel fuer die
    Baumstruktur: trifft der Suchtext den Familiennamen selbst, bleiben alle
@@ -5957,9 +5957,17 @@ AK-303/AK-309/AK-310 gelten unveraendert. Kein Fensterlauf.*
 7. **Persistenz, erweitert AK-311.** Nach einem Neustart zeigt das Fenster
    die beim letzten Beenden gesetzten Familien-Avoid- und Allow-Marken ohne
    weitere Bedienung; der `Filters`-Tooltip und die Zaehlerklausel aus
-   Punkt 5 zeigen ihre vier Zahlen bereits nach dem Programmstart, auch ohne
+   Punkt 5 zeigen ihre drei Zahlen bereits nach dem Programmstart, auch ohne
    das Fenster zu oeffnen — dieselbe Regel wie AK-311 fuer die bisherigen
-   zwei Zahlen, jetzt an vier Zahlen.
+   zwei Zahlen, jetzt an drei Zahlen [^316-korr].
+
+[^316-korr]: **Korrektur (ui-ux-designer, T-293d, 2026-09-17).** Punkt 5 und
+    Punkt 7 zaehlten hier ursprünglich "vier" statt "drei": AK-311 hatte zwei
+    bedingte Klauseln (`favourited`, `avoided`); AD-039/AK-316 fuegt genau
+    eine hinzu (`avoided_families`) — zwei plus eins ist drei, nicht vier.
+    Der Code war nie falsch (`counter_line`s eigener Docstring nennt bereits
+    "the three counts when set"; `marking_clauses` liefert hoechstens drei
+    Eintraege); falsch war nur dieser Text. Gezaehlt am Code, nicht geschaetzt.
 
 *Rot-vorher:* eine Umsetzung, die einen eigenen, gruppierenden
 Sortier-Komparator auf einem `QTableWidget` schreibt (AD-024-Klasse: zweite

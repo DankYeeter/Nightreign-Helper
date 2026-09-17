@@ -1,5 +1,122 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-17 (T-293d — Effekt-Filterfenster AK-315..318, Bau 1.14.0, Stand `df73927`)
+
+**Methode:** Code-Analyse plus Offscreen-Render (`QT_QPA_PLATFORM=offscreen`,
+Fusion-Stil, dunkle Palette, `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-293d`,
+eigenes `LOCALAPPDATA`/`APPDATA` im Scratchpad — kein Zugriff auf den
+Testabzug noetig, das Fenster wurde direkt mit synthetischen `Row`-Objekten
+gebaut, kein Spielstand gelesen). Registry-Rest geloescht. Kein Fensterstart
+des echten Programms (NH-004, `qa-engineer` haelt das Fenster in T-293b);
+Bildnachweis per `QWidget.grab()`, nicht `PrintWindow` (NH-002-konform, kein
+echtes HWND noetig). **Einschraenkung nach eigener Erinnerung:** Offscreen
+miss(t) Schrift falsch (L-009) — Glyphen fehlen in den Screenshots (Kaestchen
+statt Buchstaben), daher sind Textzahlen aus den Bildern nicht belastbar;
+Geometrie- und Farbmessungen sind davon unbetroffen (Qt-Layout, nicht
+Font-Rendering) und wurden zusaetzlich als reine Zahlen (`win.size()`,
+`minimumSizeHint()`) geloggt, nicht nur per Bild geschaetzt.
+
+**Geprueft:** `nrplanner/effectfilterdialog.py` gegen AK-315..318, plus die
+sechs developer-Annahmen aus dem Auftragstext (T-292d).
+
+**Gesamturteil:** Braucht Arbeit — ein Kritisch-Fund (DR-032): das
+Zaehler-Label kann das Fenster ueber seine offene Groesse hinaus aufblasen,
+sobald ein Spieler mit bestehenden Markierungen es oeffnet, und die
+Vergroesserung laesst sich nicht zurueckdrehen. AK-315, AK-317 und AK-318
+sind wortgleich im Code verifiziert; AK-316 traegt neben DR-032 eine reine
+Dokumentationskorrektur (DR-033).
+
+### Kritisch
+
+- **DR-032 [`nrplanner/effectfilterdialog.py:185`, `EffectFilterWindow.counter`]**
+  `self.counter = QLabel()` bekommt kein `setWordWrap(True)` — anders als
+  `definition` (Zeile 188-190) und `marks_explanation` (193-196) direkt
+  darunter, die beide explizit umbrechen. Eine `QLabel` ohne Wortumbruch
+  verlangt als Minimalbreite die volle einzeilige Textbreite; sobald
+  `counter_line()` (AK-316.5) eine dritte oder vierte Klausel anhaengt,
+  wächst diese Minimalbreite ueber die deklarierte `OPENING_SIZE` (608×642,
+  Zeile 48) hinaus, und `QDialog` erzwingt daraufhin ein groesseres Fenster.
+  Gemessen offscreen, Fusion, drei Zeilen einer Familie: Grundzustand
+  (2 Klauseln aus einem Vorlauf unter derselben Test-ORG, „1 favourited ·
+  1 avoided") `win.size()=608×642`, `counter.minimumSizeHint()=540 px`; nach
+  `mark_family(..., True)` (3. Klausel „1 family avoided" dazu)
+  `win.size()=814×642`, `counter.minimumSizeHint()=792 px` — **+206 px**
+  Fensterbreite fuer eine einzige zusaetzliche Klausel. Entscheidend: nach
+  `mark_family(..., False)` (Klausel wieder weg, `minimumSizeHint()` faellt
+  auf 540 zurueck) bleibt `win.size()` bei 814×642 stehen, und ein
+  ausdruecklicher `win.resize(608, 642)` direkt danach wird von Qt ignoriert
+  (`Layout`-Minimum haelt es fest) — die Aufblaehung ist praktisch
+  unumkehrbar fuer die Laufzeit des Fensters. Impact: AK-303 verlangt, dass
+  das Fenster bei 1366×768 vollstaendig sichtbar bleibt; das wurde bislang
+  nur im **leeren** Markierungszustand gemessen (Kommentar Zeile 40-47,
+  „339 rows" ohne Hinweis auf aktive Marken). Ein Spieler, der laut AK-311/
+  AK-316.7 seine Marken über einen Neustart hinweg behaelt, oeffnet das
+  Fenster im Normalfall nie im leeren Zustand — mit allen vier moeglichen
+  Klauseln (favourited/avoided/families, plus lange Namen bei vielen
+  Treffern) kann die noetige Breite ueber 814 px real hinausgehen und bei
+  kleineren Bildschirmen abgeschnitten werden, ohne dass der Nutzer es durch
+  Verkleinern beheben kann. Richtung: `self.counter.setWordWrap(True)`
+  (konsistent mit den zwei Nachbar-Labels) oder eine Elidierung nach dem
+  Muster der `_ElidingLabel` aus `advisorbar.py`; danach `OPENING_SIZE` mit
+  einem realistischen, nicht-leeren Markierungszustand neu messen und den
+  Kommentar entsprechend praezisieren. ![Grundzustand, 608 px breit](design-review/2026-09-17/t293d-filterwindow-no-marks.png) ![Nach einer Familie auf Avoid, 814 px breit](design-review/2026-09-17/t293d-filterwindow-family-avoided.png)
+
+### Nice-to-have
+
+- **DR-033 [`UI_SPEC.md`, AK-316 Punkt 5 und 7]** Eigene Spec-Korrektur, kein
+  Codefund: der Text sprach von „vier Klauseln"/„vier Zahlen" fuer den
+  `Filters`-Tooltip und die Zaehlerzeile; tatsaechlich sind es drei bedingte
+  Klauseln (`favourited`, `avoided`, `avoided_families` — `allowed` zaehlt
+  laut AK-316.5 bewusst nicht mit, Punkt 5 nennt nur diese drei). AK-311
+  hatte zwei, AD-039 fuegt eine hinzu, zwei plus eins ist drei. Der Code war
+  nie falsch: `counter_line()`s eigener Docstring sagt bereits "the three
+  counts when set" (`effectfilterdialog.py:117-120`), `marking_clauses()`
+  liefert hoechstens drei Eintraege (`advisorbar.py:223-236`) — beides
+  offscreen nachgezaehlt: Zaehlerzeile trug in jedem gemessenen Zustand
+  hoechstens drei Klauseln, nie vier. `UI_SPEC.md` korrigiert (Fussnote
+  `[^316-korr]`), Wortlaut sonst unveraendert.
+
+### Entscheidungen (developer-Annahmen aus T-292d, geprueft)
+
+- **Singular „1 family avoided"** — korrekt: `advisorbar.families_avoided`
+  unterscheidet `count == 1` vom Plural, wie die vier Schwesterfunktionen
+  daneben. Angenommen.
+- **Type-Spalte leer am Familienkopf** — angenommen: AK-316.1 verlangt nur,
+  dass die Kopfzeile die fuenf Spalten *hat*, nicht dass `Type` einen Wert
+  traegt; eine Familie kann Effekt- und Fluch-Mitglieder mischen, ein
+  einzelner Wert waere dort irrefuehrend. Offscreen bestaetigt: Kopf zeigt
+  `''`, Mitglieder `Effect`/`Curse` einzeln.
+  Kein Widerspruch zur Spec.
+- **Familien beim Oeffnen aufgeklappt** — angenommen, keine Spec-Vorgabe
+  dazu; passt zum Suchverhalten AK-316.6 (ein Treffer auf ein Mitglied muss
+  sofort sichtbar sein) und zur Golden-Path-Erwartung, alle drei Kaestchen
+  ohne Extra-Klick zu sehen.
+- **Allow-Kaestchen ohne Farbe** — angenommen: offscreen bestaetigt leeres
+  `styleSheet()` (kein `_colours`-Eintrag fuer `COL_ALLOW`), waehrend
+  Favourite/Avoid ihre Gold-/Rot-Fuellung tragen (`ACCENT`/`BAD`). Keine
+  Spec-Vorgabe fuer eine dritte Farbe; ein neutraler Haken statt einer
+  dritten Signalfarbe ist vertretbar, weil Allow eine Ausnahme von einer
+  Markierung ist, keine eigene dritte Wertung.
+- **`allowed` nicht in der Zaehlerzeile** — korrekt: AK-316.5 nennt woertlich
+  nur `favourited`/`avoided`/`avoided_families`, kein viertes `allowed`.
+  `counter_line()` zaehlt entsprechend nur drei.
+
+### Positiv / beibehalten
+
+- AK-315 (`nrplanner/advisor/explain.py:274-291`), AK-317
+  (`effectfilterdialog.py:60-77`) und AK-318 (`nrplanner/advisor/goals.py:
+  119-152`) stehen wortgleich im Code — direkter String-Vergleich, keine
+  Abweichung gefunden.
+- `EffectFilters._resolve()` (AK-317.5) haelt ein erlaubtes Mitglied einer
+  vermiedenen Familie sauber aus `resolved_excluded` heraus, ohne die
+  `Why`-Formatierung anzufassen (`advisorblock.py:254-256`).
+
+### Offene Fragen an den App Designer
+
+*(keine neuen — DR-032 ist eine reine Umsetzungsfrage an den `developer`.)*
+
+---
+
 ## Review vom 2026-09-15 (T-263c — Nachtrag zu T-258 auf `478101c`/`97b0d9a`, Zyklus 24 Pruefphase)
 
 **Methode:** Live, am laufenden Fenster — eigener Klon nicht benutzt: `git
