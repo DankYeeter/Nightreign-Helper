@@ -71,10 +71,13 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 
 ## Beschlossen, nicht beauftragt
 
-- **A25 Schadensart im Berater (19.09. 16:25, zweite Director-Sitzung):**
-  R-009, AD-045..049, AK-327..334, OF-50..53 entschieden (`docs/tasks/T-320.md`).
-  developer-Auftrag T-321 erst nach T-310/T-311/T-312 (Baum frei); Vorlauf
-  security/compliance laeuft.
+- **A25 Schadensart im Berater — Bau fertig, am Gate (19.09. 19:12):** R-009,
+  AD-045..049, AK-327..334 (`docs/tasks/T-320.md`); Bau T-321a-d `424baa3`,
+  `717ec29`, `6c1718b`, `78a0888`; Suite 1827 passed / 9 skipped (gemessen
+  T-321d). Entschieden: OF-50..53, AK-332 entfaellt, AK-05/194 Option B
+  (Paar 219 px, ungekuerzt ab 1676 px), Nachweis Revenant Magic/Bestial.
+  Offen: Pruefphase (qa-engineer am Artefakt, ui-ux-designer Review
+  Picker-Vererbung), dann Release 1.16.0 ueber die Release-Kette.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
