@@ -104,6 +104,10 @@ each slot card: nothing is put in a slot until you say so. **Maximise damage**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
+With **Maximise damage** picked, the **Damage type** box beside it narrows the
+ranking to one kind of damage — one of the five damage types, or one kind of
+attack such as *Skill attack* (Weapon Arts), *Incantations* or a single spell
+school — and starts on **All** every time you open the program.
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
 its own card. **Undo apply** puts the previous slots back. **Why** opens the
 full account of what the suggestion counted and what it left out; **Clear**

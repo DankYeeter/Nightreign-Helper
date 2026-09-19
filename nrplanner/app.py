@@ -931,11 +931,12 @@ class Planner(QMainWindow):
         # The advisor's row, between the "Build" line and the hint and
         # outside the scroll area below: a run that is being waited for may
         # not scroll out of sight (§3.1). It is handed a way to ask the
-        # window what it would be asked right now, and nothing else -- it
-        # reads no widget of this window and writes to none.
+        # window what it would be asked right now, and the dataset whose own
+        # words the kinds of damage are named in (AK-328) -- it reads no
+        # widget of this window and writes to none.
         self.advisor_bar = AdvisorBar(
             lambda goal_id: asking_from(self, goal_id), column,
-            filters=self.effect_filters)
+            filters=self.effect_filters, data=self.data)
         stack.addWidget(self.advisor_bar)
 
         # The relic picker's track: the same class, a second instance, and

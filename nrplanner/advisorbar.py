@@ -96,6 +96,16 @@ OPTIMIZE_TOOLTIP = ("Fills every slot from the relics in your save. Nothing "
 FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
                    "(Avoid) in a suggestion.")
 
+#: AK-329: what the kind-of-damage box does, and which of the two things the
+#: game calls a skill it counts. Static -- it says what the control is for,
+#: never what happens to be chosen in it. The direction's name is filled in
+#: from the registry rather than written here, because AK-256 point 2 gives
+#: the registry the only copy of it (`test_no_direction_label_is_written_
+#: into_a_control` walks this file for the others).
+DAMAGE_TYPE_TOOLTIP = ("Restricts {direction} to one kind of damage. Skill "
+                       "attack counts Weapon Arts only — a Nightfarer's own "
+                       "skills are never counted.")
+
 
 class State(enum.Enum):
     """The rows of `UI_SPEC` §4, by their number and by a name.
@@ -473,6 +483,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
     two_handed = planner.stat_sheet.hand_switch.isChecked()
+    # And the kind of damage, for the same reason and off the row that owns
+    # it (AK-327): it is a feature of the question, not a second direction
+    # (AD-045). It goes into **both** halves below or `run.run` refuses the
+    # question -- the key would be standing for a run that was not asked.
+    damage_art = planner.advisor_bar.damage_art()
     # The starting armament, without its rolls: `weapons_held` and
     # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
     # read here at all. Missing from the dataset, the run falls back to the
@@ -489,6 +504,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         two_handed=two_handed,
+        damage_art=damage_art,
     )
     meta = planner.data.get("meta") or {}
     request = types.AdvisorRequest(
@@ -506,6 +522,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,
+        damage_art=damage_art,
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,
@@ -568,6 +585,12 @@ class AdvisorBar(QWidget):
     needs of the planner is "what would you ask right now", which is one
     question with one answer, and a bar that reached into the window would
     have to be given a window in every case that tests a state.
+
+    `data` is the one exception and it is not a way back in: the kinds of
+    damage the box offers are the dataset's own (AK-328, `model.attack_arts`),
+    read **once** at construction because the dataset a window computes on
+    does not change under it -- a row built without one offers the entries
+    that need no dataset, which is what `All` and the five types are.
     """
 
     #: The answer that is standing on screen, or `None` when none is. S10b
@@ -584,7 +607,7 @@ class AdvisorBar(QWidget):
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
-                 filters=None) -> None:
+                 filters=None, data=None) -> None:
         super().__init__(parent)
         self._asking = asking
         #: The two marked sets (`effectfilters.EffectFilters`), read for the
@@ -632,6 +655,44 @@ class AdvisorBar(QWidget):
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
         row.addWidget(self.goal_box)
+
+        # AK-327: the kind of damage, beside the direction and before
+        # `Filters`. A second setting of the question and not a second
+        # direction (AD-045), so it is drawn like `goal_box` and shown only
+        # where it is a question at all -- `max_damage` is the one direction
+        # that reads it. Its own label, because an entry saying `Holy` on its
+        # own could be an attribute, a filter or a school.
+        self.damage_type_label = QLabel("Damage type")
+        row.addWidget(self.damage_type_label)
+        self.damage_type_box = QComboBox()
+        self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.damage_type_box.setToolTip(DAMAGE_TYPE_TOOLTIP.format(
+            direction=advisor_goals.MAX_DAMAGE.label))
+        # Three groups with a line between them (AK-328), and `All` -- every
+        # kind at once, which is the figure this program gave before there
+        # was a choice at all -- first. The entry's **data** is the prefixed
+        # id form `AdvisorRequest.damage_art` takes (AD-045 point 1): this is
+        # where the value is put together and `goals._max_damage` is the one
+        # place that takes it apart, so neither of them carries a label --
+        # `type:Thunder` is the entry the player reads as `Lightning`.
+        #
+        # The third group's words are the dataset's own, read once here and
+        # not at every ranking; a `QComboBox` draws an entry through
+        # `QStyledItemDelegate`, which paints the display role as plain text,
+        # so game text arrives as it is written (SEC-019, and the same reason
+        # `goals._chosen_label` does not escape it either).
+        self.damage_type_box.addItem("All", "")
+        self.damage_type_box.insertSeparator(self.damage_type_box.count())
+        for damage_type, label in weapons.DAMAGE_LABELS.items():
+            self.damage_type_box.addItem(label, f"type:{damage_type}")
+        arts = model.attack_arts(data or {})
+        if arts:
+            self.damage_type_box.insertSeparator(self.damage_type_box.count())
+            for key, label in arts.items():
+                self.damage_type_box.addItem(label, f"art:{key}")
+        self.damage_type_box.activated.connect(self._damage_type_chosen)
+        row.addWidget(self.damage_type_box)
 
         # AK-302: visible and live in all fourteen states, a run in flight
         # included -- AK-289 presupposes a marking under a run.
@@ -687,6 +748,7 @@ class AdvisorBar(QWidget):
         self._controller.failed.connect(self._on_failed)
         self._controller.stopped.connect(self._on_stopped)
 
+        self._show_the_damage_types()
         self._show(Situation(State.NOTHING_YET))
 
     def action_buttons_extra_width(self) -> int:
@@ -837,7 +899,31 @@ class AdvisorBar(QWidget):
         combo that computed on selection would spend a search on a player
         reading the list.
         """
+        self._show_the_damage_types()
         self.the_build_changed()
+
+    def _damage_type_chosen(self, _index: int) -> None:
+        """AK-330: another kind of damage is another question too.
+
+        The same consequence as a direction and for the same reason -- it
+        changes what the ranking counts (AD-045), so an answer worked out
+        under the old choice answers nothing now. The choice itself stays
+        when the direction leaves `max_damage` and comes back: the pair is
+        hidden, never rebuilt.
+        """
+        self.the_build_changed()
+
+    def _show_the_damage_types(self) -> None:
+        """AK-327: the kind of damage is a question only under `max_damage`.
+
+        Hidden rather than disabled: the other two directions do not read the
+        field at all (AD-045 point 4), and a greyed-out control that could
+        never apply is the kind of furniture AK-297 already cleared away
+        once. Hiding also takes it out of the tab order for free (AK-333).
+        """
+        wanted = self.goal_id() == advisor_goals.MAX_DAMAGE.id
+        self.damage_type_label.setVisible(wanted)
+        self.damage_type_box.setVisible(wanted)
 
     def _apply_or_undo(self) -> None:
         """One button, and which of the two actions it is is the row's state.
@@ -870,6 +956,15 @@ class AdvisorBar(QWidget):
     def goal_id(self) -> str:
         """The direction the combo is standing on."""
         return self.goal_box.currentData()
+
+    def damage_art(self) -> str:
+        """Which kind of damage the question is about, `""` for every kind.
+
+        The id form `AdvisorRequest.damage_art` takes (AD-045 point 1) and
+        never the entry's text: a dataset that renames a school leaves the
+        question, and the cache under it, exactly where it was.
+        """
+        return self.damage_type_box.currentData() or ""
 
     def choose_goal(self, goal_id: str) -> None:
         """Stand on another direction, asked from outside the row (AK-256).
