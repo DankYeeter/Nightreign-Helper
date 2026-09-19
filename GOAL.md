@@ -503,3 +503,25 @@ Nightlords Tab und Informationen zu den Unterbossen waere spannend."*
 - Nachweis: Ein Evergaol-Boss (z. B. Fallingstar Beast) waehlbar im
   Nightlords-Tab mit denselben Diagrammen wie ein Nachtfuerst plus HP und
   Beute; ein Nachtboss mit Tag-1/2-Kennung, falls Stufe 2 belegt wird.
+
+*Nachtrag 19.09.2026 15:50 (Nutzer, Fragebogen R-009): "Ziel +
+Schadensart-Auswahl"; Skill attack = nur Weapon Arts, Nightfarer-
+Faehigkeiten bleiben generell unbeachtet; Start nach T-310/T-311/T-312.*
+
+### A25 — Schadensart im Berater waehlbar (Element, Skill, Zauberschule)
+
+- **Umfang:** "Maximise damage" bekommt eine Auswahl der Schadensart:
+  Alle (heutiges Verhalten) / Physical / Magic / Fire / Lightning / Holy /
+  Skill attack (Weapon Arts) / Sorceries / Incantations / eine
+  Zauberschule (z. B. Bestial). Die heute als `scoped:` geparkten
+  Multiplikatoren (Scope 112 Skills, Schulen ueber
+  `magicSubCategoryChange`, R-009) zaehlen in die gewaehlte Art; die
+  Startwaffen-Relikte (Konversion -30/+33 bis -60/+66, Malus 0,85)
+  zaehlen in der Kandidatenwertung, nicht nur in der Anzeige.
+- **Nicht Ziel:** echter Zauberschaden (AtkParam/Bullet), Nightfarer-
+  Faehigkeiten (`characterSkillAttackRate`), neue Extraktion.
+- **Praemisse (Nutzer 19.09.):** Scope 112/111 = Weapon Arts.
+- Nachweis: Revenant mit Siegel als Referenzwaffe und Auswahl "Holy" bzw.
+  "Incantations" liefert eine andere Reihung als "Alle", und die
+  Why-Zeile nennt die Art; Wylder mit beiden Startwaffen-Relikten und
+  Auswahl "Skill attack" zaehlt die Konversion in die Schadenszahl.
