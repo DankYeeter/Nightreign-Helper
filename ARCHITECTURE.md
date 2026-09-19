@@ -6956,6 +6956,12 @@ Nachtfuersten als Kachelgitter mit einem Detailpanel rechts, das den Block
 
 ### AD-040 — Die **Kartenkarte** ist die Einheit des Unterboss-Registers, nicht die Figur: ein Snapshot-Block `subbosses`, zwei Einstiege in dieselbe Aufloesung, und QA-286 faellt auf demselben Weg (2026-09-19, Status: aktiv; erweitert AD-011/AD-012 nicht, beruehrt die Erstlaufzeit aus AD-030/Themenbereich E)
 
+> **Nachtrag 19.09.2026 (T-304):** Punkt 3 (Kartenmenge) und Punkt 4
+> (Bosswahl) gelten nicht mehr wie hier geschrieben. Gebaut sind **29** statt
+> 49 Karten, und die HP-Schranke faellt auf der Ortsroute — massgeblich sind
+> der Nachtragskasten und **AD-042** am Ende dieses Themenbereichs. Punkte 1,
+> 2, 5, 6, 7 gelten unveraendert.
+
 **Kontext.** A24 will je Unterboss Schwaeche, Resistenz, HP, Stance, Beute und
 den Nachtfuersten. T-299 hat den Weg dorthin belegt, aber anders geschnitten
 als `GOAL.md` ihn skizziert hat: der Einstieg ist eine **Ortskarte**, nicht
@@ -7358,6 +7364,227 @@ die Spalte "Examples (any map)" im Deep-of-Night-Tab, wenn sie nach QA-286
 nur noch fuer die gelesenen Kategorien Namen traegt und fuer Lager, Ruinen
 und Shifting-Earth-Orte leer bleibt — oder faellt die Spalte und die Zeile
 sagt stattdessen, um welche **Art Ort** es geht?
+
+---
+
+### Nachtrag 19.09.2026 (T-304, `architect`) — AD-040 Punkt 3 und 4 wie gebaut
+
+*Stand `3114100` (Schritt 1, T-303). Alle Zahlen unten am Snapshot des
+Testabzugs und am Rohdump von T-299 nachgezaehlt, nicht fortgeschrieben.*
+
+| Vertrag (AD-040) | gebaut | Grund |
+|---|---|---|
+| Ortsroute liest **49** Karten (Kat 120 + 160) | **29** | `extract._subbosses` filtert `categoryId == FIELD_BOSS_CATEGORY` (120) **und** "Ort steht als `mapId*` in `SmallBaseAndSpotDefine`" (`extract.py:442-457`). Damit fallen die vier Karten der Kategorie 160 und die 16 Schalen `m20_00..m21_50` weg — letztere stehen nur als `defaultSmallBase` (T-299 Abschn. 2a: 100 + 16 = 116). Deckt sich mit der OF-46-Entscheidung des Nutzers vom 19.09. ("nur Feld- und Nachtbosse", `docs/state.md`). |
+| Stufe 2 (`days`, 35 Bosskarten) | noch nicht | Schritt 4; im Snapshot ist `days` in allen 29 Eintraegen leer. |
+| Bosswahl nach AD-040 Punkt 4 | gebaut | liefert aber nicht die erwartete Verteilung — siehe AD-042. |
+
+**Pruefpunkt (b), gezaehlt** (`nightreign_data.json` des Testabzugs, 29
+Eintraege): `single` 11, `group` 1, `ambiguous` 1, `unresolved` 16. Die
+Erwartung aus AD-040 ("die 29 Ein-Boss-Karten sind `single`") ist damit
+**nicht erfuellt**; die Ursache steht in AD-042 und ist nicht die Kartenmenge.
+
+**Pruefpunkt (c), beantwortet: kein Forschungsauftrag.** Zwei Gruende, beide
+belegt. (1) Die 18 nicht-`single`-Karten sind vollstaendig durch die
+HP-Schranke und den fehlenden Gleichstands-Entscheid erklaert (AD-042
+Kontext) — nach AD-042 sind es 0 von 29, der Ausloeser "ueber ein Viertel"
+greift nicht mehr. (2) `variationId` und `mapIndex` sind Felder von
+`LotResultSmallBaseAndSpot`, also der **Ortslotterie** (T-299 Abschn. 3c).
+Die Nachtkarten kommen aus `LotResultPlayAreaParam`, dessen Def weder Feld
+traegt (T-299 Abschn. 3b), und die Bossplaetze kommen in
+`LotResultSmallBaseAndSpot.attachId` **nie** vor (416 gezogene Plaetze,
+Schnittmenge leer, T-299 Abschn. 3c). Ein Auftrag zu `variationId` zielte
+also auf die Route, die die Frage nicht mehr stellt, und koennte die Route,
+die sie stellt, nicht erreichen. Bleibt Stufe 2 nach Schritt 4 unbefriedigend,
+ist der Kandidat `bossModifier1/2` (unbenannt, T-299 Abschn. 3b) — eine
+andere Frage, eigener Auftrag.
+
+---
+
+### AD-042 — Auf der **Ortsroute** traegt die HP-Schranke nicht: Kandidat ist jede abgestimmte Figur der Karte, gewaehlt wird die mit der hoechsten HP, und `ambiguous` bleibt dem Gleichstand (2026-09-19, Status: aktiv; aendert AD-040 Punkt 4 fuer `derive_places`, laesst `derive` unberuehrt)
+
+**Kontext.** `INFERRED_MIN_HP = 2000` (`bossdata.py:112`) stammt aus den
+**Nachtfuerst-Arenen** — dort ist der Boss ein Nachtfuerst, und alles unter
+2000 HP ist Begleitvolk. Auf den 29 Feldboss-Karten gilt die Randbedingung
+nicht: die Feldbosse selbst liegen zwischen 904 (Black Knife Assassin) und
+5753 (Decaying Rancor Dragon), 16 von ihnen unter 2000 (T-299 Abschn. 2c).
+Die Schranke schneidet damit genau die Bosse weg, die A24 zeigen soll, und
+verschiebt zwei weitere Karten in die falsche Belegkette:
+
+- **4659** (`m46_59`) ist `ambiguous`, weil c4501 (5753) **und** c4021 (2279)
+  beide ueber der Schranke liegen. Es fehlt kein Kriterium, es fehlt der
+  Entscheid unter zweien.
+- **4671** (`m46_71`) ist `group` auf c4481 mit **119** HP: weil Miranda
+  Blossom (c4480, 1939) unter der Schranke bleibt, faellt die Wahl in die
+  Gruppenregel, und die findet die zehnmal gepflanzten Blumen.
+
+Die Kraft dagegen ist A7: keine Figur nennen, die die Dateien nicht ausweisen.
+Eine Regel, die auf den 29 Karten den Namen findet, darf auf den Nachtkarten
+keinen erfinden.
+
+**Was T-299 als Kriterium benutzt hat** (nachgelesen, nicht geraten): die
+Tabelle in Abschn. 2c entstand aus `q2d_sitemsb.py` — alle `cNNNN`-Parts einer
+Karte ohne `CREW`, je Figur das Profil aus den NpcParam-Zeilen, die der Part
+selbst nennt (sonst `by_chr`), und daraus **die Figur mit der hoechsten HP**.
+Eine zweite Schranke gibt es dort nicht; "genau eine boss-grosse Figur" ist
+das Ergebnis, nicht die Regel. Nachgerechnet auf demselben Rohdump: diese
+Regel reproduziert **29 von 29** Zeilen der Tabelle.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben** (AD-040 Punkt 4 unveraendert). *Konsequenz:* 11
+  von 29 Karten tragen einen Namen, 18 sagen "nicht ableitbar". A24 Stufe 1
+  ist damit zu zwei Dritteln nicht abnehmbar, obwohl der Name in den Dateien
+  steht und T-299 ihn gelesen hat.
+- **B — Die absolute Schranke senken** (etwa 900 fuer die Ortsroute).
+  *Konsequenz:* trennt nachweislich nicht. Der beste Kandidat der
+  Nachtkarte `m48_90` ("kein klarer Boss", T-299 Abschn. 3b) hat **556** HP
+  und liegt damit zwischen zwei echten Nachtbossen: Mausoleum Knight 576
+  (`m52_02`) und Runebear 640 (`m52_01`). Jede Zahl zwischen zwei gemessenen
+  Gegenbeispielen ist geraten.
+- **C — Relative Schranke** (Vorsprung zur Zweitplatzierten). *Konsequenz:*
+  braucht einen Faktor <= 1,46, damit `m46_62` (Wormface 1587 gegen 1089)
+  durchgeht — und `m48_90` haette 1,73 (556 gegen 322). Die Schranke liesse
+  genau den falschen Fall durch und haette zwei erfundene Stellen.
+- **D — Die Schranke faellt auf der Ortsroute, und der Gleichstand entscheidet
+  (gewaehlt).**
+
+**Entscheidung: D**, in vier Punkten.
+
+**1. Zwei Schranken, zwei Randbedingungen.** `INFERRED_MIN_SPREAD` (0,1,
+"jemand hat diese Resistenzen abgestimmt") gilt auf beiden Routen; sie
+unterscheidet Boss von Requisite und ist vom Kartentyp unabhaengig.
+`INFERRED_MIN_HP` (2000, "boss-gross") gilt **nur** dort, wo der Boss ein
+Nachtfuerst ist — auf der Ortsroute wird sie nicht angewandt. Technisch: die
+Schranke wird ein Parameter von `_candidates` mit dem heutigen Wert als
+Vorgabe; `derive_places` uebergibt 0. **Zwei** Aufrufer, keine Konfiguration.
+
+**2. Bei mehreren Kandidatinnen entscheidet die hoechste HP** — dieselbe Wahl,
+die `derive` in seiner Arena schon trifft ("takes the largest",
+`bossdata.py:126-129`), und genau das Kriterium aus T-299 Abschn. 2c. Keine
+neue Heuristik: nicht `variationId`, nicht `mapIndex`, nicht die Platzzahl,
+nicht der Name.
+
+**3. `ambiguous` bleibt — fuer den Gleichstand.** Tragen zwei abgestimmte
+Figuren derselben Karte **dieselbe** hoechste HP, wird keine gewaehlt
+(`candidates` gefuellt, `chr`/`name` leer, A7). Auf den heutigen 29 Karten
+tritt das nicht ein (gezaehlt: 0 Gleichstaende); der Zweig kostet zwei Zeilen
+und ist die einzige ehrliche Antwort, wenn er eintritt. Die Gruppenregel
+bleibt, wo sie ist: auf der Ortsroute erreicht sie nur noch eine Karte, auf
+der **keine** Figur abgestimmt ist — auf der EMEVD-Route (Harmonia) bleibt sie
+die Antwort.
+
+**4. Die Regel endet an der Ortsroute.** Schritt 4 (Stufe 2,
+`LotResultPlayAreaParam`) darf sie **nicht** stillschweigend mitnehmen. Die
+Randbedingung: T-299 hat die 29 Ortskarten Zeile fuer Zeile gegen die
+FMG-Namen geprueft (Abschn. 2c); fuer die 35 Nachtkarten existiert diese
+Pruefung nicht, und es gibt zwei gezaehlte Gegenbeispiele — `m48_90` wuerde
+c4090 mit 556 HP benennen (namenlos, T-299: "kein klarer Boss"), und `m49_20`
+wuerde c4380 (162 HP) statt Stoneskin Lords (628 HP) nehmen, weil dessen
+Streuung mit 0,09999996 knapp unter der Schranke liegt (siehe Befund unten).
+Fuer die Nachtkarten bleibt AD-040 Punkt 4 unveraendert in Kraft, bis jemand
+sie ebenso prueft.
+
+**Erwartung, nachpruefbar.** Nach der Aenderung: **29 von 29** Karten
+`single`, und die Figur ist in **29 von 29** dieselbe wie in T-299
+Abschn. 2c. *Guete:* auf dem Rohdump von T-299 gerechnet
+(`q2d_sitemsb.json`, 19.09.2026, dieselbe Spielinstallation), **nicht** aus
+einem Lauf des geaenderten Codes. Ein Unterschied bleibt moeglich, wo
+dieselbe Figur mehrfach auf einer Karte steht und die Parts verschiedene
+NpcParam-Zeilen nennen: der Rohdump vereinigt diese Zeilen, `derive_places`
+nimmt die des **ersten** Parts (`bossdata.py:601-611`). Betroffen sind auf
+den 29 nur Zweitplatzierte (c3150/c3160 auf 4662, c4481 auf 4671, c4100 auf
+4677). Weicht die gemessene Zaehlung ab, ist das ein Befund und kein Fix.
+
+**Konsequenzen.** Leicht wird: die 18 Karten bekommen ihren Namen, ohne dass
+eine neue Quelle gelesen oder eine neue Zahl erfunden wird; `4659` und `4671`
+loesen sich ohne Sonderfall. Dauerhaft schwer wird: die Ortsroute hat keine
+absolute Untergrenze mehr — steht auf einer kuenftig gelesenen Karte kein
+Boss, aber ein abgestimmter Statist, bekommt der einen Namen. Das ist der
+Preis dafuer, dass "boss-gross" auf dieser Route nicht messbar ist, und genau
+darum endet die Regel an Punkt 4.
+
+**Umkehrbarkeit: leicht.** Ein Vorgabewert und ein `max()`; der Rueckbau ist
+eine Zeile, der Snapshot wird neu gebaut. Kein Format, kein Schluessel, keine
+Oberflaeche aendert sich.
+
+**Beruehrte Entscheidungen.** AD-040 Punkt 4 wird fuer `derive_places`
+ersetzt (Punkt 1-3, 5-7 bleiben); die Zeile "bei mehreren Kandidatinnen wird
+**keine** gewaehlt" gilt ab hier nur noch fuer den Gleichstand und fuer die
+Nachtkarten. AD-041 unberuehrt (dieselbe Form, mehr gefuellte Eintraege).
+AD-033: die in AD-040 Schritt 1 vorgesehene Mutation "`INFERRED_MIN_HP` in
+der neuen Auswahl auf 0" ist nach dieser Entscheidung **wirkungslos** und
+wird ersetzt (siehe Umsetzung).
+
+**Befund fuer den `director` (nicht hier zu beheben): die Streuungsschranke
+ist eine Messerkante.** `INFERRED_MIN_SPREAD = 0.1` wird gegen Differenzen
+von float32-Werten geprueft: 0,7 − 0,6 ergibt **0.09999996** und faellt
+durch, 0,6 − 0,5 ergibt **0.10000002** und besteht. Gezaehlt ueber die
+Ortsroute: zwei Figuren liegen auf dieser Kante (c3400 auf `4650`, c3600 auf
+`4660`), **keine** davon auf den heute gebauten 29 — auf den Nachtkarten
+dagegen kostet sie `m49_20` den richtigen Boss. Eine Toleranz (etwa
+`>= 0.1 - 1e-6`) wuerde das Verhalten der Nachtfuerst-Route mit aendern und
+gehoert deshalb in einen eigenen Entscheid, nicht in diesen Bauauftrag.
+
+---
+
+### Umsetzung AD-042 — ein Schritt
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **1b — Auswahlregel der Ortsroute** | `developer` | `bossdata.py`: `_candidates(rows_for, placements, *, min_hp=INFERRED_MIN_HP)`; `derive_places` ruft mit `min_hp=0` und waehlt bei mehreren Kandidatinnen die mit der **strikt** hoechsten HP (`single`), nur bei Gleichstand `ambiguous`. Die Randbedingung aus AD-042 Punkt 4 als Kommentar an `derive_places`, damit Schritt 4 sie nicht ueberliest. Danach Testabzug-`nightreign_data.json` neu (`scripts/build_snapshot.py`), `CLAUDE.md`-Zeile und `docs/plan-restarbeiten.md` mit der neuen Byte-Zahl. | `nrdata/bossdata.py` = **1** |
+
+**`EXTRACT_VERSION` bleibt 13**, mit Randbedingung: 13 hat dieses Repo nie
+verlassen (letzter Tag `v1.14.0` = `ffac292`, Stand `EXTRACT_VERSION` 12; kein
+Release seit 19.09.). Der einzige Traeger eines 13er-Abzugs ist der
+Testabzug, und der wird im selben Schritt ersetzt. Ist bis zum Bau ein Bau
+mit 13 hinausgegangen, gilt AD-040 Punkt 7 und die Zahl steigt auf 14.
+
+**Tests** (in `tests/test_extraction.py`, wo die vorhandenen stehen):
+
+- Einheit, ohne Datensatz, nach dem Muster von
+  `test_both_boss_bars_have_to_be_cleared_to_be_a_candidate`: zwei
+  abgestimmte Figuren einer Karte, 1939 gegen 119 → `single` auf 1939;
+  dieselben HP zweimal → `ambiguous` mit zwei `candidates`. Ohne die
+  Aenderung faellt der erste Fall (`group`), mit einer `min()`-Wahl der
+  zweite Weg.
+- Am Datensatz (`@pytest.mark.slow`): **alle** 29 Eintraege sind `single` und
+  tragen einen nichtleeren `name`; `4659` nennt c4501, `4671` nennt c4480 —
+  die zwei Karten, die die Schranke falsch einsortiert hatte.
+- Der vorhandene Waechter, dass **`derive`** beide Schranken behaelt, bleibt
+  unveraendert stehen; er ist die Probe, dass die Aenderung die
+  Nachtfuerst-Route nicht mitnimmt.
+
+**Mutationen nach AD-033** (ersetzen die aus AD-040 Schritt 1):
+
+1. `derive_places` uebergibt wieder `INFERRED_MIN_HP` statt 0 → der
+   Datensatz-Test faellt (16 Karten verlieren den Namen).
+2. `derive_places` waehlt `min()` statt `max()` der HP → der Einheitstest und
+   `4659`/`4671` fallen.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** Antasten von `INFERRED_MIN_HP`, `INFERRED_MIN_SPREAD`,
+  `INFERRED_GROUP_MIN` selbst — nur der Uebergabewert der Ortsroute aendert
+  sich. Insbesondere **keine** Float-Toleranz an der Streuungsschranke (eigener
+  Entscheid, Befund oben).
+- **Keine** Aenderung an `derive`, an der Gruppenregel oder an der
+  Kartenmenge in `extract._subbosses` (die 29 bleiben die 29; die 16 Schalen
+  und die vier Karten der Kategorie 160 kommen nicht zurueck).
+- **Keine** Anwendung der neuen Wahl auf die Nachtkarten aus Schritt 4 — dort
+  gilt AD-040 Punkt 4 weiter.
+- **Keine** neue Form im Snapshot: `candidates`, `chr`, `name`, `weakness`
+  bleiben, wie sie sind.
+
+**Offene Frage aus AD-042.**
+
+**OF-48 — an den `director`, Adressat `qa-engineer` (Schritt 5):** Der
+A24-Nachweis in `GOAL.md` nennt als Beispiel "ein Evergaol-Boss (z. B.
+Fallingstar Beast)". Fallingstar Beast (c4680) steht ausschliesslich auf den
+16 Schalen `m20_00..m21_50`, die nach der OF-46-Entscheidung nicht gelesen
+werden — die Figur ist im Block also nicht enthalten und wird es nicht. Die
+Abnahme braucht ein anderes Beispiel (jede der 29 Karten taugt, etwa Red Wolf
+of the King Consort auf `4651`). Soll der Wortlaut in `GOAL.md` nachgezogen
+werden, oder genuegt das "z. B."?
 
 ---
 
