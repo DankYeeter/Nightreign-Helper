@@ -597,13 +597,21 @@ def converted(per_type: dict[str, float],
 
 def _answer(rating: weapons.WeaponRating, question: Question,
             build: model.Build, *, starting_armament: bool = False,
-            two_handed: Rating | None = None) -> Rating:
+            two_handed: Rating | None = None,
+            art: str | None = None) -> Rating:
     """Layer two: the attack multipliers, where the question includes them.
 
     `two_handed` is the finished answer for the other hand, attached as it
     is; a rating that carries a two-handing factor (`rating.two_handed`)
     additionally takes the `when Two-Handing` bucket, and no one-handed
     rating ever does (AD-037, point 3).
+
+    `art` names one kind of attack the figure is asked about -- a Weapon Art,
+    a spell school (`model.attack_arts`). Its factor is a third bucket beside
+    the class ones, applied in the same loop and on the same figure, so that
+    the buffs a scoped relic carries reach the ranking exactly where the
+    ordinary ones do. `None` is the question nobody asked, and every figure
+    is then the one it has always been (AD-047, point 1).
     """
     scaled_per_type = rating.scaled_per_type()
     weapon_class = model.weapon_class(rating.weapon)
@@ -628,8 +636,12 @@ def _answer(rating: weapons.WeaponRating, question: Question,
     buckets = [build.class_rates.get(weapon_class, {})]
     if rating.two_handed:
         buckets.append(build.class_rates.get(model.TWO_HANDED_CLASS, {}))
+    art_rate = model.art_factor(build, art)
     final_per_type: dict[str, float] = {}
     rates_in_play: dict[str, float] = {}
+    if abs(art_rate - 1.0) > 1e-9:
+        # Under its own key, so the breakdown can show which art it is.
+        rates_in_play[art] = art_rate
 
     for damage, total in scaled_per_type.items():
         fields = AR_RATE_FOR.get(damage, ())
@@ -659,6 +671,9 @@ def _answer(rating: weapons.WeaponRating, question: Question,
             rate *= from_build
             for bucket in buckets:
                 rate *= bucket.get(field_name, 1.0)
+        # Last, and once per damage type: the art covers the whole hit, not
+        # one of the five rates that make it up (AD-047, point 2).
+        rate *= art_rate
         final_per_type[damage] = total * rate
 
     return Rating(
@@ -675,7 +690,8 @@ def _answer(rating: weapons.WeaponRating, question: Question,
 
 
 def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
-          data: dict, *, starting_armament: bool = False) -> Rating:
+          data: dict, *, starting_armament: bool = False,
+          art: str | None = None) -> Rating:
     """Both layers for one armament and one question, both hands.
 
     Both hands come from one `weapons._rate_pair` call, which shares the
@@ -688,14 +704,14 @@ def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
     two_handed = None
     if two_handed_rating is not None:
         two_handed = _answer(two_handed_rating, question, build,
-                             starting_armament=starting_armament)
+                             starting_armament=starting_armament, art=art)
     return _answer(one_handed, question, build,
                    starting_armament=starting_armament,
-                   two_handed=two_handed)
+                   two_handed=two_handed, art=art)
 
 
 def equipped(slot, slot_index: int, build: model.Build, hero: dict,
-             data: dict) -> tuple[Rating, Rating]:
+             data: dict, *, art: str | None = None) -> tuple[Rating, Rating]:
     """The armament in a slot: the bare comparison figure, then the real one.
 
     The tier comes from the slot, and the starting-armament pairing from the
@@ -705,11 +721,15 @@ def equipped(slot, slot_index: int, build: model.Build, hero: dict,
 
     `slot` is left untyped because `weaponslots` imports Qt and this module
     does not; anything with a `weapon` and a `tier` will do.
+
+    `art` restricts the real figure to one kind of attack (`_answer`). The
+    bare figure carries no multipliers at all and is therefore the same
+    under every art, which is what makes it the comparison it is.
     """
     starting = is_starting_armament(slot.weapon, hero, slot_index)
     return (_rate(slot.weapon, Question.BARE, slot.tier, build, data),
             _rate(slot.weapon, Question.EQUIPPED, slot.tier, build, data,
-                  starting_armament=starting))
+                  starting_armament=starting, art=art))
 
 
 def candidate(weapon: dict, target_tier: int, build: model.Build,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
@@ -283,6 +284,17 @@ def configure(data: dict) -> None:
         if effect["id"] in NO_SWITCH or not is_conditional(effect, None):
             continue
         CONDITIONAL_EFFECT_IDS.add(effect["id"])
+    SPELL_FAMILY_NAMES.clear()
+    SPELL_FAMILY_GENUS.clear()
+    SPELL_FAMILY_NAMES.update(spell_family_names(data))
+    # Sorcery or incantation is a property of the spells in a school, so it
+    # is counted off them. No school of this dataset holds both kinds.
+    school_of = {name: value for value, name in SPELL_FAMILY_NAMES.items()}
+    for spell in data.get("spells") or []:
+        value = school_of.get(str(spell.get("family") or ""))
+        genus = GENUS_FOR_CATEGORY.get(str(spell.get("category") or ""))
+        if value is not None and genus:
+            SPELL_FAMILY_GENUS[value] = genus
     _CONFIGURED = True
 
 
@@ -602,6 +614,163 @@ def move_scoped(effect: dict) -> bool:
     return effect.get("id") in MOVE_SCOPED_EFFECT_IDS
 
 
+# The attack arts a buff can be restricted to, keyed the way the advisor asks
+# for one: "skill", "sorceries", "incantations", or "family:<id>" for a spell
+# school. The id rather than the school's name, so that a patch renaming a
+# school leaves the key alone (AD-045 point 1, AD-046).
+SKILL_ART = "skill"
+SORCERIES_ART = "sorceries"
+INCANTATIONS_ART = "incantations"
+ART_FAMILY_PREFIX = "family:"
+
+#: Wording for the three arts the dataset does not name itself (UI_SPEC
+#: AK-328). The schools bring their own name and never get a second one.
+ART_LABELS = {
+    SKILL_ART: "Skill attack",
+    SORCERIES_ART: "Sorceries",
+    INCANTATIONS_ART: "Incantations",
+}
+
+# 112 is the scope of "Improved Skill Attack Power" and 111 sits beside it on
+# every effect that carries it. Both mean Weapon Arts; a Nightfarer's own
+# skill rides on `characterSkillAttackRate`, which is no attack rate and
+# reaches nothing here (R-009 finding 2, user premise 2026-09-19).
+SKILL_SCOPES = (112, 111)
+
+# The arts of the buffs whose restriction lives in their text alone, by id.
+# A refinement of MOVE_SCOPED_EFFECT_IDS above, not a replacement: that set
+# still decides what stays out of an ordinary swing, and this says which art
+# the ones that name one belong to. The four "Improved Thrusting
+# Counterattack" ids are absent on purpose -- a counterattack is a move, not
+# an art (AD-046 point 4).
+MOVE_SCOPED_ARTS: dict[int, tuple[str, ...]] = {
+    330000: (SORCERIES_ART,),
+    6611200: (SORCERIES_ART,),
+    6611201: (SORCERIES_ART,),
+    6611202: (SORCERIES_ART,),
+    8330000: (SORCERIES_ART,),
+    8330001: (SORCERIES_ART,),
+    8330002: (SORCERIES_ART,),
+    330400: (INCANTATIONS_ART,),
+    6611300: (INCANTATIONS_ART,),
+    6611301: (INCANTATIONS_ART,),
+    6611302: (INCANTATIONS_ART,),
+    8330100: (INCANTATIONS_ART,),
+    8330101: (INCANTATIONS_ART,),
+    8330102: (INCANTATIONS_ART,),
+    8330103: (SORCERIES_ART, INCANTATIONS_ART),
+    8330104: (SORCERIES_ART, INCANTATIONS_ART),
+    8851200: (SORCERIES_ART, INCANTATIONS_ART),
+    8851250: (SORCERIES_ART, INCANTATIONS_ART),
+}
+
+#: Spell school id -> the name the dataset gives it, and school id ->
+#: "sorceries" or "incantations". Both are read off the data by `configure`:
+#: the names from `spell_families`, the genus from the categories of the
+#: spells in each school. Nothing here decides that Bestial is an incantation
+#: school -- the game's own spell list does.
+SPELL_FAMILY_NAMES: dict[int, str] = {}
+SPELL_FAMILY_GENUS: dict[int, str] = {}
+
+#: The two words the dataset uses for a spell's kind, in the keys used here.
+GENUS_FOR_CATEGORY = {"Sorceries": SORCERIES_ART,
+                      "Incantations": INCANTATIONS_ART}
+
+#: A rate above this is not a buff but a misread field, and a rate that is
+#: not finite destroys a ranking silently rather than loudly (T-077). The
+#: largest art rate measured in this dataset is 1.21.
+ART_RATE_CEILING = 10.0
+
+
+def spell_family_names(data: dict) -> dict[int, str]:
+    """Spell school id -> name, from the dataset and nowhere else.
+
+    Both a school without a usable name and a key that is no number are
+    dropped: a school the program cannot name is no art it can offer
+    (AD-046 point 5).
+    """
+    names: dict[int, str] = {}
+    for key, label in (data.get("spell_families") or {}).items():
+        if not isinstance(label, str) or not label.strip():
+            continue
+        try:
+            names[int(key)] = label.strip()
+        except (TypeError, ValueError):
+            continue
+    return names
+
+
+def attack_arts_of(effect: dict,
+                   families: dict[int, str] | None = None) -> frozenset[str]:
+    """Every attack art this buff covers, as a set of art keys.
+
+    All three scope fields are read together, where `attack_scope` takes the
+    first one that is set: "Improved Charged Spells & Skills" (330900)
+    carries 110 and 111 and belongs to `family:110` **and** `skill`, and the
+    first-hit rule would drop it out of the art its own name states (AD-046
+    point 2). A set is also what keeps 112 and 111 from counting the same
+    buff twice (point 3).
+
+    `families` defaults to what `configure` read off the dataset; a caller
+    with the data in hand passes its own rather than relying on module state.
+    """
+    mods = effect.get("modifiers") or {}
+    if not any(f in mods for f in ELEMENT_ATTACK_RATES):
+        return frozenset()
+    names = SPELL_FAMILY_NAMES if families is None else families
+    arts = set(MOVE_SCOPED_ARTS.get(effect.get("id"), ()))
+    for field_name in SCOPE_FIELDS:
+        value = mods.get(field_name)
+        # bool is an int and would make True read as scope 1.
+        if not isinstance(value, int) or isinstance(value, bool):
+            continue
+        if value in SKILL_SCOPES:
+            arts.add(SKILL_ART)
+        elif value in names:
+            arts.add(f"{ART_FAMILY_PREFIX}{value}")
+    return frozenset(arts)
+
+
+def attack_arts(data: dict) -> dict[str, str]:
+    """The arts worth offering, key -> label, in the order they are shown.
+
+    An art no effect in this dataset covers is left out: a line in the
+    chooser that no relic can ever move is a promise the program cannot keep.
+    Skill, sorceries and incantations first, then the schools by name
+    (AK-328).
+    """
+    names = spell_family_names(data)
+    found: set[str] = set()
+    for effect in (data.get("effects") or {}).values():
+        found |= attack_arts_of(effect, names)
+    arts = {key: label for key, label in ART_LABELS.items() if key in found}
+    schools = sorted((label, f"{ART_FAMILY_PREFIX}{value}")
+                     for value, label in names.items()
+                     if f"{ART_FAMILY_PREFIX}{value}" in found)
+    for label, key in schools:
+        arts[key] = label
+    return arts
+
+
+def art_factor(build: "Build", art: str | None) -> float:
+    """What the chosen art multiplies by in this build. 1.0 for no choice.
+
+    Under a school the general sorcery or incantation buff counts as well,
+    multiplied with the school's own: a Bestial incantation is an incantation
+    too (user decision OF-51, 2026-09-19). Which genus a school belongs to is
+    read off the game's spells in `configure`, not asserted here.
+    """
+    if not art:
+        return 1.0
+    rate = build.art_rates.get(art, 1.0)
+    if art.startswith(ART_FAMILY_PREFIX):
+        value = art[len(ART_FAMILY_PREFIX):]
+        genus = SPELL_FAMILY_GENUS.get(int(value)) if value.isdigit() else None
+        if genus:
+            rate *= build.art_rates.get(genus, 1.0)
+    return rate
+
+
 # Weapon-type gates the selected reference weapon can actually satisfy. The
 # test is plain equality against the weapon's own wep_type, which keeps the
 # values that are not weapon types honest for free: triggerOnWepType is 256 on
@@ -858,6 +1027,13 @@ class Build:
     # Multipliers that only cover a class of armament -- "Improved Melee Attack
     # Power" against a bow. Keyed by "melee" / "ranged" / "catalyst".
     class_rates: dict[str, dict[str, float]] = field(default_factory=dict)
+    #: One multiplier per attack art the build's relics cover, art key ->
+    #: factor (`attack_arts_of`). A scalar and not a five-field bucket
+    #: because no effect of this dataset carries unequal element rates, which
+    #: `tests/test_move_scoped_effects.py` holds as the ceiling (AD-046
+    #: point 6). Read by `damage._answer` when a damage art is chosen, and by
+    #: nothing else: the `scoped:` lines in `rates` are untouched beside it.
+    art_rates: dict[str, float] = field(default_factory=dict)
     #: Flat attack-power points per damage type from the "Starting armament
     #: deals <element> damage" relics (`FLAT_ATTACK_POWER_FIELDS`). Booked
     #: here, applied by `damage.converted` to the starting armament alone.
@@ -1108,6 +1284,16 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 key = CRIT_RATE if crit_only else f"{SCOPED_PREFIX}{label}"
                 build.rates[key] = build.rates.get(key, 1.0) * max(values)
                 record(key, max(values))
+                # The same number again, filed by the art it covers, for the
+                # one caller that asks about a single kind of attack. A rate
+                # that is not a number, or larger than any buff ever is, is
+                # left out here rather than ranking builds by a NaN.
+                art_rate = max(values)
+                if (math.isfinite(art_rate)
+                        and 0.0 < art_rate <= ART_RATE_CEILING):
+                    for art in attack_arts_of(eff):
+                        build.art_rates[art] = (
+                            build.art_rates.get(art, 1.0) * art_rate)
 
         for fname, value in mods.items():
             if scoped_out and fname in ELEMENT_ATTACK_RATES:
