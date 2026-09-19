@@ -133,24 +133,26 @@ def test_the_two_boxes_are_disjoint_and_write_through(window, filters):
     assert filters.required == set() and filters.excluded == set()
 
 
-def test_allow_is_clickable_only_under_an_avoided_family(window, filters):
-    """AK-316.3/.4, AK-317.2-4: the heading's box calls `mark_family`
-    both ways; Allow is disabled while the family is not avoided, keeps
-    its stored check either way, and its tooltip follows the state."""
+def test_allow_is_clickable_regardless_of_the_family_state(window, filters):
+    """AK-316.3, AK-317 Nachtrag: the heading's box calls `mark_family`
+    both ways; Allow stays enabled and keeps one tooltip whether or not
+    the family is avoided, and its stored check survives the family
+    toggling either way."""
     allow = window.allow_box(13)
-    assert not allow.isEnabled()
-    assert allow.toolTip() == dlg.ALLOW_DISABLED_TOOLTIP
+    assert allow.isEnabled()
+    assert allow.toolTip() == dlg.ALLOW_TOOLTIP
+    allow.click()
+    assert filters.allowed == {13}
+    # Not yet avoided, so Allow has nothing to pull back in.
+    assert filters.resolved_excluded == set()
     window.family_box(FAMILY).click()
     assert filters.avoided_families == {FAMILY}
-    assert allow.isEnabled() and allow.toolTip() == dlg.ALLOW_TOOLTIP
-    allow.click()
-    assert filters.allowed == {13} and filters.resolved_excluded == {14}
+    assert allow.isEnabled() and allow.isChecked()
+    assert filters.resolved_excluded == {14}
     # The members' own marks are untouched by the family (AK-316.3).
     assert not window.boxes(13)[1].isChecked()
     window.family_box(FAMILY).click()
     assert filters.avoided_families == set()
-    assert allow.isChecked() and not allow.isEnabled()
-    window.family_box(FAMILY).click()
     assert allow.isChecked() and allow.isEnabled()
 
 

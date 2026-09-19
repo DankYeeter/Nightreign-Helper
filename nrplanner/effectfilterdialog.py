@@ -76,10 +76,10 @@ AVOID_TOOLTIP = "This effect counts in no suggestion or ranking."
 #: AK-317.2-4.
 FAMILY_AVOID_TOOLTIP = ("Every effect in this family counts in no suggestion "
                         "or ranking, unless a member below is set to Allow.")
-ALLOW_TOOLTIP = ("Let this one effect back into suggestions, even though its "
-                 "family is avoided.")
-ALLOW_DISABLED_TOOLTIP = ("Allow only matters while this effect's family is "
-                          "avoided.")
+#: AK-317 Nachtrag: always clickable, one tooltip for both states.
+ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
+                 "is avoided. It matters only once the family header is set "
+                 "to Avoid.")
 
 #: AK-309, the three empty states in the tab's own tone.
 NO_SAVE_WAS_READ = "No save was read, so there are no effects to filter yet."
@@ -319,13 +319,9 @@ class EffectFilterWindow(QDialog):
             item.on[COL_FAVOURITE] = favourite.isChecked()
             item.on[COL_AVOID] = avoid.isChecked()
             if allow is not None:
-                # AK-316.4: clickable only under an avoided family, and it
-                # keeps showing its stored state either way.
-                avoided = row.family in filters.avoided_families
+                # AK-317 Nachtrag: always clickable, stored state keeps
+                # showing regardless of the family's Avoid state.
                 allow.setChecked(effect_id in filters.allowed)
-                allow.setEnabled(avoided)
-                allow.setToolTip(ALLOW_TOOLTIP if avoided
-                                 else ALLOW_DISABLED_TOOLTIP)
                 item.on[COL_ALLOW] = allow.isChecked()
         for key, (avoid, head) in self._family_marks.items():
             avoid.setChecked(key in filters.avoided_families)
