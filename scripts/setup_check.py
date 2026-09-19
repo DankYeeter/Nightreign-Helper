@@ -29,7 +29,9 @@ PACKAGES = {
     # nrdata/dds.py imports this unconditionally, so the icon pack cannot be
     # rebuilt without it. It was missing from both this list and
     # requirements.txt, which let this script report an environment as
-    # complete on which build_icons.py could not run.
+    # complete on which build_icons.py could not run. PyInstaller is a
+    # build tool and sits in requirements-dev.txt, which is what --fix
+    # installs: this is the developer's environment, not the player's.
     "texture2ddecoder": "texture2ddecoder",
 }
 
@@ -171,7 +173,7 @@ def install(missing: list[str]) -> bool:
 
     print(f"installing: {', '.join(missing)}")
     result = subprocess.run(
-        [str(VENV_PY), "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")]
+        [str(VENV_PY), "-m", "pip", "install", "-r", str(ROOT / "requirements-dev.txt")]
     )
     return result.returncode == 0
 

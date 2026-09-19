@@ -94,7 +94,7 @@ carries obligations, and they are met as follows:
   different Qt can install their own PySide6 and rebuild:
 
   ```
-  pip install -r requirements.txt
+  pip install -r requirements-dev.txt
   pyinstaller NightreignHelper.spec --noconfirm
   ```
 
