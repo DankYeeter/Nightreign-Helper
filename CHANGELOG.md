@@ -4,6 +4,35 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.15.0] - 2026-09-19
+
+### Added
+- The Nightlords tab now has a sub-boss tree below the ten Nightlord cards:
+  Night bosses Day 1, Night bosses Day 2 and Field bosses for the picked
+  Nightlord. Selecting a sub-boss opens the same detail panel, with an HP
+  line and, where the game's drop tables record any loot for it, a LOOT
+  section — the five rarest drops shown by default, with a "Show N more"
+  button for the rest. A card the files cannot narrow to one boss reads
+  "Multiple possible bosses" and lists the HP of every candidate; a card the
+  files do not identify at all reads "Not identified".
+
+### Changed
+- The Red variants tab drops its "Examples (any map)" column. The field-boss
+  names it used to hint at now appear in full — with weakness, HP and loot —
+  in the new Nightlords sub-boss tree instead. Two rows were renamed for
+  accuracy: "Field bosses & arena locations" and "Mixed-boss arena
+  locations".
+
+### Fixed
+- The "Show N more" button on a sub-boss's loot panel now also responds to a
+  toggle sent by assistive technology (screen readers, switch access), not
+  only to a mouse click.
+
+### Note
+- This release adds sub-boss data to the local game-data cache (data version
+  15). The first start after updating rebuilds the cache, which takes about
+  35 seconds, plus the icon pack; afterwards nothing further is needed.
+
 ## [1.14.0] - 2026-09-19
 
 ### Added

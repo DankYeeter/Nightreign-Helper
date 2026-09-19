@@ -102,3 +102,8 @@ starts there.
   with the amount named in the "Why" line; the Filters window now groups
   effects by family under a shared Avoid header, with a per-member Allow to
   let one effect of an avoided family back into suggestions.
+- **1.15.0** — the Nightlords tab gained a sub-boss tree (Night bosses Day 1/
+  Day 2, Field bosses) with HP and loot for each; the Red variants tab drops
+  its "Examples" column now that those names appear in full there. The data
+  cache rebuilds once on first launch after this update (about 35 seconds,
+  plus the icon pack).
