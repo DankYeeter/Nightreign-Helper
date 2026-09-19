@@ -523,6 +523,7 @@ Faehigkeiten bleiben generell unbeachtet; Start nach T-310/T-311/T-312.*
 - **Praemisse (Nutzer 19.09.):** Scope 112/111 = Weapon Arts.
 - Nachweis (OF-50, Nutzer 19.09. 16:25): Revenant (Startwaffe Cursed Claws,
   71,63 von 88,65 AR Magic) mit Auswahl "Magic" bzw.
-  "Incantations" liefert eine andere Reihung als "Alle", und die
+  "Bestial" (Schulwahl, Nutzer 19.09. 18:57: Incantations am Slot leer)
+  liefert eine andere Reihung als "Alle", und die
   Why-Zeile nennt die Art; Wylder mit beiden Startwaffen-Relikten und
   Auswahl "Skill attack" zaehlt die Konversion in die Schadenszahl.

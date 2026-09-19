@@ -423,6 +423,10 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-332 | Zustand 4.10 (State.NOT_RANKABLE) um zweite Ursache erweitert: Startwaffe traegt die gewaehlte Art strukturell nicht, eigener Satz (AK-294-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
 | AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
 | AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-05 | *(Status 19.09.2026 18:57, Nutzer via Fragebogen, Option B)* Bei sichtbarem Schadensart-Paar (AK-327) duerfen Ziel- und Artbox gekuerzt werden und die Statuszeile 0 px betragen; gemessen (T-321c): Paar 219 px, ungekuerzt erst ab 1676 px, Untergrenze 1536 px bleibt Bedienbarkeit, nicht Vollbeschriftung. | **geaendert** — Nutzer | `docs/tasks/T-321.md` d |
+| AK-194 | *(Status 19.09.2026 18:57)* wie AK-05: mit sichtbarem Paar darf die Statuszeile 0 px betragen (gemessen 332 → 113 px an der Oeffnungsbreite 1608 px). | **geaendert** — Nutzer | `docs/tasks/T-321.md` d |
+| AK-332 | *(Status 19.09.2026 18:20, Director)* Nicht gebaut: ein Typ ohne Vorkommen auf der Bezugswaffe liefert eine Rangfolge ab 0,00 (Wylder unter Fire: 7120100 +19,80 zuerst) — nuetzlicher als Zustand 4.10. | **entfaellt** — Director | `docs/tasks/T-321.md` |
+| AK-334 | *(Status 19.09.2026 18:55, T-321c gemessen)* Paar 219 px Mindestbreite (643/424), Oeffnungsbreite 1608 px unveraendert, Beschriftung ungekuerzt ab 1676 px (vorher 1472). | **erfuellt** — developer | `docs/tasks/T-321.md` c |
 
 
 ## Widerspruechliche Faelle
