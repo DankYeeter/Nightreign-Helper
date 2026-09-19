@@ -81,7 +81,12 @@ MAX_LEVEL = 15
 #      an armament is a pair held one in each hand. Two-handing a pair rates
 #      by a rule of its own (QA-276), and until now nothing in the dataset
 #      told a pair from a sword; R-008 had to note the flag as absent.
-EXTRACT_VERSION = 12
+#  13  subbosses -- the field bosses, by the place that puts them on the map,
+#      each with the weakness block a Nightlord already carries. The same
+#      pass corrects deep_of_night.kinds: `smallBaseId` is a place and not a
+#      character (QA-286), so `chrs` gives way to `places`. A cache left on
+#      12 would keep the twenty-one character names that are places for good.
+EXTRACT_VERSION = 13
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -174,7 +179,7 @@ ALLOW_FIELDS = [
 ]
 
 
-def _load_text(game_dir: pathlib.Path) -> dict[str, dict[int, str]]:
+def _load_text(archives) -> dict[str, dict[int, str]]:
     """Load every FMG from the localised message archives.
 
     Base and expansion tables are merged under the base name, since every
@@ -183,9 +188,6 @@ def _load_text(game_dir: pathlib.Path) -> dict[str, dict[int, str]]:
     table that has an expansion half also gets a `"<name>::dlc"` entry holding
     only that half. Nothing is lost and no existing key changes meaning.
     """
-    oodle.load(game_dir)
-    archives = dvdbnd.open_all(game_dir)
-
     out: dict[str, dict[int, str]] = {}
     for path in MSG_PATHS:
         arc = next((a for a in archives.values() if path in a), None)
@@ -407,8 +409,125 @@ def _bosses(members: dict, defs: dict, menu_text: dict[int, str],
     return bosses
 
 
+# The sub-bosses of stage one are one category of the place roster: 120, the
+# field bosses. It holds 45 places, of which the world map shows 29; the other
+# 16 are m20_00 to m21_50, which no SmallBaseAndSpotDefine row names and which
+# all hold the same c4680 -- arena shells, not boss places (T-299 2b/2c).
+# Reading a map costs the first run time, and those 16 would buy one character
+# sixteen times, so the roster is the 29 the world map places.
+FIELD_BOSS_CATEGORY = 120
+
+
+def _map_of_place(place: int) -> str:
+    """A place id is a map: 4651 is m46_51_00_00, for all 116 (T-299 2a)."""
+    return f"m{place // 100:02d}_{place % 100:02d}_00_00"
+
+
+def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
+               archives, sp_rows: dict[int, param.ParamRow]) -> dict[str, Any]:
+    """Every field boss a run can put on the map, keyed by its place.
+
+    The place is the unit, not the character: the same character carries
+    different figures from one place to the next (Draconic Tree Sentinel has
+    2324 HP on m46_52 and 1633 on m48_50), so a character-keyed block would
+    be wrong wherever it repeats. The key is text because the snapshot is
+    JSON and has no other kind of key (D-001), and `weakness` is exactly the
+    block a Nightlord already carries, so one panel renders both.
+
+    `nightlords[].patterns` of `of` is how much of that Nightlord's own map
+    patterns draw this place. That is the composition of the pool and not a
+    draw probability -- `MapPatternSet` weights the patterns themselves --
+    which is the same limit `_gating` states for the events.
+    """
+    define = param.read(members["SmallBaseAndSpotDefine"],
+                        defs.get("SmallBaseAndSpotDefine"))
+    on_world_map = {value for row in define.rows
+                    for field, value in row.values.items()
+                    if field.startswith("mapId") and value}
+
+    enemy_table = param.read(
+        members["ChaosMatchingMutationEnemyTableParam"],
+        defs.get("ChaosMatchingMutationEnemyTableParam"))
+    categories: dict[int, set[int]] = {}
+    for row in enemy_table.rows:
+        place = row.values["smallBaseId"]
+        if (row.values["categoryId"] != FIELD_BOSS_CATEGORY
+                or place not in on_world_map):
+            continue
+        categories.setdefault(place, set()).add(row.values["categoryId"])
+
+    # Which Nightlord draws which place, over patternId -- the same join
+    # `_gating` uses for the events, and rows with `unknown_0` set are left
+    # out here for the same reason.
+    flag_table = param.read(members["LotResultMapPatternFlag"],
+                            defs.get("LotResultMapPatternFlag"))
+    pattern_boss = {values["patternId"]: values["targetBoss"]
+                    for values in (row.values for row in flag_table.rows)
+                    if not values["unknown_0"]}
+    pool = collections.Counter(pattern_boss.values())
+
+    drawn: dict[int, dict[int, set[int]]] = {}
+    spot_table = param.read(members["LotResultSmallBaseAndSpot"],
+                            defs.get("LotResultSmallBaseAndSpot"))
+    for row in spot_table.rows:
+        place = row.values["smallBaseMapId"]
+        boss = pattern_boss.get(row.values["patternId"])
+        if place not in categories or boss is None:
+            continue
+        drawn.setdefault(place, {}).setdefault(boss, set()).add(
+            row.values["patternId"])
+
+    npc = param.read(members["NpcParam"], defs.get("NpcParam"))
+    weakness = bossdata.derive_places(
+        archives, npc,
+        {place: _map_of_place(place) for place in categories}, sp_rows)
+
+    # Names are the game's own (NpcName). Two routes to one: the structured
+    # id (90 <4-digit character> <3-digit variant>) covers characters whose
+    # NpcParam rows never made it into the table, `nameId` covers the rest.
+    # The structured route runs first because it is keyed by the character
+    # itself rather than by whichever row happened to be seen.
+    npc_names = text.get("NpcName", {})
+    chr_names: dict[int, str] = {}
+    for name_id, label in npc_names.items():
+        if 900000000 <= name_id <= 909999999 and label and label.strip():
+            chr_names.setdefault((name_id - 900000000) // 1000, label.strip())
+    for row in npc.rows:
+        label = (npc_names.get(row.values.get("nameId", -1)) or "").strip()
+        if label:
+            chr_names.setdefault(row.id // 10000, label)
+
+    out: dict[str, Any] = {}
+    for place in sorted(categories):
+        entry = weakness[place]
+        chr_id = entry["primary"]
+        out[str(place)] = {
+            "map": entry["map"],
+            "categories": sorted(categories[place]),
+            # The night bosses of day 1 and day 2 are a second entry into
+            # this same block, and not this pass's to fill.
+            "days": [],
+            "nightlords": [
+                {"boss": boss, "patterns": len(patterns), "of": pool[boss]}
+                for boss, patterns in sorted(drawn.get(place, {}).items())
+            ],
+            "chr": chr_id,
+            "name": chr_names.get(chr_id, "") if chr_id is not None else "",
+            # Filled only where the files put more than one boss-scale
+            # character in the place: then none of them is named, and the
+            # candidates stand for themselves (GOAL A7).
+            "candidates": [
+                {"chr": candidate, "hp": entry["parts"][str(candidate)]["hp"]}
+                for candidate in entry["chars"]
+            ] if entry["confidence"] == "ambiguous" else [],
+            "weakness": entry,
+        }
+    return out
+
+
 def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
-                   text: dict[str, dict[int, str]]) -> dict:
+                   text: dict[str, dict[int, str]],
+                   subbosses: dict[str, Any]) -> dict:
     """The five depths: enemy scaling, reward scaling and mutation weighting.
 
     None of the ChaosMatching params ship a paramdef, so the layouts here are
@@ -535,35 +654,20 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
     #   values are exactly the 18 category bytes of the weight table above
     #   plus one (102) that has no weight row -- present in the roster,
     #   absent from the draw.
-    # - u16 at +6, where set, is a character id. c5011 resolves through
-    #   NpcName to Golden Hippopotamus and c3400 to Grave Warden Duelist,
-    #   and category 160's four are the arena bosses (Dragonkin Soldier,
-    #   Guardian Golem, Ancestor Spirit, Fallingstar Beast) -- names landing
-    #   on real enemies is not something a misaligned read produces.
-    # - u32 at +12, where set (667 rows, exactly the rows with no character),
+    # - `smallBaseId` at +6, where set, is a **place**: all 116 of its values
+    #   name an existing m{AA}_{BB}_00_00 map, 100 of them stand as `mapIdN`
+    #   in SmallBaseAndSpotDefine and the other 16 as an attach point's
+    #   `defaultSmallBase` (T-299 section 2a). Reading it as a character hit
+    #   21 of the 116 by coincidence -- two number spaces overlapping, not a
+    #   correct read: place 4650 is m46_50, which holds no c4650, while
+    #   c4650 stands in two maps that are not it (QA-286).
+    # - u32 at +12, where set (667 rows, exactly the rows with no place),
     #   reads 604|XX|YY with XX 42-45 and YY 36-39 -- the Limveld tile grid,
-    #   so those kinds are scoped to map areas rather than to enemies.
+    #   so those kinds are scoped to map areas rather than to places.
     #
-    # Character names here are the game's own (NpcParam.nameId -> NpcName).
-    # Most common enemies are never named by the game at all, so most
-    # entries carry only the id; community names stay in the tab's tinted
-    # layer, outside this snapshot.
-    npc_table = param.read(members["NpcParam"], defs.get("NpcParam"))
-    npc_names = text.get("NpcName", {})
-    chr_names: dict[int, str] = {}
-    # Two routes to a name, both the game's own. The structured NpcName id
-    # (90 <4-digit character> <3-digit variant>, section 6e) covers enemies
-    # whose NpcParam rows never made it into the table; nameId covers the
-    # rest. The structured route runs first because it is keyed by the
-    # character itself rather than by whichever row happened to be seen.
-    for name_id, label in npc_names.items():
-        if 900000000 <= name_id <= 909999999 and label and label.strip():
-            chr_names.setdefault((name_id - 900000000) // 1000, label.strip())
-    for row in npc_table.rows:
-        label = (npc_names.get(row.values.get("nameId", -1)) or "").strip()
-        if label:
-            chr_names.setdefault(row.id // 10000, label)
-
+    # A name for a place is the boss standing in it, and that is resolved
+    # once, in `_subbosses`, for the places this extractor reads maps for.
+    # The rest carry the place and no name, which is what the files say.
     kinds: dict[int, dict] = {}
     enemy_table = param.read(
         members["ChaosMatchingMutationEnemyTableParam"],
@@ -571,13 +675,6 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
     for row in enemy_table.rows:
         values = row.values
         category = values["categoryId"]
-        # The def calls this `smallBaseId`, and that name is wrong: the
-        # values run 2000-5391 while SmallBaseAndSpotDefine holds 107 rows
-        # in 100-2219, so only 2 of 116 would resolve. As characters they
-        # resolve into real, thematically correct names -- c5011 Golden
-        # Hippopotamus, the four arena bosses under one kind -- which is
-        # what a correct read looks like. Structure from the def, meaning
-        # from the data.
         target = values["smallBaseId"]
         # Likewise `mapUnk_1/2/3`, which the def leaves unnamed: read as one
         # little-endian u32 the field is packed decimal 60|XX|YY, giving the
@@ -586,17 +683,18 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
         tile = (values["mapUnk_1"] | (values["mapUnk_2"] << 8)
                 | (values["mapUnk_3"] << 16))
         kind = kinds.setdefault(
-            category, {"rows": 0, "chrs": {}, "tiles": set()})
+            category, {"rows": 0, "places": {}, "tiles": set()})
         kind["rows"] += 1
         if target:
-            kind["chrs"][target] = kind["chrs"].get(target, 0) + 1
+            kind["places"][target] = kind["places"].get(target, 0) + 1
         elif tile:
             kind["tiles"].add(f"m60_{tile // 100 % 100}_{tile % 100}")
     for kind in kinds.values():
-        kind["chrs"] = [
-            {"chr": chr_id, "rows": count, "name": chr_names.get(chr_id)}
-            for chr_id, count in sorted(kind["chrs"].items(),
-                                        key=lambda kv: -kv[1])
+        kind["places"] = [
+            {"place": place, "map": _map_of_place(place), "rows": count,
+             "name": (subbosses.get(str(place)) or {}).get("name") or None}
+            for place, count in sorted(kind["places"].items(),
+                                       key=lambda kv: -kv[1])
         ]
         kind["tiles"] = sorted(kind["tiles"])
     kinds_out = {str(cat): kind for cat, kind in sorted(kinds.items())}
@@ -1574,7 +1672,13 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     def table(name: str) -> param.ParamTable:
         return param.read(members[name], defs.get(name))
 
-    text = _load_text(game_dir)
+    # Opened once and handed on. Finding the archives costs 9,3 s of the
+    # first run (`docs/perf/baselines.md` S13), and the sub-boss pass reads
+    # maps out of the same set the message files come from.
+    oodle.load(game_dir)
+    archives = dvdbnd.open_all(game_dir)
+
+    text = _load_text(archives)
     antique_name = text.get("AntiqueName", {})
     antique_caption = text.get("AntiqueCaption", {})
     effect_name = text.get("AttachEffectName", {})
@@ -2799,7 +2903,19 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # ---- Bosses and Deep of Night ----------------------------------------
     menu_text = text.get("CL_MenuText", {})
     bosses = _bosses(members, defs, menu_text, game_dir)
-    deep_of_night = _deep_of_night(members, defs, menu_text, text)
+    # A failure here costs the sub-bosses and nothing else, the same trade
+    # `_bosses` makes for the weakness block: both read the map files, and
+    # neither is worth the whole snapshot.
+    subbosses: dict[str, Any] = {}
+    try:
+        subbosses = _subbosses(members, defs, text, archives, sp_by_id)
+    except Exception as exc:  # noqa: BLE001
+        # The class name and not the exception's own text, which is
+        # Windows' to word and in Windows' language (A8,
+        # tests/test_exception_text_is_english.py).
+        failed = exc.__class__.__name__
+        print(f"   sub-bosses unavailable: {failed}")
+    deep_of_night = _deep_of_night(members, defs, menu_text, text, subbosses)
     world_events = _world_events(members, defs, text)
 
     return {
@@ -2849,6 +2965,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         "relics": relics,
         "effects": effects,
         "bosses": bosses,
+        "subbosses": subbosses,
         "deep_of_night": deep_of_night,
         "world_events": world_events,
     }

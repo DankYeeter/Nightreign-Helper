@@ -280,6 +280,15 @@ Dann baut das Programm ihn ohnehin neu; der erste Lauf, dem das passiert,
 nicht an der Version und blieben. Stand der Vorlage: 841 Dateien,
 20 849 867 B, Ort wie in `CLAUDE.md` (`...\Desktop\ClaudeCode\NightreignHelper-Testabzug`).
 
+*Ersetzt am 19.09.2026 (T-303, developer):* `EXTRACT_VERSION` 13 fuegt den
+Block `subbosses` hinzu und ersetzt `deep_of_night.kinds[].chrs` durch
+`places` (QA-286). Wieder nur `nightreign_data.json` neu geschrieben
+(8 585 535 B, +63 317 B = +0,74 %, Extraktor dieses Standes, `extract.build`
+34,0 s an der echten Installation); die 840 Symboldateien blieben. Stand der
+Vorlage: 841 Dateien, 20 913 184 B, Ort unveraendert. **`CLAUDE.md` nennt
+weiterhin `EXTRACT_VERSION` 12 und 20 849 867 B** — die Zeile gehoert dem
+`director`.
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.

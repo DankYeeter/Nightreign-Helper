@@ -58,6 +58,18 @@ class Mutation:
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
 MUTATIONS: dict[str, Mutation] = {
+    "sub-boss-hp-bar-off": Mutation(
+        path="nrdata/bossdata.py",
+        old='        if (profile["hp"] or 0) < INFERRED_MIN_HP:\n',
+        new='        if (profile["hp"] or 0) < 0:\n',
+        survival_means=(
+            "Nothing holds the sub-boss roster to the two bars. With the HP "
+            "bar off, every tuned prop in a map is a boss-scale candidate: "
+            "places the files leave open get named, and places with one boss "
+            "turn ambiguous because a shopkeeper stands beside it. A green "
+            "suite would mean the roster in the snapshot is unguarded."
+        ),
+    ),
 }
 
 

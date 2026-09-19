@@ -10,6 +10,10 @@ before:
       -> the part's cNNNN model and its NpcParam row
       -> damage cut rates and status resistances
 
+`derive_places` is the second entry into the same answer, for the sub-bosses:
+there the key is a place the map lotteries draw, its id *is* a map, and the
+event half of the chain above is not walked at all.
+
 Two details make this work rather than nearly work. Part name offsets are
 relative to the record and their terminator has to be found on an even
 boundary, or every name decodes to garbage. And a multi-part boss hangs the
@@ -110,6 +114,46 @@ INFERRED_MIN_HP = 2000
 # character. Ten is well clear of the one-or-two an ordinary add gets, and
 # well under Harmonia's twenty-one.
 INFERRED_GROUP_MIN = 10
+
+
+def _candidates(rows_for: dict[int, list],
+                placements: dict[int, int]) -> tuple[list[tuple[int, dict]], bool]:
+    """The boss-scale characters of one map, and whether the group rule found
+    them.
+
+    Both entries into a map ask the same question of it -- the event chain in
+    `derive` when the script names no entity, and the place lottery in
+    `derive_places` -- so the bars are applied in one place. What the two do
+    with more than one answer differs and stays with them: `derive` has an
+    arena that holds exactly one boss and takes the largest, `derive_places`
+    has a map that may hold several and refuses to pick (GOAL A7).
+    """
+    strong = []
+    for chr_id, rows in rows_for.items():
+        profile = _profile(rows)
+        if profile is None:
+            continue
+        spread = (max(profile["damage"].values())
+                  - min(profile["damage"].values()))
+        if spread < INFERRED_MIN_SPREAD:
+            continue
+        if (profile["hp"] or 0) < INFERRED_MIN_HP:
+            continue
+        strong.append((chr_id, profile))
+    if strong:
+        return strong, False
+
+    # A group boss has no single boss-scale body. Harmonia is "seven
+    # valkyries", and its arena places c7620 twenty-one times (seven by three
+    # player-count variants) where every other map in the game places it
+    # exactly once. So when nothing clears the HP bar, fall back to the
+    # character this map is unusually full of.
+    crowd = [(count, chr_id) for chr_id, count in placements.items()
+             if count >= INFERRED_GROUP_MIN and _tuned(rows_for.get(chr_id, []))]
+    if not crowd:
+        return [], False
+    _count, chr_id = max(crowd)
+    return [(chr_id, _profile(rows_for[chr_id]))], True
 
 
 def _tuned(rows: list) -> bool:
@@ -451,35 +495,12 @@ def derive(game_dir, members: dict, defs: dict,
                 seen.setdefault(chr_id, by_chr.get(chr_id, []))
                 placements[chr_id] = placements.get(chr_id, 0) + 1
 
-            best, best_profile = None, None
-            for chr_id, rows in seen.items():
-                profile = _profile(rows)
-                if not profile:
-                    continue
-                spread = (max(profile["damage"].values())
-                          - min(profile["damage"].values()))
-                if spread < INFERRED_MIN_SPREAD:
-                    continue
-                if (profile["hp"] or 0) < INFERRED_MIN_HP:
-                    continue
-                if best_profile is None or profile["hp"] > best_profile["hp"]:
-                    best, best_profile = chr_id, profile
-
-            # A group boss has no single boss-scale body. Harmonia is "seven
-            # valkyries", and its arena places c7620 twenty-one times (seven
-            # by three player-count variants) where every other map in the
-            # game places it exactly once. So when nothing clears the HP bar,
-            # fall back to the character this arena is unusually full of.
-            group = False
-            if best is None:
-                crowd = [(n, c) for c, n in placements.items()
-                         if n >= INFERRED_GROUP_MIN and _tuned(seen.get(c, []))]
-                if crowd:
-                    _n, chr_id = max(crowd)
-                    best, best_profile = chr_id, _profile(seen[chr_id])
-                    group = True
-            if best is None:
+            found, group = _candidates(seen, placements)
+            if not found:
                 continue
+            # One arena, one boss: where several clear the bars the largest is
+            # the boss, which is the reading this path has always used.
+            best, best_profile = max(found, key=lambda pair: pair[1]["hp"] or 0)
             out[flag] = {
                 "entity": None,
                 "map": map_name,
@@ -494,14 +515,27 @@ def derive(game_dir, members: dict, defs: dict,
             }
             break
 
-    # The buff/debuff ladder, attached in one pass so every confidence path
-    # gets it. A boss reaches these rows either from an NpcParam slot or from
-    # its own animations, and several use only the second route.
-    sp_rows = {r.id: r for r in param.read(members["SpEffectParam"],
-                                           defs.get("SpEffectParam")).rows}
+    _attach_effects(out.values(), archives, by_chr,
+                    {r.id: r for r in param.read(
+                        members["SpEffectParam"],
+                        defs.get("SpEffectParam")).rows})
+    return out
+
+
+def _attach_effects(entries, archives, by_chr: dict[int, list],
+                    sp_rows: dict[int, param.ParamRow]) -> None:
+    """Hang the buff/debuff ladder and any defence buff on each entry.
+
+    One pass so every confidence path gets it. A boss reaches these rows
+    either from an NpcParam slot or from its own animations, and several use
+    only the second route. An entry with no single character behind it --
+    ambiguous or unresolved -- has no profile to hang them on and is skipped.
+    """
     slots = [f"spEffectID{i}" for i in range(30)]
-    for entry in out.values():
+    for entry in entries:
         chr_id = entry["primary"]
+        if chr_id is None or not entry.get("profile"):
+            continue
         reachable = {v for row in by_chr.get(chr_id, []) for s in slots
                      if (v := row.values.get(s, -1)) and v > 0}
         blob = _tae(archives, chr_id)
@@ -512,11 +546,92 @@ def derive(game_dir, members: dict, defs: dict,
                 located.setdefault(event.param0, set()).add(
                     (event.animation, event.start))
         ladder = _ladder(sp_rows, reachable, located)
-        if ladder and entry.get("profile"):
+        if ladder:
             entry["profile"]["ladder"] = ladder
         defence = _defence_buffs(sp_rows, reachable, located)
-        if defence and entry.get("profile"):
+        if defence:
             entry["profile"]["defence_buffs"] = defence
+
+
+def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
+                  sp_rows: dict[int, param.ParamRow]) -> dict[int, dict]:
+    """place id -> the same entry `derive` gives per defeat flag.
+
+    The second entry into a map, and the one the place lotteries use: the
+    place *is* the key, so there is no event script and no entity id to find,
+    only the map the place names. What happens inside the map is the same
+    question `derive` asks of an arena it could not pin an entity in, and it
+    is answered by the same bars -- but a place may hold several boss-scale
+    characters, and then none is named (`ambiguous`), because the files do not
+    say which one the place is for.
+
+    `archives` are the ones the caller already has open: opening them again
+    costs 9,3 s of the first run and buys nothing (`docs/perf/baselines.md`
+    S13), and so is `sp_rows`, the SpEffectParam rows the caller has read
+    anyway (1,99 s each time, measured T-303). `exact` is never handed out
+    here -- that word belongs to the event chain, so no two provenances in
+    the snapshot carry one name.
+    """
+    by_chr: dict[int, list] = {}
+    for row in npc.rows:
+        by_chr.setdefault(row.id // 10000, []).append(row)
+    by_id = {row.id: row for row in npc.rows}
+
+    out: dict[int, dict] = {}
+    for place, map_name in sorted(places.items()):
+        path = f"/map/mapstudio/{map_name}.msb.dcx"
+        arc = next((a for a in archives.values() if path in a), None)
+        parts: list[tuple[str, bytes]] = []
+        if arc is not None:
+            try:
+                parts = _parts(arc.read(path))
+            except Exception:  # noqa: BLE001 - SEC-014: an unreadable map
+                parts = []     # leaves the place unresolved, never guessed
+
+        rows_for: dict[int, list] = {}
+        placements: dict[int, int] = {}
+        for name, record in parts:
+            model = name.split("_")[0]
+            if not (model.startswith("c") and model[1:].isdigit()):
+                continue
+            chr_id = int(model[1:])
+            if chr_id in CREW:
+                continue
+            placements[chr_id] = placements.get(chr_id, 0) + 1
+            if chr_id in rows_for:
+                continue
+            # The exact NpcParam row is named on the part itself, as on the
+            # event path; the same character carries different figures from
+            # one map to the next, so the fallback to every row of the
+            # character is the second choice, not the first.
+            ints = struct.unpack_from(f"<{len(record) // 4}i", record, 0)
+            exact = [v for v in dict.fromkeys(ints)
+                     if v in by_id and v // 10000 == chr_id]
+            rows_for[chr_id] = ([by_id[v] for v in exact]
+                                or by_chr.get(chr_id, []))
+
+        found, group = _candidates(rows_for, placements)
+        entry: dict[str, Any] = {
+            "map": map_name,
+            "chars": [chr_id for chr_id, _profile_of in found],
+            "primary": None,
+            "confidence": "unresolved",
+            "profile": None,
+            # Character ids as text, for the reason `derive` gives (D-001).
+            "parts": {str(chr_id): profile for chr_id, profile in found},
+        }
+        if group:
+            chr_id, profile = found[0]
+            entry.update(primary=chr_id, confidence="group", profile=profile,
+                         group_boss=True, placements=placements.get(chr_id))
+        elif len(found) == 1:
+            chr_id, profile = found[0]
+            entry.update(primary=chr_id, confidence="single", profile=profile)
+        elif found:
+            entry["confidence"] = "ambiguous"
+        out[place] = entry
+
+    _attach_effects(out.values(), archives, by_chr, sp_rows)
     return out
 
 

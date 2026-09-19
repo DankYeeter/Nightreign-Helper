@@ -24,10 +24,11 @@ that is recognisably the thing they were asked for.
 from __future__ import annotations
 
 import json
+import types
 
 import pytest
 
-from nrdata import icons
+from nrdata import bossdata, icons
 
 # Marked per test rather than with a module-level pytestmark, because one
 # case below (the guard on extracted_game_data itself) needs the game
@@ -212,3 +213,125 @@ def test_extracted_game_data_never_falls_back_to_a_cached_snapshot(
         "extracted_game_data returned something other than extract.build()'s "
         "own result -- a cached snapshot must have been read instead"
     )
+
+
+SETTLED = ("single", "group")
+CONFIDENCE = {"single", "group", "ambiguous", "unresolved"}
+
+
+def _map_of(place: str) -> str:
+    return f"m{int(place) // 100:02d}_{int(place) % 100:02d}_00_00"
+
+
+@pytest.mark.slow
+def test_the_map_files_supply_the_sub_bosses_by_their_place(
+        extracted_game_data):
+    """The second entry into the map files: a place, not an event flag.
+
+    The place id *is* a map, which is the whole finding behind this block
+    (T-299, QA-286), so every key has to name the map its entry read.
+    """
+    places = extracted_game_data["subbosses"]
+    assert places, "the place roster came back empty"
+
+    for place, entry in places.items():
+        assert entry["map"] == _map_of(place), (
+            f"place {place} carries {entry['map']}, which is not its own map")
+        assert entry["weakness"]["confidence"] in CONFIDENCE
+        for drawn in entry["nightlords"]:
+            assert 0 < drawn["patterns"] <= drawn["of"], (
+                f"place {place} is drawn by {drawn['patterns']} of "
+                f"{drawn['of']} patterns of Nightlord {drawn['boss']}")
+
+    resolved = [entry for entry in places.values()
+                if entry["weakness"]["confidence"] in SETTLED]
+    assert resolved, "no place resolved to a character at all"
+    assert all(entry["weakness"]["profile"]["damage"] for entry in resolved)
+
+
+@pytest.mark.slow
+def test_a_place_the_files_do_not_settle_names_nobody(extracted_game_data):
+    """GOAL A7. Several boss-scale characters in one place is an answer the
+    files do give; which of them the place is for, they do not. So the entry
+    lists its candidates and names none of them -- the failure mode QA-286
+    is made of is a name that was never in the files.
+    """
+    for place, entry in extracted_game_data["subbosses"].items():
+        confidence = entry["weakness"]["confidence"]
+        settled = confidence in SETTLED
+        assert (entry["chr"] is not None) is settled, (
+            f"place {place} is {confidence} and carries chr {entry['chr']}")
+        if not settled:
+            assert entry["name"] == "", (
+                f"place {place} is {confidence} and still names "
+                f"{entry['name']!r}")
+        assert bool(entry["candidates"]) is (confidence == "ambiguous")
+        if confidence == "ambiguous":
+            assert len(entry["candidates"]) > 1, (
+                f"place {place} is ambiguous between one character")
+
+
+@pytest.mark.slow
+def test_the_mutation_kinds_list_places_and_not_characters(
+        extracted_game_data):
+    """QA-286. `smallBaseId` is a place; read as a character it named 21 of
+    116 by coincidence and left the other 95 blank."""
+    kinds = extracted_game_data["deep_of_night"]["kinds"]
+    assert kinds
+
+    for category, kind in kinds.items():
+        assert "chrs" not in kind, (
+            f"kind {category} still carries the character reading")
+        for entry in kind["places"]:
+            assert set(entry) == {"place", "map", "rows", "name"}
+            assert entry["map"] == _map_of(str(entry["place"]))
+
+    named = [entry for kind in kinds.values() for entry in kind["places"]
+             if entry["name"]]
+    assert named, "no place carries the name of the boss standing in it"
+
+
+def _npc_row(row_id: int, hp: int, spread: float):
+    """An NpcParam row as `bossdata._profile` reads one."""
+    values = {field: 1.0 for field in bossdata.DAMAGE_FIELDS}
+    values["neutralDamageCutRate"] = 1.0 + spread
+    values["hp"] = hp
+    return types.SimpleNamespace(id=row_id, values=values)
+
+
+def test_both_boss_bars_have_to_be_cleared_to_be_a_candidate():
+    """The rule both entries into a map share, on its own.
+
+    A map is full of props and adds, and the two bars are what tell a boss
+    from them: resistances someone tuned, and boss-scale HP. Lowering either
+    one silently turns a shopkeeper into a sub-boss, which is why this is
+    checked here and not only through a dataset.
+    """
+    from nrdata import bossdata
+
+    boss = {2130: [_npc_row(21300030, 2500, 0.2)]}
+    assert [chr_id for chr_id, _p in bossdata._candidates(boss, {2130: 1})[0]] \
+        == [2130]
+
+    flat = {4000: [_npc_row(40000010, 2500, 0.0)]}
+    assert bossdata._candidates(flat, {4000: 1}) == ([], False)
+
+    small = {4001: [_npc_row(40010010, 1900, 0.2)]}
+    assert bossdata._candidates(small, {4001: 1}) == ([], False)
+
+    # Nothing clears the HP bar, but one tuned character fills the map: the
+    # group rule answers, and says so.
+    found, group = bossdata._candidates(small, {4001: 12})
+    assert group and [chr_id for chr_id, _p in found] == [4001]
+
+
+def test_more_than_one_boss_scale_character_is_left_for_the_caller():
+    """`_candidates` hands back both; `derive` takes the larger, and
+    `derive_places` refuses to pick (A7). The refusal is only possible if
+    the rule itself keeps every candidate."""
+    two = {2130: [_npc_row(21300030, 2500, 0.2)],
+           4501: [_npc_row(45010000, 5753, 0.3)]}
+    found, group = bossdata._candidates(two, {2130: 1, 4501: 1})
+
+    assert not group
+    assert sorted(chr_id for chr_id, _p in found) == [2130, 4501]
