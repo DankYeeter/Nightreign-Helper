@@ -1,5 +1,152 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-19 (T-322d — Berater-Leiste Schadensart-Auswahl AK-327..334, Diff `ebbcec2..78a0888`)
+
+**Methode:** Code-Analyse (kein Fensterlauf — NH-004, Bau und QA laufen
+nacheinander auf derselben Maschine unter T-322). Gelesen: `git diff
+ebbcec2..78a0888` fuer `nrplanner/advisorbar.py`, `nrplanner/advisor/goals.py`,
+`nrplanner/advisor/candidates.py`, `nrplanner/advisor/types.py`,
+`nrplanner/damage.py`, `nrplanner/model.py`; quer dazu `nrplanner/relicpicker.py`
+(nicht Teil des Diffs, aber der einzige zweite Ort, der `damage_art` liest);
+`tests/test_advisor_bar.py`, `tests/test_advisor_goals.py`,
+`tests/test_damage_art.py` als Nachweis, was tatsaechlich gebaut und
+gepruft ist. `UI_SPEC.md` §3.7 (AK-327..334) und `UI_SPEC_REGISTER.md`
+gegengelesen; beide um Nachtraege ergaenzt (AK-335, AK-336, Erratum zu
+AK-328), siehe dort.
+
+**Geprueft:** die vier Rueckmeldungen aus T-321b/c (Zielzeile bei Typwahl,
+Katalysator-Satz, AK-328-Eintragszahl, Relic-Picker-Vererbung) plus AK-327
+bis AK-334 gegen den Diff.
+
+**Gesamturteil:** Braucht Arbeit — zwei Kritisch-Funde. Die Beraterleiste
+selbst (AK-327..334, alle acht Kriterien wortgleich im Code verifiziert)
+ist sauber gebaut; das Problem liegt in dem, was der Diff *nicht* anfasst:
+die Kopfzahl behandelt eine Typwahl ehrlicher als eine Artwahl (DR-034), und
+der Relic Picker uebernimmt die Auswahl in eine Zahl, ohne sie je zu nennen
+(DR-035) — beides Verstoesse gegen genau das Ehrlichkeits-Prinzip (AK-37),
+das dieser Auftrag fuer die Typwahl gerade erst durchgesetzt hat.
+
+### Kritisch
+
+- **DR-034 [`nrplanner/advisor/goals.py`, `_max_damage`, Zeile ~380-390]**
+  Bei einer **Typwahl** (`type:Fire` u. a.) aendert `_max_damage` sowohl den
+  Zahlenwert (`final_per_type[key]` statt `final_headline`) als auch den
+  Namen der Kopfzahl (`f"{chosen} {headline_name.lower()}"` → `"Fire attack
+  rating 19"`) — korrekt und in `tests/test_advisor_goals.py` belegt. Bei
+  einer **Artwahl** (`art:skill`, `art:sorceries`, `art:incantations`,
+  `art:family:<id>`) aendert sich der Zahlenwert **ebenfalls** (`art_rate`
+  aus AD-047 ist bereits in `final_headline` eingerechnet, `damage.py:
+  _answer`, `rate *= art_rate`), aber der Name bleibt unveraendert
+  `"Attack rating"` (`name = now.headline_name` wird im `art`-Zweig nie
+  ueberschrieben). Impact: sobald ein Relikt einen `art_rate != 1,0` fuer
+  die gewaehlte Art traegt, zeigt die Karte eine von `All` abweichende Zahl
+  unter derselben Beschriftung wie `All` — exakt die Verwechslung, die
+  AK-31/AK-37/AK-38/AK-39 im ganzen restlichen Programm ausdruecklich
+  verbieten (zwei verschiedene Fragen duerfen nie denselben Namen tragen).
+  Ein Spieler, der die Kopfzahl der Arsenal-Kachel gegen die des Beraters
+  vergleicht (wie AK-38/AK-39 es fuer andere Zahlenpaare verlangen), sieht
+  eine Differenz, die die Beschriftung nicht erklaert. Richtung: siehe
+  neues **AK-335** in `UI_SPEC.md` §3.7 (in diesem Lauf ergaenzt) — die
+  Kopfzahl bekommt bei jeder Wahl, die den Wert tatsaechlich veraendert, den
+  gewaehlten Namen vorangestellt, mit einer Wortkollisions-Regel fuer
+  `"Skill attack"` (`"Skill attack rating"`, nicht `"Skill attack attack
+  rating"`).
+
+- **DR-035 [`nrplanner/relicpicker.py`, `VALUE_CAPTIONS`/`VALUE_DIRECTIONS`,
+  `_populate_findings`/Zeile 4-Caveats; Ursache in
+  `nrplanner/advisorbar.py`, `asking_from`]** Der Relic Picker fragt seinen
+  Pool ueber `advisorbar.asking_from(window, CANONICAL_POOL_ORDER)`, und
+  `asking_from` liest `planner.advisor_bar.damage_art()` **immer**, unabhaengig
+  vom `CANONICAL_POOL_ORDER`-Wert und unabhaengig davon, ob `damage_type_box`
+  in der Leiste gerade sichtbar ist. Zwei belegte Folgen: (1) Die
+  "Damage"-Zeile und der Chip `BEST FOR DAMAGE` stehen auf **jeder** Karte,
+  unabhaengig von `Sort by` (AK-42-Muster: beide Richtungen immer sichtbar)
+  — eine damage_art-verzerrte Zahl erscheint also auch dann, wenn `Sort by`
+  auf `Name` oder `Minimise damage taken` steht. (2) Der erklaerende
+  AK-331-Satz in Zeile 4 (`_populate_findings`, ueber
+  `baseline.unknowns`/`pool.unknowns`) erscheint **nur**, wenn
+  `_drawn_direction() == "max_damage"` ist, also nur wenn `Sort by` zufaellig
+  auf `Maximise damage` steht. Zusaetzlich bleibt `damage_type_box`s Wert
+  stehen, wenn `goal_box` auf eine andere Richtung wechselt und sich
+  versteckt (AK-330, korrekt fuer die Leiste selbst) — ein Spieler kann also
+  eine Typ-/Artwahl getroffen haben, sie in der Leiste nicht mehr sehen, und
+  im Picker trotzdem eine davon beeinflusste, unbeschriftete Zahl vorgesetzt
+  bekommen. Impact: dieselbe Ehrlichkeitsverletzung wie DR-034, nur ohne
+  jede Chance, sie zu bemerken (keine Beschriftung, kein garantierter
+  Caveat-Satz). Richtung: siehe neues **AK-336** in `UI_SPEC.md` §3.7 —
+  Mindestanforderung ist, dass der AK-331-Satz unabhaengig von `Sort by`
+  steht und die "Damage"-Zeile/der Chip die gewaehlte Art nennt; ob der
+  Picker zusaetzlich einen eigenen, gespiegelten Regler bekommt (wie
+  `goal_box`↔`Sort by` nach AK-256), ist eine offene Umfangsfrage an den
+  App Designer (siehe dort).
+
+### Wichtig
+
+*(keine ueber die zwei Kritisch-Funde hinaus in diesem Lauf.)*
+
+### Nice-to-have
+
+- **DR-036 [`UI_SPEC.md` §3.7, AK-328-Pruefweg]** Der eigene Pruefweg-Satz
+  ("genau elf Eintraege") war falsch nachgezaehlt — richtig sind zehn
+  benannte Eintraege plus zwei Trennlinien (`QComboBox.count()` = zwoelf),
+  bestaetigt durch `tests/test_advisor_bar.py::
+  test_the_kind_of_damage_box_offers_three_groups_in_the_spec_order` gegen
+  den Bau (`78a0888`). Der Bau ist richtig; der Fehler lag in der eigenen
+  Spec-Zeile aus T-320b. Korrigiert per Nachtrag in `UI_SPEC.md` §3.7
+  (append-only, Original steht stehen).
+
+- **DR-037 [`nrplanner/advisor/goals.py`, `_ART_ON_A_CATALYST`]** Der
+  Katalysator-Satz ("`{choice} is not counted for this Nightfarer: a staff
+  or a seal is ranked on the spell power the game shows for it, and no
+  damage type and no attack art reaches that figure.`") ist wortgleich
+  gegen `tests/test_advisor_goals.py` (Recluse + `art:sorceries`) getestet
+  und in Gross-/Kleinschreibung korrekt (Satzanfang gross, `_RANKED_ON_ONE_ART`
+  daneben klein wie AK-331 verlangt) — **bestaetigt, keine Aenderung noetig**.
+  Einzige Feinheit: bei einer Schulwahl, die tatsaechlich zur Klasse des
+  Katalysators passt (z. B. `Bestial` bei einem Rezitator/Siegel-Nightfarer,
+  der Incantations wirkt), liest sich der Satz auf den ersten Blick
+  widerspruechlich ("Bestial zaehlt nicht, obwohl dieser Nightfarer genau
+  Bestial wirkt") — inhaltlich richtig (AD-048: die Spell-Power-Anzeige hat
+  keine gemessene Beziehung zu einem Angriffswert-Multiplikator, unabhaengig
+  davon, welche Schule gewaehlt wurde), aber ein zusaetzlicher Halbsatz
+  ("dies gilt fuer jede Wahl gleichermassen, nicht nur fuer diese Schule")
+  koennte die Ironie nehmen. Kein Muss, reine Politur.
+
+### Backlog (geparkt)
+
+- `_max_damage`s `art`-Zweig prueft nicht, ob die Bezugswaffe die gewaehlte
+  Art strukturell tragen kann (anders als der Katalysator-Zweig) — ob das
+  eine Luecke ist, haengt an AD-046/047 und gehoert eher zu T-322c/T-322e als
+  zu dieser Leiste; hier nur vermerkt, nicht bewertet.
+- Projektweite Suche nach der geloeschten Konversions-Caveat-Zeile
+  ("Effects that convert one damage type…") ergab sechs Treffer, alle in
+  `ARCHITECTURE.md`/`ARCHITECTURE_REGISTER.md`/`docs/archiv/**` — historische
+  Dokumentation, keine Laufzeit-Zeichenkette, kein UI-Handlungsbedarf.
+
+### Positiv / beibehalten
+
+- **AK-327** (Platzierung), **AK-328** (Reihenfolge/Gruppen/Trennlinien,
+  Zahl siehe DR-036), **AK-329** (Tooltip-Wortlaut, exakt gegen
+  `advisor_goals.MAX_DAMAGE.label` zusammengesetzt), **AK-330** (Auswahl
+  bleibt beim Richtungswechsel stehen, Box wird nur versteckt statt neu
+  aufgebaut) und **AK-333** (Sichtbarkeits-basierte Tab-Reihenfolge, kein
+  Sonderfall im Code) sind wortgleich so gebaut, wie die Vorgabe sie
+  verlangt — im Code gegengelesen und durch `tests/test_advisor_bar.py`
+  belegt.
+- Die Entscheidung, die alte Konversions-Caveat-Zeile ersatzlos zu
+  streichen statt sie abzuschwaechen (`goals.py`-Kommentar, AD-047 Punkt 6),
+  ist die richtige Reihenfolge: eine gemessene Tatsache ersetzt eine
+  Unsicherheits-Formulierung, keine Formulierung bleibt neben einer Tatsache
+  stehen, die sie widerlegt.
+
+### Offene Fragen an den App Designer
+
+- Siehe `UI_SPEC.md` §3.7, Nachtrag T-322d, AK-336: bekommt der Relic
+  Picker einen eigenen, mit der Beraterleiste gespiegelten Regler fuer die
+  Schadensart (volle Paritaet mit `goal_box`↔`Sort by`), oder reicht die in
+  AK-336 festgelegte Mindest-Offenlegung (Beschriftung + Caveat immer
+  sichtbar, Aenderung nur ueber die Leiste)?
+
 ## Review vom 2026-09-17 (T-293d — Effekt-Filterfenster AK-315..318, Bau 1.14.0, Stand `df73927`)
 
 **Methode:** Code-Analyse plus Offscreen-Render (`QT_QPA_PLATFORM=offscreen`,

@@ -1778,6 +1778,19 @@ im Code, keine `dict`-Iterationsreihenfolge.
 (`Bestial`), zeigt `damage_type_box` genau elf Eintraege in der oben
 genannten Reihenfolge, mit zwei Trennlinien.
 
+**Nachtrag T-322d (ui-ux-designer, Review), 2026-09-19 — Pruefweg
+korrigiert:** Der Satz oben nennt "genau elf Eintraege" falsch nachgezaehlt.
+Richtig sind **zehn** benannte Eintraege (`All` + fuenf Elemente +
+`Skill attack`/`Sorceries`/`Incantations` + eine Schule); `QComboBox.count()`
+liefert **zwoelf**, wenn die zwei Trennlinien mitgezaehlt werden. Gebaut und
+geprueft ist die richtige Zahl:
+`tests/test_advisor_bar.py::test_the_kind_of_damage_box_offers_three_groups_in_the_spec_order`
+zaehlt gegen die `ONE_SCHOOL`/`bar_with_a_school`-Fixture genau diese zehn
+Texte plus zwei Trennlinien bei Index 1 und 7 (T-321, Commit `78a0888`) — der
+Bau ist richtig, der Fehler war meiner beim Schreiben dieses Abschnitts. Der
+Satz oben bleibt stehen (dieser Auftrag darf nur anhaengen), gilt aber ab
+sofort nicht mehr; "elf" ist durch "zehn" ersetzt.
+
 #### AK-329 — Tooltip: was "Skill attack" zaehlt
 
 **AK-329** `damage_type_box` traegt einen statischen Tooltip, sichtbar in
@@ -1919,6 +1932,99 @@ bestehende Verhalten von `goal_box` fortsetzt (keine Inkonsistenz zwischen
 den beiden benachbarten Feldern) — eine Bequemlichkeitsfrage ohne
 objektiv richtige Antwort, falls ein Nutzer denselben Nightfarer immer mit
 derselben Art optimiert.
+
+#### Nachtrag T-322d (ui-ux-designer, Review von T-321a-d, `78a0888`), 2026-09-19
+
+*Die Datenlage, auf die zwei Punkte der obigen "Nicht Teil dieser
+Vorgabe"-Liste bei Abfassung warteten, liegt jetzt vor (AD-045..048): diese
+zwei Punkte werden hiermit beantwortet, ohne die urspruengliche Aufzaehlung
+zu loeschen (dieser Auftrag darf nur anhaengen).*
+
+##### AK-335 — Kopfzahl folgt der Auswahl, bei Typ **und** Art, nie nur beim Typ
+
+**AK-335** *(beantwortet den zweiten Punkt der obigen Liste,
+"`headline_name`/`headline_label`"; erweitert AK-331 vom Why-Satz auf die
+Kopfzahl selbst.)* Gebaut (`goals._max_damage`, `78a0888`) ist: bei einer
+Typwahl (`type:*`) traegt die Kopfzahl der Karte den gewaehlten Namen vor dem
+bisherigen Namen (`"Fire attack rating 19"` statt `"Attack rating 19"`),
+weil der Zahlenwert selbst wechselt (`final_per_type[key]` statt
+`final_headline`). Bei einer Artwahl (`art:*`, z. B. `Skill attack`) aendert
+sich **nur der Zahlenwert** (`art_rate` aus AD-047 ist bereits in
+`final_headline` eingerechnet), die Beschriftung bleibt unveraendert
+`"Attack rating"`. Das ist eine Inkonsistenz und, wo eine Artwahl den Wert
+tatsaechlich veraendert (jede `art_rate != 1,0`), dieselbe Art Falsch-
+behauptung, die AK-37 fuer den Typ-Fall gerade erst vermieden hat: eine Zahl
+unter einer Beschriftung, die eine andere (naemlich die ungeschraenkte)
+Frage verspricht.
+
+**Entscheidung:** Die Kopfzeile behandelt Typ- und Artwahl gleich. Sobald
+`damage_type_box` auf etwas anderem als `All` steht **und** der Zahlenwert
+dadurch vom `All`-Wert abweicht (jede Typwahl; jede Artwahl mit
+`art_rate != 1,0`), traegt die Kopfzahl den gewaehlten Eintragstext vor dem
+Namen aus `headline_name`/`headline_label`
+(`"Fire attack rating 19"`, `"Bestial spell power 42"`). Wortkollision:
+enthaelt der Eintragstext selbst schon das Wort, das der Name ohnehin
+traegt (`"Skill attack"` + `"attack rating"`), faellt das doppelte Wort
+weg — `"Skill attack rating"`, nicht `"Skill attack attack rating"`; jede
+andere Kombination haengt unveraendert aneinander. Bleibt der Zahlenwert bei
+einer Artwahl unveraendert (kein Relikt traegt einen `art_rate` fuer die
+gewaehlte Art), bleibt auch die Beschriftung `"Attack rating"` — die
+Kopfzahl ist dann tatsaechlich dieselbe Zahl wie bei `All`, und sie soll
+nicht anders aussehen, als sie ist.
+
+**Pruefweg:** Wylder mit beiden Startwaffen-Relikten (OF-50-Nachweis),
+Auswahl `Skill attack`: die Kopfzahl der besten Karte traegt die
+Beschriftung `Skill attack rating`, nicht `Attack rating`, und ihr Wert
+unterscheidet sich vom Wert bei `All`.
+
+##### AK-336 — Relic Picker: Mindest-Offenlegung, solange kein eigener Regler
+
+**AK-336** *(beantwortet den dritten Punkt der obigen Liste, "Der Relic
+Picker", so weit, wie AK-37 es zwingend macht; die groessere Frage — eigener
+Regler oder nicht — bleibt offen, siehe die neue Frage an den App Designer
+unten.)* Code gelesen (kein Fensterlauf, NH-004):
+`advisorbar.asking_from` liest `damage_art` aus der Beraterleiste **fuer
+jede Anfrage, auch die des Pickers** (`relicpicker.py`, `CANONICAL_POOL_ORDER`-
+Anfrage). Der Picker zeigt die "Damage"-Zeile (`VALUE_CAPTIONS["max_damage"]`)
+und den Chip `BEST FOR DAMAGE` auf **jeder** Karte, unabhaengig davon, worauf
+`Sort by` steht (AK-42/AK-50-Muster: beide Richtungen stehen immer da). Der
+AK-331-Satz, der die Einschraenkung erklaert, steht dagegen nur in Zeile 4,
+wenn `Sort by` **zufaellig** auf `Maximise damage` steht
+(`_drawn_direction()`). Ausserdem bleibt `damage_type_box`s Wert stehen,
+wenn `goal_box` in der Leiste auf eine andere Richtung wechselt und die Box
+sich versteckt (AK-330) — ein Nutzer kann also eine Typ-/Artwahl getroffen
+haben, die Leiste zeigt sie nicht mehr an, und der Picker zeigt trotzdem eine
+davon beeinflusste "Damage"-Zahl, ohne dass irgendwo auf dem Bildschirm
+steht, welche Einschraenkung gerade gilt. Das ist keine hypothetische Kante:
+jeder Aufruf des Pickers nach einer Typ-/Artwahl in der Leiste ist
+betroffen, auch wenn `Sort by` auf `Name` oder der anderen Richtung steht.
+Das verletzt AK-37 (keine Zahl ohne erkennbaren Bezug) genauso, wie es die
+Kopfzahl-Beschriftung ohne AK-335 verletzen wuerde — nur silent statt falsch
+beschriftet.
+
+**Mindestanforderung, unabhaengig von der offenen Frage unten:** Solange
+`damage_art` etwas anderes als `""` ist,
+1. steht der AK-331-Satz in Zeile 4 unabhaengig davon, auf welche Richtung
+   `Sort by` gerade steht (heute nur bei `max_damage`), und
+2. traegt die "Damage"-Zeile/der Chip den gewaehlten Eintragstext
+   (`"Damage (Fire)"` oder eine gleichwertige Formulierung) statt des
+   unveraenderten Wortes `"Damage"` allein.
+
+**Pruefweg:** Auswahl `Fire` in der Beraterleiste, danach `goal_box` auf
+`Minimise damage taken` (die Box versteckt sich, der Wert bleibt), Picker
+geoeffnet mit `Sort by: Name`: Zeile 4 traegt trotzdem den AK-331-Satz mit
+`fire`, und die `Damage`-Zeile jeder Karte nennt sichtbar `Fire`.
+
+**Offene Frage an den App Designer:** AK-336 legt nur die Mindest-
+Offenlegung fest. Offen ist die groessere Umfangsfrage: bekommt der Picker
+ein eigenes, mit der Leiste gespiegeltes Bedienelement fuer `damage_art`
+(volle Paritaet mit dem bestehenden `goal_box`↔`Sort by`-Muster aus AK-256,
+ein zusaetzlicher Regler im Picker-Kopf), oder reicht die reine Offenlegung
+aus AK-336 (Beschriftung + Caveat immer sichtbar, die Auswahl selbst bleibt
+nur in der Leiste aenderbar, Picker schliessen/Leiste aendern/wieder
+oeffnen)? Beides erfuellt AK-37; es ist eine Bedienkomfort-Frage
+(zusaetzlicher Regler vs. Reise zurueck zur Leiste), keine Sicherheitsfrage,
+und braucht eine Folge-Spec sobald sie entschieden ist.
 
 ---
 

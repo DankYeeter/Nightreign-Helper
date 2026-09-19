@@ -427,6 +427,8 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-194 | *(Status 19.09.2026 18:57)* wie AK-05: mit sichtbarem Paar darf die Statuszeile 0 px betragen (gemessen 332 → 113 px an der Oeffnungsbreite 1608 px). | **geaendert** — Nutzer | `docs/tasks/T-321.md` d |
 | AK-332 | *(Status 19.09.2026 18:20, Director)* Nicht gebaut: ein Typ ohne Vorkommen auf der Bezugswaffe liefert eine Rangfolge ab 0,00 (Wylder unter Fire: 7120100 +19,80 zuerst) — nuetzlicher als Zustand 4.10. | **entfaellt** — Director | `docs/tasks/T-321.md` |
 | AK-334 | *(Status 19.09.2026 18:55, T-321c gemessen)* Paar 219 px Mindestbreite (643/424), Oeffnungsbreite 1608 px unveraendert, Beschriftung ungekuerzt ab 1676 px (vorher 1472). | **erfuellt** — developer | `docs/tasks/T-321.md` c |
+| AK-335 | Kopfzahl der Karte traegt bei Typ- **und** Artwahl den gewaehlten Namen (`"Fire attack rating 19"`, `"Skill attack rating"`), sobald sich der Zahlenwert dadurch von `All` unterscheidet; ersetzt/beantwortet den §3.7-Punkt "headline_name/headline_label" | UI_SPEC §3.7 Nachtrag T-322d | T-322d, 2026-09-19 | — |
+| AK-336 | Relic Picker: Mindest-Offenlegung, solange kein eigener Regler — AK-331-Satz in Zeile 4 unabhaengig von `Sort by`, "Damage"-Zeile/-Chip nennt die gewaehlte Art; beantwortet den §3.7-Punkt "Der Relic Picker" teilweise (Umfangsfrage offen) | UI_SPEC §3.7 Nachtrag T-322d | T-322d, 2026-09-19 | — |
 
 
 ## Widerspruechliche Faelle
