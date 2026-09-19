@@ -29,20 +29,6 @@ REQUIRED = [
     ("vendor/Paramdex/NOTICE", "where the param definitions come from"),
 ]
 
-# Recorded here as well as in THIRD_PARTY.md, so a licence changing under us on
-# an upgrade is caught rather than assumed. Read from package metadata, not
-# from memory.
-EXPECTED_LICENCE = {
-    "pyside6": "LGPL",
-    "shiboken6": "LGPL",
-    "pycryptodome": "BSD",
-    "zstandard": "BSD",
-    "pillow": "MIT-CMU",
-    "texture2ddecoder": "MIT",
-    "pyinstaller": "GPL",
-}
-
-
 def requirements() -> list[str]:
     text = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     names = []

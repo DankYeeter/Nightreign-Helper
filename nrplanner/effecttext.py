@@ -453,7 +453,7 @@ def counts_armaments(effect: dict) -> bool:
     return "wepTypeTriggerCount" in mods and "startGoodsId" not in mods
 
 
-def describe_full(effect: dict, fallback: bool = True) -> str:
+def describe_full(effect: dict) -> str:
     """The game's caption plus the exact numbers, whichever exist.
 
     The two rarely duplicate each other -- the caption says "Maximum HP
@@ -469,10 +469,7 @@ def describe_full(effect: dict, fallback: bool = True) -> str:
         if numbers.lower() in text.lower():
             return text
         return f"{text} — {numbers}"
-    result = text or numbers
-    if result:
-        return result
-    return NO_DESCRIPTION if fallback else ""
+    return text or numbers or NO_DESCRIPTION
 
 
 def owner(effect: dict) -> str:

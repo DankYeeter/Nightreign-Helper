@@ -37,10 +37,6 @@ from nrplanner.advisor import types, worker
 #: is the same device as `ANSWER_FUSE_MS` in `test_relic_picker_advisor.py`.
 HELD_FUSE_SECONDS = 30.0
 
-#: The pool order the picker asks under, whatever the player has chosen
-#: (Nachtrag IX-2). Named here so a helper does not have to repeat it.
-POOL_ORDER = types.PoolOrder(advisor_goals.CANONICAL_POOL_ORDER)
-
 #: The base state a stated pool stands on: one line per direction the picker
 #: draws, with the unit that direction's own registry entry hands out. The
 #: unit is taken from the registry and not written out, because it is what
@@ -194,7 +190,7 @@ def slots_that_offer_relics(planner, wanted: int = 1) -> list:
 
 def there_is_something_to_ask(planner) -> bool:
     """Whether this window has a save to rank against at all (4.8)."""
-    return advisorbar.asking_from(planner, POOL_ORDER) is not None
+    return advisorbar.asking_from(planner, advisor_goals.CANONICAL_POOL_ORDER) is not None
 
 
 def pool_for(slot, *, rank_by: str = advisor_goals.CANONICAL_POOL_ORDER,

@@ -11,7 +11,7 @@ from Crypto.Cipher import AES
 from nrdata import savefile
 from nrdata.binary import NotWhatItClaims
 
-from . import errortext
+from . import errortext, model
 
 
 # Relic id for a hypothetical relic the player does not own, used by the
@@ -178,8 +178,8 @@ class Inventory:
                 return entry
         return None
 
-    def available(self, colour: int, white_slot: int = 4) -> set[int]:
-        if colour == white_slot:
+    def available(self, colour: int) -> set[int]:
+        if colour == model.WHITE_SLOT:
             out: set[int] = set()
             for ids in self.effects_by_colour.values():
                 out |= ids

@@ -467,10 +467,6 @@ class AttackRating:
         return self.now.final_per_type
 
     @property
-    def bare_scaled_total(self) -> float:
-        return self.bare.scaled_total
-
-    @property
     def scaled_total(self) -> float:
         return self.now.scaled_total
 
