@@ -26,15 +26,16 @@ A-023/A-024/A-037). Download: `releases/latest`.
 
 ## HIER WEITERMACHEN
 
-**Laufend T-296 (Aufraeumen):** a README 769 → 94 Zeilen, Guide nach
-`docs/anleitung/guide.md` (`25aa6ad`, SEC-019 geschlossen) · b developer
-setzt Audit-Gruppen A (10 tote Symbole/Flags) und B (Pillow → QImage,
-PyInstaller nach dev) um · c Handover-Dateien archiviert.
-**Danach:** Ponytail-Debt 1 Eintrag (`search.py:169`, bleibt) ·
-`retrospective` Zyklus 27 (Nacharbeit: QA-Fensterlaeufe zweimal am
-Werkzeug gescheitert, T-290b) · `archivist` sync-out · PR auf `main`
-(Nutzer mergt) · Release 1.14.1 nur, wenn Gruppe B die EXE aendert und der
-Nutzer es will.
+**Zyklus 27 abgeschlossen 19.09. 10:00.** T-296: README 769 → 94 Zeilen,
+Guide `docs/anleitung/guide.md` (`25aa6ad`, SEC-019 geschlossen); Audit
+net -421 Zeilen (`561e2ff`, `45217ef`, `122ec39`), PyInstaller nach dev;
+**Pillow bleibt** (Qt-Skalierung: 820/839 Icons weichen ab). Ponytail-Debt:
+1 Eintrag (`search.py:169`, bleibt). T-297 Retrospektive, T-298 umgesetzt
+(NH-007 Hook-Maske `efa52fd`, NH-008 `no-window-dispatch.ps1` `b14fb4d`,
+NH-009 `scripts/drive_window.ps1` `6633fca`). Kein neues Release: der
+Anwendungscode seit 1.14.0 ist nur Bereinigung (Tag `v1.14.0` = `ffac292`).
+**Naechster Schritt:** sync-out, PR auf `main` (Nutzer mergt). Backlog
+leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 
 ## Stand gegen `GOAL.md` (19.09.2026, Artefakt 1.14.0)
 
