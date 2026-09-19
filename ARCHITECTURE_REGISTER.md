@@ -193,6 +193,10 @@ Aussage die Frage beruehrt, sie aber nicht entscheidet.
 | OF-51 | Soll unter einer **Schulwahl** (z. B. Bestial) der allgemeine Sorcery-/Incantation-Buff mitzaehlen? T-313a entscheidet vorlaeufig **nein**, weil die Enthaltungsbeziehung nur aus den ungeklaerten Flags `magParamChange`/`miracleParamChange` abzuleiten waere (R-009). | **offen** — App Designer, entscheidbar erst nach der Flag-Messung | `ARCHITECTURE.md` Themenbereich M, "Bewusst nicht getan (A25)" |
 | OF-52 | Bewegt "Improved Sorceries" die **Spell-Power-Anzeige** eines Stabs im Spiel? "Ja" macht aus AD-048 Option A die Option B und gibt Recluse die Auswahl zurueck; "nein" bestaetigt den Bestand. Eine Ablesung. | **offen** — App Designer (Messung) | `ARCHITECTURE.md` AD-048; `docs/research/R-009.md` "Billigste Messungen" |
 | OF-53 | 24 Eintraege in einem Auswahlfeld — Gruppierung, Reihenfolge, Voreinstellung, und was das Feld zeigt, wenn die Bezugswaffe ein Katalysator ist (jede Wahl wirkungslos) oder der gewaehlte Typ auf ihr 0,00 betraegt (Wylder unter `Fire` — gueltige Rangfolge, kein Fehlerfall). | **offen** — `ui-ux-designer`, T-313b | `ARCHITECTURE.md` Themenbereich M, AD-045 Punkt 5/6 |
+| OF-50 | *(Status 19.09.2026 16:25, Nutzer via Fragebogen)* A25-Nachweis auf **Revenant unter `Magic`** umgeschrieben (GOAL.md A25 Nachtrag). | **entschieden** — Nutzer | `docs/tasks/T-314.md` |
+| OF-51 | *(Status 19.09.2026 16:25, Nutzer via Fragebogen)* **Ja**: unter einer Schulwahl zaehlt der allgemeine Sorcery-/Incantation-Buff mit, multiplikativ; AD-046 Vorbehalt entfaellt. | **entschieden** — Nutzer | `docs/tasks/T-314.md` |
+| OF-52 | *(Status 19.09.2026 16:25, Nutzer via Fragebogen)* Keine Ablesung; **Annahme nein**, AD-048 bleibt; kippbar mit einer spaeteren Ablesung. | **entschieden** — Nutzer | `docs/tasks/T-314.md` |
+| OF-53 | *(Status 19.09.2026 16:25, Nutzer via Fragebogen)* Beantwortet durch T-313b (AK-327..334); Auswahl faellt bei Neustart auf `All` zurueck (Nutzer 19.09.). | **entschieden** — Nutzer | `docs/tasks/T-314.md` |
 
 Die Tabelle hat **32** Zeilen — eine je OF-Nummer, die in `ARCHITECTURE.md`
 vorkommt. Jede Zeile zaehlt in genau eine Klasse.
