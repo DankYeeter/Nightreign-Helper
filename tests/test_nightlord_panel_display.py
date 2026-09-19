@@ -666,3 +666,49 @@ def test_a_sub_boss_with_no_drops_says_so_rather_than_showing_nothing(tab):
     assert "no loot recorded in the files" in text
     assert "Percentages are the game" not in text, (
         "the note about percentages stands over a block with none in it")
+
+
+# -- AD-040.3/.5: the night bosses of day 1 and day 2 ----------------------
+
+
+def test_both_night_groups_stand_under_every_nightlord(tab):
+    """Stage two, seen from the tab: `days` is what fills the two groups.
+
+    The groups were built in T-306 and stood empty, because the night
+    lottery (`LotResultPlayAreaParam`) had not been read yet -- an expedition
+    that shows only field bosses is what this tab looked like then, and it is
+    what a lost join would make it look like again. Every Nightlord draws on
+    both of its nights, so every one of the ten has to show both groups.
+    """
+    needs_cards(tab)
+    for boss in tab.bosses:
+        tab.show_detail(boss)
+        groups = [tab.tree.topLevelItem(index).text(0)
+                  for index in range(tab.tree.topLevelItemCount())]
+        assert groups == ["NIGHT BOSSES  ·  DAY 1",
+                          "NIGHT BOSSES  ·  DAY 2",
+                          "FIELD BOSSES"], (
+            f"{boss['name']} opens the tree with the groups {groups}")
+
+
+def test_a_night_card_says_which_night_it_is_drawn_for(tab):
+    """AK-322.1, now that there are cards to say it of.
+
+    Read off the panel and against the card's own `days`, both ways round: a
+    field card must not pick up a night line either.
+
+    No card of this dataset is drawn on both nights (measured T-308: 18 cards
+    on day 1, 17 on day 2, none on both), so the `also Day 2` line of
+    `card_role` has no case here and is left to `test_nightlord_selection`,
+    where the tree row carries it.
+    """
+    needs_cards(tab)
+    for key, entry in sorted(tab.subbosses.items()):
+        sub_panel(tab, subboss(tab, key))
+        role = tab.detail_expedition.text()
+        days = entry["days"]
+        expected = ("Field boss" if not days
+                    else "Night boss  ·  Day 1 & 2" if days == [1, 2]
+                    else f"Night boss  ·  Day {days[0]}")
+        assert role == expected, (
+            f"card {key} is drawn on {days} and the panel calls it {role!r}")

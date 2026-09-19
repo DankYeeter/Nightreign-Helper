@@ -299,6 +299,16 @@ Dateien, **20 953 085 B**, Ort unveraendert. Die Byte-Zahl in `CLAUDE.md`
 steht auf diesem Stand; die uebrige Zeile (Herkunft T-303) gehoert weiter dem
 `director`.
 
+*Ersetzt am 19.09.2026 (T-308, developer):* `EXTRACT_VERSION` **14** —
+`subbosses` bekommt die Nachtbosse Tag 1/2 aus `LotResultPlayAreaParam`
+(35 Karten dazu, 64 statt 29; `days` war auf 13 in jedem Eintrag leer).
+Wieder nur `nightreign_data.json` neu geschrieben (8 684 784 B, +59 348 B =
++0,69 %, `scripts/build_snapshot.py` an der echten Installation, 34,2 s —
+gegen 34,5 s in T-305, der neue Durchgang ist in der Messung nicht sichtbar);
+die 840 Symboldateien blieben. Stand der Vorlage: 841 Dateien,
+**21 012 433 B**, Ort unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand
+gezogen (Zahlen, Herkunft T-308, Grenze "ueber 14").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.

@@ -558,7 +558,8 @@ def _attach_effects(entries, archives, by_chr: dict[int, list],
 
 
 def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
-                  sp_rows: dict[int, param.ParamRow]) -> dict[int, dict]:
+                  sp_rows: dict[int, param.ParamRow],
+                  *, arena_rule: bool = False) -> dict[int, dict]:
     """place id -> the same entry `derive` gives per defeat flag.
 
     The second entry into a map, and the one the place lotteries use: the
@@ -570,12 +571,14 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
     characters the strictly largest of them is the boss (AD-042). Only a tie
     names nobody (`ambiguous`), because the files do not break it.
 
-    That rule ends here. The night cards drawn from `LotResultPlayAreaParam`
-    must not be resolved by it: T-299 checked these 29 place cards line by
-    line against the FMG names, no such check exists for the night cards, and
-    two of them are counted counterexamples -- `m48_90` would name c4090
-    (556 HP, "no clear boss") and `m49_20` would take c4380 (162 HP) over
-    Stoneskin Lords (628 HP). For those, AD-040 point 4 stands.
+    That rule ends here, and `arena_rule` is where it ends. The night cards
+    drawn from `LotResultPlayAreaParam` must not be resolved by it: T-299
+    checked these 29 place cards line by line against the FMG names, no such
+    check exists for the night cards, and two of them are counted
+    counterexamples -- `m48_90` would name c4090 (556 HP, "no clear boss")
+    and `m49_20` would take c4380 (162 HP) over Stoneskin Lords (628 HP). So
+    a night card is read with `arena_rule=True`: the HP bar back on, and no
+    choice among several candidates, which is AD-040 point 4 unchanged.
 
     `archives` are the ones the caller already has open: opening them again
     costs 9,3 s of the first run and buys nothing (`docs/perf/baselines.md`
@@ -622,7 +625,9 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             rows_for[chr_id] = ([by_id[v] for v in exact]
                                 or by_chr.get(chr_id, []))
 
-        found, group = _candidates(rows_for, placements, min_hp=0)
+        found, group = _candidates(
+            rows_for, placements,
+            min_hp=INFERRED_MIN_HP if arena_rule else 0)
         entry: dict[str, Any] = {
             "map": map_name,
             "chars": [chr_id for chr_id, _profile_of in found],
@@ -638,10 +643,11 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
                          group_boss=True, placements=placements.get(chr_id))
         elif found:
             best = max(found, key=lambda pair: pair[1]["hp"] or 0)
-            tied = [pair for pair in found
-                    if (pair[1]["hp"] or 0) == (best[1]["hp"] or 0)]
+            tied = found if arena_rule else [
+                pair for pair in found
+                if (pair[1]["hp"] or 0) == (best[1]["hp"] or 0)]
             if len(tied) == 1:
-                chr_id, profile = best
+                chr_id, profile = tied[0]
                 entry.update(primary=chr_id, confidence="single",
                              profile=profile)
             else:

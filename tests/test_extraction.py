@@ -353,14 +353,14 @@ class _MapsOnly:
         return b""
 
 
-def _place_entry(monkeypatch, rows) -> dict:
+def _place_entry(monkeypatch, rows, **rule) -> dict:
     """What `derive_places` makes of one map holding exactly these rows."""
     parts = [(f"c{row.id // 10000}_0000", struct.pack("<i", row.id))
              for row in rows]
     monkeypatch.setattr(bossdata, "_parts", lambda _blob: parts)
     places = bossdata.derive_places(
         {"data0": _MapsOnly()}, types.SimpleNamespace(rows=rows),
-        {4671: "m46_71_00_00"}, {})
+        {4671: "m46_71_00_00"}, {}, **rule)
     return places[4671]
 
 
@@ -389,17 +389,46 @@ def test_a_place_whose_two_largest_tie_names_nobody(monkeypatch):
     assert sorted(entry["chars"]) == [4480, 4481]
 
 
+def test_a_night_card_is_read_under_the_arena_bars_instead(monkeypatch):
+    """AD-042 point 4: the place rule stops at the place cards.
+
+    T-299 checked those 29 against the game's own names one by one; no such
+    check exists for the 35 cards the night lottery draws, and two of them
+    are counted counterexamples, so a night card is read the way an arena is:
+    the HP bar back on, and no choice made among several over it. Both halves
+    are here, because either one alone would put a wrong name on a card --
+    the same input that makes a *place* card single leaves a night card
+    unresolved.
+    """
+    over = _place_entry(monkeypatch, [_npc_row(44800010, 2500, 0.2),
+                                      _npc_row(44810010, 5753, 0.2)],
+                        arena_rule=True)
+    assert over["confidence"] == "ambiguous"
+    assert over["primary"] is None
+
+    under = _place_entry(monkeypatch, [_npc_row(44800010, 1939, 0.2),
+                                       _npc_row(44810010, 119, 0.2)],
+                         arena_rule=True)
+    assert under["confidence"] == "unresolved"
+    assert under["primary"] is None
+
+
 @pytest.mark.slow
 def test_every_place_card_names_the_character_standing_on_it(
         extracted_game_data):
-    """AD-042 at the dataset: 29 of 29 cards settle on one character.
+    """AD-042 at the dataset: 29 of 29 place cards settle on one character.
+
+    The place cards only -- the night cards beside them in the block are read
+    under the arena's bars and are allowed to settle on nobody (AD-042.4).
 
     The two cards the HP bar mis-sorted are named: `4659` was ambiguous
     between c4501 (5753 HP) and c4021 (2279 HP), and `4671` fell to the group
     rule and its ten blossoms (c4481, 119 HP) because Miranda stayed under
     the bar.
     """
-    places = extracted_game_data["subbosses"]
+    places = {place: entry
+              for place, entry in extracted_game_data["subbosses"].items()
+              if not entry["days"]}
 
     unsettled = {place: entry["weakness"]["confidence"]
                  for place, entry in places.items()
@@ -415,3 +444,58 @@ def test_every_place_card_names_the_character_standing_on_it(
     # stands on it, and inventing one is the failure QA-286 was made of.
     assert sorted(entry["chr"] for entry in places.values()
                   if not entry["name"]) == [3252, 4021]
+
+
+@pytest.mark.slow
+def test_the_night_lottery_draws_a_boss_for_both_nights_of_every_nightlord(
+        extracted_game_data):
+    """Stage two: `LotResultPlayAreaParam` as the second entry into the block.
+
+    Every expedition has a first and a second night, so a Nightlord that
+    draws on only one of them means the join over `patternId` lost rows --
+    not that the game has no boss there. The share is held to its own pool
+    for the same reason the place cards are: a card drawn by more patterns
+    than the Nightlord has is a join that counted something else.
+    """
+    night = {place: entry
+             for place, entry in extracted_game_data["subbosses"].items()
+             if entry["days"]}
+    assert night, "the night lottery put no card in the block at all"
+
+    for place, entry in night.items():
+        assert set(entry["days"]) <= {1, 2}, (
+            f"card {place} is drawn on nights {entry['days']}")
+        assert entry["categories"] == [], (
+            f"card {place} is drawn by both lotteries, which the card id "
+            f"spaces of T-299 3b say cannot happen")
+        for drawn in entry["nightlords"]:
+            assert 0 < drawn["patterns"] <= drawn["of"]
+
+    for boss in {drawn["boss"] for entry in night.values()
+                 for drawn in entry["nightlords"]}:
+        for day in (1, 2):
+            assert any(day in entry["days"]
+                       and any(drawn["boss"] == boss
+                               for drawn in entry["nightlords"])
+                       for entry in night.values()), (
+                f"Nightlord {boss} draws no night boss on night {day}")
+
+
+@pytest.mark.slow
+def test_the_two_night_cards_the_place_rule_would_misname_stay_unnamed(
+        extracted_game_data):
+    """AD-042 point 4 at the dataset, on the two counted counterexamples.
+
+    Under the place rule `m48_90` would name c4090 (556 HP) although T-299
+    read no clear boss on it, and `m49_20` would take c4380 (162 HP) over the
+    Stoneskin Lords (628), whose tuning falls a float's width short of the
+    bar. Under the arena's bars neither card names anybody, which is the
+    answer A7 asks for.
+    """
+    places = extracted_game_data["subbosses"]
+
+    for card in ("4890", "4920"):
+        entry = places[card]
+        assert entry["days"], f"card {card} is not a night card at all"
+        assert entry["chr"] is None and entry["name"] == "", (
+            f"night card {card} names {entry['name']!r} (c{entry['chr']})")

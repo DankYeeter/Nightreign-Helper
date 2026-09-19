@@ -86,7 +86,12 @@ MAX_LEVEL = 15
 #      pass corrects deep_of_night.kinds: `smallBaseId` is a place and not a
 #      character (QA-286), so `chrs` gives way to `places`. A cache left on
 #      12 would keep the twenty-one character names that are places for good.
-EXTRACT_VERSION = 13
+#  14  subbosses gains the night bosses of day 1 and day 2 -- the second
+#      entry into the same block, over LotResultPlayAreaParam (T-299 3b), so
+#      `days` is filled where it was empty on 13 and 35 more cards stand in
+#      the block. A cache left on 13 would show the tab's two night groups
+#      empty for good.
+EXTRACT_VERSION = 14
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -417,6 +422,11 @@ def _bosses(members: dict, defs: dict, menu_text: dict[int, str],
 # sixteen times, so the roster is the 29 the world map places.
 FIELD_BOSS_CATEGORY = 120
 
+# The two card fields of one `LotResultPlayAreaParam` row, day 1 then day 2.
+# The two `extraBoss` fields beside them are left alone: nothing establishes
+# what they draw for, and a card named from them would be a guess (A7).
+NIGHT_BOSS_FIELDS = ("bossId1", "bossId2")
+
 
 def _map_of_place(place: int) -> str:
     """A place id is a map: 4651 is m46_51_00_00, for all 116 (T-299 2a)."""
@@ -425,7 +435,14 @@ def _map_of_place(place: int) -> str:
 
 def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
                archives, sp_rows: dict[int, param.ParamRow]) -> dict[str, Any]:
-    """Every field boss a run can put on the map, keyed by its place.
+    """Every sub-boss a run can put on the map, keyed by its place.
+
+    Two lotteries fill one block: the place lottery draws the field bosses
+    (`ChaosMatchingMutationEnemyTableParam` plus `LotResultSmallBaseAndSpot`),
+    and the night lottery draws the bosses of day 1 and day 2
+    (`LotResultPlayAreaParam`, T-299 3b). They are joined on `patternId` and
+    their card ids do not overlap, so `days` alone says which lottery a card
+    came from.
 
     The place is the unit, not the character: the same character carries
     different figures from one place to the next (Draconic Tree Sentinel has
@@ -477,10 +494,39 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
         drawn.setdefault(place, {}).setdefault(boss, set()).add(
             row.values["patternId"])
 
+    # The night bosses, from their own lottery: one row per pattern, the
+    # card of day 1 in `bossId1` and the card of day 2 in `bossId2`, in the
+    # same card-id space as `smallBaseId` (T-299 3b). The place lottery
+    # never draws these cards -- its own boss spots do not appear in it at
+    # all (T-299 3c) -- so this is the only pass that can name them.
+    play_table = param.read(members["LotResultPlayAreaParam"],
+                            defs.get("LotResultPlayAreaParam"))
+    days: dict[int, set[int]] = {}
+    for row in play_table.rows:
+        boss = pattern_boss.get(row.values["patternId"])
+        for day, field in enumerate(NIGHT_BOSS_FIELDS, start=1):
+            place = row.values[field]
+            if not place:
+                continue
+            days.setdefault(place, set()).add(day)
+            if boss is not None:
+                drawn.setdefault(place, {}).setdefault(boss, set()).add(
+                    row.values["patternId"])
+
     npc = param.read(members["NpcParam"], defs.get("NpcParam"))
     weakness = bossdata.derive_places(
         archives, npc,
         {place: _map_of_place(place) for place in categories}, sp_rows)
+    # AD-042 point 4: the place rule ends at the place cards. T-299 checked
+    # those 29 line by line against the game's own names; for the night
+    # cards no such check exists, and two of them are counted counter-
+    # examples, so they are read under the arena's bars and stay unnamed
+    # where those do not settle them.
+    weakness.update(bossdata.derive_places(
+        archives, npc,
+        {place: _map_of_place(place) for place in days
+         if place not in categories},
+        sp_rows, arena_rule=True))
 
     # Names are the game's own (NpcName). Two routes to one: the structured
     # id (90 <4-digit character> <3-digit variant>) covers characters whose
@@ -498,15 +544,13 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
             chr_names.setdefault(row.id // 10000, label)
 
     out: dict[str, Any] = {}
-    for place in sorted(categories):
+    for place in sorted(set(categories) | set(days)):
         entry = weakness[place]
         chr_id = entry["primary"]
         out[str(place)] = {
             "map": entry["map"],
-            "categories": sorted(categories[place]),
-            # The night bosses of day 1 and day 2 are a second entry into
-            # this same block, and not this pass's to fill.
-            "days": [],
+            "categories": sorted(categories.get(place, ())),
+            "days": sorted(days.get(place, ())),
             "nightlords": [
                 {"boss": boss, "patterns": len(patterns), "of": pool[boss]}
                 for boss, patterns in sorted(drawn.get(place, {}).items())

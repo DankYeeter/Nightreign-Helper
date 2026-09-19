@@ -60,8 +60,8 @@ class Mutation:
 MUTATIONS: dict[str, Mutation] = {
     "place-route-back-under-the-hp-bar": Mutation(
         path="nrdata/bossdata.py",
-        old="        found, group = _candidates(rows_for, placements, min_hp=0)\n",
-        new="        found, group = _candidates(rows_for, placements)\n",
+        old="            min_hp=INFERRED_MIN_HP if arena_rule else 0)\n",
+        new="            min_hp=INFERRED_MIN_HP)\n",
         survival_means=(
             "Nothing holds the place cards to AD-042. The HP bar belongs to "
             "the Nightlord arenas, and back on the place route it cuts 16 of "
@@ -80,6 +80,18 @@ MUTATIONS: dict[str, Mutation] = {
             "Decaying Rancor Dragon (5753) and `4671` names a blossom (119) "
             "instead of Miranda (1939). A green suite would mean the name a "
             "card carries is unguarded -- the failure QA-286 is made of."
+        ),
+    ),
+    "night-lottery-forgets-day-two": Mutation(
+        path="nrdata/extract.py",
+        old='NIGHT_BOSS_FIELDS = ("bossId1", "bossId2")\n',
+        new='NIGHT_BOSS_FIELDS = ("bossId1",)\n',
+        survival_means=(
+            "Nothing holds the night lottery to both of its days. With "
+            "`bossId2` dropped, every card only day 2 draws leaves the "
+            "block and the tab's DAY 2 group is empty, while the cards both "
+            "days draw quietly claim to be day 1 only. A green suite would "
+            "mean half of stage two can go missing unnoticed."
         ),
     ),
 }
