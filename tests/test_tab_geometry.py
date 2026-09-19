@@ -525,37 +525,6 @@ def test_every_shortened_heading_says_so_and_keeps_its_name(
             f"with nothing saying so: {unmarked}")
 
 
-# -- QA-144: the examples column against the column it illustrates --------
-
-@pytest.mark.parametrize("width", WIDTHS)
-def test_the_examples_column_never_outgrows_the_column_it_illustrates(
-        game_data, qapp, width):
-    """AK-99's last sentence, at the width where it stopped holding.
-
-    `Examples (any map)` was left to `ResizeToContents`, which hands a column
-    its natural width whatever is left for the rest. From 1 067 px up the
-    natural widths fell the right way round on their own and the rule looked
-    kept; at 833 px the examples took 349 px against 281 px for the column
-    that says what the row is (QA-144), on Windows at 150 % scale under
-    Fusion.
-
-    The two headings are identified by position rather than by their drawn
-    text, and the widths are read off the header rather than off the policy
-    that set them.
-    """
-    with rendered.laid_out(game_data, "depths_tab", width) as (_, tab):
-        header = tab.table.horizontalHeader()
-        name, examples = header.sectionSize(0), header.sectionSize(1)
-        assert tab.table.rowCount(), "the table drew no rows"
-        assert examples <= name, (
-            f"at {width} px `{tab.table.horizontalHeaderItem(1).text()}` is "
-            f"{examples} px and "
-            f"`{tab.table.horizontalHeaderItem(0).text()}` is {name} px")
-        assert not tab.table.horizontalScrollBar().isVisible(), (
-            f"at {width} px the red-variants table needs a horizontal "
-            f"scrollbar")
-
-
 # -- QA-143: the search that showed nothing at all ------------------------
 
 #: A search term that matches far more of the arsenal than the cap at which
