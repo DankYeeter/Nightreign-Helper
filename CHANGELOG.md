@@ -4,6 +4,27 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.14.0] - 2026-09-19
+
+### Added
+- Attribute effects and curses on a relic (Vigor, Mind, Endurance, Strength,
+  Dexterity, Intelligence, Faith, Arcane) now change the attack figure
+  through the Nightfarer's starting armament, in both directions; the "Why"
+  line names the amount.
+- The Effect filters window now groups effects by family under a shared
+  header with its own **Avoid**; members of an avoided family get a third
+  checkbox, **Allow**, so one member can stay in suggestions without pulling
+  in the rest of the family.
+
+### Fixed
+- The counter label in the Effect filters window no longer wraps to a
+  second line and inflates the window.
+- The status line no longer counts a slot you are already holding a build
+  in as empty.
+- The attack-rating amount on an attribute effect is now attached to the
+  attribute that actually scales the reference weapon, not always the
+  first attribute listed.
+
 ## [1.13.2] - 2026-09-17
 
 ### Added

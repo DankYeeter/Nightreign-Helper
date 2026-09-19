@@ -585,3 +585,34 @@ diesmal technisch pruefbar, aber in diesem `notes`-Lauf nicht geprueft.
 Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe von 1.11.0 gilt dieselbe
 Liste wie bei 1.10.0 (A-020/A-023/A-031 aus `AUFLAGEN.md`) plus ein
 `clean-room`-Update-Test 1.10.1 → 1.11.0, bisher ungeprueft.
+
+---
+
+## 1.14.0 — 2026-09-19, T-295d, Modus `notes`
+
+Stand `44a524e`. Artefakt (T-295b) `dist/NightreignHelper.exe`,
+59.141.726 Byte, SHA-256
+`A45BDF1151C28D2ED0F43B8797F4E27F4C8F7BD114A30BF186A954C3692CEA9C`,
+Code-Stand `099459b` (AK-317-Nachtrag "Allow immer klickbar"). `AUFLAGEN.md`
+gelesen (Stand 19.09., letzter Auflagenlauf T-283c/1.13.1 GELB, kein
+Nachtrag mit ROT seither): keine Auflage sperrt diesen `notes`-Lauf. Kein
+Release, kein Push, keine Weitergabe in diesem Lauf.
+
+### Migration
+
+Zwei neue `QSettings`-Schluessel, `advisor/allowed` und
+`advisor/avoided_families` (AD-039.4), neben den zwei bestehenden aus
+1.11.0 (`advisor/excluded`, `advisor/required`). Kein `__schema`-Schritt,
+kein neuer Ablageort: der Docstring von `nrplanner/effectfilters.py`
+(AD-039) haelt fest, dass ein Speicher, der einen Schluessel nie hielt, ihn
+leer zurueckgibt — genau das, was ein aelterer Programmzustand meint. Der
+Datenstand aus 1.13.x (Builds, Favourite/Avoid, die beiden bestehenden
+Schluessel) laeuft unter 1.14.0 unveraendert weiter; kein Update-Skript
+noetig. Nicht an einem echten Update-Lauf geprueft (kein `clean-room` in
+diesem Auftrag) — Annahme am Quelltext, wie bei den fruehreren
+`notes`-Laeufen dieses Projekts ueblich.
+
+### Ergebnis
+
+Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe gilt dieselbe Liste wie
+im 1.13.2-Abschnitt oben (A-008/A-020/A-023/A-030/A-031/A-033/A-035).
