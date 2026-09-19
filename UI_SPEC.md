@@ -5401,6 +5401,175 @@ Zeilen liest, findet `#7fae72` und nicht die Farbe der extrahierten Werte.
 wird, ist der Rechenteil von QA-129 und gehoert dem `developer` — diese
 Vorgabe regelt nur, dass man einer Zahl ansieht, woher sie kommt.)*
 
+#### Nachtrag T-302 (ui-ux-designer, 2026-09-19) — AK-319 bis AK-324: die Unterboss-Liste im Nightlords-Tab (AD-041, A24, OF-46)
+
+*Grundlage: `ARCHITECTURE.md` AD-040/AD-041 (Themenbereich L, T-300,
+`architect`), Nutzerentscheidung OF-46 (19.09. 13:25): gezeigt werden
+ausschliesslich Feldbosse (29 Karten) und Nachtbosse Tag 1/2 (35 Karten); die
+vier Karten der Kategorie 160 und die 16 Karten `m20_00..m21_50` fallen weg,
+das Wort "Evergaol" kommt nirgends vor. `bosstab.py` erhaelt einen
+`QTreeWidget` unter dem Kachelgitter (AD-041 Punkt 1), gefiltert auf den
+gewaehlten Nachtfuersten (Punkt 2), mit `key` statt `name` als
+Auswahlschluessel (Punkt 4). Kein Fensterlauf; Bestandsaufnahme aus
+`bosstab.py`.*
+
+**AK-319** *(Baumstruktur, Gruppen, Reihenfolge, Filter, Sortierung)*
+
+1. Drei feste Gruppen als oberste Knoten, in dieser Reihenfolge (wortgleich
+   mit AD-041/T-302): `NIGHT BOSSES  ·  DAY 1`, `NIGHT BOSSES  ·  DAY 2`,
+   `FIELD BOSSES` — ALL-CAPS, derselbe `_section`-Farbton (`ACCENT`, 10px,
+   letter-spacing 1px) wie die Detailpanel-Ueberschriften, damit Baum und
+   Panel als eine Sprache lesen.
+2. Eine Gruppe ohne Eintrag entfaellt ersatzlos (kein leerer Knoten) —
+   dieselbe Regel, die `DepthsTab.refresh` fuer Zeilen ohne Treffer schon
+   anwendet.
+3. Zwei Spalten: Spalte 1 "Boss" (Name oder Platzhalter, siehe AK-322),
+   Spalte 2 "Share of patterns" (rechtsbuendig, `{value:g}%`,
+   `value = 100 * patterns / of` fuer den Eintrag des gewaehlten
+   Nachtfuersten in `nightlords[]`). Spaltenkopf 2 traegt einen Tooltip,
+   inhaltsgleich mit der bestehenden `_gating`-Ehrlichkeitsformel aus
+   `eventstab.py:219-224`: `"How much of the selected Nightlord's own
+   map-pattern pool includes this card. The pool is drawn with weights, so
+   this is not the chance of seeing it on a given run."` — kein neuer
+   Gedanke, nur auf den Baum uebertragen.
+4. Innerhalb einer Gruppe: alphabetisch nach Name; Eintraege ohne Namen
+   (`ambiguous`/`unresolved`, AK-322) stehen danach, sortiert nach
+   Karten-Id (`map`), damit sie nicht verstreut zwischen benannten
+   Eintraegen auftauchen.
+5. Eine Karte mit `days == [1, 2]` steht **in beiden** Tagesgruppen (keine
+   Zusammenfassung zu einer vierten Gruppe — die gibt es nicht, AD-041).
+   Jede der beiden Zeilen traegt einen Zusatz, damit die Wiederholung nicht
+   wie ein Fehler wirkt: unter `DAY 1` `"{name}  ·  also Day 2"`, unter
+   `DAY 2` `"{name}  ·  also Day 1"`. Ohne diesen Zusatz waere die Dopplung
+   nicht von QA-150 (zwei Karten, eine Auswahl) zu unterscheiden.
+6. Alle Gruppen stehen aufgeklappt (kein Einklappen per Voreinstellung) —
+   bei bis zu 64 Zeilen bleibt die bestehende `QScrollArea` des ganzen Tabs
+   die einzige Bildlaufleiste (AD-041 Punkt 1: derselbe Scrollbereich wie
+   das Kachelgitter); der Baum bekommt **keine eigene**.
+7. Tastatur: native `QTreeWidget`-Bedienung (Pfeiltasten zwischen
+   Gruppen/Zeilen, Enter/Leertaste waehlt eine Zeile). Tab-Reihenfolge:
+   Kachelgitter (wie heute) → Baum → Detailpanel (nur lesend, nicht
+   fokussierbar ausser zum Scrollen).
+
+**AK-320** *(Leerzustand ohne Nachtfuerst-Auswahl)*
+
+Vor der ersten Kachel-Auswahl zeigt der Baum eine einzelne, nicht waehlbare
+Zeile statt leer zu bleiben: `"Select a Nightlord above to see which field
+and night bosses can appear for it."` — `MUTED`, dieselbe Formel wie das
+Detailpanel ("Select a Nightlord"), damit Panel und Baum dieselbe Frage auf
+dieselbe Art unbeantwortet lassen.
+
+**AK-321** *(Auswahlkonsistenz und Bildflaeche)*
+
+1. `_mark_selected` markiert nach AD-041 Punkt 4 ueber `key` statt `name`;
+   die Baum-Zeile des gewaehlten Eintrags bekommt denselben Auswahl-Farbton
+   wie die Kacheln (`SELECTED_FILL`/`rgba(200, 164, 92, 60)`, derselbe
+   Grundsatz wie bei den Red-variants-Zeilen: "die zwei Tabs sagen 'dieses
+   hier' auf dieselbe Art"), **nicht** Qts Standard-Blau.
+2. Ein Kachelklick loescht eine zuvor gewaehlte Baumzeile (und umgekehrt) —
+   zu jedem Zeitpunkt hoechstens eine Markierung im ganzen Tab, nie eine
+   Kachel und eine Baumzeile gleichzeitig.
+3. `detail_art` reserviert keine Hoehe, wenn ein Unterboss-Eintrag gezeigt
+   wird (Feldboss, Nachtboss, `ambiguous` oder `unresolved`) — keiner
+   traegt Bildmaterial (AD-041 Kontext: "keine large_icon"). Eine leere
+   180-px-Flaeche ueber jedem Panel waere eine stumme Luecke ohne Zweck; bei
+   Rueckkehr zu einem Nachtfuersten bekommt die Flaeche ihre gewohnte
+   Mindesthoehe zurueck.
+
+**AK-322** *(Rollenzeile, `ambiguous`/`unresolved` nach A7)*
+
+1. `detail_expedition` (die Zeile unter dem Namen) traegt bei einem
+   Unterboss die Rolle statt der Everdark-Angabe, wortgleich:
+   `"Field boss"` · `"Night boss  ·  Day 1"` · `"Night boss  ·  Day 2"` ·
+   `"Night boss  ·  Day 1 & 2"` (letzteres unabhaengig davon, ueber welche
+   der zwei Baum-Gruppen der Eintrag geoeffnet wurde — die Zeile beschreibt
+   die Karte, nicht den Weg dorthin).
+2. `detail_text` (die FMG-Beschreibung) bleibt **leer** — Unterboss-Eintraege
+   fuehren kein Beschreibungsfeld (AD-040-Schema), und ein erfundener Text
+   waere ein A7-Verstoss. Kein Platzhaltersatz.
+3. `detail_name` zeigt bei `confidence in {"single", "group"}` den Namen aus
+   den Dateien; bei `"ambiguous"` und `"unresolved"` denselben Platzhalter
+   wie die Baumzeile: `"Multiple possible bosses"` bzw. `"Not identified"`.
+4. Ist `weakness`/`profile` nicht gesetzt (immer der Fall bei
+   `ambiguous`/`unresolved`), zeigt das Panel eine eigene Ueberschrift
+   `IDENTITY` statt der bestehenden Nightlord-Rueckfallzeile unter
+   `WEAKNESSES` — die beiden Faelle sind nicht dasselbe: der bestehende
+   Nightlord-Fall sagt "wir kennen ihn, koennen die Schwaeche nicht
+   ableiten", der neue sagt "wir wissen nicht einmal, wer das ist". Ein
+   gemeinsamer Titel wuerde den staerkeren Fall verharmlosen.
+   - `ambiguous`, `BAD`-Farbe: `"Multiple bosses could be on this card — the
+     files don't say which. Candidates by HP: {liste}."`, `{liste}` = die
+     `hp`-Werte aus `candidates`, absteigend sortiert, `{wert:g}`, durch
+     `", "` getrennt. Keine Namen — die Datei liefert keine (AD-040 Punkt
+     4.3).
+   - `unresolved`, `BAD`-Farbe, wortgleich mit der bestehenden Formel:
+     `"Not derivable for this fight."`
+5. In beiden Faellen (`ambiguous`/`unresolved`) enden die Panel-Inhalte
+   dort — kein HP-Block (AK-323), kein Beute-Abschnitt (AK-324), keine der
+   uebrigen Sektionen. Das ist keine neue Regel: der bestehende fruehe
+   `return` nach der Weakness-Faellung tut das schon; er bekommt hier nur
+   zwei unterscheidbare Saetze statt eines.
+
+**AK-323** *(HP-Zeile)*
+
+Bei `confidence in {"single", "group"}`: eine eigene Sektion `VITALS` direkt
+unterhalb der Rollenzeile/Beschreibung und vor `WEAKNESS SPECIAL
+INTERACTION`, ein einzelner `_row("HP", f"{profile['hp']:g}")` in der
+Standardfarbe. Kein Vergleich zu anderen Bossen (anders als
+`_stance_rank`) — `profile["hp"]` ist eine einzelne Zahl ohne Bezugsgroesse,
+die keine erfindet.
+
+**AK-324** *(Beute-Abschnitt)*
+
+1. Eigene Sektion `LOOT`, nach `BODY PARTS` (und vor `EVERDARK`, das bei
+   Unterbossen ohnehin nie erscheint) — chronologisch das Letzte, was ein
+   Spieler ueber einen Kampf wissen will.
+2. Keine Eintraege in `world_events.drops[str(chr)]`: ein einzelner Satz in
+   `MUTED`, wortgleich im Ton mit der bestehenden Formel ("no description
+   in the files"): `"no loot recorded in the files"`.
+3. **Nutzerentscheidung 19.09. 13:42:** die ersten fuenf sichtbar, sortiert
+   nach Seltenheit, Rest aufklappbar. Sortierung **aufsteigend nach
+   `share`** (niedrigste Drop-Chance zuerst): jeder Eintrag in
+   `world_events.drops[str(chr)]` traegt `share` (T-299 Abschn. 5,
+   `extract._event_drops`) — der Fall "die Daten tragen keine Chance" tritt
+   hier nicht ein. Traegt ein Eintrag `share == 0.0`, ist das ein gueltiger,
+   niedrigster Wert und keine Ausnahme. Bei gleichem `share`: alphabetisch
+   nach `name` als Tiebreaker (kein zweites Sortierkriterium in den Daten).
+   **"Am seltensten" ist keine Aussage der Dateien ueber "am besten"** — sie
+   tragen eine Drop-Chance, keine Wertung, welches Item ein Spieler will;
+   die Reihenfolge folgt der Nutzerentscheidung, nicht einem Datenfeld
+   `rank`, das es nicht gibt.
+   Die ersten fuenf stehen offen in `_row(name, f"{share:g}%")`. Ab dem
+   sechsten: ein `QToolButton` unterhalb der Sektion, im bestehenden
+   Hold/Held-Toggle-Muster (AK-54/AK-292 — dieselbe Widget-Klasse, kein
+   neues Widget-Muster; weder `bosstab.py` noch `eventstab.py` kennen heute
+   ein Auf-/Zuklappen, das Toggle-Muster stammt aus der Advisor-Leiste und
+   ist die naechstliegende bestehende Loesung). Beschriftung `"Show {n}
+   more"` (`n` = Rest) vor dem Klick, `"Show fewer"` danach; ein Klick loest
+   `show_detail` fuer denselben Eintrag mit umgekehrtem `self._loot_expanded`
+   erneut aus und haengt die restlichen Zeilen an dieselbe `LOOT`-Tabelle an
+   (kein zweiter Abschnitt). Der Knopf steht nicht, wenn fuenf oder weniger
+   Eintraege vorhanden sind.
+4. Direkt darunter, **immer** wenn ueberhaupt Eintraege gezeigt werden
+   (Architekturrisiko 4, AD-041): eine `_note`, wortgleich: `"Percentages
+   are the game's own drop tables. A few point at tables this program
+   cannot read, so on some bosses they do not add up to 100% — nothing is
+   hidden, the shortfall is missing data."` Ein statischer Satz, keine
+   Rechnung im Code (Vorgabe des Entwurfs).
+
+**Explizit nicht Teil dieser Vorgabe:** eine HP- oder Beute-Zeile auf den
+zehn Nachtfuerst-Kacheln selbst (AD-041 begrenzt beide Bloecke auf
+Unterbosse); eine Namensaufloesung fuer `candidates` (die Datei liefert
+keine, AK-322.4); eine vierte Baumgruppe fuer Kategorie 160 oder
+`m20_00..m21_50` (OF-46 hat sie bereits entfernt); Icons je Beute-Art.
+
+**Verwendete Token:** `ACCENT`/`MUTED`/`BAD`/`PANEL`/`BORDER`/`SELECTED_FILL`
+(alle bestehend, `bosstab.py:30-51`), der Trenner `"  ·  "` (bestehend,
+`self.detail_expedition`/`self.summary`), `_section`/`_row`/`_note`
+(bestehend), `QTreeWidget` (bestehend, `effectfilterdialog.py`),
+Tooltip-Ehrlichkeitssatz-Muster (bestehend, `depthstab.EXAMPLES_TIP`/
+`eventstab.py:219-224`). Keine neue Farbe, keine neue Schriftgroesse.
+
 ### 7.5 `Deep of Night`
 
 #### AK-95
@@ -5463,6 +5632,66 @@ Spaltenkoepfe lauten `Depth 1`, `Depth 2–3`, `Depth 4–5`, solange die Daten
 das hergeben; weichen sie fuer irgendeine Karte ab, faellt die Tabelle
 automatisch auf fuenf Einzelspalten zurueck. Ein Test, der eine Zeile mit
 fuenf verschiedenen Werten einspeist, findet danach fuenf Spaltenkoepfe.
+
+#### Nachtrag T-302 (ui-ux-designer, 2026-09-19) — AK-325/AK-326: `PLAYER_GROUPS` und die Spalte "Examples (any map)" nach QA-286 (OF-47)
+
+*Grundlage: QA-286 (`qa/findings.md`), `ARCHITECTURE.md` AD-040 Punkt 6
+(`kinds[cat]` verliert `chrs`, bekommt `places`), OF-47 (an mich).
+Datenfakt aus AD-040 Punkt 3, geprueft: von den sechs `PLAYER_GROUPS`-Zeilen
+entsprechen nur `[120]` und `[160]` gelesenen Kategorien; die anderen vier
+(`[100,105,140,141,150,151]`, `[101,104,110,135,136,137,138]`, `[103]`,
+`[130,131]`) werden nie gelesen, und `places[].name` bleibt fuer sie
+**dauerhaft** leer — kein Forschungsstand, sondern eine Folge der
+Kostenentscheidung in AD-040 Punkt 3.*
+
+**AK-325** *(Umbenennung der beiden betroffenen Zeilen, QA-286 + OF-46)*
+
+`PLAYER_GROUPS` in `depthstab.py`:
+- `("Night bosses (unconfirmed)", [120])` → `("Field bosses & arena
+  locations", [120])` — Kategorie 120 sind Ortskarten (29 Ein-Boss-Feldbosse
+  + 16 gleich besetzte Arena-Schalen, T-299 Abschn. 2b), keine Nachtbosse.
+- `("Evergaol bosses", [160])` → `("Mixed-boss arena locations", [160])` —
+  das Wort "Evergaol" ist nicht belegt (OF-46, T-299 Abschn. 2b:
+  `WorldMapPointIconParam` traegt nur `iconId`) und kommt in diesem
+  Vorhaben nirgends vor.
+- `("Named field enemies & minibosses", […])` → `("Named minibosses", […])`:
+  das Wort "field" entfaellt, weil der Nightlords-Tab (AK-319) jetzt eine
+  **andere** Population "Field bosses" nennt — dieselbe Formulierung fuer
+  zwei verschiedene Mengen im selben Programm waere QA-286 im Kleinen.
+- Die drei uebrigen Zeilen (`"Ordinary enemies in camps & ruins"`,
+  `"Merchants"`, `"Unidentified enemies"`) bleiben wortgleich — von QA-286
+  nicht betroffen.
+- Der Modul-Docstring `depthstab.py:12-14` ("kind 160 is the evergaol
+  bosses, kind 120 the night-boss cast") ist nach demselben Befund veraltet;
+  Korrektur gehoert zum selben Auftrag, ist aber ein Kommentar und keine
+  eigene AK.
+
+**AK-326** *(OF-47: die Spalte "Examples (any map)" faellt — Entscheidung B)*
+
+**Entscheidung: die Spalte faellt ersatzlos**, mit Begruendung:
+
+1. Nach der QA-286-Reparatur ist die Spalte fuer vier der sechs Zeilen
+   **dauerhaft** leer (nicht "noch unerforscht", sondern strukturell nie
+   befuellbar — Praemisse oben) und selbst in der besten verbliebenen Zeile
+   (Feldbosse) zeigt sie hoechstens drei von 29 Namen (AK-99-Deckel). Eine
+   Spalte, die in der Mehrheit der Zeilen fuer immer "— the files name
+   none" sagt, ist keine ehrliche Luecke mehr (das war AK-99s Anspruch),
+   sondern eine Erwartung, die die Kopfzeile weckt und nie einloest.
+2. Die 29 jetzt korrekt aufgeloesten Feldboss-Namen stehen ab diesem
+   Auftrag vollstaendig, mit Schwaeche, HP und Beute, im Nightlords-Tab
+   (AK-319ff.) — einem besseren Ziel als drei Namen in einer schmalen
+   Tabellenspalte. Die Spalte hier wuerde dieselbe Information schlechter
+   wiederholen, nicht ergaenzen.
+3. `NAME_COLUMN` ("What can be red") bleibt die einzige Textspalte und wird
+   `Stretch` allein (kein Teilen mehr mit `EXAMPLES_COLUMN`); AK-99s/AK-144s
+   Breiten-Teilungsregel (`VariantTable.measure_columns`/`fit_columns`)
+   entfaellt damit ersatzlos, nicht nur als Sonderfall.
+4. Entfallen: `EXAMPLES_HEADER`, `EXAMPLES_TIP`, `NO_NAMES`, `_examples()`,
+   `EXAMPLES_COLUMN`. Die Tabelle hat danach `1 + Tiefenspalten` statt
+   `2 + Tiefenspalten` Spalten.
+
+*Rot-vorher:* eine Umsetzung, die die Spalte behaelt und nur die
+Formulierung ihrer Leerzeilen aendert — genau das lehnt Punkt 1 ab.
 
 ### 7.7 `World Events`
 

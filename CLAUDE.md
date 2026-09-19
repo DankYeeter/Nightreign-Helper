@@ -72,10 +72,10 @@ stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 `notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
 
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
-(841 Dateien, 20 849 867 Bytes, `EXTRACT_VERSION` 12, gebaut von 1.12.1 am
+(841 Dateien, 20 913 184 Bytes, `EXTRACT_VERSION` 13, gebaut von T-303 am
 15.09.2026, T-269a; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
 **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im
-Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 12 steigt — der erste
+Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 13 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 

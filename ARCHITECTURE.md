@@ -6910,6 +6910,457 @@ Satz, Gruppierung gegen AK-308 (Tabelle mit fester Ordnung oder Baum).
 
 ---
 
+## Themenbereich L — Unterbosse im Nightlords-Tab, A24 und QA-286 (2026-09-19, T-300)
+
+*Angelegt am 19.09.2026 (T-300, `architect`, Entscheidungstiefe Datenmodell,
+Leseroute, Tab-Struktur). Bezugsstand `c03fd9d` plus ungecommittet
+(`GOAL.md` Nachtrag A24, `docs/berichte/T-299-developer.md`, QA-286).
+Gegenstand: `GOAL.md` Nachtrag 19.09.2026 A24 (Unterbosse mit Kampfwerten,
+beide Stufen) und QA-286. Zwei Entscheidungen, AD-040 und AD-041.*
+
+*Vorgelagerte Laeufe: **T-299** (`developer`, Forschung) ist die einzige
+Tatsachenquelle dieses Entwurfs; `docs/research/` und `docs/legal/` enthalten
+zu A24 nichts (R-001..R-008 betreffen Waffen und Zweihandregel, C-001..C-006
+Lizenz und Signatur). **Dieser Entwurf misst nichts selbst und leitet nichts
+neu her.** Jede Zahl unten steht mit ihrer Fundstelle; wo T-299 nichts sagt,
+steht eine offene Frage und keine Annahme.*
+
+### Bestand, in zwei Saetzen
+
+`nrdata/extract.py` baut **einen** Schnappschuss aus `regulation.bin` plus
+FMG-Texten; `nrdata/bossdata.py` ist der einzige Ort, der dafuer aus den
+**Karten- und Ereignisdateien** liest (Oodle, `dvdbnd`, MSB, TAE) und heute
+genau einen Einstieg kennt: `NightBossMenuParam.defeatEventFlag` -> EMEVD ->
+Arena-MSB -> Figur -> `_profile`. `nrplanner/bosstab.py` zeigt die zehn
+Nachtfuersten als Kachelgitter mit einem Detailpanel rechts, das den Block
+`bosses[].weakness.profile` rendert; `nrplanner/depthstab.py` zeigt aus
+`deep_of_night.kinds` eine Beispielspalte.
+
+**Praemissen dieses Entwurfs, jede mit Quelle**
+
+| Aussage | Quelle | Guete |
+|---|---|---|
+| `smallBaseId` ist eine **Karten-Id**, keine Figur-Id (116/116 liefern eine MSB, 21/116 zufaellig eine NpcParam-Zeile) | T-299 Abschn. 2a | gemessen |
+| Kat 120 = 29 Ein-Boss-Karten (Feldbosse) + 16 gleich besetzte Karten `m20_00..m21_50` (c4680); Kat 160 = 4 Karten mit gemischter Besetzung | T-299 Abschn. 2b, 2c | gemessen |
+| Nachtbosse Tag 1/2 stehen in `LotResultPlayAreaParam` (520 Zeilen, `bossId1`/`bossId2`), 35 verschiedene Bosskarten | T-299 Abschn. 3b | gemessen |
+| Der Join laeuft ueber `patternId`: 520 Muster in allen drei Lotterien, Schnitt 520/520, 23 830/23 830 Ortslose zugeordnet | T-299 Abschn. 4 | gemessen |
+| `bossdata._profile/_ladder/_defence_buffs/_parts/_tuned/CREW` tragen ohne Aenderung; `_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of` (die EMEVD-Haelfte) entfallen fuer den neuen Einstieg | T-299 Abschn. 2d | gemessen (29 Profile entstanden) |
+| `extract._event_drops` greift unveraendert, 164 Figuren haben eine Liste; Ausgabe ist nach `str(chr)` geschluesselt | T-299 Abschn. 5, `extract.py:1144` | gemessen (sechs Stichproben) |
+| Ein Durchlauf ueber **alle 199** MSB-Karten dauert rund 4 Minuten | T-299 Abschn. 8 | **einmal** gemessen, nicht wiederholt |
+| Voller Neubau des Abzugs 293,8-310,1 s; `nightreign_data.json` allein 39,6 s | `docs/plan-restarbeiten.md` (S11/T-118; T-269a) | gemessen |
+| "Hoechste HP" waehlt in 4 von 35 Nachtboss-Karten die falsche Figur | T-299 Abschn. 3b | gemessen |
+| `variationId`/`mapIndex` als Variantenwahl | T-299 Abschn. 7 | **ungeprueft** — wird hier nicht verwendet |
+| Welche Karten "Evergaol" sind | nirgends — `WorldMapPointIconParam` traegt nur `iconId`, keinen Text (T-299 Abschn. 2b) | **nicht belegt** (OF-46) |
+
+---
+
+### AD-040 — Die **Kartenkarte** ist die Einheit des Unterboss-Registers, nicht die Figur: ein Snapshot-Block `subbosses`, zwei Einstiege in dieselbe Aufloesung, und QA-286 faellt auf demselben Weg (2026-09-19, Status: aktiv; erweitert AD-011/AD-012 nicht, beruehrt die Erstlaufzeit aus AD-030/Themenbereich E)
+
+**Kontext.** A24 will je Unterboss Schwaeche, Resistenz, HP, Stance, Beute und
+den Nachtfuersten. T-299 hat den Weg dorthin belegt, aber anders geschnitten
+als `GOAL.md` ihn skizziert hat: der Einstieg ist eine **Ortskarte**, nicht
+eine Figur und nicht ein Ereignis-Flag. Drei Kraefte stehen gegeneinander:
+(1) der Erstlauf des Programms baut den Abzug einmal komplett und kostet heute
+schon 293,8-310,1 s — jede MSB-Karte kostet dort Zeit; (2) A7 verbietet eine
+Auswahl, die die Dateien nicht hergeben, und in 4 von 35 Nachtboss-Karten
+stehen mehrere boss-grosse Figuren; (3) QA-286 ist ein Fehler in genau der
+Aufloesung, die A24 ohnehin braucht — getrennt behoben waere er doppelte
+Arbeit (T-299 Abschn. 8, Debt 1/2).
+
+**Optionen.**
+
+- **A — Im Bestand bleiben.** Kein neuer Block; QA-286 nur als
+  Beschriftungsreparatur (die `chrs`-Liste faellt ersatzlos, die Spalte sagt
+  "die Dateien nennen keine"). *Konsequenz:* kein Erstlauf-Aufschlag, A24
+  faellt aus, und die belegte Aufloesung Ort -> Figur bleibt ungenutzt
+  liegen, obwohl sie fertig recherchiert ist.
+- **B — Figurzentriert.** Block nach `chr` geschluesselt, HP je Figur.
+  *Konsequenz:* kleiner, aber sachlich falsch — dieselbe Figur traegt je
+  Karte eine andere NpcParam-Zeile und damit andere HP (Draconic Tree
+  Sentinel 2324 auf `m46_52`, 1633 auf `m48_50`; T-299 Abschn. 2c/3b), und
+  Tag- und Nachtfuerst-Zuordnung muessten als Kreuzliste nachgereicht werden.
+- **C — Kartenzentriert, ein Block, zwei Einstiege (gewaehlt).** Schluessel
+  ist die Karten-Id; die Ortslotterie (Stufe 1) und die Bosslotterie
+  (Stufe 2) fuellen denselben Block.
+- **D — Zweiter, nachgelagerter Abzug.** Die MSB-Karten erst beim ersten
+  Oeffnen des Tabs lesen, in eine eigene Datei. *Konsequenz:* Erstlauf bleibt
+  unveraendert, aber ein zweiter Cache-Pfad mit eigener Versionspruefung, und
+  ein Tab, der beim ersten Klick eine Minute steht. **Das ist der Rueckweg,
+  falls die Messung aus Schritt 0 C verbietet — nicht der erste Griff.**
+
+**Entscheidung: C**, in sieben Punkten.
+
+**1. Schluessel und Block.** Der Abzug bekommt **einen** neuen Block auf
+oberster Ebene, `subbosses`, ein Woerterbuch mit der Karten-Id als Text
+(JSON hat keinen anderen Schluesseltyp; dieselbe Begruendung wie D-001 fuer
+`bossdata.parts`). Die Karten-Id ist der Zahlenwert, den
+`ChaosMatchingMutationEnemyTableParam.smallBaseId` und
+`LotResultPlayAreaParam.bossId1/2` fuehren; `m{AA}_{BB}_00_00` ist die
+Schreibweise dazu (T-299 Abschn. 0, 116/116).
+
+```jsonc
+// illustrierend, kein Anwendungscode
+"subbosses": {
+  "4651": {
+    "map": "m46_51_00_00",
+    "categories": [120],          // ChaosMatching-Kategorien, die die Karte nennen
+    "days": [],                   // 1 und/oder 2 aus LotResultPlayAreaParam; [] = keine Nachtkarte
+    "nightlords": [               // ueber patternId; Zusammensetzung des Pools, keine Ziehwahrscheinlichkeit
+      {"boss": 0, "patterns": 25, "of": 52}   // Zahlen illustrativ
+    ],
+    "chr": 3181,                  // null, wenn unaufgeloest
+    "name": "Red Wolf of the King Consort",   // NpcName; "" wenn das Spiel keinen nennt
+    "candidates": [],             // nur bei "ambiguous": [{"chr": .., "hp": ..}, ...]
+    "weakness": { /* exakt die Form von bosses[].weakness */ }
+  }
+}
+```
+
+`weakness` traegt **dieselbe** Form, die `bossdata.derive` heute liefert und
+die `bosses[].weakness` bereits hat (`map`, `chars`, `primary`, `confidence`,
+`profile`, `parts`, optional `group_boss`/`placements`). Das ist der
+tragende Teil der Entscheidung: das Detailpanel des Tabs rendert diese Form
+schon, Balken, Status, Stance, Koerperteile, Leiter und Verteidigungsbuff
+inbegriffen (`bosstab.py:954-1131`). Ein eigenes Format haette dieselbe
+Anzeige ein zweites Mal verlangt.
+
+**2. Schnitt der Leseroute — wer was liest.** Die Param-Verbindungen bleiben
+in `extract.py`, die Karten- und Ereignisdateien bleiben in `bossdata.py`.
+Kein neues Modul.
+
+| Schritt | Ort | Quelle |
+|---|---|---|
+| Kategorie -> Kartenmenge | `extract.py`, neu `_subbosses(...)` | `ChaosMatchingMutationEnemyTableParam` (heute schon gelesen) |
+| Muster -> Nachtfuerst | ebd. | `LotResultMapPatternFlag.targetBoss` (heute schon gelesen, `_gating`) |
+| Muster -> Orte | ebd. | `LotResultSmallBaseAndSpot` (**neu gelesen**) |
+| Muster -> Nachtboss Tag 1/2 | ebd. | `LotResultPlayAreaParam` (**neu gelesen**) |
+| Karte -> Figur + Profil | `bossdata.py`, neu `derive_places(...)` | MSB `PARTS_PARAM_ST`, NpcParam, SpEffectParam, TAE |
+| Figur -> Beute | keine Aenderung | `world_events.drops[str(chr)]` |
+
+Abhaengigkeitsrichtung unveraendert und zyklenfrei:
+`extract.py` -> `bossdata.py` -> {`param`, `dvdbnd`, `oodle`, `tae`,
+`binary`}; die Oberflaeche liest ausschliesslich den Abzug.
+
+`derive_places(game_dir, members, defs, npc, cards)` nimmt die Kartenmenge
+entgegen und liefert je Karte denselben Eintrag, den `derive` je Flag
+liefert. Gemeinsam genutzt werden `_parts`, `_profile`, `_tuned`, `CREW`,
+die Schranken `INFERRED_MIN_SPREAD`/`INFERRED_MIN_HP`/`INFERRED_GROUP_MIN`
+und der Nachlauf, der `_ladder` und `_defence_buffs` anhaengt. Die
+Auswahlschleife und dieser Nachlauf werden dafuer aus `derive` als zwei
+private Helfer herausgezogen — **zwei** Aufrufer, keine Abstraktion auf
+Vorrat.
+
+**3. Welche Karten gelesen werden — und welche ausdruecklich nicht.**
+Gelesen werden die Karten der Kategorien **120 und 160** (45 + 4 = 49; T-299
+Abschn. 2b) und die **35** Bosskarten aus `LotResultPlayAreaParam`
+(T-299 Abschn. 3b). Zusammen **84** Karten; die Kartenraeume ueberschneiden
+sich nicht (`m45/m46` gegen `m47_70` aufwaerts), ein `parts_cache` wie in
+`derive` haelt sie trotzdem eindeutig.
+
+**Nicht** gelesen werden die Karten der Kategorien 101, 102, 103, 104, 110
+und 130-138. Begruendung mit Randbedingung: das sind Lager-, Ruinen-,
+Haendler- und Shifting-Earth-Orte mit **100 bis 1500 Parts je Karte** und
+ohne Ein-Boss-Besetzung (T-299 Abschn. 2b) — sie kosten den groessten Teil
+der gemessenen 4 Minuten und liefern keinen Unterboss. Verlangt jemand
+spaeter Namen auch fuer diese Orte, ist das eine neue Entscheidung mit einer
+neuen Messung, nicht eine Erweiterung dieser.
+
+**4. Bosswahl je Karte — die vorhandene Regel, in dieser Reihenfolge, ohne
+neue Heuristik.** Auf jeder Karte werden alle Parts mit `cNNNN`-Modell
+gesammelt (ohne `CREW`), und je Figur die NpcParam-Zeilen, die der Part
+selbst nennt, sonst alle Zeilen der Figur (`by_chr`) — genau wie heute in
+`derive`.
+
+1. Figuren, die **beide** vorhandenen Schranken reissen —
+   Resistenzstreuung >= `INFERRED_MIN_SPREAD` (0,1) **und** HP >=
+   `INFERRED_MIN_HP` (2000) — sind die Kandidaten.
+   Genau eine: `confidence = "single"`, sie ist der Boss.
+2. Keine: greift die Gruppenboss-Regel (dieselbe Figur >= 10 Mal platziert
+   und `_tuned`): `confidence = "group"`.
+3. Mehr als eine Kandidatin: `confidence = "ambiguous"`. Es wird **keine**
+   gewaehlt; `candidates` traegt die Figuren mit ihren HP, `chr`/`name`
+   bleiben leer, und die Anzeige sagt nach A7, dass die Dateien hier keinen
+   einzelnen Boss ausweisen.
+4. Nichts davon: `confidence = "unresolved"`; die Karte bleibt im Block
+   stehen (Nachtfuerst und Tag sind ja belegt) und sagt, dass die Figur
+   nicht abgeleitet werden konnte.
+
+Das Wort **"exact" bleibt der EMEVD-Kette vorbehalten** (`derive`), damit im
+Abzug nie zwei Belegketten denselben Namen tragen. `_parts` wirft bei einer
+unlesbaren Karte (SEC-014); das faengt der Aufrufer wie heute ab und die
+Karte wird `"unresolved"` — nie ein geratener Name.
+
+Was diese Regel bewusst **nicht** kann, mit Beispiel: `m47_80` traegt c2150
+(HP 5120) und Gaping Dragon (HP 2950); beide reissen die Schranken, also
+wird die Karte `ambiguous` statt falsch. `m52_11` (c5090 x8) faellt unter
+die Gruppenschranke und bleibt `unresolved`. Beides ist die A7-Antwort.
+`variationId`/`mapIndex` sind **ungeprueft** (T-299 Abschn. 7) und werden
+hier nicht verwendet; Pruefpunkt (c) sagt, ab wann sich die Frage lohnt.
+
+**5. Nachtfuerst und Tag — ueber `patternId`, mit derselben Ehrlichkeit wie
+`_gating`.** `nightlords[].patterns` ist die Zahl der Kartenmuster dieses
+Nachtfuersten, die diese Karte ziehen, `of` seine Gesamtzahl an Mustern —
+derselbe Nenner, den `_gating` fuer die Ereignisse benutzt. Das ist die
+**Zusammensetzung des Pools**, keine Ziehwahrscheinlichkeit
+(`MapPatternSet` traegt Gewichte je Muster; `extract.py:983-995`, T-299
+Abschn. 4). `days` kommt aus `bossId1` (Tag 1) und `bossId2` (Tag 2)
+derselben Zeile; eine Karte kann beide tragen.
+
+**6. QA-286 faellt auf derselben Route.** `deep_of_night.kinds[cat]` verliert
+`chrs` und bekommt `places`:
+`[{"place": 4651, "map": "m46_51_00_00", "rows": n, "name": <aus subbosses oder null>}]`.
+`tiles` bleibt unveraendert. Der Kommentar `extract.py:551-597` ("u16 at +6
+… is a character id", "category 160's four are the arena bosses") wird durch
+den Beleg aus T-299 Abschn. 2a ersetzt — er begruendet die Lesart heute mit
+genau den 21 Zufallstreffern, die sie widerlegen. Fuer die Kategorien, die
+nach Punkt 3 nicht gelesen werden, bleibt `name` leer; die Oberflaeche hat
+dafuer bereits `NO_NAMES` ("— the files name none"). Das ist weniger
+Anzeige als heute und trotzdem die Reparatur: heute stehen dort 21 Namen,
+die Orte sind, keine Figuren.
+
+**7. `EXTRACT_VERSION` steigt auf 13.** Der Abzug aendert Form **und**
+Inhalt; ohne Erhoehung behaelt jeder vorhandene Cache den falschen
+`kinds`-Block fuer immer (der Zweck des Zaehlers, `extract.py:41-50`). Damit
+gilt `CLAUDE.md`: der Testabzug (`EXTRACT_VERSION` 12) wird ungueltig,
+`tests/conftest.py:81` weist ihn ab. **Derselbe** Auftrag, der die Zahl
+erhoeht, baut `nightreign_data.json` der Vorlage neu (39,6 s, T-269a; die
+840 Symboldateien haengen nicht an der Version) und traegt es in
+`docs/plan-restarbeiten.md` nach.
+
+**Konsequenzen.** Leicht wird: jede weitere Frage an eine Ortskarte (welche
+Figur, welches Profil, welcher Nachtfuerst) ist ein Eintrag mehr im selben
+Block; die Beute kostet nichts, weil sie schon im Abzug steht; das
+Detailpanel muss fuer Balken, Status, Stance und Koerperteile nicht
+angefasst werden. Dauerhaft schwer wird: der Erstlauf traegt 84
+MSB-Dekompressionen mehr, und diese Kosten sind nicht abwaehlbar, weil der
+Abzug in einem Stueck gebaut wird (das ist genau der Punkt, den Schritt 0
+misst, und Option D ist der Rueckweg). Zweitens: der Block waechst mit jedem
+Spielpatch, der Karten hinzufuegt, ohne dass jemand es merkt — die
+Kartenmenge kommt aus den Params, nicht aus einer Liste im Code, und das ist
+Absicht.
+
+**Umkehrbarkeit: mittel.** Der Block laesst sich streichen (eine Funktion,
+ein Schluessel, `EXTRACT_VERSION` +1, Testabzug neu) — aber der erhoehte
+Zaehler und der einmal verteilte Abzug sind draussen, und `kinds.chrs`
+kaeme nicht zurueck, weil er widerlegt ist.
+
+**Beruehrte Entscheidungen.** AD-011/AD-012 (Lesevokabular, Groessendeckel):
+unberuehrt, der neue Weg liest ueber dieselben Leser. AD-030 (Erststart,
+Pfadaufloesung): der Erstlauf wird laenger, die Struktur bleibt. AD-033
+(Mutations-Registry): Schritt 1 und 4 tragen je eine Mutation nach dem
+ueblichen Muster. Kein Widerspruch zu einer bestehenden AD.
+
+---
+
+### AD-041 — Die Unterbosse sind eine **zweite, nach dem gewaehlten Nachtfuersten gefilterte Liste** unter dem Kachelgitter, und sie speisen dasselbe Detailpanel; der Auswahlschluessel wird `key` statt `name` (2026-09-19, Status: aktiv)
+
+**Kontext.** 84 Eintraege sollen in einen Tab, der heute zehn Kacheln zeigt.
+Die Unterbosse haben **kein** Bildmaterial im Abzug (keine `large_icon`), und
+mehrere Karten tragen dieselbe Figur (Red Wolf auf `4651` und `4682`, Bell
+Bearing Hunter auf `4656`, `4687`, `4924`) — bei unterschiedlichen HP.
+
+**Optionen.**
+
+- **A — CardGrid wie die Nachtfuersten.** 84 bildlose Kacheln unter zehn
+  bebilderten; der Tab wird zur Scrollstrecke, und die Zuordnung zum
+  Nachtfuersten waere nur als Text auf jeder Kachel darstellbar.
+- **B — `QTreeWidget` unter dem Gitter, gefiltert auf die gewaehlte Kachel
+  (gewaehlt).** Gruppen: Tag 1, Tag 2, Feldbosse, und eine vierte fuer
+  Karten ohne belegte Rolle. Ohne Auswahl bleibt die Liste leer und sagt
+  warum. `QTreeWidget` ist im Bestand (`effectfilterdialog.py`, A21) —
+  kein neues Widget-Muster.
+- **C — Eigener Tab.** Ein elfter Tab, und die Zuordnung zum Nachtfuersten
+  verliert den Ort, an dem sie etwas bedeutet.
+
+**Entscheidung: B**, in vier Punkten.
+
+**1. Ort.** Die Liste haengt in `grid_outer` **vor** dem `addStretch(1)`
+(`bosstab.py:1155`), unter dem Kachelgitter, im selben Scrollbereich. Das
+Detailpanel rechts bleibt, wie es ist.
+
+**2. Filter.** Der gewaehlte Nachtfuerst bestimmt den Inhalt: gezeigt werden
+die Karten, deren `nightlords` seine Zeilen-Id enthalten, mit `patterns`/`of`
+je Zeile. Damit entfaellt die Vervielfachung derselben Karte ueber zehn
+Gruppen, und die Zuordnung aus A24 ist der Filter selbst.
+
+**3. Detailpanel.** `show_detail` nimmt zusaetzlich einen Unterboss-Eintrag
+entgegen. Was der Eintrag mitbringt (`name`, `weakness.profile`), rendert das
+Panel bereits. Neu und nur zwei Bloecke: eine **HP**-Zeile
+(`profile["hp"]`, vorhanden, heute ungenutzt) und ein Abschnitt **Beute**
+aus `world_events.drops[str(chr)]`; eine Figur ohne Los bekommt den Satz
+"keine Beute in den Dateien" (T-299 Abschn. 5). Ohne Bild bleibt die
+Bildflaeche leer. Der **Stance-Rang** (`_stance_rank`, "haerter zu brechen
+als N von 10 Nachtfuersten") **entfaellt** fuer Unterbosse: seine
+Vergleichsmenge sind die zehn: die rohen Stance-Zahlen bleiben.
+
+**4. Auswahlschluessel.** `_mark_selected`/`show_detail` vergleichen heute
+ueber `boss["name"]` (`bosstab.py:864-875`). Bei Unterbossen ist der Name
+**nicht eindeutig** (dieselbe Figur auf mehreren Karten). Der Vergleich
+laeuft kuenftig ueber `entry.get("key", entry["name"])`; Unterbosse tragen
+als `key` ihre Karten-Id. Das ist eine Zeile und verhindert genau den
+Fehler, den QA-150 fuer die Kacheln schon einmal bezahlt hat: eine Anzeige,
+die zu einem anderen Gegner gehoert als der markierte.
+
+**Konsequenzen.** Leicht: jede weitere Gruppe (Evergaol, sobald OF-46
+beantwortet ist) ist ein Knoten mehr. Dauerhaft: der Tab hat zwei
+Auswahlquellen fuer ein Panel — der `key`-Vergleich ist die einzige Stelle,
+die beide auseinanderhaelt, und ein Wachtertest haelt sie fest.
+
+**Umkehrbarkeit: leicht** — Baum und Panel-Bloecke entfernen, `key`-Zeile
+zurueck auf `name`.
+
+**Wortlaut ist nicht meine Entscheidung.** Ueberschriften, Gruppennamen,
+die Saetze fuer `ambiguous`/`unresolved`, die Beute-Ueberschrift und die
+Neufassung der `depthstab`-Zeilen (`PLAYER_GROUPS`, `EXAMPLES_HEADER`,
+`EXAMPLES_TIP`) kommen aus einer Spec des `ui-ux-designer` (Schritt 2), nicht
+aus diesem Dokument — A8 gilt.
+
+---
+
+### Umsetzung — fuenf Schritte, einzeln lauffaehig, in dieser Reihenfolge
+
+Stufe 1 ist nach Schritt 3 abnehmbar, Stufe 2 nach Schritt 4. QA-286 ist in
+Schritt 1 (Daten) und Schritt 3 (Beschriftung) enthalten.
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **0 — Messung vor dem Bau** | `performance-tuner` | Siehe Kasten unten. **Kein Code.** | 0 |
+| **1 — Stufe 1, Extraktor (AD-040.1-7)** | `developer` | `bossdata.py`: `derive_places`, Auswahlschleife und Leiter-Nachlauf als zwei private Helfer aus `derive` gezogen (zwei Aufrufer). `extract.py`: `_subbosses` (Kategorien 120/160, Ortslotterie, `patternId`-Join), Block `subbosses` in `build()`, `kinds.chrs` -> `kinds.places`, Kommentar `551-597` durch den T-299-Beleg ersetzt, `EXTRACT_VERSION` 13. Testabzug-`nightreign_data.json` neu gebaut, `docs/plan-restarbeiten.md` nachgetragen. Tests: `test_extraction.py` (Blockform, Karten-Id als Textschluessel, `places` statt `chrs`, `confidence` aus {single, group, ambiguous, unresolved}), neuer Waechter "eine `ambiguous`-Karte traegt keinen Namen" (A7). Mutation nach AD-033: Schranke `INFERRED_MIN_HP` in der neuen Auswahl auf 0. | `nrdata/bossdata.py`, `nrdata/extract.py` = **2** |
+| **2 — Spec** | `ui-ux-designer` | Wortlaut der Gruppen und Zeilen, der Saetze fuer `ambiguous`/`unresolved` und "keine Beute in den Dateien", HP- und Beute-Ueberschrift; Neufassung von `PLAYER_GROUPS`, `EXAMPLES_HEADER`, `EXAMPLES_TIP` nach QA-286; Entscheidung, ob die Beispielspalte bleibt (OF-47). Grundlage sind die Zahlen aus Schritt 1, nicht die Schaetzung. | `UI_SPEC.md` |
+| **3 — Stufe 1, Oberflaeche (AD-041)** | `developer` | `bosstab.py`: Baum, Filter, `key`-Vergleich, HP- und Beute-Block im Panel. `depthstab.py`: `places` statt `chrs`, Beschriftungen nach Spec. Tests: `test_nightlord_selection.py` (Filter zeigt nur Karten des gewaehlten Nachtfuersten; zwei Karten derselben Figur sind getrennt waehlbar — der Fall, den der `key`-Vergleich loest), `test_nightlord_panel_display.py` (`ambiguous` zeigt keinen Namen; HP- und Beute-Block; kein Stance-Rang fuer Unterbosse), `test_red_variants_display.py` (Ortsnamen statt Figurnamen). | `nrplanner/bosstab.py`, `nrplanner/depthstab.py` = **2** |
+| **4 — Stufe 2, Nachtbosse (AD-040.3, .5)** | `developer` | `extract.py`: `LotResultPlayAreaParam` als zweiter Einstieg in denselben Block (`days`, 35 Karten), `bossdata` unveraendert. `bosstab.py`: die Gruppen Tag 1 / Tag 2 werden sichtbar (Daten, keine neue Struktur). Tests: `test_extraction.py` (eine Karte mit `days=[1]` und eine mit `days=[2]` je Nachtfuerst, `patterns <= of`), `test_nightlord_panel_display.py` (die zwei Tagesgruppen erscheinen). Mutation: `bossId2` ignorieren. | `nrdata/extract.py`, `nrplanner/bosstab.py` = **2** |
+| **5 — Abnahme** | `qa-engineer` | Am Artefakt, mit dem **neuen** Testabzug: A24-Nachweis aus `GOAL.md` (ein Feld-/Evergaol-Boss mit denselben Diagrammen wie ein Nachtfuerst plus HP und Beute; ein Nachtboss mit Tag-Kennung), Erstlaufzeit gegen die Schranke aus Schritt 0. | — |
+
+**Schritt 0 — der Messauftrag, woertlich fuer den `director`.**
+
+- **Was gemessen wird, an der echten Spielinstallation, mit Umlenkung nach
+  `CLAUDE.md`, ohne Programmstart** (Rezept T-299 Abschn. 9): (a) Dauer von
+  `oodle.load` + `dvdbnd.open_all` einmal; (b) Dauer von
+  `_parts(arc.read(...))` je Karte fuer die 49 Karten der Kategorien
+  120/160 und die 35 Bosskarten — Summe, Median, Maximum, getrennt nach
+  beiden Mengen; (c) Dauer eines vollstaendigen `extract.build` **ohne** den
+  neuen Durchgang als Grundlinie auf diesem Rechner (zum Vergleich:
+  39,6 s fuer `nightreign_data.json` am 15.09., T-269a).
+- **Warum getrennt nach Mengen:** Stufe 1 und Stufe 2 sind getrennt
+  abnehmbar, also muss auch ihr Preis getrennt bekannt sein.
+- **Schranke, die der Entwurf vorschlaegt:** der neue Durchgang darf
+  `build()` um **hoechstens 60 s** verlaengern (rund +20 % auf die
+  gemessenen 293,8-310,1 s Erstlauf, S11/T-118). Darueber entscheidet der
+  `director` nach OF-45 zwischen: die 16 gleich besetzten Karten
+  `m20_00..m21_50` fallen lassen (16 von 49); Stufe 2 verschieben; oder
+  Option D (nachgelagerter Abzug).
+- **Nicht gemessen wird** die Laufzeit der Oberflaeche — der Baum bekommt
+  hoechstens 84 Zeilen.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** EMEVD-Weg fuer die Unterbosse (`_flag_entities`,
+  `_flags_mentioned`, `_event_names`, `_map_of` bleiben, wo sie sind, und
+  werden vom neuen Einstieg nicht aufgerufen).
+- **Keine** neue Auswahlregel: nicht `variationId`, nicht `mapIndex`, nicht
+  `bossModifier`, keine Namens- oder Themenheuristik. Bei mehreren
+  Kandidatinnen wird **keine** gewaehlt (A7).
+- **Kein** Lesen der Kategorien 101, 102, 103, 104, 110, 130-138 (die
+  grossen Karten).
+- **Kein** neues Modul und keine zweite Kopie von `_parts`/`_profile`.
+- **Keine** Kopie der Beutelisten in `subbosses` — die Oberflaeche liest
+  `world_events.drops`.
+- **Kein** zweiter Cache, keine zweite Abzugsdatei, kein Hintergrundlauf fuer
+  den neuen Durchgang (das ist Option D und braucht eine Entscheidung).
+- **Kein** "exact" als `confidence` auf dem neuen Weg.
+- **Keine** Wortlaute aus diesem Dokument in die Oberflaeche; sie kommen aus
+  Schritt 2.
+- **Keine** Spieldaten ins Repository, keine neue Quelle in
+  `NightreignHelper.spec` — der Waechtertest zaehlt weiter genau zwei.
+
+**Pruefpunkte.**
+
+- **(a) Erstlauf.** Schritt 0 vor dem Bau, Nachmessung in Schritt 5 gegen
+  dieselbe Schranke.
+- **(b) Verteilung der Belegketten.** Schritt 1 meldet die Zaehlung
+  `single` / `group` / `ambiguous` / `unresolved` ueber alle 49 (bzw. 84)
+  Karten. **Erwartung aus T-299:** die 29 Ein-Boss-Karten der Kategorie 120
+  sind `single`; die vier Karten der Kategorie 160 und mindestens
+  `m47_80`, `m48_90`, `m52_11`, `m52_12` sind es nicht.
+- **(c) Wann sich `variationId` lohnt.** Liegt `ambiguous` + `unresolved`
+  ueber einem Viertel der 84 Karten, ist das der Ausloeser fuer einen
+  eigenen Forschungsauftrag (`variationId`/`mapIndex`) — nicht vorher, und
+  nicht im Bauauftrag.
+- **(d) Groesse des Abzugs.** Schritt 1 nennt `nightreign_data.json` vorher
+  und nachher (heute 8 522 218 B, T-269a). Ueber +10 % faellt `parts` aus
+  den Unterboss-Eintraegen (die Koerperteil-Raten sind bei Feldbossen selten
+  gesetzt), bevor irgendetwas anderes geaendert wird.
+- **(e) Kartenzahl gegen den Beleg.** Der Extraktor zaehlt beim Bau: 116
+  verschiedene `smallBaseId`, 520 Muster, 35 Bosskarten. Weicht eine Zahl ab,
+  hat das Spiel gepatcht, und die Aufloesung wird nachgeprueft, bevor die
+  Anzeige jemandem etwas erzaehlt.
+- **(f) Umlenkung.** Jeder Lauf nach `CLAUDE.md`; der neue Durchgang liest
+  die Spielinstallation nur.
+
+**Risiken.**
+
+1. **Der Erstlauf wird sichtbar langsamer.** Merkmal: Schritt 0 reisst die
+   60 s. Rueckweg: Kartenmenge kuerzen, Stufe 2 verschieben, Option D.
+2. **Zu viele Karten bleiben `ambiguous`.** Merkmal: Pruefpunkt (b)/(c).
+   Rueckweg: Forschungsauftrag `variationId`; bis dahin zeigt die Anzeige
+   die Kandidatinnen — das ist eine magere, aber wahre Antwort.
+3. **Eine MSB ist unlesbar** (`_parts` wirft, SEC-014). Merkmal: einzelne
+   Karten `unresolved`. Kein Rueckweg noetig, das ist die gewollte Antwort.
+4. **Die Beute-Prozente sind leicht verschoben**, weil einzelne Lose auf
+   `ItemTableParam`-Ids ohne Zeile zeigen und `walk()` dort still abbricht
+   (T-299 Abschn. 5). Merkmal: Summen unter 100 %. Behandlung: ein Satz in
+   der Spec, keine Rechnung im Code.
+5. **Der Testabzug wird ungueltig**, sobald `EXTRACT_VERSION` 13 steht
+   (`tests/conftest.py:81` weist ihn ab). Merkmal: uebersprungene Tests im
+   naechsten Lauf. Behandlung ist Teil von Schritt 1, nicht ein Nachtrag.
+
+**Bewusst nicht getan.**
+
+- **Kein Evergaol-Etikett aus den Dateien.** `WorldMapPointIconParam` traegt
+  nur `iconId` und keinen Text (T-299 Abschn. 2b); "Evergaol" ist damit
+  nicht belegt. Wieder interessant, sobald OF-46 beantwortet ist — dann als
+  Zeile der bereits vorhandenen, farblich abgesetzten Community-Schicht
+  (`bosstab.OBSERVED_COLOUR`/`SIGHTING_LEGEND`), nicht im Abzug.
+- **Keine Ziehwahrscheinlichkeit.** `MapPatternSet` traegt Gewichte je
+  Muster; gezeigt wird die Zusammensetzung des Pools, wie in `_gating`.
+  Wieder interessant, wenn jemand die Gewichte liest.
+- **Keine Karte fuer den Ort.** Koordinaten liegen in
+  `SmallBaseAndSpotAttachPoint` (T-299 Abschn. 3c) — eine Landkarte ist ein
+  eigenes Feature und keine Voraussetzung fuer A24.
+- **Kein Umbau von `derive`.** Der EMEVD-Weg bleibt unveraendert; er ist
+  fuer die zehn Nachtfuersten der belegtere.
+- **Keine gemeinsame Beute-Anzeige** zwischen `eventstab` (QWidget-Zeilen)
+  und `bosstab` (HTML im Label) — zwei Anzeigearten, eine Datenquelle;
+  ein gemeinsamer Renderer waere teurer als die zehn Zeilen.
+
+**Offene Fragen aus Themenbereich L.**
+
+**OF-45 — an den `director`, Adressat App Designer (nach Schritt 0):** Wie
+viel darf A24 den Erstlauf kosten? Vorschlag des Entwurfs: hoechstens 60 s
+auf die gemessenen 293,8-310,1 s. Reisst die Messung das, ist zu waehlen
+zwischen (i) die 16 gleich besetzten Karten `m20_00..m21_50` weglassen,
+(ii) Stufe 2 verschieben, (iii) Option D (nachgelagerter Abzug, zweiter
+Cache-Pfad).
+
+**OF-46 — an den `director`, Adressat App Designer:** A24 nennt
+"Evergaol-Bosse", die Dateien nennen keine. Belegt sind Feldbosse (29
+Ein-Boss-Karten), Nachtbosse Tag 1/2 (35 Karten) und zwei Kartensaetze ohne
+Rollennamen: die vier der Kategorie 160 und die 16 gleich besetzten
+`m20_00..m21_50`. Empfehlung: beide ohne Rollenetikett zeigen und
+"Evergaol" nur in die Community-Schicht setzen, falls der Nutzer aus dem
+Spiel bestaetigen kann, welche Karten das sind. Hinweis fuer die Pruefung:
+Kategorie 120 traegt zwei Weltkarten-Symbole (28 und 16, T-299 Abschn. 2b) —
+faellt diese Trennung mit 29 gegen 16 zusammen, ist sie das Etikett; das ist
+in Schritt 1 nebenbei zaehlbar und **bisher nicht geprueft**.
+
+**OF-47 — an den `director`, Adressat `ui-ux-designer` (Schritt 2):** Bleibt
+die Spalte "Examples (any map)" im Deep-of-Night-Tab, wenn sie nach QA-286
+nur noch fuer die gelesenen Kategorien Namen traegt und fuer Lager, Ruinen
+und Shifting-Earth-Orte leer bleibt — oder faellt die Spalte und die Zeile
+sagt stattdessen, um welche **Art Ort** es geht?
+
+---
+
 ---
 
 *Ab hier steht, was aus den Entscheidungen folgt: der Umsetzungsschnitt, die

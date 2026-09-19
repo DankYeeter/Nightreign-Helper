@@ -473,3 +473,33 @@ favourite entwaessern."*
 
 *Reihenfolge (Nutzer 20:13): Release 1.13.2 zuerst, A22/A23 als 1.14.0 mit
 eigener Pruefkette.*
+
+## Nachtrag 19.09.2026 — Unterbosse im Nightlords-Tab (entschieden durch den Nutzer, 12:28-12:40)
+
+*Anlass: Ideensammlung aus Spielersicht bei leerem Backlog. Verworfen vom
+Nutzer: Relikt-Ausmisten ("vlt. fehlt einem einfach das passende relikt"),
+Nachtfuerst-Vorbereitung ("man weiss vor der runde kaum gegen wen man
+kaempft"), Level-Kostentabelle (Kosten je Level sind fest), Build teilen,
+Fortschritt aus dem Spielstand. Angenommen: "das zu ergaenzen im
+Nightlords Tab und Informationen zu den Unterbossen waere spannend."*
+
+### A24 — Unterbosse mit Kampfwerten im Nightlords-Tab
+
+- **Umfang:** Nachtbosse Tag 1/2 sowie Feldbosse und Evergaol-Bosse. Je
+  Boss: Schwaeche und Resistenz, HP und Stance, Beute, und — soweit die
+  Dateien es hergeben — unter welchem Nachtfuersten er auftaucht. Alles
+  aus den Spieldaten (A7); was nicht belegt ist, steht als solches auf der
+  Seite, wie heute beim Bruchwert.
+- **Zwei Stufen, Forschung zuerst.** Stufe 1: Evergaol- und Feldbosse
+  (Roster aus den Deep-of-Night-Kategorien, Kampfwerte ueber NpcParam,
+  Beute ueber die vorhandene Kreaturen-Aufloesung). Stufe 2: Nachtbosse
+  Tag 1/2 und die Nachtfuerst-Zuordnung, nur nach Befund.
+- **Offen vor der Umsetzung (Explore 19.09.):** kein gelesener Param
+  listet Nachtbosse als benannte Menge (Kategorie 120 unbestaetigt);
+  die Zuordnung Boss → Nachtfuerst haengt an unbenannten Modifier-Ids der
+  Kartenmuster; ungelesene Kandidaten: SmallBaseAndSpot*,
+  PlayAreaCreate*, ScenarioPlacementParam. Der eingecheckte Snapshot ist
+  aelter als der Extraktor; Proben brauchen einen frischen Abzug.
+- Nachweis: Ein Evergaol-Boss (z. B. Fallingstar Beast) waehlbar im
+  Nightlords-Tab mit denselben Diagrammen wie ein Nachtfuerst plus HP und
+  Beute; ein Nachtboss mit Tag-1/2-Kennung, falls Stufe 2 belegt wird.

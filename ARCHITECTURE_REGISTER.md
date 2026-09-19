@@ -69,6 +69,8 @@ OF-Kreis von `ARCHITECTURE.md` / `docs/state.md`.
 | AD-037 | Zweihandwert als zweite Antwort derselben Frage: `damage.Rating.two_handed` (`Rating` oder `None`), gefuellt von `_rate`; Regel als gemessene Kalibrierung in `weapons.py` (`rate(two_handed=)`), Scope 124 wird `class_rates["two_handed"]` (Praezedenz `WEAPON_CLASS_SCOPES`); **Bau gesperrt bis R-008** — die Elden-Ring-Regel STR x1.5 trifft keinen Messpunkt (208/169 statt 216/151). Hand der Rangfolge: Nutzerwahl OF-41, Empfehlung (3). | `### AD-037`, Themenbereich J | — (Urfassung T-248a) | nichts; wahrt AD-019/020/022, getrennt von AD-036 |
 | AD-038 | Die Startarmatur des Nightfarers (`hero["starting_weapon"]`, Stufe `MIN_UPGRADE`, ohne Rollen) wird die feste Bezugswaffe der Schadensrichtung; Attribute erreichen die Zahl ueber `damage.equipped`, der Betrag je Attribut-Effekt in der Why-Zeile kommt aus einer zweiten Bewertung ohne diesen Effekt (`explain._felt_by_the_goal`). Gemessen: zehn Startarmaturen = A20-Zellen, Duchess 72 → 70 mit Dex -3; 46 us statt 13 us je Bewertung. | `### AD-038`, Themenbereich K | — (T-291, 17.09.2026) | nichts; **loest AD-032 Option A ab**, Option C bleibt (OF-43) |
 | AD-039 | Familie = `effecttext.family_key`: Name ohne `[Nightfarer]`-Praefix, Stufe `+n`, Waffentyp (34 Namen aus `data["weapon_families"]`), Affinitaet (Magic/Fire/Lightning/Holy) und Zaehlklausel `with 3+ … Equipped`; `EffectFilters` bekommt `allowed` und `avoided_families` (Schluessel `advisor/allowed`, `advisor/avoided_families`), `resolved_excluded` = (excluded ∪ Familienmitglieder) − allowed − required geht als `SlotProblem.excluded` in den Lauf; `advisor/` unveraendert. Gemessen: 340 Ids → 222 Familien, 57 mit ≥ 2 Zeilen. | `### AD-039`, Themenbereich K | — (T-291, 17.09.2026) | nichts; erweitert AD-036.1/.5 |
+| AD-040 | Die **Ortskarte** ist die Einheit des Unterboss-Registers, nicht die Figur (dieselbe Figur traegt je Karte andere HP): neuer Snapshot-Block `subbosses`, nach Karten-Id als Text geschluesselt, `weakness` in der Form von `bosses[].weakness`. Zwei Einstiege in dieselbe Aufloesung — Ortslotterie (Kat 120/160, 49 Karten) und `LotResultPlayAreaParam` (35 Bosskarten); Param-Joins in `extract._subbosses`, Karte -> Figur in `bossdata.derive_places` (kein neues Modul). Bosswahl **ohne neue Heuristik**: vorhandene Schranken, `single`/`group`/`ambiguous`/`unresolved`, bei mehreren Kandidatinnen keine Wahl (A7). QA-286 faellt auf derselben Route (`kinds.chrs` -> `kinds.places`), `EXTRACT_VERSION` **13**, Testabzug im selben Auftrag neu. | `### AD-040`, Themenbereich L | — (T-300, 19.09.2026) | nichts |
+| AD-041 | Die Unterbosse sind eine zweite, auf den gewaehlten Nachtfuersten **gefilterte** Liste (`QTreeWidget`, Bestand aus `effectfilterdialog.py`) unter dem Kachelgitter in `grid_outer`, Gruppen Tag 1 / Tag 2 / Feld / ohne belegte Rolle; sie speisen dasselbe Detailpanel, neu nur HP-Zeile und Beute aus `world_events.drops[str(chr)]`, kein Stance-Rang. Auswahlvergleich wird `entry.get("key", entry["name"])`, weil Unterboss-Namen nicht eindeutig sind (QA-150-Fall). Wortlaut aus der Spec (Schritt 2), nicht von hier. | `### AD-041`, Themenbereich L | — (T-300, 19.09.2026) | nichts |
 
 **Eine der 32 AD-Nummern ist keine Entscheidung** (AD-027 nie vergeben), und
 **eine ist eine vorgelegte, noch nicht getroffene** (AD-032). Getroffene
@@ -93,6 +95,10 @@ offen 17). `ARCHITECTURE.md` an diesem Tag **7676** Zeilen.)*
 Entscheidungen (AD-027 nie vergeben); AD-032 Option A abgeloest, Option C steht; naechste freie **AD-040**.
 **OF-42 bis OF-44** angehaengt, alle offen; naechste freie **OF-45**. Zaehltabelle darunter weiter auf dem
 Stand vom 12.09. (heute 43 OF-Zeilen, offen 20). `ARCHITECTURE.md` an diesem Tag **8112** Zeilen.)*
+*(Nachtrag 19.09.2026, T-300: **AD-040** (A24 Leseroute und Snapshot-Block, QA-286) und **AD-041** (Tab)
+vergeben — 41 Nummern, 40 getroffene Entscheidungen (AD-027 nie vergeben); naechste freie **AD-042**.
+**OF-45 bis OF-47** angehaengt, alle offen; naechste freie **OF-48**. Zaehltabelle unter Tabelle 2 weiter
+auf dem Stand vom 12.09. (nachgezaehlt 19.09.: 47 OF-Zeilen, davon 22 mit Stand `offen`). `ARCHITECTURE.md` an diesem Tag **8563** Zeilen.)*
 **`widerspruechlich`-Faelle: 0** — jede Ueberholung ist an ihrer Stelle
 ausdruecklich markiert.
 
@@ -149,10 +155,13 @@ Aussage die Frage beruehrt, sie aber nicht entscheidet.
 | OF-38 | AD-036 Schritt 1 beruehrt sechs Anwendungsdateien (`relicslots.py` zwei Durchreich-Zeilen): ein Auftrag mit Ausnahme oder zwei (1a Anzeigepfad, 1b Combobox/Grundlinie)? | **offen** — `director` | ebd. |
 | OF-39 | Eigener OUTDATED-Satz nach dem Markieren einer Effektmenge (Nachfolger AK-270)? Ohne Antwort faellt `the_build_changed(reading_changed=)` ersatzlos. | **beantwortet durch den `ui-ux-designer` (T-248b, 14.09.2026)** — ja, eigener Satz: `The effects you marked changed while this was working out — use Optimize again.`, derselbe Abbruchpfad wie AK-12/AK-183, keine neue Zustandsnummer. AK-270 selbst entfaellt ersatzlos (Lesart-Umschalter gestrichen, A18). | Frage: ebd. Antwort: `UI_SPEC.md` §6.8 AK-289, `UI_SPEC_REGISTER.md` Zeile AK-289/AK-270 |
 | OF-40 | R-008 beauftragen: Zweihandregel, die alle Messpunkte trifft (sechs Zellen Lv15 ohne Relikte, Params zuerst). Ohne R-008 kein Bauauftrag zu AD-037. | **offen** — `director` → `researcher` + `qa-engineer` | `ARCHITECTURE.md` Themenbereich J, „Offene Fragen aus Themenbereich J“ |
-| OF-41 | Hand der Berater-Rangfolge: (1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand (Empfehlung; ohne Bezugswaffe identisch mit (2)). | **offen** — `director` → App Designer | ebd. |
+| OF-41 | Hand der Berater-Rangfolge: (1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand (Empfehlung; ohne Bezugswaffe identisch mit (2)). | **entschieden** (Nutzer 19.09.2026 13:25): nur Feld- und Nachtbosse, Kat 160 und `m20_00..m21_50` entfallen, kein Wort "Evergaol" | ebd. |
 | OF-42 | A22 sagt "gewaehlte Waffe", A17 "keine gefuehrte Waffe": Startarmatur des Nightfarers (gebaut, AD-038) oder aktive Kachel des Build planners (Rangfolge wechselt mit der Kachel, Stufe in den Schluessel)? Teil 2: die 15 Element-Kopien, die unter der Startarmatur in der Schadensspalte auf 0 fallen — Gewinn oder Verlust (AD-032 Frage 1, nie beantwortet)? | **offen** — `director` → App Designer | `ARCHITECTURE.md` Themenbereich K, „Offene Fragen aus Themenbereich K“ |
 | OF-43 | Bleibt die dritte Richtung `Offensive attributes` (AD-032 C), obwohl Attribute jetzt in der Schadenszahl stehen? Empfehlung: fuer 1.14.0 behalten, Rueckbau als eigener Entscheid. | **offen** — `director` → App Designer | ebd. |
 | OF-44 | Spec T-291b: Wortlaut des Betrags in der Why-Zeile, Zaehlung der Leiste (Ids oder Familien), Neufassung AK-190/192/193 und Scope-Satz, Gruppierung des Filterfensters gegen AK-308 (feste Ordnung oder Baum). | **offen** — `director` → `ui-ux-designer` | ebd. |
+| OF-45 | Wie viel darf A24 den **Erstlauf** kosten? Der neue MSB-Durchgang liest 84 Karten; Vorschlag des Entwurfs: hoechstens 60 s auf die gemessenen 293,8-310,1 s. Reisst die Messung (Schritt 0, `performance-tuner`) das, ist zu waehlen: (i) die 16 gleich besetzten Karten `m20_00..m21_50` weglassen, (ii) Stufe 2 verschieben, (iii) Option D (nachgelagerter Abzug, zweiter Cache-Pfad). | **erledigt** — Nutzer 19.09.2026 13:25: hoechstens 60 s; T-301 gemessen: +21 ms bei Archiv-Wiederverwendung, `build` 33,9 s (`docs/perf/baselines.md` S13) | `ARCHITECTURE.md` Themenbereich L, „Offene Fragen aus Themenbereich L“ |
+| OF-46 | A24 nennt „Evergaol-Bosse“, die Dateien nennen keine (`WorldMapPointIconParam` traegt nur `iconId`, keinen Text). Belegt sind Feldbosse (29 Karten) und Nachtbosse Tag 1/2 (35 Karten); ohne Rollennamen bleiben die vier Karten der Kategorie 160 und die 16 `m20_00..m21_50`. Empfehlung: ohne Rollenetikett zeigen, „Evergaol“ nur in die Community-Schicht. Ungeprueft: ob die zwei Weltkarten-Symbole der Kategorie 120 (28 und 16) mit 29 gegen 16 zusammenfallen. | **offen** — `director` → App Designer | ebd. |
+| OF-47 | Bleibt die Spalte „Examples (any map)“ im Deep-of-Night-Tab, wenn sie nach QA-286 nur fuer die gelesenen Kategorien Namen traegt und fuer Lager, Ruinen und Shifting-Earth-Orte leer bleibt — oder faellt sie zugunsten einer Aussage ueber die **Art Ort**? | **erledigt** — `ui-ux-designer` T-302 (19.09.2026): Spalte faellt, AK-326 | ebd. |
 
 ### Zaehlung der offenen Fragen
 
@@ -178,11 +187,11 @@ verlorener Vorgang. Genau darum sind es 32 OF-Nummern und nicht 33.
 
 | Adressat | wartende OF |
 |---|---|
-| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018, **OF-37** (Grundlinie und bedingte Flueche), **OF-41** (Hand der Rangfolge), **OF-42** (Bezugswaffe: Startarmatur oder Kachel), **OF-43** (dritte Richtung behalten) |
+| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018, **OF-37** (Grundlinie und bedingte Flueche), **OF-41** (Hand der Rangfolge), **OF-42** (Bezugswaffe: Startarmatur oder Kachel), **OF-43** (dritte Richtung behalten), **OF-45** (Erstlauf-Budget A24), **OF-46** (Evergaol-Etikett) |
 | **`director`** | OF-22, OF-24, OF-27, OF-29; aus OF-31 die Wortlautfragen SEC-027/028; **OF-38** (Schritt-1-Zuschnitt), **OF-40** (R-008 beauftragen) |
-| **`performance-tuner`** | OF-10, OF-28, OF-32 |
+| **`performance-tuner`** | OF-10, OF-28, OF-32; Messung vor **OF-45** (Erstlauf-Aufschlag A24, Schritt 0) |
 | **`qa-engineer`** | OF-11 |
-| **`ui-ux-designer`** | OF-18, OF-21, OF-23, **OF-39** (OUTDATED-Satz), **OF-44** (Spec T-291b) |
+| **`ui-ux-designer`** | OF-18, OF-21, OF-23, **OF-39** (OUTDATED-Satz), **OF-44** (Spec T-291b), **OF-47** (Beispielspalte nach QA-286) |
 | **`researcher` + `qa-engineer`** | **OF-40** (R-008 Zweihandregel) |
 
 ---

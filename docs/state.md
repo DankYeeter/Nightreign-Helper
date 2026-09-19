@@ -8,8 +8,8 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 19.09.): T ab **T-297** · QA ab **QA-286**
-· SEC ab **SEC-049** · AK **AK-319** · AD **AD-040** · OF **OF-45** · DR
+**Nummernkreise** (nachgezaehlt 19.09.): T ab **T-305** · QA ab **QA-287**
+· SEC ab **SEC-049** · AK **AK-327** · AD **AD-040** · OF **OF-45** · DR
 **DR-034** · R **R-009** · C **C-007** · A **A-038**. AD-027, OF-14, C-005
 nie vergeben.
 
@@ -34,7 +34,7 @@ net -421 Zeilen (`561e2ff`, `45217ef`, `122ec39`), PyInstaller nach dev;
 (NH-007 Hook-Maske `efa52fd`, NH-008 `no-window-dispatch.ps1` `b14fb4d`,
 NH-009 `scripts/drive_window.ps1` `6633fca`). Kein neues Release: der
 Anwendungscode seit 1.14.0 ist nur Bereinigung (Tag `v1.14.0` = `ffac292`).
-**Naechster Schritt:** sync-out, PR auf `main` (Nutzer mergt). Backlog
+**Naechster Schritt:** sync-out, PR auf `main` (Nutzer mergt). **A24** (Unterbosse, GOAL.md Nachtrag 19.09.) als naechster Zyklus: T-299 erledigt 13:05 (Bericht: beide Stufen belegt, QA-286 Extraktor liest Orte als Figuren); T-300 Entwurf AD-040/041 fertig 13:21; OF-45 (60 s) und OF-46 (nur Feld- und Nachtbosse) entschieden; T-301 gemessen 13:33 (Zusatz 21 ms bei Archiv-Wiederverwendung, Schranke eingehalten); T-302 Spec fertig 13:39 (AK-319..326, OF-47: Beispielspalte faellt); T-303 committet `3114100` 14:00 (subbosses, EXTRACT_VERSION 13, Testabzug 841 Dateien 20 913 184 B; Zaehlung single 11/group 1/ambiguous 1/unresolved 16 — Schranke INFERRED_MIN_HP); **T-304** architect Auswahlregel laeuft; danach Schritt 3 Tab; AK-324.3 entschieden 13:42 (fuenf offen, Rest Toggle, seltenste zuerst). Backlog
 leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 
 ## Stand gegen `GOAL.md` (19.09.2026, Artefakt 1.14.0)
