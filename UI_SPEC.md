@@ -6123,3 +6123,12 @@ skaliert die Waffe keines, bleibt "this figure does not count it".
 Beispiele: Duchess `Dexterity -3 → Attack rating -2, counted against it`,
 Intelligence-Zeile nackt; Recluse `Mind -13` ohne Betrag; `Vigor +3` nie
 mit Attack-Betrag. Umsetzung T-294a.
+
+**Nachtrag AK-317 (Director, 19.09.2026, Nutzer 08:30):** Das
+`Allow`-Kaestchen ist **immer klickbar**, auch wenn die Familie nicht
+vermieden ist; der Haken wird gespeichert und wirkt, sobald die
+Familien-Kopfzeile auf `Avoid` steht. Kein Grau. Tooltip (ein Satz, beide
+Zustaende): `"Let this one effect into suggestions even while its family
+is avoided. It matters only once the family header is set to Avoid."`
+Legende AK-317 unveraendert. Grund: Nutzer traf am 17.09. das graue
+Kaestchen und hielt es fuer kaputt. Umsetzung T-295a.
