@@ -7988,6 +7988,462 @@ Azula, 250 HP) und `4920` (Stoneskin Lords). Ein falscher Name dort ist der
 Ausloeser fuer den Rueckweg in AD-044 Punkt 4.
 ---
 
+## Themenbereich M — Schadensart im Berater waehlbar, A25 (2026-09-19, T-313a)
+
+*Anlass: `GOAL.md` A25 (Nutzerfreigabe 19.09.2026). Vorlauf: `docs/research/R-009.md`
+(Mechanik und Zahlen), Explore-Bericht 19.09. 15:38 (Fundstellen). Entscheidungstiefe
+laut Auftrag: **Modul und Datenfluss**. Alle Zahlen in diesem Abschnitt sind an der
+eigenen Installation gemessen, nicht geschaetzt — `nrplanner/data/nightreign_data.json`,
+`data_version` 10350000, `extract_version` 15, `regulation_sha256` 876a3ca2…, gelesen
+2026-09-19; kein Programmlauf, kein Fensterlauf, Umlenkung nach `CLAUDE.md` gesetzt.*
+
+### Praemissen dieses Themenbereichs
+
+| Praemisse | Quelle | Guete |
+|---|---|---|
+| Skill-, Zauber- und Schulbuffs tragen ihre Zahl in denselben fuenf `*AttackRate`-Feldern wie ein gewoehnlicher Angriffsbuff und werden allein ueber `magicSubCategoryChange1/2/3` eingeengt. | R-009 Befund 1/2, aus den eigenen Params | belegt |
+| Scope 112 (und 111) = Weapon Arts; Nightfarer-Faehigkeiten bleiben unbeachtet. | Nutzer 19.09.2026, `GOAL.md` A25 "Praemisse" | **gesetzt** (R-009 nennt 111 ausdruecklich unbelegt) |
+| "Improved Sorceries"/"Incantations" tragen **kein** Scope-Feld; ihre Einengung steht nur im Text und lebt im Programm als Id-Liste `model.MOVE_SCOPED_EFFECT_IDS`. | `model.py` Z. 541-597, R-009 Befund 1 | belegt; die Einengung selbst ist abgeleitet, nicht gemessen |
+| Die Zuordnung Scope-Zahl → Zauberschule steht im Auszug als `spell_families` (21 Eintraege), aus den Effektnamen des Spiels abgeleitet. | `nightreign_data.json`, `nrdata/extract.py` Z. 2698-2724 | belegt |
+| Zwei Buffs mit **verschiedenem** Scope duerfen nicht miteinander multipliziert werden. | `model.py` Z. 397-402 (QA-018, im Spiel gemessen) | belegt |
+| Die Startwaffen-Konversion ist ein flacher Tausch (−30/+33 bis −60/+66), und wo sie landet, ist im Spiel gemessen. | `damage.converted` (QA-113, T-246, drei Ablesungen 14.09.) | belegt |
+| Die Bezugswaffe der Schadensrichtung ist die Startarmatur des Nightfarers, `MIN_UPGRADE`, ohne Rollen — der Spieler waehlt sie nicht. | AD-038 | geltende Entscheidung |
+
+### Der Befund, der den Zuschnitt aendert: die Konversion zaehlt bereits
+
+Der Auftrag nennt als Stand "kein Ziel liest `final_per_type`, `scoped:`-Raten,
+`starting_flat`". Fuer `final_per_type` und die `scoped:`-Raten stimmt das. Fuer
+`starting_flat` stimmt der **Satz**, aber nicht die **Sache**: das Ziel liest das Feld
+nicht selbst, es fragt `damage.equipped(reference, slot_index=0, …)`, und dort greift
+`is_starting_armament` — die Bezugswaffe **ist** seit AD-038 die Startarmatur in Slot 1.
+Die Konversion und der Statusmalus stehen damit seit A22 in der Zahl.
+
+Nachgemessen am 19.09.2026 (Stufe 15, Bezugswaffe = eigene Startarmatur,
+`goals._max_damage`, Wert vor Rundung):
+
+| Nightfarer | ohne Relikt | + 7120100 "deals fire damage" | + 7120400 "inflicts frost" |
+|---|---|---|---|
+| Wylder (Greatsword) | 122,0506 | **123,8506** (+1,80; Physics 104,05 / Fire 19,80) | **103,7430** (−18,31) |
+| Revenant (Cursed Claws) | 88,6516 | **91,4335** (+2,78; Physics 0,00 / Magic 71,63 / Fire 19,80) | **75,3539** (−13,30) |
+| Recluse (Glintstone Staff) | 135,6136 | 135,6136 (0,00) | 135,6136 (0,00) |
+
+**Zwei Saetze des Programms sind dadurch falsch** und fallen in diesem Bau, statt dass
+etwas Neues daneben gebaut wird:
+
+1. `goals._ATTACK_RATING_SCOPE`, vorletzter Satz: *"Effects that convert one damage type
+   into another are not in this figure: how the game applies them cannot be read out of
+   the files, so they are named rather than guessed at."* — seit T-246 ist gemessen, wo
+   die Punkte landen, und seit AD-038 stehen sie in der Zahl.
+2. `candidates._unmodelled_conversion_line` (Wortlaut AK-67, gezogen in
+   `candidates.py` Z. 237 ueber `_converts_a_damage_type`, Z. 314): *"This figure does
+   not count that change."* — dieselbe Aussage, je Lauf mit einer Zaehlung davor.
+
+Der dritte Satz derselben Familie, `_converts_a_damage_type`' Docstring ("a candidate
+sits in no slot, AD-020 Punkt 3"), beschreibt weiterhin richtig, was `damage.candidate`
+tut — nur fragt der Berater seit AD-038 nicht mehr so. Er wird mitgeloescht, nicht
+umgeschrieben.
+
+---
+
+### AD-045 — Die Schadensart ist ein **Feld der Anfrage** (`damage_art`), kein zweites Ziel: ein Wahlwert auf `AdvisorRequest` und `GoalContext`, gelesen allein von `_max_damage` (2026-09-19, Status: aktiv; folgt dem Muster `two_handed`/AK-292, laesst AD-004 und die `GOALS`-Registry unberuehrt)
+
+**Kontext.** A25 will eine Auswahl neben "Maximise damage": Alle / fuenf Schadenstypen /
+Skill attack / Sorceries / Incantations / eine Zauberschule. Gemessen sind es heute
+**24 Eintraege** (1 + 5 + 18, siehe AD-046). Die Frage ist, ob daraus 24 Zielrichtungen
+werden oder ein Parameter einer Zielrichtung.
+
+**Kraefte.** Die Registry `GOALS` ist bewusst schreibgeschuetzt, weil eine zur Laufzeit
+ergaenzte Richtung in keinem Cache-Schluessel stuende (`goals.py`, Kommentar an `GOALS`).
+`GOAL_ORDER` speist die Berater-Leiste **und** das `Sort by`-Feld (AK-43, AK-205, AK-257).
+Und entscheidend: `candidates.pool` misst **jeden Kandidaten unter jedem Ziel**, das es
+bekommt (`goals.py`, Kommentar an `GOAL_ORDER`) — Zielrichtungen sind also nicht gratis.
+
+**Optionen.**
+- **A — 24 Ziele in der Registry.** Ein Ziel je Art. Konsequenz: die Poolkosten des
+  Pickers steigen um den Faktor der Zielzahl (heute 3), `GOAL_ORDER` und das `Sort by`-Feld
+  bekommen 24 Eintraege, und die Zahl der Ziele haengt am Datensatz. Verworfen.
+- **B — ein Feld auf der Anfrage** (gewaehlt). `AdvisorRequest.damage_art: str = ""` und
+  `GoalContext.damage_art: str = ""`, gefuellt in `advisorbar.asking_from`, verglichen in
+  `run._refuse_a_request_that_asks_about_another_run` wie `two_handed` (`run.py` Z. 272),
+  gelesen allein in `goals._max_damage`. `run.cache_key` ist die Anfrage ohne `generation`
+  (`run.py` Z. 186) — das Feld ist damit **ohne Zutun** im Schluessel.
+- **C — im Bestand bleiben.** Keine Auswahl; die `scoped:`-Raten bleiben eine Zeile im
+  Aufklappfenster. Konsequenz: A25 faellt. Verworfen, aber als Rueckweg brauchbar: bei
+  `damage_art == ""` ist jede Zeile dieses Themenbereichs ohne Wirkung.
+
+**Entscheidung: B.** Die Wahl ist eine Eigenschaft der **Frage**, nicht eine zweite
+Frage — genau wie die Hand (AK-292/AK-293): sie aendert, was die Richtung *zaehlt*, nicht
+welche Richtung gezaehlt wird. Das Muster steht fertig da und ist an vier Stellen zu
+kopieren (Anfrage, Kontext, `asking_from`, Kreuzprobe).
+
+**Punkte.**
+1. Der Wahlwert ist **eine Zeichenkette mit einem Praefix**, weil zwei Arten von Wahl
+   dahinterstehen: `""` = Alle (Voreinstellung), `type:<Physics|Magic|Fire|Thunder|Dark>`
+   = ein Schadenstyp, `art:<Schluessel>` = eine Angriffsart. Genau **eine** Stelle
+   zerlegt sie (`goals._max_damage`); niemand sonst liest das Praefix.
+2. **Ein Typ ist keine Multiplikation, sondern eine andere Zahl derselben Antwort**:
+   `Rating.final_per_type[<Typ>]` statt `Rating.final_headline`. Nichts wird gerechnet,
+   was nicht schon dasteht.
+3. **Eine Art ist ein Faktor auf dieselbe Antwort** (AD-046/AD-047).
+4. `min_damage_taken` und `max_attributes` lesen das Feld nicht. Es wird trotzdem
+   **nie** aus dem Schluessel genommen (kein Gegenstueck zu `pool_order_only`): der Picker
+   misst jeden Pool unter allen drei Richtungen, also haengt der **Inhalt** eines Pools an
+   der Art. Ein Schluessel, der das verschweigt, ist der Fehler von T-077 (10,2 % still
+   falsche Zahlen) an derselben Stelle noch einmal.
+5. Die Art erreicht die **Why-Zeile** ohne neue Verdrahtung: `GoalScore.display` und
+   `Goal.scope`/`unknowns` werden in `_max_damage` gebildet, und `explain._felt_by_the_goal`
+   bildet den Betrag je Effekt ohnehin als zweite Bewertung ohne diesen Effekt (AD-038) —
+   unter der gewaehlten Art also automatisch als Beitrag unter dieser Art. Der **Wortlaut**
+   gehoert der Spec (T-313b), nicht hier.
+6. Ob die Wahl gespeichert wird, entscheidet die Spec. Wird sie es, dann als **ein**
+   fester Schluessel in der Bauform AD-030/AD-036.4 (`advisor/damage_art`), und die
+   Schluesselform aus Punkt 1 ist genau deshalb stabil gegen Umbenennungen im Datensatz
+   (Familien-**Id**, nicht Familienname).
+
+**Konsequenzen.** Leicht wird: eine weitere Art kostet einen Eintrag in der Tabelle von
+AD-046 und sonst nichts. Dauerhaft schwer wird: der Pool-Cache zerfaellt je Art — ein
+Wechsel der Art ist ein vollstaendiger Lauf, kein Umsortieren. Das ist der Preis dafuer,
+dass die Art die Zahlen aendert und nicht nur die Reihenfolge; er ist zu messen, nicht zu
+schaetzen (Pruefpunkt M4).
+
+**Umkehrbarkeit: leicht.** Feld auf `""` festnageln, die Auswahl aus der Leiste nehmen,
+alles andere bleibt stehen und wirkt nicht.
+
+---
+
+### AD-046 — Die Zuordnung **Scope-Wert → Art** wird aus dem Datensatz abgeleitet (`model.attack_arts`), sie liest **alle drei** Scope-Felder als Menge, und ein Scope ohne Namen wird nie angeboten (2026-09-19, Status: aktiv; erweitert `model.attack_scope`/`MOVE_SCOPED_EFFECT_IDS`, ohne deren heutiges Verhalten zu aendern)
+
+**Kontext.** Der `scoped:`-Eimer von heute traegt als Schluessel den **Effektnamen**
+(`model.py` Z. 1108: `f"{SCOPED_PREFIX}{label}"`) und als Wert `max()` ueber die fuenf
+Elementraten. Der Scope-Wert selbst wird nicht aufbewahrt — an diesem Eimer ist nicht
+ablesbar, zu welcher Art er gehoert. Eine Auswahl nach Art braucht also eine zweite
+Ablage neben ihm.
+
+**Gemessen am Datensatz (19.09.2026, eigener Auszug):**
+
+| Menge | Zahl |
+|---|---|
+| Effekte mit Elementrate **und** Scope-Feld | 81, verteilt auf **32** Scope-Werte (nach `attack_scope`, also nach dem ersten belegten Feld) |
+| davon Scope-Werte, die `spell_families` benennt | 15 (14 Schulen + 110 "Charged") |
+| Scope 112 "Improved Skill Attack Power" | 5 Effekte; 111 kommt nie allein vor **ausser** auf 330900 |
+| Arten insgesamt (mit den beiden Id-Listen) | **18** |
+| verschiedene Effekte in diesen 18 Arten | **44** |
+| Effekte in **zwei** Arten | **5**: 330900 (`family:110` + `skill`), 8330103/8330104/8851200/8851250 (`sorceries` + `incantations`) |
+| Effekte, deren fuenf Elementraten **nicht** gleich sind | **0 von 81** |
+
+Die 18 Arten, je mit Zahl der Effekte: `skill` 6 · `sorceries` 11 · `incantations` 11 ·
+`family:110` (Charged) 7 · `family:2` Carian Sword, `:3` Glintblade, `:4` Stonedigger,
+`:5` Crystalian, `:9` Thorn, `:11` Gravity, `:12` Invisibility, `:20` Godslayer, `:21`
+Giants' Flame, `:22` Dragon Cult, `:23` Bestial, `:24` Fundamentalist, `:25` Dragon
+Communion, `:26` Frenzied Flame — je **1**.
+
+**Optionen.**
+- **A — Handtabelle Scope → Wortlaut.** Vierzig Zahlen auf selbst erfundene Etiketten.
+  Genau das, was `model.py` Z. 405-409 ausdruecklich verworfen hat ("inventing labels the
+  game does not state"). Verworfen.
+- **B — aus dem Datensatz ableiten** (gewaehlt): `spell_families` fuer die Schulen, die
+  Nutzerpraemisse fuer 112/111, und fuer Sorceries/Incantations die schon vorhandene
+  Id-Liste. Kein Etikett, das das Spiel nicht selbst schreibt.
+- **C — nur die drei groben Arten** (Skill/Sorceries/Incantations), Schulen weglassen.
+  Billiger um 15 Eintraege, streicht aber genau das Beispiel, das A25 nennt ("z. B.
+  Bestial"). Verworfen.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Eine neue Funktion `model.attack_arts(data) -> dict[str, str]`** (Schluessel → Etikett
+   aus dem Datensatz), neben `attack_scope`. Sie kostet einen Durchlauf ueber die Effekte:
+   **1,2 ms** fuer 2076 Effekte, gemessen (20 Laeufe, Mittel). Sie wird beim Bauen der
+   Leiste einmal gerufen, nicht je Bewertung.
+2. **Sie liest alle drei Scope-Felder als Menge**, waehrend `attack_scope` das erste
+   nicht-leere nimmt. Das ist keine neue Lesart: `model.scoped_class` (Z. 456-460) kaemmt
+   die drei Felder schon heute durch, und genau deshalb landen die vier "Improved Ranged
+   Weapon Attacks" (Feld 1 = 105, Feld 2/3 = 113/118) richtig im Klassen-Eimer. Der
+   Unterschied ist an genau einem Effekt messbar und dort tragend: 330900 "Improved
+   Charged Spells & Skills" traegt 110 **und** 111; mit der Erste-Treffer-Regel faellt es
+   aus `skill` heraus, obwohl sein Name die Skills nennt. `attack_scope` selbst bleibt
+   **unveraendert** — es waehlt weiterhin einen Eimer, hier werden Mengen gebildet.
+3. **Doppelte werden entdoppelt.** 112 und 111 zeigen auf dieselbe Art; ein Effekt mit
+   beiden Feldern geht **einmal** in `skill` ein. Ohne Mengensemantik waere 1,21 zweimal
+   multipliziert (1,4641) — der Fehler, gegen den `SCOPED_PREFIX` ueberhaupt gebaut wurde.
+4. **Sorceries/Incantations kommen aus der Id-Liste**, weil die Params sie nicht tragen:
+   `model.MOVE_SCOPED_ARTS: dict[int, tuple[str, ...]]` neben `MOVE_SCOPED_EFFECT_IDS`,
+   18 der 22 Ids (die vier "Improved Thrusting Counterattack" bleiben ohne Art). Die
+   bestehende Menge `MOVE_SCOPED_EFFECT_IDS` bleibt **Wort fuer Wort** stehen, weil
+   `tests/test_move_scoped_effects.py` sie als Waechter durchkaemmt; die neue Abbildung
+   ist ihre Verfeinerung, nicht ihr Ersatz.
+5. **Ein Scope, den `spell_families` nicht benennt, wird nie angeboten** und bleibt genau
+   so geparkt wie heute (`scoped:<Name>`, in keiner Zahl). Die Aufteilung der 32 Werte:
+   15 benennt `spell_families` (14 Schulen + 110), einen die Nutzerpraemisse (112), drei
+   sind schon Klassen-Eimer und gar nicht geparkt (105/113/118 ranged, 130 melee, 124
+   two-handed — `WEAPON_CLASS_SCOPES`, AD-037); die uebrigen **13** sind Bewegungs-Scopes
+   (100 Charge, 102 Jump, 103 Guard Counter, 104, 106, 108, 109, 119, 120, 121, 125, 127,
+   128) und bleiben ohne Art, ebenso jeder neue Wert eines kuenftigen Patches. Kein
+   Rueckfall, keine Sammelart "Sonstiges": eine Art, die das Programm nicht benennen kann,
+   ist nach A7 keine Art.
+5a. **Die Zuordnung sitzt im vorhandenen `scoped_out`-Zweig** von `compute` (Z. 1101-1110).
+   Ein Effekt, den eine Klasse schon aufgenommen hat, bekommt damit nie zusaetzlich eine
+   Art — "Improved Melee Attack Power" ist ein gewoehnlicher Angriffsbuff fuer Nahkampf
+   und keine Angriffsart.
+6. **Ein Skalar je Art, kein Fuenf-Feld-Eimer.** `Build.art_rates: dict[str, float]`,
+   gefuellt in `compute` an derselben Stelle, die heute die `scoped:`-Zeile schreibt, mit
+   demselben `max()` ueber die vorhandenen Elementraten. Begruendung ist die Messung
+   **0 von 81**: kein Effekt dieses Datensatzes traegt ungleiche Elementraten, ein Eimer
+   nach `class_rates`-Bauart haette heute in jeder Zelle dieselbe Zahl. Die Decke ist
+   benannt und bewacht: Pruefpunkt M2 laesst die Suite fallen, sobald ein Effekt ungleiche
+   Raten traegt — dann wird aus dem Skalar ein Eimer, und sonst nichts.
+7. **Die `scoped:`-Zeile bleibt unangetastet.** `art_rates` ist eine zweite Ablage neben
+   ihr, kein Ersatz: Aufklappfenster, `explain` (Z. 407) und Statusblatt lesen weiter
+   `scoped:` und zeigen weiter, dass diese Buffs in der Angriffskraft nicht stecken.
+8. **Etiketten:** Schulen aus `spell_families`, die fuenf Typen aus
+   `weapons.DAMAGE_LABELS` (`Physics`→"Physical", `Thunder`→"Lightning", `Dark`→"Holy",
+   schon vorhanden). Fuer `skill`, `sorceries`, `incantations` und die Zeile "All" setzt
+   die Spec den Wortlaut (T-313b, A8).
+
+**Konsequenzen.** Leicht: ein Patch, der eine Schule ergaenzt, ergaenzt die Auswahl von
+selbst. Schwer: die Art **"Skill attack" ist nur so gut wie die Praemisse 112/111** — wird
+sie widerlegt (R-009 offene Frage), aendert sich die Zuordnung, nicht der Bau.
+
+**Umkehrbarkeit: leicht** fuer die Zuordnung (eine Tabelle), **mittel** fuer `art_rates`
+(ein Feld auf `Build`, das der Cache-Fingerabdruck nicht kennt — es wird aus denselben
+Effekten gerechnet wie alles andere).
+
+---
+
+### AD-047 — Die Art erreicht die Zahl als **dritter Eimer in der Fassade** (`damage.equipped(…, art=…)`), nicht als Nachmultiplikation im Ziel; die Startwaffen-Konversion ist bereits drin, und zwei Saetze, die das Gegenteil sagen, fallen (2026-09-19, Status: aktiv; wahrt AD-019/AD-021, beruehrt AD-020 nicht, korrigiert Wortlaut aus AK-67)
+
+**Kontext.** Der Multiplikator einer Art muss auf die Zahl je Schadenstyp wirken. Zwei
+Orte kommen in Frage: im Ziel, auf die fertige Zahl der Fassade — oder in der Fassade
+selbst.
+
+**Optionen.**
+- **A — im Ziel nachmultiplizieren.** `_max_damage` nimmt `final_headline` und
+  multipliziert `build.art_rates[…]` darauf. Drei Zeilen. Konsequenz: eine zweite
+  Multiplikatorschicht ausserhalb der Fassade — genau die Form, gegen die AD-019 und der
+  Waechter AD-021 gebaut sind ("nur die Fassade rechnet"), und dieselbe Form, aus der
+  QA-018/QA-055/QA-056 entstanden sind. Verworfen.
+- **B — Parameter der Fassade** (gewaehlt): `damage.equipped(slot, slot_index, build,
+  hero, data, *, art: str | None = None)` reicht bis `_rate` und `_answer` durch; dort
+  wird der Faktor genau so angehaengt, wie `class_rates` und der Zweihand-Eimer schon
+  angehaengt werden (`damage.py` Z. 628-630). Beide Haende bekommen ihn ueber denselben
+  `_rate`-Aufruf.
+- **C — vierte `Question`.** `Question.SKILL` o. ae. Verworfen: die Art ist keine andere
+  Frage an die Waffe, sondern dieselbe Frage unter einer Bedingung — und 18 Arten mal drei
+  Fragen sind keine Aufzaehlung.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. `art=None` ist die Voreinstellung, und bei `None` ist **jede** Zahl bitgleich die
+   heutige. Statusblatt, Waffenkachel, Arsenal und die Goldproben rufen unveraendert
+   weiter — die bestehende Suite ist damit die Regressionsprobe.
+2. Der Faktor wird **in derselben Schleife** angewandt wie die uebrigen Raten, also auf
+   `final_per_type` je Typ, **nach** der Konversion (die auf `scaled_per_type` liegt) und
+   in derselben Reihenfolge wie die vorhandenen Faktoren. Kein Umklammern, kein zweiter
+   Ort, der summiert (Zusicherung Z1, AD-024).
+3. `rates_in_play` bekommt den Faktor unter seinem Art-Schluessel, damit das
+   Aufklappfenster ihn zeigen kann, wenn die Spec ihn zeigen will. Kein neues Feld auf
+   `Rating`.
+4. **`BARE` bleibt aus** — ohne Zutun: `_answer` kehrt fuer Fragen ohne Multiplikatorschicht
+   vorher um (`MULTIPLIERS_FOR`, AD-020 Punkt 2).
+5. **AD-020 wird nicht gebrochen**, und zwar weil der Berater `damage.candidate` gar nicht
+   ruft: er fragt seit AD-038 ueber `equipped` mit der Startarmatur in Slot 1. Punkt 1
+   (kein Vorgabe-Tier), Punkt 3 (kein Startwaffen-Paar ohne Slot) und Punkt 6 (Tier und
+   Paarung waehlt der Aufrufer nicht) bleiben woertlich gueltig; `art` ist kein
+   Eingabewert der Waffe, sondern die Bedingung der Frage.
+6. **Die Startwaffen-Konversion braucht keinen Bau.** Sie steht in der Zahl (Messung oben:
+   Wylder +1,80, Revenant +2,78, Status −18,31 / −13,30). Was A25 an dieser Stelle
+   verlangt, ist die **Loeschung** der beiden Saetze, die das Gegenteil behaupten:
+   der Konversionssatz in `goals._ATTACK_RATING_SCOPE` und
+   `candidates._unmodelled_conversion_line` samt `_converts_a_damage_type` und der Zaehlung
+   in `_pool_findings`. Ersatzlos: eine Zahl, die etwas zaehlt, braucht keinen Satz, der
+   sagt, dass sie es nicht tut.
+7. Statt ihrer bekommt `_ATTACK_RATING_SCOPE` **einen** Satz zur Art (Wortlaut Spec): was
+   die gewaehlte Art zaehlt und was sie nicht zaehlt — insbesondere, dass eine Schulwahl
+   die allgemeinen Sorcery-/Incantation-Buffs nicht mitzaehlt (siehe "Bewusst nicht getan").
+
+**Konsequenzen.** Leicht: jede Anzeige, die spaeter eine Art zeigen will, fragt die
+Fassade danach. Schwer: `equipped` hat jetzt sechs Parameter; ein siebter waere der Punkt,
+an dem aus den Parametern ein Frageobjekt wird (K-Kandidat, nicht heute).
+
+**Umkehrbarkeit: leicht** fuer den Parameter; **mittel** fuer die beiden geloeschten
+Saetze — sie zurueckzuholen hiesse, die Messung von T-246 zu widerrufen.
+
+---
+
+### AD-048 — Bei einer **Katalysator-Bezugswaffe** erreicht keine Art- und keine Typwahl die Zahl; der Lauf sagt das als Befund, statt eine Beziehung zu erfinden (2026-09-19, Status: aktiv; setzt QA-099 und `damage.final_headline` fort, Ausloeser fuer die Umkehr ist eine einzige Messung)
+
+**Kontext.** Fuer Stab und Siegel zeigt das Spiel **Spell Power** und keine
+Angriffskraft; `final_headline` gibt deshalb `catalyst_scaling` zurueck, und die
+Angriffsraten erreichen diese Zahl ausdruecklich nicht (`damage.py` Z. 346-357: die 90 in
+`CATALYST_DISPLAY_RATE` ist gegen die Anzeige gefittet, und was ein Angriffsbuff mit
+dieser Anzeige macht, ist nicht gemessen). A25 wuenscht aber gerade dort eine Wirkung.
+
+**Gemessen:** von den zehn Nightfarern hat **einer** einen Katalysator als Startarmatur —
+**Recluse**, "Recluse's Staff" (Glintstone Staff). Ein Siegel ist unter den zehn
+Startarmaturen **nicht** vertreten; Revenants Startarmatur ist "Revenant's Cursed Claws"
+(Fist). Recluse zeigt Spell power 135,6136, und weder ein Skill-, Sorcery-,
+Bestial- noch ein Feuerbuff bewegt die Zahl (alle Differenzen 0,0000).
+
+**Optionen.**
+- **A — Verbot halten** (gewaehlt): die Art-Rate beruehrt `catalyst_scaling` nicht; bei
+  einer Katalysator-Bezugswaffe bleibt die Zahl die heutige, und der Lauf sagt in seinen
+  Befunden, dass die Wahl hier nichts aendert. Preis: fuer Recluse ist die Auswahl
+  wirkungslos.
+- **B — Rate auf Spell Power anwenden**, wenigstens fuer Zauberarten. Preis: das Programm
+  behauptet eine Beziehung zwischen einer Skalierungszahl und einer Schadensrate, die
+  weder in den Params noch in einer Quelle steht (R-009 Befund 4, A7-Bruch).
+- **C — bei Katalysator auf die physische `final_per_type` ausweichen.** Preis: gerankt
+  wuerde eine Zahl, die das Spiel fuer einen Stab nirgends zeigt (Recluse: 25,43 gegen
+  135,61 auf dem Schirm) — der Fehler von QA-018 in neuer Gestalt.
+
+**Entscheidung: A.** Dieselbe Begruendung wie 2026-09-03, unveraendert gueltig, und die
+guenstigste Umkehrung steht in R-009: *ein* Relikt "Improved Sorceries" anlegen und die
+Spell-Power-Anzeige des Stabs im Spiel ablesen. Bewegt sie sich, wird A zu B, und zwar an
+genau einer Stelle (`final_headline`).
+
+**Punkte.**
+1. Kein Sonderweg im Ziel: `final_headline` bleibt die Autoritaet darueber, was ein
+   Katalysator zurueckgibt.
+2. Auch die **Typwahl** ist bei einem Katalysator ohne Wirkung — `shown_per_type` ist fuer
+   ihn leer, und die physischen Zeilen zeigt das Spiel nicht. Ein Typ liefert dort keine
+   Rangfolge.
+3. Der Lauf sagt es in `unknowns` (AD-025.2: ein Befund dieses Laufs, kein Satz der
+   Registry — vor dem Lauf ist nicht bekannt, ob die Bezugswaffe ein Katalysator ist).
+   Ob die Leiste die Auswahl zusaetzlich abblendet, entscheidet die Spec (T-313b).
+4. **Das Abnahmekriterium A25 ist in seinem ersten Satz nicht herstellbar** — nicht wegen
+   dieser Entscheidung, sondern weil kein Nightfarer ein Siegel als Startarmatur traegt
+   und der Spieler die Bezugswaffe seit AD-038 nicht waehlt. Siehe OF-50.
+
+**Umkehrbarkeit: leicht** (eine Verzweigung), **die Messung dahinter mittel** — sie
+verlangt einen Spiellauf des Nutzers.
+
+---
+
+### AD-049 — Der Testschnitt haengt an **vier** Zusicherungen, nicht an der Zahl der Arten: Wahl unwirksam = Bestand, Zuordnung gegen den Datensatz, Faktor genau einmal, Rangfolge dreht (2026-09-19, Status: aktiv; nutzt `tests/test_move_scoped_effects.py` und `tests/test_advisor_goals.py` weiter, legt **eine** neue Datei an)
+
+**Kontext.** 18 Arten mal drei Fragen mal zwei Haende ist eine Testmatrix, die niemand
+pflegt. Was traegt, sind vier Saetze, die je einmal gelten muessen.
+
+**Optionen.** A — je Art ein Test (18 Faelle, verworfen: 15 davon haben genau einen
+Effekt und pruefen dieselbe Zeile). B — vier Zusicherungen, datengetrieben (gewaehlt).
+C — nur der GOAL-Nachweis (verworfen: er deckt die Zuordnung nicht ab).
+
+**Entscheidung: B**, mit dieser Aufteilung:
+
+| Zusicherung | Wo | Inhalt |
+|---|---|---|
+| **M1 — Ohne Wahl ist nichts anders.** | vorhandene Suite, kein neuer Test | `art=None` ist Vorgabe; die 1718 bestehenden Tests sind die Probe. Faellt einer, ist der Bau falsch, nicht der Test. |
+| **M2 — Die Zuordnung stimmt gegen den Datensatz.** | `tests/test_move_scoped_effects.py` (vorhandener Waechter, erweitert) | Durchlauf ueber alle Effekte mit Elementrate: 18 Arten, 44 Effekte, 5 davon in zwei Arten; **0 Effekte mit ungleichen Elementraten** (Decke aus AD-046.6); jede Art hat mindestens einen Effekt (keine tote Zeile in der Auswahl); jeder Scope-Wert ohne Namen bleibt ohne Art. |
+| **M3 — Der Faktor wirkt genau einmal und nur auf die gewaehlte Art.** | neu: `tests/test_damage_art.py` | 8350002 (Skill 1,21) unter `art:skill` hebt die Zahl um genau 1,21 und unter `art:sorceries` gar nicht; 330900 (110 **und** 111) zaehlt unter `skill` **einmal**, nicht 1,18²; `Question.BARE` bleibt unberuehrt; die Zweithand-Antwort traegt denselben Faktor. |
+| **M4 — Die Rangfolge dreht, und die Konversion zaehlt.** | `tests/test_advisor_goals.py` (vorhanden, ergaenzt) | Wylder, Bezugswaffe Startarmatur: unter `type:Fire` ist die Grundlinie 0,00 und 7120100 bringt 19,80, waehrend dasselbe Relikt unter `""` nur +1,80 bringt — die Reihung gegen ein reines Angriffsrelikt dreht. Zugleich der Regressionsanker fuer AD-047.6: die Konversion **ist** in der Zahl (122,0506 → 123,8506). |
+
+**Nicht** neu getestet wird: je Schule ein Fall (M2 deckt sie), die Leiste (Spec/AK,
+T-313b), die Persistenz der Wahl (gehoert zur Spec).
+
+**Umkehrbarkeit: leicht.**
+
+---
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (A25)
+
+| Schritt | Rolle | Inhalt | Dateien |
+|---|---|---|---|
+| **A25-1** | developer | `model.attack_arts(data)`, `MOVE_SCOPED_ARTS`, `Build.art_rates` befuellen (AD-046 Punkte 1-6). Kein Aufrufer ausser dem Test. | `nrplanner/model.py`, `tests/test_move_scoped_effects.py` |
+| **A25-2** | developer | `art`-Parameter durch `damage.equipped`/`_rate`/`_answer` (AD-047 Punkte 1-4), Vorgabe `None`. Kein Aufrufer ausser dem Test. | `nrplanner/damage.py`, `tests/test_damage_art.py` |
+| **A25-3** | developer | `damage_art` auf `AdvisorRequest` und `GoalContext`, Kreuzprobe in `run`, `_max_damage` zerlegt den Wahlwert und liest Typ bzw. Art; `unknowns` fuer den Katalysatorfall (AD-045, AD-048). | `nrplanner/advisor/types.py`, `run.py`, `goals.py`, `tests/test_advisor_goals.py`, `tests/test_advisor_run.py` |
+| **A25-4** | developer | Loeschung der zwei falschen Saetze samt Zaehlung und Hilfsfunktion (AD-047.6); neuer Scope-Satz nach Spec-Wortlaut. | `nrplanner/advisor/goals.py`, `candidates.py`, `tests/test_pool_finding_wording.py`, `tests/test_advisor_candidates.py` |
+| **A25-5** | developer | Leiste: Auswahlfeld nach Spec T-313b, `asking_from` fuellt `damage_art`. **Erst nach** der Spec. | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
+
+Reihenfolge: 1 → 2 → 3 → 4, 5 zuletzt. 1 und 2 sind unabhaengig voneinander und einzeln
+lauffaehig; 3 braucht beide; 4 ist ohne 3 lauffaehig, aber inhaltlich dessen Haelfte.
+
+### Was der `developer` ausdruecklich **nicht** tun soll (A25)
+
+1. **Keine neue Zielrichtung** in `GOALS`/`GOAL_ORDER` — auch nicht "versuchsweise".
+2. **`damage_art` nie aus dem Cache-Schluessel nehmen** und kein Gegenstueck zu
+   `pool_order_only` bauen (AD-045.4).
+3. **`attack_scope` nicht aendern** und die `scoped:`-Zeile nicht ersetzen (AD-046.2/.7).
+4. **`MOVE_SCOPED_EFFECT_IDS` nicht umbauen** — die neue Abbildung tritt daneben.
+5. **Keine Art-Rate auf `catalyst_scaling`** (AD-048), auch nicht "nur fuer Zauberarten".
+6. **Keine Hierarchie Schule → Sorceries/Incantations** (siehe "Bewusst nicht getan").
+7. **Keine neue Extraktion, kein neuer Snapshot-Block, kein `EXTRACT_VERSION`-Schritt** —
+   A25 rechnet ausschliesslich auf vorhandenen Feldern (`GOAL.md` A25 "Nicht Ziel").
+8. **Die beiden falschen Saetze nicht umformulieren, sondern loeschen** (AD-047.6); ein
+   abgeschwaechter Satz waere derselbe Fehler leiser.
+9. **Nicht die Bezugswaffe waehlbar machen** — das ist OF-42, nicht A25.
+
+### Pruefpunkte (A25)
+
+- **M1-M4** wie in AD-049.
+- **M5:** `pytest -n auto` bleibt gruen **bevor** Schritt 5 beginnt; jede Abweichung in
+  einem bestehenden Test ist ein Verstoss gegen AD-047.1.
+- **M6 (Messung, `performance-tuner`):** was ein Wechsel der Art kostet — ein Poollauf, da
+  der Cache je Art zerfaellt (AD-045, Konsequenz). Gemessen wird gegen die Zeiten aus
+  AD-028/Themenbereich E, nicht gegen eine Schaetzung.
+- **M7 (GOAL-Nachweis):** der Wylder-Teil von A25 ist mit M4 erfuellt; der Revenant-Teil
+  ist in seinem Wortlaut nicht herstellbar (OF-50) und wird nicht "irgendwie" erfuellt.
+
+### Risiken (A25)
+
+1. **Die Praemisse 112/111 kippt.** R-009 nennt 111 ausdruecklich unbelegt. Merkbar
+   daran, dass eine Weapon-Art-Messung im Spiel den Faktor nicht bestaetigt. Rueckweg:
+   eine Zeile in der Zuordnungstabelle; der Bau bleibt.
+2. **Die Auswahl hat 24 Eintraege**, davon 15 mit genau einem Effekt im Datensatz. Wirkt
+   als Ueberangebot. Merkbar am Nutzerurteil, nicht an einem Test. Rueckweg: die Spec
+   gruppiert oder blendet Arten aus, zu denen der Spieler kein Relikt besitzt — eine
+   Anzeigefrage, kein Umbau.
+3. **Der Pool-Cache zerfaellt je Art** (M6). Merkbar an der Wartezeit beim Umschalten.
+   Rueckweg waere ein Pool, der alle Arten auf einmal misst — deutlich teurer und erst
+   dann zu erwaegen, wenn die Messung es verlangt.
+4. **Die geloeschten Saetze haengen an AK-67.** Wird der Wortlaut anderswo zitiert, bleibt
+   ein Widerspruch stehen; die projektweite Suche gehoert in den Bericht zu Schritt 4.
+
+### Bewusst nicht getan (A25)
+
+- **Keine Hierarchie Schule → Sorceries/Incantations.** Unter "Bestial" zaehlt das
+  Programm die Bestial-Buffs und **nicht** zusaetzlich "Improved Incantations", obwohl ein
+  Bestial-Zauber physisch beides traegt. Ableitbar waere die Zuordnung aus
+  `magParamChange`/`miracleParamChange` auf dem Schulbuff selbst (R-009: Bestial traegt
+  `miracleParamChange`) — aber genau diese Flags sind laut R-009 **nicht aufgeloest**
+  (einschraenkend oder erweiternd?), und eine Enthaltungsbeziehung aus einem ungeklaerten
+  Flag zu bauen ist die Erfindung, die A7 verbietet. **Wieder interessant, wenn** die
+  Flag-Frage aus R-009 durch eine Messung entschieden ist.
+- **Keine Kombination aus Typ und Art** ("Feuerschaden meiner Skills"). Eine Wahl, ein
+  Schluessel. Wieder interessant, wenn ein Nutzer danach fragt; der Schluessel aus AD-045.1
+  traegt die Erweiterung ohne Umbau.
+- **Kein echter Zauberschaden** (AtkParam/Bullet je Zauber). Ausdruecklich Nicht-Ziel von
+  A25; Aufwand und Unsicherheit stehen in R-009 Befund 4.
+- **Keine Sammelart "Sonstiges"** fuer die zwoelf Bewegungs-Scopes (AD-046.5).
+- **Kein Fuenf-Feld-Eimer** fuer `art_rates`, solange 0 von 81 Effekten ungleiche Raten
+  traegt (AD-046.6, bewacht durch M2).
+
+### Offene Fragen (A25)
+
+- **OF-50 (App Designer):** Das Abnahmekriterium A25 nennt "Revenant mit Siegel als
+  Referenzwaffe". Gemessen traegt **kein** Nightfarer ein Siegel als Startarmatur
+  (Revenant: Cursed Claws, Fist), und die Bezugswaffe waehlt der Spieler seit AD-038 nicht.
+  Drei Auswege: (a) der Nachweis wird auf **Recluse** (Stab) umgeschrieben und dann von
+  AD-048 beantwortet — die Wahl bleibt dort wirkungslos; (b) der Nachweis wird auf einen
+  Nicht-Katalysator umgeschrieben, z. B. Revenant unter `Magic` (Magic 71,63 von 88,65 —
+  wirksam und heute messbar); (c) die Bezugswaffe wird waehlbar, was OF-42 ist und
+  **nicht** A25. **Empfehlung: (b)**, weil es das Ziel des Kriteriums trifft, ohne eine
+  Entscheidung aufzumachen.
+- **OF-51 (App Designer):** Soll unter einer **Schulwahl** der allgemeine
+  Sorcery-/Incantation-Buff mitzaehlen? Heute entschieden mit "nein" (siehe oben).
+  Entscheidbar erst mit der Flag-Messung aus R-009.
+- **OF-52 (App Designer, eine Messung im Spiel):** Bewegt "Improved Sorceries" die
+  **Spell-Power-Anzeige** eines Stabs? Antwort "ja" macht aus AD-048 Option A die Option B
+  und gibt Recluse die Auswahl zurueck. R-009 nennt denselben Schlag als billigste
+  Entscheidung.
+- **OF-53 (`ui-ux-designer`, T-313b):** 24 Eintraege in einem Feld — Gruppierung,
+  Reihenfolge, und was das Feld zeigt, wenn die Bezugswaffe ein Katalysator ist oder der
+  gewaehlte Typ auf ihr 0,00 betraegt (Wylder unter `Fire`: Grundlinie 0,00, was eine
+  gueltige und aussagekraeftige Rangfolge ergibt — kein Fehlerfall).
+
+
+---
+
 ---
 
 *Ab hier steht, was aus den Entscheidungen folgt: der Umsetzungsschnitt, die
