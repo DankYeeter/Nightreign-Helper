@@ -309,6 +309,9 @@ everything else and are marked in red, in the picker and on the tile.
 
 ![Nightlords](../screenshots/nightlords.png)
 
+*This screenshot predates the sub-boss tree described below and does not
+show it — not yet regenerated (T-311).*
+
 Ten Nightlords, each carrying its Everdark Sovereign rather than repeating it.
 The two are the same character and every extracted figure is identical between
 them, so one entry shows both: the portrait is a single circle split on the
@@ -333,6 +336,29 @@ named in the game's own AI script, but those scripts are compiled and their
 constants are not yet tied to the functions that use them. Which body part a
 number refers to is not in the files either, so the panel says "Part 1" rather
 than naming it. Both say so on the page instead of guessing.
+
+**The sub-boss tree**, below the ten cards, lists what can actually spawn
+once you have picked a Nightlord: three groups, **Night bosses · Day 1**,
+**Night bosses · Day 2** and **Field bosses**. Before you pick one, the tree
+says so instead of sitting empty. A card that can appear on either night is
+listed in both day groups, each copy marked "also Day 2" or "also Day 1" so
+the repeat does not read as a mistake. A tree row and a Nightlord card are
+never both marked chosen — picking one clears the other. Each row's second
+column is the share of the selected Nightlord's own map-pattern pool the
+card belongs to; the pool is drawn with weights, so this is not the chance
+of seeing the card on a given run.
+
+Selecting a row opens the same detail panel, with no artwork — these cards
+carry none — and the card's role written where the Everdark line usually is.
+Where the files name the boss, the panel adds an **HP** line and, if the
+game's drop tables record any loot for it, a **LOOT** section: the five
+rarest drops open by default, sorted by drop chance, with a "Show N more"
+button for the rest. Some bosses' drop percentages do not add up to 100% —
+that is missing data, not a hidden entry, and the panel says so. A card the
+files cannot narrow to one boss reads **"Multiple possible bosses"** and
+lists the HP of each candidate instead of a name; a card the files do not
+identify at all reads **"Not identified"**. Neither carries an HP line or a
+LOOT section, because neither names a specific fight.
 
 ---
 
@@ -371,9 +397,9 @@ How many red, empowered variants a Deep of Night run puts on the map, and of
 what. A red variant is always the same enemy re-tuned — never a different one
 — and they appear as individuals scattered through the map, several per camp.
 
-One row per sort of thing that can be red: ordinary enemies in camps and
-ruins, named field enemies and minibosses (Golden Hippopotamus, Grave Warden
-Duelist, …), evergaol bosses, night bosses, merchants. One column per Depth,
+One row per sort of place or population that can be red: ordinary enemies in
+camps and ruins, named minibosses, mixed-boss arena locations, field bosses
+& arena locations, merchants, unidentified enemies. One column per Depth,
 showing the game's own placement counts — on the default map, 87 red variants
 at Depth 1 rising to 100 at Depth 5, and the boss tiers only join the pool
 from Depth 2 on. A map selector covers the Shifting Earths and the Great
