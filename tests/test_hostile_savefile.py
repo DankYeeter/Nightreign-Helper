@@ -660,6 +660,8 @@ def test_the_advisor_is_not_handed_an_inventory_of_that_density():
 # counts the last group's records by the 19000 band a shared Grail sits in, so
 # a table built out of any other number would be a table it reads short.
 A_SHARED_GRAIL = 19001
+#: Grail records per Nightfarer group, `4 * LOADOUT_RECORD` in `LOADOUT_GROUP`.
+GRAILS_PER_HERO = 4
 
 
 def first_marker() -> bytes:
@@ -678,7 +680,7 @@ def loadout_table(heroes: int = 10) -> bytes:
     for hero in range(1, heroes + 1):
         out += struct.pack("<II", savefile.HERO_MARKER_BASE + hero,
                            A_SHARED_GRAIL)
-        for _ in range(savefile.GRAILS_PER_HERO):
+        for _ in range(GRAILS_PER_HERO):
             out += (struct.pack("<I", A_SHARED_GRAIL)
                     + bytes(savefile.LOADOUT_RECORD - 4))
     return bytes(out)
@@ -774,7 +776,7 @@ def test_a_slot_with_as_many_table_starts_as_it_has_room_for_is_read():
 
     assert [off for off, _ in groups] == [n * savefile.LOADOUT_GROUP
                                           for n in range(10)]
-    assert {records for _, records in groups} == {savefile.GRAILS_PER_HERO}
+    assert {records for _, records in groups} == {GRAILS_PER_HERO}
 
 
 def test_one_table_start_more_than_the_slot_can_hold_is_a_data_error():

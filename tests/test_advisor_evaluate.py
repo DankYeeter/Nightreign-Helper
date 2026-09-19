@@ -140,8 +140,9 @@ def test_the_advisor_computes_the_build_the_window_shows(planner, game_data):
 
     **What "whoever asks" no longer covers, said before anything else**
     (QA-227). Since A17 the running program does not put this question to
-    the advisor at all: `advisorbar.asking_from` leaves `reference`,
-    `weapons_held` and `armament_effect_ids` empty, because the armaments
+    the advisor at all: `advisorbar.asking_from` leaves `weapons_held` and
+    `armament_effect_ids` empty and fills `reference` with the starting
+    armament rather than the active tile (AD-038), because the armaments
     are rolled again every expedition, so the advisor's build is deliberately
     not the stat sheet's. What this case compares is the **arithmetic at the
     two doors given the same inputs** -- QA-001's fault was a second, shorter

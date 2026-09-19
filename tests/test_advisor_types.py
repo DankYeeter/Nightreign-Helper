@@ -334,64 +334,30 @@ def test_asking_for_a_slot_the_vessel_has_not_got_is_a_failure():
         types.slot_at(A_PROBLEM, 5)
 
 
-# --- one field, two meanings, told apart in the type (Nachtrag IX-2) -------
-#
-# `AdvisorRequest.goal_id` is the player's choice on the Advisor bar's track
-# and an ordering and nothing else on the picker's, and until the two types
-# below nothing said which. That is the shape of fault that cost this project
-# 10,2 % silently wrong figures at the field's twin (`SlotPool.rank_by`,
-# T-077): plausible shape, plausible figure, no complaint anywhere.
+# --- one field, two meanings, told apart by a flag (Nachtrag IX-2) --------
 
 
-def a_request(goal_id) -> types.AdvisorRequest:
+def a_request(**fields) -> types.AdvisorRequest:
     return types.AdvisorRequest(hero_id=1, level=10, problem=A_PROBLEM,
-                                goal_id=goal_id, weighting_id="even")
+                                goal_id="max_damage", weighting_id="even",
+                                **fields)
 
 
 def test_a_direction_handed_in_plainly_is_the_players_choice():
-    """Every caller but the picker means the choice, and writes a string."""
-    request = a_request("max_damage")
-    assert isinstance(request.goal_id, types.ChosenDirection)
-    assert not isinstance(request.goal_id, types.PoolOrder)
-    assert request.goal_id == "max_damage"
-
-
-def test_the_pickers_direction_says_it_is_an_ordering():
-    """And says it in the type, where a reader cannot miss it."""
-    request = a_request(types.PoolOrder("max_damage"))
-    assert isinstance(request.goal_id, types.PoolOrder)
-    assert not isinstance(request.goal_id, types.ChosenDirection)
+    """Every caller but the picker means the choice, and says nothing."""
+    assert a_request().pool_order_only is False
 
 
 def test_an_ordering_stays_one_through_every_derived_request():
     """`dataclasses.replace` is how every request in this program is made.
 
     The cache key is a `replace`, the controller fills in two fields with
-    one, and the picker builds its question from the window's. A wrapper that
+    one, and the picker builds its question from the window's. A flag that
     came off on the way through would leave the picker's request looking like
     a choice at exactly the place a reader would trust it.
     """
-    request = a_request(types.PoolOrder("max_damage"))
-    derived = dataclasses.replace(request, generation=7)
-    assert isinstance(derived.goal_id, types.PoolOrder)
-
-
-def test_the_two_meanings_are_still_one_string():
-    """Equality, hashing and `repr` stay the string's, and must.
-
-    The distinction is for readers and guards; the cache key, the registry
-    lookup and every comparison in the package go on being about the
-    direction itself. A type that compared unequal would have made the two
-    tracks miss one another's entries and every `goals[...]` lookup fail.
-    """
-    ordering = types.PoolOrder("max_damage")
-    choice = types.ChosenDirection("max_damage")
-    assert ordering == choice == "max_damage"
-    assert hash(ordering) == hash("max_damage")
-    assert {ordering: 1}["max_damage"] == 1
-    assert repr(ordering) == repr("max_damage")
-    assert a_request(ordering) == a_request(choice), (
-        "two requests that ask about one direction are one cache key")
+    derived = dataclasses.replace(a_request(pool_order_only=True), generation=7)
+    assert derived.pool_order_only is True
 
 
 def test_a_pool_carries_the_generation_of_the_asking_and_nothing_else():

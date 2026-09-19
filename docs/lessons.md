@@ -1845,3 +1845,347 @@ oben); kein Commit "Auftragsdatei nachgetragen".
   Datei am Zyklusende; die Nummernregel steht in `_rahmen.md:113`. Ein
   Satz im Retrospektive-Dispatch ("Projektnummern NH-") wuerde reichen — er
   gehoert in den Director-Text nur, wenn es noch einmal passiert.
+
+---
+
+## Zyklus 27 — 2026-09-19 (Part 12, Stand `6467e06`, T-297)
+
+**Ziel des Zyklus:** Nutzerbefund AK-314 beheben und als 1.13.2
+veroeffentlichen; A22/A23 entwerfen, bauen, pruefen und als 1.14.0
+veroeffentlichen; danach aufraeumen (README, Ponytail-Audit, Repo-Hygiene).
+Zeitraum 17.-19.09., 54 Commits `ae474c1..6467e06`, Auftraege T-287..T-296.
+
+**Datengrundlage:** `GOAL.md` (A22, A23), `docs/state.md` (`6467e06`, 81
+Zeilen) und die Fassung `c663573~1`; `docs/tasks/T-287..T-297.md`;
+`docs/berichte/T-288-developer.md`, `T-290-qa-engineer.md` (beide Fassungen:
+`6f5c223` blockiert, `3b399c1` teilweise), `T-290/293/294/295-release-manager-
+build.md`, `T-293-qa-engineer.md`, `T-295-qa-engineer.md`,
+`T-286-retrospective.md`; `qa/findings.md` QA-282..285 (7 Zeilen dieses
+Zyklus); `DESIGN_REVIEW.md` DR-032/033; `UI_SPEC.md` AK-313/314/317;
+`.claude/hooks/enforce-data-redirect.ps1` (`986216d`) und
+`.claude/settings.json`; `~/.claude/agents/_rahmen.md`, `qa-engineer.md`,
+`power-user.md` (Z. 186-196), `release-manager.md`, `commands/director.md`,
+`templates/task.md`, `hooks/require-task-file.ps1`, `hooks/limit-tool-calls.ps1`,
+`~/.claude/state/zugschwelle.log`; `git log`, `git for-each-ref` (Tags),
+`gh release view v1.13.2`; Scratchpad `0c1b1951/T-293/qa-engineer/drv.ps1`.
+
+**Nummernraum — geprueft.** Teamweite Zitate im Zyklus: nur `L-031`
+(5 Nennungen, Klon-Volllauf, Vorlage). Projektnummern: `NH-006` ist die
+letzte, `NH-007` kommt nirgends vor (`grep -rn "NH-00[7-9]"`: nur T-297.md).
+Keine Kollision; der Auftrag sagte selbst "NH ab NH-007".
+
+### Gut gelaufen (schuetzenswert)
+
+- **T-288 hat den Nutzerbefund am echten Bestand reproduziert, nicht
+  erklaert:** 948 Advisor-Laeufe (72 + 840 + 34 + 2), read-only; die Ursache
+  (a) lag ausserhalb der vier Hypothesen des Auftrags. Auftrag 18:50, Fix
+  `bc4443e` 19:09, Mutation nachgefahren (1 failed / 46 passed).
+- **Sicherheitsblock als Vorlauf:** T-292c lieferte fuenf Zeilen, der
+  Director haengte sie an T-292d, T-293c fand 0/0/0/0 — Sicherheit vor dem
+  Bau statt danach.
+- **T-293b:** drei Pruefbereiche, 27 Skripte, alle Punkte am Artefakt,
+  zwei Befunde; QA-285 mit zwei Lesarten **ohne eigene Entscheidung**
+  gemeldet; der Director entschied Lesart B mit Begruendung in `T-294.md`.
+- **T-295c** replizierte QA-285 rot-vorher gegen `f5e91ca~1` und erkannte,
+  dass das Register dem Pruefstand vorauslief ("behoben -- Retest T-294c"
+  ohne T-294c) — korrigiert per Anhang, wie NH-003 es verlangt.
+- **Ein Baubefund wanderte ueber den Auftragstext:** T-290a fand den Bau
+  gegen die globale Python-Installation; T-293a trug "Bau ueber `.venv`
+  (T-290-Befund)", und T-293/294/295 melden "kein globales `python`".
+- **1.14.0 in 20 Minuten mit QA am Artefakt:** Spec-Nachtrag 08:31 → Fix
+  08:35 → Bau 08:39 → notes 08:42 → QA PASS 08:51 → Tag 08:51:51.
+- **T-296b nutzte die Ausstiegsbedingung:** Pillow blieb, weil die
+  Pixelgleichheit nicht nachweisbar war ("weicht ein Pixel ab, teilweise
+  melden, nicht erzwingen"); Audit netto -421 Zeilen.
+- **T-290b (Lauf 2) stellte die Warnung an den Kopf:** "EXE laeuft
+  vermutlich noch, PID 22320/6080" — der Director beendete die Kopie
+  (`3b399c1`), kein verwaister Prozess fuer die naechste Rolle.
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **NH-004** — Riegel im Hook + Fakt in CLAUDE.md | 2026-09-16 (`2ca5b00`) | **Teilweise.** Kriterium 2 erfuellt: 4 von 4 Auftraegen mit Fensterrolle (T-290, T-293, T-294, T-295) nennen eine Reihenfolge. Kriterium 3 erfuellt: `deny` gezeigt am 16.09. (T-287a) und 17.09. (`986216d`, Quellstart bei laufender Kopie). **Kriterium 1 verletzt:** T-290b wartete ~20 min auf die Nutzerkopie (`6f5c223`: "zwei Wartefenster a 5 Minuten plus die Laufzeit der Testsuite"); der Riegel sitzt am Start, der Dispatch kam trotzdem und verlangte das Warten. Nebenwirkung: die alte weite Maske `$istExeStart` blieb neben der neuen engen stehen (QA-283). | → NH-007 (Maske), NH-008 (Dispatch) |
+| **NH-005** — Klickrezept in `power-user.md` | 2026-09-16 (Team-Repo `935233e`, Z. 186-196 geprueft) | **Nicht messbar:** kein power-user-Lauf im Zyklus (0 von 2 Releases). Das Rezept kam beim `qa-engineer` an — ueber die Berichtskette T-285a → T-290b → T-293b → T-295c, nicht ueber eine Datei, die er liest. | offen; → NH-009 |
+| **NH-006** — Hook `require-task-file.ps1` | 2026-09-16 (registriert `~/.claude/settings.json:41`) | **Wirkt.** 10 von 10 Nummern T-288..T-297 mit Datei (`ls docs/tasks`); kein "nachgetragen"-Commit in 54 Commits. Vorher 5 von 23. | Keine; nicht mehr pruefen. |
+| **L-031** (teamweit) — Klon-Volllauf | 2026-09-15 | **Wirkt:** T-288 (1728/10 Klon, `klon.txt`), T-292e (1777/11, in T-293.md als Stand zitiert), T-294a (T-295c nennt den Klonlauf). | Keine. |
+| **L-020** (Nightreign-Helper) — `docs/state.md` auf Budget | 2026-09-12 | **Budget haelt:** 81 Zeilen. **Aktualitaet nicht:** 48 Commits lang unangetastet (`ba2e10c` 16.09. 18:53 → `c663573` 19.09. 09:09). Siehe Beobachtungen. | Keine. |
+| **NH-002** — Bildnachweise nur `PrintWindow` | 2026-09-05 | **Wirkt:** T-293b Bilder aus dem Fenster, T-293d offscreen. | Keine. |
+| **NH-003** — Spaltenwaechter Befundtabellen | 2026-09-12 | **Wirkt:** 7 Zeilen angehaengt (QA-283..285 und Folgezeilen), Suite gruen (T-293b, T-296b). | Keine; nicht mehr pruefen. |
+| **OF-43** — Fuenf-Dateien-Grenze weicht bei UI-Duplikatlogik | 2026-09-17 | Einmal angewendet (T-289b, sieben Dateien, Abnahme `427b434`). Entscheidung, keine Massnahme. | — |
+
+**Bilanz: acht geprueft, fuenf wirken (NH-006, L-031, L-020, NH-002,
+NH-003), eine teilweise (NH-004), eine nicht messbar (NH-005), eine
+Entscheidung (OF-43).**
+
+---
+
+### NH-007 — Der Umlenkungs-Hook haelt jede Nennung des EXE-Namens fuer einen Start: sieben Fehlalarme in vier Tagen, und der Fix vom 17.09. schloss nur die `run.py`-Haelfte
+
+**Belege:**
+1. 16.09. Director, Heredoc mit EXE-Name (Beobachtung Zyklus 26).
+2. 16.09. Retrospektive T-286, dasselbe beim Anhaengen (Beobachtung Zyklus 26).
+3./4. 17.09. developer T-288 und Director, `grep … nrplanner/advisor/run.py`
+   (Kommentar `enforce-data-redirect.ps1:67-73`, Commit `986216d`).
+5. T-290b Lauf 1: `tasklist //FI "IMAGENAME eq …exe"`, `certutil -hashfile`,
+   `ls` → `deny`; zweimal reproduziert, einmal mit drei Fuellwerten umgangen
+   (QA-283, P2, Adressat developer, **offen**).
+6. T-290b Lauf 2 und T-293b: Hash per Python `hashlib` statt `Get-FileHash`,
+   "da … den QA-283-Fehlalarm des Hooks ausloesen" (`T-290-qa-engineer.md:38`,
+   `T-293-qa-engineer.md:27`).
+7. T-294b: `Get-Process -Name NightreignHelper` "mit vollstaendiger Umlenkung
+   in derselben Kommandozeile" (`T-294-release-manager-build.md:95`) — die
+   Fuellwert-Gewoehnung, vor der QA-283 warnt.
+
+Dazu die Abnahmeluecke: T-289b Punkt 2 nannte beide Startformen ("EXE oder
+`python`/`pythonw` + `run.py` als Kommando"); der Fix `986216d` aenderte nur
+`$istQuellstart` (Commit-Text nennt nur `run.py`), Abnahme `427b434`; QA-283
+kam 50 Minuten spaeter.
+
+**Ursache:** Zwei Masken fuer dieselbe Frage — `$istExeStart` (Z. 75, jede
+Nennung) am Umlenkungs-Gate und `$istExeKommando` (Z. 94, nur
+Kommandoposition) am Instanz-Gate; die enge Maske kam am 16.09. dazu, ohne
+die weite zu ersetzen (Zuwachs statt Ersatz, Nightreign-Helper L-017).
+
+**Massnahme (technischer Riegel, Projekt):** `.claude/hooks/enforce-data-redirect.ps1`
+— Z. 75 (`$istExeStart = …`) streichen; den Block Z. 89-94
+(Kommentar + `$istExeKommando`) vor Z. 87 ziehen; Z. 87 wird:
+
+```powershell
+if (-not ($istQuellstart -or $istExeKommando -or $istFensterMessskript)) { exit 0 }
+```
+
+Z. 95 bleibt wortgleich. Nachweis im Bericht, drei Zeilen: `ls dist/<EXE>`
+und `Get-FileHash dist/<EXE>` gehen durch; `dist/<EXE>` ohne Variablen →
+`deny [datenumlenkung]`; bei laufender Kopie → `deny [instanzsperre]`.
+QA-283 bekommt die Abschlusszeile.
+
+**Streichung:** `$istExeStart` samt Kommentarzeile; kein neuer Text.
+**Wer liest es wann:** niemand, der Hook feuert. **Grenzen:** `cmd /c
+start …` rutscht weiter durch (bekannt, Z. 57-63).
+
+**Kosten:** keine. Ein Sonderfall: eine Kommandozeile, die die EXE **als
+Argument eines Starters** nennt, den die Maske nicht kennt, wuerde jetzt
+ohne Umlenkungspruefung durchgehen — dieselbe Luecke, die `$istExeKommando`
+seit dem 16.09. am Instanz-Gate schon hat, und keine Startform aus einem
+Bericht.
+
+**Erfolgskriterium:** In zwei Zyklen kein Bericht mit "hashlib statt",
+"Fuellwert" oder "Fehlalarm" zum Hook (`grep -l` ueber
+`docs/berichte/T-3*.md` = 0); QA-283 geschlossen.
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-008 — Dritter Wartefall auf eine fremde Instanz: der Riegel sitzt am Start, der Dispatch kam trotzdem — und verlangte das Warten
+
+**Belege:**
+1. T-241d (14.09.): clean-room 19 min, qa-engineer 23 min (QA-256).
+2. T-285a (16.09.): 28 min (NH-004 Beleg 4).
+3. T-290b (17.09., `6f5c223`): "zwei Wartefenster a 5 Minuten plus die
+   Laufzeit der Testsuite … rund 20 Minuten" auf die **Nutzerkopie**
+   (PID 22016/22172, 20:03-21:04); ANNAHMEN: "Auftrag verlangt ausdruecklich
+   Warten und Melden". Die Rolle hat nie einen Start versucht — der
+   NH-004-Riegel hat deshalb nie gefeuert.
+
+Folgekosten von Beleg 3: Lauf 2 als Fortsetzung desselben Agenten
+(`director.md:214`) startete mit dem Restbudget von Lauf 1 und fiel um 21:28
+an der Zugschwelle "mitten in der Fensterinteraktion" (`zugschwelle.log`,
+einziger Eintrag dieses Projekts im Zyklus); EXE blieb laufen; AK-314 wurde
+am Artefakt 1.13.2 nie belegt; Tag `v1.13.2` 21:57 mit QA `teilweise` —
+gegen "Kein Tag ohne QA-Urteil" (`T-290.md`, Scope-Grenzen). Die
+Beobachtung aus Zyklus 26 sagte: "beim dritten Mal ein eigenes Muster".
+
+**Ursache:** NH-004 riegelt den *Start* bei laufender Kopie, nicht den
+*Dispatch* einer Fensterrolle bei laufender Kopie; dort gilt nur
+`_rahmen.md:37-39` (10 Minuten), und der Dispatchtext hob es auf.
+
+**Massnahme (technischer Riegel, Projekt):** neuer Hook
+`.claude/hooks/no-window-dispatch.ps1`, `PreToolUse`, Matcher `Agent|Task`,
+Eintrag in `.claude/settings.json` nach dem Muster von
+`require-task-file.ps1` (Prompt aus `tool_input.prompt`, Projektwurzel aus
+`cwd`):
+
+> Trifft der Prompt `(?i)qa-engineer|power-user|clean-room|Fensterlauf|am
+> Artefakt|am Fenster` **und** liefert `Get-Process NightreignHelper` (oder
+> `python`/`pythonw` mit Fenstertitel `Nightreign Helper*`) einen Prozess:
+> `deny` mit
+> `[fensterlauf] Nightreign Helper laeuft (<ProcessName> PID <n> seit
+> <hh:mm:ss>) - NH-004/NH-008. Keine Fensterrolle dispatchen, solange die
+> Kopie laeuft: warte selbst oder gib Arbeit ohne Programmstart (Diff,
+> Suite, Spec). Kein Auftrag verlangt "warten" (_rahmen.md, 10 Minuten).`
+> Sonst `exit 0`. Der Riegel muss beissen: einmal bei laufender Kopie einen
+> QA-Dispatch provozieren, `deny` im Bericht.
+
+**Streichung:** keine Textregel dazu. Begruendung: dritte Wiederholung
+einer Fehlerklasse → Waechter, kein Text (`_rahmen.md:110-112`); der Hook
+ersetzt die Wartezeile, die sonst in jeden Fensterauftrag muesste.
+**Verworfen:** ein Satz in `director.md` "waehrend der Nutzer testet, kein
+Fensterlauf" — Text ohne Waechter ist genau, was T-290b hatte: der
+CLAUDE.md-Absatz NH-004 stand, der Dispatch kam trotzdem.
+
+**Wer liest es wann:** niemand; feuert beim Dispatch.
+
+**Kosten:** ein Fehltreffer, wenn ein Nicht-Fensterauftrag "am Artefakt"
+sagt, waehrend eine Kopie laeuft — der Director formuliert um oder wartet;
+Prozessabfrage unter einer Sekunde je Dispatch.
+
+**Erfolgskriterium:** zwei Zyklen ohne Bericht mit Wartezeit auf eine
+fremde Instanz und ohne `blockiert` wegen laufender Kopie; ein `deny`
+gezeigt (sonst nicht angeschlossen, L-019).
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-009 — Das Fensterrezept lebt in Berichten und wird je Lauf neu gebaut und weggeworfen: der Treiber aus T-293b (144 Zeilen, 27 Funktionen) liegt im Scratchpad
+
+**Belege:**
+- Rezeptteile in 15 Berichten (`grep -l "SetCursorPos\|UIAutomation\|
+  GetWindowRect"`: 6 unter `docs/archiv/berichte/`, 9 aktuell: T-241 x2,
+  T-265d, T-268, T-276, T-285, T-290, T-293, T-295). Kein `.ps1` unter
+  `scripts/` (16 `.py`, `differential/`).
+- Kette dieses Zyklus: T-285a (`GetWindowRect` statt `BoundingRectangle`)
+  → T-290b "Methodik-Nachtrag" (Alt-Taste vor `SetForegroundWindow`,
+  `GetForegroundWindow` gegenpruefen; Filterfenster ist Top-Level) → T-293b
+  (Kaestchen am Zellenrand +12 px; `drv.ps1` + `s1..s27.ps1`) → T-295c
+  ("Rezept aus T-293b", `drv.ps1` + `s0..s11.ps1`). Jeder Lauf las den
+  Vorgaengerbericht **aus eigenem Antrieb** — weder `T-293.md` noch
+  `T-295.md` nennt ihn.
+- T-290b Lauf 2 bezahlte die Entdeckung von zwei Fallstricken mit der
+  Zugschwelle; T-293b und T-295c, die das Rezept kannten, kamen durch.
+- `drv.ps1` existiert noch: `<Scratchpad 0c1b1951>/T-293/qa-engineer/drv.ps1`,
+  144 Zeilen, 27 Funktionen (u. a. `Main`, `TopWin`, `Fg` mit Alt-Trick,
+  `ClickAt`, `Click`, `Toggle-El`, `SetText`, `Shot` = `PrintWindow`,
+  `Rows`/`FindRow`/`ClickCell`, `OpenFilters`, `CloseWin`, `Optimize`,
+  `Blocks`). Scratchpads sind sitzungsgebunden.
+- NH-005 legte das Rezept als Text in `power-user.md` — der `qa-engineer`
+  liest die Datei nicht, und er hat es in diesem Zyklus gebraucht, nicht
+  der `power-user`.
+
+**Ursache:** Der `qa-engineer` darf im Arbeitsbaum nichts ablegen
+(`qa-engineer.md:130-133`), der `power-user` hat kein `Write`, und keine
+Regel macht den `developer` zum Eigner eines Prueftreibers — das Werkzeug
+hat keinen Ort im Repo, nur in Berichten.
+
+**Massnahme (technisch, Projekt, ein developer-Auftrag Stufe klein):**
+`drv.ps1` als `scripts/drive_window.ps1` committen; Kopf mit vier Zeilen
+(haengt sich an den laufenden Prozess, startet nichts; DPI per-monitor v2
+und physische Pixel aus `BoundingRectangle`; Alt-Trick + `GetForegroundWindow`;
+Kaestchen +12 px; `Shot` per `PrintWindow`; `CloseWin`); die
+ORG in `Reg` wird Parameter statt Literal `DankYeeterT-293b`. Die
+Pruefpunkt-Skripte je Lauf bleiben im Scratchpad. In `CLAUDE.md`, Abschnitt
+"Testbefehl", eine Zeile nach dem Codeblock:
+
+> Fensterlaeufe: `. scripts/drive_window.ps1` (UIA + echte Klicks; Rezept
+> aus T-285/T-290b/T-293b). Nicht neu bauen; Luecken als Befund an den
+> `developer`.
+
+Der Treiber startet keinen Prozess — der Umlenkungs-Hook greift bei
+Startformen, ein Attach ist keine.
+
+**Streichung:** die "Methodik-Nachtrag"-Abschnitte in Berichten entfallen
+(Befund an den developer statt Prosa). Zuwachs eine Zeile `CLAUDE.md`,
+begruendet: Werkzeugverweis, keine Regel; ersetzt 15 Berichtsstellen.
+**Wer liest es wann:** `qa-engineer`, `power-user`, `release-manager`
+`clean-room` ueber den CLAUDE.md-Verweis in jedem Auftrag; der Director bei
+Pruefung 2 der Vorlage ("hat die Rolle die Mittel").
+
+**Kosten:** ~150 Zeilen unter `scripts/` (die Audit-Schuld
+"Harness-Duplikate" waechst um eine Datei — dafuer verschwinden die
+Wegwerf-Kopien); Pflege beim `developer`; Nutzen erst ab dem dritten Lauf
+sicher.
+
+**Erfolgskriterium:** die naechsten zwei Fensterlaeufe (QA oder power-user)
+nennen `scripts/drive_window.ps1` in der Werkzeugzeile; kein
+"Methodik-Nachtrag"; kein Fensterlauf an der Zugschwelle; ein
+power-user-Lauf erreicht mindestens vier von sechs Zielen (NH-005 wird
+damit messbar).
+
+**Status:** vorgeschlagen
+
+---
+
+### Muster ohne eigene Massnahme — Drei Laienbefunde in vier Tagen kamen alle vom Nutzer am gebauten Artefakt, keiner aus der Pruefkette
+
+**Belege:** AK-313 (16.09.: "Favourite" im Filterfenster = der Stern je
+Relikt?; T-281 → Neubau 1.13.1) · AK-314 (17.09. 18:34: "nur einer scheint
+auf"; Programm richtig, Satz fehlte; T-288/289 → **Hotfix-Release 1.13.2**)
+· AK-317-Nachtrag (18./19.09.: Allow grau = kaputt; spec-konform nach
+AK-316.4, die GOAL A23 "unter einer vermiedenen Familie" wortgetreu folgte;
+T-295 → Neubau 1.14.0). Pruefketten dieser Releases: 1.13.2 build + QA
+(blockiert/teilweise) + security; 1.14.0 build + QA + security +
+design-review — kein `power-user`, kein `clean-room` (`director.md:147-150`
+nennt beide); 1.13.1 hatte einen power-user-Lauf mit 1 von 6 Zielen
+(QA-282). Der Ingame-Test des Nutzers stand in T-293/T-295 als Bedingung
+vor dem Tag.
+
+**Ursache:** Die einzige Rolle mit Laienblick hat in sechs Artefaktlaeufen
+keinen Nachweis geliefert (fuenf am Werkzeug, einer nicht dispatcht), und
+der Nutzer fuellt die Luecke selbst — nach dem Bau, also je Befund ein
+Neubau, einmal ein Hotfix-Release. Weil der Nutzer kompensiert, faellt der
+Ausfall der Rolle nicht auf.
+
+**Keine eigene Massnahme:** NH-009 ist die Voraussetzung, damit
+power-user-Laeufe ueberhaupt Nachweise liefern koennen. Ob der Nutzer die
+Rolle danach wieder in die Kette will oder seinen Ingame-Test als A11-Gate
+festschreibt (dann eine Zeile unter "Beschlossen" in `docs/state.md`, kein
+Regeltext), ist seine Entscheidung — beide Wege sind billiger als ein
+dritter Absatz. Vermerk fuer das teamweite Register (Kandidat, keine
+Nummer): "Werkzeugausfall einer Rolle wird vom Nutzer kompensiert und
+faellt deshalb nicht auf."
+
+**Erfolgskriterium (Beobachtung):** Nutzerbefunde am Artefakt je Release in
+den naechsten zwei Releases; mindestens einer je Release ohne Laienlauf
+bestaetigt das Muster, null widerlegt es.
+
+---
+
+### Beobachtungen (noch kein Muster)
+
+- **Tag 1.13.2 auf einem aelteren Commit** (`b0965e3`, Tag 21:57:25): 16
+  Commits A22/A23 lagen zwischen Baustand und `notes` (`d92f959` 21:56);
+  Release-Text nachtraeglich per `gh release edit --notes-file`. Ein
+  Vorkommen — 1.13.1 und 1.14.0 tragen den Tag auf dem damaligen HEAD. Der
+  Director hat das Rezept selbst notiert (`docs/state.md` "Release-Rezept",
+  17.09.). **Kein Text in `director.md`.** Will der Nutzer trotzdem einen,
+  ist es dieser Satz nach `director.md:150` ("`release-manager` (`notes`)"):
+  "Zwischen `build` und Tag kein Commit auf dem Branch, der nicht zum
+  Release gehoert; wartet das Release auf den Nutzer, laeuft Folgearbeit
+  ohne Commit (Entwurf, Spec) oder im Worktree." Ein Waechter in
+  `release.yml` ("`RELEASE_BODY.md` nennt die Tag-Version, sonst Abbruch")
+  wurde geprueft und verworfen: er haette den Tag auf `b0965e3` blockiert
+  statt geholfen; der Ausweg waere ein Release-Branch — mehr Prozess fuer
+  einen Einzelfall.
+- **Halber Fix abgenommen:** T-289b lieferte die `run.py`-Haelfte, nicht die
+  EXE-Haelfte, Abnahme `427b434` ohne Pruefung des zweiten Punkts — Form
+  Nightreign-Helper L-016 (Fundstelle statt Aussage). Hier unter NH-007
+  gezaehlt; als Abnahmeluecke ein Vorkommen.
+- **Fortsetzung nach `blockiert` teilt die Zugschwelle:** T-290b Lauf 2
+  begann mit dem Restbudget von Lauf 1 (Suite 1735, Hook-Reproduktion,
+  Register) und fiel bei 150. `director.md:214-215`: "Fortsetzen statt neu
+  beauftragen … ausser nach der Zugschwelle". Ein Vorkommen in diesem
+  Projekt. Beim zweiten: "nach `blockiert` mit Fensterlauf: neuer Lauf" —
+  oder NH-008 macht den Fall unmoeglich.
+- **`docs/state.md` 48 Commits lang unangetastet** (16.09. 18:53 → 19.09.
+  09:09); die Zitate "Stand (docs/state.md, 17.09.2026)" in T-288..T-294
+  stammen aus dem Kontext des Directors, nicht aus der Datei; Sitzungsende
+  17.09. 22:53 ohne Stand und ohne Bericht T-294c. Kosten nicht messbar —
+  der 19.09. lief ab T-295 mit richtigen Fakten an (aus `git log` und den
+  Auftragsdateien, die NH-006 erzwungen hat). Budget L-020 haelt.
+- **Register lief dem Pruefstand voraus:** T-294a schrieb "behoben --
+  Retest T-294c" (`qa/findings.md:468-469`), bevor T-294c lief; T-295c
+  korrigierte per Anhang. Ein Vorkommen; Ort waere der developer-Bericht
+  ("behoben, Retest offen").
+- **Kompaktform der Auftraege:** alle neun Auftraege des Zyklus lassen die
+  Vorlagenabschnitte Kontext/Vorgaben/Testumgebung weg. Keine messbaren
+  Kosten; der Bauhinweis (`.venv`) und die Umlenkung standen trotzdem im
+  Kopf. Nur vermerkt.
+- **Tag mit QA `teilweise`:** `v1.13.2` 21:57 nach T-290b Lauf 2
+  (`teilweise`), `T-290.md` Scope "Kein Tag ohne QA-Urteil". Das
+  Nutzerurteil nach dem Ingame-Test steht in keiner Datei (ANNAHME:
+  muendlich). Ein Vorkommen; AK-314 wurde am 1.14.0 nachbelegt (T-293b 3a-3c).
+- **Werkzeugbefunde im QA-Register** (Beobachtung Zyklus 26): QA-283 kommt
+  dazu (P2, Adressat developer, offen seit 17.09.); NH-007 schliesst es.
+  Bleibt Beobachtung.

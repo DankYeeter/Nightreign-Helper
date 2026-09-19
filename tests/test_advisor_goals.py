@@ -393,6 +393,43 @@ def test_without_an_armament_the_damage_goal_still_orders_two_builds(
         goals.GOALS["max_damage"].score(plain, ctx).value
 
 
+#: `Reduced Intelligence and Dexterity` (Dex -3, Int -3): the curse of the
+#: user's own A22 proof, on a Nightfarer whose dagger scales on Dexterity.
+REDUCED_INTELLIGENCE_AND_DEXTERITY = 6830200
+
+
+def test_an_attribute_curse_lowers_the_figure_through_the_starting_armament(
+        planner, game_data):
+    """`GOAL.md` A22 through the program's own door (AD-038).
+
+    Duchess at level 15 with her starting armament hits for 72; holding a
+    relic that carries Dex -3 she hits for 70. Literals, not a comparison of
+    two computed figures: the two are the user's in-game reading (AD-038,
+    measured on the v12 extract), and a figure that fell to anything else
+    would be a scaling this program invented. The context is what
+    `asking_from` asks, so this goes red when the starting armament leaves
+    the question again.
+    """
+    if planner.owned is None:
+        pytest.skip("`asking_from` answers nothing without a save to choose "
+                    "relics from")
+    planner.select_hero(planner.heroes.index(
+        cases.hero_by_name(game_data, "Duchess")))
+    planner.level_slider.setValue(advisor.LEVEL)
+    ctx = advisorbar.asking_from(planner, "max_damage").ctx
+    cursed = types.HeldRelic(
+        relic_id=0, name="a relic with the curse",
+        curse_ids=(REDUCED_INTELLIGENCE_AND_DEXTERITY,))
+
+    plain = evaluate(advisor.problem([advisor.RED]), (), ctx)
+    with_curse = evaluate(advisor.problem([advisor.RED], held={0: cursed}),
+                          (), ctx)
+
+    score = goals.GOALS["max_damage"].score
+    assert damage.displayed(score(plain, ctx).value) == 72
+    assert damage.displayed(score(with_curse, ctx).value) == 70
+
+
 # -- the third direction: attribute points (AD-032 option C) ----------------
 
 ATTRIBUTES = "max_attributes"

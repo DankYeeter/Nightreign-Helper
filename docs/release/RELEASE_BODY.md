@@ -94,3 +94,11 @@ starts there.
   and that they are separate from the star on a relic card. Enter now
   selects a focused Nightfarer tile the same way Space already does. This
   build is only produced after the full automated test suite has passed.
+- **1.13.2** — if a relic you are already holding carries a Favourite effect,
+  the suggestion now says so directly under its effect lines, not only in
+  the "Why" dialog.
+- **1.14.0** — attribute effects and curses on a relic now change the attack
+  figure through the Nightfarer's starting armament, in both directions,
+  with the amount named in the "Why" line; the Filters window now groups
+  effects by family under a shared Avoid header, with a per-member Allow to
+  let one effect of an avoided family back into suggestions.

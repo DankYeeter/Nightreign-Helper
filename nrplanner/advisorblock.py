@@ -247,8 +247,11 @@ class WhyLine(QWidget):
         self._redraw()
 
     def kind(self) -> str | None:
-        """Which of the two sets holds this line's effect, `None` for neutral."""
-        if self.line.effect_id in self._filters.excluded:
+        """Which of the two sets holds this line's effect, `None` for
+        neutral. Avoided is the resolved set (AD-039.3): a member of an
+        avoided family is struck through, one on `Allow` is not (AK-317.5).
+        """
+        if self.line.effect_id in self._filters.resolved_excluded:
             return effectfilters.EXCLUDED
         if self.line.effect_id in self._filters.required:
             return effectfilters.REQUIRED
@@ -343,6 +346,14 @@ class SuggestionBlock(QFrame):
         self.lines = _rich()
         column.addWidget(self.lines)
 
+        # A held favourite's own line (AK-314), between the effect/curse
+        # lines and `already_equipped`: the bullet reads like a normal
+        # effect line, the colour and size like `count_line` -- muted
+        # information, never a marked or clickable state (AK-301's `▲` is a
+        # different thing on a different line).
+        self.held_favourite = _plain(colour=MUTED, size=SMALL_TEXT)
+        column.addWidget(self.held_favourite)
+
         # Its own label rather than a filling of `count_line`: the one-line
         # case draws nothing else at all, and a shared label would have to be
         # emptied of a style as well as of a text.
@@ -357,7 +368,8 @@ class SuggestionBlock(QFrame):
                             already_equipped: bool = False,
                             may_be_used: bool = True,
                             may_explain: bool = True,
-                            curse_tooltip: str = "") -> None:
+                            curse_tooltip: str = "",
+                            held_favourite_line: str = "") -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
@@ -383,6 +395,10 @@ class SuggestionBlock(QFrame):
         self.lines.setText(lines_markup(drawn))
         self.lines.setToolTip(as_a_tooltip(curse_tooltip))
         self.lines.setVisible(not already_equipped)
+        self.held_favourite.setText(f"{EFFECT_BULLET} {held_favourite_line}"
+                                    if held_favourite_line else "")
+        self.held_favourite.setVisible(not already_equipped
+                                       and bool(held_favourite_line))
         self.already_equipped.setVisible(already_equipped)
         self.setVisible(True)
 
@@ -392,6 +408,7 @@ class SuggestionBlock(QFrame):
         self.lines.setToolTip("")
         self.relic_name.clear()
         self.count_line.clear()
+        self.held_favourite.clear()
         self.setVisible(False)
 
 

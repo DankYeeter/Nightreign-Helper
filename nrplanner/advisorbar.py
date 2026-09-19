@@ -47,7 +47,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
-from . import model
+from . import damage, model, weapons
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -213,17 +213,27 @@ def _marked(count: int, state: str) -> str:
     return f"{count} effect{'' if count == 1 else 's'} {state}"
 
 
+def families_avoided(count: int) -> str:
+    """AK-316.5: the families clause, counted apart from the ids -- one
+    family can pull dozens of ids along, and a sum would read as a small,
+    deliberate selection where a whole group went."""
+    return f"{count} {'family' if count == 1 else 'families'} avoided"
+
+
 def marking_clauses(filters) -> list[str]:
-    """The AK-280 clauses of the `Filters` tooltip (AK-302): how many effects
-    the player marked, in every one of the fourteen states, because a
-    marking is a standing setting and not a property of one run. `None` -- a
-    row built with no filters behind it -- has nothing to count."""
+    """The AK-280 clauses of the `Filters` tooltip (AK-302, AK-316.5): how
+    many effects and families the player marked, in every one of the
+    fourteen states, because a marking is a standing setting and not a
+    property of one run. `None` -- a row built with no filters behind it --
+    has nothing to count."""
     if filters is None:
         return []
     return ([_marked(len(filters.excluded), "avoided")]
             if filters.excluded else []) + (
             [_marked(len(filters.required), "favourited")]
-            if filters.required else [])
+            if filters.required else []) + (
+            [families_avoided(len(filters.avoided_families))]
+            if filters.avoided_families else [])
 
 
 def _clauses(head: str, *clauses: str) -> str:
@@ -389,11 +399,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     player will not have -- and the ranking would move with it.
 
     **Three** fields carry that in, and leaving out any one of them alone is
-    not enough. `reference` is the armament the figure is formed against.
-    `weapons_held` is the grid, and a weapon-type gate is met by **anything**
-    on it (`model.compute`), so "Improved Greatsword Attack Power" would go
-    on counting for a greatsword and not for a bow with no reference in
-    sight. Measured on 2026-09-12 over the 312 copies of the user's save,
+    not enough. `reference` is the armament the figure is formed against --
+    since AD-038 the Nightfarer's **own starting armament** at its lowest
+    tier, a property of the dataset and not of the grid, so that an attribute
+    a relic moves reaches the figure through that armament's scaling (A22)
+    while nothing the player carries moves the ranking (A17 holds word for
+    word). `weapons_held` is the grid, and a weapon-type gate is met by
+    **anything** on it (`model.compute`), so "Improved Greatsword Attack
+    Power" would go on counting for a greatsword and not for a bow with no
+    reference in sight. Measured on 2026-09-12 over the 312 copies of the user's save,
     Wylder at the probe level, a greatsword against a bow, with the
     reference armament already left out and the grid still filled: 2 copies
     changed their figure on the grid alone -- `Deep Polished Drizzly Scene`
@@ -421,12 +435,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     **The request loses the armaments with it.** They were in the cache key
     only because the run read them; a key that separates two runs which
     compute the same answer costs a second full search and returns the same
-    list (P-1 from T-188).
+    list (P-1 from T-188). The starting armament's id stays in the key
+    (`reference_weapon_id`): it changes only with the Nightfarer, so it
+    never separates two runs that compute the same answer (AD-038.4).
 
     The consequence, said out loud because it reverses a rule this file used
     to keep: the advisor's build is no longer the stat sheet's build. The
-    sheet answers "what am I hitting for right now" and keeps both fields;
-    this answers "what is this relic worth between runs" and keeps neither.
+    sheet answers "what am I hitting for right now" with the grid and its
+    rolls; this answers "what is this relic worth between runs" against the
+    one armament every expedition starts with and keeps nothing else.
     `GoalScore.scope` is where the figure says which of the two it is (A12).
     """
     owned = planner.owned
@@ -442,7 +459,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held,
-                                excluded=planner.effect_filters.excluded,
+                                excluded=planner.effect_filters.resolved_excluded,
                                 required=planner.effect_filters.required)
 
     # The baseline counts every switchable condition as met (AD-036.6): the
@@ -456,14 +473,19 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
     two_handed = planner.stat_sheet.hand_switch.isChecked()
-    # No `reference`, no `weapons_held` and no `armament_effect_ids`: see the
-    # docstring, A17 and AD-032. The armament grid is not read here at all
-    # any more, which is why there is nothing left of it to leave out.
+    # The starting armament, without its rolls: `weapons_held` and
+    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
+    # read here at all. Missing from the dataset, the run falls back to the
+    # multiplier mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
+    starting = planner.weapon_by_id(hero.get("starting_weapon"))
+    reference = None if starting is None else types.ReferenceArmament(
+        weapon=starting, tier=weapons.MIN_UPGRADE,
+        slot_index=damage.STARTING_SLOT)
     ctx = types.GoalContext(
         data=planner.data,
         hero=hero,
         level=level,
-        reference=None,
+        reference=reference,
         weighting=weighting,
         declared=declared,
         two_handed=two_handed,
@@ -475,13 +497,13 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         problem=problem,
         goal_id=goal_id,
         weighting_id=weighting.id,
-        # The key says what the run was asked, and since A17 the run is not
-        # asked about an armament -- since AD-032 not about its rolls either,
-        # so `armaments` stays empty as well. Anything else here would be a
-        # key standing for a run that did not happen, and `run.run` refuses
-        # it: it compares the rolls in the key against the rolls in the
-        # context, and one of the two filled would be the disagreement.
-        reference_weapon_id=None,
+        # The key says what the run was asked: since AD-038 about the starting
+        # armament, since AD-032 not about any rolls, so `armaments` stays
+        # empty. Anything else here would be a key standing for a run that
+        # did not happen, and `run.run` refuses it: it compares the id and
+        # the rolls in the key against the context, and one of the two
+        # filled differently would be the disagreement.
+        reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,
         data_version=str(meta.get("data_version") or ""),
@@ -903,7 +925,13 @@ class AdvisorBar(QWidget):
         label = result.goal_label
         slots = len(self._asked.request.problem.slots) if self._asked else 0
         best = result.suggestions[0] if result.suggestions else None
-        filled = len(best.choices) if best is not None else 0
+        chosen = len(best.choices) if best is not None else 0
+        # A held slot already carries its own relic, or is held empty on
+        # purpose (AD-014.2/.7) -- a boundary condition the search never
+        # touched, not a pool it searched and came back empty for. Left out
+        # of `filled` it counted as "nothing to choose from" on every run
+        # that held anything at all (QA-284).
+        filled = chosen + len(result.held)
         curses = len(result.curses_without_a_figure)
         left_out = len(result.not_counted)
         if slots - filled > 0:

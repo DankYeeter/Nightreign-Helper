@@ -67,6 +67,8 @@ OF-Kreis von `ARCHITECTURE.md` / `docs/state.md`.
 | AD-035 | Die Lesart (Worst/Best case, A16) ist Fensterzustand `Planner.worst_case` und erreicht den Lauf nur als Vorbelegung `{**model.reading_defaults(worst), **planner.declared}` in `asking_from`; Fluch = `effects[id]["is_curse"]`, Zaehlwert 1, Handeingabe gewinnt, kein neues Feld auf Anfrage oder Ergebnis; Benennung nach AK-184/AK-185. Sieben bedingte Fluch-Ids, 414 bedingte Buff-Ids (13.09.2026). | `### AD-035`, Themenbereich H (Stand `f1fc79c` + T-222), **Nachtrag** unter "Der benannte Test" | Nachtrag T-224 (gebucht unter T-222): Gegenseite des GOAL-Tests ist die Leiste vor A16, nicht Best case; 11 Kopien, `177 + 27 = 204` bei 312 Kopien; zwei weitere Testdateien | **abgeloest durch AD-036** (14.09.2026, A18): Lesart, `reading_defaults`, `worst_case`, `reading_changed`, AK-184/185-Benennung fallen; `is_curse`-Definition und Zaehlwert 1 gelten in AD-036 fort |
 | AD-036 | Zwei Effektmengen `excluded`/`required` sind Randbedingung der Frage auf `SlotProblem` (wie `held`, AD-014), nicht Zustand der Rechnung: Ausschluss streicht Ids in `evaluate.effect_ids_of` vor `compute`, Pflicht ist Randbedingung des Beams (erzwungene Traeger-Zweige, injektiver Machbarkeits-Schnitt, Dedupe ueber `spent`; kein Nachfilter, A7); Persistenz zwei feste Schluessel `advisor/excluded`, `advisor/required` (AD-030-Bauform, kein `__schema`); Grundlinie ohne Lesart = bisheriger Best case `model.advisor_defaults()`. Vier developer-Schritte, Schritt 1 sechs Dateien (OF-38). | `### AD-036`, Themenbereich I | — (Urfassung T-248a) | nichts; loest AD-035 ab; praezisiert AD-003.2/AD-014.4 (Traeger ausserhalb der `shortlist` setzen den Symmetrie-Boden nicht) und AD-013.3 |
 | AD-037 | Zweihandwert als zweite Antwort derselben Frage: `damage.Rating.two_handed` (`Rating` oder `None`), gefuellt von `_rate`; Regel als gemessene Kalibrierung in `weapons.py` (`rate(two_handed=)`), Scope 124 wird `class_rates["two_handed"]` (Praezedenz `WEAPON_CLASS_SCOPES`); **Bau gesperrt bis R-008** — die Elden-Ring-Regel STR x1.5 trifft keinen Messpunkt (208/169 statt 216/151). Hand der Rangfolge: Nutzerwahl OF-41, Empfehlung (3). | `### AD-037`, Themenbereich J | — (Urfassung T-248a) | nichts; wahrt AD-019/020/022, getrennt von AD-036 |
+| AD-038 | Die Startarmatur des Nightfarers (`hero["starting_weapon"]`, Stufe `MIN_UPGRADE`, ohne Rollen) wird die feste Bezugswaffe der Schadensrichtung; Attribute erreichen die Zahl ueber `damage.equipped`, der Betrag je Attribut-Effekt in der Why-Zeile kommt aus einer zweiten Bewertung ohne diesen Effekt (`explain._felt_by_the_goal`). Gemessen: zehn Startarmaturen = A20-Zellen, Duchess 72 → 70 mit Dex -3; 46 us statt 13 us je Bewertung. | `### AD-038`, Themenbereich K | — (T-291, 17.09.2026) | nichts; **loest AD-032 Option A ab**, Option C bleibt (OF-43) |
+| AD-039 | Familie = `effecttext.family_key`: Name ohne `[Nightfarer]`-Praefix, Stufe `+n`, Waffentyp (34 Namen aus `data["weapon_families"]`), Affinitaet (Magic/Fire/Lightning/Holy) und Zaehlklausel `with 3+ … Equipped`; `EffectFilters` bekommt `allowed` und `avoided_families` (Schluessel `advisor/allowed`, `advisor/avoided_families`), `resolved_excluded` = (excluded ∪ Familienmitglieder) − allowed − required geht als `SlotProblem.excluded` in den Lauf; `advisor/` unveraendert. Gemessen: 340 Ids → 222 Familien, 57 mit ≥ 2 Zeilen. | `### AD-039`, Themenbereich K | — (T-291, 17.09.2026) | nichts; erweitert AD-036.1/.5 |
 
 **Eine der 32 AD-Nummern ist keine Entscheidung** (AD-027 nie vergeben), und
 **eine ist eine vorgelegte, noch nicht getroffene** (AD-032). Getroffene
@@ -87,6 +89,10 @@ offen 12, beantwortet 19, mit Rest 1, unklar 1, nie vergeben 1). Fuenf Debt-Kand
 Entscheidungen (AD-027 nie vergeben), AD-035 abgeloest; naechste freie **AD-038**. OF-36 nie vergeben, **OF-37 bis OF-41**
 angehaengt, alle offen; naechste freie **OF-42**. Zaehltabelle darunter weiter auf dem Stand vom 12.09. (heute 40 OF-Zeilen,
 offen 17). `ARCHITECTURE.md` an diesem Tag **7676** Zeilen.)*
+*(Nachtrag 17.09.2026, T-291: **AD-038** (A22) und **AD-039** (A23) vergeben — 39 Nummern, 38 getroffene
+Entscheidungen (AD-027 nie vergeben); AD-032 Option A abgeloest, Option C steht; naechste freie **AD-040**.
+**OF-42 bis OF-44** angehaengt, alle offen; naechste freie **OF-45**. Zaehltabelle darunter weiter auf dem
+Stand vom 12.09. (heute 43 OF-Zeilen, offen 20). `ARCHITECTURE.md` an diesem Tag **8112** Zeilen.)*
 **`widerspruechlich`-Faelle: 0** — jede Ueberholung ist an ihrer Stelle
 ausdruecklich markiert.
 
@@ -144,6 +150,9 @@ Aussage die Frage beruehrt, sie aber nicht entscheidet.
 | OF-39 | Eigener OUTDATED-Satz nach dem Markieren einer Effektmenge (Nachfolger AK-270)? Ohne Antwort faellt `the_build_changed(reading_changed=)` ersatzlos. | **beantwortet durch den `ui-ux-designer` (T-248b, 14.09.2026)** — ja, eigener Satz: `The effects you marked changed while this was working out — use Optimize again.`, derselbe Abbruchpfad wie AK-12/AK-183, keine neue Zustandsnummer. AK-270 selbst entfaellt ersatzlos (Lesart-Umschalter gestrichen, A18). | Frage: ebd. Antwort: `UI_SPEC.md` §6.8 AK-289, `UI_SPEC_REGISTER.md` Zeile AK-289/AK-270 |
 | OF-40 | R-008 beauftragen: Zweihandregel, die alle Messpunkte trifft (sechs Zellen Lv15 ohne Relikte, Params zuerst). Ohne R-008 kein Bauauftrag zu AD-037. | **offen** — `director` → `researcher` + `qa-engineer` | `ARCHITECTURE.md` Themenbereich J, „Offene Fragen aus Themenbereich J“ |
 | OF-41 | Hand der Berater-Rangfolge: (1) Einhand, (2) Zweihand, (3) Zweihand wo moeglich, sonst Einhand (Empfehlung; ohne Bezugswaffe identisch mit (2)). | **offen** — `director` → App Designer | ebd. |
+| OF-42 | A22 sagt "gewaehlte Waffe", A17 "keine gefuehrte Waffe": Startarmatur des Nightfarers (gebaut, AD-038) oder aktive Kachel des Build planners (Rangfolge wechselt mit der Kachel, Stufe in den Schluessel)? Teil 2: die 15 Element-Kopien, die unter der Startarmatur in der Schadensspalte auf 0 fallen — Gewinn oder Verlust (AD-032 Frage 1, nie beantwortet)? | **offen** — `director` → App Designer | `ARCHITECTURE.md` Themenbereich K, „Offene Fragen aus Themenbereich K“ |
+| OF-43 | Bleibt die dritte Richtung `Offensive attributes` (AD-032 C), obwohl Attribute jetzt in der Schadenszahl stehen? Empfehlung: fuer 1.14.0 behalten, Rueckbau als eigener Entscheid. | **offen** — `director` → App Designer | ebd. |
+| OF-44 | Spec T-291b: Wortlaut des Betrags in der Why-Zeile, Zaehlung der Leiste (Ids oder Familien), Neufassung AK-190/192/193 und Scope-Satz, Gruppierung des Filterfensters gegen AK-308 (feste Ordnung oder Baum). | **offen** — `director` → `ui-ux-designer` | ebd. |
 
 ### Zaehlung der offenen Fragen
 
@@ -169,11 +178,11 @@ verlorener Vorgang. Genau darum sind es 32 OF-Nummern und nicht 33.
 
 | Adressat | wartende OF |
 |---|---|
-| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018, **OF-37** (Grundlinie und bedingte Flueche), **OF-41** (Hand der Rangfolge) |
+| **App Designer / Nutzer** | OF-3 (Gewichtung), OF-16 (Spielmessung QA-018), aus OF-31 die Neubewertung von SEC-006/016/017/018, **OF-37** (Grundlinie und bedingte Flueche), **OF-41** (Hand der Rangfolge), **OF-42** (Bezugswaffe: Startarmatur oder Kachel), **OF-43** (dritte Richtung behalten) |
 | **`director`** | OF-22, OF-24, OF-27, OF-29; aus OF-31 die Wortlautfragen SEC-027/028; **OF-38** (Schritt-1-Zuschnitt), **OF-40** (R-008 beauftragen) |
 | **`performance-tuner`** | OF-10, OF-28, OF-32 |
 | **`qa-engineer`** | OF-11 |
-| **`ui-ux-designer`** | OF-18, OF-21, OF-23, **OF-39** (OUTDATED-Satz) |
+| **`ui-ux-designer`** | OF-18, OF-21, OF-23, **OF-39** (OUTDATED-Satz), **OF-44** (Spec T-291b) |
 | **`researcher` + `qa-engineer`** | **OF-40** (R-008 Zweihandregel) |
 
 ---

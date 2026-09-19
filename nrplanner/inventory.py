@@ -96,8 +96,6 @@ class Inventory:
     # so belongs in a tooltip rather than on the face of the window.
     folder: str = ""
     relic_count: int = 0
-    # slot colour -> set of effect ids obtainable in that colour
-    effects_by_colour: dict[int, set[int]] = field(default_factory=dict)
     relics: list[OwnedItem] = field(default_factory=list)
     # Every stored loadout, or empty if this save has no readable table.
     loadouts: list[EquippedLoadout] = field(default_factory=list)
@@ -177,14 +175,6 @@ class Inventory:
             if entry.hero_id == hero_id and entry.selected:
                 return entry
         return None
-
-    def available(self, colour: int, white_slot: int = 4) -> set[int]:
-        if colour == white_slot:
-            out: set[int] = set()
-            for ids in self.effects_by_colour.values():
-                out |= ids
-            return out
-        return self.effects_by_colour.get(colour, set())
 
     def relics_for(self, colour: int, deep: bool, white_slot: int = 4) -> list[OwnedItem]:
         """Relics that may go into a slot of this colour and mode."""
@@ -461,7 +451,6 @@ def build(data: dict, found: SaveScan) -> Inventory:
         if meta is None:
             continue
         colour = meta["colour"]
-        inv.effects_by_colour.setdefault(colour, set()).update(entry.effect_ids)
         handle = found.handle_of.get(entry.offset)
         item = OwnedItem(
             relic_id=entry.relic_id,

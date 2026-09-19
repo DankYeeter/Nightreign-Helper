@@ -445,7 +445,6 @@ LOADOUT_RECORD = 28
 LOADOUT_SLOTS = 6
 LOADOUT_GROUP = 8 + 4 * LOADOUT_RECORD      # 120
 HERO_MARKER_BASE = 0xFF00
-GRAILS_PER_HERO = 4
 VESSELS_PER_HERO = 7
 
 # How many Nightfarers the table can hold, and the fewest that still make it

@@ -17,14 +17,15 @@ import pathlib
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import (
-    QColor, QCursor, QPainter, QPainterPath, QPen, QPixmap,
+    QAccessible, QAccessibleActionInterface, QColor, QCursor, QPainter,
+    QPainterPath, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QScrollArea,
-    QVBoxLayout, QWidget,
+    QAccessibleWidget, QApplication, QFrame, QHBoxLayout, QLabel,
+    QScrollArea, QStyle, QStyleOptionFocusRect, QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, pressable, tabheader
+from . import cardgrid, tabheader
 
 ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
@@ -294,23 +295,100 @@ def _split_circle(regular, sovereign, size: int):
     return canvas
 
 
-class BossCard(pressable.PressableFrame):
+#: The keys that press a card. Return and Enter are the same gesture on two
+#: keyboards; Space is what a button answers to everywhere else in Windows,
+#: and a card that reads as a button to an assistive tool has to keep that
+#: promise.
+PRESS_KEYS = (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space)
+
+
+class CardAccessible(QAccessibleWidget):
+    """A card as an assistive tool sees it: a button that can be pressed.
+
+    QA-161: a plain `QFrame` reports `Role.Border` -- furniture, not a
+    control -- and has no Press action, so Qt's UIA bridge answered `Invoke`
+    with `INVOKE_OK` and did nothing. The role matters as much as the action:
+    a reader looking for something to activate passes over furniture even
+    once the action is there.
+    """
+
+    def __init__(self, widget: BossCard):
+        super().__init__(widget, QAccessible.Button)
+
+    def actionNames(self) -> list[str]:  # noqa: N802 - Qt naming
+        """Press first, then whatever `QAccessibleWidget` already offers.
+
+        First because Qt's Windows bridge takes the *first* name as the one
+        `InvokePattern` invokes; behind it stays `SetFocus`, which is how a
+        client moves the keyboard to the card without pressing it.
+        """
+        return [QAccessibleActionInterface.pressAction(), *super().actionNames()]
+
+    def doAction(self, name: str) -> None:  # noqa: N802 - Qt naming
+        if name == QAccessibleActionInterface.pressAction():
+            self.widget().press()
+            return
+        super().doAction(name)
+
+    def keyBindingsForAction(self, name: str) -> list[str]:  # noqa: N802
+        """What a reader can type to do this without a pointer.
+
+        Announced rather than merely working: a screen reader reads this list
+        out, and a key that works but is never named is a key nobody presses.
+        """
+        if name == QAccessibleActionInterface.pressAction():
+            return ["Enter", "Space"]
+        return super().keyBindingsForAction(name)
+
+
+def _accessible_for(_key: str, obj) -> QAccessible:
+    return CardAccessible(obj) if isinstance(obj, BossCard) else None
+
+
+_factory_installed = False
+
+
+def _install_factory() -> None:
+    """Register `CardAccessible` with Qt, once per process.
+
+    Called from the card's constructor rather than from `main`, because a
+    factory that some entry point has to remember to install is a factory
+    that is missing wherever somebody forgot -- and the symptom would be
+    exactly QA-161 again: a card that looks right and does nothing.
+    """
+    global _factory_installed
+    if not _factory_installed:
+        QAccessible.installFactory(_accessible_for)
+        _factory_installed = True
+
+
+class BossCard(QFrame):
     """One expedition: its icon, the boss it ends on, and the flavour text.
 
-    A `PressableFrame` and not a plain frame, so the card can be reached
-    without a mouse: it carries the Nightlord's name for an assistive tool to
-    find it by, stands in the tab order, and answers Enter, Space and the
-    accessibility interface's Press on the same call a click makes (QA-161).
+    The card answers to more than a mouse (QA-161): it carries the Nightlord's
+    name for an assistive tool to find it by, stands in the tab order, and
+    answers Enter, Space and the accessibility interface's Press on the same
+    call a click makes -- `press()`. The tab stop, the keys, the focus
+    rectangle and the accessible role are settled together here, because the
+    finding was not that the card lacked one of them but all four.
     """
 
     clicked = Signal(dict)
 
     def __init__(self, boss: dict, icons):
+        super().__init__()
+        _install_factory()
+        # StrongFocus and not TabFocus: a card that answers to a press is a
+        # button, and a button takes the keyboard when it is clicked. A
+        # reader who clicks a card and then reaches for Tab expects to move on
+        # from there and not from wherever the focus happened to be left.
+        self.setFocusPolicy(Qt.StrongFocus)
         # The name is the Nightlord's, because that is what a reader is
         # looking for; the expedition goes in the description, which is the
         # second line a screen reader says and the answer to "which of the
         # ten is this".
-        super().__init__(name=boss["name"], description=boss["expedition"])
+        self.setAccessibleName(boss["name"])
+        self.setAccessibleDescription(boss["expedition"])
         self.boss = boss
         # A minimum rather than a fixed width: the columns share the grid's
         # width, so cards grow to fill it instead of leaving a dead strip on
@@ -469,6 +547,41 @@ class BossCard(pressable.PressableFrame):
     def press(self) -> None:
         """Open this Nightlord's profile. Every route ends here."""
         self.clicked.emit(self.boss)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self.press()
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in PRESS_KEYS:
+            self.press()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Draw the card, then say where the keyboard is standing.
+
+        The style's own focus rectangle rather than a fourth colour of this
+        program's. The Nightlord grid already spends its three channels --
+        fill for the chosen card, a second fill for the pointer, the edge for
+        an Everdark twin (QA-150, QA-154) -- and a keyboard mark invented on
+        top of those would have to be told apart from all three. The platform
+        draws focus one way everywhere, and this is that way.
+        """
+        super().paintEvent(event)
+        if not self.hasFocus():
+            return
+        option = QStyleOptionFocusRect()
+        option.initFrom(self)
+        # Inside the 1 px border and the 7 px corner radius, so the mark is
+        # a mark of its own rather than a recolouring of the edge that
+        # already means "Everdark twin".
+        option.rect = self.rect().adjusted(4, 4, -4, -4)
+        painter = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_FrameFocusRect, option, painter,
+                                   self)
+        painter.end()
 
 
 class BossTab(QWidget):

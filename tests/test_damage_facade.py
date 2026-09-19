@@ -518,7 +518,6 @@ def test_the_panel_s_rating_is_the_equipped_question(game_data, build, hero,
     assert panel.rates == now.rates
     assert panel.before.scaled_per_type() == bare.scaled_per_type
     assert panel.scaled_total == now.scaled_total
-    assert panel.bare_scaled_total == bare.scaled_total
     assert panel.figures() == damage.breakdown_figures(bare, now)
 
 
@@ -558,7 +557,6 @@ def test_the_panel_view_forms_no_total_of_its_own(game_data, build, hero,
             if len(now.scaled_per_type) > 1:
                 multi_type += 1
             assert panel.scaled_total == now.scaled_total, weapon["name"]
-            assert panel.bare_scaled_total == bare.scaled_total, weapon["name"]
             assert panel.final_total == now.final_total, weapon["name"]
 
     assert multi_type >= ENOUGH_MULTI_TYPE, (

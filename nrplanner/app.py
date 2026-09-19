@@ -20,9 +20,9 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from . import (advisorblock, chalices, datasource, effectfilterdialog,
-               effectfilters, errortext, favourites, firstrun, gamepath,
-               inventory, model, savereader, shortcut, singleinstance,
-               uiscale, weaponslots)
+               effectfilters, effecttext, errortext, favourites, firstrun,
+               gamepath, inventory, model, savereader, shortcut,
+               singleinstance, uiscale, weaponslots)
 from .advisor import run as advisor_run
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
@@ -457,9 +457,14 @@ class Planner(QMainWindow):
         # run you are in, not a preference worth remembering across launches.
         self.declared: dict[int, int] = {}
         # The effects the player struck out of or pinned into every
-        # suggestion (A18/A19). Not session state: read from the store here,
-        # written on every marking (AD-036.5), so a restart shows them again.
-        self.effect_filters = effectfilters.EffectFilters(self)
+        # suggestion (A18/A19), and the families they avoid (A23). Not
+        # session state: read from the store here, written on every marking
+        # (AD-036.5), so a restart shows them again. The family of every
+        # dataset id is computed once here (AD-039.1, 11 ms on 2076 ids).
+        self.effect_filters = effectfilters.EffectFilters(self, {
+            int(effect_id): effecttext.family_key(
+                effect, data.get("weapon_families", {}))
+            for effect_id, effect in self.effects.items()})
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None
@@ -2957,10 +2962,24 @@ class Planner(QMainWindow):
         # this holds true offscreen as well.
         bar = self.advisor_bar
         may_explain = bar.why_button.isVisibleTo(bar)
+        # AK-314.3: the held-favourite line names the whole result, not one
+        # slot, so it is drawn once -- on the lowest-indexed visible card
+        # that is not itself already equipped (that one shows no lines at
+        # all, AK-314.4). `suggestion.reasons` is already in slot order.
+        held_favourite_slot = None
+        if result.favourites_met_line:
+            held_favourite_slot = next(
+                (group.slot_index for group in suggestion.reasons
+                 if not cards[group.slot_index].already_equipped(
+                     by_slot.get(group.slot_index))),
+                None)
         for group in suggestion.reasons:
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, group,
-                by_slot.get(group.slot_index), may_explain=may_explain)
+                by_slot.get(group.slot_index), may_explain=may_explain,
+                held_favourite_line=(result.favourites_met_line
+                                     if group.slot_index == held_favourite_slot
+                                     else ""))
 
     def open_why(self) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
@@ -2995,7 +3014,8 @@ class Planner(QMainWindow):
         save with nothing in it.
         """
         rows = ([] if self.owned is None
-                else effectfilterdialog.rows_from(self.owned, self.effects))
+                else effectfilterdialog.rows_from(
+                    self.owned, self.effects, self.effect_filters.families))
         reason = "" if rows else (
             effectfilterdialog.SAVE_HAS_NO_RELICS
             if self.owned is not None or self._answers_a_chosen_save

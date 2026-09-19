@@ -227,43 +227,6 @@ class Budget:
 DEFAULT_BUDGET = Budget(candidates_per_slot=20, beam_width=40)
 
 
-# --- what `goal_id` means, said in the type rather than in a comment -------
-#
-# One field, two meanings, and until Nachtrag IX-2 nothing told them apart.
-# On the Advisor bar's track `AdvisorRequest.goal_id` is **the player's
-# choice**: the answer is about that direction, carries its label and is
-# ranked by it. On the picker's track it is **an ordering and nothing else**
-# -- the picker asks under one fixed direction whatever the player has
-# selected, because a pool serves both directions and only its order depends
-# on one (IX-2), and the screen takes the direction it draws in from the one
-# goal setting of the program (AK-43, AK-205).
-#
-# A reader that takes the picker's `goal_id` for "what the player asked for"
-# is the fault that cost this project 10,2 % silently wrong figures once
-# already, at the twin of this field (`SlotPool.rank_by`, T-077): plausible
-# shape, plausible number, no complaint anywhere. So the two are two types.
-#
-# **They are `str` subclasses on purpose.** Equality, hashing, ordering and
-# `repr` stay the string's, so the cache key, `goals[request.goal_id]` and
-# every comparison in this package go on meaning what they meant; what is new
-# is that `isinstance` can be asked, and that is what a guard and a reader
-# need. The distinction is enforced rather than hoped for: a request built
-# with a plain `str` gets `ChosenDirection`, which is what every caller but
-# the picker means.
-
-class ChosenDirection(str):
-    """The direction the player is asking about. The answer is about it."""
-
-
-class PoolOrder(str):
-    """The direction that merely put a list in order -- never one to draw in.
-
-    Carried by the picker's request (Nachtrag IX-2). It says which direction
-    sorted the candidates and says nothing about what the player chose, so no
-    display may read a direction off it.
-    """
-
-
 @dataclass(frozen=True)
 class AdvisorRequest:
     """One question to the advisor, and the whole of its cache key.
@@ -295,10 +258,7 @@ class AdvisorRequest:
     hero_id: int
     level: int
     problem: SlotProblem
-    #: Which direction, and in which of its two senses -- see the note above
-    #: this class. A plain `str` handed in here becomes a `ChosenDirection`,
-    #: so the field always says which of the two it is.
-    goal_id: ChosenDirection | PoolOrder
+    goal_id: str
     weighting_id: str
     #: The armament the damage goal ranks on, `None` when none is chosen
     #: (AD-004, OF-5: the run is not refused, the assumption is stated).
@@ -316,23 +276,15 @@ class AdvisorRequest:
     #: reads the save; the advisor never recomputes it from a live inventory.
     inventory_fingerprint: str = ""
     generation: int = 0
-
-    def __post_init__(self) -> None:
-        """Say which sense `goal_id` is in, for a caller that did not.
-
-        Wrapping rather than refusing: every caller that means "the player
-        asked about this direction" writes a plain string, which is right and
-        reads well, and the one caller that means "this only ordered the
-        list" says so with `PoolOrder`. Refusing the plain form would put the
-        picker's exception into every ordinary call site.
-
-        `dataclasses.replace` runs this again, so a `PoolOrder` survives the
-        cache key and every derived request rather than quietly becoming a
-        choice on the way through.
-        """
-        if not isinstance(self.goal_id, (ChosenDirection, PoolOrder)):
-            object.__setattr__(self, "goal_id",
-                               ChosenDirection(self.goal_id))
+    #: `goal_id` is the player's choice on the Advisor bar's track and an
+    #: ordering and nothing else on the picker's (Nachtrag IX-2): the picker
+    #: asks under one fixed direction whatever the player selected, because a
+    #: pool serves every direction and only its order depends on one, and the
+    #: screen draws in the program's one goal setting (AK-43, AK-205). A
+    #: reader that took the picker's `goal_id` for the player's choice would
+    #: repeat the fault behind 10,2 % silently wrong figures at this field's
+    #: twin (`SlotPool.rank_by`, T-077) -- so the picker says so here.
+    pool_order_only: bool = False
 
 
 # --- the answer ------------------------------------------------------------
@@ -440,10 +392,14 @@ class GoalContext:
     being rated), the effects those armaments rolled, and the conditional
     effects the player has declared live.
 
-    **Three of those fields are no longer filled by the program**, and that
-    is A17 rather than an omission: `reference`, `weapons_held` and
-    `armament_effect_ids` all come back empty from `advisorbar.asking_from`
-    (T-188 for the first two, AD-032 for the third). The advisor's build is
+    **Two of those fields are no longer filled by the program**, and that
+    is A17 rather than an omission: `weapons_held` and `armament_effect_ids`
+    still come back empty from `advisorbar.asking_from` (T-188 for the first,
+    AD-032 for the second); `reference` is filled again since AD-038, with
+    the Nightfarer's own starting armament, so an attribute a relic moves can
+    reach the ranking figure through its scaling (A22) without any armament
+    the player actually carries moving it (A17 holds all the same). The
+    advisor's build is
     therefore *not* the stat sheet's build any more -- it answers "what is
     this relic worth between runs", where the sheet answers "what am I
     hitting for right now", and the difference is stated in `Goal.scope`
@@ -773,6 +729,12 @@ class AdvisorResult:
     #: the curse-carrying subset of the same lines (§6 point 4).
     curses_without_a_figure: tuple[ReasonLine, ...] = ()
     effects_without_a_figure: tuple[ReasonLine, ...] = ()
+    #: The card's own summary of `explain.required_met_by_a_hold`, empty
+    #: when no favourited effect sits on a held relic (AK-314). The `Why`
+    #: dialog does not read this -- it keeps every sentence of `unknowns`
+    #: unabridged (AK-314.5); this is the space-saving line for the
+    #: `SuggestionBlock` alone.
+    favourites_met_line: str = ""
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0

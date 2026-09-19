@@ -157,7 +157,7 @@ def _fit(table: QTableWidget) -> QTableWidget:
     return table
 
 
-def _cell(text: str, tone: str = "") -> QTableWidgetItem:
+def _cell(text: str) -> QTableWidgetItem:
     item = QTableWidgetItem(text)
     item.setTextAlignment(Qt.AlignCenter)
     return item

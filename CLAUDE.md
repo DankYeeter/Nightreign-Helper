@@ -37,6 +37,9 @@ pytest <datei>      # gezielt, OHNE -n (1,2 s statt 4,0 s)
 
 `-n auto` ist bewusst keine Voreinstellung in `pytest.ini`.
 
+Fensterlaeufe: `. scripts/drive_window.ps1` (UIA + echte Klicks; Rezept aus
+T-285/T-290b/T-293b). Nicht neu bauen; Luecken als Befund an den `developer`.
+
 ## Datenverzeichnisse und Umlenkung
 
 Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`

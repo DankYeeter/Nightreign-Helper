@@ -4924,6 +4924,96 @@ dort geht es um die zweite Haelfte derselben Zeile (den Rohschluessel nach
 dem Doppelpunkt), nicht um die Nennung der Bedingung selbst, die A18
 verlangt.
 
+#### Nachtrag T-289a (ui-ux-designer, 2026-09-17) — AK-314: der Satz auch im Vorschlagsblock
+
+*Neu in T-289 (Nutzer 17.09. 19:12: "auch direkt unter dem Vorschlag"). Baut
+auf dem in T-288 (`bc4443e`) gebauten Satz aus
+`explain.required_met_by_a_hold`, bisher nur im `Why`-Dialog (`_footer_text`,
+`advisorblock.py:586`). Kein Fensterlauf, reine Wortlaut- und
+Platzierungsentscheidung.*
+
+**AK-314** *(A19/A5 — der Spieler sieht die Erfuellung eines Pflicht-Favoriten
+ohne Klick auf `Why`.)*
+
+1. **Wortlaut, unveraendert vom Dialog.** Der Einzelsatz je Effekt bleibt
+   wortgleich mit dem bereits gebauten (AK-300-Woerter, `favourited`):
+   `"{effect}, which you favourited, is carried by {relic} held in Slot
+   {n}."` `{n}` ist die 1-basierte Slotnummer, im selben Format wie
+   `explain.curses` (`slot_index + 1`) — keine zweite Zaehlweise fuer
+   denselben Sachverhalt. Traegt ein Effekt mehrere gehaltene Kopien, bleibt
+   die bestehende Aufzaehlung mit Komma (`"RelicA held in Slot 2, RelicB
+   held in Slot 3"`) unveraendert.
+2. **Ort im `SuggestionBlock`.** Eine eigene, gedaempfte Zeile unterhalb der
+   bestehenden Effekt-/Fluchzeilen (`self.lines`), oberhalb von
+   `already_equipped` — dieselbe Reihenfolge, in der die Karte heute schon
+   zeigt, was der Vorschlag kostet, bevor sie sagt, dass er schon liegt.
+   Stil: `MUTED`-Farbe und `SMALL_TEXT` (11px), wie `count_line`/
+   `already_equipped` bereits gezeichnet werden; Aufzaehlungspunkt `•` wie
+   eine normale Effektzeile; **kein** Durchstreichen, **kein** Fettdruck,
+   **keine** `ACCENT`-Farbe — die Zeile ist eine Information, keine
+   markierte/klickbare Effektzeile (Verwechslung mit der ▲-Favoriten-
+   Markierung aus AK-301 waere ein neuer, unbeabsichtigter Zustand). Ist der
+   gezeigte Slot selbst `already_equipped`, verschwindet die Zeile mit ihm —
+   dieselbe Regel, die heute schon `relic_name`/`count_line`/`lines`
+   betrifft.
+3. **Genau eine Karte, nicht jede.** Der Satz gehoert zum ganzen Ergebnis
+   (`AdvisorResult.unknowns`), nicht zu einem einzelnen Slot — bei einem
+   `Optimize` mit mehreren offenen Slots zeigten sonst mehrere Karten
+   wortgleich dieselbe Zeile (wirkt wie ein Fehler, kein Erkenntnisgewinn).
+   Die Zeile erscheint darum **nur auf der Karte mit dem niedrigsten
+   `slot_index`** unter den gerade sichtbaren, nicht bereits ausgeruesteten
+   Vorschlaegen; sind alle sichtbaren Vorschlaege `already_equipped`,
+   entfaellt die Zeile ersatzlos und der Satz bleibt ausschliesslich im
+   `Why`-Dialog sichtbar (wie heute).
+4. **Mehrere erfuellte Favoriten.** Bei genau einem Satz zeigt die Karte den
+   vollen Einzelsatz aus Punkt 1. Ab zwei Saetzen fasst die Karte zusammen,
+   um die Kartenhoehe zu schonen (Modulkopf `advisor/types.py:711`: "made
+   the worst measured card 16 lines tall"): `"{n} favourited effects are
+   already carried by relics you hold."` Der volle, einzeln aufgeschluesselte
+   Wortlaut bleibt in jedem Fall vollstaendig im `Why`-Dialog stehen (Punkt
+   5) — die Kartenzeile darf zusammenfassen, der Dialog nie.
+5. **`Why`-Dialog: unveraendert, bleibt zusaetzlich.** `_footer_text` zeigt
+   weiterhin jeden Einzelsatz aus `result.unknowns` einzeln und vollstaendig
+   (AK-165: keine Filterung, kein Dedup) — die neue Kartenzeile ist eine
+   verdichtete Zusammenfassung fuer den schnellen Blick, kein Ersatz fuer das
+   vollstaendige Konto (AK-274-Grundsatz: der Dialog bleibt die eine
+   vollstaendige Fassung, gleich ob ueber den Karten- oder den
+   Leisten-`Why`-Knopf geoeffnet).
+
+*Rot-vorher:* eine Karte, die den Satz nur zeigt, wenn genau dieser Slot den
+Favoriten selbst betrifft (er betrifft nie einen offenen Slot, AD-036.4 — die
+Zeile waere dann nie sichtbar); eine Implementierung, die den Satz auf jeder
+offenen Karte wiederholt; eine Zusammenfassung, die die Slotzahl statt der
+Effektzahl nennt oder umgekehrt zaehlt.
+
+**Akzeptanzkriterien, pruefbar:**
+- AK-314.1: Ein favorisierter Effekt auf einem gehaltenen Relikt (0-basierter
+  Slot-Index 2) zeigt im `SuggestionBlock` `"{effect}, which you favourited,
+  is carried by {relic} held in Slot 3."` — mutationstoetend gegen
+  `slot_index` ohne `+ 1`.
+- AK-314.2: Zwei favorisierte, erfuellte Effekte zeigen im Block genau **eine**
+  Zeile mit der Zahl 2 (`"2 favourited effects are already carried by relics
+  you hold."`), nicht zwei Einzelsaetze — mutationstoetend gegen eine
+  Implementierung, die ab zwei weiterhin jede Zeile einzeln zeigt.
+- AK-314.3: Zwei gleichzeitig offene, vorgeschlagene Slots (Index 1 und 3)
+  zeigen die Zeile nur auf der Karte von Slot 1; die Karte von Slot 3 zeigt
+  sie nicht — mutationstoetend gegen Duplizieren pro Karte.
+- AK-314.4: Ist die Karte mit dem niedrigsten Index `already_equipped`,
+  erscheint die Zeile auf keiner sichtbaren Karte, aber unveraendert im
+  `Why`-Dialog-Footer.
+- AK-314.5: Der `Why`-Dialog zeigt bei zwei Effekten weiterhin zwei
+  Einzelsaetze (nicht die Kartenzusammenfassung) — Volltextvergleich gegen
+  `result.unknowns`.
+- AK-314.6: Die neue Zeile traegt keine Durchstreichung und keine
+  `ACCENT`-Farbe (Stichprobe `line_markup`/Stylesheet-String der Zeile).
+
+**Explizit nicht Teil dieser Vorgabe:** die interne Verdrahtung (ob
+`explain.reasons()` die Zeile in `SlotReasons` einbettet, ob
+`SuggestionBlock.show_the_suggestion` einen neuen Parameter bekommt oder
+`AdvisorResult` einen neuen, gruppierten Datentyp braucht) — Sache von
+AD-036/`architect`/`developer`; dieses Kriterium bindet nur das sichtbare
+Ergebnis. Keine Aenderung an AK-281/AK-291 (Scope-Grenze T-289).
+
 ---
 
 ## Bereich 7 — Die sechs Inhalts-Tabs
@@ -5735,3 +5825,310 @@ durch die Zeile, wird `OPENING_SIZE` nachgezogen und im Bericht gemessen.
 - Auf 1366×768 bleibt das Fenster vollstaendig sichtbar (AK-303).
 
 ---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-315: der Betrag in der Why-Zeile fuer Attribut-Effekte (AD-038, A22, OF-44 Teil 1)
+
+*Neu in T-292a. Baut auf AK-136/AK-137 (Interpunktion, Bedingung von
+`, counted against it`) und AK-88 (`Attack rating`/`Spell power` als
+bestehende Woerter der Wertspalte). Kein Fensterlauf, reine Wortlaut- und
+Anhaengeregel; die Verdrahtung (`explain._felt_by_the_goal`) baut der
+`developer` (T-292e).*
+
+**AK-315** *(A22 — der Betrag steht an derselben Zeile, die den
+Attributwert schon nennt, nicht in einer zweiten Zeile.)*
+
+1. **Traegerzeile.** Der bestehende `_named`-Text einer Attributzeile
+   (`"{label} {amount}"`, z. B. `Dexterity -3`) bleibt die erste Haelfte
+   unveraendert. Bewegt der Effekt die Angriffszahl der Bezugswaffe
+   (`_felt_by_the_goal` ≠ 0, AD-038 Punkt 3), haengt die Zeile den Betrag
+   nach dem Muster `" → {rating} {delta}"` an: `{rating}` ist das Wort, das
+   die Wertspalte fuer diese Zielrichtung ohnehin traegt (`Attack rating`
+   fuer waffenskalierte Ziele, `Spell power` fuer Staebe/Siegel — AK-88,
+   kein neues Wort); `{delta}` ist vorzeichenbehaftet, in derselben
+   Zahlenform wie die Kopfzahl der Kachel (keine neue Rundungsregel).
+   Beispiel (Duchess, `Reduced Intelligence and Dexterity`, Dex -3, Int -3,
+   gemessen 72 → 70, AD-038):
+   `"Reduced Intelligence and Dexterity: Dexterity -3 → Attack rating -2, counted against it"`
+2. **`, counted against it` nach AK-137, jetzt gegen `{delta}` statt gegen
+   `{amount}`.** Der Zusatz steht, wenn `{delta}` die Richtung des Ziels
+   verschlechtert (`model.is_better_lower` auf das **Zielfeld**, nicht auf
+   das Attributfeld) — bei Angriffswert/Zauberkraft also bei `{delta} < 0`.
+   Ein Buff (`{delta} > 0`) traegt **keinen** Zusatz und endet auf die Zahl:
+   `"Improved Dexterity: Dexterity +3 → Attack rating +2"`. Interpunktion
+   nach AK-136 unveraendert: die Zeile endet nie auf einen Punkt, weder nach
+   der Zahl noch nach `counted against it`.
+3. **Zwei Attribute, ein Betrag.** Bewegt ein Effekt mehrere Attributfelder
+   (wie im Beispiel Dex **und** Int), traegt **nur** die erste Zeile in
+   `model.ATTRIBUTE_ORDER` den Betrag (hier Dexterity, vor Intelligence);
+   jede weitere Attributzeile desselben Effekts bleibt bei der reinen
+   `{label} {amount}`-Form ohne Pfeil und ohne Zusatz — ein Effekt hat einen
+   Betrag, nicht so viele wie Attributfelder (AD-038 Punkt 3, woertlich).
+4. **Kein Betrag (`delta == 0`).** Bewegt der Effekt die Zielzahl nicht
+   (die Bezugswaffe skaliert nicht auf dieses Attribut, z. B. Raider mit
+   Dex-Fluch auf einer Greataxe), bleibt die Zeile beim bestehenden Satz
+   unveraendert: `"{effect_name}: {label} {amount} — this figure does not
+   count it."` (`_line_the_figure_does_not_count`, unveraendert; gilt jetzt
+   fuer Buff **und** Fluch gleichermassen, nicht nur fuer Flueche wie der
+   heutige Funktionsname nahelegt).
+5. **Rueckfall ohne Bezugswaffe (`_NO_ARMAMENT`, Datensatzluecke).** Fehlt
+   die Startwaffe im Datensatz, ist Punkt 4 der einzige Fall (kein
+   `{rating}` ohne Bezugswaffe) — unveraendert zum heutigen Verhalten.
+
+*Rot-vorher:* eine Umsetzung, die den Betrag in einer zweiten Zeile oder
+hinter einem zweiten Doppelpunkt anhaengt (AD-038 Punkt 3 verlangt
+ausdruecklich eine Zeile, keine zwei); ein Buff mit `, counted against it`;
+ein zweiter Betrag an der Intelligence-Zeile desselben Effekts.
+
+**Akzeptanzkriterien:**
+- Duchess Lv15 + Relikt mit `6830200` (Dex -3, Int -3): die Dexterity-Zeile
+  lautet wortgleich `"Reduced Intelligence and Dexterity: Dexterity -3 → Attack rating -2, counted against it"`; die Intelligence-Zeile desselben
+  Effekts traegt keinen Betrag.
+- Ein Buff, der die Zielzahl hebt, endet auf die Zahl, ohne
+  `, counted against it` und ohne Punkt.
+- Raider + `6830200` (Greataxe skaliert nicht auf Dex): die Zeile bleibt
+  `"…: Dexterity -3 — this figure does not count it."`
+- Kein Vorkommen von `does not count it` bei `delta != 0` und keines von
+  `counted against it` bei `delta == 0`.
+
+---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-316: Familien-Kopfzeilen im Filterfenster (AD-039, A23, OF-44 Teile 2 und 4)
+
+*Neu in T-292a, loest die in AD-039 Punkt 5 offen gelassene Frage
+(`QTableWidget` mit fester Ordnung oder `QTreeWidget`). Erweitert AK-304/
+AK-305/AK-306/AK-307/AK-308/AK-311 um die Familienebene; AK-300/AK-302/
+AK-303/AK-309/AK-310 gelten unveraendert. Kein Fensterlauf.*
+
+**AK-316**
+
+1. **Struktur: `QTreeWidget`, nicht `QTableWidget`.** Jede Familie mit
+   **zwei oder mehr** Zeilen (57 von 222, AD-039) ist ein Top-Level-Eintrag
+   mit denselben fuenf AK-304-Spalten, aber nur **Avoid** gesetzt/klickbar
+   in der Kopfzeile (`Copies` = Summe der Mitglieder, `Name` = der
+   Familienschluessel); ihre Ids sind Kindzeilen mit allen fuenf
+   AK-304-Spalten wie bisher, plus einem dritten Kaestchen **Allow**
+   (erweitert AK-305 um `ALLOWED`). Eine Familie mit **einer** Zeile bleibt
+   ein Top-Level-Eintrag ohne Kinder, ohne Kopf-Sonderrolle, ohne Allow —
+   unveraendert zu AK-304/AK-305 (AD-039.5: "Einzelne bleiben eine Zeile
+   ohne Kopf und ohne Allow").
+2. **Sortierung, loest den AK-308-Konflikt.** `setSortingEnabled(True)`
+   bleibt (kein neues Sortiermuster); bei `QTreeWidget` sortiert ein
+   Spaltenklick **Geschwister**: alle Top-Level-Eintraege (Familien +
+   Einzelne) untereinander nach der geklickten Spalte, **und unabhaengig
+   davon** die Kinder jeder Familie untereinander nach derselben Spalte —
+   beides mit Qt-Bordmitteln, ohne eigenen Vergleichscode. Eine Familie
+   bleibt dadurch **immer** geschlossen beisammen, waehrend jede der fuenf
+   Spalten klickbar bleibt (AK-308 vollstaendig erfuellt, nicht nur
+   teilweise). Voreinstellung unveraendert: aufsteigend nach Name.
+3. **Avoid am Kopf.** Ankreuzen der Kopfzeile ruft
+   `EffectFilters.mark_family(key, True)`, Abhaken `mark_family(key,
+   False)` — derselbe Aufruf fuer beide Richtungen wie AK-305 bei `mark`.
+   Der Zustand ist unabhaengig von den eigenen Marken der Mitglieder
+   (AD-039.2/.3): eine vermiedene Familie mit einem eigenen
+   Favourite-Mitglied zeigt beide Zustaende nebeneinander; `resolved_
+   excluded` (AD-039.3) loest den Widerspruch zugunsten von Favourite auf,
+   das Fenster selbst veraendert keine Mitgliedsmarke automatisch.
+4. **Allow nur unter vermiedener Familie.** Das dritte Kaestchen einer
+   Kindzeile ist nur **anklickbar**, waehrend die eigene Familie vermieden
+   ist; ist sie es nicht, bleibt es sichtbar, aber deaktiviert
+   (`setEnabled(False)`) — es zeigt dabei weiterhin seinen gespeicherten
+   Zustand (AD-039.4: `allowed` bleibt gespeichert, auch wenn die Familie
+   nicht mehr vermieden ist), statt sich zu leeren, damit ein erneutes
+   Vermeiden der Familie dieselben Ausnahmen zeigt wie vorher.
+5. **Zaehlerklausel: Ids und Familien getrennt genannt** (OF-44 Teil 2,
+   Entscheidung). Die Zeile aus AK-307 wird:
+   `"{gezeigt} of {gesamt} effects  ·  {f} favourited  ·  {a} avoided  ·  {k} families avoided"`
+   `{a}` zaehlt ausschliesslich einzeln vermiedene Ids (`excluded`,
+   unveraendert AK-307), **nicht** die ueber Familien mitgezogenen; `{k}`
+   zaehlt `avoided_families`. Grund (A7): eine Familie kann bis zu 83 Ids
+   datensatzweit mitziehen (AD-039, Risiko-Absatz) — eine addierte Zahl
+   taeuscht eine kleine, gezielte Auswahl vor, wo tatsaechlich eine ganze
+   Gruppe verschwindet. Derselbe Klauselsatz gilt am `Filters`-Knopf-Tooltip
+   (AK-302, jetzt mit bis zu drei statt zwei Klauseln [^316-korr]).
+6. **Suche ueber Kopf und Mitglieder.** AK-306 gilt unveraendert fuer den
+   Text jeder Zeile (Kopf **und** Kind); zusaetzliche Regel fuer die
+   Baumstruktur: trifft der Suchtext den Familiennamen selbst, bleiben alle
+   Mitglieder sichtbar (ungefiltert innerhalb der Gruppe); trifft er nur
+   einzelne Mitglieder, bleiben Kopf und die treffenden Mitglieder sichtbar,
+   die uebrigen werden ausgeblendet; trifft er in einer Familie gar nichts,
+   verschwindet die ganze Gruppe. `{gezeigt}` in Punkt 5 zaehlt nur
+   sichtbare **Id-Zeilen** (Kinder + kopflose Einzelne), keine Kopfzeilen —
+   konsistent mit `{gesamt}` aus AK-304 (340 Ids, nicht 340+57 Zeilen).
+7. **Persistenz, erweitert AK-311.** Nach einem Neustart zeigt das Fenster
+   die beim letzten Beenden gesetzten Familien-Avoid- und Allow-Marken ohne
+   weitere Bedienung; der `Filters`-Tooltip und die Zaehlerklausel aus
+   Punkt 5 zeigen ihre drei Zahlen bereits nach dem Programmstart, auch ohne
+   das Fenster zu oeffnen — dieselbe Regel wie AK-311 fuer die bisherigen
+   zwei Zahlen, jetzt an drei Zahlen [^316-korr].
+
+[^316-korr]: **Korrektur (ui-ux-designer, T-293d, 2026-09-17).** Punkt 5 und
+    Punkt 7 zaehlten hier ursprünglich "vier" statt "drei": AK-311 hatte zwei
+    bedingte Klauseln (`favourited`, `avoided`); AD-039/AK-316 fuegt genau
+    eine hinzu (`avoided_families`) — zwei plus eins ist drei, nicht vier.
+    Der Code war nie falsch (`counter_line`s eigener Docstring nennt bereits
+    "the three counts when set"; `marking_clauses` liefert hoechstens drei
+    Eintraege); falsch war nur dieser Text. Gezaehlt am Code, nicht geschaetzt.
+
+*Rot-vorher:* eine Umsetzung, die einen eigenen, gruppierenden
+Sortier-Komparator auf einem `QTableWidget` schreibt (AD-024-Klasse: zweite
+Sortierlogik neben der von Qt selbst gefuehrten) statt `QTreeWidget`s
+eingebauter Geschwister-Sortierung; eine Zaehlerzahl, die Ids und Familien
+addiert; ein Allow-Kaestchen, das sich beim Entfernen des Familien-Avoid
+leert statt nur zu deaktivieren; ein Suchtreffer auf einem Mitglied, der die
+ganze Familie ausblendet, weil nur der Kopf geprueft wurde.
+
+**Akzeptanzkriterien:**
+- `Improved Attack Power` (13 Mitglieder) vermieden, `Improved Dagger Attack
+  Power` und `Improved Attack Power with 3+ Daggers Equipped` auf Allow: nur
+  diese zwei tauchen aus der Familie in Vorschlaegen auf (A23-Nachweis,
+  AD-039 Pruefpunkt d).
+- Spaltenklick auf `Copies` sortiert die Top-Level-Eintraege numerisch und,
+  unabhaengig davon, jede Familie ihre Kinder numerisch — keine Familie
+  verliert dabei ein Kind an eine andere Gruppe.
+- Familien-Avoid aus, wieder an: ein zuvor gesetztes Allow-Mitglied zeigt
+  sein Haekchen sofort wieder aktiv.
+- Suchtext, der nur `Dagger` trifft: Kopf `Improved Attack Power` bleibt
+  sichtbar, nur die zwei Dolch-Mitglieder darunter, die uebrigen elf
+  ausgeblendet; `{gezeigt}` zaehlt 2, nicht 13.
+- Zaehlerklausel und Tooltip zeigen `{a}` und `{k}` als zwei getrennte
+  Zahlen, nie addiert.
+
+---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-317: Legende und Tooltips fuer Allow, erweitert AK-313 (OF-44 Teil 3)
+
+*Neu in T-292a. Erweitert AK-313 (Legendenzeile im Filterfenster) und
+AK-305 (Tooltipmuster); AK-301 (`Why`-Dialog-Legende, ▲/Durchstreichung)
+bleibt ausdruecklich unveraendert.*
+
+**AK-317**
+
+1. **Legendenzeile, ersetzt AK-313 woertlich** (gleicher Ort, gleiche
+   Bauweise: `QLabel`, `wordWrap`, gedaempfte Farbe, unter dem Suchfeld):
+   `"Favourite: every suggestion must include this effect. Avoid: it never
+   counts — on a family header, it avoids every member below unless one is
+   set to Allow. Allow lets that one member back in without allowing the
+   rest of the family. These marks steer Optimize only — they are not the
+   star on a relic."`
+2. **Tooltip, Familien-Avoid-Kaestchen** (ergaenzt AK-305 um den
+   Kopfzeilen-Fall): `"Every effect in this family counts in no suggestion
+   or ranking, unless a member below is set to Allow."`
+3. **Tooltip, Allow-Kaestchen, aktivierbar** (Familie vermieden): `"Let
+   this one effect back into suggestions, even though its family is
+   avoided."`
+4. **Tooltip, Allow-Kaestchen, deaktiviert** (Familie nicht vermieden):
+   `"Allow only matters while this effect's family is avoided."`
+5. **Kein neuer Zustand im `Why`-Dialog.** AK-301s Legende (`"▲ marks an
+   effect you favourited, a struck-through effect one you avoided …"`)
+   bleibt wortgleich; ein Effekt, dessen Familie vermieden ist, der selbst
+   aber auf Allow steht, zeichnet im Dialog **weder** ▲ **noch**
+   Durchstreichung — er verhaelt sich wie jeder unmarkierte Effekt, weil er
+   nicht in `resolved_excluded` liegt (AD-039.3).
+
+*Rot-vorher:* eine neue ▲-Variante oder ein neues Glyph fuer "erlaubtes
+Familienmitglied" im `Why`-Dialog — AD-039.3 macht Allow zu einer reinen
+Mengenoperation vor der Rechnung, der Dialog sieht danach keinen
+Unterschied mehr zu einem regulaeren Effekt.
+
+**Akzeptanzkriterien:**
+- Die Legendenzeile steht wortgleich wie oben, als Konstante testbar ohne
+  Anzeige (AK-313-Pruefweg unveraendert).
+- Ein Allow-markiertes Mitglied einer vermiedenen Familie zeigt im
+  `Why`-Dialog keine ▲- und keine Durchstreichungs-Formatierung.
+- Das Allow-Kaestchen zeigt den korrekten Tooltip abhaengig vom aktuellen
+  Familienstatus (aktivierbar/deaktiviert), ohne dass sein Ankreuzzustand
+  sich beim Wechsel aendert.
+
+---
+
+#### Nachtrag T-292a (ui-ux-designer, 2026-09-17) — AK-318: Bezugswaffen-Satz in `MAX_DAMAGE.scope`, Neufassung AK-190/AK-192/AK-193 (AD-038, OF-44 Teil 3)
+
+*Zweiter Teil von T-292a (Director-Nachtrag nach Commit `fd4dda3`). `T-292b`
+hat den Bau bereits mit einem provisorischen Satz in `_ATTACK_RATING_SCOPE`
+(`nrplanner/advisor/goals.py`) vorweggenommen, Kommentar dort: "Wording
+provisional until the `ui-ux-designer` settles it (AD-038.2)" — dieser
+Nachtrag setzt den endgueltigen Wortlaut. **Alte AKs unveraendert:** AK-190,
+AK-192, AK-193 bleiben wortgleich als Verlauf fuer die Zeit vor AD-038
+stehen; AK-318 nennt, was ab jetzt gilt, und wo es sie einschraenkt statt
+ersetzt.*
+
+**AK-318**
+
+1. **`MAX_DAMAGE.scope`, letzter Satz, endgueltig** (ersetzt den
+   provisorischen Satz in `_ATTACK_RATING_SCOPE` woertlich):
+   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the roles a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
+   „own starting armament" = die feste Bezugswaffe aus AD-038 Punkt 1
+   (Startwaffe des Nightfarers, `weapons.MIN_UPGRADE`,
+   `slot_index=damage.STARTING_SLOT`, OF-42 Nutzerentscheid); „without the
+   roles a carried copy could add" = `weapons_held`/`armament_effect_ids`
+   bleiben leer (AD-038 Punkt 1, „ohne ihre Rollen"); „the stat sheet's hand
+   switch" = der bestehende 1H/2H-Schalter des Statblatts (AD-037,
+   `ctx.two_handed`), kein neues Bedienelement im Berater — OF-41 bleibt
+   davon unberuehrt und unentschieden.
+2. **AK-190, Neufassung.** Der Wortlaut vom 07.09. galt fuer den Regelfall
+   „kein Ziel ohne Waffe" (A17/AD-032). Seit AD-038 ist `_NO_ARMAMENT` kein
+   Regelfall mehr, sondern ein **seltener Datenluecken-Rueckfall**
+   (Startwaffe fehlt im Datensatz, AD-038 Punkt 1). AK-190s Kernaussage gilt
+   **fortgeschrieben**: der Satz „No armament selected — ranked on attack
+   multipliers only, without weapon scaling." erscheint weiterhin
+   **nirgends**, sobald eine Bezugswaffe existiert (jetzt der Normalfall).
+   Fuer den verbleibenden Rueckfall wird `_NO_ARMAMENT` neu gefasst, um die
+   tatsaechliche Ursache zu nennen (A7 — nicht „nichts gewaehlt", sondern
+   „nichts im Datensatz gefunden"):
+   `"This Nightfarer's starting armament has no entry in the game data, so this run is ranked on attack multipliers only, without weapon scaling."`
+   `_NO_ARMAMENT_NOTE` aendert ein Wort, aus demselben Grund:
+   `"With no armament on record there is nothing to scale, so the five attack multipliers are averaged with equal weight."`
+3. **AK-192, Neufassung — Wortlaut unveraendert, Geltung enger.** Fuellung
+   (c) (`"{effect name}: it depends on the armaments you carry, which this figure leaves out."`) bleibt **wortgleich**: `weapons_held`/
+   `armament_effect_ids` sind unter AD-038 weiterhin leer, ein wep-Typ-
+   bedingter Effekt landet also weiterhin hier. **Was sich aendert:** ein
+   attributbewegender Effekt, der mangels Bezugswaffe frueher in Fuellung
+   (c) fiel, hat jetzt eine Zahl (AK-315) und faellt aus dieser Fuellung
+   heraus — die AK-192-Zahlen (40/28/23/11) sind **veraltet und vor dem
+   naechsten Baubericht neu zu messen**, kein geschaetzter Ersatzwert.
+4. **AK-193, Neufassung.** Der Satz gilt **nur noch im Rueckfall**
+   (`ctx.reference is None`, Punkt 2): dort bleibt die Beschriftung `Attack
+   multipliers` wortgleich. Im **Regelfall** (Bezugswaffe vorhanden, seit
+   AD-038 der Normalfall) traegt die erste Zeile der Wertspalte stattdessen
+   `{headline_name} {Zahl}` — `Attack rating {n}` fuer gewoehnliche Waffen,
+   `Spell power {n}` fuer Staebe/Siegel (AK-88, dieselben Woerter) — das,
+   was `GoalScore.display` bereits liefert; kein zusaetzlicher UI-Satz
+   noetig.
+5. **Dritte Richtung (OF-43, bestaetigt behalten).** `MAX_ATTRIBUTES`/
+   `_ATTRIBUTE_SCOPE` sind von AK-318 nicht beruehrt — Wortlaut,
+   Spaltenbeschriftung `Offensive attributes {n}` und Einheit `pts` bleiben
+   unveraendert.
+
+*Rot-vorher:* eine Umsetzung, die den alten `_NO_ARMAMENT`-Satz im
+Regelfall (Bezugswaffe vorhanden) noch zeigt; ein `_NO_ARMAMENT`, das
+weiterhin „No armament selected" sagt, obwohl der Datensatz die Ursache
+ist, nicht eine fehlende Auswahl; eine AK-192-Zahl, die ungemessen aus dem
+alten Baubericht uebernommen wird.
+
+**Akzeptanzkriterien:**
+- `_ATTACK_RATING_SCOPE`s letzter Satz lautet wortgleich wie unter Punkt 1.
+- `_NO_ARMAMENT`/`_NO_ARMAMENT_NOTE` lauten wortgleich wie unter Punkt 2 und
+  erscheinen ausschliesslich, wenn `ctx.reference is None`.
+- Picker-Zeile 3a zeigt bei vorhandener Bezugswaffe `Attack rating {n}`
+  bzw. `Spell power {n}`, nie mehr `Attack multipliers ×{n}`.
+- `MAX_ATTRIBUTES` unveraendert: kein Wort, keine Zahleinheit angefasst.
+
+---
+
+**Nachtrag AK-315.3 (Director, 17.09.2026, QA-285 Lesart B):** Der Betrag
+haengt an der Zeile des **ersten Attributs des Effekts, das die
+Bezugswaffe skaliert** (Waffendaten), nicht an der ersten Zeile in
+`ATTRIBUTE_ORDER`. Uebrige Attributzeilen des Effekts bleiben nackt;
+skaliert die Waffe keines, bleibt "this figure does not count it".
+Beispiele: Duchess `Dexterity -3 → Attack rating -2, counted against it`,
+Intelligence-Zeile nackt; Recluse `Mind -13` ohne Betrag; `Vigor +3` nie
+mit Attack-Betrag. Umsetzung T-294a.
+
+**Nachtrag AK-317 (Director, 19.09.2026, Nutzer 08:30):** Das
+`Allow`-Kaestchen ist **immer klickbar**, auch wenn die Familie nicht
+vermieden ist; der Haken wird gespeichert und wirkt, sobald die
+Familien-Kopfzeile auf `Avoid` steht. Kein Grau. Tooltip (ein Satz, beide
+Zustaende): `"Let this one effect into suggestions even while its family
+is avoided. It matters only once the family header is set to Avoid."`
+Legende AK-317 unveraendert. Grund: Nutzer traf am 17.09. das graue
+Kaestchen und hielt es fuer kaputt. Umsetzung T-295a.

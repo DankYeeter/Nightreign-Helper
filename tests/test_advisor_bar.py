@@ -237,17 +237,20 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
 
 def _an_answer(filled: int = 6, curses: tuple = (),
                not_counted: tuple = (),
-               blocked: bool = False) -> types.AdvisorResult:
-    """An answer that fills `filled` slots of the question above."""
+               blocked: bool = False, held: int = 0) -> types.AdvisorResult:
+    """An answer that fills `filled` slots of the question above, with
+    `held` more already decided before the search ran (QA-284)."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
                                      relic_id=200 + index, name=f"Relic {index}")
                     for index in range(filled))
+    held_slots = tuple(types.HeldSlot(index=filled + index)
+                       for index in range(held))
     score = types.GoalScore(value=1.0, display="Attack rating 100", unit="AR")
     return types.AdvisorResult(
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
         curses_without_a_figure=curses, not_counted=not_counted,
-        blocked_by_a_requirement=blocked)
+        blocked_by_a_requirement=blocked, held=held_slots)
 
 
 @pytest.fixture
@@ -495,6 +498,19 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
         "choose from.")
 
 
+def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
+    """QA-284: a held slot is a boundary condition the search never looked
+    at (AD-014.2), not a pool it searched and found empty -- one held slot
+    plus one genuinely empty one must say only the empty one has nothing to
+    choose from."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(filled=4, held=1))
+    assert bar.status.whole_text() == (
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
+        "choose from.")
+
+
 def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
         bar):
     """AK-294 (QA-270): the pools were full, the `Favourite` effect had no
@@ -718,15 +734,58 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
     field anywhere (AD-036.1)."""
     from nrplanner import effectfilters
 
-    planner.effect_filters.mark(11, effectfilters.EXCLUDED)
-    planner.effect_filters.mark(22, effectfilters.REQUIRED)
+    filters = planner.effect_filters
+    family = filters.families[7330000]
+    members = {i for i, key in filters.families.items() if key == family}
+    filters.mark(11, effectfilters.EXCLUDED)
+    filters.mark(22, effectfilters.REQUIRED)
+    filters.mark_family(family, True)
+    filters.mark(7330000, effectfilters.ALLOWED)
     try:
         problem = advisorbar.asking_from(planner, "max_damage").request.problem
-        assert problem.excluded == {11}
+        # AD-039.3: the avoided family, less the member on Allow.
+        assert problem.excluded == {11} | members - {7330000}
+        assert 7080000 in problem.excluded and len(members) > 2
         assert problem.required == {22}
     finally:
-        for effect_id in (11, 22):
-            planner.effect_filters.mark(effect_id, None)
+        filters.mark_family(family, False)
+        for effect_id in (11, 22, 7330000):
+            filters.mark(effect_id, None)
+
+
+def test_the_question_carries_the_starting_armament_without_its_rolls(planner):
+    """AD-038.1: the damage direction ranks against the Nightfarer's own
+    starting armament, at its lowest tier, in the starting slot -- and
+    against nothing the player carries: no grid, no rolls (A17, QA-226).
+    The id stands in the key beside it, or `run.run` refuses the question.
+
+    Red with `reference=None` put back into `asking_from`.
+    """
+    from nrplanner import damage, weapons
+
+    hero = planner.current_hero()
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    reference = asking.ctx.reference
+    assert reference.weapon["id"] == hero["starting_weapon"]
+    assert reference.tier == weapons.MIN_UPGRADE
+    assert reference.slot_index == damage.STARTING_SLOT
+    assert asking.request.reference_weapon_id == hero["starting_weapon"]
+    assert asking.ctx.weapons_held == ()
+    assert asking.ctx.armament_effect_ids == ()
+
+
+def test_without_a_record_of_the_starting_armament_the_run_ranks_without_one(
+        planner, monkeypatch):
+    """AD-038.1, the fallback: a dataset with no record for the starting
+    armament leaves `reference` empty in the context **and** in the key,
+    and the run takes the multiplier mean and says so (`_NO_ARMAMENT`)."""
+    monkeypatch.setattr(planner, "weapon_by_id", lambda weapon_id: None)
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    assert asking.ctx.reference is None
+    assert asking.request.reference_weapon_id is None
 
 
 def test_a_marking_reaches_the_row_as_a_marking(planner, monkeypatch):
@@ -764,6 +823,13 @@ def test_the_filters_tooltip_counts_the_marked_effects_in_every_state(qapp):
         assert widget.filters_button.toolTip() == (
             f"<span>{advisorbar.FILTERS_TOOLTIP}  ·  2 effects avoided  ·  "
             "1 effect favourited</span>")
+        # AK-316.5: families are a clause of their own, never added to the ids.
+        filters.mark_family("Dexterity", True)
+        widget.the_build_changed(marking_changed=True)
+        assert widget.filters_button.toolTip().endswith(
+            "2 effects avoided  ·  1 effect favourited  ·  "
+            "1 family avoided</span>")
+        filters.mark_family("Dexterity", False)
         asking["value"] = None
         widget.the_build_changed()
         assert widget.toolTip().endswith("use Rescan save.</span>")
@@ -811,8 +877,9 @@ def test_the_filters_button_opens_the_window_over_what_is_owned(planner,
     assert len(opened) == 1
     window = opened[0]
     assert window._filters is planner.effect_filters
-    assert window.table.rowCount() == len(
-        effectfilterdialog.rows_from(planner.owned, planner.effects)) > 0
+    assert len(window.shown_ids()) == len(
+        effectfilterdialog.rows_from(planner.owned, planner.effects,
+                                     planner.effect_filters.families)) > 0
     assert window.empty.isHidden()
     # AK-309's first two cases, told apart as the relic label tells them.
     monkeypatch.setattr(planner, "owned", None)

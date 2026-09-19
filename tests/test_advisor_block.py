@@ -299,6 +299,44 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
         assert not hidden.isVisibleTo(block)
 
 
+def test_the_held_favourite_line_is_muted_bulleted_and_unmarked(block):
+    """AK-314.1/.6: the sentence handed in stands with an effect-line bullet,
+    muted, never struck through or accented -- mutation-killing against a
+    version that reuses the `▲`/`ACCENT` styling of a favourited line."""
+    from nrplanner.app import ACCENT, MUTED
+
+    sentence = ("Improved Melee Attack Power, which you favourited, is "
+               "carried by The Will of the Balancers held in Slot 3.")
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              held_favourite_line=sentence)
+
+    assert block.held_favourite.isVisibleTo(block)
+    assert block.held_favourite.text() == f"{advisorblock.EFFECT_BULLET} {sentence}"
+    style = block.held_favourite.styleSheet()
+    assert MUTED in style
+    assert ACCENT not in style
+    assert "line-through" not in style
+
+
+def test_the_held_favourite_line_is_absent_when_none_is_handed_in(block):
+    """AK-314.3's "no card at all" case, at the single-card level."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert block.held_favourite.text() == ""
+    assert not block.held_favourite.isVisibleTo(block)
+
+
+def test_the_held_favourite_line_falls_away_with_already_equipped(block):
+    """AK-314.4's single-card mechanics: `already_equipped` hides every
+    line the way it already hides `relic_name`/`count_line`/`lines`."""
+    block.show_the_suggestion(
+        "Maximise damage", a_mixed_group(), already_equipped=True,
+        held_favourite_line="X, which you favourited, is carried by Y held "
+                            "in Slot 1.")
+
+    assert not block.held_favourite.isVisibleTo(block)
+
+
 def test_a_block_put_away_shows_nothing(block):
     """An answer that has gone takes its block with it (AK-12)."""
     block.show_the_suggestion("Maximise damage", a_mixed_group())
@@ -618,6 +656,40 @@ def test_a_line_reaches_the_card_its_slot_names(planner):
     assert "Second" not in cards[0].suggestion.lines.text()
 
 
+def test_the_held_favourite_line_stands_on_the_lowest_open_card_only(
+        planner):
+    """AK-314.3: two open slots share one held-favourite finding, drawn once
+    on the lower-indexed of the two -- mutation-killing against a version
+    that repeats the line on every card."""
+    cards = planner.active_slots()
+    if len(cards) < 4:
+        pytest.skip("this vessel has fewer than four slots")
+    line = "2 favourited effects are already carried by relics you hold."
+    planner.show_the_suggestion(an_answer(
+        a_group(a_line("First: Physical Attack +1", slot=1), slot=1),
+        a_group(a_line("Second: Physical Attack +2", slot=3), slot=3),
+        favourites_met_line=line))
+
+    assert cards[1].suggestion.held_favourite.text().endswith(line)
+    assert cards[3].suggestion.held_favourite.text() == ""
+
+
+def test_the_held_favourite_line_drops_when_the_only_open_card_is_equipped(
+        planner, monkeypatch):
+    """AK-314.4: the sole visible suggestion already lies in its slot, so no
+    visible card is left for the line -- it does not fall back to a hidden
+    or Deep card, it disappears from the block entirely (stays in `Why`)."""
+    cards = planner.active_slots()
+    monkeypatch.setattr(cards[0].__class__, "already_equipped",
+                        lambda self, choice: True)
+    line = "X, which you favourited, is carried by Y held in Slot 1."
+    planner.show_the_suggestion(an_answer(
+        a_group(a_line("First: Physical Attack +1", slot=0), slot=0),
+        favourites_met_line=line))
+
+    assert cards[0].suggestion.held_favourite.text() == ""
+
+
 def test_the_bars_answer_reaches_the_cards_without_the_window_asking(planner):
     """The bar says an answer stands; this window draws it (S10b's wiring)."""
     planner.advisor_bar.suggestion_changed.emit(
@@ -677,6 +749,28 @@ def test_the_slot_tells_the_suggested_copy_from_the_one_it_holds(qapp):
 
     card.show_the_suggestion("Maximise damage", group, other)
     assert not card.suggestion.already_equipped.isVisibleTo(card.suggestion)
+    card.deleteLater()
+
+
+def test_a_slot_answers_already_equipped_for_the_window_to_ask_first(qapp):
+    """AK-314.3: the window picks the card for the held-favourite line
+    before drawing any of them, so this has to be askable on its own."""
+    from nrplanner import inventory
+    from nrplanner.relicslots import RelicSlot
+
+    card = RelicSlot(0, False, lambda: None)
+    worn = inventory.OwnedItem(relic_id=1, name="The Wylder's Earring",
+                               colour=1, effect_ids=[], is_deep=False,
+                               handle=700)
+    card.relic_box.addItem(worn.name, worn)
+    same = types.SlotChoice(slot_index=0, handle=700, relic_id=1,
+                            name="The Wylder's Earring")
+    other = types.SlotChoice(slot_index=0, handle=701, relic_id=1,
+                             name="The Wylder's Earring")
+
+    assert card.already_equipped(same)
+    assert not card.already_equipped(other)
+    assert not card.already_equipped(None)
     card.deleteLater()
 
 
@@ -835,6 +929,30 @@ def test_every_line_of_the_dialog_shows_its_effects_state_and_sets_none(
     assert not second.label.font().bold()
     assert second.label.textFormat() == Qt.PlainText
     dialog.deleteLater()
+
+
+def test_a_member_of_an_avoided_family_is_struck_and_one_on_allow_is_not(
+        qapp):
+    """AD-039.3, AK-317.5: the line reads the resolved set -- a family
+    marking strikes the member through, `Allow` draws it like any
+    unmarked effect, with no glyph of its own."""
+    from nrplanner.app import BAD
+
+    filters = effectfilters.EffectFilters(families={1: "Improved Attack Power"})
+    dialog = a_dialog(qapp, an_answer(a_group(a_line("Attack.", effect_id=1))),
+                      filters)
+    line, = dialog.groups[0][2]
+    try:
+        filters.mark_family("Improved Attack Power", True)
+        assert line.kind() == effectfilters.EXCLUDED
+        assert line.label.font().strikeOut() and BAD in line.label.styleSheet()
+        filters.mark(1, effectfilters.ALLOWED)
+        assert line.kind() is None and line.bullet.text() == "•"
+        assert not line.label.font().strikeOut()
+    finally:
+        filters.mark_family("Improved Attack Power", False)
+        filters.mark(1, None)
+        dialog.deleteLater()
 
 
 def test_an_avoided_curse_keeps_its_curse_bullet(qapp, filters):

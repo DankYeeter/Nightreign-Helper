@@ -401,12 +401,14 @@ def run(request: types.AdvisorRequest, inventory,
     ranked = (suggestions[0].score if suggestions
               else base_scores[request.goal_id])
     groups = suggestions[0].reasons if suggestions else ()
+    held_favourites = explain.required_met_by_a_hold(problem, ctx)
     # Two run findings of one run, and neither is the other's: what the
     # direction could not know about this build, and what the search was not
     # allowed to touch. Kept in that order and de-duplicated, so a sentence
     # both halves happen to give is read once (AD-025.2).
     unknowns = tuple(dict.fromkeys(ranked.unknowns
-                                   + explain.unknowns(problem)))
+                                   + explain.unknowns(problem)
+                                   + held_favourites))
     # A7 for A19: an empty beam under a required effect is not "nothing to
     # say", it is the answer that no owned constellation meets the condition
     # (AD-036.4). The pools decide which effect is missing a carrier;
@@ -422,6 +424,7 @@ def run(request: types.AdvisorRequest, inventory,
         gain=_gain_over_the_base_state(goals, ctx, best_built, base_scores),
         held=problem.held,
         unknowns=unknowns,
+        favourites_met_line=explain.held_favourites_card_line(held_favourites),
         weights_note=ranked.weights_note,
         not_counted=explain.not_counted(best_built),
         curses=explain.curses(best_chosen, base, best_built, ctx),

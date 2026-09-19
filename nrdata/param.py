@@ -10,7 +10,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
-from .binary import NotWhatItClaims, Reader
+from .binary import Reader
 from .paramdef import STRUCT_CODES, Field, ParamDef
 
 
@@ -66,7 +66,7 @@ def _read_field(data: bytes, base: int, f: Field):
     return value
 
 
-def read(data: bytes, pdef: ParamDef | None = None, strict: bool = False) -> ParamTable:
+def read(data: bytes, pdef: ParamDef | None = None) -> ParamTable:
     r = Reader(data)
     strings_offset = r.u32()
     r.u16()  # short data offset, unused in this variant
@@ -90,12 +90,6 @@ def read(data: bytes, pdef: ParamDef | None = None, strict: bool = False) -> Par
         if pdef.row_size < row_size:
             def_is_prefix = True
         else:
-            msg = (
-                f"paramdef {pdef.param_type} is larger ({pdef.row_size} B) than the "
-                f"actual row ({row_size} B) in {param_type or '?'}; refusing to decode"
-            )
-            if strict:
-                raise NotWhatItClaims(msg)
             pdef = None
 
     rows: list[ParamRow] = []
