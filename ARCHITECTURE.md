@@ -6960,7 +6960,10 @@ Nachtfuersten als Kachelgitter mit einem Detailpanel rechts, das den Block
 > (Bosswahl) gelten nicht mehr wie hier geschrieben. Gebaut sind **29** statt
 > 49 Karten, und die HP-Schranke faellt auf der Ortsroute — massgeblich sind
 > der Nachtragskasten und **AD-042** am Ende dieses Themenbereichs. Punkte 1,
-> 2, 5, 6, 7 gelten unveraendert.
+> 2, 5, 6, 7 gelten unveraendert. **Nachtrag T-309 (19.09.2026):** Punkt 4
+> ist durch **AD-044** auch fuer die Nachtkarten abgeloest, die Beispiele in
+> Punkt 4 sind nachgemessen falsch (eigener Kasten), und die Verbotszeile
+> "kein EMEVD-Weg" ist durch **AD-043** auf die Bossbestimmung eingeengt.
 
 **Kontext.** A24 will je Unterboss Schwaeche, Resistenz, HP, Stance, Beute und
 den Nachtfuersten. T-299 hat den Weg dorthin belegt, aber anders geschnitten
@@ -7260,9 +7263,11 @@ Schritt 1 (Daten) und Schritt 3 (Beschriftung) enthalten.
 
 **Was der `developer` ausdruecklich nicht tut.**
 
-- **Kein** EMEVD-Weg fuer die Unterbosse (`_flag_entities`,
-  `_flags_mentioned`, `_event_names`, `_map_of` bleiben, wo sie sind, und
-  werden vom neuen Einstieg nicht aufgerufen).
+- **Kein** EMEVD-Weg fuer die **Bossbestimmung** der Unterbosse
+  (`_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of` bleiben,
+  wo sie sind, und werden vom neuen Einstieg nicht aufgerufen). *Eingeengt
+  durch AD-043 (19.09.2026): der Balkenname liest je bestimmter Karte ein
+  Skript, ruft aber keine dieser vier Funktionen.*
 - **Keine** neue Auswahlregel: nicht `variationId`, nicht `mapIndex`, nicht
   `bossModifier`, keine Namens- oder Themenheuristik. Bei mehreren
   Kandidatinnen wird **keine** gewaehlt (A7).
@@ -7400,7 +7405,7 @@ andere Frage, eigener Auftrag.
 
 ---
 
-### AD-042 — Auf der **Ortsroute** traegt die HP-Schranke nicht: Kandidat ist jede abgestimmte Figur der Karte, gewaehlt wird die mit der hoechsten HP, und `ambiguous` bleibt dem Gleichstand (2026-09-19, Status: aktiv; aendert AD-040 Punkt 4 fuer `derive_places`, laesst `derive` unberuehrt)
+### AD-042 — Auf der **Ortsroute** traegt die HP-Schranke nicht: Kandidat ist jede abgestimmte Figur der Karte, gewaehlt wird die mit der hoechsten HP, und `ambiguous` bleibt dem Gleichstand (2026-09-19, Status: aktiv in den Punkten 1-3; **Punkt 4 abgeloest durch AD-044**, der Befund am Ende dort entschieden; aendert AD-040 Punkt 4 fuer `derive_places`, laesst `derive` unberuehrt)
 
 **Kontext.** `INFERRED_MIN_HP = 2000` (`bossdata.py:112`) stammt aus den
 **Nachtfuerst-Arenen** — dort ist der Boss ein Nachtfuerst, und alles unter
@@ -7473,7 +7478,11 @@ bleibt, wo sie ist: auf der Ortsroute erreicht sie nur noch eine Karte, auf
 der **keine** Figur abgestimmt ist — auf der EMEVD-Route (Harmonia) bleibt sie
 die Antwort.
 
-**4. Die Regel endet an der Ortsroute.** Schritt 4 (Stufe 2,
+**4. Die Regel endet an der Ortsroute.** — **abgeloest durch AD-044**
+(19.09.2026): die Pruefung, deren Fehlen dieser Punkt begruendet, ist dort
+nachgeholt; `m49_20` war die Float-Kante, `m48_90` benennt niemanden. Der
+Wortlaut bleibt als Verlauf stehen.
+Schritt 4 (Stufe 2,
 `LotResultPlayAreaParam`) darf sie **nicht** stillschweigend mitnehmen. Die
 Randbedingung: T-299 hat die 29 Ortskarten Zeile fuer Zeile gegen die
 FMG-Namen geprueft (Abschn. 2c); fuer die 35 Nachtkarten existiert diese
@@ -7516,7 +7525,9 @@ der neuen Auswahl auf 0" ist nach dieser Entscheidung **wirkungslos** und
 wird ersetzt (siehe Umsetzung).
 
 **Befund fuer den `director` (nicht hier zu beheben): die Streuungsschranke
-ist eine Messerkante.** `INFERRED_MIN_SPREAD = 0.1` wird gegen Differenzen
+ist eine Messerkante.** — **entschieden durch AD-044 Punkt 2** (19.09.2026);
+die dort geforderte Messung der Nachtfuerst-Route liegt vor: 0 von 10 Flags
+aendern sich. `INFERRED_MIN_SPREAD = 0.1` wird gegen Differenzen
 von float32-Werten geprueft: 0,7 − 0,6 ergibt **0.09999996** und faellt
 durch, 0,6 − 0,5 ergibt **0.10000002** und besteht. Gezaehlt ueber die
 Ortsroute: zwei Figuren liegen auf dieser Kante (c3400 auf `4650`, c3600 auf
@@ -7586,6 +7597,395 @@ Abnahme braucht ein anderes Beispiel (jede der 29 Karten taugt, etwa Red Wolf
 of the King Consort auf `4651`). Soll der Wortlaut in `GOAL.md` nachgezogen
 werden, oder genuegt das "z. B."?
 
+
+---
+
+### AD-043 — Der Balkenname gehoert dem **Platz**: Ereignis 90015000, gebunden ueber die Entity-Id der eigenen Part-Zeile, **vor** dem `90<chr><variant>`-Weg (2026-09-19, Status: aktiv; **engt die AD-040-Verbotszeile "kein EMEVD-Weg fuer die Unterbosse" auf die Bossbestimmung ein**, erweitert AD-040 Punkt 2, laesst `derive` unberuehrt)
+
+**Kontext.** T-307 hat belegt, dass der Name am Lebensbalken nicht an der
+Figur haengt, sondern am Platz: das Kartenskript ruft Ereignis 90015000 mit
+`[0, 90015000, 0, <Entity>, <NpcName-Id>, ...]` und reicht die Name-Id je
+Entity herein. `nameId` in `NpcParam` ist in Nightreign durchweg 0 — der
+zweite Zweig des heutigen Namenswegs traegt an keiner einzigen Zeile. Zwei
+Karten des Blocks tragen heute keinen Namen, obwohl das Spiel einen nennt:
+`4654` (c3252) und `4688` (c4021).
+
+Drei Kraefte. (1) A7: keinen Namen zeigen, den die Dateien nicht hergeben —
+beide Wege sind Dateien, aber sie widersprechen sich stellenweise. (2) AD-040
+Punkt 1: die Einheit des Blocks ist die **Ortskarte**; ein Name, der als
+einziges Feld des Eintrags von der **Figur** kommt, ist derselbe Schnittfehler,
+den AD-040 als Option B verworfen hat. (3) AD-042 Punkt 4: eine Regel, die auf
+den Ortskarten geprueft ist, darf nicht stillschweigend auf die Nachtkarten
+mitfahren.
+
+**Gemessen fuer diesen Entwurf.** *Guete:* Join aus dem Rohdump von T-307
+(`scratchpad/T-307/out/q5_rule.json`, 19.09.2026, gefiltert auf
+`event == 90015000` — der Dump enthaelt auch 90015002-Zeilen) gegen den
+Abzug des Testabzugs, 64 Eintraege, Stand `262c7a2`. **Nicht** aus einem Lauf
+des geaenderten Codes.
+
+| Frage | Zahl |
+|---|---|
+| Aufrufe von 90015000 mit Name-Id, ueber alle Skripte | 133 auf 88 Karten |
+| Ortskarten mit einem solchen Aufruf | 29 von 29 |
+| davon Ereignisname **gleich** dem heutigen | 23 |
+| davon heute namenlos, Ereignis nennt einen — **Gewinn** | 2: `4654` "Royal Carian Knight", `4688` "Royal Revenant" |
+| davon beide nennen, **verschieden** | **1**: `4666` c4770, heute "Valiant Gargoyle", Ereignis "Black Blade Kindred" |
+| davon Aufruf gilt einer **fremden** Entity, kein Treffer | 3: `4551`, `4659`, `4662` |
+| Nachtkarten mit Treffer fuer die gewaehlte Figur | **0 von 35** |
+| Karten, die eine Bindung **ueber die Karte** statt ueber die Entity falsch benennen wuerde | 3: `4551` c2130 Fell Omen -> "Black Knife Assassin", `4659` c4501 Decaying Rancor Dragon -> "Royal Revenant", `4662` c4580 Wormface -> "Night's Cavalry" |
+
+Und die Randbedingung des heutigen Wegs, die den einen Streitfall entscheidet:
+`chr_names` nimmt je Figur den **ersten** `90<chr><variant>`-Eintrag in
+FMG-Reihenfolge (`setdefault`). c4770 hat drei — `904770000` "Valiant
+Gargoyle", `904770001` "Black Blade Kindred", `904770200` "Valiant Gargoyles" —
+und **41 von 125** Figuren im `90...`-Block tragen mehr als einen
+verschiedenen Namen. Der heutige Weg waehlt unter ihnen nach
+Tabellenreihenfolge, das Ereignis nach Platz.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben**, AD-040-Verbotszeile woertlich. *Konsequenz:*
+  zwei Karten bleiben namenlos, obwohl das Spiel sie benennt, und `4666`
+  behaelt einen Namen, der nur durch Tabellenreihenfolge gewonnen hat.
+- **B — Nur Rueckfall**: Ereignisroute ausschliesslich dort, wo `chr_names`
+  leer ist. *Konsequenz:* +2 Namen, kein geaenderter Name, gleich grosser
+  Diff — aber die Vorrangfrage ist nur vertagt, und die naechste Figur mit
+  zwei Namen stellt sie erneut.
+- **C — Vorrang der Ereignisroute (gewaehlt)**, `chr_names` als Rueckfall.
+  *Konsequenz:* +2 Namen, **1** geaenderter Name, und der Name folgt
+  derselben Einheit wie der Rest des Eintrags.
+- **D — Ereignisnamen zurueck in `chr_names` speisen** (je Figur statt je
+  Platz); `4930` bekaeme "Royal Revenant" aus `m46_88`. *Konsequenz:*
+  verworfen — das ist der Fehler der drei Gegenbeispiele oben, eine Stufe
+  weiter: aus einer Aussage ueber einen Platz wird eine ueber eine Figur.
+  Bedingung fuer eine Neubewertung: OF-49.
+
+**Entscheidung: C**, in fuenf Punkten.
+
+**1. Gebunden wird ueber die Entity-Id der eigenen Part-Zeile, nie ueber die
+Karte.** Die Part-Zeile fuehrt bei Byte 96 einen `u64`-Offset, dort steht der
+`i32` der Entity (T-307 Abschn. 2: 126 Entity-Ids in 3400 Parts, 3273 leer,
+eine fremd). Nur wenn diese Entity im 90015000-Aufruf **derselben** Karte
+steht, gilt der Name. Drei der 29 Ortskarten rufen 90015000 fuer eine Figur,
+die nicht ihr Boss ist — dort ist "die Karte nennt einen Namen" die falsche
+und "diese Entity heisst so" die richtige Aussage.
+
+**2. Vorrang vor `chr_names`, das als Rueckfall bleibt.** Wo beide etwas sagen
+und sich unterscheiden, gilt das Ereignis. Randbedingung: der Rueckfall waehlt
+unter mehreren Eintraegen derselben Figur nach Tabellenreihenfolge (41 von
+125), das Ereignis waehlt nach dem Platz, um den es im Eintrag geht. Findet
+die Route nichts — kein Skript, kein Aufruf, fremde Entity —, bleibt es beim
+heutigen Namen.
+
+**3. Dieselbe Route auf allen Karten, kein Schalter.** Sie **waehlt keine
+Figur**, sie beschriftet die gewaehlte; sie kann eine `unresolved`- oder
+`ambiguous`-Karte nicht benennen und keine Wahl verschieben. Ihr Risiko ist
+ein anderer Name, nicht ein erfundener Boss — darum greift die Schranke aus
+AD-042 Punkt 4 hier nicht. Gemessen aendert sie auf den 35 Nachtkarten heute
+nichts, weil keine von ihnen den Aufruf fuehrt.
+
+**4. Schnitt: `bossdata` liefert die Id, `extract` den Text.** AD-040 Punkt 2
+bleibt woertlich in Kraft. `derive_places` legt in den Eintrag einen
+optionalen Schluessel `name_id` (wie `group_boss`/`placements` heute schon
+optional sind); `_subbosses` macht daraus
+`npc_names.get(entry.get("name_id")) or chr_names.get(chr_id, "")` — eine
+Zeile an der Stelle, die den Namen heute setzt. Kein neues Modul, keine
+zweite Namenslogik.
+
+**5. Kein geteilter Lesevorgang mit `derive`, kein gemeinsamer
+Instruktionsleser.** `derive` liest **alle** Ereignisskripte, um Flags zu
+finden; hier wird **ein** Skript je Karte mit gewaehlter Figur gebraucht. Ein
+geteilter Cache hielte rund 120 entpackte Blobs ueber zwei Durchgaenge fuer
+eine Ersparnis im Sekundenbereich — wieder Thema, wenn Pruefpunkt (h) mehr
+als 5 s misst. Der neue Leser ist die **dritte** Kopie der acht Zeilen Kopf-
+und Argumentdekodierung neben `_flag_entities` und `_flags_mentioned`; ein
+gemeinsamer Generator waere kleiner, wuerde aber die Nachtfuerst-Route mit
+anfassen, fuer die er nichts verbessert. Wieder interessant beim **vierten**
+Leser oder bei einer Aenderung des EMEVD-Kopfformats.
+
+**Was von der AD-040-Verbotszeile bleibt.** "Kein EMEVD-Weg fuer die
+Unterbosse (`_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of`
+... werden vom neuen Einstieg nicht aufgerufen)" hatte eine Randbedingung, die
+im Wortlaut nicht steht: sie galt der **Bossbestimmung** — der Kette Flag ->
+Entity -> Arena, die 6000 Skriptnamen durchgeht, um zu finden, *wer* der Boss
+ist. Die bleibt in Kraft, die vier Funktionen werden weiterhin nicht
+aufgerufen. Neu ist ein Lesevorgang je bereits bestimmter Karte fuer eine
+**Beschriftung**. `exact` bleibt der Ereigniskette von `derive` vorbehalten:
+ein Balkenname aendert `confidence` nicht.
+
+**Konsequenzen.** Leicht wird: der Name folgt derselben Einheit wie der
+Eintrag, und die zwei Karten, wegen derer T-307 lief, sind erledigt.
+Dauerhaft schwer wird: der Abzug haengt auf der Ortsroute an einer weiteren
+Datei-Art, und ein Patch, der einen 90015000-Aufruf verschiebt, aendert einen
+angezeigten Namen, ohne dass sich sonst etwas ruehrt — dafuer ist Pruefpunkt
+(g) da.
+
+**Umkehrbarkeit: leicht.** Rueckbau auf B ist das Tauschen der beiden Seiten
+des `or`, Rueckbau auf A der Wegfall eines Helfers und dreier Zeilen in
+`derive_places`. Kein Format, kein Schluessel, keine Oberflaeche aendert sich.
+
+---
+
+### AD-044 — Die Ortsregel gilt auf **allen** Karten des Blocks: `arena_rule` faellt wieder, und die Streuungsschranke bekommt die Toleranz gegen float32-Rauschen (2026-09-19, Status: aktiv; **loest AD-042 Punkt 4 ab**, entscheidet den Befund "Messerkante" aus AD-042, loest AD-040 Punkt 4 endgueltig ab)
+
+**Kontext.** AD-042 hat die HP-Schranke auf der Ortsroute fallen lassen, die
+Regel aber ausdruecklich an den 29 Ortskarten enden lassen — mit **einer**
+Begruendung: "T-299 hat die 29 Ortskarten Zeile fuer Zeile gegen die
+FMG-Namen geprueft; fuer die 35 Nachtkarten existiert diese Pruefung nicht."
+Das ist keine Aussage ueber die Nachtkarten, sondern ueber eine fehlende
+Pruefung. T-308 hat die Nachtkarten unter der Arenaregel gebaut (`262c7a2`);
+sie kostet 16 der 35 Karten jede Aussage. **Diese Entscheidung holt die
+fehlende Pruefung nach** und entscheidet danach.
+
+**Gemessen** an der installierten Spielinstallation (19.09.2026, Umlenkung
+nach `CLAUDE.md`, ohne Programmstart; `bossdata.derive_places` dreimal ueber
+dieselben 35 Karten, Skript `scratchpad/T-309/night.py`):
+
+| Regel | Belegketten der 35 Nachtkarten | Karten mit Namen |
+|---|---|---|
+| Arenaregel (gebaut, `262c7a2`) | `single` 16, `group` 3, `unresolved` 16 | 15 |
+| Ortsregel (AD-042) | `single` 35 | 29 |
+| Ortsregel **+ Toleranz** | `single` 35 | **30** |
+
+Die beiden Gegenbeispiele, auf die sich AD-042 Punkt 4 stuetzt, nachgemessen:
+
+- **`m49_20`** faellt allein durch die Messerkante: mit Toleranz waehlt die
+  Ortsregel c3600 **Stoneskin Lords** (628 HP) statt c4380 (162 HP). Das
+  Gegenbeispiel wird zum Beleg fuer die Toleranz.
+- **`m48_90`** waehlt c4090 (556 HP) — und c4090 hat in `NpcName` **keinen
+  Eintrag**. Die befuerchtete Folge ("wuerde c4090 benennen") tritt nicht ein:
+  die Karte bekommt eine Figur mit HP und Beute, aber keinen Namen. Das ist
+  derselbe Zustand, in dem `4654` und `4688` vor AD-043 standen, und kein
+  A7-Verstoss.
+
+Dazu zwei Karten, auf denen die Arenaregel **falsch** liegt: `4770` steht als
+`group` auf c3500 mit 148 HP, waehrend Death Rite Bird (1976) daneben steht;
+`4800` steht als `group` auf c7810 mit 77 HP, waehrend The Duke's Dear Freja
+(1344) daneben steht. Die Gruppenregel findet dort das Begleitvolk, genau wie
+sie es auf `4671` getan hat (AD-042 Kontext).
+
+**Wirkung der Toleranz, ueber alle drei Routen gezaehlt:** Nachtfuerst-Route
+(`bossdata.derive`, 10 Flags) **0 Unterschiede** — `primary`, `confidence`
+und `chars` identisch, zweimal gelaufen (`scratchpad/T-309/run2.py`, 14,3 s
+gegen 14,1 s); Ortskarten (29) **0 Unterschiede** (`run3.py`); Nachtkarten
+**1** (`4920`). Damit ist der Vorbehalt, mit dem AD-042 den Befund liegen
+liess ("wuerde das Verhalten der Nachtfuerst-Route mit aendern"), gemessen
+widerlegt.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben** (AD-042 Punkt 4, `arena_rule` wie gebaut).
+  *Konsequenz:* 16 der 35 Nachtkarten sagen weiter "nicht ableitbar", obwohl
+  30 von ihnen einen Namen in den Dateien haben; zwei weitere zeigen
+  Begleitvolk als Boss. Der Preis wird fuer zwei Faelle gezahlt, von denen
+  einer ein Float-Fehler und der andere folgenlos ist.
+- **B — Ortsregel nur fuer die Nachtkarten mit Namen** ("named-or-nothing":
+  nur `single`, wenn die gewaehlte Figur einen Namen hat). *Konsequenz:*
+  30 statt 35 Karten mit Figur; aber die Regel verknuepft zwei verschiedene
+  Fragen — wer der Boss ist und ob das Spiel ihn benennt — und waere zu den
+  Ortskarten inkonsistent, wo `4654` und `4688` als namenlose `single`
+  richtig waren.
+- **C — Ortsregel ueberall, `arena_rule` faellt (gewaehlt).** *Konsequenz:*
+  35 von 35 mit Figur, 30 mit Namen, und `derive_places` hat wieder **eine**
+  Regel; der Parameter aus `262c7a2` und einer der beiden Aufrufe in
+  `_subbosses` entfallen.
+- **D — Toleranz getrennt entscheiden** (wie AD-042 es vorgesehen hat).
+  *Konsequenz:* ein eigener Auftrag fuer eine Zeile, deren Wirkung hier
+  ohnehin ueber alle drei Routen gemessen ist; ein Lauf mehr fuer keine
+  zusaetzliche Kenntnis.
+
+**Entscheidung: C**, in vier Punkten.
+
+**1. `arena_rule` faellt.** `derive_places` kennt wieder eine Regel: Kandidat
+ist jede abgestimmte Figur der Karte, gewaehlt wird die strikt hoechste HP,
+`ambiguous` nur beim Gleichstand. `_subbosses` ruft es **einmal** mit der
+Vereinigung beider Kartenmengen (die Id-Raeume ueberschneiden sich nicht,
+AD-040 Punkt 3). Damit ist AD-040 Punkt 4 vollstaendig abgeloest, und
+`INFERRED_MIN_HP` gilt nur noch in `derive`, wo der Boss ein Nachtfuerst ist.
+
+**2. Die Streuungsschranke wird gegen float32-Rauschen tolerant**:
+`>= INFERRED_MIN_SPREAD - 1e-6` statt `>= INFERRED_MIN_SPREAD`. Grund mit
+Zahl: die Cut-Rates sind float32; 0,7 − 0,6 ergibt 0.09999996 und faellt
+durch, 0,6 − 0,5 ergibt 0.10000002 und besteht. Die Toleranz ist kein neuer
+Schwellenwert, sondern die Breite des Rauschens — ein Rundungsweg taeuscht
+hier nur: `round(0.7, 2) - round(0.6, 2)` ist in float64 weiterhin
+0.09999999999999998. Sie gilt fuer **beide** Routen, weil das Rauschen keine
+Eigenschaft der Route ist; Wirkung gemessen: 0 / 0 / 1 (siehe oben).
+
+**3. Was die Regel weiterhin nicht kann, mit Namen.** Fuenf Karten bekommen
+eine Figur ohne Namen: `4890` c4090 (556), `4918` c3950 (409), `4930` c4021
+(2279), `5211` c5090 (143), `5212` c5240 (156). Vier davon nennt das Spiel
+nirgends; `4930` traegt c4021, deren Balken auf `m46_88` und `m46_59` "Royal
+Revenant" heisst — `m49_30` ruft 90015000 aber nicht, und ein Name von einer
+anderen Karte ist nach AD-043 Option D nicht zu holen (OF-49).
+
+**4. Die Randbedingung wandert mit.** AD-042 Punkt 4 hat die Regel an den
+Ortskarten enden lassen, weil dort eine Pruefung vorlag und hier nicht. Die
+Pruefung liegt jetzt vor: die 35 gewaehlten Figuren stehen mit HP und Namen in
+der Tabelle oben, 30 tragen einen Namen aus `NpcName`. **Was weiterhin fehlt,
+ist die Probe im Spiel** — kein Balkenname korrigiert die Nachtkarten, weil
+keine von ihnen 90015000 ruft. Der Rueckweg ist benannt und billig: fuehrt der
+Nutzer einen falschen Namen vor, kehrt `arena_rule` fuer die betroffene Menge
+zurueck (ein Parameter, ein zweiter Aufruf).
+
+**Erwartung, nachpruefbar.** Nach beiden Entscheidungen zusammen: **64
+Karten, 64 mit Figur, 59 mit Namen** (heute 43). `single` 64, `group` 0,
+`ambiguous` 0, `unresolved` 0. Ohne Namen bleiben `4890`, `4918`, `4930`,
+`5211`, `5212`. *Guete:* aus den drei Messlaeufen oben plus dem T-307-Rohdump
+gerechnet, **nicht** aus einem Lauf des geaenderten Codes. Weicht die
+gemessene Zaehlung ab, ist das ein Befund und kein Fix.
+
+**Konsequenzen.** Leicht wird: A24 Stufe 2 wird abnehmbar, und `derive_places`
+verliert einen Schalter, statt einen zu bekommen. Dauerhaft schwer wird: auf
+den Nachtkarten gibt es keine zweite Quelle, die einen falschen Namen
+korrigiert — die Anzeige glaubt dort der HP-Wahl allein. Genau dafuer steht
+der Rueckweg in Punkt 4.
+
+**Umkehrbarkeit: leicht** — ein Parameter mit Vorgabewert und ein zweiter
+Aufruf; der Rueckbau ist der Diff von `262c7a2` rueckwaerts, der Snapshot wird
+neu gebaut.
+
+**Beruehrte Entscheidungen.** AD-040 Punkt 4 ist damit vollstaendig abgeloest
+(Punkte 1, 2, 3, 5, 6, 7 gelten). AD-042 Punkte 1-3 gelten fort, **Punkt 4
+faellt**, und der Befund "Messerkante" am Ende von AD-042 ist entschieden
+statt offen. AD-041 unberuehrt: dieselbe Form, mehr gefuellte Eintraege — die
+Gruppe "ohne belegte Rolle" im Baum bleibt vorgesehen, faellt aber mit diesen
+Zahlen leer aus.
+
+---
+
+### Nachtrag 19.09.2026 (T-309) — die Beispiele in AD-040 Punkt 4 stimmen nicht mehr
+
+Nachgemessen an derselben Installation (`scratchpad/T-309/run2.py`), weil
+T-308 einen Widerspruch gemeldet hat:
+
+- "`m47_80` traegt c2150 (HP 5120) und Gaping Dragon (HP 2950); beide reissen
+  die Schranken, also wird die Karte `ambiguous`" — **falsch auf der gebauten
+  Route**. Die Kandidaten von `4780` sind c4080 (162), c4090 (556), c4170
+  (125), c7700 (2950); **c2150 steht dort gar nicht**. Die Karte ist `single`
+  auf Gaping Dragon, und zwar schon unter AD-042.
+- "`m52_11` (c5090 x8) faellt unter die Gruppenschranke und bleibt
+  `unresolved`" — unter AD-044 ist `5211` `single` auf c5090 (143 HP), ohne
+  Namen.
+
+Der Satz in AD-040 Punkt 4 stammt aus T-299 Abschn. 3b und beschreibt die
+dortige Rohzaehlung, nicht die gebaute Auswahl. Er bleibt als Verlauf stehen;
+massgeblich sind AD-042, AD-044 und dieser Kasten.
+
+---
+
+### Umsetzung AD-043 + AD-044 — ein Schritt
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **5 — Balkenname und eine Auswahlregel** | `developer` | `bossdata.py`: (a) Streuungsvergleich in `_tuned` auf `>= INFERRED_MIN_SPREAD - 1e-6`, mit der Zahl 0.09999996 als Grund im Kommentar; (b) `arena_rule` und der zugehoerige Docstring-Absatz entfallen, `_candidates` wird wieder mit `min_hp=0` gerufen, die Randbedingung aus AD-044 Punkt 4 ersetzt den AD-042-Punkt-4-Kommentar; (c) neuer privater Leser neben `_flag_entities` (Kopf- und Argumentdekodierung von dort kopiert, Filter `(bank, index) == (2000, 6)`, `ints[1] == 90015000`, `len(ints) >= 5`, Ergebnis `{ints[3]: ints[4]}`); (d) in `derive_places` je Part die Entity aus dem `u64` bei Byte 96 sammeln (Part-Reihenfolge, Duplikate raus), nach der Bosswahl fuer die gewaehlte Figur `/event/{map_name}.emevd.dcx` lesen (Archiv-Idiom wie fuer die MSB drei Zeilen darueber; fehlendes oder unlesbares Skript = kein Name) und den ersten Treffer als `entry["name_id"]` ablegen — nur lesen, wenn es eine gewaehlte Figur **und** eine Entity gibt. `extract.py`: `_subbosses` ruft `derive_places` **einmal** mit der Vereinigung beider Kartenmengen (der zweite Aufruf und `arena_rule` entfallen), und die Zeile `"name": ...` wird `npc_names.get(entry.get("name_id")) or chr_names.get(chr_id, "")`; Kommentar darueber auf die zwei Wege und ihren Vorrang nachziehen. `EXTRACT_VERSION` **15**. Danach Testabzug neu (`scripts/build_snapshot.py`), `CLAUDE.md`-Zeile und `docs/plan-restarbeiten.md` mit Dateizahl und Byte-Zahl. | `nrdata/bossdata.py`, `nrdata/extract.py` = **2** |
+
+**`EXTRACT_VERSION` 15**, Randbedingung: 14 ist committet (`262c7a2`) und der
+Testabzug traegt sie; der Cache des Nutzers steht am 19.09.2026 noch auf 12
+(`nightreign_data.json` unter `%LOCALAPPDATA%\NightreignHelper`, 8 522 218 B
+vom 15.09.), released ist 12 (`v1.14.0` = `ffac292`). Die Zahl steigt, weil
+der Inhalt sich fuer 21 Karten aendert und im Zyklus Abzuege mit 14 gebaut
+worden sind.
+
+**Tests** (in `tests/test_extraction.py`, wo die vorhandenen stehen):
+
+- Einheit, ohne Datensatz: ein von Hand gebauter EMEVD-Blob mit zwei
+  `2000[6]`-Instruktionen — eine mit Ereignis 90015000, eine mit einem
+  anderen — und die Probe, dass nur die erste ein Paar (Entity, Name-Id)
+  liefert und die Argumentstellen 3 und 4 stimmen. Das ist der Waechter, der
+  einen Parser vor einem Indexfehler schuetzt (rund 15 Zeilen `struct.pack`).
+- Einheit, ohne Datensatz: zwei Figuren mit Streuung 0.09999996 und
+  0.10000002 — beide sind Kandidatinnen. Ohne die Toleranz faellt die erste
+  durch.
+- Am Datensatz (`@pytest.mark.slow`): alle **64** Eintraege sind `single`;
+  **59** tragen einen nichtleeren Namen; `4654` heisst "Royal Carian Knight",
+  `4688` "Royal Revenant", `4666` "Black Blade Kindred"; `4551` heisst weiter
+  "Fell Omen", `4659` "Decaying Rancor Dragon", `4662` "Wormface" (die drei
+  Karten, die 90015000 fuer eine fremde Entity rufen); `4920` nennt c3600
+  "Stoneskin Lords"; `4890`, `4918`, `4930`, `5211`, `5212` tragen eine Figur
+  und keinen Namen.
+- Der vorhandene Waechter ueber `bosses[]` bleibt unveraendert: er ist die
+  Probe, dass `derive` und seine HP-Schranke nicht mitgeaendert wurden.
+
+**Mutationen nach AD-033** (ersetzen die aus AD-042):
+
+1. Der neue Leser bindet ueber die **Karte** statt ueber die Entity (erster
+   Aufruf des Skripts gewinnt, gleich fuer welche Entity) -> der
+   Datensatz-Test faellt auf `4551`, `4659`, `4662`.
+2. Die Namensreihenfolge wird gedreht (`chr_names` vor `name_id`) -> der
+   Datensatz-Test faellt auf `4666`. `4654` und `4688` bleiben gruen, deshalb
+   muss die Mutation ausdruecklich auf `4666` zielen.
+3. Die Toleranz faellt weg (`>= INFERRED_MIN_SPREAD`) -> `4920` faellt
+   zurueck auf c4380, der Datensatz-Test faellt.
+
+**Pruefpunkte** (zusaetzlich zu (a)-(f) aus AD-040).
+
+- **(g) Namensdiff.** Der Schritt meldet die Liste der Karten, deren `name`
+  oder `chr` sich gegen den Abzug von vorher aendert. Erwartung: 21 Zeilen —
+  16 Nachtkarten gewinnen eine Figur, `4770`/`4800`/`4920` wechseln die
+  Figur, `4654`/`4688` gewinnen einen Namen, `4666` wechselt ihn (`5212`
+  wechselt nur die Belegkette und zaehlt hier nicht mit). Jede weitere Zeile
+  ist ein Befund, bevor irgendetwas committet wird.
+- **(h) Erstlauf.** Dauer von `extract.build` vorher/nachher gegen die
+  Grundlinie 33,9 s aus T-301 (`docs/perf/baselines.md` S13). Die
+  60-s-Schranke aus AD-040/OF-45 gilt weiter; ueber 5 s Aufschlag wird der
+  geteilte Lesevorgang aus AD-043 Punkt 5 wieder zum Thema.
+- **(i) Abzugsgroesse.** `nightreign_data.json` vorher/nachher; `name_id`
+  sind hoechstens 64 zusaetzliche Zahlen, die 16 zusaetzlichen Profile wiegen
+  mehr.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** Anfassen von `derive`, `_flag_entities`, `_flags_mentioned`,
+  `_event_names`, `_map_of`, `INFERRED_MIN_HP`, `INFERRED_GROUP_MIN` — die
+  AD-040-Verbotszeile gilt fuer die Bossbestimmung unveraendert weiter.
+- **Kein** gemeinsamer Instruktionsleser und **kein** geteilter Skript-Cache
+  mit `derive` (AD-043 Punkt 5).
+- **Keine** Rueckspeisung der Ereignisnamen in `chr_names` und **keine**
+  Uebernahme eines Namens von einer Karte auf eine andere — `4930` bleibt
+  namenlos, auch wenn dort dieselbe Figur wie auf `4688` steht.
+- **Keine** weiteren Ereignis-Ids (90015002 und die uebrigen aus T-307
+  Abschn. 4) und **keine** anderen Instruktionen als `2000[6]`.
+- **Keine** "named-or-nothing"-Bedingung: eine Karte mit Figur und ohne Namen
+  ist eine gueltige Antwort (Option B in AD-044).
+- **Keine** Aenderung an der Kartenmenge (die 29 + 35 bleiben), an
+  `candidates`, an den `confidence`-Werten oder an der Blockform ausser dem
+  optionalen `name_id`.
+- **Kein** neues Modul, **keine** neue Abhaengigkeit, **kein** Text, der nicht
+  aus `NpcName` kommt.
+- **Kein** Commit, bevor Pruefpunkt (g) die 21 erwarteten Zeilen zeigt und
+  keine weitere.
+
+**Bewusst nicht getan.**
+
+- **Kein Namensfeld je Figur im Abzug** (AD-043 Option D): macht aus einer
+  Platzaussage eine Figuraussage, die drei Gegenbeispiele stehen oben. Wieder
+  interessant, wenn OF-49 (2) aus dem Spiel bestaetigt ist — dann als
+  Einzeleintrag, nicht als Regel.
+- **Keine Herkunftsangabe in der Oberflaeche** ("Name vom Platz" gegen "Name
+  der Figur"). `name_id` steht im Abzug; eine zweite Legende im Panel fuer 3
+  von 64 Karten waere teurer als ihr Nutzen. Wieder interessant, wenn
+  Pruefpunkt (g) nach einem Spielpatch regelmaessig Zeilen zeigt.
+- **Keine Ausweitung der Toleranz auf andere Schwellen.**
+  `INFERRED_MIN_HP` und `INFERRED_GROUP_MIN` vergleichen ganze Zahlen; dort
+  gibt es kein Rauschen.
+
+**Offene Frage aus AD-043/AD-044.**
+
+**OF-49 — an den `director`, Adressat App Designer (Nutzer, aus dem Spiel):**
+Drei Balken, die niemand nachgelesen hat. (1) `4666` (`m46_66`) heisst nach
+AD-043 "Black Blade Kindred" statt "Valiant Gargoyle" — stimmt das im Spiel?
+Stimmt es nicht, faellt AD-043 auf Option B zurueck (eine Zeile). (2) Auf
+`4930` (`m49_30`, Tag 1) steht c4021, deren Balken auf `m46_88` und `m46_59`
+"Royal Revenant" heisst; `m49_30` ruft 90015000 nicht. Heisst der Balken dort
+ebenfalls so, ist AD-043 Option D fuer diese Figur belegt und ein Nachtrag von
+einer Zeile — sonst bleibt die Karte namenlos, und das ist die richtige
+Antwort. (3) Die 16 Nachtkarten, die nach AD-044 zum ersten Mal eine Figur
+zeigen, hat niemand im Spiel gegengelesen; auffaellig waeren vor allem `4770`
+(Death Rite Bird), `4800` (The Duke's Dear Freja), `4919` (Beastmen of Farum
+Azula, 250 HP) und `4920` (Stoneskin Lords). Ein falscher Name dort ist der
+Ausloeser fuer den Rueckweg in AD-044 Punkt 4.
 ---
 
 ---
