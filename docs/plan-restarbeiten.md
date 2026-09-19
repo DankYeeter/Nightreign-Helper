@@ -309,6 +309,19 @@ die 840 Symboldateien blieben. Stand der Vorlage: 841 Dateien,
 **21 012 433 B**, Ort unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand
 gezogen (Zahlen, Herkunft T-308, Grenze "ueber 14").
 
+*Ersetzt am 19.09.2026 (T-310, developer):* `EXTRACT_VERSION` **15** —
+AD-043 holt den Namen am Lebensbalken aus dem Kartenskript (Ereignis
+90015000, gebunden ueber die Entity der Part-Zeile) und AD-044 laesst die
+Ortsregel auf allen 64 Karten gelten; `subbosses` traegt damit 64 `single`
+und 59 Namen statt 45 `single` / 3 `group` / 16 `unresolved` und 42 Namen,
+und 21 Karten aendern `chr` oder `name` (gemessen gegen die Vorlage von
+T-308). Wieder nur `nightreign_data.json` neu geschrieben (8 803 996 B,
++119 212 B = +1,37 %, an der echten Installation, `extract.build` 35,4 s —
+gegen 34,2 s in T-308, der neue Lesevorgang je Karte kostet 1,2 s); die 840
+Symboldateien blieben. Stand der Vorlage: 841 Dateien, **21 131 645 B**, Ort
+unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand gezogen (Zahlen,
+Herkunft T-310, Grenze "ueber 15").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.

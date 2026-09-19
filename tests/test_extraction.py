@@ -353,14 +353,14 @@ class _MapsOnly:
         return b""
 
 
-def _place_entry(monkeypatch, rows, **rule) -> dict:
+def _place_entry(monkeypatch, rows) -> dict:
     """What `derive_places` makes of one map holding exactly these rows."""
     parts = [(f"c{row.id // 10000}_0000", struct.pack("<i", row.id))
              for row in rows]
     monkeypatch.setattr(bossdata, "_parts", lambda _blob: parts)
     places = bossdata.derive_places(
         {"data0": _MapsOnly()}, types.SimpleNamespace(rows=rows),
-        {4671: "m46_71_00_00"}, {}, **rule)
+        {4671: "m46_71_00_00"}, {})
     return places[4671]
 
 
@@ -389,28 +389,45 @@ def test_a_place_whose_two_largest_tie_names_nobody(monkeypatch):
     assert sorted(entry["chars"]) == [4480, 4481]
 
 
-def test_a_night_card_is_read_under_the_arena_bars_instead(monkeypatch):
-    """AD-042 point 4: the place rule stops at the place cards.
-
-    T-299 checked those 29 against the game's own names one by one; no such
-    check exists for the 35 cards the night lottery draws, and two of them
-    are counted counterexamples, so a night card is read the way an arena is:
-    the HP bar back on, and no choice made among several over it. Both halves
-    are here, because either one alone would put a wrong name on a card --
-    the same input that makes a *place* card single leaves a night card
-    unresolved.
+def test_a_spread_a_float_s_width_under_the_bar_still_counts(monkeypatch):
+    """AD-044 point 2. The cut rates are float32, so a spread the authors set
+    to 0.7 - 0.6 arrives as 0.09999996 and one set to 0.6 - 0.5 as
+    0.10000002. Without the tolerance the first falls through the bar, and
+    `4920` loses the Stoneskin Lords (628 HP) to a 162 HP add.
     """
-    over = _place_entry(monkeypatch, [_npc_row(44800010, 2500, 0.2),
-                                      _npc_row(44810010, 5753, 0.2)],
-                        arena_rule=True)
-    assert over["confidence"] == "ambiguous"
-    assert over["primary"] is None
+    edge = {3600: [_npc_row(36000000, 628, 0.09999996)],
+            4380: [_npc_row(43800000, 162, 0.10000002)]}
+    found, _group = bossdata._candidates(edge, {3600: 1, 4380: 1}, min_hp=0)
 
-    under = _place_entry(monkeypatch, [_npc_row(44800010, 1939, 0.2),
-                                       _npc_row(44810010, 119, 0.2)],
-                         arena_rule=True)
-    assert under["confidence"] == "unresolved"
-    assert under["primary"] is None
+    assert sorted(chr_id for chr_id, _p in found) == [3600, 4380]
+
+
+def _emevd(calls: list[tuple[int, list[int]]]) -> bytes:
+    """An EMEVD holding exactly these `2000[index]` instructions."""
+    head = b"\0" * 0x10 + struct.pack("<4Q", 0, 0, len(calls), 0x30)
+    records, args = b"", b""
+    for index, values in calls:
+        records += struct.pack("<IIQq", 2000, index, len(values) * 4,
+                               len(args)) + b"\0" * 8
+        args += struct.pack(f"<{len(values)}i", *values)
+    return head + records + args
+
+
+def test_only_the_health_bar_call_hands_out_a_name():
+    """AD-043. The name at the bar is passed in per entity by the map's own
+    script, which is how c3252 is named although NpcName holds no entry for
+    it (T-307). Everything about that read is positional -- the instruction,
+    the event id, and which two arguments carry the pair -- so a truncated
+    call has to leave without a name rather than with an index error.
+    """
+    blob = _emevd([
+        (6, [0, 90015000, 0, 46540800, 903253500, 0]),
+        (6, [0, 90015002, 0, 46540810, 903253510, 0]),
+        (0, [0, 0, 300, 46540800]),
+        (6, [0, 90015000, 0]),
+    ])
+
+    assert bossdata._healthbar_names(blob) == {46540800: 903253500}
 
 
 @pytest.mark.slow
@@ -418,8 +435,10 @@ def test_every_place_card_names_the_character_standing_on_it(
         extracted_game_data):
     """AD-042 at the dataset: 29 of 29 place cards settle on one character.
 
-    The place cards only -- the night cards beside them in the block are read
-    under the arena's bars and are allowed to settle on nobody (AD-042.4).
+    The place cards on their own, because these are the 29 T-299 checked
+    line by line against the game's own names; the night cards beside them
+    in the block are held to the same rule and counted with them in
+    `test_one_rule_reads_every_card_of_the_block`.
 
     The two cards the HP bar mis-sorted are named: `4659` was ambiguous
     between c4501 (5753 HP) and c4021 (2279 HP), and `4671` fell to the group
@@ -437,13 +456,16 @@ def test_every_place_card_names_the_character_standing_on_it(
     assert places["4659"]["chr"] == 4501
     assert places["4671"]["chr"] == 4480
 
-    # Two of the 29 characters the cards settle on carry no name: NpcName
-    # holds neither a structured `90 <chr> <variant>` entry nor a `nameId`
-    # for c3252 or c4021 (measured T-305, both routes read out of the
-    # installation). The card is still resolved; the game has no word for who
-    # stands on it, and inventing one is the failure QA-286 was made of.
-    assert sorted(entry["chr"] for entry in places.values()
-                  if not entry["name"]) == [3252, 4021]
+    # All 29 carry a name. The last two to get one are c3252 and c4021, for
+    # which NpcName holds neither a structured `90 <chr> <variant>` entry nor
+    # a `nameId` (T-305): their maps pass the name id in at the health bar
+    # instead, and the name follows the place like the rest of the entry
+    # (AD-043). Inventing one where no file holds it is the failure QA-286
+    # was made of, so the route is checked by name below, not by count alone.
+    assert [place for place, entry in places.items()
+            if not entry["name"]] == []
+    assert places["4654"]["name"] == "Royal Carian Knight"
+    assert places["4688"]["name"] == "Royal Revenant"
 
 
 @pytest.mark.slow
@@ -482,20 +504,46 @@ def test_the_night_lottery_draws_a_boss_for_both_nights_of_every_nightlord(
 
 
 @pytest.mark.slow
-def test_the_two_night_cards_the_place_rule_would_misname_stay_unnamed(
-        extracted_game_data):
-    """AD-042 point 4 at the dataset, on the two counted counterexamples.
+def test_one_rule_reads_every_card_of_the_block(extracted_game_data):
+    """AD-043 and AD-044 at the dataset: 64 cards, one rule, 59 names.
 
-    Under the place rule `m48_90` would name c4090 (556 HP) although T-299
-    read no clear boss on it, and `m49_20` would take c4380 (162 HP) over the
-    Stoneskin Lords (628), whose tuning falls a float's width short of the
-    bar. Under the arena's bars neither card names anybody, which is the
-    answer A7 asks for.
+    The place rule reads the night cards too. The check AD-042 was waiting
+    for has been made (T-309 read all 35 chosen characters out with their HP
+    and their names), and the two counted counterexamples did not hold:
+    `m49_20` failed on float32 noise alone and takes the Stoneskin Lords
+    (628 HP) once the bar tolerates it, and on `m48_90` the chosen c4090 has
+    no NpcName entry, so the card carries a character and no name -- which is
+    the answer A7 asks for, not a wrong one (AD-044).
+
+    The names come from the health bar first. `4666` is the one card where
+    both routes speak and disagree: c4770 has three entries in the structured
+    block and the table order picked "Valiant Gargoyle", while the script of
+    the place calls it "Black Blade Kindred" (AD-043 point 2).
     """
     places = extracted_game_data["subbosses"]
+    assert len(places) == 64
 
-    for card in ("4890", "4920"):
-        entry = places[card]
-        assert entry["days"], f"card {card} is not a night card at all"
-        assert entry["chr"] is None and entry["name"] == "", (
-            f"night card {card} names {entry['name']!r} (c{entry['chr']})")
+    unsettled = {place: entry["weakness"]["confidence"]
+                 for place, entry in places.items()
+                 if entry["weakness"]["confidence"] != "single"}
+    assert not unsettled, f"{len(unsettled)} of {len(places)} cards unsettled"
+    assert sum(1 for entry in places.values() if entry["name"]) == 59
+
+    assert places["4666"]["name"] == "Black Blade Kindred"
+    assert places["4920"]["chr"] == 3600
+    assert places["4920"]["name"] == "Stoneskin Lords"
+
+    # Bound by entity, never by map: each of these three calls 90015000 for
+    # a character that is not its boss, and a map-wide match would rename
+    # them "Black Knife Assassin", "Royal Revenant" and "Night's Cavalry".
+    assert places["4551"]["name"] == "Fell Omen"
+    assert places["4659"]["name"] == "Decaying Rancor Dragon"
+    assert places["4662"]["name"] == "Wormface"
+
+    # A character without a name is a valid answer, and no name is taken
+    # from another card: c4021 stands on `4930` as it does on `4688`, but
+    # `m49_30` never calls the event (AD-043 option D, AD-044 point 3).
+    assert sorted(place for place, entry in places.items()
+                  if not entry["name"]) == ["4890", "4918", "4930",
+                                            "5211", "5212"]
+    assert places["4930"]["chr"] == 4021

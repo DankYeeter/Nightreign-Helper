@@ -60,14 +60,60 @@ class Mutation:
 MUTATIONS: dict[str, Mutation] = {
     "place-route-back-under-the-hp-bar": Mutation(
         path="nrdata/bossdata.py",
-        old="            min_hp=INFERRED_MIN_HP if arena_rule else 0)\n",
-        new="            min_hp=INFERRED_MIN_HP)\n",
+        old="        found, group = _candidates(rows_for, placements, min_hp=0)\n",
+        new="        found, group = _candidates(rows_for, placements)\n",
         survival_means=(
             "Nothing holds the place cards to AD-042. The HP bar belongs to "
             "the Nightlord arenas, and back on the place route it cuts 16 of "
             "the 29 field bosses away (904-5753 HP): those cards lose their "
-            "character and say 'not derivable'. A green suite would mean the "
-            "sub-boss roster can quietly shrink to a third of itself."
+            "character and say 'not derivable'. Since AD-044 the same bar "
+            "would meet all 64 cards of the block. A green suite would mean "
+            "the sub-boss roster can quietly shrink to a third of itself."
+        ),
+    ),
+    "health-bar-name-bound-to-the-map": Mutation(
+        path="nrdata/bossdata.py",
+        old="            for entity in on_entities:\n",
+        new="            for entity in list(names):\n",
+        survival_means=(
+            "Nothing holds a health-bar name to the character it was passed "
+            "in for. Taking whichever entity the script names first renames "
+            "`4551` to 'Black Knife Assassin', `4659` to 'Royal Revenant' "
+            "and `4662` to \"Night's Cavalry\" -- three cards carrying the "
+            "name of somebody else standing in the same map (AD-043.1). A "
+            "green suite would mean a name on a card proves nothing about "
+            "who is on it, which is the failure QA-286 is made of."
+        ),
+    ),
+    "health-bar-name-behind-the-table-order": Mutation(
+        path="nrdata/extract.py",
+        old='            "name": (npc_names.get(entry.get("name_id"))\n'
+            '                     or chr_names.get(chr_id, "")),\n',
+        new='            "name": (chr_names.get(chr_id)\n'
+            '                     or npc_names.get(entry.get("name_id"), "")),\n',
+        survival_means=(
+            "Nothing holds the two name routes to their order. Reversed, "
+            "`4666` is called 'Valiant Gargoyle' again -- c4770 carries "
+            "three names in the structured block and the table order picks "
+            "the first, while the script of the place calls it 'Black Blade "
+            "Kindred' (AD-043.2). The two cards that gained a name keep it "
+            "either way, so a green suite would mean only the disagreement "
+            "is unguarded -- the one case the decision is about."
+        ),
+    ),
+    "spread-bar-back-on-the-knife-edge": Mutation(
+        path="nrdata/bossdata.py",
+        old='            - min(profile["damage"].values())) '
+            ">= INFERRED_MIN_SPREAD - 1e-6\n",
+        new='            - min(profile["damage"].values())) '
+            ">= INFERRED_MIN_SPREAD\n",
+        survival_means=(
+            "Nothing holds the tuning bar to the width of float32 noise. "
+            "The cut rates are float32, so a spread authored as 0.7 - 0.6 "
+            "arrives as 0.09999996 and misses the bar by a float: `4920` "
+            "drops the Stoneskin Lords (628 HP) and falls back to a 162 HP "
+            "add (AD-044.2). A green suite would mean the bar may be a "
+            "knife edge that a rounding error decides."
         ),
     ),
     "place-route-takes-the-smallest": Mutation(

@@ -100,6 +100,43 @@ def _flag_entities(blob: bytes) -> dict[int, int]:
     return out
 
 
+def _healthbar_names(blob: bytes) -> dict[int, int]:
+    """entity id -> NpcName id, from the 90015000 calls of one map.
+
+    The name over a boss's health bar belongs to the place, not to the
+    character: the map script hands the name id in per entity. That is how
+    c3252 and c4021 are named although neither carries an NpcName entry of
+    its own, and why the pair is read by entity and never by map -- three of
+    the place cards call 90015000 for a character that is not their boss
+    (T-307, AD-043 point 1).
+
+    The header and argument decoding are `_flag_entities` again rather than
+    shared with it: that one answers a different question on a different
+    pass, and a common generator would have to be handed which instruction
+    and which arguments it is after, which is the whole of both bodies
+    (AD-043 point 5).
+    """
+    (_events, _event_off, count, offset) = struct.unpack_from("<4Q", blob, 0x10)
+    arg_base = offset + count * INSTRUCTION_RECORD
+
+    out: dict[int, int] = {}
+    for i in range(count):
+        record = offset + i * INSTRUCTION_RECORD
+        bank, index = struct.unpack_from("<II", blob, record)
+        if (bank, index) != (2000, 6):
+            continue
+        size, arg_offset = struct.unpack_from("<Qq", blob, record + 8)
+        if arg_offset < 0:
+            continue
+        args = blob[arg_base + arg_offset : arg_base + arg_offset + size]
+        ints = struct.unpack_from(f"<{len(args) // 4}i", args)
+        # (slot, eventId, unknown, entity, nameId): a truncated call is a
+        # call this pass has no name from, not an index error.
+        if len(ints) >= 5 and ints[1] == 90015000:
+            out.setdefault(ints[3], ints[4])
+    return out
+
+
 def _map_of(entity: int) -> str:
     """Entity ids are mAA_BB prefixed, so the arena is implied by the id."""
     return f"m{entity // 1_000_000:02d}_{(entity // 10_000) % 100:02d}_00_00"
@@ -135,11 +172,7 @@ def _candidates(rows_for: dict[int, list], placements: dict[int, int], *,
     strong = []
     for chr_id, rows in rows_for.items():
         profile = _profile(rows)
-        if profile is None:
-            continue
-        spread = (max(profile["damage"].values())
-                  - min(profile["damage"].values()))
-        if spread < INFERRED_MIN_SPREAD:
+        if not _tuned(profile):
             continue
         if (profile["hp"] or 0) < min_hp:
             continue
@@ -153,20 +186,28 @@ def _candidates(rows_for: dict[int, list], placements: dict[int, int], *,
     # exactly once. So when nothing clears the HP bar, fall back to the
     # character this map is unusually full of.
     crowd = [(count, chr_id) for chr_id, count in placements.items()
-             if count >= INFERRED_GROUP_MIN and _tuned(rows_for.get(chr_id, []))]
+             if count >= INFERRED_GROUP_MIN
+             and _tuned(_profile(rows_for.get(chr_id, [])))]
     if not crowd:
         return [], False
     _count, chr_id = max(crowd)
     return [(chr_id, _profile(rows_for[chr_id]))], True
 
 
-def _tuned(rows: list) -> bool:
-    """Has someone deliberately set this character's resistances apart?"""
-    profile = _profile(rows)
+def _tuned(profile: dict[str, Any] | None) -> bool:
+    """Has someone deliberately set this character's resistances apart?
+
+    The tolerance is the width of float32 noise and not a second threshold:
+    the cut rates are float32, so a spread the authors set to 0.7 - 0.6 comes
+    out as 0.09999996 and misses the bar, while 0.6 - 0.5 comes out as
+    0.10000002 and clears it. Rounding only moves the edge -- in float64
+    `round(0.7, 2) - round(0.6, 2)` is still 0.09999999999999998. Without it
+    `4920` loses the Stoneskin Lords (628 HP) to a 162 HP add (AD-044).
+    """
     if not profile:
         return False
     return (max(profile["damage"].values())
-            - min(profile["damage"].values())) >= INFERRED_MIN_SPREAD
+            - min(profile["damage"].values())) >= INFERRED_MIN_SPREAD - 1e-6
 
 
 def _parts(blob: bytes) -> list[tuple[str, bytes]]:
@@ -191,6 +232,21 @@ def _parts(blob: bytes) -> list[tuple[str, bytes]]:
         name_at = struct.unpack_from("<Q", record, 0)[0]
         out.append((binary.read_cstring(record, name_at, utf16=True), record))
     return out
+
+
+def _entity_of(record: bytes) -> int:
+    """The entity id placed on one part, or 0 where it carries none.
+
+    The u64 at byte 96 of the record points at the i32 that holds it; 3273
+    of 3400 parts point at a zero, which is how a prop differs from a part
+    a script can address (T-307 section 2).
+    """
+    if len(record) < 104:
+        return 0
+    at = struct.unpack_from("<Q", record, 96)[0]
+    if not at or at + 4 > len(record):
+        return 0
+    return max(struct.unpack_from("<i", record, at)[0], 0)
 
 
 # SpEffectParam 7330-7398 is a per-boss buff/debuff family: every row pairs an
@@ -558,8 +614,7 @@ def _attach_effects(entries, archives, by_chr: dict[int, list],
 
 
 def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
-                  sp_rows: dict[int, param.ParamRow],
-                  *, arena_rule: bool = False) -> dict[int, dict]:
+                  sp_rows: dict[int, param.ParamRow]) -> dict[int, dict]:
     """place id -> the same entry `derive` gives per defeat flag.
 
     The second entry into a map, and the one the place lotteries use: the
@@ -571,14 +626,20 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
     characters the strictly largest of them is the boss (AD-042). Only a tie
     names nobody (`ambiguous`), because the files do not break it.
 
-    That rule ends here, and `arena_rule` is where it ends. The night cards
-    drawn from `LotResultPlayAreaParam` must not be resolved by it: T-299
-    checked these 29 place cards line by line against the FMG names, no such
-    check exists for the night cards, and two of them are counted
-    counterexamples -- `m48_90` would name c4090 (556 HP, "no clear boss")
-    and `m49_20` would take c4380 (162 HP) over Stoneskin Lords (628 HP). So
-    a night card is read with `arena_rule=True`: the HP bar back on, and no
-    choice among several candidates, which is AD-040 point 4 unchanged.
+    That rule reads the night cards of `LotResultPlayAreaParam` too. AD-042
+    let it end at the 29 place cards because T-299 had checked those against
+    the game's own names and nothing had checked the night cards; that check
+    has since been made, and the two counted counterexamples did not hold:
+    `m49_20` failed on float32 noise alone (see `_tuned`), and on `m48_90`
+    the chosen c4090 has no NpcName entry, so the card carries a character
+    and no name -- an answer, not a wrong name (AD-044). What is still
+    missing there is the proof in the game itself: no night card calls
+    90015000, so no health bar corrects a choice made here. If one of them is
+    shown to be wrong, the arena's bars come back for that set.
+
+    The name id is read here and the text in the caller: the place is the
+    unit of the answer, and only this pass knows which entity the chosen
+    character stands on (AD-043 point 4).
 
     `archives` are the ones the caller already has open: opening them again
     costs 9,3 s of the first run and buys nothing (`docs/perf/baselines.md`
@@ -605,6 +666,7 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
 
         rows_for: dict[int, list] = {}
         placements: dict[int, int] = {}
+        entities: dict[int, list[int]] = {}
         for name, record in parts:
             model = name.split("_")[0]
             if not (model.startswith("c") and model[1:].isdigit()):
@@ -613,6 +675,9 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             if chr_id in CREW:
                 continue
             placements[chr_id] = placements.get(chr_id, 0) + 1
+            entity = _entity_of(record)
+            if entity and entity not in entities.setdefault(chr_id, []):
+                entities[chr_id].append(entity)
             if chr_id in rows_for:
                 continue
             # The exact NpcParam row is named on the part itself, as on the
@@ -625,9 +690,7 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             rows_for[chr_id] = ([by_id[v] for v in exact]
                                 or by_chr.get(chr_id, []))
 
-        found, group = _candidates(
-            rows_for, placements,
-            min_hp=INFERRED_MIN_HP if arena_rule else 0)
+        found, group = _candidates(rows_for, placements, min_hp=0)
         entry: dict[str, Any] = {
             "map": map_name,
             "chars": [chr_id for chr_id, _profile_of in found],
@@ -643,15 +706,33 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
                          group_boss=True, placements=placements.get(chr_id))
         elif found:
             best = max(found, key=lambda pair: pair[1]["hp"] or 0)
-            tied = found if arena_rule else [
-                pair for pair in found
-                if (pair[1]["hp"] or 0) == (best[1]["hp"] or 0)]
+            tied = [pair for pair in found
+                    if (pair[1]["hp"] or 0) == (best[1]["hp"] or 0)]
             if len(tied) == 1:
                 chr_id, profile = tied[0]
                 entry.update(primary=chr_id, confidence="single",
                              profile=profile)
             else:
                 entry["confidence"] = "ambiguous"
+
+        # The health bar of the chosen character, where its own map names it.
+        # Read only where a character was chosen and stands on an entity: a
+        # place nobody was chosen on has nothing to label, and a missing or
+        # unreadable script costs the name and nothing else (AD-043).
+        on_entities = entities.get(entry["primary"], [])
+        if on_entities:
+            path = f"/event/{map_name}.emevd.dcx"
+            arc = next((a for a in archives.values() if path in a), None)
+            names: dict[int, int] = {}
+            if arc is not None:
+                try:
+                    names = _healthbar_names(arc.read(path))
+                except Exception:  # noqa: BLE001 - as for the map above
+                    names = {}
+            for entity in on_entities:
+                if entity in names:
+                    entry["name_id"] = names[entity]
+                    break
         out[place] = entry
 
     _attach_effects(out.values(), archives, by_chr, sp_rows)

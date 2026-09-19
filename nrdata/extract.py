@@ -91,7 +91,11 @@ MAX_LEVEL = 15
 #      `days` is filled where it was empty on 13 and 35 more cards stand in
 #      the block. A cache left on 13 would show the tab's two night groups
 #      empty for good.
-EXTRACT_VERSION = 14
+#  15  subbosses[].name and .chr on 21 of the 64 cards: the health bar names
+#      the place rather than the character (AD-043), and one rule now reads
+#      both sets of cards (AD-044). A cache left on 14 would keep sixteen
+#      night cards saying "not derivable" and three cards naming the crew.
+EXTRACT_VERSION = 15
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -514,25 +518,20 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
                     row.values["patternId"])
 
     npc = param.read(members["NpcParam"], defs.get("NpcParam"))
+    # One call for both lotteries: the same rule reads both sets of cards
+    # (AD-044), and their id spaces do not overlap (T-299 3b).
     weakness = bossdata.derive_places(
         archives, npc,
-        {place: _map_of_place(place) for place in categories}, sp_rows)
-    # AD-042 point 4: the place rule ends at the place cards. T-299 checked
-    # those 29 line by line against the game's own names; for the night
-    # cards no such check exists, and two of them are counted counter-
-    # examples, so they are read under the arena's bars and stay unnamed
-    # where those do not settle them.
-    weakness.update(bossdata.derive_places(
-        archives, npc,
-        {place: _map_of_place(place) for place in days
-         if place not in categories},
-        sp_rows, arena_rule=True))
+        {place: _map_of_place(place) for place in set(categories) | set(days)},
+        sp_rows)
 
-    # Names are the game's own (NpcName). Two routes to one: the structured
-    # id (90 <4-digit character> <3-digit variant>) covers characters whose
-    # NpcParam rows never made it into the table, `nameId` covers the rest.
-    # The structured route runs first because it is keyed by the character
-    # itself rather than by whichever row happened to be seen.
+    # Names are the game's own (NpcName). Two routes to one: the map script
+    # hands a name id in per entity for the health bar, and the structured id
+    # (90 <4-digit character> <3-digit variant>) names the character where no
+    # script does -- `nameId` on the row carries nothing in Nightreign, but
+    # costs one lookup to keep (T-307 section 1). The script goes first:
+    # where both speak and disagree, the name chosen for this place beats the
+    # one that happened to come first in the table (AD-043 point 2).
     npc_names = text.get("NpcName", {})
     chr_names: dict[int, str] = {}
     for name_id, label in npc_names.items():
@@ -556,7 +555,8 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
                 for boss, patterns in sorted(drawn.get(place, {}).items())
             ],
             "chr": chr_id,
-            "name": chr_names.get(chr_id, "") if chr_id is not None else "",
+            "name": (npc_names.get(entry.get("name_id"))
+                     or chr_names.get(chr_id, "")),
             # Filled only where the files put more than one boss-scale
             # character in the place: then none of them is named, and the
             # candidates stand for themselves (GOAL A7).
