@@ -423,3 +423,246 @@ def test_a_defence_trigger_is_drawn_as_the_sighting_it_is(tab):
     assert seen, (
         "no Nightlord in this dataset shows a watched defence trigger, so "
         "this case checked nothing")
+
+
+# -- AD-041: the same panel, describing a sub-boss -------------------------
+#
+# The tab's second population. What a sub-boss entry brings with it the panel
+# already drew for a Nightlord -- bars, status, stance, body parts -- and the
+# cases above cover that. These are about the four places the two differ: the
+# HP line the Nightlords never show, the loot block, the stance rank that
+# must *not* follow a boss out of the field it ranks against, and the two
+# ways the files can decline to say who is on a card.
+
+
+def subboss(tab, key: str) -> dict:
+    """One card of the snapshot, as the tree hands it to the panel."""
+    entry = tab.subbosses[key]
+    return dict(entry, key=key, share=1.0)
+
+
+def cards_with(tab, wanted: str) -> list[str]:
+    return [key for key, entry in tab.subbosses.items()
+            if (entry.get("weakness") or {}).get("confidence") == wanted]
+
+
+def needs_cards(tab) -> None:
+    if not tab.subbosses:
+        pytest.skip("this dataset carries no sub-boss cards")
+
+
+def sub_panel(tab, entry: dict) -> str:
+    tab.show_detail(entry)
+    return tabtext.plain(tab.detail_body.text())
+
+
+def a_resolved_card(tab) -> str:
+    """A card the files do name, or a skip."""
+    needs_cards(tab)
+    keys = [key for key in tab.subbosses
+            if bosstab.has_card_name(tab.subbosses[key])
+            and (tab.subbosses[key]["weakness"] or {}).get("profile")]
+    if not keys:
+        pytest.skip("no card of this dataset resolves to a named boss")
+    return sorted(keys)[0]
+
+
+def test_a_sub_boss_panel_leads_with_its_role_and_no_borrowed_blurb(tab):
+    """AK-322.1/.2 and AK-321.3: what stands above the figures.
+
+    The role line describes the card and not the way in, the description
+    stays empty because a sub-boss entry has no such field, and the portrait
+    label gives its 180 px back rather than opening every one of these
+    panels with an empty block.
+    """
+    key = a_resolved_card(tab)
+    entry = subboss(tab, key)
+    tab.show_detail(entry)
+    assert tab.detail_name.text() == bosstab.card_name(entry)
+    expected = ("Field boss" if not entry["days"]
+                else bosstab.card_role(entry["days"]))
+    assert tab.detail_expedition.text() == expected
+    assert tab.detail_text.text() == "", (
+        "the panel puts a description on a card that carries none")
+    assert tab.detail_art.minimumHeight() == 0, (
+        "a sub-boss panel still reserves room for artwork that does not "
+        "exist")
+
+    # And the height comes back for a Nightlord, who does have a portrait.
+    tab.show_detail(tab.bosses[0])
+    assert tab.detail_art.minimumHeight() == bosstab.DETAIL_ART_HEIGHT
+
+
+def test_the_hp_of_a_sub_boss_is_shown_and_no_nightlord_shows_one(tab):
+    """AK-323: one figure, from the card's own profile, in its own section.
+
+    Both directions. `profile["hp"]` has been in the dataset all along and
+    reached nothing, and the block AD-041 adds is for sub-bosses only -- a
+    VITALS heading on a Nightlord panel would be the same line put where
+    nobody decided to put it.
+    """
+    key = a_resolved_card(tab)
+    entry = subboss(tab, key)
+    hp = entry["weakness"]["profile"]["hp"]
+    text = sub_panel(tab, entry)
+    assert "VITALS" in text
+    assert f"HP {hp:g}" in text, (
+        f"card {key} carries {hp:g} HP and the panel reads: {text[:200]}")
+
+    for boss in tab.bosses:
+        assert "VITALS" not in panel(tab, boss["name"]), (
+            f"{boss['name']} is a Nightlord and his panel carries a VITALS "
+            f"block")
+
+
+def test_a_sub_boss_is_not_ranked_against_the_ten_nightlords(tab):
+    """AD-041 point 3: the rank's field is the ten, and this is not one.
+
+    The raw stance figures stay -- they are this boss's own numbers -- so the
+    case insists on the bar and refuses the ranking beside it. Compared with
+    a Nightlord in the same run, or a panel that simply lost its STANCE block
+    would pass.
+    """
+    key = a_resolved_card(tab)
+    entry = subboss(tab, key)
+    if not (entry["weakness"]["profile"].get("stance") or {}):
+        pytest.skip(f"card {key} carries no stance figures to rank")
+    text = sub_panel(tab, entry)
+    assert "STANCE" in text
+    assert "Ranking" not in text, (
+        f"a sub-boss is ranked against the ten Nightlords: {text[:300]}")
+
+    ranked = [boss["name"] for boss in tab.bosses
+              if "Ranking" in panel(tab, boss["name"])]
+    assert ranked, ("no Nightlord shows a ranking either, so this case "
+                    "cannot tell the two apart")
+
+
+def test_a_card_the_files_do_not_identify_shows_no_name_and_stops_there(tab):
+    """AK-322.3/.4/.5, both ways the identification can fail.
+
+    Built here rather than fished out of the dataset: which cards are
+    `ambiguous` today is a property of the extractor, and a case that
+    skipped when the extractor got better at naming them would stop guarding
+    the sentence exactly when it still has to.
+    """
+    needs_cards(tab)
+    shared = {"map": "m99_99_00_00", "categories": [120], "days": [],
+              "nightlords": [], "chr": None, "share": 1.0}
+    ambiguous = dict(shared, key="9998", name="",
+                     candidates=[{"chr": 1, "hp": 900},
+                                 {"chr": 2, "hp": 2450.5}],
+                     weakness={"map": "m99_99_00_00", "chars": [1, 2],
+                               "primary": None, "confidence": "ambiguous",
+                               "profile": None, "parts": {}})
+    unresolved = dict(shared, key="9999", name="", candidates=[],
+                      weakness={"map": "m99_99_00_00", "chars": [],
+                                "primary": None, "confidence": "unresolved",
+                                "profile": None, "parts": {}})
+
+    text = sub_panel(tab, ambiguous)
+    assert tab.detail_name.text() == "Multiple possible bosses"
+    assert "IDENTITY" in text and "WEAKNESSES" not in text, (
+        "the two cases share a heading, so the stronger one reads as the "
+        "weaker")
+    assert ("Multiple bosses could be on this card — the files don't say "
+            "which. Candidates by HP: 2450.5, 900.") in text, text
+    for gone in ("VITALS", "LOOT", "DAMAGE TAKEN", "STATUS BUILDUP"):
+        assert gone not in text, f"{gone} is drawn for a card nobody named"
+    assert not tab.loot_button.isVisibleTo(tab.detail_panel)
+
+    text = sub_panel(tab, unresolved)
+    assert tab.detail_name.text() == "Not identified"
+    assert "IDENTITY" in text
+    assert "Not derivable for this fight." in text
+    assert "Candidates by HP" not in text, (
+        "a card with no candidates at all lists candidates")
+    for gone in ("VITALS", "LOOT", "DAMAGE TAKEN"):
+        assert gone not in text
+
+
+def test_the_loot_of_a_sub_boss_is_shown_rarest_first_five_at_a_time(tab):
+    """AK-324: the block itself, its order, and the toggle behind it.
+
+    The order is checked against `world_events.drops` as the snapshot holds
+    it, because "rarest first" is a claim about the data and not about the
+    module: sorting the other way round, or not at all, has to fail here.
+    """
+    needs_cards(tab)
+    # The card whose open five span the widest range of chances. On a card
+    # whose twenty drops all read `5%` the order is decided entirely by the
+    # alphabetical tiebreaker, and reversing the sort would hold such a list
+    # the wrong way round just as happily -- so the case picks one where
+    # rarest-first is something the screen can actually show.
+    def spread(key: str) -> float:
+        drops = sorted(tab.drops.get(str(tab.subbosses[key].get("chr")))
+                       or [], key=lambda drop: (drop["share"], drop["name"]))
+        if len(drops) <= bosstab.LOOT_OPEN:
+            return 0.0
+        return drops[bosstab.LOOT_OPEN - 1]["share"] - drops[0]["share"]
+
+    keys = [key for key in sorted(tab.subbosses)
+            if (tab.subbosses[key]["weakness"] or {}).get("profile")]
+    keys.sort(key=spread, reverse=True)
+    if not keys or spread(keys[0]) <= 0:
+        pytest.skip(f"no card of this dataset shows more than "
+                    f"{bosstab.LOOT_OPEN} drops at two different chances")
+    entry = subboss(tab, keys[0])
+    drops = sorted(tab.drops[str(entry["chr"])],
+                   key=lambda drop: (drop["share"], drop["name"]))
+
+    text = sub_panel(tab, entry)
+    loot = text[text.index("LOOT"):]
+    assert loot.count("%") == bosstab.LOOT_OPEN + 1, (
+        f"the open loot list shows {loot.count('%') - 1} figures instead of "
+        f"{bosstab.LOOT_OPEN} (the note's own `100%` is the extra one)")
+    at = [loot.index(drop["name"]) for drop in drops[:bosstab.LOOT_OPEN]]
+    assert at == sorted(at), (
+        f"the five open drops are not in rarest-first order: "
+        f"{[(d['name'], d['share']) for d in drops[:bosstab.LOOT_OPEN]]}")
+    assert drops[-1]["name"] not in loot, (
+        f"{drops[-1]['name']} falls at {drops[-1]['share']:g}%, the "
+        f"commonest thing this boss drops, and it stands in the open five")
+    assert ("Percentages are the game's own drop tables" in loot
+            and "the shortfall is missing data" in loot), (
+        "the block of percentages carries no word about the ones that do "
+        "not add up")
+
+    rest = len(drops) - bosstab.LOOT_OPEN
+    assert rest > 0
+    assert tab.loot_button.text() == f"Show {rest} more"
+    tab.loot_button.click()
+    opened = tabtext.plain(tab.detail_body.text())
+    opened = opened[opened.index("LOOT"):]
+    assert opened.count("%") == len(drops) + 1, (
+        f"opening the list shows {opened.count('%') - 1} of {len(drops)} "
+        f"drops")
+    assert opened.count("LOOT") == 1, "the rest went into a second block"
+    assert tab.loot_button.text() == "Show fewer"
+    tab.loot_button.click()
+    assert tab.loot_button.text() == f"Show {rest} more"
+
+    # And another card starts closed again, however the last one was left.
+    tab.loot_button.click()
+    other = next((key for key in sorted(keys) if key != entry["key"]), None)
+    if other is not None:
+        sub_panel(tab, subboss(tab, other))
+        assert tab.loot_button.text().startswith("Show "), (
+            "the next card opened with the last card's toggle state")
+        assert tab.loot_button.text() != "Show fewer"
+
+
+def test_a_sub_boss_with_no_drops_says_so_rather_than_showing_nothing(tab):
+    """AK-324.2, in the voice the panel already uses for a missing blurb."""
+    needs_cards(tab)
+    key = next((key for key in sorted(tab.subbosses)
+                if not tab.drops.get(str(tab.subbosses[key].get("chr")))
+                and (tab.subbosses[key]["weakness"] or {}).get("profile")),
+               None)
+    if key is None:
+        pytest.skip("every named card of this dataset drops something")
+    text = sub_panel(tab, subboss(tab, key))
+    assert "LOOT" in text
+    assert "no loot recorded in the files" in text
+    assert "Percentages are the game" not in text, (
+        "the note about percentages stands over a block with none in it")
