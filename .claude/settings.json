@@ -11,6 +11,17 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path .claude/hooks/no-window-dispatch.ps1) { & .\\.claude\\hooks\\no-window-dispatch.ps1 } else { [Console]::Error.WriteLine('[fensterdispatch] Hook-Datei nicht gefunden, Dispatch-Riegel ungeprueft - Abbruch.'); exit 2 }\"",
+            "shell": "powershell",
+            "timeout": 15
+          }
+        ]
       }
     ]
   }
