@@ -72,7 +72,16 @@ if ($cmd -match '\bpytest\b') { exit 0 }
 # verbietet genau diese Fundstelle: ein echtes "python"/"py" steht nie
 # unmittelbar hinter einem Punkt, ein Dateiname wie "*.py" dagegen immer.
 $istQuellstart = $cmd -match '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\brun\.py\b'
-$istExeStart = $cmd -match '(?i)\bNightreignHelper\.exe\b'
+
+# NH-004/NH-007 (T-297, sieben Fehlalarme 16.-17.09.): eine blosse Nennung der
+# EXE (ls, Get-FileHash) ist kein Start - nur Startformen, in denen die EXE
+# das Kommando ist, zaehlen. Dieselbe Maske bedient jetzt beide Gates: das
+# Umlenkungs-Gate unten und die Instanzsperre (die Instanzsperre ist
+# maschinenweit, nrplanner/singleinstance.py, KEY; ein zweiter Start endet
+# stumm und die Rolle wartet - T-241d 23 min, T-285a 28 min. Bei laufender
+# Kopie wird der Start abgewiesen, damit die Rolle sofort `blockiert` meldet
+# statt zu pollen).
+$istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
 
 # QA-244: von den acht Skripten unter scripts/measure_*.py bauen nur diese
 # zwei ein echtes Planner-Fenster (appmod.Planner(...), nachgesehen T-214) und
@@ -84,25 +93,19 @@ $istExeStart = $cmd -match '(?i)\bNightreignHelper\.exe\b'
 $istFensterMessskript = $cmd -match
     '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\b(measure_picker_cards|measure_advisor_block)\.py\b'
 
-if (-not ($istQuellstart -or $istExeStart -or $istFensterMessskript)) { exit 0 }
+if (-not ($istQuellstart -or $istExeKommando -or $istFensterMessskript)) { exit 0 }
 
-# NH-004: die Instanzsperre ist maschinenweit (nrplanner/singleinstance.py,
-# KEY). Ein zweiter Start endet stumm, und die Rolle wartet (T-241d 23 min,
-# T-285a 28 min). Bei laufender Kopie wird der Start abgewiesen, damit die
-# Rolle sofort `blockiert` meldet statt zu pollen. Nur fuer Startformen, in
-# denen die EXE das Kommando ist - Hash- und ls-Aufrufe nennen sie als Argument.
-$istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
-if ($istQuellstart -or $istFensterMessskript -or $istExeKommando) {
-    $laeuft = @(Get-Process -Name NightreignHelper -ErrorAction SilentlyContinue)
-    $laeuft += @(Get-Process -Name python, pythonw -ErrorAction SilentlyContinue |
-                 Where-Object { $_.MainWindowTitle -like 'Nightreign Helper*' })
-    if ($laeuft.Count -gt 0) {
-        $wer = ($laeuft | ForEach-Object { "$($_.ProcessName) PID $($_.Id) seit $($_.StartTime.ToString('HH:mm:ss'))" }) -join ', '
-        $out = @{ hookSpecificOutput = @{
-            hookEventName = 'PreToolUse'; permissionDecision = 'deny'
-            permissionDecisionReason = "[instanzsperre] Nightreign Helper laeuft bereits ($wer); ein zweiter Start endet stumm (QA-256). Nicht warten, kein Stop-Process auf fremde PIDs: STATUS blockiert melden, der Director reiht die Fensterlaeufe." } }
-        [Console]::Out.WriteLine(($out | ConvertTo-Json -Compress -Depth 5)); exit 0
-    }
+# Ab hier ist mindestens eine der drei Startformen erkannt (siehe Gate oben) -
+# die Instanzsperre prueft immer, kein eigenes Gate mehr noetig.
+$laeuft = @(Get-Process -Name NightreignHelper -ErrorAction SilentlyContinue)
+$laeuft += @(Get-Process -Name python, pythonw -ErrorAction SilentlyContinue |
+             Where-Object { $_.MainWindowTitle -like 'Nightreign Helper*' })
+if ($laeuft.Count -gt 0) {
+    $wer = ($laeuft | ForEach-Object { "$($_.ProcessName) PID $($_.Id) seit $($_.StartTime.ToString('HH:mm:ss'))" }) -join ', '
+    $out = @{ hookSpecificOutput = @{
+        hookEventName = 'PreToolUse'; permissionDecision = 'deny'
+        permissionDecisionReason = "[instanzsperre] Nightreign Helper laeuft bereits ($wer); ein zweiter Start endet stumm (QA-256). Nicht warten, kein Stop-Process auf fremde PIDs: STATUS blockiert melden, der Director reiht die Fensterlaeufe." } }
+    [Console]::Out.WriteLine(($out | ConvertTo-Json -Compress -Depth 5)); exit 0
 }
 
 $fehlend = @()
