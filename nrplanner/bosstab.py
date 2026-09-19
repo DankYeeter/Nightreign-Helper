@@ -856,7 +856,12 @@ class BossTab(QWidget):
         self.loot_button.setCheckable(True)
         self.loot_button.setStyleSheet(relicslots.WORD_BUTTON_STYLE)
         self.loot_button.setVisible(False)
-        self.loot_button.clicked.connect(self._toggle_loot)
+        # `toggled` and not `clicked`: a mouse and the space bar emit both,
+        # but a screen reader's `TogglePattern.Toggle()` arrives as
+        # `QAbstractButton::toggle()` and emits only this one, so `clicked`
+        # left the button dead to assistive software (QA-288). The `Hold`
+        # button of AK-54 is wired the same way.
+        self.loot_button.toggled.connect(self._toggle_loot)
         layout.addWidget(self.loot_button, 0, Qt.AlignLeft)
         layout.addStretch(1)
 
@@ -971,9 +976,17 @@ class BossTab(QWidget):
         if entry is not None:
             self.show_detail(entry)
 
-    def _toggle_loot(self) -> None:
-        """Open or close the rest of the loot list on the entry on screen."""
-        self._loot_expanded = not self._loot_expanded
+    def _toggle_loot(self, expanded: bool) -> None:
+        """Open or close the rest of the loot list on the entry on screen.
+
+        Takes the state the button reports rather than flipping its own, so
+        that `_sync_loot_button`'s `setChecked` -- which emits `toggled` too
+        -- finds nothing left to do and the panel is not redrawn on top of
+        itself.
+        """
+        if expanded == self._loot_expanded:
+            return
+        self._loot_expanded = expanded
         self.show_detail(self._shown)
 
     @staticmethod

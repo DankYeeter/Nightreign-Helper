@@ -652,6 +652,54 @@ def test_the_loot_of_a_sub_boss_is_shown_rarest_first_five_at_a_time(tab):
         assert tab.loot_button.text() != "Show fewer"
 
 
+def test_the_loot_toggle_answers_to_more_than_a_mouse(tab):
+    """QA-288: `toggle()` opens the list, the way `Hold`/`Held` does.
+
+    The button came bound to `clicked`, which a mouse and a pressed space bar
+    emit and nothing else. A screen reader calls `TogglePattern.Toggle()`,
+    the accessibility bridge turns that into `QAbstractButton::toggle()`, and
+    the panel stayed as it was -- checked button, five drops (found at the
+    artefact, T-312c). `toggled` is the one signal all three ways pass
+    through, which is why AK-54's `Hold` button has always used it.
+    """
+    needs_cards(tab)
+    key = next((key for key in sorted(tab.subbosses)
+                if (tab.subbosses[key]["weakness"] or {}).get("profile")
+                and len(tab.drops.get(str(tab.subbosses[key].get("chr")))
+                        or []) > bosstab.LOOT_OPEN), None)
+    if key is None:
+        pytest.skip(f"no card of this dataset drops more than "
+                    f"{bosstab.LOOT_OPEN} things")
+    entry = subboss(tab, key)
+    count = len(tab.drops[str(entry["chr"])])
+    closed = sub_panel(tab, entry)
+    assert closed.count("%") == bosstab.LOOT_OPEN + 1
+
+    tab.loot_button.toggle()
+    opened = tabtext.plain(tab.detail_body.text())
+    assert opened.count("%") == count + 1, (
+        f"toggling the button left {opened.count('%') - 1} of {count} drops "
+        f"on screen: the list answers to the mouse and not to the keyboard "
+        f"or to assistive software, which reach `toggle()`")
+    assert tab.loot_button.text() == "Show fewer"
+    tab.loot_button.toggle()
+    shut = tabtext.plain(tab.detail_body.text())
+    assert shut.count("%") == bosstab.LOOT_OPEN + 1, (
+        "toggling a second time did not close the list again")
+    assert tab.loot_button.text() == f"Show {count - bosstab.LOOT_OPEN} more"
+
+    # And the Tab key gets there in the first place: a button nobody can
+    # focus is one nobody can press the space bar on. Read off the policy
+    # rather than off a Tab keystroke, because focus travels only in an
+    # active window and this panel is built offscreen.
+    from PySide6.QtCore import Qt
+
+    assert tab.loot_button.focusPolicy() & Qt.TabFocus, (
+        "the toggle is out of the tab order")
+    assert tab.loot_button.isVisibleTo(tab.detail_panel), (
+        "the toggle is not on the panel at all")
+
+
 def test_a_sub_boss_with_no_drops_says_so_rather_than_showing_nothing(tab):
     """AK-324.2, in the voice the panel already uses for a missing blurb."""
     needs_cards(tab)
