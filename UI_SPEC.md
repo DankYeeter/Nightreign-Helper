@@ -1706,6 +1706,222 @@ Klick.
 
 ---
 
+### 3.7 Schadensart-Auswahl bei "Maximise damage" (A25) — ein zweites Feld, kein zweites Ziel
+
+*Neu in T-313b (ui-ux-designer), 2026-09-19 — `GOAL.md` A25 (Nutzer, 19.09.2026
+15:50/15:58): "Maximise damage" bekommt eine Auswahl der Schadensart (Alle /
+Physical / Magic / Fire / Lightning / Holy / Skill attack (Weapon Arts) /
+Sorceries / Incantations / eine Zauberschule). Der Auftrag T-313 weist mir
+Platz, Bedienelement, Voreinstellung, Wortlaut und das Verhalten bei einer
+Referenzwaffe ohne diese Art zu; wie die Auswahl in die Rechnung eingeht
+(Parameter vs. eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion) ist
+T-313a (`architect`, AD ab AD-045) und steht bei Abfassung dieses Abschnitts
+noch aus (`ARCHITECTURE.md` traegt kein AD-045 — 19.09.2026, Stand `ec6da4f`).
+Diese Vorgabe legt nur fest, was der Spieler sieht und bedient; sie zwingt
+keine Datenrepraesentation.*
+
+**Kein Fensterlauf fuer diesen Abschnitt** (Instanzsperre haelt eine andere
+Sitzung, T-313 Kopfzeile). Breiten sind aus `advisorbar.py` und den
+gemessenen Werten aus AK-285/AK-302 abgeleitet, nicht neu am laufenden
+Fenster gemessen — AK-334 verlangt die Nachmessung durch den ersten Bau.
+
+#### AK-327 — Platzierung, Sichtbarkeit, Ausnahme vom Drei-Knopf-Budget
+
+**AK-327** Ein neues Paar `QLabel("Damage type")` + `QComboBox
+damage_type_box` steht unmittelbar rechts von `goal_box`, links des staendig
+sichtbaren `Filters`-Knopfs (AK-302) — dieselbe Zeile, keine zweite Reihe.
+Beide Widgets sind **nur sichtbar, wenn `goal_box` auf `max_damage` steht**;
+bei jeder anderen Zielrichtung (`min_damage_taken`, `max_attributes`) sind
+Label und Box ausgeblendet (`setVisible(False)`, nicht nur deaktiviert) —
+eine Schadensart ist eine Frage, die sich nur bei "Maximise damage" stellt,
+und ein ausgegrautes, sinnloses Feld waere dieselbe Art Verwirrung, die
+AK-297 fuer den alten Marker-Punkt schon einmal behoben hat. Wie `goal_box`
+und `Filters` zaehlt das Paar **nicht** zu AK-07s Budget von drei
+Aktionsknoepfen: es ist eine staendige Einstellung, kein Aktionsknopf, und
+in jedem der 14 Zustaende aus §4 sichtbar, sofern `max_damage` gewaehlt ist
+— auch waehrend `Optimize` laeuft (AK-08 gilt unveraendert: kein
+Bedienelement der Leiste wird durch eine laufende Rechnung gesperrt, ausser
+den beiden, die AK-08 selbst nennt).
+
+*Warum ein eigenes Label statt eines selbsterklaerenden Eintragstexts wie
+bei `goal_box` ("Maximise damage" erklaert sich selbst, ohne Ueberschrift):*
+ein Eintrag wie `"Holy"` allein ist ausserhalb jedes Kontexts mehrdeutig
+(Attribut? Filter? Zauberschule?) — ein Label davor ist die kleinstmoegliche
+Ergaenzung, die diese Mehrdeutigkeit aufloest, ohne die Eintragstexte selbst
+umstaendlich zu machen (`"Maximise damage for Holy"` waere ein zweiter,
+laengerer Satz in jedem der zehn Eintraege).
+
+#### AK-328 — Eintraege, Reihenfolge, drei Gruppen
+
+**AK-328** `damage_type_box` traegt, in dieser Reihenfolge, mit einer
+sichtbaren Trennlinie (`QComboBox.insertSeparator`) zwischen den drei
+Gruppen:
+
+1. `All` — Voreinstellung, Index 0, jedes Mal bei Programmstart erneut
+   ausgewaehlt (wie `goal_box`s eigene Voreinstellung: keine Persistenz ueber
+   einen Neustart hinweg, siehe "Nicht Teil dieser Vorgabe").
+2. `Physical`, `Magic`, `Fire`, `Lightning`, `Holy` — dieselbe Reihenfolge
+   und Schreibweise wie `effecttext.AFFINITIES` plus `Physical` voran
+   (`weapons.py:38`), keine neu erfundene Reihenfolge.
+3. `Skill attack`, `Sorceries`, `Incantations`, danach — alphabetisch, nach
+   `Incantations` — je ein Eintrag pro Zauberschule, die der Datensatz
+   fuehrt (`spell_families`, T-313a), mit genau dem Anzeigenamen, den der
+   Datensatz fuer die Schule schon verwendet (kein zweiter, erfundener
+   Name — GOAL A7). Ist `spell_families` bei Auslieferung leer oder fehlt
+   es, endet die Gruppe nach `Incantations`; das ist kein Fehlerzustand.
+
+Jeder Eintrag traegt den Text unveraendert, wie er hier steht (Gross-
+schreibung wie gelistet) — `GOAL_ORDER`-Analog: eine `id`-zu-Label-Tabelle
+im Code, keine `dict`-Iterationsreihenfolge.
+
+**Pruefweg:** Mit einem Datensatz, der genau eine Zauberschule fuehrt
+(`Bestial`), zeigt `damage_type_box` genau elf Eintraege in der oben
+genannten Reihenfolge, mit zwei Trennlinien.
+
+#### AK-329 — Tooltip: was "Skill attack" zaehlt
+
+**AK-329** `damage_type_box` traegt einen statischen Tooltip, sichtbar in
+jedem Zustand:
+
+> `"Restricts Maximise damage to one kind of damage. Skill attack counts "`
+> `"Weapon Arts only — a Nightfarer's own skills are never counted."`
+
+Der zweite Satz ist noetig, weil das Programm zwei unterschiedliche Dinge
+"Skill" nennen koennte (Weapon Arts vs. Nightfarer-Faehigkeiten) und A25s
+Praemisse (Nutzer 19.09.) ausdruecklich nur Weapon Arts meint — derselbe
+Grundsatz wie AK-300s Kollisionshinweis: ein Wort, das im Spiel zwei Dinge
+bezeichnen kann, braucht seinen Unterschied im Tooltip, nicht erst im
+Bugreport.
+
+#### AK-330 — Auswahl ist eine neue Frage, wie `_goal_chosen`
+
+**AK-330** Eine Auswahl in `damage_type_box` loest denselben Weg aus wie
+`_goal_chosen` bei `goal_box` (`the_build_changed()`): eine laufende
+Rechnung wird abgebrochen und zeigt 4.7, ein stehendes Ergebnis wird
+verworfen und die Zeile geht auf 4.1 zurueck. Grund: eine andere
+Schadensart ist eine andere Frage an denselben Massstab wie eine andere
+Zielrichtung, nicht eine Ansichtsoption auf ein bestehendes Ergebnis.
+
+Die Auswahl bleibt **innerhalb der Sitzung** stehen, wenn `goal_box` auf
+eine andere Zielrichtung und zurueck auf `max_damage` wechselt (die Box
+wird nur ausgeblendet, nicht neu aufgebaut) — wie ein Nutzer, der versehentlich
+`Minimise damage taken` antippt, seine Schadensart-Wahl nicht verliert.
+
+#### AK-331 — Why-Zeile nennt die Art, genau einmal
+
+**AK-331** *(dasselbe "genau einmal"-Muster wie AK-22.)* Steht
+`damage_type_box` auf etwas anderem als `All`, traegt der `Why`-Dialog
+genau einen zusaetzlichen Satz, an derselbe Stelle wie die
+"Known limits"-Liste aus AK-22 (`_ATTACK_RATING_SCOPE`), mit dem gewaehlten
+Eintragstext, ersten Buchstaben klein wie `_lower_case_first` es fuer
+`goal_label` schon tut:
+
+> `"Ranked on {type} damage only — every other effect on a candidate "`
+> `"still shows, but only this counts toward the ranking."`
+
+Beispiel bei Auswahl `Holy`: `"Ranked on holy damage only — …"`. Bei `All`
+erscheint **kein** zusaetzlicher Satz — das heutige Verhalten bleibt
+unveraendert sichtbar unveraendert.
+
+**Pruefweg (A25-Nachweis, Revenant-Fall):** Referenzwaffe Siegel, Auswahl
+`Holy`: der `Why`-Dialog des besten Vorschlags traegt den obigen Satz mit
+`holy`, und die Reihung unterscheidet sich von der Reihung bei `All` (die
+eigentliche Rechenpruefung liegt bei T-313a/Bau, nicht bei dieser Spec).
+
+#### AK-332 — 4.10 um eine zweite Ursache erweitert: die Referenzwaffe traegt die Art nicht
+
+**AK-332** *(erweitert AK-20/State.NOT_RANKABLE nach demselben Muster wie
+AK-294 fuer 4.11: zwei Ursachen, zwei Saetze, eine Situation-Markierung.)*
+Zustand 4.10 bekommt eine zweite Ursache. Die heutige Ursache ("der
+Datensatz traegt fuer diesen Nightfarer ueberhaupt keine Zahl") bleibt
+wortgleich:
+
+> `"The game files carry no figures this goal can be ranked on for "`
+> `"{nightfarer}, so there is nothing to suggest."`
+
+Neue Ursache, wenn ein Datensatz fuer den Nightfarer zwar existiert, seine
+**Startwaffe aber strukturell keinen Wert der gewaehlten Art traegt** (das
+in T-313 gefragte "Verhalten wenn die Referenzwaffe die Art nicht traegt")
+— zum Beispiel `Skill attack` bei einer Startwaffe ohne Weapon Art, oder
+`Incantations` bei einer Startwaffe, die kein Katalysator ist und keine
+Zauber-Skalierung traegt:
+
+> `"{nightfarer}'s starting armament carries no {type} damage at all, so "`
+> `"there is nothing to suggest for it."`
+
+`{type}` genauso klein geschrieben wie in AK-331. Welche der beiden
+Ursachen zutrifft, meldet der Lauf (neues `Situation`-Feld, analog
+`blocked_by_a_requirement` aus AK-294 — Arbeitsname
+`blocked_by_reference_weapon`); die Zeile entscheidet nicht selbst anhand
+von Rohzahlen, sie zeigt nur, was der Lauf meldet. Bei `All` bleibt 4.10
+unveraendert, weil die neue Ursache nur bei einer gewaehlten Art auftreten
+kann.
+
+**Warum wieder 4.10 und kein neuer Zustand:** beide Ursachen haben dieselbe
+Konsequenz (keine Rangfolge, kein Vorschlag, `Why` bleibt verfuegbar und
+erklaert), nur der Grund unterscheidet sich — exakt die Situation, fuer die
+AK-294 den Zwei-Ursachen-Kniff schon fuer 4.11 eingefuehrt hat. Ein
+sechzehnter Tabellenzustand fuer denselben Fall waere eine Regel, die
+GOAL A7 nicht braucht.
+
+**Pruefweg (A25-Nachweis, Gegenprobe):** Ein Nightfarer, dessen Startwaffe
+nachweislich keine Weapon Art traegt, mit Auswahl `Skill attack` zeigt 4.10
+mit dem zweiten Satz und keinen Vorschlag.
+
+#### AK-333 — Tastatur
+
+**AK-333** *(erweitert AK-25/AK-26.)* `damage_type_box` steht in der
+Tab-Reihenfolge zwischen `goal_box` und `Filters`, wenn sichtbar; ist sie
+ausgeblendet (AK-327), ueberspringt Tab sie wie jedes verborgene
+Qt-Widget, ohne Sonderfall im Code. Pfeiltasten/Enter/Leertaste bedienen
+die Box wie jede andere `QComboBox` der Leiste; Fokusring sichtbar
+(AK-26).
+
+#### AK-334 — Breitenfolge: gemessen, nicht geschaetzt
+
+**AK-334** *(dasselbe Vorgehen wie AK-302s Nachtrag T-277e — keine
+geschaetzte Zahl nach Projektregel.)* Label und Box addieren der Leiste
+einen weiteren Platzbedarf, sichtbar nur im `max_damage`-Zustand. Der
+erste Baubericht misst die reale Breite (`minimumSizeHint()`-Differenz mit
+und ohne das Paar, wie `action_buttons_extra_width()` es fuer die drei
+Aktionsknoepfe schon vorfuehrt) und traegt sie in AK-05/AK-194/A14 nach.
+Bis zu dieser Messung gilt **kein** Zahlenwert als vereinbart.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Wie die Auswahl in die Rechnung eingeht** (Parameter von `max_damage`
+  oder eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion, ob eine
+  Attribut-Auswahl den Katalysator-Spell-Power-Pfad beruehrt) — T-313a,
+  `architect`.
+- **Ob und wie `headline_name`/`headline_label`** (heute "Attack rating"/
+  "Spell power") sich mit einer gewaehlten Art aendern — diese Vorgabe
+  ruehrt die bestehende Kopfzahl nicht an, weil die Datenlage dafuer
+  (`final_per_type`-Schluessel je Art) T-313a noch nicht feststeht; die
+  Why-Zeile aus AK-331 traegt die Information stattdessen als Satz.
+- **Der Relic Picker.** AK-256 macht `goal_box` zu **einer** Einstellung
+  im ganzen Programm, gespiegelt im Picker-`Sort by`. Ob eine gewaehlte
+  Schadensart denselben Weg braucht (der Picker rankt seinen Pool heute
+  unter `CANONICAL_POOL_ORDER`, unabhaengig von der gezeigten Richtung) ist
+  eine Folgefrage an T-313a/eine Folge-Spec, sobald AD-045 die
+  Kandidatenwertung festlegt — diese Vorgabe fasst den Picker nicht an.
+- **Persistenz ueber einen Neustart.** Wie `goal_box` startet
+  `damage_type_box` immer auf ihrer Voreinstellung (`All`); ob das erwuenscht
+  ist oder die Wahl wie andere Einstellungen (`QSettings`) ueberdauern soll,
+  ist unten als offene Frage an den App Designer aufgefuehrt.
+- **Genaue Liste und Reihenfolge der Zauberschulen** — Inhalt von
+  `spell_families` ist Datensatz/Architektur, nicht Layout.
+
+**Offene Frage an den App Designer:** Soll `damage_type_box` ihre Wahl wie
+ein normales Programmeinstellung ueber einen Neustart hinweg merken (analog
+`favourites.py`), oder wie `goal_box` bewusst bei jedem Start auf `All`
+zuruecksetzen? Ich habe mich fuer Letzteres entschieden, weil es das
+bestehende Verhalten von `goal_box` fortsetzt (keine Inkonsistenz zwischen
+den beiden benachbarten Feldern) — eine Bequemlichkeitsfrage ohne
+objektiv richtige Antwort, falls ein Nutzer denselben Nightfarer immer mit
+derselben Art optimiert.
+
+---
+
 ## Bereich 4 — Build planner: Slotkarten, festgehaltene Slots und `Optimize`
 
 Drei Fragen, drei Namen: wie die Zahlen auf den Slot- und Waffenkacheln heissen
