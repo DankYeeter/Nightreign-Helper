@@ -387,7 +387,7 @@ siehe unten.)*
   gefordert.
 - **DR-025/DR-026 (Vorlauf T-251c) bestaetigt behoben**, Code gelesen statt
   nur ubernommen: `advisorblock.py` traegt jetzt eine eigene `MarkButton`-
-  Klasse mit `keyPressEvent`, die `pressable.PRESS_KEYS` (Return/Enter/
+  Klasse mit `keyPressEvent`, die `bosstab.PRESS_KEYS` (Return/Enter/
   Space) abfaengt — Commit `46ad69b` („DR-025/DR-026 - Markierungsknopf auf
   Enter, Tooltip nach AK-277"). Live per Tab+Enter nicht nachgestellt (Zeit),
   aber der Code selbst ist eindeutig. ✔ 2026-09-15.
@@ -450,7 +450,7 @@ sobald die Fremdinstanz weg ist.
   ("Tab reaches it and Space presses it"). `QAbstractButton` loest `click()`
   in Qt nur bei `Key_Space` aus, `Key_Return`/`Key_Enter` tun bei einem
   `QToolButton` ohne `autoDefault` nichts — das Projekt kennt das Muster
-  bereits und hat es fuer genau diesen Fall geloest: `nrplanner/pressable.py`,
+  bereits und hat es fuer genau diesen Fall geloest: `nrplanner/bosstab.py`,
   `PRESS_KEYS = (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space)`. Richtung: `mark`
   entweder auf denselben Drei-Tasten-Katalog umstellen (eigene
   `keyPressEvent`, wie `PressableFrame.keyPressEvent`) oder `NEXT_MARK`-Klick
