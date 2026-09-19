@@ -46,16 +46,14 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 
 #: Desktops that cap the derived opening width: 1080p at 125 % scaling
 #: (1536) and a legacy 1366-px desktop kept for a lower reading. AK-05's
-#: "boxes never cut" only holds at 1536 px and up (user decision,
-#: 2026-09-13); below that floor `goal_box` may cut, and the
-#: row's own tooltip is what still carries the full status (T-233 carries
-#: the wording into `UI_SPEC.md`).
+#: "boxes never cut" only holds at 1676 px and up, above both of these
+#: (Option B, user decision 2026-09-19, measured T-321c); below that floor
+#: `goal_box` and `damage_type_box` may give way to eliding, the status may
+#: go to 0 px, and the row's own tooltip is what still carries the full
+#: status (T-233 carries the wording into `UI_SPEC.md`). The three action
+#: buttons and the heading stay on screen regardless -- Option B is about
+#: captions, not about controls leaving the row.
 NARROW_DESKTOPS = (1536, 1366)
-
-#: Desktops in `NARROW_DESKTOPS` that sit below the AK-05 floor: here
-#: `goal_box` may be among `cut`, everywhere else `cut` must
-#: stay empty.
-BELOW_THE_AK_05_FLOOR = frozenset({1366})
 
 #: A 4.12 failure sentence long enough to need shortening at any width.
 A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
@@ -204,6 +202,7 @@ def main(snapshot: pathlib.Path) -> dict:
                    if label is not bar.status)
     controls = [("heading", heading),
                 ("goal_box", bar.goal_box),
+                ("damage_type_box", bar.damage_type_box),
                 ("optimize_button", bar.optimize_button),
                 ("apply_button", bar.apply_button),
                 ("why_button", bar.why_button),

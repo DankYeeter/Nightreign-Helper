@@ -449,9 +449,10 @@ relics, saved builds and favourites are kept across that restart. The armament
 tiles and any conditions you have switched on are only kept for the run of the
 program, and start again.
 
-**Below 1536 px of logical width** — narrower than a 1920×1080 screen at
-Windows' common 125% scaling — the Advisor row's direction box may be cut
-short. Nothing stops working: the row's own
+**Below 1676 px of logical width** — which covers a 1920×1080 screen at
+Windows' common 125% scaling (1536 px) — the Advisor row's direction and
+damage type boxes may be cut short, and its status text may disappear
+entirely. Nothing stops working: the buttons stay usable, the row's own
 tooltip carries the full status text at any width, and every other part of
 the window is unaffected.
 

@@ -531,17 +531,19 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
 
 def test_at_the_opening_width_no_action_button_is_cut(
         advisor_row_at_the_window):
-    """AK-05 for the three controls this task put in the row, and AK-194.
+    """AK-05 for the three controls this task put in the row.
 
     The row's busiest state, measured at the derived opening width under
     the Windows platform (see `tests/advisor_row_at_the_window.py`): the
-    row is horizontally `Ignored` and hands its status whatever is left,
-    so what is left is a figure of seven captions and of the font.
+    row is horizontally `Ignored` and hands its status whatever is left.
+    Option B (user decision 2026-09-19): with the damage type pair visible,
+    the opening width (1608 px) already sits under the 1676 px AK-334
+    measured for both boxes uncut, so `goal_box` and `damage_type_box` are
+    left out of this assertion -- the three action buttons never cut.
     """
     row = advisor_row_at_the_window["suggested"]
-    assert {"apply_button", "why_button", "clear_button"} <= set(
-        row["on_screen"]), (
+    actions = {"apply_button", "why_button", "clear_button"}
+    assert actions <= set(row["on_screen"]), (
         "no action button is on screen, so this case would pass whatever "
         "the row's width did")
-    assert row["cut"] == []
-    assert row["status_width"] > 0
+    assert not actions & set(row["cut"])
