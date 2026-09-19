@@ -71,13 +71,14 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 
 ## Beschlossen, nicht beauftragt
 
-- **A25 Schadensart im Berater — Bau fertig, am Gate (19.09. 19:12):** R-009,
-  AD-045..049, AK-327..334 (`docs/tasks/T-320.md`); Bau T-321a-d `424baa3`,
-  `717ec29`, `6c1718b`, `78a0888`; Suite 1827 passed / 9 skipped (gemessen
-  T-321d). Entschieden: OF-50..53, AK-332 entfaellt, AK-05/194 Option B
-  (Paar 219 px, ungekuerzt ab 1676 px), Nachweis Revenant Magic/Bestial.
-  Offen: Pruefphase (qa-engineer am Artefakt, ui-ux-designer Review
-  Picker-Vererbung), dann Release 1.16.0 ueber die Release-Kette.
+- **A25 Schadensart im Berater — Pruefphase T-322, PAUSIERT 19.09. 19:45 (Nutzer):**
+  Bau T-321a-d `424baa3`..`78a0888`, Version 1.16.0 `061135b`, Suite 1827/9.
+  T-322c Sicherheit PASS (SEC-019 Retest). T-322d Review: DR-034 (Artwahl
+  aendert Kopfzahl ohne Beschriftung, AK-335), DR-035 (Picker erbt Wahl
+  still, AK-336), DR-036/037 klein. **Naechster Schritt:** ein Fixauftrag
+  developer klein (DR-034/035 nach AK-335/336) → T-322b Bau → T-322e QA am
+  Artefakt → Release-Kette. Offen beim Nutzer: eigener Art-Regler im
+  Picker (UI_SPEC §3.7 offene Frage). 10 Commits ungepusht, sync-out offen.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
