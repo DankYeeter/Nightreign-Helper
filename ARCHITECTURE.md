@@ -7988,7 +7988,7 @@ Azula, 250 HP) und `4920` (Stoneskin Lords). Ein falscher Name dort ist der
 Ausloeser fuer den Rueckweg in AD-044 Punkt 4.
 ---
 
-## Themenbereich M — Schadensart im Berater waehlbar, A25 (2026-09-19, T-313a)
+## Themenbereich M — Schadensart im Berater waehlbar, A25 (2026-09-19, T-320a)
 
 *Anlass: `GOAL.md` A25 (Nutzerfreigabe 19.09.2026). Vorlauf: `docs/research/R-009.md`
 (Mechanik und Zahlen), Explore-Bericht 19.09. 15:38 (Fundstellen). Entscheidungstiefe
@@ -8094,7 +8094,7 @@ kopieren (Anfrage, Kontext, `asking_from`, Kreuzprobe).
    `Goal.scope`/`unknowns` werden in `_max_damage` gebildet, und `explain._felt_by_the_goal`
    bildet den Betrag je Effekt ohnehin als zweite Bewertung ohne diesen Effekt (AD-038) —
    unter der gewaehlten Art also automatisch als Beitrag unter dieser Art. Der **Wortlaut**
-   gehoert der Spec (T-313b), nicht hier.
+   gehoert der Spec (T-320b), nicht hier.
 6. Ob die Wahl gespeichert wird, entscheidet die Spec. Wird sie es, dann als **ein**
    fester Schluessel in der Bauform AD-030/AD-036.4 (`advisor/damage_art`), und die
    Schluesselform aus Punkt 1 ist genau deshalb stabil gegen Umbenennungen im Datensatz
@@ -8198,7 +8198,7 @@ Communion, `:26` Frenzied Flame — je **1**.
 8. **Etiketten:** Schulen aus `spell_families`, die fuenf Typen aus
    `weapons.DAMAGE_LABELS` (`Physics`→"Physical", `Thunder`→"Lightning", `Dark`→"Holy",
    schon vorhanden). Fuer `skill`, `sorceries`, `incantations` und die Zeile "All" setzt
-   die Spec den Wortlaut (T-313b, A8).
+   die Spec den Wortlaut (T-320b, A8).
 
 **Konsequenzen.** Leicht: ein Patch, der eine Schule ergaenzt, ergaenzt die Auswahl von
 selbst. Schwer: die Art **"Skill attack" ist nur so gut wie die Praemisse 112/111** — wird
@@ -8310,7 +8310,7 @@ genau einer Stelle (`final_headline`).
    Rangfolge.
 3. Der Lauf sagt es in `unknowns` (AD-025.2: ein Befund dieses Laufs, kein Satz der
    Registry — vor dem Lauf ist nicht bekannt, ob die Bezugswaffe ein Katalysator ist).
-   Ob die Leiste die Auswahl zusaetzlich abblendet, entscheidet die Spec (T-313b).
+   Ob die Leiste die Auswahl zusaetzlich abblendet, entscheidet die Spec (T-320b).
 4. **Das Abnahmekriterium A25 ist in seinem ersten Satz nicht herstellbar** — nicht wegen
    dieser Entscheidung, sondern weil kein Nightfarer ein Siegel als Startarmatur traegt
    und der Spieler die Bezugswaffe seit AD-038 nicht waehlt. Siehe OF-50.
@@ -8339,7 +8339,7 @@ C — nur der GOAL-Nachweis (verworfen: er deckt die Zuordnung nicht ab).
 | **M4 — Die Rangfolge dreht, und die Konversion zaehlt.** | `tests/test_advisor_goals.py` (vorhanden, ergaenzt) | Wylder, Bezugswaffe Startarmatur: unter `type:Fire` ist die Grundlinie 0,00 und 7120100 bringt 19,80, waehrend dasselbe Relikt unter `""` nur +1,80 bringt — die Reihung gegen ein reines Angriffsrelikt dreht. Zugleich der Regressionsanker fuer AD-047.6: die Konversion **ist** in der Zahl (122,0506 → 123,8506). |
 
 **Nicht** neu getestet wird: je Schule ein Fall (M2 deckt sie), die Leiste (Spec/AK,
-T-313b), die Persistenz der Wahl (gehoert zur Spec).
+T-320b), die Persistenz der Wahl (gehoert zur Spec).
 
 **Umkehrbarkeit: leicht.**
 
@@ -8353,7 +8353,7 @@ T-313b), die Persistenz der Wahl (gehoert zur Spec).
 | **A25-2** | developer | `art`-Parameter durch `damage.equipped`/`_rate`/`_answer` (AD-047 Punkte 1-4), Vorgabe `None`. Kein Aufrufer ausser dem Test. | `nrplanner/damage.py`, `tests/test_damage_art.py` |
 | **A25-3** | developer | `damage_art` auf `AdvisorRequest` und `GoalContext`, Kreuzprobe in `run`, `_max_damage` zerlegt den Wahlwert und liest Typ bzw. Art; `unknowns` fuer den Katalysatorfall (AD-045, AD-048). | `nrplanner/advisor/types.py`, `run.py`, `goals.py`, `tests/test_advisor_goals.py`, `tests/test_advisor_run.py` |
 | **A25-4** | developer | Loeschung der zwei falschen Saetze samt Zaehlung und Hilfsfunktion (AD-047.6); neuer Scope-Satz nach Spec-Wortlaut. | `nrplanner/advisor/goals.py`, `candidates.py`, `tests/test_pool_finding_wording.py`, `tests/test_advisor_candidates.py` |
-| **A25-5** | developer | Leiste: Auswahlfeld nach Spec T-313b, `asking_from` fuellt `damage_art`. **Erst nach** der Spec. | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
+| **A25-5** | developer | Leiste: Auswahlfeld nach Spec T-320b, `asking_from` fuellt `damage_art`. **Erst nach** der Spec. | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
 
 Reihenfolge: 1 → 2 → 3 → 4, 5 zuletzt. 1 und 2 sind unabhaengig voneinander und einzeln
 lauffaehig; 3 braucht beide; 4 ist ohne 3 lauffaehig, aber inhaltlich dessen Haelfte.
@@ -8436,7 +8436,7 @@ lauffaehig; 3 braucht beide; 4 ist ohne 3 lauffaehig, aber inhaltlich dessen Hae
   **Spell-Power-Anzeige** eines Stabs? Antwort "ja" macht aus AD-048 Option A die Option B
   und gibt Recluse die Auswahl zurueck. R-009 nennt denselben Schlag als billigste
   Entscheidung.
-- **OF-53 (`ui-ux-designer`, T-313b):** 24 Eintraege in einem Feld — Gruppierung,
+- **OF-53 (`ui-ux-designer`, T-320b):** 24 Eintraege in einem Feld — Gruppierung,
   Reihenfolge, und was das Feld zeigt, wenn die Bezugswaffe ein Katalysator ist oder der
   gewaehlte Typ auf ihr 0,00 betraegt (Wylder unter `Fire`: Grundlinie 0,00, was eine
   gueltige und aussagekraeftige Rangfolge ergibt — kein Fehlerfall).

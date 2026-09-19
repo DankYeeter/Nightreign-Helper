@@ -415,14 +415,14 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-324 | Neue Panelsektion `LOOT`: aufsteigend nach `share` sortiert (seltenste zuerst, Nutzerentscheidung 19.09. 13:42, "best" nicht belegt), erste fuenf offen, Rest per `QToolButton`-Toggle (Hold/Held-Muster AK-54/AK-292) aufklappbar, statischer Ehrlichkeitssatz zu Prozentsummen unter 100 % (Architekturrisiko 4) | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 (Sortierung/Aufklappen: Nutzerentscheidung 19.09. 13:42) | — |
 | AK-325 | `PLAYER_GROUPS`-Umbenennung: Kat. 120 "Field bosses & arena locations" (statt "Night bosses"), Kat. 160 "Mixed-boss arena locations" (statt "Evergaol bosses", OF-46), "Named minibosses" (Kollision mit AK-319s "Field bosses" vermieden) | UI_SPEC §7.6 Nachtrag T-302 | T-302, 2026-09-19 | — |
 | AK-326 | OF-47 entschieden: Spalte "Examples (any map)" faellt ersatzlos (permanent leer fuer vier von sechs Zeilen nach QA-286; die 29 Feldboss-Namen stehen stattdessen vollstaendig im Nightlords-Tab, AK-319ff.) | UI_SPEC §7.6 Nachtrag T-302 | T-302, 2026-09-19 | — |
-| AK-327 | `damage_type_box`/Label: Platz rechts von `goal_box`, nur sichtbar bei `max_damage`, ausserhalb des AK-07-Drei-Knopf-Budgets (A25) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-328 | Eintraege der Box: `All`, fuenf Elemente (AFFINITIES-Reihenfolge), `Skill attack`/`Sorceries`/`Incantations`/Zauberschulen, drei Gruppen mit Trennlinien (A25) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-329 | Statischer Tooltip der Box, zweiter Satz klaert "Skill attack" = Weapon Arts, nicht Nightfarer-Faehigkeiten (A25-Praemisse) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-330 | Auswahlwechsel loest `the_build_changed()` aus wie `_goal_chosen`; Wahl bleibt innerhalb der Sitzung stehen, wenn `goal_box` zwischenzeitlich wechselt | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-331 | Why-Dialog-Satz "Ranked on {type} damage only…", genau einmal, nur wenn nicht `All` (AK-22-Muster) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-332 | Zustand 4.10 (State.NOT_RANKABLE) um zweite Ursache erweitert: Startwaffe traegt die gewaehlte Art strukturell nicht, eigener Satz (AK-294-Muster) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
-| AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 | T-313b, 2026-09-19 | — |
+| AK-327 | `damage_type_box`/Label: Platz rechts von `goal_box`, nur sichtbar bei `max_damage`, ausserhalb des AK-07-Drei-Knopf-Budgets (A25) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-328 | Eintraege der Box: `All`, fuenf Elemente (AFFINITIES-Reihenfolge), `Skill attack`/`Sorceries`/`Incantations`/Zauberschulen, drei Gruppen mit Trennlinien (A25) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-329 | Statischer Tooltip der Box, zweiter Satz klaert "Skill attack" = Weapon Arts, nicht Nightfarer-Faehigkeiten (A25-Praemisse) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-330 | Auswahlwechsel loest `the_build_changed()` aus wie `_goal_chosen`; Wahl bleibt innerhalb der Sitzung stehen, wenn `goal_box` zwischenzeitlich wechselt | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-331 | Why-Dialog-Satz "Ranked on {type} damage only…", genau einmal, nur wenn nicht `All` (AK-22-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-332 | Zustand 4.10 (State.NOT_RANKABLE) um zweite Ursache erweitert: Startwaffe traegt die gewaehlte Art strukturell nicht, eigener Satz (AK-294-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
 
 
 ## Widerspruechliche Faelle

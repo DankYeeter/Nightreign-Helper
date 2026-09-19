@@ -71,8 +71,8 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 ## Beschlossen, nicht beauftragt
 
 - **A25 Schadensart im Berater (19.09. 16:25, zweite Director-Sitzung):**
-  R-009, AD-045..049, AK-327..334, OF-50..53 entschieden (`docs/tasks/T-313.md`).
-  developer-Auftrag T-314 erst nach T-310/T-311/T-312 (Baum frei); Vorlauf
+  R-009, AD-045..049, AK-327..334, OF-50..53 entschieden (`docs/tasks/T-320.md`).
+  developer-Auftrag T-321 erst nach T-310/T-311/T-312 (Baum frei); Vorlauf
   security/compliance laeuft.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).

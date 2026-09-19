@@ -1708,14 +1708,14 @@ Klick.
 
 ### 3.7 Schadensart-Auswahl bei "Maximise damage" (A25) — ein zweites Feld, kein zweites Ziel
 
-*Neu in T-313b (ui-ux-designer), 2026-09-19 — `GOAL.md` A25 (Nutzer, 19.09.2026
+*Neu in T-320b (ui-ux-designer), 2026-09-19 — `GOAL.md` A25 (Nutzer, 19.09.2026
 15:50/15:58): "Maximise damage" bekommt eine Auswahl der Schadensart (Alle /
 Physical / Magic / Fire / Lightning / Holy / Skill attack (Weapon Arts) /
 Sorceries / Incantations / eine Zauberschule). Der Auftrag T-313 weist mir
 Platz, Bedienelement, Voreinstellung, Wortlaut und das Verhalten bei einer
 Referenzwaffe ohne diese Art zu; wie die Auswahl in die Rechnung eingeht
 (Parameter vs. eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion) ist
-T-313a (`architect`, AD ab AD-045) und steht bei Abfassung dieses Abschnitts
+T-320a (`architect`, AD ab AD-045) und steht bei Abfassung dieses Abschnitts
 noch aus (`ARCHITECTURE.md` traegt kein AD-045 — 19.09.2026, Stand `ec6da4f`).
 Diese Vorgabe legt nur fest, was der Spieler sieht und bedient; sie zwingt
 keine Datenrepraesentation.*
@@ -1765,7 +1765,7 @@ Gruppen:
    (`weapons.py:38`), keine neu erfundene Reihenfolge.
 3. `Skill attack`, `Sorceries`, `Incantations`, danach — alphabetisch, nach
    `Incantations` — je ein Eintrag pro Zauberschule, die der Datensatz
-   fuehrt (`spell_families`, T-313a), mit genau dem Anzeigenamen, den der
+   fuehrt (`spell_families`, T-320a), mit genau dem Anzeigenamen, den der
    Datensatz fuer die Schule schon verwendet (kein zweiter, erfundener
    Name — GOAL A7). Ist `spell_families` bei Auslieferung leer oder fehlt
    es, endet die Gruppe nach `Incantations`; das ist kein Fehlerzustand.
@@ -1826,7 +1826,7 @@ unveraendert sichtbar unveraendert.
 **Pruefweg (A25-Nachweis, Revenant-Fall):** Referenzwaffe Siegel, Auswahl
 `Holy`: der `Why`-Dialog des besten Vorschlags traegt den obigen Satz mit
 `holy`, und die Reihung unterscheidet sich von der Reihung bei `All` (die
-eigentliche Rechenpruefung liegt bei T-313a/Bau, nicht bei dieser Spec).
+eigentliche Rechenpruefung liegt bei T-320a/Bau, nicht bei dieser Spec).
 
 #### AK-332 — 4.10 um eine zweite Ursache erweitert: die Referenzwaffe traegt die Art nicht
 
@@ -1891,18 +1891,18 @@ Bis zu dieser Messung gilt **kein** Zahlenwert als vereinbart.
 
 - **Wie die Auswahl in die Rechnung eingeht** (Parameter von `max_damage`
   oder eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion, ob eine
-  Attribut-Auswahl den Katalysator-Spell-Power-Pfad beruehrt) — T-313a,
+  Attribut-Auswahl den Katalysator-Spell-Power-Pfad beruehrt) — T-320a,
   `architect`.
 - **Ob und wie `headline_name`/`headline_label`** (heute "Attack rating"/
   "Spell power") sich mit einer gewaehlten Art aendern — diese Vorgabe
   ruehrt die bestehende Kopfzahl nicht an, weil die Datenlage dafuer
-  (`final_per_type`-Schluessel je Art) T-313a noch nicht feststeht; die
+  (`final_per_type`-Schluessel je Art) T-320a noch nicht feststeht; die
   Why-Zeile aus AK-331 traegt die Information stattdessen als Satz.
 - **Der Relic Picker.** AK-256 macht `goal_box` zu **einer** Einstellung
   im ganzen Programm, gespiegelt im Picker-`Sort by`. Ob eine gewaehlte
   Schadensart denselben Weg braucht (der Picker rankt seinen Pool heute
   unter `CANONICAL_POOL_ORDER`, unabhaengig von der gezeigten Richtung) ist
-  eine Folgefrage an T-313a/eine Folge-Spec, sobald AD-045 die
+  eine Folgefrage an T-320a/eine Folge-Spec, sobald AD-045 die
   Kandidatenwertung festlegt — diese Vorgabe fasst den Picker nicht an.
 - **Persistenz ueber einen Neustart.** Wie `goal_box` startet
   `damage_type_box` immer auf ihrer Voreinstellung (`All`); ob das erwuenscht
