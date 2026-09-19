@@ -269,6 +269,18 @@ class AdvisorRequest:
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
+    #: Which kind of damage the damage direction ranks, empty for all of it
+    #: (AD-045 point 1): `type:<Physics|Magic|Fire|Thunder|Dark>` for one
+    #: damage type, `art:<key>` for one attack art (`model.attack_arts`).
+    #: The id form and never the label, so a patch that renames a spell
+    #: school leaves the key -- and the cache under it -- alone.
+    #:
+    #: **Never taken out of the key**, although two of the three directions
+    #: do not read it: the picker measures every pool under all three, so
+    #: what a pool *contains* depends on this. A key that kept quiet about
+    #: it would hand a run's answer back for another run's question, which
+    #: is T-077 at this field's twin (AD-045 point 4).
+    damage_art: str = ""
     budget: Budget = DEFAULT_BUDGET
     #: `meta.data_version` of the dataset this was asked against.
     data_version: str = ""
@@ -423,6 +435,10 @@ class GoalContext:
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).
     two_handed: bool = False
+    #: The damage type or attack art the damage direction ranks, in the
+    #: same form as `AdvisorRequest.damage_art` and empty for all of it.
+    #: Read by `goals._max_damage` and by nothing else (AD-045 point 1).
+    damage_art: str = ""
 
 
 @dataclass(frozen=True)

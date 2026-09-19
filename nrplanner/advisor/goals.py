@@ -52,7 +52,7 @@ from __future__ import annotations
 # one shadowed module name (QA-072).
 from types import MappingProxyType
 
-from .. import damage, model
+from .. import damage, model, weapons
 from . import types
 
 
@@ -116,6 +116,14 @@ DEFAULT_WEIGHTING = EVEN_WEIGHTING
 # what stands in its place is the **scope** of the new figure -- the base
 # rarity is what was measured, and the figure is the game's display and not a
 # statement about what a spell hits for.
+#
+# A third line used to say that a damage-type conversion was not in this
+# figure. It was measured on 2026-09-19 and it is: the goal ranks on the
+# Nightfarer's own starting armament in slot 1 (AD-038), which is the one
+# place `damage.converted` applies, and the four relics move it by +1.80 on
+# Wylder and +2.78 on Revenant. The sentence was deleted rather than softened
+# (AD-047 point 6) -- a weaker version of a false reservation is the same
+# reservation said more quietly.
 _ATTACK_RATING_SCOPE = (
     "Attack rating matches the game's own display for ordinary armaments at "
     "their own rarity; reinforced rarities, infused variants, Scholar and "
@@ -129,9 +137,6 @@ _ATTACK_RATING_SCOPE = (
     "a spell hits for.",
     "Spell damage is not in the game data, so spells are not rated.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
-    "Effects that convert one damage type into another are not in this "
-    "figure: how the game applies them cannot be read out of the files, so "
-    "they are named rather than guessed at.",
     # AD-038: the armament the figure is formed against is a property of the
     # Nightfarer, not of the grid (A17), and it is named here so that the
     # figure says what it is scaled on. Wording AK-318.1.
@@ -199,6 +204,65 @@ _DAMAGE_TAKEN_SCOPE = (
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
 )
+
+
+#: The two kinds of choice `damage_art` can carry (AD-045 point 1). Split
+#: here and nowhere else: what leaves this module is either a damage type or
+#: an art key, never the prefixed form.
+_TYPE_CHOICE = "type"
+_ART_CHOICE = "art"
+
+#: AK-331, word for word, with the chosen entry's own label in it, first
+#: letter lowered the way `advisorbar` lowers a goal label. A run finding and
+#: not a scope sentence (AD-025.2): before the run nobody knows whether an
+#: art was chosen at all.
+_RANKED_ON_ONE_ART = (
+    "Ranked on {choice} damage only — every other effect on a candidate "
+    "still shows, but only this counts toward the ranking.")
+
+#: AD-048: for a staff or a seal the game shows a spell power and no attack
+#: rating, and nothing measured says what an attack buff does to that
+#: display. So the choice is answered instead of being applied to a figure
+#: that cannot carry it -- the relationship it would need is one this
+#: program would be inventing (A7).
+_ART_ON_A_CATALYST = (
+    "{choice} is not counted for this Nightfarer: a staff or a seal is "
+    "ranked on the spell power the game shows for it, and no damage type "
+    "and no attack art reaches that figure.")
+
+
+def _chosen_label(damage_art: str) -> str:
+    """What the player picked, in the words the dataset or the spec gives it.
+
+    The schools bring their own name out of `spell_families` and the five
+    types theirs out of `weapons.DAMAGE_LABELS`; only the three arts the
+    files do not name have a wording of their own, and it is the spec's
+    (AK-328). Nothing is made up here, which is why a key this program cannot
+    name raises instead of falling back on the key itself: a sentence built
+    around `family:23` would be the invented label AD-046 point 5 keeps out
+    of the chooser, arriving through the back door.
+
+    The labels are game text and go on into `unknowns`. Every sink that draws
+    them is `Qt.PlainText` (`advisorblock._footer_text` and the picker's
+    `findings`/`caveats`), so they are passed on as they are written --
+    escaping them here would show a school called `Bell & Bearing` its own
+    `&amp;` (SEC-019, AK-29).
+    """
+    kind, _, key = damage_art.partition(":")
+    label = None
+    if kind == _TYPE_CHOICE:
+        label = weapons.DAMAGE_LABELS.get(key)
+    elif kind == _ART_CHOICE:
+        label = model.ART_LABELS.get(key)
+        if label is None and key.startswith(model.ART_FAMILY_PREFIX):
+            family = key[len(model.ART_FAMILY_PREFIX):]
+            if family.isdigit():
+                label = model.SPELL_FAMILY_NAMES.get(int(family))
+    if label is None:
+        raise ValueError(
+            f"{damage_art!r} names no damage type and no attack art this "
+            f"dataset carries, so there is no question here to answer")
+    return label
 
 
 def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
@@ -273,6 +337,15 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     left-hand column and is computed here whether it is read or not, which is
     a cost worth naming: it is a second `weapons.rate` per evaluation. See
     the report to the `performance-tuner` for S11.
+
+    **`ctx.damage_art` is read here and in no other direction** (AD-045): it
+    says which kind of damage this question is about, and it is the one place
+    in the program that takes its prefix apart. A damage type is a different
+    number of the same answer -- `final_per_type` instead of the headline,
+    nothing recalculated. An attack art is a condition of the question and
+    goes to the facade as `art=`, which multiplies it where every other rate
+    is multiplied (AD-047). Empty is every kind at once and is the figure
+    this goal has always given, down to the last bit.
     """
     if ctx.reference is None:
         mean = _attack_multiplier_mean(build, ctx.two_handed)
@@ -291,8 +364,14 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
             unknowns=(_NO_ARMAMENT,),
             weights_note=_NO_ARMAMENT_NOTE,
         )
+    kind, _, key = ctx.damage_art.partition(":")
+    # Raises on a choice this program cannot name, before any figure is
+    # formed: a run ranked on a question nobody could have asked is worse
+    # than a run that stops.
+    chosen = _chosen_label(ctx.damage_art) if ctx.damage_art else ""
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
-                                 build, ctx.hero, ctx.data)
+                                 build, ctx.hero, ctx.data,
+                                 art=key if kind == _ART_CHOICE else None)
     # Two-handed where the switch says so and the armament allows it; an
     # armament without a second figure keeps its one (AK-293 point 3).
     if ctx.two_handed and now.two_handed is not None:
@@ -309,13 +388,33 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # on the spell scaling the game shows for it, because the physical rating
     # it used to rank on is a quantity the game never puts on screen for a
     # catalyst (QA-099).
-    # No `unknowns`: with an armament chosen this run left nothing out, and
-    # that empty tuple is an answer rather than a gap (AD-025.2). What the
+    # `unknowns` is empty unless a kind of damage was chosen, and that empty
+    # tuple is an answer rather than a gap (AD-025.2): with an armament
+    # chosen and every kind counted, this run left nothing out. What the
     # figure cannot know whatever the run stands in `MAX_DAMAGE.scope`.
+    value = now.final_headline
+    name = now.headline_name
+    unknowns: tuple[str, ...] = ()
+    if chosen:
+        if now.catalyst_scaling is not None:
+            # AD-048: the choice reaches nothing here, and saying so is the
+            # answer. Applying it anyway would put a damage rate on a
+            # scaling number, which is the relationship A7 forbids inventing.
+            unknowns = (_ART_ON_A_CATALYST.format(choice=chosen),)
+        else:
+            if kind == _TYPE_CHOICE:
+                # A type this armament deals none of ranks at 0.00, which is
+                # a ranking and not a fault: every candidate that brings some
+                # of it then stands above every candidate that does not.
+                value = now.final_per_type.get(key, 0.0)
+                name = f"{chosen} {now.headline_name.lower()}"
+            unknowns = (_RANKED_ON_ONE_ART.format(
+                choice=chosen[0].lower() + chosen[1:]),)
     return types.GoalScore(
-        value=now.final_headline,
-        display=f"{now.headline_name} {damage.displayed(now.final_headline)}",
+        value=value,
+        display=f"{name} {damage.displayed(value)}",
         unit=now.headline_label,
+        unknowns=unknowns,
     )
 
 

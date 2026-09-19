@@ -27,10 +27,8 @@ already held is not offered again (AD-014.5), and a copy with no handle is not
 offered at all and is reported instead (AD-013 point 4).
 
 **What a pool reports about itself** are run findings and only those
-(AD-025.2): the copies this save gives no handle for, the candidates whose
-effect no total counted, and the candidates whose damage-type conversion a
-slotless figure cannot carry (QA-113, `damage.converted`). Each carries a
-count, so each belongs to the
+(AD-025.2): the copies this save gives no handle for and the candidates
+whose effect no total counted. Each carries a count, so each belongs to the
 run rather than to the method. What the *direction* cannot know whatever the
 run stands in `Goal.scope` and is read from there; six pools of a Deep vessel
 repeating it six times is the noise AK-50 is written against. The one thing
@@ -158,53 +156,8 @@ def _brought_an_uncounted_condition(build: model.Build,
                for entry in build.situational)
 
 
-def _unmodelled_conversion_line(count: int) -> str:
-    """The A7 line for candidates whose conversion this figure cannot use.
-
-    The counterpart of the scope sentence in `MAX_DAMAGE.scope`: the sentence
-    says the figure does not carry a damage-type conversion, and this says how
-    many of the relics in front of the player are affected by that (AD-025,
-    QA-113).
-
-    Wording settled by AK-67 on 2026-09-05 and written out verbatim. It stood
-    behind a `[wording pending: QA-113]` marker from T-048 until then, because
-    the decision of that morning settled the field's other two lines and named
-    neither this one nor its subject.
-
-    The four elements are spelled out because QA-113 is a closed set of four
-    relics, not an example from an open one -- unlike the conditional line
-    above, where naming a condition would have to hold for every relic it
-    counts. The sentence claims no size and no direction: what the difference
-    would be can only come from a reading in the running game.
-    """
-    one = count == 1
-    return (f"{count} of your relics {'changes' if one else 'change'} what "
-            f"damage type your starting armament deals (to magic, fire, "
-            f"lightning, or holy). This figure does not count that change.")
-
-
-def _converts_a_damage_type(candidate: types.Candidate,
-                            ctx: types.GoalContext) -> bool:
-    """Does this candidate carry a damage-type conversion?
-
-    `model.FLAT_ATTACK_POWER_FIELDS` names the fields. The calculation counts
-    them on the Nightfarer's own armament in slot 1 and nowhere else
-    (`damage.converted`), and a candidate sits in no slot (AD-020, point 3),
-    so a candidate's figure cannot carry the change and the line says so.
-    Read off the effect records rather than off the build: the build sums
-    the points into `starting_flat` but no longer says which relic did.
-    """
-    known = ctx.data["effects"]
-    for effect_id in tuple(candidate.effect_ids) + tuple(candidate.curse_ids):
-        effect = known.get(str(effect_id))
-        modifiers = (effect or {}).get("modifiers") or {}
-        if any(name in modifiers for name in model.FLAT_ATTACK_POWER_FIELDS):
-            return True
-    return False
-
-
-def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
-                   converting: int) -> tuple[str, ...]:
+def _pool_findings(slot: types.Slot, without_handle: int,
+                   conditional: int) -> tuple[str, ...]:
     """What this pool left out, in the player's language (AD-025.2).
 
     Every line carries a count, so every one of them is a finding of this run
@@ -220,9 +173,7 @@ def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
     The order is fixed and AK-67 gives its reason: the handle line names
     candidates that were **never** counted, the conditional line names ones
     that were counted and then set to zero -- rising order of how far into the
-    calculation the relic got. The conversion line sits behind both on the
-    same reading: those relics are in the pool and were counted, and it is a
-    missing kind of arithmetic rather than a condition that zeroed them.
+    calculation the relic got.
 
     The slot is taken rather than the colour alone because the handle line
     asks about the reach of `inventory.relics_for`, which is a property of the
@@ -233,8 +184,6 @@ def _pool_findings(slot: types.Slot, without_handle: int, conditional: int,
         lines.append(_without_a_handle_line(without_handle, slot))
     if conditional:
         lines.append(_conditional_line(conditional))
-    if converting:
-        lines.append(_unmodelled_conversion_line(converting))
     return tuple(lines)
 
 
@@ -295,7 +244,6 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
 
     measured: list[types.Candidate] = []
     conditional = 0
-    converting = 0
     for relic in offered:
         # Asked here and not once the pool is finished (SEC-022, AK-11). One
         # `evaluate` per offered relic is the unit of work in this loop, so
@@ -311,8 +259,6 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
         build = evaluate(base_problem, (candidate,), ctx)
         if _brought_an_uncounted_condition(build, candidate):
             conditional += 1
-        if _converts_a_damage_type(candidate, ctx):
-            converting += 1
         marginals = tuple(
             types.Marginal(goal_id, goal.score(build, ctx).value
                            - base_scores[goal_id].value)
@@ -329,8 +275,7 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                                       score.unknowns, score.weights_note)
                        for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
-        unknowns=_pool_findings(slot, without_handle, conditional,
-                                converting),
+        unknowns=_pool_findings(slot, without_handle, conditional),
     )
 
 

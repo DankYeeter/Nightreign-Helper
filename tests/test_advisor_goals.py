@@ -245,6 +245,11 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
             f"rather than what a spell does")
     assert any("Spell damage" in line for line in stated)
     assert any("Critical-only" in line for line in stated)
+    assert not any("convert" in line for line in stated), (
+        "the old conversion reservation is back; it says a relic that "
+        "converts part of the starting armament's damage is not in this "
+        "figure, and it is -- measured on 2026-09-19 at +1.80 on Wylder "
+        "and +2.78 on Revenant (AD-047 point 6)")
 
 
 def test_the_damage_goal_counts_the_attack_multipliers(game_data, wylder):
@@ -365,6 +370,195 @@ def test_the_damage_goal_ranks_a_self_inflicted_penalty_below(game_data,
         "a relic that costs the armament 15 % ranked above one that costs it "
         "nothing, so the goal is not charging the penalty to the candidate "
         "that brought it")
+
+
+#: The two starting-armament relics `GOAL.md` A25 names, by id: 7120100
+#: moves 30 points of physical damage into 33 of fire, 7120400 charges 0.85
+#: on every rate for the frost it adds. A closed pair of this dataset, and
+#: the ids are what AD-047 measured the conversion on.
+FIRE_CONVERSION = 7120100
+FROST_STATUS = 7120400
+
+#: A buff that covers incantations and nothing else, taken from the mapping
+#: itself rather than written down twice (`model.MOVE_SCOPED_ARTS`). What
+#: makes it the case for an art: it moves no figure at all while the question
+#: is about every kind of damage at once.
+INCANTATION_ONLY = next(
+    effect_id for effect_id, arts in sorted(model.MOVE_SCOPED_ARTS.items())
+    if arts == (model.INCANTATIONS_ART,))
+
+
+def damage_scores(game_data, hero, damage_art, carried):
+    """The damage figure under one chosen kind, one entry per relic carried.
+
+    `carried` maps a name to the effect ids one candidate brings, and `()` is
+    the build that brings nothing -- the base state every gain below is
+    measured against. One context per entry, because the chosen kind belongs
+    to the question and not to the build.
+    """
+    reference = types.ReferenceArmament(
+        weapon=next(w for w in game_data["weapons"]
+                    if w["id"] == hero["starting_weapon"]),
+        tier=1, slot_index=damage.STARTING_SLOT)
+    scores = {}
+    for name, effect_ids in carried.items():
+        ctx = dataclasses.replace(
+            advisor.context(game_data, hero, reference=reference,
+                            armament_effect_ids=tuple(effect_ids)),
+            damage_art=damage_art)
+        build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+        scores[name] = goals.GOALS["max_damage"].score(build, ctx)
+    return scores
+
+
+def test_a_damage_type_ranks_on_that_type_and_turns_the_order_over(game_data,
+                                                                   wylder):
+    """AD-049 M4: `type:Fire` is another number of the same answer, and it
+    ranks another relic first.
+
+    Wylder's own starting armament deals no fire at all, so the base state
+    under `type:Fire` is 0.00 -- a ranking and not a fault (OF-53): every
+    relic that brings fire then stands above every relic that does not,
+    however hard the second one hits.
+
+    **The same case is the regression anchor for AD-047 point 6.** Under
+    `All` the conversion relic is worth +1.80 rather than nothing: the figure
+    already counts what the deleted scope sentence claimed it left out, and
+    it is pinned here to four places so that a change which quietly drops the
+    conversion again shows up as a number rather than as a missing sentence.
+    """
+    attack_only = cases.effects_raising_rate(
+        game_data, wylder, "physicsAttackRate", 1)[0]
+    carried = {"nothing": (), "fire": (FIRE_CONVERSION,),
+               "attack": (attack_only,)}
+
+    everything = damage_scores(game_data, wylder, "", carried)
+    fire = damage_scores(game_data, wylder, "type:Fire", carried)
+
+    assert everything["nothing"].value == pytest.approx(122.0506, abs=5e-5)
+    assert everything["fire"].value == pytest.approx(123.8506, abs=5e-5), (
+        "the starting-armament conversion is not in the figure any more; "
+        "AD-047 point 6 deleted the sentence that said so because it is")
+    assert fire["nothing"].value == 0.0
+    assert fire["fire"].value == pytest.approx(19.80, abs=5e-5)
+    assert fire["attack"].value == 0.0
+
+    assert everything["attack"].value > everything["fire"].value
+    assert fire["fire"].value > fire["attack"].value, (
+        "under one damage type the ranking is the same as under all of "
+        "them, so the choice reaches the order of nothing")
+    assert fire["fire"].display == "Fire attack rating 19", (
+        f"the line names the figure it ranks on: {fire['fire'].display!r}")
+
+
+@pytest.mark.parametrize("damage_art, better, worse", [
+    ("type:Magic", "faith", "fire"),
+    ("art:incantations", "incantation", "attack"),
+])
+def test_a_chosen_kind_turns_the_revenants_order_over(game_data, damage_art,
+                                                      better, worse):
+    """OF-50 (b): the Revenant half of A25, on the armament he really carries.
+
+    No Nightfarer of this dataset starts with a seal, so the criterion's
+    "Revenant with a seal" cannot be measured; what can is Revenant with his
+    own Cursed Claws, 71.63 of 88.65 of it magic. Two chosen kinds, two pairs
+    of relics that change places -- under `Magic` a point of Faith beats the
+    fire conversion that beat it under `All`, and under `Incantations` a buff
+    that moved nothing at all beats the ordinary attack relic.
+
+    The order and not the figure, because the order is what a suggestion is.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    attack_only = cases.effects_raising_rate(
+        game_data, revenant, "physicsAttackRate", 1)[0]
+    faith = cases.effects_raising_attribute(game_data, revenant, "Faith", 1)[0]
+    carried = {"fire": (FIRE_CONVERSION,), "attack": (attack_only,),
+               "faith": (faith,), "incantation": (INCANTATION_ONLY,)}
+
+    everything = damage_scores(game_data, revenant, "", carried)
+    chosen = damage_scores(game_data, revenant, damage_art, carried)
+
+    assert everything[worse].value > everything[better].value, (
+        f"under All {worse} already ranks below {better}, so this pair "
+        f"cannot show that {damage_art} turns anything over")
+    assert chosen[better].value > chosen[worse].value
+
+
+def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
+        game_data, wylder):
+    """`GOAL.md` A25, second half: Wylder with both starting-armament relics
+    and `Skill attack` chosen counts the conversion in the damage figure.
+
+    The pair is what the criterion asks for, and what the dataset does with
+    it is worth saying: the two relics claim the same attribute on the
+    armament, so the figure carries the conversion and not the frost penalty
+    -- 123.85 and not 103.74. Either way the point of the case holds:
+    choosing an art does not put the figure back on a state where the
+    conversion is missing.
+    """
+    carried = {"nothing": (), "pair": (FIRE_CONVERSION, FROST_STATUS)}
+
+    skill = damage_scores(game_data, wylder, "art:skill", carried)
+
+    assert skill["nothing"].value == pytest.approx(122.0506, abs=5e-5)
+    assert skill["pair"].value == pytest.approx(123.8506, abs=5e-5)
+
+
+def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
+                                                                    wylder):
+    """AK-331: one sentence, with the entry's own label, first letter lowered.
+
+    A run finding rather than a scope sentence, because whether it holds is
+    settled by the question that was asked (AD-025.2) -- and exactly one, so
+    that the dialog does not say the same thing twice.
+    """
+    carried = {"nothing": ()}
+
+    everything = damage_scores(game_data, wylder, "", carried)["nothing"]
+    holy = damage_scores(game_data, wylder, "type:Dark", carried)["nothing"]
+    art = damage_scores(game_data, wylder, "art:skill", carried)["nothing"]
+
+    assert everything.unknowns == (), (
+        "a run that was asked about every kind of damage says so by having "
+        "nothing to report, not by a sentence")
+    assert holy.unknowns == (
+        "Ranked on holy damage only — every other effect on a candidate "
+        "still shows, but only this counts toward the ranking.",)
+    assert art.unknowns[0].startswith("Ranked on skill attack damage only")
+
+
+def test_a_catalyst_says_the_choice_reaches_nothing(game_data):
+    """AD-048: Recluse's staff is ranked on spell power, and no kind of
+    damage reaches that figure -- so the run says so instead of applying a
+    relationship nobody has measured (A7).
+
+    The figure itself is the one it would be under `All`, down to the last
+    bit: the choice changes the sentence, not the number.
+    """
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    carried = {"nothing": ()}
+
+    everything = damage_scores(game_data, recluse, "", carried)["nothing"]
+    sorceries = damage_scores(game_data, recluse, "art:sorceries",
+                              carried)["nothing"]
+
+    assert everything.unit == damage.SPELL_POWER_LABEL, (
+        "this case needs a Nightfarer whose starting armament is a "
+        "catalyst; this one is ranked on an attack rating")
+    assert sorceries.value == everything.value
+    assert sorceries.unknowns == (
+        "Sorceries is not counted for this Nightfarer: a staff or a seal is "
+        "ranked on the spell power the game shows for it, and no damage type "
+        "and no attack art reaches that figure.",)
+
+
+def test_a_kind_this_dataset_cannot_name_is_refused(game_data, wylder):
+    """A choice the program cannot name is no choice a player could have
+    made, and ranking on it silently would be the invented label AD-046
+    point 5 keeps out of the chooser, arriving through the back door."""
+    with pytest.raises(ValueError, match="names no damage type"):
+        damage_scores(game_data, wylder, "art:family:999999",
+                      {"nothing": ()})
 
 
 def test_without_an_armament_the_damage_goal_still_orders_two_builds(

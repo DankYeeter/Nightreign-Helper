@@ -3,15 +3,16 @@
 `SlotPool.unknowns` is read straight onto the screen -- `UI_SPEC.md` §3.2
 line 3b shows each string verbatim -- so the wording is a decision of the
 `ui-ux-designer` and not of this module. The Nachtrag of 2026-09-05 settles
-two of the three lines this field can carry, and both are pinned here
-literally: a paraphrase would pass a test written on "does it mention the
-colour" while showing the player something nobody chose.
+both lines this field can carry, and both are pinned here literally: a
+paraphrase would pass a test written on "does it mention the colour" while
+showing the player something nobody chose.
 
-The third, the conversion line (QA-113), reached the code in T-048 wearing a
-`[wording pending: QA-113]` marker, because the decision of that morning
-settled the other two and named neither it nor its subject. The Nachtrag of
-the same day settled it too and lifted the field's ceiling from two sentences
-to three, so all three are pinned literally here and the marker is gone.
+A third line was pinned here until T-321b: the conversion line of QA-113,
+which counted the relics whose damage-type conversion the figure was said not
+to carry. It was measured on 2026-09-19 and the figure does carry it, so the
+line and its count are gone (AD-047 point 6). That the reservation does not
+come back is held in `tests/test_advisor_goals.py`, beside the two other
+false reservations this project has already had to take out.
 """
 
 from __future__ import annotations
@@ -47,16 +48,6 @@ CONDITIONAL_SINGULAR = (
 CONDITIONAL_PLURAL = (
     "2 of your relics carry effects that only apply under a condition. They "
     "were not counted.")
-
-CONVERSION_SINGULAR = (
-    "1 of your relics changes what damage type your starting armament deals "
-    "(to magic, fire, lightning, or holy). This figure does not count that "
-    "change.")
-CONVERSION_PLURAL = (
-    "2 of your relics change what damage type your starting armament deals "
-    "(to magic, fire, lightning, or holy). This figure does not count that "
-    "change.")
-
 
 @pytest.fixture(scope="module")
 def wylder(game_data):
@@ -170,43 +161,3 @@ def test_the_handle_line_comes_before_the_conditional_one(game_data, wylder):
         f"so it reports two lines: {pool.unknowns!r}")
     assert pool.unknowns[0] == HANDLE_SINGULAR_COLOURED
     assert pool.unknowns[1] == CONDITIONAL_SINGULAR
-
-
-# -- the conversion line (QA-113), settled the same day ---------------------
-
-@pytest.mark.parametrize("count, expected", [
-    (1, CONVERSION_SINGULAR),
-    (2, CONVERSION_PLURAL),
-])
-def test_the_conversion_line_word_for_word(game_data, wylder, count,
-                                           expected):
-    """AK-67's third sentence, and no marker in front of it any more.
-
-    The case this replaces was written to fail on the day the wording was
-    decided -- "the marker has to be removed deliberately, not survive because
-    nothing was watching". The Nachtrag of 2026-09-05 decided it, so what the
-    marker was standing in for is now what is pinned.
-
-    The four elements are named in the sentence because QA-113 is a closed set
-    of four relics. No size and no direction: the sentence says the figure
-    does not count the change and claims nothing about how large it would be,
-    which is the only true thing anyone can say until it is read in the
-    running game.
-    """
-    converting = advisor.a_damage_type_conversion(game_data)
-    plain = advisor.raising_effects(game_data, wylder, 1)[0]
-    rolls = [[converting]] * count + [plain] * (3 - count)
-    inventory = advisor.make_inventory(game_data, wylder, count=3,
-                                       rolls=rolls)
-    ctx = advisor.context(game_data, wylder)
-
-    pool = pool_for(inventory, advisor.problem([advisor.RED]), 0, ctx)
-    lines = [line for line in pool.unknowns if "damage type" in line]
-
-    assert lines == [expected]
-    assert "wording pending" not in lines[0], (
-        "the settled sentence still carries a stand-in marker")
-    assert not hasattr(candidates, "WORDING_PENDING"), (
-        "the module still holds a stand-in marker constant, and every line "
-        "of this field is decided -- a marker with nothing to mark is how "
-        "one gets put back in front of settled text")
