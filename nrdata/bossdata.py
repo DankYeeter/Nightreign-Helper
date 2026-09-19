@@ -107,7 +107,10 @@ def _map_of(entity: int) -> str:
 
 # A boss inferred from its arena rather than proven by an entity id has to
 # clear both bars: tuned resistances (a flat profile is a prop, not a boss)
-# and boss-scale HP (an arena is full of small adds).
+# and boss-scale HP (an arena is full of small adds). The HP bar carries the
+# arena with it: it says "the boss here is a Nightlord, everything small is
+# crew", which is why it is the default and not a constant of the module
+# (AD-042).
 INFERRED_MIN_SPREAD = 0.1
 INFERRED_MIN_HP = 2000
 # A group boss is identified by an arena being unusually full of one tuned
@@ -116,17 +119,18 @@ INFERRED_MIN_HP = 2000
 INFERRED_GROUP_MIN = 10
 
 
-def _candidates(rows_for: dict[int, list],
-                placements: dict[int, int]) -> tuple[list[tuple[int, dict]], bool]:
-    """The boss-scale characters of one map, and whether the group rule found
-    them.
+def _candidates(rows_for: dict[int, list], placements: dict[int, int], *,
+                min_hp: float = INFERRED_MIN_HP,
+                ) -> tuple[list[tuple[int, dict]], bool]:
+    """The tuned characters of one map, and whether the group rule found them.
 
     Both entries into a map ask the same question of it -- the event chain in
     `derive` when the script names no entity, and the place lottery in
-    `derive_places` -- so the bars are applied in one place. What the two do
-    with more than one answer differs and stays with them: `derive` has an
-    arena that holds exactly one boss and takes the largest, `derive_places`
-    has a map that may hold several and refuses to pick (GOAL A7).
+    `derive_places` -- so the bars are applied in one place. The tuning bar
+    holds on both; the HP bar does not, and so is a parameter: on the place
+    route the boss is a field boss between 904 and 5753 HP, and 2000 would
+    cut sixteen of the twenty-nine away (AD-042). Both callers then take the
+    largest of what comes back; `derive_places` names nobody on a tie.
     """
     strong = []
     for chr_id, rows in rows_for.items():
@@ -137,7 +141,7 @@ def _candidates(rows_for: dict[int, list],
                   - min(profile["damage"].values()))
         if spread < INFERRED_MIN_SPREAD:
             continue
-        if (profile["hp"] or 0) < INFERRED_MIN_HP:
+        if (profile["hp"] or 0) < min_hp:
             continue
         strong.append((chr_id, profile))
     if strong:
@@ -561,9 +565,17 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
     place *is* the key, so there is no event script and no entity id to find,
     only the map the place names. What happens inside the map is the same
     question `derive` asks of an arena it could not pin an entity in, and it
-    is answered by the same bars -- but a place may hold several boss-scale
-    characters, and then none is named (`ambiguous`), because the files do not
-    say which one the place is for.
+    is answered by the same tuning bar -- but not by the HP bar, which is an
+    arena's rule and not a place's, and where a place holds several tuned
+    characters the strictly largest of them is the boss (AD-042). Only a tie
+    names nobody (`ambiguous`), because the files do not break it.
+
+    That rule ends here. The night cards drawn from `LotResultPlayAreaParam`
+    must not be resolved by it: T-299 checked these 29 place cards line by
+    line against the FMG names, no such check exists for the night cards, and
+    two of them are counted counterexamples -- `m48_90` would name c4090
+    (556 HP, "no clear boss") and `m49_20` would take c4380 (162 HP) over
+    Stoneskin Lords (628 HP). For those, AD-040 point 4 stands.
 
     `archives` are the ones the caller already has open: opening them again
     costs 9,3 s of the first run and buys nothing (`docs/perf/baselines.md`
@@ -610,7 +622,7 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             rows_for[chr_id] = ([by_id[v] for v in exact]
                                 or by_chr.get(chr_id, []))
 
-        found, group = _candidates(rows_for, placements)
+        found, group = _candidates(rows_for, placements, min_hp=0)
         entry: dict[str, Any] = {
             "map": map_name,
             "chars": [chr_id for chr_id, _profile_of in found],
@@ -624,11 +636,16 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             chr_id, profile = found[0]
             entry.update(primary=chr_id, confidence="group", profile=profile,
                          group_boss=True, placements=placements.get(chr_id))
-        elif len(found) == 1:
-            chr_id, profile = found[0]
-            entry.update(primary=chr_id, confidence="single", profile=profile)
         elif found:
-            entry["confidence"] = "ambiguous"
+            best = max(found, key=lambda pair: pair[1]["hp"] or 0)
+            tied = [pair for pair in found
+                    if (pair[1]["hp"] or 0) == (best[1]["hp"] or 0)]
+            if len(tied) == 1:
+                chr_id, profile = best
+                entry.update(primary=chr_id, confidence="single",
+                             profile=profile)
+            else:
+                entry["confidence"] = "ambiguous"
         out[place] = entry
 
     _attach_effects(out.values(), archives, by_chr, sp_rows)

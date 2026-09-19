@@ -24,6 +24,7 @@ that is recognisably the thing they were asked for.
 from __future__ import annotations
 
 import json
+import struct
 import types
 
 import pytest
@@ -326,12 +327,91 @@ def test_both_boss_bars_have_to_be_cleared_to_be_a_candidate():
 
 
 def test_more_than_one_boss_scale_character_is_left_for_the_caller():
-    """`_candidates` hands back both; `derive` takes the larger, and
-    `derive_places` refuses to pick (A7). The refusal is only possible if
-    the rule itself keeps every candidate."""
+    """`_candidates` hands back both; the callers choose (AD-042). The choice
+    is only possible if the rule itself keeps every candidate."""
     two = {2130: [_npc_row(21300030, 2500, 0.2)],
            4501: [_npc_row(45010000, 5753, 0.3)]}
     found, group = bossdata._candidates(two, {2130: 1, 4501: 1})
 
     assert not group
     assert sorted(chr_id for chr_id, _p in found) == [2130, 4501]
+
+
+class _MapsOnly:
+    """An archive that holds every map and nothing else.
+
+    Enough for `derive_places`: the map blob it hands back is read by the
+    stubbed `_parts` below, and the character archives it does not hold leave
+    the animation pass with nothing to attach, which is what a unit test of
+    the choice wants.
+    """
+
+    def __contains__(self, path: str) -> bool:
+        return path.endswith(".msb.dcx")
+
+    def read(self, _path: str) -> bytes:
+        return b""
+
+
+def _place_entry(monkeypatch, rows) -> dict:
+    """What `derive_places` makes of one map holding exactly these rows."""
+    parts = [(f"c{row.id // 10000}_0000", struct.pack("<i", row.id))
+             for row in rows]
+    monkeypatch.setattr(bossdata, "_parts", lambda _blob: parts)
+    places = bossdata.derive_places(
+        {"data0": _MapsOnly()}, types.SimpleNamespace(rows=rows),
+        {4671: "m46_71_00_00"}, {})
+    return places[4671]
+
+
+def test_a_place_is_named_by_its_largest_tuned_character(monkeypatch):
+    """AD-042. The HP bar is an arena's rule, not a place's: on `4671`
+    Miranda the Blighted Bloom (1939 HP) stands among ten of her own blossoms
+    (119 HP), and under the bar she lost the card to the blossoms. Tuning
+    alone leaves both standing, and the larger is the boss.
+    """
+    entry = _place_entry(monkeypatch, [_npc_row(44800010, 1939, 0.2),
+                                       _npc_row(44810010, 119, 0.2)])
+
+    assert entry["confidence"] == "single"
+    assert entry["primary"] == 4480
+
+
+def test_a_place_whose_two_largest_tie_names_nobody(monkeypatch):
+    """The other half of AD-042, and the reason `ambiguous` stays: the files
+    put two equally large tuned characters on the card and do not say which
+    of them it is for (GOAL A7)."""
+    entry = _place_entry(monkeypatch, [_npc_row(44800010, 1939, 0.2),
+                                       _npc_row(44810010, 1939, 0.2)])
+
+    assert entry["confidence"] == "ambiguous"
+    assert entry["primary"] is None
+    assert sorted(entry["chars"]) == [4480, 4481]
+
+
+@pytest.mark.slow
+def test_every_place_card_names_the_character_standing_on_it(
+        extracted_game_data):
+    """AD-042 at the dataset: 29 of 29 cards settle on one character.
+
+    The two cards the HP bar mis-sorted are named: `4659` was ambiguous
+    between c4501 (5753 HP) and c4021 (2279 HP), and `4671` fell to the group
+    rule and its ten blossoms (c4481, 119 HP) because Miranda stayed under
+    the bar.
+    """
+    places = extracted_game_data["subbosses"]
+
+    unsettled = {place: entry["weakness"]["confidence"]
+                 for place, entry in places.items()
+                 if entry["weakness"]["confidence"] != "single"}
+    assert not unsettled, f"{len(unsettled)} of {len(places)} cards unsettled"
+    assert places["4659"]["chr"] == 4501
+    assert places["4671"]["chr"] == 4480
+
+    # Two of the 29 characters the cards settle on carry no name: NpcName
+    # holds neither a structured `90 <chr> <variant>` entry nor a `nameId`
+    # for c3252 or c4021 (measured T-305, both routes read out of the
+    # installation). The card is still resolved; the game has no word for who
+    # stands on it, and inventing one is the failure QA-286 was made of.
+    assert sorted(entry["chr"] for entry in places.values()
+                  if not entry["name"]) == [3252, 4021]

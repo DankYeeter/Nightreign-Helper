@@ -58,16 +58,28 @@ class Mutation:
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
 MUTATIONS: dict[str, Mutation] = {
-    "sub-boss-hp-bar-off": Mutation(
+    "place-route-back-under-the-hp-bar": Mutation(
         path="nrdata/bossdata.py",
-        old='        if (profile["hp"] or 0) < INFERRED_MIN_HP:\n',
-        new='        if (profile["hp"] or 0) < 0:\n',
+        old="        found, group = _candidates(rows_for, placements, min_hp=0)\n",
+        new="        found, group = _candidates(rows_for, placements)\n",
         survival_means=(
-            "Nothing holds the sub-boss roster to the two bars. With the HP "
-            "bar off, every tuned prop in a map is a boss-scale candidate: "
-            "places the files leave open get named, and places with one boss "
-            "turn ambiguous because a shopkeeper stands beside it. A green "
-            "suite would mean the roster in the snapshot is unguarded."
+            "Nothing holds the place cards to AD-042. The HP bar belongs to "
+            "the Nightlord arenas, and back on the place route it cuts 16 of "
+            "the 29 field bosses away (904-5753 HP): those cards lose their "
+            "character and say 'not derivable'. A green suite would mean the "
+            "sub-boss roster can quietly shrink to a third of itself."
+        ),
+    ),
+    "place-route-takes-the-smallest": Mutation(
+        path="nrdata/bossdata.py",
+        old='            best = max(found, key=lambda pair: pair[1]["hp"] or 0)\n',
+        new='            best = min(found, key=lambda pair: pair[1]["hp"] or 0)\n',
+        survival_means=(
+            "Nothing holds a card to the boss standing on it. With the "
+            "smallest taken, `4659` names c4021 (2279 HP) instead of the "
+            "Decaying Rancor Dragon (5753) and `4671` names a blossom (119) "
+            "instead of Miranda (1939). A green suite would mean the name a "
+            "card carries is unguarded -- the failure QA-286 is made of."
         ),
     ),
 }
