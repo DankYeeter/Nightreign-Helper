@@ -73,14 +73,16 @@ MUTATIONS: dict[str, Mutation] = {
     ),
     "health-bar-name-bound-to-the-map": Mutation(
         path="nrdata/bossdata.py",
-        old="            for entity in on_entities:\n",
-        new="            for entity in list(names):\n",
+        old='        on_entities = entities.get(entry["primary"], [])\n',
+        new="        on_entities = [e for row in entities.values() for e in row]\n",
         survival_means=(
             "Nothing holds a health-bar name to the character it was passed "
-            "in for. Taking whichever entity the script names first renames "
-            "`4551` to 'Black Knife Assassin', `4659` to 'Royal Revenant' "
-            "and `4662` to \"Night's Cavalry\" -- three cards carrying the "
-            "name of somebody else standing in the same map (AD-043.1). A "
+            "in for. Taking whichever entity of the map the script names "
+            "first renames `4551` to 'Black Knife Assassin', `4659` to "
+            "'Royal Revenant' and `4662` to \"Night's Cavalry\": on all "
+            "three the chosen character carries no entity at all, and the "
+            "one the script names belongs to somebody else standing in the "
+            "same map (AD-043.1, measured T-310). A "
             "green suite would mean a name on a card proves nothing about "
             "who is on it, which is the failure QA-286 is made of."
         ),
