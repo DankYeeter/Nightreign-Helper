@@ -104,43 +104,68 @@ each slot card: nothing is put in a slot until you say so. **Maximise damage**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
-With **Maximise damage** picked, the **Damage type** box beside it narrows the
-ranking to one kind of damage — one of the five damage types, or one kind of
-attack such as *Skill attack*, *Incantations* or a single spell school — and
-remembers whichever one you last chose the next time you open the program,
-starting on **All** only the very first time. *Skill attack* counts only
-a Weapon Art, the skill bound to the weapon or catalyst in each hand; a
-Nightfarer's own ability is never counted, no matter what the game itself
-calls it.
+With **Maximise damage** picked, two boxes appear beside it. **Hit with**
+chooses what gets ranked — the starting armament, its *Weapon art*, or the
+spell the starting catalyst throws (*Sorceries*, *Incantations*, or a single
+spell school) — and **Damage type** narrows that to one of the five damage
+types. Both remember whichever value you last chose the next time you open
+the program, starting on *Weapon* and *All* the very first time. Neither box
+hides or disables an entry depending on the Nightfarer or on the other box's
+value — a combination this build has nothing to say about is rejected with a
+sentence in **Why** instead of disappearing.
 
-Choosing anything but **All** adds a line to **Why** naming it — for example
-"Ranked on fire damage only — every other effect on a candidate still shows,
-but only this counts toward the ranking. It scales the armament's attack
-rating — spell damage itself is not in the game data." For a spell build this
-is why a relic can still be suggested under an *Incantations* or *Sorceries*
-ranking for raising plain *Magic attack power* rather than anything that
-sounds like spell damage: the ranking scales the attack rating of the weapon
-or catalyst in hand, and the damage a spell itself deals is not a number the
-program has. One of the five damage types also relabels the suggestion card's
-attack-rating figure to match, to *Fire attack
-rating* instead of plain *Attack rating*; choosing an attack such as *Skill
-attack* does the same only where the choice actually changes that number
-(*Skill attack rating*, not the doubled-up *Skill attack attack rating*) —
-where a choice like that changes nothing, the label stays *Attack rating*
-because the figure really is the one **All** would give too. A staff or a
-seal is unaffected by any of this and says so in **Why**, because it is
-ranked on the spell power the game shows for it, which no damage type or
-attack art reaches. If nothing you own raises the chosen kind of damage at
+*Weapon art* counts only the skill bound to the weapon or catalyst in hand;
+a Nightfarer's own ability is never counted, no matter what the game itself
+calls it. *Sorceries*, *Incantations* and a spell school all rank the one
+spell this Nightfarer's own starting catalyst throws — not a spell picked up
+during the run. A relic that changes which spell the starting catalyst
+throws (the ten "Changes compatible armament's sorcery/incantation to …"
+effects) is used instead of the default spell as soon as it is held or even
+just suggested; holding two such relics at once is a combination the game
+itself does not allow, and **Why** names which of the two spells was ranked.
+
+Choosing anything but *Weapon* and *All* adds a line to **Why** naming the
+choice — for example "Ranked on fire damage only — every other effect on a
+candidate still shows, but only this counts toward the ranking." One of the
+five damage types also relabels the suggestion card's attack-rating figure
+to match, to *Fire attack rating* instead of plain *Attack rating*; *Weapon
+art* adds *Weapon art attack rating* the same way, and both combine into
+*Fire Weapon art attack rating* where both apply — where a choice changes
+nothing, the label stays *Attack rating* because the figure really is the
+one the defaults would give too.
+
+Ranking on a spell shows a number of its own, *Spell damage*, always next to
+a line in **Why** that the figure is uncalibrated: it is the damage formula
+applied to the game's own values, and the game shows no spell damage on
+screen to check it against — compare two spells by it, not the figure
+itself. A spell that deals no damage of its own shows `0.00` — Revenant's
+starting Incantation, Rejection, is one — until a relic changes which spell
+is thrown; measured in testing, the Beast Claw relic turned that `0.00` into
+`350.5` Spell damage at the Finger Seal.
+
+A choice this build cannot answer says so instead of showing a figure. Eight
+Nightfarers carry neither a staff nor a seal; choosing *Sorceries*,
+*Incantations* or a school for one of them gives, for example, "This
+Nightfarer starts with neither a staff nor a seal, so Sorceries is not
+counted: there is no spell of this build's own to rank" and shows *Spell
+damage not counted* with no digit attached. A catalyst of the wrong kind —
+a staff under *Incantations*, a seal under *Sorceries* — is rejected the
+same way, naming which kind the catalyst actually casts. Ranking a staff or
+seal itself under *Weapon* or *Weapon art* is rejected too: it is ranked on
+the spell power the game shows for it, and no damage type or Weapon art
+reaches that figure. If nothing you own raises the chosen kind of damage at
 all, Optimize leaves that slot without a suggestion rather than offering one
 that changes nothing.
 
-Opening a relic picker while a damage type is chosen carries the choice with
-it: the value line on each card, its `BEST FOR …` tag, and the note above the
-grid when nothing there helps are all named after it too — `Damage (Fire)`
-in place of the plain `Damage` shown under **All** — and stay named even
-after **Optimize** is switched to a different direction or the picker is
-closed and reopened, because the choice stands until you change it in the
-Advisor row — closing and reopening the program does not reset it either.
+Opening a relic picker while **Hit with** or **Damage type** is chosen
+carries the choice with it: the value line on each card, its `BEST FOR …`
+tag, and the note above the grid when nothing there helps are all named
+after it too — `Damage (Fire)`, `Damage (Incantations)`, or `Damage (Fire
+Incantations)` when both are set, in place of the plain `Damage` shown under
+the defaults — and stay named even after **Optimize** is switched to a
+different direction or the picker is closed and reopened, because the
+choice stands until you change it in the Advisor row — closing and
+reopening the program does not reset it either.
 
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
 its own card. **Undo apply** puts the previous slots back. **Why** opens the
@@ -321,8 +346,11 @@ attack effects your equipped relics grant. Where an armament can be
 two-handed, its rating on this tab shows both hands side by side —
 `144 / 149 2H` — same as the Build planner; this tab has no **1H/2H** switch
 of its own, since it rates every armament in the game rather than one build.
-**Spell damage is not in the game data**, so sorceries and incantations show
-their costs instead of an invented figure.
+Sorceries and incantations show their FP cost here rather than a damage
+figure — the Advisor's *Spell damage* is worked out for one Nightfarer's own
+starting spell against a chosen damage type (see *Advisor* above), not for
+every spell in the game against every damage type, so this tile has no
+figure to show.
 
 Every tile carries the weapon's **scaling**, and the infusions of one armament
 sit together so they can be read against each other. Where an infusion moves
