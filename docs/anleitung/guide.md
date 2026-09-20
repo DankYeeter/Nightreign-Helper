@@ -107,15 +107,22 @@ effects with the condition *when Two-Handing* only while it is on **2H**.
 With **Maximise damage** picked, the **Damage type** box beside it narrows the
 ranking to one kind of damage — one of the five damage types, or one kind of
 attack such as *Skill attack*, *Incantations* or a single spell school — and
-starts on **All** every time you open the program. *Skill attack* counts only
+remembers whichever one you last chose the next time you open the program,
+starting on **All** only the very first time. *Skill attack* counts only
 a Weapon Art, the skill bound to the weapon or catalyst in each hand; a
 Nightfarer's own ability is never counted, no matter what the game itself
 calls it.
 
 Choosing anything but **All** adds a line to **Why** naming it — for example
 "Ranked on fire damage only — every other effect on a candidate still shows,
-but only this counts toward the ranking." One of the five damage types also
-relabels the suggestion card's attack-rating figure to match, to *Fire attack
+but only this counts toward the ranking. It scales the armament's attack
+rating — spell damage itself is not in the game data." For a spell build this
+is why a relic can still be suggested under an *Incantations* or *Sorceries*
+ranking for raising plain *Magic attack power* rather than anything that
+sounds like spell damage: the ranking scales the attack rating of the weapon
+or catalyst in hand, and the damage a spell itself deals is not a number the
+program has. One of the five damage types also relabels the suggestion card's
+attack-rating figure to match, to *Fire attack
 rating* instead of plain *Attack rating*; choosing an attack such as *Skill
 attack* does the same only where the choice actually changes that number
 (*Skill attack rating*, not the doubled-up *Skill attack attack rating*) —
@@ -133,7 +140,7 @@ grid when nothing there helps are all named after it too — `Damage (Fire)`
 in place of the plain `Damage` shown under **All** — and stay named even
 after **Optimize** is switched to a different direction or the picker is
 closed and reopened, because the choice stands until you change it in the
-Advisor row or restart the program.
+Advisor row — closing and reopening the program does not reset it either.
 
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
 its own card. **Undo apply** puts the previous slots back. **Why** opens the
