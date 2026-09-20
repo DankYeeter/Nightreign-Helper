@@ -246,3 +246,48 @@ Die Datei ist von mir **nicht** geaendert worden (Zugschwelle). Anzuhaengen:
 ```
 
 Hoechste vergebene QA-Id nach diesem Lauf: **QA-292**.
+
+## T-325j — Retest DR-038 plus QA-Restliste, Quellstand `eaf9ea9`
+
+### Kontraktblock
+
+| Feld | Wert |
+|---|---|
+| Quellstand | `eaf9ea9` (DR-038-Fix), `git log -1` bestaetigt; Artefakt 1.17.0 (`D136FB2D...0101`) traegt den Fix noch nicht, deshalb Fensterlauf per `python run.py` (Quelle), nicht am Artefakt |
+| Umlenkung | `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-325j`, `LOCALAPPDATA`/`APPDATA`/`USERPROFILE` in den Scratchpad (`...\scratchpad\T-325j\{LOCALAPPDATA,APPDATA,HOME}`) |
+| Datensatz | Testabzug v16 **kopiert** (841 Dateien, 21 139 391 B, deckungsgleich mit `EXTRACT_VERSION 16` in `nrdata/extract.py`) nach `<LOCALAPPDATA>\NightreignHelper\`; `CLAUDE.md` nennt an dieser Stelle noch `EXTRACT_VERSION 15` -- Doku-Stand hinter dem Quellstand, an den `director` als Beobachtung, kein QA-Befund |
+| Spielstand | gefrorene Kopie unter dem umgelenkten `APPDATA`, `sha256 a4ec107c634b6d905ab968e38af2ad751574673f6bdf64984ddc906de59f2312` -- identisch mit T-325h, `USERPROFILE` auf einen leeren Scratch-Ordner gesetzt (Fallback tot) |
+| Fensterlauf | 1 Start (`python run.py`, PID 26544), Fenstertitel `Nightreign Helper 1.17.0`; `Get-Process` vorher 0 |
+| Treiber | `scripts/drive_window.ps1`-Rezept, PID-Ermittlung auf Fenstertitel statt Prozessname umgestellt (Quellstand laeuft als `python.exe`, nicht `NightreignHelper.exe`) -- eigene Kopie im Scratchpad, Original unveraendert |
+| Suite (gezielt) | `pytest tests/test_advisor_goals.py -k "capital or cased or chosen_kind"` 3 passed; `pytest tests/test_advisor_bar.py -k "337 or 348 or both_pairs or tab_walks"` 2 passed; volle Suite nicht erneut gelaufen (Retest, kein Codepfad ausserhalb `goals.py`/Test-Datei veraendert) |
+
+### Urteil je Punkt
+
+**(1) DR-038** -- am Fenster, Wylder, `Maximise damage`:
+
+| Wahl | Satz im Why-Panel |
+|---|---|
+| `Weapon art` + `Fire` (beide Felder) | `Ranked on fire damage with Weapon art only - ...` |
+| `Fire` allein (`hit_with`=`Weapon`) | `Ranked on fire damage only - ...` |
+| `Weapon art` allein (`damage_type`=`All`) | `Ranked on weapon art damage only - ...` |
+
+Alle drei Saetze zeichenweise gegen den Auftragswortlaut geprueft. Die Kombination zeigt den Typ klein (`fire`) und das Art-Etikett unveraendert (`Weapon art`), verbunden mit `with`; keine Grossschreibung mitten im Satz. Beide Einzelwahlen unveraendert gegen den vorherigen Stand. **PASS.**
+
+**(2) Restliste:**
+
+- **AK-337 Sichtbarkeitsregel**: live am Fenster reproduziert -- `goal_box` auf `Minimise damage taken` blendet `hit_with_box`/`damage_type_box` aus (5 -> 3 Comboboxen), zurueck auf `Maximise damage` erscheinen beide wieder **mit der vorherigen Wahl** (`Weapon art`/`All`). Deckt sich mit dem bereits gruenen Waechter `test_both_pairs_are_a_question_only_under_maximise_damage`. **PASS.**
+- **AK-348 Tab-Reihenfolge**: Code-Waechter `test_tab_walks_the_direction_then_both_boxes_then_filters` liest Qts eigene `nextInFocusChain()`-Kette direkt aus und ist gruen, unveraendert von diesem Diff. Ein eigener Live-Versuch (UIA `SetFocus()` + `VK_TAB`-Injektion) liess den Fokus nicht auf den erwarteten Steuerelementen landen (sprang auf ein `Close`, vermutlich eine UIA/Qt-Fokusinjektions-Grenze, keine Produktbeobachtung) -- als unzuverlaessiges Werkzeug verworfen statt als Befund gewertet. Der Code-Waechter bleibt die tragende Evidenz; kein Doppel-Testen mit unsicherem Zusatzwerkzeug. **PASS** (auf Waechter gestuetzt, Live-Tab-Probe ohne Aussagekraft).
+- **Kopfzeile "Fire Weapon art attack rating"**: Suche nach einem Fire-Konversionsrelikt im echten Bestand (Suchbegriffe `Fire affinity`, `attack the enemy`, `affinity`) fand nur `Night of the Lord` (`Switching Weapons Adds an Affinity Attack`, bedingt auf Waffenwechsel, zeigt `no change` unter `Fire Weapon art`); kein Effekt mit einer Element-Umwandlungs-Eigenschaft im Datensatz gefunden (`grep` auf `elementchange`/`attackelement` in den Modifikatoren: 0 Treffer). Damit unveraendert **nicht erzeugbar** mit dem echten Spielstand -- derselbe Befund wie T-325h ("Nicht getestet" Punkt 4). Die zugrundeliegende Regel (`_headline_with_choice` kombiniert Typ und Art) ist ueber zwei andere Kopfzeilen aus T-325h weiter belegt. **Nicht getestet** (unveraendert).
+- **Nightfarer ohne Katalysator, Sorceries/Incantations in der Box**: `hit_with_box` fuer Wylder (kein Stab/Siegel) live ausgeklappt -- enthaelt `Weapon`, `Weapon art`, `Sorceries`, `Incantations`, alle 14 Schulen. Bestaetigt den DR-Backlog-Punkt: die Box ist datensatzgetrieben (`model.attack_arts`), nicht heldabhaengig, Sorceries/Incantations erscheinen unabhaengig vom Katalysator. Verhalten, kein neuer Codebefund -- offene Frage an `ui-ux-designer` aus T-325h bleibt unveraendert offen. **Bestaetigt wie beschrieben, kein neuer Befund.**
+
+### Abschluss NH-004
+
+`Get-Process NightreignHelper,python` nach dem Schliessen: **0**. Registry-Zweig `HKCU\Software\DankYeeterT-325j` geloescht, `Test-Path` danach `False`.
+
+### Gesamturteil
+
+**PASS.** DR-038 am Quellstand belegt (alle drei Faelle wortgleich), keine Regression an AK-337/AK-341/AK-348 (Waechter gruen, AK-337 zusaetzlich live reproduziert). Zwei Restpunkte bleiben wie in T-325h dokumentiert: die Kopfzeile "Fire Weapon art attack rating" ist mit dem echten Spielstand weiterhin nicht erzeugbar (kein neuer Befund, Regel andernorts belegt), und die katalysatorunabhaengige Sorceries/Incantations-Sichtbarkeit ist bestaetigtes, dokumentiertes Verhalten (offene Frage an `ui-ux-designer`, kein Bug). QA-292 (P4, Startbreite/Knopfschrumpfung) bleibt unangetastet offen, ausserhalb dieses Retests.
+
+### Register-Zeile fuer `qa/findings.md`
+
+Kein neuer Befund in diesem Lauf; DR-038 war kein registrierter QA-Eintrag (Design-Review-Fund, kein QA-###). Keine Zeile anzuhaengen.
