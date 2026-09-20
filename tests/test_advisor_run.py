@@ -110,6 +110,52 @@ def test_the_gain_is_the_difference_to_the_build_as_it_stands(game_data,
     assert result.held == problem.held
 
 
+def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
+        game_data, wylder):
+    """QA-290: a candidate that leaves the ranked figure exactly where the
+    base state left it is not a suggestion, once a damage type is chosen.
+
+    Wylder's own starting armament deals no fire at all, so under
+    `type:Fire` the base state and every candidate score 0.00 alike -- the
+    same zero `_max_damage`'s own comment calls "a ranking and not a fault"
+    (AK-335). Before this fix the beam filled the three free slots anyway
+    (AD-014.7 fills every slot it can) and the bar said `SUGGESTED` over a
+    build that changed nothing (director, 2026-09-20); the picker already
+    read the same zero correctly (`relicpicker.top_handles`).
+    """
+    from nrplanner import damage
+    from nrplanner.advisor import candidates
+
+    reference = types.ReferenceArmament(
+        weapon=next(w for w in game_data["weapons"]
+                    if w["id"] == wylder["starting_weapon"]),
+        tier=1, slot_index=damage.STARTING_SLOT)
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
+    ctx = dataclasses.replace(
+        advisor.context(game_data, wylder, reference=reference),
+        damage_art="type:Fire")
+    frozen = run.frozen_inventory(owned, slot_problem)
+    request = dataclasses.replace(
+        advisor.request_for(slot_problem, ctx, frozen), damage_art="type:Fire")
+
+    pool = candidates.pool(frozen, slot_problem, 0, ctx, goals.GOALS,
+                           request.goal_id)
+    assert pool.candidates, ("nothing owned reaches slot 0, so this proves "
+                             "nothing about a real pool")
+    assert all(types.marginal_for(candidate, DAMAGE) == 0.0
+              for candidate in pool.candidates), (
+        "some candidate does move the fire figure here, so this is not "
+        "QA-290's all-zero case")
+
+    result = run.run(request, frozen, ctx, goals.GOALS)
+
+    assert result.suggestions == (), (
+        "every candidate leaves the chosen type at the base state's figure, "
+        "so nothing here is a suggestion")
+    assert result.held == ()
+
+
 def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
         monkeypatch, game_data, wylder):
     """`GOAL.md` A18, the Qt-free proof: exclude the effect one copy lives

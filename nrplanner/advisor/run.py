@@ -399,6 +399,28 @@ def run(request: types.AdvisorRequest, inventory,
         if index == 0:
             best_chosen, best_built = chosen, built
 
+    # QA-290: a chosen damage type or attack art can leave every owned relic
+    # unable to move the ranked figure at all -- the reference armament
+    # carries none of the chosen kind and nothing owned converts to it. The
+    # picker already says so correctly (`relicpicker.top_handles` reads the
+    # very same figure, `goal.score`, and shows no chip and no top card for
+    # it); the beam does not ask that question and fills every free slot
+    # regardless (AD-014.7), so the bar showed `SUGGESTED` over a suggestion
+    # that changes nothing. Read the one figure both screens already agree
+    # on -- the best suggestion's own score against the base state -- and
+    # drop it when it is exactly the base state's figure again, so the slots
+    # fall back to "nothing to choose from" (`UI_SPEC` 4.11) instead.
+    #
+    # Scoped to a chosen type or art on purpose (director, 2026-09-20): under
+    # `All` the same zero can occur for a slot of purely situational relics,
+    # and `_max_damage` already calls that a ranking and not a fault -- that
+    # established reading is left exactly as it was.
+    best = suggestions[0] if suggestions else None
+    if (request.damage_art and best and best.choices
+            and best.score.value == base_scores[request.goal_id].value):
+        suggestions = []
+        best_chosen, best_built = (), base
+
     ranked = (suggestions[0].score if suggestions
               else base_scores[request.goal_id])
     groups = suggestions[0].reasons if suggestions else ()
