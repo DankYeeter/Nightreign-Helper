@@ -72,16 +72,21 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 
 ## Beschlossen, nicht beauftragt
 
-- **A25 Schadensart im Berater — RELEASE 1.16.0 (20.09. 17:05):** Code `9f95de0`
-  (T-321a-d, T-322f/g/n), Suite 1838/9. Sicherheit PASS, Review DR-034/035
-  behoben, QA T-322e CONCERNS → T-322i/T-322p PASS (QA-289/290 behoben),
-  clean-room T-322l PASS (Update 1.15.0→1.16.0), power-user T-322m (6/6,
-  Punkte 1+3 in T-322n behoben). Artefakt T-322o `21e0f92`
-  SHA FE7DB4B9…CDED2, 59.233.451 B. Notes `a33e92b`, Guide `28002b5`.
-  Tag `v1.16.0` auf `a33e92b`. **Offen:** PR auf `main` (Nutzer mergt);
-  eigener Art-Regler im Picker (AK-336) und Picker-Rangfolge im Guide
-  (technical-writer) beim Nutzer; Nightfarer wird nicht gemerkt (Bestand,
-  T-322n Befund) — Backlog-Kandidat; ROLLOUT.md ohne 1.16.0-Abschnitt.
+- **A25 abgeschlossen: Release 1.16.0 (20.09. 17:05, Tag `v1.16.0` auf `a33e92b`,
+  Run 35518272445). PR #18 auf `main` offen (Nutzer mergt).** Rest: eigener
+  Art-Regler im Picker (AK-336) beim Nutzer; Nightfarer wird nicht gemerkt
+  (Bestand, Backlog); ROLLOUT.md ohne 1.16.0-Abschnitt.
+- **A26 Ziel = Womit x Schadensart — Bau laeuft (20.09. 19:15):** R-010,
+  AD-050..054 (`docs/tasks/T-323.md`), OF-54/57/58 entschieden; Bau
+  `docs/tasks/T-324.md`: a Extraktor `e18696c` (EXTRACT_VERSION 16, 111/160
+  Zauber mit Schaden), b Testabzug v16 `0876ea2`, c Fassade `202f2be`, d zwei
+  Felder `d6c2cfc`, e Ziel `8b83de6` (Beast Claw am Siegel L15: 577,55;
+  Suite 1866/9). Entschieden: Charged (110) kein Hit-with. **Blockiert:**
+  T-324f Spec und T-324g Leiste warten, bis die Nutzerkopie des Fensters
+  (seit 17:26) geschlossen ist (NH-004-Waechter). Danach Pruefphase.
+  Nachtraege: guide.md Z. 119 falsch (technical-writer), `CHARGED_SCHOOL`
+  ohne Aufrufer (loeschen in g), Performance-Fund Katalysator-Scan 113 us
+  (performance-tuner nach g), Praemisse ER-Zauberformel unvermessen (OF-54).
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
