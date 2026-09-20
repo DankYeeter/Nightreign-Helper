@@ -576,3 +576,23 @@ extrahierten Zauberdaten) statt mit dem Standardzauber des Katalysators;
 ohne einen solchen Effekt gilt der Standardzauber des Start-Katalysators.
 Nachweis: Revenant mit 7370900 (Beast Claw) unter *Incantations* x *All*
 zeigt die Beast-Claw-Zahl, physische Buffs zaehlen, Holy nicht.
+
+### A27 — Weapon art und Startzauber im Waffen-Schadensblock des Builders
+
+*Nutzer 20.09.2026 22:00: "beim weapon damage block im builder brauchen
+wir auch die weapon arts und spells, sonst sehe ich nicht auf einen Blick,
+was meine Relikte mit den Spells / der Weapon Art machen." Entschieden:
+als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
+
+- **Umfang:** Der Schadensblock je Startwaffe im Build-Planer zeigt unter
+  der Angriffszahl eine Zeile *Weapon art* (Angriffszahl x Skill-Faktor,
+  AD-047/AD-051) und fuer einen Start-Katalysator eine Zeile *Spell
+  damage (<Zauber>)* mit dem geworfenen Zauber (Tauschrelikt vor
+  Standardzauber, AD-052) — jede Zeile mit dem Betrag, den die Relikte
+  bewegen (Why-Betrag wie AD-038), unkalibriert-Hinweis wie AK-343.
+- **Nicht Ziel:** neue Zahlen (alles aus `damage.equipped`/`damage.spell`),
+  Zauber ausserhalb der Startausruestung.
+- Nachweis: Revenant mit Beast-Claw-Relikt: der Block zeigt neben der
+  Klauen-AR die Zeile "Spell damage (Beast Claw) 578 (uncalibrated)" und
+  ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
+  "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.
