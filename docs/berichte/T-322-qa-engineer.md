@@ -490,3 +490,139 @@ Siehe die vier Zeilen weiter oben im bestehenden QA-Log-Abschnitt (zwei
 Ursprungszeilen QA-289/QA-290 aus T-322e bleiben stehen, zwei neue
 Retest-Zeilen T-322i wurden direkt danach eingefuegt statt an das
 Dateiende, damit beide Befunde gemeinsam lesbar bleiben).
+
+---
+
+STATUS: erledigt
+AUFTRAG: T-322p - Retest AK-330-Nachtrag (Schadensart-Persistenz und
+Why-Klarstellung) am Artefakt 1.16.0 (`dist\NightreignHelper.exe`,
+59.233.451 B, SHA-256 FE7DB4B9...61CDED2, Bau T-322o `21e0f92` auf Code
+`9f95de0`)
+GELESEN: docs/tasks/T-322.md (Abschnitt T-322n); `git show 9f95de0`
+(Diff + Tests `test_advisor_bar.py`, `test_advisor_goals.py`);
+docs/berichte/T-322-power-user.md (Punkt 1 und 3, Einordnung Director
+20.09.); nrplanner/advisorbar.py (`DAMAGE_ART_KEY`, `_settings`,
+`_show_the_damage_types`, `_damage_type_chosen`); nrplanner/advisor/goals.py
+(`_RANKED_ON_ONE_ART`); scripts/drive_window.ps1
+GEAENDERT: nichts im Arbeitsbaum ausser diesem Bericht (Abschnitt T-322p
+angehaengt). Kein Eintrag in `qa/findings.md` - kein Befund, Register bleibt
+unveraendert. Scratchpad/Testordner
+`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-T322p\` (eigenes
+LOCALAPPDATA/APPDATA, Testabzug 842 Eintraege hineinkopiert, nach dem Lauf
+geloescht); Registry-Zweig `HKCU\Software\DankYeeterT-322p` nach dem Lauf
+geloescht
+ANNAHMEN: keine
+NAECHSTER: director (Freigabe 1.16.0)
+BLOCKIERT DURCH: nichts
+
+---
+
+# T-322p - qa-engineer: Retest AK-330-Nachtrag am Artefakt 1.16.0
+
+## Umgebung und Nachweis der Umlenkung
+
+- Artefakt gegengeprueft: `Get-FileHash` ->
+  `FE7DB4B966FC9FA39100CBC6016BC330733A0905DCE763B6ADF51240761CDED2`,
+  Laenge `59233451` - deckungsgleich mit dem Auftrag.
+- `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-322p`, `LOCALAPPDATA`/`APPDATA` auf
+  einen frischen Ordner ausserhalb des Projektbaums und ausserhalb
+  `%LOCALAPPDATA%`; Testabzug hineinkopiert. Vor dem ersten Start existierte
+  `HKCU\Software\DankYeeterT-322p` nicht (`Test-Path` false) - sauberer
+  Ausgangspunkt. Positiver Beleg der Umlenkung: nach dem ersten Lauf trug
+  derselbe Schluessel `damage_art`. Der Spielstand wurde nicht angefasst.
+- NH-004: kein anderer Lauf parallel; vier Programmstarts, jeweils per
+  `WindowPattern.Close()` sauber beendet, `Get-Process` dazwischen und am
+  Ende 0. Registry-Zweig `HKCU\Software\DankYeeterT-322p` nach dem letzten
+  Lauf geloescht.
+- Fenstertreiber ausschliesslich `scripts/drive_window.ps1` (dot-gesourct),
+  unveraendert gegenueber T-322e/i.
+
+## Pruefweg (a) - Schadensart und Schulwahl ueberleben den Neustart
+
+1. Wylder (Standardcharakter), `damage_type_box` auf `Fire` gestellt ->
+   Registry sofort `damage_art = type:Fire`. Fenster sauber geschlossen
+   (0 Prozesse), neu gestartet: `damage_type_box` steht auf `Fire`.
+2. Auf Revenant gewechselt, `damage_type_box` auf `Bestial` (Schulwahl)
+   gestellt -> Registry `damage_art = art:family:23`. Fenster sauber
+   geschlossen, neu gestartet: `damage_type_box` steht auf `Bestial`
+   (die Artliste ist datensatzweit, nicht nightfarerabhaengig -
+   `model.attack_arts` liest ueber alle Effekte, nicht ueber den aktiven
+   Charakter; die Nightfarer-Wahl selbst faellt beim Neustart wie bisher
+   auf Wylder zurueck, das ist ausserhalb dieses Nachtrags).
+**PASS** fuer beide Haelften.
+
+## Pruefweg (b) - gemerkter Schluessel, den die Box nicht kennt
+
+Bei geschlossenem Programm `damage_art` von Hand auf `art:family:999`
+gesetzt (kein Eintrag der aktuellen Box). Neustart: `damage_type_box`
+steht auf `All`, `Get-Process` liefert die erwarteten zwei Prozesse
+(Bootloader + App, normales Bild bei der Einzeldatei), kein Absturz, keine
+Fehlermeldung. **PASS** - die Validierung gegen `findData` haelt am
+Artefakt.
+
+## Pruefweg (c) - Why-Zeile unter Incantations und unter Fire
+
+Unter `Incantations` (Wylder) `Optimize` gelaufen, `Why`-Dialog eines
+gefuellten Slots gelesen: Zeile 4 genau einmal
+"Ranked on incantations damage only - every other effect on a candidate
+still shows, but only this counts toward the ranking. It scales the
+armament's attack rating - spell damage itself is not in the game data."
+- erster Satz unveraendert, zweiter Satz wie im Diff angefuegt. Unter
+`Fire` (derselbe Build, 0 Vorschlaege) derselbe Aufbau, wortgleich bis auf
+"fire" statt "incantations", ebenfalls genau einmal. **PASS.**
+
+## Pruefweg (d) - Stichprobe QA-289/QA-290 unveraendert
+
+Wylder, `Fire`, `Maximise damage`: Leiste "0 of 3 slots filled - 3 slots
+have nothing to choose from." Picker Slot 1 (Blue, 54 von 54): Kopfzeile
+"Nothing you own raises damage in this slot. (Fire)", Zeile 4 traegt den
+AK-331-Satz samt Nachtrag. Beide Fixes aus T-322h/i halten unveraendert am
+neuen Artefakt. **PASS.**
+
+## Regression
+
+`pytest tests/test_advisor_bar.py tests/test_advisor_goals.py -q`:
+136 passed in 65,4 s (kein `-n auto` bei Einzeldateien, CLAUDE.md). Kein
+Hinweis auf breitere Auswirkung; die volle Suite war fuer diesen Retest
+nicht angezeigt (Aenderung beschraenkt auf `advisorbar.py`/`goals.py`,
+Fixes T-322n greifen nur in die zwei genannten Dateien plus deren Tests).
+
+## Zusammenfassung (an director)
+
+- Pruefweg (a): PASS - Pruefweg (b): PASS - Pruefweg (c): PASS -
+  Pruefweg (d): PASS
+- P1: 0 - P2: 0 - P3: 0 - P4: 0 - keine neuen Befunde
+- **Gesamturteil: PASS.** AK-330-Nachtrag (Persistenz der Schadensart samt
+  Validierung gegen einen unbekannten Schluessel) und die Why-Klarstellung
+  aus T-322n halten am Artefakt 1.16.0 (Bau T-322o); die Stichprobe
+  QA-289/QA-290 zeigt keine Regression. Aus QA-Sicht steht der Freigabe
+  von 1.16.0 nichts entgegen.
+
+## Explorationsprotokoll
+
+Vier Programmstarts (Fire setzen, Neustart pruefen; Bestial setzen,
+Neustart pruefen; ungueltigen Schluessel von Hand setzen, Neustart pruefen;
+Incantations/Fire Why-Dialog) plus Picker-Stichprobe im letzten Lauf, alle
+am selben Artefakt. Alle vier Pruefwege reproduziert, keiner schlug fehl.
+
+## Offene Fragen
+
+Keine.
+
+## Nicht getestet
+
+- Parallelzugriff zweier Instanzen auf denselben Registry-Schluessel
+  (NH-004 schliesst zwei gleichzeitige Laeufe ohnehin aus - kein Pfad, auf
+  dem ein Nutzer das erreicht).
+- Alle Kanten aus T-321b/c ausserhalb der vier genannten Pruefwege
+  (Katalysator, Richtungswechsel, AK-08, Deep-Gefaess, Fensterbreiten) -
+  der Auftrag begrenzt den Retest auf T-322n; diese Kanten aendert der
+  Fix nicht (er beruehrt nur den Konstruktor- und den Auswahlpfad der
+  Box, nicht die Rechnung selbst).
+- Nightfarer-Wahl selbst als Persistenzkandidat - ausserhalb des Auftrags,
+  in Pruefweg (a) nur als Randbeobachtung notiert (kein Befund: unveraendert
+  gegenueber dem Bestand vor T-322n).
+
+## QA-Log - an `qa/findings.md` anhaengen
+
+Keine neue Zeile - dieser Retest fand keinen Befund.
