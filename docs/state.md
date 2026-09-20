@@ -71,14 +71,16 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 
 ## Beschlossen, nicht beauftragt
 
-- **A25 Schadensart im Berater — RELEASE-GATE 1.16.0 (20.09. 15:25):** Bau
-  T-321a-d, Fixes T-322f/g (`41173d9`, `10442b2`, `5b9fad9`), Suite 1835/9.
-  Sicherheit PASS, Review DR-034/035 behoben, QA T-322e CONCERNS → T-322i
-  PASS (QA-289/290 behoben). Artefakt T-322h `69fb2bf` SHA 51F69498…E8BFC9,
-  59.233.161 B. Notes `a6db8f4`, Guide committet. **Naechster Schritt:**
-  Nutzer gibt Release frei → Tag `v1.16.0` auf `5b9fad9`, Release-Lauf wie
-  1.15.0, PR auf `main`. Offen beim Nutzer: eigener Art-Regler im Picker
-  (AK-336); Picker-Rangfolge im Guide unbeschrieben (technical-writer).
+- **A25 Schadensart im Berater — RELEASE 1.16.0 (20.09. 17:05):** Code `9f95de0`
+  (T-321a-d, T-322f/g/n), Suite 1838/9. Sicherheit PASS, Review DR-034/035
+  behoben, QA T-322e CONCERNS → T-322i/T-322p PASS (QA-289/290 behoben),
+  clean-room T-322l PASS (Update 1.15.0→1.16.0), power-user T-322m (6/6,
+  Punkte 1+3 in T-322n behoben). Artefakt T-322o `21e0f92`
+  SHA FE7DB4B9…CDED2, 59.233.451 B. Notes `a33e92b`, Guide `28002b5`.
+  Tag `v1.16.0` auf `a33e92b`. **Offen:** PR auf `main` (Nutzer mergt);
+  eigener Art-Regler im Picker (AK-336) und Picker-Rangfolge im Guide
+  (technical-writer) beim Nutzer; Nightfarer wird nicht gemerkt (Bestand,
+  T-322n Befund) — Backlog-Kandidat; ROLLOUT.md ohne 1.16.0-Abschnitt.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
