@@ -970,6 +970,42 @@ def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
     assert art.unknowns[0].startswith("Ranked on weapon art damage only")
 
 
+def test_a_type_and_an_art_together_keep_the_arts_own_capital(game_data,
+                                                               wylder):
+    """DR-038: joining `chosen_label`'s two labels and then lowering only the
+    chain's first character left the art's capital stranded mid-sentence
+    (`"Ranked on fire Weapon art damage only"`) whenever both fields were
+    chosen -- a combination AK-341 names as ordinary, not a corner case.
+    `_ranked_on_choice` lowers only the type and leaves the art's label
+    exactly as `ART_LABELS` spells it, joined by "with".
+    """
+    carried = {"nothing": ()}
+
+    both = damage_scores(game_data, wylder, carried, hit_with="skill",
+                         damage_type="Fire")["nothing"]
+
+    assert both.unknowns[0].startswith(
+        "Ranked on fire damage with Weapon art only"), (
+        f"the type is lowered and the art's own label is not: "
+        f"{both.unknowns[0]!r}")
+
+
+def test_a_type_and_a_school_are_cased_the_same_way(game_data):
+    """The same DR-038 rule, for a school's own name rather than one of the
+    three spec-worded arts (AK-338's `Weapon art` among them).
+
+    Asked through `max_damage`, a school routes to `_spell_cell` instead
+    (AD-052: `Bestial` names a spell row, never the armament row this
+    sentence belongs to) and never reaches `_RANKED_ON_ONE_ART`, so the only
+    way to hold the school case to the same rule is `_ranked_on_choice`
+    itself.
+    """
+    bestial = f"{model.ART_FAMILY_PREFIX}23"
+
+    assert goals._ranked_on_choice(bestial, "Fire") == (
+        "fire damage with Bestial")
+
+
 def test_a_catalyst_says_the_choice_reaches_nothing(game_data):
     """AD-048: Recluse's staff is ranked on spell power, and no kind of
     damage reaches that figure -- so the run says so instead of applying a

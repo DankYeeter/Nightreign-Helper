@@ -222,8 +222,14 @@ _DAMAGE_TAKEN_SCOPE = (
 #: is a spell row and is answered by `_spell_cell`, so what this sentence is
 #: left saying is where the **armament's** figure ends, and it says it
 #: without claiming that spell damage is unknowable (A26-1 extracted it).
+#:
+#: `{choice}` already carries its own "damage" and, with both fields chosen,
+#: its own "with {art}" -- built by `_ranked_on_choice` (DR-038), because a
+#: type **and** an art joined into one string and then lowered only at
+#: position 0 left the art's capital letter stranded mid-sentence
+#: (`"fire Weapon art damage"`).
 _RANKED_ON_ONE_ART = (
-    "Ranked on {choice} damage only — every other effect on a candidate "
+    "Ranked on {choice} only — every other effect on a candidate "
     "still shows, but only this counts toward the ranking. It scales the "
     "armament's attack rating; what a spell hits for is a figure of its "
     "own and is asked for on the spell rows.")
@@ -302,6 +308,18 @@ def chosen_label(hit_with: str, damage_type: str) -> str:
     together name one cell of the combination table, so they name it in one
     sentence too.
     """
+    return " ".join(_chosen_labels(hit_with, damage_type))
+
+
+def _chosen_labels(hit_with: str, damage_type: str) -> list[str]:
+    """The labels `chosen_label` joins, kept apart.
+
+    `_ranked_on_choice` (DR-038) needs the type and the art separately: it
+    lowers only the type's first letter and leaves the art's label as
+    written, which the joined string `chosen_label` returns cannot express
+    once both are chosen. One lookup either way, so a dataset patch still
+    reaches both sinks through this single place.
+    """
     chosen = []
     for key, label in ((damage_type, weapons.DAMAGE_LABELS.get(damage_type)),
                        (hit_with, _art_label(hit_with))):
@@ -315,7 +333,7 @@ def chosen_label(hit_with: str, damage_type: str) -> str:
     if not chosen:
         raise ValueError(
             "nothing was chosen, so there is no question here to answer")
-    return " ".join(chosen)
+    return chosen
 
 
 def _art_label(hit_with: str) -> str | None:
@@ -330,6 +348,26 @@ def _art_label(hit_with: str) -> str | None:
         if family.isdigit():
             label = model.SPELL_FAMILY_NAMES.get(int(family))
     return label
+
+
+def _ranked_on_choice(hit_with: str, damage_type: str) -> str:
+    """The `{choice}` half of `_RANKED_ON_ONE_ART`, cased per DR-038.
+
+    The damage type is a plain adjective (`fire`, `holy`) and loses its
+    capital where the sentence swallows it mid-phrase, the way AK-331 always
+    asked for it. The art's label is a name (`Weapon art`, `Sorceries`, a
+    school), not an adjective, and AK-331 never asked for it to lose its
+    capital either -- with one field chosen the two happened to look alike
+    because an art's label starts capitalised and continues lowercase
+    already. Joined with "with" rather than a plain space, so a reader sees
+    two named things and not one run-on phrase with a capital stranded in
+    the middle of it.
+    """
+    labels = _chosen_labels(hit_with, damage_type)
+    first = labels[0][:1].lower() + labels[0][1:]
+    if len(labels) == 1:
+        return f"{first} damage"
+    return f"{first} damage with {labels[1]}"
 
 
 def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
@@ -686,7 +724,7 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
                     chosen_label(earned, ctx.damage_type),
                     now.headline_name.lower())
             unknowns = (_RANKED_ON_ONE_ART.format(
-                choice=chosen[0].lower() + chosen[1:]),)
+                choice=_ranked_on_choice(ctx.hit_with, ctx.damage_type)),)
     return types.GoalScore(
         value=value,
         display=f"{name} {damage.displayed(value)}",
