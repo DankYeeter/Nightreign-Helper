@@ -467,4 +467,30 @@ T-231 gebucht): alle drei Faelle sind entschieden, die Liste ist leer.**
 **Alle drei Faelle sind entschieden — dieser Abschnitt hat keinen offenen
 Fall mehr** und bleibt nur als Verlauf stehen.
 | AK-330 | *(Status 20.09.2026 16:05, Nutzer via Fragebogen nach power-user T-322m)* Nachtrag: die Schadensart wird wie der Nightfarer ueber den Neustart gemerkt (QSettings, gegen die aktuelle Artenliste validiert, sonst `All`); der Satz 'faellt bei Neustart auf All zurueck' (19.09.) entfaellt. | **geaendert** — Nutzer | `docs/tasks/T-322.md` n |
+
+**Nachtrag T-324f (ui-ux-designer), 2026-09-20 — A26: die eine Box aus §3.7
+wird durch zwei Boxen ersetzt (`UI_SPEC` §3.8).** Vier Kriterien, die
+ausschliesslich die Struktur der einen Box beschrieben, gelten ab §3.8 nicht
+mehr fuer den gebauten Zustand (§3.7 bleibt als Verlauf stehen, AK-330/331/
+332/335/336 gelten unveraendert weiter, jetzt generalisiert auf zwei Felder
+durch die neuen Kriterien):
+
+| AK-327 | `damage_type_box`/Label: Platz rechts von `goal_box`, nur sichtbar bei `max_damage`, ausserhalb des AK-07-Drei-Knopf-Budgets (A25) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-337 (T-324f, zwei Boxenpaare statt einem) |
+| AK-328 | Eintraege der Box: `All`, fuenf Elemente (AFFINITIES-Reihenfolge), `Skill attack`/`Sorceries`/`Incantations`/Zauberschulen, drei Gruppen mit Trennlinien (A25) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-338 (Hit with) + AK-339 (Damage type), T-324f — die Box teilt sich, `Skill attack` heisst neu `Weapon art` |
+| AK-329 | Statischer Tooltip der Box, zweiter Satz klaert "Skill attack" = Weapon Arts, nicht Nightfarer-Faehigkeiten (A25-Praemisse) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-340 (T-324f, zwei Tooltips) |
+| AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-348 (T-324f, zwei Boxen in der Tab-Reihenfolge) |
+| AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-349 (T-324f, zwei Paare statt einem — die 219 px aus dem T-321c-Nachtrag gelten nur fuer ein Paar) |
+| AK-337 | Zwei Boxenpaare (`hit_with_box`, `damage_type_box`) statt einem, gleiche Zeile, gleiche Sichtbarkeits-/Budgetregel wie AK-327 (A26) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-338 | `hit_with_box`: `Weapon`/`Weapon art`/`Sorceries`/`Incantations`/Zauberschulen ohne Charged; Umbenennung `Skill attack` → `Weapon art` (`model.ART_LABELS[SKILL_ART]`) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-339 | `damage_type_box`: nur noch `All` + fuenf Elemente, dritte Gruppe (Arten/Schulen) zu AK-338 umgezogen | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-340 | Zwei statische Tooltips (Hit with erklaert Weapon art + "eigener Zauber, keiner aus dem Lauf"; Damage type unveraendert schlicht) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-341 | Auswahl in beiden Boxen loest `the_build_changed()` aus; OF-56 beantwortet: keine gegenseitige Filterung/Ausblenden zwischen den Boxen, Ablehnung nur per Satz (AK-344) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-342 | Kartenkopf der Zauberzeilen nach AK-335-Regel: `damage_type` verdient sich den Platz immer, `hit_with` nur wenn `SpellRating.rates` es zeigt (`"Fire spell damage (Beast Claw) 0"`) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-343 | Beschriftung/Vorbehalt der Zauberzahl (OF-55): `Spell damage`, Unkalibriert-Satz in `unknowns`, immer wenn eine Zahl steht, entfaellt nur zugunsten von AK-344 | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-344 | Vier Ablehnungssaetze (kein Katalysator, falsche Gattung, Katalysator ohne Zauberdaten, Katalysator als Waffen-/Weapon-art-Referenz), `{choice}` grossgeschrieben am Satzanfang; Abgrenzung "not counted" (keine Ziffer) gegen gemessene `0` (AK-342) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-345 | Befund bei zwei gleichzeitigen Tauschrelikten (`_TWO_SWAPPED_SPELLS`), zusaetzlich zu AK-343, nie an dessen Stelle | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-346 | Relic Picker erbt beide Felder (erweitert AK-336): Caption/Chip/Zeile-4-Satz ueber dieselbe `chosen_label`, Reihenfolge Damage type vor Hit with; Umfangsfrage (eigener Regler) bleibt offen | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-347 | Persistenz beider Felder: zwei flache Schluessel (`hit_with`, `damage_type`), unabhaengig validiert, alter `damage_art`-Schluessel verworfen (erweitert AK-330-Nachtrag/AD-051.5) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-348 | Tab-Reihenfolge `goal_box` → `hit_with_box` → `damage_type_box` → `Filters` (erweitert AK-333) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-349 | Breite ungemessen, Baubericht zu A26-7 traegt sie nach (wie AK-334) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
 | AK-330 | *(Status 20.09.2026, developer, T-322n gebaut)* `advisorbar.DAMAGE_ART_KEY` (flacher Schluessel `"damage_art"`, kein `/`, kein Komma) haelt die Id-Form (`damage_art()`); beim Bau der Leiste gegen `damage_type_box.findData(...)` geprueft, ungueltig oder leer faellt auf `All` zurueck (Box-Default). Kein Nightfarer-Praezedenzfall gefunden: `select_hero(0)` waehlt bei jedem Start Index 0 fest, ungemerkt (Befund an ui-ux-designer/director). | **erfuellt** — developer | `docs/tasks/T-322.md` n |

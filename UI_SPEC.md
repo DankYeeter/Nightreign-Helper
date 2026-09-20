@@ -2024,7 +2024,400 @@ aus AK-336 (Beschriftung + Caveat immer sichtbar, die Auswahl selbst bleibt
 nur in der Leiste aenderbar, Picker schliessen/Leiste aendern/wieder
 oeffnen)? Beides erfuellt AK-37; es ist eine Bedienkomfort-Frage
 (zusaetzlicher Regler vs. Reise zurueck zur Leiste), keine Sicherheitsfrage,
-und braucht eine Folge-Spec sobald sie entschieden ist.
+und braucht eine Folge-Spec sobald sie entschieden ist. **Bleibt offen, jetzt
+fuer zwei Felder statt eines — siehe AK-346.**
+
+---
+
+### 3.8 Zwei Felder statt einer Box: "Hit with" x "Damage type", mit echten Zauberzahlen (A26) — Nachfolger von 3.7
+
+*Neu in T-324f (ui-ux-designer), 2026-09-20 — `GOAL.md` A26 und
+`ARCHITECTURE.md` Themenbereich N (AD-050..054, OF-55/OF-56). Ersetzt die
+eine Box aus 3.7 durch zwei; 3.7 bleibt als Verlauf stehen (dieser Auftrag
+haengt nur an) und beschreibt ab jetzt nicht mehr den gebauten Zustand.
+Grundlage: `nrplanner/advisor/goals.py` und `nrplanner/damage.py`, Stand
+`8b83de6` (A26-3/4/5 bereits gebaut, A26-1/2 laufen parallel, A26-7 folgt
+diesem Abschnitt) — die dort schon vorhandenen Saetze
+(`_NO_CATALYST`, `_WRONG_GENUS`, `_NO_SPELL_ON_THE_CATALYST`,
+`_ART_ON_A_CATALYST`, `_TWO_SWAPPED_SPELLS`, `SPELL_DAMAGE_UNCALIBRATED`,
+`NO_SPELL_DAMAGE`, `SPELL_DAMAGE_NAME`) sind vorlaeufiger Entwicklertext ohne
+Spec-Deckung; dieser Abschnitt macht sie verbindlich (AK-344/AK-345) oder
+ersetzt sie.*
+
+**Kein Fensterlauf fuer diesen Abschnitt** (Auftragskopf T-324: "Kein
+Programmstart (NH-004; der Bau der Leiste folgt erst)" — `advisorbar.py`
+traegt die zwei Boxen erst nach A26-7/T-324g). Breiten sind nicht gemessen —
+AK-349 verlangt die Nachmessung durch den ersten Bau, wie schon AK-334 es
+fuer die eine Box verlangt hat.
+
+#### AK-337 — Zwei Boxenpaare statt einem, gleiche Zeile, gleiche Sichtbarkeitsregel
+
+**AK-337** *(ersetzt AK-327 fuer die Struktur, uebernimmt seine
+Sichtbarkeits- und Budgetregel woertlich.)* `goal_box` bleibt, wie sie ist.
+Rechts davon, in derselben Zeile, stehen jetzt **zwei** Paare statt eines:
+`QLabel("Hit with")` + `QComboBox hit_with_box`, danach `QLabel("Damage
+type")` + `QComboBox damage_type_box` (die bestehende Box, mit engerem
+Inhalt, siehe AK-339), danach der staendig sichtbare `Filters`-Knopf
+(AK-302). Beide Paare sind **nur sichtbar, wenn `goal_box` auf `max_damage`
+steht** (`setVisible(False)`, nicht deaktiviert) — dieselbe Begruendung wie
+AK-327: eine Frage danach, womit und wodurch getroffen wird, stellt sich nur
+bei "Maximise damage". Wie `goal_box` und `Filters` zaehlen beide Paare
+**nicht** zu AK-07s Drei-Knopf-Budget und bleiben in jedem der 14 Zustaende
+aus §4 bedienbar, auch waehrend `Optimize` laeuft (AK-08 unveraendert).
+
+#### AK-338 — "Hit with": Eintraege, Reihenfolge, eine Umbenennung
+
+**AK-338** `hit_with_box` traegt, in dieser Reihenfolge, mit einer
+Trennlinie zwischen den beiden Gruppen:
+
+1. `Weapon` — Voreinstellung der Box selbst (Index 0, `data=""`), bevor ein
+   gemerkter Wert zurueckgelesen wird (AK-347).
+2. `Weapon art`, `Sorceries`, `Incantations`.
+3. je ein Eintrag pro Zauberschule, die der Datensatz fuehrt
+   (`model.attack_arts`), alphabetisch — unveraendert aus AK-328 Gruppe 3.
+   `Charged` (Schule 110) fehlt strukturell weiter: kein Zauber des
+   Datensatzes gehoert ihr an, `attack_arts` liefert sie nicht (gemessen
+   T-323b) — "Schulen ohne Charged" ist damit keine Zusatzregel, sondern der
+   bestehende Filter, unveraendert uebernommen.
+
+**Eine Umbenennung gegenueber dem Bestand:** der zweite Eintrag heisst
+`Weapon art`, nicht `Skill attack` (`model.ART_LABELS[SKILL_ART]` heute).
+Begruendung: die Box fragt "womit triffst du" — `Weapon art` beantwortet das
+direkt, `Skill attack` beantwortete die alte Frage "welche Art von Schaden"
+(3.7) und brauchte deshalb AK-329s zweiten Satz, der klarstellte, dass damit
+Waffenkuenste gemeint sind, nicht Nightfarer-Faehigkeiten. Mit `Weapon art`
+als Feldname entfaellt diese Verwechslungsquelle groesstenteils von selbst;
+der Tooltip (AK-340) klaert den Rest. Die Umbenennung ist eine reine
+Textaenderung an einem Woerterbuchwert (`model.ART_LABELS[SKILL_ART]`), sie
+aendert keinen Schluessel und keine Zuordnung (AD-051.1s "ART_LABELS bleiben"
+gilt fuer die Schluesselform, nicht fuer die Zeichenkette, die ein Schluessel
+anzeigt) — jede Stelle, die dieses Woerterbuch fuer eine zusammengesetzte
+Formulierung liest (AK-342, Why-Zeilen aus AK-344), liest danach automatisch
+`Weapon art` statt `Skill attack`, ohne eine zweite Kopie zu pflegen.
+
+**Pruefweg:** Mit einem Datensatz, der genau eine Zauberschule fuehrt
+(`Bestial`), zeigt `hit_with_box` genau fuenf Eintraege
+(`Weapon`/`Weapon art`/`Sorceries`/`Incantations`/`Bestial`) mit einer
+Trennlinie vor `Bestial`.
+
+#### AK-339 — "Damage type": nur noch sechs Eintraege
+
+**AK-339** `damage_type_box` traegt danach nur noch die Eintraege, die
+schon AK-328 Gruppe 1/2 waren — die dritte Gruppe (Arten/Schulen) ist in
+`hit_with_box` umgezogen:
+
+1. `All` — Voreinstellung der Box selbst (Index 0, `data=""`).
+2. eine Trennlinie, danach `Physical`, `Magic`, `Fire`, `Lightning`, `Holy`
+   in genau dieser Reihenfolge (`weapons.DAMAGE_LABELS`-Reihenfolge,
+   unveraendert aus AK-328).
+
+Keine dritte Gruppe, keine zweite Trennlinie. `damage_type_box.count()`
+ist damit **sieben** (sechs Eintraege plus eine Trennlinie), gegen zwoelf
+vorher (AK-328-Nachtrag T-322d).
+
+**Pruefweg:** `damage_type_box` zeigt unter jedem Datensatz dieselben sechs
+Eintraege plus eine Trennlinie — die Box ist, anders als `hit_with_box`,
+nicht vom geladenen Datensatz abhaengig.
+
+#### AK-340 — Zwei Tooltips statt einem
+
+**AK-340** Jede Box traegt einen eigenen statischen Tooltip (unveraendert
+in jedem Zustand, wie AK-329):
+
+`hit_with_box`:
+> `"Chooses what the figure ranks: the starting armament, its Weapon Art, "`
+> `"or the spell the starting catalyst throws. Weapon art counts Weapon "`
+> `"Arts only — a Nightfarer's own skills are never counted. Sorceries, "`
+> `"Incantations and a school rank the one spell this Nightfarer's own "`
+> `"equipment casts, not a spell found in the run."`
+
+`damage_type_box`:
+> `"Restricts {direction} to one kind of damage."`
+
+Der zweite Satz von `hit_with_box`s Tooltip ist AK-329s alter zweiter Satz,
+an den neuen Feldnamen angepasst; der dritte Satz ist neu und noetig, weil
+`hit_with_box` seit A26 auch "welchen Zauber" mitentscheidet (AD-052) —
+ohne den Satz koennte ein Spieler `Incantations` fuer "irgendeine Incantation,
+die ich im Lauf finde" lesen, genau das Nicht-Ziel aus `GOAL.md` A26.
+`{direction}` fuellt sich wie in AK-329 aus der Registry
+(`advisor_goals.MAX_DAMAGE.label`).
+
+#### AK-341 — Auswahlverhalten: zwei neue Fragen, keine gegenseitige Filterung (beantwortet OF-56)
+
+**AK-341** *(erweitert AK-330.)* Eine Auswahl in `hit_with_box` **oder**
+`damage_type_box` loest `the_build_changed()` aus, unabhaengig davon, welche
+der beiden Boxen es war — beide sind Bedingungen derselben Frage (AD-051),
+eine geaenderte Bedingung ist eine neue Frage. Beide Boxen bleiben innerhalb
+der Sitzung stehen, wenn `goal_box` zwischenzeitlich wechselt und
+zurueckkommt (nur `setVisible`, kein Neuaufbau) — wie AK-330 es fuer die eine
+Box schon festlegt.
+
+**OF-56, jetzt beantwortet:** Keine der beiden Boxen filtert, blendet aus
+oder deaktiviert Eintraege in Abhaengigkeit vom gewaehlten Nightfarer oder
+vom Wert der jeweils anderen Box. `hit_with_box` zeigt `Sorceries` auch fuer
+die acht Nightfarer ohne Katalysator, `damage_type_box` zeigt `Fire` auch
+wenn `hit_with_box` auf `Incantations` steht und der Bezugszauber (Beast
+Claw) kein Feuer traegt. Grund: eine Kombination, die fuer diesen Nightfarer
+nichts liefert, ist eine **Aussage des Laufs** ("dieser Nightfarer startet
+ohne Katalysator"), keine Eigenschaft der Frage selbst — und eine Box, deren
+Eintraege beim Wechsel des Nightfarers unter der Maus verschwinden, ist genau
+die Art Ueberraschung, die AK-297 fuer den alten Marker-Punkt schon einmal
+behoben hat. Abgelehnt wird **ausschliesslich per Satz** (AK-344), nie per
+Ausblenden. Einzige Ausnahme, strukturell und **nicht** situativ: eine Schule,
+der im ganzen Datensatz kein Zauber angehoert (`Charged`, AK-338 Punkt 3) —
+die fehlt schon beim Aufbau der Box, fuer jeden Nightfarer gleich, und ist
+keine Reaktion auf eine Auswahl.
+
+#### AK-342 — Kartenkopf der Zauberzeilen: dieselbe Regel wie AK-335, auf `Spell damage` angewandt
+
+**AK-342** *(erweitert AK-335 woertlich auf die Zauberzeilen der
+Kombinationstabelle.)* Gebaut ist (`goals._spell_cell`, Stand `8b83de6`):
+die Kopfzahl traegt immer `"Spell damage ({spell}) {value}"`, unabhaengig
+davon, was `hit_with_box`/`damage_type_box` zeigen — dieselbe
+Falschbehauptung, die AK-335 fuer die Waffenzeile schon einmal behoben hat:
+eine Zahl unter einer Beschriftung, die die tatsaechliche Einschraenkung
+nicht nennt.
+
+**Entscheidung:** Dieselbe Regel wie AK-335, an derselben Stelle im Text
+(vor `Spell damage`, kleingeschrieben, ueber `_headline_with_choice`
+wiederverwendet): Jede `damage_type`-Wahl verdient sich den Platz immer (wie
+bei AK-335); die `hit_with`-Wahl (Sorceries/Incantations/Schule) nur, wenn
+sie den Wert tatsaechlich bewegt hat — derselbe Test wie bei der Waffe, hier
+gegen `SpellRating.rates` statt `Rating.rates` gelesen. Formal:
+
+```
+earned = hit_with if hit_with in rating.rates else ""
+chosen = chosen_label(earned, damage_type) if (damage_type or earned) else ""
+head   = SPELL_DAMAGE_NAME if not chosen else
+         _headline_with_choice(chosen, SPELL_DAMAGE_NAME.lower())
+display = f"{head} ({spell['name']}) {damage.displayed(value)}"
+```
+
+Beispiele (Revenant, Beast Claw, illustrative Werte):
+- `hit_with=Incantations`, `damage_type=All`, kein Relikt buffed die Gattung:
+  `"Spell damage (Beast Claw) 577"` — unveraendert, wie heute gebaut.
+- `hit_with=Incantations`, `damage_type=Fire` (Beast Claw traegt kein Feuer):
+  `"Fire spell damage (Beast Claw) 0"` — eine gueltige Rangfolgenzahl, kein
+  Fehler (AK-344 unten unterscheidet das ausdruecklich von "not counted").
+- `hit_with=family:23` (Bestial), `damage_type=All`, ein Bestial-Relikt im
+  Build (`family:23` steht in `rating.rates`): `"Bestial spell damage (Beast
+  Claw) 640"`.
+- Beide zugleich erdient: `"Physical Bestial spell damage (Beast Claw) 640"`
+  — Reihenfolge wie `chosen_label` sie liefert (Damage type vor Hit with,
+  dieselbe Reihenfolge wie in AK-335s `"Fire Skill attack rating"`).
+
+Keine Wortkollision zwischen `Spell damage` und irgendeinem Eintragstext
+(anders als `Skill attack` + `attack rating` in AK-335) — `_headline_with_
+choice` bleibt trotzdem der Wiederverwendungsweg, damit ein spaeter
+hinzugefuegter Eintrag mit kollidierendem Wort ohne Sonderfall richtig
+bleibt.
+
+**Pruefweg:** Revenant mit dem Tauschrelikt fuer Beast Claw (7370900), unter
+`Incantations` x `Fire`: Kopfzahl `"Fire spell damage (Beast Claw) 0"`, Wert
+0, kein `unknowns`-Eintrag ausser dem Unkalibriert-Satz (AK-343) — die Zeile
+ist eine Rangfolgenaussage, keine Fehlermeldung.
+
+#### AK-343 — Beschriftung und Vorbehalt der unkalibrierten Zauberzahl (beantwortet OF-55)
+
+**AK-343** *(beantwortet OF-55.)* Der Name `Spell damage` (`damage.
+SPELL_DAMAGE_NAME`) ist gebaut und bleibt: er unterscheidet die Zahl bewusst
+von `Attack rating` und `Spell power` (AD-053 Punkt 7 — beide sind gegen eine
+Anzeige des Spiels gefittet, `Spell damage` ist es nicht), und dasselbe Wort
+gilt fuer Stab und Siegel gleichermassen (kein zweites Wort fuer Incantations,
+aus demselben Grund, aus dem `Spell power` keines hat, `damage.py:110-116`).
+
+Der Vorbehalt steht als eigener Eintrag in `unknowns` (§3.3-Hausregel: eine
+Zahl, die von etwas Unbelegtem abhaengt, sagt es), gebaut und ratifiziert:
+
+> `"Spell damage is uncalibrated: it is the damage formula applied to the "`
+> `"game's own values, and the game shows no spell damage to check it "`
+> `"against. Compare two spells by it, not the figure itself."`
+
+Dieser Satz steht **immer**, wenn die Zeile ueberhaupt eine Zahl traegt (auch
+bei `All`, auch ohne jede Wahl in den beiden neuen Boxen) — er ist keine
+Folge einer Auswahl, sondern eine Eigenschaft der Zahl selbst (OF-54). Er
+entfaellt genau dann, wenn stattdessen der spezifischere Satz aus AK-344
+("deals no damage") steht — die beiden schliessen sich aus, nie beide
+zugleich fuer dieselbe Zelle (gebaut: `rating.reason or SPELL_DAMAGE_
+UNCALIBRATED...`, ein `or`, keine Liste).
+
+**Warum kein Vorbehalt in der Kopfzahl selbst** (kein `"~577"`, kein
+`"Spell damage (est.) 577"`): ein Praefix/Suffix an jeder einzelnen Zahl
+jeder Karte waere Rauschen an der Stelle, die AK-31 bewusst kurz haelt
+(`"AR without relics"` traegt seinen Vorbehalt auch nicht im Text). Der
+`unknowns`-Satz ist die richtige Stelle, weil er nur einmal pro Zeile steht
+und der Spieler ihn ueber den `Why`-Dialog gezielt aufrufen kann — derselbe
+Grundsatz wie bei jedem anderen Praemissen-Satz dieses Programms (AD-025.1).
+
+#### AK-344 — Leerzellen und abgelehnte Kombinationen: drei Saetze, ein vierter fuer die Waffenseite
+
+**AK-344** *(ratifiziert `goals._NO_CATALYST`/`_WRONG_GENUS`/`_NO_SPELL_ON_
+THE_CATALYST` und `_ART_ON_A_CATALYST` als verbindlichen Wortlaut; AD-052s
+Kombinationstabelle in Saetze uebersetzt.)* Vier Faelle, vier Saetze, keiner
+davon eine leere Zelle ohne Erklaerung (AD-025.2):
+
+1. **Acht Nightfarer ohne Katalysator**, jede Wahl von `Sorceries`,
+   `Incantations` oder einer Schule in `hit_with_box`:
+   > `"This Nightfarer starts with neither a staff nor a seal, so {choice} "`
+   > `"is not counted: there is no spell of this build's own to rank."`
+   Zahl: `0.00` (Ranking-neutral), Anzeige: `"Spell damage not counted"`
+   (**kein** Zahlenwert im Text — Unterschied zu AK-342s `"…0"`, siehe unten).
+2. **Stab unter `Incantations`, Siegel unter `Sorceries`** (falsche Gattung):
+   > `"{choice} is not counted for this Nightfarer: {catalyst} casts "`
+   > `"{genus}, and this run ranks the spell the starting equipment really "`
+   > `"throws."`
+   Gilt nur fuer die direkte Gattungswahl (`Sorceries`/`Incantations`), nicht
+   fuer eine Schulwahl — eine Schule, der der geworfene Zauber nicht angehoert,
+   ist kein Ablehnungsfall, sondern eine Zahl ohne Schulfaktor (Kombinations-
+   tabelle, letzte Zeile: "Zahl ohne Schulfaktor plus Satz, welcher Zauber
+   gerechnet wurde" — dieser Satz ist AK-343s Nachbar, nicht Teil dieser AK).
+3. **Katalysator traegt strukturell keinen Zauber** (Datenluecke, gemessen
+   heute nicht vorkommend, aber nicht ausgeschlossen):
+   > `"{catalyst} carries no spell this dataset knows, so {choice} is not "`
+   > `"counted."`
+4. **Katalysator als Referenzwaffe, `hit_with_box` auf `Weapon` oder `Weapon `**
+   **`art`** (Recluse, Revenant unter der Waffenfrage statt der Zauberfrage):
+   unveraendert AD-048/AK-332s Bestand,
+   > `"{choice} is not counted for this Nightfarer: a staff or a seal is "`
+   > `"ranked on the spell power the game shows for it, and no damage type "`
+   > `"and no attack art reaches that figure."`
+   Erscheint **nur**, wenn tatsaechlich `Weapon art` oder ein `Damage type`
+   gewaehlt ist (`chosen` nicht leer) — bei `Weapon` x `All` (beide
+   Voreinstellungen) bleibt die bestehende Spell-power-Anzeige unveraendert
+   stehen, ohne zusaetzlichen Satz (AD-053.5).
+
+**`{choice}`** ist in allen vier Saetzen `chosen_label(hit_with, damage_type)`,
+**ohne** Kleinschreibung des ersten Buchstabens (anders als AK-331/AK-335):
+der Platzhalter steht am Satzanfang, nicht mitten im Satz, und `Incantations
+is not counted…` ist die korrekt gross geschriebene Form. Mit der
+Umbenennung aus AK-338 lautet `{choice}` fuer den vierten Satz jetzt
+`Weapon art` statt `Skill attack`, ohne dass der Satz selbst sich aendert.
+
+**Unterschied zu einer gemessenen Null (AK-342):** `"Spell damage not
+counted"` traegt **keine** Ziffer — das Programm behauptet keinen Betrag,
+wo keiner zu ermitteln ist. `"Fire spell damage (Beast Claw) 0"` (AK-342,
+Fall 2) traegt eine Ziffer, weil `0` dort ein **gemessenes** Ergebnis ist
+(Beast Claw traegt kein Feuer) und keine Luecke. Dieselbe Unterscheidung
+trifft `types._empty_cell`s Docstring schon fuer die bestehende Regel; diese
+AK macht sie fuer den Spieler sichtbar.
+
+#### AK-345 — Befund bei zwei Tauschrelikten
+
+**AK-345** *(ratifiziert `goals._TWO_SWAPPED_SPELLS`.)* Traegt ein Build
+**zwei** der zehn Tauschrelikt-Effekte gleichzeitig (AD-052 Punkt 3,
+`exclusivityId` 200 auf allen zehn — das Spiel selbst laesst nur eines
+wirken), steht in `unknowns` **zusaetzlich** zum Vorbehaltssatz aus AK-343
+(nie an dessen Stelle, beide zugleich):
+
+> `"Two relics here swap the spell this equipment casts and the game lets "`
+> `"only one of them work; this is ranked on {spell}, the stronger of the "`
+> `"two under the damage type asked about."`
+
+`{spell}` ist der Name des Zaubers, auf den tatsaechlich gerechnet wurde
+(AD-052 Punkt 3: der mit dem hoeheren Grundwert unter der gewaehlten
+`damage_type`). Das ist der einzige Fall dieses Abschnitts, in dem ein Build
+selbst — nicht die Wahl in den beiden Boxen — eine dritte Zeile in `unknowns`
+erzwingt.
+
+#### AK-346 — Relic Picker: beide Felder vererbt, dasselbe Muster wie AK-336
+
+**AK-346** *(erweitert AK-336 von einem Feld auf zwei; die Mindest-
+Offenlegung selbst aendert sich nicht, nur was sie benennt.)* `_named_for_
+choice`/`_captions`/die "Damage"-Zeile und der `BEST FOR DAMAGE`-Chip lesen
+kuenftig **beide** Felder der Leiste und benennen sie kombiniert, ueber
+dieselbe `chosen_label(hit_with, damage_type)`, die auch die Kartenkopfzeile
+liest (AK-342) — eine Funktion, ein Wortlaut, kein zweiter an einer anderen
+Stelle erfunden:
+
+- nur `damage_type` gewaehlt: `"Damage (Fire)"`
+- nur `hit_with` gewaehlt: `"Damage (Incantations)"`, `"Damage (Weapon art)"`
+- beide gewaehlt: `"Damage (Fire Incantations)"` — Reihenfolge wie
+  `chosen_label` sie liefert (Damage type vor Hit with, wie AK-342/AK-335).
+- keines gewaehlt: `"Damage"`, unveraendert.
+
+Der AK-331-Satz in Zeile 4 des Picker-Panels steht unveraendert nach AK-336s
+Regel: sichtbar, sobald **eines** der beiden Felder nicht auf seiner
+Voreinstellung steht, unabhaengig von `Sort by`. Beide Felder bleiben in der
+Leiste stehen, wenn `goal_box` wechselt und sich versteckt (AK-341) — der
+Picker liest sie trotzdem, exakt wie AK-336 es fuer das eine Feld schon
+festlegt.
+
+**Die groessere Frage bleibt offen** (AK-336s eigene offene Frage,
+unveraendert in der Sache, jetzt fuer zwei Felder statt eines): bekommt der
+Picker zwei eigene, gespiegelte Regler, oder reicht die Offenlegung aus
+diesem Abschnitt? Siehe "Offene Fragen an den App Designer" unten.
+
+#### AK-347 — Persistenz beider Felder, zwei Schluessel statt einem
+
+**AK-347** *(erweitert AK-330s Nachtrag/AD-051.5.)* Wie die eine Box seit
+dem 20.09.-Nutzerentscheid (AK-330-Nachtrag, T-322n gebaut), ueberdauern
+beide neuen Boxen einen Neustart: zwei eigene, **flache** Schluessel
+(`hit_with`, `damage_type` — kein `/`, kein Komma, dieselbe Sicherheitsregel
+wie `DAMAGE_ART_KEY`, T-321 Sicherheitsvorgabe 4; die Schreibweise
+`advisor/hit_with` aus `ARCHITECTURE.md` AD-051.5 ist dort beschreibend
+gemeint, nicht als Zeichen im Schluessel selbst — ein `/` wuerde genau das
+Trennzeichenproblem wieder einfuehren, das `DAMAGE_ART_KEY`s Kommentar
+ausdruecklich vermeidet) in derselben `QSettings`-Ablage wie `uiscale.KEY`
+und `app.PANES_KEY`. Jeder Schluessel wird **einzeln** gegen die Eintraege
+seiner eigenen Box geprueft (`findData(...) >= 0`, wie heute), unabhaengig
+vom anderen — ein gemerkter `hit_with`, den der aktuelle Datensatz nicht mehr
+kennt (eine entfernte Schule), faellt auf `Weapon` zurueck, auch wenn
+`damage_type` gueltig bleibt und umgekehrt. Der alte, einzelne Schluessel
+`damage_art` (Werte wie `type:Fire`/`art:skill`) wird **nicht** uebersetzt,
+sondern beim ersten Start nach diesem Bau ignoriert (AD-051.5) — er ist
+wenige Tage alt.
+
+**Pruefweg:** `hit_with_box` auf `Bestial`, `damage_type_box` auf `Fire`,
+Programm beenden und neu starten (gleicher Nightfarer): beide Boxen oeffnen
+auf denselben Werten; nach einem Datensatzwechsel, der `Bestial` nicht mehr
+fuehrt, oeffnet `hit_with_box` auf `Weapon`, `damage_type_box` bleibt `Fire`.
+
+#### AK-348 — Tastatur
+
+**AK-348** *(erweitert AK-333 von einer Box auf zwei.)* Tab-Reihenfolge:
+`goal_box` → `hit_with_box` → `damage_type_box` → `Filters`, wenn beide
+sichtbar. Ist das Paar ausgeblendet (AK-337), ueberspringt Tab beide wie
+jedes verborgene Qt-Widget, ohne Sonderfall im Code. Pfeiltasten/Enter/
+Leertaste bedienen jede Box wie jede andere `QComboBox` der Leiste,
+Fokusring sichtbar (AK-26).
+
+#### AK-349 — Breite: gemessen, nicht geschaetzt
+
+**AK-349** *(dasselbe Vorgehen wie AK-334/AK-302-T-277e — keine geschaetzte
+Zahl nach Projektregel.)* Zwei Label-Box-Paare statt einem addieren der
+Leiste weiteren Platzbedarf, sichtbar nur im `max_damage`-Zustand. Der
+Baubericht zu A26-7 misst die reale Breite (`minimumSizeHint()`-Differenz
+mit und ohne beide Paare, wie schon fuer das eine Paar in T-321c vorgefuehrt)
+und traegt sie in AK-05/AK-194/A14 nach. Bis zu dieser Messung gilt **kein**
+Zahlenwert als vereinbart — insbesondere nicht die aus AK-334 gemessenen
+219 px, die nur fuer **ein** Paar gelten.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Interne Namen und Aufteilung des Codes** (ob `advisorbar` zwei getrennte
+  Getter bekommt oder eine kombinierte Hilfsform fuer den Picker behaelt) —
+  Sache des `developer` in A26-7, solange das sichtbare Verhalten aus diesem
+  Abschnitt gilt.
+- **Ob der Relic Picker einen eigenen, gespiegelten Regler bekommt** — AK-336s
+  offene Frage, unveraendert in der Sache (siehe unten).
+- **Genaue Liste und Reihenfolge der Zauberschulen** — Datensatz/Architektur
+  (AK-338 uebernimmt nur die Regel, nicht die Liste).
+- **Die Formel selbst** (`base[T] x SP/100 x r[T] x a`) und ob sie in
+  Nightreign gilt (OF-54) — Nutzer-/`qa-engineer`-Sache, diese Vorgabe legt
+  nur die Beschriftung des Ergebnisses fest, nicht seine Richtigkeit.
+- **Waffenkunst-Zahlen** (Motion Values) — ausdruecklich nicht gebaut
+  (AD-050 Punkt 7), also auch nicht beschriftet.
+
+**Offene Frage an den App Designer** *(fortgefuehrt aus AK-336, jetzt fuer
+zwei Felder):* Bekommt der Relic Picker zwei eigene, mit der Leiste
+gespiegelte Regler fuer `hit_with`/`damage_type` (volle Paritaet mit
+`goal_box`↔`Sort by`, zwei zusaetzliche Regler im Picker-Kopf), oder reicht
+die Offenlegung aus AK-346 (Beschriftung + Caveat immer sichtbar, beide
+Werte nur in der Leiste aenderbar)? Mit zwei Feldern statt einem waechst der
+Regler-Vorschlag von einem auf zwei zusaetzliche Bedienelemente im
+Picker-Kopf — das verschiebt das Kosten-Nutzen-Verhaeltnis der Frage
+gegenueber AK-336, ohne sie neu zu beantworten. Bedienkomfortfrage, keine
+Sicherheitsfrage.
 
 ---
 
