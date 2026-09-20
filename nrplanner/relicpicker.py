@@ -481,6 +481,16 @@ class SlotAdvice:
         """Stand on another direction, everywhere at once (AK-256)."""
         self._bar.choose_goal(goal_id)
 
+    def damage_art(self) -> str:
+        """Which kind of damage `ask` below is scoped to, `""` for none.
+
+        Read straight off the bar (AK-336): `asking_from` already reads this
+        for every pool this picker asks for, whatever `Sort by` draws, so a
+        caption or a caveat drawn from it stays in step with the figures on
+        the cards rather than with the direction the grid happens to sort by.
+        """
+        return self._bar.damage_art()
+
     def ask(self, answered) -> Asked | None:
         """Ask this slot's question once, or `None` if there is none to ask.
 
@@ -1738,9 +1748,36 @@ class RelicPicker(QDialog):
             self.advice.choose_goal(chosen)
         self._refresh()
 
+    def _chosen_damage_art(self) -> str:
+        """The bar's `damage_art`, or `""` where this dialog has no bar to
+        ask -- a test's standalone slot, or `self.advice is None` (AK-336)."""
+        return self.advice.damage_art() if self.advice is not None else ""
+
+    def _named_for_choice(self, text: str, goal_id: str,
+                          damage_art: str) -> str:
+        """`text`, with the chosen kind of damage folded in (AK-336).
+
+        Only `max_damage` can be scoped by a choice at all -- `damage_art`
+        reaches nothing else -- so every other direction's text comes back
+        unchanged.
+        """
+        if goal_id == "max_damage" and damage_art:
+            return f"{text} ({advisor_goals.chosen_label(damage_art)})"
+        return text
+
     def _captions(self) -> list[str]:
-        """The value rows every card carries, in order (AK-42)."""
-        return [VALUE_CAPTIONS[goal_id] for goal_id in VALUE_DIRECTIONS]
+        """The value rows every card carries, in order (AK-42).
+
+        **AK-336:** the damage row names the chosen damage type or attack art
+        the moment one is picked, independent of `Sort by` -- AK-330 leaves
+        `damage_type_box`'s value standing once it hides, so a figure scoped
+        to one kind of damage would otherwise sit under the same bare
+        `"Damage"` that `All` uses.
+        """
+        damage_art = self._chosen_damage_art()
+        return [self._named_for_choice(VALUE_CAPTIONS[goal_id], goal_id,
+                                       damage_art)
+                for goal_id in VALUE_DIRECTIONS]
 
     def _say_what_they_are_worth(self, pairs) -> None:
         """Put the pool's figures on the cards, and the tie mark where it is
@@ -1788,10 +1825,13 @@ class RelicPicker(QDialog):
         # instead, and no card is marked -- `_top_groups` hands out an empty
         # group for such a direction, so the emptiness is decided in one
         # place for the chip and for the order together.
+        damage_art = self._chosen_damage_art()
         for item, card in pairs:
             direction = marked.get(getattr(item, "handle", None))
             card.show_values(self.ranking.texts_for(item),
-                             chip_text(direction) if direction else "")
+                             self._named_for_choice(chip_text(direction),
+                                                    direction, damage_art)
+                             if direction else "")
         # The header speaks for the direction being read and for no other --
         # it is the first group by construction (AK-263). A slot where
         # nothing raises damage says so even when a relic in it tops the
@@ -1832,9 +1872,14 @@ class RelicPicker(QDialog):
         found = []
         if self.ranking is not None:
             pool = self.ranking.pool
+            # AK-336: `max_damage`'s own baseline stands whatever `Sort by`
+            # draws -- the pool is asked under `damage_art` regardless of it
+            # (`asking_from`), so the AK-331 sentence it may carry is true
+            # of every card here, not only while this direction is drawn.
+            wanted_goal_ids = {goal_id, "max_damage"}
             found = [line
                      for baseline in pool.baseline
-                     if baseline.goal_id == goal_id
+                     if baseline.goal_id in wanted_goal_ids
                      for line in baseline.unknowns] + list(pool.unknowns)
         self.findings.setText(advisorbar.CLAUSES.join(found))
         self.findings.setVisible(bool(found))

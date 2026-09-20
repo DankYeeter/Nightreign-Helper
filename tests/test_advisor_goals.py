@@ -504,6 +504,51 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
     assert skill["pair"].value == pytest.approx(123.8506, abs=5e-5)
 
 
+#: "Improved Skill Attack Power": scope 112, +15 % on every element rate
+#: while a Weapon Art is out -- the one effect of this dataset that moves
+#: `art_rate` away from 1.0 for `art:skill` (`model.SKILL_SCOPES`).
+SKILL_ATTACK_BUFF = 312300
+
+
+def test_an_art_choice_that_leaves_the_value_unmoved_keeps_the_all_headline(
+        game_data, wylder):
+    """AK-335: an art choice earns the headline only once it actually moves
+    the figure. No relic here scopes a buff to `Skill attack`, so `art_rate`
+    stays 1.0 and the figure is the `All` figure verbatim -- the headline
+    says so by staying `Attack rating` rather than claiming a difference
+    that is not there.
+    """
+    carried = {"nothing": ()}
+
+    skill = damage_scores(game_data, wylder, "art:skill", carried)["nothing"]
+
+    assert skill.display.startswith("Attack rating"), (
+        f"art_rate is 1.0 here, so the headline must not change: "
+        f"{skill.display!r}")
+
+
+def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
+                                                                wylder):
+    """AK-335: the art counterpart of DR-034's type fix. Once a relic scopes
+    a buff to the chosen art (`art_rate != 1.0`), the headline names the
+    choice exactly as a type does, and the word-collision rule drops the
+    repeated `attack` (`"Skill attack" + "attack rating"` ->
+    `"Skill attack rating"`, not `"Skill attack attack rating"`).
+    """
+    carried = {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)}
+
+    everything = damage_scores(game_data, wylder, "", carried)
+    skill = damage_scores(game_data, wylder, "art:skill", carried)
+
+    assert skill["buffed"].value != pytest.approx(everything["buffed"].value), (
+        "this case needs a buff that actually moves art_rate for `skill`, "
+        "or it cannot show AK-335's condition is met")
+    assert skill["buffed"].display.startswith("Skill attack rating"), (
+        f"the collision rule must drop one 'attack': "
+        f"{skill['buffed'].display!r}")
+    assert "Skill attack attack rating" not in skill["buffed"].display
+
+
 def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
                                                                     wylder):
     """AK-331: one sentence, with the entry's own label, first letter lowered.

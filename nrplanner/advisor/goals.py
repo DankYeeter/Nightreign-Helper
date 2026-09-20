@@ -231,7 +231,7 @@ _ART_ON_A_CATALYST = (
     "and no attack art reaches that figure.")
 
 
-def _chosen_label(damage_art: str) -> str:
+def chosen_label(damage_art: str) -> str:
     """What the player picked, in the words the dataset or the spec gives it.
 
     The schools bring their own name out of `spell_families` and the five
@@ -242,11 +242,14 @@ def _chosen_label(damage_art: str) -> str:
     around `family:23` would be the invented label AD-046 point 5 keeps out
     of the chooser, arriving through the back door.
 
-    The labels are game text and go on into `unknowns`. Every sink that draws
-    them is `Qt.PlainText` (`advisorblock._footer_text` and the picker's
-    `findings`/`caveats`), so they are passed on as they are written --
-    escaping them here would show a school called `Bell & Bearing` its own
-    `&amp;` (SEC-019, AK-29).
+    The labels are game text and go on into `unknowns`, into the picker's
+    caption/chip (`relicpicker._named_for_choice`, AK-336) and into the goal
+    card's headline (`_max_damage`, AK-335) -- one lookup for all three, so a
+    dataset patch that renames a school reaches every sink at once.
+    Every sink that draws them is `Qt.PlainText` (`advisorblock._footer_text`
+    and the picker's `findings`/`caveats`), so they are passed on as they are
+    written -- escaping them here would show a school called `Bell &
+    Bearing` its own `&amp;` (SEC-019, AK-29).
     """
     kind, _, key = damage_art.partition(":")
     label = None
@@ -263,6 +266,21 @@ def _chosen_label(damage_art: str) -> str:
             f"{damage_art!r} names no damage type and no attack art this "
             f"dataset carries, so there is no question here to answer")
     return label
+
+
+def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
+    """`"{chosen} {headline_name_lower}"`, without saying the shared word twice.
+
+    AK-335's word-collision rule: `"Skill attack"` before `"attack rating"`
+    would read `"Skill attack attack rating"` -- the choice's last word and
+    the name's first word name the same thing. Dropped here and only here;
+    every other combination (`"Fire"` + `"attack rating"`) has no shared word
+    and comes out exactly as written.
+    """
+    name_words = headline_name_lower.split()
+    if name_words and chosen.split()[-1].lower() == name_words[0]:
+        name_words = name_words[1:]
+    return " ".join([chosen, *name_words])
 
 
 def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
@@ -368,7 +386,7 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # Raises on a choice this program cannot name, before any figure is
     # formed: a run ranked on a question nobody could have asked is worse
     # than a run that stops.
-    chosen = _chosen_label(ctx.damage_art) if ctx.damage_art else ""
+    chosen = chosen_label(ctx.damage_art) if ctx.damage_art else ""
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,
                                  art=key if kind == _ART_CHOICE else None)
@@ -407,7 +425,15 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
                 # a ranking and not a fault: every candidate that brings some
                 # of it then stands above every candidate that does not.
                 value = now.final_per_type.get(key, 0.0)
-                name = f"{chosen} {now.headline_name.lower()}"
+                name = _headline_with_choice(chosen, now.headline_name.lower())
+            elif key in now.rates:
+                # AK-335: an art choice only earns the headline once it has
+                # actually moved the value away from `All` -- `now.rates`
+                # carries the art's own key exactly when `damage._answer`
+                # found `art_rate != 1.0` for it. Where no relic scopes a
+                # buff to this art the figure is the `All` figure verbatim,
+                # and the headline stays `"Attack rating"` to match it.
+                name = _headline_with_choice(chosen, now.headline_name.lower())
             unknowns = (_RANKED_ON_ONE_ART.format(
                 choice=chosen[0].lower() + chosen[1:]),)
     return types.GoalScore(

@@ -681,7 +681,7 @@ class AdvisorBar(QWidget):
         # not at every ranking; a `QComboBox` draws an entry through
         # `QStyledItemDelegate`, which paints the display role as plain text,
         # so game text arrives as it is written (SEC-019, and the same reason
-        # `goals._chosen_label` does not escape it either).
+        # `goals.chosen_label` does not escape it either).
         self.damage_type_box.addItem("All", "")
         self.damage_type_box.insertSeparator(self.damage_type_box.count())
         for damage_type, label in weapons.DAMAGE_LABELS.items():

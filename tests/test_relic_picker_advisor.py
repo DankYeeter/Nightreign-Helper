@@ -62,7 +62,7 @@ class FakeAdvice:
     """
 
     def __init__(self, pools: dict, goal_id: str = "max_damage", *,
-                 at_once: bool = True):
+                 at_once: bool = True, damage_art: str = ""):
         self.pools = pools
         self._goal_id = goal_id
         self.chosen: list[str] = []
@@ -71,6 +71,7 @@ class FakeAdvice:
         self.listening = False
         self._answered = None
         self._pool = None
+        self._damage_art = damage_art
 
     def goal_id(self) -> str:
         return self._goal_id
@@ -78,6 +79,9 @@ class FakeAdvice:
     def choose_goal(self, goal_id: str) -> None:
         self._goal_id = goal_id
         self.chosen.append(goal_id)
+
+    def damage_art(self) -> str:
+        return self._damage_art
 
     def ask(self, answered):
         pool = self.pools.get(self._goal_id)
@@ -412,6 +416,36 @@ def test_every_relic_card_carries_a_value_block(slot):
         dialog.deleteLater()
 
 
+def test_the_damage_row_names_the_chosen_kind(slot):
+    """AK-336 point 2: once the bar has chosen a kind of damage, the row
+    that used to say the bare word `Damage` says which one -- independent
+    of `Sort by`, which here draws a different direction entirely.
+    """
+    pool = pool_of(slot, {0: 1.0}, rank_by="min_damage_taken")
+    dialog = picker_for(slot, FakeAdvice(
+        {"min_damage_taken": pool}, goal_id="min_damage_taken",
+        damage_art="type:Fire"))
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_damage")
+        cards = relic_cards(dialog)
+        assert cards, "this slot drew no relic cards, so nothing is measured"
+        for card in cards:
+            assert captions_of(card)[column] == "Damage (Fire)"
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_damage_row_stays_bare_without_a_chosen_kind(slot):
+    """AK-336: no choice made, no suffix earned -- the ordinary caption."""
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_damage")
+        for card in relic_cards(dialog):
+            assert captions_of(card)[column] == "Damage"
+    finally:
+        dialog.deleteLater()
+
+
 def test_the_block_stands_between_the_header_and_the_effects(slot):
     """§3.3: under the header, over the effect points, with the hairline."""
     dialog = open_picker(slot, {0: 1.0})
@@ -689,6 +723,23 @@ def test_two_cards_showing_one_figure_carry_one_mark(slot):
             assert len(marks) == 1, (
                 f"cards showing {text!r} carry different marks: {marks}")
         assert by_text["+12.4 AR"] == {"BEST FOR DAMAGE"}
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_damage_chip_names_the_chosen_kind(slot):
+    """AK-336 point 2: the mark reads `BEST FOR DAMAGE (Fire)` once a kind
+    of damage is chosen, so a mark scoped to one kind is not read as one
+    scoped to every kind (AK-46 names it, AK-37 says which figure).
+    """
+    dialog = picker_for(slot, FakeAdvice(
+        {"max_damage": pool_of(slot, {0: 12.0, 1: 3.0})},
+        goal_id="max_damage", damage_art="type:Fire"))
+    try:
+        marked = [card for card in relic_cards(dialog) if card.chip.text()]
+        assert marked, "this slot marked no card, so nothing is measured"
+        assert {card.chip.text() for card in marked} == {
+            "BEST FOR DAMAGE (Fire)"}
     finally:
         dialog.deleteLater()
 
@@ -1529,6 +1580,25 @@ def test_line_three_b_is_gone_when_both_sources_are_empty(slot):
         assert not dialog.findings.isVisibleTo(dialog)
         assert dialog.caveats.isVisibleTo(dialog), (
             "line 4 must stand whether or not there is a run finding")
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_max_damage_finding_stands_under_every_sort_by(slot):
+    """AK-336 point 1: the sentence a chosen damage_art earns is a finding
+    about `max_damage`'s own figure, which stands on every card whatever
+    `Sort by` draws -- not only while `Sort by` happens to draw `max_damage`
+    (the fault DR-035 found: gated on `_drawn_direction() == "max_damage"`).
+    """
+    pool = pool_of(slot, {0: 1.0}, rank_by="min_damage_taken",
+                   baseline=base_lines(
+                       max_damage=("AR", ("Ranked on fire damage only.",))))
+    dialog = picker_for(slot, FakeAdvice(
+        {"min_damage_taken": pool}, goal_id="min_damage_taken",
+        damage_art="type:Fire"))
+    try:
+        assert dialog.findings.isVisibleTo(dialog)
+        assert "Ranked on fire damage only." in dialog.findings.text()
     finally:
         dialog.deleteLater()
 
