@@ -780,6 +780,23 @@ def test_nothing_is_marked_best_when_the_best_is_negative(slot):
         dialog.deleteLater()
 
 
+def test_nothing_raises_names_the_chosen_kind(slot):
+    """QA-289: the header names the chosen kind the way the value row and
+    the chip already do (AK-336 pattern) -- the value row beside it said
+    `Damage (Fire)` while the header only said `damage`, unscoped.
+    """
+    gains = {0: 0.0, 1: 0.0, 2: -4.0}
+    pool = pool_of(slot, gains, apart=flat(gains))
+    dialog = picker_for(slot, FakeAdvice({"max_damage": pool},
+                                         damage_art="type:Fire"))
+    try:
+        assert not [card for card in relic_cards(dialog) if card.chip.text()]
+        assert dialog.headline.text() == (
+            "Nothing you own raises damage in this slot. (Fire)")
+    finally:
+        dialog.deleteLater()
+
+
 def test_the_header_speaks_for_the_read_direction_while_another_leads(slot):
     """AK-46 and AK-263 together, at the state AK-261 made reachable.
 

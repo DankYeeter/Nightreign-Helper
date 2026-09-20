@@ -1837,7 +1837,8 @@ class RelicPicker(QDialog):
         # nothing raises damage says so even when a relic in it tops the
         # survival direction and wears that chip (AK-46).
         read_direction, read_top = groups[0]
-        self._headline("" if read_top else nothing_raises(read_direction))
+        self._headline("" if read_top else self._named_for_choice(
+            nothing_raises(read_direction), read_direction, damage_art))
 
     def _say_what_was_left_out(self) -> None:
         """Lines 3b and 4, the two halves of what this figure cannot know.
