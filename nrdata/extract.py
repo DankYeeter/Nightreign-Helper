@@ -95,7 +95,12 @@ MAX_LEVEL = 15
 #      the place rather than the character (AD-043), and one rule now reads
 #      both sets of cards (AD-044). A cache left on 14 would keep sixteen
 #      night cards saying "not derivable" and three cards naming the crew.
-EXTRACT_VERSION = 15
+#  16  the three readings A26 needs for real spell figures (AD-050):
+#      `spells[].damage`/`damage_atk` over Magic -> Bullet -> AtkParam_Pc,
+#      `heroes[].starting_weapon_left`, and `effects[].start_magic_id` from
+#      SpEffectParam's undescribed row tail. A cache left on 15 would leave
+#      every spell cell of the Advisor without a figure.
+EXTRACT_VERSION = 16
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -118,6 +123,35 @@ DEEP_MARKER = 251
 CURSE_FIELDS = ("unknown_8", "unknown_9", "unknown_10")
 
 DAMAGE_TYPES = ("Physics", "Magic", "Fire", "Thunder", "Dark")
+
+# Where a spell's own figures sit: the AtkParam field behind each damage type.
+# A spell carries no number itself -- Magic points at bullets, a bullet points
+# at an AtkParam row, and that row holds the base damage (AD-050.2).
+SPELL_DAMAGE_FIELDS = {
+    "Physics": "atkPhys",
+    "Magic": "atkMag",
+    "Fire": "atkFire",
+    "Thunder": "atkThun",
+    "Dark": "atkDark",
+}
+
+# Magic.refCategory: which table refId names. 0 is an attack row, 1 a bullet;
+# 2 is a special effect and carries no damage of its own.
+MAGIC_REF_ATTACK = 0
+MAGIC_REF_BULLET = 1
+MAGIC_REF_SLOTS = 10
+
+# A bullet that spawns another (HitBulletID) is how a charged or delayed hit
+# is built, and the strongest figure of a spell often sits on such a child:
+# Beast Claw's 362 is two bullets down. The walk is capped and remembers what
+# it has seen, because these chains do loop back on themselves.
+MAX_BULLET_DEPTH = 6
+
+# SpEffectParam's row is 1024 bytes and the shipped def describes 976 of them.
+# Offset 1020 holds the spell a swap relic hands the player (AD-050.4).
+START_MAGIC_FIELD = "startMagicId"
+START_MAGIC_OFFSET = 1020
+SP_EFFECT_DEF_SIZE = 976
 
 # The rate behind the number the game shows for a staff or a seal. It is the
 # last field of a ReinforceParamWeapon row -- offset 128, f32 -- and the
@@ -1709,6 +1743,31 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 paramdef.Field(f"deepSlot{i + 1}", "u8", 20 + i, 1)
             )
         stand_def.row_size = 24
+
+    # The same treatment for SpEffectParam, whose def stops 48 bytes short of
+    # the real row. Offset 1020 holds the spell a swap relic hands the player:
+    # exactly ten rows differ from -1, and each one is the Magic id the
+    # effect's own name states. Declared here and not in vendor/Paramdex,
+    # which stays the upstream file it was vendored as.
+    #
+    # Loud rather than silent when the def is not the one measured against:
+    # a def *longer* than the row is discarded whole by param.read, and the
+    # entire effect table would then read as rows without a single field.
+    sp_def = defs.get("SpEffectParam")
+    if sp_def is not None and sp_def.by_name(START_MAGIC_FIELD) is None:
+        if sp_def.row_size != SP_EFFECT_DEF_SIZE:
+            raise NotWhatItClaims(
+                f"{START_MAGIC_FIELD!r} is declared at offset "
+                f"{START_MAGIC_OFFSET} rather than by name, and the "
+                f"SpEffectParam paramdef describes {sp_def.row_size} bytes "
+                f"per row where it was measured against "
+                f"{SP_EFFECT_DEF_SIZE}. A def of another length means the "
+                f"offset has not been checked: re-measure it before "
+                f"trusting any swap relic's spell.")
+        sp_def.fields.append(
+            paramdef.Field(START_MAGIC_FIELD, "s32", START_MAGIC_OFFSET, 4)
+        )
+        sp_def.row_size = START_MAGIC_OFFSET + 4
     members = {
         f.basename[: -len(".param")]: f.data for f in regulation.load_params(reg_path)
     }
@@ -1791,6 +1850,16 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         # A game build without these params must not break the extract.
         filter_category = {}
     speffect = table("SpEffectParam")
+    # The extended def is only usable if the row really is as long as it says.
+    # Were it shorter, param.read would have dropped the def and every row
+    # here would carry no fields at all -- silently, and every effect in the
+    # snapshot would come out empty.
+    if not speffect.rows or START_MAGIC_FIELD not in speffect.rows[0].values:
+        raise NotWhatItClaims(
+            f"SpEffectParam rows came back without {START_MAGIC_FIELD!r}, so "
+            f"the paramdef does not fit this game's rows ({speffect.row_size} "
+            f"bytes each). Every effect would read as having no fields; "
+            f"re-measure the row length before extracting anything.")
 
     # ---- SpEffect: work out which fields an effect actually changes --------
     sp_def = defs["SpEffectParam"]
@@ -1800,6 +1869,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if f.type in ("f32", "s32", "u32", "s16", "u16", "u8", "s8")
         and f.count == 1
         and not f.name.startswith("unknown")
+        # A row id, not a quantity: it rides on the effect as its own key
+        # rather than among the numbers the build maths adds up.
+        and f.name != START_MAGIC_FIELD
     ]
     sp_baseline = _modal_baseline(speffect.rows, numeric_fields)
     sp_by_id = {r.id: r for r in speffect.rows}
@@ -2029,6 +2101,10 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     chara_init = table("CharaInitParam")
     init_by_id = {r.id: r for r in chara_init.rows}
     starting_weapon: dict[int, int] = {}
+    # The left hand of the same rows. Three Nightfarers start with something
+    # in it -- two shields and the seal Revenant casts from -- and the other
+    # seven carry -1, an empty hand rather than an unknown armament.
+    starting_weapon_left: dict[int, int] = {}
     for row in hero_param.rows:
         init = init_by_id.get(STARTING_ROW_BASE + row.id - 1)
         if init is None:
@@ -2036,6 +2112,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         weapon_id = init.values.get("equip_Wep_Right_1", -1)
         if isinstance(weapon_id, int) and weapon_id > 0:
             starting_weapon[row.id] = weapon_id
+        left_id = init.values.get("equip_Wep_Left_1", -1)
+        if isinstance(left_id, int) and left_id > 0:
+            starting_weapon_left[row.id] = left_id
 
     heroes = []
     for row in hero_param.rows:
@@ -2083,6 +2162,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # The armament this Nightfarer starts an expedition holding.
                 # -1 when no canonical row names one.
                 "starting_weapon": starting_weapon.get(row.id, -1),
+                # The off-hand one, absent where the hand starts empty --
+                # like weapons[].inflicts, and unlike the field above, whose
+                # -1 already means "no row names one" and cannot also mean
+                # "named as empty".
+                **({"starting_weapon_left": starting_weapon_left[row.id]}
+                   if row.id in starting_weapon_left else {}),
             }
         )
 
@@ -2245,6 +2330,13 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 for label, value in follow_chain(nxt).items():
                     inflicts_on_hit.setdefault(label, value)
 
+        # The spell a swap relic hands the player. The field is there on
+        # every row -- the read above refuses to go on otherwise -- and -1
+        # on all but ten of them.
+        swapped_spells = [sp_by_id[i].values[START_MAGIC_FIELD] for i in sp_ids
+                          if i in sp_by_id
+                          and sp_by_id[i].values[START_MAGIC_FIELD] > 0]
+
         text_id = row.values.get("attachTextId", -1)
 
         # A few effects are named and described only in the PermanentBuff
@@ -2303,6 +2395,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             "allowed_heroes": [
                 f[len("allow"):] for f in ALLOW_FIELDS if row.values.get(f)
             ],
+            # Taken from the param itself rather than matched on the
+            # effect's name. Absent unless the effect swaps a spell.
+            **({"start_magic_id": swapped_spells[0]} if swapped_spells else {}),
         }
         return key
 
@@ -2735,6 +2830,109 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     magic_caption = text.get("MagicCaption", {})
     magic_table = table("Magic")
 
+    # ---- What a spell hits for: Magic -> Bullet -> AtkParam_Pc ------------
+    # No spell carries a figure of its own. Magic names bullets, a bullet
+    # names an AtkParam row, and that row holds the base damage per type.
+    #
+    # The def for that table is filed under another name: `AtkParam.xml`
+    # describes AtkParam_Pc exactly -- 464 bytes, the table's own row length
+    # -- while `defs["AtkParam_Pc"]` does not exist. Without the alias,
+    # param.read has no def, reads no field, and every spell comes out
+    # undamaging, which is a lie rather than a gap.
+    atk_def = defs.get("AtkParam_Pc") or defs.get("AtkParam")
+
+    def only(pdef: paramdef.ParamDef | None, names: set[str]):
+        """The same def cut down to the fields this chain reads.
+
+        Offsets and row length are the def's own, so param.read still checks
+        the def against the row exactly as it would otherwise. Reading all
+        211 AtkParam and 132 Bullet fields of 21,000 rows instead costs 1,3 s
+        and a few hundred megabytes of dictionaries for six numbers a row.
+        """
+        if pdef is None:
+            return None
+        return paramdef.ParamDef(
+            pdef.param_type,
+            pdef.data_version,
+            [f for f in pdef.fields if f.name in names],
+            pdef.row_size,
+        )
+
+    atk_table = param.read(
+        members["AtkParam_Pc"], only(atk_def, set(SPELL_DAMAGE_FIELDS.values()))
+    )
+    if not atk_table.rows or not atk_table.rows[0].values:
+        raise NotWhatItClaims(
+            f"AtkParam_Pc read back {len(atk_table.rows)} rows without a "
+            f"single field, so no paramdef fits its {atk_table.row_size}-byte "
+            f"rows. That is where every spell's damage is: extracting past it "
+            f"would report all {len(magic_table.rows)} spells as harmless.")
+    atk_by_id = {r.id: r for r in atk_table.rows}
+    bullet_by_id = {
+        r.id: r
+        for r in param.read(
+            members["Bullet"],
+            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID"}),
+        ).rows
+    }
+
+    def spell_damage(row: param.ParamRow) -> tuple[dict[str, int], int]:
+        """The spell's strongest single hit, per damage type, and its row.
+
+        Strongest rather than first: across the shipped data both name the
+        same set of damage types, so the choice moves no ranking, and the
+        strongest needs no assumption about the order of refId1..10 (Rock
+        Blaster opens on 64 and lands its main hit for 260). Where a spell has
+        a charged form this is the charged figure -- Beast Claw 362, not 323.
+        """
+        atk_ids: list[int] = []
+        seen: set[int] = set()
+
+        def follow_bullet(bullet_id, depth: int) -> None:
+            # A bullet that spawns another is how a charged or delayed hit is
+            # built, and those chains loop back on themselves -- hence both
+            # the set and the cap.
+            if not isinstance(bullet_id, int) or bullet_id <= 0:
+                return
+            if bullet_id in seen or depth > MAX_BULLET_DEPTH:
+                return
+            seen.add(bullet_id)
+            bullet = bullet_by_id.get(bullet_id)
+            if bullet is None:
+                return
+            atk_ids.append(bullet.values.get("atkId_Bullet", -1))
+            follow_bullet(bullet.values.get("HitBulletID", -1), depth + 1)
+
+        for slot in range(1, MAGIC_REF_SLOTS + 1):
+            ref = row.values.get(f"refId{slot}", -1)
+            if not isinstance(ref, int) or ref <= 0:
+                continue
+            category = row.values.get(f"refCategory{slot}")
+            if category == MAGIC_REF_BULLET:
+                follow_bullet(ref, 0)
+            elif category == MAGIC_REF_ATTACK:
+                atk_ids.append(ref)
+
+        best: dict[str, int] = {}
+        best_atk = -1
+        for atk_id in atk_ids:
+            atk_row = atk_by_id.get(atk_id)
+            if atk_row is None:
+                continue
+            # Whole numbers above zero only. A type a hit does not deal has
+            # no place in the mapping, and a value that is not an integer is
+            # not this field -- NaN would go into the snapshot as a token no
+            # JSON reader accepts.
+            hit = {
+                damage: atk_row.values[field]
+                for damage, field in SPELL_DAMAGE_FIELDS.items()
+                if isinstance(atk_row.values.get(field), int)
+                and atk_row.values[field] > 0
+            }
+            if sum(hit.values()) > sum(best.values()):
+                best, best_atk = hit, atk_row.id
+        return best, best_atk
+
     # Families the buffs do not name: mine the spell descriptions, which say
     # things like "one of the primeval sorceries". Only accept a phrase that
     # every spell in the group agrees on, so nothing is guessed.
@@ -2789,6 +2987,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if category is None:
             continue
         sub = r.values.get("subCategory1")
+        damage_by_type, damage_atk = spell_damage(r)
         spells.append(
             {
                 "id": r.id,
@@ -2807,6 +3006,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 "fp_charged": r.values.get("mp_charge"),
                 "stamina": r.values.get("stamina"),
                 "slots": r.values.get("slotLength"),
+                # Base damage per type, and the AtkParam row it was read
+                # from so a later check knows where to look. Both absent on a
+                # spell that damages nothing -- a heal, a buff, a shield.
+                **({"damage": damage_by_type, "damage_atk": damage_atk}
+                   if damage_by_type else {}),
             }
         )
 

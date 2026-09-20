@@ -278,6 +278,7 @@ def test_a_tpf_member_is_refused_by_its_index_and_not_by_its_name():
 QUOTED_IN_A_REFUSAL = {
     ("binary.py", "expected"): 1,
     ("extract.py", "CATALYST_SCALING_FIELD"): 2,
+    ("extract.py", "START_MAGIC_FIELD"): 2,
     ("paramdef.py", "raw"): 1,
     ("paramdef.py", "ftype"): 1,
 }
