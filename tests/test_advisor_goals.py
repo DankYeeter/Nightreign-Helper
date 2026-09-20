@@ -379,22 +379,14 @@ def test_the_damage_goal_ranks_a_self_inflicted_penalty_below(game_data,
 FIRE_CONVERSION = 7120100
 FROST_STATUS = 7120400
 
-#: A buff that covers incantations and nothing else, taken from the mapping
-#: itself rather than written down twice (`model.MOVE_SCOPED_ARTS`). What
-#: makes it the case for an art: it moves no figure at all while the question
-#: is about every kind of damage at once.
-INCANTATION_ONLY = next(
-    effect_id for effect_id, arts in sorted(model.MOVE_SCOPED_ARTS.items())
-    if arts == (model.INCANTATIONS_ART,))
 
-
-def damage_scores(game_data, hero, damage_art, carried):
-    """The damage figure under one chosen kind, one entry per relic carried.
+def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
+    """The damage figure under one chosen cell, one entry per relic carried.
 
     `carried` maps a name to the effect ids one candidate brings, and `()` is
     the build that brings nothing -- the base state every gain below is
-    measured against. One context per entry, because the chosen kind belongs
-    to the question and not to the build.
+    measured against. One context per entry, because the two fields of the
+    question belong to the question and not to the build (AD-051).
     """
     reference = types.ReferenceArmament(
         weapon=next(w for w in game_data["weapons"]
@@ -405,7 +397,7 @@ def damage_scores(game_data, hero, damage_art, carried):
         ctx = dataclasses.replace(
             advisor.context(game_data, hero, reference=reference,
                             armament_effect_ids=tuple(effect_ids)),
-            damage_art=damage_art)
+            hit_with=hit_with, damage_type=damage_type)
         build = evaluate(advisor.problem([advisor.RED]), (), ctx)
         scores[name] = goals.GOALS["max_damage"].score(build, ctx)
     return scores
@@ -432,8 +424,9 @@ def test_a_damage_type_ranks_on_that_type_and_turns_the_order_over(game_data,
     carried = {"nothing": (), "fire": (FIRE_CONVERSION,),
                "attack": (attack_only,)}
 
-    everything = damage_scores(game_data, wylder, "", carried)
-    fire = damage_scores(game_data, wylder, "type:Fire", carried)
+    everything = damage_scores(game_data, wylder, carried)
+    fire = damage_scores(game_data, wylder, carried,
+                         damage_type="Fire")
 
     assert everything["nothing"].value == pytest.approx(122.0506, abs=5e-5)
     assert everything["fire"].value == pytest.approx(123.8506, abs=5e-5), (
@@ -451,37 +444,57 @@ def test_a_damage_type_ranks_on_that_type_and_turns_the_order_over(game_data,
         f"the line names the figure it ranks on: {fire['fire'].display!r}")
 
 
-@pytest.mark.parametrize("damage_art, better, worse", [
-    ("type:Magic", "faith", "fire"),
-    ("art:incantations", "incantation", "attack"),
-])
-def test_a_chosen_kind_turns_the_revenants_order_over(game_data, damage_art,
-                                                      better, worse):
+def test_a_chosen_type_turns_the_revenants_order_over(game_data):
     """OF-50 (b): the Revenant half of A25, on the armament he really carries.
 
-    No Nightfarer of this dataset starts with a seal, so the criterion's
-    "Revenant with a seal" cannot be measured; what can is Revenant with his
-    own Cursed Claws, 71.63 of 88.65 of it magic. Two chosen kinds, two pairs
-    of relics that change places -- under `Magic` a point of Faith beats the
-    fire conversion that beat it under `All`, and under `Incantations` a buff
-    that moved nothing at all beats the ordinary attack relic.
+    Revenant with his own Cursed Claws, 71.63 of 88.65 of it magic: under
+    `Magic` a point of Faith beats the fire conversion that beat it under
+    `All`. The order and not the figure, because the order is what a
+    suggestion is.
 
-    The order and not the figure, because the order is what a suggestion is.
+    **The incantation half of this case has moved** (AD-052/AD-053): asking
+    about incantations is now asking about a spell and no longer about a
+    rate on the claws, so it is answered from the seal Revenant carries in
+    his left hand and lives in `test_a_spell_row_says_it_is_not_counted_yet`
+    until A26-5 fills it.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    faith = cases.effects_raising_attribute(game_data, revenant, "Faith", 1)[0]
+    carried = {"fire": (FIRE_CONVERSION,), "faith": (faith,)}
+
+    everything = damage_scores(game_data, revenant, carried)
+    chosen = damage_scores(game_data, revenant, carried, damage_type="Magic")
+
+    assert everything["fire"].value > everything["faith"].value, (
+        "under All fire already ranks below faith, so this pair cannot show "
+        "that a chosen type turns anything over")
+    assert chosen["faith"].value > chosen["fire"].value
+
+
+@pytest.mark.parametrize("hit_with", [
+    model.SORCERIES_ART, model.INCANTATIONS_ART, "family:23",
+])
+def test_a_spell_row_says_it_is_not_counted_yet(game_data, hit_with):
+    """AD-052/AD-053: sorceries, incantations and the schools are ranked on
+    a spell's own damage, and that figure is built beside this one (A26-3,
+    A26-5). Until it is here the cell is empty and says why.
+
+    What this case holds is the shape of the answer, not the wording: no
+    candidate outranks another, so nothing here can be suggested (QA-290),
+    and the reason stands in the run findings rather than in a silent 0.00
+    that would read as a measured figure.
     """
     revenant = cases.hero_by_name(game_data, "Revenant")
     attack_only = cases.effects_raising_rate(
         game_data, revenant, "physicsAttackRate", 1)[0]
-    faith = cases.effects_raising_attribute(game_data, revenant, "Faith", 1)[0]
-    carried = {"fire": (FIRE_CONVERSION,), "attack": (attack_only,),
-               "faith": (faith,), "incantation": (INCANTATION_ONLY,)}
+    carried = {"nothing": (), "attack": (attack_only,)}
 
-    everything = damage_scores(game_data, revenant, "", carried)
-    chosen = damage_scores(game_data, revenant, damage_art, carried)
+    spell = damage_scores(game_data, revenant, carried, hit_with=hit_with)
 
-    assert everything[worse].value > everything[better].value, (
-        f"under All {worse} already ranks below {better}, so this pair "
-        f"cannot show that {damage_art} turns anything over")
-    assert chosen[better].value > chosen[worse].value
+    assert spell["attack"].value == spell["nothing"].value == 0.0
+    assert len(spell["nothing"].unknowns) == 1
+    assert goals.chosen_label(hit_with, "") in spell["nothing"].unknowns[0]
+    assert "0.00" not in spell["nothing"].display
 
 
 def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
@@ -498,7 +511,8 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
     """
     carried = {"nothing": (), "pair": (FIRE_CONVERSION, FROST_STATUS)}
 
-    skill = damage_scores(game_data, wylder, "art:skill", carried)
+    skill = damage_scores(game_data, wylder, carried,
+                          hit_with="skill")
 
     assert skill["nothing"].value == pytest.approx(122.0506, abs=5e-5)
     assert skill["pair"].value == pytest.approx(123.8506, abs=5e-5)
@@ -520,7 +534,8 @@ def test_an_art_choice_that_leaves_the_value_unmoved_keeps_the_all_headline(
     """
     carried = {"nothing": ()}
 
-    skill = damage_scores(game_data, wylder, "art:skill", carried)["nothing"]
+    skill = damage_scores(game_data, wylder, carried,
+                          hit_with="skill")["nothing"]
 
     assert skill.display.startswith("Attack rating"), (
         f"art_rate is 1.0 here, so the headline must not change: "
@@ -537,8 +552,9 @@ def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
     """
     carried = {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)}
 
-    everything = damage_scores(game_data, wylder, "", carried)
-    skill = damage_scores(game_data, wylder, "art:skill", carried)
+    everything = damage_scores(game_data, wylder, carried)
+    skill = damage_scores(game_data, wylder, carried,
+                          hit_with="skill")
 
     assert skill["buffed"].value != pytest.approx(everything["buffed"].value), (
         "this case needs a buff that actually moves art_rate for `skill`, "
@@ -547,6 +563,41 @@ def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
         f"the collision rule must drop one 'attack': "
         f"{skill['buffed'].display!r}")
     assert "Skill attack attack rating" not in skill["buffed"].display
+
+
+def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
+    """AD-051 point 3, the cell A25 could not express: `hit_with="skill"`
+    **and** `damage_type="Fire"` together.
+
+    The facade multiplies the art per damage type already, so the cell is
+    the fire row of that answer and nothing is multiplied a second time. The
+    case holds it as a relation rather than as a literal: the art moves the
+    fire row by exactly the factor it moves the headline -- once, not
+    squared -- and the fire row is not the row the armament alone has.
+
+    Wylder's own armament deals no fire, so the conversion relic is what
+    puts fire in the figure at all and the skill buff is what makes
+    `art_rate` differ from 1.0 (`model.SKILL_SCOPES`).
+    """
+    carried = {"both": (FIRE_CONVERSION, SKILL_ATTACK_BUFF)}
+
+    everything = damage_scores(game_data, wylder, carried)["both"]
+    art = damage_scores(game_data, wylder, carried,
+                        hit_with="skill")["both"]
+    fire = damage_scores(game_data, wylder, carried,
+                         damage_type="Fire")["both"]
+    cell = damage_scores(game_data, wylder, carried, hit_with="skill",
+                         damage_type="Fire")["both"]
+
+    factor = art.value / everything.value
+    assert factor > 1.0, (
+        "this case needs a buff that moves `art_rate` for `skill`, or it "
+        "cannot tell one application from two")
+    assert cell.value == pytest.approx(fire.value * factor, abs=5e-5)
+    assert cell.value != pytest.approx(fire.value * factor * factor,
+                                       abs=5e-5)
+    assert cell.display.startswith("Fire Skill attack rating"), (
+        f"the cell names both halves of the question: {cell.display!r}")
 
 
 def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
@@ -559,9 +610,11 @@ def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
     """
     carried = {"nothing": ()}
 
-    everything = damage_scores(game_data, wylder, "", carried)["nothing"]
-    holy = damage_scores(game_data, wylder, "type:Dark", carried)["nothing"]
-    art = damage_scores(game_data, wylder, "art:skill", carried)["nothing"]
+    everything = damage_scores(game_data, wylder, carried)["nothing"]
+    holy = damage_scores(game_data, wylder, carried,
+                         damage_type="Dark")["nothing"]
+    art = damage_scores(game_data, wylder, carried,
+                        hit_with="skill")["nothing"]
 
     assert everything.unknowns == (), (
         "a run that was asked about every kind of damage says so by having "
@@ -581,20 +634,25 @@ def test_a_catalyst_says_the_choice_reaches_nothing(game_data):
 
     The figure itself is the one it would be under `All`, down to the last
     bit: the choice changes the sentence, not the number.
+
+    **The question is the weapon one** since AD-053 point 5 narrowed AD-048
+    to it: asked about the staff (`hit_with=""`) under one damage type, this
+    is the sentence, word for word. Asked about sorceries the question is
+    about a spell and is answered elsewhere.
     """
     recluse = cases.hero_by_name(game_data, "Recluse")
     carried = {"nothing": ()}
 
-    everything = damage_scores(game_data, recluse, "", carried)["nothing"]
-    sorceries = damage_scores(game_data, recluse, "art:sorceries",
-                              carried)["nothing"]
+    everything = damage_scores(game_data, recluse, carried)["nothing"]
+    fire = damage_scores(game_data, recluse, carried,
+                         damage_type="Fire")["nothing"]
 
     assert everything.unit == damage.SPELL_POWER_LABEL, (
         "this case needs a Nightfarer whose starting armament is a "
         "catalyst; this one is ranked on an attack rating")
-    assert sorceries.value == everything.value
-    assert sorceries.unknowns == (
-        "Sorceries is not counted for this Nightfarer: a staff or a seal is "
+    assert fire.value == everything.value
+    assert fire.unknowns == (
+        "Fire is not counted for this Nightfarer: a staff or a seal is "
         "ranked on the spell power the game shows for it, and no damage type "
         "and no attack art reaches that figure.",)
 
@@ -604,8 +662,11 @@ def test_a_kind_this_dataset_cannot_name_is_refused(game_data, wylder):
     made, and ranking on it silently would be the invented label AD-046
     point 5 keeps out of the chooser, arriving through the back door."""
     with pytest.raises(ValueError, match="names no damage type"):
-        damage_scores(game_data, wylder, "art:family:999999",
-                      {"nothing": ()})
+        damage_scores(game_data, wylder, {"nothing": ()},
+                      hit_with="family:999999")
+    with pytest.raises(ValueError, match="names no damage type"):
+        damage_scores(game_data, wylder, {"nothing": ()},
+                      damage_type="Sunlight")
 
 
 def test_without_an_armament_the_damage_goal_still_orders_two_builds(

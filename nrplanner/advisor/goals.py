@@ -206,11 +206,29 @@ _DAMAGE_TAKEN_SCOPE = (
 )
 
 
-#: The two kinds of choice `damage_art` can carry (AD-045 point 1). Split
-#: here and nowhere else: what leaves this module is either a damage type or
-#: an art key, never the prefixed form.
+#: The two prefixes the bar's one combo still puts in front of its ids. The
+#: question itself has carried two fields since AD-051, and `fields_of` below
+#: is the only place the old prefixed form is taken apart.
 _TYPE_CHOICE = "type"
 _ART_CHOICE = "art"
+
+
+def fields_of(damage_art: str) -> tuple[str, str]:
+    """The bar's one prefixed value as the two fields of the question.
+
+    Transitional, and deliberately in one place (AD-051 point 1): the row
+    still offers a single combo whose entries carry `type:`/`art:`, and it is
+    A26-7 that gives it two of its own. Until then `advisorbar.asking_from`
+    and the picker's caption come through here, so the prefix is taken apart
+    once rather than at every reader.
+    """
+    kind, _, key = damage_art.partition(":")
+    if kind == _TYPE_CHOICE:
+        return "", key
+    if kind == _ART_CHOICE:
+        return key, ""
+    return "", ""
+
 
 #: AK-331, word for word, with the chosen entry's own label in it, first
 #: letter lowered the way `advisorbar` lowers a goal label. A run finding and
@@ -240,8 +258,20 @@ _ART_ON_A_CATALYST = (
     "ranked on the spell power the game shows for it, and no damage type "
     "and no attack art reaches that figure.")
 
+#: The spell rows of the combination table are ranked on a spell's own
+#: damage, through `damage.spell` and the Nightfarer's start catalyst
+#: (AD-052, AD-053) -- both are being built beside this one (A26-3, A26-5).
+#: Until they are here the cell stays empty and says so: a figure formed
+#: from the armament instead would answer a question nobody asked, and a
+#: silent 0.00 is reserved for the case where a spell really carries no
+#: damage (AD-052 point 5).
+_SPELL_CELL_NOT_BUILT = (
+    "{choice} is not counted in this figure: a spell's own damage is not "
+    "part of it, so this run ranks nothing here rather than ranking "
+    "something else.")
 
-def chosen_label(damage_art: str) -> str:
+
+def chosen_label(hit_with: str, damage_type: str) -> str:
     """What the player picked, in the words the dataset or the spec gives it.
 
     The schools bring their own name out of `spell_families` and the five
@@ -260,21 +290,39 @@ def chosen_label(damage_art: str) -> str:
     and the picker's `findings`/`caveats`), so they are passed on as they are
     written -- escaping them here would show a school called `Bell &
     Bearing` its own `&amp;` (SEC-019, AK-29).
+
+    **Two lookups since AD-051 point 1**, one per field, and both of them in
+    the label when both fields are filled: `Fire` and `Skill attack` chosen
+    together name one cell of the combination table, so they name it in one
+    sentence too.
     """
-    kind, _, key = damage_art.partition(":")
-    label = None
-    if kind == _TYPE_CHOICE:
-        label = weapons.DAMAGE_LABELS.get(key)
-    elif kind == _ART_CHOICE:
-        label = model.ART_LABELS.get(key)
-        if label is None and key.startswith(model.ART_FAMILY_PREFIX):
-            family = key[len(model.ART_FAMILY_PREFIX):]
-            if family.isdigit():
-                label = model.SPELL_FAMILY_NAMES.get(int(family))
-    if label is None:
+    chosen = []
+    for key, label in ((damage_type, weapons.DAMAGE_LABELS.get(damage_type)),
+                       (hit_with, _art_label(hit_with))):
+        if not key:
+            continue
+        if label is None:
+            raise ValueError(
+                f"{key!r} names no damage type and no attack art this "
+                f"dataset carries, so there is no question here to answer")
+        chosen.append(label)
+    if not chosen:
         raise ValueError(
-            f"{damage_art!r} names no damage type and no attack art this "
-            f"dataset carries, so there is no question here to answer")
+            "nothing was chosen, so there is no question here to answer")
+    return " ".join(chosen)
+
+
+def _art_label(hit_with: str) -> str | None:
+    """The name of one art key, or `None` for a key this dataset cannot name.
+
+    The three arts the files do not name have the spec's wording; a school
+    brings its own out of `spell_families`.
+    """
+    label = model.ART_LABELS.get(hit_with)
+    if label is None and hit_with.startswith(model.ART_FAMILY_PREFIX):
+        family = hit_with[len(model.ART_FAMILY_PREFIX):]
+        if family.isdigit():
+            label = model.SPELL_FAMILY_NAMES.get(int(family))
     return label
 
 
@@ -291,6 +339,32 @@ def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
     if name_words and chosen.split()[-1].lower() == name_words[0]:
         name_words = name_words[1:]
     return " ".join([chosen, *name_words])
+
+
+def _is_a_spell(hit_with: str) -> bool:
+    """Whether the question is about a spell rather than about the armament.
+
+    Sorceries, incantations and the schools are the spell rows of the
+    combination table and are ranked on another object entirely (AD-052);
+    `""` (the armament) and `skill` (its Weapon Art) are not.
+    """
+    return (hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
+            or hit_with.startswith(model.ART_FAMILY_PREFIX))
+
+
+def _spell_cell(chosen: str) -> types.GoalScore:
+    """An empty cell and the reason for it, until A26-5 fills the spell rows.
+
+    The value is 0.00 for every candidate alike, so no candidate outranks
+    another and `run.run` drops the suggestion that would otherwise stand
+    over a build that changes nothing (QA-290).
+    """
+    return types.GoalScore(
+        value=0.0,
+        display="Spell damage not counted",
+        unit="",
+        unknowns=(_SPELL_CELL_NOT_BUILT.format(choice=chosen),),
+    )
 
 
 def _attack_multiplier_mean(build: model.Build, two_handed: bool) -> float:
@@ -366,14 +440,16 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     a cost worth naming: it is a second `weapons.rate` per evaluation. See
     the report to the `performance-tuner` for S11.
 
-    **`ctx.damage_art` is read here and in no other direction** (AD-045): it
-    says which kind of damage this question is about, and it is the one place
-    in the program that takes its prefix apart. A damage type is a different
-    number of the same answer -- `final_per_type` instead of the headline,
-    nothing recalculated. An attack art is a condition of the question and
-    goes to the facade as `art=`, which multiplies it where every other rate
-    is multiplied (AD-047). Empty is every kind at once and is the figure
-    this goal has always given, down to the last bit.
+    **`ctx.hit_with` and `ctx.damage_type` are read here and in no other
+    direction** (AD-051), and this is the one place that **combines** them.
+    `hit_with` is a condition of the question and goes to the facade as
+    `art=`, which multiplies it where every other rate is multiplied and
+    does so once per damage type (AD-047); `damage_type` then takes its row
+    out of `final_per_type` instead of the headline, so the combined cell is
+    the facade's own arithmetic read at another place and nothing is
+    multiplied a second time (AD-051 point 3). Both empty is every kind of
+    hit at once and is the figure this goal has always given, down to the
+    last bit.
     """
     if ctx.reference is None:
         mean = _attack_multiplier_mean(build, ctx.two_handed)
@@ -392,14 +468,16 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
             unknowns=(_NO_ARMAMENT,),
             weights_note=_NO_ARMAMENT_NOTE,
         )
-    kind, _, key = ctx.damage_art.partition(":")
     # Raises on a choice this program cannot name, before any figure is
     # formed: a run ranked on a question nobody could have asked is worse
     # than a run that stops.
-    chosen = chosen_label(ctx.damage_art) if ctx.damage_art else ""
+    chosen = (chosen_label(ctx.hit_with, ctx.damage_type)
+              if ctx.hit_with or ctx.damage_type else "")
+    if _is_a_spell(ctx.hit_with):
+        return _spell_cell(chosen)
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,
-                                 art=key if kind == _ART_CHOICE else None)
+                                 art=ctx.hit_with or None)
     # Two-handed where the switch says so and the armament allows it; an
     # armament without a second figure keeps its one (AK-293 point 3).
     if ctx.two_handed and now.two_handed is not None:
@@ -430,20 +508,25 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
             # scaling number, which is the relationship A7 forbids inventing.
             unknowns = (_ART_ON_A_CATALYST.format(choice=chosen),)
         else:
-            if kind == _TYPE_CHOICE:
+            if ctx.damage_type:
                 # A type this armament deals none of ranks at 0.00, which is
                 # a ranking and not a fault: every candidate that brings some
-                # of it then stands above every candidate that does not.
-                value = now.final_per_type.get(key, 0.0)
-                name = _headline_with_choice(chosen, now.headline_name.lower())
-            elif key in now.rates:
-                # AK-335: an art choice only earns the headline once it has
-                # actually moved the value away from `All` -- `now.rates`
-                # carries the art's own key exactly when `damage._answer`
-                # found `art_rate != 1.0` for it. Where no relic scopes a
-                # buff to this art the figure is the `All` figure verbatim,
-                # and the headline stays `"Attack rating"` to match it.
-                name = _headline_with_choice(chosen, now.headline_name.lower())
+                # of it then stands above every candidate that does not. The
+                # art is already in this row -- the facade multiplied it per
+                # damage type -- so reading the row **is** the combination.
+                value = now.final_per_type.get(ctx.damage_type, 0.0)
+            # AK-335: an art choice only earns a place in the headline once
+            # it has actually moved the value away from `All` -- `now.rates`
+            # carries the art's own key exactly when `damage._answer` found
+            # `art_rate != 1.0` for it. Where no relic scopes a buff to this
+            # art the figure is the `All` figure verbatim, and the headline
+            # says only what the type choice earned (or stays `"Attack
+            # rating"` when there was none).
+            earned = ctx.hit_with if ctx.hit_with in now.rates else ""
+            if ctx.damage_type or earned:
+                name = _headline_with_choice(
+                    chosen_label(earned, ctx.damage_type),
+                    now.headline_name.lower())
             unknowns = (_RANKED_ON_ONE_ART.format(
                 choice=chosen[0].lower() + chosen[1:]),)
     return types.GoalScore(

@@ -269,9 +269,10 @@ class AdvisorRequest:
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
-    #: Which kind of damage the damage direction ranks, empty for all of it
-    #: (AD-045 point 1): `type:<Physics|Magic|Fire|Thunder|Dark>` for one
-    #: damage type, `art:<key>` for one attack art (`model.attack_arts`).
+    #: What the damage direction ranks a hit *with*, empty for the armament
+    #: itself (AD-051 point 1): an art key of `model.attack_arts` --
+    #: `skill` for a Weapon Art, `sorceries`/`incantations` for a spell of
+    #: that kind, `family:<id>` for a spell school.
     #: The id form and never the label, so a patch that renames a spell
     #: school leaves the key -- and the cache under it -- alone.
     #:
@@ -279,8 +280,14 @@ class AdvisorRequest:
     #: do not read it: the picker measures every pool under all three, so
     #: what a pool *contains* depends on this. A key that kept quiet about
     #: it would hand a run's answer back for another run's question, which
-    #: is T-077 at this field's twin (AD-045 point 4).
-    damage_art: str = ""
+    #: is T-077 at this field's twin (AD-051 point 2).
+    hit_with: str = ""
+    #: Which damage type the damage direction ranks, empty for all of them:
+    #: one name out of `weapons.DAMAGE_TYPES`. In the key for the same
+    #: reason as `hit_with`, and free to be combined with it -- the two are
+    #: two questions about one figure, which is why they are two fields and
+    #: not one prefixed value (AD-051).
+    damage_type: str = ""
     budget: Budget = DEFAULT_BUDGET
     #: `meta.data_version` of the dataset this was asked against.
     data_version: str = ""
@@ -435,10 +442,13 @@ class GoalContext:
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).
     two_handed: bool = False
-    #: The damage type or attack art the damage direction ranks, in the
-    #: same form as `AdvisorRequest.damage_art` and empty for all of it.
-    #: Read by `goals._max_damage` and by nothing else (AD-045 point 1).
-    damage_art: str = ""
+    #: What the hit is made with and which damage type is counted, in the
+    #: same form as `AdvisorRequest.hit_with`/`.damage_type` and empty for
+    #: the armament itself and for every type. Read by `goals._max_damage`
+    #: and by nothing else, which is also the one place that combines them
+    #: (AD-051 points 1 and 3).
+    hit_with: str = ""
+    damage_type: str = ""
 
 
 @dataclass(frozen=True)
