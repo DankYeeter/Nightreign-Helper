@@ -270,7 +270,8 @@ def _refuse_a_request_that_asks_about_another_run(
              None if reference is None else reference.weapon.get("id")),
             ("declared", request.declared, tuple(ctx.declared)),
             ("two_handed", request.two_handed, ctx.two_handed),
-            ("damage_art", request.damage_art, ctx.damage_art),
+            ("hit_with", request.hit_with, ctx.hit_with),
+            ("damage_type", request.damage_type, ctx.damage_type),
             ("data_version", request.data_version,
              str(meta.get("data_version") or "")),
             ("armament effect ids",
@@ -416,7 +417,7 @@ def run(request: types.AdvisorRequest, inventory,
     # and `_max_damage` already calls that a ranking and not a fault -- that
     # established reading is left exactly as it was.
     best = suggestions[0] if suggestions else None
-    if (request.damage_art and best and best.choices
+    if ((request.hit_with or request.damage_type) and best and best.choices
             and best.score.value == base_scores[request.goal_id].value):
         suggestions = []
         best_chosen, best_built = (), base

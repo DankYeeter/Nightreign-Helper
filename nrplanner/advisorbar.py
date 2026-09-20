@@ -498,9 +498,13 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     two_handed = planner.stat_sheet.hand_switch.isChecked()
     # And the kind of damage, for the same reason and off the row that owns
     # it (AK-327): it is a feature of the question, not a second direction
-    # (AD-045). It goes into **both** halves below or `run.run` refuses the
-    # question -- the key would be standing for a run that was not asked.
-    damage_art = planner.advisor_bar.damage_art()
+    # (AD-051). Two fields since AD-051, while the row still carries one
+    # combo -- `goals.fields_of` is the one place that takes it apart, and
+    # A26-7 gives the row its own two. Both go into **both** halves below or
+    # `run.run` refuses the question -- the key would be standing for a run
+    # that was not asked.
+    hit_with, damage_type = advisor_goals.fields_of(
+        planner.advisor_bar.damage_art())
     # The starting armament, without its rolls: `weapons_held` and
     # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
     # read here at all. Missing from the dataset, the run falls back to the
@@ -517,7 +521,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         two_handed=two_handed,
-        damage_art=damage_art,
+        hit_with=hit_with,
+        damage_type=damage_type,
     )
     meta = planner.data.get("meta") or {}
     request = types.AdvisorRequest(
@@ -535,7 +540,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,
-        damage_art=damage_art,
+        hit_with=hit_with,
+        damage_type=damage_type,
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,
@@ -685,9 +691,9 @@ class AdvisorBar(QWidget):
         # Three groups with a line between them (AK-328), and `All` -- every
         # kind at once, which is the figure this program gave before there
         # was a choice at all -- first. The entry's **data** is the prefixed
-        # id form `AdvisorRequest.damage_art` takes (AD-045 point 1): this is
-        # where the value is put together and `goals._max_damage` is the one
-        # place that takes it apart, so neither of them carries a label --
+        # id form the row still carries (A26-7 gives it two boxes of its
+        # own): this is where the value is put together and `goals.fields_of`
+        # is the one place that takes it apart, so neither carries a label --
         # `type:Thunder` is the entry the player reads as `Lightning`.
         #
         # The third group's words are the dataset's own, read once here and
@@ -991,9 +997,10 @@ class AdvisorBar(QWidget):
     def damage_art(self) -> str:
         """Which kind of damage the question is about, `""` for every kind.
 
-        The id form `AdvisorRequest.damage_art` takes (AD-045 point 1) and
-        never the entry's text: a dataset that renames a school leaves the
-        question, and the cache under it, exactly where it was.
+        The prefixed id form the row carries, and never the entry's text: a
+        dataset that renames a school leaves the question, and the cache
+        under it, exactly where it was. `goals.fields_of` turns it into the
+        two fields the question is asked with (AD-051 point 1).
         """
         return self.damage_type_box.currentData() or ""
 

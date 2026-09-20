@@ -1762,7 +1762,9 @@ class RelicPicker(QDialog):
         unchanged.
         """
         if goal_id == "max_damage" and damage_art:
-            return f"{text} ({advisor_goals.chosen_label(damage_art)})"
+            chosen = advisor_goals.chosen_label(
+                *advisor_goals.fields_of(damage_art))
+            return f"{text} ({chosen})"
         return text
 
     def _captions(self) -> list[str]:

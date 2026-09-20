@@ -116,9 +116,9 @@ def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
     base state left it is not a suggestion, once a damage type is chosen.
 
     Wylder's own starting armament deals no fire at all, so under
-    `type:Fire` the base state and every candidate score 0.00 alike -- the
-    same zero `_max_damage`'s own comment calls "a ranking and not a fault"
-    (AK-335). Before this fix the beam filled the three free slots anyway
+    `damage_type="Fire"` the base state and every candidate score 0.00
+    alike -- the same zero `_max_damage`'s comment calls "a ranking and not
+    a fault" (AK-335). Before this fix the beam filled the three free slots anyway
     (AD-014.7 fills every slot it can) and the bar said `SUGGESTED` over a
     build that changed nothing (director, 2026-09-20); the picker already
     read the same zero correctly (`relicpicker.top_handles`).
@@ -134,10 +134,10 @@ def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
     slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
     ctx = dataclasses.replace(
         advisor.context(game_data, wylder, reference=reference),
-        damage_art="type:Fire")
+        damage_type="Fire")
     frozen = run.frozen_inventory(owned, slot_problem)
     request = dataclasses.replace(
-        advisor.request_for(slot_problem, ctx, frozen), damage_art="type:Fire")
+        advisor.request_for(slot_problem, ctx, frozen), damage_type="Fire")
 
     pool = candidates.pool(frozen, slot_problem, 0, ctx, goals.GOALS,
                            request.goal_id)

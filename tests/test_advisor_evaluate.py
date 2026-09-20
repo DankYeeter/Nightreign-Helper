@@ -227,11 +227,12 @@ CONTEXT_REACHES_COMPUTE = {
     # the `when Two-Handing` bucket either way, the goal decides whether to
     # count it. No display changes with the switch (AK-293 point 1).
     "two_handed": None,
-    # The chosen kind of damage is the damage direction's business too
-    # (AD-045): the model books every scoped rate either way -- in
-    # `Build.art_rates` beside the `scoped:` lines -- and the goal decides
-    # which of them the question was about.
-    "damage_art": None,
+    # What the hit is made with and which damage type is counted are the
+    # damage direction's business too (AD-051): the model books every scoped
+    # rate either way -- in `Build.art_rates` beside the `scoped:` lines --
+    # and the goal decides which of them the question was about.
+    "hit_with": None,
+    "damage_type": None,
 }
 
 

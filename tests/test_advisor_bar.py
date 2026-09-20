@@ -924,21 +924,30 @@ def test_the_kind_of_damage_box_says_which_skill_it_counts(bar):
 
 def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
         planner):
-    """AD-045: `damage_art` is a field of the question, so it reaches the key
-    and the context together -- filled in one of them only, the run refuses
-    the question it is handed (`run._refuse_a_request_that_asks_about_
-    another_run`, the same guard `two_handed` answers to).
+    """AD-051: `hit_with` and `damage_type` are fields of the question, so
+    they reach the key and the context together -- filled in one of them
+    only, the run refuses the question it is handed
+    (`run._refuse_a_request_that_asks_about_another_run`, the same guard
+    `two_handed` answers to).
+
+    The row still offers one combo (A26-7 gives it two), so the two fields
+    come out of `goals.fields_of` here; what this case holds is that both
+    halves of the question carry them, whichever way they are formed.
 
     Red with either assignment in `asking_from` taken out.
     """
+    from nrplanner.advisor import goals as advisor_goals
     from nrplanner.advisor import run as advisor_run
 
     box = planner.advisor_bar.damage_type_box
     for choice in ("", "type:Magic", "art:incantations"):
         box.setCurrentIndex(box.findData(choice))
         asking = advisorbar.asking_from(planner, "max_damage")
-        assert asking.request.damage_art == choice
-        assert asking.ctx.damage_art == choice
+        hit_with, damage_type = advisor_goals.fields_of(choice)
+        assert (asking.request.hit_with, asking.request.damage_type) == (
+            hit_with, damage_type)
+        assert (asking.ctx.hit_with, asking.ctx.damage_type) == (
+            hit_with, damage_type)
         # The fingerprint is the worker's to fill (`AdvisorController.ask`),
         # and the guard checks it too -- so the case fills it the same way
         # rather than asserting around it.
