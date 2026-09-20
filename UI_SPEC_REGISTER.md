@@ -494,3 +494,15 @@ durch die neuen Kriterien):
 | AK-348 | Tab-Reihenfolge `goal_box` → `hit_with_box` → `damage_type_box` → `Filters` (erweitert AK-333) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
 | AK-349 | Breite ungemessen, Baubericht zu A26-7 traegt sie nach (wie AK-334) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
 | AK-330 | *(Status 20.09.2026, developer, T-322n gebaut)* `advisorbar.DAMAGE_ART_KEY` (flacher Schluessel `"damage_art"`, kein `/`, kein Komma) haelt die Id-Form (`damage_art()`); beim Bau der Leiste gegen `damage_type_box.findData(...)` geprueft, ungueltig oder leer faellt auf `All` zurueck (Box-Default). Kein Nightfarer-Praezedenzfall gefunden: `select_hero(0)` waehlt bei jedem Start Index 0 fest, ungemerkt (Befund an ui-ux-designer/director). | **erfuellt** — developer | `docs/tasks/T-322.md` n |
+
+**Nachtrag T-325a (ui-ux-designer), 2026-09-20 — Startbreite als
+Bildschirm-Ratio, AK-349 abgeschlossen, AK-338 bestaetigt.** Nutzerwunsch
+20.09. 20:10: Startbreite als Ratio der Monitorbreite statt fester Zahl.
+Baubericht `054ca1e` liefert die AK-349 offengelassene Messung nach
+(1608 → 1959 px, Paarbedarf 190/351 px) und schliesst AK-349 damit ab.
+
+| AK-349 | *(Status 20.09.2026, T-324f/`054ca1e` gemessen)* Oeffnungsbreite 1608 → 1959 px, Paar-Mehrbedarf `hit_with`/`damage_type` einzeln 190 px, beide 351 px. Kein Zahlenwert mehr ungemessen. | **erfuellt** — developer | `docs/tasks/T-324.md` f-g |
+| AK-350 | Bildschirm-Begrenzer aus `_opening_width` wird ein Anteil (`RATIO`, Vorschlag 0,9) von `room` statt `room` selbst; `clamp(RATIO × room, 1536, Bedarf)`, Bedarf/Untergrenze unveraendert aus A14/AK-271/AK-349 | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-351 | Kuerzungsreihenfolge unterhalb des Bedarfs: Statuszeile auf 0 px, danach `goal_box`/`hit_with_box`/`damage_type_box` per Elision, Aktionsknoepfe nie — erweitert AK-05/AK-194/AK-269/AK-271 um eine dritte Stufe (mit zwei Boxenpaaren reicht "nur Statuszeile" nicht immer) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-352 | Pruefweg 1920/2560 px mit RATIO=0,9: 1920 → 1728 px (Vorschlagszustand kuerzt Statuszeile+Boxen), 2560 → an Bedarf 1959 px gedeckelt (nichts gekuerzt) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-338 | *(Status 20.09.2026, ui-ux-designer T-325a: Trennlinie bestaetigt unveraendert)* eine Trennlinie zwischen Typgruppe (`Weapon`/`Weapon art`/`Sorceries`/`Incantations`) und Zauberschulen, keine zweite vor der Typgruppe — Konsistenz mit `damage_type_box` (AK-339, ebenfalls eine Linie, direkt hinter `All`) | **bestaetigt** — ui-ux-designer | `docs/tasks/T-325.md` a |

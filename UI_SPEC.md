@@ -2419,6 +2419,163 @@ Picker-Kopf — das verschiebt das Kosten-Nutzen-Verhaeltnis der Frage
 gegenueber AK-336, ohne sie neu zu beantworten. Bedienkomfortfrage, keine
 Sicherheitsfrage.
 
+#### Nachtrag T-325a (ui-ux-designer), 2026-09-20 — Startbreite als Bildschirm-Ratio (AK-350..352), AK-338 bestaetigt
+
+*Anlass: `docs/tasks/T-325.md` a, Nutzer 20.09. 20:10 woertlich: die
+Startbreite soll nicht die feste Zahl `1959 px` sein, sondern "eine gute
+Ratio, die sich auf die Pixel des jeweiligen Monitors einstellt". Grundlage:
+der A26-7-Baubericht (`054ca1e`, `docs/state.md` Z. 84f.) liefert die zuvor
+mit AK-349 offengelassene Messung nach — Oeffnungsbreite `1608 → 1959 px`,
+Paar-Mehrbedarf `hit_with`+`damage_type` einzeln `190 px`, beide zusammen
+`351 px` — und schliesst AK-349 damit ab: **kein neuer Zahlenwert ohne
+Messung mehr offen.** `app.py` (`_opening_width`, `_width_around_the_
+effect_table`, `_width_around_the_advisor_row`, Stand `054ca1e`) bleibt in
+seiner Struktur (drei Begrenzer: Tabellen-/Leistenbedarf, Bildschirm,
+Fenster-Minimum, A14) unveraendert — dieser Nachtrag aendert nur, **wie**
+der Bildschirm-Begrenzer aus der verfuegbaren Breite eine Zahl macht.*
+
+##### AK-350 — Ratio statt 1:1-Bildschirmdeckelung
+
+**AK-350** Der Bildschirm-Begrenzer aus `_opening_width` (bisher: `room`
+selbst, unveraendert 1:1 als Deckel uebernommen) wird durch einen Anteil von
+`room` ersetzt:
+
+> Startbreite = max(`minimumSizeHint().width()`, clamp(RATIO × `room`, 1536, Bedarf))
+
+`room` bleibt `screen().availableGeometry().width()` (unveraendert, Parameter
+fuer Testfaelle). `Bedarf` bleibt `max(Tabellenbedarf, Leistenbedarf)`
+unveraendert aus A14/A32, `Leistenbedarf` schliesst seit AK-349 beide
+Boxenpaare ein. `1536` ist die unveraendert geltende Untergrenze aus AK-271.
+`RATIO` ist neu; empfohlener Wert **0,9** (Begruendung und Alternative siehe
+"Offene Frage" unten).
+
+**Wirkung, in Worten statt Formel:** Ist der Bildschirm so gross, dass
+`RATIO × room` bereits ueber dem Bedarf liegt, oeffnet das Fenster
+unveraendert genau bei Bedarf — dieselbe Zahl, die A14/A32 auch ohne Ratio
+liefern wuerden, kein Fenster wird breiter, als sein Inhalt verlangt. Ist der
+Bildschirm schmaler, als der Bedarf es durch die Ratio zulaesst, oeffnet das
+Fenster bei `RATIO × room` mit sichtbarem Rand zum Bildschirmrand, statt wie
+bisher randlos genau bildschirmbreit. Unterhalb `1536 / RATIO` bindet die
+Untergrenze 1536 px unveraendert (AK-271).
+
+**Warum das noetig ist, nicht nur huebscher:** die bisherige 1:1-Deckelung
+(`min(Bedarf, room)`) oeffnet auf jedem Bildschirm, der schmaler ist als der
+Bedarf, exakt bildschirmbreit — kein Rand, keine Andeutung, dass daneben noch
+Platz waere. Bei 1920 px verfuegbarer Breite (Bedarf 1959 px) ist das heute
+der Fall: `min(1959, 1920) = 1920`, randlos. Der Nutzerwunsch trifft genau
+diesen Fall.
+
+**Pruefweg fuer den `developer`:** `_opening_width(room=<Wert>)` mit
+`room` deutlich ueber Bedarf (z. B. 4096, das eigene Geraet des Nutzers)
+liefert unveraendert den Bedarfswert (hier 1959 px, kein Regressionstest auf
+eine feste Zahl, sondern auf Gleichheit mit dem ungedeckelten Fall); mit
+`room` zwischen `1536/RATIO` und `Bedarf/RATIO` liefert `round(RATIO ×
+room)`; mit `room` unter `1536/RATIO` liefert 1536 (AK-271 unveraendert).
+
+##### AK-351 — Kuerzungsreihenfolge unterhalb des Bedarfs
+
+**AK-351** *(erweitert AK-05/AK-194/AK-269/AK-271 um eine dritte, bisher
+nicht gebrauchte Stufe — mit zwei Boxenpaaren reicht die bisherige
+Zwei-Stufen-Reihenfolge "Statuszeile, dann nichts mehr" nicht mehr aus, um
+AK-05 oberhalb von 1536 px einlösbar zu halten, siehe Begruendung unten.)*
+Faellt die Startbreite unter den vollen Bedarf (RATIO × room < Bedarf, AK-350),
+weicht die Zeile in genau dieser Reihenfolge, keine Stufe beginnt, bevor die
+vorige ausgeschoepft ist:
+
+1. **Statuszeile zuerst** (AK-194/AK-269 unveraendert): sie darf bis auf
+   0 px schrumpfen; ihr voller Text steht dabei unveraendert im Tooltip der
+   Leiste (AK-05 zweite Haelfte).
+2. **Erst danach**, wenn die Statuszeile schon bei 0 px steht und die Zeile
+   immer noch zu breit ist: `goal_box`, `hit_with_box`, `damage_type_box`
+   verlieren ihren vollen sichtbaren Text durch Elision (die native
+   Ellipsis-Kuerzung der geschlossenen `QComboBox` — kein `setVisible(False)`,
+   keine Positions- oder Reihenfolgeaenderung, der volle Text jeder Box
+   steht unveraendert in ihrem eigenen Tooltip, AK-340 fuer die beiden neuen
+   Boxen). Das ist eine Erweiterung von AK-269 (bislang: "Boxen haben
+   Vorrang", nie gekuerzt) auf "Boxen haben Vorrang **vor den
+   Aktionsknoepfen**, aber nicht mehr unbegrenzt vor jeder Kuerzung" — mit
+   einer Box war der Bedarf ohne Statuszeile immer unter 1536 px erreichbar
+   (T-321c: 219 px Paarbedarf), mit zwei Paaren (351 px) ist das zwischen
+   1536 px und dem Bedarf nicht mehr in jedem Fall so.
+3. **Die drei Aktionsknoepfe nie:** `Apply all`/`Why`/`Clear` behalten immer
+   ihren vollen Text und ihre volle Groesse — `action_buttons_extra_width()`
+   bleibt das harte Mindestmass, das die Zeile in jedem Zustand zuerst
+   bekommt, unveraendert seit A32/AK-05. Keine Stufe dieser Liste darf jemals
+   einen Aktionsknopf verkleinern, kuerzen oder ausblenden.
+
+**Pruefweg fuer den `developer`:** bei einer Startbreite, die AK-350 zwischen
+1536 px und Bedarf ansetzt, mit sichtbarem Vorschlag (Aktionsknoepfe an):
+Statuszeile 0 px, mindestens eine der drei Boxen zeigt elidierten Text
+(`QComboBox.currentText()` laenger als das, was das Widget tatsaechlich
+darstellt), alle drei Aktionsknoepfe behalten ihre volle Beschriftung.
+
+##### AK-352 — Pruefweg: 1920 px und 2560 px als Referenzbildschirme
+
+**AK-352** Mit `RATIO = 0,9`, Bedarf `1959 px` (AK-349/T-325a) und Boden
+`1536 px` (AK-271):
+
+| `room` | Startbreite (AK-350) | Zustand ohne Vorschlag (4.12, Schwelle 1560/1640 px) | Zustand mit Vorschlag (Schwelle 1820/1900 px) |
+|---|---|---|---|
+| 1920 px | 1728 px (0,9 × 1920) | unabgeschnitten, Statuszeile > 0 px (1728 ≥ 1560 und ≥ 1640) | Statuszeile 0 px **und** Boxen elidiert (1728 < 1820 und < 1900, AK-351 Stufe 1+2) |
+| 2560 px | 1959 px (0,9 × 2560 = 2304, an Bedarf gedeckelt) | unabgeschnitten, Statuszeile > 0 px | unabgeschnitten, Statuszeile > 0 px (1959 ≥ alle vier Schwellen) |
+
+Zum Vergleich der bisherige Zustand (1:1-Deckelung, kein Ratio): bei 1920 px
+oeffnete das Fenster randlos bei `min(1959, 1920) = 1920` px — mit AK-350
+oeffnet es bei 1728 px, mit Rand zum Bildschirmrand. Auf dem eigenen
+Nutzer-Desktop (4096 px, weit ueber `Bedarf / RATIO`) aendert sich nichts:
+die Startbreite bleibt 1959 px, wie ohne Ratio.
+
+**Pruefweg fuer den `developer`:** `_opening_width(room=1920)` und
+`_opening_width(room=2560)`, je einmal ohne und einmal mit sichtbarem
+Vorschlag (`apply_button`/`why_button`/`clear_button` sichtbar), gegen die
+Tabellenwerte oben.
+
+##### Bestaetigung AK-338 — eine Trennlinie bleibt
+
+*Anlass: `docs/tasks/T-325.md` a fragt ausdruecklich, ob `hit_with_box` bei
+einer Trennlinie (wie gebaut, zwischen der Typgruppe und den Zauberschulen)
+bleibt oder eine zweite bekommt (zusaetzlich zwischen `Weapon` und der
+Typgruppe `Weapon art`/`Sorceries`/`Incantations`).*
+
+**Bestaetigt, unveraendert: eine Trennlinie.** AK-338 legt das bereits fest
+("mit einer Trennlinie zwischen den beiden Gruppen") und ist gebaut
+(`054ca1e`); dieser Nachtrag aendert daran nichts. Begruendung fuer die
+Beibehaltung (Stabilitaetsregel — kein Kurswechsel ohne neuen Grund): `Weapon`
+(Index 0, die Voreinstellung) und die drei benannten Eintraege `Weapon art`/
+`Sorceries`/`Incantations` beantworten dieselbe Frage auf derselben
+Abstraktionsebene ("welche Art Angriff"), waehrend erst die Zauberschulen
+danach eine andere, feinere Ebene betreten ("welche Schule genau") — die
+Trennlinie markiert genau diesen Ebenenwechsel, nicht die Voreinstellung
+gegen den Rest. Eine zweite Linie vor `Weapon art` haette nichts zu trennen:
+`Weapon` ist kein Sonderfall der folgenden drei, sondern schlicht "keine
+Einschraenkung", wie `All` in `damage_type_box` — die dort (AK-339)
+konsequent auch nur eine Linie traegt, direkt hinter `All`. Zwei Linien in
+`hit_with_box` gegen eine in `damage_type_box` waere die Art Inkonsistenz
+zwischen benachbarten Boxen, die AK-05/AK-297 im Bestand schon vermeiden.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Der genaue Zahlenwert von RATIO.** 0,9 ist ein begruendeter Vorschlag,
+  keine Nutzerentscheidung — siehe "Offene Frage".
+- **Rundungsverfahren** (`round`/`int`/`ceil` bei `RATIO × room`) — technische
+  Entscheidung des `developer`, sofern das Ergebnis innerhalb ±1 px der
+  Pruefwege in AK-352 bleibt.
+- **Verhalten beim Ziehen ueber Monitorgrenzen oder bei DPI-Wechsel zur
+  Laufzeit** — unveraendert Bestand (`_opening_width` wird nur beim Oeffnen
+  gefragt, kein neues Verhalten durch diesen Nachtrag).
+
+**Offene Frage an den App Designer:** Welchen RATIO-Wert genau? Ich schlage
+**0,9** vor: bei 1920 px (der haeufigsten Bildschirmbreite) bleibt der
+Startzustand ohne Vorschlag komplett unangetastet (Tabelle AK-352), und erst
+sobald ein Vorschlag steht, weicht zuerst die Statuszeile, dann die
+Boxen-Beschriftung — genau die Reihenfolge, die AK-351 ohnehin vorsieht.
+Alternative **0,95** wuerde bei 1920 px die Boxen auch im Vorschlagszustand
+unabgeschnitten halten (nur die Statuszeile weicht), auf Kosten eines
+schmaleren Rands zum Bildschirmrand (96 statt 192 px) — eine
+Geschmacksfrage zwischen "mehr Rand" und "Boxen bleiben laenger lesbar",
+ohne objektiv richtige Antwort. Der `developer` kann mit 0,9 bauen, solange
+diese Frage offen ist; eine spaetere Aenderung des RATIO-Werts ist eine Zeile.
+
 ---
 
 ## Bereich 4 — Build planner: Slotkarten, festgehaltene Slots und `Optimize`
