@@ -527,3 +527,39 @@ Faehigkeiten bleiben generell unbeachtet; Start nach T-310/T-311/T-312.*
   liefert eine andere Reihung als "Alle", und die
   Why-Zeile nennt die Art; Wylder mit beiden Startwaffen-Relikten und
   Auswahl "Skill attack" zaehlt die Konversion in die Schadenszahl.
+
+*Nachtrag 20.09.2026 17:35 (Nutzer, Chat + Fragebogen): "Bestial rankt
+Siegel-Spell-Power statt Klauen-AR" und "es muss moeglich sein, auf Zauber,
+Incantations, regulaeren Schaden, einen Schadenstyp oder Weapon Arts zu
+gehen; bufft ein Schadenstyp eine Weapon Art, muss die Kombination richtig
+errechnet werden; komplett abgedeckt". Entschieden: Zauber-Angriffsdaten
+extrahieren (AtkParam/Bullet); zwei Felder Womit x Schadensart. Gemessen
+20.09.: CharaInitParam `equip_Wep_Left_1` — Revenant Finger Seal 34750000,
+Wylder Small Shield 30750000, Guardian Greatshield 32750000; der Extraktor
+liest bisher nur `equip_Wep_Right_1`.*
+
+### A26 — Ziel = Womit x Schadensart, mit echten Zauber- und Skill-Zahlen
+
+- **Umfang:** Der Berater fragt zwei Dinge: *Hit with* (Weapon / Weapon
+  art / Sorceries / Incantations / eine Schule) und *Damage type* (All /
+  Physical / Magic / Fire / Lightning / Holy). Jede Kombination hat eine
+  definierte Zahl oder sagt, warum nicht. Zauber-Ziele rechnen mit dem
+  Start-Katalysator (Recluse Stab rechts, Revenant Finger Seal links):
+  Spell Power x Zauber-Grundwert x Faktoren (Gattung, Schule, Schadensart,
+  Charged). Weapon-Art-Ziele rechnen mit der Waffenkunst der Startwaffe
+  und ihren Schadensarten. Dazu liest der Extraktor die linke Starthand,
+  die Zauber-Angriffsdaten (Schadensart und Grundwert je Zauber) und die
+  Skill-Daten der Startwaffen.
+- **Nicht Ziel:** Nightfarer-Faehigkeiten (`characterSkillAttackRate`),
+  Zauber ausserhalb der Startausruestung als Bezugsobjekt (die Rangfolge
+  gilt fuer "eine Incantation dieser Schule", nicht fuer einen bestimmten
+  Zauber), Statusaufbau.
+- **Praemissen:** Elementraten wirken auf jeden Treffer ihrer Schadensart
+  (Waffe, Skill, Zauber) — ER-Mechanik, in Nightreign unvermessen;
+  Scope 112/111 = Weapon Arts (Nutzer 19.09.).
+- Nachweis: Revenant, *Incantations* x *All*: Relikte mit Faith, Improved
+  Incantations und Bestial steigen, Klauen-Relikte fallen; Revenant,
+  *Bestial* x *Physical*: Improved Physical Attack Power zaehlt, Holy
+  nicht; Wylder, *Weapon art* x *Fire* mit Startwaffen-Konversion Fire:
+  Skill-Buff x Fire-Buff x Konversion in einer Zahl; Recluse, *Sorceries*
+  x *Magic*: Spell Power x Sorcery-Buff x Magic-Buff.
