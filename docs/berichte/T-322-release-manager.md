@@ -402,3 +402,191 @@ ausdrueckliche Weitergabe-Entscheidung gebunden).
    angefasst); `dist/`/`build/` weiterhin ignoriert.
 4. Tag-Vorschlag: keiner in diesem Lauf - 1.16.0 ist unveroeffentlicht, Notes
    und Release folgen erst nach dem Retest der QA-289/290-Fixes.
+
+# T-322o - Neubau 1.16.0 nach Fix T-322n
+
+Anlass: T-322n (`9f95de0`) hat nach dem T-322h-Bau Anwendungscode geaendert
+(`nrplanner/advisor/goals.py`, `nrplanner/advisorbar.py` - Why-Klarstellung
+und Schadensart-Persistenz, AK-330); das T-322h-Artefakt (Stand `5b9fad9`)
+ist damit ueberholt. Version bleibt 1.16.0 (kein neuer Versionsbump im
+Auftrag genannt, `nrplanner/__init__.py` weiterhin `"1.16.0"` geprueft).
+
+## Kontraktblock
+
+| | |
+|---|---|
+| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Groesse** | 59.233.451 Byte (56,49 MiB) |
+| **SHA-256** | `FE7DB4B966FC9FA39100CBC6016BC330733A0905DCE763B6ADF51240761CDED2` |
+| **Code-Stand des Artefakts** | `9f95de0` (HEAD, Branch `docs/audit-and-advisor-design`) |
+| **Version** | 1.16.0 (unveraendert), am Fenstertitel bestaetigt |
+| **Dauer** | 43,4 s (PyInstaller-Eigenzeit, PowerShell-Stoppuhr um den Aufruf) |
+| **UPX** | nicht im `PATH` (`where upx`: "Could not find files") - `upx=True` im `.spec` bleibt wirkungslos, wie in jedem vorherigen Bau |
+| **`scripts/check_licences.py`** | `OK`, alle drei Pflichtdateien und alle fuenf `requirements.txt`-Bibliotheken erfasst |
+
+## Pflichtlektuere `docs/legal/AUFLAGEN.md`
+
+Volltext erneut gelesen (558 Zeilen). Letzter aendernder Commit auf der Datei
+weiterhin `cc92066` (16.09., "Auflagen vor der Veroeffentlichung 1.13.1",
+T-283c) - unveraendert seit dem T-322h-Bau, keine neue Auflage seither.
+Gesamtampel GELB, keine Auflage steht auf ROT mit sperrender Wirkung: A-010
+ist ROT, aber ausdruecklich "sperrt nicht mehr" (Nutzer-Rueckstellung 02.09.,
+Abnahme 09.09.). Dieser Lauf ist kein Release (kein Push, kein Tag, keine
+Weitergabe der EXE an Dritte) - `build` ist nicht gesperrt. A-025
+(EXE-Weitergabe) bleibt unberuehrt, weil dieser Lauf nichts weitergibt.
+
+## Ausgangsstand
+
+`git status --porcelain -uall` vor dem ersten Schritt: leer, Arbeitsbaum
+sauber. `git rev-parse HEAD`: `9f95de05aa91209da9253859ab0afa74df99d4d7`,
+Commit-Zeit 2026-09-20 16:38:52 +0200 - identisch mit dem im Auftrag
+genannten Stand `9f95de0`. `nrplanner/__init__.py` geprueft: `__version__ =
+"1.16.0"`, unveraendert.
+
+`dist/` enthielt vor dem Bau noch das T-322h-Artefakt: 59.233.161 Byte,
+`LastWriteTime` 20.09.2026 14:56 - stammt aus dem Vorlauf, kein neuer Bau
+seither. `dist/`/`build/` sind gitignored, also keine Abweichung im
+`git status`. Vor dem Loeschen: `Get-Process -Name NightreignHelper` = 0
+Treffer - kein Nutzerlauf betroffen.
+
+## Bau
+
+`Get-Process -Name NightreignHelper`: 0 Treffer unmittelbar vor dem Loeschen
+von `dist/`/`build/` und unmittelbar vor dem Aufruf. Bau ausschliesslich ueber
+`./.venv/Scripts/python.exe -m PyInstaller NightreignHelper.spec` (`.venv`
+Python 3.12.10; kein globales `python`). PyInstaller 6.21.0, Plattform
+Windows-11-10.0.26200-SP0.
+
+| | Lauf |
+|---|---|
+| `rc` | 0 ("Build complete!") |
+| Dauer (PyInstaller-Eigenzeit) | 43,4 s |
+| Groesse | 59.233.451 Byte |
+| SHA-256 | `fe7db4b966fc9fa39100cbc6016bc330733a0905dce763b6adf51240761cded2` |
+
+Zweiter Lauf zur Reproduzierbarkeitspruefung (Bit-Identitaet) entfaellt -
+Auftrag nennt keinen Zweitbau und verweist ausdruecklich auf T-322h ("wie
+T-322h"), das denselben Verzicht mit Begruendung traegt (interne
+Bit-Nichtidentitaet zwischen Laeufen derselben Umgebung ist in T-241/T-275/
+T-279/T-294b/T-295b/T-312a/T-313b/T-322b/T-322h bereits mehrfach belegt).
+
+Build-Log (`t322o-build1.log`, im Scratchpad gesichert, vollstaendig
+geprueft): einziger "error"-Treffer ist derselbe PowerShell-`*>`-Artefakt wie
+in jedem Vorlauf (stderr-Umleitung verpackt die erste PyInstaller-INFO-Zeile
+als `NativeCommandError`, `rc` bleibt 0) - kein PyInstaller-Fehler; 0 Treffer
+fuer "deprecat". Warnungsdatei (`build/NightreignHelper/warn-NightreignHelper.txt`):
+**37 Zeilen** (davon 21 `missing module`) - zahlengleich mit T-322h/T-322b/
+T-313b/T-312a/T-295b/T-294b, gleiche Art (optionale/plattformbedingte
+Importe); keine neue, unerklaerte Warnung.
+
+Groessendifferenz zum T-322h-Artefakt (59.233.161 Byte): **+290 Byte
+(+0,0005 %)** - `git diff --stat 5b9fad9..9f95de0` zeigt Anwendungscode-
+Aenderungen in genau zwei Quelldateien (`nrplanner/advisor/goals.py` Teil
+von +12/-x Zeilen, `nrplanner/advisorbar.py` Teil von +35/-x Zeilen; Rest des
+Diffs sind Dokumentation, Register und Tests, keine Bauwirkung). Eine
+Differenz dieser Groessenordnung fuer einen derart kleinen Codewechsel deckt
+sich mit der bereits dokumentierten Bau-zu-Bau-Streuung (PE-Baustempel +
+Modulreihenfolge, nicht bit-identischer Bau, siehe T-322h) - keine neue
+Abhaengigkeit dazugekommen (`check_licences.py` unveraendert `OK`, dieselbe
+Bibliotheksliste).
+
+## Testabzug
+
+`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<scratchpad>\T-322o\localappdata\NightreignHelper` **kopiert** (nicht
+verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem Kopieren:
+**841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem in
+`CLAUDE.md` genannten Stand (`EXTRACT_VERSION` 15, weiterhin gueltig).
+
+## Startprobe (Rauchtest, NH-004)
+
+Vor dem Start: `Get-Process -Name NightreignHelper` = 0 Treffer - keine Kopie
+des Nutzers lief, keine Wartezeit noetig.
+
+Isolierung: `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-322o`, `LOCALAPPDATA`/
+`APPDATA` auf `<scratchpad>\T-322o\localappdata` bzw. `appdata` umgelenkt (in
+derselben PowerShell-Sitzung wie der Start).
+
+- **Start:** `dist\NightreignHelper.exe` gestartet, nach 8 s zwei Prozesse
+  (Bootloader-PID 12580, Kind-PID 16548), beide `Responding = True`.
+- **Fenstertitel:** "Nightreign Helper 1.16.0" - Version am Fenster
+  bestaetigt.
+- **Echte Schreibaktion:** `Get-ChildItem HKCU:\Software\DankYeeterT-322o`
+  findet nach dem Start `NightreignHelper`, `NightreignHelper\builds\1`,
+  `NightreignHelper\chalices\1` - die Testorganisation, nicht `DankYeeter`.
+  Die echten Nutzerdaten (309 Relikte, ~110 Builds unter
+  `HKCU\Software\DankYeeter`) wurden nicht beruehrt (Positivnachweis der
+  Umlenkung genuegt laut CLAUDE.md; `HKCU:\Software\DankYeeter` existiert
+  weiterhin, Inhalt nicht erneut gelesen).
+- **Beendet sofort** (Auftrag: NH-004, ein Fensterlauf je Zeitpunkt):
+  `Stop-Process -Force` auf beide `NightreignHelper`-PIDs, 0,5 s Wartezeit,
+  danach `Get-Process -Name NightreignHelper`: **0 Treffer** - belegt.
+- **Aufraeumen:** Testregistrierung `HKCU:\Software\DankYeeterT-322o`
+  entfernt (`Test-Path` danach `False`; `HKCU:\Software\DankYeeter`
+  weiterhin `True`, unberuehrt); Scratchpad-Testabzug (`localappdata`,
+  `appdata`) geloescht (`Test-Path` danach `False`); Build-Log verbleibt im
+  Scratchpad (nicht im Repo, `git status` danach leer).
+
+Keine ueber die Startprobe hinausgehende Schreibaktion (Update-Pfad,
+Neustart-Probe, fachliche Bedienhandlung AK-330) ausgefuehrt - das ist
+`qa-engineer` (T-322p), nicht Teil dieses Auftrags.
+
+## Blocker
+
+Keiner fuer diesen Bau.
+
+## Risiken
+
+- Kein UPX auf diesem Bau-Wirt - unveraendert seit T-282/T-290/T-293/T-294b/
+  T-295b/T-312a/T-313b/T-322b/T-322h.
+- Nur ein gueltiger Lauf: interne Reproduzierbarkeit (Bit-Identitaet zwischen
+  zwei Laeufen derselben Umgebung) wurde nicht neu belegt, sondern aus den
+  genannten Vorlaeufen uebernommen (auftragsgemaess, kein Zweitbau verlangt).
+- `CHANGELOG.md` traegt bereits einen `[1.16.0]`-Abschnitt (anders als beim
+  T-322h-Bau), deckt aber die Aenderungen aus T-322n (Why-Klarstellung,
+  Schadensart-Persistenz, AK-330) nach Durchsicht **nicht** ab - Nebenfund
+  fuer den `notes`-Lauf (T-322q), keine Auflage, kein Blocker fuer diesen
+  Bau.
+
+## Ungeprueft
+
+- Clean-Room-Installation, Update-Pfad, Zweitstart nach Neustart - nicht Teil
+  dieses Auftrags (nur Startprobe, keine Schreibaktion darueber hinaus).
+- Windows ARM64, Windows 8.1/aelter, Linux/macOS - kein Ziel laut `CLAUDE.md`.
+- Die fachliche Retest-Pruefung von AK-330 selbst - das ist T-322p
+  (qa-engineer), nicht dieser Bau.
+
+## An `developer`
+
+Kein Befund am Anwendungscode.
+
+## An `power-user` (Ausgangspunkt, falls angefordert)
+
+- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Groesse:** 59.233.451 Byte (56,49 MiB)
+- **SHA-256:** `FE7DB4B966FC9FA39100CBC6016BC330733A0905DCE763B6ADF51240761CDED2`
+- **Versionsressource:** 1.16.0, am Fenstertitel bestaetigt (Startprobe).
+- Dieses Artefakt ersetzt das T-322h-Artefakt (SHA `51F694986D...`), das den
+  T-322n-Fix (AK-330) noch nicht enthielt - bei jeder Pruefung dieses hier
+  verwenden.
+- Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,
+  `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen
+  (`CLAUDE.md`).
+- Kein laufender `NightreignHelper.exe`-Prozess nach diesem Lauf
+  (`Get-Process` geprueft, 0 Treffer) - vor eigenem Start dennoch selbst
+  pruefen (NH-004, maschinenweite Instanzsperre).
+
+## An `director`
+
+**Empfehlung: freigeben mit benannter Einschraenkung** (fuer den Weiterlauf zu
+T-322p/Retest - kein Release-Votum, das bleibt an A-025 und eine
+ausdrueckliche Weitergabe-Entscheidung gebunden).
+
+1. Kein `.gitignore`-Nachtrag noetig (`dist/`, `build/` bereits erfasst).
+2. Keine offene rote Auflage - Build war nicht gesperrt.
+3. Arbeitsbaum war beim Bau sauber und blieb es (kein Anwendungscode
+   angefasst); `dist/`/`build/` weiterhin ignoriert.
+4. Tag-Vorschlag: keiner in diesem Lauf - 1.16.0 ist unveroeffentlicht, Notes
+   und Release folgen erst nach dem Retest von AK-330 (T-322p).
+5. Nebenfund an `notes`/`technical-writer`: `CHANGELOG.md` `[1.16.0]` deckt
+   AK-330 (T-322n) noch nicht ab - vor der Release-Freigabe nachziehen.
