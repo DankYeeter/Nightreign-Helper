@@ -2881,6 +2881,287 @@ keiner dieses Kriteriums.
 
 ---
 
+### 4.5 Weapon art und Startzauber im Schadensblock (A27)
+
+*Neu in T-326a (ui-ux-designer), 2026-09-20 — `GOAL.md` A27 (Ende) und
+`ARCHITECTURE.md` AD-019/AD-020/AD-038/AD-047/AD-052/AD-053. Auftragskopf:
+kein Programmstart, nichts hier gemessen — jede Breiten-/Pixelangabe fehlt
+absichtlich; der erste Baubericht misst nach (Muster AK-334/AK-349).
+Grundlage: `nrplanner/statsheet.py` `_refresh_weapon_damage`/
+`_ar_breakdown_text` (Stand `54ea59d`), `nrplanner/damage.py` `equipped`,
+`spell`, `SpellRating`, `breakdown_figures`, `nrplanner/advisor/goals.py`
+`_start_catalyst`/`_spell_thrown` (dort privat, A26 bereits gebaut). Betrifft
+ausschliesslich die **Schadenstafel** unter dem Kachelraster (`ar_label`),
+**nicht** die Kacheln selbst — AK-31s Kachel-Ausnahme (`"203 AR"`) bleibt
+unveraendert.*
+
+**Vorentscheidung, die den ganzen Abschnitt traegt:** `Planner.
+apply_hero_weapon` (`app.py:1355-1370`) belegt beim ersten Aufruf **nur**
+Kachel 1 (rechte Starthand) mit `hero["starting_weapon"]`. Die linke
+Starthand (`hero["starting_weapon_left"]`, z. B. Revenants Finger Seal)
+bekommt **keine** eigene Kachel — sie existiert nur als Datensatz, genau wie
+die Bezugswaffe der Advisor-Leiste seit AD-038/AD-052 unabhaengig vom
+Kachelraster gelesen wird. Eine eigene, staendig sichtbare Flaeche fuer die
+linke Hand haette also nichts, woran sie sich anlehnt, und waere ein neues
+Widget (gegen "Nicht Ziel: neue Extraktion" aus `GOAL.md` A27). **Damit ist
+die im Auftrag gestellte Frage "eigener Block oder Zeile im rechten?"
+entschieden: Zeile im rechten** — beide neuen Zeilen haengen an der
+Schadenstafel der **rechten Starthand**, so wie der Nachweis in `GOAL.md`
+A27 es auch beschreibt ("der Block zeigt **neben der Klauen-AR**"). Das ist
+keine Geschmacksfrage, sondern die Konsequenz aus dem, was die Oberflaeche
+heute schon oder eben nicht zeichnet.
+
+#### AK-353 — Wo und wann die beiden neuen Zeilen erscheinen
+
+**AK-353** Die Zeilen `Weapon art` und `Spell damage (<Zauber>)` erscheinen
+ausschliesslich innerhalb der bestehenden Schadenstafel (`ar_label`),
+niemals auf einer Kachel. Ausloeser ist **nicht** "eine Kachel ist aktiv",
+sondern eine Identitaetspruefung der aktiven Kachel gegen die Startausruestung
+des aktuellen Nightfarer:
+
+1. **`Weapon art`** erscheint, wenn `damage.is_starting_armament(slot.weapon,
+   hero, slot_index)` fuer die aktive Kachel wahr ist (rechte Starthand,
+   Slot 1 — dieselbe Pruefung, die heute schon den Statusmalus traegt, AD-038
+   Punkt 1). Verschiebt der Spieler die Startwaffe auf eine andere Kachel,
+   verschwindet die Zeile mit ihr — das ist dieselbe Regel, der auch der
+   Statusmalus folgt, keine zweite.
+2. **`Spell damage (<Zauber>)`** erscheint, wenn die aktive Kachel **entweder**
+   die rechte Starthand ist (Punkt 1) **oder** ihre Waffe die Id des per
+   AD-052 aufgeloesten Start-Katalysators traegt (die linke Starthand, falls
+   sie ein Stab oder Siegel ist und der Spieler sie manuell auf eine Kachel
+   gelegt hat). In beiden Faellen stammt die Zahl **ausschliesslich** aus der
+   Fassade (AK-357), nie aus einer eigenen Berechnung ueber die Waffe der
+   aktiven Kachel.
+3. Auf jeder anderen Kachel (ein im Lauf gefundenes Schwert in Slot 3, ein
+   verschobenes Schild) erscheint **keine** der beiden Zeilen — die
+   Schadenstafel verhaelt sich dort exakt wie heute (AK-31 bis AK-40
+   unveraendert).
+
+**Pruefweg:** Wylder, Kachel 1 (seine Startwaffe) aktiv: `Weapon art`
+erscheint, `Spell damage` nicht (kein Katalysator im Kit, AK-355). Revenant,
+Kachel 1 (Cursed Claws) aktiv, Finger Seal auf keiner Kachel: `Weapon art`
+**und** `Spell damage (Beast Claw)` erscheinen zusammen — der Nachweis aus
+`GOAL.md` A27 woertlich. Revenant, Kachel 3 mit einem gefundenen Fist belegt
+und aktiv: keine der beiden Zeilen, auch wenn Kachel 1 im Hintergrund
+weiterhin die Claws traegt.
+
+#### AK-354 — `Weapon art`: Formel und Fassadenaufruf
+
+**AK-354** Der Wert kommt aus einem zweiten Aufruf derselben Fassadenfunktion,
+die die Zeile darueber schon fuellt: `damage.equipped(slot, slot_index,
+build, hero, data, art=model.SKILL_ART)`. Aus dem zurueckgegebenen Paar zaehlt
+nur `now.final_headline` (mit Zweihand-Zwilling, AK-355) — `bare` dieses
+zweiten Aufrufs wird verworfen, denn die Grundlinie der Zeile ist nicht "ohne
+jedes Relikt", sondern "ohne den Skill-Faktor" (Punkt aus AK-355). Kein
+zweiter Rechenweg (AD-019/AD-021): dieselbe `_rate`/`_multiplied`-Schleife,
+nur mit `art` als drittem Eimer (AD-047).
+
+#### AK-355 — `Weapon art`: Darstellung, Grundlinie ist die eigene AR-Zeile
+
+**AK-355** Dieselbe visuelle Form wie die bestehende Gesamtzeile (grauer Wert,
+farbiger Link mit der Differenz, fetter Endwert, ACCENT-Farbe) — keine neue
+Zeilenform wird erfunden. Die **Grundlinie ist ausdruecklich nicht** die
+waffenlose oder relikt­lose Zahl (`bare.final_headline`, das waere dieselbe
+Zahl wie in der Zeile darueber und damit eine sinnlose zweite Kopie), sondern
+der **bereits equippte** Gesamtwert `now.final_headline` aus der Zeile
+darueber, ohne den Skill-Faktor. Formal, mit `skill_now` aus AK-354:
+
+```
+grau  = now.final_headline                 # dieselbe Zahl wie die Zeile darueber
+delta = skill_now.final_headline - now.final_headline
+fett  = skill_now.final_headline
+```
+
+Damit bewegt **ausschliesslich** ein Relikt mit Skill-Scope (Scope 112/111)
+diese Zeile sichtbar — ein Staerke- oder Elementrelikt bewegt beide Zeilen
+gleichermassen und die Differenz bleibt 0 (`no change`, dieselbe Zeichenkette
+wie Zeile "Total"). Das ist der Nachweis aus `GOAL.md` A27 fuer Wylder
+("ein Skill-Buff bewegt nur diese Zeile") und die im Auftrag genannte Klausel
+"Delta nur durch Skill-Buffs" woertlich.
+
+**Zweihand:** Die Kachel traegt einen Zweihand-Zwilling (`Rating.two_handed`)
+unveraendert auch unter `art=SKILL_ART` — die Zeile zeigt ihn genauso wie die
+Gesamtzeile (`displayed_hands`, `1H`/`2H`-Suffix, AK-286/AK-298/AK-299), am
+selben `hand_switch`-Zustand.
+
+**Pruefweg:** ein Build ohne jedes Relikt zeigt `Weapon art` mit `no change`
+und einem fetten Endwert gleich dem grauen; ein Build mit genau einem
+Skill-Relikt zeigt eine farbige, von Null verschiedene Differenz, waehrend
+die Zeile "Total" unveraendert bleibt.
+
+#### AK-356 — `Weapon art` auf einem Katalysator: Ersatzsatz statt Zahl
+
+**AK-356** Ist die rechte Starthand selbst ein Stab oder Siegel (Recluse),
+traegt ihre Kopfzahl schon heute `Spell power`, keine Angriffswertzahl
+(`Rating.catalyst_scaling`, QA-099) — ein Skill-Faktor hat dort nichts, worauf
+er wirken koennte (AD-048/AD-053 Punkt 5). Die Zeile `Weapon art` zeigt dann
+**keine Zahl**, sondern, an derselben Stelle, einsprachig und ohne eigenen
+Link:
+
+> `"Weapon art — not shown: a staff or a seal is ranked on the spell power "`
+> `"the game shows for it, and no attack art reaches that figure."`
+
+(Zweiter Halbsatz wortgleich aus `goals._ART_ON_A_CATALYST` uebernommen —
+dieselbe Tatsache, hier als Feststellung statt als Ablehnung einer Wahl, weil
+diese Tafel keine Box hat, die etwas hätte ablehnen können.) Die Zeile
+`Spell damage` darunter ist davon unberuehrt und erscheint normal (AK-358).
+
+#### AK-357 — Bezugsobjekt der Zauberzeile: nur die Fassade, keine zweite Auswahllogik
+
+**AK-357** *(AD-019.)* Katalysator und geworfener Zauber werden **nicht** in
+`statsheet.py` neu ausgewaehlt. Die Regel ist die von AD-052/AD-053, bereits
+gebaut in `advisor/goals.py` (`_start_catalyst`, `_spell_thrown`): rechte
+Starthand vor linker, Tauschrelikt-Zauber vor Standardzauber des Katalysators,
+der staerkere von zwei gleichzeitigen Tauschrelikten (AK-345-Fall zaehlt auch
+hier, siehe AK-360). Diese beiden Funktionen sind heute privat und nur in
+`advisor/goals.py` erreichbar — **bevor** diese Zeile gebaut wird, wandert die
+Auswahllogik an einen Ort, den `statsheet.py` und `advisor/goals.py`
+gemeinsam rufen (z. B. neben `damage.spell` in `damage.py`, oder ein
+eigenstaendiges Modul); ein Copy-Paste der Auswahl nach `statsheet.py` waere
+der zweite Ort, den AD-019 ausdruecklich verbietet. Aufruf danach:
+`damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build, data,
+hit_with=genus)` mit `genus = model.SORCERIES_ART` fuer einen Stab,
+`model.INCANTATIONS_ART` fuer ein Siegel (`_GENUS_OF_CATALYST[catalyst
+["wep_type"]]`) und `damage_type=""` (Summe aller Arten — diese Tafel hat
+keine Damage-type-Box). **Ausdruecklich nicht Teil dieser Vorgabe:** eine
+Schulwahl (Bestial usw.) — diese Zeile zeigt immer nur die Gattungszahl
+(Sorceries/Incantations), die feinere Aufschluesselung nach Schule bleibt der
+Advisor-Leiste (§3.8) vorbehalten.
+
+#### AK-358 — `Spell damage`: wann sie erscheint, wann sie ganz fehlt
+
+**AK-358** Traegt der Nightfarer **weder** in der rechten **noch** in der
+linken Starthand einen Stab oder ein Siegel (acht von zehn, AD-052 gemessen),
+erscheint die Zeile `Spell damage` **auf keiner Kachel**, auch nicht als
+Ablehnungssatz — anders als `AK-341`s Regel fuer die Advisor-Leiste (dort eine
+dauerhafte Box, die jeder Nightfarer gleich sieht, hier eine Zeile, die schon
+durch AK-353 an die Startausruestung **dieses** Nightfarer gebunden ist). Das
+folgt demselben Muster, dem diese Tafel schon fuer "Inflicts <Status>" folgt
+(Zeile 616-637 im Bestand: kein Eintrag ohne Wirkung, nie ein sichtbares
+"Inflicts nothing"), nicht dem Muster der Rally-Zeile (die immer steht, weil
+"traegt diese Waffe Rally?" eine Frage ist, die sich beim Waffenvergleich lohnt
+— "hat dieser Nightfarer einen Katalysator?" ist dagegen eine feste
+Eigenschaft, kein Vergleich). Traegt der Nightfarer einen Katalysator,
+erscheint die Zeile auf **jeder** Kachel, auf die AK-353 Punkt 2 zutrifft, mit
+derselben Zahl (dieselbe Fassade, derselbe Aufruf).
+
+**Offene Frage** siehe unten — diese Regel ist die Empfehlung, keine
+Nutzerentscheidung.
+
+#### AK-359 — `Spell damage`: Kopfzeile, Why-Betrag, kein Zweihand
+
+**AK-359** Kopfzeile wortgleich zur einfachsten Form aus AK-342 (diese Tafel
+hat kein `hit_with`/`damage_type`-Paar, `chosen` bleibt also immer leer):
+
+```
+"Spell damage ({spell['name']}) {damage.displayed(value)}"
+```
+
+Dieselbe visuelle Form wie `Weapon art` (grauer Wert, farbiger Link,
+fetter Endwert), mit **einer Grundlinie, die die Fassade heute nicht
+liefert**: `damage.spell()` beantwortet nur die aktuelle Frage, kein
+Vor-Relikt-Zustand wie `equipped()` ihn als `bare` mitliefert. Diese Vorgabe
+verlangt trotzdem den Why-Betrag (Auftragskopf, AD-038-Muster
+Grundlinie → jetzt) — **das ist eine Bauvoraussetzung, keine Praesenz-**
+**oder Geschmacksfrage**: `damage.spell` (oder ein Geschwister davon) muss vor
+dieser Zeile um eine Grundlinien-Antwort erweitert werden (dieselbe
+Nightfarer-Stufe/Basiswerte, keine Baueffekte — symmetrisch zu `equipped()`s
+`Question.BARE`). Wie diese Erweiterung in der Fassade aussieht, entscheidet
+`architect`/`developer`; diese Vorgabe legt nur fest, **was** die Zeile
+zeigen muss:
+
+```
+grau  = <Grundlinien-Zauberschaden derselben Formel, ohne Bau-Effekte>
+delta = jetzt - grau
+fett  = jetzt
+```
+
+**Kein Zweihand-Zwilling** (AD-053 Punkt 4: der Zweihand-Eimer erreicht einen
+Zauber nicht) — die Zeile bleibt bei jedem Stand des Hand-Schalters
+unveraendert, das ist ein eigenes Pruefkriterium, keine Fussnote.
+
+#### AK-360 — Rejection/Heal und zwei gleichzeitige Tauschrelikte
+
+**AK-360** Wirft der Katalysator einen Zauber ohne Schaden (`SpellRating.
+reason` gesetzt, z. B. Revenants Standardzauber Rejection/Heal): die Zeile
+zeigt trotzdem eine Zahl, `"Spell damage (Rejection) 0"`, keinen
+Ablehnungssatz ohne Ziffer — das ist AD-052 Punkt 5 ("kein Ruckfall auf Spell
+Power, zwei Massstaebe waeren QA-018 in neuer Gestalt") und der Unterschied
+zu AK-344 Fall 1 (dort fehlt der Katalysator strukturell; hier ist er da und
+wirft nur nichts). Traegt der Build gleichzeitig zwei der zehn
+Tauschrelikt-Effekte (`exclusivityId` 200, AK-345), gilt hier dieselbe Regel:
+die Zahl steht auf dem staerkeren der beiden Zauber, ein zusaetzlicher Satz
+dazu erscheint nicht in dieser Tafel (kein `unknowns`-Aequivalent hier, siehe
+AK-361) — dieser Fall ist selten genug, ihn dem Why-Klick zu ueberlassen.
+
+#### AK-361 — Unkalibriert-Hinweis: Klick-Tooltip statt Dauertext
+
+**AK-361** *(beantwortet die im Auftrag gestellte Frage "Tooltip statt
+Satz?": Tooltip.)* Der fette Endwert der `Spell damage`-Zeile ist, wie schon
+der `Total`-Wert (`AR_BREAKDOWN_KEY`), ein Link (`<a href='…'>`), der per
+Klick einen Tooltip im selben Stil wie `_ar_breakdown_text` oeffnet
+(Grundlinie, dann die Zeilen der beitragenden Raten mit ihren Reliktnamen,
+dann der Endwert). Dieser Tooltip traegt **immer**, wenn die Zeile ueberhaupt
+eine Zahl zeigt, genau einen der beiden folgenden Saetze, wortgleich aus
+`nrplanner/damage.py` uebernommen (nie beide, `rating.reason or
+SPELL_DAMAGE_UNCALIBRATED`, dieselbe Ausschliesslichkeit wie AK-343):
+
+> `"Spell damage is uncalibrated: it is the damage formula applied to the "`
+> `"game's own values, and the game shows no spell damage to check it "`
+> `"against. Compare two spells by it, not the figure itself."`
+
+oder (Rejection/Heal, AK-360):
+
+> `"{spell} deals no damage, so this is 0.00. Only a relic that swaps the "`
+> `"spell this equipment casts brings damage here."`
+
+**Begruendung fuer den Tooltip statt einer Dauerzeile:** dieselbe wie AK-343
+selbst gibt ("nur einmal pro Zeile... der Spieler ruft ihn gezielt auf"),
+uebertragen auf das Klick-Idiom, das diese Tafel schon fuer die Gesamtzeile
+hat — eine dritte Dauerzeile unter jeder Katalysator-Kachel waere Rauschen an
+genau der Stelle, die AK-31/AK-35 bewusst kurz halten; das Klick-Idiom kostet
+keinen neuen Mechanismus, nur einen zweiten Link-Schluessel neben
+`AR_BREAKDOWN_KEY`.
+
+#### AK-362 — Ein Massstab je Zeile, nie eine Summe (entschaerft AK-67/QA-018)
+
+**AK-362** `AR`/`Total`, `Weapon art` und `Spell damage` stehen **immer** als
+drei getrennte Zeilen mit drei getrennten Endwerten. Keine Rechnung dieser
+Tafel addiert, mittelt oder ersetzt eine der drei Zahlen durch eine andere —
+genau der Fehler, den QA-018 schon einmal hatte (zwei Massstaebe in einer
+Rangfolge). `AK-67`s Muster ("mehrere zutreffende Saetze wachsen in **einem**
+Textblock") gilt hier ausdruecklich **nicht**: die drei Zeilen bleiben drei
+eigene `<div>`-Zeilen mit eigenen Links, weil sie drei verschiedene Fragen
+beantworten (Angriffswert, Waffenkunst, Zauberschaden) und keine Formulierung
+sie ohne Bedeutungsverlust zusammenfassen koennte.
+
+#### AK-363 — Wortlaut-Konsistenz
+
+**AK-363** `Weapon art` ist derselbe Text wie `model.ART_LABELS[SKILL_ART]`
+nach der Umbenennung aus AK-338 — ein Woerterbuchwert, keine zweite
+Zeichenkette. `Spell damage` ist `damage.SPELL_DAMAGE_NAME`. Aendert sich
+einer der beiden Werte kuenftig, folgt diese Tafel automatisch, ohne eine
+eigene Kopie zu pflegen.
+
+#### AK-364 — Reihenfolge und Platz im Bestand
+
+**AK-364** Beide Zeilen stehen, in dieser Reihenfolge, **direkt unter** der
+bestehenden Gesamtzeile (`Total`/Kopfzahl) und **vor** den bestehenden
+Zeilen "Inflicts <Status>" und "Rally recovery": zuerst `Weapon art` (oder ihr
+Ersatzsatz, AK-356), danach `Spell damage` (falls sie ueberhaupt erscheint,
+AK-358). Kein Umbau des Restblocks — die Fussnote ("Grey is your base at this
+level…") bleibt am Ende stehen und gilt jetzt fuer alle Zeilen der Tafel
+gleichermassen, ihr Wortlaut aendert sich nicht.
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** eine Aenderung an den
+Waffenkacheln selbst (AK-31s `"<n> AR"`-Suffix bleibt, wie es ist); eine
+eigene Flaeche fuer die linke Starthand (siehe Vorentscheidung oben); eine
+Schulwahl fuer die Zauberzeile (AK-357); eine Motion-Value-genaue
+Waffenkunst-Zahl (nicht gebaut, `ARCHITECTURE.md` AD-053 Punkt 3); jede
+Breiten- oder Pixelangabe (kein Fensterlauf, NH-004).
+
+---
+
 ## Bereich 5 — Der Relic Picker
 
 Der Picker ist der Hauptweg des Beraters. Dieser Bereich beschreibt den

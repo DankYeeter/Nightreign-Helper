@@ -506,3 +506,22 @@ Baubericht `054ca1e` liefert die AK-349 offengelassene Messung nach
 | AK-351 | Kuerzungsreihenfolge unterhalb des Bedarfs: Statuszeile auf 0 px, danach `goal_box`/`hit_with_box`/`damage_type_box` per Elision, Aktionsknoepfe nie — erweitert AK-05/AK-194/AK-269/AK-271 um eine dritte Stufe (mit zwei Boxenpaaren reicht "nur Statuszeile" nicht immer) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
 | AK-352 | Pruefweg 1920/2560 px mit RATIO=0,9: 1920 → 1728 px (Vorschlagszustand kuerzt Statuszeile+Boxen), 2560 → an Bedarf 1959 px gedeckelt (nichts gekuerzt) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
 | AK-338 | *(Status 20.09.2026, ui-ux-designer T-325a: Trennlinie bestaetigt unveraendert)* eine Trennlinie zwischen Typgruppe (`Weapon`/`Weapon art`/`Sorceries`/`Incantations`) und Zauberschulen, keine zweite vor der Typgruppe — Konsistenz mit `damage_type_box` (AK-339, ebenfalls eine Linie, direkt hinter `All`) | **bestaetigt** — ui-ux-designer | `docs/tasks/T-325.md` a |
+
+**Nachtrag T-326a (ui-ux-designer), 2026-09-20 — A27: `Weapon art` und
+`Spell damage` in der Schadenstafel des Build planner (UI_SPEC §4.5), neu.**
+Kein Programmstart (NH-004), kein Vorgaengerkriterium betroffen — die
+Schadenstafel selbst (AK-31 bis AK-40) bleibt unveraendert, diese Kriterien
+kommen als zwei zusaetzliche Zeilen hinzu.
+
+| AK-353 | Ausloeser: `Weapon art` an `damage.is_starting_armament` (rechte Starthand, Slot 1); `Spell damage` zusaetzlich auf jeder Kachel, deren Waffe die Id des AD-052-Katalysators traegt; sonst keine der beiden Zeilen | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-354 | `Weapon art`-Wert aus `damage.equipped(..., art=model.SKILL_ART)`, `bare` dieses zweiten Aufrufs verworfen | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-355 | `Weapon art`-Darstellung: Grundlinie ist die bereits equippte AR-Gesamtzeile (nicht `bare`), Delta ausschliesslich durch Skill-Scope-Relikte, Zweihand-Zwilling wie die Gesamtzeile | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-356 | `Weapon art` auf einer Katalysator-Kachel: Ersatzsatz statt Zahl, Halbsatz wortgleich aus `goals._ART_ON_A_CATALYST` | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-357 | Bezugsobjekt der Zauberzeile nur ueber eine gemeinsame Fassadenfunktion mit `advisor/goals.py` (AD-019), kein zweiter Auswahlweg in `statsheet.py`; `hit_with` = Katalysator-Gattung, `damage_type=""` | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-358 | `Spell damage` entfaellt vollstaendig (keine Zeile, kein Ablehnungssatz) fuer die acht Nightfarer ohne Katalysator; erscheint sonst auf jeder Kachel aus AK-353 Punkt 2 | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-359 | `Spell damage`-Kopfzeile nach AK-342s einfachster Form, Why-Betrag verlangt eine Grundlinien-Antwort der Fassade (Bauvoraussetzung, nicht heute vorhanden), kein Zweihand-Zwilling | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-360 | Rejection/Heal zeigt `"…0"` mit Ziffer (kein Ablehnungssatz, AD-052 Punkt 5); zwei gleichzeitige Tauschrelikte rechnen auf den staerkeren, ohne Zusatzsatz in dieser Tafel | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-361 | Unkalibriert-/Rejection-Hinweis als Klick-Tooltip (wie `AR_BREAKDOWN_KEY`), Wortlaut wortgleich `damage.SPELL_DAMAGE_UNCALIBRATED`/`NO_SPELL_DAMAGE`, nie beide zugleich | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-362 | Drei getrennte Zeilen/Massstaebe (AR, Weapon art, Spell damage), nie summiert oder gemischt (QA-018); AK-67s Ein-Textblock-Muster gilt hier ausdruecklich nicht | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-363 | Wortlaut aus Woerterbuchwerten (`model.ART_LABELS[SKILL_ART]`, `damage.SPELL_DAMAGE_NAME`), keine zweite Kopie | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-364 | Reihenfolge: `Weapon art` (oder Ersatzsatz), dann `Spell damage`, direkt unter der Gesamtzeile, vor Inflicts/Rally; Kacheln selbst unveraendert | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
