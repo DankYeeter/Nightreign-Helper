@@ -8442,6 +8442,510 @@ lauffaehig; 3 braucht beide; 4 ist ohne 3 lauffaehig, aber inhaltlich dessen Hae
   gueltige und aussagekraeftige Rangfolge ergibt — kein Fehlerfall).
 
 
+## Themenbereich N — Ziel = Womit x Schadensart, mit echten Zauberzahlen, A26 (2026-09-20, T-323b)
+
+*Anlass: `GOAL.md` A26 (Nutzer 20.09.2026, Nachtrag 17:35 zu A25). Vorlauf:
+`docs/research/R-009.md` (Mechanik der Relikt-Raten) und `docs/research/R-010.md`
+(Param-Kette Magic -> Bullet -> AtkParam, SwordArts). Entscheidungstiefe laut Auftrag:
+**Datenmodell + Extraktor + Ziel**.*
+
+**R-010 konnte seine eigenen Leseproben nicht ausfuehren** (keine Shell in der
+Rolleninstanz, R-010 Vorbemerkung). Die vier Proben aus R-010 "Offene Fragen" habe ich
+deshalb hier selbst gefahren — lesend gegen die eigene Installation
+(`d:\steam\steamapps\common\ELDEN RING NIGHTREIGN\Game\regulation.bin`,
+`regulation.load_params` + `paramdef.load_all("vendor/Paramdex/NR/Defs")`,
+Umlenkung `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-323b`, `LOCALAPPDATA`/`APPDATA` ins
+Scratchpad, kein Programmstart, kein Fensterlauf, nichts geschrieben). Alles, was unten
+"gemessen 20.09." heisst, stammt aus diesen Proben; die Skripte liegen im
+Session-Scratchpad unter `T-323b/probe*.py`. **Die Rechenformel selbst ist damit nicht
+gemessen** — sie bleibt Praemisse (siehe unten und OF-54).
+
+### Praemissen dieses Themenbereichs
+
+| Praemisse | Quelle | Guete |
+|---|---|---|
+| Ein Zauber traegt seinen Grundwert nicht selbst: `Magic.refId1..10` -> `Bullet` -> `Bullet.atkId_Bullet` -> `AtkParam_Pc.atkPhys/atkMag/atkFire/atkThun/atkDark`. | **selbst gemessen 20.09.**: 491 Verweise ueber 160 benannte Zauber, 430 davon in `Bullet` aufloesbar, 111 Zauber mit mindestens einer schadenstragenden AtkParam-Zeile | belegt |
+| Der Def `AtkParam.xml` passt auf `AtkParam_Pc` und wird nur unter dem falschen Schluessel gesucht (`defs.get("AtkParam_Pc")` -> None). | **selbst gemessen 20.09.**: Def-Zeilenlaenge 464 B = Zeilenlaenge der Tabelle, 8988 Zeilen, 211 gelesene Felder je Zeile (R-010 Befund 2 bestaetigt) | belegt |
+| Eine Waffenkunst traegt ihre Zahl als **Motion Value** in `atk*Correction`, nicht als flachen Schaden: die fuenf Korrekturwerte sind auf einer Kunst gleich. | **selbst gemessen 20.09.**: 147 `SwordArtsParam`-Zeilen mit aufloesbarem `atkParamId`, davon **135 mit fuenf gleichen Korrekturwerten**, 50 mit zusaetzlichem flachem Anteil; Wylder 215 %, Executor 190 %, Undertaker 235 %, Scholar 99 %, Guardian 50 % | belegt fuer die Struktur, **unkalibriert** fuer die Zahl |
+| Scope 112 ist die Waffenkunst — nicht nur Nutzerpraemisse, sondern in den Params: die AtkParam-Zeilen der Waffenkuenste tragen `subCategory1/2` = 112. | **selbst gemessen 20.09.**: 141 der 147 Kunst-Zeilen tragen 112 in `subCategory1` oder `subCategory2` (112/0: 112 Zeilen, 0/112: 14, 105/112: 5, 111/112: 3, …) | belegt — **hebt die A25-Praemisse "gesetzt" auf belegt** |
+| Der Zauber, den ein Tauschrelikt setzt, steht in `SpEffectParam` an **Offset 1020** (s32), im vom Def nicht beschriebenen Zeilenrest (Def 976 B, Zeile 1024 B). | **selbst gemessen 20.09.**: genau **10** der 13 472 Zeilen tragen dort keinen `-1`, und alle zehn sind genau die Magic-Id, die der Effekttext nennt (7360600 -> 4390 Magic Glintblade, …, 7370900 -> 6820 Beast Claw, 7371500 -> 7000 Dragonfire) | belegt, Gegenprobe ueber den Namen 10/10 |
+| Die linke Starthand steht in `CharaInitParam.equip_Wep_Left_1`; drei Nightfarer tragen dort etwas. | Auftrag (Messung 20.09.), **selbst nachgemessen**: Wylder 30750000 Small Shield (`wepType` 65), Guardian 32750000 Greatshield (69), Revenant 34750000 Finger Seal (61, `enableMiracle` 1), die uebrigen sieben −1 | belegt |
+| Der Standardzauber eines Katalysators steht **nicht** in `CharaInitParam` (Zeilen 90000-90009 tragen `equip_Spell_01..07` leer), sondern am Katalysator selbst: `equipped_spells` steht seit `extract_version` 9 im Auszug. | **selbst gemessen 20.09.**: Recluse's Staff -> 4000 Glintstone Pebble, 4070 Glintstone Arc; Finger Seal -> 6400 Rejection, 6421 Heal | belegt |
+| **Zauberschaden = Grundwert x Spell Power/100 x Raten.** | R-009 Befund 4 und R-010: belegt fuer **Elden Ring**, fuer Nightreign in keiner Quelle | **Praemisse, unvermessen** (OF-54) |
+| Elementraten wirken auf jeden Treffer ihrer Schadensart, auch auf einen Zauber. | `GOAL.md` A26 "Praemissen"; R-009 Befund 5 (Ableitung aus zwei belegten Bausteinen) | gesetzt |
+| Gleiches Feld, verschiedene Effekte: multiplikativ. Verschiedener Scope: nie miteinander multiplizieren. | R-005 (zwei Messungen), `model.py` Z. 397-402 | belegt |
+| Unter einer Schulwahl zaehlt der allgemeine Sorcery-/Incantation-Buff mit. | Nutzer 19.09. (OF-51), gebaut in `model.art_factor` | entschieden |
+
+### Was die Proben an Zahlen gebracht haben (20.09.2026)
+
+| Probe | Ergebnis |
+|---|---|
+| Glintstone Pebble (Magic 4000) | eine schadenstragende Zeile, `atkMag` **152**, `atkPhys/Fire/Thun/Dark` 0, `isAddBaseAtk` 0, `overwriteAttackElementCorrectId` −1, Korrekturen 100/100/100/100/100 |
+| Beast Claw (Magic 6820) | zwei Zeilen, `atkPhys` **323** und **362** — eine Bestial-Incantation ist **physisch**, nicht heilig |
+| Lightning Spear (6900) | drei Zeilen, `atkThun` 234 / 50 / 340, Korrektur nur in der Donnerspalte |
+| Wylder's Greatsword 3750000 | `swordArtsParamId` 106 -> `SwordArtsParam.atkParamId` 300000290 -> AtkParam-Zeile **ohne** flachen Schaden, fuenf Korrekturen je **215**, `subCategory1` 112 |
+| Zauber mit Schadenszahl | **111 von 160** benannten Zaubern; 49 ohne (Heilung, Buffs, Schilde — richtig so) |
+| Zeilen je Zauber | 1: 36 Zauber · 2: 46 · 3: 7 · 4: 12 · 5: 2 · 6: 6 · 7: 1 · 8: 1 |
+| Regel fuer "die" Zeile | staerkster Einzeltreffer (Summe ueber die fuenf Typen) und erste Zeile ergeben **in 111 von 111 Faellen dieselbe Schadensartmenge**; sie ergeben unterschiedliche **Betraege** (Beast Claw 362 gegen 323) |
+| Schule -> Schadensart | **nicht** eindeutig: Bestial 4 Zauber alle physisch, Dragon Cult 7 alle Donner, Giants' Flame 7 alle Feuer — aber Dragon Communion mischt Feuer/Magie/Physisch, Frenzied Flame Feuer/Physisch |
+| Spell Power der Startkatalysatoren (Stufe 15, Stufe 1, ohne Relikte) | Recluse's Staff **135,6136**; Finger Seal in Revenants linker Hand **159,5455** (hohe Faith) |
+
+**Der Befund, der den Zuschnitt traegt:** der Zauberbezug der zehn Tauschrelikte ist
+**in den Params**, nicht nur im Text. Damit braucht A26 keinen Namensabgleich als
+tragende Route (er bleibt als Gegenprobe), und `nightreign_data.json` kann je Effekt
+eine Zauber-Id fuehren, die ein Patch selbst nachzieht.
+
+**Der zweite Befund, der Arbeit spart:** die Motion Values einer Waffenkunst sind ueber
+die fuenf Schadensarten **gleich** (135 von 147). Eine Waffenkunst aendert also die
+**Mischung** der Schadensarten einer Waffe nicht — sie skaliert sie. Fuer die Zelle
+"Weapon art x Schadensart" heisst das: `final_per_type` der Waffe mal die Skill-Rate ist
+bereits die richtige Form, und eine Extraktion der Kunstdaten bringt dieser Zelle
+**keine Rangfolgeaenderung**, nur einen absoluten Faktor je Nightfarer.
+
+---
+
+### AD-050 — Der Extraktor bekommt **drei** Lesungen und eine Zeilenverlaengerung, keine vierte Quelle: linke Starthand, Zauber-Angriffswerte ueber `Magic -> Bullet -> AtkParam_Pc`, und die Zauber-Id des Tauschrelikts aus dem unbeschriebenen `SpEffectParam`-Rest; `EXTRACT_VERSION` 16 (2026-09-20, Status: aktiv; setzt AD-011/AD-012 fort, Waffenkunst-Daten ausdruecklich **nicht**)
+
+**Kontext.** A26 verlangt echte Zauberzahlen. Heute traegt der Auszug je Zauber nur
+Kosten, Slots, Schule und Symbol (R-009 Befund 4), je Nightfarer nur die **rechte**
+Starthand, und die Tauschrelikte tragen im Auszug **leere** Modifikatoren — der
+Zauberbezug faellt beim Extrahieren durch, weil der Def die letzten 48 Bytes der Zeile
+nicht beschreibt.
+
+**Kraefte.** Jede neue Lesung kostet Erstlaufzeit (AD-030/Themenbereich E) und macht den
+festen Testabzug ungueltig. Gegen die Kosten steht, dass **ohne** Zauberwerte jede Zelle
+der Zauberspalte ohne Zahl bleibt und A26 in seinem Kern unerfuellbar ist.
+
+**Optionen.**
+- **A — im Bestand bleiben**, keine neue Extraktion (die A25-Verbotszeile 7 woertlich
+  halten). Konsequenz: die Zauber-Ziele ranken weiter auf Spell Power allein, "Bestial x
+  Physical" kann nicht unterscheiden, ob der Zauber ueberhaupt physisch ist. A26 faellt.
+  Verworfen — der Nutzer hat A26 nach genau dieser Erfahrung geschrieben.
+- **B — die ganze Kette extrahieren**, Zauber **und** Waffenkuenste (Motion Values je
+  Kunst). Konsequenz: `SwordArtsParam` loest nur fuer 147 von 194 Zeilen auf, Ironeyes
+  Kunst-`atkParamId` steht in **keiner** `AtkParam_Pc`-Zeile, und ein Motion Value ohne
+  Kalibrierung gegen das Spiel ist eine Zahl, die niemand pruefen kann. Verworfen.
+- **C — Zauberwerte ja, Waffenkuenste nein** (gewaehlt). Drei Lesungen, eine
+  Zeilenverlaengerung, kein Kunst-Datenblock.
+
+**Entscheidung: C.**
+
+**Punkte.**
+1. **Linke Starthand.** `extract.build` liest die Zeilen 90000-90009 bereits; dort kommt
+   `equip_Wep_Left_1` dazu, als `heroes[].offhand_weapon` (Feld **fehlt**, wenn −1 — kein
+   `null`, wie `inflicts` bei Waffen). Gemessen sind es drei Nightfarer (Wylder,
+   Guardian, Revenant); zwei davon tragen einen Schild, einer das Siegel, auf das A26
+   zielt.
+2. **Zauber-Angriffswerte.** Neue Felder je Zauber im vorhandenen Block `spells`:
+   `damage: {"<Typ>": <Grundwert>}` (nur die Typen ueber 0) und `damage_atk` (die
+   AtkParam-Zeile, aus der die Werte stammen, damit eine spaetere Probe weiss, wohin sie
+   schauen muss). Kein eigener Block, keine Bullet-Kette im Auszug: der Auszug traegt das
+   **Ergebnis** der Kette, nicht die Kette.
+3. **Die Zeile, die zaehlt, ist der staerkste Einzeltreffer** — `max` ueber die Summe der
+   fuenf Typen. Begruendung ist die Messung "erste Zeile und staerkste Zeile nennen in
+   111 von 111 Faellen dieselbe Schadensartmenge": die Wahl aendert **keine** Rangfolge,
+   nur den Betrag, und der staerkste Treffer ist die einzige Regel, die ohne
+   Reihenfolgeannahme ueber `refId1..10` auskommt (Rock Blaster traegt in der ersten
+   Zeile 64 und im Haupttreffer 260). Die Decke ist benannt: bei einem Zauber mit
+   geladener Variante ist das der **geladene** Wert (Beast Claw 362 statt 323). OF-57.
+4. **Der Def wird an genau einer Stelle verlaengert**, nach dem Muster, das
+   `extract.build` fuer `AntiqueStandParam` schon benutzt (Z. 1702-1713): ein Feld
+   `startMagicId` (`s32`) an Offset 1020 von `SpEffectParam`, Zeile 1024 B, Def 976 B.
+   Danach traegt der Effekt `7370900` im Auszug `modifiers["startMagicId"] = 6820` und
+   verhaelt sich wie `startSwordArtsId` bei den Kunst-Tauschrelikten. **Kein
+   Namensabgleich als tragende Route** — er bleibt Gegenprobe (Pruefpunkt N2).
+5. **Der Def-Schluessel fuer `AtkParam_Pc` ist ein Alias**, keine Kopie:
+   `defs.get("AtkParam_Pc") or defs.get("AtkParam")`. Gemessen passt der Def auf die
+   Zeile (464 B, 211 Felder); ohne den Alias liefert `param.read` **null** Felder je
+   Zeile und die ganze Kette faellt still aus (R-010 Befund 2).
+6. **`EXTRACT_VERSION` 15 -> 16.** Damit ist der feste Testabzug
+   (`NightreignHelper-Testabzug`, v15) ungueltig; der erste betroffene Auftrag baut ihn
+   neu und vermerkt es in `docs/plan-restarbeiten.md` (Projektregel in `CLAUDE.md`).
+7. **Keine Waffenkunst-Daten.** Kein `sword_arts`-Block, kein `motion_value` je Waffe.
+   Was die Probe dazu gebracht hat, steht als Messung in diesem Dokument und begruendet
+   AD-053 Punkt 3 — mehr braucht A26 nicht.
+8. **Keine Bullet-, keine Behavior-Tabelle im Auszug.** Die Zwischenstufen sind
+   Extraktionsdetail; im Auszug stehen Zahlen, nicht Verweise.
+
+**Konsequenzen.** Leicht wird: ein Patch, der einen Zauber staerkt oder einem
+Tauschrelikt einen anderen Zauber gibt, zieht ohne Codeaenderung nach. Dauerhaft schwer
+wird: das nachdeklarierte Feld haengt an einem **Offset**, nicht an einem Namen — ein
+Patch, der die Zeile umbaut, liefert stumm Unsinn. Deshalb Pruefpunkt N2 (genau zehn
+Zeilen ungleich −1, und jede davon eine bekannte Magic-Id) — dieselbe Bauform wie
+`catalyst_scaling_rates`, die aus demselben Grund laut scheitert.
+
+**Umkehrbarkeit: mittel.** Die Felder wieder zu entfernen ist eine Zeile je Feld plus
+ein `EXTRACT_VERSION`-Schritt; der Testabzug muss dann erneut gebaut werden.
+
+---
+
+### AD-051 — Die Frage hat **zwei** Felder, nicht ein Praefix: `hit_with` x `damage_type` ersetzt `damage_art`, und genau eine Stelle kombiniert sie (2026-09-20, Status: aktiv; **loest AD-045 Punkt 1 ab** — der zusammengesetzte Wahlwert faellt —, laesst AD-045 Punkte 2-6 und die `GOALS`-Registry unberuehrt)
+
+**Kontext.** A25 hat eine Wahl gebaut: entweder ein Schadenstyp **oder** eine Angriffsart
+(`damage_art`, ein Praefixwort). A26 verlangt ausdruecklich die **Kombination** ("bufft
+ein Schadenstyp eine Weapon Art, muss die Kombination richtig errechnet werden"). Eine
+Wahl aus 24 Eintraegen kann das nicht ausdruecken.
+
+**Optionen.**
+- **A — Praefix erweitern** (`art:skill+type:Fire`). Konsequenz: ein Wahlwert, der zwei
+  Dinge in einer Zeichenkette fuehrt und an zwei Stellen zerlegt werden muss. Genau die
+  Bauform, die AD-045 Punkt 1 auf **eine** zerlegende Stelle beschraenkt hatte.
+  Verworfen.
+- **B — zwei Felder** (gewaehlt): `AdvisorRequest.hit_with: str = ""` und
+  `AdvisorRequest.damage_type: str = ""`, dieselben zwei auf `GoalContext`. `hit_with`
+  traegt `""` (Waffe, Vorgabe) · `art` (Waffenkunst) · `sorceries` · `incantations` ·
+  `family:<id>`; `damage_type` traegt `""` (alle) oder einen der fuenf Namen aus
+  `weapons.DAMAGE_TYPES`.
+- **C — 30 Zielrichtungen.** Aus denselben Gruenden verworfen wie in AD-045 (Poolkosten
+  je Richtung).
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Die Schluesselform von `hit_with` ist die von `damage_art` ohne das Praefix `art:`**
+   — `model.ART_LABELS` und `model.ART_FAMILY_PREFIX` bleiben, `art_factor` bleibt
+   unveraendert, und `goals.chosen_label` wird von einer Zerlegung zu zwei Nachschlagen.
+   **`type:`/`art:` verschwindet**, weil das Feld die Frage schon beantwortet.
+2. **Beide Felder sind im Cache-Schluessel**, aus demselben Grund wie AD-045 Punkt 4
+   (`run.cache_key` ist die Anfrage ohne `generation`) und mit derselben Verbotszeile: der
+   Poolinhalt haengt an beiden.
+3. **Genau eine Stelle kombiniert**: `goals._max_damage`. Die Fassade bekommt
+   `art=hit_with` wie heute und liefert `final_per_type`; das Ziel greift die Zeile
+   `damage_type` heraus oder nimmt die Kopfzahl. **Das ist der ganze Bau fuer die vier
+   Waffen-/Kunstzellen** — die Fassade multipliziert die Art bereits je Schadensart
+   (`damage._answer`, "Last, and once per damage type"), nur das Ziel hat die beiden Faelle
+   bisher als `if/elif` getrennt.
+4. **Der Nullfall bleibt bitgleich.** `hit_with=""` und `damage_type=""` ist die heutige
+   Kopfzahl; die bestehende Suite ist die Probe (wie AD-047 Punkt 1).
+5. **Die Persistenz** folgt der gebauten Form (`advisorbar.DAMAGE_ART_KEY`): **zwei**
+   Schluessel `advisor/hit_with` und `advisor/damage_type` statt einem. Ein alter Wert
+   `type:Fire` oder `art:skill` im Einstellungsspeicher wird **nicht** uebersetzt,
+   sondern verworfen — er ist eine Woche alt, und eine Umschreibregel fuer einen
+   einwoechigen Schluessel ist Pflege ohne Nutzen.
+6. **Die Leiste** zeigt zwei Felder. Wortlaut, Anordnung, Gruppierung und was ein Feld
+   zeigt, wenn das andere seine Zellen leert, gehoeren der Spec (OF-56), nicht hier.
+
+**Konsequenzen.** Leicht: jede weitere Frage an dieselbe Zahl ist ein drittes Feld.
+Schwer: der Pool-Cache zerfaellt jetzt ueber **zwei** Achsen (AD-045 Konsequenz,
+verschaerft) — zu messen, nicht zu schaetzen (Pruefpunkt N6).
+
+**Umkehrbarkeit: leicht** (beide Felder auf `""` nageln).
+
+---
+
+### AD-052 — Das **Bezugsobjekt** haengt an `hit_with`: Waffe und Kunst an der Startarmatur, Zauber am Start-Katalysator und an **dem Zauber, den die Ausruestung tatsaechlich wirft** (2026-09-20, Status: aktiv; erweitert AD-038 um eine zweite Hand, laesst die Bezugswaffe weiter ungewaehlt)
+
+**Kontext.** Der Berater rankt seit AD-038 gegen die **Startarmatur in Slot 1**. Ein
+Zauberziel braucht ein anderes Bezugsobjekt: einen Katalysator und einen Zauber. Beide
+sind gemessen vorhanden — aber nicht dort, wo A25 sie vermutet hat.
+
+**Gemessen (20.09.):** genau **zwei** Nightfarer starten mit einem Katalysator — Recluse
+mit dem Stab in der **rechten** Hand (`wep_type` 57, `enableMagic`), Revenant mit dem
+Finger Seal in der **linken** (`wep_type` 61, `enableMiracle`). Die uebrigen acht haben
+keinen. Der Zauber steht am Katalysator: Recluse's Staff `equipped_spells` = Glintstone
+Pebble (4000, `atkMag` 152) und Glintstone Arc; Finger Seal = **Rejection und Heal** —
+zwei Zauber **ohne jeden Schadenswert**.
+
+**Optionen.**
+- **A — Bezugsobjekt waehlbar machen.** Das ist OF-42 und nicht A26. Verworfen.
+- **B — aus der Startausruestung ableiten** (gewaehlt): Katalysator = die Starthand, die
+  einen traegt (rechts vor links, gemessen kollidiert das nie); Zauber = der von einem
+  Tauschrelikt gesetzte (`startMagicId`, AD-050.4), sonst `equipped_spells[0]` des
+  Katalysators.
+- **C — einen Zauber je Schule als Vertreter waehlen** ("eine Incantation dieser Schule",
+  `GOAL.md` A26 nennt das als Nicht-Ziel). Verworfen: welcher Zauber der Vertreter waere,
+  stuende nirgends im Spiel — A7.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Rechts vor links**, und links nur, wenn rechts keiner ist. Gemessen hat kein
+   Nightfarer zwei.
+2. **Der Tauscheffekt schlaegt den Standardzauber.** Liegt einer der zehn Effekte
+   (7360600..7371500) im Build, ist **sein** Zauber das Bezugsobjekt; er ist damit
+   zugleich ein **Kandidat**, der die Zahl bewegt — und der einzige Effekt im Datensatz,
+   der den Grundwert selbst aendert statt einer Rate.
+3. **Liegen zwei Tauscheffekte im Build**, gewinnt der mit dem hoeheren Grundwert unter
+   der gewaehlten Schadensart. Begruendung: `exclusivityId` 200 auf allen zehn (gemessen)
+   sagt, dass das Spiel selbst nur einen wirken laesst, aber **nicht welchen**; die
+   Auswahl "der staerkere" ist die einzige, die der Berater treffen kann, ohne eine
+   Reihenfolge zu erfinden, und sie ist die, die ein Spieler anstrebt. Als Befund des
+   Laufs gesagt, nicht stillschweigend (AD-025.2).
+4. **Ein Siegel wirft keine Sorceries und ein Stab keine Incantations.** `enableMagic` /
+   `enableMiracle` entscheiden, und wo die Wahl nicht passt, ist die Zelle leer mit
+   Grund (Kombinationstabelle unten). Die beiden Felder kommen aus `EquipParamWeapon`
+   und stehen heute **nicht** im Auszug — sie werden **nicht** ergaenzt: `wep_type` 57
+   (Stab) und 61 (Siegel) tragen dieselbe Unterscheidung und stehen schon da.
+5. **Der Standardzauber eines Siegels traegt keinen Schaden** (Rejection, Heal —
+   gemessen). Die Zahl ist dann **0,00**, und das ist eine Aussage, keine Luecke: ohne
+   ein Tauschrelikt wirft Revenants Startausruestung nichts, was Schaden macht. Der Lauf
+   sagt es, und dieselbe Rangfolge hebt genau die Relikte hoch, die es aendern. **Kein
+   Rueckfall auf Spell Power** — zwei Massstaebe in einer Rangfolge sind der Fehler aus
+   QA-018 in neuer Gestalt (der Grenzbeitrag eines Tauschrelikts waere die Differenz
+   zweier verschiedener Groessen).
+6. **Acht Nightfarer ohne Katalysator**: jede Zauberzeile ist fuer sie leer, mit Satz.
+   Ob die Leiste sie dann ausblendet, entscheidet die Spec (OF-56).
+
+**Konsequenzen.** Leicht: die Zauberziele stehen und fallen mit zwei Feldern im Auszug.
+Schwer: die Aussagekraft haengt an der Startausruestung — was der Spieler im Lauf
+findet, kennt das Programm nicht und behauptet es auch nicht.
+
+**Umkehrbarkeit: leicht** fuer die Wahlregel; **mittel** fuer die linke Hand (sie haengt
+an AD-050 und damit am Extrakt).
+
+---
+
+### AD-053 — Die Zauberzahl entsteht in der **Fassade** (`damage.spell`) nach derselben Bauform wie die Waffenzahl, und sie loest AD-048 **fuer Zauberziele** ab, nicht fuer Waffenziele (2026-09-20, Status: aktiv; **engt AD-048 ein**, wahrt AD-019/AD-021, beruehrt AD-020 nicht)
+
+**Kontext.** AD-048 sagt: auf einer Katalysator-Bezugswaffe erreicht keine Art- und keine
+Typwahl die Zahl, weil das Programm sonst eine Rate auf eine **Skalierungszahl** legen
+wuerde, die es nicht messen kann. Das bleibt richtig, solange die Zahl die angezeigte
+Spell Power ist. Mit einem Grundwert je Zauber ist die Zahl ein **Schaden**, und eine
+Angriffsrate auf einen Schaden ist genau das, was die Params sagen.
+
+**Optionen.**
+- **A — AD-048 unveraendert halten.** Konsequenz: A26 ist fuer Recluse und Revenant nicht
+  herstellbar — also genau fuer die beiden Nightfarer, um die es geht. Verworfen.
+- **B — im Ziel rechnen** (`_max_damage` multipliziert Grundwert, Spell Power und Raten
+  selbst). Verworfen aus demselben Grund wie AD-047 Option A: eine zweite
+  Multiplikatorschicht ausserhalb der Fassade (AD-019/AD-021).
+- **C — in der Fassade** (gewaehlt): `damage.spell(catalyst, tier, spell, build, hero,
+  data, *, art=None) -> SpellRating`, ein Geschwister von `equipped`, das dieselbe
+  Ratenschleife benutzt.
+
+**Entscheidung: C.**
+
+**Punkte.**
+1. **Die Formel, je Schadensart T:**
+
+   ```
+   figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+   figure    = sum(figure[T])                      # "alle Schadensarten"
+   ```
+
+   `base[T]` aus `spells[].damage` (AD-050.3), `spell_power` aus
+   `weapons.rate(catalyst, …).catalyst_scaling` — **dieselbe** Zahl, die das Programm am
+   Stab anzeigt, also dieselbe 90er-Kalibrierung und keine zweite —, `rate[T]` aus
+   `AR_RATE_FOR[T]` (die allgemeinen `*AttackRate`), `art_rate` aus `model.art_factor`
+   (Gattung x Schule, OF-51).
+2. **Die Ratenschleife wird geteilt, nicht kopiert.** Der Kern von `damage._answer`
+   (je Schadensart die Felder aus `AR_RATE_FOR` multiplizieren, `rates_in_play` mitfuehren)
+   wird ein Helfer, den beide Wege rufen. Ohne das gaebe es zwei Orte, die dieselbe
+   Multiplikation bilden — Zusicherung Z1/AD-024.
+3. **Keine Motion Values, kein Kunst-Grundwert.** Die Zelle "Weapon art x T" bleibt
+   `final_per_type[T] x art_rate(skill)`, und das ist gemessen die richtige **Form**: die
+   fuenf Korrekturwerte einer Kunst sind gleich (135/147), eine Kunst verschiebt die
+   Mischung der Schadensarten also nicht. Was fehlt, ist ein konstanter Faktor je
+   Nightfarer (Wylder x2,15), der **keine** Rangfolge aendert. Er wird nicht erfunden.
+4. **Was einen Zauber ausdruecklich nicht erreicht:** die Klassenraten
+   (`build.class_rates`, ein Zauber ist kein Schwung einer Waffenklasse), der
+   Zweihand-Eimer, die Startwaffen-Konversion und der Statusmalus
+   (`STARTING_AR_RATE_FOR`, beides Eigenschaften der Armatur in Slot 1, nicht des
+   Zaubers). Jede dieser vier Auslassungen ist eine Entscheidung und steht im Docstring.
+5. **AD-048 bleibt gueltig fuer `hit_with = ""` und `art`** — fragt der Spieler nach der
+   **Waffe** und ist die Bezugswaffe ein Katalysator (Recluse), gibt es weiter keine
+   Angriffskraft, keine Typzeilen und den Satz aus `_ART_ON_A_CATALYST`. Die Einengung
+   ist ausdruecklich: AD-048 galt "jede Art- und Typwahl", sie gilt jetzt "jede Art- und
+   Typwahl **auf der Waffenfrage**".
+6. **OF-52 wird dadurch nicht beantwortet, sondern gegenstandslos fuer diesen Weg**: die
+   Rate liegt nicht mehr auf der angezeigten Spell Power, sondern auf dem Schaden, in den
+   die Spell Power als Faktor eingeht. Ob die **Anzeige** des Stabs im Spiel sich unter
+   "Improved Sorceries" bewegt, bleibt offen und ist fuer die Waffenkachel weiter
+   interessant.
+7. **Die Zahl traegt eine eigene Beschriftung** (`Spell damage`) und **keine** Einheit aus
+   `weapons.DAMAGE_LABELS`-Familie: sie ist gegen nichts kalibriert, was das Spiel
+   anzeigt. Dass sie eine Schaetzung unter einer unvermessenen Formel ist, gehoert in die
+   `unknowns` des Laufs (Wortlaut: Spec, OF-55).
+
+**Konsequenzen.** Leicht: jede spaetere Anzeige eines Zauberschadens fragt dieselbe
+Fassade. Schwer: das Programm zeigt zum ersten Mal eine Zahl, die **keine** Entsprechung
+auf dem Spielschirm hat — bisher war jede Zahl gegen eine Anzeige gefittet (R-004,
+QA-099). Das ist der Preis fuer A26 und muss in der Oberflaeche sichtbar sein.
+
+**Umkehrbarkeit: mittel.** Der Weg faellt mit einer Verzweigung zurueck auf AD-048; die
+**Erwartung** des Nutzers, eine Zauberzahl zu sehen, faellt nicht so leicht zurueck.
+
+---
+
+### AD-054 — Der Testschnitt haengt an **fuenf** Zusicherungen: Nullfall bitgleich, Kette gegen den Datensatz, Kombination genau einmal, Tauschrelikt bewegt den Grundwert, leere Zelle sagt warum (2026-09-20, Status: aktiv; setzt AD-049 fort, erweitert dessen vier um eine und legt **eine** neue Datei an)
+
+**Kontext.** 5 x 6 Zellen mal zehn Nightfarer ist eine Matrix, die niemand pflegt. Was
+traegt, sind fuenf Saetze.
+
+**Entscheidung: fuenf Zusicherungen**, davon drei in vorhandenen Dateien.
+
+| Zusicherung | Wo | Inhalt |
+|---|---|---|
+| **N1 — Ohne Wahl ist nichts anders.** | vorhandene Suite | `hit_with=""`, `damage_type=""` liefert bitgleich die heutige Zahl; faellt ein bestehender Test, ist der Bau falsch. |
+| **N2 — Die Extraktion stimmt gegen die Params.** | `tests/` neu bei den Extraktortests | Genau **10** SpEffect-Zeilen mit `startMagicId` ungleich −1, jede eine Magic-Id, die der Auszug kennt, und jede gleich der im Effektnamen genannten (Namensgegenprobe); **111** Zauber mit `damage`; Glintstone Pebble `Magic` 152 und Beast Claw `Physics` 362 als Anker; `AtkParam_Pc` liefert mit dem Alias-Def mehr als 0 Felder je Zeile. |
+| **N3 — Die Kombination wirkt genau einmal.** | `tests/test_damage_art.py` (vorhanden, erweitert) | `hit_with=art` **und** `damage_type=Fire` zusammen: die Zahl ist `final_per_type["Fire"] x 1,21`, nicht `x1,21²` und nicht die Kopfzahl; unter `damage_type=Magic` traegt dasselbe Relikt nichts. |
+| **N4 — Das Tauschrelikt bewegt den Grundwert.** | `tests/test_advisor_goals.py` (vorhanden, ergaenzt) | Revenant, `hit_with=incantations`: ohne Relikt 0,00 (Rejection/Heal tragen keinen Schaden), mit 7370900 (Beast Claw) > 0; unter `hit_with=family:23` (Bestial) zaehlt zusaetzlich die Schul-Rate, unter `family:22` (Dragon Cult) nicht — der Zauber gehoert der falschen Schule. |
+| **N5 — Eine leere Zelle sagt, warum sie leer ist.** | dieselbe Datei | Wylder unter `hit_with=sorceries`: keine Zahl, ein Befund in `unknowns`, und **kein** stiller 0,00. Recluse unter `hit_with=""` mit `damage_type=Fire`: der AD-048-Satz, unveraendert. |
+
+**Nicht** neu getestet: je Schule ein Fall (N4 deckt die Regel), die Leiste (Spec), die
+Motion Values (nicht gebaut).
+
+**Umkehrbarkeit: leicht.**
+
+---
+
+### Die Kombinationstabelle — 5 x 6 Zellen, je Formel, Bezugsobjekt und was zaehlt
+
+*Abkuerzungen: **AR** = `damage.equipped(Startarmatur, Slot 1).final_*` (enthaelt
+Attribute ueber die Kurve, allgemeine und Klassenraten, Zweihand-Eimer,
+Startwaffen-Konversion und Statusmalus); **SP** = `catalyst_scaling` des
+Start-Katalysators; **B[T]** = Grundwert des Bezugszaubers in Schadensart T;
+**r[T]** = `AR_RATE_FOR[T]` aus `build.rates`; **a** = `model.art_factor`.*
+
+| `hit_with` \ `damage_type` | **All** | **Physical / Magic / Fire / Lightning / Holy** (Zelle T) |
+|---|---|---|
+| **Weapon** (Vorgabe) | `AR.final_headline` — heutige Zahl, bitgleich | `AR.final_per_type[T]` — heutige Zahl unter A25 |
+| **Weapon art** | `AR.final_headline x a(skill)` | `AR.final_per_type[T] x a(skill)` — **neu in A26**: die Kombination, die A25 nicht ausdruecken konnte |
+| **Sorceries** | `Σ_T B[T] x SP/100 x r[T] x a(sorceries)` | `B[T] x SP/100 x r[T] x a(sorceries)` |
+| **Incantations** | wie Sorceries, mit `a(incantations)` | wie Sorceries, mit `a(incantations)` |
+| **Schule** `family:<id>` | wie die Gattung des Katalysators, zusaetzlich `x a(family:<id>)` **nur wenn der Bezugszauber dieser Schule angehoert** | dasselbe je Zelle T |
+
+**Bezugsobjekt je Zeile:** Zeile 1 und 2 die **Startarmatur in Slot 1** (AD-038,
+unveraendert). Zeile 3 bis 5 der **Start-Katalysator** (rechts vor links, AD-052) und der
+Zauber aus AD-052 Punkt 2.
+
+**Welche Relikt-Felder in welcher Zelle zaehlen:**
+
+| Feldfamilie | Weapon | Weapon art | Zauber-Zeilen |
+|---|---|---|---|
+| `*AttackRate` ungescopt (Elementraten, 213-216 Effekte) | ja, je Typ | ja, je Typ | **ja, je Typ** (Praemisse A26) |
+| Klassenraten (`class_rates`, "Improved Melee/Ranged/…") | ja | ja | **nein** — ein Zauber ist kein Schwung einer Waffenklasse |
+| Zweihand-Eimer (AD-037) | ja, wenn die Hand es sagt | ja | **nein** |
+| Scope 112/111 (Skill-Buffs) | nein (gescopt) | **ja**, ueber `a(skill)` | nein |
+| `magParamChange`/`miracleParamChange`-Buffs (Improved Sorceries/Incantations, Id-Liste) | nein | nein | **ja**, ueber `a(sorceries|incantations)` |
+| Schul-Buffs (Scope 2..28) | nein | nein | **ja**, wenn der Zauber der Schule angehoert |
+| Charged (Scope 110) | nein | nein | waehlbar wie eine Schule; der Grundwert bleibt der ungeladene Haupttreffer (OF-57) |
+| Attribute ueber die Kurve (Str/Dex/Int/Fai/Arc) | ja, in der AR | ja | **ja**, in SP — deshalb steigen Faith-Relikte in Revenants Incantation-Zelle |
+| Startwaffen-Konversion (`starting_flat`, −30/+33…) | ja (AD-038/AD-047.6) | ja | **nein** |
+| Statusmalus (`*AttackPowerRate` 0,85) | ja | ja | **nein** |
+| `startMagicId` (die zehn Tauschrelikte) | nein | nein | **ja — sie aendern `B[T]` selbst** (AD-052.2) |
+| `characterSkillAttackRate` (Duchess) | nein | nein | nein — Nightfarer-Faehigkeiten bleiben ausserhalb (A26 "Nicht Ziel") |
+
+**Leere Zellen und was sie sagen** (alle als Befund des Laufs, AD-025.2):
+
+| Fall | Zelle | Satz (sinngemaess, Wortlaut: Spec) |
+|---|---|---|
+| Nightfarer ohne Katalysator (8 von 10) | alle Zauber-Zeilen | "Dieser Nightfarer startet ohne Stab und ohne Siegel." |
+| Stab, aber `hit_with=incantations` (Recluse) | Zauber-Zeile | "Ein Stab wirkt Sorceries, keine Incantations." |
+| Siegel, aber `hit_with=sorceries` (Revenant) | Zauber-Zeile | Gegenstueck dazu |
+| Katalysator als **Startarmatur**, `hit_with` = Weapon/Weapon art (Recluse) | ganze Zeile | der AD-048-Satz, unveraendert |
+| Bezugszauber ohne Schadenswert (Finger Seal: Rejection, Heal) | Zauber-Zeilen | Zahl **0,00** plus Satz: erst ein Relikt, das den Zauber tauscht, bringt Schaden |
+| Zauber traegt Schadensart T nicht (Beast Claw unter `Fire`) | Zelle T | **0,00**, kein Sonderfall: eine gueltige Rangfolge, in der jeder Kandidat mit Feueranteil darueber steht |
+| Schule, der der Bezugszauber nicht angehoert | Zelle | Zahl ohne Schulfaktor plus Satz, welcher Zauber gerechnet wurde |
+
+**Was die Tabelle bewusst nicht kann:** sie rankt "einen Zauber dieser Ausruestung",
+nicht "den besten Zauber dieser Schule" (A26 "Nicht Ziel"), und sie kennt keinen Zauber,
+den der Spieler im Lauf findet.
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (A26)
+
+| Schritt | Rolle | Inhalt | Dateien |
+|---|---|---|---|
+| **A26-1** | developer | Extraktor: `AtkParam`-Alias, `Magic -> Bullet -> AtkParam_Pc`, `spells[].damage`/`damage_atk`, `heroes[].offhand_weapon`, `SpEffectParam`-Feld `startMagicId` an Offset 1020, `EXTRACT_VERSION` 16 (AD-050). Kein Aufrufer im Programm. | `nrdata/extract.py`, neue Testdatei bei den Extraktortests |
+| **A26-2** | developer | Testabzug neu bauen (v16) und `docs/plan-restarbeiten.md` nachziehen; `CLAUDE.md`-Zeile zum Abzug aktualisieren. **Nach A26-1, vor allem anderen, was misst.** | `docs/plan-restarbeiten.md`, `CLAUDE.md` (nur die Abzugszeile) |
+| **A26-3** | developer | `damage`: Ratenschleife als Helfer herausziehen, `damage.spell(...) -> SpellRating` (AD-053.1/.2/.4). Kein Aufrufer ausser dem Test. | `nrplanner/damage.py`, `tests/test_damage_art.py` |
+| **A26-4** | developer | `hit_with`/`damage_type` auf `AdvisorRequest`/`GoalContext`, Kreuzprobe in `run`, `chosen_label` auf zwei Felder, `damage_art` entfernt (AD-051). | `nrplanner/advisor/types.py`, `run.py`, `goals.py`, `tests/test_advisor_run.py` |
+| **A26-5** | developer | `_max_damage`: Bezugsobjekt waehlen (AD-052), Zauberweg rufen, Kombination Typ x Art, die Befunde der leeren Zellen (AD-052.5/.6, AD-053.5). | `nrplanner/advisor/goals.py`, `tests/test_advisor_goals.py` |
+| **A26-6** | ui-ux-designer | Spec: zwei Felder in der Leiste, Wortlaut der Befunde, Beschriftung `Spell damage` und der Schaetzungsvorbehalt, Verhalten der leeren Zellen (OF-55, OF-56). | `UI_SPEC.md` |
+| **A26-7** | developer | Leiste: zwei Auswahlfelder, zwei Einstellungsschluessel, `asking_from` fuellt beide (AD-051.5/.6). **Erst nach A26-6.** | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
+
+Reihenfolge: 1 -> 2 -> (3 und 4 unabhaengig) -> 5 -> 6 -> 7. Jeder Schritt ist einzeln
+lauffaehig; 3 und 4 sind ohne 5 ohne Wirkung im Programm.
+
+### Was der `developer` ausdruecklich **nicht** tun soll (A26)
+
+1. **Keine Waffenkunst-Daten extrahieren** — kein `sword_arts`-Block, kein Motion Value,
+   auch nicht "nur fuer die zehn Startwaffen" (AD-050.7, AD-053.3).
+2. **Keinen zweiten Massstab in einer Rangfolge.** Nie Spell Power als Ersatzzahl, wenn
+   der Bezugszauber keinen Schaden traegt (AD-052.5).
+3. **Die Ratenschleife nicht kopieren** — ein Helfer, zwei Aufrufer (AD-053.2).
+4. **Keine Rate auf `catalyst_scaling`**: die Spell Power geht als **Faktor** in den
+   Zauberschaden ein und wird selbst nicht multipliziert (AD-048 bleibt fuer die
+   Waffenfrage).
+5. **`attack_scope`, `MOVE_SCOPED_EFFECT_IDS`, `MOVE_SCOPED_ARTS` und `art_factor` nicht
+   umbauen** — A26 fuegt Bezugsobjekte hinzu, keine neue Zuordnung.
+6. **Keine Uebersetzung des alten Einstellungswerts** `type:`/`art:` (AD-051.5).
+7. **Die Bezugswaffe nicht waehlbar machen** (OF-42, unveraendert).
+8. **Kein Namensabgleich als tragende Route** fuer die Tauschrelikte — der Param traegt
+   die Id (AD-050.4).
+9. **Nightfarer-Faehigkeiten bleiben aussen vor** (`characterSkillAttackRate`),
+   unveraendert seit A25.
+10. **Keine Kalibrierung erfinden**: der Zauberschaden bekommt **keinen**
+    Anzeigefaktor wie `GAME_ATTACK_POWER_RATE` oder `CATALYST_DISPLAY_RATE`, solange
+    nichts dagegen gemessen ist (OF-54).
+
+### Pruefpunkte (A26)
+
+- **N1-N5** wie in AD-054.
+- **N6 (Messung, `performance-tuner`):** was die zweite Cache-Achse kostet, und was die
+  neue Extraktion zur Erstlaufzeit beitraegt (gegen AD-028/Themenbereich E, nicht gegen
+  eine Schaetzung).
+- **N7 (GOAL-Nachweis A26):** die vier Nachweiszeilen aus `GOAL.md` A26, je einmal
+  ausgefuehrt — Revenant *Incantations x All*, Revenant *Bestial x Physical*, Wylder
+  *Weapon art x Fire* mit Konversion, Recluse *Sorceries x Magic*. **Der Revenant-Teil
+  ist ohne ein Tauschrelikt 0,00** (gemessen: Rejection und Heal tragen keinen Schaden) —
+  der Nachweis ist mit dem Relikt zu fahren, oder der Wortlaut in `GOAL.md` ist
+  nachzuziehen (OF-58).
+
+### Risiken (A26)
+
+1. **Die ER-Formel gilt in Nightreign nicht.** Dann ist die Zahl falsch, nicht nur
+   unkalibriert. Merkbar an einer Puppenmessung (OF-54). Rueckweg: die Zauberzeilen
+   blenden ihre Zahl aus und ranken nur nach `B[T] > 0` — die Schadensart bliebe
+   brauchbar, der Betrag fiele weg (R-010 nennt genau diese Sparvariante).
+2. **Das nachdeklarierte Feld sitzt auf einem Offset.** Ein Patch verschiebt es
+   stillschweigend. Merkbar an N2. Rueckweg: Namensabgleich als Ersatzroute, er ist
+   10/10 gemessen.
+3. **Der staerkste Einzeltreffer ist bei manchen Zaubern der geladene** (Beast Claw 362
+   statt 323). Merkbar nur im Vergleich mit dem Spiel. Rueckweg: eine Zeile in AD-050.3,
+   keine Strukturaenderung (OF-57).
+4. **Zwei Auswahlfelder koennen den Cache zerreiben** (N6). Rueckweg: ein Poollauf, der
+   alle Schadensarten auf einmal misst — deutlich teurer und erst dann zu erwaegen.
+5. **Die Zahl ohne Entsprechung auf dem Schirm** kann als "das Programm erfindet etwas"
+   gelesen werden. Merkbar am Nutzerurteil. Rueckweg: Beschriftung und Vorbehalt
+   (OF-55), nicht der Bau.
+
+### Bewusst nicht getan (A26)
+
+- **Keine Motion Values.** Begruendung ist gemessen, nicht geschaetzt: fuenf gleiche
+  Korrekturwerte je Kunst (135/147) heisst, der Faktor aendert keine Rangfolge; 147 von
+  194 Kuensten loesen ueberhaupt auf, und Ironeyes `atkParamId` steht in keiner
+  `AtkParam_Pc`-Zeile. **Wieder interessant, wenn** der Nutzer absolute Kunstzahlen sehen
+  will und eine Puppenmessung je Startwaffe vorliegt.
+- **Kein Bullet-/Behavior-Block im Auszug.** Die Kette ist Extraktionsdetail.
+- **Keine geladene Variante als eigener Wert.** `fp_charged` steht schon da; ein
+  `damage_charged` waere ein zweiter Grundwert ohne Frage, die ihn braucht. Wieder
+  interessant, wenn "Charged" als Schule haeufig gewaehlt wird.
+- **Kein Zaubervergleich** ("welcher Zauber ist der beste"). A26 rankt Relikte, nicht
+  Zauber; der Datensatz traegt nach A26-1 alles, was ein solcher Vergleich braeuchte.
+- **Keine Statusaufbau-Zahlen je Zauber** (A26 "Nicht Ziel").
+- **Kein `enableMagic`/`enableMiracle` im Auszug** — `wep_type` 57/61 traegt dieselbe
+  Unterscheidung (AD-052.4).
+
+### Offene Fragen aus diesem Themenbereich
+
+- **OF-54 — Gilt die ER-Zauberformel (Grundwert x Spell Power/100) in Nightreign?**
+  Traegt jede Zahl der Zauberzeilen. Wer: Nutzer oder `qa-engineer`, eine Puppenmessung —
+  Glintstone Pebble mit Recluse auf Stufe 15 gegen einen Gegner mit bekannter Verteidigung,
+  oder schlicht zwei Ablesungen mit und ohne "Improved Sorceries".
+- **OF-55 — Wie heisst und wie steht die Zauberzahl in der Oberflaeche**, wenn ihr
+  nichts auf dem Spielschirm entspricht? Wer: `ui-ux-designer` (Spec), Vorschlag `Spell
+  damage` mit Schaetzungsvorbehalt in `unknowns`.
+- **OF-56 — Was zeigt die Leiste**, wenn das eine Feld die Zellen des anderen leert (acht
+  Nightfarer ohne Katalysator; Recluse unter Weapon)? Abblenden, verbergen oder stehen
+  lassen mit Satz? Wer: `ui-ux-designer`.
+- **OF-57 — Grundwert = staerkster Einzeltreffer** (dann bei Beast Claw der geladene
+  Wert 362) oder ungeladener Haupttreffer? Wer: Nutzer, eine Ablesung im Spiel; ohne
+  Antwort gilt AD-050.3.
+- **OF-58 — Der A26-Nachweis fuer Revenant** setzt voraus, dass die Incantation Schaden
+  traegt; gemessen tun Rejection und Heal das nicht. Nachweis mit einem Tauschrelikt
+  fahren oder `GOAL.md` nachziehen? Wer: App Designer.
+
 ---
 
 ---
