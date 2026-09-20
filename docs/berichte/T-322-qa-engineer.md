@@ -345,3 +345,148 @@ Registry-Spur.
 
 | QA-289 | **T-322e (20.09.2026, qa-engineer, Artefakt 1.16.0, SHA-256 804F9E2B...25E6C): Picker-Kopfzeile nennt die gewaehlte Schadensart nicht** -- bei `Damage type: Fire` (Wylder, Startwaffe ohne Feueranteil) steht ueber dem Raster `Nothing you own raises damage in this slot.`, waehrend jede Karte darunter seit AK-336 `Damage (Fire)` beschriftet und Zeile 4 den AK-331-Satz mit `fire` traegt. `relicpicker.nothing_raises` baut den Satz aus `DIRECTION_NOUNS` allein und benutzt `_named_for_choice` nicht; AK-336 nennt nur Zeile 4 und Wertzeile/Chip, die Kopfzeile fehlt in der Vorgabe | P3 | Minor | ui-ux-designer | ja - am Artefakt, Picker Slot 2 Blue, Sort by Maximise damage | offen | 2026-09-20 |
 | QA-290 | **T-322e (20.09.2026, qa-engineer, Artefakt 1.16.0): Leiste und Picker widersprechen sich bei einer Schadensart ohne Vorkommen** -- Wylder mit `Fire`: der Picker sagt fuer denselben Slot und denselben Build `Nothing you own raises damage in this slot.` (jede Karte `Damage (Fire) no change`, kein `BEST FOR DAMAGE`-Chip), die Leiste antwortet nach `Optimize` `Maximise damage - 3 of 3 slots filled.` und markiert alle drei Slots `SUGGESTED - MAXIMISE DAMAGE`, obwohl kein Kandidat den Wert bewegt. Zwei Lesarten: Absicht (Nullrangfolge dokumentiert, AK-332 entfallen) oder Luecke (beim Streichen von AK-332 war der `nothing_raises`-Satz nicht betrachtet). Kein falscher Zahlenwert; Entscheid beim director. Severity Major, Einstufung P3 wegen der dokumentierten Entscheidung | P3 | Major | director / ui-ux-designer | ja - am Artefakt, beide Bildschirme im selben Build | offen | 2026-09-20 |
+| QA-289 | **Retest T-322i (20.09.2026, qa-engineer, Artefakt 1.16.0, SHA-256 51F69498...E8BFC9): behoben** -- Picker-Kopfzeile liest jetzt `Nothing you own raises damage in this slot. (Fire)`, Fix `10442b2` wendet `_named_for_choice` auch auf `nothing_raises` an. Regressionstest `test_nothing_raises_names_the_chosen_kind` gruen, `test_relic_picker_advisor.py` in der Sammelsuite | P3 | Minor | ui-ux-designer | ja - am Artefakt, Slot 1 Blue, Wylder Fire | behoben -- am Artefakt bestaetigt | 2026-09-20 |
+| QA-290 | **Retest T-322i (20.09.2026, qa-engineer, Artefakt 1.16.0, SHA-256 51F69498...E8BFC9): behoben** -- Leiste faellt jetzt auf `Maximise damage - 0 of 3 slots filled … 3 slots have nothing to choose from.` zurueck, keine `SUGGESTED`-Chips mehr; Fix `5b9fad9` verwirft die beste Zusammenstellung in `run.run()`, wenn ihr Wert unter Art-/Typwahl exakt dem Grundzustand entspricht. Regressionstest `test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion` gruen | P3 | Major | director / ui-ux-designer | ja - am Artefakt, gleicher Slot/Build wie QA-290 | behoben -- am Artefakt bestaetigt | 2026-09-20 |
+
+---
+
+STATUS: erledigt
+AUFTRAG: T-322i - Retest QA-289/QA-290 am neuen Artefakt 1.16.0
+(`dist\NightreignHelper.exe`, 59.233.161 B, SHA-256
+51F69498...E8BFC9, Bau T-322h `69fb2bf` auf Code `5b9fad9`; Fixes
+`10442b2`, `5b9fad9`)
+GELESEN: docs/tasks/T-322.md (Abschnitt T-322i); docs/berichte/
+T-322-qa-engineer.md (eigener Abschnitt T-322e, Pruefwege QA-289/QA-290);
+`git show 10442b2`, `git show 5b9fad9` (Diff + Tests); qa/findings.md
+(Kopf + Ende)
+GEAENDERT: nichts im Arbeitsbaum ausser diesem Bericht (Abschnitt T-322i
+angehaengt). Kein Eintrag in `qa/findings.md` durch mich - die zwei
+Retest-Zeilen stehen oben im QA-Log zum Anhaengen. Scratchpad:
+`<Scratchpad>/T-322i/` (eigenes LOCALAPPDATA/APPDATA, Testabzug 841
+Dateien / 21.131.645 B hineinkopiert; Registry-Testschluessel
+`HKCU\Software\DankYeeterT-322i` nach dem Lauf wieder entfernt)
+ANNAHMEN: keine
+NAECHSTER: director (Freigabe A25/1.16.0), release-manager (falls
+Freigabe erteilt)
+BLOCKIERT DURCH: nichts
+
+---
+
+# T-322i - qa-engineer: Retest QA-289/QA-290 am Artefakt 1.16.0
+
+## Umgebung und Nachweis der Umlenkung
+
+- Artefakt gegengeprueft: `Get-FileHash` 20.09.2026 ->
+  `51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9`,
+  Laenge `59233161` - deckungsgleich mit dem Auftrag.
+- `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-322i`, `LOCALAPPDATA` und `APPDATA`
+  auf frische Scratchpad-Ordner; Testabzug hineinkopiert (nachgezaehlt:
+  841 Dateien, 21.131.645 Bytes). Positiver Beleg der Umlenkung: nach dem
+  Lauf `builds\1|6` und `chalices\1|6` unter
+  `HKCU\Software\DankYeeterT-322i\NightreignHelper`; der Schluessel wurde
+  danach geloescht (eigenes Testverzeichnis, folgenlos). Der Spielstand
+  wurde nur gelesen, nie geschrieben.
+- NH-004: `Get-Process NightreignHelper` vor dem Start 0; ein Fensterlauf,
+  niemand parallel; nach `Stop-Process -Force` erneut 0 Prozesse.
+- Fenstertreiber ausschliesslich `scripts/drive_window.ps1`
+  (dot-gesourct). Neue Werkzeuggrenze, kein Befund: die Relikt-Slots
+  reagieren auf Doppelklick der Kopfzeile nicht zuverlaessig genug fuer
+  UIA-Timing (zwei `ClickAt`-Aufrufe liegen mit den eingebauten Pausen
+  weit ueber der Windows-Doppelklickzeit); der Knopf `Empty slot` unter
+  jedem Slot oeffnet den Picker mit einem einzigen Klick zuverlaessig.
+
+## Retest QA-289 - Picker-Kopfzeile nennt die gewaehlte Schadensart
+
+**Reproduktion (wie im Ursprungsbefund):** Wylder, `Maximise damage`,
+`Damage type` auf `Fire`, Slot 1 (`Empty slot`) geoeffnet.
+
+**Ergebnis:** Kopfzeile liest `Nothing you own raises damage in this
+slot. (Fire)` - jede der 54 Karten weiterhin `Damage (Fire) no change`,
+Zeile 4 traegt weiterhin den AK-331-Satz mit `fire`. Der Satz nennt die
+Einschraenkung jetzt wie Wertzeile und Chip.
+
+**Urteil: behoben.** Fix `10442b2` wendet `_named_for_choice` auf
+`nothing_raises` an; der Regressionstest
+`test_nothing_raises_names_the_chosen_kind` deckt genau diesen Fall ab
+und ist gruen.
+
+## Retest QA-290 - Leiste und Picker widersprechen sich
+
+**Reproduktion (wie im Ursprungsbefund):** Wylder, `Maximise damage`,
+`Damage type` auf `Fire`, leerer Build (keine Relikte gehalten),
+`Optimize` geklickt.
+
+**Ergebnis:** Statuszeile liest `Maximise damage - 0 of 3 slots filled
+… 3 slots have nothing to choose from.` - kein `SUGGESTED`-Chip auf
+irgendeinem Slot, keine Fuellung der drei freien Slots. Der Picker fuer
+Slot 1 sagt fuer denselben Build weiterhin `Nothing you own raises
+damage in this slot. (Fire)`. Beide Bildschirme antworten jetzt gleich.
+
+**Urteil: behoben.** Fix `5b9fad9` verwirft in `run.run()` die beste
+Zusammenstellung, wenn ihr Wert unter einer Art-/Typwahl exakt dem
+Grundzustand entspricht, und faellt auf den bestehenden
+"nothing to choose from"-Zustand zurueck (UI_SPEC 4.11); der
+Regressionstest `test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion`
+ist gruen. Die Director-Entscheidung selbst (Nullrangfolge unter `All`
+bleibt eine Rangfolge, nur unter Art-/Typwahl wird sie verworfen) ist im
+Commit dokumentiert und wird hier nicht neu bewertet.
+
+## Stichprobe Revenant/Magic (unveraendert)
+
+Revenant, `Maximise damage`, `Damage type` auf `Magic`, Slot 1
+(`Empty slot`) geoeffnet, `Sort by: Maximise damage`: Spitzenkarte
+weiterhin `Delicate Drizzly Scene`, `Damage (Magic) +19.8 AR`, Chip
+jetzt `BEST FOR DAMAGE (Magic)` (AK-336-Muster, seit T-322f unveraendert
+gegenueber dem T-322e-Nachweis). Kein neuer Befund; die Zahl deckt sich
+mit dem in T-322e gemessenen Wert.
+
+## Regression im unmittelbaren Umfeld
+
+`pytest tests/test_relic_picker_advisor.py tests/test_advisor_run.py
+tests/test_advisor_goals.py tests/test_advisor_bar.py -q` ->
+**269 passed in 180,84 s**, keine Fehlschlaege.
+
+## Explorationsprotokoll
+
+Beide Befunde am Fenster reproduziert (nicht nur an der Testsuite
+geglaubt): QA-289 mit derselben Nightfarer-/Waffen-/Wahlkombination wie
+im Ursprungsbefund (Wylder, Fire, leerer Slot); QA-290 mit derselben
+Kombination, Statuszeile und Slot-Chips vor und nach `Optimize`
+gegengeprueft. Zusaetzlich Revenant/Magic als Stichprobe gegen
+Regressionen in der Ranglogik, mit der konkreten Zahl aus T-322e
+verglichen statt nur "sieht plausibel aus". Vier einschlaegige Testdateien
+selbst laufen lassen. Kein Absturz, keine Registry-Spur nach dem Lauf.
+
+## Nicht getestet
+
+- Kein voller Fensterlauf der uebrigen A25-Kanten aus T-322e (Recluse,
+  Richtungswechsel, Neustart, AK-08, Deep-Gefaess, Fensterbreiten) - der
+  Auftrag begrenzt den Retest auf QA-289/QA-290 plus die genannte
+  Stichprobe; T-322e bleibt fuer diese Kanten der Nachweis auf demselben
+  Codestand (die Fixes `10442b2`/`5b9fad9` aendern nur `relicpicker.py`
+  und `run.py`, beide ausserhalb dieser Kanten).
+- Volle Testsuite `pytest -n auto`. Vier gezielte Dateien um die
+  geaenderten Module gruen; kein Hinweis auf breitere Auswirkung, die
+  einen vollen Lauf rechtfertigt.
+- Bestaetigung, dass die Director-Entscheidung zu QA-290 (Nullrangfolge
+  unter `All` bleibt unveraendert) selbst richtig ist - das ist keine
+  Testfrage, sie ist im Commit `5b9fad9` dokumentiert und war Gegenstand
+  des Auftrags T-322g, nicht dieses Retests.
+
+## Zusammenfassung (an director)
+
+- QA-289: **PASS** (behoben, am Artefakt bestaetigt)
+- QA-290: **PASS** (behoben, am Artefakt bestaetigt)
+- P1: 0 - P2: 0 - P3: 0 - P4: 0 - keine neuen Befunde
+- **Gesamturteil: PASS.** Beide vom director am 20.09. zum Fixen
+  bestimmten Befunde sind am neuen Artefakt 1.16.0 (Bau T-322h) behoben,
+  die Stichprobe Revenant/Magic zeigt keine Regression, die vier
+  einschlaegigen Testdateien sind gruen (269 passed). Aus QA-Sicht steht
+  der Freigabe von 1.16.0 nichts entgegen.
+
+## QA-Log - an `qa/findings.md` anhaengen
+
+Siehe die vier Zeilen weiter oben im bestehenden QA-Log-Abschnitt (zwei
+Ursprungszeilen QA-289/QA-290 aus T-322e bleiben stehen, zwei neue
+Retest-Zeilen T-322i wurden direkt danach eingefuegt statt an das
+Dateiende, damit beide Befunde gemeinsam lesbar bleiben).
