@@ -42,12 +42,12 @@ import dataclasses
 import enum
 import html
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QSettings, QTimer, Signal
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
-from . import damage, model, weapons
+from . import damage, favourites, model, weapons
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -105,6 +105,19 @@ FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
 DAMAGE_TYPE_TOOLTIP = ("Restricts {direction} to one kind of damage. Skill "
                        "attack counts Weapon Arts only — a Nightfarer's own "
                        "skills are never counted.")
+
+#: AK-330's nachtrag of 20.09.: the kind of damage survives a restart, kept
+#: in the same store `uiscale.KEY` and `app.PANES_KEY` use. Flat and without
+#: `/` or a comma on purpose -- unlike `favourites.key()` this never has a
+#: value built onto it, so nothing here can ever grow the two characters that
+#: would make it one (Sicherheitsvorgabe 4, T-321). The value kept under it
+#: is always `damage_art()`'s own id form (`"type:Fire"`, `"art:family:23"`),
+#: never a label -- the same rule the id form answers to everywhere else.
+DAMAGE_ART_KEY = "damage_art"
+
+
+def _settings() -> QSettings:
+    return QSettings(favourites.ORG, favourites.APP)
 
 
 class State(enum.Enum):
@@ -691,6 +704,18 @@ class AdvisorBar(QWidget):
             self.damage_type_box.insertSeparator(self.damage_type_box.count())
             for key, label in arts.items():
                 self.damage_type_box.addItem(label, f"art:{key}")
+        # AK-330 nachtrag: what was remembered, read back against this box's
+        # own entries rather than trusted -- a school the dataset no longer
+        # carries, or a store a hand-edited file broke, is `findData(...) ==
+        # -1` and leaves the box on `All`, which is already the opening
+        # index. `setCurrentIndex` alone, never `activated.emit`: this is the
+        # box catching up with an earlier session, not a player choosing
+        # something, and `_damage_type_chosen` would ask a question of a
+        # build that does not exist yet (`choose_goal` reasons the same way).
+        remembered = _settings().value(DAMAGE_ART_KEY, "", type=str)
+        found_at = self.damage_type_box.findData(remembered)
+        if found_at >= 0:
+            self.damage_type_box.setCurrentIndex(found_at)
         self.damage_type_box.activated.connect(self._damage_type_chosen)
         row.addWidget(self.damage_type_box)
 
@@ -910,7 +935,13 @@ class AdvisorBar(QWidget):
         under the old choice answers nothing now. The choice itself stays
         when the direction leaves `max_damage` and comes back: the pair is
         hidden, never rebuilt.
+
+        Kept past this session too (AK-330 nachtrag): only a choice the
+        player actually made reaches the store, the same restraint
+        `gamepath.remember_save` is held to -- the restore at construction
+        reads it back and never writes, so nothing loops.
         """
+        _settings().setValue(DAMAGE_ART_KEY, self.damage_art())
         self.the_build_changed()
 
     def _show_the_damage_types(self) -> None:

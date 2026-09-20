@@ -216,9 +216,19 @@ _ART_CHOICE = "art"
 #: letter lowered the way `advisorbar` lowers a goal label. A run finding and
 #: not a scope sentence (AD-025.2): before the run nobody knows whether an
 #: art was chosen at all.
+#:
+#: **The second sentence** is T-322n's fix for the power-user finding of
+#: T-322m: `Incantations` named a "Magic attack power" relic and read, in the
+#: tester's own words, "as a player unclear". The relic is not wrong -- AD-047
+#: has the school's buff scale the reference armament's own attack rating,
+#: never a spell's damage, which this dataset does not carry at all
+#: (`_ATTACK_RATING_SCOPE`'s third line) -- only the first sentence was silent
+#: about it.
 _RANKED_ON_ONE_ART = (
     "Ranked on {choice} damage only — every other effect on a candidate "
-    "still shows, but only this counts toward the ranking.")
+    "still shows, but only this counts toward the ranking. It scales the "
+    "armament's attack rating — spell damage itself is not in the game "
+    "data.")
 
 #: AD-048: for a staff or a seal the game shows a spell power and no attack
 #: rating, and nothing measured says what an attack buff does to that

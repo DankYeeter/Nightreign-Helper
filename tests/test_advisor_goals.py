@@ -568,7 +568,9 @@ def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
         "nothing to report, not by a sentence")
     assert holy.unknowns == (
         "Ranked on holy damage only — every other effect on a candidate "
-        "still shows, but only this counts toward the ranking.",)
+        "still shows, but only this counts toward the ranking. It scales "
+        "the armament's attack rating — spell damage itself is not in the "
+        "game data.",)
     assert art.unknowns[0].startswith("Ranked on skill attack damage only")
 
 

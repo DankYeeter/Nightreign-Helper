@@ -20,10 +20,10 @@ import html
 import time
 
 import pytest
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
-from nrplanner import advisorbar
+from nrplanner import advisorbar, favourites
 from nrplanner.advisor import goals, types
 from tests import rendered
 from tests.advisor_row_at_the_window import NARROW_DESKTOPS
@@ -41,6 +41,19 @@ A_RUN_AT_MOST = 30.0
 #: grew, and would have seen the waiting line at any threshold at all
 #: (measured: with the constant, a mutation to 10 s left the case green).
 WAITED_OUT_MS = 370
+
+
+@pytest.fixture(autouse=True)
+def _no_remembered_damage_art(qapp):
+    """AK-330's store is cleared once for the whole session, not once per
+    case (`conftest.settings_store`) -- so a case that lets a real choice
+    reach it, as `test_the_kind_of_damage_survives_a_restart` and the
+    `activated.emit` cases below do, must not hand the next case a box that
+    no longer opens on `All`."""
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.setValue(advisorbar.DAMAGE_ART_KEY, "")
+    yield
+    settings.setValue(advisorbar.DAMAGE_ART_KEY, "")
 
 
 # --- the table of §4, as words ---------------------------------------------
@@ -830,6 +843,74 @@ def test_another_kind_of_damage_puts_the_old_answer_away(bar_with_a_school):
     assert bar.answer is None
     assert bar.situation.state is advisorbar.State.NOTHING_YET
     assert len(bar._controller.asked) == asked
+
+
+def test_the_kind_of_damage_survives_a_restart(qapp):
+    """AK-330 nachtrag, inverting T-321c's finding ('faellt bei Neustart auf
+    All zurueck'): a bar built after an earlier one chose `Fire` opens on
+    `Fire` too, not on `All` -- the choice a session ended on is what the
+    next one starts with."""
+    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                  controller=_Controller())
+    try:
+        index = first.damage_type_box.findData("type:Fire")
+        first.damage_type_box.setCurrentIndex(index)
+        first.damage_type_box.activated.emit(index)
+    finally:
+        first.deleteLater()
+
+    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller())
+    try:
+        assert second.damage_type_box.currentData() == "type:Fire"
+        assert second.damage_art() == "type:Fire"
+    finally:
+        second.deleteLater()
+
+
+def test_a_remembered_school_still_offered_survives_a_restart(qapp):
+    """The art half of the same nachtrag, over `bar_with_a_school`'s own
+    dataset: `art:family:23` (`Bestial`) is still one of this dataset's
+    entries at the second start, so it is restored rather than dropped."""
+    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                  controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        index = first.damage_type_box.findData("art:family:23")
+        first.damage_type_box.setCurrentIndex(index)
+        first.damage_type_box.activated.emit(index)
+    finally:
+        first.deleteLater()
+
+    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        assert second.damage_art() == "art:family:23"
+    finally:
+        second.deleteLater()
+
+
+def test_a_remembered_school_the_dataset_no_longer_carries_falls_back_to_all(
+        qapp):
+    """The validation half: a school remembered from a dataset that no
+    longer carries it (patch, or a hand-edited settings file) is not
+    offered as if it still meant something -- `findData` misses it and the
+    box opens on `All`, the same opening an ordinary first start has."""
+    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                  controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        index = first.damage_type_box.findData("art:family:23")
+        first.damage_type_box.setCurrentIndex(index)
+        first.damage_type_box.activated.emit(index)
+    finally:
+        first.deleteLater()
+
+    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller())
+    try:
+        assert second.damage_art() == ""
+        assert second.damage_type_box.currentText() == "All"
+    finally:
+        second.deleteLater()
 
 
 def test_the_kind_of_damage_box_says_which_skill_it_counts(bar):
