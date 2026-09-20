@@ -322,6 +322,22 @@ Symboldateien blieben. Stand der Vorlage: 841 Dateien, **21 131 645 B**, Ort
 unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand gezogen (Zahlen,
 Herkunft T-310, Grenze "ueber 15").
 
+*Ersetzt am 20.09.2026 (T-324b, developer):* `EXTRACT_VERSION` **16** —
+A26-1 liest Zauberschaden, linke Starthand und Tauschzauber (T-324a-Quittung:
+`nightreign_data.json` byteidentisch in zwei Laeufen am echten Spielstand).
+Geprueft an `nrdata/extract.py`/`nrplanner/datasource.py`: nur die
+`meta.extract_version` in `nightreign_data.json` haengt an
+`EXTRACT_VERSION`; die 840 Symboldateien tragen ihr eigenes `ICON_VERSION`
+(unveraendert bei 3, `nrdata/iconbuild.py`) und blieben unangetastet. Nur
+`nightreign_data.json` ersetzt (8 811 742 B, +7 746 B = +0,09 %, aus der
+T-324a-Quittung uebernommen, kein neuer Extraktorlauf noetig). Stand der
+Vorlage: 841 Dateien, **21 139 391 B**, Ort unveraendert. Alte v15-JSON
+gesichert unter
+`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug-v15`
+(8 803 996 B). `pytest -n auto` gegen den neuen Abzug: **1849 passed, 9
+skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
+(Zahlen, Herkunft T-324b, Grenze "ueber 16").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.
