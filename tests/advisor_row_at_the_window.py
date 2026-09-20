@@ -202,6 +202,7 @@ def main(snapshot: pathlib.Path) -> dict:
                    if label is not bar.status)
     controls = [("heading", heading),
                 ("goal_box", bar.goal_box),
+                ("hit_with_box", bar.hit_with_box),
                 ("damage_type_box", bar.damage_type_box),
                 ("optimize_button", bar.optimize_button),
                 ("apply_button", bar.apply_button),

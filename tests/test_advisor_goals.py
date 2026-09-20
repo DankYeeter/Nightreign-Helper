@@ -701,6 +701,74 @@ def test_two_swap_relics_rank_the_stronger_and_say_which(game_data):
         f"something done quietly: {everything.unknowns!r}")
 
 
+def test_the_spell_headline_names_the_damage_type_asked_about(game_data):
+    """AK-342's own Pruefweg, and AK-335's rule applied to a spell row.
+
+    Revenant with the Beast Claw relic, asked under `Incantations` x
+    `Fire`: the claw deals physical, so the fire row is 0 -- a measured
+    ranking figure and not a fault, which is why the headline carries the
+    digit and the cell stays out of `_empty_cell`'s "not counted" shape
+    (AK-344). The type earns its place in the headline whenever it was
+    chosen, so the number is never drawn under a label that omits the
+    restriction it was measured with.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    carried = {"claw": (BEAST_CLAW_SWAP,)}
+
+    fire = damage_scores(game_data, revenant, carried,
+                         hit_with=model.INCANTATIONS_ART,
+                         damage_type="Fire")["claw"]
+
+    assert fire.value == 0.0
+    assert fire.display == "Fire spell damage (Beast Claw) 0"
+    assert len(fire.unknowns) == 1 and "uncalibrated" in fire.unknowns[0], (
+        f"a measured zero is a ranking, so the only sentence here is the "
+        f"caveat the figure always carries: {fire.unknowns!r}")
+
+
+def test_a_school_earns_the_spell_headline_only_once_it_moves_the_figure(
+        game_data):
+    """AK-342, the `hit_with` half: the same test the weapon row uses, read
+    against `SpellRating.rates`.
+
+    Asked under `Bestial` with no Bestial buff on the build the figure is
+    the `Incantations` figure verbatim, so the headline says nothing about
+    the school; with the school's own buff carried it names it. A headline
+    naming a school that reached nothing is the false label AK-335 was
+    written against.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    carried = {"claw": (BEAST_CLAW_SWAP,),
+               "school": (BEAST_CLAW_SWAP, BESTIAL_BUFF)}
+
+    bestial = damage_scores(game_data, revenant, carried,
+                            hit_with=f"{model.ART_FAMILY_PREFIX}23")
+
+    assert bestial["claw"].display == "Spell damage (Beast Claw) 577"
+    assert bestial["school"].display.startswith(
+        "Bestial spell damage (Beast Claw) "), (
+        f"the school moved the figure, so it names it: "
+        f"{bestial['school'].display!r}")
+    assert bestial["school"].value > bestial["claw"].value
+
+
+def test_both_halves_of_the_question_name_the_spell_headline_once(game_data):
+    """AK-342's fourth example: damage type before hit with, one label.
+
+    The order is `chosen_label`'s and not this file's, so the goal card, the
+    picker caption and the chip cannot drift apart (AK-346).
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    carried = {"school": (BEAST_CLAW_SWAP, BESTIAL_BUFF)}
+
+    cell = damage_scores(game_data, revenant, carried,
+                         hit_with=f"{model.ART_FAMILY_PREFIX}23",
+                         damage_type="Physics")["school"]
+
+    assert cell.display.startswith("Physical Bestial spell damage "
+                                   "(Beast Claw) ")
+
+
 @pytest.mark.parametrize("hero_name, hit_with, catalyst", [
     ("Revenant", model.SORCERIES_ART, "Finger Seal"),
     ("Recluse", model.INCANTATIONS_ART, "Recluse's Staff"),
@@ -775,7 +843,7 @@ def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
 def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
         game_data, wylder):
     """`GOAL.md` A25, second half: Wylder with both starting-armament relics
-    and `Skill attack` chosen counts the conversion in the damage figure.
+    and `Weapon art` chosen counts the conversion in the damage figure.
 
     The pair is what the criterion asks for, and what the dataset does with
     it is worth saying: the two relics claim the same attribute on the
@@ -802,7 +870,7 @@ SKILL_ATTACK_BUFF = 312300
 def test_an_art_choice_that_leaves_the_value_unmoved_keeps_the_all_headline(
         game_data, wylder):
     """AK-335: an art choice earns the headline only once it actually moves
-    the figure. No relic here scopes a buff to `Skill attack`, so `art_rate`
+    the figure. No relic here scopes a buff to `Weapon art`, so `art_rate`
     stays 1.0 and the figure is the `All` figure verbatim -- the headline
     says so by staying `Attack rating` rather than claiming a difference
     that is not there.
@@ -821,9 +889,9 @@ def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
                                                                 wylder):
     """AK-335: the art counterpart of DR-034's type fix. Once a relic scopes
     a buff to the chosen art (`art_rate != 1.0`), the headline names the
-    choice exactly as a type does, and the word-collision rule drops the
-    repeated `attack` (`"Skill attack" + "attack rating"` ->
-    `"Skill attack rating"`, not `"Skill attack attack rating"`).
+    choice exactly as a type does -- since AK-338 in the entry's new
+    wording, `Weapon art`, which shares no word with `attack rating` and is
+    therefore written out in full beside it.
     """
     carried = {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)}
 
@@ -834,10 +902,10 @@ def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
     assert skill["buffed"].value != pytest.approx(everything["buffed"].value), (
         "this case needs a buff that actually moves art_rate for `skill`, "
         "or it cannot show AK-335's condition is met")
-    assert skill["buffed"].display.startswith("Skill attack rating"), (
-        f"the collision rule must drop one 'attack': "
+    assert skill["buffed"].display.startswith("Weapon art attack rating"), (
+        f"the headline names the entry as the box shows it: "
         f"{skill['buffed'].display!r}")
-    assert "Skill attack attack rating" not in skill["buffed"].display
+    assert "Skill attack" not in skill["buffed"].display
 
 
 def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
@@ -871,7 +939,7 @@ def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
     assert cell.value == pytest.approx(fire.value * factor, abs=5e-5)
     assert cell.value != pytest.approx(fire.value * factor * factor,
                                        abs=5e-5)
-    assert cell.display.startswith("Fire Skill attack rating"), (
+    assert cell.display.startswith("Fire Weapon art attack rating"), (
         f"the cell names both halves of the question: {cell.display!r}")
 
 
@@ -899,7 +967,7 @@ def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
         "still shows, but only this counts toward the ranking. It scales "
         "the armament's attack rating; what a spell hits for is a figure of "
         "its own and is asked for on the spell rows.",)
-    assert art.unknowns[0].startswith("Ranked on skill attack damage only")
+    assert art.unknowns[0].startswith("Ranked on weapon art damage only")
 
 
 def test_a_catalyst_says_the_choice_reaches_nothing(game_data):

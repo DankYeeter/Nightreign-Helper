@@ -208,30 +208,6 @@ _DAMAGE_TAKEN_SCOPE = (
 )
 
 
-#: The two prefixes the bar's one combo still puts in front of its ids. The
-#: question itself has carried two fields since AD-051, and `fields_of` below
-#: is the only place the old prefixed form is taken apart.
-_TYPE_CHOICE = "type"
-_ART_CHOICE = "art"
-
-
-def fields_of(damage_art: str) -> tuple[str, str]:
-    """The bar's one prefixed value as the two fields of the question.
-
-    Transitional, and deliberately in one place (AD-051 point 1): the row
-    still offers a single combo whose entries carry `type:`/`art:`, and it is
-    A26-7 that gives it two of its own. Until then `advisorbar.asking_from`
-    and the picker's caption come through here, so the prefix is taken apart
-    once rather than at every reader.
-    """
-    kind, _, key = damage_art.partition(":")
-    if kind == _TYPE_CHOICE:
-        return "", key
-    if kind == _ART_CHOICE:
-        return key, ""
-    return "", ""
-
-
 #: AK-331, word for word, with the chosen entry's own label in it, first
 #: letter lowered the way `advisorbar` lowers a goal label. A run finding and
 #: not a scope sentence (AD-025.2): before the run nobody knows whether an
@@ -322,7 +298,7 @@ def chosen_label(hit_with: str, damage_type: str) -> str:
     Bearing` its own `&amp;` (SEC-019, AK-29).
 
     **Two lookups since AD-051 point 1**, one per field, and both of them in
-    the label when both fields are filled: `Fire` and `Skill attack` chosen
+    the label when both fields are filled: `Fire` and `Weapon art` chosen
     together name one cell of the combination table, so they name it in one
     sentence too.
     """
@@ -359,11 +335,14 @@ def _art_label(hit_with: str) -> str | None:
 def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
     """`"{chosen} {headline_name_lower}"`, without saying the shared word twice.
 
-    AK-335's word-collision rule: `"Skill attack"` before `"attack rating"`
-    would read `"Skill attack attack rating"` -- the choice's last word and
-    the name's first word name the same thing. Dropped here and only here;
-    every other combination (`"Fire"` + `"attack rating"`) has no shared word
-    and comes out exactly as written.
+    AK-335's word-collision rule: a choice ending in the name's first word
+    would say it twice -- `"Skill attack"` before `"attack rating"` read
+    `"Skill attack attack rating"` until AK-338 renamed that entry to
+    `"Weapon art"`. No entry collides today; the rule stays because AK-342
+    makes this the one way a headline is built, so an entry added later with
+    a colliding word comes out right without a case of its own. Every other
+    combination (`"Fire"` + `"attack rating"`) has no shared word and comes
+    out exactly as written.
     """
     name_words = headline_name_lower.split()
     if name_words and chosen.split()[-1].lower() == name_words[0]:
@@ -526,9 +505,20 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
         name=damage.SPELL_DAMAGE_NAME)]
     if swaps > 1:
         findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
+    # AK-342, the same rule as AK-335 one row up: the damage type earns its
+    # place in the headline whenever it was chosen, the `hit_with` choice
+    # only where it moved the figure -- `rating.rates` carries a school's own
+    # key exactly when the spell belongs to it and a relic scoped a buff to
+    # it. A headline naming a school that reached nothing would be the
+    # false label AK-335 was written against.
+    earned = ctx.hit_with if ctx.hit_with in rating.rates else ""
+    head = damage.SPELL_DAMAGE_NAME
+    if ctx.damage_type or earned:
+        head = _headline_with_choice(chosen_label(earned, ctx.damage_type),
+                                     damage.SPELL_DAMAGE_NAME.lower())
     return types.GoalScore(
         value=rating.figure,
-        display=(f"{damage.SPELL_DAMAGE_NAME} ({thrown['name']}) "
+        display=(f"{head} ({thrown['name']}) "
                  f"{damage.displayed(rating.figure)}"),
         unit="",
         unknowns=tuple(findings),

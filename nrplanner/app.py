@@ -1150,11 +1150,21 @@ class Planner(QMainWindow):
         every pixel added to the window arrives at the middle pane, and so
         at the row. So this starts from `_width_around_the_effect_table`'s
         own result -- a width the window has already opened at for real,
-        never a placeholder -- and adds exactly the extra the row needs,
-        `AdvisorBar.action_buttons_extra_width`.
+        never a placeholder -- and adds exactly the extra the row needs:
+        the three action buttons a suggestion puts up, and the two
+        label-box pairs of the damage question.
+
+        **Two terms since A26** (AK-349). Until then the row's own controls
+        fitted in the slack the table's width left it, and the buttons were
+        the only thing the width had to be told about; a second pair beside
+        `goal_box` took that slack, and the status line went to 0 px at the
+        width the window opens at -- which is what AK-194 forbids. Both
+        terms are measured off the row rather than written here, so a later
+        entry that makes a box wider moves the opening width with it.
         """
         return (self._width_around_the_effect_table()
-                + self.advisor_bar.action_buttons_extra_width())
+                + self.advisor_bar.action_buttons_extra_width()
+                + self.advisor_bar.damage_question_extra_width())
 
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""

@@ -44,16 +44,18 @@ WAITED_OUT_MS = 370
 
 
 @pytest.fixture(autouse=True)
-def _no_remembered_damage_art(qapp):
-    """AK-330's store is cleared once for the whole session, not once per
-    case (`conftest.settings_store`) -- so a case that lets a real choice
-    reach it, as `test_the_kind_of_damage_survives_a_restart` and the
-    `activated.emit` cases below do, must not hand the next case a box that
-    no longer opens on `All`."""
+def _no_remembered_choice(qapp):
+    """AK-347's two keys are cleared once for the whole session, not once
+    per case (`conftest.settings_store`) -- so a case that lets a real
+    choice reach them, as `test_both_choices_survive_a_restart` and the
+    `activated.emit` cases below do, must not hand the next case boxes that
+    no longer open on `Weapon` and `All`."""
     settings = QSettings(favourites.ORG, favourites.APP)
-    settings.setValue(advisorbar.DAMAGE_ART_KEY, "")
+    for key in (advisorbar.HIT_WITH_KEY, advisorbar.DAMAGE_TYPE_KEY):
+        settings.setValue(key, "")
     yield
-    settings.setValue(advisorbar.DAMAGE_ART_KEY, "")
+    for key in (advisorbar.HIT_WITH_KEY, advisorbar.DAMAGE_TYPE_KEY):
+        settings.setValue(key, "")
 
 
 # --- the table of §4, as words ---------------------------------------------
@@ -715,20 +717,22 @@ def test_a_new_direction_puts_the_old_answer_away(bar):
 
 def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
     """A18 took the reading box out: the directions in `GOAL_ORDER`, and the
-    two boxes §3.1 and AK-327 name -- the direction and the kind of damage.
+    two pairs AK-337 names beside them -- what is hit with, and which damage
+    counts.
 
-    The second box is deliberately named here rather than counted away: a
-    third `QComboBox` on this row is a control nobody specified, and the
+    The other boxes are deliberately named here rather than counted away: a
+    fourth `QComboBox` on this row is a control nobody specified, and the
     reading box A18 removed is the case that says why that matters.
     """
     assert [bar.goal_box.itemText(i) for i in range(bar.goal_box.count())] \
         == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
     assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
+                                                    bar.hit_with_box,
                                                     bar.damage_type_box]
 
 
-#: A dataset with one spell school and three arts, so the third group of
-#: AK-328 has something in it that is not the spec's own three wordings.
+#: A dataset with one spell school and three arts, so the school group of
+#: AK-338 has something in it that is not the spec's own three wordings.
 #: Ids, not prose: 330000 and 330400 are `MOVE_SCOPED_ARTS`' own sorcery and
 #: incantation entries, 112 is the skill scope, and 23 is the school
 #: `spell_families` names here (A-001).
@@ -754,178 +758,247 @@ ONE_SCHOOL = {
 
 @pytest.fixture
 def bar_with_a_school(qapp):
-    """A row built over `ONE_SCHOOL`, so the third group has a school in it."""
+    """A row built over `ONE_SCHOOL`, so the school group has one in it."""
     widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                    controller=_Controller(), data=ONE_SCHOOL)
     yield widget
     widget.deleteLater()
 
 
-def test_the_kind_of_damage_box_offers_three_groups_in_the_spec_order(
+def _entries(box):
+    """`(text, data)` for every row of a combo, separators included."""
+    return [(box.itemText(i), box.itemData(i)) for i in range(box.count())]
+
+
+def test_hit_with_offers_the_armament_the_arts_and_the_schools(
         bar_with_a_school):
-    """AK-328: `All`, the five types, then the arts the dataset carries.
+    """AK-338, its own Pruefweg: five entries and a line before `Bestial`.
 
-    The labels of the third group are the dataset's own (`Bestial` is in
-    `ONE_SCHOOL` and nowhere in `nrplanner`), and the five types are
-    `weapons.DAMAGE_LABELS` -- `Lightning` and `Holy` are what the player
-    reads for `Thunder` and `Dark`, which is exactly why the entry's **data**
-    is the id form and not the text (AD-045 point 1).
+    The school's label is the dataset's own (`Bestial` is in `ONE_SCHOOL`
+    and nowhere in `nrplanner`), and `Weapon art` is the rename AK-338 makes
+    -- read out of `model.ART_LABELS`, which is why no second copy of the
+    word can drift from the headline the goal card builds from it.
     """
-    from nrplanner import weapons
-
-    box = bar_with_a_school.damage_type_box
-    entries = [(box.itemText(i), box.itemData(i)) for i in range(box.count())]
+    entries = _entries(bar_with_a_school.hit_with_box)
     separators = [i for i, (text, data) in enumerate(entries)
                   if not text and data is None]
+
     assert [text for text, _data in entries if text] == [
-        "All", "Physical", "Magic", "Fire", "Lightning", "Holy",
-        "Skill attack", "Sorceries", "Incantations", "Bestial"]
+        "Weapon", "Weapon art", "Sorceries", "Incantations", "Bestial"]
     assert [data for _text, data in entries if data is not None] == [
-        "", "type:Physics", "type:Magic", "type:Fire", "type:Thunder",
-        "type:Dark", "art:skill", "art:sorceries", "art:incantations",
-        "art:family:23"]
-    assert separators == [1, 7], "AK-328 wants a line between the groups"
-    assert [label for label in weapons.DAMAGE_LABELS.values()] == [
-        text for text, _data in entries[2:7]]
+        "", "skill", "sorceries", "incantations", "family:23"]
+    assert separators == [4], "AK-338 wants a line before the schools"
 
 
-def test_the_kind_of_damage_box_takes_its_arts_from_the_dataset(qapp):
-    """AK-328/AD-046.5: a school no dataset names is no entry.
+def test_hit_with_takes_its_arts_and_schools_from_the_dataset(qapp):
+    """AK-338/AD-046.5: a school no dataset names is no entry.
 
     The counterbuild to the case above, in the shape
     `test_the_row_takes_its_words_from_the_registry_and_nowhere_else` uses:
     the same row built over a dataset without `spell_families` offers the
-    two groups that need no dataset and no third one -- so a hand-written
-    table of schools inside this file would show up here as an entry that
-    should not exist.
+    entries that need no dataset and no school -- so a hand-written table of
+    schools inside this file would show up here as an entry that should not
+    exist. `Charged` is the measured case of this (AK-338 point 3): the
+    dataset names the school and no spell is in it.
     """
     without_a_school = {**ONE_SCHOOL, "spell_families": {}}
     widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                    controller=_Controller(),
                                    data=without_a_school)
     try:
-        box = widget.damage_type_box
-        assert "Bestial" not in [box.itemText(i) for i in range(box.count())]
-        assert [box.itemText(i) for i in range(box.count())][-1] == \
-            "Incantations"
+        entries = _entries(widget.hit_with_box)
+        assert [text for text, _data in entries] == [
+            "Weapon", "Weapon art", "Sorceries", "Incantations"], (
+            "a row without a school offers no school and no line to put it "
+            "behind")
     finally:
         widget.deleteLater()
 
 
-def test_the_kind_of_damage_is_a_question_only_under_maximise_damage(
+def test_the_damage_type_box_offers_six_entries_whatever_the_dataset_is(
         bar_with_a_school):
-    """AK-327: hidden under the other two directions, and AK-330: the choice
-    survives the trip there and back, because the pair is hidden and never
-    rebuilt."""
-    bar = bar_with_a_school
-    assert not bar.damage_type_box.isHidden()
-    assert not bar.damage_type_label.isHidden()
+    """AK-339: `All`, a line, the five types -- and no third group.
 
+    The five are `weapons.DAMAGE_LABELS` in its own order; `Lightning` and
+    `Holy` are what the player reads for `Thunder` and `Dark`, which is
+    exactly why the entry's **data** is the id form and not the text
+    (AD-051 point 1). Nothing here depends on the dataset, so the row built
+    over `ONE_SCHOOL` carries the same seven rows as any other.
+    """
+    from nrplanner import weapons
+
+    entries = _entries(bar_with_a_school.damage_type_box)
+    separators = [i for i, (text, data) in enumerate(entries)
+                  if not text and data is None]
+
+    assert bar_with_a_school.damage_type_box.count() == 7
+    assert [text for text, _data in entries if text] == [
+        "All", "Physical", "Magic", "Fire", "Lightning", "Holy"]
+    assert [data for _text, data in entries if data is not None] == [
+        "", "Physics", "Magic", "Fire", "Thunder", "Dark"]
+    assert separators == [1], "AK-339 wants one line and no second group"
+    assert [label for label in weapons.DAMAGE_LABELS.values()] == [
+        text for text, _data in entries[2:]]
+
+
+def test_both_pairs_are_a_question_only_under_maximise_damage(
+        bar_with_a_school):
+    """AK-337: hidden under the other two directions, and AK-341: both
+    choices survive the trip there and back, because the pairs are hidden
+    and never rebuilt."""
+    bar = bar_with_a_school
+    pair = (bar.hit_with_label, bar.hit_with_box,
+            bar.damage_type_label, bar.damage_type_box)
+    assert not any(widget.isHidden() for widget in pair)
+
+    bar.hit_with_box.setCurrentIndex(bar.hit_with_box.findData("family:23"))
     bar.damage_type_box.setCurrentIndex(
-        bar.damage_type_box.findData("art:family:23"))
+        bar.damage_type_box.findData("Fire"))
     bar.choose_goal("min_damage_taken")
-    assert bar.damage_type_box.isHidden()
-    assert bar.damage_type_label.isHidden()
+    assert all(widget.isHidden() for widget in pair)
 
     bar.choose_goal("max_damage")
-    assert not bar.damage_type_box.isHidden()
-    assert bar.damage_art() == "art:family:23"
+    assert not any(widget.isHidden() for widget in pair)
+    assert (bar.hit_with(), bar.damage_type()) == ("family:23", "Fire")
 
 
-def test_another_kind_of_damage_puts_the_old_answer_away(bar_with_a_school):
-    """AK-330: another kind of damage is another question, not another view
-    of the answer on screen -- and, like a direction, it asks nothing."""
+def test_tab_walks_the_direction_then_both_boxes_then_filters(
+        bar_with_a_school):
+    """AK-348: `goal_box` -> `hit_with_box` -> `damage_type_box` ->
+    `Filters`, which is the order the row builds them in and therefore the
+    focus chain Qt hands out without a special case."""
+    bar = bar_with_a_school
+    wanted = [bar.goal_box, bar.hit_with_box, bar.damage_type_box,
+              bar.filters_button]
+
+    walked = []
+    widget = bar.goal_box
+    for _step in range(200):
+        if widget in wanted:
+            walked.append(widget)
+            if len(walked) == len(wanted):
+                break
+        widget = widget.nextInFocusChain()
+
+    assert walked == wanted
+
+
+@pytest.mark.parametrize("box_name, choice", [
+    ("hit_with_box", "family:23"),
+    ("damage_type_box", "Fire"),
+])
+def test_either_box_puts_the_old_answer_away(bar_with_a_school, box_name,
+                                             choice):
+    """AK-341: a choice in **either** box is another question, not another
+    view of the answer on screen -- and, like a direction, it asks nothing.
+    """
     bar = bar_with_a_school
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer())
     asked = len(bar._controller.asked)
 
-    index = bar.damage_type_box.findData("type:Fire")
-    bar.damage_type_box.setCurrentIndex(index)
-    bar.damage_type_box.activated.emit(index)
+    box = getattr(bar, box_name)
+    index = box.findData(choice)
+    box.setCurrentIndex(index)
+    box.activated.emit(index)
 
-    assert bar.damage_art() == "type:Fire"
+    assert box.currentData() == choice
     assert bar.answer is None
     assert bar.situation.state is advisorbar.State.NOTHING_YET
     assert len(bar._controller.asked) == asked
 
 
-def test_the_kind_of_damage_survives_a_restart(qapp):
-    """AK-330 nachtrag, inverting T-321c's finding ('faellt bei Neustart auf
-    All zurueck'): a bar built after an earlier one chose `Fire` opens on
-    `Fire` too, not on `All` -- the choice a session ended on is what the
-    next one starts with."""
-    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
-                                  controller=_Controller())
-    try:
-        index = first.damage_type_box.findData("type:Fire")
-        first.damage_type_box.setCurrentIndex(index)
-        first.damage_type_box.activated.emit(index)
-    finally:
-        first.deleteLater()
-
-    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
-                                   controller=_Controller())
-    try:
-        assert second.damage_type_box.currentData() == "type:Fire"
-        assert second.damage_art() == "type:Fire"
-    finally:
-        second.deleteLater()
-
-
-def test_a_remembered_school_still_offered_survives_a_restart(qapp):
-    """The art half of the same nachtrag, over `bar_with_a_school`'s own
-    dataset: `art:family:23` (`Bestial`) is still one of this dataset's
-    entries at the second start, so it is restored rather than dropped."""
+def test_both_choices_survive_a_restart(qapp):
+    """AK-347's Pruefweg, first half: a row built after an earlier one chose
+    `Bestial` x `Fire` opens on both, not on `Weapon` x `All` -- the pair a
+    session ended on is what the next one starts with."""
     first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                   controller=_Controller(), data=ONE_SCHOOL)
     try:
-        index = first.damage_type_box.findData("art:family:23")
-        first.damage_type_box.setCurrentIndex(index)
-        first.damage_type_box.activated.emit(index)
+        for box, choice in ((first.hit_with_box, "family:23"),
+                            (first.damage_type_box, "Fire")):
+            index = box.findData(choice)
+            box.setCurrentIndex(index)
+            box.activated.emit(index)
     finally:
         first.deleteLater()
 
     second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                    controller=_Controller(), data=ONE_SCHOOL)
     try:
-        assert second.damage_art() == "art:family:23"
+        assert (second.hit_with(), second.damage_type()) == ("family:23",
+                                                             "Fire")
+        assert second.hit_with_box.currentText() == "Bestial"
     finally:
         second.deleteLater()
 
 
-def test_a_remembered_school_the_dataset_no_longer_carries_falls_back_to_all(
-        qapp):
-    """The validation half: a school remembered from a dataset that no
-    longer carries it (patch, or a hand-edited settings file) is not
-    offered as if it still meant something -- `findData` misses it and the
-    box opens on `All`, the same opening an ordinary first start has."""
+def test_a_remembered_school_the_dataset_lost_falls_back_on_its_own(qapp):
+    """AK-347's Pruefweg, second half: each key is checked against its own
+    box.
+
+    A school remembered from a dataset that no longer carries it (a patch,
+    or a hand-edited settings file) is not offered as if it still meant
+    something -- `findData` misses it and `hit_with_box` opens on `Weapon`.
+    The other key is untouched by that, so `damage_type_box` still opens on
+    `Fire`: two keys, two checks, and one falling back moves nothing else.
+    """
     first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                   controller=_Controller(), data=ONE_SCHOOL)
     try:
-        index = first.damage_type_box.findData("art:family:23")
-        first.damage_type_box.setCurrentIndex(index)
-        first.damage_type_box.activated.emit(index)
+        for box, choice in ((first.hit_with_box, "family:23"),
+                            (first.damage_type_box, "Fire")):
+            index = box.findData(choice)
+            box.setCurrentIndex(index)
+            box.activated.emit(index)
     finally:
         first.deleteLater()
 
     second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
                                    controller=_Controller())
     try:
-        assert second.damage_art() == ""
-        assert second.damage_type_box.currentText() == "All"
+        assert second.hit_with() == ""
+        assert second.hit_with_box.currentText() == "Weapon"
+        assert second.damage_type() == "Fire"
     finally:
         second.deleteLater()
 
 
-def test_the_kind_of_damage_box_says_which_skill_it_counts(bar):
-    """AK-329, word for word out of `UI_SPEC.md`: the tooltip is what keeps
-    a Nightfarer's own skill apart from a Weapon Art."""
+def test_an_old_single_key_from_before_the_two_fields_is_ignored(qapp):
+    """AK-347/AD-051.5: `damage_art` is not translated, it is ignored.
+
+    The value it held (`type:Fire`, `art:family:23`) names no entry of
+    either box, so a store still carrying it opens the row on `Weapon` x
+    `All` -- and nothing in this file knows how to read it.
+    """
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.setValue("damage_art", "type:Fire")
+    try:
+        widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                       controller=_Controller(),
+                                       data=ONE_SCHOOL)
+        try:
+            assert (widget.hit_with(), widget.damage_type()) == ("", "")
+        finally:
+            widget.deleteLater()
+    finally:
+        settings.remove("damage_art")
+
+
+def test_the_two_tooltips_are_the_two_the_spec_writes(bar):
+    """AK-340, word for word out of `UI_SPEC.md`: one tooltip per box, and
+    the one on `hit_with_box` is what keeps a Nightfarer's own skill apart
+    from a Weapon Art and a found spell apart from the one this equipment
+    casts."""
+    assert bar.hit_with_box.toolTip() == (
+        "Chooses what the figure ranks: the starting armament, its Weapon "
+        "Art, or the spell the starting catalyst throws. Weapon art counts "
+        "Weapon Arts only — a Nightfarer's own skills are never counted. "
+        "Sorceries, Incantations and a school rank the one spell this "
+        "Nightfarer's own equipment casts, not a spell found in the run.")
     assert bar.damage_type_box.toolTip() == (
-        "Restricts Maximise damage to one kind of damage. Skill attack "
-        "counts Weapon Arts only — a Nightfarer's own skills are never "
-        "counted.")
+        "Restricts Maximise damage to one kind of damage.")
 
 
 def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
@@ -936,20 +1009,21 @@ def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
     (`run._refuse_a_request_that_asks_about_another_run`, the same guard
     `two_handed` answers to).
 
-    The row still offers one combo (A26-7 gives it two), so the two fields
-    come out of `goals.fields_of` here; what this case holds is that both
-    halves of the question carry them, whichever way they are formed.
+    Each box answers its own field since AK-337, so the case sets the pair
+    the row would be standing on and reads it back out of both halves.
 
     Red with either assignment in `asking_from` taken out.
     """
-    from nrplanner.advisor import goals as advisor_goals
     from nrplanner.advisor import run as advisor_run
 
-    box = planner.advisor_bar.damage_type_box
-    for choice in ("", "type:Magic", "art:incantations"):
-        box.setCurrentIndex(box.findData(choice))
+    bar = planner.advisor_bar
+    for hit_with, damage_type in (("", ""), ("", "Magic"),
+                                  ("incantations", ""),
+                                  ("incantations", "Magic")):
+        bar.hit_with_box.setCurrentIndex(bar.hit_with_box.findData(hit_with))
+        bar.damage_type_box.setCurrentIndex(
+            bar.damage_type_box.findData(damage_type))
         asking = advisorbar.asking_from(planner, "max_damage")
-        hit_with, damage_type = advisor_goals.fields_of(choice)
         assert (asking.request.hit_with, asking.request.damage_type) == (
             hit_with, damage_type)
         assert (asking.ctx.hit_with, asking.ctx.damage_type) == (

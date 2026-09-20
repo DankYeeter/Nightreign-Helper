@@ -62,7 +62,8 @@ class FakeAdvice:
     """
 
     def __init__(self, pools: dict, goal_id: str = "max_damage", *,
-                 at_once: bool = True, damage_art: str = ""):
+                 at_once: bool = True,
+                 damage_choice: tuple[str, str] = ("", "")):
         self.pools = pools
         self._goal_id = goal_id
         self.chosen: list[str] = []
@@ -71,7 +72,7 @@ class FakeAdvice:
         self.listening = False
         self._answered = None
         self._pool = None
-        self._damage_art = damage_art
+        self._damage_choice = damage_choice
 
     def goal_id(self) -> str:
         return self._goal_id
@@ -80,8 +81,8 @@ class FakeAdvice:
         self._goal_id = goal_id
         self.chosen.append(goal_id)
 
-    def damage_art(self) -> str:
-        return self._damage_art
+    def damage_choice(self) -> tuple[str, str]:
+        return self._damage_choice
 
     def ask(self, answered):
         pool = self.pools.get(self._goal_id)
@@ -424,7 +425,7 @@ def test_the_damage_row_names_the_chosen_kind(slot):
     pool = pool_of(slot, {0: 1.0}, rank_by="min_damage_taken")
     dialog = picker_for(slot, FakeAdvice(
         {"min_damage_taken": pool}, goal_id="min_damage_taken",
-        damage_art="type:Fire"))
+        damage_choice=("", "Fire")))
     try:
         column = relicpicker.VALUE_DIRECTIONS.index("max_damage")
         cards = relic_cards(dialog)
@@ -727,6 +728,43 @@ def test_two_cards_showing_one_figure_carry_one_mark(slot):
         dialog.deleteLater()
 
 
+def test_the_damage_row_names_both_fields_when_both_are_chosen(slot):
+    """AK-346: with `Incantations` **and** `Fire` picked in the row, the
+    caption names both, in the order `goals.chosen_label` gives them --
+    damage type before hit with, the same order the goal card's headline
+    uses (AK-342/AK-335). One wording, read by both.
+    """
+    pool = pool_of(slot, {0: 1.0}, rank_by="min_damage_taken")
+    dialog = picker_for(slot, FakeAdvice(
+        {"min_damage_taken": pool}, goal_id="min_damage_taken",
+        damage_choice=("incantations", "Fire")))
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_damage")
+        cards = relic_cards(dialog)
+        assert cards, "this slot drew no relic cards, so nothing is measured"
+        for card in cards:
+            assert captions_of(card)[column] == "Damage (Fire Incantations)"
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_damage_row_names_the_hit_with_field_on_its_own(slot):
+    """AK-346: `Weapon art` chosen alone names itself -- the rename out of
+    `model.ART_LABELS` (AK-338) reaches the picker without a copy here."""
+    pool = pool_of(slot, {0: 1.0}, rank_by="min_damage_taken")
+    dialog = picker_for(slot, FakeAdvice(
+        {"min_damage_taken": pool}, goal_id="min_damage_taken",
+        damage_choice=("skill", "")))
+    try:
+        column = relicpicker.VALUE_DIRECTIONS.index("max_damage")
+        cards = relic_cards(dialog)
+        assert cards, "this slot drew no relic cards, so nothing is measured"
+        for card in cards:
+            assert captions_of(card)[column] == "Damage (Weapon art)"
+    finally:
+        dialog.deleteLater()
+
+
 def test_the_damage_chip_names_the_chosen_kind(slot):
     """AK-336 point 2: the mark reads `BEST FOR DAMAGE (Fire)` once a kind
     of damage is chosen, so a mark scoped to one kind is not read as one
@@ -734,7 +772,7 @@ def test_the_damage_chip_names_the_chosen_kind(slot):
     """
     dialog = picker_for(slot, FakeAdvice(
         {"max_damage": pool_of(slot, {0: 12.0, 1: 3.0})},
-        goal_id="max_damage", damage_art="type:Fire"))
+        goal_id="max_damage", damage_choice=("", "Fire")))
     try:
         marked = [card for card in relic_cards(dialog) if card.chip.text()]
         assert marked, "this slot marked no card, so nothing is measured"
@@ -788,7 +826,7 @@ def test_nothing_raises_names_the_chosen_kind(slot):
     gains = {0: 0.0, 1: 0.0, 2: -4.0}
     pool = pool_of(slot, gains, apart=flat(gains))
     dialog = picker_for(slot, FakeAdvice({"max_damage": pool},
-                                         damage_art="type:Fire"))
+                                         damage_choice=("", "Fire")))
     try:
         assert not [card for card in relic_cards(dialog) if card.chip.text()]
         assert dialog.headline.text() == (
@@ -1602,7 +1640,7 @@ def test_line_three_b_is_gone_when_both_sources_are_empty(slot):
 
 
 def test_the_max_damage_finding_stands_under_every_sort_by(slot):
-    """AK-336 point 1: the sentence a chosen damage_art earns is a finding
+    """AK-336 point 1: the sentence a chosen damage type earns is a finding
     about `max_damage`'s own figure, which stands on every card whatever
     `Sort by` draws -- not only while `Sort by` happens to draw `max_damage`
     (the fault DR-035 found: gated on `_drawn_direction() == "max_damage"`).
@@ -1612,7 +1650,7 @@ def test_the_max_damage_finding_stands_under_every_sort_by(slot):
                        max_damage=("AR", ("Ranked on fire damage only.",))))
     dialog = picker_for(slot, FakeAdvice(
         {"min_damage_taken": pool}, goal_id="min_damage_taken",
-        damage_art="type:Fire"))
+        damage_choice=("", "Fire")))
     try:
         assert dialog.findings.isVisibleTo(dialog)
         assert "Ranked on fire damage only." in dialog.findings.text()

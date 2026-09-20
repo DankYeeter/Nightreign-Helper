@@ -145,15 +145,6 @@ NO_SPELL_DAMAGE = (
     "{name} deals no damage, so this is 0.00. Only a relic that swaps the "
     "spell this equipment casts brings damage here.")
 
-# `family:110`, "Charged", is offered like a spell school and is none: no
-# spell in the dataset names it as its family. What a charged relic covers
-# is a spell that *can* be charged, so that is the test -- a spell with a
-# charged cost of its own. Provisional, and marked as such: the base value
-# stays the uncharged main hit (user decision OF-57), and the dataset names
-# no genus for this school, so the general sorcery or incantation buff does
-# not multiply with it the way a real school's does.
-CHARGED_SCHOOL = 110
-
 
 def displayed(figure: float) -> int:
     """The whole number a display puts on screen for an attack rating.
@@ -856,10 +847,7 @@ def _casts_under(spell: dict, art: str) -> bool:
     value = art[len(model.ART_FAMILY_PREFIX):]
     if not value.isdigit():
         return False
-    school = int(value)
-    if school == CHARGED_SCHOOL:
-        return bool(spell.get("fp_charged"))
-    name = model.SPELL_FAMILY_NAMES.get(school)
+    name = model.SPELL_FAMILY_NAMES.get(int(value))
     return bool(name) and spell.get("family") == name
 
 

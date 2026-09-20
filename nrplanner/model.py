@@ -625,8 +625,13 @@ ART_FAMILY_PREFIX = "family:"
 
 #: Wording for the three arts the dataset does not name itself (UI_SPEC
 #: AK-328). The schools bring their own name and never get a second one.
+#: `Weapon art` since AK-338: the box asks what the player hits with, and
+#: that answers it where `Skill attack` answered the older question "which
+#: kind of damage". The key is untouched (AD-051 point 1) -- this is the one
+#: copy of the word, so every headline and every sentence built from it
+#: (`goals._headline_with_choice`, `goals._ART_ON_A_CATALYST`) follows.
 ART_LABELS = {
-    SKILL_ART: "Skill attack",
+    SKILL_ART: "Weapon art",
     SORCERIES_ART: "Sorceries",
     INCANTATIONS_ART: "Incantations",
 }
