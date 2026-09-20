@@ -563,3 +563,15 @@ liest bisher nur `equip_Wep_Right_1`.*
   nicht; Wylder, *Weapon art* x *Fire* mit Startwaffen-Konversion Fire:
   Skill-Buff x Fire-Buff x Konversion in einer Zahl; Recluse, *Sorceries*
   x *Magic*: Spell Power x Sorcery-Buff x Magic-Buff.
+
+*Nachtrag 20.09.2026 17:40 (Nutzer): "Wenn ich einen Starting Spell
+auswaehle, soll Maximise damage direkt auf diesen Spell rechnen."*
+Gemeint sind die Relikt-Effekte "Changes compatible armament's sorcery /
+incantation to <Zauber> at start of expedition" (10 im Datensatz, Ids
+73606xx..73715xx, z. B. 7370900 Beast Claw). Ergaenzung A26: liegt ein
+solcher Effekt im Build (gehalten oder vorgeschlagen), rechnet ein Zauber-
+Ziel mit genau diesem Zauber (Grundwert, Schadensart, Schule aus den
+extrahierten Zauberdaten) statt mit dem Standardzauber des Katalysators;
+ohne einen solchen Effekt gilt der Standardzauber des Start-Katalysators.
+Nachweis: Revenant mit 7370900 (Beast Claw) unter *Incantations* x *All*
+zeigt die Beast-Claw-Zahl, physische Buffs zaehlen, Holy nicht.
