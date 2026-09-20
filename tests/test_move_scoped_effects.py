@@ -338,22 +338,61 @@ def arts_in_the_data(game_data: dict) -> dict[str, set[int]]:
     return found
 
 
+#: `family:110` "Charged" is the one scope the dataset names as a school and
+#: no spell of it belongs to: being charged is a property of a cast, not a
+#: school a spell is in (measured T-324c). Six buffs cover it and none of
+#: them can be asked about, which is the director's decision of 2026-09-20
+#: rather than an oversight -- the spell rows rank the spell the equipment
+#: throws, and there is no spell to find under this one.
+NOT_A_SCHOOL = f"{model.ART_FAMILY_PREFIX}110"
+
+
 def test_every_art_offered_is_one_some_relic_can_actually_move(game_data):
     """The chooser and the data say the same thing, in both directions.
 
     An art with no effect behind it is a line the player can pick and that
     can never change a figure; an effect whose art is not offered is a buff
     nobody can ask about. Both are caught by comparing the two sides rather
-    than by a count written down here.
+    than by a count written down here -- with the one named exception above,
+    which is stated rather than counted, so that a second one arriving
+    quietly fails this case.
     """
     offered = model.attack_arts(game_data)
     covered = arts_in_the_data(game_data)
 
-    assert set(offered) == set(covered), (
+    assert set(offered) == set(covered) - {NOT_A_SCHOOL}, (
         f"offered and not covered: {sorted(set(offered) - set(covered))}; "
-        f"covered and not offered: {sorted(set(covered) - set(offered))}")
+        f"covered and not offered: "
+        f"{sorted(set(covered) - set(offered) - {NOT_A_SCHOOL})}")
+    assert NOT_A_SCHOOL in covered, (
+        "the exception above is about a scope this dataset no longer "
+        "carries, so it is a sentence nobody can check any more")
     assert all(label.strip() for label in offered.values()), (
         f"an art is offered without a name: {offered}")
+
+
+def test_a_school_no_spell_belongs_to_is_not_offered(game_data):
+    """The rule behind the exception, read off the data rather than listed.
+
+    `spell_families` names 21 schools and the spells of this dataset are in
+    20 of them. The 21st is `Charged`, and a chooser entry for it would ask
+    about a spell the program can never find (director's decision
+    2026-09-20). The rule is written as "no spell is in it" and not as the
+    number 110, so a patch that gives Charged a spell -- or empties another
+    school -- moves the offer by itself.
+    """
+    offered = model.attack_arts(game_data)
+    in_a_school = {str(spell.get("family") or "")
+                   for spell in game_data["spells"]}
+
+    empty = {f"{model.ART_FAMILY_PREFIX}{value}": label
+             for value, label in model.spell_family_names(game_data).items()
+             if label not in in_a_school}
+
+    assert set(empty.values()) == {"Charged"}, (
+        f"another school lost its spells: {empty}")
+    assert not set(empty) & set(offered), (
+        f"a school no spell is in is being offered: {empty}")
 
 
 def test_a_scope_the_data_does_not_name_stays_without_an_art(game_data):

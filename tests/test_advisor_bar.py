@@ -735,6 +735,12 @@ def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
 ONE_SCHOOL = {
     "meta": {"data_version": "test"},
     "spell_families": {"23": "Bestial"},
+    # A school is offered only where a spell of this dataset is in it
+    # (`model.attack_arts`), so the one school here carries the one spell --
+    # id, name and the two words the dataset files it under, nothing else
+    # (A-001).
+    "spells": [{"id": 6820, "name": "Beast Claw", "family": "Bestial",
+                "category": "Incantations"}],
     "effects": {
         "330000": {"id": 330000, "modifiers": {"magicAttackRate": 1.2}},
         "330400": {"id": 330400, "modifiers": {"magicAttackRate": 1.2}},

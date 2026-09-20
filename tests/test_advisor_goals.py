@@ -209,6 +209,11 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
       This case asserts the replacement, not merely the absence -- a
       reservation dropped for a fault that was fixed is right; a scope
       dropped with it is the A7 failure this project keeps repeating.
+    * "Spell damage is not in the game data, so spells are not rated" became
+      false when A26-1 extracted it and AD-052 gave the spell rows a figure
+      of their own. What stands there now is the scope of *that* figure: the
+      spell rows only, and the equipment the Nightfarer starts an expedition
+      with -- never a spell found in a run.
 
     Read off the registry since AD-025 and no longer off a score: the two runs
     this used to loop over asked the same question of the same constant, and
@@ -243,7 +248,16 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
             f"the catalyst line does not say {said!r}: it was measured "
             f"at the base rarity only, and it is the game's display "
             f"rather than what a spell does")
-    assert any("Spell damage" in line for line in stated)
+    spell_rows = [line for line in stated if "spell rows" in line]
+    assert spell_rows, (
+        "nothing says what a spell's figure is formed on; the line that "
+        "used to say spells are not rated at all became false with AD-052, "
+        "and a scope dropped along with a false reservation is the A7 "
+        "failure this project keeps repeating")
+    assert any("starts an expedition with" in line for line in spell_rows), (
+        "the spell line does not say that the figure hangs on the equipment "
+        "the Nightfarer starts with, which is the whole of what it can and "
+        "cannot promise (AD-052)")
     assert any("Critical-only" in line for line in stated)
     assert not any("convert" in line for line in stated), (
         "the old conversion reservation is back; it says a relic that "
@@ -380,6 +394,24 @@ FIRE_CONVERSION = 7120100
 FROST_STATUS = 7120400
 
 
+def starting_armament(game_data, hero) -> types.ReferenceArmament:
+    """The Nightfarer's own armament in slot 1 -- what AD-038 ranks on.
+
+    At its lowest tier and without rolls, the way `advisorbar.asking_from`
+    hands it in. A spell row does not use it: its reference object is the
+    start catalyst, which for Revenant is the other hand (AD-052).
+    """
+    return types.ReferenceArmament(
+        weapon=next(w for w in game_data["weapons"]
+                    if w["id"] == hero["starting_weapon"]),
+        tier=1, slot_index=damage.STARTING_SLOT)
+
+
+def rate_of(game_data, effect_id: int, field_name: str) -> float:
+    """One effect's own multiplier on one field, off the dataset."""
+    return cases.effect_by_id(game_data, effect_id)["modifiers"][field_name]
+
+
 def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
     """The damage figure under one chosen cell, one entry per relic carried.
 
@@ -388,10 +420,7 @@ def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
     measured against. One context per entry, because the two fields of the
     question belong to the question and not to the build (AD-051).
     """
-    reference = types.ReferenceArmament(
-        weapon=next(w for w in game_data["weapons"]
-                    if w["id"] == hero["starting_weapon"]),
-        tier=1, slot_index=damage.STARTING_SLOT)
+    reference = starting_armament(game_data, hero)
     scores = {}
     for name, effect_ids in carried.items():
         ctx = dataclasses.replace(
@@ -455,8 +484,8 @@ def test_a_chosen_type_turns_the_revenants_order_over(game_data):
     **The incantation half of this case has moved** (AD-052/AD-053): asking
     about incantations is now asking about a spell and no longer about a
     rate on the claws, so it is answered from the seal Revenant carries in
-    his left hand and lives in `test_a_spell_row_says_it_is_not_counted_yet`
-    until A26-5 fills it.
+    his left hand, and the cases for it start at
+    `test_the_spell_row_rates_the_spell_the_equipment_throws`.
     """
     revenant = cases.hero_by_name(game_data, "Revenant")
     faith = cases.effects_raising_attribute(game_data, revenant, "Faith", 1)[0]
@@ -471,30 +500,276 @@ def test_a_chosen_type_turns_the_revenants_order_over(game_data):
     assert chosen["faith"].value > chosen["fire"].value
 
 
-@pytest.mark.parametrize("hit_with", [
-    model.SORCERIES_ART, model.INCANTATIONS_ART, "family:23",
-])
-def test_a_spell_row_says_it_is_not_counted_yet(game_data, hit_with):
-    """AD-052/AD-053: sorceries, incantations and the schools are ranked on
-    a spell's own damage, and that figure is built beside this one (A26-3,
-    A26-5). Until it is here the cell is empty and says why.
+#: The relic the A26 proof runs on: "Changes compatible armament's
+#: incantation to Beast Claw at start of expedition", the one of the ten
+#: swap relics Revenant can hold whose spell carries physical damage
+#: (6820, `Physics` 362). The other nine belong to the other genus or to
+#: another damage type, and `allowed_heroes` names one Nightfarer for each.
+BEAST_CLAW_SWAP = 7370900
 
-    What this case holds is the shape of the answer, not the wording: no
-    candidate outranks another, so nothing here can be suggested (QA-290),
-    and the reason stands in the run findings rather than in a silent 0.00
-    that would read as a measured figure.
+#: A second swap relic for the same hand -- "O, Flame!" (6001, `Fire` 351),
+#: the case AD-052 point 3 is about.
+FLAME_SWAP = 7370600
+
+#: "Improved Bestial Incantations" (scope 23) and "Improved Incantations",
+#: which carries no scope of its own and reaches the genus through
+#: `model.MOVE_SCOPED_ARTS`. Beast Claw is a Bestial incantation, so both
+#: count under `family:23` and only the second under `incantations`
+#: (user decision OF-51).
+BESTIAL_BUFF = 7044400
+INCANTATION_BUFF = 8330100
+
+#: What Revenant's Finger Seal throws with no relic on the build: Rejection
+#: hits for nothing, which is the measured state AD-052 point 5 refuses to
+#: paper over with a spell-power figure.
+REVENANT_DEFAULT_SPELL = "Rejection"
+
+#: Level 15, Finger Seal at tier 1, no relics: 362 physical times the seal's
+#: spell power of 159.545 / 100. Pinned to four places because every case
+#: below is a factor on it, and because it is the first figure this program
+#: shows that no screen of the game can be held against (OF-54).
+BEAST_CLAW_FIGURE = 577.5545
+
+
+def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
+    """AD-052: N4's first half -- the reference object of a spell row.
+
+    Revenant is the case the criterion names: his starting armament is a
+    pair of claws, and the spell row is answered from the **seal in his left
+    hand** and the spell that seal casts. Without a swap relic that spell is
+    Rejection and it hits for nothing, so the figure is 0.00 with the
+    facade's own sentence -- not a spell power standing in for a damage,
+    which would put two yardsticks in one ranking (AD-052 point 5, QA-018).
+
+    With the swap relic the same row is the Beast Claw figure, and the
+    headline names the spell it was formed on: a player cannot check a
+    number whose subject he has to guess (AD-025.2).
     """
     revenant = cases.hero_by_name(game_data, "Revenant")
-    attack_only = cases.effects_raising_rate(
+    carried = {"nothing": (), "claw": (BEAST_CLAW_SWAP,)}
+
+    spell = damage_scores(game_data, revenant, carried,
+                          hit_with=model.INCANTATIONS_ART)
+
+    assert spell["nothing"].value == 0.0
+    assert REVENANT_DEFAULT_SPELL in spell["nothing"].display
+    assert REVENANT_DEFAULT_SPELL in spell["nothing"].unknowns[0], (
+        f"a 0.00 has to say whose it is: {spell['nothing'].unknowns!r}")
+    assert spell["claw"].value == pytest.approx(BEAST_CLAW_FIGURE, abs=5e-5)
+    assert "Beast Claw" in spell["claw"].display
+    assert damage.SPELL_DAMAGE_NAME in spell["claw"].display
+    assert any("uncalibrated" in line for line in spell["claw"].unknowns), (
+        f"OF-54: the figure has to say it is a premise, not a measurement: "
+        f"{spell['claw'].unknowns!r}")
+
+
+def test_a_physical_buff_lifts_the_beast_claw_and_a_holy_one_does_not(
+        game_data):
+    """N4: the element rates reach a spell, each on its own damage type.
+
+    Beast Claw is physical, so `physicsAttackRate` multiplies it and
+    `darkAttackRate` -- what this dataset calls holy -- multiplies nothing
+    of it. That is the premise of A26 stated as a measurement rather than as
+    a rule written into the goal: the facade does the multiplying per damage
+    type, and this case reads the two rows of it apart.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    physical = cases.effects_raising_rate(
         game_data, revenant, "physicsAttackRate", 1)[0]
-    carried = {"nothing": (), "attack": (attack_only,)}
+    holy = cases.effects_raising_rate(
+        game_data, revenant, "darkAttackRate", 1)[0]
+    carried = {"claw": (BEAST_CLAW_SWAP,),
+               "claw+physical": (BEAST_CLAW_SWAP, physical),
+               "claw+holy": (BEAST_CLAW_SWAP, holy)}
 
-    spell = damage_scores(game_data, revenant, carried, hit_with=hit_with)
+    spell = damage_scores(game_data, revenant, carried,
+                          hit_with=model.INCANTATIONS_ART)
+    rate = rate_of(game_data, physical, "physicsAttackRate")
 
-    assert spell["attack"].value == spell["nothing"].value == 0.0
-    assert len(spell["nothing"].unknowns) == 1
-    assert goals.chosen_label(hit_with, "") in spell["nothing"].unknowns[0]
+    assert spell["claw+physical"].value == pytest.approx(
+        spell["claw"].value * rate, abs=5e-5)
+    assert spell["claw+holy"].value == pytest.approx(spell["claw"].value), (
+        "a holy buff lifted a physical spell, so the rates are not being "
+        "read per damage type")
+
+
+def test_a_school_counts_only_where_the_spell_belongs_to_it(game_data):
+    """N4's second half: Bestial counts on Beast Claw, Dragon Cult does not.
+
+    And under the school the genus counts as well, multiplied with it (OF-51,
+    `damage._art_of`): a Bestial incantation is an incantation too. Asked
+    under `family:22` the same relics reach nothing -- the spell is of
+    another school, and the answer is the genus figure rather than an error.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    carried = {"claw": (BEAST_CLAW_SWAP,),
+               "school": (BEAST_CLAW_SWAP, BESTIAL_BUFF),
+               "genus": (BEAST_CLAW_SWAP, INCANTATION_BUFF),
+               "both": (BEAST_CLAW_SWAP, BESTIAL_BUFF, INCANTATION_BUFF)}
+    school_rate = rate_of(game_data, BESTIAL_BUFF, "physicsAttackRate")
+    genus_rate = rate_of(game_data, INCANTATION_BUFF, "physicsAttackRate")
+
+    bestial = damage_scores(game_data, revenant, carried,
+                            hit_with=f"{model.ART_FAMILY_PREFIX}23")
+    dragon_cult = damage_scores(game_data, revenant, carried,
+                                hit_with=f"{model.ART_FAMILY_PREFIX}22")
+
+    assert bestial["school"].value == pytest.approx(
+        bestial["claw"].value * school_rate, abs=5e-5)
+    assert bestial["both"].value == pytest.approx(
+        bestial["claw"].value * school_rate * genus_rate, abs=5e-5), (
+        "under a school the genus buff counts beside the school's own, "
+        "multiplied (OF-51)")
+    assert dragon_cult["school"].value == pytest.approx(
+        dragon_cult["claw"].value), (
+        "a Bestial buff lifted the figure under Dragon Cult, so the school "
+        "is being applied without asking whether the spell belongs to it")
+    assert dragon_cult["genus"].value == pytest.approx(
+        dragon_cult["claw"].value * genus_rate, abs=5e-5), (
+        "asking about a school the spell is not in still leaves it an "
+        "incantation, so the genus buff has to reach it")
+
+
+def test_a_swap_relic_offered_as_a_candidate_is_the_gain_of_the_run(
+        game_data):
+    """AD-052 point 2: the one effect family that moves a **base** value.
+
+    The reference object of a spell row is chosen from the finished build,
+    so a swap relic that is merely offered counts exactly as one that is
+    held -- and that is what makes the row rankable at all for Revenant: his
+    own equipment throws Rejection for 0.00, and the relic that changes it
+    is the only candidate in the pool that moves the figure.
+
+    Asked through `candidates.pool` and not through a score, because the
+    claim is about the **gain** a player is shown: a run whose every
+    candidate is worth the same suggests nothing (QA-290), and this one has
+    to suggest the swap.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    physical = cases.effects_raising_rate(
+        game_data, revenant, "physicsAttackRate", 1)[0]
+    faith = cases.effects_raising_attribute(game_data, revenant, "Faith", 1)[0]
+    inventory = advisor.make_inventory(
+        game_data, revenant, count=3,
+        rolls=[[BEAST_CLAW_SWAP], [physical], [faith], [physical]])
+    ctx = dataclasses.replace(
+        advisor.context(game_data, revenant,
+                        reference=starting_armament(game_data, revenant)),
+        hit_with=model.INCANTATIONS_ART)
+
+    pool = candidates.pool(inventory, advisor.problem([advisor.RED]), 0, ctx,
+                           goals.GOALS, "max_damage")
+    gains = [(offer.name, marginal.gain) for offer in pool.candidates
+             for marginal in offer.marginals
+             if marginal.goal_id == "max_damage"]
+
+    assert [line.value for line in pool.baseline
+            if line.goal_id == "max_damage"] == [0.0], (
+        "Revenant's own equipment throws a spell that deals no damage, so "
+        "the base state of this row is 0.00")
+    assert gains[0][1] == pytest.approx(BEAST_CLAW_FIGURE, abs=5e-5)
+    assert all(gain == 0.0 for _, gain in gains[1:]), (
+        f"only the swap relic can move a figure that starts at 0.00: "
+        f"{gains!r}")
+
+
+def test_two_swap_relics_rank_the_stronger_and_say_which(game_data):
+    """AD-052 point 3: `exclusivityId` 200 on all ten, and no rule for which.
+
+    The game applies one of two swap relics and the files do not say which,
+    so the reader takes the stronger under the damage type asked about --
+    the one a player would be aiming for -- and says in the run's findings
+    that it did. Under `All` that is Beast Claw's 362 physical, under `Fire`
+    it is O, Flame!'s 351, and the same pair of relics gives two different
+    answers because the question is a different one.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    carried = {"both": (BEAST_CLAW_SWAP, FLAME_SWAP)}
+
+    everything = damage_scores(game_data, revenant, carried,
+                               hit_with=model.INCANTATIONS_ART)["both"]
+    fire = damage_scores(game_data, revenant, carried,
+                         hit_with=model.INCANTATIONS_ART,
+                         damage_type="Fire")["both"]
+
+    assert "Beast Claw" in everything.display
+    assert everything.value == pytest.approx(BEAST_CLAW_FIGURE, abs=5e-5)
+    assert "O, Flame!" in fire.display
+    assert any("only one of them work" in line
+               for line in everything.unknowns), (
+        f"the choice between two swap relics is a finding of the run, not "
+        f"something done quietly: {everything.unknowns!r}")
+
+
+@pytest.mark.parametrize("hero_name, hit_with, catalyst", [
+    ("Revenant", model.SORCERIES_ART, "Finger Seal"),
+    ("Recluse", model.INCANTATIONS_ART, "Recluse's Staff"),
+])
+def test_a_seal_casts_no_sorceries_and_a_staff_no_incantations(
+        game_data, hero_name, hit_with, catalyst):
+    """AD-052 point 4: the genus of the catalyst decides, `wep_type` says it.
+
+    The cell is empty rather than 0.00: nothing was measured and nothing
+    ranks, so no candidate can outrank another and the run suggests nothing
+    here (QA-290). The sentence names the armament, because that is what the
+    player can look at.
+    """
+    hero = cases.hero_by_name(game_data, hero_name)
+    carried = {"nothing": (), "claw": (BEAST_CLAW_SWAP,)}
+
+    spell = damage_scores(game_data, hero, carried, hit_with=hit_with)
+
+    assert spell["nothing"].value == spell["claw"].value == 0.0
     assert "0.00" not in spell["nothing"].display
+    assert catalyst in spell["nothing"].unknowns[0]
+    assert goals.chosen_label(hit_with, "") in spell["nothing"].unknowns[0]
+
+
+def test_a_nightfarer_without_a_catalyst_has_no_spell_row(game_data, wylder):
+    """N5: eight of the ten start with neither a staff nor a seal.
+
+    Wylder's greatsword casts nothing, so the row is empty and says so --
+    and a silent 0.00 would be the worse answer of the two, because it reads
+    as a measured figure of a spell that was never cast (AD-052 point 6).
+    """
+    carried = {"nothing": (), "attack": (FIRE_CONVERSION,)}
+
+    spell = damage_scores(game_data, wylder, carried,
+                          hit_with=model.SORCERIES_ART)
+
+    assert spell["nothing"].value == spell["attack"].value == 0.0
+    assert "0.00" not in spell["nothing"].display
+    assert len(spell["nothing"].unknowns) == 1
+    assert goals.chosen_label(model.SORCERIES_ART, "") in \
+        spell["nothing"].unknowns[0]
+
+
+def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
+    """AD-052 point 1: the catalyst in the **right** hand, and its own spell.
+
+    Recluse is the other half of the pair: her staff is her starting
+    armament, so the spell row and the weapon row are formed on the same
+    armament and still answer two different questions -- the staff's spell
+    power under `Weapon` (AD-048) and Glintstone Pebble's magic damage here.
+    """
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    magic = cases.effects_raising_rate(game_data, recluse, "magicAttackRate",
+                                       1)[0]
+    carried = {"nothing": (), "magic": (magic,),
+               "claw": (BEAST_CLAW_SWAP,)}
+
+    spell = damage_scores(game_data, recluse, carried,
+                          hit_with=model.SORCERIES_ART, damage_type="Magic")
+    rate = rate_of(game_data, magic, "magicAttackRate")
+
+    assert "Glintstone Pebble" in spell["nothing"].display
+    assert spell["nothing"].value == pytest.approx(206.1327, abs=5e-5)
+    assert spell["magic"].value == pytest.approx(
+        spell["nothing"].value * rate, abs=5e-5)
+    assert spell["claw"].display == spell["nothing"].display, (
+        "a swap relic of the other genus reached a staff: each of the ten "
+        "works for one Nightfarer only (`allowed_heroes`), which is what "
+        "keeps a sorcery off a seal and an incantation off a staff")
 
 
 def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
@@ -622,8 +897,8 @@ def test_the_chosen_kind_is_named_in_the_run_findings_and_only_then(game_data,
     assert holy.unknowns == (
         "Ranked on holy damage only — every other effect on a candidate "
         "still shows, but only this counts toward the ranking. It scales "
-        "the armament's attack rating — spell damage itself is not in the "
-        "game data.",)
+        "the armament's attack rating; what a spell hits for is a figure of "
+        "its own and is asked for on the spell rows.",)
     assert art.unknowns[0].startswith("Ranked on skill attack damage only")
 
 

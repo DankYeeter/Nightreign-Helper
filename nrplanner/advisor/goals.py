@@ -135,7 +135,9 @@ _ATTACK_RATING_SCOPE = (
     "For staves and seals the figure is the spell power the game shows, "
     "measured at their own rarity only, and it is that display and not what "
     "a spell hits for.",
-    "Spell damage is not in the game data, so spells are not rated.",
+    "What a spell hits for is rated on the spell rows only, and on the "
+    "equipment the Nightfarer starts an expedition with — never on a "
+    "spell picked up in a run.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
     # AD-038: the armament the figure is formed against is a property of the
     # Nightfarer, not of the grid (A17), and it is named here so that the
@@ -239,14 +241,16 @@ def fields_of(damage_art: str) -> tuple[str, str]:
 #: T-322m: `Incantations` named a "Magic attack power" relic and read, in the
 #: tester's own words, "as a player unclear". The relic is not wrong -- AD-047
 #: has the school's buff scale the reference armament's own attack rating,
-#: never a spell's damage, which this dataset does not carry at all
-#: (`_ATTACK_RATING_SCOPE`'s third line) -- only the first sentence was silent
-#: about it.
+#: never a spell's damage -- only the first sentence was silent about it.
+#: Since AD-052 the case that prompted it comes here no more: `Incantations`
+#: is a spell row and is answered by `_spell_cell`, so what this sentence is
+#: left saying is where the **armament's** figure ends, and it says it
+#: without claiming that spell damage is unknowable (A26-1 extracted it).
 _RANKED_ON_ONE_ART = (
     "Ranked on {choice} damage only — every other effect on a candidate "
     "still shows, but only this counts toward the ranking. It scales the "
-    "armament's attack rating — spell damage itself is not in the game "
-    "data.")
+    "armament's attack rating; what a spell hits for is a figure of its "
+    "own and is asked for on the spell rows.")
 
 #: AD-048: for a staff or a seal the game shows a spell power and no attack
 #: rating, and nothing measured says what an attack buff does to that
@@ -258,17 +262,43 @@ _ART_ON_A_CATALYST = (
     "ranked on the spell power the game shows for it, and no damage type "
     "and no attack art reaches that figure.")
 
-#: The spell rows of the combination table are ranked on a spell's own
-#: damage, through `damage.spell` and the Nightfarer's start catalyst
-#: (AD-052, AD-053) -- both are being built beside this one (A26-3, A26-5).
-#: Until they are here the cell stays empty and says so: a figure formed
-#: from the armament instead would answer a question nobody asked, and a
-#: silent 0.00 is reserved for the case where a spell really carries no
-#: damage (AD-052 point 5).
-_SPELL_CELL_NOT_BUILT = (
-    "{choice} is not counted in this figure: a spell's own damage is not "
-    "part of it, so this run ranks nothing here rather than ranking "
-    "something else.")
+#: `wep_type` 57 is a staff and 61 a seal, and the pair carries the genus
+#: distinction the spell rows need: `enableMagic`/`enableMiracle` say the
+#: same thing and are not in the extract, which AD-052 point 4 settled
+#: rather than left open. Membership is also the test for "is this armament
+#: a catalyst at all", so the one table answers both questions.
+_GENUS_OF_CATALYST = {57: model.SORCERIES_ART, 61: model.INCANTATIONS_ART}
+
+#: Eight of the ten Nightfarers start with neither (measured 2026-09-20), so
+#: this is the ordinary answer for a spell row and not an edge case
+#: (AD-052 point 6).
+_NO_CATALYST = (
+    "This Nightfarer starts with neither a staff nor a seal, so {choice} is "
+    "not counted: there is no spell of this build's own to rank.")
+
+#: A staff throws no incantations and a seal no sorceries (AD-052 point 4).
+#: The armament is named because the player has it in hand and the sentence
+#: is otherwise about nothing he can point at.
+_WRONG_GENUS = (
+    "{choice} is not counted for this Nightfarer: {catalyst} casts {genus}, "
+    "and this run ranks the spell the starting equipment really throws.")
+
+#: The catalyst a player can hold carries a spell in its first slot
+#: (measured: Recluse's Staff and the Finger Seal both do). Said rather than
+#: assumed, because a dataset that lost the field would otherwise rank a
+#: spell that is not there.
+_NO_SPELL_ON_THE_CATALYST = (
+    "{catalyst} carries no spell this dataset knows, so {choice} is not "
+    "counted.")
+
+#: AD-052 point 3: all ten swap relics share `exclusivityId` 200, so the
+#: game applies one of them and does not say which. The stronger under the
+#: chosen damage type is the one a player would aim for, and the choice is
+#: a finding of the run rather than something done quietly (AD-025.2).
+_TWO_SWAPPED_SPELLS = (
+    "Two relics here swap the spell this equipment casts and the game lets "
+    "only one of them work; this is ranked on {name}, the stronger of the "
+    "two under the damage type asked about.")
 
 
 def chosen_label(hit_with: str, damage_type: str) -> str:
@@ -352,18 +382,156 @@ def _is_a_spell(hit_with: str) -> bool:
             or hit_with.startswith(model.ART_FAMILY_PREFIX))
 
 
-def _spell_cell(chosen: str) -> types.GoalScore:
-    """An empty cell and the reason for it, until A26-5 fills the spell rows.
+def _record_by_id(records, wanted: int | None) -> dict | None:
+    """The weapon or spell row with this id, or `None` for no such row.
+
+    A scan and not an index, and the cost is measured rather than waved
+    through: 113 us of a spell cell's 137 us is this function walking the
+    1793 armament rows twice, against 35 us for a whole weapon cell (level
+    15, Revenant, 2026-09-20). An index would have to be built out of
+    `ctx.data` at every evaluation as well, or kept as module state that a
+    second dataset would make stale, and either is a shape the
+    `performance-tuner` should choose against a measurement of a whole run
+    rather than this one.
+    """
+    if wanted is None:
+        return None
+    return next((record for record in records
+                 if record.get("id") == wanted), None)
+
+
+def _start_catalyst(ctx: types.GoalContext) -> dict | None:
+    """The staff or seal this Nightfarer starts with -- right hand first.
+
+    AD-052 point 1: the right hand before the left, and the left only where
+    the right carries none. Measured over the ten Nightfarers, exactly two
+    carry one and neither carries two -- Recluse's staff is in her right
+    hand and Revenant's Finger Seal in his left, which is the reason the
+    left hand is read at all (AD-050).
+    """
+    for hand in ("starting_weapon", "starting_weapon_left"):
+        weapon = _record_by_id(ctx.data.get("weapons") or (),
+                               ctx.hero.get(hand))
+        if weapon is not None and weapon.get("wep_type") in _GENUS_OF_CATALYST:
+            return weapon
+    return None
+
+
+def _base_damage(spell: dict, damage_type: str) -> float:
+    """What a spell hits for before anything of this build reaches it.
+
+    The yardstick AD-052 point 3 picks the stronger of two swap relics by,
+    and deliberately the base value rather than the finished figure: the
+    spell power and the rates are the same for both, so they cannot change
+    which of the two is in front, and the base value is the one number that
+    belongs to the spell itself.
+    """
+    base = spell.get("damage") or {}
+    if damage_type:
+        return float(base.get(damage_type, 0.0))
+    return float(sum(base.values()))
+
+
+def _spell_thrown(build: model.Build, ctx: types.GoalContext,
+                  catalyst: dict) -> tuple[dict | None, int]:
+    """The spell this equipment casts, and how many relics swapped it.
+
+    AD-052 point 2: a relic that swaps the starting armament's spell puts
+    its own spell in the hand, so it is the reference object **and** a
+    candidate that moves the figure -- the only effect family of this
+    dataset that changes a base value rather than a rate. Held or chosen
+    makes no difference here: `model.compute` has put both into the build
+    before this is asked.
+
+    A swap relic works for exactly one Nightfarer (`allowed_heroes`, all ten
+    of them), and that Nightfarer is the one whose catalyst can cast its
+    spell, so a seal cannot be rated on a sorcery. That is the dataset's
+    doing rather than this function's, and a case in
+    `tests/test_advisor_goals.py` holds it.
+    """
+    spells = ctx.data.get("spells") or ()
+    swapped = [spell for spell in
+               (_record_by_id(spells, magic_id)
+                for magic_id in build.swapped_spell_ids)
+               if spell is not None]
+    if swapped:
+        return (max(swapped,
+                    key=lambda spell: _base_damage(spell, ctx.damage_type)),
+                len(swapped))
+    slots = catalyst.get(model.SPELL_SLOTS_KEY) or ()
+    first = next((slot for slot in slots if slot != model.NO_SPELL_SLOT), None)
+    return _record_by_id(spells, first), 0
+
+
+def _empty_cell(reason: str) -> types.GoalScore:
+    """A spell row this Nightfarer has no figure for at all, and why.
 
     The value is 0.00 for every candidate alike, so no candidate outranks
     another and `run.run` drops the suggestion that would otherwise stand
-    over a build that changes nothing (QA-290).
+    over a build that changes nothing (QA-290). Not the same answer as a
+    figure of 0.00, which is a measured one and carries a number.
     """
     return types.GoalScore(
         value=0.0,
-        display="Spell damage not counted",
+        display=f"{damage.SPELL_DAMAGE_NAME} not counted",
         unit="",
-        unknowns=(_SPELL_CELL_NOT_BUILT.format(choice=chosen),),
+        unknowns=(reason,),
+    )
+
+
+def _spell_cell(build: model.Build, ctx: types.GoalContext,
+                chosen: str) -> types.GoalScore:
+    """What this Nightfarer's own equipment throws, as a damage figure.
+
+    The spell rows of the combination table (AD-052/AD-053): the reference
+    object is the start catalyst and the spell it really casts, never the
+    armament in slot 1, and the figure comes from `damage.spell` so that
+    this file forms no product of its own (AD-019/AD-021).
+
+    **No fallback onto spell power** where that spell carries no damage
+    (AD-052 point 5): Revenant's Finger Seal throws Rejection, which hits
+    for nothing, and the answer is 0.00 with the facade's own sentence. Two
+    yardsticks in one ranking is QA-018 in a new dress -- the gain of a swap
+    relic would be the difference between a damage and a scaling figure.
+
+    The figure is uncalibrated and says so (OF-54): nothing the game prints
+    can be held against it. Where the spell carries no damage that sentence
+    gives way to the facade's, which says the more particular thing about
+    the same 0.00.
+
+    Game text -- the spell's name, the armament's -- is passed on as it is
+    written: every sink that draws a finding or a display is `PlainText`
+    (SEC-019, AK-29).
+    """
+    catalyst = _start_catalyst(ctx)
+    if catalyst is None:
+        return _empty_cell(_NO_CATALYST.format(choice=chosen))
+    genus = _GENUS_OF_CATALYST[catalyst["wep_type"]]
+    if (ctx.hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
+            and ctx.hit_with != genus):
+        return _empty_cell(_WRONG_GENUS.format(
+            choice=chosen, catalyst=catalyst.get("name", "this armament"),
+            genus=model.ART_LABELS[genus].lower()))
+    thrown, swaps = _spell_thrown(build, ctx, catalyst)
+    if thrown is None:
+        return _empty_cell(_NO_SPELL_ON_THE_CATALYST.format(
+            catalyst=catalyst.get("name", "This armament"), choice=chosen))
+    # `weapons.MIN_UPGRADE` for the reason the reference armament is asked at
+    # it (AD-038): the advisor ranks what a relic is worth between runs, and
+    # what the player has reinforced in this one is not that.
+    rating = damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build,
+                          ctx.data, hit_with=ctx.hit_with,
+                          damage_type=ctx.damage_type)
+    findings = [rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
+        name=damage.SPELL_DAMAGE_NAME)]
+    if swaps > 1:
+        findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
+    return types.GoalScore(
+        value=rating.figure,
+        display=(f"{damage.SPELL_DAMAGE_NAME} ({thrown['name']}) "
+                 f"{damage.displayed(rating.figure)}"),
+        unit="",
+        unknowns=tuple(findings),
     )
 
 
@@ -474,7 +642,7 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     chosen = (chosen_label(ctx.hit_with, ctx.damage_type)
               if ctx.hit_with or ctx.damage_type else "")
     if _is_a_spell(ctx.hit_with):
-        return _spell_cell(chosen)
+        return _spell_cell(build, ctx, chosen)
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,
                                  art=ctx.hit_with or None)

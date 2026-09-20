@@ -744,9 +744,19 @@ def attack_arts(data: dict) -> dict[str, str]:
     for effect in (data.get("effects") or {}).values():
         found |= attack_arts_of(effect, names)
     arts = {key: label for key, label in ART_LABELS.items() if key in found}
+    # A school no spell of this dataset belongs to is left out as well, and
+    # that is one school: `spell_families` names 110 "Charged", and no spell
+    # carries it as its family, because being charged is a property of a cast
+    # and not a school a spell is in (measured T-324c). Offered, it would be
+    # a line that asks about a spell the program can never find, and the
+    # figure behind it would rank one buff family with no spell under it
+    # (director's decision 2026-09-20: not offered, its buff uncounted).
+    cast_by_some_spell = {str(spell.get("family") or "")
+                          for spell in data.get("spells") or []}
     schools = sorted((label, f"{ART_FAMILY_PREFIX}{value}")
                      for value, label in names.items()
-                     if f"{ART_FAMILY_PREFIX}{value}" in found)
+                     if f"{ART_FAMILY_PREFIX}{value}" in found
+                     and label in cast_by_some_spell)
     for label, key in schools:
         arts[key] = label
     return arts
@@ -1038,6 +1048,12 @@ class Build:
     #: deals <element> damage" relics (`FLAT_ATTACK_POWER_FIELDS`). Booked
     #: here, applied by `damage.converted` to the starting armament alone.
     starting_flat: dict[str, float] = field(default_factory=dict)
+    #: The spells the "Changes compatible armament's sorcery/incantation to
+    #: ..." relics put in the hand, as `Magic` ids (`start_magic_id`). The
+    #: one family of effects that changes a spell's own base damage instead
+    #: of a rate, so the figure cannot be reached through `rates` at all
+    #: (AD-052 point 2); `advisor.goals` is what reads them.
+    swapped_spell_ids: tuple[int, ...] = ()
     other: dict[str, float] = field(default_factory=dict)
     warnings: list[Warning] = field(default_factory=list)
     # label -> (value before relics, value after relics)
@@ -1189,6 +1205,16 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     if dead:
         counted = [eff for eff in counted
                    if effecttext.works_for(eff, hero_name)]
+
+    # Read before the exclusivity rule below and not after it, which is a
+    # decision and not an oversight: all ten of these relics share
+    # `exclusivityId` 200, so the rule would keep the first equipped and the
+    # game itself does not say which one it keeps (AD-052 point 3). The
+    # reader picks the stronger of the two, and it can only pick from what it
+    # is given. The build's own warning still says that one of them is wasted.
+    build.swapped_spell_ids = tuple(
+        int(eff["start_magic_id"]) for eff in counted
+        if isinstance(eff.get("start_magic_id"), int))
 
     # Conflicts come from the game's own exclusivityId, not from guesswork.
     # The previous rule -- a shared SpEffect category plus any overlapping
