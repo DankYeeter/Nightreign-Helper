@@ -466,3 +466,4 @@ T-231 gebucht): alle drei Faelle sind entschieden, die Liste ist leer.**
 
 **Alle drei Faelle sind entschieden — dieser Abschnitt hat keinen offenen
 Fall mehr** und bleibt nur als Verlauf stehen.
+| AK-330 | *(Status 20.09.2026 16:05, Nutzer via Fragebogen nach power-user T-322m)* Nachtrag: die Schadensart wird wie der Nightfarer ueber den Neustart gemerkt (QSettings, gegen die aktuelle Artenliste validiert, sonst `All`); der Satz 'faellt bei Neustart auf All zurueck' (19.09.) entfaellt. | **geaendert** — Nutzer | `docs/tasks/T-322.md` n |
