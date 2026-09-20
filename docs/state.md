@@ -76,17 +76,16 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
   Run 35518272445). PR #18 auf `main` offen (Nutzer mergt).** Rest: eigener
   Art-Regler im Picker (AK-336) beim Nutzer; Nightfarer wird nicht gemerkt
   (Bestand, Backlog); ROLLOUT.md ohne 1.16.0-Abschnitt.
-- **A26 Ziel = Womit x Schadensart — Bau laeuft (20.09. 19:15):** R-010,
-  AD-050..054 (`docs/tasks/T-323.md`), OF-54/57/58 entschieden; Bau
-  `docs/tasks/T-324.md`: a Extraktor `e18696c` (EXTRACT_VERSION 16, 111/160
-  Zauber mit Schaden), b Testabzug v16 `0876ea2`, c Fassade `202f2be`, d zwei
-  Felder `d6c2cfc`, e Ziel `8b83de6` (Beast Claw am Siegel L15: 577,55;
-  Suite 1866/9). Entschieden: Charged (110) kein Hit-with. **Blockiert:**
-  T-324f Spec und T-324g Leiste warten, bis die Nutzerkopie des Fensters
-  (seit 17:26) geschlossen ist (NH-004-Waechter). Danach Pruefphase.
-  Nachtraege: guide.md Z. 119 falsch (technical-writer), `CHARGED_SCHOOL`
-  ohne Aufrufer (loeschen in g), Performance-Fund Katalysator-Scan 113 us
-  (performance-tuner nach g), Praemisse ER-Zauberformel unvermessen (OF-54).
+- **A26 Ziel = Womit x Schadensart — Bau fertig, am Gate (20.09. 20:05):**
+  R-010, AD-050..054, AK-337..349, OF-54/57/58; Bau `docs/tasks/T-324.md` a-g
+  (`e18696c` Extraktor v16, `0876ea2` Testabzug, `202f2be` Fassade, `d6c2cfc`
+  zwei Felder, `8b83de6` Ziel, `054ca1e` Leiste), Suite 1874/9. Fensterlauf:
+  Revenant Incantations → Beast-Claw-Relikt +350,5 am Siegel; Guardian
+  Sorceries abgelehnt mit Satz. Startbreite 1608 → 1959 px (A14 inkl.
+  Statuszeile; Paarbedarf 190/351 px). Offen: Pruefphase, Guide (Z. 109-128
+  alt), CHANGELOG/RELEASE_BODY/DESIGN_REVIEW 'Skill attack' → 'Weapon art',
+  performance-tuner Katalysator-Scan 113 us, OF-54 unvermessen, Picker-Regler
+  (Nutzer), AK-338 Trennlinie (ui-ux-designer).
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
