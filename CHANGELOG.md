@@ -4,6 +4,32 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.16.0] - 2026-09-20
+
+### Added
+- "Maximise damage" now has a "Damage type" field next to it: All (the
+  previous behaviour), Physical, Magic, Fire, Lightning, Holy, Skill attack
+  (Weapon Arts only), Sorceries, Incantations, or one of the spell schools
+  the game defines (for example Bestial). The suggestion ranking, the "Why"
+  line, the card headline ("Skill attack rating" and similar) and the relic
+  picker (which now labels its damage column "Damage (Fire)" and so on)
+  all follow the chosen type. A Nightfarer's own skills are never counted
+  under "Skill attack" — only Weapon Arts are. Conversion relics for a
+  starting armament (attack power shifted between damage types) are
+  counted in the figure, not only shown. A staff or seal is unaffected by
+  the choice and the "Why" dialog says so by name. Below 1676 px window
+  width, the "Maximise damage" and "Damage type" boxes may show a
+  shortened label to make room.
+
+### Fixed
+- A "Damage type" choice that raises nothing you currently own (for
+  example "Fire" on a build with no fire-boosting relic) no longer fills
+  suggestion slots with candidates that change nothing; the status line
+  and the relic picker now agree that there is nothing to choose from.
+- The relic picker's "Nothing you own raises damage in this slot" header
+  now names the chosen damage type, matching the wording already used on
+  each card and in the "Why" dialog.
+
 ## [1.15.0] - 2026-09-19
 
 ### Added

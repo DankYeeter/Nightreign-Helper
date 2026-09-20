@@ -107,3 +107,9 @@ starts there.
   its "Examples" column now that those names appear in full there. The data
   cache rebuilds once on first launch after this update (about 35 seconds,
   plus the icon pack).
+- **1.16.0** — "Maximise damage" gained a "Damage type" choice (All,
+  Physical, Magic, Fire, Lightning, Holy, Skill attack (Weapon Arts only),
+  Sorceries, Incantations, or a spell school); the ranking, the "Why" line,
+  the card headline and the relic picker all follow it, and starting-armament
+  conversion relics count toward the figure. A choice that raises nothing you
+  own no longer fills suggestion slots with candidates that change nothing.
