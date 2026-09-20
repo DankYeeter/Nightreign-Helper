@@ -19,7 +19,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   counted in the figure, not only shown. A staff or seal is unaffected by
   the choice and the "Why" dialog says so by name. Below 1676 px window
   width, the "Maximise damage" and "Damage type" boxes may show a
-  shortened label to make room.
+  shortened label to make room. The chosen damage type is remembered the
+  next time you start the program, the same way the active Nightfarer is.
+- The "Why" line for a spell-type choice (Sorceries, Incantations, or a
+  spell school) now adds a second sentence making clear that the ranking
+  scales the reference weapon's attack rating, not spell damage itself,
+  which the game's files do not record.
 
 ### Fixed
 - A "Damage type" choice that raises nothing you currently own (for
@@ -29,6 +34,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - The relic picker's "Nothing you own raises damage in this slot" header
   now names the chosen damage type, matching the wording already used on
   each card and in the "Why" dialog.
+
+### Note
+- The remembered "Damage type" choice is stored under a new settings key
+  (`damage_art`). Updating from an earlier version starts with no stored
+  choice ("All"); if a stored value is ever unrecognised (for example
+  after a downgrade to a version that used a different set of damage
+  types), the program falls back to "All" instead of failing to start.
 
 ## [1.15.0] - 2026-09-19
 

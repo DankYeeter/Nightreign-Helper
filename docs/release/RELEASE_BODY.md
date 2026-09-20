@@ -109,7 +109,10 @@ starts there.
   plus the icon pack).
 - **1.16.0** — "Maximise damage" gained a "Damage type" choice (All,
   Physical, Magic, Fire, Lightning, Holy, Skill attack (Weapon Arts only),
-  Sorceries, Incantations, or a spell school); the ranking, the "Why" line,
-  the card headline and the relic picker all follow it, and starting-armament
-  conversion relics count toward the figure. A choice that raises nothing you
-  own no longer fills suggestion slots with candidates that change nothing.
+  Sorceries, Incantations, or a spell school), remembered the next time you
+  start the program; the ranking, the "Why" line, the card headline and the
+  relic picker all follow it, and starting-armament conversion relics count
+  toward the figure. For a spell-type choice, the "Why" line also notes that
+  it scales the reference weapon's attack rating, not spell damage itself. A
+  choice that raises nothing you own no longer fills suggestion slots with
+  candidates that change nothing.
