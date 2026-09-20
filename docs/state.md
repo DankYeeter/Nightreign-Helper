@@ -71,14 +71,14 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 
 ## Beschlossen, nicht beauftragt
 
-- **A25 Schadensart im Berater — Pruefphase T-322, PAUSIERT 19.09. 19:45 (Nutzer):**
-  Bau T-321a-d `424baa3`..`78a0888`, Version 1.16.0 `061135b`, Suite 1827/9.
-  T-322c Sicherheit PASS (SEC-019 Retest). T-322d Review: DR-034 (Artwahl
-  aendert Kopfzahl ohne Beschriftung, AK-335), DR-035 (Picker erbt Wahl
-  still, AK-336), DR-036/037 klein. **Naechster Schritt:** ein Fixauftrag
-  developer klein (DR-034/035 nach AK-335/336) → T-322b Bau → T-322e QA am
-  Artefakt → Release-Kette. Offen beim Nutzer: eigener Art-Regler im
-  Picker (UI_SPEC §3.7 offene Frage). 10 Commits ungepusht, sync-out offen.
+- **A25 Schadensart im Berater — RELEASE-GATE 1.16.0 (20.09. 15:25):** Bau
+  T-321a-d, Fixes T-322f/g (`41173d9`, `10442b2`, `5b9fad9`), Suite 1835/9.
+  Sicherheit PASS, Review DR-034/035 behoben, QA T-322e CONCERNS → T-322i
+  PASS (QA-289/290 behoben). Artefakt T-322h `69fb2bf` SHA 51F69498…E8BFC9,
+  59.233.161 B. Notes `a6db8f4`, Guide committet. **Naechster Schritt:**
+  Nutzer gibt Release frei → Tag `v1.16.0` auf `5b9fad9`, Release-Lauf wie
+  1.15.0, PR auf `main`. Offen beim Nutzer: eigener Art-Regler im Picker
+  (AK-336); Picker-Rangfolge im Guide unbeschrieben (technical-writer).
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
