@@ -557,8 +557,9 @@ liest bisher nur `equip_Wep_Right_1`.*
 - **Praemissen:** Elementraten wirken auf jeden Treffer ihrer Schadensart
   (Waffe, Skill, Zauber) — ER-Mechanik, in Nightreign unvermessen;
   Scope 112/111 = Weapon Arts (Nutzer 19.09.).
-- Nachweis: Revenant, *Incantations* x *All*: Relikte mit Faith, Improved
-  Incantations und Bestial steigen, Klauen-Relikte fallen; Revenant,
+- Nachweis (QA-291, Director 20.09. 21:45 nach AD-054 N4): Revenant,
+  *Incantations* x *All*: Faith und Improved Incantations steigen, ein
+  Bestial-Relikt erst unter der Schulwahl *Bestial*, Klauen-Relikte fallen; Revenant,
   *Bestial* x *Physical*: Improved Physical Attack Power zaehlt, Holy
   nicht; Wylder, *Weapon art* x *Fire* mit Startwaffen-Konversion Fire:
   Skill-Buff x Fire-Buff x Konversion in einer Zahl; Recluse, *Sorceries*
