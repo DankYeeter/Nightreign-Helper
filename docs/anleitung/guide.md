@@ -106,8 +106,35 @@ switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
 With **Maximise damage** picked, the **Damage type** box beside it narrows the
 ranking to one kind of damage — one of the five damage types, or one kind of
-attack such as *Skill attack* (Weapon Arts), *Incantations* or a single spell
-school — and starts on **All** every time you open the program.
+attack such as *Skill attack*, *Incantations* or a single spell school — and
+starts on **All** every time you open the program. *Skill attack* counts only
+a Weapon Art, the skill bound to the weapon or catalyst in each hand; a
+Nightfarer's own ability is never counted, no matter what the game itself
+calls it.
+
+Choosing anything but **All** adds a line to **Why** naming it — for example
+"Ranked on fire damage only — every other effect on a candidate still shows,
+but only this counts toward the ranking." One of the five damage types also
+relabels the suggestion card's attack-rating figure to match, to *Fire attack
+rating* instead of plain *Attack rating*; choosing an attack such as *Skill
+attack* does the same only where the choice actually changes that number
+(*Skill attack rating*, not the doubled-up *Skill attack attack rating*) —
+where a choice like that changes nothing, the label stays *Attack rating*
+because the figure really is the one **All** would give too. A staff or a
+seal is unaffected by any of this and says so in **Why**, because it is
+ranked on the spell power the game shows for it, which no damage type or
+attack art reaches. If nothing you own raises the chosen kind of damage at
+all, Optimize leaves that slot without a suggestion rather than offering one
+that changes nothing.
+
+Opening a relic picker while a damage type is chosen carries the choice with
+it: the value line on each card, its `BEST FOR …` tag, and the note above the
+grid when nothing there helps are all named after it too — `Damage (Fire)`
+in place of the plain `Damage` shown under **All** — and stay named even
+after **Optimize** is switched to a different direction or the picker is
+closed and reopened, because the choice stands until you change it in the
+Advisor row or restart the program.
+
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
 its own card. **Undo apply** puts the previous slots back. **Why** opens the
 full account of what the suggestion counted and what it left out; **Clear**
