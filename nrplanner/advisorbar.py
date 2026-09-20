@@ -96,6 +96,13 @@ OPTIMIZE_TOOLTIP = ("Fills every slot from the relics in your save. Nothing "
 FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
                    "(Avoid) in a suggestion.")
 
+#: AK-351: the row's first box has no label beside it, unlike the two that
+#: follow it -- so its own tooltip is what a reader has once its text no
+#: longer fits at the derived opening width (AK-350). Static, like the two
+#: beside it (AK-340): what the control is for, never what happens to be
+#: chosen in it.
+GOAL_BOX_TOOLTIP = "Chooses what the Advisor ranks your build for."
+
 #: AK-340: what the "Hit with" box chooses, which of the two things the game
 #: calls a skill it counts, and that the spell it ranks is the one this
 #: Nightfarer's own equipment throws -- without the third sentence
@@ -684,6 +691,7 @@ class AdvisorBar(QWidget):
         self.goal_box = QComboBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
         for goal_id in GOAL_ORDER:
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)

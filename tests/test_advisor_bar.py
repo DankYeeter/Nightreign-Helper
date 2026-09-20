@@ -986,11 +986,15 @@ def test_an_old_single_key_from_before_the_two_fields_is_ignored(qapp):
         settings.remove("damage_art")
 
 
-def test_the_two_tooltips_are_the_two_the_spec_writes(bar):
-    """AK-340, word for word out of `UI_SPEC.md`: one tooltip per box, and
-    the one on `hit_with_box` is what keeps a Nightfarer's own skill apart
-    from a Weapon Art and a found spell apart from the one this equipment
-    casts."""
+def test_the_three_tooltips_are_the_three_the_spec_writes(bar):
+    """AK-340/AK-351, word for word out of `UI_SPEC.md`: one tooltip per
+    box, and the one on `hit_with_box` is what keeps a Nightfarer's own
+    skill apart from a Weapon Art and a found spell apart from the one this
+    equipment casts. `goal_box` has no label beside it, unlike the two that
+    follow it, so its own tooltip is what a reader has once its text no
+    longer fits at the derived opening width (AK-350/AK-351)."""
+    assert bar.goal_box.toolTip() == (
+        "Chooses what the Advisor ranks your build for.")
     assert bar.hit_with_box.toolTip() == (
         "Chooses what the figure ranks: the starting armament, its Weapon "
         "Art, or the spell the starting catalyst throws. Weapon art counts "

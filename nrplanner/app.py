@@ -56,6 +56,16 @@ PANE_DEFAULTS = (430, 520, 370)
 #: on this side has to be derived.
 OPENING_HEIGHT = 860
 
+#: The share of the screen's available width the window opens at, once that
+#: share is narrower than the layout's own need (AK-350). Below the most
+#: common desktop width (1920 px) this leaves the row unshortened; above it
+#: a suggestion still trims the status line, then the boxes, per AK-351. Not
+#: a user decision yet -- see UI_SPEC.md AK-350 "Offene Frage".
+OPENING_WIDTH_SCREEN_RATIO = 0.9
+
+#: The least the window opens at on any screen, however narrow (AK-271).
+OPENING_WIDTH_FLOOR = 1536
+
 TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
@@ -1084,21 +1094,33 @@ class Planner(QMainWindow):
           button once a suggestion puts them up, `_width_around_the_advisor_
           row` -- the wider of the two wins, since the window opens once and
           has to suit both;
-        * `room`, the width the desktop has. On a machine that cannot show
-          that much, the desktop wins: a window wider than the screen opens
-          with its right-hand edge past the edge of it, which is worse than
-          the shortened heading it was meant to avoid. It defaults to the
-          screen this window is on, and is a parameter so a case can ask what
-          the window would do on a desktop other than the one it runs on;
+        * a share of `room`, the width the desktop has (AK-350). A window
+          exactly as wide as the desktop opens with no hint that there is
+          more room beside it, so this takes `OPENING_WIDTH_SCREEN_RATIO` of
+          `room` instead of `room` itself -- unless that share already
+          reaches what the layout needs, in which case the layout's own need
+          wins and the window opens no wider than its content, same as
+          before this ratio existed. `room` defaults to the screen this
+          window is on, and is a parameter so a case can ask what the window
+          would do on a desktop other than the one it runs on;
+        * `OPENING_WIDTH_FLOOR`, below which the ratio would shrink the
+          window past the width AK-05/AK-269 assume (AK-271). A desktop
+          narrower than this floor still gets a window this wide -- the
+          content beyond the edge is the shortened heading AK-350 exists to
+          avoid, not a reason to shrink further;
         * the window's own minimum. It is the last word because a window
           narrower than its layout allows is not a width the program can
           honour anyway.
         """
         if room is None:
             room = self.screen().availableGeometry().width()
-        return max(self.minimumSizeHint().width(),
-                   min(max(self._width_around_the_effect_table(),
-                           self._width_around_the_advisor_row()), room))
+        need = max(self._width_around_the_effect_table(),
+                   self._width_around_the_advisor_row())
+        screen_share = min(
+            max(round(room * OPENING_WIDTH_SCREEN_RATIO),
+                OPENING_WIDTH_FLOOR),
+            need)
+        return max(self.minimumSizeHint().width(), screen_share)
 
     def _width_around_the_effect_table(self) -> int:
         """A window width that leaves the effect table the viewport it wants.

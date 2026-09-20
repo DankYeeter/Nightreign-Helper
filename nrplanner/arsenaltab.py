@@ -30,8 +30,8 @@ HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
 QUESTION = (
     "Every armament and spell in the game, rated at the upgrade you set "
     "here, for the Nightfarer and level you set on the Build planner tab. "
-    "Spell damage is not in the game's data, so spells show what they cost "
-    "you instead.")
+    "A spell tile here still shows what it costs you, not its damage; the "
+    "Advisor's Hit with box works spell damage out for a ranking instead.")
 
 #: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
 #: say it on up to 1 792 cards, so the sentence says it too rather than the

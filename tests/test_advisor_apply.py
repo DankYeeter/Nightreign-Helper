@@ -18,11 +18,14 @@ really hands it.
 
 from __future__ import annotations
 
+import html
+
 import pytest
 from PySide6.QtWidgets import QPushButton
 
 from nrplanner import advisorbar, chalices, inventory
 from nrplanner.advisor import goals, types
+from tests.advisor_row_at_the_window import AK_350_ROOMS
 
 
 # --- the answers the cases apply -------------------------------------------
@@ -547,3 +550,39 @@ def test_at_the_opening_width_no_action_button_is_cut(
         "no action button is on screen, so this case would pass whatever "
         "the row's width did")
     assert not actions & set(row["cut"])
+
+
+def test_at_1920_px_the_ratio_narrows_the_status_and_a_box(
+        advisor_row_at_the_window):
+    """AK-352: `room=1920` puts AK-350's ratio (1728 px) under the row's need.
+
+    The reference desktop of AK-352's table: below `need / RATIO`, so the
+    status gives way first (AK-351 step 1) and then at least one box elides
+    (step 2) rather than any control leaving the row or an action button
+    losing its caption (step 3, unconditional).
+    """
+    row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[0])]
+    suggested = row["suggested"]
+    boxes = {"goal_box", "hit_with_box", "damage_type_box"}
+    actions = {"apply_button", "why_button", "clear_button"}
+
+    assert suggested["status_width"] == 0
+    assert boxes & set(suggested["cut"]), (
+        f"AK-350's ratio narrows the row below its need at this width, so "
+        f"at least one box should give way to eliding: {suggested['cut']}")
+    assert not actions & set(suggested["cut"])
+    assert html.escape(suggested["status_whole_text"]) in suggested[
+        "row_tooltip"]
+
+
+def test_at_2560_px_the_ratio_already_covers_the_need(
+        advisor_row_at_the_window):
+    """AK-352: `room=2560` puts AK-350's ratio (2304 px) over the row's need.
+
+    The clamp in `_opening_width` caps it back to the need, the same as an
+    uncapped screen -- nothing gives way in either state.
+    """
+    row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[1])]
+    for state in ("failed", "suggested"):
+        assert row[state]["cut"] == [], (
+            f"{state}: {row[state]['cut']}")

@@ -152,26 +152,67 @@ def test_the_opening_width_does_not_depend_on_which_tab_is_in_front(
         f"front: {asked}")
 
 
-def test_the_window_does_not_open_wider_than_the_desktop(game_data, qapp):
+def test_the_window_does_not_open_past_its_share_of_the_desktop(
+        game_data, qapp):
     """A window past the edge of the screen is worse than a short heading.
 
-    The floor is the second half of it: where the desktop is narrower than
-    the window's own minimum there is no width that satisfies both, and the
-    minimum is what the program can actually honour.
+    AK-350 takes a share of the desktop rather than the desktop itself, so
+    the bound is no longer the desktop alone: below `OPENING_WIDTH_FLOOR /
+    OPENING_WIDTH_SCREEN_RATIO` the floor wins over a narrower desktop by
+    design (AK-271 -- AK-05/AK-269 assume that width). The floor and the
+    window's own minimum are the rest of the bound, for the same reason as
+    before: where the desktop is narrower than either, there is no width
+    that satisfies both, and the wider of the two is what the program can
+    actually honour.
     """
     with rendered.laid_out(game_data, "effects_tab", 1250) as (window, _):
-        floor = window.minimumSizeHint().width()
-        for desktop in (640, 1024, floor + 1):
-            assert window._opening_width(room=desktop) <= max(desktop, floor), (
+        layout_min = window.minimumSizeHint().width()
+        for desktop in (640, 1024, appmod.OPENING_WIDTH_FLOOR + 1):
+            bound = max(desktop, layout_min, appmod.OPENING_WIDTH_FLOOR)
+            assert window._opening_width(room=desktop) <= bound, (
                 f"on a {desktop} px desktop the window would open "
-                f"{window._opening_width(room=desktop)} px wide")
+                f"{window._opening_width(room=desktop)} px wide, past "
+                f"{bound}")
 
 
-def test_the_window_never_opens_below_the_width_its_layout_needs(
+def test_the_window_never_opens_below_its_floor_on_a_tiny_desktop(
         game_data, qapp):
+    """AK-271: below the floor, `OPENING_WIDTH_FLOOR` wins over `room` itself.
+
+    Superseded by AK-350 the reading that the window's own layout minimum was
+    the lowest the window ever opens at: a desktop far too small for that
+    minimum still has to leave AK-05/AK-269 a width they assume, so the floor
+    -- wider than the layout's own minimum on every machine measured so far
+    -- is what a `room` this small comes back as.
+    """
     with rendered.laid_out(game_data, "effects_tab", 1250) as (window, _):
         assert (window._opening_width(room=1)
-                == window.minimumSizeHint().width())
+                == max(window.minimumSizeHint().width(),
+                       appmod.OPENING_WIDTH_FLOOR))
+
+
+def test_the_opening_width_takes_a_share_of_the_desktop_below_its_need(
+        game_data, qapp):
+    """AK-350's middle case: between the floor and the layout's own need.
+
+    A `room` is picked from what this tree's own table and row need rather
+    than a fixed screen size (module docstring, T-066..T-070): the case
+    holds on any font or style the row is measured under.
+    """
+    with rendered.laid_out(game_data, "effects_tab", 1250) as (window, _):
+        need = max(window._width_around_the_effect_table(),
+                   window._width_around_the_advisor_row())
+        ratio = appmod.OPENING_WIDTH_SCREEN_RATIO
+        floor_room = appmod.OPENING_WIDTH_FLOOR / ratio
+        need_room = need / ratio
+        if need_room - floor_room < 2:
+            pytest.skip("this tree's need sits too close to the floor to "
+                        "pick a room strictly between the two")
+        room = round((floor_room + need_room) / 2)
+        expected = round(room * ratio)
+
+        assert appmod.OPENING_WIDTH_FLOOR < expected < need
+        assert window._opening_width(room=room) == expected
 
 
 def test_the_window_puts_itself_at_its_opening_size_on_the_way_to_the_screen(

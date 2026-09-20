@@ -559,7 +559,7 @@ def test_the_tab_opens_with_the_question_it_answers(planner, game_data, hero):
     assert lines[0] == arsenaltab.HEADING
     assert lines[1] == arsenaltab.QUESTION
     assert tabtext.everything(tab).count(
-        "Spell damage is not in the game's data") == 1, (
+        "still shows what it costs you, not its damage") == 1, (
         "the spell sentence stands twice on this tab")
 
 
