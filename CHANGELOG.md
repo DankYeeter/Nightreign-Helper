@@ -4,6 +4,32 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.18.0] - 2026-09-21
+
+### Added
+- The Build planner's damage block, under a Nightfarer's starting armament,
+  can now show two more rows below the Total: **Weapon art** (the attack
+  rating your character skill adds on top of that Total; on a staff or a
+  seal, a sentence explaining that a catalyst has no attack art instead of
+  a figure) and **Spell damage (\<spell name>)** for a starting catalyst
+  (the spell a "starting spell" relic sets, or else the catalyst's own
+  default; Revenant's default Rejection/Heal show `0`, not a sentence).
+  Each row carries only the change your relics make to it; the two rows
+  are never added together. Click the bold spell-damage figure for a
+  breakdown tooltip, which always ends with a note that the figure is
+  uncalibrated (the known Elden Ring formula, not checked against
+  Nightreign) or, for a spell that deals no damage, that only a relic
+  swapping the cast spell would bring damage here.
+
+### Fixed
+- Under a spell-school choice, the "Why" line now names the "starting
+  spell" relic that actually moved the figure, instead of a school buff
+  that this choice does not count (QA-293).
+
+### Known
+- The Weapon art row's change is plain text, not a coloured link like the
+  Total row above it (QA-295).
+
 ## [1.17.0] - 2026-09-21
 
 ### Added

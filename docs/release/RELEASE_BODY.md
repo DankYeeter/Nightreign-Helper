@@ -126,3 +126,10 @@ starts there.
   cache rebuilds once on first launch after this update (about 40
   seconds). The opening window width now scales with your screen (90% of
   available width, 1536-1959 px) instead of a fixed size.
+- **1.18.0** — the Build planner's damage block can now show a **Weapon
+  art** row (what your character skill adds on top of the Total; a
+  sentence instead of a figure on a staff or seal) and a **Spell damage**
+  row for a starting catalyst (the spell a "starting spell" relic sets, or
+  else the catalyst's default), each carrying only the change your relics
+  make to it. The "Why" line under a spell-school choice now names the
+  correct relic that moved a figure.
