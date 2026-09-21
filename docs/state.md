@@ -85,10 +85,17 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
   Offen: OF-54 Zauberformel unvermessen; performance-tuner Katalysator-Scan
   113 us; Nightfarer nicht gemerkt (Backlog); ROLLOUT.md ohne 1.16/1.17;
   Auflagen-Register seit 1.13.1 nicht fortgeschrieben (compliance).
-- **A27 Weapon art + Startzauber im Schadensblock — Spec fertig (AK-353..364,
-  `5cf1cae`, `docs/tasks/T-326.md`). Naechster Schritt:** developer-Auftrag
-  T-327 (statsheet.py; Bauvoraussetzung AK-359: Grundlinien-Antwort von
-  `damage.spell`), gebuendelt mit QA-293/294; dann Pruefphase, Release 1.18.0.
+- **A27 Schadensblock — Bau fertig, QA CONCERNS, am Gate (21.09. 19:20):**
+  Spec AK-353..364, Bau T-327a `7d1e216` + QA-293-Fix `46a7e58` (Merges
+  `0a32145`, `5a35272`), Suite 1892/9. QA T-327c `99381e1`: A27 belegt
+  (Beast Claw 577, Physical bewegt beide Zeilen, Wylder Weapon art nur
+  Skill-Buff), QA-293 behoben; offen QA-295 P4 (Weapon-art-Delta kein
+  Link, AK-355), QA-296 = GOAL nachgezogen, QA-294 zurueckgestellt.
+  **Naechster Schritt:** Nutzerfreigabe → Version 1.18.0, Bau, Sicherheit
+  (Diff `8d54281..HEAD`), Notes, Release wie 1.17.0; clean-room/power-user
+  optional (keine Extraktions-/Startaenderung).
+  Werkzeugbefund T-327a: in Worktree-Sitzungen ist PowerShell gesperrt
+  (kein `drive_window.ps1`) — Fensterlaeufe nur im Hauptbaum planen.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`

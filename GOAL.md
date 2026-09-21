@@ -592,7 +592,8 @@ als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
   bewegen (Why-Betrag wie AD-038), unkalibriert-Hinweis wie AK-343.
 - **Nicht Ziel:** neue Zahlen (alles aus `damage.equipped`/`damage.spell`),
   Zauber ausserhalb der Startausruestung.
-- Nachweis: Revenant mit Beast-Claw-Relikt: der Block zeigt neben der
-  Klauen-AR die Zeile "Spell damage (Beast Claw) 578 (uncalibrated)" und
+- Nachweis (QA-296, Director 21.09. 19:20): Revenant mit Beast-Claw-Relikt:
+  der Block zeigt neben der Klauen-AR die Zeile "Spell damage (Beast Claw)
+  577" (Unkalibriert-Hinweis im Klick-Tooltip, AK-361) und
   ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
   "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.
