@@ -466,3 +466,79 @@ Weitergabe-Entscheidung gebunden).
 5. Nebenfund unveraendert aus T-325f: `CLAUDE.md` `EXTRACT_VERSION` 15 ist
    veraltet gegenueber dem tatsaechlich verwendeten v16 - keine erneute
    Meldung, Verweis genuegt.
+
+---
+
+STATUS: erledigt
+AUFTRAG: T-325n - Version, Changelog, Migration (release-manager, Modus
+`notes`), letzte Rolle der T-325-Kette nach T-325h/j (qa, PASS), T-325c
+(security, PASS) und T-325l/m (clean-room PASS, power-user) (`docs/tasks/
+T-325.md`).
+GELESEN: docs/legal/AUFLAGEN.md (vollstaendig, 559 Zeilen; juengster
+Abschnitt "Auflagen vor der Veroeffentlichung 1.13.1", T-283c, Stand
+`1f51485`; Gesamtampel GELB, keine Auflage steht auf ROT mit sperrender
+Wirkung - A-010 ist ROT, aber ausdruecklich "sperrt nicht mehr"; keine
+Auflage seit 1.13.1 neu erfasst, obwohl seither 1.14.0-1.16.0 erschienen
+sind - Buchfuehrungsluecke des `compliance-agent`/`director`, kein Befund
+dieses Laufs); `nrplanner/__init__.py` (Version 1.17.0, gesetzt in T-325b);
+`nrplanner/advisorbar.py` Z. 135-138, 743, 760, 1039-1040 (Schluessel
+`hit_with`/`damage_type`, Kommentar "Der einzelne alte Schluessel
+`damage_art` wird nicht mehr gelesen" - Migrationsnachweis); `CHANGELOG.md`
+[1.16.0] als Formmuster; `docs/release/RELEASE_BODY.md` (Verlaufsliste "What's
+new since 1.7.1"); `git log --oneline 9f95de0..eaf9ea9` (23 Commits, A26);
+`docs/tasks/T-325.md`; Auftragstext mit den fertigen Inhaltsangaben (A26,
+englisch).
+GEAENDERT: `CHANGELOG.md` (Abschnitt `[1.17.0] - 2026-09-21` eingefuegt,
+Added/Changed/Fixed/Note); `docs/release/RELEASE_BODY.md` (Zeile
+"**1.17.0**" an die Verlaufsliste angehaengt); neuer Abschnitt in dieser
+Datei. Commit `28b7f1e` (nur die beiden Dateien, kein Push, kein Tag).
+ANNAHMEN: keine ueber den Auftragstext hinaus - Inhalt, Migrationsaussage
+und QA-293/294-Verweis waren vorgegeben; gegen den Code (siehe GELESEN)
+gegengeprueft, nicht neu erfunden.
+NAECHSTER: director (Freigabeentscheidung, Tag setzen); danach archivist
+(Push/Sync).
+BLOCKIERT DURCH: nichts.
+
+---
+
+# T-325n - Notes 1.17.0
+
+## Kontraktblock
+
+| | |
+|---|---|
+| **Version** | 1.17.0 (`nrplanner/__init__.py`, gesetzt T-325b, unveraendert in diesem Lauf) |
+| **Code-Stand** | `eaf9ea9` (DR-038-Fix, letzter Anwendungscode-Commit der Kette; alle Commits danach sind Doku/Release) |
+| **Artefakt** | T-325k, Commit `fc57b93`, `dist/NightreignHelper.exe`, 59.250.281 Byte, SHA-256 `BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4` |
+| **QA** | T-325h/j PASS (`docs/berichte/T-325-qa-engineer.md`) |
+| **Sicherheit** | T-325c PASS (`security/findings.md`, SEC-019-Senken-Retest) |
+| **clean-room** | T-325l PASS, Cache-Neubau beim Update 37 s, `EXTRACT_VERSION` 15 → 16 (`docs/berichte/T-325-release-manager-clean-room.md`) |
+| **power-user** | T-325m abgelegt, QA-293/294 angehaengt (`docs/berichte/T-325-power-user.md`) |
+| **CHANGELOG.md** | Abschnitt `[1.17.0] - 2026-09-21` ergaenzt |
+| **RELEASE_BODY.md** | Verlaufszeile "1.17.0" ergaenzt; Bestandssatz "Skill attack" in der 1.16.0-Zeile bewusst unveraendert (historisch) |
+| **Migration** | Settings-Schluessel `damage_art` verworfen, ersetzt durch `hit_with`/`damage_type` (`advisorbar.py` Z. 135-138). Kein Uebernahmepfad: ein Update liest den alten Schluessel nicht, startet mit der Voreinstellung Weapon/All. Kein neuer Cache-Ordner, kein neuer Ablageort - nur `EXTRACT_VERSION` 15 → 16 loest den bestehenden, dokumentierten Neubau-Mechanismus aus (bereits in T-325l geprueft: 37 s, Daten danach vollstaendig). Kein Rueckweg noetig: ein Downgrade auf 1.16.0 faellt beim unbekannten neuen Schluessel ebenso auf die Voreinstellung zurueck (bestehendes Verhalten, in [1.16.0]/[1.17.0]-Notes je dokumentiert). |
+| **Bekannt, fuer naechstes Release** | QA-293 (Why-Zuschreibung unter Schulwahl), QA-294 (leere Zelle ohne Begruendung) - beide nicht releasesperrend laut T-325h/j/m |
+| **Tag-Vorschlag** | `v1.17.0` auf **diesem** Commit (`28b7f1e`, "docs(release): T-325n CHANGELOG und RELEASE_BODY fuer 1.17.0") - nicht auf `eaf9ea9`. Begruendung: identisches Muster wie `v1.16.0`, das auf `a33e92b` sitzt (dem Commit, der CHANGELOG/RELEASE_BODY zuletzt nachzog, nicht auf dem letzten Codecommit `9f95de0`) - der Code ist seit `eaf9ea9`/`fc57b93` unveraendert, das Artefakt aus T-325k bleibt gueltig. Tag wird von diesem Lauf **nicht gesetzt** (director/archivist). |
+
+## An `director`
+
+**Empfehlung: freigeben mit einer benannten Einschraenkung.**
+
+1. Auflagenlage: keine ROT-Auflage sperrt (siehe GELESEN). Nebenfund: das
+   Auflagenregister ist seit T-283c (1.13.1, 16.09.) nicht fortgeschrieben,
+   obwohl 1.14.0-1.16.0 dazwischen erschienen sind - das ist keine
+   Blockade fuer 1.17.0 (dieselbe GELB-Lage wie am 16.09., keine neue
+   Auflage in Sicht), aber eine Buchfuehrungsluecke, die vor dem naechsten
+   `compliance-agent`-Lauf auffallen sollte.
+2. Einschraenkung: QA-293/294 bleiben offen, von T-325h/j/m als nicht
+   releasesperrend eingestuft - im CHANGELOG unter "Note" ausdruecklich
+   benannt, damit ein Nutzerbericht nicht als Ueberraschung ankommt.
+3. Tag-Vorschlag siehe Kontraktblock: `v1.17.0` auf `28b7f1e`.
+4. Kein `.gitignore`-Nachtrag noetig.
+5. Diese Rolle hat nicht committet ausser den beiden genannten Dateien;
+   kein Push, kein Tag gesetzt.
+
+## An `power-user` / `qa-engineer` / `developer`
+
+Kein neuer Befund - diese Rolle hat nur Doku geschrieben, keinen Code und
+kein Artefakt veraendert.
