@@ -23,6 +23,7 @@ nie vergeben.
 | 1.15.0 | `c536daa` | 35451242996 | 3 | A24 Unterbosse im Nightlords-Tab (AD-040..044, AK-319..326), QA-286 Red-variants-Beispielspalte, QA-288, Datenversion 15 |
 | 1.16.0 | `a33e92b` | 35518272445 | 3 | A25 Schadensart im Berater (AD-045..049, AK-327..336), QA-289/290, Schadensart gemerkt |
 | 1.17.0 | `28b7f1e` | 35560029819 | 3 | A26 Hit with x Damage type, Zauberzahl unkalibriert, EXTRACT_VERSION 16, Startbreite 0,9 x Bildschirm; QA-293/294 offen |
+| 1.18.0 | `1ae6952` | (Run folgt) | 3 | A27 Weapon art + Spell damage im Schadensblock, QA-293; QA-295 offen |
 
 Beschreibung je Release aus `docs/release/RELEASE_BODY.md` (`body_path`,
 A-023/A-024/A-037). Download: `releases/latest`.
@@ -85,17 +86,15 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
   Offen: OF-54 Zauberformel unvermessen; performance-tuner Katalysator-Scan
   113 us; Nightfarer nicht gemerkt (Backlog); ROLLOUT.md ohne 1.16/1.17;
   Auflagen-Register seit 1.13.1 nicht fortgeschrieben (compliance).
-- **A27 Schadensblock — Bau fertig, QA CONCERNS, am Gate (21.09. 19:20):**
-  Spec AK-353..364, Bau T-327a `7d1e216` + QA-293-Fix `46a7e58` (Merges
-  `0a32145`, `5a35272`), Suite 1892/9. QA T-327c `99381e1`: A27 belegt
-  (Beast Claw 577, Physical bewegt beide Zeilen, Wylder Weapon art nur
-  Skill-Buff), QA-293 behoben; offen QA-295 P4 (Weapon-art-Delta kein
-  Link, AK-355), QA-296 = GOAL nachgezogen, QA-294 zurueckgestellt.
-  **Naechster Schritt:** Nutzerfreigabe → Version 1.18.0, Bau, Sicherheit
-  (Diff `8d54281..HEAD`), Notes, Release wie 1.17.0; clean-room/power-user
-  optional (keine Extraktions-/Startaenderung).
-  Werkzeugbefund T-327a: in Worktree-Sitzungen ist PowerShell gesperrt
-  (kein `drive_window.ps1`) — Fensterlaeufe nur im Hauptbaum planen.
+- **A27 abgeschlossen: Release 1.18.0 (21.09. 19:35, Tag `v1.18.0` auf `1ae6952`,
+  kurze Kette ohne clean-room/power-user — Nutzer 19:25).** Bau `7d1e216`,
+  QA-293 `46a7e58`, Suite 1892/9, QA T-327c CONCERNS (A27 belegt), Sicherheit
+  PASS, Artefakt `5ff8ca5` SHA 89DAACBB…DCCC. Offen: QA-295 P4 (Weapon-art-
+  Delta kein Link, AK-355), QA-294 zurueckgestellt (Pool-Meldung), OF-54
+  Zauberformel unvermessen, performance-tuner Katalysator-Scan, Nightfarer
+  nicht gemerkt, AUFLAGEN-Register seit 1.13.1 nicht fortgeschrieben,
+  ROLLOUT.md ohne 1.16-1.18. PR #18 offen (Nutzer mergt). Werkzeugbefund:
+  Worktree-Sitzungen ohne PowerShell — Fensterlaeufe nur im Hauptbaum.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
