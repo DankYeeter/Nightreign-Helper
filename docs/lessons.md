@@ -2189,3 +2189,67 @@ bestaetigt das Muster, null widerlegt es.
 - **Werkzeugbefunde im QA-Register** (Beobachtung Zyklus 26): QA-283 kommt
   dazu (P2, Adressat developer, offen seit 17.09.); NH-007 schliesst es.
   Bleibt Beobachtung.
+
+---
+
+## Sitzung A25-A27 — 2026-09-21 (Nutzerauftrag, Messung am Transkript-Export)
+
+**Datengrundlage:** Export der Sitzung "Skill Attack und Spell Power
+Optimierungen" (19.09. 13:35 bis 21.09. 17:39 UTC, 69 Agentenlaeufe,
+3 797 Werkzeugaufrufe, 858 Agentenminuten), `~/.claude/state/*.log`,
+`git log 8d8546e..8eb0517`. Zahlen sind Kontextvolumen je Lauf (cache read +
+cache creation), gezaehlt je Nachrichten-ID.
+
+### NH-010 — Die Release-Kette ist der groesste Posten, und sie lief fix statt nach Ausloeser
+
+**Messung (458 M Kontext gesamt):** Bau A25/A26/A27 52/81/54 M (41 %);
+Pruefung + Release 1.16.0 100 M (18 Teilauftraege, 3 Builds, 3
+Fixschleifen), 1.17.0 84 M (14, 2 Builds), 1.18.0 12 M (6, kurze Kette auf
+Nutzerwort) — zusammen 43 %; Director 69 M (206 Zuege auf Fable, davon 55
+Commits, 53 Schreibvorgaenge, 15 %).
+
+**Ursachen, je mit Beleg:**
+1. `director.md` schrieb je Release sieben Rollen vor: clean-room 2x (12 M),
+   power-user 2x (13 M), security 3x auf UI-Text-Diffs (7 M, alle PASS),
+   technical-writer 4x (5 M), compliance-Vorlauf 2x (33 Ausgabe-Tokens).
+2. QA am Artefakt (T-322e 18 M, T-325h 28 M, 159 Zuege) statt am Quellstand
+   (T-327c 6 M); jeder Fix zog einen Neubau nach sich: 6 Builds, 14 M, 45 min.
+3. Pruefrollen nacheinander auf drei Builds (Review, QA, power-user in
+   1.16.0) statt in einer Nachricht: drei Fixschleifen, zweimal Notes,
+   zweimal Guide, rund 30 M.
+4. Pruefwuensche sofort gebaut (Startbreite-Ratio 16 M, AK-330 Persistenz
+   14 M samt Neubau/Retest/Notes).
+5. Fuenf `klein`-Fixlaeufe mit 81-131 Zuegen (67 M); T-327b in der
+   Zugschwelle. Orientierung je developer-Lauf 21-52 Zuege vor dem ersten
+   Edit, weil Vorgaben als Verweis auf `UI_SPEC.md` (7 516 Zeilen) und
+   `ARCHITECTURE.md` (10 150) kamen.
+6. `no-window-dispatch.ps1` prueft Woerter statt Rolle: researcher und 2x
+   ui-ux-designer abgewiesen, T-324f 76 min Verzug bis der Nutzer seine
+   Kopie schloss.
+7. Kontraktblock bei 25 von 69 Laeufen fehlend; die Nachforderungsregel
+   griff nie (und haette nur gekostet).
+8. Nicht beeinflussbar: Netzausfall 19.09. 14:04, architect + Spec verloren
+   (6 M, 28 min); Warten auf die zweite Director-Sitzung 66 min.
+
+**Massnahmen (Nutzerentscheidung 21.09.2026, umgesetzt):**
+- `commands/director.md`: Release nach Ausloeser-Tabelle (immer nur
+  `build+notes` und sync-out); Pruefung am Quellstand, ein Bau nach dem
+  letzten Fix, Pruefrollen in einer Nachricht; Pruefwuensche P3/P4 in den
+  naechsten Zyklus; Vorlauf nur bei Ausloeser; Vorgaben woertlich im
+  Auftrag; `klein` nur mit Datei:Zeile; Kontraktblock nicht nachfordern;
+  ein Commit je Phase; Fragebogen mit Zeitbudget und Release-Rhythmus.
+- `templates/task.md`: Vorgaben woertlich, "Vorlauf: kein Ausloeser".
+- `CLAUDE.md` (Projekt): Ausloeser-Pfade je Pruefrolle.
+- `.claude/hooks/no-window-dispatch.ps1`: Rolle vor Wortlaut.
+
+**Nutzerseitig (aus der Messung, kein Waechter):** Releases sammeln
+(eine Kette statt drei haette rund 100 M gespart); Zeitbudget nennen (am
+21.09. fuehrte "eine Stunde" zu Worktrees parallel und kurzer Kette);
+Programm schliessen, solange Fensterlaeufe anstehen; keine zweite
+Director-Sitzung auf demselben Repo; Director-Sitzung auf Opus, Fable nur
+per Dispatch fuer compliance und Diagnose.
+
+**Wirkungskontrolle beim naechsten Release:** Kontext der Pruefung +
+Release je Feature unter 20 M (Massstab 1.18.0: 12 M), Builds je Release 1,
+Fixschleifen je Release 1.
+

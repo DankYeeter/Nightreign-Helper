@@ -79,6 +79,20 @@ Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 16 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 
+## Ausloeser je Pruefrolle (Release, NH-010)
+
+Der `qa-engineer` prueft immer, am Quellstand mit `scripts/drive_window.ps1`;
+das Artefakt entsteht einmal nach dem letzten Fix. Die uebrigen Rollen nur,
+wenn der Diff seit dem letzten Tag (`git diff --stat v<x>..HEAD`) trifft:
+
+| Rolle | Ausloeser in diesem Projekt |
+|---|---|
+| `security-reviewer` | `nrdata/`, `nrplanner/paths.py`, `shortcut.py`, `gamepath.py`, `singleinstance.py`, `NightreignHelper.spec`, `requirements*.txt`, `.github/workflows/`; neue Senke (`subprocess`, Datei schreiben, Registry) laut `git diff -G` |
+| `release-manager` `clean-room` | `NightreignHelper.spec`, `requirements.txt`, `EXTRACT_VERSION` (`nrdata/extract.py`), `run.py`/Erststart, Migration gespeicherter Builds oder Favoriten |
+| `power-user` | Erststart, Nightfarer-Wahl, Berater-Leiste (Optimize/Why), Build speichern; sonst hoechstens jedes dritte Release |
+| `technical-writer` | neues Bedienelement, das `docs/anleitung/guide.md` beschreiben muss; sonst CHANGELOG-Zeile |
+| `compliance-agent` | neue Abhaengigkeit in `requirements.txt`, fremde Daten oder Plattform |
+
 ## Verbotene Zugriffe
 
 - Nie in Spielstand oder Spielinstallation schreiben; kein Mod, kein
