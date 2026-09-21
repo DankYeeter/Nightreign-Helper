@@ -4,6 +4,46 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.17.0] - 2026-09-21
+
+### Added
+- "Maximise damage" now asks two things instead of one: **Hit with**
+  (Weapon, Weapon art, Sorceries, Incantations, or one of the spell schools
+  the game defines) and **Damage type** (All, Physical, Magic, Fire,
+  Lightning, Holy). A spell row ranks the spell your starting catalyst
+  casts (for example Recluse's Staff or Revenant's Finger Seal); a
+  "starting spell" relic (for example Beast Claw) replaces that spell and
+  is itself a candidate. Spell damage is computed as base damage times
+  spell power over 100 times your buffs and is marked uncalibrated — it
+  follows the formula known from Elden Ring, which has not been measured
+  against Nightreign. Both choices are remembered the next time you start
+  the program, the same way the active Nightfarer is.
+- The opening window width is now 90% of your screen's available width,
+  capped at what the layout needs (1959 px) and never narrower than
+  1536 px, so it scales with the monitor instead of a fixed pixel count.
+
+### Changed
+- "Skill attack" is renamed **Weapon art** throughout the advisor, the
+  relic picker and the "Why" dialog, to match the game's own term and to
+  make room for the new Hit-with choices that are not weapon-based at all.
+- The Arsenal tab's introductory sentence was corrected.
+
+### Fixed
+- The extractor now also reads spell damage figures, which hand a
+  Nightfarer's starting catalyst is held in, and "starting spell" relics.
+  The first launch after this update rebuilds the data cache once (about
+  40 seconds) to pick this up.
+
+### Note
+- The remembered choice now uses two settings keys, `hit_with` and
+  `damage_type`. The previous single key (`damage_art`) is no longer read;
+  updating from an earlier version starts with no stored choice (Weapon /
+  All) instead of carrying the old value over.
+- Known issues, to be fixed in the next release: the "Why" line can
+  attribute a suggestion to the wrong source when a spell school is chosen
+  (QA-293), and a relic-picker cell can show as empty without saying why
+  (QA-294).
+
 ## [1.16.0] - 2026-09-20
 
 ### Added

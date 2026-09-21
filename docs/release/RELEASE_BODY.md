@@ -116,3 +116,13 @@ starts there.
   it scales the reference weapon's attack rating, not spell damage itself. A
   choice that raises nothing you own no longer fills suggestion slots with
   candidates that change nothing.
+- **1.17.0** — "Maximise damage" now asks two things: **Hit with** (Weapon,
+  Weapon art, Sorceries, Incantations, or a spell school) and **Damage
+  type** (All, Physical, Magic, Fire, Lightning, Holy); a spell row ranks
+  the spell your starting catalyst casts, and a "starting spell" relic
+  (for example Beast Claw) replaces it and counts as a candidate — spell
+  damage is uncalibrated, following the known Elden Ring formula. "Skill
+  attack" is renamed **Weapon art**. Both choices are remembered. The data
+  cache rebuilds once on first launch after this update (about 40
+  seconds). The opening window width now scales with your screen (90% of
+  available width, 1536-1959 px) instead of a fixed size.
