@@ -286,6 +286,36 @@ Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
 they are folded into the maths rather than quietly ignored.
 
+**Weapon art and Spell damage.** Two more rows can appear right under the
+weapon panel's **Total** line, but only on the tile that carries your
+Nightfarer's own starting armament — move that weapon to another tile and the
+rows move with it; put a different, found weapon on the starting tile and
+neither row appears there.
+
+- **Weapon art** shows what your character skill adds on top of the Total
+  above it, so its own base figure is that Total, not zero — a relic that
+  raises attack moves both rows by the same amount and leaves this row's
+  change at `no change`; only a relic that boosts skill damage moves it on
+  its own. On a staff or a seal there is no number to show here (the game
+  ranks a catalyst by spell power, not by an attack art), so the row reads a
+  sentence instead: *"Weapon art — not shown: a staff or a seal is ranked on
+  the spell power the game shows for it, and no attack art reaches that
+  figure."*
+- **Spell damage (\<spell name>)** appears only if your Nightfarer's starting
+  kit includes a staff or a seal — eight of the ten do not, and get no row at
+  all. The spell shown is whichever one that catalyst actually casts: a relic
+  that swaps its spell takes priority over the catalyst's own default. If
+  that spell deals no damage by itself (Revenant's default Rejection/Heal,
+  for example), the row still shows a number, `0`, not a sentence. Click the
+  bold figure for a breakdown tooltip; it always ends with one of two notes —
+  either that spell damage is uncalibrated (the formula applied to the
+  game's own values, with nothing in the game to check it against — use it to
+  compare two spells, not as an absolute number), or, for a spell that deals
+  no damage, that only a relic swapping the cast spell would bring damage
+  here. Do not add this figure to the weapon's attack rating above it —
+  attack rating and spell damage are two different scales and this panel
+  never mixes them.
+
 **About the switches.** The tool cannot know whether you are below 40% HP, or
 how many Night Invaders you have killed, or whether your Character Skill is up
 right now. What it can know is what each of those is worth, so a gated effect is
