@@ -22,6 +22,7 @@ nie vergeben.
 | 1.14.0 | `ffac292` | 35427762335 | 3 | A22 Attribute ueber Startwaffe in die Schadenszahl (AD-038, AK-315/318), A23 Familien vermeiden + Allow (AD-039, AK-316/317), DR-032, QA-284/285 |
 | 1.15.0 | `c536daa` | 35451242996 | 3 | A24 Unterbosse im Nightlords-Tab (AD-040..044, AK-319..326), QA-286 Red-variants-Beispielspalte, QA-288, Datenversion 15 |
 | 1.16.0 | `a33e92b` | 35518272445 | 3 | A25 Schadensart im Berater (AD-045..049, AK-327..336), QA-289/290, Schadensart gemerkt |
+| 1.17.0 | `28b7f1e` | (Run folgt) | 3 | A26 Hit with x Damage type, Zauberzahl unkalibriert, EXTRACT_VERSION 16, Startbreite 0,9 x Bildschirm; QA-293/294 offen |
 
 Beschreibung je Release aus `docs/release/RELEASE_BODY.md` (`body_path`,
 A-023/A-024/A-037). Download: `releases/latest`.
@@ -76,16 +77,18 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
   Run 35518272445). PR #18 auf `main` offen (Nutzer mergt).** Rest: eigener
   Art-Regler im Picker (AK-336) beim Nutzer; Nightfarer wird nicht gemerkt
   (Bestand, Backlog); ROLLOUT.md ohne 1.16.0-Abschnitt.
-- **A26 Ziel = Womit x Schadensart — Bau fertig, am Gate (20.09. 20:05):**
-  R-010, AD-050..054, AK-337..349, OF-54/57/58; Bau `docs/tasks/T-324.md` a-g
-  (`e18696c` Extraktor v16, `0876ea2` Testabzug, `202f2be` Fassade, `d6c2cfc`
-  zwei Felder, `8b83de6` Ziel, `054ca1e` Leiste), Suite 1874/9. Fensterlauf:
-  Revenant Incantations → Beast-Claw-Relikt +350,5 am Siegel; Guardian
-  Sorceries abgelehnt mit Satz. Startbreite 1608 → 1959 px (A14 inkl.
-  Statuszeile; Paarbedarf 190/351 px). Offen: Pruefphase, Guide (Z. 109-128
-  alt), CHANGELOG/RELEASE_BODY/DESIGN_REVIEW 'Skill attack' → 'Weapon art',
-  performance-tuner Katalysator-Scan 113 us, OF-54 unvermessen, Picker-Regler
-  (Nutzer), AK-338 Trennlinie (ui-ux-designer).
+- **A26 abgeschlossen: Release 1.17.0 (21.09. 06:10, Tag `v1.17.0` auf `28b7f1e`).**
+  Pruefphase `docs/tasks/T-325.md` a-n: Sicherheit PASS, DR-038 gefixt
+  `eaf9ea9`, QA T-325h/j PASS, clean-room PASS (Cache-Neubau 37 s),
+  power-user 6/6 (QA-293 P3 Why-Zuordnung unter Schulwahl, QA-294 P4
+  Nullzelle ohne Grund — beide offen, naechster Zyklus). Suite 1878/9.
+  Offen: OF-54 Zauberformel unvermessen; performance-tuner Katalysator-Scan
+  113 us; Nightfarer nicht gemerkt (Backlog); ROLLOUT.md ohne 1.16/1.17;
+  Auflagen-Register seit 1.13.1 nicht fortgeschrieben (compliance).
+- **A27 Weapon art + Startzauber im Schadensblock — Spec fertig (AK-353..364,
+  `5cf1cae`, `docs/tasks/T-326.md`). Naechster Schritt:** developer-Auftrag
+  T-327 (statsheet.py; Bauvoraussetzung AK-359: Grundlinien-Antwort von
+  `damage.spell`), gebuendelt mit QA-293/294; dann Pruefphase, Release 1.18.0.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`
