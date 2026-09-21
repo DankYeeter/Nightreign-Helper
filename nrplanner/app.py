@@ -47,6 +47,10 @@ GRAIL_HERO_TYPE = 11
 # that way. QSplitter's own encoding, which survives a pane being added.
 PANES_KEY = "ui/panes"
 
+# T-328a: which Nightfarer was selected last, so the next launch opens on
+# them instead of always the first.
+HERO_KEY = "hero"
+
 # The opening pane widths, shared by first run, the restore fallback and the
 # Reset layout button so all three mean the same thing by construction.
 PANE_DEFAULTS = (430, 520, 370)
@@ -649,7 +653,12 @@ class Planner(QMainWindow):
         # is the point: every tab that does not come out of the save is
         # complete in the first paint (AK-220). What the save would have added
         # is added at the arrival, by `_on_save_read`.
-        self.select_hero(0)
+        stored_hero_id = QSettings(favourites.ORG, favourites.APP).value(
+            HERO_KEY, -1, type=int)
+        start_index = next(
+            (i for i, hero in enumerate(self.heroes)
+             if hero["id"] == stored_hero_id), 0)
+        self.select_hero(start_index)
 
         self.weapons_tab = ArsenalTab(data, self, self.icons)
         tabs.addTab(self.weapons_tab, "Weapons && spells")
@@ -1305,6 +1314,8 @@ class Planner(QMainWindow):
         self.refresh_build_list(
             keep=chalices.selected_build(self.heroes[index]["id"]))
         self.refresh_vessel_strip()
+        QSettings(favourites.ORG, favourites.APP).setValue(
+            HERO_KEY, self.heroes[index]["id"])
 
     # -- armament tiles ---------------------------------------------------
     def weapon_by_id(self, weapon_id: int) -> dict | None:
