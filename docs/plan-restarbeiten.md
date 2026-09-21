@@ -387,6 +387,17 @@ Der Auftrag benennt die Teilung, statt sie der Rolle zu ueberlassen.
   **Fundstelle**, nicht die **Aussage** — und die Regel hat am Tag ihrer
   eigenen Annahme nicht gegriffen.*
 
+## E-4 — Fensterlaeufe als Szenario, ein Aufruf je Ziel (NH-009-Folge, vorgemerkt 21.09.2026)
+
+Ein Fensterlauf kostet heute einen Werkzeugzug je Klick: T-322m
+(`power-user`) 103 Klick-Zuege von 113, T-325h (`qa-engineer`) 60 von 159,
+und jeder Zug traegt den vollen Kontext des Laufs (NH-010).
+`scripts/drive_window.ps1` bekommt einen Szenario-Modus: eine Schrittliste
+(Klick, Eingabe, Ablesen mit Erwartung) in einer Datei, ein Aufruf fuehrt sie
+aus und liefert Protokoll plus `PrintWindow`-Bild je Schritt. Auftrag:
+`developer` (klein, Stelle nach Datei:Zeile im Auftrag). Kriterium: der
+power-user-Lauf T-322m laesst sich mit hoechstens 25 Zuegen wiederholen.
+
 ## P10 — Der Ueberbau-Audit vom 12.09.2026 (Korb 3)
 
 *Herkunft: ein Ueberbau-Audit des Directors ueber den ganzen Baum,

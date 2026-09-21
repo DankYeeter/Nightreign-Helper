@@ -2241,6 +2241,10 @@ Commits, 53 Schreibvorgaenge, 15 %).
 - `templates/task.md`: Vorgaben woertlich, "Vorlauf: kein Ausloeser".
 - `CLAUDE.md` (Projekt): Ausloeser-Pfade je Pruefrolle.
 - `.claude/hooks/no-window-dispatch.ps1`: Rolle vor Wortlaut.
+- Nachtrag 21.09. (zweite Messung, ApplicationHelper B-26): Director-Kontext
+  wuchs hier 77 k → 506 k je Zug ohne Compaction; `commands/director.md`
+  Zyklus Schritt 8: Zyklusende ist Sessionende. Fensterlaeufe als Szenario
+  vorgemerkt (`docs/plan-restarbeiten.md` E-4).
 
 **Nutzerseitig (aus der Messung, kein Waechter):** Releases sammeln
 (eine Kette statt drei haette rund 100 M gespart); Zeitbudget nennen (am
