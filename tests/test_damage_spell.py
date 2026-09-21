@@ -242,3 +242,63 @@ def test_an_armament_that_is_no_catalyst_is_refused_loudly(
     with pytest.raises(ValueError, match="no catalyst"):
         damage.spell(beast_claw, sword, TIER, build, game_data,
                      hit_with=model.INCANTATIONS_ART)
+
+
+def test_the_baseline_is_the_same_product_with_nothing_equipped(
+        game_data, revenant, seal, beast_claw):
+    """`bare_per_type`: the "before" figure a display puts against the figure.
+
+    The spell half's counterpart of what `equipped()` hands back as its
+    `bare` half (AK-359), and the same rule: the level's own attributes, and
+    none of the multipliers the build brought. Of the factors of the product
+    exactly one can move it -- the spell power, through an attribute -- so a
+    relic that only raises a rate leaves it where it was. Without this the
+    panel's spell row has nothing to show a difference against, and a
+    baseline that quietly took the rates too would show a difference of zero
+    for every build alike.
+    """
+    plain = damage.spell(beast_claw, seal, TIER,
+                         build_with(game_data, revenant), game_data,
+                         hit_with=model.INCANTATIONS_ART)
+    assert plain.bare_figure == pytest.approx(plain.figure), (
+        "with nothing equipped the two figures are one and the same, and "
+        "anything else means the baseline asks a different question")
+
+    element = cases.effects_raising_rate(game_data, revenant,
+                                         "physicsAttackRate")[0]
+    rated = damage.spell(beast_claw, seal, TIER,
+                         build_with(game_data, revenant, [element]), game_data,
+                         hit_with=model.INCANTATIONS_ART)
+    assert rated.bare_figure == pytest.approx(plain.figure)
+    assert rated.figure > rated.bare_figure
+
+    faith = cases.effects_raising_attribute(game_data, revenant, "Faith")[0]
+    scaled = damage.spell(beast_claw, seal, TIER,
+                          build_with(game_data, revenant, [faith]), game_data,
+                          hit_with=model.INCANTATIONS_ART)
+    assert scaled.bare_figure == pytest.approx(plain.figure), (
+        "the baseline moved with an equipped relic's Faith, so it is not the "
+        "figure this build would have without that relic")
+    assert scaled.figure > scaled.bare_figure, (
+        "a Faith relic did not reach the seal's spell power, and the reason "
+        "this figure stands on the catalyst's own headline is that it does")
+
+
+def test_the_baseline_answers_the_same_damage_type_the_figure_does(
+        game_data, revenant, seal, beast_claw):
+    """One rule picks both, so a display cannot compare two damage types.
+
+    Beast Claw is physical: asked about fire, the figure and its baseline are
+    both 0.00 and a row shows no difference; asked about every type at once,
+    both are the whole of it.
+    """
+    build = build_with(game_data, revenant)
+
+    def rated(damage_type: str):
+        return damage.spell(beast_claw, seal, TIER, build, game_data,
+                            hit_with=model.INCANTATIONS_ART,
+                            damage_type=damage_type)
+
+    assert rated("Fire").bare_figure == 0.0
+    assert rated("Physics").bare_figure == pytest.approx(
+        rated("").bare_figure)

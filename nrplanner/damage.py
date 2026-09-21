@@ -819,10 +819,28 @@ class SpellRating:
     #: calibrated (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
     spell_power: float
     per_type: dict[str, float]
+    #: The same product with nothing equipped: the spell's own base damage on
+    #: the catalyst's spell scaling at the level's own attributes, and no
+    #: rates and no art factor on top of it. The "before" figure a display
+    #: puts against `per_type` (AK-359), and the counterpart of the `bare`
+    #: half of what `equipped()` hands back -- `Question.BARE` for the spell
+    #: half, held here rather than asked for a second time so that the two
+    #: halves of one difference come out of one call (assurance Z1).
+    bare_per_type: dict[str, float]
     #: Only the multipliers that are not 1.0, keyed as `Rating.rates` is.
     rates: dict[str, float] = field(default_factory=dict)
     #: Why this figure is 0.00 where that needs saying, else `None`.
     reason: str | None = None
+
+    def _asked(self, per_type: dict[str, float]) -> float:
+        """One damage type's figure out of a per-type map, or all of them.
+
+        The pick is here and not at the two properties below, so that the
+        figure and its baseline can never be picked by two different rules.
+        """
+        if self.damage_type:
+            return per_type.get(self.damage_type, 0.0)
+        return sum(per_type.values())
 
     @property
     def figure(self) -> float:
@@ -832,9 +850,12 @@ class SpellRating:
         ranking in which every candidate that brings some of that type
         stands above this one.
         """
-        if self.damage_type:
-            return self.per_type.get(self.damage_type, 0.0)
-        return sum(self.per_type.values())
+        return self._asked(self.per_type)
+
+    @property
+    def bare_figure(self) -> float:
+        """The same number with nothing equipped (`bare_per_type`)."""
+        return self._asked(self.bare_per_type)
 
 
 def _casts_under(spell: dict, art: str) -> bool:
@@ -877,6 +898,9 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     what it gets back instead of assembling one of its own (AD-019/AD-021).
 
         figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+
+    and, beside it, the same product with nothing equipped (`bare_per_type`),
+    so that a display's before-and-after comes out of one call.
 
     `base[T]` is the spell's strongest single hit in that damage type
     (`spells[].damage`, AD-050.3, user decision OF-57 -- not the sum of a
@@ -932,16 +956,126 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     per_type, rates = _multiplied(
         {name: value * spell_power / SPELL_POWER_SCALE
          for name, value in base.items()}, build, art=art)
+    # The baseline of the same product (AK-359): the catalyst asked again on
+    # the level's own attributes, which is the one factor of the four that a
+    # bare build changes -- the rates and the art factor are what the build
+    # brought and are left out of a "before" figure by definition, exactly as
+    # `MULTIPLIERS_FOR[Question.BARE]` leaves them out of an armament's.
+    bare_power = _rate(catalyst, Question.BARE, tier, build,
+                       data).catalyst_scaling
     return SpellRating(
         spell=spell,
         damage_type=damage_type,
         art=art,
         spell_power=spell_power,
         per_type=per_type,
+        bare_per_type={name: value * bare_power / SPELL_POWER_SCALE
+                       for name, value in base.items()},
         rates=rates,
         reason=None if base else NO_SPELL_DAMAGE.format(
             name=spell.get("name", "This spell")),
     )
+
+
+# -- what a spell question is asked about (AD-052) ----------------------
+#
+# Which catalyst and which spell a spell question stands on is a choice, not
+# an answer, and it lives beside the answer for the reason AD-019 gives: the
+# advisor's spell cell and the stat sheet's spell row have to pick the same
+# object, and the rule written a second time in the second caller is exactly
+# the second place that decision forbids. It was private to
+# `advisor/goals.py` until the stat sheet needed it (AK-357).
+
+#: `wep_type` 57 is a staff and 61 a seal, and the pair carries the genus
+#: distinction the spell rows need: `enableMagic`/`enableMiracle` say the
+#: same thing and are not in the extract, which AD-052 point 4 settled
+#: rather than left open. Membership is also the test for "is this armament
+#: a catalyst at all", so the one table answers both questions.
+GENUS_OF_CATALYST = {57: model.SORCERIES_ART, 61: model.INCANTATIONS_ART}
+
+
+def _record_by_id(records, wanted: int | None) -> dict | None:
+    """The weapon or spell row with this id, or `None` for no such row.
+
+    A scan and not an index, and the cost is measured rather than waved
+    through: 113 us of a spell cell's 137 us is this function walking the
+    1793 armament rows twice, against 35 us for a whole weapon cell (level
+    15, Revenant, 2026-09-20). An index would have to be built out of the
+    dataset at every evaluation as well, or kept as module state that a
+    second dataset would make stale, and either is a shape the
+    `performance-tuner` should choose against a measurement of a whole run
+    rather than this one.
+    """
+    if wanted is None:
+        return None
+    return next((record for record in records
+                 if record.get("id") == wanted), None)
+
+
+def start_catalyst(hero: dict, data: dict) -> dict | None:
+    """The staff or seal this Nightfarer starts with -- right hand first.
+
+    AD-052 point 1: the right hand before the left, and the left only where
+    the right carries none. Measured over the ten Nightfarers, exactly two
+    carry one and neither carries two -- Recluse's staff is in her right
+    hand and Revenant's Finger Seal in his left, which is the reason the
+    left hand is read at all (AD-050).
+    """
+    for hand in ("starting_weapon", "starting_weapon_left"):
+        weapon = _record_by_id(data.get("weapons") or (), hero.get(hand))
+        if weapon is not None and weapon.get("wep_type") in GENUS_OF_CATALYST:
+            return weapon
+    return None
+
+
+def _base_damage(record: dict, damage_type: str) -> float:
+    """What a spell hits for before anything of this build reaches it.
+
+    The yardstick AD-052 point 3 picks the stronger of two swap relics by,
+    and deliberately the base value rather than the finished figure: the
+    spell power and the rates are the same for both, so they cannot change
+    which of the two is in front, and the base value is the one number that
+    belongs to the spell itself.
+    """
+    base = record.get("damage") or {}
+    if damage_type:
+        return float(base.get(damage_type, 0.0))
+    return float(sum(base.values()))
+
+
+def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
+                 damage_type: str = "") -> tuple[dict | None, int]:
+    """The spell this equipment casts, and how many relics swapped it.
+
+    AD-052 point 2: a relic that swaps the starting armament's spell puts
+    its own spell in the hand, so it is the reference object **and** a
+    candidate that moves the figure -- the only effect family of this
+    dataset that changes a base value rather than a rate. Held or chosen
+    makes no difference here: `model.compute` has put both into the build
+    before this is asked.
+
+    A swap relic works for exactly one Nightfarer (`allowed_heroes`, all ten
+    of them), and that Nightfarer is the one whose catalyst can cast its
+    spell, so a seal cannot be rated on a sorcery. That is the dataset's
+    doing rather than this function's, and a case in
+    `tests/test_advisor_goals.py` holds it.
+
+    `damage_type` decides nothing but which of two swapped spells is the
+    stronger, so a caller that asks about every type at once (the stat
+    sheet) leaves it out.
+    """
+    spells = data.get("spells") or ()
+    swapped = [record for record in
+               (_record_by_id(spells, magic_id)
+                for magic_id in build.swapped_spell_ids)
+               if record is not None]
+    if swapped:
+        return (max(swapped,
+                    key=lambda record: _base_damage(record, damage_type)),
+                len(swapped))
+    slots = catalyst.get(model.SPELL_SLOTS_KEY) or ()
+    first = next((slot for slot in slots if slot != model.NO_SPELL_SLOT), None)
+    return _record_by_id(spells, first), 0
 
 
 def candidate(weapon: dict, target_tier: int, build: model.Build,

@@ -244,13 +244,6 @@ _ART_ON_A_CATALYST = (
     "ranked on the spell power the game shows for it, and no damage type "
     "and no attack art reaches that figure.")
 
-#: `wep_type` 57 is a staff and 61 a seal, and the pair carries the genus
-#: distinction the spell rows need: `enableMagic`/`enableMiracle` say the
-#: same thing and are not in the extract, which AD-052 point 4 settled
-#: rather than left open. Membership is also the test for "is this armament
-#: a catalyst at all", so the one table answers both questions.
-_GENUS_OF_CATALYST = {57: model.SORCERIES_ART, 61: model.INCANTATIONS_ART}
-
 #: Eight of the ten Nightfarers start with neither (measured 2026-09-20), so
 #: this is the ordinary answer for a spell row and not an edge case
 #: (AD-052 point 6).
@@ -399,87 +392,6 @@ def _is_a_spell(hit_with: str) -> bool:
             or hit_with.startswith(model.ART_FAMILY_PREFIX))
 
 
-def _record_by_id(records, wanted: int | None) -> dict | None:
-    """The weapon or spell row with this id, or `None` for no such row.
-
-    A scan and not an index, and the cost is measured rather than waved
-    through: 113 us of a spell cell's 137 us is this function walking the
-    1793 armament rows twice, against 35 us for a whole weapon cell (level
-    15, Revenant, 2026-09-20). An index would have to be built out of
-    `ctx.data` at every evaluation as well, or kept as module state that a
-    second dataset would make stale, and either is a shape the
-    `performance-tuner` should choose against a measurement of a whole run
-    rather than this one.
-    """
-    if wanted is None:
-        return None
-    return next((record for record in records
-                 if record.get("id") == wanted), None)
-
-
-def _start_catalyst(ctx: types.GoalContext) -> dict | None:
-    """The staff or seal this Nightfarer starts with -- right hand first.
-
-    AD-052 point 1: the right hand before the left, and the left only where
-    the right carries none. Measured over the ten Nightfarers, exactly two
-    carry one and neither carries two -- Recluse's staff is in her right
-    hand and Revenant's Finger Seal in his left, which is the reason the
-    left hand is read at all (AD-050).
-    """
-    for hand in ("starting_weapon", "starting_weapon_left"):
-        weapon = _record_by_id(ctx.data.get("weapons") or (),
-                               ctx.hero.get(hand))
-        if weapon is not None and weapon.get("wep_type") in _GENUS_OF_CATALYST:
-            return weapon
-    return None
-
-
-def _base_damage(spell: dict, damage_type: str) -> float:
-    """What a spell hits for before anything of this build reaches it.
-
-    The yardstick AD-052 point 3 picks the stronger of two swap relics by,
-    and deliberately the base value rather than the finished figure: the
-    spell power and the rates are the same for both, so they cannot change
-    which of the two is in front, and the base value is the one number that
-    belongs to the spell itself.
-    """
-    base = spell.get("damage") or {}
-    if damage_type:
-        return float(base.get(damage_type, 0.0))
-    return float(sum(base.values()))
-
-
-def _spell_thrown(build: model.Build, ctx: types.GoalContext,
-                  catalyst: dict) -> tuple[dict | None, int]:
-    """The spell this equipment casts, and how many relics swapped it.
-
-    AD-052 point 2: a relic that swaps the starting armament's spell puts
-    its own spell in the hand, so it is the reference object **and** a
-    candidate that moves the figure -- the only effect family of this
-    dataset that changes a base value rather than a rate. Held or chosen
-    makes no difference here: `model.compute` has put both into the build
-    before this is asked.
-
-    A swap relic works for exactly one Nightfarer (`allowed_heroes`, all ten
-    of them), and that Nightfarer is the one whose catalyst can cast its
-    spell, so a seal cannot be rated on a sorcery. That is the dataset's
-    doing rather than this function's, and a case in
-    `tests/test_advisor_goals.py` holds it.
-    """
-    spells = ctx.data.get("spells") or ()
-    swapped = [spell for spell in
-               (_record_by_id(spells, magic_id)
-                for magic_id in build.swapped_spell_ids)
-               if spell is not None]
-    if swapped:
-        return (max(swapped,
-                    key=lambda spell: _base_damage(spell, ctx.damage_type)),
-                len(swapped))
-    slots = catalyst.get(model.SPELL_SLOTS_KEY) or ()
-    first = next((slot for slot in slots if slot != model.NO_SPELL_SLOT), None)
-    return _record_by_id(spells, first), 0
-
-
 def _empty_cell(reason: str) -> types.GoalScore:
     """A spell row this Nightfarer has no figure for at all, and why.
 
@@ -520,16 +432,17 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     written: every sink that draws a finding or a display is `PlainText`
     (SEC-019, AK-29).
     """
-    catalyst = _start_catalyst(ctx)
+    catalyst = damage.start_catalyst(ctx.hero, ctx.data)
     if catalyst is None:
         return _empty_cell(_NO_CATALYST.format(choice=chosen))
-    genus = _GENUS_OF_CATALYST[catalyst["wep_type"]]
+    genus = damage.GENUS_OF_CATALYST[catalyst["wep_type"]]
     if (ctx.hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
             and ctx.hit_with != genus):
         return _empty_cell(_WRONG_GENUS.format(
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
-    thrown, swaps = _spell_thrown(build, ctx, catalyst)
+    thrown, swaps = damage.spell_thrown(
+        build, ctx.data, catalyst, damage_type=ctx.damage_type)
     if thrown is None:
         return _empty_cell(_NO_SPELL_ON_THE_CATALYST.format(
             catalyst=catalyst.get("name", "This armament"), choice=chosen))
