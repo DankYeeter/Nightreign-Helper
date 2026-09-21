@@ -1951,6 +1951,48 @@ def test_a_buff_that_raises_an_attribute_ends_on_the_number(game_data):
               for line in amount_lines), amount_lines
 
 
+#: Grand Drizzly Scene (QA-293): a Tauschzauber to Beast Claw (Bestial,
+#: `family:23`) plus "Improved Fundamentalist Incantations" (`family:24`,
+#: a different school). `start_magic_id` carries no `modifiers` at all, so
+#: before this fix the swap was reported as "no number here shows what this
+#: adds" while the mismatched buff's raw, never-consumed rate was reported
+#: as the effect that moved the figure.
+_BEAST_CLAW_SWAP = 7370900
+_FUNDAMENTALIST_INCANTATIONS = 7044000
+_BESTIAL_ART = f"{model.ART_FAMILY_PREFIX}23"
+
+
+def test_a_school_mismatched_buff_does_not_steal_the_swaps_line(game_data):
+    """QA-293: the spell swap is what moved 0.00 to a real figure, not a
+    school buff whose own school the thrown spell does not belong to.
+    """
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    ctx = dataclasses.replace(
+        advisor.context(game_data, revenant,
+                        reference=_starting_armament(game_data, revenant)),
+        hit_with=_BESTIAL_ART)
+    problem = advisor.problem([advisor.RED])
+    chosen = (a_copy(0, 1, "Grand Drizzly Scene",
+                     [_BEAST_CLAW_SWAP, _FUNDAMENTALIST_INCANTATIONS]),)
+    base = evaluate(problem, (), ctx)
+    built = evaluate(problem, chosen, ctx)
+
+    lines = lines_of(explain.reasons(problem, chosen, base, built, ctx,
+                                     goals.GOALS[DAMAGE]))
+
+    swap_line = next(line for line in lines
+                     if line.startswith("Changes compatible armament"))
+    buff_line = next(line for line in lines
+                     if line.startswith("Improved Fundamentalist "
+                                        "Incantations"))
+    assert "Spell damage" in swap_line and "+" in swap_line, (
+        f"the swap turned 0.00 into a real figure, so its own line has to "
+        f"carry it: {lines!r}")
+    assert buff_line.endswith("this figure does not count it."), (
+        f"family:24 does not match family:23, so this buff moves nothing "
+        f"under Bestial: {lines!r}")
+
+
 def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
     """A run finding in the sense of AD-025: it carries a count.
 

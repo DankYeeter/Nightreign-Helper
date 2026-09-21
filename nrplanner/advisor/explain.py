@@ -354,7 +354,8 @@ def _first_attribute(contributions: Sequence[_Contribution],
 
 def _explained_line(contribution: _Contribution, built: model.Build,
                     felt: dict[tuple[int, int], float], rating: str,
-                    is_first_attribute: bool) -> str:
+                    is_first_attribute: bool,
+                    ctx: types.GoalContext) -> str:
     """One line, with AD-038's amount where AK-315 puts it and nowhere else.
 
     A contribution that touches no attribute field is unaffected by any of
@@ -365,9 +366,25 @@ def _explained_line(contribution: _Contribution, built: model.Build,
     attribute line of its effect gets the amount (AK-315.1); every other
     attribute line of the *same* effect stays bare, because one effect owns
     one amount, not one per attribute field it touches (AK-315.3).
+
+    A spell-path contribution (QA-293) carries its own delta already, so it
+    is answered before any of the above and without consulting `felt` at
+    all: it has no field of its own for `_line` to name.
+
+    An art-scoped contribution (QA-293 as well) is asked about `felt` under
+    the same condition `_felt_by_the_goal` used to decide whether to ask at
+    all -- `ctx` is read again here rather than through `felt`'s own keys,
+    which are `(slot, effect id)` and cannot tell one field of an effect
+    from another: "Physical Attack Up" raises an attribute **and** a rate
+    under one id, and `felt` may hold an answer for the attribute half while
+    the rate half was never a question at all.
     """
+    if contribution.field_key == _SPELL_PATH_FIELD:
+        return (f"{contribution.effect_name}: "
+                f"{rating} {_signed_delta(contribution.own)}")
     is_attribute = contribution.field_key in model.ATTRIBUTE_ORDER
-    if not contribution.is_curse and not is_attribute:
+    art_scoped = _spell_art_chosen(ctx) and _is_art_scoped(contribution)
+    if not contribution.is_curse and not is_attribute and not art_scoped:
         return _line(contribution, built)
     delta = felt.get(
         (contribution.candidate.slot_index, contribution.effect_id), 0.0)
@@ -713,15 +730,22 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
     Benefits vernichten, muss ich das wissen"* -- and it is why they are not
     quietly dropped for reading better.
 
-    `problem` and `goal` are here for one filling only: whether the ranking
-    figure feels an effect that moves an attribute is a question only the
-    direction can answer, and it is answered by scoring the same assignment
-    again without that one effect (AD-015, AD-038.3). With nothing to ask
-    about, nothing is scored.
+    `problem` and `goal` are here for two fillings. Whether the ranking
+    figure feels an effect that moves an attribute (or an art-scoped rate,
+    QA-293) is a question only the direction can answer, and it is answered
+    by scoring the same assignment again without that one effect (AD-015,
+    AD-038.3). And a relic that swaps which spell is thrown is asked the
+    same way, because `Build.sources` carries no entry for it at all
+    (`_spell_path_contributions`). With nothing to ask about, nothing is
+    scored.
     """
     contributions = _attributed(chosen, base, built, ctx)
+    spell_path = _spell_path_contributions(problem, chosen, base, built, ctx,
+                                           goal)
+    contributions += spell_path
     felt = _felt_by_the_goal(problem, chosen, ctx, goal, built, contributions)
-    rating = _rating_word(goal.score(built, ctx)) if felt else ""
+    rating = (_rating_word(goal.score(built, ctx))
+             if (felt or spell_path) else "")
     already = {entry.effect_id for entries in base.sources.values()
                for entry in entries}
     counted_ids = {one.effect_id for one in contributions} | already
@@ -750,7 +774,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                     types.ReasonLine(
                         slot_index=candidate.slot_index, effect_id=effect_id,
                         text=_explained_line(one, built, felt, rating,
-                                             one is first_attribute))
+                                             one is first_attribute, ctx))
                     for one in own)
             else:
                 lines.append(_silent_effect(
@@ -815,7 +839,7 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
         types.ReasonLine(
             slot_index=candidate.slot_index, effect_id=curse_id,
             text=_explained_line(one, built, felt, rating,
-                                 one is first_attribute),
+                                 one is first_attribute, ctx),
             is_curse=True)
         for one in moved)
 
@@ -976,6 +1000,90 @@ def _without_the_curse(chosen: Sequence[types.Candidate],
         for copy in chosen)
 
 
+#: Sentinel `_Contribution.field_key` for a spell-path effect (QA-293):
+#: `start_magic_id` decides which spell gets thrown, not a rate on one, so it
+#: has no field in `Build.sources`/`built.rates` a real key could name.
+_SPELL_PATH_FIELD = "spell path"
+
+
+def _is_art_scoped(contribution: _Contribution) -> bool:
+    """Does this contribution's own figure only count under a matching art?
+
+    `model.compute` files a school- or genus-restricted buff's raw rate
+    under a `model.SCOPED_PREFIX` key the moment the relic is equipped,
+    whichever art the running goal later asks about -- the restriction
+    plays out afterwards, in `model.art_factor`, asked with the one art
+    `ctx.hit_with` names. A figure differing from neutral here is therefore
+    not yet proof that *this* goal's own art selection multiplies by it
+    (QA-293), which is why `_felt_by_the_goal` is asked about it below
+    rather than `_moved_nothing` alone.
+    """
+    return _real_field(contribution.field_key).startswith(model.SCOPED_PREFIX)
+
+
+def _spell_art_chosen(ctx: types.GoalContext) -> bool:
+    """Is `ctx.hit_with` a spell art -- a genus or a school (QA-293)?
+
+    Confined to spells on purpose. The same gap between a scoped buff's raw
+    `Build.sources` entry and what `model.art_factor` actually multiplies by
+    exists for a Weapon Art choice too, but that is a wider change than this
+    fix and stays untouched: a scoped buff under a weapon-swing goal keeps
+    reading exactly as every existing case says it should.
+    """
+    return bool(ctx.hit_with) and (
+        ctx.hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
+        or ctx.hit_with.startswith(model.ART_FAMILY_PREFIX))
+
+
+def _spell_path_contributions(problem: types.SlotProblem,
+                              chosen: Sequence[types.Candidate],
+                              base: model.Build, built: model.Build,
+                              ctx: types.GoalContext,
+                              goal: types.Goal) -> tuple[_Contribution, ...]:
+    """What a relic that swaps the thrown spell moved (QA-293).
+
+    `start_magic_id` carries no `modifiers` at all -- it decides which spell
+    is cast, not a rate on one -- so it writes nothing to `Build.sources`
+    and `_attributed` never sees it: on the save this was found on, the swap
+    that turned a 0.00 spell row into 577 was reported as an effect with "no
+    number here shows what this adds", while a school buff the thrown spell
+    does not belong to was reported as the one that moved it.
+
+    Asked the way AD-038.3 already asks what one effect is worth: score the
+    assignment again with this one effect's id taken off the copy that
+    carries it, and the difference is what the swap itself earned. Only a
+    swap this build did not already carry without the candidate counts --
+    `built.swapped_spell_ids` repeating an id `base.swapped_spell_ids`
+    already held means another relic puts the very same spell in the hand,
+    and the game keeps the first one equipped (`model.compute`'s own
+    exclusivity rule), so a second copy's swap changes nothing.
+    """
+    new_swaps = set(built.swapped_spell_ids) - set(base.swapped_spell_ids)
+    if not new_swaps:
+        return ()
+    out: list[_Contribution] = []
+    for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
+        for effect_id in candidate.effect_ids:
+            effect = ctx.data["effects"].get(str(effect_id))
+            magic_id = effect.get("start_magic_id") if effect else None
+            if not isinstance(magic_id, int) or magic_id not in new_swaps:
+                continue
+            name = _effect_name(ctx, effect_id)
+            if name is None:
+                continue
+            without = _without_the_curse(chosen, candidate, effect_id)
+            without_build = evaluate(problem, without, ctx,
+                                     want_qualitative=False)
+            delta = (goal.score(built, ctx).value
+                    - goal.score(without_build, ctx).value)
+            if not delta:
+                continue
+            out.append(_Contribution(
+                candidate=candidate, effect_id=effect_id, effect_name=name,
+                is_curse=False, field_key=_SPELL_PATH_FIELD, own=delta))
+    return tuple(out)
+
+
 def _felt_by_the_goal(problem: types.SlotProblem,
                       chosen: Sequence[types.Candidate],
                       ctx: types.GoalContext, goal: types.Goal,
@@ -995,12 +1103,12 @@ def _felt_by_the_goal(problem: types.SlotProblem,
     list here says what a goal measures, so a third direction brings its own
     answer without a line changing (AD-004).
 
-    **Which effects are even asked, two groups.** Every curse, exactly as
+    **Which effects are even asked, three groups.** Every curse, exactly as
     before AD-038 -- `_line_the_figure_does_not_count` still needs to know
     whether a curse with no attribute in it (an HP curse under "Maximise
     damage", say) moved the figure, and that question stays a plain
-    zero-or-not one, unchanged. And, new here, every **buff or curse** that
-    carries at least one `_Contribution` whose `field_key` is an attribute
+    zero-or-not one, unchanged. Every **buff or curse** that carries at
+    least one `_Contribution` whose `field_key` is an attribute
     (`model.ATTRIBUTE_ORDER`) -- because AK-315 needs the *amount* for those,
     not only whether it is zero.
 
@@ -1018,9 +1126,11 @@ def _felt_by_the_goal(problem: types.SlotProblem,
     anyway would cost a full evaluation per suggestion for an empty answer.
     """
     by_effect: dict[tuple[int, int], list[_Contribution]] = {}
+    spell_art = _spell_art_chosen(ctx)
     for contribution in contributions:
         if (contribution.is_curse
-                or contribution.field_key in model.ATTRIBUTE_ORDER):
+                or contribution.field_key in model.ATTRIBUTE_ORDER
+                or (spell_art and _is_art_scoped(contribution))):
             by_effect.setdefault(
                 (contribution.candidate.slot_index, contribution.effect_id),
                 []).append(contribution)
