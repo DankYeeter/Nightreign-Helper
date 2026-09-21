@@ -11,6 +11,8 @@ the window, which owns `declared`, recomputes (AD-034).
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QCursor, QFont
 from PySide6.QtWidgets import (
@@ -28,6 +30,22 @@ MUTED = "#8a8a8a"
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
 # it is namespaced to keep it out of the way of the real ones.
 AR_BREAKDOWN_KEY = "ar:total"
+
+# The second such key, for the spell-damage click-through (AK-361): the
+# uncalibrated note and the rates behind the figure are shown when the player
+# asks for them, the way this panel already shows the attack rating's, rather
+# than as a third standing line under every catalyst tile.
+SPELL_BREAKDOWN_KEY = "spell:total"
+
+#: AK-356: the Weapon art row of a staff or a seal. The game ranks a catalyst
+#: on the spell power it prints for it and no attack art reaches that figure
+#: (AD-048/AD-053 point 5), so the row says so where its number would be --
+#: a statement here rather than the refusal of a choice
+#: (`goals._ART_ON_A_CATALYST`), because this panel has no box to refuse.
+#: The art names itself out of `model.ART_LABELS` (AK-363).
+ART_ON_A_CATALYST = (
+    "{art} — not shown: a staff or a seal is ranked on the spell power the "
+    "game shows for it, and no attack art reaches that figure.")
 
 # -- what counts as visible on this screen ------------------------------
 #
@@ -91,6 +109,17 @@ class HandSwitch(QToolButton):
 
     def checkStateSet(self) -> None:
         self.setText(HAND_CAPTIONS[self.isChecked()])
+
+
+def _rate_label(field_name: str) -> str:
+    """What one multiplier is called in a breakdown row.
+
+    An art carries its own name (`model.ART_LABELS`, AK-363) -- the spell
+    row's rates hold the genus the catalyst casts beside the damage-type
+    rates, and `Incantations` is what the chooser calls it too. Everything
+    else is a rate field and is named as it always was.
+    """
+    return model.ART_LABELS.get(field_name) or model.label_for(field_name)
 
 
 def _heading(text: str) -> QLabel:
@@ -231,6 +260,10 @@ class StatSheet(QScrollArea):
     # Populated by draw(), read by the click-to-break-down popup.
     last_sources: dict = {}
     last_rates: dict = {}
+    #: The spell row's own answer, the input of its click-through (AK-361),
+    #: `None` wherever the row is not drawn. Held for the same reason
+    #: `last_ar` is: the popup's text is testable only where its input is.
+    last_spell = None
 
     def __init__(self, planner):
         # The whole sheet scrolls. With six relics equipped the conditional and
@@ -367,6 +400,11 @@ class StatSheet(QScrollArea):
             self._show_ar_breakdown()
             return
 
+        if key == SPELL_BREAKDOWN_KEY:
+            QToolTip.showText(QCursor.pos() + QPoint(18, 0),
+                              self._spell_breakdown_text())
+            return
+
         # An "All damage" row stands for five fields; its sources live under
         # the real one behind it.
         entries = self.last_sources.get(model.real_field(key), [])
@@ -397,6 +435,68 @@ class StatSheet(QScrollArea):
 
         # Offset to the right of the cursor so the number stays readable.
         QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
+
+    def _rate_rows(self, rates: dict[str, float],
+                   weapon_class: str | None = None) -> list[str]:
+        """One row per multiplier in play, with the relics behind each.
+
+        Read by both click-throughs: the attack rating's and the spell
+        damage's (AK-361). The two figures come out of one facade and one
+        rate loop (`damage._multiplied`), so formatting them twice would let
+        one percentage be written two ways. A spell reaches no class-scoped
+        buff at all (AD-053 point 4), which is why the armament class is the
+        armament's business and left out here.
+        """
+        rows = []
+        for field_name, value in rates.items():
+            rows.append(f"&nbsp;&nbsp;{_rate_label(field_name)} &nbsp; "
+                        f"<b>{(value - 1.0) * 100:+.1f}%</b>")
+            # Which relics produced that multiplier, in the same order and
+            # wording the other breakdowns use. A buff scoped to melee or
+            # ranged armaments is filed under its own key, so both are read:
+            # the flat sources, then the ones that apply because of what this
+            # armament is.
+            entries = list(self.last_sources.get(field_name, []))
+            if weapon_class:
+                scoped = (f"{model.WEAPON_CLASS_PREFIX}{weapon_class}:"
+                          f"{field_name}")
+                entries += [
+                    entry._replace(
+                        name=f"{entry.name} — {weapon_class} armaments only")
+                    for entry in self.last_sources.get(scoped, [])]
+            for entry in entries:
+                rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
+                            f"<span style='color:{MUTED}'>{entry.name} "
+                            f"{(entry.own - 1.0) * 100:+.1f}%</span>")
+        return rows
+
+    def _spell_breakdown_text(self) -> str:
+        """Where the spell row's figure comes from, and the note it carries.
+
+        AK-361: the baseline, the rates that moved it with their relics, the
+        figure -- and exactly one of two sentences, the facade's own, never
+        both and never neither. Handed back rather than only shown, for the
+        reason `_ar_breakdown_text` is (QA-073 b): a text built straight into
+        a tooltip is a text no test can read.
+        """
+        rating = self.last_spell
+        if rating is None:
+            return "No spell on this armament."
+        # Game text in a rich-text tooltip: the spell's own name, in the
+        # heading and inside the facade's sentence, is escaped here rather
+        # than where the facade writes it -- its other sinks are PlainText
+        # and would show a `&amp;` of their own (SEC-019).
+        note = rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
+            name=damage.SPELL_DAMAGE_NAME)
+        rows = [f"<b>{damage.SPELL_DAMAGE_NAME} — "
+                f"{html.escape(str(rating.spell.get('name', '')))}</b>",
+                f"&nbsp;&nbsp;Base &nbsp; "
+                f"<b>{damage.displayed(rating.bare_figure)}</b>"]
+        rows += self._rate_rows(rating.rates)
+        rows.append(f"&nbsp;&nbsp;<b>{damage.SPELL_DAMAGE_NAME} "
+                    f"{damage.displayed(rating.figure)}</b>")
+        rows.append(f"<span style='color:{MUTED}'>{html.escape(note)}</span>")
+        return "<br>".join(rows)
 
     def _ar_breakdown_text(self) -> str:
         """Where the weapon's attack-rating change came from.
@@ -437,27 +537,7 @@ class StatSheet(QScrollArea):
             rows.append(f"&nbsp;&nbsp;From attributes &nbsp; "
                         f"<b>{from_attributes:+.0f}</b>")
 
-        weapon_class = ar.get("class")
-        for field_name, value in ar["rates"].items():
-            rows.append(f"&nbsp;&nbsp;{model.label_for(field_name)} &nbsp; "
-                        f"<b>{(value - 1.0) * 100:+.1f}%</b>")
-            # Which relics produced that multiplier, in the same order and
-            # wording the other breakdowns use. A buff scoped to melee or
-            # ranged armaments is filed under its own key, so both are read:
-            # the flat sources, then the ones that apply because of what this
-            # armament is.
-            entries = list(self.last_sources.get(field_name, []))
-            if weapon_class:
-                scoped = (f"{model.WEAPON_CLASS_PREFIX}{weapon_class}:"
-                          f"{field_name}")
-                entries += [
-                    entry._replace(
-                        name=f"{entry.name} — {weapon_class} armaments only")
-                    for entry in self.last_sources.get(scoped, [])]
-            for entry in entries:
-                rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
-                            f"<span style='color:{MUTED}'>{entry.name} "
-                            f"{(entry.own - 1.0) * 100:+.1f}%</span>")
+        rows += self._rate_rows(ar["rates"], ar.get("class"))
 
         if not ar["rates"] and abs(from_attributes) < VISIBLE_CHANGE:
             rows.append("&nbsp;&nbsp;<i>nothing equipped moves this weapon</i>")
@@ -501,6 +581,95 @@ class StatSheet(QScrollArea):
         beside = QPoint(18, 0) if getattr(self, "last_ar", None) else QPoint()
         QToolTip.showText(QCursor.pos() + beside, self._ar_breakdown_text())
 
+    def _weapon_art_row(self, slot, build, hero, now,
+                        two_handing: bool) -> str:
+        """The same armament under its Weapon Art's factor (AK-354/AK-355).
+
+        A second call of the facade function that filled the row above, with
+        `art=model.SKILL_ART`; only its equipped half counts. The baseline is
+        deliberately the total above rather than the relic-free figure: what
+        this row asks is what the art adds to what the armament already hits
+        for, so a Strength relic moves both rows alike and leaves this one's
+        difference at `no change`, and a skill-scoped relic (scope 112/111)
+        is the only one that moves it.
+
+        AK-356: on a staff or a seal the head of the armament is a spell
+        power and no attack art reaches it (AD-048/AD-053 point 5), so the
+        row says that where its number would be.
+        """
+        label = model.ART_LABELS[model.SKILL_ART]
+        if now.catalyst_scaling is not None:
+            return (f"<div style='color:{MUTED}'>"
+                    f"{ART_ON_A_CATALYST.format(art=label)}</div>")
+        skill = damage.equipped(slot, self.planner.active_weapon, build, hero,
+                                self.planner.data, art=model.SKILL_ART)[1]
+        delta = skill.final_headline - now.final_headline
+        colour = (GOOD if delta > COLOURED_CHANGE
+                  else BAD if delta < -COLOURED_CHANGE else MUTED)
+        change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
+                  else "no change")
+        return (
+            f"<div>{label} <span style='color:{MUTED}'>"
+            f"{now.displayed_hands(lambda r: r.final_headline, two_handing)}"
+            f"</span> <span style='color:{colour}'>{change}</span> "
+            f"<b style='color:{ACCENT}'>"
+            f"{skill.displayed_hands(lambda r: r.final_headline, two_handing)}"
+            f"</b></div>"
+        )
+
+    def _spell_damage_rows(self, slot, build, hero,
+                           starting: bool) -> list[str]:
+        """The spell row, where this Nightfarer's own equipment casts one.
+
+        AK-353 point 2: the right starting hand, or whichever tile the player
+        has put the starting catalyst on. The first case is what Revenant
+        needs -- his Finger Seal is in the left hand and
+        `Planner.apply_hero_weapon` fills one tile, so the seal sits on no
+        tile at all and the row still belongs under his claws.
+
+        AK-358: a Nightfarer with neither staff nor seal gets no row, not a
+        sentence -- this panel already leaves out what does not apply, the
+        way it leaves out "Inflicts <status>". Eight of the ten are in that
+        case (AD-052).
+
+        Which catalyst and which spell is the facade's choice and never this
+        panel's (AK-357/AD-052), and the tier is `weapons.MIN_UPGRADE` for
+        the reason the advisor asks at it: what the player has reinforced in
+        this run is not what a spell figure stands on.
+        """
+        data = self.planner.data
+        catalyst = damage.start_catalyst(hero, data)
+        if catalyst is None or not (starting
+                                    or slot.weapon["id"] == catalyst["id"]):
+            return []
+        thrown = damage.spell_thrown(build, data, catalyst)[0]
+        if thrown is None:
+            return []
+        # `damage_type=""`: this panel has no damage-type box, so the figure
+        # is every type of the spell together (AK-357).
+        rating = damage.spell(
+            thrown, catalyst, weapons.MIN_UPGRADE, build, data,
+            hit_with=damage.GENUS_OF_CATALYST[catalyst["wep_type"]])
+        self.last_spell = rating
+        delta = rating.figure - rating.bare_figure
+        colour = (GOOD if delta > COLOURED_CHANGE
+                  else BAD if delta < -COLOURED_CHANGE else MUTED)
+        change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
+                  else "no change")
+        # No two-handed twin (AK-359/AD-053 point 4): the two-handing bucket
+        # does not reach a spell, so the figure is the same at either stand
+        # of the switch. Game text in a rich-text label is escaped (SEC-019).
+        return [
+            f"<div>{damage.SPELL_DAMAGE_NAME} "
+            f"({html.escape(str(thrown.get('name', '')))}) "
+            f"<span style='color:{MUTED}'>"
+            f"{damage.displayed(rating.bare_figure)}</span> "
+            f"<span style='color:{colour}'>{change}</span> "
+            f"<a href='{SPELL_BREAKDOWN_KEY}' style='color:{ACCENT};"
+            f"text-decoration:none'><b>"
+            f"{damage.displayed(rating.figure)}</b></a></div>"
+        ]
+
     def _refresh_weapon_damage(self, build) -> None:
         """Attack rating before and after everything equipped.
 
@@ -516,6 +685,10 @@ class StatSheet(QScrollArea):
         # The switch's stand goes into every figure that shows both hands
         # (AK-298); the figures themselves do not move with it (AK-293).
         two_handing = self.hand_switch.isChecked()
+        # Cleared before anything is drawn: a spell row that is not drawn
+        # this time round must not leave the last one's figures behind for
+        # the click-through to show (AK-358).
+        self.last_spell = None
         answers: dict[int, tuple] = {}
         for index, slot in enumerate(self.planner.weapon_slots):
             equipped = None
@@ -604,6 +777,20 @@ class StatSheet(QScrollArea):
                if abs(pct) >= VISIBLE_PERCENT else "") +
             "</div>"
         )
+
+        # AK-353/AK-364: the two new rows, directly under the total and
+        # before the status ones, and on no tile. What brings the Weapon art
+        # row is not "a tile is active" but the identity of the active tile
+        # against this Nightfarer's starting equipment -- the same pairing
+        # the status penalty follows (AD-038), so a starting armament carried
+        # to another slot takes the row with it. Three rows, three
+        # yardsticks, never a sum of them (AK-362).
+        starting = damage.is_starting_armament(
+            weapon, hero, self.planner.active_weapon)
+        if starting:
+            rows.append(self._weapon_art_row(slot, build, hero, now,
+                                             two_handing))
+        rows += self._spell_damage_rows(slot, build, hero, starting)
 
         # Status the armament applies on a landed hit. This belongs with the
         # weapon rather than in the relic list: "Starting armament inflicts
