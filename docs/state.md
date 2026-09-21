@@ -1,6 +1,6 @@
 # Stand
 
-2026-09-19, **Zyklus 27: Aufraeumen nach Release 1.14.0**. Branch
+2026-09-21, **Zyklus 28: Restposten nach 1.18.0 (T-328), gesammelt, kein Release**. Branch
 `docs/audit-and-advisor-design` (PR #16 gemerged 16.09. `ae474c1`; seither
 weiter auf dem Branch, `main` haengt hinterher — naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -8,7 +8,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 19.09.): T ab **T-314** · QA ab **QA-287**
+**Nummernkreise** (nachgezaehlt 21.09.): T ab **T-329** · QA ab **QA-297** · OF ab **OF-56**
 · SEC ab **SEC-051** · AK **AK-327** · AD **AD-040** · OF **OF-45** · DR
 **DR-034** · R **R-009** · C **C-007** · A **A-038**. AD-027, OF-14, C-005
 nie vergeben.
@@ -71,6 +71,8 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 2. **A-033/A-035** (C-006): Fristende 07.11.2026 — Bestaetigung.
 3. **QA-241, QA-271** — Team-Repo.
 4. **A11-Rest:** ein Freund testet 1.14.0 — Rueckmeldung waere der Nachweis.
+5. **T-328b:** gilt EXTRACT_VERSION 12→16 als "groessere Aenderung an der
+   Extraktion" (Entscheid 01.09.)? Einschaetzung compliance: nein, A-025 deckt es.
 
 ## Beschlossen, nicht beauftragt
 
@@ -87,14 +89,21 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
   113 us; Nightfarer nicht gemerkt (Backlog); ROLLOUT.md ohne 1.16/1.17;
   Auflagen-Register seit 1.13.1 nicht fortgeschrieben (compliance).
 - **A27 abgeschlossen: Release 1.18.0 (21.09. 19:35, Tag `v1.18.0` auf `1ae6952`,
-  kurze Kette ohne clean-room/power-user — Nutzer 19:25).** Bau `7d1e216`,
-  QA-293 `46a7e58`, Suite 1892/9, QA T-327c CONCERNS (A27 belegt), Sicherheit
-  PASS, Artefakt `5ff8ca5` SHA 89DAACBB…DCCC. Offen: QA-295 P4 (Weapon-art-
-  Delta kein Link, AK-355), QA-294 zurueckgestellt (Pool-Meldung), OF-54
-  Zauberformel unvermessen, performance-tuner Katalysator-Scan, Nightfarer
-  nicht gemerkt, AUFLAGEN-Register seit 1.13.1 nicht fortgeschrieben,
-  ROLLOUT.md ohne 1.16-1.18. PR #18 offen (Nutzer mergt). Werkzeugbefund:
-  Worktree-Sitzungen ohne PowerShell — Fensterlaeufe nur im Hauptbaum.
+  kurze Kette ohne clean-room/power-user — Nutzer 19:25).** Offen: QA-294
+  zurueckgestellt (Pool-Meldung), OF-54 Zauberformel unvermessen,
+  performance-tuner Katalysator-Scan. PR #18 offen (Nutzer mergt).
+  Werkzeugbefund: Worktree-Sitzungen ohne PowerShell — Fensterlaeufe nur im
+  Hauptbaum.
+- **Zyklus 28 (21.09. 21:25-21:40, T-328, kein Release):** Nightfarer wird
+  gemerkt (`a0ae6b7`, Schluessel `hero`, OF-55; Suite 1894/9 um 21:34;
+  developer ueberschrieb die QA-155-Tests und stellte sie in `148a0de` selbst
+  wieder her). QA-295 geschlossen per AK-355-Nachtrag (Delta kein Link).
+  AUFLAGEN.md "Stand 1.18.0": keine neue Auflage, A-012/023/024/037 GRUEN,
+  nichts ROT. ROLLOUT.md 1.15.0-1.18.0 nachgezogen; EXTRACT_VERSION je Tag
+  gemessen 12/15/15/16/16. Nebenfunde: `check_licences.py` bewacht nur
+  `requirements.txt` (PyInstaller-Zeile nicht mehr); Update-Pfade 1.14→1.15
+  und 1.17→1.18 ohne clean-room. Ungeprueft am Fenster: Neustart waehlt den
+  gemerkten Nightfarer (nur Test). Das naechste Release traegt es.
 - **OF-43 (17.09.):** Fuenf-Dateien-Grenze weicht, wenn die Alternative
   Duplikat-Logik in der UI-Schicht ist (T-289b, sieben Dateien).
 - **OF-34, OF-35 (13.09.):** Test-Umbenennungen zaehlen nicht; `MUTATIONS`

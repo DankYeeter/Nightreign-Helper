@@ -2989,6 +2989,12 @@ und einem fetten Endwert gleich dem grauen; ein Build mit genau einem
 Skill-Relikt zeigt eine farbige, von Null verschiedene Differenz, waehrend
 die Zeile "Total" unveraendert bleibt.
 
+**Nachtrag 21.09.2026 (Director, QA-295):** Die Differenz dieser Zeile ist
+gefaerbter Text, **kein Link** — AK-361 nennt genau zwei Link-Schluessel
+(`AR_BREAKDOWN_KEY`, `SPELL_BREAKDOWN_KEY`), ein dritter haette keinen
+Tooltipinhalt. "Dieselbe Form" meint Farbe, Grau und Fett, nicht den
+Klickbereich. Stand `nrplanner/statsheet.py:614` ist damit spezgerecht.
+
 #### AK-356 — `Weapon art` auf einem Katalysator: Ersatzsatz statt Zahl
 
 **AK-356** Ist die rechte Starthand selbst ein Stab oder Siegel (Recluse),
