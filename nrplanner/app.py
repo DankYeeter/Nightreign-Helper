@@ -2725,8 +2725,11 @@ class Planner(QMainWindow):
             note += (f" {_relic_count(clashed)} could not be placed: "
                      f"{worn} already worn in another slot.")
         # The button to the passed-over saves is still there, so the line
-        # that explains it has to be as well (AK-366, QA-004).
-        note += other_saves_clause(self.owned)
+        # that explains it has to be as well (AK-366, QA-004). The clause
+        # takes the place of the full stop, never ". —" (23.09.2026).
+        clause = other_saves_clause(self.owned)
+        if clause:
+            note = note.removesuffix(".") + clause
         self.owned_label.setText(note)
         self.recompute()
 

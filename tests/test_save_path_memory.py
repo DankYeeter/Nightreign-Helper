@@ -849,6 +849,8 @@ def test_the_first_import_keeps_the_clause_about_the_other_saves(
         assert the_line(window).startswith("Loaded "), "no build was taken over"
         assert the_line(window).endswith(
             " — 1 other save was found; this is the one with more relics")
+        # The seam of 23.09.2026: the clause takes the place of the full stop.
+        assert ". —" not in the_line(window)
         assert offers_to_find_the_save(window)
     finally:
         close(window, read)
