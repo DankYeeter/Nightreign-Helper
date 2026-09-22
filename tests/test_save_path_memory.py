@@ -725,6 +725,78 @@ def test_one_unreadable_save_does_not_hide_a_good_one(game_data, a_real_scan,
     assert found.owned
 
 
+# -- AK-366: the saves the automatic route passed over (QA-004) -----------
+
+
+def three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch):
+    """Two files that read as the frozen slot and one that cannot be read."""
+    good = [a_save_file(tmp_path / name, b"stands for the frozen slot")
+            for name in ("one", "two")]
+    bad = a_save_file(tmp_path, b"this is a screenshot")
+    monkeypatch.setattr(savefile, "find_saves", lambda: [*good, bad])
+    real_scan_save = inventory._scan_save
+
+    def the_good_ones_are_the_frozen_slot(path, *args, **kwargs):
+        if path in good:
+            return a_real_scan
+        return real_scan_save(path, *args, **kwargs)
+
+    monkeypatch.setattr(inventory, "_scan_save",
+                        the_good_ones_are_the_frozen_slot)
+    return good
+
+
+def test_an_unreadable_save_is_not_counted_as_passed_over(
+        game_data, a_real_scan, monkeypatch, tmp_path):
+    three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data).other_saves == 1
+
+
+def test_a_picked_save_passes_over_nothing(game_data, a_real_scan,
+                                           monkeypatch, tmp_path):
+    """`Find my save...` reads one file, whatever else the search finds."""
+    good = three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data, good[0]).other_saves == 0
+
+
+def test_a_single_save_passes_over_nothing(game_data, a_real_scan):
+    assert a_real_scan.other_saves == 0
+
+
+@pytest.mark.parametrize("others, clause", [
+    (0, None),
+    (1, " — 1 other save was found; this is the one with more relics"),
+    (2, " — 2 other saves were found; this is the one with the most relics"),
+])
+def test_the_note_says_how_many_saves_were_passed_over(
+        store, game_data, qapp, a_real_scan, others, clause):
+    """AK-366 word for word, and the button that goes with it (22.09.2026).
+
+    Between the relic count and the builds clause. The stored builds are
+    left out for the reason `test_a_picked_save_with_relics_...` leaves them
+    out: taking one over rewrites the line.
+    """
+    answer = dataclasses.replace(a_real_scan, loadouts=[], other_saves=others)
+    read = StatedRead(answer)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        head = f"{len(answer.owned)} relics in {answer.source}"
+        if clause is None:
+            assert "other save" not in the_line(window)
+            assert not offers_to_find_the_save(window)
+        else:
+            assert the_line(window).startswith(
+                head + clause + " — this save stores no builds yet")
+            assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
+
+
 # -- AK-127 and AK-128: what these texts may not say ----------------------
 
 

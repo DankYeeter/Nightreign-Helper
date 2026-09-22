@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from Crypto.Cipher import AES
 
@@ -104,6 +104,9 @@ class Inventory:
     # with a default, so every hand-built `Inventory` stays valid and the
     # value crosses the worker's thread boundary unchanged (AD-006.8).
     read_the_slow_way: bool = False
+    # How many other readable saves the automatic search found and passed
+    # over for this one (AK-366, QA-004). Zero for a file the player picked.
+    other_saves: int = 0
 
     def _refuse_a_density_no_save_can_have(self) -> None:
         """The second SEC-022/SEC-034 limit, on the way out rather than in.
@@ -300,6 +303,9 @@ class SaveScan:
     #: boundary with everything else the reading half found out, because the
     #: half that builds the window has no dataset to ask again.
     read_the_slow_way: bool = False
+    #: How many other readable save files `scan` passed over for this one
+    #: (AK-366). Set by `scan`, not by `_scan_save`, which sees one file.
+    other_saves: int = 0
 
 
 class SaveNotReadable(ValueError):
@@ -403,6 +409,7 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
 
     best: SaveScan | None = None
     unreadable = ""
+    readable = 0
     for path in sorted(saves, key=_changed_at, reverse=True):
         try:
             best = _scan_save(path, valid_relics, valid_effects, best,
@@ -415,8 +422,14 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
             # the first one, which is the newest, because that is the file the
             # player most likely means.
             unreadable = unreadable or errortext.in_english(exc)
+        else:
+            readable += 1
     if best is None and unreadable:
         raise SaveNotReadable(unreadable)
+    if best is not None and readable > 1:
+        # The choice stays silent no longer (AK-366): a picked file is the
+        # only one in `saves`, so this is the automatic route by construction.
+        best = replace(best, other_saves=readable - 1)
     return best
 
 
@@ -432,7 +445,8 @@ def build(data: dict, found: SaveScan) -> Inventory:
     inv = Inventory(source=found.source, folder=found.folder,
                     source_bytes=found.source_bytes,
                     loadout_error=found.loadout_error,
-                    read_the_slow_way=found.read_the_slow_way)
+                    read_the_slow_way=found.read_the_slow_way,
+                    other_saves=found.other_saves)
     item_by_handle: dict[int, OwnedItem] = {}
 
     for entry in found.owned:

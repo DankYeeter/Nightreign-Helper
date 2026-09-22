@@ -2463,6 +2463,14 @@ class Planner(QMainWindow):
             return
 
         note = f"{self.owned.relic_count} relics in {self.owned.source}"
+        # AK-366: the automatic route no longer passes over other saves
+        # silently. Which ones, and whose account, stays in the tooltip.
+        others = self.owned.other_saves
+        if others == 1:
+            note += " — 1 other save was found; this is the one with more relics"
+        elif others:
+            note += (f" — {others} other saves were found; this is the one "
+                     f"with the most relics")
         if self.owned.loadouts:
             note += f", {len(self.owned.loadouts)} stored builds"
         elif self.owned.loadout_error:
@@ -2484,8 +2492,11 @@ class Planner(QMainWindow):
         # can contain a "<", so this is depth rather than a hole being shut:
         # the path is shown as the path, whatever it turns out to hold.
         self.owned_label.setToolTip(html.escape(self.owned.folder))
-        # A save is loaded, so the offer to find one is gone (AK-123).
-        self.find_save_button.setVisible(False)
+        # A save is loaded, so the offer to find one is gone (AK-123) --
+        # unless the note just said other saves were passed over, in which
+        # case the button is the way to one of them (AK-366, decision
+        # 22.09.2026).
+        self.find_save_button.setVisible(bool(others))
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
