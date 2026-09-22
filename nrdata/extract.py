@@ -159,8 +159,8 @@ SP_EFFECT_DEF_SIZE = 976
 # Paramdex has no name for it, so the placeholder is the only handle there
 # is: `vendor/Paramdex/NR/Defs/ReinforceParamWeapon.xml` writes
 # `<Field Def="f32 unknown_1" />`. The def covers the row exactly (row_size
-# 132 = pdef.row_size 132, def_is_prefix False), so the offset is read off
-# the schema rather than guessed.
+# 132 = pdef.row_size 132), so the offset is read off the schema rather than
+# guessed.
 #
 # What it is was measured, not inferred from the name: the game shows
 # `floor(90 x this x (1 + curve(INT or FAI)/100))`, which hits 84 of 84
