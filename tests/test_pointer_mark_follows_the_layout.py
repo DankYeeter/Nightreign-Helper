@@ -28,7 +28,7 @@ import pytest
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QScrollArea, QTabWidget
 
-from nrplanner import bosstab, cardgrid
+from nrplanner import cardgrid
 
 from tests import rendered
 
@@ -47,12 +47,9 @@ def pointer_put_back():
     QCursor.setPos(where)
 
 
-def cards(tab) -> list:
-    return tab.holder.findChildren(bosstab.BossCard)
-
-
 def marked(tab) -> list[str]:
-    return sorted(card.boss["name"] for card in cards(tab) if card.hovered)
+    return sorted(card.boss["name"] for card in rendered.cards(tab)
+                  if card.hovered)
 
 
 def under_the_pointer(tab) -> list[str]:
@@ -62,7 +59,7 @@ def under_the_pointer(tab) -> list[str]:
     case that asked `QApplication.widgetAt` would be agreeing with the code
     it guards by construction.
     """
-    return sorted(card.boss["name"] for card in cards(tab)
+    return sorted(card.boss["name"] for card in rendered.cards(tab)
                   if card.isVisible()
                   and card.rect().contains(card.mapFromGlobal(QCursor.pos())))
 
@@ -92,7 +89,7 @@ def test_the_mark_follows_a_reflow_the_pointer_did_not_ask_for(
     """
     with rendered.laid_out(game_data, "boss_tab", WIDE) as (window, tab):
         wide_columns = columns(tab)
-        put_the_pointer_on(cards(tab)[4])
+        put_the_pointer_on(rendered.cards(tab)[4])
         assert marked(tab) == under_the_pointer(tab) != [], (
             f"the pointer was put on a card and the grid marks "
             f"{marked(tab)}, so this case cannot tell whether a reflow moves "
@@ -126,7 +123,7 @@ def test_the_mark_follows_the_cards_a_scroll_brings_under_the_pointer(
             pytest.skip(
                 "the Nightlord grid fits without scrolling at this size, so "
                 "there is no scroll for the mark to follow")
-        put_the_pointer_on(cards(tab)[4])
+        put_the_pointer_on(rendered.cards(tab)[4])
         was = marked(tab)
         assert was == under_the_pointer(tab) != []
 
@@ -150,7 +147,7 @@ def test_a_card_that_appears_under_a_resting_pointer_takes_the_mark(
     """
     with rendered.laid_out(game_data, "boss_tab", WIDE) as (window, tab):
         tabs = window.findChild(QTabWidget)
-        put_the_pointer_on(cards(tab)[4])
+        put_the_pointer_on(rendered.cards(tab)[4])
         expected = under_the_pointer(tab)
         assert expected != []
 

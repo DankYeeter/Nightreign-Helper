@@ -24,6 +24,7 @@ import time
 
 import pytest
 from PySide6.QtCore import QEventLoop
+from PySide6.QtWidgets import QLabel
 
 from nrplanner import advisorbar, relicpicker
 from nrplanner.advisor import goals as advisor_goals
@@ -277,3 +278,9 @@ def cards_in(dialog) -> list:
 def tiles_in(dialog) -> list:
     """The custom relic tiles standing in the dialog's scroll area."""
     return dialog.scroll.widget().findChildren(relicpicker.CustomRelicCard)
+
+
+def area_lines(dialog) -> list[str]:
+    """Every line standing in the card area, in order."""
+    return [label.text()
+            for label in dialog.scroll.widget().findChildren(QLabel)]

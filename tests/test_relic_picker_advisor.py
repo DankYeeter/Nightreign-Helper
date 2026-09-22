@@ -32,6 +32,7 @@ from nrplanner import advisorbar, relicpicker
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import types
 from tests import rendered
+from tests.picker_track import area_lines
 
 #: A value row long enough to stand for the worst real case: the survival
 #: direction carries the longer unit, and four digits is more than any
@@ -1730,12 +1731,6 @@ def waiting_picker(slot, gains=None):
 
 def custom_tiles(dialog):
     return dialog.scroll.widget().findChildren(relicpicker.CustomRelicCard)
-
-
-def area_lines(dialog):
-    """Every line standing in the card area, in order."""
-    return [label.text()
-            for label in dialog.scroll.widget().findChildren(QLabel)]
 
 
 def test_the_card_area_is_empty_until_the_answer_arrives(slot):

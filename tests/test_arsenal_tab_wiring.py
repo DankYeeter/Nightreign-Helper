@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel
 
-from nrplanner import arsenaltab, damage, weapons, weaponslots
+from nrplanner import arsenaltab, damage, weapons
 
 from tests import weapon_damage_cases as cases
 
@@ -62,10 +62,6 @@ def named_tile(tab, name: str):
     return tiles[0]
 
 
-def empty_slots() -> list:
-    return [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
-
-
 def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
     """`upgrade.valueChanged` has to reach `recalculate()` on its own.
 
@@ -76,7 +72,7 @@ def test_moving_the_spinbox_alone_repaints_the_tile(planner, game_data):
     hero = cases.hero_by_name(game_data, "Wylder")
     weapon = cases.weapon_by_id(game_data, hero["starting_weapon"])
     planner.hero_index = game_data["heroes"].index(hero)
-    planner.weapon_slots = empty_slots()
+    planner.weapon_slots = cases.empty_slots()
     planner.declared = {}
     planner.recompute()
 
@@ -126,7 +122,7 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
     hero = cases.hero_by_name(game_data, "Wylder")
     weapon = cases.weapon_by_id(game_data, hero["starting_weapon"])
     planner.hero_index = game_data["heroes"].index(hero)
-    planner.weapon_slots = empty_slots()
+    planner.weapon_slots = cases.empty_slots()
     planner.declared = {}
     planner.recompute()
 

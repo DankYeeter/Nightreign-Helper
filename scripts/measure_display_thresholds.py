@@ -41,7 +41,6 @@ fresh read of the installed game. The game is only ever read.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import pathlib
 import sys
@@ -52,19 +51,7 @@ sys.path.insert(0, str(ROOT))
 # No display is available and none is needed; `nrplanner.app` imports Qt.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-
-def load_data() -> dict:
-    from nrplanner import datasource, model, paths
-
-    raw = os.environ.get("NIGHTREIGN_TEST_SNAPSHOT")
-    if raw:
-        data = json.loads(pathlib.Path(raw).read_text(encoding="utf-8"))
-    elif paths.snapshot_path().is_file():
-        data = json.loads(paths.snapshot_path().read_text(encoding="utf-8"))
-    else:
-        data = datasource.load_data()
-    model.configure(data)
-    return data
+from scripts.differential.plan import load_data  # noqa: E402
 
 
 def from_attributes(data: dict, weapon: dict, tier: int, bare_build,

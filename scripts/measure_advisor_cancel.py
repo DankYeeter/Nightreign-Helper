@@ -45,13 +45,11 @@ from PySide6.QtCore import QCoreApplication, QThread  # noqa: E402
 from nrplanner import inventory as inventory_module  # noqa: E402
 from nrplanner import model, paths  # noqa: E402
 from nrplanner.advisor import candidates, goals, types  # noqa: E402
+# The same worst real case `measure_advisor_search.py` uses: six free slots,
+# three of them Deep, nothing held.
+from scripts.measure_advisor_search import (  # noqa: E402
+    GOAL, HERO, LEVEL, VESSEL, slots_of)
 
-#: The same worst real case `measure_advisor_search.py` uses: six free slots,
-#: three of them Deep, nothing held.
-HERO = "Wylder"
-VESSEL = "Wylder's Chalice"
-LEVEL = 15
-GOAL = "max_damage"
 CALLS = 1_000_000
 REPEATS = 5
 PRE_SORTS = 3
@@ -75,13 +73,6 @@ def per_call_seconds(check) -> float:
             check()
         durations.append((time.perf_counter() - start) / CALLS)
     return statistics.median(durations)
-
-
-def slots_of(vessel: dict) -> tuple[types.Slot, ...]:
-    colours = list(vessel["slots"]) + list(vessel["deep_slots"])
-    ordinary = len(vessel["slots"])
-    return tuple(types.Slot(index=index, colour=colour, deep=index >= ordinary)
-                 for index, colour in enumerate(colours))
 
 
 def main() -> int:

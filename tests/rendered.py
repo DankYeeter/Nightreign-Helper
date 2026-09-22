@@ -56,6 +56,18 @@ def settle(passes: int = SETTLE_PASSES) -> None:
         app.processEvents()
 
 
+def cards(tab) -> list:
+    """The Nightlord cards standing on a laid-out Nightlord tab."""
+    from nrplanner import bosstab
+
+    return tab.holder.findChildren(bosstab.BossCard)
+
+
+def pictures(tab) -> dict:
+    """Every card as it is drawn right now, by Nightlord name."""
+    return {card.boss["name"]: card.grab().toImage() for card in cards(tab)}
+
+
 @contextlib.contextmanager
 def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
     """A real window at `width` x `height`, with one tab in front.

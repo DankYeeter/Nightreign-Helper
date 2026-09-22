@@ -49,16 +49,14 @@ import pathlib
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 
 from nrplanner import advisorbar, errortext, relicpicker
 from nrplanner.advisor import goals as advisor_goals
 from nrplanner.advisor import run as advisor_run
 from nrplanner.advisor import types, worker
 
-from tests import advisor_cases as advisor
 from tests import picker_track
-from tests import weapon_damage_cases as cases
 from tests.test_one_build import call_sites, python_modules
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -211,12 +209,6 @@ def a_track_to_ask(shared_planner):
     return shared_planner
 
 
-def area_labels(dialog) -> list[str]:
-    """Every line standing in the card area, in order."""
-    return [label.text()
-            for label in dialog.scroll.widget().findChildren(QLabel)]
-
-
 def test_w2_the_first_paint_is_an_empty_grid_that_says_so(a_track_to_ask,
                                                           qapp):
     """AK-212, whole, over a track that has been asked and is still working.
@@ -245,7 +237,7 @@ def test_w2_the_first_paint_is_an_empty_grid_that_says_so(a_track_to_ask,
         assert picker_track.cards_in(dialog) == []
         assert picker_track.tiles_in(dialog) == [], (
             "the custom tile is a card and waits with the rest (AK-212)")
-        assert area_labels(dialog) == ["Your relics appear here."]
+        assert picker_track.area_lines(dialog) == ["Your relics appear here."]
         assert [child for child in dialog.scroll.widget().findChildren(QWidget)
                 if child.focusPolicy() != Qt.NoFocus] == [], (
             "something in the empty area takes the keyboard focus, so Tab "
@@ -437,9 +429,7 @@ def test_w5_a_known_answer_is_one_build_of_the_grid_and_never_pending(
         assert answers.calls == 1, "a known answer was worked out again"
         assert picker_track.cards_in(known), (
             "the first build of a known answer drew no cards")
-        assert relicpicker.PENDING not in [
-            label.text()
-            for label in known.scroll.widget().findChildren(QLabel)], (
+        assert relicpicker.PENDING not in picker_track.area_lines(known), (
             "AK-219: no card standing in the area ever carries the pending "
             "mark")
     finally:
@@ -451,17 +441,6 @@ def test_w5_a_known_answer_is_one_build_of_the_grid_and_never_pending(
 
 
 # --- W6: a question ends in exactly one of the three -----------------------
-
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
-@pytest.fixture
-def question(game_data, wylder):
-    """One small question, and the material it is asked against."""
-    return advisor.a_question(game_data, wylder, count=4)
-
 
 def a_bare_track(answer, cache: advisor_run.ResultCache | None = None):
     """A picker track over a stated answer function, with no window at all."""
@@ -857,7 +836,7 @@ def _a_grid_with_figures(dialog) -> None:
     """What `ready` and a hit both leave standing (AK-218 (a) and (b))."""
     cards = picker_track.cards_in(dialog)
     assert cards, "the grid is empty after an answer that carried figures"
-    assert relicpicker.NOTHING_YET not in area_labels(dialog)
+    assert relicpicker.NOTHING_YET not in picker_track.area_lines(dialog)
     assert any(card.chip.text() for card in cards), (
         "no card carries the mark, so nothing was read out of the pool")
     assert any(values_on(card) != [relicpicker.NO_FIGURE] * ROWS
@@ -875,7 +854,7 @@ def _a_grid_without_figures(dialog, reason: str) -> None:
     assert cards, (
         "the grid is empty after an outcome that had no figures to show, and "
         "a dialog in which no relic can be chosen is what AK-218 forbids")
-    assert relicpicker.NOTHING_YET not in area_labels(dialog)
+    assert relicpicker.NOTHING_YET not in picker_track.area_lines(dialog)
     assert dialog.headline.isVisibleTo(dialog)
     assert dialog.headline.text() == relicpicker.could_not_work_out(reason)
     for card in cards:

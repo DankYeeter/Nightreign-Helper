@@ -57,11 +57,6 @@ def spell_by_id(data: dict, spell_id: int) -> dict:
 
 
 @pytest.fixture(scope="module")
-def revenant(game_data):
-    return cases.hero_by_name(game_data, "Revenant")
-
-
-@pytest.fixture(scope="module")
 def seal(game_data):
     return cases.weapon_by_id(game_data, FINGER_SEAL)
 

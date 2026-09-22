@@ -38,17 +38,11 @@ import pytest
 from nrplanner.advisor import candidates, goals, search, types
 
 from tests import advisor_cases as advisor
-from tests import weapon_damage_cases as cases
 
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
 
 
 # -- synthetic material -----------------------------------------------------

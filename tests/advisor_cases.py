@@ -529,3 +529,8 @@ def context(data: dict, hero: dict, *,
         declared=declared,
         two_handed=two_handed,
     )
+
+
+def handles(pool: types.SlotPool) -> list[int]:
+    """The save handles of a pool's candidates, in the pool's order."""
+    return [candidate.handle for candidate in pool.candidates]
