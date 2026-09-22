@@ -770,6 +770,12 @@ class AdvisorResult:
     #: by a requirement you marked" instead of "nothing to choose from"
     #: (AK-294): the pools were not empty, the requirement was unmeetable.
     blocked_by_a_requirement: bool = False
+    #: The chosen damage type or attack art, lowered as it stands mid-sentence,
+    #: when every suggestion was dropped because nothing owned moves the
+    #: ranked figure under it (QA-290); empty otherwise. The status line reads
+    #: it to name that cause instead of the bare "nothing to choose from"
+    #: (AK-365).
+    no_carrier_for: str = ""
 
 
 # --- lookups over the shapes above -----------------------------------------
