@@ -461,7 +461,8 @@ def _the_answer_comes_back(qapp, question):
     track = a_bare_track(lambda req, *rest: a_pool(req))
     seen = picker_track.Outcomes(track)
     track.ask(request, inventory, ctx)
-    picker_track.spin(qapp, lambda: bool(seen.signals))
+    assert picker_track.spin(qapp, lambda: bool(seen.signals)), (
+        "did not finish within the fuse")
     picker_track.settle(qapp)
     return track, seen
 
@@ -475,7 +476,8 @@ def _the_answer_raises(qapp, question):
     track = a_bare_track(raising)
     seen = picker_track.Outcomes(track)
     track.ask(request, inventory, ctx)
-    picker_track.spin(qapp, lambda: bool(seen.signals))
+    assert picker_track.spin(qapp, lambda: bool(seen.signals)), (
+        "did not finish within the fuse")
     picker_track.settle(qapp)
     return track, seen
 
@@ -805,7 +807,8 @@ def _the_search_is_stopped(slot, qapp):
         "the run never started, so there was nothing to stop")
     assert track.cancel() is True, "there was nothing running to stop"
     answers.release()
-    picker_track.spin(qapp, lambda: not dialog.waiting)
+    assert picker_track.spin(qapp, lambda: not dialog.waiting), (
+        "did not finish within the fuse")
     return track, answers, dialog
 
 

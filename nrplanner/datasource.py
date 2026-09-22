@@ -83,7 +83,13 @@ def _snapshot() -> dict | None:
     path = bundled_path()
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        # A snapshot cut short or damaged counts as no snapshot: the start
+        # takes the extraction route it takes without one, and the file is
+        # left where it is (director, T-329o).
+        return None
 
 
 def _regulation_matches(snapshot: dict) -> bool:

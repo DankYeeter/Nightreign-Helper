@@ -17,6 +17,8 @@ this test has no business triggering.
 
 import ast
 import pathlib
+import shutil
+import subprocess
 
 import pytest
 
@@ -52,3 +54,13 @@ def _read_datas_from_spec() -> list:
 
 def test_spec_datas_contains_only_the_two_approved_sources():
     assert _read_datas_from_spec() == EXPECTED_DATAS
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="no git on this machine")
+def test_the_half_written_snapshot_is_ignored_by_git():
+    """SEC-051: the extraction writes `<snapshot>.partial` first, into the
+    repository tree, and this repository is public."""
+    partial = "nrplanner/data/nightreign_data.json.partial"
+    done = subprocess.run(["git", "check-ignore", "-q", partial],
+                          cwd=SPEC_PATH.parent)
+    assert done.returncode == 0, f"{partial} is not ignored"
