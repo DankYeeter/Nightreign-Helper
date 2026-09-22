@@ -187,6 +187,9 @@ class Situation:
     #: the pools were empty (AK-294: two causes, two clauses).
     slots_without_a_choice: int = 0
     blocked_by_a_requirement: bool = False
+    #: AK-365's third cause: the chosen type or art nothing owned reaches,
+    #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
+    no_carrier_for: str = ""
     #: The two clauses of 4.9, counted apart because they are two different
     #: things (AK-142/AK-143): a curse of a suggested copy that the run wrote
     #: no figure for is a **price** nobody put a number on, and an effect left
@@ -232,6 +235,13 @@ def _slots_blocked(count: int) -> str:
     if count == 1:
         return "1 slot is blocked by a requirement you marked"
     return f"{count} slots are blocked by a requirement you marked"
+
+
+def _slots_no_carrier(count: int, choice: str) -> str:
+    """The second clause of 4.11 when the run dropped its suggestions
+    because nothing owned reaches the chosen type or art (AK-365)."""
+    return (f"{_slots_with_nothing(count)}: nothing you own reaches "
+            f"{choice} here")
 
 
 def _curses_with_no_number(count: int) -> str:
@@ -337,11 +347,15 @@ def status_line(situation: Situation) -> str:
                 f"on for {situation.nightfarer}, so there is nothing to "
                 f"suggest.")
     if state is State.SUGGESTED_WITH_AN_EMPTY_SLOT:
-        empty = (_slots_blocked if situation.blocked_by_a_requirement
-                 else _slots_with_nothing)
+        count = situation.slots_without_a_choice
+        if situation.blocked_by_a_requirement:
+            empty = _slots_blocked(count)
+        elif situation.no_carrier_for:
+            empty = _slots_no_carrier(count, situation.no_carrier_for)
+        else:
+            empty = _slots_with_nothing(count)
         return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled{CLAUSES}"
-                f"{empty(situation.slots_without_a_choice)}.")
+                f"{situation.slots} slots filled{CLAUSES}{empty}.")
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
@@ -1172,7 +1186,8 @@ class AdvisorBar(QWidget):
                                   slots_filled=filled,
                                   slots_without_a_choice=slots - filled,
                                   blocked_by_a_requirement=(
-                                      result.blocked_by_a_requirement))
+                                      result.blocked_by_a_requirement),
+                                  no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
             situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
                                   goal_label=label, slots=slots,

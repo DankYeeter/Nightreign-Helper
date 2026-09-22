@@ -53,6 +53,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .. import model
 from . import candidates, explain, search, types
 from .evaluate import evaluate
+from .goals import chosen_label
 from .types import never_cancelled
 
 
@@ -416,11 +417,17 @@ def run(request: types.AdvisorRequest, inventory,
     # `All` the same zero can occur for a slot of purely situational relics,
     # and `_max_damage` already calls that a ranking and not a fault -- that
     # established reading is left exactly as it was.
+    #
+    # AK-365: the fall-back names its cause, in the status line and in
+    # `unknowns`, rather than leaving the bare 4.11 clause unexplained.
     best = suggestions[0] if suggestions else None
+    no_carrier_for = ""
     if ((request.hit_with or request.damage_type) and best and best.choices
             and best.score.value == base_scores[request.goal_id].value):
         suggestions = []
         best_chosen, best_built = (), base
+        label = chosen_label(request.hit_with, request.damage_type)
+        no_carrier_for = label[:1].lower() + label[1:]
 
     ranked = (suggestions[0].score if suggestions
               else base_scores[request.goal_id])
@@ -440,6 +447,11 @@ def run(request: types.AdvisorRequest, inventory,
     blocked = (explain.required_but_unmet(problem, pools, ctx, inventory)
                if not found and problem.required else ())
     unknowns += blocked
+    if no_carrier_for:
+        unknowns += (f"Nothing you own reaches {no_carrier_for} here: your "
+                     f"starting equipment does not carry it, and nothing in "
+                     f"your inventory swaps in a spell or weapon art that "
+                     f"does.",)
     return types.AdvisorResult(
         goal_id=goal.id,
         goal_label=goal.label,
@@ -457,6 +469,7 @@ def run(request: types.AdvisorRequest, inventory,
         data_note=explain.data_note(ctx),
         generation=request.generation,
         blocked_by_a_requirement=bool(blocked),
+        no_carrier_for=no_carrier_for,
     )
 
 

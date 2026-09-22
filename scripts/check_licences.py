@@ -5,8 +5,9 @@ their terms travel with it. That is easy to forget when adding a library: the
 build keeps working, the notice quietly goes stale, and nobody finds out until
 someone asks.
 
-This makes it noisy instead. It reads `requirements.txt` and checks each entry
-appears in THIRD_PARTY.md, and it checks the licence files that must exist.
+This makes it noisy instead. It reads `requirements.txt`, plus PyInstaller for
+its bundled bootloader, and checks each entry appears in THIRD_PARTY.md, and it
+checks the licence files that must exist.
 It deliberately does NOT try to judge licence compatibility -- that is a
 question for a person, and a script pretending to answer it would be worse
 than no script.
@@ -55,7 +56,9 @@ def main() -> int:
         if (ROOT / "THIRD_PARTY.md").exists() else ""
 
     print()
-    for name in requirements():
+    # PyInstaller is a dev dependency, but its bootloader ships inside the
+    # executable, so its terms travel with it like any runtime dependency's.
+    for name in requirements() + ["pyinstaller"]:
         if name in notice:
             print(f"  [ ok ] {name} is recorded in THIRD_PARTY.md")
         else:
