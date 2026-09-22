@@ -1,6 +1,7 @@
 # Stand
 
-2026-09-21, **Zyklus 28: Restposten nach 1.18.0 (T-328), gesammelt, kein Release**. Branch
+2026-09-22, **Zyklus 29: Restposten (T-329), gesammelt, kein Release; Bau fertig,
+Ingame-Test des Nutzers offen**. Branch
 `docs/audit-and-advisor-design` (PR #16 gemerged 16.09. `ae474c1`; seither
 weiter auf dem Branch, `main` haengt hinterher — naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -8,10 +9,10 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (nachgezaehlt 21.09.): T ab **T-329** · QA ab **QA-297** · OF ab **OF-56**
-· SEC ab **SEC-051** · AK **AK-327** · AD **AD-040** · OF **OF-45** · DR
-**DR-034** · R **R-009** · C **C-007** · A **A-038**. AD-027, OF-14, C-005
-nie vergeben.
+**Nummernkreise** (22.09., naechste freie): T **T-330** · QA **QA-297** · OF
+**OF-56** · SEC **SEC-051** · AK **AK-367** · AD **AD-056** · C **C-008** · A
+**A-039**; DR und R ungeprueft, vor Vergabe zaehlen. AD-027, OF-14, C-005 nie
+vergeben.
 
 ## Veroeffentlicht
 
@@ -55,9 +56,10 @@ leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 
 ## Befunde
 
-**285 QA**, **48 SEC**, **33 DR**. Offen P1: QA-237 (zurueckgestellt).
-Offen P2: QA-004, QA-016, QA-222, QA-241 + Prozessschulden. Offen P3:
-QA-258, QA-255, QA-256 (geschlossen T-287a), QA-282/283 (Werkzeug/Hook).
+Stand je letzter Registerzeile, 22.09.: **kein P1 offen** (QA-237 geschlossen
+15.09.). Offen: QA-222 P2 (erster Klick, echte Maus), QA-282 P3 (Werkzeug).
+T-329 behoben ohne Fensterlauf: QA-004, QA-016, QA-294; QA-255 geschlossen.
+OF-54 Zauberformel unvermessen (nur ingame).
 SEC: 0 offen ausser Klassenbeobachtung SEC-019 (behoben T-296a, Retest im
 naechsten Release-Lauf). Debt: Farbkonstanten in 14 Modulen (`theme.py`),
 `nrdata/extract.py:2851` Snapshot ohne temp+rename, `IconPack._pixmap`
@@ -68,11 +70,13 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 ## Beim Nutzer — offen
 
 1. **PR auf `main`** nach Zyklusende (Director erstellt, Nutzer mergt).
-2. **A-033/A-035** (C-006): Fristende 07.11.2026 — Bestaetigung.
-3. **QA-241, QA-271** — Team-Repo.
-4. **A11-Rest:** ein Freund testet 1.14.0 — Rueckmeldung waere der Nachweis.
-5. **T-328b:** gilt EXTRACT_VERSION 12→16 als "groessere Aenderung an der
-   Extraktion" (Entscheid 01.09.)? Einschaetzung compliance: nein, A-025 deckt es.
+2. **A-035:** am 07.11.2026 eine Ja/Nein-Frage (Beanstandung?); A-033
+   abgenommen 22.09.
+3. **A11-Rest:** ein Freund testet den aktuellen Stand — Nachweis.
+4. **Ingame-Test T-329** (Liste in `docs/tasks/T-329.md`, Abschnitt
+   "Ingame-Test"): QA-222, QA-282, OF-54, AK-365/366, gemerkter Nightfarer.
+5. **Wortform AK-365:** "fire Sorceries" oder "fire damage with Sorceries"
+   (DR-038)? AK-366 Gleichstand "more relics"? (am Gate)
 
 ## Beschlossen, nicht beauftragt
 
