@@ -17,7 +17,6 @@ class Texture:
     name: str
     dds: bytes
     format: int
-    mipmaps: int
 
 
 def read(data: bytes) -> list[Texture]:
@@ -36,7 +35,7 @@ def read(data: bytes) -> list[Texture]:
     pos = 0x10
     for index in range(file_count):
         file_offset, file_size = struct.unpack_from(e + "II", data, pos)
-        fmt, _type, mipmaps, _flags = struct.unpack_from(e + "BBBB", data, pos + 8)
+        fmt, _type, _mipmaps, _flags = struct.unpack_from(e + "BBBB", data, pos + 8)
         pos += 12
 
         if flag2 == 2:
@@ -58,7 +57,6 @@ def read(data: bytes) -> list[Texture]:
                 name=name,
                 dds=data[file_offset : file_offset + file_size],
                 format=fmt,
-                mipmaps=mipmaps,
             )
         )
     return out
