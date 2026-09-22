@@ -128,15 +128,17 @@ TABLE = [
     ("4.11 no carrier, one (AK-365)", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=1, slots_filled=0,
-        slots_without_a_choice=1, no_carrier_for="fire Sorceries"),
+        slots_without_a_choice=1,
+        no_carrier_for="fire damage with Sorceries"),
      "Maximise damage — 0 of 1 slots filled  ·  1 slot has nothing to choose "
-     "from: nothing you own reaches fire Sorceries here."),
+     "from: nothing you own reaches fire damage with Sorceries here."),
     ("4.11 no carrier, three (AK-365)", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=3, slots_filled=0,
-        slots_without_a_choice=3, no_carrier_for="fire Sorceries"),
+        slots_without_a_choice=3,
+        no_carrier_for="fire damage with Sorceries"),
      "Maximise damage — 0 of 3 slots filled  ·  3 slots have nothing to "
-     "choose from: nothing you own reaches fire Sorceries here."),
+     "choose from: nothing you own reaches fire damage with Sorceries here."),
     ("4.12", advisorbar.Situation(advisorbar.State.FAILED,
                                   reason="the save could not be read"),
      "Could not work that out — the save could not be read."),

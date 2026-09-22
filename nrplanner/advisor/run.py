@@ -53,7 +53,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .. import model
 from . import candidates, explain, search, types
 from .evaluate import evaluate
-from .goals import chosen_label
+from .goals import _ranked_on_choice, chosen_label
 from .types import never_cancelled
 
 
@@ -419,15 +419,21 @@ def run(request: types.AdvisorRequest, inventory,
     # established reading is left exactly as it was.
     #
     # AK-365: the fall-back names its cause, in the status line and in
-    # `unknowns`, rather than leaving the bare 4.11 clause unexplained.
+    # `unknowns`, rather than leaving the bare 4.11 clause unexplained. With
+    # a type and an art both chosen it is the DR-038 form of the goal card
+    # ("fire damage with Sorceries"); one of them alone keeps its label.
     best = suggestions[0] if suggestions else None
     no_carrier_for = ""
     if ((request.hit_with or request.damage_type) and best and best.choices
             and best.score.value == base_scores[request.goal_id].value):
         suggestions = []
         best_chosen, best_built = (), base
-        label = chosen_label(request.hit_with, request.damage_type)
-        no_carrier_for = label[:1].lower() + label[1:]
+        if request.hit_with and request.damage_type:
+            no_carrier_for = _ranked_on_choice(request.hit_with,
+                                               request.damage_type)
+        else:
+            label = chosen_label(request.hit_with, request.damage_type)
+            no_carrier_for = label[:1].lower() + label[1:]
 
     ranked = (suggestions[0].score if suggestions
               else base_scores[request.goal_id])

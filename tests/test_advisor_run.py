@@ -157,15 +157,20 @@ def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
 
 
 NO_CARRIER_SENTENCE = (
-    "Nothing you own reaches fire Sorceries here: your starting equipment "
-    "does not carry it, and nothing in your inventory swaps in a spell or "
-    "weapon art that does.")
+    "Nothing you own reaches fire damage with Sorceries here: your starting "
+    "equipment does not carry it, and nothing in your inventory swaps in a "
+    "spell or weapon art that does.")
 
 
-def _recluse_sorceries(game_data, damage_type):
+def _recluse_sorceries(game_data, damage_type, hit_with=None):
     """Recluse under `Sorceries` x `damage_type`, owning four relics that
-    each raise magic damage and nothing else a sorcery could use."""
+    each raise magic damage and nothing else a sorcery could use.
+
+    `hit_with=""` leaves the art unchosen, so the type is the only choice."""
     from nrplanner import damage, model
+
+    if hit_with is None:
+        hit_with = model.SORCERIES_ART
 
     recluse = cases.hero_by_name(game_data, "Recluse")
     magic = cases.effects_raising_rate(game_data, recluse, "magicAttackRate",
@@ -178,11 +183,11 @@ def _recluse_sorceries(game_data, damage_type):
     slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
     ctx = dataclasses.replace(
         advisor.context(game_data, recluse, reference=reference),
-        hit_with=model.SORCERIES_ART, damage_type=damage_type)
+        hit_with=hit_with, damage_type=damage_type)
     frozen = run.frozen_inventory(owned, slot_problem)
     request = dataclasses.replace(
         advisor.request_for(slot_problem, ctx, frozen),
-        hit_with=model.SORCERIES_ART, damage_type=damage_type)
+        hit_with=hit_with, damage_type=damage_type)
     return run.run(request, frozen, ctx, goals.GOALS)
 
 
@@ -194,8 +199,18 @@ def test_a_chosen_kind_nothing_owned_reaches_says_so(game_data):
     result = _recluse_sorceries(game_data, "Fire")
 
     assert result.suggestions == ()
-    assert result.no_carrier_for == "fire Sorceries"
+    assert result.no_carrier_for == "fire damage with Sorceries"
     assert NO_CARRIER_SENTENCE in result.unknowns
+
+
+def test_a_chosen_type_alone_keeps_its_label(game_data):
+    """AK-365 wording, decision 22.09.2026 22:45: only with a type **and** an
+    art chosen does the cause take the DR-038 form; `Fire` alone, which the
+    starting armament does not deal, stays "fire"."""
+    result = _recluse_sorceries(game_data, "Fire", hit_with="")
+
+    assert result.suggestions == ()
+    assert result.no_carrier_for == "fire"
 
 
 def test_a_chosen_kind_something_owned_reaches_says_nothing_of_it(game_data):
