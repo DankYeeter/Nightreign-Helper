@@ -563,11 +563,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         goal_id=goal_id,
         weighting_id=weighting.id,
         # The key says what the run was asked: since AD-038 about the starting
-        # armament, since AD-032 not about any rolls, so `armaments` stays
-        # empty. Anything else here would be a key standing for a run that
-        # did not happen, and `run.run` refuses it: it compares the id and
-        # the rolls in the key against the context, and one of the two
-        # filled differently would be the disagreement.
+        # armament, since AD-032 not about any rolls. Anything else here
+        # would be a key standing for a run that did not happen, and
+        # `run.run` refuses it: it compares the id in the key against the
+        # context.
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,

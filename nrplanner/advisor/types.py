@@ -13,8 +13,8 @@ memoises marginal contributions, so a key built out of a shape like that
 would either raise at the first `hash()` or, worse, compare equal to a state
 that has since been changed underneath it. The rule that keeps this module
 out of that: **the shapes that describe a question carry no mapping and no
-list.** `Slot`, `HeldRelic`, `HeldSlot`, `SlotProblem`, `ArmamentRef`,
-`Budget` and `AdvisorRequest` hold ints, strs, bools and tuples of those, so
+list.** `Slot`, `HeldRelic`, `HeldSlot`, `SlotProblem`, `Budget` and
+`AdvisorRequest` hold ints, strs, bools and tuples of those, so
 each of them hashes to a value derived from its whole content, and the cache
 key of AD-007/AD-016 is the request object itself -- there is no second key
 form that could drift from the state it stands for. That sentence was false
@@ -182,27 +182,6 @@ class SlotProblem:
 
 
 @dataclass(frozen=True)
-class ArmamentRef:
-    """One armament on the weapon grid, in the shape a cache key can hold.
-
-    The key form of the weapon context AD-006 puts in the request: the
-    armament's id rather than its record, so an `AdvisorRequest` stays
-    hashable. `GoalContext` carries the resolved records for the calculation
-    itself.
-
-    **No caller in `nrplanner/` builds one today** (AD-032): the advisor is
-    asked about no armament and about none of their rolls, so
-    `AdvisorRequest.armaments` stays empty and this type is reached from
-    tests and from the answer A16 will need. Said here rather than left for
-    a reader to work out from a grep that comes back empty.
-    """
-
-    weapon_id: int
-    tier: int
-    effect_ids: tuple[int, ...] = ()
-
-
-@dataclass(frozen=True)
 class Budget:
     """How wide the search may look (AD-003).
 
@@ -263,7 +242,6 @@ class AdvisorRequest:
     #: The armament the damage goal ranks on, `None` when none is chosen
     #: (AD-004, OF-5: the run is not refused, the assumption is stated).
     reference_weapon_id: int | None = None
-    armaments: tuple[ArmamentRef, ...] = ()
     #: effect id -> how many times the player declares its condition met.
     declared: tuple[tuple[int, int], ...] = ()
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key

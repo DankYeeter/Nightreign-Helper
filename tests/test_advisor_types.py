@@ -70,7 +70,6 @@ SAMPLES = {
     "HeldRelic": A_RELIC,
     "HeldSlot": types.HeldSlot(index=0, relic=A_RELIC),
     "SlotProblem": A_PROBLEM,
-    "ArmamentRef": types.ArmamentRef(weapon_id=3, tier=2, effect_ids=(9,)),
     "Budget": types.Budget(candidates_per_slot=20, beam_width=40),
     "AdvisorRequest": types.AdvisorRequest(
         hero_id=1, level=15, problem=A_PROBLEM, goal_id="max_damage",

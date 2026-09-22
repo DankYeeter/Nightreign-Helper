@@ -1604,13 +1604,9 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     Until AD-032 the request carried the armaments and their rolls, so
     swapping a weapon threw away an answer that was still correct and paid
     for a second search to get the same list back -- invisible from any
-    figure, because both lists are right.
-
-    The two halves have to go together, which is the second thing asserted
-    here: `run._refuse_a_request_that_asks_about_another_run` compares the
-    rolls in the key against the rolls in the context, so a request that
-    still carried them beside a context that no longer did would refuse
-    every question the player asked.
+    figure, because both lists are right. T-329r took the armament field off
+    the request altogether, so what is left to hold is that the context
+    carries no rolls either.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
@@ -1629,13 +1625,7 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
         "question, so the second one pays for a search whose answer was "
         "already there (P-1)")
     for asking in (one, other):
-        assert asking.request.armaments == ()
         assert asking.ctx.armament_effect_ids == ()
-        assert tuple(effect_id for armament in asking.request.armaments
-                     for effect_id in armament.effect_ids) \
-            == asking.ctx.armament_effect_ids, (
-            "the key and the context disagree about the rolls, which is the "
-            "one shape `run.run` refuses outright")
 
 
 def test_the_rolls_on_the_armament_moved_the_ranking_before_ad_032(

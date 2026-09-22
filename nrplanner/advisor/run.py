@@ -255,10 +255,6 @@ def _refuse_a_request_that_asks_about_another_run(
     next hit on it answers a question nobody asked -- silently, because both
     halves are individually plausible. The fields checked here are the ones
     that exist on both sides and mean the same thing on both.
-
-    The armaments are compared by the effects they bring, because that is
-    what reaches `model.compute`; the tier is not on the context except for
-    the one armament being rated, so nothing here claims to check it.
     """
     meta = ctx.data.get("meta") or {}
     reference = ctx.reference
@@ -275,10 +271,6 @@ def _refuse_a_request_that_asks_about_another_run(
             ("damage_type", request.damage_type, ctx.damage_type),
             ("data_version", request.data_version,
              str(meta.get("data_version") or "")),
-            ("armament effect ids",
-             tuple(effect_id for armament in request.armaments
-                   for effect_id in armament.effect_ids),
-             tuple(ctx.armament_effect_ids)),
             ("inventory_fingerprint", request.inventory_fingerprint,
              inventory_fingerprint(inventory)),
     ):
