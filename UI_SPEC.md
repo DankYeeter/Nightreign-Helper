@@ -7807,3 +7807,8 @@ ergaenzen, falls `MUTED` dort noch nicht importiert ist).
   Rollenkollision gefunden ausser den fuenf oben. Keine Sammel-AK; derselbe
   Massstab (gleiche Rolle auf zwei Tabs? → theme.py) gilt bei jedem
   kuenftigen Fund einzeln.
+
+**Director-Entscheid 23.09.2026 01:00 (Nachtrag AK-366, aus T-329o/T-329p):**
+Endet der vorangehende Text mit einem Punkt (die "Loaded …"-Zeile von
+`load_equipped`), ersetzt der Halbsatz diesen Punkt: "… with 3 relics — 1
+other save was found; …", nie ". —". Wortlaut des Halbsatzes unveraendert.
