@@ -2465,12 +2465,16 @@ class Planner(QMainWindow):
         note = f"{self.owned.relic_count} relics in {self.owned.source}"
         # AK-366: the automatic route no longer passes over other saves
         # silently. Which ones, and whose account, stays in the tooltip.
+        # A tie is won by the newest file, and the line says so (22.09.2026).
         others = self.owned.other_saves
-        if others == 1:
-            note += " — 1 other save was found; this is the one with more relics"
-        elif others:
-            note += (f" — {others} other saves were found; this is the one "
-                     f"with the most relics")
+        if others:
+            saves = ("1 other save was" if others == 1
+                     else f"{others} other saves were")
+            winner = ("the most recent of those with the most relics"
+                      if self.owned.other_saves_as_full
+                      else "the one with more relics" if others == 1
+                      else "the one with the most relics")
+            note += f" — {saves} found; this is {winner}"
         if self.owned.loadouts:
             note += f", {len(self.owned.loadouts)} stored builds"
         elif self.owned.loadout_error:

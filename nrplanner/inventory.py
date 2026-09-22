@@ -107,6 +107,9 @@ class Inventory:
     # How many other readable saves the automatic search found and passed
     # over for this one (AK-366, QA-004). Zero for a file the player picked.
     other_saves: int = 0
+    # At least one of those carries as many relics as this one, which then
+    # won as the most recent of them (AK-366, decision 22.09.2026 22:45).
+    other_saves_as_full: bool = False
 
     def _refuse_a_density_no_save_can_have(self) -> None:
         """The second SEC-022/SEC-034 limit, on the way out rather than in.
@@ -306,6 +309,8 @@ class SaveScan:
     #: How many other readable save files `scan` passed over for this one
     #: (AK-366). Set by `scan`, not by `_scan_save`, which sees one file.
     other_saves: int = 0
+    #: One of them carries as many relics as this one (AK-366); set by `scan`.
+    other_saves_as_full: bool = False
 
 
 class SaveNotReadable(ValueError):
@@ -409,11 +414,12 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
 
     best: SaveScan | None = None
     unreadable = ""
-    readable = 0
+    # The relic count of every readable file, newest first. Strictly more
+    # replaces `best`, so of files with equal counts the newest one wins.
+    counts: list[int] = []
     for path in sorted(saves, key=_changed_at, reverse=True):
         try:
-            best = _scan_save(path, valid_relics, valid_effects, best,
-                              mode=mode)
+            found = _scan_save(path, valid_relics, valid_effects, mode=mode)
         except SaveNotReadable as exc:
             # One file that cannot be read is no reason to abandon the others:
             # a save half-written by a running game, or a truncated backup,
@@ -422,14 +428,18 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
             # the first one, which is the newest, because that is the file the
             # player most likely means.
             unreadable = unreadable or errortext.in_english(exc)
-        else:
-            readable += 1
+            continue
+        counts.append(0 if found is None else len(found.owned))
+        if found is not None and (best is None
+                                  or len(found.owned) > len(best.owned)):
+            best = found
     if best is None and unreadable:
         raise SaveNotReadable(unreadable)
-    if best is not None and readable > 1:
+    if best is not None and len(counts) > 1:
         # The choice stays silent no longer (AK-366): a picked file is the
         # only one in `saves`, so this is the automatic route by construction.
-        best = replace(best, other_saves=readable - 1)
+        best = replace(best, other_saves=len(counts) - 1,
+                       other_saves_as_full=counts.count(len(best.owned)) > 1)
     return best
 
 
@@ -446,7 +456,8 @@ def build(data: dict, found: SaveScan) -> Inventory:
                     source_bytes=found.source_bytes,
                     loadout_error=found.loadout_error,
                     read_the_slow_way=found.read_the_slow_way,
-                    other_saves=found.other_saves)
+                    other_saves=found.other_saves,
+                    other_saves_as_full=found.other_saves_as_full)
     item_by_handle: dict[int, OwnedItem] = {}
 
     for entry in found.owned:
@@ -502,14 +513,15 @@ def build(data: dict, found: SaveScan) -> Inventory:
 
 
 def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
-               best: SaveScan | None, *, mode: str) -> SaveScan | None:
-    """Read one save file, returning it if it beats what was found so far.
+               *, mode: str) -> SaveScan | None:
+    """Read one save file: its best-populated slot, or None if none holds relics.
 
     A file that cannot be read leaves here as `SaveNotReadable` rather than as
-    the untouched `best`: whether the scan goes on to the next file is the
-    caller's decision and it still makes it, but the reason is no longer lost
-    on the way, and a scan that ends with nothing can say which of the two
-    endings it had.
+    None: whether the scan goes on to the next file is the caller's decision
+    and it still makes it, but the reason is no longer lost on the way, and a
+    scan that ends with nothing can say which of the two endings it had.
+    Which file wins is `scan`'s question, which is why this one no longer
+    sees the others (AK-366 needs every file's count, not only the winner).
     """
     try:
         slots = _decrypt_slots(path)
@@ -531,6 +543,7 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
         # library's (A8 without paying A7).
         raise SaveNotReadable(errortext.in_english(exc)) from exc
 
+    best: SaveScan | None = None
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
                                            mode=mode)

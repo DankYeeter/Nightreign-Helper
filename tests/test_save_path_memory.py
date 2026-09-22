@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import os
 import pathlib
 import struct
 
@@ -765,20 +766,57 @@ def test_a_single_save_passes_over_nothing(game_data, a_real_scan):
     assert a_real_scan.other_saves == 0
 
 
-@pytest.mark.parametrize("others, clause", [
-    (0, None),
-    (1, " — 1 other save was found; this is the one with more relics"),
-    (2, " — 2 other saves were found; this is the one with the most relics"),
+def test_two_saves_with_as_many_relics_are_a_tie(game_data, a_real_scan,
+                                                  monkeypatch, tmp_path):
+    """AK-366, decision 22.09.2026 22:45: both good files read as the frozen
+    slot, so neither has more relics and the newest one wins as a tie."""
+    three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data).other_saves_as_full
+
+
+def test_a_save_with_fewer_relics_is_no_tie(game_data, a_real_scan,
+                                            monkeypatch, tmp_path):
+    """The other half: the newer file holds one relic fewer, so the older
+    one wins outright and the line keeps "the one with more relics"."""
+    fuller = a_save_file(tmp_path / "older", b"stands for the frozen slot")
+    emptier = a_save_file(tmp_path / "newer", b"one relic fewer")
+    os.utime(fuller, (1, 1))
+    monkeypatch.setattr(savefile, "find_saves", lambda: [fuller, emptier])
+    one_fewer = dataclasses.replace(a_real_scan,
+                                    owned=a_real_scan.owned[1:])
+    monkeypatch.setattr(
+        inventory, "_scan_save",
+        lambda path, *args, **kwargs: (a_real_scan if path == fuller
+                                       else one_fewer))
+
+    found = inventory.scan(game_data)
+
+    assert found.owned == a_real_scan.owned
+    assert found.other_saves == 1
+    assert not found.other_saves_as_full
+
+
+@pytest.mark.parametrize("others, as_full, clause", [
+    (0, False, None),
+    (1, False, " — 1 other save was found; this is the one with more relics"),
+    (2, False,
+     " — 2 other saves were found; this is the one with the most relics"),
+    (1, True, " — 1 other save was found; this is the most recent of those "
+              "with the most relics"),
+    (2, True, " — 2 other saves were found; this is the most recent of "
+              "those with the most relics"),
 ])
 def test_the_note_says_how_many_saves_were_passed_over(
-        store, game_data, qapp, a_real_scan, others, clause):
+        store, game_data, qapp, a_real_scan, others, as_full, clause):
     """AK-366 word for word, and the button that goes with it (22.09.2026).
 
     Between the relic count and the builds clause. The stored builds are
     left out for the reason `test_a_picked_save_with_relics_...` leaves them
     out: taking one over rewrites the line.
     """
-    answer = dataclasses.replace(a_real_scan, loadouts=[], other_saves=others)
+    answer = dataclasses.replace(a_real_scan, loadouts=[], other_saves=others,
+                                 other_saves_as_full=as_full)
     read = StatedRead(answer)
     window = a_window(game_data, read)
     try:
