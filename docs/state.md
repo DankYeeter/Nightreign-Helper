@@ -75,8 +75,9 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
 3. **A11-Rest:** ein Freund testet den aktuellen Stand — Nachweis.
 4. **Ingame-Test T-329** (Liste in `docs/tasks/T-329.md`, Abschnitt
    "Ingame-Test"): QA-222, QA-282, OF-54, AK-365/366, gemerkter Nightfarer.
-5. **Wortform AK-365:** "fire Sorceries" oder "fire damage with Sorceries"
-   (DR-038)? AK-366 Gleichstand "more relics"? (am Gate)
+5. Entschieden 22.09. 22:45, mit den Ingame-Befunden als ein Auftrag: AK-365
+   Wortform an DR-038 angleichen ("fire damage with Sorceries"); AK-366
+   Gleichstand eigener Text (z. B. "the most recent one").
 
 ## Beschlossen, nicht beauftragt
 
