@@ -22,7 +22,7 @@ import dataclasses
 import pytest
 
 from nrplanner import model
-from nrplanner.advisor import candidates, goals, types
+from nrplanner.advisor import candidates, goals
 
 from tests import advisor_cases as advisor
 

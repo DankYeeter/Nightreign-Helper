@@ -235,9 +235,6 @@ def test_a_stacking_effect_on_three_copies_is_named_once_per_copy(game_data,
     relics contributing nothing at all.
     """
     roll = advisor.raising_effects(game_data, wylder, 1)[0]
-    inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
-                                       count=3, rolls=[roll, roll, roll,
-                                                       roll])
     problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
     ctx = advisor.context(game_data, wylder, reference=armament)
     chosen = tuple(a_copy(index, 100 + index, f"Copy {index}", roll)
@@ -1988,7 +1985,7 @@ def test_a_school_mismatched_buff_does_not_steal_the_swaps_line(game_data):
         f"under Bestial: {lines!r}")
 
 
-def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
+def test_the_held_slots_are_named_with_a_count(game_data, wylder):
     """A run finding in the sense of AD-025: it carries a count.
 
     The search ran over fewer slots than the vessel has, and a result that
@@ -1999,8 +1996,6 @@ def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
     kept = inventory.relics_for(advisor.RED, False)[0]
     problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED],
                               held={0: advisor.held_relic(kept)})
-    ctx = advisor.context(game_data, wylder, reference=armament)
-    base = evaluate(problem, (), ctx)
 
     lines = explain.unknowns(problem)
 
@@ -2008,8 +2003,7 @@ def test_the_held_slots_are_named_with_a_count(game_data, wylder, armament):
 
 
 def test_the_two_counts_of_the_held_line_each_take_their_own_verb(game_data,
-                                                                  wylder,
-                                                                  armament):
+                                                                  wylder):
     """QA-183: `is`/`are` follows the held slots, `was`/`were` the rest.
 
     One held slot of two leaves one filled, and the sentence carried the
@@ -2023,16 +2017,13 @@ def test_the_two_counts_of_the_held_line_each_take_their_own_verb(game_data,
     kept = inventory.relics_for(advisor.RED, False)[0]
     problem = advisor.problem([advisor.RED, advisor.RED],
                               held={0: advisor.held_relic(kept)})
-    ctx = advisor.context(game_data, wylder, reference=armament)
-    base = evaluate(problem, (), ctx)
 
     lines = explain.unknowns(problem)
 
     assert lines == ("1 of 2 slots is held, so only the other 1 was filled.",)
 
 
-def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder,
-                                                        armament):
+def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder):
     """Checkpoint 14: with everything held the answer is the build as it is.
 
     The search says so by returning that build with its figure; this line is
@@ -2049,8 +2040,6 @@ def test_every_slot_held_says_that_nothing_was_searched(game_data, wylder,
     problem = advisor.problem(
         [advisor.RED, advisor.RED],
         held={0: advisor.held_relic(worn), 1: advisor.held_relic(other)})
-    ctx = advisor.context(game_data, wylder, reference=armament)
-    base = evaluate(problem, (), ctx)
 
     lines = explain.unknowns(problem)
 

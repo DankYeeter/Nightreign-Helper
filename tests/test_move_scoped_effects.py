@@ -266,14 +266,14 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
     originals are older than this case.
     """
     from tests.test_arsenal_tab_asks_the_facade import (
-        drawn_tiles, empty_slots, prepare, tile_headline)
+        drawn_tiles, prepare, tile_headline)
     from tests.test_weapon_tile_and_panel_agree import panel_total
 
     relic = strongest(named_effects(game_data,
                                     "Improved Thrusting Counterattack"))
     factor = (relic["modifiers"] or {})["physicsAttackRate"]
 
-    slots = empty_slots()
+    slots = cases.empty_slots()
     slots[0] = weaponslots.WeaponSlot(weapon=greatsword, tier=TIER)
     prepare(planner, game_data, hero, slots)
     planner.selected_effects = lambda: [relic]
