@@ -7659,3 +7659,151 @@ die Klausel erweitern).
   Halbsatz mit "this is the most recent of those with the most relics"
   statt "this is the one with (more|the most) relics". Einzahl/Mehrzahl des
   ersten Teils unveraendert.
+
+---
+
+#### Nachtrag T-329m (ui-ux-designer), 2026-09-22 — Farbrollen der sechs Tabs (A13, Review-Modus)
+
+*Auftrag T-329m, **kein Fensterlauf** (der `qa-engineer` haelt das Fenster in
+T-329k) — Codelesung von `nrplanner/theme.py` und den 15 Modulen, die eigene
+Hex-Farben fuehren, Stand `7903b0c`. Naechste freie AK-Nummer gemessen
+(`grep -noE 'AK-[0-9]+' UI_SPEC.md | sort -t- -k2 -n -u | tail -1` = AK-366
+aus T-329b) — ab **AK-367**. Gegenprobe gegen **AK-74** (§7.1): AK-74
+verlangt, dass jede bedeutungstragende Farbe auf ihrem Tab einmal benannt
+wird, und nennt "community-reported"-Blau im `Red variants`- und
+`World Events`-Tab bereits als Vorbild dafuer — das bleibt unangetastet.
+AK-367..371 regeln die **zusaetzliche** Frage, die AK-74 offenlaesst: ob
+zwei Tabs, die dieselbe Rolle benennen, auch denselben Wert zeigen.
+Kontrastwerte unten nach WCAG-2.1-Formel gegen `QPalette.Base` = `PANEL`
+(`#1e1f23`, `app.py:96`, die globale Tabellen-/Panelfarbe aller sechs Tabs).*
+
+##### AK-367 — Tote `GOOD`-Kopie in `weaponslots.py`
+
+**AK-367** `nrplanner/weaponslots.py:25` fuehrt `GOOD = "#78b57e"`, eine
+eigene Kopie neben dem bereits importierten `theme.GOOD` (`#6fbf73`,
+`bosstab.py`/`firstrun.py`/`statsheet.py`). Die Kopie wird **nirgends
+gelesen** (projektweite Suche `weaponslots\.GOOD` und `GOOD` innerhalb der
+Datei: ein einziger Treffer, die Definition selbst) — totes Gewicht, das bei
+einer kuenftigen Verwendung eine zweite, leicht andere Gruen-Rolle in den
+Code brAechte, ohne dass ein Reviewer es an der Fundstelle sieht (der
+Vorfall, den QA-145/`bosstab.py:203` fuer `OBSERVED_COLOUR` gegen `GOOD`
+schon einmal dokumentiert). Verbindlich: `weaponslots.py:25` loeschen;
+braucht die Waffenkachel spaeter einen "gut"-Farbton, importiert sie
+`theme.GOOD` wie die drei anderen Tabs.
+
+**Beruehrte Stelle:** `nrplanner/weaponslots.py:25`.
+
+##### AK-368 — Eine `COMMUNITY`-Farbe statt zwei
+
+**AK-368** `depthstab.py:37` `COMMUNITY = "#7fb2e5"` und `eventstab.py:28`
+`COMMUNITY = "#6f9ac4"` tragen denselben Namen und dieselbe Rolle (AK-74:
+"community-reported", auf beiden Tabs bereits je einmal benannt), aber zwei
+verschiedene Werte. Kontrast gegen `PANEL`: `#7fb2e5` **7,36:1**, `#6f9ac4`
+**5,57:1** — beide bestehen WCAG AA (4,5:1), `#7fb2e5` reserviert mehr
+Abstand zur Grenze. Verbindlicher Wert: **`#7fb2e5`**, als `theme.COMMUNITY`
+neu in `theme.py` (z. B. nach `DEEP`, Zeile 18). `depthstab.py:37` und
+`eventstab.py:28` importieren ihn statt ihn lokal zu definieren; die beiden
+lokalen Namen (`COMMUNITY`) duerfen als Re-Export stehen bleiben, ihr Wert
+kommt aus `theme.py`.
+
+**Beruehrte Stellen:** `nrplanner/theme.py` (neue Konstante),
+`nrplanner/depthstab.py:37`, `nrplanner/eventstab.py:28`.
+
+##### AK-369 — Eine Farbe fuer "diese gewuerfelte Zeile ist ein Fluch/ein Kosten-Eintrag"
+
+**AK-369** Drei Stellen markieren denselben Sachverhalt ("dieser gewuerfelte
+Effekt ist mechanisch ein Fluch bzw. ein Kosten-Eintrag") mit **drei**
+verschiedenen Roten:
+
+1. `nrplanner/relicslots.py:429` `colour = "#d1655f" if eff and
+   eff.get("is_curse") else "#cfcfcf"` — ein **hartkodiertes** Literal,
+   obwohl `CURSE` in derselben Datei bereits importiert ist (Zeile 22) und an
+   drei anderen Stellen derselben Datei (Zeilen 436, 461, 466) verwendet
+   wird. `#d1655f` = `theme.BAD`/`theme.CURSE`, Kontrast gegen `PANEL`
+   **4,50:1** — besteht WCAG AA nur knapp (Grenze 4,5:1).
+2. `nrplanner/effectstab.py:171` `CURSE_COLOUR = QColor("#e07a74")`, Vorlage
+   fuer die `Curse`-Spalte derselben Tabelle. Kontrast **5,65:1**.
+3. `nrplanner/weaponslots.py:28` `DEBUFF = "#e07a74"`, laut eigenem Kommentar
+   ("The red the Effects tab gives a curse, so a negative roll reads the
+   same wherever it appears") **absichtlich** an (2) angeglichen.
+
+Ein Nutzer, der von den `Effects`/`Weapons`-Tabs (Rot `#e07a74`) zum
+`Relics`-Reiter des `Build planner` wechselt, sieht denselben Sachverhalt
+("das ist ein Fluch") in einem sichtbar anderen Rot (`#d1655f`). Zusaetzlich,
+**in derselben Tabelle** wie (2): `nrplanner/effectstab.py:1037`
+`item.setForeground(Qt.red)` faerbt die `Stacks`-Spalte bei einer
+nicht-stapelbaren (kostenpflichtigen) Zeile mit reinem `#ff0000`. Kontrast
+gegen `PANEL`: **4,12:1** — **besteht WCAG AA nicht** (Minimum 4,5:1 fuer
+Fliesstext dieser Groesse, `nrplanner/effectstab.py` setzt keine grosse
+Schrift auf dieser Spalte). Ein drittes, deutlich saettigungsstaerkeres Rot
+in genau der Tabelle, die (2) bereits mit einem gedeckteren Rot bedient.
+
+Verbindlicher Wert fuer die Rolle "gewuerfelter Fluch/Kosten-Effekt in
+einer Liste oder Tabellenzelle": **`#e07a74`**, neu als `theme.DEBUFF` in
+`theme.py` (z. B. nach `CURSE`, Zeile 17). `theme.BAD`/`theme.CURSE`
+(`#d1655f`) bleibt unveraendert fuer seine bestehende, breitere Rolle
+("Kosten" in Fliesstext/Aufzaehlpunkten: `advisorblock.py`, `relicpicker.py`
+`CURSE_LINE_STYLE`, `relicslots.py:436/461/466`, `bosstab.py`s
+Gegner-Buff-Hinweis, `firstrun.py`, `statsheet.py`s negative Deltas) — diese
+Stellen sind **nicht** Teil dieser AK.
+
+**Beruehrte Stellen:** `nrplanner/theme.py` (neue Konstante `DEBUFF`),
+`nrplanner/relicslots.py:429` (Literal durch `DEBUFF` ersetzen, `CURSE`
+bleibt fuer :436/461/466), `nrplanner/effectstab.py:171` (`CURSE_COLOUR =
+QColor(DEBUFF)`), `nrplanner/effectstab.py:1037` (`Qt.red` durch `DEBUFF`
+ersetzen), `nrplanner/weaponslots.py:28` (`DEBUFF` aus `theme` importieren
+statt lokal zu definieren).
+
+##### AK-370 — `RARITY_TEXT` und `RARITY_COLOURS`: bewusst verschieden, Kommentar korrigieren
+
+**AK-370** `nrplanner/arsenaltab.py:104-109` `RARITY_COLOURS` (Kachel-Tonung
+und -Rand, je Seltenheit ein Farbpaar) und `nrplanner/weaponslots.py:34-39`
+`RARITY_TEXT` (Beschriftungsfarbe derselben Seltenheit auf der Waffenkachel
+des `Build planner`) sind **keine** Rollenkollision: geprueft je Stufe, die
+`RARITY_TEXT`-Werte sind durchgehend eine hellere Variante desselben
+Farbtons (z. B. Uncommon-Rand `#4a86b0` gegen Uncommon-Text `#6fa8d6`,
+Legendary-Rand `#c8892c` gegen Legendary-Text `#e0a94a`) — die hellere Zahl
+ist noetig, weil Fliesstext auf `PANEL` einen anderen Kontrast braucht als
+ein Kachel-Rand. Kein Wertabgleich verlangt. Der Kommentar
+`weaponslots.py:30-32` ("in the same colours the Weapons tab uses for its
+tiles") behauptet Gleichheit, die es nicht gibt (die Hex-Werte sind in allen
+vier Stufen verschieden) und ist irrefuehrend fuer den naechsten Leser.
+Verbindlich: Kommentar auf "eine hellere Tonung derselben Farbfamilie, nicht
+derselbe Wert" korrigieren; kein Farbwert aendert sich.
+
+**Beruehrte Stelle:** `nrplanner/weaponslots.py:30-32` (Kommentartext).
+
+##### AK-371 — Ein Ersatzgrau statt zwei
+
+**AK-371** Vier Stellen faerben eine Relikt-Kachel/einen -Chip grau, wenn
+`SLOT_COLOURS` die Farb-Id nicht kennt (Verteidigungswert, sollte im
+Normalfall nie greifen): `nrplanner/app.py:161` und
+`nrplanner/relicslots.py:61` fallen auf `"#8a8a8a"` zurueck (= `theme.MUTED`,
+wortgleich), `nrplanner/relicslots.py:554` und `nrplanner/relicpicker.py:1115`
+auf `"#888"` (= `#888888`, 2/255 je Kanal heller). Dieselbe Rolle, derselbe
+Aufrufkontext (Ersatzfarbe fuer eine unbekannte Slot-Id), sogar **innerhalb
+derselben Datei** (`relicslots.py` fuehrt beide Werte). Verbindlicher Wert:
+**`theme.MUTED`** (`#8a8a8a`, bereits vorhanden, kein neuer Wert) an allen
+vier Stellen; `relicslots.py` und `relicpicker.py` importieren `MUTED` aus
+`theme` (in `relicslots.py` bereits importiert, siehe Zeile 22).
+
+**Beruehrte Stellen:** `nrplanner/app.py:161`, `nrplanner/relicslots.py:61`,
+`nrplanner/relicslots.py:554`, `nrplanner/relicpicker.py:1115` (Import
+ergaenzen, falls `MUTED` dort noch nicht importiert ist).
+
+##### Nicht Teil dieser AK-Gruppe (Backlog, siehe `DESIGN_REVIEW.md` DR-045/DR-046)
+
+- `eventstab.py:23` `DLC = "#9a6fc4"` und `depthstab.py:61` `BAR_COLOUR =
+  QColor("#9a6fc4")` teilen den Wert von `theme.DEEP`, ohne ihn zu
+  importieren — heute kein sichtbarer Fehler (der Wert ist identisch), nur
+  ein Driftrisiko bei kuenftiger Aenderung. Keine AK, da `BAR_COLOUR` eine
+  andere Rolle traegt (Heatmap-Intensitaet einer Tabellenzelle, nicht
+  "Deep of Night/DLC"-Markierung) und ein erzwungener Gleichlauf die beiden
+  Rollen kuenstlich verkoppeln wuerde.
+- Rund 80 weitere Hex-Literale ausserhalb `theme.py` (gemessen 22.09.2026,
+  `grep -RcoE "#[0-9a-fA-F]{3,6}" nrplanner --include="*.py"` ohne
+  `theme.py`) sind ueberwiegend tab-eigene Rollen ohne Gegenstueck auf einem
+  anderen Tab (Seltenheitsfarben, Slot-Farben, Sichtungs-Gruen) — keine
+  Rollenkollision gefunden ausser den fuenf oben. Keine Sammel-AK; derselbe
+  Massstab (gleiche Rolle auf zwei Tabs? → theme.py) gilt bei jedem
+  kuenftigen Fund einzeln.

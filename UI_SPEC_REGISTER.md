@@ -534,3 +534,13 @@ nannte — seit T-326a vergeben).
 
 | AK-365 | Dritte Ursache fuer die zweite Klausel von `SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11 (neben AK-291/AK-294 "blocked by a requirement"): gewaehlter `Damage type`/`Hit with` strukturell unerreichbar (QA-290s Rueckfallzweig, `run.py:403-423`) — Statuszeile bekommt eine dritte Klauselfunktion, `unknowns` einen vollen Satz; `_spell_cell`/AK-342/AK-343 bleiben unberuehrt | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |
 | AK-366 | "N uebersprungen"-Halbsatz in der Save-Notizzeile (`app.py:2465`), wenn `scan()` automatisch (kein `Find my save...`) mehr als einen lesbaren Spielstand fand und den mit den meisten Relikten waehlte; kein Ordnername, kein Konto, keine neue Bedienhandlung — `find_save_button` bleibt nach Erfolg ausgeblendet (offene Frage an den App Designer) | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |
+
+**Nachtrag T-329m (ui-ux-designer), 2026-09-22 — Farbrollen der sechs Tabs
+(A13, Review-Modus, gegen `nrplanner/theme.py`).** Kein Fensterlauf. Naechste
+freie Nummer gemessen (AK-366 war die hoechste vergebene).
+
+| AK-367 | `weaponslots.py:25` `GOOD = "#78b57e"` ist tot (kein Leser im Projekt) und weicht von `theme.GOOD` ab — Zeile loeschen | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-368 | Eine `COMMUNITY`-Farbe statt zwei: `theme.COMMUNITY = "#7fb2e5"` (Kontrast 7,36:1 gg. `PANEL`, besser als `eventstab.py`s bisherige `#6f9ac4`, 5,57:1); `depthstab.py:37`/`eventstab.py:28` importieren statt lokal zu definieren | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-369 | Eine Farbe (`theme.DEBUFF = "#e07a74"`) fuer "gewuerfelter Fluch/Kosten-Effekt in Liste/Zelle": `relicslots.py:429` (bisher hartkodiert `#d1655f`), `effectstab.py:171` `CURSE_COLOUR`, `effectstab.py:1037` (bisher `Qt.red`, Kontrast 4,12:1 unter WCAG AA), `weaponslots.py:28` `DEBUFF`; `theme.BAD`/`CURSE` bleibt fuer seine breitere Kosten-Rolle unveraendert | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-370 | `RARITY_TEXT`/`RARITY_COLOURS` bleiben bewusst verschiedene Werte (hellere Textvariante derselben Farbfamilie); nur der irrefuehrende Kommentar `weaponslots.py:30-32` ("the same colours") wird korrigiert, kein Farbwert aendert sich | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-371 | Ein Ersatzgrau (`theme.MUTED = "#8a8a8a"`) statt zweier fuer die unbekannte Slot-Farbe: `app.py:161`, `relicslots.py:61` (bereits `#8a8a8a`), `relicslots.py:554`, `relicpicker.py:1115` (bisher `#888`) | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
