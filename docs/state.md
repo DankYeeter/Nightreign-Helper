@@ -16,6 +16,17 @@ vergeben.
 
 ## Veroeffentlicht
 
+## Autonomer Lauf 22.09. 23:50 bis 23.09. 05:50 (Nutzerauftrag: 6 h, "optimiere, was moeglich ist")
+
+**Warteschlange** (keine neuen Funktionen, Backlog leer; nur GOAL-Kriterien und
+Befunde): T-329k QA-Fensterlauf · Farbrollen-Abweichungen (A13, ui-ux Review)
+· Security-Durchsicht Diff seit `v1.18.0` (Ausloeser `nrdata/extract.py`,
+`gamepath.py`) · `datasource._snapshot()` ohne Schutz gegen kaputte Datei ·
+unsicherer Test w6 (`test_picker_track_guards`) · Ponytail-Audit am Ende ·
+Retrospektive (Nacharbeit T-329j, Architekt-Commit). **Ende:** Budget
+erreicht oder Warteschlange leer → Stand, `sync-out` auf den Branch (PR #18
+traegt ihn), kein Merge, Ingame-Test des Nutzers zuletzt. Kein Release.
+
 | Version | Tag auf | Run | Assets | Inhalt |
 |---|---|---|---|---|
 | 1.13.1 | `798f808` | 35121936228 | 3 | A21 Effektfilter-Fenster, AK-312/313, A-008 Tests im Release-Lauf |
