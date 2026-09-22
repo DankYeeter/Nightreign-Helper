@@ -7647,3 +7647,15 @@ die Klausel erweitern).
   einem erfolgreichen Auto-Load sichtbar, sobald AK-366s Halbsatz erscheint
   (mehr als ein lesbarer Spielstand gefunden). Mit einem Spielstand bleibt
   der Knopf wie bisher ausgeblendet. Umsetzung zusammen mit AK-366 (T-329f).
+
+**Nutzerentscheid 22.09.2026 22:45 (Director, korrigiert AK-365/AK-366):**
+- **AK-365 Wortform:** `{choice}` folgt der DR-038-Form aus
+  `advisor/goals.py:688-689` (`_max_damage`), wenn Schadenstyp **und**
+  Waffenkunst gewaehlt sind: "fire damage with Sorceries", nicht
+  "fire Sorceries". Ist nur eines gewaehlt, bleibt der bisherige Wortlaut.
+  Eine Formulierungsstelle fuer beide Senken, kein zweiter Wortlaut.
+- **AK-366 Gleichstand:** traegt kein anderer lesbarer Spielstand mehr
+  Relikte als der gewaehlte, aber mindestens einer gleich viele, endet der
+  Halbsatz mit "this is the most recent of those with the most relics"
+  statt "this is the one with (more|the most) relics". Einzahl/Mehrzahl des
+  ersten Teils unveraendert.
