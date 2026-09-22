@@ -44,11 +44,6 @@ from tests import advisor_cases as advisor
 from tests import weapon_damage_cases as cases
 
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 def build_with(game_data, hero, effect_ids=(), reference=None):
     """A build carrying these effects, through the advisor's own door."""
     ctx = advisor.context(game_data, hero, reference=reference,

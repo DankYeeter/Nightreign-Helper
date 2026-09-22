@@ -154,6 +154,28 @@ def game_data() -> dict:
     return data
 
 
+@pytest.fixture(scope="module")
+def wylder(game_data):
+    from tests import weapon_damage_cases as cases
+
+    return cases.hero_by_name(game_data, "Wylder")
+
+
+@pytest.fixture(scope="module")
+def revenant(game_data):
+    from tests import weapon_damage_cases as cases
+
+    return cases.hero_by_name(game_data, "Revenant")
+
+
+@pytest.fixture
+def question(game_data, wylder):
+    """One small question, and the material it is asked against."""
+    from tests import advisor_cases
+
+    return advisor_cases.a_question(game_data, wylder, count=4)
+
+
 @pytest.fixture(scope="session")
 def advisor_row_at_the_window(game_data, tmp_path_factory) -> dict:
     """The Advisor row at the derived opening width, under Windows.

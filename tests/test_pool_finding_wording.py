@@ -25,7 +25,6 @@ from nrplanner import model
 from nrplanner.advisor import candidates, goals, types
 
 from tests import advisor_cases as advisor
-from tests import weapon_damage_cases as cases
 
 DAMAGE = "max_damage"
 
@@ -48,11 +47,6 @@ CONDITIONAL_SINGULAR = (
 CONDITIONAL_PLURAL = (
     "2 of your relics carry effects that only apply under a condition. They "
     "were not counted.")
-
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
 
 def pool_for(inventory, problem, slot_index, ctx):
     return candidates.pool(inventory, problem, slot_index, ctx, goals.GOALS,

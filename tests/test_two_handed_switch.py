@@ -133,11 +133,6 @@ def test_the_hand_survives_a_restart(game_data, qapp):
 
 # -- what the hand decides in the ranking -----------------------------------
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 def _built(game_data, wylder, *effect_ids):
     return model.compute(wylder, advisor.LEVEL,
                          [cases.effect_by_id(game_data, e) for e in effect_ids],

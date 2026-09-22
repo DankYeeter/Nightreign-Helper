@@ -45,19 +45,10 @@ INSET = 8
 WIDTH = 1250
 
 
-def cards(tab) -> list:
-    return tab.holder.findChildren(bosstab.BossCard)
-
-
-def pictures(tab) -> dict:
-    """Every card as it is drawn right now, by Nightlord name."""
-    return {card.boss["name"]: card.grab().toImage() for card in cards(tab)}
-
-
 def interiors(tab) -> dict:
     """The same cards with their border and corners cropped away."""
     out = {}
-    for card in cards(tab):
+    for card in rendered.cards(tab):
         image = card.grab().toImage()
         out[card.boss["name"]] = image.copy(
             image.rect().adjusted(INSET, INSET, -INSET, -INSET))
@@ -104,10 +95,10 @@ def test_the_grid_marks_the_card_the_panel_is_describing(
         twin, plain = a_twin_and_a_plain_one(tab)
         boss = twin if kind == "with an Everdark twin" else plain
 
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         tab.show_detail(boss)
         rendered.settle()
-        after = pictures(tab)
+        after = rendered.pictures(tab)
 
         assert differing(before, after) == [boss["name"]], (
             f"choosing {boss['name']} ({kind}) changed the look of "
@@ -147,10 +138,10 @@ def test_a_click_is_what_marks_a_card(game_data, qapp):
     grid, so a marker wired to something other than the click fails here.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[2]
-        before = pictures(tab)
+        target = rendered.cards(tab)[2]
+        before = rendered.pictures(tab)
         click(target)
-        after = pictures(tab)
+        after = rendered.pictures(tab)
 
         assert differing(before, after) == [target.boss["name"]], (
             f"a press on the {target.boss['name']} card changed "
@@ -167,13 +158,13 @@ def test_the_marker_moves_to_the_card_chosen_next(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         first, second = tab.bosses[0], tab.bosses[1]
 
-        untouched = pictures(tab)
+        untouched = rendered.pictures(tab)
         tab.show_detail(first)
         rendered.settle()
-        after_first = pictures(tab)
+        after_first = rendered.pictures(tab)
         tab.show_detail(second)
         rendered.settle()
-        after_second = pictures(tab)
+        after_second = rendered.pictures(tab)
 
         assert differing(untouched, after_first) == [first["name"]]
         assert differing(untouched, after_second) == [second["name"]], (
@@ -193,16 +184,17 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
     that is no longer on screen.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        opening = pictures(tab)
+        opening = rendered.pictures(tab)
         tab.show_detail(tab.bosses[3])
         rendered.settle()
-        assert differing(opening, pictures(tab)) == [tab.bosses[3]["name"]], (
+        assert differing(opening, rendered.pictures(tab)) == [
+            tab.bosses[3]["name"]], (
             "nothing changed on the grid, so this case cannot tell whether "
             "clearing the choice put anything back")
 
         tab.show_detail(None)
         rendered.settle()
-        assert differing(opening, pictures(tab)) == [], (
+        assert differing(opening, rendered.pictures(tab)) == [], (
             "the grid still marks a card while the panel says `Select a "
             "Nightlord`")
 
@@ -252,7 +244,7 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
 def in_the_same_row(tab) -> tuple:
     """Two cards side by side, and the point of the gap between them."""
     placed = [(card.mapTo(tab.cards, QPoint(0, 0)), card)
-              for card in cards(tab)]
+              for card in rendered.cards(tab)]
     top = min(point.y() for point, _card in placed)
     row = sorted((entry for entry in placed if entry[0].y() == top),
                  key=lambda entry: entry[0].x())
@@ -267,7 +259,8 @@ def in_the_same_row(tab) -> tuple:
 
 def under_the_pointer(tab) -> set:
     """Cards Qt has WA_UnderMouse set on, whoever put the pointer there."""
-    return {card.boss["name"] for card in cards(tab) if card.underMouse()}
+    return {card.boss["name"] for card in rendered.cards(tab)
+            if card.underMouse()}
 
 
 def moved(before, tab, *placed) -> list[str]:
@@ -285,7 +278,7 @@ def moved(before, tab, *placed) -> list[str]:
     `placed`. Nothing here is loosened for the run that counts.
     """
     intended = {card.boss["name"] for card in placed}
-    return sorted(set(differing(before, pictures(tab)))
+    return sorted(set(differing(before, rendered.pictures(tab)))
                   - (under_the_pointer(tab) - intended))
 
 
@@ -317,9 +310,9 @@ def pointer_off(card) -> None:
 def test_the_grid_marks_the_card_the_pointer_is_on(game_data, qapp):
     """QA-154. A near miss has to be visible before the button goes down."""
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[2]
+        target = rendered.cards(tab)[2]
         own_the_pointer(tab, target)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(target)
 
         assert moved(before, tab, target) == [target.boss["name"]], (
@@ -337,7 +330,7 @@ def test_the_mark_moves_to_the_card_the_pointer_moves_to(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, right, _gap = in_the_same_row(tab)
         own_the_pointer(tab, left, right)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(left)
         assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing, so this case cannot tell whether "
@@ -360,7 +353,7 @@ def test_the_mark_goes_when_the_pointer_leaves_for_the_gap(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, _right, _gap = in_the_same_row(tab)
         own_the_pointer(tab, left)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(left)
         assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing on its way in, so this case cannot "
@@ -386,7 +379,7 @@ def test_a_click_between_two_cards_opens_nothing(game_data, qapp):
                  - left.mapTo(tab.cards, QPoint(0, 0)).x() - left.width())
 
         opened: list[str] = []
-        for card in cards(tab):
+        for card in rendered.cards(tab):
             card.clicked.connect(lambda boss: opened.append(boss["name"]))
         point = tab.cards.mapTo(window, gap)
         target = window.childAt(point) or window
@@ -447,10 +440,10 @@ def test_the_chosen_card_keeps_its_mark_under_the_pointer(game_data, qapp):
         own_the_pointer(tab, left)
         tab.show_detail(left.boss)
         rendered.settle()
-        chosen = pictures(tab)[left.boss["name"]]
+        chosen = rendered.pictures(tab)[left.boss["name"]]
 
         pointer_onto(left)
-        assert pictures(tab)[left.boss["name"]] == chosen, (
+        assert rendered.pictures(tab)[left.boss["name"]] == chosen, (
             f"the pointer changed how the chosen {left.boss['name']} card is "
             f"drawn, so the panel's card and the pointer's card look alike")
 
@@ -467,7 +460,7 @@ def test_a_press_on_a_label_inside_a_card_opens_that_card(game_data, qapp):
     reach with a pointer at all fails here too.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[1]
+        target = rendered.cards(tab)[1]
         labels = target.findChildren(QLabel)
         assert labels, "the card carries no labels, so nothing is covered"
 

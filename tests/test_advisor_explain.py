@@ -47,11 +47,6 @@ DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 @pytest.fixture
 def armament(game_data, wylder):
     return advisor.scaling_armament(game_data, wylder)

@@ -34,11 +34,6 @@ DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 def pool_for(inventory, problem, slot_index, ctx, rank_by=DAMAGE):
     return candidates.pool(inventory, problem, slot_index, ctx, goals.GOALS,
                            rank_by)
@@ -46,10 +41,6 @@ def pool_for(inventory, problem, slot_index, ctx, rank_by=DAMAGE):
 
 def names(pool: types.SlotPool) -> list[str]:
     return [candidate.name for candidate in pool.candidates]
-
-
-def handles(pool: types.SlotPool) -> list[int]:
-    return [candidate.handle for candidate in pool.candidates]
 
 
 # -- who is offered ---------------------------------------------------------
@@ -99,7 +90,7 @@ def test_a_deep_slot_and_an_ordinary_slot_see_different_relics(game_data,
 
     assert len(ordinary.candidates) == 2
     assert len(deep.candidates) == 2
-    assert not set(handles(ordinary)) & set(handles(deep))
+    assert not set(advisor.handles(ordinary)) & set(advisor.handles(deep))
     assert all(candidate.is_deep for candidate in deep.candidates)
     assert not any(candidate.is_deep for candidate in ordinary.candidates)
 
@@ -122,7 +113,7 @@ def test_a_copy_without_a_handle_is_not_offered_and_is_reported(game_data,
     # A set rather than a sorted list: with a handle-less copy in the pool,
     # sorting mixes None with ints and the case would die of a TypeError
     # instead of of the thing it is about.
-    assert set(handles(pool)) == {10, 12}
+    assert set(advisor.handles(pool)) == {10, 12}
     assert pool.unknowns, "a relic left out has to be said out loud (A7)"
     assert any("handle" in line for line in pool.unknowns)
 
@@ -276,7 +267,7 @@ def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
 
     pool = pool_for(inventory, problem, 1, ctx)
 
-    assert held.handle not in handles(pool)
+    assert held.handle not in advisor.handles(pool)
     assert len(pool.candidates) == 2
 
 
@@ -295,7 +286,7 @@ def test_two_copies_of_one_roll_are_two_candidates(game_data, wylder):
     pool = pool_for(inventory, advisor.problem([advisor.RED]), 0, ctx)
 
     assert len(pool.candidates) == 2
-    assert len(set(handles(pool))) == 2
+    assert len(set(advisor.handles(pool))) == 2
 
 
 # -- what a candidate is measured against -----------------------------------
@@ -359,10 +350,10 @@ def test_the_base_state_of_a_slot_is_the_build_with_that_slot_emptied(
         if baseline.goal_id == SURVIVAL)
     assert baseline_value == pytest.approx(
         goals.GOALS[SURVIVAL].score(evaluate(emptied, (), ctx), ctx).value)
-    assert sitting.handle in handles(pool), (
+    assert sitting.handle in advisor.handles(pool), (
         "the relic already in the slot has to be offered for it, or it "
         "cannot be compared with what would replace it")
-    assert other.handle not in handles(pool), (
+    assert other.handle not in advisor.handles(pool), (
         "the other slot is still held, so its copy is still taken")
 
 
@@ -480,7 +471,7 @@ def test_two_runs_over_one_inventory_agree_about_a_tie(game_data, wylder):
     tied = {types.marginal_for(c, SURVIVAL) for c in first.candidates}
 
     assert len(tied) == 1, "the case needs candidates that really tie"
-    assert handles(first) == handles(again)
+    assert advisor.handles(first) == advisor.handles(again)
     assert names(first) == sorted(names(first))
 
 
@@ -520,7 +511,8 @@ def test_the_two_directions_really_order_one_slot_differently(game_data,
                                                              wylder))
     problem = advisor.problem([advisor.RED])
 
-    ranked = {asked: handles(pool_for(inventory, problem, 0, ctx, asked))
+    ranked = {asked: advisor.handles(pool_for(inventory, problem, 0, ctx,
+                                              asked))
               for asked in (DAMAGE, SURVIVAL)}
 
     assert sorted(ranked[DAMAGE]) == sorted(ranked[SURVIVAL]), (

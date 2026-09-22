@@ -48,11 +48,6 @@ SURVIVAL = "min_damage_taken"
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 @dataclasses.dataclass(frozen=True)
 class Vessel:
     """One vessel, what the player owns for it, and what sits in its slots.
@@ -181,10 +176,6 @@ def pool_from_the_canonical_form(vessel: Vessel, open_index: int,
     return run.slot_pool(request, frozen, ctx, goals.GOALS)
 
 
-def handles(pool: types.SlotPool) -> list[int | None]:
-    return [candidate.handle for candidate in pool.candidates]
-
-
 def scores(pool: types.SlotPool) -> dict[tuple[int | None, str], float]:
     """Every candidate's figure under every direction, by handle."""
     return {(candidate.handle, marginal.goal_id): marginal.gain
@@ -229,7 +220,7 @@ def test_the_canonical_form_answers_the_pool_the_picker_computes_today(
         assert len(today.candidates) >= 2, (
             f"{where}: a pool of fewer than two candidates would make this "
             f"comparison hold whatever the two shapes did")
-        assert handles(canonical_pool) == handles(today), where
+        assert advisor.handles(canonical_pool) == advisor.handles(today), where
         assert scores(canonical_pool) == scores(today), where
         assert canonical_pool == today, where
         covered += 1
@@ -289,7 +280,7 @@ def test_one_pool_serves_both_directions_and_only_its_order_follows_one(
         assert canonical.unknowns == chosen.unknowns, where
         assert sorted(canonical.candidates, key=lambda c: c.handle) == sorted(
             chosen.candidates, key=lambda c: c.handle), where
-        if handles(canonical) != handles(chosen):
+        if advisor.handles(canonical) != advisor.handles(chosen):
             reordered += 1
         covered += 1
     assert covered == OPENINGS
