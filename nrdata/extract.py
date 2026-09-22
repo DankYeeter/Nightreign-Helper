@@ -9,6 +9,7 @@ from __future__ import annotations
 import collections
 import hashlib
 import json
+import os
 import pathlib
 import re
 import struct
@@ -3222,5 +3223,13 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 def write_snapshot(game_dir: pathlib.Path, defs_dir: pathlib.Path, out: pathlib.Path) -> dict:
     data = build(game_dir, defs_dir)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
+    # Written beside `out` and swapped in whole, so an interrupted write
+    # leaves the previous snapshot rather than half a file.
+    partial = out.with_name(out.name + ".partial")
+    try:
+        partial.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
+        os.replace(partial, out)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
     return data

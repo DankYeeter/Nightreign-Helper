@@ -547,3 +547,44 @@ def test_one_rule_reads_every_card_of_the_block(extracted_game_data):
                   if not entry["name"]) == ["4890", "4918", "4930",
                                             "5211", "5212"]
     assert places["4930"]["chr"] == 4021
+
+
+def test_a_write_that_breaks_off_leaves_the_old_snapshot(monkeypatch,
+                                                         tmp_path):
+    """T-329g: a write interrupted halfway -- a full disk, the program
+    killed -- keeps the snapshot that was there and leaves no stray file
+    beside it. The stub writes half of what it is given before it fails, so
+    a direct write to `out` would leave exactly the half file this refuses."""
+    import pathlib
+
+    from nrdata import extract
+
+    out = tmp_path / "nightreign_data.json"
+    out.write_text('{"old": true}', encoding="utf-8")
+    monkeypatch.setattr(extract, "build", lambda game, defs: {"new": True})
+
+    def half_then_full_disk(self, text, encoding=None):
+        with open(self, "w", encoding=encoding) as f:
+            f.write(text[:len(text) // 2])
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", half_then_full_disk)
+
+    with pytest.raises(OSError):
+        extract.write_snapshot(tmp_path, tmp_path, out)
+
+    assert out.read_bytes() == b'{"old": true}'
+    assert [p.name for p in tmp_path.iterdir()] == [out.name]
+
+
+def test_a_write_that_completes_replaces_the_snapshot(monkeypatch, tmp_path):
+    from nrdata import extract
+
+    out = tmp_path / "nightreign_data.json"
+    out.write_text('{"old": true}', encoding="utf-8")
+    monkeypatch.setattr(extract, "build", lambda game, defs: {"new": True})
+
+    extract.write_snapshot(tmp_path, tmp_path, out)
+
+    assert json.loads(out.read_text(encoding="utf-8")) == {"new": True}
+    assert [p.name for p in tmp_path.iterdir()] == [out.name]
