@@ -301,6 +301,26 @@ READ_THE_SLOW_WAY_NOTE = (
     "above what the quick scan looks for. Nothing is missing and nothing "
     "needs fixing.")
 
+
+def other_saves_clause(owned) -> str:
+    """AK-366: the saves the automatic route passed over, or nothing.
+
+    One wording for both lines that can stand after a read -- the inventory
+    note and the note of the first import, which overwrites it (QA-004).
+    Which saves, and whose account, stays in the tooltip. A tie is won by
+    the newest file, and the clause says so (22.09.2026).
+    """
+    others = owned.other_saves
+    if not others:
+        return ""
+    saves = "1 other save was" if others == 1 else f"{others} other saves were"
+    winner = ("the most recent of those with the most relics"
+              if owned.other_saves_as_full
+              else "the one with more relics" if others == 1
+              else "the one with the most relics")
+    return f" — {saves} found; this is {winner}"
+
+
 #: The line of its own that the total belongs on (`UI_SPEC` T-178 §4, AK-251).
 #: `You own` is the scope the player was looking for and tells this number
 #: apart from the two it was confused with: what fits one slot
@@ -2455,19 +2475,8 @@ class Planner(QMainWindow):
             self.find_save_button.setVisible(True)
             return
 
-        note = f"{self.owned.relic_count} relics in {self.owned.source}"
-        # AK-366: the automatic route no longer passes over other saves
-        # silently. Which ones, and whose account, stays in the tooltip.
-        # A tie is won by the newest file, and the line says so (22.09.2026).
-        others = self.owned.other_saves
-        if others:
-            saves = ("1 other save was" if others == 1
-                     else f"{others} other saves were")
-            winner = ("the most recent of those with the most relics"
-                      if self.owned.other_saves_as_full
-                      else "the one with more relics" if others == 1
-                      else "the one with the most relics")
-            note += f" — {saves} found; this is {winner}"
+        note = (f"{self.owned.relic_count} relics in {self.owned.source}"
+                + other_saves_clause(self.owned))
         if self.owned.loadouts:
             note += f", {len(self.owned.loadouts)} stored builds"
         elif self.owned.loadout_error:
@@ -2493,7 +2502,7 @@ class Planner(QMainWindow):
         # unless the note just said other saves were passed over, in which
         # case the button is the way to one of them (AK-366, decision
         # 22.09.2026).
-        self.find_save_button.setVisible(bool(others))
+        self.find_save_button.setVisible(bool(self.owned.other_saves))
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
@@ -2715,6 +2724,9 @@ class Planner(QMainWindow):
             worn = "it is" if clashed == 1 else "they are"
             note += (f" {_relic_count(clashed)} could not be placed: "
                      f"{worn} already worn in another slot.")
+        # The button to the passed-over saves is still there, so the line
+        # that explains it has to be as well (AK-366, QA-004).
+        note += other_saves_clause(self.owned)
         self.owned_label.setText(note)
         self.recompute()
 

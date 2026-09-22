@@ -835,6 +835,25 @@ def test_the_note_says_how_many_saves_were_passed_over(
         close(window, read)
 
 
+def test_the_first_import_keeps_the_clause_about_the_other_saves(
+        store, game_data, qapp, a_real_scan):
+    """QA-004 rest: taking the stored build over rewrote the line and the
+    clause of AK-366 went with it, while its button stayed."""
+    answer = dataclasses.replace(a_real_scan, other_saves=1)
+    read = StatedRead(answer)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_line(window).startswith("Loaded "), "no build was taken over"
+        assert the_line(window).endswith(
+            " — 1 other save was found; this is the one with more relics")
+        assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
+
+
 # -- AK-127 and AK-128: what these texts may not say ----------------------
 
 
