@@ -51,6 +51,13 @@ Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`
 | `LOCALAPPDATA` | `nrplanner/paths.py` | eigenes Testverzeichnis |
 | `APPDATA` | `nrplanner/shortcut.py` | eigenes Testverzeichnis |
 
+**Spielstand-Suche (QA-255):** `nrdata/savefile.py:711` sucht ausser unter
+`%APPDATA%` fest unter `Path.home()/AppData/Roaming` (Absicht: Ordnerumleitung,
+OneDrive). Eine `APPDATA`-Umlenkung trennt den Lauf also nicht vom echten
+Spielstand — das ist erlaubt (nur lesend). Wer den Fall "kein Spielstand"
+(A15-Ausweichdialog) braucht, lenkt zusaetzlich `USERPROFILE` um;
+`Path.home()` liest unter Windows `USERPROFILE`.
+
 Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds: lesen ja,
 schreiben nie. Positive Pfadauflösung (`paths.cache_dir()` zurücklesen) hält
 als Nachweis; Abwesenheit hält nicht (QA-237: die Überlagerung ist

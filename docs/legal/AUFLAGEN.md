@@ -617,3 +617,44 @@ der Ereignisskripte (`bossdata.py`) erst seit 1.15.0 besteht (Annahme: ja,
 T-307); die ausgelieferten EXEs; das Social-Preview-Bild (A-017).
 **Nachpruefen ab:** Neuaufnahme der Screenshots (S1/S2) · Aenderung an
 `requirements.txt`, `release.yml`, Spec oder `RELEASE_BODY.md` · 2026-11-07.
+
+---
+
+## Klaerung C-007: Extraktion 12→16 und Ereignisskripte (compliance-agent, T-329a, Modus `klaeren`, Baum `e9bc8a0`, 2026-09-22)
+
+**Frage:** Ist EXTRACT_VERSION 12→16 — darunter das Lesen der
+EMEVD-Ereignisskripte — eine "groessere Aenderung an der Extraktion" (Z. 13-16),
+die das EULA-Restrisiko erneut vorlegt? **GRUEN — nein, keine erneute Vorlage;
+A-025 (09.09., FORTSETZEN) deckt den heutigen Stand.** Volltext, Normen und
+Fundstellen in `C-007.md`. Keine Rechtsberatung im rechtlichen Sinn.
+
+**Was die T-328b-Luecke schliesst:** Die Annahme "Ereignisskripte erst seit
+1.15.0" war **falsch**. `bossdata.py` las EMEVD→MSB fuer die Nightlords schon
+am **02.09.** (SEC-014, `security/findings.md` Z. 32) und vor T-167/09.09.
+(`docs/berichte/T-144-security-reviewer.md` Z. 67: `bossdata.py:320`
+`oodle.load`); T-307 (1.15.0) las aus derselben Dateiart eine zweite
+Instruktion (`2000[6]`, SEC-049: "Bauform von `_flag_entities`, jetzt auf 64
+statt 10 Karten"). 12→16 fuegt weder Schluessel noch Archiv noch
+Dekompressionsschritt hinzu; alles Neue sind Param-Tabellen aus
+`regulation.bin`, MSB-Karten (schon in `derive`) und die zweite
+EMEVD-Instruktion. § 95a UrhG, EULA 3(b)/10(i) und SSA 2.G am 22.09. neu
+abgerufen: Wortlaut der bewerteten Klauseln unveraendert; **die SSA ist am
+10.09.2026 neu gefasst worden** — die uebrigen Aenderungen nicht gelesen.
+
+| ID | Auflage | Ampel | Adressat | Faellig | Status |
+|---|---|---|---|---|---|
+| A-038 | **Schwellenregel "groessere Aenderung an der Extraktion"** (konkretisiert Nutzerentscheid 01.09., ergaenzt A-032). Erneut vorzulegen bei: (a) neuem Schluessel, neuem Archiv oder neuem Entschluesselungs-/Dekompressionsschritt; (b) Lesen von Programmcode (Spiel-EXE, DLLs, Shader/Lua) statt Daten; (c) jedem Schreiben in Spiel oder Spielstand; (d) Lesen fremder Installationen oder Spielstaende; (e) Buendeln extrahierter Spieldaten ins Repo oder Release. **Nicht** vorzulegen: weitere Tabellen, Instruktionen oder Dateiarten aus denselben Archiven mit denselben Schluesseln, lesend und lokal | — | director (Waechter), Nutzer (Entscheid) | dauerhaft | offen (dauerhaft) |
+
+**Nutzerentscheide 22.09.2026 21:58, eingetragen (Auftrag T-329a, woertlich:
+"Nein, keine [Beanstandung], A-033 abgenommen."):**
+
+| ID | Entscheidung | Folge |
+|---|---|---|
+| A-033 | **foermlich abgenommen durch den Nutzer 22.09.2026** | Status **erfuellt, abgenommen**; die Zeilen "Abnahme durch den Nutzer offen" (T-210, T-241a, T-283c, T-328b) sind damit ueberholt |
+| A-035 | **keine Beanstandung bis 22.09.2026** (GitHub, DMCA, Rechteinhaber, Bibliotheksautor, Steam) | Frist aus GPL-3.0 § 8 laeuft ungestoert; **letzte Ja/Nein-Frage am 07.11.2026** (60-Tage-Ende), danach Qt-Lizenz endgueltig wiederhergestellt |
+
+**Entscheidungsvorlage:** keine. **Anwaltlich zu klaeren:** nichts.
+**Nicht geprueft:** Git-Log/Diff (Rolle ohne git — Datierung nach drei
+Aktenstellen); TAE-Lesung vor 09.09. (unerheblich, dieselben Archive);
+SSA-Fassung 10.09.2026 ausser 2.G. **Nachpruefen ab:** Ereignis nach A-038
+(a)-(e) · naechste Klaerung: SSA 2.G/4.B einmal ganz lesen · 2026-11-07.

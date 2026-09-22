@@ -525,3 +525,12 @@ kommen als zwei zusaetzliche Zeilen hinzu.
 | AK-362 | Drei getrennte Zeilen/Massstaebe (AR, Weapon art, Spell damage), nie summiert oder gemischt (QA-018); AK-67s Ein-Textblock-Muster gilt hier ausdruecklich nicht | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
 | AK-363 | Wortlaut aus Woerterbuchwerten (`model.ART_LABELS[SKILL_ART]`, `damage.SPELL_DAMAGE_NAME`), keine zweite Kopie | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
 | AK-364 | Reihenfolge: `Weapon art` (oder Ersatzsatz), dann `Spell damage`, direkt unter der Gesamtzeile, vor Inflicts/Rally; Kacheln selbst unveraendert | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+
+**Nachtrag T-329b (ui-ux-designer), 2026-09-22 — Pool-Meldung ohne Grund
+(QA-294) und "N uebersprungen" bei mehreren Spielstaenden (QA-004).** Kein
+Fensterlauf, beide Vorgaben aus Codelesung. Naechste freie Nummer gemessen
+(AK-364 war die hoechste vergebene, nicht AK-356 wie der Auftragskopf noch
+nannte — seit T-326a vergeben).
+
+| AK-365 | Dritte Ursache fuer die zweite Klausel von `SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11 (neben AK-291/AK-294 "blocked by a requirement"): gewaehlter `Damage type`/`Hit with` strukturell unerreichbar (QA-290s Rueckfallzweig, `run.py:403-423`) — Statuszeile bekommt eine dritte Klauselfunktion, `unknowns` einen vollen Satz; `_spell_cell`/AK-342/AK-343 bleiben unberuehrt | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |
+| AK-366 | "N uebersprungen"-Halbsatz in der Save-Notizzeile (`app.py:2465`), wenn `scan()` automatisch (kein `Find my save...`) mehr als einen lesbaren Spielstand fand und den mit den meisten Relikten waehlte; kein Ordnername, kein Konto, keine neue Bedienhandlung — `find_save_button` bleibt nach Erfolg ausgeblendet (offene Frage an den App Designer) | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |

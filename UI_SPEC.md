@@ -7520,3 +7520,130 @@ Zustaende): `"Let this one effect into suggestions even while its family
 is avoided. It matters only once the family header is set to Avoid."`
 Legende AK-317 unveraendert. Grund: Nutzer traf am 17.09. das graue
 Kaestchen und hielt es fuer kaputt. Umsetzung T-295a.
+
+---
+
+#### Nachtrag T-329b (ui-ux-designer), 2026-09-22 — Pool-Meldung ohne Grund (QA-294) und "N uebersprungen" bei mehreren Spielstaenden (QA-004)
+
+*Auftrag T-329b, **kein Fensterlauf** (Auftragskopf) — beide Vorgaben aus
+Codelesung: `nrplanner/advisorbar.py`, `nrplanner/advisor/run.py`,
+`nrplanner/advisor/types.py`, `nrplanner/inventory.py`, `nrplanner/app.py`,
+Stand `e9bc8a0`. Naechste freie AK-Nummer gemessen (`grep -oE 'AK-[0-9]+'
+UI_SPEC.md | sort -V | tail -1` = AK-364 aus T-326a) — der Auftragskopf
+nannte noch AK-356, das ist seit T-326a vergeben; hier ab **AK-365**.*
+
+##### AK-365 — QA-294/QA-290: Grund fuer eine leere 4.11 unter gewaehltem Schadenstyp/Waffenkunst
+
+**AK-365** *(dritte Ursache fuer die zweite Klausel von
+`SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11, neben AK-291/AK-294s "blocked by a
+requirement": QA-294 zeigte Recluse × Sorceries × Fire — "0 of 3 slots have
+nothing to choose from" ohne Satz, dass Glintstone Pebble kein Feuer traegt
+und kein Tauschrelikt mit Feuerzauber im Bestand liegt. Director 21.09.:
+Symptom liegt in der Pool-Meldung, nicht in der Zielkarte — `_spell_cell`
+bleibt unangetastet, siehe unten.)* Betrifft **ausschliesslich** den Fall,
+den QA-290s Fix in `run.py` bereits erkennt und stumm auf die generische
+Leerzelle zurueckfallen laesst (`(request.hit_with or request.damage_type)
+and best.score.value == base_scores[request.goal_id].value`,
+`run.py:419-423`): der gewaehlte `Damage type`/`Hit with` ist strukturell
+nicht erreichbar — weder traegt die Bezugswaffe ihn, noch aendert ein
+Tauschrelikt im Bestand daran etwas.
+
+**Wortlaut, zwei Stellen, nicht dieselbe Zeichenkette:**
+
+1. **Statuszeile/Tooltip** (`advisorbar.status_line`, zweite Klausel der
+   4.11-Zeile — dritte Funktion neben `_slots_blocked`/`_slots_with_nothing`):
+   > `"1 slot has nothing to choose from: nothing you own reaches {choice} "`
+   > `"here"` (Einzahl)
+   > `"{count} slots have nothing to choose from: nothing you own reaches "`
+   > `"{choice} here"` (Mehrzahl)
+   — kein Punkt am Ende (der Aufrufer haengt ihn an, wie bei den beiden
+   bestehenden Funktionen).
+2. **`unknowns`** (Why-Dialog, Punkt 4 von §3.4, `advisorblock._footer_text`),
+   zusaetzlich zur Zeile oben, ein vollstaendiger Satz:
+   > `"Nothing you own reaches {choice} here: your starting equipment does "`
+   > `"not carry it, and nothing in your inventory swaps in a spell or "`
+   > `"weapon art that does."`
+
+`{choice}` ist in beiden `chosen_label(hit_with, damage_type)`
+(`advisor/goals.py:279`, dieselbe Funktion wie AK-342/AK-344/AK-346 — kein
+zweiter Wortlaut), ueber `_lower_case_first` klein geschrieben (wie
+AK-331/AK-335): beide Vorkommen stehen mitten im Satz, nicht am Anfang.
+
+**Ausloesebedingung, woertlich der bestehende Code:** `run.py`s
+QA-290-Zweig greift (Zeilen 403-423); dort zusaetzlich ein Flag setzen
+(z. B. `AdvisorResult.no_carrier_for_the_chosen_kind: bool`, neben
+`blocked_by_a_requirement` in `types.py:772`) und die beiden Saetze oben
+erzeugen. Erscheint **nur** unter `SUGGESTED_WITH_AN_EMPTY_SLOT`, nie unter
+4.10 (`NOT_RANKABLE`, dort gilt AK-332 mit eigener Ursache) oder 4.9.
+
+**Was diese Vorgabe nicht zusichert (A12):** sie unterscheidet nicht
+zwischen "dieser Nightfarer kann das strukturell nie" und "im aktuellen
+Save liegt gerade kein passendes Tauschrelikt" — beide Faelle zeigen
+denselben Satz, weil der Code beide nicht auseinanderhaelt und diese AK
+keinen neuen Rechenweg dafuer verlangt. Sie nennt kein Relikt, das helfen
+wuerde (kein Recommender). Sie aendert **nichts** an `_spell_cell`/der
+Zauberzeilen-Kopfzeile (AK-342/AK-343) — die bleibt wortgleich, wie sie
+ist; der neue Satz lebt ausschliesslich in der Pool-Meldung
+(Statuszeile/Tooltip) und in `unknowns`, nie auf der Zielkarte selbst.
+
+**Beruehrte Stellen fuer den `developer`:** `nrplanner/advisor/run.py:403-423`
+(Flag + beide Saetze setzen), `nrplanner/advisor/types.py:772` (neues
+`AdvisorResult`-Feld), `nrplanner/advisorbar.py:228-234` (neue
+`_slots_no_carrier`-Funktion) und `advisorbar.py:339-344` (dritte Wahl in
+der Klauselauswahl, `Situation` um das Feld erweitert).
+
+##### AK-366 — QA-004: "N uebersprungen" beim automatischen Spielstand-Fund
+
+**AK-366** *(Automatik waehlt bei mehreren gefundenen, lesbaren
+Spielstaenden weiterhin das "vollste" Save still — `inventory.scan()`/
+`inventory.py:381-431`. Bisherige Abmilderung nur der Ordner-Tooltip
+[`app.py:2486`] und `Find my save...` mit Konto-Satz; der fehlende Zustand
+aus QA-004 ("N uebersprungen") ist diese AK.)* Fand `scan()` **ohne** einen
+vom Nutzer gewaehlten Pfad (`save_path is None`, also nicht ueber
+`Find my save...`) mehr als einen Spielstand, der sich tatsaechlich lesen
+liess (nicht: der einen `SaveNotReadable` warf), traegt die sichtbare
+Notizzeile (`app.py:2465`, direkt nach `"{relic_count} relics in {source}"`,
+vor der Loadouts-Klausel) einen zusaetzlichen Halbsatz:
+
+> `" — 1 other save was found; this is the one with more relics"` (genau
+> ein weiterer, Einzahl)
+> `f" — {n} other saves were found; this is the one with the most relics"`
+> (Mehrzahl)
+
+Kein Punkt am Ende (Kettenregel wie bei `READ_THE_SLOW_WAY_NOTE`, die ggf.
+danach folgt). Erscheint **nicht**, wenn nur ein Save gefunden wurde, und
+**nicht**, wenn der Nutzer die Datei selbst ueber `Find my save...` gewaehlt
+hat (dort gilt weiter S1-S4, AK-124) — beide Faelle bleiben unveraendert.
+
+**Was diese Vorgabe nicht zusichert (A12) — Luecke bleibt offen:** der Satz
+nennt **nicht**, welche der beiden Saves das ist oder welchen
+Steam-Konto-Ordner sie tragen (das bleibt im Ordner-Tooltip, AK-126), und er
+bietet **keinen** Weg, die uebersprungene Datei stattdessen zu waehlen —
+`find_save_button` ist nach einem erfolgreichen Auto-Load ausgeblendet
+(`app.py:2488`), es gibt also aktuell keinen erreichbaren Klick dafuer. Das
+ist eine eigene, hier bewusst nicht geschlossene Luecke (kein neues
+Bedienelement ist Teil dieser AK, Auftragsvorgabe) — siehe "Offene Fragen"
+unten.
+
+**Beruehrte Stellen fuer den `developer`:** `nrplanner/inventory.py:381-431`
+(`scan()` zaehlt uebersprungene, lesbare Kandidaten), `nrplanner/
+inventory.py:92-117` und `:294-313` (neues Feld auf `Inventory`/`SaveScan`,
+z. B. `other_saves_skipped: int`), `nrplanner/app.py:2465` (Notizzeile um
+die Klausel erweitern).
+
+##### Offene Fragen an den App Designer (T-329b)
+
+- **Zu AK-366:** Nach einem erfolgreichen Auto-Load ist `Find my save...`
+  ausgeblendet (`app.py:2488`) — die "N uebersprungen"-Zeile aus AK-366 nennt
+  also eine Tatsache, gegen die der Nutzer nichts tun kann, ausser
+  `Rescan save` zu druecken (liefert denselben Automatik-Gewinner erneut).
+  Soll `Find my save...` kuenftig **immer** sichtbar bleiben, auch nach
+  einem erfolgreichen Auto-Load, damit die Zeile handlungsfaehig wird?
+  Empfehlung: ja — ein bestehender Knopf wird in einem weiteren Zustand
+  sichtbar, das ist kein neues Bedienelement, aber es ist eine eigene
+  Verhaltensaenderung und deshalb nicht Teil dieser AK; als kleiner
+  Folgeauftrag vorschlagen.
+  **Nutzerentscheid 22.09.2026 22:10: ja.** `Find my save...` bleibt nach
+  einem erfolgreichen Auto-Load sichtbar, sobald AK-366s Halbsatz erscheint
+  (mehr als ein lesbarer Spielstand gefunden). Mit einem Spielstand bleibt
+  der Knopf wie bisher ausgeblendet. Umsetzung zusammen mit AK-366 (T-329f).
