@@ -810,10 +810,6 @@ class SpellRating:
     #: columns of the combination table, and the reason the figure is picked
     #: here rather than by every caller in turn.
     damage_type: str
-    #: The art the factor was actually taken for, which is the art asked
-    #: about only where the spell belongs to it (`_art_of`). `None` where
-    #: nothing was asked.
-    art: str | None
     #: The catalyst's spell scaling -- the figure the game prints on the
     #: staff, unrounded, and the one factor of this product that *is*
     #: calibrated (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
@@ -966,7 +962,6 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     return SpellRating(
         spell=spell,
         damage_type=damage_type,
-        art=art,
         spell_power=spell_power,
         per_type=per_type,
         bare_per_type={name: value * bare_power / SPELL_POWER_SCALE

@@ -75,7 +75,7 @@ SAMPLES = {
         hero_id=1, level=15, problem=A_PROBLEM, goal_id="max_damage",
         weighting_id="even"),
     "GoalScore": A_SCORE,
-    "Goal": types.Goal(id="x", label="X", blurb="x",
+    "Goal": types.Goal(id="x", label="X",
                        scope=("this figure was never measured",),
                        score=lambda b, c: A_SCORE),
     "Weighting": types.Weighting(id="even", label="Even", note="even",

@@ -742,8 +742,6 @@ def _max_attributes(build: model.Build,
 MAX_DAMAGE = types.Goal(
     id="max_damage",
     label="Maximise damage",
-    blurb="Ranks by attack multipliers, attributes and passives — what "
-          "stays fixed between runs.",
     scope=_ATTACK_RATING_SCOPE,
     score=_max_damage,
 )
@@ -751,7 +749,6 @@ MAX_DAMAGE = types.Goal(
 MIN_DAMAGE_TAKEN = types.Goal(
     id="min_damage_taken",
     label="Minimise damage taken",
-    blurb="Ranks by how much punishment the build absorbs.",
     scope=_DAMAGE_TAKEN_SCOPE,
     score=_min_damage_taken,
 )
@@ -762,14 +759,9 @@ MIN_DAMAGE_TAKEN = types.Goal(
 #: `Maximise attributes`, which would be shorter and would promise eight
 #: attributes where five are counted; the long one was measured to fit the
 #: narrower of the two boxes with 17 px to spare.
-#:
-#: `blurb` is still read by nothing in `nrplanner/` -- AK-256's list is about
-#: labels, and §5.4 leaves the blurb alone until something draws it.
 MAX_ATTRIBUTES = types.Goal(
     id="max_attributes",
     label="Maximise offensive attributes",
-    blurb="Ranks by the attribute points a relic brings — the part of a "
-          "build no expedition rerolls.",
     scope=_ATTRIBUTE_SCOPE,
     score=_max_attributes,
 )

@@ -334,7 +334,6 @@ class Goal:
 
     id: str
     label: str
-    blurb: str
     scope: tuple[str, ...]
     score: Callable[[model.Build, "GoalContext"], GoalScore]
 
