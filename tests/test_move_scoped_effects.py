@@ -308,8 +308,8 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
         f"still being counted somewhere")
     assert (damage.displayed(unbuffed)
             != damage.displayed(unbuffed * factor)), (
-        f"with and without the relic round to the same text on this "
-        f"armament, so the case cannot tell them apart")
+        "with and without the relic round to the same text on this "
+        "armament, so the case cannot tell them apart")
 
 
 # -- the art each of these buffs belongs to (AD-046, assurance M2) --------

@@ -313,10 +313,7 @@ def test_enter_on_a_focused_tile_chooses_it_like_space_does(
 # `damage_type`/`hit_with`, never a key built from what the player typed.
 
 def test_chosen_hero_survives_a_restart(game_data, qapp):
-    from PySide6.QtCore import QSettings
-
     from nrplanner import app as appmod
-    from nrplanner import favourites
     from tests.conftest import _new_planner, clear_settings, wait_for_the_save
 
     first = _new_planner(game_data)
