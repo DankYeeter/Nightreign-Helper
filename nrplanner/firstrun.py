@@ -34,6 +34,7 @@ from nrdata import gamefiles
 
 from . import errortext, gamepath, paths, shortcut
 from .datasource import bundled_path, defs_dir
+from .theme import BAD, GOOD, MUTED
 
 
 def _regulation_stamp(game: pathlib.Path) -> tuple[str, int] | None:
@@ -161,13 +162,6 @@ def _a_promised_icon_is_gone(pack: pathlib.Path, manifest: dict) -> bool:
 # The texts, the panels, and every decision the flow makes. Word for word out
 # of `UI_SPEC` section 7; nothing here is written freehand, and the section
 # numbers in this half of the file are that document's.
-
-#: The three colours this window sets text in. Written out here as every
-#: other module writes them out (`app.py:115-117`): importing them from `app`
-#: would be a circle, since `app` is what starts this.
-GOOD = "#6fbf73"
-BAD = "#d1655f"
-MUTED = "#8a8a8a"
 
 #: The title of the question state, in its title bar and in the taskbar.
 WINDOW_TITLE = "Nightreign Helper"

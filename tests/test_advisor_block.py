@@ -303,7 +303,7 @@ def test_the_held_favourite_line_is_muted_bulleted_and_unmarked(block):
     """AK-314.1/.6: the sentence handed in stands with an effect-line bullet,
     muted, never struck through or accented -- mutation-killing against a
     version that reuses the `▲`/`ACCENT` styling of a favourited line."""
-    from nrplanner.app import ACCENT, MUTED
+    from nrplanner.theme import ACCENT, MUTED
 
     sentence = ("Improved Melee Attack Power, which you favourited, is "
                "carried by The Will of the Balancers held in Slot 3.")
@@ -372,7 +372,7 @@ def test_an_effect_of_another_nightfarer_is_drawn_as_the_program_draws_one():
     through on the slot card. Two ways of saying one thing is one thing for
     the player to remember.
     """
-    from nrplanner.app import BAD, MUTED
+    from nrplanner.theme import BAD, MUTED
 
     markup = advisorblock.line_markup(
         a_line("X: works only for Duchess, and you are Wylder.",
@@ -389,7 +389,7 @@ def test_every_other_silent_line_is_muted_and_unmarked():
     All four remaining silences at once, because the rule is about the
     silence and not about the sentence.
     """
-    from nrplanner.app import BAD, MUTED
+    from nrplanner.theme import BAD, MUTED
 
     for silence in (types.SILENT_ALREADY_COUNTED,
                     types.SILENT_UNDER_A_CONDITION,
@@ -407,7 +407,7 @@ def test_every_other_silent_line_is_muted_and_unmarked():
 
 def test_a_curse_keeps_its_mark_whether_or_not_a_figure_covers_it():
     """§3.2: `✦` in `CURSE`, for all three fillings of T-078 §3."""
-    from nrplanner.app import CURSE
+    from nrplanner.theme import CURSE
 
     for silence in (types.CARRIES_A_FIGURE, types.SILENT_NO_NUMBER_HERE):
         markup = advisorblock.line_markup(
@@ -899,7 +899,7 @@ def test_every_line_of_the_dialog_shows_its_effects_state_and_sets_none(
     struck through in `BAD`; alike on every line about the same id -- here
     two lines about effect 1 in two groups -- and nothing on the line is a
     control: no button, no tab stop, no tooltip."""
-    from nrplanner.app import ACCENT, BAD
+    from nrplanner.theme import ACCENT, BAD
 
     dialog = a_dialog(qapp, an_answer(a_mixed_group(slot=0),
                                       a_mixed_group(slot=1)), filters)
@@ -936,7 +936,7 @@ def test_a_member_of_an_avoided_family_is_struck_and_one_on_allow_is_not(
     """AD-039.3, AK-317.5: the line reads the resolved set -- a family
     marking strikes the member through, `Allow` draws it like any
     unmarked effect, with no glyph of its own."""
-    from nrplanner.app import BAD
+    from nrplanner.theme import BAD
 
     filters = effectfilters.EffectFilters(families={1: "Improved Attack Power"})
     dialog = a_dialog(qapp, an_answer(a_group(a_line("Attack.", effect_id=1))),

@@ -32,9 +32,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import tabheader
+from .theme import ACCENT, MUTED
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
 COMMUNITY = "#7fb2e5"
 
 #: AK-98. The old heading, `RED VARIANTS BY DEPTH`, announced counts, and the

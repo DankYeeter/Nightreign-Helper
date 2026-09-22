@@ -39,6 +39,7 @@ from . import advisorbar, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
+from .theme import ACCENT, BORDER, CURSE, MUTED, PANEL, SLOT_COLOURS
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
 #: grid: the grid reflows to whatever width it is actually given, and this
@@ -66,11 +67,6 @@ ICON = 56
 #: has to add both of them back.
 MARGIN = 14
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-CURSE = "#d1655f"
 # Purple against the gold of a selected card: the two states have to be told
 # apart at a glance, and gold's opposite is the one colour the rest of the
 # window never uses.
@@ -146,10 +142,6 @@ def card_width() -> int:
 # The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
 HERO_COLUMNS = 5
 HERO_ICON = 44
-
-SLOT_COLOURS = {
-    0: "#b4544e", 1: "#4e7ab4", 2: "#c2a24a", 3: "#5c9e63", 4: "#d8d8d8",
-}
 
 #: The caption of each value row, in one place. `UI_SPEC` AK-193 renames the
 #: damage row to `Attack multipliers` once A17 lands, and that is meant to be

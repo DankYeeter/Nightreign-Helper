@@ -20,11 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import effecttext, model, weapons
+from .theme import ACCENT, BORDER, MUTED, PANEL
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
 GOOD = "#78b57e"
 # The red the Effects tab gives a curse, so a negative roll
 # reads the same wherever it appears.

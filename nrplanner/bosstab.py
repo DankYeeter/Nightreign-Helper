@@ -28,14 +28,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import cardgrid, relicslots, tabheader
+from .theme import ACCENT, BAD, BORDER, DEEP, GOOD, MUTED, PANEL
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-DEEP = "#9a6fc4"
-BAD = "#d1655f"
-GOOD = "#6fbf73"
 # Watched in play: above a wiki claim, below a param read.
 OBSERVED_COLOUR = "#7fae72"
 

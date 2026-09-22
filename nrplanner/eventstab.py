@@ -18,11 +18,8 @@ from PySide6.QtWidgets import (
 
 from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
+from .theme import ACCENT, BORDER, MUTED, PANEL
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
 DLC = "#9a6fc4"
 UNKNOWN = "#7d6f52"
 PENALTY = "#c07a6a"

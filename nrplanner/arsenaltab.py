@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import cardgrid, damage, search, tabheader, weapons
+from .theme import ACCENT, BORDER, MUTED, PANEL
 from .weapons import RARITY_TIERS
 
 ICON = 52
@@ -93,12 +94,6 @@ def unbroken(value: str) -> str:
         return value
     return GROUP_SEPARATOR.join(
         NBSP.join(group.split()) for group in value.split(GROUP_SEPARATOR))
-
-
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
 
 # EquipParamWeapon.rarity, rarest first.
 RARITY_NAMES = {3: "Legendary", 2: "Rare", 1: "Uncommon", 0: "Common"}

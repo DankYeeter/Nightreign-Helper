@@ -19,10 +19,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel
 
-#: The gold the whole window uses for a section title.
-ACCENT = "#c8a45c"
-#: The grey for text that explains rather than states.
-MUTED = "#8a8a8a"
+from .theme import ACCENT, MUTED
 
 
 def heading(text: str) -> QLabel:

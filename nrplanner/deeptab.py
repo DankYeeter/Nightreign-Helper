@@ -22,12 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import tabheader
-
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-DEEP = "#9a6fc4"
+from .theme import BORDER, MUTED, PANEL
 
 #: The roof over this tab's four headings (AK-68, AK-95). Its second sentence
 #: is also the reference every scaling figure below is measured against, which

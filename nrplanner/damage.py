@@ -38,6 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from . import model, weapons
+from .theme import MUTED
 
 
 # Which build.rates multiplier applies to which damage type. Attack rates
@@ -187,7 +188,6 @@ _NO_BREAK_SPACE = "\u00a0"
 # The hand the switch (AK-292) is not set to, on every surface that shows
 # both: the panes' `MUTED`, unbolded, whatever emphasis the surface puts
 # around the whole figure (AK-298).
-MUTED = "#8a8a8a"
 _QUIET_HAND = f"<span style='color:{MUTED}; font-weight:normal'>{{}}</span>"
 
 

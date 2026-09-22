@@ -21,11 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import damage, effecttext, model, relicslots, weapons, weaponslots
-
-ACCENT = "#c8a45c"
-GOOD = "#6fbf73"
-BAD = "#d1655f"
-MUTED = "#8a8a8a"
+from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
 # it is namespaced to keep it out of the way of the real ones.

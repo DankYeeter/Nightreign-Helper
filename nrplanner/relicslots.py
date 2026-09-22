@@ -19,21 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import advisorblock, chalices, effecttext, favourites, inventory, model
-
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-# The window's BAD: curses are a cost, and read in the same colour as one.
-CURSE = "#d1655f"
-
-SLOT_COLOURS = {
-    0: "#b4544e",   # Red
-    1: "#4e7ab4",   # Blue
-    2: "#c2a24a",   # Yellow
-    3: "#5c9e63",   # Green
-    4: "#d8d8d8",   # White -- wildcard
-}
+from .theme import ACCENT, BORDER, CURSE, MUTED, PANEL, SLOT_COLOURS
 
 
 # The slot-colour gems, by relic colour. White ships none -- the game has

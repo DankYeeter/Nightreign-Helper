@@ -35,9 +35,10 @@ from .datasource import load_data
 from .deeptab import DeepTab
 from .depthstab import DepthsTab
 from .eventstab import WorldEventsTab
-from .relicslots import (RelicSlot, SLOT_COLOURS, _custom_effects,
+from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import StatSheet, _heading
+from .theme import ACCENT, BORDER, MUTED, PANEL, SLOT_COLOURS
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -87,14 +88,6 @@ VARIANT_STRIP = 46
 #: which all ten stand whole; Qt shortens anything that does not fit and the
 #: tooltip has carried the full name all along.
 NAME_POINT_SIZE = 7
-
-ACCENT = "#c8a45c"
-BAD = "#d1655f"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-CURSE = BAD   # curses are a cost, and read in the same colour as one
-
 
 def _dark_palette() -> QPalette:
     p = QPalette()
