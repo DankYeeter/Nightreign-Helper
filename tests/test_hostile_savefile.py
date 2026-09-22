@@ -566,7 +566,7 @@ def owned_relics(count: int) -> list[inventory.OwnedItem]:
     """`count` copies of one relic, as an `Inventory` carries them."""
     return [inventory.OwnedItem(relic_id=KNOWN_RELIC_ID, name="Relic",
                                 colour=0, effect_ids=[], is_deep=False,
-                                handle=index, offset=index * 80)
+                                handle=index)
             for index in range(count)]
 
 

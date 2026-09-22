@@ -39,39 +39,28 @@ class OwnedItem:
     # different rolls, so the handle is what makes "the relic in that slot"
     # exact rather than merely the right name.
     handle: int | None = None
-    # Where this copy's record sits in the character slot. One record is one
-    # relic -- established when the relic count was matched against the game,
-    # 284 records to 284 relics -- so the offset identifies the copy even on a
-    # save whose loadout table cannot be read and which therefore has no
-    # handles. See copy_key.
-    offset: int | None = None
 
 
 def copy_key(item) -> tuple[str, int] | None:
     """What makes two entries the same *physical* relic, or None.
 
     A relic can be worn in one slot at a time, so the planner has to be able
-    to tell one copy from another. The handle is the exact answer -- it is
-    what the save's own loadout table uses -- but it is not always there: a
-    save whose loadout table cannot be read yields no handles at all.
+    to tell one copy from another. The handle is that answer, and the only
+    one (AD-055): it is what the save's own loadout table uses, and the handle
+    is read from the record itself, so an unreadable loadout table does not
+    take it away. A copy has none only when two records carry the same handle
+    bytes -- and then the game cannot tell the two apart either, so neither
+    the advisor nor the picker offers such a copy.
 
-    Dropping those relics from the planner would cost far more than the rule
-    is worth (a player with an unreadable table would be offered nothing),
-    and treating them as endlessly available would abandon the rule precisely
-    where it cannot be checked. Neither is necessary: the record's own offset
-    in the save identifies the copy just as exactly, because one record is one
-    relic. So the handle answers when it can and the offset answers otherwise.
-
-    Returns None for anything that is not a copy the player owns -- an empty
-    slot, or a custom relic, which is imaginary by design and may therefore
-    be planned into as many slots as the player likes.
+    Returns None for anything that is not a copy the planner can name -- an
+    empty slot, a copy without a handle, or a custom relic, which is imaginary
+    by design and may therefore be planned into as many slots as the player
+    likes.
     """
     if item is None or getattr(item, "relic_id", None) == CUSTOM_RELIC_ID:
         return None
     if item.handle is not None:
         return ("handle", item.handle)
-    if item.offset is not None:
-        return ("record", item.offset)
     return None
 
 
@@ -463,7 +452,6 @@ def build(data: dict, found: SaveScan) -> Inventory:
             caption=meta.get("caption", ""),
             curse_ids=list(entry.curse_ids),
             handle=handle,
-            offset=entry.offset,
         )
         inv.relics.append(item)
         if handle is not None:

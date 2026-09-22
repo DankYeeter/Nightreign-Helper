@@ -160,9 +160,8 @@ def _same_copy(one, other) -> bool:
     """Whether two entries stand for the same physical relic.
 
     By copy_key where there is one -- the handle the save's loadout table
-    uses, or the record's own place in the save. A relic with neither (a
-    custom one, or an entry that never came out of a save) stands for itself
-    and nothing else.
+    uses. A relic without one (a custom one, or an entry that never came out
+    of a save) stands for itself and nothing else.
     """
     key = inventory.copy_key(one)
     if key is None:
@@ -699,11 +698,14 @@ class RelicSlot(QFrame):
         One entry per physical relic, before anything is collapsed away. Both
         questions this slot answers about a relic -- may it be offered, and is
         this the copy a build names -- are asked of this list, so the two
-        cannot come to mean different things by one relic.
+        cannot come to mean different things by one relic. A copy without a
+        handle is not in it: the advisor does not offer it either (AD-055).
         """
         if self.owned is None:
             return []
-        return self.owned.relics_for(self.colour, self.deep, model.WHITE_SLOT)
+        return [relic for relic in self.owned.relics_for(
+                    self.colour, self.deep, model.WHITE_SLOT)
+                if relic.handle is not None]
 
     def slot_name(self) -> str:
         """What this slot is called on screen, and in anything said about it."""
