@@ -775,7 +775,10 @@ Stated plainly rather than hidden:
   scripts, but their constants are not yet scoped to the functions using them.
 - **Weak parts are numbered, not named.** Nothing in the files says which body
   part a slot refers to.
-- **Spell damage is unavailable** — no such field exists in the data.
+- **Spell damage is uncalibrated.** The Advisor shows a *Spell damage* figure
+  for staves and seals (see [Build planner](#1-build-planner)), but the game
+  displays no spell-damage number on screen to check it against, so treat it
+  as a way to compare two spells, not as an exact figure.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
 - **A PC with no Steam installed cannot point the tool at the game at all.**

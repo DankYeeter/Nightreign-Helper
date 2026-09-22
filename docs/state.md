@@ -1,7 +1,7 @@
 # Stand
 
-2026-09-22, **Zyklus 29: Restposten (T-329), gesammelt, kein Release; Bau fertig,
-Ingame-Test des Nutzers offen**. Branch
+2026-09-23 01:40, **Zyklus 29: Restposten + autonomer Lauf (T-329 a-u), gesammelt,
+kein Release; QA T-329s PASS am Quellstand, Ingame-Test des Nutzers offen**. Branch
 `docs/audit-and-advisor-design` (PR #16 gemerged 16.09. `ae474c1`; seither
 weiter auf dem Branch, `main` haengt hinterher — naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -9,23 +9,21 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (22.09., naechste freie): T **T-330** · QA **QA-297** · OF
-**OF-56** · SEC **SEC-051** · AK **AK-367** · AD **AD-056** · C **C-008** · A
-**A-039**; DR und R ungeprueft, vor Vergabe zaehlen. AD-027, OF-14, C-005 nie
-vergeben.
+**Nummernkreise** (23.09., naechste freie, Abschrift — vor Vergabe zaehlen):
+T **T-330** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
+· DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**.
+
+## Autonomer Lauf 22.09. 23:50 bis 23.09. ~01:45 (Budget 6 h, vorzeitig leer)
+
+Endete, weil die Warteschlange leer lief (`director-autonom.md`), nicht am
+Budget. Erledigt: QA-Fensterlauf T-329k + Retests p/s (PASS), Security T-329l
+PASS, Farbrollen AK-367..371, Snapshot-Leser, `.gitignore` (SEC-051),
+unsicherer Test selbsterklaerend, Ponytail-Audit (12 Funde umgesetzt, 2 mit
+Leser behalten), Retrospektive (`docs/lessons.md`), discover
+(`docs/product/BACKLOG.md`, P-001..004 `vorgeschlagen`). Suite `05dbfed`:
+1914 passed, 9 skipped. Kein Merge, kein Release.
 
 ## Veroeffentlicht
-
-## Autonomer Lauf 22.09. 23:50 bis 23.09. 05:50 (Nutzerauftrag: 6 h, "optimiere, was moeglich ist")
-
-**Warteschlange** (keine neuen Funktionen, Backlog leer; nur GOAL-Kriterien und
-Befunde): T-329k QA-Fensterlauf · Farbrollen-Abweichungen (A13, ui-ux Review)
-· Security-Durchsicht Diff seit `v1.18.0` (Ausloeser `nrdata/extract.py`,
-`gamepath.py`) · `datasource._snapshot()` ohne Schutz gegen kaputte Datei ·
-unsicherer Test w6 (`test_picker_track_guards`) · Ponytail-Audit am Ende ·
-Retrospektive (Nacharbeit T-329j, Architekt-Commit). **Ende:** Budget
-erreicht oder Warteschlange leer → Stand, `sync-out` auf den Branch (PR #18
-traegt ihn), kein Merge, Ingame-Test des Nutzers zuletzt. Kein Release.
 
 | Version | Tag auf | Run | Assets | Inhalt |
 |---|---|---|---|---|
@@ -67,16 +65,15 @@ leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 
 ## Befunde
 
-Stand je letzter Registerzeile, 22.09.: **kein P1 offen** (QA-237 geschlossen
-15.09.). Offen: QA-222 P2 (erster Klick, echte Maus), QA-282 P3 (Werkzeug).
-T-329 behoben ohne Fensterlauf: QA-004, QA-016, QA-294; QA-255 geschlossen.
-OF-54 Zauberformel unvermessen (nur ingame).
-SEC: 0 offen ausser Klassenbeobachtung SEC-019 (behoben T-296a, Retest im
-naechsten Release-Lauf). Debt: Farbkonstanten in 14 Modulen (`theme.py`),
-`nrdata/extract.py:2851` Snapshot ohne temp+rename, `IconPack._pixmap`
-cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
-(Harness-Duplikate `scripts/`, Fixture-Duplikate `tests/`,
-`_settings()`-Kopien) — bewusst liegen gelassen 19.09.
+Stand 23.09. aus den letzten Registerzeilen der Befunde dieses Zyklus: kein P1
+offen. Geschlossen: QA-004, QA-016, QA-222 (mit echter Maus nicht
+nachgestellt), QA-255, QA-294. Offen: QA-282 P3 (Werkzeug), OF-54
+Zauberformel (nur ingame). SEC-051 behoben, SEC-019 Klasse offen; Retest
+Security im naechsten Release-Lauf (`nrdata/savefile.py`, `param.py`,
+`tpf.py`, `extract.py`, `paths.py`, `gamepath.py` geaendert). **Retrospektive:
+135 QA-IDs ohne Abschlusszeile, SEC-049/050 ohne Abschluss** — Triage offen.
+Debt: `upx=False` (C-006); 74 Hex-Literale in Stylesheet-Texten (AK-367ff.
+Massstab je Fund).
 
 ## Beim Nutzer — offen
 
@@ -85,10 +82,16 @@ cacht `None` nicht, `upx=False` in der Spec (C-006), Audit-`shrink`-Liste
    abgenommen 22.09.
 3. **A11-Rest:** ein Freund testet den aktuellen Stand — Nachweis.
 4. **Ingame-Test T-329** (Liste in `docs/tasks/T-329.md`, Abschnitt
-   "Ingame-Test"): QA-222, QA-282, OF-54, AK-365/366, gemerkter Nightfarer.
-5. Entschieden 22.09. 22:45, mit den Ingame-Befunden als ein Auftrag: AK-365
-   Wortform an DR-038 angleichen ("fire damage with Sorceries"); AK-366
-   Gleichstand eigener Text (z. B. "the most recent one").
+   "Ingame-Test"), zuletzt: OF-54 Zahlen; der Rest ist am Fenster geprueft.
+5. **Retrospektive NH-011..013** (`docs/lessons.md`, Ende): Hook-Masken
+   (Agenten-Repo + Projekt-Hook), Commit-Recht der Doku-Rollen, Remote-Pruefung
+   je Push — Freigabe.
+6. **Backlog P-001..004** (`docs/product/BACKLOG.md`), 3 Streichvorschlaege
+   — Freigabe; ohne Freigabe kein weiterer Zyklus.
+7. **Audit, nicht beauftragt:** Verknuepfung per `QFile.link` statt
+   PowerShell (`shortcut.py`, verliert die Beschreibung); `AttackRating`
+   loeschen (QA-071 behielt es); `Weighting` (OF-3); Relikt-`caption` aus dem
+   Snapshot (EXTRACT_VERSION).
 
 ## Beschlossen, nicht beauftragt
 
