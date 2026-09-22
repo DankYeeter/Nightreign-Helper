@@ -2257,3 +2257,324 @@ per Dispatch fuer compliance und Diagnose.
 Release je Feature unter 20 M (Massstab 1.18.0: 12 M), Builds je Release 1,
 Fixschleifen je Release 1.
 
+---
+
+## Zyklus 29 — 2026-09-23 (T-329 a-p, Stand `03ef40f`, Retrospektive parallel zu T-329p)
+
+**Ziel des Zyklus:** Restposten ohne Release (Nutzer 22.09. 21:58): EULA-Frage
+Extraktion, QA-004/016/255/294, Lizenzwaechter, danach autonomer Lauf
+(Cache atomar, Symbolcache, Duplikate, `_settings()`, Farbrollen A13,
+Security-Durchsicht, Fensterlauf, Fix, Retest). 40 Commits
+`v1.18.0..03ef40f`, davon 33 in diesem Zyklus (`f1444ed` 22.09. 22:06 bis
+`03ef40f` 23.09. 00:33); `3c917dd` (Ponytail-Audit, 00:45) kam waehrend
+dieser Auswertung und ist nicht ausgewertet.
+
+**Datengrundlage:** `docs/tasks/T-329.md` (a-p), `docs/state.md` (HEAD und
+`e9bc8a0`), `git log`/`git show`, `qa/findings.md` Z. 494-500,
+`security/findings.md`, `~/.claude/state/{zugschwelle,dispatch-modell,
+kontrakt-verstoesse}.log`, `~/.claude/state/zugzaehler/*`,
+`~/.claude/hooks/limit-tool-calls.ps1`, `git-commit-guard.ps1`,
+`selftest.ps1`, `.claude/hooks/enforce-data-redirect.ps1`, `_rahmen.md`,
+`commands/director.md`, Team-Repo `referenz/director-git.md`,
+`director-belege.md` (B-04), `templates/CLAUDE.project.md`, `archivist.md`.
+**Zu T-329 gibt es keine einzige Berichtsdatei** (`ls docs/berichte`, letzte
+T-327a) — nach Rahmen korrekt, weil kein Lauf `teilweise` mit Datei meldete.
+Primaerquelle der Laufdetails sind deshalb die Transkripte
+`~/.claude/projects/C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper/c074ac46-…/subagents/*.jsonl`
+(18 Laeufe) und die Director-Sitzung `c074ac46-….jsonl`. Zeiten aus den
+Transkripten sind hier in Ortszeit (UTC+2) umgerechnet.
+
+**Nummernraum — geprueft.** In T-329.md, state.md und den Commit-Texten des
+Zyklus: nur `NH-007/008/009/010`, `B-25/26` — alle mit Praefix, keine
+Kollision. `NH-011` ist frei (`grep -rn "NH-01[1-9]"`: 0 Treffer).
+**Statuskorrektur:** NH-007, NH-008, NH-009 stehen oben als "vorgeschlagen",
+sind aber seit 19.09. umgesetzt (`efa52fd`, `b14fb4d`, `6633fca`); gilt ab
+hier als *uebernommen (2026-09-19)*.
+
+### Gut gelaufen (schuetzenswert)
+
+- **Vorgaben woertlich wirken (NH-010):** acht developer-Laeufe mit 16-60
+  Werkzeugaufrufen (T-329j 114 samt Nachbesserung), 11-29 Aufrufe bis zum
+  ersten Edit, 5-26 Minuten je Lauf; NH-010 hatte 21-52 bis zum ersten Edit
+  und 81-131 je `klein`-Fixlauf gemessen. Keine Zugschwelle in diesem Projekt.
+- **Die Pruefphase lief wie `director.md` sie beschreibt:** Quellstand statt
+  Artefakt (k, p), Pruefrollen in einer Runde (k ‖ l ‖ m), **ein**
+  Fixauftrag nach Dateien geteilt (n ‖ o), **ein** Retest (p).
+- **QA vor dem Nutzer hat den Nutzer geschuetzt:** T-329k fand den falschen
+  Ingame-Schritt 2, bevor der Nutzer ihn ausfuehrte (sonst "falscher
+  Fehlerbericht vom Nutzer", Wortlaut T-329k).
+- **Der Director mass nach dem Merge selbst:** `b5fcabc` 23:17 → Suite
+  2 failed/1911 → Nachbesserung → `3862b5b` 23:28, bevor T-329h auf dem Stand
+  aufsetzte. Die Regression erreichte keinen Folgeauftrag.
+- **Rollen zaehlten ihre Nummern selbst** und wichen der veralteten Vorgabe
+  aus (AD-055 statt AD-050, AK-365 statt AK-356).
+- **Primaerquelle statt Log:** T-329a las `bossdata.py` selbst, wie der
+  Auftrag verlangte, und fand die EMEVD-Lesung seit spaetestens 02.09.
+- **T-329d fuhr die Gegenprobe:** Feld ausgeschaltet → Fire-Test faellt
+  (`1 failed, 1 passed`); Lizenzwaechter ohne PyInstaller-Zeile → exit 1.
+- **T-329k:** `scripts/drive_window.ps1` benutzt (NH-009), Spielstand per
+  sha256 unveraendert, eigene Registry-Schluessel geloescht, 0 Pixel
+  Unterschied durch T-329h, 94 Aufrufe.
+- **Security nach Ausloesertabelle** (T-329l zitiert `CLAUDE.md`), kein
+  Vorlauf ohne Ausloeser (T-329.md Z. 112-113, 230-234).
+
+### Die sieben Beobachtungen des Directors — geprueft
+
+| # | Beobachtung | Urteil | Beleg |
+|---|---|---|---|
+| 1 | Architekt committete ohne Recht (`f1444ed`) | **belegt als Vorgang, widerlegt als Regelbruch der Rolle** | Transkript architect, JSONL-Zeile 150 (22:06). `_rahmen.md:5` ("ohne `Bash` committest du nicht") und `:25` ("Commit nach jedem Teilschritt") gelten fuer jede Rolle mit Bash; das Verbot steht nur in `director.md:84-86` und `director-git.md:16`, die der Architekt nicht liest. Drittes Vorkommen: technical-writer 15.09. 13:04 und 19.09. 15:26 (Transkripte `agent-a045c61d`, `agent-abe3881a`); 3 von 90 Laeufen der sechs "lesend"-Rollen mit Transkript. → **NH-012** |
+| 2 | T-329j: Import stehen gelassen, Vorlauf-Suite gesperrt | **belegt, Mechanismus breiter** | Zaehler `zugzaehler/a0eaee2114f5a9498.suite` = 5, davon **0 echte Volllaeufe ausgefuehrt**: #1 23:03 `pytest --collect-only` (vom Auftrag verlangt: "Zahl vorher/nachher"), #2 23:09 `ls … \| grep -i "…\|pytest.ini"` (Text), #3 23:10 echter Lauf → `deny`, #4 23:12 `git diff \| grep -E "(def test_\|pytest\.mark…"` (Text) → `deny`, #5 23:24 echter Lauf in der Nachbesserung → `deny`. `limit-tool-calls.ps1:81-85` erhoeht vor der Sperrpruefung. Gegenrichtung: `VAR=… python -m pytest` (T-329d, 2 Laeufe) und `timeout 590 python -m pytest` (T-329h, T-329n) zaehlen gar nicht (Zaehler leer). Die Teilmenge vor dem Merge (21 Dateien, 556 passed) enthielt `test_move_scoped_effects.py:268` nicht. → **NH-011** |
+| 3 | Worktree-developer kann im Hauptbaum kein git | **belegt, aber gewollt** | Plattform verweigert (`This agent is isolated in the worktree … Refusing`, JSONL-Zeile 312, 23:22). Zusammenfuehren ist Director-Aufgabe (`director.md:277-278`). Die Nacharbeit entstand aus der Fortsetzung "fix in the MAIN tree, not the worktree" (Director 23:22), die ein Worktree-Lauf nicht bedienen kann; der developer wich aus (`reset --hard b5fcabc` im Worktree, `3862b5b`, ff-Merge). Ein Vorkommen → Beobachtung |
+| 4 | Nummernkreise veraltet (AD-050, AK-356) | **belegt** | `e9bc8a0:docs/state.md` "nachgezaehlt 21.09.": AK-327, AD-040, OF zweimal (OF-56 und OF-45). AD-050..054 seit 20.09. (`b6e7f37`), AK-356..364 seit 20.09. 22:26 (`5cf1cae`). Die Auftragswerte AD-050/AK-356 stammen weder aus state.md noch aus dem Bestand. Fruehere Vorkommen: T-141 (AK, `T-145-ui-ux-designer.md:197`), T-205 (T, Zyklus 20). → Muster ohne eigene Massnahme (unten) |
+| 5 | state.md fuehrte sechs geschlossene Befunde als offen | **belegt: fuenf plus einer nach Lesart** | Stand `e9bc8a0` gegen letzte Registerzeile: QA-237 geschlossen 15.09. (Z. 442), QA-241 behoben 15.09. (Z. 446), QA-256 geschlossen 16.09. (Z. 464, in state.md selbst "(geschlossen T-287a)"), QA-258 behoben 15.09. (Z. 450), QA-283 geschlossen 19.09. (Z. 472); QA-282 zurueckgestellt (Z. 463). **An HEAD wieder zwei:** QA-222 "offen" (Z. 498 geschlossen 23.09. 00:15), QA-004 "behoben" (Z. 500 teilweise). Kosten im Zyklus: kein Auftrag aus einem veralteten Eintrag. → gleiche Klasse wie 4 |
+| 6 | Push ohne archivist; zweimal Python-Ersetzung | **belegt, mit Einordnung** | Push 22:54 `git commit … && git push -q` — ohne `fetch`, ohne `git remote`. `director-git.md:22-24` erlaubt dem Director den eigenen Push (kein Agent lief: Runde 2 endete 22:36, Runde 3 ab 23:03), verlangt aber frisches `fetch`; die Projekt-`CLAUDE.md` bindet die Remote-Pruefung an den `archivist`. In allen Director-Transkripten dieses Projekts 28 Push-Aufrufe, 2 davon mit `git remote` im selben Aufruf. Python: 2 Ersetzungen in T-329.md (00:18 samt Anhang, 00:33) plus 1 reines `cat >>` (23:51); dazu der Architekt in `ARCHITECTURE_REGISTER.md` (22:06). → Push: **NH-013**; Python: Wirkungskontrolle unten |
+| 7 | Ingame-Schritt 2 falsch | **belegt, zweimal** | `51af000` 22:35: "Recluse, Damage type Fire" — nur Fire ergibt "3 of 3 slots filled" (T-329k). Dieselbe Quelle in T-329k Punkt 2 (`c51d0a2`): "nur Fire → alter Wortlaut"; QA pruefte stattdessen Incantations. Beide Erwartungen aus dem Befundtext QA-294, nicht aus dem Ausloeser von AK-365 (QA-290-Zweig). → Beobachtung |
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **NH-007** — eine Maske im Umlenkungs-Hook | 2026-09-19 (`efa52fd`) | **Teilweise.** EXE-Haelfte wirkt: kein "hashlib statt", kein Fuellwert, QA-283 geschlossen (Z. 472). Die `run.py`-Haelfte nicht: **7 `[datenumlenkung]`-Abweisungen, keine davon ein Programmstart** — T-329d 22:14 und T-329g 23:05 (Python-Heredoc auf `nrplanner/advisor/run.py`), T-329j 23:04 (`show.py`), T-329h 23:38 (`pyflakes nrplanner/ run.py`), Ponytail-Explore 00:34 (`'run.py'` in einer Liste), T-329p 00:36 (Grep-Muster `python.*run.py`), diese Retrospektive 00:38 (Heredoc mit dem Pfad). `$istQuellstart` (Z. 74) prueft `python … run.py` irgendwo in der Zeile. | → **NH-011** ersetzt Z. 74 |
+| **NH-008** — Riegel am Fenster-Dispatch | 2026-09-19 (`b14fb4d`, Rolle vor Wortlaut 21.09.) | **Wirkt im ersten messbaren Zyklus:** kein `blockiert` wegen Kopie, keine Wartevorgabe im Auftrag; der Director liess die Nutzerkopie vor T-329k schliessen (T-329.md Z. 321). Kein `deny` noetig. Zyklus 28 ohne Fensterlauf. | Behalten; ein Zyklus noch |
+| **NH-009** — `scripts/drive_window.ps1` | 2026-09-19 (`6633fca`) | **Wirkt fuer QA:** T-329k las den Treiber (JSONL-Zeile 27), 5/5 Punkte in 94 Aufrufen, kein Methodik-Nachtrag. power-user-Teil nicht messbar (kein Lauf; NH-005 bleibt offen). | Behalten |
+| **NH-010** — Release nach Ausloeser, Pruefung am Quellstand, Vorgaben woertlich | 2026-09-21 | **Release-Zahlen nicht messbar** (kein Release). Messbare Teile wirken (siehe "Gut gelaufen": Pruefphase nach Vorschrift, 11-29 statt 21-52 Aufrufe bis zum ersten Edit). | Release-Zahlen beim naechsten Release |
+| **L-020** (Nightreign-Helper) — state.md auf Budget | 2026-09-12 | Budget haelt (132 Zeilen). Aktualitaet nicht: Befund 4 und 5 oben. | Keine (siehe Muster unten) |
+| **Teamregel** `director.md:255-258` — Doku mit Edit/Write, keine Ersetzungsskripte (12.09.) | 2026-09-12 | **Wirkt schwach, ohne Schaden.** Python-Schreibaufrufe auf Doku in Director-Hauptsitzungen (Maske: `python - <<` + `.write(`/`write_text(` + Doku-Pfad im selben Aufruf): 13.09. 29, 14.09. 34, 16.09. 4, 19.09. 30+5, 21.09. 1+1, 22.09. 2. Schaden in T-329: keiner (eine CRLF-Warnung, Registerzeilen haelt NH-003). | Keine neue Regel; streichen oder Riegel entscheidet der Nutzer, wenn wieder eine Zeile bricht |
+
+**Bilanz: sechs geprueft — drei wirken (NH-008, NH-009, messbare Teile von
+NH-010), eine teilweise (NH-007 → ersetzt), eine haelt nur ihr Budget
+(L-020), eine wirkt schwach ohne Schaden (Teamregel Edit).**
+
+---
+
+### NH-011 — Hook-Masken erkennen Befehle am Wortlaut statt an der Befehlsstelle: der Volllauf-Zaehler sperrte die Abschluss-Suite, die die Regression gefunden haette
+
+**Belege:** Tabelle oben, Zeile 2 (T-329j: 5 gezaehlt, 0 gelaufen, dazu 2
+Laufformen, die nie zaehlen) und NH-007-Zeile (7 Fehlabweisungen). Dieselbe
+Klasse fruehere Zyklen: NH-007 (EXE-Name als Wort, sieben Fehlalarme) und
+NH-010 Ursache 6 (`no-window-dispatch.ps1` prueft Woerter statt Rolle). Beide
+Hooks gleichen die **ganze Kommandozeile** samt Anfuehrungszeichen und
+Heredoc gegen eine Maske ab; `limit-tool-calls.ps1` erhoeht den Zaehler
+ausserdem vor der Sperre.
+
+**Ursache:** Die Masken fragen "kommt das Wort vor", nicht "steht das
+Programm an Befehlsstelle", und keine traegt Faelle aus echten Laeufen als
+Literal — der Selbsttest (`selftest.ps1:160-175`) prueft nur die Formen, die
+die Maske ohnehin kennt.
+
+**Massnahme — Agenten-Repo** (`hooks/limit-tool-calls.ps1`, Z. 71-92):
+1. Vor dem Abgleich Textteile entfernen:
+   `$ohneText = $sc -replace '"[^"]*"', '""' -replace "'[^']*'", "''"`;
+   `$istPytest` und `$scZiel` rechnen auf `$ohneText`.
+2. Befehlsstelle mit Umgebungs- und Wrapper-Vorsatz:
+   `$istPytest = ($ohneText -match '(^|[;&|]\s*)(\w+=\S*\s+)*((timeout|nohup)\s+(\S+\s+)?)?(\S*python[^\s]*\s+-m\s+pytest|pytest)\b')`
+3. Ausschlussmaske um `|--collect-only|\s--co\b` erweitern.
+4. `WriteAllText($sdatei, …)` nur, wenn **nicht** gesperrt wird — ein
+   abgewiesener Versuch zaehlt nicht.
+5. `selftest.ps1` bekommt diese elf Literale mit Soll (alle am 23.09. gegen
+   die Maske aus 1-3 nachgefahren: 11 von 11):
+   `python -m pytest --collect-only -q` nein · `ls -a | grep -i "tox\|pytest.ini"` nein ·
+   `git diff -U0 | grep -E "(def test_|pytest\.mark)"` nein ·
+   `cat > x.py <<'EOF'`↵`import pytest` nein · `pytest tests/test_x.py` nein ·
+   `pytest tests/test_y.py::test_a` nein · `python -m pytest -n auto -q` ja ·
+   `timeout 590 python -m pytest -n auto -q` ja ·
+   `A=X B="C:/a b" python -m pytest -n auto -q` ja · `pytest -n auto -q` ja ·
+   `cd klon && python -m pytest -q` ja; dazu: dritter echter Lauf `deny`,
+   danach vierter echter Lauf wieder `deny` (Zaehler steht auf 2, nicht 3).
+
+**Massnahme — Projekt** (`.claude/hooks/enforce-data-redirect.ps1:74`,
+`$istQuellstart` ersetzen; `$istFensterMessskript` Z. 93-94 in derselben
+Form mit den beiden Skriptnamen):
+```powershell
+$istQuellstart = $cmd -match '(?i)(^|[;&|(]\s*|\s)["'']?(\S*[\\/])?(python3?|pythonw|py)(\.exe)?["'']?\s+((-[A-Za-z]+|-X\s+\S+)\s+)*["'']?(\.[\\/])?run\.py\b|Start-Process\b[^;&|]*\b(python3?|pythonw|py)(\.exe)?\b[^;&|]*[\s"'',](\.[\\/])?run\.py\b'
+```
+Nachgefahren am 23.09. gegen elf Literale, 11 von 11: nein fuer die fuenf
+Fehlabweisungen oben (Heredoc auf `advisor/run.py`, `pyflakes … run.py`,
+Grep-Muster, `'run.py'` in Liste, `sed …advisor/run.py; pytest …`), ja fuer
+`python run.py`, `.venv/Scripts/python.exe -X utf8 run.py`,
+`A=1 B=2 nohup python run.py > log 2>&1 &` (Form aus T-329k),
+`cd x && python -u run.py`, `Start-Process -FilePath python -ArgumentList 'run.py'`,
+`& "C:\Py\python.exe" run.py`. Waechter: `tests/test_redirect_hook_masks.py`
+ruft den Hook mit diesen elf JSON-Eingaben (ohne Umlenkungsvariablen) und
+erwartet `deny` genau bei den sechs Starts.
+
+**Streichung:** die alten Zeilen `$istPytest` und `$istQuellstart`; der
+Kommentar `limit-tool-calls.ps1:68` ("Ein pytest-Aufruf ohne Datei … gilt als
+Volllauf") wird durch "Gezaehlt wird pytest an Befehlsstelle, ohne
+`--collect-only`, nur wenn der Lauf erlaubt wird" ersetzt. Kein neuer
+Regeltext; `_rahmen.md:48` bleibt wortgleich.
+
+**Wer liest es wann:** niemand — die Hooks feuern bei jedem Bash-Aufruf;
+`selftest.ps1` beim Hook-Selbsttest des Team-Repos, der Projekttest in jedem
+`pytest -n auto`.
+
+**Kosten:** Laeufe mit Umgebungs- oder `timeout`-Vorsatz zaehlen jetzt — ein
+developer mit drei solchen Volllaeufen wird kuenftig gesperrt (T-329d hatte
+zwei). Bekannte Luecke: `bash -c "pytest …"` zaehlt nach dem Entfernen der
+Textteile nicht mehr (0 Treffer in den 17 uebrigen Transkripten der Sitzung,
+Maske `(bash|sh) -c "…pytest` bzw. `powershell … -Command … pytest`,
+23.09.). Ein Testfile mehr; Laufzeit ungemessen.
+
+**Erfolgskriterium (zwei Zyklen):** in den Transkripten 0
+`Volllauf-Schwelle`-Abweisungen auf einem Aufruf ohne echten Volllauf und 0
+`[datenumlenkung]`-Abweisungen ohne Programmstart (`grep "hook error"` ueber
+`subagents/*.jsonl`); kein developer-Bericht mit "volle Suite gesperrt".
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-012 — Das Commit-Recht der Doku-Rollen steht an zwei Orten mit entgegengesetztem Inhalt, und die Rolle liest den, der es erlaubt
+
+**Belege:** Tabelle oben, Zeile 1 — drei eigene Commits in 90 Laeufen der
+"lesend"-Rollen (technical-writer 15.09., 19.09.; architect 22.09.). Kein
+Schaden: alle mit Pfad (`git-commit-guard.ps1` erzwingt `-- <pfad>`), keiner
+nahm fremde Dateien mit. B-04 (06.09.) zeigt den Schaden der Gegenrichtung:
+2 h 51 min unversionierte Spec, README und Lizenzdatei.
+
+**Ursache:** `_rahmen.md:5/:25` gibt jeder Rolle mit Bash das Commit-Gebot,
+`director.md:84-86` und `director-git.md:16/24-26` nehmen es vier dieser
+Rollen (architect, ui-ux-designer, technical-writer, retrospective) wieder
+— und nur der Director liest die zweite Stelle.
+
+**Massnahme — Agenten-Repo, Nutzerentscheid noetig** (revidiert die
+Nutzerentscheidung 08.09.2026 in `director-git.md:25-26`):
+- **Empfohlen — das Recht an die gelesene Regel angleichen:**
+  `director.md:84-86` ersetzen durch
+  > Rollen ohne `Bash` (`compliance-agent`, `researcher`, `product-strategist`):
+  > du committest ihre Arbeit sofort, gebuendelt mit deiner Buchfuehrung.
+
+  `director-git.md:16`: `architect`, `ui-ux-designer`, `technical-writer`,
+  `retrospective` in eine eigene Zeile — darf: "`add`/`commit` der eigenen
+  Ablage mit Pfad (`-- <datei>`)"; darf nicht: "jede andere schreibende
+  Git-Operation, `push`". `security-reviewer` bleibt "lesend".
+  `director-git.md:24-26` "Dasselbe gilt fuer die Doku der Rollen ohne
+  Commit-Recht" gilt dann nur noch fuer die drei Rollen ohne Bash.
+- *Alternative — Riegel:* `git-commit-guard.ps1` verweigert `git commit`,
+  wenn `agent_type` eine der vier Rollen ist. Verworfen: stellt B-04 wieder
+  her und kostet je Lauf einen Director-Zug.
+
+**Streichung:** netto eine Zeile weniger in `director.md`; kein neuer Satz im
+Rahmen (er sagt es schon).
+
+**Wer liest es wann:** die vier Rollen lesen `_rahmen.md` in jedem Lauf (dort
+steht es bereits); der Director `director.md` in jeder Session.
+
+**Kosten:** zwei Rollen, die gleichzeitig committen, koennen am `index.lock`
+scheitern — ein Wiederholversuch. Der Director verliert den Ueberblick "ein
+Commit je Phase" fuer Doku; `git log` zeigt ihn.
+
+**Erfolgskriterium (zwei Zyklen):** keine Director-Notiz "ohne Recht
+committet"; keine Rollen-Doku uncommittet am Gate (`git status --short` am
+Gate leer bis auf Director-Dateien).
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-013 — Die Remote-Pruefung ist an eine Rolle gebunden statt an den Push: 26 von 28 Director-Pushes ohne Pruefung im selben Aufruf
+
+**Belege:** Tabelle oben, Zeile 6. `CLAUDE.md` (Projekt) Z. 8-10: "der
+`archivist` prueft `git remote -v` vor jedem Push"; dieselbe Zeile in
+`templates/CLAUDE.project.md:10-11` und `archivist.md:200`. Der Director darf
+selbst pushen (`director-git.md:11`, `:22-24`) — die Pruefung erreicht ihn
+nicht. Kein Push ging je an ein falsches Remote (`git remote -v` 23.09.: nur
+`origin` = erlaubte URL); das Risiko liegt an der Grenze mit "Vorrang vor
+allem" (oeffentliches Repository, NH-002).
+
+**Ursache:** Die Pruefung haengt am `archivist` als Akteur, das Recht zu
+pushen haben zwei Rollen — der Text trifft nur eine.
+
+**Massnahme — Agenten-Repo** (`hooks/git-commit-guard.ps1`, parst
+git-Kommandos schon, 58 Zeilen): Steht `git … push` an Befehlsstelle
+(Textteile entfernt wie NH-011), liest der Hook aus der Projekt-`CLAUDE.md`
+die Zeile `erlaubtes Remote ausschliesslich \`<url>\`` und vergleicht jede
+Adresse aus `git remote get-url --push --all <remote>` (Remote aus dem
+Kommando, sonst Upstream des Branches) sowie jede im Kommando genannte URL.
+Abweichung oder fehlende Angabe → `deny`:
+`[remote] Push-Ziel <url> ist nicht das erlaubte Remote <soll> (CLAUDE.md). Nicht pushen, melden.`
+Nachweis beim Einbau: in einem Wegwerf-Klon mit falscher `origin` ein `deny`.
+
+**Streichung:** `templates/CLAUDE.project.md:11-12` und Projekt-`CLAUDE.md`
+Z. 8-10 "der `archivist` prueft `git remote -v` vor jedem Push, bei
+Abweichung wird nicht gepusht, sondern gemeldet" → "`git-commit-guard.ps1`
+weist jeden Push an ein anderes Ziel ab (NH-013)." `archivist.md:200`
+entfaellt. Wer pusht (Director oder `archivist`), bleibt wie in
+`director-git.md` — die Grenze haengt nicht mehr daran.
+
+**Wer liest es wann:** niemand — der Hook feuert bei jedem Push, auch in
+anderen Projekten.
+
+**Kosten:** ein `git`-Aufruf je Push (Dauer ungemessen). Ein Projekt ohne die
+Zeile in seiner `CLAUDE.md` kann nicht mehr pushen, bis sie dort steht —
+beabsichtigt; vor dem Einbau die Projekt-`CLAUDE.md` aller Repos pruefen
+(die Vorlage hat die Zeile).
+
+**Erfolgskriterium:** ein `deny` im Wegwerf-Klon gezeigt; danach zwei Zyklen
+ohne Push-Fehler und ohne Remote-Satz in Auftraegen oder Berichten.
+
+**Status:** vorgeschlagen
+
+---
+
+### Muster ohne eigene Massnahme — `docs/state.md` fuehrt Abschriften, die eine andere Datei besitzt, und sie veralten
+
+**Belege:** Befund 4 und 5 oben (Nummernkreise AK/AD zwei Tage alt unter
+"nachgezaehlt 21.09."; fuenf geschlossene Befunde als offen, an HEAD wieder
+zwei). Nummernkreise vorher: T-141, T-205. Befundliste vorher: Zyklus 27
+"48 Commits unangetastet", B-06 (bluetooth-dashboard).
+
+**Ursache:** Nummernkreise und Befundstatus sind Abschriften aus
+`UI_SPEC.md`, `ARCHITECTURE.md` und den Registern, die nur bei Handpflege
+stimmen.
+
+**Keine eigene Massnahme, weil der Schaden null ist:** die Rollen zaehlen
+selbst (2 von 2 in diesem Zyklus, T-145, T-178), und kein Auftrag entstand
+aus einem veralteten Befund. Der billigste Schritt ist keine Regel, sondern
+eine Streichung beim naechsten Stand: in `docs/state.md` die Kreise AK, AD,
+DR, R, C, A weglassen (bleiben: T, QA, SEC, OF — die vergibt der Director),
+und im Auftrag "naechste freie AK zaehlt die Rolle am Bestand" statt einer
+Zahl. **Eine abgeleitete Befundliste per Befehl geht heute nicht:** 135 IDs
+haben in den Registern eine letzte Zeile, die weder geschlossen, behoben
+noch zurueckgestellt sagt (siehe Nebenfunde) — state.md und Register
+widersprechen sich also nicht an sechs Stellen: das Register fuehrt 135 IDs
+offen, state.md zwei.
+
+**Erfolgskriterium (Beobachtung):** bleibt ein Rollenbericht "Nummer war
+vergeben" aus, ist die Streichung unnoetig; verursacht ein veralteter
+Eintrag einen Auftrag, wird es eine Massnahme.
+
+### Beobachtungen (noch kein Muster)
+
+- **Fortsetzung erbt die Zaehler** (zweites Vorkommen nach T-290b, Zyklus
+  27): die T-329j-Nachbesserung startete mit Volllauf-Zaehler 4. NH-011
+  Punkt 4 entschaerft es; beim dritten Vorkommen gehoert es an
+  `director.md:245` ("Fortsetzen statt neu beauftragen … ausser nach der
+  Zugschwelle" → "… oder nach einer Hook-Sperre").
+- **Erwartete Oberflaechentexte aus dem Gedaechtnis** (zweimal in einem
+  Zyklus, Befund 7). Ort, falls es wiederkommt: die Ingame-Liste entsteht
+  nach dem QA-Lauf aus dessen beobachtetem Wortlaut statt vorher.
+- **Fortsetzung eines Worktree-Laufs mit Hauptbaum-Arbeit** (Befund 3), ein
+  Vorkommen.
+- **Parallele Volllaeufe erzeugen Scheinfehler:** T-329d erster Volllauf 19
+  Fehler, nicht wiederholt (zeitgleich mit T-329e, 22:18/22:19); w6
+  `[the answer raises]` 23:17 unter `-n auto`. T-329o hat `spin` sich selbst
+  benennen lassen. Zwei Vorkommen, eine Ursache unbewiesen.
+- **Die Retrospektive haengt an Transkripten:** ohne Berichtsdateien waren
+  sie die einzige Quelle fuer Befund 1-3; sie sind sitzungsgebunden. Kein
+  Handlungsbedarf, solange sie liegen bleiben.
+
+### Nebenfunde an den director (nicht meine Sache)
+
+- **Register und state.md:** 135 IDs mit nicht geschlossener letzter Zeile
+  (`awk -F'|' '/^\| (QA|SEC)-[0-9]+ \|/{s[$2]=$(NF-2)} END{for(i in s) if(s[i] !~ /geschlossen|behoben|zurueckgestellt|WAIVED|erledigt/) print i}' qa/findings.md security/findings.md | wc -l`,
+  23.09.), state.md nennt zwei offene QA. Vor jeder abgeleiteten Sicht
+  braucht es eine Triage (`.claude/agent-memory/qa-engineer/project_register_triage.md`
+  existiert).
+- **state.md an HEAD:** QA-222 als offen (Register Z. 498 geschlossen),
+  QA-004 als behoben (Z. 500 teilweise); SEC-Zeile "0 offen ausser SEC-019",
+  SEC-049/050/051 ohne Abschlusszeile (SEC-051 gefixt `a5fef7a`, Retest
+  T-329p).
+- **T-329.md** wurde per Python im Textmodus geschrieben (CRLF-Warnung
+  00:33); Git normalisiert, kein Schaden.
+
