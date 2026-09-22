@@ -449,3 +449,18 @@ def test_a_part_name_offset_past_the_record_is_a_data_error():
     record = struct.pack("<Q", 4096) + PART_NAME.encode("utf-16-le") + b"\0\0"
     with pytest.raises(binary.NotWhatItClaims):
         bossdata._parts(msb_with_one_part(record))
+
+
+def test_a_damaged_snapshot_counts_as_no_snapshot(monkeypatch, tmp_path):
+    """T-329o: a snapshot cut short stopped the start when no game was found.
+
+    It now takes the way a missing one takes, and is left where it is.
+    """
+    from nrplanner import datasource
+
+    broken = tmp_path / "nightreign_data.json"
+    broken.write_text('{"meta": {"regulation_size"', encoding="utf-8")
+    monkeypatch.setattr(datasource, "bundled_path", lambda: broken)
+
+    assert datasource._snapshot() is None
+    assert broken.exists()
