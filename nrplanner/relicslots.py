@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import advisorblock, chalices, effecttext, favourites, inventory, model
-from .theme import ACCENT, BORDER, CURSE, MUTED, PANEL, SLOT_COLOURS
+from .theme import ACCENT, BORDER, CURSE, DEBUFF, MUTED, PANEL, SLOT_COLOURS
 
 
 # The slot-colour gems, by relic colour. White ships none -- the game has
@@ -58,7 +58,7 @@ def slot_chip(icons, colour: int, owned=None, size: int = 26):
 
     chip = QPixmap(size, size)
     chip.fill(Qt.transparent)
-    tint = QColor(SLOT_COLOURS.get(colour, "#8a8a8a"))
+    tint = QColor(SLOT_COLOURS.get(colour, MUTED))
     painter = QPainter(chip)
     painter.setRenderHint(QPainter.Antialiasing, True)
 
@@ -426,7 +426,7 @@ class RelicSlot(QFrame):
             eff = self.effect_by_id.get(eid)
             name = effecttext.name(eff) if eff else f"<{eid}>"
             mark = "" if not eff or eff["stacks"] else "  ⚠"
-            colour = "#d1655f" if eff and eff.get("is_curse") else "#cfcfcf"
+            colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"
             # An effect belonging to another Nightfarer is doing nothing at
             # all here. Say so on the slot rather than letting it sit among
             # the working rolls looking identical to them.
@@ -551,7 +551,7 @@ class RelicSlot(QFrame):
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
         self.chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(colour, '#888')};"
+            f"background: {SLOT_COLOURS.get(colour, MUTED)};"
             f" border: 1px solid {BORDER}; border-radius: 7px;"
         )
         self.populate()

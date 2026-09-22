@@ -20,15 +20,11 @@ from PySide6.QtWidgets import (
 )
 
 from . import effecttext, model, weapons
-from .theme import ACCENT, BORDER, MUTED, PANEL
+from .theme import ACCENT, BORDER, DEBUFF, MUTED, PANEL
 
-GOOD = "#78b57e"
-# The red the Effects tab gives a curse, so a negative roll
-# reads the same wherever it appears.
-DEBUFF = "#e07a74"
-
-# The rarity a weapon reads as, in the same colours the Weapons tab uses for
-# its tiles. An upgrade raises the tier a weapon counts as, so the name is
+# The rarity a weapon reads as, in lighter shades of the colour families the
+# Weapons tab uses for its tiles -- not the same values, since text on PANEL
+# needs more contrast than a tile border. An upgrade raises the tier a weapon counts as, so the name is
 # coloured by where it ends up rather than where it started.
 RARITY_NAMES = {0: "Common", 1: "Uncommon", 2: "Rare", 3: "Legendary"}
 RARITY_TEXT = {

@@ -1112,7 +1112,7 @@ class RelicPicker(QDialog):
         chip = QLabel()
         chip.setFixedSize(16, 16)
         chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(slot.colour, '#888')};"
+            f"background: {SLOT_COLOURS.get(slot.colour, MUTED)};"
             f" border: 1px solid {BORDER}; border-radius: 8px;"
         )
         top.addWidget(chip)

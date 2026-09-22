@@ -18,14 +18,11 @@ from PySide6.QtWidgets import (
 
 from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
-from .theme import ACCENT, BORDER, MUTED, PANEL
+from .theme import ACCENT, BORDER, COMMUNITY, MUTED, PANEL
 
 DLC = "#9a6fc4"
 UNKNOWN = "#7d6f52"
 PENALTY = "#c07a6a"
-# Community material is tinted throughout, so it never sits on the page
-# looking like the extracted text beside it.
-COMMUNITY = "#6f9ac4"
 
 #: Figures whose reference quantity is not in the files, keyed by the exact
 #: prefix `nrdata.extract._buff_lines` writes them with (AK-70, A7). Naming

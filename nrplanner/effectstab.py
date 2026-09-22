@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from . import effecttext, model, stacking, tabheader
 from .effecttext import describe_full
+from .theme import DEBUFF
 
 #: What this tab is for, above the filter row and above the counts (AK-68,
 #: AK-76). Until T-057 the first line a reader met was a stock count.
@@ -168,7 +169,7 @@ KIND_LABEL = "Type"
 # Buffs read blue, curses red, so which is which never has to be worked out
 # from the wording.
 BUFF_COLOUR = QColor("#7fb2e5")
-CURSE_COLOUR = QColor("#e07a74")
+CURSE_COLOUR = QColor(DEBUFF)
 
 
 def format_chance(value: float) -> str:
@@ -1034,7 +1035,7 @@ class EffectsTab(QWidget):
                     # copy of these is wasted, which is the one case where the
                     # column changes what a player should equip.
                     if stacking.repetition(eff) != stacking.STACKS:
-                        item.setForeground(Qt.red)
+                        item.setForeground(CURSE_COLOUR)
                     # Naming the deciding field turns the verdict into
                     # something checkable rather than something to take on
                     # trust, which is the whole point of the column. The

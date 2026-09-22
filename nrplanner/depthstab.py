@@ -32,9 +32,8 @@ from PySide6.QtWidgets import (
 )
 
 from . import tabheader
-from .theme import ACCENT, MUTED
+from .theme import ACCENT, COMMUNITY, MUTED
 
-COMMUNITY = "#7fb2e5"
 
 #: AK-98. The old heading, `RED VARIANTS BY DEPTH`, announced counts, and the
 #: answer to "what *is* a red variant" sat in a subordinate clause halfway

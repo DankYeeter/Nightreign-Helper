@@ -15,7 +15,12 @@ GOOD = "#6fbf73"
 BAD = "#d1655f"
 #: Curses are a cost, and read in the same colour as one.
 CURSE = BAD
+#: A rolled curse or cost in a list or table cell; lighter than BAD so it
+#: stays readable at cell size.
+DEBUFF = "#e07a74"
 DEEP = "#9a6fc4"
+#: What players have reported rather than what the game files state.
+COMMUNITY = "#7fb2e5"
 
 SLOT_COLOURS = {
     0: "#b4544e",   # Red
