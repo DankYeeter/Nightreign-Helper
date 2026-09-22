@@ -702,7 +702,7 @@ def curse_over(rows: list[dict]) -> str:
 
 def deduplicate(effects: list[dict]) -> list[tuple[dict, int]]:
     """Collapse identical rows, keeping a count of how many were merged."""
-    groups: dict[tuple, list[dict]] = collections.OrderedDict()
+    groups: dict[tuple, list[dict]] = {}
     for eff in effects:
         groups.setdefault(identity(eff), []).append(eff)
     return [(rows[0], len(rows)) for rows in groups.values()]
@@ -921,7 +921,7 @@ class EffectsTab(QWidget):
 
         # Collapse identical rows before display. Colours are unioned across
         # the merged rows so nothing is lost by dropping the copies.
-        merged: dict[tuple, tuple[dict, set]] = collections.OrderedDict()
+        merged: dict[tuple, tuple[dict, set]] = {}
         for eff, colours in candidates:
             key = identity(eff)
             if key in merged:

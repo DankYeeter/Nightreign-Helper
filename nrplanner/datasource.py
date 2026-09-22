@@ -43,17 +43,13 @@ def bundled_path() -> pathlib.Path:
 
     The cache comes first because it is the only writable location once the
     program is installed, and so the only place a rebuild after a game patch
-    can land. The two fallbacks are for running from a source tree that still
-    has a locally built snapshot beside the package.
+    can land. The fallback is for running from a source tree that still has
+    a locally built snapshot in the package's `data` folder.
     """
     from . import paths
 
-    base = _base_dir()
-    for candidate in (
-        paths.snapshot_path(),
-        base / "data" / BUNDLED_NAME,
-        base / BUNDLED_NAME,
-    ):
+    for candidate in (paths.snapshot_path(),
+                      _base_dir() / "data" / BUNDLED_NAME):
         if candidate.exists():
             return candidate
     return paths.snapshot_path()
@@ -61,11 +57,8 @@ def bundled_path() -> pathlib.Path:
 
 def icon_path() -> pathlib.Path | None:
     """The application icon, or None if it was not packaged."""
-    base = _base_dir()
-    for candidate in (base / "data" / "icon.ico", base / "icon.ico"):
-        if candidate.exists():
-            return candidate
-    return None
+    icon = _base_dir() / "data" / "icon.ico"
+    return icon if icon.exists() else None
 
 
 def defs_dir() -> pathlib.Path | None:

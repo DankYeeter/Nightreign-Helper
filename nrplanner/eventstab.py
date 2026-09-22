@@ -43,10 +43,6 @@ def _note(text: str) -> QLabel:
     return label
 
 
-def _colour(hex_value: str) -> QColor:
-    return QColor(hex_value)
-
-
 def _community(text: str) -> QLabel:
     label = QLabel(text)
     label.setWordWrap(True)
@@ -136,7 +132,7 @@ class WorldEventsTab(QWidget):
                 label = entry["name"]
             item = QListWidgetItem(label)
             if kind == "unannounced":
-                item.setForeground(_colour(COMMUNITY))
+                item.setForeground(QColor(COMMUNITY))
             self.list.addItem(item)
         self.list.currentRowChanged.connect(self._show)
         body.addWidget(self.list)

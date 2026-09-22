@@ -17,14 +17,10 @@ APP_NAME = "NightreignHelper"
 
 def cache_dir() -> pathlib.Path:
     """The per-user directory holding everything built from the game."""
+    # Windows always sets LOCALAPPDATA; a stripped environment without it
+    # falls back to a `.cache` folder in the home directory.
     local = os.environ.get("LOCALAPPDATA")
-    if local:
-        base = pathlib.Path(local)
-    else:
-        # Not Windows, or a stripped environment. XDG, then a dotfile.
-        xdg = os.environ.get("XDG_CACHE_HOME")
-        base = pathlib.Path(xdg) if xdg else pathlib.Path.home() / ".cache"
-
+    base = pathlib.Path(local) if local else pathlib.Path.home() / ".cache"
     return base / APP_NAME
 
 
