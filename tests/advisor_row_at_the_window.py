@@ -133,7 +133,7 @@ def _the_row(bar, controls) -> dict:
         "widths": {name: widget.width() for name, widget in on_screen},
         "status_width": bar.status.width(),
         "status_text": bar.status.text(),
-        "status_whole_text": bar.status.whole_text(),
+        "status_whole_text": bar.status.accessibleName(),
         "status_tooltip": bar.status.toolTip(),
         "row_tooltip": bar.toolTip(),
     }

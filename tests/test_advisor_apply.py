@@ -168,12 +168,12 @@ def test_an_applied_answer_offers_undo_in_the_same_place(qapp):
                                        goal_label="Maximise damage",
                                        slots=6, slots_filled=1))
         bar.the_suggestion_was_applied()
-        assert bar.status.whole_text() == (
+        assert bar.status.accessibleName() == (
             "Applied. Undo puts your slots back as they were.")
         assert visible_actions(bar) == ["Undo apply", "Why", "Clear"]
 
         bar.the_suggestion_was_undone()
-        assert bar.status.whole_text() == (
+        assert bar.status.accessibleName() == (
             "Maximise damage — 1 of 6 slots filled.")
         assert visible_actions(bar) == ["Apply all", "Why", "Clear"]
     finally:
@@ -418,7 +418,7 @@ def test_the_row_says_applied_and_the_cards_say_already_equipped(planner):
     planner.apply_all()
 
     assert planner.advisor_bar.situation.state is advisorbar.State.APPLIED
-    assert planner.advisor_bar.status.whole_text() == (
+    assert planner.advisor_bar.status.accessibleName() == (
         "Applied. Undo puts your slots back as they were.")
     for index, _copy in offers:
         block = planner.active_slots()[index].suggestion
@@ -518,7 +518,7 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
         time.sleep(0.005)
     if bar.answer is None or not bar.answer.suggestions:
         pytest.skip(f"the run ended in {bar.situation.state} with nothing to "
-                    f"apply: {bar.status.whole_text()!r}")
+                    f"apply: {bar.status.accessibleName()!r}")
 
     planner.apply_all()
     applied = keys_of(planner)

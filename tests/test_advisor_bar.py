@@ -304,7 +304,7 @@ def _wait(milliseconds: int) -> None:
 def test_a_row_at_rest_is_4_1_and_offers_what_optimize_promises(bar):
     """4.1: the line, and the tooltip that says nothing changes by itself."""
     assert bar.situation.state is advisorbar.State.NOTHING_YET
-    assert bar.status.whole_text() == "Nothing suggested yet."
+    assert bar.status.accessibleName() == "Nothing suggested yet."
     assert bar.optimize_button.text() == "Optimize"
     assert bar.optimize_button.toolTip() == (
         "Fills every slot from the relics in your save. Nothing changes "
@@ -385,7 +385,7 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
     bar.asking["value"] = None
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.NO_SAVE
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "No save was read, so there are no relics to choose from — use "
         "Rescan save.")
     assert not bar.goal_box.isEnabled()
@@ -402,12 +402,12 @@ def test_a_run_under_the_threshold_shows_nothing_at_all(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     _wait(150)
-    early = (bar.progress.isHidden(), bar.status.whole_text())
+    early = (bar.progress.isHidden(), bar.status.accessibleName())
     bar._controller.answers(_an_answer())
     _wait(300)
     assert early == (True, "")
     assert bar.progress.isHidden()
-    assert bar.status.whole_text() == "Maximise damage — 6 of 6 slots filled."
+    assert bar.status.accessibleName() == "Maximise damage — 6 of 6 slots filled."
 
 
 def test_a_run_over_the_threshold_waits_out_loud(bar):
@@ -416,7 +416,7 @@ def test_a_run_over_the_threshold_waits_out_loud(bar):
     bar._controller.begins()
     _wait(WAITED_OUT_MS)
     assert bar.situation.state is advisorbar.State.WORKING
-    assert bar.status.whole_text() == "Working out maximise damage…"
+    assert bar.status.accessibleName() == "Working out maximise damage…"
     assert not bar.progress.isHidden()
     assert bar.optimize_button.text() == "Cancel"
 
@@ -435,7 +435,7 @@ def test_a_long_run_adds_the_figures_the_window_knew_all_along(bar,
     bar._controller.begins()
     _wait(200)
     assert bar.situation.state is advisorbar.State.WORKING_WITH_FIGURES
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Working out maximise damage — 292 relics, 6 slots.")
 
 
@@ -468,7 +468,7 @@ def test_the_sequence_rest_working_stopped_rest(bar):
 
     bar.optimize_button.click()     # it says `Cancel` now
     assert bar.situation.state is advisorbar.State.STOPPED
-    assert bar.status.whole_text() == "Stopped. Nothing was changed."
+    assert bar.status.accessibleName() == "Stopped. Nothing was changed."
     assert bar.progress.isHidden()
     assert bar.optimize_button.text() == "Optimize"
 
@@ -490,7 +490,7 @@ def test_a_build_that_changes_under_a_run_ends_in_4_7_and_not_in_4_5(bar):
     _wait(WAITED_OUT_MS)
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Your build changed while this was working out — use Optimize "
         "again.")
     assert bar.progress.isHidden()
@@ -521,7 +521,7 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=5))
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
 
@@ -534,7 +534,7 @@ def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=4, held=1))
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
 
@@ -548,7 +548,7 @@ def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=0, blocked=True))
     assert bar.situation.state is advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 0 of 6 slots filled  ·  6 slots are blocked by a "
         "requirement you marked.")
 
@@ -561,7 +561,7 @@ def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(
     _wait(WAITED_OUT_MS)
     bar.the_build_changed(marking_changed=True)
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "The effects you marked changed while this was working out — use "
         "Optimize again.")
 
@@ -584,7 +584,7 @@ def test_a_marking_inside_the_debounce_outdates_the_question_that_is_waiting(
 
     assert bar._controller.cancels == 1
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "The effects you marked changed while this was working out — use "
         "Optimize again.")
     assert not bar._controller.running, "the waiting question was left to run"
@@ -609,7 +609,7 @@ def test_an_answer_with_silent_effects_says_that_much(bar):
                                        not_counted=("Under a condition",)))
     assert bar.situation.state is (
         advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS)
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no "
         "number.  ·  1 effect was left out: it only applies under a "
         "condition.")
@@ -633,7 +633,7 @@ def test_an_effect_with_no_figure_is_not_a_clause_of_the_status_line(bar):
     bar._controller.begins()
     bar._controller.answers(answer)
     assert bar.situation.state is advisorbar.State.SUGGESTED
-    assert bar.status.whole_text() == "Maximise damage — 6 of 6 slots filled."
+    assert bar.status.accessibleName() == "Maximise damage — 6 of 6 slots filled."
 
 
 def test_clear_puts_the_answer_away_and_is_offered_only_while_there_is_one(bar):
@@ -671,7 +671,7 @@ def test_a_run_that_failed_says_one_line_and_no_stack_trace(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.failed.emit("the dataset carries no attribute curves.")
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Could not work that out — the dataset carries no attribute curves.")
     assert bar.progress.isHidden()
 
@@ -688,7 +688,7 @@ def test_foreign_text_in_a_reason_reaches_the_label_as_text(bar):
     bar._controller.begins()
     bar._controller.failed.emit("<b>relic</b> & co")
     assert bar.status.textFormat() == Qt.PlainText
-    assert bar.status.whole_text() == "Could not work that out — <b>relic</b> & co."
+    assert bar.status.accessibleName() == "Could not work that out — <b>relic</b> & co."
     assert "&lt;b&gt;relic&lt;/b&gt; &amp; co" in bar.status.toolTip()
     assert "<b>relic</b>" not in bar.status.toolTip()
 
@@ -706,7 +706,7 @@ def test_a_shortened_status_keeps_its_whole_sentence_for_the_accessibility_bridg
     bar._controller.begins()
     bar._controller.failed.emit("the dataset carries no attribute curves.")
     bar.status.resize(67, bar.status.height())
-    whole = bar.status.whole_text()
+    whole = bar.status.accessibleName()
     assert bar.status.text() != whole and bar.status.text().endswith("…"), (
         "the status is not shortened at this width, so the case proves "
         "nothing")
@@ -1421,7 +1421,7 @@ def test_a_real_optimize_answers_and_changes_no_slot(planner):
                        advisorbar.WORKING_STATES), "the run never finished"
     assert bar.situation.state in advisorbar.ANSWERED_STATES, (
         f"the run ended in {bar.situation.state} saying "
-        f"{bar.status.whole_text()!r}")
+        f"{bar.status.accessibleName()!r}")
     assert _slot_state(planner) == before
     assert planner._build is sheet
     bar.shutdown()

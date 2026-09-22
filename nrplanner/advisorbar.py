@@ -596,10 +596,6 @@ class _ElidingLabel(QLabel):
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self._whole = ""
 
-    def whole_text(self) -> str:
-        """What the label would say with room enough."""
-        return self._whole
-
     def set_whole_text(self, text: str) -> None:
         self._whole = text
         # A tooltip has no text format to set, so Qt decides for itself
