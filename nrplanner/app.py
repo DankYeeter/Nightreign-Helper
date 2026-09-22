@@ -158,7 +158,7 @@ class VesselStrip(QWidget):
         self.tiles = []
 
         for index, colour in enumerate(colours):
-            tint = SLOT_COLOURS.get(colour, "#8a8a8a")
+            tint = SLOT_COLOURS.get(colour, MUTED)
             backing = slot_chip(self.icons, colour,
                                 items[index] if index < len(items) else None,
                                 self.TILE)
