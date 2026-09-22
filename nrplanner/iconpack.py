@@ -99,7 +99,7 @@ class IconPack:
                     self.manifest = json.loads(raw.decode("utf-8"))
                 except ValueError:
                     pass
-        self._cache: dict[str, QPixmap] = {}
+        self._cache: dict[str, QPixmap | None] = {}
 
     @property
     def available(self) -> bool:
@@ -115,6 +115,9 @@ class IconPack:
             return self._cache[filename]
         path = self._inside_pack(filename)
         if path is None or not path.exists():
+            # Cached: unlike a failed read below, a refused name or an absent
+            # file stays so, since nothing writes the pack once it is open.
+            self._cache[filename] = None
             return None
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
