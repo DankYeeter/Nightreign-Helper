@@ -1354,7 +1354,7 @@ dergleichen: ein `vessels`-Eintrag hat `id`, `name`, `icon`, `hero_type`,
 
 ---
 
-### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv)
+### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv; **Punkt 4 präzisiert durch AD-055** — gilt auch im Picker, die Begründung "ohne lesbare Tabelle keine Handles" ist falsch)
 
 **Kontext:** Der Nutzer hat entschieden, dass der Besitz erzwungen wird
 (QA-002): ein bereits belegtes Exemplar wird in den übrigen Slots nicht mehr
@@ -8945,6 +8945,134 @@ lauffaehig; 3 und 4 sind ohne 5 ohne Wirkung im Programm.
 - **OF-58 — Der A26-Nachweis fuer Revenant** setzt voraus, dass die Incantation Schaden
   traegt; gemessen tun Rejection und Heal das nicht. Nachweis mit einem Tauschrelikt
   fahren oder `GOAL.md` nachziehen? Wer: App Designer.
+
+---
+
+## Themenbereich O — Eine Identitaetsregel fuer Relikt-Exemplare, QA-016 (2026-09-22, T-329c)
+
+### AD-055 — Das Exemplar ist sein **Handle**, ueberall: ein Relikt ohne Handle bietet weder der Berater noch der Picker an, und der Offset-Zweig von `copy_key` faellt (2026-09-22, Status: aktiv; **praezisiert AD-013 Punkt 4** — Regel unveraendert, Begruendung ersetzt, Geltung auf den Picker erweitert —, korrigiert die Praemisse in AD-014 Punkt 5, beantwortet OF-11)
+
+**Kontext:** Zwei Regeln fuer "dasselbe physische Relikt" bestehen nebeneinander
+(QA-016, Stand T-256). Der Berater nimmt nur Exemplare mit Handle
+(`advisor/candidates.py:256`, AD-013 Pkt 4). Der Picker vergleicht ueber
+`inventory.copy_key` (`inventory.py:50-75`): zuerst der Handle, sonst
+`("record", offset)`. Beide Regeln begruenden sich mit derselben Praemisse:
+"a save whose loadout table cannot be read yields no handles at all"
+(`inventory.py:45`, `:56`; `tests/test_relic_ownership.py:82`; hier Z. 1414 und
+Z. 1534).
+
+**Die Praemisse ist im Code falsch.** Geprueft am Arbeitsbaum, HEAD `e9bc8a0`,
+22.09.2026:
+- Der Handle kommt **nicht** aus der Loadout-Tabelle, sondern aus dem
+  Relikt-Datensatz selbst, 4 Bytes vor der doppelten Id
+  (`savefile.read_relic_handles`, `nrdata/savefile.py:643-652`, `HANDLE_OFFSET = -4`).
+- `inventory._scan_save` ruft `read_relic_handles` (Z. 538) **vor** und
+  **ausserhalb** des `try` um `read_loadouts` (Z. 544-552) auf. Eine unlesbare
+  Tabelle setzt `loadout_error` und laesst die Handles unberuehrt.
+- `OwnedItem.handle` ist damit nur `None`, wenn (a) `relic.offset < 4` (der
+  Handle laege vor dem Slotanfang) oder (b) zwei Datensaetze dieselben
+  Handle-Bytes tragen: `read_relic_handles` schluesselt nach Handle, der
+  spaetere Datensatz ueberschreibt den frueheren, und `handle_of`
+  (`inventory.py:562`) kennt den frueheren nicht mehr.
+
+**Gemessen am echten Spielstand** (22.09.2026 22:02, Umlenkung nach `CLAUDE.md`,
+Skript `scratchpad/T-329c/handles.py`, Relikt-/Effekt-Ids aus dem Testabzug
+v16): ein Spielstand, ein Slot `USER_DATA000`, **319** Datensaetze, **319**
+verschiedene Handles, **0** Doppelte, **0** ohne Handle, kleinster Offset **696**,
+alle 319 Handles der Form `0xC080xxxx`. Gegenprobe, dass die Zaehlung anschlaegt:
+dieselben Bytes im Speicher, Handle von Datensatz 0 mit dem von Datensatz 1
+ueberschrieben → **1** ohne Handle (`probe.py`). Randbedingung: gilt fuer diesen
+Spielstand; Fall (b) ist der einzige, den ein anderer Spielstand ausloesen kann,
+und genau fuer ihn kann das Spiel selbst die zwei Exemplare nicht unterscheiden —
+seine Loadout-Tabelle zeigt ueber den Handle auf eines von beiden.
+
+Der Offset-Zweig ist also nicht die Rueckfallebene fuer "Tabelle unlesbar",
+als die er geschrieben wurde, sondern greift nur in Fall (b) — und dort macht er
+den Picker zum einzigen Ort, der ein Exemplar anbietet, das der Berater mit
+A7-Satz ablehnt, und das kein gespeicherter Build und keine Uebernahme
+(`select_copy`, `relicslots.py:849`: `handle is None` → `False`) je erreichen kann.
+
+**Optionen:**
+- **A — Im Bestand bleiben.** Zwei Regeln, eine falsche Praemisse in drei
+  Docstrings. Konsequenz: in Fall (b) bietet der Picker, was der Berater
+  ablehnt; das naechste Review liest die Praemisse wieder als Tatsache.
+- **B — Handle ueberall (gewaehlt).** `copy_key` kennt nur den Handle; der Picker
+  nimmt handle-lose Exemplare an derselben Stelle heraus, an der er fragt, was
+  ein Slot halten kann (`_holdable`). Konsequenz: eine Regel, `OwnedItem.offset`
+  wird unbenutzt und faellt; Fall (b) zeigt im Picker ein Exemplar weniger,
+  der Berater nennt es weiter mit seinem A7-Satz.
+- **C — Datensatz-Offset ueberall.** Immer vorhanden und eindeutig.
+  Konsequenz: Loadout-Tabelle, gespeicherte Builds (`chalices.py:51`), Uebernahme
+  und Suchzustand (`search.py`, `frozenset` der Handles) sprechen Handle; der
+  Umbau ginge durch persistierte Daten. Verworfen.
+- **D — Handle total machen:** `read_relic_handles` liefert Offset → Handle, damit
+  Fall (b) zwei Exemplare mit gleichem Handle ergibt, die beide Regeln als eines
+  behandeln. Konsequenz: aendert `nrdata/` (Security-Vorlauf) fuer einen Fall
+  mit 0 von 319 Treffern. Verworfen, Ausloeser unten.
+
+**Entscheidung:** B.
+
+**Ausgestaltung, verbindlich:**
+1. **Die Identitaet eines besessenen Exemplars ist `OwnedItem.handle`.** Es gibt
+   keine zweite. `copy_key` liefert `("handle", h)` oder `None`; `None` heisst
+   weiter "kein besessenes Exemplar" (leerer Slot, Custom relic).
+2. **AD-013 Punkt 4 gilt fuer Berater und Picker.** Ein Exemplar ohne Handle wird
+   nirgends angeboten. Der Berater nennt es mit dem bestehenden A7-Satz
+   (`candidates.py:94-111`, Wortlaut unveraendert — "this save carries no handle"
+   bleibt wahr); der Picker schweigt (siehe "Bewusst nicht getan").
+3. **Die Begruendung von AD-013 Punkt 4 lautet jetzt:** Der Handle steht im
+   Datensatz; er fehlt nur, wenn zwei Datensaetze denselben tragen, und dann
+   kann auch das Spiel die zwei nicht auseinanderhalten. Die Klammer "ein Save
+   ohne lesbare Tabelle liefert keine" (Z. 1414) und "oder ein Save ohne lesbare
+   Handle-Tabelle" in AD-014 Punkt 5 (Z. 1534) sind **falsch**; beide bleiben als
+   Verlauf stehen, diese Entscheidung ersetzt sie.
+4. **Kein neuer Filter im Berater, keiner in `Inventory.relics_for`.** Der Berater
+   filtert schon (`candidates.py:256`) und braucht die Zahl fuer seinen A7-Satz;
+   `relics_for` bleibt die gemeinsame Farbregel beider.
+
+**Was der `developer` aendert (T-329e) — sechs Dateien:**
+
+| Datei:Zeile | Aenderung |
+|---|---|
+| `nrplanner/inventory.py:42-47` | Kommentar und Feld `offset` in `OwnedItem` loeschen |
+| `nrplanner/inventory.py:50-75` | `copy_key`: Offset-Zweig (Z. 73-74) loeschen; Docstring ohne die Loadout-Praemisse, ein Satz "the handle is read from the record itself" |
+| `nrplanner/inventory.py:466` | `offset=entry.offset,` loeschen |
+| `nrplanner/relicslots.py:696-706` | `_holdable`: `[r for r in self.owned.relics_for(...) if r.handle is not None]`, Docstring ein Satz mit Verweis AD-055; `_same_copy`-Docstring Z. 162-165 ohne "or the record's own place" |
+| `tests/relics.py:74-89` | `FIRST_OFFSET`, `OFFSET_STRIDE` und `offset=` loeschen; der Parameter `index` bleibt (24 Aufrufe in 5 Dateien), mit einem `ponytail:`-Kommentar "unused since AD-055, drop when the callers are touched anyway" |
+| `tests/test_hostile_savefile.py:569` | `, offset=index * 80` loeschen |
+| `tests/test_relic_ownership.py:80-98, 118-133` | siehe Test unten |
+
+Das sind **sechs** Dateien, eine ueber der Grenze des Auftrags:
+`tests/test_hostile_savefile.py` bricht sonst beim Import (Konstruktor ohne Feld
+`offset`). Die Alternative waere, das tote Feld stehen zu lassen. `nrdata/` wird
+**nicht** beruehrt.
+
+**Test, der die Einheitlichkeit haelt** — `tests/test_relic_ownership.py`, der
+Test Z. 80-98 wird ersetzt durch `test_a_copy_without_a_handle_is_offered_nowhere`:
+ein `Inventory` mit zwei Exemplaren einer Farbe, Handles `9` und `None`. Erwartet,
+als Literale: der Picker bietet in keinem Slot das handle-lose an (`offered(...)`
+wie bisher), und `candidates.pool(...)` ueber **dasselbe** `Inventory` fuehrt genau
+Handle `9` als Kandidaten und genau eine A7-Zeile (Aufbau wie
+`tests/test_pool_finding_wording.py:58`). Faellt, wenn `_holdable` das
+handle-lose Exemplar wieder anbietet. Der Test Z. 118-133 erwartet fuer das
+handle-lose Exemplar `copy_key(...) is None` statt zweier verschiedener
+Offset-Schluessel.
+
+**Konsequenzen:** Leicht wird — eine Frage, eine Antwort: was der Picker
+anbietet, kann der Berater vorschlagen und die Uebernahme erreichen. Schwerer
+wird — nichts Bestehendes; Fall (b) verliert im Picker ein Exemplar, das bisher
+dort auswaehlbar, aber nie speicher- oder uebernehmbar war.
+
+**Umkehrbarkeit:** leicht. Kein persistiertes Format kennt `("record", offset)`
+(`copy_key` fuellt nur Mengen im Speicher, `app.py:1708/1714/2149/2271`);
+Rueckbau = Feld und Zweig zurueck, ein Filter weg.
+
+**Bewusst nicht getan:**
+- **Ein Satz im Picker fuer handle-lose Exemplare.** Gemessen 0 von 319; ein
+  Bedienelement fuer einen Fall ohne Beleg. Wieder interessant, sobald ein
+  Spielstand mit Doppel-Handle gemeldet wird — dann Spec an den `ui-ux-designer`.
+- **Option D (`nrdata/`).** Wieder interessant unter derselben Bedingung; dann
+  werden beide Exemplare eines Doppel-Handles zu einem, statt dass eines fehlt.
 
 ---
 
