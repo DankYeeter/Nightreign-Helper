@@ -110,14 +110,14 @@ def test_a_marking_writes_both_keys_through_one_store_object(store,
     so the two keys land together rather than in two visits to the registry
     with a gap between them for the process to end in."""
     built = []
-    real = effectfilters.QSettings
+    real = favourites.QSettings
 
     def counting(*args, **kwargs):
         settings = real(*args, **kwargs)
         built.append(settings)
         return settings
 
-    monkeypatch.setattr(effectfilters, "QSettings", counting)
+    monkeypatch.setattr(favourites, "QSettings", counting)
     filters = effectfilters.EffectFilters()
     built.clear()
 

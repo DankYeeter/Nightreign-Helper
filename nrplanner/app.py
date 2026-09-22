@@ -6,7 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QProcess, QSettings, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import QProcess, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -424,11 +424,11 @@ class HeroTile(QToolButton):
     def set_variant(self, texture_id: int | None) -> None:
         self.variant_id = texture_id
         self._apply_image()
-        settings = QSettings(favourites.ORG, favourites.APP)
+        settings = favourites.settings()
         settings.setValue(f"variant/{self.hero['id']}", texture_id if texture_id else "")
 
     def restore_variant(self) -> None:
-        settings = QSettings(favourites.ORG, favourites.APP)
+        settings = favourites.settings()
         stored = settings.value(f"variant/{self.hero['id']}", "")
         if stored:
             self.variant_id = int(stored)
@@ -604,7 +604,7 @@ class Planner(QMainWindow):
         self.panes.setStretchFactor(1, 1)
         self.panes.setStretchFactor(2, 0)
         self.panes.setSizes(list(PANE_DEFAULTS))
-        stored_panes = QSettings(favourites.ORG, favourites.APP).value(PANES_KEY)
+        stored_panes = favourites.settings().value(PANES_KEY)
         if stored_panes:
             try:
                 self.panes.restoreState(stored_panes)
@@ -653,7 +653,7 @@ class Planner(QMainWindow):
         # is the point: every tab that does not come out of the save is
         # complete in the first paint (AK-220). What the save would have added
         # is added at the arrival, by `_on_save_read`.
-        stored_hero_id = QSettings(favourites.ORG, favourites.APP).value(
+        stored_hero_id = favourites.settings().value(
             HERO_KEY, -1, type=int)
         start_index = next(
             (i for i, hero in enumerate(self.heroes)
@@ -1200,7 +1200,7 @@ class Planner(QMainWindow):
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""
         if hasattr(self, "panes"):
-            QSettings(favourites.ORG, favourites.APP).setValue(
+            favourites.settings().setValue(
                 PANES_KEY, self.panes.saveState())
 
     def _reset_layout(self) -> None:
@@ -1210,7 +1210,7 @@ class Planner(QMainWindow):
         launch if the stored state is the broken thing being escaped from.
         """
         self.panes.setSizes(list(PANE_DEFAULTS))
-        QSettings(favourites.ORG, favourites.APP).remove(PANES_KEY)
+        favourites.settings().remove(PANES_KEY)
 
     def _choose_scale(self, _index: int) -> None:
         """Store the chosen scale, and offer the restart it needs to show.
@@ -1314,7 +1314,7 @@ class Planner(QMainWindow):
         self.refresh_build_list(
             keep=chalices.selected_build(self.heroes[index]["id"]))
         self.refresh_vessel_strip()
-        QSettings(favourites.ORG, favourites.APP).setValue(
+        favourites.settings().setValue(
             HERO_KEY, self.heroes[index]["id"])
 
     # -- armament tiles ---------------------------------------------------

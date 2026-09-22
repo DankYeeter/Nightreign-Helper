@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
-from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtCore import QObject, Signal
 
 from . import favourites
 
@@ -55,10 +55,6 @@ KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
 FAMILY_SEPARATOR = "\n"
 
 
-def _settings() -> QSettings:
-    return QSettings(favourites.ORG, favourites.APP)
-
-
 def stored(kind: str) -> frozenset[int]:
     """The ids under this key. Anything that is not an integer is skipped,
     so a damaged value reads as empty and never as an error.
@@ -67,7 +63,7 @@ def stored(kind: str) -> frozenset[int]:
     store hands back a *list* as soon as the text holds a comma, and this
     text is nothing but commas.
     """
-    raw = _settings().value(KEYS[kind], "", type=str)
+    raw = favourites.settings().value(KEYS[kind], "", type=str)
     ids = set()
     for part in str(raw).split(","):
         try:
@@ -80,7 +76,7 @@ def stored(kind: str) -> frozenset[int]:
 def stored_text(kind: str) -> frozenset[str]:
     """The family names under this key, one per line; blank lines and the
     whitespace around a name (a stray `\\r` included) fall away."""
-    raw = _settings().value(KEYS[kind], "", type=str)
+    raw = favourites.settings().value(KEYS[kind], "", type=str)
     return frozenset(part.strip() for part in str(raw).split(FAMILY_SEPARATOR)
                      if part.strip())
 
@@ -88,7 +84,7 @@ def stored_text(kind: str) -> frozenset[str]:
 def store(excluded: Iterable[int], required: Iterable[int],
           allowed: Iterable[int], avoided_families: Iterable[str]) -> None:
     """All four keys, through one store object and one `sync()`."""
-    settings = _settings()
+    settings = favourites.settings()
     for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required),
                       (ALLOWED, allowed)):
         settings.setValue(KEYS[kind], ",".join(str(i) for i in sorted(ids)))

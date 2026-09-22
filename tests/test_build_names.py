@@ -293,7 +293,7 @@ def stored_entries(hero_id: int) -> dict[str, str]:
 class RecordingSettings(QSettings):
     """A settings store that notes every read, write and removal, in order.
 
-    The migration reaches its store through chalices._settings and nowhere
+    The migration reaches its store through favourites.settings and nowhere
     else, so standing in for it there is what makes the sequence of steps
     observable instead of merely its outcome.
     """
@@ -326,7 +326,7 @@ def test_the_migration_removes_nothing_until_it_has_read_and_written(
     """
     write_the_old_way(HERO, ["Fire ice", "Fire ice/v2"])
     log: list[tuple[str, str]] = []
-    monkeypatch.setattr(chalices, "_settings", lambda: RecordingSettings(log))
+    monkeypatch.setattr(favourites, "settings", lambda: RecordingSettings(log))
 
     chalices._migrate_keys(HERO)
 
@@ -518,7 +518,7 @@ def test_an_old_path_whose_write_was_lost_is_not_removed(qapp, monkeypatch):
     saved = ["Fire / ice", "Fire ice"]
     expected = write_the_old_way(HERO, saved)
     lost = chalices.build_key("Fire / ice")
-    monkeypatch.setattr(chalices, "_settings",
+    monkeypatch.setattr(favourites, "settings",
                         lambda: SettingsThatLoseOneWrite(lost))
 
     chalices._migrate_keys(HERO)
@@ -553,7 +553,7 @@ def test_an_old_path_that_is_itself_another_builds_key_is_not_removed(
     expected = write_the_old_way(HERO, saved)
     lost = chalices.build_key("fire ice")
     assert lost == saved[1]
-    monkeypatch.setattr(chalices, "_settings",
+    monkeypatch.setattr(favourites, "settings",
                         lambda: SettingsThatLoseOneWrite(lost))
 
     chalices._migrate_keys(HERO)
@@ -984,7 +984,7 @@ def test_a_schema_2_path_whose_write_was_lost_is_not_removed(qapp,
     saved = ["Fire / ice", "plain"]
     expected = write_the_schema_2_way(HERO, saved)
     lost = chalices.build_key("Fire / ice")
-    monkeypatch.setattr(chalices, "_settings",
+    monkeypatch.setattr(favourites, "settings",
                         lambda: SettingsThatLoseOneWrite(lost))
 
     chalices._migrate_keys(HERO)
@@ -1056,7 +1056,7 @@ def test_a_build_whose_write_was_lost_is_listed_once(qapp, monkeypatch):
     saved = ["fire ice", "plain"]
     write_the_old_way(HERO, saved)
     lost = chalices.build_key("fire ice")
-    monkeypatch.setattr(chalices, "_settings",
+    monkeypatch.setattr(favourites, "settings",
                         lambda: SettingsThatLoseOneWrite(lost))
 
     chalices._migrate_keys(HERO)

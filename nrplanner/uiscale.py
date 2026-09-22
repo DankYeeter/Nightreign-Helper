@@ -22,8 +22,6 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QSettings
-
 from . import favourites
 
 KEY = "ui/scale"
@@ -42,18 +40,14 @@ CHOICES: list[tuple[str, str]] = [
 _VALUES = {value for _label, value in CHOICES}
 
 
-def _settings() -> QSettings:
-    return QSettings(favourites.ORG, favourites.APP)
-
-
 def stored() -> str:
     """The stored choice, always one of the CHOICES values."""
-    value = str(_settings().value(KEY, "", type=str) or "")
+    value = str(favourites.settings().value(KEY, "", type=str) or "")
     return value if value in _VALUES else ""
 
 
 def set_stored(value: str) -> None:
-    _settings().setValue(KEY, value or "")
+    favourites.settings().setValue(KEY, value or "")
 
 
 def apply_to_environment() -> None:

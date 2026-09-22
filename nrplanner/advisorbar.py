@@ -42,7 +42,7 @@ import dataclasses
 import enum
 import html
 
-from PySide6.QtCore import Qt, QSettings, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
@@ -136,10 +136,6 @@ DAMAGE_TYPE_TOOLTIP = "Restricts {direction} to one kind of damage."
 #: translated, it is ignored (AD-051.5): it is days old.
 HIT_WITH_KEY = "hit_with"
 DAMAGE_TYPE_KEY = "damage_type"
-
-
-def _settings() -> QSettings:
-    return QSettings(favourites.ORG, favourites.APP)
 
 
 class State(enum.Enum):
@@ -1027,7 +1023,7 @@ class AdvisorBar(QWidget):
         and `_choice_made` would ask a question of a build that does not
         exist yet (`choose_goal` reasons the same way).
         """
-        found_at = box.findData(_settings().value(key, "", type=str))
+        found_at = box.findData(favourites.settings().value(key, "", type=str))
         if found_at >= 0:
             box.setCurrentIndex(found_at)
         box.activated.connect(self._choice_made)
@@ -1049,7 +1045,7 @@ class AdvisorBar(QWidget):
         pair the player is asking about, which is what the next session has
         to open on.
         """
-        settings = _settings()
+        settings = favourites.settings()
         settings.setValue(HIT_WITH_KEY, self.hit_with())
         settings.setValue(DAMAGE_TYPE_KEY, self.damage_type())
         self.the_build_changed()
