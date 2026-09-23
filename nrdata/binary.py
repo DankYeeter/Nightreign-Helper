@@ -135,8 +135,4 @@ def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
 
 
 def reverse_bits(value: int) -> int:
-    out = 0
-    for _ in range(8):
-        out = (out << 1) | (value & 1)
-        value >>= 1
-    return out
+    return int(f"{value:08b}"[::-1], 2)
