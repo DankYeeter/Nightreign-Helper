@@ -107,8 +107,7 @@ class WorldEventsTab(QWidget):
             " color: #f0f0f0; }"
         )
         # Extracted events first, then the things players call world events
-        # that the game never announces. Listing those under their own label
-        # is honest; dropping them is not.
+        # that the game never announces, listed like any other event.
         self.rows: list[tuple[str, dict]] = [("event", e) for e in self.events]
         self.rows += [("unannounced", u) for u in UNANNOUNCED]
 

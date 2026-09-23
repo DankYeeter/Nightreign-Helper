@@ -1,7 +1,7 @@
 """The five depths: how much tougher enemies get, and what it pays.
 
 Every number here is read from the game's own params except the rating table,
-which is labelled where it appears because no param holds it.
+which no param holds; it comes from play (see WIN_RATING below).
 
 Laid out in the order a player asks the questions: what do I get for going
 deeper, what does it cost me in difficulty, what moves my rating, and what else
