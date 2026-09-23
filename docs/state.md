@@ -2,8 +2,8 @@
 
 2026-09-23 01:40, **Zyklus 29: Restposten + autonomer Lauf (T-329 a-u), gesammelt,
 kein Release; QA T-329s PASS am Quellstand, Ingame-Test des Nutzers offen**. Branch
-`docs/audit-and-advisor-design` (PR #16 gemerged 16.09. `ae474c1`; seither
-weiter auf dem Branch, `main` haengt hinterher — naechster PR am Zyklusende).
+`docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
+naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 (16.-19.09.) in `docs/tasks/T-281..T-296` · Befunde `qa/findings.md`,
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
@@ -98,17 +98,45 @@ Massstab je Fund).
 
 ## Beim Nutzer — offen
 
-1. **PR auf `main`** nach Zyklusende (Director erstellt, Nutzer mergt).
-2. **A-035:** am 07.11.2026 eine Ja/Nein-Frage (Beanstandung?); A-033
-   abgenommen 22.09.
-3. **A11-Rest:** ein Freund testet den aktuellen Stand — Nachweis.
-4. **Ingame-Test T-329** (Liste in `docs/tasks/T-329.md`, Abschnitt
-   "Ingame-Test"), zuletzt: OF-54 Zahlen; der Rest ist am Fenster geprueft.
-5. **Entschieden 23.09. 01:50:** NH-011 freigegeben (T-330a/b), NH-012 und
-   NH-013 nicht. Backlog: **P-003 freigegeben durch Nutzer** (T-330c
-   Datenlage), P-001/002/004 nicht; 3 Streichvorschlaege unbeantwortet.
-   Audit-Rest (`QFile.link`, `AttackRating`, `Weighting`, Relikt-`caption`):
-   nicht umsetzen.
+1. **Ingame-Test T-329** (Liste `docs/tasks/T-329.md`, Abschnitt
+   "Ingame-Test", OF-54 Zahlen) — **Nutzer 19:14: "machen wir am Ende"**,
+   also nach dem naechsten Zyklus, vor dessen Release.
+
+**Erledigt laut Nutzer 23.09. 19:14:** PR #18 auf `main` gemerged durch
+den Director auf ausdruecklichen Nutzerauftrag ("merge es selbst"),
+Merge-Commit `f45c98e`, Checks SUCCESS. Freundestest bestanden, keine
+Probleme gemeldet. A-035 erledigt: keine Beschwerden. NH-011 umgesetzt
+(T-330), P-003 gestrichen (T-331), P-001/002/004 nicht freigegeben; Audit-Rest
+(`QFile.link`, `AttackRating`, `Weighting`, Relikt-`caption`) nicht umsetzen.
+
+**Streichvorschlaege BACKLOG entschieden (Nutzer 19:20):**
+1. Community-reported: **nicht streichen, als Fakt fuehren, Vermerk weg** —
+   Deep of Night (`deeptab.py:419`, Kommentar `:43`), Red variants
+   (`depthstab.py:117` "COMMUNITY-REPORTED: ..."), World Events (blaue
+   Zeilen `eventstab.py:101`, Panel `:335`), Farbe `COMMUNITY`/Kommentar
+   `bosstab.py:206` pruefen.
+2. Why-Zeile "depends on the armaments you carry" (`explain.py:635`):
+   **bleibt** (Beispiel "Improved Attack Power with 3+ Bows Equipped").
+3. A11 power-user-Nachweis: **bleibt** (automatisierter Laientest).
+
+## Naechster Zyklus (alles Offene, Nutzer 19:14)
+
+- **Community-Vermerke entfernen** (Entscheid 1 oben): `developer` +
+  Guide-Stelle pruefen; Konflikt mit `GOAL.md`-Nicht-Ziel "keine
+  Wiki-Daten" und `CLAUDE.md` "keine Wiki-Daten" — Wortlaut dem Nutzer zur
+  Freigabe vorlegen, bevor gebaut wird.
+- **A11:** Freundestest bestanden; Kriterium bleibt "teilweise", bis der
+  automatisierte Laientest (QA-282 Werkzeug) laeuft.
+- **Register-Triage:** 135 QA-IDs ohne Abschlusszeile, SEC-049/050 ohne
+  Abschluss.
+- **Hook `$istExeKommando`:** Textteile vor dem Abgleich entfernen (T-330a
+  Nebenfund).
+- **Security-Retest** im Release-Lauf (`savefile.py`, `param.py`, `tpf.py`,
+  `extract.py`, `paths.py`, `gamepath.py` geaendert).
+- **BACKLOG.md:** P-003 gestrichen und Streichvorschlaege-Entscheide
+  nachtragen (`product-strategist`).
+- **Release** am Zyklusende (gesammelt seit 1.18.0: Nightfarer gemerkt,
+  Bereinigung), danach Ingame-Test.
 
 ## Beschlossen, nicht beauftragt
 
