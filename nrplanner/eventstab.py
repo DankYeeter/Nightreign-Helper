@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
-from .theme import ACCENT, BORDER, MUTED, PANEL
+from .theme import ACCENT, BORDER, PANEL
 
 DLC = "#9a6fc4"
 UNKNOWN = "#7d6f52"
@@ -33,13 +33,6 @@ UNKNOWN_REFERENCE = {
         "field. The files do not say what it is counted in, so read it as "
         "\"recovers faster\" and not as an amount per second."),
 }
-
-
-def _note(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setWordWrap(True)
-    label.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
-    return label
 
 
 def _prose(text: str) -> QLabel:
@@ -94,7 +87,7 @@ class WorldEventsTab(QWidget):
         layout.setSpacing(8)
 
         layout.addWidget(tabheader.heading("WORLD EVENTS"))
-        layout.addWidget(_note(
+        layout.addWidget(tabheader.question(
             "Events that can interrupt an expedition: where each one can "
             "appear, what happens, what you win and what you lose."
         ))
@@ -139,7 +132,7 @@ class WorldEventsTab(QWidget):
         layout.addLayout(body, 1)
 
         if not self.events:
-            layout.addWidget(_note(
+            layout.addWidget(tabheader.question(
                 "No world events in this snapshot. Start the app with the "
                 "game installed and it will rebuild itself."
             ))
@@ -180,7 +173,7 @@ class WorldEventsTab(QWidget):
         subtitle = f"Announced as “{event['announce']}”"
         if event.get("is_dlc"):
             subtitle += "  ·  Deep of Night only"
-        column.addWidget(_note(subtitle))
+        column.addWidget(tabheader.question(subtitle))
 
         # -- where, and how often ---------------------------------------
         gate = self.gating.get(str(event["log_id"]))
@@ -200,7 +193,7 @@ class WorldEventsTab(QWidget):
                 when = "Fires on Day 1"
             else:
                 when = "Fires on Day 2"
-            column.addWidget(_note(
+            column.addWidget(tabheader.question(
                 f"{when}. Every other Nightlord: never — across every map "
                 "pattern in the game's data. The percentage is how much of "
                 "that Nightlord's map pool carries the event. The pool is "
@@ -246,9 +239,9 @@ class WorldEventsTab(QWidget):
                 column.addWidget(_stat("   ·   ".join(figures)))
             for prefix, sentence in UNKNOWN_REFERENCE.items():
                 if any(line.startswith(prefix) for line in figures):
-                    column.addWidget(_note(sentence))
+                    column.addWidget(tabheader.question(sentence))
             forever = buff["duration"] == -1
-            column.addWidget(_note(
+            column.addWidget(tabheader.question(
                 "Lasts the rest of the expedition — not consumed, no cooldown."
                 if forever else f"Lasts {buff['duration']:g}s."))
         elif lore.get("reward"):
@@ -264,7 +257,8 @@ class WorldEventsTab(QWidget):
             # that number it were loaded on the line above and thrown away
             # (AK-104). They go here, at the claim, and nowhere else.
             if self.rune_scaling:
-                column.addWidget(_note(" ".join(self.rune_scaling)))
+                column.addWidget(
+                    tabheader.question(" ".join(self.rune_scaling)))
         if drops:
             column.addWidget(_stat("Drops: " + self._drop_summary(drops)))
 
