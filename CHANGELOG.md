@@ -4,6 +4,36 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.19.0] - 2026-09-23
+
+### Added
+- The Nightfarer you last selected is now remembered across a restart; the
+  program reopens with that one instead of always the first in the list.
+
+### Changed
+- Deep of Night, Red variant and World Event values that come from
+  community write-ups (rather than the game's own data) are no longer
+  marked "community-reported" or shown in a different colour; they now
+  appear alongside every other value. Their content is unchanged.
+- The colours used for community-reported and curse/debuff values are now
+  the same on every tab that shows them (they used to differ from tab to
+  tab); the curse colour on the effects list also now meets standard
+  contrast guidelines.
+
+### Fixed
+- If your save-file scan found more than one readable save, the program
+  silently picked the one with the most relics without telling you (or,
+  on a tie, the wrong one). The note under your inventory now says how
+  many other saves were found, correctly credits a tie to the most recent
+  one, and keeps the "Find my save" button available so you can pick a
+  different save.
+- A damaged or cut-short data cache file could stop the program from
+  starting when it also could not find your game install; it now falls
+  back to extracting fresh data instead, the same as if there were no
+  cache file at all.
+- The data cache file is now written atomically, so an interruption while
+  it is being built can no longer leave a corrupted file behind.
+
 ## [1.18.0] - 2026-09-21
 
 ### Added

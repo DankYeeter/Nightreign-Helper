@@ -133,3 +133,9 @@ starts there.
   else the catalyst's default), each carrying only the change your relics
   make to it. The "Why" line under a spell-school choice now names the
   correct relic that moved a figure.
+- **1.19.0** — your last selected Nightfarer is now remembered across a
+  restart; Deep of Night, Red variant and World Event values sourced from
+  community write-ups no longer carry a separate note or colour; the note
+  under your inventory now tells you when a save-file scan passed over
+  other readable saves; a damaged data cache no longer stops the program
+  from starting.

@@ -778,3 +778,120 @@ Weitergabe nicht verifiziert — eine bewusste Nutzerentscheidung, hier nur
 nachrichtlich festgehalten. Dieser `notes`-Auftrag (T-328c) schliesst Bau
 und `clean-room` ausdruecklich aus; eine nachtraegliche Pruefung waere ein
 eigener `clean-room`-Auftrag.
+
+---
+
+## 1.19.0 — 2026-09-23, T-332j, Modus `build+notes`
+
+**Auftrag:** Release bauen, **nicht** veroeffentlichen — kein Tag, kein
+Push. Der Nutzer testet die Exe zuerst ingame (Nutzerentscheid 23.09.
+19:35). `docs/legal/AUFLAGEN.md` vollstaendig gelesen (661 Zeilen): keine
+Auflage steht auf ROT und sperrend; A-010 (zurueckgestellt) und A-025
+(entschieden, FORTSETZEN) sperren beide ausdruecklich nicht mehr. Bau
+zulaessig.
+
+**Stand:** HEAD `c53a145` (Retest T-332i PASS, Suite 1941 passed / 9
+skipped um 21:42), Branch `docs/audit-and-advisor-design`, Arbeitsbaum vor
+diesem Lauf sauber (`git status --porcelain` leer). Letzter Tag `v1.18.0`
+auf `1ae6952`. Inhalt seit `v1.18.0` (89 Commits,
+`git log v1.18.0..HEAD --stat`: 126 Dateien, +4785/-1056): Nightfarer ueber
+Neustart gemerkt (T-328, `a0ae6b7`), Community-Angaben ohne Vermerk/Sonderfarbe
+(T-332a, `0a4545b`), Notizzeile zu uebergangenen/gleichstehenden Spielstaenden
+(AK-366, T-329o), Snapshot atomar geschrieben und ein unlesbarer Snapshot wie
+ein fehlender behandelt (`0be5fba`, `c847db2`), Farbrollen vereinheitlicht
+(AK-367..371, T-329n), Bereinigung ohne Verhaltensaenderung (T-329q/r,
+T-332c/d), Hook-Faelle SEC-052/QA-297 geschlossen (T-332h/i). Kein
+`EXTRACT_VERSION`-Sprung (unveraendert 16, `git show v1.18.0:nrdata/extract.py`
+gegen den Arbeitsbaum verglichen).
+
+### Versionsnummer
+
+1.18.0 → **1.19.0** (`nrplanner/__init__.py`). Nach der im Datei-Kommentar
+festgehaltenen Regel des Projekts: mittlere Ziffer, weil neue Funktion
+(Nightfarer-Gedaechtnis, Notizzeile) und Verhaltensaenderungen (Community-
+Vermerk entfaellt, Farbrollen) dabei sind, kein reiner Hotfix.
+`tests/test_app_version.py` (5 Faelle) laeuft danach gruen.
+
+### Notes
+
+`CHANGELOG.md`: Abschnitt `[1.19.0] - 2026-09-23` ergaenzt, Added/Changed/
+Fixed, aus Nutzersicht formuliert (kein "Watcher refactored" o.ae.); die
+reinen Bereinigungscommits ohne Verhaltensaenderung (T-329q/r, T-332c/d)
+tauchen dort bewusst nicht auf. `docs/release/RELEASE_BODY.md`: Zeile fuer
+1.19.0 an die "What's new since 1.7.1"-Liste angehaengt, Rest unveraendert
+(Disclaimer, Transparenztext, Installationsschritte, Checksummen-Befehle
+— A-020/A-023/A-024 unberuehrt). `docs/release/RELEASE_TEXT.md` in diesem
+Lauf nicht angefasst (wird von `release.yml` `body_path` nicht mehr
+gebraucht, siehe A-023-Zeile 21.09.).
+
+### Migration
+
+Keine. `EXTRACT_VERSION` unveraendert 16 — keine erzwungene Neu-Extraktion,
+kein Bruch der `QSettings`-Struktur (kein neuer Schluessel seit 1.18.0
+ausser dem bereits in 1.18.0 gepruefungsfreien Anzeigefeld). Der bestehende
+Cache eines Nutzers auf 1.18.0 bleibt unter 1.19.0 gueltig und lesbar.
+
+### Bau
+
+Werkzeuge: `.venv` dieses Repos, Python 3.12.10, PyInstaller 6.21.0
+(Hooks 2026.7), PySide6 6.11.1, Windows 11 10.0.26200. Kein UPX im `PATH`
+(`where upx` → nicht gefunden) — `upx=True` in der Spec bleibt wie seit
+T-282/T-306 wirkungslos, A-031-Bedingung weiterhin nicht eingetreten.
+
+Zwei Laeufe `python -m PyInstaller NightreignHelper.spec --noconfirm
+--log-level WARN`, je nach `rm -rf build dist`:
+
+| Lauf | Dauer | Groesse (Bytes) | SHA-256 | PE-Zeitstempel (COFF) |
+|---|---|---|---|---|
+| 1 | 99 s | 59.182.665 | `2A25541204864B446CD6374F0368BE8FA9E32628F96217EEB2FF133DDA747D98` | 2026-09-23 19:49:49 UTC |
+| 2 | 118 s | 59.182.825 | `CCCCC79EC1E5B998C985AB92B8E80195469514B3A35B1BC17079D90EFE1D293B` | 2026-09-23 19:52:33 UTC |
+
+**Nicht reproduzierbar** (Hash und Groesse weichen ab, Differenz 160 Byte).
+Quelle teilweise belegt: der PE-COFF-Zeitstempel liegt an genau der
+gemessenen Bauzeit beider Laeufe (Differenz 2:44 Min ≈ Abstand der beiden
+Baustarts) — PyInstaller/das Linker-Bootloader-Format schreiben die
+Systemzeit hinein, `SOURCE_DATE_EPOCH` wird von PyInstaller 6.21 nicht
+gelesen. Der Zeitstempel allein erklaert vier Byte, nicht die 160-Byte-
+Differenz in der Dateigroesse; eine zweite Quelle (vermutlich Datei-
+Zeitstempel in der `CArchive`/`PYZ`-Ablage oder PYTHONHASHSEED-abhaengige
+Reihenfolge beim Einsammeln der Module) ist in diesem Lauf nicht mehr
+isoliert worden. **Folge fuer die Weitergabe:** die im Hinweispaket
+angekuendigte SHA-256-Pruefung (A-020, `RELEASE_BODY.md` Z. 29-42) prueft
+nur, ob die heruntergeladene Datei mit der **konkret hochgeladenen** Kopie
+uebereinstimmt — sie beweist nicht, dass ein zweiter Bau aus demselben
+Quellstand dieselbe Datei ergaebe. Das war bei jedem bisherigen Release
+schon so; hier zum ersten Mal gemessen statt angenommen.
+
+Bau 2 blieb als Artefakt liegen (`rm -rf` vor Bau 2 hat Bau 1 entfernt);
+Bau 1 liegt zusaetzlich unter dem Scratchpad dieses Laufs.
+
+`build/NightreignHelper/warn-NightreignHelper.txt`: 20 Zeilen, ausschliesslich
+erwartete Eintraege (POSIX-only-Stdlib-Module wie `pwd`/`grp`/`fcntl`/
+`termios`/`resource` unter Windows nicht vorhanden; optionale, nicht
+installierte Fremdpakete `olefile`, `numpy`, `defusedxml`, `cffi` fuer
+Pillow/pycryptodome; `zstandard.backend_rust` mit funktionierendem
+Cffi-Fallback; `java`/`vms_lib`/`_winreg`-Plattformstubs). Keine Zeile ohne
+Erklaerung.
+
+**Artefakt:**
+`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+— Stand nach Bau 2: **59.182.825 Bytes**,
+SHA-256 `CCCCC79EC1E5B998C985AB92B8E80195469514B3A35B1BC17079D90EFE1D293B`,
+`FileVersion`/`ProductVersion` beide `1.19.0` (gelesen aus den
+Windows-Dateieigenschaften, nicht nur aus dem Quelltext). `dist/` und
+`build/` sind in `.gitignore` erfasst (Zeilen "Build output"), kein
+fehlender Eintrag.
+
+### Ergebnis
+
+Kein Blocker. Version, Changelog, Release-Text und das Artefakt sind bereit;
+**kein Tag, kein Push, keine Veroeffentlichung** in diesem Lauf. Naechster
+Schritt laut Auftrag: T-332k (`clean-room`, ausgeloest durch die Aenderung an
+`nrplanner/firstrun.py` seit dem letzten `clean-room`), danach `power-user`
+und der ingame-Test des Nutzers, erst danach Freigabe durch den `director`
+und Tag/Push durch `archivist`/`director`.
+
+**Ungeprueft in diesem Lauf:** Installation und Erststart des Artefakts
+(gehoert zu T-332k `clean-room`, nicht zu `build+notes`); ob eine dritte
+Bau-Wiederholung dieselbe 160-Byte-Differenz zeigt oder eine dritte; die
+Reproduzierbarkeits-Quelle jenseits des PE-Zeitstempels.
