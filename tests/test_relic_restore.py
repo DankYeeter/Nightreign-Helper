@@ -76,9 +76,9 @@ def test_a_remembered_search_leaves_the_other_slots_alone(
     """
     row, vessel, colour = two_slots_of_one_colour
     templates = templates_for(game_data, colour, 2)
-    first_relic = make_relic(templates[0], handle=WORN_HANDLE, index=0,
+    first_relic = make_relic(templates[0], handle=WORN_HANDLE,
                              effects=some_effect_ids(game_data, 2))
-    second_relic = make_relic(templates[1], handle=SECOND_HANDLE, index=1,
+    second_relic = make_relic(templates[1], handle=SECOND_HANDLE,
                               effects=some_effect_ids(game_data, 2))
     own(planner, [first_relic, second_relic])
     select_vessel(planner, row)
@@ -106,7 +106,7 @@ def test_a_search_does_not_reach_the_slot_headings(
     """
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
-    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+    relic = make_relic(template, handle=WORN_HANDLE,
                        effects=some_effect_ids(game_data, 2))
     own(planner, [relic])
     select_vessel(planner, row)
@@ -130,7 +130,7 @@ def test_a_slot_lists_the_relic_it_holds_whatever_it_is_asked(
     """
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
-    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+    relic = make_relic(template, handle=WORN_HANDLE,
                        effects=some_effect_ids(game_data, 2))
     own(planner, [relic])
     select_vessel(planner, row)
@@ -159,7 +159,7 @@ def test_switching_vessels_restores_the_build_of_the_one_arrived_at(
     """
     pair = two_vessels_sharing_a_colour
     template = templates_for(game_data, pair.colour, 1)[0]
-    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+    relic = make_relic(template, handle=WORN_HANDLE,
                        effects=some_effect_ids(game_data, 2))
     own(planner, [relic])
 
@@ -191,7 +191,7 @@ def test_a_chalice_left_and_returned_to_is_holding_what_it_held(
     """
     pair = two_vessels_sharing_a_colour
     template = templates_for(game_data, pair.colour, 1)[0]
-    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+    relic = make_relic(template, handle=WORN_HANDLE,
                        effects=some_effect_ids(game_data, 2))
     own(planner, [relic])
 
@@ -216,9 +216,9 @@ def test_a_stored_relic_that_cannot_be_placed_empties_its_slot(
     """
     row, vessel, colour = two_slots_of_one_colour
     templates = templates_for(game_data, colour, 2)
-    owned_relic = make_relic(templates[0], handle=WORN_HANDLE, index=0,
+    owned_relic = make_relic(templates[0], handle=WORN_HANDLE,
                              effects=some_effect_ids(game_data, 2))
-    melted = make_relic(templates[1], handle=MELTED_HANDLE, index=1,
+    melted = make_relic(templates[1], handle=MELTED_HANDLE,
                         effects=some_effect_ids(game_data, 3)[1:])
     own(planner, [owned_relic])
     select_vessel(planner, row)
@@ -247,7 +247,7 @@ def test_an_old_build_with_one_relic_twice_is_resolved_when_it_is_restored(
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
     effects = some_effect_ids(game_data, 2)
-    relic = make_relic(template, handle=WORN_HANDLE, index=0, effects=effects)
+    relic = make_relic(template, handle=WORN_HANDLE, effects=effects)
     own(planner, [relic])
 
     first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
@@ -350,7 +350,7 @@ def a_build_wearing_one_relic_twice(planner, game_data, two_slots_of_one_colour)
     """
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
-    relic = make_relic(template, handle=WORN_HANDLE, index=0,
+    relic = make_relic(template, handle=WORN_HANDLE,
                        effects=some_effect_ids(game_data, 2))
     own(planner, [relic])
     first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
@@ -429,10 +429,10 @@ def test_load_equipped_counts_what_it_placed_and_names_the_reason(
     other_colour = next(c for c in sorted(model.COLOUR_NAMES)
                         if c not in (colour, model.WHITE_SLOT))
     kept = make_relic(templates_for(game_data, colour, 1)[0],
-                      handle=WORN_HANDLE, index=0,
+                      handle=WORN_HANDLE,
                       effects=some_effect_ids(game_data, 2))
     misfit = make_relic(templates_for(game_data, other_colour, 1)[0],
-                        handle=SECOND_HANDLE, index=1,
+                        handle=SECOND_HANDLE,
                         effects=some_effect_ids(game_data, 3)[1:])
     first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
     relics = [None for _ in range(6)]

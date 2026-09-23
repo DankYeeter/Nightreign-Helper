@@ -71,11 +71,9 @@ class CustomSlot(NamedTuple):
     colour: int
 
 
-def make_relic(template: dict, handle: int | None, index: int,
+def make_relic(template: dict, handle: int | None,
                effects: list[int]) -> inventory.OwnedItem:
     """One owned copy of a relic template."""
-    # ponytail: `index` unused since AD-055, drop when the callers are
-    # touched anyway
     return inventory.OwnedItem(
         relic_id=template["id"],
         name=template["name"].strip(),
