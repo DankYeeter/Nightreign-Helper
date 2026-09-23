@@ -116,11 +116,11 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     return out
 
 
-def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> bytes:
+def decrypt_member(blob: bytes) -> bytes:
     """Decrypt one member and strip its length prefix and trailing MD5."""
     iv, body = blob[:16], blob[16:]
     body = body[: len(body) // 16 * 16]
-    plain = AES.new(key, AES.MODE_CBC, iv).decrypt(body)
+    plain = AES.new(SAVE_KEY, AES.MODE_CBC, iv).decrypt(body)
 
     # Layout: u32 payload length, payload, 16-byte MD5 of the payload.
     (length,) = struct.unpack_from("<I", plain, 0)
@@ -129,12 +129,12 @@ def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> bytes:
     return plain[4 : 4 + length]
 
 
-def read(path: pathlib.Path | str, key: bytes = SAVE_KEY) -> list[SaveSlot]:
+def read(path: pathlib.Path | str) -> list[SaveSlot]:
     blob = pathlib.Path(path).read_bytes()
     slots = []
     for index, name, offset, size in _members(blob):
         raw = blob[offset : offset + size]
-        slots.append(SaveSlot(index, name, raw, decrypt_member(raw, key)))
+        slots.append(SaveSlot(index, name, raw, decrypt_member(raw)))
     return slots
 
 

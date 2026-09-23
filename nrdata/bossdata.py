@@ -441,7 +441,7 @@ def derive(game_dir, members: dict, defs: dict,
     # which still pins the arena.
     pairs: dict[int, int] = {}
     candidates: dict[int, list[tuple[int, str]]] = {}
-    for name in _event_names(archives):
+    for name in _event_names():
         path = f"/event/{name}"
         arc = next((a for a in archives.values() if path in a), None)
         if arc is None:
@@ -756,7 +756,7 @@ def _flags_mentioned(blob: bytes, flags: set[int]) -> set[int]:
     return out
 
 
-def _event_names(archives) -> list[str]:
+def _event_names() -> list[str]:
     """Event scripts worth opening.
 
     Every mAA_BB, not just every tenth: the later bosses do not live in the

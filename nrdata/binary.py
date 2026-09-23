@@ -70,12 +70,6 @@ class Reader:
     def i64(self) -> int:
         return self._unpack("q", 8)
 
-    def f32(self) -> float:
-        return self._unpack("f", 4)
-
-    def f64(self) -> float:
-        return self._unpack("d", 8)
-
     def bytes(self, n: int) -> bytes:
         out = self.data[self.pos : self.pos + n]
         self.pos += n
@@ -141,8 +135,4 @@ def read_cstring(data: bytes, offset: int, utf16: bool = False) -> str:
 
 
 def reverse_bits(value: int) -> int:
-    out = 0
-    for _ in range(8):
-        out = (out << 1) | (value & 1)
-        value >>= 1
-    return out
+    return int(f"{value:08b}"[::-1], 2)

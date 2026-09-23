@@ -16,7 +16,6 @@ from .binary import NotWhatItClaims, read_cstring
 class Texture:
     name: str
     dds: bytes
-    format: int
 
 
 def read(data: bytes) -> list[Texture]:
@@ -35,8 +34,7 @@ def read(data: bytes) -> list[Texture]:
     pos = 0x10
     for index in range(file_count):
         file_offset, file_size = struct.unpack_from(e + "II", data, pos)
-        fmt, _type, _mipmaps, _flags = struct.unpack_from(e + "BBBB", data, pos + 8)
-        pos += 12
+        pos += 12  # offset, size, format/type/mipmaps/flags
 
         if flag2 == 2:
             pos += 4  # extended header pointer, unused here
@@ -56,7 +54,6 @@ def read(data: bytes) -> list[Texture]:
             Texture(
                 name=name,
                 dds=data[file_offset : file_offset + file_size],
-                format=fmt,
             )
         )
     return out

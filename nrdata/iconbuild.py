@@ -284,8 +284,8 @@ def build(
 
         blob = reader(entry)
         texture = tpf.read(blob)[0]
-        width, height, rgba = dds.decode(texture.dds)
-        image = Image.frombytes("RGBA", (width, height), rgba)
+        width, height, bgra = dds.decode(texture.dds)
+        image = Image.frombytes("RGBA", (width, height), bgra, "raw", "BGRA")
         image = image.resize((VARIANT_SIZE, VARIANT_SIZE), Image.LANCZOS)
 
         name = f"variant_{texture_id}.png"

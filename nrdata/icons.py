@@ -132,8 +132,8 @@ class IconSource:
         if key is None:
             raise KeyError(f"atlas {name} not present")
 
-        width, height, rgba = dds.decode(self._textures[key])
-        image = Image.frombytes("RGBA", (width, height), rgba)
+        width, height, bgra = dds.decode(self._textures[key])
+        image = Image.frombytes("RGBA", (width, height), bgra, "raw", "BGRA")
         self._decoded[name] = image
         return image
 
