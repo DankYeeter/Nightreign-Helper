@@ -12,6 +12,7 @@ figures; see `merge_everdark`.
 
 from __future__ import annotations
 
+import functools
 import html
 import pathlib
 
@@ -458,9 +459,7 @@ def _accessible_for(_key: str, obj) -> QAccessible:
     return CardAccessible(obj) if isinstance(obj, BossCard) else None
 
 
-_factory_installed = False
-
-
+@functools.cache
 def _install_factory() -> None:
     """Register `CardAccessible` with Qt, once per process.
 
@@ -469,10 +468,7 @@ def _install_factory() -> None:
     that is missing wherever somebody forgot -- and the symptom would be
     exactly QA-161 again: a card that looks right and does nothing.
     """
-    global _factory_installed
-    if not _factory_installed:
-        QAccessible.installFactory(_accessible_for)
-        _factory_installed = True
+    QAccessible.installFactory(_accessible_for)
 
 
 class BossCard(QFrame):
