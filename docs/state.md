@@ -83,15 +83,11 @@ Massstab je Fund).
 3. **A11-Rest:** ein Freund testet den aktuellen Stand — Nachweis.
 4. **Ingame-Test T-329** (Liste in `docs/tasks/T-329.md`, Abschnitt
    "Ingame-Test"), zuletzt: OF-54 Zahlen; der Rest ist am Fenster geprueft.
-5. **Retrospektive NH-011..013** (`docs/lessons.md`, Ende): Hook-Masken
-   (Agenten-Repo + Projekt-Hook), Commit-Recht der Doku-Rollen, Remote-Pruefung
-   je Push — Freigabe.
-6. **Backlog P-001..004** (`docs/product/BACKLOG.md`), 3 Streichvorschlaege
-   — Freigabe; ohne Freigabe kein weiterer Zyklus.
-7. **Audit, nicht beauftragt:** Verknuepfung per `QFile.link` statt
-   PowerShell (`shortcut.py`, verliert die Beschreibung); `AttackRating`
-   loeschen (QA-071 behielt es); `Weighting` (OF-3); Relikt-`caption` aus dem
-   Snapshot (EXTRACT_VERSION).
+5. **Entschieden 23.09. 01:50:** NH-011 freigegeben (T-330a/b), NH-012 und
+   NH-013 nicht. Backlog: **P-003 freigegeben durch Nutzer** (T-330c
+   Datenlage), P-001/002/004 nicht; 3 Streichvorschlaege unbeantwortet.
+   Audit-Rest (`QFile.link`, `AttackRating`, `Weighting`, Relikt-`caption`):
+   nicht umsetzen.
 
 ## Beschlossen, nicht beauftragt
 
