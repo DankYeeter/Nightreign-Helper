@@ -10,7 +10,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
 **Nummernkreise** (23.09., naechste freie, Abschrift — vor Vergabe zaehlen):
-T **T-331** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
+T **T-332** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
 · DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**
 · R **R-012**.
 
@@ -22,7 +22,17 @@ Nightfarer nicht (Kandidat ungelesene `EquipParamProtector` ueber
 `CharaInitParam.equip_*`, ungeprueft); Verrechnung multiplikativ, nur
 Community-belegt; Defense-Wert ohne Feld. Nebenfunde: `$istExeKommando`
 weist Grep-Muster mit `|NightreignHelper.exe` ab (Textteile nicht
-entfernt); `bash -c "pytest ..."` zaehlt nicht mehr (bekannt).
+entfernt; Nutzer 16:46: sammeln); `bash -c "pytest ..."` zaehlt nicht
+mehr (bekannt).
+
+**T-331 (16:47-16:50, nur lesend) erledigt:** `docs/berichte/T-331-developer.md`.
+Grund-Negation je Nightfarer steht in `EquipParamProtector`, nur in der
+Koerperzeile (Helm/Hand/Bein 1,0) — interne Datenzeile, ingame keine
+Ruestung (Nutzer 16:52: "Nightfarer haben keine Ruestung"); Garbs tragen dieselben Werte; Defense
+nicht gefunden. Werte je Nightfarer verschieden (slash: Revenant 10 %,
+Wylder 20 %, Guardian 28,75 %). **P-003 gestrichen (Nutzer 16:54: "wenn
+nicht [dieselbe Negation], streichen wir es komplett")** — Status in
+`docs/product/BACKLOG.md` beim naechsten `product-strategist`-Lauf nachtragen.
 
 ## Autonomer Lauf 22.09. 23:50 bis 23.09. ~01:45 (Budget 6 h, vorzeitig leer)
 
