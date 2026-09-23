@@ -1,7 +1,7 @@
 # Stand
 
-2026-09-23 01:40, **Zyklus 29: Restposten + autonomer Lauf (T-329 a-u), gesammelt,
-kein Release; QA T-329s PASS am Quellstand, Ingame-Test des Nutzers offen**. Branch
+2026-09-23 22:25, **Zyklus 31 (T-332) am Gate: Exe 1.19.0 gebaut, nicht
+veroeffentlicht; Ingame-Test des Nutzers offen**. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -10,7 +10,7 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
 **Nummernkreise** (23.09., naechste freie, Abschrift — vor Vergabe zaehlen):
-T **T-332** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
+T **T-333** · QA **QA-298** · SEC **SEC-053** · AK **AK-372** · AD **AD-056**
 · DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**
 · R **R-012**.
 
@@ -89,18 +89,19 @@ leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 Stand 23.09. aus den letzten Registerzeilen der Befunde dieses Zyklus: kein P1
 offen. Geschlossen: QA-004, QA-016, QA-222 (mit echter Maus nicht
 nachgestellt), QA-255, QA-294. Offen: QA-282 P3 (Werkzeug), OF-54
-Zauberformel (nur ingame). SEC-051 behoben, SEC-019 Klasse offen; Retest
-Security im naechsten Release-Lauf (`nrdata/savefile.py`, `param.py`,
-`tpf.py`, `extract.py`, `paths.py`, `gamepath.py` geaendert). **Retrospektive:
-135 QA-IDs ohne Abschlusszeile, SEC-049/050 ohne Abschluss** — Triage offen.
+Zauberformel (nur ingame). SEC-051, SEC-052, QA-297 geschlossen (T-332);
+Triage T-332 `72aeb8a`: 89 QA + 9 SEC ohne neuen Beleg weiter offen
+(letzte Registerzeile je ID).
 Debt: `upx=False` (C-006); 74 Hex-Literale in Stylesheet-Texten (AK-367ff.
 Massstab je Fund).
 
 ## Beim Nutzer — offen
 
-1. **Ingame-Test T-329** (Liste `docs/tasks/T-329.md`, Abschnitt
-   "Ingame-Test", OF-54 Zahlen) — **Nutzer 19:14: "machen wir am Ende"**,
-   also nach dem naechsten Zyklus, vor dessen Release.
+1. **Ingame-Test mit `dist\NightreignHelper.exe` 1.19.0** (59 182 825 B,
+   SHA-256 `CCCCC79E…1D293B`, Commit `7fc3e43`, gemessen 21:57) — Liste
+   `docs/tasks/T-329.md` Abschnitt "Ingame-Test" (OF-54 Zahlen). Danach:
+   Freigabe → `archivist` sync-out mit Tag `v1.19.0` auf `7fc3e43`, PR.
+   Befunde aus dem Test → Fixzyklus, neuer Bau.
 
 **Erledigt laut Nutzer 23.09. 19:14:** PR #18 auf `main` gemerged durch
 den Director auf ausdruecklichen Nutzerauftrag ("merge es selbst"),
@@ -129,21 +130,29 @@ Veroeffentlichung (Tag, PR). GOAL.md-Nicht-Ziel "Wiki-Daten" geaendert
 parallel → Ponytail-Audit/Debt → ein Fixauftrag → QA (Quelle) + Security →
 Fixes → technical-writer → release-manager build+notes → power-user → Gate.
 
-## Naechster Zyklus (alles Offene, Nutzer 19:14)
+**Ergebnis (22:25, Gate):** a Community `0a4545b`, b Hook `f773c10`, Triage
+`72aeb8a` (176 QA + 24 SEC geschlossen/behoben mit Beleg, 89 QA + 9 SEC
+unveraendert offen), Audit c/d (net ca. -90 Zeilen; Fund 1 Snapshot-Felder
+nicht beauftragt: EXTRACT_VERSION-Sprung), Guide `6e11404`, QA T-332f
+CONCERNS → h Fixe (SEC-052, QA-297) → Retest T-332i PASS (Suite 1941/9,
+21:42), Security T-332g PASS, Bau 1.19.0 `7fc3e43`, clean-room T-332k PASS
+(inkl. Update 1.18.0→1.19.0). **power-user abgebrochen 22:24 (Nutzer: Fenster
+stiehlt Fokus)** — kein Laiennachweis fuer 1.19.0; A11 bleibt teilweise.
+Details `docs/tasks/T-332.md`.
 
-- **Community-Vermerke entfernen:** T-332a.
-- **A11:** Freundestest bestanden; Kriterium bleibt "teilweise", bis der
-  automatisierte Laientest (QA-282 Werkzeug) laeuft.
-- **Register-Triage:** 135 QA-IDs ohne Abschlusszeile, SEC-049/050 ohne
-  Abschluss.
-- **Hook `$istExeKommando`:** Textteile vor dem Abgleich entfernen (T-330a
-  Nebenfund).
-- **Security-Retest** im Release-Lauf (`savefile.py`, `param.py`, `tpf.py`,
-  `extract.py`, `paths.py`, `gamepath.py` geaendert).
+## Naechster Zyklus (offen)
+
+- **Fensterlaeufe ohne Fokusraub** (Nutzer 22:24): UIA-Muster statt echter
+  Klicks, echte Klicks nur wo ein Befund es verlangt; bis dahin
+  Fensterlaeufe nur, wenn der Nutzer nicht am Rechner ist.
+- **A11 power-user** nachholen (braucht Punkt oben oder Nutzer abwesend).
 - **BACKLOG.md:** P-003 gestrichen und Streichvorschlaege-Entscheide
-  nachtragen (`product-strategist`).
-- **Release** am Zyklusende (gesammelt seit 1.18.0: Nightfarer gemerkt,
-  Bereinigung), danach Ingame-Test.
+  nachtragen (`product-strategist`, nicht im Zyklus einer Umsetzung).
+- Hook-Grenze: Blendung nur fuer Suchbefehle; Text mit `|…exe` in
+  Anfuehrungszeichen ausserhalb von Suchbefehlen wird gesperrt (Absicht).
+- Bau nicht byte-reproduzierbar (T-332j: PE-Zeitstempel + unbekannte Quelle).
+- Audit-Fund 1 (35 ungelesene Snapshot-Felder) beim naechsten ohnehin
+  noetigen EXTRACT_VERSION-Sprung mitnehmen.
 
 ## Beschlossen, nicht beauftragt
 
