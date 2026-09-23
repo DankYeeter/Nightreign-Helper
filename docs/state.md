@@ -10,13 +10,19 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
 **Nummernkreise** (23.09., naechste freie, Abschrift — vor Vergabe zaehlen):
-T **T-330** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
-· DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**.
+T **T-331** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
+· DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**
+· R **R-012**.
 
-**PAUSIERT 23.09. 06:50 (Nutzer).** T-330a/b/c (`docs/tasks/T-330.md`)
-gestoppt ohne Ergebnis: kein Commit, beide Baeume sauber, kein R-011. Die
-drei Laeufe standen seit ~01:55 still (Neustart erst 06:49, vermutlich
-Ruhezustand) — beim Fortsetzen unveraendert neu starten.
+**Zyklus 30 (T-330, 23.09. 16:40-16:45, Wiederanlauf) erledigt:**
+a `700c629` Projekt-Hook NH-011 (Suite 1927 passed, 9 skipped); b
+Agenten-Repo `9d0d22b` (Selbsttest 132 PASS, ungepusht); c `R-011`
+P-003 **teilweise**: Relikt-Aenderungen im Snapshot, Grundwerte je
+Nightfarer nicht (Kandidat ungelesene `EquipParamProtector` ueber
+`CharaInitParam.equip_*`, ungeprueft); Verrechnung multiplikativ, nur
+Community-belegt; Defense-Wert ohne Feld. Nebenfunde: `$istExeKommando`
+weist Grep-Muster mit `|NightreignHelper.exe` ab (Textteile nicht
+entfernt); `bash -c "pytest ..."` zaehlt nicht mehr (bekannt).
 
 ## Autonomer Lauf 22.09. 23:50 bis 23.09. ~01:45 (Budget 6 h, vorzeitig leer)
 
