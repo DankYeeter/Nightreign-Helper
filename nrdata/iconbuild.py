@@ -12,7 +12,7 @@ import os
 import pathlib
 from typing import Callable, Iterator
 
-from . import (bnd4, dds, dvdbnd, icons, param, paramdef, regulation, tpf)
+from . import (bnd4, dvdbnd, icons, param, paramdef, regulation, tpf)
 
 # What this builder produces, so an existing pack can be told from a current
 # one. Exactly the reason extract.EXTRACT_VERSION exists, and it was missed
@@ -283,9 +283,7 @@ def build(
             continue
 
         blob = reader(entry)
-        texture = tpf.read(blob)[0]
-        width, height, bgra = dds.decode(texture.dds)
-        image = Image.frombytes("RGBA", (width, height), bgra, "raw", "BGRA")
+        image = icons.texture_image(tpf.read(blob)[0].dds)
         image = image.resize((VARIANT_SIZE, VARIANT_SIZE), Image.LANCZOS)
 
         name = f"variant_{texture_id}.png"

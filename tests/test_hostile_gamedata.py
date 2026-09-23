@@ -90,17 +90,25 @@ def test_a_payload_of_exactly_the_right_size_still_decodes():
     assert len(rgba) == IMAGE_EDGE * IMAGE_EDGE * 4
 
 
+# One BC1 block, every pixel its first colour, which is pure red in RGB565.
+RED_TEXTURE = dds_file(b"DXT1", 4, 4, struct.pack("<HH", 0xF800, 0) + b"\0" * 4)
+RED = (255, 0, 0, 255)
+
+
 def test_a_red_texture_comes_out_of_the_atlas_red():
     """The decoder hands back BGRA; red and blue must not trade places."""
     pytest.importorskip("PIL", reason="Pillow is needed to build an atlas")
-    red_565 = 0xF800
-    all_first_colour = b"\0" * 4
-    block = struct.pack("<HH", red_565, 0) + all_first_colour
     source = icons.IconSource.__new__(icons.IconSource)
-    source._textures = {"atlas": dds_file(b"DXT1", 4, 4, block)}
+    source._textures = {"atlas": RED_TEXTURE}
     source._decoded = {}
 
-    assert source._atlas_image("atlas").getpixel((0, 0)) == (255, 0, 0, 255)
+    assert source._atlas_image("atlas").getpixel((0, 0)) == RED
+
+
+def test_a_red_character_illustration_comes_out_red():
+    """QA-297: the icon build decodes the full-body variants through this."""
+    pytest.importorskip("PIL", reason="Pillow is needed to decode a texture")
+    assert icons.texture_image(RED_TEXTURE).getpixel((0, 0)) == RED
 
 
 def test_the_needed_size_counts_a_partial_edge_block_whole():

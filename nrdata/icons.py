@@ -75,6 +75,14 @@ def read_subtextures(xml: str) -> list[dict[str, str]]:
     return found
 
 
+def texture_image(dds_bytes: bytes):
+    """A DDS texture as an RGBA image; the decoder hands back BGRA (QA-297)."""
+    from PIL import Image
+
+    width, height, bgra = dds.decode(dds_bytes)
+    return Image.frombytes("RGBA", (width, height), bgra, "raw", "BGRA")
+
+
 class IconSource:
     """Lazily decodes only the atlases actually asked for."""
 
@@ -110,8 +118,6 @@ class IconSource:
                 )
 
     def _atlas_image(self, name: str):
-        from PIL import Image
-
         if name in self._decoded:
             return self._decoded[name]
 
@@ -132,8 +138,7 @@ class IconSource:
         if key is None:
             raise KeyError(f"atlas {name} not present")
 
-        width, height, bgra = dds.decode(self._textures[key])
-        image = Image.frombytes("RGBA", (width, height), bgra, "raw", "BGRA")
+        image = texture_image(self._textures[key])
         self._decoded[name] = image
         return image
 
