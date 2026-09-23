@@ -61,17 +61,16 @@ if ($cmd -match '\bpytest\b') { exit 0 }
 # "python -c ...nrplanner.app...", kein Doppelklick auf die .exe (das ist
 # ohnehin kein Werkzeugaufruf). Taucht eine neue Startform in einem Bericht
 # auf, kommt sie hier als weiteres $ist*-Pattern dazu.
-# Kein Anker auf Zeilenanfang: "VAR=wert VAR2=wert python run.py" ist ein
-# einzelnes Kommando ohne Trenner vor "python" und muss trotzdem greifen.
 #
-# T-289 NH-004-Nachtrag: "\bpy\b" trifft auch auf die zwei Buchstaben vor der
-# Endung in "run.py" selbst, weil der Punkt davor schon eine Wortgrenze ist -
-# ein reiner Lesebefehl wie "grep -n x nrplanner/advisor/run.py" hat dort sein
-# eigenes "py" und wurde faelschlich als Programmstart erkannt (17.09.,
-# developer T-288 und Director je einmal beobachtet). "(?<!\.)" davor
-# verbietet genau diese Fundstelle: ein echtes "python"/"py" steht nie
-# unmittelbar hinter einem Punkt, ein Dateiname wie "*.py" dagegen immer.
-$istQuellstart = $cmd -match '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\brun\.py\b'
+# NH-011 (T-330a): der Interpreter muss an Befehlsstelle stehen (Zeilenanfang,
+# nach ; & | ( oder nach einem Leerzeichen wie in "VAR=wert python run.py"),
+# und das Skript muss sein erstes Argument nach Optionen sein. Die alten
+# Masken ("python" irgendwo, Skriptname irgendwo dahinter) wiesen am 22.09.
+# sieben Befehle ab, von denen keiner ein Fenster startete: Heredocs, die
+# advisor/run.py bearbeiten, "python -m pyflakes ... run.py", Grep-Muster,
+# 'run.py' in einer Liste, ein Hilfsskript mit measure_*.py als Argument.
+# tests/test_redirect_hook_masks.py haelt diese Faelle als Literale.
+$istQuellstart = $cmd -match '(?i)(^|[;&|(]\s*|\s)["'']?(\S*[\\/])?(python3?|pythonw|py)(\.exe)?["'']?\s+((-[A-Za-z]+|-X\s+\S+)\s+)*["'']?(\.[\\/])?run\.py\b|Start-Process\b[^;&|]*\b(python3?|pythonw|py)(\.exe)?\b[^;&|]*[\s"'',](\.[\\/])?run\.py\b'
 
 # NH-004/NH-007 (T-297, sieben Fehlalarme 16.-17.09.): eine blosse Nennung der
 # EXE (ls, Get-FileHash) ist kein Start - nur Startformen, in denen die EXE
@@ -89,9 +88,10 @@ $istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|
 # kein Fenster und ruehren an keiner der drei Variablen - ein Muster auf den
 # ganzen Ordner wuerde sie ohne Grund abweisen. Baut ein kuenftiges Skript ein
 # Fenster, kommt sein Name hier dazu, nicht ein Wildcard auf den Ordner.
-# Dieselbe "(?<!\.)"-Sperre wie oben, aus demselben Fund.
+# Dieselbe Befehlsstellen-Form wie $istQuellstart; das Skript liegt unter
+# scripts/, darum ein beliebiger Ordnervorsatz statt nur ".\".
 $istFensterMessskript = $cmd -match
-    '(?<!\.)\b(python3?|py)(\.exe)?\b[^;&|]*\b(measure_picker_cards|measure_advisor_block)\.py\b'
+    '(?i)(^|[;&|(]\s*|\s)["'']?(\S*[\\/])?(python3?|pythonw|py)(\.exe)?["'']?\s+((-[A-Za-z]+|-X\s+\S+)\s+)*["'']?(\S*[\\/])?(measure_picker_cards|measure_advisor_block)\.py\b|Start-Process\b[^;&|]*\b(python3?|pythonw|py)(\.exe)?\b[^;&|]*[\s"'',](\S*[\\/])?(measure_picker_cards|measure_advisor_block)\.py\b'
 
 if (-not ($istQuellstart -or $istExeKommando -or $istFensterMessskript)) { exit 0 }
 
