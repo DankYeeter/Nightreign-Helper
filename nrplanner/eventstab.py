@@ -2,15 +2,14 @@
 
 Each event is one card: which Nightlords it can appear under and how often,
 what happens, what you win, what you lose. The figures come out of the game's
-own data and the prose comes from the community; community material is tinted
-blue so the two never blur. Everything about *how* any of it was derived
-stays in the project's documents -- none of it belongs on screen.
+own data and the prose comes from the community (`eventlore`); both read
+alike on screen (GOAL.md non-goals). Everything about *how* any of it was
+derived stays in the project's documents -- none of it belongs on screen.
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QScrollArea,
     QVBoxLayout, QWidget,
@@ -18,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
-from .theme import ACCENT, BORDER, COMMUNITY, MUTED, PANEL
+from .theme import ACCENT, BORDER, MUTED, PANEL
 
 DLC = "#9a6fc4"
 UNKNOWN = "#7d6f52"
@@ -43,10 +42,10 @@ def _note(text: str) -> QLabel:
     return label
 
 
-def _community(text: str) -> QLabel:
+def _prose(text: str) -> QLabel:
     label = QLabel(text)
     label.setWordWrap(True)
-    label.setStyleSheet(f"color: {COMMUNITY}; font-size: 12px;")
+    label.setStyleSheet("color: #d8d8d8; font-size: 12px;")
     return label
 
 
@@ -97,9 +96,7 @@ class WorldEventsTab(QWidget):
         layout.addWidget(tabheader.heading("WORLD EVENTS"))
         layout.addWidget(_note(
             "Events that can interrupt an expedition: where each one can "
-            "appear, what happens, what you win and what you lose. Blue "
-            "lines are community-reported; everything else is the game's "
-            "own data."
+            "appear, what happens, what you win and what you lose."
         ))
 
         body = QHBoxLayout()
@@ -130,10 +127,7 @@ class WorldEventsTab(QWidget):
                     label = f"{label}  · Deep of Night"
             else:
                 label = entry["name"]
-            item = QListWidgetItem(label)
-            if kind == "unannounced":
-                item.setForeground(QColor(COMMUNITY))
-            self.list.addItem(item)
+            self.list.addItem(QListWidgetItem(label))
         self.list.currentRowChanged.connect(self._show)
         body.addWidget(self.list)
 
@@ -216,7 +210,7 @@ class WorldEventsTab(QWidget):
         # -- what happens ------------------------------------------------
         if lore.get("what"):
             column.addWidget(tabheader.heading("WHAT HAPPENS"))
-            column.addWidget(_community(lore["what"]))
+            column.addWidget(_prose(lore["what"]))
 
         # -- win ----------------------------------------------------------
         buff = self.buffs.get(lore.get("buff_id"))
@@ -258,7 +252,7 @@ class WorldEventsTab(QWidget):
                 "Lasts the rest of the expedition — not consumed, no cooldown."
                 if forever else f"Lasts {buff['duration']:g}s."))
         elif lore.get("reward"):
-            column.addWidget(_community("Reward: " + lore["reward"]))
+            column.addWidget(_prose("Reward: " + lore["reward"]))
         if creature:
             runes = creature["runes"]
             low, high = min(runes), max(runes)
@@ -288,7 +282,7 @@ class WorldEventsTab(QWidget):
             line.setStyleSheet(f"color: {PENALTY}; font-size: 12px;")
             column.addWidget(line)
         elif lore.get("penalty"):
-            column.addWidget(_community("Penalty: " + lore["penalty"]))
+            column.addWidget(_prose("Penalty: " + lore["penalty"]))
 
         # -- the demon's forms -------------------------------------------
         if event.get("variants"):
@@ -329,24 +323,21 @@ class WorldEventsTab(QWidget):
         title = QLabel(entry["name"])
         title.setWordWrap(True)
         title.setStyleSheet(
-            f"color: {COMMUNITY}; font-size: 15px; font-weight: bold;")
+            f"color: {ACCENT}; font-size: 15px; font-weight: bold;")
         column.addWidget(title)
-        column.addWidget(_note(
-            "Everything on this one is community-reported."
-        ))
         if entry.get("what"):
             column.addWidget(tabheader.heading("WHAT HAPPENS"))
-            column.addWidget(_community(entry["what"]))
+            column.addWidget(_prose(entry["what"]))
         if entry.get("reward"):
             column.addWidget(tabheader.heading("WIN"))
-            column.addWidget(_community(entry["reward"]))
+            column.addWidget(_prose(entry["reward"]))
         if entry.get("penalty") and entry["penalty"] not in ("None.",):
             column.addWidget(tabheader.heading("LOSE"))
-            column.addWidget(_community(entry["penalty"]))
+            column.addWidget(_prose(entry["penalty"]))
         bosses = entry.get("nightlords")
         if bosses:
             text = "Every Nightlord." if bosses == ["Any"] else ", ".join(bosses)
-            column.addWidget(_community(f"Nightlords: {text}"))
+            column.addWidget(_prose(f"Nightlords: {text}"))
         if entry.get("note"):
             label = QLabel(f"<b>Note:</b> {entry['note']}")
             label.setWordWrap(True)

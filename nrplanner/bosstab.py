@@ -202,14 +202,12 @@ DEBUFF_ON_BREAK_SIGHTING = (
 # What OBSERVED_COLOUR means, said once on the panel that uses it (AK-74,
 # QA-145). It sat one step from GOOD -- 0x7f against 0x6f in the red channel
 # alone -- with nothing anywhere saying the two were different things. Drawn
-# in the colour it explains, the way the Red variants tab already names its
-# community-reported line.
+# in the colour it explains.
 #
-# It says what the colour means and stops there. The World Events tab can add
-# "everything else is the game's own data" because on that tab it is true; on
-# this one it is not yet -- `Set off by` and the trigger clause of a defence
-# step are sightings drawn in the ordinary colour (AK-94, reported to the
-# director rather than changed here). A legend that claimed it would be the
+# It says what the colour means and stops there. "Everything else is the
+# game's own data" would not be true on this panel -- `Set off by` and the
+# trigger clause of a defence step are sightings drawn in the ordinary colour
+# (AK-94, reported to the director rather than changed here). A legend that claimed it would be the
 # one false sentence on the panel.
 SIGHTING_LEGEND = (
     "Lines in this colour were watched in play rather than read from the "

@@ -214,9 +214,6 @@ def test_the_tab_opens_with_the_question_it_answers(tab):
     lines = tabtext.labels(tab)
     assert lines[0] == "WORLD EVENTS"
     assert lines[1].startswith("Events that can interrupt an expedition")
-    assert "community-reported" in lines[1], (
-        "the sentence naming the blue lines is gone, and the colour carries "
-        "a meaning nothing else states")
 
 
 def test_the_rune_ladder_says_which_step_each_figure_belongs_to(tab,
