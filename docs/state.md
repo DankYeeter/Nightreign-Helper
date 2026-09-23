@@ -119,12 +119,19 @@ Probleme gemeldet. A-035 erledigt: keine Beschwerden. NH-011 umgesetzt
    **bleibt** (Beispiel "Improved Attack Power with 3+ Bows Equipped").
 3. A11 power-user-Nachweis: **bleibt** (automatisierter Laientest).
 
+## Zyklus 31 (T-332, autonom ab 23.09. 19:35)
+
+Nutzer 19:35: autonom ohne Zeitgrenze bis die Exe gebaut ist; Stopp nur bei
+Sicherheit, Datenverlust, Blocker. Warteschlange = die Punkte unten, keine
+neuen Kriterien. Ende: Gate mit gebauter Exe, Nutzer testet ingame, erst dann
+Veroeffentlichung (Tag, PR). GOAL.md-Nicht-Ziel "Wiki-Daten" geaendert
+(Nutzerfreigabe 19:35). Reihenfolge: a Community + b Hook + Register-Triage
+parallel → Ponytail-Audit/Debt → ein Fixauftrag → QA (Quelle) + Security →
+Fixes → technical-writer → release-manager build+notes → power-user → Gate.
+
 ## Naechster Zyklus (alles Offene, Nutzer 19:14)
 
-- **Community-Vermerke entfernen** (Entscheid 1 oben): `developer` +
-  Guide-Stelle pruefen; Konflikt mit `GOAL.md`-Nicht-Ziel "keine
-  Wiki-Daten" und `CLAUDE.md` "keine Wiki-Daten" — Wortlaut dem Nutzer zur
-  Freigabe vorlegen, bevor gebaut wird.
+- **Community-Vermerke entfernen:** T-332a.
 - **A11:** Freundestest bestanden; Kriterium bleibt "teilweise", bis der
   automatisierte Laientest (QA-282 Werkzeug) laeuft.
 - **Register-Triage:** 135 QA-IDs ohne Abschlusszeile, SEC-049/050 ohne

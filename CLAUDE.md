@@ -104,7 +104,9 @@ wenn der Diff seit dem letzten Tag (`git diff --stat v<x>..HEAD`) trifft:
 
 - Nie in Spielstand oder Spielinstallation schreiben; kein Mod, kein
   Save-Editor.
-- Kein Netzwerkzugriff im Anwendungscode, keine Telemetrie, keine Wiki-Daten.
+- Kein Netzwerkzugriff im Anwendungscode, keine Telemetrie, keine zur
+  Laufzeit geladenen Wiki-Daten (feste Community-Angaben: `GOAL.md`
+  Nicht-Ziele, 23.09.2026).
 - Keine Bildschirmabzüge (NH-002); Bildnachweise nur per `PrintWindow` aus dem
   Programmfenster.
 - Keine Spieldaten ins Repository (`nightreign_data.json`, Symbole);

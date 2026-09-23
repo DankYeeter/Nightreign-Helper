@@ -56,7 +56,10 @@ eine kurze Begruendung.
 
 - Kein Auslesen oder Schreiben in laufende Spielprozesse. Der Save bleibt
   read-only.
-- Kein Netzwerkzugriff, keine Wiki-Daten, keine Telemetrie.
+- Kein Netzwerkzugriff, keine Telemetrie, keine zur Laufzeit geladenen
+  Wiki-Daten. Feste Community-Angaben im Code nur fuer Deep of Night, Red
+  variants und World Events; sie erscheinen wie Spieldaten, ohne eigenen
+  Vermerk (geaendert 23.09.2026, freigegeben durch Nutzer).
 - Keine Optimalitaetsgarantie: der Berater ist ein Heuristik-Ratgeber, kein
   Loeser mit Beweis.
 - Keine Mehrsprachigkeit.
