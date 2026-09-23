@@ -13,6 +13,11 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 T **T-330** · QA **QA-297** · SEC **SEC-052** · AK **AK-372** · AD **AD-056**
 · DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**.
 
+**PAUSIERT 23.09. 06:50 (Nutzer).** T-330a/b/c (`docs/tasks/T-330.md`)
+gestoppt ohne Ergebnis: kein Commit, beide Baeume sauber, kein R-011. Die
+drei Laeufe standen seit ~01:55 still (Neustart erst 06:49, vermutlich
+Ruhezustand) — beim Fortsetzen unveraendert neu starten.
+
 ## Autonomer Lauf 22.09. 23:50 bis 23.09. ~01:45 (Budget 6 h, vorzeitig leer)
 
 Endete, weil die Warteschlange leer lief (`director-autonom.md`), nicht am
