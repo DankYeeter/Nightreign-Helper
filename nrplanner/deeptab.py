@@ -36,8 +36,9 @@ QUESTION = (
 
 # Rating changes per expedition. These are NOT in regulation.bin: no param
 # carries them, no field name anywhere mentions rank or rating, and the text
-# tables state only the band thresholds. They come from play instead, and the
-# tab says so rather than passing them off as extracted.
+# tables state only the band thresholds. They come from play instead; on
+# screen they read like every other figure, without a mark of their own
+# (GOAL.md non-goals, user decision 2026-09-23).
 #
 # Confirmed in game by this project's owner: +200 for a win, +100 for an
 # unknown Nightlord. The map bonus and the loss table are community-reported
@@ -412,11 +413,6 @@ class DeepTab(QWidget):
             f"On top of a win, and they add up: {bonuses}. So a win against an "
             f"unknown Nightlord on an obstructed map is "
             f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."
-        ))
-        box.addWidget(_source(
-            "The only figures on this tab the game's own data does not "
-            "state. The win value and Depth 1 costing nothing are confirmed "
-            "in game; the bonuses and the loss table are community-reported."
         ))
         return panel
 

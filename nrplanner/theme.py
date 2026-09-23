@@ -19,8 +19,6 @@ CURSE = BAD
 #: stays readable at cell size.
 DEBUFF = "#e07a74"
 DEEP = "#9a6fc4"
-#: What players have reported rather than what the game files state.
-COMMUNITY = "#7fb2e5"
 
 SLOT_COLOURS = {
     0: "#b4544e",   # Red

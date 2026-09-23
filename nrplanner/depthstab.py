@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import tabheader
-from .theme import ACCENT, COMMUNITY, MUTED
+from .theme import ACCENT, MUTED
 
 
 #: AK-98. The old heading, `RED VARIANTS BY DEPTH`, announced counts, and the
@@ -114,14 +114,14 @@ class DepthsTab(QWidget):
         layout.addWidget(intro)
 
         reported = QLabel(
-            "COMMUNITY-REPORTED: red enemies always drop a weapon, and red "
+            "Red enemies always drop a weapon, and red "
             "mini-bosses are guaranteed a unique-tier armament. The "
             "Everdark Sovereign form of the Nightlord is also only possible "
             "from Depth 2, and from Depth 3 the map may hide points of "
             "interest or the Nightlord itself."
         )
         reported.setWordWrap(True)
-        reported.setStyleSheet(f"color: {COMMUNITY}; font-size: 11px;")
+        reported.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(reported)
 
         controls = QHBoxLayout()

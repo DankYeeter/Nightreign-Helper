@@ -3,8 +3,8 @@
 Everything else in this project is read out of the user's own installation.
 This module is the one deliberate exception, and it is kept in its own file,
 outside the snapshot, so the separation cannot blur: `nightreign_data.json`
-stays game-derived only, and the tab labels this material on screen every time
-it shows it.
+stays game-derived only. On screen the tab shows this material like the game's
+own, without a mark of its own (GOAL.md non-goals, user decision 2026-09-23).
 
 **This file has shrunk in usefulness, deliberately.** When it was written it
 carried the rewards, the penalties and the Nightlord gating, because none of
