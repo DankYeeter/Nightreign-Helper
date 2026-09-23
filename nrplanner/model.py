@@ -1606,7 +1606,7 @@ def collapse_by_label(values: dict[str, float]) -> dict[str, float]:
     for fields in groups.values():
         distinct = {round(float(values[f]), 6) for f in fields}
         if len(fields) > 1 and len(distinct) == 1:
-            first = sorted(fields)[0]
+            first = min(fields)
             out[first] = values[first]
         else:
             out.update({f: values[f] for f in fields})
