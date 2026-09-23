@@ -30,20 +30,20 @@ from PySide6.QtWidgets import QGridLayout, QWidget
 SPACING = 8
 
 
-def columns_for(width: int, card_width: int, spacing: int = SPACING) -> int:
+def columns_for(width: int, card_width: int) -> int:
     """How many cards of `card_width` fit whole into `width`.
 
-    `n` cards need `n * card_width + (n - 1) * spacing`, so the largest `n`
-    that fits is `(width + spacing) // (card_width + spacing)`. At least one,
+    `n` cards need `n * card_width + (n - 1) * SPACING`, so the largest `n`
+    that fits is `(width + SPACING) // (card_width + SPACING)`. At least one,
     because a window narrower than a single card still has to show that card
     rather than nothing.
     """
     if card_width <= 0:
         return 1
-    return max(1, (width + spacing) // (card_width + spacing))
+    return max(1, (width + SPACING) // (card_width + SPACING))
 
 
-def room_for(columns: int, card_width: int, spacing: int = SPACING) -> int:
+def room_for(columns: int, card_width: int) -> int:
     """How much room `columns` cards need side by side.
 
     The inverse of `columns_for`, and it exists because a window that opens at
@@ -55,7 +55,7 @@ def room_for(columns: int, card_width: int, spacing: int = SPACING) -> int:
     had touched anything (QA-141). Deriving the opening size from the same
     arithmetic the reflow uses is what keeps the two from parting again.
     """
-    return columns * card_width + max(0, columns - 1) * spacing
+    return columns * card_width + max(0, columns - 1) * SPACING
 
 
 class CardGrid(QWidget):
@@ -68,22 +68,20 @@ class CardGrid(QWidget):
     """
 
     def __init__(self, card_width: int, cards: list[QWidget], *,
-                 stretch: bool = False, spacing: int = SPACING,
+                 stretch: bool = False,
                  margins: tuple[int, int, int, int] = (0, 0, 0, 0)):
         super().__init__()
         self._card_width = card_width
-        self._spacing = spacing
         self._stretch = stretch
         self._cards = list(cards)
         self._columns = 0
 
         self._grid = QGridLayout(self)
-        self._grid.setSpacing(spacing)
+        self._grid.setSpacing(SPACING)
         self._grid.setContentsMargins(*margins)
         if not stretch:
             self._grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self._apply(columns_for(self._usable(self.width()), card_width,
-                                spacing))
+        self._apply(columns_for(self._usable(self.width()), card_width))
 
     # -- geometry ---------------------------------------------------------
     def _usable(self, width: int) -> int:
@@ -100,7 +98,7 @@ class CardGrid(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
         self._apply(columns_for(self._usable(event.size().width()),
-                                self._card_width, self._spacing))
+                                self._card_width))
 
     def _apply(self, columns: int) -> None:
         """Re-place the cards across `columns`, if that is a change.
