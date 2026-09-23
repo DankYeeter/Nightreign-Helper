@@ -48,6 +48,13 @@ A_START = [
     'Start-Process -FilePath ".\\dist\\NightreignHelper.exe"',
     "dist\\NightreignHelper.exe",
     "cmd; NightreignHelper.exe",
+    # SEC-052: a start nested in the quoted command of another shell.
+    'powershell -Command "cd dist; .\\NightreignHelper.exe"',
+    'cmd /c "cd dist & NightreignHelper.exe"',
+    'powershell -Command "& \'C:\\x\\NightreignHelper.exe\' --x"',
+    'bash -c "cd dist && ./NightreignHelper.exe"',
+    # A search earlier in the line does not exempt the start after it.
+    'grep -E "a|b" f; NightreignHelper.exe',
 ]
 
 

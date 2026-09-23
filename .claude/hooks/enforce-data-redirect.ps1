@@ -80,28 +80,16 @@ $istQuellstart = $cmd -match '(?i)(^|[;&|(]\s*|\s)["'']?(\S*[\\/])?(python3?|pyt
 # stumm und die Rolle wartet - T-241d 23 min, T-285a 28 min. Bei laufender
 # Kopie wird der Start abgewiesen, damit die Rolle sofort `blockiert` meldet
 # statt zu pollen).
-# T-330a Nebenfund (T-332b behoben): [;&|(] zaehlte als Befehlsgrenze auch
-# innerhalb eines Anfuehrungszeichen-Texts, z.B. "foo|NightreignHelper.exe" in
-# einem Grep-Muster - der Hook wies solche Muster faelschlich ab. Grenzzeichen
-# zwischen zwei gleichen Anfuehrungszeichen werden vor dem Abgleich durch ein
-# Leerzeichen ersetzt; der Exe-Name selbst bleibt stehen, ein in
-# Anfuehrungszeichen stehender Exe-Pfad an der Befehlsstelle
-# (& "C:\x\NightreignHelper.exe") wird weiterhin erkannt, weil dort das
-# Grenzzeichen ausserhalb der Anfuehrungszeichen steht.
-# ponytail: einfache An/Aus-Erkennung je Anfuehrungszeichenart, keine
-# Escape-Behandlung (\" o.ae.) - bei Bedarf nachruesten.
-$cmdFuerExeAbgleich = New-Object System.Text.StringBuilder
-$inEinfach = $false; $inDoppelt = $false
-foreach ($ch in $cmd.ToCharArray()) {
-    if ($ch -eq "'" -and -not $inDoppelt) { $inEinfach = -not $inEinfach }
-    elseif ($ch -eq '"' -and -not $inEinfach) { $inDoppelt = -not $inDoppelt }
-    if (($inEinfach -or $inDoppelt) -and ($ch -in ';', '&', '|', '(')) {
-        [void]$cmdFuerExeAbgleich.Append(' ')
-    } else {
-        [void]$cmdFuerExeAbgleich.Append($ch)
-    }
-}
-$cmdFuerExeAbgleich = $cmdFuerExeAbgleich.ToString()
+# T-330a Nebenfund: [;&|(] in einem Grep-Muster ("foo|NightreignHelper.exe")
+# zaehlte als Befehlsgrenze. T-332b blendete darum Grenzzeichen in jedem
+# Anfuehrungszeichen-Text aus - und damit auch verschachtelte Starts
+# (powershell -Command "cd dist; .\NightreignHelper.exe", cmd /c, bash -c;
+# SEC-052). Jetzt nur noch in den Argumenten eines Suchbefehls (grep, rg,
+# Select-String): Wortfolge bis zur ersten Grenze ausserhalb von
+# Anfuehrungszeichen. Alles andere wird ungeblendet abgeglichen.
+$cmdFuerExeAbgleich = [regex]::Replace($cmd,
+    '(?i)(?<![\w-])(grep|rg|Select-String)(\s+("[^"]*"|''[^'']*''|[^\s"'';&|(]+))*',
+    { param($m) $m.Value -replace '[;&|(]', ' ' })
 
 $istExeKommando = $cmdFuerExeAbgleich -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
 
