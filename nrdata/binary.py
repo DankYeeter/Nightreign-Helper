@@ -70,12 +70,6 @@ class Reader:
     def i64(self) -> int:
         return self._unpack("q", 8)
 
-    def f32(self) -> float:
-        return self._unpack("f", 4)
-
-    def f64(self) -> float:
-        return self._unpack("d", 8)
-
     def bytes(self, n: int) -> bytes:
         out = self.data[self.pos : self.pos + n]
         self.pos += n
