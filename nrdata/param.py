@@ -33,10 +33,6 @@ class ParamTable:
     data_version: int
     row_size: int
     rows: list[ParamRow]
-    # True when the paramdef is older than the game's data and only describes a
-    # leading prefix of each row. Fields it does cover are still read normally;
-    # the trailing bytes the game added are simply not exposed.
-    def_is_prefix: bool = False
 
     def by_id(self, row_id: int) -> ParamRow | None:
         for r in self.rows:
@@ -85,12 +81,8 @@ def read(data: bytes, pdef: ParamDef | None = None) -> ParamTable:
 
     # A def shorter than the row is a stale def describing a prefix -- usable.
     # A def longer than the row would read past the row and is never safe.
-    def_is_prefix = False
-    if pdef is not None and pdef.row_size != row_size:
-        if pdef.row_size < row_size:
-            def_is_prefix = True
-        else:
-            pdef = None
+    if pdef is not None and pdef.row_size > row_size:
+        pdef = None
 
     rows: list[ParamRow] = []
     for i in range(row_count):
@@ -120,5 +112,4 @@ def read(data: bytes, pdef: ParamDef | None = None) -> ParamTable:
         data_version=data_version,
         row_size=row_size,
         rows=rows,
-        def_is_prefix=def_is_prefix,
     )

@@ -266,14 +266,14 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
     originals are older than this case.
     """
     from tests.test_arsenal_tab_asks_the_facade import (
-        drawn_tiles, empty_slots, prepare, tile_headline)
+        drawn_tiles, prepare, tile_headline)
     from tests.test_weapon_tile_and_panel_agree import panel_total
 
     relic = strongest(named_effects(game_data,
                                     "Improved Thrusting Counterattack"))
     factor = (relic["modifiers"] or {})["physicsAttackRate"]
 
-    slots = empty_slots()
+    slots = cases.empty_slots()
     slots[0] = weaponslots.WeaponSlot(weapon=greatsword, tier=TIER)
     prepare(planner, game_data, hero, slots)
     planner.selected_effects = lambda: [relic]
@@ -308,5 +308,156 @@ def test_the_tab_and_the_panel_name_one_figure_for_the_measured_case(
         f"still being counted somewhere")
     assert (damage.displayed(unbuffed)
             != damage.displayed(unbuffed * factor)), (
-        f"with and without the relic round to the same text on this "
-        f"armament, so the case cannot tell them apart")
+        "with and without the relic round to the same text on this "
+        "armament, so the case cannot tell them apart")
+
+
+# -- the art each of these buffs belongs to (AD-046, assurance M2) --------
+#
+# `MOVE_SCOPED_EFFECT_IDS` above says which buffs stay out of an ordinary
+# swing. `MOVE_SCOPED_ARTS` and `attack_arts_of` say which kind of attack
+# each of them does reach, so that a player who asks about one kind gets the
+# buffs that cover it. The sweep below holds the mapping against the dataset
+# it was derived from, in the same shape as the sweep above: no number is
+# written here that the data does not state.
+
+#: The effects that belong to two arts at once in this dataset, by id --
+#: 330900 carries scope 110 and 111 together, the other four are the
+#: "Improved Sorceries & Incantations" family. They are the case the set
+#: semantics of `attack_arts_of` exists for, so they are named rather than
+#: counted.
+IDS_IN_TWO_ARTS = frozenset({330900, 8330103, 8330104, 8851200, 8851250})
+
+
+def arts_in_the_data(game_data: dict) -> dict[str, set[int]]:
+    """Art key -> the ids of the effects covering it, over the whole data."""
+    found: dict[str, set[int]] = {}
+    for effect in game_data["effects"].values():
+        for art in model.attack_arts_of(effect):
+            found.setdefault(art, set()).add(int(effect["id"]))
+    return found
+
+
+#: `family:110` "Charged" is the one scope the dataset names as a school and
+#: no spell of it belongs to: being charged is a property of a cast, not a
+#: school a spell is in (measured T-324c). Six buffs cover it and none of
+#: them can be asked about, which is the director's decision of 2026-09-20
+#: rather than an oversight -- the spell rows rank the spell the equipment
+#: throws, and there is no spell to find under this one.
+NOT_A_SCHOOL = f"{model.ART_FAMILY_PREFIX}110"
+
+
+def test_every_art_offered_is_one_some_relic_can_actually_move(game_data):
+    """The chooser and the data say the same thing, in both directions.
+
+    An art with no effect behind it is a line the player can pick and that
+    can never change a figure; an effect whose art is not offered is a buff
+    nobody can ask about. Both are caught by comparing the two sides rather
+    than by a count written down here -- with the one named exception above,
+    which is stated rather than counted, so that a second one arriving
+    quietly fails this case.
+    """
+    offered = model.attack_arts(game_data)
+    covered = arts_in_the_data(game_data)
+
+    assert set(offered) == set(covered) - {NOT_A_SCHOOL}, (
+        f"offered and not covered: {sorted(set(offered) - set(covered))}; "
+        f"covered and not offered: "
+        f"{sorted(set(covered) - set(offered) - {NOT_A_SCHOOL})}")
+    assert NOT_A_SCHOOL in covered, (
+        "the exception above is about a scope this dataset no longer "
+        "carries, so it is a sentence nobody can check any more")
+    assert all(label.strip() for label in offered.values()), (
+        f"an art is offered without a name: {offered}")
+
+
+def test_a_school_no_spell_belongs_to_is_not_offered(game_data):
+    """The rule behind the exception, read off the data rather than listed.
+
+    `spell_families` names 21 schools and the spells of this dataset are in
+    20 of them. The 21st is `Charged`, and a chooser entry for it would ask
+    about a spell the program can never find (director's decision
+    2026-09-20). The rule is written as "no spell is in it" and not as the
+    number 110, so a patch that gives Charged a spell -- or empties another
+    school -- moves the offer by itself.
+    """
+    offered = model.attack_arts(game_data)
+    in_a_school = {str(spell.get("family") or "")
+                   for spell in game_data["spells"]}
+
+    empty = {f"{model.ART_FAMILY_PREFIX}{value}": label
+             for value, label in model.spell_family_names(game_data).items()
+             if label not in in_a_school}
+
+    assert set(empty.values()) == {"Charged"}, (
+        f"another school lost its spells: {empty}")
+    assert not set(empty) & set(offered), (
+        f"a school no spell is in is being offered: {empty}")
+
+
+def test_a_scope_the_data_does_not_name_stays_without_an_art(game_data):
+    """A movement scope is no art, and neither is a scope a patch adds.
+
+    Every `family:` key has to resolve to a school the dataset names in
+    `spell_families`; the twelve movement scopes (jump, guard counter and
+    their kin) name none and keep their `scoped:` line and nothing else
+    (AD-046 point 5). This is what keeps the chooser free of invented
+    labels -- A7.
+    """
+    named = model.spell_family_names(game_data)
+    for art in arts_in_the_data(game_data):
+        if not art.startswith(model.ART_FAMILY_PREFIX):
+            assert art in model.ART_LABELS, (
+                f"{art!r} is an art key the program has no wording for")
+            continue
+        value = int(art[len(model.ART_FAMILY_PREFIX):])
+        assert value in named, (
+            f"{art!r} was derived from scope {value}, which "
+            f"`spell_families` does not name")
+
+
+def test_an_effect_in_two_arts_is_named_and_counts_once_in_each(game_data):
+    """Set semantics, not first-hit: the ids that need it are held here.
+
+    330900 carries 112's sibling 111 beside scope 110. Reading the first
+    field alone would drop it out of `skill`, which its own name states, and
+    reading the fields as a list would multiply 112 and 111 into the same
+    figure twice (AD-046 points 2 and 3).
+    """
+    covered = arts_in_the_data(game_data)
+    counts: dict[int, int] = {}
+    for ids in covered.values():
+        for effect_id in ids:
+            counts[effect_id] = counts.get(effect_id, 0) + 1
+
+    assert {i for i, n in counts.items() if n > 1} == IDS_IN_TWO_ARTS
+    assert all(n <= 2 for n in counts.values()), (
+        f"an effect reached three arts: "
+        f"{sorted(i for i, n in counts.items() if n > 2)}")
+
+    both = model.attack_arts_of(game_data["effects"]["330900"])
+    assert both == frozenset({model.SKILL_ART,
+                              f"{model.ART_FAMILY_PREFIX}110"}), both
+
+
+def test_one_scalar_per_art_holds_while_no_effect_splits_its_rates(game_data):
+    """The ceiling under `Build.art_rates` being a number and not a bucket.
+
+    `art_rates` keeps one factor per art because no effect of this dataset
+    gives its five element rates different values -- a five-field bucket
+    would carry the same number in every cell. The day a patch ships one that
+    does, this fails, and the scalar becomes a bucket (AD-046 point 6).
+    """
+    split = []
+    for effect in game_data["effects"].values():
+        if not model.attack_arts_of(effect):
+            continue
+        rates = {float(v) for f, v in (effect.get("modifiers") or {}).items()
+                 if f in model.ELEMENT_ATTACK_RATES
+                 and isinstance(v, (int, float))}
+        if len(rates) > 1:
+            split.append((int(effect["id"]), sorted(rates)))
+
+    assert split == [], (
+        f"these effects give their element rates different values, so one "
+        f"number per art no longer says what they do: {split}")

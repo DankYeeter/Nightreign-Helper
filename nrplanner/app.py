@@ -6,7 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QProcess, QSettings, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import QProcess, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -35,9 +35,10 @@ from .datasource import load_data
 from .deeptab import DeepTab
 from .depthstab import DepthsTab
 from .eventstab import WorldEventsTab
-from .relicslots import (RelicSlot, SLOT_COLOURS, _custom_effects,
+from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import StatSheet, _heading
+from .theme import ACCENT, BORDER, MUTED, PANEL, SLOT_COLOURS
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -47,6 +48,10 @@ GRAIL_HERO_TYPE = 11
 # that way. QSplitter's own encoding, which survives a pane being added.
 PANES_KEY = "ui/panes"
 
+# T-328a: which Nightfarer was selected last, so the next launch opens on
+# them instead of always the first.
+HERO_KEY = "hero"
+
 # The opening pane widths, shared by first run, the restore fallback and the
 # Reset layout button so all three mean the same thing by construction.
 PANE_DEFAULTS = (430, 520, 370)
@@ -55,6 +60,16 @@ PANE_DEFAULTS = (430, 520, 370)
 #: window has always given itself; no tab asks for more (AK-71), so nothing
 #: on this side has to be derived.
 OPENING_HEIGHT = 860
+
+#: The share of the screen's available width the window opens at, once that
+#: share is narrower than the layout's own need (AK-350). Below the most
+#: common desktop width (1920 px) this leaves the row unshortened; above it
+#: a suggestion still trims the status line, then the boxes, per AK-351. Not
+#: a user decision yet -- see UI_SPEC.md AK-350 "Offene Frage".
+OPENING_WIDTH_SCREEN_RATIO = 0.9
+
+#: The least the window opens at on any screen, however narrow (AK-271).
+OPENING_WIDTH_FLOOR = 1536
 
 TILE_SIZE = 50
 TILE_PAD = 6
@@ -73,14 +88,6 @@ VARIANT_STRIP = 46
 #: which all ten stand whole; Qt shortens anything that does not fit and the
 #: tooltip has carried the full name all along.
 NAME_POINT_SIZE = 7
-
-ACCENT = "#c8a45c"
-BAD = "#d1655f"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-CURSE = BAD   # curses are a cost, and read in the same colour as one
-
 
 def _dark_palette() -> QPalette:
     p = QPalette()
@@ -151,7 +158,7 @@ class VesselStrip(QWidget):
         self.tiles = []
 
         for index, colour in enumerate(colours):
-            tint = SLOT_COLOURS.get(colour, "#8a8a8a")
+            tint = SLOT_COLOURS.get(colour, MUTED)
             backing = slot_chip(self.icons, colour,
                                 items[index] if index < len(items) else None,
                                 self.TILE)
@@ -294,6 +301,26 @@ READ_THE_SLOW_WAY_NOTE = (
     "above what the quick scan looks for. Nothing is missing and nothing "
     "needs fixing.")
 
+
+def other_saves_clause(owned) -> str:
+    """AK-366: the saves the automatic route passed over, or nothing.
+
+    One wording for both lines that can stand after a read -- the inventory
+    note and the note of the first import, which overwrites it (QA-004).
+    Which saves, and whose account, stays in the tooltip. A tie is won by
+    the newest file, and the clause says so (22.09.2026).
+    """
+    others = owned.other_saves
+    if not others:
+        return ""
+    saves = "1 other save was" if others == 1 else f"{others} other saves were"
+    winner = ("the most recent of those with the most relics"
+              if owned.other_saves_as_full
+              else "the one with more relics" if others == 1
+              else "the one with the most relics")
+    return f" — {saves} found; this is {winner}"
+
+
 #: The line of its own that the total belongs on (`UI_SPEC` T-178 §4, AK-251).
 #: `You own` is the scope the player was looking for and tells this number
 #: apart from the two it was confused with: what fits one slot
@@ -410,11 +437,11 @@ class HeroTile(QToolButton):
     def set_variant(self, texture_id: int | None) -> None:
         self.variant_id = texture_id
         self._apply_image()
-        settings = QSettings(favourites.ORG, favourites.APP)
+        settings = favourites.settings()
         settings.setValue(f"variant/{self.hero['id']}", texture_id if texture_id else "")
 
     def restore_variant(self) -> None:
-        settings = QSettings(favourites.ORG, favourites.APP)
+        settings = favourites.settings()
         stored = settings.value(f"variant/{self.hero['id']}", "")
         if stored:
             self.variant_id = int(stored)
@@ -590,7 +617,7 @@ class Planner(QMainWindow):
         self.panes.setStretchFactor(1, 1)
         self.panes.setStretchFactor(2, 0)
         self.panes.setSizes(list(PANE_DEFAULTS))
-        stored_panes = QSettings(favourites.ORG, favourites.APP).value(PANES_KEY)
+        stored_panes = favourites.settings().value(PANES_KEY)
         if stored_panes:
             try:
                 self.panes.restoreState(stored_panes)
@@ -639,7 +666,12 @@ class Planner(QMainWindow):
         # is the point: every tab that does not come out of the save is
         # complete in the first paint (AK-220). What the save would have added
         # is added at the arrival, by `_on_save_read`.
-        self.select_hero(0)
+        stored_hero_id = favourites.settings().value(
+            HERO_KEY, -1, type=int)
+        start_index = next(
+            (i for i, hero in enumerate(self.heroes)
+             if hero["id"] == stored_hero_id), 0)
+        self.select_hero(start_index)
 
         self.weapons_tab = ArsenalTab(data, self, self.icons)
         tabs.addTab(self.weapons_tab, "Weapons && spells")
@@ -931,11 +963,12 @@ class Planner(QMainWindow):
         # The advisor's row, between the "Build" line and the hint and
         # outside the scroll area below: a run that is being waited for may
         # not scroll out of sight (§3.1). It is handed a way to ask the
-        # window what it would be asked right now, and nothing else -- it
-        # reads no widget of this window and writes to none.
+        # window what it would be asked right now, and the dataset whose own
+        # words the kinds of damage are named in (AK-328) -- it reads no
+        # widget of this window and writes to none.
         self.advisor_bar = AdvisorBar(
             lambda goal_id: asking_from(self, goal_id), column,
-            filters=self.effect_filters)
+            filters=self.effect_filters, data=self.data)
         stack.addWidget(self.advisor_bar)
 
         # The relic picker's track: the same class, a second instance, and
@@ -1083,21 +1116,33 @@ class Planner(QMainWindow):
           button once a suggestion puts them up, `_width_around_the_advisor_
           row` -- the wider of the two wins, since the window opens once and
           has to suit both;
-        * `room`, the width the desktop has. On a machine that cannot show
-          that much, the desktop wins: a window wider than the screen opens
-          with its right-hand edge past the edge of it, which is worse than
-          the shortened heading it was meant to avoid. It defaults to the
-          screen this window is on, and is a parameter so a case can ask what
-          the window would do on a desktop other than the one it runs on;
+        * a share of `room`, the width the desktop has (AK-350). A window
+          exactly as wide as the desktop opens with no hint that there is
+          more room beside it, so this takes `OPENING_WIDTH_SCREEN_RATIO` of
+          `room` instead of `room` itself -- unless that share already
+          reaches what the layout needs, in which case the layout's own need
+          wins and the window opens no wider than its content, same as
+          before this ratio existed. `room` defaults to the screen this
+          window is on, and is a parameter so a case can ask what the window
+          would do on a desktop other than the one it runs on;
+        * `OPENING_WIDTH_FLOOR`, below which the ratio would shrink the
+          window past the width AK-05/AK-269 assume (AK-271). A desktop
+          narrower than this floor still gets a window this wide -- the
+          content beyond the edge is the shortened heading AK-350 exists to
+          avoid, not a reason to shrink further;
         * the window's own minimum. It is the last word because a window
           narrower than its layout allows is not a width the program can
           honour anyway.
         """
         if room is None:
             room = self.screen().availableGeometry().width()
-        return max(self.minimumSizeHint().width(),
-                   min(max(self._width_around_the_effect_table(),
-                           self._width_around_the_advisor_row()), room))
+        need = max(self._width_around_the_effect_table(),
+                   self._width_around_the_advisor_row())
+        screen_share = min(
+            max(round(room * OPENING_WIDTH_SCREEN_RATIO),
+                OPENING_WIDTH_FLOOR),
+            need)
+        return max(self.minimumSizeHint().width(), screen_share)
 
     def _width_around_the_effect_table(self) -> int:
         """A window width that leaves the effect table the viewport it wants.
@@ -1149,16 +1194,26 @@ class Planner(QMainWindow):
         every pixel added to the window arrives at the middle pane, and so
         at the row. So this starts from `_width_around_the_effect_table`'s
         own result -- a width the window has already opened at for real,
-        never a placeholder -- and adds exactly the extra the row needs,
-        `AdvisorBar.action_buttons_extra_width`.
+        never a placeholder -- and adds exactly the extra the row needs:
+        the three action buttons a suggestion puts up, and the two
+        label-box pairs of the damage question.
+
+        **Two terms since A26** (AK-349). Until then the row's own controls
+        fitted in the slack the table's width left it, and the buttons were
+        the only thing the width had to be told about; a second pair beside
+        `goal_box` took that slack, and the status line went to 0 px at the
+        width the window opens at -- which is what AK-194 forbids. Both
+        terms are measured off the row rather than written here, so a later
+        entry that makes a box wider moves the opening width with it.
         """
         return (self._width_around_the_effect_table()
-                + self.advisor_bar.action_buttons_extra_width())
+                + self.advisor_bar.action_buttons_extra_width()
+                + self.advisor_bar.damage_question_extra_width())
 
     def _store_layout(self) -> None:
         """Remember how wide the player made each pane."""
         if hasattr(self, "panes"):
-            QSettings(favourites.ORG, favourites.APP).setValue(
+            favourites.settings().setValue(
                 PANES_KEY, self.panes.saveState())
 
     def _reset_layout(self) -> None:
@@ -1168,7 +1223,7 @@ class Planner(QMainWindow):
         launch if the stored state is the broken thing being escaped from.
         """
         self.panes.setSizes(list(PANE_DEFAULTS))
-        QSettings(favourites.ORG, favourites.APP).remove(PANES_KEY)
+        favourites.settings().remove(PANES_KEY)
 
     def _choose_scale(self, _index: int) -> None:
         """Store the chosen scale, and offer the restart it needs to show.
@@ -1272,6 +1327,8 @@ class Planner(QMainWindow):
         self.refresh_build_list(
             keep=chalices.selected_build(self.heroes[index]["id"]))
         self.refresh_vessel_strip()
+        favourites.settings().setValue(
+            HERO_KEY, self.heroes[index]["id"])
 
     # -- armament tiles ---------------------------------------------------
     def weapon_by_id(self, weapon_id: int) -> dict | None:
@@ -2418,7 +2475,8 @@ class Planner(QMainWindow):
             self.find_save_button.setVisible(True)
             return
 
-        note = f"{self.owned.relic_count} relics in {self.owned.source}"
+        note = (f"{self.owned.relic_count} relics in {self.owned.source}"
+                + other_saves_clause(self.owned))
         if self.owned.loadouts:
             note += f", {len(self.owned.loadouts)} stored builds"
         elif self.owned.loadout_error:
@@ -2440,8 +2498,11 @@ class Planner(QMainWindow):
         # can contain a "<", so this is depth rather than a hole being shut:
         # the path is shown as the path, whatever it turns out to hold.
         self.owned_label.setToolTip(html.escape(self.owned.folder))
-        # A save is loaded, so the offer to find one is gone (AK-123).
-        self.find_save_button.setVisible(False)
+        # A save is loaded, so the offer to find one is gone (AK-123) --
+        # unless the note just said other saves were passed over, in which
+        # case the button is the way to one of them (AK-366, decision
+        # 22.09.2026).
+        self.find_save_button.setVisible(bool(self.owned.other_saves))
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
@@ -2663,6 +2724,12 @@ class Planner(QMainWindow):
             worn = "it is" if clashed == 1 else "they are"
             note += (f" {_relic_count(clashed)} could not be placed: "
                      f"{worn} already worn in another slot.")
+        # The button to the passed-over saves is still there, so the line
+        # that explains it has to be as well (AK-366, QA-004). The clause
+        # takes the place of the full stop, never ". —" (23.09.2026).
+        clause = other_saves_clause(self.owned)
+        if clause:
+            note = note.removesuffix(".") + clause
         self.owned_label.setText(note)
         self.recompute()
 

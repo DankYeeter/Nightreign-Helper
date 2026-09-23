@@ -563,7 +563,7 @@ def test_a_file_that_is_not_a_save_keeps_this_program_s_own_sentence(tmp_path):
     path.write_bytes(b"NOPE" + bytes(0x80))
 
     with pytest.raises(inventory.SaveNotReadable) as raised:
-        inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+        inventory._scan_save(path, set(), set(), mode=savefile.FAST)
 
     assert str(raised.value) == "not a BND4 save container"
 
@@ -588,7 +588,7 @@ def test_a_library_s_complaint_about_a_save_is_not_shown(monkeypatch,
     monkeypatch.setattr(savefile, "_members", refuse)
 
     with pytest.raises(inventory.SaveNotReadable) as raised:
-        inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+        inventory._scan_save(path, set(), set(), mode=savefile.FAST)
 
     says_nothing_windows_said(str(raised.value))
     assert "ValueError" in str(raised.value)
@@ -622,7 +622,7 @@ def test_the_line_about_the_stored_builds_says_it_in_english(monkeypatch,
     monkeypatch.setattr(savefile, "read_relic_handles", lambda *a, **k: {})
     monkeypatch.setattr(savefile, "read_loadouts", refuse)
 
-    found = inventory._scan_save(path, set(), set(), None, mode=savefile.FAST)
+    found = inventory._scan_save(path, set(), set(), mode=savefile.FAST)
 
     assert found is not None
     assert found.loadouts == []

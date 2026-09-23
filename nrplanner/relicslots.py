@@ -19,21 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import advisorblock, chalices, effecttext, favourites, inventory, model
-
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-# The window's BAD: curses are a cost, and read in the same colour as one.
-CURSE = "#d1655f"
-
-SLOT_COLOURS = {
-    0: "#b4544e",   # Red
-    1: "#4e7ab4",   # Blue
-    2: "#c2a24a",   # Yellow
-    3: "#5c9e63",   # Green
-    4: "#d8d8d8",   # White -- wildcard
-}
+from .theme import ACCENT, BORDER, CURSE, DEBUFF, MUTED, PANEL, SLOT_COLOURS
 
 
 # The slot-colour gems, by relic colour. White ships none -- the game has
@@ -72,7 +58,7 @@ def slot_chip(icons, colour: int, owned=None, size: int = 26):
 
     chip = QPixmap(size, size)
     chip.fill(Qt.transparent)
-    tint = QColor(SLOT_COLOURS.get(colour, "#8a8a8a"))
+    tint = QColor(SLOT_COLOURS.get(colour, MUTED))
     painter = QPainter(chip)
     painter.setRenderHint(QPainter.Antialiasing, True)
 
@@ -160,9 +146,8 @@ def _same_copy(one, other) -> bool:
     """Whether two entries stand for the same physical relic.
 
     By copy_key where there is one -- the handle the save's loadout table
-    uses, or the record's own place in the save. A relic with neither (a
-    custom one, or an entry that never came out of a save) stands for itself
-    and nothing else.
+    uses. A relic without one (a custom one, or an entry that never came out
+    of a save) stands for itself and nothing else.
     """
     key = inventory.copy_key(one)
     if key is None:
@@ -441,7 +426,7 @@ class RelicSlot(QFrame):
             eff = self.effect_by_id.get(eid)
             name = effecttext.name(eff) if eff else f"<{eid}>"
             mark = "" if not eff or eff["stacks"] else "  ⚠"
-            colour = "#d1655f" if eff and eff.get("is_curse") else "#cfcfcf"
+            colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"
             # An effect belonging to another Nightfarer is doing nothing at
             # all here. Say so on the slot rather than letting it sit among
             # the working rolls looking identical to them.
@@ -566,7 +551,7 @@ class RelicSlot(QFrame):
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
         self.chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(colour, '#888')};"
+            f"background: {SLOT_COLOURS.get(colour, MUTED)};"
             f" border: 1px solid {BORDER}; border-radius: 7px;"
         )
         self.populate()
@@ -699,11 +684,14 @@ class RelicSlot(QFrame):
         One entry per physical relic, before anything is collapsed away. Both
         questions this slot answers about a relic -- may it be offered, and is
         this the copy a build names -- are asked of this list, so the two
-        cannot come to mean different things by one relic.
+        cannot come to mean different things by one relic. A copy without a
+        handle is not in it: the advisor does not offer it either (AD-055).
         """
         if self.owned is None:
             return []
-        return self.owned.relics_for(self.colour, self.deep, model.WHITE_SLOT)
+        return [relic for relic in self.owned.relics_for(
+                    self.colour, self.deep, model.WHITE_SLOT)
+                if relic.handle is not None]
 
     def slot_name(self) -> str:
         """What this slot is called on screen, and in anything said about it."""

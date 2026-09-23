@@ -39,15 +39,6 @@ WIDTH = 1250
 EMPTY_PANEL = "Select a Nightlord"
 
 
-def cards(tab) -> list:
-    return tab.holder.findChildren(bosstab.BossCard)
-
-
-def pictures(tab) -> dict:
-    """Every card as it is drawn right now, by Nightlord name."""
-    return {card.boss["name"]: card.grab().toImage() for card in cards(tab)}
-
-
 def interface(card):
     iface = QAccessible.queryAccessibleInterface(card)
     assert iface is not None, (
@@ -80,7 +71,7 @@ def test_a_card_carries_the_nightlords_name_for_a_reader_without_eyes(
     press, and a client looking for the card had nothing to look for.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        for card in cards(tab):
+        for card in rendered.cards(tab):
             given = interface(card).text(QAccessible.Name)
             assert given == card.boss["name"], (
                 f"the card for {card.boss['name']} tells an assistive tool "
@@ -95,7 +86,7 @@ def test_a_card_says_it_is_a_control_and_not_furniture(game_data, qapp):
     not on that list.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        card = cards(tab)[0]
+        card = rendered.cards(tab)[0]
         assert interface(card).role() == QAccessible.Button, (
             f"the {card.boss['name']} card reports itself as "
             f"{interface(card).role()}")
@@ -108,7 +99,7 @@ def test_the_accessible_press_opens_the_profile(game_data, qapp):
     ignores what the action answers and reads the panel.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        card = cards(tab)[4]
+        card = rendered.cards(tab)[4]
         assert tab.detail_name.text() == EMPTY_PANEL
 
         actions = interface(card).actionInterface()
@@ -132,7 +123,7 @@ def test_every_key_the_card_announces_really_presses_it(game_data, qapp):
     back into a key and typed at the card, and the panel has to move.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        card = cards(tab)[1]
+        card = rendered.cards(tab)[1]
         actions = interface(card).actionInterface()
         announced = actions.keyBindingsForAction(
             QAccessibleActionInterface.pressAction())
@@ -159,7 +150,7 @@ def test_tab_moves_from_one_card_to_the_next(game_data, qapp):
     would pass a `setFocus` case and fail a person.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        first = cards(tab)[0]
+        first = rendered.cards(tab)[0]
         first.setFocus()
         rendered.settle()
         press_tab(first)
@@ -178,7 +169,7 @@ def test_each_press_key_opens_the_profile(game_data, qapp, key, named):
     """All three, separately: a card that took only Enter would fail a
     reader who was told Space and given nothing."""
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        card = cards(tab)[6]
+        card = rendered.cards(tab)[6]
         card.setFocus()
         rendered.settle()
         type_key(card, key)
@@ -192,7 +183,7 @@ def test_a_key_that_is_not_a_press_leaves_the_panel_alone(game_data, qapp):
     """Otherwise the three cases above would pass on a card that opens on
     every key, which is not keyboard operation but a stuck control."""
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        card = cards(tab)[6]
+        card = rendered.cards(tab)[6]
         card.setFocus()
         rendered.settle()
         type_key(card, Qt.Key_A)
@@ -216,14 +207,14 @@ def test_the_keyboard_can_be_seen_on_the_grid(game_data, qapp):
     mark says "here" in two places.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        first = cards(tab)[0]
+        first = rendered.cards(tab)[0]
         first.setFocus()
         rendered.settle()
-        before = pictures(tab)
+        before = rendered.pictures(tab)
 
         press_tab(first)
         landed = QApplication.focusWidget()
-        after = pictures(tab)
+        after = rendered.pictures(tab)
         changed = sorted(name for name in before if before[name] != after[name])
 
         assert changed == [landed.boss["name"]], (

@@ -58,6 +58,90 @@ class Mutation:
 #: keeps to, and they have to: they are the source verbatim, and a wrapped
 #: anchor matches nothing.
 MUTATIONS: dict[str, Mutation] = {
+    "place-route-back-under-the-hp-bar": Mutation(
+        path="nrdata/bossdata.py",
+        old="        found, group = _candidates(rows_for, placements, min_hp=0)\n",
+        new="        found, group = _candidates(rows_for, placements)\n",
+        survival_means=(
+            "Nothing holds the place cards to AD-042. The HP bar belongs to "
+            "the Nightlord arenas, and back on the place route it cuts 16 of "
+            "the 29 field bosses away (904-5753 HP): those cards lose their "
+            "character and say 'not derivable'. Since AD-044 the same bar "
+            "would meet all 64 cards of the block. A green suite would mean "
+            "the sub-boss roster can quietly shrink to a third of itself."
+        ),
+    ),
+    "health-bar-name-bound-to-the-map": Mutation(
+        path="nrdata/bossdata.py",
+        old='        on_entities = entities.get(entry["primary"], [])\n',
+        new="        on_entities = [e for row in entities.values() for e in row]\n",
+        survival_means=(
+            "Nothing holds a health-bar name to the character it was passed "
+            "in for. Taking whichever entity of the map the script names "
+            "first renames `4551` to 'Black Knife Assassin', `4659` to "
+            "'Royal Revenant' and `4662` to \"Night's Cavalry\": on all "
+            "three the chosen character carries no entity at all, and the "
+            "one the script names belongs to somebody else standing in the "
+            "same map (AD-043.1, measured T-310). A "
+            "green suite would mean a name on a card proves nothing about "
+            "who is on it, which is the failure QA-286 is made of."
+        ),
+    ),
+    "health-bar-name-behind-the-table-order": Mutation(
+        path="nrdata/extract.py",
+        old='            "name": (npc_names.get(entry.get("name_id"))\n'
+            '                     or chr_names.get(chr_id, "")),\n',
+        new='            "name": (chr_names.get(chr_id)\n'
+            '                     or npc_names.get(entry.get("name_id"), "")),\n',
+        survival_means=(
+            "Nothing holds the two name routes to their order. Reversed, "
+            "`4666` is called 'Valiant Gargoyle' again -- c4770 carries "
+            "three names in the structured block and the table order picks "
+            "the first, while the script of the place calls it 'Black Blade "
+            "Kindred' (AD-043.2). The two cards that gained a name keep it "
+            "either way, so a green suite would mean only the disagreement "
+            "is unguarded -- the one case the decision is about."
+        ),
+    ),
+    "spread-bar-back-on-the-knife-edge": Mutation(
+        path="nrdata/bossdata.py",
+        old='            - min(profile["damage"].values())) '
+            ">= INFERRED_MIN_SPREAD - 1e-6\n",
+        new='            - min(profile["damage"].values())) '
+            ">= INFERRED_MIN_SPREAD\n",
+        survival_means=(
+            "Nothing holds the tuning bar to the width of float32 noise. "
+            "The cut rates are float32, so a spread authored as 0.7 - 0.6 "
+            "arrives as 0.09999996 and misses the bar by a float: `4920` "
+            "drops the Stoneskin Lords (628 HP) and falls back to a 162 HP "
+            "add (AD-044.2). A green suite would mean the bar may be a "
+            "knife edge that a rounding error decides."
+        ),
+    ),
+    "place-route-takes-the-smallest": Mutation(
+        path="nrdata/bossdata.py",
+        old='            best = max(found, key=lambda pair: pair[1]["hp"] or 0)\n',
+        new='            best = min(found, key=lambda pair: pair[1]["hp"] or 0)\n',
+        survival_means=(
+            "Nothing holds a card to the boss standing on it. With the "
+            "smallest taken, `4659` names c4021 (2279 HP) instead of the "
+            "Decaying Rancor Dragon (5753) and `4671` names a blossom (119) "
+            "instead of Miranda (1939). A green suite would mean the name a "
+            "card carries is unguarded -- the failure QA-286 is made of."
+        ),
+    ),
+    "night-lottery-forgets-day-two": Mutation(
+        path="nrdata/extract.py",
+        old='NIGHT_BOSS_FIELDS = ("bossId1", "bossId2")\n',
+        new='NIGHT_BOSS_FIELDS = ("bossId1",)\n',
+        survival_means=(
+            "Nothing holds the night lottery to both of its days. With "
+            "`bossId2` dropped, every card only day 2 draws leaves the "
+            "block and the tab's DAY 2 group is empty, while the cards both "
+            "days draw quietly claim to be day 1 only. A green suite would "
+            "mean half of stage two can go missing unnoticed."
+        ),
+    ),
 }
 
 

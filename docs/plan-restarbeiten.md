@@ -280,6 +280,64 @@ Dann baut das Programm ihn ohnehin neu; der erste Lauf, dem das passiert,
 nicht an der Version und blieben. Stand der Vorlage: 841 Dateien,
 20 849 867 B, Ort wie in `CLAUDE.md` (`...\Desktop\ClaudeCode\NightreignHelper-Testabzug`).
 
+*Ersetzt am 19.09.2026 (T-303, developer):* `EXTRACT_VERSION` 13 fuegt den
+Block `subbosses` hinzu und ersetzt `deep_of_night.kinds[].chrs` durch
+`places` (QA-286). Wieder nur `nightreign_data.json` neu geschrieben
+(8 585 535 B, +63 317 B = +0,74 %, Extraktor dieses Standes, `extract.build`
+34,0 s an der echten Installation); die 840 Symboldateien blieben. Stand der
+Vorlage: 841 Dateien, 20 913 184 B, Ort unveraendert. **`CLAUDE.md` nennt
+weiterhin `EXTRACT_VERSION` 12 und 20 849 867 B** — die Zeile gehoert dem
+`director`.
+
+*Ersetzt am 19.09.2026 (T-305, developer):* AD-042 nimmt die HP-Schranke von
+der Ortsroute und laesst die strikt hoechste HP entscheiden — `subbosses`
+traegt damit 29 statt 11 aufgeloeste Karten (`EXTRACT_VERSION` bleibt **13**,
+die Form ist unveraendert). Wieder nur `nightreign_data.json` neu geschrieben
+(8 625 436 B, +39 901 B = +0,46 %, `scripts/build_snapshot.py` an der echten
+Installation, 34,5 s); die 840 Symboldateien blieben. Stand der Vorlage: 841
+Dateien, **20 953 085 B**, Ort unveraendert. Die Byte-Zahl in `CLAUDE.md`
+steht auf diesem Stand; die uebrige Zeile (Herkunft T-303) gehoert weiter dem
+`director`.
+
+*Ersetzt am 19.09.2026 (T-308, developer):* `EXTRACT_VERSION` **14** —
+`subbosses` bekommt die Nachtbosse Tag 1/2 aus `LotResultPlayAreaParam`
+(35 Karten dazu, 64 statt 29; `days` war auf 13 in jedem Eintrag leer).
+Wieder nur `nightreign_data.json` neu geschrieben (8 684 784 B, +59 348 B =
++0,69 %, `scripts/build_snapshot.py` an der echten Installation, 34,2 s —
+gegen 34,5 s in T-305, der neue Durchgang ist in der Messung nicht sichtbar);
+die 840 Symboldateien blieben. Stand der Vorlage: 841 Dateien,
+**21 012 433 B**, Ort unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand
+gezogen (Zahlen, Herkunft T-308, Grenze "ueber 14").
+
+*Ersetzt am 19.09.2026 (T-310, developer):* `EXTRACT_VERSION` **15** —
+AD-043 holt den Namen am Lebensbalken aus dem Kartenskript (Ereignis
+90015000, gebunden ueber die Entity der Part-Zeile) und AD-044 laesst die
+Ortsregel auf allen 64 Karten gelten; `subbosses` traegt damit 64 `single`
+und 59 Namen statt 45 `single` / 3 `group` / 16 `unresolved` und 42 Namen,
+und 21 Karten aendern `chr` oder `name` (gemessen gegen die Vorlage von
+T-308). Wieder nur `nightreign_data.json` neu geschrieben (8 803 996 B,
++119 212 B = +1,37 %, an der echten Installation, `extract.build` 35,4 s —
+gegen 34,2 s in T-308, der neue Lesevorgang je Karte kostet 1,2 s); die 840
+Symboldateien blieben. Stand der Vorlage: 841 Dateien, **21 131 645 B**, Ort
+unveraendert. `CLAUDE.md` Z. 75-78 ist auf diesen Stand gezogen (Zahlen,
+Herkunft T-310, Grenze "ueber 15").
+
+*Ersetzt am 20.09.2026 (T-324b, developer):* `EXTRACT_VERSION` **16** —
+A26-1 liest Zauberschaden, linke Starthand und Tauschzauber (T-324a-Quittung:
+`nightreign_data.json` byteidentisch in zwei Laeufen am echten Spielstand).
+Geprueft an `nrdata/extract.py`/`nrplanner/datasource.py`: nur die
+`meta.extract_version` in `nightreign_data.json` haengt an
+`EXTRACT_VERSION`; die 840 Symboldateien tragen ihr eigenes `ICON_VERSION`
+(unveraendert bei 3, `nrdata/iconbuild.py`) und blieben unangetastet. Nur
+`nightreign_data.json` ersetzt (8 811 742 B, +7 746 B = +0,09 %, aus der
+T-324a-Quittung uebernommen, kein neuer Extraktorlauf noetig). Stand der
+Vorlage: 841 Dateien, **21 139 391 B**, Ort unveraendert. Alte v15-JSON
+gesichert unter
+`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug-v15`
+(8 803 996 B). `pytest -n auto` gegen den neuen Abzug: **1849 passed, 9
+skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
+(Zahlen, Herkunft T-324b, Grenze "ueber 16").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.
@@ -328,6 +386,17 @@ Der Auftrag benennt die Teilung, statt sie der Rolle zu ueberlassen.
   `fable` gefunden. Genau das beschreibt L-016: eine Korrektur schliesst die
   **Fundstelle**, nicht die **Aussage** — und die Regel hat am Tag ihrer
   eigenen Annahme nicht gegriffen.*
+
+## E-4 — Fensterlaeufe als Szenario, ein Aufruf je Ziel (NH-009-Folge, vorgemerkt 21.09.2026)
+
+Ein Fensterlauf kostet heute einen Werkzeugzug je Klick: T-322m
+(`power-user`) 103 Klick-Zuege von 113, T-325h (`qa-engineer`) 60 von 159,
+und jeder Zug traegt den vollen Kontext des Laufs (NH-010).
+`scripts/drive_window.ps1` bekommt einen Szenario-Modus: eine Schrittliste
+(Klick, Eingabe, Ablesen mit Erwartung) in einer Datei, ein Aufruf fuehrt sie
+aus und liefert Protokoll plus `PrintWindow`-Bild je Schritt. Auftrag:
+`developer` (klein, Stelle nach Datei:Zeile im Auftrag). Kriterium: der
+power-user-Lauf T-322m laesst sich mit hoechstens 25 Zuegen wiederholen.
 
 ## P10 — Der Ueberbau-Audit vom 12.09.2026 (Korb 3)
 

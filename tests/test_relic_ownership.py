@@ -18,6 +18,9 @@ owned once, two copies of one roll, and a copy whose handle could not be read.
 from __future__ import annotations
 
 from nrplanner import inventory
+from nrplanner.advisor import candidates, goals
+from tests import advisor_cases as advisor
+from tests import weapon_damage_cases as cases
 from tests.relics import (equip, make_relic, offered, select_vessel,
                           some_effect_ids, templates_for)
 
@@ -77,26 +80,40 @@ def test_a_second_copy_of_the_same_roll_is_still_offered(
     assert still_free[0] is not planner.base_slots[first].current_relic()
 
 
-def test_a_copy_without_a_handle_is_still_only_one_relic(
+def test_a_copy_without_a_handle_is_offered_nowhere(
         planner, game_data, two_slots_of_one_colour):
-    """A save whose loadout table cannot be read yields no handles at all.
+    """One identity rule for picker and advisor: the handle (AD-055).
 
-    Dropping those relics would leave such a player with an empty planner;
-    treating them as endlessly available would drop the rule exactly where it
-    cannot be checked. The record's own place in the save says which copy it
-    is either way.
+    The handle is read from the record itself, so a copy lacks one only when
+    two records carry the same handle bytes -- and then the game cannot tell
+    them apart either. The advisor leaves such a copy out with its A7 line;
+    the picker leaves it out as well, or it would offer a copy no suggestion,
+    stored build or adoption can ever reach.
     """
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
-    handleless = make_relic(template, handle=None, index=7,
-                            effects=some_effect_ids(game_data, 1))
-    planner.owned = inventory.Inventory(source="test", relics=[handleless])
+    # Two rolls, or the picker collapses both copies onto one card and the
+    # handle-less one is hidden whether or not it is on offer.
+    first_roll, second_roll = some_effect_ids(game_data, 2)
+    with_handle = make_relic(template, handle=9, index=0,
+                             effects=[first_roll])
+    handleless = make_relic(template, handle=None, index=1,
+                            effects=[second_roll])
+    owned = inventory.Inventory(source="test",
+                                relics=[with_handle, handleless])
+    planner.owned = owned
     select_vessel(planner, row)
 
-    first, second = [i for i, c in enumerate(vessel["slots"]) if c == colour][:2]
-    equip(planner.base_slots[first], handleless)
+    for slot in planner.base_slots:
+        assert not any(item is handleless for item in offered(slot))
 
-    assert handleless not in offered(planner.base_slots[second])
+    wylder = cases.hero_by_name(game_data, "Wylder")
+    pool = candidates.pool(owned, advisor.problem([colour]), 0,
+                           advisor.context(game_data, wylder), goals.GOALS,
+                           "max_damage")
+
+    assert [candidate.handle for candidate in pool.candidates] == [9]
+    assert len([line for line in pool.unknowns if "handle" in line]) == 1
 
 
 def test_a_custom_relic_may_be_planned_into_every_slot(
@@ -127,7 +144,7 @@ def test_copy_key_tells_the_cases_apart():
         effect_ids=[], is_deep=False)
 
     assert inventory.copy_key(with_handle) == inventory.copy_key(same_handle)
-    assert inventory.copy_key(without) != inventory.copy_key(other_without)
-    assert inventory.copy_key(without) != inventory.copy_key(with_handle)
+    assert inventory.copy_key(without) is None
+    assert inventory.copy_key(other_without) is None
     assert inventory.copy_key(custom) is None
     assert inventory.copy_key(None) is None

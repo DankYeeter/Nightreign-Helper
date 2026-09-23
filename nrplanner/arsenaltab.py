@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import cardgrid, damage, search, tabheader, weapons
+from .theme import ACCENT, BORDER, MUTED, PANEL
 from .weapons import RARITY_TIERS
 
 ICON = 52
@@ -30,8 +31,8 @@ HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
 QUESTION = (
     "Every armament and spell in the game, rated at the upgrade you set "
     "here, for the Nightfarer and level you set on the Build planner tab. "
-    "Spell damage is not in the game's data, so spells show what they cost "
-    "you instead.")
+    "A spell tile here still shows what it costs you, not its damage; the "
+    "Advisor's Hit with box works spell damage out for a ranking instead.")
 
 #: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
 #: say it on up to 1 792 cards, so the sentence says it too rather than the
@@ -93,12 +94,6 @@ def unbroken(value: str) -> str:
         return value
     return GROUP_SEPARATOR.join(
         NBSP.join(group.split()) for group in value.split(GROUP_SEPARATOR))
-
-
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
 
 # EquipParamWeapon.rarity, rarest first.
 RARITY_NAMES = {3: "Legendary", 2: "Rare", 1: "Uncommon", 0: "Common"}

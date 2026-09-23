@@ -1354,7 +1354,7 @@ dergleichen: ein `vessels`-Eintrag hat `id`, `name`, `icon`, `hero_type`,
 
 ---
 
-### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv)
+### AD-013 — Ein Vorschlag ist eine Menge von Handles, nicht von Rollen; ein belegtes Exemplar fällt aus dem Kandidatenraum (2026-09-01, Status: aktiv; **Punkt 4 präzisiert durch AD-055** — gilt auch im Picker, die Begründung "ohne lesbare Tabelle keine Handles" ist falsch)
 
 **Kontext:** Der Nutzer hat entschieden, dass der Besitz erzwungen wird
 (QA-002): ein bereits belegtes Exemplar wird in den übrigen Slots nicht mehr
@@ -6907,6 +6907,2172 @@ gespeicherte Zielwahl, die ins Leere zeigt), Rueckbau als eigener Entscheid.
 des Betrags in der Why-Zeile (`→ Attack rating -2`?), Zaehlung der Leiste
 ("3 avoided" — Ids oder Familien?), Neufassung AK-190/192/193 und Scope-
 Satz, Gruppierung gegen AK-308 (Tabelle mit fester Ordnung oder Baum).
+
+---
+
+## Themenbereich L — Unterbosse im Nightlords-Tab, A24 und QA-286 (2026-09-19, T-300)
+
+*Angelegt am 19.09.2026 (T-300, `architect`, Entscheidungstiefe Datenmodell,
+Leseroute, Tab-Struktur). Bezugsstand `c03fd9d` plus ungecommittet
+(`GOAL.md` Nachtrag A24, `docs/berichte/T-299-developer.md`, QA-286).
+Gegenstand: `GOAL.md` Nachtrag 19.09.2026 A24 (Unterbosse mit Kampfwerten,
+beide Stufen) und QA-286. Zwei Entscheidungen, AD-040 und AD-041.*
+
+*Vorgelagerte Laeufe: **T-299** (`developer`, Forschung) ist die einzige
+Tatsachenquelle dieses Entwurfs; `docs/research/` und `docs/legal/` enthalten
+zu A24 nichts (R-001..R-008 betreffen Waffen und Zweihandregel, C-001..C-006
+Lizenz und Signatur). **Dieser Entwurf misst nichts selbst und leitet nichts
+neu her.** Jede Zahl unten steht mit ihrer Fundstelle; wo T-299 nichts sagt,
+steht eine offene Frage und keine Annahme.*
+
+### Bestand, in zwei Saetzen
+
+`nrdata/extract.py` baut **einen** Schnappschuss aus `regulation.bin` plus
+FMG-Texten; `nrdata/bossdata.py` ist der einzige Ort, der dafuer aus den
+**Karten- und Ereignisdateien** liest (Oodle, `dvdbnd`, MSB, TAE) und heute
+genau einen Einstieg kennt: `NightBossMenuParam.defeatEventFlag` -> EMEVD ->
+Arena-MSB -> Figur -> `_profile`. `nrplanner/bosstab.py` zeigt die zehn
+Nachtfuersten als Kachelgitter mit einem Detailpanel rechts, das den Block
+`bosses[].weakness.profile` rendert; `nrplanner/depthstab.py` zeigt aus
+`deep_of_night.kinds` eine Beispielspalte.
+
+**Praemissen dieses Entwurfs, jede mit Quelle**
+
+| Aussage | Quelle | Guete |
+|---|---|---|
+| `smallBaseId` ist eine **Karten-Id**, keine Figur-Id (116/116 liefern eine MSB, 21/116 zufaellig eine NpcParam-Zeile) | T-299 Abschn. 2a | gemessen |
+| Kat 120 = 29 Ein-Boss-Karten (Feldbosse) + 16 gleich besetzte Karten `m20_00..m21_50` (c4680); Kat 160 = 4 Karten mit gemischter Besetzung | T-299 Abschn. 2b, 2c | gemessen |
+| Nachtbosse Tag 1/2 stehen in `LotResultPlayAreaParam` (520 Zeilen, `bossId1`/`bossId2`), 35 verschiedene Bosskarten | T-299 Abschn. 3b | gemessen |
+| Der Join laeuft ueber `patternId`: 520 Muster in allen drei Lotterien, Schnitt 520/520, 23 830/23 830 Ortslose zugeordnet | T-299 Abschn. 4 | gemessen |
+| `bossdata._profile/_ladder/_defence_buffs/_parts/_tuned/CREW` tragen ohne Aenderung; `_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of` (die EMEVD-Haelfte) entfallen fuer den neuen Einstieg | T-299 Abschn. 2d | gemessen (29 Profile entstanden) |
+| `extract._event_drops` greift unveraendert, 164 Figuren haben eine Liste; Ausgabe ist nach `str(chr)` geschluesselt | T-299 Abschn. 5, `extract.py:1144` | gemessen (sechs Stichproben) |
+| Ein Durchlauf ueber **alle 199** MSB-Karten dauert rund 4 Minuten | T-299 Abschn. 8 | **einmal** gemessen, nicht wiederholt |
+| Voller Neubau des Abzugs 293,8-310,1 s; `nightreign_data.json` allein 39,6 s | `docs/plan-restarbeiten.md` (S11/T-118; T-269a) | gemessen |
+| "Hoechste HP" waehlt in 4 von 35 Nachtboss-Karten die falsche Figur | T-299 Abschn. 3b | gemessen |
+| `variationId`/`mapIndex` als Variantenwahl | T-299 Abschn. 7 | **ungeprueft** — wird hier nicht verwendet |
+| Welche Karten "Evergaol" sind | nirgends — `WorldMapPointIconParam` traegt nur `iconId`, keinen Text (T-299 Abschn. 2b) | **nicht belegt** (OF-46) |
+
+---
+
+### AD-040 — Die **Kartenkarte** ist die Einheit des Unterboss-Registers, nicht die Figur: ein Snapshot-Block `subbosses`, zwei Einstiege in dieselbe Aufloesung, und QA-286 faellt auf demselben Weg (2026-09-19, Status: aktiv; erweitert AD-011/AD-012 nicht, beruehrt die Erstlaufzeit aus AD-030/Themenbereich E)
+
+> **Nachtrag 19.09.2026 (T-304):** Punkt 3 (Kartenmenge) und Punkt 4
+> (Bosswahl) gelten nicht mehr wie hier geschrieben. Gebaut sind **29** statt
+> 49 Karten, und die HP-Schranke faellt auf der Ortsroute — massgeblich sind
+> der Nachtragskasten und **AD-042** am Ende dieses Themenbereichs. Punkte 1,
+> 2, 5, 6, 7 gelten unveraendert. **Nachtrag T-309 (19.09.2026):** Punkt 4
+> ist durch **AD-044** auch fuer die Nachtkarten abgeloest, die Beispiele in
+> Punkt 4 sind nachgemessen falsch (eigener Kasten), und die Verbotszeile
+> "kein EMEVD-Weg" ist durch **AD-043** auf die Bossbestimmung eingeengt.
+
+**Kontext.** A24 will je Unterboss Schwaeche, Resistenz, HP, Stance, Beute und
+den Nachtfuersten. T-299 hat den Weg dorthin belegt, aber anders geschnitten
+als `GOAL.md` ihn skizziert hat: der Einstieg ist eine **Ortskarte**, nicht
+eine Figur und nicht ein Ereignis-Flag. Drei Kraefte stehen gegeneinander:
+(1) der Erstlauf des Programms baut den Abzug einmal komplett und kostet heute
+schon 293,8-310,1 s — jede MSB-Karte kostet dort Zeit; (2) A7 verbietet eine
+Auswahl, die die Dateien nicht hergeben, und in 4 von 35 Nachtboss-Karten
+stehen mehrere boss-grosse Figuren; (3) QA-286 ist ein Fehler in genau der
+Aufloesung, die A24 ohnehin braucht — getrennt behoben waere er doppelte
+Arbeit (T-299 Abschn. 8, Debt 1/2).
+
+**Optionen.**
+
+- **A — Im Bestand bleiben.** Kein neuer Block; QA-286 nur als
+  Beschriftungsreparatur (die `chrs`-Liste faellt ersatzlos, die Spalte sagt
+  "die Dateien nennen keine"). *Konsequenz:* kein Erstlauf-Aufschlag, A24
+  faellt aus, und die belegte Aufloesung Ort -> Figur bleibt ungenutzt
+  liegen, obwohl sie fertig recherchiert ist.
+- **B — Figurzentriert.** Block nach `chr` geschluesselt, HP je Figur.
+  *Konsequenz:* kleiner, aber sachlich falsch — dieselbe Figur traegt je
+  Karte eine andere NpcParam-Zeile und damit andere HP (Draconic Tree
+  Sentinel 2324 auf `m46_52`, 1633 auf `m48_50`; T-299 Abschn. 2c/3b), und
+  Tag- und Nachtfuerst-Zuordnung muessten als Kreuzliste nachgereicht werden.
+- **C — Kartenzentriert, ein Block, zwei Einstiege (gewaehlt).** Schluessel
+  ist die Karten-Id; die Ortslotterie (Stufe 1) und die Bosslotterie
+  (Stufe 2) fuellen denselben Block.
+- **D — Zweiter, nachgelagerter Abzug.** Die MSB-Karten erst beim ersten
+  Oeffnen des Tabs lesen, in eine eigene Datei. *Konsequenz:* Erstlauf bleibt
+  unveraendert, aber ein zweiter Cache-Pfad mit eigener Versionspruefung, und
+  ein Tab, der beim ersten Klick eine Minute steht. **Das ist der Rueckweg,
+  falls die Messung aus Schritt 0 C verbietet — nicht der erste Griff.**
+
+**Entscheidung: C**, in sieben Punkten.
+
+**1. Schluessel und Block.** Der Abzug bekommt **einen** neuen Block auf
+oberster Ebene, `subbosses`, ein Woerterbuch mit der Karten-Id als Text
+(JSON hat keinen anderen Schluesseltyp; dieselbe Begruendung wie D-001 fuer
+`bossdata.parts`). Die Karten-Id ist der Zahlenwert, den
+`ChaosMatchingMutationEnemyTableParam.smallBaseId` und
+`LotResultPlayAreaParam.bossId1/2` fuehren; `m{AA}_{BB}_00_00` ist die
+Schreibweise dazu (T-299 Abschn. 0, 116/116).
+
+```jsonc
+// illustrierend, kein Anwendungscode
+"subbosses": {
+  "4651": {
+    "map": "m46_51_00_00",
+    "categories": [120],          // ChaosMatching-Kategorien, die die Karte nennen
+    "days": [],                   // 1 und/oder 2 aus LotResultPlayAreaParam; [] = keine Nachtkarte
+    "nightlords": [               // ueber patternId; Zusammensetzung des Pools, keine Ziehwahrscheinlichkeit
+      {"boss": 0, "patterns": 25, "of": 52}   // Zahlen illustrativ
+    ],
+    "chr": 3181,                  // null, wenn unaufgeloest
+    "name": "Red Wolf of the King Consort",   // NpcName; "" wenn das Spiel keinen nennt
+    "candidates": [],             // nur bei "ambiguous": [{"chr": .., "hp": ..}, ...]
+    "weakness": { /* exakt die Form von bosses[].weakness */ }
+  }
+}
+```
+
+`weakness` traegt **dieselbe** Form, die `bossdata.derive` heute liefert und
+die `bosses[].weakness` bereits hat (`map`, `chars`, `primary`, `confidence`,
+`profile`, `parts`, optional `group_boss`/`placements`). Das ist der
+tragende Teil der Entscheidung: das Detailpanel des Tabs rendert diese Form
+schon, Balken, Status, Stance, Koerperteile, Leiter und Verteidigungsbuff
+inbegriffen (`bosstab.py:954-1131`). Ein eigenes Format haette dieselbe
+Anzeige ein zweites Mal verlangt.
+
+**2. Schnitt der Leseroute — wer was liest.** Die Param-Verbindungen bleiben
+in `extract.py`, die Karten- und Ereignisdateien bleiben in `bossdata.py`.
+Kein neues Modul.
+
+| Schritt | Ort | Quelle |
+|---|---|---|
+| Kategorie -> Kartenmenge | `extract.py`, neu `_subbosses(...)` | `ChaosMatchingMutationEnemyTableParam` (heute schon gelesen) |
+| Muster -> Nachtfuerst | ebd. | `LotResultMapPatternFlag.targetBoss` (heute schon gelesen, `_gating`) |
+| Muster -> Orte | ebd. | `LotResultSmallBaseAndSpot` (**neu gelesen**) |
+| Muster -> Nachtboss Tag 1/2 | ebd. | `LotResultPlayAreaParam` (**neu gelesen**) |
+| Karte -> Figur + Profil | `bossdata.py`, neu `derive_places(...)` | MSB `PARTS_PARAM_ST`, NpcParam, SpEffectParam, TAE |
+| Figur -> Beute | keine Aenderung | `world_events.drops[str(chr)]` |
+
+Abhaengigkeitsrichtung unveraendert und zyklenfrei:
+`extract.py` -> `bossdata.py` -> {`param`, `dvdbnd`, `oodle`, `tae`,
+`binary`}; die Oberflaeche liest ausschliesslich den Abzug.
+
+`derive_places(game_dir, members, defs, npc, cards)` nimmt die Kartenmenge
+entgegen und liefert je Karte denselben Eintrag, den `derive` je Flag
+liefert. Gemeinsam genutzt werden `_parts`, `_profile`, `_tuned`, `CREW`,
+die Schranken `INFERRED_MIN_SPREAD`/`INFERRED_MIN_HP`/`INFERRED_GROUP_MIN`
+und der Nachlauf, der `_ladder` und `_defence_buffs` anhaengt. Die
+Auswahlschleife und dieser Nachlauf werden dafuer aus `derive` als zwei
+private Helfer herausgezogen — **zwei** Aufrufer, keine Abstraktion auf
+Vorrat.
+
+**3. Welche Karten gelesen werden — und welche ausdruecklich nicht.**
+Gelesen werden die Karten der Kategorien **120 und 160** (45 + 4 = 49; T-299
+Abschn. 2b) und die **35** Bosskarten aus `LotResultPlayAreaParam`
+(T-299 Abschn. 3b). Zusammen **84** Karten; die Kartenraeume ueberschneiden
+sich nicht (`m45/m46` gegen `m47_70` aufwaerts), ein `parts_cache` wie in
+`derive` haelt sie trotzdem eindeutig.
+
+**Nicht** gelesen werden die Karten der Kategorien 101, 102, 103, 104, 110
+und 130-138. Begruendung mit Randbedingung: das sind Lager-, Ruinen-,
+Haendler- und Shifting-Earth-Orte mit **100 bis 1500 Parts je Karte** und
+ohne Ein-Boss-Besetzung (T-299 Abschn. 2b) — sie kosten den groessten Teil
+der gemessenen 4 Minuten und liefern keinen Unterboss. Verlangt jemand
+spaeter Namen auch fuer diese Orte, ist das eine neue Entscheidung mit einer
+neuen Messung, nicht eine Erweiterung dieser.
+
+**4. Bosswahl je Karte — die vorhandene Regel, in dieser Reihenfolge, ohne
+neue Heuristik.** Auf jeder Karte werden alle Parts mit `cNNNN`-Modell
+gesammelt (ohne `CREW`), und je Figur die NpcParam-Zeilen, die der Part
+selbst nennt, sonst alle Zeilen der Figur (`by_chr`) — genau wie heute in
+`derive`.
+
+1. Figuren, die **beide** vorhandenen Schranken reissen —
+   Resistenzstreuung >= `INFERRED_MIN_SPREAD` (0,1) **und** HP >=
+   `INFERRED_MIN_HP` (2000) — sind die Kandidaten.
+   Genau eine: `confidence = "single"`, sie ist der Boss.
+2. Keine: greift die Gruppenboss-Regel (dieselbe Figur >= 10 Mal platziert
+   und `_tuned`): `confidence = "group"`.
+3. Mehr als eine Kandidatin: `confidence = "ambiguous"`. Es wird **keine**
+   gewaehlt; `candidates` traegt die Figuren mit ihren HP, `chr`/`name`
+   bleiben leer, und die Anzeige sagt nach A7, dass die Dateien hier keinen
+   einzelnen Boss ausweisen.
+4. Nichts davon: `confidence = "unresolved"`; die Karte bleibt im Block
+   stehen (Nachtfuerst und Tag sind ja belegt) und sagt, dass die Figur
+   nicht abgeleitet werden konnte.
+
+Das Wort **"exact" bleibt der EMEVD-Kette vorbehalten** (`derive`), damit im
+Abzug nie zwei Belegketten denselben Namen tragen. `_parts` wirft bei einer
+unlesbaren Karte (SEC-014); das faengt der Aufrufer wie heute ab und die
+Karte wird `"unresolved"` — nie ein geratener Name.
+
+Was diese Regel bewusst **nicht** kann, mit Beispiel: `m47_80` traegt c2150
+(HP 5120) und Gaping Dragon (HP 2950); beide reissen die Schranken, also
+wird die Karte `ambiguous` statt falsch. `m52_11` (c5090 x8) faellt unter
+die Gruppenschranke und bleibt `unresolved`. Beides ist die A7-Antwort.
+`variationId`/`mapIndex` sind **ungeprueft** (T-299 Abschn. 7) und werden
+hier nicht verwendet; Pruefpunkt (c) sagt, ab wann sich die Frage lohnt.
+
+**5. Nachtfuerst und Tag — ueber `patternId`, mit derselben Ehrlichkeit wie
+`_gating`.** `nightlords[].patterns` ist die Zahl der Kartenmuster dieses
+Nachtfuersten, die diese Karte ziehen, `of` seine Gesamtzahl an Mustern —
+derselbe Nenner, den `_gating` fuer die Ereignisse benutzt. Das ist die
+**Zusammensetzung des Pools**, keine Ziehwahrscheinlichkeit
+(`MapPatternSet` traegt Gewichte je Muster; `extract.py:983-995`, T-299
+Abschn. 4). `days` kommt aus `bossId1` (Tag 1) und `bossId2` (Tag 2)
+derselben Zeile; eine Karte kann beide tragen.
+
+**6. QA-286 faellt auf derselben Route.** `deep_of_night.kinds[cat]` verliert
+`chrs` und bekommt `places`:
+`[{"place": 4651, "map": "m46_51_00_00", "rows": n, "name": <aus subbosses oder null>}]`.
+`tiles` bleibt unveraendert. Der Kommentar `extract.py:551-597` ("u16 at +6
+… is a character id", "category 160's four are the arena bosses") wird durch
+den Beleg aus T-299 Abschn. 2a ersetzt — er begruendet die Lesart heute mit
+genau den 21 Zufallstreffern, die sie widerlegen. Fuer die Kategorien, die
+nach Punkt 3 nicht gelesen werden, bleibt `name` leer; die Oberflaeche hat
+dafuer bereits `NO_NAMES` ("— the files name none"). Das ist weniger
+Anzeige als heute und trotzdem die Reparatur: heute stehen dort 21 Namen,
+die Orte sind, keine Figuren.
+
+**7. `EXTRACT_VERSION` steigt auf 13.** Der Abzug aendert Form **und**
+Inhalt; ohne Erhoehung behaelt jeder vorhandene Cache den falschen
+`kinds`-Block fuer immer (der Zweck des Zaehlers, `extract.py:41-50`). Damit
+gilt `CLAUDE.md`: der Testabzug (`EXTRACT_VERSION` 12) wird ungueltig,
+`tests/conftest.py:81` weist ihn ab. **Derselbe** Auftrag, der die Zahl
+erhoeht, baut `nightreign_data.json` der Vorlage neu (39,6 s, T-269a; die
+840 Symboldateien haengen nicht an der Version) und traegt es in
+`docs/plan-restarbeiten.md` nach.
+
+**Konsequenzen.** Leicht wird: jede weitere Frage an eine Ortskarte (welche
+Figur, welches Profil, welcher Nachtfuerst) ist ein Eintrag mehr im selben
+Block; die Beute kostet nichts, weil sie schon im Abzug steht; das
+Detailpanel muss fuer Balken, Status, Stance und Koerperteile nicht
+angefasst werden. Dauerhaft schwer wird: der Erstlauf traegt 84
+MSB-Dekompressionen mehr, und diese Kosten sind nicht abwaehlbar, weil der
+Abzug in einem Stueck gebaut wird (das ist genau der Punkt, den Schritt 0
+misst, und Option D ist der Rueckweg). Zweitens: der Block waechst mit jedem
+Spielpatch, der Karten hinzufuegt, ohne dass jemand es merkt — die
+Kartenmenge kommt aus den Params, nicht aus einer Liste im Code, und das ist
+Absicht.
+
+**Umkehrbarkeit: mittel.** Der Block laesst sich streichen (eine Funktion,
+ein Schluessel, `EXTRACT_VERSION` +1, Testabzug neu) — aber der erhoehte
+Zaehler und der einmal verteilte Abzug sind draussen, und `kinds.chrs`
+kaeme nicht zurueck, weil er widerlegt ist.
+
+**Beruehrte Entscheidungen.** AD-011/AD-012 (Lesevokabular, Groessendeckel):
+unberuehrt, der neue Weg liest ueber dieselben Leser. AD-030 (Erststart,
+Pfadaufloesung): der Erstlauf wird laenger, die Struktur bleibt. AD-033
+(Mutations-Registry): Schritt 1 und 4 tragen je eine Mutation nach dem
+ueblichen Muster. Kein Widerspruch zu einer bestehenden AD.
+
+---
+
+### AD-041 — Die Unterbosse sind eine **zweite, nach dem gewaehlten Nachtfuersten gefilterte Liste** unter dem Kachelgitter, und sie speisen dasselbe Detailpanel; der Auswahlschluessel wird `key` statt `name` (2026-09-19, Status: aktiv)
+
+**Kontext.** 84 Eintraege sollen in einen Tab, der heute zehn Kacheln zeigt.
+Die Unterbosse haben **kein** Bildmaterial im Abzug (keine `large_icon`), und
+mehrere Karten tragen dieselbe Figur (Red Wolf auf `4651` und `4682`, Bell
+Bearing Hunter auf `4656`, `4687`, `4924`) — bei unterschiedlichen HP.
+
+**Optionen.**
+
+- **A — CardGrid wie die Nachtfuersten.** 84 bildlose Kacheln unter zehn
+  bebilderten; der Tab wird zur Scrollstrecke, und die Zuordnung zum
+  Nachtfuersten waere nur als Text auf jeder Kachel darstellbar.
+- **B — `QTreeWidget` unter dem Gitter, gefiltert auf die gewaehlte Kachel
+  (gewaehlt).** Gruppen: Tag 1, Tag 2, Feldbosse, und eine vierte fuer
+  Karten ohne belegte Rolle. Ohne Auswahl bleibt die Liste leer und sagt
+  warum. `QTreeWidget` ist im Bestand (`effectfilterdialog.py`, A21) —
+  kein neues Widget-Muster.
+- **C — Eigener Tab.** Ein elfter Tab, und die Zuordnung zum Nachtfuersten
+  verliert den Ort, an dem sie etwas bedeutet.
+
+**Entscheidung: B**, in vier Punkten.
+
+**1. Ort.** Die Liste haengt in `grid_outer` **vor** dem `addStretch(1)`
+(`bosstab.py:1155`), unter dem Kachelgitter, im selben Scrollbereich. Das
+Detailpanel rechts bleibt, wie es ist.
+
+**2. Filter.** Der gewaehlte Nachtfuerst bestimmt den Inhalt: gezeigt werden
+die Karten, deren `nightlords` seine Zeilen-Id enthalten, mit `patterns`/`of`
+je Zeile. Damit entfaellt die Vervielfachung derselben Karte ueber zehn
+Gruppen, und die Zuordnung aus A24 ist der Filter selbst.
+
+**3. Detailpanel.** `show_detail` nimmt zusaetzlich einen Unterboss-Eintrag
+entgegen. Was der Eintrag mitbringt (`name`, `weakness.profile`), rendert das
+Panel bereits. Neu und nur zwei Bloecke: eine **HP**-Zeile
+(`profile["hp"]`, vorhanden, heute ungenutzt) und ein Abschnitt **Beute**
+aus `world_events.drops[str(chr)]`; eine Figur ohne Los bekommt den Satz
+"keine Beute in den Dateien" (T-299 Abschn. 5). Ohne Bild bleibt die
+Bildflaeche leer. Der **Stance-Rang** (`_stance_rank`, "haerter zu brechen
+als N von 10 Nachtfuersten") **entfaellt** fuer Unterbosse: seine
+Vergleichsmenge sind die zehn: die rohen Stance-Zahlen bleiben.
+
+**4. Auswahlschluessel.** `_mark_selected`/`show_detail` vergleichen heute
+ueber `boss["name"]` (`bosstab.py:864-875`). Bei Unterbossen ist der Name
+**nicht eindeutig** (dieselbe Figur auf mehreren Karten). Der Vergleich
+laeuft kuenftig ueber `entry.get("key", entry["name"])`; Unterbosse tragen
+als `key` ihre Karten-Id. Das ist eine Zeile und verhindert genau den
+Fehler, den QA-150 fuer die Kacheln schon einmal bezahlt hat: eine Anzeige,
+die zu einem anderen Gegner gehoert als der markierte.
+
+**Konsequenzen.** Leicht: jede weitere Gruppe (Evergaol, sobald OF-46
+beantwortet ist) ist ein Knoten mehr. Dauerhaft: der Tab hat zwei
+Auswahlquellen fuer ein Panel — der `key`-Vergleich ist die einzige Stelle,
+die beide auseinanderhaelt, und ein Wachtertest haelt sie fest.
+
+**Umkehrbarkeit: leicht** — Baum und Panel-Bloecke entfernen, `key`-Zeile
+zurueck auf `name`.
+
+**Wortlaut ist nicht meine Entscheidung.** Ueberschriften, Gruppennamen,
+die Saetze fuer `ambiguous`/`unresolved`, die Beute-Ueberschrift und die
+Neufassung der `depthstab`-Zeilen (`PLAYER_GROUPS`, `EXAMPLES_HEADER`,
+`EXAMPLES_TIP`) kommen aus einer Spec des `ui-ux-designer` (Schritt 2), nicht
+aus diesem Dokument — A8 gilt.
+
+---
+
+### Umsetzung — fuenf Schritte, einzeln lauffaehig, in dieser Reihenfolge
+
+Stufe 1 ist nach Schritt 3 abnehmbar, Stufe 2 nach Schritt 4. QA-286 ist in
+Schritt 1 (Daten) und Schritt 3 (Beschriftung) enthalten.
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **0 — Messung vor dem Bau** | `performance-tuner` | Siehe Kasten unten. **Kein Code.** | 0 |
+| **1 — Stufe 1, Extraktor (AD-040.1-7)** | `developer` | `bossdata.py`: `derive_places`, Auswahlschleife und Leiter-Nachlauf als zwei private Helfer aus `derive` gezogen (zwei Aufrufer). `extract.py`: `_subbosses` (Kategorien 120/160, Ortslotterie, `patternId`-Join), Block `subbosses` in `build()`, `kinds.chrs` -> `kinds.places`, Kommentar `551-597` durch den T-299-Beleg ersetzt, `EXTRACT_VERSION` 13. Testabzug-`nightreign_data.json` neu gebaut, `docs/plan-restarbeiten.md` nachgetragen. Tests: `test_extraction.py` (Blockform, Karten-Id als Textschluessel, `places` statt `chrs`, `confidence` aus {single, group, ambiguous, unresolved}), neuer Waechter "eine `ambiguous`-Karte traegt keinen Namen" (A7). Mutation nach AD-033: Schranke `INFERRED_MIN_HP` in der neuen Auswahl auf 0. | `nrdata/bossdata.py`, `nrdata/extract.py` = **2** |
+| **2 — Spec** | `ui-ux-designer` | Wortlaut der Gruppen und Zeilen, der Saetze fuer `ambiguous`/`unresolved` und "keine Beute in den Dateien", HP- und Beute-Ueberschrift; Neufassung von `PLAYER_GROUPS`, `EXAMPLES_HEADER`, `EXAMPLES_TIP` nach QA-286; Entscheidung, ob die Beispielspalte bleibt (OF-47). Grundlage sind die Zahlen aus Schritt 1, nicht die Schaetzung. | `UI_SPEC.md` |
+| **3 — Stufe 1, Oberflaeche (AD-041)** | `developer` | `bosstab.py`: Baum, Filter, `key`-Vergleich, HP- und Beute-Block im Panel. `depthstab.py`: `places` statt `chrs`, Beschriftungen nach Spec. Tests: `test_nightlord_selection.py` (Filter zeigt nur Karten des gewaehlten Nachtfuersten; zwei Karten derselben Figur sind getrennt waehlbar — der Fall, den der `key`-Vergleich loest), `test_nightlord_panel_display.py` (`ambiguous` zeigt keinen Namen; HP- und Beute-Block; kein Stance-Rang fuer Unterbosse), `test_red_variants_display.py` (Ortsnamen statt Figurnamen). | `nrplanner/bosstab.py`, `nrplanner/depthstab.py` = **2** |
+| **4 — Stufe 2, Nachtbosse (AD-040.3, .5)** | `developer` | `extract.py`: `LotResultPlayAreaParam` als zweiter Einstieg in denselben Block (`days`, 35 Karten), `bossdata` unveraendert. `bosstab.py`: die Gruppen Tag 1 / Tag 2 werden sichtbar (Daten, keine neue Struktur). Tests: `test_extraction.py` (eine Karte mit `days=[1]` und eine mit `days=[2]` je Nachtfuerst, `patterns <= of`), `test_nightlord_panel_display.py` (die zwei Tagesgruppen erscheinen). Mutation: `bossId2` ignorieren. | `nrdata/extract.py`, `nrplanner/bosstab.py` = **2** |
+| **5 — Abnahme** | `qa-engineer` | Am Artefakt, mit dem **neuen** Testabzug: A24-Nachweis aus `GOAL.md` (ein Feld-/Evergaol-Boss mit denselben Diagrammen wie ein Nachtfuerst plus HP und Beute; ein Nachtboss mit Tag-Kennung), Erstlaufzeit gegen die Schranke aus Schritt 0. | — |
+
+**Schritt 0 — der Messauftrag, woertlich fuer den `director`.**
+
+- **Was gemessen wird, an der echten Spielinstallation, mit Umlenkung nach
+  `CLAUDE.md`, ohne Programmstart** (Rezept T-299 Abschn. 9): (a) Dauer von
+  `oodle.load` + `dvdbnd.open_all` einmal; (b) Dauer von
+  `_parts(arc.read(...))` je Karte fuer die 49 Karten der Kategorien
+  120/160 und die 35 Bosskarten — Summe, Median, Maximum, getrennt nach
+  beiden Mengen; (c) Dauer eines vollstaendigen `extract.build` **ohne** den
+  neuen Durchgang als Grundlinie auf diesem Rechner (zum Vergleich:
+  39,6 s fuer `nightreign_data.json` am 15.09., T-269a).
+- **Warum getrennt nach Mengen:** Stufe 1 und Stufe 2 sind getrennt
+  abnehmbar, also muss auch ihr Preis getrennt bekannt sein.
+- **Schranke, die der Entwurf vorschlaegt:** der neue Durchgang darf
+  `build()` um **hoechstens 60 s** verlaengern (rund +20 % auf die
+  gemessenen 293,8-310,1 s Erstlauf, S11/T-118). Darueber entscheidet der
+  `director` nach OF-45 zwischen: die 16 gleich besetzten Karten
+  `m20_00..m21_50` fallen lassen (16 von 49); Stufe 2 verschieben; oder
+  Option D (nachgelagerter Abzug).
+- **Nicht gemessen wird** die Laufzeit der Oberflaeche — der Baum bekommt
+  hoechstens 84 Zeilen.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** EMEVD-Weg fuer die **Bossbestimmung** der Unterbosse
+  (`_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of` bleiben,
+  wo sie sind, und werden vom neuen Einstieg nicht aufgerufen). *Eingeengt
+  durch AD-043 (19.09.2026): der Balkenname liest je bestimmter Karte ein
+  Skript, ruft aber keine dieser vier Funktionen.*
+- **Keine** neue Auswahlregel: nicht `variationId`, nicht `mapIndex`, nicht
+  `bossModifier`, keine Namens- oder Themenheuristik. Bei mehreren
+  Kandidatinnen wird **keine** gewaehlt (A7).
+- **Kein** Lesen der Kategorien 101, 102, 103, 104, 110, 130-138 (die
+  grossen Karten).
+- **Kein** neues Modul und keine zweite Kopie von `_parts`/`_profile`.
+- **Keine** Kopie der Beutelisten in `subbosses` — die Oberflaeche liest
+  `world_events.drops`.
+- **Kein** zweiter Cache, keine zweite Abzugsdatei, kein Hintergrundlauf fuer
+  den neuen Durchgang (das ist Option D und braucht eine Entscheidung).
+- **Kein** "exact" als `confidence` auf dem neuen Weg.
+- **Keine** Wortlaute aus diesem Dokument in die Oberflaeche; sie kommen aus
+  Schritt 2.
+- **Keine** Spieldaten ins Repository, keine neue Quelle in
+  `NightreignHelper.spec` — der Waechtertest zaehlt weiter genau zwei.
+
+**Pruefpunkte.**
+
+- **(a) Erstlauf.** Schritt 0 vor dem Bau, Nachmessung in Schritt 5 gegen
+  dieselbe Schranke.
+- **(b) Verteilung der Belegketten.** Schritt 1 meldet die Zaehlung
+  `single` / `group` / `ambiguous` / `unresolved` ueber alle 49 (bzw. 84)
+  Karten. **Erwartung aus T-299:** die 29 Ein-Boss-Karten der Kategorie 120
+  sind `single`; die vier Karten der Kategorie 160 und mindestens
+  `m47_80`, `m48_90`, `m52_11`, `m52_12` sind es nicht.
+- **(c) Wann sich `variationId` lohnt.** Liegt `ambiguous` + `unresolved`
+  ueber einem Viertel der 84 Karten, ist das der Ausloeser fuer einen
+  eigenen Forschungsauftrag (`variationId`/`mapIndex`) — nicht vorher, und
+  nicht im Bauauftrag.
+- **(d) Groesse des Abzugs.** Schritt 1 nennt `nightreign_data.json` vorher
+  und nachher (heute 8 522 218 B, T-269a). Ueber +10 % faellt `parts` aus
+  den Unterboss-Eintraegen (die Koerperteil-Raten sind bei Feldbossen selten
+  gesetzt), bevor irgendetwas anderes geaendert wird.
+- **(e) Kartenzahl gegen den Beleg.** Der Extraktor zaehlt beim Bau: 116
+  verschiedene `smallBaseId`, 520 Muster, 35 Bosskarten. Weicht eine Zahl ab,
+  hat das Spiel gepatcht, und die Aufloesung wird nachgeprueft, bevor die
+  Anzeige jemandem etwas erzaehlt.
+- **(f) Umlenkung.** Jeder Lauf nach `CLAUDE.md`; der neue Durchgang liest
+  die Spielinstallation nur.
+
+**Risiken.**
+
+1. **Der Erstlauf wird sichtbar langsamer.** Merkmal: Schritt 0 reisst die
+   60 s. Rueckweg: Kartenmenge kuerzen, Stufe 2 verschieben, Option D.
+2. **Zu viele Karten bleiben `ambiguous`.** Merkmal: Pruefpunkt (b)/(c).
+   Rueckweg: Forschungsauftrag `variationId`; bis dahin zeigt die Anzeige
+   die Kandidatinnen — das ist eine magere, aber wahre Antwort.
+3. **Eine MSB ist unlesbar** (`_parts` wirft, SEC-014). Merkmal: einzelne
+   Karten `unresolved`. Kein Rueckweg noetig, das ist die gewollte Antwort.
+4. **Die Beute-Prozente sind leicht verschoben**, weil einzelne Lose auf
+   `ItemTableParam`-Ids ohne Zeile zeigen und `walk()` dort still abbricht
+   (T-299 Abschn. 5). Merkmal: Summen unter 100 %. Behandlung: ein Satz in
+   der Spec, keine Rechnung im Code.
+5. **Der Testabzug wird ungueltig**, sobald `EXTRACT_VERSION` 13 steht
+   (`tests/conftest.py:81` weist ihn ab). Merkmal: uebersprungene Tests im
+   naechsten Lauf. Behandlung ist Teil von Schritt 1, nicht ein Nachtrag.
+
+**Bewusst nicht getan.**
+
+- **Kein Evergaol-Etikett aus den Dateien.** `WorldMapPointIconParam` traegt
+  nur `iconId` und keinen Text (T-299 Abschn. 2b); "Evergaol" ist damit
+  nicht belegt. Wieder interessant, sobald OF-46 beantwortet ist — dann als
+  Zeile der bereits vorhandenen, farblich abgesetzten Community-Schicht
+  (`bosstab.OBSERVED_COLOUR`/`SIGHTING_LEGEND`), nicht im Abzug.
+- **Keine Ziehwahrscheinlichkeit.** `MapPatternSet` traegt Gewichte je
+  Muster; gezeigt wird die Zusammensetzung des Pools, wie in `_gating`.
+  Wieder interessant, wenn jemand die Gewichte liest.
+- **Keine Karte fuer den Ort.** Koordinaten liegen in
+  `SmallBaseAndSpotAttachPoint` (T-299 Abschn. 3c) — eine Landkarte ist ein
+  eigenes Feature und keine Voraussetzung fuer A24.
+- **Kein Umbau von `derive`.** Der EMEVD-Weg bleibt unveraendert; er ist
+  fuer die zehn Nachtfuersten der belegtere.
+- **Keine gemeinsame Beute-Anzeige** zwischen `eventstab` (QWidget-Zeilen)
+  und `bosstab` (HTML im Label) — zwei Anzeigearten, eine Datenquelle;
+  ein gemeinsamer Renderer waere teurer als die zehn Zeilen.
+
+**Offene Fragen aus Themenbereich L.**
+
+**OF-45 — an den `director`, Adressat App Designer (nach Schritt 0):** Wie
+viel darf A24 den Erstlauf kosten? Vorschlag des Entwurfs: hoechstens 60 s
+auf die gemessenen 293,8-310,1 s. Reisst die Messung das, ist zu waehlen
+zwischen (i) die 16 gleich besetzten Karten `m20_00..m21_50` weglassen,
+(ii) Stufe 2 verschieben, (iii) Option D (nachgelagerter Abzug, zweiter
+Cache-Pfad).
+
+**OF-46 — an den `director`, Adressat App Designer:** A24 nennt
+"Evergaol-Bosse", die Dateien nennen keine. Belegt sind Feldbosse (29
+Ein-Boss-Karten), Nachtbosse Tag 1/2 (35 Karten) und zwei Kartensaetze ohne
+Rollennamen: die vier der Kategorie 160 und die 16 gleich besetzten
+`m20_00..m21_50`. Empfehlung: beide ohne Rollenetikett zeigen und
+"Evergaol" nur in die Community-Schicht setzen, falls der Nutzer aus dem
+Spiel bestaetigen kann, welche Karten das sind. Hinweis fuer die Pruefung:
+Kategorie 120 traegt zwei Weltkarten-Symbole (28 und 16, T-299 Abschn. 2b) —
+faellt diese Trennung mit 29 gegen 16 zusammen, ist sie das Etikett; das ist
+in Schritt 1 nebenbei zaehlbar und **bisher nicht geprueft**.
+
+**OF-47 — an den `director`, Adressat `ui-ux-designer` (Schritt 2):** Bleibt
+die Spalte "Examples (any map)" im Deep-of-Night-Tab, wenn sie nach QA-286
+nur noch fuer die gelesenen Kategorien Namen traegt und fuer Lager, Ruinen
+und Shifting-Earth-Orte leer bleibt — oder faellt die Spalte und die Zeile
+sagt stattdessen, um welche **Art Ort** es geht?
+
+---
+
+### Nachtrag 19.09.2026 (T-304, `architect`) — AD-040 Punkt 3 und 4 wie gebaut
+
+*Stand `3114100` (Schritt 1, T-303). Alle Zahlen unten am Snapshot des
+Testabzugs und am Rohdump von T-299 nachgezaehlt, nicht fortgeschrieben.*
+
+| Vertrag (AD-040) | gebaut | Grund |
+|---|---|---|
+| Ortsroute liest **49** Karten (Kat 120 + 160) | **29** | `extract._subbosses` filtert `categoryId == FIELD_BOSS_CATEGORY` (120) **und** "Ort steht als `mapId*` in `SmallBaseAndSpotDefine`" (`extract.py:442-457`). Damit fallen die vier Karten der Kategorie 160 und die 16 Schalen `m20_00..m21_50` weg — letztere stehen nur als `defaultSmallBase` (T-299 Abschn. 2a: 100 + 16 = 116). Deckt sich mit der OF-46-Entscheidung des Nutzers vom 19.09. ("nur Feld- und Nachtbosse", `docs/state.md`). |
+| Stufe 2 (`days`, 35 Bosskarten) | noch nicht | Schritt 4; im Snapshot ist `days` in allen 29 Eintraegen leer. |
+| Bosswahl nach AD-040 Punkt 4 | gebaut | liefert aber nicht die erwartete Verteilung — siehe AD-042. |
+
+**Pruefpunkt (b), gezaehlt** (`nightreign_data.json` des Testabzugs, 29
+Eintraege): `single` 11, `group` 1, `ambiguous` 1, `unresolved` 16. Die
+Erwartung aus AD-040 ("die 29 Ein-Boss-Karten sind `single`") ist damit
+**nicht erfuellt**; die Ursache steht in AD-042 und ist nicht die Kartenmenge.
+
+**Pruefpunkt (c), beantwortet: kein Forschungsauftrag.** Zwei Gruende, beide
+belegt. (1) Die 18 nicht-`single`-Karten sind vollstaendig durch die
+HP-Schranke und den fehlenden Gleichstands-Entscheid erklaert (AD-042
+Kontext) — nach AD-042 sind es 0 von 29, der Ausloeser "ueber ein Viertel"
+greift nicht mehr. (2) `variationId` und `mapIndex` sind Felder von
+`LotResultSmallBaseAndSpot`, also der **Ortslotterie** (T-299 Abschn. 3c).
+Die Nachtkarten kommen aus `LotResultPlayAreaParam`, dessen Def weder Feld
+traegt (T-299 Abschn. 3b), und die Bossplaetze kommen in
+`LotResultSmallBaseAndSpot.attachId` **nie** vor (416 gezogene Plaetze,
+Schnittmenge leer, T-299 Abschn. 3c). Ein Auftrag zu `variationId` zielte
+also auf die Route, die die Frage nicht mehr stellt, und koennte die Route,
+die sie stellt, nicht erreichen. Bleibt Stufe 2 nach Schritt 4 unbefriedigend,
+ist der Kandidat `bossModifier1/2` (unbenannt, T-299 Abschn. 3b) — eine
+andere Frage, eigener Auftrag.
+
+---
+
+### AD-042 — Auf der **Ortsroute** traegt die HP-Schranke nicht: Kandidat ist jede abgestimmte Figur der Karte, gewaehlt wird die mit der hoechsten HP, und `ambiguous` bleibt dem Gleichstand (2026-09-19, Status: aktiv in den Punkten 1-3; **Punkt 4 abgeloest durch AD-044**, der Befund am Ende dort entschieden; aendert AD-040 Punkt 4 fuer `derive_places`, laesst `derive` unberuehrt)
+
+**Kontext.** `INFERRED_MIN_HP = 2000` (`bossdata.py:112`) stammt aus den
+**Nachtfuerst-Arenen** — dort ist der Boss ein Nachtfuerst, und alles unter
+2000 HP ist Begleitvolk. Auf den 29 Feldboss-Karten gilt die Randbedingung
+nicht: die Feldbosse selbst liegen zwischen 904 (Black Knife Assassin) und
+5753 (Decaying Rancor Dragon), 16 von ihnen unter 2000 (T-299 Abschn. 2c).
+Die Schranke schneidet damit genau die Bosse weg, die A24 zeigen soll, und
+verschiebt zwei weitere Karten in die falsche Belegkette:
+
+- **4659** (`m46_59`) ist `ambiguous`, weil c4501 (5753) **und** c4021 (2279)
+  beide ueber der Schranke liegen. Es fehlt kein Kriterium, es fehlt der
+  Entscheid unter zweien.
+- **4671** (`m46_71`) ist `group` auf c4481 mit **119** HP: weil Miranda
+  Blossom (c4480, 1939) unter der Schranke bleibt, faellt die Wahl in die
+  Gruppenregel, und die findet die zehnmal gepflanzten Blumen.
+
+Die Kraft dagegen ist A7: keine Figur nennen, die die Dateien nicht ausweisen.
+Eine Regel, die auf den 29 Karten den Namen findet, darf auf den Nachtkarten
+keinen erfinden.
+
+**Was T-299 als Kriterium benutzt hat** (nachgelesen, nicht geraten): die
+Tabelle in Abschn. 2c entstand aus `q2d_sitemsb.py` — alle `cNNNN`-Parts einer
+Karte ohne `CREW`, je Figur das Profil aus den NpcParam-Zeilen, die der Part
+selbst nennt (sonst `by_chr`), und daraus **die Figur mit der hoechsten HP**.
+Eine zweite Schranke gibt es dort nicht; "genau eine boss-grosse Figur" ist
+das Ergebnis, nicht die Regel. Nachgerechnet auf demselben Rohdump: diese
+Regel reproduziert **29 von 29** Zeilen der Tabelle.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben** (AD-040 Punkt 4 unveraendert). *Konsequenz:* 11
+  von 29 Karten tragen einen Namen, 18 sagen "nicht ableitbar". A24 Stufe 1
+  ist damit zu zwei Dritteln nicht abnehmbar, obwohl der Name in den Dateien
+  steht und T-299 ihn gelesen hat.
+- **B — Die absolute Schranke senken** (etwa 900 fuer die Ortsroute).
+  *Konsequenz:* trennt nachweislich nicht. Der beste Kandidat der
+  Nachtkarte `m48_90` ("kein klarer Boss", T-299 Abschn. 3b) hat **556** HP
+  und liegt damit zwischen zwei echten Nachtbossen: Mausoleum Knight 576
+  (`m52_02`) und Runebear 640 (`m52_01`). Jede Zahl zwischen zwei gemessenen
+  Gegenbeispielen ist geraten.
+- **C — Relative Schranke** (Vorsprung zur Zweitplatzierten). *Konsequenz:*
+  braucht einen Faktor <= 1,46, damit `m46_62` (Wormface 1587 gegen 1089)
+  durchgeht — und `m48_90` haette 1,73 (556 gegen 322). Die Schranke liesse
+  genau den falschen Fall durch und haette zwei erfundene Stellen.
+- **D — Die Schranke faellt auf der Ortsroute, und der Gleichstand entscheidet
+  (gewaehlt).**
+
+**Entscheidung: D**, in vier Punkten.
+
+**1. Zwei Schranken, zwei Randbedingungen.** `INFERRED_MIN_SPREAD` (0,1,
+"jemand hat diese Resistenzen abgestimmt") gilt auf beiden Routen; sie
+unterscheidet Boss von Requisite und ist vom Kartentyp unabhaengig.
+`INFERRED_MIN_HP` (2000, "boss-gross") gilt **nur** dort, wo der Boss ein
+Nachtfuerst ist — auf der Ortsroute wird sie nicht angewandt. Technisch: die
+Schranke wird ein Parameter von `_candidates` mit dem heutigen Wert als
+Vorgabe; `derive_places` uebergibt 0. **Zwei** Aufrufer, keine Konfiguration.
+
+**2. Bei mehreren Kandidatinnen entscheidet die hoechste HP** — dieselbe Wahl,
+die `derive` in seiner Arena schon trifft ("takes the largest",
+`bossdata.py:126-129`), und genau das Kriterium aus T-299 Abschn. 2c. Keine
+neue Heuristik: nicht `variationId`, nicht `mapIndex`, nicht die Platzzahl,
+nicht der Name.
+
+**3. `ambiguous` bleibt — fuer den Gleichstand.** Tragen zwei abgestimmte
+Figuren derselben Karte **dieselbe** hoechste HP, wird keine gewaehlt
+(`candidates` gefuellt, `chr`/`name` leer, A7). Auf den heutigen 29 Karten
+tritt das nicht ein (gezaehlt: 0 Gleichstaende); der Zweig kostet zwei Zeilen
+und ist die einzige ehrliche Antwort, wenn er eintritt. Die Gruppenregel
+bleibt, wo sie ist: auf der Ortsroute erreicht sie nur noch eine Karte, auf
+der **keine** Figur abgestimmt ist — auf der EMEVD-Route (Harmonia) bleibt sie
+die Antwort.
+
+**4. Die Regel endet an der Ortsroute.** — **abgeloest durch AD-044**
+(19.09.2026): die Pruefung, deren Fehlen dieser Punkt begruendet, ist dort
+nachgeholt; `m49_20` war die Float-Kante, `m48_90` benennt niemanden. Der
+Wortlaut bleibt als Verlauf stehen.
+Schritt 4 (Stufe 2,
+`LotResultPlayAreaParam`) darf sie **nicht** stillschweigend mitnehmen. Die
+Randbedingung: T-299 hat die 29 Ortskarten Zeile fuer Zeile gegen die
+FMG-Namen geprueft (Abschn. 2c); fuer die 35 Nachtkarten existiert diese
+Pruefung nicht, und es gibt zwei gezaehlte Gegenbeispiele — `m48_90` wuerde
+c4090 mit 556 HP benennen (namenlos, T-299: "kein klarer Boss"), und `m49_20`
+wuerde c4380 (162 HP) statt Stoneskin Lords (628 HP) nehmen, weil dessen
+Streuung mit 0,09999996 knapp unter der Schranke liegt (siehe Befund unten).
+Fuer die Nachtkarten bleibt AD-040 Punkt 4 unveraendert in Kraft, bis jemand
+sie ebenso prueft.
+
+**Erwartung, nachpruefbar.** Nach der Aenderung: **29 von 29** Karten
+`single`, und die Figur ist in **29 von 29** dieselbe wie in T-299
+Abschn. 2c. *Guete:* auf dem Rohdump von T-299 gerechnet
+(`q2d_sitemsb.json`, 19.09.2026, dieselbe Spielinstallation), **nicht** aus
+einem Lauf des geaenderten Codes. Ein Unterschied bleibt moeglich, wo
+dieselbe Figur mehrfach auf einer Karte steht und die Parts verschiedene
+NpcParam-Zeilen nennen: der Rohdump vereinigt diese Zeilen, `derive_places`
+nimmt die des **ersten** Parts (`bossdata.py:601-611`). Betroffen sind auf
+den 29 nur Zweitplatzierte (c3150/c3160 auf 4662, c4481 auf 4671, c4100 auf
+4677). Weicht die gemessene Zaehlung ab, ist das ein Befund und kein Fix.
+
+**Konsequenzen.** Leicht wird: die 18 Karten bekommen ihren Namen, ohne dass
+eine neue Quelle gelesen oder eine neue Zahl erfunden wird; `4659` und `4671`
+loesen sich ohne Sonderfall. Dauerhaft schwer wird: die Ortsroute hat keine
+absolute Untergrenze mehr — steht auf einer kuenftig gelesenen Karte kein
+Boss, aber ein abgestimmter Statist, bekommt der einen Namen. Das ist der
+Preis dafuer, dass "boss-gross" auf dieser Route nicht messbar ist, und genau
+darum endet die Regel an Punkt 4.
+
+**Umkehrbarkeit: leicht.** Ein Vorgabewert und ein `max()`; der Rueckbau ist
+eine Zeile, der Snapshot wird neu gebaut. Kein Format, kein Schluessel, keine
+Oberflaeche aendert sich.
+
+**Beruehrte Entscheidungen.** AD-040 Punkt 4 wird fuer `derive_places`
+ersetzt (Punkt 1-3, 5-7 bleiben); die Zeile "bei mehreren Kandidatinnen wird
+**keine** gewaehlt" gilt ab hier nur noch fuer den Gleichstand und fuer die
+Nachtkarten. AD-041 unberuehrt (dieselbe Form, mehr gefuellte Eintraege).
+AD-033: die in AD-040 Schritt 1 vorgesehene Mutation "`INFERRED_MIN_HP` in
+der neuen Auswahl auf 0" ist nach dieser Entscheidung **wirkungslos** und
+wird ersetzt (siehe Umsetzung).
+
+**Befund fuer den `director` (nicht hier zu beheben): die Streuungsschranke
+ist eine Messerkante.** — **entschieden durch AD-044 Punkt 2** (19.09.2026);
+die dort geforderte Messung der Nachtfuerst-Route liegt vor: 0 von 10 Flags
+aendern sich. `INFERRED_MIN_SPREAD = 0.1` wird gegen Differenzen
+von float32-Werten geprueft: 0,7 − 0,6 ergibt **0.09999996** und faellt
+durch, 0,6 − 0,5 ergibt **0.10000002** und besteht. Gezaehlt ueber die
+Ortsroute: zwei Figuren liegen auf dieser Kante (c3400 auf `4650`, c3600 auf
+`4660`), **keine** davon auf den heute gebauten 29 — auf den Nachtkarten
+dagegen kostet sie `m49_20` den richtigen Boss. Eine Toleranz (etwa
+`>= 0.1 - 1e-6`) wuerde das Verhalten der Nachtfuerst-Route mit aendern und
+gehoert deshalb in einen eigenen Entscheid, nicht in diesen Bauauftrag.
+
+---
+
+### Umsetzung AD-042 — ein Schritt
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **1b — Auswahlregel der Ortsroute** | `developer` | `bossdata.py`: `_candidates(rows_for, placements, *, min_hp=INFERRED_MIN_HP)`; `derive_places` ruft mit `min_hp=0` und waehlt bei mehreren Kandidatinnen die mit der **strikt** hoechsten HP (`single`), nur bei Gleichstand `ambiguous`. Die Randbedingung aus AD-042 Punkt 4 als Kommentar an `derive_places`, damit Schritt 4 sie nicht ueberliest. Danach Testabzug-`nightreign_data.json` neu (`scripts/build_snapshot.py`), `CLAUDE.md`-Zeile und `docs/plan-restarbeiten.md` mit der neuen Byte-Zahl. | `nrdata/bossdata.py` = **1** |
+
+**`EXTRACT_VERSION` bleibt 13**, mit Randbedingung: 13 hat dieses Repo nie
+verlassen (letzter Tag `v1.14.0` = `ffac292`, Stand `EXTRACT_VERSION` 12; kein
+Release seit 19.09.). Der einzige Traeger eines 13er-Abzugs ist der
+Testabzug, und der wird im selben Schritt ersetzt. Ist bis zum Bau ein Bau
+mit 13 hinausgegangen, gilt AD-040 Punkt 7 und die Zahl steigt auf 14.
+
+**Tests** (in `tests/test_extraction.py`, wo die vorhandenen stehen):
+
+- Einheit, ohne Datensatz, nach dem Muster von
+  `test_both_boss_bars_have_to_be_cleared_to_be_a_candidate`: zwei
+  abgestimmte Figuren einer Karte, 1939 gegen 119 → `single` auf 1939;
+  dieselben HP zweimal → `ambiguous` mit zwei `candidates`. Ohne die
+  Aenderung faellt der erste Fall (`group`), mit einer `min()`-Wahl der
+  zweite Weg.
+- Am Datensatz (`@pytest.mark.slow`): **alle** 29 Eintraege sind `single` und
+  tragen einen nichtleeren `name`; `4659` nennt c4501, `4671` nennt c4480 —
+  die zwei Karten, die die Schranke falsch einsortiert hatte.
+- Der vorhandene Waechter, dass **`derive`** beide Schranken behaelt, bleibt
+  unveraendert stehen; er ist die Probe, dass die Aenderung die
+  Nachtfuerst-Route nicht mitnimmt.
+
+**Mutationen nach AD-033** (ersetzen die aus AD-040 Schritt 1):
+
+1. `derive_places` uebergibt wieder `INFERRED_MIN_HP` statt 0 → der
+   Datensatz-Test faellt (16 Karten verlieren den Namen).
+2. `derive_places` waehlt `min()` statt `max()` der HP → der Einheitstest und
+   `4659`/`4671` fallen.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** Antasten von `INFERRED_MIN_HP`, `INFERRED_MIN_SPREAD`,
+  `INFERRED_GROUP_MIN` selbst — nur der Uebergabewert der Ortsroute aendert
+  sich. Insbesondere **keine** Float-Toleranz an der Streuungsschranke (eigener
+  Entscheid, Befund oben).
+- **Keine** Aenderung an `derive`, an der Gruppenregel oder an der
+  Kartenmenge in `extract._subbosses` (die 29 bleiben die 29; die 16 Schalen
+  und die vier Karten der Kategorie 160 kommen nicht zurueck).
+- **Keine** Anwendung der neuen Wahl auf die Nachtkarten aus Schritt 4 — dort
+  gilt AD-040 Punkt 4 weiter.
+- **Keine** neue Form im Snapshot: `candidates`, `chr`, `name`, `weakness`
+  bleiben, wie sie sind.
+
+**Offene Frage aus AD-042.**
+
+**OF-48 — an den `director`, Adressat `qa-engineer` (Schritt 5):** Der
+A24-Nachweis in `GOAL.md` nennt als Beispiel "ein Evergaol-Boss (z. B.
+Fallingstar Beast)". Fallingstar Beast (c4680) steht ausschliesslich auf den
+16 Schalen `m20_00..m21_50`, die nach der OF-46-Entscheidung nicht gelesen
+werden — die Figur ist im Block also nicht enthalten und wird es nicht. Die
+Abnahme braucht ein anderes Beispiel (jede der 29 Karten taugt, etwa Red Wolf
+of the King Consort auf `4651`). Soll der Wortlaut in `GOAL.md` nachgezogen
+werden, oder genuegt das "z. B."?
+
+
+---
+
+### AD-043 — Der Balkenname gehoert dem **Platz**: Ereignis 90015000, gebunden ueber die Entity-Id der eigenen Part-Zeile, **vor** dem `90<chr><variant>`-Weg (2026-09-19, Status: aktiv; **engt die AD-040-Verbotszeile "kein EMEVD-Weg fuer die Unterbosse" auf die Bossbestimmung ein**, erweitert AD-040 Punkt 2, laesst `derive` unberuehrt)
+
+**Kontext.** T-307 hat belegt, dass der Name am Lebensbalken nicht an der
+Figur haengt, sondern am Platz: das Kartenskript ruft Ereignis 90015000 mit
+`[0, 90015000, 0, <Entity>, <NpcName-Id>, ...]` und reicht die Name-Id je
+Entity herein. `nameId` in `NpcParam` ist in Nightreign durchweg 0 — der
+zweite Zweig des heutigen Namenswegs traegt an keiner einzigen Zeile. Zwei
+Karten des Blocks tragen heute keinen Namen, obwohl das Spiel einen nennt:
+`4654` (c3252) und `4688` (c4021).
+
+Drei Kraefte. (1) A7: keinen Namen zeigen, den die Dateien nicht hergeben —
+beide Wege sind Dateien, aber sie widersprechen sich stellenweise. (2) AD-040
+Punkt 1: die Einheit des Blocks ist die **Ortskarte**; ein Name, der als
+einziges Feld des Eintrags von der **Figur** kommt, ist derselbe Schnittfehler,
+den AD-040 als Option B verworfen hat. (3) AD-042 Punkt 4: eine Regel, die auf
+den Ortskarten geprueft ist, darf nicht stillschweigend auf die Nachtkarten
+mitfahren.
+
+**Gemessen fuer diesen Entwurf.** *Guete:* Join aus dem Rohdump von T-307
+(`scratchpad/T-307/out/q5_rule.json`, 19.09.2026, gefiltert auf
+`event == 90015000` — der Dump enthaelt auch 90015002-Zeilen) gegen den
+Abzug des Testabzugs, 64 Eintraege, Stand `262c7a2`. **Nicht** aus einem Lauf
+des geaenderten Codes.
+
+| Frage | Zahl |
+|---|---|
+| Aufrufe von 90015000 mit Name-Id, ueber alle Skripte | 133 auf 88 Karten |
+| Ortskarten mit einem solchen Aufruf | 29 von 29 |
+| davon Ereignisname **gleich** dem heutigen | 23 |
+| davon heute namenlos, Ereignis nennt einen — **Gewinn** | 2: `4654` "Royal Carian Knight", `4688` "Royal Revenant" |
+| davon beide nennen, **verschieden** | **1**: `4666` c4770, heute "Valiant Gargoyle", Ereignis "Black Blade Kindred" |
+| davon Aufruf gilt einer **fremden** Entity, kein Treffer | 3: `4551`, `4659`, `4662` |
+| Nachtkarten mit Treffer fuer die gewaehlte Figur | **0 von 35** |
+| Karten, die eine Bindung **ueber die Karte** statt ueber die Entity falsch benennen wuerde | 3: `4551` c2130 Fell Omen -> "Black Knife Assassin", `4659` c4501 Decaying Rancor Dragon -> "Royal Revenant", `4662` c4580 Wormface -> "Night's Cavalry" |
+
+Und die Randbedingung des heutigen Wegs, die den einen Streitfall entscheidet:
+`chr_names` nimmt je Figur den **ersten** `90<chr><variant>`-Eintrag in
+FMG-Reihenfolge (`setdefault`). c4770 hat drei — `904770000` "Valiant
+Gargoyle", `904770001` "Black Blade Kindred", `904770200` "Valiant Gargoyles" —
+und **41 von 125** Figuren im `90...`-Block tragen mehr als einen
+verschiedenen Namen. Der heutige Weg waehlt unter ihnen nach
+Tabellenreihenfolge, das Ereignis nach Platz.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben**, AD-040-Verbotszeile woertlich. *Konsequenz:*
+  zwei Karten bleiben namenlos, obwohl das Spiel sie benennt, und `4666`
+  behaelt einen Namen, der nur durch Tabellenreihenfolge gewonnen hat.
+- **B — Nur Rueckfall**: Ereignisroute ausschliesslich dort, wo `chr_names`
+  leer ist. *Konsequenz:* +2 Namen, kein geaenderter Name, gleich grosser
+  Diff — aber die Vorrangfrage ist nur vertagt, und die naechste Figur mit
+  zwei Namen stellt sie erneut.
+- **C — Vorrang der Ereignisroute (gewaehlt)**, `chr_names` als Rueckfall.
+  *Konsequenz:* +2 Namen, **1** geaenderter Name, und der Name folgt
+  derselben Einheit wie der Rest des Eintrags.
+- **D — Ereignisnamen zurueck in `chr_names` speisen** (je Figur statt je
+  Platz); `4930` bekaeme "Royal Revenant" aus `m46_88`. *Konsequenz:*
+  verworfen — das ist der Fehler der drei Gegenbeispiele oben, eine Stufe
+  weiter: aus einer Aussage ueber einen Platz wird eine ueber eine Figur.
+  Bedingung fuer eine Neubewertung: OF-49.
+
+**Entscheidung: C**, in fuenf Punkten.
+
+**1. Gebunden wird ueber die Entity-Id der eigenen Part-Zeile, nie ueber die
+Karte.** Die Part-Zeile fuehrt bei Byte 96 einen `u64`-Offset, dort steht der
+`i32` der Entity (T-307 Abschn. 2: 126 Entity-Ids in 3400 Parts, 3273 leer,
+eine fremd). Nur wenn diese Entity im 90015000-Aufruf **derselben** Karte
+steht, gilt der Name. Drei der 29 Ortskarten rufen 90015000 fuer eine Figur,
+die nicht ihr Boss ist — dort ist "die Karte nennt einen Namen" die falsche
+und "diese Entity heisst so" die richtige Aussage.
+
+**2. Vorrang vor `chr_names`, das als Rueckfall bleibt.** Wo beide etwas sagen
+und sich unterscheiden, gilt das Ereignis. Randbedingung: der Rueckfall waehlt
+unter mehreren Eintraegen derselben Figur nach Tabellenreihenfolge (41 von
+125), das Ereignis waehlt nach dem Platz, um den es im Eintrag geht. Findet
+die Route nichts — kein Skript, kein Aufruf, fremde Entity —, bleibt es beim
+heutigen Namen.
+
+**3. Dieselbe Route auf allen Karten, kein Schalter.** Sie **waehlt keine
+Figur**, sie beschriftet die gewaehlte; sie kann eine `unresolved`- oder
+`ambiguous`-Karte nicht benennen und keine Wahl verschieben. Ihr Risiko ist
+ein anderer Name, nicht ein erfundener Boss — darum greift die Schranke aus
+AD-042 Punkt 4 hier nicht. Gemessen aendert sie auf den 35 Nachtkarten heute
+nichts, weil keine von ihnen den Aufruf fuehrt.
+
+**4. Schnitt: `bossdata` liefert die Id, `extract` den Text.** AD-040 Punkt 2
+bleibt woertlich in Kraft. `derive_places` legt in den Eintrag einen
+optionalen Schluessel `name_id` (wie `group_boss`/`placements` heute schon
+optional sind); `_subbosses` macht daraus
+`npc_names.get(entry.get("name_id")) or chr_names.get(chr_id, "")` — eine
+Zeile an der Stelle, die den Namen heute setzt. Kein neues Modul, keine
+zweite Namenslogik.
+
+**5. Kein geteilter Lesevorgang mit `derive`, kein gemeinsamer
+Instruktionsleser.** `derive` liest **alle** Ereignisskripte, um Flags zu
+finden; hier wird **ein** Skript je Karte mit gewaehlter Figur gebraucht. Ein
+geteilter Cache hielte rund 120 entpackte Blobs ueber zwei Durchgaenge fuer
+eine Ersparnis im Sekundenbereich — wieder Thema, wenn Pruefpunkt (h) mehr
+als 5 s misst. Der neue Leser ist die **dritte** Kopie der acht Zeilen Kopf-
+und Argumentdekodierung neben `_flag_entities` und `_flags_mentioned`; ein
+gemeinsamer Generator waere kleiner, wuerde aber die Nachtfuerst-Route mit
+anfassen, fuer die er nichts verbessert. Wieder interessant beim **vierten**
+Leser oder bei einer Aenderung des EMEVD-Kopfformats.
+
+**Was von der AD-040-Verbotszeile bleibt.** "Kein EMEVD-Weg fuer die
+Unterbosse (`_flag_entities`, `_flags_mentioned`, `_event_names`, `_map_of`
+... werden vom neuen Einstieg nicht aufgerufen)" hatte eine Randbedingung, die
+im Wortlaut nicht steht: sie galt der **Bossbestimmung** — der Kette Flag ->
+Entity -> Arena, die 6000 Skriptnamen durchgeht, um zu finden, *wer* der Boss
+ist. Die bleibt in Kraft, die vier Funktionen werden weiterhin nicht
+aufgerufen. Neu ist ein Lesevorgang je bereits bestimmter Karte fuer eine
+**Beschriftung**. `exact` bleibt der Ereigniskette von `derive` vorbehalten:
+ein Balkenname aendert `confidence` nicht.
+
+**Konsequenzen.** Leicht wird: der Name folgt derselben Einheit wie der
+Eintrag, und die zwei Karten, wegen derer T-307 lief, sind erledigt.
+Dauerhaft schwer wird: der Abzug haengt auf der Ortsroute an einer weiteren
+Datei-Art, und ein Patch, der einen 90015000-Aufruf verschiebt, aendert einen
+angezeigten Namen, ohne dass sich sonst etwas ruehrt — dafuer ist Pruefpunkt
+(g) da.
+
+**Umkehrbarkeit: leicht.** Rueckbau auf B ist das Tauschen der beiden Seiten
+des `or`, Rueckbau auf A der Wegfall eines Helfers und dreier Zeilen in
+`derive_places`. Kein Format, kein Schluessel, keine Oberflaeche aendert sich.
+
+---
+
+### AD-044 — Die Ortsregel gilt auf **allen** Karten des Blocks: `arena_rule` faellt wieder, und die Streuungsschranke bekommt die Toleranz gegen float32-Rauschen (2026-09-19, Status: aktiv; **loest AD-042 Punkt 4 ab**, entscheidet den Befund "Messerkante" aus AD-042, loest AD-040 Punkt 4 endgueltig ab)
+
+**Kontext.** AD-042 hat die HP-Schranke auf der Ortsroute fallen lassen, die
+Regel aber ausdruecklich an den 29 Ortskarten enden lassen — mit **einer**
+Begruendung: "T-299 hat die 29 Ortskarten Zeile fuer Zeile gegen die
+FMG-Namen geprueft; fuer die 35 Nachtkarten existiert diese Pruefung nicht."
+Das ist keine Aussage ueber die Nachtkarten, sondern ueber eine fehlende
+Pruefung. T-308 hat die Nachtkarten unter der Arenaregel gebaut (`262c7a2`);
+sie kostet 16 der 35 Karten jede Aussage. **Diese Entscheidung holt die
+fehlende Pruefung nach** und entscheidet danach.
+
+**Gemessen** an der installierten Spielinstallation (19.09.2026, Umlenkung
+nach `CLAUDE.md`, ohne Programmstart; `bossdata.derive_places` dreimal ueber
+dieselben 35 Karten, Skript `scratchpad/T-309/night.py`):
+
+| Regel | Belegketten der 35 Nachtkarten | Karten mit Namen |
+|---|---|---|
+| Arenaregel (gebaut, `262c7a2`) | `single` 16, `group` 3, `unresolved` 16 | 15 |
+| Ortsregel (AD-042) | `single` 35 | 29 |
+| Ortsregel **+ Toleranz** | `single` 35 | **30** |
+
+Die beiden Gegenbeispiele, auf die sich AD-042 Punkt 4 stuetzt, nachgemessen:
+
+- **`m49_20`** faellt allein durch die Messerkante: mit Toleranz waehlt die
+  Ortsregel c3600 **Stoneskin Lords** (628 HP) statt c4380 (162 HP). Das
+  Gegenbeispiel wird zum Beleg fuer die Toleranz.
+- **`m48_90`** waehlt c4090 (556 HP) — und c4090 hat in `NpcName` **keinen
+  Eintrag**. Die befuerchtete Folge ("wuerde c4090 benennen") tritt nicht ein:
+  die Karte bekommt eine Figur mit HP und Beute, aber keinen Namen. Das ist
+  derselbe Zustand, in dem `4654` und `4688` vor AD-043 standen, und kein
+  A7-Verstoss.
+
+Dazu zwei Karten, auf denen die Arenaregel **falsch** liegt: `4770` steht als
+`group` auf c3500 mit 148 HP, waehrend Death Rite Bird (1976) daneben steht;
+`4800` steht als `group` auf c7810 mit 77 HP, waehrend The Duke's Dear Freja
+(1344) daneben steht. Die Gruppenregel findet dort das Begleitvolk, genau wie
+sie es auf `4671` getan hat (AD-042 Kontext).
+
+**Wirkung der Toleranz, ueber alle drei Routen gezaehlt:** Nachtfuerst-Route
+(`bossdata.derive`, 10 Flags) **0 Unterschiede** — `primary`, `confidence`
+und `chars` identisch, zweimal gelaufen (`scratchpad/T-309/run2.py`, 14,3 s
+gegen 14,1 s); Ortskarten (29) **0 Unterschiede** (`run3.py`); Nachtkarten
+**1** (`4920`). Damit ist der Vorbehalt, mit dem AD-042 den Befund liegen
+liess ("wuerde das Verhalten der Nachtfuerst-Route mit aendern"), gemessen
+widerlegt.
+
+**Optionen.**
+
+- **A — Im Bestand bleiben** (AD-042 Punkt 4, `arena_rule` wie gebaut).
+  *Konsequenz:* 16 der 35 Nachtkarten sagen weiter "nicht ableitbar", obwohl
+  30 von ihnen einen Namen in den Dateien haben; zwei weitere zeigen
+  Begleitvolk als Boss. Der Preis wird fuer zwei Faelle gezahlt, von denen
+  einer ein Float-Fehler und der andere folgenlos ist.
+- **B — Ortsregel nur fuer die Nachtkarten mit Namen** ("named-or-nothing":
+  nur `single`, wenn die gewaehlte Figur einen Namen hat). *Konsequenz:*
+  30 statt 35 Karten mit Figur; aber die Regel verknuepft zwei verschiedene
+  Fragen — wer der Boss ist und ob das Spiel ihn benennt — und waere zu den
+  Ortskarten inkonsistent, wo `4654` und `4688` als namenlose `single`
+  richtig waren.
+- **C — Ortsregel ueberall, `arena_rule` faellt (gewaehlt).** *Konsequenz:*
+  35 von 35 mit Figur, 30 mit Namen, und `derive_places` hat wieder **eine**
+  Regel; der Parameter aus `262c7a2` und einer der beiden Aufrufe in
+  `_subbosses` entfallen.
+- **D — Toleranz getrennt entscheiden** (wie AD-042 es vorgesehen hat).
+  *Konsequenz:* ein eigener Auftrag fuer eine Zeile, deren Wirkung hier
+  ohnehin ueber alle drei Routen gemessen ist; ein Lauf mehr fuer keine
+  zusaetzliche Kenntnis.
+
+**Entscheidung: C**, in vier Punkten.
+
+**1. `arena_rule` faellt.** `derive_places` kennt wieder eine Regel: Kandidat
+ist jede abgestimmte Figur der Karte, gewaehlt wird die strikt hoechste HP,
+`ambiguous` nur beim Gleichstand. `_subbosses` ruft es **einmal** mit der
+Vereinigung beider Kartenmengen (die Id-Raeume ueberschneiden sich nicht,
+AD-040 Punkt 3). Damit ist AD-040 Punkt 4 vollstaendig abgeloest, und
+`INFERRED_MIN_HP` gilt nur noch in `derive`, wo der Boss ein Nachtfuerst ist.
+
+**2. Die Streuungsschranke wird gegen float32-Rauschen tolerant**:
+`>= INFERRED_MIN_SPREAD - 1e-6` statt `>= INFERRED_MIN_SPREAD`. Grund mit
+Zahl: die Cut-Rates sind float32; 0,7 − 0,6 ergibt 0.09999996 und faellt
+durch, 0,6 − 0,5 ergibt 0.10000002 und besteht. Die Toleranz ist kein neuer
+Schwellenwert, sondern die Breite des Rauschens — ein Rundungsweg taeuscht
+hier nur: `round(0.7, 2) - round(0.6, 2)` ist in float64 weiterhin
+0.09999999999999998. Sie gilt fuer **beide** Routen, weil das Rauschen keine
+Eigenschaft der Route ist; Wirkung gemessen: 0 / 0 / 1 (siehe oben).
+
+**3. Was die Regel weiterhin nicht kann, mit Namen.** Fuenf Karten bekommen
+eine Figur ohne Namen: `4890` c4090 (556), `4918` c3950 (409), `4930` c4021
+(2279), `5211` c5090 (143), `5212` c5240 (156). Vier davon nennt das Spiel
+nirgends; `4930` traegt c4021, deren Balken auf `m46_88` und `m46_59` "Royal
+Revenant" heisst — `m49_30` ruft 90015000 aber nicht, und ein Name von einer
+anderen Karte ist nach AD-043 Option D nicht zu holen (OF-49).
+
+**4. Die Randbedingung wandert mit.** AD-042 Punkt 4 hat die Regel an den
+Ortskarten enden lassen, weil dort eine Pruefung vorlag und hier nicht. Die
+Pruefung liegt jetzt vor: die 35 gewaehlten Figuren stehen mit HP und Namen in
+der Tabelle oben, 30 tragen einen Namen aus `NpcName`. **Was weiterhin fehlt,
+ist die Probe im Spiel** — kein Balkenname korrigiert die Nachtkarten, weil
+keine von ihnen 90015000 ruft. Der Rueckweg ist benannt und billig: fuehrt der
+Nutzer einen falschen Namen vor, kehrt `arena_rule` fuer die betroffene Menge
+zurueck (ein Parameter, ein zweiter Aufruf).
+
+**Erwartung, nachpruefbar.** Nach beiden Entscheidungen zusammen: **64
+Karten, 64 mit Figur, 59 mit Namen** (heute 43). `single` 64, `group` 0,
+`ambiguous` 0, `unresolved` 0. Ohne Namen bleiben `4890`, `4918`, `4930`,
+`5211`, `5212`. *Guete:* aus den drei Messlaeufen oben plus dem T-307-Rohdump
+gerechnet, **nicht** aus einem Lauf des geaenderten Codes. Weicht die
+gemessene Zaehlung ab, ist das ein Befund und kein Fix.
+
+**Konsequenzen.** Leicht wird: A24 Stufe 2 wird abnehmbar, und `derive_places`
+verliert einen Schalter, statt einen zu bekommen. Dauerhaft schwer wird: auf
+den Nachtkarten gibt es keine zweite Quelle, die einen falschen Namen
+korrigiert — die Anzeige glaubt dort der HP-Wahl allein. Genau dafuer steht
+der Rueckweg in Punkt 4.
+
+**Umkehrbarkeit: leicht** — ein Parameter mit Vorgabewert und ein zweiter
+Aufruf; der Rueckbau ist der Diff von `262c7a2` rueckwaerts, der Snapshot wird
+neu gebaut.
+
+**Beruehrte Entscheidungen.** AD-040 Punkt 4 ist damit vollstaendig abgeloest
+(Punkte 1, 2, 3, 5, 6, 7 gelten). AD-042 Punkte 1-3 gelten fort, **Punkt 4
+faellt**, und der Befund "Messerkante" am Ende von AD-042 ist entschieden
+statt offen. AD-041 unberuehrt: dieselbe Form, mehr gefuellte Eintraege — die
+Gruppe "ohne belegte Rolle" im Baum bleibt vorgesehen, faellt aber mit diesen
+Zahlen leer aus.
+
+---
+
+### Nachtrag 19.09.2026 (T-309) — die Beispiele in AD-040 Punkt 4 stimmen nicht mehr
+
+Nachgemessen an derselben Installation (`scratchpad/T-309/run2.py`), weil
+T-308 einen Widerspruch gemeldet hat:
+
+- "`m47_80` traegt c2150 (HP 5120) und Gaping Dragon (HP 2950); beide reissen
+  die Schranken, also wird die Karte `ambiguous`" — **falsch auf der gebauten
+  Route**. Die Kandidaten von `4780` sind c4080 (162), c4090 (556), c4170
+  (125), c7700 (2950); **c2150 steht dort gar nicht**. Die Karte ist `single`
+  auf Gaping Dragon, und zwar schon unter AD-042.
+- "`m52_11` (c5090 x8) faellt unter die Gruppenschranke und bleibt
+  `unresolved`" — unter AD-044 ist `5211` `single` auf c5090 (143 HP), ohne
+  Namen.
+
+Der Satz in AD-040 Punkt 4 stammt aus T-299 Abschn. 3b und beschreibt die
+dortige Rohzaehlung, nicht die gebaute Auswahl. Er bleibt als Verlauf stehen;
+massgeblich sind AD-042, AD-044 und dieser Kasten.
+
+---
+
+### Umsetzung AD-043 + AD-044 — ein Schritt
+
+| Schritt | Rolle | Inhalt | Dateien (Anwendung) |
+|---|---|---|---|
+| **5 — Balkenname und eine Auswahlregel** | `developer` | `bossdata.py`: (a) Streuungsvergleich in `_tuned` auf `>= INFERRED_MIN_SPREAD - 1e-6`, mit der Zahl 0.09999996 als Grund im Kommentar; (b) `arena_rule` und der zugehoerige Docstring-Absatz entfallen, `_candidates` wird wieder mit `min_hp=0` gerufen, die Randbedingung aus AD-044 Punkt 4 ersetzt den AD-042-Punkt-4-Kommentar; (c) neuer privater Leser neben `_flag_entities` (Kopf- und Argumentdekodierung von dort kopiert, Filter `(bank, index) == (2000, 6)`, `ints[1] == 90015000`, `len(ints) >= 5`, Ergebnis `{ints[3]: ints[4]}`); (d) in `derive_places` je Part die Entity aus dem `u64` bei Byte 96 sammeln (Part-Reihenfolge, Duplikate raus), nach der Bosswahl fuer die gewaehlte Figur `/event/{map_name}.emevd.dcx` lesen (Archiv-Idiom wie fuer die MSB drei Zeilen darueber; fehlendes oder unlesbares Skript = kein Name) und den ersten Treffer als `entry["name_id"]` ablegen — nur lesen, wenn es eine gewaehlte Figur **und** eine Entity gibt. `extract.py`: `_subbosses` ruft `derive_places` **einmal** mit der Vereinigung beider Kartenmengen (der zweite Aufruf und `arena_rule` entfallen), und die Zeile `"name": ...` wird `npc_names.get(entry.get("name_id")) or chr_names.get(chr_id, "")`; Kommentar darueber auf die zwei Wege und ihren Vorrang nachziehen. `EXTRACT_VERSION` **15**. Danach Testabzug neu (`scripts/build_snapshot.py`), `CLAUDE.md`-Zeile und `docs/plan-restarbeiten.md` mit Dateizahl und Byte-Zahl. | `nrdata/bossdata.py`, `nrdata/extract.py` = **2** |
+
+**`EXTRACT_VERSION` 15**, Randbedingung: 14 ist committet (`262c7a2`) und der
+Testabzug traegt sie; der Cache des Nutzers steht am 19.09.2026 noch auf 12
+(`nightreign_data.json` unter `%LOCALAPPDATA%\NightreignHelper`, 8 522 218 B
+vom 15.09.), released ist 12 (`v1.14.0` = `ffac292`). Die Zahl steigt, weil
+der Inhalt sich fuer 21 Karten aendert und im Zyklus Abzuege mit 14 gebaut
+worden sind.
+
+**Tests** (in `tests/test_extraction.py`, wo die vorhandenen stehen):
+
+- Einheit, ohne Datensatz: ein von Hand gebauter EMEVD-Blob mit zwei
+  `2000[6]`-Instruktionen — eine mit Ereignis 90015000, eine mit einem
+  anderen — und die Probe, dass nur die erste ein Paar (Entity, Name-Id)
+  liefert und die Argumentstellen 3 und 4 stimmen. Das ist der Waechter, der
+  einen Parser vor einem Indexfehler schuetzt (rund 15 Zeilen `struct.pack`).
+- Einheit, ohne Datensatz: zwei Figuren mit Streuung 0.09999996 und
+  0.10000002 — beide sind Kandidatinnen. Ohne die Toleranz faellt die erste
+  durch.
+- Am Datensatz (`@pytest.mark.slow`): alle **64** Eintraege sind `single`;
+  **59** tragen einen nichtleeren Namen; `4654` heisst "Royal Carian Knight",
+  `4688` "Royal Revenant", `4666` "Black Blade Kindred"; `4551` heisst weiter
+  "Fell Omen", `4659` "Decaying Rancor Dragon", `4662` "Wormface" (die drei
+  Karten, die 90015000 fuer eine fremde Entity rufen); `4920` nennt c3600
+  "Stoneskin Lords"; `4890`, `4918`, `4930`, `5211`, `5212` tragen eine Figur
+  und keinen Namen.
+- Der vorhandene Waechter ueber `bosses[]` bleibt unveraendert: er ist die
+  Probe, dass `derive` und seine HP-Schranke nicht mitgeaendert wurden.
+
+**Mutationen nach AD-033** (ersetzen die aus AD-042):
+
+1. Der neue Leser bindet ueber die **Karte** statt ueber die Entity (erster
+   Aufruf des Skripts gewinnt, gleich fuer welche Entity) -> der
+   Datensatz-Test faellt auf `4551`, `4659`, `4662`.
+2. Die Namensreihenfolge wird gedreht (`chr_names` vor `name_id`) -> der
+   Datensatz-Test faellt auf `4666`. `4654` und `4688` bleiben gruen, deshalb
+   muss die Mutation ausdruecklich auf `4666` zielen.
+3. Die Toleranz faellt weg (`>= INFERRED_MIN_SPREAD`) -> `4920` faellt
+   zurueck auf c4380, der Datensatz-Test faellt.
+
+**Pruefpunkte** (zusaetzlich zu (a)-(f) aus AD-040).
+
+- **(g) Namensdiff.** Der Schritt meldet die Liste der Karten, deren `name`
+  oder `chr` sich gegen den Abzug von vorher aendert. Erwartung: 21 Zeilen —
+  16 Nachtkarten gewinnen eine Figur, `4770`/`4800`/`4920` wechseln die
+  Figur, `4654`/`4688` gewinnen einen Namen, `4666` wechselt ihn (`5212`
+  wechselt nur die Belegkette und zaehlt hier nicht mit). Jede weitere Zeile
+  ist ein Befund, bevor irgendetwas committet wird.
+- **(h) Erstlauf.** Dauer von `extract.build` vorher/nachher gegen die
+  Grundlinie 33,9 s aus T-301 (`docs/perf/baselines.md` S13). Die
+  60-s-Schranke aus AD-040/OF-45 gilt weiter; ueber 5 s Aufschlag wird der
+  geteilte Lesevorgang aus AD-043 Punkt 5 wieder zum Thema.
+- **(i) Abzugsgroesse.** `nightreign_data.json` vorher/nachher; `name_id`
+  sind hoechstens 64 zusaetzliche Zahlen, die 16 zusaetzlichen Profile wiegen
+  mehr.
+
+**Was der `developer` ausdruecklich nicht tut.**
+
+- **Kein** Anfassen von `derive`, `_flag_entities`, `_flags_mentioned`,
+  `_event_names`, `_map_of`, `INFERRED_MIN_HP`, `INFERRED_GROUP_MIN` — die
+  AD-040-Verbotszeile gilt fuer die Bossbestimmung unveraendert weiter.
+- **Kein** gemeinsamer Instruktionsleser und **kein** geteilter Skript-Cache
+  mit `derive` (AD-043 Punkt 5).
+- **Keine** Rueckspeisung der Ereignisnamen in `chr_names` und **keine**
+  Uebernahme eines Namens von einer Karte auf eine andere — `4930` bleibt
+  namenlos, auch wenn dort dieselbe Figur wie auf `4688` steht.
+- **Keine** weiteren Ereignis-Ids (90015002 und die uebrigen aus T-307
+  Abschn. 4) und **keine** anderen Instruktionen als `2000[6]`.
+- **Keine** "named-or-nothing"-Bedingung: eine Karte mit Figur und ohne Namen
+  ist eine gueltige Antwort (Option B in AD-044).
+- **Keine** Aenderung an der Kartenmenge (die 29 + 35 bleiben), an
+  `candidates`, an den `confidence`-Werten oder an der Blockform ausser dem
+  optionalen `name_id`.
+- **Kein** neues Modul, **keine** neue Abhaengigkeit, **kein** Text, der nicht
+  aus `NpcName` kommt.
+- **Kein** Commit, bevor Pruefpunkt (g) die 21 erwarteten Zeilen zeigt und
+  keine weitere.
+
+**Bewusst nicht getan.**
+
+- **Kein Namensfeld je Figur im Abzug** (AD-043 Option D): macht aus einer
+  Platzaussage eine Figuraussage, die drei Gegenbeispiele stehen oben. Wieder
+  interessant, wenn OF-49 (2) aus dem Spiel bestaetigt ist — dann als
+  Einzeleintrag, nicht als Regel.
+- **Keine Herkunftsangabe in der Oberflaeche** ("Name vom Platz" gegen "Name
+  der Figur"). `name_id` steht im Abzug; eine zweite Legende im Panel fuer 3
+  von 64 Karten waere teurer als ihr Nutzen. Wieder interessant, wenn
+  Pruefpunkt (g) nach einem Spielpatch regelmaessig Zeilen zeigt.
+- **Keine Ausweitung der Toleranz auf andere Schwellen.**
+  `INFERRED_MIN_HP` und `INFERRED_GROUP_MIN` vergleichen ganze Zahlen; dort
+  gibt es kein Rauschen.
+
+**Offene Frage aus AD-043/AD-044.**
+
+**OF-49 — an den `director`, Adressat App Designer (Nutzer, aus dem Spiel):**
+Drei Balken, die niemand nachgelesen hat. (1) `4666` (`m46_66`) heisst nach
+AD-043 "Black Blade Kindred" statt "Valiant Gargoyle" — stimmt das im Spiel?
+Stimmt es nicht, faellt AD-043 auf Option B zurueck (eine Zeile). (2) Auf
+`4930` (`m49_30`, Tag 1) steht c4021, deren Balken auf `m46_88` und `m46_59`
+"Royal Revenant" heisst; `m49_30` ruft 90015000 nicht. Heisst der Balken dort
+ebenfalls so, ist AD-043 Option D fuer diese Figur belegt und ein Nachtrag von
+einer Zeile — sonst bleibt die Karte namenlos, und das ist die richtige
+Antwort. (3) Die 16 Nachtkarten, die nach AD-044 zum ersten Mal eine Figur
+zeigen, hat niemand im Spiel gegengelesen; auffaellig waeren vor allem `4770`
+(Death Rite Bird), `4800` (The Duke's Dear Freja), `4919` (Beastmen of Farum
+Azula, 250 HP) und `4920` (Stoneskin Lords). Ein falscher Name dort ist der
+Ausloeser fuer den Rueckweg in AD-044 Punkt 4.
+---
+
+## Themenbereich M — Schadensart im Berater waehlbar, A25 (2026-09-19, T-320a)
+
+*Anlass: `GOAL.md` A25 (Nutzerfreigabe 19.09.2026). Vorlauf: `docs/research/R-009.md`
+(Mechanik und Zahlen), Explore-Bericht 19.09. 15:38 (Fundstellen). Entscheidungstiefe
+laut Auftrag: **Modul und Datenfluss**. Alle Zahlen in diesem Abschnitt sind an der
+eigenen Installation gemessen, nicht geschaetzt — `nrplanner/data/nightreign_data.json`,
+`data_version` 10350000, `extract_version` 15, `regulation_sha256` 876a3ca2…, gelesen
+2026-09-19; kein Programmlauf, kein Fensterlauf, Umlenkung nach `CLAUDE.md` gesetzt.*
+
+### Praemissen dieses Themenbereichs
+
+| Praemisse | Quelle | Guete |
+|---|---|---|
+| Skill-, Zauber- und Schulbuffs tragen ihre Zahl in denselben fuenf `*AttackRate`-Feldern wie ein gewoehnlicher Angriffsbuff und werden allein ueber `magicSubCategoryChange1/2/3` eingeengt. | R-009 Befund 1/2, aus den eigenen Params | belegt |
+| Scope 112 (und 111) = Weapon Arts; Nightfarer-Faehigkeiten bleiben unbeachtet. | Nutzer 19.09.2026, `GOAL.md` A25 "Praemisse" | **gesetzt** (R-009 nennt 111 ausdruecklich unbelegt) |
+| "Improved Sorceries"/"Incantations" tragen **kein** Scope-Feld; ihre Einengung steht nur im Text und lebt im Programm als Id-Liste `model.MOVE_SCOPED_EFFECT_IDS`. | `model.py` Z. 541-597, R-009 Befund 1 | belegt; die Einengung selbst ist abgeleitet, nicht gemessen |
+| Die Zuordnung Scope-Zahl → Zauberschule steht im Auszug als `spell_families` (21 Eintraege), aus den Effektnamen des Spiels abgeleitet. | `nightreign_data.json`, `nrdata/extract.py` Z. 2698-2724 | belegt |
+| Zwei Buffs mit **verschiedenem** Scope duerfen nicht miteinander multipliziert werden. | `model.py` Z. 397-402 (QA-018, im Spiel gemessen) | belegt |
+| Die Startwaffen-Konversion ist ein flacher Tausch (−30/+33 bis −60/+66), und wo sie landet, ist im Spiel gemessen. | `damage.converted` (QA-113, T-246, drei Ablesungen 14.09.) | belegt |
+| Die Bezugswaffe der Schadensrichtung ist die Startarmatur des Nightfarers, `MIN_UPGRADE`, ohne Rollen — der Spieler waehlt sie nicht. | AD-038 | geltende Entscheidung |
+
+### Der Befund, der den Zuschnitt aendert: die Konversion zaehlt bereits
+
+Der Auftrag nennt als Stand "kein Ziel liest `final_per_type`, `scoped:`-Raten,
+`starting_flat`". Fuer `final_per_type` und die `scoped:`-Raten stimmt das. Fuer
+`starting_flat` stimmt der **Satz**, aber nicht die **Sache**: das Ziel liest das Feld
+nicht selbst, es fragt `damage.equipped(reference, slot_index=0, …)`, und dort greift
+`is_starting_armament` — die Bezugswaffe **ist** seit AD-038 die Startarmatur in Slot 1.
+Die Konversion und der Statusmalus stehen damit seit A22 in der Zahl.
+
+Nachgemessen am 19.09.2026 (Stufe 15, Bezugswaffe = eigene Startarmatur,
+`goals._max_damage`, Wert vor Rundung):
+
+| Nightfarer | ohne Relikt | + 7120100 "deals fire damage" | + 7120400 "inflicts frost" |
+|---|---|---|---|
+| Wylder (Greatsword) | 122,0506 | **123,8506** (+1,80; Physics 104,05 / Fire 19,80) | **103,7430** (−18,31) |
+| Revenant (Cursed Claws) | 88,6516 | **91,4335** (+2,78; Physics 0,00 / Magic 71,63 / Fire 19,80) | **75,3539** (−13,30) |
+| Recluse (Glintstone Staff) | 135,6136 | 135,6136 (0,00) | 135,6136 (0,00) |
+
+**Zwei Saetze des Programms sind dadurch falsch** und fallen in diesem Bau, statt dass
+etwas Neues daneben gebaut wird:
+
+1. `goals._ATTACK_RATING_SCOPE`, vorletzter Satz: *"Effects that convert one damage type
+   into another are not in this figure: how the game applies them cannot be read out of
+   the files, so they are named rather than guessed at."* — seit T-246 ist gemessen, wo
+   die Punkte landen, und seit AD-038 stehen sie in der Zahl.
+2. `candidates._unmodelled_conversion_line` (Wortlaut AK-67, gezogen in
+   `candidates.py` Z. 237 ueber `_converts_a_damage_type`, Z. 314): *"This figure does
+   not count that change."* — dieselbe Aussage, je Lauf mit einer Zaehlung davor.
+
+Der dritte Satz derselben Familie, `_converts_a_damage_type`' Docstring ("a candidate
+sits in no slot, AD-020 Punkt 3"), beschreibt weiterhin richtig, was `damage.candidate`
+tut — nur fragt der Berater seit AD-038 nicht mehr so. Er wird mitgeloescht, nicht
+umgeschrieben.
+
+---
+
+### AD-045 — Die Schadensart ist ein **Feld der Anfrage** (`damage_art`), kein zweites Ziel: ein Wahlwert auf `AdvisorRequest` und `GoalContext`, gelesen allein von `_max_damage` (2026-09-19, Status: aktiv; folgt dem Muster `two_handed`/AK-292, laesst AD-004 und die `GOALS`-Registry unberuehrt)
+
+**Kontext.** A25 will eine Auswahl neben "Maximise damage": Alle / fuenf Schadenstypen /
+Skill attack / Sorceries / Incantations / eine Zauberschule. Gemessen sind es heute
+**24 Eintraege** (1 + 5 + 18, siehe AD-046). Die Frage ist, ob daraus 24 Zielrichtungen
+werden oder ein Parameter einer Zielrichtung.
+
+**Kraefte.** Die Registry `GOALS` ist bewusst schreibgeschuetzt, weil eine zur Laufzeit
+ergaenzte Richtung in keinem Cache-Schluessel stuende (`goals.py`, Kommentar an `GOALS`).
+`GOAL_ORDER` speist die Berater-Leiste **und** das `Sort by`-Feld (AK-43, AK-205, AK-257).
+Und entscheidend: `candidates.pool` misst **jeden Kandidaten unter jedem Ziel**, das es
+bekommt (`goals.py`, Kommentar an `GOAL_ORDER`) — Zielrichtungen sind also nicht gratis.
+
+**Optionen.**
+- **A — 24 Ziele in der Registry.** Ein Ziel je Art. Konsequenz: die Poolkosten des
+  Pickers steigen um den Faktor der Zielzahl (heute 3), `GOAL_ORDER` und das `Sort by`-Feld
+  bekommen 24 Eintraege, und die Zahl der Ziele haengt am Datensatz. Verworfen.
+- **B — ein Feld auf der Anfrage** (gewaehlt). `AdvisorRequest.damage_art: str = ""` und
+  `GoalContext.damage_art: str = ""`, gefuellt in `advisorbar.asking_from`, verglichen in
+  `run._refuse_a_request_that_asks_about_another_run` wie `two_handed` (`run.py` Z. 272),
+  gelesen allein in `goals._max_damage`. `run.cache_key` ist die Anfrage ohne `generation`
+  (`run.py` Z. 186) — das Feld ist damit **ohne Zutun** im Schluessel.
+- **C — im Bestand bleiben.** Keine Auswahl; die `scoped:`-Raten bleiben eine Zeile im
+  Aufklappfenster. Konsequenz: A25 faellt. Verworfen, aber als Rueckweg brauchbar: bei
+  `damage_art == ""` ist jede Zeile dieses Themenbereichs ohne Wirkung.
+
+**Entscheidung: B.** Die Wahl ist eine Eigenschaft der **Frage**, nicht eine zweite
+Frage — genau wie die Hand (AK-292/AK-293): sie aendert, was die Richtung *zaehlt*, nicht
+welche Richtung gezaehlt wird. Das Muster steht fertig da und ist an vier Stellen zu
+kopieren (Anfrage, Kontext, `asking_from`, Kreuzprobe).
+
+**Punkte.**
+1. Der Wahlwert ist **eine Zeichenkette mit einem Praefix**, weil zwei Arten von Wahl
+   dahinterstehen: `""` = Alle (Voreinstellung), `type:<Physics|Magic|Fire|Thunder|Dark>`
+   = ein Schadenstyp, `art:<Schluessel>` = eine Angriffsart. Genau **eine** Stelle
+   zerlegt sie (`goals._max_damage`); niemand sonst liest das Praefix.
+2. **Ein Typ ist keine Multiplikation, sondern eine andere Zahl derselben Antwort**:
+   `Rating.final_per_type[<Typ>]` statt `Rating.final_headline`. Nichts wird gerechnet,
+   was nicht schon dasteht.
+3. **Eine Art ist ein Faktor auf dieselbe Antwort** (AD-046/AD-047).
+4. `min_damage_taken` und `max_attributes` lesen das Feld nicht. Es wird trotzdem
+   **nie** aus dem Schluessel genommen (kein Gegenstueck zu `pool_order_only`): der Picker
+   misst jeden Pool unter allen drei Richtungen, also haengt der **Inhalt** eines Pools an
+   der Art. Ein Schluessel, der das verschweigt, ist der Fehler von T-077 (10,2 % still
+   falsche Zahlen) an derselben Stelle noch einmal.
+5. Die Art erreicht die **Why-Zeile** ohne neue Verdrahtung: `GoalScore.display` und
+   `Goal.scope`/`unknowns` werden in `_max_damage` gebildet, und `explain._felt_by_the_goal`
+   bildet den Betrag je Effekt ohnehin als zweite Bewertung ohne diesen Effekt (AD-038) —
+   unter der gewaehlten Art also automatisch als Beitrag unter dieser Art. Der **Wortlaut**
+   gehoert der Spec (T-320b), nicht hier.
+6. Ob die Wahl gespeichert wird, entscheidet die Spec. Wird sie es, dann als **ein**
+   fester Schluessel in der Bauform AD-030/AD-036.4 (`advisor/damage_art`), und die
+   Schluesselform aus Punkt 1 ist genau deshalb stabil gegen Umbenennungen im Datensatz
+   (Familien-**Id**, nicht Familienname).
+
+**Konsequenzen.** Leicht wird: eine weitere Art kostet einen Eintrag in der Tabelle von
+AD-046 und sonst nichts. Dauerhaft schwer wird: der Pool-Cache zerfaellt je Art — ein
+Wechsel der Art ist ein vollstaendiger Lauf, kein Umsortieren. Das ist der Preis dafuer,
+dass die Art die Zahlen aendert und nicht nur die Reihenfolge; er ist zu messen, nicht zu
+schaetzen (Pruefpunkt M4).
+
+**Umkehrbarkeit: leicht.** Feld auf `""` festnageln, die Auswahl aus der Leiste nehmen,
+alles andere bleibt stehen und wirkt nicht.
+
+---
+
+### AD-046 — Die Zuordnung **Scope-Wert → Art** wird aus dem Datensatz abgeleitet (`model.attack_arts`), sie liest **alle drei** Scope-Felder als Menge, und ein Scope ohne Namen wird nie angeboten (2026-09-19, Status: aktiv; erweitert `model.attack_scope`/`MOVE_SCOPED_EFFECT_IDS`, ohne deren heutiges Verhalten zu aendern)
+
+**Kontext.** Der `scoped:`-Eimer von heute traegt als Schluessel den **Effektnamen**
+(`model.py` Z. 1108: `f"{SCOPED_PREFIX}{label}"`) und als Wert `max()` ueber die fuenf
+Elementraten. Der Scope-Wert selbst wird nicht aufbewahrt — an diesem Eimer ist nicht
+ablesbar, zu welcher Art er gehoert. Eine Auswahl nach Art braucht also eine zweite
+Ablage neben ihm.
+
+**Gemessen am Datensatz (19.09.2026, eigener Auszug):**
+
+| Menge | Zahl |
+|---|---|
+| Effekte mit Elementrate **und** Scope-Feld | 81, verteilt auf **32** Scope-Werte (nach `attack_scope`, also nach dem ersten belegten Feld) |
+| davon Scope-Werte, die `spell_families` benennt | 15 (14 Schulen + 110 "Charged") |
+| Scope 112 "Improved Skill Attack Power" | 5 Effekte; 111 kommt nie allein vor **ausser** auf 330900 |
+| Arten insgesamt (mit den beiden Id-Listen) | **18** |
+| verschiedene Effekte in diesen 18 Arten | **44** |
+| Effekte in **zwei** Arten | **5**: 330900 (`family:110` + `skill`), 8330103/8330104/8851200/8851250 (`sorceries` + `incantations`) |
+| Effekte, deren fuenf Elementraten **nicht** gleich sind | **0 von 81** |
+
+Die 18 Arten, je mit Zahl der Effekte: `skill` 6 · `sorceries` 11 · `incantations` 11 ·
+`family:110` (Charged) 7 · `family:2` Carian Sword, `:3` Glintblade, `:4` Stonedigger,
+`:5` Crystalian, `:9` Thorn, `:11` Gravity, `:12` Invisibility, `:20` Godslayer, `:21`
+Giants' Flame, `:22` Dragon Cult, `:23` Bestial, `:24` Fundamentalist, `:25` Dragon
+Communion, `:26` Frenzied Flame — je **1**.
+
+**Optionen.**
+- **A — Handtabelle Scope → Wortlaut.** Vierzig Zahlen auf selbst erfundene Etiketten.
+  Genau das, was `model.py` Z. 405-409 ausdruecklich verworfen hat ("inventing labels the
+  game does not state"). Verworfen.
+- **B — aus dem Datensatz ableiten** (gewaehlt): `spell_families` fuer die Schulen, die
+  Nutzerpraemisse fuer 112/111, und fuer Sorceries/Incantations die schon vorhandene
+  Id-Liste. Kein Etikett, das das Spiel nicht selbst schreibt.
+- **C — nur die drei groben Arten** (Skill/Sorceries/Incantations), Schulen weglassen.
+  Billiger um 15 Eintraege, streicht aber genau das Beispiel, das A25 nennt ("z. B.
+  Bestial"). Verworfen.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Eine neue Funktion `model.attack_arts(data) -> dict[str, str]`** (Schluessel → Etikett
+   aus dem Datensatz), neben `attack_scope`. Sie kostet einen Durchlauf ueber die Effekte:
+   **1,2 ms** fuer 2076 Effekte, gemessen (20 Laeufe, Mittel). Sie wird beim Bauen der
+   Leiste einmal gerufen, nicht je Bewertung.
+2. **Sie liest alle drei Scope-Felder als Menge**, waehrend `attack_scope` das erste
+   nicht-leere nimmt. Das ist keine neue Lesart: `model.scoped_class` (Z. 456-460) kaemmt
+   die drei Felder schon heute durch, und genau deshalb landen die vier "Improved Ranged
+   Weapon Attacks" (Feld 1 = 105, Feld 2/3 = 113/118) richtig im Klassen-Eimer. Der
+   Unterschied ist an genau einem Effekt messbar und dort tragend: 330900 "Improved
+   Charged Spells & Skills" traegt 110 **und** 111; mit der Erste-Treffer-Regel faellt es
+   aus `skill` heraus, obwohl sein Name die Skills nennt. `attack_scope` selbst bleibt
+   **unveraendert** — es waehlt weiterhin einen Eimer, hier werden Mengen gebildet.
+3. **Doppelte werden entdoppelt.** 112 und 111 zeigen auf dieselbe Art; ein Effekt mit
+   beiden Feldern geht **einmal** in `skill` ein. Ohne Mengensemantik waere 1,21 zweimal
+   multipliziert (1,4641) — der Fehler, gegen den `SCOPED_PREFIX` ueberhaupt gebaut wurde.
+4. **Sorceries/Incantations kommen aus der Id-Liste**, weil die Params sie nicht tragen:
+   `model.MOVE_SCOPED_ARTS: dict[int, tuple[str, ...]]` neben `MOVE_SCOPED_EFFECT_IDS`,
+   18 der 22 Ids (die vier "Improved Thrusting Counterattack" bleiben ohne Art). Die
+   bestehende Menge `MOVE_SCOPED_EFFECT_IDS` bleibt **Wort fuer Wort** stehen, weil
+   `tests/test_move_scoped_effects.py` sie als Waechter durchkaemmt; die neue Abbildung
+   ist ihre Verfeinerung, nicht ihr Ersatz.
+5. **Ein Scope, den `spell_families` nicht benennt, wird nie angeboten** und bleibt genau
+   so geparkt wie heute (`scoped:<Name>`, in keiner Zahl). Die Aufteilung der 32 Werte:
+   15 benennt `spell_families` (14 Schulen + 110), einen die Nutzerpraemisse (112), drei
+   sind schon Klassen-Eimer und gar nicht geparkt (105/113/118 ranged, 130 melee, 124
+   two-handed — `WEAPON_CLASS_SCOPES`, AD-037); die uebrigen **13** sind Bewegungs-Scopes
+   (100 Charge, 102 Jump, 103 Guard Counter, 104, 106, 108, 109, 119, 120, 121, 125, 127,
+   128) und bleiben ohne Art, ebenso jeder neue Wert eines kuenftigen Patches. Kein
+   Rueckfall, keine Sammelart "Sonstiges": eine Art, die das Programm nicht benennen kann,
+   ist nach A7 keine Art.
+5a. **Die Zuordnung sitzt im vorhandenen `scoped_out`-Zweig** von `compute` (Z. 1101-1110).
+   Ein Effekt, den eine Klasse schon aufgenommen hat, bekommt damit nie zusaetzlich eine
+   Art — "Improved Melee Attack Power" ist ein gewoehnlicher Angriffsbuff fuer Nahkampf
+   und keine Angriffsart.
+6. **Ein Skalar je Art, kein Fuenf-Feld-Eimer.** `Build.art_rates: dict[str, float]`,
+   gefuellt in `compute` an derselben Stelle, die heute die `scoped:`-Zeile schreibt, mit
+   demselben `max()` ueber die vorhandenen Elementraten. Begruendung ist die Messung
+   **0 von 81**: kein Effekt dieses Datensatzes traegt ungleiche Elementraten, ein Eimer
+   nach `class_rates`-Bauart haette heute in jeder Zelle dieselbe Zahl. Die Decke ist
+   benannt und bewacht: Pruefpunkt M2 laesst die Suite fallen, sobald ein Effekt ungleiche
+   Raten traegt — dann wird aus dem Skalar ein Eimer, und sonst nichts.
+7. **Die `scoped:`-Zeile bleibt unangetastet.** `art_rates` ist eine zweite Ablage neben
+   ihr, kein Ersatz: Aufklappfenster, `explain` (Z. 407) und Statusblatt lesen weiter
+   `scoped:` und zeigen weiter, dass diese Buffs in der Angriffskraft nicht stecken.
+8. **Etiketten:** Schulen aus `spell_families`, die fuenf Typen aus
+   `weapons.DAMAGE_LABELS` (`Physics`→"Physical", `Thunder`→"Lightning", `Dark`→"Holy",
+   schon vorhanden). Fuer `skill`, `sorceries`, `incantations` und die Zeile "All" setzt
+   die Spec den Wortlaut (T-320b, A8).
+
+**Konsequenzen.** Leicht: ein Patch, der eine Schule ergaenzt, ergaenzt die Auswahl von
+selbst. Schwer: die Art **"Skill attack" ist nur so gut wie die Praemisse 112/111** — wird
+sie widerlegt (R-009 offene Frage), aendert sich die Zuordnung, nicht der Bau.
+
+**Umkehrbarkeit: leicht** fuer die Zuordnung (eine Tabelle), **mittel** fuer `art_rates`
+(ein Feld auf `Build`, das der Cache-Fingerabdruck nicht kennt — es wird aus denselben
+Effekten gerechnet wie alles andere).
+
+---
+
+### AD-047 — Die Art erreicht die Zahl als **dritter Eimer in der Fassade** (`damage.equipped(…, art=…)`), nicht als Nachmultiplikation im Ziel; die Startwaffen-Konversion ist bereits drin, und zwei Saetze, die das Gegenteil sagen, fallen (2026-09-19, Status: aktiv; wahrt AD-019/AD-021, beruehrt AD-020 nicht, korrigiert Wortlaut aus AK-67)
+
+**Kontext.** Der Multiplikator einer Art muss auf die Zahl je Schadenstyp wirken. Zwei
+Orte kommen in Frage: im Ziel, auf die fertige Zahl der Fassade — oder in der Fassade
+selbst.
+
+**Optionen.**
+- **A — im Ziel nachmultiplizieren.** `_max_damage` nimmt `final_headline` und
+  multipliziert `build.art_rates[…]` darauf. Drei Zeilen. Konsequenz: eine zweite
+  Multiplikatorschicht ausserhalb der Fassade — genau die Form, gegen die AD-019 und der
+  Waechter AD-021 gebaut sind ("nur die Fassade rechnet"), und dieselbe Form, aus der
+  QA-018/QA-055/QA-056 entstanden sind. Verworfen.
+- **B — Parameter der Fassade** (gewaehlt): `damage.equipped(slot, slot_index, build,
+  hero, data, *, art: str | None = None)` reicht bis `_rate` und `_answer` durch; dort
+  wird der Faktor genau so angehaengt, wie `class_rates` und der Zweihand-Eimer schon
+  angehaengt werden (`damage.py` Z. 628-630). Beide Haende bekommen ihn ueber denselben
+  `_rate`-Aufruf.
+- **C — vierte `Question`.** `Question.SKILL` o. ae. Verworfen: die Art ist keine andere
+  Frage an die Waffe, sondern dieselbe Frage unter einer Bedingung — und 18 Arten mal drei
+  Fragen sind keine Aufzaehlung.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. `art=None` ist die Voreinstellung, und bei `None` ist **jede** Zahl bitgleich die
+   heutige. Statusblatt, Waffenkachel, Arsenal und die Goldproben rufen unveraendert
+   weiter — die bestehende Suite ist damit die Regressionsprobe.
+2. Der Faktor wird **in derselben Schleife** angewandt wie die uebrigen Raten, also auf
+   `final_per_type` je Typ, **nach** der Konversion (die auf `scaled_per_type` liegt) und
+   in derselben Reihenfolge wie die vorhandenen Faktoren. Kein Umklammern, kein zweiter
+   Ort, der summiert (Zusicherung Z1, AD-024).
+3. `rates_in_play` bekommt den Faktor unter seinem Art-Schluessel, damit das
+   Aufklappfenster ihn zeigen kann, wenn die Spec ihn zeigen will. Kein neues Feld auf
+   `Rating`.
+4. **`BARE` bleibt aus** — ohne Zutun: `_answer` kehrt fuer Fragen ohne Multiplikatorschicht
+   vorher um (`MULTIPLIERS_FOR`, AD-020 Punkt 2).
+5. **AD-020 wird nicht gebrochen**, und zwar weil der Berater `damage.candidate` gar nicht
+   ruft: er fragt seit AD-038 ueber `equipped` mit der Startarmatur in Slot 1. Punkt 1
+   (kein Vorgabe-Tier), Punkt 3 (kein Startwaffen-Paar ohne Slot) und Punkt 6 (Tier und
+   Paarung waehlt der Aufrufer nicht) bleiben woertlich gueltig; `art` ist kein
+   Eingabewert der Waffe, sondern die Bedingung der Frage.
+6. **Die Startwaffen-Konversion braucht keinen Bau.** Sie steht in der Zahl (Messung oben:
+   Wylder +1,80, Revenant +2,78, Status −18,31 / −13,30). Was A25 an dieser Stelle
+   verlangt, ist die **Loeschung** der beiden Saetze, die das Gegenteil behaupten:
+   der Konversionssatz in `goals._ATTACK_RATING_SCOPE` und
+   `candidates._unmodelled_conversion_line` samt `_converts_a_damage_type` und der Zaehlung
+   in `_pool_findings`. Ersatzlos: eine Zahl, die etwas zaehlt, braucht keinen Satz, der
+   sagt, dass sie es nicht tut.
+7. Statt ihrer bekommt `_ATTACK_RATING_SCOPE` **einen** Satz zur Art (Wortlaut Spec): was
+   die gewaehlte Art zaehlt und was sie nicht zaehlt — insbesondere, dass eine Schulwahl
+   die allgemeinen Sorcery-/Incantation-Buffs nicht mitzaehlt (siehe "Bewusst nicht getan").
+
+**Konsequenzen.** Leicht: jede Anzeige, die spaeter eine Art zeigen will, fragt die
+Fassade danach. Schwer: `equipped` hat jetzt sechs Parameter; ein siebter waere der Punkt,
+an dem aus den Parametern ein Frageobjekt wird (K-Kandidat, nicht heute).
+
+**Umkehrbarkeit: leicht** fuer den Parameter; **mittel** fuer die beiden geloeschten
+Saetze — sie zurueckzuholen hiesse, die Messung von T-246 zu widerrufen.
+
+---
+
+### AD-048 — Bei einer **Katalysator-Bezugswaffe** erreicht keine Art- und keine Typwahl die Zahl; der Lauf sagt das als Befund, statt eine Beziehung zu erfinden (2026-09-19, Status: aktiv; setzt QA-099 und `damage.final_headline` fort, Ausloeser fuer die Umkehr ist eine einzige Messung)
+
+**Kontext.** Fuer Stab und Siegel zeigt das Spiel **Spell Power** und keine
+Angriffskraft; `final_headline` gibt deshalb `catalyst_scaling` zurueck, und die
+Angriffsraten erreichen diese Zahl ausdruecklich nicht (`damage.py` Z. 346-357: die 90 in
+`CATALYST_DISPLAY_RATE` ist gegen die Anzeige gefittet, und was ein Angriffsbuff mit
+dieser Anzeige macht, ist nicht gemessen). A25 wuenscht aber gerade dort eine Wirkung.
+
+**Gemessen:** von den zehn Nightfarern hat **einer** einen Katalysator als Startarmatur —
+**Recluse**, "Recluse's Staff" (Glintstone Staff). Ein Siegel ist unter den zehn
+Startarmaturen **nicht** vertreten; Revenants Startarmatur ist "Revenant's Cursed Claws"
+(Fist). Recluse zeigt Spell power 135,6136, und weder ein Skill-, Sorcery-,
+Bestial- noch ein Feuerbuff bewegt die Zahl (alle Differenzen 0,0000).
+
+**Optionen.**
+- **A — Verbot halten** (gewaehlt): die Art-Rate beruehrt `catalyst_scaling` nicht; bei
+  einer Katalysator-Bezugswaffe bleibt die Zahl die heutige, und der Lauf sagt in seinen
+  Befunden, dass die Wahl hier nichts aendert. Preis: fuer Recluse ist die Auswahl
+  wirkungslos.
+- **B — Rate auf Spell Power anwenden**, wenigstens fuer Zauberarten. Preis: das Programm
+  behauptet eine Beziehung zwischen einer Skalierungszahl und einer Schadensrate, die
+  weder in den Params noch in einer Quelle steht (R-009 Befund 4, A7-Bruch).
+- **C — bei Katalysator auf die physische `final_per_type` ausweichen.** Preis: gerankt
+  wuerde eine Zahl, die das Spiel fuer einen Stab nirgends zeigt (Recluse: 25,43 gegen
+  135,61 auf dem Schirm) — der Fehler von QA-018 in neuer Gestalt.
+
+**Entscheidung: A.** Dieselbe Begruendung wie 2026-09-03, unveraendert gueltig, und die
+guenstigste Umkehrung steht in R-009: *ein* Relikt "Improved Sorceries" anlegen und die
+Spell-Power-Anzeige des Stabs im Spiel ablesen. Bewegt sie sich, wird A zu B, und zwar an
+genau einer Stelle (`final_headline`).
+
+**Punkte.**
+1. Kein Sonderweg im Ziel: `final_headline` bleibt die Autoritaet darueber, was ein
+   Katalysator zurueckgibt.
+2. Auch die **Typwahl** ist bei einem Katalysator ohne Wirkung — `shown_per_type` ist fuer
+   ihn leer, und die physischen Zeilen zeigt das Spiel nicht. Ein Typ liefert dort keine
+   Rangfolge.
+3. Der Lauf sagt es in `unknowns` (AD-025.2: ein Befund dieses Laufs, kein Satz der
+   Registry — vor dem Lauf ist nicht bekannt, ob die Bezugswaffe ein Katalysator ist).
+   Ob die Leiste die Auswahl zusaetzlich abblendet, entscheidet die Spec (T-320b).
+4. **Das Abnahmekriterium A25 ist in seinem ersten Satz nicht herstellbar** — nicht wegen
+   dieser Entscheidung, sondern weil kein Nightfarer ein Siegel als Startarmatur traegt
+   und der Spieler die Bezugswaffe seit AD-038 nicht waehlt. Siehe OF-50.
+
+**Umkehrbarkeit: leicht** (eine Verzweigung), **die Messung dahinter mittel** — sie
+verlangt einen Spiellauf des Nutzers.
+
+---
+
+### AD-049 — Der Testschnitt haengt an **vier** Zusicherungen, nicht an der Zahl der Arten: Wahl unwirksam = Bestand, Zuordnung gegen den Datensatz, Faktor genau einmal, Rangfolge dreht (2026-09-19, Status: aktiv; nutzt `tests/test_move_scoped_effects.py` und `tests/test_advisor_goals.py` weiter, legt **eine** neue Datei an)
+
+**Kontext.** 18 Arten mal drei Fragen mal zwei Haende ist eine Testmatrix, die niemand
+pflegt. Was traegt, sind vier Saetze, die je einmal gelten muessen.
+
+**Optionen.** A — je Art ein Test (18 Faelle, verworfen: 15 davon haben genau einen
+Effekt und pruefen dieselbe Zeile). B — vier Zusicherungen, datengetrieben (gewaehlt).
+C — nur der GOAL-Nachweis (verworfen: er deckt die Zuordnung nicht ab).
+
+**Entscheidung: B**, mit dieser Aufteilung:
+
+| Zusicherung | Wo | Inhalt |
+|---|---|---|
+| **M1 — Ohne Wahl ist nichts anders.** | vorhandene Suite, kein neuer Test | `art=None` ist Vorgabe; die 1718 bestehenden Tests sind die Probe. Faellt einer, ist der Bau falsch, nicht der Test. |
+| **M2 — Die Zuordnung stimmt gegen den Datensatz.** | `tests/test_move_scoped_effects.py` (vorhandener Waechter, erweitert) | Durchlauf ueber alle Effekte mit Elementrate: 18 Arten, 44 Effekte, 5 davon in zwei Arten; **0 Effekte mit ungleichen Elementraten** (Decke aus AD-046.6); jede Art hat mindestens einen Effekt (keine tote Zeile in der Auswahl); jeder Scope-Wert ohne Namen bleibt ohne Art. |
+| **M3 — Der Faktor wirkt genau einmal und nur auf die gewaehlte Art.** | neu: `tests/test_damage_art.py` | 8350002 (Skill 1,21) unter `art:skill` hebt die Zahl um genau 1,21 und unter `art:sorceries` gar nicht; 330900 (110 **und** 111) zaehlt unter `skill` **einmal**, nicht 1,18²; `Question.BARE` bleibt unberuehrt; die Zweithand-Antwort traegt denselben Faktor. |
+| **M4 — Die Rangfolge dreht, und die Konversion zaehlt.** | `tests/test_advisor_goals.py` (vorhanden, ergaenzt) | Wylder, Bezugswaffe Startarmatur: unter `type:Fire` ist die Grundlinie 0,00 und 7120100 bringt 19,80, waehrend dasselbe Relikt unter `""` nur +1,80 bringt — die Reihung gegen ein reines Angriffsrelikt dreht. Zugleich der Regressionsanker fuer AD-047.6: die Konversion **ist** in der Zahl (122,0506 → 123,8506). |
+
+**Nicht** neu getestet wird: je Schule ein Fall (M2 deckt sie), die Leiste (Spec/AK,
+T-320b), die Persistenz der Wahl (gehoert zur Spec).
+
+**Umkehrbarkeit: leicht.**
+
+---
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (A25)
+
+| Schritt | Rolle | Inhalt | Dateien |
+|---|---|---|---|
+| **A25-1** | developer | `model.attack_arts(data)`, `MOVE_SCOPED_ARTS`, `Build.art_rates` befuellen (AD-046 Punkte 1-6). Kein Aufrufer ausser dem Test. | `nrplanner/model.py`, `tests/test_move_scoped_effects.py` |
+| **A25-2** | developer | `art`-Parameter durch `damage.equipped`/`_rate`/`_answer` (AD-047 Punkte 1-4), Vorgabe `None`. Kein Aufrufer ausser dem Test. | `nrplanner/damage.py`, `tests/test_damage_art.py` |
+| **A25-3** | developer | `damage_art` auf `AdvisorRequest` und `GoalContext`, Kreuzprobe in `run`, `_max_damage` zerlegt den Wahlwert und liest Typ bzw. Art; `unknowns` fuer den Katalysatorfall (AD-045, AD-048). | `nrplanner/advisor/types.py`, `run.py`, `goals.py`, `tests/test_advisor_goals.py`, `tests/test_advisor_run.py` |
+| **A25-4** | developer | Loeschung der zwei falschen Saetze samt Zaehlung und Hilfsfunktion (AD-047.6); neuer Scope-Satz nach Spec-Wortlaut. | `nrplanner/advisor/goals.py`, `candidates.py`, `tests/test_pool_finding_wording.py`, `tests/test_advisor_candidates.py` |
+| **A25-5** | developer | Leiste: Auswahlfeld nach Spec T-320b, `asking_from` fuellt `damage_art`. **Erst nach** der Spec. | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
+
+Reihenfolge: 1 → 2 → 3 → 4, 5 zuletzt. 1 und 2 sind unabhaengig voneinander und einzeln
+lauffaehig; 3 braucht beide; 4 ist ohne 3 lauffaehig, aber inhaltlich dessen Haelfte.
+
+### Was der `developer` ausdruecklich **nicht** tun soll (A25)
+
+1. **Keine neue Zielrichtung** in `GOALS`/`GOAL_ORDER` — auch nicht "versuchsweise".
+2. **`damage_art` nie aus dem Cache-Schluessel nehmen** und kein Gegenstueck zu
+   `pool_order_only` bauen (AD-045.4).
+3. **`attack_scope` nicht aendern** und die `scoped:`-Zeile nicht ersetzen (AD-046.2/.7).
+4. **`MOVE_SCOPED_EFFECT_IDS` nicht umbauen** — die neue Abbildung tritt daneben.
+5. **Keine Art-Rate auf `catalyst_scaling`** (AD-048), auch nicht "nur fuer Zauberarten".
+6. **Keine Hierarchie Schule → Sorceries/Incantations** (siehe "Bewusst nicht getan").
+7. **Keine neue Extraktion, kein neuer Snapshot-Block, kein `EXTRACT_VERSION`-Schritt** —
+   A25 rechnet ausschliesslich auf vorhandenen Feldern (`GOAL.md` A25 "Nicht Ziel").
+8. **Die beiden falschen Saetze nicht umformulieren, sondern loeschen** (AD-047.6); ein
+   abgeschwaechter Satz waere derselbe Fehler leiser.
+9. **Nicht die Bezugswaffe waehlbar machen** — das ist OF-42, nicht A25.
+
+### Pruefpunkte (A25)
+
+- **M1-M4** wie in AD-049.
+- **M5:** `pytest -n auto` bleibt gruen **bevor** Schritt 5 beginnt; jede Abweichung in
+  einem bestehenden Test ist ein Verstoss gegen AD-047.1.
+- **M6 (Messung, `performance-tuner`):** was ein Wechsel der Art kostet — ein Poollauf, da
+  der Cache je Art zerfaellt (AD-045, Konsequenz). Gemessen wird gegen die Zeiten aus
+  AD-028/Themenbereich E, nicht gegen eine Schaetzung.
+- **M7 (GOAL-Nachweis):** der Wylder-Teil von A25 ist mit M4 erfuellt; der Revenant-Teil
+  ist in seinem Wortlaut nicht herstellbar (OF-50) und wird nicht "irgendwie" erfuellt.
+
+### Risiken (A25)
+
+1. **Die Praemisse 112/111 kippt.** R-009 nennt 111 ausdruecklich unbelegt. Merkbar
+   daran, dass eine Weapon-Art-Messung im Spiel den Faktor nicht bestaetigt. Rueckweg:
+   eine Zeile in der Zuordnungstabelle; der Bau bleibt.
+2. **Die Auswahl hat 24 Eintraege**, davon 15 mit genau einem Effekt im Datensatz. Wirkt
+   als Ueberangebot. Merkbar am Nutzerurteil, nicht an einem Test. Rueckweg: die Spec
+   gruppiert oder blendet Arten aus, zu denen der Spieler kein Relikt besitzt — eine
+   Anzeigefrage, kein Umbau.
+3. **Der Pool-Cache zerfaellt je Art** (M6). Merkbar an der Wartezeit beim Umschalten.
+   Rueckweg waere ein Pool, der alle Arten auf einmal misst — deutlich teurer und erst
+   dann zu erwaegen, wenn die Messung es verlangt.
+4. **Die geloeschten Saetze haengen an AK-67.** Wird der Wortlaut anderswo zitiert, bleibt
+   ein Widerspruch stehen; die projektweite Suche gehoert in den Bericht zu Schritt 4.
+
+### Bewusst nicht getan (A25)
+
+- **Keine Hierarchie Schule → Sorceries/Incantations.** Unter "Bestial" zaehlt das
+  Programm die Bestial-Buffs und **nicht** zusaetzlich "Improved Incantations", obwohl ein
+  Bestial-Zauber physisch beides traegt. Ableitbar waere die Zuordnung aus
+  `magParamChange`/`miracleParamChange` auf dem Schulbuff selbst (R-009: Bestial traegt
+  `miracleParamChange`) — aber genau diese Flags sind laut R-009 **nicht aufgeloest**
+  (einschraenkend oder erweiternd?), und eine Enthaltungsbeziehung aus einem ungeklaerten
+  Flag zu bauen ist die Erfindung, die A7 verbietet. **Wieder interessant, wenn** die
+  Flag-Frage aus R-009 durch eine Messung entschieden ist.
+- **Keine Kombination aus Typ und Art** ("Feuerschaden meiner Skills"). Eine Wahl, ein
+  Schluessel. Wieder interessant, wenn ein Nutzer danach fragt; der Schluessel aus AD-045.1
+  traegt die Erweiterung ohne Umbau.
+- **Kein echter Zauberschaden** (AtkParam/Bullet je Zauber). Ausdruecklich Nicht-Ziel von
+  A25; Aufwand und Unsicherheit stehen in R-009 Befund 4.
+- **Keine Sammelart "Sonstiges"** fuer die zwoelf Bewegungs-Scopes (AD-046.5).
+- **Kein Fuenf-Feld-Eimer** fuer `art_rates`, solange 0 von 81 Effekten ungleiche Raten
+  traegt (AD-046.6, bewacht durch M2).
+
+### Offene Fragen (A25)
+
+- **OF-50 (App Designer):** Das Abnahmekriterium A25 nennt "Revenant mit Siegel als
+  Referenzwaffe". Gemessen traegt **kein** Nightfarer ein Siegel als Startarmatur
+  (Revenant: Cursed Claws, Fist), und die Bezugswaffe waehlt der Spieler seit AD-038 nicht.
+  Drei Auswege: (a) der Nachweis wird auf **Recluse** (Stab) umgeschrieben und dann von
+  AD-048 beantwortet — die Wahl bleibt dort wirkungslos; (b) der Nachweis wird auf einen
+  Nicht-Katalysator umgeschrieben, z. B. Revenant unter `Magic` (Magic 71,63 von 88,65 —
+  wirksam und heute messbar); (c) die Bezugswaffe wird waehlbar, was OF-42 ist und
+  **nicht** A25. **Empfehlung: (b)**, weil es das Ziel des Kriteriums trifft, ohne eine
+  Entscheidung aufzumachen.
+- **OF-51 (App Designer):** Soll unter einer **Schulwahl** der allgemeine
+  Sorcery-/Incantation-Buff mitzaehlen? Heute entschieden mit "nein" (siehe oben).
+  Entscheidbar erst mit der Flag-Messung aus R-009.
+- **OF-52 (App Designer, eine Messung im Spiel):** Bewegt "Improved Sorceries" die
+  **Spell-Power-Anzeige** eines Stabs? Antwort "ja" macht aus AD-048 Option A die Option B
+  und gibt Recluse die Auswahl zurueck. R-009 nennt denselben Schlag als billigste
+  Entscheidung.
+- **OF-53 (`ui-ux-designer`, T-320b):** 24 Eintraege in einem Feld — Gruppierung,
+  Reihenfolge, und was das Feld zeigt, wenn die Bezugswaffe ein Katalysator ist oder der
+  gewaehlte Typ auf ihr 0,00 betraegt (Wylder unter `Fire`: Grundlinie 0,00, was eine
+  gueltige und aussagekraeftige Rangfolge ergibt — kein Fehlerfall).
+
+
+## Themenbereich N — Ziel = Womit x Schadensart, mit echten Zauberzahlen, A26 (2026-09-20, T-323b)
+
+*Anlass: `GOAL.md` A26 (Nutzer 20.09.2026, Nachtrag 17:35 zu A25). Vorlauf:
+`docs/research/R-009.md` (Mechanik der Relikt-Raten) und `docs/research/R-010.md`
+(Param-Kette Magic -> Bullet -> AtkParam, SwordArts). Entscheidungstiefe laut Auftrag:
+**Datenmodell + Extraktor + Ziel**.*
+
+**R-010 konnte seine eigenen Leseproben nicht ausfuehren** (keine Shell in der
+Rolleninstanz, R-010 Vorbemerkung). Die vier Proben aus R-010 "Offene Fragen" habe ich
+deshalb hier selbst gefahren — lesend gegen die eigene Installation
+(`d:\steam\steamapps\common\ELDEN RING NIGHTREIGN\Game\regulation.bin`,
+`regulation.load_params` + `paramdef.load_all("vendor/Paramdex/NR/Defs")`,
+Umlenkung `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-323b`, `LOCALAPPDATA`/`APPDATA` ins
+Scratchpad, kein Programmstart, kein Fensterlauf, nichts geschrieben). Alles, was unten
+"gemessen 20.09." heisst, stammt aus diesen Proben; die Skripte liegen im
+Session-Scratchpad unter `T-323b/probe*.py`. **Die Rechenformel selbst ist damit nicht
+gemessen** — sie bleibt Praemisse (siehe unten und OF-54).
+
+### Praemissen dieses Themenbereichs
+
+| Praemisse | Quelle | Guete |
+|---|---|---|
+| Ein Zauber traegt seinen Grundwert nicht selbst: `Magic.refId1..10` -> `Bullet` -> `Bullet.atkId_Bullet` -> `AtkParam_Pc.atkPhys/atkMag/atkFire/atkThun/atkDark`. | **selbst gemessen 20.09.**: 491 Verweise ueber 160 benannte Zauber, 430 davon in `Bullet` aufloesbar, 111 Zauber mit mindestens einer schadenstragenden AtkParam-Zeile | belegt |
+| Der Def `AtkParam.xml` passt auf `AtkParam_Pc` und wird nur unter dem falschen Schluessel gesucht (`defs.get("AtkParam_Pc")` -> None). | **selbst gemessen 20.09.**: Def-Zeilenlaenge 464 B = Zeilenlaenge der Tabelle, 8988 Zeilen, 211 gelesene Felder je Zeile (R-010 Befund 2 bestaetigt) | belegt |
+| Eine Waffenkunst traegt ihre Zahl als **Motion Value** in `atk*Correction`, nicht als flachen Schaden: die fuenf Korrekturwerte sind auf einer Kunst gleich. | **selbst gemessen 20.09.**: 147 `SwordArtsParam`-Zeilen mit aufloesbarem `atkParamId`, davon **135 mit fuenf gleichen Korrekturwerten**, 50 mit zusaetzlichem flachem Anteil; Wylder 215 %, Executor 190 %, Undertaker 235 %, Scholar 99 %, Guardian 50 % | belegt fuer die Struktur, **unkalibriert** fuer die Zahl |
+| Scope 112 ist die Waffenkunst — nicht nur Nutzerpraemisse, sondern in den Params: die AtkParam-Zeilen der Waffenkuenste tragen `subCategory1/2` = 112. | **selbst gemessen 20.09.**: 141 der 147 Kunst-Zeilen tragen 112 in `subCategory1` oder `subCategory2` (112/0: 112 Zeilen, 0/112: 14, 105/112: 5, 111/112: 3, …) | belegt — **hebt die A25-Praemisse "gesetzt" auf belegt** |
+| Der Zauber, den ein Tauschrelikt setzt, steht in `SpEffectParam` an **Offset 1020** (s32), im vom Def nicht beschriebenen Zeilenrest (Def 976 B, Zeile 1024 B). | **selbst gemessen 20.09.**: genau **10** der 13 472 Zeilen tragen dort keinen `-1`, und alle zehn sind genau die Magic-Id, die der Effekttext nennt (7360600 -> 4390 Magic Glintblade, …, 7370900 -> 6820 Beast Claw, 7371500 -> 7000 Dragonfire) | belegt, Gegenprobe ueber den Namen 10/10 |
+| Die linke Starthand steht in `CharaInitParam.equip_Wep_Left_1`; drei Nightfarer tragen dort etwas. | Auftrag (Messung 20.09.), **selbst nachgemessen**: Wylder 30750000 Small Shield (`wepType` 65), Guardian 32750000 Greatshield (69), Revenant 34750000 Finger Seal (61, `enableMiracle` 1), die uebrigen sieben −1 | belegt |
+| Der Standardzauber eines Katalysators steht **nicht** in `CharaInitParam` (Zeilen 90000-90009 tragen `equip_Spell_01..07` leer), sondern am Katalysator selbst: `equipped_spells` steht seit `extract_version` 9 im Auszug. | **selbst gemessen 20.09.**: Recluse's Staff -> 4000 Glintstone Pebble, 4070 Glintstone Arc; Finger Seal -> 6400 Rejection, 6421 Heal | belegt |
+| **Zauberschaden = Grundwert x Spell Power/100 x Raten.** | R-009 Befund 4 und R-010: belegt fuer **Elden Ring**, fuer Nightreign in keiner Quelle | **Praemisse, unvermessen** (OF-54) |
+| Elementraten wirken auf jeden Treffer ihrer Schadensart, auch auf einen Zauber. | `GOAL.md` A26 "Praemissen"; R-009 Befund 5 (Ableitung aus zwei belegten Bausteinen) | gesetzt |
+| Gleiches Feld, verschiedene Effekte: multiplikativ. Verschiedener Scope: nie miteinander multiplizieren. | R-005 (zwei Messungen), `model.py` Z. 397-402 | belegt |
+| Unter einer Schulwahl zaehlt der allgemeine Sorcery-/Incantation-Buff mit. | Nutzer 19.09. (OF-51), gebaut in `model.art_factor` | entschieden |
+
+### Was die Proben an Zahlen gebracht haben (20.09.2026)
+
+| Probe | Ergebnis |
+|---|---|
+| Glintstone Pebble (Magic 4000) | eine schadenstragende Zeile, `atkMag` **152**, `atkPhys/Fire/Thun/Dark` 0, `isAddBaseAtk` 0, `overwriteAttackElementCorrectId` −1, Korrekturen 100/100/100/100/100 |
+| Beast Claw (Magic 6820) | zwei Zeilen, `atkPhys` **323** und **362** — eine Bestial-Incantation ist **physisch**, nicht heilig |
+| Lightning Spear (6900) | drei Zeilen, `atkThun` 234 / 50 / 340, Korrektur nur in der Donnerspalte |
+| Wylder's Greatsword 3750000 | `swordArtsParamId` 106 -> `SwordArtsParam.atkParamId` 300000290 -> AtkParam-Zeile **ohne** flachen Schaden, fuenf Korrekturen je **215**, `subCategory1` 112 |
+| Zauber mit Schadenszahl | **111 von 160** benannten Zaubern; 49 ohne (Heilung, Buffs, Schilde — richtig so) |
+| Zeilen je Zauber | 1: 36 Zauber · 2: 46 · 3: 7 · 4: 12 · 5: 2 · 6: 6 · 7: 1 · 8: 1 |
+| Regel fuer "die" Zeile | staerkster Einzeltreffer (Summe ueber die fuenf Typen) und erste Zeile ergeben **in 111 von 111 Faellen dieselbe Schadensartmenge**; sie ergeben unterschiedliche **Betraege** (Beast Claw 362 gegen 323) |
+| Schule -> Schadensart | **nicht** eindeutig: Bestial 4 Zauber alle physisch, Dragon Cult 7 alle Donner, Giants' Flame 7 alle Feuer — aber Dragon Communion mischt Feuer/Magie/Physisch, Frenzied Flame Feuer/Physisch |
+| Spell Power der Startkatalysatoren (Stufe 15, Stufe 1, ohne Relikte) | Recluse's Staff **135,6136**; Finger Seal in Revenants linker Hand **159,5455** (hohe Faith) |
+
+**Der Befund, der den Zuschnitt traegt:** der Zauberbezug der zehn Tauschrelikte ist
+**in den Params**, nicht nur im Text. Damit braucht A26 keinen Namensabgleich als
+tragende Route (er bleibt als Gegenprobe), und `nightreign_data.json` kann je Effekt
+eine Zauber-Id fuehren, die ein Patch selbst nachzieht.
+
+**Der zweite Befund, der Arbeit spart:** die Motion Values einer Waffenkunst sind ueber
+die fuenf Schadensarten **gleich** (135 von 147). Eine Waffenkunst aendert also die
+**Mischung** der Schadensarten einer Waffe nicht — sie skaliert sie. Fuer die Zelle
+"Weapon art x Schadensart" heisst das: `final_per_type` der Waffe mal die Skill-Rate ist
+bereits die richtige Form, und eine Extraktion der Kunstdaten bringt dieser Zelle
+**keine Rangfolgeaenderung**, nur einen absoluten Faktor je Nightfarer.
+
+---
+
+### AD-050 — Der Extraktor bekommt **drei** Lesungen und eine Zeilenverlaengerung, keine vierte Quelle: linke Starthand, Zauber-Angriffswerte ueber `Magic -> Bullet -> AtkParam_Pc`, und die Zauber-Id des Tauschrelikts aus dem unbeschriebenen `SpEffectParam`-Rest; `EXTRACT_VERSION` 16 (2026-09-20, Status: aktiv; setzt AD-011/AD-012 fort, Waffenkunst-Daten ausdruecklich **nicht**)
+
+**Kontext.** A26 verlangt echte Zauberzahlen. Heute traegt der Auszug je Zauber nur
+Kosten, Slots, Schule und Symbol (R-009 Befund 4), je Nightfarer nur die **rechte**
+Starthand, und die Tauschrelikte tragen im Auszug **leere** Modifikatoren — der
+Zauberbezug faellt beim Extrahieren durch, weil der Def die letzten 48 Bytes der Zeile
+nicht beschreibt.
+
+**Kraefte.** Jede neue Lesung kostet Erstlaufzeit (AD-030/Themenbereich E) und macht den
+festen Testabzug ungueltig. Gegen die Kosten steht, dass **ohne** Zauberwerte jede Zelle
+der Zauberspalte ohne Zahl bleibt und A26 in seinem Kern unerfuellbar ist.
+
+**Optionen.**
+- **A — im Bestand bleiben**, keine neue Extraktion (die A25-Verbotszeile 7 woertlich
+  halten). Konsequenz: die Zauber-Ziele ranken weiter auf Spell Power allein, "Bestial x
+  Physical" kann nicht unterscheiden, ob der Zauber ueberhaupt physisch ist. A26 faellt.
+  Verworfen — der Nutzer hat A26 nach genau dieser Erfahrung geschrieben.
+- **B — die ganze Kette extrahieren**, Zauber **und** Waffenkuenste (Motion Values je
+  Kunst). Konsequenz: `SwordArtsParam` loest nur fuer 147 von 194 Zeilen auf, Ironeyes
+  Kunst-`atkParamId` steht in **keiner** `AtkParam_Pc`-Zeile, und ein Motion Value ohne
+  Kalibrierung gegen das Spiel ist eine Zahl, die niemand pruefen kann. Verworfen.
+- **C — Zauberwerte ja, Waffenkuenste nein** (gewaehlt). Drei Lesungen, eine
+  Zeilenverlaengerung, kein Kunst-Datenblock.
+
+**Entscheidung: C.**
+
+**Punkte.**
+1. **Linke Starthand.** `extract.build` liest die Zeilen 90000-90009 bereits; dort kommt
+   `equip_Wep_Left_1` dazu, als `heroes[].offhand_weapon` (Feld **fehlt**, wenn −1 — kein
+   `null`, wie `inflicts` bei Waffen). Gemessen sind es drei Nightfarer (Wylder,
+   Guardian, Revenant); zwei davon tragen einen Schild, einer das Siegel, auf das A26
+   zielt.
+2. **Zauber-Angriffswerte.** Neue Felder je Zauber im vorhandenen Block `spells`:
+   `damage: {"<Typ>": <Grundwert>}` (nur die Typen ueber 0) und `damage_atk` (die
+   AtkParam-Zeile, aus der die Werte stammen, damit eine spaetere Probe weiss, wohin sie
+   schauen muss). Kein eigener Block, keine Bullet-Kette im Auszug: der Auszug traegt das
+   **Ergebnis** der Kette, nicht die Kette.
+3. **Die Zeile, die zaehlt, ist der staerkste Einzeltreffer** — `max` ueber die Summe der
+   fuenf Typen. Begruendung ist die Messung "erste Zeile und staerkste Zeile nennen in
+   111 von 111 Faellen dieselbe Schadensartmenge": die Wahl aendert **keine** Rangfolge,
+   nur den Betrag, und der staerkste Treffer ist die einzige Regel, die ohne
+   Reihenfolgeannahme ueber `refId1..10` auskommt (Rock Blaster traegt in der ersten
+   Zeile 64 und im Haupttreffer 260). Die Decke ist benannt: bei einem Zauber mit
+   geladener Variante ist das der **geladene** Wert (Beast Claw 362 statt 323). OF-57.
+4. **Der Def wird an genau einer Stelle verlaengert**, nach dem Muster, das
+   `extract.build` fuer `AntiqueStandParam` schon benutzt (Z. 1702-1713): ein Feld
+   `startMagicId` (`s32`) an Offset 1020 von `SpEffectParam`, Zeile 1024 B, Def 976 B.
+   Danach traegt der Effekt `7370900` im Auszug `modifiers["startMagicId"] = 6820` und
+   verhaelt sich wie `startSwordArtsId` bei den Kunst-Tauschrelikten. **Kein
+   Namensabgleich als tragende Route** — er bleibt Gegenprobe (Pruefpunkt N2).
+5. **Der Def-Schluessel fuer `AtkParam_Pc` ist ein Alias**, keine Kopie:
+   `defs.get("AtkParam_Pc") or defs.get("AtkParam")`. Gemessen passt der Def auf die
+   Zeile (464 B, 211 Felder); ohne den Alias liefert `param.read` **null** Felder je
+   Zeile und die ganze Kette faellt still aus (R-010 Befund 2).
+6. **`EXTRACT_VERSION` 15 -> 16.** Damit ist der feste Testabzug
+   (`NightreignHelper-Testabzug`, v15) ungueltig; der erste betroffene Auftrag baut ihn
+   neu und vermerkt es in `docs/plan-restarbeiten.md` (Projektregel in `CLAUDE.md`).
+7. **Keine Waffenkunst-Daten.** Kein `sword_arts`-Block, kein `motion_value` je Waffe.
+   Was die Probe dazu gebracht hat, steht als Messung in diesem Dokument und begruendet
+   AD-053 Punkt 3 — mehr braucht A26 nicht.
+8. **Keine Bullet-, keine Behavior-Tabelle im Auszug.** Die Zwischenstufen sind
+   Extraktionsdetail; im Auszug stehen Zahlen, nicht Verweise.
+
+**Konsequenzen.** Leicht wird: ein Patch, der einen Zauber staerkt oder einem
+Tauschrelikt einen anderen Zauber gibt, zieht ohne Codeaenderung nach. Dauerhaft schwer
+wird: das nachdeklarierte Feld haengt an einem **Offset**, nicht an einem Namen — ein
+Patch, der die Zeile umbaut, liefert stumm Unsinn. Deshalb Pruefpunkt N2 (genau zehn
+Zeilen ungleich −1, und jede davon eine bekannte Magic-Id) — dieselbe Bauform wie
+`catalyst_scaling_rates`, die aus demselben Grund laut scheitert.
+
+**Umkehrbarkeit: mittel.** Die Felder wieder zu entfernen ist eine Zeile je Feld plus
+ein `EXTRACT_VERSION`-Schritt; der Testabzug muss dann erneut gebaut werden.
+
+---
+
+### AD-051 — Die Frage hat **zwei** Felder, nicht ein Praefix: `hit_with` x `damage_type` ersetzt `damage_art`, und genau eine Stelle kombiniert sie (2026-09-20, Status: aktiv; **loest AD-045 Punkt 1 ab** — der zusammengesetzte Wahlwert faellt —, laesst AD-045 Punkte 2-6 und die `GOALS`-Registry unberuehrt)
+
+**Kontext.** A25 hat eine Wahl gebaut: entweder ein Schadenstyp **oder** eine Angriffsart
+(`damage_art`, ein Praefixwort). A26 verlangt ausdruecklich die **Kombination** ("bufft
+ein Schadenstyp eine Weapon Art, muss die Kombination richtig errechnet werden"). Eine
+Wahl aus 24 Eintraegen kann das nicht ausdruecken.
+
+**Optionen.**
+- **A — Praefix erweitern** (`art:skill+type:Fire`). Konsequenz: ein Wahlwert, der zwei
+  Dinge in einer Zeichenkette fuehrt und an zwei Stellen zerlegt werden muss. Genau die
+  Bauform, die AD-045 Punkt 1 auf **eine** zerlegende Stelle beschraenkt hatte.
+  Verworfen.
+- **B — zwei Felder** (gewaehlt): `AdvisorRequest.hit_with: str = ""` und
+  `AdvisorRequest.damage_type: str = ""`, dieselben zwei auf `GoalContext`. `hit_with`
+  traegt `""` (Waffe, Vorgabe) · `art` (Waffenkunst) · `sorceries` · `incantations` ·
+  `family:<id>`; `damage_type` traegt `""` (alle) oder einen der fuenf Namen aus
+  `weapons.DAMAGE_TYPES`.
+- **C — 30 Zielrichtungen.** Aus denselben Gruenden verworfen wie in AD-045 (Poolkosten
+  je Richtung).
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Die Schluesselform von `hit_with` ist die von `damage_art` ohne das Praefix `art:`**
+   — `model.ART_LABELS` und `model.ART_FAMILY_PREFIX` bleiben, `art_factor` bleibt
+   unveraendert, und `goals.chosen_label` wird von einer Zerlegung zu zwei Nachschlagen.
+   **`type:`/`art:` verschwindet**, weil das Feld die Frage schon beantwortet.
+2. **Beide Felder sind im Cache-Schluessel**, aus demselben Grund wie AD-045 Punkt 4
+   (`run.cache_key` ist die Anfrage ohne `generation`) und mit derselben Verbotszeile: der
+   Poolinhalt haengt an beiden.
+3. **Genau eine Stelle kombiniert**: `goals._max_damage`. Die Fassade bekommt
+   `art=hit_with` wie heute und liefert `final_per_type`; das Ziel greift die Zeile
+   `damage_type` heraus oder nimmt die Kopfzahl. **Das ist der ganze Bau fuer die vier
+   Waffen-/Kunstzellen** — die Fassade multipliziert die Art bereits je Schadensart
+   (`damage._answer`, "Last, and once per damage type"), nur das Ziel hat die beiden Faelle
+   bisher als `if/elif` getrennt.
+4. **Der Nullfall bleibt bitgleich.** `hit_with=""` und `damage_type=""` ist die heutige
+   Kopfzahl; die bestehende Suite ist die Probe (wie AD-047 Punkt 1).
+5. **Die Persistenz** folgt der gebauten Form (`advisorbar.DAMAGE_ART_KEY`): **zwei**
+   Schluessel `advisor/hit_with` und `advisor/damage_type` statt einem. Ein alter Wert
+   `type:Fire` oder `art:skill` im Einstellungsspeicher wird **nicht** uebersetzt,
+   sondern verworfen — er ist eine Woche alt, und eine Umschreibregel fuer einen
+   einwoechigen Schluessel ist Pflege ohne Nutzen.
+6. **Die Leiste** zeigt zwei Felder. Wortlaut, Anordnung, Gruppierung und was ein Feld
+   zeigt, wenn das andere seine Zellen leert, gehoeren der Spec (OF-56), nicht hier.
+
+**Konsequenzen.** Leicht: jede weitere Frage an dieselbe Zahl ist ein drittes Feld.
+Schwer: der Pool-Cache zerfaellt jetzt ueber **zwei** Achsen (AD-045 Konsequenz,
+verschaerft) — zu messen, nicht zu schaetzen (Pruefpunkt N6).
+
+**Umkehrbarkeit: leicht** (beide Felder auf `""` nageln).
+
+---
+
+### AD-052 — Das **Bezugsobjekt** haengt an `hit_with`: Waffe und Kunst an der Startarmatur, Zauber am Start-Katalysator und an **dem Zauber, den die Ausruestung tatsaechlich wirft** (2026-09-20, Status: aktiv; erweitert AD-038 um eine zweite Hand, laesst die Bezugswaffe weiter ungewaehlt)
+
+**Kontext.** Der Berater rankt seit AD-038 gegen die **Startarmatur in Slot 1**. Ein
+Zauberziel braucht ein anderes Bezugsobjekt: einen Katalysator und einen Zauber. Beide
+sind gemessen vorhanden — aber nicht dort, wo A25 sie vermutet hat.
+
+**Gemessen (20.09.):** genau **zwei** Nightfarer starten mit einem Katalysator — Recluse
+mit dem Stab in der **rechten** Hand (`wep_type` 57, `enableMagic`), Revenant mit dem
+Finger Seal in der **linken** (`wep_type` 61, `enableMiracle`). Die uebrigen acht haben
+keinen. Der Zauber steht am Katalysator: Recluse's Staff `equipped_spells` = Glintstone
+Pebble (4000, `atkMag` 152) und Glintstone Arc; Finger Seal = **Rejection und Heal** —
+zwei Zauber **ohne jeden Schadenswert**.
+
+**Optionen.**
+- **A — Bezugsobjekt waehlbar machen.** Das ist OF-42 und nicht A26. Verworfen.
+- **B — aus der Startausruestung ableiten** (gewaehlt): Katalysator = die Starthand, die
+  einen traegt (rechts vor links, gemessen kollidiert das nie); Zauber = der von einem
+  Tauschrelikt gesetzte (`startMagicId`, AD-050.4), sonst `equipped_spells[0]` des
+  Katalysators.
+- **C — einen Zauber je Schule als Vertreter waehlen** ("eine Incantation dieser Schule",
+  `GOAL.md` A26 nennt das als Nicht-Ziel). Verworfen: welcher Zauber der Vertreter waere,
+  stuende nirgends im Spiel — A7.
+
+**Entscheidung: B.**
+
+**Punkte.**
+1. **Rechts vor links**, und links nur, wenn rechts keiner ist. Gemessen hat kein
+   Nightfarer zwei.
+2. **Der Tauscheffekt schlaegt den Standardzauber.** Liegt einer der zehn Effekte
+   (7360600..7371500) im Build, ist **sein** Zauber das Bezugsobjekt; er ist damit
+   zugleich ein **Kandidat**, der die Zahl bewegt — und der einzige Effekt im Datensatz,
+   der den Grundwert selbst aendert statt einer Rate.
+3. **Liegen zwei Tauscheffekte im Build**, gewinnt der mit dem hoeheren Grundwert unter
+   der gewaehlten Schadensart. Begruendung: `exclusivityId` 200 auf allen zehn (gemessen)
+   sagt, dass das Spiel selbst nur einen wirken laesst, aber **nicht welchen**; die
+   Auswahl "der staerkere" ist die einzige, die der Berater treffen kann, ohne eine
+   Reihenfolge zu erfinden, und sie ist die, die ein Spieler anstrebt. Als Befund des
+   Laufs gesagt, nicht stillschweigend (AD-025.2).
+4. **Ein Siegel wirft keine Sorceries und ein Stab keine Incantations.** `enableMagic` /
+   `enableMiracle` entscheiden, und wo die Wahl nicht passt, ist die Zelle leer mit
+   Grund (Kombinationstabelle unten). Die beiden Felder kommen aus `EquipParamWeapon`
+   und stehen heute **nicht** im Auszug — sie werden **nicht** ergaenzt: `wep_type` 57
+   (Stab) und 61 (Siegel) tragen dieselbe Unterscheidung und stehen schon da.
+5. **Der Standardzauber eines Siegels traegt keinen Schaden** (Rejection, Heal —
+   gemessen). Die Zahl ist dann **0,00**, und das ist eine Aussage, keine Luecke: ohne
+   ein Tauschrelikt wirft Revenants Startausruestung nichts, was Schaden macht. Der Lauf
+   sagt es, und dieselbe Rangfolge hebt genau die Relikte hoch, die es aendern. **Kein
+   Rueckfall auf Spell Power** — zwei Massstaebe in einer Rangfolge sind der Fehler aus
+   QA-018 in neuer Gestalt (der Grenzbeitrag eines Tauschrelikts waere die Differenz
+   zweier verschiedener Groessen).
+6. **Acht Nightfarer ohne Katalysator**: jede Zauberzeile ist fuer sie leer, mit Satz.
+   Ob die Leiste sie dann ausblendet, entscheidet die Spec (OF-56).
+
+**Konsequenzen.** Leicht: die Zauberziele stehen und fallen mit zwei Feldern im Auszug.
+Schwer: die Aussagekraft haengt an der Startausruestung — was der Spieler im Lauf
+findet, kennt das Programm nicht und behauptet es auch nicht.
+
+**Umkehrbarkeit: leicht** fuer die Wahlregel; **mittel** fuer die linke Hand (sie haengt
+an AD-050 und damit am Extrakt).
+
+---
+
+### AD-053 — Die Zauberzahl entsteht in der **Fassade** (`damage.spell`) nach derselben Bauform wie die Waffenzahl, und sie loest AD-048 **fuer Zauberziele** ab, nicht fuer Waffenziele (2026-09-20, Status: aktiv; **engt AD-048 ein**, wahrt AD-019/AD-021, beruehrt AD-020 nicht)
+
+**Kontext.** AD-048 sagt: auf einer Katalysator-Bezugswaffe erreicht keine Art- und keine
+Typwahl die Zahl, weil das Programm sonst eine Rate auf eine **Skalierungszahl** legen
+wuerde, die es nicht messen kann. Das bleibt richtig, solange die Zahl die angezeigte
+Spell Power ist. Mit einem Grundwert je Zauber ist die Zahl ein **Schaden**, und eine
+Angriffsrate auf einen Schaden ist genau das, was die Params sagen.
+
+**Optionen.**
+- **A — AD-048 unveraendert halten.** Konsequenz: A26 ist fuer Recluse und Revenant nicht
+  herstellbar — also genau fuer die beiden Nightfarer, um die es geht. Verworfen.
+- **B — im Ziel rechnen** (`_max_damage` multipliziert Grundwert, Spell Power und Raten
+  selbst). Verworfen aus demselben Grund wie AD-047 Option A: eine zweite
+  Multiplikatorschicht ausserhalb der Fassade (AD-019/AD-021).
+- **C — in der Fassade** (gewaehlt): `damage.spell(catalyst, tier, spell, build, hero,
+  data, *, art=None) -> SpellRating`, ein Geschwister von `equipped`, das dieselbe
+  Ratenschleife benutzt.
+
+**Entscheidung: C.**
+
+**Punkte.**
+1. **Die Formel, je Schadensart T:**
+
+   ```
+   figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+   figure    = sum(figure[T])                      # "alle Schadensarten"
+   ```
+
+   `base[T]` aus `spells[].damage` (AD-050.3), `spell_power` aus
+   `weapons.rate(catalyst, …).catalyst_scaling` — **dieselbe** Zahl, die das Programm am
+   Stab anzeigt, also dieselbe 90er-Kalibrierung und keine zweite —, `rate[T]` aus
+   `AR_RATE_FOR[T]` (die allgemeinen `*AttackRate`), `art_rate` aus `model.art_factor`
+   (Gattung x Schule, OF-51).
+2. **Die Ratenschleife wird geteilt, nicht kopiert.** Der Kern von `damage._answer`
+   (je Schadensart die Felder aus `AR_RATE_FOR` multiplizieren, `rates_in_play` mitfuehren)
+   wird ein Helfer, den beide Wege rufen. Ohne das gaebe es zwei Orte, die dieselbe
+   Multiplikation bilden — Zusicherung Z1/AD-024.
+3. **Keine Motion Values, kein Kunst-Grundwert.** Die Zelle "Weapon art x T" bleibt
+   `final_per_type[T] x art_rate(skill)`, und das ist gemessen die richtige **Form**: die
+   fuenf Korrekturwerte einer Kunst sind gleich (135/147), eine Kunst verschiebt die
+   Mischung der Schadensarten also nicht. Was fehlt, ist ein konstanter Faktor je
+   Nightfarer (Wylder x2,15), der **keine** Rangfolge aendert. Er wird nicht erfunden.
+4. **Was einen Zauber ausdruecklich nicht erreicht:** die Klassenraten
+   (`build.class_rates`, ein Zauber ist kein Schwung einer Waffenklasse), der
+   Zweihand-Eimer, die Startwaffen-Konversion und der Statusmalus
+   (`STARTING_AR_RATE_FOR`, beides Eigenschaften der Armatur in Slot 1, nicht des
+   Zaubers). Jede dieser vier Auslassungen ist eine Entscheidung und steht im Docstring.
+5. **AD-048 bleibt gueltig fuer `hit_with = ""` und `art`** — fragt der Spieler nach der
+   **Waffe** und ist die Bezugswaffe ein Katalysator (Recluse), gibt es weiter keine
+   Angriffskraft, keine Typzeilen und den Satz aus `_ART_ON_A_CATALYST`. Die Einengung
+   ist ausdruecklich: AD-048 galt "jede Art- und Typwahl", sie gilt jetzt "jede Art- und
+   Typwahl **auf der Waffenfrage**".
+6. **OF-52 wird dadurch nicht beantwortet, sondern gegenstandslos fuer diesen Weg**: die
+   Rate liegt nicht mehr auf der angezeigten Spell Power, sondern auf dem Schaden, in den
+   die Spell Power als Faktor eingeht. Ob die **Anzeige** des Stabs im Spiel sich unter
+   "Improved Sorceries" bewegt, bleibt offen und ist fuer die Waffenkachel weiter
+   interessant.
+7. **Die Zahl traegt eine eigene Beschriftung** (`Spell damage`) und **keine** Einheit aus
+   `weapons.DAMAGE_LABELS`-Familie: sie ist gegen nichts kalibriert, was das Spiel
+   anzeigt. Dass sie eine Schaetzung unter einer unvermessenen Formel ist, gehoert in die
+   `unknowns` des Laufs (Wortlaut: Spec, OF-55).
+
+**Konsequenzen.** Leicht: jede spaetere Anzeige eines Zauberschadens fragt dieselbe
+Fassade. Schwer: das Programm zeigt zum ersten Mal eine Zahl, die **keine** Entsprechung
+auf dem Spielschirm hat — bisher war jede Zahl gegen eine Anzeige gefittet (R-004,
+QA-099). Das ist der Preis fuer A26 und muss in der Oberflaeche sichtbar sein.
+
+**Umkehrbarkeit: mittel.** Der Weg faellt mit einer Verzweigung zurueck auf AD-048; die
+**Erwartung** des Nutzers, eine Zauberzahl zu sehen, faellt nicht so leicht zurueck.
+
+---
+
+### AD-054 — Der Testschnitt haengt an **fuenf** Zusicherungen: Nullfall bitgleich, Kette gegen den Datensatz, Kombination genau einmal, Tauschrelikt bewegt den Grundwert, leere Zelle sagt warum (2026-09-20, Status: aktiv; setzt AD-049 fort, erweitert dessen vier um eine und legt **eine** neue Datei an)
+
+**Kontext.** 5 x 6 Zellen mal zehn Nightfarer ist eine Matrix, die niemand pflegt. Was
+traegt, sind fuenf Saetze.
+
+**Entscheidung: fuenf Zusicherungen**, davon drei in vorhandenen Dateien.
+
+| Zusicherung | Wo | Inhalt |
+|---|---|---|
+| **N1 — Ohne Wahl ist nichts anders.** | vorhandene Suite | `hit_with=""`, `damage_type=""` liefert bitgleich die heutige Zahl; faellt ein bestehender Test, ist der Bau falsch. |
+| **N2 — Die Extraktion stimmt gegen die Params.** | `tests/` neu bei den Extraktortests | Genau **10** SpEffect-Zeilen mit `startMagicId` ungleich −1, jede eine Magic-Id, die der Auszug kennt, und jede gleich der im Effektnamen genannten (Namensgegenprobe); **111** Zauber mit `damage`; Glintstone Pebble `Magic` 152 und Beast Claw `Physics` 362 als Anker; `AtkParam_Pc` liefert mit dem Alias-Def mehr als 0 Felder je Zeile. |
+| **N3 — Die Kombination wirkt genau einmal.** | `tests/test_damage_art.py` (vorhanden, erweitert) | `hit_with=art` **und** `damage_type=Fire` zusammen: die Zahl ist `final_per_type["Fire"] x 1,21`, nicht `x1,21²` und nicht die Kopfzahl; unter `damage_type=Magic` traegt dasselbe Relikt nichts. |
+| **N4 — Das Tauschrelikt bewegt den Grundwert.** | `tests/test_advisor_goals.py` (vorhanden, ergaenzt) | Revenant, `hit_with=incantations`: ohne Relikt 0,00 (Rejection/Heal tragen keinen Schaden), mit 7370900 (Beast Claw) > 0; unter `hit_with=family:23` (Bestial) zaehlt zusaetzlich die Schul-Rate, unter `family:22` (Dragon Cult) nicht — der Zauber gehoert der falschen Schule. |
+| **N5 — Eine leere Zelle sagt, warum sie leer ist.** | dieselbe Datei | Wylder unter `hit_with=sorceries`: keine Zahl, ein Befund in `unknowns`, und **kein** stiller 0,00. Recluse unter `hit_with=""` mit `damage_type=Fire`: der AD-048-Satz, unveraendert. |
+
+**Nicht** neu getestet: je Schule ein Fall (N4 deckt die Regel), die Leiste (Spec), die
+Motion Values (nicht gebaut).
+
+**Umkehrbarkeit: leicht.**
+
+---
+
+### Die Kombinationstabelle — 5 x 6 Zellen, je Formel, Bezugsobjekt und was zaehlt
+
+*Abkuerzungen: **AR** = `damage.equipped(Startarmatur, Slot 1).final_*` (enthaelt
+Attribute ueber die Kurve, allgemeine und Klassenraten, Zweihand-Eimer,
+Startwaffen-Konversion und Statusmalus); **SP** = `catalyst_scaling` des
+Start-Katalysators; **B[T]** = Grundwert des Bezugszaubers in Schadensart T;
+**r[T]** = `AR_RATE_FOR[T]` aus `build.rates`; **a** = `model.art_factor`.*
+
+| `hit_with` \ `damage_type` | **All** | **Physical / Magic / Fire / Lightning / Holy** (Zelle T) |
+|---|---|---|
+| **Weapon** (Vorgabe) | `AR.final_headline` — heutige Zahl, bitgleich | `AR.final_per_type[T]` — heutige Zahl unter A25 |
+| **Weapon art** | `AR.final_headline x a(skill)` | `AR.final_per_type[T] x a(skill)` — **neu in A26**: die Kombination, die A25 nicht ausdruecken konnte |
+| **Sorceries** | `Σ_T B[T] x SP/100 x r[T] x a(sorceries)` | `B[T] x SP/100 x r[T] x a(sorceries)` |
+| **Incantations** | wie Sorceries, mit `a(incantations)` | wie Sorceries, mit `a(incantations)` |
+| **Schule** `family:<id>` | wie die Gattung des Katalysators, zusaetzlich `x a(family:<id>)` **nur wenn der Bezugszauber dieser Schule angehoert** | dasselbe je Zelle T |
+
+**Bezugsobjekt je Zeile:** Zeile 1 und 2 die **Startarmatur in Slot 1** (AD-038,
+unveraendert). Zeile 3 bis 5 der **Start-Katalysator** (rechts vor links, AD-052) und der
+Zauber aus AD-052 Punkt 2.
+
+**Welche Relikt-Felder in welcher Zelle zaehlen:**
+
+| Feldfamilie | Weapon | Weapon art | Zauber-Zeilen |
+|---|---|---|---|
+| `*AttackRate` ungescopt (Elementraten, 213-216 Effekte) | ja, je Typ | ja, je Typ | **ja, je Typ** (Praemisse A26) |
+| Klassenraten (`class_rates`, "Improved Melee/Ranged/…") | ja | ja | **nein** — ein Zauber ist kein Schwung einer Waffenklasse |
+| Zweihand-Eimer (AD-037) | ja, wenn die Hand es sagt | ja | **nein** |
+| Scope 112/111 (Skill-Buffs) | nein (gescopt) | **ja**, ueber `a(skill)` | nein |
+| `magParamChange`/`miracleParamChange`-Buffs (Improved Sorceries/Incantations, Id-Liste) | nein | nein | **ja**, ueber `a(sorceries|incantations)` |
+| Schul-Buffs (Scope 2..28) | nein | nein | **ja**, wenn der Zauber der Schule angehoert |
+| Charged (Scope 110) | nein | nein | waehlbar wie eine Schule; der Grundwert bleibt der ungeladene Haupttreffer (OF-57) |
+| Attribute ueber die Kurve (Str/Dex/Int/Fai/Arc) | ja, in der AR | ja | **ja**, in SP — deshalb steigen Faith-Relikte in Revenants Incantation-Zelle |
+| Startwaffen-Konversion (`starting_flat`, −30/+33…) | ja (AD-038/AD-047.6) | ja | **nein** |
+| Statusmalus (`*AttackPowerRate` 0,85) | ja | ja | **nein** |
+| `startMagicId` (die zehn Tauschrelikte) | nein | nein | **ja — sie aendern `B[T]` selbst** (AD-052.2) |
+| `characterSkillAttackRate` (Duchess) | nein | nein | nein — Nightfarer-Faehigkeiten bleiben ausserhalb (A26 "Nicht Ziel") |
+
+**Leere Zellen und was sie sagen** (alle als Befund des Laufs, AD-025.2):
+
+| Fall | Zelle | Satz (sinngemaess, Wortlaut: Spec) |
+|---|---|---|
+| Nightfarer ohne Katalysator (8 von 10) | alle Zauber-Zeilen | "Dieser Nightfarer startet ohne Stab und ohne Siegel." |
+| Stab, aber `hit_with=incantations` (Recluse) | Zauber-Zeile | "Ein Stab wirkt Sorceries, keine Incantations." |
+| Siegel, aber `hit_with=sorceries` (Revenant) | Zauber-Zeile | Gegenstueck dazu |
+| Katalysator als **Startarmatur**, `hit_with` = Weapon/Weapon art (Recluse) | ganze Zeile | der AD-048-Satz, unveraendert |
+| Bezugszauber ohne Schadenswert (Finger Seal: Rejection, Heal) | Zauber-Zeilen | Zahl **0,00** plus Satz: erst ein Relikt, das den Zauber tauscht, bringt Schaden |
+| Zauber traegt Schadensart T nicht (Beast Claw unter `Fire`) | Zelle T | **0,00**, kein Sonderfall: eine gueltige Rangfolge, in der jeder Kandidat mit Feueranteil darueber steht |
+| Schule, der der Bezugszauber nicht angehoert | Zelle | Zahl ohne Schulfaktor plus Satz, welcher Zauber gerechnet wurde |
+
+**Was die Tabelle bewusst nicht kann:** sie rankt "einen Zauber dieser Ausruestung",
+nicht "den besten Zauber dieser Schule" (A26 "Nicht Ziel"), und sie kennt keinen Zauber,
+den der Spieler im Lauf findet.
+
+### Umsetzung — Schnitt in einzeln lauffaehige Schritte (A26)
+
+| Schritt | Rolle | Inhalt | Dateien |
+|---|---|---|---|
+| **A26-1** | developer | Extraktor: `AtkParam`-Alias, `Magic -> Bullet -> AtkParam_Pc`, `spells[].damage`/`damage_atk`, `heroes[].offhand_weapon`, `SpEffectParam`-Feld `startMagicId` an Offset 1020, `EXTRACT_VERSION` 16 (AD-050). Kein Aufrufer im Programm. | `nrdata/extract.py`, neue Testdatei bei den Extraktortests |
+| **A26-2** | developer | Testabzug neu bauen (v16) und `docs/plan-restarbeiten.md` nachziehen; `CLAUDE.md`-Zeile zum Abzug aktualisieren. **Nach A26-1, vor allem anderen, was misst.** | `docs/plan-restarbeiten.md`, `CLAUDE.md` (nur die Abzugszeile) |
+| **A26-3** | developer | `damage`: Ratenschleife als Helfer herausziehen, `damage.spell(...) -> SpellRating` (AD-053.1/.2/.4). Kein Aufrufer ausser dem Test. | `nrplanner/damage.py`, `tests/test_damage_art.py` |
+| **A26-4** | developer | `hit_with`/`damage_type` auf `AdvisorRequest`/`GoalContext`, Kreuzprobe in `run`, `chosen_label` auf zwei Felder, `damage_art` entfernt (AD-051). | `nrplanner/advisor/types.py`, `run.py`, `goals.py`, `tests/test_advisor_run.py` |
+| **A26-5** | developer | `_max_damage`: Bezugsobjekt waehlen (AD-052), Zauberweg rufen, Kombination Typ x Art, die Befunde der leeren Zellen (AD-052.5/.6, AD-053.5). | `nrplanner/advisor/goals.py`, `tests/test_advisor_goals.py` |
+| **A26-6** | ui-ux-designer | Spec: zwei Felder in der Leiste, Wortlaut der Befunde, Beschriftung `Spell damage` und der Schaetzungsvorbehalt, Verhalten der leeren Zellen (OF-55, OF-56). | `UI_SPEC.md` |
+| **A26-7** | developer | Leiste: zwei Auswahlfelder, zwei Einstellungsschluessel, `asking_from` fuellt beide (AD-051.5/.6). **Erst nach A26-6.** | `nrplanner/advisorbar.py`, `tests/test_advisor_bar.py` |
+
+Reihenfolge: 1 -> 2 -> (3 und 4 unabhaengig) -> 5 -> 6 -> 7. Jeder Schritt ist einzeln
+lauffaehig; 3 und 4 sind ohne 5 ohne Wirkung im Programm.
+
+### Was der `developer` ausdruecklich **nicht** tun soll (A26)
+
+1. **Keine Waffenkunst-Daten extrahieren** — kein `sword_arts`-Block, kein Motion Value,
+   auch nicht "nur fuer die zehn Startwaffen" (AD-050.7, AD-053.3).
+2. **Keinen zweiten Massstab in einer Rangfolge.** Nie Spell Power als Ersatzzahl, wenn
+   der Bezugszauber keinen Schaden traegt (AD-052.5).
+3. **Die Ratenschleife nicht kopieren** — ein Helfer, zwei Aufrufer (AD-053.2).
+4. **Keine Rate auf `catalyst_scaling`**: die Spell Power geht als **Faktor** in den
+   Zauberschaden ein und wird selbst nicht multipliziert (AD-048 bleibt fuer die
+   Waffenfrage).
+5. **`attack_scope`, `MOVE_SCOPED_EFFECT_IDS`, `MOVE_SCOPED_ARTS` und `art_factor` nicht
+   umbauen** — A26 fuegt Bezugsobjekte hinzu, keine neue Zuordnung.
+6. **Keine Uebersetzung des alten Einstellungswerts** `type:`/`art:` (AD-051.5).
+7. **Die Bezugswaffe nicht waehlbar machen** (OF-42, unveraendert).
+8. **Kein Namensabgleich als tragende Route** fuer die Tauschrelikte — der Param traegt
+   die Id (AD-050.4).
+9. **Nightfarer-Faehigkeiten bleiben aussen vor** (`characterSkillAttackRate`),
+   unveraendert seit A25.
+10. **Keine Kalibrierung erfinden**: der Zauberschaden bekommt **keinen**
+    Anzeigefaktor wie `GAME_ATTACK_POWER_RATE` oder `CATALYST_DISPLAY_RATE`, solange
+    nichts dagegen gemessen ist (OF-54).
+
+### Pruefpunkte (A26)
+
+- **N1-N5** wie in AD-054.
+- **N6 (Messung, `performance-tuner`):** was die zweite Cache-Achse kostet, und was die
+  neue Extraktion zur Erstlaufzeit beitraegt (gegen AD-028/Themenbereich E, nicht gegen
+  eine Schaetzung).
+- **N7 (GOAL-Nachweis A26):** die vier Nachweiszeilen aus `GOAL.md` A26, je einmal
+  ausgefuehrt — Revenant *Incantations x All*, Revenant *Bestial x Physical*, Wylder
+  *Weapon art x Fire* mit Konversion, Recluse *Sorceries x Magic*. **Der Revenant-Teil
+  ist ohne ein Tauschrelikt 0,00** (gemessen: Rejection und Heal tragen keinen Schaden) —
+  der Nachweis ist mit dem Relikt zu fahren, oder der Wortlaut in `GOAL.md` ist
+  nachzuziehen (OF-58).
+
+### Risiken (A26)
+
+1. **Die ER-Formel gilt in Nightreign nicht.** Dann ist die Zahl falsch, nicht nur
+   unkalibriert. Merkbar an einer Puppenmessung (OF-54). Rueckweg: die Zauberzeilen
+   blenden ihre Zahl aus und ranken nur nach `B[T] > 0` — die Schadensart bliebe
+   brauchbar, der Betrag fiele weg (R-010 nennt genau diese Sparvariante).
+2. **Das nachdeklarierte Feld sitzt auf einem Offset.** Ein Patch verschiebt es
+   stillschweigend. Merkbar an N2. Rueckweg: Namensabgleich als Ersatzroute, er ist
+   10/10 gemessen.
+3. **Der staerkste Einzeltreffer ist bei manchen Zaubern der geladene** (Beast Claw 362
+   statt 323). Merkbar nur im Vergleich mit dem Spiel. Rueckweg: eine Zeile in AD-050.3,
+   keine Strukturaenderung (OF-57).
+4. **Zwei Auswahlfelder koennen den Cache zerreiben** (N6). Rueckweg: ein Poollauf, der
+   alle Schadensarten auf einmal misst — deutlich teurer und erst dann zu erwaegen.
+5. **Die Zahl ohne Entsprechung auf dem Schirm** kann als "das Programm erfindet etwas"
+   gelesen werden. Merkbar am Nutzerurteil. Rueckweg: Beschriftung und Vorbehalt
+   (OF-55), nicht der Bau.
+
+### Bewusst nicht getan (A26)
+
+- **Keine Motion Values.** Begruendung ist gemessen, nicht geschaetzt: fuenf gleiche
+  Korrekturwerte je Kunst (135/147) heisst, der Faktor aendert keine Rangfolge; 147 von
+  194 Kuensten loesen ueberhaupt auf, und Ironeyes `atkParamId` steht in keiner
+  `AtkParam_Pc`-Zeile. **Wieder interessant, wenn** der Nutzer absolute Kunstzahlen sehen
+  will und eine Puppenmessung je Startwaffe vorliegt.
+- **Kein Bullet-/Behavior-Block im Auszug.** Die Kette ist Extraktionsdetail.
+- **Keine geladene Variante als eigener Wert.** `fp_charged` steht schon da; ein
+  `damage_charged` waere ein zweiter Grundwert ohne Frage, die ihn braucht. Wieder
+  interessant, wenn "Charged" als Schule haeufig gewaehlt wird.
+- **Kein Zaubervergleich** ("welcher Zauber ist der beste"). A26 rankt Relikte, nicht
+  Zauber; der Datensatz traegt nach A26-1 alles, was ein solcher Vergleich braeuchte.
+- **Keine Statusaufbau-Zahlen je Zauber** (A26 "Nicht Ziel").
+- **Kein `enableMagic`/`enableMiracle` im Auszug** — `wep_type` 57/61 traegt dieselbe
+  Unterscheidung (AD-052.4).
+
+### Offene Fragen aus diesem Themenbereich
+
+- **OF-54 — Gilt die ER-Zauberformel (Grundwert x Spell Power/100) in Nightreign?**
+  Traegt jede Zahl der Zauberzeilen. Wer: Nutzer oder `qa-engineer`, eine Puppenmessung —
+  Glintstone Pebble mit Recluse auf Stufe 15 gegen einen Gegner mit bekannter Verteidigung,
+  oder schlicht zwei Ablesungen mit und ohne "Improved Sorceries".
+- **OF-55 — Wie heisst und wie steht die Zauberzahl in der Oberflaeche**, wenn ihr
+  nichts auf dem Spielschirm entspricht? Wer: `ui-ux-designer` (Spec), Vorschlag `Spell
+  damage` mit Schaetzungsvorbehalt in `unknowns`.
+- **OF-56 — Was zeigt die Leiste**, wenn das eine Feld die Zellen des anderen leert (acht
+  Nightfarer ohne Katalysator; Recluse unter Weapon)? Abblenden, verbergen oder stehen
+  lassen mit Satz? Wer: `ui-ux-designer`.
+- **OF-57 — Grundwert = staerkster Einzeltreffer** (dann bei Beast Claw der geladene
+  Wert 362) oder ungeladener Haupttreffer? Wer: Nutzer, eine Ablesung im Spiel; ohne
+  Antwort gilt AD-050.3.
+- **OF-58 — Der A26-Nachweis fuer Revenant** setzt voraus, dass die Incantation Schaden
+  traegt; gemessen tun Rejection und Heal das nicht. Nachweis mit einem Tauschrelikt
+  fahren oder `GOAL.md` nachziehen? Wer: App Designer.
+
+---
+
+## Themenbereich O — Eine Identitaetsregel fuer Relikt-Exemplare, QA-016 (2026-09-22, T-329c)
+
+### AD-055 — Das Exemplar ist sein **Handle**, ueberall: ein Relikt ohne Handle bietet weder der Berater noch der Picker an, und der Offset-Zweig von `copy_key` faellt (2026-09-22, Status: aktiv; **praezisiert AD-013 Punkt 4** — Regel unveraendert, Begruendung ersetzt, Geltung auf den Picker erweitert —, korrigiert die Praemisse in AD-014 Punkt 5, beantwortet OF-11)
+
+**Kontext:** Zwei Regeln fuer "dasselbe physische Relikt" bestehen nebeneinander
+(QA-016, Stand T-256). Der Berater nimmt nur Exemplare mit Handle
+(`advisor/candidates.py:256`, AD-013 Pkt 4). Der Picker vergleicht ueber
+`inventory.copy_key` (`inventory.py:50-75`): zuerst der Handle, sonst
+`("record", offset)`. Beide Regeln begruenden sich mit derselben Praemisse:
+"a save whose loadout table cannot be read yields no handles at all"
+(`inventory.py:45`, `:56`; `tests/test_relic_ownership.py:82`; hier Z. 1414 und
+Z. 1534).
+
+**Die Praemisse ist im Code falsch.** Geprueft am Arbeitsbaum, HEAD `e9bc8a0`,
+22.09.2026:
+- Der Handle kommt **nicht** aus der Loadout-Tabelle, sondern aus dem
+  Relikt-Datensatz selbst, 4 Bytes vor der doppelten Id
+  (`savefile.read_relic_handles`, `nrdata/savefile.py:643-652`, `HANDLE_OFFSET = -4`).
+- `inventory._scan_save` ruft `read_relic_handles` (Z. 538) **vor** und
+  **ausserhalb** des `try` um `read_loadouts` (Z. 544-552) auf. Eine unlesbare
+  Tabelle setzt `loadout_error` und laesst die Handles unberuehrt.
+- `OwnedItem.handle` ist damit nur `None`, wenn (a) `relic.offset < 4` (der
+  Handle laege vor dem Slotanfang) oder (b) zwei Datensaetze dieselben
+  Handle-Bytes tragen: `read_relic_handles` schluesselt nach Handle, der
+  spaetere Datensatz ueberschreibt den frueheren, und `handle_of`
+  (`inventory.py:562`) kennt den frueheren nicht mehr.
+
+**Gemessen am echten Spielstand** (22.09.2026 22:02, Umlenkung nach `CLAUDE.md`,
+Skript `scratchpad/T-329c/handles.py`, Relikt-/Effekt-Ids aus dem Testabzug
+v16): ein Spielstand, ein Slot `USER_DATA000`, **319** Datensaetze, **319**
+verschiedene Handles, **0** Doppelte, **0** ohne Handle, kleinster Offset **696**,
+alle 319 Handles der Form `0xC080xxxx`. Gegenprobe, dass die Zaehlung anschlaegt:
+dieselben Bytes im Speicher, Handle von Datensatz 0 mit dem von Datensatz 1
+ueberschrieben → **1** ohne Handle (`probe.py`). Randbedingung: gilt fuer diesen
+Spielstand; Fall (b) ist der einzige, den ein anderer Spielstand ausloesen kann,
+und genau fuer ihn kann das Spiel selbst die zwei Exemplare nicht unterscheiden —
+seine Loadout-Tabelle zeigt ueber den Handle auf eines von beiden.
+
+Der Offset-Zweig ist also nicht die Rueckfallebene fuer "Tabelle unlesbar",
+als die er geschrieben wurde, sondern greift nur in Fall (b) — und dort macht er
+den Picker zum einzigen Ort, der ein Exemplar anbietet, das der Berater mit
+A7-Satz ablehnt, und das kein gespeicherter Build und keine Uebernahme
+(`select_copy`, `relicslots.py:849`: `handle is None` → `False`) je erreichen kann.
+
+**Optionen:**
+- **A — Im Bestand bleiben.** Zwei Regeln, eine falsche Praemisse in drei
+  Docstrings. Konsequenz: in Fall (b) bietet der Picker, was der Berater
+  ablehnt; das naechste Review liest die Praemisse wieder als Tatsache.
+- **B — Handle ueberall (gewaehlt).** `copy_key` kennt nur den Handle; der Picker
+  nimmt handle-lose Exemplare an derselben Stelle heraus, an der er fragt, was
+  ein Slot halten kann (`_holdable`). Konsequenz: eine Regel, `OwnedItem.offset`
+  wird unbenutzt und faellt; Fall (b) zeigt im Picker ein Exemplar weniger,
+  der Berater nennt es weiter mit seinem A7-Satz.
+- **C — Datensatz-Offset ueberall.** Immer vorhanden und eindeutig.
+  Konsequenz: Loadout-Tabelle, gespeicherte Builds (`chalices.py:51`), Uebernahme
+  und Suchzustand (`search.py`, `frozenset` der Handles) sprechen Handle; der
+  Umbau ginge durch persistierte Daten. Verworfen.
+- **D — Handle total machen:** `read_relic_handles` liefert Offset → Handle, damit
+  Fall (b) zwei Exemplare mit gleichem Handle ergibt, die beide Regeln als eines
+  behandeln. Konsequenz: aendert `nrdata/` (Security-Vorlauf) fuer einen Fall
+  mit 0 von 319 Treffern. Verworfen, Ausloeser unten.
+
+**Entscheidung:** B.
+
+**Ausgestaltung, verbindlich:**
+1. **Die Identitaet eines besessenen Exemplars ist `OwnedItem.handle`.** Es gibt
+   keine zweite. `copy_key` liefert `("handle", h)` oder `None`; `None` heisst
+   weiter "kein besessenes Exemplar" (leerer Slot, Custom relic).
+2. **AD-013 Punkt 4 gilt fuer Berater und Picker.** Ein Exemplar ohne Handle wird
+   nirgends angeboten. Der Berater nennt es mit dem bestehenden A7-Satz
+   (`candidates.py:94-111`, Wortlaut unveraendert — "this save carries no handle"
+   bleibt wahr); der Picker schweigt (siehe "Bewusst nicht getan").
+3. **Die Begruendung von AD-013 Punkt 4 lautet jetzt:** Der Handle steht im
+   Datensatz; er fehlt nur, wenn zwei Datensaetze denselben tragen, und dann
+   kann auch das Spiel die zwei nicht auseinanderhalten. Die Klammer "ein Save
+   ohne lesbare Tabelle liefert keine" (Z. 1414) und "oder ein Save ohne lesbare
+   Handle-Tabelle" in AD-014 Punkt 5 (Z. 1534) sind **falsch**; beide bleiben als
+   Verlauf stehen, diese Entscheidung ersetzt sie.
+4. **Kein neuer Filter im Berater, keiner in `Inventory.relics_for`.** Der Berater
+   filtert schon (`candidates.py:256`) und braucht die Zahl fuer seinen A7-Satz;
+   `relics_for` bleibt die gemeinsame Farbregel beider.
+
+**Was der `developer` aendert (T-329e) — sechs Dateien:**
+
+| Datei:Zeile | Aenderung |
+|---|---|
+| `nrplanner/inventory.py:42-47` | Kommentar und Feld `offset` in `OwnedItem` loeschen |
+| `nrplanner/inventory.py:50-75` | `copy_key`: Offset-Zweig (Z. 73-74) loeschen; Docstring ohne die Loadout-Praemisse, ein Satz "the handle is read from the record itself" |
+| `nrplanner/inventory.py:466` | `offset=entry.offset,` loeschen |
+| `nrplanner/relicslots.py:696-706` | `_holdable`: `[r for r in self.owned.relics_for(...) if r.handle is not None]`, Docstring ein Satz mit Verweis AD-055; `_same_copy`-Docstring Z. 162-165 ohne "or the record's own place" |
+| `tests/relics.py:74-89` | `FIRST_OFFSET`, `OFFSET_STRIDE` und `offset=` loeschen; der Parameter `index` bleibt (24 Aufrufe in 5 Dateien), mit einem `ponytail:`-Kommentar "unused since AD-055, drop when the callers are touched anyway" |
+| `tests/test_hostile_savefile.py:569` | `, offset=index * 80` loeschen |
+| `tests/test_relic_ownership.py:80-98, 118-133` | siehe Test unten |
+
+Das sind **sechs** Dateien, eine ueber der Grenze des Auftrags:
+`tests/test_hostile_savefile.py` bricht sonst beim Import (Konstruktor ohne Feld
+`offset`). Die Alternative waere, das tote Feld stehen zu lassen. `nrdata/` wird
+**nicht** beruehrt.
+
+**Test, der die Einheitlichkeit haelt** — `tests/test_relic_ownership.py`, der
+Test Z. 80-98 wird ersetzt durch `test_a_copy_without_a_handle_is_offered_nowhere`:
+ein `Inventory` mit zwei Exemplaren einer Farbe, Handles `9` und `None`. Erwartet,
+als Literale: der Picker bietet in keinem Slot das handle-lose an (`offered(...)`
+wie bisher), und `candidates.pool(...)` ueber **dasselbe** `Inventory` fuehrt genau
+Handle `9` als Kandidaten und genau eine A7-Zeile (Aufbau wie
+`tests/test_pool_finding_wording.py:58`). Faellt, wenn `_holdable` das
+handle-lose Exemplar wieder anbietet. Der Test Z. 118-133 erwartet fuer das
+handle-lose Exemplar `copy_key(...) is None` statt zweier verschiedener
+Offset-Schluessel.
+
+**Konsequenzen:** Leicht wird — eine Frage, eine Antwort: was der Picker
+anbietet, kann der Berater vorschlagen und die Uebernahme erreichen. Schwerer
+wird — nichts Bestehendes; Fall (b) verliert im Picker ein Exemplar, das bisher
+dort auswaehlbar, aber nie speicher- oder uebernehmbar war.
+
+**Umkehrbarkeit:** leicht. Kein persistiertes Format kennt `("record", offset)`
+(`copy_key` fuellt nur Mengen im Speicher, `app.py:1708/1714/2149/2271`);
+Rueckbau = Feld und Zweig zurueck, ein Filter weg.
+
+**Bewusst nicht getan:**
+- **Ein Satz im Picker fuer handle-lose Exemplare.** Gemessen 0 von 319; ein
+  Bedienelement fuer einen Fall ohne Beleg. Wieder interessant, sobald ein
+  Spielstand mit Doppel-Handle gemeldet wird — dann Spec an den `ui-ux-designer`.
+- **Option D (`nrdata/`).** Wieder interessant unter derselben Bedingung; dann
+  werden beide Exemplare eines Doppel-Handles zu einem, statt dass eines fehlt.
 
 ---
 

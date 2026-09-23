@@ -566,7 +566,7 @@ def owned_relics(count: int) -> list[inventory.OwnedItem]:
     """`count` copies of one relic, as an `Inventory` carries them."""
     return [inventory.OwnedItem(relic_id=KNOWN_RELIC_ID, name="Relic",
                                 colour=0, effect_ids=[], is_deep=False,
-                                handle=index, offset=index * 80)
+                                handle=index)
             for index in range(count)]
 
 
@@ -823,7 +823,7 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
                                    "colour": 0}}
 
     found = within_time_limit(lambda: inventory._scan_save(
-        path, {KNOWN_RELIC_ID}, set(), None, mode=savefile.FAST))
+        path, {KNOWN_RELIC_ID}, set(), mode=savefile.FAST))
     assert found is not None
     inv = inventory.build({"relics": list(relic_meta.values())}, found)
 

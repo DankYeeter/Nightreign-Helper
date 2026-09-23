@@ -1706,6 +1706,878 @@ Klick.
 
 ---
 
+### 3.7 Schadensart-Auswahl bei "Maximise damage" (A25) — ein zweites Feld, kein zweites Ziel
+
+*Neu in T-320b (ui-ux-designer), 2026-09-19 — `GOAL.md` A25 (Nutzer, 19.09.2026
+15:50/15:58): "Maximise damage" bekommt eine Auswahl der Schadensart (Alle /
+Physical / Magic / Fire / Lightning / Holy / Skill attack (Weapon Arts) /
+Sorceries / Incantations / eine Zauberschule). Der Auftrag T-313 weist mir
+Platz, Bedienelement, Voreinstellung, Wortlaut und das Verhalten bei einer
+Referenzwaffe ohne diese Art zu; wie die Auswahl in die Rechnung eingeht
+(Parameter vs. eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion) ist
+T-320a (`architect`, AD ab AD-045) und steht bei Abfassung dieses Abschnitts
+noch aus (`ARCHITECTURE.md` traegt kein AD-045 — 19.09.2026, Stand `ec6da4f`).
+Diese Vorgabe legt nur fest, was der Spieler sieht und bedient; sie zwingt
+keine Datenrepraesentation.*
+
+**Kein Fensterlauf fuer diesen Abschnitt** (Instanzsperre haelt eine andere
+Sitzung, T-313 Kopfzeile). Breiten sind aus `advisorbar.py` und den
+gemessenen Werten aus AK-285/AK-302 abgeleitet, nicht neu am laufenden
+Fenster gemessen — AK-334 verlangt die Nachmessung durch den ersten Bau.
+
+#### AK-327 — Platzierung, Sichtbarkeit, Ausnahme vom Drei-Knopf-Budget
+
+**AK-327** Ein neues Paar `QLabel("Damage type")` + `QComboBox
+damage_type_box` steht unmittelbar rechts von `goal_box`, links des staendig
+sichtbaren `Filters`-Knopfs (AK-302) — dieselbe Zeile, keine zweite Reihe.
+Beide Widgets sind **nur sichtbar, wenn `goal_box` auf `max_damage` steht**;
+bei jeder anderen Zielrichtung (`min_damage_taken`, `max_attributes`) sind
+Label und Box ausgeblendet (`setVisible(False)`, nicht nur deaktiviert) —
+eine Schadensart ist eine Frage, die sich nur bei "Maximise damage" stellt,
+und ein ausgegrautes, sinnloses Feld waere dieselbe Art Verwirrung, die
+AK-297 fuer den alten Marker-Punkt schon einmal behoben hat. Wie `goal_box`
+und `Filters` zaehlt das Paar **nicht** zu AK-07s Budget von drei
+Aktionsknoepfen: es ist eine staendige Einstellung, kein Aktionsknopf, und
+in jedem der 14 Zustaende aus §4 sichtbar, sofern `max_damage` gewaehlt ist
+— auch waehrend `Optimize` laeuft (AK-08 gilt unveraendert: kein
+Bedienelement der Leiste wird durch eine laufende Rechnung gesperrt, ausser
+den beiden, die AK-08 selbst nennt).
+
+*Warum ein eigenes Label statt eines selbsterklaerenden Eintragstexts wie
+bei `goal_box` ("Maximise damage" erklaert sich selbst, ohne Ueberschrift):*
+ein Eintrag wie `"Holy"` allein ist ausserhalb jedes Kontexts mehrdeutig
+(Attribut? Filter? Zauberschule?) — ein Label davor ist die kleinstmoegliche
+Ergaenzung, die diese Mehrdeutigkeit aufloest, ohne die Eintragstexte selbst
+umstaendlich zu machen (`"Maximise damage for Holy"` waere ein zweiter,
+laengerer Satz in jedem der zehn Eintraege).
+
+#### AK-328 — Eintraege, Reihenfolge, drei Gruppen
+
+**AK-328** `damage_type_box` traegt, in dieser Reihenfolge, mit einer
+sichtbaren Trennlinie (`QComboBox.insertSeparator`) zwischen den drei
+Gruppen:
+
+1. `All` — Voreinstellung, Index 0, jedes Mal bei Programmstart erneut
+   ausgewaehlt (wie `goal_box`s eigene Voreinstellung: keine Persistenz ueber
+   einen Neustart hinweg, siehe "Nicht Teil dieser Vorgabe").
+2. `Physical`, `Magic`, `Fire`, `Lightning`, `Holy` — dieselbe Reihenfolge
+   und Schreibweise wie `effecttext.AFFINITIES` plus `Physical` voran
+   (`weapons.py:38`), keine neu erfundene Reihenfolge.
+3. `Skill attack`, `Sorceries`, `Incantations`, danach — alphabetisch, nach
+   `Incantations` — je ein Eintrag pro Zauberschule, die der Datensatz
+   fuehrt (`spell_families`, T-320a), mit genau dem Anzeigenamen, den der
+   Datensatz fuer die Schule schon verwendet (kein zweiter, erfundener
+   Name — GOAL A7). Ist `spell_families` bei Auslieferung leer oder fehlt
+   es, endet die Gruppe nach `Incantations`; das ist kein Fehlerzustand.
+
+Jeder Eintrag traegt den Text unveraendert, wie er hier steht (Gross-
+schreibung wie gelistet) — `GOAL_ORDER`-Analog: eine `id`-zu-Label-Tabelle
+im Code, keine `dict`-Iterationsreihenfolge.
+
+**Pruefweg:** Mit einem Datensatz, der genau eine Zauberschule fuehrt
+(`Bestial`), zeigt `damage_type_box` genau elf Eintraege in der oben
+genannten Reihenfolge, mit zwei Trennlinien.
+
+**Nachtrag T-322d (ui-ux-designer, Review), 2026-09-19 — Pruefweg
+korrigiert:** Der Satz oben nennt "genau elf Eintraege" falsch nachgezaehlt.
+Richtig sind **zehn** benannte Eintraege (`All` + fuenf Elemente +
+`Skill attack`/`Sorceries`/`Incantations` + eine Schule); `QComboBox.count()`
+liefert **zwoelf**, wenn die zwei Trennlinien mitgezaehlt werden. Gebaut und
+geprueft ist die richtige Zahl:
+`tests/test_advisor_bar.py::test_the_kind_of_damage_box_offers_three_groups_in_the_spec_order`
+zaehlt gegen die `ONE_SCHOOL`/`bar_with_a_school`-Fixture genau diese zehn
+Texte plus zwei Trennlinien bei Index 1 und 7 (T-321, Commit `78a0888`) — der
+Bau ist richtig, der Fehler war meiner beim Schreiben dieses Abschnitts. Der
+Satz oben bleibt stehen (dieser Auftrag darf nur anhaengen), gilt aber ab
+sofort nicht mehr; "elf" ist durch "zehn" ersetzt.
+
+#### AK-329 — Tooltip: was "Skill attack" zaehlt
+
+**AK-329** `damage_type_box` traegt einen statischen Tooltip, sichtbar in
+jedem Zustand:
+
+> `"Restricts Maximise damage to one kind of damage. Skill attack counts "`
+> `"Weapon Arts only — a Nightfarer's own skills are never counted."`
+
+Der zweite Satz ist noetig, weil das Programm zwei unterschiedliche Dinge
+"Skill" nennen koennte (Weapon Arts vs. Nightfarer-Faehigkeiten) und A25s
+Praemisse (Nutzer 19.09.) ausdruecklich nur Weapon Arts meint — derselbe
+Grundsatz wie AK-300s Kollisionshinweis: ein Wort, das im Spiel zwei Dinge
+bezeichnen kann, braucht seinen Unterschied im Tooltip, nicht erst im
+Bugreport.
+
+#### AK-330 — Auswahl ist eine neue Frage, wie `_goal_chosen`
+
+**AK-330** Eine Auswahl in `damage_type_box` loest denselben Weg aus wie
+`_goal_chosen` bei `goal_box` (`the_build_changed()`): eine laufende
+Rechnung wird abgebrochen und zeigt 4.7, ein stehendes Ergebnis wird
+verworfen und die Zeile geht auf 4.1 zurueck. Grund: eine andere
+Schadensart ist eine andere Frage an denselben Massstab wie eine andere
+Zielrichtung, nicht eine Ansichtsoption auf ein bestehendes Ergebnis.
+
+Die Auswahl bleibt **innerhalb der Sitzung** stehen, wenn `goal_box` auf
+eine andere Zielrichtung und zurueck auf `max_damage` wechselt (die Box
+wird nur ausgeblendet, nicht neu aufgebaut) — wie ein Nutzer, der versehentlich
+`Minimise damage taken` antippt, seine Schadensart-Wahl nicht verliert.
+
+#### AK-331 — Why-Zeile nennt die Art, genau einmal
+
+**AK-331** *(dasselbe "genau einmal"-Muster wie AK-22.)* Steht
+`damage_type_box` auf etwas anderem als `All`, traegt der `Why`-Dialog
+genau einen zusaetzlichen Satz, an derselbe Stelle wie die
+"Known limits"-Liste aus AK-22 (`_ATTACK_RATING_SCOPE`), mit dem gewaehlten
+Eintragstext, ersten Buchstaben klein wie `_lower_case_first` es fuer
+`goal_label` schon tut:
+
+> `"Ranked on {type} damage only — every other effect on a candidate "`
+> `"still shows, but only this counts toward the ranking."`
+
+Beispiel bei Auswahl `Holy`: `"Ranked on holy damage only — …"`. Bei `All`
+erscheint **kein** zusaetzlicher Satz — das heutige Verhalten bleibt
+unveraendert sichtbar unveraendert.
+
+**Pruefweg (A25-Nachweis, Revenant-Fall):** Referenzwaffe Siegel, Auswahl
+`Holy`: der `Why`-Dialog des besten Vorschlags traegt den obigen Satz mit
+`holy`, und die Reihung unterscheidet sich von der Reihung bei `All` (die
+eigentliche Rechenpruefung liegt bei T-320a/Bau, nicht bei dieser Spec).
+
+#### AK-332 — 4.10 um eine zweite Ursache erweitert: die Referenzwaffe traegt die Art nicht
+
+**AK-332** *(erweitert AK-20/State.NOT_RANKABLE nach demselben Muster wie
+AK-294 fuer 4.11: zwei Ursachen, zwei Saetze, eine Situation-Markierung.)*
+Zustand 4.10 bekommt eine zweite Ursache. Die heutige Ursache ("der
+Datensatz traegt fuer diesen Nightfarer ueberhaupt keine Zahl") bleibt
+wortgleich:
+
+> `"The game files carry no figures this goal can be ranked on for "`
+> `"{nightfarer}, so there is nothing to suggest."`
+
+Neue Ursache, wenn ein Datensatz fuer den Nightfarer zwar existiert, seine
+**Startwaffe aber strukturell keinen Wert der gewaehlten Art traegt** (das
+in T-313 gefragte "Verhalten wenn die Referenzwaffe die Art nicht traegt")
+— zum Beispiel `Skill attack` bei einer Startwaffe ohne Weapon Art, oder
+`Incantations` bei einer Startwaffe, die kein Katalysator ist und keine
+Zauber-Skalierung traegt:
+
+> `"{nightfarer}'s starting armament carries no {type} damage at all, so "`
+> `"there is nothing to suggest for it."`
+
+`{type}` genauso klein geschrieben wie in AK-331. Welche der beiden
+Ursachen zutrifft, meldet der Lauf (neues `Situation`-Feld, analog
+`blocked_by_a_requirement` aus AK-294 — Arbeitsname
+`blocked_by_reference_weapon`); die Zeile entscheidet nicht selbst anhand
+von Rohzahlen, sie zeigt nur, was der Lauf meldet. Bei `All` bleibt 4.10
+unveraendert, weil die neue Ursache nur bei einer gewaehlten Art auftreten
+kann.
+
+**Warum wieder 4.10 und kein neuer Zustand:** beide Ursachen haben dieselbe
+Konsequenz (keine Rangfolge, kein Vorschlag, `Why` bleibt verfuegbar und
+erklaert), nur der Grund unterscheidet sich — exakt die Situation, fuer die
+AK-294 den Zwei-Ursachen-Kniff schon fuer 4.11 eingefuehrt hat. Ein
+sechzehnter Tabellenzustand fuer denselben Fall waere eine Regel, die
+GOAL A7 nicht braucht.
+
+**Pruefweg (A25-Nachweis, Gegenprobe):** Ein Nightfarer, dessen Startwaffe
+nachweislich keine Weapon Art traegt, mit Auswahl `Skill attack` zeigt 4.10
+mit dem zweiten Satz und keinen Vorschlag.
+
+#### AK-333 — Tastatur
+
+**AK-333** *(erweitert AK-25/AK-26.)* `damage_type_box` steht in der
+Tab-Reihenfolge zwischen `goal_box` und `Filters`, wenn sichtbar; ist sie
+ausgeblendet (AK-327), ueberspringt Tab sie wie jedes verborgene
+Qt-Widget, ohne Sonderfall im Code. Pfeiltasten/Enter/Leertaste bedienen
+die Box wie jede andere `QComboBox` der Leiste; Fokusring sichtbar
+(AK-26).
+
+#### AK-334 — Breitenfolge: gemessen, nicht geschaetzt
+
+**AK-334** *(dasselbe Vorgehen wie AK-302s Nachtrag T-277e — keine
+geschaetzte Zahl nach Projektregel.)* Label und Box addieren der Leiste
+einen weiteren Platzbedarf, sichtbar nur im `max_damage`-Zustand. Der
+erste Baubericht misst die reale Breite (`minimumSizeHint()`-Differenz mit
+und ohne das Paar, wie `action_buttons_extra_width()` es fuer die drei
+Aktionsknoepfe schon vorfuehrt) und traegt sie in AK-05/AK-194/A14 nach.
+Bis zu dieser Messung gilt **kein** Zahlenwert als vereinbart.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Wie die Auswahl in die Rechnung eingeht** (Parameter von `max_damage`
+  oder eigene Ziele, `scoped:`-Raten, Startwaffen-Konversion, ob eine
+  Attribut-Auswahl den Katalysator-Spell-Power-Pfad beruehrt) — T-320a,
+  `architect`.
+- **Ob und wie `headline_name`/`headline_label`** (heute "Attack rating"/
+  "Spell power") sich mit einer gewaehlten Art aendern — diese Vorgabe
+  ruehrt die bestehende Kopfzahl nicht an, weil die Datenlage dafuer
+  (`final_per_type`-Schluessel je Art) T-320a noch nicht feststeht; die
+  Why-Zeile aus AK-331 traegt die Information stattdessen als Satz.
+- **Der Relic Picker.** AK-256 macht `goal_box` zu **einer** Einstellung
+  im ganzen Programm, gespiegelt im Picker-`Sort by`. Ob eine gewaehlte
+  Schadensart denselben Weg braucht (der Picker rankt seinen Pool heute
+  unter `CANONICAL_POOL_ORDER`, unabhaengig von der gezeigten Richtung) ist
+  eine Folgefrage an T-320a/eine Folge-Spec, sobald AD-045 die
+  Kandidatenwertung festlegt — diese Vorgabe fasst den Picker nicht an.
+- **Persistenz ueber einen Neustart.** Wie `goal_box` startet
+  `damage_type_box` immer auf ihrer Voreinstellung (`All`); ob das erwuenscht
+  ist oder die Wahl wie andere Einstellungen (`QSettings`) ueberdauern soll,
+  ist unten als offene Frage an den App Designer aufgefuehrt.
+- **Genaue Liste und Reihenfolge der Zauberschulen** — Inhalt von
+  `spell_families` ist Datensatz/Architektur, nicht Layout.
+
+**Offene Frage an den App Designer:** Soll `damage_type_box` ihre Wahl wie
+ein normales Programmeinstellung ueber einen Neustart hinweg merken (analog
+`favourites.py`), oder wie `goal_box` bewusst bei jedem Start auf `All`
+zuruecksetzen? Ich habe mich fuer Letzteres entschieden, weil es das
+bestehende Verhalten von `goal_box` fortsetzt (keine Inkonsistenz zwischen
+den beiden benachbarten Feldern) — eine Bequemlichkeitsfrage ohne
+objektiv richtige Antwort, falls ein Nutzer denselben Nightfarer immer mit
+derselben Art optimiert.
+
+#### Nachtrag T-322d (ui-ux-designer, Review von T-321a-d, `78a0888`), 2026-09-19
+
+*Die Datenlage, auf die zwei Punkte der obigen "Nicht Teil dieser
+Vorgabe"-Liste bei Abfassung warteten, liegt jetzt vor (AD-045..048): diese
+zwei Punkte werden hiermit beantwortet, ohne die urspruengliche Aufzaehlung
+zu loeschen (dieser Auftrag darf nur anhaengen).*
+
+##### AK-335 — Kopfzahl folgt der Auswahl, bei Typ **und** Art, nie nur beim Typ
+
+**AK-335** *(beantwortet den zweiten Punkt der obigen Liste,
+"`headline_name`/`headline_label`"; erweitert AK-331 vom Why-Satz auf die
+Kopfzahl selbst.)* Gebaut (`goals._max_damage`, `78a0888`) ist: bei einer
+Typwahl (`type:*`) traegt die Kopfzahl der Karte den gewaehlten Namen vor dem
+bisherigen Namen (`"Fire attack rating 19"` statt `"Attack rating 19"`),
+weil der Zahlenwert selbst wechselt (`final_per_type[key]` statt
+`final_headline`). Bei einer Artwahl (`art:*`, z. B. `Skill attack`) aendert
+sich **nur der Zahlenwert** (`art_rate` aus AD-047 ist bereits in
+`final_headline` eingerechnet), die Beschriftung bleibt unveraendert
+`"Attack rating"`. Das ist eine Inkonsistenz und, wo eine Artwahl den Wert
+tatsaechlich veraendert (jede `art_rate != 1,0`), dieselbe Art Falsch-
+behauptung, die AK-37 fuer den Typ-Fall gerade erst vermieden hat: eine Zahl
+unter einer Beschriftung, die eine andere (naemlich die ungeschraenkte)
+Frage verspricht.
+
+**Entscheidung:** Die Kopfzeile behandelt Typ- und Artwahl gleich. Sobald
+`damage_type_box` auf etwas anderem als `All` steht **und** der Zahlenwert
+dadurch vom `All`-Wert abweicht (jede Typwahl; jede Artwahl mit
+`art_rate != 1,0`), traegt die Kopfzahl den gewaehlten Eintragstext vor dem
+Namen aus `headline_name`/`headline_label`
+(`"Fire attack rating 19"`, `"Bestial spell power 42"`). Wortkollision:
+enthaelt der Eintragstext selbst schon das Wort, das der Name ohnehin
+traegt (`"Skill attack"` + `"attack rating"`), faellt das doppelte Wort
+weg — `"Skill attack rating"`, nicht `"Skill attack attack rating"`; jede
+andere Kombination haengt unveraendert aneinander. Bleibt der Zahlenwert bei
+einer Artwahl unveraendert (kein Relikt traegt einen `art_rate` fuer die
+gewaehlte Art), bleibt auch die Beschriftung `"Attack rating"` — die
+Kopfzahl ist dann tatsaechlich dieselbe Zahl wie bei `All`, und sie soll
+nicht anders aussehen, als sie ist.
+
+**Pruefweg:** Wylder mit beiden Startwaffen-Relikten (OF-50-Nachweis),
+Auswahl `Skill attack`: die Kopfzahl der besten Karte traegt die
+Beschriftung `Skill attack rating`, nicht `Attack rating`, und ihr Wert
+unterscheidet sich vom Wert bei `All`.
+
+##### AK-336 — Relic Picker: Mindest-Offenlegung, solange kein eigener Regler
+
+**AK-336** *(beantwortet den dritten Punkt der obigen Liste, "Der Relic
+Picker", so weit, wie AK-37 es zwingend macht; die groessere Frage — eigener
+Regler oder nicht — bleibt offen, siehe die neue Frage an den App Designer
+unten.)* Code gelesen (kein Fensterlauf, NH-004):
+`advisorbar.asking_from` liest `damage_art` aus der Beraterleiste **fuer
+jede Anfrage, auch die des Pickers** (`relicpicker.py`, `CANONICAL_POOL_ORDER`-
+Anfrage). Der Picker zeigt die "Damage"-Zeile (`VALUE_CAPTIONS["max_damage"]`)
+und den Chip `BEST FOR DAMAGE` auf **jeder** Karte, unabhaengig davon, worauf
+`Sort by` steht (AK-42/AK-50-Muster: beide Richtungen stehen immer da). Der
+AK-331-Satz, der die Einschraenkung erklaert, steht dagegen nur in Zeile 4,
+wenn `Sort by` **zufaellig** auf `Maximise damage` steht
+(`_drawn_direction()`). Ausserdem bleibt `damage_type_box`s Wert stehen,
+wenn `goal_box` in der Leiste auf eine andere Richtung wechselt und die Box
+sich versteckt (AK-330) — ein Nutzer kann also eine Typ-/Artwahl getroffen
+haben, die Leiste zeigt sie nicht mehr an, und der Picker zeigt trotzdem eine
+davon beeinflusste "Damage"-Zahl, ohne dass irgendwo auf dem Bildschirm
+steht, welche Einschraenkung gerade gilt. Das ist keine hypothetische Kante:
+jeder Aufruf des Pickers nach einer Typ-/Artwahl in der Leiste ist
+betroffen, auch wenn `Sort by` auf `Name` oder der anderen Richtung steht.
+Das verletzt AK-37 (keine Zahl ohne erkennbaren Bezug) genauso, wie es die
+Kopfzahl-Beschriftung ohne AK-335 verletzen wuerde — nur silent statt falsch
+beschriftet.
+
+**Mindestanforderung, unabhaengig von der offenen Frage unten:** Solange
+`damage_art` etwas anderes als `""` ist,
+1. steht der AK-331-Satz in Zeile 4 unabhaengig davon, auf welche Richtung
+   `Sort by` gerade steht (heute nur bei `max_damage`), und
+2. traegt die "Damage"-Zeile/der Chip den gewaehlten Eintragstext
+   (`"Damage (Fire)"` oder eine gleichwertige Formulierung) statt des
+   unveraenderten Wortes `"Damage"` allein.
+
+**Pruefweg:** Auswahl `Fire` in der Beraterleiste, danach `goal_box` auf
+`Minimise damage taken` (die Box versteckt sich, der Wert bleibt), Picker
+geoeffnet mit `Sort by: Name`: Zeile 4 traegt trotzdem den AK-331-Satz mit
+`fire`, und die `Damage`-Zeile jeder Karte nennt sichtbar `Fire`.
+
+**Offene Frage an den App Designer:** AK-336 legt nur die Mindest-
+Offenlegung fest. Offen ist die groessere Umfangsfrage: bekommt der Picker
+ein eigenes, mit der Leiste gespiegeltes Bedienelement fuer `damage_art`
+(volle Paritaet mit dem bestehenden `goal_box`↔`Sort by`-Muster aus AK-256,
+ein zusaetzlicher Regler im Picker-Kopf), oder reicht die reine Offenlegung
+aus AK-336 (Beschriftung + Caveat immer sichtbar, die Auswahl selbst bleibt
+nur in der Leiste aenderbar, Picker schliessen/Leiste aendern/wieder
+oeffnen)? Beides erfuellt AK-37; es ist eine Bedienkomfort-Frage
+(zusaetzlicher Regler vs. Reise zurueck zur Leiste), keine Sicherheitsfrage,
+und braucht eine Folge-Spec sobald sie entschieden ist. **Bleibt offen, jetzt
+fuer zwei Felder statt eines — siehe AK-346.**
+
+---
+
+### 3.8 Zwei Felder statt einer Box: "Hit with" x "Damage type", mit echten Zauberzahlen (A26) — Nachfolger von 3.7
+
+*Neu in T-324f (ui-ux-designer), 2026-09-20 — `GOAL.md` A26 und
+`ARCHITECTURE.md` Themenbereich N (AD-050..054, OF-55/OF-56). Ersetzt die
+eine Box aus 3.7 durch zwei; 3.7 bleibt als Verlauf stehen (dieser Auftrag
+haengt nur an) und beschreibt ab jetzt nicht mehr den gebauten Zustand.
+Grundlage: `nrplanner/advisor/goals.py` und `nrplanner/damage.py`, Stand
+`8b83de6` (A26-3/4/5 bereits gebaut, A26-1/2 laufen parallel, A26-7 folgt
+diesem Abschnitt) — die dort schon vorhandenen Saetze
+(`_NO_CATALYST`, `_WRONG_GENUS`, `_NO_SPELL_ON_THE_CATALYST`,
+`_ART_ON_A_CATALYST`, `_TWO_SWAPPED_SPELLS`, `SPELL_DAMAGE_UNCALIBRATED`,
+`NO_SPELL_DAMAGE`, `SPELL_DAMAGE_NAME`) sind vorlaeufiger Entwicklertext ohne
+Spec-Deckung; dieser Abschnitt macht sie verbindlich (AK-344/AK-345) oder
+ersetzt sie.*
+
+**Kein Fensterlauf fuer diesen Abschnitt** (Auftragskopf T-324: "Kein
+Programmstart (NH-004; der Bau der Leiste folgt erst)" — `advisorbar.py`
+traegt die zwei Boxen erst nach A26-7/T-324g). Breiten sind nicht gemessen —
+AK-349 verlangt die Nachmessung durch den ersten Bau, wie schon AK-334 es
+fuer die eine Box verlangt hat.
+
+#### AK-337 — Zwei Boxenpaare statt einem, gleiche Zeile, gleiche Sichtbarkeitsregel
+
+**AK-337** *(ersetzt AK-327 fuer die Struktur, uebernimmt seine
+Sichtbarkeits- und Budgetregel woertlich.)* `goal_box` bleibt, wie sie ist.
+Rechts davon, in derselben Zeile, stehen jetzt **zwei** Paare statt eines:
+`QLabel("Hit with")` + `QComboBox hit_with_box`, danach `QLabel("Damage
+type")` + `QComboBox damage_type_box` (die bestehende Box, mit engerem
+Inhalt, siehe AK-339), danach der staendig sichtbare `Filters`-Knopf
+(AK-302). Beide Paare sind **nur sichtbar, wenn `goal_box` auf `max_damage`
+steht** (`setVisible(False)`, nicht deaktiviert) — dieselbe Begruendung wie
+AK-327: eine Frage danach, womit und wodurch getroffen wird, stellt sich nur
+bei "Maximise damage". Wie `goal_box` und `Filters` zaehlen beide Paare
+**nicht** zu AK-07s Drei-Knopf-Budget und bleiben in jedem der 14 Zustaende
+aus §4 bedienbar, auch waehrend `Optimize` laeuft (AK-08 unveraendert).
+
+#### AK-338 — "Hit with": Eintraege, Reihenfolge, eine Umbenennung
+
+**AK-338** `hit_with_box` traegt, in dieser Reihenfolge, mit einer
+Trennlinie zwischen den beiden Gruppen:
+
+1. `Weapon` — Voreinstellung der Box selbst (Index 0, `data=""`), bevor ein
+   gemerkter Wert zurueckgelesen wird (AK-347).
+2. `Weapon art`, `Sorceries`, `Incantations`.
+3. je ein Eintrag pro Zauberschule, die der Datensatz fuehrt
+   (`model.attack_arts`), alphabetisch — unveraendert aus AK-328 Gruppe 3.
+   `Charged` (Schule 110) fehlt strukturell weiter: kein Zauber des
+   Datensatzes gehoert ihr an, `attack_arts` liefert sie nicht (gemessen
+   T-323b) — "Schulen ohne Charged" ist damit keine Zusatzregel, sondern der
+   bestehende Filter, unveraendert uebernommen.
+
+**Eine Umbenennung gegenueber dem Bestand:** der zweite Eintrag heisst
+`Weapon art`, nicht `Skill attack` (`model.ART_LABELS[SKILL_ART]` heute).
+Begruendung: die Box fragt "womit triffst du" — `Weapon art` beantwortet das
+direkt, `Skill attack` beantwortete die alte Frage "welche Art von Schaden"
+(3.7) und brauchte deshalb AK-329s zweiten Satz, der klarstellte, dass damit
+Waffenkuenste gemeint sind, nicht Nightfarer-Faehigkeiten. Mit `Weapon art`
+als Feldname entfaellt diese Verwechslungsquelle groesstenteils von selbst;
+der Tooltip (AK-340) klaert den Rest. Die Umbenennung ist eine reine
+Textaenderung an einem Woerterbuchwert (`model.ART_LABELS[SKILL_ART]`), sie
+aendert keinen Schluessel und keine Zuordnung (AD-051.1s "ART_LABELS bleiben"
+gilt fuer die Schluesselform, nicht fuer die Zeichenkette, die ein Schluessel
+anzeigt) — jede Stelle, die dieses Woerterbuch fuer eine zusammengesetzte
+Formulierung liest (AK-342, Why-Zeilen aus AK-344), liest danach automatisch
+`Weapon art` statt `Skill attack`, ohne eine zweite Kopie zu pflegen.
+
+**Pruefweg:** Mit einem Datensatz, der genau eine Zauberschule fuehrt
+(`Bestial`), zeigt `hit_with_box` genau fuenf Eintraege
+(`Weapon`/`Weapon art`/`Sorceries`/`Incantations`/`Bestial`) mit einer
+Trennlinie vor `Bestial`.
+
+#### AK-339 — "Damage type": nur noch sechs Eintraege
+
+**AK-339** `damage_type_box` traegt danach nur noch die Eintraege, die
+schon AK-328 Gruppe 1/2 waren — die dritte Gruppe (Arten/Schulen) ist in
+`hit_with_box` umgezogen:
+
+1. `All` — Voreinstellung der Box selbst (Index 0, `data=""`).
+2. eine Trennlinie, danach `Physical`, `Magic`, `Fire`, `Lightning`, `Holy`
+   in genau dieser Reihenfolge (`weapons.DAMAGE_LABELS`-Reihenfolge,
+   unveraendert aus AK-328).
+
+Keine dritte Gruppe, keine zweite Trennlinie. `damage_type_box.count()`
+ist damit **sieben** (sechs Eintraege plus eine Trennlinie), gegen zwoelf
+vorher (AK-328-Nachtrag T-322d).
+
+**Pruefweg:** `damage_type_box` zeigt unter jedem Datensatz dieselben sechs
+Eintraege plus eine Trennlinie — die Box ist, anders als `hit_with_box`,
+nicht vom geladenen Datensatz abhaengig.
+
+#### AK-340 — Zwei Tooltips statt einem
+
+**AK-340** Jede Box traegt einen eigenen statischen Tooltip (unveraendert
+in jedem Zustand, wie AK-329):
+
+`hit_with_box`:
+> `"Chooses what the figure ranks: the starting armament, its Weapon Art, "`
+> `"or the spell the starting catalyst throws. Weapon art counts Weapon "`
+> `"Arts only — a Nightfarer's own skills are never counted. Sorceries, "`
+> `"Incantations and a school rank the one spell this Nightfarer's own "`
+> `"equipment casts, not a spell found in the run."`
+
+`damage_type_box`:
+> `"Restricts {direction} to one kind of damage."`
+
+Der zweite Satz von `hit_with_box`s Tooltip ist AK-329s alter zweiter Satz,
+an den neuen Feldnamen angepasst; der dritte Satz ist neu und noetig, weil
+`hit_with_box` seit A26 auch "welchen Zauber" mitentscheidet (AD-052) —
+ohne den Satz koennte ein Spieler `Incantations` fuer "irgendeine Incantation,
+die ich im Lauf finde" lesen, genau das Nicht-Ziel aus `GOAL.md` A26.
+`{direction}` fuellt sich wie in AK-329 aus der Registry
+(`advisor_goals.MAX_DAMAGE.label`).
+
+#### AK-341 — Auswahlverhalten: zwei neue Fragen, keine gegenseitige Filterung (beantwortet OF-56)
+
+**AK-341** *(erweitert AK-330.)* Eine Auswahl in `hit_with_box` **oder**
+`damage_type_box` loest `the_build_changed()` aus, unabhaengig davon, welche
+der beiden Boxen es war — beide sind Bedingungen derselben Frage (AD-051),
+eine geaenderte Bedingung ist eine neue Frage. Beide Boxen bleiben innerhalb
+der Sitzung stehen, wenn `goal_box` zwischenzeitlich wechselt und
+zurueckkommt (nur `setVisible`, kein Neuaufbau) — wie AK-330 es fuer die eine
+Box schon festlegt.
+
+**OF-56, jetzt beantwortet:** Keine der beiden Boxen filtert, blendet aus
+oder deaktiviert Eintraege in Abhaengigkeit vom gewaehlten Nightfarer oder
+vom Wert der jeweils anderen Box. `hit_with_box` zeigt `Sorceries` auch fuer
+die acht Nightfarer ohne Katalysator, `damage_type_box` zeigt `Fire` auch
+wenn `hit_with_box` auf `Incantations` steht und der Bezugszauber (Beast
+Claw) kein Feuer traegt. Grund: eine Kombination, die fuer diesen Nightfarer
+nichts liefert, ist eine **Aussage des Laufs** ("dieser Nightfarer startet
+ohne Katalysator"), keine Eigenschaft der Frage selbst — und eine Box, deren
+Eintraege beim Wechsel des Nightfarers unter der Maus verschwinden, ist genau
+die Art Ueberraschung, die AK-297 fuer den alten Marker-Punkt schon einmal
+behoben hat. Abgelehnt wird **ausschliesslich per Satz** (AK-344), nie per
+Ausblenden. Einzige Ausnahme, strukturell und **nicht** situativ: eine Schule,
+der im ganzen Datensatz kein Zauber angehoert (`Charged`, AK-338 Punkt 3) —
+die fehlt schon beim Aufbau der Box, fuer jeden Nightfarer gleich, und ist
+keine Reaktion auf eine Auswahl.
+
+#### AK-342 — Kartenkopf der Zauberzeilen: dieselbe Regel wie AK-335, auf `Spell damage` angewandt
+
+**AK-342** *(erweitert AK-335 woertlich auf die Zauberzeilen der
+Kombinationstabelle.)* Gebaut ist (`goals._spell_cell`, Stand `8b83de6`):
+die Kopfzahl traegt immer `"Spell damage ({spell}) {value}"`, unabhaengig
+davon, was `hit_with_box`/`damage_type_box` zeigen — dieselbe
+Falschbehauptung, die AK-335 fuer die Waffenzeile schon einmal behoben hat:
+eine Zahl unter einer Beschriftung, die die tatsaechliche Einschraenkung
+nicht nennt.
+
+**Entscheidung:** Dieselbe Regel wie AK-335, an derselben Stelle im Text
+(vor `Spell damage`, kleingeschrieben, ueber `_headline_with_choice`
+wiederverwendet): Jede `damage_type`-Wahl verdient sich den Platz immer (wie
+bei AK-335); die `hit_with`-Wahl (Sorceries/Incantations/Schule) nur, wenn
+sie den Wert tatsaechlich bewegt hat — derselbe Test wie bei der Waffe, hier
+gegen `SpellRating.rates` statt `Rating.rates` gelesen. Formal:
+
+```
+earned = hit_with if hit_with in rating.rates else ""
+chosen = chosen_label(earned, damage_type) if (damage_type or earned) else ""
+head   = SPELL_DAMAGE_NAME if not chosen else
+         _headline_with_choice(chosen, SPELL_DAMAGE_NAME.lower())
+display = f"{head} ({spell['name']}) {damage.displayed(value)}"
+```
+
+Beispiele (Revenant, Beast Claw, illustrative Werte):
+- `hit_with=Incantations`, `damage_type=All`, kein Relikt buffed die Gattung:
+  `"Spell damage (Beast Claw) 577"` — unveraendert, wie heute gebaut.
+- `hit_with=Incantations`, `damage_type=Fire` (Beast Claw traegt kein Feuer):
+  `"Fire spell damage (Beast Claw) 0"` — eine gueltige Rangfolgenzahl, kein
+  Fehler (AK-344 unten unterscheidet das ausdruecklich von "not counted").
+- `hit_with=family:23` (Bestial), `damage_type=All`, ein Bestial-Relikt im
+  Build (`family:23` steht in `rating.rates`): `"Bestial spell damage (Beast
+  Claw) 640"`.
+- Beide zugleich erdient: `"Physical Bestial spell damage (Beast Claw) 640"`
+  — Reihenfolge wie `chosen_label` sie liefert (Damage type vor Hit with,
+  dieselbe Reihenfolge wie in AK-335s `"Fire Skill attack rating"`).
+
+Keine Wortkollision zwischen `Spell damage` und irgendeinem Eintragstext
+(anders als `Skill attack` + `attack rating` in AK-335) — `_headline_with_
+choice` bleibt trotzdem der Wiederverwendungsweg, damit ein spaeter
+hinzugefuegter Eintrag mit kollidierendem Wort ohne Sonderfall richtig
+bleibt.
+
+**Pruefweg:** Revenant mit dem Tauschrelikt fuer Beast Claw (7370900), unter
+`Incantations` x `Fire`: Kopfzahl `"Fire spell damage (Beast Claw) 0"`, Wert
+0, kein `unknowns`-Eintrag ausser dem Unkalibriert-Satz (AK-343) — die Zeile
+ist eine Rangfolgenaussage, keine Fehlermeldung.
+
+#### AK-343 — Beschriftung und Vorbehalt der unkalibrierten Zauberzahl (beantwortet OF-55)
+
+**AK-343** *(beantwortet OF-55.)* Der Name `Spell damage` (`damage.
+SPELL_DAMAGE_NAME`) ist gebaut und bleibt: er unterscheidet die Zahl bewusst
+von `Attack rating` und `Spell power` (AD-053 Punkt 7 — beide sind gegen eine
+Anzeige des Spiels gefittet, `Spell damage` ist es nicht), und dasselbe Wort
+gilt fuer Stab und Siegel gleichermassen (kein zweites Wort fuer Incantations,
+aus demselben Grund, aus dem `Spell power` keines hat, `damage.py:110-116`).
+
+Der Vorbehalt steht als eigener Eintrag in `unknowns` (§3.3-Hausregel: eine
+Zahl, die von etwas Unbelegtem abhaengt, sagt es), gebaut und ratifiziert:
+
+> `"Spell damage is uncalibrated: it is the damage formula applied to the "`
+> `"game's own values, and the game shows no spell damage to check it "`
+> `"against. Compare two spells by it, not the figure itself."`
+
+Dieser Satz steht **immer**, wenn die Zeile ueberhaupt eine Zahl traegt (auch
+bei `All`, auch ohne jede Wahl in den beiden neuen Boxen) — er ist keine
+Folge einer Auswahl, sondern eine Eigenschaft der Zahl selbst (OF-54). Er
+entfaellt genau dann, wenn stattdessen der spezifischere Satz aus AK-344
+("deals no damage") steht — die beiden schliessen sich aus, nie beide
+zugleich fuer dieselbe Zelle (gebaut: `rating.reason or SPELL_DAMAGE_
+UNCALIBRATED...`, ein `or`, keine Liste).
+
+**Warum kein Vorbehalt in der Kopfzahl selbst** (kein `"~577"`, kein
+`"Spell damage (est.) 577"`): ein Praefix/Suffix an jeder einzelnen Zahl
+jeder Karte waere Rauschen an der Stelle, die AK-31 bewusst kurz haelt
+(`"AR without relics"` traegt seinen Vorbehalt auch nicht im Text). Der
+`unknowns`-Satz ist die richtige Stelle, weil er nur einmal pro Zeile steht
+und der Spieler ihn ueber den `Why`-Dialog gezielt aufrufen kann — derselbe
+Grundsatz wie bei jedem anderen Praemissen-Satz dieses Programms (AD-025.1).
+
+#### AK-344 — Leerzellen und abgelehnte Kombinationen: drei Saetze, ein vierter fuer die Waffenseite
+
+**AK-344** *(ratifiziert `goals._NO_CATALYST`/`_WRONG_GENUS`/`_NO_SPELL_ON_
+THE_CATALYST` und `_ART_ON_A_CATALYST` als verbindlichen Wortlaut; AD-052s
+Kombinationstabelle in Saetze uebersetzt.)* Vier Faelle, vier Saetze, keiner
+davon eine leere Zelle ohne Erklaerung (AD-025.2):
+
+1. **Acht Nightfarer ohne Katalysator**, jede Wahl von `Sorceries`,
+   `Incantations` oder einer Schule in `hit_with_box`:
+   > `"This Nightfarer starts with neither a staff nor a seal, so {choice} "`
+   > `"is not counted: there is no spell of this build's own to rank."`
+   Zahl: `0.00` (Ranking-neutral), Anzeige: `"Spell damage not counted"`
+   (**kein** Zahlenwert im Text — Unterschied zu AK-342s `"…0"`, siehe unten).
+2. **Stab unter `Incantations`, Siegel unter `Sorceries`** (falsche Gattung):
+   > `"{choice} is not counted for this Nightfarer: {catalyst} casts "`
+   > `"{genus}, and this run ranks the spell the starting equipment really "`
+   > `"throws."`
+   Gilt nur fuer die direkte Gattungswahl (`Sorceries`/`Incantations`), nicht
+   fuer eine Schulwahl — eine Schule, der der geworfene Zauber nicht angehoert,
+   ist kein Ablehnungsfall, sondern eine Zahl ohne Schulfaktor (Kombinations-
+   tabelle, letzte Zeile: "Zahl ohne Schulfaktor plus Satz, welcher Zauber
+   gerechnet wurde" — dieser Satz ist AK-343s Nachbar, nicht Teil dieser AK).
+3. **Katalysator traegt strukturell keinen Zauber** (Datenluecke, gemessen
+   heute nicht vorkommend, aber nicht ausgeschlossen):
+   > `"{catalyst} carries no spell this dataset knows, so {choice} is not "`
+   > `"counted."`
+4. **Katalysator als Referenzwaffe, `hit_with_box` auf `Weapon` oder `Weapon `**
+   **`art`** (Recluse, Revenant unter der Waffenfrage statt der Zauberfrage):
+   unveraendert AD-048/AK-332s Bestand,
+   > `"{choice} is not counted for this Nightfarer: a staff or a seal is "`
+   > `"ranked on the spell power the game shows for it, and no damage type "`
+   > `"and no attack art reaches that figure."`
+   Erscheint **nur**, wenn tatsaechlich `Weapon art` oder ein `Damage type`
+   gewaehlt ist (`chosen` nicht leer) — bei `Weapon` x `All` (beide
+   Voreinstellungen) bleibt die bestehende Spell-power-Anzeige unveraendert
+   stehen, ohne zusaetzlichen Satz (AD-053.5).
+
+**`{choice}`** ist in allen vier Saetzen `chosen_label(hit_with, damage_type)`,
+**ohne** Kleinschreibung des ersten Buchstabens (anders als AK-331/AK-335):
+der Platzhalter steht am Satzanfang, nicht mitten im Satz, und `Incantations
+is not counted…` ist die korrekt gross geschriebene Form. Mit der
+Umbenennung aus AK-338 lautet `{choice}` fuer den vierten Satz jetzt
+`Weapon art` statt `Skill attack`, ohne dass der Satz selbst sich aendert.
+
+**Unterschied zu einer gemessenen Null (AK-342):** `"Spell damage not
+counted"` traegt **keine** Ziffer — das Programm behauptet keinen Betrag,
+wo keiner zu ermitteln ist. `"Fire spell damage (Beast Claw) 0"` (AK-342,
+Fall 2) traegt eine Ziffer, weil `0` dort ein **gemessenes** Ergebnis ist
+(Beast Claw traegt kein Feuer) und keine Luecke. Dieselbe Unterscheidung
+trifft `types._empty_cell`s Docstring schon fuer die bestehende Regel; diese
+AK macht sie fuer den Spieler sichtbar.
+
+#### AK-345 — Befund bei zwei Tauschrelikten
+
+**AK-345** *(ratifiziert `goals._TWO_SWAPPED_SPELLS`.)* Traegt ein Build
+**zwei** der zehn Tauschrelikt-Effekte gleichzeitig (AD-052 Punkt 3,
+`exclusivityId` 200 auf allen zehn — das Spiel selbst laesst nur eines
+wirken), steht in `unknowns` **zusaetzlich** zum Vorbehaltssatz aus AK-343
+(nie an dessen Stelle, beide zugleich):
+
+> `"Two relics here swap the spell this equipment casts and the game lets "`
+> `"only one of them work; this is ranked on {spell}, the stronger of the "`
+> `"two under the damage type asked about."`
+
+`{spell}` ist der Name des Zaubers, auf den tatsaechlich gerechnet wurde
+(AD-052 Punkt 3: der mit dem hoeheren Grundwert unter der gewaehlten
+`damage_type`). Das ist der einzige Fall dieses Abschnitts, in dem ein Build
+selbst — nicht die Wahl in den beiden Boxen — eine dritte Zeile in `unknowns`
+erzwingt.
+
+#### AK-346 — Relic Picker: beide Felder vererbt, dasselbe Muster wie AK-336
+
+**AK-346** *(erweitert AK-336 von einem Feld auf zwei; die Mindest-
+Offenlegung selbst aendert sich nicht, nur was sie benennt.)* `_named_for_
+choice`/`_captions`/die "Damage"-Zeile und der `BEST FOR DAMAGE`-Chip lesen
+kuenftig **beide** Felder der Leiste und benennen sie kombiniert, ueber
+dieselbe `chosen_label(hit_with, damage_type)`, die auch die Kartenkopfzeile
+liest (AK-342) — eine Funktion, ein Wortlaut, kein zweiter an einer anderen
+Stelle erfunden:
+
+- nur `damage_type` gewaehlt: `"Damage (Fire)"`
+- nur `hit_with` gewaehlt: `"Damage (Incantations)"`, `"Damage (Weapon art)"`
+- beide gewaehlt: `"Damage (Fire Incantations)"` — Reihenfolge wie
+  `chosen_label` sie liefert (Damage type vor Hit with, wie AK-342/AK-335).
+- keines gewaehlt: `"Damage"`, unveraendert.
+
+Der AK-331-Satz in Zeile 4 des Picker-Panels steht unveraendert nach AK-336s
+Regel: sichtbar, sobald **eines** der beiden Felder nicht auf seiner
+Voreinstellung steht, unabhaengig von `Sort by`. Beide Felder bleiben in der
+Leiste stehen, wenn `goal_box` wechselt und sich versteckt (AK-341) — der
+Picker liest sie trotzdem, exakt wie AK-336 es fuer das eine Feld schon
+festlegt.
+
+**Die groessere Frage bleibt offen** (AK-336s eigene offene Frage,
+unveraendert in der Sache, jetzt fuer zwei Felder statt eines): bekommt der
+Picker zwei eigene, gespiegelte Regler, oder reicht die Offenlegung aus
+diesem Abschnitt? Siehe "Offene Fragen an den App Designer" unten.
+
+#### AK-347 — Persistenz beider Felder, zwei Schluessel statt einem
+
+**AK-347** *(erweitert AK-330s Nachtrag/AD-051.5.)* Wie die eine Box seit
+dem 20.09.-Nutzerentscheid (AK-330-Nachtrag, T-322n gebaut), ueberdauern
+beide neuen Boxen einen Neustart: zwei eigene, **flache** Schluessel
+(`hit_with`, `damage_type` — kein `/`, kein Komma, dieselbe Sicherheitsregel
+wie `DAMAGE_ART_KEY`, T-321 Sicherheitsvorgabe 4; die Schreibweise
+`advisor/hit_with` aus `ARCHITECTURE.md` AD-051.5 ist dort beschreibend
+gemeint, nicht als Zeichen im Schluessel selbst — ein `/` wuerde genau das
+Trennzeichenproblem wieder einfuehren, das `DAMAGE_ART_KEY`s Kommentar
+ausdruecklich vermeidet) in derselben `QSettings`-Ablage wie `uiscale.KEY`
+und `app.PANES_KEY`. Jeder Schluessel wird **einzeln** gegen die Eintraege
+seiner eigenen Box geprueft (`findData(...) >= 0`, wie heute), unabhaengig
+vom anderen — ein gemerkter `hit_with`, den der aktuelle Datensatz nicht mehr
+kennt (eine entfernte Schule), faellt auf `Weapon` zurueck, auch wenn
+`damage_type` gueltig bleibt und umgekehrt. Der alte, einzelne Schluessel
+`damage_art` (Werte wie `type:Fire`/`art:skill`) wird **nicht** uebersetzt,
+sondern beim ersten Start nach diesem Bau ignoriert (AD-051.5) — er ist
+wenige Tage alt.
+
+**Pruefweg:** `hit_with_box` auf `Bestial`, `damage_type_box` auf `Fire`,
+Programm beenden und neu starten (gleicher Nightfarer): beide Boxen oeffnen
+auf denselben Werten; nach einem Datensatzwechsel, der `Bestial` nicht mehr
+fuehrt, oeffnet `hit_with_box` auf `Weapon`, `damage_type_box` bleibt `Fire`.
+
+#### AK-348 — Tastatur
+
+**AK-348** *(erweitert AK-333 von einer Box auf zwei.)* Tab-Reihenfolge:
+`goal_box` → `hit_with_box` → `damage_type_box` → `Filters`, wenn beide
+sichtbar. Ist das Paar ausgeblendet (AK-337), ueberspringt Tab beide wie
+jedes verborgene Qt-Widget, ohne Sonderfall im Code. Pfeiltasten/Enter/
+Leertaste bedienen jede Box wie jede andere `QComboBox` der Leiste,
+Fokusring sichtbar (AK-26).
+
+#### AK-349 — Breite: gemessen, nicht geschaetzt
+
+**AK-349** *(dasselbe Vorgehen wie AK-334/AK-302-T-277e — keine geschaetzte
+Zahl nach Projektregel.)* Zwei Label-Box-Paare statt einem addieren der
+Leiste weiteren Platzbedarf, sichtbar nur im `max_damage`-Zustand. Der
+Baubericht zu A26-7 misst die reale Breite (`minimumSizeHint()`-Differenz
+mit und ohne beide Paare, wie schon fuer das eine Paar in T-321c vorgefuehrt)
+und traegt sie in AK-05/AK-194/A14 nach. Bis zu dieser Messung gilt **kein**
+Zahlenwert als vereinbart — insbesondere nicht die aus AK-334 gemessenen
+219 px, die nur fuer **ein** Paar gelten.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Interne Namen und Aufteilung des Codes** (ob `advisorbar` zwei getrennte
+  Getter bekommt oder eine kombinierte Hilfsform fuer den Picker behaelt) —
+  Sache des `developer` in A26-7, solange das sichtbare Verhalten aus diesem
+  Abschnitt gilt.
+- **Ob der Relic Picker einen eigenen, gespiegelten Regler bekommt** — AK-336s
+  offene Frage, unveraendert in der Sache (siehe unten).
+- **Genaue Liste und Reihenfolge der Zauberschulen** — Datensatz/Architektur
+  (AK-338 uebernimmt nur die Regel, nicht die Liste).
+- **Die Formel selbst** (`base[T] x SP/100 x r[T] x a`) und ob sie in
+  Nightreign gilt (OF-54) — Nutzer-/`qa-engineer`-Sache, diese Vorgabe legt
+  nur die Beschriftung des Ergebnisses fest, nicht seine Richtigkeit.
+- **Waffenkunst-Zahlen** (Motion Values) — ausdruecklich nicht gebaut
+  (AD-050 Punkt 7), also auch nicht beschriftet.
+
+**Offene Frage an den App Designer** *(fortgefuehrt aus AK-336, jetzt fuer
+zwei Felder):* Bekommt der Relic Picker zwei eigene, mit der Leiste
+gespiegelte Regler fuer `hit_with`/`damage_type` (volle Paritaet mit
+`goal_box`↔`Sort by`, zwei zusaetzliche Regler im Picker-Kopf), oder reicht
+die Offenlegung aus AK-346 (Beschriftung + Caveat immer sichtbar, beide
+Werte nur in der Leiste aenderbar)? Mit zwei Feldern statt einem waechst der
+Regler-Vorschlag von einem auf zwei zusaetzliche Bedienelemente im
+Picker-Kopf — das verschiebt das Kosten-Nutzen-Verhaeltnis der Frage
+gegenueber AK-336, ohne sie neu zu beantworten. Bedienkomfortfrage, keine
+Sicherheitsfrage.
+
+#### Nachtrag T-325a (ui-ux-designer), 2026-09-20 — Startbreite als Bildschirm-Ratio (AK-350..352), AK-338 bestaetigt
+
+*Anlass: `docs/tasks/T-325.md` a, Nutzer 20.09. 20:10 woertlich: die
+Startbreite soll nicht die feste Zahl `1959 px` sein, sondern "eine gute
+Ratio, die sich auf die Pixel des jeweiligen Monitors einstellt". Grundlage:
+der A26-7-Baubericht (`054ca1e`, `docs/state.md` Z. 84f.) liefert die zuvor
+mit AK-349 offengelassene Messung nach — Oeffnungsbreite `1608 → 1959 px`,
+Paar-Mehrbedarf `hit_with`+`damage_type` einzeln `190 px`, beide zusammen
+`351 px` — und schliesst AK-349 damit ab: **kein neuer Zahlenwert ohne
+Messung mehr offen.** `app.py` (`_opening_width`, `_width_around_the_
+effect_table`, `_width_around_the_advisor_row`, Stand `054ca1e`) bleibt in
+seiner Struktur (drei Begrenzer: Tabellen-/Leistenbedarf, Bildschirm,
+Fenster-Minimum, A14) unveraendert — dieser Nachtrag aendert nur, **wie**
+der Bildschirm-Begrenzer aus der verfuegbaren Breite eine Zahl macht.*
+
+##### AK-350 — Ratio statt 1:1-Bildschirmdeckelung
+
+**AK-350** Der Bildschirm-Begrenzer aus `_opening_width` (bisher: `room`
+selbst, unveraendert 1:1 als Deckel uebernommen) wird durch einen Anteil von
+`room` ersetzt:
+
+> Startbreite = max(`minimumSizeHint().width()`, clamp(RATIO × `room`, 1536, Bedarf))
+
+`room` bleibt `screen().availableGeometry().width()` (unveraendert, Parameter
+fuer Testfaelle). `Bedarf` bleibt `max(Tabellenbedarf, Leistenbedarf)`
+unveraendert aus A14/A32, `Leistenbedarf` schliesst seit AK-349 beide
+Boxenpaare ein. `1536` ist die unveraendert geltende Untergrenze aus AK-271.
+`RATIO` ist neu; empfohlener Wert **0,9** (Begruendung und Alternative siehe
+"Offene Frage" unten).
+
+**Wirkung, in Worten statt Formel:** Ist der Bildschirm so gross, dass
+`RATIO × room` bereits ueber dem Bedarf liegt, oeffnet das Fenster
+unveraendert genau bei Bedarf — dieselbe Zahl, die A14/A32 auch ohne Ratio
+liefern wuerden, kein Fenster wird breiter, als sein Inhalt verlangt. Ist der
+Bildschirm schmaler, als der Bedarf es durch die Ratio zulaesst, oeffnet das
+Fenster bei `RATIO × room` mit sichtbarem Rand zum Bildschirmrand, statt wie
+bisher randlos genau bildschirmbreit. Unterhalb `1536 / RATIO` bindet die
+Untergrenze 1536 px unveraendert (AK-271).
+
+**Warum das noetig ist, nicht nur huebscher:** die bisherige 1:1-Deckelung
+(`min(Bedarf, room)`) oeffnet auf jedem Bildschirm, der schmaler ist als der
+Bedarf, exakt bildschirmbreit — kein Rand, keine Andeutung, dass daneben noch
+Platz waere. Bei 1920 px verfuegbarer Breite (Bedarf 1959 px) ist das heute
+der Fall: `min(1959, 1920) = 1920`, randlos. Der Nutzerwunsch trifft genau
+diesen Fall.
+
+**Pruefweg fuer den `developer`:** `_opening_width(room=<Wert>)` mit
+`room` deutlich ueber Bedarf (z. B. 4096, das eigene Geraet des Nutzers)
+liefert unveraendert den Bedarfswert (hier 1959 px, kein Regressionstest auf
+eine feste Zahl, sondern auf Gleichheit mit dem ungedeckelten Fall); mit
+`room` zwischen `1536/RATIO` und `Bedarf/RATIO` liefert `round(RATIO ×
+room)`; mit `room` unter `1536/RATIO` liefert 1536 (AK-271 unveraendert).
+
+##### AK-351 — Kuerzungsreihenfolge unterhalb des Bedarfs
+
+**AK-351** *(erweitert AK-05/AK-194/AK-269/AK-271 um eine dritte, bisher
+nicht gebrauchte Stufe — mit zwei Boxenpaaren reicht die bisherige
+Zwei-Stufen-Reihenfolge "Statuszeile, dann nichts mehr" nicht mehr aus, um
+AK-05 oberhalb von 1536 px einlösbar zu halten, siehe Begruendung unten.)*
+Faellt die Startbreite unter den vollen Bedarf (RATIO × room < Bedarf, AK-350),
+weicht die Zeile in genau dieser Reihenfolge, keine Stufe beginnt, bevor die
+vorige ausgeschoepft ist:
+
+1. **Statuszeile zuerst** (AK-194/AK-269 unveraendert): sie darf bis auf
+   0 px schrumpfen; ihr voller Text steht dabei unveraendert im Tooltip der
+   Leiste (AK-05 zweite Haelfte).
+2. **Erst danach**, wenn die Statuszeile schon bei 0 px steht und die Zeile
+   immer noch zu breit ist: `goal_box`, `hit_with_box`, `damage_type_box`
+   verlieren ihren vollen sichtbaren Text durch Elision (die native
+   Ellipsis-Kuerzung der geschlossenen `QComboBox` — kein `setVisible(False)`,
+   keine Positions- oder Reihenfolgeaenderung, der volle Text jeder Box
+   steht unveraendert in ihrem eigenen Tooltip, AK-340 fuer die beiden neuen
+   Boxen). Das ist eine Erweiterung von AK-269 (bislang: "Boxen haben
+   Vorrang", nie gekuerzt) auf "Boxen haben Vorrang **vor den
+   Aktionsknoepfen**, aber nicht mehr unbegrenzt vor jeder Kuerzung" — mit
+   einer Box war der Bedarf ohne Statuszeile immer unter 1536 px erreichbar
+   (T-321c: 219 px Paarbedarf), mit zwei Paaren (351 px) ist das zwischen
+   1536 px und dem Bedarf nicht mehr in jedem Fall so.
+3. **Die drei Aktionsknoepfe nie:** `Apply all`/`Why`/`Clear` behalten immer
+   ihren vollen Text und ihre volle Groesse — `action_buttons_extra_width()`
+   bleibt das harte Mindestmass, das die Zeile in jedem Zustand zuerst
+   bekommt, unveraendert seit A32/AK-05. Keine Stufe dieser Liste darf jemals
+   einen Aktionsknopf verkleinern, kuerzen oder ausblenden.
+
+**Pruefweg fuer den `developer`:** bei einer Startbreite, die AK-350 zwischen
+1536 px und Bedarf ansetzt, mit sichtbarem Vorschlag (Aktionsknoepfe an):
+Statuszeile 0 px, mindestens eine der drei Boxen zeigt elidierten Text
+(`QComboBox.currentText()` laenger als das, was das Widget tatsaechlich
+darstellt), alle drei Aktionsknoepfe behalten ihre volle Beschriftung.
+
+##### AK-352 — Pruefweg: 1920 px und 2560 px als Referenzbildschirme
+
+**AK-352** Mit `RATIO = 0,9`, Bedarf `1959 px` (AK-349/T-325a) und Boden
+`1536 px` (AK-271):
+
+| `room` | Startbreite (AK-350) | Zustand ohne Vorschlag (4.12, Schwelle 1560/1640 px) | Zustand mit Vorschlag (Schwelle 1820/1900 px) |
+|---|---|---|---|
+| 1920 px | 1728 px (0,9 × 1920) | unabgeschnitten, Statuszeile > 0 px (1728 ≥ 1560 und ≥ 1640) | Statuszeile 0 px **und** Boxen elidiert (1728 < 1820 und < 1900, AK-351 Stufe 1+2) |
+| 2560 px | 1959 px (0,9 × 2560 = 2304, an Bedarf gedeckelt) | unabgeschnitten, Statuszeile > 0 px | unabgeschnitten, Statuszeile > 0 px (1959 ≥ alle vier Schwellen) |
+
+Zum Vergleich der bisherige Zustand (1:1-Deckelung, kein Ratio): bei 1920 px
+oeffnete das Fenster randlos bei `min(1959, 1920) = 1920` px — mit AK-350
+oeffnet es bei 1728 px, mit Rand zum Bildschirmrand. Auf dem eigenen
+Nutzer-Desktop (4096 px, weit ueber `Bedarf / RATIO`) aendert sich nichts:
+die Startbreite bleibt 1959 px, wie ohne Ratio.
+
+**Pruefweg fuer den `developer`:** `_opening_width(room=1920)` und
+`_opening_width(room=2560)`, je einmal ohne und einmal mit sichtbarem
+Vorschlag (`apply_button`/`why_button`/`clear_button` sichtbar), gegen die
+Tabellenwerte oben.
+
+##### Bestaetigung AK-338 — eine Trennlinie bleibt
+
+*Anlass: `docs/tasks/T-325.md` a fragt ausdruecklich, ob `hit_with_box` bei
+einer Trennlinie (wie gebaut, zwischen der Typgruppe und den Zauberschulen)
+bleibt oder eine zweite bekommt (zusaetzlich zwischen `Weapon` und der
+Typgruppe `Weapon art`/`Sorceries`/`Incantations`).*
+
+**Bestaetigt, unveraendert: eine Trennlinie.** AK-338 legt das bereits fest
+("mit einer Trennlinie zwischen den beiden Gruppen") und ist gebaut
+(`054ca1e`); dieser Nachtrag aendert daran nichts. Begruendung fuer die
+Beibehaltung (Stabilitaetsregel — kein Kurswechsel ohne neuen Grund): `Weapon`
+(Index 0, die Voreinstellung) und die drei benannten Eintraege `Weapon art`/
+`Sorceries`/`Incantations` beantworten dieselbe Frage auf derselben
+Abstraktionsebene ("welche Art Angriff"), waehrend erst die Zauberschulen
+danach eine andere, feinere Ebene betreten ("welche Schule genau") — die
+Trennlinie markiert genau diesen Ebenenwechsel, nicht die Voreinstellung
+gegen den Rest. Eine zweite Linie vor `Weapon art` haette nichts zu trennen:
+`Weapon` ist kein Sonderfall der folgenden drei, sondern schlicht "keine
+Einschraenkung", wie `All` in `damage_type_box` — die dort (AK-339)
+konsequent auch nur eine Linie traegt, direkt hinter `All`. Zwei Linien in
+`hit_with_box` gegen eine in `damage_type_box` waere die Art Inkonsistenz
+zwischen benachbarten Boxen, die AK-05/AK-297 im Bestand schon vermeiden.
+
+**Nicht Teil dieser Vorgabe:**
+
+- **Der genaue Zahlenwert von RATIO.** 0,9 ist ein begruendeter Vorschlag,
+  keine Nutzerentscheidung — siehe "Offene Frage".
+- **Rundungsverfahren** (`round`/`int`/`ceil` bei `RATIO × room`) — technische
+  Entscheidung des `developer`, sofern das Ergebnis innerhalb ±1 px der
+  Pruefwege in AK-352 bleibt.
+- **Verhalten beim Ziehen ueber Monitorgrenzen oder bei DPI-Wechsel zur
+  Laufzeit** — unveraendert Bestand (`_opening_width` wird nur beim Oeffnen
+  gefragt, kein neues Verhalten durch diesen Nachtrag).
+
+**Offene Frage an den App Designer:** Welchen RATIO-Wert genau? Ich schlage
+**0,9** vor: bei 1920 px (der haeufigsten Bildschirmbreite) bleibt der
+Startzustand ohne Vorschlag komplett unangetastet (Tabelle AK-352), und erst
+sobald ein Vorschlag steht, weicht zuerst die Statuszeile, dann die
+Boxen-Beschriftung — genau die Reihenfolge, die AK-351 ohnehin vorsieht.
+Alternative **0,95** wuerde bei 1920 px die Boxen auch im Vorschlagszustand
+unabgeschnitten halten (nur die Statuszeile weicht), auf Kosten eines
+schmaleren Rands zum Bildschirmrand (96 statt 192 px) — eine
+Geschmacksfrage zwischen "mehr Rand" und "Boxen bleiben laenger lesbar",
+ohne objektiv richtige Antwort. Der `developer` kann mit 0,9 bauen, solange
+diese Frage offen ist; eine spaetere Aenderung des RATIO-Werts ist eine Zeile.
+
+---
+
 ## Bereich 4 — Build planner: Slotkarten, festgehaltene Slots und `Optimize`
 
 Drei Fragen, drei Namen: wie die Zahlen auf den Slot- und Waffenkacheln heissen
@@ -2006,6 +2878,293 @@ Widget und damit kein kleiner Fix mehr; QA-173 stuft den Aufwand als klein
 ein, das schliesst einen Layoutumbau aus. Bleibt die Erklaerung trotz
 Tooltip unklar, ist das ein neuer, eigener Befund fuer eine sichtbare Zeile,
 keiner dieses Kriteriums.
+
+---
+
+### 4.5 Weapon art und Startzauber im Schadensblock (A27)
+
+*Neu in T-326a (ui-ux-designer), 2026-09-20 — `GOAL.md` A27 (Ende) und
+`ARCHITECTURE.md` AD-019/AD-020/AD-038/AD-047/AD-052/AD-053. Auftragskopf:
+kein Programmstart, nichts hier gemessen — jede Breiten-/Pixelangabe fehlt
+absichtlich; der erste Baubericht misst nach (Muster AK-334/AK-349).
+Grundlage: `nrplanner/statsheet.py` `_refresh_weapon_damage`/
+`_ar_breakdown_text` (Stand `54ea59d`), `nrplanner/damage.py` `equipped`,
+`spell`, `SpellRating`, `breakdown_figures`, `nrplanner/advisor/goals.py`
+`_start_catalyst`/`_spell_thrown` (dort privat, A26 bereits gebaut). Betrifft
+ausschliesslich die **Schadenstafel** unter dem Kachelraster (`ar_label`),
+**nicht** die Kacheln selbst — AK-31s Kachel-Ausnahme (`"203 AR"`) bleibt
+unveraendert.*
+
+**Vorentscheidung, die den ganzen Abschnitt traegt:** `Planner.
+apply_hero_weapon` (`app.py:1355-1370`) belegt beim ersten Aufruf **nur**
+Kachel 1 (rechte Starthand) mit `hero["starting_weapon"]`. Die linke
+Starthand (`hero["starting_weapon_left"]`, z. B. Revenants Finger Seal)
+bekommt **keine** eigene Kachel — sie existiert nur als Datensatz, genau wie
+die Bezugswaffe der Advisor-Leiste seit AD-038/AD-052 unabhaengig vom
+Kachelraster gelesen wird. Eine eigene, staendig sichtbare Flaeche fuer die
+linke Hand haette also nichts, woran sie sich anlehnt, und waere ein neues
+Widget (gegen "Nicht Ziel: neue Extraktion" aus `GOAL.md` A27). **Damit ist
+die im Auftrag gestellte Frage "eigener Block oder Zeile im rechten?"
+entschieden: Zeile im rechten** — beide neuen Zeilen haengen an der
+Schadenstafel der **rechten Starthand**, so wie der Nachweis in `GOAL.md`
+A27 es auch beschreibt ("der Block zeigt **neben der Klauen-AR**"). Das ist
+keine Geschmacksfrage, sondern die Konsequenz aus dem, was die Oberflaeche
+heute schon oder eben nicht zeichnet.
+
+#### AK-353 — Wo und wann die beiden neuen Zeilen erscheinen
+
+**AK-353** Die Zeilen `Weapon art` und `Spell damage (<Zauber>)` erscheinen
+ausschliesslich innerhalb der bestehenden Schadenstafel (`ar_label`),
+niemals auf einer Kachel. Ausloeser ist **nicht** "eine Kachel ist aktiv",
+sondern eine Identitaetspruefung der aktiven Kachel gegen die Startausruestung
+des aktuellen Nightfarer:
+
+1. **`Weapon art`** erscheint, wenn `damage.is_starting_armament(slot.weapon,
+   hero, slot_index)` fuer die aktive Kachel wahr ist (rechte Starthand,
+   Slot 1 — dieselbe Pruefung, die heute schon den Statusmalus traegt, AD-038
+   Punkt 1). Verschiebt der Spieler die Startwaffe auf eine andere Kachel,
+   verschwindet die Zeile mit ihr — das ist dieselbe Regel, der auch der
+   Statusmalus folgt, keine zweite.
+2. **`Spell damage (<Zauber>)`** erscheint, wenn die aktive Kachel **entweder**
+   die rechte Starthand ist (Punkt 1) **oder** ihre Waffe die Id des per
+   AD-052 aufgeloesten Start-Katalysators traegt (die linke Starthand, falls
+   sie ein Stab oder Siegel ist und der Spieler sie manuell auf eine Kachel
+   gelegt hat). In beiden Faellen stammt die Zahl **ausschliesslich** aus der
+   Fassade (AK-357), nie aus einer eigenen Berechnung ueber die Waffe der
+   aktiven Kachel.
+3. Auf jeder anderen Kachel (ein im Lauf gefundenes Schwert in Slot 3, ein
+   verschobenes Schild) erscheint **keine** der beiden Zeilen — die
+   Schadenstafel verhaelt sich dort exakt wie heute (AK-31 bis AK-40
+   unveraendert).
+
+**Pruefweg:** Wylder, Kachel 1 (seine Startwaffe) aktiv: `Weapon art`
+erscheint, `Spell damage` nicht (kein Katalysator im Kit, AK-355). Revenant,
+Kachel 1 (Cursed Claws) aktiv, Finger Seal auf keiner Kachel: `Weapon art`
+**und** `Spell damage (Beast Claw)` erscheinen zusammen — der Nachweis aus
+`GOAL.md` A27 woertlich. Revenant, Kachel 3 mit einem gefundenen Fist belegt
+und aktiv: keine der beiden Zeilen, auch wenn Kachel 1 im Hintergrund
+weiterhin die Claws traegt.
+
+#### AK-354 — `Weapon art`: Formel und Fassadenaufruf
+
+**AK-354** Der Wert kommt aus einem zweiten Aufruf derselben Fassadenfunktion,
+die die Zeile darueber schon fuellt: `damage.equipped(slot, slot_index,
+build, hero, data, art=model.SKILL_ART)`. Aus dem zurueckgegebenen Paar zaehlt
+nur `now.final_headline` (mit Zweihand-Zwilling, AK-355) — `bare` dieses
+zweiten Aufrufs wird verworfen, denn die Grundlinie der Zeile ist nicht "ohne
+jedes Relikt", sondern "ohne den Skill-Faktor" (Punkt aus AK-355). Kein
+zweiter Rechenweg (AD-019/AD-021): dieselbe `_rate`/`_multiplied`-Schleife,
+nur mit `art` als drittem Eimer (AD-047).
+
+#### AK-355 — `Weapon art`: Darstellung, Grundlinie ist die eigene AR-Zeile
+
+**AK-355** Dieselbe visuelle Form wie die bestehende Gesamtzeile (grauer Wert,
+farbiger Link mit der Differenz, fetter Endwert, ACCENT-Farbe) — keine neue
+Zeilenform wird erfunden. Die **Grundlinie ist ausdruecklich nicht** die
+waffenlose oder relikt­lose Zahl (`bare.final_headline`, das waere dieselbe
+Zahl wie in der Zeile darueber und damit eine sinnlose zweite Kopie), sondern
+der **bereits equippte** Gesamtwert `now.final_headline` aus der Zeile
+darueber, ohne den Skill-Faktor. Formal, mit `skill_now` aus AK-354:
+
+```
+grau  = now.final_headline                 # dieselbe Zahl wie die Zeile darueber
+delta = skill_now.final_headline - now.final_headline
+fett  = skill_now.final_headline
+```
+
+Damit bewegt **ausschliesslich** ein Relikt mit Skill-Scope (Scope 112/111)
+diese Zeile sichtbar — ein Staerke- oder Elementrelikt bewegt beide Zeilen
+gleichermassen und die Differenz bleibt 0 (`no change`, dieselbe Zeichenkette
+wie Zeile "Total"). Das ist der Nachweis aus `GOAL.md` A27 fuer Wylder
+("ein Skill-Buff bewegt nur diese Zeile") und die im Auftrag genannte Klausel
+"Delta nur durch Skill-Buffs" woertlich.
+
+**Zweihand:** Die Kachel traegt einen Zweihand-Zwilling (`Rating.two_handed`)
+unveraendert auch unter `art=SKILL_ART` — die Zeile zeigt ihn genauso wie die
+Gesamtzeile (`displayed_hands`, `1H`/`2H`-Suffix, AK-286/AK-298/AK-299), am
+selben `hand_switch`-Zustand.
+
+**Pruefweg:** ein Build ohne jedes Relikt zeigt `Weapon art` mit `no change`
+und einem fetten Endwert gleich dem grauen; ein Build mit genau einem
+Skill-Relikt zeigt eine farbige, von Null verschiedene Differenz, waehrend
+die Zeile "Total" unveraendert bleibt.
+
+**Nachtrag 21.09.2026 (Director, QA-295):** Die Differenz dieser Zeile ist
+gefaerbter Text, **kein Link** — AK-361 nennt genau zwei Link-Schluessel
+(`AR_BREAKDOWN_KEY`, `SPELL_BREAKDOWN_KEY`), ein dritter haette keinen
+Tooltipinhalt. "Dieselbe Form" meint Farbe, Grau und Fett, nicht den
+Klickbereich. Stand `nrplanner/statsheet.py:614` ist damit spezgerecht.
+
+#### AK-356 — `Weapon art` auf einem Katalysator: Ersatzsatz statt Zahl
+
+**AK-356** Ist die rechte Starthand selbst ein Stab oder Siegel (Recluse),
+traegt ihre Kopfzahl schon heute `Spell power`, keine Angriffswertzahl
+(`Rating.catalyst_scaling`, QA-099) — ein Skill-Faktor hat dort nichts, worauf
+er wirken koennte (AD-048/AD-053 Punkt 5). Die Zeile `Weapon art` zeigt dann
+**keine Zahl**, sondern, an derselben Stelle, einsprachig und ohne eigenen
+Link:
+
+> `"Weapon art — not shown: a staff or a seal is ranked on the spell power "`
+> `"the game shows for it, and no attack art reaches that figure."`
+
+(Zweiter Halbsatz wortgleich aus `goals._ART_ON_A_CATALYST` uebernommen —
+dieselbe Tatsache, hier als Feststellung statt als Ablehnung einer Wahl, weil
+diese Tafel keine Box hat, die etwas hätte ablehnen können.) Die Zeile
+`Spell damage` darunter ist davon unberuehrt und erscheint normal (AK-358).
+
+#### AK-357 — Bezugsobjekt der Zauberzeile: nur die Fassade, keine zweite Auswahllogik
+
+**AK-357** *(AD-019.)* Katalysator und geworfener Zauber werden **nicht** in
+`statsheet.py` neu ausgewaehlt. Die Regel ist die von AD-052/AD-053, bereits
+gebaut in `advisor/goals.py` (`_start_catalyst`, `_spell_thrown`): rechte
+Starthand vor linker, Tauschrelikt-Zauber vor Standardzauber des Katalysators,
+der staerkere von zwei gleichzeitigen Tauschrelikten (AK-345-Fall zaehlt auch
+hier, siehe AK-360). Diese beiden Funktionen sind heute privat und nur in
+`advisor/goals.py` erreichbar — **bevor** diese Zeile gebaut wird, wandert die
+Auswahllogik an einen Ort, den `statsheet.py` und `advisor/goals.py`
+gemeinsam rufen (z. B. neben `damage.spell` in `damage.py`, oder ein
+eigenstaendiges Modul); ein Copy-Paste der Auswahl nach `statsheet.py` waere
+der zweite Ort, den AD-019 ausdruecklich verbietet. Aufruf danach:
+`damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build, data,
+hit_with=genus)` mit `genus = model.SORCERIES_ART` fuer einen Stab,
+`model.INCANTATIONS_ART` fuer ein Siegel (`_GENUS_OF_CATALYST[catalyst
+["wep_type"]]`) und `damage_type=""` (Summe aller Arten — diese Tafel hat
+keine Damage-type-Box). **Ausdruecklich nicht Teil dieser Vorgabe:** eine
+Schulwahl (Bestial usw.) — diese Zeile zeigt immer nur die Gattungszahl
+(Sorceries/Incantations), die feinere Aufschluesselung nach Schule bleibt der
+Advisor-Leiste (§3.8) vorbehalten.
+
+#### AK-358 — `Spell damage`: wann sie erscheint, wann sie ganz fehlt
+
+**AK-358** Traegt der Nightfarer **weder** in der rechten **noch** in der
+linken Starthand einen Stab oder ein Siegel (acht von zehn, AD-052 gemessen),
+erscheint die Zeile `Spell damage` **auf keiner Kachel**, auch nicht als
+Ablehnungssatz — anders als `AK-341`s Regel fuer die Advisor-Leiste (dort eine
+dauerhafte Box, die jeder Nightfarer gleich sieht, hier eine Zeile, die schon
+durch AK-353 an die Startausruestung **dieses** Nightfarer gebunden ist). Das
+folgt demselben Muster, dem diese Tafel schon fuer "Inflicts <Status>" folgt
+(Zeile 616-637 im Bestand: kein Eintrag ohne Wirkung, nie ein sichtbares
+"Inflicts nothing"), nicht dem Muster der Rally-Zeile (die immer steht, weil
+"traegt diese Waffe Rally?" eine Frage ist, die sich beim Waffenvergleich lohnt
+— "hat dieser Nightfarer einen Katalysator?" ist dagegen eine feste
+Eigenschaft, kein Vergleich). Traegt der Nightfarer einen Katalysator,
+erscheint die Zeile auf **jeder** Kachel, auf die AK-353 Punkt 2 zutrifft, mit
+derselben Zahl (dieselbe Fassade, derselbe Aufruf).
+
+**Offene Frage** siehe unten — diese Regel ist die Empfehlung, keine
+Nutzerentscheidung.
+
+#### AK-359 — `Spell damage`: Kopfzeile, Why-Betrag, kein Zweihand
+
+**AK-359** Kopfzeile wortgleich zur einfachsten Form aus AK-342 (diese Tafel
+hat kein `hit_with`/`damage_type`-Paar, `chosen` bleibt also immer leer):
+
+```
+"Spell damage ({spell['name']}) {damage.displayed(value)}"
+```
+
+Dieselbe visuelle Form wie `Weapon art` (grauer Wert, farbiger Link,
+fetter Endwert), mit **einer Grundlinie, die die Fassade heute nicht
+liefert**: `damage.spell()` beantwortet nur die aktuelle Frage, kein
+Vor-Relikt-Zustand wie `equipped()` ihn als `bare` mitliefert. Diese Vorgabe
+verlangt trotzdem den Why-Betrag (Auftragskopf, AD-038-Muster
+Grundlinie → jetzt) — **das ist eine Bauvoraussetzung, keine Praesenz-**
+**oder Geschmacksfrage**: `damage.spell` (oder ein Geschwister davon) muss vor
+dieser Zeile um eine Grundlinien-Antwort erweitert werden (dieselbe
+Nightfarer-Stufe/Basiswerte, keine Baueffekte — symmetrisch zu `equipped()`s
+`Question.BARE`). Wie diese Erweiterung in der Fassade aussieht, entscheidet
+`architect`/`developer`; diese Vorgabe legt nur fest, **was** die Zeile
+zeigen muss:
+
+```
+grau  = <Grundlinien-Zauberschaden derselben Formel, ohne Bau-Effekte>
+delta = jetzt - grau
+fett  = jetzt
+```
+
+**Kein Zweihand-Zwilling** (AD-053 Punkt 4: der Zweihand-Eimer erreicht einen
+Zauber nicht) — die Zeile bleibt bei jedem Stand des Hand-Schalters
+unveraendert, das ist ein eigenes Pruefkriterium, keine Fussnote.
+
+#### AK-360 — Rejection/Heal und zwei gleichzeitige Tauschrelikte
+
+**AK-360** Wirft der Katalysator einen Zauber ohne Schaden (`SpellRating.
+reason` gesetzt, z. B. Revenants Standardzauber Rejection/Heal): die Zeile
+zeigt trotzdem eine Zahl, `"Spell damage (Rejection) 0"`, keinen
+Ablehnungssatz ohne Ziffer — das ist AD-052 Punkt 5 ("kein Ruckfall auf Spell
+Power, zwei Massstaebe waeren QA-018 in neuer Gestalt") und der Unterschied
+zu AK-344 Fall 1 (dort fehlt der Katalysator strukturell; hier ist er da und
+wirft nur nichts). Traegt der Build gleichzeitig zwei der zehn
+Tauschrelikt-Effekte (`exclusivityId` 200, AK-345), gilt hier dieselbe Regel:
+die Zahl steht auf dem staerkeren der beiden Zauber, ein zusaetzlicher Satz
+dazu erscheint nicht in dieser Tafel (kein `unknowns`-Aequivalent hier, siehe
+AK-361) — dieser Fall ist selten genug, ihn dem Why-Klick zu ueberlassen.
+
+#### AK-361 — Unkalibriert-Hinweis: Klick-Tooltip statt Dauertext
+
+**AK-361** *(beantwortet die im Auftrag gestellte Frage "Tooltip statt
+Satz?": Tooltip.)* Der fette Endwert der `Spell damage`-Zeile ist, wie schon
+der `Total`-Wert (`AR_BREAKDOWN_KEY`), ein Link (`<a href='…'>`), der per
+Klick einen Tooltip im selben Stil wie `_ar_breakdown_text` oeffnet
+(Grundlinie, dann die Zeilen der beitragenden Raten mit ihren Reliktnamen,
+dann der Endwert). Dieser Tooltip traegt **immer**, wenn die Zeile ueberhaupt
+eine Zahl zeigt, genau einen der beiden folgenden Saetze, wortgleich aus
+`nrplanner/damage.py` uebernommen (nie beide, `rating.reason or
+SPELL_DAMAGE_UNCALIBRATED`, dieselbe Ausschliesslichkeit wie AK-343):
+
+> `"Spell damage is uncalibrated: it is the damage formula applied to the "`
+> `"game's own values, and the game shows no spell damage to check it "`
+> `"against. Compare two spells by it, not the figure itself."`
+
+oder (Rejection/Heal, AK-360):
+
+> `"{spell} deals no damage, so this is 0.00. Only a relic that swaps the "`
+> `"spell this equipment casts brings damage here."`
+
+**Begruendung fuer den Tooltip statt einer Dauerzeile:** dieselbe wie AK-343
+selbst gibt ("nur einmal pro Zeile... der Spieler ruft ihn gezielt auf"),
+uebertragen auf das Klick-Idiom, das diese Tafel schon fuer die Gesamtzeile
+hat — eine dritte Dauerzeile unter jeder Katalysator-Kachel waere Rauschen an
+genau der Stelle, die AK-31/AK-35 bewusst kurz halten; das Klick-Idiom kostet
+keinen neuen Mechanismus, nur einen zweiten Link-Schluessel neben
+`AR_BREAKDOWN_KEY`.
+
+#### AK-362 — Ein Massstab je Zeile, nie eine Summe (entschaerft AK-67/QA-018)
+
+**AK-362** `AR`/`Total`, `Weapon art` und `Spell damage` stehen **immer** als
+drei getrennte Zeilen mit drei getrennten Endwerten. Keine Rechnung dieser
+Tafel addiert, mittelt oder ersetzt eine der drei Zahlen durch eine andere —
+genau der Fehler, den QA-018 schon einmal hatte (zwei Massstaebe in einer
+Rangfolge). `AK-67`s Muster ("mehrere zutreffende Saetze wachsen in **einem**
+Textblock") gilt hier ausdruecklich **nicht**: die drei Zeilen bleiben drei
+eigene `<div>`-Zeilen mit eigenen Links, weil sie drei verschiedene Fragen
+beantworten (Angriffswert, Waffenkunst, Zauberschaden) und keine Formulierung
+sie ohne Bedeutungsverlust zusammenfassen koennte.
+
+#### AK-363 — Wortlaut-Konsistenz
+
+**AK-363** `Weapon art` ist derselbe Text wie `model.ART_LABELS[SKILL_ART]`
+nach der Umbenennung aus AK-338 — ein Woerterbuchwert, keine zweite
+Zeichenkette. `Spell damage` ist `damage.SPELL_DAMAGE_NAME`. Aendert sich
+einer der beiden Werte kuenftig, folgt diese Tafel automatisch, ohne eine
+eigene Kopie zu pflegen.
+
+#### AK-364 — Reihenfolge und Platz im Bestand
+
+**AK-364** Beide Zeilen stehen, in dieser Reihenfolge, **direkt unter** der
+bestehenden Gesamtzeile (`Total`/Kopfzahl) und **vor** den bestehenden
+Zeilen "Inflicts <Status>" und "Rally recovery": zuerst `Weapon art` (oder ihr
+Ersatzsatz, AK-356), danach `Spell damage` (falls sie ueberhaupt erscheint,
+AK-358). Kein Umbau des Restblocks — die Fussnote ("Grey is your base at this
+level…") bleibt am Ende stehen und gilt jetzt fuer alle Zeilen der Tafel
+gleichermassen, ihr Wortlaut aendert sich nicht.
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** eine Aenderung an den
+Waffenkacheln selbst (AK-31s `"<n> AR"`-Suffix bleibt, wie es ist); eine
+eigene Flaeche fuer die linke Starthand (siehe Vorentscheidung oben); eine
+Schulwahl fuer die Zauberzeile (AK-357); eine Motion-Value-genaue
+Waffenkunst-Zahl (nicht gebaut, `ARCHITECTURE.md` AD-053 Punkt 3); jede
+Breiten- oder Pixelangabe (kein Fensterlauf, NH-004).
 
 ---
 
@@ -5401,6 +6560,175 @@ Zeilen liest, findet `#7fae72` und nicht die Farbe der extrahierten Werte.
 wird, ist der Rechenteil von QA-129 und gehoert dem `developer` — diese
 Vorgabe regelt nur, dass man einer Zahl ansieht, woher sie kommt.)*
 
+#### Nachtrag T-302 (ui-ux-designer, 2026-09-19) — AK-319 bis AK-324: die Unterboss-Liste im Nightlords-Tab (AD-041, A24, OF-46)
+
+*Grundlage: `ARCHITECTURE.md` AD-040/AD-041 (Themenbereich L, T-300,
+`architect`), Nutzerentscheidung OF-46 (19.09. 13:25): gezeigt werden
+ausschliesslich Feldbosse (29 Karten) und Nachtbosse Tag 1/2 (35 Karten); die
+vier Karten der Kategorie 160 und die 16 Karten `m20_00..m21_50` fallen weg,
+das Wort "Evergaol" kommt nirgends vor. `bosstab.py` erhaelt einen
+`QTreeWidget` unter dem Kachelgitter (AD-041 Punkt 1), gefiltert auf den
+gewaehlten Nachtfuersten (Punkt 2), mit `key` statt `name` als
+Auswahlschluessel (Punkt 4). Kein Fensterlauf; Bestandsaufnahme aus
+`bosstab.py`.*
+
+**AK-319** *(Baumstruktur, Gruppen, Reihenfolge, Filter, Sortierung)*
+
+1. Drei feste Gruppen als oberste Knoten, in dieser Reihenfolge (wortgleich
+   mit AD-041/T-302): `NIGHT BOSSES  ·  DAY 1`, `NIGHT BOSSES  ·  DAY 2`,
+   `FIELD BOSSES` — ALL-CAPS, derselbe `_section`-Farbton (`ACCENT`, 10px,
+   letter-spacing 1px) wie die Detailpanel-Ueberschriften, damit Baum und
+   Panel als eine Sprache lesen.
+2. Eine Gruppe ohne Eintrag entfaellt ersatzlos (kein leerer Knoten) —
+   dieselbe Regel, die `DepthsTab.refresh` fuer Zeilen ohne Treffer schon
+   anwendet.
+3. Zwei Spalten: Spalte 1 "Boss" (Name oder Platzhalter, siehe AK-322),
+   Spalte 2 "Share of patterns" (rechtsbuendig, `{value:g}%`,
+   `value = 100 * patterns / of` fuer den Eintrag des gewaehlten
+   Nachtfuersten in `nightlords[]`). Spaltenkopf 2 traegt einen Tooltip,
+   inhaltsgleich mit der bestehenden `_gating`-Ehrlichkeitsformel aus
+   `eventstab.py:219-224`: `"How much of the selected Nightlord's own
+   map-pattern pool includes this card. The pool is drawn with weights, so
+   this is not the chance of seeing it on a given run."` — kein neuer
+   Gedanke, nur auf den Baum uebertragen.
+4. Innerhalb einer Gruppe: alphabetisch nach Name; Eintraege ohne Namen
+   (`ambiguous`/`unresolved`, AK-322) stehen danach, sortiert nach
+   Karten-Id (`map`), damit sie nicht verstreut zwischen benannten
+   Eintraegen auftauchen.
+5. Eine Karte mit `days == [1, 2]` steht **in beiden** Tagesgruppen (keine
+   Zusammenfassung zu einer vierten Gruppe — die gibt es nicht, AD-041).
+   Jede der beiden Zeilen traegt einen Zusatz, damit die Wiederholung nicht
+   wie ein Fehler wirkt: unter `DAY 1` `"{name}  ·  also Day 2"`, unter
+   `DAY 2` `"{name}  ·  also Day 1"`. Ohne diesen Zusatz waere die Dopplung
+   nicht von QA-150 (zwei Karten, eine Auswahl) zu unterscheiden.
+6. Alle Gruppen stehen aufgeklappt (kein Einklappen per Voreinstellung) —
+   bei bis zu 64 Zeilen bleibt die bestehende `QScrollArea` des ganzen Tabs
+   die einzige Bildlaufleiste (AD-041 Punkt 1: derselbe Scrollbereich wie
+   das Kachelgitter); der Baum bekommt **keine eigene**.
+7. Tastatur: native `QTreeWidget`-Bedienung (Pfeiltasten zwischen
+   Gruppen/Zeilen, Enter/Leertaste waehlt eine Zeile). Tab-Reihenfolge:
+   Kachelgitter (wie heute) → Baum → Detailpanel (nur lesend, nicht
+   fokussierbar ausser zum Scrollen).
+
+**AK-320** *(Leerzustand ohne Nachtfuerst-Auswahl)*
+
+Vor der ersten Kachel-Auswahl zeigt der Baum eine einzelne, nicht waehlbare
+Zeile statt leer zu bleiben: `"Select a Nightlord above to see which field
+and night bosses can appear for it."` — `MUTED`, dieselbe Formel wie das
+Detailpanel ("Select a Nightlord"), damit Panel und Baum dieselbe Frage auf
+dieselbe Art unbeantwortet lassen.
+
+**AK-321** *(Auswahlkonsistenz und Bildflaeche)*
+
+1. `_mark_selected` markiert nach AD-041 Punkt 4 ueber `key` statt `name`;
+   die Baum-Zeile des gewaehlten Eintrags bekommt denselben Auswahl-Farbton
+   wie die Kacheln (`SELECTED_FILL`/`rgba(200, 164, 92, 60)`, derselbe
+   Grundsatz wie bei den Red-variants-Zeilen: "die zwei Tabs sagen 'dieses
+   hier' auf dieselbe Art"), **nicht** Qts Standard-Blau.
+2. Ein Kachelklick loescht eine zuvor gewaehlte Baumzeile (und umgekehrt) —
+   zu jedem Zeitpunkt hoechstens eine Markierung im ganzen Tab, nie eine
+   Kachel und eine Baumzeile gleichzeitig.
+3. `detail_art` reserviert keine Hoehe, wenn ein Unterboss-Eintrag gezeigt
+   wird (Feldboss, Nachtboss, `ambiguous` oder `unresolved`) — keiner
+   traegt Bildmaterial (AD-041 Kontext: "keine large_icon"). Eine leere
+   180-px-Flaeche ueber jedem Panel waere eine stumme Luecke ohne Zweck; bei
+   Rueckkehr zu einem Nachtfuersten bekommt die Flaeche ihre gewohnte
+   Mindesthoehe zurueck.
+
+**AK-322** *(Rollenzeile, `ambiguous`/`unresolved` nach A7)*
+
+1. `detail_expedition` (die Zeile unter dem Namen) traegt bei einem
+   Unterboss die Rolle statt der Everdark-Angabe, wortgleich:
+   `"Field boss"` · `"Night boss  ·  Day 1"` · `"Night boss  ·  Day 2"` ·
+   `"Night boss  ·  Day 1 & 2"` (letzteres unabhaengig davon, ueber welche
+   der zwei Baum-Gruppen der Eintrag geoeffnet wurde — die Zeile beschreibt
+   die Karte, nicht den Weg dorthin).
+2. `detail_text` (die FMG-Beschreibung) bleibt **leer** — Unterboss-Eintraege
+   fuehren kein Beschreibungsfeld (AD-040-Schema), und ein erfundener Text
+   waere ein A7-Verstoss. Kein Platzhaltersatz.
+3. `detail_name` zeigt bei `confidence in {"single", "group"}` den Namen aus
+   den Dateien; bei `"ambiguous"` und `"unresolved"` denselben Platzhalter
+   wie die Baumzeile: `"Multiple possible bosses"` bzw. `"Not identified"`.
+4. Ist `weakness`/`profile` nicht gesetzt (immer der Fall bei
+   `ambiguous`/`unresolved`), zeigt das Panel eine eigene Ueberschrift
+   `IDENTITY` statt der bestehenden Nightlord-Rueckfallzeile unter
+   `WEAKNESSES` — die beiden Faelle sind nicht dasselbe: der bestehende
+   Nightlord-Fall sagt "wir kennen ihn, koennen die Schwaeche nicht
+   ableiten", der neue sagt "wir wissen nicht einmal, wer das ist". Ein
+   gemeinsamer Titel wuerde den staerkeren Fall verharmlosen.
+   - `ambiguous`, `BAD`-Farbe: `"Multiple bosses could be on this card — the
+     files don't say which. Candidates by HP: {liste}."`, `{liste}` = die
+     `hp`-Werte aus `candidates`, absteigend sortiert, `{wert:g}`, durch
+     `", "` getrennt. Keine Namen — die Datei liefert keine (AD-040 Punkt
+     4.3).
+   - `unresolved`, `BAD`-Farbe, wortgleich mit der bestehenden Formel:
+     `"Not derivable for this fight."`
+5. In beiden Faellen (`ambiguous`/`unresolved`) enden die Panel-Inhalte
+   dort — kein HP-Block (AK-323), kein Beute-Abschnitt (AK-324), keine der
+   uebrigen Sektionen. Das ist keine neue Regel: der bestehende fruehe
+   `return` nach der Weakness-Faellung tut das schon; er bekommt hier nur
+   zwei unterscheidbare Saetze statt eines.
+
+**AK-323** *(HP-Zeile)*
+
+Bei `confidence in {"single", "group"}`: eine eigene Sektion `VITALS` direkt
+unterhalb der Rollenzeile/Beschreibung und vor `WEAKNESS SPECIAL
+INTERACTION`, ein einzelner `_row("HP", f"{profile['hp']:g}")` in der
+Standardfarbe. Kein Vergleich zu anderen Bossen (anders als
+`_stance_rank`) — `profile["hp"]` ist eine einzelne Zahl ohne Bezugsgroesse,
+die keine erfindet.
+
+**AK-324** *(Beute-Abschnitt)*
+
+1. Eigene Sektion `LOOT`, nach `BODY PARTS` (und vor `EVERDARK`, das bei
+   Unterbossen ohnehin nie erscheint) — chronologisch das Letzte, was ein
+   Spieler ueber einen Kampf wissen will.
+2. Keine Eintraege in `world_events.drops[str(chr)]`: ein einzelner Satz in
+   `MUTED`, wortgleich im Ton mit der bestehenden Formel ("no description
+   in the files"): `"no loot recorded in the files"`.
+3. **Nutzerentscheidung 19.09. 13:42:** die ersten fuenf sichtbar, sortiert
+   nach Seltenheit, Rest aufklappbar. Sortierung **aufsteigend nach
+   `share`** (niedrigste Drop-Chance zuerst): jeder Eintrag in
+   `world_events.drops[str(chr)]` traegt `share` (T-299 Abschn. 5,
+   `extract._event_drops`) — der Fall "die Daten tragen keine Chance" tritt
+   hier nicht ein. Traegt ein Eintrag `share == 0.0`, ist das ein gueltiger,
+   niedrigster Wert und keine Ausnahme. Bei gleichem `share`: alphabetisch
+   nach `name` als Tiebreaker (kein zweites Sortierkriterium in den Daten).
+   **"Am seltensten" ist keine Aussage der Dateien ueber "am besten"** — sie
+   tragen eine Drop-Chance, keine Wertung, welches Item ein Spieler will;
+   die Reihenfolge folgt der Nutzerentscheidung, nicht einem Datenfeld
+   `rank`, das es nicht gibt.
+   Die ersten fuenf stehen offen in `_row(name, f"{share:g}%")`. Ab dem
+   sechsten: ein `QToolButton` unterhalb der Sektion, im bestehenden
+   Hold/Held-Toggle-Muster (AK-54/AK-292 — dieselbe Widget-Klasse, kein
+   neues Widget-Muster; weder `bosstab.py` noch `eventstab.py` kennen heute
+   ein Auf-/Zuklappen, das Toggle-Muster stammt aus der Advisor-Leiste und
+   ist die naechstliegende bestehende Loesung). Beschriftung `"Show {n}
+   more"` (`n` = Rest) vor dem Klick, `"Show fewer"` danach; ein Klick loest
+   `show_detail` fuer denselben Eintrag mit umgekehrtem `self._loot_expanded`
+   erneut aus und haengt die restlichen Zeilen an dieselbe `LOOT`-Tabelle an
+   (kein zweiter Abschnitt). Der Knopf steht nicht, wenn fuenf oder weniger
+   Eintraege vorhanden sind.
+4. Direkt darunter, **immer** wenn ueberhaupt Eintraege gezeigt werden
+   (Architekturrisiko 4, AD-041): eine `_note`, wortgleich: `"Percentages
+   are the game's own drop tables. A few point at tables this program
+   cannot read, so on some bosses they do not add up to 100% — nothing is
+   hidden, the shortfall is missing data."` Ein statischer Satz, keine
+   Rechnung im Code (Vorgabe des Entwurfs).
+
+**Explizit nicht Teil dieser Vorgabe:** eine HP- oder Beute-Zeile auf den
+zehn Nachtfuerst-Kacheln selbst (AD-041 begrenzt beide Bloecke auf
+Unterbosse); eine Namensaufloesung fuer `candidates` (die Datei liefert
+keine, AK-322.4); eine vierte Baumgruppe fuer Kategorie 160 oder
+`m20_00..m21_50` (OF-46 hat sie bereits entfernt); Icons je Beute-Art.
+
+**Verwendete Token:** `ACCENT`/`MUTED`/`BAD`/`PANEL`/`BORDER`/`SELECTED_FILL`
+(alle bestehend, `bosstab.py:30-51`), der Trenner `"  ·  "` (bestehend,
+`self.detail_expedition`/`self.summary`), `_section`/`_row`/`_note`
+(bestehend), `QTreeWidget` (bestehend, `effectfilterdialog.py`),
+Tooltip-Ehrlichkeitssatz-Muster (bestehend, `depthstab.EXAMPLES_TIP`/
+`eventstab.py:219-224`). Keine neue Farbe, keine neue Schriftgroesse.
+
 ### 7.5 `Deep of Night`
 
 #### AK-95
@@ -5463,6 +6791,66 @@ Spaltenkoepfe lauten `Depth 1`, `Depth 2–3`, `Depth 4–5`, solange die Daten
 das hergeben; weichen sie fuer irgendeine Karte ab, faellt die Tabelle
 automatisch auf fuenf Einzelspalten zurueck. Ein Test, der eine Zeile mit
 fuenf verschiedenen Werten einspeist, findet danach fuenf Spaltenkoepfe.
+
+#### Nachtrag T-302 (ui-ux-designer, 2026-09-19) — AK-325/AK-326: `PLAYER_GROUPS` und die Spalte "Examples (any map)" nach QA-286 (OF-47)
+
+*Grundlage: QA-286 (`qa/findings.md`), `ARCHITECTURE.md` AD-040 Punkt 6
+(`kinds[cat]` verliert `chrs`, bekommt `places`), OF-47 (an mich).
+Datenfakt aus AD-040 Punkt 3, geprueft: von den sechs `PLAYER_GROUPS`-Zeilen
+entsprechen nur `[120]` und `[160]` gelesenen Kategorien; die anderen vier
+(`[100,105,140,141,150,151]`, `[101,104,110,135,136,137,138]`, `[103]`,
+`[130,131]`) werden nie gelesen, und `places[].name` bleibt fuer sie
+**dauerhaft** leer — kein Forschungsstand, sondern eine Folge der
+Kostenentscheidung in AD-040 Punkt 3.*
+
+**AK-325** *(Umbenennung der beiden betroffenen Zeilen, QA-286 + OF-46)*
+
+`PLAYER_GROUPS` in `depthstab.py`:
+- `("Night bosses (unconfirmed)", [120])` → `("Field bosses & arena
+  locations", [120])` — Kategorie 120 sind Ortskarten (29 Ein-Boss-Feldbosse
+  + 16 gleich besetzte Arena-Schalen, T-299 Abschn. 2b), keine Nachtbosse.
+- `("Evergaol bosses", [160])` → `("Mixed-boss arena locations", [160])` —
+  das Wort "Evergaol" ist nicht belegt (OF-46, T-299 Abschn. 2b:
+  `WorldMapPointIconParam` traegt nur `iconId`) und kommt in diesem
+  Vorhaben nirgends vor.
+- `("Named field enemies & minibosses", […])` → `("Named minibosses", […])`:
+  das Wort "field" entfaellt, weil der Nightlords-Tab (AK-319) jetzt eine
+  **andere** Population "Field bosses" nennt — dieselbe Formulierung fuer
+  zwei verschiedene Mengen im selben Programm waere QA-286 im Kleinen.
+- Die drei uebrigen Zeilen (`"Ordinary enemies in camps & ruins"`,
+  `"Merchants"`, `"Unidentified enemies"`) bleiben wortgleich — von QA-286
+  nicht betroffen.
+- Der Modul-Docstring `depthstab.py:12-14` ("kind 160 is the evergaol
+  bosses, kind 120 the night-boss cast") ist nach demselben Befund veraltet;
+  Korrektur gehoert zum selben Auftrag, ist aber ein Kommentar und keine
+  eigene AK.
+
+**AK-326** *(OF-47: die Spalte "Examples (any map)" faellt — Entscheidung B)*
+
+**Entscheidung: die Spalte faellt ersatzlos**, mit Begruendung:
+
+1. Nach der QA-286-Reparatur ist die Spalte fuer vier der sechs Zeilen
+   **dauerhaft** leer (nicht "noch unerforscht", sondern strukturell nie
+   befuellbar — Praemisse oben) und selbst in der besten verbliebenen Zeile
+   (Feldbosse) zeigt sie hoechstens drei von 29 Namen (AK-99-Deckel). Eine
+   Spalte, die in der Mehrheit der Zeilen fuer immer "— the files name
+   none" sagt, ist keine ehrliche Luecke mehr (das war AK-99s Anspruch),
+   sondern eine Erwartung, die die Kopfzeile weckt und nie einloest.
+2. Die 29 jetzt korrekt aufgeloesten Feldboss-Namen stehen ab diesem
+   Auftrag vollstaendig, mit Schwaeche, HP und Beute, im Nightlords-Tab
+   (AK-319ff.) — einem besseren Ziel als drei Namen in einer schmalen
+   Tabellenspalte. Die Spalte hier wuerde dieselbe Information schlechter
+   wiederholen, nicht ergaenzen.
+3. `NAME_COLUMN` ("What can be red") bleibt die einzige Textspalte und wird
+   `Stretch` allein (kein Teilen mehr mit `EXAMPLES_COLUMN`); AK-99s/AK-144s
+   Breiten-Teilungsregel (`VariantTable.measure_columns`/`fit_columns`)
+   entfaellt damit ersatzlos, nicht nur als Sonderfall.
+4. Entfallen: `EXAMPLES_HEADER`, `EXAMPLES_TIP`, `NO_NAMES`, `_examples()`,
+   `EXAMPLES_COLUMN`. Die Tabelle hat danach `1 + Tiefenspalten` statt
+   `2 + Tiefenspalten` Spalten.
+
+*Rot-vorher:* eine Umsetzung, die die Spalte behaelt und nur die
+Formulierung ihrer Leerzeilen aendert — genau das lehnt Punkt 1 ab.
 
 ### 7.7 `World Events`
 
@@ -6132,3 +7520,295 @@ Zustaende): `"Let this one effect into suggestions even while its family
 is avoided. It matters only once the family header is set to Avoid."`
 Legende AK-317 unveraendert. Grund: Nutzer traf am 17.09. das graue
 Kaestchen und hielt es fuer kaputt. Umsetzung T-295a.
+
+---
+
+#### Nachtrag T-329b (ui-ux-designer), 2026-09-22 — Pool-Meldung ohne Grund (QA-294) und "N uebersprungen" bei mehreren Spielstaenden (QA-004)
+
+*Auftrag T-329b, **kein Fensterlauf** (Auftragskopf) — beide Vorgaben aus
+Codelesung: `nrplanner/advisorbar.py`, `nrplanner/advisor/run.py`,
+`nrplanner/advisor/types.py`, `nrplanner/inventory.py`, `nrplanner/app.py`,
+Stand `e9bc8a0`. Naechste freie AK-Nummer gemessen (`grep -oE 'AK-[0-9]+'
+UI_SPEC.md | sort -V | tail -1` = AK-364 aus T-326a) — der Auftragskopf
+nannte noch AK-356, das ist seit T-326a vergeben; hier ab **AK-365**.*
+
+##### AK-365 — QA-294/QA-290: Grund fuer eine leere 4.11 unter gewaehltem Schadenstyp/Waffenkunst
+
+**AK-365** *(dritte Ursache fuer die zweite Klausel von
+`SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11, neben AK-291/AK-294s "blocked by a
+requirement": QA-294 zeigte Recluse × Sorceries × Fire — "0 of 3 slots have
+nothing to choose from" ohne Satz, dass Glintstone Pebble kein Feuer traegt
+und kein Tauschrelikt mit Feuerzauber im Bestand liegt. Director 21.09.:
+Symptom liegt in der Pool-Meldung, nicht in der Zielkarte — `_spell_cell`
+bleibt unangetastet, siehe unten.)* Betrifft **ausschliesslich** den Fall,
+den QA-290s Fix in `run.py` bereits erkennt und stumm auf die generische
+Leerzelle zurueckfallen laesst (`(request.hit_with or request.damage_type)
+and best.score.value == base_scores[request.goal_id].value`,
+`run.py:419-423`): der gewaehlte `Damage type`/`Hit with` ist strukturell
+nicht erreichbar — weder traegt die Bezugswaffe ihn, noch aendert ein
+Tauschrelikt im Bestand daran etwas.
+
+**Wortlaut, zwei Stellen, nicht dieselbe Zeichenkette:**
+
+1. **Statuszeile/Tooltip** (`advisorbar.status_line`, zweite Klausel der
+   4.11-Zeile — dritte Funktion neben `_slots_blocked`/`_slots_with_nothing`):
+   > `"1 slot has nothing to choose from: nothing you own reaches {choice} "`
+   > `"here"` (Einzahl)
+   > `"{count} slots have nothing to choose from: nothing you own reaches "`
+   > `"{choice} here"` (Mehrzahl)
+   — kein Punkt am Ende (der Aufrufer haengt ihn an, wie bei den beiden
+   bestehenden Funktionen).
+2. **`unknowns`** (Why-Dialog, Punkt 4 von §3.4, `advisorblock._footer_text`),
+   zusaetzlich zur Zeile oben, ein vollstaendiger Satz:
+   > `"Nothing you own reaches {choice} here: your starting equipment does "`
+   > `"not carry it, and nothing in your inventory swaps in a spell or "`
+   > `"weapon art that does."`
+
+`{choice}` ist in beiden `chosen_label(hit_with, damage_type)`
+(`advisor/goals.py:279`, dieselbe Funktion wie AK-342/AK-344/AK-346 — kein
+zweiter Wortlaut), ueber `_lower_case_first` klein geschrieben (wie
+AK-331/AK-335): beide Vorkommen stehen mitten im Satz, nicht am Anfang.
+
+**Ausloesebedingung, woertlich der bestehende Code:** `run.py`s
+QA-290-Zweig greift (Zeilen 403-423); dort zusaetzlich ein Flag setzen
+(z. B. `AdvisorResult.no_carrier_for_the_chosen_kind: bool`, neben
+`blocked_by_a_requirement` in `types.py:772`) und die beiden Saetze oben
+erzeugen. Erscheint **nur** unter `SUGGESTED_WITH_AN_EMPTY_SLOT`, nie unter
+4.10 (`NOT_RANKABLE`, dort gilt AK-332 mit eigener Ursache) oder 4.9.
+
+**Was diese Vorgabe nicht zusichert (A12):** sie unterscheidet nicht
+zwischen "dieser Nightfarer kann das strukturell nie" und "im aktuellen
+Save liegt gerade kein passendes Tauschrelikt" — beide Faelle zeigen
+denselben Satz, weil der Code beide nicht auseinanderhaelt und diese AK
+keinen neuen Rechenweg dafuer verlangt. Sie nennt kein Relikt, das helfen
+wuerde (kein Recommender). Sie aendert **nichts** an `_spell_cell`/der
+Zauberzeilen-Kopfzeile (AK-342/AK-343) — die bleibt wortgleich, wie sie
+ist; der neue Satz lebt ausschliesslich in der Pool-Meldung
+(Statuszeile/Tooltip) und in `unknowns`, nie auf der Zielkarte selbst.
+
+**Beruehrte Stellen fuer den `developer`:** `nrplanner/advisor/run.py:403-423`
+(Flag + beide Saetze setzen), `nrplanner/advisor/types.py:772` (neues
+`AdvisorResult`-Feld), `nrplanner/advisorbar.py:228-234` (neue
+`_slots_no_carrier`-Funktion) und `advisorbar.py:339-344` (dritte Wahl in
+der Klauselauswahl, `Situation` um das Feld erweitert).
+
+##### AK-366 — QA-004: "N uebersprungen" beim automatischen Spielstand-Fund
+
+**AK-366** *(Automatik waehlt bei mehreren gefundenen, lesbaren
+Spielstaenden weiterhin das "vollste" Save still — `inventory.scan()`/
+`inventory.py:381-431`. Bisherige Abmilderung nur der Ordner-Tooltip
+[`app.py:2486`] und `Find my save...` mit Konto-Satz; der fehlende Zustand
+aus QA-004 ("N uebersprungen") ist diese AK.)* Fand `scan()` **ohne** einen
+vom Nutzer gewaehlten Pfad (`save_path is None`, also nicht ueber
+`Find my save...`) mehr als einen Spielstand, der sich tatsaechlich lesen
+liess (nicht: der einen `SaveNotReadable` warf), traegt die sichtbare
+Notizzeile (`app.py:2465`, direkt nach `"{relic_count} relics in {source}"`,
+vor der Loadouts-Klausel) einen zusaetzlichen Halbsatz:
+
+> `" — 1 other save was found; this is the one with more relics"` (genau
+> ein weiterer, Einzahl)
+> `f" — {n} other saves were found; this is the one with the most relics"`
+> (Mehrzahl)
+
+Kein Punkt am Ende (Kettenregel wie bei `READ_THE_SLOW_WAY_NOTE`, die ggf.
+danach folgt). Erscheint **nicht**, wenn nur ein Save gefunden wurde, und
+**nicht**, wenn der Nutzer die Datei selbst ueber `Find my save...` gewaehlt
+hat (dort gilt weiter S1-S4, AK-124) — beide Faelle bleiben unveraendert.
+
+**Was diese Vorgabe nicht zusichert (A12) — Luecke bleibt offen:** der Satz
+nennt **nicht**, welche der beiden Saves das ist oder welchen
+Steam-Konto-Ordner sie tragen (das bleibt im Ordner-Tooltip, AK-126), und er
+bietet **keinen** Weg, die uebersprungene Datei stattdessen zu waehlen —
+`find_save_button` ist nach einem erfolgreichen Auto-Load ausgeblendet
+(`app.py:2488`), es gibt also aktuell keinen erreichbaren Klick dafuer. Das
+ist eine eigene, hier bewusst nicht geschlossene Luecke (kein neues
+Bedienelement ist Teil dieser AK, Auftragsvorgabe) — siehe "Offene Fragen"
+unten.
+
+**Beruehrte Stellen fuer den `developer`:** `nrplanner/inventory.py:381-431`
+(`scan()` zaehlt uebersprungene, lesbare Kandidaten), `nrplanner/
+inventory.py:92-117` und `:294-313` (neues Feld auf `Inventory`/`SaveScan`,
+z. B. `other_saves_skipped: int`), `nrplanner/app.py:2465` (Notizzeile um
+die Klausel erweitern).
+
+##### Offene Fragen an den App Designer (T-329b)
+
+- **Zu AK-366:** Nach einem erfolgreichen Auto-Load ist `Find my save...`
+  ausgeblendet (`app.py:2488`) — die "N uebersprungen"-Zeile aus AK-366 nennt
+  also eine Tatsache, gegen die der Nutzer nichts tun kann, ausser
+  `Rescan save` zu druecken (liefert denselben Automatik-Gewinner erneut).
+  Soll `Find my save...` kuenftig **immer** sichtbar bleiben, auch nach
+  einem erfolgreichen Auto-Load, damit die Zeile handlungsfaehig wird?
+  Empfehlung: ja — ein bestehender Knopf wird in einem weiteren Zustand
+  sichtbar, das ist kein neues Bedienelement, aber es ist eine eigene
+  Verhaltensaenderung und deshalb nicht Teil dieser AK; als kleiner
+  Folgeauftrag vorschlagen.
+  **Nutzerentscheid 22.09.2026 22:10: ja.** `Find my save...` bleibt nach
+  einem erfolgreichen Auto-Load sichtbar, sobald AK-366s Halbsatz erscheint
+  (mehr als ein lesbarer Spielstand gefunden). Mit einem Spielstand bleibt
+  der Knopf wie bisher ausgeblendet. Umsetzung zusammen mit AK-366 (T-329f).
+
+**Nutzerentscheid 22.09.2026 22:45 (Director, korrigiert AK-365/AK-366):**
+- **AK-365 Wortform:** `{choice}` folgt der DR-038-Form aus
+  `advisor/goals.py:688-689` (`_max_damage`), wenn Schadenstyp **und**
+  Waffenkunst gewaehlt sind: "fire damage with Sorceries", nicht
+  "fire Sorceries". Ist nur eines gewaehlt, bleibt der bisherige Wortlaut.
+  Eine Formulierungsstelle fuer beide Senken, kein zweiter Wortlaut.
+- **AK-366 Gleichstand:** traegt kein anderer lesbarer Spielstand mehr
+  Relikte als der gewaehlte, aber mindestens einer gleich viele, endet der
+  Halbsatz mit "this is the most recent of those with the most relics"
+  statt "this is the one with (more|the most) relics". Einzahl/Mehrzahl des
+  ersten Teils unveraendert.
+
+---
+
+#### Nachtrag T-329m (ui-ux-designer), 2026-09-22 — Farbrollen der sechs Tabs (A13, Review-Modus)
+
+*Auftrag T-329m, **kein Fensterlauf** (der `qa-engineer` haelt das Fenster in
+T-329k) — Codelesung von `nrplanner/theme.py` und den 15 Modulen, die eigene
+Hex-Farben fuehren, Stand `7903b0c`. Naechste freie AK-Nummer gemessen
+(`grep -noE 'AK-[0-9]+' UI_SPEC.md | sort -t- -k2 -n -u | tail -1` = AK-366
+aus T-329b) — ab **AK-367**. Gegenprobe gegen **AK-74** (§7.1): AK-74
+verlangt, dass jede bedeutungstragende Farbe auf ihrem Tab einmal benannt
+wird, und nennt "community-reported"-Blau im `Red variants`- und
+`World Events`-Tab bereits als Vorbild dafuer — das bleibt unangetastet.
+AK-367..371 regeln die **zusaetzliche** Frage, die AK-74 offenlaesst: ob
+zwei Tabs, die dieselbe Rolle benennen, auch denselben Wert zeigen.
+Kontrastwerte unten nach WCAG-2.1-Formel gegen `QPalette.Base` = `PANEL`
+(`#1e1f23`, `app.py:96`, die globale Tabellen-/Panelfarbe aller sechs Tabs).*
+
+##### AK-367 — Tote `GOOD`-Kopie in `weaponslots.py`
+
+**AK-367** `nrplanner/weaponslots.py:25` fuehrt `GOOD = "#78b57e"`, eine
+eigene Kopie neben dem bereits importierten `theme.GOOD` (`#6fbf73`,
+`bosstab.py`/`firstrun.py`/`statsheet.py`). Die Kopie wird **nirgends
+gelesen** (projektweite Suche `weaponslots\.GOOD` und `GOOD` innerhalb der
+Datei: ein einziger Treffer, die Definition selbst) — totes Gewicht, das bei
+einer kuenftigen Verwendung eine zweite, leicht andere Gruen-Rolle in den
+Code brAechte, ohne dass ein Reviewer es an der Fundstelle sieht (der
+Vorfall, den QA-145/`bosstab.py:203` fuer `OBSERVED_COLOUR` gegen `GOOD`
+schon einmal dokumentiert). Verbindlich: `weaponslots.py:25` loeschen;
+braucht die Waffenkachel spaeter einen "gut"-Farbton, importiert sie
+`theme.GOOD` wie die drei anderen Tabs.
+
+**Beruehrte Stelle:** `nrplanner/weaponslots.py:25`.
+
+##### AK-368 — Eine `COMMUNITY`-Farbe statt zwei
+
+**AK-368** `depthstab.py:37` `COMMUNITY = "#7fb2e5"` und `eventstab.py:28`
+`COMMUNITY = "#6f9ac4"` tragen denselben Namen und dieselbe Rolle (AK-74:
+"community-reported", auf beiden Tabs bereits je einmal benannt), aber zwei
+verschiedene Werte. Kontrast gegen `PANEL`: `#7fb2e5` **7,36:1**, `#6f9ac4`
+**5,57:1** — beide bestehen WCAG AA (4,5:1), `#7fb2e5` reserviert mehr
+Abstand zur Grenze. Verbindlicher Wert: **`#7fb2e5`**, als `theme.COMMUNITY`
+neu in `theme.py` (z. B. nach `DEEP`, Zeile 18). `depthstab.py:37` und
+`eventstab.py:28` importieren ihn statt ihn lokal zu definieren; die beiden
+lokalen Namen (`COMMUNITY`) duerfen als Re-Export stehen bleiben, ihr Wert
+kommt aus `theme.py`.
+
+**Beruehrte Stellen:** `nrplanner/theme.py` (neue Konstante),
+`nrplanner/depthstab.py:37`, `nrplanner/eventstab.py:28`.
+
+##### AK-369 — Eine Farbe fuer "diese gewuerfelte Zeile ist ein Fluch/ein Kosten-Eintrag"
+
+**AK-369** Drei Stellen markieren denselben Sachverhalt ("dieser gewuerfelte
+Effekt ist mechanisch ein Fluch bzw. ein Kosten-Eintrag") mit **drei**
+verschiedenen Roten:
+
+1. `nrplanner/relicslots.py:429` `colour = "#d1655f" if eff and
+   eff.get("is_curse") else "#cfcfcf"` — ein **hartkodiertes** Literal,
+   obwohl `CURSE` in derselben Datei bereits importiert ist (Zeile 22) und an
+   drei anderen Stellen derselben Datei (Zeilen 436, 461, 466) verwendet
+   wird. `#d1655f` = `theme.BAD`/`theme.CURSE`, Kontrast gegen `PANEL`
+   **4,50:1** — besteht WCAG AA nur knapp (Grenze 4,5:1).
+2. `nrplanner/effectstab.py:171` `CURSE_COLOUR = QColor("#e07a74")`, Vorlage
+   fuer die `Curse`-Spalte derselben Tabelle. Kontrast **5,65:1**.
+3. `nrplanner/weaponslots.py:28` `DEBUFF = "#e07a74"`, laut eigenem Kommentar
+   ("The red the Effects tab gives a curse, so a negative roll reads the
+   same wherever it appears") **absichtlich** an (2) angeglichen.
+
+Ein Nutzer, der von den `Effects`/`Weapons`-Tabs (Rot `#e07a74`) zum
+`Relics`-Reiter des `Build planner` wechselt, sieht denselben Sachverhalt
+("das ist ein Fluch") in einem sichtbar anderen Rot (`#d1655f`). Zusaetzlich,
+**in derselben Tabelle** wie (2): `nrplanner/effectstab.py:1037`
+`item.setForeground(Qt.red)` faerbt die `Stacks`-Spalte bei einer
+nicht-stapelbaren (kostenpflichtigen) Zeile mit reinem `#ff0000`. Kontrast
+gegen `PANEL`: **4,12:1** — **besteht WCAG AA nicht** (Minimum 4,5:1 fuer
+Fliesstext dieser Groesse, `nrplanner/effectstab.py` setzt keine grosse
+Schrift auf dieser Spalte). Ein drittes, deutlich saettigungsstaerkeres Rot
+in genau der Tabelle, die (2) bereits mit einem gedeckteren Rot bedient.
+
+Verbindlicher Wert fuer die Rolle "gewuerfelter Fluch/Kosten-Effekt in
+einer Liste oder Tabellenzelle": **`#e07a74`**, neu als `theme.DEBUFF` in
+`theme.py` (z. B. nach `CURSE`, Zeile 17). `theme.BAD`/`theme.CURSE`
+(`#d1655f`) bleibt unveraendert fuer seine bestehende, breitere Rolle
+("Kosten" in Fliesstext/Aufzaehlpunkten: `advisorblock.py`, `relicpicker.py`
+`CURSE_LINE_STYLE`, `relicslots.py:436/461/466`, `bosstab.py`s
+Gegner-Buff-Hinweis, `firstrun.py`, `statsheet.py`s negative Deltas) — diese
+Stellen sind **nicht** Teil dieser AK.
+
+**Beruehrte Stellen:** `nrplanner/theme.py` (neue Konstante `DEBUFF`),
+`nrplanner/relicslots.py:429` (Literal durch `DEBUFF` ersetzen, `CURSE`
+bleibt fuer :436/461/466), `nrplanner/effectstab.py:171` (`CURSE_COLOUR =
+QColor(DEBUFF)`), `nrplanner/effectstab.py:1037` (`Qt.red` durch `DEBUFF`
+ersetzen), `nrplanner/weaponslots.py:28` (`DEBUFF` aus `theme` importieren
+statt lokal zu definieren).
+
+##### AK-370 — `RARITY_TEXT` und `RARITY_COLOURS`: bewusst verschieden, Kommentar korrigieren
+
+**AK-370** `nrplanner/arsenaltab.py:104-109` `RARITY_COLOURS` (Kachel-Tonung
+und -Rand, je Seltenheit ein Farbpaar) und `nrplanner/weaponslots.py:34-39`
+`RARITY_TEXT` (Beschriftungsfarbe derselben Seltenheit auf der Waffenkachel
+des `Build planner`) sind **keine** Rollenkollision: geprueft je Stufe, die
+`RARITY_TEXT`-Werte sind durchgehend eine hellere Variante desselben
+Farbtons (z. B. Uncommon-Rand `#4a86b0` gegen Uncommon-Text `#6fa8d6`,
+Legendary-Rand `#c8892c` gegen Legendary-Text `#e0a94a`) — die hellere Zahl
+ist noetig, weil Fliesstext auf `PANEL` einen anderen Kontrast braucht als
+ein Kachel-Rand. Kein Wertabgleich verlangt. Der Kommentar
+`weaponslots.py:30-32` ("in the same colours the Weapons tab uses for its
+tiles") behauptet Gleichheit, die es nicht gibt (die Hex-Werte sind in allen
+vier Stufen verschieden) und ist irrefuehrend fuer den naechsten Leser.
+Verbindlich: Kommentar auf "eine hellere Tonung derselben Farbfamilie, nicht
+derselbe Wert" korrigieren; kein Farbwert aendert sich.
+
+**Beruehrte Stelle:** `nrplanner/weaponslots.py:30-32` (Kommentartext).
+
+##### AK-371 — Ein Ersatzgrau statt zwei
+
+**AK-371** Vier Stellen faerben eine Relikt-Kachel/einen -Chip grau, wenn
+`SLOT_COLOURS` die Farb-Id nicht kennt (Verteidigungswert, sollte im
+Normalfall nie greifen): `nrplanner/app.py:161` und
+`nrplanner/relicslots.py:61` fallen auf `"#8a8a8a"` zurueck (= `theme.MUTED`,
+wortgleich), `nrplanner/relicslots.py:554` und `nrplanner/relicpicker.py:1115`
+auf `"#888"` (= `#888888`, 2/255 je Kanal heller). Dieselbe Rolle, derselbe
+Aufrufkontext (Ersatzfarbe fuer eine unbekannte Slot-Id), sogar **innerhalb
+derselben Datei** (`relicslots.py` fuehrt beide Werte). Verbindlicher Wert:
+**`theme.MUTED`** (`#8a8a8a`, bereits vorhanden, kein neuer Wert) an allen
+vier Stellen; `relicslots.py` und `relicpicker.py` importieren `MUTED` aus
+`theme` (in `relicslots.py` bereits importiert, siehe Zeile 22).
+
+**Beruehrte Stellen:** `nrplanner/app.py:161`, `nrplanner/relicslots.py:61`,
+`nrplanner/relicslots.py:554`, `nrplanner/relicpicker.py:1115` (Import
+ergaenzen, falls `MUTED` dort noch nicht importiert ist).
+
+##### Nicht Teil dieser AK-Gruppe (Backlog, siehe `DESIGN_REVIEW.md` DR-045/DR-046)
+
+- `eventstab.py:23` `DLC = "#9a6fc4"` und `depthstab.py:61` `BAR_COLOUR =
+  QColor("#9a6fc4")` teilen den Wert von `theme.DEEP`, ohne ihn zu
+  importieren — heute kein sichtbarer Fehler (der Wert ist identisch), nur
+  ein Driftrisiko bei kuenftiger Aenderung. Keine AK, da `BAR_COLOUR` eine
+  andere Rolle traegt (Heatmap-Intensitaet einer Tabellenzelle, nicht
+  "Deep of Night/DLC"-Markierung) und ein erzwungener Gleichlauf die beiden
+  Rollen kuenstlich verkoppeln wuerde.
+- Rund 80 weitere Hex-Literale ausserhalb `theme.py` (gemessen 22.09.2026,
+  `grep -RcoE "#[0-9a-fA-F]{3,6}" nrplanner --include="*.py"` ohne
+  `theme.py`) sind ueberwiegend tab-eigene Rollen ohne Gegenstueck auf einem
+  anderen Tab (Seltenheitsfarben, Slot-Farben, Sichtungs-Gruen) — keine
+  Rollenkollision gefunden ausser den fuenf oben. Keine Sammel-AK; derselbe
+  Massstab (gleiche Rolle auf zwei Tabs? → theme.py) gilt bei jedem
+  kuenftigen Fund einzeln.
+
+**Director-Entscheid 23.09.2026 01:00 (Nachtrag AK-366, aus T-329o/T-329p):**
+Endet der vorangehende Text mit einem Punkt (die "Loaded …"-Zeile von
+`load_equipped`), ersetzt der Halbsatz diesen Punkt: "… with 3 relics — 1
+other save was found; …", nie ". —". Wortlaut des Halbsatzes unveraendert.

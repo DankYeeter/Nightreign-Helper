@@ -29,16 +29,6 @@ DAMAGE = "max_damage"
 ONLY_ONE_APPLIES = "only one will apply"
 
 
-@pytest.fixture(scope="module")
-def revenant(game_data):
-    return cases.hero_by_name(game_data, "Revenant")
-
-
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 def an_exclusive_attribute_effect(data: dict, hero: dict) -> dict:
     """The lowest-numbered `EXCLUSIVE` effect that raises an offensive
     attribute here -- one the attribute direction can see.

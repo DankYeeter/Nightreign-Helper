@@ -616,3 +616,165 @@ diesem Auftrag) — Annahme am Quelltext, wie bei den fruehreren
 
 Kein Blocker fuer diesen Lauf. Fuer eine Weitergabe gilt dieselbe Liste wie
 im 1.13.2-Abschnitt oben (A-008/A-020/A-023/A-030/A-031/A-033/A-035).
+
+---
+
+## 1.15.0 — 2026-09-19, T-328c, Modus `notes`
+
+Stand `6edab2e` (Code-Stand, Bau T-313b). Lokal gebautes Pruef-Artefakt
+`dist/NightreignHelper.exe`: 59.151.716 Byte, SHA-256
+`1D4197DF0F0C765B507CCA824FBA480DBCFCA76C482CF3F7A852B199CB6BBDF0`
+(`docs/berichte/T-313-release-manager.md`; QA T-313c und Sicherheit T-312b
+liefen gegen diesen bzw. den Vorlauf-Stand). Das tatsaechlich ausgelieferte
+Release-Artefakt (CI-Bau ueber `release.yml`) weicht davon ab — wie bei
+jedem bisherigen Release in diesem Projekt (anderer Bau-Wirt): 59.232.620
+Byte, SHA-256
+`59D0D4308460CD6DC6F5D9E3156A1575E40FE68CD9695719CF514C4FD0E1CCDE`
+(nachgemessen in T-322l per `gh release download v1.15.0`). Tag `v1.15.0`
+auf `c536daa`, Run 35451242996, 3 Assets (`docs/state.md`, Tabelle
+"Veroeffentlicht"). `AUFLAGEN.md` gelesen (juengster Abschnitt zum Zeitpunkt
+dieses Laufs: "Stand 1.18.0", T-328b, 21.09.2026 — keine Auflage auf ROT).
+Kein Release, kein Push, keine Weitergabe in diesem `notes`-Lauf.
+
+### Migration
+
+`nrdata/extract.py`: `EXTRACT_VERSION` 12 auf Stand `v1.14.0` (gemessen per
+`git show v1.14.0:nrdata/extract.py`) auf 15 auf Stand `v1.15.0` — neue
+Unterboss-, Beute- und Ortsdaten (A24). Erster Start nach dem Update baut
+den Cache einmalig neu (CHANGELOG nennt rund 35 s); keine QSettings- oder
+Registry-Aenderung, keine Nutzerdaten (Relikte, Builds) betroffen — die
+liegen unveraendert in der Registry, nicht im Cache.
+
+**Ungeprueft:** der reale Update-Lauf 1.14.0 → 1.15.0 selbst. Fuer diesen
+Uebergang existiert in `docs/berichte/` kein `clean-room`-Bericht (nur die
+drei Dateien `T-285-`, `T-322-` und `T-325-release-manager-clean-room.md`);
+die release-manager-Laeufe T-312a/T-313b waren Rauchtests mit vorab
+kopiertem, bereits aktuellem Testabzug, kein Versionswechsel. Die beiden
+folgenden Uebergaenge (1.15→1.16, 1.16→1.17) sind clean-room-geprueft,
+dieser nicht.
+
+### Ergebnis
+
+Kein Blocker fuer diesen Lauf. Fuer eine erneute Weitergabe gilt dieselbe
+Auflagenliste wie in den vorherigen Abschnitten
+(A-008/A-020/A-023/A-030/A-031/A-033/A-035); der Update-Pfad 1.14.0→1.15.0
+bleibt ungeprueft (oben).
+
+---
+
+## 1.16.0 — 2026-09-20, T-328c, Modus `notes`
+
+Stand `a33e92b` (Tag, Run 35518272445, 3 Assets, `docs/state.md`). Artefakt
+laut Kontraktblock des clean-room-Laufs T-322l: 59.233.161 Byte, SHA-256
+`51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9`.
+`AUFLAGEN.md` gelesen wie im Abschnitt zuvor (Stand "1.18.0", T-328b,
+21.09.2026 — keine Auflage auf ROT). Kein Release, kein Push, keine
+Weitergabe in diesem `notes`-Lauf.
+
+### Migration
+
+Kein `EXTRACT_VERSION`-Sprung: die Schadensart-Auswahl ist reine
+Berater-/UI-Logik, kein neuer Extraktionsschritt. Neuer QSettings-Schluessel
+`damage_art` speichert die gewaehlte Schadensart; ein Speicher ohne diesen
+Schluessel (jeder Stand vor 1.16.0) liest ihn leer und faellt auf "All"
+zurueck (CHANGELOG-Note, am Quelltext plausibilisiert).
+
+**Clean-room belegt** (`docs/berichte/T-322-release-manager-clean-room.md`):
+echter Uebergang 1.15.0 → 1.16.0 aus dem GitHub-Release geladen und
+installiert, vier Testbuilds mit Sonderzeichen im Namen (`Name/WithSlash`,
+`Name|WithPipe`, `UPPERCASE`) ueberstanden das Update unveraendert
+(Registry-Beleg: `__schema`, `__order`, `__selected` intakt), Zweitstart
+nach Prozessende bestanden, Aufraeumen vollstaendig. Urteil des Laufs:
+freigeben.
+
+### Ergebnis
+
+Kein Blocker. Update-Pfad 1.15.0→1.16.0 ist der erste in diesem Viererblock,
+der tatsaechlich an einem echten Artefakt clean-room-geprueft wurde (nicht
+nur am Quelltext plausibilisiert wie im Abschnitt zuvor).
+
+---
+
+## 1.17.0 — 2026-09-21, T-328c, Modus `notes`
+
+Stand `fc57b93` (Quell-Commit des Artefakts laut T-325l), Tag `v1.17.0` auf
+`28b7f1e` (Notes-Commit, gleiches Muster wie beim 1.15.0-Tag auf `c536daa`),
+Run 35560029819, 3 Assets (`docs/state.md`). Artefakt laut Kontraktblock des
+clean-room-Laufs T-325l: 59.250.281 Byte, SHA-256
+`BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4`.
+`AUFLAGEN.md` gelesen wie oben, keine Auflage auf ROT. Kein Release, kein
+Push, keine Weitergabe in diesem `notes`-Lauf.
+
+### Migration
+
+`EXTRACT_VERSION` 15 → 16 (Zauberschaden, linke Starthand, Tauschzauber
+werden neu gelesen).
+
+**Clean-room belegt, echter Sprung, nicht nur behauptet**
+(`docs/berichte/T-325-release-manager-clean-room.md`): Cache vor dem Update
+`extract_version: 15` (8.803.996 Byte), nach **37,2 s** Neubau
+(Prozessstart 22:25:10 → `nightreign_data.json` neu geschrieben 22:25:47)
+`extract_version: 16` (8.811.742 Byte) — deckt sich mit dem in
+`docs/tasks/T-328.md` genannten Wert ("clean-room T-325 37 s"). Vier
+Testbuilds mit Sonderzeichen ueberstanden den Sprung unveraendert
+(Registry-Beleg), Zweitstart nach Prozessende warm (3,4 s, kein zweiter
+Neubau), Aufraeumen vollstaendig.
+
+**Zusaetzlich, settingsseitiger Bruch ohne Datenverlust:** der bisherige
+Schluessel `damage_art` (seit 1.16.0) wird ab 1.17.0 nicht mehr gelesen; die
+neuen Schluessel `hit_with` und `damage_type` ersetzen ihn (CHANGELOG-Note).
+Eine Aktualisierung von 1.16.0 startet also ohne die zuletzt gemerkte
+Schadensart (Ruecksprung auf Weapon/All) statt mit dem alten Wert — kein
+Datenverlust, da reine Bedienvorlieben betroffen sind, keine Relikte oder
+Builds, aber ein bewusster Bruch der Kontinuitaet. **Ungeprueft:** der
+clean-room-Bericht T-325l prueft diesen Schluesselwechsel nicht gezielt
+(Fokus lag auf dem Cache-Sprung und den vier Builds mit Sonderzeichen) — ob
+ein zuvor gesetzter `damage_art`-Wert sauber ignoriert wird oder ob das
+Lesen scheitert, ist am echten Artefakt nicht belegt; aus Nutzersicht sind
+beide Faelle als "Ruecksetzung auf Weapon/All" nicht unterscheidbar, solange
+kein Fehlerdialog erscheint.
+
+### Ergebnis
+
+Kein Blocker. Die Cache-Migration ist clean-room-geprueft; der
+Settings-Schluesselwechsel `damage_art` → `hit_with`/`damage_type` ist nur
+am Quelltext (CHANGELOG-Note) belegt, nicht an einem echten Update-Lauf mit
+zuvor gesetztem `damage_art`.
+
+---
+
+## 1.18.0 — 2026-09-21, T-328c, Modus `notes`
+
+Stand `5a35272` (Code-Stand des Bau-Laufs T-327g), Tag `v1.18.0` auf
+`1ae6952`, Run 35633098282, 3 Assets (`docs/state.md`). Artefakt laut
+`docs/state.md` ("A27 abgeschlossen"): SHA-256-Anfang/-Ende `89DAACBB…DCCC`
+— die volle Pruefsumme steht in keiner in diesem Lauf gelesenen Quelle
+ausgeschrieben; **ungeprueft** in diesem Umfang. `AUFLAGEN.md` gelesen, keine
+Auflage auf ROT. Kein Release, kein Push, keine Weitergabe in diesem
+`notes`-Lauf.
+
+### Migration
+
+Kein `EXTRACT_VERSION`-Sprung: `v1.17.0` und `v1.18.0` stehen beide auf 16
+(gemessen per `git show <tag>:nrdata/extract.py`). Keine neue
+QSettings-Struktur — Weapon art und Spell damage sind reine Anzeigefelder
+im Schadensblock, kein gespeicherter Auswahlzustand. Damit ist 1.18.0 die
+einzige Version dieses Viererblocks ohne Datenmigrationsfrage.
+
+**Ausdruecklich kein Update-Pfad geprueft:** `docs/state.md` haelt zu "A27
+abgeschlossen" fest, dass die Release-Kette 1.18.0 **ohne clean-room und
+ohne power-user** lief — Nutzerentscheid 21.09. 19:25 ("kurze Kette").
+Gegengeprueft: `docs/berichte/` enthaelt keine Datei
+`T-327-release-manager-clean-room.md` (nur die drei Dateien zu T-285, T-322,
+T-325). Der Uebergang 1.17.0 → 1.18.0 — einschliesslich des im
+1.17.0-Abschnitt offen gebliebenen Settings-Bruchs — ist damit **ungeprueft**,
+nicht nur im Nebenpunkt.
+
+### Ergebnis
+
+Kein Blocker fuer diesen `notes`-Lauf selbst. Fuer die bereits erfolgte
+Weitergabe von 1.18.0 gilt: der Update-Pfad von der Vorversion wurde vor der
+Weitergabe nicht verifiziert — eine bewusste Nutzerentscheidung, hier nur
+nachrichtlich festgehalten. Dieser `notes`-Auftrag (T-328c) schliesst Bau
+und `clean-room` ausdruecklich aus; eine nachtraegliche Pruefung waere ein
+eigener `clean-room`-Auftrag.

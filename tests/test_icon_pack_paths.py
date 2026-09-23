@@ -84,3 +84,34 @@ def test_files_inside_the_pack_still_load(planted_pack):
     assert pack.portrait(2) is not None
     assert pack.item(4) is not None
     assert pack.ui_path("ok") is not None
+
+
+def test_a_missing_file_is_asked_for_once(planted_pack, monkeypatch):
+    """T-329g: a name the pack refuses or does not hold is answered from the
+    cache the second time instead of going back to the disk."""
+    pack, _outside, _before = planted_pack
+    asked = []
+    real = pack._inside_pack
+    monkeypatch.setattr(pack, "_inside_pack",
+                        lambda name: asked.append(name) or real(name))
+
+    for _ in range(2):
+        assert pack.variant(99) is None
+        assert pack.portrait(1) is None
+
+    assert asked == ["variant_99.png", "../outside/evil.png"]
+
+
+def test_a_file_that_would_not_read_is_asked_for_again(planted_pack,
+                                                       monkeypatch):
+    """The miss that stays uncached: a read held up by a scanner or sync
+    client succeeds later (`_pixmap`), so a failed load must not stick."""
+    from PySide6.QtGui import QPixmap
+
+    pack, _outside, _before = planted_pack
+    monkeypatch.setattr(iconpack, "QPixmap", lambda *args: QPixmap())
+    monkeypatch.setattr(iconpack, "_read_with_retries", lambda path: None)
+    assert pack.portrait(2) is None
+
+    monkeypatch.undo()
+    assert pack.portrait(2) is not None

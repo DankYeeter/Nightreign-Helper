@@ -38,6 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from . import model, weapons
+from .theme import MUTED
 
 
 # Which build.rates multiplier applies to which damage type. Attack rates
@@ -116,6 +117,35 @@ ATTACK_RATING_NAME = "Attack rating"
 # task named this as what to use until it is.
 SPELL_POWER_LABEL = "Spell power"
 
+# What a spell hits for is a different quantity from both of those, so it is
+# named apart from them (AD-053, point 7): the attack rating and the spell
+# power are fitted against figures the game prints, and this one is not.
+SPELL_DAMAGE_NAME = "Spell damage"
+
+# ... and it says so wherever it is shown. The Elden Ring damage formula
+# applied to Nightreign's params is a premise of A26 and not a measurement
+# (user decision OF-54, 2026-09-20): the factors are the game's own, their
+# product has never been compared with a number on screen, and no screen of
+# this game shows one to compare it with.
+SPELL_DAMAGE_UNCALIBRATED = (
+    "{name} is uncalibrated: it is the damage formula applied to the game's "
+    "own values, and the game shows no spell damage to check it against. "
+    "Compare two spells by it, not the figure itself.")
+
+# The spell power is a percentage of the spell's own damage, which is what
+# makes the 100 arithmetic rather than a tuning knob.
+SPELL_POWER_SCALE = 100.0
+
+# What a spell that damages nothing gets instead of a figure. Rejection and
+# Heal are the Finger Seal's two, so this is Revenant's default state rather
+# than an edge case. It carries the spell's own name unescaped, like every
+# other game text this program passes on: the sinks that draw a finding are
+# PlainText, and escaping here would show a spell called `Bell & Bearing` its
+# own `&amp;` (SEC-019, AK-29).
+NO_SPELL_DAMAGE = (
+    "{name} deals no damage, so this is 0.00. Only a relic that swaps the "
+    "spell this equipment casts brings damage here.")
+
 
 def displayed(figure: float) -> int:
     """The whole number a display puts on screen for an attack rating.
@@ -158,7 +188,6 @@ _NO_BREAK_SPACE = "\u00a0"
 # The hand the switch (AK-292) is not set to, on every surface that shows
 # both: the panes' `MUTED`, unbolded, whatever emphasis the surface puts
 # around the whole figure (AK-298).
-MUTED = "#8a8a8a"
 _QUIET_HAND = f"<span style='color:{MUTED}; font-weight:normal'>{{}}</span>"
 
 
@@ -595,43 +624,34 @@ def converted(per_type: dict[str, float],
     return after, moved
 
 
-def _answer(rating: weapons.WeaponRating, question: Question,
-            build: model.Build, *, starting_armament: bool = False,
-            two_handed: Rating | None = None) -> Rating:
-    """Layer two: the attack multipliers, where the question includes them.
+def _multiplied(per_type: dict[str, float], build: model.Build, *,
+                art: str | None = None,
+                buckets: list[dict[str, float]] | None = None,
+                starting_armament: bool = False,
+                ) -> tuple[dict[str, float], dict[str, float]]:
+    """The attack multipliers on a per-type figure: `(after, what applied)`.
 
-    `two_handed` is the finished answer for the other hand, attached as it
-    is; a rating that carries a two-handing factor (`rating.two_handed`)
-    additionally takes the `when Two-Handing` bucket, and no one-handed
-    rating ever does (AD-037, point 3).
+    The one loop a swing and a spell both go through (AD-053, point 2). What
+    differs between the two is what is handed in, not what happens here: an
+    armament brings the buckets of its weapon class and, where it is the
+    Nightfarer's own in slot 1, the status penalty's field family; a spell
+    brings neither -- it is no swing of a weapon class and carries no
+    starting-armament pairing (AD-053, point 4), so it is rated on the
+    general `*AttackRate` fields and its art alone.
+
+    A second copy of this arithmetic is what assurance Z1 forbids: the
+    advisor's marginal contribution is a difference of two figures, and two
+    places forming the same product could bracket it differently.
     """
-    scaled_per_type = rating.scaled_per_type()
-    weapon_class = model.weapon_class(rating.weapon)
-
-    if not MULTIPLIERS_FOR[question]:
-        return Rating(
-            question=question,
-            weapon_rating=rating,
-            scaled_per_type=scaled_per_type,
-            final_per_type=dict(scaled_per_type),
-            weapon_class=weapon_class,
-            two_handed=two_handed,
-        )
-
-    # The damage-type conversion follows the same pairing as the status
-    # penalty below: the Nightfarer's own armament in slot 1, nothing else.
-    conversion: dict[str, float] = {}
-    if starting_armament and build.starting_flat:
-        scaled_per_type, conversion = converted(scaled_per_type,
-                                                build.starting_flat)
-
-    buckets = [build.class_rates.get(weapon_class, {})]
-    if rating.two_handed:
-        buckets.append(build.class_rates.get(model.TWO_HANDED_CLASS, {}))
+    buckets = buckets or []
+    art_rate = model.art_factor(build, art)
     final_per_type: dict[str, float] = {}
     rates_in_play: dict[str, float] = {}
+    if abs(art_rate - 1.0) > 1e-9:
+        # Under its own key, so the breakdown can show which art it is.
+        rates_in_play[art] = art_rate
 
-    for damage, total in scaled_per_type.items():
+    for damage, total in per_type.items():
         fields = AR_RATE_FOR.get(damage, ())
         if starting_armament:
             fields += STARTING_AR_RATE_FOR.get(damage, ())
@@ -659,7 +679,58 @@ def _answer(rating: weapons.WeaponRating, question: Question,
             rate *= from_build
             for bucket in buckets:
                 rate *= bucket.get(field_name, 1.0)
+        # Last, and once per damage type: the art covers the whole hit, not
+        # one of the five rates that make it up (AD-047, point 2).
+        rate *= art_rate
         final_per_type[damage] = total * rate
+
+    return final_per_type, rates_in_play
+
+
+def _answer(rating: weapons.WeaponRating, question: Question,
+            build: model.Build, *, starting_armament: bool = False,
+            two_handed: Rating | None = None,
+            art: str | None = None) -> Rating:
+    """Layer two: the attack multipliers, where the question includes them.
+
+    `two_handed` is the finished answer for the other hand, attached as it
+    is; a rating that carries a two-handing factor (`rating.two_handed`)
+    additionally takes the `when Two-Handing` bucket, and no one-handed
+    rating ever does (AD-037, point 3).
+
+    `art` names one kind of attack the figure is asked about -- a Weapon Art,
+    a spell school (`model.attack_arts`). Its factor is a third bucket beside
+    the class ones, applied in the same loop and on the same figure, so that
+    the buffs a scoped relic carries reach the ranking exactly where the
+    ordinary ones do. `None` is the question nobody asked, and every figure
+    is then the one it has always been (AD-047, point 1).
+    """
+    scaled_per_type = rating.scaled_per_type()
+    weapon_class = model.weapon_class(rating.weapon)
+
+    if not MULTIPLIERS_FOR[question]:
+        return Rating(
+            question=question,
+            weapon_rating=rating,
+            scaled_per_type=scaled_per_type,
+            final_per_type=dict(scaled_per_type),
+            weapon_class=weapon_class,
+            two_handed=two_handed,
+        )
+
+    # The damage-type conversion follows the same pairing as the status
+    # penalty below: the Nightfarer's own armament in slot 1, nothing else.
+    conversion: dict[str, float] = {}
+    if starting_armament and build.starting_flat:
+        scaled_per_type, conversion = converted(scaled_per_type,
+                                                build.starting_flat)
+
+    buckets = [build.class_rates.get(weapon_class, {})]
+    if rating.two_handed:
+        buckets.append(build.class_rates.get(model.TWO_HANDED_CLASS, {}))
+    final_per_type, rates_in_play = _multiplied(
+        scaled_per_type, build, art=art, buckets=buckets,
+        starting_armament=starting_armament)
 
     return Rating(
         question=question,
@@ -675,7 +746,8 @@ def _answer(rating: weapons.WeaponRating, question: Question,
 
 
 def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
-          data: dict, *, starting_armament: bool = False) -> Rating:
+          data: dict, *, starting_armament: bool = False,
+          art: str | None = None) -> Rating:
     """Both layers for one armament and one question, both hands.
 
     Both hands come from one `weapons._rate_pair` call, which shares the
@@ -688,14 +760,14 @@ def _rate(weapon: dict, question: Question, tier: int, build: model.Build,
     two_handed = None
     if two_handed_rating is not None:
         two_handed = _answer(two_handed_rating, question, build,
-                             starting_armament=starting_armament)
+                             starting_armament=starting_armament, art=art)
     return _answer(one_handed, question, build,
                    starting_armament=starting_armament,
-                   two_handed=two_handed)
+                   two_handed=two_handed, art=art)
 
 
 def equipped(slot, slot_index: int, build: model.Build, hero: dict,
-             data: dict) -> tuple[Rating, Rating]:
+             data: dict, *, art: str | None = None) -> tuple[Rating, Rating]:
     """The armament in a slot: the bare comparison figure, then the real one.
 
     The tier comes from the slot, and the starting-armament pairing from the
@@ -705,11 +777,300 @@ def equipped(slot, slot_index: int, build: model.Build, hero: dict,
 
     `slot` is left untyped because `weaponslots` imports Qt and this module
     does not; anything with a `weapon` and a `tier` will do.
+
+    `art` restricts the real figure to one kind of attack (`_answer`). The
+    bare figure carries no multipliers at all and is therefore the same
+    under every art, which is what makes it the comparison it is.
     """
     starting = is_starting_armament(slot.weapon, hero, slot_index)
     return (_rate(slot.weapon, Question.BARE, slot.tier, build, data),
             _rate(slot.weapon, Question.EQUIPPED, slot.tier, build, data,
-                  starting_armament=starting))
+                  starting_armament=starting, art=art))
+
+
+@dataclass(frozen=True)
+class SpellRating:
+    """What a spell hits for, cast from this catalyst by this build.
+
+    The sibling of `Rating` for the spell half of the question (AD-053), and
+    the same shape of answer: one figure per damage type, held once, with
+    both the selected figure and the total derived from it rather than
+    supplied beside it (assurance Z1).
+
+    It is deliberately **not** a `Rating`. A `Rating` is an armament's attack
+    rating, layer one and layer two, and every display reads
+    `final_headline`, `two_handed` and `weapon_rating` off it; a spell has
+    none of the three -- no hands, no reinforce tier of its own, and a
+    headline that is a different quantity under a different name
+    (`SPELL_DAMAGE_NAME`).
+    """
+
+    spell: dict
+    #: The damage type asked about, `""` for all of them at once. The two
+    #: columns of the combination table, and the reason the figure is picked
+    #: here rather than by every caller in turn.
+    damage_type: str
+    #: The catalyst's spell scaling -- the figure the game prints on the
+    #: staff, unrounded, and the one factor of this product that *is*
+    #: calibrated (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
+    spell_power: float
+    per_type: dict[str, float]
+    #: The same product with nothing equipped: the spell's own base damage on
+    #: the catalyst's spell scaling at the level's own attributes, and no
+    #: rates and no art factor on top of it. The "before" figure a display
+    #: puts against `per_type` (AK-359), and the counterpart of the `bare`
+    #: half of what `equipped()` hands back -- `Question.BARE` for the spell
+    #: half, held here rather than asked for a second time so that the two
+    #: halves of one difference come out of one call (assurance Z1).
+    bare_per_type: dict[str, float]
+    #: Only the multipliers that are not 1.0, keyed as `Rating.rates` is.
+    rates: dict[str, float] = field(default_factory=dict)
+    #: Why this figure is 0.00 where that needs saying, else `None`.
+    reason: str | None = None
+
+    def _asked(self, per_type: dict[str, float]) -> float:
+        """One damage type's figure out of a per-type map, or all of them.
+
+        The pick is here and not at the two properties below, so that the
+        figure and its baseline can never be picked by two different rules.
+        """
+        if self.damage_type:
+            return per_type.get(self.damage_type, 0.0)
+        return sum(per_type.values())
+
+    @property
+    def figure(self) -> float:
+        """The number asked for: one type's, or all of them summed.
+
+        A type the spell does not deal is 0.00 and not an error -- it is a
+        ranking in which every candidate that brings some of that type
+        stands above this one.
+        """
+        return self._asked(self.per_type)
+
+    @property
+    def bare_figure(self) -> float:
+        """The same number with nothing equipped (`bare_per_type`)."""
+        return self._asked(self.bare_per_type)
+
+
+def _casts_under(spell: dict, art: str) -> bool:
+    """Does this spell belong to the school `art` names?
+
+    The school is a number in the art key and a name on the spell, so the
+    two are matched through `model.SPELL_FAMILY_NAMES` -- the dataset's own
+    naming, in both directions, with nothing written down here.
+    """
+    value = art[len(model.ART_FAMILY_PREFIX):]
+    if not value.isdigit():
+        return False
+    name = model.SPELL_FAMILY_NAMES.get(int(value))
+    return bool(name) and spell.get("family") == name
+
+
+def _art_of(spell: dict, hit_with: str) -> str | None:
+    """Which art's factor this spell actually takes under the asked one.
+
+    Asking about a school the spell does not belong to does not leave it
+    unbuffed: it is still a sorcery or still an incantation, so it keeps the
+    factor of its genus and loses only the school's. The genus is read off
+    the spell's own category rather than asserted here.
+    """
+    if not hit_with:
+        return None
+    if not hit_with.startswith(model.ART_FAMILY_PREFIX):
+        return hit_with
+    if _casts_under(spell, hit_with):
+        return hit_with
+    return model.GENUS_FOR_CATEGORY.get(str(spell.get("category") or ""))
+
+
+def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
+          data: dict, *, hit_with: str, damage_type: str = "") -> SpellRating:
+    """What this spell hits for, cast from this catalyst by this build.
+
+    The spell half of the facade (AD-053), and the same rule as the weapon
+    half: the figure is formed here once, and a display or a goal prints
+    what it gets back instead of assembling one of its own (AD-019/AD-021).
+
+        figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+
+    and, beside it, the same product with nothing equipped (`bare_per_type`),
+    so that a display's before-and-after comes out of one call.
+
+    `base[T]` is the spell's strongest single hit in that damage type
+    (`spells[].damage`, AD-050.3, user decision OF-57 -- not the sum of a
+    multi-hit spell and not its charged variant). `spell_power` is the
+    catalyst's own headline, the figure the game prints on the staff, asked
+    of this module's own `_rate` rather than of `weapons` a second time, so
+    that it is the very number the weapon tile shows and carries the one
+    calibration there is (QA-099); the attributes it stands on are the build's, which
+    is why a Faith relic raises a seal's incantations. `rate[T]` is the
+    general `*AttackRate` family and `art_rate` the genus and school buffs,
+    both through `_multiplied`, the same loop a swing goes through.
+
+    **The product itself is uncalibrated** and has to be shown as such
+    (`SPELL_DAMAGE_UNCALIBRATED`, OF-54): it is the Elden Ring formula taken
+    as a premise, and nothing the game displays confirms it.
+
+    **Four things deliberately do not reach a spell** (AD-053, point 4), and
+    each is an omission rather than an oversight: the class rates -- a spell
+    is no swing of a weapon class --, the two-handing bucket, the starting
+    armament's damage-type conversion and its status penalty, both of which
+    are properties of the armature in slot 1 rather than of the spell. None
+    of the four can arrive here at all: `_multiplied` is called without the
+    buckets and without the pairing.
+
+    `hit_with` names what is being asked about -- `sorceries`,
+    `incantations` or `family:<id>`; `damage_type` picks one of the five, or
+    `""` for all of them together. Neither decides *which* spell is rated:
+    that is the goal's choice (AD-052), and this answers for the spell it is
+    handed.
+
+    Raises `ValueError` for an armament the game shows no spell scaling for.
+    A spell cast from a sword is not a 0.00 to be ranked -- it is a caller
+    that picked the wrong reference object, and a silent zero would hide it.
+    """
+    spell_power = _rate(catalyst, Question.EQUIPPED, tier, build,
+                        data).catalyst_scaling
+    if spell_power is None:
+        raise ValueError(
+            f"{catalyst.get('name', 'this armament')!r} is no catalyst, so "
+            f"it has no {SPELL_POWER_LABEL.lower()} to cast "
+            f"{spell.get('name', 'a spell')!r} with. The reference object "
+            f"for a spell question is the starting catalyst (AD-052).")
+
+    # A value that is not a positive, finite number is no damage: it would
+    # travel through every multiplication below and poison a ranking rather
+    # than fail loudly (T-077). The extractor writes only positive types, so
+    # this holds a snapshot older or newer than this code at arm's length.
+    base = {name: float(value)
+            for name, value in (spell.get("damage") or {}).items()
+            if isinstance(value, (int, float)) and math.isfinite(value)
+            and value > 0}
+    art = _art_of(spell, hit_with)
+    per_type, rates = _multiplied(
+        {name: value * spell_power / SPELL_POWER_SCALE
+         for name, value in base.items()}, build, art=art)
+    # The baseline of the same product (AK-359): the catalyst asked again on
+    # the level's own attributes, which is the one factor of the four that a
+    # bare build changes -- the rates and the art factor are what the build
+    # brought and are left out of a "before" figure by definition, exactly as
+    # `MULTIPLIERS_FOR[Question.BARE]` leaves them out of an armament's.
+    bare_power = _rate(catalyst, Question.BARE, tier, build,
+                       data).catalyst_scaling
+    return SpellRating(
+        spell=spell,
+        damage_type=damage_type,
+        spell_power=spell_power,
+        per_type=per_type,
+        bare_per_type={name: value * bare_power / SPELL_POWER_SCALE
+                       for name, value in base.items()},
+        rates=rates,
+        reason=None if base else NO_SPELL_DAMAGE.format(
+            name=spell.get("name", "This spell")),
+    )
+
+
+# -- what a spell question is asked about (AD-052) ----------------------
+#
+# Which catalyst and which spell a spell question stands on is a choice, not
+# an answer, and it lives beside the answer for the reason AD-019 gives: the
+# advisor's spell cell and the stat sheet's spell row have to pick the same
+# object, and the rule written a second time in the second caller is exactly
+# the second place that decision forbids. It was private to
+# `advisor/goals.py` until the stat sheet needed it (AK-357).
+
+#: `wep_type` 57 is a staff and 61 a seal, and the pair carries the genus
+#: distinction the spell rows need: `enableMagic`/`enableMiracle` say the
+#: same thing and are not in the extract, which AD-052 point 4 settled
+#: rather than left open. Membership is also the test for "is this armament
+#: a catalyst at all", so the one table answers both questions.
+GENUS_OF_CATALYST = {57: model.SORCERIES_ART, 61: model.INCANTATIONS_ART}
+
+
+def _record_by_id(records, wanted: int | None) -> dict | None:
+    """The weapon or spell row with this id, or `None` for no such row.
+
+    A scan and not an index, and the cost is measured rather than waved
+    through: 113 us of a spell cell's 137 us is this function walking the
+    1793 armament rows twice, against 35 us for a whole weapon cell (level
+    15, Revenant, 2026-09-20). An index would have to be built out of the
+    dataset at every evaluation as well, or kept as module state that a
+    second dataset would make stale, and either is a shape the
+    `performance-tuner` should choose against a measurement of a whole run
+    rather than this one.
+    """
+    if wanted is None:
+        return None
+    return next((record for record in records
+                 if record.get("id") == wanted), None)
+
+
+def start_catalyst(hero: dict, data: dict) -> dict | None:
+    """The staff or seal this Nightfarer starts with -- right hand first.
+
+    AD-052 point 1: the right hand before the left, and the left only where
+    the right carries none. Measured over the ten Nightfarers, exactly two
+    carry one and neither carries two -- Recluse's staff is in her right
+    hand and Revenant's Finger Seal in his left, which is the reason the
+    left hand is read at all (AD-050).
+    """
+    for hand in ("starting_weapon", "starting_weapon_left"):
+        weapon = _record_by_id(data.get("weapons") or (), hero.get(hand))
+        if weapon is not None and weapon.get("wep_type") in GENUS_OF_CATALYST:
+            return weapon
+    return None
+
+
+def _base_damage(record: dict, damage_type: str) -> float:
+    """What a spell hits for before anything of this build reaches it.
+
+    The yardstick AD-052 point 3 picks the stronger of two swap relics by,
+    and deliberately the base value rather than the finished figure: the
+    spell power and the rates are the same for both, so they cannot change
+    which of the two is in front, and the base value is the one number that
+    belongs to the spell itself.
+    """
+    base = record.get("damage") or {}
+    if damage_type:
+        return float(base.get(damage_type, 0.0))
+    return float(sum(base.values()))
+
+
+def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
+                 damage_type: str = "") -> tuple[dict | None, int]:
+    """The spell this equipment casts, and how many relics swapped it.
+
+    AD-052 point 2: a relic that swaps the starting armament's spell puts
+    its own spell in the hand, so it is the reference object **and** a
+    candidate that moves the figure -- the only effect family of this
+    dataset that changes a base value rather than a rate. Held or chosen
+    makes no difference here: `model.compute` has put both into the build
+    before this is asked.
+
+    A swap relic works for exactly one Nightfarer (`allowed_heroes`, all ten
+    of them), and that Nightfarer is the one whose catalyst can cast its
+    spell, so a seal cannot be rated on a sorcery. That is the dataset's
+    doing rather than this function's, and a case in
+    `tests/test_advisor_goals.py` holds it.
+
+    `damage_type` decides nothing but which of two swapped spells is the
+    stronger, so a caller that asks about every type at once (the stat
+    sheet) leaves it out.
+    """
+    spells = data.get("spells") or ()
+    swapped = [record for record in
+               (_record_by_id(spells, magic_id)
+                for magic_id in build.swapped_spell_ids)
+               if record is not None]
+    if swapped:
+        return (max(swapped,
+                    key=lambda record: _base_damage(record, damage_type)),
+                len(swapped))
+    slots = catalyst.get(model.SPELL_SLOTS_KEY) or ()
+    first = next((slot for slot in slots if slot != model.NO_SPELL_SLOT), None)
+    return _record_by_id(spells, first), 0
 
 
 def candidate(weapon: dict, target_tier: int, build: model.Build,

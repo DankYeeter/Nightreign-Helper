@@ -18,11 +18,14 @@ really hands it.
 
 from __future__ import annotations
 
+import html
+
 import pytest
 from PySide6.QtWidgets import QPushButton
 
 from nrplanner import advisorbar, chalices, inventory
 from nrplanner.advisor import goals, types
+from tests.advisor_row_at_the_window import AK_350_ROOMS
 
 
 # --- the answers the cases apply -------------------------------------------
@@ -165,12 +168,12 @@ def test_an_applied_answer_offers_undo_in_the_same_place(qapp):
                                        goal_label="Maximise damage",
                                        slots=6, slots_filled=1))
         bar.the_suggestion_was_applied()
-        assert bar.status.whole_text() == (
+        assert bar.status.accessibleName() == (
             "Applied. Undo puts your slots back as they were.")
         assert visible_actions(bar) == ["Undo apply", "Why", "Clear"]
 
         bar.the_suggestion_was_undone()
-        assert bar.status.whole_text() == (
+        assert bar.status.accessibleName() == (
             "Maximise damage — 1 of 6 slots filled.")
         assert visible_actions(bar) == ["Apply all", "Why", "Clear"]
     finally:
@@ -415,7 +418,7 @@ def test_the_row_says_applied_and_the_cards_say_already_equipped(planner):
     planner.apply_all()
 
     assert planner.advisor_bar.situation.state is advisorbar.State.APPLIED
-    assert planner.advisor_bar.status.whole_text() == (
+    assert planner.advisor_bar.status.accessibleName() == (
         "Applied. Undo puts your slots back as they were.")
     for index, _copy in offers:
         block = planner.active_slots()[index].suggestion
@@ -515,7 +518,7 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
         time.sleep(0.005)
     if bar.answer is None or not bar.answer.suggestions:
         pytest.skip(f"the run ended in {bar.situation.state} with nothing to "
-                    f"apply: {bar.status.whole_text()!r}")
+                    f"apply: {bar.status.accessibleName()!r}")
 
     planner.apply_all()
     applied = keys_of(planner)
@@ -531,17 +534,55 @@ def test_a_real_optimize_can_be_applied_and_taken_back(planner):
 
 def test_at_the_opening_width_no_action_button_is_cut(
         advisor_row_at_the_window):
-    """AK-05 for the three controls this task put in the row, and AK-194.
+    """AK-05 for the three controls this task put in the row.
 
     The row's busiest state, measured at the derived opening width under
     the Windows platform (see `tests/advisor_row_at_the_window.py`): the
-    row is horizontally `Ignored` and hands its status whatever is left,
-    so what is left is a figure of seven captions and of the font.
+    row is horizontally `Ignored` and hands its status whatever is left.
+    Option B (user decision 2026-09-19): with the damage type pair visible,
+    the opening width (1608 px) already sits under the 1676 px AK-334
+    measured for both boxes uncut, so `goal_box` and `damage_type_box` are
+    left out of this assertion -- the three action buttons never cut.
     """
     row = advisor_row_at_the_window["suggested"]
-    assert {"apply_button", "why_button", "clear_button"} <= set(
-        row["on_screen"]), (
+    actions = {"apply_button", "why_button", "clear_button"}
+    assert actions <= set(row["on_screen"]), (
         "no action button is on screen, so this case would pass whatever "
         "the row's width did")
-    assert row["cut"] == []
-    assert row["status_width"] > 0
+    assert not actions & set(row["cut"])
+
+
+def test_at_1920_px_the_ratio_narrows_the_status_and_a_box(
+        advisor_row_at_the_window):
+    """AK-352: `room=1920` puts AK-350's ratio (1728 px) under the row's need.
+
+    The reference desktop of AK-352's table: below `need / RATIO`, so the
+    status gives way first (AK-351 step 1) and then at least one box elides
+    (step 2) rather than any control leaving the row or an action button
+    losing its caption (step 3, unconditional).
+    """
+    row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[0])]
+    suggested = row["suggested"]
+    boxes = {"goal_box", "hit_with_box", "damage_type_box"}
+    actions = {"apply_button", "why_button", "clear_button"}
+
+    assert suggested["status_width"] == 0
+    assert boxes & set(suggested["cut"]), (
+        f"AK-350's ratio narrows the row below its need at this width, so "
+        f"at least one box should give way to eliding: {suggested['cut']}")
+    assert not actions & set(suggested["cut"])
+    assert html.escape(suggested["status_whole_text"]) in suggested[
+        "row_tooltip"]
+
+
+def test_at_2560_px_the_ratio_already_covers_the_need(
+        advisor_row_at_the_window):
+    """AK-352: `room=2560` puts AK-350's ratio (2304 px) over the row's need.
+
+    The clamp in `_opening_width` caps it back to the need, the same as an
+    uncapped screen -- nothing gives way in either state.
+    """
+    row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[1])]
+    for state in ("failed", "suggested"):
+        assert row[state]["cut"] == [], (
+            f"{state}: {row[state]['cut']}")

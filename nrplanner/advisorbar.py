@@ -47,7 +47,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
-from . import damage, model, weapons
+from . import damage, favourites, model, weapons
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -96,6 +96,47 @@ OPTIMIZE_TOOLTIP = ("Fills every slot from the relics in your save. Nothing "
 FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
                    "(Avoid) in a suggestion.")
 
+#: AK-351: the row's first box has no label beside it, unlike the two that
+#: follow it -- so its own tooltip is what a reader has once its text no
+#: longer fits at the derived opening width (AK-350). Static, like the two
+#: beside it (AK-340): what the control is for, never what happens to be
+#: chosen in it.
+GOAL_BOX_TOOLTIP = "Chooses what the Advisor ranks your build for."
+
+#: AK-340: what the "Hit with" box chooses, which of the two things the game
+#: calls a skill it counts, and that the spell it ranks is the one this
+#: Nightfarer's own equipment throws -- without the third sentence
+#: `Incantations` reads as "any incantation I find in the run", the
+#: non-goal `GOAL.md` A26 names. Static, like the one beside it.
+HIT_WITH_TOOLTIP = ("Chooses what the figure ranks: the starting armament, "
+                    "its Weapon Art, or the spell the starting catalyst "
+                    "throws. Weapon art counts Weapon Arts only — a "
+                    "Nightfarer's own skills are never counted. Sorceries, "
+                    "Incantations and a school rank the one spell this "
+                    "Nightfarer's own equipment casts, not a spell found in "
+                    "the run.")
+
+#: AK-340: what the damage-type box does, one sentence now that the arts
+#: have a box of their own. Static -- it says what the control is for, never
+#: what happens to be chosen in it. The direction's name is filled in from
+#: the registry rather than written here, because AK-256 point 2 gives the
+#: registry the only copy of it (`test_no_direction_label_is_written_
+#: into_a_control` walks this file for the others).
+DAMAGE_TYPE_TOOLTIP = "Restricts {direction} to one kind of damage."
+
+#: AK-347: both halves of the question survive a restart, in the same store
+#: `uiscale.KEY` and `app.PANES_KEY` use. Two flat keys and not one joined
+#: value: flat and without `/` or a comma on purpose -- unlike
+#: `favourites.key()` neither ever has a value built onto it, so nothing here
+#: can grow the two characters that would make it one (Sicherheitsvorgabe 4,
+#: T-321; AD-051.5's `advisor/hit_with` describes the pair, it is not the
+#: spelling of the key). The value kept under each is its box's own id form
+#: (`"family:23"`, `"Fire"`), never a label -- the same rule the id form
+#: answers to everywhere else. The single old key `damage_art` is not
+#: translated, it is ignored (AD-051.5): it is days old.
+HIT_WITH_KEY = "hit_with"
+DAMAGE_TYPE_KEY = "damage_type"
+
 
 class State(enum.Enum):
     """The rows of `UI_SPEC` §4, by their number and by a name.
@@ -142,6 +183,9 @@ class Situation:
     #: the pools were empty (AK-294: two causes, two clauses).
     slots_without_a_choice: int = 0
     blocked_by_a_requirement: bool = False
+    #: AK-365's third cause: the chosen type or art nothing owned reaches,
+    #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
+    no_carrier_for: str = ""
     #: The two clauses of 4.9, counted apart because they are two different
     #: things (AK-142/AK-143): a curse of a suggested copy that the run wrote
     #: no figure for is a **price** nobody put a number on, and an effect left
@@ -187,6 +231,13 @@ def _slots_blocked(count: int) -> str:
     if count == 1:
         return "1 slot is blocked by a requirement you marked"
     return f"{count} slots are blocked by a requirement you marked"
+
+
+def _slots_no_carrier(count: int, choice: str) -> str:
+    """The second clause of 4.11 when the run dropped its suggestions
+    because nothing owned reaches the chosen type or art (AK-365)."""
+    return (f"{_slots_with_nothing(count)}: nothing you own reaches "
+            f"{choice} here")
 
 
 def _curses_with_no_number(count: int) -> str:
@@ -292,11 +343,15 @@ def status_line(situation: Situation) -> str:
                 f"on for {situation.nightfarer}, so there is nothing to "
                 f"suggest.")
     if state is State.SUGGESTED_WITH_AN_EMPTY_SLOT:
-        empty = (_slots_blocked if situation.blocked_by_a_requirement
-                 else _slots_with_nothing)
+        count = situation.slots_without_a_choice
+        if situation.blocked_by_a_requirement:
+            empty = _slots_blocked(count)
+        elif situation.no_carrier_for:
+            empty = _slots_no_carrier(count, situation.no_carrier_for)
+        else:
+            empty = _slots_with_nothing(count)
         return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled{CLAUSES}"
-                f"{empty(situation.slots_without_a_choice)}.")
+                f"{situation.slots} slots filled{CLAUSES}{empty}.")
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
@@ -473,6 +528,14 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
     two_handed = planner.stat_sheet.hand_switch.isChecked()
+    # And both halves of the damage question, for the same reason and off the
+    # row that owns them (AK-337): they are features of the question, not
+    # second directions (AD-051), and each box answers its own field, so
+    # nothing is taken apart here. Both go into **both** halves below or
+    # `run.run` refuses the question -- the key would be standing for a run
+    # that was not asked.
+    hit_with = planner.advisor_bar.hit_with()
+    damage_type = planner.advisor_bar.damage_type()
     # The starting armament, without its rolls: `weapons_held` and
     # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
     # read here at all. Missing from the dataset, the run falls back to the
@@ -489,6 +552,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         two_handed=two_handed,
+        hit_with=hit_with,
+        damage_type=damage_type,
     )
     meta = planner.data.get("meta") or {}
     request = types.AdvisorRequest(
@@ -498,14 +563,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         goal_id=goal_id,
         weighting_id=weighting.id,
         # The key says what the run was asked: since AD-038 about the starting
-        # armament, since AD-032 not about any rolls, so `armaments` stays
-        # empty. Anything else here would be a key standing for a run that
-        # did not happen, and `run.run` refuses it: it compares the id and
-        # the rolls in the key against the context, and one of the two
-        # filled differently would be the disagreement.
+        # armament, since AD-032 not about any rolls. Anything else here
+        # would be a key standing for a run that did not happen, and
+        # `run.run` refuses it: it compares the id in the key against the
+        # context.
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         two_handed=two_handed,
+        hit_with=hit_with,
+        damage_type=damage_type,
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,
@@ -529,10 +595,6 @@ class _ElidingLabel(QLabel):
         self.setTextFormat(Qt.PlainText)
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self._whole = ""
-
-    def whole_text(self) -> str:
-        """What the label would say with room enough."""
-        return self._whole
 
     def set_whole_text(self, text: str) -> None:
         self._whole = text
@@ -568,6 +630,12 @@ class AdvisorBar(QWidget):
     needs of the planner is "what would you ask right now", which is one
     question with one answer, and a bar that reached into the window would
     have to be given a window in every case that tests a state.
+
+    `data` is the one exception and it is not a way back in: the kinds of
+    damage the box offers are the dataset's own (AK-328, `model.attack_arts`),
+    read **once** at construction because the dataset a window computes on
+    does not change under it -- a row built without one offers the entries
+    that need no dataset, which is what `All` and the five types are.
     """
 
     #: The answer that is standing on screen, or `None` when none is. S10b
@@ -584,7 +652,7 @@ class AdvisorBar(QWidget):
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
-                 filters=None) -> None:
+                 filters=None, data=None) -> None:
         super().__init__(parent)
         self._asking = asking
         #: The two marked sets (`effectfilters.EffectFilters`), read for the
@@ -628,10 +696,74 @@ class AdvisorBar(QWidget):
         self.goal_box = QComboBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
         for goal_id in GOAL_ORDER:
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
         row.addWidget(self.goal_box)
+
+        # AK-337: the two halves of the question, beside the direction and
+        # before `Filters` -- what is hit with, and which damage counts.
+        # Settings of the question and not second directions (AD-051), so
+        # they are drawn like `goal_box` and shown only where the question is
+        # asked at all: `max_damage` is the one direction that reads them.
+        # Each has a label of its own, because an entry saying `Holy` or
+        # `Bestial` on its own could be an attribute, a filter or a school.
+        #
+        # An entry's **data** is its field's own id form, `""` for the
+        # default of each box: since AD-051 point 1 the value *is* the
+        # answer, so there is no prefix to put on and nothing to take apart
+        # again. No entry carries a label as its data -- `Thunder` is the
+        # entry the player reads as `Lightning`.
+        #
+        # The dataset's own words (a school's name) are read once here and
+        # not at every ranking; a `QComboBox` draws an entry through
+        # `QStyledItemDelegate`, which paints the display role as plain text,
+        # so game text arrives as it is written (SEC-019, and the same reason
+        # `goals.chosen_label` does not escape it either).
+        self.hit_with_label = QLabel("Hit with")
+        row.addWidget(self.hit_with_label)
+        self.hit_with_box = QComboBox()
+        self.hit_with_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.hit_with_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.hit_with_box.setToolTip(HIT_WITH_TOOLTIP)
+        # AK-338: `Weapon` first -- the armament itself, the figure this
+        # program gave before there was a choice at all -- then the three
+        # arts, and behind a line the schools this dataset carries. A school
+        # no spell of the dataset is in is not offered at all
+        # (`model.attack_arts`, AK-338 point 3), which is why `Charged` is
+        # absent for every Nightfarer alike and not as a reaction to a
+        # choice.
+        self.hit_with_box.addItem("Weapon", "")
+        arts = model.attack_arts(data or {})
+        schools = [(key, label) for key, label in arts.items()
+                   if key not in model.ART_LABELS]
+        for key, label in arts.items():
+            if key in model.ART_LABELS:
+                self.hit_with_box.addItem(label, key)
+        if schools:
+            self.hit_with_box.insertSeparator(self.hit_with_box.count())
+            for key, label in schools:
+                self.hit_with_box.addItem(label, key)
+        self._remember_the_choice(self.hit_with_box, HIT_WITH_KEY)
+        row.addWidget(self.hit_with_box)
+
+        self.damage_type_label = QLabel("Damage type")
+        row.addWidget(self.damage_type_label)
+        self.damage_type_box = QComboBox()
+        self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.damage_type_box.setToolTip(DAMAGE_TYPE_TOOLTIP.format(
+            direction=advisor_goals.MAX_DAMAGE.label))
+        # AK-339: `All` -- every kind at once -- then a line and the five
+        # types. Six entries whatever the dataset holds: the arts moved to
+        # the box above, so nothing here depends on what was loaded.
+        self.damage_type_box.addItem("All", "")
+        self.damage_type_box.insertSeparator(self.damage_type_box.count())
+        for damage_type, label in weapons.DAMAGE_LABELS.items():
+            self.damage_type_box.addItem(label, damage_type)
+        self._remember_the_choice(self.damage_type_box, DAMAGE_TYPE_KEY)
+        row.addWidget(self.damage_type_box)
 
         # AK-302: visible and live in all fourteen states, a run in flight
         # included -- AK-289 presupposes a marking under a run.
@@ -687,6 +819,7 @@ class AdvisorBar(QWidget):
         self._controller.failed.connect(self._on_failed)
         self._controller.stopped.connect(self._on_stopped)
 
+        self._show_the_damage_types()
         self._show(Situation(State.NOTHING_YET))
 
     def action_buttons_extra_width(self) -> int:
@@ -712,6 +845,37 @@ class AdvisorBar(QWidget):
         hidden_width = self.minimumSizeHint().width()
         for button, was in zip(buttons, was_hidden):
             button.setHidden(was)
+        return shown_width - hidden_width
+
+    def damage_question_extra_width(self) -> int:
+        """How many more px the row's minimum needs with both pairs of the
+        damage question counted, over its minimum with neither counted.
+
+        AK-349, and the reason it is asked at all: the derived opening width
+        is the table's need plus what the row needs beyond it (A14), and
+        until A26 the row's extra was the three action buttons alone -- with
+        one label-box pair beside `goal_box` the rest still fitted in the
+        slack. Two pairs do not, and a row whose status line is 0 px wide at
+        the width the window opens at is the state AK-194 is written
+        against.
+
+        Measured the way `action_buttons_extra_width` measures its own, and
+        for the same reason: the pairs are hidden under the other two
+        directions (AK-337), so reading `minimumSizeHint()` as it stands
+        would answer a different question depending on which direction the
+        player left the row on.
+        """
+        pair = (self.hit_with_label, self.hit_with_box,
+                self.damage_type_label, self.damage_type_box)
+        was_hidden = [widget.isHidden() for widget in pair]
+        for widget in pair:
+            widget.setHidden(False)
+        shown_width = self.minimumSizeHint().width()
+        for widget in pair:
+            widget.setHidden(True)
+        hidden_width = self.minimumSizeHint().width()
+        for widget, was in zip(pair, was_hidden):
+            widget.setHidden(was)
         return shown_width - hidden_width
 
     # -- what the window says to the bar ------------------------------------
@@ -837,7 +1001,63 @@ class AdvisorBar(QWidget):
         combo that computed on selection would spend a search on a player
         reading the list.
         """
+        self._show_the_damage_types()
         self.the_build_changed()
+
+    def _remember_the_choice(self, box: QComboBox, key: str) -> None:
+        """Open this box where the last session left it, and keep it there.
+
+        AK-347: each key is checked against **its own** box's entries rather
+        than trusted -- a school the dataset no longer carries, or a store a
+        hand-edited file broke, is `findData(...) == -1` and leaves the box
+        on its default, which is already the opening index. One box falling
+        back does not move the other: two keys, two checks.
+
+        `setCurrentIndex` alone, never `activated.emit`: this is the box
+        catching up with an earlier session, not a player choosing something,
+        and `_choice_made` would ask a question of a build that does not
+        exist yet (`choose_goal` reasons the same way).
+        """
+        found_at = box.findData(favourites.settings().value(key, "", type=str))
+        if found_at >= 0:
+            box.setCurrentIndex(found_at)
+        box.activated.connect(self._choice_made)
+
+    def _choice_made(self, _index: int) -> None:
+        """AK-341: either box is another question, whichever one it was.
+
+        The same consequence as a direction and for the same reason -- both
+        are conditions of one question (AD-051), so an answer worked out
+        under the old pair answers nothing now. The choices themselves stay
+        when the direction leaves `max_damage` and comes back: the pairs are
+        hidden, never rebuilt.
+
+        Kept past this session too (AK-347): only a choice the player
+        actually made reaches the store, the same restraint
+        `gamepath.remember_save` is held to -- the restore at construction
+        reads it back and never writes, so nothing loops. Both keys are
+        written, not only the box that was used: the store then holds the
+        pair the player is asking about, which is what the next session has
+        to open on.
+        """
+        settings = favourites.settings()
+        settings.setValue(HIT_WITH_KEY, self.hit_with())
+        settings.setValue(DAMAGE_TYPE_KEY, self.damage_type())
+        self.the_build_changed()
+
+    def _show_the_damage_types(self) -> None:
+        """AK-337: both halves are a question only under `max_damage`.
+
+        Hidden rather than disabled: the other two directions do not read the
+        fields at all (AD-045 point 4), and a greyed-out control that could
+        never apply is the kind of furniture AK-297 already cleared away
+        once. Hiding also takes both pairs out of the tab order for free
+        (AK-348).
+        """
+        wanted = self.goal_id() == advisor_goals.MAX_DAMAGE.id
+        for widget in (self.hit_with_label, self.hit_with_box,
+                       self.damage_type_label, self.damage_type_box):
+            widget.setVisible(wanted)
 
     def _apply_or_undo(self) -> None:
         """One button, and which of the two actions it is is the row's state.
@@ -870,6 +1090,23 @@ class AdvisorBar(QWidget):
     def goal_id(self) -> str:
         """The direction the combo is standing on."""
         return self.goal_box.currentData()
+
+    def hit_with(self) -> str:
+        """What the question is about hitting with, `""` for the armament.
+
+        The id form the box carries, and never the entry's text: a dataset
+        that renames a school leaves the question, and the cache under it,
+        exactly where it was (AD-051 point 1).
+        """
+        return self.hit_with_box.currentData() or ""
+
+    def damage_type(self) -> str:
+        """Which kind of damage the question counts, `""` for every kind.
+
+        The other half of the pair, in the same id form: `Thunder` is what
+        the entry `Lightning` carries.
+        """
+        return self.damage_type_box.currentData() or ""
 
     def choose_goal(self, goal_id: str) -> None:
         """Stand on another direction, asked from outside the row (AK-256).
@@ -940,7 +1177,8 @@ class AdvisorBar(QWidget):
                                   slots_filled=filled,
                                   slots_without_a_choice=slots - filled,
                                   blocked_by_a_requirement=(
-                                      result.blocked_by_a_requirement))
+                                      result.blocked_by_a_requirement),
+                                  no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
             situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
                                   goal_label=label, slots=slots,

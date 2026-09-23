@@ -4,6 +4,139 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.18.0] - 2026-09-21
+
+### Added
+- The Build planner's damage block, under a Nightfarer's starting armament,
+  can now show two more rows below the Total: **Weapon art** (the attack
+  rating your character skill adds on top of that Total; on a staff or a
+  seal, a sentence explaining that a catalyst has no attack art instead of
+  a figure) and **Spell damage (\<spell name>)** for a starting catalyst
+  (the spell a "starting spell" relic sets, or else the catalyst's own
+  default; Revenant's default Rejection/Heal show `0`, not a sentence).
+  Each row carries only the change your relics make to it; the two rows
+  are never added together. Click the bold spell-damage figure for a
+  breakdown tooltip, which always ends with a note that the figure is
+  uncalibrated (the known Elden Ring formula, not checked against
+  Nightreign) or, for a spell that deals no damage, that only a relic
+  swapping the cast spell would bring damage here.
+
+### Fixed
+- Under a spell-school choice, the "Why" line now names the "starting
+  spell" relic that actually moved the figure, instead of a school buff
+  that this choice does not count (QA-293).
+
+### Known
+- The Weapon art row's change is plain text, not a coloured link like the
+  Total row above it (QA-295).
+
+## [1.17.0] - 2026-09-21
+
+### Added
+- "Maximise damage" now asks two things instead of one: **Hit with**
+  (Weapon, Weapon art, Sorceries, Incantations, or one of the spell schools
+  the game defines) and **Damage type** (All, Physical, Magic, Fire,
+  Lightning, Holy). A spell row ranks the spell your starting catalyst
+  casts (for example Recluse's Staff or Revenant's Finger Seal); a
+  "starting spell" relic (for example Beast Claw) replaces that spell and
+  is itself a candidate. Spell damage is computed as base damage times
+  spell power over 100 times your buffs and is marked uncalibrated — it
+  follows the formula known from Elden Ring, which has not been measured
+  against Nightreign. Both choices are remembered the next time you start
+  the program, the same way the active Nightfarer is.
+- The opening window width is now 90% of your screen's available width,
+  capped at what the layout needs (1959 px) and never narrower than
+  1536 px, so it scales with the monitor instead of a fixed pixel count.
+
+### Changed
+- "Skill attack" is renamed **Weapon art** throughout the advisor, the
+  relic picker and the "Why" dialog, to match the game's own term and to
+  make room for the new Hit-with choices that are not weapon-based at all.
+- The Arsenal tab's introductory sentence was corrected.
+
+### Fixed
+- The extractor now also reads spell damage figures, which hand a
+  Nightfarer's starting catalyst is held in, and "starting spell" relics.
+  The first launch after this update rebuilds the data cache once (about
+  40 seconds) to pick this up.
+
+### Note
+- The remembered choice now uses two settings keys, `hit_with` and
+  `damage_type`. The previous single key (`damage_art`) is no longer read;
+  updating from an earlier version starts with no stored choice (Weapon /
+  All) instead of carrying the old value over.
+- Known issues, to be fixed in the next release: the "Why" line can
+  attribute a suggestion to the wrong source when a spell school is chosen
+  (QA-293), and a relic-picker cell can show as empty without saying why
+  (QA-294).
+
+## [1.16.0] - 2026-09-20
+
+### Added
+- "Maximise damage" now has a "Damage type" field next to it: All (the
+  previous behaviour), Physical, Magic, Fire, Lightning, Holy, Skill attack
+  (Weapon Arts only), Sorceries, Incantations, or one of the spell schools
+  the game defines (for example Bestial). The suggestion ranking, the "Why"
+  line, the card headline ("Skill attack rating" and similar) and the relic
+  picker (which now labels its damage column "Damage (Fire)" and so on)
+  all follow the chosen type. A Nightfarer's own skills are never counted
+  under "Skill attack" — only Weapon Arts are. Conversion relics for a
+  starting armament (attack power shifted between damage types) are
+  counted in the figure, not only shown. A staff or seal is unaffected by
+  the choice and the "Why" dialog says so by name. Below 1676 px window
+  width, the "Maximise damage" and "Damage type" boxes may show a
+  shortened label to make room. The chosen damage type is remembered the
+  next time you start the program, the same way the active Nightfarer is.
+- The "Why" line for a spell-type choice (Sorceries, Incantations, or a
+  spell school) now adds a second sentence making clear that the ranking
+  scales the reference weapon's attack rating, not spell damage itself,
+  which the game's files do not record.
+
+### Fixed
+- A "Damage type" choice that raises nothing you currently own (for
+  example "Fire" on a build with no fire-boosting relic) no longer fills
+  suggestion slots with candidates that change nothing; the status line
+  and the relic picker now agree that there is nothing to choose from.
+- The relic picker's "Nothing you own raises damage in this slot" header
+  now names the chosen damage type, matching the wording already used on
+  each card and in the "Why" dialog.
+
+### Note
+- The remembered "Damage type" choice is stored under a new settings key
+  (`damage_art`). Updating from an earlier version starts with no stored
+  choice ("All"); if a stored value is ever unrecognised (for example
+  after a downgrade to a version that used a different set of damage
+  types), the program falls back to "All" instead of failing to start.
+
+## [1.15.0] - 2026-09-19
+
+### Added
+- The Nightlords tab now has a sub-boss tree below the ten Nightlord cards:
+  Night bosses Day 1, Night bosses Day 2 and Field bosses for the picked
+  Nightlord. Selecting a sub-boss opens the same detail panel, with an HP
+  line and, where the game's drop tables record any loot for it, a LOOT
+  section — the five rarest drops shown by default, with a "Show N more"
+  button for the rest. A card the files cannot narrow to one boss reads
+  "Multiple possible bosses" and lists the HP of every candidate; a card the
+  files do not identify at all reads "Not identified".
+
+### Changed
+- The Red variants tab drops its "Examples (any map)" column. The field-boss
+  names it used to hint at now appear in full — with weakness, HP and loot —
+  in the new Nightlords sub-boss tree instead. Two rows were renamed for
+  accuracy: "Field bosses & arena locations" and "Mixed-boss arena
+  locations".
+
+### Fixed
+- The "Show N more" button on a sub-boss's loot panel now also responds to a
+  toggle sent by assistive technology (screen readers, switch access), not
+  only to a mouse click.
+
+### Note
+- This release adds sub-boss data to the local game-data cache (data version
+  15). The first start after updating rebuilds the cache, which takes about
+  35 seconds, plus the icon pack; afterwards nothing further is needed.
+
 ## [1.14.0] - 2026-09-19
 
 ### Added

@@ -1,5 +1,432 @@
 # Design & UX Review — Nightreign Helper
 
+## Review vom 2026-09-22 (T-329m — Farbrollen der sechs Tabs, A13)
+
+**Methode:** Code-Analyse (unverifiziert) — kein Fensterlauf (Auftragskopf
+T-329m: der `qa-engineer` haelt das Fenster parallel in T-329k). Gelesen:
+`nrplanner/theme.py` vollstaendig, sowie jede der 15 Dateien, die laut
+T-329h-Bericht (23:45) eigene Hex-Farben fuehren; Kontraste per Hand nach der
+WCAG-2.1-Formel gegen `QPalette.Base` (`app.py:96`, `= PANEL = #1e1f23`, die
+Grundfarbe aller sechs Tabs/Tabellen) gerechnet, nicht gemessen an einem
+laufenden Fenster. Stand `7903b0c`. Kein Bild — reine Code-Analyse.
+
+**Geprueft:** die sechs vom Auftrag genannten Wertepaare (`GOOD`,
+`COMMUNITY`, Fluchrot/`CURSE`, `RARITY_COLOURS`/`RARITY_TEXT`, Ersatzgrau
+`#8a8a8a`/`#888`, `DEEP`/`DLC`/`BAR_COLOUR`) sowie, daraus folgend, eine
+dritte rote Stelle, die der Auftrag nicht nannte
+(`effectstab.py:1037`, `Qt.red`).
+
+**Gesamturteil:** Braucht Arbeit, aber klein. Fuenf der sechs geprueften
+Paare sind echte, kleine Fixes (ein neuer Import, eine geloeschte Zeile, ein
+korrigierter Kommentar) ohne Layout-Aenderung; zwei davon sind zugleich
+Kontrast-Funde (eine Stelle unter WCAG AA, eine an der Grenze). Ein Paar
+(`RARITY_TEXT`/`RARITY_COLOURS`) ist bei genauem Hinsehen **kein** Fehler,
+nur ein irrefuehrender Kommentar. Kein Fund verhindert die Bedienung; nichts
+davon ist am Fenster verifiziert (Code-Analyse), das laeuft parallel in
+T-329k, aber ausserhalb dieses Scopes.
+
+### Wichtig
+
+- **DR-041 [`nrplanner/depthstab.py:37`, `nrplanner/eventstab.py:28`,
+  AK-368]** `COMMUNITY` heisst und bedeutet auf beiden Tabs dasselbe
+  ("community-reported", von AK-74 bereits als eine Rolle anerkannt, dort
+  sogar als Vorbild gelobt), aber mit zwei verschiedenen Werten:
+  `depthstab.COMMUNITY = "#7fb2e5"` (Kontrast gegen `PANEL` **7,36:1**) gegen
+  `eventstab.COMMUNITY = "#6f9ac4"` (**5,57:1**). Ein Nutzer, der zwischen
+  `Red variants` und `World Events` wechselt, sieht denselben benannten
+  Zweck in zwei sichtbar unterschiedlichen Blautoenen — genau die Art
+  Rollenbruch, die A13 ausschliesst. Richtung: ein Wert, `#7fb2e5` (mehr
+  Kontrastabstand), als `theme.COMMUNITY`, beide Module importieren ihn
+  (AK-368).
+- **DR-042 [`nrplanner/relicslots.py:429`, `nrplanner/effectstab.py:171,1037`,
+  `nrplanner/weaponslots.py:28`, AK-369]** Drei bis vier Rot-Werte fuer
+  denselben Sachverhalt ("dieser gewuerfelte Effekt ist ein Fluch/Kosten"):
+  `relicslots.py:429` hartkodiert `#d1655f` (= `theme.CURSE`, obwohl `CURSE`
+  in derselben Datei schon importiert ist und an drei anderen Stellen
+  benutzt wird — Kontrast **4,50:1**, besteht WCAG AA nur knapp), waehrend
+  `effectstab.CURSE_COLOUR`/`weaponslots.DEBUFF` fuer dieselbe Rolle
+  `#e07a74` verwenden (**5,65:1**, laut Kommentar in `weaponslots.py`
+  absichtlich synchron zueinander, aber nicht zu `relicslots.py`).
+  Zusaetzlich, in derselben Tabelle wie `CURSE_COLOUR`:
+  `effectstab.py:1037` faerbt die `Stacks`-Spalte bei einer
+  nicht-stapelbaren Zeile mit rohem `Qt.red` (`#ff0000`, Kontrast **4,12:1
+  — besteht WCAG AA nicht**, Minimum 4,5:1). Ein drittes, deutlich
+  saettigteres Rot in genau der Tabelle, die schon ein gedeckteres Rot fuehrt.
+  Impact: Fluch-Markierung liest sich je nach Tab anders, und eine Spalte
+  ist objektiv zu kontrastarm. Richtung: ein `theme.DEBUFF = "#e07a74"` fuer
+  die enge Rolle "gewuerfelter Fluch/Kosten-Effekt in Liste/Zelle";
+  `theme.CURSE`/`BAD` bleibt fuer seine breitere Rolle (Fliesstext-Kosten,
+  Boss-Gegen-den-Spieler-Hinweise, negative Zahlen-Deltas) unveraendert
+  (AK-369).
+- **DR-044 [`nrplanner/app.py:161`, `nrplanner/relicslots.py:61,554`,
+  `nrplanner/relicpicker.py:1115`, AK-371]** Ersatzfarbe fuer eine
+  unbekannte Relikt-Slot-Id: zwei Stellen `"#8a8a8a"` (= `theme.MUTED`),
+  zwei Stellen `"#888"` (`#888888`, 2/255 je Kanal heller) — fuer denselben
+  Verteidigungsfall, sogar **innerhalb derselben Datei**
+  (`relicslots.py` fuehrt beide). Die Abweichung ist klein genug, um am
+  Bildschirm kaum aufzufallen, aber genau diese Art kleiner, unbegruendeter
+  Farbdrift hat das Projekt schon einmal als echten Fehler gefuehrt
+  (`bosstab.py:203`, QA-145, `OBSERVED_COLOUR` einen Hex-Schritt von `GOOD`
+  entfernt). Richtung: alle vier Stellen auf `theme.MUTED` (bereits
+  vorhanden, kein neuer Wert) (AK-371).
+
+### Nice-to-have
+
+- **DR-040 [`nrplanner/weaponslots.py:25`, AK-367]** `GOOD = "#78b57e"` ist
+  eine zweite, unbenutzte Gruen-Definition neben dem in derselben Datei
+  *nicht* importierten `theme.GOOD` (`#6fbf73`) — projektweite Suche
+  (`weaponslots\.GOOD` und `GOOD` innerhalb der Datei) findet ausser der
+  Definition selbst keinen Leser. Kein sichtbarer Fehler heute, aber totes
+  Gewicht mit Driftrisiko, sollte sie je verwendet werden. Richtung: Zeile
+  loeschen (AK-367).
+- **DR-043 [`nrplanner/weaponslots.py:30-32`, `nrplanner/arsenaltab.py:104-109`,
+  AK-370]** Der Kommentar ueber `RARITY_TEXT` behauptet, die Waffenkachel
+  nutze "the same colours the Weapons tab uses for its tiles" wie
+  `arsenaltab.RARITY_COLOURS` — stimmt nicht woertlich: alle vier
+  Seltenheitsstufen tragen unterschiedliche Hex-Werte (z. B. Uncommon-Rand
+  `#4a86b0` gegen Uncommon-Text `#6fa8d6`). Geprueft, ob das ein Fund ist:
+  nein, die Werte sind konsequent eine hellere Variante derselben
+  Farbfamilie je Stufe — die richtige Entscheidung, da Kachel-Rand und
+  Fliesstext auf `PANEL` unterschiedlichen Kontrast brauchen. Nur der
+  Kommentar ist falsch. Richtung: Formulierung korrigieren ("hellere Tonung
+  derselben Familie", nicht "dieselben Farben"); kein Farbwert aendert sich
+  (AK-370).
+
+### Backlog (geparkt)
+
+- `eventstab.py:23` `DLC = "#9a6fc4"` und `depthstab.py:61` `BAR_COLOUR =
+  QColor("#9a6fc4")` teilen den Wert von `theme.DEEP`, ohne ihn zu
+  importieren — heute kein sichtbarer Fehler, nur Driftrisiko; keine AK, da
+  `BAR_COLOUR` (Heatmap-Intensitaet einer Tabellenzelle) eine andere Rolle
+  als `DEEP`/`DLC` (Deep-of-Night/DLC-Markierung) traegt und ein
+  erzwungener Gleichlauf die Rollen kuenstlich verkoppeln wuerde.
+- Rund 80 weitere Hex-Literale ausserhalb `theme.py` (gemessen 22.09.2026,
+  nicht 74 wie der T-329h-Bericht 23:45 — Zaehlung `grep -RcoE
+  "#[0-9a-fA-F]{3,6}" nrplanner --include="*.py"` ohne `theme.py`,
+  Differenz vermutlich Zaehlweise/zwischenzeitliche Aenderung, nicht
+  geklaert): ueberwiegend tab-eigene Rollen ohne Gegenstueck auf einem
+  anderen Tab (Seltenheits-, Slot-, Sichtungsfarben). Keine weitere
+  Rollenkollision gefunden ausser den fuenf oben.
+
+### Positiv / beibehalten
+
+- `theme.py` selbst ist genau das, was ein gemeinsames Farbmodul sein
+  sollte: acht Konstanten, ein Satz Zweck je Konstante, keine tab-eigene
+  Farbe darin. Die drei gefundenen Luecken sind Faelle, wo ein Modul **nicht**
+  importiert, was `theme.py` schon anbietet (`COMMUNITY`-Rolle,
+  `CURSE`-Rolle) oder eine Kopie fuehrt, die `theme.py` bereits abdeckt
+  (`GOOD`, Ersatzgrau) — kein Fall, in dem `theme.py` selbst inkonsistent
+  waere.
+- `bosstab.py:202-232` (`OBSERVED_COLOUR`/`WEAKENED_NOTE`) bleibt das
+  Vorbild fuer AK-74: jede Mehrfachbedeutung einer Farbe ist im Kommentar
+  **und** auf dem Tab selbst in einem Satz benannt, mit Mass (0x7f gegen
+  0x6f) statt Eindruck begruendet.
+
+### Offene Fragen an den App Designer
+
+- Keine — die fuenf verbindlichen Werte (AK-367..371) sind aus bereits
+  vorhandenen `theme.py`-Konstanten oder aus dem besser kontrastierenden der
+  beiden bisherigen Werte gewaehlt, keine neue Geschmacksentscheidung noetig.
+
+## Review vom 2026-09-20 (T-325g — A26 Leiste/Picker/Why gegen AK-337..352, Diff `9f95de0..f24376b`)
+
+**Methode:** Code-Analyse (unverifiziert) — kein Fensterlauf (Auftrag T-325g:
+NH-004, `release-manager`/`power-user`-clean-room laufen parallel zur
+Bauwelle f). Gelesen: `git diff 9f95de0..f24376b` fuer
+`nrplanner/advisorbar.py`, `nrplanner/advisor/goals.py`,
+`nrplanner/relicpicker.py`, `nrplanner/app.py`, `nrplanner/arsenaltab.py`
+(`nrplanner/advisor/explain.py` traegt in diesem Bereich keine Aenderung,
+per `git diff --stat` bestaetigt); quer dazu `nrplanner/model.py`
+(`attack_arts`/`attack_arts_of`, nicht Teil des Diffs, aber Grundlage der
+`hit_with_box`-Eintraege) und `nrplanner/damage.py`
+(`SPELL_DAMAGE_NAME`/`SPELL_DAMAGE_UNCALIBRATED`, ebenfalls nicht Teil
+dieses Diffs, aber von `goals._spell_cell` gelesen). `UI_SPEC.md` §3.8
+(AK-337..352) und `UI_SPEC_REGISTER.md` vollstaendig gegengelesen;
+`tests/test_advisor_goals.py` als Beleg fuer den gebauten/getesteten Zustand
+zitiert. Kein Bild entstanden — reine Code-/Test-Analyse, kein GUI
+gestartet.
+
+**Geprueft:** AK-337 bis AK-352 (zwei Boxenpaare, Umbenennung, Tooltips,
+Kombinationsregel, Zauberzahl, vier Ablehnungssaetze, Persistenz, Tastatur,
+Breitenformel) gegen den Diff; die drei developer-Hinweise aus T-324g
+(Kleinschreibungsmischung im AK-331-Satz, Why-Zeilen-Luecke in `explain.py`,
+`DESIGN_REVIEW.md`-Altzitat "Skill attack"); Endnutzerperspektive anhand
+`docs/berichte/T-322-power-user.md` (Jonas, 27, kein Technikwissen).
+
+**Gesamturteil:** Fast fertig. Alle zwoelf AK-337..352-Kriterien stehen
+wortgleich bzw. logikgleich im Code (unten einzeln belegt), und die
+Umstellung loest zwei der drei groessten Aergernisse aus dem
+Powernutzer-Bericht T-322m tatsaechlich (Incantations-Verwechslung,
+fehlende Persistenz). Ein Wichtig-Fund bleibt: eine vom `developer` selbst
+schon in T-324g benannte Kleinschreibungs-Inkonsistenz ist im jetzigen Bau
+weiterhin vorhanden und ungetestet.
+
+### Wichtig
+
+- **DR-038 [`nrplanner/advisor/goals.py:688-689`, `_max_damage`,
+  `_RANKED_ON_ONE_ART.format(choice=chosen[0].lower() + chosen[1:])`]**
+  Sobald `hit_with` **und** `damage_type` zugleich gewaehlt sind (z. B.
+  `Fire` + `Weapon art` — eine von AK-341 ausdruecklich erlaubte,
+  alltaegliche Kombination, kein Randfall), liefert `chosen_label` die Kette
+  `"Fire Weapon art"`; das Kuerzen auf `chosen[0].lower() + chosen[1:]` senkt
+  nur den allerersten Buchstaben der ganzen Kette und liefert
+  `"fire Weapon art"` — der Satz liest sich dann `"Ranked on fire Weapon art
+  damage only — …"`, mit einem grossgeschriebenen Wort mitten im Satz. Bei
+  einer Einzelwahl faellt das nicht auf (`"weapon art"` allein wird korrekt
+  vollstaendig klein, `tests/test_advisor_goals.py:970`), weil dort das
+  erste Zeichen der Kette zufaellig das einzige grossgeschriebene ist. Fuer
+  die Kombination gibt es **keinen** Test (`tests/test_advisor_goals.py:942`
+  prueft nur die Kopfzahl `"Fire Weapon art attack rating"`, nicht die
+  `unknowns`-Zeile derselben Auswahl) — der `developer` hatte das Muster in
+  T-324g bereits woertlich benannt ("liest sich gemischt"), es ist mit
+  diesem Bau nicht behoben. Impact fuer Jonas (Laie, T-322m): eine
+  grossgeschriebene Silbe mitten im Satz liest sich wie ein Tippfehler oder
+  eine zweite, eigene Angabe, nicht wie derselbe Begriff — kein Sachfehler,
+  aber eine Inkonsistenz gegen die eigene AK-331-Regel ("erster Buchstabe
+  klein"), die fuer zusammengesetzte Ketten nicht zuende gedacht ist.
+  Richtung: nicht den ersten Buchstaben der **Kette**, sondern den ersten
+  Buchstaben **jedes** Etiketts vor dem Zusammenfuegen senken (z. B. in
+  `chosen_label` selbst, oder an dieser einen Aufrufstelle bevor `"
+  ".join(...)` passiert) — ein Test mit beiden Feldern gesetzt haerte das
+  Ergebnis ab.
+
+### Nice-to-have
+
+- **DR-039 [`nrplanner/advisor/explain.py`, unveraendert in diesem Diff]**
+  Der Why-Zeilen-Baustein (baut z. B. `"Faith +3: Fire spell damage (Beast
+  Claw) +12"` aus `GoalScore.display`) traegt seit A26 eine deutlich
+  dichtere, zusammengesetzte Kopfzahl als vor diesem Auftrag — kein AK in
+  §3.8 beschreibt, wie eine Attribut-Delta-Zeile mit einer aus zwei Feldern
+  zusammengesetzten Kopfzahl zusammenspielt (`developer`-Hinweis T-324g,
+  weiterhin offen: "kein AK deckt das"). Inhaltlich nicht falsch und fuer
+  einen aufmerksamen Leser entzifferbar, aber fuer Jonas' Zielgruppe (kein
+  Technikwissen, T-322m) die dichteste Textzeile des ganzen Abschnitts. Kein
+  Muss fuer diesen Bau, aber ein Kandidat fuer eine eigene AK, sobald das
+  Feature ruhig steht.
+
+### Backlog (geparkt)
+
+- `nrplanner/model.py:attack_arts`/`attack_arts_of` (nicht Teil dieses
+  Diffs): AK-338 Gruppe 2 (`Weapon art`/`Sorceries`/`Incantations`, "in
+  dieser Reihenfolge" unbedingt) wird ueber dieselbe datensatzabhaengige
+  Filterung gespeist wie Gruppe 3 (Schulen) — `attack_arts_of` setzt den
+  literalen Schluessel `sorceries`/`incantations` nur ueber die schmale
+  `MOVE_SCOPED_ARTS`-Liste (wenige Konter-/Move-Effekt-IDs), nie generisch.
+  Ob diese IDs im aktuell geladenen Datensatz immer vorhanden sind (und
+  `Sorceries`/`Incantations` deshalb wirklich immer erscheinen, wie AK-338
+  es voraussetzt), ist ohne Fensterlauf nicht zu pruefen (NH-004 in diesem
+  Auftrag) — Bitte an `qa-engineer` (T-325h): `hit_with_box` am Artefakt
+  gegenlesen, ob alle vier Basis-Eintraege (`Weapon`/`Weapon
+  art`/`Sorceries`/`Incantations`) fuer jeden der zehn Nightfarer
+  erscheinen, unabhaengig davon, welche Relikte gerade im Bestand sind.
+- AK-350/351/352 (Bildschirm-Ratio, Kuerzungsreihenfolge,
+  Referenzbildschirme): Formel und Reihenfolge sind im Code exakt wie
+  spezifiziert nachvollzogen (`app.py:_opening_width`), aber die
+  tatsaechliche Elision der drei Boxen unterhalb des Bedarfs ist reines
+  Qt-Laufzeitverhalten und in diesem Auftrag nicht sichtbar pruefbar
+  (NH-004) — gehoert in denselben Fensterlauf wie oben.
+- `DESIGN_REVIEW.md` (dieser Abschnitt, Zeile ~52 der T-322d-Fassung) zitiert
+  weiterhin `"Skill attack"` als Beispiel fuer die damalige Wortkollision —
+  das ist historisch korrekt (der Fund datiert vor der AK-338-Umbenennung)
+  und bleibt laut Rahmen unveraendert stehen; kein Handlungsbedarf, hier nur
+  vermerkt, damit die Pruefung als erledigt gilt.
+
+### Positiv / beibehalten
+
+- **DR-034 ✔ 2026-09-20 (T-325g).** Der Befund aus T-322d (Kopfzahl nennt
+  bei Artwahl nicht den gewaehlten Namen) ist behoben und ueber die Typwahl
+  hinaus auf die neue Zauberzeile ausgeweitet: `goals._max_damage`
+  (Zeile 683-687) und `goals._spell_cell` (Zeile 514-518) bilden die
+  Kopfzahl beide Male ueber dieselbe `chosen_label`/`_headline_with_choice`-
+  Kombination, mit der von AK-335 verlangten Bedingung ("nur wenn
+  `now.rates`/`rating.rates` die Art tatsaechlich traegt"). Wortgleich mit
+  `tests/test_advisor_goals.py:905/908/942` verifiziert.
+- **DR-035 ✔ 2026-09-20 (T-325g).** Der Relic Picker liest die
+  Schadensfrage jetzt unabhaengig von `Sort by`: `_drawn_direction()`/
+  `_populate_findings` fragen immer `{goal_id, "max_damage"}`
+  (`relicpicker.py:1885`, Kommentar nennt es "Nachtrag IX-2"), und
+  `_named_for_choice`/`_captions`/der Kopfsatz lesen
+  `_chosen_damage_choice()` direkt von der Leiste, nie vom Sortierstand.
+  AK-346 erweitert das korrekt auf beide Felder.
+- Terminologiewechsel `Skill attack` → `Weapon art` (AK-338) ist die einzige
+  Kopie im Programm (`model.ART_LABELS[SKILL_ART]`) und propagiert sich
+  automatisch in Kopfzahl, Ablehnungssaetze und Tooltip — kein zweiter
+  Wortlaut irgendwo im Diff gefunden. Wichtiger als der Wortlaut selbst: die
+  alte Powernutzer-Verwirrung aus T-322m ("Incantations liefert einen
+  'Magic attack power'-Vorschlag, als Spieler unverstaendlich") ist
+  strukturell entschaerft, weil `Incantations`/`Sorceries`/eine Schule jetzt
+  ueber `_is_a_spell()` an `_spell_cell` geroutet werden (eine echte
+  Zauberschadenszahl) statt weiterhin die Angriffswertung der Bezugswaffe zu
+  skalieren — der Verwechslungsfall aus T-322m kann so nicht mehr auftreten.
+- Persistenz-Luecke aus T-322m ("Schadensart nicht gemerkt, Charakter
+  schon") ist mit AK-347 fuer beide Felder geschlossen: zwei flache,
+  unabhaengig geprueft Schluessel (`HIT_WITH_KEY`/`DAMAGE_TYPE_KEY`), der
+  alte `damage_art`-Schluessel wird bewusst verworfen statt migriert.
+- `arsenaltab.py`s Kopftext ist an die neue Realitaet angepasst
+  (`"Spell damage is not in the game's data"` war seit A26 schlicht falsch;
+  jetzt: "the Advisor's Hit with box works spell damage out for a ranking
+  instead") — eine Behauptung, die A12 sonst verletzt haette, ist mitgezogen
+  worden, nicht liegen geblieben.
+- AK-339/AK-340/AK-343/AK-344/AK-345/AK-347/AK-348/AK-350 stehen, so weit im
+  Code pruefbar, wortgleich bzw. logikgleich zur Spec (einzeln gegengelesen,
+  keine Abweichung gefunden).
+
+### Offene Fragen an den App Designer
+
+Keine neuen. Die beiden fortgefuehrten Fragen aus AK-346/AK-349 (eigener
+Regler im Relic Picker) und AK-350 (RATIO-Wert 0,9 vs. 0,95) bleiben
+unveraendert offen — siehe dort, kein neuer Grund fuer einen Kurswechsel in
+diesem Durchlauf.
+
+---
+
+## Review vom 2026-09-19 (T-322d — Berater-Leiste Schadensart-Auswahl AK-327..334, Diff `ebbcec2..78a0888`)
+
+**Methode:** Code-Analyse (kein Fensterlauf — NH-004, Bau und QA laufen
+nacheinander auf derselben Maschine unter T-322). Gelesen: `git diff
+ebbcec2..78a0888` fuer `nrplanner/advisorbar.py`, `nrplanner/advisor/goals.py`,
+`nrplanner/advisor/candidates.py`, `nrplanner/advisor/types.py`,
+`nrplanner/damage.py`, `nrplanner/model.py`; quer dazu `nrplanner/relicpicker.py`
+(nicht Teil des Diffs, aber der einzige zweite Ort, der `damage_art` liest);
+`tests/test_advisor_bar.py`, `tests/test_advisor_goals.py`,
+`tests/test_damage_art.py` als Nachweis, was tatsaechlich gebaut und
+gepruft ist. `UI_SPEC.md` §3.7 (AK-327..334) und `UI_SPEC_REGISTER.md`
+gegengelesen; beide um Nachtraege ergaenzt (AK-335, AK-336, Erratum zu
+AK-328), siehe dort.
+
+**Geprueft:** die vier Rueckmeldungen aus T-321b/c (Zielzeile bei Typwahl,
+Katalysator-Satz, AK-328-Eintragszahl, Relic-Picker-Vererbung) plus AK-327
+bis AK-334 gegen den Diff.
+
+**Gesamturteil:** Braucht Arbeit — zwei Kritisch-Funde. Die Beraterleiste
+selbst (AK-327..334, alle acht Kriterien wortgleich im Code verifiziert)
+ist sauber gebaut; das Problem liegt in dem, was der Diff *nicht* anfasst:
+die Kopfzahl behandelt eine Typwahl ehrlicher als eine Artwahl (DR-034), und
+der Relic Picker uebernimmt die Auswahl in eine Zahl, ohne sie je zu nennen
+(DR-035) — beides Verstoesse gegen genau das Ehrlichkeits-Prinzip (AK-37),
+das dieser Auftrag fuer die Typwahl gerade erst durchgesetzt hat.
+
+### Kritisch
+
+- **DR-034 [`nrplanner/advisor/goals.py`, `_max_damage`, Zeile ~380-390]**
+  Bei einer **Typwahl** (`type:Fire` u. a.) aendert `_max_damage` sowohl den
+  Zahlenwert (`final_per_type[key]` statt `final_headline`) als auch den
+  Namen der Kopfzahl (`f"{chosen} {headline_name.lower()}"` → `"Fire attack
+  rating 19"`) — korrekt und in `tests/test_advisor_goals.py` belegt. Bei
+  einer **Artwahl** (`art:skill`, `art:sorceries`, `art:incantations`,
+  `art:family:<id>`) aendert sich der Zahlenwert **ebenfalls** (`art_rate`
+  aus AD-047 ist bereits in `final_headline` eingerechnet, `damage.py:
+  _answer`, `rate *= art_rate`), aber der Name bleibt unveraendert
+  `"Attack rating"` (`name = now.headline_name` wird im `art`-Zweig nie
+  ueberschrieben). Impact: sobald ein Relikt einen `art_rate != 1,0` fuer
+  die gewaehlte Art traegt, zeigt die Karte eine von `All` abweichende Zahl
+  unter derselben Beschriftung wie `All` — exakt die Verwechslung, die
+  AK-31/AK-37/AK-38/AK-39 im ganzen restlichen Programm ausdruecklich
+  verbieten (zwei verschiedene Fragen duerfen nie denselben Namen tragen).
+  Ein Spieler, der die Kopfzahl der Arsenal-Kachel gegen die des Beraters
+  vergleicht (wie AK-38/AK-39 es fuer andere Zahlenpaare verlangen), sieht
+  eine Differenz, die die Beschriftung nicht erklaert. Richtung: siehe
+  neues **AK-335** in `UI_SPEC.md` §3.7 (in diesem Lauf ergaenzt) — die
+  Kopfzahl bekommt bei jeder Wahl, die den Wert tatsaechlich veraendert, den
+  gewaehlten Namen vorangestellt, mit einer Wortkollisions-Regel fuer
+  `"Skill attack"` (`"Skill attack rating"`, nicht `"Skill attack attack
+  rating"`).
+
+- **DR-035 [`nrplanner/relicpicker.py`, `VALUE_CAPTIONS`/`VALUE_DIRECTIONS`,
+  `_populate_findings`/Zeile 4-Caveats; Ursache in
+  `nrplanner/advisorbar.py`, `asking_from`]** Der Relic Picker fragt seinen
+  Pool ueber `advisorbar.asking_from(window, CANONICAL_POOL_ORDER)`, und
+  `asking_from` liest `planner.advisor_bar.damage_art()` **immer**, unabhaengig
+  vom `CANONICAL_POOL_ORDER`-Wert und unabhaengig davon, ob `damage_type_box`
+  in der Leiste gerade sichtbar ist. Zwei belegte Folgen: (1) Die
+  "Damage"-Zeile und der Chip `BEST FOR DAMAGE` stehen auf **jeder** Karte,
+  unabhaengig von `Sort by` (AK-42-Muster: beide Richtungen immer sichtbar)
+  — eine damage_art-verzerrte Zahl erscheint also auch dann, wenn `Sort by`
+  auf `Name` oder `Minimise damage taken` steht. (2) Der erklaerende
+  AK-331-Satz in Zeile 4 (`_populate_findings`, ueber
+  `baseline.unknowns`/`pool.unknowns`) erscheint **nur**, wenn
+  `_drawn_direction() == "max_damage"` ist, also nur wenn `Sort by` zufaellig
+  auf `Maximise damage` steht. Zusaetzlich bleibt `damage_type_box`s Wert
+  stehen, wenn `goal_box` auf eine andere Richtung wechselt und sich
+  versteckt (AK-330, korrekt fuer die Leiste selbst) — ein Spieler kann also
+  eine Typ-/Artwahl getroffen haben, sie in der Leiste nicht mehr sehen, und
+  im Picker trotzdem eine davon beeinflusste, unbeschriftete Zahl vorgesetzt
+  bekommen. Impact: dieselbe Ehrlichkeitsverletzung wie DR-034, nur ohne
+  jede Chance, sie zu bemerken (keine Beschriftung, kein garantierter
+  Caveat-Satz). Richtung: siehe neues **AK-336** in `UI_SPEC.md` §3.7 —
+  Mindestanforderung ist, dass der AK-331-Satz unabhaengig von `Sort by`
+  steht und die "Damage"-Zeile/der Chip die gewaehlte Art nennt; ob der
+  Picker zusaetzlich einen eigenen, gespiegelten Regler bekommt (wie
+  `goal_box`↔`Sort by` nach AK-256), ist eine offene Umfangsfrage an den
+  App Designer (siehe dort).
+
+### Wichtig
+
+*(keine ueber die zwei Kritisch-Funde hinaus in diesem Lauf.)*
+
+### Nice-to-have
+
+- **DR-036 [`UI_SPEC.md` §3.7, AK-328-Pruefweg]** Der eigene Pruefweg-Satz
+  ("genau elf Eintraege") war falsch nachgezaehlt — richtig sind zehn
+  benannte Eintraege plus zwei Trennlinien (`QComboBox.count()` = zwoelf),
+  bestaetigt durch `tests/test_advisor_bar.py::
+  test_the_kind_of_damage_box_offers_three_groups_in_the_spec_order` gegen
+  den Bau (`78a0888`). Der Bau ist richtig; der Fehler lag in der eigenen
+  Spec-Zeile aus T-320b. Korrigiert per Nachtrag in `UI_SPEC.md` §3.7
+  (append-only, Original steht stehen).
+
+- **DR-037 [`nrplanner/advisor/goals.py`, `_ART_ON_A_CATALYST`]** Der
+  Katalysator-Satz ("`{choice} is not counted for this Nightfarer: a staff
+  or a seal is ranked on the spell power the game shows for it, and no
+  damage type and no attack art reaches that figure.`") ist wortgleich
+  gegen `tests/test_advisor_goals.py` (Recluse + `art:sorceries`) getestet
+  und in Gross-/Kleinschreibung korrekt (Satzanfang gross, `_RANKED_ON_ONE_ART`
+  daneben klein wie AK-331 verlangt) — **bestaetigt, keine Aenderung noetig**.
+  Einzige Feinheit: bei einer Schulwahl, die tatsaechlich zur Klasse des
+  Katalysators passt (z. B. `Bestial` bei einem Rezitator/Siegel-Nightfarer,
+  der Incantations wirkt), liest sich der Satz auf den ersten Blick
+  widerspruechlich ("Bestial zaehlt nicht, obwohl dieser Nightfarer genau
+  Bestial wirkt") — inhaltlich richtig (AD-048: die Spell-Power-Anzeige hat
+  keine gemessene Beziehung zu einem Angriffswert-Multiplikator, unabhaengig
+  davon, welche Schule gewaehlt wurde), aber ein zusaetzlicher Halbsatz
+  ("dies gilt fuer jede Wahl gleichermassen, nicht nur fuer diese Schule")
+  koennte die Ironie nehmen. Kein Muss, reine Politur.
+
+### Backlog (geparkt)
+
+- `_max_damage`s `art`-Zweig prueft nicht, ob die Bezugswaffe die gewaehlte
+  Art strukturell tragen kann (anders als der Katalysator-Zweig) — ob das
+  eine Luecke ist, haengt an AD-046/047 und gehoert eher zu T-322c/T-322e als
+  zu dieser Leiste; hier nur vermerkt, nicht bewertet.
+- Projektweite Suche nach der geloeschten Konversions-Caveat-Zeile
+  ("Effects that convert one damage type…") ergab sechs Treffer, alle in
+  `ARCHITECTURE.md`/`ARCHITECTURE_REGISTER.md`/`docs/archiv/**` — historische
+  Dokumentation, keine Laufzeit-Zeichenkette, kein UI-Handlungsbedarf.
+
+### Positiv / beibehalten
+
+- **AK-327** (Platzierung), **AK-328** (Reihenfolge/Gruppen/Trennlinien,
+  Zahl siehe DR-036), **AK-329** (Tooltip-Wortlaut, exakt gegen
+  `advisor_goals.MAX_DAMAGE.label` zusammengesetzt), **AK-330** (Auswahl
+  bleibt beim Richtungswechsel stehen, Box wird nur versteckt statt neu
+  aufgebaut) und **AK-333** (Sichtbarkeits-basierte Tab-Reihenfolge, kein
+  Sonderfall im Code) sind wortgleich so gebaut, wie die Vorgabe sie
+  verlangt — im Code gegengelesen und durch `tests/test_advisor_bar.py`
+  belegt.
+- Die Entscheidung, die alte Konversions-Caveat-Zeile ersatzlos zu
+  streichen statt sie abzuschwaechen (`goals.py`-Kommentar, AD-047 Punkt 6),
+  ist die richtige Reihenfolge: eine gemessene Tatsache ersetzt eine
+  Unsicherheits-Formulierung, keine Formulierung bleibt neben einer Tatsache
+  stehen, die sie widerlegt.
+
+### Offene Fragen an den App Designer
+
+- Siehe `UI_SPEC.md` §3.7, Nachtrag T-322d, AK-336: bekommt der Relic
+  Picker einen eigenen, mit der Beraterleiste gespiegelten Regler fuer die
+  Schadensart (volle Paritaet mit `goal_box`↔`Sort by`), oder reicht die in
+  AK-336 festgelegte Mindest-Offenlegung (Beschriftung + Caveat immer
+  sichtbar, Aenderung nur ueber die Leiste)?
+
 ## Review vom 2026-09-17 (T-293d — Effekt-Filterfenster AK-315..318, Bau 1.14.0, Stand `df73927`)
 
 **Methode:** Code-Analyse plus Offscreen-Render (`QT_QPA_PLATFORM=offscreen`,

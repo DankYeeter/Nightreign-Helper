@@ -11,7 +11,7 @@ dist/
 
 # Game data extracted from the user's own installation. Never committed:
 # this project ships no FromSoftware assets. Both are built on first run.
-nrplanner/data/nightreign_data.json
+nrplanner/data/nightreign_data.json*
 nrplanner/data/icons/
 
 # Generated diagnostics

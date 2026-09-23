@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from Crypto.Cipher import AES
 
@@ -39,39 +39,28 @@ class OwnedItem:
     # different rolls, so the handle is what makes "the relic in that slot"
     # exact rather than merely the right name.
     handle: int | None = None
-    # Where this copy's record sits in the character slot. One record is one
-    # relic -- established when the relic count was matched against the game,
-    # 284 records to 284 relics -- so the offset identifies the copy even on a
-    # save whose loadout table cannot be read and which therefore has no
-    # handles. See copy_key.
-    offset: int | None = None
 
 
 def copy_key(item) -> tuple[str, int] | None:
     """What makes two entries the same *physical* relic, or None.
 
     A relic can be worn in one slot at a time, so the planner has to be able
-    to tell one copy from another. The handle is the exact answer -- it is
-    what the save's own loadout table uses -- but it is not always there: a
-    save whose loadout table cannot be read yields no handles at all.
+    to tell one copy from another. The handle is that answer, and the only
+    one (AD-055): it is what the save's own loadout table uses, and the handle
+    is read from the record itself, so an unreadable loadout table does not
+    take it away. A copy has none only when two records carry the same handle
+    bytes -- and then the game cannot tell the two apart either, so neither
+    the advisor nor the picker offers such a copy.
 
-    Dropping those relics from the planner would cost far more than the rule
-    is worth (a player with an unreadable table would be offered nothing),
-    and treating them as endlessly available would abandon the rule precisely
-    where it cannot be checked. Neither is necessary: the record's own offset
-    in the save identifies the copy just as exactly, because one record is one
-    relic. So the handle answers when it can and the offset answers otherwise.
-
-    Returns None for anything that is not a copy the player owns -- an empty
-    slot, or a custom relic, which is imaginary by design and may therefore
-    be planned into as many slots as the player likes.
+    Returns None for anything that is not a copy the planner can name -- an
+    empty slot, a copy without a handle, or a custom relic, which is imaginary
+    by design and may therefore be planned into as many slots as the player
+    likes.
     """
     if item is None or getattr(item, "relic_id", None) == CUSTOM_RELIC_ID:
         return None
     if item.handle is not None:
         return ("handle", item.handle)
-    if item.offset is not None:
-        return ("record", item.offset)
     return None
 
 
@@ -115,6 +104,12 @@ class Inventory:
     # with a default, so every hand-built `Inventory` stays valid and the
     # value crosses the worker's thread boundary unchanged (AD-006.8).
     read_the_slow_way: bool = False
+    # How many other readable saves the automatic search found and passed
+    # over for this one (AK-366, QA-004). Zero for a file the player picked.
+    other_saves: int = 0
+    # At least one of those carries as many relics as this one, which then
+    # won as the most recent of them (AK-366, decision 22.09.2026 22:45).
+    other_saves_as_full: bool = False
 
     def _refuse_a_density_no_save_can_have(self) -> None:
         """The second SEC-022/SEC-034 limit, on the way out rather than in.
@@ -311,6 +306,11 @@ class SaveScan:
     #: boundary with everything else the reading half found out, because the
     #: half that builds the window has no dataset to ask again.
     read_the_slow_way: bool = False
+    #: How many other readable save files `scan` passed over for this one
+    #: (AK-366). Set by `scan`, not by `_scan_save`, which sees one file.
+    other_saves: int = 0
+    #: One of them carries as many relics as this one (AK-366); set by `scan`.
+    other_saves_as_full: bool = False
 
 
 class SaveNotReadable(ValueError):
@@ -414,10 +414,12 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
 
     best: SaveScan | None = None
     unreadable = ""
+    # The relic count of every readable file, newest first. Strictly more
+    # replaces `best`, so of files with equal counts the newest one wins.
+    counts: list[int] = []
     for path in sorted(saves, key=_changed_at, reverse=True):
         try:
-            best = _scan_save(path, valid_relics, valid_effects, best,
-                              mode=mode)
+            found = _scan_save(path, valid_relics, valid_effects, mode=mode)
         except SaveNotReadable as exc:
             # One file that cannot be read is no reason to abandon the others:
             # a save half-written by a running game, or a truncated backup,
@@ -426,8 +428,18 @@ def scan(data: dict, save_path: pathlib.Path | None = None) -> SaveScan | None:
             # the first one, which is the newest, because that is the file the
             # player most likely means.
             unreadable = unreadable or errortext.in_english(exc)
+            continue
+        counts.append(0 if found is None else len(found.owned))
+        if found is not None and (best is None
+                                  or len(found.owned) > len(best.owned)):
+            best = found
     if best is None and unreadable:
         raise SaveNotReadable(unreadable)
+    if best is not None and len(counts) > 1:
+        # The choice stays silent no longer (AK-366): a picked file is the
+        # only one in `saves`, so this is the automatic route by construction.
+        best = replace(best, other_saves=len(counts) - 1,
+                       other_saves_as_full=counts.count(len(best.owned)) > 1)
     return best
 
 
@@ -443,7 +455,9 @@ def build(data: dict, found: SaveScan) -> Inventory:
     inv = Inventory(source=found.source, folder=found.folder,
                     source_bytes=found.source_bytes,
                     loadout_error=found.loadout_error,
-                    read_the_slow_way=found.read_the_slow_way)
+                    read_the_slow_way=found.read_the_slow_way,
+                    other_saves=found.other_saves,
+                    other_saves_as_full=found.other_saves_as_full)
     item_by_handle: dict[int, OwnedItem] = {}
 
     for entry in found.owned:
@@ -463,7 +477,6 @@ def build(data: dict, found: SaveScan) -> Inventory:
             caption=meta.get("caption", ""),
             curse_ids=list(entry.curse_ids),
             handle=handle,
-            offset=entry.offset,
         )
         inv.relics.append(item)
         if handle is not None:
@@ -500,14 +513,15 @@ def build(data: dict, found: SaveScan) -> Inventory:
 
 
 def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
-               best: SaveScan | None, *, mode: str) -> SaveScan | None:
-    """Read one save file, returning it if it beats what was found so far.
+               *, mode: str) -> SaveScan | None:
+    """Read one save file: its best-populated slot, or None if none holds relics.
 
     A file that cannot be read leaves here as `SaveNotReadable` rather than as
-    the untouched `best`: whether the scan goes on to the next file is the
-    caller's decision and it still makes it, but the reason is no longer lost
-    on the way, and a scan that ends with nothing can say which of the two
-    endings it had.
+    None: whether the scan goes on to the next file is the caller's decision
+    and it still makes it, but the reason is no longer lost on the way, and a
+    scan that ends with nothing can say which of the two endings it had.
+    Which file wins is `scan`'s question, which is why this one no longer
+    sees the others (AK-366 needs every file's count, not only the winner).
     """
     try:
         slots = _decrypt_slots(path)
@@ -529,6 +543,7 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
         # library's (A8 without paying A7).
         raise SaveNotReadable(errortext.in_english(exc)) from exc
 
+    best: SaveScan | None = None
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
                                            mode=mode)

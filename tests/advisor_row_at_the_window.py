@@ -20,7 +20,7 @@ A desktop narrower than the derived width caps it (`_opening_width`'s
 `room`), and there the status is the one thing that gives way, down to 0 px
 (QA-250, decided 2026-09-13: boxes first, the status may go). So the same
 window is measured again at the width it would open at on each of
-`NARROW_DESKTOPS`, under `rooms`.
+`NARROW_DESKTOPS` and `AK_350_ROOMS`, under `rooms`.
 
 The stat sheet, the right-hand pane of the same window, is read in the
 same pass (`sheet`): which of its drawn children reach past the pane's
@@ -45,17 +45,29 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 #: Desktops that cap the derived opening width: 1080p at 125 % scaling
-#: (1536) and a legacy 1366-px desktop kept for a lower reading. AK-05's
-#: "boxes never cut" only holds at 1536 px and up (user decision,
-#: 2026-09-13); below that floor `goal_box` may cut, and the
-#: row's own tooltip is what still carries the full status (T-233 carries
-#: the wording into `UI_SPEC.md`).
+#: (1536) and a legacy 1366-px desktop, both real machines rather than a
+#: lower and a higher reading. Since AK-350 (T-325a/e) `_opening_width`
+#: takes `OPENING_WIDTH_SCREEN_RATIO` of `room`, floored at
+#: `OPENING_WIDTH_FLOOR` (1536) -- so both entries clamp to the same 1536 px
+#: opening width now (`round(1536 * 0.9) = 1382` and `round(1366 * 0.9) =
+#: 1229`, both under the floor), kept as two entries because both are real
+#: desktops a player has, not because they still tell the row apart.
+#: AK-05's "boxes never cut" only holds at 1676 px and up, above the floor
+#: (Option B, user decision 2026-09-19, measured T-321c); below that floor
+#: `goal_box` and `damage_type_box` may give way to eliding, the status may
+#: go to 0 px, and the row's own tooltip is what still carries the full
+#: status (T-233 carries the wording into `UI_SPEC.md`). The three action
+#: buttons and the heading stay on screen regardless -- Option B is about
+#: captions, not about controls leaving the row.
 NARROW_DESKTOPS = (1536, 1366)
 
-#: Desktops in `NARROW_DESKTOPS` that sit below the AK-05 floor: here
-#: `goal_box` may be among `cut`, everywhere else `cut` must
-#: stay empty.
-BELOW_THE_AK_05_FLOOR = frozenset({1366})
+#: AK-352's own two reference desktops, on the other side of AK-350's ratio:
+#: `1920` sits below `need / OPENING_WIDTH_SCREEN_RATIO` (the ratio itself
+#: narrows the row below what it needs, so the status and at least one box
+#: give way), `2560` sits above it (the ratio already covers the need, same
+#: as an uncapped screen). Distinct from `NARROW_DESKTOPS`, which is about
+#: Option B's box-elision floor and not about the ratio.
+AK_350_ROOMS = (1920, 2560)
 
 #: A 4.12 failure sentence long enough to need shortening at any width.
 A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
@@ -121,7 +133,7 @@ def _the_row(bar, controls) -> dict:
         "widths": {name: widget.width() for name, widget in on_screen},
         "status_width": bar.status.width(),
         "status_text": bar.status.text(),
-        "status_whole_text": bar.status.whole_text(),
+        "status_whole_text": bar.status.accessibleName(),
         "status_tooltip": bar.status.toolTip(),
         "row_tooltip": bar.toolTip(),
     }
@@ -204,6 +216,8 @@ def main(snapshot: pathlib.Path) -> dict:
                    if label is not bar.status)
     controls = [("heading", heading),
                 ("goal_box", bar.goal_box),
+                ("hit_with_box", bar.hit_with_box),
+                ("damage_type_box", bar.damage_type_box),
                 ("optimize_button", bar.optimize_button),
                 ("apply_button", bar.apply_button),
                 ("why_button", bar.why_button),
@@ -221,7 +235,7 @@ def main(snapshot: pathlib.Path) -> dict:
         "sheet": _the_sheet(planner),
         "rooms": {},
     }
-    for room in NARROW_DESKTOPS:
+    for room in NARROW_DESKTOPS + AK_350_ROOMS:
         planner.resize(planner._opening_width(room=room), planner.height())
         rendered.settle(20)
         figures["rooms"][str(room)] = {"width": planner.width(),

@@ -304,3 +304,42 @@ def test_enter_on_a_focused_tile_chooses_it_like_space_does(
             f"{window.current_hero()['name']} current")
         assert by_enter.isChecked() and not by_space.isChecked()
         assert isinstance(by_enter, QToolButton) and by_enter.isCheckable()
+
+
+# -- T-328a: the choice survives a restart -----------------------------------
+#
+# A fixed key, `app.HERO_KEY`, carries the chosen Nightfarer's `id` -- the
+# same shape as `variant/{hero_id}` (`HeroTile.set_variant`) and AK-347's
+# `damage_type`/`hit_with`, never a key built from what the player typed.
+
+def test_chosen_hero_survives_a_restart(game_data, qapp):
+    from nrplanner import app as appmod
+    from tests.conftest import _new_planner, clear_settings, wait_for_the_save
+
+    first = _new_planner(game_data)
+    first.select_hero(3)
+    chosen_id = first.heroes[3]["id"]
+
+    second = wait_for_the_save(appmod.Planner(game_data))
+    try:
+        assert second.hero_index == 3
+        assert second.heroes[second.hero_index]["id"] == chosen_id
+    finally:
+        clear_settings()
+
+
+def test_an_id_no_hero_carries_falls_back_to_the_first(game_data, qapp):
+    from PySide6.QtCore import QSettings
+
+    from nrplanner import app as appmod
+    from nrplanner import favourites
+    from tests.conftest import clear_settings, wait_for_the_save
+
+    clear_settings()
+    QSettings(favourites.ORG, favourites.APP).setValue(appmod.HERO_KEY, -999)
+
+    window = wait_for_the_save(appmod.Planner(game_data))
+    try:
+        assert window.hero_index == 0
+    finally:
+        clear_settings()

@@ -51,6 +51,13 @@ Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`
 | `LOCALAPPDATA` | `nrplanner/paths.py` | eigenes Testverzeichnis |
 | `APPDATA` | `nrplanner/shortcut.py` | eigenes Testverzeichnis |
 
+**Spielstand-Suche (QA-255):** `nrdata/savefile.py:711` sucht ausser unter
+`%APPDATA%` fest unter `Path.home()/AppData/Roaming` (Absicht: Ordnerumleitung,
+OneDrive). Eine `APPDATA`-Umlenkung trennt den Lauf also nicht vom echten
+Spielstand — das ist erlaubt (nur lesend). Wer den Fall "kein Spielstand"
+(A15-Ausweichdialog) braucht, lenkt zusaetzlich `USERPROFILE` um;
+`Path.home()` liest unter Windows `USERPROFILE`.
+
 Der Nutzer hat 309 Relikte und rund 110 gespeicherte Builds: lesen ja,
 schreiben nie. Positive Pfadauflösung (`paths.cache_dir()` zurücklesen) hält
 als Nachweis; Abwesenheit hält nicht (QA-237: die Überlagerung ist
@@ -72,12 +79,26 @@ stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 `notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
 
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
-(841 Dateien, 20 849 867 Bytes, `EXTRACT_VERSION` 12, gebaut von 1.12.1 am
-15.09.2026, T-269a; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
+(841 Dateien, 21 139 391 Bytes, `EXTRACT_VERSION` 16, gebaut von T-324b am
+20.09.2026; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
 **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im
-Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 12 steigt — der erste
+Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 16 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
+
+## Ausloeser je Pruefrolle (Release, NH-010)
+
+Der `qa-engineer` prueft immer, am Quellstand mit `scripts/drive_window.ps1`;
+das Artefakt entsteht einmal nach dem letzten Fix. Die uebrigen Rollen nur,
+wenn der Diff seit dem letzten Tag (`git diff --stat v<x>..HEAD`) trifft:
+
+| Rolle | Ausloeser in diesem Projekt |
+|---|---|
+| `security-reviewer` | `nrdata/`, `nrplanner/paths.py`, `shortcut.py`, `gamepath.py`, `singleinstance.py`, `NightreignHelper.spec`, `requirements*.txt`, `.github/workflows/`; neue Senke (`subprocess`, Datei schreiben, Registry) laut `git diff -G` |
+| `release-manager` `clean-room` | `NightreignHelper.spec`, `requirements.txt`, `EXTRACT_VERSION` (`nrdata/extract.py`), `run.py`/Erststart, Migration gespeicherter Builds oder Favoriten |
+| `power-user` | Erststart, Nightfarer-Wahl, Berater-Leiste (Optimize/Why), Build speichern; sonst hoechstens jedes dritte Release |
+| `technical-writer` | neues Bedienelement, das `docs/anleitung/guide.md` beschreiben muss; sonst CHANGELOG-Zeile |
+| `compliance-agent` | neue Abhaengigkeit in `requirements.txt`, fremde Daten oder Plattform |
 
 ## Verbotene Zugriffe
 

@@ -20,14 +20,13 @@ import html
 import time
 
 import pytest
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
-from nrplanner import advisorbar
+from nrplanner import advisorbar, favourites
 from nrplanner.advisor import goals, types
 from tests import rendered
-from tests.advisor_row_at_the_window import (BELOW_THE_AK_05_FLOOR,
-                                              NARROW_DESKTOPS)
+from tests.advisor_row_at_the_window import NARROW_DESKTOPS
 
 #: How long a case may wait for a real search of the player's own save. The
 #: worst measured run is about 960 ms (`run.py`, 309 relics, six free slots);
@@ -42,6 +41,21 @@ A_RUN_AT_MOST = 30.0
 #: grew, and would have seen the waiting line at any threshold at all
 #: (measured: with the constant, a mutation to 10 s left the case green).
 WAITED_OUT_MS = 370
+
+
+@pytest.fixture(autouse=True)
+def _no_remembered_choice(qapp):
+    """AK-347's two keys are cleared once for the whole session, not once
+    per case (`conftest.settings_store`) -- so a case that lets a real
+    choice reach them, as `test_both_choices_survive_a_restart` and the
+    `activated.emit` cases below do, must not hand the next case boxes that
+    no longer open on `Weapon` and `All`."""
+    settings = QSettings(favourites.ORG, favourites.APP)
+    for key in (advisorbar.HIT_WITH_KEY, advisorbar.DAMAGE_TYPE_KEY):
+        settings.setValue(key, "")
+    yield
+    for key in (advisorbar.HIT_WITH_KEY, advisorbar.DAMAGE_TYPE_KEY):
+        settings.setValue(key, "")
 
 
 # --- the table of §4, as words ---------------------------------------------
@@ -111,6 +125,20 @@ TABLE = [
         slots_without_a_choice=3, blocked_by_a_requirement=True),
      "Maximise damage — 0 of 3 slots filled  ·  3 slots are blocked by a "
      "requirement you marked."),
+    ("4.11 no carrier, one (AK-365)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=1, slots_filled=0,
+        slots_without_a_choice=1,
+        no_carrier_for="fire damage with Sorceries"),
+     "Maximise damage — 0 of 1 slots filled  ·  1 slot has nothing to choose "
+     "from: nothing you own reaches fire damage with Sorceries here."),
+    ("4.11 no carrier, three (AK-365)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=3, slots_filled=0,
+        slots_without_a_choice=3,
+        no_carrier_for="fire damage with Sorceries"),
+     "Maximise damage — 0 of 3 slots filled  ·  3 slots have nothing to "
+     "choose from: nothing you own reaches fire damage with Sorceries here."),
     ("4.12", advisorbar.Situation(advisorbar.State.FAILED,
                                   reason="the save could not be read"),
      "Could not work that out — the save could not be read."),
@@ -276,7 +304,7 @@ def _wait(milliseconds: int) -> None:
 def test_a_row_at_rest_is_4_1_and_offers_what_optimize_promises(bar):
     """4.1: the line, and the tooltip that says nothing changes by itself."""
     assert bar.situation.state is advisorbar.State.NOTHING_YET
-    assert bar.status.whole_text() == "Nothing suggested yet."
+    assert bar.status.accessibleName() == "Nothing suggested yet."
     assert bar.optimize_button.text() == "Optimize"
     assert bar.optimize_button.toolTip() == (
         "Fills every slot from the relics in your save. Nothing changes "
@@ -357,7 +385,7 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
     bar.asking["value"] = None
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.NO_SAVE
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "No save was read, so there are no relics to choose from — use "
         "Rescan save.")
     assert not bar.goal_box.isEnabled()
@@ -374,12 +402,12 @@ def test_a_run_under_the_threshold_shows_nothing_at_all(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     _wait(150)
-    early = (bar.progress.isHidden(), bar.status.whole_text())
+    early = (bar.progress.isHidden(), bar.status.accessibleName())
     bar._controller.answers(_an_answer())
     _wait(300)
     assert early == (True, "")
     assert bar.progress.isHidden()
-    assert bar.status.whole_text() == "Maximise damage — 6 of 6 slots filled."
+    assert bar.status.accessibleName() == "Maximise damage — 6 of 6 slots filled."
 
 
 def test_a_run_over_the_threshold_waits_out_loud(bar):
@@ -388,7 +416,7 @@ def test_a_run_over_the_threshold_waits_out_loud(bar):
     bar._controller.begins()
     _wait(WAITED_OUT_MS)
     assert bar.situation.state is advisorbar.State.WORKING
-    assert bar.status.whole_text() == "Working out maximise damage…"
+    assert bar.status.accessibleName() == "Working out maximise damage…"
     assert not bar.progress.isHidden()
     assert bar.optimize_button.text() == "Cancel"
 
@@ -407,7 +435,7 @@ def test_a_long_run_adds_the_figures_the_window_knew_all_along(bar,
     bar._controller.begins()
     _wait(200)
     assert bar.situation.state is advisorbar.State.WORKING_WITH_FIGURES
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Working out maximise damage — 292 relics, 6 slots.")
 
 
@@ -440,7 +468,7 @@ def test_the_sequence_rest_working_stopped_rest(bar):
 
     bar.optimize_button.click()     # it says `Cancel` now
     assert bar.situation.state is advisorbar.State.STOPPED
-    assert bar.status.whole_text() == "Stopped. Nothing was changed."
+    assert bar.status.accessibleName() == "Stopped. Nothing was changed."
     assert bar.progress.isHidden()
     assert bar.optimize_button.text() == "Optimize"
 
@@ -462,7 +490,7 @@ def test_a_build_that_changes_under_a_run_ends_in_4_7_and_not_in_4_5(bar):
     _wait(WAITED_OUT_MS)
     bar.the_build_changed()
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Your build changed while this was working out — use Optimize "
         "again.")
     assert bar.progress.isHidden()
@@ -493,7 +521,7 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=5))
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
 
@@ -506,7 +534,7 @@ def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=4, held=1))
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
 
@@ -520,7 +548,7 @@ def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
     bar._controller.begins()
     bar._controller.answers(_an_answer(filled=0, blocked=True))
     assert bar.situation.state is advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 0 of 6 slots filled  ·  6 slots are blocked by a "
         "requirement you marked.")
 
@@ -533,7 +561,7 @@ def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(
     _wait(WAITED_OUT_MS)
     bar.the_build_changed(marking_changed=True)
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "The effects you marked changed while this was working out — use "
         "Optimize again.")
 
@@ -556,7 +584,7 @@ def test_a_marking_inside_the_debounce_outdates_the_question_that_is_waiting(
 
     assert bar._controller.cancels == 1
     assert bar.situation.state is advisorbar.State.OUTDATED
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "The effects you marked changed while this was working out — use "
         "Optimize again.")
     assert not bar._controller.running, "the waiting question was left to run"
@@ -581,7 +609,7 @@ def test_an_answer_with_silent_effects_says_that_much(bar):
                                        not_counted=("Under a condition",)))
     assert bar.situation.state is (
         advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS)
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no "
         "number.  ·  1 effect was left out: it only applies under a "
         "condition.")
@@ -605,7 +633,7 @@ def test_an_effect_with_no_figure_is_not_a_clause_of_the_status_line(bar):
     bar._controller.begins()
     bar._controller.answers(answer)
     assert bar.situation.state is advisorbar.State.SUGGESTED
-    assert bar.status.whole_text() == "Maximise damage — 6 of 6 slots filled."
+    assert bar.status.accessibleName() == "Maximise damage — 6 of 6 slots filled."
 
 
 def test_clear_puts_the_answer_away_and_is_offered_only_while_there_is_one(bar):
@@ -643,7 +671,7 @@ def test_a_run_that_failed_says_one_line_and_no_stack_trace(bar):
     bar.optimize_button.click()
     bar._controller.begins()
     bar._controller.failed.emit("the dataset carries no attribute curves.")
-    assert bar.status.whole_text() == (
+    assert bar.status.accessibleName() == (
         "Could not work that out — the dataset carries no attribute curves.")
     assert bar.progress.isHidden()
 
@@ -660,7 +688,7 @@ def test_foreign_text_in_a_reason_reaches_the_label_as_text(bar):
     bar._controller.begins()
     bar._controller.failed.emit("<b>relic</b> & co")
     assert bar.status.textFormat() == Qt.PlainText
-    assert bar.status.whole_text() == "Could not work that out — <b>relic</b> & co."
+    assert bar.status.accessibleName() == "Could not work that out — <b>relic</b> & co."
     assert "&lt;b&gt;relic&lt;/b&gt; &amp; co" in bar.status.toolTip()
     assert "<b>relic</b>" not in bar.status.toolTip()
 
@@ -678,7 +706,7 @@ def test_a_shortened_status_keeps_its_whole_sentence_for_the_accessibility_bridg
     bar._controller.begins()
     bar._controller.failed.emit("the dataset carries no attribute curves.")
     bar.status.resize(67, bar.status.height())
-    whole = bar.status.whole_text()
+    whole = bar.status.accessibleName()
     assert bar.status.text() != whole and bar.status.text().endswith("…"), (
         "the status is not shortened at this width, so the case proves "
         "nothing")
@@ -702,11 +730,332 @@ def test_a_new_direction_puts_the_old_answer_away(bar):
 
 
 def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
-    """A18 took the reading box out: one box, the directions in `GOAL_ORDER`,
-    and no second `QComboBox` on the row."""
+    """A18 took the reading box out: the directions in `GOAL_ORDER`, and the
+    two pairs AK-337 names beside them -- what is hit with, and which damage
+    counts.
+
+    The other boxes are deliberately named here rather than counted away: a
+    fourth `QComboBox` on this row is a control nobody specified, and the
+    reading box A18 removed is the case that says why that matters.
+    """
     assert [bar.goal_box.itemText(i) for i in range(bar.goal_box.count())] \
         == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
-    assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box]
+    assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
+                                                    bar.hit_with_box,
+                                                    bar.damage_type_box]
+
+
+#: A dataset with one spell school and three arts, so the school group of
+#: AK-338 has something in it that is not the spec's own three wordings.
+#: Ids, not prose: 330000 and 330400 are `MOVE_SCOPED_ARTS`' own sorcery and
+#: incantation entries, 112 is the skill scope, and 23 is the school
+#: `spell_families` names here (A-001).
+ONE_SCHOOL = {
+    "meta": {"data_version": "test"},
+    "spell_families": {"23": "Bestial"},
+    # A school is offered only where a spell of this dataset is in it
+    # (`model.attack_arts`), so the one school here carries the one spell --
+    # id, name and the two words the dataset files it under, nothing else
+    # (A-001).
+    "spells": [{"id": 6820, "name": "Beast Claw", "family": "Bestial",
+                "category": "Incantations"}],
+    "effects": {
+        "330000": {"id": 330000, "modifiers": {"magicAttackRate": 1.2}},
+        "330400": {"id": 330400, "modifiers": {"magicAttackRate": 1.2}},
+        "1": {"id": 1, "modifiers": {"fireAttackRate": 1.2,
+                                     "magicSubCategoryChange1": 112}},
+        "2": {"id": 2, "modifiers": {"fireAttackRate": 1.2,
+                                     "magicSubCategoryChange1": 23}},
+    },
+}
+
+
+@pytest.fixture
+def bar_with_a_school(qapp):
+    """A row built over `ONE_SCHOOL`, so the school group has one in it."""
+    widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller(), data=ONE_SCHOOL)
+    yield widget
+    widget.deleteLater()
+
+
+def _entries(box):
+    """`(text, data)` for every row of a combo, separators included."""
+    return [(box.itemText(i), box.itemData(i)) for i in range(box.count())]
+
+
+def test_hit_with_offers_the_armament_the_arts_and_the_schools(
+        bar_with_a_school):
+    """AK-338, its own Pruefweg: five entries and a line before `Bestial`.
+
+    The school's label is the dataset's own (`Bestial` is in `ONE_SCHOOL`
+    and nowhere in `nrplanner`), and `Weapon art` is the rename AK-338 makes
+    -- read out of `model.ART_LABELS`, which is why no second copy of the
+    word can drift from the headline the goal card builds from it.
+    """
+    entries = _entries(bar_with_a_school.hit_with_box)
+    separators = [i for i, (text, data) in enumerate(entries)
+                  if not text and data is None]
+
+    assert [text for text, _data in entries if text] == [
+        "Weapon", "Weapon art", "Sorceries", "Incantations", "Bestial"]
+    assert [data for _text, data in entries if data is not None] == [
+        "", "skill", "sorceries", "incantations", "family:23"]
+    assert separators == [4], "AK-338 wants a line before the schools"
+
+
+def test_hit_with_takes_its_arts_and_schools_from_the_dataset(qapp):
+    """AK-338/AD-046.5: a school no dataset names is no entry.
+
+    The counterbuild to the case above, in the shape
+    `test_the_row_takes_its_words_from_the_registry_and_nowhere_else` uses:
+    the same row built over a dataset without `spell_families` offers the
+    entries that need no dataset and no school -- so a hand-written table of
+    schools inside this file would show up here as an entry that should not
+    exist. `Charged` is the measured case of this (AK-338 point 3): the
+    dataset names the school and no spell is in it.
+    """
+    without_a_school = {**ONE_SCHOOL, "spell_families": {}}
+    widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller(),
+                                   data=without_a_school)
+    try:
+        entries = _entries(widget.hit_with_box)
+        assert [text for text, _data in entries] == [
+            "Weapon", "Weapon art", "Sorceries", "Incantations"], (
+            "a row without a school offers no school and no line to put it "
+            "behind")
+    finally:
+        widget.deleteLater()
+
+
+def test_the_damage_type_box_offers_six_entries_whatever_the_dataset_is(
+        bar_with_a_school):
+    """AK-339: `All`, a line, the five types -- and no third group.
+
+    The five are `weapons.DAMAGE_LABELS` in its own order; `Lightning` and
+    `Holy` are what the player reads for `Thunder` and `Dark`, which is
+    exactly why the entry's **data** is the id form and not the text
+    (AD-051 point 1). Nothing here depends on the dataset, so the row built
+    over `ONE_SCHOOL` carries the same seven rows as any other.
+    """
+    from nrplanner import weapons
+
+    entries = _entries(bar_with_a_school.damage_type_box)
+    separators = [i for i, (text, data) in enumerate(entries)
+                  if not text and data is None]
+
+    assert bar_with_a_school.damage_type_box.count() == 7
+    assert [text for text, _data in entries if text] == [
+        "All", "Physical", "Magic", "Fire", "Lightning", "Holy"]
+    assert [data for _text, data in entries if data is not None] == [
+        "", "Physics", "Magic", "Fire", "Thunder", "Dark"]
+    assert separators == [1], "AK-339 wants one line and no second group"
+    assert [label for label in weapons.DAMAGE_LABELS.values()] == [
+        text for text, _data in entries[2:]]
+
+
+def test_both_pairs_are_a_question_only_under_maximise_damage(
+        bar_with_a_school):
+    """AK-337: hidden under the other two directions, and AK-341: both
+    choices survive the trip there and back, because the pairs are hidden
+    and never rebuilt."""
+    bar = bar_with_a_school
+    pair = (bar.hit_with_label, bar.hit_with_box,
+            bar.damage_type_label, bar.damage_type_box)
+    assert not any(widget.isHidden() for widget in pair)
+
+    bar.hit_with_box.setCurrentIndex(bar.hit_with_box.findData("family:23"))
+    bar.damage_type_box.setCurrentIndex(
+        bar.damage_type_box.findData("Fire"))
+    bar.choose_goal("min_damage_taken")
+    assert all(widget.isHidden() for widget in pair)
+
+    bar.choose_goal("max_damage")
+    assert not any(widget.isHidden() for widget in pair)
+    assert (bar.hit_with(), bar.damage_type()) == ("family:23", "Fire")
+
+
+def test_tab_walks_the_direction_then_both_boxes_then_filters(
+        bar_with_a_school):
+    """AK-348: `goal_box` -> `hit_with_box` -> `damage_type_box` ->
+    `Filters`, which is the order the row builds them in and therefore the
+    focus chain Qt hands out without a special case."""
+    bar = bar_with_a_school
+    wanted = [bar.goal_box, bar.hit_with_box, bar.damage_type_box,
+              bar.filters_button]
+
+    walked = []
+    widget = bar.goal_box
+    for _step in range(200):
+        if widget in wanted:
+            walked.append(widget)
+            if len(walked) == len(wanted):
+                break
+        widget = widget.nextInFocusChain()
+
+    assert walked == wanted
+
+
+@pytest.mark.parametrize("box_name, choice", [
+    ("hit_with_box", "family:23"),
+    ("damage_type_box", "Fire"),
+])
+def test_either_box_puts_the_old_answer_away(bar_with_a_school, box_name,
+                                             choice):
+    """AK-341: a choice in **either** box is another question, not another
+    view of the answer on screen -- and, like a direction, it asks nothing.
+    """
+    bar = bar_with_a_school
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    asked = len(bar._controller.asked)
+
+    box = getattr(bar, box_name)
+    index = box.findData(choice)
+    box.setCurrentIndex(index)
+    box.activated.emit(index)
+
+    assert box.currentData() == choice
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+    assert len(bar._controller.asked) == asked
+
+
+def test_both_choices_survive_a_restart(qapp):
+    """AK-347's Pruefweg, first half: a row built after an earlier one chose
+    `Bestial` x `Fire` opens on both, not on `Weapon` x `All` -- the pair a
+    session ended on is what the next one starts with."""
+    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                  controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        for box, choice in ((first.hit_with_box, "family:23"),
+                            (first.damage_type_box, "Fire")):
+            index = box.findData(choice)
+            box.setCurrentIndex(index)
+            box.activated.emit(index)
+    finally:
+        first.deleteLater()
+
+    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        assert (second.hit_with(), second.damage_type()) == ("family:23",
+                                                             "Fire")
+        assert second.hit_with_box.currentText() == "Bestial"
+    finally:
+        second.deleteLater()
+
+
+def test_a_remembered_school_the_dataset_lost_falls_back_on_its_own(qapp):
+    """AK-347's Pruefweg, second half: each key is checked against its own
+    box.
+
+    A school remembered from a dataset that no longer carries it (a patch,
+    or a hand-edited settings file) is not offered as if it still meant
+    something -- `findData` misses it and `hit_with_box` opens on `Weapon`.
+    The other key is untouched by that, so `damage_type_box` still opens on
+    `Fire`: two keys, two checks, and one falling back moves nothing else.
+    """
+    first = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                  controller=_Controller(), data=ONE_SCHOOL)
+    try:
+        for box, choice in ((first.hit_with_box, "family:23"),
+                            (first.damage_type_box, "Fire")):
+            index = box.findData(choice)
+            box.setCurrentIndex(index)
+            box.activated.emit(index)
+    finally:
+        first.deleteLater()
+
+    second = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                   controller=_Controller())
+    try:
+        assert second.hit_with() == ""
+        assert second.hit_with_box.currentText() == "Weapon"
+        assert second.damage_type() == "Fire"
+    finally:
+        second.deleteLater()
+
+
+def test_an_old_single_key_from_before_the_two_fields_is_ignored(qapp):
+    """AK-347/AD-051.5: `damage_art` is not translated, it is ignored.
+
+    The value it held (`type:Fire`, `art:family:23`) names no entry of
+    either box, so a store still carrying it opens the row on `Weapon` x
+    `All` -- and nothing in this file knows how to read it.
+    """
+    settings = QSettings(favourites.ORG, favourites.APP)
+    settings.setValue("damage_art", "type:Fire")
+    try:
+        widget = advisorbar.AdvisorBar(lambda goal_id: _an_asking(),
+                                       controller=_Controller(),
+                                       data=ONE_SCHOOL)
+        try:
+            assert (widget.hit_with(), widget.damage_type()) == ("", "")
+        finally:
+            widget.deleteLater()
+    finally:
+        settings.remove("damage_art")
+
+
+def test_the_three_tooltips_are_the_three_the_spec_writes(bar):
+    """AK-340/AK-351, word for word out of `UI_SPEC.md`: one tooltip per
+    box, and the one on `hit_with_box` is what keeps a Nightfarer's own
+    skill apart from a Weapon Art and a found spell apart from the one this
+    equipment casts. `goal_box` has no label beside it, unlike the two that
+    follow it, so its own tooltip is what a reader has once its text no
+    longer fits at the derived opening width (AK-350/AK-351)."""
+    assert bar.goal_box.toolTip() == (
+        "Chooses what the Advisor ranks your build for.")
+    assert bar.hit_with_box.toolTip() == (
+        "Chooses what the figure ranks: the starting armament, its Weapon "
+        "Art, or the spell the starting catalyst throws. Weapon art counts "
+        "Weapon Arts only — a Nightfarer's own skills are never counted. "
+        "Sorceries, Incantations and a school rank the one spell this "
+        "Nightfarer's own equipment casts, not a spell found in the run.")
+    assert bar.damage_type_box.toolTip() == (
+        "Restricts Maximise damage to one kind of damage.")
+
+
+def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
+        planner):
+    """AD-051: `hit_with` and `damage_type` are fields of the question, so
+    they reach the key and the context together -- filled in one of them
+    only, the run refuses the question it is handed
+    (`run._refuse_a_request_that_asks_about_another_run`, the same guard
+    `two_handed` answers to).
+
+    Each box answers its own field since AK-337, so the case sets the pair
+    the row would be standing on and reads it back out of both halves.
+
+    Red with either assignment in `asking_from` taken out.
+    """
+    from nrplanner.advisor import run as advisor_run
+
+    bar = planner.advisor_bar
+    for hit_with, damage_type in (("", ""), ("", "Magic"),
+                                  ("incantations", ""),
+                                  ("incantations", "Magic")):
+        bar.hit_with_box.setCurrentIndex(bar.hit_with_box.findData(hit_with))
+        bar.damage_type_box.setCurrentIndex(
+            bar.damage_type_box.findData(damage_type))
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert (asking.request.hit_with, asking.request.damage_type) == (
+            hit_with, damage_type)
+        assert (asking.ctx.hit_with, asking.ctx.damage_type) == (
+            hit_with, damage_type)
+        # The fingerprint is the worker's to fill (`AdvisorController.ask`),
+        # and the guard checks it too -- so the case fills it the same way
+        # rather than asserting around it.
+        frozen = advisor_run.frozen_inventory(asking.inventory,
+                                              asking.request.problem)
+        advisor_run._refuse_a_request_that_asks_about_another_run(
+            dataclasses.replace(asking.request,
+                                inventory_fingerprint=advisor_run.
+                                inventory_fingerprint(frozen)),
+            frozen, asking.ctx)
 
 
 def test_a_declared_condition_outlives_the_baseline(planner):
@@ -1002,7 +1351,7 @@ def test_at_the_opening_width_the_status_keeps_some_width(
 
 
 @pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
-def test_on_a_narrow_desktop_the_boxes_keep_their_captions_and_the_row_carries_the_status(
+def test_on_a_narrow_desktop_the_row_keeps_every_control_and_carries_the_status(
         advisor_row_at_the_window, room):
     """AK-05 on a desktop that caps the opening width (QA-250).
 
@@ -1010,19 +1359,23 @@ def test_on_a_narrow_desktop_the_boxes_keep_their_captions_and_the_row_carries_t
     to 0 px -- so AK-194's `> 0` is not asked here, and a status too narrow
     to hover has its sentence in the row's own tooltip instead.
 
-    AK-05 itself only holds at 1536 px and up (user decision, 2026-09-13):
-    below that floor `goal_box` may be among the boxes that cut, and the
-    tooltip is asserted regardless -- it is what carries the status text
-    whether or not the box gave way too.
+    Option B (user decision 2026-09-19): AK-05 itself only holds at 1676 px
+    and up, above both desktops of `NARROW_DESKTOPS` -- below that floor
+    `goal_box` and `damage_type_box` may give way to eliding, and neither
+    desktop's width is asked to keep any caption whole. What stays is
+    usability, not full captions: every control this task's rows started
+    with is still on screen, and the tooltip carries the status text
+    whether or not the boxes gave way too.
     """
     at_room = advisor_row_at_the_window["rooms"][room]
     assert at_room["width"] < advisor_row_at_the_window["width"], (
         "this desktop does not cap the opening width, so the case would "
         "measure the same row twice")
-    allowed_cut = ({"goal_box"}
-                   if int(room) in BELOW_THE_AK_05_FLOOR else set())
-    for row in (at_room["failed"], at_room["suggested"]):
-        assert set(row["cut"]) <= allowed_cut
+    for state in ("failed", "suggested"):
+        base = advisor_row_at_the_window[state]
+        row = at_room[state]
+        assert set(row["on_screen"]) == set(base["on_screen"]), (
+            "a control left the row on this desktop, not just its caption")
         assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
 
 
@@ -1068,7 +1421,7 @@ def test_a_real_optimize_answers_and_changes_no_slot(planner):
                        advisorbar.WORKING_STATES), "the run never finished"
     assert bar.situation.state in advisorbar.ANSWERED_STATES, (
         f"the run ended in {bar.situation.state} saying "
-        f"{bar.status.whole_text()!r}")
+        f"{bar.status.accessibleName()!r}")
     assert _slot_state(planner) == before
     assert planner._build is sheet
     bar.shutdown()

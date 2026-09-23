@@ -2,7 +2,7 @@
 
 **What guarded this tab before this file: nothing.** Two independent searches
 of `tests/` on 2026-09-05 -- for `depthstab` and for `DepthsTab` -- found 0
-files. Moving mutation category 160 out of the evergaol row and into the
+files. Moving mutation category 160 out of its own row and into the
 ordinary-enemies row, which makes a whole row of the table vanish and tips
 every figure in the rest, left 622 of 622 green (QA-137, mutation M3).
 
@@ -26,21 +26,24 @@ from tests import tabtext
 #: rather than as a wrong number.
 GROUPS = [
     ("Ordinary enemies in camps & ruins", {100, 105, 140, 141, 150, 151}),
-    ("Named field enemies & minibosses", {101, 104, 110, 135, 136, 137, 138}),
-    ("Evergaol bosses", {160}),
-    ("Night bosses (unconfirmed)", {120}),
+    ("Named minibosses", {101, 104, 110, 135, 136, 137, 138}),
+    ("Mixed-boss arena locations", {160}),
+    ("Field bosses & arena locations", {120}),
     ("Merchants", {103}),
     ("Unidentified enemies", {130, 131}),
 ]
 
-#: AK-99, the heading and tooltip of the column that used to claim a link to
-#: the map box above it, and the cell two rows have to carry instead of being
-#: left blank.
-EXAMPLES_HEADER = "Examples (any map)"
-EXAMPLES_TIP = (
-    "Named members of this group anywhere in the game. The files do not list "
-    "them per map, so these names are not tied to the map selected above.")
-NO_NAMES = "— the files name none"
+#: The first column of the depth figures. One text column stands in front of
+#: them since AK-326 took `Examples (any map)` away.
+FIRST_DEPTH_COLUMN = 1
+
+#: What QA-286 found on screen, and what AK-325/AK-326 took off it. Written
+#: out here rather than imported, for the reason the grouping above is: a
+#: case reading the module's own strings would follow the wrong word wherever
+#: it was moved to.
+RETIRED_WORDS = ("Evergaol", "evergaol", "Night bosses (unconfirmed)",
+                 "Named field enemies & minibosses", "Examples (any map)",
+                 "— the files name none")
 
 
 @pytest.fixture
@@ -61,7 +64,8 @@ def shown_rows(tab) -> dict[str, list[str]]:
     for row in range(tab.table.rowCount()):
         label = tab.table.item(row, 0).text()
         out[label] = [tab.table.item(row, c).text()
-                      for c in range(2, tab.table.columnCount())]
+                      for c in range(FIRST_DEPTH_COLUMN,
+                                     tab.table.columnCount())]
     return out
 
 
@@ -77,7 +81,7 @@ def test_every_row_counts_the_categories_its_label_names(tab, game_data):
     """M3: a category moved between rows, and no figure was held by anything.
 
     Every map the box offers, every row, every depth column -- against sums
-    worked out here. The case also insists the evergaol row is present and
+    worked out here. The case also insists the category-160 row is present and
     non-empty, because moving its one category away is the mutation that made
     the row disappear entirely rather than show a wrong number.
     """
@@ -86,7 +90,7 @@ def test_every_row_counts_the_categories_its_label_names(tab, game_data):
     assert mutations, "this dataset carries no mutation counts"
 
     checked = 0
-    evergaol_maps = 0
+    mixed_maps = 0
     for index in range(tab.map_box.count()):
         tab.map_box.setCurrentIndex(index)
         group = tab.map_box.currentData()
@@ -105,11 +109,11 @@ def test_every_row_counts_the_categories_its_label_names(tab, game_data):
                 count = counts[depths[0]]
                 assert shown[label][column] == (str(count) if count else "—"), (
                     f"{tab.map_box.currentText()}, {label!r}, column "
-                    f"{headers(tab)[2 + column]}: shows "
+                    f"{headers(tab)[FIRST_DEPTH_COLUMN + column]}: shows "
                     f"{shown[label][column]!r} against {count}")
                 checked += 1
 
-        evergaol_maps += "Evergaol bosses" in shown
+        mixed_maps += "Mixed-boss arena locations" in shown
 
         totals = [sum(expected_counts(mutations, group, cats, tab.depths)[i]
                       for _label, cats in GROUPS)
@@ -118,12 +122,13 @@ def test_every_row_counts_the_categories_its_label_names(tab, game_data):
         for column, depths in enumerate(tab.depth_groups):
             assert shown[row][column] == str(totals[depths[0]]), (
                 f"{tab.map_box.currentText()}: the total column "
-                f"{headers(tab)[2 + column]} does not add up")
+                f"{headers(tab)[FIRST_DEPTH_COLUMN + column]} does not add "
+                f"up")
 
     assert checked > 50, f"only {checked} figures were compared"
-    assert evergaol_maps, (
-        "the evergaol row is on none of the maps, which is what mutation M3 "
-        "does to it")
+    assert mixed_maps, (
+        "the category-160 row is on none of the maps, which is what mutation "
+        "M3 does to it")
 
 
 def test_the_depth_columns_merge_only_where_the_data_repeats(tab, game_data):
@@ -134,8 +139,10 @@ def test_the_depth_columns_merge_only_where_the_data_repeats(tab, game_data):
     checks the reading against the data and then feeds a row that breaks the
     pattern to see the table fall back.
     """
-    assert headers(tab)[2:] == ["Depth 1", "Depth 2–3", "Depth 4–5"], (
-        f"unexpected depth columns for this dataset: {headers(tab)[2:]!r}")
+    assert headers(tab)[FIRST_DEPTH_COLUMN:] == [
+        "Depth 1", "Depth 2–3", "Depth 4–5"], (
+        f"unexpected depth columns for this dataset: "
+        f"{headers(tab)[FIRST_DEPTH_COLUMN:]!r}")
 
     # Counter-build: one row with five different figures, in a category the
     # tab draws. If the merge were written down rather than read, the table
@@ -147,42 +154,49 @@ def test_the_depth_columns_merge_only_where_the_data_repeats(tab, game_data):
          "counts": [1, 2, 3, 4, 5]}]
     widened = depthstab.DepthsTab(data)
     try:
-        assert headers(widened)[2:] == [f"Depth {i}" for i in range(1, 6)], (
+        assert headers(widened)[FIRST_DEPTH_COLUMN:] == [
+            f"Depth {i}" for i in range(1, 6)], (
             f"a row with five different figures still shows merged columns: "
-            f"{headers(widened)[2:]!r}")
+            f"{headers(widened)[FIRST_DEPTH_COLUMN:]!r}")
     finally:
         widened.deleteLater()
 
 
-def test_the_examples_column_does_not_claim_the_selected_map(tab):
-    """QA-132 and AK-99: the same names came back whatever map was chosen.
+def test_the_examples_column_is_gone_and_the_depth_figures_moved_up(tab):
+    """AK-326: the column fell, so the depth figures start one column earlier.
 
-    The rosters carry no map dimension, so the column could not be map-bound;
-    what it could do is stop saying it is. The two rows whose rosters name
-    nobody say so rather than leaving the cell blank (A7).
+    Read off the table rather than off `depthstab`: a case that took the
+    column index from the module would follow it back if the column ever
+    came back, and pass while the table said `Examples (any map)` again.
     """
-    assert EXAMPLES_HEADER in headers(tab)
-    header = tab.table.horizontalHeaderItem(headers(tab).index(EXAMPLES_HEADER))
-    assert tabtext.plain(header.toolTip()) == EXAMPLES_TIP
-    assert "For example" not in headers(tab)
+    drawn = headers(tab)
+    assert drawn[0] == "What can be red"
+    assert all(header.startswith("Depth") for header in drawn[1:]), (
+        f"something other than the depth figures follows the name column: "
+        f"{drawn!r}")
+    assert tab.table.rowCount(), "the table drew no rows"
+    # Every cell past the name column carries a figure or the dash. An empty
+    # one would be the examples column back under another name.
+    blanks = [(row, column)
+              for row in range(tab.table.rowCount())
+              for column in range(1, tab.table.columnCount())
+              if not tab.table.item(row, column).text()]
+    assert not blanks, f"these cells past the name column are empty: {blanks}"
 
-    first = {label: cells for label, cells in shown_rows(tab).items()}
-    examples = {}
-    for row in range(tab.table.rowCount()):
-        examples[tab.table.item(row, 0).text()] = tab.table.item(row, 1).text()
-    assert examples.get("Ordinary enemies in camps & ruins") == NO_NAMES, (
-        "the largest row of the table still shows an empty examples cell")
 
-    # Same cells on another map, because the column now says so.
-    tab.map_box.setCurrentIndex((tab.map_box.currentIndex() + 1)
-                                % tab.map_box.count())
-    for row in range(tab.table.rowCount()):
-        label = tab.table.item(row, 0).text()
-        if label in examples:
-            assert tab.table.item(row, 1).text() == examples[label], (
-                f"{label!r}: the examples changed with the map, so the "
-                f"heading `(any map)` is now the wrong claim")
-    assert first, "the table drew no rows"
+def test_the_two_boss_rows_are_named_after_places_and_not_after_a_cast(tab):
+    """AK-325, QA-286: categories 120 and 160 are locations, not characters.
+
+    The whole tab is searched and not only the two labels, because the words
+    QA-286 found also stood in the summary line under the map box.
+    """
+    everything = tabtext.everything(tab)
+    labels = [tab.table.item(row, 0).text()
+              for row in range(tab.table.rowCount())]
+    assert "Field bosses & arena locations" in labels
+    assert "Mixed-boss arena locations" in labels
+    left = [word for word in RETIRED_WORDS if word in everything]
+    assert not left, f"the tab still says {left}"
 
 
 def test_the_tab_opens_with_what_a_red_variant_is(tab):

@@ -43,17 +43,13 @@ def bundled_path() -> pathlib.Path:
 
     The cache comes first because it is the only writable location once the
     program is installed, and so the only place a rebuild after a game patch
-    can land. The two fallbacks are for running from a source tree that still
-    has a locally built snapshot beside the package.
+    can land. The fallback is for running from a source tree that still has
+    a locally built snapshot in the package's `data` folder.
     """
     from . import paths
 
-    base = _base_dir()
-    for candidate in (
-        paths.snapshot_path(),
-        base / "data" / BUNDLED_NAME,
-        base / BUNDLED_NAME,
-    ):
+    for candidate in (paths.snapshot_path(),
+                      _base_dir() / "data" / BUNDLED_NAME):
         if candidate.exists():
             return candidate
     return paths.snapshot_path()
@@ -61,11 +57,8 @@ def bundled_path() -> pathlib.Path:
 
 def icon_path() -> pathlib.Path | None:
     """The application icon, or None if it was not packaged."""
-    base = _base_dir()
-    for candidate in (base / "data" / "icon.ico", base / "icon.ico"):
-        if candidate.exists():
-            return candidate
-    return None
+    icon = _base_dir() / "data" / "icon.ico"
+    return icon if icon.exists() else None
 
 
 def defs_dir() -> pathlib.Path | None:
@@ -83,7 +76,13 @@ def _snapshot() -> dict | None:
     path = bundled_path()
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        # A snapshot cut short or damaged counts as no snapshot: the start
+        # takes the extraction route it takes without one, and the file is
+        # left where it is (director, T-329o).
+        return None
 
 
 def _regulation_matches(snapshot: dict) -> bool:

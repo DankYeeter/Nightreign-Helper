@@ -71,14 +71,11 @@ class CustomSlot(NamedTuple):
     colour: int
 
 
-# Not a real save offset, only distinct per record, which is all it has to be.
-FIRST_OFFSET = 0x1000
-OFFSET_STRIDE = 0x50
-
-
 def make_relic(template: dict, handle: int | None, index: int,
                effects: list[int]) -> inventory.OwnedItem:
     """One owned copy of a relic template."""
+    # ponytail: `index` unused since AD-055, drop when the callers are
+    # touched anyway
     return inventory.OwnedItem(
         relic_id=template["id"],
         name=template["name"].strip(),
@@ -86,7 +83,6 @@ def make_relic(template: dict, handle: int | None, index: int,
         effect_ids=list(effects),
         is_deep=bool(template.get("is_deep")),
         handle=handle,
-        offset=FIRST_OFFSET + index * OFFSET_STRIDE,
     )
 
 

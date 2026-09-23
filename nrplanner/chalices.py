@@ -23,8 +23,6 @@ from __future__ import annotations
 import string
 import urllib.parse
 
-from PySide6.QtCore import QSettings
-
 from . import favourites
 
 GROUP = "chalices"
@@ -37,10 +35,6 @@ FIELD = "\x1f"
 #: and a record without it reads as one-handed -- no schema step. It cannot
 #: be mistaken for a slot: a slot key always carries `SEPARATOR`.
 TWO_HANDED = "2H"
-
-
-def _settings() -> QSettings:
-    return QSettings(favourites.ORG, favourites.APP)
 
 
 def slot_key(item) -> str:
@@ -76,7 +70,7 @@ def save(hero_id: int, vessel_id: int | None, slots: list[str],
     happened to be on marked that build as Deep even when the game says it
     is not.
     """
-    settings = _settings()
+    settings = favourites.settings()
     # Keyed per vessel, not per Nightfarer. With one key per Nightfarer,
     # selecting another chalice cleared the slots -- correctly, since the
     # colours differ -- and the write that followed stored that empty state
@@ -101,7 +95,7 @@ def save_view(hero_id: int, vessel_id: int | None, deep: bool) -> None:
     stops an empty set of slots overwriting a real build -- so selecting an
     empty chalice, turning Deep on and restarting came back to neither.
     """
-    settings = _settings()
+    settings = favourites.settings()
     if vessel_id is not None:
         settings.setValue(f"{BUILDS}/{hero_id}/__last", vessel_id)
     settings.setValue(f"{BUILDS}/{hero_id}/__deep", "1" if deep else "0")
@@ -109,7 +103,7 @@ def save_view(hero_id: int, vessel_id: int | None, deep: bool) -> None:
 
 def view(hero_id: int) -> tuple[int | None, bool]:
     """(vessel this Nightfarer was last on, Deep of Night as they left it)."""
-    settings = _settings()
+    settings = favourites.settings()
     raw = settings.value(f"{BUILDS}/{hero_id}/__last", "", type=str)
     try:
         vessel_id = int(raw)
@@ -121,7 +115,7 @@ def view(hero_id: int) -> tuple[int | None, bool]:
 
 def last_vessel(hero_id: int) -> int | None:
     """The vessel this Nightfarer was last working on."""
-    raw = _settings().value(f"{GROUP}/{hero_id}/__last", "", type=str)
+    raw = favourites.settings().value(f"{GROUP}/{hero_id}/__last", "", type=str)
     try:
         return int(raw)
     except (TypeError, ValueError):
@@ -139,13 +133,13 @@ def load(hero_id: int, vessel_id: int | None = None
         vessel_id = view(hero_id)[0] or last_vessel(hero_id)
         if vessel_id is None:
             return None, False, [], False
-    return _decode(_settings().value(f"{GROUP}/{hero_id}/{vessel_id}", "",
+    return _decode(favourites.settings().value(f"{GROUP}/{hero_id}/{vessel_id}", "",
                                      type=str))
 
 
 def clear(hero_id: int, vessel_id: int | None = None) -> None:
     """Forget one vessel's build, or every one this Nightfarer has."""
-    settings = _settings()
+    settings = favourites.settings()
     if vessel_id is None:
         settings.remove(f"{GROUP}/{hero_id}")
     else:
@@ -339,7 +333,7 @@ def _migrate_keys(hero_id: int) -> None:
     was written for, so neither name is the one to drop, and from here on they
     are two entries that can be edited apart (QA-046).
     """
-    settings = _settings()
+    settings = favourites.settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         schema = settings.value(SCHEMA_KEY, "", type=str)
@@ -482,7 +476,7 @@ def _decode(raw: str) -> tuple[int | None, bool, list[str], bool]:
 def build_names(hero_id: int) -> list[str]:
     """Every saved build for this Nightfarer, in the order they were saved."""
     _migrate_keys(hero_id)
-    settings = _settings()
+    settings = favourites.settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         order = settings.value("__order", "", type=str)
@@ -527,7 +521,7 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
         return
     _migrate_keys(hero_id)
     key = build_key(name)
-    settings = _settings()
+    settings = favourites.settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         settings.setValue(key, _encode(vessel_id, deep, slots, two_handed))
@@ -543,7 +537,7 @@ def save_build(hero_id: int, name: str, vessel_id: int | None, deep: bool,
 def load_build(hero_id: int, name: str
                ) -> tuple[int | None, bool, list[str], bool]:
     _migrate_keys(hero_id)
-    settings = _settings()
+    settings = favourites.settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         return _decode(settings.value(build_key(name), "", type=str))
@@ -568,7 +562,7 @@ def delete_build(hero_id: int, name: str) -> None:
         return
     _migrate_keys(hero_id)
     key = build_key(name)
-    settings = _settings()
+    settings = favourites.settings()
     settings.beginGroup(f"{BUILDS}/{hero_id}")
     try:
         settings.remove(key)
@@ -589,14 +583,14 @@ def delete_build(hero_id: int, name: str) -> None:
 def hidden_builds(hero_id: int) -> set[str]:
     """Builds the player has hidden from the list, the equipped one included."""
     _migrate_keys(hero_id)
-    raw = _settings().value(f"{BUILDS}/{hero_id}/__hidden", "", type=str)
+    raw = favourites.settings().value(f"{BUILDS}/{hero_id}/__hidden", "", type=str)
     return {build_name(k) for k in str(raw).split(SEPARATOR) if k}
 
 
 def set_hidden(hero_id: int, name: str, hidden: bool) -> None:
     names = hidden_builds(hero_id)
     names.add(name) if hidden else names.discard(name)
-    _settings().setValue(f"{BUILDS}/{hero_id}/__hidden",
+    favourites.settings().setValue(f"{BUILDS}/{hero_id}/__hidden",
                          SEPARATOR.join(sorted(build_key(n) for n in names)))
 
 
@@ -611,14 +605,14 @@ def selected_build(hero_id: int) -> str:
     has one, and on the last build the player chose wherever it has not.
     """
     _migrate_keys(hero_id)
-    key = str(_settings().value(f"{BUILDS}/{hero_id}/__selected", "",
+    key = str(favourites.settings().value(f"{BUILDS}/{hero_id}/__selected", "",
                                 type=str) or "")
     return build_name(key) if key else EQUIPPED_NAME
 
 
 def set_selected_build(hero_id: int, name: str) -> None:
     _migrate_keys(hero_id)
-    _settings().setValue(f"{BUILDS}/{hero_id}/__selected", build_key(name))
+    favourites.settings().setValue(f"{BUILDS}/{hero_id}/__selected", build_key(name))
 
 
 def imported(hero_id: int) -> bool:
@@ -630,8 +624,8 @@ def imported(hero_id: int) -> bool:
     save the first time a Nightfarer is opened is what makes the list true
     without asking, and this flag is how "the first time" is known.
     """
-    return _settings().value(f"{BUILDS}/{hero_id}/__imported", "", type=str) == "1"
+    return favourites.settings().value(f"{BUILDS}/{hero_id}/__imported", "", type=str) == "1"
 
 
 def set_imported(hero_id: int) -> None:
-    _settings().setValue(f"{BUILDS}/{hero_id}/__imported", "1")
+    favourites.settings().setValue(f"{BUILDS}/{hero_id}/__imported", "1")

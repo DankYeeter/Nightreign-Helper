@@ -110,6 +110,120 @@ def test_the_gain_is_the_difference_to_the_build_as_it_stands(game_data,
     assert result.held == problem.held
 
 
+def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
+        game_data, wylder):
+    """QA-290: a candidate that leaves the ranked figure exactly where the
+    base state left it is not a suggestion, once a damage type is chosen.
+
+    Wylder's own starting armament deals no fire at all, so under
+    `damage_type="Fire"` the base state and every candidate score 0.00
+    alike -- the same zero `_max_damage`'s comment calls "a ranking and not
+    a fault" (AK-335). Before this fix the beam filled the three free slots anyway
+    (AD-014.7 fills every slot it can) and the bar said `SUGGESTED` over a
+    build that changed nothing (director, 2026-09-20); the picker already
+    read the same zero correctly (`relicpicker.top_handles`).
+    """
+    from nrplanner import damage
+    from nrplanner.advisor import candidates
+
+    reference = types.ReferenceArmament(
+        weapon=next(w for w in game_data["weapons"]
+                    if w["id"] == wylder["starting_weapon"]),
+        tier=1, slot_index=damage.STARTING_SLOT)
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
+    ctx = dataclasses.replace(
+        advisor.context(game_data, wylder, reference=reference),
+        damage_type="Fire")
+    frozen = run.frozen_inventory(owned, slot_problem)
+    request = dataclasses.replace(
+        advisor.request_for(slot_problem, ctx, frozen), damage_type="Fire")
+
+    pool = candidates.pool(frozen, slot_problem, 0, ctx, goals.GOALS,
+                           request.goal_id)
+    assert pool.candidates, ("nothing owned reaches slot 0, so this proves "
+                             "nothing about a real pool")
+    assert all(types.marginal_for(candidate, DAMAGE) == 0.0
+              for candidate in pool.candidates), (
+        "some candidate does move the fire figure here, so this is not "
+        "QA-290's all-zero case")
+
+    result = run.run(request, frozen, ctx, goals.GOALS)
+
+    assert result.suggestions == (), (
+        "every candidate leaves the chosen type at the base state's figure, "
+        "so nothing here is a suggestion")
+    assert result.held == ()
+
+
+NO_CARRIER_SENTENCE = (
+    "Nothing you own reaches fire damage with Sorceries here: your starting "
+    "equipment does not carry it, and nothing in your inventory swaps in a "
+    "spell or weapon art that does.")
+
+
+def _recluse_sorceries(game_data, damage_type, hit_with=None):
+    """Recluse under `Sorceries` x `damage_type`, owning four relics that
+    each raise magic damage and nothing else a sorcery could use.
+
+    `hit_with=""` leaves the art unchosen, so the type is the only choice."""
+    from nrplanner import damage, model
+
+    if hit_with is None:
+        hit_with = model.SORCERIES_ART
+
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    magic = cases.effects_raising_rate(game_data, recluse, "magicAttackRate",
+                                       1)
+    reference = types.ReferenceArmament(
+        weapon=next(w for w in game_data["weapons"]
+                    if w["id"] == recluse["starting_weapon"]),
+        tier=1, slot_index=damage.STARTING_SLOT)
+    owned = advisor.make_inventory(game_data, recluse, count=4, rolls=[magic])
+    slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
+    ctx = dataclasses.replace(
+        advisor.context(game_data, recluse, reference=reference),
+        hit_with=hit_with, damage_type=damage_type)
+    frozen = run.frozen_inventory(owned, slot_problem)
+    request = dataclasses.replace(
+        advisor.request_for(slot_problem, ctx, frozen),
+        hit_with=hit_with, damage_type=damage_type)
+    return run.run(request, frozen, ctx, goals.GOALS)
+
+
+def test_a_chosen_kind_nothing_owned_reaches_says_so(game_data):
+    """AK-365 (QA-294): Recluse x Sorceries x Fire. Glintstone Pebble deals
+    no fire and no owned relic swaps in a spell that does, so QA-290 drops
+    every suggestion -- and the result now names that cause for the status
+    line and the `Why` dialog instead of leaving the bare 4.11 clause."""
+    result = _recluse_sorceries(game_data, "Fire")
+
+    assert result.suggestions == ()
+    assert result.no_carrier_for == "fire damage with Sorceries"
+    assert NO_CARRIER_SENTENCE in result.unknowns
+
+
+def test_a_chosen_type_alone_keeps_its_label(game_data):
+    """AK-365 wording, decision 22.09.2026 22:45: only with a type **and** an
+    art chosen does the cause take the DR-038 form; `Fire` alone, which the
+    starting armament does not deal, stays "fire"."""
+    result = _recluse_sorceries(game_data, "Fire", hit_with="")
+
+    assert result.suggestions == ()
+    assert result.no_carrier_for == "fire"
+
+
+def test_a_chosen_kind_something_owned_reaches_says_nothing_of_it(game_data):
+    """The other half of AK-365: under `Magic` the Pebble carries the type
+    and the owned relics move it, so there is a suggestion and neither
+    sentence appears."""
+    result = _recluse_sorceries(game_data, "Magic")
+
+    assert result.suggestions
+    assert result.no_carrier_for == ""
+    assert NO_CARRIER_SENTENCE not in result.unknowns
+
+
 def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
         monkeypatch, game_data, wylder):
     """`GOAL.md` A18, the Qt-free proof: exclude the effect one copy lives

@@ -7,9 +7,16 @@
 # wartet auf sie (T-241d 23 min, T-285a 28 min, T-290b ~20 min). Dieser Hook
 # weist den Dispatch selbst ab, bevor die Rolle wartet.
 #
-# Trifft der Dispatch-Prompt eine der Fensterrollen-Marken und laeuft eine
-# Kopie von Nightreign Helper, wird der Dispatch abgewiesen. Kein Auftrag
-# verlangt Warten - der Director reiht den Fensterlauf stattdessen.
+# Trifft der Dispatch eine Fensterrolle und laeuft eine Kopie von Nightreign
+# Helper, wird der Dispatch abgewiesen. Kein Auftrag verlangt Warten - der
+# Director reiht den Fensterlauf stattdessen.
+#
+# Nachtrag 21.09.2026 (NH-010): die erste Fassung prueft nur Woerter im
+# Prompt. Ein researcher- und zwei ui-ux-designer-Dispatches, die andere
+# Rollen nur erwaehnten, wurden abgewiesen; T-324f lag 76 min. Jetzt
+# entscheidet zuerst die Rolle: qa-engineer und power-user fahren immer das
+# Fenster; developer und release-manager nur, wenn der Auftrag es sagt; alle
+# anderen Rollen passieren ohne Pruefung.
 # Bewusst ohne Umlaute (PowerShell 5.1 / kein BOM).
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -20,11 +27,14 @@ try { $p = $raw | ConvertFrom-Json } catch { exit 0 }
 if ([string]$p.tool_name -notin @('Agent', 'Task')) { exit 0 }
 
 $prompt = [string]$p.tool_input.prompt
-if (-not $prompt) { exit 0 }
+$rolle  = [string]$p.tool_input.subagent_type
 
-# T-297-Wortlaut: Rollennamen und die Umschreibungen, mit denen ein
-# Fensterlauf im Dispatch-Prompt bisher auftrat.
-if ($prompt -notmatch '(?i)qa-engineer|power-user|clean-room|Fensterlauf|am Artefakt|am Fenster') { exit 0 }
+switch ($rolle) {
+    { $_ -in @('qa-engineer', 'power-user') } { }
+    'developer'       { if ($prompt -notmatch '(?i)Fensterlauf|am Fenster|drive_window') { exit 0 } }
+    'release-manager' { if ($prompt -notmatch '(?i)clean-room|\bbuild\b|Rauchtest|Fensterlauf|am Artefakt') { exit 0 } }
+    default           { exit 0 }
+}
 
 $laeuft = @(Get-Process -Name NightreignHelper -ErrorAction SilentlyContinue)
 $laeuft += @(Get-Process -Name python, pythonw -ErrorAction SilentlyContinue |

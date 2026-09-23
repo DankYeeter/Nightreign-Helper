@@ -143,28 +143,6 @@ def two_effects_the_dataset_gives_one_name(data: dict,
                 "by name from one by id")
 
 
-def a_damage_type_conversion(data: dict) -> int:
-    """An effect that converts damage from one type into another (QA-113).
-
-    Found through `model.FLAT_ATTACK_POWER_FIELDS`, which is the model's own
-    account of the conversion fields -- asking the model rather
-    than naming an id keeps the case pointing at the same thing if the
-    dataset's ids move. The lowest id with a negative and a positive entry, so
-    it really is a conversion and not a flat bonus.
-    """
-    from nrplanner import model
-
-    for key in sorted(data["effects"], key=int):
-        modifiers = data["effects"][key].get("modifiers") or {}
-        moved = [modifiers[name] for name in model.FLAT_ATTACK_POWER_FIELDS
-                 if name in modifiers]
-        if any(value < 0 for value in moved) and any(value > 0
-                                                     for value in moved):
-            return int(data["effects"][key]["id"])
-    raise LookupError("this dataset carries no damage-type conversion, so "
-                      "there is nothing here for QA-113's line to report")
-
-
 def an_armament_type_gate(data: dict, hero: dict) -> tuple[int, dict, dict]:
     """An effect gated on a weapon type, and two armaments that tell it apart.
 
@@ -551,3 +529,8 @@ def context(data: dict, hero: dict, *,
         declared=declared,
         two_handed=two_handed,
     )
+
+
+def handles(pool: types.SlotPool) -> list[int]:
+    """The save handles of a pool's candidates, in the pool's order."""
+    return [candidate.handle for candidate in pool.candidates]

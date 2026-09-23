@@ -6,7 +6,6 @@ with a static key, the IV being the member's own first 16 bytes.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import pathlib
 import struct
@@ -35,7 +34,6 @@ class SaveSlot:
     name: str
     raw: bytes           # encrypted member as stored
     data: bytes          # decrypted payload, checksum stripped
-    checksum_ok: bool
 
 
 def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
@@ -118,8 +116,8 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     return out
 
 
-def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> tuple[bytes, bool]:
-    """Decrypt one member and verify its trailing MD5 checksum."""
+def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> bytes:
+    """Decrypt one member and strip its length prefix and trailing MD5."""
     iv, body = blob[:16], blob[16:]
     body = body[: len(body) // 16 * 16]
     plain = AES.new(key, AES.MODE_CBC, iv).decrypt(body)
@@ -127,11 +125,8 @@ def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> tuple[bytes, bool]:
     # Layout: u32 payload length, payload, 16-byte MD5 of the payload.
     (length,) = struct.unpack_from("<I", plain, 0)
     if not (0 < length <= len(plain) - 20):
-        return plain, False
-
-    payload = plain[4 : 4 + length]
-    stored = plain[4 + length : 4 + length + 16]
-    return payload, hashlib.md5(payload).digest() == stored
+        return plain
+    return plain[4 : 4 + length]
 
 
 def read(path: pathlib.Path | str, key: bytes = SAVE_KEY) -> list[SaveSlot]:
@@ -139,8 +134,7 @@ def read(path: pathlib.Path | str, key: bytes = SAVE_KEY) -> list[SaveSlot]:
     slots = []
     for index, name, offset, size in _members(blob):
         raw = blob[offset : offset + size]
-        data, ok = decrypt_member(raw, key)
-        slots.append(SaveSlot(index, name, raw, data, ok))
+        slots.append(SaveSlot(index, name, raw, decrypt_member(raw, key)))
     return slots
 
 

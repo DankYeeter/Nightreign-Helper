@@ -45,19 +45,10 @@ INSET = 8
 WIDTH = 1250
 
 
-def cards(tab) -> list:
-    return tab.holder.findChildren(bosstab.BossCard)
-
-
-def pictures(tab) -> dict:
-    """Every card as it is drawn right now, by Nightlord name."""
-    return {card.boss["name"]: card.grab().toImage() for card in cards(tab)}
-
-
 def interiors(tab) -> dict:
     """The same cards with their border and corners cropped away."""
     out = {}
-    for card in cards(tab):
+    for card in rendered.cards(tab):
         image = card.grab().toImage()
         out[card.boss["name"]] = image.copy(
             image.rect().adjusted(INSET, INSET, -INSET, -INSET))
@@ -104,10 +95,10 @@ def test_the_grid_marks_the_card_the_panel_is_describing(
         twin, plain = a_twin_and_a_plain_one(tab)
         boss = twin if kind == "with an Everdark twin" else plain
 
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         tab.show_detail(boss)
         rendered.settle()
-        after = pictures(tab)
+        after = rendered.pictures(tab)
 
         assert differing(before, after) == [boss["name"]], (
             f"choosing {boss['name']} ({kind}) changed the look of "
@@ -147,10 +138,10 @@ def test_a_click_is_what_marks_a_card(game_data, qapp):
     grid, so a marker wired to something other than the click fails here.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[2]
-        before = pictures(tab)
+        target = rendered.cards(tab)[2]
+        before = rendered.pictures(tab)
         click(target)
-        after = pictures(tab)
+        after = rendered.pictures(tab)
 
         assert differing(before, after) == [target.boss["name"]], (
             f"a press on the {target.boss['name']} card changed "
@@ -167,13 +158,13 @@ def test_the_marker_moves_to_the_card_chosen_next(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         first, second = tab.bosses[0], tab.bosses[1]
 
-        untouched = pictures(tab)
+        untouched = rendered.pictures(tab)
         tab.show_detail(first)
         rendered.settle()
-        after_first = pictures(tab)
+        after_first = rendered.pictures(tab)
         tab.show_detail(second)
         rendered.settle()
-        after_second = pictures(tab)
+        after_second = rendered.pictures(tab)
 
         assert differing(untouched, after_first) == [first["name"]]
         assert differing(untouched, after_second) == [second["name"]], (
@@ -193,16 +184,17 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
     that is no longer on screen.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        opening = pictures(tab)
+        opening = rendered.pictures(tab)
         tab.show_detail(tab.bosses[3])
         rendered.settle()
-        assert differing(opening, pictures(tab)) == [tab.bosses[3]["name"]], (
+        assert differing(opening, rendered.pictures(tab)) == [
+            tab.bosses[3]["name"]], (
             "nothing changed on the grid, so this case cannot tell whether "
             "clearing the choice put anything back")
 
         tab.show_detail(None)
         rendered.settle()
-        assert differing(opening, pictures(tab)) == [], (
+        assert differing(opening, rendered.pictures(tab)) == [], (
             "the grid still marks a card while the panel says `Select a "
             "Nightlord`")
 
@@ -252,7 +244,7 @@ def test_nothing_is_marked_before_a_choice_and_after_it_is_cleared(
 def in_the_same_row(tab) -> tuple:
     """Two cards side by side, and the point of the gap between them."""
     placed = [(card.mapTo(tab.cards, QPoint(0, 0)), card)
-              for card in cards(tab)]
+              for card in rendered.cards(tab)]
     top = min(point.y() for point, _card in placed)
     row = sorted((entry for entry in placed if entry[0].y() == top),
                  key=lambda entry: entry[0].x())
@@ -267,7 +259,8 @@ def in_the_same_row(tab) -> tuple:
 
 def under_the_pointer(tab) -> set:
     """Cards Qt has WA_UnderMouse set on, whoever put the pointer there."""
-    return {card.boss["name"] for card in cards(tab) if card.underMouse()}
+    return {card.boss["name"] for card in rendered.cards(tab)
+            if card.underMouse()}
 
 
 def moved(before, tab, *placed) -> list[str]:
@@ -285,7 +278,7 @@ def moved(before, tab, *placed) -> list[str]:
     `placed`. Nothing here is loosened for the run that counts.
     """
     intended = {card.boss["name"] for card in placed}
-    return sorted(set(differing(before, pictures(tab)))
+    return sorted(set(differing(before, rendered.pictures(tab)))
                   - (under_the_pointer(tab) - intended))
 
 
@@ -317,9 +310,9 @@ def pointer_off(card) -> None:
 def test_the_grid_marks_the_card_the_pointer_is_on(game_data, qapp):
     """QA-154. A near miss has to be visible before the button goes down."""
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[2]
+        target = rendered.cards(tab)[2]
         own_the_pointer(tab, target)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(target)
 
         assert moved(before, tab, target) == [target.boss["name"]], (
@@ -337,7 +330,7 @@ def test_the_mark_moves_to_the_card_the_pointer_moves_to(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, right, _gap = in_the_same_row(tab)
         own_the_pointer(tab, left, right)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(left)
         assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing, so this case cannot tell whether "
@@ -360,7 +353,7 @@ def test_the_mark_goes_when_the_pointer_leaves_for_the_gap(game_data, qapp):
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
         left, _right, _gap = in_the_same_row(tab)
         own_the_pointer(tab, left)
-        before = pictures(tab)
+        before = rendered.pictures(tab)
         pointer_onto(left)
         assert moved(before, tab, left) == [left.boss["name"]], (
             "the pointer marked nothing on its way in, so this case cannot "
@@ -386,7 +379,7 @@ def test_a_click_between_two_cards_opens_nothing(game_data, qapp):
                  - left.mapTo(tab.cards, QPoint(0, 0)).x() - left.width())
 
         opened: list[str] = []
-        for card in cards(tab):
+        for card in rendered.cards(tab):
             card.clicked.connect(lambda boss: opened.append(boss["name"]))
         point = tab.cards.mapTo(window, gap)
         target = window.childAt(point) or window
@@ -447,10 +440,10 @@ def test_the_chosen_card_keeps_its_mark_under_the_pointer(game_data, qapp):
         own_the_pointer(tab, left)
         tab.show_detail(left.boss)
         rendered.settle()
-        chosen = pictures(tab)[left.boss["name"]]
+        chosen = rendered.pictures(tab)[left.boss["name"]]
 
         pointer_onto(left)
-        assert pictures(tab)[left.boss["name"]] == chosen, (
+        assert rendered.pictures(tab)[left.boss["name"]] == chosen, (
             f"the pointer changed how the chosen {left.boss['name']} card is "
             f"drawn, so the panel's card and the pointer's card look alike")
 
@@ -467,7 +460,7 @@ def test_a_press_on_a_label_inside_a_card_opens_that_card(game_data, qapp):
     reach with a pointer at all fails here too.
     """
     with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
-        target = cards(tab)[1]
+        target = rendered.cards(tab)[1]
         labels = target.findChildren(QLabel)
         assert labels, "the card carries no labels, so nothing is covered"
 
@@ -484,3 +477,211 @@ def test_a_press_on_a_label_inside_a_card_opens_that_card(game_data, qapp):
         assert not missed, (
             f"a press on these parts of the {target.boss['name']} card did "
             f"not open it: {missed}")
+
+
+# -- AD-041: the sub-boss tree under the grid ------------------------------
+#
+# A second source of choices for one panel. The cards choose by name and the
+# tree cannot: the same figure stands on several cards at different ids --
+# Red Wolf on two, the Bell Bearing Hunter on two more -- so `key` (the card
+# id) is what the tab compares, and these cases are about the two things that
+# go wrong if it does not. One is QA-150 again from the other side: a row
+# marked while the panel describes a different card. The other is a filter
+# that shows a Nightlord cards its own map patterns never draw.
+
+
+def rows(tab) -> list:
+    """Every card row of the tree, groups left out."""
+    out = []
+    for top in range(tab.tree.topLevelItemCount()):
+        item = tab.tree.topLevelItem(top)
+        out += [item.child(index) for index in range(item.childCount())]
+    return out
+
+
+def entries(tab) -> list[dict]:
+    return [row.data(0, Qt.UserRole) for row in rows(tab)]
+
+
+def chosen_rows(tab) -> list[str]:
+    return [row.text(0) for row in rows(tab) if row.isSelected()]
+
+
+def cards_of(game_data, boss_id: int) -> set[str]:
+    """The card ids this Nightlord's own patterns carry, summed here.
+
+    Read out of the snapshot rather than off `tab.subbosses`, so a filter
+    that quietly widened would have to widen this too.
+    """
+    return {card for card, entry in (game_data.get("subbosses") or {}).items()
+            if any(row["boss"] == boss_id
+                   for row in entry.get("nightlords") or [])}
+
+
+def needs_subbosses(game_data) -> None:
+    if not (game_data.get("subbosses") or {}):
+        pytest.skip("this dataset carries no sub-boss cards")
+
+
+def test_the_tree_lists_the_cards_of_the_chosen_nightlord_and_no_others(
+        game_data, qapp):
+    """AD-041 point 2: the Nightlord is the filter, for all ten of them.
+
+    Not a spot check. Every Nightlord is chosen in turn and the tree is
+    compared against the card ids its own `nightlords` rows name -- which is
+    the only place the tab may take them from.
+    """
+    needs_subbosses(game_data)
+    tab = bosstab.BossTab(game_data, None)
+    try:
+        for boss in tab.bosses:
+            tab.show_detail(boss)
+            shown = {entry["key"] for entry in entries(tab)}
+            assert shown == cards_of(game_data, boss["id"]), (
+                f"{boss['name']}: the tree shows "
+                f"{sorted(shown - cards_of(game_data, boss['id']))} it should "
+                f"not and misses "
+                f"{sorted(cards_of(game_data, boss['id']) - shown)}")
+            assert shown, f"{boss['name']} is offered no cards at all"
+    finally:
+        tab.deleteLater()
+
+
+def test_a_card_no_pattern_of_this_nightlord_carries_stays_off_the_tree(
+        game_data, qapp):
+    """Counter-build, because the dataset offers most cards to everyone.
+
+    One card is added that names a single Nightlord. It has to appear for
+    that one and for no other -- a filter that passed everything through
+    would show it ten times over and still agree with the case above on
+    every card the data happens to share.
+    """
+    needs_subbosses(game_data)
+    data = dict(game_data)
+    mine, theirs = data["bosses"][0], data["bosses"][1]
+    data["subbosses"] = dict(data["subbosses"])
+    data["subbosses"]["9999"] = {
+        "map": "m99_99_00_00", "categories": [120], "days": [],
+        "nightlords": [{"boss": mine["id"], "patterns": 3, "of": 12}],
+        "chr": None, "name": "", "candidates": [],
+        "weakness": {"map": "m99_99_00_00", "chars": [], "primary": None,
+                     "confidence": "unresolved", "profile": None, "parts": {}},
+    }
+    tab = bosstab.BossTab(data, None)
+    try:
+        tab.show_detail(mine)
+        assert "9999" in {entry["key"] for entry in entries(tab)}, (
+            f"the card only {mine['name']} can meet is missing from his tree")
+        tab.show_detail(theirs)
+        assert "9999" not in {entry["key"] for entry in entries(tab)}, (
+            f"{theirs['name']} is offered a card no pattern of his carries")
+    finally:
+        tab.deleteLater()
+
+
+def test_two_cards_of_the_same_figure_are_chosen_apart(game_data, qapp):
+    """The fault `key` exists for: one name, two cards, two profiles.
+
+    Choosing the second of two rows that carry the same name must leave the
+    first unmarked. Compared by name -- which is what the tab did before
+    AD-041 -- both rows stand marked at once, and the panel then belongs to
+    whichever of the two the reader believes.
+    """
+    needs_subbosses(game_data)
+    tab = bosstab.BossTab(game_data, None)
+    try:
+        pair = None
+        for boss in tab.bosses:
+            tab.show_detail(boss)
+            seen: dict[str, list] = {}
+            for row in rows(tab):
+                seen.setdefault(row.text(0), []).append(row)
+            pair = next((found for found in seen.values() if len(found) > 1),
+                        None)
+            if pair:
+                break
+        if pair is None:
+            pytest.skip("no two cards of this dataset share a row label, so "
+                        "these two cannot be told apart by name anyway")
+
+        first, second = pair[0], pair[1]
+        assert (first.data(0, Qt.UserRole)["key"]
+                != second.data(0, Qt.UserRole)["key"])
+        for row in (first, second):
+            tab.show_detail(row.data(0, Qt.UserRole))
+            marked = [other for other in rows(tab) if other.isSelected()]
+            assert len(marked) == 1, (
+                f"{len(marked)} rows stand marked for one panel: "
+                f"{[other.text(0) for other in marked]}")
+            assert marked[0] is row, (
+                f"the panel was opened from one {row.text(0)} row and another "
+                f"one is marked")
+    finally:
+        tab.deleteLater()
+
+
+def test_a_card_and_a_tree_row_are_never_marked_at_the_same_time(
+        game_data, qapp):
+    """AK-321.2: one mark on the whole tab, whichever half it came from."""
+    needs_subbosses(game_data)
+    tab = bosstab.BossTab(game_data, None)
+    try:
+        boss = tab.bosses[0]
+        tab.show_detail(boss)
+        assert [card.boss["name"]
+                for card in tab.holder.findChildren(bosstab.BossCard)
+                if card.selected] == [boss["name"]]
+        assert chosen_rows(tab) == []
+
+        entry = entries(tab)[0]
+        tab.show_detail(entry)
+        assert [card.boss["name"]
+                for card in tab.holder.findChildren(bosstab.BossCard)
+                if card.selected] == [], (
+            "a card is still marked while the panel describes a sub-boss")
+        assert len(chosen_rows(tab)) == 1
+
+        tab.show_detail(None)
+        assert chosen_rows(tab) == [], (
+            "a tree row is still marked while the panel asks for a Nightlord")
+    finally:
+        tab.deleteLater()
+
+
+def test_the_tree_asks_for_a_nightlord_before_one_is_chosen(game_data, qapp):
+    """AK-320: the tree answers the same question the empty panel does."""
+    tab = bosstab.BossTab(game_data, None)
+    try:
+        assert tab.tree.topLevelItemCount() == 1
+        asking = tab.tree.topLevelItem(0)
+        assert asking.text(0) == (
+            "Select a Nightlord above to see which field and night bosses "
+            "can appear for it.")
+        assert not (asking.flags() & Qt.ItemIsSelectable), (
+            "the sentence asking for a Nightlord can be chosen as if it were "
+            "a card")
+        assert entries(tab) == []
+    finally:
+        tab.deleteLater()
+
+
+def test_the_tree_never_needs_a_scrollbar_of_its_own(game_data, qapp):
+    """AK-319.6: the tab's own scroll area is the only one.
+
+    Read as a height and not as a scrollbar's visibility: the bar is switched
+    off, so a tree that was too short for its rows would hide them instead of
+    growing a bar to say so.
+    """
+    needs_subbosses(game_data)
+    with rendered.laid_out(game_data, "boss_tab", WIDTH) as (_, tab):
+        fullest = max(tab.bosses,
+                      key=lambda boss: len(tab._subboss_entries(boss)))
+        tab.show_detail(fullest)
+        rendered.settle()
+        assert rows(tab), "the tree drew no cards, so there is nothing to fit"
+        last = rows(tab)[-1]
+        bottom = tab.tree.visualItemRect(last).bottom()
+        assert 0 < bottom <= tab.tree.viewport().height(), (
+            f"the last of {len(rows(tab))} rows ends {bottom} px down a "
+            f"{tab.tree.viewport().height()} px viewport with the scrollbar "
+            f"switched off, so it cannot be reached")

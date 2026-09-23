@@ -55,6 +55,7 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
 from . import effectfilters, effecttext
 from .advisor import goals as advisor_goals
 from .advisor import types
+from .theme import ACCENT, BAD, CURSE, MUTED, PANEL
 
 #: The one line a block shows when the suggestion is already lying in the slot
 #: (`UI_SPEC` §3.2). Everything else falls away with it: there is nothing to
@@ -131,8 +132,6 @@ def _styled(line: types.ReasonLine, kind: str | None) -> LineStyle:
     bullet keeps its kind for an avoided curse, so it is still read as a
     curse.
     """
-    from .app import ACCENT, BAD, CURSE, MUTED
-
     bullet = CURSE_BULLET if line.is_curse else EFFECT_BULLET
     if kind == effectfilters.EXCLUDED:
         return LineStyle(bullet, BAD, struck=True)
@@ -296,7 +295,7 @@ class SuggestionBlock(QFrame):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        from .app import ACCENT, MUTED, PANEL, _heading
+        from .app import _heading
 
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
@@ -467,8 +466,6 @@ class WhyDialog(QDialog):
                  filters: effectfilters.EffectFilters,
                  effects: dict) -> None:
         super().__init__(parent)
-        from .app import MUTED
-
         self._filters = filters
         self._effects = effects
         self.setModal(True)

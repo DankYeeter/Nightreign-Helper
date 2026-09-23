@@ -621,6 +621,63 @@ Architektur, nicht ein lokaler Hotspot. Spec an `developer` im Bericht
 
 ---
 
+## S13 — A24 Schritt 0: geplanter MSB-Durchgang, Erstlaufkosten (T-301)
+
+**Szenario.** Reiner Messlauf, kein Code geaendert, kein Programmstart, an
+der echten Spielinstallation. Wortlaut der Messvorschrift:
+`ARCHITECTURE.md` Z. 7234-7252. (a) `oodle.load` + `dvdbnd.open_all` einmal;
+(b) `bossdata._parts(arc.read(...))` je Karte fuer die 49 Karten der
+Kategorien 120/160 (29 Feldbosse + 16 Arena-Schalen `m20_00..m21_50` + 4
+Evergaol-Orte `m46_50/60/70/80`) und die 35 Bosskarten aus
+`LotResultPlayAreaParam` (Kartenlisten `docs/berichte/T-299-developer.md`
+Abschn. 2c/3b); (c) `extract.build()` vollstaendig, unveraendert, als
+Grundlinie ohne den neuen Durchgang. n=4 fuer (a)/(c) (zwei Laeufe vor und
+zwei nach einem Messfehler-Fix, siehe Notiz), n=2 fuer (b) (nur die beiden
+korrekten Laeufe). Rechner AMD Ryzen 9 5900X, Windows 10.0.26200, Python
+3.12.10 `.venv`, warmer Plattencache. Kein Testabzug — (a)-(c) lesen direkt
+aus der Spielinstallation, wie es die Vorschrift verlangt.
+
+**Messfehler und Korrektur.** Die ersten zwei Laeufe hatten `arc.read(path)`
+vor dem Timer statt darin — sie massen nur das reine `_parts`-Parsen, nicht
+"`_parts(arc.read(...))`" wie im Wortlaut gefordert. Korrigiert, danach zwei
+weitere Laeufe; (a) und (c) sind von diesem Fehler nicht betroffen (dort
+lag der Timer schon immer um den ganzen Aufruf).
+
+| Datum | Commit | Teil | Wert | Spanne (n) | Budget | Notiz |
+|---|---|---|---|---|---|---|
+| 2026-09-19 | c03fd9d | (a) `oodle.load`+`dvdbnd.open_all`, einmal | **9,302 s** | 9,245-9,307 s (n=4) | ja | laeuft laut `extract.py:186 f.` bereits heute in `_load_text()` **innerhalb** von `build()` — kein Zusatzaufwand, sofern der neue Durchgang dieselben Archive wiederverwendet statt `open_all` erneut aufzurufen |
+| 2026-09-19 | c03fd9d | (b) 120/160, 49 Karten, Summe | **14,2 ms** | 13,77-14,63 ms (n=2) | ja | Archivsuche + Dekompression + `_parts`-Parsen je Karte |
+| 2026-09-19 | c03fd9d | davon Median je Karte | 0,19 ms | 0,184-0,194 ms (n=2) | — | |
+| 2026-09-19 | c03fd9d | davon Maximum je Karte | 2,3 ms | 2,240-2,307 ms (n=2) | — | |
+| 2026-09-19 | c03fd9d | (b) 35 Bosskarten, Summe | **6,6 ms** | 6,43-6,82 ms (n=2) | ja | |
+| 2026-09-19 | c03fd9d | davon Median je Karte | 0,18 ms | 0,175-0,176 ms (n=2) | — | |
+| 2026-09-19 | c03fd9d | davon Maximum je Karte | 0,4 ms | 0,248-0,527 ms (n=2) | — | |
+| 2026-09-19 | c03fd9d | (c) `extract.build()`, vollstaendig, **ohne** neuen Durchgang | **33,91 s** | 33,72-34,28 s (n=4) | ja | Grundlinie; T-269a nannte 39,6 s auf anderem Rechner (15.09., aelterer Rechnerstand laut AD-040) |
+
+**Ergebnis.** Realistische Zusatzkosten des geplanten Durchgangs, wenn er
+die in `build()` schon offenen Archive wiederverwendet: (b) 120/160 + (b)
+Bosskarten = **rund 21 ms** fuer Stufe 1+2 zusammen — weit unter der
+100-ms-Untergrenze fuer Interaktionsantwort, geschweige denn den erlaubten
+60 s. Selbst im ungenutzten Fall, dass der neue Durchgang (a) ein zweites
+Mal selbst aufruft, kommen einmalig **rund 9,3 s** dazu. Beide Faelle liegen
+weit innerhalb der 60-s-Schranke aus OF-45 fuer Stufe 1 (49 Karten) **und**
+Stufe 1+2 (49+35 Karten) — der limitierende Faktor fuer den Erstlauf ist
+`build()` selbst (33,9 s), nicht der neue Durchgang.
+
+**Signifikanzschwelle:** (a) 2s/Median 0,65 %, (c) 2s/Median 1,42 % →
+konservativ **5 %** (stabile Windows-Umgebung, kein JIT/Cloud, wie bei
+S11-A). (b) wird nicht gegen eine Prozentschwelle beurteilt, sondern gegen
+die absolute Untergrenze (100 ms Interaktionsantwort) — beide Mengen liegen
+zwei bis drei Groessenordnungen darunter.
+
+**Keine Optimierung in diesem Lauf** (Auftrag: messen, nichts aendern).
+Ein Optimierungsplan ist hier nicht faellig — die Zahlen zeigen, dass
+Schritt 0 keinen Engpass hat, solange die Archive wiederverwendet werden;
+das ist eine Umsetzungsvorgabe an den `developer` (Spec-Hinweis unten), kein
+eigener Tuning-Schritt.
+
+---
+
 ## Ableitungen aus diesen Werten
 
 **Signifikanzschwellen dieses Projekts** (aus der Streuung der Grundwerte,
@@ -638,6 +695,9 @@ Richtwert 2s):
 | S11-I `SlotAdvice.ask()` Hauptthread-Hold (T-140/U7) | 24,4 % | absolut beurteilt (s. u.) | 50 ms (A6) |
 | S11-J Hauptthread-Rest (T-140/OF-26) | 43–74 % (Werte < 5 ms) | absolut beurteilt (s. u.) | 50 ms (A6) |
 | S11-K Optimize, allein/gleichzeitig (T-140/OF-25) | 3,3–3,5 % | **5 %** | — |
+| S13 (a) `oodle.load`+`dvdbnd.open_all` | 0,65 % | **5 %** | — |
+| S13 (c) `extract.build` Grundlinie | 1,42 % | **5 %** | — |
+| S13 (b) MSB-Durchgang je Menge | — | absolut beurteilt (s. o.) | 100 ms |
 
 **S11-I/J werden gegen die absolute Untergrenze beurteilt, nicht gegen
 2s/Median:** bei Werten von wenigen Millisekunden dominiert

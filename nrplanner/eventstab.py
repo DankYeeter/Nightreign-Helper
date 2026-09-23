@@ -18,17 +18,11 @@ from PySide6.QtWidgets import (
 
 from . import tabheader
 from .eventlore import LORE, UNANNOUNCED
+from .theme import ACCENT, BORDER, COMMUNITY, MUTED, PANEL
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
 DLC = "#9a6fc4"
 UNKNOWN = "#7d6f52"
 PENALTY = "#c07a6a"
-# Community material is tinted throughout, so it never sits on the page
-# looking like the extracted text beside it.
-COMMUNITY = "#6f9ac4"
 
 #: Figures whose reference quantity is not in the files, keyed by the exact
 #: prefix `nrdata.extract._buff_lines` writes them with (AK-70, A7). Naming
@@ -47,10 +41,6 @@ def _note(text: str) -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
     return label
-
-
-def _colour(hex_value: str) -> QColor:
-    return QColor(hex_value)
 
 
 def _community(text: str) -> QLabel:
@@ -142,7 +132,7 @@ class WorldEventsTab(QWidget):
                 label = entry["name"]
             item = QListWidgetItem(label)
             if kind == "unannounced":
-                item.setForeground(_colour(COMMUNITY))
+                item.setForeground(QColor(COMMUNITY))
             self.list.addItem(item)
         self.list.currentRowChanged.connect(self._show)
         body.addWidget(self.list)

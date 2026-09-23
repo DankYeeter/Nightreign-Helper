@@ -15,25 +15,21 @@ from __future__ import annotations
 import html
 import pathlib
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
-    QAccessible, QAccessibleActionInterface, QColor, QCursor, QPainter,
+    QAccessible, QAccessibleActionInterface, QColor, QCursor, QFont, QPainter,
     QPainterPath, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
-    QAccessibleWidget, QApplication, QFrame, QHBoxLayout, QLabel,
-    QScrollArea, QStyle, QStyleOptionFocusRect, QVBoxLayout, QWidget,
+    QAbstractScrollArea, QAccessibleWidget, QApplication, QFrame, QHBoxLayout,
+    QHeaderView, QLabel, QScrollArea, QSizePolicy, QStyle,
+    QStyleOptionFocusRect, QToolButton, QTreeWidget, QTreeWidgetItem,
+    QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, tabheader
+from . import cardgrid, relicslots, tabheader
+from .theme import ACCENT, BAD, BORDER, DEEP, GOOD, MUTED, PANEL
 
-ACCENT = "#c8a45c"
-MUTED = "#8a8a8a"
-PANEL = "#1e1f23"
-BORDER = "#2e2f35"
-DEEP = "#9a6fc4"
-BAD = "#d1655f"
-GOOD = "#6fbf73"
 # Watched in play: above a wiki claim, below a param read.
 OBSERVED_COLOUR = "#7fae72"
 
@@ -104,6 +100,59 @@ DETAIL_FLOOR = CARD_WIDTH
 #: under Fusion: at an 833 px window the panel goes from 330 px to 276 and the
 #: cards from 463 to 517; from 1067 px up nothing moves.
 DETAIL_SHARE = 3
+
+#: What the portrait is given on a Nightlord's panel. A sub-boss carries no
+#: artwork at all (AD-041), so its panel gives the label nothing rather than
+#: opening with an empty block of this height (AK-321.3).
+DETAIL_ART_HEIGHT = 180
+
+#: The three groups of the sub-boss tree, in the order AK-319 fixes them, and
+#: the day each one asks a card about. `None` is the field-boss group: a card
+#: the night lottery never draws.
+TREE_GROUPS = (
+    (1, "NIGHT BOSSES  ·  DAY 1"),
+    (2, "NIGHT BOSSES  ·  DAY 2"),
+    (None, "FIELD BOSSES"),
+)
+
+TREE_HEADERS = ("Boss", "Share of patterns")
+
+#: AK-319.3. The same honesty the World Events tab already puts on its own
+#: percentage (`eventstab`), carried over to this column rather than restated
+#: as a new idea: a share of a pool that is drawn with weights is not a
+#: chance per run.
+SHARE_TIP = (
+    "How much of the selected Nightlord's own map-pattern pool includes this "
+    "card. The pool is drawn with weights, so this is not the chance of "
+    "seeing it on a given run.")
+
+#: AK-320. The tree answers the same question the empty panel does, and in
+#: the same voice, rather than sitting there blank.
+NO_NIGHTLORD_YET = ("Select a Nightlord above to see which field and night "
+                    "bosses can appear for it.")
+
+#: The two confidences that come with a name out of the files (AD-040).
+NAMED = ("single", "group")
+
+#: AK-322.3. What a card is called where the files do not name its boss. The
+#: same words in the tree and at the head of the panel, because they are the
+#: same claim -- and two different words, because "we cannot pick between
+#: these" and "we do not know who this is" are not the same failure.
+AMBIGUOUS_NAME = "Multiple possible bosses"
+UNRESOLVED_NAME = "Not identified"
+
+#: What the panel says where the files leave a fight underivable -- for a
+#: Nightlord whose weakness cannot be worked out, and, word for word, for a
+#: card whose boss the files never identify (AK-322.4).
+NOT_DERIVABLE = "Not derivable for this fight."
+
+#: AK-324.3. How many drops stand open before the toggle takes over.
+LOOT_OPEN = 5
+NO_LOOT = "no loot recorded in the files"
+LOOT_NOTE = (
+    "Percentages are the game's own drop tables. A few point at tables this "
+    "program cannot read, so on some bosses they do not add up to 100% — "
+    "nothing is hidden, the shortfall is missing data.")
 
 #: What this tab is for, in the reader's own words (AK-68, AK-89). Above the
 #: count and above the cards, because a player arrives with the question and
@@ -223,6 +272,72 @@ WEAKNESS_NOTE = {
     "Fulghor": ("Lightning during his charged attack knocks him out of the "
                 "charge, and the attack then lands with none of it."),
 }
+
+
+def has_card_name(entry: dict) -> bool:
+    """Does this card come with a name out of the files?
+
+    Confidence and name are two separate questions and the tab has met cards
+    where they disagree: a card can resolve to one character with a full
+    profile and still carry `""`, because the game holds no NpcName for that
+    row. The placeholder covers that too -- a blank row and a blank panel
+    heading would read as a fault in this program rather than as the gap in
+    the files that it is (A7).
+    """
+    return bool(entry["name"]) and (
+        (entry.get("weakness") or {}).get("confidence") in NAMED)
+
+
+def card_name(entry: dict) -> str:
+    """What a sub-boss card is called, name or placeholder (AK-322.3).
+
+    One function for the tree row and the panel heading: they are the same
+    claim about the same card, and two copies of this rule would be two
+    chances for a card to be named in one place and not in the other.
+    """
+    if has_card_name(entry):
+        return entry["name"]
+    confidence = (entry.get("weakness") or {}).get("confidence")
+    return AMBIGUOUS_NAME if confidence == "ambiguous" else UNRESOLVED_NAME
+
+
+def card_role(days: list[int]) -> str:
+    """The line under the name: what this card is, not how it was opened.
+
+    AK-322.1. A card the night lottery draws on both days says so whichever
+    of the two tree groups the reader came in through -- the sentence
+    describes the card.
+    """
+    if not days:
+        return "Field boss"
+    if 1 in days and 2 in days:
+        return "Night boss  ·  Day 1 & 2"
+    return f"Night boss  ·  Day {days[0]}"
+
+
+def _tree_order(entry: dict):
+    """Named cards alphabetically, the unnamed ones after them by card id.
+
+    AK-319.4: scattered among the names, a placeholder reads as a name that
+    failed to render rather than as the answer it is.
+    """
+    if has_card_name(entry):
+        return (0, entry["name"])
+    return (1, entry["map"])
+
+
+def _group_font() -> QFont:
+    """A tree group heading in the same voice as a panel heading (AK-319.1).
+
+    The figures the `_section` divs carry, so the tree and the panel beside
+    it read as one language rather than as two lists that happen to be on
+    the same tab.
+    """
+    font = QFont()
+    font.setPixelSize(10)
+    font.setBold(True)
+    font.setLetterSpacing(QFont.AbsoluteSpacing, 1)
+    return font
 
 
 def merge_everdark(bosses: list[dict]) -> list[dict]:
@@ -588,7 +703,16 @@ class BossTab(QWidget):
     def __init__(self, data: dict, icons=None):
         super().__init__()
         self.bosses = merge_everdark(data.get("bosses", []))
+        # Keyed by card id as text, because JSON has no other key type. The
+        # tree below filters this on the chosen Nightlord (AD-041 point 2).
+        self.subbosses = data.get("subbosses") or {}
+        self.drops = ((data.get("world_events") or {}).get("drops")) or {}
         self.icons = icons
+        # Which entry the panel is describing, and whether its loot list is
+        # open. Both belong to the panel and not to a row, because the panel
+        # is what gets rebuilt (AK-324.3).
+        self._shown: dict | None = None
+        self._loot_expanded = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -631,7 +755,10 @@ class BossTab(QWidget):
         body.addWidget(self.detail_panel, 0)
         layout.addLayout(body, 1)
 
+        # Cards and tree first, then the panel is put into its opening state:
+        # clearing the panel also clears the marks on both of them.
         self.refresh()
+        self.show_detail(None)
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
@@ -680,7 +807,7 @@ class BossTab(QWidget):
 
         self.detail_art = QLabel()
         self.detail_art.setAlignment(Qt.AlignCenter)
-        self.detail_art.setMinimumHeight(180)
+        self.detail_art.setMinimumHeight(DETAIL_ART_HEIGHT)
         layout.addWidget(self.detail_art)
 
         self.detail_name = QLabel()
@@ -713,10 +840,148 @@ class BossTab(QWidget):
         self.detail_body.setTextFormat(Qt.RichText)
         self.detail_body.setAlignment(Qt.AlignTop)
         layout.addWidget(self.detail_body)
+
+        # The rest of the loot list, behind the Hold/Held toggle this program
+        # already has (AK-54/AK-292, AK-324.3). A widget and not a line of
+        # the rich text above it, because rich text cannot be clicked; it
+        # sits directly under the LOOT rows, which are the last thing a
+        # sub-boss panel draws.
+        self.loot_button = QToolButton()
+        self.loot_button.setCheckable(True)
+        self.loot_button.setStyleSheet(relicslots.WORD_BUTTON_STYLE)
+        self.loot_button.setVisible(False)
+        # `toggled` and not `clicked`: a mouse and the space bar emit both,
+        # but a screen reader's `TogglePattern.Toggle()` arrives as
+        # `QAbstractButton::toggle()` and emits only this one, so `clicked`
+        # left the button dead to assistive software (QA-288). The `Hold`
+        # button of AK-54 is wired the same way.
+        self.loot_button.toggled.connect(self._toggle_loot)
+        layout.addWidget(self.loot_button, 0, Qt.AlignLeft)
         layout.addStretch(1)
 
-        self.show_detail(None)
         return outer
+
+    def _build_tree(self) -> QTreeWidget:
+        """The sub-boss list that hangs under the grid (AD-041 point 1).
+
+        No scrollbar of its own: it sits in the tab's own scroll area, and a
+        second one inside the first would be a second place to be lost in
+        (AK-319.6). Its chosen row wears the fill the cards wear, not Qt's
+        blue, so the two halves of the tab say "this one" the same way
+        (AK-321.1).
+        """
+        tree = QTreeWidget()
+        tree.setHeaderLabels(list(TREE_HEADERS))
+        tree.headerItem().setToolTip(1, SHARE_TIP)
+        tree.setRootIsDecorated(False)
+        tree.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # As tall as its rows and no taller, worked out by Qt at every
+        # layout rather than by this file once: a height measured here would
+        # be a height measured before the window put its own font on the
+        # tree, and the rows past it would be cut off with the scrollbar
+        # switched off and nothing on screen saying so.
+        tree.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+        tree.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        tree.setStyleSheet(
+            f"QTreeWidget {{ background: {PANEL}; border: 1px solid {BORDER};"
+            f" border-radius: 7px; }}"
+            f"QTreeWidget::item:selected {{ background: {SELECTED_FILL};"
+            " color: #f0f0f0; }"
+        )
+        tree.itemSelectionChanged.connect(self._tree_chose)
+        return tree
+
+    def _subboss_entries(self, boss: dict) -> list[dict]:
+        """The cards this Nightlord's own map patterns can put on the board.
+
+        One entry per card and not per character (AD-040): the same figure
+        stands on several cards at different HP. Each entry carries its card
+        id as `key`, which is what tells two of them apart (AD-041 point 4).
+        """
+        out = []
+        for card, entry in self.subbosses.items():
+            share = next((100 * row["patterns"] / row["of"]
+                          for row in entry.get("nightlords") or []
+                          if row["boss"] == boss.get("id") and row["of"]),
+                         None)
+            if share is not None:
+                out.append(dict(entry, key=card, share=share))
+        return out
+
+    def _fill_tree(self, boss: dict | None) -> None:
+        """Draw the tree for one Nightlord, or the line that asks for one."""
+        self.tree.clear()
+        if boss is None:
+            asking = QTreeWidgetItem([NO_NIGHTLORD_YET, ""])
+            # Not selectable and not focusable: it is a sentence, not a card.
+            asking.setFlags(Qt.NoItemFlags)
+            asking.setForeground(0, QColor(MUTED))
+            self.tree.addTopLevelItem(asking)
+            self.tree.updateGeometry()
+            return
+
+        entries = self._subboss_entries(boss)
+        for day, title in TREE_GROUPS:
+            if day is None:
+                members = [e for e in entries if not e.get("days")]
+            else:
+                members = [e for e in entries if day in (e.get("days") or [])]
+            # A group with nothing in it goes entirely, the way a row with no
+            # hits goes from the Red variants table (AK-319.2).
+            if not members:
+                continue
+            group = QTreeWidgetItem([title, ""])
+            # Reachable with the arrow keys, but never the chosen row.
+            group.setFlags(Qt.ItemIsEnabled)
+            group.setForeground(0, QColor(ACCENT))
+            group.setFont(0, _group_font())
+            self.tree.addTopLevelItem(group)
+            for entry in sorted(members, key=_tree_order):
+                group.addChild(self._tree_row(entry, day))
+        self.tree.expandAll()
+        # The row count decides the height, so the layout has to be told the
+        # hint has moved.
+        self.tree.updateGeometry()
+
+    @staticmethod
+    def _tree_row(entry: dict, day: int | None) -> QTreeWidgetItem:
+        """One card, under one of the two days or under the field bosses.
+
+        A card both days can draw stands in both groups, and each of the two
+        rows says so (AK-319.5) -- without that, the repetition reads as the
+        QA-150 fault rather than as two ways into one card.
+        """
+        label = card_name(entry)
+        days = entry.get("days") or []
+        if day is not None and 1 in days and 2 in days:
+            label = f"{label}  ·  also Day {2 if day == 1 else 1}"
+        item = QTreeWidgetItem([label, f"{entry['share']:g}%"])
+        item.setTextAlignment(1, Qt.AlignRight | Qt.AlignVCenter)
+        item.setData(0, Qt.UserRole, entry)
+        return item
+
+    def _tree_chose(self) -> None:
+        """A row of the tree is the chosen entry now."""
+        items = self.tree.selectedItems()
+        entry = items[0].data(0, Qt.UserRole) if items else None
+        if entry is not None:
+            self.show_detail(entry)
+
+    def _toggle_loot(self, expanded: bool) -> None:
+        """Open or close the rest of the loot list on the entry on screen.
+
+        Takes the state the button reports rather than flipping its own, so
+        that `_sync_loot_button`'s `setChecked` -- which emits `toggled` too
+        -- finds nothing left to do and the panel is not redrawn on top of
+        itself.
+        """
+        if expanded == self._loot_expanded:
+            return
+        self._loot_expanded = expanded
+        self.show_detail(self._shown)
 
     @staticmethod
     def _section(title: str) -> str:
@@ -861,18 +1126,42 @@ class BossTab(QWidget):
                 f"(smallest {html.escape(bars[0][1])} {bars[0][0]:g}, "
                 f"largest {html.escape(bars[-1][1])} {bars[-1][0]:g})")
 
-    def _mark_selected(self, boss: dict | None) -> None:
-        """Put the marker on the card this entry came from, and on no other.
+    @staticmethod
+    def _entry_key(entry: dict | None):
+        """What tells two entries on this tab apart (AD-041 point 4).
 
-        By name, not by identity. `BossCard.clicked` is declared `Signal(dict)`
-        and Qt marshals the entry across it, so what reaches this method after
-        a click is an equal dict and never the same object the card holds --
-        measured 2026-09-05: `emitted is card.boss` is False, `==` is True. An
-        `is` here would mark nothing at all, and would do it silently.
+        A Nightlord's name is unique among the ten. A sub-boss's is not: Red
+        Wolf stands on two cards and the Bell Bearing Hunter on three, at
+        different HP, so a sub-boss carries its card id as `key` instead.
+        Comparing by value and not by identity, because `BossCard.clicked`
+        is declared `Signal(dict)` and Qt marshals the entry across it: what
+        reaches the slot after a click is an equal dict and never the object
+        the card holds -- measured 2026-09-05, `emitted is card.boss` is
+        False and `==` is True. An `is` here would mark nothing, silently.
         """
-        name = boss["name"] if boss else None
+        if entry is None:
+            return None
+        return entry.get("key", entry["name"])
+
+    def _mark_selected(self, boss: dict | None) -> None:
+        """Put the marker on the row this entry came from, and on no other.
+
+        Both sources at once: a card and a tree row are two ways to choose
+        one panel, and at most one mark may stand anywhere on the tab
+        (AK-321.2).
+        """
+        key = self._entry_key(boss)
         for card in self.holder.findChildren(BossCard):
-            card.set_selected(card.boss["name"] == name)
+            card.set_selected(self._entry_key(card.boss) == key)
+        # Blocked, or setting a row would come straight back through
+        # `_tree_chose` and rebuild the panel on top of itself.
+        with QSignalBlocker(self.tree):
+            for top in range(self.tree.topLevelItemCount()):
+                item = self.tree.topLevelItem(top)
+                for index in range(item.childCount()):
+                    row = item.child(index)
+                    row.setSelected(
+                        self._entry_key(row.data(0, Qt.UserRole)) == key)
 
     def show_detail(self, boss: dict | None) -> None:
         # Which card the panel is describing belongs on the grid and not only
@@ -880,36 +1169,60 @@ class BossTab(QWidget):
         # and with no marker the grid looks exactly as it did before -- so a
         # player can read a profile, believe it is the Nightlord he aimed at
         # and plan the fight against a different one (QA-150).
+        subboss = boss is not None and "key" in boss
+        if self._entry_key(boss) != self._entry_key(self._shown):
+            # Another entry, so its loot list starts closed again.
+            self._loot_expanded = False
+        self._shown = boss
         self._mark_selected(boss)
+        if not subboss:
+            # The tree is the chosen Nightlord's own list: refilled when the
+            # Nightlord changes, left alone when one of its rows is opened.
+            self._fill_tree(boss)
         if boss is None:
             self.detail_art.clear()
             self.detail_name.setText("Select a Nightlord")
             self.detail_expedition.clear()
             self.detail_text.clear()
             self.detail_body.clear()
+            self._sync_loot_button(0)
             return
 
         twin = boss.get("everdark")
-        base = self.icons.menu(boss.get("large_icon")) if self.icons else None
-        other = (self.icons.menu(twin.get("large_icon"))
-                 if (self.icons and twin) else None)
-        if base is not None and other is not None:
-            self.detail_art.setPixmap(_split_circle(base, other, 256))
-        elif base is not None:
-            self.detail_art.setPixmap(
-                base.scaled(256, 256, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            )
-        else:
+        if subboss:
+            # No artwork exists for these (AD-041), so the label gives its
+            # height back rather than opening every sub-boss panel with an
+            # empty block that means nothing (AK-321.3). No description
+            # either: a sub-boss entry carries no such field (AD-040), and a
+            # stand-in sentence would read as one the files gave (AK-322.2).
             self.detail_art.clear()
-        self.detail_name.setText(boss["name"])
-        # The expedition name is dropped: it says nothing a player planning a
-        # fight can act on. What replaces it is whether there is a Sovereign
-        # version, which is what the split portrait above is showing.
-        self.detail_expedition.setText(
-            f"Nightlord  ·  {twin.get('group') or 'Everdark Sovereign'}"
-            if twin else "Nightlord  ·  no Everdark version"
-        )
-        self.detail_text.setText(boss["description"])
+            self.detail_art.setMinimumHeight(0)
+            self.detail_name.setText(card_name(boss))
+            self.detail_expedition.setText(card_role(boss.get("days") or []))
+            self.detail_text.clear()
+        else:
+            self.detail_art.setMinimumHeight(DETAIL_ART_HEIGHT)
+            base = (self.icons.menu(boss.get("large_icon"))
+                    if self.icons else None)
+            other = (self.icons.menu(twin.get("large_icon"))
+                     if (self.icons and twin) else None)
+            if base is not None and other is not None:
+                self.detail_art.setPixmap(_split_circle(base, other, 256))
+            elif base is not None:
+                self.detail_art.setPixmap(base.scaled(
+                    256, 256, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            else:
+                self.detail_art.clear()
+            self.detail_name.setText(boss["name"])
+            # The expedition name is dropped: it says nothing a player
+            # planning a fight can act on. What replaces it is whether there
+            # is a Sovereign version, which is what the split portrait above
+            # is showing.
+            self.detail_expedition.setText(
+                f"Nightlord  ·  {twin.get('group') or 'Everdark Sovereign'}"
+                if twin else "Nightlord  ·  no Everdark version"
+            )
+            self.detail_text.setText(boss["description"])
 
         parts: list[str] = []
         # The description sits in its own label directly above; without this
@@ -954,12 +1267,23 @@ class BossTab(QWidget):
         weakness = boss.get("weakness")
         profile = (weakness or {}).get("profile")
         if not profile:
-            parts.append(self._section("WEAKNESSES"))
+            # Two headings, not one. The Nightlord case means "we know who he
+            # is and cannot derive the weakness"; the sub-boss case means "we
+            # do not know who this is", and one title over both would make
+            # the stronger of the two sound like the weaker (AK-322.4).
+            parts.append(self._section("IDENTITY" if subboss else "WEAKNESSES"))
             parts.append(
                 f"<div style='color:{BAD}; font-size:11px'>"
-                "Not derivable for this fight.</div>")
+                f"{self._identity(boss) if subboss else NOT_DERIVABLE}</div>")
             self.detail_body.setText("".join(parts))
+            self._sync_loot_button(0)
             return
+
+        if subboss:
+            # One number with nothing to compare it to, which is why it is
+            # not ranked the way the stance bar is (AK-323).
+            parts.append(self._section("VITALS"))
+            parts.append(self._row("HP", f"{profile['hp']:g}"))
 
         weak = profile.get("weak_damage") or []
         weak_status = profile.get("weak_status") or []
@@ -1021,7 +1345,11 @@ class BossTab(QWidget):
             elif "recovery" in stance:
                 parts.append(self._row(
                     "Refills at", "— not in the game's files"))
-            parts.append(self._row("Ranking", self._stance_rank(profile)))
+            # The rank compares this boss with the ten Nightlords, which is
+            # not a field a sub-boss belongs to; its raw stance figures above
+            # stay (AD-041 point 3).
+            if not subboss:
+                parts.append(self._row("Ranking", self._stance_rank(profile)))
             parts.append(self._note(
                 "Bar to break is in the game's own stance points. The refill "
                 "figure is the rate the files give; they do not say what it "
@@ -1121,6 +1449,25 @@ class BossTab(QWidget):
                 parts.append(self._row("Hit reaction", "none, ever"))
             parts.append(self._note(PARTS_NOTE))
 
+        drops = self._loot(boss) if subboss else []
+        if subboss:
+            parts.append(self._section("LOOT"))
+            if not drops:
+                parts.append(f"<div style='color:{MUTED}; font-size:11px'>"
+                             f"{NO_LOOT}</div>")
+            else:
+                shown = drops if self._loot_expanded else drops[:LOOT_OPEN]
+                for drop in shown:
+                    # `quote=False`: this is element text, not an attribute
+                    # value, so an apostrophe in an item name stays an
+                    # apostrophe on screen while `<` and `&` are still shut
+                    # out of the markup (SEC-012).
+                    parts.append(self._row(
+                        html.escape(drop["name"], quote=False),
+                        f"{drop['share']:g}%"))
+                parts.append(self._note(LOOT_NOTE))
+        self._sync_loot_button(len(drops))
+
         if twin:
             parts.append(self._section("EVERDARK"))
             parts.append(
@@ -1130,6 +1477,45 @@ class BossTab(QWidget):
             )
 
         self.detail_body.setText("".join(parts))
+
+    @staticmethod
+    def _identity(entry: dict) -> str:
+        """Why this card has no name, in the two ways the files can fail.
+
+        `ambiguous` lists what the files do give -- the HP of the figures
+        that could be standing there -- and no names, because the data
+        carries none (AD-040 point 4.3). Guessing one would be the very
+        thing A7 forbids.
+        """
+        if (entry.get("weakness") or {}).get("confidence") != "ambiguous":
+            return NOT_DERIVABLE
+        hp = sorted((candidate["hp"]
+                     for candidate in entry.get("candidates") or []),
+                    reverse=True)
+        return ("Multiple bosses could be on this card — the files don't say "
+                f"which. Candidates by HP: "
+                f"{', '.join(f'{value:g}' for value in hp)}.")
+
+    def _loot(self, entry: dict) -> list[dict]:
+        """What this card's boss drops, rarest first (AK-324.3).
+
+        Ascending `share`, because that is the one figure the drop tables
+        carry: they say how often an item falls and never whether a player
+        wants it, so "rarest first" is the reader's own order and not a
+        ranking read out of the data. A tie goes alphabetically -- there is
+        no second figure to break it on.
+        """
+        drops = self.drops.get(str(entry.get("chr"))) or []
+        return sorted(drops, key=lambda drop: (drop["share"], drop["name"]))
+
+    def _sync_loot_button(self, count: int) -> None:
+        """Offer the rest of the loot list, where there is a rest."""
+        rest = count - LOOT_OPEN
+        self.loot_button.setVisible(rest > 0)
+        if rest > 0:
+            self.loot_button.setChecked(self._loot_expanded)
+            self.loot_button.setText(
+                "Show fewer" if self._loot_expanded else f"Show {rest} more")
 
     def refresh(self) -> None:
         while self.grid_outer.count():
@@ -1153,6 +1539,9 @@ class BossTab(QWidget):
         # the line above them said "10 Nightlords" (DR-013).
         self.cards = cardgrid.CardGrid(CARD_WIDTH, cards, stretch=True)
         self.grid_outer.addWidget(self.cards)
+        # Under the grid and in the same scroll area (AD-041 point 1).
+        self.tree = self._build_tree()
+        self.grid_outer.addWidget(self.tree)
         self.grid_outer.addStretch(1)
 
         paired = sum(1 for b in self.bosses if b.get("everdark"))

@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
 
 from . import effectfilters, effecttext, search
 from .advisorbar import CLAUSES, families_avoided
+from .theme import ACCENT, BAD, MUTED
 
 TITLE = "Effect filters"
 
@@ -165,8 +166,6 @@ class EffectFilterWindow(QDialog):
     def __init__(self, filters: effectfilters.EffectFilters, rows: list[Row],
                  no_rows_reason: str = "", parent=None) -> None:
         super().__init__(parent)
-        from .app import ACCENT, BAD, MUTED
-
         self._filters = filters
         self._rows = rows
         #: effect id -> (row, Favourite box, Avoid box, Allow box or None, item)

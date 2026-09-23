@@ -13,8 +13,8 @@ memoises marginal contributions, so a key built out of a shape like that
 would either raise at the first `hash()` or, worse, compare equal to a state
 that has since been changed underneath it. The rule that keeps this module
 out of that: **the shapes that describe a question carry no mapping and no
-list.** `Slot`, `HeldRelic`, `HeldSlot`, `SlotProblem`, `ArmamentRef`,
-`Budget` and `AdvisorRequest` hold ints, strs, bools and tuples of those, so
+list.** `Slot`, `HeldRelic`, `HeldSlot`, `SlotProblem`, `Budget` and
+`AdvisorRequest` hold ints, strs, bools and tuples of those, so
 each of them hashes to a value derived from its whole content, and the cache
 key of AD-007/AD-016 is the request object itself -- there is no second key
 form that could drift from the state it stands for. That sentence was false
@@ -182,27 +182,6 @@ class SlotProblem:
 
 
 @dataclass(frozen=True)
-class ArmamentRef:
-    """One armament on the weapon grid, in the shape a cache key can hold.
-
-    The key form of the weapon context AD-006 puts in the request: the
-    armament's id rather than its record, so an `AdvisorRequest` stays
-    hashable. `GoalContext` carries the resolved records for the calculation
-    itself.
-
-    **No caller in `nrplanner/` builds one today** (AD-032): the advisor is
-    asked about no armament and about none of their rolls, so
-    `AdvisorRequest.armaments` stays empty and this type is reached from
-    tests and from the answer A16 will need. Said here rather than left for
-    a reader to work out from a grep that comes back empty.
-    """
-
-    weapon_id: int
-    tier: int
-    effect_ids: tuple[int, ...] = ()
-
-
-@dataclass(frozen=True)
 class Budget:
     """How wide the search may look (AD-003).
 
@@ -263,12 +242,30 @@ class AdvisorRequest:
     #: The armament the damage goal ranks on, `None` when none is chosen
     #: (AD-004, OF-5: the run is not refused, the assumption is stated).
     reference_weapon_id: int | None = None
-    armaments: tuple[ArmamentRef, ...] = ()
     #: effect id -> how many times the player declares its condition met.
     declared: tuple[tuple[int, int], ...] = ()
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
+    #: What the damage direction ranks a hit *with*, empty for the armament
+    #: itself (AD-051 point 1): an art key of `model.attack_arts` --
+    #: `skill` for a Weapon Art, `sorceries`/`incantations` for a spell of
+    #: that kind, `family:<id>` for a spell school.
+    #: The id form and never the label, so a patch that renames a spell
+    #: school leaves the key -- and the cache under it -- alone.
+    #:
+    #: **Never taken out of the key**, although two of the three directions
+    #: do not read it: the picker measures every pool under all three, so
+    #: what a pool *contains* depends on this. A key that kept quiet about
+    #: it would hand a run's answer back for another run's question, which
+    #: is T-077 at this field's twin (AD-051 point 2).
+    hit_with: str = ""
+    #: Which damage type the damage direction ranks, empty for all of them:
+    #: one name out of `weapons.DAMAGE_TYPES`. In the key for the same
+    #: reason as `hit_with`, and free to be combined with it -- the two are
+    #: two questions about one figure, which is why they are two fields and
+    #: not one prefixed value (AD-051).
+    damage_type: str = ""
     budget: Budget = DEFAULT_BUDGET
     #: `meta.data_version` of the dataset this was asked against.
     data_version: str = ""
@@ -337,7 +334,6 @@ class Goal:
 
     id: str
     label: str
-    blurb: str
     scope: tuple[str, ...]
     score: Callable[[model.Build, "GoalContext"], GoalScore]
 
@@ -423,6 +419,13 @@ class GoalContext:
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).
     two_handed: bool = False
+    #: What the hit is made with and which damage type is counted, in the
+    #: same form as `AdvisorRequest.hit_with`/`.damage_type` and empty for
+    #: the armament itself and for every type. Read by `goals._max_damage`
+    #: and by nothing else, which is also the one place that combines them
+    #: (AD-051 points 1 and 3).
+    hit_with: str = ""
+    damage_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -744,6 +747,12 @@ class AdvisorResult:
     #: by a requirement you marked" instead of "nothing to choose from"
     #: (AK-294): the pools were not empty, the requirement was unmeetable.
     blocked_by_a_requirement: bool = False
+    #: The chosen damage type or attack art, lowered as it stands mid-sentence,
+    #: when every suggestion was dropped because nothing owned moves the
+    #: ranked figure under it (QA-290); empty otherwise. The status line reads
+    #: it to name that cause instead of the bare "nothing to choose from"
+    #: (AK-365).
+    no_carrier_for: str = ""
 
 
 # --- lookups over the shapes above -----------------------------------------

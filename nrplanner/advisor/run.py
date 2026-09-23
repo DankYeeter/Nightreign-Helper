@@ -53,6 +53,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .. import model
 from . import candidates, explain, search, types
 from .evaluate import evaluate
+from .goals import _ranked_on_choice, chosen_label
 from .types import never_cancelled
 
 
@@ -254,10 +255,6 @@ def _refuse_a_request_that_asks_about_another_run(
     next hit on it answers a question nobody asked -- silently, because both
     halves are individually plausible. The fields checked here are the ones
     that exist on both sides and mean the same thing on both.
-
-    The armaments are compared by the effects they bring, because that is
-    what reaches `model.compute`; the tier is not on the context except for
-    the one armament being rated, so nothing here claims to check it.
     """
     meta = ctx.data.get("meta") or {}
     reference = ctx.reference
@@ -270,12 +267,10 @@ def _refuse_a_request_that_asks_about_another_run(
              None if reference is None else reference.weapon.get("id")),
             ("declared", request.declared, tuple(ctx.declared)),
             ("two_handed", request.two_handed, ctx.two_handed),
+            ("hit_with", request.hit_with, ctx.hit_with),
+            ("damage_type", request.damage_type, ctx.damage_type),
             ("data_version", request.data_version,
              str(meta.get("data_version") or "")),
-            ("armament effect ids",
-             tuple(effect_id for armament in request.armaments
-                   for effect_id in armament.effect_ids),
-             tuple(ctx.armament_effect_ids)),
             ("inventory_fingerprint", request.inventory_fingerprint,
              inventory_fingerprint(inventory)),
     ):
@@ -398,6 +393,40 @@ def run(request: types.AdvisorRequest, inventory,
         if index == 0:
             best_chosen, best_built = chosen, built
 
+    # QA-290: a chosen damage type or attack art can leave every owned relic
+    # unable to move the ranked figure at all -- the reference armament
+    # carries none of the chosen kind and nothing owned converts to it. The
+    # picker already says so correctly (`relicpicker.top_handles` reads the
+    # very same figure, `goal.score`, and shows no chip and no top card for
+    # it); the beam does not ask that question and fills every free slot
+    # regardless (AD-014.7), so the bar showed `SUGGESTED` over a suggestion
+    # that changes nothing. Read the one figure both screens already agree
+    # on -- the best suggestion's own score against the base state -- and
+    # drop it when it is exactly the base state's figure again, so the slots
+    # fall back to "nothing to choose from" (`UI_SPEC` 4.11) instead.
+    #
+    # Scoped to a chosen type or art on purpose (director, 2026-09-20): under
+    # `All` the same zero can occur for a slot of purely situational relics,
+    # and `_max_damage` already calls that a ranking and not a fault -- that
+    # established reading is left exactly as it was.
+    #
+    # AK-365: the fall-back names its cause, in the status line and in
+    # `unknowns`, rather than leaving the bare 4.11 clause unexplained. With
+    # a type and an art both chosen it is the DR-038 form of the goal card
+    # ("fire damage with Sorceries"); one of them alone keeps its label.
+    best = suggestions[0] if suggestions else None
+    no_carrier_for = ""
+    if ((request.hit_with or request.damage_type) and best and best.choices
+            and best.score.value == base_scores[request.goal_id].value):
+        suggestions = []
+        best_chosen, best_built = (), base
+        if request.hit_with and request.damage_type:
+            no_carrier_for = _ranked_on_choice(request.hit_with,
+                                               request.damage_type)
+        else:
+            label = chosen_label(request.hit_with, request.damage_type)
+            no_carrier_for = label[:1].lower() + label[1:]
+
     ranked = (suggestions[0].score if suggestions
               else base_scores[request.goal_id])
     groups = suggestions[0].reasons if suggestions else ()
@@ -416,6 +445,11 @@ def run(request: types.AdvisorRequest, inventory,
     blocked = (explain.required_but_unmet(problem, pools, ctx, inventory)
                if not found and problem.required else ())
     unknowns += blocked
+    if no_carrier_for:
+        unknowns += (f"Nothing you own reaches {no_carrier_for} here: your "
+                     f"starting equipment does not carry it, and nothing in "
+                     f"your inventory swaps in a spell or weapon art that "
+                     f"does.",)
     return types.AdvisorResult(
         goal_id=goal.id,
         goal_label=goal.label,
@@ -433,6 +467,7 @@ def run(request: types.AdvisorRequest, inventory,
         data_note=explain.data_note(ctx),
         generation=request.generation,
         blocked_by_a_requirement=bool(blocked),
+        no_carrier_for=no_carrier_for,
     )
 
 

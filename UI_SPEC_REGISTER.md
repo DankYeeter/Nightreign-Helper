@@ -401,6 +401,34 @@ statt einer `A..`-Kennung. Der Bestand ist damit **263**.
 | AK-310 | A12-Geltungsbereich erweitert AK-282 ausdruecklich auf das neue Fenster: nur der Berater, Statblatt unberuehrt, gehaltene Slots werden durch eine Markierung nie veraendert (AD-036 Punkt 2/4 fuer Avoid/Favourite auf gehaltenen Relikten) | UI_SPEC §3.6 | T-277a, 2026-09-15 | — |
 | AK-311 | AK-283-Persistenz gilt an den drei neuen Orten (Fenster, `Why`-Dialog lesend, `Filters`-Tooltip), Live-Abgleich ueber das bestehende `EffectFilters.changed`-Signal ohne Neustart | UI_SPEC §3.6 | T-277a, 2026-09-15 | — |
 | AK-312 | Enter/Return auf einer fokussierten `HeroTile` waehlt denselben Helden wie die Leertaste (`select_hero`), gleiches UIA-Verhalten; Tab-Reihenfolge und Statuszeilenmeldung zum vermeintlichen Auto-Wechsel ausdruecklich nicht Teil dieser AK (siehe Begruendung im Nachtrag) | UI_SPEC Nachtrag T-278a | T-278a, 2026-09-15 | — |
+| AK-313 | Filterfenster: Legendenzeile erklaert, was `Favourite`/`Avoid` dort bewirken (Nutzer 16.09.2026), erweitert AK-300/AK-304 | UI_SPEC §3.6 (Z5803) | T-292a, 2026-09-16 | AK-317 Punkt 1 (Nachtrag Director 19.09.2026, Nutzer 08:30 — Legendentext ersetzt, gleicher Ort) |
+| AK-314 | AK-314.1-.6: der Satz "erfuellt einen Favoriten ueber ein gehaltenes Relikt" steht jetzt auch direkt im `SuggestionBlock` (nicht nur im `Why`-Dialog), Wortlaut unveraendert vom Dialog, ab zwei Effekten eine Zahl-Zusammenfassung, nur auf der Karte mit dem niedrigsten `slot_index` | UI_SPEC §7 Nachtrag T-289a (Z4927) | T-289a, 2026-09-17 | — |
+| AK-315 | Betrag in der Why-Zeile fuer Attribut-Effekte steht an der Zeile, die die Bezugswaffe tatsaechlich skaliert (AD-038, A22, OF-44 Teil 1) | UI_SPEC §6 Nachtrag T-292a (Z5829) | T-292a, 2026-09-17 | AK-315.3 (Director-Nachtrag 17.09.2026, QA-285 Lesart B, Z6118) |
+| AK-316 | Familien-Kopfzeilen im Filterfenster, eine Zeile je Effekt-Familie mit gemeinsamer Zaehlerklausel (AD-039, A23, OF-44 Teile 2 und 4) | UI_SPEC §6 Nachtrag T-292a (Z5895) | T-292a, 2026-09-17 | — |
+| AK-317 | Legende und Tooltips fuer `Allow`, ersetzt AK-313 Punkt 1 woertlich am gleichen Ort; erweitert AK-313 um Tooltip-Text (OF-44 Teil 3) | UI_SPEC §6 Nachtrag T-292a (Z5998) | T-292a, 2026-09-17 | Nachtrag Director 19.09.2026 (Nutzer 08:30, Z6127) — Legende AK-317 selbst bleibt unveraendert, das graue … (Fortsetzung im Dokument) |
+| AK-318 | Bezugswaffen-Satz in `MAX_DAMAGE.scope`, Neufassung AK-190/AK-192/AK-193 (AD-038, OF-44 Teil 3) | UI_SPEC §6 Nachtrag T-292a (Z6044) | T-292a, 2026-09-17 | — |
+| AK-319 | Nightlords-Tab: `QTreeWidget` unter dem Kachelgitter, drei Gruppen (Night Day 1/Day 2/Field bosses) in dieser Reihenfolge, gefiltert auf den gewaehlten Nachtfuersten, Spalte "Share of patterns", Sortierung, Tastaturweg (AD-041, A24) | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-320 | Leerzustand des Baums ohne Nachtfuerst-Auswahl: `"Select a Nightlord above to see which field and night bosses can appear for it."` | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-321 | Auswahlmarkierung im Baum ueber `key` (AD-041 Punkt 4), Kachel/Baum gegenseitig exklusiv, `detail_art` reserviert keine Hoehe fuer Unterboss-Eintraege | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-322 | Rollenzeile ("Field boss"/"Night boss · Day n"), `ambiguous`/`unresolved`-Wortlaut und -Verhalten nach A7, eigene Ueberschrift `IDENTITY` statt der Nightlord-Rueckfallzeile | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-323 | Neue Panelsektion `VITALS` mit einer HP-Zeile fuer Unterbosse (`profile["hp"]`) | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-324 | Neue Panelsektion `LOOT`: aufsteigend nach `share` sortiert (seltenste zuerst, Nutzerentscheidung 19.09. 13:42, "best" nicht belegt), erste fuenf offen, Rest per `QToolButton`-Toggle (Hold/Held-Muster AK-54/AK-292) aufklappbar, statischer Ehrlichkeitssatz zu Prozentsummen unter 100 % (Architekturrisiko 4) | UI_SPEC §7.4 Nachtrag T-302 | T-302, 2026-09-19 (Sortierung/Aufklappen: Nutzerentscheidung 19.09. 13:42) | — |
+| AK-325 | `PLAYER_GROUPS`-Umbenennung: Kat. 120 "Field bosses & arena locations" (statt "Night bosses"), Kat. 160 "Mixed-boss arena locations" (statt "Evergaol bosses", OF-46), "Named minibosses" (Kollision mit AK-319s "Field bosses" vermieden) | UI_SPEC §7.6 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-326 | OF-47 entschieden: Spalte "Examples (any map)" faellt ersatzlos (permanent leer fuer vier von sechs Zeilen nach QA-286; die 29 Feldboss-Namen stehen stattdessen vollstaendig im Nightlords-Tab, AK-319ff.) | UI_SPEC §7.6 Nachtrag T-302 | T-302, 2026-09-19 | — |
+| AK-327 | `damage_type_box`/Label: Platz rechts von `goal_box`, nur sichtbar bei `max_damage`, ausserhalb des AK-07-Drei-Knopf-Budgets (A25) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-328 | Eintraege der Box: `All`, fuenf Elemente (AFFINITIES-Reihenfolge), `Skill attack`/`Sorceries`/`Incantations`/Zauberschulen, drei Gruppen mit Trennlinien (A25) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-329 | Statischer Tooltip der Box, zweiter Satz klaert "Skill attack" = Weapon Arts, nicht Nightfarer-Faehigkeiten (A25-Praemisse) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-330 | Auswahlwechsel loest `the_build_changed()` aus wie `_goal_chosen`; Wahl bleibt innerhalb der Sitzung stehen, wenn `goal_box` zwischenzeitlich wechselt | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-331 | Why-Dialog-Satz "Ranked on {type} damage only…", genau einmal, nur wenn nicht `All` (AK-22-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-332 | Zustand 4.10 (State.NOT_RANKABLE) um zweite Ursache erweitert: Startwaffe traegt die gewaehlte Art strukturell nicht, eigener Satz (AK-294-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 | T-320b, 2026-09-19 | — |
+| AK-05 | *(Status 19.09.2026 18:57, Nutzer via Fragebogen, Option B)* Bei sichtbarem Schadensart-Paar (AK-327) duerfen Ziel- und Artbox gekuerzt werden und die Statuszeile 0 px betragen; gemessen (T-321c): Paar 219 px, ungekuerzt erst ab 1676 px, Untergrenze 1536 px bleibt Bedienbarkeit, nicht Vollbeschriftung. | **geaendert** — Nutzer | `docs/tasks/T-321.md` d |
+| AK-194 | *(Status 19.09.2026 18:57)* wie AK-05: mit sichtbarem Paar darf die Statuszeile 0 px betragen (gemessen 332 → 113 px an der Oeffnungsbreite 1608 px). | **geaendert** — Nutzer | `docs/tasks/T-321.md` d |
+| AK-332 | *(Status 19.09.2026 18:20, Director)* Nicht gebaut: ein Typ ohne Vorkommen auf der Bezugswaffe liefert eine Rangfolge ab 0,00 (Wylder unter Fire: 7120100 +19,80 zuerst) — nuetzlicher als Zustand 4.10. | **entfaellt** — Director | `docs/tasks/T-321.md` |
+| AK-334 | *(Status 19.09.2026 18:55, T-321c gemessen)* Paar 219 px Mindestbreite (643/424), Oeffnungsbreite 1608 px unveraendert, Beschriftung ungekuerzt ab 1676 px (vorher 1472). | **erfuellt** — developer | `docs/tasks/T-321.md` c |
+| AK-335 | Kopfzahl der Karte traegt bei Typ- **und** Artwahl den gewaehlten Namen (`"Fire attack rating 19"`, `"Skill attack rating"`), sobald sich der Zahlenwert dadurch von `All` unterscheidet; ersetzt/beantwortet den §3.7-Punkt "headline_name/headline_label" | UI_SPEC §3.7 Nachtrag T-322d | T-322d, 2026-09-19 | — |
+| AK-336 | Relic Picker: Mindest-Offenlegung, solange kein eigener Regler — AK-331-Satz in Zeile 4 unabhaengig von `Sort by`, "Damage"-Zeile/-Chip nennt die gewaehlte Art; beantwortet den §3.7-Punkt "Der Relic Picker" teilweise (Umfangsfrage offen) | UI_SPEC §3.7 Nachtrag T-322d | T-322d, 2026-09-19 | — |
 
 
 ## Widerspruechliche Faelle
@@ -438,3 +466,81 @@ T-231 gebucht): alle drei Faelle sind entschieden, die Liste ist leer.**
 
 **Alle drei Faelle sind entschieden — dieser Abschnitt hat keinen offenen
 Fall mehr** und bleibt nur als Verlauf stehen.
+| AK-330 | *(Status 20.09.2026 16:05, Nutzer via Fragebogen nach power-user T-322m)* Nachtrag: die Schadensart wird wie der Nightfarer ueber den Neustart gemerkt (QSettings, gegen die aktuelle Artenliste validiert, sonst `All`); der Satz 'faellt bei Neustart auf All zurueck' (19.09.) entfaellt. | **geaendert** — Nutzer | `docs/tasks/T-322.md` n |
+
+**Nachtrag T-324f (ui-ux-designer), 2026-09-20 — A26: die eine Box aus §3.7
+wird durch zwei Boxen ersetzt (`UI_SPEC` §3.8).** Vier Kriterien, die
+ausschliesslich die Struktur der einen Box beschrieben, gelten ab §3.8 nicht
+mehr fuer den gebauten Zustand (§3.7 bleibt als Verlauf stehen, AK-330/331/
+332/335/336 gelten unveraendert weiter, jetzt generalisiert auf zwei Felder
+durch die neuen Kriterien):
+
+| AK-327 | `damage_type_box`/Label: Platz rechts von `goal_box`, nur sichtbar bei `max_damage`, ausserhalb des AK-07-Drei-Knopf-Budgets (A25) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-337 (T-324f, zwei Boxenpaare statt einem) |
+| AK-328 | Eintraege der Box: `All`, fuenf Elemente (AFFINITIES-Reihenfolge), `Skill attack`/`Sorceries`/`Incantations`/Zauberschulen, drei Gruppen mit Trennlinien (A25) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-338 (Hit with) + AK-339 (Damage type), T-324f — die Box teilt sich, `Skill attack` heisst neu `Weapon art` |
+| AK-329 | Statischer Tooltip der Box, zweiter Satz klaert "Skill attack" = Weapon Arts, nicht Nightfarer-Faehigkeiten (A25-Praemisse) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-340 (T-324f, zwei Tooltips) |
+| AK-333 | Tab-Reihenfolge der Box zwischen `goal_box` und `Filters`, Fokusring, erweitert AK-25/AK-26 | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-348 (T-324f, zwei Boxen in der Tab-Reihenfolge) |
+| AK-334 | Breitenfolge der Leiste mit dem neuen Paar: erster Baubericht misst, kein geschaetzter Wert (AK-302-T-277e-Muster) | UI_SPEC §3.7 (Verlauf) | T-320b, 2026-09-19 | AK-349 (T-324f, zwei Paare statt einem — die 219 px aus dem T-321c-Nachtrag gelten nur fuer ein Paar) |
+| AK-337 | Zwei Boxenpaare (`hit_with_box`, `damage_type_box`) statt einem, gleiche Zeile, gleiche Sichtbarkeits-/Budgetregel wie AK-327 (A26) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-338 | `hit_with_box`: `Weapon`/`Weapon art`/`Sorceries`/`Incantations`/Zauberschulen ohne Charged; Umbenennung `Skill attack` → `Weapon art` (`model.ART_LABELS[SKILL_ART]`) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-339 | `damage_type_box`: nur noch `All` + fuenf Elemente, dritte Gruppe (Arten/Schulen) zu AK-338 umgezogen | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-340 | Zwei statische Tooltips (Hit with erklaert Weapon art + "eigener Zauber, keiner aus dem Lauf"; Damage type unveraendert schlicht) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-341 | Auswahl in beiden Boxen loest `the_build_changed()` aus; OF-56 beantwortet: keine gegenseitige Filterung/Ausblenden zwischen den Boxen, Ablehnung nur per Satz (AK-344) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-342 | Kartenkopf der Zauberzeilen nach AK-335-Regel: `damage_type` verdient sich den Platz immer, `hit_with` nur wenn `SpellRating.rates` es zeigt (`"Fire spell damage (Beast Claw) 0"`) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-343 | Beschriftung/Vorbehalt der Zauberzahl (OF-55): `Spell damage`, Unkalibriert-Satz in `unknowns`, immer wenn eine Zahl steht, entfaellt nur zugunsten von AK-344 | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-344 | Vier Ablehnungssaetze (kein Katalysator, falsche Gattung, Katalysator ohne Zauberdaten, Katalysator als Waffen-/Weapon-art-Referenz), `{choice}` grossgeschrieben am Satzanfang; Abgrenzung "not counted" (keine Ziffer) gegen gemessene `0` (AK-342) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-345 | Befund bei zwei gleichzeitigen Tauschrelikten (`_TWO_SWAPPED_SPELLS`), zusaetzlich zu AK-343, nie an dessen Stelle | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-346 | Relic Picker erbt beide Felder (erweitert AK-336): Caption/Chip/Zeile-4-Satz ueber dieselbe `chosen_label`, Reihenfolge Damage type vor Hit with; Umfangsfrage (eigener Regler) bleibt offen | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-347 | Persistenz beider Felder: zwei flache Schluessel (`hit_with`, `damage_type`), unabhaengig validiert, alter `damage_art`-Schluessel verworfen (erweitert AK-330-Nachtrag/AD-051.5) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-348 | Tab-Reihenfolge `goal_box` → `hit_with_box` → `damage_type_box` → `Filters` (erweitert AK-333) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-349 | Breite ungemessen, Baubericht zu A26-7 traegt sie nach (wie AK-334) | UI_SPEC §3.8 | T-324f, 2026-09-20 | — |
+| AK-330 | *(Status 20.09.2026, developer, T-322n gebaut)* `advisorbar.DAMAGE_ART_KEY` (flacher Schluessel `"damage_art"`, kein `/`, kein Komma) haelt die Id-Form (`damage_art()`); beim Bau der Leiste gegen `damage_type_box.findData(...)` geprueft, ungueltig oder leer faellt auf `All` zurueck (Box-Default). Kein Nightfarer-Praezedenzfall gefunden: `select_hero(0)` waehlt bei jedem Start Index 0 fest, ungemerkt (Befund an ui-ux-designer/director). | **erfuellt** — developer | `docs/tasks/T-322.md` n |
+
+**Nachtrag T-325a (ui-ux-designer), 2026-09-20 — Startbreite als
+Bildschirm-Ratio, AK-349 abgeschlossen, AK-338 bestaetigt.** Nutzerwunsch
+20.09. 20:10: Startbreite als Ratio der Monitorbreite statt fester Zahl.
+Baubericht `054ca1e` liefert die AK-349 offengelassene Messung nach
+(1608 → 1959 px, Paarbedarf 190/351 px) und schliesst AK-349 damit ab.
+
+| AK-349 | *(Status 20.09.2026, T-324f/`054ca1e` gemessen)* Oeffnungsbreite 1608 → 1959 px, Paar-Mehrbedarf `hit_with`/`damage_type` einzeln 190 px, beide 351 px. Kein Zahlenwert mehr ungemessen. | **erfuellt** — developer | `docs/tasks/T-324.md` f-g |
+| AK-350 | Bildschirm-Begrenzer aus `_opening_width` wird ein Anteil (`RATIO`, Vorschlag 0,9) von `room` statt `room` selbst; `clamp(RATIO × room, 1536, Bedarf)`, Bedarf/Untergrenze unveraendert aus A14/AK-271/AK-349 | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-351 | Kuerzungsreihenfolge unterhalb des Bedarfs: Statuszeile auf 0 px, danach `goal_box`/`hit_with_box`/`damage_type_box` per Elision, Aktionsknoepfe nie — erweitert AK-05/AK-194/AK-269/AK-271 um eine dritte Stufe (mit zwei Boxenpaaren reicht "nur Statuszeile" nicht immer) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-352 | Pruefweg 1920/2560 px mit RATIO=0,9: 1920 → 1728 px (Vorschlagszustand kuerzt Statuszeile+Boxen), 2560 → an Bedarf 1959 px gedeckelt (nichts gekuerzt) | UI_SPEC §3.8 Nachtrag T-325a | T-325a, 2026-09-20 | — |
+| AK-338 | *(Status 20.09.2026, ui-ux-designer T-325a: Trennlinie bestaetigt unveraendert)* eine Trennlinie zwischen Typgruppe (`Weapon`/`Weapon art`/`Sorceries`/`Incantations`) und Zauberschulen, keine zweite vor der Typgruppe — Konsistenz mit `damage_type_box` (AK-339, ebenfalls eine Linie, direkt hinter `All`) | **bestaetigt** — ui-ux-designer | `docs/tasks/T-325.md` a |
+
+**Nachtrag T-326a (ui-ux-designer), 2026-09-20 — A27: `Weapon art` und
+`Spell damage` in der Schadenstafel des Build planner (UI_SPEC §4.5), neu.**
+Kein Programmstart (NH-004), kein Vorgaengerkriterium betroffen — die
+Schadenstafel selbst (AK-31 bis AK-40) bleibt unveraendert, diese Kriterien
+kommen als zwei zusaetzliche Zeilen hinzu.
+
+| AK-353 | Ausloeser: `Weapon art` an `damage.is_starting_armament` (rechte Starthand, Slot 1); `Spell damage` zusaetzlich auf jeder Kachel, deren Waffe die Id des AD-052-Katalysators traegt; sonst keine der beiden Zeilen | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-354 | `Weapon art`-Wert aus `damage.equipped(..., art=model.SKILL_ART)`, `bare` dieses zweiten Aufrufs verworfen | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-355 | `Weapon art`-Darstellung: Grundlinie ist die bereits equippte AR-Gesamtzeile (nicht `bare`), Delta ausschliesslich durch Skill-Scope-Relikte, Zweihand-Zwilling wie die Gesamtzeile | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-356 | `Weapon art` auf einer Katalysator-Kachel: Ersatzsatz statt Zahl, Halbsatz wortgleich aus `goals._ART_ON_A_CATALYST` | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-357 | Bezugsobjekt der Zauberzeile nur ueber eine gemeinsame Fassadenfunktion mit `advisor/goals.py` (AD-019), kein zweiter Auswahlweg in `statsheet.py`; `hit_with` = Katalysator-Gattung, `damage_type=""` | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-358 | `Spell damage` entfaellt vollstaendig (keine Zeile, kein Ablehnungssatz) fuer die acht Nightfarer ohne Katalysator; erscheint sonst auf jeder Kachel aus AK-353 Punkt 2 | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-359 | `Spell damage`-Kopfzeile nach AK-342s einfachster Form, Why-Betrag verlangt eine Grundlinien-Antwort der Fassade (Bauvoraussetzung, nicht heute vorhanden), kein Zweihand-Zwilling | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-360 | Rejection/Heal zeigt `"…0"` mit Ziffer (kein Ablehnungssatz, AD-052 Punkt 5); zwei gleichzeitige Tauschrelikte rechnen auf den staerkeren, ohne Zusatzsatz in dieser Tafel | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-361 | Unkalibriert-/Rejection-Hinweis als Klick-Tooltip (wie `AR_BREAKDOWN_KEY`), Wortlaut wortgleich `damage.SPELL_DAMAGE_UNCALIBRATED`/`NO_SPELL_DAMAGE`, nie beide zugleich | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-362 | Drei getrennte Zeilen/Massstaebe (AR, Weapon art, Spell damage), nie summiert oder gemischt (QA-018); AK-67s Ein-Textblock-Muster gilt hier ausdruecklich nicht | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-363 | Wortlaut aus Woerterbuchwerten (`model.ART_LABELS[SKILL_ART]`, `damage.SPELL_DAMAGE_NAME`), keine zweite Kopie | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+| AK-364 | Reihenfolge: `Weapon art` (oder Ersatzsatz), dann `Spell damage`, direkt unter der Gesamtzeile, vor Inflicts/Rally; Kacheln selbst unveraendert | UI_SPEC §4.5 | T-326a, 2026-09-20 | — |
+
+**Nachtrag T-329b (ui-ux-designer), 2026-09-22 — Pool-Meldung ohne Grund
+(QA-294) und "N uebersprungen" bei mehreren Spielstaenden (QA-004).** Kein
+Fensterlauf, beide Vorgaben aus Codelesung. Naechste freie Nummer gemessen
+(AK-364 war die hoechste vergebene, nicht AK-356 wie der Auftragskopf noch
+nannte — seit T-326a vergeben).
+
+| AK-365 | Dritte Ursache fuer die zweite Klausel von `SUGGESTED_WITH_AN_EMPTY_SLOT`/4.11 (neben AK-291/AK-294 "blocked by a requirement"): gewaehlter `Damage type`/`Hit with` strukturell unerreichbar (QA-290s Rueckfallzweig, `run.py:403-423`) — Statuszeile bekommt eine dritte Klauselfunktion, `unknowns` einen vollen Satz; `_spell_cell`/AK-342/AK-343 bleiben unberuehrt | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |
+| AK-366 | "N uebersprungen"-Halbsatz in der Save-Notizzeile (`app.py:2465`), wenn `scan()` automatisch (kein `Find my save...`) mehr als einen lesbaren Spielstand fand und den mit den meisten Relikten waehlte; kein Ordnername, kein Konto, keine neue Bedienhandlung — `find_save_button` bleibt nach Erfolg ausgeblendet (offene Frage an den App Designer) | UI_SPEC Nachtrag T-329b | T-329b, 2026-09-22 | — |
+
+**Nachtrag T-329m (ui-ux-designer), 2026-09-22 — Farbrollen der sechs Tabs
+(A13, Review-Modus, gegen `nrplanner/theme.py`).** Kein Fensterlauf. Naechste
+freie Nummer gemessen (AK-366 war die hoechste vergebene).
+
+| AK-367 | `weaponslots.py:25` `GOOD = "#78b57e"` ist tot (kein Leser im Projekt) und weicht von `theme.GOOD` ab — Zeile loeschen | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-368 | Eine `COMMUNITY`-Farbe statt zwei: `theme.COMMUNITY = "#7fb2e5"` (Kontrast 7,36:1 gg. `PANEL`, besser als `eventstab.py`s bisherige `#6f9ac4`, 5,57:1); `depthstab.py:37`/`eventstab.py:28` importieren statt lokal zu definieren | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-369 | Eine Farbe (`theme.DEBUFF = "#e07a74"`) fuer "gewuerfelter Fluch/Kosten-Effekt in Liste/Zelle": `relicslots.py:429` (bisher hartkodiert `#d1655f`), `effectstab.py:171` `CURSE_COLOUR`, `effectstab.py:1037` (bisher `Qt.red`, Kontrast 4,12:1 unter WCAG AA), `weaponslots.py:28` `DEBUFF`; `theme.BAD`/`CURSE` bleibt fuer seine breitere Kosten-Rolle unveraendert | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-370 | `RARITY_TEXT`/`RARITY_COLOURS` bleiben bewusst verschiedene Werte (hellere Textvariante derselben Farbfamilie); nur der irrefuehrende Kommentar `weaponslots.py:30-32` ("the same colours") wird korrigiert, kein Farbwert aendert sich | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+| AK-371 | Ein Ersatzgrau (`theme.MUTED = "#8a8a8a"`) statt zweier fuer die unbekannte Slot-Farbe: `app.py:161`, `relicslots.py:61` (bereits `#8a8a8a`), `relicslots.py:554`, `relicpicker.py:1115` (bisher `#888`) | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |

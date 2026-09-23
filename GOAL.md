@@ -473,3 +473,127 @@ favourite entwaessern."*
 
 *Reihenfolge (Nutzer 20:13): Release 1.13.2 zuerst, A22/A23 als 1.14.0 mit
 eigener Pruefkette.*
+
+## Nachtrag 19.09.2026 — Unterbosse im Nightlords-Tab (entschieden durch den Nutzer, 12:28-12:40)
+
+*Anlass: Ideensammlung aus Spielersicht bei leerem Backlog. Verworfen vom
+Nutzer: Relikt-Ausmisten ("vlt. fehlt einem einfach das passende relikt"),
+Nachtfuerst-Vorbereitung ("man weiss vor der runde kaum gegen wen man
+kaempft"), Level-Kostentabelle (Kosten je Level sind fest), Build teilen,
+Fortschritt aus dem Spielstand. Angenommen: "das zu ergaenzen im
+Nightlords Tab und Informationen zu den Unterbossen waere spannend."*
+
+### A24 — Unterbosse mit Kampfwerten im Nightlords-Tab
+
+- **Umfang:** Nachtbosse Tag 1/2 sowie Feldbosse und Evergaol-Bosse. Je
+  Boss: Schwaeche und Resistenz, HP und Stance, Beute, und — soweit die
+  Dateien es hergeben — unter welchem Nachtfuersten er auftaucht. Alles
+  aus den Spieldaten (A7); was nicht belegt ist, steht als solches auf der
+  Seite, wie heute beim Bruchwert.
+- **Zwei Stufen, Forschung zuerst.** Stufe 1: Evergaol- und Feldbosse
+  (Roster aus den Deep-of-Night-Kategorien, Kampfwerte ueber NpcParam,
+  Beute ueber die vorhandene Kreaturen-Aufloesung). Stufe 2: Nachtbosse
+  Tag 1/2 und die Nachtfuerst-Zuordnung, nur nach Befund.
+- **Offen vor der Umsetzung (Explore 19.09.):** kein gelesener Param
+  listet Nachtbosse als benannte Menge (Kategorie 120 unbestaetigt);
+  die Zuordnung Boss → Nachtfuerst haengt an unbenannten Modifier-Ids der
+  Kartenmuster; ungelesene Kandidaten: SmallBaseAndSpot*,
+  PlayAreaCreate*, ScenarioPlacementParam. Der eingecheckte Snapshot ist
+  aelter als der Extraktor; Proben brauchen einen frischen Abzug.
+- Nachweis: Ein Evergaol-Boss (z. B. Fallingstar Beast) waehlbar im
+  Nightlords-Tab mit denselben Diagrammen wie ein Nachtfuerst plus HP und
+  Beute; ein Nachtboss mit Tag-1/2-Kennung, falls Stufe 2 belegt wird.
+
+*Nachtrag 19.09.2026 15:50 (Nutzer, Fragebogen R-009): "Ziel +
+Schadensart-Auswahl"; Skill attack = nur Weapon Arts, Nightfarer-
+Faehigkeiten bleiben generell unbeachtet; Start nach T-310/T-311/T-312.*
+
+### A25 — Schadensart im Berater waehlbar (Element, Skill, Zauberschule)
+
+- **Umfang:** "Maximise damage" bekommt eine Auswahl der Schadensart:
+  Alle (heutiges Verhalten) / Physical / Magic / Fire / Lightning / Holy /
+  Skill attack (Weapon Arts) / Sorceries / Incantations / eine
+  Zauberschule (z. B. Bestial). Die heute als `scoped:` geparkten
+  Multiplikatoren (Scope 112 Skills, Schulen ueber
+  `magicSubCategoryChange`, R-009) zaehlen in die gewaehlte Art; die
+  Startwaffen-Relikte (Konversion -30/+33 bis -60/+66, Malus 0,85)
+  zaehlen in der Kandidatenwertung, nicht nur in der Anzeige.
+- **Nicht Ziel:** echter Zauberschaden (AtkParam/Bullet), Nightfarer-
+  Faehigkeiten (`characterSkillAttackRate`), neue Extraktion.
+- **Praemisse (Nutzer 19.09.):** Scope 112/111 = Weapon Arts.
+- Nachweis (OF-50, Nutzer 19.09. 16:25): Revenant (Startwaffe Cursed Claws,
+  71,63 von 88,65 AR Magic) mit Auswahl "Magic" bzw.
+  "Bestial" (Schulwahl, Nutzer 19.09. 18:57: Incantations am Slot leer)
+  liefert eine andere Reihung als "Alle", und die
+  Why-Zeile nennt die Art; Wylder mit beiden Startwaffen-Relikten und
+  Auswahl "Skill attack" zaehlt die Konversion in die Schadenszahl.
+
+*Nachtrag 20.09.2026 17:35 (Nutzer, Chat + Fragebogen): "Bestial rankt
+Siegel-Spell-Power statt Klauen-AR" und "es muss moeglich sein, auf Zauber,
+Incantations, regulaeren Schaden, einen Schadenstyp oder Weapon Arts zu
+gehen; bufft ein Schadenstyp eine Weapon Art, muss die Kombination richtig
+errechnet werden; komplett abgedeckt". Entschieden: Zauber-Angriffsdaten
+extrahieren (AtkParam/Bullet); zwei Felder Womit x Schadensart. Gemessen
+20.09.: CharaInitParam `equip_Wep_Left_1` — Revenant Finger Seal 34750000,
+Wylder Small Shield 30750000, Guardian Greatshield 32750000; der Extraktor
+liest bisher nur `equip_Wep_Right_1`.*
+
+### A26 — Ziel = Womit x Schadensart, mit echten Zauber- und Skill-Zahlen
+
+- **Umfang:** Der Berater fragt zwei Dinge: *Hit with* (Weapon / Weapon
+  art / Sorceries / Incantations / eine Schule) und *Damage type* (All /
+  Physical / Magic / Fire / Lightning / Holy). Jede Kombination hat eine
+  definierte Zahl oder sagt, warum nicht. Zauber-Ziele rechnen mit dem
+  Start-Katalysator (Recluse Stab rechts, Revenant Finger Seal links):
+  Spell Power x Zauber-Grundwert x Faktoren (Gattung, Schule, Schadensart,
+  Charged). Weapon-Art-Ziele rechnen mit der Waffenkunst der Startwaffe
+  und ihren Schadensarten. Dazu liest der Extraktor die linke Starthand,
+  die Zauber-Angriffsdaten (Schadensart und Grundwert je Zauber) und die
+  Skill-Daten der Startwaffen.
+- **Nicht Ziel:** Nightfarer-Faehigkeiten (`characterSkillAttackRate`),
+  Zauber ausserhalb der Startausruestung als Bezugsobjekt (die Rangfolge
+  gilt fuer "eine Incantation dieser Schule", nicht fuer einen bestimmten
+  Zauber), Statusaufbau.
+- **Praemissen:** Elementraten wirken auf jeden Treffer ihrer Schadensart
+  (Waffe, Skill, Zauber) — ER-Mechanik, in Nightreign unvermessen;
+  Scope 112/111 = Weapon Arts (Nutzer 19.09.).
+- Nachweis (QA-291, Director 20.09. 21:45 nach AD-054 N4): Revenant,
+  *Incantations* x *All*: Faith und Improved Incantations steigen, ein
+  Bestial-Relikt erst unter der Schulwahl *Bestial*, Klauen-Relikte fallen; Revenant,
+  *Bestial* x *Physical*: Improved Physical Attack Power zaehlt, Holy
+  nicht; Wylder, *Weapon art* x *Fire* mit Startwaffen-Konversion Fire:
+  Skill-Buff x Fire-Buff x Konversion in einer Zahl; Recluse, *Sorceries*
+  x *Magic*: Spell Power x Sorcery-Buff x Magic-Buff.
+
+*Nachtrag 20.09.2026 17:40 (Nutzer): "Wenn ich einen Starting Spell
+auswaehle, soll Maximise damage direkt auf diesen Spell rechnen."*
+Gemeint sind die Relikt-Effekte "Changes compatible armament's sorcery /
+incantation to <Zauber> at start of expedition" (10 im Datensatz, Ids
+73606xx..73715xx, z. B. 7370900 Beast Claw). Ergaenzung A26: liegt ein
+solcher Effekt im Build (gehalten oder vorgeschlagen), rechnet ein Zauber-
+Ziel mit genau diesem Zauber (Grundwert, Schadensart, Schule aus den
+extrahierten Zauberdaten) statt mit dem Standardzauber des Katalysators;
+ohne einen solchen Effekt gilt der Standardzauber des Start-Katalysators.
+Nachweis: Revenant mit 7370900 (Beast Claw) unter *Incantations* x *All*
+zeigt die Beast-Claw-Zahl, physische Buffs zaehlen, Holy nicht.
+
+### A27 — Weapon art und Startzauber im Waffen-Schadensblock des Builders
+
+*Nutzer 20.09.2026 22:00: "beim weapon damage block im builder brauchen
+wir auch die weapon arts und spells, sonst sehe ich nicht auf einen Blick,
+was meine Relikte mit den Spells / der Weapon Art machen." Entschieden:
+als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
+
+- **Umfang:** Der Schadensblock je Startwaffe im Build-Planer zeigt unter
+  der Angriffszahl eine Zeile *Weapon art* (Angriffszahl x Skill-Faktor,
+  AD-047/AD-051) und fuer einen Start-Katalysator eine Zeile *Spell
+  damage (<Zauber>)* mit dem geworfenen Zauber (Tauschrelikt vor
+  Standardzauber, AD-052) — jede Zeile mit dem Betrag, den die Relikte
+  bewegen (Why-Betrag wie AD-038), unkalibriert-Hinweis wie AK-343.
+- **Nicht Ziel:** neue Zahlen (alles aus `damage.equipped`/`damage.spell`),
+  Zauber ausserhalb der Startausruestung.
+- Nachweis (QA-296, Director 21.09. 19:20): Revenant mit Beast-Claw-Relikt:
+  der Block zeigt neben der Klauen-AR die Zeile "Spell damage (Beast Claw)
+  577" (Unkalibriert-Hinweis im Klick-Tooltip, AK-361) und
+  ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
+  "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.

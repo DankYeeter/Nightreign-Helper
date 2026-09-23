@@ -556,3 +556,105 @@ selbst bleibt Nutzersache (A-025 deckt die EXE-Weitergabe).
 Netz- und Dateizugriffe des Codes (T-283b). **Nachpruefen ab:** Tag-Lauf
 `v1.13.1` (Assets, Job-Log, Text) · 2026-11-07 · Aenderung an `release.yml`,
 Spec oder `RELEASE_TEXT.md`.
+
+---
+
+## Stand 1.18.0 (compliance-agent, T-328b, Modus `pruefen`, Baum `7955a8a`, 2026-09-21)
+
+**Frage:** Entsteht durch die fuenf Releases 1.14.0 (`ffac292`) bis 1.18.0
+(`1ae6952`) eine neue Auflage, oder wechselt eine bestehende ihren Status?
+**Ergebnis: keine neue Auflage; vier Statuswechsel, alle zum Besseren
+(A-012, A-023, A-024, A-037). Nichts steht auf ROT.** Feststellung, keine
+Abnahme. Keine Rechtsberatung im rechtlichen Sinn. Nur Aenderungen gegen die
+Tabellen T-241a und T-283c; alles nicht Genannte gilt dort unveraendert fort.
+Rolle ohne git: der Diff `v1.13.1..v1.18.0` ist nicht selbst gezogen, geprueft
+wurde der heutige Baum gegen den in T-283c belegten Stand `1f51485`.
+
+| ID | Ampel | Stand 21.09. gegen `7955a8a` | Beleg |
+|---|---|---|---|
+| A-012 | GRUEN | **erfuellt** (war seit 01.09. ueberfaellig) | Die sieben Bildeinbindungen sind mit T-296 vom README in `docs/anleitung/guide.md` gewandert (Z. 32, 337, 364, 406, 463, 490, 511; gezaehlt); darueber steht **eine** Zeile ueber der Bilderfolge (Z. 25-28): "Every screenshot below is this tool's own interface, showing data read from a personal ELDEN RING NIGHTREIGN install. ELDEN RING NIGHTREIGN is the property of FromSoftware, Inc. and Bandai Namco Entertainment Inc." — genau der in T-267 verlangte Inhalt (Spieltitel, Rechteinhaber, Herkunft der Inhalte, einmal ueber der Folge). README traegt noch ein Bild (Z. 11) und den Rechteinhaber im Disclaimer derselben 94-Zeilen-Datei (Z. 58-62) — reicht in meiner Einschaetzung als deutliche Quellenangabe (§ 63 Abs. 1 UrhG, Fundstelle C-002); *empfohlen, nicht verlangt:* die Guide-Zeile auch unter README Z. 11 (technical-writer, eine Zeile) |
+| A-023 | GRUEN | **erfuellt, dauerhaft mechanisch** (war: "Einsatz beim Release offen") | `release.yml` Z. 160 `body_path: docs/release/RELEASE_BODY.md` (eingefuehrt T-284, `docs/tasks/T-284.md:27`, also vor 1.13.2); `RELEASE_BODY.md` Z. 1-4 Nicht-Verbundenheit und Rechteinhaber, Z. 22-27 Hinweispaket. Die Handarbeit des release-managers entfaellt; `docs/state.md` Z. 28-29 fuehrt alle fuenf Releases mit dieser Beschreibung, je 3 Assets |
+| A-024 | GRUEN | **erfuellt, dauerhaft mechanisch** | `RELEASE_BODY.md` Z. 6-16 Transparenztext einschliesslich Bibliothekssatz ("runs a small decompression program out of that installation folder") und "no network connection"; README Z. 64-72 wortgleich; Guide "Where your data lives" Z. 589-600 (Cache-Pfad, kein Netz, Loeschung = A-027) |
+| A-037 | GRUEN | **erfuellt** (war: neu, offen) | wie A-023: `body_path` in `release.yml` Z. 160; `generate_release_notes: true` (Z. 161) haengt die Commit-Liste nur an, ersetzt den Text nicht |
+| A-031 | GRUEN | Bedingung weiterhin nicht eingetreten | Spec Z. 97 weiterhin `upx=True`; `windows-latest` = Windows Server 2025, Image 20260913.261.1, kein UPX in der Werkzeugliste (<https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md>, abgerufen 21.09.2026); ROLLOUT.md Z. 498/524/545: keine UPX-Sektionen im Artefakt (T-265). Nebenfund `upx=False` bleibt Debt (`docs/state.md` Z. 64) |
+| A-022 | GRUEN | unveraendert erfuellt | `requirements.txt` Z. 4 PySide6==6.11.1 — kein Upgrade seit 1.13.1, keine Neu-Lektuere faellig |
+| A-020, A-021 | GRUEN | unveraendert erfuellt | `licenses/` 6 Volltexte (Glob 21.09.); `THIRD_PARTY.md` Z. 49-54 fuehrt alle fuenf Laufzeitabhaengigkeiten aus `requirements.txt` (pycryptodome, zstandard, PySide6/shiboken6, pillow, texture2ddecoder); Pillow bleibt Laufzeit (state.md Z. 36) — keine neue Abhaengigkeit in `requirements.txt` |
+| A-014 | GRUEN | eingehalten | `docs/screenshots/nightlords.png` heute angesehen: 10 Kartentexte + 1 Detailtext = **11 Prosabloecke**, identisch mit der S1-Grundlage vom 15.09.; Guide Z. 408-409 sagt selbst, das Bild sei vor dem Unterboss-Baum entstanden. `world_events.png` zeigt "Fell Omen", nicht "Curse of the Demon" (S2). **S1 gilt erneut, sobald das Nightlords-Bild fuer den Unterboss-Baum neu aufgenommen wird** (Zaehlung der Bloecke im Bericht; technical-writer, director) |
+| A-032 | — | kein Ereignis | Neu seit 1.13.1, nichts davon beruehrt eine Schwelle: zwei feste `QSettings`-Schluessel `hit_with`/`damage_type` (`nrplanner/advisorbar.py` Z. 137-138, 1039-1040; eigene Einstellung, Haushaltsausnahme wie Zeile "Effektmarkierung" oben); T-328a fuegt `hero` in derselben Bauform hinzu. EXTRACT_VERSION 13→16 (`nrdata/extract.py` Z. 84-103): weitere Param-Tabellen, Beute-Tabellen und Ereignisskripte (`nrdata/bossdata.py` Z. 724, 765-768) werden gelesen — **dieselben Archive, dieselben Schluessel, dieselbe spieleigene Entpackbibliothek**, kein neuer Umgehungsschritt. Kein Netz, kein Schreiben, keine Monetarisierung |
+
+**PyInstaller nach `requirements-dev.txt` (T-296):** keine Auflage. Der
+Bootloader steckt weiterhin in der EXE; die Lizenz ist GPL-2.0-or-later mit
+Bootloader-Ausnahme: *"The authors give you unlimited permission to link or
+embed compiled bootloader and related files into combinations with other
+programs, and to distribute those combinations without any restriction
+coming from the use of those files"*
+(<https://raw.githubusercontent.com/pyinstaller/pyinstaller/develop/COPYING.txt>,
+abgerufen 21.09.2026). `THIRD_PARTY.md` Z. 72 fuehrt ihn weiter. Hinweis,
+keine Auflage: `scripts/check_licences.py` liest nur `requirements.txt`
+(Z. 32-33) — die PyInstaller-Zeile in `THIRD_PARTY.md` ist damit nicht mehr
+maschinell bewacht; die sechs transitiven Pins in `requirements-dev.txt`
+(SEC-048) werden nicht gebuendelt (Spec analysiert `run.py`, `tests.yml`
+Z. 43-53 haelt pytest aus der Laufzeit).
+
+**Unveraendert offen, nicht weitergabesperrend:** A-002 (kein Waechter;
+Suche `A-001|prose|flavour` in `tests/`, `scripts/`: nur Kommentare, kein
+Fixture-Waechter), A-013 (`make_screenshots.py` Z. 141 nur `bosses[0]`,
+World Events weiterhin ohne festen Eintrag), A-029 (`vendor/Paramdex/NOTICE`
+Z. 41-44 "should be pinned"), A-015 (Nutzer). **Beim Nutzer:** A-033
+foermliche Abnahme, A-035 Bestaetigung — 60-Tage-Ende **2026-11-07**.
+
+**Entscheidungsvorlage:** (1) Der Nutzerentscheid vom 01.09. verlangt, das
+EULA-Restrisiko "bei jeder groesseren Aenderung an der Extraktion" erneut
+vorzulegen. Meine Einschaetzung: 13→16 ist keine solche — Mechanismus
+unveraendert, nur mehr Tabellen; A-025 (09.09., FORTSETZEN) deckt das.
+Sieht der Nutzer das anders, ist es ein `klaeren`-Auftrag, kein Register-
+eintrag. (2) A-033/A-035 wie oben.
+
+**Anwaltlich zu klaeren:** nichts. **Nicht geprueft:** der Git-Diff selbst
+und die fuenf Tags (Rolle ohne git/gh — A-034 nach Aktenlage `docs/state.md`
+Z. 20-26); die Job-Logs der fuenf Tag-Laeufe (A-008-Wirkung); ob das Lesen
+der Ereignisskripte (`bossdata.py`) erst seit 1.15.0 besteht (Annahme: ja,
+T-307); die ausgelieferten EXEs; das Social-Preview-Bild (A-017).
+**Nachpruefen ab:** Neuaufnahme der Screenshots (S1/S2) · Aenderung an
+`requirements.txt`, `release.yml`, Spec oder `RELEASE_BODY.md` · 2026-11-07.
+
+---
+
+## Klaerung C-007: Extraktion 12→16 und Ereignisskripte (compliance-agent, T-329a, Modus `klaeren`, Baum `e9bc8a0`, 2026-09-22)
+
+**Frage:** Ist EXTRACT_VERSION 12→16 — darunter das Lesen der
+EMEVD-Ereignisskripte — eine "groessere Aenderung an der Extraktion" (Z. 13-16),
+die das EULA-Restrisiko erneut vorlegt? **GRUEN — nein, keine erneute Vorlage;
+A-025 (09.09., FORTSETZEN) deckt den heutigen Stand.** Volltext, Normen und
+Fundstellen in `C-007.md`. Keine Rechtsberatung im rechtlichen Sinn.
+
+**Was die T-328b-Luecke schliesst:** Die Annahme "Ereignisskripte erst seit
+1.15.0" war **falsch**. `bossdata.py` las EMEVD→MSB fuer die Nightlords schon
+am **02.09.** (SEC-014, `security/findings.md` Z. 32) und vor T-167/09.09.
+(`docs/berichte/T-144-security-reviewer.md` Z. 67: `bossdata.py:320`
+`oodle.load`); T-307 (1.15.0) las aus derselben Dateiart eine zweite
+Instruktion (`2000[6]`, SEC-049: "Bauform von `_flag_entities`, jetzt auf 64
+statt 10 Karten"). 12→16 fuegt weder Schluessel noch Archiv noch
+Dekompressionsschritt hinzu; alles Neue sind Param-Tabellen aus
+`regulation.bin`, MSB-Karten (schon in `derive`) und die zweite
+EMEVD-Instruktion. § 95a UrhG, EULA 3(b)/10(i) und SSA 2.G am 22.09. neu
+abgerufen: Wortlaut der bewerteten Klauseln unveraendert; **die SSA ist am
+10.09.2026 neu gefasst worden** — die uebrigen Aenderungen nicht gelesen.
+
+| ID | Auflage | Ampel | Adressat | Faellig | Status |
+|---|---|---|---|---|---|
+| A-038 | **Schwellenregel "groessere Aenderung an der Extraktion"** (konkretisiert Nutzerentscheid 01.09., ergaenzt A-032). Erneut vorzulegen bei: (a) neuem Schluessel, neuem Archiv oder neuem Entschluesselungs-/Dekompressionsschritt; (b) Lesen von Programmcode (Spiel-EXE, DLLs, Shader/Lua) statt Daten; (c) jedem Schreiben in Spiel oder Spielstand; (d) Lesen fremder Installationen oder Spielstaende; (e) Buendeln extrahierter Spieldaten ins Repo oder Release. **Nicht** vorzulegen: weitere Tabellen, Instruktionen oder Dateiarten aus denselben Archiven mit denselben Schluesseln, lesend und lokal | — | director (Waechter), Nutzer (Entscheid) | dauerhaft | offen (dauerhaft) |
+
+**Nutzerentscheide 22.09.2026 21:58, eingetragen (Auftrag T-329a, woertlich:
+"Nein, keine [Beanstandung], A-033 abgenommen."):**
+
+| ID | Entscheidung | Folge |
+|---|---|---|
+| A-033 | **foermlich abgenommen durch den Nutzer 22.09.2026** | Status **erfuellt, abgenommen**; die Zeilen "Abnahme durch den Nutzer offen" (T-210, T-241a, T-283c, T-328b) sind damit ueberholt |
+| A-035 | **keine Beanstandung bis 22.09.2026** (GitHub, DMCA, Rechteinhaber, Bibliotheksautor, Steam) | Frist aus GPL-3.0 § 8 laeuft ungestoert; **letzte Ja/Nein-Frage am 07.11.2026** (60-Tage-Ende), danach Qt-Lizenz endgueltig wiederhergestellt |
+
+**Entscheidungsvorlage:** keine. **Anwaltlich zu klaeren:** nichts.
+**Nicht geprueft:** Git-Log/Diff (Rolle ohne git — Datierung nach drei
+Aktenstellen); TAE-Lesung vor 09.09. (unerheblich, dieselben Archive);
+SSA-Fassung 10.09.2026 ausser 2.G. **Nachpruefen ab:** Ereignis nach A-038
+(a)-(e) · naechste Klaerung: SSA 2.G/4.B einmal ganz lesen · 2026-11-07.

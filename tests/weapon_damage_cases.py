@@ -477,10 +477,13 @@ def build_for(data: dict, case: dict) -> model.Build:
     )
 
 
+def empty_slots() -> list[weaponslots.WeaponSlot]:
+    return [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
+
+
 def armament_slots(data: dict, case: dict) -> list[weaponslots.WeaponSlot]:
     """The six tiles this case puts on the grid."""
-    slots = [weaponslots.WeaponSlot()
-             for _ in range(weaponslots.SLOT_COUNT)]
+    slots = empty_slots()
     for entry in case["armaments"]:
         slots[entry["slot"]] = weaponslots.WeaponSlot(
             weapon=weapon_by_id(data, entry["weapon"]),

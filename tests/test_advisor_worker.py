@@ -37,7 +37,6 @@ from nrplanner import errortext
 from nrplanner.advisor import goals, run, types, worker
 
 from tests import advisor_cases as advisor
-from tests import weapon_damage_cases as cases
 
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
@@ -53,11 +52,6 @@ SLOW_SCORE_SECONDS = 0.00002
 #: otherwise hold the case for ever -- and nothing a green run reaches: the
 #: case lets the worker go in a `finally` a few statements after the cancel.
 HOLD_FUSE_S = 10.0
-
-
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
 
 
 class Recorder:
@@ -165,12 +159,6 @@ def scorings_of(question) -> int:
     counted = Watched()
     run.run(request, inventory, ctx, counted.registry)
     return counted.calls
-
-
-@pytest.fixture
-def question(game_data, wylder):
-    """One small question, and the material it is asked against."""
-    return advisor.a_question(game_data, wylder, count=4)
 
 
 @pytest.fixture

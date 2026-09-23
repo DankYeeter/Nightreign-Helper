@@ -28,8 +28,6 @@ from __future__ import annotations
 import os
 import pathlib
 
-from PySide6.QtCore import QSettings
-
 from nrdata import gamefiles
 
 from . import favourites
@@ -42,11 +40,6 @@ SAVE_KEY = "paths/save"
 # already far past the longest path Windows will hand out. Treated as damage
 # rather than trusted to pathlib, so that a stat() is never spent on it.
 MAX_STORED_CHARACTERS = 16_383
-
-
-def _settings() -> QSettings:
-    """The one store, under the names the environment may have moved."""
-    return QSettings(favourites.ORG, favourites.APP)
 
 
 def _remembered(key: str) -> pathlib.Path | None:
@@ -71,7 +64,7 @@ def _remembered(key: str) -> pathlib.Path | None:
     the registry it is the check below that catches that value instead -- the
     two cover one hole from two sides, and neither is spare.
     """
-    raw = _settings().value(key, "", type=str)
+    raw = favourites.settings().value(key, "", type=str)
     if not isinstance(raw, str):
         return None
     if not raw or "\0" in raw or len(raw) > MAX_STORED_CHARACTERS:
@@ -85,7 +78,7 @@ def _remembered(key: str) -> pathlib.Path | None:
 
 def _remember(key: str, path) -> None:
     """Write a confirmed path, as the operating system spells it."""
-    _settings().setValue(key, os.fspath(pathlib.Path(path)))
+    favourites.settings().setValue(key, os.fspath(pathlib.Path(path)))
 
 
 def remembered_game() -> pathlib.Path | None:

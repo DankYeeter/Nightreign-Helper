@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import os
 import pathlib
 import struct
 
@@ -723,6 +724,136 @@ def test_one_unreadable_save_does_not_hide_a_good_one(game_data, a_real_scan,
 
     assert found is not None, "the bad file took the good one down with it"
     assert found.owned
+
+
+# -- AK-366: the saves the automatic route passed over (QA-004) -----------
+
+
+def three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch):
+    """Two files that read as the frozen slot and one that cannot be read."""
+    good = [a_save_file(tmp_path / name, b"stands for the frozen slot")
+            for name in ("one", "two")]
+    bad = a_save_file(tmp_path, b"this is a screenshot")
+    monkeypatch.setattr(savefile, "find_saves", lambda: [*good, bad])
+    real_scan_save = inventory._scan_save
+
+    def the_good_ones_are_the_frozen_slot(path, *args, **kwargs):
+        if path in good:
+            return a_real_scan
+        return real_scan_save(path, *args, **kwargs)
+
+    monkeypatch.setattr(inventory, "_scan_save",
+                        the_good_ones_are_the_frozen_slot)
+    return good
+
+
+def test_an_unreadable_save_is_not_counted_as_passed_over(
+        game_data, a_real_scan, monkeypatch, tmp_path):
+    three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data).other_saves == 1
+
+
+def test_a_picked_save_passes_over_nothing(game_data, a_real_scan,
+                                           monkeypatch, tmp_path):
+    """`Find my save...` reads one file, whatever else the search finds."""
+    good = three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data, good[0]).other_saves == 0
+
+
+def test_a_single_save_passes_over_nothing(game_data, a_real_scan):
+    assert a_real_scan.other_saves == 0
+
+
+def test_two_saves_with_as_many_relics_are_a_tie(game_data, a_real_scan,
+                                                  monkeypatch, tmp_path):
+    """AK-366, decision 22.09.2026 22:45: both good files read as the frozen
+    slot, so neither has more relics and the newest one wins as a tie."""
+    three_saves_one_unreadable(tmp_path, a_real_scan, monkeypatch)
+
+    assert inventory.scan(game_data).other_saves_as_full
+
+
+def test_a_save_with_fewer_relics_is_no_tie(game_data, a_real_scan,
+                                            monkeypatch, tmp_path):
+    """The other half: the newer file holds one relic fewer, so the older
+    one wins outright and the line keeps "the one with more relics"."""
+    fuller = a_save_file(tmp_path / "older", b"stands for the frozen slot")
+    emptier = a_save_file(tmp_path / "newer", b"one relic fewer")
+    os.utime(fuller, (1, 1))
+    monkeypatch.setattr(savefile, "find_saves", lambda: [fuller, emptier])
+    one_fewer = dataclasses.replace(a_real_scan,
+                                    owned=a_real_scan.owned[1:])
+    monkeypatch.setattr(
+        inventory, "_scan_save",
+        lambda path, *args, **kwargs: (a_real_scan if path == fuller
+                                       else one_fewer))
+
+    found = inventory.scan(game_data)
+
+    assert found.owned == a_real_scan.owned
+    assert found.other_saves == 1
+    assert not found.other_saves_as_full
+
+
+@pytest.mark.parametrize("others, as_full, clause", [
+    (0, False, None),
+    (1, False, " — 1 other save was found; this is the one with more relics"),
+    (2, False,
+     " — 2 other saves were found; this is the one with the most relics"),
+    (1, True, " — 1 other save was found; this is the most recent of those "
+              "with the most relics"),
+    (2, True, " — 2 other saves were found; this is the most recent of "
+              "those with the most relics"),
+])
+def test_the_note_says_how_many_saves_were_passed_over(
+        store, game_data, qapp, a_real_scan, others, as_full, clause):
+    """AK-366 word for word, and the button that goes with it (22.09.2026).
+
+    Between the relic count and the builds clause. The stored builds are
+    left out for the reason `test_a_picked_save_with_relics_...` leaves them
+    out: taking one over rewrites the line.
+    """
+    answer = dataclasses.replace(a_real_scan, loadouts=[], other_saves=others,
+                                 other_saves_as_full=as_full)
+    read = StatedRead(answer)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        head = f"{len(answer.owned)} relics in {answer.source}"
+        if clause is None:
+            assert "other save" not in the_line(window)
+            assert not offers_to_find_the_save(window)
+        else:
+            assert the_line(window).startswith(
+                head + clause + " — this save stores no builds yet")
+            assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
+
+
+def test_the_first_import_keeps_the_clause_about_the_other_saves(
+        store, game_data, qapp, a_real_scan):
+    """QA-004 rest: taking the stored build over rewrote the line and the
+    clause of AK-366 went with it, while its button stayed."""
+    answer = dataclasses.replace(a_real_scan, other_saves=1)
+    read = StatedRead(answer)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_line(window).startswith("Loaded "), "no build was taken over"
+        assert the_line(window).endswith(
+            " — 1 other save was found; this is the one with more relics")
+        # The seam of 23.09.2026: the clause takes the place of the full stop.
+        assert ". —" not in the_line(window)
+        assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
 
 
 # -- AK-127 and AK-128: what these texts may not say ----------------------

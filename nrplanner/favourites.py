@@ -27,7 +27,7 @@ APP = os.environ.get("NIGHTREIGN_SETTINGS_APP") or "NightreignHelper"
 GROUP = "favourites"
 
 
-def _settings() -> QSettings:
+def settings() -> QSettings:
     return QSettings(ORG, APP)
 
 
@@ -91,7 +91,7 @@ def distinct(items) -> list:
 
 def heroes_for(item) -> set[int]:
     """Nightfarer ids this relic is favourited for."""
-    raw = _settings().value(f"{GROUP}/{key(item)}", "", type=str)
+    raw = settings().value(f"{GROUP}/{key(item)}", "", type=str)
     out = set()
     for part in str(raw).split(","):
         part = part.strip()
@@ -113,14 +113,14 @@ def set_favourite(item, hero_id: int, wanted: bool) -> None:
         heroes.add(hero_id)
     else:
         heroes.discard(hero_id)
-    settings = _settings()
+    store = settings()
     path = f"{GROUP}/{key(item)}"
     # An empty entry is a dead key that would be reloaded and re-parsed for
     # the rest of the save's life, so unfavouriting removes it outright.
     if heroes:
-        settings.setValue(path, ",".join(str(h) for h in sorted(heroes)))
+        store.setValue(path, ",".join(str(h) for h in sorted(heroes)))
     else:
-        settings.remove(path)
+        store.remove(path)
 
 
 def toggle(item, hero_id: int) -> bool:

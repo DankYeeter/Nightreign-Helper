@@ -34,11 +34,6 @@ DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 
 
-@pytest.fixture(scope="module")
-def wylder(game_data):
-    return cases.hero_by_name(game_data, "Wylder")
-
-
 def pool_for(inventory, problem, slot_index, ctx, rank_by=DAMAGE):
     return candidates.pool(inventory, problem, slot_index, ctx, goals.GOALS,
                            rank_by)
@@ -46,10 +41,6 @@ def pool_for(inventory, problem, slot_index, ctx, rank_by=DAMAGE):
 
 def names(pool: types.SlotPool) -> list[str]:
     return [candidate.name for candidate in pool.candidates]
-
-
-def handles(pool: types.SlotPool) -> list[int]:
-    return [candidate.handle for candidate in pool.candidates]
 
 
 # -- who is offered ---------------------------------------------------------
@@ -99,7 +90,7 @@ def test_a_deep_slot_and_an_ordinary_slot_see_different_relics(game_data,
 
     assert len(ordinary.candidates) == 2
     assert len(deep.candidates) == 2
-    assert not set(handles(ordinary)) & set(handles(deep))
+    assert not set(advisor.handles(ordinary)) & set(advisor.handles(deep))
     assert all(candidate.is_deep for candidate in deep.candidates)
     assert not any(candidate.is_deep for candidate in ordinary.candidates)
 
@@ -122,7 +113,7 @@ def test_a_copy_without_a_handle_is_not_offered_and_is_reported(game_data,
     # A set rather than a sorted list: with a handle-less copy in the pool,
     # sorting mixes None with ints and the case would die of a TypeError
     # instead of of the thing it is about.
-    assert set(handles(pool)) == {10, 12}
+    assert set(advisor.handles(pool)) == {10, 12}
     assert pool.unknowns, "a relic left out has to be said out loud (A7)"
     assert any("handle" in line for line in pool.unknowns)
 
@@ -264,46 +255,6 @@ def test_the_conditional_line_counts_this_pool_and_not_the_held_bundle(
         f"brought it: {pool.unknowns!r}")
 
 
-def test_a_conversion_the_figure_cannot_use_is_named(game_data, wylder):
-    """QA-113: a relic that moves a candidate's figure by exactly 0, said out loud.
-
-    Four relics of this dataset convert physical damage into an element --
-    `physicsAttackPower` -30 with `<element>AttackPower` +33 at the first of
-    four payload tiers. Since T-246 `damage.converted` counts them, but on the
-    Nightfarer's own armament in slot 1 only, and a candidate sits in no slot
-    (AD-020, point 3): its attack rating does not move by one part in a
-    million. On the picker that is a relic sitting at `0.00` with nothing
-    saying why, which is the exact picture AD-004 wrote the conditional line
-    to prevent, arriving through a different door.
-
-    **What this case does not do**: say what the conversion is worth to a
-    candidate. What it is worth on the starting armament is measured and
-    held in `tests/test_damage_conversion_against_the_game.py`; a candidate
-    has no slot to be the starting armament in.
-    """
-    converting = advisor.a_damage_type_conversion(game_data)
-    inventory = advisor.make_inventory(game_data, wylder, count=2,
-                                       rolls=[[converting],
-                                              advisor.raising_effects(
-                                                  game_data, wylder, 1)[0]])
-    ctx = advisor.context(game_data, wylder)
-    problem = advisor.problem([advisor.RED])
-
-    pool = pool_for(inventory, problem, 0, ctx)
-    gains = {candidate.handle: types.marginal_for(candidate, DAMAGE)
-             for candidate in pool.candidates}
-
-    assert gains[inventory.relics[0].handle] == 0.0, (
-        "the case needs a relic the figure really cannot use; this one moved "
-        "the attack rating, so there is nothing to report about it")
-    assert len(pool.unknowns) == 1, (
-        f"one relic converts and one does not, so one line: {pool.unknowns!r}")
-    assert "1" in pool.unknowns[0]
-    assert any("convert" in line for line in goals.GOALS[DAMAGE].scope), (
-        "the pool counts the relics and the registry has to say what the "
-        "count is about; without the scope sentence the number stands alone")
-
-
 def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
     """AD-014.5. On a vessel with two slots of one colour this is the
     difference between forty usable suggestions and none (AD-013, measured on
@@ -316,7 +267,7 @@ def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
 
     pool = pool_for(inventory, problem, 1, ctx)
 
-    assert held.handle not in handles(pool)
+    assert held.handle not in advisor.handles(pool)
     assert len(pool.candidates) == 2
 
 
@@ -335,7 +286,7 @@ def test_two_copies_of_one_roll_are_two_candidates(game_data, wylder):
     pool = pool_for(inventory, advisor.problem([advisor.RED]), 0, ctx)
 
     assert len(pool.candidates) == 2
-    assert len(set(handles(pool))) == 2
+    assert len(set(advisor.handles(pool))) == 2
 
 
 # -- what a candidate is measured against -----------------------------------
@@ -399,10 +350,10 @@ def test_the_base_state_of_a_slot_is_the_build_with_that_slot_emptied(
         if baseline.goal_id == SURVIVAL)
     assert baseline_value == pytest.approx(
         goals.GOALS[SURVIVAL].score(evaluate(emptied, (), ctx), ctx).value)
-    assert sitting.handle in handles(pool), (
+    assert sitting.handle in advisor.handles(pool), (
         "the relic already in the slot has to be offered for it, or it "
         "cannot be compared with what would replace it")
-    assert other.handle not in handles(pool), (
+    assert other.handle not in advisor.handles(pool), (
         "the other slot is still held, so its copy is still taken")
 
 
@@ -520,7 +471,7 @@ def test_two_runs_over_one_inventory_agree_about_a_tie(game_data, wylder):
     tied = {types.marginal_for(c, SURVIVAL) for c in first.candidates}
 
     assert len(tied) == 1, "the case needs candidates that really tie"
-    assert handles(first) == handles(again)
+    assert advisor.handles(first) == advisor.handles(again)
     assert names(first) == sorted(names(first))
 
 
@@ -560,7 +511,8 @@ def test_the_two_directions_really_order_one_slot_differently(game_data,
                                                              wylder))
     problem = advisor.problem([advisor.RED])
 
-    ranked = {asked: handles(pool_for(inventory, problem, 0, ctx, asked))
+    ranked = {asked: advisor.handles(pool_for(inventory, problem, 0, ctx,
+                                              asked))
               for asked in (DAMAGE, SURVIVAL)}
 
     assert sorted(ranked[DAMAGE]) == sorted(ranked[SURVIVAL]), (

@@ -144,10 +144,6 @@ def prepare(planner, game_data, hero, slots) -> None:
     planner.recompute()
 
 
-def empty_slots() -> list:
-    return [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
-
-
 def test_every_tile_shows_the_candidate_answer_for_the_chosen_tier(
         planner, game_data, hero):
     """The rendered AR is `damage.candidate()` at the tab's own tier.
@@ -157,7 +153,7 @@ def test_every_tile_shows_the_candidate_answer_for_the_chosen_tier(
     unrounded comparison over the whole dataset belongs to the differential
     track (`scripts/differential/rasters/arsenal_tab.json`), not here.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     build = planner.current_build()
 
@@ -207,7 +203,7 @@ def test_the_tab_ranks_at_its_spinbox_tier_and_not_at_the_slot_s(
     weapon = cases.weapon_by_id(game_data, hero["starting_weapon"])
     slot_tier, spinbox_tier = 3, 1
 
-    slots = empty_slots()
+    slots = cases.empty_slots()
     slots[0] = weaponslots.WeaponSlot(weapon=weapon, tier=slot_tier)
     prepare(planner, game_data, hero, slots)
 
@@ -286,7 +282,7 @@ def test_every_type_row_and_the_upgrade_line_match_the_facade(
     the total looks the same as not duplicating it -- so this case picks a
     multi-type one and reads every row the facade has an opinion on.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     build = planner.current_build()
     # Not MAX_UPGRADE: `reached` and the dataset's own ceiling would then be
@@ -371,7 +367,7 @@ def test_the_rarity_filter_agrees_with_the_section_count(
     imported, so a wrong `-1` in the tab has nothing to agree with by
     sharing the code that computes it.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     build = planner.current_build()
     tier = weapons.MIN_UPGRADE
@@ -431,7 +427,7 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
     against its own counter-build -- measured, on the first run of
     `arsenal-summary-reads-the-slider`.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     from_the_slider = planner.level_slider.value()
     elsewhere = weapons.MIN_UPGRADE    # any level the slider is not on
@@ -493,7 +489,7 @@ def test_the_summary_defines_every_figure_a_tile_can_carry(planner,
     The attack-rating sentence is checked here too, because that is the one
     QA-137's mutation M7 edits, and nothing in the suite read it.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     summary = planner.weapons_tab.summary.text()
 
     for sentence in (ATTACK_RATING_SENTENCE, SCALING_SENTENCE,
@@ -520,7 +516,7 @@ def test_a_spell_tile_names_its_figures_as_costs(planner, game_data, hero):
     themselves stay unguarded on purpose -- they are looked up, not computed
     -- and that is untouched here: this reads the labels, not the numbers.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     spell = next(s for s in game_data["spells"] if s.get("fp"))
 
@@ -552,14 +548,14 @@ def test_the_tab_opens_with_the_question_it_answers(planner, game_data, hero):
     """
     from tests import tabtext
 
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
     lines = tabtext.labels(tab)
 
     assert lines[0] == arsenaltab.HEADING
     assert lines[1] == arsenaltab.QUESTION
     assert tabtext.everything(tab).count(
-        "Spell damage is not in the game's data") == 1, (
+        "still shows what it costs you, not its damage") == 1, (
         "the spell sentence stands twice on this tab")
 
 
@@ -574,7 +570,7 @@ def test_the_summary_defines_both_figures_the_grid_can_show(planner,
     so both halves are checked: with the whole arsenal on screen, and with a
     grid holding nothing but catalysts.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
 
     assert CATALYST_SENTENCE in tab.summary.text(), (
@@ -629,7 +625,7 @@ def test_a_tile_names_its_stats_in_one_order_on_both_of_its_rows(
     shared stats the same way round. Under a set that holds only by luck, and
     the arsenal draws it over dozens of tiles at once.
     """
-    prepare(planner, game_data, hero, empty_slots())
+    prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
 
     tiles = tab.scroll.widget().findChildren(arsenaltab.Tile)

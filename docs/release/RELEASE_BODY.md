@@ -102,3 +102,34 @@ starts there.
   with the amount named in the "Why" line; the Filters window now groups
   effects by family under a shared Avoid header, with a per-member Allow to
   let one effect of an avoided family back into suggestions.
+- **1.15.0** — the Nightlords tab gained a sub-boss tree (Night bosses Day 1/
+  Day 2, Field bosses) with HP and loot for each; the Red variants tab drops
+  its "Examples" column now that those names appear in full there. The data
+  cache rebuilds once on first launch after this update (about 35 seconds,
+  plus the icon pack).
+- **1.16.0** — "Maximise damage" gained a "Damage type" choice (All,
+  Physical, Magic, Fire, Lightning, Holy, Skill attack (Weapon Arts only),
+  Sorceries, Incantations, or a spell school), remembered the next time you
+  start the program; the ranking, the "Why" line, the card headline and the
+  relic picker all follow it, and starting-armament conversion relics count
+  toward the figure. For a spell-type choice, the "Why" line also notes that
+  it scales the reference weapon's attack rating, not spell damage itself. A
+  choice that raises nothing you own no longer fills suggestion slots with
+  candidates that change nothing.
+- **1.17.0** — "Maximise damage" now asks two things: **Hit with** (Weapon,
+  Weapon art, Sorceries, Incantations, or a spell school) and **Damage
+  type** (All, Physical, Magic, Fire, Lightning, Holy); a spell row ranks
+  the spell your starting catalyst casts, and a "starting spell" relic
+  (for example Beast Claw) replaces it and counts as a candidate — spell
+  damage is uncalibrated, following the known Elden Ring formula. "Skill
+  attack" is renamed **Weapon art**. Both choices are remembered. The data
+  cache rebuilds once on first launch after this update (about 40
+  seconds). The opening window width now scales with your screen (90% of
+  available width, 1536-1959 px) instead of a fixed size.
+- **1.18.0** — the Build planner's damage block can now show a **Weapon
+  art** row (what your character skill adds on top of the Total; a
+  sentence instead of a figure on a staff or seal) and a **Spell damage**
+  row for a starting catalyst (the spell a "starting spell" relic sets, or
+  else the catalyst's default), each carrying only the change your relics
+  make to it. The "Why" line under a spell-school choice now names the
+  correct relic that moved a figure.
