@@ -64,7 +64,7 @@ def payload_needed(width: int, height: int, block_bytes: int) -> int:
 
 
 def decode(dds: bytes) -> tuple[int, int, bytes]:
-    """Return (width, height, RGBA bytes) for the top mip level."""
+    """Return (width, height, BGRA bytes) for the top mip level."""
     if dds[:4] != b"DDS ":
         raise NotWhatItClaims("not a DDS file")
     if len(dds) < HEADER_SIZE:
@@ -117,9 +117,4 @@ def decode(dds: bytes) -> tuple[int, int, bytes]:
             f"in DXGI format {dxgi} needs {needed}"
         )
 
-    raw = decoder(payload, width, height)
-
-    # texture2ddecoder returns BGRA; swap to RGBA.
-    out = bytearray(raw)
-    out[0::4], out[2::4] = out[2::4], out[0::4]
-    return width, height, bytes(out)
+    return width, height, decoder(payload, width, height)

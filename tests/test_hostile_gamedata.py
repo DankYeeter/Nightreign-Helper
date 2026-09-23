@@ -90,6 +90,19 @@ def test_a_payload_of_exactly_the_right_size_still_decodes():
     assert len(rgba) == IMAGE_EDGE * IMAGE_EDGE * 4
 
 
+def test_a_red_texture_comes_out_of_the_atlas_red():
+    """The decoder hands back BGRA; red and blue must not trade places."""
+    pytest.importorskip("PIL", reason="Pillow is needed to build an atlas")
+    red_565 = 0xF800
+    all_first_colour = b"\0" * 4
+    block = struct.pack("<HH", red_565, 0) + all_first_colour
+    source = icons.IconSource.__new__(icons.IconSource)
+    source._textures = {"atlas": dds_file(b"DXT1", 4, 4, block)}
+    source._decoded = {}
+
+    assert source._atlas_image("atlas").getpixel((0, 0)) == (255, 0, 0, 255)
+
+
 def test_the_needed_size_counts_a_partial_edge_block_whole():
     # 5x5 is two blocks by two, not one and a quarter: the decoder walks whole
     # blocks, so a bound that rounded down would be a bound below the read.
