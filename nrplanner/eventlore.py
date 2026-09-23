@@ -13,19 +13,18 @@ line the extracted data already answers. What is left doing real work here is
 the *prose* -- how an event behaves in play, which the params never describe --
 plus the recorded disagreements between sources.
 
-`nightlords` entries are kept but no longer displayed for any event whose
-gating resolved (see `nrdata.extract.EVENT_MODIFIER`). They stay as the record
-of what was claimed before the files confirmed it, and because the eight exact
-pool matches are what identified the modifiers in the first place -- deleting
-them would erase the evidence for the identification.
+The tab reads only the keys it displays. Provenance lives in comments at each
+entry: `# sources:` names the write-ups, `# community nightlords:` records the
+gating claimed before the files confirmed it (see
+`nrdata.extract.EVENT_MODIFIER`) -- the eight exact pool matches are what
+identified the modifiers in the first place, so this is kept as evidence --
+and `# confirmed in a run:` holds what a player watched happen, a third class
+of evidence above the wikis and below a param read. Only `UNANNOUNCED` entries
+keep a `nightlords` key, because they have no extracted gating to show.
 
 **Occurrence chance is still absent here and must stay absent.** The tab now
 shows pool shares read from the map patterns; no source publishes a real
 per-event percentage, so none is written down.
-
-A `confirmed` key holds something a player watched happen in a run. It is a
-third class of evidence, above the wikis and below a param read, and the tab
-gives it its own colour so it is never mistaken for either.
 
 Sources, fetched 2026-08-09 unless dated otherwise:
   fextralife   https://eldenringnightreign.wiki.fextralife.com/Events
@@ -61,8 +60,8 @@ LORE: dict[int, dict] = {
             "Only the trigger is reported: the debuff lands if the Fell Omen "
             "kills the player it is hunting. Its size is extracted above."
         ),
-        "nightlords": ["Adel", "Gnoster", "Heolstor"],
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # community nightlords: Adel, Gnoster, Heolstor
+        # sources: fextralife, eldenpedia, game8
     },
     11120: {
         "buff_id": 8970020,
@@ -79,7 +78,7 @@ LORE: dict[int, dict] = {
             "Wound debuff the Fell Omen inflicts; nothing in the files ties "
             "that debuff to this event, so it is not shown as a penalty."
         ),
-        "nightlords": ["Gnoster", "Caligo", "Heolstor"],
+        # community nightlords: Gnoster, Caligo, Heolstor
         "conflict": (
             "Community write-ups disagree over which creature belongs to "
             "this event and what its passive is called. The game's own "
@@ -87,7 +86,7 @@ LORE: dict[int, dict] = {
             "bubbles was felled\" and the locust one with \"Find the enemy "
             "who is stealing runes\"."
         ),
-        "sources": ["fextralife", "game8"],
+        # sources: fextralife, game8
     },
     11130: {
         "buff_id": 8970030,
@@ -110,21 +109,19 @@ LORE: dict[int, dict] = {
             "of the run. Refusing the deal is its own outcome — the game "
             "announces \"A failed deal has sown enmity\"."
         ),
-        "confirmed": (
-            "The 15,000 / 35,000 prices are right, read off the screen. The "
-            "curse for not paying lasts the whole expedition — it survives "
-            "the day 1 and day 2 transitions and is still on the party for "
-            "the Nightlord. Paying also lets the team take one of the "
-            "merchant's deals at no cost."
-        ),
-        "nightlords": ["Caligo", "Fulghor", "Heolstor"],
+        # confirmed in a run: the 15,000 / 35,000 prices are right, read off
+        # the screen. The curse for not paying lasts the whole expedition --
+        # it survives the day 1 and day 2 transitions and is still on the
+        # party for the Nightlord. Paying also lets the team take one of the
+        # merchant's deals at no cost.
+        # community nightlords: Caligo, Fulghor, Heolstor
         "conflict": (
             "Community write-ups split on whether killing it lifts the "
             "curse or leaves the HP cut on for the whole run. The game's own "
             "outcome banner for that branch reads \"Foe felled, cleansing "
             "the curse\", so killing it does cleanse."
         ),
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # sources: fextralife, eldenpedia, game8
     },
     11140: {
         "buff_id": 8970010,
@@ -140,8 +137,8 @@ LORE: dict[int, dict] = {
             "size of that proc is extracted above."
         ),
         "penalty": "Levels lost to the swarms stay lost if you never reach it.",
-        "nightlords": ["Maris", "Libra", "Heolstor"],
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # community nightlords: Maris, Libra, Heolstor
+        # sources: fextralife, eldenpedia, game8
     },
     11150: {
         "name": "Additional Night Boss",
@@ -151,14 +148,14 @@ LORE: dict[int, dict] = {
         ),
         "reward": "A second set of boss rewards — Dormant Powers and runes.",
         "penalty": "You have to beat it; a team caught unprepared can lose the run there.",
-        "nightlords": ["Adel", "Fulghor"],
+        # community nightlords: Adel, Fulghor
         "uncertain": (
             "This is the least certain pairing on the tab. The game announces "
             "\"The Night threatens us anew\" and never announces it ending, "
             "which fits an extra boss, but nothing in the files ties that "
             "banner to this community-named event."
         ),
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # sources: fextralife, eldenpedia, game8
     },
     11160: {
         "creature_chr": 4680,
@@ -170,8 +167,8 @@ LORE: dict[int, dict] = {
         ),
         "reward": "Epic-tier loot; reported as reliably Epic-rarity Dormant Powers.",
         "penalty": "None. Skipping it costs only the loot.",
-        "nightlords": ["Gladius", "Adel", "Caligo"],
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # community nightlords: Gladius, Adel, Caligo
+        # sources: fextralife, eldenpedia, game8
     },
     11170: {
         "name": "Hordes of the Night",
@@ -182,8 +179,8 @@ LORE: dict[int, dict] = {
         ),
         "reward": "Runes and a buff improving Ultimate Art gauge charge speed.",
         "penalty": "None reported.",
-        "nightlords": ["Gladius", "Maris", "Fulghor"],
-        "sources": ["fextralife", "eldenpedia"],
+        # community nightlords: Gladius, Maris, Fulghor
+        # sources: fextralife, eldenpedia
     },
     11180: {
         "name": "Flame of Frenzy",
@@ -198,9 +195,9 @@ LORE: dict[int, dict] = {
             "Vyke's War Spear."
         ),
         "penalty": "Madness builds the longer you stay in the area looking at it.",
-        "nightlords": ["Gnoster", "Libra", "Harmonia"],
+        # community nightlords: Gnoster, Libra, Harmonia
         "note": "Widely reported as one of the rarest events in the game.",
-        "sources": ["fextralife", "eldenpedia"],
+        # sources: fextralife, eldenpedia
     },
     110000: {
         "buff_id": 8970050,
@@ -216,13 +213,13 @@ LORE: dict[int, dict] = {
         # never draw this event on a Gladius expedition. An earlier entry
         # here read "Gladius" as the gating; it was the subject, not the
         # host.
-        "nightlords": [],
+        # community nightlords: none
         "note": (
             "Reported to trigger at exactly five minutes into Day 1, and "
             "only in Deep of Night on the base Nightlords — the DLC-added "
             "pattern block the extracted lines point at."
         ),
-        "sources": ["fextralife", "thefifthmatt"],
+        # sources: fextralife, thefifthmatt
     },
     110050: {
         "buff_id": 8970060,
@@ -233,12 +230,12 @@ LORE: dict[int, dict] = {
         ),
         "reward": "All flask charges restored, plus the Power to Balance the World buff.",
         "penalty": "Half your flask charges for as long as the event runs.",
-        "nightlords": [],
+        # community nightlords: none
         "note": (
             "Reported to trigger at exactly five minutes into Day 1, and "
             "only in Deep of Night on the base Nightlords."
         ),
-        "sources": ["fextralife", "thefifthmatt"],
+        # sources: fextralife, thefifthmatt
     },
     110200: {
         "buff_id": 8970040,
@@ -249,14 +246,14 @@ LORE: dict[int, dict] = {
         "reward": ("The Cold Mirage effect — concealment near death, "
                    "neutralising attacks."),
         "penalty": "None reported.",
-        "nightlords": [],
+        # community nightlords: none
         "note": (
             "The dragon is reported as Caligo's own form, which fits the "
             "files never drawing this event on a Caligo expedition. Reported "
             "to trigger at exactly five minutes into Day 1, and only in Deep "
             "of Night on the base Nightlords."
         ),
-        "sources": ["fextralife", "thefifthmatt"],
+        # sources: fextralife, thefifthmatt
     },
 }
 
@@ -280,7 +277,7 @@ UNANNOUNCED: list[dict] = [
             "The files go one further: this event is drawn for Maris, "
             "Caligo and Harmonia, and for nobody else."
         ),
-        "sources": ["fextralife", "eldenpedia", "game8"],
+        # sources: fextralife, eldenpedia, game8
     },
     {
         "name": "Difficult Sorcerer's Rise",
@@ -291,7 +288,7 @@ UNANNOUNCED: list[dict] = [
         "reward": "Whatever the Rise holds; nothing beyond the usual is reported.",
         "penalty": "None.",
         "nightlords": ["Gnoster", "Libra", "Harmonia"],
-        "sources": ["thefifthmatt"],
+        # sources: thefifthmatt
     },
     {
         "name": "Scale-Bearing Merchant",
@@ -305,7 +302,7 @@ UNANNOUNCED: list[dict] = [
         "reward": "Stat boosts, flask charges, runes, or a powerful weapon.",
         "penalty": "Each wish carries its own cost — stats, HP, or levels.",
         "nightlords": [],
-        "sources": ["fextralife", "game8"],
+        # sources: fextralife, game8
     },
     {
         "name": "Cataclysm",
@@ -316,6 +313,6 @@ UNANNOUNCED: list[dict] = [
         "reward": "Runes and Dormant Powers; the Condemned drop a +2 starter weapon.",
         "penalty": "None beyond the tougher enemies.",
         "nightlords": ["Any"],
-        "sources": ["fextralife", "game8"],
+        # sources: fextralife, game8
     },
 ]
