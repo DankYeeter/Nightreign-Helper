@@ -17,7 +17,7 @@ import json
 
 import pytest
 
-from nrplanner import iconpack
+from nrplanner import iconpack, paths
 
 
 @pytest.fixture
@@ -46,8 +46,7 @@ def planted_pack(tmp_path, qapp, monkeypatch):
         "ui": {"sprite": "../outside/evil.png", "ok": "good.png"},
     }), encoding="utf-8")
 
-    monkeypatch.setattr(iconpack.IconPack, "locate",
-                        staticmethod(lambda: pack_dir))
+    monkeypatch.setattr(paths, "icons_dir", lambda: pack_dir)
     return iconpack.IconPack(), outside, outside.read_bytes()
 
 

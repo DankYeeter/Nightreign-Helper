@@ -15,8 +15,7 @@ import pathlib
 import pytest
 
 from nrdata import iconbuild
-from nrplanner import firstrun
-from nrplanner.iconpack import IconPack
+from nrplanner import firstrun, paths
 
 #: One entry of each shape the manifest has: id -> file, and the variants'
 #: hero -> [{"id", "file"}].
@@ -35,7 +34,7 @@ PROMISED = ["hero_1.png", "item_200.png", "variant_49000.png", "ui_slot.png"]
 def pack(tmp_path, monkeypatch) -> pathlib.Path:
     """A pack folder the launch check looks at, with a current manifest."""
     (tmp_path / "manifest.json").write_text(json.dumps(MANIFEST))
-    monkeypatch.setattr(IconPack, "locate", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(paths, "icons_dir", lambda: tmp_path)
     # Not under test here: a snapshot that is missing is simply reported.
     monkeypatch.setattr(firstrun, "bundled_path",
                         lambda: tmp_path / "no-snapshot.json")

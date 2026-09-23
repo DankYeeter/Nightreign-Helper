@@ -83,10 +83,8 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
         except Exception:  # noqa: BLE001 - an unreadable snapshot is a rebuild
             needed.append("snapshot")
 
-    # Same for the icon pack: whichever one IconPack would find.
-    from .iconpack import IconPack
-
-    pack = IconPack.locate()
+    # Same for the icon pack IconPack reads.
+    pack = paths.icons_dir()
     icon_manifest = pack / "manifest.json"
     if not icon_manifest.exists():
         needed.append("icons")
