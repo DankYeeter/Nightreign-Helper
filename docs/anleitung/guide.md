@@ -474,9 +474,10 @@ What each of the five Depths changes, in the order the questions get asked.
   the game sorts enemies into groups without recording which creature is in
   which.
 - **What moves your rating** — a win, and what each kind of loss costs, per
-  Depth. This block is **not** from the game files and says so on itself: no
-  param holds it. The win value and Depth 1 costing nothing are confirmed in
-  game; the bonuses and the loss table are community-reported.
+  Depth. No param in the game holds these figures; they read like every other
+  value on the tab, with nothing marking them apart. The win value and Depth 1
+  costing nothing are confirmed in game; the map bonus and the loss table are
+  reported by the community and corroborate each other.
 - **What else changes with depth** — the chance of a second cataclysm, of the
   map or the Nightlord being hidden from you, and the rates at which relics
   come cursed. Read from the game's own depth table.
@@ -518,9 +519,10 @@ carries the event — the closest thing to "how likely am I to see this" the
 game's data supports. The demon's card lists everything the demon can do, in
 the game's own words.
 
-Anything shown in blue is community-reported and could not be verified against
-the game's data. The three expansion events are tagged **Deep of Night only**,
-and events with no announcement banner are marked *no banner*.
+The card text draws on both the game's own data and community write-ups;
+both read alike, with nothing on screen marking one apart from the other. The
+three expansion events are tagged **Deep of Night only**, and events with no
+announcement banner are marked *no banner*.
 
 ---
 
@@ -691,17 +693,22 @@ thrown away.
 
 ## How values are derived
 
-One rule runs through the whole project: **every value comes from the game files,
-and anything that does not is labelled.**
+One rule runs through the whole project: **every value comes from the game
+files, save a handful the game does not track at all — and those read like
+every other value, with nothing on screen setting them apart.**
 
 In practice that means stacking rules are read from the game's own exclusivity
 keys rather than inferred from a shared category; conditional effects stay out of
 the flat totals rather than being applied unconditionally; and where a chain from
 the menu to the underlying data cannot be closed, the tab says so on itself.
 
-The handful of figures that genuinely are not in the files — the expedition
-rating table, the cataclysm split — are marked *confirmed in game* or
-*community-reported* where they appear, never presented as extracted data.
+The figures that genuinely are not in the files are the Deep of Night rating
+table (see [Deep of Night](#5-deep-of-night)), part of the Red variants intro
+— the weapon-drop and Everdark Sovereign lines (see [Red
+variants](#6-red-variants)) — and part of the World Events prose (see [World
+Events](#7-world-events)). None of them is marked *confirmed in game* or
+*community-reported* on screen — that distinction lives only in this
+document.
 
 It also means a field is shown only when it is understood. Some values in the
 game's tables are pointers into other tables rather than quantities, and a few
