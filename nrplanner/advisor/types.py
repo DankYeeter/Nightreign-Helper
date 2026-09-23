@@ -237,6 +237,11 @@ class AdvisorRequest:
     hero_id: int
     level: int
     problem: SlotProblem
+    #: The player's choice on the Advisor bar's track, an ordering and
+    #: nothing else on the picker's (Nachtrag IX-2): the picker asks under
+    #: `goals.CANONICAL_POOL_ORDER` whatever the player selected, because a
+    #: pool serves every direction (AK-43, AK-205). Taking the picker's
+    #: `goal_id` for the choice repeats T-077 at `SlotPool.rank_by`'s twin.
     goal_id: str
     weighting_id: str
     #: The armament the damage goal ranks on, `None` when none is chosen
@@ -273,15 +278,6 @@ class AdvisorRequest:
     #: reads the save; the advisor never recomputes it from a live inventory.
     inventory_fingerprint: str = ""
     generation: int = 0
-    #: `goal_id` is the player's choice on the Advisor bar's track and an
-    #: ordering and nothing else on the picker's (Nachtrag IX-2): the picker
-    #: asks under one fixed direction whatever the player selected, because a
-    #: pool serves every direction and only its order depends on one, and the
-    #: screen draws in the program's one goal setting (AK-43, AK-205). A
-    #: reader that took the picker's `goal_id` for the player's choice would
-    #: repeat the fault behind 10,2 % silently wrong figures at this field's
-    #: twin (`SlotPool.rank_by`, T-077) -- so the picker says so here.
-    pool_order_only: bool = False
 
 
 # --- the answer ------------------------------------------------------------

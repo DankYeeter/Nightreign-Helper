@@ -333,32 +333,6 @@ def test_asking_for_a_slot_the_vessel_has_not_got_is_a_failure():
         types.slot_at(A_PROBLEM, 5)
 
 
-# --- one field, two meanings, told apart by a flag (Nachtrag IX-2) --------
-
-
-def a_request(**fields) -> types.AdvisorRequest:
-    return types.AdvisorRequest(hero_id=1, level=10, problem=A_PROBLEM,
-                                goal_id="max_damage", weighting_id="even",
-                                **fields)
-
-
-def test_a_direction_handed_in_plainly_is_the_players_choice():
-    """Every caller but the picker means the choice, and says nothing."""
-    assert a_request().pool_order_only is False
-
-
-def test_an_ordering_stays_one_through_every_derived_request():
-    """`dataclasses.replace` is how every request in this program is made.
-
-    The cache key is a `replace`, the controller fills in two fields with
-    one, and the picker builds its question from the window's. A flag that
-    came off on the way through would leave the picker's request looking like
-    a choice at exactly the place a reader would trust it.
-    """
-    derived = dataclasses.replace(a_request(pool_order_only=True), generation=7)
-    assert derived.pool_order_only is True
-
-
 def test_a_pool_carries_the_generation_of_the_asking_and_nothing_else():
     """AD-006 point 3: the controller decides by it, so the answer has it.
 

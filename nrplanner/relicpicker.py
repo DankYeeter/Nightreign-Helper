@@ -447,10 +447,10 @@ class SlotAdvice:
     dialog's part is in `RelicPicker`.
 
     **The direction asked under is not the direction drawn in** (Nachtrag
-    IX-2). The track is asked under `goals.CANONICAL_POOL_ORDER`, marked
-    `pool_order_only` so no reader can take it for the player's choice: a pool
-    measures every candidate under every direction, so one entry serves both,
-    and the same slot opened under the two directions is one question rather
+    IX-2). The track is asked under `goals.CANONICAL_POOL_ORDER`, never the
+    player's choice (see `AdvisorRequest.goal_id`): a pool measures every
+    candidate under every direction, so one entry serves both, and the same
+    slot opened under the two directions is one question rather
     than two. What the screen draws in is `goal_id()` below.
 
     **The answer may arrive after the dialog has gone.** The track lives at
@@ -519,8 +519,7 @@ class SlotAdvice:
             held=tuple(advisorbar.held_slot(index, card)
                        for index, card in enumerate(cards)
                        if index != open_index))
-        request = dataclasses.replace(asking.request, problem=problem,
-                                      pool_order_only=True)
+        request = dataclasses.replace(asking.request, problem=problem)
         known = self._track.ask_and_answer_if_known(
             request, asking.inventory, asking.ctx)
         if known is not None:
