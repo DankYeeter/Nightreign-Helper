@@ -1398,7 +1398,8 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     ctx = advisorbar.asking_from(planner, rank_by).ctx
     if as_the_bar_asked_before_a16:
         ctx = dataclasses.replace(
-            ctx, declared=tuple(sorted(planner.declared.items())))
+            ctx, declared=tuple(sorted(planner.declared.items())),
+            assumed_armament_counts=())
     if as_the_bar_asked_before_a17:
         ctx = dataclasses.replace(
             ctx,

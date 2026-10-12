@@ -54,7 +54,7 @@ from collections.abc import Callable, Mapping
 
 from .. import model
 from . import types
-from .evaluate import evaluate
+from .evaluate import evaluate_per_goal
 
 
 def base_state_for(problem: types.SlotProblem,
@@ -230,12 +230,12 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                        f"{sorted(goals)}")
     slot = types.slot_at(problem, slot_index)
     base_problem = base_state_for(problem, slot_index)
-    base_build = evaluate(base_problem, (), ctx)
+    base_builds = evaluate_per_goal(base_problem, (), ctx, goals)
     # The whole answer, not only its number: what a direction could not know
     # about *this* run is the half that used to stop at the pool boundary
     # (QA-102). The procedural half is not here and must not be -- it is read
     # off the registry, once for the screen (AD-025).
-    base_scores = {goal_id: goal.score(base_build, ctx)
+    base_scores = {goal_id: goal.score(base_builds[goal_id], ctx)
                    for goal_id, goal in goals.items()}
     taken = types.held_handles(base_problem)
 
@@ -256,11 +256,11 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
         if relic.handle is None or relic.handle in taken:
             continue
         candidate = _offer(slot, relic)
-        build = evaluate(base_problem, (candidate,), ctx)
-        if _brought_an_uncounted_condition(build, candidate):
+        builds = evaluate_per_goal(base_problem, (candidate,), ctx, goals)
+        if _brought_an_uncounted_condition(builds[rank_by], candidate):
             conditional += 1
         marginals = tuple(
-            types.Marginal(goal_id, goal.score(build, ctx).value
+            types.Marginal(goal_id, goal.score(builds[goal_id], ctx).value
                            - base_scores[goal_id].value)
             for goal_id, goal in goals.items()
         )

@@ -1063,7 +1063,9 @@ def test_a_declared_condition_outlives_the_baseline(planner):
 
     An effect the baseline would set to 1 is declared at 3 by the player;
     the run carries the declaration as the player made it, in the context
-    and in the key, and every other switchable condition at the baseline.
+    and in the key, and every other switchable condition at the baseline --
+    the armament-count ones apart from `declared`, because only one armament
+    type of them may hold in a build (QA-299).
     """
     from nrplanner import model
 
@@ -1074,7 +1076,9 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     declared = dict(asking.ctx.declared)
     assert declared[effect] == 3, "the baseline overwrote what the player declared"
     assert asking.request.declared == asking.ctx.declared
-    assert declared.keys() >= set(model.advisor_defaults())
+    assumed = set(asking.ctx.assumed_armament_counts)
+    assert assumed and not assumed & declared.keys()
+    assert declared.keys() | assumed >= set(model.advisor_defaults())
 
 
 def test_the_marked_sets_reach_the_problem_the_window_asks(planner):

@@ -411,6 +411,13 @@ class GoalContext:
     armament_effect_ids: tuple[int, ...] = ()
     #: effect id -> how many times its condition is declared met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: Armament-count conditions ("3+ X Equipped") the baseline counts as
+    #: met, sorted -- for **one** armament type per build, which `evaluate`
+    #: picks (AD-036.6, addendum 12.10.2026, QA-299). Apart from `declared`
+    #: because which of them hold depends on the build, and a declaration by
+    #: hand is never narrowed. Not in the key: it is the dataset's
+    #: armament-count ids less the hand-declared ones, both already there.
+    assumed_armament_counts: tuple[int, ...] = ()
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).

@@ -1073,7 +1073,7 @@ def _spell_path_contributions(problem: types.SlotProblem,
                 continue
             without = _without_the_curse(chosen, candidate, effect_id)
             without_build = evaluate(problem, without, ctx,
-                                     want_qualitative=False)
+                                     want_qualitative=False, goal=goal)
             delta = (goal.score(built, ctx).value
                     - goal.score(without_build, ctx).value)
             if not delta:
@@ -1143,7 +1143,7 @@ def _felt_by_the_goal(problem: types.SlotProblem,
         carrier = moved[0].candidate
         without = _without_the_curse(chosen, carrier, moved[0].effect_id)
         without_build = evaluate(problem, without, ctx,
-                                 want_qualitative=False)
+                                 want_qualitative=False, goal=goal)
         felt[carried] = ranked - goal.score(without_build, ctx).value
     return felt
 

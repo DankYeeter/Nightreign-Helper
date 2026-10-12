@@ -47,7 +47,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
                                QPushButton, QSizePolicy, QWidget)
 
-from . import damage, favourites, model, weapons
+from . import damage, effecttext, favourites, model, weapons
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .advisor.worker import AdvisorController
@@ -521,9 +521,16 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # player's own declarations are merged over it, so a condition they
     # declared stands as declared. Sorted, not in `dict` order: a cache key
     # that depended on the order the player happened to flip the switches
-    # would miss its own entries.
-    declared = tuple(sorted({**model.advisor_defaults(),
-                             **planner.declared}.items()))
+    # would miss its own entries. The armament-count conditions the player
+    # did not declare travel apart, because only one armament type of them
+    # may hold in a build, and which one is the build's (QA-299).
+    baseline = {**model.advisor_defaults(), **planner.declared}
+    effects = planner.data["effects"]
+    assumed = {effect_id for effect_id in baseline
+               if effect_id not in planner.declared
+               and effecttext.counts_armaments(effects[str(effect_id)])}
+    declared = tuple(sorted(item for item in baseline.items()
+                            if item[0] not in assumed))
     weighting = advisor_goals.DEFAULT_WEIGHTING
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
@@ -551,6 +558,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference=reference,
         weighting=weighting,
         declared=declared,
+        assumed_armament_counts=tuple(sorted(assumed)),
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,

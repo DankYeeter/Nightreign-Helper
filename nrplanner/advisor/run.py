@@ -52,7 +52,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from .. import model
 from . import candidates, explain, search, types
-from .evaluate import evaluate
+from .evaluate import evaluate, evaluate_per_goal
 from .goals import _ranked_on_choice, chosen_label
 from .types import never_cancelled
 
@@ -325,7 +325,7 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
     (AD-014.1).
     """
     chosen = explain.chosen_for(suggestion, pools)
-    built = evaluate(problem, chosen, ctx)
+    built = evaluate(problem, chosen, ctx, goal=goal)
     groups = explain.reasons(problem, chosen, base, built, ctx, goal)
     return dataclasses.replace(suggestion, reasons=groups), chosen, built
 
@@ -379,8 +379,9 @@ def run(request: types.AdvisorRequest, inventory,
     found = search.beam(problem, pools, request.budget,
                         search.goal_scorer(problem, ctx, goal), should_cancel)
 
-    base = evaluate(problem, (), ctx)
-    base_scores = {goal_id: entry.score(base, ctx)
+    bases = evaluate_per_goal(problem, (), ctx, goals)
+    base = bases[goal.id]
+    base_scores = {goal_id: entry.score(bases[goal_id], ctx)
                    for goal_id, entry in goals.items()}
 
     suggestions = []
