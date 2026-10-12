@@ -1,7 +1,7 @@
 # Stand
 
-2026-09-23 22:25, **Zyklus 31 (T-332) am Gate: Exe 1.19.0 gebaut, nicht
-veroeffentlicht; Ingame-Test des Nutzers offen**. Branch
+2026-10-12 21:30, **Zyklus 32 (T-333) autonom: Fix QA-299, dann Neubau
+1.19.0; Ingame-Test des Nutzers offen**. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -120,32 +120,27 @@ Probleme gemeldet. A-035 erledigt: keine Beschwerden. NH-011 umgesetzt
    **bleibt** (Beispiel "Improved Attack Power with 3+ Bows Equipped").
 3. A11 power-user-Nachweis: **bleibt** (automatisierter Laientest).
 
-## Zyklus 31 (T-332, autonom ab 23.09. 19:35)
+## Zyklus 31 (T-332, 23.09.) — Bau 1.19.0 `7fc3e43`, QA/Security/clean-room PASS; Details `docs/tasks/T-332.md`
 
-Nutzer 19:35: autonom ohne Zeitgrenze bis die Exe gebaut ist; Stopp nur bei
-Sicherheit, Datenverlust, Blocker. Warteschlange = die Punkte unten, keine
-neuen Kriterien. Ende: Gate mit gebauter Exe, Nutzer testet ingame, erst dann
-Veroeffentlichung (Tag, PR). GOAL.md-Nicht-Ziel "Wiki-Daten" geaendert
-(Nutzerfreigabe 19:35). Reihenfolge: a Community + b Hook + Register-Triage
-parallel → Ponytail-Audit/Debt → ein Fixauftrag → QA (Quelle) + Security →
-Fixes → technical-writer → release-manager build+notes → power-user → Gate.
+## Zyklus 32 (T-333, autonom ab 12.10. 21:28, Budget 6 h bis 03:28)
 
-**Ergebnis (22:25, Gate):** a Community `0a4545b`, b Hook `f773c10`, Triage
-`72aeb8a` (176 QA + 24 SEC geschlossen/behoben mit Beleg, 89 QA + 9 SEC
-unveraendert offen), Audit c/d (net ca. -90 Zeilen; Fund 1 Snapshot-Felder
-nicht beauftragt: EXTRACT_VERSION-Sprung), Guide `6e11404`, QA T-332f
-CONCERNS → h Fixe (SEC-052, QA-297) → Retest T-332i PASS (Suite 1941/9,
-21:42), Security T-332g PASS, Bau 1.19.0 `7fc3e43`, clean-room T-332k PASS
-(inkl. Update 1.18.0→1.19.0). **power-user abgebrochen 22:24 (Nutzer: Fenster
-stiehlt Fokus)** — kein Laiennachweis fuer 1.19.0; A11 bleibt teilweise.
-Details `docs/tasks/T-332.md`.
+Nutzer 21:28: "arbeite 6 stunden autonom weiter oder bis dir nichts mehr
+einfaellt". Warteschlange (keine neuen Kriterien): T-333f Fix QA-299 (hoechstens
+eine Waffenart-Bedingung, Nutzer 21:15, AD-036.6-Nachtrag) → QA-Retest am
+Quellstand → `release-manager` build+notes 1.19.0 neu → Gate: Ingame-Test des
+Nutzers, kein Tag. Ende: sync-out Branch, Gate-Protokoll; PR erst nach
+Ingame-Freigabe. Bisher: Treiber `05143d2` ohne Maus/SetForegroundWindow;
+Fokusraub sitzt im Windows-UIA-Kern (T-333c/d), Umbau ruht — Fensterlaeufe
+nur bei freiem PC (Nutzer 21:05). power-user T-333b 2/2 Ziele an Exe 1.19.0
+(A11 erfuellt fuer 1.19.0). QA-298 geschlossen (kein Fehler), QA-300 P3 /
+QA-301 P4 → naechster Zyklus.
 
 ## Naechster Zyklus (offen)
 
-- **Fensterlaeufe ohne Fokusraub** (Nutzer 22:24): UIA-Muster statt echter
-  Klicks, echte Klicks nur wo ein Befund es verlangt; bis dahin
-  Fensterlaeufe nur, wenn der Nutzer nicht am Rechner ist.
-- **A11 power-user** nachholen (braucht Punkt oben oder Nutzer abwesend).
+- QA-300 (Why-Fenster ueberladen, zwei Why-Knoepfe, Zielwahl ohne Namen) P3,
+  QA-301 (Speichern ohne Bestaetigung, Einrichtung 50 s) P4.
+- Treiber ohne Fokusraub: MSAA/LegacyIAccessible ungemessen
+  (`scratchpad/T-333d`), nur falls freie-PC-Regel stoert.
 - **BACKLOG.md:** P-003 gestrichen und Streichvorschlaege-Entscheide
   nachtragen (`product-strategist`, nicht im Zyklus einer Umsetzung).
 - Hook-Grenze: Blendung nur fuer Suchbefehle; Text mit `|…exe` in

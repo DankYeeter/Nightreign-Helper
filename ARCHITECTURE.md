@@ -6200,6 +6200,18 @@ gegen A6 (Optimize < 6 s; gemessen 1229 ms Median auf dem 5900X, T-241d).
    Bedingung gilt jetzt n-mal", wirkt in Werteblatt **und** Berater; der
    Ausschluss wirkt nur im Berater und ueberstimmt dort jede Erklaerung (A18:
    "zaehlt in keinem Vorschlag").
+   **Nachtrag 12.10.2026 (QA-299, Nutzerentscheid 21:15, Director):** Von den
+   Waffenzahl-Bedingungen (`wepTypeTriggerCount`, "3+ X Equipped") gilt in
+   einem Vorschlag hoechstens **eine Waffenart** als erfuellt; mehrere Kopien
+   derselben Art bleiben erlaubt (Stapelregeln wie bisher). Grund: 3+ Hammers
+   + 3+ Great Hammers + Bezugswaffe = 7 Waffen > 6 Plaetze, ingame
+   unerreichbar. Handeingabe (`declared`) bleibt unberuehrt.
+   Umsetzung `59a5f03` (T-333f): Waffenzahl-Bedingung =
+   `effecttext.counts_armaments` (31 Ids), Art = `wepTypeTrigger`;
+   `GoalContext.assumed_armament_counts` traegt die nicht erklaerten Ids,
+   `evaluate` rechnet je im Build vorkommender Art eine Variante und nimmt die
+   beste fuers Ziel (`evaluate_per_goal` fuer alle Ziele); eine von Hand
+   erklaerte Waffenzahl-Bedingung legt die Art fest.
    **Randbedingung dieser Wahl — OF-37:** A18 Satz 1 ("bedingte Effekte gehen
    in die Rechnung ein wie unbedingte") liesse auch die sieben bedingten
    Fluch-Ids zaehlen; A18 "Nachweis" verlangt aber woertlich, dass die
