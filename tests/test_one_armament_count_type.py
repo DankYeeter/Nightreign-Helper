@@ -45,6 +45,26 @@ def two_armament_count_buffs(data: dict, hero: dict) -> tuple[int, int]:
     pytest.skip("this dataset has no two armament-count attack buffs")
 
 
+def weaker_and_stronger_armament_count_buff(data: dict,
+                                            hero: dict) -> tuple[int, int]:
+    """Attack buffs gated on 3+ armaments of two types, the weaker type's
+    first, by their physical rate."""
+    rate_of = {}
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        if (effecttext.counts_armaments(effect)
+                and mods.get("physicsAttackRate", 1.0) > 1.0
+                and effecttext.works_for(effect, hero["name"])):
+            rate_of.setdefault(mods.get("wepTypeTrigger"),
+                               (mods["physicsAttackRate"], effect["id"]))
+    rates = sorted(set(rate for rate, _ in rate_of.values()))
+    if len(rates) < 2:
+        pytest.skip("this dataset has no two unequal armament-count buffs")
+    return tuple(next(effect_id for rate, effect_id in rate_of.values()
+                      if rate == wanted) for wanted in (rates[0], rates[-1]))
+
+
 def a_lesser_attack_buff(ctx: types.GoalContext, ceiling: float) -> int:
     """An always-on buff with a physical rate under `ceiling` that moves the
     damage figure -- measured, because a rate scoped to sorceries does not."""
@@ -66,23 +86,33 @@ def a_lesser_attack_buff(ctx: types.GoalContext, ceiling: float) -> int:
     pytest.skip("this dataset has no weaker always-on attack buff")
 
 
+def suggest(asking, data: dict, rolls: list[list[int]], slots: int,
+            holding_first: bool = False):
+    """The window's way: relics carrying one `rolls` entry each, offered to
+    `slots` red places -- the first relic already held in the first place
+    if `holding_first`."""
+    owned = advisor.make_inventory(
+        data, asking.ctx.hero, count=len(rolls),
+        handles=list(range(FIRST, FIRST + len(rolls))), rolls=rolls)
+    held = ({0: advisor.held_relic(owned.relics[0])} if holding_first
+            else None)
+    problem = advisor.problem([advisor.RED] * slots, held=held)
+    frozen = run.frozen_inventory(owned, problem)
+    request = advisor.request_for(problem, asking.ctx, frozen)
+    return run.run(request, frozen, asking.ctx, goals.GOALS)
+
+
 def answer(planner, data: dict, declared: dict[int, int]):
     """Three red copies -- one buff each -- for two red slots, asked the
     window's way under the damage direction, with `declared` by hand."""
     planner.declared = dict(declared)
     asking = advisorbar.asking_from(planner, DAMAGE)
-    hero = asking.ctx.hero
-    both = two_armament_count_buffs(data, hero)
+    both = two_armament_count_buffs(data, asking.ctx.hero)
     ceiling = min(data["effects"][str(effect_id)]["modifiers"]
                   ["physicsAttackRate"] for effect_id in both)
     lesser = a_lesser_attack_buff(asking.ctx, ceiling)
-    owned = advisor.make_inventory(
-        data, hero, count=3, handles=[FIRST, SECOND, LESSER],
-        rolls=[[both[0]], [both[1]], [lesser]])
-    problem = advisor.problem([advisor.RED, advisor.RED])
-    frozen = run.frozen_inventory(owned, problem)
-    request = advisor.request_for(problem, asking.ctx, frozen)
-    return run.run(request, frozen, asking.ctx, goals.GOALS), both
+    rolls = [[both[0]], [both[1]], [lesser]]
+    return suggest(asking, data, rolls, slots=2), both
 
 
 def counted(suggestion: types.Suggestion, effect_ids) -> set[int]:
@@ -128,3 +158,19 @@ def test_a_declaration_by_hand_stands_and_fixes_the_type(planner, game_data,
     assert counted(result.suggestions[0], both) == (
         set(both) if by_hand == "both" else {first})
 
+
+def test_the_type_that_counts_is_the_stronger_not_the_first_or_the_worst(
+        planner, game_data):
+    """The weaker type is held in the first place, so it always comes first
+    in the build: only the stronger type, carried second, may carry a
+    figure."""
+    planner.declared = {}
+    asking = advisorbar.asking_from(planner, DAMAGE)
+    weaker, stronger = weaker_and_stronger_armament_count_buff(
+        game_data, asking.ctx.hero)
+    result = suggest(asking, game_data, [[weaker], [stronger]], slots=2,
+                     holding_first=True)
+
+    assert result.suggestions
+    for suggestion in result.suggestions:
+        assert counted(suggestion, (weaker, stronger)) == {stronger}
