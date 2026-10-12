@@ -34,16 +34,6 @@ Wylder 20 %, Guardian 28,75 %). **P-003 gestrichen (Nutzer 16:54: "wenn
 nicht [dieselbe Negation], streichen wir es komplett")** — Status in
 `docs/product/BACKLOG.md` beim naechsten `product-strategist`-Lauf nachtragen.
 
-## Autonomer Lauf 22.09. 23:50 bis 23.09. ~01:45 (Budget 6 h, vorzeitig leer)
-
-Endete, weil die Warteschlange leer lief (`director-autonom.md`), nicht am
-Budget. Erledigt: QA-Fensterlauf T-329k + Retests p/s (PASS), Security T-329l
-PASS, Farbrollen AK-367..371, Snapshot-Leser, `.gitignore` (SEC-051),
-unsicherer Test selbsterklaerend, Ponytail-Audit (12 Funde umgesetzt, 2 mit
-Leser behalten), Retrospektive (`docs/lessons.md`), discover
-(`docs/product/BACKLOG.md`, P-001..004 `vorgeschlagen`). Suite `05dbfed`:
-1914 passed, 9 skipped. Kein Merge, kein Release.
-
 ## Veroeffentlicht
 
 | Version | Tag auf | Run | Assets | Inhalt |
@@ -58,19 +48,6 @@ Leser behalten), Retrospektive (`docs/lessons.md`), discover
 
 Beschreibung je Release aus `docs/release/RELEASE_BODY.md` (`body_path`,
 A-023/A-024/A-037). Download: `releases/latest`.
-
-## HIER WEITERMACHEN
-
-**Zyklus 27 abgeschlossen 19.09. 10:00.** T-296: README 769 → 94 Zeilen,
-Guide `docs/anleitung/guide.md` (`25aa6ad`, SEC-019 geschlossen); Audit
-net -421 Zeilen (`561e2ff`, `45217ef`, `122ec39`), PyInstaller nach dev;
-**Pillow bleibt** (Qt-Skalierung: 820/839 Icons weichen ab). Ponytail-Debt:
-1 Eintrag (`search.py:169`, bleibt). T-297 Retrospektive, T-298 umgesetzt
-(NH-007 Hook-Maske `efa52fd`, NH-008 `no-window-dispatch.ps1` `b14fb4d`,
-NH-009 `scripts/drive_window.ps1` `6633fca`). Kein neues Release: der
-Anwendungscode seit 1.14.0 ist nur Bereinigung (Tag `v1.14.0` = `ffac292`).
-**Naechster Schritt:** sync-out, PR auf `main` (Nutzer mergt). **A24** (Unterbosse, GOAL.md Nachtrag 19.09.) als naechster Zyklus: T-299 erledigt 13:05 (Bericht: beide Stufen belegt, QA-286 Extraktor liest Orte als Figuren); T-300 Entwurf AD-040/041 fertig 13:21; OF-45 (60 s) und OF-46 (nur Feld- und Nachtbosse) entschieden; T-301 gemessen 13:33 (Zusatz 21 ms bei Archiv-Wiederverwendung, Schranke eingehalten); T-302 Spec fertig 13:39 (AK-319..326, OF-47: Beispielspalte faellt); T-303 committet `3114100` 14:00 (subbosses, EXTRACT_VERSION 13, Testabzug 841 Dateien 20 913 184 B; Zaehlung single 11/group 1/ambiguous 1/unresolved 16 — Schranke INFERRED_MIN_HP); T-304 AD-042 14:15 (hoechste HP auf der Ortsroute, kein Forschungsauftrag, OF-48 Float-Kante offen); T-305 committet `25f8958` 14:29 (29/29 single, Testabzug 20 953 085 B; zwei Karten ohne Namen in den Dateien: 4654 c3252, 4688 c4021); T-306 committet `1859c57`+`7f12d5f` 14:50 (Baum, Panel HP/Beute, Beispielspalte weg, QA-144-Geometrietest entfernt, abgenickt; Suite 1797 passed); T-307 14:57: Namen belegt ueber EMEVD 90015000 (c3252 Royal Carian Knight, c4021 Royal Revenant); T-308 committet `262c7a2` 15:05 (Nachtkarten, EXTRACT_VERSION 14, Testabzug 21 012 433 B; Nachtkarten single 16/group 3/unresolved 16 — Arena-Regel zu streng, an T-309 nachgereicht); T-309 AD-043/044 15:19 (Balkenname per EMEVD mit Vorrang, Ortsregel auf allen 64 Karten, float32-Toleranz; OF-49 Nutzer-Balken offen); T-310 committet `f184b06`+`79b3ecb` 15:46 (64 single, 59 Namen, EXTRACT_VERSION 15, Testabzug 21 131 645 B, Suite 1807); T-311 Guide `e73727e`; T-312a Bau 1.15.0 `cf4c7df` (59.152.448 B, SHA E2F614F8…8405A); T-312b PASS (SEC-049/050 Niedrig, Haertung); T-312c 16:27: A24-Nachweis live bestaetigt, AK-319..326 bis auf nicht ausloesbares AK-322; QA-287 Fehldeutung (geschlossen), QA-288 P3 Beute-Toggle reagiert nicht auf UIA-Toggle; Nutzer 16:35: QA-288 fixen, dann Release; OF-49 (1) bestaetigt; T-313 fertig 16:56: a Fix `6edab2e`, b Bau `47b4330` (59.151.716 B, SHA 1D4197DF…BBDF0), c Retest PASS `8b54898`, d Notes `c536daa`; **Release 1.15.0 veroeffentlicht 17:05** (Tag `v1.15.0` auf `c536daa`, Run 35451242996, 3 Assets; Branch gepusht); naechster Schritt PR auf main (Nutzer mergt); Nebenfund: QA-286-Zeile noch "offen", Fix in `7f12d5f` — Abschlusszeile beim Zyklusende; OF-49 (drei Balken ingame) beim Nutzer; danach guide.md Abschn. 6 (technical-writer) und QA am Artefakt; AK-324.3 entschieden 13:42 (fuenf offen, Rest Toggle, seltenste zuerst). Backlog
-leer laut Nutzer 19.09.; naechster Zyklus nur auf Nutzer-/Freundesbefund.
 
 ## Stand gegen `GOAL.md` (19.09.2026, Artefakt 1.14.0)
 
@@ -104,6 +81,12 @@ Massstab je Fund).
    Hammer+Great-Hammer-Paar. Danach: Freigabe → `archivist` sync-out mit Tag
    `v1.19.0` auf dem Notes-Commit nach `7347908`, PR. Befunde → Fixzyklus.
 
+2. **Retro Zyklus 32 (12.10., Empfehlung annehmen):** NH-014 Ursache nur mit
+   Tauschprobe (`_rahmen.md:56-57`, `director.md:307-309`), NH-015 offene
+   Spec-Fragen als Registerzeile (`qa-engineer.md:219-220`), NH-016 je
+   Teilsatz des Kriteriums ein Testfall (`templates/task.md`, `_rahmen.md:52-53`).
+   Wortlaut `docs/lessons.md` "Zyklus 32".
+
 **Erledigt laut Nutzer 23.09. 19:14:** PR #18 auf `main` gemerged durch
 den Director auf ausdruecklichen Nutzerauftrag ("merge es selbst"),
 Merge-Commit `f45c98e`, Checks SUCCESS. Freundestest bestanden, keine
@@ -131,17 +114,22 @@ eine Waffenart-Bedingung, Nutzer 21:15, AD-036.6-Nachtrag) → QA-Retest am
 Quellstand → `release-manager` build+notes 1.19.0 neu → Gate: Ingame-Test des
 Nutzers, kein Tag. Ende: sync-out Branch, Gate-Protokoll; PR erst nach
 Ingame-Freigabe. Bisher: Treiber `05143d2` ohne Maus/SetForegroundWindow;
-Fokusraub sitzt im Windows-UIA-Kern (T-333c/d), Umbau ruht — Fensterlaeufe
-nur bei freiem PC (Nutzer 21:05). power-user T-333b 2/2 Ziele an Exe 1.19.0
-(A11 erfuellt fuer 1.19.0). QA-298 geschlossen (kein Fehler), QA-300 P3 /
-QA-301 P4 → naechster Zyklus.
+Fokusraub-Ursache **Hypothese** (UIA-Kern; Tauschprobe an Nicht-Qt-Fenster
+und MSAA ungemessen, Retro 22:48), Umbau ruht — Fensterlaeufe nur bei freiem
+PC (Nutzer 21:05). power-user T-333b 2/2 Ziele an Exe 1.19.0. QA-298
+geschlossen (kein Fehler), QA-300 P3 / QA-301 P4 → naechster Zyklus.
+Ergebnis 22:50: QA-299 `59a5f03`+`6ab0c4b` PASS, Neubau `c5eaa41`, Retro
+NH-014..016 vorgeschlagen (`docs/lessons.md` "Zyklus 32").
 
 ## Naechster Zyklus (offen)
 
 - QA-300 (Why-Fenster ueberladen, zwei Why-Knoepfe, Zielwahl ohne Namen) P3,
-  QA-301 (Speichern ohne Bestaetigung, Einrichtung 50 s) P4.
-- Treiber ohne Fokusraub: MSAA/LegacyIAccessible ungemessen
-  (`scratchpad/T-333d`), nur falls freie-PC-Regel stoert.
+  QA-301 (Speichern ohne Bestaetigung, Einrichtung 50 s) P4; Why-Satz
+  "you favourited it, so it always counts." fuer nicht gezaehlte Art
+  (`explain.py:561`) P4.
+- Treiber ohne Fokusraub: erst Tauschprobe (Nicht-Qt-Fenster), dann
+  MSAA/LegacyIAccessible; Scratchpad-Werkzeuge T-333c/d sind sitzungsgebunden
+  (Bericht T-333 als Quelle). Nur falls freie-PC-Regel stoert.
 - **BACKLOG.md:** P-003 gestrichen und Streichvorschlaege-Entscheide
   nachtragen (`product-strategist`, nicht im Zyklus einer Umsetzung).
 - Hook-Grenze: Blendung nur fuer Suchbefehle; Text mit `|…exe` in
