@@ -4,7 +4,7 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
-## [1.19.0] - 2026-09-23
+## [1.19.0] - 2026-10-12
 
 ### Added
 - The Nightfarer you last selected is now remembered across a restart; the
@@ -21,6 +21,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   contrast guidelines.
 
 ### Fixed
+- The relic advisor no longer counts two different "3+ ... Equipped"
+  weapon-count effects (for example 3+ Hammers and 3+ Great Hammers) as
+  both fulfilled in one suggestion. Together with your reference weapon
+  that would need more weapons than the six armament slots, so the figure
+  was too high. At most one weapon type's condition now counts per
+  suggestion, and the advisor picks the best one.
 - If your save-file scan found more than one readable save, the program
   silently picked the one with the most relics without telling you (or,
   on a tie, the wrong one). The note under your inventory now says how

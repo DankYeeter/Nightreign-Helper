@@ -895,3 +895,65 @@ und Tag/Push durch `archivist`/`director`.
 (gehoert zu T-332k `clean-room`, nicht zu `build+notes`); ob eine dritte
 Bau-Wiederholung dieselbe 160-Byte-Differenz zeigt oder eine dritte; die
 Reproduzierbarkeits-Quelle jenseits des PE-Zeitstempels.
+
+## 1.19.0 (Neubau) — 2026-10-12, T-333i, Modus `build+notes`
+
+**Auftrag:** 1.19.0 nach QA-299-Fix neu bauen; Version bleibt 1.19.0 (nie
+veroeffentlicht, kein Tag, letzter Tag `v1.18.0`). Kein Tag, kein Push.
+`docs/legal/AUFLAGEN.md` gelesen: keine Auflage steht auf ROT und sperrend
+(A-010 zurueckgestellt, A-020 erfuellt; Z. 567 "Nichts steht auf ROT").
+Bau zulaessig.
+
+**Stand:** HEAD `7347908`, `git status --porcelain` vor dem Bau leer.
+Neu seit dem Bau `7fc3e43` (`git diff --stat 7fc3e43..HEAD`, 19 Dateien):
+Anwendungscode nur `nrplanner/advisor/` (candidates, evaluate, explain, run,
+search, types) und `nrplanner/advisorbar.py` (QA-299: hoechstens eine
+Waffenart der "3+ X Equipped"-Bedingungen je Vorschlag); sonst Tests,
+`scripts/drive_window.ps1` (nicht ausgeliefert) und Doku. `.spec`,
+`requirements*.txt`, `EXTRACT_VERSION` (16), `run.py`, `firstrun.py`
+unveraendert: kein Ausloeser fuer `clean-room`; die Pruefung T-332k am
+Bau `7fc3e43` bleibt fuer diese Aspekte gueltig, am neuen Artefakt aber
+**nicht** wiederholt.
+
+### Notes
+
+`CHANGELOG.md`: Fixed-Zeile zur Waffenzahl-Bedingung ergaenzt, Datum des
+Abschnitts `[1.19.0]` von 2026-09-23 auf 2026-10-12 gesetzt.
+`docs/release/RELEASE_BODY.md`: 1.19.0-Zeile um denselben Punkt ergaenzt.
+Migration: keine (kein Format-, Schema- oder Ortswechsel; Cache und
+Einstellungen unberuehrt).
+
+### Bau
+
+Werkzeuge wie 1.19.0 (T-332j): `.venv`, Python 3.12.10, PyInstaller 6.21.0
+(Hooks 2026.7), Windows 11 10.0.26200; kein UPX (A-031-Bedingung nicht
+eingetreten). Befehl je Lauf nach `rm -rf build dist`:
+`python -m PyInstaller NightreignHelper.spec --noconfirm --log-level WARN`.
+
+| Lauf | Dauer | Groesse (Bytes) | SHA-256 |
+|---|---|---|---|
+| 1 | 52 s | 59.184.584 | `9050D39997612DA57C0D835E8E5EC085695D14CB49F84C15E62B9C3EC667EA38` |
+| 2 | 69 s | 59.186.282 | `2306C5E0662E78967B7501E694DAF8A393EE0A078398DCB1A815F97C1524610B` |
+
+**Nicht reproduzierbar** (Differenz 1.698 Byte, `cmp` ab Byte 273 =
+PE-Kopf; Quelle wie in T-332j nur zum Teil geklaert: Systemzeit im
+PE-Zeitstempel, im Archiv zusaetzlich nicht isoliert). Vorgaenger-Artefakt
+`7fc3e43` (59.182.825 B, `CCCCC79E…1D293B`) liegt als Kopie im Scratchpad
+dieses Laufs. `build/warn-NightreignHelper.txt`: ausschliesslich bekannte
+Eintraege (POSIX-Stdlib-Module, optionale Fremdpakete `olefile`/`numpy`/
+`defusedxml`/`cffi`, Plattformstubs `java`/`vms_lib`/`_winreg`, Python-2-
+Stubs `imp`/`StringIO` aus pycryptodome); keine unerklaerte Zeile.
+
+**Artefakt (Lauf 2):**
+`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+— **59.186.282 Bytes**, SHA-256
+`2306C5E0662E78967B7501E694DAF8A393EE0A078398DCB1A815F97C1524610B`,
+FileVersion/ProductVersion `1.19.0` (aus den Dateieigenschaften gelesen).
+`dist/` und `build/` stehen in `.gitignore`.
+
+### Ergebnis
+
+Kein Blocker. Das Artefakt wurde **nicht gestartet** (kein Fensterlauf in
+diesem Modus, NH-004). Ungeprueft: Lauffaehigkeit des neuen Artefakts
+(Start, Berater-Vorschlag mit dem QA-299-Fix); Reproduzierbarkeit jenseits
+der Zeitstempel.

@@ -138,4 +138,6 @@ starts there.
   community write-ups no longer carry a separate note or colour; the note
   under your inventory now tells you when a save-file scan passed over
   other readable saves; a damaged data cache no longer stops the program
-  from starting.
+  from starting; the relic advisor no longer counts two different "3+ ...
+  Equipped" weapon-count effects as both fulfilled in one suggestion (that
+  needed more weapons than there are armament slots).

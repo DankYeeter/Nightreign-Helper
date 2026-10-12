@@ -97,11 +97,12 @@ Massstab je Fund).
 
 ## Beim Nutzer — offen
 
-1. **Ingame-Test mit `dist\NightreignHelper.exe` 1.19.0** (59 182 825 B,
-   SHA-256 `CCCCC79E…1D293B`, Commit `7fc3e43`, gemessen 21:57) — Liste
-   `docs/tasks/T-329.md` Abschnitt "Ingame-Test" (OF-54 Zahlen). Danach:
-   Freigabe → `archivist` sync-out mit Tag `v1.19.0` auf `7fc3e43`, PR.
-   Befunde aus dem Test → Fixzyklus, neuer Bau.
+1. **Ingame-Test mit `dist\NightreignHelper.exe` 1.19.0 (Neubau 12.10.)**
+   (59 186 282 B, SHA-256 `2306C5E0…1524610B`, Bau-Commit `7347908`,
+   Director gemessen 22:33; Exe nie gestartet) — Liste `docs/tasks/T-329.md`
+   Abschnitt "Ingame-Test" (OF-54 Zahlen) plus Wylder/Optimize: kein
+   Hammer+Great-Hammer-Paar. Danach: Freigabe → `archivist` sync-out mit Tag
+   `v1.19.0` auf dem Notes-Commit nach `7347908`, PR. Befunde → Fixzyklus.
 
 **Erledigt laut Nutzer 23.09. 19:14:** PR #18 auf `main` gemerged durch
 den Director auf ausdruecklichen Nutzerauftrag ("merge es selbst"),
