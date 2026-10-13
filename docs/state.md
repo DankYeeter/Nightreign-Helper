@@ -1,7 +1,7 @@
 # Stand
 
-2026-10-12 21:30, **Zyklus 32 (T-333) autonom: Fix QA-299, dann Neubau
-1.19.0; Ingame-Test des Nutzers offen**. Branch
+2026-10-13 19:55, **Zyklus 33 (T-334) pausiert: Restbefunde gefixt, T-334l
+und Pruefung offen — siehe "HIER WEITERMACHEN" unter Zyklus 33**. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
@@ -9,9 +9,10 @@ Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
 `security/findings.md` · Register `UI_SPEC_REGISTER.md`,
 `ARCHITECTURE_REGISTER.md` · Reihenfolge `docs/plan-restarbeiten.md`.
 
-**Nummernkreise** (23.09., naechste freie, Abschrift — vor Vergabe zaehlen):
-T **T-333** · QA **QA-298** · SEC **SEC-053** · AK **AK-372** · AD **AD-056**
-· DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-014**
+**Nummernkreise** (13.10., naechste freie, Abschrift — vor Vergabe zaehlen):
+T **T-335** · QA **QA-302** · SEC **SEC-053** · AK **AK-395** · AD **AD-056**
+· DR **DR-047** · C **C-008** · A **A-039** · P **P-005** · NH **NH-017**
+(NH-014..016 vorgeschlagen)
 · R **R-012**.
 
 **Zyklus 30 (T-330, 23.09. 16:40-16:45, Wiederanlauf) erledigt:**
@@ -74,12 +75,11 @@ Massstab je Fund).
 
 ## Beim Nutzer — offen
 
-1. **Ingame-Test mit `dist\NightreignHelper.exe` 1.19.0 (Neubau 12.10.)**
-   (59 186 282 B, SHA-256 `2306C5E0…1524610B`, Bau-Commit `7347908`,
-   Director gemessen 22:33; Exe nie gestartet) — Liste `docs/tasks/T-329.md`
-   Abschnitt "Ingame-Test" (OF-54 Zahlen) plus Wylder/Optimize: kein
-   Hammer+Great-Hammer-Paar. Danach: Freigabe → `archivist` sync-out mit Tag
-   `v1.19.0` auf dem Notes-Commit nach `7347908`, PR. Befunde → Fixzyklus.
+1. **Ingame-Test 1.19.0 erst nach Zyklus 33** (neuer Bau folgt; die Exe
+   `7347908` ist ueberholt). Liste `docs/tasks/T-329.md` "Ingame-Test" (OF-54)
+   plus Wylder/Optimize ohne Hammer+Great-Hammer-Paar plus QA-278. Danach
+   Freigabe → Tag `v1.19.0` auf dem Notes-Commit des neuen Baus, PR.
+   Fensterlauf-Pruefung braucht freien PC (ca. 45 min).
 
 2. **Retro Zyklus 32 (12.10., Empfehlung annehmen):** NH-014 Ursache nur mit
    Tauschprobe (`_rahmen.md:56-57`, `director.md:307-309`), NH-015 offene
@@ -106,27 +106,44 @@ Probleme gemeldet. A-035 erledigt: keine Beschwerden. NH-011 umgesetzt
 
 ## Zyklus 31 (T-332, 23.09.) — Bau 1.19.0 `7fc3e43`, QA/Security/clean-room PASS; Details `docs/tasks/T-332.md`
 
-## Zyklus 32 (T-333, autonom ab 12.10. 21:28, Budget 6 h bis 03:28)
+## Zyklus 32 (T-333, 12.10.) — QA-299 PASS, Neubau `c5eaa41`, Laientest 2/2; Details `docs/tasks/T-333.md`
 
-Nutzer 21:28: "arbeite 6 stunden autonom weiter oder bis dir nichts mehr
-einfaellt". Warteschlange (keine neuen Kriterien): T-333f Fix QA-299 (hoechstens
-eine Waffenart-Bedingung, Nutzer 21:15, AD-036.6-Nachtrag) → QA-Retest am
-Quellstand → `release-manager` build+notes 1.19.0 neu → Gate: Ingame-Test des
-Nutzers, kein Tag. Ende: sync-out Branch, Gate-Protokoll; PR erst nach
-Ingame-Freigabe. Bisher: Treiber `05143d2` ohne Maus/SetForegroundWindow;
-Fokusraub-Ursache **Hypothese** (UIA-Kern; Tauschprobe an Nicht-Qt-Fenster
-und MSAA ungemessen, Retro 22:48), Umbau ruht — Fensterlaeufe nur bei freiem
-PC (Nutzer 21:05). power-user T-333b 2/2 Ziele an Exe 1.19.0. QA-298
-geschlossen (kein Fehler), QA-300 P3 / QA-301 P4 → naechster Zyklus.
-Ergebnis 22:50: QA-299 `59a5f03`+`6ab0c4b` PASS, Neubau `c5eaa41`, Retro
-NH-014..016 vorgeschlagen (`docs/lessons.md` "Zyklus 32").
+Fokusraub-Ursache **Hypothese**; Fensterlaeufe nur bei freiem PC (Nutzer 12.10. 21:05).
+
+## Zyklus 33 (T-334) — PAUSIERT 13.10. 19:50 (Nutzer: "pausieren, testen spaeter")
+
+Auftrag Nutzer 18:11: QA-300/301 + alle noch gueltigen Altbefunde fixen, danach
+Neubau 1.19.0 fuer seinen Ingame-Test. Alles in `docs/tasks/T-334.md`
+(Abschnitte a..m mit Ergebnis je Lauf). **Exe `dist\` ist veraltet** (Stand
+`7347908`), nicht mehr testen.
+
+Erledigt (Hauptzweig, HEAD `fb0393a` + Doku): Triage 90 IDs (T-334a), 33
+geschlossen mit Beleg/Nutzerentscheid; Fixe P-A..P-E, nach T-334c, Restpaket
+(QA-007/038/213 Pruefsumme 28/28, SEC-044 A), Testumgebung P-D; UI
+AK-372..383 (Why-Dialog, Speichern, Nightfarer-Wiederklick); Guide.
+Letzte Suite-Zahlen je Zweig gruen (2025/9 Hauptbaum vor `fb0393a`, 2009/9
+`t334-pi`); **am Merge `fb0393a` kein Volllauf**.
+
+**HIER WEITERMACHEN (in dieser Reihenfolge):**
+1. T-334l (AK-384..394: QA-292 Mindestbreiten, Texte QA-008/030/031/171,
+   `relicpicker.py:1025` Escaping) — Zweig `t334-pl`, Stand im Bericht des
+   Laufs (pausiert 19:50, ggf. wip-Commit). Fortsetzen: merge `fb0393a` in
+   `t334-pl`, Rest fertig, Volllauf, dann `--no-ff` in den Hauptzweig.
+2. Pruefung in **einer** Nachricht, PC frei: `qa-engineer` Retest am
+   Quellstand mit Fenster (alle in T-334 behobenen IDs + Fensterpunkte aus den
+   Berichten: Fokusrahmen, `Why this relic`-Scroll, Faltknoepfe, Tooltip
+   Speichern, Deep-Schalter-Breite, Hover ~211 Relikt-Karten beim Umbruch,
+   Mindestbreite, beschaedigte Spielstandkopie); `security-reviewer`
+   (Ausloeser: `nrdata/savefile.py`, `savereader.py`, `firstrun.py`,
+   `bossdata.py`, `.github/workflows/tests.yml`; Rest SEC-044 `_MEI`-Pfade).
+3. Registerzeilen "behoben" fuer alle T-334-Fixe erst nach dem Retest
+   anhaengen (bisher nur Abschlusszeilen der Triage/Entscheide).
+4. `release-manager` build+notes 1.19.0 → Gate: Ingame-Test des Nutzers.
 
 ## Naechster Zyklus (offen)
 
-- QA-300 (Why-Fenster ueberladen, zwei Why-Knoepfe, Zielwahl ohne Namen) P3,
-  QA-301 (Speichern ohne Bestaetigung, Einrichtung 50 s) P4; Why-Satz
-  "you favourited it, so it always counts." fuer nicht gezaehlte Art
-  (`explain.py:561`) P4.
+- QA-030 dritter Punkt: leerer Slotsatz wird nie gespeichert, Build bleibt
+  doppelt (P4, Speicherregel offen).
 - Treiber ohne Fokusraub: erst Tauschprobe (Nicht-Qt-Fenster), dann
   MSAA/LegacyIAccessible; Scratchpad-Werkzeuge T-333c/d sind sitzungsgebunden
   (Bericht T-333 als Quelle). Nur falls freie-PC-Regel stoert.
