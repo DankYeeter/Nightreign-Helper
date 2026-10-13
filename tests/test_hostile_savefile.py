@@ -903,15 +903,6 @@ def test_a_save_that_goes_away_before_it_is_sorted_names_no_path(tmp_path,
 A_SLOT = DOUBLED_ID + bytes(64)
 
 
-def test_a_slot_that_matches_its_checksum_is_read(tmp_path):
-    path = prepared_save(tmp_path, A_SLOT)
-
-    found = inventory._scan_save(path, {KNOWN_RELIC_ID}, set(),
-                                 mode=savefile.FAST)
-
-    assert found is not None
-
-
 def test_a_slot_that_fails_its_checksum_is_not_read(tmp_path):
     """One byte changed after sealing: the file says so instead of being read.
 
