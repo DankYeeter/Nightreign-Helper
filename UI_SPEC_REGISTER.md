@@ -561,3 +561,17 @@ gemessen (AK-371 war die hoechste vergebene).
 | AK-381 | Speichern bestaetigt per `QToolTip.showText` an `build_box` verankert: `Saved "{name}".` / `Saved over "{name}".`; nur nach Erfolg | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
 | AK-382 | Wiederklick auf den gewaehlten Nightfarer: Kachel bleibt angehakt, kein Neuladen, Hinweis `{Name} is already selected.`; Start mit Index 0 muss weiter laden | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
 | AK-383 | AK-290.2 nur fuer tatsaechlich gezaehlte Effekte; favorisierter, nicht gezaehlter Waffenzahl-Effekt anderer Art bekommt eigenen Satz und eigenen `silence`-Wert (`explain.py:561`) | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+
+**Nachtrag T-334k (ui-ux-designer), 2026-10-13 — QA-292 Mindestbreiten, Abnahme neuer Texte.** Naechste freie Nummer gemessen (AK-383 war die hoechste vergebene).
+
+| AK-384 | Mindestbreite je Box (Start 120/100/80 px); darunter elidiert die Box nativ, Tooltip bleibt | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-385 | Knopfbreite >= sizeHint des laengsten Texts bei jeder Fensterbreite >= Fenster-Mindestbreite (1522/1426 logische px, nie 100 -> 70 -> 57 px); erweitert AK-351.3 | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-386 | Fenster-Mindestbreite konstant (unabhaengig von Richtung und Vorschlag), >= Leistenbedarf im unguenstigsten Zustand, <= 1366 logische px | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-387 | Kuerzungsreihenfolge AK-351 unveraendert: Statuszeile, dann Boxen, Knoepfe nie | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-388 | Leerer Spielstand ohne gewaehlte Datei: `Your save has no relics in it yet. If you play on more than one Steam account, they may be in another save — use Find my save.`; gewaehlt unveraendert (QA-008) | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-389 | Effektfilter und Relic Picker sagen bei gelesenem, leerem Spielstand nicht "No save was read" (QA-008 Nachbarstellen) | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-390 | Schalter `Deep of Night (3 extra slots) — {n} left empty`, Tooltip Ein-/Mehrzahl; Mindestbreite der Spalte waechst nicht (QA-030) | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-391 | Ladehinweis `The equipped {vessel} is shown empty.` + ein Satz je Grund; zweiter Grund beginnt `{n} other relic(s) could not be placed` (QA-031) | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-392 | `{n} relic(s) the save has equipped is/are no longer in your inventory.` bei missing > 0 (QA-027), abgenommen | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-393 | Titelzusatz `  —  data from {day}, not checked against your installed game`, bei leerem Tag `  —  data not checked against your installed game` (QA-171) | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
+| AK-394 | Zeile `… — no stored builds could be read: this save keeps them somewhere this program does not look; the game may have changed how it stores them` (QA-020), abgenommen | UI_SPEC Nachtrag T-334k | T-334k, 2026-10-13 | — |
