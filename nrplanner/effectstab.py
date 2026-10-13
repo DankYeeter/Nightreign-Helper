@@ -262,6 +262,23 @@ class FilterCaption(QLabel):
                                           self.contentsRect().width()))
 
 
+def show_value_in_tooltip(box: QComboBox) -> None:
+    """Keep the box's whole current value in its tooltip (QA-160).
+
+    A closed filter box is narrower than its longest values on purpose (see
+    the size policy beside the call), so `Strongest only (adds + multiplies)`
+    is cut off where it is chosen. The tooltip leads with the value, then
+    whatever the box already explained, as the column headings do.
+    """
+    explanation = box.toolTip()
+
+    def name_value(text: str) -> None:
+        box.setToolTip(f"{text}\n{explanation}" if explanation else text)
+
+    name_value(box.currentText())
+    box.currentTextChanged.connect(name_value)
+
+
 class HeadingHint(QObject):
     """Open a shortened heading's tooltip sooner than the style would.
 
@@ -438,6 +455,11 @@ class EffectTable(QTableWidget):
             # ones a reader had no way back from.
             tip = tips.get(column)
             item.setToolTip(f"{name}\n{tip}" if tip else name)
+            # A screen reader reads the heading as drawn, `Comes with c…`,
+            # unless the item names itself (QA-162). Survives the elision:
+            # `_elide_headings` rewrites only the display text.
+            item.setData(Qt.AccessibleTextRole, name)
+            item.setData(Qt.AccessibleDescriptionRole, item.toolTip())
 
     def heading(self, column: int) -> str:
         """The column's full name, whatever is drawn in the header today."""
@@ -832,6 +854,7 @@ class EffectsTab(QWidget):
             box.setSizeAdjustPolicy(
                 QComboBox.AdjustToMinimumContentsLengthWithIcon)
             box.setMinimumContentsLength(8)
+            show_value_in_tooltip(box)
 
         layout.addLayout(controls)
 
