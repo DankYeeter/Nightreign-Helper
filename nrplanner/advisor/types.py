@@ -613,6 +613,10 @@ SILENT_EXCLUDED = "excluded"
 #: The player required it (`SlotProblem.required`, A19) and it moved no
 #: figure of its own: the line says why the copy was suggested all the same.
 SILENT_REQUIRED = "required"
+#: The player required a weapon-count condition of one armament type, and the
+#: build counts another type's: a build meets the condition of only one type
+#: (AD-036.6, addendum 12.10.2026), so this one moved nothing (AK-383).
+SILENT_REQUIRED_OTHER_TYPE = "required_other_type"
 
 
 @dataclass(frozen=True)

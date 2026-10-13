@@ -542,6 +542,12 @@ def _exclusivity_of(ctx: types.GoalContext, effect_id: int) -> int | None:
     return key if isinstance(key, int) and key > 0 else None
 
 
+def _waits_on_its_condition(effect_id: int, built: model.Build) -> bool:
+    """Did `model.compute` park this effect on a condition it took as unmet?"""
+    return any(entry.effect_id == effect_id and not entry.live
+               for entry in built.situational)
+
+
 def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
                  problem: types.SlotProblem, *, is_curse: bool
                  ) -> types.ReasonLine | None:
@@ -612,6 +618,16 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
         return said("One of its effects is not in your game data, so it has "
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
+    # AK-383: AK-290.2 holds only for an effect that counts. A favourited
+    # weapon-count condition of another type than the one this build counts
+    # (`evaluate._declared_variants`) is left waiting on its condition.
+    if (effect_id in problem.required
+            and effect_id in ctx.assumed_armament_counts
+            and _waits_on_its_condition(effect_id, built)):
+        return said(f"{name}: you favourited it, but a build can meet the "
+                    f"weapon-count condition of only one weapon type, and "
+                    f"another type counts here, so this one is not counted.",
+                    types.SILENT_REQUIRED_OTHER_TYPE)
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked
@@ -634,8 +650,7 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     if _armament_bound(effect, armaments):
         return said(f"{name}: it depends on the armaments you carry, so no "
                     f"number here.", types.SILENT_ARMAMENT_BOUND)
-    if any(entry.effect_id == effect_id and not entry.live
-           for entry in built.situational):
+    if _waits_on_its_condition(effect_id, built):
         return said(f"{name}: only applies under a condition, so no number "
                     f"here.", types.SILENT_UNDER_A_CONDITION)
     return said(f"{name}: no number here shows what this adds.",

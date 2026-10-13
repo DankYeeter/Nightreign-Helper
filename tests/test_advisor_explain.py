@@ -42,6 +42,7 @@ from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
 from tests import weapon_damage_cases as cases
+from tests.test_one_armament_count_type import two_armament_count_buffs
 
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
@@ -2306,6 +2307,38 @@ def test_a_required_effect_with_no_figure_says_it_always_counts(game_data,
     assert line.text == f"{name}: you favourited it, so it always counts."
     assert line.silence == types.SILENT_REQUIRED
     assert line.effect_id == waiting
+
+
+def test_a_favourite_of_the_armament_type_that_does_not_count_says_so(
+        game_data, wylder, armament):
+    """AK-383: two favourited weapon-count buffs of two types, and a build
+    counts one type only (AD-036.6): the counted one carries its figure, the
+    other says why it is not counted instead of "it always counts"."""
+    both = two_armament_count_buffs(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED, advisor.RED]),
+                                  required=frozenset(both))
+    chosen = (a_copy(0, 1, "One", [both[0]]), a_copy(1, 2, "Two", [both[1]]))
+    ctx = dataclasses.replace(
+        advisor.context(game_data, wylder, reference=armament),
+        assumed_armament_counts=both)
+    goal = goals.GOALS[DAMAGE]
+
+    groups = explain.reasons(problem, chosen,
+                             evaluate(problem, (), ctx, goal=goal),
+                             evaluate(problem, chosen, ctx, goal=goal), ctx,
+                             goal)
+
+    silences = {line.effect_id: line.silence
+                for group in groups for line in group.lines}
+    assert sorted(silences.values()) == sorted(
+        [types.CARRIES_A_FIGURE, types.SILENT_REQUIRED_OTHER_TYPE])
+    line, = [line for group in groups for line in group.lines
+             if line.silence == types.SILENT_REQUIRED_OTHER_TYPE]
+    name, = effect_names(game_data, [line.effect_id])
+    assert line.text == (
+        f"{name}: you favourited it, but a build can meet the weapon-count "
+        f"condition of only one weapon type, and another type counts here, "
+        f"so this one is not counted.")
 
 
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
