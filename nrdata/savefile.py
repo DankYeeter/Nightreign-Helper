@@ -601,7 +601,9 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             groups.append((pos, found))
             pos = pos + 8 + found * LOADOUT_RECORD
             hero += 1
-        if len(groups) >= MIN_HEROES and len(groups) > len(best):
+        # `groups` does not hold the final group yet, so it counts as one
+        # more: a table of exactly MIN_HEROES Nightfarers is one (QA-009).
+        if len(groups) + 1 >= MIN_HEROES and len(groups) + 1 > len(best):
             # The final Nightfarer's group has no next marker to bound it,
             # but it does not need one: a shared-Grail record's own vessel id
             # sits in the 19000 band, and the personal vessels that follow in
@@ -626,11 +628,16 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             hits = slot_data.count(marker)
             if hits:
                 seen.append(f"ff{n:02x}×{hits}")
-        raise NotWhatItClaims(
-            "equipped-loadout table not found in this save slot "
-            f"(no ascending run of {MIN_HEROES}+ Nightfarer markers; "
-            f"markers present: {', '.join(seen) or 'none'})"
-        )
+        # The sentence is shown to the player (QA-020); the reader's own
+        # findings travel as a note, which a traceback prints and the
+        # window does not.
+        refusal = NotWhatItClaims(
+            "this save keeps them somewhere this program does not look; "
+            "the game may have changed how it stores them")
+        refusal.add_note(
+            f"no ascending run of {MIN_HEROES}+ Nightfarer markers; "
+            f"markers present: {', '.join(seen) or 'none'}")
+        raise refusal
     return best
 
 

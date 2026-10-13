@@ -69,12 +69,9 @@ SHAPES = {
         [4, 3, 4, 2, 4, 4, 3, 4, 4, 1],
     # The ordinary full save, as a control.
     "ten Nightfarers, four Grails each": [4] * 10,
-    # One more than MIN_HEROES, deliberately not MIN_HEROES itself: a table
-    # with exactly that many groups is rejected today, because the last group
-    # is only counted after a marker one higher has been found. That is
-    # QA-009, which is open and belongs to its own task -- a test asserting
-    # today's behaviour there would freeze the off-by-one in place.
-    "a short run of Nightfarers": [4] * (savefile.MIN_HEROES + 1),
+    # Exactly MIN_HEROES: the last group has no marker after it and was
+    # once left out of the count, so a table this short was refused (QA-009).
+    "a short run of Nightfarers": [4] * savefile.MIN_HEROES,
 }
 
 
@@ -115,8 +112,15 @@ def test_every_stored_loadout_is_read_back(grails_per_hero):
 
 
 def test_a_save_without_the_table_says_so_rather_than_guessing():
-    """The failure has to name what it saw, or the next report is useless."""
+    """The failure has to name what it saw, or the next report is useless --
+    in a note a traceback prints, not in the sentence the window shows the
+    player (QA-020)."""
+    buffer = bytearray(4096)
+    buffer[100:104] = struct.pack("<I", savefile.HERO_MARKER_BASE + 1)
     with pytest.raises(ValueError) as raised:
-        savefile.find_loadout_table(b"\0" * 4096)
+        savefile.find_loadout_table(bytes(buffer))
 
-    assert "equipped-loadout table not found" in str(raised.value)
+    shown = str(raised.value)
+    assert "ff0" not in shown and "marker" not in shown
+    assert raised.value.__notes__ == [
+        "no ascending run of 4+ Nightfarer markers; markers present: ff01×1"]
