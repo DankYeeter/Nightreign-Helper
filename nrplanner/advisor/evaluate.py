@@ -44,8 +44,9 @@ def effect_ids_of(problem: types.SlotProblem,
     """Every effect id that counts towards this build, in a settled order.
 
     Held relics first, then the chosen candidates in slot order, then the
-    armaments -- the same three sources `Planner._rebuild` gathers, in the
-    same order, so that two runs over one state produce the same list.
+    armaments -- the same three sources `Planner._rebuild` gathers, though not
+    in its order (QA-109: measured, the same ids in another sequence). What is
+    settled is that two runs over one state produce the same list.
 
     Order matters to `model.compute` in one respect only: duplicates of an
     `isStrongestEffect` are reported in the order they arrive. It does not
