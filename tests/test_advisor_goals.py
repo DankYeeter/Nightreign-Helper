@@ -1745,6 +1745,45 @@ def test_a_weighting_with_no_weights_is_refused(game_data, wylder):
         goals.GOALS["min_damage_taken"].score(build, ctx)
 
 
+def test_a_weighting_a_caller_got_wrong_is_refused(game_data, wylder):
+    """QA-103, QA-105: each way to get a weighting wrong ends in a sentence.
+
+    Before, a zero sum was a bare `ZeroDivisionError`, a negative weight a
+    quietly wrong figure and an unknown field name a quietly neutral one.
+    """
+    wrong = {
+        "zero sum": ((("fireDamageCutRate", 0.0),), "more than zero"),
+        "negative weight": ((("fireDamageCutRate", 2.0),
+                             ("darkDamageCutRate", -1.0)), "zero or more"),
+        "unknown field": ((("fireDamageCutRat", 1.0),), "not a damage-cut"),
+    }
+    for kind, (weights, said) in wrong.items():
+        weighting = types.Weighting(id=kind, label=kind, note="", weights=weights)
+        ctx = advisor.context(game_data, wylder, weighting=weighting)
+        build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+        with pytest.raises(ValueError, match=said):
+            goals.GOALS["min_damage_taken"].score(build, ctx)
+
+
+def test_a_build_that_lets_no_damage_through_has_no_effective_hp(game_data,
+                                                                  wylder):
+    """QA-103: a rate of zero or below is refused, not divided by."""
+    build, ctx = build_with(game_data, wylder)
+    for rate in (0.0, -0.5):
+        broken = dataclasses.replace(
+            build, rates={**build.rates, "fireDamageCutRate": rate})
+        with pytest.raises(ValueError, match="lets no damage through"):
+            goals.GOALS["min_damage_taken"].score(broken, ctx)
+
+
+def test_the_no_armament_note_names_the_weapon_class_bonuses(game_data,
+                                                              wylder):
+    """QA-104: a class-bound attack bonus counts zero without a weapon."""
+    build, ctx = build_with(game_data, wylder)
+    note = goals.GOALS["max_damage"].score(build, ctx).weights_note
+    assert "weapon class" in note and "zero" in note
+
+
 def test_a_dataset_without_curves_has_no_effective_hp(game_data, wylder):
     """HP comes from the attribute curves; without them there is no figure.
 
