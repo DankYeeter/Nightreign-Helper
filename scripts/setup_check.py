@@ -227,7 +227,7 @@ def main() -> int:
         print()
         print("This project ships no game data -- every value it shows is read")
         print("from your own copy of the game, so the game must be installed.")
-        print("Steam's library list and the drives C to H were checked.")
+        print("Steam's library list was checked.")
         return 1
     if not built_ok:
         print("The game data has not been built yet. Build it with:")
