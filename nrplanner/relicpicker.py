@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, cardgrid, effecttext, favourites, model
+from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
@@ -745,7 +745,7 @@ class RelicCard(cardgrid.HoverCard):
         for curse_name, curse_detail in (curses or []):
             line = self._line(f"✦ {curse_name}", CURSE_LINE_STYLE)
             if curse_detail:
-                line.setToolTip(curse_detail)
+                line.setToolTip(advisorblock.as_a_tooltip(curse_detail))
             self.lines.append(line)
         for line in self.lines:
             layout.addWidget(line)
@@ -756,8 +756,10 @@ class RelicCard(cardgrid.HoverCard):
             layout.addWidget(self._line(f"✦ comes with {what}",
                                         CURSE_LINE_STYLE))
 
+        # Curse names come from the game's text files; Qt would read a `<`
+        # in one as markup (AK-30, SEC-021).
         if tooltip:
-            self.setToolTip(tooltip)
+            self.setToolTip(advisorblock.as_a_tooltip(tooltip))
 
         layout.addStretch()
 

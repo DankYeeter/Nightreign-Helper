@@ -154,6 +154,25 @@ def test_the_name_under_a_portrait_has_one_size_in_one_place():
             is theme.NAME_POINT_SIZE)
 
 
+def test_a_curse_with_markup_in_its_text_is_shown_letter_for_letter(qapp):
+    """T-334d: the card handed curse text to Qt unescaped, as SEC-021 did.
+
+    Both the card's own tooltip (`curse_tooltip`) and the tooltip on a curse
+    line take text from the game's files, so each goes through
+    `advisorblock.as_a_tooltip`, as the slot's curse line already does.
+    """
+    item = SimpleNamespace(name="A relic", has_curse=True)
+    card = relicpicker.RelicCard(
+        item, ["An effect"], None, False, lambda _item: None,
+        curses=[("<b>Curse</b>", "<b>Detail</b>")],
+        tooltip="This relic's curses:\n  • <b>Curse</b>")
+
+    curse_line = next(line for line in card.lines if "Curse" in line.text())
+    for tip in (card.toolTip(), curse_line.toolTip()):
+        assert tip.startswith("<html>"), tip
+        assert "&lt;b&gt;" in tip and "<b>" not in tip, tip
+
+
 def test_the_gold_ring_follows_the_active_armament(planner):
     """QA-078: after a click on tile i, tile i and only it carries the ring."""
     tiles = planner.stat_sheet.weapon_tiles
