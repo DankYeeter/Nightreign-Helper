@@ -544,3 +544,20 @@ freie Nummer gemessen (AK-366 war die hoechste vergebene).
 | AK-369 | Eine Farbe (`theme.DEBUFF = "#e07a74"`) fuer "gewuerfelter Fluch/Kosten-Effekt in Liste/Zelle": `relicslots.py:429` (bisher hartkodiert `#d1655f`), `effectstab.py:171` `CURSE_COLOUR`, `effectstab.py:1037` (bisher `Qt.red`, Kontrast 4,12:1 unter WCAG AA), `weaponslots.py:28` `DEBUFF`; `theme.BAD`/`CURSE` bleibt fuer seine breitere Kosten-Rolle unveraendert | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
 | AK-370 | `RARITY_TEXT`/`RARITY_COLOURS` bleiben bewusst verschiedene Werte (hellere Textvariante derselben Farbfamilie); nur der irrefuehrende Kommentar `weaponslots.py:30-32` ("the same colours") wird korrigiert, kein Farbwert aendert sich | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
 | AK-371 | Ein Ersatzgrau (`theme.MUTED = "#8a8a8a"`) statt zweier fuer die unbekannte Slot-Farbe: `app.py:161`, `relicslots.py:61` (bereits `#8a8a8a`), `relicslots.py:554`, `relicpicker.py:1115` (bisher `#888`) | UI_SPEC Nachtrag T-329m | T-329m, 2026-09-22 | — |
+
+**Nachtrag T-334b (ui-ux-designer), 2026-10-13 — QA-300/QA-301 und der Why-Satz
+der favorisierten Waffenart.** Kein Fensterlauf. Naechste freie Nummer
+gemessen (AK-371 war die hoechste vergebene).
+
+| AK-372 | Zahllose Zeilen (kein Fluch; `silence` NO_NUMBER_HERE/UNDER_A_CONDITION/ARMAMENT_BOUND) im frisch geoeffneten `WhyDialog` nicht sichtbar, je Gruppe ein Faltknopf `Show {n} effects without a number`; Widgets bleiben (AK-165/AK-155) | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-373 | Nie eingeklappt: Zeilen mit Zahl, jeder Fluch, ANOTHER_NIGHTFARER/ALREADY_COUNTED/NOT_IN_THE_DATA/EXCLUDED/REQUIRED und die neue Art aus AK-383 | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-374 | Gruppentitel fett; bei 640x620 stehen Titel der ersten Gruppe, `count_line` und eine Zeile ohne Scrollen im Sichtbereich | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-375 | Fussnoten (`_footer_text`) hinter einem Faltknopf `Notes on these figures`, zu, ausser `unknowns`/`budget_note` nicht leer; leer = kein Knopf | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-376 | Faltknoepfe: `QToolButton`, Pfeil, `ACCENT` (6,99:1), >= 24 px, Tab/Leertaste/Enter, sichtbarer Fokus, Accessible-Name | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-377 | Faltzustand wird nicht gespeichert; jede Oeffnung beginnt gefaltet nach AK-372/AK-375 | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-378 | Leisten-Knopf bleibt `Why` (Tooltip `Why this whole suggestion`), Karten-Knopf `Why this relic`; Karte darf nicht verbreitern (AK-160), sonst Befund statt Kuerzung | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-379 | Karten-`Why` oeffnet denselben Dialog (Volltext gleich), gescrollt auf den Titel der Gruppe dieses Slots; hebt den Ausschluss am Ende von AK-274 auf | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-380 | Accessible-Name `Goal`/`Hit with`/`Damage type` an den drei Boxen der Leiste, kein neues sichtbares Label | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-381 | Speichern bestaetigt per `QToolTip.showText` an `build_box` verankert: `Saved "{name}".` / `Saved over "{name}".`; nur nach Erfolg | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-382 | Wiederklick auf den gewaehlten Nightfarer: Kachel bleibt angehakt, kein Neuladen, Hinweis `{Name} is already selected.`; Start mit Index 0 muss weiter laden | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |
+| AK-383 | AK-290.2 nur fuer tatsaechlich gezaehlte Effekte; favorisierter, nicht gezaehlter Waffenzahl-Effekt anderer Art bekommt eigenen Satz und eigenen `silence`-Wert (`explain.py:561`) | UI_SPEC Nachtrag T-334b | T-334b, 2026-10-13 | — |

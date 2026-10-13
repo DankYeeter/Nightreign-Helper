@@ -7812,3 +7812,238 @@ ergaenzen, falls `MUTED` dort noch nicht importiert ist).
 Endet der vorangehende Text mit einem Punkt (die "Loaded …"-Zeile von
 `load_equipped`), ersetzt der Halbsatz diesen Punkt: "… with 3 relics — 1
 other save was found; …", nie ". —". Wortlaut des Halbsatzes unveraendert.
+
+#### Nachtrag T-334b (ui-ux-designer), 2026-10-13 — QA-300/QA-301 und der Why-Satz der favorisierten Waffenart (Spec-Modus)
+
+*Auftrag T-334b, Spec ohne Varianten (Nutzer 18:11: "Designer entscheidet nach
+Best Practice"), **kein Fensterlauf**, Vorgabe aus Codelesung Stand `661bb73`
+und `docs/berichte/T-333b-power-user.md`. Naechste freie AK-Nummer gemessen
+(`grep -ohE 'AK-[0-9]+' UI_SPEC.md UI_SPEC_REGISTER.md | sort -t- -k2 -n -u |
+tail -1` = AK-371 aus T-329m) — ab **AK-372**. Gegengelesen: `ARCHITECTURE.md`
+AD-036 Punkt 6 samt Nachtrag 12.10.2026 (QA-299), AK-141, AK-155, AK-165,
+AK-170, AK-171, AK-274, AK-290, AK-301.*
+
+**Zweck und Nutzerziel.** Wer `Why` drueckt, will in einem Blick lesen, welche
+Relikte warum vorgeschlagen sind und was sie kosten — nicht durch Zeilen
+waten, die nur sagen, dass es keine Zahl gibt. Wer `Save` drueckt oder einen
+Nightfarer anklickt, will sehen, dass etwas geschehen ist.
+
+**Befunde (Lesart des Designers).** QA-300 sind drei Fehler: (1) *Untergehen*:
+im `WhyDialog` stehen die Zeilen der Gruppe in Relikt-Reihenfolge
+(`explain.py` `reasons`, Z. 770-786), Zahllose (`only applies under a
+condition, so no number here.` u. a.) zwischen den Zeilen mit Zahl; darunter
+bis zu fuenf Fussnoten-Saetze (`advisorblock._footer_text`, Z. 586-604:
+`Goal.scope`, `unknowns`, `weights_note`, `budget_note`, `data_note`);
+(2) *zwei gleichnamige Knoepfe* `Why` (Leiste `advisorbar.py:809`, Karte
+`advisorblock.py:334`), obwohl AK-274 ihnen denselben Inhalt gibt — der
+Nutzer erwartet nach QA-260 von der Karte "pro Relikt"; (3) *Zielwahl ohne
+Namen*: `goal_box` (`advisorbar.py:704`) hat weder Accessible-Name noch
+Buddy-Label (`setAccessibleName` kommt im Projekt nur an `advisorbar.py:619`
+und `bosstab.py:499` vor). QA-301: Save und Nightfarer-Wiederklick
+(`app.py:1318`, `app.py:1895`) geben keine Rueckmeldung.
+
+**Aufwand je Ziel (aus dem Code, nicht geschaetzt).**
+
+| Ziel | heute | Vorgabe |
+|---|---|---|
+| Warum diese Relikte lesen | 1 Klick + Scrollen durch Zahllose und Fussnoten | 1 Klick; Zahllose und Fussnoten kosten 0 Handlungen, es sei denn man will sie (1 Klick je Gruppe) |
+| Warum *dieses* Relikt lesen | 1 Klick auf Karten-`Why`, dann suchen | 1 Klick, Dialog steht auf der Gruppe (0 Suchen) |
+| Build speichern | 3 (Klick, Name, Enter), keine Rueckmeldung | unveraendert 3, plus Rueckmeldung ohne Handlung |
+| Nightfarer waehlen, schon gewaehlt | 1 Klick, volles Neuladen, keine Rueckmeldung | 1 Klick, kein Neuladen, Rueckmeldung |
+
+Nichts davon fragt etwas Neues ab; das Programm merkt sich weiterhin nur, was
+es heute merkt (Faltungszustand ausdruecklich **nicht**, AK-377).
+
+##### Why-Dialog (AK-372 bis AK-377)
+
+**Aufbau, neu.** Kopfsatz, dann je Slot-Gruppe: **fetter** Titel
+`Slot n — Relikt`, `count_line`, sichtbare Zeilen, Faltknopf, (aufgeklappt) die
+Zahllosen; danach die Listen `Effects you've avoided/favourited`, die bedingte
+Liste, die Legenden, zuletzt der Faltknopf `Notes on these figures` mit den
+Fussnoten. Die Reihenfolge der Bausteine bleibt die heutige; neu sind nur
+Fettdruck, die zwei Faltknopfarten und das Verbergen der Zahllosen.
+**Gefaltet heisst nur nicht gezeichnet, nicht entfernt:** Widgets und Saetze
+bleiben im Dialog (`dialog.groups`, `dialog.footer`), unsortiert, ungefiltert,
+unentdoppelt (AK-165 gilt unveraendert), und `effects_total -
+effects_with_a_figure` (AK-155) zaehlt wie bisher.
+
+**AK-372** *(Zahllose einklappen.)* Eine Zeile einer Gruppe ist **zahllos**,
+wenn `line.is_curse` falsch ist und `line.silence` eines von
+`SILENT_NO_NUMBER_HERE`, `SILENT_UNDER_A_CONDITION`, `SILENT_ARMAMENT_BOUND`
+ist. Zahllose Zeilen sind im frisch geoeffneten Dialog **nicht sichtbar**
+(`isVisible()` falsch, Widget vorhanden). Hat eine Gruppe n ≥ 1 zahllose
+Zeilen, steht unter ihren uebrigen Zeilen ein Faltknopf mit dem Text
+`Show 1 effect without a number` bzw. `Show {n} effects without a number`;
+aufgeklappt `Hide 1 effect without a number` / `Hide {n} effects without a
+number`. Ein Klick klappt nur diese Gruppe; die Zahllosen erscheinen unter dem
+Knopf in ihrer bisherigen Reihenfolge. Hat die Gruppe n = 0, gibt es keinen
+Knopf (kein Platzhalter). Pruefweg: Dialog mit einer Antwort, die Zahllose
+traegt, ueber `dialog.groups` lesen; die Zahl im Knopftext gleich der Anzahl
+der Zeilen mit diesen drei `silence`-Werten.
+
+**AK-373** *(was nie eingeklappt wird.)* Immer sichtbar: Zeilen mit Zahl;
+**jeder Fluch** (`is_curse`), auch `…: no number here shows what this costs.`
+(der Preis ist vor dem Anwenden lesbar, vgl. `types.drawn_in_the_block`); sowie
+die Zeilen mit `silence` ∈ {`SILENT_ANOTHER_NIGHTFARER`,
+`SILENT_ALREADY_COUNTED`, `SILENT_NOT_IN_THE_DATA`, `SILENT_EXCLUDED`,
+`SILENT_REQUIRED`} und die neue Art aus AK-383 — sie sagen etwas ueber eine
+Entscheidung des Nutzers oder deren Folge, nicht "es gibt keine Zahl". Die
+sichtbaren Zeilen behalten die Relikt-Reihenfolge; nur die drei Arten aus
+AK-372 fehlen darin.
+
+**AK-374** *(die Antwort steht oben.)* Der Titel jeder Gruppe (`Slot n — …`)
+ist fett (`font().bold()` wahr), `count_line` steht unmittelbar darunter
+unveraendert. Bei der Dialoggroesse 640 x 620 (`advisorblock.py:473`) liegen
+im frisch geoeffneten Dialog der Titel der ersten Gruppe samt `count_line` und
+mindestens einer Zeile **ohne Scrollen** im sichtbaren Bereich des
+`QScrollArea`. Pruefweg: Geometrie von Titel und erster Zeile gegen
+`scroller.viewport().height()`; Fall: die Wylder-Antwort mit drei Relikten aus
+dem Laientest (T-333b).
+
+**AK-375** *(Fussnoten einklappen, nichts streichen.)* Der heutige `footer`
+(`_footer_text`, unveraendert in Inhalt und Reihenfolge, AK-165/AK-171) steht
+hinter **einem** Faltknopf `Notes on these figures` (aufgeklappt `Hide notes on
+these figures`), als letztes Element der Seite. Frisch geoeffnet ist er
+**eingeklappt**, ausser `result.unknowns` oder `result.budget_note` ist nicht
+leer — dann **aufgeklappt**, weil beides eine Aussage ueber *diesen* Lauf ist
+(`No armament selected — …`, die Suche wurde gekappt), waehrend `Goal.scope`
+(u. a. "Scholar and Undertaker were not measured") und `data_note` fuer jeden
+Lauf derselben Richtung gleich lauten (AK-172). Ist der `footer` leer, gibt es
+den Knopf nicht (AK-170: nichts zeichnen).
+
+**AK-376** *(Faltknoepfe: bedienbar.)* Beide Arten sind `QToolButton` mit Pfeil
+im Text (`▸ ` zu, `▾ ` auf), ohne Rahmen (`setAutoRaise(True)`), Textfarbe
+`theme.ACCENT` (6,99:1 gegen `PANEL`, gerechnet 13.10.2026), Hoehe ≥ 24 px, in
+der Tab-Reihenfolge direkt hinter den Zeilen ihrer Gruppe bzw. hinter dem
+letzten Inhalt; Leertaste und Enter klappen, Fokusrahmen sichtbar;
+`accessibleName` = sichtbarer Text ohne Pfeil. Kein Tooltip noetig.
+
+**AK-377** *(kein Gedaechtnis.)* Der Faltzustand ist reiner Dialogzustand: er
+wird nicht gespeichert (`favourites.settings()` bekommt keinen Schluessel,
+OF-15), jede Oeffnung beginnt wie AK-372/AK-375 beschreiben. Aendert sich
+`EffectFilters` bei offenem Dialog (`filters.changed`), bleibt der Faltzustand
+unberuehrt.
+
+##### Zwei `Why`-Knoepfe (AK-378, AK-379)
+
+**AK-378** *(Karte und Leiste heissen verschieden.)* Der Knopf der Leiste
+(`advisorbar.py:809`) bleibt `Why` (80 px, AK-07/AK-274/AK-302 messen auf ihm);
+sein Tooltip lautet `Why this whole suggestion`, er oeffnet am Dialoganfang.
+Der Knopf der Karte (`advisorblock.py:334`) heisst `Why this relic`, Tooltip
+`Why this relic is suggested for this slot`. Sichtbarkeit unveraendert nach
+AK-274. **Messgrenze:** die Kartenkopfzeile darf die Karte nicht verbreitern
+(AK-160: kein horizontaler Bildlauf in der mittleren Spalte bei der
+abgeleiteten Startbreite und bei 1536 px); haelt das nicht, meldet der
+`developer` den Messwert als Befund zurueck, statt den Text zu kuerzen — der
+Designer entscheidet dann zwischen `Why here` und einem Umbruch.
+
+**AK-379** *(die Karte fuehrt an die richtige Stelle.)* Der Karten-Knopf
+oeffnet **denselben** Dialog mit **demselben** Volltext wie die Leiste (AK-274
+unveraendert, Volltextvergleich). Unterschied allein: der Dialog ist so
+gescrollt, dass der Titel der Gruppe dieses Slots (`Slot n — …`, n =
+`slot_index + 1` der Karte) oben im sichtbaren Bereich steht (Scrollbalken-Wert
+= `title.y()`, auf das Maximum gedeckelt; `ensureWidgetVisible` genuegt nicht,
+es macht nur sichtbar, nicht oben). Hat die Antwort fuer diesen Slot keine
+Gruppe, oeffnet der Dialog am Anfang. Faltzustand bleibt AK-372/AK-375.
+Verdrahtung: `app.py:2765` reicht den Slot mit (wie `use_requested`,
+`lambda slot=card`), `open_why` (`app.py:3051`) bekommt ihn optional. *Hebt den
+Ausschluss am Ende von AK-274 auf ("ob der geoeffnete Dialog zur Gruppe
+scrollt" — dort ein Vorschlag fuer einen spaeteren Auftrag).*
+
+##### Zielwahl der Leiste (AK-380)
+
+**AK-380** *(Namen ohne neue Breite.)* `goal_box`, `hit_with_box` und
+`damage_type_box` bekommen `setAccessibleName("Goal")`, `("Hit with")`,
+`("Damage type")` (`advisorbar.py:704, 734, 761`); **kein** neues sichtbares
+Label. Begruendung: die Eintraege der Zielwahl sind ganze Saetze (`Maximise
+damage`), die beiden anderen tragen ihr Label schon (der Kommentar an
+`hit_with_label` begruendet das mit der Mehrdeutigkeit kurzer Eintraege wie
+`Holy`, die bei der Zielwahl nicht besteht), und die Leiste hat laut AK-302
+nur 72 px Marge am 1536-px-Boden. Pruefweg: `box.accessibleName()` nicht leer
+bei allen dreien; UIA-Name der Zielwahl im Fensterlauf gleich `Goal`.
+
+##### Rueckmeldungen (AK-381, AK-382)
+
+**AK-381** *(Build speichern bestaetigt.)* Nach erfolgreichem
+`chalices.save_build` (`app.py:1923`) zeigt das Fenster im vorhandenen Muster
+(`QToolTip.showText`, wie `Hidden. Tick "Show hidden"…`, `app.py:1953`) einen
+Hinweis, aber **an der Build-Liste verankert**, nicht am Mauszeiger (der steht
+nach dem Namensdialog am Dialogknopf, nicht dort, wo sich etwas aenderte):
+`QToolTip.showText(build_box.mapToGlobal(QPoint(0, build_box.height())), text,
+build_box, QRect(), 4000)`. Text `Saved "{name}".`; existierte der Name vorher
+in `chalices.build_names(hero_id)`: `Saved over "{name}".` (ehrlich zum stillen
+Ueberschreiben, das heute geschieht; eine Rueckfrage ist **nicht** Teil dieser
+Vorgabe). Ein Name ueber 40 Zeichen steht hinten mit `…` gekuerzt. Nur nach
+Erfolg: nach den beiden Ablehnungen (`app.py:1908-1921`) bleibt deren Hinweis
+der einzige. Pruefweg: `QToolTip.showText` abfangen, genau ein Aufruf mit
+diesem Text, Widget = `build_box`.
+
+**AK-382** *(Wiederklick auf den gewaehlten Nightfarer.)* `select_hero`
+(`app.py:1318`) mit `index == self.hero_index` **und** bereits einmal gewaehlt
+tut nichts ausser: die Kachel bleibt angehakt (die Kacheln sind `checkable`,
+ein Klick auf die angehakte schaltet sie aus; heute stellt die Schleife
+`app.py:1320` sie nur durch das volle Neuladen wieder her), kein
+`reload_chalices`, kein `refresh_build_list`, kein Schreiben von `HERO_KEY`;
+dazu ein Hinweis im selben Tooltip-Muster, an der Kachel verankert: `{Name} is
+already selected.` **Achtung Start:** `hero_index` beginnt bei 0
+(`app.py:470`) und `select_hero(start_index)` (`app.py:674`) muss auch fuer
+Index 0 voll laufen — ein eigener Merker, nicht der Indexvergleich allein.
+Pruefweg: zweiter Klick auf dieselbe Kachel: `reload_chalices` nicht
+aufgerufen (Zaehler), Kachel `isChecked()`, ein `QToolTip.showText`-Aufruf.
+Wer den Spielstand neu einlesen will, hat den Knopf `app.py:814`.
+
+##### Der Why-Satz zur favorisierten Waffenart (AK-383)
+
+Heute `explain._marked_line` (`explain.py:557-567`): jeder favorisierte,
+zahllose Effekt bekommt `"{name}: you favourited it, so it always counts."`
+(AK-290.2). Seit dem Nachtrag AD-036.6 vom 12.10.2026 gilt in einem Vorschlag
+hoechstens **eine** Waffenart einer Waffenzahl-Bedingung
+(`effecttext.counts_armaments`, 31 Ids); ein favorisierter Effekt einer
+**anderen** Art zaehlt dort nicht, und der Satz luegt.
+
+**AK-383** *(Wahrheit vor Kuerze.)* AK-290.2 gilt nur noch, wenn der Effekt in
+der Rechnung dieses Vorschlags **tatsaechlich zaehlt**. Ist der Effekt
+favorisiert, eine Waffenzahl-Bedingung und seine Art nicht die in dieser
+Antwort angenommene (`GoalContext.assumed_armament_counts`, `evaluate`),
+lautet die Zeile (woertlich, A8 Englisch, Muster `"{name}: <Ursache>, so
+<Folge>."`):
+
+`{name}: you favourited it, but a build can meet the weapon-count condition of only one weapon type, and another type counts here, so this one is not counted.`
+
+Die Zeile hat einen **eigenen** `silence`-Wert (neu in `types.py`, z. B.
+`SILENT_REQUIRED_OTHER_TYPE`), wird wie jede favorisierte Zeile mit `▲` und
+fett in `ACCENT` gezeichnet (`advisorblock._styled`; der Zustand kommt aus
+`EffectFilters`, nicht aus dem Satz) und steht nach AK-373 immer sichtbar. Die
+Zaehlzeile der Gruppe (`_count_line`) aendert sich nicht. Pruefweg: Antwort
+mit zwei favorisierten Waffenzahl-Effekten verschiedener Art; die Gruppe
+nennt den gezaehlten ohne Zusatz und den anderen mit dem Satz oben.
+Negativprobe: ein gezaehlter favorisierter Effekt traegt weiter AK-290.2.
+Aenderungsstelle `explain.py:561`, dieselbe Stelle, an der heute der falsche
+Satz steht.
+
+**Ausdruecklich nicht Teil dieser Vorgabe.**
+- Ob ein Favorit die Waffenart *festlegt* (wie eine von Hand erklaerte
+  Waffenzahl-Bedingung, AD-036.6 Nachtrag) statt nur den Satz zu bekommen —
+  Produktfrage, siehe offene Frage im Bericht.
+- Eine Rueckfrage beim Ueberschreiben eines gespeicherten Builds (AK-381).
+- Einrichtung ~50 s (QA-301 Teil 3): **kein UI-Befund.** `iconbuild.py:188`
+  schreibt `item icons: {len(manifest['items'])} of {len(wanted)} requested`;
+  713 von 786 ist die Normalausgabe des Symbolbaus, kein Fehlerzeichen. Dass
+  der Bau ueberhaupt lief, heisst: der kopierte Testabzug
+  (`NightreignHelper-Testabzug`: `nightreign_data.json` + `icons/`, 841
+  Dateien, `EXTRACT_VERSION` 16 = heutiger Stand `nrdata/extract.py:104`) hat
+  im Laientest nicht gegriffen. Frage an die Lauf-Vorbereitung (Kopierziel
+  `LOCALAPPDATA`, Lage der Dateien), nicht an die Oberflaeche; die
+  Fortschrittsanzeige in Worten bewertete der Laie als gut.
+- Ein Antwortsatz ueber dem Kopfsatz des Dialogs: Gruppentitel samt
+  `count_line` sind die Antwort (AK-374); ein Vorab-Statement waere die
+  Doppelung, die AK-274 vermeidet.
+
+**Betroffene Dateien (fuer disjunkte Fixpakete).**
+`nrplanner/advisorblock.py` (AK-372 bis AK-379), `nrplanner/advisorbar.py`
+(AK-378, AK-380), `nrplanner/app.py` (AK-379 Verdrahtung, AK-381, AK-382),
+`nrplanner/advisor/explain.py` (AK-383, Z. 557-567),
+`nrplanner/advisor/types.py` (AK-383, neuer `silence`-Wert). Bestandstests,
+die sich aendern: alle, die `dialog.footer.isVisible()` oder die Sichtbarkeit
+zahlloser Zeilen im frisch geoeffneten Dialog lesen (AK-141/AK-170/AK-171),
+und die, die den Kartenknopf als `Why` finden.
