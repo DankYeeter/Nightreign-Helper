@@ -75,7 +75,8 @@ def says_nothing_windows_said(said: str) -> None:
 #: Attributes that hand out the operating system's own wording. `args` and
 #: `message` are the whole of it, `strerror` and `winerror` the halves AK-126
 #: left behind when it took the path out.
-WORDING_ATTRIBUTES = ("strerror", "args", "winerror", "message", "reason")
+WORDING_ATTRIBUTES = ("strerror", "args", "winerror", "message", "reason",
+                      "filename", "filename2")
 
 #: The packages whose modules are scanned. `nrdata` is in because the first
 #: run shows what its extraction raises, in the same dialog.
@@ -207,9 +208,12 @@ def one():
         say(str(exc))
         shout(f"it went wrong: {exc}")
         note(exc.strerror)
+        note(exc.filename)
+        note(exc.filename2)
 """
     assert set(places_that_quote_an_exception(quoting)) == {
-        ("one", "str(exc)"), ("one", "{exc}"), ("one", "exc.strerror")}
+        ("one", "str(exc)"), ("one", "{exc}"), ("one", "exc.strerror"),
+        ("one", "exc.filename"), ("one", "exc.filename2")}
 
     allowed = """
 def two():

@@ -547,6 +547,18 @@ def test_pools_are_built_for_the_free_slots_only(game_data, wylder):
     assert [pool.slot_index for pool in built] == [1]
 
 
+def test_pools_refuses_a_direction_nothing_ranks_by_even_with_all_held(
+        game_data, wylder):
+    """QA-105: no free slot must not turn a wrong `rank_by` into an answer."""
+    inventory = advisor.make_inventory(game_data, wylder, count=1)
+    problem = advisor.problem(
+        [advisor.RED], held={0: advisor.held_relic(inventory.relics[0])})
+    ctx = advisor.context(game_data, wylder)
+
+    with pytest.raises(KeyError, match="nothing ranks by"):
+        candidates.pools(inventory, problem, ctx, goals.GOALS, "no_such_goal")
+
+
 def test_every_slot_held_leaves_nothing_to_search(game_data, wylder):
     """AD-014 point 2: not an error, an answer -- the build as it stands."""
     inventory = advisor.make_inventory(game_data, wylder, count=1)

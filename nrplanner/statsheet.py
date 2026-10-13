@@ -118,6 +118,34 @@ def _rate_label(field_name: str) -> str:
     return model.ART_LABELS.get(field_name) or model.label_for(field_name)
 
 
+def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
+    """The tooltip behind one clicked figure: its sources, one row each (QA-077).
+
+    `entries` carry `name` and `own`. A multiplier is shown as its percentage
+    (`own` 1.124 reads `+12.4%`), a flat bonus as its number.
+    """
+    if not entries:
+        return f"{label}\nno contributing effects recorded"
+    rows = [f"<b>{label}</b>"]
+    for entry in entries:
+        if multiplicative:
+            shown = f"{(entry.own - 1.0) * 100:+.1f}%"
+        else:
+            shown = f"{entry.own:+g}"
+        rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
+
+    if multiplicative and len(entries) > 1:
+        total = 1.0
+        for entry in entries:
+            total *= entry.own
+        rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
+                    f"{(total - 1.0) * 100:+.1f}%</i>")
+    elif not multiplicative and len(entries) > 1:
+        rows.append(f"&nbsp;&nbsp;<i>total "
+                    f"{sum(entry.own for entry in entries):+g}</i>")
+    return "<br>".join(rows)
+
+
 def _heading(text: str) -> QLabel:
     label = QLabel(text.upper())
     font = label.font()
@@ -404,33 +432,12 @@ class StatSheet(QScrollArea):
         # An "All damage" row stands for five fields; its sources live under
         # the real one behind it.
         entries = self.last_sources.get(model.real_field(key), [])
-        label = model.label_for(key)
-        if not entries:
-            QToolTip.showText(QCursor.pos(),
-                              f"{label}\nno contributing effects recorded")
-            return
-
-        multiplicative = model.real_field(key) in self.last_rates
-        rows = [f"<b>{label}</b>"]
-        for entry in entries:
-            if multiplicative:
-                shown = f"{(entry.own - 1.0) * 100:+.1f}%"
-            else:
-                shown = f"{entry.own:+g}"
-            rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
-
-        if multiplicative and len(entries) > 1:
-            total = 1.0
-            for entry in entries:
-                total *= entry.own
-            rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
-                        f"{(total - 1.0) * 100:+.1f}%</i>")
-        elif not multiplicative and len(entries) > 1:
-            rows.append(f"&nbsp;&nbsp;<i>total "
-                        f"{sum(entry.own for entry in entries):+g}</i>")
-
-        # Offset to the right of the cursor so the number stays readable.
-        QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
+        text = breakdown_text(model.label_for(key), entries,
+                              model.real_field(key) in self.last_rates)
+        # Offset to the right of the cursor so the number stays readable; the
+        # "nothing recorded" sentence has no number beside it to keep clear.
+        offset = QPoint(18, 0) if entries else QPoint(0, 0)
+        QToolTip.showText(QCursor.pos() + offset, text)
 
     def _rate_rows(self, rates: dict[str, float],
                    weapon_class: str | None = None) -> list[str]:

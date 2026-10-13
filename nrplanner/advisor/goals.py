@@ -156,7 +156,8 @@ _NO_ARMAMENT = ("This Nightfarer's starting armament has no entry in the "
 
 _NO_ARMAMENT_NOTE = ("With no armament on record there is nothing to scale, "
                      "so the five attack multipliers are averaged with equal "
-                     "weight.")
+                     "weight; an attack bonus that needs a particular "
+                     "weapon class counts as zero.")
 
 #: The five attributes an armament's damage scales on -- the ones AD-032
 #: calls offensive. Written out rather than filtered out of
@@ -671,13 +672,33 @@ def _min_damage_taken(build: model.Build,
     therefore no branch here for a zero divisor: a branch no data can reach is
     the dead code QA-061 had this project delete, and a division that fails
     loudly beats one that guesses. The two preconditions a caller *can* get
-    wrong are checked instead, because a caller is not the dataset.
+    wrong are checked instead, because a caller is not the dataset: a
+    weighting with no weights, with a weight below zero, whose weights sum to
+    zero, or that names a field which is not one of `DAMAGE_CUT_FIELDS`, and a
+    build whose rate for a weighted field is not above zero (QA-103,
+    QA-105). Every one of them would otherwise end in a `ZeroDivisionError` or
+    in a plausible wrong number.
     """
     weights = dict(ctx.weighting.weights)
     if not weights:
         raise ValueError(
             f"weighting {ctx.weighting.id!r} carries no weights, so there is "
             f"nothing to average the eight damage kinds with")
+    unknown = sorted(set(weights) - set(DAMAGE_CUT_FIELDS))
+    if unknown:
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} weighs {unknown}, which "
+            f"{'is' if len(unknown) == 1 else 'are'} not a damage-cut field")
+    if min(weights.values()) < 0 or sum(weights.values()) <= 0:
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} needs weights of zero or more "
+            f"that add up to more than zero")
+    not_positive = [name for name in weights
+                    if build.rates.get(name, 1.0) <= 0]
+    if not_positive:
+        raise ValueError(
+            f"this build lets no damage through on {not_positive}, so "
+            f"effective HP cannot be formed")
     hp = build.derived.get("HP")
     if hp is None:
         raise ValueError(
