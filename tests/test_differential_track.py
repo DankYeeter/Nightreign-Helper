@@ -192,6 +192,32 @@ def test_an_arsenal_block_missing_a_control_is_refused(game_data, dropped):
         plan.build_plan(game_data, raster)
 
 
+@pytest.mark.parametrize("tier, rarity", [(3, 1), (1, 3)])
+def test_a_rarity_band_the_tier_cannot_carry_is_warned_about(
+        game_data, tier, rarity):
+    """QA-088 b: such a configuration draws no tile and still counts."""
+    configuration = dict(ARSENAL_RASTER["configurations"][0])
+    configuration["arsenal"] = dict(configuration["arsenal"], tier=tier,
+                                    rarity=rarity)
+    raster = dict(ARSENAL_RASTER, configurations=[configuration])
+
+    with pytest.warns(UserWarning, match=f"band {rarity}"):
+        plan.build_plan(game_data, raster)
+
+
+def test_the_arsenal_reading_draws_a_tile_whose_name_is_a_family(
+        game_data, planner):
+    """QA-123: "Hammer" matches 171 armaments, over the tab's opening cap;
+    the reading opens the sections itself, so the tile is still drawn."""
+    hammer = next(w for w in game_data["weapons"] if w["name"] == "Hammer")
+    case = plan.build_plan(game_data, ARSENAL_RASTER)["cases"][0]
+    case["arsenal"]["weapon"] = hammer["id"]
+
+    shown = cases.run(planner, game_data, case)
+
+    assert shown["arsenal_tiles"]
+
+
 def test_the_arsenal_reading_refuses_a_rating_shape_it_does_not_know(
         game_data):
     """No `getattr` fallback: an unknown shape is a stop, not a guess.

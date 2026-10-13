@@ -92,9 +92,7 @@ def steam_common_folders() -> list[pathlib.Path]:
 
     Public so a folder-choosing dialog can wake up in the player's own
     library rather than only the default one (`UI_SPEC` 4.1, AK-110): a
-    library on another drive is nearer to the game than
-    `C:\\Program Files (x86)\\Steam\\steamapps\\common`, the hard-coded
-    fallback that stands in for it when Steam cannot be found at all.
+    library on another drive is as near the game as the default one.
 
     Existence is for the caller to check, exactly as `find_game_dir` checks
     it against the same two private helpers above -- a library the vdf

@@ -429,6 +429,11 @@ def arsenal_reading(planner, data: dict, build, request: dict) -> dict:
     tab.rarity_box.setCurrentIndex(index)
     tab.search.setText(f'"{weapon["name"]}"')
     tab.recalculate()
+    # Opened here, not left to the tab: a name that is also a family's
+    # ("Hammer", 171 matches) is over the tab's own opening cap, and the tile
+    # would never be drawn (QA-123).
+    for section in tab._top_sections:
+        section.expand_all()
 
     listed = [r for r in tab.ratings if r.weapon["id"] == weapon["id"]]
     return {

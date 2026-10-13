@@ -614,15 +614,13 @@ def test_the_first_dialog_opens_at_the_folder_that_was_remembered(
     assert firstrun.where_to_start_looking(game) == game
     assert firstrun.where_to_start_looking(game / "gone") == game
 
-    # QA-235: no Steam library is known here, so the fallback is the last
-    # word -- both are set, not read off whatever Steam this machine has
-    # (or does not have).
+    # SEC-042: with no Steam library known, nothing else is guessed at --
+    # not even a default folder that every machine here would claim to have
+    # (QA-235: set, not read off this machine's own Steam).
     monkeypatch.setattr(firstrun.gamefiles, "steam_common_folders", lambda: [])
-    fallback = tmp_path / "fallback" / "steamapps" / "common"
-    fallback.mkdir(parents=True)
-    monkeypatch.setattr(firstrun, "STEAM_COMMON", fallback)
+    monkeypatch.setattr(pathlib.Path, "is_dir", lambda _self: True)
 
-    assert firstrun.where_to_start_looking(None) == fallback
+    assert firstrun.where_to_start_looking(None) is None
 
 
 def test_quitting_keeps_nothing_and_carrying_on_keeps_nothing(tmp_path):
