@@ -52,6 +52,7 @@ of these three states; that is the whole reason they went unnoticed.
 from __future__ import annotations
 
 import errno
+import hashlib
 import pathlib
 import struct
 import threading
@@ -704,8 +705,24 @@ def slot_with_table_starts(byte_length: int, starts: int) -> bytes:
     return bytes(buffer)
 
 
-def prepared_save(folder: pathlib.Path, slot: bytes) -> pathlib.Path:
+def sealed(slot: bytes) -> bytes:
+    """`slot` as the game lays it out before encrypting it (QA-007).
+
+    u32 length, the slot, the MD5 of the slot, PKCS#7 padding: the layout
+    `savefile.CHECKSUM_SIZE` describes and measured on a real save.
+    """
+    body = (struct.pack("<I", len(slot) + savefile.CHECKSUM_SIZE) + slot
+            + hashlib.md5(slot).digest())
+    pad = 16 - len(body) % 16
+    return body + bytes([pad]) * pad
+
+
+def prepared_save(folder: pathlib.Path, slot: bytes, *,
+                  plaintext: bytes | None = None) -> pathlib.Path:
     """A .sl2 carrying this one character slot, encrypted as the game does.
+
+    `plaintext` replaces the sealed slot outright, for the cases about the
+    seal itself.
 
     Written into the test's own temporary folder and never into the player's
     save folder: a prepared file there is the attack these cases are about,
@@ -713,7 +730,8 @@ def prepared_save(folder: pathlib.Path, slot: bytes) -> pathlib.Path:
     """
     name = "USER_DATA000".encode("utf-16-le") + b"\0\0"
     iv = bytes(range(16))
-    member = iv + AES.new(savefile.SAVE_KEY, AES.MODE_CBC, iv).encrypt(slot)
+    plain = sealed(slot) if plaintext is None else plaintext
+    member = iv + AES.new(savefile.SAVE_KEY, AES.MODE_CBC, iv).encrypt(plain)
 
     header = bytearray(0x40)
     header[0:4] = b"BND4"
@@ -877,3 +895,54 @@ def test_a_save_that_goes_away_before_it_is_sorted_names_no_path(tmp_path,
     assert str(gone_path) not in message, message
     assert "\\" not in message and "/" not in message, message
     assert tmp_path.name not in message, message
+
+
+# --------------------------------------------------------------------------
+# QA-007, QA-213, QA-038: one decryption, and it checks the slot's MD5
+
+A_SLOT = DOUBLED_ID + bytes(64)
+
+
+def test_a_slot_that_matches_its_checksum_is_read(tmp_path):
+    path = prepared_save(tmp_path, A_SLOT)
+
+    found = inventory._scan_save(path, {KNOWN_RELIC_ID}, set(),
+                                 mode=savefile.FAST)
+
+    assert found is not None
+
+
+def test_a_slot_that_fails_its_checksum_is_not_read(tmp_path):
+    """One byte changed after sealing: the file says so instead of being read.
+
+    Before QA-007 the reading path took the bytes as they came; a slot caught
+    mid-write or damaged on disk was read as if the game had written it.
+    """
+    damaged = bytearray(sealed(A_SLOT))
+    damaged[4] ^= 0xFF
+    path = prepared_save(tmp_path, A_SLOT, plaintext=bytes(damaged))
+
+    with pytest.raises(inventory.SaveNotReadable,
+                       match="does not match its own checksum"):
+        inventory._scan_save(path, {KNOWN_RELIC_ID}, set(),
+                             mode=savefile.FAST)
+
+
+def test_a_slot_the_game_never_wrote_needs_no_checksum():
+    iv = bytes(16)
+    zeros = AES.new(savefile.SAVE_KEY, AES.MODE_CBC, iv).encrypt(bytes(64))
+
+    assert savefile.decrypt_member(iv + zeros) == bytes(64)
+
+
+def test_the_inventory_and_the_save_reader_decrypt_in_one_place(tmp_path,
+                                                                monkeypatch):
+    """QA-038: `inventory` had its own copy of the decryption loop."""
+    calls = []
+    decrypt = savefile.decrypt_member
+    monkeypatch.setattr(savefile, "decrypt_member",
+                        lambda raw: calls.append(raw) or decrypt(raw))
+
+    inventory._decrypt_slots(prepared_save(tmp_path, A_SLOT))
+
+    assert len(calls) == 1
