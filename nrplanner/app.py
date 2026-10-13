@@ -6,7 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QProcess, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import QPoint, QProcess, QRect, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -337,6 +337,18 @@ OWNED_TOTAL_TOOLTIP = ("Counted from your save {source}. The number beside a "
                        "relic slot counts only the relics that fit that slot.")
 
 
+#: How many letters of a saved build's name its confirmation shows (AK-381).
+SAVED_NAME_SHOWN = 40
+#: How long a hint anchored under a widget stands, in ms (AK-381, AK-382).
+HINT_MS = 4000
+
+
+def _hint_under(widget: QWidget, text: str) -> None:
+    """A tooltip hint under `widget`, not at the pointer (AK-381, AK-382)."""
+    QToolTip.showText(widget.mapToGlobal(QPoint(0, widget.height())), text,
+                      widget, QRect(), HINT_MS)
+
+
 class HeroTile(QToolButton):
     """One portrait in the 2x5 Nightfarer grid, with the name under it.
 
@@ -468,6 +480,10 @@ class Planner(QMainWindow):
         self.curves = data.get("curves", {})
         self.icons = IconPack()
         self.hero_index = 0
+        # AK-382: `hero_index` starts at 0, so whether a Nightfarer has been
+        # chosen at all is its own fact -- the first choice runs in full,
+        # even for index 0.
+        self._hero_chosen = False
         # The six armament tiles, and one saved set per Nightfarer. Slot 1
         # defaults to that Nightfarer's starting armament, but anything you
         # build is kept for the rest of the session, so switching Nightfarer
@@ -1316,6 +1332,15 @@ class Planner(QMainWindow):
         return self.heroes[self.hero_index]
 
     def select_hero(self, index: int) -> None:
+        if self._hero_chosen and index == self.hero_index:
+            # AK-382: nothing to load. The click unticked the tile; tick it
+            # back and say why nothing else happened.
+            tile = self.hero_tiles[index]
+            tile.setChecked(True)
+            _hint_under(tile, f"{self.heroes[index]['name']} is already "
+                              f"selected.")
+            return
+        self._hero_chosen = True
         self.hero_index = index
         for i, tile in enumerate(self.hero_tiles):
             tile.setChecked(i == index)
@@ -1920,6 +1945,7 @@ class Planner(QMainWindow):
             return
         vessel = self.current_vessel()
         slots = list(self.base_slots) + list(self.deep_slots)
+        existed = name in chalices.build_names(self.current_hero()["id"])
         chalices.save_build(
             self.current_hero()["id"], name,
             vessel["id"] if vessel else None,
@@ -1929,6 +1955,12 @@ class Planner(QMainWindow):
         )
         chalices.set_selected_build(self.current_hero()["id"], name)
         self.refresh_build_list(keep=name)
+        # AK-381: at the list that changed, not at the pointer, which stands
+        # where the name dialog was.
+        shown = (name if len(name) <= SAVED_NAME_SHOWN
+                 else name[:SAVED_NAME_SHOWN] + "…")
+        _hint_under(self.build_box, f'Saved over "{shown}".' if existed
+                    else f'Saved "{shown}".')
 
     def _delete_build(self) -> None:
         name = self.build_box.currentData()
@@ -2762,7 +2794,8 @@ class Planner(QMainWindow):
             # AK-274: the card's own `Why` opens the very dialog the bar's
             # does -- same handler, so there is no second account to keep in
             # step with the first.
-            card.suggestion.why_requested.connect(self.open_why)
+            card.suggestion.why_requested.connect(
+                lambda slot=card: self.open_why(slot))
 
     def _the_suggestion_changed(self, result) -> None:
         """A different answer stands, or none does.
@@ -3048,13 +3081,16 @@ class Planner(QMainWindow):
                                      if group.slot_index == held_favourite_slot
                                      else ""))
 
-    def open_why(self) -> None:
+    def open_why(self, card=None) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
 
         The head of the dialog names four things no result carries -- who
         is being built, on which vessel, with Deep of Night on or off, and
         out of how many relics -- so they are read off this window at the
         moment the dialog opens.
+
+        `card` is the slot whose `Why this relic` asked; the dialog then
+        stands on that slot's group (AK-379).
         """
         result = self.advisor_bar.answer
         if result is None:
@@ -3067,9 +3103,11 @@ class Planner(QMainWindow):
             deep=self.deep_check.isChecked(),
             relics=0 if self.owned is None else self.owned.relic_count,
         )
-        advisorblock.WhyDialog(heading, result, self,
-                               filters=self.effect_filters,
-                               effects=self.effects).exec()
+        slots = self._all_slots()
+        advisorblock.WhyDialog(
+            heading, result, self, filters=self.effect_filters,
+            effects=self.effects,
+            slot_index=slots.index(card) if card in slots else None).exec()
 
     def open_effect_filters(self) -> None:
         """The effect filter window (AK-302/AK-303), over what is owned now.

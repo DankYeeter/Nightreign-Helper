@@ -50,7 +50,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
-                               QVBoxLayout, QWidget)
+                               QToolButton, QVBoxLayout, QWidget)
 
 from . import effectfilters, effecttext
 from .advisor import goals as advisor_goals
@@ -94,6 +94,16 @@ EFFECT_TEXT = "#cfcfcf"
 
 #: The line height of an effect line, in px (`UI_SPEC` §3.2, AK-156).
 SMALL_TEXT = 11
+
+#: The silent fillings that only say "there is no number", folded away in a
+#: freshly opened `Why` dialog (AK-372). Every other silent filling tells of
+#: a decision of the player's or its consequence and stays drawn (AK-373).
+NUMBERLESS = frozenset({types.SILENT_NO_NUMBER_HERE,
+                        types.SILENT_UNDER_A_CONDITION,
+                        types.SILENT_ARMAMENT_BOUND})
+
+#: The least height of a fold button, in px (AK-376).
+FOLD_HEIGHT = 24
 
 
 # --- one line, as the markup that draws it ---------------------------------
@@ -217,6 +227,54 @@ def _stacked(widgets) -> QWidget:
     return holder
 
 
+def is_numberless(line: types.ReasonLine) -> bool:
+    """Does this line only say that it has no number (AK-372)? A curse never
+    does: its price is read before applying (AK-373)."""
+    return not line.is_curse and line.silence in NUMBERLESS
+
+
+class FoldButton(QToolButton):
+    """Shows and hides one widget, saying which with an arrow (AK-376).
+
+    Checked is open. The state lives in the dialog alone (AK-377). Enter
+    folds as Space does: in a dialog it would otherwise press `Close`.
+    """
+
+    def __init__(self, closed_text: str, open_text: str, target: QWidget,
+                 opened: bool = False) -> None:
+        super().__init__()
+        self._texts = (closed_text, open_text)
+        self._target = target
+        self.setAutoRaise(True)
+        self.setCheckable(True)
+        self.setMinimumHeight(FOLD_HEIGHT)
+        self.setStyleSheet(
+            f"QToolButton {{ color: {ACCENT};"
+            f" border: 1px solid transparent; }}"
+            f" QToolButton:focus {{ border: 1px solid {ACCENT}; }}")
+        self.toggled.connect(self._fold)
+        self.setChecked(opened)
+        self._fold(opened)
+
+    def _fold(self, opened: bool) -> None:
+        self._target.setVisible(opened)
+        text = self._texts[opened]
+        self.setText(("▾ " if opened else "▸ ") + text)
+        self.setAccessibleName(text)
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.click()
+            return
+        super().keyPressEvent(event)
+
+
+def _numberless_fold(count: int, target: QWidget) -> FoldButton:
+    effects = "1 effect" if count == 1 else f"{count} effects"
+    return FoldButton(f"Show {effects} without a number",
+                      f"Hide {effects} without a number", target)
+
+
 class WhyLine(QWidget):
     """One drawn line of the `Why` dialog, in the state its effect carries.
 
@@ -281,9 +339,9 @@ class SuggestionBlock(QFrame):
     program dashed means "planned, not real", which is exactly what a
     suggestion is until it is applied (`UI_SPEC` §3.2).
 
-    Two controls, `Use` and `Why` (AK-274), and neither changes anything
-    here: the block holds no relics, so it says the player asked and the
-    window does the rest.
+    Two controls, `Use` and `Why this relic` (AK-274, AK-378), and neither
+    changes anything here: the block holds no relics, so it says the player
+    asked and the window does the rest.
     """
 
     #: `Use` was pressed on this block (`UI_SPEC` §3.2: only this one slot).
@@ -331,7 +389,8 @@ class SuggestionBlock(QFrame):
         self.use_button.clicked.connect(self.use_requested)
         head.addWidget(self.use_button)
         # AK-274: next to `Use`, never in its place.
-        self.why_button = QPushButton("Why")
+        self.why_button = QPushButton("Why this relic")
+        self.why_button.setToolTip("Why this relic is suggested for this slot")
         self.why_button.clicked.connect(self.why_requested)
         head.addWidget(self.why_button)
         column.addLayout(head)
@@ -464,7 +523,7 @@ class WhyDialog(QDialog):
     def __init__(self, heading: WhyHeading, result,
                  parent: QWidget | None = None, *,
                  filters: effectfilters.EffectFilters,
-                 effects: dict) -> None:
+                 effects: dict, slot_index: int | None = None) -> None:
         super().__init__(parent)
         self._filters = filters
         self._effects = effects
@@ -473,7 +532,7 @@ class WhyDialog(QDialog):
         self.resize(640, 620)
 
         outer = QVBoxLayout(self)
-        scroller = QScrollArea()
+        self.scroller = scroller = QScrollArea()
         scroller.setWidgetResizable(True)
         scroller.setFrameShape(QFrame.NoFrame)
         page = QWidget()
@@ -485,17 +544,37 @@ class WhyDialog(QDialog):
         column.addWidget(self.head)
 
         self.groups: list[tuple[QLabel, QLabel, list[WhyLine]]] = []
+        #: Per group, its fold of the numberless lines, `None` for none.
+        self.folds: list[FoldButton | None] = []
+        #: The title the card's `Why this relic` scrolls to (AK-379).
+        self._slot_title: QLabel | None = None
         for group in _groups_of(result):
             title = _plain(group_heading(group))
+            bold = title.font()
+            bold.setBold(True)
+            title.setFont(bold)
             column.addWidget(title)
+            if group.slot_index == slot_index:
+                self._slot_title = title
             count_line = _plain(group.count_line, colour=MUTED,
                                 size=SMALL_TEXT)
             column.addWidget(count_line)
             # One holder per group at spacing 0: the lines used to be the
             # `<div>`s of one label, and a column gap between line widgets
             # would make the dialog taller than that label was (T-250b).
+            # The numberless ones go into a second holder under their fold
+            # (AK-372), in the order they had.
             lines = [WhyLine(line, filters) for line in group.lines]
-            column.addWidget(_stacked(lines))
+            column.addWidget(_stacked(
+                [line for line in lines if not is_numberless(line.line)]))
+            folded = [line for line in lines if is_numberless(line.line)]
+            fold = None
+            if folded:
+                hidden = _stacked(folded)
+                fold = _numberless_fold(len(folded), hidden)
+                column.addWidget(fold, 0, Qt.AlignLeft)
+                column.addWidget(hidden)
+            self.folds.append(fold)
             self.groups.append((title, count_line, lines))
 
         # AK-279/AK-301: the two marked sets, every marked id whether or not
@@ -524,9 +603,18 @@ class WhyDialog(QDialog):
         filters.changed.connect(self._show_the_marked_lists)
         self._show_the_marked_lists()
 
+        # AK-375: behind one fold, open where it speaks of this run.
         self.footer = _plain(_footer_text(result), colour=MUTED,
                              size=SMALL_TEXT)
-        self.footer.setVisible(bool(self.footer.text()))
+        self.notes_button: FoldButton | None = None
+        if self.footer.text():
+            self.notes_button = FoldButton(
+                "Notes on these figures", "Hide notes on these figures",
+                self.footer,
+                opened=bool(result.unknowns or result.budget_note))
+            column.addWidget(self.notes_button, 0, Qt.AlignLeft)
+        else:
+            self.footer.setVisible(False)
         column.addWidget(self.footer)
 
         column.addStretch()
@@ -539,6 +627,16 @@ class WhyDialog(QDialog):
         self.close_button.clicked.connect(self.accept)
         row.addWidget(self.close_button)
         outer.addLayout(row)
+
+    def showEvent(self, event) -> None:
+        """AK-379: the card's dialog stands on its slot's group, title at the
+        top -- once laid out, as only then has the title a place."""
+        super().showEvent(event)
+        if self._slot_title is not None:
+            self.layout().activate()
+            self.scroller.widget().layout().activate()
+            bar = self.scroller.verticalScrollBar()
+            bar.setValue(min(self._slot_title.y(), bar.maximum()))
 
     def _show_the_marked_lists(self) -> None:
         for label, heading, ids in (

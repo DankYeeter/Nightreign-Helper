@@ -705,6 +705,9 @@ class AdvisorBar(QWidget):
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
+        # AK-380: a name for a screen reader, and no visible label -- the
+        # entries are whole sentences, and the row has 72 px to spare (AK-302).
+        self.goal_box.setAccessibleName("Goal")
         for goal_id in GOAL_ORDER:
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
@@ -735,6 +738,7 @@ class AdvisorBar(QWidget):
         self.hit_with_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.hit_with_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.hit_with_box.setToolTip(HIT_WITH_TOOLTIP)
+        self.hit_with_box.setAccessibleName("Hit with")
         # AK-338: `Weapon` first -- the armament itself, the figure this
         # program gave before there was a choice at all -- then the three
         # arts, and behind a line the schools this dataset carries. A school
@@ -761,6 +765,7 @@ class AdvisorBar(QWidget):
         self.damage_type_box = QComboBox()
         self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.damage_type_box.setAccessibleName("Damage type")
         self.damage_type_box.setToolTip(DAMAGE_TYPE_TOOLTIP.format(
             direction=advisor_goals.MAX_DAMAGE.label))
         # AK-339: `All` -- every kind at once -- then a line and the five
@@ -807,6 +812,9 @@ class AdvisorBar(QWidget):
         row.addWidget(self.apply_button)
 
         self.why_button = QPushButton("Why")
+        # AK-378: the card's button reads `Why this relic`; this one is the
+        # whole account, and the tooltip says so where the 80 px do not.
+        self.why_button.setToolTip("Why this whole suggestion")
         self.why_button.clicked.connect(self.why_requested)
         row.addWidget(self.why_button)
 
