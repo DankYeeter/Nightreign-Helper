@@ -40,7 +40,8 @@ from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
 from .theme import (
-    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, PANEL, SLOT_COLOURS,
+    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, NAME_POINT_SIZE, PANEL,
+    SLOT_COLOURS,
 )
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
@@ -144,9 +145,6 @@ def card_width() -> int:
 # The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
 HERO_COLUMNS = 5
 HERO_ICON = 44
-#: The name under each portrait, in points: `app.NAME_POINT_SIZE`, which
-#: carries the measurement (QA-155). Own copy because app imports this module.
-NAME_POINT_SIZE = 7
 
 #: The caption of each value row, in one place. `UI_SPEC` AK-193 renames the
 #: damage row to `Attack multipliers` once A17 lands, and that is meant to be

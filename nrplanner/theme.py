@@ -1,6 +1,6 @@
-"""The colours more than one part of the window uses, under one name each.
+"""The colours and sizes more than one part of the window uses, one name each.
 
-A colour only one module uses stays in that module, next to what it paints.
+A colour or size only one module uses stays in that module, next to what it paints.
 """
 
 from __future__ import annotations
@@ -66,3 +66,18 @@ SLOT_COLOURS = {
 #: means something on the edge of a card. That is the `ui-ux-designer`'s call
 #: to make with these figures, not this file's.
 HOVER_FILL = "#33343c"
+
+#: What the Nightfarer's name is set in on its tile, in points (QA-155), in
+#: the sidebar and in the favourite menu alike.
+#:
+#: The ten portraits carried no text at all, so a player had to click one and
+#: read the answer somewhere else to find out whom he had picked. The name has
+#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
+#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
+#: widening the tile would push the whole window's minimum out. Measured on
+#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
+#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
+#: against the 52 px a 56 px tile has inside its border. Seven is the size at
+#: which all ten stand whole; Qt shortens anything that does not fit and the
+#: tooltip has carried the full name all along.
+NAME_POINT_SIZE = 7
