@@ -84,6 +84,13 @@ GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
 #: this number is not raised.
 GOAL_BOX_WIDTH = 200
 
+#: AK-384: the narrowest each box may be squeezed to -- about six characters
+#: and the arrow. Below its content a box elides natively, and its tooltip
+#: still carries the whole entry (AK-351.2).
+GOAL_BOX_MIN_WIDTH = 120
+HIT_WITH_BOX_MIN_WIDTH = 100
+DAMAGE_TYPE_BOX_MIN_WIDTH = 80
+
 #: The separator of the two-clause status lines (4.9, 4.11), a middle dot
 #: with two spaces a side. Written once because it is invisible in a diff.
 CLAUSES = "  ·  "
@@ -630,6 +637,17 @@ class _ElidingLabel(QLabel):
                                         self.width()))
 
 
+def _hold_the_widest_caption(button: QPushButton, *captions: str) -> None:
+    """Give `button` the width its longest caption needs, and keep its text."""
+    shown = button.text()
+    widths = []
+    for caption in captions:
+        button.setText(caption)
+        widths.append(button.sizeHint().width())
+    button.setText(shown)
+    button.setMinimumWidth(max(widths))
+
+
 class AdvisorBar(QWidget):
     """`ADVISOR [ goal ] [ Filters ] [ Optimize ] <status> [ Clear ]`, and
     its states.
@@ -704,6 +722,7 @@ class AdvisorBar(QWidget):
         self.goal_box = QComboBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.goal_box.setMinimumWidth(GOAL_BOX_MIN_WIDTH)
         self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
         # AK-380: a name for a screen reader, and no visible label -- the
         # entries are whole sentences, and the row has 72 px to spare (AK-302).
@@ -737,6 +756,7 @@ class AdvisorBar(QWidget):
         self.hit_with_box = QComboBox()
         self.hit_with_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.hit_with_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.hit_with_box.setMinimumWidth(HIT_WITH_BOX_MIN_WIDTH)
         self.hit_with_box.setToolTip(HIT_WITH_TOOLTIP)
         self.hit_with_box.setAccessibleName("Hit with")
         # AK-338: `Weapon` first -- the armament itself, the figure this
@@ -765,6 +785,7 @@ class AdvisorBar(QWidget):
         self.damage_type_box = QComboBox()
         self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.damage_type_box.setMinimumWidth(DAMAGE_TYPE_BOX_MIN_WIDTH)
         self.damage_type_box.setAccessibleName("Damage type")
         self.damage_type_box.setToolTip(DAMAGE_TYPE_TOOLTIP.format(
             direction=advisor_goals.MAX_DAMAGE.label))
@@ -835,15 +856,51 @@ class AdvisorBar(QWidget):
         self._controller.failed.connect(self._on_failed)
         self._controller.stopped.connect(self._on_stopped)
 
+        # AK-385: a caption change never narrows a button, and no window
+        # width does either -- each holds the width of its longest caption.
+        _hold_the_widest_caption(self.optimize_button, "Optimize", "Cancel")
+        _hold_the_widest_caption(self.apply_button, "Apply all", "Undo apply")
+        for button in (self.filters_button, self.why_button,
+                       self.clear_button):
+            _hold_the_widest_caption(button, button.text())
+        self.setMinimumWidth(self._least_width_in_any_state())
+
         self._show_the_damage_types()
         self._show(Situation(State.NOTHING_YET))
 
-    def action_buttons_extra_width(self) -> int:
-        """How many more px the row's minimum needs with `Apply all`/`Why`/
-        `Clear` counted, over its minimum with none of the three counted.
+    def _least_width_in_any_state(self) -> int:
+        """The row's floor with every control counted (AK-386).
 
+        Both label-box pairs and all three action buttons shown, the status
+        at 0 px and each box at its minimum: the widest the row ever has to
+        be. Handed to the window as the row's own minimum, so the floor is
+        the same in every direction and with or without a suggestion -- a
+        floor that moved with them would squeeze the buttons after the fact.
+        """
+        return self._width_with(
+            (self.hit_with_label, self.hit_with_box, self.damage_type_label,
+             self.damage_type_box, self.apply_button, self.why_button,
+             self.clear_button), hidden=False, hint=self.minimumSizeHint)
+
+    def _width_with(self, widgets, *, hidden: bool, hint) -> int:
+        """`hint()`'s width with `widgets` forced shown or hidden, then put
+        back exactly as found -- a hidden widget takes no room in a layout."""
+        was_hidden = [widget.isHidden() for widget in widgets]
+        for widget in widgets:
+            widget.setHidden(hidden)
+        width = hint().width()
+        for widget, was in zip(widgets, was_hidden):
+            widget.setHidden(was)
+        return width
+
+    def action_buttons_extra_width(self) -> int:
+        """How many more px the row's width needs with `Apply all`/`Why`/
+        `Clear` counted, over its width with none of the three counted.
+
+        `sizeHint` and not `minimumSizeHint`: since AK-384 a box's minimum
+        sits below its content, and the opening width wants the content.
         A hidden widget takes no room in its layout, so simply reading
-        `minimumSizeHint()` right now would answer a different question
+        `sizeHint()` right now would answer a different question
         depending on whether a suggestion happens to be on screen already
         (S3.1 shows the three action buttons only then). Forcing both ends
         of the comparison and putting every button back exactly as found
@@ -852,20 +909,12 @@ class AdvisorBar(QWidget):
         and has to agree with what it said at the window's opening.
         """
         buttons = (self.apply_button, self.why_button, self.clear_button)
-        was_hidden = [button.isHidden() for button in buttons]
-        for button in buttons:
-            button.setHidden(False)
-        shown_width = self.minimumSizeHint().width()
-        for button in buttons:
-            button.setHidden(True)
-        hidden_width = self.minimumSizeHint().width()
-        for button, was in zip(buttons, was_hidden):
-            button.setHidden(was)
-        return shown_width - hidden_width
+        return (self._width_with(buttons, hidden=False, hint=self.sizeHint)
+                - self._width_with(buttons, hidden=True, hint=self.sizeHint))
 
     def damage_question_extra_width(self) -> int:
-        """How many more px the row's minimum needs with both pairs of the
-        damage question counted, over its minimum with neither counted.
+        """How many more px the row's width needs with both pairs of the
+        damage question counted, over its width with neither counted.
 
         AK-349, and the reason it is asked at all: the derived opening width
         is the table's need plus what the row needs beyond it (A14), and
@@ -877,22 +926,14 @@ class AdvisorBar(QWidget):
 
         Measured the way `action_buttons_extra_width` measures its own, and
         for the same reason: the pairs are hidden under the other two
-        directions (AK-337), so reading `minimumSizeHint()` as it stands
+        directions (AK-337), so reading `sizeHint()` as it stands
         would answer a different question depending on which direction the
         player left the row on.
         """
         pair = (self.hit_with_label, self.hit_with_box,
                 self.damage_type_label, self.damage_type_box)
-        was_hidden = [widget.isHidden() for widget in pair]
-        for widget in pair:
-            widget.setHidden(False)
-        shown_width = self.minimumSizeHint().width()
-        for widget in pair:
-            widget.setHidden(True)
-        hidden_width = self.minimumSizeHint().width()
-        for widget, was in zip(pair, was_hidden):
-            widget.setHidden(was)
-        return shown_width - hidden_width
+        return (self._width_with(pair, hidden=False, hint=self.sizeHint)
+                - self._width_with(pair, hidden=True, hint=self.sizeHint))
 
     # -- what the window says to the bar ------------------------------------
 
