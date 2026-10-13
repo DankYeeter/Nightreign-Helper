@@ -23,7 +23,8 @@ resize event that follows sets the column count before anything is painted.
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QGridLayout, QWidget
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QApplication, QFrame, QGridLayout, QWidget
 
 #: Gap between neighbouring cards, in logical px. One value for both grids so
 #: the two tabs keep the same rhythm (A13).
@@ -137,3 +138,77 @@ class CardGrid(QWidget):
     def columns(self) -> int:
         """The column count the grid is laid out in right now."""
         return self._columns
+
+
+class HoverCard(QFrame):
+    """A card that marks itself while the pointer is on it.
+
+    The answer to QA-154 on the Nightlord grid and QA-157 on the relic cards
+    and armament tiles: a click that lands in the gap between two cards opens
+    nothing, a near miss opens the neighbour, and without a mark a reader
+    cannot see which side of that line he is on. A subclass draws itself in
+    `_apply_appearance`, reading `hovered`; this class only says when.
+    """
+
+    _hovered = False
+
+    @property
+    def hovered(self) -> bool:
+        """Is the pointer on this card, its own area or a label inside it?"""
+        return self._hovered
+
+    def _set_hovered(self, hovered: bool) -> None:
+        if hovered == self._hovered:
+            return
+        self._hovered = hovered
+        self._apply_appearance()
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """The pointer arrived, here or on one of the labels.
+
+        Qt sends Enter down the whole chain under the pointer and Leave only
+        to the widgets it actually left, so moving from the card onto the
+        name inside it is not a departure and this card stays marked.
+        """
+        self._set_hovered(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._set_hovered(False)
+        super().leaveEvent(event)
+
+    def _pointer_is_here(self) -> bool:
+        """Is the pointer standing on this card at this instant?
+
+        Asked of the screen instead of remembering the last Enter and Leave,
+        because Qt sends those on pointer movement only. `widgetAt` answers
+        for this application's windows and takes clipping and stacking with
+        it, so a card scrolled out of sight or covered by another program
+        does not claim the pointer.
+        """
+        under = QApplication.widgetAt(QCursor.pos())
+        return under is not None and (under is self or self.isAncestorOf(under))
+
+    def follow_the_pointer(self) -> None:
+        """Put the mark where the pointer actually is, not where it was.
+
+        QA-164: the grid reflows from three columns to two while the pointer
+        rests, and the mark stays on a card that is no longer under it -- or
+        a card appears under a resting pointer and never takes the mark at
+        all. Both are the same gap: geometry changed and no pointer event
+        followed. The card's own move, resize and show are exactly the
+        moments that happens, so it re-reads the pointer there.
+        """
+        self._set_hovered(self._pointer_is_here())
+
+    def moveEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().moveEvent(event)
+        self.follow_the_pointer()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self.follow_the_pointer()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().showEvent(event)
+        self.follow_the_pointer()
