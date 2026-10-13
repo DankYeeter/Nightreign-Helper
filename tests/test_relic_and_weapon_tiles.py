@@ -173,6 +173,22 @@ def test_a_curse_with_markup_in_its_text_is_shown_letter_for_letter(qapp):
         assert "&lt;b&gt;" in tip and "<b>" not in tip, tip
 
 
+
+def test_an_effect_with_markup_in_its_text_is_shown_letter_for_letter(
+        qapp, monkeypatch):
+    """The custom relic list's tooltip took `describe_full` unescaped -- text
+    out of the game's files, the same case as the curse tooltips above."""
+    monkeypatch.setattr(relicpicker.effecttext, "name", lambda eff: "Effect")
+    monkeypatch.setattr(relicpicker.effecttext, "describe_full",
+                        lambda eff: "<b>Detail</b>")
+    dialog = relicpicker.CustomRelicDialog(None, [{"id": 1}], [])
+    try:
+        tip = dialog.list.item(0).toolTip()
+        assert tip.startswith("<html>"), tip
+        assert "&lt;b&gt;" in tip and "<b>" not in tip, tip
+    finally:
+        dialog.deleteLater()
+
 def test_the_gold_ring_follows_the_active_armament(planner):
     """QA-078: after a click on tile i, tile i and only it carries the ring."""
     tiles = planner.stat_sheet.weapon_tiles

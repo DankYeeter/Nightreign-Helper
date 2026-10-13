@@ -86,6 +86,10 @@ ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
 NO_SAVE_WAS_READ = "No save was read, so there are no effects to filter yet."
 SAVE_HAS_NO_RELICS = ("That save has no relics in it yet, so there is "
                       "nothing to filter.")
+#: The automatic route read a save with no relics (AK-389): "That save"
+#: would point at nothing, "No save was read" would be false.
+YOUR_SAVE_HAS_NO_RELICS = ("Your save has no relics in it yet, so there is "
+                           "nothing to filter.")
 NO_MATCH = "No effect matches your search."
 
 

@@ -261,21 +261,38 @@ def vessel_tooltip(vessel: dict, worn: bool) -> str:
     return "\n".join(lines)
 
 
-#: The title's addition for a snapshot not checked against the installed game.
+#: The title's addition for a snapshot not checked against the installed game,
+#: and the same without a day when none could be read (AK-393).
 UNCHECKED_DATA = "  —  data from {day}, not checked against your installed game"
+UNCHECKED_DATA_NO_DAY = "  —  data not checked against your installed game"
+
+
+def unchecked_data(day: str) -> str:
+    """The title's addition, never `data from , not checked` (AK-393)."""
+    return UNCHECKED_DATA.format(day=day) if day else UNCHECKED_DATA_NO_DAY
 
 #: The Deep of Night switch, and what it adds while a slot it hides had to
 #: give up a relic another slot already wears (QA-030, director 2026-09-02):
 #: the slot's own note is off screen then, so the switch carries it.
 DEEP_SWITCH = "Deep of Night (3 extra slots)"
-DEEP_SLOT_EMPTIED = " — {count} emptied"
+DEEP_SLOT_EMPTIED = " — {count} left empty"
 DEEP_SLOT_EMPTIED_TOOLTIP = ("A Deep of Night slot of this build names a relic "
                              "that is already worn in another slot, so it was "
                              "left empty. Turn Deep of Night on to see it.")
+DEEP_SLOTS_EMPTIED_TOOLTIP = ("Deep of Night slots of this build name relics "
+                              "that are already worn in other slots, so they "
+                              "were left empty. Turn Deep of Night on to see "
+                              "them.")
 
 #: S3, the second of the three exits (AK-124): the file was read and holds
 #: nothing. Not a failure, and it says the one thing that explains it -- two
 #: Steam accounts, which is the case this whole flow exists for.
+#: The same exit on the automatic route, where no file was chosen and "That
+#: save" would point at nothing (QA-008, AK-388).
+SAVES_HOLD_NOTHING = ("Your save has no relics in it yet. If you play on more "
+                      "than one Steam account, they may be in another save — "
+                      "use Find my save.")
+
 CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on "
                         "more than one Steam account, this may be the wrong "
                         "one.")
@@ -460,6 +477,44 @@ class HeroTile(QToolButton):
             self._apply_image()
 
 
+def deep_switch_note(hidden: int) -> tuple[str, str]:
+    """The Deep of Night switch's text and tooltip with `hidden` slots left
+    empty out of sight (QA-030, AK-390). The number counts slots."""
+    if not hidden:
+        return DEEP_SWITCH, ""
+    return (DEEP_SWITCH + DEEP_SLOT_EMPTIED.format(count=hidden),
+            DEEP_SLOT_EMPTIED_TOOLTIP if hidden == 1
+            else DEEP_SLOTS_EMPTIED_TOOLTIP)
+
+
+def placement_reasons(unfit: int, clashed: int, missing: int) -> str:
+    """The sentences `Load equipped` adds, one per reason it happened for.
+
+    "Could not be placed" on its own left the player to guess, and the guess
+    it invited was that the program had lost the relic. With two reasons the
+    second says `other`, so one line never opens two sentences alike
+    (QA-031, AK-391).
+    """
+    note = ""
+    if unfit:
+        fit = ("it does not fit the slot the save has it in" if unfit == 1
+               else "they do not fit the slots the save has them in")
+        note += f" {_relic_count(unfit)} could not be placed: {fit}."
+    if clashed:
+        worn = "it is" if clashed == 1 else "they are"
+        relics = "relic" if clashed == 1 else "relics"
+        other = "other " if unfit else ""
+        note += (f" {clashed} {other}{relics} could not be placed: "
+                 f"{worn} already worn in another slot.")
+    # Not an empty slot: the save names a relic the inventory no longer
+    # holds (QA-027).
+    if missing:
+        are = "is" if missing == 1 else "are"
+        note += (f" {_relic_count(missing)} the save has equipped "
+                 f"{are} no longer in your inventory.")
+    return note
+
+
 class Planner(QMainWindow):
     def __init__(self, data: dict, *, read_save=None):
         """The window, and what it reads the save with.
@@ -550,7 +605,7 @@ class Planner(QMainWindow):
             f"Nightreign Helper {__version__}"
             + ("  —  updated for your installed game version"
                if meta.get("regenerated") else "")
-            + (UNCHECKED_DATA.format(day=firstrun.the_day_the_data_was_read())
+            + (unchecked_data(firstrun.the_day_the_data_was_read())
                if meta.get("stale_check_failed") else "")
         )
         # No resize here. The opening width is derived from the effect
@@ -679,6 +734,9 @@ class Planner(QMainWindow):
         # Session state and nothing else -- OF-15 is why nothing new goes
         # into the settings store beyond the one path key.
         self._answers_a_chosen_save = False
+        #: A save was read and held no relics (AK-389): the effect filter and
+        #: the relic picker must not say "No save was read" then.
+        self.save_holds_no_relics = False
         self.save_reader = savereader.SaveReader(self, read=read_save)
         self.save_reader.ready.connect(self._on_save_read)
         self.save_reader.failed.connect(self._on_save_failed)
@@ -2225,10 +2283,9 @@ class Planner(QMainWindow):
         # -- the note is gone by then and nothing records that a slot was
         # emptied (director, 2026-09-02).
         self._unresolved_clash = bool(resolved)
-        self.deep_check.setText(DEEP_SWITCH + (
-            DEEP_SLOT_EMPTIED.format(count=_relic_count(hidden)) if hidden
-            else ""))
-        self.deep_check.setToolTip(DEEP_SLOT_EMPTIED_TOOLTIP if hidden else "")
+        text, tooltip = deep_switch_note(hidden)
+        self.deep_check.setText(text)
+        self.deep_check.setToolTip(tooltip)
         return resolved
 
     def _mark_vessel_applied(self) -> None:
@@ -2513,6 +2570,8 @@ class Planner(QMainWindow):
         saves_hold_nothing = found is savereader.SAVES_HOLD_NO_RELICS
         self.owned = (None if found is None or saves_hold_nothing
                       else inventory.build(self.data, found))
+        self.save_holds_no_relics = self.owned is None and (
+            self._answers_a_chosen_save or saves_hold_nothing)
         self._the_save_has_been_read()
         if self.owned is None:
             # Two of the three exits of AK-124 meet here. For a file the
@@ -2521,8 +2580,8 @@ class Planner(QMainWindow):
             # Without a choice behind it, it means no save was found at all,
             # unless the reading found files with nothing in them (QA-008).
             self.owned_label.setText(
-                CHOSEN_SAVE_IS_EMPTY
-                if self._answers_a_chosen_save or saves_hold_nothing
+                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else SAVES_HOLD_NOTHING if saves_hold_nothing
                 else NO_SAVE_FOUND)
             self.find_save_button.setVisible(True)
             return
@@ -2597,6 +2656,7 @@ class Planner(QMainWindow):
         """
         self.the_advisor_data_is_changing()
         self.owned = None
+        self.save_holds_no_relics = False
         self._the_save_has_been_read()
         self.owned_label.setText(
             f"{CHOSEN_SAVE_UNREADABLE}\n{reason}" if self._answers_a_chosen_save
@@ -2767,23 +2827,7 @@ class Planner(QMainWindow):
                     "list on the left.")
         else:
             note = (f"Loaded {hero['name']} — every chalice is empty in game.")
-        # Each with the reason it happened for. "Could not be placed" on its
-        # own left the player to guess, and the guess it invited was that the
-        # program had lost the relic.
-        if unfit:
-            fit = ("it does not fit the slot the save has it in" if unfit == 1
-                   else "they do not fit the slots the save has them in")
-            note += f" {_relic_count(unfit)} could not be placed: {fit}."
-        if clashed:
-            worn = "it is" if clashed == 1 else "they are"
-            note += (f" {_relic_count(clashed)} could not be placed: "
-                     f"{worn} already worn in another slot.")
-        # Not an empty slot: the save names a relic the inventory no longer
-        # holds (QA-027).
-        if loadout.missing:
-            are = "is" if loadout.missing == 1 else "are"
-            note += (f" {_relic_count(loadout.missing)} the save has equipped "
-                     f"{are} no longer in your inventory.")
+        note += placement_reasons(unfit, clashed, loadout.missing)
         # The button to the passed-over saves is still there, so the line
         # that explains it has to be as well (AK-366, QA-004). The clause
         # takes the place of the full stop, never ". —" (23.09.2026).
@@ -3152,6 +3196,8 @@ class Planner(QMainWindow):
         reason = "" if rows else (
             effectfilterdialog.SAVE_HAS_NO_RELICS
             if self.owned is not None or self._answers_a_chosen_save
+            else effectfilterdialog.YOUR_SAVE_HAS_NO_RELICS
+            if self.save_holds_no_relics
             else effectfilterdialog.NO_SAVE_WAS_READ)
         effectfilterdialog.EffectFilterWindow(self.effect_filters, rows,
                                               reason, self).exec()

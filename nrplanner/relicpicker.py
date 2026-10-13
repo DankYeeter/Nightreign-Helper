@@ -215,6 +215,11 @@ NO_CHANGE = "no change"
 NO_SAVE_WAS_READ = ("No save was read, so there is nothing to rank these "
                     "against — use Rescan save.")
 
+#: The save was read and holds no relics, chosen or found (AK-389):
+#: `NO_SAVE_WAS_READ` would be false then.
+SAVE_HOLDS_NO_RELICS = ("Your save has no relics in it yet, so there is "
+                        "nothing to rank — use Rescan save.")
+
 #: What stands where the top left card will stand while the question is out
 #: (§3.8 fassung 3, AK-212). One line and nothing else: an empty area three
 #: card rows tall is not to be told from a dialog that is broken, and a
@@ -1022,7 +1027,7 @@ class CustomRelicDialog(QDialog):
             mark = "✓ " if eff["id"] in self.chosen else "   "
             entry = QListWidgetItem(f"{mark}{label} — {detail}")
             entry.setData(Qt.UserRole, eff["id"])
-            entry.setToolTip(detail)
+            entry.setToolTip(advisorblock.as_a_tooltip(detail))
             self.list.addItem(entry)
 
         by_id = {e["id"]: e for e in self.choices}
@@ -1834,8 +1839,11 @@ class RelicPicker(QDialog):
         if self.ranking is None:
             for _item, card in pairs:
                 card.show_values([NO_FIGURE] * len(VALUE_DIRECTIONS))
-            self._headline(could_not_work_out(self._failure) if self._failure
-                           else NO_SAVE_WAS_READ)
+            self._headline(
+                could_not_work_out(self._failure) if self._failure
+                else SAVE_HOLDS_NO_RELICS
+                if getattr(self.slot.window(), "save_holds_no_relics", False)
+                else NO_SAVE_WAS_READ)
             return
 
         groups = self._top_groups()
