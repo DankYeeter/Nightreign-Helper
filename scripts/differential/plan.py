@@ -21,6 +21,7 @@ import argparse
 import json
 import pathlib
 import sys
+import warnings
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -102,11 +103,35 @@ def _arsenal(data: dict, hero: dict, configuration: dict,
             f"leaves {sorted(missing)} unsaid. Each of them moves the figures "
             f"the tab shows, so a run that guessed one would not be "
             f"comparable to a run that guessed it differently.")
+    tier, rarity = int(request["tier"]), int(request["rarity"])
+    _warn_if_the_band_draws_nothing(configuration["name"], tier, rarity)
     return {
         "weapon": _weapon_id(data, hero, request["weapon"], swept),
-        "tier": int(request["tier"]),
-        "rarity": int(request["rarity"]),
+        "tier": tier,
+        "rarity": rarity,
     }
+
+
+#: The arsenal tab's rarity filter value for "every band".
+ALL_BANDS = -1
+
+
+def _warn_if_the_band_draws_nothing(name: str, tier: int, rarity: int) -> None:
+    """Warn when the rarity filter can match no armament at this tier.
+
+    The tab files an armament under the band it carries after the upgrade,
+    one below the tier and no higher than the last band. Any other band
+    draws no tile at all, while every case still counts (QA-088 b).
+    """
+    from nrplanner.weapons import RARITY_TIERS
+
+    band = min(tier - 1, RARITY_TIERS - 1)
+    if rarity not in (ALL_BANDS, band):
+        warnings.warn(
+            f"configuration {name!r} filters the arsenal tab to rarity band "
+            f"{rarity}, but at tier {tier} every armament carries band "
+            f"{band}: the tab draws no tile, and its cases still count.",
+            stacklevel=2)
 
 
 def _case(data: dict, hero: dict, raster: dict, configuration: dict,
