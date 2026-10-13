@@ -111,8 +111,9 @@ def _regulation_matches(snapshot: dict) -> bool:
 
     game = gamepath.resolve_game()
     if game is None:
-        # No install to compare against; the snapshot is all we have.
-        return True
+        # No install to compare against: not a match, so the snapshot that
+        # is all we have comes back marked as unconfirmed (QA-171).
+        return False
 
     path = game / "regulation.bin"
     if not path.exists():

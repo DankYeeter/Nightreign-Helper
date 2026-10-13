@@ -273,6 +273,18 @@ def vessel_tooltip(vessel: dict, worn: bool) -> str:
     return "\n".join(lines)
 
 
+#: The title's addition for a snapshot not checked against the installed game.
+UNCHECKED_DATA = "  —  data from {day}, not checked against your installed game"
+
+#: The Deep of Night switch, and what it adds while a slot it hides had to
+#: give up a relic another slot already wears (QA-030, director 2026-09-02):
+#: the slot's own note is off screen then, so the switch carries it.
+DEEP_SWITCH = "Deep of Night (3 extra slots)"
+DEEP_SLOT_EMPTIED = " — {count} emptied"
+DEEP_SLOT_EMPTIED_TOOLTIP = ("A Deep of Night slot of this build names a relic "
+                             "that is already worn in another slot, so it was "
+                             "left empty. Turn Deep of Night on to see it.")
+
 #: S3, the second of the three exits (AK-124): the file was read and holds
 #: nothing. Not a failure, and it says the one thing that explains it -- two
 #: Steam accounts, which is the case this whole flow exists for.
@@ -543,10 +555,15 @@ class Planner(QMainWindow):
         # The tool's own version does belong in the title: it is the one thing
         # a bug report needs and the one thing a reporter cannot look up after
         # the fact.
-        stale = data.get("meta", {}).get("regenerated")
+        # A snapshot nobody could check against the game says so, with the
+        # day it was read (QA-171, AK-119): its figures may be a patch old.
+        meta = data.get("meta", {})
         self.setWindowTitle(
             f"Nightreign Helper {__version__}"
-            + ("  —  updated for your installed game version" if stale else "")
+            + ("  —  updated for your installed game version"
+               if meta.get("regenerated") else "")
+            + (UNCHECKED_DATA.format(day=firstrun.the_day_the_data_was_read())
+               if meta.get("stale_check_failed") else "")
         )
         # No resize here. The opening width is derived from the effect
         # table, which does not exist yet -- see showEvent.
@@ -786,7 +803,7 @@ class Planner(QMainWindow):
         self.chalice_list.currentRowChanged.connect(lambda *_: self.apply_chalice())
         layout.addWidget(self.chalice_list, 1)
 
-        self.deep_check = QCheckBox("Deep of Night (3 extra slots)")
+        self.deep_check = QCheckBox(DEEP_SWITCH)
         self.deep_check.toggled.connect(self._on_deep_toggled)
         layout.addWidget(self.deep_check)
 
@@ -1732,6 +1749,10 @@ class Planner(QMainWindow):
         claimed = set()
         rolls = []
         for index, slot in enumerate(slots):
+            # A custom relic belongs to the build, not to the slot: one the
+            # incoming build does not name must not be offered by it
+            # (QA-028, director 2026-09-02). One it names is rebuilt below.
+            slot.custom_item = None
             key = keys[index] if index < len(keys) else ""
             if not key:
                 slot.clear_relic()
@@ -2187,6 +2208,7 @@ class Planner(QMainWindow):
         """
         worn_in: dict = {}
         resolved = 0
+        hidden = 0
         for slot in self.base_slots + self.deep_slots:
             # An empty slot and a custom relic both answer None: the one has
             # nothing to clash with, the other is imaginary by design and may
@@ -2197,6 +2219,8 @@ class Planner(QMainWindow):
             keeper = worn_in.setdefault(key, slot)
             if keeper is not slot:
                 resolved += 1
+                hidden += (slot in self.deep_slots
+                           and not self.deep_check.isChecked())
                 # The reason is about the keeper, so it is kept with the
                 # condition it describes: the moment that slot gives the relic
                 # up, this one has nothing to explain any more (QA-022).
@@ -2213,6 +2237,10 @@ class Planner(QMainWindow):
         # -- the note is gone by then and nothing records that a slot was
         # emptied (director, 2026-09-02).
         self._unresolved_clash = bool(resolved)
+        self.deep_check.setText(DEEP_SWITCH + (
+            DEEP_SLOT_EMPTIED.format(count=_relic_count(hidden)) if hidden
+            else ""))
+        self.deep_check.setToolTip(DEEP_SLOT_EMPTIED_TOOLTIP if hidden else "")
         return resolved
 
     def _mark_vessel_applied(self) -> None:
@@ -2494,15 +2522,19 @@ class Planner(QMainWindow):
         every one of them was right.
         """
         self.the_advisor_data_is_changing()
-        self.owned = None if found is None else inventory.build(self.data, found)
+        saves_hold_nothing = found is savereader.SAVES_HOLD_NO_RELICS
+        self.owned = (None if found is None or saves_hold_nothing
+                      else inventory.build(self.data, found))
         self._the_save_has_been_read()
         if self.owned is None:
             # Two of the three exits of AK-124 meet here. For a file the
             # player picked, "nothing came back" means that file holds no
             # relics -- S3, and the reason for it is the one he can act on.
-            # Without a choice behind it, it means no save was found at all.
+            # Without a choice behind it, it means no save was found at all,
+            # unless the reading found files with nothing in them (QA-008).
             self.owned_label.setText(
-                CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                CHOSEN_SAVE_IS_EMPTY
+                if self._answers_a_chosen_save or saves_hold_nothing
                 else NO_SAVE_FOUND)
             self.find_save_button.setVisible(True)
             return
@@ -2699,8 +2731,8 @@ class Planner(QMainWindow):
         # second was not in any list and could not be placed at all (QA-021).
         #
         # A relic the save names and the inventory no longer has arrives here
-        # as None, indistinguishable from an empty slot, so what is left when
-        # a placement fails is a relic this slot will not take: the wrong
+        # as None like an empty slot and is counted in `loadout.missing`
+        # instead (QA-027), so what is left when a placement fails is a relic this slot will not take: the wrong
         # colour for it, or the wrong side of Deep of Night. That is what is
         # said, because it is what happened.
         unfit = 0
@@ -2736,9 +2768,11 @@ class Planner(QMainWindow):
             note = (f"Loaded {hero['name']} — {count}, showing the equipped "
                     f"{vessel_name} with {_relic_count(placed)}"
                     f"{' (Deep of Night)' if loadout.deep_used else ''}.")
-        elif unfit or clashed:
-            note = (f"Loaded {hero['name']} — {count}. Nothing the equipped "
-                    f"{vessel_name} holds in game could be placed.")
+        elif unfit or clashed or loadout.missing:
+            # Only that it is empty: the reasons follow, each said once
+            # (QA-031).
+            note = (f"Loaded {hero['name']} — {count}. The equipped "
+                    f"{vessel_name} is shown empty.")
         elif imported:
             note = (f"Loaded {hero['name']} — {count}. The equipped "
                     f"{vessel_name} is empty in game; the others are in the "
@@ -2756,6 +2790,12 @@ class Planner(QMainWindow):
             worn = "it is" if clashed == 1 else "they are"
             note += (f" {_relic_count(clashed)} could not be placed: "
                      f"{worn} already worn in another slot.")
+        # Not an empty slot: the save names a relic the inventory no longer
+        # holds (QA-027).
+        if loadout.missing:
+            are = "is" if loadout.missing == 1 else "are"
+            note += (f" {_relic_count(loadout.missing)} the save has equipped "
+                     f"{are} no longer in your inventory.")
         # The button to the passed-over saves is still there, so the line
         # that explains it has to be as well (AK-366, QA-004). The clause
         # takes the place of the full stop, never ". —" (23.09.2026).

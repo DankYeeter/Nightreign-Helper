@@ -455,3 +455,101 @@ def test_load_equipped_counts_what_it_placed_and_names_the_reason(
     assert "with 1 relic" in note, note
     assert "1 relic could not be placed" in note, note
     assert "does not fit the slot the save has it in" in note, note
+
+
+# -- QA-031 / QA-027: Load equipped says each reason once --------------------
+
+def a_loadout_in(planner, vessel, relics, missing=0) -> None:
+    """The current Nightfarer wears `relics` in `vessel` in game."""
+    planner.owned = inventory.Inventory(
+        source="test", relics=[r for r in relics if r is not None],
+        loadouts=[inventory.EquippedLoadout(
+            hero_id=planner.current_hero()["id"], vessel_id=vessel["id"],
+            selected=True, relics=relics, missing=missing)])
+
+
+def test_load_equipped_with_nothing_placeable_says_could_not_be_placed_once(
+        planner, game_data, two_slots_of_one_colour):
+    """QA-031: "Nothing ... could be placed" and "1 relic could not be placed"
+    were two sentences for one fact."""
+    row, vessel, colour = two_slots_of_one_colour
+    if colour == model.WHITE_SLOT:
+        pytest.skip("a White slot takes every colour, so nothing can misfit")
+    other_colour = next(c for c in sorted(model.COLOUR_NAMES)
+                        if c not in (colour, model.WHITE_SLOT))
+    misfit = make_relic(templates_for(game_data, other_colour, 1)[0],
+                        handle=SECOND_HANDLE,
+                        effects=some_effect_ids(game_data, 2))
+    first = vessel["slots"].index(colour)
+    relics = [None for _ in range(6)]
+    relics[first] = misfit
+    a_loadout_in(planner, vessel, relics)
+
+    select_vessel(planner, row)
+    planner.load_equipped()
+
+    note = planner.owned_label.text()
+    assert note.count("placed") == 1, note
+    assert "does not fit the slot the save has it in" in note, note
+
+
+def test_load_equipped_names_a_relic_the_save_has_and_the_player_does_not(
+        planner, two_slots_of_one_colour):
+    """QA-027: a handle the inventory no longer holds is not an empty slot."""
+    row, vessel, _colour = two_slots_of_one_colour
+    a_loadout_in(planner, vessel, [None for _ in range(6)], missing=1)
+
+    select_vessel(planner, row)
+    planner.load_equipped()
+
+    note = planner.owned_label.text()
+    assert "is empty in game" not in note, note
+    assert "1 relic the save has equipped is no longer in your inventory" \
+        in note, note
+
+
+# -- QA-026 / QA-030: a doubling resolved in a hidden Deep slot is said ------
+
+def a_vessel_with_two_deep_slots_of_one_colour(planner):
+    from tests.conftest import _vessels_in_the_list
+
+    for row, vessel in _vessels_in_the_list(planner):
+        deep = list(vessel.get("deep_slots") or [])
+        repeated = next((c for c in deep if deep.count(c) > 1), None)
+        if repeated is not None:
+            return row, vessel, repeated
+    pytest.skip("no vessel has two Deep slots of one colour")
+
+
+def test_a_doubling_resolved_in_a_hidden_deep_slot_marks_the_deep_switch(
+        planner, game_data):
+    """With Deep of Night off, the emptied slot and its note are off screen,
+    so the switch that hides them says so (director, 2026-09-02)."""
+    row, vessel, colour = a_vessel_with_two_deep_slots_of_one_colour(planner)
+    template = next(
+        (r for r in sorted(game_data["relics"], key=lambda r: r["id"])
+         if r["colour"] == colour and r.get("is_deep")), None)
+    if template is None:
+        pytest.skip(f"no Deep relic of colour {colour}")
+    relic = make_relic(template, handle=WORN_HANDLE,
+                       effects=some_effect_ids(game_data, 2))
+    own(planner, [relic])
+    first, second = [i for i, c in enumerate(vessel["deep_slots"])
+                     if c == colour][:2]
+    keys = ["" for _ in range(6)]
+    keys[3 + first] = keys[3 + second] = chalices.slot_key(relic)
+    chalices.save(planner.current_hero()["id"], vessel["id"], keys)
+    plain = planner.deep_check.text()
+    assert not planner.deep_check.isChecked(), "the premise: Deep is hidden"
+
+    select_vessel(planner, row)
+
+    marked = planner.deep_check.text()
+    assert marked != plain and marked.startswith(plain), marked
+    assert "already worn" in planner.deep_check.toolTip(), \
+        planner.deep_check.toolTip()
+
+    planner.deep_check.setChecked(True)
+
+    assert planner.deep_check.text() == plain, \
+        "with the slot on screen, its own note says it"

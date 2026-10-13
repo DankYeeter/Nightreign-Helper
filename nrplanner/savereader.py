@@ -89,6 +89,12 @@ def _pick_a_save_file(parent) -> pathlib.Path | None:
     return pathlib.Path(picked) if picked else None
 
 
+#: What the automatic route answers when it found save files and none of them
+#: holds a relic (QA-008). `inventory.scan` answers None to that and to "no
+#: file at all", and only the second is "No save file found."
+SAVES_HOLD_NO_RELICS = object()
+
+
 def read_the_save(data: dict, save_path: pathlib.Path | None = None):
     """Read the save the window is to show, and answer for the file it read.
 
@@ -111,7 +117,10 @@ def read_the_save(data: dict, save_path: pathlib.Path | None = None):
     leaves as this module's own class so that the window may quote it.
     """
     if save_path is None:
-        return inventory.scan(data)
+        found = inventory.scan(data)
+        if found is None and savefile.find_saves():
+            return SAVES_HOLD_NO_RELICS
+        return found
     try:
         inventory.refuse_a_size_no_save_can_have(save_path.stat().st_size)
         found = inventory.scan(data, save_path)

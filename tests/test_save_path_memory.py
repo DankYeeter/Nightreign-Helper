@@ -922,3 +922,37 @@ def test_the_automatic_route_of_the_suite_reads_the_frozen_slot(game_data):
     assert not any(root.exists() for root in savefile.save_roots())
     assert inventory.scan(game_data).source == conftest.frozen_scan().source
     assert inventory.scan(game_data).folder == "frozen save folder"
+
+
+# -- QA-008: the automatic route tells "no save" from "a save with nothing" --
+
+
+def test_the_automatic_route_says_when_the_saves_it_found_hold_nothing(
+        game_data, monkeypatch, tmp_path):
+    """A save on the disk without relics is not "no save file found".
+
+    `inventory.scan` answers None to both, so the automatic route has to ask
+    the disk whether there was a file at all -- in the reading thread, where
+    a slow folder costs the window nothing.
+    """
+    found = a_save_file(tmp_path, an_empty_container())
+    monkeypatch.setattr(savefile, "find_saves", lambda: [found])
+    monkeypatch.setattr(inventory, "scan", lambda data, *rest: None)
+
+    assert savereader.read_the_save(game_data) is savereader.SAVES_HOLD_NO_RELICS
+
+
+def test_the_line_names_an_empty_save_on_the_automatic_route(store, game_data,
+                                                             qapp):
+    """QA-008 at the window: the sentence for a save with nothing in it."""
+    read = StatedRead(savereader.SAVES_HOLD_NO_RELICS)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_line(window) == appmod.CHOSEN_SAVE_IS_EMPTY
+        assert window.owned is None
+        assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)

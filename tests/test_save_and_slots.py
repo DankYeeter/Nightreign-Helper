@@ -106,6 +106,35 @@ def test_an_outdated_snapshot_without_a_game_is_marked(monkeypatch):
     assert datasource._load_data()["meta"]["stale_check_failed"] is True
 
 
+def test_a_snapshot_with_no_game_to_check_against_is_marked(monkeypatch):
+    """QA-171's first path: the game folder is gone, the snapshot stands."""
+    from nrdata import extract
+
+    snapshot = {"meta": {"extract_version": extract.EXTRACT_VERSION,
+                         "regulation_sha256": "recorded"}}
+    monkeypatch.setattr(datasource, "_snapshot", lambda: snapshot)
+    monkeypatch.setattr(gamepath, "resolve_game", lambda: None)
+
+    assert datasource._load_data()["meta"]["stale_check_failed"] is True
+
+
+def test_the_title_says_the_figures_were_not_checked(game_data, qapp):
+    """QA-171 at the window: the day the data was read, in the title (AK-119)."""
+    from nrplanner import app as appmod, firstrun
+    from tests import conftest
+
+    unconfirmed = dict(game_data,
+                       meta=dict(game_data["meta"], stale_check_failed=True))
+    window = conftest.wait_for_the_save(appmod.Planner(unconfirmed))
+    try:
+        title = window.windowTitle()
+        assert "not checked against your installed game" in title, title
+        assert firstrun.the_day_the_data_was_read() in title, title
+    finally:
+        window.close()
+        window.deleteLater()
+
+
 # --------------------------------------------------------------------------
 # QA-223: no text promises the drive search that was removed in bd6bd90
 
