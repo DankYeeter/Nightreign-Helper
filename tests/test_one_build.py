@@ -88,6 +88,9 @@ def _local_names(tree: ast.AST, module_names: frozenset[str],
             for alias in node.names:
                 if alias.name == module_short_name:
                     modules.add(alias.asname or alias.name)
+                elif alias.name == "*" and tail == module_short_name:
+                    # `from .weapons import *` binds every function at once.
+                    functions.update(function_names)
                 elif alias.name in function_names and tail == module_short_name:
                     functions.add(alias.asname or alias.name)
     return modules, functions
@@ -411,6 +414,8 @@ WAYS_ROUND_THE_RATE_RANK_GUARD = {
     "handed to functools.partial":
         "import functools\nfrom . import weapons\n"
         "run = functools.partial(weapons.rate, w)\nrun(a, d)\n",
+    "a star import (QA-091)":
+        "from .weapons import *\nrate(w, a, d)\n",
     "the second function, _rate_pair":
         "from . import weapons\nweapons._rate_pair(w, a, d)\n",
 }

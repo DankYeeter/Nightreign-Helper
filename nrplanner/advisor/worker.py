@@ -56,7 +56,6 @@ here rather than left to be discovered.
 from __future__ import annotations
 
 import dataclasses
-import traceback
 from collections.abc import Callable, Mapping
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
@@ -187,14 +186,14 @@ class _Worker(QObject):
         except search.Cancelled:
             pass
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
-            traceback.print_exc()
+            errortext.print_traceback(exc)
             # `errortext.in_english`, never `str(exc)`: what this emits is
             # shown in the bar (4.7), and an exception that came out of Qt,
             # pycryptodome or the operating system carries the language of
             # the Windows installation with it (A8, QA-211). The console
-            # traceback above keeps the original wording, which is where a
-            # developer wants it and where no player looks. No fallback for
-            # an empty sentence either: `in_english` is total, and the case
+            # traceback above keeps frames and class, not the text (SEC-044).
+            # No fallback for an empty sentence either: `in_english` is
+            # total, and the case
             # the old `or exc.__class__.__name__` covered -- one of this
             # program's own exceptions raised with nothing to say -- is
             # `errortext.NOTHING_WAS_SAID` there.

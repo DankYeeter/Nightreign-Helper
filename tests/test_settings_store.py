@@ -84,15 +84,53 @@ def python_modules(root: pathlib.Path) -> list[pathlib.Path]:
     return sorted(found)
 
 
+def _defines_init(node: ast.ClassDef) -> bool:
+    return any(isinstance(item, ast.FunctionDef) and item.name == "__init__"
+               for item in node.body)
+
+
 def _class_names(tree: ast.AST) -> set[str]:
-    """What this module calls QSettings, since an import may rename it."""
-    names = set()
+    """What this module calls QSettings: an import may rename it, an
+    assignment may copy it, and a subclass without an `__init__` of its own
+    is built exactly as QSettings is (QA-052).
+    """
+    names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             for alias in node.names:
                 if alias.name == "QSettings":
                     names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Assign) and _is_the_class(node.value, names):
+            names.update(target.id for target in node.targets
+                         if isinstance(target, ast.Name))
+        elif (isinstance(node, ast.ClassDef) and not _defines_init(node)
+              and any(_is_the_class(base, names) for base in node.bases)):
+            names.add(node.name)
     return names
+
+
+def _module_names(tree: ast.AST) -> set[str]:
+    """What this module calls `favourites`, since an import may rename it."""
+    names = {THE_MODULE}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update(alias.asname for alias in node.names
+                         if alias.asname
+                         and alias.name.rsplit(".", 1)[-1] == THE_MODULE)
+    return names
+
+
+def _literal_names(tree: ast.AST) -> set[str]:
+    """Names this source sets to a literal, which are then not the store's.
+
+    A local `ORG = "DankYeeter"` is spelled like favourites.ORG and is not it
+    (QA-052). Only a plain constant is read; a name built by any other
+    expression is the "assembled at run time" case the docstring disowns.
+    """
+    return {target.id for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Constant)
+            for target in node.targets if isinstance(target, ast.Name)}
 
 
 def _is_the_class(node: ast.AST, names: set[str]) -> bool:
@@ -102,30 +140,40 @@ def _is_the_class(node: ast.AST, names: set[str]) -> bool:
     return isinstance(node, ast.Attribute) and node.attr == "QSettings"
 
 
-def _is_one_of_the_names(node: ast.AST, wanted: str) -> bool:
+def _is_one_of_the_names(node: ast.AST, wanted: str, modules: set[str],
+                         literals: set[str]) -> bool:
     """Whether this argument is favourites.ORG / favourites.APP.
 
-    The bare name counts too: favourites itself opens the store that way, and
-    so would a module that imported the two names from it.
+    The bare name counts too, unless this source sets it to a literal:
+    favourites itself opens the store that way, and so would a module that
+    imported the two names from it.
     """
     if isinstance(node, ast.Name):
-        return node.id == wanted
+        return node.id == wanted and wanted not in literals
     if not isinstance(node, ast.Attribute) or node.attr != wanted:
         return False
     owner = node.value
     if isinstance(owner, ast.Name):
-        return owner.id == THE_MODULE
+        return owner.id in modules
     return isinstance(owner, ast.Attribute) and owner.attr == THE_MODULE
 
 
-def _names_the_store(call: ast.Call) -> bool:
-    """Whether this call hands the store exactly the two names, in order."""
-    return (not call.keywords and len(call.args) == len(STORE_NAMES)
-            and all(_is_one_of_the_names(argument, wanted)
-                    for argument, wanted in zip(call.args, STORE_NAMES)))
+def _names_the_store(call: ast.Call, modules: set[str],
+                     literals: set[str]) -> bool:
+    """Whether this call hands the store exactly the two names, in order.
+
+    PySide6 also takes the owner as a third argument, `parent`, which does
+    not change which store is opened (QA-053).
+    """
+    names, parent = call.args[:len(STORE_NAMES)], call.args[len(STORE_NAMES):]
+    return (len(names) == len(STORE_NAMES) and len(parent) <= 1
+            and all(keyword.arg == "parent" for keyword in call.keywords)
+            and all(_is_one_of_the_names(argument, wanted, modules, literals)
+                    for argument, wanted in zip(names, STORE_NAMES)))
 
 
-def _through_a_base_class(tree: ast.AST, names: set[str]) -> list[int]:
+def _through_a_base_class(tree: ast.AST, names: set[str], modules: set[str],
+                          literals: set[str]) -> list[int]:
     """Where a subclass of QSettings hands its base something else.
 
     A route the repository has rather than one it might grow: the suite holds
@@ -142,7 +190,7 @@ def _through_a_base_class(tree: ast.AST, names: set[str]) -> list[int]:
             if (isinstance(inner, ast.Call)
                     and isinstance(inner.func, ast.Attribute)
                     and inner.func.attr == "__init__"
-                    and not _names_the_store(inner)):
+                    and not _names_the_store(inner, modules, literals)):
                 found.append(inner.lineno)
     return found
 
@@ -150,12 +198,14 @@ def _through_a_base_class(tree: ast.AST, names: set[str]) -> list[int]:
 def stores_built_another_way(source: str) -> list[int]:
     """The line of every settings store this source opens by another name."""
     tree = ast.parse(source)
-    names = _class_names(tree)
+    names, modules, literals = (_class_names(tree), _module_names(tree),
+                                _literal_names(tree))
     found = [node.lineno for node in ast.walk(tree)
              if isinstance(node, ast.Call)
              and _is_the_class(node.func, names)
-             and not _names_the_store(node)]
-    return sorted(found + _through_a_base_class(tree, names))
+             and not _names_the_store(node, modules, literals)]
+    return sorted(found + _through_a_base_class(tree, names, modules,
+                                                literals))
 
 
 def test_no_source_opens_a_settings_store_of_its_own():
@@ -199,6 +249,35 @@ def test_the_walk_reads_our_own_tree_and_not_a_worktree_inside_it(tmp_path):
     assert found == {"nrplanner/app.py"}
 
 
+def stores_opened_at_all(source: str) -> list[int]:
+    """The line of every settings store this source opens, named or not."""
+    tree = ast.parse(source)
+    names = _class_names(tree)
+    return sorted(node.lineno for node in ast.walk(tree)
+                  if isinstance(node, ast.Call)
+                  and _is_the_class(node.func, names))
+
+
+def test_the_scan_for_a_store_at_all_sees_a_rightly_named_one():
+    """QA-110: the guard above judges names, so this one has to judge place."""
+    assert stores_opened_at_all(
+        "from PySide6.QtCore import QSettings\n"
+        "from nrplanner import favourites\n"
+        "QSettings(favourites.ORG, favourites.APP)\n")
+
+
+def test_the_advisor_opens_no_settings_store():
+    """QA-110: the advisor reads what it is handed and keeps nothing itself;
+    what survives a run lives in the Planner, not under `advisor/`."""
+    modules = python_modules(REPO / "nrplanner" / "advisor")
+    assert modules, "the advisor folder was not found, so nothing was scanned"
+    offenders = {path.name: lines for path in modules
+                 if (lines := stores_opened_at_all(
+                     path.read_text(encoding="utf-8")))}
+    assert not offenders, (
+        f"these advisor modules open a settings store: {offenders}")
+
+
 # One entry per way of opening a store the two names do not reach. A search
 # for the literal text would have found the first and none of the rest.
 WAYS_ROUND_THE_GUARD = {
@@ -232,6 +311,20 @@ WAYS_ROUND_THE_GUARD = {
         "class Store(QSettings):\n"
         "    def __init__(self):\n"
         "        super().__init__('DankYeeter', 'NightreignHelper')\n",
+    "the class copied to another name":
+        "from PySide6.QtCore import QSettings\n"
+        "Store = QSettings\n"
+        "Store('DankYeeter', 'NightreignHelper')\n",
+    "a subclass with no __init__ of its own":
+        "from PySide6.QtCore import QSettings\n"
+        "class Store(QSettings):\n"
+        "    pass\n"
+        "Store('DankYeeter', 'NightreignHelper')\n",
+    "names of the same spelling set to literals here":
+        "from PySide6.QtCore import QSettings\n"
+        "ORG = 'DankYeeter'\n"
+        "APP = 'NightreignHelper'\n"
+        "QSettings(ORG, APP)\n",
 }
 
 SPELLINGS_THAT_ARE_RIGHT = {
@@ -253,6 +346,14 @@ SPELLINGS_THAT_ARE_RIGHT = {
         "class Store(QSettings):\n"
         "    def __init__(self):\n"
         "        super().__init__(favourites.ORG, favourites.APP)\n",
+    "the module imported under another name":
+        "from PySide6.QtCore import QSettings\n"
+        "from nrplanner import favourites as fav\n"
+        "QSettings(fav.ORG, fav.APP)\n",
+    "the names followed by a parent":
+        "from PySide6.QtCore import QSettings\n"
+        "from . import favourites\n"
+        "QSettings(favourites.ORG, favourites.APP, parent)\n",
 }
 
 

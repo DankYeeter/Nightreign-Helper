@@ -353,7 +353,10 @@ def test_ranking_answers_the_candidate_question_for_every_armament(
 
 
 def test_armaments_that_rate_alike_come_back_in_one_fixed_order(game_data):
-    """The second sort key, on the one input where it is visible at all.
+    """The second sort key, on an input chosen because it is visible there.
+
+    Only some configurations of the grid searched below show it (QA-093); the
+    one used is the richest of them, not the only one.
 
     Equal figures are not an edge case here: over 400 groups of armaments
     share a `final_total` at Wylder, level 15, MAX_UPGRADE alone. But a

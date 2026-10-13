@@ -6,6 +6,7 @@ with a static key, the IV being the member's own first 16 bytes.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import pathlib
 import struct
@@ -33,7 +34,7 @@ class SaveSlot:
     index: int
     name: str
     raw: bytes           # encrypted member as stored
-    data: bytes          # decrypted payload, checksum stripped
+    data: bytes          # decrypted and checked, see decrypt_member
 
 
 def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
@@ -116,17 +117,36 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     return out
 
 
-def decrypt_member(blob: bytes) -> bytes:
-    """Decrypt one member and strip its length prefix and trailing MD5."""
-    iv, body = blob[:16], blob[16:]
-    body = body[: len(body) // 16 * 16]
-    plain = AES.new(SAVE_KEY, AES.MODE_CBC, iv).decrypt(body)
+#: The MD5 at the end of a member's payload. Layout of a decrypted member:
+#: u32 `length`, then `length` bytes -- the slot's data followed by the MD5 of
+#: that data -- then PKCS#7 padding. Measured on 28 of 28 members of two real
+#: saves (`NR0000.sl2` and its `.bak`, T-334i, 13.10.2026). T-115 counted 0
+#: of 28; the layout written here before took `length` for the data alone,
+#: which puts the MD5 16 bytes off (QA-007).
+CHECKSUM_SIZE = 16
 
-    # Layout: u32 payload length, payload, 16-byte MD5 of the payload.
-    (length,) = struct.unpack_from("<I", plain, 0)
-    if not (0 < length <= len(plain) - 20):
+
+def decrypt_member(raw: bytes) -> bytes:
+    """One member decrypted and its checksum checked, length prefix kept.
+
+    The whole plaintext comes back because the record offsets the readers
+    use count from its first byte. A plaintext of nothing but zeros is a
+    slot the game never wrote, and it carries no checksum to check.
+    """
+    iv, body = raw[:16], raw[16:]
+    plain = AES.new(SAVE_KEY, AES.MODE_CBC, iv).decrypt(
+        body[: len(body) // 16 * 16])
+    if plain.count(0) == len(plain):
         return plain
-    return plain[4 : 4 + length]
+    (length,) = struct.unpack_from("<I", plain, 0)
+    end = 4 + length
+    data_end = end - CHECKSUM_SIZE
+    if not (CHECKSUM_SIZE <= length <= len(plain) - 4
+            and hashlib.md5(plain[4:data_end]).digest()
+            == plain[data_end:end]):
+        raise NotWhatItClaims(
+            "a character slot in this save does not match its own checksum")
+    return plain
 
 
 def read(path: pathlib.Path | str) -> list[SaveSlot]:

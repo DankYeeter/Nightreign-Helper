@@ -24,9 +24,11 @@ that is the correct state for a runner to be in.
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import pathlib
+import shutil
 import sys
 
 import pytest
@@ -281,12 +283,120 @@ def clear_settings() -> None:
     settings.sync()
 
 
+# Each run's store is `<org>/NightreignHelperTests-<pid>`; see the top of this
+# file. A run that is killed never reaches the clean-up below, and a finished
+# one leaves the empty key it was written to, so they pile up (QA-047).
+STORE_PREFIX = "NightreignHelperTests-"
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+STILL_ACTIVE = 259
+ERROR_ACCESS_DENIED = 5
+
+
+def _process_is_running(pid: int) -> bool:
+    """Whether a process with this id exists. Windows only, like the stores.
+
+    `os.kill(pid, 0)` is not an option here: on Windows it ends the process.
+    """
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        # Not ours to open is still a process that is there.
+        return ctypes.get_last_error() == ERROR_ACCESS_DENIED
+    try:
+        code = ctypes.c_ulong()
+        return (bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code)))
+                and code.value == STILL_ACTIVE)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _delete_key_tree(parent, name: str) -> None:
+    import winreg
+
+    try:
+        with winreg.OpenKey(parent, name) as key:
+            while True:
+                try:
+                    child = winreg.EnumKey(key, 0)
+                except OSError:
+                    break
+                _delete_key_tree(key, child)
+        winreg.DeleteKey(parent, name)
+    except FileNotFoundError:
+        pass  # another worker of this run swept it first
+
+
+def remove_stores_of_dead_runs(org: str) -> None:
+    """Delete the test stores under `org` whose process no longer exists.
+
+    Only keys named like a run's own store, and only below the organisation
+    it is given, so nothing of the player's can be reached from here. A store
+    whose process is alive belongs to a run in progress and stays.
+    """
+    if sys.platform != "win32":
+        return
+    import winreg
+
+    try:
+        root = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\{org}")
+    except FileNotFoundError:
+        return
+    with root:
+        names = []
+        while True:
+            try:
+                names.append(winreg.EnumKey(root, len(names)))
+            except OSError:
+                break
+        for name in names:
+            suffix = name.removeprefix(STORE_PREFIX)
+            if (name.startswith(STORE_PREFIX) and suffix.isdigit()
+                    and not _process_is_running(int(suffix))):
+                _delete_key_tree(root, name)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def settings_store(qapp):
     """Nothing of an earlier run is inherited, and nothing is left behind."""
+    remove_stores_of_dead_runs(os.environ["NIGHTREIGN_SETTINGS_ORG"])
     clear_settings()
     yield
     clear_settings()
+    if sys.platform == "win32":
+        import winreg
+
+        _delete_key_tree(winreg.HKEY_CURRENT_USER,
+                         f"Software\\{os.environ['NIGHTREIGN_SETTINGS_ORG']}"
+                         f"\\{os.environ['NIGHTREIGN_SETTINGS_APP']}")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def data_dirs_of_this_run(tmp_path_factory):
+    """`%LOCALAPPDATA%` and `%APPDATA%` are folders of this run's own.
+
+    The program writes to both -- the extracted dataset and icons under the
+    first, the Start Menu shortcut under the second -- and the suite redirected
+    only the settings store, so a case that reached either wrote to the
+    player's real folder (QA-212). One full run was measured to write nothing
+    there, so this is a guard and not a repair.
+
+    The cache the suite reads (`game_data`) is copied in, so every case still
+    sees the dataset and the icons it saw before; the copy is the one thing
+    read from the real folder, and only read.
+    """
+    from nrplanner import paths
+
+    real_cache = paths.cache_dir()
+    home = tmp_path_factory.mktemp("appdata")
+    patch = pytest.MonkeyPatch()
+    patch.setenv("LOCALAPPDATA", str(home / "Local"))
+    patch.setenv("APPDATA", str(home / "Roaming"))
+    own_cache = paths.cache_dir()
+    own_cache.mkdir(parents=True)
+    if real_cache.is_dir():
+        shutil.copytree(real_cache, own_cache, dirs_exist_ok=True)
+    yield own_cache
+    patch.undo()
 
 
 @pytest.fixture(autouse=True)

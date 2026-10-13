@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import pathlib
-import traceback
 
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QFileDialog
@@ -177,7 +176,7 @@ class _SaveReadWorker(QObject):
         try:
             found = self._read(self._data, self._save_path)
         except Exception as exc:  # noqa: BLE001 - reported, never raised on
-            traceback.print_exc()
+            errortext.print_traceback(exc)
             self.failed.emit(self._generation, errortext.in_english(exc))
         else:
             self.ready.emit(self._generation, found)

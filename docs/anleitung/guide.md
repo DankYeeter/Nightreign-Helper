@@ -35,7 +35,9 @@ The main screen. Pick a Nightfarer, pick a vessel, fill the slots, read the
 consequences on the right.
 
 **Nightfarer** — the ten portraits at the top left. Some have alternate artwork;
-your choice is remembered between sessions.
+your choice is remembered between sessions. Clicking the Nightfarer that is
+already selected changes nothing and shows `{Name} is already selected.`; to
+re-read your save, use **Rescan save**.
 
 **Vessel** — split into that Nightfarer's own vessels and the **Shared Grails**,
 which any Nightfarer can carry. The vessel decides how many relic slots you get
@@ -91,6 +93,9 @@ six slots.
   where you land after Reset Chalice. Choosing it deliberately changes nothing
   on screen: it is the list saying what you are looking at, not an action.
 - **Save** stores the slots as they stand under a name; **Delete** forgets one.
+  After a successful save a note under the build list reads `Saved "{name}".`
+  for about four seconds; if the name was already taken it reads `Saved over
+  "{name}".` and the older build is replaced without a question.
 - **Hide** keeps a build out of the list without deleting it — for work you
   have finished with and do not want to lose. **Show hidden**, beside it, lists
   the hidden ones again, and selecting one turns the button into **Unhide**.
@@ -168,9 +173,21 @@ choice stands until you change it in the Advisor row — closing and
 reopening the program does not reset it either.
 
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
-its own card. **Undo apply** puts the previous slots back. **Why** opens the
-full account of what the suggestion counted and what it left out; **Clear**
-puts a suggestion away without applying it.
+its own card. **Undo apply** puts the previous slots back. **Why**, in the
+Advisor row, opens the full account of what the suggestion counted and what it
+left out; **Why this relic**, on a slot card, opens the same dialog already
+scrolled so that card's slot is at the top. **Clear** puts a suggestion away
+without applying it.
+
+In the **Why** dialog, effects that have no number — they apply only under a
+condition, or only to a particular armament, or the game gives no figure — are
+hidden at first. Under each slot's lines a button reads `Show {n} effects
+without a number`; click it to list them, click `Hide …` to put them away
+again. Curses always stay visible, because they show what a relic costs. The
+notes at the bottom (what was not measured, how the figures were worked out)
+sit behind **Notes on these figures**; they open by themselves when the run
+could not answer part of the question or stopped its search early. Which
+buttons are open is not remembered: the dialog starts folded every time.
 
 **Hold**, on a slot card, keeps Optimize away from that one slot — you can
 still change it by hand, and a slot held on purpose while empty says so

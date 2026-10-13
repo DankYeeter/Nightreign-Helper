@@ -8047,3 +8047,155 @@ Satz steht.
 die sich aendern: alle, die `dialog.footer.isVisible()` oder die Sichtbarkeit
 zahlloser Zeilen im frisch geoeffneten Dialog lesen (AK-141/AK-170/AK-171),
 und die, die den Kartenknopf als `Why` finden.
+
+---
+
+#### Nachtrag T-334k (ui-ux-designer), 2026-10-13 — QA-292 Mindestbreiten der Leiste, Abnahme der Texte aus T-334h/T-334d (Spec-Modus)
+
+*Kein Fensterlauf; Grundlage Code (`advisorbar.py:691-824`, `app.py:203-293`,
+`:2229-2243`, `:2535-2552`, `:2766-2798`, `:3161-3169`,
+`relicpicker.py:217-219`/`:1838`, `effectfilterdialog.py:86-88`). Zahlen unten
+sind Startwerte; der `developer` misst am laufenden Fenster und nennt die
+endgueltigen im Bericht. Naechste freie AK: AK-384 (hoechste vergebene war AK-383).*
+
+##### 1. QA-292 — wie schmal die Leiste werden darf
+
+**Ursache (Code):** Die Leiste steht waagerecht auf `QSizePolicy.Ignored`
+(`advisorbar.py:691`) und gibt dem Fenster keine Mindestbreite. Zieht der
+Nutzer das Fenster unter ihren Bedarf, verteilt Qt das Defizit auf alle Teile,
+auch auf die Knoepfe. AK-351.3 ("Aktionsknoepfe nie") galt bisher nur fuer die
+*Startbreite*, nicht fuer jede Fensterbreite.
+
+**Vorgabe.** Die Kuerzungsreihenfolge von AK-351 bleibt (Statuszeile auf 0 px,
+dann Boxen elidieren, Aktionsknoepfe nie) und endet an einer harten
+Untergrenze, die das Fenster selbst haelt:
+
+- **Boxen** (`setMinimumWidth`, logische px): `goal_box` 120, `hit_with_box`
+  100, `damage_type_box` 80 — genug fuer etwa sechs Zeichen und den Pfeil.
+  Obergrenze (`GOAL_BOX_WIDTH` 200) und `AdjustToContents` bleiben; gekuerzt
+  wird weiter durch die native Elision, voller Text im Tooltip (AK-351.2,
+  AK-340).
+- **Knoepfe** (`Filters`, `Optimize`, `Apply all`, `Why`, `Clear`):
+  Mindestbreite = `sizeHint`-Breite des **laengsten** Texts, den der Knopf je
+  traegt (`Optimize`/`Cancel`, `Apply all`/`Undo apply`). Ein Textwechsel
+  aendert die Breite an der Grenze nicht.
+- **Fenster-Mindestbreite:** mindestens der Bedarf der Leiste im
+  **unguenstigsten Zustand** — beide Boxenpaare und alle drei Aktionsknoepfe
+  gezaehlt, Statuszeile 0 px, Boxen auf Mindestbreite — plus die Raender der
+  Spalte. Der Wert ist **konstant**: unabhaengig von der Richtung (Paare
+  sichtbar/verborgen) und davon, ob ein Vorschlag steht. Sonst wuerde das
+  Umschalten der Richtung oder ein neuer Vorschlag die Mindestgrenze
+  veraendern, und Knoepfe schrumpften nachtraeglich. Die Leiste gibt die
+  Breite dazu an das Fenster weiter (Richtung: Policy von `Ignored` auf
+  `Minimum`, oder eine ausdrueckliche Fenster-Mindestbreite aus
+  `action_buttons_extra_width()` + `damage_question_extra_width()`; Wahl beim
+  `developer`).
+- **Unterhalb der Summe** gilt nichts: das Fenster laesst sich nicht schmaler
+  ziehen. Keine vierte Kuerzungsstufe, kein Umbruch, kein Ausblenden von Knoepfen.
+- **Kleine Bildschirme:** die neue Mindestbreite muss unter 1366 logischen px
+  liegen. Liegt sie darueber, wird sie nicht durch Kuerzen der Knoepfe erreicht,
+  sondern als Befund gemeldet (die Boxen-Mindestwerte werden dann neu
+  entschieden).
+
+Bewusst offen: ein Umbruch der Leiste in zwei Zeilen auf schmalen Fenstern
+(waere ein anderes Layout, kein Mindestmass).
+
+| ID | Akzeptanzkriterium |
+|---|---|
+| **AK-384** | Jede der drei Boxen hat eine Mindestbreite (Startwerte 120/100/80 px); bei jeder Fensterbreite >= Fenster-Mindestbreite ist `box.width() >= minimumWidth()`, und die Box elidiert nativ, wenn der volle Text nicht passt (Tooltip unveraendert). |
+| **AK-385** | Bei jeder Fensterbreite >= Fenster-Mindestbreite ist die Breite von `Filters`, `Optimize`, `Apply all`, `Why`, `Clear` >= `sizeHint` des laengsten Texts, den der Knopf traegt; gemessen bei 1522 und 1426 logischen px (die QA-292-Werte) bzw. an der Mindestbreite: nie 100 -> 70 -> 57 px. Erweitert AK-351.3 von der Startbreite auf jede Breite. |
+| **AK-386** | Die Fenster-Mindestbreite ist konstant (gleich mit/ohne Vorschlag, in allen drei Richtungen), >= Leistenbedarf im unguenstigsten Zustand und <= 1366 logische px; das Fenster laesst sich nicht schmaler ziehen (`width() >= minimumWidth()` nach `resize(300, …)`). |
+| **AK-387** | Kuerzungsreihenfolge unveraendert: bei 0 px Statuszeile elidieren erst die Boxen, Knoepfe nie; die Statuszeile darf weiter 0 px haben (AK-194/AK-269/AK-351.1). |
+
+##### 2. QA-008 — leerer Spielstand, automatischer Weg
+
+`CHOSEN_SAVE_IS_EMPTY` ("That save has no relics in it yet. …") sagt "That
+save" ohne Bezug, wenn der Nutzer keine Datei gewaehlt hat (`app.py:2535-2538`,
+Zweig `saves_hold_nothing`). **Wortlaut, neu, nur fuer den automatischen Weg**
+(`SAVES_HOLD_NOTHING`):
+
+> `Your save has no relics in it yet. If you play on more than one Steam account, they may be in another save — use Find my save.`
+
+Der Zweig `_answers_a_chosen_save` behaelt `CHOSEN_SAVE_IS_EMPTY` wortgleich
+(AK-124: "That save" hat dort die gewaehlte Datei als Bezug). `Find my save...`
+bleibt sichtbar (`:2539`); der Satz nennt den Knopf deshalb.
+
+**Nachbarstellen, derselbe Fehler.** Bei leerem Spielstand ist `owned` `None`;
+zwei Stellen sagen "No save was read", obwohl gelesen wurde:
+
+- `app.py:3161-3169` (`open_effect_filters`): im automatischen Weg mit
+  `saves_hold_nothing` landet es bei `NO_SAVE_WAS_READ`. Neu: dritter Zustand
+  `Your save has no relics in it yet, so there is nothing to filter.` Die
+  gewaehlte-Datei-Variante `SAVE_HAS_NO_RELICS` bleibt.
+- `relicpicker.py:217` (`NO_SAVE_WAS_READ`, Kopfzeile `:1838`): bei gelesenem,
+  leerem Spielstand (automatisch oder gewaehlt)
+  `Your save has no relics in it yet, so there is nothing to rank — use Rescan save.`
+  `NO_SAVE_WAS_READ` bleibt nur fuer "keine Datei gefunden/gelesen".
+
+Der Zustand "gelesen, leer" muss dafuer bis zu den beiden Dialogen gelangen
+(z. B. ein Merkflag am Fenster); wie, entscheidet der `developer`.
+
+| ID | AK |
+|---|---|
+| **AK-388** | Findet die Suche Spielstaende ohne Relikte (kein gewaehlter Pfad), steht in `owned_label` exakt `SAVES_HOLD_NOTHING`; mit gewaehlter Datei weiter `CHOSEN_SAVE_IS_EMPTY`; ohne Spielstand `NO_SAVE_FOUND`. Kein Zweig sagt "That save" ohne gewaehlte Datei. |
+| **AK-389** | Bei gelesenem, leerem Spielstand sagen weder der Leerzustand des Effektfilters noch die Kopfzeile des Relic Pickers "No save was read", sondern die beiden Saetze oben. Bei "keine Datei gelesen" bleibt `NO_SAVE_WAS_READ` unveraendert. |
+
+##### 3. QA-030 — Schalter `Deep of Night`
+
+Abgenommen **mit Aenderung**. "1 relic emptied" liest sich, als sei ein Relikt
+geleert worden; gemeint ist, dass ein Slot leer bleibt. Die Zahl zaehlt Slots.
+
+- `DEEP_SLOT_EMPTIED` = `" — {count} left empty"`, `count` reine Zahl
+  (`Deep of Night (3 extra slots) — 1 left empty`). Kurz, weil ein
+  Checkbox-Text nicht umbricht und in einer schmalen Spalte steht; der
+  Tooltip traegt die Erklaerung.
+- Tooltip Einzahl, wie gebaut: `A Deep of Night slot of this build names a relic that is already worn in another slot, so it was left empty. Turn Deep of Night on to see it.`
+  Mehrzahl (`count > 1`): `Deep of Night slots of this build name relics that are already worn in other slots, so they were left empty. Turn Deep of Night on to see them.`
+
+| ID | AK |
+|---|---|
+| **AK-390** | `deep_check.text()` ist `Deep of Night (3 extra slots)` ohne Leerslot und `Deep of Night (3 extra slots) — {n} left empty` mit `n >= 1`; Tooltip je Einzahl/Mehrzahl wie oben, leer ohne Leerslot. Der Zusatz (gemessen mit `n = 3`) vergroessert die Mindestbreite der Spalte nicht; sonst Befund statt Kuerzung. |
+
+##### 4. QA-031 / QA-027 — Ladehinweis (`owned_label`)
+
+**Abgenommen.** `The equipped X is shown empty.` plus je Grund ein eigener Satz,
+und `N relic(s) the save has equipped is/are no longer in your inventory.`
+sind in Ordnung (Ergebnis vor Ursachen, Einzahl/Mehrzahl gebaut; "shown" haelt
+den Unterschied zu "is empty in game" fest). **Eine Aenderung:** haben zwei
+Gruende zugleich zugeschlagen (`unfit` und `clashed`), beginnt der zweite Satz
+mit `{n} other relic(s) could not be placed: …` statt wortgleich wie der erste
+(`app.py:2788`/`:2791`); sonst steht dieselbe Satzeroeffnung zweimal in einer Zeile.
+
+| ID | AK |
+|---|---|
+| **AK-391** | Ist kein Relikt platziert und gilt `unfit`, `clashed` oder `missing`: Satz `The equipped {vessel} is shown empty.`, danach je zutreffendem Grund genau ein Satz; bei `unfit` **und** `clashed` beginnt der Satz des zweiten `{n} other relic(s) could not be placed: …`. |
+| **AK-392** | `missing > 0`: `{n} relic(s) the save has equipped is|are no longer in your inventory.` (1 -> `1 relic … is`, sonst `n relics … are`), auch bei platzierten Relikten; bei `missing == 0` fehlt der Satz. |
+
+##### 5. QA-171 / QA-020 — Titel und Zeile des Spielstands
+
+- **QA-171 abgenommen mit einer Randfall-Aenderung.** Gibt
+  `firstrun.the_day_the_data_was_read()` `""` zurueck (`firstrun.py:589-598`),
+  entstuende `data from , not checked`. Dann lautet der Zusatz
+  `  —  data not checked against your installed game`. Sonst
+  `  —  data from {day}, not checked against your installed game`
+  (`{day}` z. B. `3 October 2026`, `firstrun._the_day`).
+- **QA-020 abgenommen, unveraendert** (`savefile.py:633-636`, hinten an die
+  Zeile angehaengt wie gebaut):
+  `… — no stored builds could be read: this save keeps them somewhere this program does not look; the game may have changed how it stores them`.
+  Andere `loadout_error`-Saetze bleiben, sie stehen hinter demselben Doppelpunkt.
+
+| ID | AK |
+|---|---|
+| **AK-393** | Der Fenstertitel traegt bei `meta["stale_check_failed"]` genau `  —  data from {day}, not checked against your installed game`; bei leerem `{day}` genau `  —  data not checked against your installed game`; ohne das Merkmal keinen Zusatz. |
+| **AK-394** | Bei `loadout_error` aus `NotWhatItClaims` (kein Heldenmarker) lautet die Zeile `{n} relics in {source} — no stored builds could be read: this save keeps them somewhere this program does not look; the game may have changed how it stores them`; kein Markerzahlenwerk im Text (steht nur im Traceback). |
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** Wortwahl `Rescan save`/`Find my
+save...` (Bestand); ob der leere Zustand des Relic Pickers einen eigenen Knopf
+braucht; die Spaltenbreite des Schalters jenseits von AK-390.
+
+**Betroffene Dateien:** `nrplanner/advisorbar.py` (AK-384 bis AK-387),
+`nrplanner/app.py` (AK-386 falls die Fenster-Mindestbreite dort gesetzt wird,
+AK-388 bis AK-393), `nrplanner/relicpicker.py` und
+`nrplanner/effectfilterdialog.py` (AK-389), `nrplanner/inventory.py`/`nrdata/savefile.py`
+unveraendert (AK-394 prueft nur). Tests: Mindestbreiten am echten Widget
+(`resize` auf die Messbreiten), Texte als Zeichenketten-Gleichheit.

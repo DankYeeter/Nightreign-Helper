@@ -35,12 +35,13 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, cardgrid, effecttext, favourites, model
+from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
 from .theme import (
-    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, PANEL, SLOT_COLOURS,
+    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, NAME_POINT_SIZE, PANEL,
+    SLOT_COLOURS,
 )
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
@@ -144,9 +145,6 @@ def card_width() -> int:
 # The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
 HERO_COLUMNS = 5
 HERO_ICON = 44
-#: The name under each portrait, in points: `app.NAME_POINT_SIZE`, which
-#: carries the measurement (QA-155). Own copy because app imports this module.
-NAME_POINT_SIZE = 7
 
 #: The caption of each value row, in one place. `UI_SPEC` AK-193 renames the
 #: damage row to `Attack multipliers` once A17 lands, and that is meant to be
@@ -752,7 +750,7 @@ class RelicCard(cardgrid.HoverCard):
         for curse_name, curse_detail in (curses or []):
             line = self._line(f"✦ {curse_name}", CURSE_LINE_STYLE)
             if curse_detail:
-                line.setToolTip(curse_detail)
+                line.setToolTip(advisorblock.as_a_tooltip(curse_detail))
             self.lines.append(line)
         for line in self.lines:
             layout.addWidget(line)
@@ -763,8 +761,10 @@ class RelicCard(cardgrid.HoverCard):
             layout.addWidget(self._line(f"✦ comes with {what}",
                                         CURSE_LINE_STYLE))
 
+        # Curse names come from the game's text files; Qt would read a `<`
+        # in one as markup (AK-30, SEC-021).
         if tooltip:
-            self.setToolTip(tooltip)
+            self.setToolTip(advisorblock.as_a_tooltip(tooltip))
 
         layout.addStretch()
 

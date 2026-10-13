@@ -14,6 +14,7 @@ QA-078: no test read which armament tile carries the gold ring.
 
 from __future__ import annotations
 
+import inspect
 import re
 from types import SimpleNamespace
 
@@ -23,7 +24,7 @@ from PySide6.QtGui import QColor, QCursor, QEnterEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QToolButton
 
-from nrplanner import favourites, relicpicker, weaponslots
+from nrplanner import app, favourites, relicpicker, theme, weaponslots
 from nrplanner.theme import ACCENT, HOVER_FILL, PANEL
 
 
@@ -131,11 +132,45 @@ def test_the_favourite_menu_names_every_nightfarer(favourite_menu, game_data):
             f"{tile.text()}: no portrait, so the name is all the tile is")
         # Whether the name fits the width is a Windows font question -- the
         # offscreen platform's fallback font is a third wider; see
-        # `relicpicker.NAME_POINT_SIZE`. That it has a line of its own is not.
+        # `theme.NAME_POINT_SIZE`. That it has a line of its own is not.
         assert tile.height() > relicpicker.HERO_ICON + 8, (
             f"{tile.text()}: no room under the portrait for the name")
     assert len({tile.height() for tile in tiles}) == 1, (
         "tiles with and without artwork came out different heights")
+
+
+def test_the_name_under_a_portrait_has_one_size_in_one_place():
+    """T-334f: the favourite menu kept its own copy of the sidebar's size.
+
+    Two copies of one measured figure part the first time one is changed; the
+    copy was there only because `app` imports `relicpicker`, and `theme` is
+    imported by both.
+    """
+    for module in (app, relicpicker):
+        assert not re.search(r"^NAME_POINT_SIZE\s*=",
+                             inspect.getsource(module), re.MULTILINE), (
+            f"{module.__name__} defines its own NAME_POINT_SIZE")
+    assert (app.NAME_POINT_SIZE is relicpicker.NAME_POINT_SIZE
+            is theme.NAME_POINT_SIZE)
+
+
+def test_a_curse_with_markup_in_its_text_is_shown_letter_for_letter(qapp):
+    """T-334d: the card handed curse text to Qt unescaped, as SEC-021 did.
+
+    Both the card's own tooltip (`curse_tooltip`) and the tooltip on a curse
+    line take text from the game's files, so each goes through
+    `advisorblock.as_a_tooltip`, as the slot's curse line already does.
+    """
+    item = SimpleNamespace(name="A relic", has_curse=True)
+    card = relicpicker.RelicCard(
+        item, ["An effect"], None, False, lambda _item: None,
+        curses=[("<b>Curse</b>", "<b>Detail</b>")],
+        tooltip="This relic's curses:\n  • <b>Curse</b>")
+
+    curse_line = next(line for line in card.lines if "Curse" in line.text())
+    for tip in (card.toolTip(), curse_line.toolTip()):
+        assert tip.startswith("<html>"), tip
+        assert "&lt;b&gt;" in tip and "<b>" not in tip, tip
 
 
 def test_the_gold_ring_follows_the_active_armament(planner):

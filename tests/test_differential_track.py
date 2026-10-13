@@ -587,7 +587,8 @@ def test_a_tree_with_its_own_git_is_refused_too(tmp_path):
     stands in for a worktree's own (it holds a `gitdir:` pointer, not a
     repository), so `.exists()` is used rather than `.is_dir()`.
     """
-    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git").write_text("gitdir: ../elsewhere/.git/worktrees/w\n",
+                                   encoding="utf-8")
     with pytest.raises(SystemExit, match=r"\.git"):
         mutate.guard_the_own_tree(tmp_path)
 

@@ -7,8 +7,6 @@ import struct
 import time
 from dataclasses import dataclass, field, replace
 
-from Crypto.Cipher import AES
-
 from nrdata import savefile
 from nrdata.binary import NotWhatItClaims
 
@@ -268,11 +266,7 @@ def _decrypt_slots(path: pathlib.Path) -> dict[str, bytes]:
     blob = _read_settled(path)
     out = {}
     for _i, name, offset, size in savefile._members(blob):
-        raw = blob[offset : offset + size]
-        iv, body = raw[:16], raw[16:]
-        plain = AES.new(savefile.SAVE_KEY, AES.MODE_CBC, iv).decrypt(
-            body[: len(body) // 16 * 16]
-        )
+        plain = savefile.decrypt_member(blob[offset : offset + size])
         if plain.count(0) != len(plain):
             out[name] = plain
     return out
