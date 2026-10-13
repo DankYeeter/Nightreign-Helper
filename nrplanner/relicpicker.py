@@ -1027,7 +1027,7 @@ class CustomRelicDialog(QDialog):
             mark = "✓ " if eff["id"] in self.chosen else "   "
             entry = QListWidgetItem(f"{mark}{label} — {detail}")
             entry.setData(Qt.UserRole, eff["id"])
-            entry.setToolTip(detail)
+            entry.setToolTip(advisorblock.as_a_tooltip(detail))
             self.list.addItem(entry)
 
         by_id = {e["id"]: e for e in self.choices}
