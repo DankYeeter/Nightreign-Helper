@@ -1421,7 +1421,10 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
 
     if curves:
         compute_derived(curves, build)
-    compute_resistances(build, counted)
+    # Gated the way the totals are, or a gated resistance counts always (QA-012).
+    compute_resistances(build, [
+        eff for eff in counted
+        if not is_conditional(eff, wep_type) or eff.get(FORCED)])
     if want_qualitative:
         compute_qualitative(build, counted, hero, wep_type, live, dead=dead)
 

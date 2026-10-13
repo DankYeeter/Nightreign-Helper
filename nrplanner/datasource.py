@@ -149,7 +149,7 @@ def _load_data() -> dict:
             if _regulation_matches(snapshot):
                 return snapshot
         except Exception:  # noqa: BLE001 - a failed check must not block startup
-            return snapshot
+            return _unconfirmed(snapshot)
 
     try:
         from nrdata import extract
@@ -167,6 +167,16 @@ def _load_data() -> dict:
 
     if snapshot is None:
         raise NoGameData(_no_data_message())
+    return _unconfirmed(snapshot)
+
+
+def _unconfirmed(snapshot: dict) -> dict:
+    """Mark a snapshot nobody could confirm against the installed game.
+
+    The window has to be able to say its figures may be from an older game
+    version rather than show them without a word (QA-171).
+    """
+    snapshot.setdefault("meta", {})["stale_check_failed"] = True
     return snapshot
 
 
@@ -192,7 +202,7 @@ def _no_data_message() -> str:
             "be installed for it to have anything to show.",
             "",
             "If the game is installed somewhere unusual, it was looked for "
-            "through Steam's library list and on the drives C to H.",
+            "through Steam's library list.",
         ]
     elif defs_dir() is None:
         lines += [

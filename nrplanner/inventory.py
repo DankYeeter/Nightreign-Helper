@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import struct
+import time
 from dataclasses import dataclass, field, replace
 
 from Crypto.Cipher import AES
@@ -72,6 +73,9 @@ class EquippedLoadout:
     selected: bool
     # Six entries, None where the slot is empty. 0-2 normal, 3-5 Deep of Night.
     relics: list[OwnedItem | None] = field(default_factory=list)
+    # Slots the save fills with a relic this inventory does not hold, None in
+    # `relics` like an empty one (QA-027).
+    missing: int = 0
 
     @property
     def deep_used(self) -> bool:
@@ -222,6 +226,10 @@ def refuse_a_size_no_save_can_have(size: int) -> None:
             f"save this game writes")
 
 
+#: How long `_read_settled` waits before reading a file that moved again.
+SETTLE_PAUSE_SECONDS = 0.2
+
+
 def _read_settled(path: pathlib.Path, attempts: int = 3) -> bytes:
     """The save's bytes, read while the game was not part-way through writing.
 
@@ -235,7 +243,8 @@ def _read_settled(path: pathlib.Path, attempts: int = 3) -> bytes:
     and mtime are what a rewrite in progress moves, and checking them costs
     nothing next to decrypting 19 MB. Three tries, then the last read is
     returned anyway -- a slightly wrong count is a better answer than none, and
-    the caller has no better file to offer.
+    the caller has no better file to offer. A pause between tries gives a
+    write in progress the time to finish (QA-010).
 
     The size the settling is judged by is the size SEC-029 is judged by, and
     it is looked at here because this is the line that would allocate it: one
@@ -243,7 +252,9 @@ def _read_settled(path: pathlib.Path, attempts: int = 3) -> bytes:
     the program has already handed the file on.
     """
     blob = b""
-    for _ in range(attempts):
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(SETTLE_PAUSE_SECONDS)
         before = path.stat()
         refuse_a_size_no_save_can_have(before.st_size)
         blob = path.read_bytes()
@@ -507,6 +518,8 @@ def build(data: dict, found: SaveScan) -> Inventory:
                 selected=entry.selected,
                 relics=[item_by_handle.get(h) if h else None
                         for h in entry.handles],
+                missing=sum(1 for h in entry.handles
+                            if h and h not in item_by_handle),
             )
         )
     return inv
