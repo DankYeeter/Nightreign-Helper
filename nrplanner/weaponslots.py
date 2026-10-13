@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import effecttext, model, weapons
-from .theme import ACCENT, BORDER, DEBUFF, MUTED, PANEL
+from . import cardgrid, effecttext, model, weapons
+from .theme import ACCENT, BORDER, DEBUFF, HOVER_FILL, MUTED, PANEL
 
 # The rarity a weapon reads as, in lighter shades of the colour families the
 # Weapons tab uses for its tiles -- not the same values, since text on PANEL
@@ -153,7 +153,7 @@ def why_no_effects(weapon: dict, bases: set[int]) -> str:
     return "This armament never rolls effects."
 
 
-class WeaponTile(QFrame):
+class WeaponTile(cardgrid.HoverCard):
     """One of the six armament slots.
 
     Single-click makes the tile active, which is what the damage breakdown
@@ -203,6 +203,16 @@ class WeaponTile(QFrame):
         if event.button() != Qt.RightButton:
             self.on_edit(self.index)
 
+    def _apply_appearance(self) -> None:
+        """The gold ring marks the active tile, the fill the pointer (QA-157)."""
+        border = ACCENT if self.active else BORDER
+        width = 2 if self.active else 1
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"QFrame {{ background: {fill}; border: {width}px solid {border};"
+            f" border-radius: 6px; }}"
+        )
+
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
                   effects: dict | None = None,
                   two_handing: bool = False) -> None:
@@ -223,12 +233,7 @@ class WeaponTile(QFrame):
         between them only ever points one way.
         """
         self.active = active
-        border = ACCENT if active else BORDER
-        width = 2 if active else 1
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL}; border: {width}px solid {border};"
-            f" border-radius: 6px; }}"
-        )
+        self._apply_appearance()
         if not slot.filled:
             self.title.setText(f"<span style='color:{MUTED}'>Slot "
                                f"{self.index + 1} — empty</span>")

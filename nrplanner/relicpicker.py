@@ -28,7 +28,7 @@ import dataclasses
 import functools
 
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QFontMetrics, QIcon
+from PySide6.QtGui import QFontMetrics, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMenu, QPushButton, QScrollArea,
@@ -39,7 +39,9 @@ from . import advisorbar, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
-from .theme import ACCENT, BORDER, CURSE, MUTED, PANEL, SLOT_COLOURS
+from .theme import (
+    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, PANEL, SLOT_COLOURS,
+)
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
 #: grid: the grid reflows to whatever width it is actually given, and this
@@ -142,6 +144,9 @@ def card_width() -> int:
 # The Nightfarer grid inside the favourite menu, matching the sidebar's shape.
 HERO_COLUMNS = 5
 HERO_ICON = 44
+#: The name under each portrait, in points: `app.NAME_POINT_SIZE`, which
+#: carries the measurement (QA-155). Own copy because app imports this module.
+NAME_POINT_SIZE = 7
 
 #: The caption of each value row, in one place. `UI_SPEC` AK-193 renames the
 #: damage row to `Attack multipliers` once A17 lands, and that is meant to be
@@ -638,7 +643,7 @@ class ValueBlock(QWidget):
             value.setText(text)
 
 
-class RelicCard(QFrame):
+class RelicCard(cardgrid.HoverCard):
     """One relic: its icon, name and the effects it actually rolled.
 
     Effect and curse lines are text (AK-301): a mark on an effect is set and
@@ -659,16 +664,12 @@ class RelicCard(QFrame):
         # can be both. Selection takes the border because it is about the slot
         # being edited; the star carries the favourite through either state.
         if selected:
-            edge, width = ACCENT, SELECTION_BORDER
+            self._border = f"{SELECTION_BORDER}px solid {ACCENT}"
         elif favourite:
-            edge, width = FAVOURITE, SELECTION_BORDER
+            self._border = f"{SELECTION_BORDER}px solid {FAVOURITE}"
         else:
-            edge, width = BORDER, 1
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL};"
-            f" border: {width}px solid {edge};"
-            f" border-radius: 6px; }}"
-        )
+            self._border = f"1px solid {BORDER}"
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
@@ -762,6 +763,14 @@ class RelicCard(QFrame):
 
         layout.addStretch()
 
+    def _apply_appearance(self) -> None:
+        """Hover fills the card and leaves the edge to selection (QA-157)."""
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"QFrame {{ background: {fill}; border: {self._border};"
+            f" border-radius: 6px; }}"
+        )
+
     @staticmethod
     def _line(text: str, style: str) -> QLabel:
         """One effect or curse line at the card's small size (AK-134)."""
@@ -796,7 +805,7 @@ class RelicCard(QFrame):
         self.on_favourite(self.item, event.globalPos())
 
 
-class CustomRelicCard(QFrame):
+class CustomRelicCard(cardgrid.HoverCard):
     """The build-your-own tile that leads the grid.
 
     Everything else in the picker is a relic the player actually holds. This
@@ -808,11 +817,8 @@ class CustomRelicCard(QFrame):
         super().__init__()
         self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL};"
-            f" border: 1px dashed {ACCENT if selected else MUTED};"
-            f" border-radius: 6px; }}"
-        )
+        self._edge = ACCENT if selected else MUTED
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
@@ -855,6 +861,14 @@ class CustomRelicCard(QFrame):
 
         layout.addStretch()
         self.setToolTip("Build a hypothetical relic for this slot")
+
+    def _apply_appearance(self) -> None:
+        """Hover fills the tile and leaves the dashed edge alone (QA-157)."""
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"QFrame {{ background: {fill}; border: 1px dashed {self._edge};"
+            f" border-radius: 6px; }}"
+        )
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt naming
         self.button.click()
@@ -900,20 +914,32 @@ class FavouriteMenu(QMenu):
         button.setChecked(checked)
         button.setAutoRaise(True)
         button.setCursor(Qt.PointingHandCursor)
-        button.setFixedSize(HERO_ICON + 8, HERO_ICON + 8)
         button.setToolTip(hero["name"])
+        # The name under the portrait, as on the sidebar tiles (QA-158,
+        # QA-155(b)), at the size measured there: `Undertaker`, the widest,
+        # needs 44 px at 7 pt and the tile has 48 inside its border.
+        button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        button.setText(hero["name"])
+        font = button.font()
+        font.setPointSize(NAME_POINT_SIZE)
+        button.setFont(font)
+        button.setIconSize(QSize(HERO_ICON, HERO_ICON))
         pixmap = icons.portrait(hero["id"]) if icons is not None else None
-        if pixmap is not None:
-            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-            button.setIconSize(QSize(HERO_ICON, HERO_ICON))
-            button.setIcon(QIcon(pixmap))
-        else:
-            # The DLC characters have no extractable artwork, so their tiles
-            # carry initials and keep the grid the same shape either way.
-            button.setText(hero["name"][:2])
+        if pixmap is None:
+            # The DLC characters have no extractable artwork. An empty
+            # portrait keeps their tiles the same shape as the others; the
+            # name under it says who they are.
+            pixmap = QPixmap(HERO_ICON, HERO_ICON)
+            pixmap.fill(Qt.transparent)
+        # Before the size is fixed: a button with text and no icon reports
+        # itself text-only and would be sized one line tall (see HeroTile).
+        button.setIcon(QIcon(pixmap))
+        button.setFixedSize(HERO_ICON + 8, button.sizeHint().height())
+        # Two pixels in both states, so the name keeps its room when checked.
         button.setStyleSheet(
-            f"QToolButton {{ border: 1px solid {BORDER}; border-radius: 4px;"
+            f"QToolButton {{ border: 2px solid {BORDER}; border-radius: 4px;"
             f" background: {PANEL}; color: #cfcfcf; padding: 0px; }}"
+            f"QToolButton:hover {{ background: {HOVER_FILL}; }}"
             f"QToolButton:checked {{ border: 2px solid {FAVOURITE}; }}"
         )
         button.clicked.connect(
