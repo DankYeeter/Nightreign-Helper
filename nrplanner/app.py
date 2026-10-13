@@ -38,7 +38,8 @@ from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import StatSheet, _heading
-from .theme import ACCENT, BORDER, MUTED, PANEL, SLOT_COLOURS
+from .theme import (ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL,
+                    SLOT_COLOURS)
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -75,19 +76,6 @@ TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
 
-#: What the Nightfarer's name is set in on its tile, in points (QA-155).
-#:
-#: The ten portraits carried no text at all, so a player had to click one and
-#: read the answer somewhere else to find out whom he had picked. The name has
-#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
-#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
-#: widening the tile would push the whole window's minimum out. Measured on
-#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
-#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
-#: against the 52 px a 56 px tile has inside its border. Seven is the size at
-#: which all ten stand whole; Qt shortens anything that does not fit and the
-#: tooltip has carried the full name all along.
-NAME_POINT_SIZE = 7
 
 def _dark_palette() -> QPalette:
     p = QPalette()

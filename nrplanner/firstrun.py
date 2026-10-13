@@ -23,7 +23,6 @@ import dataclasses
 import datetime
 import os
 import pathlib
-import traceback
 
 from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
@@ -664,7 +663,7 @@ class _Builder(QObject):
                     report=lambda line: self.progress.emit(line.strip()),
                 )
         except Exception as exc:  # noqa: BLE001 - reported in the dialog
-            traceback.print_exc()
+            errortext.print_traceback(exc)
             # `errortext` and not the exception itself: the build reads the
             # game's own folders, so most of what can fail here is an
             # `OSError`, and Windows words those in its own language (QA-211).

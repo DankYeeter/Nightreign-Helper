@@ -632,3 +632,44 @@ def test_the_line_about_the_stored_builds_says_it_in_english(monkeypatch,
     assert found.loadouts == []
     assert found.loadout_error == \
         "The file ends in the middle of something this had to read."
+
+
+# --------------------------------------------------------------------------
+# SEC-044: the console traceback keeps frames and class, never the text
+
+A_SAVE_PATH = r"C:\Users\x\AppData\Roaming\Nightreign\76561198000000000"
+
+
+WHAT_A_GERMAN_WINDOWS_SAYS = "Das System kann die Datei nicht finden"
+
+
+def _open_the_save(path, said):
+    """Raises with both as values, so no source line printed carries them."""
+    raise FileNotFoundError(errno.ENOENT, said, path)
+
+
+def test_the_console_traceback_names_no_path(capsys):
+    """Frames and class reach stderr; the message with the Steam id does not."""
+    try:
+        _open_the_save(A_SAVE_PATH, WHAT_A_GERMAN_WINDOWS_SAYS)
+    except OSError as exc:
+        errortext.print_traceback(exc)
+
+    printed = capsys.readouterr().err
+    assert "76561198000000000" not in printed and "Datei" not in printed
+    assert "_open_the_save" in printed
+    assert printed.rstrip().endswith("builtins.FileNotFoundError")
+
+
+def test_no_module_prints_an_exception_s_own_text_to_the_console():
+    """SEC-044: every console traceback goes through `print_traceback`."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    offenders = [
+        f"{path.relative_to(root)}:{number}"
+        for package in ("nrplanner", "nrdata")
+        for path in sorted((root / package).rglob("*.py"))
+        for number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1)
+        if "traceback.print_exc" in line or "traceback.print_exception" in line
+    ]
+    assert offenders == []
