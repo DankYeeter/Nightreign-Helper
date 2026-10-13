@@ -50,18 +50,6 @@ nicht [dieselbe Negation], streichen wir es komplett")** — Status in
 Beschreibung je Release aus `docs/release/RELEASE_BODY.md` (`body_path`,
 A-023/A-024/A-037). Download: `releases/latest`.
 
-## Stand gegen `GOAL.md` (19.09.2026, Artefakt 1.14.0)
-
-| | | |
-|---|---|---|
-| A1, A2 | Audit, kritisch/hoch | erfuellt (Register; QA-237 zurueckgestellt) |
-| A3-A9 | Berater, A6, A7, A8, QA am Artefakt | **erfuellt** (T-293b/T-295c am 1.14.0) |
-| A10-A14 | Tabs, A11 Laie | A11 **teilweise** (power-user-Werkzeug, QA-282); Nutzer-Ingame-Tests 15.-19.09. |
-| A15 | Erststart | erfuellt (clean-room T-285a) |
-| A17-A21 | Bezugswaffe, Filter, Zweihand, Filterfenster | erfuellt am Artefakt |
-| A22 | Attribute in die Schadenszahl | **erfuellt** (T-293b: Duchess 72 → 70, Why-Betrag; Nutzer "passt" 19.09.) |
-| A23 | Familien + Allow | **erfuellt** (T-293b/T-295c; Allow immer klickbar AK-317 Nachtrag) |
-
 ## Befunde
 
 Stand 23.09. aus den letzten Registerzeilen der Befunde dieses Zyklus: kein P1
@@ -117,18 +105,26 @@ Neubau 1.19.0 fuer seinen Ingame-Test. Alles in `docs/tasks/T-334.md`
 (Abschnitte a..m mit Ergebnis je Lauf). **Exe `dist\` ist veraltet** (Stand
 `7347908`), nicht mehr testen.
 
-Erledigt (Hauptzweig, HEAD `fb0393a` + Doku): Triage 90 IDs (T-334a), 33
+Erledigt (Hauptzweig, HEAD `0580b9f`): Triage 90 IDs (T-334a), 33
 geschlossen mit Beleg/Nutzerentscheid; Fixe P-A..P-E, nach T-334c, Restpaket
 (QA-007/038/213 Pruefsumme 28/28, SEC-044 A), Testumgebung P-D; UI
 AK-372..383 (Why-Dialog, Speichern, Nightfarer-Wiederklick); Guide.
 Letzte Suite-Zahlen je Zweig gruen (2025/9 Hauptbaum vor `fb0393a`, 2009/9
-`t334-pi`); **am Merge `fb0393a` kein Volllauf**.
+`t334-pi`); **am Hauptzweig `0580b9f` kein eigener Volllauf** (Zweig t334-pl inkl. fb0393a: 2049/9).
 
 **HIER WEITERMACHEN (in dieser Reihenfolge):**
-1. T-334l (AK-384..394: QA-292 Mindestbreiten, Texte QA-008/030/031/171,
-   `relicpicker.py:1025` Escaping) — Zweig `t334-pl`, Stand im Bericht des
-   Laufs (pausiert 19:50, ggf. wip-Commit). Fortsetzen: merge `fb0393a` in
-   `t334-pl`, Rest fertig, Volllauf, dann `--no-ff` in den Hauptzweig.
+1. **QA-292 entscheiden (Nutzer, Layout):** Spec AK-384..387 braucht eine
+   Fenster-Mindestbreite von 1628 px (heute 760; 1080p bei 125 % = 1536
+   logische px) — unerreichbar. Optionen (T-334l, offscreen gemessen):
+   bis 1536 px mit Boxen ~80/70/58; sichtbare Labels "Hit with"/"Damage type"
+   streichen; Leiste zweizeilig; Mindestbreiten anderer Spalten senken.
+   Empfehlung Director: Leiste zweizeilig unter Mindestbreite (ui-ux Spec).
+   Patch nach Spec liegt auf Zweig `t334-pl-minwidth` `e2bdd9e` (nicht mergen).
+   Test `test_the_row_asks_the_window_for_no_width_at_all` (AK-03) muss dann
+   angepasst werden. Rest T-334l gemerged `0580b9f` (Zweig 2049 passed / 9
+   skipped). Offen klein: `advisorbar.py:331` sagt bei gelesenem leerem
+   Spielstand evtl. "No save was read"; Effektfilter bei nicht lesbarer
+   gewaehlter Datei "That save has no relics" (Bestand).
 2. Pruefung in **einer** Nachricht, PC frei: `qa-engineer` Retest am
    Quellstand mit Fenster (alle in T-334 behobenen IDs + Fensterpunkte aus den
    Berichten: Fokusrahmen, `Why this relic`-Scroll, Faltknoepfe, Tooltip
