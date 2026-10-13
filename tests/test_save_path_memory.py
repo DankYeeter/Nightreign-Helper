@@ -40,7 +40,8 @@ from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
 from nrdata import savefile
-from nrplanner import (app as appmod, favourites, gamepath, inventory,
+from nrplanner import (app as appmod, effectfilterdialog, favourites,
+                       gamepath, inventory, relicpicker,
                        savereader)
 from tests import conftest, rendered
 from tests.test_save_read_in_the_background import (READ_FUSE_S, StatedRead,
@@ -942,17 +943,99 @@ def test_the_automatic_route_says_when_the_saves_it_found_hold_nothing(
     assert savereader.read_the_save(game_data) is savereader.SAVES_HOLD_NO_RELICS
 
 
+#: AK-388/AK-389, word for word out of `UI_SPEC` "Nachtrag T-334k" -- not
+#: imported, so a changed constant cannot carry its test along with it.
+SAVES_HOLD_NOTHING = ("Your save has no relics in it yet. If you play on more "
+                     "than one Steam account, they may be in another save — "
+                     "use Find my save.")
+NOTHING_TO_FILTER = ("Your save has no relics in it yet, so there is nothing "
+                     "to filter.")
+NOTHING_TO_RANK = ("Your save has no relics in it yet, so there is nothing to "
+                   "rank — use Rescan save.")
+
+
 def test_the_line_names_an_empty_save_on_the_automatic_route(store, game_data,
                                                              qapp):
-    """QA-008 at the window: the sentence for a save with nothing in it."""
+    """QA-008/AK-388 at the window: no file was chosen, so not "That save"."""
     read = StatedRead(savereader.SAVES_HOLD_NO_RELICS)
     window = a_window(game_data, read)
     try:
         conftest.wait_for_the_save(window)
         rendered.settle()
 
-        assert the_line(window) == appmod.CHOSEN_SAVE_IS_EMPTY
+        assert the_line(window) == SAVES_HOLD_NOTHING
+        assert "That save" not in the_line(window)
         assert window.owned is None
         assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
+
+
+def the_filter_window_says(window, monkeypatch) -> str:
+    """The empty state of the effect filter window, opened over `window`."""
+    opened = []
+    monkeypatch.setattr(effectfilterdialog.EffectFilterWindow, "exec",
+                        lambda self: opened.append(self))
+    window.open_effect_filters()
+    return opened[-1].empty.text()
+
+
+def the_picker_says(window) -> str:
+    """The headline of a relic picker opened on the first slot."""
+    card = window.base_slots[0]
+    dialog = relicpicker.RelicPicker(card, card.icons, "", lambda _text: None)
+    try:
+        return dialog.headline.text()
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_read_empty_save_is_not_called_unread_on_the_automatic_route(
+        store, game_data, qapp, monkeypatch):
+    """AK-389: the filter window and the picker were told "No save was read"
+    about a save that was read and held nothing (QA-008 neighbours)."""
+    read = StatedRead(savereader.SAVES_HOLD_NO_RELICS)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_filter_window_says(window, monkeypatch) == NOTHING_TO_FILTER
+        assert the_picker_says(window) == NOTHING_TO_RANK
+    finally:
+        close(window, read)
+
+
+def test_a_picked_empty_save_is_not_called_unread_by_the_picker(
+        store, game_data, qapp, monkeypatch, tmp_path):
+    """AK-389 for a chosen file: the picker says the same sentence, the filter
+    window keeps the chosen-file wording."""
+    chosen = a_save_file(tmp_path)
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        pick_and_read(window, chosen, read, monkeypatch)
+
+        assert the_picker_says(window) == NOTHING_TO_RANK
+        assert the_filter_window_says(window, monkeypatch) == (
+            "That save has no relics in it yet, so there is nothing to "
+            "filter.")
+    finally:
+        close(window, read)
+
+
+def test_no_save_at_all_is_still_no_save_read(store, game_data, qapp,
+                                              monkeypatch):
+    """AK-389's other half: with no file read the old sentences stay."""
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_filter_window_says(window, monkeypatch) == (
+            effectfilterdialog.NO_SAVE_WAS_READ)
+        assert the_picker_says(window) == relicpicker.NO_SAVE_WAS_READ
     finally:
         close(window, read)
