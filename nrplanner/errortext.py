@@ -30,6 +30,8 @@ from __future__ import annotations
 import errno
 import struct
 import subprocess
+import sys
+import traceback
 
 #: The packages whose exception classes are this program's own. A class from
 #: one of these was given its message by a line of this repository; a class
@@ -137,3 +139,17 @@ def _a_name_safe_to_show(exc: BaseException) -> str:
     """
     name = type(exc).__name__
     return name if name.isascii() and name.isidentifier() else "unnamed"
+
+
+def print_traceback(exc: BaseException) -> None:
+    """Where `exc` was raised and its class, on stderr -- never its text.
+
+    SEC-044: the message of an exception can carry the save's path, and the
+    save folder is named after the Steam account id (AK-126). The frames and
+    the class are what a developer needs from the console; the sentence the
+    player is shown is `in_english`'s.
+    """
+    frames = "".join(traceback.format_tb(exc.__traceback__))
+    cls = type(exc)
+    print(f"Traceback (most recent call last):\n{frames}"
+          f"{cls.__module__}.{cls.__qualname__}", file=sys.stderr)
