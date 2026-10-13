@@ -699,3 +699,19 @@ Ausnahmen und Messfaelle stehen je Befund in der Spalte "Verifiziert".
 | QA-219 | `_steam_roots()` baut Bibliothek doppelt | P4 | Minor | developer | Triage T-334a | geschlossen -- veraltet, feste Wurzel entfernt (SEC-036, `bd6bd90`) | 2026-10-13 |
 | QA-245 | Alter Nutzer-Cache stuerzt Planner mit KeyError | P3 | Minor | director | Triage T-334a | geschlossen -- veraltet, `datasource.py:105` verwirft fremde `extract_version` (heute 16) | 2026-10-13 |
 | QA-280 | Figurenwechsel ohne Nutzerhandlung | P3 | Minor | director | Triage T-334a | geschlossen -- nicht reproduzierbar (T-278a), Statuswort normalisiert | 2026-10-13 |
+| QA-044 | Migrations-Sonderfall alter Build-Speicher (Schema < 3) | P3 | Minor | developer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- wontfix: nur Speicher aus v1.0.0..v1.7.1, alle 6 Gruppen auf diesem Rechner Schema 3 | 2026-10-13 |
+| QA-048 | Migrations-Sonderfall alter Build-Speicher (Schema < 3) | P3 | Minor | developer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- wontfix wie QA-044 | 2026-10-13 |
+| QA-054 | Migrations-Sonderfall alter Build-Speicher (Schema < 3) | P3 | Minor | developer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- wontfix wie QA-044 | 2026-10-13 |
+| QA-094 | Prozessbefund (Scratchpad je Auftrag) | P4 | Minor | director | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- heute je Auftrag eigener Scratchpad-Ordner | 2026-10-13 |
+| QA-196 | Prozessbefund (Scratchpad je Auftrag) | P4 | Minor | director | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- wie QA-094 | 2026-10-13 |
+| QA-197 | Prozessbefund (Scratchpad je Auftrag) | P4 | Minor | director | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- wie QA-094 | 2026-10-13 |
+| QA-023 | Reichweite des Ein-Build-Waechters | P3 | Minor | developer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- dokumentierte Grenze (`tests/test_one_build.py:39-43`, `advisor/evaluate.py:20-24`) | 2026-10-13 |
+| QA-118 | Waechterqualitaet Schadens-Goldfile | P4 | Minor | qa-engineer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- Faktor im Goldfile `tests/golden/weapon_damage.json` (`99ed022`) | 2026-10-13 |
+| QA-159 | Effects-Erklaerabsatz ohne `Colours` | P4 | Minor | ui-ux-designer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- Absatz `effectstab.py:955-961` (`7f77e04`) | 2026-10-13 |
+| QA-179 | Kein 100-%-Eintrag in der Skalierung | P4 | Minor | ui-ux-designer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- Absicht dokumentiert `uiscale.py:12` | 2026-10-13 |
+| QA-218 | Positivkontrolle "Satz ganz im raise" | P4 | Minor | qa-engineer | Triage T-334a, Nutzerentscheid 13.10. 18:45 | geschlossen -- Positivkontrolle `tests/test_hostile_gamedata.py:320`; Rest Kommentarregel | 2026-10-13 |
+| QA-089 | Rarity-Filter blendet Zauber nicht aus | P4 | Minor | ui-ux-designer | Triage T-334a, Nutzerentscheid 13.10. 18:45 ("beides lassen") | geschlossen -- nicht umsetzen | 2026-10-13 |
+| QA-067 | Einzeln gerundete AR vs. Summe | P4 | Minor | ui-ux-designer | Triage T-334a, Nutzerentscheid 13.10. 18:45 ("beides lassen") | geschlossen -- nicht umsetzen, Spiel rundet ebenso | 2026-10-13 |
+| QA-246 | Exit 127 in Git-Bash | P4 | Minor | director | Triage T-334a | geschlossen -- nie reproduziert, kein Nachweis (Director 13.10.) | 2026-10-13 |
+| QA-167 | Performance-Vermutung | P4 | Minor | director | Triage T-334a | geschlossen -- nie gemessen, keine Beschwerde; neu oeffnen nur mit Messung (Director 13.10.) | 2026-10-13 |
+| QA-221 | `conftest.py` fester Org-Wert vs. CLAUDE.md "je Auftrag" | P4 | Minor | director | Triage T-334a | geschlossen -- `CLAUDE.md` Umlenkungstabelle auf "ausserhalb pytest" eingeschraenkt (Director 13.10.) | 2026-10-13 |

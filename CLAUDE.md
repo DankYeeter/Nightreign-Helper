@@ -47,7 +47,7 @@ Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`
 
 | Variable | ausgewertet in | umlenken auf |
 |---|---|---|
-| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` |
+| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` (ausserhalb pytest; die Suite setzt fest `DankYeeterTests`, `tests/conftest.py:46`, QA-221) |
 | `LOCALAPPDATA` | `nrplanner/paths.py` | eigenes Testverzeichnis |
 | `APPDATA` | `nrplanner/shortcut.py` | eigenes Testverzeichnis |
 
