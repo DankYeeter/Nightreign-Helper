@@ -1749,13 +1749,16 @@ def test_a_weighting_a_caller_got_wrong_is_refused(game_data, wylder):
     """QA-103, QA-105: each way to get a weighting wrong ends in a sentence.
 
     Before, a zero sum was a bare `ZeroDivisionError`, a negative weight a
-    quietly wrong figure and an unknown field name a quietly neutral one.
+    quietly wrong figure, an unknown field name a quietly neutral one and a
+    field named twice a weight quietly dropped.
     """
     wrong = {
         "zero sum": ((("fireDamageCutRate", 0.0),), "more than zero"),
         "negative weight": ((("fireDamageCutRate", 2.0),
                              ("darkDamageCutRate", -1.0)), "zero or more"),
         "unknown field": ((("fireDamageCutRat", 1.0),), "not a damage-cut"),
+        "duplicate field": ((("fireDamageCutRate", 1.0),
+                             ("fireDamageCutRate", 2.0)), "more than once"),
     }
     for kind, (weights, said) in wrong.items():
         weighting = types.Weighting(id=kind, label=kind, note="", weights=weights)

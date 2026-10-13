@@ -674,16 +674,20 @@ def _min_damage_taken(build: model.Build,
     loudly beats one that guesses. The two preconditions a caller *can* get
     wrong are checked instead, because a caller is not the dataset: a
     weighting with no weights, with a weight below zero, whose weights sum to
-    zero, or that names a field which is not one of `DAMAGE_CUT_FIELDS`, and a
-    build whose rate for a weighted field is not above zero (QA-103,
-    QA-105). Every one of them would otherwise end in a `ZeroDivisionError` or
-    in a plausible wrong number.
+    zero, that names a field which is not one of `DAMAGE_CUT_FIELDS` or that
+    names one field twice, and a build whose rate for a weighted field is not
+    above zero (QA-103, QA-105). Every one of them would otherwise end in a
+    `ZeroDivisionError` or in a plausible wrong number.
     """
     weights = dict(ctx.weighting.weights)
     if not weights:
         raise ValueError(
             f"weighting {ctx.weighting.id!r} carries no weights, so there is "
             f"nothing to average the eight damage kinds with")
+    if len(weights) != len(ctx.weighting.weights):
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} names a damage-cut field more "
+            f"than once, so one of its weights would be dropped unseen")
     unknown = sorted(set(weights) - set(DAMAGE_CUT_FIELDS))
     if unknown:
         raise ValueError(
