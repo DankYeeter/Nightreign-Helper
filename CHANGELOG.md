@@ -4,13 +4,42 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
-## [1.19.0] - 2026-10-12
+## [1.19.0] - 2026-10-14
 
 ### Added
 - The Nightfarer you last selected is now remembered across a restart; the
   program reopens with that one instead of always the first in the list.
+- Saving a build now confirms it with a short note by the build name
+  (`Saved "name".`, or `Saved over "name".` when it replaced one).
+- Clicking the Nightfarer that is already selected now tells you so
+  (`<Name> is already selected.`) instead of doing nothing visible.
+- Relic cards and weapon tiles that can be clicked now show which one the
+  pointer is on.
 
 ### Changed
+- The "Why" dialog now leads with the answer. Effects that carry no number
+  and the footnotes are folded away behind buttons (`Show n effects without
+  a number`, `Notes on these figures`); the notes open by themselves when
+  they hold something you need to know. The button on the advisor bar is
+  now `Why` (the whole suggestion) and the one on a relic card `Why this
+  relic`, which opens the dialog at that relic's slot.
+- When you have marked an effect as a favourite but a suggestion cannot
+  count it (a build can meet the weapon-count condition of only one weapon
+  type), the explanation now says so instead of claiming it always counts.
+- The advisor bar wraps into two rows when the window is too narrow for one,
+  instead of squeezing its buttons. The smallest window width is now about
+  1190 px (it was 760 px); the opening size is unchanged.
+- Clearer wording when a save has no relics, when relics the save has
+  equipped are no longer in your inventory, when the stored builds of a save
+  could not be read, and when the data shown is from an earlier day than
+  your installed game. A Deep of Night slot left empty because its relic is
+  worn elsewhere now says `— n left empty`.
+- The filter menus show their full value in a tooltip, the Favourites menu
+  shows each Nightfarer's name, and shortened column headers are read out in
+  full by screen readers.
+- If the Steam entry cannot be found, the folder picker for your game now
+  opens at "This PC" rather than at a fixed Steam folder.
+- Console error output no longer includes the text of the error itself.
 - Deep of Night, Red variant and World Event values that come from
   community write-ups (rather than the game's own data) are no longer
   marked "community-reported" or shown in a different colour; they now
@@ -21,6 +50,20 @@ History before 1.10.0 was not reconstructed; this file starts here.
   contrast guidelines.
 
 ### Fixed
+- The program now checks each character slot of your save against the
+  checksum stored in the file. If one does not match, the save is reported
+  as not readable, with the reason, rather than showing relics that may be
+  wrong.
+- A save with more relics than the program will read now ends in the
+  explanatory sentence instead of an error trace, and malformed script data
+  in the game's files is read within fixed limits.
+- Two messages claimed the game was searched for on drives C to H; that
+  search no longer exists, and the text now says what actually happens.
+- Relic and curse names containing markup characters are now shown as plain
+  text in tooltips.
+- The survival goal now checks its weighting and damage-pass rate, and a
+  weighting that names the same damage field twice is refused, instead of
+  producing a wrong or absurd figure.
 - The relic advisor no longer counts two different "3+ ... Equipped"
   weapon-count effects (for example 3+ Hammers and 3+ Great Hammers) as
   both fulfilled in one suggestion. Together with your reference weapon

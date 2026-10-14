@@ -140,4 +140,12 @@ starts there.
   other readable saves; a damaged data cache no longer stops the program
   from starting; the relic advisor no longer counts two different "3+ ...
   Equipped" weapon-count effects as both fulfilled in one suggestion (that
-  needed more weapons than there are armament slots).
+  needed more weapons than there are armament slots). The "Why" dialog now
+  leads with the answer and folds away effects without a number and the
+  footnotes; saving a build and re-clicking the selected Nightfarer now
+  confirm what happened; the advisor bar wraps into two rows on a narrow
+  window (smallest window width is now about 1190 px, was 760 px); each
+  character slot of your save is now checked against its stored checksum,
+  and a mismatch is reported as "not readable" with the reason instead of
+  showing possibly wrong relics; many smaller wording and tooltip fixes
+  (see `CHANGELOG.md`).
