@@ -8199,3 +8199,213 @@ AK-388 bis AK-393), `nrplanner/relicpicker.py` und
 `nrplanner/effectfilterdialog.py` (AK-389), `nrplanner/inventory.py`/`nrdata/savefile.py`
 unveraendert (AK-394 prueft nur). Tests: Mindestbreiten am echten Widget
 (`resize` auf die Messbreiten), Texte als Zeichenketten-Gleichheit.
+
+> **Abgeloest am 14.10.2026 (T-334n):** AK-384 bis AK-387 dieses Abschnitts gelten
+> nicht mehr; Nutzerentscheidung "Leiste zweizeilig" (QA-292). Ersatz: AK-395 bis
+> AK-404 im Nachtrag T-334n unten. AK-388 bis AK-394 bleiben.
+
+---
+
+#### Nachtrag T-334n (ui-ux-designer), 2026-10-14 — QA-292: die Leiste bricht in zwei Zeilen um (Spec-Modus)
+
+*Nutzerentscheidung 14.10.2026 17:23: "Leiste zweizeilig". Sie loest die
+Mindestbreiten-Spec **AK-384 bis AK-387 (T-334k) ab** — deren Fenster-
+Mindestbreite von 1628 px lag ueber 1366 und haette kleine Bildschirme
+ausgesperrt. Gemessen am laufenden Fenster (`QT_QPA_PLATFORM=windows`,
+`WA_DontShowOnScreen`, Fusion, Segoe UI 9 pt, DPR 1,25, Stand `553b6be`,
+Umlenkung `DankYeeterT-334n`; kein Klon, Arbeitsbaum sauber, keine andere Rolle
+schreibt); Messskript `T-334n/measure.py` im Scratchpad des Auftrags. Alle
+Zahlen sind logische px und **Startwerte**; der `developer` misst nach dem Bau
+gegen dieselben Groessen und nennt Abweichungen. Naechste freie AK: AK-395.*
+
+##### 1. Messbefund (Ausgangslage)
+
+| Groesse | Wert |
+|---|---|
+| Breite der Leiste | Fensterbreite − **852** bei Standard-Seitenpanes (430 / 370); − **692**, wenn beide Seitenpanes auf ihrem Minimum (300 / 340) stehen |
+| `sizeHint`-Breiten | `Advisor` 57 · `goal_box` 183 · `Hit with` 42 · `hit_with_box` 136 · `Damage type` 71 · `damage_type_box` 78 · jeder Knopf 80 (Fusion) · Abstand 6 |
+| Leiste einzeilig, `max_damage`, drei Aktionsknoepfe gezaehlt, Statuszeile 0 | **1033** (Fenster 1885) |
+| dasselbe in jeder anderen Richtung | **682** (gemessen 424 ohne die drei Knoepfe + 258), Fenster 1534 |
+| Fenster-Mindestbreite heute | 760; dort ist die Leiste **68 px** breit, jedes Bedienelement 0 bis 1 px |
+| Hoehe der Leiste / eines Elements | 36 / 24 (Raender 6 + 6) |
+| Leiste bei Fensterbreite 1426 / 1536 / 1728 (`max_damage`, Vorschlag) | Knoepfe 46–47 / 57–58 / 80 px, `goal_box` 47 / 58 / 81 px, Statuszeile 0 |
+
+Eine Zeile mit allen Teilen braucht im ungunstigsten Zustand 936 px (Boxen auf
+Mindestbreite) bis 1033 px (Boxen unverkuerzt); mit den 692 px Rest ist das
+Fenster 1628 bis 1885 px breit. Das liegt ueber 1366 px. Darum **zwei Zeilen
+statt Verzicht auf Kuerzung**.
+
+##### 2. Vorgabe
+
+**Zweck.** Die Leiste bleibt auf jeder zulaessigen Fensterbreite vollstaendig
+bedienbar: kein Knopf schmaler als sein `sizeHint`, kein Bedienelement auf
+0 px. Aufwand je Ziel: **0 zusaetzliche Schritte** — kein Umschalter, keine
+Einstellung, kein Gedaechtnis; allein die Breite entscheidet.
+
+**Zwei Modi, ein Satz Widgets.** Dieselben Objekte (`bar.optimize_button` usw.)
+stehen in beiden Modi; sie werden nur anders angeordnet.
+
+- **Einzeilig** (wie heute): `Advisor` · `goal_box` · [`Hit with` · `hit_with_box` ·
+  `Damage type` · `damage_type_box`, nur Richtung `max_damage`] · `Filters` ·
+  `Optimize` · Statuszeile (dehnt) · Fortschrittsbalken · `Apply all`/`Undo apply` ·
+  `Why` · `Clear`.
+- **Zweizeilig:**
+  - **Zeile 1 — die Frage:** `Advisor`, `goal_box`, und in `max_damage` die
+    zwei Paare. In den anderen Richtungen stehen dort nur `Advisor` und
+    `goal_box` (die Zeile bleibt kurz; kein Auffuellen mit anderen Teilen —
+    eine Regel fuer alle Richtungen).
+  - **Zeile 2 — Tun und Ergebnis:** `Filters`, `Optimize`, Statuszeile (dehnt),
+    Fortschrittsbalken, `Apply all`/`Undo apply`, `Why`, `Clear`. Linksbuendig
+    an der Spaltenkante, **kein Einzug** unter `Advisor`.
+  - Zeilenabstand 6 (der vorhandene Abstand), Raender oben/unten je 6 wie heute.
+  - Die Lesereihenfolge links→rechts, oben→unten ist **dieselbe Reihenfolge wie
+    einzeilig**; darum bleibt auch die Tab-Reihenfolge gleich.
+
+**Schwelle (wann zwei Zeilen).** Zweizeilig genau dann, wenn die Leiste
+schmaler ist als ihr **Einzeilen-Bedarf**:
+
+> Einzeilen-Bedarf = Summe der `sizeHint`-Breiten der Teile **der aktuellen
+> Richtung** (in `max_damage` mit den zwei Paaren, sonst ohne) + `Filters` +
+> `Optimize` + **alle drei Aktionsknoepfe, immer mitgezaehlt**, auch wenn sie
+> gerade verborgen sind (jeweils der laengste Text: `Optimize`/`Cancel`,
+> `Apply all`/`Undo apply`) + Abstaende + **`STATUS_FLOOR` = 48 px** fuer die
+> Statuszeile.
+
+Begruendung: Einzeilig heisst *nichts verkuerzt und die Statuszeile nicht auf
+einem Strich*. Die Aktionsknoepfe zaehlen immer mit, damit das Eintreffen eines
+Vorschlags die Leiste nie umbricht — sie springt nicht unter dem Blick des
+Nutzers. Die Richtung zaehlt mit, weil der Nutzer sie selbst in genau dieser
+Leiste waehlt und dort ohnehin Teile erscheinen oder verschwinden.
+Startwerte: `max_damage` 1033 + 48 = **1081** (Fenster 1933), andere Richtungen
+682 + 48 = **730** (Fenster 1582). Die Schwelle haengt nicht an Statustext,
+Vorschlag, Fortschrittsanzeige oder Textwechsel der Knoepfe. Eine Hysterese
+braucht es nicht: der Moduswechsel aendert die Leistenbreite nie, nur die Hoehe.
+
+**Kuerzung.**
+
+1. Statuszeile: schrumpft wie bisher, einzeilig aber nie unter `STATUS_FLOOR`
+   (darunter kippt die Leiste in zwei Zeilen); zweizeilig bekommt sie den Rest
+   von Zeile 2 (Zeilenbedarf 430, Statuszeile = Leistenbreite − 430, bei der
+   Mindestbreite 68 px, nie 0). Voller Text bleibt im Tooltip.
+2. `goal_box` / `hit_with_box` / `damage_type_box`: Mindestbreite je
+   `min(Startwert, sizeHint)` mit Startwerten **120 / 100 / 80** (die `sizeHint`
+   der Artbox ist 78, ihr Minimum daher 78); Obergrenze `GOAL_BOX_WIDTH` 200 und
+   `AdjustToContents` bleiben. Unter ihrem `sizeHint` kuerzt nur die native
+   Elision, voller Text im Tooltip (AK-351.2/AK-340) — und das **nur in
+   Zeile 1 des zweizeiligen Modus**, wenn die Leiste unter der Summe der
+   `sizeHint`-Breiten von Zeile 1 liegt (Startwert 597, Fenster 1449).
+3. Knoepfe, `Advisor` und die Beschriftungen `Hit with`/`Damage type`: **nie**.
+
+**Fenster-Mindestbreite.** Konstant (nicht an Richtung, Vorschlag oder Modus
+gebunden) und gleich dem Bedarf der **breiteren** der zwei Zeilen im
+ungunstigsten Zustand plus 692: Zeile 1 mit beiden Paaren und Boxen auf
+Mindestbreite = 57 + 120 + 42 + 100 + 71 + 78 + 5×6 = **498**; Zeile 2 mit
+Statuszeile 0 = **430**. Fenster-Mindestbreite also **1190** (Startwert, bisher
+760) und damit unter 1366. Die Leiste gibt ihren Mindestbedarf an das Fenster
+weiter (Richtung: Policy von `Ignored` auf `Minimum` oder ausdrueckliche
+Fenster-Mindestbreite; Wahl beim `developer`). Das Fenster laesst sich nicht
+schmaler ziehen; kein Umbruch in drei Zeilen, keine Kuerzung der Knoepfe.
+Zwischen 1190 und 1350 Fensterbreite schrumpfen dafuer die Seitenpanes auf ihr
+vorhandenes Minimum (300 / 340), die Mittelspalte nicht unter 498.
+
+**Hoehe.** Einzeilig 36 (unveraendert), zweizeilig **66** (36 + Zeile 24 +
+Abstand 6). Die Leiste meldet ihre Hoehe je Modus an das Layout der Spalte
+(Qt-konform: `hasHeightForWidth`/`heightForWidth` auf einem eigenen `QLayout`,
+das die Elemente je Modus setzt; kein Umhaengen in `resizeEvent`, das einen
+Frame mit falscher Anordnung zeigen wuerde — Wahl beim `developer`). Die
+Karten darunter ruecken beim Moduswechsel um 30 px; sonst bewegt sich nichts.
+
+**Zustaende.** Leer/`NOTHING_YET`: Zeile 2 traegt `Filters`, `Optimize` und eine
+leere Statuszeile, die drei Aktionsknoepfe sind verborgen und nehmen keinen
+Platz (nur ihr Mitzaehlen in der Schwelle bleibt). Laedt: Fortschrittsbalken in
+der Zeile der Statuszeile. Fehler (4.12, langer Satz): in Zeile 2 mit dem Rest
+der Zeile, dahinter Elision und Tooltip. Erfolg: die drei Knoepfe erscheinen,
+der Modus bleibt (die Schwelle zaehlt sie schon). Lange Texte: Boxen elidieren
+nativ, Knoepfe nie. Sehr viele Daten: nicht beruehrt.
+
+**Plattform.** Windows-Desktop, Maus und Tastatur, Fusion-Stil des Programms.
+Zielgroessen unveraendert (Knopf 80×24 logisch); kein Hover-Zwang.
+
+**Verwendete Token.** Nur Bestand: Abstand 6, Raender 6/6, `GOAL_BOX_WIDTH` 200,
+Knopfmasse des Stils. Neu: `STATUS_FLOOR` (48), die drei Box-Mindestbreiten
+(Begruendung oben). Keine neue Farbe, keine neue Schrift, kein neues
+Bedienelement.
+
+##### 3. Akzeptanzkriterien
+
+Alle am echten Planner unter `QT_QPA_PLATFORM=windows` (Messweg
+`tests/advisor_row_at_the_window.py`), nicht offscreen (L-009). "Messbreiten"
+sind Fensterbreiten 1366, 1426, 1522, 1536, 1728, 1959.
+
+| ID | Akzeptanzkriterium |
+|---|---|
+| **AK-395** | Die Leiste hat genau zwei Modi (`bar.rows` ∈ {1, 2}; Name beim `developer`). Zweizeilig genau dann, wenn die Leistenbreite < Einzeilen-Bedarf der aktuellen Richtung (Definition oben, Startwerte 1081 fuer `max_damage`, 730 sonst); getestet je Richtung bei Schwelle −1 / +0 px. |
+| **AK-396** | Zweizeilig stehen `Advisor`, `goal_box` und in `max_damage` die zwei Paare in Zeile 1 (gleiche vertikale Mitte), `Filters`, `Optimize`, Statuszeile, Fortschrittsbalken, `Apply all`/`Undo apply`, `Why`, `Clear` in Zeile 2; Zeile 2 liegt unter Zeile 1, der Zeilenabstand ist 6 px, beide Zeilen beginnen an derselben linken Kante. Einzeilig stehen alle in einer Zeile in derselben Reihenfolge wie heute. |
+| **AK-397** | Der Modus aendert sich bei gleicher Breite und gleicher Richtung nicht durch Vorschlag ein/aus, Statustext, Fortschrittsanzeige, Textwechsel `Optimize`/`Cancel` oder `Apply all`/`Undo apply`; er aendert sich nur durch Leistenbreite und Richtung. Gemessen: `bar.rows` vor und nach `_show(SUGGESTED)`, `_on_failed(langer Satz)`, `_on_started()`. |
+| **AK-398** | Bei jeder Fensterbreite ≥ Fenster-Mindestbreite, in beiden Modi, ist die Breite von `Filters`, `Optimize`, `Apply all`, `Why`, `Clear` ≥ `sizeHint` des laengsten Texts, den der Knopf traegt (Fusion: 80); gemessen an den Messbreiten **und** an der Mindestbreite: nie 100 → 70 → 57 px (QA-292). `Advisor`, `Hit with`, `Damage type` ebenso nie unter `sizeHint`. |
+| **AK-399** | Boxen: `minimumWidth()` = `min(Startwert, sizeHint)` mit Startwerten 120 / 100 / 80; bei jeder Fensterbreite ≥ Fenster-Mindestbreite ist `box.width() ≥ minimumWidth()`. Einzeilig ist keine Box elidiert; zweizeilig ist eine Box nur elidiert, wenn die Leistenbreite unter der Summe der `sizeHint`-Breiten von Zeile 1 liegt (Startwert 597). Tooltip der Boxen unveraendert. |
+| **AK-400** | Fenster-Mindestbreite ist konstant (gleich in allen drei Richtungen, mit/ohne Vorschlag, in beiden Modi), ≥ Bedarf der breiteren Zeile im ungunstigsten Zustand + Rest (Startwert **1190**) und ≤ 1366; `window.width() ≥ minimumWidth()` nach `resize(300, …)`; dort ist die Leiste ≥ 498 breit und kein Bedienelement unter seiner Mindestbreite. |
+| **AK-401** | Startbreiten ungeaendert (AK-350/AK-352: 1959 / 1728 / 1536 fuer Raum ≥ 2177 / 1920 / ≤ 1706). **Einzeilig** an 1959 (Statuszeile ≥ `STATUS_FLOOR`, gemessen 74; AK-194 bleibt erfuellt); **zweizeilig** an 1728 (Statuszeile ≈ 446) und 1536 (≈ 254), dort ohne Elision der Boxen. `Planner._width_around_the_advisor_row` leitet seine zwei Zusaetze aus dem `sizeHint`-Bedarf ab (nicht mehr aus `minimumSizeHint`, der jetzt konstant ist); `_opening_width()` fuer Raum 1366 / 1536 / 1920 / 2560 bleibt 1536 / 1536 / 1728 / 1959. |
+| **AK-402** | Hoehe der Leiste einzeilig 36, zweizeilig 66 (±1); kein Bedienelement ragt aus der Leiste (`rendered.clipped(...) == []`); die Spalte darunter wird beim Moduswechsel neu gelegt (kein Ueberdecken der ersten Karte, kein Rest-Leerraum). |
+| **AK-403** | Die Tab-Reihenfolge der Leiste ist in beiden Modi identisch (`goal_box` → … → `Clear`); ein Moduswechsel durch Ziehen aendert weder das Widget-Objekt noch den Fokus (`QApplication.focusWidget()` vorher = nachher), Accessible-Names (AK-380) bleiben; der Fokusrahmen eines Knopfs wird in Zeile 2 nicht abgeschnitten. |
+| **AK-404** | Kein Kreislauf: nach `resize` auf Schwelle ±1 px und `settle` aendert ein weiterer Layoutlauf den Modus nicht (zwei Laeufe, gleiche `bar.rows`). |
+
+##### 4. Aenderungen am Bestand (T-334n ersetzt oder erweitert)
+
+- **AK-384 bis AK-387 (T-334k): abgeloest** durch AK-398 bis AK-400. Nicht
+  umsetzen; der Wip-Zweig `t334-pl-minwidth` (`e2bdd9e`) ist verworfen.
+- **AK-03** ("Leiste traegt nichts zur Fenster-Mindestbreite bei") — **ersetzt**
+  durch AK-400. Die Leiste traegt jetzt bewusst bei; die Mindestbreite steigt von
+  760 auf ≈ 1190, weil darunter die Leiste mit 0–1 px breiten Elementen nicht
+  bedienbar ist (gemessen). Grenze bleibt 1366.
+- **AK-04** — die Mindesthoehe waechst zusaetzlich um 30 px, nur im zweizeiligen
+  Modus; einzeilig unveraendert.
+- **AK-05 / AK-269 / AK-271** — "darunter duerfen die Boxen abgeschnitten sein"
+  entfaellt. Es gilt: bei jeder Breite ≥ Fenster-Mindestbreite ist in der Leiste
+  kein Text abgeschnitten ausser der Statuszeile und — nur zweizeilig, Zeile 1,
+  unter 597 px Leistenbreite — den drei Boxen (AK-399). Die Untergrenze 1536 aus
+  AK-271 ist kein Sprung mehr: bei 1536 sind die Boxen unverkuerzt
+  (Leiste 684 ≥ 597).
+- **AK-194** — einzeilig gilt `> 0` weiter (hier mindestens `STATUS_FLOOR`);
+  zweizeilig ist die Statuszeile nie 0 px.
+- **AK-351** — Stufe 1 (Statuszeile zuerst) bleibt; Stufe 2 wird durch den Umbruch
+  vorgezogen (Boxen elidieren nur noch in Zeile 1, AK-399); Stufe 3 (Knoepfe nie)
+  gilt jetzt auf jeder Breite (AK-398).
+- **AK-352**, Zeile 1920 px: Startbreite 1728 bleibt, der Zustand mit Vorschlag
+  ist jetzt "**zweizeilig, Boxen unverkuerzt, Statuszeile ≈ 446 px**" statt
+  "Statuszeile 0 px und Boxen elidiert". Zeile 2560 px unveraendert (einzeilig).
+- **AK-349/AK-350**: Formel und `RATIO` unveraendert.
+
+##### 5. Pruefung (Erwartungswerte; `max_damage`, Vorschlag steht, Standard-Seitenpanes)
+
+| Fensterbreite | Leiste | Modus | Zeile 1 | Zeile 2 |
+|---|---|---|---|---|
+| 1190 (Minimum) | 498 | 2 | Boxen auf Mindestbreite 120/100/78 | Statuszeile 68, Knoepfe 80; Seitenpanes 300 / 340 |
+| 1366 | 514 | 2 | Boxen zwischen Minimum und `sizeHint` (Luecke 83 px) | Statuszeile 84, Knoepfe 80 |
+| 1426 | 574 | 2 | Luecke 23 px, Boxen leicht elidiert | Statuszeile 144 |
+| 1522 (QA-292) | 670 | 2 | unverkuerzt | Statuszeile 240, Knoepfe 80 (nicht 70/57) |
+| 1536 | 684 | 2 | unverkuerzt | Statuszeile 254 |
+| 1728 | 876 | 2 | unverkuerzt | Statuszeile 446 |
+| 1959 (Startbreite grosser Bildschirme) | 1107 | **1** | — | Statuszeile 74 |
+
+Bei 1366/1426 messen: `box.width() ≥ minimumWidth()`, Knopfbreiten, `clipped == []`.
+Dazu je Richtung (3×) die Schwelle (AK-395), je Modus der Tab-Pass (AK-403) und
+je Zeile der Tabelle ein Bild per `QWidget.grab()` (NH-002: nur aus dem
+Programmfenster).
+
+##### 6. Ausdruecklich nicht Teil der Vorgabe
+
+Drei oder mehr Zeilen; ein Umschalter oder gemerkter Modus; andere Standardbreiten
+der Seitenpanes (430 / 370); Aenderung von Beschriftungen oder Reihenfolge; ein
+Einzug von Zeile 2; Wahl des Layoutmechanismus.
+
+**Betroffene Dateien:** `nrplanner/advisorbar.py` (Layout, Mindestbreiten, Modus),
+`nrplanner/app.py` (`_width_around_the_advisor_row` :1288-1290, Fenster-
+Mindestbreite, Leiste in der Spalte :1048-1051), `tests/advisor_row_at_the_window.py`
+und alle Tests zu AK-03/AK-04/AK-05/AK-194/AK-269/AK-271/AK-351/AK-352 sowie zu
+`action_buttons_extra_width`/`damage_question_extra_width` (deren Messweg
+`minimumSizeHint` entfaellt).
+
+**Hinweis an den `technical-writer`:** das README nennt 1536 px als empfohlene
+Mindestbreite; die harte Mindestbreite des Fensters ist neu ≈ 1190 px, und unter
+rund 1933 px Fensterbreite zeigt die Leiste zwei Zeilen.
