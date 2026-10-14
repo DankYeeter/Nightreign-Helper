@@ -24,6 +24,7 @@ import pytest
 from PySide6.QtWidgets import QPushButton
 
 from nrplanner import advisorbar, chalices, inventory
+from nrplanner import app as appmod
 from nrplanner.advisor import goals, types
 from tests.advisor_row_at_the_window import AK_350_ROOMS
 
@@ -537,40 +538,31 @@ def test_at_the_opening_width_no_action_button_is_cut(
     """AK-05 for the three controls this task put in the row.
 
     The row's busiest state, measured at the derived opening width under
-    the Windows platform (see `tests/advisor_row_at_the_window.py`): the
-    row is horizontally `Ignored` and hands its status whatever is left.
-    Option B (user decision 2026-09-19): with the damage type pair visible,
-    the opening width (1608 px) already sits under the 1676 px AK-334
-    measured for both boxes uncut, so `goal_box` and `damage_type_box` are
-    left out of this assertion -- the three action buttons never cut.
+    the Windows platform (see `tests/advisor_row_at_the_window.py`). The
+    opening width holds the row on one line (AK-401), so no caption at all
+    is cut -- the boxes included, since T-334n (AK-399).
     """
     row = advisor_row_at_the_window["suggested"]
     actions = {"apply_button", "why_button", "clear_button"}
     assert actions <= set(row["on_screen"]), (
         "no action button is on screen, so this case would pass whatever "
         "the row's width did")
-    assert not actions & set(row["cut"])
+    assert row["cut"] == []
 
 
-def test_at_1920_px_the_ratio_narrows_the_status_and_a_box(
+def test_at_1920_px_the_row_takes_two_lines_and_cuts_nothing(
         advisor_row_at_the_window):
-    """AK-352: `room=1920` puts AK-350's ratio (1728 px) under the row's need.
-
-    The reference desktop of AK-352's table: below `need / RATIO`, so the
-    status gives way first (AK-351 step 1) and then at least one box elides
-    (step 2) rather than any control leaving the row or an action button
-    losing its caption (step 3, unconditional).
+    """AK-352 since T-334n: `room=1920` opens the window at AK-350's share
+    of it, under the one-line need -- so the row stands on two lines, the
+    boxes whole and the status line wide (AK-401), not 0 px with a box cut.
     """
     row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[0])]
+    assert row["width"] == round(AK_350_ROOMS[0]
+                                 * appmod.OPENING_WIDTH_SCREEN_RATIO)
+    assert row["lines"] == 2
     suggested = row["suggested"]
-    boxes = {"goal_box", "hit_with_box", "damage_type_box"}
-    actions = {"apply_button", "why_button", "clear_button"}
-
-    assert suggested["status_width"] == 0
-    assert boxes & set(suggested["cut"]), (
-        f"AK-350's ratio narrows the row below its need at this width, so "
-        f"at least one box should give way to eliding: {suggested['cut']}")
-    assert not actions & set(suggested["cut"])
+    assert suggested["cut"] == []
+    assert suggested["status_width"] > 0
     assert html.escape(suggested["status_whole_text"]) in suggested[
         "row_tooltip"]
 
@@ -580,9 +572,11 @@ def test_at_2560_px_the_ratio_already_covers_the_need(
     """AK-352: `room=2560` puts AK-350's ratio (2304 px) over the row's need.
 
     The clamp in `_opening_width` caps it back to the need, the same as an
-    uncapped screen -- nothing gives way in either state.
+    uncapped screen -- one line (AK-401), nothing gives way in either state.
     """
     row = advisor_row_at_the_window["rooms"][str(AK_350_ROOMS[1])]
+    assert row["width"] == advisor_row_at_the_window["width"]
+    assert row["lines"] == 1
     for state in ("failed", "suggested"):
         assert row[state]["cut"] == [], (
             f"{state}: {row[state]['cut']}")

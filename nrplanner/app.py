@@ -63,10 +63,10 @@ PANE_DEFAULTS = (430, 520, 370)
 OPENING_HEIGHT = 860
 
 #: The share of the screen's available width the window opens at, once that
-#: share is narrower than the layout's own need (AK-350). Below the most
-#: common desktop width (1920 px) this leaves the row unshortened; above it
-#: a suggestion still trims the status line, then the boxes, per AK-351. Not
-#: a user decision yet -- see UI_SPEC.md AK-350 "Offene Frage".
+#: share is narrower than the layout's own need (AK-350). Up to the most
+#: common desktop width (1920 px) the advisor row opens on two lines, nothing
+#: in it shortened but the status line (AK-352, T-334n). Not a user decision
+#: yet -- see UI_SPEC.md AK-350 "Offene Frage".
 OPENING_WIDTH_SCREEN_RATIO = 0.9
 
 #: The least the window opens at on any screen, however narrow (AK-271).
@@ -1282,8 +1282,11 @@ class Planner(QMainWindow):
         the only thing the width had to be told about; a second pair beside
         `goal_box` took that slack, and the status line went to 0 px at the
         width the window opens at -- which is what AK-194 forbids. Both
-        terms are measured off the row rather than written here, so a later
-        entry that makes a box wider moves the opening width with it.
+        terms are the `sizeHint` widths of the controls they add (AK-401),
+        not a difference of the row's minimum, which is one constant figure
+        since the row breaks into two lines (AK-400); read off the row rather
+        than written here, so a later entry that makes a box wider moves the
+        opening width with it.
         """
         return (self._width_around_the_effect_table()
                 + self.advisor_bar.action_buttons_extra_width()

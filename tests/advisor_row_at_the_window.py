@@ -17,10 +17,12 @@ here: a machine that cannot open the window is a failure of this guard, not
 an exemption from it (AK-05, "keine offscreen-Plattform").
 
 A desktop narrower than the derived width caps it (`_opening_width`'s
-`room`), and there the status is the one thing that gives way, down to 0 px
-(QA-250, decided 2026-09-13: boxes first, the status may go). So the same
-window is measured again at the width it would open at on each of
-`NARROW_DESKTOPS` and `AK_350_ROOMS`, under `rooms`.
+`room`), and there the row breaks into two lines (T-334n, AK-395). So the
+same window is measured again at the width it would open at on each of
+`NARROW_DESKTOPS` and `AK_350_ROOMS`, under `rooms`; at each width of
+`LINE_WIDTHS` and at the window's least width, control by control (`at`,
+`window_minimum`); and on both sides of the break, in every direction
+(`threshold`, `across_the_break`).
 
 The stat sheet, the right-hand pane of the same window, is read in the
 same pass (`sheet`): which of its drawn children reach past the pane's
@@ -52,22 +54,21 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 #: opening width now (`round(1536 * 0.9) = 1382` and `round(1366 * 0.9) =
 #: 1229`, both under the floor), kept as two entries because both are real
 #: desktops a player has, not because they still tell the row apart.
-#: AK-05's "boxes never cut" only holds at 1676 px and up, above the floor
-#: (Option B, user decision 2026-09-19, measured T-321c); below that floor
-#: `goal_box` and `damage_type_box` may give way to eliding, the status may
-#: go to 0 px, and the row's own tooltip is what still carries the full
-#: status (T-233 carries the wording into `UI_SPEC.md`). The three action
-#: buttons and the heading stay on screen regardless -- Option B is about
-#: captions, not about controls leaving the row.
+#: Since T-334n the row stands on two lines there, every caption whole
+#: (AK-399 replaces Option B's "the boxes may be cut" of AK-05/AK-271).
 NARROW_DESKTOPS = (1536, 1366)
 
 #: AK-352's own two reference desktops, on the other side of AK-350's ratio:
 #: `1920` sits below `need / OPENING_WIDTH_SCREEN_RATIO` (the ratio itself
-#: narrows the row below what it needs, so the status and at least one box
-#: give way), `2560` sits above it (the ratio already covers the need, same
-#: as an uncapped screen). Distinct from `NARROW_DESKTOPS`, which is about
-#: Option B's box-elision floor and not about the ratio.
+#: narrows the row below its one-line need, so it takes two lines), `2560`
+#: sits above it (the ratio already covers the need, same as an uncapped
+#: screen). Distinct from `NARROW_DESKTOPS`, which the floor caps and the
+#: ratio does not.
 AK_350_ROOMS = (1920, 2560)
+
+#: The window widths of the T-334n check table (`UI_SPEC.md`, Nachtrag T-334n
+#: §5): two legacy desktops, QA-292's own 1522, and the three opening widths.
+LINE_WIDTHS = (1366, 1426, 1522, 1536, 1728, 1959)
 
 #: A 4.12 failure sentence long enough to need shortening at any width.
 A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
@@ -139,15 +140,11 @@ def _the_row(bar, controls) -> dict:
     }
 
 
-def _both_states(bar, controls) -> dict:
-    """The row in 4.12 and in the suggested state, at its present width."""
+def _suggest(bar) -> None:
+    """Put a suggestion up, the three action buttons with it."""
     from nrplanner import advisorbar
     from nrplanner.advisor import types
     from tests import rendered
-
-    bar._on_failed(A_LONG_FAILURE)
-    rendered.settle(20)
-    failed = _the_row(bar, controls)
 
     bar._answer = types.AdvisorResult(
         goal_id="max_damage", goal_label="Maximise damage",
@@ -159,7 +156,173 @@ def _both_states(bar, controls) -> dict:
                                    goal_label="Maximise damage",
                                    slots=6, slots_filled=1))
     rendered.settle(20)
+
+
+def _both_states(bar, controls) -> dict:
+    """The row in 4.12 and in the suggested state, at its present width."""
+    from tests import rendered
+
+    bar._on_failed(A_LONG_FAILURE)
+    rendered.settle(20)
+    failed = _the_row(bar, controls)
+    _suggest(bar)
     return {"failed": failed, "suggested": _the_row(bar, controls)}
+
+
+def _laid_out(bar, controls) -> dict:
+    """Where each drawn control of the row stands, in the row's own pixels,
+    and the line count and height the row has at its present width
+    (AK-396, AK-398, AK-399, AK-402)."""
+    from PySide6.QtCore import QPoint, QRect
+
+    drawn = [(name, widget) for name, widget in controls
+             if not widget.isHidden()]
+    column = bar.parentWidget()
+    stack = column.layout()
+    below = stack.itemAt(stack.indexOf(bar) + 1).widget()
+    return {
+        "lines": bar.lines,
+        "row_width": bar.width(),
+        "height": bar.height(),
+        "status_width": bar.status.width(),
+        "geometry": {name: list(QRect(widget.mapTo(bar, QPoint(0, 0)),
+                                      widget.size()).getRect())
+                     for name, widget in drawn},
+        "hints": {name: widget.sizeHint().width() for name, widget in drawn},
+        "minimums": {name: widget.minimumWidth() for name, widget in drawn},
+        "outside_the_row": [name for name, widget in drawn
+                            if not bar.rect().contains(QRect(
+                                widget.mapTo(bar, QPoint(0, 0)),
+                                widget.size()))],
+        "cut": _the_row(bar, controls)["cut"],
+        "gap_below": below.y() - (bar.y() + bar.height()),
+        "column_spacing": stack.spacing(),
+        "column_minimum_height": column.minimumSizeHint().height(),
+    }
+
+
+def _at_row_width(planner, bar, row_width: int) -> None:
+    """Size the window so the row is `row_width` px wide.
+
+    Every pixel of window reaches the middle pane once the side panes stand
+    at their default widths, so one step is enough there.
+    """
+    from tests import rendered
+
+    planner.resize(planner.width() + row_width - bar.width(),
+                   planner.height())
+    rendered.settle(20)
+
+
+def _lines_through_the_states(bar) -> list:
+    """AK-397: the line count after each state that changes what the row
+    shows -- a caption, the action buttons, the progress bar, the status."""
+    from nrplanner import advisorbar
+    from tests import rendered
+
+    seen = [bar.lines]
+    for change in (lambda: _suggest(bar),
+                   lambda: bar._show(advisorbar.Situation(
+                       advisorbar.State.APPLIED, goal_label="Maximise damage",
+                       slots=6, slots_filled=1)),
+                   bar._on_started,
+                   bar._waiting_is_worth_saying,
+                   lambda: bar._on_failed(A_LONG_FAILURE),
+                   lambda: bar._show(advisorbar.Situation(
+                       advisorbar.State.NOTHING_YET))):
+        change()
+        rendered.settle(20)
+        seen.append(bar.lines)
+    return seen
+
+
+def _the_threshold(planner, bar) -> dict:
+    """AK-395, AK-397 and AK-404 for each direction, one px under the
+    one-line need and at it."""
+    from nrplanner import advisorbar
+    from tests import rendered
+
+    figures = {}
+    for goal_id in advisorbar.GOAL_ORDER:
+        bar.choose_goal(goal_id)
+        rendered.settle(20)
+        need = bar._lines.one_line_need()
+        figures[goal_id] = {"need": need}
+        for step in (-1, 0):
+            _at_row_width(planner, bar, need + step)
+            lines = bar.lines
+            # AK-404: another layout pass at the same width.
+            bar.layout().invalidate()
+            bar.layout().activate()
+            rendered.settle(20)
+            figures[goal_id][str(step)] = {
+                "row_width": bar.width(),
+                "lines": lines,
+                "after_another_pass": bar.lines,
+                "through_the_states": _lines_through_the_states(bar),
+            }
+    bar.choose_goal("max_damage")
+    rendered.settle(20)
+    return figures
+
+
+def _the_window_minimum(planner, bar) -> dict:
+    """AK-400: the window's least width in every direction, with and without
+    a suggestion, and the row at the narrowest width the window takes."""
+    from nrplanner import advisorbar
+    from tests import rendered
+
+    minimums = []
+    for goal_id in advisorbar.GOAL_ORDER:
+        bar.choose_goal(goal_id)
+        rendered.settle(20)
+        minimums.append(planner.minimumSizeHint().width())
+        _suggest(bar)
+        minimums.append(planner.minimumSizeHint().width())
+    bar.choose_goal("max_damage")
+    _suggest(bar)
+    planner.resize(300, planner.height())
+    rendered.settle(20)
+    return {"window_minimums": minimums, "width": planner.width()}
+
+
+def _tab_chain(bar, controls) -> list:
+    """The row's controls in the order Tab reaches them, from `goal_box`."""
+    from PySide6.QtCore import Qt
+
+    names = {id(widget): name for name, widget in controls}
+    chain = []
+    widget = bar.goal_box
+    while True:
+        if (id(widget) in names and not widget.isHidden()
+                and widget.focusPolicy() & Qt.TabFocus):
+            chain.append(names[id(widget)])
+        widget = widget.nextInFocusChain()
+        if widget is bar.goal_box:
+            return chain
+
+
+def _across_the_break(planner, bar, controls) -> dict:
+    """AK-403: the same chain, focus and names on both sides of the break,
+    the row dragged across it with `Optimize` holding the focus."""
+    from tests import rendered
+
+    names = ("goal_box", "hit_with_box", "damage_type_box")
+    need = bar._lines.one_line_need()
+    _at_row_width(planner, bar, need)
+    bar.optimize_button.setFocus()
+    rendered.settle(20)
+    sides = {}
+    for step in ("0", "-1"):
+        _at_row_width(planner, bar, need + int(step))
+        sides[step] = {
+            "lines": bar.lines,
+            "tab_chain": _tab_chain(bar, controls),
+            "focus_is_optimize": planner.focusWidget() is bar.optimize_button,
+            "accessible_names": [getattr(bar, name).accessibleName()
+                                 for name in names],
+        }
+    return sides
 
 
 def _the_sheet(planner) -> dict:
@@ -216,8 +379,11 @@ def main(snapshot: pathlib.Path) -> dict:
                    if label is not bar.status)
     controls = [("heading", heading),
                 ("goal_box", bar.goal_box),
+                ("hit_with_label", bar.hit_with_label),
                 ("hit_with_box", bar.hit_with_box),
+                ("damage_type_label", bar.damage_type_label),
                 ("damage_type_box", bar.damage_type_box),
+                ("filters_button", bar.filters_button),
                 ("optimize_button", bar.optimize_button),
                 ("apply_button", bar.apply_button),
                 ("why_button", bar.why_button),
@@ -231,6 +397,7 @@ def main(snapshot: pathlib.Path) -> dict:
         "width": planner.width(),
         "opening_width": planner._opening_width(),
         "row_width": bar.width(),
+        "lines": bar.lines,
         **_both_states(bar, controls),
         "sheet": _the_sheet(planner),
         "rooms": {},
@@ -240,8 +407,20 @@ def main(snapshot: pathlib.Path) -> dict:
         rendered.settle(20)
         figures["rooms"][str(room)] = {"width": planner.width(),
                                   "row_width": bar.width(),
+                                  "lines": bar.lines,
                                   **_both_states(bar, controls),
                                   "sheet": _the_sheet(planner)}
+    figures["at"] = {}
+    for width in LINE_WIDTHS:
+        planner.resize(width, planner.height())
+        rendered.settle(20)
+        figures["at"][str(width)] = {"width": planner.width(),
+                                     **_laid_out(bar, controls)}
+    figures["threshold"] = _the_threshold(planner, bar)
+    _suggest(bar)
+    figures["across_the_break"] = _across_the_break(planner, bar, controls)
+    figures["window_minimum"] = {**_the_window_minimum(planner, bar),
+                                 **_laid_out(bar, controls)}
     planner.close()
     return figures
 

@@ -1302,27 +1302,200 @@ def test_the_row_does_not_scroll_away_with_the_slots(planner):
         planner.close()
 
 
-def test_the_row_asks_the_window_for_no_width_at_all(planner):
-    """AK-03, at the place the criterion is really about.
-
-    The window's own floor is a figure of the tab beside this one and of the
-    style; what this change may not do is make the middle column insist on
-    more room than the scrolling part of it did. Everything outside a scroll
-    area is a pixel on the window's floor, and the two blocks this task put
-    there ask for none.
-    """
-    column = _the_middle_column(planner)
-    area = _the_slot_area(planner)
-    assert column.minimumSizeHint().width() <= area.minimumSizeHint().width()
-    assert (planner.advisor_bar.minimumSizeHint().width()
-            > area.minimumSizeHint().width()), (
-        "the row is wider than the area's floor, so this case would pass "
-        "whatever the size policies said")
+#: The row's two lines, by the names `advisor_row_at_the_window` gives the
+#: controls (AK-396). The status line stands between `optimize_button` and
+#: `apply_button` and is measured on its own.
+FIRST_LINE = ("heading", "goal_box", "hit_with_label", "hit_with_box",
+              "damage_type_label", "damage_type_box")
+SECOND_LINE = ("filters_button", "optimize_button", "apply_button",
+               "why_button", "clear_button")
+BOXES = ("goal_box", "hit_with_box", "damage_type_box")
 
 
-def test_the_row_keeps_the_vertical_budget(planner):
-    """AK-04/§3.1: at most 32 px of content, plus 6 px above and below."""
-    assert planner.advisor_bar.sizeHint().height() <= 44
+def _every_width(figures) -> dict:
+    """The check table's widths and the window's least width, by name."""
+    return {**figures["at"], "least": figures["window_minimum"]}
+
+
+def _middle(rect) -> float:
+    _x, y, _width, height = rect
+    return y + height / 2
+
+
+def _first_line_need(row) -> int:
+    """What line one asks for with nothing shortened (AK-399)."""
+    return (sum(row["hints"][name] for name in FIRST_LINE)
+            + (len(FIRST_LINE) - 1) * advisorbar.SPACING)
+
+
+def test_the_window_minimum_is_one_figure_under_1366(
+        advisor_row_at_the_window):
+    """AK-400, replacing AK-03: the row asks for the wider of its two lines
+    at their tightest, in every direction, with and without a suggestion;
+    and the window does not get narrower than that."""
+    least = advisor_row_at_the_window["window_minimum"]
+    assert len(set(least["window_minimums"])) == 1, least["window_minimums"]
+    assert least["window_minimums"][0] <= 1366
+    assert least["width"] == least["window_minimums"][0]
+    first_line_floor = (sum(least["hints"][name] for name in FIRST_LINE
+                            if name not in BOXES)
+                        + sum(least["minimums"][name] for name in BOXES)
+                        + (len(FIRST_LINE) - 1) * advisorbar.SPACING)
+    # Five gaps, not four: the status line, 0 px here, is a sixth item.
+    second_line_floor = (sum(least["hints"][name] for name in SECOND_LINE)
+                         + len(SECOND_LINE) * advisorbar.SPACING)
+    assert least["row_width"] == max(first_line_floor, second_line_floor)
+
+
+def test_one_line_holds_the_status_floor_and_two_lines_start_below_it(
+        advisor_row_at_the_window):
+    """AK-401/AK-194: one line at the opening width, two at 1728 and 1536,
+    and the status at least `STATUS_FLOOR` on one line, never 0 on two."""
+    figures = advisor_row_at_the_window
+    assert figures["lines"] == 1
+    assert figures["failed"]["status_width"] >= advisorbar.STATUS_FLOOR
+    for name, row in _every_width(figures).items():
+        if row["lines"] == 2:
+            assert row["status_width"] > 0, name
+    assert figures["at"]["1728"]["lines"] == 2
+    assert figures["at"]["1536"]["lines"] == 2
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_the_row_breaks_one_px_under_its_one_line_need(
+        advisor_row_at_the_window, goal_id):
+    """AK-395: two lines exactly below the need of the direction shown --
+    line one as the direction shows it, every action button and
+    `STATUS_FLOOR` counted on line two."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    hints = advisor_row_at_the_window["at"]["1959"]["hints"]
+    first_line = (FIRST_LINE if goal_id == "max_damage"
+                  else ("heading", "goal_box"))
+    assert threshold["need"] == (
+        sum(hints[name] for name in first_line + SECOND_LINE)
+        + advisorbar.STATUS_FLOOR
+        + (len(first_line) + len(SECOND_LINE)) * advisorbar.SPACING)
+    for step, lines in (("-1", 2), ("0", 1)):
+        at = threshold[step]
+        assert at["row_width"] == threshold["need"] + int(step), (
+            "the row was not sized where this case asks about")
+        assert at["lines"] == lines, f"{step}: {at}"
+
+
+def test_the_damage_question_counts_in_the_need(bar):
+    """AK-395: the direction's own controls are part of the need -- the
+    need of `max_damage` is wider by exactly what its two pairs ask."""
+    bar.choose_goal("min_damage_taken")
+    narrower = bar._lines.one_line_need()
+    bar.choose_goal("max_damage")
+    assert (bar._lines.one_line_need() - narrower
+            == bar.damage_question_extra_width())
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_nothing_the_row_shows_moves_it_between_its_lines(
+        advisor_row_at_the_window, goal_id):
+    """AK-397: a suggestion, `Undo apply`, a run, `Cancel`, 4.12 and the
+    empty row, one after the other, at either side of the break."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    for step in ("-1", "0"):
+        seen = threshold[step]["through_the_states"]
+        assert set(seen) == {threshold[step]["lines"]}, f"{step}: {seen}"
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_another_layout_pass_leaves_the_lines_as_they_are(
+        advisor_row_at_the_window, goal_id):
+    """AK-404: no circle between the line count and the width."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    for step in ("-1", "0"):
+        at = threshold[step]
+        assert at["after_another_pass"] == at["lines"], step
+
+
+@pytest.mark.parametrize("width", ["1536", "1959"])
+def test_the_lines_keep_the_order_of_one_line(advisor_row_at_the_window,
+                                              width):
+    """AK-396: on two lines the question stands above the doing, 6 px
+    between them, both from the same left edge; on one line everything
+    stands side by side; in the same left-to-right order either way."""
+    row = advisor_row_at_the_window["at"][width]
+    geometry = row["geometry"]
+    first = [geometry[name] for name in FIRST_LINE]
+    second = [geometry[name] for name in SECOND_LINE]
+    if row["lines"] == 1:
+        everything = first + second
+        assert len({_middle(rect) for rect in everything}) == 1
+        assert [rect[0] for rect in everything] == sorted(
+            rect[0] for rect in everything)
+        return
+    assert len({_middle(rect) for rect in first}) == 1
+    assert len({_middle(rect) for rect in second}) == 1
+    first_bottom = max(y + height for _x, y, _w, height in first)
+    second_top = min(y for _x, y, _w, _h in second)
+    assert second_top - first_bottom == advisorbar.SPACING
+    assert first[0][0] == second[0][0] == 0
+    for line in (first, second):
+        assert [rect[0] for rect in line] == sorted(rect[0] for rect in line)
+
+
+def test_no_label_or_button_is_ever_under_its_size_hint(
+        advisor_row_at_the_window):
+    """AK-398 at every width of the check table and at the window's least:
+    never 100 -> 70 -> 57 px again (QA-292)."""
+    for name, row in _every_width(advisor_row_at_the_window).items():
+        for control in FIRST_LINE + SECOND_LINE:
+            if control in BOXES:
+                continue
+            assert row["geometry"][control][2] >= row["hints"][control], (
+                f"{name}: {control}")
+
+
+def test_the_boxes_give_way_only_on_line_one_and_only_so_far(
+        advisor_row_at_the_window):
+    """AK-399, replacing AK-05/AK-269/AK-271's "the boxes may be cut":
+    each box's least width is `min(floor, sizeHint)`, it is never narrower,
+    and it is cut only on two lines with line one under its own need."""
+    for name, row in _every_width(advisor_row_at_the_window).items():
+        for box, floor in zip(BOXES, advisorbar.BOX_FLOORS):
+            assert row["minimums"][box] == min(floor, row["hints"][box])
+            assert row["geometry"][box][2] >= row["minimums"][box], (
+                f"{name}: {box}")
+        may_cut = (row["lines"] == 2
+                   and row["row_width"] < _first_line_need(row))
+        allowed = set(BOXES) if may_cut else set()
+        assert set(row["cut"]) <= allowed, f"{name}: {row['cut']}"
+
+
+def test_the_row_is_as_tall_as_its_lines_and_the_column_follows(
+        advisor_row_at_the_window):
+    """AK-402 and AK-04: 36 px on one line, 66 on two; nothing reaches out of
+    the row; the column lays the first card right under it and its own least
+    height grows by the second line."""
+    rows = _every_width(advisor_row_at_the_window)
+    heights = {1: 36, 2: 66}
+    for name, row in rows.items():
+        assert abs(row["height"] - heights[row["lines"]]) <= 1, name
+        assert row["outside_the_row"] == [], name
+        assert row["gap_below"] == row["column_spacing"], name
+    one, two = rows["1959"], rows["1728"]
+    assert (one["lines"], two["lines"]) == (1, 2)
+    assert (two["column_minimum_height"] - one["column_minimum_height"]
+            == two["height"] - one["height"])
+
+
+def test_dragging_across_the_break_keeps_order_focus_and_names(
+        advisor_row_at_the_window):
+    """AK-403: the same tab chain on both sides, `Optimize` keeps the focus,
+    and the accessible names (AK-380) stay."""
+    sides = advisor_row_at_the_window["across_the_break"]
+    one, two = sides["0"], sides["-1"]
+    assert (one["lines"], two["lines"]) == (1, 2)
+    assert one["tab_chain"] == two["tab_chain"] == [
+        "goal_box", "hit_with_box", "damage_type_box", "filters_button",
+        "optimize_button", "apply_button", "why_button", "clear_button"]
+    assert one["focus_is_optimize"] and two["focus_is_optimize"]
+    assert one["accessible_names"] == two["accessible_names"]
 
 
 def test_at_the_opening_width_only_the_status_is_shortened(
@@ -1343,43 +1516,22 @@ def test_at_the_opening_width_only_the_status_is_shortened(
     assert html.escape(row["status_whole_text"]) in row["status_tooltip"]
 
 
-def test_at_the_opening_width_the_status_keeps_some_width(
-        advisor_row_at_the_window):
-    """AK-194: the status is never 0 px at the width the window opens at.
-
-    Measured 67 px on 2026-09-13 (T-225; Fusion, Segoe UI 9 pt, ratio
-    1.25, window 1 350 px, row 498). The figure is not written here: the
-    criterion is `> 0`, and the environment is what decides the rest.
-    """
-    assert advisor_row_at_the_window["failed"]["status_width"] > 0
-
-
 @pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
-def test_on_a_narrow_desktop_the_row_keeps_every_control_and_carries_the_status(
+def test_on_a_narrow_desktop_the_row_cuts_nothing_and_carries_the_status(
         advisor_row_at_the_window, room):
-    """AK-05 on a desktop that caps the opening width (QA-250).
-
-    Decided 2026-09-13: the boxes come first and the status may go, down
-    to 0 px -- so AK-194's `> 0` is not asked here, and a status too narrow
-    to hover has its sentence in the row's own tooltip instead.
-
-    Option B (user decision 2026-09-19): AK-05 itself only holds at 1676 px
-    and up, above both desktops of `NARROW_DESKTOPS` -- below that floor
-    `goal_box` and `damage_type_box` may give way to eliding, and neither
-    desktop's width is asked to keep any caption whole. What stays is
-    usability, not full captions: every control this task's rows started
-    with is still on screen, and the tooltip carries the status text
-    whether or not the boxes gave way too.
-    """
+    """AK-05/AK-269/AK-271 since T-334n: the window opens at 1536 px on both
+    desktops, the row on two lines with every control whole -- the boxes
+    no longer give way there -- and the tooltip carries the status."""
     at_room = advisor_row_at_the_window["rooms"][room]
     assert at_room["width"] < advisor_row_at_the_window["width"], (
         "this desktop does not cap the opening width, so the case would "
         "measure the same row twice")
+    assert at_room["lines"] == 2
     for state in ("failed", "suggested"):
         base = advisor_row_at_the_window[state]
         row = at_room[state]
-        assert set(row["on_screen"]) == set(base["on_screen"]), (
-            "a control left the row on this desktop, not just its caption")
+        assert set(row["on_screen"]) == set(base["on_screen"])
+        assert row["cut"] == [], f"{state}: {row['cut']}"
         assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
 
 
