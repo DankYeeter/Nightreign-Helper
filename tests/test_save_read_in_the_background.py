@@ -426,7 +426,8 @@ def test_the_arrival_moves_neither_the_window_nor_the_focus(game_data, qapp,
                                                             a_scan):
     """AK-225. Size, pane widths, focus, and the height of the save line."""
     read = StatedRead(a_scan, hold=True)
-    window = a_window(game_data, read)
+    with rendered.without_the_advisor_row_minimum():
+        window = a_window(game_data, read)
     try:
         window.resize(1100, 800)
         window.show()

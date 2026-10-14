@@ -68,6 +68,23 @@ def pictures(tab) -> dict:
     return {card.boss["name"]: card.grab().toImage() for card in cards(tab)}
 
 
+def without_the_advisor_row_minimum():
+    """Windows built inside this ask nothing of the advisor row's width.
+
+    The row's own minimum (AK-400) is 1190 px of window under Windows but
+    1336 offscreen, the fallback font running about twice as wide -- above
+    the widths the other tabs are measured at. Suppressed while the window
+    is built, because once a hidden window has laid itself out a later
+    `setMinimumWidth(0)` does not reach its cached floor. The row itself is
+    measured at the real window (`advisor_row_at_the_window`), never here.
+    """
+    from unittest import mock
+
+    from nrplanner import advisorbar
+
+    return mock.patch.object(advisorbar.AdvisorBar, "setMinimumWidth")
+
+
 @contextlib.contextmanager
 def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
     """A real window at `width` x `height`, with one tab in front.
@@ -90,7 +107,8 @@ def laid_out(data: dict, tab_name: str, width: int, height: int = 900):
     # The save is read in a thread since T-142, and the Build planner page is
     # what sets this window's floor: a measurement taken before the relics
     # arrive is a measurement of a different page.
-    window = wait_for_the_save(appmod.Planner(data))
+    with without_the_advisor_row_minimum():
+        window = wait_for_the_save(appmod.Planner(data))
     try:
         tab = getattr(window, tab_name)
         window.findChild(QTabWidget).setCurrentWidget(tab)
