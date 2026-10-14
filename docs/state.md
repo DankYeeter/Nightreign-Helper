@@ -1,6 +1,6 @@
 # Stand
 
-2026-10-13 19:55, **Zyklus 33 (T-334) pausiert: Restbefunde gefixt, T-334l
+2026-10-14 19:30, **Zyklus 33 (T-334) am Gate: Exe 1.19.0 `ed93e31` gebaut,
 und Pruefung offen — siehe "HIER WEITERMACHEN" unter Zyklus 33**. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
@@ -63,11 +63,12 @@ Massstab je Fund).
 
 ## Beim Nutzer — offen
 
-1. **Ingame-Test 1.19.0 erst nach Zyklus 33** (neuer Bau folgt; die Exe
-   `7347908` ist ueberholt). Liste `docs/tasks/T-329.md` "Ingame-Test" (OF-54)
-   plus Wylder/Optimize ohne Hammer+Great-Hammer-Paar plus QA-278. Danach
-   Freigabe → Tag `v1.19.0` auf dem Notes-Commit des neuen Baus, PR.
-   Fensterlauf-Pruefung braucht freien PC (ca. 45 min).
+1. **Ingame-Test `dist\NightreignHelper.exe` 1.19.0** (59 199 168 B, SHA-256
+   `2DBFEDDF…E8BEB`, Bau `ed93e31`, Notes `0bc8f73`, Director gemessen
+   14.10. 19:30; kein Code-Diff `ed93e31..HEAD`). Liste `docs/tasks/T-329.md`
+   "Ingame-Test" (OF-54) plus Wylder/Optimize ohne Hammer+Great-Hammer-Paar
+   plus QA-278. Danach Freigabe → Tag `v1.19.0` auf `0bc8f73` (oder spaeter
+   reiner Doku-Commit), sync-out, PR.
 
 2. **Retro Zyklus 32 (12.10., Empfehlung annehmen):** NH-014 Ursache nur mit
    Tauschprobe (`_rahmen.md:56-57`, `director.md:307-309`), NH-015 offene
@@ -98,46 +99,21 @@ Probleme gemeldet. A-035 erledigt: keine Beschwerden. NH-011 umgesetzt
 
 Fokusraub-Ursache **Hypothese**; Fensterlaeufe nur bei freiem PC (Nutzer 12.10. 21:05).
 
-## Zyklus 33 (T-334) — PAUSIERT 13.10. 19:50 (Nutzer: "pausieren, testen spaeter")
+## Zyklus 33 (T-334, 13.-14.10.) — AM GATE 14.10. 19:30
 
-Auftrag Nutzer 18:11: QA-300/301 + alle noch gueltigen Altbefunde fixen, danach
-Neubau 1.19.0 fuer seinen Ingame-Test. Alles in `docs/tasks/T-334.md`
-(Abschnitte a..m mit Ergebnis je Lauf). **Exe `dist\` ist veraltet** (Stand
-`7347908`), nicht mehr testen.
-
-Erledigt (Hauptzweig, HEAD `0580b9f`): Triage 90 IDs (T-334a), 33
-geschlossen mit Beleg/Nutzerentscheid; Fixe P-A..P-E, nach T-334c, Restpaket
-(QA-007/038/213 Pruefsumme 28/28, SEC-044 A), Testumgebung P-D; UI
-AK-372..383 (Why-Dialog, Speichern, Nightfarer-Wiederklick); Guide.
-Letzte Suite-Zahlen je Zweig gruen (2025/9 Hauptbaum vor `fb0393a`, 2009/9
-`t334-pi`); **am Hauptzweig `0580b9f` kein eigener Volllauf** (Zweig t334-pl inkl. fb0393a: 2049/9).
-
-**HIER WEITERMACHEN (in dieser Reihenfolge):**
-1. **QA-292 entscheiden (Nutzer, Layout):** Spec AK-384..387 braucht eine
-   Fenster-Mindestbreite von 1628 px (heute 760; 1080p bei 125 % = 1536
-   logische px) — unerreichbar. Optionen (T-334l, offscreen gemessen):
-   bis 1536 px mit Boxen ~80/70/58; sichtbare Labels "Hit with"/"Damage type"
-   streichen; Leiste zweizeilig; Mindestbreiten anderer Spalten senken.
-   Empfehlung Director: Leiste zweizeilig unter Mindestbreite (ui-ux Spec).
-   Patch nach Spec liegt auf Zweig `t334-pl-minwidth` `e2bdd9e` (nicht mergen).
-   Test `test_the_row_asks_the_window_for_no_width_at_all` (AK-03) muss dann
-   angepasst werden. Rest T-334l gemerged `0580b9f` (Zweig 2049 passed / 9
-   skipped). Offen klein: `advisorbar.py:331` sagt bei gelesenem leerem
-   Spielstand evtl. "No save was read"; Effektfilter bei nicht lesbarer
-   gewaehlter Datei "That save has no relics" (Bestand).
-2. Pruefung in **einer** Nachricht, PC frei: `qa-engineer` Retest am
-   Quellstand mit Fenster (alle in T-334 behobenen IDs + Fensterpunkte aus den
-   Berichten: Fokusrahmen, `Why this relic`-Scroll, Faltknoepfe, Tooltip
-   Speichern, Deep-Schalter-Breite, Hover ~211 Relikt-Karten beim Umbruch,
-   Mindestbreite, beschaedigte Spielstandkopie); `security-reviewer`
-   (Ausloeser: `nrdata/savefile.py`, `savereader.py`, `firstrun.py`,
-   `bossdata.py`, `.github/workflows/tests.yml`; Rest SEC-044 `_MEI`-Pfade).
-3. Registerzeilen "behoben" fuer alle T-334-Fixe erst nach dem Retest
-   anhaengen (bisher nur Abschlusszeilen der Triage/Entscheide).
-4. `release-manager` build+notes 1.19.0 → Gate: Ingame-Test des Nutzers.
+QA-300/301 + Altbefunde (Triage 90 IDs, ~80 geschlossen/behoben) und QA-292
+(Leiste zweizeilig, Fenster-Mindestbreite ~1190 px). QA T-334p CONCERNS ohne
+P1/P2 (Suite `a5cd4eb` 2064/9), Security T-334q PASS, Bau `ed93e31`,
+power-user T-334s 2/2, clean-room T-334t PASS (Erststart, Update 1.18.0→1.19.0,
+Zweitstart; ohne Steam-Registry nicht pruefbar). Details `docs/tasks/T-334.md`.
 
 ## Naechster Zyklus (offen)
 
+- QA-302 (Ordnerdialog Startort, P4), QA-303 (`drive_window.ps1:79`, P4),
+  QA-304 (Save ueberdeckt Build-Feld bei schmalem Fenster, P3); Wortlaut
+  Rescan vs. Find my save ohne Spielstand; Legende Durchstreichen fremder
+  Nightfarer; `advisorbar.py:331` "No save was read" bei leerem Spielstand;
+  lange Slotkarten (Flask-Zeilen); `relicpicker.py:922` (SEC-019).
 - QA-030 dritter Punkt: leerer Slotsatz wird nie gespeichert, Build bleibt
   doppelt (P4, Speicherregel offen).
 - Treiber ohne Fokusraub: erst Tauschprobe (Nicht-Qt-Fenster), dann
