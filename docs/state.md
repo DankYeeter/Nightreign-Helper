@@ -1,7 +1,7 @@
 # Stand
 
 2026-10-14 19:30, **Zyklus 33 (T-334) am Gate: Exe 1.19.0 `ed93e31` gebaut,
-und Pruefung offen — siehe "HIER WEITERMACHEN" unter Zyklus 33**. Branch
+Ingame-Test des Nutzers offen, dann Tag und PR**. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
