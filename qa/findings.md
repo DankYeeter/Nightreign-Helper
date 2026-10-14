@@ -715,3 +715,49 @@ Ausnahmen und Messfaelle stehen je Befund in der Spalte "Verifiziert".
 | QA-246 | Exit 127 in Git-Bash | P4 | Minor | director | Triage T-334a | geschlossen -- nie reproduziert, kein Nachweis (Director 13.10.) | 2026-10-13 |
 | QA-167 | Performance-Vermutung | P4 | Minor | director | Triage T-334a | geschlossen -- nie gemessen, keine Beschwerde; neu oeffnen nur mit Messung (Director 13.10.) | 2026-10-13 |
 | QA-221 | `conftest.py` fester Org-Wert vs. CLAUDE.md "je Auftrag" | P4 | Minor | director | Triage T-334a | geschlossen -- `CLAUDE.md` Umlenkungstabelle auf "ausserhalb pytest" eingeschraenkt (Director 13.10.) | 2026-10-13 |
+| QA-007 | Save-Pruefsumme immer falsch; Lesepfad prueft sie nicht | P3 | Major | developer | Retest T-334p, rot-vorher fcf4a7e, Fenster | behoben -- Pruefsumme je Slot (`fcf4a7e`), beschaedigte Kopie -> Satz im Fenster | 2026-10-14 |
+| QA-008 | "No save file found." bei vorhandenem Save ohne Relikte | P3 | Minor | ui-ux-designer, developer | Retest T-334p, rot-vorher | behoben -- `264572a`, `91ac5e1` (AK-388/389); Fenster ungeprueft | 2026-10-14 |
+| QA-009 | `MIN_HEROES = 4` verlangt tatsaechlich fuenf Gruppen | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `54f6802` | 2026-10-14 |
+| QA-010 | `_read_settled` wartet nicht und meldet nicht, wenn es aufgibt | P3 | Minor | developer, ui-ux-designer | Retest T-334p, rot-vorher | behoben -- `d8af698` | 2026-10-14 |
+| QA-012 | Gated-Effekte umgehen die Bedingungspruefung bei Resistenzen | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `d8af698` | 2026-10-14 |
+| QA-020 | Loadout-Fehlermeldung zeigt Leserinterna | P4 | Minor | ui-ux-designer | Retest T-334p, rot-vorher | behoben -- `54f6802` | 2026-10-14 |
+| QA-026 | `_settle_slots` leert einen ausgeblendeten Deep-Slot; Begruendung unsichtbar | P4 | Minor | developer | Retest T-334p, rot-vorher, Windows-Harness | behoben -- Deep-Schalter "— n left empty" (`264572a`, `91ac5e1`) | 2026-10-14 |
+| QA-027 | Nicht mehr besessenes Relikt aus der Loadout-Tabelle wird still zu `None` | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- Feld `d8af698`, Satz `264572a`/`91ac5e1` | 2026-10-14 |
+| QA-028 | `custom_item` ueberlebt Gefaesswechsel | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `264572a` | 2026-10-14 |
+| QA-030 | Doppelung in ausgeblendetem Deep-Slot wird festgeschrieben, Hinweis nie sichtbar | P3 | Major | developer | Retest T-334p | teilweise -- Markierung behoben (`264572a`, `91ac5e1`); leerer Slotsatz wird nie gespeichert: offen, naechster Zyklus | 2026-10-14 |
+| QA-031 | "Load equipped" nennt den Grund zweimal | P4 | Trivial | ui-ux-designer | Retest T-334p, rot-vorher | behoben -- `264572a`, `91ac5e1` | 2026-10-14 |
+| QA-037 | SEC-002-Waechter in `bnd4`, `dvdbnd`, `tae` ungetestet | P3 | Minor | developer | Retest T-334p, Mutation bnd4 | behoben -- `2c5a0dc`, Mutation 2 rot | 2026-10-14 |
+| QA-038 | Entschluesselungsschleife existiert zweimal | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `fcf4a7e` | 2026-10-14 |
+| QA-047 | Abgebrochener Testlauf laesst PID-Store zurueck | P4 | Minor | developer | Retest T-334p, rot-vorher, reg query | behoben -- `366cbd5`, kein PID-Store nach allen Laeufen | 2026-10-14 |
+| QA-052 | AST-Waechter prueft Schreibweise statt Speicher | P3 | Minor | developer | Retest T-334p, Commit-Angabe | behoben -- `bd4ae9f` | 2026-10-14 |
+| QA-053 | Waechter meldet zwei korrekte Schreibweisen rot | P4 | Minor | developer | Retest T-334p, Commit-Angabe | behoben -- `bd4ae9f` | 2026-10-14 |
+| QA-077 | `_show_breakdown` ungetestet | P2 | Major | developer | Retest T-334p, rot-vorher | behoben -- `108ead5`, Test prueft den Text, nicht den Tooltip-Aufruf | 2026-10-14 |
+| QA-078 | Goldring-Zuordnung von keinem Test geprueft | P3 | Minor | developer | Retest T-334p, Mutation `active=False` | behoben -- `1388656` | 2026-10-14 |
+| QA-087 | Worktree-Fall im Nachweis falsch | P4 | Minor | developer | Retest T-334p, Mutation `.is_dir()` | behoben -- `57c3f30` | 2026-10-14 |
+| QA-088 | (b) `plan.py` warnt nicht bei leerem Rarity-Band | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `8ef056e` | 2026-10-14 |
+| QA-091 | Sternimport umgeht AD-021-Waechter | P3 | Minor | developer | Retest T-334p, Commit-Angabe | behoben -- `7022958` | 2026-10-14 |
+| QA-093 | Zweitschluessel-Test Titel zu stark | P4 | Minor | developer | Retest T-334p | behoben -- Docstring `c8a13bc` | 2026-10-14 |
+| QA-103 | Durchlassrate nie null nur im Docstring | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `eab0fc0` | 2026-10-14 |
+| QA-104 | Klassengebundener Angriffsbuff ohne Waffe 0, keine Zeile sagt es | P3 | Minor | developer, ui-ux-designer | Retest T-334p, rot-vorher | behoben -- `eab0fc0`, `90df965` | 2026-10-14 |
+| QA-105 | Vorbedingungspruefungen des Beraters zu weit | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `eab0fc0`, `90df965`, `94f8309`; `Budget(0)` `b5059c6` | 2026-10-14 |
+| QA-109 | `effect_ids_of` Reihenfolge-Behauptung | P4 | Minor | developer | Retest T-334p | behoben -- Docstring `9d2d743` | 2026-10-14 |
+| QA-110 | Kein Waechter "kein QSettings im Berater-Pfad" | P4 | Minor | developer | Retest T-334p, Commit-Angabe | behoben -- Ortswaechter `bd4ae9f` | 2026-10-14 |
+| QA-123 | Arsenal-Messstrecke fuer sechs Waffen blind | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `1471544` | 2026-10-14 |
+| QA-157 | Fuenf anklickbare Flaechen ohne Zeigermarke | P3 | Minor | developer | Retest T-334p, rot-vorher, Fenster | behoben -- `1388656`, `968b4b9`; Marke folgt nach Umbruch, kein Zeitunterschied | 2026-10-14 |
+| QA-158 | `FavouriteMenu` Nightfarer nur als Portrait | P3 | Minor | ui-ux-designer, developer | Retest T-334p, rot-vorher, Fenster | behoben -- `1388656`, Namen sichtbar | 2026-10-14 |
+| QA-160 | Geschlossene Filtermenues schneiden ihren Wert ab | P3 | Minor | developer | Retest T-334p, rot-vorher, Fenster | behoben -- `425b523`, voller Wert im Tooltip | 2026-10-14 |
+| QA-162 | Gekuerzter Spaltenkopf an der Schnittstelle | P3 | Minor | developer | Retest T-334p, rot-vorher, UIA | behoben -- `425b523`, UIA-Name voll bei 82 px | 2026-10-14 |
+| QA-171 | Ohne Spielordner alter Abzug kommentarlos | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `d8af698`, `264572a`, `91ac5e1`; Fenster ungeprueft | 2026-10-14 |
+| QA-185 | Zwei weitere Stellen fuehren Effekte ueber den Namen | P3 | Minor | developer | Retest T-334p, `statsheet.py:806-827` | geschlossen -- model.py ueber Id (`90ff81d`), Anzeigestelle ist Liste, kein Fehler (T-334h) | 2026-10-14 |
+| QA-193 | Zweiter SEC-022-Deckel ohne Anzeigeweg | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `d8af698` | 2026-10-14 |
+| QA-202 | Zweiter Start liest Spieldaten erneut ein | P3 | Minor | developer | Retest T-334p, Messung mtimes | geschlossen -- nicht reproduziert: zweiter Start ohne Neueinlesen (eine Probe) | 2026-10-14 |
+| QA-206 | Neubau des Symbolvorrats nennt falschen Grund | P4 | Minor | ui-ux-designer | Retest T-334p | geschlossen -- mit QA-202, kein Neubau beim zweiten Start | 2026-10-14 |
+| QA-212 | Suite lenkt nur ein Datenverzeichnis um | P3 | Major | developer | Retest T-334p, rot-vorher | behoben -- `366cbd5` | 2026-10-14 |
+| QA-213 | Pruefsummen-Lesepfad unbenutzt | P4 | Minor | developer | Retest T-334p, rot-vorher | behoben -- mit QA-007 (`fcf4a7e`) | 2026-10-14 |
+| QA-223 | Nutzertexte versprechen Laufwerkssuche | P3 | Minor | developer | Retest T-334p, rot-vorher | behoben -- `d8af698` | 2026-10-14 |
+| QA-236 | Test liest `SystemRoot` statt es zu setzen | P4 | Minor | developer | Retest T-334p, Commit-Angabe | behoben -- `a1f80a3` | 2026-10-14 |
+| QA-292 | Knoepfe der Leiste schrumpfen unter der Startbreite | P4 | Minor | developer | Retest T-334p, rot-vorher, echter Mauszug | behoben -- `c84cd54`; ein Umbruch je Richtung bei 1933 logisch, Knoepfe >= 80 logisch | 2026-10-14 |
+| QA-300 | Why-Fenster: Antwort geht unter, zwei gleiche Why-Knoepfe, Zielwahl ohne Namen | P3 | Minor | ui-ux-designer | Retest T-334p, rot-vorher, Fenster | behoben -- `dbca09f` | 2026-10-14 |
+| QA-301 | Speichern und Nightfarer-Wiederklick ohne Rueckmeldung | P4 | Minor | ui-ux-designer | Retest T-334p, rot-vorher, Fenster | behoben -- `dbca09f`; Einrichtung mit korrektem Abzug <= 7,9 s | 2026-10-14 |
+| QA-302 | **T-334p (14.10.2026, qa-engineer):** Ordnerdialog ohne Steam-Bibliothek (`nrplanner/firstrun.py:513`, `:997`) oeffnet im Arbeitsverzeichnis des Prozesses statt in "This PC" (nativer Dialog, zwei Arbeitsverzeichnisse nachgewiesen); Test `test_first_run_panel.py` prueft nur Rueckgabe `None`, nicht den Startort. Folge von SEC-042 | P4 | Minor | developer | ja - Fensterlauf T-334p | offen -- naechster Zyklus | 2026-10-14 |
+| QA-303 | **T-334p (14.10.2026, qa-engineer):** `scripts/drive_window.ps1:79` findet keinen Quellstand-Lauf (venv-Start = zwei Prozesse; Fenstertitel wechselt bei offenem Dialog); seit T-325 baut jeder QA-Lauf eine eigene Treiberkopie | P4 | Minor | developer | ja - Fensterlauf T-334p | offen -- naechster Zyklus | 2026-10-14 |
