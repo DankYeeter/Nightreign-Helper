@@ -437,6 +437,11 @@ class WeaponDialog(QDialog):
         while self.effects_layout.count():
             item = self.effects_layout.takeAt(0)
             if item.widget():
+                # Unparented, a box goes with its last reference below, inside
+                # the modal loop. deleteLater alone destroyed it after the
+                # loop, and the last box's `toggled` slot, the dialog's last
+                # holder, then took the dialog down mid-destruction (QA-305).
+                item.widget().setParent(None)
                 item.widget().deleteLater()
         self._boxes = []
         self._pool = []
