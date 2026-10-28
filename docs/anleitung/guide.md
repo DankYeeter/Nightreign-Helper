@@ -111,8 +111,8 @@ switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
 With **Maximise damage** picked, two boxes appear beside it. **Hit with**
 chooses what gets ranked — the starting armament, its *Weapon art*, or the
-spell the starting catalyst throws (*Sorceries*, *Incantations*, or a single
-spell school) — and **Damage type** narrows that to one of the five damage
+spell of the staff or seal on the selected weapon tile (*Sorceries*,
+*Incantations*, or a single spell school) — and **Damage type** narrows that to one of the five damage
 types. Both remember whichever value you last chose the next time you open
 the program, starting on *Weapon* and *All* the very first time. Neither box
 hides or disables an entry depending on the Nightfarer or on the other box's
@@ -121,13 +121,22 @@ sentence in **Why** instead of disappearing.
 
 *Weapon art* counts only the skill bound to the weapon or catalyst in hand;
 a Nightfarer's own ability is never counted, no matter what the game itself
-calls it. *Sorceries*, *Incantations* and a spell school all rank the one
-spell this Nightfarer's own starting catalyst throws — not a spell picked up
-during the run. A relic that changes which spell the starting catalyst
-throws (the ten "Changes compatible armament's sorcery/incantation to …"
-effects) is used instead of the default spell as soon as it is held or even
-just suggested; holding two such relics at once is a combination the game
-itself does not allow, and **Why** names which of the two spells was ranked.
+calls it. *Sorceries*, *Incantations* and a spell school all rank the spell of
+the staff or seal on the weapon tile you have selected (one click highlights a
+tile), for any Nightfarer — a Duchess or a Raider with a staff found during
+the run included. With no staff or seal on the selected tile, the Nightfarer's
+starting catalyst is used instead (Recluse, Revenant). The figure is worked out
+at the upgrade level that tile shows. A relic that changes which spell the
+starting catalyst throws (the ten "Changes compatible armament's
+sorcery/incantation to …" effects) is used instead of the default spell as
+soon as it is held or even just suggested, but only for the starting catalyst;
+it does not change the spell of a staff or seal found during the run. Holding
+two such relics at once is a combination the game itself does not allow, and
+**Why** names which of the two spells was ranked.
+
+The effects "Improved Attack Power with 3+ … Equipped" (for example 3+ Daggers)
+are assumed met only for the weapon type of the selected tile; with an empty
+tile selected, none are.
 
 Choosing anything but *Weapon* and *All* adds a line to **Why** naming the
 choice — for example "Ranked on fire damage only — every other effect on a
@@ -150,17 +159,21 @@ is thrown; measured in testing, the Beast Claw relic turned that `0.00` into
 
 A choice this build cannot answer says so instead of showing a figure. Eight
 Nightfarers carry neither a staff nor a seal; choosing *Sorceries*,
-*Incantations* or a school for one of them gives, for example, "This
-Nightfarer starts with neither a staff nor a seal, so Sorceries is not
-counted: there is no spell of this build's own to rank" and shows *Spell
-damage not counted* with no digit attached. A catalyst of the wrong kind —
-a staff under *Incantations*, a seal under *Sorceries* — is rejected the
-same way, naming which kind the catalyst actually casts. Ranking a staff or
+*Incantations* or a school for one of them, with no staff or seal on the
+selected tile, gives "There is no staff or seal on the selected tile and this
+Nightfarer starts with neither, so Sorceries is not counted: put one on a tile
+and select it to rank its spell." and shows *Spell damage not counted* with no
+digit attached. A catalyst of the wrong kind — a staff under *Incantations*, a
+seal under *Sorceries* — is rejected the same way: "Incantations is not counted
+here: {catalyst} casts sorceries, and this run ranks the spell of the staff or
+seal on the selected tile, or else the starting one." Ranking a staff or
 seal itself under *Weapon* or *Weapon art* is rejected too: it is ranked on
 the spell power the game shows for it, and no damage type or Weapon art
 reaches that figure. If nothing you own raises the chosen kind of damage at
 all, Optimize leaves that slot without a suggestion rather than offering one
-that changes nothing.
+that changes nothing, and a yellow line starting with "⚠" under the Advisor
+row says so in full whenever nothing you own raises the chosen kind of damage;
+it disappears when something does.
 
 Opening a relic picker while **Hit with** or **Damage type** is chosen
 carries the choice with it: the value line on each card, its `BEST FOR …`
@@ -304,10 +317,11 @@ add. **Curses are shown in red** with a ✦, both on the slot and in the totals 
 they are folded into the maths rather than quietly ignored.
 
 **Weapon art and Spell damage.** Two more rows can appear right under the
-weapon panel's **Total** line, but only on the tile that carries your
-Nightfarer's own starting armament — move that weapon to another tile and the
-rows move with it; put a different, found weapon on the starting tile and
-neither row appears there.
+weapon panel's **Total** line. *Weapon art* appears only on the tile that
+carries your Nightfarer's own starting armament — move that weapon to another
+tile and the row moves with it; put a different, found weapon on the starting
+tile and it does not appear there. *Spell damage* follows the staff or seal on
+the tile (see below).
 
 - **Weapon art** shows what your character skill adds on top of the Total
   above it, so its own base figure is that Total, not zero — a relic that
@@ -318,10 +332,13 @@ neither row appears there.
   sentence instead: *"Weapon art — not shown: a staff or a seal is ranked on
   the spell power the game shows for it, and no attack art reaches that
   figure."*
-- **Spell damage (\<spell name>)** appears only if your Nightfarer's starting
-  kit includes a staff or a seal — eight of the ten do not, and get no row at
-  all. The spell shown is whichever one that catalyst actually casts: a relic
-  that swaps its spell takes priority over the catalyst's own default. If
+- **Spell damage (\<spell name>)** appears when the selected tile holds a
+  staff or a seal, for any Nightfarer, and for Recluse and Revenant when no
+  tile holds one (their starting catalyst is used). Any other Nightfarer with
+  no staff or seal on the selected tile gets no row. The spell shown is the one
+  that catalyst casts; a relic that swaps the spell takes priority over the
+  default only for the starting catalyst. The figure is at the upgrade level
+  of the tile. If
   that spell deals no damage by itself (Revenant's default Rejection/Heal,
   for example), the row still shows a number, `0`, not a sentence. Click the
   bold figure for a breakdown tooltip; it always ends with one of two notes —
@@ -394,8 +411,9 @@ two-handed, its rating on this tab shows both hands side by side —
 `144 / 149 2H` — same as the Build planner; this tab has no **1H/2H** switch
 of its own, since it rates every armament in the game rather than one build.
 Sorceries and incantations show their FP cost here rather than a damage
-figure — the Advisor's *Spell damage* is worked out for one Nightfarer's own
-starting spell against a chosen damage type (see *Advisor* above), not for
+figure — the Advisor's *Spell damage* is worked out for the spell of one
+staff or seal in your build against a chosen damage type (see *Advisor*
+above), not for
 every spell in the game against every damage type, so this tile has no
 figure to show.
 
