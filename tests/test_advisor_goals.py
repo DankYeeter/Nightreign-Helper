@@ -207,8 +207,8 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
     * "Spell damage is not in the game data, so spells are not rated" became
       false when A26-1 extracted it and AD-052 gave the spell rows a figure
       of their own. What stands there now is the scope of *that* figure: the
-      spell rows only, and the equipment the Nightfarer starts an expedition
-      with -- never a spell found in a run.
+      spell rows only, and the staff or seal on the selected tile, or else
+      the starting one (T-335b) -- never a spell found in a run.
 
     Read off the registry since AD-025 and no longer off a score: the two runs
     this used to loop over asked the same question of the same constant, and
@@ -249,10 +249,11 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
         "used to say spells are not rated at all became false with AD-052, "
         "and a scope dropped along with a false reservation is the A7 "
         "failure this project keeps repeating")
-    assert any("starts an expedition with" in line for line in spell_rows), (
-        "the spell line does not say that the figure hangs on the equipment "
-        "the Nightfarer starts with, which is the whole of what it can and "
-        "cannot promise (AD-052)")
+    assert any("on the selected tile, or else the starting one" in line
+               for line in spell_rows), (
+        "the spell line does not say that the figure hangs on the staff or "
+        "seal of the selected tile, or else the starting one, which is the "
+        "whole of what it can and cannot promise (AD-052, T-335b)")
     assert any("Critical-only" in line for line in stated)
     assert not any("convert" in line for line in stated), (
         "the old conversion reservation is back; it says a relic that "

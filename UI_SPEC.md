@@ -7575,9 +7575,14 @@ Tauschrelikt im Bestand daran etwas.
    bestehenden Funktionen).
 2. **`unknowns`** (Why-Dialog, Punkt 4 von §3.4, `advisorblock._footer_text`),
    zusaetzlich zur Zeile oben, ein vollstaendiger Satz:
-   > `"Nothing you own reaches {choice} here: your starting equipment does "`
-   > `"not carry it, and nothing in your inventory swaps in a spell or "`
-   > `"weapon art that does."`
+   > `"Nothing you own reaches {choice} here: the armament it is ranked on "`
+   > `"does not carry it — for a spell the staff or seal on the selected "`
+   > `"tile, or else the starting one; otherwise the starting armament — and "`
+   > `"nothing in your inventory swaps in a spell or weapon art that does."`
+
+   (Wortlaut seit T-335f, QA-306: seit T-335b rechnet ein Zauber auf dem
+   Stab/Siegel der gewaehlten Kachel, Waffe und Weapon Art weiter auf der
+   Startwaffe; "your starting equipment" stimmte fuer Zauber nicht mehr.)
 
 `{choice}` ist in beiden `chosen_label(hit_with, damage_type)`
 (`advisor/goals.py:279`, dieselbe Funktion wie AK-342/AK-344/AK-346 — kein

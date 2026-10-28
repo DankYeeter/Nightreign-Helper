@@ -136,8 +136,8 @@ _ATTACK_RATING_SCOPE = (
     "measured at their own rarity only, and it is that display and not what "
     "a spell hits for.",
     "What a spell hits for is rated on the spell rows only, and on the "
-    "equipment the Nightfarer starts an expedition with — never on a "
-    "spell picked up in a run.",
+    "staff or seal on the selected tile, or else the starting one — never "
+    "on a spell picked up in a run.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
     # AD-038: the armament the figure is formed against is a property of the
     # Nightfarer, not of the grid (A17), and it is named here so that the

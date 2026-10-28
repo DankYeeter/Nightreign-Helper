@@ -319,9 +319,11 @@ def _gain_over_the_base_state(
 def no_carrier_sentence(choice: str) -> str:
     """AK-365's cause in full: in `unknowns`, and under the Advisor bar as
     its warning line (T-335a)."""
-    return (f"Nothing you own reaches {choice} here: your starting "
-            f"equipment does not carry it, and nothing in your inventory "
-            f"swaps in a spell or weapon art that does.")
+    return (f"Nothing you own reaches {choice} here: the armament it is "
+            f"ranked on does not carry it — for a spell the staff or seal "
+            f"on the selected tile, or else the starting one; otherwise the "
+            f"starting armament — and nothing in your inventory swaps in a "
+            f"spell or weapon art that does.")
 
 
 def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,

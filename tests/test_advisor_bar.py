@@ -539,9 +539,11 @@ def test_nothing_owned_reaching_the_choice_is_a_yellow_line_under_the_row(
 
     assert not bar.warning.isHidden()
     assert bar.warning.text() == (
-        "⚠ Nothing you own reaches fire damage here: your starting equipment "
-        "does not carry it, and nothing in your inventory swaps in a spell or "
-        "weapon art that does.")
+        "⚠ Nothing you own reaches fire damage here: the armament it is "
+        "ranked on does not carry it — for a spell the staff or seal on the "
+        "selected tile, or else the starting one; otherwise the starting "
+        "armament — and nothing in your inventory swaps in a spell or weapon "
+        "art that does.")
     assert advisorbar.WARNING_COLOUR in bar.warning.styleSheet()
     assert bar.warning.wordWrap()
     assert bar.status.accessibleName().endswith(
