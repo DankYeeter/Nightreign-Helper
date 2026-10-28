@@ -158,6 +158,40 @@ def _suggest(bar) -> None:
     rendered.settle(20)
 
 
+def _the_warning(bar, controls) -> dict:
+    """T-335a: the row with its warning line up (QA-292/304 -- nothing may
+    be covered), then back in the suggested state `_both_states` leaves."""
+    from PySide6.QtCore import QPoint, QRect, Qt
+
+    from nrplanner import advisorbar
+    from tests import rendered
+
+    bar._show(advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=6, slots_filled=0,
+        slots_without_a_choice=6,
+        no_carrier_for="fire damage with Sorceries"))
+    rendered.settle(20)
+    warning = bar.warning
+    stack = bar.parentWidget().layout()
+    below = stack.itemAt(stack.indexOf(bar) + 1).widget()
+    figures = {
+        "shown": not warning.isHidden(),
+        "inside_the_row": bar.rect().contains(QRect(
+            warning.mapTo(bar, QPoint(0, 0)), warning.size())),
+        # What the whole sentence needs wrapped at the line's width, read off
+        # the font rather than off the label, so a line that stopped
+        # wrapping is short too.
+        "short_by": warning.fontMetrics().boundingRect(
+            QRect(0, 0, warning.width(), 1 << 20), Qt.TextWordWrap,
+            warning.text()).height() - warning.height(),
+        "gap_below": below.y() - (bar.y() + bar.height()),
+        "cut": _the_row(bar, controls)["cut"],
+    }
+    _suggest(bar)
+    return figures
+
+
 def _both_states(bar, controls) -> dict:
     """The row in 4.12 and in the suggested state, at its present width."""
     from tests import rendered
@@ -409,6 +443,7 @@ def main(snapshot: pathlib.Path) -> dict:
                                   "row_width": bar.width(),
                                   "lines": bar.lines,
                                   **_both_states(bar, controls),
+                                  "warning": _the_warning(bar, controls),
                                   "sheet": _the_sheet(planner)}
     figures["at"] = {}
     for width in LINE_WIDTHS:

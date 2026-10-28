@@ -46,12 +46,18 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (QBoxLayout, QComboBox, QHBoxLayout, QLabel,
                                QProgressBar, QPushButton, QSizePolicy,
-                               QWidget)
+                               QVBoxLayout, QWidget)
 
 from . import damage, effecttext, favourites, model, weapons
 from .advisor import goals as advisor_goals
+from .advisor import run as advisor_run
 from .advisor import types
 from .advisor.worker import AdvisorController
+from .theme import SLOT_COLOURS
+
+#: The warning line's colour: the theme's one yellow, the Yellow slot's
+#: (user decision 28.10.2026, "Gelb mit ⚠"; no colour of its own).
+WARNING_COLOUR = SLOT_COLOURS[2]
 
 #: How long a run may take before the waiting is said out loud (`UI_SPEC`
 #: 4.2 and 4.3, AK-09: a run under this shows neither bar nor text). Measured
@@ -948,8 +954,22 @@ class AdvisorBar(QWidget):
         doing_floor = (self.filters_button.sizeHint().width()
                        + _widest_hint(self.optimize_button, OPTIMIZE_CAPTIONS)
                        + sum(self._action_widths) + 5 * SPACING)
-        self._lines = _OneOrTwoLines(self, question_line, doing_line,
+        self._lines = _OneOrTwoLines(None, question_line, doing_line,
                                      doing_floor + STATUS_FLOOR)
+        # T-335a (user decision 28.10.2026): the cause of an empty slot that
+        # nothing owned reaches, whole, in yellow under the row -- the status
+        # line cuts it to `…`. Wraps rather than asking for width, and takes
+        # no height while hidden.
+        self.warning = QLabel()
+        self.warning.setTextFormat(Qt.PlainText)
+        self.warning.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.warning.setWordWrap(True)
+        self.warning.setStyleSheet(f"color: {WARNING_COLOUR};")
+        rows = QVBoxLayout(self)
+        rows.setContentsMargins(0, 0, 0, 0)
+        rows.setSpacing(0)
+        rows.addLayout(self._lines)
+        rows.addWidget(self.warning)
         # AK-400: the width of the wider line at its tightest, the pairs of
         # the damage question counted under every direction -- so the
         # window's minimum is one figure, whatever the row is showing.
@@ -1369,6 +1389,10 @@ class AdvisorBar(QWidget):
         self._situation = situation
         working = situation.state in WORKING_STATES
         self.status.set_whole_text(status_line(situation))
+        carrier = situation.no_carrier_for
+        self.warning.setText(
+            f"⚠ {advisor_run.no_carrier_sentence(carrier)}" if carrier else "")
+        self.warning.setVisible(bool(carrier))
         # The status is the one thing that gives way on every width (AK-399),
         # and a label a few px wide has little to be hovered -- so the row
         # carries the sentence too. The AK-280 count of what the player

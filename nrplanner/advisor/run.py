@@ -313,6 +313,14 @@ def _gain_over_the_base_state(
                  for goal_id, goal in goals.items())
 
 
+def no_carrier_sentence(choice: str) -> str:
+    """AK-365's cause in full: in `unknowns`, and under the Advisor bar as
+    its warning line (T-335a)."""
+    return (f"Nothing you own reaches {choice} here: your starting "
+            f"equipment does not carry it, and nothing in your inventory "
+            f"swaps in a spell or weapon art that does.")
+
+
 def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
                pools: Sequence[types.SlotPool], base: model.Build,
                ctx: types.GoalContext, goal: types.Goal
@@ -449,10 +457,7 @@ def run(request: types.AdvisorRequest, inventory,
                if not found and problem.required else ())
     unknowns += blocked
     if no_carrier_for:
-        unknowns += (f"Nothing you own reaches {no_carrier_for} here: your "
-                     f"starting equipment does not carry it, and nothing in "
-                     f"your inventory swaps in a spell or weapon art that "
-                     f"does.",)
+        unknowns += (no_carrier_sentence(no_carrier_for),)
     return types.AdvisorResult(
         goal_id=goal.id,
         goal_label=goal.label,

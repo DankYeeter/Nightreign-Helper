@@ -526,6 +526,43 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
         "choose from.")
 
 
+def test_nothing_owned_reaching_the_choice_is_a_yellow_line_under_the_row(
+        bar):
+    """T-335a (user decision 28.10.2026): the run's whole sentence, `⚠ `
+    first, in the theme's yellow, under the row; the status line keeps its
+    clause and its tooltip, and the next state takes the line away."""
+    assert bar.warning.isHidden()
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(
+        _an_answer(filled=0), suggestions=(), no_carrier_for="fire damage"))
+
+    assert not bar.warning.isHidden()
+    assert bar.warning.text() == (
+        "⚠ Nothing you own reaches fire damage here: your starting equipment "
+        "does not carry it, and nothing in your inventory swaps in a spell or "
+        "weapon art that does.")
+    assert advisorbar.WARNING_COLOUR in bar.warning.styleSheet()
+    assert bar.warning.wordWrap()
+    assert bar.status.accessibleName().endswith(
+        "nothing you own reaches fire damage here.")
+    assert "nothing you own reaches fire damage here" in bar.toolTip()
+    layout = bar.layout()
+    assert layout.indexOf(bar.warning) == layout.count() - 1
+
+    bar.clear()
+    assert bar.warning.isHidden()
+
+
+def test_an_empty_slot_for_another_cause_shows_no_warning_line(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(filled=5))
+
+    assert bar.warning.isHidden()
+    assert bar.warning.text() == ""
+
+
 def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
     """QA-284: a held slot is a boundary condition the search never looked
     at (AD-014.2), not a pool it searched and found empty -- one held slot
@@ -1539,6 +1576,19 @@ def test_on_a_narrow_desktop_the_row_cuts_nothing_and_carries_the_status(
         assert set(row["on_screen"]) == set(base["on_screen"])
         assert row["cut"] == [], f"{state}: {row['cut']}"
         assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
+
+
+@pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
+def test_on_a_narrow_desktop_the_warning_line_covers_nothing(
+        advisor_row_at_the_window, room):
+    """T-335a, QA-292/304: the warning line wraps inside the row, whole,
+    and the row grows for it rather than reaching over the slots below."""
+    warning = advisor_row_at_the_window["rooms"][room]["warning"]
+    assert warning["shown"]
+    assert warning["inside_the_row"]
+    assert warning["short_by"] <= 0
+    assert warning["gap_below"] >= 0
+    assert warning["cut"] == []
 
 
 def _spin_until(predicate, timeout: float = A_RUN_AT_MOST) -> bool:
