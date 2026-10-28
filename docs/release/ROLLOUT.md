@@ -1040,3 +1040,23 @@ liegt beim Nutzer am Gate. Ungeprueft: Start und echte Aktion des neuen
 Artefakts; Update-Pfad 1.18.0 auf 1.19.0 mit vorhandenem Cache; Zweitstart;
 Spielstand-Pruefsumme an fremden Staenden; Reproduzierbarkeit jenseits der
 Zeitstempel.
+
+## 1.19.0 (Neubau T-335i) - 2026-10-28
+
+Modus `build+notes`. Stand `7070d0c` (Notes-Commit auf `0f50fbf`), Arbeitsbaum
+vor dem Bau sauber (`git status --short` leer). Werkzeuge: `.venv`, Python
+3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein `upx` im PATH (0 Treffer
+`UPX!` in der EXE). Befehl:
+`.venv/Scripts/python.exe -m PyInstaller NightreignHelper.spec --noconfirm --log-level WARN`,
+43 s, keine Warnung im Log. Zwei Laeufe nacheinander: Groesse und SHA-256
+identisch.
+
+**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **59.200.884 Bytes**, SHA-256
+`80f34cb7b678b01a2ab78bd75ee44e73e24770c0908f6b43033a62734682cfdb`.
+Vorgaenger (`ed93e31`, Ingame-Test): 59.199.168 B,
+`2dbfeddf...e8beb`. `dist/` und `build/` stehen in `.gitignore`.
+
+Nicht ausgefuehrt: Start des Artefakts (Nutzer hat das Programm offen,
+NH-004), `clean-room` (kein Ausloeser: Spec, requirements, `EXTRACT_VERSION`
+seit `ed93e31` unveraendert, `git diff --stat` leer).
