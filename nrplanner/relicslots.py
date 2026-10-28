@@ -343,6 +343,7 @@ class RelicSlot(QFrame):
                 self.relic_box.setCurrentIndex(index)
         elif dialog.chosen is None and dialog.result():
             self.relic_box.setCurrentIndex(0)
+        dialog.deleteLater()
 
     # -- holding ----------------------------------------------------------
     def is_held(self) -> bool:

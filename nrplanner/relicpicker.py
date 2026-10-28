@@ -1487,6 +1487,7 @@ class RelicPicker(QDialog):
         # Refreshing while the menu is open would delete the card it is
         # anchored to, so the grid is rebuilt only once the menu has closed.
         menu.exec(position)
+        menu.deleteLater()
         if menu.changed:
             # This one card's star and border are stale, and no other one's
             # is -- dropping the whole cache for one toggle would put QA-258
@@ -1931,7 +1932,9 @@ class RelicPicker(QDialog):
             self.slot.rollable_effects(),
             list(existing.effect_ids) if existing is not None else [],
         )
-        if not dialog.exec():
+        accepted = dialog.exec()
+        dialog.deleteLater()
+        if not accepted:
             return
         self.slot.set_custom(dialog.chosen)
         self.chosen = self.slot.custom_item

@@ -1339,6 +1339,7 @@ class Planner(QMainWindow):
         restart = box.addButton("Restart now", QMessageBox.AcceptRole)
         box.addButton("Later", QMessageBox.RejectRole)
         box.exec()
+        box.deleteLater()
         if box.clickedButton() is restart:
             self._restart()
 
@@ -1465,6 +1466,7 @@ class Planner(QMainWindow):
         if dialog.exec():
             self.weapon_slots[index] = dialog.result_slot()
             self._store_weapon_loadout()
+        dialog.deleteLater()
         self.recompute()
 
     def apply_hero_weapon(self) -> None:
@@ -3179,10 +3181,12 @@ class Planner(QMainWindow):
             relics=0 if self.owned is None else self.owned.relic_count,
         )
         slots = self._all_slots()
-        advisorblock.WhyDialog(
+        dialog = advisorblock.WhyDialog(
             heading, result, self, filters=self.effect_filters,
             effects=self.effects,
-            slot_index=slots.index(card) if card in slots else None).exec()
+            slot_index=slots.index(card) if card in slots else None)
+        dialog.exec()
+        dialog.deleteLater()
 
     def open_effect_filters(self) -> None:
         """The effect filter window (AK-302/AK-303), over what is owned now.
@@ -3202,8 +3206,10 @@ class Planner(QMainWindow):
             else effectfilterdialog.YOUR_SAVE_HAS_NO_RELICS
             if self.save_holds_no_relics
             else effectfilterdialog.NO_SAVE_WAS_READ)
-        effectfilterdialog.EffectFilterWindow(self.effect_filters, rows,
-                                              reason, self).exec()
+        dialog = effectfilterdialog.EffectFilterWindow(
+            self.effect_filters, rows, reason, self)
+        dialog.exec()
+        dialog.deleteLater()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)
