@@ -125,8 +125,9 @@ calls it. *Sorceries*, *Incantations* and a spell school all rank the spell of
 the staff or seal on the weapon tile you have selected (one click highlights a
 tile), for any Nightfarer — a Duchess or a Raider with a staff found during
 the run included. With no staff or seal on the selected tile, the Nightfarer's
-starting catalyst is used instead (Recluse, Revenant). The figure is worked out
-at the upgrade level that tile shows. A relic that changes which spell the
+starting catalyst is used instead (Recluse, Revenant). The spell row on the
+stat sheet follows the upgrade level that tile shows. The Advisor's figure is
+always worked out at the lowest upgrade level. A relic that changes which spell the
 starting catalyst throws (the ten "Changes compatible armament's
 sorcery/incantation to …" effects) is used instead of the default spell as
 soon as it is held or even just suggested, but only for the starting catalyst;
