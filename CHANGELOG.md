@@ -4,7 +4,7 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
-## [1.19.0] - 2026-10-14
+## [1.19.0] - 2026-10-28
 
 ### Added
 - The Nightfarer you last selected is now remembered across a restart; the
@@ -15,6 +15,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
   (`<Name> is already selected.`) instead of doing nothing visible.
 - Relic cards and weapon tiles that can be clicked now show which one the
   pointer is on.
+- When a suggestion cannot reach the chosen Hit with / Damage type at all
+  (for example Sorceries with Fire damage and nothing you own raising it),
+  the advisor bar now shows that as its own yellow line, marked with a
+  warning sign, directly under the bar; the bar text and tooltip stay.
+- The **Spell damage (\<spell>)** row on the stat sheet now appears for
+  every Nightfarer, not only those who start with a staff or seal: put any
+  staff or seal on the selected weapon tile and the row shows that
+  catalyst's spell with the figures of your current build.
 
 ### Changed
 - The "Why" dialog now leads with the answer. Effects that carry no number
@@ -64,12 +72,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - The survival goal now checks its weighting and damage-pass rate, and a
   weighting that names the same damage field twice is refused, instead of
   producing a wrong or absurd figure.
-- The relic advisor no longer counts two different "3+ ... Equipped"
-  weapon-count effects (for example 3+ Hammers and 3+ Great Hammers) as
-  both fulfilled in one suggestion. Together with your reference weapon
-  that would need more weapons than the six armament slots, so the figure
-  was too high. At most one weapon type's condition now counts per
-  suggestion, and the advisor picks the best one.
+- The relic advisor no longer counts "3+ ... Equipped" weapon-count
+  effects of weapon types you are not using (for example 3+ Daggers while
+  your highlighted weapon tile holds a greatsword), and it no longer counts
+  two different weapon-count conditions as both fulfilled in one suggestion,
+  which would have needed more weapons than the six armament slots. Only
+  the condition for the weapon type on the highlighted weapon tile counts;
+  with an empty highlighted tile none does. Changing the highlighted tile
+  updates the suggestion.
 - If your save-file scan found more than one readable save, the program
   silently picked the one with the most relics without telling you (or,
   on a tie, the wrong one). The note under your inventory now says how
@@ -82,6 +92,16 @@ History before 1.10.0 was not reconstructed; this file starts here.
   cache file at all.
 - The data cache file is now written atomically, so an interruption while
   it is being built can no longer leave a corrupted file behind.
+- The program could close without a message when you switched a weapon
+  slot in the armament dialog from a weapon that has effects to one that
+  has none (for example Unarmed, Wylder's Small Shield or a Finger Seal)
+  and then pressed OK or Cancel. It no longer does.
+- Closing a dialog (armament, Why, Filters, relic picker and the smaller
+  ones) did not free it, so memory use grew by about 30 MB each time a
+  dialog was opened. Dialogs are now released when they close.
+- The explanation of a Hit with Sorceries / Incantations suggestion and its
+  tooltip now name the staff or seal on the selected weapon tile, or else
+  the starting one, which is the one the figure is computed for.
 
 ## [1.18.0] - 2026-09-21
 

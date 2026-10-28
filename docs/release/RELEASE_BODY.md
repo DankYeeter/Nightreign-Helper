@@ -138,9 +138,14 @@ starts there.
   community write-ups no longer carry a separate note or colour; the note
   under your inventory now tells you when a save-file scan passed over
   other readable saves; a damaged data cache no longer stops the program
-  from starting; the relic advisor no longer counts two different "3+ ...
-  Equipped" weapon-count effects as both fulfilled in one suggestion (that
-  needed more weapons than there are armament slots). The "Why" dialog now
+  from starting; the relic advisor now counts a "3+ ... Equipped" weapon-count
+  effect only for the weapon type on your highlighted weapon tile (and never
+  two of them at once); a yellow warning line under the advisor bar says
+  when nothing you own reaches your chosen Hit with / Damage type; the
+  **Spell damage** row now appears for any Nightfarer who puts a staff or
+  seal on the selected weapon tile; a crash when switching a weapon slot to
+  a weapon without effects in the armament dialog and closing it is fixed,
+  and closed dialogs no longer pile up in memory. The "Why" dialog now
   leads with the answer and folds away effects without a number and the
   footnotes; saving a build and re-clicking the selected Nightfarer now
   confirm what happened; the advisor bar wraps into two rows on a narrow
