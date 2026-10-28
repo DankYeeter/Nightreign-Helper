@@ -131,17 +131,17 @@ FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
 GOAL_BOX_TOOLTIP = "Chooses what the Advisor ranks your build for."
 
 #: AK-340: what the "Hit with" box chooses, which of the two things the game
-#: calls a skill it counts, and that the spell it ranks is the one this
-#: Nightfarer's own equipment throws -- without the third sentence
+#: calls a skill it counts, and that the spell it ranks is the one the
+#: selected or the starting catalyst throws -- without the third sentence
 #: `Incantations` reads as "any incantation I find in the run", the
 #: non-goal `GOAL.md` A26 names. Static, like the one beside it.
 HIT_WITH_TOOLTIP = ("Chooses what the figure ranks: the starting armament, "
-                    "its Weapon Art, or the spell the starting catalyst "
-                    "throws. Weapon art counts Weapon Arts only — a "
-                    "Nightfarer's own skills are never counted. Sorceries, "
-                    "Incantations and a school rank the one spell this "
-                    "Nightfarer's own equipment casts, not a spell found in "
-                    "the run.")
+                    "its Weapon Art, or the spell of the staff or seal on "
+                    "the selected tile (or else the starting one). Weapon "
+                    "art counts Weapon Arts only — a Nightfarer's own skills "
+                    "are never counted. Sorceries, Incantations and a school "
+                    "rank the one spell that staff or seal casts, not a "
+                    "spell found in the run.")
 
 #: AK-340: what the damage-type box does, one sentence now that the arts
 #: have a box of their own. Static -- it says what the control is for, never

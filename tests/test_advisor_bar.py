@@ -1048,10 +1048,11 @@ def test_the_three_tooltips_are_the_three_the_spec_writes(bar):
         "Chooses what the Advisor ranks your build for.")
     assert bar.hit_with_box.toolTip() == (
         "Chooses what the figure ranks: the starting armament, its Weapon "
-        "Art, or the spell the starting catalyst throws. Weapon art counts "
-        "Weapon Arts only — a Nightfarer's own skills are never counted. "
-        "Sorceries, Incantations and a school rank the one spell this "
-        "Nightfarer's own equipment casts, not a spell found in the run.")
+        "Art, or the spell of the staff or seal on the selected tile (or "
+        "else the starting one). Weapon art counts Weapon Arts only — a "
+        "Nightfarer's own skills are never counted. Sorceries, Incantations "
+        "and a school rank the one spell that staff or seal casts, not a "
+        "spell found in the run.")
     assert bar.damage_type_box.toolTip() == (
         "Restricts Maximise damage to one kind of damage.")
 

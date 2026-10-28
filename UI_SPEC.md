@@ -2126,10 +2126,13 @@ in jedem Zustand, wie AK-329):
 
 `hit_with_box`:
 > `"Chooses what the figure ranks: the starting armament, its Weapon Art, "`
-> `"or the spell the starting catalyst throws. Weapon art counts Weapon "`
-> `"Arts only — a Nightfarer's own skills are never counted. Sorceries, "`
-> `"Incantations and a school rank the one spell this Nightfarer's own "`
-> `"equipment casts, not a spell found in the run."`
+> `"or the spell of the staff or seal on the selected tile (or else the "`
+> `"starting one). Weapon art counts Weapon Arts only — a Nightfarer's own "`
+> `"skills are never counted. Sorceries, Incantations and a school rank the "`
+> `"one spell that staff or seal casts, not a spell found in the run."`
+
+(Wortlaut seit T-335c, Director 28.10.2026: der Katalysator der gewaehlten
+Kachel geht dem Start-Katalysator vor, AK-353 Punkt 2.)
 
 `damage_type_box`:
 > `"Restricts {direction} to one kind of damage."`
@@ -2258,14 +2261,16 @@ davon eine leere Zelle ohne Erklaerung (AD-025.2):
 
 1. **Acht Nightfarer ohne Katalysator**, jede Wahl von `Sorceries`,
    `Incantations` oder einer Schule in `hit_with_box`:
-   > `"This Nightfarer starts with neither a staff nor a seal, so {choice} "`
-   > `"is not counted: there is no spell of this build's own to rank."`
+   > `"There is no staff or seal on the selected tile and this Nightfarer "`
+   > `"starts with neither, so {choice} is not counted: put one on a tile "`
+   > `"and select it to rank its spell."`
+   (Wortlaut 1 und 2 seit T-335c, Director 28.10.2026.)
    Zahl: `0.00` (Ranking-neutral), Anzeige: `"Spell damage not counted"`
    (**kein** Zahlenwert im Text — Unterschied zu AK-342s `"…0"`, siehe unten).
 2. **Stab unter `Incantations`, Siegel unter `Sorceries`** (falsche Gattung):
-   > `"{choice} is not counted for this Nightfarer: {catalyst} casts "`
-   > `"{genus}, and this run ranks the spell the starting equipment really "`
-   > `"throws."`
+   > `"{choice} is not counted here: {catalyst} casts {genus}, and this "`
+   > `"run ranks the spell of the staff or seal on the selected tile, or "`
+   > `"else the starting one."`
    Gilt nur fuer die direkte Gattungswahl (`Sorceries`/`Incantations`), nicht
    fuer eine Schulwahl — eine Schule, der der geworfene Zauber nicht angehoert,
    ist kein Ablehnungsfall, sondern eine Zahl ohne Schulfaktor (Kombinations-

@@ -249,15 +249,17 @@ _ART_ON_A_CATALYST = (
 #: this is the ordinary answer for a spell row and not an edge case
 #: (AD-052 point 6).
 _NO_CATALYST = (
-    "This Nightfarer starts with neither a staff nor a seal, so {choice} is "
-    "not counted: there is no spell of this build's own to rank.")
+    "There is no staff or seal on the selected tile and this Nightfarer "
+    "starts with neither, so {choice} is not counted: put one on a tile and "
+    "select it to rank its spell.")
 
 #: A staff throws no incantations and a seal no sorceries (AD-052 point 4).
 #: The armament is named because the player has it in hand and the sentence
 #: is otherwise about nothing he can point at.
 _WRONG_GENUS = (
-    "{choice} is not counted for this Nightfarer: {catalyst} casts {genus}, "
-    "and this run ranks the spell the starting equipment really throws.")
+    "{choice} is not counted here: {catalyst} casts {genus}, and this run "
+    "ranks the spell of the staff or seal on the selected tile, or else the "
+    "starting one.")
 
 #: The catalyst a player can hold carries a spell in its first slot
 #: (measured: Recluse's Staff and the Finger Seal both do). Said rather than
