@@ -8,6 +8,10 @@ the first suggestion for Wylder counted "3+ Hammers" and "3+ Great Hammers"
 together -- seven armaments with the starting one, against six places -- and
 ranked at 90.2 where 62.7 was reachable without either.
 
+User decision 28.10.2026 narrows it further: the type is the one of the
+armament on the selected tile, and an empty tile assumes none. Ingame,
+Wylder with his greatsword selected was offered "3+ Daggers Equipped".
+
 The cases go the way the window goes: the context and its baseline from
 `advisorbar.asking_from`, the answer from `run.run`. Every effect is found by
 a property of the dataset, never by an id written down here.
@@ -19,7 +23,7 @@ import dataclasses
 
 import pytest
 
-from nrplanner import advisorbar, effecttext, model
+from nrplanner import advisorbar, effecttext, model, weaponslots
 from nrplanner.advisor import goals, run, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -65,6 +69,22 @@ def weaker_and_stronger_armament_count_buff(data: dict,
                       if rate == wanted) for wanted in (rates[0], rates[-1]))
 
 
+def armament_type(data: dict, effect_id: int):
+    """The armament type a count condition asks for; without
+    `wepTypeTrigger` it is the field's baseline (the dagger condition)."""
+    return data["effects"][str(effect_id)]["modifiers"].get(
+        "wepTypeTrigger", data["field_baselines"]["wepTypeTrigger"])
+
+
+def select_an_armament_of(planner, data: dict, wep_type) -> None:
+    """Put an armament of `wep_type` on the selected tile; `None` empties
+    it."""
+    weapon = None if wep_type is None else next(
+        w for w in data["weapons"] if w["wep_type"] == wep_type)
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot(
+        weapon=weapon)
+
+
 def a_lesser_attack_buff(ctx: types.GoalContext, ceiling: float) -> int:
     """An always-on buff with a physical rate under `ceiling` that moves the
     damage figure -- measured, because a rate scoped to sorceries does not."""
@@ -102,12 +122,17 @@ def suggest(asking, data: dict, rolls: list[list[int]], slots: int,
     return run.run(request, frozen, asking.ctx, goals.GOALS)
 
 
-def answer(planner, data: dict, declared: dict[int, int]):
+def answer(planner, data: dict, declared: dict[int, int],
+           selected_type_of_first: bool = False):
     """Three red copies -- one buff each -- for two red slots, asked the
-    window's way under the damage direction, with `declared` by hand."""
+    window's way under the damage direction, with `declared` by hand and,
+    if `selected_type_of_first`, an armament of the first buff's type on
+    the selected tile."""
     planner.declared = dict(declared)
+    both = two_armament_count_buffs(data, planner.current_hero())
+    if selected_type_of_first:
+        select_an_armament_of(planner, data, armament_type(data, both[0]))
     asking = advisorbar.asking_from(planner, DAMAGE)
-    both = two_armament_count_buffs(data, asking.ctx.hero)
     ceiling = min(data["effects"][str(effect_id)]["modifiers"]
                   ["physicsAttackRate"] for effect_id in both)
     lesser = a_lesser_attack_buff(asking.ctx, ceiling)
@@ -129,16 +154,83 @@ def best_handles(result: types.AdvisorResult) -> set[int]:
 
 def test_no_suggestion_counts_two_armament_types_and_the_search_plans_for_it(
         planner, game_data):
-    """The baseline: one type counts, the second is worth nothing, so the
-    weaker always-on buff takes the second slot instead of it."""
-    result, both = answer(planner, game_data, {})
+    """The baseline: the selected tile's type counts, the second is worth
+    nothing, so the weaker always-on buff takes the second slot instead."""
+    result, both = answer(planner, game_data, {},
+                          selected_type_of_first=True)
 
     for suggestion in result.suggestions:
         assert len(counted(suggestion, both)) <= 1, (
             "a suggestion counted 3+ armaments of two types at once")
-    assert LESSER in best_handles(result), (
+    assert best_handles(result) == {FIRST, LESSER}, (
         "the search kept the second armament type, which counts for nothing, "
         "over a buff that does count")
+    assert counted(result.suggestions[0], both) == {both[0]}
+
+
+def test_a_type_the_selected_armament_is_not_counts_for_nothing(
+        planner, game_data):
+    """The ingame case: Wylder, his greatsword on the selected tile -- the
+    dagger and the straight-sword condition are worth nothing."""
+    selected = planner.active_slot().weapon
+    both = two_armament_count_buffs(game_data, planner.current_hero())
+    assert selected is not None
+    assert selected["wep_type"] not in {armament_type(game_data, effect_id)
+                                        for effect_id in both}
+
+    result, both = answer(planner, game_data, {})
+
+    for suggestion in result.suggestions:
+        assert counted(suggestion, both) == set()
+    assert LESSER in best_handles(result)
+
+
+@pytest.mark.parametrize("hero_name", ["Wylder", "Duchess"])
+def test_the_baseline_assumes_the_selected_armament_type_only(
+        planner, game_data, hero_name):
+    """The window's context: of the "3+ X Equipped" conditions only those
+    of the selected armament's type -- "3+ Greatswords" for Wylder's
+    greatsword, and the dagger condition, which carries no `wepTypeTrigger`,
+    for Duchess' dagger only."""
+    planner.select_hero(next(index for index, hero in enumerate(planner.heroes)
+                             if hero["name"] == hero_name))
+    planner.declared = {}
+    wep_type = planner.active_slot().weapon["wep_type"]
+    counts = {effect_id for effect_id in model.advisor_defaults()
+              if effecttext.counts_armaments(
+                  game_data["effects"][str(effect_id)])}
+
+    asking = advisorbar.asking_from(planner, DAMAGE)
+
+    assumed = set(asking.ctx.assumed_armament_counts)
+    expected = {effect_id for effect_id in counts
+                if armament_type(game_data, effect_id) == wep_type}
+    assert expected and assumed == expected
+    assert not counts & dict(asking.ctx.declared).keys()
+    assert asking.request.assumed_armament_counts == (
+        asking.ctx.assumed_armament_counts)
+
+
+def test_an_empty_selected_tile_assumes_no_armament_type(planner, game_data):
+    planner.declared = {}
+    select_an_armament_of(planner, game_data, None)
+
+    asking = advisorbar.asking_from(planner, DAMAGE)
+
+    assert asking.ctx.assumed_armament_counts == ()
+    assert not any(effecttext.counts_armaments(
+        game_data["effects"][str(effect_id)])
+        for effect_id, _ in asking.ctx.declared)
+
+
+def test_two_selected_types_are_two_keys(planner, game_data):
+    """A cached answer for one tile's type is not handed back for another."""
+    planner.declared = {}
+    first = advisorbar.asking_from(planner, DAMAGE).request
+    select_an_armament_of(planner, game_data, None)
+    second = advisorbar.asking_from(planner, DAMAGE).request
+
+    assert run.cache_key(first) != run.cache_key(second)
 
 
 @pytest.mark.parametrize("by_hand, expected", [
@@ -163,11 +255,14 @@ def test_the_type_that_counts_is_the_stronger_not_the_first_or_the_worst(
         planner, game_data):
     """The weaker type is held in the first place, so it always comes first
     in the build: only the stronger type, carried second, may carry a
-    figure."""
+    figure. A context that assumes two types: `evaluate`'s contract -- the
+    window assumes the selected tile's type only (28.10.2026)."""
     planner.declared = {}
     asking = advisorbar.asking_from(planner, DAMAGE)
     weaker, stronger = weaker_and_stronger_armament_count_buff(
         game_data, asking.ctx.hero)
+    asking = dataclasses.replace(asking, ctx=dataclasses.replace(
+        asking.ctx, assumed_armament_counts=tuple(sorted((weaker, stronger)))))
     result = suggest(asking, game_data, [[weaker], [stronger]], slots=2,
                      holding_first=True)
 

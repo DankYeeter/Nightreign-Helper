@@ -266,6 +266,8 @@ def _refuse_a_request_that_asks_about_another_run(
             ("reference_weapon_id", request.reference_weapon_id,
              None if reference is None else reference.weapon.get("id")),
             ("declared", request.declared, tuple(ctx.declared)),
+            ("assumed_armament_counts", request.assumed_armament_counts,
+             tuple(ctx.assumed_armament_counts)),
             ("two_handed", request.two_handed, ctx.two_handed),
             ("hit_with", request.hit_with, ctx.hit_with),
             ("damage_type", request.damage_type, ctx.damage_type),

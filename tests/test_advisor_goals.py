@@ -36,7 +36,7 @@ import dataclasses
 
 import pytest
 
-from nrplanner import advisorbar, damage, model, weaponslots
+from nrplanner import advisorbar, damage, effecttext, model, weaponslots
 from nrplanner.advisor import candidates, explain, goals, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -1608,6 +1608,11 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     figure, because both lists are right. T-329r took the armament field off
     the request altogether, so what is left to hold is that the context
     carries no rolls either.
+
+    One part of the armament is in the key since 28.10.2026: the "3+ X
+    Equipped" conditions of the selected tile's type
+    (`assumed_armament_counts`) -- the two types here are two questions
+    there, and in nothing else.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
@@ -1621,7 +1626,10 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     one = asking_with(planner, first, (non_stacking,))
     other = asking_with(planner, second, (stacking,))
 
-    assert one.request == other.request, (
+    assert one.request.assumed_armament_counts != (
+        other.request.assumed_armament_counts)
+    assert dataclasses.replace(one.request, assumed_armament_counts=()) == (
+        dataclasses.replace(other.request, assumed_armament_counts=())), (
         "the cache key still separates two runs that are asked the same "
         "question, so the second one pays for a search whose answer was "
         "already there (P-1)")
@@ -1864,8 +1872,11 @@ SWITCHABLE_CONDITIONS = 420
 #: copies) change their `min_damage_taken` figure between the baseline and
 #: the bar as it asked before A16 -- the player's declarations alone.
 #: Counted 2026-09-14 on the frozen copy (21 of the 314 frozen the day
-#: before; seven rolls came, six went, T-252).
-COPIES_THE_BASELINE_MOVES = 24
+#: before; seven rolls came, six went, T-252). 24 until 28.10.2026: the case
+#: asks with an empty selected tile, which assumes no "3+ X Equipped"
+#: condition since then, and two copies moved by one alone -- "Max HP Up
+#: with 3+ Medium Shields" and "... 3+ Greatshields Equipped" (T-335a).
+COPIES_THE_BASELINE_MOVES = 22
 
 SURVIVAL = "min_damage_taken"
 
@@ -1920,12 +1931,22 @@ def test_the_baseline_leaves_no_switchable_condition_uncounted(
     """
     planner.owned = frozen_inventory
     ctx = advisorbar.asking_from(planner, SURVIVAL).ctx
+    counts = [effect for effect in planner.data["effects"].values()
+              if effecttext.counts_armaments(effect)
+              and effect["id"] in model.advisor_defaults()]
 
     before_a16 = not_counted_under(planner, dataclasses.replace(
         ctx, declared=()))
     assert before_a16, ("a save whose copies carry no condition proves "
                         "nothing about the baseline")
-    assert not_counted_under(planner, ctx) == []
+    # The window assumes the selected tile's armament type only
+    # (28.10.2026), so the other types' count conditions are all that waits;
+    # with every type assumed, one per one-relic build, nothing does.
+    assert set(not_counted_under(planner, ctx)) <= {
+        effecttext.name(effect) for effect in counts}
+    every_type = dataclasses.replace(ctx, assumed_armament_counts=tuple(
+        sorted(effect["id"] for effect in counts)))
+    assert not_counted_under(planner, every_type) == []
 
 
 def what_the_baseline_moves(planner, inventory) -> tuple[bool, list[str]]:

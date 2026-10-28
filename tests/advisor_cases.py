@@ -478,6 +478,7 @@ def request_for(problem: types.SlotProblem, ctx: types.GoalContext,
         reference_weapon_id=(None if ctx.reference is None
                              else ctx.reference.weapon["id"]),
         declared=tuple(ctx.declared),
+        assumed_armament_counts=tuple(ctx.assumed_armament_counts),
         two_handed=ctx.two_handed,
         data_version=str(meta.get("data_version") or ""),
         inventory_fingerprint=run.inventory_fingerprint(inventory),

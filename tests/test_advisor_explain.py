@@ -2336,9 +2336,30 @@ def test_a_favourite_of_the_armament_type_that_does_not_count_says_so(
              if line.silence == types.SILENT_REQUIRED_OTHER_TYPE]
     name, = effect_names(game_data, [line.effect_id])
     assert line.text == (
-        f"{name}: you favourited it, but a build can meet the weapon-count "
-        f"condition of only one weapon type, and another type counts here, "
-        f"so this one is not counted.")
+        f"{name}: you favourited it, but a weapon-count condition counts "
+        f"only for the weapon type of the selected armament tile or one you "
+        f"set by hand, so this one is not counted.")
+
+
+def test_a_favourite_of_a_type_the_selected_tile_is_not_says_so(
+        game_data, wylder, armament):
+    """28.10.2026: a favourited weapon-count buff of a type the window does
+    not assume at all -- not "it always counts"."""
+    favourite, _ = two_armament_count_buffs(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({favourite}))
+    chosen = (a_copy(0, 1, "One", [favourite]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    assert ctx.assumed_armament_counts == ()
+    goal = goals.GOALS[DAMAGE]
+
+    groups = explain.reasons(problem, chosen,
+                             evaluate(problem, (), ctx, goal=goal),
+                             evaluate(problem, chosen, ctx, goal=goal), ctx,
+                             goal)
+
+    assert [line.silence for group in groups for line in group.lines] == [
+        types.SILENT_REQUIRED_OTHER_TYPE]
 
 
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):

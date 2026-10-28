@@ -1067,7 +1067,7 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     the armament-count ones apart from `declared`, because only one armament
     type of them may hold in a build (QA-299).
     """
-    from nrplanner import model
+    from nrplanner import effecttext, model
 
     effect = min(model.advisor_defaults())
     planner.declared = {effect: 3}
@@ -1078,7 +1078,13 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     assert asking.request.declared == asking.ctx.declared
     assumed = set(asking.ctx.assumed_armament_counts)
     assert assumed and not assumed & declared.keys()
-    assert declared.keys() | assumed >= set(model.advisor_defaults())
+    # Of the armament-count ones only the selected tile's type is assumed
+    # (28.10.2026): `tests/test_one_armament_count_type.py`.
+    counts = {effect_id for effect_id in model.advisor_defaults()
+              if effecttext.counts_armaments(
+                  planner.data["effects"][str(effect_id)])}
+    assert assumed <= counts
+    assert declared.keys() | counts >= set(model.advisor_defaults())
 
 
 def test_the_marked_sets_reach_the_problem_the_window_asks(planner):

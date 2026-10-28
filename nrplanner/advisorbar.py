@@ -521,6 +521,12 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     rolls; this answers "what is this relic worth between runs" against the
     one armament every expedition starts with and keeps nothing else.
     `GoalScore.scope` is where the figure says which of the two it is (A12).
+
+    **One exception, by the user's decision of 28.10.2026:** the armament
+    type of the selected tile decides which "3+ X Equipped" conditions the
+    baseline counts as met (`ctx.assumed_armament_counts`). It is in the key
+    beside `declared`, because a hit across two selected tiles would answer
+    for the other type.
     """
     owned = planner.owned
     if owned is None:
@@ -543,15 +549,29 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # declared stands as declared. Sorted, not in `dict` order: a cache key
     # that depended on the order the player happened to flip the switches
     # would miss its own entries. The armament-count conditions the player
-    # did not declare travel apart, because only one armament type of them
-    # may hold in a build, and which one is the build's (QA-299).
+    # did not declare are not part of it: only one armament type of them may
+    # hold in a build (QA-299), and since 28.10.2026 it is the type of the
+    # armament on the selected tile, or none for an empty tile (user
+    # decision: "man kann einen waffen-slot highlighten. für den soll dann
+    # auch die waffengattung genommen werden können."). The one armament the
+    # grid lends the question, and only its type -- A17 holds for the rest.
+    # A condition without `wepTypeTrigger` carries the field's baseline,
+    # the dagger type (`field_baselines`, the extractor drops a value equal
+    # to it).
     baseline = {**model.advisor_defaults(), **planner.declared}
     effects = planner.data["effects"]
-    assumed = {effect_id for effect_id in baseline
-               if effect_id not in planner.declared
-               and effecttext.counts_armaments(effects[str(effect_id)])}
+    counts = {effect_id for effect_id in baseline
+              if effect_id not in planner.declared
+              and effecttext.counts_armaments(effects[str(effect_id)])}
+    selected = planner.active_slot().weapon
+    neutral_type = (planner.data.get("field_baselines") or {}).get(
+        "wepTypeTrigger")
+    assumed = set() if selected is None else {
+        effect_id for effect_id in counts
+        if effects[str(effect_id)]["modifiers"].get(
+            "wepTypeTrigger", neutral_type) == selected.get("wep_type")}
     declared = tuple(sorted(item for item in baseline.items()
-                            if item[0] not in assumed))
+                            if item[0] not in counts))
     weighting = advisor_goals.DEFAULT_WEIGHTING
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
@@ -598,6 +618,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         # context.
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
+        assumed_armament_counts=ctx.assumed_armament_counts,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,

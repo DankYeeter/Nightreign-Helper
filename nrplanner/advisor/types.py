@@ -249,6 +249,9 @@ class AdvisorRequest:
     reference_weapon_id: int | None = None
     #: effect id -> how many times the player declares its condition met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: `GoalContext.assumed_armament_counts`: they follow the selected
+    #: armament tile, so two tiles of two types are two questions.
+    assumed_armament_counts: tuple[int, ...] = ()
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
@@ -412,11 +415,12 @@ class GoalContext:
     #: effect id -> how many times its condition is declared met.
     declared: tuple[tuple[int, int], ...] = ()
     #: Armament-count conditions ("3+ X Equipped") the baseline counts as
-    #: met, sorted -- for **one** armament type per build, which `evaluate`
-    #: picks (AD-036.6, addendum 12.10.2026, QA-299). Apart from `declared`
-    #: because which of them hold depends on the build, and a declaration by
-    #: hand is never narrowed. Not in the key: it is the dataset's
-    #: armament-count ids less the hand-declared ones, both already there.
+    #: met, sorted. The window fills in those of the selected tile's
+    #: armament type only (user decision 28.10.2026); given several types,
+    #: `evaluate` counts **one** per build (AD-036.6, addendum 12.10.2026,
+    #: QA-299). Apart from `declared` because a type declared by hand
+    #: replaces them, and a declaration by hand is never narrowed. In the key
+    #: as `AdvisorRequest.assumed_armament_counts`.
     assumed_armament_counts: tuple[int, ...] = ()
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
@@ -614,8 +618,9 @@ SILENT_EXCLUDED = "excluded"
 #: figure of its own: the line says why the copy was suggested all the same.
 SILENT_REQUIRED = "required"
 #: The player required a weapon-count condition of one armament type, and the
-#: build counts another type's: a build meets the condition of only one type
-#: (AD-036.6, addendum 12.10.2026), so this one moved nothing (AK-383).
+#: build counts another type's or none: a build meets the condition of only
+#: one type (AD-036.6, addendum 12.10.2026), the selected tile's unless one
+#: is declared by hand (28.10.2026), so this one moved nothing (AK-383).
 SILENT_REQUIRED_OTHER_TYPE = "required_other_type"
 
 

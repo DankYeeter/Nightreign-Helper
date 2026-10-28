@@ -618,20 +618,24 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
         return said("One of its effects is not in your game data, so it has "
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
+    effect = ctx.data["effects"][str(effect_id)]
     # AK-383: AK-290.2 holds only for an effect that counts. A favourited
-    # weapon-count condition of another type than the one this build counts
-    # (`evaluate._declared_variants`) is left waiting on its condition.
+    # weapon-count condition the player did not declare counts only for the
+    # type of the selected armament tile, and only when no other type is
+    # declared by hand (`advisorbar.asking_from`,
+    # `evaluate._declared_variants`); otherwise it waits on its condition.
     if (effect_id in problem.required
-            and effect_id in ctx.assumed_armament_counts
+            and effecttext.counts_armaments(effect)
+            and effect_id not in dict(ctx.declared)
             and _waits_on_its_condition(effect_id, built)):
-        return said(f"{name}: you favourited it, but a build can meet the "
-                    f"weapon-count condition of only one weapon type, and "
-                    f"another type counts here, so this one is not counted.",
+        return said(f"{name}: you favourited it, but a weapon-count "
+                    f"condition counts only for the weapon type of the "
+                    f"selected armament tile or one you set by hand, so "
+                    f"this one is not counted.",
                     types.SILENT_REQUIRED_OTHER_TYPE)
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked
-    effect = ctx.data["effects"][str(effect_id)]
     hero = str(ctx.hero.get("name", ""))
     if not effecttext.works_for(effect, hero):
         owner = effecttext.owner(effect)
