@@ -407,7 +407,8 @@ def rate_of(game_data, effect_id: int, field_name: str) -> float:
     return cases.effect_by_id(game_data, effect_id)["modifiers"][field_name]
 
 
-def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
+def damage_scores(game_data, hero, carried, *, hit_with="", damage_type="",
+                  selected_catalyst=None):
     """The damage figure under one chosen cell, one entry per relic carried.
 
     `carried` maps a name to the effect ids one candidate brings, and `()` is
@@ -421,7 +422,8 @@ def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
         ctx = dataclasses.replace(
             advisor.context(game_data, hero, reference=reference,
                             armament_effect_ids=tuple(effect_ids)),
-            hit_with=hit_with, damage_type=damage_type)
+            hit_with=hit_with, damage_type=damage_type,
+            selected_catalyst=selected_catalyst)
         build = evaluate(advisor.problem([advisor.RED]), (), ctx)
         scores[name] = goals.GOALS["max_damage"].score(build, ctx)
     return scores
@@ -805,6 +807,35 @@ def test_a_nightfarer_without_a_catalyst_has_no_spell_row(game_data, wylder):
     assert len(spell["nothing"].unknowns) == 1
     assert goals.chosen_label(model.SORCERIES_ART, "") in \
         spell["nothing"].unknowns[0]
+
+
+def test_a_staff_on_the_selected_tile_is_what_the_spell_row_ranks(
+        game_data):
+    """T-335b: the stat sheet's catalyst, the selected tile's before the
+    starting one -- a Raider with a staff casts its Glintstone Pebble, and a
+    seal found in the run casts its own spell whatever relic swaps the
+    starting one's.
+    """
+    raider = cases.hero_by_name(game_data, "Raider")
+    staff = cases.weapon_by_id(game_data, 33200000)
+    carried = {"nothing": ()}
+
+    without = damage_scores(game_data, raider, carried,
+                            hit_with=model.SORCERIES_ART)["nothing"]
+    with_staff = damage_scores(game_data, raider, carried,
+                               hit_with=model.SORCERIES_ART,
+                               selected_catalyst=staff)["nothing"]
+
+    assert without.value == 0.0
+    assert "Glintstone Pebble" in with_staff.display
+    assert with_staff.value > 0.0
+
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    seal = cases.weapon_by_id(game_data, 34040000)
+    found = damage_scores(game_data, revenant, {"claw": (BEAST_CLAW_SWAP,)},
+                          hit_with=model.INCANTATIONS_ART,
+                          selected_catalyst=seal)["claw"]
+    assert "Bestial Sling" in found.display
 
 
 def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):

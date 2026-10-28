@@ -622,11 +622,14 @@ class StatSheet(QScrollArea):
 
     def _spell_damage_rows(self, slot, build, hero,
                            starting: bool) -> list[str]:
-        """The spell row, where this Nightfarer's own equipment casts one.
+        """The spell row, where the selected tile or this Nightfarer's own
+        equipment casts one.
 
-        AK-353 point 2: the right starting hand, or whichever tile the player
-        has put the starting catalyst on. The first case is what Revenant
-        needs -- his Finger Seal is in the left hand and
+        AK-353 point 2: any staff or seal on the selected tile, at that
+        tile's tier, so that the rows of one tile describe one armament
+        (T-335b: a Duchess or a Raider can pick a staff up). Without one, the
+        right starting hand still gets the starting catalyst's row -- what
+        Revenant needs: his Finger Seal is in the left hand and
         `Planner.apply_hero_weapon` fills one tile, so the seal sits on no
         tile at all and the row still belongs under his claws.
 
@@ -636,22 +639,23 @@ class StatSheet(QScrollArea):
         case (AD-052).
 
         Which catalyst and which spell is the facade's choice and never this
-        panel's (AK-357/AD-052), and the tier is `weapons.MIN_UPGRADE` for
-        the reason the advisor asks at it: what the player has reinforced in
-        this run is not what a spell figure stands on.
+        panel's (AK-357/AD-052). A starting catalyst on no tile has no tier
+        of its own and is asked at `weapons.MIN_UPGRADE`, as the advisor
+        asks it.
         """
         data = self.planner.data
-        catalyst = damage.start_catalyst(hero, data)
-        if catalyst is None or not (starting
-                                    or slot.weapon["id"] == catalyst["id"]):
+        catalyst, own = damage.spell_catalyst(slot.weapon, hero, data)
+        on_tile = catalyst is slot.weapon
+        if catalyst is None or not (on_tile or starting):
             return []
-        thrown = damage.spell_thrown(build, data, catalyst)[0]
+        thrown = damage.spell_thrown(build, data, catalyst, starting=own)[0]
         if thrown is None:
             return []
         # `damage_type=""`: this panel has no damage-type box, so the figure
         # is every type of the spell together (AK-357).
         rating = damage.spell(
-            thrown, catalyst, weapons.MIN_UPGRADE, build, data,
+            thrown, catalyst, slot.tier if on_tile else weapons.MIN_UPGRADE,
+            build, data,
             hit_with=damage.GENUS_OF_CATALYST[catalyst["wep_type"]])
         self.last_spell = rating
         delta = rating.figure - rating.bare_figure

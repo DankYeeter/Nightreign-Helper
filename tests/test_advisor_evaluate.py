@@ -237,6 +237,9 @@ CONTEXT_REACHES_COMPUTE = {
     # and the goal decides which of them the question was about.
     "hit_with": None,
     "damage_type": None,
+    # Which staff the spell cells cast from is the damage direction's choice
+    # (T-335b); the model books the same build whichever it is.
+    "selected_catalyst": None,
 }
 
 

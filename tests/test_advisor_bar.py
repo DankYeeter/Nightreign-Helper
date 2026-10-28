@@ -1095,6 +1095,36 @@ def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
             frozen, asking.ctx)
 
 
+def test_the_selected_staff_reaches_the_key_and_the_context(planner):
+    """T-335b: the spell cells cast from the selected tile's staff, so its id
+    is in the key beside the context that reads it, and a tile without one
+    puts neither there. Red with either assignment in `asking_from` taken
+    out (`run._refuse_a_request_that_asks_about_another_run`)."""
+    from nrplanner import weaponslots
+    from nrplanner.advisor import run as advisor_run
+
+    staff = planner.weapon_by_id(33200000)
+    for weapon, expected in ((staff, staff["id"]), (None, None)):
+        planner.weapon_slots = [weaponslots.WeaponSlot(weapon=weapon)] + [
+            weaponslots.WeaponSlot()
+            for _ in range(weaponslots.SLOT_COUNT - 1)]
+        planner.active_weapon = 0
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.selected_catalyst_id == expected
+        assert (asking.ctx.selected_catalyst or {}).get("id") == expected
+        frozen = advisor_run.frozen_inventory(asking.inventory,
+                                              asking.request.problem)
+        request = dataclasses.replace(
+            asking.request, inventory_fingerprint=advisor_run.
+            inventory_fingerprint(frozen))
+        advisor_run._refuse_a_request_that_asks_about_another_run(
+            request, frozen, asking.ctx)
+        with pytest.raises(ValueError, match="selected_catalyst_id"):
+            advisor_run._refuse_a_request_that_asks_about_another_run(
+                dataclasses.replace(request, selected_catalyst_id=-1),
+                frozen, asking.ctx)
+
+
 def test_a_declared_condition_outlives_the_baseline(planner):
     """AD-036.6: the baseline is a default for a condition, never a value.
 

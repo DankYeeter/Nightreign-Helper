@@ -532,7 +532,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     type of the selected tile decides which "3+ X Equipped" conditions the
     baseline counts as met (`ctx.assumed_armament_counts`). It is in the key
     beside `declared`, because a hit across two selected tiles would answer
-    for the other type.
+    for the other type. **And a second (T-335b):** a staff or seal on the
+    selected tile is what the spell cells cast from (`ctx.selected_catalyst`,
+    in the key as `selected_catalyst_id`), the one the stat sheet's spell
+    row stands on; its tier and rolls stay out, as the starting armament's.
     """
     owned = planner.owned
     if owned is None:
@@ -591,10 +594,14 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     hit_with = planner.advisor_bar.hit_with()
     damage_type = planner.advisor_bar.damage_type()
     # The starting armament, without its rolls: `weapons_held` and
-    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
-    # read here at all. Missing from the dataset, the run falls back to the
-    # multiplier mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
+    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). Of the grid
+    # only the selected tile is read: its type above, its staff or seal
+    # below. Missing from the dataset, the run falls back to the multiplier
+    # mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
     starting = planner.weapon_by_id(hero.get("starting_weapon"))
+    catalyst = (selected if selected is not None
+                and selected.get("wep_type") in damage.GENUS_OF_CATALYST
+                else None)
     reference = None if starting is None else types.ReferenceArmament(
         weapon=starting, tier=weapons.MIN_UPGRADE,
         slot_index=damage.STARTING_SLOT)
@@ -606,6 +613,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         assumed_armament_counts=tuple(sorted(assumed)),
+        selected_catalyst=catalyst,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,
@@ -625,6 +633,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         assumed_armament_counts=ctx.assumed_armament_counts,
+        selected_catalyst_id=None if catalyst is None else catalyst["id"],
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,

@@ -33,6 +33,10 @@ TIER = 1
 #: It carries no rate at all: what it moves is the base value of the spell in
 #: his hand, which is why it is the relic the A27 criterion is written around.
 BEAST_CLAW_RELIC = 7370900
+#: A staff any Nightfarer can pick up, casting Glintstone Pebble, and a seal
+#: other than Revenant's own, casting Bestial Sling (T-335b).
+ACADEMY_STAFF = 33200000
+CLAWMARK_SEAL = 34040000
 #: "Improved Skill Attack Power": scope 112/111, so its five attack rates
 #: reach the Weapon Art and nothing else (`model.art_factor`).
 SKILL_BUFF = 312300
@@ -92,7 +96,7 @@ def total_row(planner):
 
 
 def draw(planner, game_data, hero, effect_ids=(), armaments=None,
-         active: int = 0):
+         active: int = 0, tier: int = TIER):
     """Fill the grid, draw it, and hand back the build it was drawn on.
 
     `armaments` is `(slot index, armament id)` pairs; slot 1 holds this
@@ -108,7 +112,7 @@ def draw(planner, game_data, hero, effect_ids=(), armaments=None,
     slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
     for index, weapon_id in pairs:
         slots[index] = weaponslots.WeaponSlot(
-            weapon=cases.weapon_by_id(game_data, weapon_id), tier=TIER)
+            weapon=cases.weapon_by_id(game_data, weapon_id), tier=tier)
     planner.hero_index = game_data["heroes"].index(hero)
     planner.weapon_slots = slots
     planner.declared = {}
@@ -122,12 +126,13 @@ def draw(planner, game_data, hero, effect_ids=(), armaments=None,
     return build
 
 
-def spell_figure(game_data, hero, build) -> damage.SpellRating:
+def spell_figure(game_data, hero, build, selected=None,
+                 tier: int = weapons.MIN_UPGRADE) -> damage.SpellRating:
     """What the facade answers for this build -- the panel's own question."""
-    catalyst = damage.start_catalyst(hero, game_data)
-    thrown = damage.spell_thrown(build, game_data, catalyst)[0]
+    catalyst, own = damage.spell_catalyst(selected, hero, game_data)
+    thrown = damage.spell_thrown(build, game_data, catalyst, starting=own)[0]
     return damage.spell(
-        thrown, catalyst, weapons.MIN_UPGRADE, build, game_data,
+        thrown, catalyst, tier, build, game_data,
         hit_with=damage.GENUS_OF_CATALYST[catalyst["wep_type"]])
 
 
@@ -381,3 +386,41 @@ def test_the_hand_switch_moves_no_figure_of_the_spell_row(
     draw(planner, game_data, hero, [BEAST_CLAW_RELIC])
     assert spell_row(planner) == one_handed
     assert damage.TWO_HANDED_MARK not in SPELL_ROW.search(panel(planner))[0]
+
+
+@pytest.mark.parametrize("hero_name", ["Raider", "Duchess"])
+def test_a_staff_on_the_selected_tile_carries_its_spell_row(
+        planner, game_data, hero_name):
+    """T-335b: any Nightfarer casts from a staff he has picked up.
+
+    At the tile's own tier, the one its `Spell power` stands on, so that
+    the rows of one tile describe one armament.
+    """
+    hero = cases.hero_by_name(game_data, hero_name)
+    staff = cases.weapon_by_id(game_data, ACADEMY_STAFF)
+    build = draw(planner, game_data, hero, armaments=((0, ACADEMY_STAFF),),
+                 tier=3)
+
+    rating = spell_figure(game_data, hero, build, staff, tier=3)
+    spell_name, _grey, _change, bold = spell_row(planner)
+    assert spell_name == "Glintstone Pebble"
+    assert bold == damage.displayed(rating.figure)
+    assert bold != damage.displayed(spell_figure(
+        game_data, hero, build, staff).figure), (
+        "the tier did not move the figure, so the case cannot tell the "
+        "tile's tier from the advisor's")
+
+
+def test_a_seal_found_in_the_run_casts_its_own_spell_not_the_swapped_one(
+        planner, game_data):
+    """T-335b: a swap relic swaps the starting armament's spell only.
+
+    Revenant holds Beast Claw and has a Clawmark Seal on the selected tile:
+    that seal throws Bestial Sling, as it does in his hand.
+    """
+    hero = cases.hero_by_name(game_data, "Revenant")
+    draw(planner, game_data, hero, [BEAST_CLAW_RELIC],
+         armaments=((0, hero["starting_weapon"]), (2, CLAWMARK_SEAL)),
+         active=2)
+
+    assert spell_row(planner)[0] == "Bestial Sling"

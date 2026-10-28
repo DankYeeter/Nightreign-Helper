@@ -2925,13 +2925,20 @@ des aktuellen Nightfarer:
    Punkt 1). Verschiebt der Spieler die Startwaffe auf eine andere Kachel,
    verschwindet die Zeile mit ihr — das ist dieselbe Regel, der auch der
    Statusmalus folgt, keine zweite.
-2. **`Spell damage (<Zauber>)`** erscheint, wenn die aktive Kachel **entweder**
-   die rechte Starthand ist (Punkt 1) **oder** ihre Waffe die Id des per
-   AD-052 aufgeloesten Start-Katalysators traegt (die linke Starthand, falls
-   sie ein Stab oder Siegel ist und der Spieler sie manuell auf eine Kachel
-   gelegt hat). In beiden Faellen stammt die Zahl **ausschliesslich** aus der
-   Fassade (AK-357), nie aus einer eigenen Berechnung ueber die Waffe der
-   aktiven Kachel.
+2. **`Spell damage (<Zauber>)`** erscheint, wenn die Waffe der aktiven Kachel
+   einen `wep_type` aus `damage.GENUS_OF_CATALYST` hat (Stab oder Siegel,
+   gleich welcher Nightfarer und woher — Korrektur T-335b, Nutzer
+   28.10.2026: "ich kann theoretisch auch duchess weil sie so viel int hat
+   als magierin spielen"). Zauber ist der dieses Katalysators
+   (`SPELL_SLOTS_KEY`); Tausch-Relikte (`swapped_spell_ids`) gelten nur,
+   wenn er der Start-Katalysator ist, denn sie tauschen den Zauber der
+   Startwaffe. Stufe ist die der Kachel, auf der auch ihre Zeile `Spell
+   power` steht. **Ohne** Katalysator auf der aktiven Kachel bleibt der
+   bisherige Fall: die rechte Starthand (Punkt 1) traegt die Zeile des per
+   AD-052 aufgeloesten Start-Katalysators auf `weapons.MIN_UPGRADE`
+   (Revenant: Finger Seal auf keiner Kachel, Claws aktiv). Katalysatorwahl:
+   `damage.spell_catalyst`, dieselbe Funktion fuer den Berater (§3.8).
+   Die Zahl stammt **ausschliesslich** aus der Fassade (AK-357).
 3. Auf jeder anderen Kachel (ein im Lauf gefundenes Schwert in Slot 3, ein
    verschobenes Schild) erscheint **keine** der beiden Zeilen — die
    Schadenstafel verhaelt sich dort exakt wie heute (AK-31 bis AK-40
@@ -2943,7 +2950,9 @@ Kachel 1 (Cursed Claws) aktiv, Finger Seal auf keiner Kachel: `Weapon art`
 **und** `Spell damage (Beast Claw)` erscheinen zusammen — der Nachweis aus
 `GOAL.md` A27 woertlich. Revenant, Kachel 3 mit einem gefundenen Fist belegt
 und aktiv: keine der beiden Zeilen, auch wenn Kachel 1 im Hintergrund
-weiterhin die Claws traegt.
+weiterhin die Claws traegt. Raider oder Duchess mit Academy Glintstone Staff
+auf der aktiven Kachel: `Spell damage (Glintstone Pebble)` auf deren Stufe
+(T-335b). Wylder mit Greatsword: keine Zeile.
 
 #### AK-354 — `Weapon art`: Formel und Fassadenaufruf
 
@@ -3026,7 +3035,7 @@ gemeinsam rufen (z. B. neben `damage.spell` in `damage.py`, oder ein
 eigenstaendiges Modul); ein Copy-Paste der Auswahl nach `statsheet.py` waere
 der zweite Ort, den AD-019 ausdruecklich verbietet. Aufruf danach:
 `damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build, data,
-hit_with=genus)` mit `genus = model.SORCERIES_ART` fuer einen Stab,
+hit_with=genus)` (Stufe seit T-335b nach AK-353 Punkt 2) mit `genus = model.SORCERIES_ART` fuer einen Stab,
 `model.INCANTATIONS_ART` fuer ein Siegel (`_GENUS_OF_CATALYST[catalyst
 ["wep_type"]]`) und `damage_type=""` (Summe aller Arten — diese Tafel hat
 keine Damage-type-Box). **Ausdruecklich nicht Teil dieser Vorgabe:** eine
@@ -3038,7 +3047,8 @@ Advisor-Leiste (§3.8) vorbehalten.
 
 **AK-358** Traegt der Nightfarer **weder** in der rechten **noch** in der
 linken Starthand einen Stab oder ein Siegel (acht von zehn, AD-052 gemessen),
-erscheint die Zeile `Spell damage` **auf keiner Kachel**, auch nicht als
+erscheint die Zeile `Spell damage` **auf keiner Kachel ohne Katalysator**
+(seit T-335b traegt jede Kachel mit Stab oder Siegel sie, AK-353 Punkt 2), auch nicht als
 Ablehnungssatz — anders als `AK-341`s Regel fuer die Advisor-Leiste (dort eine
 dauerhafte Box, die jeder Nightfarer gleich sieht, hier eine Zeile, die schon
 durch AK-353 an die Startausruestung **dieses** Nightfarer gebunden ist). Das

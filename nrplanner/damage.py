@@ -1023,6 +1023,23 @@ def start_catalyst(hero: dict, data: dict) -> dict | None:
     return None
 
 
+def spell_catalyst(selected: dict | None, hero: dict,
+                   data: dict) -> tuple[dict | None, bool]:
+    """The staff or seal a spell question stands on, and whether it is this
+    Nightfarer's own starting one.
+
+    The armament on the selected tile first, where it is a catalyst: a
+    Raider or a Duchess can pick a staff up and cast from it (user decision
+    28.10.2026, T-335b). Otherwise the starting catalyst (AD-052). The flag
+    is what `spell_thrown` needs: a swap relic swaps the starting
+    armament's spell, so it reaches no other staff.
+    """
+    start = start_catalyst(hero, data)
+    if selected is not None and selected.get("wep_type") in GENUS_OF_CATALYST:
+        return selected, start is not None and start["id"] == selected["id"]
+    return start, start is not None
+
+
 def _base_damage(record: dict, damage_type: str) -> float:
     """What a spell hits for before anything of this build reaches it.
 
@@ -1039,6 +1056,7 @@ def _base_damage(record: dict, damage_type: str) -> float:
 
 
 def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
+                 starting: bool,
                  damage_type: str = "") -> tuple[dict | None, int]:
     """The spell this equipment casts, and how many relics swapped it.
 
@@ -1055,6 +1073,9 @@ def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
     doing rather than this function's, and a case in
     `tests/test_advisor_goals.py` holds it.
 
+    `starting` says whether `catalyst` is the starting one
+    (`spell_catalyst`); any other casts its own spell whatever is swapped.
+
     `damage_type` decides nothing but which of two swapped spells is the
     stronger, so a caller that asks about every type at once (the stat
     sheet) leaves it out.
@@ -1063,7 +1084,7 @@ def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
     swapped = [record for record in
                (_record_by_id(spells, magic_id)
                 for magic_id in build.swapped_spell_ids)
-               if record is not None]
+               if record is not None] if starting else []
     if swapped:
         return (max(swapped,
                     key=lambda record: _base_damage(record, damage_type)),

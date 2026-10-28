@@ -414,9 +414,10 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     """What this Nightfarer's own equipment throws, as a damage figure.
 
     The spell rows of the combination table (AD-052/AD-053): the reference
-    object is the start catalyst and the spell it really casts, never the
-    armament in slot 1, and the figure comes from `damage.spell` so that
-    this file forms no product of its own (AD-019/AD-021).
+    object is the staff or seal on the selected tile, else the start
+    catalyst, the same one the stat sheet's spell row stands on (T-335b),
+    and the spell it really casts; the figure comes from `damage.spell` so
+    that this file forms no product of its own (AD-019/AD-021).
 
     **No fallback onto spell power** where that spell carries no damage
     (AD-052 point 5): Revenant's Finger Seal throws Rejection, which hits
@@ -433,7 +434,8 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     written: every sink that draws a finding or a display is `PlainText`
     (SEC-019, AK-29).
     """
-    catalyst = damage.start_catalyst(ctx.hero, ctx.data)
+    catalyst, own = damage.spell_catalyst(ctx.selected_catalyst, ctx.hero,
+                                          ctx.data)
     if catalyst is None:
         return _empty_cell(_NO_CATALYST.format(choice=chosen))
     genus = damage.GENUS_OF_CATALYST[catalyst["wep_type"]]
@@ -443,7 +445,7 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
     thrown, swaps = damage.spell_thrown(
-        build, ctx.data, catalyst, damage_type=ctx.damage_type)
+        build, ctx.data, catalyst, starting=own, damage_type=ctx.damage_type)
     if thrown is None:
         return _empty_cell(_NO_SPELL_ON_THE_CATALYST.format(
             catalyst=catalyst.get("name", "This armament"), choice=chosen))

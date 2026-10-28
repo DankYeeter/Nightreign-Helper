@@ -252,6 +252,9 @@ class AdvisorRequest:
     #: `GoalContext.assumed_armament_counts`: they follow the selected
     #: armament tile, so two tiles of two types are two questions.
     assumed_armament_counts: tuple[int, ...] = ()
+    #: `GoalContext.selected_catalyst`'s id: a spell asked of another staff
+    #: is another question.
+    selected_catalyst_id: int | None = None
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
@@ -422,6 +425,11 @@ class GoalContext:
     #: replaces them, and a declaration by hand is never narrowed. In the key
     #: as `AdvisorRequest.assumed_armament_counts`.
     assumed_armament_counts: tuple[int, ...] = ()
+    #: The staff or seal on the selected tile, `None` where it holds none:
+    #: the spell cells cast from it before the starting catalyst
+    #: (`damage.spell_catalyst`, T-335b). In the key as
+    #: `AdvisorRequest.selected_catalyst_id`.
+    selected_catalyst: Mapping | None = None
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).
