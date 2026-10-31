@@ -101,7 +101,13 @@ MAX_LEVEL = 15
 #      `heroes[].starting_weapon_left`, and `effects[].start_magic_id` from
 #      SpEffectParam's undescribed row tail. A cache left on 15 would leave
 #      every spell cell of the Advisor without a figure.
-EXTRACT_VERSION = 16
+#  17  the weapon arts (AD-056): an `arts` block with name, symbol, FP cost
+#      and the motion value of the AtkParam row the art names, and on every
+#      armament `art_default`, `art_pool` and, on a catalyst, `spell_pools`,
+#      resolved through SwordArtsTableParam / MagicTableParam. A cache left on
+#      16 would leave every tile without an art to choose and every art
+#      without a figure.
+EXTRACT_VERSION = 17
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -135,6 +141,12 @@ SPELL_DAMAGE_FIELDS = {
     "Thunder": "atkThun",
     "Dark": "atkDark",
 }
+
+# The same AtkParam row carries, beside the flat figure, a percentage of the
+# swing's own attack rating per damage type: the motion value of a weapon art
+# (AD-056.1, ARCHITECTURE.md P.1).
+ART_MOTION_FIELDS = {damage: f"{field}Correction"
+                     for damage, field in SPELL_DAMAGE_FIELDS.items()}
 
 # Magic.refCategory: which table refId names. 0 is an attack row, 1 a bullet;
 # 2 is a special effect and carries no damage of its own.
@@ -2652,11 +2664,31 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # and can roll nothing. A weapon usually appears on several rows -- one per
     # variant -- so the pools are unioned per weapon and the entries deduped,
     # keeping the highest weight seen for an effect.
+    #
+    # The art and spell tables resolve the same way, to ids rather than
+    # weights (AD-056.1): every row of SwordArtsTableParam / MagicTableParam
+    # carries its table's id as its own, so one table is all rows sharing it.
     CUSTOM_POOL_FIELDS = ("attachEffectTableId_1", "attachEffectTableId_2",
                           "attachEffectTableId_3")
+    CUSTOM_SPELL_FIELDS = ("magicTableId_1", "magicTableId_2")
+
+    def table_entries(name: str, entry_field: str) -> dict[int, set[int]]:
+        """Table id -> the ids it can hand out, zero-weight entries left out."""
+        entries: dict[int, set[int]] = collections.defaultdict(set)
+        for row in table(name).rows:
+            entry = row.values.get(entry_field, -1)
+            weight = row.values.get("chanceWeight", 0)
+            if isinstance(entry, int) and entry > 0 and weight > 0:
+                entries[row.id].add(entry)
+        return entries
+
+    art_tables = table_entries("SwordArtsTableParam", "swordArtsId")
+    spell_tables = table_entries("MagicTableParam", "magicId")
     custom_weapon = table("EquipParamCustomWeapon")
     weapon_pool_ids: dict[int, set[int]] = collections.defaultdict(set)
-    weapon_skill_pools: dict[int, set[int]] = collections.defaultdict(set)
+    weapon_art_pools: dict[int, set[int]] = collections.defaultdict(set)
+    weapon_spell_pools: dict[int, list[set[int]]] = collections.defaultdict(
+        lambda: [set() for _ in CUSTOM_SPELL_FIELDS])
     for r in custom_weapon.rows:
         target = r.values.get("targetWeaponId", -1)
         if not isinstance(target, int) or target <= 0:
@@ -2665,9 +2697,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             pool = r.values.get(field_name, -1)
             if isinstance(pool, int) and pool > 0:
                 weapon_pool_ids[target].add(pool)
-        skill = r.values.get("swordArtsTableId", -1)
-        if isinstance(skill, int) and skill > 0:
-            weapon_skill_pools[target].add(skill)
+        weapon_art_pools[target] |= art_tables.get(
+            r.values.get("swordArtsTableId", -1), set())
+        for spell_slot, field_name in zip(weapon_spell_pools[target],
+                                          CUSTOM_SPELL_FIELDS):
+            spell_slot |= spell_tables.get(r.values.get(field_name, -1), set())
 
     def weapon_effect_pool(weapon_id: int) -> list[dict[str, Any]]:
         """The effects this weapon can roll, with the game's own weights."""
@@ -2781,6 +2815,18 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # `nrplanner.model.is_unequippable_catalyst`.
                 "equipped_spells": [r.values.get("equippedSpell_R1", -1),
                                     r.values.get("equippedSpell_R2", -1)],
+                # The art the armament carries in its own row, raw: whether a
+                # tile starts on it or has to choose is the planner's rule
+                # (`damage.art_in_use`), not this file's (AD-056.4/6).
+                "art_default": r.values.get("swordArtsParamId", -1),
+                # Every art this armament can be found with, across its
+                # variants. Empty where it rolls none.
+                "art_pool": sorted(weapon_art_pools.get(r.id, ())),
+                # The spells a found staff or seal can carry, per slot. Slot 1
+                # holds one, slot 2 is rolled from 64 or 92 (AD-056, P.2), so
+                # `equipped_spells` is only the row's default for slot 2.
+                **({"spell_pools": [sorted(s) for s in weapon_spell_pools[r.id]]}
+                   if any(weapon_spell_pools.get(r.id, ())) else {}),
                 # Effects this weapon can roll, from its own pools. Empty for
                 # the armaments that roll nothing.
                 "effect_pool": weapon_effect_pool(r.id),
@@ -2860,7 +2906,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         )
 
     atk_table = param.read(
-        members["AtkParam_Pc"], only(atk_def, set(SPELL_DAMAGE_FIELDS.values()))
+        members["AtkParam_Pc"],
+        only(atk_def, {*SPELL_DAMAGE_FIELDS.values(), *ART_MOTION_FIELDS.values()}),
     )
     if not atk_table.rows or not atk_table.rows[0].values:
         raise NotWhatItClaims(
@@ -3014,6 +3061,47 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                    if damage_by_type else {}),
             }
         )
+
+    # ---- Weapon arts: SwordArtsParam -> AtkParam_Pc (AD-056.1) -------------
+    # An art names one AtkParam row. Where that row carries no flat figure,
+    # its corrections are the motion value -- the percentage of the swing's
+    # attack rating the hit deals. Where it does carry one, the figure is kept
+    # without a reader, so the dummy measurement OF-60 waits for can calibrate
+    # it without another version step. `damage_atk` is the row the game
+    # names, also where AtkParam_Pc holds no such row (Ironeye's 402): that is
+    # what tells "deals no damage" (-1) from "comes from a projectile this
+    # program does not read" (AD-056.5).
+    arts_name = text.get("ArtsName", {})
+    arts = []
+    for r in table("SwordArtsParam").rows:
+        name = (arts_name.get(r.values.get("textId")) or "").strip()
+        if not name:
+            continue
+        fp = r.values.get("useMagicPoint_L2", -1)
+        fp_follow_up = max(r.values.get("useMagicPoint_R1", -1),
+                           r.values.get("useMagicPoint_R2", -1))
+        atk_id = r.values.get("atkParamId", -1)
+        atk_row = atk_by_id.get(atk_id)
+        flat: dict[str, int] = {}
+        motion: dict[str, int] = {}
+        if atk_row is not None:
+            flat = {damage: atk_row.values[field]
+                    for damage, field in SPELL_DAMAGE_FIELDS.items()
+                    if atk_row.values.get(field, 0) > 0}
+            if not flat:
+                motion = {damage: atk_row.values[field]
+                          for damage, field in ART_MOTION_FIELDS.items()
+                          if atk_row.values.get(field, 0) > 0}
+        arts.append({
+            "id": r.id,
+            "name": name,
+            "icon": r.values.get("iconId"),
+            **({"fp": fp} if fp != -1 else {}),
+            **({"fp_follow_up": fp_follow_up} if fp_follow_up > 0 else {}),
+            **({"damage_atk": atk_id} if atk_id > 0 else {}),
+            **({"motion_value": motion} if motion else {}),
+            **({"damage": flat} if flat else {}),
+        })
 
     # ---- Chances the engine keeps in PlayerCommonParam's undescribed tail --
     # PlayerCommonParam's row is 760 bytes and its paramdef describes only the
@@ -3191,6 +3279,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         "calc_curves": all_curves,
         "weapons": weapons,
         "spells": spells,
+        "arts": arts,
         "weapon_families": weapon_families,
         "spell_families": spell_families,
         "reinforce": reinforce,
