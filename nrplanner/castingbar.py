@@ -15,7 +15,7 @@ import html
 from dataclasses import dataclass
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QColor, QFontMetrics, QPixmap
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QVBoxLayout, QWidget,
@@ -30,6 +30,7 @@ POPUP_VISIBLE_ROWS = 5
 POPUP_CELL = ICON_SIZE + 10
 NAME_LINES = 2
 DEFAULT_MARK = "●"
+POPUP_MARK = 8
 
 ART_CAPTION = "ART"
 RELIC_CAPTION = "RELIC"
@@ -177,6 +178,19 @@ def _icon(icons, record: dict | None) -> QPixmap:
                          Qt.SmoothTransformation)
 
 
+def _marked(pixmap: QPixmap) -> QPixmap:
+    """The symbol with an ACCENT dot in its corner, the popup's form of the
+    chip's mark (AK-411): the cell has no room for a line under the symbol."""
+    marked = QPixmap(pixmap)
+    painter = QPainter(marked)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(ACCENT))
+    painter.drawEllipse(marked.width() - POPUP_MARK, 0, POPUP_MARK, POPUP_MARK)
+    painter.end()
+    return marked
+
+
 def _tooltip(chip: Chip) -> str:
     """Name, school or art, FP, and the default note -- escaped (AK-419)."""
     record = chip.record or {}
@@ -304,7 +318,10 @@ class PoolPopup(QFrame):
         rows = -(-len(chip.pool) // POPUP_COLUMNS)
         self.list.setFixedHeight(min(rows, POPUP_VISIBLE_ROWS) * POPUP_CELL + 6)
         for record in chip.pool:
-            item = QListWidgetItem(_icon(icons, record), "")
+            icon = _icon(icons, record)
+            if record["id"] == chip.default_id:
+                icon = _marked(icon)
+            item = QListWidgetItem(icon, "")
             item.setData(Qt.UserRole, record["id"])
             item.setToolTip(html.escape(str(record.get("name", ""))))
             item.setData(Qt.AccessibleTextRole, str(record.get("name", "")))

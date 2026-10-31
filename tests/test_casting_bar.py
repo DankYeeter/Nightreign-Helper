@@ -9,7 +9,7 @@ from __future__ import annotations
 import html
 
 from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QColor, QKeyEvent
 
 from nrplanner import castingbar, damage, weaponslots
 from tests import weapon_damage_cases as cases
@@ -42,6 +42,36 @@ def popup_ids(planner, caption: str) -> list[int]:
            for i in range(popup.list.count())]
     popup.deleteLater()
     return ids
+
+
+def art_popup(planner) -> castingbar.PoolPopup:
+    widget = bar(planner).chip_widgets[0]
+    return castingbar.PoolPopup(widget.chip, None, lambda *_: None, widget,
+                                300)
+
+
+def accent_pixels(item) -> int:
+    image = item.icon().pixmap(castingbar.ICON_SIZE).toImage()
+    accent = QColor(castingbar.ACCENT).rgb()
+    return sum(image.pixel(x, y) == accent for x in range(image.width())
+               for y in range(image.height()))
+
+
+def footer(popup, row: int) -> str:
+    popup.list.setCurrentRow(row)
+    return popup.footer.text()
+
+
+def test_the_default_art_carries_the_dot_in_the_popup(planner, game_data):
+    """QA-313/AK-411: Wylder's own art, first, with the ACCENT dot; the
+    second entry without it."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
+    popup = art_popup(planner)
+
+    assert [accent_pixels(popup.list.item(row)) > 0 for row in (0, 1)] == [
+        True, False]
+    assert footer(popup, 0).endswith(castingbar.OWN_ART_NOTE)
+    popup.deleteLater()
 
 
 def test_wylder_gets_one_art_chip_whose_popup_is_his_pool(planner, game_data):
