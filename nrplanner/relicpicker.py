@@ -214,12 +214,15 @@ NO_CHANGE = "no change"
 #: carries no figures for what the player owns is a different state, said by
 #: `nothing_raises` under a ranking that exists (AK-46, AK-49).
 NO_SAVE_WAS_READ = ("No save was read, so there is nothing to rank these "
-                    "against — use Rescan save.")
+                    "against — use Find my save.")
 
 #: The save was read and holds no relics, chosen or found (AK-389):
-#: `NO_SAVE_WAS_READ` would be false then.
+#: `NO_SAVE_WAS_READ` would be false then. Both buttons, each with its
+#: cause (AK-407).
 SAVE_HOLDS_NO_RELICS = ("Your save has no relics in it yet, so there is "
-                        "nothing to rank — use Rescan save.")
+                        "nothing to rank — if you just played, use Rescan "
+                        "save; if they are on another Steam account, use "
+                        "Find my save.")
 
 #: What stands where the top left card will stand while the question is out
 #: (§3.8 fassung 3, AK-212). One line and nothing else: an empty area three

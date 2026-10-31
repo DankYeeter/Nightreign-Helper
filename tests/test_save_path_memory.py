@@ -846,6 +846,10 @@ def test_the_note_says_how_many_saves_were_passed_over(
             assert the_line(window).startswith(
                 head + clause + " — this save stores no builds yet")
             assert offers_to_find_the_save(window)
+        # AK-407 (c), with a save loaded: the addition follows the button.
+        assert window.rescan_button.toolTip() == (
+            RESCAN_TOOLTIP_NONE_FOUND if offers_to_find_the_save(window)
+            else RESCAN_TOOLTIP)
     finally:
         close(window, read)
 
@@ -965,7 +969,17 @@ SAVES_HOLD_NOTHING = ("Your save has no relics in it yet. If you play on more "
 NOTHING_TO_FILTER = ("Your save has no relics in it yet, so there is nothing "
                      "to filter.")
 NOTHING_TO_RANK = ("Your save has no relics in it yet, so there is nothing to "
-                   "rank — use Rescan save.")
+                   "rank — if you just played, use Rescan save; if they are "
+                   "on another Steam account, use Find my save.")
+#: AK-407 (b), the other three texts of its table.
+NOTHING_READ_TO_RANK = ("No save was read, so there is nothing to rank these "
+                        "against — use Find my save.")
+NOTHING_READ_TO_FILTER = ("No save was read, so there are no effects to "
+                          "filter yet — use Find my save.")
+RESCAN_TOOLTIP = ("Read your save again, from the file read last. Use it "
+                  "after you played.")
+RESCAN_TOOLTIP_NONE_FOUND = RESCAN_TOOLTIP + (" If none was found, use Find "
+                                              "my save.")
 #: AK-406, 4.8a and 4.8b of the advisor bar, word for word out of `UI_SPEC`
 #: "Nachtrag T-335n".
 BAR_NO_SAVE_READ = ("No save was read, so there are no relics to choose from "
@@ -1074,11 +1088,29 @@ def test_no_save_at_all_is_still_no_save_read(store, game_data, qapp,
         rendered.settle()
 
         assert the_filter_window_says(window, monkeypatch) == (
-            effectfilterdialog.NO_SAVE_WAS_READ)
-        assert the_picker_says(window) == relicpicker.NO_SAVE_WAS_READ
+            NOTHING_READ_TO_FILTER)
+        assert the_picker_says(window) == NOTHING_READ_TO_RANK
         assert the_bar_says(window) == BAR_NO_SAVE_READ
         assert "No save was read" not in BAR_SAVE_IS_EMPTY
         assert offers_to_find_the_save(window)
         assert window.rescan_button.isVisibleTo(window)
+    finally:
+        close(window, read)
+
+
+def test_rescan_says_it_rereads_and_points_on_while_nothing_was_found(
+        store, game_data, qapp, monkeypatch, tmp_path):
+    """AK-407 (c): the addition stands exactly while `Find my save...` does."""
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.toolTip() == RESCAN_TOOLTIP_NONE_FOUND
+
+        pick_and_read(window, a_save_file(tmp_path), read, monkeypatch)
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.toolTip() == RESCAN_TOOLTIP_NONE_FOUND
     finally:
         close(window, read)

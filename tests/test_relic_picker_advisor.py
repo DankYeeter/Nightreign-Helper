@@ -592,7 +592,7 @@ def test_with_no_ranking_every_card_says_so_and_the_header_says_why(slot):
             assert values_of(card) == [relicpicker.NO_FIGURE] * ROWS
         assert dialog.headline.text() == (
             "No save was read, so there is nothing to rank these against "
-            "— use Rescan save.")
+            "— use Find my save.")
         assert dialog.headline.isVisibleTo(dialog)
     finally:
         dialog.deleteLater()

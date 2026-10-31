@@ -221,6 +221,13 @@ FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder "
                         "named Nightreign under your Windows user profile. "
                         "This opens there.")
 
+#: AK-407: `Rescan save` repeats the last search, so it helps after playing;
+#: while `Find my save...` stands, the save may be elsewhere and the tooltip
+#: says so.
+RESCAN_TOOLTIP = ("Read your save again, from the file read last. Use it "
+                  "after you played.")
+RESCAN_TOOLTIP_NONE_FOUND = " If none was found, use Find my save."
+
 #: AK-296: the fixed sentences of the vessel list's tooltips, word for word
 #: out of `UI_SPEC` 4.4. A player picked "Wylder's Chalice" because the name
 #: sounded most like a chalice (QA-173); nothing told him the vessels differ
@@ -911,8 +918,8 @@ class Planner(QMainWindow):
         self.find_save_button = QPushButton(FIND_MY_SAVE)
         self.find_save_button.setToolTip(FIND_MY_SAVE_TOOLTIP)
         self.find_save_button.clicked.connect(self.find_my_save)
-        self.find_save_button.setVisible(False)
         row.addWidget(self.find_save_button)
+        self._offer_to_find_the_save(False)
         layout.addLayout(row)
 
         self.owned_label = QLabel()
@@ -2510,7 +2517,7 @@ class Planner(QMainWindow):
         """
         self.owned_label.setText(
             READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)
-        self.find_save_button.setVisible(False)
+        self._offer_to_find_the_save(False)
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(True)
 
@@ -2600,7 +2607,7 @@ class Planner(QMainWindow):
                 CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
                 else SAVES_HOLD_NOTHING if saves_hold_nothing
                 else NO_SAVE_FOUND)
-            self.find_save_button.setVisible(True)
+            self._offer_to_find_the_save(True)
             return
 
         note = (f"{self.owned.relic_count} relics in {self.owned.source}"
@@ -2630,7 +2637,7 @@ class Planner(QMainWindow):
         # unless the note just said other saves were passed over, in which
         # case the button is the way to one of them (AK-366, decision
         # 22.09.2026).
-        self.find_save_button.setVisible(bool(self.owned.other_saves))
+        self._offer_to_find_the_save(bool(self.owned.other_saves))
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
@@ -2678,7 +2685,13 @@ class Planner(QMainWindow):
         self.owned_label.setText(
             f"{CHOSEN_SAVE_UNREADABLE}\n{reason}" if self._answers_a_chosen_save
             else f"{UNREADABLE_SAVE}{reason}")
-        self.find_save_button.setVisible(True)
+        self._offer_to_find_the_save(True)
+
+    def _offer_to_find_the_save(self, offered: bool) -> None:
+        """Show or hide `Find my save...`; `Rescan save`'s tooltip follows."""
+        self.find_save_button.setVisible(offered)
+        self.rescan_button.setToolTip(
+            RESCAN_TOOLTIP + (RESCAN_TOOLTIP_NONE_FOUND if offered else ""))
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
