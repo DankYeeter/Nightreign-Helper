@@ -408,6 +408,28 @@ def test_the_note_goes_when_the_slot_it_names_gives_the_relic_up(
         "an empty slot with nothing to say says nothing"
 
 
+def test_emptying_the_slot_the_note_names_stores_the_empty_build(
+        planner, game_data, two_slots_of_one_colour):
+    """The player follows the note and the doubling is gone for good (QA-030).
+
+    Emptying the named slot leaves every slot empty, and an empty set of slots
+    was never written over a stored one -- so the stored build stayed doubled
+    and came back, note and all, with the next visit to the chalice. Emptied
+    by the player, it is his build and is saved (user, 2026-10-31).
+    """
+    row, vessel, first, second, _relic, _keys = a_build_wearing_one_relic_twice(
+        planner, game_data, two_slots_of_one_colour)
+    select_vessel(planner, row)
+
+    unequip(planner.base_slots[first])
+
+    assert not any(stored_keys(planner, vessel["id"]))
+    select_vessel(planner, other_vessel_row(planner, row))
+    select_vessel(planner, row)
+    assert relics_in(planner) == [None] * len(planner.base_slots)
+    assert "Already worn" not in planner.base_slots[second].rolled_label.text()
+
+
 # -- QA-024: what "Load equipped" reports afterwards ------------------------
 
 def test_load_equipped_counts_what_it_placed_and_names_the_reason(

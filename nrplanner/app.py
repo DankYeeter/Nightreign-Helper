@@ -574,6 +574,9 @@ class Planner(QMainWindow):
         # slot holds the same physical one. The stored build is then left as
         # it was, so the player can still decide which slot keeps it.
         self._unresolved_clash = False
+        # Set while the player's own move is being stored: a set of slots he
+        # emptied himself is his build, and is written like any other.
+        self._player_moved_a_relic = False
         # What every slot held before the answer on screen was first applied,
         # as stored keys, or None while there is nothing to undo. Taken once
         # per answer and not once per applying: `Use` on three slots one after
@@ -1852,10 +1855,13 @@ class Planner(QMainWindow):
         chalices.save_view(self.current_hero()["id"],
                            vessel["id"] if vessel else None,
                            self.deep_check.isChecked())
-        # The build itself is not. An empty set of slots is never written
-        # over a stored one -- Reset Chalice is how a build is forgotten,
-        # deliberately and per vessel.
-        if not any(keys):
+        # The build itself is not. An empty set of slots a restore left behind
+        # is never written over a stored one -- Reset Chalice is how a build
+        # is forgotten, deliberately and per vessel. One the player emptied
+        # himself is written: following "Already worn in Slot N" empties the
+        # last slot, and keeping the stored build brought the doubling back
+        # (QA-030, user 2026-10-31).
+        if not any(keys) and not getattr(self, "_player_moved_a_relic", False):
             return
         # Nor is a build the restore had to resolve. It names one physical
         # relic in two slots; which slot keeps it is the player's to decide,
@@ -2423,7 +2429,11 @@ class Planner(QMainWindow):
         self._unresolved_clash = False
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
-        self.recompute()
+        self._player_moved_a_relic = True
+        try:
+            self.recompute()
+        finally:
+            self._player_moved_a_relic = False
 
     def rescan_save(self, initial: bool = False) -> None:
         """Ask for the save to be read, in the background, and say so.
