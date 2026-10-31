@@ -25,7 +25,9 @@ from . import (bnd4, dvdbnd, icons, param, paramdef, regulation, tpf)
 #   2  the relic-slot cell, the four slot gems, the twelve damage-type icons
 #   3  Scarlet Rot and Sleep, the two status symbols the Nightlords tab had
 #      no art for
-ICON_VERSION = 3
+#   4  the weapon arts' symbols (`SwordArtsParam.iconId`), which sit in the
+#      item atlas beside the relics and spells (AD-056.2)
+ICON_VERSION = 4
 
 PORTRAIT_SIZE = 128
 ITEM_SIZE = 64
@@ -129,6 +131,17 @@ def write_manifest(manifest: dict, out_dir: pathlib.Path) -> None:
     os.replace(staged, out_dir / MANIFEST_NAME)
 
 
+def item_icon_ids(members: dict, defs: dict) -> set[int]:
+    """Every item-atlas symbol the program draws: relics, chalices,
+    armaments, spells and weapon arts."""
+    wanted = set()
+    for name in ("EquipParamAntique", "AntiqueStandParam", "EquipParamWeapon",
+                 "Magic", "SwordArtsParam"):
+        rows = param.read(members[name], defs[name]).rows
+        wanted |= {r.values.get("iconId") for r in rows}
+    return {i for i in wanted if isinstance(i, int) and i > 0}
+
+
 def build(
     game: pathlib.Path,
     defs_dir: pathlib.Path,
@@ -167,16 +180,7 @@ def build(
     report(f"portraits: {len(manifest['portraits'])}")
 
     # --- relic and chalice icons -----------------------------------------
-    wanted = set()
-    antique = param.read(members["EquipParamAntique"], defs["EquipParamAntique"])
-    wanted |= {r.values.get("iconId") for r in antique.rows}
-    stands = param.read(members["AntiqueStandParam"], defs["AntiqueStandParam"])
-    wanted |= {r.values.get("iconId") for r in stands.rows}
-    weapon_rows = param.read(members["EquipParamWeapon"], defs["EquipParamWeapon"])
-    wanted |= {r.values.get("iconId") for r in weapon_rows.rows}
-    magic_rows = param.read(members["Magic"], defs["Magic"])
-    wanted |= {r.values.get("iconId") for r in magic_rows.rows}
-    wanted = {i for i in wanted if isinstance(i, int) and i > 0}
+    wanted = item_icon_ids(members, defs)
 
     for icon_id in sorted(wanted):
         image = source.item_icon(icon_id, ITEM_SIZE)
