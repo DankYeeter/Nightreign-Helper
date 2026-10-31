@@ -4,7 +4,8 @@ The expected figures M1-M4 are `ARCHITECTURE.md` P.4: derived from
 `damage.equipped` on the v16 snapshot times the motion value. M1 is also
 measured at the training dummy (31.10. 12:59): Stamp hits for 262 one- and
 two-handed alike, so an art has one figure and no two-handed twin. M2-M4 pin
-the program's own arithmetic and are not measured.
+the program's own arithmetic and are not measured. M5 (P.7.2) is measured
+too: Wylder's Glintblade Phalanx on a grey Magic Longsword, 34 per blade.
 
 Level 15, the starting armament at `MIN_UPGRADE`, no relic unless named.
 """
@@ -27,6 +28,14 @@ ENDURE = 700
 WYLDERS_GREATSWORD = 3750000
 GLINTSTONE_PEBBLE = 4000
 GLINTSTONE_ARC = 4070
+GLINTBLADE_PHALANX = 200
+LONGSWORD = 2000000
+MAGIC_LONGSWORD = 2000800
+#: "Magic Attack Power Up +4" (+12 %).
+MAGIC_UP_4 = 6001501
+#: Flame Spit names AttackElementCorrect 1005, which the table lacks.
+FLAME_SPIT = 1001
+FLAME_SPIT_ARMAMENT = 32150000
 
 
 def build_for(game_data, hero, effect_ids=()):
@@ -122,14 +131,59 @@ def test_a_choice_outside_the_pool_is_dropped(game_data):
 @pytest.mark.parametrize("name, effect_ids, reason", [
     ("Raider", (), damage.ART_DEALS_NO_DAMAGE.format(name="Endure")),
     ("Ironeye", (), damage.ART_FROM_A_PROJECTILE.format(name="Mighty Shot")),
-    ("Wylder", (GLINTBLADE_PHALANX_RELIC,),
-     damage.ART_NOT_CALIBRATED.format(name="Glintblade Phalanx")),
 ])
 def test_an_art_without_a_figure_says_why(game_data, name, effect_ids,
                                           reason):
     rating = starting_art(game_data, name, effect_ids)
 
     assert rating.reason == reason
+    assert rating.per_type == {}
+
+
+def wylders_art_on(game_data, weapon_id, art_id, effect_ids=(),
+                    tier=weapons.MIN_UPGRADE):
+    """Wylder, level 15, the armament on his second tile with this art."""
+    wylder = cases.hero_by_name(game_data, "Wylder")
+    slot = WeaponSlot(cases.weapon_by_id(game_data, weapon_id), tier,
+                      art_id=art_id)
+    return damage.weapon_art(slot, 1, build_for(game_data, wylder, effect_ids),
+                             wylder, game_data)
+
+
+@pytest.mark.parametrize("weapon_id, tier, figure", [
+    (MAGIC_LONGSWORD, weapons.MIN_UPGRADE, 34),  # M5, measured
+    (MAGIC_LONGSWORD, 3, 34),                    # no tier factor before M6
+    (LONGSWORD, weapons.MIN_UPGRADE, 30),        # no Intelligence scaling
+])
+def test_glintblade_phalanx_hits_for_its_flat_figure(game_data, weapon_id,
+                                                     tier, figure):
+    rating = wylders_art_on(game_data, weapon_id, GLINTBLADE_PHALANX,
+                            tier=tier)
+
+    assert rating.reason is None
+    assert damage.displayed(rating.figure) == figure
+
+
+def test_a_magic_attack_relic_lifts_the_flat_figure(game_data):
+    plain = wylders_art_on(game_data, MAGIC_LONGSWORD, GLINTBLADE_PHALANX)
+    buffed = wylders_art_on(game_data, MAGIC_LONGSWORD, GLINTBLADE_PHALANX,
+                            (MAGIC_UP_4,))
+
+    assert buffed.figure > plain.figure
+    assert buffed.bare_figure == pytest.approx(plain.bare_figure)
+
+
+def test_glintblade_phalanx_by_relic_on_the_starting_armament(game_data):
+    rating = starting_art(game_data, "Wylder", (GLINTBLADE_PHALANX_RELIC,))
+
+    assert rating.art["id"] == GLINTBLADE_PHALANX
+    assert rating.reason is None and rating.figure > 0
+
+
+def test_a_flat_art_on_an_unknown_scaling_row_says_why(game_data):
+    rating = wylders_art_on(game_data, FLAME_SPIT_ARMAMENT, FLAME_SPIT)
+
+    assert rating.reason == damage.ART_NOT_CALIBRATED.format(name="Flame Spit")
     assert rating.per_type == {}
 
 

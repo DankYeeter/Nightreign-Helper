@@ -1201,17 +1201,45 @@ class ArtRating:
         return sum(self.bare_per_type.values())
 
 
-def _no_art_figure(art: dict | None, rolled: bool) -> str | None:
+def _no_art_figure(art: dict | None, rolled: bool,
+                   element_correct: dict) -> str | None:
     """Why this art gets a sentence and not a number (AD-056.5)."""
     if art is None:
         return NO_ART_CHOSEN if rolled else NO_WEAPON_ART
     if "damage_atk" not in art:
         return ART_DEALS_NO_DAMAGE.format(name=art["name"])
     if "damage" in art:
-        return ART_NOT_CALIBRATED.format(name=art["name"])
+        # Flame Spit names AttackElementCorrect 1005, which the table lacks.
+        own = art.get("element_correct_id")
+        if own is not None and str(own) not in element_correct:
+            return ART_NOT_CALIBRATED.format(name=art["name"])
+        return None
     if not art.get("motion_value"):
         return ART_FROM_A_PROJECTILE.format(name=art["name"])
     return None
+
+
+def _flat_hit(art: dict, slot, attributes: dict[str, int],
+              data: dict) -> dict[str, float]:
+    """One hit of a flat-class art, before any rate (AD-056 P.7.2).
+
+        flat_hit[T] = damage[T] x (1 + bonus[T]) x GAME_ATTACK_POWER_RATE
+
+    `bonus` is the armament's attribute scaling, read through the art's own
+    AttackElementCorrect row where it has one. No `reinforce.atk` on the
+    flat figure and no Nightfarer calibration: Glintblade Phalanx hit 34 per
+    blade on a grey Magic Longsword (M5), and whether the figure grows with
+    the tier is unmeasured (M6, `docs/plan-restarbeiten.md`).
+    """
+    flat = art["damage"]
+    stand_in = {**slot.weapon, "base": flat,
+                "element_correct_id": art.get(
+                    "element_correct_id", slot.weapon.get("element_correct_id"))}
+    _, _, _, per_damage = weapons._rate_shared(stand_in, attributes, data,
+                                               slot.tier, "")
+    return {damage: flat[damage] * (1 + bonus)
+            * weapons.GAME_ATTACK_POWER_RATE
+            for damage, (_, bonus) in per_damage.items()}
 
 
 def weapon_art(slot, slot_index: int, build: model.Build, hero: dict,
@@ -1227,14 +1255,28 @@ def weapon_art(slot, slot_index: int, build: model.Build, hero: dict,
     alike (measured 31.10. 12:59, M1), so the hand does not reach an art.
     Assumed and not measured: the row `SwordArtsParam.atkParamId` names is
     the main hit (AD-056.3 b).
+
+    A flat-class art (`damage` instead of `motion_value`) is `_flat_hit`
+    under the same rates, one hit as well: Glintblade Phalanx's four blades
+    are four figures, each truncated on its own (P.7.2).
     """
     art, swaps = art_in_use(slot, slot_index, build, hero, data)
+    starting = is_starting_armament(slot.weapon, hero, slot_index)
     rolled = art is None and fixed_entry(
         slot.weapon.get("art_default", -1), slot.weapon.get("art_pool") or (),
-        is_starting_armament(slot.weapon, hero, slot_index)) is None
-    reason = _no_art_figure(art, rolled)
+        starting) is None
+    reason = _no_art_figure(art, rolled, data["element_correct"])
     if reason is not None:
         return ArtRating(art, {}, {}, reason, swaps)
+    if "damage" in art:
+        bare = _flat_hit(art, slot, build.base_attributes, data)
+        now, _ = _multiplied(
+            _flat_hit(art, slot, build.attributes, data), build,
+            art=model.SKILL_ART,
+            buckets=[build.class_rates.get(
+                model.weapon_class(slot.weapon), {})],
+            starting_armament=starting)
+        return ArtRating(art, now, bare, None, swaps)
     motion = art["motion_value"]
     bare, now = equipped(slot, slot_index, build, hero, data,
                          art=model.SKILL_ART)
