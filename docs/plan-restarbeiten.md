@@ -638,3 +638,10 @@ und **bei 1,4 % gestoppt**, `StrEnum` am Zirkelimport abgelehnt, `CLAUDE.md`
 Aussicht gestellt hat — und dazu ein Waechter, den es vorher nicht gab, zwei
 bestaetigte strukturelle Schulden (P10) und sieben neue Befunde. **Der Wert
 dieses Korbs lag nicht in den geloeschten Zeilen.**
+
+## Naechstes Release, zuerst (Nutzer 28.10.2026 22:40)
+
+- Zauber und Weapon Art selbst waehlen, damit die Schadenszahl jeden Zauber
+  bzw. jede Art zeigt (heute fest am Stab/an der Startwaffe). Woertlich:
+  "ich muss ja spells auswählen damit du mir den dmg davon anzeigen kannst.
+  dasselbe gilt für weapon arts. hier müssen wir demnächst nachbessern."
