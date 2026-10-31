@@ -50,6 +50,8 @@ NO_BREAK_SPACE = "\u00a0"
 
 SLOT_COUNT = 6
 SLOT_COLUMNS = 3
+# The gold ring of a tile or chip; the plain border is one pixel of it.
+RING_WIDTH = 2
 # A weapon draws from up to three pools, so it can carry three rolled effects,
 # exactly as a relic does.
 MAX_WEAPON_EFFECTS = 3
@@ -230,15 +232,16 @@ class WeaponTile(cardgrid.HoverCard):
         """The gold ring marks the active tile, dashed the focused one, the
         active one included (AK-413, T-335fix2); the fill the pointer alone:
         a clicked tile keeps the focus, and a fill that stayed after the
-        pointer left would be QA-157 again."""
+        pointer left would be QA-157 again. The thin border keeps a pixel of
+        margin, so the ring takes no room from the row (QA-316)."""
         ringed = self.active or self.hasFocus()
         border = ACCENT if ringed else BORDER
-        width = 2 if ringed else 1
+        width = RING_WIDTH if ringed else 1
         style = "dashed" if self.hasFocus() else "solid"
         fill = HOVER_FILL if self.hovered else PANEL
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {width}px {style} {border};"
-            f" border-radius: 6px; }}"
+            f" margin: {RING_WIDTH - width}px; border-radius: 6px; }}"
         )
 
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,

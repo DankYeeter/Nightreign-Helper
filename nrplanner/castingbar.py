@@ -267,14 +267,17 @@ class ChipWidget(cardgrid.HoverCard):
     def _apply_appearance(self) -> None:
         chip = self.chip
         border = ACCENT if chip.selected or self.hasFocus() else BORDER
-        width = 2 if chip.selected or self.hasFocus() else 1
+        width = (weaponslots.RING_WIDTH if chip.selected or self.hasFocus()
+                 else 1)
         # Dashed: a chip to choose, or the focus (T-335fix2, as on the tiles).
         style = ("dashed" if chip.record is None or self.hasFocus()
                  else "solid")
         fill = HOVER_FILL if self.hovered or self.hasFocus() else PANEL
+        # The margin keeps the ring from taking room, as on the tiles (QA-316).
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {width}px {style}"
-            f" {border}; border-radius: 6px; }}")
+            f" {border}; margin: {weaponslots.RING_WIDTH - width}px;"
+            f" border-radius: 6px; }}")
 
     def focusInEvent(self, event) -> None:  # noqa: N802 - Qt naming
         self._apply_appearance()

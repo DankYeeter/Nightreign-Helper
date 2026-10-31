@@ -7,6 +7,7 @@ choice goes through the bar's own signal as a click would send it.
 from __future__ import annotations
 
 import html
+from dataclasses import replace
 
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QColor, QKeyEvent
@@ -197,6 +198,25 @@ def test_the_chips_sit_between_the_tiles_and_the_hand_switch_in_tab_order(
         return widget
 
     assert [next_tab_stop(widget) for widget in chain[:-1]] == chain[1:]
+
+
+def test_the_ring_takes_no_room(planner, game_data):
+    """QA-316: focus or the active ring left the room inside a tile or chip
+    as it was -- a wider border reflowed the row and moved all below it."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
+    tile = planner.stat_sheet.weapon_tiles[1]
+    tile.ensurePolished()
+    plain = tile.contentsRect()
+    tile.active = True
+    tile._apply_appearance()
+    assert tile.contentsRect() == plain
+    chip = replace(chips(planner)[0], selected=False)
+    for widget in (tile, castingbar.ChipWidget(chip, None, lambda _w: None)):
+        widget.ensurePolished()
+        plain = widget.contentsRect()
+        widget.hasFocus = lambda: True
+        widget._apply_appearance()
+        assert widget.contentsRect() == plain
 
 
 def test_focus_is_dashed_and_the_active_ring_solid(planner, game_data):
