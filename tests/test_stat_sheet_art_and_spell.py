@@ -47,12 +47,13 @@ SKILL_BUFF = 312300
 FIGURE = (r"(-?\d+)"
           r"(?: 1H<span[^>]*> / -?\d+ 2H</span>)?")
 
-#: `Weapon art <grey> <change> <bold>` (AK-355), the wording out of
-#: `model.ART_LABELS` (AK-363).
+#: `Weapon art (<art>) <grey> <change> <bold>` (AK-416, F1), the wording out
+#: of `model.ART_LABELS` (AK-363). One figure each, no two-handed twin: the
+#: dummy shows an art at one figure in either hand (M1, 31.10. 12:59).
 ART_ROW = re.compile(
-    rf"<div>Weapon art <span style='color:[^']*'>{FIGURE}</span> "
-    rf"<span style='color:[^']*'>([^<]*)</span> "
-    rf"<b style='color:[^']*'>{FIGURE}</b></div>")
+    r"<div>Weapon art \((.*?)\) <span style='color:[^']*'>(-?\d+)</span> "
+    r"<span style='color:[^']*'>([^<]*)</span> "
+    r"<b style='color:[^']*'>(-?\d+)</b></div>")
 
 #: `Spell damage (<spell>) <grey> <change> <bold, a link>` (AK-359/AK-361),
 #: and deliberately without the two-handed alternative above: the two-handing
@@ -79,7 +80,12 @@ def panel(planner) -> str:
 def art_row(planner):
     """(grey, change, bold) of the Weapon art row, or None where none is drawn."""
     match = ART_ROW.search(panel(planner))
-    return match and (int(match.group(1)), match.group(2), int(match.group(3)))
+    return match and (int(match.group(2)), match.group(3), int(match.group(4)))
+
+
+def art_name(planner) -> str | None:
+    match = ART_ROW.search(panel(planner))
+    return match and match.group(1)
 
 
 def spell_row(planner):
@@ -209,39 +215,69 @@ def test_a_physical_attack_relic_moves_the_spell_row_and_the_total_alike(
     assert total_row(planner)[0] == before_total[0]
 
 
-def test_wylder_s_weapon_art_row_moves_under_a_skill_buff_and_not_otherwise(
+def test_wylder_s_weapon_art_row_moves_under_a_skill_buff_and_a_physical_one(
         planner, game_data, physical_relic):
-    """The other half of the A27 criterion, in both directions.
+    """The art row under F1 (AK-416): one hit of the art, grey with nothing
+    equipped, the way every other row of the panel compares.
 
     A skill-scoped relic moves this row and leaves the total alone; a
-    physical attack relic moves the total and leaves this row's difference at
-    `no change`, because its baseline is the total beside it rather than a
-    relic-free figure (AK-355). Both halves are needed: with either one
-    missing, a row that simply repeated the total would pass.
+    physical attack relic moves both, the art by the motion value's share.
     """
     hero = cases.hero_by_name(game_data, "Wylder")
     draw(planner, game_data, hero)
-    assert art_row(planner) == pytest.approx(art_row(planner))
     bare_grey, bare_change, bare_bold = art_row(planner)
-    assert bare_change == "no change" and bare_grey == bare_bold, (
-        "with nothing equipped the Weapon Art reaches no factor, so the row "
-        "has to read as unmoved")
+    assert bare_change == "no change" and bare_grey == bare_bold
 
     draw(planner, game_data, hero, [SKILL_BUFF])
     grey, change, bold = art_row(planner)
     assert re.fullmatch(r"\+\d+", change), (
         f"the skill buff left the Weapon art row at {change!r}")
-    assert bold > grey
+    assert bold > grey == bare_grey
     assert total_row(planner)[1] == "no change", (
         "the skill buff moved the total row as well, and scope 112/111 "
         "reaches the Weapon Art alone")
 
     draw(planner, game_data, hero, [physical_relic(hero)])
-    assert art_row(planner)[1] == "no change", (
-        "a physical attack relic moved the Weapon art row's difference; its "
-        "baseline is the total above it, which the same relic lifts by the "
-        "same amount")
+    assert re.fullmatch(r"\+\d+", art_row(planner)[1])
     assert re.fullmatch(r"\+\d+", total_row(planner)[1])
+
+
+@pytest.mark.parametrize("two_handing", [False, True])
+def test_stamp_reads_262_in_either_hand(planner, game_data, two_handing):
+    """M1, measured at the dummy 31.10. 12:59: one figure, no twin, and the
+    hand switch does not move it."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    planner.stat_sheet.hand_switch.setChecked(two_handing)
+    draw(planner, game_data, hero)
+
+    assert art_name(planner) == "Stamp (Upward Cut)"
+    assert art_row(planner)[2] == 262
+
+
+def test_a_rolled_armament_without_a_choice_gets_no_art_row(
+        planner, game_data):
+    """AK-412: no guessed figure -- the casting bar asks for the choice."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    draw(planner, game_data, hero,
+         armaments=((0, hero["starting_weapon"]),
+                    (1, hero["starting_weapon"])), active=1)
+
+    assert art_row(planner) is None
+
+
+def test_a_fixed_art_on_a_found_armament_gets_its_row(planner, game_data):
+    """AK-416 (a): every filled tile with a resolved art, not only slot 1."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    found = next(w for w in game_data["weapons"]
+                 if not w["art_pool"] and w["id"] != hero["starting_weapon"]
+                 and w.get("wep_type") not in damage.GENUS_OF_CATALYST
+                 and "motion_value" in next(
+                     a for a in game_data["arts"]
+                     if a["id"] == w["art_default"]))
+    draw(planner, game_data, hero,
+         armaments=((0, hero["starting_weapon"]), (1, found["id"])), active=1)
+
+    assert art_row(planner) is not None
 
 
 def test_wylder_gets_no_spell_row_at_all(planner, game_data):

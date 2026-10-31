@@ -434,8 +434,10 @@ class WeaponDialog(QDialog):
         weapon = current.data(Qt.UserRole)
         if self.slot.weapon is None or weapon["id"] != self.slot.weapon["id"]:
             # A different armament rolls from a different pool, so effects
-            # chosen for the old one cannot be carried across.
+            # chosen for the old one cannot be carried across -- nor its
+            # art or spell (AK-414).
             self.slot.effect_ids = []
+            self.slot.art_id = self.slot.spell_id = None
         self.slot.weapon = weapon
         self._rebuild_effects()
 

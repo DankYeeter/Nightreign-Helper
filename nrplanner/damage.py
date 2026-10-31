@@ -1068,7 +1068,7 @@ def _base_damage(record: dict, damage_type: str) -> float:
     return float(sum(base.values()))
 
 
-def _fixed(default: int, pool, starting: bool) -> int | None:
+def fixed_entry(default: int, pool, starting: bool) -> int | None:
     """What a slot carries without a choice, or `None` where it is rolled.
 
     AD-056.4 point 3, for an art and for each spell slot alike: the starting
@@ -1111,7 +1111,7 @@ def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
     `chosen` is the tile's own pick (`WeaponSlot.spell_id`). It counts where
     it lies in one of this catalyst's `spell_pools` and is dropped otherwise;
     a swap beats it (AD-056.4). Without one, the first slot that is fixed
-    (`_fixed`) is cast -- slot 1 of every catalyst, as measured.
+    (`fixed_entry`) is cast -- slot 1 of every catalyst, as measured.
     """
     spells = data.get("spells") or ()
     swapped = [record for record in
@@ -1126,8 +1126,8 @@ def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
     if chosen is not None and any(chosen in pool for pool in pools):
         return _record_by_id(spells, chosen), 0
     for index, default in enumerate(catalyst.get(model.SPELL_SLOTS_KEY) or ()):
-        fixed = _fixed(default, pools[index] if index < len(pools) else (),
-                       starting)
+        fixed = fixed_entry(
+            default, pools[index] if index < len(pools) else (), starting)
         if fixed is not None and fixed != model.NO_SPELL_SLOT:
             return _record_by_id(spells, fixed), 0
     return None, 0
@@ -1146,7 +1146,7 @@ def art_in_use(slot, slot_index: int, build: model.Build, hero: dict,
     The one rule (AD-056.4) the stat sheet, the casting bar, the advisor and
     Why are to ask: a swap relic on the starting armament first, the stronger
     of two; then the tile's own `art_id` where it lies in this armament's
-    `art_pool`; then what the armament carries fixed (`_fixed`). `None`
+    `art_pool`; then what the armament carries fixed (`fixed_entry`). `None`
     where none of the three applies -- a rolled armament nobody chose for --
     or where the art is not in the `arts` block.
     """
@@ -1161,7 +1161,7 @@ def art_in_use(slot, slot_index: int, build: model.Build, hero: dict,
     pool = weapon.get("art_pool") or ()
     if slot.art_id is not None and slot.art_id in pool:
         return _record_by_id(arts, slot.art_id), 0
-    fixed = _fixed(weapon.get("art_default", -1), pool, starting)
+    fixed = fixed_entry(weapon.get("art_default", -1), pool, starting)
     return (None if fixed is None else _record_by_id(arts, fixed)), 0
 
 
@@ -1171,10 +1171,11 @@ class ArtRating:
 
     #: The art in use (`art_in_use`), `None` where there is none.
     art: dict | None
-    #: One hit per damage type, one hand; empty wherever `reason` is set.
+    #: One hit per damage type; empty wherever `reason` is set.
     per_type: dict[str, float]
-    #: The same hit held in both hands, `None` where the game offers none.
-    two_handed_per_type: dict[str, float] | None
+    #: The same hit with nothing equipped (`Question.BARE`), the "before" a
+    #: display puts against `per_type`, out of the same call (assurance Z1).
+    bare_per_type: dict[str, float]
     #: Why there is no figure, else `None` (AD-056.5).
     reason: str | None
     #: How many relics swapped the art (`art_in_use`).
@@ -1185,10 +1186,8 @@ class ArtRating:
         return sum(self.per_type.values())
 
     @property
-    def two_handed_figure(self) -> float | None:
-        if self.two_handed_per_type is None:
-            return None
-        return sum(self.two_handed_per_type.values())
+    def bare_figure(self) -> float:
+        return sum(self.bare_per_type.values())
 
 
 def _no_art_figure(art: dict | None, rolled: bool) -> str | None:
@@ -1210,31 +1209,31 @@ def weapon_art(slot, slot_index: int, build: model.Build, hero: dict,
 
         art_hit[T] = final_per_type[T] x motion_value[T] / 100
 
-    on the armament's real figure under `art=SKILL_ART`, per hand, so the
+    on the armament's one-handed figure under `art=SKILL_ART`, so the
     starting conversion, the relic rates and the skill rates are already in
-    it and the motion value is the one factor after them. Assumed and not
-    measured: the dummy shows AR x MV with no defence taken off, and the row
-    `SwordArtsParam.atkParamId` names is the main hit (AD-056.3 a/b, M1).
+    it and the motion value is the one factor after them. **One figure, no
+    two-handed twin**: Stamp hits the dummy for 262 one- and two-handed
+    alike (measured 31.10. 12:59, M1), so the hand does not reach an art.
+    Assumed and not measured: the row `SwordArtsParam.atkParamId` names is
+    the main hit (AD-056.3 b).
     """
     art, swaps = art_in_use(slot, slot_index, build, hero, data)
-    rolled = art is None and _fixed(
+    rolled = art is None and fixed_entry(
         slot.weapon.get("art_default", -1), slot.weapon.get("art_pool") or (),
         is_starting_armament(slot.weapon, hero, slot_index)) is None
     reason = _no_art_figure(art, rolled)
     if reason is not None:
-        return ArtRating(art, {}, None, reason, swaps)
+        return ArtRating(art, {}, {}, reason, swaps)
     motion = art["motion_value"]
-    rating = equipped(slot, slot_index, build, hero, data,
-                      art=model.SKILL_ART)[1]
+    bare, now = equipped(slot, slot_index, build, hero, data,
+                         art=model.SKILL_ART)
 
     def hit(hand: Rating) -> dict[str, float]:
         return {damage: value * motion[damage] / MOTION_VALUE_SCALE
                 for damage, value in hand.final_per_type.items()
                 if damage in motion}
 
-    return ArtRating(art, hit(rating),
-                     None if rating.two_handed is None
-                     else hit(rating.two_handed), None, swaps)
+    return ArtRating(art, hit(now), hit(bare), None, swaps)
 
 
 def candidate(weapon: dict, target_tier: int, build: model.Build,

@@ -740,6 +740,8 @@ class Planner(QMainWindow):
         # same road: `recompute` stores it and tells the advisor (AK-293.5).
         self.stat_sheet.hand_switch.toggled.connect(
             lambda _on: self.recompute())
+        self.stat_sheet.casting.art_chosen.connect(self._choose_art)
+        self.stat_sheet.casting.spell_chosen.connect(self._choose_spell)
         self.panes.addWidget(self.stat_sheet)
         self.apply_hero_weapon()
         self._wire_the_advisor()
@@ -1514,6 +1516,18 @@ class Planner(QMainWindow):
 
     def _clear_weapon_slot(self, index: int) -> None:
         self.weapon_slots[index] = weaponslots.WeaponSlot()
+        self._store_weapon_loadout()
+        self.recompute()
+
+    def _choose_art(self, art_id: int) -> None:
+        """The casting bar picked an art for the active tile (AK-414)."""
+        self.active_slot().art_id = art_id
+        self._store_weapon_loadout()
+        self.recompute()
+
+    def _choose_spell(self, spell_id: int) -> None:
+        """The casting bar picked a spell for the active tile (AK-414)."""
+        self.active_slot().spell_id = spell_id
         self._store_weapon_loadout()
         self.recompute()
 

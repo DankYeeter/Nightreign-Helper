@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import damage, effecttext, model, relicslots, weapons, weaponslots
+from . import (castingbar, damage, effecttext, model, relicslots, weapons,
+               weaponslots)
 from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
@@ -346,6 +347,12 @@ class StatSheet(QScrollArea):
                            index % weaponslots.SLOT_COLUMNS)
         layout.addLayout(grid)
 
+        # AK-410: the spell and the weapon art the selected tile uses, chosen
+        # here; the window stores a choice on the tile and recomputes.
+        self.casting = castingbar.CastingBar(_heading("Casting"),
+                                             planner.icons)
+        layout.addWidget(self.casting)
+
         # Every toggle ends in the window's `recompute`, which stores the
         # build and tells the advisor (AK-293 point 5); the window wires it.
         self.hand_switch = HandSwitch()
@@ -584,17 +591,21 @@ class StatSheet(QScrollArea):
         beside = QPoint(18, 0) if getattr(self, "last_ar", None) else QPoint()
         QToolTip.showText(QCursor.pos() + beside, self._ar_breakdown_text())
 
-    def _weapon_art_row(self, slot, build, hero, now,
-                        two_handing: bool) -> str:
-        """The same armament under its Weapon Art's factor (AK-354/AK-355).
+    def _weapon_art_row(self, slot, build, hero, now) -> str:
+        """The Weapon art row: what the art in use hits for (AK-416, F1).
 
-        A second call of the facade function that filled the row above, with
-        `art=model.SKILL_ART`; only its equipped half counts. The baseline is
-        deliberately the total above rather than the relic-free figure: what
-        this row asks is what the art adds to what the armament already hits
-        for, so a Strength relic moves both rows alike and leaves this one's
-        difference at `no change`, and a skill-scoped relic (scope 112/111)
-        is the only one that moves it.
+        The art and its figure are the facade's (`damage.weapon_art`,
+        AD-056): one hit, AR x motion value, and one figure with no
+        two-handed twin -- the dummy shows Stamp at 262 either way (M1), so
+        the row does not follow the hand switch. Grey is the same hit with
+        nothing equipped, the yardstick every other row of this panel uses
+        (the panel's own footnote, and the spell row's AK-359); AK-355's
+        "the total above" was a yardstick for a factor on the total and has
+        no meaning for a figure 2.15 times it.
+
+        An art without a figure names itself and says why (AD-056.5); a
+        rolled armament nobody chose an art for gets no row -- the casting
+        bar asks for the choice (AK-412).
 
         AK-356: on a staff or a seal the head of the armament is a spell
         power and no attack art reaches it (AD-048/AD-053 point 5), so the
@@ -604,19 +615,25 @@ class StatSheet(QScrollArea):
         if now.catalyst_scaling is not None:
             return (f"<div style='color:{MUTED}'>"
                     f"{ART_ON_A_CATALYST.format(art=label)}</div>")
-        skill = damage.equipped(slot, self.planner.active_weapon, build, hero,
-                                self.planner.data, art=model.SKILL_ART)[1]
-        delta = skill.final_headline - now.final_headline
+        art = damage.weapon_art(slot, self.planner.active_weapon, build, hero,
+                                self.planner.data)
+        if art.art is None:
+            return ""
+        # Game text in a rich-text label is escaped (SEC-019, AK-419).
+        head = f"{label} ({html.escape(str(art.art.get('name', '')))})"
+        if art.reason:
+            return (f"<div>{head} <span style='color:{MUTED}'>"
+                    f"{html.escape(art.reason)}</span></div>")
+        delta = art.figure - art.bare_figure
         colour = (GOOD if delta > COLOURED_CHANGE
                   else BAD if delta < -COLOURED_CHANGE else MUTED)
         change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
                   else "no change")
         return (
-            f"<div>{label} <span style='color:{MUTED}'>"
-            f"{now.displayed_hands(lambda r: r.final_headline, two_handing)}"
-            f"</span> <span style='color:{colour}'>{change}</span> "
-            f"<b style='color:{ACCENT}'>"
-            f"{skill.displayed_hands(lambda r: r.final_headline, two_handing)}"
+            f"<div>{head} <span style='color:{MUTED}'>"
+            f"{damage.displayed(art.bare_figure)}</span> "
+            f"<span style='color:{colour}'>{change}</span> "
+            f"<b style='color:{ACCENT}'>{damage.displayed(art.figure)}"
             f"</b></div>"
         )
 
@@ -648,7 +665,9 @@ class StatSheet(QScrollArea):
         on_tile = catalyst is slot.weapon
         if catalyst is None or not (on_tile or starting):
             return []
-        thrown = damage.spell_thrown(build, data, catalyst, starting=own)[0]
+        thrown = damage.spell_thrown(
+            build, data, catalyst, starting=own,
+            chosen=slot.spell_id if on_tile else None)[0]
         if thrown is None:
             return []
         # `damage_type=""`: this panel has no damage-type box, so the figure
@@ -708,6 +727,7 @@ class StatSheet(QScrollArea):
                 effects=self.planner.data["effects"], two_handing=two_handing)
 
         slot = self.planner.active_slot()
+        self._refresh_casting(slot, build, hero)
         if not slot.filled:
             self.last_ar = {}
             self.ar_label.setText(
@@ -794,9 +814,8 @@ class StatSheet(QScrollArea):
         # yardsticks, never a sum of them (AK-362).
         starting = damage.is_starting_armament(
             weapon, hero, self.planner.active_weapon)
-        if starting:
-            rows.append(self._weapon_art_row(slot, build, hero, now,
-                                             two_handing))
+        if starting or now.catalyst_scaling is None:
+            rows.append(self._weapon_art_row(slot, build, hero, now))
         rows += self._spell_damage_rows(slot, build, hero, starting)
 
         # Status the armament applies on a landed hit. This belongs with the
@@ -873,6 +892,16 @@ class StatSheet(QScrollArea):
             f"relics add, counting stat gains and attack multipliers.</div>"
         )
         self.ar_label.setText("".join(rows))
+
+    def _refresh_casting(self, slot, build, hero) -> None:
+        """Redraw the casting bar for the active tile, its chips in the tab
+        order between the tiles and the hand switch (AK-413)."""
+        self.casting.show_chips(*castingbar.chips_for(
+            slot, self.planner.active_weapon, build, hero, self.planner.data))
+        chain = [self.hand_switch.previousInFocusChain(),
+                 *self.casting.chip_widgets, self.hand_switch]
+        for before, after in zip(chain, chain[1:]):
+            QWidget.setTabOrder(before, after)
 
     def _sync_situational(self, entries: list, declared: dict) -> None:
         """Draw one switch per gated effect, rebuilding only when the set changes.

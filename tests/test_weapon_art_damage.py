@@ -1,10 +1,10 @@
 """Which art and which spell a tile uses, and what the art hits for (AD-056.3/4).
 
 The expected figures M1-M4 are `ARCHITECTURE.md` P.4: derived from
-`damage.equipped` on the v16 snapshot times the motion value, **not** measured
-at the training dummy. They pin the program's own arithmetic; M1 at the dummy
-is the user's measurement still to come (OF-61), and a miss there moves the
-assumption AD-056.3 a/b, not these lines.
+`damage.equipped` on the v16 snapshot times the motion value. M1 is also
+measured at the training dummy (31.10. 12:59): Stamp hits for 262 one- and
+two-handed alike, so an art has one figure and no two-handed twin. M2-M4 pin
+the program's own arithmetic and are not measured.
 
 Level 15, the starting armament at `MIN_UPGRADE`, no relic unless named.
 """
@@ -49,22 +49,26 @@ def starting_art(game_data, name, effect_ids=(), slot_index=0, art_id=None):
                              hero, game_data)
 
 
-@pytest.mark.parametrize("name, effect_ids, art_id, one, two", [
-    ("Wylder", (), STAMP, 262, 270),                                  # M1
-    ("Wylder", (LIGHTNING_SLASH_RELIC,), LIGHTNING_SLASH, 207, 213),  # M2
-    ("Executor", (), None, 180, None),                                # M3
-    ("Undertaker", (), None, 214, None),                              # M4
+@pytest.mark.parametrize("name, effect_ids, art_id, figure", [
+    ("Wylder", (), STAMP, 262),                                  # M1
+    ("Wylder", (LIGHTNING_SLASH_RELIC,), LIGHTNING_SLASH, 207),  # M2
+    ("Executor", (), None, 180),                                 # M3
+    ("Undertaker", (), None, 214),                               # M4
 ])
 def test_the_art_hits_for_the_derived_figure(game_data, name, effect_ids,
-                                             art_id, one, two):
+                                             art_id, figure):
     rating = starting_art(game_data, name, effect_ids)
 
     assert rating.reason is None
-    assert damage.displayed(rating.figure) == one
+    assert damage.displayed(rating.figure) == figure
     if art_id is not None:
         assert rating.art["id"] == art_id
-    if two is not None:
-        assert damage.displayed(rating.two_handed_figure) == two
+
+
+def test_with_nothing_equipped_the_art_stands_on_its_baseline(game_data):
+    rating = starting_art(game_data, "Wylder")
+
+    assert rating.bare_figure == pytest.approx(rating.figure)
 
 
 def test_a_held_swap_relic_is_counted(game_data):
