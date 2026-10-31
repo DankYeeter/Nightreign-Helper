@@ -11,6 +11,7 @@ from dataclasses import replace
 
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QColor, QFocusEvent, QKeyEvent
+from PySide6.QtWidgets import QLabel
 
 from nrplanner import castingbar, damage, weaponslots
 from tests import weapon_damage_cases as cases
@@ -200,23 +201,34 @@ def test_the_chips_sit_between_the_tiles_and_the_hand_switch_in_tab_order(
     assert [next_tab_stop(widget) for widget in chain[:-1]] == chain[1:]
 
 
+def room(widget) -> list:
+    """The room inside a card and inside each of its labels."""
+    widget.ensurePolished()
+    labels = widget.findChildren(QLabel)
+    for label in labels:
+        label.ensurePolished()
+    return [widget.contentsRect()] + [
+        (label.contentsRect().topLeft(), label.sizeHint()) for label in labels]
+
+
 def test_the_ring_takes_no_room(planner, game_data):
     """QA-316: focus or the active ring left the room inside a tile or chip
-    as it was -- a wider border reflowed the row and moved all below it."""
+    as it was -- a wider border reflowed the row and moved all below it. The
+    labels count too: a margin meant for the card fell on them as well, so
+    tile 2 active and Tab on tile 3 still changed the row's height."""
     draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
     tile = planner.stat_sheet.weapon_tiles[1]
-    tile.ensurePolished()
-    plain = tile.contentsRect()
+    plain = room(tile)
     tile.active = True
     tile._apply_appearance()
-    assert tile.contentsRect() == plain
+    assert room(tile) == plain
     chip = replace(chips(planner)[0], selected=False)
-    for widget in (tile, castingbar.ChipWidget(chip, None, lambda _w: None)):
-        widget.ensurePolished()
-        plain = widget.contentsRect()
+    for widget in (planner.stat_sheet.weapon_tiles[2],
+                   castingbar.ChipWidget(chip, None, lambda _w: None)):
+        plain = room(widget)
         widget.hasFocus = lambda: True
         widget._apply_appearance()
-        assert widget.contentsRect() == plain
+        assert room(widget) == plain
 
 
 def test_focus_is_dashed_and_the_active_ring_solid(planner, game_data):

@@ -235,7 +235,9 @@ class WeaponTile(cardgrid.HoverCard):
         pointer alone:
         a clicked tile keeps the focus, and a fill that stayed after the
         pointer left would be QA-157 again. The thin border keeps a pixel of
-        margin, so the ring takes no room from the row (QA-316)."""
+        margin, so the ring takes no room from the row (QA-316); the selector
+        names the tile alone, since a QLabel is a QFrame and took the margin
+        too."""
         ringed = self.active or self.hasFocus()
         border = ACCENT if ringed else BORDER
         width = RING_WIDTH if ringed else 1
@@ -243,7 +245,8 @@ class WeaponTile(cardgrid.HoverCard):
                  else "solid")
         fill = HOVER_FILL if self.hovered else PANEL
         self.setStyleSheet(
-            f"QFrame {{ background: {fill}; border: {width}px {style} {border};"
+            f"WeaponTile {{ background: {fill};"
+            f" border: {width}px {style} {border};"
             f" margin: {RING_WIDTH - width}px; border-radius: 6px; }}"
         )
 

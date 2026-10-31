@@ -274,9 +274,10 @@ class ChipWidget(cardgrid.HoverCard):
         style = ("dashed" if chip.record is None
                  or self.hasFocus() and self.keyboard_focus else "solid")
         fill = HOVER_FILL if self.hovered or self.hasFocus() else PANEL
-        # The margin keeps the ring from taking room, as on the tiles (QA-316).
+        # The margin keeps the ring from taking room, as on the tiles; the
+        # selector names the chip alone, not its labels or popup (QA-316).
         self.setStyleSheet(
-            f"QFrame {{ background: {fill}; border: {width}px {style}"
+            f"ChipWidget {{ background: {fill}; border: {width}px {style}"
             f" {border}; margin: {weaponslots.RING_WIDTH - width}px;"
             f" border-radius: 6px; }}")
 
