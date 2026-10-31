@@ -13,12 +13,13 @@ from __future__ import annotations
 import os
 import pathlib
 
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QObject, QThread, QUrl, Signal
 from PySide6.QtWidgets import QFileDialog
 
 from nrdata import savefile
 
 from . import errortext, inventory
+from .firstrun import THIS_PC
 
 #: S2. Unlike the folder dialog of the first run, whose caption is left to
 #: Qt, this one is written here: the spec gives it as a text of this program
@@ -54,7 +55,7 @@ def where_saves_usually_are() -> pathlib.Path | None:
     The start location is the actual help in this dialog: the player cannot
     type the variable his profile lives under and should not have to. So the
     `Nightreign` folder if it is there, the profile itself if it is not, and
-    None -- "wherever Qt would" -- if neither is.
+    None -- "This PC" (`firstrun.THIS_PC`, QA-302) -- if neither is.
 
     Resolved, always, and never named as a variable anywhere he can read it
     (AK-127): what he sees in the dialog is a path.
@@ -81,11 +82,11 @@ def _pick_a_save_file(parent) -> pathlib.Path | None:
     the file is the only thing that says *which* account he means.
     """
     start_at = where_saves_usually_are()
-    picked, _chosen_filter = QFileDialog.getOpenFileName(
+    picked, _chosen_filter = QFileDialog.getOpenFileUrl(
         parent, CHOOSE_YOUR_SAVE,
-        "" if start_at is None else os.fspath(start_at),
+        THIS_PC if start_at is None else QUrl.fromLocalFile(os.fspath(start_at)),
         SAVE_FILE_FILTERS)
-    return pathlib.Path(picked) if picked else None
+    return pathlib.Path(picked.toLocalFile()) if picked.isLocalFile() else None
 
 
 #: What the automatic route answers when it found save files and none of them

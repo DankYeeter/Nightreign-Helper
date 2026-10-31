@@ -36,7 +36,7 @@ import pathlib
 import struct
 
 import pytest
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QUrl
 from PySide6.QtWidgets import QApplication
 
 from nrdata import savefile
@@ -503,13 +503,27 @@ def test_the_dialog_opens_in_the_profile_when_the_folder_is_missing(
     assert savereader.where_saves_usually_are() == roaming
 
 
-def test_the_dialog_opens_wherever_qt_would_when_neither_is_there(
+def test_the_dialog_opens_in_this_pc_when_neither_is_there(
         monkeypatch, tmp_path):
-    """Nothing to offer is an answer, not a path made up out of pieces."""
+    """Nothing to offer is "This PC", not a path made up out of pieces.
+
+    QA-302: an empty start opened in the process's working directory.
+    """
+    from nrplanner import firstrun
+
     monkeypatch.setattr(savefile, "save_roots",
                         lambda: [tmp_path / "nowhere" / "Nightreign"])
+    asked = []
+
+    def the_dialog(_parent, _caption, start, _filters):
+        asked.append(start)
+        return QUrl.fromLocalFile(str(tmp_path / "NR0000.sl2")), ""
+
+    monkeypatch.setattr(savereader.QFileDialog, "getOpenFileUrl", the_dialog)
 
     assert savereader.where_saves_usually_are() is None
+    assert savereader._pick_a_save_file(None) == tmp_path / "NR0000.sl2"
+    assert asked == [firstrun.THIS_PC]
 
 
 # -- read_the_save: which exit a real file falls into ----------------------
