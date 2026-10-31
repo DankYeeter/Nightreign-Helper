@@ -524,6 +524,50 @@ def placement_reasons(unfit: int, clashed: int, missing: int) -> str:
     return note
 
 
+class BuildRow(QWidget):
+    """The saved-build line: one line while every part fits at its own
+    width, otherwise `Show hidden` under the field (AK-405, QA-304).
+
+    The block above the advisor row is `Ignored` horizontally, so a single
+    `QHBoxLayout` here was squeezed below its own minimum and laid its
+    buttons over the field. `Show hidden` moves first because it is the
+    least used: the field and its three buttons keep their width.
+    """
+
+    SPACING = 6
+
+    def __init__(self, label: QLabel, box: QComboBox,
+                 buttons: list[QPushButton], show_hidden: QCheckBox):
+        super().__init__()
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setSpacing(self.SPACING)
+        self._grid.setColumnStretch(1, 1)
+        self._box = box
+        self._parts = [label, box, *buttons, show_hidden]
+        for column, part in enumerate(self._parts):
+            self._grid.addWidget(part, 0, column)
+        self.wrapped = False
+
+    def one_line_width(self) -> int:
+        """The width all six parts need side by side, the field at its floor."""
+        widths = [self._box.minimumWidth() if part is self._box
+                  else part.sizeHint().width() for part in self._parts]
+        return sum(widths) + self.SPACING * (len(widths) - 1)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        wrap = event.size().width() < self.one_line_width()
+        if wrap != self.wrapped:
+            self.wrapped = wrap
+            show_hidden = self._parts[-1]
+            self._grid.removeWidget(show_hidden)
+            if wrap:
+                self._grid.addWidget(show_hidden, 1, 1, Qt.AlignLeft)
+            else:
+                self._grid.addWidget(show_hidden, 0, len(self._parts) - 1)
+        super().resizeEvent(event)
+
+
 class Planner(QMainWindow):
     def __init__(self, data: dict, *, read_save=None):
         """The window, and what it reads the save with.
@@ -1016,27 +1060,25 @@ class Planner(QMainWindow):
         # Saved builds. The scratchpad -- whatever is in the slots now -- is
         # still restored on launch; this is for keeping several worked-out
         # builds and flipping between them to compare.
-        builds = QHBoxLayout()
-        builds.setSpacing(6)
-        builds.addWidget(QLabel("Build"))
         self.build_box = QComboBox()
         self.build_box.setMinimumWidth(180)
         self.build_box.activated.connect(self._on_build_chosen)
-        builds.addWidget(self.build_box, 1)
+        # A long name is cut by the field; the tooltip carries all of it,
+        # escaped because the player typed it (AK-405, SEC-013).
+        self.build_box.currentTextChanged.connect(
+            lambda text: self.build_box.setToolTip(
+                f"<span>{html.escape(text)}</span>" if text else ""))
         save_build = QPushButton("Save")
         save_build.setToolTip("Save the slots as they are under a name")
         save_build.clicked.connect(self._save_build)
-        builds.addWidget(save_build)
         self.delete_build_button = QPushButton("Delete")
         self.delete_build_button.setToolTip("Forget the selected saved build")
         self.delete_build_button.clicked.connect(self._delete_build)
-        builds.addWidget(self.delete_build_button)
         self.hide_build_button = QPushButton("Hide")
         self.hide_build_button.setToolTip(
             "Keep this build out of the list without deleting it — "
             "Show hidden lists it again")
         self.hide_build_button.clicked.connect(self._toggle_hidden_build)
-        builds.addWidget(self.hide_build_button)
         # Hiding was one-way. The build left the list as soon as anything else
         # was selected and nothing anywhere offered it back, so the only route
         # a player found was to save a new build under the same name -- which
@@ -1047,8 +1089,11 @@ class Planner(QMainWindow):
             "unhidden")
         self.show_hidden_check.toggled.connect(
             lambda *_: self.refresh_build_list())
-        builds.addWidget(self.show_hidden_check)
-        layout.addLayout(builds)
+        self.build_row = BuildRow(
+            QLabel("Build"), self.build_box,
+            [save_build, self.delete_build_button, self.hide_build_button],
+            self.show_hidden_check)
+        layout.addWidget(self.build_row)
         stack.addWidget(top)
 
         # The advisor's row, between the "Build" line and the hint and
