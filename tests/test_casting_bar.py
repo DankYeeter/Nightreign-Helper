@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QColor, QKeyEvent
 
 from nrplanner import castingbar, damage, weaponslots
@@ -72,6 +72,18 @@ def test_the_default_art_carries_the_dot_in_the_popup(planner, game_data):
         True, False]
     assert footer(popup, 0).endswith(castingbar.OWN_ART_NOTE)
     popup.deleteLater()
+
+
+def test_the_popup_stays_on_the_screen(qapp):
+    """QA-315: under the chip while it fits, above it where the screen ends
+    first, pushed in from the right edge."""
+    area = QRect(0, 0, 1920, 1040)
+    size = QSize(400, 450)
+    place = castingbar.popup_position
+
+    assert place(QRect(100, 300, 80, 60), size, area) == QPoint(100, 359)
+    assert place(QRect(100, 900, 80, 60), size, area) == QPoint(100, 450)
+    assert place(QRect(1800, 300, 80, 60), size, area) == QPoint(1520, 359)
 
 
 def test_a_rolled_armament_names_no_art_its_own(planner, game_data):

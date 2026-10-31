@@ -14,7 +14,7 @@ from __future__ import annotations
 import html
 from dataclasses import dataclass
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
@@ -295,6 +295,16 @@ class ChipWidget(cardgrid.HoverCard):
             super().keyPressEvent(event)
 
 
+def popup_position(anchor: QRect, size: QSize, area: QRect) -> QPoint:
+    """Under the chip, or above it where the screen ends first (QA-315);
+    never past the left or right edge of the screen's free area."""
+    y = anchor.bottom()
+    if y + size.height() > area.bottom() + 1:
+        y = max(area.top(), anchor.top() - size.height())
+    x = max(area.left(), min(anchor.left(), area.right() + 1 - size.width()))
+    return QPoint(x, y)
+
+
 class PoolPopup(QFrame):
     """The pool of one chip: six symbols a row, five rows, then a scrollbar.
 
@@ -375,7 +385,11 @@ class PoolPopup(QFrame):
             super().keyPressEvent(event)
 
     def open_under(self) -> None:
-        self.move(self.anchor.mapToGlobal(self.anchor.rect().bottomLeft()))
+        self.adjustSize()
+        anchor = QRect(self.anchor.mapToGlobal(QPoint(0, 0)),
+                       self.anchor.size())
+        self.move(popup_position(anchor, self.size(),
+                                 self.anchor.screen().availableGeometry()))
         self.show()
         self.list.setFocus(Qt.PopupFocusReason)
 
