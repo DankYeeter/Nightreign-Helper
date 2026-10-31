@@ -526,6 +526,10 @@ REVENANT_DEFAULT_SPELL = "Rejection"
 #: spell power of 159.545 / 100 times `GAME_ATTACK_POWER_RATE` 0.6 (T-335j).
 #: Pinned to four places because every case below is a factor on it.
 BEAST_CLAW_FIGURE = 346.5327
+#: The two spells' own base damage, which a rate lifts before the spell
+#: power reaches it (T-335u).
+BEAST_CLAW_BASE = 362
+PEBBLE_BASE = 152
 
 
 def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
@@ -600,7 +604,8 @@ def test_a_physical_buff_lifts_the_beast_claw_and_a_holy_one_does_not(
     rate = rate_of(game_data, physical, "physicsAttackRate")
 
     assert spell["claw+physical"].value == pytest.approx(
-        spell["claw"].value * rate, abs=5e-5)
+        cases.spell_with_rate(spell["claw"].value, BEAST_CLAW_BASE, rate),
+        abs=5e-5)
     assert spell["claw+holy"].value == pytest.approx(spell["claw"].value), (
         "a holy buff lifted a physical spell, so the rates are not being "
         "read per damage type")
@@ -627,10 +632,14 @@ def test_a_school_counts_only_where_the_spell_belongs_to_it(game_data):
     dragon_cult = damage_scores(game_data, revenant, carried,
                                 hit_with=f"{model.ART_FAMILY_PREFIX}22")
 
+    def lifted(figure: float, rate: float) -> float:
+        return cases.spell_with_rate(figure, BEAST_CLAW_BASE, rate)
+
     assert bestial["school"].value == pytest.approx(
-        bestial["claw"].value * school_rate, abs=5e-5)
+        lifted(bestial["claw"].value, school_rate), abs=5e-5)
     assert bestial["both"].value == pytest.approx(
-        bestial["claw"].value * school_rate * genus_rate, abs=5e-5), (
+        lifted(bestial["claw"].value, school_rate * genus_rate),
+        abs=5e-5), (
         "under a school the genus buff counts beside the school's own, "
         "multiplied (OF-51)")
     assert dragon_cult["school"].value == pytest.approx(
@@ -638,7 +647,7 @@ def test_a_school_counts_only_where_the_spell_belongs_to_it(game_data):
         "a Bestial buff lifted the figure under Dragon Cult, so the school "
         "is being applied without asking whether the spell belongs to it")
     assert dragon_cult["genus"].value == pytest.approx(
-        dragon_cult["claw"].value * genus_rate, abs=5e-5), (
+        lifted(dragon_cult["claw"].value, genus_rate), abs=5e-5), (
         "asking about a school the spell is not in still leaves it an "
         "incantation, so the genus buff has to reach it")
 
@@ -875,7 +884,8 @@ def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
     assert "Glintstone Pebble" in spell["nothing"].display
     assert spell["nothing"].value == pytest.approx(123.6796, abs=5e-5)
     assert spell["magic"].value == pytest.approx(
-        spell["nothing"].value * rate, abs=5e-5)
+        cases.spell_with_rate(spell["nothing"].value, PEBBLE_BASE, rate),
+        abs=5e-5)
     assert spell["claw"].display == spell["nothing"].display, (
         "a swap relic of the other genus reached a staff: each of the ten "
         "works for one Nightfarer only (`allowed_heroes`), which is what "

@@ -15,6 +15,8 @@ changes what the query would pick cannot silently change what is compared.
 
 from __future__ import annotations
 
+import math
+
 from nrplanner import damage, model, weaponslots, weapons
 
 
@@ -37,6 +39,15 @@ def effect_by_id(data: dict, effect_id: int) -> dict:
     if effect is None:
         raise LookupError(f"no effect with id {effect_id} in this dataset")
     return effect
+
+
+def spell_with_rate(figure: float, base: float, rate: float) -> float:
+    """A spell figure of `base` damage once `rate` is on the build.
+
+    The game cuts the buffed base to a whole number before the spell power
+    reaches it (T-335u), so a rate does not simply scale the figure.
+    """
+    return math.floor(base * rate) * figure / base
 
 
 PROBE_LEVEL = 15

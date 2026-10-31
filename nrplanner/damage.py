@@ -899,8 +899,8 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     half: the figure is formed here once, and a display or a goal prints
     what it gets back instead of assembling one of its own (AD-019/AD-021).
 
-        figure[T] = base[T] x spell_power / 100 x GAME_ATTACK_POWER_RATE
-                    x rate[T] x art_rate
+        figure[T] = floor(base[T] x rate[T] x art_rate)
+                    x spell_power / 100 x GAME_ATTACK_POWER_RATE
 
     and, beside it, the same product with nothing equipped (`bare_per_type`),
     so that a display's before-and-after comes out of one call.
@@ -918,10 +918,13 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
 
     **Calibrated against a dummy measurement, 2026-10-31** (OF-54, T-335j):
     the Elden Ring formula alone hit for 1/0.6 of what the game shows, so the
-    weapons' `weapons.GAME_ATTACK_POWER_RATE` is applied at the same point of
-    the chain -- before the multipliers -- and the display truncates through
-    `displayed`. Recluse at level 15, Recluse's Staff, no relics: Glintstone
-    Pebble 123 on the dummy and here.
+    weapons' `weapons.GAME_ATTACK_POWER_RATE` is applied beside the spell
+    power, and the display truncates through `displayed`. Recluse at level 15, Recluse's Staff, no relics: Glintstone
+    Pebble 123 on the dummy and here. The `floor` is a second measurement
+    (T-335u): Pebble 128/138/154 under "Magic Attack Power Up" and one or two
+    "+4", Glintstone Arc 120/134 -- the plain product gave 129 and 155. That
+    the art factor sits inside the `floor` with the relic rates is an
+    assumption: no measurement has separated the two yet.
 
     **Four things deliberately do not reach a spell** (AD-053, point 4), and
     each is an omission rather than an oversight: the class rates -- a spell
@@ -960,12 +963,20 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
             and value > 0}
     art = _art_of(spell, hit_with)
 
-    def on_screen(power: float) -> dict[str, float]:
+    def on_screen(power: float, per_type: dict[str, float]
+                  ) -> dict[str, float]:
         return {name: value * power / SPELL_POWER_SCALE
                 * weapons.GAME_ATTACK_POWER_RATE
-                for name, value in base.items()}
+                for name, value in per_type.items()}
 
-    per_type, rates = _multiplied(on_screen(spell_power), build, art=art)
+    # The game cuts the buffed base to a whole number before the spell power
+    # reaches it (T-335u): six dummy figures agree with that order and not
+    # with the plain product, which showed Pebble at 155 where the game shows
+    # 154 under two "+4" relics.
+    buffed, rates = _multiplied(base, build, art=art)
+    per_type = on_screen(spell_power,
+                         {name: math.floor(value)
+                          for name, value in buffed.items()})
     # The baseline of the same product (AK-359): the catalyst asked again on
     # the level's own attributes, which is the one factor of the four that a
     # bare build changes -- the rates and the art factor are what the build
@@ -978,7 +989,7 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
         damage_type=damage_type,
         spell_power=spell_power,
         per_type=per_type,
-        bare_per_type=on_screen(bare_power),
+        bare_per_type=on_screen(bare_power, base),
         rates=rates,
         reason=None if base else NO_SPELL_DAMAGE.format(
             name=spell.get("name", "This spell")),

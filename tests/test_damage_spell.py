@@ -175,23 +175,27 @@ def test_the_school_and_the_genus_buff_both_count_and_each_once(
     build = build_with(game_data, revenant, [SCHOOL_BUFF, GENUS_BUFF])
     school = rate_of(game_data, SCHOOL_BUFF)
     genus = rate_of(game_data, GENUS_BUFF)
+    base = beast_claw["damage"]["Physics"]
     plain = damage.spell(beast_claw, seal, TIER, build, game_data,
                          hit_with="").figure
 
     under_school = damage.spell(beast_claw, seal, TIER, build, game_data,
                                 hit_with=BESTIAL_ART,
                                 damage_type="Physics").figure
-    assert under_school == pytest.approx(plain * school * genus)
+    assert under_school == pytest.approx(
+        cases.spell_with_rate(plain, base, school * genus))
 
     under_genus = damage.spell(beast_claw, seal, TIER, build, game_data,
                                hit_with=model.INCANTATIONS_ART).figure
-    assert under_genus == pytest.approx(plain * genus), (
+    assert under_genus == pytest.approx(
+        cases.spell_with_rate(plain, base, genus)), (
         f"under {model.INCANTATIONS_ART!r} the Bestial buff counted too, and "
         f"it raises Bestial incantations rather than every incantation")
 
     under_other = damage.spell(beast_claw, seal, TIER, build, game_data,
                                hit_with=OTHER_SCHOOL_ART).figure
-    assert under_other == pytest.approx(plain * genus), (
+    assert under_other == pytest.approx(
+        cases.spell_with_rate(plain, base, genus)), (
         f"under {OTHER_SCHOOL_ART!r} Beast Claw was rated as a member of a "
         f"school it does not belong to")
 
@@ -217,7 +221,8 @@ def test_an_element_rate_reaches_the_spell_and_a_class_rate_does_not(
                          hit_with=model.INCANTATIONS_ART)
     factor = with_element.rates["physicsAttackRate"]
     assert factor > 1.0
-    assert rated.figure == pytest.approx(plain * factor)
+    assert rated.figure == pytest.approx(cases.spell_with_rate(
+        plain, beast_claw["damage"]["Physics"], factor))
     assert rated.rates.get("physicsAttackRate") == pytest.approx(factor)
 
     melee = cases.scoped_effect(game_data, revenant, "melee")
@@ -299,3 +304,33 @@ def test_the_baseline_answers_the_same_damage_type_the_figure_does(
     assert rated("Fire").bare_figure == 0.0
     assert rated("Physics").bare_figure == pytest.approx(
         rated("").bare_figure)
+
+
+GLINTSTONE_ARC = 4070
+#: "Magic Attack Power Up" (+4.5 %) and "Magic Attack Power Up +4" (+12 %).
+MAGIC_UP = 7001500
+MAGIC_UP_4 = 6001501
+
+
+@pytest.mark.parametrize(("spell_id", "relics", "on_the_dummy"), [
+    (GLINTSTONE_PEBBLE, (), 123),
+    (GLINTSTONE_PEBBLE, (MAGIC_UP,), 128),
+    (GLINTSTONE_PEBBLE, (MAGIC_UP_4,), 138),
+    (GLINTSTONE_PEBBLE, (MAGIC_UP_4, MAGIC_UP_4), 154),
+    (GLINTSTONE_ARC, (), 120),
+    (GLINTSTONE_ARC, (MAGIC_UP_4,), 134),
+])
+def test_the_figure_reads_what_the_dummy_took(game_data, spell_id, relics,
+                                              on_the_dummy):
+    """User's measurements, 2026-10-31 12:59: Recluse, level 15, her staff.
+
+    The buffed base is cut to a whole number before the spell power reaches
+    it (T-335u); the plain product read 129 and 155 for two of these.
+    """
+    hero = cases.hero_by_name(game_data, "Recluse")
+    staff = cases.weapon_by_id(game_data, RECLUSE_STAFF)
+    rated = damage.spell(spell_by_id(game_data, spell_id), staff, TIER,
+                         build_with(game_data, hero, relics), game_data,
+                         hit_with=model.SORCERIES_ART)
+
+    assert damage.displayed(rated.figure) == on_the_dummy
