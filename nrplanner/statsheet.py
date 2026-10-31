@@ -898,8 +898,8 @@ class StatSheet(QScrollArea):
         order between the tiles and the hand switch (AK-413)."""
         self.casting.show_chips(*castingbar.chips_for(
             slot, self.planner.active_weapon, build, hero, self.planner.data))
-        chain = [self.hand_switch.previousInFocusChain(),
-                 *self.casting.chip_widgets, self.hand_switch]
+        chain = [*self.weapon_tiles, *self.casting.chip_widgets,
+                 self.hand_switch]
         for before, after in zip(chain, chain[1:]):
             QWidget.setTabOrder(before, after)
 

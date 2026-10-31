@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent
 
 from nrplanner import castingbar, damage, weaponslots
 from tests import weapon_damage_cases as cases
@@ -17,6 +18,7 @@ from tests.test_stat_sheet_art_and_spell import draw, spell_row
 GLINTSTONE_PEBBLE = 4000
 GLINTSTONE_ARC = 4070
 LIGHTNING_SLASH_RELIC = 7123200
+MAGIC_LONGSWORD = 2000800
 
 
 def bar(planner):
@@ -127,8 +129,10 @@ def test_a_swap_relic_shows_one_relic_chip_and_says_so(planner, game_data):
 
 def test_the_chips_sit_between_the_tiles_and_the_hand_switch_in_tab_order(
         planner, game_data):
+    """AK-413: tiles -> R1 -> R2 -> hand switch (QA-312: the tiles too)."""
     draw(planner, game_data, cases.hero_by_name(game_data, "Recluse"))
-    first, second = bar(planner).chip_widgets
+    chain = [*planner.stat_sheet.weapon_tiles, *bar(planner).chip_widgets,
+             planner.stat_sheet.hand_switch]
 
     def next_tab_stop(widget):
         widget = widget.nextInFocusChain()
@@ -136,8 +140,18 @@ def test_the_chips_sit_between_the_tiles_and_the_hand_switch_in_tab_order(
             widget = widget.nextInFocusChain()
         return widget
 
-    assert next_tab_stop(first) is second
-    assert next_tab_stop(second) is planner.stat_sheet.hand_switch
+    assert [next_tab_stop(widget) for widget in chain[:-1]] == chain[1:]
+
+
+def test_enter_on_a_tile_selects_it(planner, game_data):
+    """QA-312: a tile reached by Tab is selected with Enter or Space."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"),
+         armaments=((1, MAGIC_LONGSWORD), (2, MAGIC_LONGSWORD)))
+    tiles = planner.stat_sheet.weapon_tiles
+    for index, key in ((1, Qt.Key_Return), (2, Qt.Key_Space)):
+        tiles[index].keyPressEvent(
+            QKeyEvent(QEvent.KeyPress, key, Qt.NoModifier))
+        assert planner.active_weapon == index
 
 
 def test_a_chip_shows_game_text_as_text(planner, game_data):

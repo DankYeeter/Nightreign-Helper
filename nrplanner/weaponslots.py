@@ -165,7 +165,8 @@ class WeaponTile(cardgrid.HoverCard):
 
     Single-click makes the tile active, which is what the damage breakdown
     below describes. Double-click opens the dialog to choose or edit the
-    armament. Right-click empties it.
+    armament. Right-click empties it. A tab stop: Enter or Space makes it
+    active (AK-413), the focus ringed in gold like the active tile.
     """
 
     def __init__(self, index: int, on_edit, on_clear, on_activate):
@@ -178,6 +179,7 @@ class WeaponTile(cardgrid.HoverCard):
 
         self.setFrameShape(QFrame.StyledPanel)
         self.setCursor(Qt.PointingHandCursor)
+        self.setFocusPolicy(Qt.StrongFocus)
         self.setMinimumHeight(62)
 
         layout = QVBoxLayout(self)
@@ -210,10 +212,27 @@ class WeaponTile(cardgrid.HoverCard):
         if event.button() != Qt.RightButton:
             self.on_edit(self.index)
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space):
+            self.on_activate(self.index)
+        else:
+            super().keyPressEvent(event)
+
+    def focusInEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._apply_appearance()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._apply_appearance()
+        super().focusOutEvent(event)
+
     def _apply_appearance(self) -> None:
-        """The gold ring marks the active tile, the fill the pointer (QA-157)."""
-        border = ACCENT if self.active else BORDER
-        width = 2 if self.active else 1
+        """The gold ring marks the active and the focused tile (AK-413), the
+        fill the pointer alone: a clicked tile keeps the focus, and a fill
+        that stayed after the pointer left would be QA-157 again."""
+        ringed = self.active or self.hasFocus()
+        border = ACCENT if ringed else BORDER
+        width = 2 if ringed else 1
         fill = HOVER_FILL if self.hovered else PANEL
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {width}px solid {border};"
