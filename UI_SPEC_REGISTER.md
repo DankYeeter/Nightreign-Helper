@@ -588,3 +588,8 @@ gemessen (AK-371 war die hoechste vergebene).
 | AK-402 | Leistenhoehe 36 einzeilig, 66 zweizeilig; nichts ragt heraus; Spalte darunter legt sich neu | UI_SPEC Nachtrag T-334n | T-334n, 2026-10-14 | — |
 | AK-403 | Tab-Reihenfolge, Widget-Objekte, Fokus und Accessible-Names ueber den Moduswechsel unveraendert | UI_SPEC Nachtrag T-334n | T-334n, 2026-10-14 | — |
 | AK-404 | Kein Kreislauf: Modus nach `resize` auf Schwelle +-1 px stabil | UI_SPEC Nachtrag T-334n | T-334n, 2026-10-14 | — |
+| AK-405 | Build-Zeile: nichts ueberdeckt sich von `minimumWidth()` an, Feld >= 180, `Show hidden` geht bei Platzmangel in Zeile 2 (QA-304) | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |
+| AK-406 | Leiste ohne Relikte: 4.8a "No save was read ... use Find my save", 4.8b gelesen-aber-leer mit beiden Wegen | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |
+| AK-407 | `Rescan save` nur, wo sich der Spielstand geaendert haben kann; vier Texte (Picker x2, Effektfilter, Tooltip) wortgleich | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |
+| AK-408 | `MARK_LEGEND` erklaert beide Bedeutungen des Durchstreichens (gemieden / anderer Nightfarer); ersetzt AK-301-Wortlaut | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | AK-301 (Wortlaut) |
+| AK-409 | Block hat 8 Textzeilen Budget, Rest als eine Faltzeile "+{n} more effect lines"; Fluchzeilen nie versteckt; Fall erst reproduzieren | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |

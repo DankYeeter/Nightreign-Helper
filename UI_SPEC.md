@@ -8442,3 +8442,219 @@ Relikte, Glintstone Pebble: 123): `damage.spell` traegt jetzt denselben Faktor
   Es bleibt nur der AK-344-Satz ("deals no damage") fuer eine 0.00.
 - **AK-361:** Der Klick-Tooltip bleibt (Grundlinie, Raten, Endwert); er traegt
   nur noch fuer eine Zeile ohne Schaden den `NO_SPELL_DAMAGE`-Satz, sonst keinen.
+
+
+#### Nachtrag T-335n (ui-ux-designer), 2026-10-31 — Kleinbefunde: Build-Zeile, Kein-Spielstand-Saetze, Legende Durchstreichen, lange Slotkarten (AK-405 bis AK-409, Spec-Modus)
+
+*Auftrag T-335n, `docs/tasks/T-335.md`. Methode: **kein Programmstart** (der
+Nutzer hat die Exe offen), Code gelesen am Stand `7a9e7dd`; jede Messzahl unten
+stammt aus dem genannten Befund, hier ist nichts gemessen. Die Zeilenangaben des
+Auftrags sind gewandert (`advisorbar.py:331` steht jetzt bei 357-359, der
+Entwickler schreibt parallel an T-335o); massgeblich sind die Angaben dieses
+Abschnitts. Bestand wiederverwendet: Statustabelle der Leiste (AK-396 ff.),
+`save_holds_no_relics` (`app.py:2588`, AK-389), `MARK_LEGEND` (AK-301),
+Tooltip-Muster der Statuszeile. Kein neues Token, keine neue Farbe.*
+
+##### 1. AK-405 — Build-Zeile: nichts ueberdeckt sich (QA-304)
+
+**Zweck.** Der Spieler waehlt, speichert, loescht und blendet Builds aus, ohne
+dass ein Knopf das Auswahlfeld verdeckt.
+
+**Bestand.** `app.py:1010-1042`: eine `QHBoxLayout` (Abstand 6) aus Label
+`Build`, `build_box` (`setMinimumWidth(180)`, Stretch 1, `:1014`), `Save`,
+`Delete`, `Hide`, Haken `Show hidden` (`:1035`). Befund QA-304 (power-user
+T-334s, UIA): bei ~1506 px physisch endet das Feld bei 2833, `Save` beginnt bei
+2743, also **90 px physisch Ueberdeckung inkl. Aufklapp-Pfeil**; ein Klick auf den
+Pfeil oeffnet `Save build`. Das Feld ist dort 225 px physisch breit. Lesart
+(**unverifiziert**, die Skalierung steht nicht im Befund): bei 125 % sind das 180
+logische px, das Feld steht also auf seinem Minimum, und der Behaelter der Zeile
+ist schmaler als das Minimum des Layouts. AK-400 (Mindestbreite 1190) deckt nur
+die Leiste, nicht diese Zeile.
+
+**Aufbau/Interaktion.** Reihenfolge, Beschriftungen und Tab-Reihenfolge bleiben
+(`build_box` → `Save` → `Delete` → `Hide` → `Show hidden`). Prioritaet bei
+Platzmangel: Feld und die drei Knoepfe behalten ihre Breite; **`Show hidden`**
+(Moduswahl, am seltensten benutzt) geht als erstes in eine zweite Zeile unter
+das Feld, linksbuendig. Die Fenster-Mindestbreite wird **nicht** erhoeht (AK-400
+bleibt, ≤ 1366).
+
+**Zustaende.** Ohne gespeicherte Builds; mit 110 gespeicherten Builds; mit sehr
+langem Buildnamen (Feld kuerzt am Ende, voller Name im Tooltip des Feldes);
+`Delete`/`Hide` ohne Auswahl ausgegraut: alle in beiden Zeilenformen ohne
+Ueberdeckung.
+
+**AK-405** Bei jeder Fensterbreite von `minimumWidth()` bis 2560 logisch und bei
+100/125/150 % Skalierung: (a) die Rechtecke von Label, `build_box`, `Save`,
+`Delete`, `Hide`, `Show hidden` schneiden sich paarweise nicht (Schnittflaeche 0,
+gemessen in Fensterkoordinaten); (b) `build_box.width() ≥ 180` logisch und jeder
+Knopf ≥ seiner `sizeHint`-Breite; (c) die Zeile liegt vollstaendig im Sichtbereich
+der mittleren Spalte, kein waagerechter Rollbalken (AK-160); (d) ein Mausklick auf
+den rechten Rand (letzte 20 logische px) des Feldes oeffnet dessen Liste und nie
+`Save build`; (e) Tab-Reihenfolge wie oben, Fokusrahmen nirgends abgeschnitten;
+(f) die Zeile ist einzeilig, sobald der Platz fuer alle sechs Teile reicht, sonst
+zweizeilig mit `Show hidden` unten. Gemessen bei `minimumWidth()`, 1366 und der
+Breite, die 1506 physisch bei 125 % ergibt; je ein Bild per `QWidget.grab()`
+(NH-002).
+
+**Nicht Teil.** Neue Knoepfe, andere Beschriftungen, ein Menue statt der Knoepfe.
+
+##### 2. AK-406 — Leiste ohne Relikte: der Satz nennt die wahre Ursache
+
+**Zweck.** Wer keine Relikte hat, erfaehrt in der Leiste, warum, und bekommt den
+Knopf, der es behebt.
+
+**Bestand.** `advisorbar.py:357-359` (`status_line`, `State.NO_SAVE`, Zeile 4.8 der
+Statustabelle): *"No save was read, so there are no relics to choose from — use
+Rescan save."* Der Zustand entsteht, wo `_asking` `None` liefert (`:1236`,
+`:1365-1369`), also bei **drei** Ursachen: kein Spielstand gefunden, Datei nicht
+lesbar, Spielstand gelesen aber ohne Relikte (`save_holds_no_relics`,
+`app.py:2588`). Fuer die dritte ist der Satz **falsch** (ein Spielstand wurde
+gelesen) und der genannte Knopf nicht der, der hilft. Relic Picker
+(`relicpicker.py:220`, AK-389) und Effektfilter (`effectfilterdialog.py:90`)
+unterscheiden sie schon.
+
+**Aufbau.** Zeile 4.8 wird zwei Saetze, Qt-frei in `status_line` (Wortlaut als
+Literal pruefbar):
+
+- **4.8a** (nichts gelesen: nicht gefunden oder nicht lesbar) — *"No save was
+  read, so there are no relics to choose from — use Find my save."*
+- **4.8b** (gelesen, leer; `save_holds_no_relics` wahr) — *"Your save has no
+  relics in it yet — if you just played, use Rescan save; if they are on another
+  Steam account, use Find my save."*
+
+Die Leiste liest dazu dasselbe Merkmal wie der Picker (`window.save_holds_no_relics`),
+keine zweite Ableitung (AD-019). Die Statuszeile kuerzt am Ende und traegt den
+vollen Satz als Tooltip und Zugaenglichkeitsname (`advisorbar.py:651-690`): kein
+neuer Platzbedarf, `STATUS_FLOOR` (48) und AK-401 bleiben.
+
+**Aufwand je Ziel.** Von der Meldung zum Behebungsweg: 1 Klick auf den genannten
+Knopf (`Find my save...` ist bei fehlendem Spielstand sichtbar, AK-123). Heute:
+1 Klick auf den falschen Knopf plus Rueckweg.
+
+**AK-406** (a) Ohne gelesenen Spielstand zeigt die Leiste exakt 4.8a; (b) mit
+gelesenem, leerem Spielstand (gewaehlt oder automatisch) exakt 4.8b, und der Satz
+enthaelt **nicht** "No save was read"; (c) beide Saetze bleiben nach `Optimize`
+ohne Relikte unveraendert (`_ask`, `:1236`); (d) die genannten Knoepfe sind
+sichtbar, wenn der Satz steht (`find_save_button.isVisible()` und
+`rescan_button.isVisible()`); (e) Tooltip der Statuszeile = voller Satz.
+
+##### 3. AK-407 — Rescan oder Find my save: ein Wortlaut je Ursache, an allen Stellen
+
+**Zweck.** Jeder Satz ohne Spielstand nennt den Knopf, der seine Ursache behebt;
+`Rescan save` steht nur, wo der Spielstand sich geaendert haben kann.
+
+**Regel.** `Rescan save` liest dort, wo zuletzt gelesen wurde (oder per
+automatischer Suche, `app.py:2438-2468`): es wiederholt dieselbe Suche und hilft
+nur, wenn sich die Datei seither geaendert hat (gespielt). `Find my save...` laesst
+eine Datei waehlen und hilft, wenn sie woanders liegt. Eine Meldung "nichts
+gefunden" nennt deshalb `Find my save`; "gelesen, leer" nennt beide mit ihrem
+Grund (AK-406, 4.8b).
+
+**Stellen und Wortlaut (verbindlich, Englisch):**
+
+| Stelle | heute | neu |
+|---|---|---|
+| `relicpicker.py:215-216` `NO_SAVE_WAS_READ` | "...nothing to rank these against — use Rescan save." | "No save was read, so there is nothing to rank these against — use Find my save." |
+| `relicpicker.py:220-221` `SAVE_HOLDS_NO_RELICS` | "...nothing to rank — use Rescan save." | "Your save has no relics in it yet, so there is nothing to rank — if you just played, use Rescan save; if they are on another Steam account, use Find my save." |
+| `effectfilterdialog.py:86` `NO_SAVE_WAS_READ` | "...no effects to filter yet." (kein Weg genannt) | "No save was read, so there are no effects to filter yet — use Find my save." |
+| `app.py:891` `rescan_button` | kein Tooltip | Tooltip: "Read your save again, from the file read last. Use it after you played." Solange `find_save_button` sichtbar ist, mit dem Zusatz: " If none was found, use Find my save." |
+
+Unveraendert bleiben `NO_SAVE_FOUND` (`app.py:209`), `SAVES_HOLD_NOTHING`
+(`:292`) und `CHOSEN_SAVE_IS_EMPTY` (`:296`): sie nennen schon einen passenden
+Knopf (AK-388/AK-389).
+
+**AK-407** (a) Suche ueber `nrplanner/` nach `use Rescan save` trifft keinen Satz
+mehr, der eine fehlende Datei meldet; `Rescan save` steht nur in 4.8b,
+`SAVE_HOLDS_NO_RELICS` und dem Tooltip. Die Trefferzahl beider Suchmasken
+(`use Rescan save`, `Rescan save`) steht im Baubericht; (b) die vier Texte der
+Tabelle stehen als Literale im Test; (c) der Tooltip von `rescan_button` traegt
+den Zusatz genau dann, wenn `find_save_button.isVisible()`.
+
+**Nicht Teil.** Ein Knopf in Picker oder Effektfilter: beide sind modal und nennen
+einen Knopf des Hauptfensters; der Spieler schliesst sie (1 Klick) und findet ihn
+in der linken Spalte.
+
+##### 4. AK-408 — Legende des Durchstreichens (Why-Dialog)
+
+**Zweck.** Ein durchgestrichener Effekt wird als "wirkt nicht fuer dich" gelesen,
+gleich aus welchem Grund.
+
+**Bestand.** Durchgestrichen in `BAD` heisst im Programm zwei Dinge: (1)
+**gemieden** (`effectfilters.EXCLUDED`, `advisorblock.py:146-147`) und (2) **gehoert
+einem anderen Nightfarer** (`SILENT_ANOTHER_NIGHTFARER`, `advisorblock.py:152-153`;
+Slotkarte `relicslots.py:439-447`; Statustafel `statsheet.py:1170-1172`;
+Direktorentscheid 06.09.2026: ein Stil fuer beides). Die Legende `MARK_LEGEND`
+(`advisorblock.py:81-83`, AK-301) erklaert nur (1): *"... a struck-through effect
+one you avoided ..."*. Im Why-Dialog stehen die stillen Effekte anderer
+Nightfarer durchgestrichen (`explain.py:640-646` liefert ihre Zeile); dort liest
+die Legende sie als "von dir gemieden", eine falsche Aussage. In der Slotkarte
+(`— not working ({who} only)`), in der Statustafel (Zeile `NOT WORKING ...`) und im
+kompakten Block (er zeichnet keine stillen Zeilen, `types.drawn_in_the_block`,
+`types.py:681`) braucht es keine Legende: dort steht der Grund im Text bzw. die
+Zeile fehlt.
+
+**Aufbau.** `MARK_LEGEND` neu (eine Zeile, `MUTED`, `SMALL_TEXT`, immer sichtbar
+wie bisher): *"▲ marks an effect you favourited. A struck-through effect does
+nothing for you: you avoided it (change that in the effect filter, filter icon in
+the advisor bar) or it works only for another Nightfarer."* Das ersetzt den
+Wortlaut von AK-301 (Vermerk: AK-301 blieb sonst falsch fuer die zweite
+Bedeutung; der Stil selbst bleibt, Direktorentscheid).
+
+**AK-408** (a) `MARK_LEGEND` ist wortgleich der Zeile oben (Literal im Test); (b)
+der Why-Dialog zeigt sie auch dann, wenn nur Zeilen der Bedeutung (2)
+durchgestrichen sind; (c) Slotkarte und Statustafel behalten ihren Wortlaut
+(`not working (` in `relicslots.py`, `NOT WORKING` in `statsheet.py`: je ein
+Treffer pro Stelle); (d) der kompakte Block zeichnet weiterhin keine
+durchgestrichene Zeile (Test: ein Vorschlag mit einem Effekt eines anderen
+Nightfarers zeichnet ihn nicht im Block, aber im Dialog).
+
+##### 5. AK-409 — Lange Slotkarten: ein Rahmen fuer den Vorschlag
+
+**Zweck.** Eine Slotkarte bleibt als Karte lesbar; ein langer Vorschlag schiebt
+die Nachbarn nicht aus dem Bild.
+
+**Bestand und Grenze der Aussage.** power-user T-334s meldet "8 Flask-Zeilen" als
+lange Karte (Beobachtung, kein Befund-Eintrag, **Ursache nicht reproduziert**,
+hier ohne Programmstart nicht pruefbar). Zeilenquellen einer Karte:
+`rolled_label` (die eigenen Effekte und Flueche des Relikts,
+`relicslots.py:432-453`, Umbruch an) und `SuggestionBlock.lines`
+(`advisorblock.py:404-405`, `:452-455`; Flueche immer, Effekte mit Zahl, stille
+Effekte nie, `types.py:681-693`; der Docstring dort nennt "16 lines" als die
+schlimmste gemessene Karte). Der erste Baubericht **reproduziert** den Fall
+(welches Relikt, welche Zeilenzahl, welche Quelle) und nennt ihn; die Schwelle
+unten ist ein Entwurfswert nach der Beobachtung, kein gemessener.
+
+**Aufbau.** Der Block (nicht `rolled_label`: die eigenen Effekte des Relikts
+bleiben vollstaendig sichtbar) hat ein Zeilenbudget von **8 Textzeilen** (ein
+Zeilenumbruch zaehlt als Zeile). Darueber: alle Fluchzeilen bleiben (ein Fluch
+ist eine Falle, Direktorentscheid 06.09.2026), Effektzeilen stehen bis zum
+Budget, der Rest wird eine einzige `MUTED`-Zeile *"+{n} more effect lines — see
+Why this relic"*; der Knopf `Why this relic` (AK-274) fuehrt zur vollen Liste,
+kein zweiter Weg. Bis 8 Zeilen aendert sich nichts.
+
+**Aufwand je Ziel.** Den Rest lesen: 1 Klick (`Why this relic` steht schon im Kopf
+des Blocks). Heute: durch eine Karte mit 8 und mehr Zeilen rollen.
+
+**AK-409** (a) Ein Block bis 8 Textzeilen hoch bei der Spaltenbreite wird
+unveraendert gezeichnet (Test: gleiche Hoehe wie vor der Aenderung); (b) ein Block
+mit mehr: Hoehe der Textflaeche ≤ 9 Zeilenhoehen (8 + die Faltzeile), alle
+Fluchzeilen darin vollstaendig, die Faltzeile nennt `n` = Anzahl der
+ausgelassenen Effektzeilen; (c) enthaelt der Block allein mehr als 8 Fluchzeilen,
+wachsen die Fluchzeilen ueber das Budget (kein Fluch wird versteckt) und keine
+Effektzeile steht; (d) `rolled_label` ist unveraendert; (e) der Bericht nennt den
+reproduzierten Fall mit Zeilenzahl je Quelle und der Spaltenbreite der Messung.
+
+##### 6. Ausdruecklich nicht Teil der Vorgabe
+
+Neue Farben, Icons oder Dialoge; eine Aenderung der Mindestbreite (AK-400); ein
+Umbau der Statustabelle ueber 4.8 hinaus; die Wahl von Zaubern und Weapon Arts
+(T-335m, vergibt noch keine AK); der Wortlaut von `SAVES_HOLD_NOTHING` und
+`NO_SAVE_FOUND`; eine Faltung von `rolled_label`.
+
+**Betroffene Dateien (Stand `7a9e7dd`):** `nrplanner/app.py` (Build-Zeile
+`:1010-1042`, `rescan_button` `:891`), `nrplanner/advisorbar.py` (`:357-359`,
+`:1236`, `:1365-1369`, Zeile 4.8 der Statustabelle), `nrplanner/relicpicker.py`
+(`:215-221`), `nrplanner/effectfilterdialog.py` (`:86`),
+`nrplanner/advisorblock.py` (`:81-83`, `:404-405`, `:452-455`),
+`nrplanner/advisor/types.py` (`:681-693`, nur lesen), Tests zu AK-123, AK-389,
+AK-301/AK-309.
