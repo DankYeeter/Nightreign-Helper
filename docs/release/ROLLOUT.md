@@ -1060,3 +1060,35 @@ Vorgaenger (`ed93e31`, Ingame-Test): 59.199.168 B,
 Nicht ausgefuehrt: Start des Artefakts (Nutzer hat das Programm offen,
 NH-004), `clean-room` (kein Ausloeser: Spec, requirements, `EXTRACT_VERSION`
 seit `ed93e31` unveraendert, `git diff --stat` leer).
+
+## 1.19.0 (Neubau T-335bau) - 2026-10-31
+
+Modus `build+notes`. Gebaut aus `995039b` (Notes-Commit; letzter Code-Commit
+`35082f7`), Arbeitsbaum vor und nach jedem Lauf sauber. Version bleibt 1.19.0
+(kein Tag `v1.19.0` gesetzt). Werkzeuge: `.venv`, Python 3.12.10, PyInstaller
+6.21.0 (Hooks 2026.7), kein `upx` (0 Treffer `UPX!`). Befehl:
+`PYTHONHASHSEED=0 SOURCE_DATE_EPOCH=1761600000 .venv/Scripts/python.exe -m PyInstaller NightreignHelper.spec --noconfirm --clean --log-level WARN`,
+rund 53 s je Lauf, keine Warnung im Log (nur INFO-Zeilen).
+
+**Reproduzierbarkeit:** Ohne die beiden Variablen sind zwei `--clean`-Laeufe
+NICHT identisch (59.232.290 B / `5a03acbd...` gegen 59.232.607 B /
+`a51e054d...`; erster Unterschied bei Byte 273, PE-Kopf, danach verschoben).
+Der "identisch" der Vorgaenger-Abschnitte stammt aus Laeufen ohne `--clean`
+(zweiter Lauf 1 s, Cache, Exe unveraendert) und beweist nichts. Mit
+`PYTHONHASHSEED=0` und `SOURCE_DATE_EPOCH` sind zwei `--clean`-Laeufe
+bitgleich; welche der beiden die Abweichung verursacht, ist nicht getrennt
+gemessen. Empfehlung: beide in das Bauskript bzw. `release.yml` aufnehmen
+(Eigentum `developer`/`director`, hier nicht geaendert).
+
+**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **59.233.901 Bytes**, SHA-256
+`b479a9bb21c3c947d5b37e2619ccc3816974baf1a550b330bad84b8ea12b1eff`.
+Vorgaenger (`7070d0c`): 59.200.884 B, `80f34cb7...cfdb`. `dist/` und `build/`
+stehen in `.gitignore`.
+
+Nicht ausgefuehrt: Start des Artefakts (Auftrag), `clean-room` (Ausloeser
+`EXTRACT_VERSION` 16 → 18 ist gegeben; folgt als eigener Auftrag, Cache-Neubau
+beim ersten Start ist in CHANGELOG und Release-Text genannt). Spec und
+`requirements.txt` seit `7070d0c` unveraendert. `tests/test_personenbezug.py`
+(Waechter laut Rolle) existiert im Repo nicht; ich habe nichts in Wurzel oder
+Artefakt ergaenzt.
