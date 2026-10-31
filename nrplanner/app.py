@@ -415,7 +415,9 @@ class HeroTile(QToolButton):
             f"QToolButton:checked {{ border: 2px solid {ACCENT};"
             f" color: {ACCENT}; }}"
         )
-        self.setToolTip(f"{hero['name']}\nRight-click to change the artwork")
+        # Escaped inside a span, so it is rendered as text (SEC-019).
+        self.setToolTip(f"<span>{html.escape(hero['name'])}<br>"
+                        "Right-click to change the artwork</span>")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_variants)
 

@@ -111,3 +111,18 @@ def test_a_nightfarer_name_in_the_favourite_menu_is_offered_as_text(
         menu.deleteLater()
     assert "<img" not in tip
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip
+
+
+def test_a_nightfarer_name_on_the_sidebar_tile_is_offered_as_text(qapp):
+    """The sidebar portrait's tooltip names the Nightfarer as text (SEC-019)."""
+    from nrplanner import app
+
+    tile = app.HeroTile(0, {"id": 990_003, "name": HOSTILE_NAME},
+                        app.IconPack())
+    try:
+        tip = tile.toolTip()
+    finally:
+        tile.deleteLater()
+    assert "<img" not in tip
+    assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip
+    assert tip.endswith("<br>Right-click to change the artwork</span>")
