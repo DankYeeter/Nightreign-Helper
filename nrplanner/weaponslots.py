@@ -202,6 +202,9 @@ class WeaponTile(cardgrid.HoverCard):
         self.show_slot(WeaponSlot(), None)
 
     def mousePressEvent(self, event) -> None:
+        # A click on the tile Tab reached raises no focus event (QA-319).
+        self._note_focus_reason(Qt.MouseFocusReason)
+        self._apply_appearance()
         if event.button() == Qt.RightButton:
             self.on_clear(self.index)
         else:

@@ -291,6 +291,9 @@ class ChipWidget(cardgrid.HoverCard):
         super().focusOutEvent(event)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        # A click on the chip Tab reached raises no focus event (QA-319).
+        self._note_focus_reason(Qt.MouseFocusReason)
+        self._apply_appearance()
         if event.button() == Qt.LeftButton:
             self.on_activate(self)
 

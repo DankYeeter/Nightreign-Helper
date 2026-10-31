@@ -9,8 +9,8 @@ from __future__ import annotations
 import html
 from dataclasses import replace
 
-from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
-from PySide6.QtGui import QColor, QFocusEvent, QKeyEvent
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QSize, Qt
+from PySide6.QtGui import QColor, QFocusEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QLabel
 
 from nrplanner import castingbar, damage, weaponslots
@@ -251,6 +251,22 @@ def test_focus_is_dashed_and_the_active_ring_solid(planner, game_data):
                              (Qt.MouseFocusReason, solid)):
             widget.focusInEvent(QFocusEvent(QEvent.FocusIn, reason))
             assert ring in widget.styleSheet(), reason
+
+
+def test_a_click_on_the_tab_focused_card_draws_it_solid(planner, game_data):
+    """QA-319: a click on the tile or chip Tab had reached raises no focus
+    event, so the keyboard mark has to go with the click itself."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
+    tile = planner.stat_sheet.weapon_tiles[0]
+    chip = bar(planner).chip_widgets[0]
+    chip.on_activate = lambda _widget: None
+    for widget in (tile, chip):
+        widget.hasFocus = lambda: True
+        widget.focusInEvent(QFocusEvent(QEvent.FocusIn, Qt.TabFocusReason))
+        widget.mousePressEvent(QMouseEvent(
+            QEvent.MouseButtonPress, QPointF(5, 5), QPointF(5, 5),
+            Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+        assert f"2px solid {castingbar.ACCENT}" in widget.styleSheet()
 
 
 def test_a_choice_keeps_the_dashed_focus_of_the_chip(planner, game_data):
