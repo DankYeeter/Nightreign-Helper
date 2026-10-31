@@ -101,7 +101,7 @@ class WorldEventsTab(QWidget):
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.list.setStyleSheet(
             f"QListWidget {{ background: {PANEL}; border: 1px solid {BORDER};"
-            " border-radius: 4px; padding: 4px; }}"
+            " border-radius: 4px; padding: 4px; }"
             "QListWidget::item { padding: 6px 8px; }"
             "QListWidget::item:selected { background: rgba(200, 164, 92, 60);"
             " color: #f0f0f0; }"

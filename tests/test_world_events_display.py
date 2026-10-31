@@ -24,6 +24,7 @@ agree with any label at all.
 from __future__ import annotations
 
 import pytest
+from PySide6.QtCore import qInstallMessageHandler
 
 from nrplanner import eventstab
 
@@ -268,3 +269,18 @@ def test_a_stamina_recovery_figure_says_its_unit_is_not_in_the_files(tab):
     for text in pages_with_the_figure:
         assert ("The files do not say what it is counted in, so read it as "
                 "\"recovers faster\" and not as an amount per second.") in text
+
+
+def test_qt_accepts_the_event_list_stylesheet(game_data, qapp):
+    """QA-318: a doubled closing brace outside an f-string made Qt drop the
+    list's whole stylesheet, three warnings on every start."""
+    warnings = []
+    previous = qInstallMessageHandler(
+        lambda _kind, _context, text: warnings.append(text))
+    try:
+        widget = eventstab.WorldEventsTab(game_data)
+        widget.list.grab()
+    finally:
+        qInstallMessageHandler(previous)
+    widget.deleteLater()
+    assert not [text for text in warnings if "Could not parse" in text]
