@@ -40,6 +40,7 @@ NO_DAMAGE = "no damage"
 ONLY_ONE = "the only one this weapon has"
 DEFAULT_NOTE = "default of this weapon"
 OWN_ART_NOTE = "this weapon's own art"
+CHOOSE_OWN_ART = "Choose this weapon's art"
 SWAP_NOTE = ("A relic changed the starting armament's {what} to {name}. "
              "Your choice applies again without it.")
 
@@ -145,9 +146,12 @@ def _art_chips(slot, slot_index, build, hero, data
     records = _by_id(arts, pool)
     if not records and default_id not in _by_id(arts, [default_id]):
         return [], None
+    # QA-314: a rolled armament has no art of its own to mark (AD-056.4).
+    fixed_id = damage.fixed_entry(
+        default_id, pool, damage.is_starting_armament(weapon, hero, slot_index))
     chip = Chip("art", ART_CAPTION, art,
                 _pool(records, pool, default_id) if len(pool) > 1 else (),
-                False, default_id, art is not None, _fp(art))
+                False, fixed_id, art is not None, _fp(art))
     return [chip], None
 
 
@@ -351,6 +355,8 @@ class PoolPopup(QFrame):
         if record["id"] == self.chip.default_id:
             parts.append(OWN_ART_NOTE if self.chip.kind == "art"
                          else DEFAULT_NOTE)
+        elif self.chip.kind == "art" and self.chip.default_id is None:
+            parts.append(CHOOSE_OWN_ART)
         self.footer.setText(" · ".join(p for p in parts if p))
 
     def _choose(self, item) -> None:

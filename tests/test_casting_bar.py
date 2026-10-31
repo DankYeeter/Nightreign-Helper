@@ -74,6 +74,20 @@ def test_the_default_art_carries_the_dot_in_the_popup(planner, game_data):
     popup.deleteLater()
 
 
+def test_a_rolled_armament_names_no_art_its_own(planner, game_data):
+    """QA-314: the chip says "Choose a weapon art", so no entry of the popup
+    is "this weapon's own art" or carries the dot -- each one asks."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"),
+         armaments=((1, MAGIC_LONGSWORD),), active=1)
+    popup = art_popup(planner)
+
+    assert chips(planner)[0].name == castingbar.CHOOSE_ART
+    assert all(footer(popup, row).endswith(castingbar.CHOOSE_OWN_ART)
+               and not accent_pixels(popup.list.item(row))
+               for row in (0, 1))
+    popup.deleteLater()
+
+
 def test_wylder_gets_one_art_chip_whose_popup_is_his_pool(planner, game_data):
     wylder = cases.hero_by_name(game_data, "Wylder")
     draw(planner, game_data, wylder)
