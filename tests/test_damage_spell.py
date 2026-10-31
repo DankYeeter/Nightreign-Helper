@@ -5,11 +5,11 @@ research it stands on (`docs/research/R-010.md` section 7).
 
 The figure is a product of four factors and every one of them is read off the
 dataset here rather than written down: the spell's base damage, the
-catalyst's spell scaling, the relic rates, the art factor. What is asserted
-is the *shape* of the product -- which factors are in it, how often each
-counts, and which four are kept out (AD-053 point 4) -- because the product
-itself is uncalibrated (OF-54) and there is nothing on any screen of the game
-to compare it with.
+catalyst's spell scaling, the relic rates, the art factor -- times the
+weapons' `GAME_ATTACK_POWER_RATE`, calibrated against a dummy (T-335j). What
+is asserted is the *shape* of the product -- which factors are in it, how
+often each counts, and which four are kept out (AD-053 point 4); the one
+measured figure is in `test_advisor_goals.py`.
 
 The two anchors are the two Nightfarers A26 exists for: Revenant, whose seal
 casts an incantation that damages nothing until a relic swaps it, and
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import damage, model
+from nrplanner import damage, model, weapons
 
 from tests import weapon_damage_cases as cases
 
@@ -84,7 +84,7 @@ def rate_of(game_data, effect_id: int) -> float:
 
 def test_the_figure_is_the_base_damage_times_the_spell_power(
         game_data, revenant, seal, beast_claw):
-    """Beast Claw at the Finger Seal: 362 Physics x spell power / 100.
+    """Beast Claw at the Finger Seal: 362 Physics x spell power / 100 x 0.6.
 
     The whole of AD-053 point 1 with every rate at 1.0, and the one case
     that shows *which* spell power: the seal's, on the build's attributes,
@@ -99,9 +99,10 @@ def test_the_figure_is_the_base_damage_times_the_spell_power(
     assert rated.spell_power > 0, (
         f"{seal['name']!r} handed back no spell scaling, so nothing below "
         f"says anything")
-    assert rated.per_type == {
-        "Physics": pytest.approx(base * rated.spell_power / 100.0)}
-    assert rated.figure == pytest.approx(base * rated.spell_power / 100.0)
+    expected = (base * rated.spell_power / 100.0
+                * weapons.GAME_ATTACK_POWER_RATE)
+    assert rated.per_type == {"Physics": pytest.approx(expected)}
+    assert rated.figure == pytest.approx(expected)
     assert rated.reason is None
 
 
@@ -116,7 +117,8 @@ def test_a_sorcery_at_a_staff_is_rated_the_same_way(game_data):
                          hit_with=model.SORCERIES_ART)
 
     assert rated.figure == pytest.approx(
-        pebble["damage"]["Magic"] * rated.spell_power / 100.0)
+        pebble["damage"]["Magic"] * rated.spell_power / 100.0
+        * weapons.GAME_ATTACK_POWER_RATE)
     assert set(rated.per_type) == {"Magic"}
 
 

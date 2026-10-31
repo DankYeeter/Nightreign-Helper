@@ -119,18 +119,9 @@ SPELL_POWER_LABEL = "Spell power"
 
 # What a spell hits for is a different quantity from both of those, so it is
 # named apart from them (AD-053, point 7): the attack rating and the spell
-# power are fitted against figures the game prints, and this one is not.
+# power are what the game prints on the armament, this is what a spell takes
+# off a training dummy.
 SPELL_DAMAGE_NAME = "Spell damage"
-
-# ... and it says so wherever it is shown. The Elden Ring damage formula
-# applied to Nightreign's params is a premise of A26 and not a measurement
-# (user decision OF-54, 2026-09-20): the factors are the game's own, their
-# product has never been compared with a number on screen, and no screen of
-# this game shows one to compare it with.
-SPELL_DAMAGE_UNCALIBRATED = (
-    "{name} is uncalibrated: it is the damage formula applied to the game's "
-    "own values, and the game shows no spell damage to check it against. "
-    "Compare two spells by it, not the figure itself.")
 
 # The spell power is a percentage of the spell's own damage, which is what
 # makes the 100 arithmetic rather than a tuning knob.
@@ -811,8 +802,8 @@ class SpellRating:
     #: here rather than by every caller in turn.
     damage_type: str
     #: The catalyst's spell scaling -- the figure the game prints on the
-    #: staff, unrounded, and the one factor of this product that *is*
-    #: calibrated (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
+    #: staff, unrounded, and calibrated against that print on its own
+    #: (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
     spell_power: float
     per_type: dict[str, float]
     #: The same product with nothing equipped: the spell's own base damage on
@@ -893,7 +884,8 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     half: the figure is formed here once, and a display or a goal prints
     what it gets back instead of assembling one of its own (AD-019/AD-021).
 
-        figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+        figure[T] = base[T] x spell_power / 100 x GAME_ATTACK_POWER_RATE
+                    x rate[T] x art_rate
 
     and, beside it, the same product with nothing equipped (`bare_per_type`),
     so that a display's before-and-after comes out of one call.
@@ -909,9 +901,12 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     general `*AttackRate` family and `art_rate` the genus and school buffs,
     both through `_multiplied`, the same loop a swing goes through.
 
-    **The product itself is uncalibrated** and has to be shown as such
-    (`SPELL_DAMAGE_UNCALIBRATED`, OF-54): it is the Elden Ring formula taken
-    as a premise, and nothing the game displays confirms it.
+    **Calibrated against a dummy measurement, 2026-10-31** (OF-54, T-335j):
+    the Elden Ring formula alone hit for 1/0.6 of what the game shows, so the
+    weapons' `weapons.GAME_ATTACK_POWER_RATE` is applied at the same point of
+    the chain -- before the multipliers -- and the display truncates through
+    `displayed`. Recluse at level 15, Recluse's Staff, no relics: Glintstone
+    Pebble 123 on the dummy and here.
 
     **Four things deliberately do not reach a spell** (AD-053, point 4), and
     each is an omission rather than an oversight: the class rates -- a spell
@@ -949,9 +944,13 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
             if isinstance(value, (int, float)) and math.isfinite(value)
             and value > 0}
     art = _art_of(spell, hit_with)
-    per_type, rates = _multiplied(
-        {name: value * spell_power / SPELL_POWER_SCALE
-         for name, value in base.items()}, build, art=art)
+
+    def on_screen(power: float) -> dict[str, float]:
+        return {name: value * power / SPELL_POWER_SCALE
+                * weapons.GAME_ATTACK_POWER_RATE
+                for name, value in base.items()}
+
+    per_type, rates = _multiplied(on_screen(spell_power), build, art=art)
     # The baseline of the same product (AK-359): the catalyst asked again on
     # the level's own attributes, which is the one factor of the four that a
     # bare build changes -- the rates and the art factor are what the build
@@ -964,8 +963,7 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
         damage_type=damage_type,
         spell_power=spell_power,
         per_type=per_type,
-        bare_per_type={name: value * bare_power / SPELL_POWER_SCALE
-                       for name, value in base.items()},
+        bare_per_type=on_screen(bare_power),
         rates=rates,
         reason=None if base else NO_SPELL_DAMAGE.format(
             name=spell.get("name", "This spell")),

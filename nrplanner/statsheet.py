@@ -28,7 +28,7 @@ from .theme import ACCENT, BAD, GOOD, MUTED
 AR_BREAKDOWN_KEY = "ar:total"
 
 # The second such key, for the spell-damage click-through (AK-361): the
-# uncalibrated note and the rates behind the figure are shown when the player
+# rates behind the figure, and why a 0.00 is one, are shown when the player
 # asks for them, the way this panel already shows the attack rating's, rather
 # than as a third standing line under every catalyst tile.
 SPELL_BREAKDOWN_KEY = "spell:total"
@@ -477,8 +477,8 @@ class StatSheet(QScrollArea):
         """Where the spell row's figure comes from, and the note it carries.
 
         AK-361: the baseline, the rates that moved it with their relics, the
-        figure -- and exactly one of two sentences, the facade's own, never
-        both and never neither. Handed back rather than only shown, for the
+        figure -- and, for a spell that damages nothing, the facade's
+        sentence saying so. Handed back rather than only shown, for the
         reason `_ar_breakdown_text` is (QA-073 b): a text built straight into
         a tooltip is a text no test can read.
         """
@@ -489,8 +489,6 @@ class StatSheet(QScrollArea):
         # heading and inside the facade's sentence, is escaped here rather
         # than where the facade writes it -- its other sinks are PlainText
         # and would show a `&amp;` of their own (SEC-019).
-        note = rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
-            name=damage.SPELL_DAMAGE_NAME)
         rows = [f"<b>{damage.SPELL_DAMAGE_NAME} — "
                 f"{html.escape(str(rating.spell.get('name', '')))}</b>",
                 f"&nbsp;&nbsp;Base &nbsp; "
@@ -498,7 +496,9 @@ class StatSheet(QScrollArea):
         rows += self._rate_rows(rating.rates)
         rows.append(f"&nbsp;&nbsp;<b>{damage.SPELL_DAMAGE_NAME} "
                     f"{damage.displayed(rating.figure)}</b>")
-        rows.append(f"<span style='color:{MUTED}'>{html.escape(note)}</span>")
+        if rating.reason:
+            rows.append(f"<span style='color:{MUTED}'>"
+                        f"{html.escape(rating.reason)}</span>")
         return "<br>".join(rows)
 
     def _ar_breakdown_text(self) -> str:

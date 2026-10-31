@@ -10,8 +10,8 @@ Read off the rendered label, not off the objects behind it: what the player
 compares are the two figures as they are written, and a row that is computed
 but not drawn is not a row. The figures themselves are asserted against the
 facade rather than against literals -- the point of every case here is that
-the panel asks `damage` the same question the advisor asks it (AD-019), not
-that the uncalibrated product has a particular value (OF-54).
+the panel asks `damage` the same question the advisor asks it (AD-019); the
+one measured value is pinned in `test_advisor_goals.py` (T-335j).
 """
 
 from __future__ import annotations
@@ -169,9 +169,9 @@ def test_revenant_reads_his_swapped_spell_beside_the_claws_attack_rating(
     spell_name, grey, change, bold = row
     assert spell_name == "Beast Claw"
     assert bold == damage.displayed(rating.figure)
-    assert 500 <= bold <= 650, (
-        f"the criterion reads about 578 for this pairing and the panel shows "
-        f"{bold}")
+    assert 300 <= bold <= 400, (
+        f"the criterion reads about 346 for this pairing since T-335j (577 "
+        f"before the game's 0.6) and the panel shows {bold}")
     # Nothing but the swap relic is equipped, and it carries no rate: the
     # baseline and the figure are one and the same (AK-359).
     assert grey == bold
@@ -287,7 +287,7 @@ def test_a_nightfarer_whose_seal_throws_nothing_reads_a_figure_of_zero(
     Revenant's default state, not an edge case: the Finger Seal casts
     Rejection, which damages nothing, and a zero with a reason is the answer
     (AD-052 point 5). The sentence is in the click-through, where AK-361 puts
-    it, and it is the particular one -- never both, never the general one.
+    it.
     """
     hero = cases.hero_by_name(game_data, "Revenant")
     draw(planner, game_data, hero)
@@ -300,15 +300,14 @@ def test_a_nightfarer_whose_seal_throws_nothing_reads_a_figure_of_zero(
     # spell's name is game text (SEC-019).
     note = planner.stat_sheet._spell_breakdown_text()
     assert html.escape(damage.NO_SPELL_DAMAGE.format(name="Rejection")) in note
-    assert "uncalibrated" not in note
 
 
-def test_the_click_through_carries_the_baseline_and_the_uncalibrated_note(
+def test_the_click_through_carries_the_baseline_and_the_rates(
         planner, game_data, physical_relic):
-    """AK-361: the baseline, the rates with their relics, the figure, the note.
+    """AK-361: the baseline, the rates with their relics, the figure.
 
-    Exactly one of the two sentences, and here the general one -- the spell
-    does carry damage, so the particular sentence has nothing to say.
+    The spell does carry damage, so the facade's sentence for a 0.00 has
+    nothing to say, and since T-335j there is no caveat in its place.
     """
     hero = cases.hero_by_name(game_data, "Revenant")
     relic = physical_relic(hero)
@@ -326,8 +325,6 @@ def test_the_click_through_carries_the_baseline_and_the_uncalibrated_note(
     assert name in note, (
         "the click-through names no relic behind the rate that moved the "
         "figure, which is the whole of what it is for")
-    assert html.escape(damage.SPELL_DAMAGE_UNCALIBRATED.format(
-        name=damage.SPELL_DAMAGE_NAME)) in note
     assert "deals no damage" not in note
 
 

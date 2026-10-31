@@ -149,14 +149,12 @@ art* adds *Weapon art attack rating* the same way, and both combine into
 nothing, the label stays *Attack rating* because the figure really is the
 one the defaults would give too.
 
-Ranking on a spell shows a number of its own, *Spell damage*, always next to
-a line in **Why** that the figure is uncalibrated: it is the damage formula
-applied to the game's own values, and the game shows no spell damage on
-screen to check it against — compare two spells by it, not the figure
-itself. A spell that deals no damage of its own shows `0.00` — Revenant's
-starting Incantation, Rejection, is one — until a relic changes which spell
-is thrown; measured in testing, the Beast Claw relic turned that `0.00` into
-`350.5` Spell damage at the Finger Seal.
+Ranking on a spell shows a number of its own, *Spell damage*: what the spell
+hits a training dummy for, calibrated against a measurement in the game. A
+spell that deals no damage of its own shows `0.00` — Revenant's starting
+Incantation, Rejection, is one — until a relic changes which spell is
+thrown; measured in testing, the Beast Claw relic turned that `0.00` into
+`346` Spell damage at the Finger Seal.
 
 A choice this build cannot answer says so instead of showing a figure. Eight
 Nightfarers carry neither a staff nor a seal; choosing *Sorceries*,
@@ -342,12 +340,9 @@ the tile (see below).
   of the tile. If
   that spell deals no damage by itself (Revenant's default Rejection/Heal,
   for example), the row still shows a number, `0`, not a sentence. Click the
-  bold figure for a breakdown tooltip; it always ends with one of two notes —
-  either that spell damage is uncalibrated (the formula applied to the
-  game's own values, with nothing in the game to check it against — use it to
-  compare two spells, not as an absolute number), or, for a spell that deals
-  no damage, that only a relic swapping the cast spell would bring damage
-  here. Do not add this figure to the weapon's attack rating above it —
+  bold figure for a breakdown tooltip: the base, the relics that moved it and
+  the figure, and for a spell that deals no damage a note that only a relic
+  swapping the cast spell would bring damage here. Do not add this figure to the weapon's attack rating above it —
   attack rating and spell damage are two different scales and this panel
   never mixes them.
 
@@ -818,10 +813,6 @@ Stated plainly rather than hidden:
   scripts, but their constants are not yet scoped to the functions using them.
 - **Weak parts are numbered, not named.** Nothing in the files says which body
   part a slot refers to.
-- **Spell damage is uncalibrated.** The Advisor shows a *Spell damage* figure
-  for staves and seals (see [Build planner](#1-build-planner)), but the game
-  displays no spell-damage number on screen to check it against, so treat it
-  as a way to compare two spells, not as an exact figure.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
 - **A PC with no Steam installed cannot point the tool at the game at all.**

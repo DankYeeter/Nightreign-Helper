@@ -523,10 +523,9 @@ INCANTATION_BUFF = 8330100
 REVENANT_DEFAULT_SPELL = "Rejection"
 
 #: Level 15, Finger Seal at tier 1, no relics: 362 physical times the seal's
-#: spell power of 159.545 / 100. Pinned to four places because every case
-#: below is a factor on it, and because it is the first figure this program
-#: shows that no screen of the game can be held against (OF-54).
-BEAST_CLAW_FIGURE = 577.5545
+#: spell power of 159.545 / 100 times `GAME_ATTACK_POWER_RATE` 0.6 (T-335j).
+#: Pinned to four places because every case below is a factor on it.
+BEAST_CLAW_FIGURE = 346.5327
 
 
 def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
@@ -556,9 +555,25 @@ def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
     assert spell["claw"].value == pytest.approx(BEAST_CLAW_FIGURE, abs=5e-5)
     assert "Beast Claw" in spell["claw"].display
     assert damage.SPELL_DAMAGE_NAME in spell["claw"].display
-    assert any("uncalibrated" in line for line in spell["claw"].unknowns), (
-        f"OF-54: the figure has to say it is a premise, not a measurement: "
+    assert spell["claw"].unknowns == (), (
+        f"T-335j: the figure is calibrated, so it carries no caveat: "
         f"{spell['claw'].unknowns!r}")
+
+
+def test_recluses_pebble_reads_what_the_dummy_took(game_data):
+    """T-335j: the spell figure the game shows, measured on a dummy.
+
+    User's measurement, 2026-10-31: Recluse at level 15, Recluse's Staff, no
+    relics -- Glintstone Pebble hits a training dummy for 123. The formula
+    alone gave 206; the weapons' `GAME_ATTACK_POWER_RATE`, truncated on
+    display, brings it to the game's figure.
+    """
+    recluse = cases.hero_by_name(game_data, "Recluse")
+
+    bare = damage_scores(game_data, recluse, {"bare": ()},
+                         hit_with=model.SORCERIES_ART)["bare"]
+
+    assert bare.display == "Spell damage (Glintstone Pebble) 123"
 
 
 def test_a_physical_buff_lifts_the_beast_claw_and_a_holy_one_does_not(
@@ -719,9 +734,9 @@ def test_the_spell_headline_names_the_damage_type_asked_about(game_data):
 
     assert fire.value == 0.0
     assert fire.display == "Fire spell damage (Beast Claw) 0"
-    assert len(fire.unknowns) == 1 and "uncalibrated" in fire.unknowns[0], (
-        f"a measured zero is a ranking, so the only sentence here is the "
-        f"caveat the figure always carries: {fire.unknowns!r}")
+    assert fire.unknowns == (), (
+        f"a measured zero is a ranking, not a fault, so no sentence comes "
+        f"with it: {fire.unknowns!r}")
 
 
 def test_a_school_earns_the_spell_headline_only_once_it_moves_the_figure(
@@ -742,7 +757,7 @@ def test_a_school_earns_the_spell_headline_only_once_it_moves_the_figure(
     bestial = damage_scores(game_data, revenant, carried,
                             hit_with=f"{model.ART_FAMILY_PREFIX}23")
 
-    assert bestial["claw"].display == "Spell damage (Beast Claw) 577"
+    assert bestial["claw"].display == "Spell damage (Beast Claw) 346"
     assert bestial["school"].display.startswith(
         "Bestial spell damage (Beast Claw) "), (
         f"the school moved the figure, so it names it: "
@@ -858,7 +873,7 @@ def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
     rate = rate_of(game_data, magic, "magicAttackRate")
 
     assert "Glintstone Pebble" in spell["nothing"].display
-    assert spell["nothing"].value == pytest.approx(206.1327, abs=5e-5)
+    assert spell["nothing"].value == pytest.approx(123.6796, abs=5e-5)
     assert spell["magic"].value == pytest.approx(
         spell["nothing"].value * rate, abs=5e-5)
     assert spell["claw"].display == spell["nothing"].display, (

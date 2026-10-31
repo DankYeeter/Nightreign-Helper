@@ -427,10 +427,8 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     yardsticks in one ranking is QA-018 in a new dress -- the gain of a swap
     relic would be the difference between a damage and a scaling figure.
 
-    The figure is uncalibrated and says so (OF-54): nothing the game prints
-    can be held against it. Where the spell carries no damage that sentence
-    gives way to the facade's, which says the more particular thing about
-    the same 0.00.
+    Where the spell carries no damage the facade's sentence says so about
+    the 0.00.
 
     Game text -- the spell's name, the armament's -- is passed on as it is
     written: every sink that draws a finding or a display is `PlainText`
@@ -457,8 +455,7 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     rating = damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build,
                           ctx.data, hit_with=ctx.hit_with,
                           damage_type=ctx.damage_type)
-    findings = [rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
-        name=damage.SPELL_DAMAGE_NAME)]
+    findings = [rating.reason] if rating.reason else []
     if swaps > 1:
         findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
     # AK-342, the same rule as AK-335 one row up: the damage type earns its

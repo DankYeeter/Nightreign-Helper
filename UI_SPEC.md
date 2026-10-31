@@ -8429,3 +8429,16 @@ und alle Tests zu AK-03/AK-04/AK-05/AK-194/AK-269/AK-271/AK-351/AK-352 sowie zu
 **Hinweis an den `technical-writer`:** das README nennt 1536 px als empfohlene
 Mindestbreite; die harte Mindestbreite des Fensters ist neu ≈ 1190 px, und unter
 rund 1933 px Fensterbreite zeigt die Leiste zwei Zeilen.
+
+#### Nachtrag T-335j (developer, Nutzerentscheid), 2026-10-31 — Zauberzahl kalibriert, Unkalibriert-Satz entfaellt (AK-343, AK-361)
+
+Puppenmessung des Nutzers 31.10.2026 (Recluse Stufe 15, Recluse's Staff, keine
+Relikte, Glintstone Pebble: 123): `damage.spell` traegt jetzt denselben Faktor
+`weapons.GAME_ATTACK_POWER_RATE` wie die Waffen-AR, die Anzeige schneidet ueber
+`damage.displayed` ab. Der Satz `SPELL_DAMAGE_UNCALIBRATED` ist entfernt
+(Nutzer "direkt einbauen"):
+
+- **AK-343:** Name `Spell damage` bleibt; kein Vorbehalt mehr in `unknowns`.
+  Es bleibt nur der AK-344-Satz ("deals no damage") fuer eine 0.00.
+- **AK-361:** Der Klick-Tooltip bleibt (Grundlinie, Raten, Endwert); er traegt
+  nur noch fuer eine Zeile ohne Schaden den `NO_SPELL_DAMAGE`-Satz, sonst keinen.
