@@ -338,6 +338,18 @@ gesichert unter
 skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
 (Zahlen, Herkunft T-324b, Grenze "ueber 16").
 
+*Ersetzt am 31.10.2026 (T-335s, developer):* `EXTRACT_VERSION` **17** und
+`ICON_VERSION` **4** (AD-056 Schritte 1-2: `arts`-Block, `art_default`,
+`art_pool`, `spell_pools`; Art-Symbole im Item-Satz). Diesmal **beides** neu
+gebaut, weil `ICON_VERSION` mitsteigt: `nightreign_data.json` 9 025 778 B
+(+214 036 B = +2,4 %, `extract.write_snapshot` an der echten Installation,
+37,1 s), Symbolsatz per `iconbuild.build` (29,1 s, 899 von 973 Item-Symbolen,
+13,4 MB). Stand der Vorlage: **1027 Dateien, 23 029 877 B**, Ort unveraendert.
+Alte v16-Vorlage ganz gesichert unter
+`...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v16`
+(841 Dateien, 21 139 391 B). `CLAUDE.md` "Fester Testabzug" ist auf diesen
+Stand gezogen (Grenze "ueber 17" bzw. `ICON_VERSION` "ueber 4").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.
