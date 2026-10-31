@@ -645,3 +645,6 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   bzw. jede Art zeigt (heute fest am Stab/an der Startwaffe). Woertlich:
   "ich muss ja spells auswählen damit du mir den dmg davon anzeigen kannst.
   dasselbe gilt für weapon arts. hier müssen wir demnächst nachbessern."
+- OF-54 Restabweichung: "Magic Attack Power Up" (1,045) an der Puppe 128,
+  Programm 129 (Recluse Stufe 15); 123 und 138 (+4) passen genau. Ursache
+  offen (T-335j).
