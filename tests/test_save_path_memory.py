@@ -966,6 +966,27 @@ NOTHING_TO_FILTER = ("Your save has no relics in it yet, so there is nothing "
                      "to filter.")
 NOTHING_TO_RANK = ("Your save has no relics in it yet, so there is nothing to "
                    "rank — use Rescan save.")
+#: AK-406, 4.8a and 4.8b of the advisor bar, word for word out of `UI_SPEC`
+#: "Nachtrag T-335n".
+BAR_NO_SAVE_READ = ("No save was read, so there are no relics to choose from "
+                    "— use Find my save.")
+BAR_SAVE_IS_EMPTY = ("Your save has no relics in it yet — if you just played, "
+                     "use Rescan save; if they are on another Steam account, "
+                     "use Find my save.")
+
+
+def the_bar_says(window) -> str:
+    """The advisor bar's status line, before and after a run is asked for.
+
+    `_ask` directly: the button is shut in 4.8, and the sentence must hold
+    through every way a run can be asked for (AK-406 (c)).
+    """
+    bar = window.advisor_bar
+    resting = bar.status.accessibleName()
+    bar._ask()
+    assert bar.status.accessibleName() == resting, "AK-406 (c)"
+    assert bar.status.toolTip() == f"<span>{resting}</span>", "AK-406 (e)"
+    return resting
 
 
 def test_the_line_names_an_empty_save_on_the_automatic_route(store, game_data,
@@ -1016,6 +1037,9 @@ def test_a_read_empty_save_is_not_called_unread_on_the_automatic_route(
 
         assert the_filter_window_says(window, monkeypatch) == NOTHING_TO_FILTER
         assert the_picker_says(window) == NOTHING_TO_RANK
+        assert the_bar_says(window) == BAR_SAVE_IS_EMPTY
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.isVisibleTo(window)
     finally:
         close(window, read)
 
@@ -1035,6 +1059,7 @@ def test_a_picked_empty_save_is_not_called_unread_by_the_picker(
         assert the_filter_window_says(window, monkeypatch) == (
             "That save has no relics in it yet, so there is nothing to "
             "filter.")
+        assert the_bar_says(window) == BAR_SAVE_IS_EMPTY
     finally:
         close(window, read)
 
@@ -1051,5 +1076,9 @@ def test_no_save_at_all_is_still_no_save_read(store, game_data, qapp,
         assert the_filter_window_says(window, monkeypatch) == (
             effectfilterdialog.NO_SAVE_WAS_READ)
         assert the_picker_says(window) == relicpicker.NO_SAVE_WAS_READ
+        assert the_bar_says(window) == BAR_NO_SAVE_READ
+        assert "No save was read" not in BAR_SAVE_IS_EMPTY
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.isVisibleTo(window)
     finally:
         close(window, read)

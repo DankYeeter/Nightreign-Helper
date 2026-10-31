@@ -228,6 +228,9 @@ class Situation:
     #: (`Avoid`/`Favourite`) changed rather than the build, so the
     #: sentence must name that cause.
     marking_changed: bool = False
+    #: 4.8 only (AK-406): a save was read and holds no relics, so "No save
+    #: was read" would be false and `Rescan save` alone the wrong advice.
+    save_is_empty: bool = False
 
 
 def _lower_case_first(label: str) -> str:
@@ -354,9 +357,13 @@ def status_line(situation: Situation) -> str:
                     "out — use Optimize again.")
         return ("Your build changed while this was working out — use "
                 "Optimize again.")
+    if state is State.NO_SAVE and situation.save_is_empty:
+        return ("Your save has no relics in it yet — if you just played, use "
+                "Rescan save; if they are on another Steam account, use Find "
+                "my save.")
     if state is State.NO_SAVE:
         return ("No save was read, so there are no relics to choose from "
-                "— use Rescan save.")
+                "— use Find my save.")
     if state is State.SUGGESTED_WITH_SILENT_EFFECTS:
         return _clauses(
             f"{goal} — {situation.slots_filled} of "
@@ -1233,7 +1240,7 @@ class AdvisorBar(QWidget):
     def _ask(self) -> None:
         asking = self._asking(self.goal_id())
         if asking is None:
-            self._show(Situation(State.NO_SAVE))
+            self._show(self._no_save())
             return
         self._asked = asking
         self._forget_the_answer()
@@ -1364,9 +1371,14 @@ class AdvisorBar(QWidget):
 
     def _resting(self) -> Situation:
         """What the row says when nothing is running and nothing is shown."""
-        asking = self._asking(self.goal_id())
-        return Situation(State.NOTHING_YET if asking is not None
-                         else State.NO_SAVE)
+        if self._asking(self.goal_id()) is None:
+            return self._no_save()
+        return Situation(State.NOTHING_YET)
+
+    def _no_save(self) -> Situation:
+        """4.8, told apart by the mark the relic picker reads (AK-406)."""
+        return Situation(State.NO_SAVE, save_is_empty=getattr(
+            self.window(), "save_holds_no_relics", False))
 
     def _goal_label(self) -> str:
         return self.goal_box.currentText()

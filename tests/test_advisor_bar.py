@@ -83,9 +83,13 @@ TABLE = [
                                          marking_changed=True),
      "The effects you marked changed while this was working out — use "
      "Optimize again."),
-    ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
-     "No save was read, so there are no relics to choose from — use Rescan "
+    ("4.8a", advisorbar.Situation(advisorbar.State.NO_SAVE),
+     "No save was read, so there are no relics to choose from — use Find my "
      "save."),
+    ("4.8b", advisorbar.Situation(advisorbar.State.NO_SAVE,
+                                  save_is_empty=True),
+     "Your save has no relics in it yet — if you just played, use Rescan "
+     "save; if they are on another Steam account, use Find my save."),
     ("4.9a", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
         goal_label="Maximise damage", slots=6, slots_filled=6,
@@ -387,7 +391,7 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
     assert bar.situation.state is advisorbar.State.NO_SAVE
     assert bar.status.accessibleName() == (
         "No save was read, so there are no relics to choose from — use "
-        "Rescan save.")
+        "Find my save.")
     assert not bar.goal_box.isEnabled()
     assert not bar.optimize_button.isEnabled()
 
@@ -1261,7 +1265,7 @@ def test_the_filters_tooltip_counts_the_marked_effects_in_every_state(qapp):
         filters.mark_family("Dexterity", False)
         asking["value"] = None
         widget.the_build_changed()
-        assert widget.toolTip().endswith("use Rescan save.</span>")
+        assert widget.toolTip().endswith("use Find my save.</span>")
         assert widget.filters_button.toolTip().endswith(
             "2 effects avoided  ·  1 effect favourited</span>")
         assert advisorbar.marking_clauses(None) == []
