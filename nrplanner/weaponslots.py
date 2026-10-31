@@ -63,9 +63,16 @@ class WeaponSlot:
     weapon: dict | None = None
     tier: int = weapons.MIN_UPGRADE
     effect_ids: list[int] = field(default_factory=list)
+    #: The player's own choice of art and spell for this tile, `None` for
+    #: "follow the armament" (AK-412). Held for the run, never saved
+    #: (AD-056, P.5); `damage.art_in_use` / `spell_thrown` decide whether it
+    #: counts.
+    art_id: int | None = None
+    spell_id: int | None = None
 
     def copy(self) -> "WeaponSlot":
-        return WeaponSlot(self.weapon, self.tier, list(self.effect_ids))
+        return WeaponSlot(self.weapon, self.tier, list(self.effect_ids),
+                          self.art_id, self.spell_id)
 
     @property
     def filled(self) -> bool:

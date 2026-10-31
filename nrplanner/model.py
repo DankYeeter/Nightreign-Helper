@@ -1059,6 +1059,11 @@ class Build:
     #: of a rate, so the figure cannot be reached through `rates` at all
     #: (AD-052 point 2); `advisor.goals` is what reads them.
     swapped_spell_ids: tuple[int, ...] = ()
+    #: The arts the "Starting armament's skill changed to ..." relics put on
+    #: the starting armament, as `SwordArtsParam` ids
+    #: (`modifiers["startSwordArtsId"]`); `damage.art_in_use` reads them and
+    #: drops an id the `arts` block does not hold (AD-056.4).
+    swapped_art_ids: tuple[int, ...] = ()
     other: dict[str, float] = field(default_factory=dict)
     warnings: list[Warning] = field(default_factory=list)
     # label -> (value before relics, value after relics)
@@ -1220,6 +1225,10 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     build.swapped_spell_ids = tuple(
         int(eff["start_magic_id"]) for eff in counted
         if isinstance(eff.get("start_magic_id"), int))
+    build.swapped_art_ids = tuple(
+        (eff.get("modifiers") or {})["startSwordArtsId"] for eff in counted
+        if isinstance((eff.get("modifiers") or {}).get("startSwordArtsId"),
+                      int))
 
     # Conflicts come from the game's own exclusivityId, not from guesswork.
     # The previous rule -- a shared SpEffect category plus any overlapping
