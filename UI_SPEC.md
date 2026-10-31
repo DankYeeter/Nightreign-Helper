@@ -7459,11 +7459,11 @@ ersetzt.*
 
 1. **`MAX_DAMAGE.scope`, letzter Satz, endgueltig** (ersetzt den
    provisorischen Satz in `_ATTACK_RATING_SCOPE` woertlich):
-   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the roles a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
+   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the rolls a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
    „own starting armament" = die feste Bezugswaffe aus AD-038 Punkt 1
    (Startwaffe des Nightfarers, `weapons.MIN_UPGRADE`,
    `slot_index=damage.STARTING_SLOT`, OF-42 Nutzerentscheid); „without the
-   roles a carried copy could add" = `weapons_held`/`armament_effect_ids`
+   rolls a carried copy could add" = `weapons_held`/`armament_effect_ids`
    bleiben leer (AD-038 Punkt 1, „ohne ihre Rollen"); „the stat sheet's hand
    switch" = der bestehende 1H/2H-Schalter des Statblatts (AD-037,
    `ctx.two_handed`), kein neues Bedienelement im Berater — OF-41 bleibt
@@ -7577,12 +7577,15 @@ Tauschrelikt im Bestand daran etwas.
    zusaetzlich zur Zeile oben, ein vollstaendiger Satz:
    > `"Nothing you own reaches {choice} here: the armament it is ranked on "`
    > `"does not carry it — for a spell the staff or seal on the selected "`
-   > `"tile, or else the starting one; otherwise the starting armament — and "`
+   > `"tile, for a weapon art the armament on it, and the starting one where "`
+   > `"the tile has none; otherwise the starting armament — and "`
    > `"nothing in your inventory swaps in a spell or weapon art that does."`
 
    (Wortlaut seit T-335f, QA-306: seit T-335b rechnet ein Zauber auf dem
    Stab/Siegel der gewaehlten Kachel, Waffe und Weapon Art weiter auf der
-   Startwaffe; "your starting equipment" stimmte fuer Zauber nicht mehr.)
+   Startwaffe; "your starting equipment" stimmte fuer Zauber nicht mehr. Seit
+   T-335fix, QA-310: die Weapon Art rechnet auf der Waffe der markierten
+   Kachel, bei leerer Kachel auf der Startwaffe.)
 
 `{choice}` ist in beiden `chosen_label(hit_with, damage_type)`
 (`advisor/goals.py:279`, dieselbe Funktion wie AK-342/AK-344/AK-346 — kein

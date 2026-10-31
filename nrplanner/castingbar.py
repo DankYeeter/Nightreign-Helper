@@ -268,7 +268,9 @@ class ChipWidget(cardgrid.HoverCard):
         chip = self.chip
         border = ACCENT if chip.selected or self.hasFocus() else BORDER
         width = 2 if chip.selected or self.hasFocus() else 1
-        style = "dashed" if chip.record is None else "solid"
+        # Dashed: a chip to choose, or the focus (T-335fix2, as on the tiles).
+        style = ("dashed" if chip.record is None or self.hasFocus()
+                 else "solid")
         fill = HOVER_FILL if self.hovered or self.hasFocus() else PANEL
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {width}px {style}"

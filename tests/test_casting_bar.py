@@ -187,6 +187,19 @@ def test_the_chips_sit_between_the_tiles_and_the_hand_switch_in_tab_order(
     assert [next_tab_stop(widget) for widget in chain[:-1]] == chain[1:]
 
 
+def test_focus_is_dashed_and_the_active_ring_solid(planner, game_data):
+    """T-335fix2: the focus shows on the active tile too -- dashed ACCENT,
+    the active ring solid; the chips follow the same rule."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
+    tile = planner.stat_sheet.weapon_tiles[0]
+    chip = bar(planner).chip_widgets[0]
+    for widget in (tile, chip):
+        assert f"2px solid {castingbar.ACCENT}" in widget.styleSheet()
+        widget.hasFocus = lambda: True
+        widget._apply_appearance()
+        assert f"2px dashed {castingbar.ACCENT}" in widget.styleSheet()
+
+
 def test_enter_on_a_tile_selects_it(planner, game_data):
     """QA-312: a tile reached by Tab is selected with Enter or Space."""
     draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"),

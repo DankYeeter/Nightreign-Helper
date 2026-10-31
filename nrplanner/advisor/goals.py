@@ -145,7 +145,7 @@ _ATTACK_RATING_SCOPE = (
     # Nightfarer, not of the grid (A17), and it is named here so that the
     # figure says what it is scaled on. Wording AK-318.1.
     "Scaled on the Nightfarer's own starting armament at its lowest tier, "
-    "without the roles a carried copy could add; one- or two-handed as the "
+    "without the rolls a carried copy could add; one- or two-handed as the "
     "stat sheet's hand switch says.",
     # QA-310: since T-335z the art row is the one armament row that reads
     # the grid, and the line above would otherwise claim it too.

@@ -227,15 +227,17 @@ class WeaponTile(cardgrid.HoverCard):
         super().focusOutEvent(event)
 
     def _apply_appearance(self) -> None:
-        """The gold ring marks the active and the focused tile (AK-413), the
-        fill the pointer alone: a clicked tile keeps the focus, and a fill
-        that stayed after the pointer left would be QA-157 again."""
+        """The gold ring marks the active tile, dashed the focused one, the
+        active one included (AK-413, T-335fix2); the fill the pointer alone:
+        a clicked tile keeps the focus, and a fill that stayed after the
+        pointer left would be QA-157 again."""
         ringed = self.active or self.hasFocus()
         border = ACCENT if ringed else BORDER
         width = 2 if ringed else 1
+        style = "dashed" if self.hasFocus() else "solid"
         fill = HOVER_FILL if self.hovered else PANEL
         self.setStyleSheet(
-            f"QFrame {{ background: {fill}; border: {width}px solid {border};"
+            f"QFrame {{ background: {fill}; border: {width}px {style} {border};"
             f" border-radius: 6px; }}"
         )
 
