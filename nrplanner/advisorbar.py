@@ -609,6 +609,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     catalyst = (selected if selected is not None
                 and selected.get("wep_type") in damage.GENUS_OF_CATALYST
                 else None)
+    # AK-415: the spell chosen on that tile, only where a spell row is asked.
+    spell_id = (planner.active_slot().spell_id
+                if catalyst is not None and advisor_goals.is_a_spell(hit_with)
+                else None)
     reference = None if starting is None else types.ReferenceArmament(
         weapon=starting, tier=weapons.MIN_UPGRADE,
         slot_index=damage.STARTING_SLOT)
@@ -621,6 +625,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         declared=declared,
         assumed_armament_counts=tuple(sorted(assumed)),
         selected_catalyst=catalyst,
+        selected_spell_id=spell_id,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,
@@ -641,6 +646,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         declared=declared,
         assumed_armament_counts=ctx.assumed_armament_counts,
         selected_catalyst_id=None if catalyst is None else catalyst["id"],
+        selected_spell_id=spell_id,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,

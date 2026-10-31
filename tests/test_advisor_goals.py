@@ -409,7 +409,7 @@ def rate_of(game_data, effect_id: int, field_name: str) -> float:
 
 
 def damage_scores(game_data, hero, carried, *, hit_with="", damage_type="",
-                  selected_catalyst=None):
+                  selected_catalyst=None, selected_spell_id=None):
     """The damage figure under one chosen cell, one entry per relic carried.
 
     `carried` maps a name to the effect ids one candidate brings, and `()` is
@@ -424,7 +424,8 @@ def damage_scores(game_data, hero, carried, *, hit_with="", damage_type="",
             advisor.context(game_data, hero, reference=reference,
                             armament_effect_ids=tuple(effect_ids)),
             hit_with=hit_with, damage_type=damage_type,
-            selected_catalyst=selected_catalyst)
+            selected_catalyst=selected_catalyst,
+            selected_spell_id=selected_spell_id)
         build = evaluate(advisor.problem([advisor.RED]), (), ctx)
         scores[name] = goals.GOALS["max_damage"].score(build, ctx)
     return scores
@@ -890,6 +891,27 @@ def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
         "a swap relic of the other genus reached a staff: each of the ten "
         "works for one Nightfarer only (`allowed_heroes`), which is what "
         "keeps a sorcery off a seal and an incantation off a staff")
+
+
+def test_recluse_with_r2_chosen_is_ranked_on_glintstone_arc(game_data):
+    """AK-415 (c): the advisor casts the spell chosen on the tile, with the
+    facade's own figure (`damage.spell` on the thrown spell)."""
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    staff = cases.weapon_by_id(game_data, recluse["starting_weapon"])
+    arc = next(s for s in game_data["spells"] if s["name"] == "Glintstone Arc")
+
+    score = damage_scores(game_data, recluse, {"nothing": ()},
+                          hit_with=model.SORCERIES_ART,
+                          selected_catalyst=staff,
+                          selected_spell_id=arc["id"])["nothing"]
+    ctx = advisor.context(game_data, recluse,
+                          reference=starting_armament(game_data, recluse))
+    build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+    facade = damage.spell(arc, staff, 1, build, game_data,
+                          hit_with=model.SORCERIES_ART)
+
+    assert f"(Glintstone Arc) {damage.displayed(facade.figure)}"         in score.display
+    assert score.value == pytest.approx(facade.figure)
 
 
 def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(

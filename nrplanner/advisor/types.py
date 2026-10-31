@@ -255,6 +255,9 @@ class AdvisorRequest:
     #: `GoalContext.selected_catalyst`'s id: a spell asked of another staff
     #: is another question.
     selected_catalyst_id: int | None = None
+    #: `GoalContext.selected_spell_id`: another spell of the same staff is
+    #: another question (AK-415). Empty unless a spell row is asked.
+    selected_spell_id: int | None = None
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
@@ -430,6 +433,11 @@ class GoalContext:
     #: (`damage.spell_catalyst`, T-335b). In the key as
     #: `AdvisorRequest.selected_catalyst_id`.
     selected_catalyst: Mapping | None = None
+    #: The spell the player chose on that tile (`WeaponSlot.spell_id`), cast
+    #: where it lies in the staff's pools (`damage.spell_thrown`, AK-415).
+    #: `None` unless a spell row is asked, so the key splits only where the
+    #: answer moves. In the key as `AdvisorRequest.selected_spell_id`.
+    selected_spell_id: int | None = None
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).

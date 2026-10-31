@@ -384,7 +384,7 @@ def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
     return " ".join([chosen, *name_words])
 
 
-def _is_a_spell(hit_with: str) -> bool:
+def is_a_spell(hit_with: str) -> bool:
     """Whether the question is about a spell rather than about the armament.
 
     Sorceries, incantations and the schools are the spell rows of the
@@ -445,7 +445,8 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
     thrown, swaps = damage.spell_thrown(
-        build, ctx.data, catalyst, starting=own, damage_type=ctx.damage_type)
+        build, ctx.data, catalyst, starting=own, damage_type=ctx.damage_type,
+        chosen=ctx.selected_spell_id)
     if thrown is None:
         return _empty_cell(_NO_SPELL_ON_THE_CATALYST.format(
             catalyst=catalyst.get("name", "This armament"), choice=chosen))
@@ -584,7 +585,7 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # than a run that stops.
     chosen = (chosen_label(ctx.hit_with, ctx.damage_type)
               if ctx.hit_with or ctx.damage_type else "")
-    if _is_a_spell(ctx.hit_with):
+    if is_a_spell(ctx.hit_with):
         return _spell_cell(build, ctx, chosen)
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,

@@ -1132,6 +1132,25 @@ def test_the_selected_staff_reaches_the_key_and_the_context(planner):
                 frozen, asking.ctx)
 
 
+def test_the_chosen_spell_reaches_the_key_only_under_a_spell_row(
+        planner, monkeypatch):
+    """AK-415: the tile's spell is in key and context under Sorceries, and
+    nowhere where it moves no answer."""
+    from nrplanner import model, weaponslots
+
+    staff = planner.weapon_by_id(33200000)
+    planner.weapon_slots = [weaponslots.WeaponSlot(weapon=staff, spell_id=4070)
+                            ] + [weaponslots.WeaponSlot()
+                                 for _ in range(weaponslots.SLOT_COUNT - 1)]
+    planner.active_weapon = 0
+    for hit_with, expected in ((model.SORCERIES_ART, 4070), ("", None)):
+        monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                            lambda chosen=hit_with: chosen)
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.selected_spell_id == expected
+        assert asking.ctx.selected_spell_id == expected
+
+
 def test_a_declared_condition_outlives_the_baseline(planner):
     """AD-036.6: the baseline is a default for a condition, never a value.
 

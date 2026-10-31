@@ -240,6 +240,8 @@ CONTEXT_REACHES_COMPUTE = {
     # Which staff the spell cells cast from is the damage direction's choice
     # (T-335b); the model books the same build whichever it is.
     "selected_catalyst": None,
+    # The spell chosen on that tile, likewise (AK-415).
+    "selected_spell_id": None,
 }
 
 
