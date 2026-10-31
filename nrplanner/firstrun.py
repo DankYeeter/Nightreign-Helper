@@ -24,7 +24,7 @@ import datetime
 import os
 import pathlib
 
-from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, Signal
+from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QLabel, QProgressBar, QPushButton,
                                QVBoxLayout, QWidget)
@@ -513,8 +513,8 @@ def the_opening_panel(remembered, day: str) -> Panel:
 def where_to_start_looking(remembered) -> pathlib.Path | None:
     """The nearest place to the goal that exists, or nowhere (section 4.1).
 
-    Nowhere means "This PC": an empty start is what opens the system dialog
-    there, and a start that does not exist would open it anywhere at all.
+    Nowhere means "This PC" (`THIS_PC`). A start that does not exist would
+    open the system dialog anywhere at all.
     """
     places = []
     if remembered is not None:
@@ -982,6 +982,12 @@ def _wrappable(line: Line) -> str:
             .replace("/", "/" + BREAK_HERE))
 
 
+#: "This PC" for the native dialog, by its known-folder id
+#: (FOLDERID_ComputerFolder). An empty start is not it: Qt opens that in the
+#: process's working directory (QA-302).
+THIS_PC = QUrl("clsid:0AC0837C-BBF8-452A-850D-79D08E667CA7")
+
+
 def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
     """The system's own folder dialog, opened as near the goal as may be.
 
@@ -994,10 +1000,11 @@ def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
     Windows. Writing one here would put an English sentence where his own
     system has its own word; A8 is about this program's texts, not Qt's.
     """
-    picked = QFileDialog.getExistingDirectory(
-        parent, "", "" if start_at is None else os.fspath(start_at),
+    picked = QFileDialog.getExistingDirectoryUrl(
+        parent, "",
+        THIS_PC if start_at is None else QUrl.fromLocalFile(os.fspath(start_at)),
         QFileDialog.Option.ShowDirsOnly)
-    return pathlib.Path(picked) if picked else None
+    return pathlib.Path(picked.toLocalFile()) if picked.isLocalFile() else None
 
 
 def _build_what_is_missing(game: pathlib.Path | None, window: _Window | None,

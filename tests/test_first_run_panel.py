@@ -24,7 +24,7 @@ import pathlib
 import re
 
 import pytest
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, Qt, QUrl
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QLabel
 
@@ -621,6 +621,24 @@ def test_the_first_dialog_opens_at_the_folder_that_was_remembered(
     monkeypatch.setattr(pathlib.Path, "is_dir", lambda _self: True)
 
     assert firstrun.where_to_start_looking(None) is None
+
+
+def test_the_dialog_opens_in_this_pc_when_nothing_is_known(monkeypatch, tmp_path):
+    """QA-302: an empty start opened in the process's working directory."""
+    asked = []
+
+    def the_dialog(_parent, _caption, start, _options):
+        asked.append(start)
+        return QUrl.fromLocalFile(str(tmp_path))
+
+    monkeypatch.setattr(firstrun.QFileDialog, "getExistingDirectoryUrl",
+                        the_dialog)
+
+    assert firstrun._pick_a_folder(None, None) == tmp_path
+    assert firstrun._pick_a_folder(None, tmp_path) == tmp_path
+    assert asked == [firstrun.THIS_PC, QUrl.fromLocalFile(str(tmp_path))]
+    assert firstrun.THIS_PC.toString() == \
+        "clsid:0AC0837C-BBF8-452A-850D-79D08E667CA7"
 
 
 def test_quitting_keeps_nothing_and_carrying_on_keeps_nothing(tmp_path):
