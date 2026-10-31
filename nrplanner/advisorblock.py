@@ -77,10 +77,12 @@ CURSE_BULLET = "✦"
 REQUIRED_BULLET = "▲"
 
 #: What the marks mean and where they are set, once per `Why` dialog, always
-#: on screen (AK-301, verbatim from the spec).
-MARK_LEGEND = ("▲ marks an effect you favourited, a struck-through effect one "
-               "you avoided — change these in the effect filter (filter icon "
-               "in the advisor bar).")
+#: on screen (AK-408, verbatim from the spec). A strikethrough is both an
+#: avoided effect and one of another Nightfarer, one style for both.
+MARK_LEGEND = ("▲ marks an effect you favourited. A struck-through effect does "
+               "nothing for you: you avoided it (change that in the effect "
+               "filter, filter icon in the advisor bar) or it works only for "
+               "another Nightfarer.")
 
 #: The headings of the two read-only lists under the slot groups (AK-279,
 #: wording AK-300).

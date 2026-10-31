@@ -970,12 +970,27 @@ def test_an_avoided_curse_keeps_its_curse_bullet(qapp, filters):
 
 
 def test_the_legend_names_the_marks_and_where_they_are_set():
-    """AK-301, verbatim from `UI_SPEC.md`, never imported: the legend
-    describes no click on the dialog, because there is none."""
+    """AK-408 (replacing AK-301's wording), verbatim from `UI_SPEC.md`,
+    never imported: the legend describes no click on the dialog, because
+    there is none."""
     assert advisorblock.MARK_LEGEND == (
-        "▲ marks an effect you favourited, a struck-through effect one you "
-        "avoided — change these in the effect filter (filter icon in the "
-        "advisor bar).")
+        "▲ marks an effect you favourited. A struck-through effect does "
+        "nothing for you: you avoided it (change that in the effect filter, "
+        "filter icon in the advisor bar) or it works only for another "
+        "Nightfarer.")
+
+
+def test_the_legend_stands_when_only_another_nightfarers_line_is_struck(
+        qapp, filters):
+    """AK-408 (b): nothing avoided, one line struck for another Nightfarer."""
+    dialog = a_dialog(qapp, an_answer(a_group(
+        a_line("[Duchess] Improved Sleep Resistance: works only for Duchess, "
+               "and you are Wylder.", silence=types.SILENT_ANOTHER_NIGHTFARER))),
+        filters)
+    assert not filters.excluded
+    assert dialog.mark_legend.isVisibleTo(dialog)
+    assert dialog.mark_legend.text() == advisorblock.MARK_LEGEND
+    dialog.deleteLater()
 
 
 def test_the_lists_and_the_legend_follow_the_sets(qapp, filters):

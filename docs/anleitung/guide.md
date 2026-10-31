@@ -224,8 +224,9 @@ instead. Marks are remembered across restarts. A favourited effect no relic
 of yours carries, or one no combination of your relics can bring together
 with the others, is said so by name rather than dropped quietly. The
 **Why** dialog shows the same marks, but only to read — a `▲` marks a
-favourited effect, a struck-through one an avoided effect, and changing
-either happens in the Filters window, not there. Conditional effects — a
+favourited effect, a struck-through one does nothing for you (an avoided
+effect, or one that works only for another Nightfarer), and changing a
+mark happens in the Filters window, not there. Conditional effects — a
 handful of curses and buffs that only apply below a health threshold, on a
 dodge, after drinking a Flask — are counted as met unless you say otherwise
 on the sheet (see "About the switches" below).
