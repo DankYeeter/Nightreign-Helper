@@ -1,7 +1,11 @@
 # Stand
 
-2026-10-14 19:30, **Zyklus 33 (T-334) am Gate: Exe 1.19.0 `ed93e31` gebaut,
-Ingame-Test des Nutzers offen, dann Tag und PR**. Branch
+2026-10-31 19:08, **Zyklus 34 (T-335) freigabebereit: Exe 1.19.0 aus `995039b`
+(59 233 901 B, SHA-256 `b479a9bb…`), QA T-335qa4 PASS, Security PASS,
+clean-room T-335cr PASS (`46b7b3c`); Tag `v1.19.0`, Release, PR folgen.**
+Inhalt seit Zyklus 33: Ingame-Test-Fixes, Zauber-/Art-Wahl (Casting-Leiste,
+AD-056, EXTRACT_VERSION 18), Zauber an der Puppe kalibriert; Details
+`docs/tasks/T-335.md`, Restarbeiten `docs/plan-restarbeiten.md`. Branch
 `docs/audit-and-advisor-design` (PR #18 gemerged 23.09. 19:15 `f45c98e`;
 naechster PR am Zyklusende).
 Verlauf `docs/archiv/state-bis-2026-09-12-zyklus19.md` und Sitzung Part 12
