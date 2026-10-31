@@ -88,6 +88,18 @@ def test_the_popup_stays_on_the_screen(qapp):
     assert place(QRect(1800, 300, 80, 60), size, area) == QPoint(1520, 359)
 
 
+def test_the_popup_holds_six_symbols_a_row_at_scale_1_2():
+    """QA-320: at 150 % a row held five, 30 arts took six rows and a
+    scrollbar. Six a row is `ceil(count / 6)` rows, at every bar width."""
+    from tests import pool_popup_at_scale as at_scale
+
+    figures = at_scale.measure()
+    assert figures["scale"] == float(at_scale.SCALE), figures
+    assert figures["rows"] == {
+        f"{count}@{width}": -(-count // castingbar.POPUP_COLUMNS)
+        for count in at_scale.COUNTS for width in at_scale.WIDTHS}
+
+
 def test_a_rolled_armament_names_no_art_its_own(planner, game_data):
     """QA-314: the chip says "Choose a weapon art", so no entry of the popup
     is "this weapon's own art" or carries the dot -- each one asks."""

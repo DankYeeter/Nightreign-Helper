@@ -18,7 +18,7 @@ from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QVBoxLayout, QWidget,
+    QStyle, QVBoxLayout, QWidget,
 )
 
 from . import cardgrid, damage, weaponslots
@@ -362,7 +362,14 @@ class PoolPopup(QFrame):
         self.list.itemEntered.connect(self._describe)
         self.list.itemClicked.connect(self._choose)
         self.list.itemActivated.connect(self._choose)
-        self.setFixedWidth(width)
+        # Six cells, the frame and the scrollbar Qt keeps room for while it
+        # wraps, so a row holds six at any scale (QA-320). Qt wraps once a
+        # row reaches the edge exactly, hence one pixel more (measured).
+        self.ensurePolished()
+        scrollbar = self.list.style().pixelMetric(
+            QStyle.PM_ScrollBarExtent, None, self.list.verticalScrollBar())
+        self.list.setFixedWidth(POPUP_COLUMNS * cell + 1
+                                + 2 * self.list.frameWidth() + scrollbar)
         shown = next((i for i in range(self.list.count())
                       if self.list.item(i).data(Qt.UserRole)
                       == (chip.record or {}).get("id")), 0)
