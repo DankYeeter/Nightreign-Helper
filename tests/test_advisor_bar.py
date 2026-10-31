@@ -1151,6 +1151,53 @@ def test_the_chosen_spell_reaches_the_key_only_under_a_spell_row(
         assert asking.ctx.selected_spell_id == expected
 
 
+def test_the_selected_tile_reaches_the_key_only_under_weapon_art(
+        planner, monkeypatch):
+    """User decision 31.10. 13:50: under `Weapon art` the selected tile --
+    armament, tier, art pick, slot -- is in key and context; elsewhere it is
+    in neither. Red with the key half taken out of `asking_from`."""
+    from nrplanner import model, weaponslots
+    from nrplanner.advisor import run as advisor_run
+
+    sword = planner.weapon_by_id(2000800)
+    planner.weapon_slots = [weaponslots.WeaponSlot()] + [
+        weaponslots.WeaponSlot(weapon=sword, tier=3, art_id=200)] + [
+        weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT - 2)]
+    planner.active_weapon = 1
+    for hit_with, expected in ((model.SKILL_ART, (2000800, 3, 200, 1)),
+                               ("", None)):
+        monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                            lambda chosen=hit_with: chosen)
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.art_tile == expected
+        assert (None if asking.ctx.art_tile is None
+                else asking.ctx.art_tile.key) == expected
+    frozen = advisor_run.frozen_inventory(asking.inventory,
+                                          asking.request.problem)
+    with pytest.raises(ValueError, match="art_tile"):
+        advisor_run._refuse_a_request_that_asks_about_another_run(
+            dataclasses.replace(
+                asking.request, art_tile=(2000800, 3, 200, 1),
+                inventory_fingerprint=advisor_run.inventory_fingerprint(
+                    frozen)),
+            frozen, asking.ctx)
+
+
+def test_held_swap_relics_are_read_without_a_calculation():
+    """AD-056.7: the art ids of the held relics' swap effects, nothing else
+    -- a slot held empty, an effect without the field, an unknown id."""
+    effects = {"1": {"modifiers": {"startSwordArtsId": 217}},
+               "2": {"modifiers": {"startSwordArtsId": 200}},
+               "3": {"modifiers": {}}}
+    held = (types.HeldSlot(index=0),
+            types.HeldSlot(index=1, relic=types.HeldRelic(
+                relic_id=1, name="a", effect_ids=(2, 3, 9))),
+            types.HeldSlot(index=2, relic=types.HeldRelic(
+                relic_id=2, name="b", effect_ids=(1, 2))))
+
+    assert advisorbar.held_swapped_art_ids(held, effects) == (200, 217)
+
+
 def test_a_declared_condition_outlives_the_baseline(planner):
     """AD-036.6: the baseline is a default for a condition, never a value.
 

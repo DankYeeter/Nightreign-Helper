@@ -46,6 +46,8 @@ so is
 
 from __future__ import annotations
 
+import dataclasses
+
 # The standard library's `types`, not the module beside this one: absolute
 # imports mean this line cannot reach `advisor/types.py`, but a reader can be
 # caught by the two names, and this project has already lost a test round to
@@ -395,8 +397,9 @@ def is_a_spell(hit_with: str) -> bool:
             or hit_with.startswith(model.ART_FAMILY_PREFIX))
 
 
-def _empty_cell(reason: str) -> types.GoalScore:
-    """A spell row this Nightfarer has no figure for at all, and why.
+def _empty_cell(reason: str,
+                name: str = damage.SPELL_DAMAGE_NAME) -> types.GoalScore:
+    """A spell or art row this Nightfarer has no figure for at all, and why.
 
     The value is 0.00 for every candidate alike, so no candidate outranks
     another and `run.run` drops the suggestion that would otherwise stand
@@ -405,7 +408,7 @@ def _empty_cell(reason: str) -> types.GoalScore:
     """
     return types.GoalScore(
         value=0.0,
-        display=f"{damage.SPELL_DAMAGE_NAME} not counted",
+        display=f"{name} not counted",
         unit="",
         unknowns=(reason,),
     )
@@ -476,6 +479,41 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
                  f"{damage.displayed(rating.figure)}"),
         unit="",
         unknowns=tuple(findings),
+    )
+
+
+def _art_cell(build: model.Build, ctx: types.GoalContext,
+              tile: types.ReferenceArmament, chosen: str) -> types.GoalScore:
+    """What the selected tile's weapon art hits for, one hit (AD-056.7).
+
+    The stat sheet's figure (`damage.weapon_art`, AK-415): the tile's
+    armament, tier and art pick, one-handed whatever the hand switch says
+    (P.7.1). Only a **held** swap relic swaps the art; a candidate's swap is
+    taken back out of the build, so it never moves the figure and is never
+    proposed for it (AD-056.7). A tile without an art that has a figure gets
+    the facade's sentence instead of a number (AD-056.5).
+    """
+    label = model.ART_LABELS[model.SKILL_ART]
+    if model.weapon_class(tile.weapon) == "catalyst":
+        return _empty_cell(_ART_ON_A_CATALYST.format(choice=chosen), label)
+    held_only = dataclasses.replace(build, swapped_art_ids=tuple(
+        art_id for art_id in build.swapped_art_ids
+        if art_id in ctx.held_swapped_art_ids))
+    rating = damage.weapon_art(tile, tile.slot_index, held_only, ctx.hero,
+                               ctx.data)
+    if rating.reason:
+        return _empty_cell(rating.reason, label)
+    value = (rating.per_type.get(ctx.damage_type, 0.0) if ctx.damage_type
+             else rating.figure)
+    head = (_headline_with_choice(chosen_label("", ctx.damage_type),
+                                  label.lower())
+            if ctx.damage_type else label)
+    return types.GoalScore(
+        value=value,
+        display=f"{head} ({rating.art['name']}) {damage.displayed(value)}",
+        unit="",
+        unknowns=(_RANKED_ON_ONE_ART.format(
+            choice=_ranked_on_choice(ctx.hit_with, ctx.damage_type)),),
     )
 
 
@@ -587,6 +625,8 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
               if ctx.hit_with or ctx.damage_type else "")
     if is_a_spell(ctx.hit_with):
         return _spell_cell(build, ctx, chosen)
+    if ctx.hit_with == model.SKILL_ART:
+        return _art_cell(build, ctx, ctx.art_tile or ctx.reference, chosen)
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,
                                  art=ctx.hit_with or None)

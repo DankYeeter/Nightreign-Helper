@@ -408,14 +408,14 @@ def rate_of(game_data, effect_id: int, field_name: str) -> float:
     return cases.effect_by_id(game_data, effect_id)["modifiers"][field_name]
 
 
-def damage_scores(game_data, hero, carried, *, hit_with="", damage_type="",
-                  selected_catalyst=None, selected_spell_id=None):
+def damage_scores(game_data, hero, carried, **question):
     """The damage figure under one chosen cell, one entry per relic carried.
 
     `carried` maps a name to the effect ids one candidate brings, and `()` is
     the build that brings nothing -- the base state every gain below is
-    measured against. One context per entry, because the two fields of the
-    question belong to the question and not to the build (AD-051).
+    measured against. One context per entry, because the fields of the
+    question (`question`, `GoalContext` fields) belong to the question and
+    not to the build (AD-051).
     """
     reference = starting_armament(game_data, hero)
     scores = {}
@@ -423,9 +423,7 @@ def damage_scores(game_data, hero, carried, *, hit_with="", damage_type="",
         ctx = dataclasses.replace(
             advisor.context(game_data, hero, reference=reference,
                             armament_effect_ids=tuple(effect_ids)),
-            hit_with=hit_with, damage_type=damage_type,
-            selected_catalyst=selected_catalyst,
-            selected_spell_id=selected_spell_id)
+            **question)
         build = evaluate(advisor.problem([advisor.RED]), (), ctx)
         scores[name] = goals.GOALS["max_damage"].score(build, ctx)
     return scores
@@ -924,15 +922,16 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
     armament, so the figure carries the conversion and not the frost penalty
     -- 123.85 and not 103.74. Either way the point of the case holds:
     choosing an art does not put the figure back on a state where the
-    conversion is missing.
+    conversion is missing. Since T-335z the figure is one hit of Stamp,
+    the armament's figure times its motion value 215 (AD-056.3).
     """
     carried = {"nothing": (), "pair": (FIRE_CONVERSION, FROST_STATUS)}
 
     skill = damage_scores(game_data, wylder, carried,
                           hit_with="skill")
 
-    assert skill["nothing"].value == pytest.approx(122.0506, abs=5e-5)
-    assert skill["pair"].value == pytest.approx(123.8506, abs=5e-5)
+    assert skill["nothing"].value == pytest.approx(122.0506 * 2.15, abs=5e-4)
+    assert skill["pair"].value == pytest.approx(123.8506 * 2.15, abs=5e-4)
 
 
 #: "Improved Skill Attack Power": scope 112, +15 % on every element rate
@@ -941,45 +940,77 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
 SKILL_ATTACK_BUFF = 312300
 
 
-def test_an_art_choice_that_leaves_the_value_unmoved_keeps_the_all_headline(
+#: "Changes compatible armament's skill to Lightning Slash" (M2, AD-056 P.4).
+LIGHTNING_SLASH_SWAP = 7123200
+LIGHTNING_SLASH = 217
+#: Magic Longsword and the flat-class art Glintblade Phalanx (M5, P.7.2).
+MAGIC_LONGSWORD = 2000800
+GLINTBLADE_PHALANX = 200
+
+
+def test_wylder_stamp_reads_262_in_the_advisor_as_on_the_stat_sheet(
         game_data, wylder):
-    """AK-335: an art choice earns the headline only once it actually moves
-    the figure. No relic here scopes a buff to `Weapon art`, so `art_rate`
-    stays 1.0 and the figure is the `All` figure verbatim -- the headline
-    says so by staying `Attack rating` rather than claiming a difference
-    that is not there.
-    """
-    carried = {"nothing": ()}
-
-    skill = damage_scores(game_data, wylder, carried,
-                          hit_with="skill")["nothing"]
-
-    assert skill.display.startswith("Attack rating"), (
-        f"art_rate is 1.0 here, so the headline must not change: "
-        f"{skill.display!r}")
+    """AK-415/M1: `Weapon art` is the stat sheet's one hit of the art in use
+    (`test_stat_sheet_art_and_spell.test_stamp_reads_262_in_either_hand`),
+    named, and one-handed whatever the hand switch says (P.7.1)."""
+    for two_handed in (False, True):
+        skill = damage_scores(game_data, wylder, {"nothing": ()},
+                              hit_with="skill",
+                              two_handed=two_handed)["nothing"]
+        assert skill.display == "Weapon art (Stamp (Upward Cut)) 262"
 
 
-def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
-                                                                wylder):
-    """AK-335: the art counterpart of DR-034's type fix. Once a relic scopes
-    a buff to the chosen art (`art_rate != 1.0`), the headline names the
-    choice exactly as a type does -- since AK-338 in the entry's new
-    wording, `Weapon art`, which shares no word with `attack rating` and is
-    therefore written out in full beside it.
-    """
-    carried = {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)}
-
-    everything = damage_scores(game_data, wylder, carried)
-    skill = damage_scores(game_data, wylder, carried,
+def test_a_skill_buff_still_moves_the_art_figure(game_data, wylder):
+    """AD-056.7: the motion value is one factor after the rates, so a relic
+    that buffs the art still ranks above one that does not."""
+    skill = damage_scores(game_data, wylder,
+                          {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)},
                           hit_with="skill")
 
-    assert skill["buffed"].value != pytest.approx(everything["buffed"].value), (
-        "this case needs a buff that actually moves art_rate for `skill`, "
-        "or it cannot show AK-335's condition is met")
-    assert skill["buffed"].display.startswith("Weapon art attack rating"), (
-        f"the headline names the entry as the box shows it: "
-        f"{skill['buffed'].display!r}")
-    assert "Skill attack" not in skill["buffed"].display
+    assert skill["buffed"].value > skill["nothing"].value
+
+
+def test_the_selected_tile_swings_its_chosen_art(game_data, wylder):
+    """User decision 31.10. 13:50: the selected tile, not the starting
+    armament -- Magic Longsword with Glintblade Phalanx hits 34 (M5)."""
+    tile = types.ReferenceArmament(
+        weapon=cases.weapon_by_id(game_data, MAGIC_LONGSWORD), tier=1,
+        slot_index=1, art_id=GLINTBLADE_PHALANX)
+
+    skill = damage_scores(game_data, wylder, {"nothing": ()},
+                          hit_with="skill", art_tile=tile)["nothing"]
+
+    assert skill.display == "Weapon art (Glintblade Phalanx) 34"
+
+
+def test_only_a_held_swap_relic_swaps_the_art(game_data, wylder):
+    """AD-056.7: a held swap relic moves the figure (M2: Lightning Slash
+    207); the same relic as a candidate moves nothing, so it is never
+    proposed."""
+    carried = {"nothing": (), "swap": (LIGHTNING_SLASH_SWAP,)}
+
+    candidate = damage_scores(game_data, wylder, carried, hit_with="skill")
+    held = damage_scores(game_data, wylder, carried, hit_with="skill",
+                         held_swapped_art_ids=(LIGHTNING_SLASH,))
+
+    assert candidate["swap"].value == candidate["nothing"].value
+    assert held["swap"].display == "Weapon art (Lightning Slash) 207"
+    assert held["nothing"].display == "Weapon art (Stamp (Upward Cut)) 262"
+
+
+def test_a_tile_without_an_art_figure_gets_a_sentence(game_data, wylder):
+    """AD-056.5: a rolled armament nobody chose an art for, and a staff, get
+    the reason instead of a number, at 0.00 for every candidate (QA-290)."""
+    for weapon_id, reason in (
+            (2000000, damage.NO_ART_CHOSEN),
+            (33200000, goals._ART_ON_A_CATALYST.format(choice="Weapon art"))):
+        tile = types.ReferenceArmament(
+            weapon=cases.weapon_by_id(game_data, weapon_id), tier=1,
+            slot_index=1)
+        skill = damage_scores(game_data, wylder, {"nothing": ()},
+                              hit_with="skill", art_tile=tile)["nothing"]
+        assert (skill.value, skill.display, skill.unknowns) == (
+            0.0, "Weapon art not counted", (reason,))
 
 
 def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
@@ -1013,7 +1044,7 @@ def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
     assert cell.value == pytest.approx(fire.value * factor, abs=5e-5)
     assert cell.value != pytest.approx(fire.value * factor * factor,
                                        abs=5e-5)
-    assert cell.display.startswith("Fire Weapon art attack rating"), (
+    assert cell.display.startswith("Fire weapon art (Stamp (Upward Cut))"), (
         f"the cell names both halves of the question: {cell.display!r}")
 
 

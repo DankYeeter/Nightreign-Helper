@@ -273,6 +273,8 @@ def _refuse_a_request_that_asks_about_another_run(
              else ctx.selected_catalyst.get("id")),
             ("selected_spell_id", request.selected_spell_id,
              ctx.selected_spell_id),
+            ("art_tile", request.art_tile,
+             None if ctx.art_tile is None else ctx.art_tile.key),
             ("two_handed", request.two_handed, ctx.two_handed),
             ("hit_with", request.hit_with, ctx.hit_with),
             ("damage_type", request.damage_type, ctx.damage_type),

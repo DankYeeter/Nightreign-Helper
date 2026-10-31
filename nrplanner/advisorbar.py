@@ -457,6 +457,16 @@ def held_slot(index: int, card) -> types.HeldSlot:
         handle=getattr(item, "handle", None)))
 
 
+def held_swapped_art_ids(held, effects) -> tuple[int, ...]:
+    """The art ids the held relics swap onto the starting armament, read off
+    their effects without a calculation (AD-056.7); sorted, without repeats."""
+    return tuple(sorted({
+        art_id for slot in held if slot.relic is not None
+        for effect_id in slot.relic.effect_ids
+        if isinstance(art_id := ((effects.get(str(effect_id)) or {}).get(
+            "modifiers") or {}).get("startSwordArtsId"), int)}))
+
+
 def asking_from(planner, goal_id: str) -> Asking | None:
     """What the window would ask the advisor right now, or `None` (4.8).
 
@@ -613,6 +623,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     spell_id = (planner.active_slot().spell_id
                 if catalyst is not None and advisor_goals.is_a_spell(hit_with)
                 else None)
+    # User decision 31.10.2026 13:50: `Weapon art` swings the selected tile's
+    # armament at its tier with its art pick, as the stat sheet does; an
+    # empty tile leaves the starting armament to it, as T-335b leaves the
+    # starting catalyst to a spell row.
+    tile = planner.active_slot()
+    art_tile = (types.ReferenceArmament(
+        weapon=tile.weapon, tier=tile.tier, slot_index=planner.active_weapon,
+        art_id=tile.art_id)
+        if hit_with == model.SKILL_ART and tile.weapon is not None else None)
     reference = None if starting is None else types.ReferenceArmament(
         weapon=starting, tier=weapons.MIN_UPGRADE,
         slot_index=damage.STARTING_SLOT)
@@ -626,6 +645,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         assumed_armament_counts=tuple(sorted(assumed)),
         selected_catalyst=catalyst,
         selected_spell_id=spell_id,
+        art_tile=art_tile,
+        held_swapped_art_ids=held_swapped_art_ids(held, effects),
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,
@@ -647,6 +668,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         assumed_armament_counts=ctx.assumed_armament_counts,
         selected_catalyst_id=None if catalyst is None else catalyst["id"],
         selected_spell_id=spell_id,
+        art_tile=None if art_tile is None else art_tile.key,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,

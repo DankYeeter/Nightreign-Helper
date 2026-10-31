@@ -242,6 +242,11 @@ CONTEXT_REACHES_COMPUTE = {
     "selected_catalyst": None,
     # The spell chosen on that tile, likewise (AK-415).
     "selected_spell_id": None,
+    # The tile a Weapon art question swings, and which swaps count for it:
+    # the goal's business; the model books every swap relic either way and
+    # the goal takes back the ones not held (AD-056.7).
+    "art_tile": None,
+    "held_swapped_art_ids": None,
 }
 
 

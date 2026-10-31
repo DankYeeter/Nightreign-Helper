@@ -258,6 +258,10 @@ class AdvisorRequest:
     #: `GoalContext.selected_spell_id`: another spell of the same staff is
     #: another question (AK-415). Empty unless a spell row is asked.
     selected_spell_id: int | None = None
+    #: `GoalContext.art_tile.key`: another armament, tier, art or slot on the
+    #: selected tile is another question (AK-415). Empty unless `Weapon art`
+    #: is asked of a filled tile.
+    art_tile: tuple[int, int, int | None, int] | None = None
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
@@ -371,11 +375,20 @@ class ReferenceArmament:
     starting-armament pairing needs: the penalty follows the pairing of slot 1
     with the Nightfarer's own starting armament, not the weapon and not the
     slot alone (`damage.is_starting_armament`, verified in play).
+
+    `art_id` is the tile's own art pick (`WeaponSlot.art_id`), the third
+    attribute `damage.weapon_art` asks a slot for.
     """
 
     weapon: Mapping
     tier: int
     slot_index: int
+    art_id: int | None = None
+
+    @property
+    def key(self) -> tuple[int, int, int | None, int]:
+        """This armament as a cache key holds it (`AdvisorRequest.art_tile`)."""
+        return (self.weapon["id"], self.tier, self.art_id, self.slot_index)
 
 
 @dataclass(frozen=True)
@@ -438,6 +451,18 @@ class GoalContext:
     #: `None` unless a spell row is asked, so the key splits only where the
     #: answer moves. In the key as `AdvisorRequest.selected_spell_id`.
     selected_spell_id: int | None = None
+    #: The selected tile -- armament, tier, art pick, slot -- that a
+    #: `Weapon art` question swings (`damage.weapon_art`, user decision
+    #: 31.10.2026 13:50: "Markierte Kachel"), `None` unless that art is asked
+    #: of a filled tile; the goal then swings `reference`. Its rolls stay out
+    #: (A17). In the key as `AdvisorRequest.art_tile`.
+    art_tile: ReferenceArmament | None = None
+    #: The art ids the player's **held** relics swap onto the starting
+    #: armament (`modifiers["startSwordArtsId"]`). Only these swap the art a
+    #: `Weapon art` question swings: a candidate that would swap it is never
+    #: proposed for it (AD-056.7). Follows `SlotProblem.held`, so the key
+    #: carries it already.
+    held_swapped_art_ids: tuple[int, ...] = ()
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).

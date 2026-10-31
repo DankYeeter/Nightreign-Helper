@@ -9403,6 +9403,10 @@ Magic Longsword 0) — **nicht Teil dieses Nachtrags**, Befund an den director.
 **Nicht tun:** `numShoot` in die Zahl multiplizieren (die Zahl bleibt ein Treffer, wie
 AD-056.3); den Stufenfaktor einbauen, bevor M6 vorliegt; `effect_pool` mitaendern.
 
+**Nachtrag T-335z (Nutzerentscheid 31.10. 13:50, "Markierte Kachel"; aendert AD-056 Punkt 7, Ausnahme von A17/AD-038 wie T-335b):** Unter "Hit with Weapon art" rechnet der Berater `damage.weapon_art` auf der markierten Kachel (Waffe, Stufe, Art-Wahl; leere Kachel -> Startarmatur), Anzeige `Weapon art (<Name>) N` = Tafelzahl; die Kachel steht als `AdvisorRequest.art_tile` im Schluessel.
+Tauschrelikte zaehlen nur gehalten (`GoalContext.held_swapped_art_ids`, von `asking_from` ohne Rechnung gelesen); ein Kandidat mit Tauschrelikt bewegt die Zahl nicht und wird dafuer nie vorgeschlagen.
+Kachel ohne Art-Zahl (Katalysator, keine Wahl, Gruende aus AD-056.5): Satz statt Zahl, 0,00 fuer alle Kandidaten (QA-290).
+
 ### Bewusst nicht getan (P)
 
 - **Keine Treffersumme je Kunst.** Wieder interessant, wenn das Projekt Animationsdaten

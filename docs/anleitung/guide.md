@@ -143,11 +143,15 @@ Choosing anything but *Weapon* and *All* adds a line to **Why** naming the
 choice — for example "Ranked on fire damage only — every other effect on a
 candidate still shows, but only this counts toward the ranking." One of the
 five damage types also relabels the suggestion card's attack-rating figure
-to match, to *Fire attack rating* instead of plain *Attack rating*; *Weapon
-art* adds *Weapon art attack rating* the same way, and both combine into
-*Fire Weapon art attack rating* where both apply — where a choice changes
-nothing, the label stays *Attack rating* because the figure really is the
-one the defaults would give too.
+to match, to *Fire attack rating* instead of plain *Attack rating* — where a
+choice changes nothing, the label stays *Attack rating* because the figure
+really is the one the defaults would give too.
+
+Ranking on *Weapon art* shows one hit of the art on the selected tile, with
+the same number as its *Weapon art* line on the stats panel — for example
+*Weapon art (Stamp (Upward Cut)) 262*. A relic that changes the starting
+armament's skill counts only while you hold it; the advisor never suggests
+one. A tile whose art has no number gets a sentence saying why instead.
 
 Ranking on a spell shows a number of its own, *Spell damage*: what the spell
 hits a training dummy for, calibrated against a measurement in the game. A
