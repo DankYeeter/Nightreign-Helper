@@ -660,3 +660,7 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
 - OF-54 Restabweichung: "Magic Attack Power Up" (1,045) an der Puppe 128,
   Programm 129 (Recluse Stufe 15); 123 und 138 (+4) passen genau. Ursache
   offen (T-335j).
+- Flach-Klasse Weapon Arts (AD-056 P.7): ob der Flachwert mit der
+  Waffenstufe waechst, ist ungemessen (Puppe nur mit grauen Startwaffen,
+  Nutzer 31.10.); gebaut ohne Stufenfaktor. Messung nur im Lauf moeglich.
+- R1 zweihaendig nach Stamp (Wylder Lv15): Puppe 126, Programm 125 (T-335v).
