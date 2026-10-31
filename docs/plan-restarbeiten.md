@@ -674,3 +674,4 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   Waffenstufe waechst, ist ungemessen (Puppe nur mit grauen Startwaffen,
   Nutzer 31.10.); gebaut ohne Stufenfaktor. Messung nur im Lauf moeglich.
 - R1 zweihaendig nach Stamp (Wylder Lv15): Puppe 126, Programm 125 (T-335v).
+- Bau nur mit `PYTHONHASHSEED=0` und `SOURCE_DATE_EPOCH` bitgleich (T-335bau); in Bauskript/`release.yml` aufnehmen.
