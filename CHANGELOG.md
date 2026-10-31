@@ -23,6 +23,27 @@ History before 1.10.0 was not reconstructed; this file starts here.
   every Nightfarer, not only those who start with a staff or seal: put any
   staff or seal on the selected weapon tile and the row shows that
   catalyst's spell with the figures of your current build.
+- Under the six weapon tiles a **Casting** block now lets you choose which
+  spell or weapon art the panel counts for the selected tile, with icons.
+  On a staff or seal there is one chip per spell slot (`R1`, `R2`); on
+  another weapon one `ART` chip. A click opens the list of spells or arts
+  that weapon can carry, the weapon's default marked with a dot. `R1` is
+  filled in with the staff's default spell; `R2` and the art can be picked
+  from the weapon's list, because which spells a staff rolls is not known in
+  advance. A weapon without a default art shows `Choose a weapon art` until
+  you pick one. A relic that swaps the starting armament's spell or art wins
+  over your choice and the block says so (`RELIC`). The choice is remembered
+  per Nightfarer and tile until you close the program. The chips and the
+  tiles can be reached with Tab.
+- The **Weapon art** row now shows one figure for the chosen art. Arts that
+  only add a flat amount (rather than a swing) get a figure too.
+- Effect lines of one relic with the same value are now combined into one
+  line (a curse that lowered six damage types by the same 45 % now takes one
+  line instead of six).
+- The build line above the relic grid no longer collides with the **Show
+  hidden** button when the window is narrow; it wraps instead.
+- The sentences shown when no save was found now name the button that fixes
+  the cause.
 
 ### Changed
 - The "Why" dialog now leads with the answer. Effects that carry no number
@@ -56,6 +77,25 @@ History before 1.10.0 was not reconstructed; this file starts here.
   the same on every tab that shows them (they used to differ from tab to
   tab); the curse colour on the effects list also now meets standard
   contrast guidelines.
+- The suggestions under **Hit with** Weapon art, Sorceries and Incantations
+  now calculate with the weapon, the spell and the art on the weapon tile you
+  have highlighted (an empty tile falls back to your starting weapon). Relics
+  that swap a spell or an art are counted only when you hold one, and are
+  never suggested. The explanation names the tile's spell or art.
+- Weapon variants without art or spell choices of their own now inherit those
+  of their base weapon (for example Magic Longsword takes the Longsword's).
+- Spell damage is now calibrated against measurements on the in-game
+  training dummy: the spell figure uses the game's 0.6 factor and the same
+  rounding as weapon attack ratings, so it matches the dummy for the
+  Glintstone Arc and Pebble cases we measured.
+- The data cache is rebuilt once on the first launch after this update
+  (about 40 seconds, plus the icon pack), because it now also stores weapon
+  arts and each weapon's pools of spells and arts.
+- The explanation (`Why`) and the yellow warning line under Weapon art now
+  name the highlighted tile and its art.
+- A keyboard-focused weapon tile or chip shows a dashed orange frame (a solid
+  frame still marks the active one); the frame appears after Tab only, not
+  after a mouse click, and no longer shifts the neighbouring tiles.
 
 ### Fixed
 - The program now checks each character slot of your save against the
@@ -102,6 +142,18 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - The explanation of a Hit with Sorceries / Incantations suggestion and its
   tooltip now name the staff or seal on the selected weapon tile, or else
   the starting one, which is the one the figure is computed for.
+- A save that you cleared of all relic slots can now be saved as an empty
+  build instead of being refused.
+- Nightfarer names in the sidebar tooltips and the Favourites menu are shown
+  as plain text.
+- The pool list for a weapon art or spell opens fully on screen near the
+  bottom or right edge of the display, and shows six icons per row at every
+  display scaling (it showed five at 150 %).
+- The list of World Events is drawn in its normal style again (a stray
+  style rule made the console report `Could not parse stylesheet`).
+- Without a save, the explanatory sentence for the legend of crossed-out
+  relics names both meanings, and the bar without relics names the true
+  cause.
 
 ## [1.18.0] - 2026-09-21
 

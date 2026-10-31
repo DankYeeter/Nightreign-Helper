@@ -152,5 +152,16 @@ starts there.
   window (smallest window width is now about 1190 px, was 760 px); each
   character slot of your save is now checked against its stored checksum,
   and a mismatch is reported as "not readable" with the reason instead of
-  showing possibly wrong relics; many smaller wording and tooltip fixes
-  (see `CHANGELOG.md`).
+  showing possibly wrong relics; a new **Casting** block under the weapon
+  tiles lets you choose, with icons, the spell (staff or seal: `R1` fixed to
+  the default, `R2` from the weapon's pool) or the weapon art (from the
+  weapon's pool) the panel counts for the selected tile, and the advisor
+  now calculates with the highlighted tile's weapon, spell and art; the
+  **Weapon art** row shows one figure (flat-bonus arts included); spell
+  damage was checked against the in-game training dummy; effect lines of a
+  relic with the same value are combined (a curse of six equal lines is one
+  line); the build line, the no-save sentences and the folder picker ("This
+  PC" as start) were reworked; an empty build can be saved; and the pool list
+  stays on screen at every display scaling. **The data cache rebuilds once on
+  first launch after this update (about 40 seconds, plus the icon pack).**
+  Many smaller wording and tooltip fixes (see `CHANGELOG.md`).
