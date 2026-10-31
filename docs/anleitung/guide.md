@@ -332,11 +332,13 @@ that one weapon, never every spell or art in the game.
   opens a list of the spells that slot can hold. Which spells a given staff
   rolls cannot be known in advance, so the list is yours to pick from.
 - On any other weapon with an art there is one chip captioned `ART`. A click
-  opens a list of the arts that weapon can carry; click one to choose it. The
-  weapon's own default art is listed first and marked with a dot. A weapon
-  with a single possible art shows it without a list. A weapon with several
-  possible arts and no default shows a dashed chip, `Choose a weapon art`,
-  and the panel names no art until you pick one.
+  opens a list of the arts that weapon can carry; click one to choose it. Only
+  your starting armament has a default art: it is listed first and marked with
+  a dot. A weapon with a single possible art shows it without a list. Any other
+  weapon with several possible arts is treated as rolled: it has no default and
+  no dot, the chip is dashed and reads `Choose a weapon art`, and the panel
+  names no art until you pick one. On such a weapon the list's footer ends
+  with "Choose this weapon's art".
 - The chosen chip has the orange frame, and its figure is the same number as
   the `Spell damage` row below. Hover a chip for its name, school or art, FP
   cost and whether it is the weapon's default. Keyboard: Tab goes through the
@@ -355,7 +357,8 @@ that one weapon, never every spell or art in the game.
 weapon panel's **Total** line, for the selected tile.
 
 - **Weapon art (\<art name>)** appears on any filled tile whose art is known:
-  the weapon's default art, or the one you chose in `CASTING`. It is one hit
+  the starting armament's default art, the only art of a weapon that has just
+  one, or the one you chose in `CASTING`. It is one hit
   of that art, not an addition to the Total above it: the grey figure is that
   hit with nothing equipped, then the change your relics make, then the bold
   figure. It is one figure, not a pair, and it does not follow the 1H/2H
@@ -386,11 +389,6 @@ weapon panel's **Total** line, for the selected tile.
 The Advisor reads the same choice: **Hit with** *Weapon art*, *Sorceries* and
 *Incantations* rank the art or spell chosen on the selected tile and show the
 same number as the rows above.
-
-*Unchecked: this section was written from the specification and the code, not
-from a run of the program. The exact on-screen wording, the Tab order and the
-remembered choice after switching Nightfarer have not been confirmed in the
-window.*
 
 **About the switches.** The tool cannot know whether you are below 40% HP, or
 how many Night Invaders you have killed, or whether your Character Skill is up
