@@ -619,9 +619,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     catalyst = (selected if selected is not None
                 and selected.get("wep_type") in damage.GENUS_OF_CATALYST
                 else None)
-    # AK-415: the spell chosen on that tile, only where a spell row is asked.
-    spell_id = (planner.active_slot().spell_id
-                if catalyst is not None and advisor_goals.is_a_spell(hit_with)
+    # AK-415: the spell chosen on that tile, only where a spell row is asked;
+    # without a staff or seal there, the one chosen on the first tile holding
+    # the starting catalyst the row falls back to (director, 31.10.2026).
+    start_id = (damage.start_catalyst(hero, planner.data) or {}).get("id")
+    spell_tile = planner.active_slot() if catalyst is not None else next(
+        (slot for slot in planner.weapon_slots
+         if slot.weapon is not None and slot.weapon["id"] == start_id), None)
+    spell_id = (spell_tile.spell_id
+                if spell_tile is not None and advisor_goals.is_a_spell(hit_with)
                 else None)
     # User decision 31.10.2026 13:50: `Weapon art` swings the selected tile's
     # armament at its tier with its art pick, as the stat sheet does; an

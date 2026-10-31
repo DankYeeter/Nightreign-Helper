@@ -1151,6 +1151,33 @@ def test_the_chosen_spell_reaches_the_key_only_under_a_spell_row(
         assert asking.ctx.selected_spell_id == expected
 
 
+def test_the_fallback_catalyst_casts_the_spell_chosen_on_its_tile(
+        planner, game_data, monkeypatch):
+    """Director, 31.10.2026 (T-335qa): Recluse with Arc chosen on her staff
+    and a greatsword selected -- the spell row falls back to her staff and
+    casts Arc, not Pebble."""
+    from nrplanner import model, weaponslots
+    from tests import weapon_damage_cases as cases
+
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    planner.hero_index = planner.heroes.index(recluse)
+    staff = planner.weapon_by_id(recluse["starting_weapon"])
+    sword = planner.weapon_by_id(2000800)
+    planner.weapon_slots = [
+        weaponslots.WeaponSlot(weapon=staff, spell_id=4070),
+        weaponslots.WeaponSlot(weapon=sword)] + [
+        weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT - 2)]
+    planner.active_weapon = 1
+    monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                        lambda: model.SORCERIES_ART)
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    assert asking.request.selected_catalyst_id is None
+    assert asking.request.selected_spell_id == 4070
+    assert asking.ctx.selected_spell_id == 4070
+
+
 def test_the_selected_tile_reaches_the_key_only_under_weapon_art(
         planner, monkeypatch):
     """User decision 31.10. 13:50: under `Weapon art` the selected tile --
