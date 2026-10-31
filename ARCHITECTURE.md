@@ -9159,7 +9159,7 @@ Shadow's Lure (850), 7124300 Endure (700), 7124400 Quickstep (800), 7124500 Stor
 (502), 7124600 Determination (600), 7124700 Rain of Arrows (406). Kein Extraktorweg noetig
 (anders als `start_magic_id`, AD-050 Punkt 4).
 
-### AD-056 — Arten und Zauber werden **je Kachel gewaehlt** aus dem Pool genau dieser Waffe; der Auszug traegt Art-Block und Pools, die Zahl einer Art ist **AR x Motion Value** und nur fuer die Motion-Klasse (2026-10-31, Status: aktiv; **loest AD-050 Punkt 7 und AD-053 Punkt 3 ab** — Kunstdaten werden jetzt extrahiert, der Motion Value erreicht die Zahl —, **erweitert AD-052**: das Bezugsobjekt einer Art-/Zauberfrage ist die gewaehlte, nicht mehr nur die Standard-Belegung; wahrt AD-019/AD-021)
+### AD-056 — Arten und Zauber werden **je Kachel gewaehlt** aus dem Pool genau dieser Waffe; der Auszug traegt Art-Block und Pools, die Zahl einer Art ist **AR x Motion Value** und nur fuer die Motion-Klasse (2026-10-31, Status: aktiv; **loest AD-050 Punkt 7 und AD-053 Punkt 3 ab** — Kunstdaten werden jetzt extrahiert, der Motion Value erreicht die Zahl —, **erweitert AD-052**: das Bezugsobjekt einer Art-/Zauberfrage ist die gewaehlte, nicht mehr nur die Standard-Belegung; wahrt AD-019/AD-021; **Punkte 1, 3, 4.3, 5 ergaenzt durch Nachtrag P.7, T-335v**)
 
 **Kontext.** Nutzer 12:23: Zauber und Art "immer nur die auf der Waffe", vorher waehlen,
 "ausser das Item kommt default mit etwas", Tauschrelikte erkennen und dynamisch rechnen,
@@ -9311,6 +9311,98 @@ Flach-Klasse mit der ER-Zuschlagsformel rechnen; `art_default` im Extraktor nach
 schreiben; Tauschrelikte im Berater fuer Weapon-art-Ziele vorschlagen; die Wahl in
 gespeicherte Builds schreiben.
 
+### P.7 Nachtrag T-335v zu AD-056 (2026-10-31) — eine Art-Zahl, Flach-Klasse aus M5, Pools der Varianten
+
+*Auftrag T-335v; Messungen des Nutzers 31.10. 12:59 (`docs/tasks/T-335.md`). Proben lesend
+gegen `regulation.bin` und den Testabzug **v17** (T-335s), Skripte Session-Scratchpad
+`T-335q/m5a..m5d.py`; nicht aus einem Lauf des geaenderten Codes.*
+
+**1. Eine Zahl, kein 1H/2H-Paar (aendert AD-056 Punkt 3 und P.4 M1).** Gemessen: Stamp ueber
+R2 einhaendig **262** und zweihaendig **262**; Vorhersage 270 fuer 2H war falsch. Der
+Grund steht in den Params: `AtkParam_Pc[300000290].isDisableBothHandsAtkBonus` = **1**,
+ebenso auf **139 von 147** aufloesbaren Art-Zeilen (gemessen). Regel: die Art-Zahl steht
+immer auf der **einhaendigen** Wertung, gleich welcher Hand-Schalter. Die 8 Zeilen mit 0
+(Spinning Chain, Through and Through, Barrage, Enchanted Shot, Sky Shot, Rain of Arrows,
+Spearcall Ritual, Radahn's Rain; ueberwiegend Bogen) folgen derselben Regel —
+**Annahme**, kein Feld dafuer. Der Arbeitsbaum zeigt `damage.weapon_art` bereits so
+(uncommittet, paralleler Lauf); gilt als Teil dieses Nachtrags.
+*Nebenbefund, nicht untersucht:* R1 zweihaendig nach Stamp 126, Programm-Anzeige 2H 125
+(`weapons.TWO_HANDED_RATE` 1,03 ist laut `weapons.py:160-175` eine Menue-Regel, nicht die
+Trefferregel).
+
+**2. Formel der Flach-Klasse (aendert AD-056 Punkt 3 und 5).** Glintblade Phalanx:
+`AtkParam_Pc[300200867]` `atkMag` 51, alle Korrekturen 0, `isAddBaseAtk` 1,
+`isDisableBothHandsAtkBonus` 1, `overwriteAttackElementCorrectId` **51080** (jede
+Schadensart skaliert nur mit Intelligence); `Bullet` 2300 `numShoot` 4 (vier Klingen).
+
+```text
+bonus[T]    = wie weapons._rate_shared, aber mit der AEC der Art-Zeile, falls != -1,
+              sonst der der Waffe: Summe_stat  scaling[stat]/100 x correct[stat]
+                                   x curve_T(attr)/100 x influence, nur Stats "on"
+flat_hit[T] = damage[T] x (1 + bonus[T]) x GAME_ATTACK_POWER_RATE   -> dann dieselben
+              Raten wie die Motion-Klasse (_multiplied, art=SKILL_ART)
+Anzeige     = damage.displayed(Summe_T flat_hit[T])     # je Treffer
+```
+
+M5 nachgerechnet: Wylder Lv15 Intelligence **15**, Magic Longsword `scaling.Intelligence`
+30, Kurve 4 -> 45,4545; bonus = 0,30 x 0,454545 = 0,13636; 51 x 1,13636 x 0,6 = **34,77
+-> 34**; vier Klingen je abgeschnitten = **136** = Messung. **Kein freier Parameter**
+(Wylders Attribute, Waffenwerte, AEC und 0,6 stehen alle fest). Gegenproben: ohne Bonus
+30,6 -> 30 (120), ohne 0,6 57 — beide widerlegt. Ebenfalls gemessen: Treffer werden
+**einzeln** abgeschnitten (Summe ungeschnitten waere 139).
+**Offen bleibt genau eine Groesse: ob der Flachwert mit der Waffenstufe waechst.** Bei
+Stufe 1 (`reinforce.atk` 1,0) sind beide Lesarten gleich; die Stufe des gemessenen
+Schwerts ist unbekannt (**Annahme** des Auftrags). Gebaut wird **ohne** Stufenfaktor —
+diese Lesart trifft M5 auf jeder Stufe, die andere nur auf Stufe 1.
+
+| Stufe der Magic Longsword | mit `reinforce.atk.Magic` (1,0/1,23/1,5/1,7) | ohne (gebaut) |
+|---|---|---|
+| 1 | 34 | 34 |
+| 2 | 42 | 34 |
+| 3 | 52 | 34 |
+| 4 | 59 | 34 |
+
+**Trennender Messfall M6 (Pflicht):** Glintblade Phalanx auf einer Waffe **bekannter**
+Stufe ueber 1 (Seltenheitsfarbe nennen), eine Klinge: 34 bestaetigt "ohne", 42/52/59
+"mit". War das M5-Schwert schon ueber Stufe 1, ist M5 selbst der Beleg fuer "ohne" —
+erste Rueckfrage an den Nutzer ist deshalb nur die Farbe. **M7 (optional):** Glintblade
+Phalanx auf dem einfachen Longsword (Int-Skalierung 0) -> **30** je Klinge.
+
+**3. Datenfeld, `EXTRACT_VERSION` 17 -> 18 (aendert AD-056 Punkt 1).** `arts[]` bekommt
+`element_correct_id` (nur wenn `overwriteAttackElementCorrectId` != −1): gemessen tragen
+**28 von 50** Flach-Arten eine eigene AEC (13 verschiedene Ids, 1005 steht nicht in
+`element_correct` -> diese Art bleibt ohne Zahl mit Satz); 22 nehmen die der Waffe.
+Kein Release liegt auf v17 (1.19.0 ist noch nicht getaggt), der Schritt kostet nur den
+Testabzug.
+
+**4. Pools der Varianten (aendert AD-056 Punkt 1 und 4.3 — Befund aus M5).** Die Magic
+Longsword (2000800) traegt im Auszug `art_pool` **[]** und damit nach Regel 4.3 fest
+"Square Off" (115); der Nutzer hatte sie mit Glintblade Phalanx, und ein Tausch ist nur
+auf der Startarmatur moeglich. Ursache: `EquipParamCustomWeapon` nennt nur die
+Grundwaffe (Longsword 2000000, Pool 52 mit 200). Gemessen: **1398 der 1432** Waffen ohne
+eigenen Pool haben eine Grundwaffe `id // 10000 * 10000` mit Pool; die uebrigen 34 sind
+Katalysatoren, Schilde, Unarmed, Scholar-Sonderzeilen. Regel: **ohne eigene
+CustomWeapon-Zeile erbt eine Waffe den Pool ihrer Grundwaffe** (gleiches fuer
+`spell_pools`). Dieselbe Luecke hat vermutlich `effect_pool` (1404 leer, Longsword 369,
+Magic Longsword 0) — **nicht Teil dieses Nachtrags**, Befund an den director.
+
+**Fixauftrag (developer, ohne Programmstart, je Punkt ein Commit, Suite `-n auto`):**
+1. `nrdata/extract.py`: `arts[].element_correct_id`; `art_pool`/`spell_pools` mit
+   Erbregel Punkt 4; `EXTRACT_VERSION` 18 mit Logzeile; Testabzug neu bauen, `CLAUDE.md`
+   und `docs/plan-restarbeiten.md` nachtragen. Tests: `art_pool[2000800] ==
+   art_pool[2000000]` und enthaelt 200; `arts[200].element_correct_id == 51080`;
+   Zahl der Waffen ohne Pool 34.
+2. `nrplanner/damage.py` `weapon_art`: Flach-Klasse nach Punkt 2 — Bonus ueber
+   `weapons._rate_shared` mit Ersatz-Waffe (`base` = `art["damage"]`, AEC der Art), **nur
+   der Bonus**, kein `reinforce.atk`, keine Nightfarer-Kalibrierung; `ART_NOT_CALIBRATED`
+   bleibt nur fuer eine AEC-Id ohne Eintrag. Einhaendig fest (Punkt 1, falls nicht schon
+   committet). Tests: Wylder Lv15, Magic Longsword Stufe 1, Wahl 200 -> **34**; Stufe 3
+   -> **34**; Longsword Stufe 1, Wahl 200 -> **30**; Stamp mit 2H-Schalter -> **262**
+   wie 1H; ein "Magic Attack Power Up"-Relikt bewegt die Glintblade-Zahl.
+
+**Nicht tun:** `numShoot` in die Zahl multiplizieren (die Zahl bleibt ein Treffer, wie
+AD-056.3); den Stufenfaktor einbauen, bevor M6 vorliegt; `effect_pool` mitaendern.
+
 ### Bewusst nicht getan (P)
 
 - **Keine Treffersumme je Kunst.** Wieder interessant, wenn das Projekt Animationsdaten
@@ -9325,7 +9417,7 @@ gespeicherte Builds schreiben.
   `equipped_spells`. Gemessen ist Platz 2 eines gefundenen Stabs/Siegels aus 64/92
   Zaubern gerollt; nur die Startkatalysatoren und Sondervarianten sind fest. Braucht der
   R2-Chip ein Pool-Popup wie die Art (Vorschlag: ja, gleiche Bedienung)?
-- **OF-60 (director -> Nutzer):** Messfall M5 (Wylder mit Glintblade-Phalanx-Relikt, eine
+- **OF-60 — beantwortet durch P.7 (M5 = 136), Rest offen als M6.** ~~(director -> Nutzer):~~ Messfall M5 (Wylder mit Glintblade-Phalanx-Relikt, eine
   Trefferzahl an der Puppe) — erst danach bekommt die Flach-Klasse eine Zahl.
 - **OF-61 (director):** M1 vor oder nach dem Bau messen? Vorschlag: nach Schritt 3, mit der
   Programmzahl daneben (wie OF-54).
