@@ -350,6 +350,16 @@ Alte v16-Vorlage ganz gesichert unter
 (841 Dateien, 21 139 391 B). `CLAUDE.md` "Fester Testabzug" ist auf diesen
 Stand gezogen (Grenze "ueber 17" bzw. `ICON_VERSION` "ueber 4").
 
+*Ersetzt am 31.10.2026 (T-335w, developer):* `EXTRACT_VERSION` **18** (AD-056
+P.7: `arts[].element_correct_id`, `art_pool`/`spell_pools` einer Variante ohne
+eigene Tabelle von der Grundwaffe). Nur `nightreign_data.json` neu
+(`extract.write_snapshot` an der echten Installation, 38 s): 9 464 317 B
+(+438 539 B = +4,9 %); `ICON_VERSION` bleibt 4, Symbole unangetastet. Stand
+der Vorlage: **1027 Dateien, 23 468 416 B**, Ort unveraendert. Alte v17-JSON
+gesichert unter `...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v17`
+(9 025 778 B). `CLAUDE.md` "Fester Testabzug" ist nachgezogen (Grenze
+"ueber 18").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.

@@ -8,6 +8,11 @@ types; Recluse's Staff holds Glintstone Pebble alone in slot 1 and a pool of
 64 in slot 2. Counts are exact for the reason `test_spell_damage_extraction`
 gives: both directions are news.
 
+P.7 (T-335w): a variant whose own rows name no art table is found with its
+base armament's (M5: Magic Longsword with Glintblade Phalanx); 34 armaments
+are left without a pool. Glintblade Phalanx scales by AttackElementCorrect
+51080, not the armament's.
+
 Nothing here holds game prose beyond names (A-001).
 """
 
@@ -25,6 +30,11 @@ FINGER_SEAL = 34750000
 SWAP_RELIC_ARTS_TODAY = 20
 #: Ironeye's own art names an AtkParam_Pc row the table does not hold.
 MIGHTY_SHOT = 402
+LONGSWORD = 2000000
+MAGIC_LONGSWORD = 2000800
+GLINTBLADE_PHALANX = 200
+GLINTBLADE_PHALANX_AEC = 51080
+WITHOUT_ART_POOL_TODAY = 34
 
 
 def arts_by_id(game_data) -> dict[int, dict]:
@@ -88,3 +98,23 @@ def test_every_swap_relic_names_an_art_of_the_block(game_data):
 
     assert len(swapped) == SWAP_RELIC_ARTS_TODAY
     assert all(art_id in known for art_id in swapped)
+
+
+def test_a_variant_is_found_with_its_base_armaments_arts(game_data):
+    variant = weapon(game_data, MAGIC_LONGSWORD)
+
+    assert variant["art_pool"] == weapon(game_data, LONGSWORD)["art_pool"]
+    assert GLINTBLADE_PHALANX in variant["art_pool"]
+
+
+def test_34_armaments_are_found_with_no_art_to_choose(game_data):
+    without = [w for w in game_data["weapons"] if not w["art_pool"]]
+
+    assert len(without) == WITHOUT_ART_POOL_TODAY
+
+
+def test_glintblade_phalanx_scales_by_its_own_element_correct_row(game_data):
+    arts = arts_by_id(game_data)
+
+    assert arts[GLINTBLADE_PHALANX]["element_correct_id"] == GLINTBLADE_PHALANX_AEC
+    assert "element_correct_id" not in arts[STAMP]

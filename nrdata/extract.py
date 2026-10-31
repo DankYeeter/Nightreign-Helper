@@ -107,7 +107,14 @@ MAX_LEVEL = 15
 #      resolved through SwordArtsTableParam / MagicTableParam. A cache left on
 #      16 would leave every tile without an art to choose and every art
 #      without a figure.
-EXTRACT_VERSION = 17
+#  18  `arts[].element_correct_id` -- the AttackElementCorrect row an art's
+#      AtkParam row puts in place of the armament's (Glintblade Phalanx
+#      scales with Intelligence alone), and the pools of an armament whose
+#      EquipParamCustomWeapon rows name none taken from its base armament
+#      (`id // 10000 * 10000`, AD-056 P.7): a Magic Longsword is found with
+#      the Longsword's arts. A cache left on 17 would fix every found
+#      variant on one art.
+EXTRACT_VERSION = 18
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -147,6 +154,14 @@ SPELL_DAMAGE_FIELDS = {
 # (AD-056.1, ARCHITECTURE.md P.1).
 ART_MOTION_FIELDS = {damage: f"{field}Correction"
                      for damage, field in SPELL_DAMAGE_FIELDS.items()}
+
+# Where an art's AtkParam row scales by an AttackElementCorrect row of its
+# own rather than the armament's (AD-056 P.7.2); -1 keeps the armament's.
+ART_ELEMENT_CORRECT_FIELD = "overwriteAttackElementCorrectId"
+
+# An armament's variants share one block of ids: the Longsword is 2000000,
+# its Magic affinity 2000800 (AD-056 P.7.4).
+VARIANT_SPAN = 10000
 
 # Magic.refCategory: which table refId names. 0 is an attack row, 1 a bullet;
 # 2 is a special effect and carries no damage of its own.
@@ -2668,6 +2683,14 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # The art and spell tables resolve the same way, to ids rather than
     # weights (AD-056.1): every row of SwordArtsTableParam / MagicTableParam
     # carries its table's id as its own, so one table is all rows sharing it.
+    #
+    # Only base armaments name tables. A variant's rows (Magic Longsword
+    # 2000800) carry -1 in every one of them, and the variant is found with
+    # its base armament's pools (Longsword 2000000): in play a Magic Longsword
+    # carried Glintblade Phalanx from the Longsword's art table (AD-056 P.7,
+    # M5). The effect tables sit on the same rows; `effect_pool` stays the
+    # armament's own, because `weaponslots.rollable_effects` already offers
+    # an infused variant its base's effects under limits of its own.
     CUSTOM_POOL_FIELDS = ("attachEffectTableId_1", "attachEffectTableId_2",
                           "attachEffectTableId_3")
     CUSTOM_SPELL_FIELDS = ("magicTableId_1", "magicTableId_2")
@@ -2702,6 +2725,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         for spell_slot, field_name in zip(weapon_spell_pools[target],
                                           CUSTOM_SPELL_FIELDS):
             spell_slot |= spell_tables.get(r.values.get(field_name, -1), set())
+
+    def own_or_base(pools: dict, weapon_id: int):
+        """This armament's pool, or its base armament's where its own is empty."""
+        base = weapon_id // VARIANT_SPAN * VARIANT_SPAN
+        return next((pools[owner] for owner in (weapon_id, base)
+                     if any(pools.get(owner, ()))), ())
 
     def weapon_effect_pool(weapon_id: int) -> list[dict[str, Any]]:
         """The effects this weapon can roll, with the game's own weights."""
@@ -2754,6 +2783,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if not any(bases.values()):
             continue
         inflicts = weapon_inflicts(r)
+        spell_pools = own_or_base(weapon_spell_pools, r.id)
         weapons.append(
             {
                 "id": r.id,
@@ -2821,12 +2851,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 "art_default": r.values.get("swordArtsParamId", -1),
                 # Every art this armament can be found with, across its
                 # variants. Empty where it rolls none.
-                "art_pool": sorted(weapon_art_pools.get(r.id, ())),
+                "art_pool": sorted(own_or_base(weapon_art_pools, r.id)),
                 # The spells a found staff or seal can carry, per slot. Slot 1
                 # holds one, slot 2 is rolled from 64 or 92 (AD-056, P.2), so
                 # `equipped_spells` is only the row's default for slot 2.
-                **({"spell_pools": [sorted(s) for s in weapon_spell_pools[r.id]]}
-                   if any(weapon_spell_pools.get(r.id, ())) else {}),
+                **({"spell_pools": [sorted(s) for s in spell_pools]}
+                   if spell_pools else {}),
                 # Effects this weapon can roll, from its own pools. Empty for
                 # the armaments that roll nothing.
                 "effect_pool": weapon_effect_pool(r.id),
@@ -2907,7 +2937,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 
     atk_table = param.read(
         members["AtkParam_Pc"],
-        only(atk_def, {*SPELL_DAMAGE_FIELDS.values(), *ART_MOTION_FIELDS.values()}),
+        only(atk_def, {*SPELL_DAMAGE_FIELDS.values(), *ART_MOTION_FIELDS.values(),
+                       ART_ELEMENT_CORRECT_FIELD}),
     )
     if not atk_table.rows or not atk_table.rows[0].values:
         raise NotWhatItClaims(
@@ -3084,7 +3115,10 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         atk_row = atk_by_id.get(atk_id)
         flat: dict[str, int] = {}
         motion: dict[str, int] = {}
+        element_correct_id = -1
         if atk_row is not None:
+            element_correct_id = atk_row.values.get(
+                ART_ELEMENT_CORRECT_FIELD, -1)
             flat = {damage: atk_row.values[field]
                     for damage, field in SPELL_DAMAGE_FIELDS.items()
                     if atk_row.values.get(field, 0) > 0}
@@ -3101,6 +3135,10 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             **({"damage_atk": atk_id} if atk_id > 0 else {}),
             **({"motion_value": motion} if motion else {}),
             **({"damage": flat} if flat else {}),
+            # The attribute scaling the hit uses in place of the armament's
+            # (AD-056 P.7.2); absent where the art keeps the armament's.
+            **({"element_correct_id": element_correct_id}
+               if element_correct_id != -1 else {}),
         })
 
     # ---- Chances the engine keeps in PlayerCommonParam's undescribed tail --
