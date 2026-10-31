@@ -593,3 +593,13 @@ gemessen (AK-371 war die hoechste vergebene).
 | AK-407 | `Rescan save` nur, wo sich der Spielstand geaendert haben kann; vier Texte (Picker x2, Effektfilter, Tooltip) wortgleich | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |
 | AK-408 | `MARK_LEGEND` erklaert beide Bedeutungen des Durchstreichens (gemieden / anderer Nightfarer); ersetzt AK-301-Wortlaut | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | AK-301 (Wortlaut) |
 | AK-409 | Block hat 8 Textzeilen Budget, Rest als eine Faltzeile "+{n} more effect lines"; Fluchzeilen nie versteckt; Fall erst reproduzieren | UI_SPEC Nachtrag T-335n | T-335n, 2026-10-31 | — |
+| AK-410 | Block `CASTING` zwischen Kachelraster und Hand-Schalter, nur bei Katalysator oder Art, sonst 0 px | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-411 | Inhalt nur von der Waffe der gewaehlten Kachel (Zauber R1/R2, `art_pool`), kein `Other`-Raster | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-412 | Vorbelegung R1 bzw. `art_default`, 0 Eingaben; ohne Standard `Choose a weapon art`, keine geratene Zahl | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-413 | Bedienung: Zauber 1 Klick, Art 2 Klicks, Tastatur, Esc gibt Fokus zurueck, Pool mit einem Eintrag nur Anzeige | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-414 | Merken je Nightfarer und Kachel in der Sitzung (`WeaponSlot`), OK mit gleicher Waffe behaelt, Neustart = Standard | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-415 | Eine Zahlquelle: Chip = Tafelzeile = Berater = Why; F2: Art bewegt keine Zahl; Cache-Schluessel mit `selected_spell_id` | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-416 | `Weapon art (<Name>)` auf jeder Kachel mit aufgeloester Art und auf der Startwaffe; F2-Ehrlichkeitssatz | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | AK-353.1 (erweitert) |
+| AK-417 | Tausch-Relikte (Zauber, Art) nur auf der Startwaffe: ein Chip `RELIC` plus Satz; Revenant ohne Chip | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-418 | Chips nur aus Bestandstoken, Icon 40 px, Tooltip/Zugaenglichkeitsname, Mindestbreite, Bilder per `grab()` | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-419 | Spieltext als Text, nie Markup (SEC-019); Saetze englisch (A8) | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |

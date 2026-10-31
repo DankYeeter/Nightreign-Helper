@@ -8658,3 +8658,247 @@ Umbau der Statustabelle ueber 4.8 hinaus; die Wahl von Zaubern und Weapon Arts
 `nrplanner/advisorblock.py` (`:81-83`, `:404-405`, `:452-455`),
 `nrplanner/advisor/types.py` (`:681-693`, nur lesen), Tests zu AK-123, AK-389,
 AK-301/AK-309.
+
+
+#### Nachtrag T-335r (ui-ux-designer), 2026-10-31 — Casting-Leiste: Zauber und Weapon Art waehlen, mit Icon (AK-410 bis AK-419, Spec-Modus)
+
+*Auftrag T-335r, `docs/tasks/T-335.md`; Richtung B der Skizzen T-335m, vom Nutzer
+am 31.10. 12:23 gewaehlt. Methode: **kein Programmstart** (Nutzer hat die Exe
+offen); Code gelesen am Stand `3ab6fb8`, Daten (nur lesend) aus dem Testabzug,
+EXTRACT_VERSION 16. Pool-Groessen und Start-Katalysatoren unten sind aus dem
+Snapshot gelesen; Pixelwerte sind Entwurfswerte, nichts ist gemessen.
+Bestand wiederverwendet: `WeaponSlot`/`weapon_loadouts` (`app.py:552`,
+`:1454`), Kachelsprache von `WeaponTile` (ACCENT-Rahmen = gewaehlt, BORDER,
+PANEL, HOVER_FILL, MUTED), Zauber-Zeile `_spell_damage_rows` (`statsheet.py:623`),
+`damage.spell_catalyst`/`spell_thrown`, `GoalContext.selected_catalyst`
+(AD-052/T-335b), `iconpack.item`/`menu`. Kein neues Token, keine neue Farbe.*
+
+**Annahmen, die nicht im Bestand stehen (Feldnamen folgen aus dem
+ARCHITECTURE-Abschnitt T-335q; der Entwickler setzt die dort gewaehlten ein):**
+`data["arts"]` = Liste `{id, name, icon, fp}` (EXTRACT_VERSION 17);
+`weapon["art_default"]` = Art-Id der festen Standardart oder `None`;
+`weapon["art_pool"]` = Art-Ids, die diese Waffe tragen/rollen kann (kann
+`art_default` enthalten, kann leer sein); `Build.swapped_art_ids` analog zu
+`swapped_spell_ids` (`model.py:1061`, Wirkung `startSwordArtsId`);
+`WeaponSlot.spell_id: int | None` und `WeaponSlot.art_id: int | None` (die
+ausdrueckliche Wahl des Spielers). Zauber-Pool einer Waffe = ihre belegten
+`equipped_spells` (Snapshot: 29 Waffen haben belegte Zauberplaetze, jede genau 2, die
+uebrigen 1764 keinen; Recluse's Staff: Glintstone Pebble, Glintstone Arc). Faellt eine Annahme
+anders aus, aendert der Entwickler den Namen, nicht die Regel, und meldet es.
+
+**Entscheid, der den Abschnitt traegt: die Wahl haengt an der Kachel.** Sie steht
+im `WeaponSlot` und reist damit ohne weiteren Code mit `WeaponSlot.copy()` in
+`weapon_loadouts[hero_id]`: gemerkt **je Nightfarer und je Kachel, wie das uebrige
+Loadout** (Nutzer 12:23), also fuer die Programmlaufzeit, nicht ueber den Neustart
+(die Kacheln selbst sind es nicht, `app.py:544-548`). Gespeichert wird nur die
+**ausdrueckliche** Wahl; `None` heisst "folge dem Standard der Waffe".
+
+##### 1. Zweck, Aufbau
+
+**Zweck.** Der Spieler sieht und waehlt, welchen Zauber bzw. welche Weapon Art die
+Schadenstafel fuer die gewaehlte Kachel rechnet; Berater und Why rechnen
+denselben.
+
+**Aufbau.** Ein neuer Block `CASTING` (Titel wie `Weapon damage`, gleiche Schrift)
+**zwischen Kachelraster und Hand-Schalter** (`statsheet.py:344-352`), in der
+Kachelspalte. Inhalt: bis zu **zwei Chips** in Kachelbreite (zwei von drei
+Spalten, der Rest bleibt leer). Jeder Chip: Icon (40 px) oben, Name darunter (bis
+2 Zeilen), darunter eine MUTED-Zeile (Zahl bzw. FP, Punkt 3). Der gewaehlte Chip
+traegt den ACCENT-Rahmen wie die gewaehlte Kachel; die Standardwahl der Waffe einen
+kleinen ACCENT-Punkt im Eck (Legende im Tooltip). Je gewaehlter Kachel genau eine
+der drei Formen:
+
+- **Katalysator** (`wep_type in GENUS_OF_CATALYST`): ein Chip je belegtem Zauber
+  des Stabs/Siegels, Kleinschrift `R1`/`R2` ueber dem Icon.
+- **Waffe mit Art** (`art_default` gesetzt oder `art_pool` nicht leer): **ein**
+  Chip mit Kleinschrift `ART`; Klick oeffnet das Pool-Popup (Punkt 2).
+- **sonst, oder leere Kachel:** der Block ist **nicht da** (kein Titel, keine
+  Hoehe); die Tafel verhaelt sich wie heute.
+
+Es gibt **kein** Raster aller Zauber oder Arts des Spiels und keinen
+`Other...`-Chip: waehlbar ist nur, was auf genau dieser Waffe liegt (Nutzer 12:23).
+
+**Wechselt die Kachel** (Einzelklick, AK-353), baut sich der Block neu aus der
+neuen Kachel; er erscheint und verschwindet dabei, die Spalte darunter rueckt mit
+(bewusst kein reservierter Leerraum).
+
+##### 2. Interaktion und Aufwand
+
+- **Zauber-Chip** (1 Klick): waehlt den Zauber; kein Popup, beide stehen offen.
+- **Art-Chip** (2 Klicks): oeffnet ein Popup (`Qt.Popup`, unter dem Chip, Breite
+  der Spalte, 6 Icons je Reihe, hoechstens 5 Reihen sichtbar, dann Rollbalken);
+  Klick auf ein Icon waehlt und schliesst. Fusszeile des Popups: Name, `FP {n}`,
+  bei der Standardart `this weapon's own art`; sie folgt Maus und Tastaturfokus.
+  Der Pool zeigt **nur** `art_pool` der Waffe, Standardart zuerst, Rest nach Name;
+  die Standardart traegt den ACCENT-Punkt.
+- Hat der Pool genau **einen** Eintrag, ist der Chip reine Anzeige (kein Klick, kein
+  Popup; Tooltip: `the only one this weapon has`).
+- **Tastatur:** Chips `StrongFocus`, Tab-Reihenfolge nach den Kacheln und vor dem
+  Hand-Schalter, R1 vor R2; Enter/Leertaste waehlt bzw. oeffnet; im Popup bewegen
+  die Pfeiltasten den Fokus, Enter waehlt, Esc schliesst und gibt dem Chip den
+  Fokus zurueck. Fokusrahmen sichtbar in ACCENT, nirgends abgeschnitten.
+- **Aufwand je Ziel (Eingaben):** Standard rechnen lassen: **0** (alles vorbelegt;
+  die Startwaffe des Nightfarer und ein Tausch-Relikt werden erkannt, Punkt 5).
+  Anderen Zauber desselben Stabs: **1**. Andere Art: **2**. Nichts wird doppelt
+  abgefragt: eine Wahl gilt fuer Tafel, Berater und Why.
+
+##### 3. Was der Chip zeigt, und die Zustaende
+
+| Zustand | Zauber-Chip | Art-Chip | Tafel |
+|---|---|---|---|
+| Standard (keine Wahl gespeichert) | Name, Zahl, Standardpunkt | Name, `FP n`, Punkt | rechnet den Standard, Name in der Zeile |
+| Spieler hat gewaehlt | Name, Zahl, ACCENT-Rahmen | Name, `FP n` | rechnet die Wahl |
+| **Noch nichts gewaehlt** (nur Art: Pool > 1 und kein `art_default`) | entfaellt (Zauber haben immer einen Standard, R1) | gestrichelter Chip `Choose a weapon art`, ohne Icon | **keine geratene Zahl**: die Zeile `Weapon art` bleibt wie heute (Skill-Faktor auf die AR, AK-355, ohne Namen) |
+| Zauber ohne Schaden (Rejection, Heal) | Zahlzeile `no damage` | — | Zeile nach AK-344 (`NO_SPELL_DAMAGE`) |
+| Art ohne eigene Schadenszahl (Fassung F2, unten) | — | `FP n` statt Zahl | Zeile mit Namen, AR-Wert wie heute, Hinweissatz im Block |
+| Relikt tauscht Zauber/Art der Startwaffe | genau ein Chip, Punkt 5 | wie links | rechnet den getauschten |
+| Icon fehlt (Datei nicht lesbar) | neutrale Flaeche (`PANEL`), Name bleibt | wie links | unveraendert |
+| Name sehr lang (> 2 Zeilen) | am Ende gekuerzt, voller Name im Tooltip | wie links | in der Zeile voll, Umbruch |
+| Pool mit 54 Eintraegen | — | Popup rollt, Fokus folgt | — |
+
+Die Zahl im Zauber-Chip ist `damage.spell(...).figure` fuer genau diesen Zauber
+(`damage_type=""`, Stufe der Kachel wie die Tafelzeile), aus der Fassade
+(AK-357). Der gewaehlte Chip zeigt dieselbe Zahl wie die Zeile `Spell damage`.
+
+**Fassung F2 / F1 der Art-Zahl (haengt an T-335q).** Bis der `architect` eine
+belegte Formel fuer den Schaden je Art liefert, gilt **F2**: die Art bewegt keine
+Zahl; die Zeile `Weapon art (<Name>)` zeigt den Skill-Faktor-Wert wie
+AK-354/AK-355, und ein MUTED-Satz im Block sagt es ehrlich: *"{name} has no damage
+figure of its own here — the row shows the weapon's attack rating under the art's
+factor."* (Wortlaut Entwurf, im Test als Literal). Liefert T-335q eine Formel
+(F1), ersetzt der `director` AK-415(d) und AK-416(c) durch die dortige Zahl;
+Aufbau, Chips, Popup und Merken aendern sich nicht.
+
+##### 4. Merken und Beziehung zu den Kacheln
+
+Eine Wahl aendert `WeaponSlot`, ruft `_store_weapon_loadout()` und `recompute()`
+(wie `_edit_weapon_slot`, `app.py:1468-1475`). Wechsel der Waffe auf einer Kachel
+(`WeaponDialog`) setzt beide Wahlen auf `None`; bestaetigt der Spieler dieselbe
+Waffe (gleiche `id`), bleiben sie: `result_slot()` baut ein neues `WeaponSlot` und
+muss sie uebernehmen, sonst gehen sie bei jedem OK verloren. Kachel leeren setzt
+sie zurueck. Nightfarer-Wechsel und zurueck zeigt dieselben Wahlen
+(`apply_hero_weapon`, `app.py:1477`). Neuer Nightfarer ohne Vorgeschichte: alles
+Standard.
+
+##### 5. Tausch-Relikte ("starting armament's skill/spell changed to X")
+
+Regel wie heute fuer Zauber (`spell_thrown(..., starting=own)`), neu auch fuer
+Arts: gilt nur fuer die **Startwaffe** (`damage.is_starting_armament` fuer die Art,
+`own` aus `spell_catalyst` fuer den Zauber), und der getauschte Eintrag
+**schlaegt Wahl und Standard**. Der Block zeigt dann auf dieser Kachel **nur den
+getauschten Eintrag** (ein Chip, ACCENT-Rahmen, Kleinschrift `RELIC`, kein Klick)
+und darunter eine MUTED-Zeile: *"A relic changed the starting armament's spell to
+{name}. Your choice applies again without it."* (bzw. `skill`). Die gespeicherte
+Wahl bleibt unberuehrt. Tauschen zwei Relikte, gilt der staerkere wie bisher
+(`_TWO_SWAPPED_SPELLS`, `goals.py:459`) und die Zeile nennt es. Auf jeder anderen
+Kachel gibt es keinen Tausch.
+
+**Revenant:** Finger Seal (`starting_weapon_left`) liegt auf **keiner** Kachel
+(AK-353) und hat keinen Ort fuer eine Wahl. Seine Zauber (Rejection, Heal, beide
+ohne Schaden) bewegen keine Zahl; fuer ihn gilt: kein Chip, kein Speichern, der
+Zauber ist R1 bzw. der getauschte (Zeile wie heute). Findet der Entwickler einen
+Start-Katalysator abseits der Kachel mit schadendem Zauber, hoert er auf und
+meldet es, statt einen Speicherort zu raten.
+
+##### 6. Berater und Why (AD-019, eine Quelle)
+
+Die aufgeloeste Wahl ist ein Wert, den Tafel und Berater **aus einer Funktion der
+Fassade** lesen, nicht je ein eigener Zweig: `damage.chosen_spell(slot, hero, data,
+build)` bzw. `chosen_art(...)` (Namen Entwurf). `GoalContext` erhaelt
+`selected_spell_id` neben `selected_catalyst` (`advisorbar.py:615`); `_spell_cell`
+(`goals.py:437-447`) ruft `spell_thrown` mit dieser Wahl und rechnet unveraendert
+auf `MIN_UPGRADE` (AD-052). Der Cache-Schluessel der Leiste (`advisorbar.py:636`)
+erhaelt `selected_spell_id` (Lehre T-335a: ein Treffer ueber zwei Kacheln antwortet
+sonst fuer die andere); die Art-Id nur, wenn die Art die Antwort bewegen kann
+(F1), unter F2 **nicht**. Why (`explain.py`) nennt den Zauber mit demselben Namen
+wie die Zeile. Eine Wahl-Aenderung ist wie jede Leisteneingabe: neue Antwort,
+kein veralteter Treffer.
+
+##### 7. Akzeptanzkriterien
+
+**AK-410** Der Block `CASTING` steht zwischen Kachelraster und Hand-Schalter, nur
+wenn die gewaehlte Kachel gefuellt ist und ein Katalysator mit >= 1 belegtem
+Zauber ist oder eine Art hat (`art_default` oder nicht leerer `art_pool`); sonst
+ist er unsichtbar und belegt 0 px Hoehe (Test: `isVisible()` und Hoehe je Fall:
+Wylder Kachel 1, Recluse Kachel 1, leere Kachel, Waffe ohne Art und ohne Zauber).
+Wechsel der Kachel baut ihn neu (Test: Staff -> leer -> Staff).
+
+**AK-411** Inhalt nur von dieser Waffe: Zauber-Chips = belegte `equipped_spells`
+der Waffe (Recluse's Staff: genau `Glintstone Pebble`, `Glintstone Arc`); Art-Popup
+= `art_pool` der Waffe, kein Eintrag ausserhalb (Test: Menge der Popup-Ids ==
+`set(art_pool)`; kein `Other`-Element im Widgetbaum). Wylder's Greatsword: die
+Standardart steht als erster Eintrag des Popups mit Punkt.
+
+**AK-412** Vorbelegung: ohne gespeicherte Wahl rechnet die Tafel den ersten
+belegten Zauber (R1, gleich dem heutigen `spell_thrown`: Recluse Stufe 15 ohne
+Relikte `Spell damage (Glintstone Pebble) 123`, unveraendert) bzw. `art_default`;
+0 Eingaben. Hat eine Waffe mit Pool > 1 keinen `art_default`, zeigt der Block den
+gestrichelten Chip `Choose a weapon art` und **keine** Art-Zahl ausser der
+heutigen Skill-Faktor-Zeile ohne Namen (Test mit einer solchen Waffe aus dem
+Snapshot; gibt es keine, ein synthetischer Datensatz, Vermerk im Bericht).
+
+**AK-413** Bedienung: Zauber-Wahl = 1 Klick, Art-Wahl = 2 Klicks, per Tastatur Tab
+-> Enter (-> Pfeile -> Enter); Esc schliesst das Popup und gibt dem Chip den
+Fokus; Tab-Reihenfolge Kacheln -> R1 -> R2 -> Hand-Schalter; Fokusrahmen sichtbar;
+ein Pool mit einem Eintrag oeffnet nichts. Gemessen per UIA am Fenster
+(`scripts/drive_window.ps1`) durch den `qa-engineer`.
+
+**AK-414** Merken: nach Wahl von R2, Nightfarer-Wechsel und zurueck ist R2 noch
+gewaehlt (Test ueber `weapon_loadouts`); OK im `WeaponDialog` mit unveraenderter
+Waffe behaelt die Wahl; eine andere Waffe setzt sie auf Standard; Kachel leeren
+setzt sie zurueck; nach Neustart ist alles Standard (bewusst, Entscheid oben).
+`WeaponSlot.copy()` uebernimmt beide Felder.
+
+**AK-415** Eine Zahlquelle: (a) der gewaehlte Zauber-Chip zeigt dieselbe Zahl wie
+die Zeile `Spell damage (<Name>)`; (b) jede Chip-Zahl ist `damage.spell` fuer
+ihren Zauber, nirgends ein zweiter Rechenweg (Suche nach Produkten in
+`weaponslots.py`/`statsheet.py`, Ergebnis im Bericht); (c) der Berater (`Hit with
+Sorceries/Incantations`) und `Why` rechnen den gewaehlten Zauber, Test: Recluse,
+R2 gewaehlt -> `display` des Berater-Laufs nennt `Glintstone Arc` mit der Zahl der
+Fassade; (d) F2: die Wahl einer anderen Art aendert **keine** Zahl der Tafel und
+keinen Rang im Berater (Test, als Erwartung F2 benannt).
+
+**AK-416** Art-Zeile: (a) `Weapon art (<Name>)` erscheint auf jeder gefuellten
+Nicht-Katalysator-Kachel mit aufgeloester Art **und** weiterhin auf der Startwaffe
+nach AK-353.1; (b) AK-356 (Art auf Katalysator) unveraendert; (c) unter F2 steht
+der Satz aus Punkt 3 genau einmal im Block (Literal im Test); (d) die Zahl der
+Zeile bleibt aus `damage.equipped(..., art=SKILL_ART)` (AK-354).
+
+**AK-417** Tausch: Recluse mit einem Zauber-Tausch-Relikt: der Block zeigt genau
+einen Chip `RELIC` mit dem getauschten Zauber und den Satz aus Punkt 5 (Literal),
+die Tafel rechnet ihn; ohne das Relikt gilt wieder die gespeicherte Wahl (Test:
+Wahl R2, Relikt rein/raus). Art-Tausch ebenso fuer die Startwaffe
+(`swapped_art_ids`), auf anderen Kacheln kein Tausch. Revenant: kein Chip, Zeile
+wie heute (Pruefweg AK-353 unveraendert).
+
+**AK-418** Darstellung: Chips nur aus Bestandstoken (ACCENT, BORDER, PANEL,
+HOVER_FILL, MUTED; Suche nach neuen Hex-Literalen im Diff leer); Icon 40 px
+logisch, skaliert mit `ui/scale` 90 bis 200 %; Name 2 Zeilen, dann Auslassung mit
+vollem Namen im Tooltip; Tooltip jedes Chips: Name, Schule bzw. Art, `FP n`, bei
+Standard `default of this weapon`; Zugaenglichkeitsname je Chip (`R1: Glintstone
+Pebble, 123, selected`); zwei Chips plus Rand passen in die Spalte bei
+`minimumWidth()` ohne Abschneiden und ohne waagerechten Rollbalken
+(QA-292/304-Muster); Bilder per `QWidget.grab()` (NH-002): Recluse Kachel 1, Wylder
+Kachel 1 mit offenem Popup, Recluse mit Relikt-Tausch. Fehlt ein Icon, bleibt der
+Chip bedienbar (Test mit `iconpack` ohne Datei).
+
+**AK-419** Spieltext als Text, nie als Markup (SEC-019): Chip-Name, Tooltip,
+Popup-Fusszeile, Tafelzeile (`html.escape`, wie `statsheet.py:671`); der Waechter
+`tests/test_game_text_is_never_markup.py` deckt die neuen Senken ab. Alle neuen
+Saetze Englisch (A8).
+
+##### 8. Ausdruecklich nicht Teil der Vorgabe
+
+Ein Raster aller Zauber/Arts des Spiels; Wahl ueber den `WeaponDialog`; Speichern
+der Wahl ueber den Neustart oder im gespeicherten Build; eine Art-Schadenszahl
+(wartet auf T-335q, Fassung F1); eine Wahl fuer eine Start-Waffe abseits jeder
+Kachel (Revenants Siegel); Schadensart-Filter im Block; neue Farben oder
+Icon-Rahmen; Aenderung der Mindestbreite (AK-400).
+
+**Betroffene Dateien (Stand `3ab6fb8`, Entwurf):** `nrplanner/weaponslots.py`
+(`WeaponSlot`, `result_slot`), `nrplanner/statsheet.py` (Block `:344-352`,
+`:623-678`, `_weapon_art_row` `:587`), `nrplanner/app.py` (`:1454-1491`),
+`nrplanner/damage.py` (aufgeloeste Wahl, Tausch der Art), `nrplanner/model.py`
+(`swapped_art_ids`), `nrplanner/advisorbar.py` (`:615`, `:636`),
+`nrplanner/advisor/goals.py` (`:437-447`), `nrplanner/advisor/explain.py`,
+`nrdata/` und `nrplanner/iconpack.py` (Art-Icons, EXTRACT_VERSION 17), Tests.
