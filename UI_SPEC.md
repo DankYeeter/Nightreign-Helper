@@ -8608,7 +8608,7 @@ Treffer pro Stelle); (d) der kompakte Block zeichnet weiterhin keine
 durchgestrichene Zeile (Test: ein Vorschlag mit einem Effekt eines anderen
 Nightfarers zeichnet ihn nicht im Block, aber im Dialog).
 
-##### 5. AK-409 — Lange Slotkarten: ein Rahmen fuer den Vorschlag
+##### 5. AK-409 — Lange Slotkarten: ein Rahmen fuer den Vorschlag (ersetzt, siehe Korrektur unten)
 
 **Zweck.** Eine Slotkarte bleibt als Karte lesbar; ein langer Vorschlag schiebt
 die Nachbarn nicht aus dem Bild.
@@ -8643,6 +8643,23 @@ ausgelassenen Effektzeilen; (c) enthaelt der Block allein mehr als 8 Fluchzeilen
 wachsen die Fluchzeilen ueber das Budget (kein Fluch wird versteckt) und keine
 Effektzeile steht; (d) `rolled_label` ist unveraendert; (e) der Bericht nennt den
 reproduzierten Fall mit Zeilenzahl je Quelle und der Spaltenbreite der Messung.
+
+**Korrektur T-335p (Nutzerentscheid 31.10.2026, "Gleiche Werte buendeln"):
+AK-409 oben ist ersetzt, kein Zeilenbudget, keine Faltzeile.** Reproduziert
+(Testfenster, echter Spielstand, 10 Nightfarer x 3 Ziele, je erster Vorschlag,
+171 Gruppen): 53 Gruppen ueber 8 Zeilen, hoechstens 16. Die "8 Flask-Zeilen"
+sind der **Fluch** "Reduced Damage Negation for Flask Usages" (6850900): eine
+Zeile je Schadensart, alle +45,0 %; das Budget haette sie nie gekuerzt.
+Neue Regel: Zeilen **einer** Wirkung, die denselben Betrag mit demselben
+Vorzeichen-Urteil sagen, stehen als **eine** Zeile, Flueche eingeschlossen;
+sie nennt alle Felder ("Skill FP cost, Spell FP cost and Item use cost -8.0%")
+oder das Wort der Statustafel fuer den ganzen Satz ("All damage taken",
+"All damage"). Nichts wird versteckt. Ausgenommen (stehen einzeln):
+Attributzeilen (AK-315), Zauberpfad, art-gebundene Buffs, Waffenklassen-Felder,
+Felder mit dem Namen der Wirkung selbst. Eine Quelle (`advisor/explain.py`),
+daher gleich in Block, Slotkarte und Why. **AK-409neu:** der Fluch 6850900
+steht als genau eine Zeile `...: All damage taken +45.0% — this figure does
+not count it.` (Test `test_one_figure_an_effect_moves_on_many_fields_is_one_line`).
 
 ##### 6. Ausdruecklich nicht Teil der Vorgabe
 

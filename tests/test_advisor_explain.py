@@ -518,8 +518,10 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
 
     Through `model.collapse_by_label`, the model's own rule, so what the
     advisor merges and what the stat sheet merges cannot come apart. Five
-    lines saying FP costs 8 % less is the noise it exists against; the three
-    that remain are three different things the sheet names differently.
+    lines saying FP costs 8 % less is the noise it exists against. The three
+    the sheet names differently say the same -8 %, so since T-335p (user
+    decision 31.10.2026, replacing AK-409) they stand as one line naming
+    all three.
     """
     ctx = a_context({1: "Reduced FP Consumption"})
     fields = ("artsConsumptionRate", "magicConsumptionRate",
@@ -534,9 +536,8 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
                                      goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Reduced FP Consumption: Skill FP cost -8.0%",
-        "Reduced FP Consumption: Spell FP cost -8.0%",
-        "Reduced FP Consumption: Item use cost -8.0%",
+        "Reduced FP Consumption: Skill FP cost, Spell FP cost and Item use "
+        "cost -8.0%",
     )
 
 
@@ -2389,3 +2390,25 @@ def test_held_favourites_card_line_summarises_from_two_on():
                 "Wylder's Earring held in Slot 2.",)
     assert explain.held_favourites_card_line(two) == (
         "2 favourited effects are already carried by relics you hold.")
+
+
+def test_one_figure_an_effect_moves_on_many_fields_is_one_line(
+        game_data, wylder, armament):
+    """T-335p (replacing AK-409): "Reduced Damage Negation for Flask Usages"
+    moved eight damage-taken fields by the same +45 % and stood as eight
+    curse lines; it stands as one, in the stat sheet's own word, and hides
+    nothing (the block, the card and `Why` all draw these lines)."""
+    flask_curse = 6850900
+    problem = advisor.problem([advisor.RED], deep=True)
+    # Declared, so its condition counts as met and it moves its figures.
+    ctx = advisor.context(game_data, wylder, reference=armament,
+                          declared=((flask_curse, 1),))
+    chosen = (a_copy(0, 1, "Deep copy", curse_ids=[flask_curse]),)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    name = effect_names(game_data, [flask_curse]).pop()
+    assert lines_of(groups) == (
+        f"{name}: All damage taken +45.0% — this figure does not count it.",)
+    assert all(line.is_curse for group in groups for line in group.lines)

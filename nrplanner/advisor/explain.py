@@ -85,6 +85,9 @@ class _Contribution:
     is_curse: bool
     field_key: str
     own: float
+    #: The name several fields of one effect share when they say the same
+    #: figure and are drawn as one line (`_bundled`); `None` is the field's.
+    label: str | None = None
 
 
 def _effect_name(ctx: types.GoalContext, effect_id: int) -> str | None:
@@ -431,7 +434,7 @@ def _named(contribution: _Contribution, built: model.Build) -> str:
     nobody chose.
     """
     key, own = contribution.field_key, contribution.own
-    label = _field_label(key)
+    label = contribution.label or _field_label(key)
     if label is None:
         return effecttext.UNLABELLED
     amount = _amount(key, own, built)
@@ -794,7 +797,7 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
                         slot_index=candidate.slot_index, effect_id=effect_id,
                         text=_explained_line(one, built, felt, rating,
                                              one is first_attribute, ctx))
-                    for one in own)
+                    for one in _bundled(own, built, ctx))
             else:
                 lines.append(_silent_effect(
                     candidate, effect_id, ctx, built,
@@ -860,7 +863,67 @@ def _curse_lines(candidate: types.Candidate, curse_id: int,
             text=_explained_line(one, built, felt, rating,
                                  one is first_attribute, ctx),
             is_curse=True)
-        for one in moved)
+        for one in _bundled(moved, built, ctx))
+
+
+#: The two field sets the stat sheet already says in one word
+#: (`effecttext.describe`).
+_SAID_AS_ONE = {frozenset(effecttext.ATTACK_RATES): "All damage",
+                frozenset(effecttext.DAMAGE_CUT_RATES): "All damage taken"}
+
+
+def _bundle_key(one: _Contribution, built: model.Build,
+                ctx: types.GoalContext) -> tuple | None:
+    """What a line of this contribution says besides its field's name, or
+    `None` for a line that has to stand alone.
+
+    Attributes carry AK-315's amount on one line of their own, spell paths
+    and art-scoped buffs are worded apart, a weapon-class field carries its
+    restriction in its name, and a field named after the effect has no name
+    of its own to join.
+    """
+    key = one.field_key
+    label = _field_label(key)
+    if (key == _SPELL_PATH_FIELD or key in model.ATTRIBUTE_ORDER
+            or key.startswith(model.WEAPON_CLASS_PREFIX)
+            or (_spell_art_chosen(ctx) and _is_art_scoped(one))
+            or label is None or label == one.effect_name):
+        return None
+    return (_amount(key, one.own, built), _is_a_cost(key, one.own, built))
+
+
+def _bundled(contributions: Sequence[_Contribution], built: model.Build,
+             ctx: types.GoalContext) -> list[_Contribution]:
+    """One effect's contributions, those that say the same figure as one.
+
+    "Reduced Damage Negation for Flask Usages" moved eight damage-taken
+    fields by the same +45 % and stood as eight lines (T-335p, replacing
+    AK-409). Joined, nothing is hidden: the line names every field it
+    stands for, or the stat sheet's word for all of them.
+    """
+    groups: list[list[_Contribution]] = []
+    by_key: dict[tuple, list[_Contribution]] = {}
+    for one in contributions:
+        key = _bundle_key(one, built, ctx)
+        if key is None:
+            groups.append([one])
+        elif key in by_key:
+            by_key[key].append(one)
+        else:
+            by_key[key] = [one]
+            groups.append(by_key[key])
+    return [members[0] if len(members) == 1
+            else dataclasses.replace(members[0], label=_joined_label(members))
+            for members in groups]
+
+
+def _joined_label(members: Sequence[_Contribution]) -> str:
+    """`All damage taken`, or `Skill FP cost, Spell FP cost and Item use cost`."""
+    fields = frozenset(one.field_key for one in members)
+    if fields in _SAID_AS_ONE:
+        return _SAID_AS_ONE[fields]
+    labels = [_field_label(one.field_key) for one in members]
+    return f"{', '.join(labels[:-1])} and {labels[-1]}"
 
 
 def curses_without_a_figure(groups: Sequence[types.SlotReasons]
