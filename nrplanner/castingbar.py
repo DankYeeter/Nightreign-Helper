@@ -269,9 +269,10 @@ class ChipWidget(cardgrid.HoverCard):
         border = ACCENT if chip.selected or self.hasFocus() else BORDER
         width = (weaponslots.RING_WIDTH if chip.selected or self.hasFocus()
                  else 1)
-        # Dashed: a chip to choose, or the focus (T-335fix2, as on the tiles).
-        style = ("dashed" if chip.record is None or self.hasFocus()
-                 else "solid")
+        # Dashed: a chip to choose, or the focus Tab brought (T-335fix3, as
+        # on the tiles).
+        style = ("dashed" if chip.record is None
+                 or self.hasFocus() and self.keyboard_focus else "solid")
         fill = HOVER_FILL if self.hovered or self.hasFocus() else PANEL
         # The margin keeps the ring from taking room, as on the tiles (QA-316).
         self.setStyleSheet(
@@ -280,6 +281,7 @@ class ChipWidget(cardgrid.HoverCard):
             f" border-radius: 6px; }}")
 
     def focusInEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._note_focus_reason(event.reason())
         self._apply_appearance()
         super().focusInEvent(event)
 
@@ -429,13 +431,12 @@ class CastingBar(QWidget):
 
         Skipped when nothing changed, so a recompute on every keystroke does
         not take the focus off a chip; after a choice the focus stays on the
-        chip of the same caption.
+        chip of the same caption, dashed if Tab had brought it.
         """
         if (chips, note) == self._shown:
             return
         self._shown = (chips, note)
-        focused = next((w.chip.caption for w in self.chip_widgets
-                        if w.hasFocus()), None)
+        focused = next((w for w in self.chip_widgets if w.hasFocus()), None)
         for widget in self.chip_widgets:
             widget.setParent(None)
             widget.deleteLater()
@@ -446,8 +447,11 @@ class CastingBar(QWidget):
         self.note.setText(note or "")
         self.note.setVisible(bool(note))
         self.setVisible(bool(chips))
+        if focused is None:
+            return
         for widget in self.chip_widgets:
-            if widget.chip.caption == focused:
+            if widget.chip.caption == focused.chip.caption:
+                widget.keyboard_focus = focused.keyboard_focus
                 widget.setFocus(Qt.OtherFocusReason)
 
     def _activate(self, widget: ChipWidget) -> None:

@@ -151,6 +151,16 @@ class HoverCard(QFrame):
     """
 
     _hovered = False
+    #: The focus came by Tab, so it is drawn dashed (T-335fix3).
+    keyboard_focus = False
+
+    def _note_focus_reason(self, reason: Qt.FocusReason) -> None:
+        """Tab sets `keyboard_focus`, a click clears it; a popup closing or
+        the window coming back leaves it as it was."""
+        if reason in (Qt.TabFocusReason, Qt.BacktabFocusReason):
+            self.keyboard_focus = True
+        elif reason == Qt.MouseFocusReason:
+            self.keyboard_focus = False
 
     @property
     def hovered(self) -> bool:

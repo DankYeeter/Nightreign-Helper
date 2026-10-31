@@ -221,6 +221,7 @@ class WeaponTile(cardgrid.HoverCard):
             super().keyPressEvent(event)
 
     def focusInEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._note_focus_reason(event.reason())
         self._apply_appearance()
         super().focusInEvent(event)
 
@@ -229,15 +230,17 @@ class WeaponTile(cardgrid.HoverCard):
         super().focusOutEvent(event)
 
     def _apply_appearance(self) -> None:
-        """The gold ring marks the active tile, dashed the focused one, the
-        active one included (AK-413, T-335fix2); the fill the pointer alone:
+        """The gold ring marks the active tile, dashed the one Tab reached,
+        the active one included (AK-413, T-335fix2/fix3); the fill the
+        pointer alone:
         a clicked tile keeps the focus, and a fill that stayed after the
         pointer left would be QA-157 again. The thin border keeps a pixel of
         margin, so the ring takes no room from the row (QA-316)."""
         ringed = self.active or self.hasFocus()
         border = ACCENT if ringed else BORDER
         width = RING_WIDTH if ringed else 1
-        style = "dashed" if self.hasFocus() else "solid"
+        style = ("dashed" if self.hasFocus() and self.keyboard_focus
+                 else "solid")
         fill = HOVER_FILL if self.hovered else PANEL
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {width}px {style} {border};"

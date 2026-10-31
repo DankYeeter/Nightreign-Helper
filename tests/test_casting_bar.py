@@ -10,7 +10,7 @@ import html
 from dataclasses import replace
 
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
-from PySide6.QtGui import QColor, QKeyEvent
+from PySide6.QtGui import QColor, QFocusEvent, QKeyEvent
 
 from nrplanner import castingbar, damage, weaponslots
 from tests import weapon_damage_cases as cases
@@ -220,16 +220,36 @@ def test_the_ring_takes_no_room(planner, game_data):
 
 
 def test_focus_is_dashed_and_the_active_ring_solid(planner, game_data):
-    """T-335fix2: the focus shows on the active tile too -- dashed ACCENT,
-    the active ring solid; the chips follow the same rule."""
+    """T-335fix2/fix3: focus that Tab brought shows on the active tile too --
+    dashed ACCENT; a click leaves the active ring solid, and a popup closing
+    keeps what was there. The chips follow the same rule."""
     draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
     tile = planner.stat_sheet.weapon_tiles[0]
     chip = bar(planner).chip_widgets[0]
+    solid = f"2px solid {castingbar.ACCENT}"
+    dashed = f"2px dashed {castingbar.ACCENT}"
     for widget in (tile, chip):
-        assert f"2px solid {castingbar.ACCENT}" in widget.styleSheet()
+        assert solid in widget.styleSheet()
         widget.hasFocus = lambda: True
-        widget._apply_appearance()
-        assert f"2px dashed {castingbar.ACCENT}" in widget.styleSheet()
+        for reason, ring in ((Qt.MouseFocusReason, solid),
+                             (Qt.PopupFocusReason, solid),
+                             (Qt.TabFocusReason, dashed),
+                             (Qt.PopupFocusReason, dashed),
+                             (Qt.BacktabFocusReason, dashed),
+                             (Qt.MouseFocusReason, solid)):
+            widget.focusInEvent(QFocusEvent(QEvent.FocusIn, reason))
+            assert ring in widget.styleSheet(), reason
+
+
+def test_a_choice_keeps_the_dashed_focus_of_the_chip(planner, game_data):
+    """T-335fix3: the bar rebuilds its chips after a choice; the focus moves
+    to the new chip of the same caption, dashed if Tab had brought it."""
+    draw(planner, game_data, cases.hero_by_name(game_data, "Wylder"))
+    old = bar(planner).chip_widgets[0]
+    old.hasFocus = lambda: True
+    old.focusInEvent(QFocusEvent(QEvent.FocusIn, Qt.TabFocusReason))
+    bar(planner).show_chips(chips(planner), "rebuilt")
+    assert bar(planner).chip_widgets[0].keyboard_focus
 
 
 def test_enter_on_a_tile_selects_it(planner, game_data):
