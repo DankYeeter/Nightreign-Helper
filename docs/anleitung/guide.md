@@ -320,36 +320,77 @@ Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
 they are folded into the maths rather than quietly ignored.
 
-**Weapon art and Spell damage.** Two more rows can appear right under the
-weapon panel's **Total** line. *Weapon art* appears only on the tile that
-carries your Nightfarer's own starting armament — move that weapon to another
-tile and the row moves with it; put a different, found weapon on the starting
-tile and it does not appear there. *Spell damage* follows the staff or seal on
-the tile (see below).
+**Casting.** Under the six weapon tiles a block titled `CASTING` shows which
+spell or which weapon art the panel counts for the selected tile. It appears
+only when the selected tile holds a staff or seal with a spell, or a weapon
+that has a weapon art; otherwise it is not there. It lists only what lies on
+that one weapon, never every spell or art in the game.
 
-- **Weapon art** shows what your character skill adds on top of the Total
-  above it, so its own base figure is that Total, not zero — a relic that
-  raises attack moves both rows by the same amount and leaves this row's
-  change at `no change`; only a relic that boosts skill damage moves it on
-  its own. On a staff or a seal there is no number to show here (the game
-  ranks a catalyst by spell power, not by an attack art), so the row reads a
-  sentence instead: *"Weapon art — not shown: a staff or a seal is ranked on
-  the spell power the game shows for it, and no attack art reaches that
-  figure."*
+- On a staff or a seal there is one chip per spell slot, captioned `R1` and
+  `R2`. With no choice from you, `R1` is counted. A slot that holds one spell
+  is chosen with one click; a slot whose spell can differ from run to run
+  opens a list of the spells that slot can hold. Which spells a given staff
+  rolls cannot be known in advance, so the list is yours to pick from.
+- On any other weapon with an art there is one chip captioned `ART`. A click
+  opens a list of the arts that weapon can carry; click one to choose it. The
+  weapon's own default art is listed first and marked with a dot. A weapon
+  with a single possible art shows it without a list. A weapon with several
+  possible arts and no default shows a dashed chip, `Choose a weapon art`,
+  and the panel names no art until you pick one.
+- The chosen chip has the orange frame, and its figure is the same number as
+  the `Spell damage` row below. Hover a chip for its name, school or art, FP
+  cost and whether it is the weapon's default. Keyboard: Tab goes through the
+  tiles, then the chips, then the 1H/2H switch; Enter opens or chooses, Esc
+  closes a list.
+- The choice is remembered per Nightfarer and per tile while the program
+  runs, not after a restart. A different weapon on the tile, or clearing the
+  tile, resets it to the default; confirming the same weapon keeps it.
+- A relic that changes the **starting** armament's spell or skill beats your
+  choice: the block then shows only that entry, captioned `RELIC`, with the
+  sentence *"A relic changed the starting armament's spell to \<name>. Your
+  choice applies again without it."* Without the relic your choice counts
+  again. On any other tile no relic changes the spell or the art.
+
+**Weapon art and Spell damage.** Two more rows can appear right under the
+weapon panel's **Total** line, for the selected tile.
+
+- **Weapon art (\<art name>)** appears on any filled tile whose art is known:
+  the weapon's default art, or the one you chose in `CASTING`. It is one hit
+  of that art, not an addition to the Total above it: the grey figure is that
+  hit with nothing equipped, then the change your relics make, then the bold
+  figure. It is one figure, not a pair, and it does not follow the 1H/2H
+  switch. A relic that raises attack moves it, and a relic that boosts skill
+  damage moves it further. If the art has no figure of its own (it deals no
+  damage, its damage comes from a projectile this program does not read, or
+  its fixed figure is not calibrated yet), the row names the art and says why
+  instead of showing a number. A weapon with several possible arts and none
+  chosen shows no row; `CASTING` asks for the choice. On a staff or a seal
+  there is no number to show (the game ranks a catalyst by spell power, not
+  by an attack art), so the row reads a sentence instead: *"Weapon art — not
+  shown: a staff or a seal is ranked on the spell power the game shows for
+  it, and no attack art reaches that figure."*
 - **Spell damage (\<spell name>)** appears when the selected tile holds a
   staff or a seal, for any Nightfarer, and for Recluse and Revenant when no
   tile holds one (their starting catalyst is used). Any other Nightfarer with
-  no staff or seal on the selected tile gets no row. The spell shown is the one
-  that catalyst casts; a relic that swaps the spell takes priority over the
-  default only for the starting catalyst. The figure is at the upgrade level
-  of the tile. If
-  that spell deals no damage by itself (Revenant's default Rejection/Heal,
-  for example), the row still shows a number, `0`, not a sentence. Click the
-  bold figure for a breakdown tooltip: the base, the relics that moved it and
-  the figure, and for a spell that deals no damage a note that only a relic
-  swapping the cast spell would bring damage here. Do not add this figure to the weapon's attack rating above it —
-  attack rating and spell damage are two different scales and this panel
-  never mixes them.
+  no staff or seal on the selected tile gets no row. The spell shown is the
+  one chosen in `CASTING`, `R1` if you chose none. The figure is at the
+  upgrade level of the tile. If that spell deals no damage by itself
+  (Revenant's default Rejection/Heal, for example), the row still shows a
+  number, `0`, not a sentence. Click the bold figure for a breakdown tooltip:
+  the base, the relics that moved it and the figure, and for a spell that
+  deals no damage a note that only a relic swapping the cast spell would
+  bring damage here. Do not add this figure to the weapon's attack rating
+  above it — attack rating and spell damage are two different scales and this
+  panel never mixes them.
+
+The Advisor reads the same choice: **Hit with** *Weapon art*, *Sorceries* and
+*Incantations* rank the art or spell chosen on the selected tile and show the
+same number as the rows above.
+
+*Unchecked: this section was written from the specification and the code, not
+from a run of the program. The exact on-screen wording, the Tab order and the
+remembered choice after switching Nightfarer have not been confirmed in the
+window.*
 
 **About the switches.** The tool cannot know whether you are below 40% HP, or
 how many Night Invaders you have killed, or whether your Character Skill is up
