@@ -1092,3 +1092,40 @@ beim ersten Start ist in CHANGELOG und Release-Text genannt). Spec und
 `requirements.txt` seit `7070d0c` unveraendert. `tests/test_personenbezug.py`
 (Waechter laut Rolle) existiert im Repo nicht; ich habe nichts in Wurzel oder
 Artefakt ergaenzt.
+
+## 1.19.0 clean-room (T-335cr) - 2026-10-31
+
+Modus `clean-room` an `dist\NightreignHelper.exe` (59.233.901 B, SHA-256
+`b479a9bb...1eff`, vor und nach dem Lauf nachgehasht). Vorversion: Release
+`v1.18.0` per `gh release download` (59.265.788 B, SHA-256 `7afded78...afbd6`,
+gleich der mitgelieferten `.sha256`). Isolierung: Scratchpad-Verzeichnis,
+`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-335cr`, `LOCALAPPDATA`/`APPDATA` auf
+Wegwerfpfade in derselben Kommandozeile wie der Start; kein Konto, keine VM,
+`PATH` unveraendert, echter Spielstand lesbar (nur lesend, 315 Relikte, 110
+Builds in der Statuszeile).
+
+- Erststart ohne Cache (EXTRACT_VERSION 18): bestanden. Datei
+  `nightreign_data.json` nach 38,8 s, Symbole (1026 Dateien) nach 67,8 s,
+  Titel "Nightreign Helper 1.19.0" nach 70,0 s.
+- Echte Aktion: bestanden. Build `CR-Recluse-A` gespeichert (Registry
+  `builds\7`, `__schema=3`), Favorit-Effekt 7270100 gesetzt
+  (`advisor/required`).
+- Zweitstart: bestanden. 4,0 s bis Titel, Cache nicht neu geschrieben, Build
+  und Favorit da.
+- Update 1.18.0 -> 1.19.0 (Cache `extract_version` 16 aus
+  `NightreignHelper-Testabzug-v16`, 841 Dateien, 21.139.391 B): bestanden.
+  Cache-Neubau 38,1 s (Prozessstart 19:03:14,2 -> JSON 19:03:52,3), Symbole
+  bis 19:04:20,3 (66,2 s); danach `extract_version` 18, 1026 Symbole. Build
+  `CR-Update-B` und Favorit blieben (Build per Combobox, Favorit per
+  Registry gelesen).
+- Stichprobe: bestanden. Casting-Leiste sichtbar (Recluse: Chips R1
+  Glintstone Pebble, R2 Glintstone Arc; Wylder: Chip ART Stamp (Upward Cut)).
+  Recluse Lv15 Spell damage Pebble Basis 123; Wylder Lv15 Weapon art 262.
+- Aufraeumen: Registryschluessel und Scratchpad geloescht, 0 Prozesse, kein
+  Fenster offen.
+
+Beobachtung: Der Fenstertitel steht waehrend des Neubaus ohne Version
+("Nightreign Helper"); bei einem Update ist das Fenster dann rund 70 s ohne
+Fortschrittsanzeige. Ungeprueft: neues Konto/VM, echter Windows-Neustart,
+SmartScreen, langsamere Rechner. Die Datei unter `roaming` (1 Stueck) wurde
+vor dem Aufraeumen nicht benannt.
