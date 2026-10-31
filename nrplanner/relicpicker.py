@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import html
 
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QFontMetrics, QIcon, QPixmap
@@ -919,7 +920,8 @@ class FavouriteMenu(QMenu):
         button.setChecked(checked)
         button.setAutoRaise(True)
         button.setCursor(Qt.PointingHandCursor)
-        button.setToolTip(hero["name"])
+        # Escaped inside a span, so it is rendered as text (SEC-019).
+        button.setToolTip(f"<span>{html.escape(hero['name'])}</span>")
         # The name under the portrait, as on the sidebar tiles (QA-158,
         # QA-155(b)), at the size measured there: `Undertaker`, the widest,
         # needs 44 px at 7 pt and the tile has 48 inside its border.

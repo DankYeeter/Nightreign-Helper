@@ -93,3 +93,21 @@ def test_the_save_folder_is_offered_as_text(planner, monkeypatch):
     tip = planner.owned_label.toolTip()
     assert "<img" not in tip
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip
+
+
+def test_a_nightfarer_name_in_the_favourite_menu_is_offered_as_text(
+        qapp, monkeypatch):
+    """The portrait's tooltip names the Nightfarer; it renders nothing in it."""
+    from PySide6.QtWidgets import QToolButton
+
+    from nrplanner import favourites, relicpicker
+
+    monkeypatch.setattr(favourites, "heroes_for", lambda _item: set())
+    menu = relicpicker.FavouriteMenu(
+        None, object(), [{"id": 1, "name": HOSTILE_NAME}], None)
+    try:
+        tip = menu.findChildren(QToolButton)[0].toolTip()
+    finally:
+        menu.deleteLater()
+    assert "<img" not in tip
+    assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip
