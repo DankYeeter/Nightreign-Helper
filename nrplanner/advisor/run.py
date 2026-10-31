@@ -325,7 +325,8 @@ def no_carrier_sentence(choice: str) -> str:
     its warning line (T-335a)."""
     return (f"Nothing you own reaches {choice} here: the armament it is "
             f"ranked on does not carry it — for a spell the staff or seal "
-            f"on the selected tile, or else the starting one; otherwise the "
+            f"on the selected tile, for a weapon art the armament on it, and "
+            f"the starting one where the tile has none; otherwise the "
             f"starting armament — and nothing in your inventory swaps in a "
             f"spell or weapon art that does.")
 

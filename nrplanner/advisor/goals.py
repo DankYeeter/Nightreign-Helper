@@ -147,6 +147,11 @@ _ATTACK_RATING_SCOPE = (
     "Scaled on the Nightfarer's own starting armament at its lowest tier, "
     "without the roles a carried copy could add; one- or two-handed as the "
     "stat sheet's hand switch says.",
+    # QA-310: since T-335z the art row is the one armament row that reads
+    # the grid, and the line above would otherwise claim it too.
+    "A weapon art is the one exception: it is rated on the armament on the "
+    "selected tile, at its tier with the art chosen there, or else on the "
+    "starting armament — one-handed either way.",
 )
 
 # Fallback texts (AD-038.1, AK-318.2): spoken only when the dataset has no
@@ -236,6 +241,19 @@ _RANKED_ON_ONE_ART = (
     "still shows, but only this counts toward the ranking. It scales the "
     "armament's attack rating; what a spell hits for is a figure of its "
     "own and is asked for on the spell rows.")
+
+#: The same finding for the art row (QA-310), naming what `_art_cell`
+#: swings: an art can carry no attack rating at all (Glintblade Phalanx),
+#: so the sentence above would be false here. `{source}` is one of the two
+#: below; the art's and the armament's names are game text, passed on as
+#: written to `PlainText` sinks (SEC-019).
+_RANKED_ON_THE_ART = (
+    "Ranked on {choice} only — every other effect on a candidate "
+    "still shows, but only this counts toward the ranking. It is one hit of "
+    "{art} from {armament} {source}, one-handed.")
+_ART_FROM_THE_TILE = "on the selected tile, at its tier"
+_ART_FROM_THE_START = ("— the starting armament at its lowest tier, as the "
+                       "selected tile is empty")
 
 #: AD-048: for a staff or a seal the game shows a spell power and no attack
 #: rating, and nothing measured says what an attack buff does to that
@@ -512,8 +530,11 @@ def _art_cell(build: model.Build, ctx: types.GoalContext,
         value=value,
         display=f"{head} ({rating.art['name']}) {damage.displayed(value)}",
         unit="",
-        unknowns=(_RANKED_ON_ONE_ART.format(
-            choice=_ranked_on_choice(ctx.hit_with, ctx.damage_type)),),
+        unknowns=(_RANKED_ON_THE_ART.format(
+            choice=_ranked_on_choice(ctx.hit_with, ctx.damage_type),
+            art=rating.art["name"], armament=tile.weapon["name"],
+            source=(_ART_FROM_THE_TILE if tile is ctx.art_tile
+                    else _ART_FROM_THE_START)),),
     )
 
 

@@ -983,6 +983,31 @@ def test_the_selected_tile_swings_its_chosen_art(game_data, wylder):
     assert skill.display == "Weapon art (Glintblade Phalanx) 34"
 
 
+def test_the_art_finding_names_what_it_swings(game_data, wylder):
+    """QA-310: Why names the tile's art and armament, or the starting
+    armament where the tile is empty -- not "the armament's attack rating",
+    which Glintblade Phalanx does not scale."""
+    tile = types.ReferenceArmament(
+        weapon=cases.weapon_by_id(game_data, MAGIC_LONGSWORD), tier=1,
+        slot_index=1, art_id=GLINTBLADE_PHALANX)
+
+    on_tile = damage_scores(game_data, wylder, {"nothing": ()},
+                            hit_with="skill", art_tile=tile)["nothing"]
+    on_start = damage_scores(game_data, wylder, {"nothing": ()},
+                             hit_with="skill")["nothing"]
+
+    assert on_tile.unknowns == (
+        "Ranked on weapon art damage only — every other effect on a "
+        "candidate still shows, but only this counts toward the ranking. It "
+        "is one hit of Glintblade Phalanx from Magic Longsword on the "
+        "selected tile, at its tier, one-handed.",)
+    start = cases.weapon_by_id(game_data, wylder["starting_weapon"])["name"]
+    assert on_start.unknowns[0].endswith(
+        f"It is one hit of Stamp (Upward Cut) from {start} — the starting "
+        f"armament at its lowest tier, as the selected tile is empty, "
+        f"one-handed.")
+
+
 def test_only_a_held_swap_relic_swaps_the_art(game_data, wylder):
     """AD-056.7: a held swap relic moves the figure (M2: Lightning Slash
     207); the same relic as a candidate moves nothing, so it is never

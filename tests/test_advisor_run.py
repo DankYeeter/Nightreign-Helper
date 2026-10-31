@@ -159,7 +159,8 @@ def test_a_chosen_type_the_build_carries_none_of_earns_no_suggestion(
 NO_CARRIER_SENTENCE = (
     "Nothing you own reaches fire damage with Sorceries here: "
     "the armament it is ranked on does not carry it — for a spell the "
-    "staff or seal on the selected tile, or else the starting one; otherwise "
+    "staff or seal on the selected tile, for a weapon art the armament on "
+    "it, and the starting one where the tile has none; otherwise "
     "the starting armament — and nothing in your inventory swaps in a spell "
     "or weapon art that does.")
 
