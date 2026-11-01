@@ -682,3 +682,6 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   nennen die neue Ausnahme (markierte Kachel) noch nicht: architect.
 - Vessel-Liste bei schmalem Fenster: Namen abgeschnitten ("Soot-Covered Wy"),
   waagerechter Rollbalken (Nutzertest 1.19.0, 01.11.2026).
+- QA 1.19.1, besteht schon in 1.19.0, gegen Spec ungeprueft: Recluse,
+  Gebetsfamilie "Thorn" liefert "Spell damage (Glintstone Pebble)";
+  "Hit with Weapon art" liefert fuer Recluse und Revenant keinen Vorschlag.
