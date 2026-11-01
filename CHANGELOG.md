@@ -6,11 +6,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [1.20.1] - 2026-11-01
 
-### Changed
-- An ailment bonus such as "Attack power up when facing frostbite-afflicted
-  enemy" now counts only for the weapon on the selected tile (its rolled
-  effects, skill or spell; the starting weapon if that tile is empty) or a
-  relic; weapons on other tiles no longer count.
+### Fixed
+- The relic picker no longer shows stray relic cards beside the list
+  when you type into the filter while the list is still filling.
 
 ## [1.20.0] - 2026-11-01
 

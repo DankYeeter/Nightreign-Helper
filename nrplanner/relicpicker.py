@@ -1115,6 +1115,10 @@ class RelicPicker(QDialog):
         #: toggled through `_open_favourites` drops its one card only: no
         #: other entry has gone stale.
         self._card_cache: dict[int, RelicCard] = {}
+        #: Where `_rescue_cached_cards` keeps the cached cards while a grid
+        #: is swapped; hidden for good, so nothing parked here shows.
+        self._card_shelf = QWidget(self)
+        self._card_shelf.hide()
         #: The cards an answered paint has not built yet, in grid order, and
         #: the zero-length timer that builds the next `CARDS_PER_PAINT` of
         #: them once the event loop has drawn what stands. Stopped by every
@@ -1648,13 +1652,20 @@ class RelicPicker(QDialog):
         the card dies with it: `show_values` on the next paint then throws
         on a `QLabel` shiboken already calls deleted, and the fill stops
         there for good, well short of the count the header still states.
-        Reparenting every cached card to the dialog itself, before either
+        Reparenting every cached card to `self._card_shelf`, before either
         branch below may swap the grid, keeps all of them alive across the
         swap -- `CardGrid` reparents, and Qt reshows, the ones a paint
         actually places.
+
+        The shelf, not the dialog: `CardGrid.extend` queues a show for each
+        card it places, and a card moved out before that show runs is shown
+        by it wherever it now hangs -- on the dialog, loose beside the
+        scroll area (user test 1.20.0). Under the hidden shelf the show
+        draws nothing. `card.hide()` instead would make Qt skip the card
+        for good when a later grid places it again.
         """
         for card in self._card_cache.values():
-            card.setParent(self)
+            card.setParent(self._card_shelf)
 
     def _cards_for(self, items) -> list[tuple[object, RelicCard]]:
         """`(item, card)` per item, each card built once per opening.

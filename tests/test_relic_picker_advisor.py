@@ -1965,6 +1965,44 @@ def test_a_sort_change_under_pending_paints_does_not_lose_a_card_the_old_grid_ha
         dialog.deleteLater()
 
 
+def test_a_keystroke_right_after_a_background_paint_leaves_no_card_on_the_dialog(
+        slot):
+    """A filter typed in the same event-loop turn as a background paint:
+    no card of the old grid shows loose on the dialog, and clearing the
+    filter brings every card back.
+
+    `CardGrid.extend` queues a show for each card it places; the keystroke's
+    refresh moves the card out of the grid before that show runs. Moved
+    straight onto the dialog, the show then put the card there, outside the
+    scroll area (user test 1.20.0: two foreign cards beside "stamina").
+    """
+    items = slot.available_items()
+    assert len(items) > 2 * relicpicker.CARDS_PER_PAINT, (
+        "too few candidates for a background paint to run")
+    gains = {index: index for index in range(len(items))}
+    dialog = open_picker(slot, gains, goal_id="max_damage")
+    dialog.show()
+    try:
+        assert dialog._more.isActive(), "nothing was left to paint"
+        dialog._more.stop()
+        dialog._paint_more()
+        dialog.search.setText("zzzz matches nothing")
+        rendered.settle(5)
+        grid = dialog.scroll.widget()
+        loose = [card for card in dialog.findChildren(relicpicker.RelicCard)
+                 if card.isVisible() and not grid.isAncestorOf(card)]
+        assert loose == [], f"{len(loose)} cards show outside the grid"
+
+        dialog.search.setText("")
+        shown = relic_cards(dialog)
+        rendered.settle(3)
+        assert len(shown) == len(items)
+        assert all(card.isVisible() for card in shown)
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
 def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
         slot):
     """The other half of QA-258's fix: reuse, not merely fewer builds.
