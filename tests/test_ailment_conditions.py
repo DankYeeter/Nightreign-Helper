@@ -316,3 +316,80 @@ def test_a_favourite_weapon_type_bonus_of_another_type_says_so(planner,
              for line in group.lines if line.effect_id == buff]
     assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
     assert "a weapon-type bonus counts only" in line.text
+
+
+def select_hero(planner, name: str) -> None:
+    planner.select_hero(next(index for index, hero in enumerate(planner.heroes)
+                             if hero["name"] == name))
+
+
+def counted_with_and_without(planner, data: dict, buff: int,
+                             swap: int) -> tuple[set[int], set[int]]:
+    """Which of `buff` the best suggestion counts alone, and beside a held
+    relic carrying `swap`."""
+    asking = advisorbar.asking_from(planner, DAMAGE)
+    alone = suggest(asking, data, [[buff]], slots=1)
+    swapped = suggest(asking, data, [[swap], [buff]], slots=2,
+                      holding_first=True)
+    return (counted(alone.suggestions[0], (buff,)),
+            counted(swapped.suggestions[0], (buff,)))
+
+
+def no_ailment(records, record_id: int) -> bool:
+    return not next(record for record in records
+                    if record["id"] == record_id).get("inflicts")
+
+
+def test_a_relic_swapping_out_the_chosen_spell_takes_its_source(planner,
+                                                                game_data):
+    """QA-322: Recluse, Zamor Ice Storm chosen on her staff, a relic
+    swapping in Night Shard -- the staff casts Night Shard (a swap beats the
+    pick, AD-056.4), yet the frost buff still counted."""
+    swap = next(effect for effect in game_data["effects"].values()
+                if isinstance(effect.get("start_magic_id"), int)
+                and effect.get("colours")
+                and no_ailment(game_data["spells"], effect["start_magic_id"]))
+    select_hero(planner, swap["allowed_heroes"][0])
+    planner.declared = {}
+    tile = planner.active_slot()
+    frosty = {spell["id"] for spell in game_data["spells"]
+              if "Frost" in (spell.get("inflicts") or {})}
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot(
+        weapon=tile.weapon,
+        spell_id=next(spell_id for pool in tile.weapon["spell_pools"]
+                      for spell_id in pool if spell_id in frosty))
+    frost = awaiting(game_data, planner.current_hero(), "Frost")
+
+    assert counted_with_and_without(planner, game_data, frost,
+                                    swap["id"]) == ({frost}, set())
+
+
+def test_a_relic_swapping_out_the_chosen_art_takes_its_source(planner,
+                                                              game_data):
+    """QA-322, the art half: a poison art chosen on the starting armament,
+    a relic swapping in an art that inflicts nothing."""
+    poisonous = {art["id"] for art in game_data["arts"]
+                 if "Poison" in (art.get("inflicts") or {})}
+    for swap in game_data["effects"].values():
+        swapped_in = swap["modifiers"].get("startSwordArtsId")
+        if not (isinstance(swapped_in, int) and swap.get("colours")
+                and no_ailment(game_data["arts"], swapped_in)):
+            continue
+        for owner in swap.get("allowed_heroes") or ():
+            select_hero(planner, owner)
+            tile = planner.active_slot()
+            art_id = next((art_id for art_id in tile.weapon.get("art_pool")
+                           or () if art_id in poisonous), None)
+            if art_id is not None:
+                break
+        if art_id is not None:
+            break
+    else:
+        pytest.skip("no starting armament offers a poison art beside a swap")
+    planner.declared = {}
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot(
+        weapon=tile.weapon, art_id=art_id)
+    poison = awaiting(game_data, planner.current_hero(), "Poison")
+
+    assert counted_with_and_without(planner, game_data, poison,
+                                    swap["id"]) == ({poison}, set())

@@ -252,6 +252,11 @@ class AdvisorRequest:
     #: `GoalContext.assumed_armament_counts`: they follow the selected
     #: armament tile, so two tiles of two types are two questions.
     assumed_armament_counts: tuple[int, ...] = ()
+    #: `GoalContext.pick_ailment` and `.pick_swap`: the selected tile's rolls
+    #: are not in the key, so `declared` alone does not say whether a
+    #: condition rests on a swappable pick (QA-322).
+    pick_ailment: tuple[int, ...] = ()
+    pick_swap: str = ""
     #: `GoalContext.selected_catalyst`'s id: a spell asked of another staff
     #: is another question.
     selected_catalyst_id: int | None = None
@@ -449,6 +454,16 @@ class GoalContext:
     #: armament on another tile is no source. Not in the key: they are the conditions of that
     #: kind `declared` leaves out, so `declared` decides them.
     awaiting_ailment: tuple[int, ...] = ()
+    #: Conditions of that kind only the art or spell of the selected tile
+    #: inflicts, where a swap relic reaches it (the starting armament's art,
+    #: the starting catalyst's spell), sorted. They count in a build without
+    #: such a relic and are awaited in one with it: a swap beats the pick
+    #: (AD-056.4, QA-322). In the key as `AdvisorRequest.pick_ailment`.
+    pick_ailment: tuple[int, ...] = ()
+    #: Which swap takes them: `arts` or `spells`, the block of
+    #: `evaluate._swapped_in`; empty where `pick_ailment` is. In the key as
+    #: `AdvisorRequest.pick_swap`.
+    pick_swap: str = ""
     #: The staff or seal on the selected tile, `None` where it holds none:
     #: the spell cells cast from it before the starting catalyst
     #: (`damage.spell_catalyst`, T-335b). In the key as

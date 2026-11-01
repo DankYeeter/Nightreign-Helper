@@ -605,17 +605,20 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # if the player did not declare them, hold only where the build inflicts
     # the ailment itself (user decision 01.11.2026): the selected tile's
     # armament, its rolls ("Attacks Inflict Frost") and the art or spell the
-    # casting bar has it use, without a relic's swap, here; a relic of the
-    # build, swap relics included, in `evaluate` (`ctx.awaiting_ailment`).
-    # An armament on another tile is not a source -- only the selected one
-    # is in hand -- and an empty selected tile stands for the starting
-    # armament.
+    # casting bar has it use, here; a relic of the build, swap relics
+    # included, in `evaluate` (`ctx.awaiting_ailment`). Where a swap relic
+    # reaches that art or spell, what it inflicts counts only in a build
+    # without one (`ctx.pick_ailment`, QA-322). An armament on another tile
+    # is not a source -- only the selected one is in hand -- and an empty
+    # selected tile stands for the starting armament.
     tile, tile_index = planner.active_slot(), planner.active_weapon
     if tile.weapon is None:
         tile = weaponslots.WeaponSlot(
             weapon=planner.weapon_by_id(hero.get("starting_weapon")))
         tile_index = damage.STARTING_SLOT
     inflicted: set[str] = set()
+    picked: set[str] = set()
+    pick_swap = ""
     if tile.weapon is not None:
         inflicted.update(tile.weapon.get("inflicts") or {})
         for effect_id in tile.effect_ids:
@@ -628,16 +631,24 @@ def asking_from(planner, goal_id: str) -> Asking | None:
             used = damage.spell_thrown(model.Build(), planner.data,
                                        tile.weapon, starting=own,
                                        chosen=tile.spell_id)[0]
+            pick_swap = "spells" if own else ""
         else:
             used = damage.art_in_use(tile, tile_index,
                                      model.Build(), hero, planner.data)[0]
-        inflicted.update((used or {}).get("inflicts") or {})
-    awaiting = {effect_id for effect_id in baseline
-                if effect_id not in planner.declared
-                and effecttext.ailment_awaited(effects[str(effect_id)])
-                not in inflicted | {None}}
+            pick_swap = "arts" if damage.is_starting_armament(
+                tile.weapon, hero, tile_index) else ""
+        (picked if pick_swap else inflicted).update(
+            (used or {}).get("inflicts") or {})
+    unmet = {effect_id for effect_id in baseline
+             if effect_id not in planner.declared
+             and effecttext.ailment_awaited(effects[str(effect_id)])
+             not in inflicted | {None}}
+    pick_ailment = {effect_id for effect_id in unmet
+                    if effecttext.ailment_awaited(effects[str(effect_id)])
+                    in picked}
+    awaiting = unmet - pick_ailment
     baseline = {effect_id: count for effect_id, count in baseline.items()
-                if effect_id not in awaiting
+                if effect_id not in unmet
                 and (effect_id in planner.declared
                      or effects[str(effect_id)]["modifiers"].get(
                          "triggerOnWepType") not in unselected)}
@@ -704,6 +715,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         declared=declared,
         assumed_armament_counts=tuple(sorted(assumed)),
         awaiting_ailment=tuple(sorted(awaiting)),
+        pick_ailment=tuple(sorted(pick_ailment)),
+        pick_swap=pick_swap if pick_ailment else "",
         selected_catalyst=catalyst,
         selected_spell_id=spell_id,
         art_tile=art_tile,
@@ -727,6 +740,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         assumed_armament_counts=ctx.assumed_armament_counts,
+        pick_ailment=ctx.pick_ailment,
+        pick_swap=ctx.pick_swap,
         selected_catalyst_id=None if catalyst is None else catalyst["id"],
         selected_spell_id=spell_id,
         art_tile=None if art_tile is None else art_tile.key,

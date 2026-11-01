@@ -268,6 +268,8 @@ def _refuse_a_request_that_asks_about_another_run(
             ("declared", request.declared, tuple(ctx.declared)),
             ("assumed_armament_counts", request.assumed_armament_counts,
              tuple(ctx.assumed_armament_counts)),
+            ("pick_ailment", request.pick_ailment, tuple(ctx.pick_ailment)),
+            ("pick_swap", request.pick_swap, ctx.pick_swap),
             ("selected_catalyst_id", request.selected_catalyst_id,
              None if ctx.selected_catalyst is None
              else ctx.selected_catalyst.get("id")),

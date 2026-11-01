@@ -15,6 +15,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ### Fixed
 - The relic picker no longer shows stray relic cards beside the list
   when you type into the filter while the list is still filling.
+- An ailment bonus no longer counts for a skill or spell that a relic in
+  the suggested build swaps out, such as Zamor Ice Storm replaced by Night
+  Shard.
 
 ## [1.20.0] - 2026-11-01
 

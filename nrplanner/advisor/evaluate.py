@@ -89,18 +89,24 @@ def _effects(ctx: types.GoalContext,
     return found
 
 
-def _inflicted_by(effect: dict, data: Mapping) -> set[str]:
-    """The ailments a relic effect makes the attacks inflict: its own
-    on-hit buildup, or that of the art or spell it swaps in ("Changes
-    compatible armament's skill to Poison Moth Flight")."""
-    found = set(effect.get("inflicts_on_hit") or {})
+def _swapped_in(effect: dict) -> dict[str, int]:
+    """Block (`arts`, `spells`) -> the record a swap relic puts in the hand
+    ("Changes compatible armament's skill to Poison Moth Flight"), read as
+    `model.compute` reads it."""
     swaps = (("arts", (effect.get("modifiers") or {}).get("startSwordArtsId")),
              ("spells", effect.get("start_magic_id")))
-    for block, record_id in swaps:
-        if isinstance(record_id, int):
-            found.update(next((record.get("inflicts") or {}
-                               for record in data.get(block) or ()
-                               if record["id"] == record_id), {}))
+    return {block: record_id for block, record_id in swaps
+            if isinstance(record_id, int)}
+
+
+def _inflicted_by(effect: dict, data: Mapping) -> set[str]:
+    """The ailments a relic effect makes the attacks inflict: its own
+    on-hit buildup, or that of the art or spell it swaps in."""
+    found = set(effect.get("inflicts_on_hit") or {})
+    for block, record_id in _swapped_in(effect).items():
+        found.update(next((record.get("inflicts") or {}
+                           for record in data.get(block) or ()
+                           if record["id"] == record_id), {}))
     return found
 
 
@@ -122,17 +128,25 @@ def _declared_variants(ctx: types.GoalContext,
     Every variant also counts the `ctx.awaiting_ailment` conditions whose
     ailment a relic of this build makes the attacks inflict ("Starting
     armament inflicts frost", user decision 01.11.2026), so a source and its
-    beneficiary are worth something together.
+    beneficiary are worth something together. `ctx.pick_ailment` counts
+    unless a relic of this build swaps the art or spell it rests on; then it
+    is awaited as well (QA-322).
     """
     declared = dict(ctx.declared)
     effects = ctx.data["effects"]
-    if ctx.awaiting_ailment:
+    awaiting = ctx.awaiting_ailment
+    if awaiting or ctx.pick_ailment:
         hero = str(ctx.hero.get("name", ""))
-        inflicted = {label for effect in _effects(ctx, effect_ids)
-                     if effecttext.works_for(effect, hero)
+        relics = [effect for effect in _effects(ctx, effect_ids)
+                  if effecttext.works_for(effect, hero)]
+        if any(ctx.pick_swap in _swapped_in(effect) for effect in relics):
+            awaiting += ctx.pick_ailment
+        else:
+            declared.update(dict.fromkeys(ctx.pick_ailment, 1))
+        inflicted = {label for effect in relics
                      for label in _inflicted_by(effect, ctx.data)}
         declared.update(dict.fromkeys(
-            (effect_id for effect_id in ctx.awaiting_ailment
+            (effect_id for effect_id in awaiting
              if effecttext.ailment_awaited(effects[str(effect_id)])
              in inflicted), 1))
 
