@@ -2100,16 +2100,21 @@ def test_the_baseline_leaves_no_switchable_condition_uncounted(
     assert before_a16, ("a save whose copies carry no condition proves "
                         "nothing about the baseline")
     # The window assumes the selected tile's armament type only (28.10 and
-    # 01.11.2026), so the other types' count conditions and weapon-type
-    # buffs are all that waits; with every type assumed, one per one-relic
-    # build, nothing does.
+    # 01.11.2026), and an enemy ailment only where the build inflicts it
+    # (01.11.2026, `tests/test_ailment_conditions.py`), so the other types'
+    # count conditions, weapon-type buffs and the ailments nothing inflicts
+    # are all that waits; with every type and ailment assumed, one type per
+    # one-relic build, nothing does.
+    awaiting = [planner.data["effects"][str(effect_id)]
+                for effect_id in ctx.awaiting_ailment]
     assert set(not_counted_under(planner, ctx)) <= {
-        effecttext.name(effect) for effect in counts + weapon_type}
+        effecttext.name(effect) for effect in counts + weapon_type + awaiting}
     every_type = dataclasses.replace(
         ctx, assumed_armament_counts=tuple(
             sorted(effect["id"] for effect in counts)),
         declared=tuple(sorted({**dict(ctx.declared), **dict.fromkeys(
-            (effect["id"] for effect in weapon_type), 1)}.items())))
+            (effect["id"] for effect in weapon_type + awaiting),
+            1)}.items())))
     assert not_counted_under(planner, every_type) == []
 
 

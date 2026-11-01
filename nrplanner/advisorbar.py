@@ -555,7 +555,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     row stands on; its tier and rolls stay out, as the starting armament's.
     **And a third (01.11.2026):** the selected tile's type also decides
     which weapon-type buffs ("Improved Dagger Attack Power") the baseline
-    counts as met; it reaches the key through `declared`.
+    counts as met; it reaches the key through `declared`. **And a fourth
+    (01.11.2026):** the ailments the armaments on all six tiles inflict
+    decide which ailment-gated conditions the baseline counts as met, again
+    through `declared`.
     """
     owned = planner.owned
     if owned is None:
@@ -598,10 +601,23 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     unselected = ({weapon.get("wep_type") for weapon in planner.data["weapons"]}
                   - {None if selected is None else selected.get("wep_type"),
                      None})
+    # "Attack power up when facing frostbite-afflicted enemy" and its twins,
+    # if the player did not declare them, hold only where the build inflicts
+    # the ailment itself (user decision 01.11.2026): an armament anywhere on
+    # the grid here, a relic of the build in `evaluate`
+    # (`ctx.awaiting_ailment`). Arts and spells carry no ailment in the data.
+    inflicted = {label for slot in planner.weapon_slots
+                 if slot.weapon is not None
+                 for label in slot.weapon.get("inflicts") or {}}
+    awaiting = {effect_id for effect_id in baseline
+                if effect_id not in planner.declared
+                and effecttext.ailment_awaited(effects[str(effect_id)])
+                not in inflicted | {None}}
     baseline = {effect_id: count for effect_id, count in baseline.items()
-                if effect_id in planner.declared
-                or effects[str(effect_id)]["modifiers"].get("triggerOnWepType")
-                not in unselected}
+                if effect_id not in awaiting
+                and (effect_id in planner.declared
+                     or effects[str(effect_id)]["modifiers"].get(
+                         "triggerOnWepType") not in unselected)}
     counts = {effect_id for effect_id in baseline
               if effect_id not in planner.declared
               and effecttext.counts_armaments(effects[str(effect_id)])}
@@ -664,6 +680,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         assumed_armament_counts=tuple(sorted(assumed)),
+        awaiting_ailment=tuple(sorted(awaiting)),
         selected_catalyst=catalyst,
         selected_spell_id=spell_id,
         art_tile=art_tile,

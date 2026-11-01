@@ -1257,7 +1257,11 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     weapon_type = {effect_id for effect_id in model.advisor_defaults()
                    if "triggerOnWepType" in planner.data["effects"][
                        str(effect_id)]["modifiers"]}
-    assert declared.keys() | counts | weapon_type >= set(
+    # So do the enemy-ailment conditions the grid does not inflict
+    # (01.11.2026): `tests/test_ailment_conditions.py`.
+    awaiting = set(asking.ctx.awaiting_ailment)
+    assert not awaiting & declared.keys()
+    assert declared.keys() | counts | weapon_type | awaiting >= set(
         model.advisor_defaults())
 
 

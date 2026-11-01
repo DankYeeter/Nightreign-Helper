@@ -103,9 +103,23 @@ def _declared_variants(ctx: types.GoalContext,
 
     The type is `wepTypeTrigger`; the dagger condition alone has none and is
     then the type `None`, which no other condition shares.
+
+    Every variant also counts the `ctx.awaiting_ailment` conditions whose
+    ailment a relic of this build makes the attacks inflict ("Starting
+    armament inflicts frost", user decision 01.11.2026), so a source and its
+    beneficiary are worth something together.
     """
     declared = dict(ctx.declared)
     effects = ctx.data["effects"]
+    if ctx.awaiting_ailment:
+        hero = str(ctx.hero.get("name", ""))
+        inflicted = {label for effect in _effects(ctx, effect_ids)
+                     if effecttext.works_for(effect, hero)
+                     for label in effect.get("inflicts_on_hit") or {}}
+        declared.update(dict.fromkeys(
+            (effect_id for effect_id in ctx.awaiting_ailment
+             if effecttext.ailment_awaited(effects[str(effect_id)])
+             in inflicted), 1))
 
     def kind(effect_id: int):
         return effects[str(effect_id)]["modifiers"].get("wepTypeTrigger")

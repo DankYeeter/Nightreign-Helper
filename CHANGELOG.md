@@ -4,6 +4,11 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [Unreleased]
+
+### Changed
+- The relic advisor counts "Attack power up when facing frostbite-afflicted enemy" and its poison and scarlet rot versions only when your build inflicts that ailment itself: a weapon on any tile, or a relic such as "Starting armament inflicts frost".
+
 ## [1.19.1] - 2026-11-01
 
 ### Fixed
