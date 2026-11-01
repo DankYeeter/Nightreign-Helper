@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import effecttext, model, weapons
-from .theme import ACCENT, BORDER, DEBUFF, MUTED, PANEL
+from . import cardgrid, effecttext, model, weapons
+from .theme import ACCENT, BORDER, DEBUFF, HOVER_FILL, MUTED, PANEL
 
 # The rarity a weapon reads as, in lighter shades of the colour families the
 # Weapons tab uses for its tiles -- not the same values, since text on PANEL
@@ -50,6 +50,8 @@ NO_BREAK_SPACE = "\u00a0"
 
 SLOT_COUNT = 6
 SLOT_COLUMNS = 3
+# The gold ring of a tile or chip; the plain border is one pixel of it.
+RING_WIDTH = 2
 # A weapon draws from up to three pools, so it can carry three rolled effects,
 # exactly as a relic does.
 MAX_WEAPON_EFFECTS = 3
@@ -63,9 +65,16 @@ class WeaponSlot:
     weapon: dict | None = None
     tier: int = weapons.MIN_UPGRADE
     effect_ids: list[int] = field(default_factory=list)
+    #: The player's own choice of art and spell for this tile, `None` for
+    #: "follow the armament" (AK-412). Held for the run, never saved
+    #: (AD-056, P.5); `damage.art_in_use` / `spell_thrown` decide whether it
+    #: counts.
+    art_id: int | None = None
+    spell_id: int | None = None
 
     def copy(self) -> "WeaponSlot":
-        return WeaponSlot(self.weapon, self.tier, list(self.effect_ids))
+        return WeaponSlot(self.weapon, self.tier, list(self.effect_ids),
+                          self.art_id, self.spell_id)
 
     @property
     def filled(self) -> bool:
@@ -153,12 +162,13 @@ def why_no_effects(weapon: dict, bases: set[int]) -> str:
     return "This armament never rolls effects."
 
 
-class WeaponTile(QFrame):
+class WeaponTile(cardgrid.HoverCard):
     """One of the six armament slots.
 
     Single-click makes the tile active, which is what the damage breakdown
     below describes. Double-click opens the dialog to choose or edit the
-    armament. Right-click empties it.
+    armament. Right-click empties it. A tab stop: Enter or Space makes it
+    active (AK-413), the focus ringed in gold like the active tile.
     """
 
     def __init__(self, index: int, on_edit, on_clear, on_activate):
@@ -171,6 +181,7 @@ class WeaponTile(QFrame):
 
         self.setFrameShape(QFrame.StyledPanel)
         self.setCursor(Qt.PointingHandCursor)
+        self.setFocusPolicy(Qt.StrongFocus)
         self.setMinimumHeight(62)
 
         layout = QVBoxLayout(self)
@@ -191,6 +202,9 @@ class WeaponTile(QFrame):
         self.show_slot(WeaponSlot(), None)
 
     def mousePressEvent(self, event) -> None:
+        # A click on the tile Tab reached raises no focus event (QA-319).
+        self._note_focus_reason(Qt.MouseFocusReason)
+        self._apply_appearance()
         if event.button() == Qt.RightButton:
             self.on_clear(self.index)
         else:
@@ -202,6 +216,42 @@ class WeaponTile(QFrame):
         # left to do. Empty tiles open it too, which is how a weapon gets in.
         if event.button() != Qt.RightButton:
             self.on_edit(self.index)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space):
+            self.on_activate(self.index)
+        else:
+            super().keyPressEvent(event)
+
+    def focusInEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._note_focus_reason(event.reason())
+        self._apply_appearance()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._apply_appearance()
+        super().focusOutEvent(event)
+
+    def _apply_appearance(self) -> None:
+        """The gold ring marks the active tile, dashed the one Tab reached,
+        the active one included (AK-413, T-335fix2/fix3); the fill the
+        pointer alone:
+        a clicked tile keeps the focus, and a fill that stayed after the
+        pointer left would be QA-157 again. The thin border keeps a pixel of
+        margin, so the ring takes no room from the row (QA-316); the selector
+        names the tile alone, since a QLabel is a QFrame and took the margin
+        too."""
+        ringed = self.active or self.hasFocus()
+        border = ACCENT if ringed else BORDER
+        width = RING_WIDTH if ringed else 1
+        style = ("dashed" if self.hasFocus() and self.keyboard_focus
+                 else "solid")
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"WeaponTile {{ background: {fill};"
+            f" border: {width}px {style} {border};"
+            f" margin: {RING_WIDTH - width}px; border-radius: 6px; }}"
+        )
 
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
                   effects: dict | None = None,
@@ -223,12 +273,7 @@ class WeaponTile(QFrame):
         between them only ever points one way.
         """
         self.active = active
-        border = ACCENT if active else BORDER
-        width = 2 if active else 1
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL}; border: {width}px solid {border};"
-            f" border-radius: 6px; }}"
-        )
+        self._apply_appearance()
         if not slot.filled:
             self.title.setText(f"<span style='color:{MUTED}'>Slot "
                                f"{self.index + 1} — empty</span>")
@@ -422,8 +467,10 @@ class WeaponDialog(QDialog):
         weapon = current.data(Qt.UserRole)
         if self.slot.weapon is None or weapon["id"] != self.slot.weapon["id"]:
             # A different armament rolls from a different pool, so effects
-            # chosen for the old one cannot be carried across.
+            # chosen for the old one cannot be carried across -- nor its
+            # art or spell (AK-414).
             self.slot.effect_ids = []
+            self.slot.art_id = self.slot.spell_id = None
         self.slot.weapon = weapon
         self._rebuild_effects()
 
@@ -432,6 +479,11 @@ class WeaponDialog(QDialog):
         while self.effects_layout.count():
             item = self.effects_layout.takeAt(0)
             if item.widget():
+                # Unparented, a box goes with its last reference below, inside
+                # the modal loop. deleteLater alone destroyed it after the
+                # loop, and the last box's `toggled` slot, the dialog's last
+                # holder, then took the dialog down mid-destruction (QA-305).
+                item.widget().setParent(None)
                 item.widget().deleteLater()
         self._boxes = []
         self._pool = []

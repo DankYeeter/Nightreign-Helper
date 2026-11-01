@@ -16,16 +16,16 @@ player asked for and nothing more -- the window owns the slots, so the window
 is what puts a relic in one and what takes it out again. This row only knows
 that it happened, because 4.13 is a state of the row.
 
-**Why the row forces no width.** Release 1.7.1 was cut for a label that put a
-3900 px minimum on the window (`UI_SPEC` §7), and the measurement that
-matters here is narrower than that story: on the Windows platform this
-window's minimum width *is* the Build planner page (760 px against the page's
-756 on 2026-09-07, this tree, UI scale Automatic), so every pixel of minimum
-width a widget outside the middle column's `QScrollArea` asks for moves the
-whole window's floor by one. The row therefore asks for none -- horizontally
-`Ignored`, with the status label `Ignored` inside it as §3.1 requires -- and
-is given whatever the column has. AK-03 is a measurement about this and
-nothing else.
+**Why the row asks for one width and no more.** Release 1.7.1 was cut for a
+label that put a 3900 px minimum on the window (`UI_SPEC` §7), and every
+pixel of minimum width a widget outside the middle column's `QScrollArea`
+asks for moves the whole window's floor by one. Asking for none (AK-03, until
+T-334n) left the row 68 px wide at the window's 760 px floor, every control
+in it 0 to 1 px (QA-292). So the row breaks into two lines below the width
+one line needs (AK-395), and asks for exactly the wider of the two lines at
+its tightest -- one figure, about 1190 px of window and under 1366 (AK-400)
+-- horizontally `Ignored` otherwise, with the status label `Ignored` inside
+it as §3.1 requires.
 
 **Two clocks that are not the same clock.** `WAIT_VISIBLE_MS` is how long a
 *run* may take before the waiting is worth drawing (4.2 against 4.3), and
@@ -44,13 +44,20 @@ import html
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QProgressBar,
-                               QPushButton, QSizePolicy, QWidget)
+from PySide6.QtWidgets import (QBoxLayout, QComboBox, QHBoxLayout, QLabel,
+                               QProgressBar, QPushButton, QSizePolicy,
+                               QVBoxLayout, QWidget)
 
-from . import damage, favourites, model, weapons
+from . import damage, effecttext, favourites, model, weapons
 from .advisor import goals as advisor_goals
+from .advisor import run as advisor_run
 from .advisor import types
 from .advisor.worker import AdvisorController
+from .theme import SLOT_COLOURS
+
+#: The warning line's colour: the theme's one yellow, the Yellow slot's
+#: (user decision 28.10.2026, "Gelb mit ⚠"; no colour of its own).
+WARNING_COLOUR = SLOT_COLOURS[2]
 
 #: How long a run may take before the waiting is said out loud (`UI_SPEC`
 #: 4.2 and 4.3, AK-09: a run under this shows neither bar nor text). Measured
@@ -84,6 +91,26 @@ GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
 #: this number is not raised.
 GOAL_BOX_WIDTH = 200
 
+#: §3.1: the gap between two controls of the row, and between its two lines.
+SPACING = 6
+
+#: AK-395: the least width the status line keeps while the row stays on one
+#: line. One pixel less and the row breaks in two, so one line always means
+#: nothing shortened and a status that is more than a stroke.
+STATUS_FLOOR = 48
+
+#: AK-399: how far `goal_box`, `hit_with_box` and `damage_type_box` may
+#: shrink, each capped at its own `sizeHint` -- only on the first of two
+#: lines, and only below the width that line asks for.
+BOX_FLOORS = (120, 100, 80)
+
+#: The two captions of each two-sided button (4.2, 4.13), indexed by "is the
+#: run being waited for" and "has it been applied". The row's width counts
+#: the wider of each, so a caption changing never moves the row from one line
+#: to two (AK-397).
+OPTIMIZE_CAPTIONS = ("Optimize", "Cancel")
+APPLY_CAPTIONS = ("Apply all", "Undo apply")
+
 #: The separator of the two-clause status lines (4.9, 4.11), a middle dot
 #: with two spaces a side. Written once because it is invisible in a diff.
 CLAUSES = "  ·  "
@@ -104,17 +131,17 @@ FILTERS_TOOLTIP = ("Mark effects you always want (Favourite) or never want "
 GOAL_BOX_TOOLTIP = "Chooses what the Advisor ranks your build for."
 
 #: AK-340: what the "Hit with" box chooses, which of the two things the game
-#: calls a skill it counts, and that the spell it ranks is the one this
-#: Nightfarer's own equipment throws -- without the third sentence
+#: calls a skill it counts, and that the spell it ranks is the one the
+#: selected or the starting catalyst throws -- without the third sentence
 #: `Incantations` reads as "any incantation I find in the run", the
 #: non-goal `GOAL.md` A26 names. Static, like the one beside it.
 HIT_WITH_TOOLTIP = ("Chooses what the figure ranks: the starting armament, "
-                    "its Weapon Art, or the spell the starting catalyst "
-                    "throws. Weapon art counts Weapon Arts only — a "
-                    "Nightfarer's own skills are never counted. Sorceries, "
-                    "Incantations and a school rank the one spell this "
-                    "Nightfarer's own equipment casts, not a spell found in "
-                    "the run.")
+                    "its Weapon Art, or the spell of the staff or seal on "
+                    "the selected tile (or else the starting one). Weapon "
+                    "art counts Weapon Arts only — a Nightfarer's own skills "
+                    "are never counted. Sorceries, Incantations and a school "
+                    "rank the one spell that staff or seal casts, not a "
+                    "spell found in the run.")
 
 #: AK-340: what the damage-type box does, one sentence now that the arts
 #: have a box of their own. Static -- it says what the control is for, never
@@ -201,6 +228,9 @@ class Situation:
     #: (`Avoid`/`Favourite`) changed rather than the build, so the
     #: sentence must name that cause.
     marking_changed: bool = False
+    #: 4.8 only (AK-406): a save was read and holds no relics, so "No save
+    #: was read" would be false and `Rescan save` alone the wrong advice.
+    save_is_empty: bool = False
 
 
 def _lower_case_first(label: str) -> str:
@@ -327,9 +357,13 @@ def status_line(situation: Situation) -> str:
                     "out — use Optimize again.")
         return ("Your build changed while this was working out — use "
                 "Optimize again.")
+    if state is State.NO_SAVE and situation.save_is_empty:
+        return ("Your save has no relics in it yet — if you just played, use "
+                "Rescan save; if they are on another Steam account, use Find "
+                "my save.")
     if state is State.NO_SAVE:
         return ("No save was read, so there are no relics to choose from "
-                "— use Rescan save.")
+                "— use Find my save.")
     if state is State.SUGGESTED_WITH_SILENT_EFFECTS:
         return _clauses(
             f"{goal} — {situation.slots_filled} of "
@@ -423,6 +457,16 @@ def held_slot(index: int, card) -> types.HeldSlot:
         handle=getattr(item, "handle", None)))
 
 
+def held_swapped_art_ids(held, effects) -> tuple[int, ...]:
+    """The art ids the held relics swap onto the starting armament, read off
+    their effects without a calculation (AD-056.7); sorted, without repeats."""
+    return tuple(sorted({
+        art_id for slot in held if slot.relic is not None
+        for effect_id in slot.relic.effect_ids
+        if isinstance(art_id := ((effects.get(str(effect_id)) or {}).get(
+            "modifiers") or {}).get("startSwordArtsId"), int)}))
+
+
 def asking_from(planner, goal_id: str) -> Asking | None:
     """What the window would ask the advisor right now, or `None` (4.8).
 
@@ -500,6 +544,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     rolls; this answers "what is this relic worth between runs" against the
     one armament every expedition starts with and keeps nothing else.
     `GoalScore.scope` is where the figure says which of the two it is (A12).
+
+    **One exception, by the user's decision of 28.10.2026:** the armament
+    type of the selected tile decides which "3+ X Equipped" conditions the
+    baseline counts as met (`ctx.assumed_armament_counts`). It is in the key
+    beside `declared`, because a hit across two selected tiles would answer
+    for the other type. **And a second (T-335b):** a staff or seal on the
+    selected tile is what the spell cells cast from (`ctx.selected_catalyst`,
+    in the key as `selected_catalyst_id`), the one the stat sheet's spell
+    row stands on; its tier and rolls stay out, as the starting armament's.
     """
     owned = planner.owned
     if owned is None:
@@ -521,9 +574,30 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # player's own declarations are merged over it, so a condition they
     # declared stands as declared. Sorted, not in `dict` order: a cache key
     # that depended on the order the player happened to flip the switches
-    # would miss its own entries.
-    declared = tuple(sorted({**model.advisor_defaults(),
-                             **planner.declared}.items()))
+    # would miss its own entries. The armament-count conditions the player
+    # did not declare are not part of it: only one armament type of them may
+    # hold in a build (QA-299), and since 28.10.2026 it is the type of the
+    # armament on the selected tile, or none for an empty tile (user
+    # decision: "man kann einen waffen-slot highlighten. für den soll dann
+    # auch die waffengattung genommen werden können."). The one armament the
+    # grid lends the question, and only its type -- A17 holds for the rest.
+    # A condition without `wepTypeTrigger` carries the field's baseline,
+    # the dagger type (`field_baselines`, the extractor drops a value equal
+    # to it).
+    baseline = {**model.advisor_defaults(), **planner.declared}
+    effects = planner.data["effects"]
+    counts = {effect_id for effect_id in baseline
+              if effect_id not in planner.declared
+              and effecttext.counts_armaments(effects[str(effect_id)])}
+    selected = planner.active_slot().weapon
+    neutral_type = (planner.data.get("field_baselines") or {}).get(
+        "wepTypeTrigger")
+    assumed = set() if selected is None else {
+        effect_id for effect_id in counts
+        if effects[str(effect_id)]["modifiers"].get(
+            "wepTypeTrigger", neutral_type) == selected.get("wep_type")}
+    declared = tuple(sorted(item for item in baseline.items()
+                            if item[0] not in counts))
     weighting = advisor_goals.DEFAULT_WEIGHTING
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
@@ -537,10 +611,33 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     hit_with = planner.advisor_bar.hit_with()
     damage_type = planner.advisor_bar.damage_type()
     # The starting armament, without its rolls: `weapons_held` and
-    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). The grid is not
-    # read here at all. Missing from the dataset, the run falls back to the
-    # multiplier mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
+    # `armament_effect_ids` stay empty (A17, AD-032, QA-226). Of the grid
+    # only the selected tile is read: its type above, its staff or seal
+    # below. Missing from the dataset, the run falls back to the multiplier
+    # mean and says so (`goals._NO_ARMAMENT`, AD-038.1).
     starting = planner.weapon_by_id(hero.get("starting_weapon"))
+    catalyst = (selected if selected is not None
+                and selected.get("wep_type") in damage.GENUS_OF_CATALYST
+                else None)
+    # AK-415: the spell chosen on that tile, only where a spell row is asked;
+    # without a staff or seal there, the one chosen on the first tile holding
+    # the starting catalyst the row falls back to (director, 31.10.2026).
+    start_id = (damage.start_catalyst(hero, planner.data) or {}).get("id")
+    spell_tile = planner.active_slot() if catalyst is not None else next(
+        (slot for slot in planner.weapon_slots
+         if slot.weapon is not None and slot.weapon["id"] == start_id), None)
+    spell_id = (spell_tile.spell_id
+                if spell_tile is not None and advisor_goals.is_a_spell(hit_with)
+                else None)
+    # User decision 31.10.2026 13:50: `Weapon art` swings the selected tile's
+    # armament at its tier with its art pick, as the stat sheet does; an
+    # empty tile leaves the starting armament to it, as T-335b leaves the
+    # starting catalyst to a spell row.
+    tile = planner.active_slot()
+    art_tile = (types.ReferenceArmament(
+        weapon=tile.weapon, tier=tile.tier, slot_index=planner.active_weapon,
+        art_id=tile.art_id)
+        if hit_with == model.SKILL_ART and tile.weapon is not None else None)
     reference = None if starting is None else types.ReferenceArmament(
         weapon=starting, tier=weapons.MIN_UPGRADE,
         slot_index=damage.STARTING_SLOT)
@@ -551,6 +648,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference=reference,
         weighting=weighting,
         declared=declared,
+        assumed_armament_counts=tuple(sorted(assumed)),
+        selected_catalyst=catalyst,
+        selected_spell_id=spell_id,
+        art_tile=art_tile,
+        held_swapped_art_ids=held_swapped_art_ids(held, effects),
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,
@@ -569,6 +671,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         # context.
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
+        assumed_armament_counts=ctx.assumed_armament_counts,
+        selected_catalyst_id=None if catalyst is None else catalyst["id"],
+        selected_spell_id=spell_id,
+        art_tile=None if art_tile is None else art_tile.key,
         two_handed=two_handed,
         hit_with=hit_with,
         damage_type=damage_type,
@@ -620,6 +726,67 @@ class _ElidingLabel(QLabel):
         metrics = QFontMetrics(self.font())
         self.setText(metrics.elidedText(self._whole, Qt.ElideRight,
                                         self.width()))
+
+
+class _OneOrTwoLines(QBoxLayout):
+    """The question beside the doing while both fit, the doing below it
+    when they do not (AK-395, AK-396).
+
+    Two widgets laid side by side or stacked, so every control keeps its
+    object, its order and its place in the tab chain (AK-403). The line
+    count is settled in `setGeometry` from the width alone, before a single
+    child is placed, and `heightForWidth` answers from the same rule -- so
+    the column above sizes the row for the arrangement it is about to get,
+    and no frame shows the other one.
+    """
+
+    def __init__(self, parent: QWidget, question: QWidget, doing: QWidget,
+                 doing_need: int) -> None:
+        super().__init__(QBoxLayout.LeftToRight, parent)
+        self._question = question
+        self._doing = doing
+        self._doing_need = doing_need
+        self.setContentsMargins(0, SPACING, 0, SPACING)
+        self.setSpacing(SPACING)
+        self.addWidget(question, 0, Qt.AlignLeft)
+        self.addWidget(doing, 1)
+
+    def one_line_need(self) -> int:
+        """AK-395: the question as the direction shows it, plus the doing
+        with every action button and `STATUS_FLOOR` counted."""
+        return (self._question.sizeHint().width() + self.spacing()
+                + self._doing_need)
+
+    def lines_at(self, width: int) -> int:
+        return 2 if width < self.one_line_need() else 1
+
+    def setGeometry(self, rect) -> None:  # noqa: N802 - Qt naming
+        self.setDirection(QBoxLayout.TopToBottom
+                          if self.lines_at(rect.width()) == 2
+                          else QBoxLayout.LeftToRight)
+        super().setGeometry(rect)
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt naming
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt naming
+        margins = self.contentsMargins()
+        heights = (self._question.sizeHint().height(),
+                   self._doing.sizeHint().height())
+        lines = (sum(heights) + self.spacing()
+                 if self.lines_at(width) == 2 else max(heights))
+        return margins.top() + lines + margins.bottom()
+
+
+def _widest_hint(button: QPushButton, captions: tuple[str, ...]) -> int:
+    """The button's `sizeHint` width under the widest of its captions,
+    leaving it on the first."""
+    widths = []
+    for caption in captions:
+        button.setText(caption)
+        widths.append(button.sizeHint().width())
+    button.setText(captions[0])
+    return max(widths)
 
 
 class AdvisorBar(QWidget):
@@ -680,27 +847,38 @@ class AdvisorBar(QWidget):
         #: left to undo.
         self._applying = False
 
-        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-        row = QHBoxLayout(self)
-        # §3.1: 6 px above and below, and nothing added at the sides -- the
-        # column's own margins are already there.
-        row.setContentsMargins(0, 6, 0, 6)
-        row.setSpacing(6)
+        # Horizontally the row asks for no width beyond its explicit minimum
+        # (set at the end, AK-400); vertically it takes the height its line
+        # count gives it, which `_OneOrTwoLines.heightForWidth` reports.
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        # AK-396: the question is line one, the doing is line two -- or
+        # both side by side on one line, in the same order either way.
+        question_line = QWidget()
+        question = QHBoxLayout(question_line)
+        doing_line = QWidget()
+        doing = QHBoxLayout(doing_line)
+        for line in (question, doing):
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(SPACING)
 
         from .app import _heading
 
         # Inline rather than as a block line of its own, which is the whole
         # difference between this heading and every other one.
-        row.addWidget(_heading("Advisor"))
+        heading = _heading("Advisor")
+        question.addWidget(heading)
 
         self.goal_box = QComboBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
+        # AK-380: a name for a screen reader, and no visible label -- the
+        # entries are whole sentences, and the row has 72 px to spare (AK-302).
+        self.goal_box.setAccessibleName("Goal")
         for goal_id in GOAL_ORDER:
             self.goal_box.addItem(advisor_goals.GOALS[goal_id].label, goal_id)
         self.goal_box.activated.connect(self._goal_chosen)
-        row.addWidget(self.goal_box)
+        question.addWidget(self.goal_box)
 
         # AK-337: the two halves of the question, beside the direction and
         # before `Filters` -- what is hit with, and which damage counts.
@@ -722,11 +900,12 @@ class AdvisorBar(QWidget):
         # so game text arrives as it is written (SEC-019, and the same reason
         # `goals.chosen_label` does not escape it either).
         self.hit_with_label = QLabel("Hit with")
-        row.addWidget(self.hit_with_label)
+        question.addWidget(self.hit_with_label)
         self.hit_with_box = QComboBox()
         self.hit_with_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.hit_with_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.hit_with_box.setToolTip(HIT_WITH_TOOLTIP)
+        self.hit_with_box.setAccessibleName("Hit with")
         # AK-338: `Weapon` first -- the armament itself, the figure this
         # program gave before there was a choice at all -- then the three
         # arts, and behind a line the schools this dataset carries. A school
@@ -746,13 +925,14 @@ class AdvisorBar(QWidget):
             for key, label in schools:
                 self.hit_with_box.addItem(label, key)
         self._remember_the_choice(self.hit_with_box, HIT_WITH_KEY)
-        row.addWidget(self.hit_with_box)
+        question.addWidget(self.hit_with_box)
 
         self.damage_type_label = QLabel("Damage type")
-        row.addWidget(self.damage_type_label)
+        question.addWidget(self.damage_type_label)
         self.damage_type_box = QComboBox()
         self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.damage_type_box.setAccessibleName("Damage type")
         self.damage_type_box.setToolTip(DAMAGE_TYPE_TOOLTIP.format(
             direction=advisor_goals.MAX_DAMAGE.label))
         # AK-339: `All` -- every kind at once -- then a line and the five
@@ -763,21 +943,21 @@ class AdvisorBar(QWidget):
         for damage_type, label in weapons.DAMAGE_LABELS.items():
             self.damage_type_box.addItem(label, damage_type)
         self._remember_the_choice(self.damage_type_box, DAMAGE_TYPE_KEY)
-        row.addWidget(self.damage_type_box)
+        question.addWidget(self.damage_type_box)
 
         # AK-302: visible and live in all fourteen states, a run in flight
         # included -- AK-289 presupposes a marking under a run.
         self.filters_button = QPushButton("Filters")
         self.filters_button.clicked.connect(self.filters_requested)
-        row.addWidget(self.filters_button)
+        doing.addWidget(self.filters_button)
 
         self.optimize_button = QPushButton("Optimize")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
         self.optimize_button.clicked.connect(self._optimize_or_cancel)
-        row.addWidget(self.optimize_button)
+        doing.addWidget(self.optimize_button)
 
         self.status = _ElidingLabel()
-        row.addWidget(self.status, 1)
+        doing.addWidget(self.status, 1)
 
         # The same indeterminate bar `firstrun._Window` uses: there is no
         # total to count towards, and AD-006.1 says so in the worker.
@@ -787,7 +967,7 @@ class AdvisorBar(QWidget):
         self.progress.setFixedHeight(6)
         self.progress.setMinimumWidth(0)
         self.progress.setVisible(False)
-        row.addWidget(self.progress)
+        doing.addWidget(self.progress)
 
         # The three action buttons of §3.1, in the order that section writes
         # them. `Apply all` and `Undo apply` are one button because they are
@@ -796,16 +976,57 @@ class AdvisorBar(QWidget):
         # for it (4.13).
         self.apply_button = QPushButton("Apply all")
         self.apply_button.clicked.connect(self._apply_or_undo)
-        row.addWidget(self.apply_button)
+        doing.addWidget(self.apply_button)
 
         self.why_button = QPushButton("Why")
+        # AK-378: the card's button reads `Why this relic`; this one is the
+        # whole account, and the tooltip says so where the 80 px do not.
+        self.why_button.setToolTip("Why this whole suggestion")
         self.why_button.clicked.connect(self.why_requested)
-        row.addWidget(self.why_button)
+        doing.addWidget(self.why_button)
 
         self.clear_button = QPushButton("Clear")
         self.clear_button.setToolTip("Put the suggestion away")
         self.clear_button.clicked.connect(self.clear)
-        row.addWidget(self.clear_button)
+        doing.addWidget(self.clear_button)
+
+        # AK-399: the boxes may give way, each only so far; the labels and
+        # every button never do (AK-398), which is their own size policy.
+        boxes = (self.goal_box, self.hit_with_box, self.damage_type_box)
+        for box, floor in zip(boxes, BOX_FLOORS):
+            box.setMinimumWidth(min(floor, box.sizeHint().width()))
+        #: What the three action buttons take on a line, each at its wider
+        #: caption -- counted whether or not they are up (AK-395).
+        self._action_widths = (
+            _widest_hint(self.apply_button, APPLY_CAPTIONS),
+            self.why_button.sizeHint().width(),
+            self.clear_button.sizeHint().width())
+        doing_floor = (self.filters_button.sizeHint().width()
+                       + _widest_hint(self.optimize_button, OPTIMIZE_CAPTIONS)
+                       + sum(self._action_widths) + 5 * SPACING)
+        self._lines = _OneOrTwoLines(None, question_line, doing_line,
+                                     doing_floor + STATUS_FLOOR)
+        # T-335a (user decision 28.10.2026): the cause of an empty slot that
+        # nothing owned reaches, whole, in yellow under the row -- the status
+        # line cuts it to `…`. Wraps rather than asking for width, and takes
+        # no height while hidden.
+        self.warning = QLabel()
+        self.warning.setTextFormat(Qt.PlainText)
+        self.warning.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.warning.setWordWrap(True)
+        self.warning.setStyleSheet(f"color: {WARNING_COLOUR};")
+        rows = QVBoxLayout(self)
+        rows.setContentsMargins(0, 0, 0, 0)
+        rows.setSpacing(0)
+        rows.addLayout(self._lines)
+        rows.addWidget(self.warning)
+        # AK-400: the width of the wider line at its tightest, the pairs of
+        # the damage question counted under every direction -- so the
+        # window's minimum is one figure, whatever the row is showing.
+        question_floor = (sum(label.sizeHint().width() for label in (
+            heading, self.hit_with_label, self.damage_type_label))
+            + sum(box.minimumWidth() for box in boxes) + 5 * SPACING)
+        self.setMinimumWidth(max(question_floor, doing_floor))
 
         self._wait_timer = QTimer(self)
         self._wait_timer.setSingleShot(True)
@@ -822,61 +1043,33 @@ class AdvisorBar(QWidget):
         self._show_the_damage_types()
         self._show(Situation(State.NOTHING_YET))
 
-    def action_buttons_extra_width(self) -> int:
-        """How many more px the row's minimum needs with `Apply all`/`Why`/
-        `Clear` counted, over its minimum with none of the three counted.
+    @property
+    def lines(self) -> int:
+        """AK-395: 1 while the row stands on one line, 2 once it broke."""
+        return (2 if self._lines.direction() == QBoxLayout.TopToBottom
+                else 1)
 
-        A hidden widget takes no room in its layout, so simply reading
-        `minimumSizeHint()` right now would answer a different question
-        depending on whether a suggestion happens to be on screen already
-        (S3.1 shows the three action buttons only then). Forcing both ends
-        of the comparison and putting every button back exactly as found
-        answers the same question either way -- `Planner._opening_width`
-        needs that, since it is asked again once a suggestion is up (AK-05)
-        and has to agree with what it said at the window's opening.
+    def action_buttons_extra_width(self) -> int:
+        """What `Apply all`/`Why`/`Clear` take on a line, at their `sizeHint`.
+
+        From the hints and not from the row's minimum: that minimum is one
+        figure now (AK-400) and says nothing about what a suggestion adds.
+        Counted whether or not a suggestion is up, so `Planner._opening_width`
+        gives the same answer before one and after (AK-05).
         """
-        buttons = (self.apply_button, self.why_button, self.clear_button)
-        was_hidden = [button.isHidden() for button in buttons]
-        for button in buttons:
-            button.setHidden(False)
-        shown_width = self.minimumSizeHint().width()
-        for button in buttons:
-            button.setHidden(True)
-        hidden_width = self.minimumSizeHint().width()
-        for button, was in zip(buttons, was_hidden):
-            button.setHidden(was)
-        return shown_width - hidden_width
+        return sum(width + SPACING for width in self._action_widths)
 
     def damage_question_extra_width(self) -> int:
-        """How many more px the row's minimum needs with both pairs of the
-        damage question counted, over its minimum with neither counted.
+        """What the two pairs of the damage question take on a line, at their
+        `sizeHint` (AK-349, AK-401).
 
-        AK-349, and the reason it is asked at all: the derived opening width
-        is the table's need plus what the row needs beyond it (A14), and
-        until A26 the row's extra was the three action buttons alone -- with
-        one label-box pair beside `goal_box` the rest still fitted in the
-        slack. Two pairs do not, and a row whose status line is 0 px wide at
-        the width the window opens at is the state AK-194 is written
-        against.
-
-        Measured the way `action_buttons_extra_width` measures its own, and
-        for the same reason: the pairs are hidden under the other two
-        directions (AK-337), so reading `minimumSizeHint()` as it stands
-        would answer a different question depending on which direction the
-        player left the row on.
+        Counted under every direction: the pairs are hidden under the other
+        two (AK-337), and the opening width may not depend on which
+        direction the player left the row on.
         """
-        pair = (self.hit_with_label, self.hit_with_box,
-                self.damage_type_label, self.damage_type_box)
-        was_hidden = [widget.isHidden() for widget in pair]
-        for widget in pair:
-            widget.setHidden(False)
-        shown_width = self.minimumSizeHint().width()
-        for widget in pair:
-            widget.setHidden(True)
-        hidden_width = self.minimumSizeHint().width()
-        for widget, was in zip(pair, was_hidden):
-            widget.setHidden(was)
-        return shown_width - hidden_width
+        return sum(widget.sizeHint().width() + SPACING for widget in (
+            self.hit_with_label, self.hit_with_box,
+            self.damage_type_label, self.damage_type_box))
 
     # -- what the window says to the bar ------------------------------------
 
@@ -1081,7 +1274,7 @@ class AdvisorBar(QWidget):
     def _ask(self) -> None:
         asking = self._asking(self.goal_id())
         if asking is None:
-            self._show(Situation(State.NO_SAVE))
+            self._show(self._no_save())
             return
         self._asked = asking
         self._forget_the_answer()
@@ -1212,9 +1405,14 @@ class AdvisorBar(QWidget):
 
     def _resting(self) -> Situation:
         """What the row says when nothing is running and nothing is shown."""
-        asking = self._asking(self.goal_id())
-        return Situation(State.NOTHING_YET if asking is not None
-                         else State.NO_SAVE)
+        if self._asking(self.goal_id()) is None:
+            return self._no_save()
+        return Situation(State.NOTHING_YET)
+
+    def _no_save(self) -> Situation:
+        """4.8, told apart by the mark the relic picker reads (AK-406)."""
+        return Situation(State.NO_SAVE, save_is_empty=getattr(
+            self.window(), "save_holds_no_relics", False))
 
     def _goal_label(self) -> str:
         return self.goal_box.currentText()
@@ -1246,9 +1444,12 @@ class AdvisorBar(QWidget):
         self._situation = situation
         working = situation.state in WORKING_STATES
         self.status.set_whole_text(status_line(situation))
-        # Below the derived opening width the status is the one thing that
-        # gives way, down to 0 px (QA-250: boxes first, the status may go),
-        # and a label 0 px wide has nowhere to be hovered -- so the row
+        carrier = situation.no_carrier_for
+        self.warning.setText(
+            f"⚠ {advisor_run.no_carrier_sentence(carrier)}" if carrier else "")
+        self.warning.setVisible(bool(carrier))
+        # The status is the one thing that gives way on every width (AK-399),
+        # and a label a few px wide has little to be hovered -- so the row
         # carries the sentence too. The AK-280 count of what the player
         # marked stands on the button that changes it (AK-302), not here.
         line = status_line(situation)
@@ -1262,8 +1463,7 @@ class AdvisorBar(QWidget):
         # caption would then be wrong in exactly the cases a test drives.
         waiting_is_drawn = working and situation.state is not State.WORKING_QUIETLY
         self.progress.setVisible(waiting_is_drawn)
-        self.optimize_button.setText("Cancel" if waiting_is_drawn
-                                     else "Optimize")
+        self.optimize_button.setText(OPTIMIZE_CAPTIONS[waiting_is_drawn])
         # 4.8: with no save there is nothing to choose from, so neither
         # control has anything to do. Nothing else on the window is touched
         # (AK-08) -- disabling belongs to this row alone.
@@ -1287,7 +1487,7 @@ class AdvisorBar(QWidget):
         """
         acting = situation.state in ACTING_STATES
         applied = situation.state is State.APPLIED
-        self.apply_button.setText("Undo apply" if applied else "Apply all")
+        self.apply_button.setText(APPLY_CAPTIONS[applied])
         self.apply_button.setVisible(acting and (applied
                                                  or self._can_be_applied()))
         self.why_button.setVisible(acting)

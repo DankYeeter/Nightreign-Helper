@@ -32,7 +32,9 @@ reads `Build.sources`, which this call fills.
 
 from __future__ import annotations
 
-from .. import model
+from collections.abc import Mapping
+
+from .. import effecttext, model
 from . import types
 
 
@@ -42,8 +44,9 @@ def effect_ids_of(problem: types.SlotProblem,
     """Every effect id that counts towards this build, in a settled order.
 
     Held relics first, then the chosen candidates in slot order, then the
-    armaments -- the same three sources `Planner._rebuild` gathers, in the
-    same order, so that two runs over one state produce the same list.
+    armaments -- the same three sources `Planner._rebuild` gathers, though not
+    in its order (QA-109: measured, the same ids in another sequence). What is
+    settled is that two runs over one state produce the same list.
 
     Order matters to `model.compute` in one respect only: duplicates of an
     `isStrongestEffect` are reported in the order they arrive. It does not
@@ -86,25 +89,50 @@ def _effects(ctx: types.GoalContext,
     return found
 
 
-def evaluate(problem: types.SlotProblem,
-             assignment: tuple[types.Candidate, ...],
-             ctx: types.GoalContext,
-             want_qualitative: bool = True) -> model.Build:
-    """The build that results from holding `problem` and choosing `assignment`.
+def _declared_variants(ctx: types.GoalContext,
+                       effect_ids: tuple[int, ...]) -> list[dict[int, int]]:
+    """`declared` once per armament type the baseline may assume met here.
 
-    `assignment` may only name free slots. A candidate for a held slot is
-    refused rather than applied: holding is a boundary condition and not a
-    starting value (AD-014), and silently overwriting a held slot is the one
-    outcome the player asked the feature to prevent. Two candidates for one
-    slot are refused for the same reason -- there is no rule that says which
-    of them wins.
+    AD-036.6, addendum 12.10.2026 (QA-299): of `ctx.assumed_armament_counts`
+    only the conditions of one type count -- 3+ Hammers and 3+ Great Hammers
+    beside the starting armament are seven armaments for six places. A type
+    the player declared by hand is that type, carried in this build or not:
+    the player said what they carry, so the baseline adds other copies of it
+    and no type beside it. Otherwise each type the build carries is one
+    variant, in the order the build carries them.
 
-    The empty assignment is the base state: `evaluate(problem, (), ctx)` is
-    what a marginal contribution is measured against (AD-014.6, AD-018.1).
-
-    `want_qualitative` goes to `model.compute` as is; only the beam's scorer
-    passes `False` (`search.goal_scorer`, T-267).
+    The type is `wepTypeTrigger`; the dagger condition alone has none and is
+    then the type `None`, which no other condition shares.
     """
+    declared = dict(ctx.declared)
+    effects = ctx.data["effects"]
+
+    def kind(effect_id: int):
+        return effects[str(effect_id)]["modifiers"].get("wepTypeTrigger")
+
+    assumed = set(ctx.assumed_armament_counts)
+    by_type: dict = {}
+    for effect_id in effect_ids:
+        if effect_id in assumed:
+            by_type.setdefault(kind(effect_id), set()).add(effect_id)
+    if not by_type:
+        return [declared]
+    by_hand = {kind(effect_id) for effect_id in declared
+               if str(effect_id) in effects
+               and effecttext.counts_armaments(effects[str(effect_id)])}
+    if by_hand:
+        chosen = [set().union(*(ids for key, ids in by_type.items()
+                                if key in by_hand))]
+    else:
+        chosen = list(by_type.values())
+    return [{**declared, **dict.fromkeys(ids, 1)} for ids in chosen]
+
+
+def _builds(problem: types.SlotProblem,
+            assignment: tuple[types.Candidate, ...],
+            ctx: types.GoalContext,
+            want_qualitative: bool) -> list[model.Build]:
+    """The build of `assignment`, once per variant of `_declared_variants`."""
     free = {slot.index for slot in types.free_slots(problem)}
     seen: set[int] = set()
     for candidate in assignment:
@@ -120,13 +148,72 @@ def evaluate(problem: types.SlotProblem,
         seen.add(candidate.slot_index)
 
     reference = ctx.reference
-    return model.compute(
+    effect_ids = effect_ids_of(problem, assignment, ctx)
+    effects = _effects(ctx, effect_ids)
+    return [model.compute(
         ctx.hero,
         ctx.level,
-        _effects(ctx, effect_ids_of(problem, assignment, ctx)),
+        effects,
         ctx.data.get("curves", {}),
         weapon=reference.weapon if reference is not None else None,
         weapons_held=list(ctx.weapons_held),
-        declared=dict(ctx.declared),
+        declared=declared,
         want_qualitative=want_qualitative,
-    )
+    ) for declared in _declared_variants(ctx, effect_ids)]
+
+
+def _best(builds: list[model.Build], goal: types.Goal | None,
+          ctx: types.GoalContext) -> model.Build:
+    """The variant `goal` scores highest; the first of equals."""
+    if len(builds) == 1:
+        return builds[0]
+    if goal is None:
+        raise ValueError(
+            "this build carries armament-count conditions of more than one "
+            "type, and only the goal can say which of them the baseline "
+            "assumes (AD-036.6); pass it")
+    return max(builds, key=lambda build: goal.score(build, ctx).value)
+
+
+def evaluate_per_goal(problem: types.SlotProblem,
+                      assignment: tuple[types.Candidate, ...],
+                      ctx: types.GoalContext,
+                      goals: Mapping[str, types.Goal],
+                      want_qualitative: bool = True
+                      ) -> dict[str, model.Build]:
+    """`evaluate` under every goal at once, each variant computed once.
+
+    For the callers that read one assignment under every direction: each
+    direction gets the armament type that serves it best.
+    """
+    builds = _builds(problem, assignment, ctx, want_qualitative)
+    return {goal_id: _best(builds, goal, ctx)
+            for goal_id, goal in goals.items()}
+
+
+def evaluate(problem: types.SlotProblem,
+             assignment: tuple[types.Candidate, ...],
+             ctx: types.GoalContext,
+             want_qualitative: bool = True,
+             goal: types.Goal | None = None) -> model.Build:
+    """The build that results from holding `problem` and choosing `assignment`.
+
+    `assignment` may only name free slots. A candidate for a held slot is
+    refused rather than applied: holding is a boundary condition and not a
+    starting value (AD-014), and silently overwriting a held slot is the one
+    outcome the player asked the feature to prevent. Two candidates for one
+    slot are refused for the same reason -- there is no rule that says which
+    of them wins.
+
+    The empty assignment is the base state: `evaluate(problem, (), ctx)` is
+    what a marginal contribution is measured against (AD-014.6, AD-018.1).
+
+    `want_qualitative` goes to `model.compute` as is; only the beam's scorer
+    passes `False` (`search.goal_scorer`, T-267).
+
+    `goal` decides which armament type the baseline assumes where the build
+    carries conditions of several (`_declared_variants`); without one, such
+    a build is refused rather than decided by order.
+    """
+    return _best(_builds(problem, assignment, ctx, want_qualitative), goal,
+                 ctx)

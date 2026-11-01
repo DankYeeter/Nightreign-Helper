@@ -52,7 +52,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from .. import model
 from . import candidates, explain, search, types
-from .evaluate import evaluate
+from .evaluate import evaluate, evaluate_per_goal
 from .goals import _ranked_on_choice, chosen_label
 from .types import never_cancelled
 
@@ -266,6 +266,15 @@ def _refuse_a_request_that_asks_about_another_run(
             ("reference_weapon_id", request.reference_weapon_id,
              None if reference is None else reference.weapon.get("id")),
             ("declared", request.declared, tuple(ctx.declared)),
+            ("assumed_armament_counts", request.assumed_armament_counts,
+             tuple(ctx.assumed_armament_counts)),
+            ("selected_catalyst_id", request.selected_catalyst_id,
+             None if ctx.selected_catalyst is None
+             else ctx.selected_catalyst.get("id")),
+            ("selected_spell_id", request.selected_spell_id,
+             ctx.selected_spell_id),
+            ("art_tile", request.art_tile,
+             None if ctx.art_tile is None else ctx.art_tile.key),
             ("two_handed", request.two_handed, ctx.two_handed),
             ("hit_with", request.hit_with, ctx.hit_with),
             ("damage_type", request.damage_type, ctx.damage_type),
@@ -311,6 +320,17 @@ def _gain_over_the_base_state(
                  for goal_id, goal in goals.items())
 
 
+def no_carrier_sentence(choice: str) -> str:
+    """AK-365's cause in full: in `unknowns`, and under the Advisor bar as
+    its warning line (T-335a)."""
+    return (f"Nothing you own reaches {choice} here: the armament it is "
+            f"ranked on does not carry it — for a spell the staff or seal "
+            f"on the selected tile, for a weapon art the armament on it, and "
+            f"the starting one where the tile has none; otherwise the "
+            f"starting armament — and nothing in your inventory swaps in a "
+            f"spell or weapon art that does.")
+
+
 def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
                pools: Sequence[types.SlotPool], base: model.Build,
                ctx: types.GoalContext, goal: types.Goal
@@ -325,7 +345,7 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
     (AD-014.1).
     """
     chosen = explain.chosen_for(suggestion, pools)
-    built = evaluate(problem, chosen, ctx)
+    built = evaluate(problem, chosen, ctx, goal=goal)
     groups = explain.reasons(problem, chosen, base, built, ctx, goal)
     return dataclasses.replace(suggestion, reasons=groups), chosen, built
 
@@ -379,8 +399,9 @@ def run(request: types.AdvisorRequest, inventory,
     found = search.beam(problem, pools, request.budget,
                         search.goal_scorer(problem, ctx, goal), should_cancel)
 
-    base = evaluate(problem, (), ctx)
-    base_scores = {goal_id: entry.score(base, ctx)
+    bases = evaluate_per_goal(problem, (), ctx, goals)
+    base = bases[goal.id]
+    base_scores = {goal_id: entry.score(bases[goal_id], ctx)
                    for goal_id, entry in goals.items()}
 
     suggestions = []
@@ -446,10 +467,7 @@ def run(request: types.AdvisorRequest, inventory,
                if not found and problem.required else ())
     unknowns += blocked
     if no_carrier_for:
-        unknowns += (f"Nothing you own reaches {no_carrier_for} here: your "
-                     f"starting equipment does not carry it, and nothing in "
-                     f"your inventory swaps in a spell or weapon art that "
-                     f"does.",)
+        unknowns += (no_carrier_sentence(no_carrier_for),)
     return types.AdvisorResult(
         goal_id=goal.id,
         goal_label=goal.label,

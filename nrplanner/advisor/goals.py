@@ -46,6 +46,8 @@ so is
 
 from __future__ import annotations
 
+import dataclasses
+
 # The standard library's `types`, not the module beside this one: absolute
 # imports mean this line cannot reach `advisor/types.py`, but a reader can be
 # caught by the two names, and this project has already lost a test round to
@@ -136,15 +138,20 @@ _ATTACK_RATING_SCOPE = (
     "measured at their own rarity only, and it is that display and not what "
     "a spell hits for.",
     "What a spell hits for is rated on the spell rows only, and on the "
-    "equipment the Nightfarer starts an expedition with — never on a "
-    "spell picked up in a run.",
+    "staff or seal on the selected tile, or else the starting one — never "
+    "on a spell picked up in a run.",
     "Critical-only bonuses are excluded — attack rating is the ordinary hit.",
     # AD-038: the armament the figure is formed against is a property of the
     # Nightfarer, not of the grid (A17), and it is named here so that the
     # figure says what it is scaled on. Wording AK-318.1.
     "Scaled on the Nightfarer's own starting armament at its lowest tier, "
-    "without the roles a carried copy could add; one- or two-handed as the "
+    "without the rolls a carried copy could add; one- or two-handed as the "
     "stat sheet's hand switch says.",
+    # QA-310: since T-335z the art row is the one armament row that reads
+    # the grid, and the line above would otherwise claim it too.
+    "A weapon art is the one exception: it is rated on the armament on the "
+    "selected tile, at its tier with the art chosen there, or else on the "
+    "starting armament — one-handed either way.",
 )
 
 # Fallback texts (AD-038.1, AK-318.2): spoken only when the dataset has no
@@ -156,7 +163,8 @@ _NO_ARMAMENT = ("This Nightfarer's starting armament has no entry in the "
 
 _NO_ARMAMENT_NOTE = ("With no armament on record there is nothing to scale, "
                      "so the five attack multipliers are averaged with equal "
-                     "weight.")
+                     "weight; an attack bonus that needs a particular "
+                     "weapon class counts as zero.")
 
 #: The five attributes an armament's damage scales on -- the ones AD-032
 #: calls offensive. Written out rather than filtered out of
@@ -234,6 +242,19 @@ _RANKED_ON_ONE_ART = (
     "armament's attack rating; what a spell hits for is a figure of its "
     "own and is asked for on the spell rows.")
 
+#: The same finding for the art row (QA-310), naming what `_art_cell`
+#: swings: an art can carry no attack rating at all (Glintblade Phalanx),
+#: so the sentence above would be false here. `{source}` is one of the two
+#: below; the art's and the armament's names are game text, passed on as
+#: written to `PlainText` sinks (SEC-019).
+_RANKED_ON_THE_ART = (
+    "Ranked on {choice} only — every other effect on a candidate "
+    "still shows, but only this counts toward the ranking. It is one hit of "
+    "{art} from {armament} {source}, one-handed.")
+_ART_FROM_THE_TILE = "on the selected tile, at its tier"
+_ART_FROM_THE_START = ("— the starting armament at its lowest tier, as the "
+                       "selected tile is empty")
+
 #: AD-048: for a staff or a seal the game shows a spell power and no attack
 #: rating, and nothing measured says what an attack buff does to that
 #: display. So the choice is answered instead of being applied to a figure
@@ -248,15 +269,17 @@ _ART_ON_A_CATALYST = (
 #: this is the ordinary answer for a spell row and not an edge case
 #: (AD-052 point 6).
 _NO_CATALYST = (
-    "This Nightfarer starts with neither a staff nor a seal, so {choice} is "
-    "not counted: there is no spell of this build's own to rank.")
+    "There is no staff or seal on the selected tile and this Nightfarer "
+    "starts with neither, so {choice} is not counted: put one on a tile and "
+    "select it to rank its spell.")
 
 #: A staff throws no incantations and a seal no sorceries (AD-052 point 4).
 #: The armament is named because the player has it in hand and the sentence
 #: is otherwise about nothing he can point at.
 _WRONG_GENUS = (
-    "{choice} is not counted for this Nightfarer: {catalyst} casts {genus}, "
-    "and this run ranks the spell the starting equipment really throws.")
+    "{choice} is not counted here: {catalyst} casts {genus}, and this run "
+    "ranks the spell of the staff or seal on the selected tile, or else the "
+    "starting one.")
 
 #: The catalyst a player can hold carries a spell in its first slot
 #: (measured: Recluse's Staff and the Finger Seal both do). Said rather than
@@ -381,7 +404,7 @@ def _headline_with_choice(chosen: str, headline_name_lower: str) -> str:
     return " ".join([chosen, *name_words])
 
 
-def _is_a_spell(hit_with: str) -> bool:
+def is_a_spell(hit_with: str) -> bool:
     """Whether the question is about a spell rather than about the armament.
 
     Sorceries, incantations and the schools are the spell rows of the
@@ -392,8 +415,9 @@ def _is_a_spell(hit_with: str) -> bool:
             or hit_with.startswith(model.ART_FAMILY_PREFIX))
 
 
-def _empty_cell(reason: str) -> types.GoalScore:
-    """A spell row this Nightfarer has no figure for at all, and why.
+def _empty_cell(reason: str,
+                name: str = damage.SPELL_DAMAGE_NAME) -> types.GoalScore:
+    """A spell or art row this Nightfarer has no figure for at all, and why.
 
     The value is 0.00 for every candidate alike, so no candidate outranks
     another and `run.run` drops the suggestion that would otherwise stand
@@ -402,7 +426,7 @@ def _empty_cell(reason: str) -> types.GoalScore:
     """
     return types.GoalScore(
         value=0.0,
-        display=f"{damage.SPELL_DAMAGE_NAME} not counted",
+        display=f"{name} not counted",
         unit="",
         unknowns=(reason,),
     )
@@ -413,9 +437,10 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     """What this Nightfarer's own equipment throws, as a damage figure.
 
     The spell rows of the combination table (AD-052/AD-053): the reference
-    object is the start catalyst and the spell it really casts, never the
-    armament in slot 1, and the figure comes from `damage.spell` so that
-    this file forms no product of its own (AD-019/AD-021).
+    object is the staff or seal on the selected tile, else the start
+    catalyst, the same one the stat sheet's spell row stands on (T-335b),
+    and the spell it really casts; the figure comes from `damage.spell` so
+    that this file forms no product of its own (AD-019/AD-021).
 
     **No fallback onto spell power** where that spell carries no damage
     (AD-052 point 5): Revenant's Finger Seal throws Rejection, which hits
@@ -423,16 +448,15 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     yardsticks in one ranking is QA-018 in a new dress -- the gain of a swap
     relic would be the difference between a damage and a scaling figure.
 
-    The figure is uncalibrated and says so (OF-54): nothing the game prints
-    can be held against it. Where the spell carries no damage that sentence
-    gives way to the facade's, which says the more particular thing about
-    the same 0.00.
+    Where the spell carries no damage the facade's sentence says so about
+    the 0.00.
 
     Game text -- the spell's name, the armament's -- is passed on as it is
     written: every sink that draws a finding or a display is `PlainText`
     (SEC-019, AK-29).
     """
-    catalyst = damage.start_catalyst(ctx.hero, ctx.data)
+    catalyst, own = damage.spell_catalyst(ctx.selected_catalyst, ctx.hero,
+                                          ctx.data)
     if catalyst is None:
         return _empty_cell(_NO_CATALYST.format(choice=chosen))
     genus = damage.GENUS_OF_CATALYST[catalyst["wep_type"]]
@@ -442,7 +466,8 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
     thrown, swaps = damage.spell_thrown(
-        build, ctx.data, catalyst, damage_type=ctx.damage_type)
+        build, ctx.data, catalyst, starting=own, damage_type=ctx.damage_type,
+        chosen=ctx.selected_spell_id)
     if thrown is None:
         return _empty_cell(_NO_SPELL_ON_THE_CATALYST.format(
             catalyst=catalyst.get("name", "This armament"), choice=chosen))
@@ -452,8 +477,7 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     rating = damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build,
                           ctx.data, hit_with=ctx.hit_with,
                           damage_type=ctx.damage_type)
-    findings = [rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
-        name=damage.SPELL_DAMAGE_NAME)]
+    findings = [rating.reason] if rating.reason else []
     if swaps > 1:
         findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
     # AK-342, the same rule as AK-335 one row up: the damage type earns its
@@ -473,6 +497,44 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
                  f"{damage.displayed(rating.figure)}"),
         unit="",
         unknowns=tuple(findings),
+    )
+
+
+def _art_cell(build: model.Build, ctx: types.GoalContext,
+              tile: types.ReferenceArmament, chosen: str) -> types.GoalScore:
+    """What the selected tile's weapon art hits for, one hit (AD-056.7).
+
+    The stat sheet's figure (`damage.weapon_art`, AK-415): the tile's
+    armament, tier and art pick, one-handed whatever the hand switch says
+    (P.7.1). Only a **held** swap relic swaps the art; a candidate's swap is
+    taken back out of the build, so it never moves the figure and is never
+    proposed for it (AD-056.7). A tile without an art that has a figure gets
+    the facade's sentence instead of a number (AD-056.5).
+    """
+    label = model.ART_LABELS[model.SKILL_ART]
+    if model.weapon_class(tile.weapon) == "catalyst":
+        return _empty_cell(_ART_ON_A_CATALYST.format(choice=chosen), label)
+    held_only = dataclasses.replace(build, swapped_art_ids=tuple(
+        art_id for art_id in build.swapped_art_ids
+        if art_id in ctx.held_swapped_art_ids))
+    rating = damage.weapon_art(tile, tile.slot_index, held_only, ctx.hero,
+                               ctx.data)
+    if rating.reason:
+        return _empty_cell(rating.reason, label)
+    value = (rating.per_type.get(ctx.damage_type, 0.0) if ctx.damage_type
+             else rating.figure)
+    head = (_headline_with_choice(chosen_label("", ctx.damage_type),
+                                  label.lower())
+            if ctx.damage_type else label)
+    return types.GoalScore(
+        value=value,
+        display=f"{head} ({rating.art['name']}) {damage.displayed(value)}",
+        unit="",
+        unknowns=(_RANKED_ON_THE_ART.format(
+            choice=_ranked_on_choice(ctx.hit_with, ctx.damage_type),
+            art=rating.art["name"], armament=tile.weapon["name"],
+            source=(_ART_FROM_THE_TILE if tile is ctx.art_tile
+                    else _ART_FROM_THE_START)),),
     )
 
 
@@ -582,8 +644,10 @@ def _max_damage(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     # than a run that stops.
     chosen = (chosen_label(ctx.hit_with, ctx.damage_type)
               if ctx.hit_with or ctx.damage_type else "")
-    if _is_a_spell(ctx.hit_with):
+    if is_a_spell(ctx.hit_with):
         return _spell_cell(build, ctx, chosen)
+    if ctx.hit_with == model.SKILL_ART:
+        return _art_cell(build, ctx, ctx.art_tile or ctx.reference, chosen)
     _bare, now = damage.equipped(ctx.reference, ctx.reference.slot_index,
                                  build, ctx.hero, ctx.data,
                                  art=ctx.hit_with or None)
@@ -671,13 +735,37 @@ def _min_damage_taken(build: model.Build,
     therefore no branch here for a zero divisor: a branch no data can reach is
     the dead code QA-061 had this project delete, and a division that fails
     loudly beats one that guesses. The two preconditions a caller *can* get
-    wrong are checked instead, because a caller is not the dataset.
+    wrong are checked instead, because a caller is not the dataset: a
+    weighting with no weights, with a weight below zero, whose weights sum to
+    zero, that names a field which is not one of `DAMAGE_CUT_FIELDS` or that
+    names one field twice, and a build whose rate for a weighted field is not
+    above zero (QA-103, QA-105). Every one of them would otherwise end in a
+    `ZeroDivisionError` or in a plausible wrong number.
     """
     weights = dict(ctx.weighting.weights)
     if not weights:
         raise ValueError(
             f"weighting {ctx.weighting.id!r} carries no weights, so there is "
             f"nothing to average the eight damage kinds with")
+    if len(weights) != len(ctx.weighting.weights):
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} names a damage-cut field more "
+            f"than once, so one of its weights would be dropped unseen")
+    unknown = sorted(set(weights) - set(DAMAGE_CUT_FIELDS))
+    if unknown:
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} weighs {unknown}, which "
+            f"{'is' if len(unknown) == 1 else 'are'} not a damage-cut field")
+    if min(weights.values()) < 0 or sum(weights.values()) <= 0:
+        raise ValueError(
+            f"weighting {ctx.weighting.id!r} needs weights of zero or more "
+            f"that add up to more than zero")
+    not_positive = [name for name in weights
+                    if build.rates.get(name, 1.0) <= 0]
+    if not_positive:
+        raise ValueError(
+            f"this build lets no damage through on {not_positive}, so "
+            f"effective HP cannot be formed")
     hp = build.derived.get("HP")
     if hp is None:
         raise ValueError(

@@ -1,6 +1,6 @@
-"""The colours more than one part of the window uses, under one name each.
+"""The colours and sizes more than one part of the window uses, one name each.
 
-A colour only one module uses stays in that module, next to what it paints.
+A colour or size only one module uses stays in that module, next to what it paints.
 """
 
 from __future__ import annotations
@@ -19,8 +19,6 @@ CURSE = BAD
 #: stays readable at cell size.
 DEBUFF = "#e07a74"
 DEEP = "#9a6fc4"
-#: What players have reported rather than what the game files state.
-COMMUNITY = "#7fb2e5"
 
 SLOT_COLOURS = {
     0: "#b4544e",   # Red
@@ -29,3 +27,57 @@ SLOT_COLOURS = {
     3: "#5c9e63",   # Green
     4: "#d8d8d8",   # White -- wildcard
 }
+
+#: How a card shows that the pointer is standing on it: the Nightlord grid
+#: (QA-154), the relic cards and the armament tiles (QA-157). Measured on the
+#: Nightlord grid, whose cards share PANEL with the other two.
+#:
+#: The finding is not the hit area. Measured on 2026-09-06 on Windows under
+#: Fusion at 150 % scale, at a 1600x900 logical-px window: every one of 3 420
+#: probe points, one every 4 logical px over the whole 302x178 card, opened
+#: that card -- the labels inside it ignore a press and Qt hands it to the
+#: frame. What is dead is the 8 logical px between two neighbours, and a
+#: reader had no way to see which side of that line he was on: a near miss
+#: opened the wrong Nightlord and a miss opened nothing, and the grid looked
+#: identical in both cases.
+#:
+#: So the marker is on the pointer rather than on the click. A third channel
+#: again: fill only, edge untouched. Selection changes both, an Everdark twin
+#: owns DEEP on the edge, and hover changes the one thing neither of those
+#: two moves -- so the three states stay apart at a glance.
+#:
+#: **The value is measured, not chosen by eye.** Sampled off a grab of the
+#: whole window -- a card grabbed alone lands its translucent selection fill
+#: on a transparent pixmap and reads back as the colour the stylesheet names
+#: rather than the colour a reader sees -- on Windows under Fusion at 150 %
+#: scale, at a 1600x900 logical-px window. An unmarked card is (30, 31, 35)
+#: and a chosen one composites to (64, 57, 42), a WCAG contrast of 1.440.
+#: The first hover fill tried here, `#26272c`, composited to (38, 39, 44):
+#: **1.105**, a step small enough that the screenshot had to be measured to
+#: tell whether the pointer was on the card at all. That is not feedback.
+#: This one composites to (51, 52, 60) -- **1.331** against an unmarked card,
+#: nearly the 1.440 the selection's own fill manages, while staying the only
+#: neutral of the three: the selection is the one warm thing on this grid and
+#: keeps its gold edge as well, so hover and selection are apart by hue and
+#: by border even where their luminance is close.
+#:
+#: Cooler fills were measured too and reach further -- `#334055` gives 1.572
+#: and `#3a4a60` 1.825 -- but both put a new hue on a tab where DEEP already
+#: means something on the edge of a card. That is the `ui-ux-designer`'s call
+#: to make with these figures, not this file's.
+HOVER_FILL = "#33343c"
+
+#: What the Nightfarer's name is set in on its tile, in points (QA-155), in
+#: the sidebar and in the favourite menu alike.
+#:
+#: The ten portraits carried no text at all, so a player had to click one and
+#: read the answer somewhere else to find out whom he had picked. The name has
+#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
+#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
+#: widening the tile would push the whole window's minimum out. Measured on
+#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
+#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
+#: against the 52 px a 56 px tile has inside its border. Seven is the size at
+#: which all ten stand whole; Qt shortens anything that does not fit and the
+#: tooltip has carried the full name all along.
+NAME_POINT_SIZE = 7

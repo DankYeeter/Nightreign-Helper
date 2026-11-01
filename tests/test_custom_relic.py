@@ -142,3 +142,34 @@ def test_a_custom_relic_is_still_there_in_the_next_session(planner, game_data):
     finally:
         next_session.close()
         next_session.deleteLater()
+
+
+def test_a_custom_relic_stays_with_its_build_when_the_colour_does_not_change(
+        planner):
+    """QA-028: a custom relic belongs to the build, not to the player.
+
+    A vessel whose slot has the same colour used to inherit it, and its
+    picker offered a relic its own build never named (director, 2026-09-02).
+    """
+    from tests.conftest import _vessels_in_the_list
+
+    pair = next(((row, other_row, index)
+                 for row, vessel in _vessels_in_the_list(planner)
+                 for other_row, other in _vessels_in_the_list(planner)
+                 if other["id"] != vessel["id"]
+                 for index, colour in enumerate(vessel["slots"])
+                 if other["slots"][index] == colour), None)
+    if pair is None:
+        pytest.skip("no two vessels share a slot colour at one position")
+    row, other_row, index = pair
+    select_vessel(planner, row)
+    planner.base_slots[index].set_custom(
+        custom_effects_for(planner.base_slots[index]))
+
+    select_vessel(planner, other_row)
+
+    away = planner.base_slots[index]
+    assert away.custom_item is None, \
+        "a build that does not name the custom relic does not offer it"
+    assert getattr(away.current_relic(), "relic_id", None) \
+        != inventory.CUSTOM_RELIC_ID

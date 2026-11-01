@@ -13,20 +13,15 @@ GROUP_SIZE = 16
 def read(data: bytes) -> dict[int, str]:
     """Return {string id -> text}. Empty entries are skipped."""
     big_endian = data[1] != 0
-    version = data[2]
+    # Nightreign ships only version 2, the one with 64-bit offsets.
+    if data[2] != 2:
+        raise NotWhatItClaims(f"FMG version {data[2]}, this program reads 2")
     e = ">" if big_endian else "<"
-    wide = version == 2  # DS3/ER/NR use 64-bit offsets
 
-    if wide:
-        group_count, string_count = struct.unpack_from(e + "II", data, 0x0C)
-        (offsets_offset,) = struct.unpack_from(e + "Q", data, 0x18)
-        groups_at = 0x28
-        off_fmt, off_size = e + "Q", 8
-    else:
-        group_count, string_count = struct.unpack_from(e + "II", data, 0x0C)
-        (offsets_offset,) = struct.unpack_from(e + "I", data, 0x14)
-        groups_at = 0x1C
-        off_fmt, off_size = e + "I", 4
+    group_count, string_count = struct.unpack_from(e + "II", data, 0x0C)
+    (offsets_offset,) = struct.unpack_from(e + "Q", data, 0x18)
+    groups_at = 0x28
+    off_fmt, off_size = e + "Q", 8
 
     # Three counts out of the file steer the loops below, so each is measured
     # against the file's own size before it steers anything (SEC-002). All

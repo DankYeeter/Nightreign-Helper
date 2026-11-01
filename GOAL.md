@@ -56,7 +56,10 @@ eine kurze Begruendung.
 
 - Kein Auslesen oder Schreiben in laufende Spielprozesse. Der Save bleibt
   read-only.
-- Kein Netzwerkzugriff, keine Wiki-Daten, keine Telemetrie.
+- Kein Netzwerkzugriff, keine Telemetrie, keine zur Laufzeit geladenen
+  Wiki-Daten. Feste Community-Angaben im Code nur fuer Deep of Night, Red
+  variants und World Events; sie erscheinen wie Spieldaten, ohne eigenen
+  Vermerk (geaendert 23.09.2026, freigegeben durch Nutzer).
 - Keine Optimalitaetsgarantie: der Berater ist ein Heuristik-Ratgeber, kein
   Loeser mit Beweis.
 - Keine Mehrsprachigkeit.
@@ -594,6 +597,7 @@ als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
   Zauber ausserhalb der Startausruestung.
 - Nachweis (QA-296, Director 21.09. 19:20): Revenant mit Beast-Claw-Relikt:
   der Block zeigt neben der Klauen-AR die Zeile "Spell damage (Beast Claw)
-  577" (Unkalibriert-Hinweis im Klick-Tooltip, AK-361) und
+  577" (seit T-335j 31.10.2026 mal 0,6: 346, kalibriert an der
+  Trainingspuppe, kein Unkalibriert-Hinweis mehr) und
   ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
   "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.

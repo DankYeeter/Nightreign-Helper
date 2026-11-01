@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import damage, effecttext, model, relicslots, weapons, weaponslots
+from . import (castingbar, damage, effecttext, model, relicslots, weapons,
+               weaponslots)
 from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
@@ -28,7 +29,7 @@ from .theme import ACCENT, BAD, GOOD, MUTED
 AR_BREAKDOWN_KEY = "ar:total"
 
 # The second such key, for the spell-damage click-through (AK-361): the
-# uncalibrated note and the rates behind the figure are shown when the player
+# rates behind the figure, and why a 0.00 is one, are shown when the player
 # asks for them, the way this panel already shows the attack rating's, rather
 # than as a third standing line under every catalyst tile.
 SPELL_BREAKDOWN_KEY = "spell:total"
@@ -116,6 +117,34 @@ def _rate_label(field_name: str) -> str:
     else is a rate field and is named as it always was.
     """
     return model.ART_LABELS.get(field_name) or model.label_for(field_name)
+
+
+def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
+    """The tooltip behind one clicked figure: its sources, one row each (QA-077).
+
+    `entries` carry `name` and `own`. A multiplier is shown as its percentage
+    (`own` 1.124 reads `+12.4%`), a flat bonus as its number.
+    """
+    if not entries:
+        return f"{label}\nno contributing effects recorded"
+    rows = [f"<b>{label}</b>"]
+    for entry in entries:
+        if multiplicative:
+            shown = f"{(entry.own - 1.0) * 100:+.1f}%"
+        else:
+            shown = f"{entry.own:+g}"
+        rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
+
+    if multiplicative and len(entries) > 1:
+        total = 1.0
+        for entry in entries:
+            total *= entry.own
+        rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
+                    f"{(total - 1.0) * 100:+.1f}%</i>")
+    elif not multiplicative and len(entries) > 1:
+        rows.append(f"&nbsp;&nbsp;<i>total "
+                    f"{sum(entry.own for entry in entries):+g}</i>")
+    return "<br>".join(rows)
 
 
 def _heading(text: str) -> QLabel:
@@ -318,6 +347,12 @@ class StatSheet(QScrollArea):
                            index % weaponslots.SLOT_COLUMNS)
         layout.addLayout(grid)
 
+        # AK-410: the spell and the weapon art the selected tile uses, chosen
+        # here; the window stores a choice on the tile and recomputes.
+        self.casting = castingbar.CastingBar(_heading("Casting"),
+                                             planner.icons)
+        layout.addWidget(self.casting)
+
         # Every toggle ends in the window's `recompute`, which stores the
         # build and tells the advisor (AK-293 point 5); the window wires it.
         self.hand_switch = HandSwitch()
@@ -404,33 +439,12 @@ class StatSheet(QScrollArea):
         # An "All damage" row stands for five fields; its sources live under
         # the real one behind it.
         entries = self.last_sources.get(model.real_field(key), [])
-        label = model.label_for(key)
-        if not entries:
-            QToolTip.showText(QCursor.pos(),
-                              f"{label}\nno contributing effects recorded")
-            return
-
-        multiplicative = model.real_field(key) in self.last_rates
-        rows = [f"<b>{label}</b>"]
-        for entry in entries:
-            if multiplicative:
-                shown = f"{(entry.own - 1.0) * 100:+.1f}%"
-            else:
-                shown = f"{entry.own:+g}"
-            rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
-
-        if multiplicative and len(entries) > 1:
-            total = 1.0
-            for entry in entries:
-                total *= entry.own
-            rows.append(f"&nbsp;&nbsp;<i>combined multiplicatively: "
-                        f"{(total - 1.0) * 100:+.1f}%</i>")
-        elif not multiplicative and len(entries) > 1:
-            rows.append(f"&nbsp;&nbsp;<i>total "
-                        f"{sum(entry.own for entry in entries):+g}</i>")
-
-        # Offset to the right of the cursor so the number stays readable.
-        QToolTip.showText(QCursor.pos() + QPoint(18, 0), "<br>".join(rows))
+        text = breakdown_text(model.label_for(key), entries,
+                              model.real_field(key) in self.last_rates)
+        # Offset to the right of the cursor so the number stays readable; the
+        # "nothing recorded" sentence has no number beside it to keep clear.
+        offset = QPoint(18, 0) if entries else QPoint(0, 0)
+        QToolTip.showText(QCursor.pos() + offset, text)
 
     def _rate_rows(self, rates: dict[str, float],
                    weapon_class: str | None = None) -> list[str]:
@@ -470,8 +484,8 @@ class StatSheet(QScrollArea):
         """Where the spell row's figure comes from, and the note it carries.
 
         AK-361: the baseline, the rates that moved it with their relics, the
-        figure -- and exactly one of two sentences, the facade's own, never
-        both and never neither. Handed back rather than only shown, for the
+        figure -- and, for a spell that damages nothing, the facade's
+        sentence saying so. Handed back rather than only shown, for the
         reason `_ar_breakdown_text` is (QA-073 b): a text built straight into
         a tooltip is a text no test can read.
         """
@@ -482,8 +496,6 @@ class StatSheet(QScrollArea):
         # heading and inside the facade's sentence, is escaped here rather
         # than where the facade writes it -- its other sinks are PlainText
         # and would show a `&amp;` of their own (SEC-019).
-        note = rating.reason or damage.SPELL_DAMAGE_UNCALIBRATED.format(
-            name=damage.SPELL_DAMAGE_NAME)
         rows = [f"<b>{damage.SPELL_DAMAGE_NAME} — "
                 f"{html.escape(str(rating.spell.get('name', '')))}</b>",
                 f"&nbsp;&nbsp;Base &nbsp; "
@@ -491,7 +503,9 @@ class StatSheet(QScrollArea):
         rows += self._rate_rows(rating.rates)
         rows.append(f"&nbsp;&nbsp;<b>{damage.SPELL_DAMAGE_NAME} "
                     f"{damage.displayed(rating.figure)}</b>")
-        rows.append(f"<span style='color:{MUTED}'>{html.escape(note)}</span>")
+        if rating.reason:
+            rows.append(f"<span style='color:{MUTED}'>"
+                        f"{html.escape(rating.reason)}</span>")
         return "<br>".join(rows)
 
     def _ar_breakdown_text(self) -> str:
@@ -577,17 +591,21 @@ class StatSheet(QScrollArea):
         beside = QPoint(18, 0) if getattr(self, "last_ar", None) else QPoint()
         QToolTip.showText(QCursor.pos() + beside, self._ar_breakdown_text())
 
-    def _weapon_art_row(self, slot, build, hero, now,
-                        two_handing: bool) -> str:
-        """The same armament under its Weapon Art's factor (AK-354/AK-355).
+    def _weapon_art_row(self, slot, build, hero, now) -> str:
+        """The Weapon art row: what the art in use hits for (AK-416, F1).
 
-        A second call of the facade function that filled the row above, with
-        `art=model.SKILL_ART`; only its equipped half counts. The baseline is
-        deliberately the total above rather than the relic-free figure: what
-        this row asks is what the art adds to what the armament already hits
-        for, so a Strength relic moves both rows alike and leaves this one's
-        difference at `no change`, and a skill-scoped relic (scope 112/111)
-        is the only one that moves it.
+        The art and its figure are the facade's (`damage.weapon_art`,
+        AD-056): one hit, AR x motion value, and one figure with no
+        two-handed twin -- the dummy shows Stamp at 262 either way (M1), so
+        the row does not follow the hand switch. Grey is the same hit with
+        nothing equipped, the yardstick every other row of this panel uses
+        (the panel's own footnote, and the spell row's AK-359); AK-355's
+        "the total above" was a yardstick for a factor on the total and has
+        no meaning for a figure 2.15 times it.
+
+        An art without a figure names itself and says why (AD-056.5); a
+        rolled armament nobody chose an art for gets no row -- the casting
+        bar asks for the choice (AK-412).
 
         AK-356: on a staff or a seal the head of the armament is a spell
         power and no attack art reaches it (AD-048/AD-053 point 5), so the
@@ -597,29 +615,38 @@ class StatSheet(QScrollArea):
         if now.catalyst_scaling is not None:
             return (f"<div style='color:{MUTED}'>"
                     f"{ART_ON_A_CATALYST.format(art=label)}</div>")
-        skill = damage.equipped(slot, self.planner.active_weapon, build, hero,
-                                self.planner.data, art=model.SKILL_ART)[1]
-        delta = skill.final_headline - now.final_headline
+        art = damage.weapon_art(slot, self.planner.active_weapon, build, hero,
+                                self.planner.data)
+        if art.art is None:
+            return ""
+        # Game text in a rich-text label is escaped (SEC-019, AK-419).
+        head = f"{label} ({html.escape(str(art.art.get('name', '')))})"
+        if art.reason:
+            return (f"<div>{head} <span style='color:{MUTED}'>"
+                    f"{html.escape(art.reason)}</span></div>")
+        delta = art.figure - art.bare_figure
         colour = (GOOD if delta > COLOURED_CHANGE
                   else BAD if delta < -COLOURED_CHANGE else MUTED)
         change = (f"{delta:+.0f}" if abs(delta) >= VISIBLE_CHANGE
                   else "no change")
         return (
-            f"<div>{label} <span style='color:{MUTED}'>"
-            f"{now.displayed_hands(lambda r: r.final_headline, two_handing)}"
-            f"</span> <span style='color:{colour}'>{change}</span> "
-            f"<b style='color:{ACCENT}'>"
-            f"{skill.displayed_hands(lambda r: r.final_headline, two_handing)}"
+            f"<div>{head} <span style='color:{MUTED}'>"
+            f"{damage.displayed(art.bare_figure)}</span> "
+            f"<span style='color:{colour}'>{change}</span> "
+            f"<b style='color:{ACCENT}'>{damage.displayed(art.figure)}"
             f"</b></div>"
         )
 
     def _spell_damage_rows(self, slot, build, hero,
                            starting: bool) -> list[str]:
-        """The spell row, where this Nightfarer's own equipment casts one.
+        """The spell row, where the selected tile or this Nightfarer's own
+        equipment casts one.
 
-        AK-353 point 2: the right starting hand, or whichever tile the player
-        has put the starting catalyst on. The first case is what Revenant
-        needs -- his Finger Seal is in the left hand and
+        AK-353 point 2: any staff or seal on the selected tile, at that
+        tile's tier, so that the rows of one tile describe one armament
+        (T-335b: a Duchess or a Raider can pick a staff up). Without one, the
+        right starting hand still gets the starting catalyst's row -- what
+        Revenant needs: his Finger Seal is in the left hand and
         `Planner.apply_hero_weapon` fills one tile, so the seal sits on no
         tile at all and the row still belongs under his claws.
 
@@ -629,22 +656,25 @@ class StatSheet(QScrollArea):
         case (AD-052).
 
         Which catalyst and which spell is the facade's choice and never this
-        panel's (AK-357/AD-052), and the tier is `weapons.MIN_UPGRADE` for
-        the reason the advisor asks at it: what the player has reinforced in
-        this run is not what a spell figure stands on.
+        panel's (AK-357/AD-052). A starting catalyst on no tile has no tier
+        of its own and is asked at `weapons.MIN_UPGRADE`, as the advisor
+        asks it.
         """
         data = self.planner.data
-        catalyst = damage.start_catalyst(hero, data)
-        if catalyst is None or not (starting
-                                    or slot.weapon["id"] == catalyst["id"]):
+        catalyst, own = damage.spell_catalyst(slot.weapon, hero, data)
+        on_tile = catalyst is slot.weapon
+        if catalyst is None or not (on_tile or starting):
             return []
-        thrown = damage.spell_thrown(build, data, catalyst)[0]
+        thrown = damage.spell_thrown(
+            build, data, catalyst, starting=own,
+            chosen=slot.spell_id if on_tile else None)[0]
         if thrown is None:
             return []
         # `damage_type=""`: this panel has no damage-type box, so the figure
         # is every type of the spell together (AK-357).
         rating = damage.spell(
-            thrown, catalyst, weapons.MIN_UPGRADE, build, data,
+            thrown, catalyst, slot.tier if on_tile else weapons.MIN_UPGRADE,
+            build, data,
             hit_with=damage.GENUS_OF_CATALYST[catalyst["wep_type"]])
         self.last_spell = rating
         delta = rating.figure - rating.bare_figure
@@ -697,6 +727,7 @@ class StatSheet(QScrollArea):
                 effects=self.planner.data["effects"], two_handing=two_handing)
 
         slot = self.planner.active_slot()
+        self._refresh_casting(slot, build, hero)
         if not slot.filled:
             self.last_ar = {}
             self.ar_label.setText(
@@ -783,9 +814,8 @@ class StatSheet(QScrollArea):
         # yardsticks, never a sum of them (AK-362).
         starting = damage.is_starting_armament(
             weapon, hero, self.planner.active_weapon)
-        if starting:
-            rows.append(self._weapon_art_row(slot, build, hero, now,
-                                             two_handing))
+        if starting or now.catalyst_scaling is None:
+            rows.append(self._weapon_art_row(slot, build, hero, now))
         rows += self._spell_damage_rows(slot, build, hero, starting)
 
         # Status the armament applies on a landed hit. This belongs with the
@@ -862,6 +892,16 @@ class StatSheet(QScrollArea):
             f"relics add, counting stat gains and attack multipliers.</div>"
         )
         self.ar_label.setText("".join(rows))
+
+    def _refresh_casting(self, slot, build, hero) -> None:
+        """Redraw the casting bar for the active tile, its chips in the tab
+        order between the tiles and the hand switch (AK-413)."""
+        self.casting.show_chips(*castingbar.chips_for(
+            slot, self.planner.active_weapon, build, hero, self.planner.data))
+        chain = [*self.weapon_tiles, *self.casting.chip_widgets,
+                 self.hand_switch]
+        for before, after in zip(chain, chain[1:]):
+            QWidget.setTabOrder(before, after)
 
     def _sync_situational(self, entries: list, declared: dict) -> None:
         """Draw one switch per gated effect, rebuilding only when the set changes.

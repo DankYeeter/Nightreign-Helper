@@ -34,12 +34,6 @@ class ParamTable:
     row_size: int
     rows: list[ParamRow]
 
-    def by_id(self, row_id: int) -> ParamRow | None:
-        for r in self.rows:
-            if r.id == row_id:
-                return r
-        return None
-
 
 def _read_field(data: bytes, base: int, f: Field):
     off = base + f.offset

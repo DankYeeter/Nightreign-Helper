@@ -119,18 +119,9 @@ SPELL_POWER_LABEL = "Spell power"
 
 # What a spell hits for is a different quantity from both of those, so it is
 # named apart from them (AD-053, point 7): the attack rating and the spell
-# power are fitted against figures the game prints, and this one is not.
+# power are what the game prints on the armament, this is what a spell takes
+# off a training dummy.
 SPELL_DAMAGE_NAME = "Spell damage"
-
-# ... and it says so wherever it is shown. The Elden Ring damage formula
-# applied to Nightreign's params is a premise of A26 and not a measurement
-# (user decision OF-54, 2026-09-20): the factors are the game's own, their
-# product has never been compared with a number on screen, and no screen of
-# this game shows one to compare it with.
-SPELL_DAMAGE_UNCALIBRATED = (
-    "{name} is uncalibrated: it is the damage formula applied to the game's "
-    "own values, and the game shows no spell damage to check it against. "
-    "Compare two spells by it, not the figure itself.")
 
 # The spell power is a percentage of the spell's own damage, which is what
 # makes the 100 arithmetic rather than a tuning knob.
@@ -145,6 +136,21 @@ SPELL_POWER_SCALE = 100.0
 NO_SPELL_DAMAGE = (
     "{name} deals no damage, so this is 0.00. Only a relic that swaps the "
     "spell this equipment casts brings damage here.")
+
+# A weapon art's figure is one hit of AR x motion value (AD-056.3); the
+# motion value is a percentage, which makes the 100 arithmetic.
+MOTION_VALUE_SCALE = 100.0
+
+# What an art gets instead of a figure, by why it has none (AD-056.5). Never
+# a 0.00: an art without a figure is not an art that hits for nothing.
+NO_ART_CHOSEN = ("Choose a weapon art for this armament to see what the art "
+                 "hits for.")
+NO_WEAPON_ART = "This armament carries no weapon art."
+ART_DEALS_NO_DAMAGE = "{name} deals no damage."
+ART_NOT_CALIBRATED = ("{name} hits for a fixed figure this program has not "
+                      "calibrated yet.")
+ART_FROM_A_PROJECTILE = ("{name} deals its damage through a projectile this "
+                         "program does not read.")
 
 
 def displayed(figure: float) -> int:
@@ -811,8 +817,8 @@ class SpellRating:
     #: here rather than by every caller in turn.
     damage_type: str
     #: The catalyst's spell scaling -- the figure the game prints on the
-    #: staff, unrounded, and the one factor of this product that *is*
-    #: calibrated (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
+    #: staff, unrounded, and calibrated against that print on its own
+    #: (`weapons.CATALYST_DISPLAY_RATE`, QA-099).
     spell_power: float
     per_type: dict[str, float]
     #: The same product with nothing equipped: the spell's own base damage on
@@ -893,7 +899,8 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     half: the figure is formed here once, and a display or a goal prints
     what it gets back instead of assembling one of its own (AD-019/AD-021).
 
-        figure[T] = base[T] x spell_power / 100 x rate[T] x art_rate
+        figure[T] = floor(base[T] x rate[T] x art_rate)
+                    x spell_power / 100 x GAME_ATTACK_POWER_RATE
 
     and, beside it, the same product with nothing equipped (`bare_per_type`),
     so that a display's before-and-after comes out of one call.
@@ -909,9 +916,15 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
     general `*AttackRate` family and `art_rate` the genus and school buffs,
     both through `_multiplied`, the same loop a swing goes through.
 
-    **The product itself is uncalibrated** and has to be shown as such
-    (`SPELL_DAMAGE_UNCALIBRATED`, OF-54): it is the Elden Ring formula taken
-    as a premise, and nothing the game displays confirms it.
+    **Calibrated against a dummy measurement, 2026-10-31** (OF-54, T-335j):
+    the Elden Ring formula alone hit for 1/0.6 of what the game shows, so the
+    weapons' `weapons.GAME_ATTACK_POWER_RATE` is applied beside the spell
+    power, and the display truncates through `displayed`. Recluse at level 15, Recluse's Staff, no relics: Glintstone
+    Pebble 123 on the dummy and here. The `floor` is a second measurement
+    (T-335u): Pebble 128/138/154 under "Magic Attack Power Up" and one or two
+    "+4", Glintstone Arc 120/134 -- the plain product gave 129 and 155. That
+    the art factor sits inside the `floor` with the relic rates is an
+    assumption: no measurement has separated the two yet.
 
     **Four things deliberately do not reach a spell** (AD-053, point 4), and
     each is an omission rather than an oversight: the class rates -- a spell
@@ -949,9 +962,21 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
             if isinstance(value, (int, float)) and math.isfinite(value)
             and value > 0}
     art = _art_of(spell, hit_with)
-    per_type, rates = _multiplied(
-        {name: value * spell_power / SPELL_POWER_SCALE
-         for name, value in base.items()}, build, art=art)
+
+    def on_screen(power: float, per_type: dict[str, float]
+                  ) -> dict[str, float]:
+        return {name: value * power / SPELL_POWER_SCALE
+                * weapons.GAME_ATTACK_POWER_RATE
+                for name, value in per_type.items()}
+
+    # The game cuts the buffed base to a whole number before the spell power
+    # reaches it (T-335u): six dummy figures agree with that order and not
+    # with the plain product, which showed Pebble at 155 where the game shows
+    # 154 under two "+4" relics.
+    buffed, rates = _multiplied(base, build, art=art)
+    per_type = on_screen(spell_power,
+                         {name: math.floor(value)
+                          for name, value in buffed.items()})
     # The baseline of the same product (AK-359): the catalyst asked again on
     # the level's own attributes, which is the one factor of the four that a
     # bare build changes -- the rates and the art factor are what the build
@@ -964,8 +989,7 @@ def spell(spell: dict, catalyst: dict, tier: int, build: model.Build,
         damage_type=damage_type,
         spell_power=spell_power,
         per_type=per_type,
-        bare_per_type={name: value * bare_power / SPELL_POWER_SCALE
-                       for name, value in base.items()},
+        bare_per_type=on_screen(bare_power, base),
         rates=rates,
         reason=None if base else NO_SPELL_DAMAGE.format(
             name=spell.get("name", "This spell")),
@@ -1023,6 +1047,23 @@ def start_catalyst(hero: dict, data: dict) -> dict | None:
     return None
 
 
+def spell_catalyst(selected: dict | None, hero: dict,
+                   data: dict) -> tuple[dict | None, bool]:
+    """The staff or seal a spell question stands on, and whether it is this
+    Nightfarer's own starting one.
+
+    The armament on the selected tile first, where it is a catalyst: a
+    Raider or a Duchess can pick a staff up and cast from it (user decision
+    28.10.2026, T-335b). Otherwise the starting catalyst (AD-052). The flag
+    is what `spell_thrown` needs: a swap relic swaps the starting
+    armament's spell, so it reaches no other staff.
+    """
+    start = start_catalyst(hero, data)
+    if selected is not None and selected.get("wep_type") in GENUS_OF_CATALYST:
+        return selected, start is not None and start["id"] == selected["id"]
+    return start, start is not None
+
+
 def _base_damage(record: dict, damage_type: str) -> float:
     """What a spell hits for before anything of this build reaches it.
 
@@ -1038,8 +1079,24 @@ def _base_damage(record: dict, damage_type: str) -> float:
     return float(sum(base.values()))
 
 
+def fixed_entry(default: int, pool, starting: bool) -> int | None:
+    """What a slot carries without a choice, or `None` where it is rolled.
+
+    AD-056.4 point 3, for an art and for each spell slot alike: the starting
+    armament carries its own default, a pool of at most one entry is that
+    entry (or the default where it is empty), and a larger pool on any other
+    armament was rolled -- nothing to assume.
+    """
+    if starting or not pool:
+        return default
+    if len(pool) == 1:
+        return pool[0]
+    return None
+
+
 def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
-                 damage_type: str = "") -> tuple[dict | None, int]:
+                 starting: bool, damage_type: str = "",
+                 chosen: int | None = None) -> tuple[dict | None, int]:
     """The spell this equipment casts, and how many relics swapped it.
 
     AD-052 point 2: a relic that swaps the starting armament's spell puts
@@ -1055,22 +1112,181 @@ def spell_thrown(build: model.Build, data: dict, catalyst: dict, *,
     doing rather than this function's, and a case in
     `tests/test_advisor_goals.py` holds it.
 
+    `starting` says whether `catalyst` is the starting one
+    (`spell_catalyst`); any other casts its own spell whatever is swapped.
+
     `damage_type` decides nothing but which of two swapped spells is the
     stronger, so a caller that asks about every type at once (the stat
     sheet) leaves it out.
+
+    `chosen` is the tile's own pick (`WeaponSlot.spell_id`). It counts where
+    it lies in one of this catalyst's `spell_pools` and is dropped otherwise;
+    a swap beats it (AD-056.4). Without one, the first slot that is fixed
+    (`fixed_entry`) is cast -- slot 1 of every catalyst, as measured.
     """
     spells = data.get("spells") or ()
     swapped = [record for record in
                (_record_by_id(spells, magic_id)
                 for magic_id in build.swapped_spell_ids)
-               if record is not None]
+               if record is not None] if starting else []
     if swapped:
         return (max(swapped,
                     key=lambda record: _base_damage(record, damage_type)),
                 len(swapped))
-    slots = catalyst.get(model.SPELL_SLOTS_KEY) or ()
-    first = next((slot for slot in slots if slot != model.NO_SPELL_SLOT), None)
-    return _record_by_id(spells, first), 0
+    pools = catalyst.get("spell_pools") or ()
+    if chosen is not None and any(chosen in pool for pool in pools):
+        return _record_by_id(spells, chosen), 0
+    for index, default in enumerate(catalyst.get(model.SPELL_SLOTS_KEY) or ()):
+        fixed = fixed_entry(
+            default, pools[index] if index < len(pools) else (), starting)
+        if fixed is not None and fixed != model.NO_SPELL_SLOT:
+            return _record_by_id(spells, fixed), 0
+    return None, 0
+
+
+def _strongest_motion(art: dict) -> float:
+    """The yardstick between two swapped arts, as AD-052 point 3 is for
+    spells: the art's own factor, the same for every build."""
+    return max((art.get("motion_value") or {}).values(), default=0)
+
+
+def art_in_use(slot, slot_index: int, build: model.Build, hero: dict,
+               data: dict) -> tuple[dict | None, int]:
+    """The weapon art this tile swings, and how many relics swapped it.
+
+    The one rule (AD-056.4) the stat sheet, the casting bar, the advisor and
+    Why are to ask: a swap relic on the starting armament first, the stronger
+    of two; then the tile's own `art_id` where it lies in this armament's
+    `art_pool`; then what the armament carries fixed (`fixed_entry`). `None`
+    where none of the three applies -- a rolled armament nobody chose for --
+    or where the art is not in the `arts` block.
+    """
+    weapon = slot.weapon
+    arts = data.get("arts") or ()
+    starting = is_starting_armament(weapon, hero, slot_index)
+    swapped = [art for art in (_record_by_id(arts, art_id)
+                               for art_id in build.swapped_art_ids)
+               if art is not None] if starting else []
+    if swapped:
+        return max(swapped, key=_strongest_motion), len(swapped)
+    pool = weapon.get("art_pool") or ()
+    if slot.art_id is not None and slot.art_id in pool:
+        return _record_by_id(arts, slot.art_id), 0
+    fixed = fixed_entry(weapon.get("art_default", -1), pool, starting)
+    return (None if fixed is None else _record_by_id(arts, fixed)), 0
+
+
+@dataclass(frozen=True)
+class ArtRating:
+    """One hit of a weapon art, or the sentence that stands in its place."""
+
+    #: The art in use (`art_in_use`), `None` where there is none.
+    art: dict | None
+    #: One hit per damage type; empty wherever `reason` is set.
+    per_type: dict[str, float]
+    #: The same hit with nothing equipped (`Question.BARE`), the "before" a
+    #: display puts against `per_type`, out of the same call (assurance Z1).
+    bare_per_type: dict[str, float]
+    #: Why there is no figure, else `None` (AD-056.5).
+    reason: str | None
+    #: How many relics swapped the art (`art_in_use`).
+    swaps: int = 0
+
+    @property
+    def figure(self) -> float:
+        return sum(self.per_type.values())
+
+    @property
+    def bare_figure(self) -> float:
+        return sum(self.bare_per_type.values())
+
+
+def _no_art_figure(art: dict | None, rolled: bool,
+                   element_correct: dict) -> str | None:
+    """Why this art gets a sentence and not a number (AD-056.5)."""
+    if art is None:
+        return NO_ART_CHOSEN if rolled else NO_WEAPON_ART
+    if "damage_atk" not in art:
+        return ART_DEALS_NO_DAMAGE.format(name=art["name"])
+    if "damage" in art:
+        # Flame Spit names AttackElementCorrect 1005, which the table lacks.
+        own = art.get("element_correct_id")
+        if own is not None and str(own) not in element_correct:
+            return ART_NOT_CALIBRATED.format(name=art["name"])
+        return None
+    if not art.get("motion_value"):
+        return ART_FROM_A_PROJECTILE.format(name=art["name"])
+    return None
+
+
+def _flat_hit(art: dict, slot, attributes: dict[str, int],
+              data: dict) -> dict[str, float]:
+    """One hit of a flat-class art, before any rate (AD-056 P.7.2).
+
+        flat_hit[T] = damage[T] x (1 + bonus[T]) x GAME_ATTACK_POWER_RATE
+
+    `bonus` is the armament's attribute scaling, read through the art's own
+    AttackElementCorrect row where it has one. No `reinforce.atk` on the
+    flat figure and no Nightfarer calibration: Glintblade Phalanx hit 34 per
+    blade on a grey Magic Longsword (M5), and whether the figure grows with
+    the tier is unmeasured (M6, `docs/plan-restarbeiten.md`).
+    """
+    flat = art["damage"]
+    stand_in = {**slot.weapon, "base": flat,
+                "element_correct_id": art.get(
+                    "element_correct_id", slot.weapon.get("element_correct_id"))}
+    _, _, _, per_damage = weapons._rate_shared(stand_in, attributes, data,
+                                               slot.tier, "")
+    return {damage: flat[damage] * (1 + bonus)
+            * weapons.GAME_ATTACK_POWER_RATE
+            for damage, (_, bonus) in per_damage.items()}
+
+
+def weapon_art(slot, slot_index: int, build: model.Build, hero: dict,
+               data: dict) -> ArtRating:
+    """What the tile's weapon art hits for, one hit (AD-056.3).
+
+        art_hit[T] = final_per_type[T] x motion_value[T] / 100
+
+    on the armament's one-handed figure under `art=SKILL_ART`, so the
+    starting conversion, the relic rates and the skill rates are already in
+    it and the motion value is the one factor after them. **One figure, no
+    two-handed twin**: Stamp hits the dummy for 262 one- and two-handed
+    alike (measured 31.10. 12:59, M1), so the hand does not reach an art.
+    Assumed and not measured: the row `SwordArtsParam.atkParamId` names is
+    the main hit (AD-056.3 b).
+
+    A flat-class art (`damage` instead of `motion_value`) is `_flat_hit`
+    under the same rates, one hit as well: Glintblade Phalanx's four blades
+    are four figures, each truncated on its own (P.7.2).
+    """
+    art, swaps = art_in_use(slot, slot_index, build, hero, data)
+    starting = is_starting_armament(slot.weapon, hero, slot_index)
+    rolled = art is None and fixed_entry(
+        slot.weapon.get("art_default", -1), slot.weapon.get("art_pool") or (),
+        starting) is None
+    reason = _no_art_figure(art, rolled, data["element_correct"])
+    if reason is not None:
+        return ArtRating(art, {}, {}, reason, swaps)
+    if "damage" in art:
+        bare = _flat_hit(art, slot, build.base_attributes, data)
+        now, _ = _multiplied(
+            _flat_hit(art, slot, build.attributes, data), build,
+            art=model.SKILL_ART,
+            buckets=[build.class_rates.get(
+                model.weapon_class(slot.weapon), {})],
+            starting_armament=starting)
+        return ArtRating(art, now, bare, None, swaps)
+    motion = art["motion_value"]
+    bare, now = equipped(slot, slot_index, build, hero, data,
+                         art=model.SKILL_ART)
+
+    def hit(hand: Rating) -> dict[str, float]:
+        return {damage: value * motion[damage] / MOTION_VALUE_SCALE
+                for damage, value in hand.final_per_type.items()
+                if damage in motion}
+
+    return ArtRating(art, hit(now), hit(bare), None, swaps)
 
 
 def candidate(weapon: dict, target_tier: int, build: model.Build,

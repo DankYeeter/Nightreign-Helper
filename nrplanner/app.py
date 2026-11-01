@@ -6,7 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QProcess, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import QPoint, QProcess, QRect, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -38,7 +38,8 @@ from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import StatSheet, _heading
-from .theme import ACCENT, BORDER, MUTED, PANEL, SLOT_COLOURS
+from .theme import (ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL,
+                    SLOT_COLOURS)
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -62,10 +63,10 @@ PANE_DEFAULTS = (430, 520, 370)
 OPENING_HEIGHT = 860
 
 #: The share of the screen's available width the window opens at, once that
-#: share is narrower than the layout's own need (AK-350). Below the most
-#: common desktop width (1920 px) this leaves the row unshortened; above it
-#: a suggestion still trims the status line, then the boxes, per AK-351. Not
-#: a user decision yet -- see UI_SPEC.md AK-350 "Offene Frage".
+#: share is narrower than the layout's own need (AK-350). Up to the most
+#: common desktop width (1920 px) the advisor row opens on two lines, nothing
+#: in it shortened but the status line (AK-352, T-334n). Not a user decision
+#: yet -- see UI_SPEC.md AK-350 "Offene Frage".
 OPENING_WIDTH_SCREEN_RATIO = 0.9
 
 #: The least the window opens at on any screen, however narrow (AK-271).
@@ -75,19 +76,6 @@ TILE_SIZE = 50
 TILE_PAD = 6
 VARIANT_STRIP = 46
 
-#: What the Nightfarer's name is set in on its tile, in points (QA-155).
-#:
-#: The ten portraits carried no text at all, so a player had to click one and
-#: read the answer somewhere else to find out whom he had picked. The name has
-#: to fit the tile it names: the tile is `TILE_SIZE + TILE_PAD` wide and the
-#: five columns of the grid have to stay inside the sidebar's 300 px floor, so
-#: widening the tile would push the whole window's minimum out. Measured on
-#: Windows under Fusion at 150 % scale, in logical px: the widest of the ten
-#: names, `Undertaker`, asks 59 px at the default 9 pt, 54 at 8 and 44 at 7,
-#: against the 52 px a 56 px tile has inside its border. Seven is the size at
-#: which all ten stand whole; Qt shortens anything that does not fit and the
-#: tooltip has carried the full name all along.
-NAME_POINT_SIZE = 7
 
 def _dark_palette() -> QPalette:
     p = QPalette()
@@ -233,6 +221,13 @@ FIND_MY_SAVE_TOOLTIP = ("Your save is a file called NR0000.sl2, in a folder "
                         "named Nightreign under your Windows user profile. "
                         "This opens there.")
 
+#: AK-407: `Rescan save` repeats the last search, so it helps after playing;
+#: while `Find my save...` stands, the save may be elsewhere and the tooltip
+#: says so.
+RESCAN_TOOLTIP = ("Read your save again, from the file read last. Use it "
+                  "after you played.")
+RESCAN_TOOLTIP_NONE_FOUND = " If none was found, use Find my save."
+
 #: AK-296: the fixed sentences of the vessel list's tooltips, word for word
 #: out of `UI_SPEC` 4.4. A player picked "Wylder's Chalice" because the name
 #: sounded most like a chalice (QA-173); nothing told him the vessels differ
@@ -273,9 +268,38 @@ def vessel_tooltip(vessel: dict, worn: bool) -> str:
     return "\n".join(lines)
 
 
+#: The title's addition for a snapshot not checked against the installed game,
+#: and the same without a day when none could be read (AK-393).
+UNCHECKED_DATA = "  —  data from {day}, not checked against your installed game"
+UNCHECKED_DATA_NO_DAY = "  —  data not checked against your installed game"
+
+
+def unchecked_data(day: str) -> str:
+    """The title's addition, never `data from , not checked` (AK-393)."""
+    return UNCHECKED_DATA.format(day=day) if day else UNCHECKED_DATA_NO_DAY
+
+#: The Deep of Night switch, and what it adds while a slot it hides had to
+#: give up a relic another slot already wears (QA-030, director 2026-09-02):
+#: the slot's own note is off screen then, so the switch carries it.
+DEEP_SWITCH = "Deep of Night (3 extra slots)"
+DEEP_SLOT_EMPTIED = " — {count} left empty"
+DEEP_SLOT_EMPTIED_TOOLTIP = ("A Deep of Night slot of this build names a relic "
+                             "that is already worn in another slot, so it was "
+                             "left empty. Turn Deep of Night on to see it.")
+DEEP_SLOTS_EMPTIED_TOOLTIP = ("Deep of Night slots of this build name relics "
+                              "that are already worn in other slots, so they "
+                              "were left empty. Turn Deep of Night on to see "
+                              "them.")
+
 #: S3, the second of the three exits (AK-124): the file was read and holds
 #: nothing. Not a failure, and it says the one thing that explains it -- two
 #: Steam accounts, which is the case this whole flow exists for.
+#: The same exit on the automatic route, where no file was chosen and "That
+#: save" would point at nothing (QA-008, AK-388).
+SAVES_HOLD_NOTHING = ("Your save has no relics in it yet. If you play on more "
+                      "than one Steam account, they may be in another save — "
+                      "use Find my save.")
+
 CHOSEN_SAVE_IS_EMPTY = ("That save has no relics in it yet. If you play on "
                         "more than one Steam account, this may be the wrong "
                         "one.")
@@ -337,6 +361,18 @@ OWNED_TOTAL_TOOLTIP = ("Counted from your save {source}. The number beside a "
                        "relic slot counts only the relics that fit that slot.")
 
 
+#: How many letters of a saved build's name its confirmation shows (AK-381).
+SAVED_NAME_SHOWN = 40
+#: How long a hint anchored under a widget stands, in ms (AK-381, AK-382).
+HINT_MS = 4000
+
+
+def _hint_under(widget: QWidget, text: str) -> None:
+    """A tooltip hint under `widget`, not at the pointer (AK-381, AK-382)."""
+    QToolTip.showText(widget.mapToGlobal(QPoint(0, widget.height())), text,
+                      widget, QRect(), HINT_MS)
+
+
 class HeroTile(QToolButton):
     """One portrait in the 2x5 Nightfarer grid, with the name under it.
 
@@ -386,7 +422,9 @@ class HeroTile(QToolButton):
             f"QToolButton:checked {{ border: 2px solid {ACCENT};"
             f" color: {ACCENT}; }}"
         )
-        self.setToolTip(f"{hero['name']}\nRight-click to change the artwork")
+        # Escaped inside a span, so it is rendered as text (SEC-019).
+        self.setToolTip(f"<span>{html.escape(hero['name'])}<br>"
+                        "Right-click to change the artwork</span>")
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_variants)
 
@@ -448,6 +486,88 @@ class HeroTile(QToolButton):
             self._apply_image()
 
 
+def deep_switch_note(hidden: int) -> tuple[str, str]:
+    """The Deep of Night switch's text and tooltip with `hidden` slots left
+    empty out of sight (QA-030, AK-390). The number counts slots."""
+    if not hidden:
+        return DEEP_SWITCH, ""
+    return (DEEP_SWITCH + DEEP_SLOT_EMPTIED.format(count=hidden),
+            DEEP_SLOT_EMPTIED_TOOLTIP if hidden == 1
+            else DEEP_SLOTS_EMPTIED_TOOLTIP)
+
+
+def placement_reasons(unfit: int, clashed: int, missing: int) -> str:
+    """The sentences `Load equipped` adds, one per reason it happened for.
+
+    "Could not be placed" on its own left the player to guess, and the guess
+    it invited was that the program had lost the relic. With two reasons the
+    second says `other`, so one line never opens two sentences alike
+    (QA-031, AK-391).
+    """
+    note = ""
+    if unfit:
+        fit = ("it does not fit the slot the save has it in" if unfit == 1
+               else "they do not fit the slots the save has them in")
+        note += f" {_relic_count(unfit)} could not be placed: {fit}."
+    if clashed:
+        worn = "it is" if clashed == 1 else "they are"
+        relics = "relic" if clashed == 1 else "relics"
+        other = "other " if unfit else ""
+        note += (f" {clashed} {other}{relics} could not be placed: "
+                 f"{worn} already worn in another slot.")
+    # Not an empty slot: the save names a relic the inventory no longer
+    # holds (QA-027).
+    if missing:
+        are = "is" if missing == 1 else "are"
+        note += (f" {_relic_count(missing)} the save has equipped "
+                 f"{are} no longer in your inventory.")
+    return note
+
+
+class BuildRow(QWidget):
+    """The saved-build line: one line while every part fits at its own
+    width, otherwise `Show hidden` under the field (AK-405, QA-304).
+
+    The block above the advisor row is `Ignored` horizontally, so a single
+    `QHBoxLayout` here was squeezed below its own minimum and laid its
+    buttons over the field. `Show hidden` moves first because it is the
+    least used: the field and its three buttons keep their width.
+    """
+
+    SPACING = 6
+
+    def __init__(self, label: QLabel, box: QComboBox,
+                 buttons: list[QPushButton], show_hidden: QCheckBox):
+        super().__init__()
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setSpacing(self.SPACING)
+        self._grid.setColumnStretch(1, 1)
+        self._box = box
+        self._parts = [label, box, *buttons, show_hidden]
+        for column, part in enumerate(self._parts):
+            self._grid.addWidget(part, 0, column)
+        self.wrapped = False
+
+    def one_line_width(self) -> int:
+        """The width all six parts need side by side, the field at its floor."""
+        widths = [self._box.minimumWidth() if part is self._box
+                  else part.sizeHint().width() for part in self._parts]
+        return sum(widths) + self.SPACING * (len(widths) - 1)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        wrap = event.size().width() < self.one_line_width()
+        if wrap != self.wrapped:
+            self.wrapped = wrap
+            show_hidden = self._parts[-1]
+            self._grid.removeWidget(show_hidden)
+            if wrap:
+                self._grid.addWidget(show_hidden, 1, 1, Qt.AlignLeft)
+            else:
+                self._grid.addWidget(show_hidden, 0, len(self._parts) - 1)
+        super().resizeEvent(event)
+
+
 class Planner(QMainWindow):
     def __init__(self, data: dict, *, read_save=None):
         """The window, and what it reads the save with.
@@ -468,6 +588,10 @@ class Planner(QMainWindow):
         self.curves = data.get("curves", {})
         self.icons = IconPack()
         self.hero_index = 0
+        # AK-382: `hero_index` starts at 0, so whether a Nightfarer has been
+        # chosen at all is its own fact -- the first choice runs in full,
+        # even for index 0.
+        self._hero_chosen = False
         # The six armament tiles, and one saved set per Nightfarer. Slot 1
         # defaults to that Nightfarer's starting armament, but anything you
         # build is kept for the rest of the session, so switching Nightfarer
@@ -503,6 +627,9 @@ class Planner(QMainWindow):
         # slot holds the same physical one. The stored build is then left as
         # it was, so the player can still decide which slot keeps it.
         self._unresolved_clash = False
+        # Set while the player's own move is being stored: a set of slots he
+        # emptied himself is his build, and is written like any other.
+        self._player_moved_a_relic = False
         # What every slot held before the answer on screen was first applied,
         # as stored keys, or None while there is nothing to undo. Taken once
         # per answer and not once per applying: `Use` on three slots one after
@@ -527,10 +654,15 @@ class Planner(QMainWindow):
         # The tool's own version does belong in the title: it is the one thing
         # a bug report needs and the one thing a reporter cannot look up after
         # the fact.
-        stale = data.get("meta", {}).get("regenerated")
+        # A snapshot nobody could check against the game says so, with the
+        # day it was read (QA-171, AK-119): its figures may be a patch old.
+        meta = data.get("meta", {})
         self.setWindowTitle(
             f"Nightreign Helper {__version__}"
-            + ("  —  updated for your installed game version" if stale else "")
+            + ("  —  updated for your installed game version"
+               if meta.get("regenerated") else "")
+            + (unchecked_data(firstrun.the_day_the_data_was_read())
+               if meta.get("stale_check_failed") else "")
         )
         # No resize here. The opening width is derived from the effect
         # table, which does not exist yet -- see showEvent.
@@ -608,6 +740,8 @@ class Planner(QMainWindow):
         # same road: `recompute` stores it and tells the advisor (AK-293.5).
         self.stat_sheet.hand_switch.toggled.connect(
             lambda _on: self.recompute())
+        self.stat_sheet.casting.art_chosen.connect(self._choose_art)
+        self.stat_sheet.casting.spell_chosen.connect(self._choose_spell)
         self.panes.addWidget(self.stat_sheet)
         self.apply_hero_weapon()
         self._wire_the_advisor()
@@ -658,6 +792,9 @@ class Planner(QMainWindow):
         # Session state and nothing else -- OF-15 is why nothing new goes
         # into the settings store beyond the one path key.
         self._answers_a_chosen_save = False
+        #: A save was read and held no relics (AK-389): the effect filter and
+        #: the relic picker must not say "No save was read" then.
+        self.save_holds_no_relics = False
         self.save_reader = savereader.SaveReader(self, read=read_save)
         self.save_reader.ready.connect(self._on_save_read)
         self.save_reader.failed.connect(self._on_save_failed)
@@ -770,7 +907,7 @@ class Planner(QMainWindow):
         self.chalice_list.currentRowChanged.connect(lambda *_: self.apply_chalice())
         layout.addWidget(self.chalice_list, 1)
 
-        self.deep_check = QCheckBox("Deep of Night (3 extra slots)")
+        self.deep_check = QCheckBox(DEEP_SWITCH)
         self.deep_check.toggled.connect(self._on_deep_toggled)
         layout.addWidget(self.deep_check)
 
@@ -827,8 +964,8 @@ class Planner(QMainWindow):
         self.find_save_button = QPushButton(FIND_MY_SAVE)
         self.find_save_button.setToolTip(FIND_MY_SAVE_TOOLTIP)
         self.find_save_button.clicked.connect(self.find_my_save)
-        self.find_save_button.setVisible(False)
         row.addWidget(self.find_save_button)
+        self._offer_to_find_the_save(False)
         layout.addLayout(row)
 
         self.owned_label = QLabel()
@@ -925,27 +1062,25 @@ class Planner(QMainWindow):
         # Saved builds. The scratchpad -- whatever is in the slots now -- is
         # still restored on launch; this is for keeping several worked-out
         # builds and flipping between them to compare.
-        builds = QHBoxLayout()
-        builds.setSpacing(6)
-        builds.addWidget(QLabel("Build"))
         self.build_box = QComboBox()
         self.build_box.setMinimumWidth(180)
         self.build_box.activated.connect(self._on_build_chosen)
-        builds.addWidget(self.build_box, 1)
+        # A long name is cut by the field; the tooltip carries all of it,
+        # escaped because the player typed it (AK-405, SEC-013).
+        self.build_box.currentTextChanged.connect(
+            lambda text: self.build_box.setToolTip(
+                f"<span>{html.escape(text)}</span>" if text else ""))
         save_build = QPushButton("Save")
         save_build.setToolTip("Save the slots as they are under a name")
         save_build.clicked.connect(self._save_build)
-        builds.addWidget(save_build)
         self.delete_build_button = QPushButton("Delete")
         self.delete_build_button.setToolTip("Forget the selected saved build")
         self.delete_build_button.clicked.connect(self._delete_build)
-        builds.addWidget(self.delete_build_button)
         self.hide_build_button = QPushButton("Hide")
         self.hide_build_button.setToolTip(
             "Keep this build out of the list without deleting it — "
             "Show hidden lists it again")
         self.hide_build_button.clicked.connect(self._toggle_hidden_build)
-        builds.addWidget(self.hide_build_button)
         # Hiding was one-way. The build left the list as soon as anything else
         # was selected and nothing anywhere offered it back, so the only route
         # a player found was to save a new build under the same name -- which
@@ -956,8 +1091,11 @@ class Planner(QMainWindow):
             "unhidden")
         self.show_hidden_check.toggled.connect(
             lambda *_: self.refresh_build_list())
-        builds.addWidget(self.show_hidden_check)
-        layout.addLayout(builds)
+        self.build_row = BuildRow(
+            QLabel("Build"), self.build_box,
+            [save_build, self.delete_build_button, self.hide_build_button],
+            self.show_hidden_check)
+        layout.addWidget(self.build_row)
         stack.addWidget(top)
 
         # The advisor's row, between the "Build" line and the hint and
@@ -1203,8 +1341,11 @@ class Planner(QMainWindow):
         the only thing the width had to be told about; a second pair beside
         `goal_box` took that slack, and the status line went to 0 px at the
         width the window opens at -- which is what AK-194 forbids. Both
-        terms are measured off the row rather than written here, so a later
-        entry that makes a box wider moves the opening width with it.
+        terms are the `sizeHint` widths of the controls they add (AK-401),
+        not a difference of the row's minimum, which is one constant figure
+        since the row breaks into two lines (AK-400); read off the row rather
+        than written here, so a later entry that makes a box wider moves the
+        opening width with it.
         """
         return (self._width_around_the_effect_table()
                 + self.advisor_bar.action_buttons_extra_width()
@@ -1257,6 +1398,7 @@ class Planner(QMainWindow):
         restart = box.addButton("Restart now", QMessageBox.AcceptRole)
         box.addButton("Later", QMessageBox.RejectRole)
         box.exec()
+        box.deleteLater()
         if box.clickedButton() is restart:
             self._restart()
 
@@ -1316,6 +1458,15 @@ class Planner(QMainWindow):
         return self.heroes[self.hero_index]
 
     def select_hero(self, index: int) -> None:
+        if self._hero_chosen and index == self.hero_index:
+            # AK-382: nothing to load. The click unticked the tile; tick it
+            # back and say why nothing else happened.
+            tile = self.hero_tiles[index]
+            tile.setChecked(True)
+            _hint_under(tile, f"{self.heroes[index]['name']} is already "
+                              f"selected.")
+            return
+        self._hero_chosen = True
         self.hero_index = index
         for i, tile in enumerate(self.hero_tiles):
             tile.setChecked(i == index)
@@ -1368,12 +1519,25 @@ class Planner(QMainWindow):
         self._store_weapon_loadout()
         self.recompute()
 
+    def _choose_art(self, art_id: int) -> None:
+        """The casting bar picked an art for the active tile (AK-414)."""
+        self.active_slot().art_id = art_id
+        self._store_weapon_loadout()
+        self.recompute()
+
+    def _choose_spell(self, spell_id: int) -> None:
+        """The casting bar picked a spell for the active tile (AK-414)."""
+        self.active_slot().spell_id = spell_id
+        self._store_weapon_loadout()
+        self.recompute()
+
     def _edit_weapon_slot(self, index: int) -> None:
         dialog = weaponslots.WeaponDialog(
             self, self.data, self.weapon_slots[index], self.icons)
         if dialog.exec():
             self.weapon_slots[index] = dialog.result_slot()
             self._store_weapon_loadout()
+        dialog.deleteLater()
         self.recompute()
 
     def apply_hero_weapon(self) -> None:
@@ -1707,6 +1871,10 @@ class Planner(QMainWindow):
         claimed = set()
         rolls = []
         for index, slot in enumerate(slots):
+            # A custom relic belongs to the build, not to the slot: one the
+            # incoming build does not name must not be offered by it
+            # (QA-028, director 2026-09-02). One it names is rebuilt below.
+            slot.custom_item = None
             key = keys[index] if index < len(keys) else ""
             if not key:
                 slot.clear_relic()
@@ -1755,10 +1923,13 @@ class Planner(QMainWindow):
         chalices.save_view(self.current_hero()["id"],
                            vessel["id"] if vessel else None,
                            self.deep_check.isChecked())
-        # The build itself is not. An empty set of slots is never written
-        # over a stored one -- Reset Chalice is how a build is forgotten,
-        # deliberately and per vessel.
-        if not any(keys):
+        # The build itself is not. An empty set of slots a restore left behind
+        # is never written over a stored one -- Reset Chalice is how a build
+        # is forgotten, deliberately and per vessel. One the player emptied
+        # himself is written: following "Already worn in Slot N" empties the
+        # last slot, and keeping the stored build brought the doubling back
+        # (QA-030, user 2026-10-31).
+        if not any(keys) and not getattr(self, "_player_moved_a_relic", False):
             return
         # Nor is a build the restore had to resolve. It names one physical
         # relic in two slots; which slot keeps it is the player's to decide,
@@ -1920,6 +2091,7 @@ class Planner(QMainWindow):
             return
         vessel = self.current_vessel()
         slots = list(self.base_slots) + list(self.deep_slots)
+        existed = name in chalices.build_names(self.current_hero()["id"])
         chalices.save_build(
             self.current_hero()["id"], name,
             vessel["id"] if vessel else None,
@@ -1929,6 +2101,12 @@ class Planner(QMainWindow):
         )
         chalices.set_selected_build(self.current_hero()["id"], name)
         self.refresh_build_list(keep=name)
+        # AK-381: at the list that changed, not at the pointer, which stands
+        # where the name dialog was.
+        shown = (name if len(name) <= SAVED_NAME_SHOWN
+                 else name[:SAVED_NAME_SHOWN] + "…")
+        _hint_under(self.build_box, f'Saved over "{shown}".' if existed
+                    else f'Saved "{shown}".')
 
     def _delete_build(self) -> None:
         name = self.build_box.currentData()
@@ -2155,6 +2333,7 @@ class Planner(QMainWindow):
         """
         worn_in: dict = {}
         resolved = 0
+        hidden = 0
         for slot in self.base_slots + self.deep_slots:
             # An empty slot and a custom relic both answer None: the one has
             # nothing to clash with, the other is imaginary by design and may
@@ -2165,6 +2344,8 @@ class Planner(QMainWindow):
             keeper = worn_in.setdefault(key, slot)
             if keeper is not slot:
                 resolved += 1
+                hidden += (slot in self.deep_slots
+                           and not self.deep_check.isChecked())
                 # The reason is about the keeper, so it is kept with the
                 # condition it describes: the moment that slot gives the relic
                 # up, this one has nothing to explain any more (QA-022).
@@ -2181,6 +2362,9 @@ class Planner(QMainWindow):
         # -- the note is gone by then and nothing records that a slot was
         # emptied (director, 2026-09-02).
         self._unresolved_clash = bool(resolved)
+        text, tooltip = deep_switch_note(hidden)
+        self.deep_check.setText(text)
+        self.deep_check.setToolTip(tooltip)
         return resolved
 
     def _mark_vessel_applied(self) -> None:
@@ -2313,7 +2497,11 @@ class Planner(QMainWindow):
         self._unresolved_clash = False
         for slot in self.base_slots + self.deep_slots:
             slot.populate()
-        self.recompute()
+        self._player_moved_a_relic = True
+        try:
+            self.recompute()
+        finally:
+            self._player_moved_a_relic = False
 
     def rescan_save(self, initial: bool = False) -> None:
         """Ask for the save to be read, in the background, and say so.
@@ -2388,7 +2576,7 @@ class Planner(QMainWindow):
         """
         self.owned_label.setText(
             READING_THE_SAVE if initial else READING_THE_SAVE_AGAIN)
-        self.find_save_button.setVisible(False)
+        self._offer_to_find_the_save(False)
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(True)
 
@@ -2462,17 +2650,23 @@ class Planner(QMainWindow):
         every one of them was right.
         """
         self.the_advisor_data_is_changing()
-        self.owned = None if found is None else inventory.build(self.data, found)
+        saves_hold_nothing = found is savereader.SAVES_HOLD_NO_RELICS
+        self.owned = (None if found is None or saves_hold_nothing
+                      else inventory.build(self.data, found))
+        self.save_holds_no_relics = self.owned is None and (
+            self._answers_a_chosen_save or saves_hold_nothing)
         self._the_save_has_been_read()
         if self.owned is None:
             # Two of the three exits of AK-124 meet here. For a file the
             # player picked, "nothing came back" means that file holds no
             # relics -- S3, and the reason for it is the one he can act on.
-            # Without a choice behind it, it means no save was found at all.
+            # Without a choice behind it, it means no save was found at all,
+            # unless the reading found files with nothing in them (QA-008).
             self.owned_label.setText(
                 CHOSEN_SAVE_IS_EMPTY if self._answers_a_chosen_save
+                else SAVES_HOLD_NOTHING if saves_hold_nothing
                 else NO_SAVE_FOUND)
-            self.find_save_button.setVisible(True)
+            self._offer_to_find_the_save(True)
             return
 
         note = (f"{self.owned.relic_count} relics in {self.owned.source}"
@@ -2502,7 +2696,7 @@ class Planner(QMainWindow):
         # unless the note just said other saves were passed over, in which
         # case the button is the way to one of them (AK-366, decision
         # 22.09.2026).
-        self.find_save_button.setVisible(bool(self.owned.other_saves))
+        self._offer_to_find_the_save(bool(self.owned.other_saves))
         # reload_chalices, not apply_chalice: the relics have just changed
         # underneath the slots, so the saved build has to be matched
         # against the new inventory rather than left pointing at the old.
@@ -2545,11 +2739,18 @@ class Planner(QMainWindow):
         """
         self.the_advisor_data_is_changing()
         self.owned = None
+        self.save_holds_no_relics = False
         self._the_save_has_been_read()
         self.owned_label.setText(
             f"{CHOSEN_SAVE_UNREADABLE}\n{reason}" if self._answers_a_chosen_save
             else f"{UNREADABLE_SAVE}{reason}")
-        self.find_save_button.setVisible(True)
+        self._offer_to_find_the_save(True)
+
+    def _offer_to_find_the_save(self, offered: bool) -> None:
+        """Show or hide `Find my save...`; `Rescan save`'s tooltip follows."""
+        self.find_save_button.setVisible(offered)
+        self.rescan_button.setToolTip(
+            RESCAN_TOOLTIP + (RESCAN_TOOLTIP_NONE_FOUND if offered else ""))
 
     def load_equipped(self) -> None:
         """Load the current Nightfarer's equipped loadout out of the save.
@@ -2667,8 +2868,8 @@ class Planner(QMainWindow):
         # second was not in any list and could not be placed at all (QA-021).
         #
         # A relic the save names and the inventory no longer has arrives here
-        # as None, indistinguishable from an empty slot, so what is left when
-        # a placement fails is a relic this slot will not take: the wrong
+        # as None like an empty slot and is counted in `loadout.missing`
+        # instead (QA-027), so what is left when a placement fails is a relic this slot will not take: the wrong
         # colour for it, or the wrong side of Deep of Night. That is what is
         # said, because it is what happened.
         unfit = 0
@@ -2704,26 +2905,18 @@ class Planner(QMainWindow):
             note = (f"Loaded {hero['name']} — {count}, showing the equipped "
                     f"{vessel_name} with {_relic_count(placed)}"
                     f"{' (Deep of Night)' if loadout.deep_used else ''}.")
-        elif unfit or clashed:
-            note = (f"Loaded {hero['name']} — {count}. Nothing the equipped "
-                    f"{vessel_name} holds in game could be placed.")
+        elif unfit or clashed or loadout.missing:
+            # Only that it is empty: the reasons follow, each said once
+            # (QA-031).
+            note = (f"Loaded {hero['name']} — {count}. The equipped "
+                    f"{vessel_name} is shown empty.")
         elif imported:
             note = (f"Loaded {hero['name']} — {count}. The equipped "
                     f"{vessel_name} is empty in game; the others are in the "
                     "list on the left.")
         else:
             note = (f"Loaded {hero['name']} — every chalice is empty in game.")
-        # Each with the reason it happened for. "Could not be placed" on its
-        # own left the player to guess, and the guess it invited was that the
-        # program had lost the relic.
-        if unfit:
-            fit = ("it does not fit the slot the save has it in" if unfit == 1
-                   else "they do not fit the slots the save has them in")
-            note += f" {_relic_count(unfit)} could not be placed: {fit}."
-        if clashed:
-            worn = "it is" if clashed == 1 else "they are"
-            note += (f" {_relic_count(clashed)} could not be placed: "
-                     f"{worn} already worn in another slot.")
+        note += placement_reasons(unfit, clashed, loadout.missing)
         # The button to the passed-over saves is still there, so the line
         # that explains it has to be as well (AK-366, QA-004). The clause
         # takes the place of the full stop, never ". —" (23.09.2026).
@@ -2762,7 +2955,8 @@ class Planner(QMainWindow):
             # AK-274: the card's own `Why` opens the very dialog the bar's
             # does -- same handler, so there is no second account to keep in
             # step with the first.
-            card.suggestion.why_requested.connect(self.open_why)
+            card.suggestion.why_requested.connect(
+                lambda slot=card: self.open_why(slot))
 
     def _the_suggestion_changed(self, result) -> None:
         """A different answer stands, or none does.
@@ -3048,13 +3242,16 @@ class Planner(QMainWindow):
                                      if group.slot_index == held_favourite_slot
                                      else ""))
 
-    def open_why(self) -> None:
+    def open_why(self, card=None) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
 
         The head of the dialog names four things no result carries -- who
         is being built, on which vessel, with Deep of Night on or off, and
         out of how many relics -- so they are read off this window at the
         moment the dialog opens.
+
+        `card` is the slot whose `Why this relic` asked; the dialog then
+        stands on that slot's group (AK-379).
         """
         result = self.advisor_bar.answer
         if result is None:
@@ -3067,9 +3264,13 @@ class Planner(QMainWindow):
             deep=self.deep_check.isChecked(),
             relics=0 if self.owned is None else self.owned.relic_count,
         )
-        advisorblock.WhyDialog(heading, result, self,
-                               filters=self.effect_filters,
-                               effects=self.effects).exec()
+        slots = self._all_slots()
+        dialog = advisorblock.WhyDialog(
+            heading, result, self, filters=self.effect_filters,
+            effects=self.effects,
+            slot_index=slots.index(card) if card in slots else None)
+        dialog.exec()
+        dialog.deleteLater()
 
     def open_effect_filters(self) -> None:
         """The effect filter window (AK-302/AK-303), over what is owned now.
@@ -3086,9 +3287,13 @@ class Planner(QMainWindow):
         reason = "" if rows else (
             effectfilterdialog.SAVE_HAS_NO_RELICS
             if self.owned is not None or self._answers_a_chosen_save
+            else effectfilterdialog.YOUR_SAVE_HAS_NO_RELICS
+            if self.save_holds_no_relics
             else effectfilterdialog.NO_SAVE_WAS_READ)
-        effectfilterdialog.EffectFilterWindow(self.effect_filters, rows,
-                                              reason, self).exec()
+        dialog = effectfilterdialog.EffectFilterWindow(
+            self.effect_filters, rows, reason, self)
+        dialog.exec()
+        dialog.deleteLater()
 
     def active_slots(self) -> list:
         slots = list(self.base_slots)

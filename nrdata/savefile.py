@@ -6,6 +6,7 @@ with a static key, the IV being the member's own first 16 bytes.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import pathlib
 import struct
@@ -33,7 +34,7 @@ class SaveSlot:
     index: int
     name: str
     raw: bytes           # encrypted member as stored
-    data: bytes          # decrypted payload, checksum stripped
+    data: bytes          # decrypted and checked, see decrypt_member
 
 
 def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
@@ -116,25 +117,44 @@ def _members(blob: bytes) -> list[tuple[int, str, int, int]]:
     return out
 
 
-def decrypt_member(blob: bytes, key: bytes = SAVE_KEY) -> bytes:
-    """Decrypt one member and strip its length prefix and trailing MD5."""
-    iv, body = blob[:16], blob[16:]
-    body = body[: len(body) // 16 * 16]
-    plain = AES.new(key, AES.MODE_CBC, iv).decrypt(body)
+#: The MD5 at the end of a member's payload. Layout of a decrypted member:
+#: u32 `length`, then `length` bytes -- the slot's data followed by the MD5 of
+#: that data -- then PKCS#7 padding. Measured on 28 of 28 members of two real
+#: saves (`NR0000.sl2` and its `.bak`, T-334i, 13.10.2026). T-115 counted 0
+#: of 28; the layout written here before took `length` for the data alone,
+#: which puts the MD5 16 bytes off (QA-007).
+CHECKSUM_SIZE = 16
 
-    # Layout: u32 payload length, payload, 16-byte MD5 of the payload.
-    (length,) = struct.unpack_from("<I", plain, 0)
-    if not (0 < length <= len(plain) - 20):
+
+def decrypt_member(raw: bytes) -> bytes:
+    """One member decrypted and its checksum checked, length prefix kept.
+
+    The whole plaintext comes back because the record offsets the readers
+    use count from its first byte. A plaintext of nothing but zeros is a
+    slot the game never wrote, and it carries no checksum to check.
+    """
+    iv, body = raw[:16], raw[16:]
+    plain = AES.new(SAVE_KEY, AES.MODE_CBC, iv).decrypt(
+        body[: len(body) // 16 * 16])
+    if plain.count(0) == len(plain):
         return plain
-    return plain[4 : 4 + length]
+    (length,) = struct.unpack_from("<I", plain, 0)
+    end = 4 + length
+    data_end = end - CHECKSUM_SIZE
+    if not (CHECKSUM_SIZE <= length <= len(plain) - 4
+            and hashlib.md5(plain[4:data_end]).digest()
+            == plain[data_end:end]):
+        raise NotWhatItClaims(
+            "a character slot in this save does not match its own checksum")
+    return plain
 
 
-def read(path: pathlib.Path | str, key: bytes = SAVE_KEY) -> list[SaveSlot]:
+def read(path: pathlib.Path | str) -> list[SaveSlot]:
     blob = pathlib.Path(path).read_bytes()
     slots = []
     for index, name, offset, size in _members(blob):
         raw = blob[offset : offset + size]
-        slots.append(SaveSlot(index, name, raw, decrypt_member(raw, key)))
+        slots.append(SaveSlot(index, name, raw, decrypt_member(raw)))
     return slots
 
 
@@ -601,7 +621,9 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             groups.append((pos, found))
             pos = pos + 8 + found * LOADOUT_RECORD
             hero += 1
-        if len(groups) >= MIN_HEROES and len(groups) > len(best):
+        # `groups` does not hold the final group yet, so it counts as one
+        # more: a table of exactly MIN_HEROES Nightfarers is one (QA-009).
+        if len(groups) + 1 >= MIN_HEROES and len(groups) + 1 > len(best):
             # The final Nightfarer's group has no next marker to bound it,
             # but it does not need one: a shared-Grail record's own vessel id
             # sits in the 19000 band, and the personal vessels that follow in
@@ -626,11 +648,16 @@ def find_loadout_table(slot_data: bytes) -> list[tuple[int, int]]:
             hits = slot_data.count(marker)
             if hits:
                 seen.append(f"ff{n:02x}×{hits}")
-        raise NotWhatItClaims(
-            "equipped-loadout table not found in this save slot "
-            f"(no ascending run of {MIN_HEROES}+ Nightfarer markers; "
-            f"markers present: {', '.join(seen) or 'none'})"
-        )
+        # The sentence is shown to the player (QA-020); the reader's own
+        # findings travel as a note, which a traceback prints and the
+        # window does not.
+        refusal = NotWhatItClaims(
+            "this save keeps them somewhere this program does not look; "
+            "the game may have changed how it stores them")
+        refusal.add_note(
+            f"no ascending run of {MIN_HEROES}+ Nightfarer markers; "
+            f"markers present: {', '.join(seen) or 'none'}")
+        raise refusal
     return best
 
 

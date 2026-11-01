@@ -47,7 +47,7 @@ Das Programm schreibt an drei Orten. `.claude/hooks/enforce-data-redirect.ps1`
 
 | Variable | ausgewertet in | umlenken auf |
 |---|---|---|
-| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` |
+| `NIGHTREIGN_SETTINGS_ORG` | `nrplanner/favourites.py` | eigener Wert je Auftrag, z. B. `DankYeeterT-###` (ausserhalb pytest; die Suite setzt fest `DankYeeterTests`, `tests/conftest.py:46`, QA-221) |
 | `LOCALAPPDATA` | `nrplanner/paths.py` | eigenes Testverzeichnis |
 | `APPDATA` | `nrplanner/shortcut.py` | eigenes Testverzeichnis |
 
@@ -79,10 +79,11 @@ stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 `notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
 
 **Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
-(841 Dateien, 21 139 391 Bytes, `EXTRACT_VERSION` 16, gebaut von T-324b am
-20.09.2026; spart 110 s je Lauf). In das umgelenkte `LOCALAPPDATA`
-**kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`, nicht im
-Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 16 steigt — der erste
+(1027 Dateien, 23 468 416 Bytes, `EXTRACT_VERSION` 18, `ICON_VERSION` 4,
+gebaut von T-335w am 31.10.2026; spart 110 s je Lauf). In das umgelenkte
+`LOCALAPPDATA` **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`,
+nicht im Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 18 oder
+`ICON_VERSION` über 4 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 
@@ -104,7 +105,9 @@ wenn der Diff seit dem letzten Tag (`git diff --stat v<x>..HEAD`) trifft:
 
 - Nie in Spielstand oder Spielinstallation schreiben; kein Mod, kein
   Save-Editor.
-- Kein Netzwerkzugriff im Anwendungscode, keine Telemetrie, keine Wiki-Daten.
+- Kein Netzwerkzugriff im Anwendungscode, keine Telemetrie, keine zur
+  Laufzeit geladenen Wiki-Daten (feste Community-Angaben: `GOAL.md`
+  Nicht-Ziele, 23.09.2026).
 - Keine Bildschirmabzüge (NH-002); Bildnachweise nur per `PrintWindow` aus dem
   Programmfenster.
 - Keine Spieldaten ins Repository (`nightreign_data.json`, Symbole);

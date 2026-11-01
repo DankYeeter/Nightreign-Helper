@@ -54,7 +54,7 @@ from collections.abc import Callable, Mapping
 
 from .. import model
 from . import types
-from .evaluate import evaluate
+from .evaluate import evaluate_per_goal
 
 
 def base_state_for(problem: types.SlotProblem,
@@ -147,9 +147,9 @@ def _brought_an_uncounted_condition(build: model.Build,
     **Scope, because a count without one is read as a count of everything:**
     `Build.situational` holds the conditions the player can declare, so an
     effect gated on an armament class this build is not carrying is not in
-    here and is not counted. That case is QA-104 and gets a line of its own;
-    one figure standing for two different states would be worse than the
-    silence it replaced.
+    here and is not counted. That case is QA-104; without an armament the
+    goal's `weights_note` says that such a bonus counts zero, and with one
+    the figure stands for both states.
     """
     brought = set(candidate.effect_ids) | set(candidate.curse_ids)
     return any(entry.effect_id in brought and not entry.live
@@ -230,12 +230,12 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                        f"{sorted(goals)}")
     slot = types.slot_at(problem, slot_index)
     base_problem = base_state_for(problem, slot_index)
-    base_build = evaluate(base_problem, (), ctx)
+    base_builds = evaluate_per_goal(base_problem, (), ctx, goals)
     # The whole answer, not only its number: what a direction could not know
     # about *this* run is the half that used to stop at the pool boundary
     # (QA-102). The procedural half is not here and must not be -- it is read
     # off the registry, once for the screen (AD-025).
-    base_scores = {goal_id: goal.score(base_build, ctx)
+    base_scores = {goal_id: goal.score(base_builds[goal_id], ctx)
                    for goal_id, goal in goals.items()}
     taken = types.held_handles(base_problem)
 
@@ -256,11 +256,11 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
         if relic.handle is None or relic.handle in taken:
             continue
         candidate = _offer(slot, relic)
-        build = evaluate(base_problem, (candidate,), ctx)
-        if _brought_an_uncounted_condition(build, candidate):
+        builds = evaluate_per_goal(base_problem, (candidate,), ctx, goals)
+        if _brought_an_uncounted_condition(builds[rank_by], candidate):
             conditional += 1
         marginals = tuple(
-            types.Marginal(goal_id, goal.score(build, ctx).value
+            types.Marginal(goal_id, goal.score(builds[goal_id], ctx).value
                            - base_scores[goal_id].value)
             for goal_id, goal in goals.items()
         )
@@ -290,7 +290,14 @@ def pools(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
     not run over them (AD-014 point 2). With every slot held this is empty,
     and that is an answer rather than a failure -- the run's result is then
     the current build, evaluated.
+
+    `rank_by` is checked here as well as in `pool`: with every slot held `pool`
+    is never called, and a direction nothing ranks by would come back as that
+    empty answer instead of the `KeyError` it is (QA-105).
     """
+    if rank_by not in goals:
+        raise KeyError(f"nothing ranks by goal {rank_by!r}; this run knows "
+                       f"{sorted(goals)}")
     return tuple(pool(inventory, problem, slot.index, ctx, goals, rank_by,
                       should_cancel)
                  for slot in types.free_slots(problem))

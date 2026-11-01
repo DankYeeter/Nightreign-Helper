@@ -9,6 +9,8 @@ the window (AD-034).
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import QPointF, QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
     QColor, QLinearGradient, QPainter, QPixmap, QPolygonF, QRadialGradient,
@@ -18,7 +20,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from . import advisorblock, chalices, effecttext, favourites, inventory, model
+from nrdata.binary import NotWhatItClaims
+
+from . import (
+    advisorblock, chalices, effecttext, errortext, favourites, inventory,
+    model,
+)
 from .theme import ACCENT, BORDER, CURSE, DEBUFF, MUTED, PANEL, SLOT_COLOURS
 
 
@@ -336,6 +343,7 @@ class RelicSlot(QFrame):
                 self.relic_box.setCurrentIndex(index)
         elif dialog.chosen is None and dialog.result():
             self.relic_box.setCurrentIndex(0)
+        dialog.deleteLater()
 
     # -- holding ----------------------------------------------------------
     def is_held(self) -> bool:
@@ -424,14 +432,15 @@ class RelicSlot(QFrame):
         lines = []
         for eid in item.effect_ids:
             eff = self.effect_by_id.get(eid)
-            name = effecttext.name(eff) if eff else f"<{eid}>"
+            # Game text goes into rich text as text, never as markup (SEC-021).
+            name = html.escape(effecttext.name(eff) if eff else f"<{eid}>")
             mark = "" if not eff or eff["stacks"] else "  ⚠"
             colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"
             # An effect belonging to another Nightfarer is doing nothing at
             # all here. Say so on the slot rather than letting it sit among
             # the working rolls looking identical to them.
             if eff is not None and not effecttext.works_for(eff, self.hero_name):
-                who = effecttext.owner(eff) or "another Nightfarer"
+                who = html.escape(effecttext.owner(eff)) or "another Nightfarer"
                 lines.append(
                     f"<div style='color:{CURSE}'>&bull; <s>{name}</s>"
                     f" — not working ({who} only)</div>"
@@ -442,7 +451,8 @@ class RelicSlot(QFrame):
             lines = ["<div style='color:#8a8a8a'>no rolled effects</div>"]
         lines.extend(self.curse_lines(item))
         self.rolled_label.setText("".join(lines))
-        self.rolled_label.setToolTip(self.curse_tooltip(item))
+        self.rolled_label.setToolTip(
+            advisorblock.as_a_tooltip(self.curse_tooltip(item)))
         self.rolled_label.setVisible(True)
 
     def curse_lines(self, item) -> list[str]:
@@ -457,7 +467,7 @@ class RelicSlot(QFrame):
             out = []
             for cid in curse_ids:
                 eff = self.effect_by_id.get(cid)
-                name = effecttext.name(eff) if eff else f"<{cid}>"
+                name = html.escape(effecttext.name(eff) if eff else f"<{cid}>")
                 out.append(f"<div style='color:{CURSE}'>✦ {name}</div>")
             return out
         if getattr(item, "has_curse", False):
@@ -689,9 +699,16 @@ class RelicSlot(QFrame):
         """
         if self.owned is None:
             return []
-        return [relic for relic in self.owned.relics_for(
-                    self.colour, self.deep, model.WHITE_SLOT)
-                if relic.handle is not None]
+        try:
+            fitting = self.owned.relics_for(
+                self.colour, self.deep, model.WHITE_SLOT)
+        except NotWhatItClaims as exc:
+            # Every question this slot asks of the stock comes through here,
+            # so a stock SEC-022 refuses leaves the slot empty with the
+            # refusal on it, instead of a traceback (QA-193).
+            self.empty_reason = errortext.in_english(exc)
+            return []
+        return [relic for relic in fitting if relic.handle is not None]
 
     def slot_name(self) -> str:
         """What this slot is called on screen, and in anything said about it."""

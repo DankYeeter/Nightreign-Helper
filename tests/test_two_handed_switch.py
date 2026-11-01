@@ -70,8 +70,10 @@ def test_the_switch_sits_between_the_tiles_and_the_ar_caption(planner):
     layout = sheet.widget().layout()
     switch_at = layout.indexOf(sheet.hand_switch)
     assert switch_at == layout.indexOf(sheet.ar_label) - 1
-    assert layout.itemAt(switch_at - 1).layout() is not None, \
-        "the item before the switch is the tile grid"
+    # AK-410: the casting bar stands between the tile grid and the switch.
+    assert layout.itemAt(switch_at - 1).widget() is sheet.casting
+    assert layout.itemAt(switch_at - 2).layout() is not None, \
+        "the item before the casting bar is the tile grid"
     assert layout.itemAt(switch_at).alignment() & Qt.AlignLeft
 
 

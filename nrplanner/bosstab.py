@@ -12,23 +12,24 @@ figures; see `merge_everdark`.
 
 from __future__ import annotations
 
+import functools
 import html
 import pathlib
 
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
-    QAccessible, QAccessibleActionInterface, QColor, QCursor, QFont, QPainter,
+    QAccessible, QAccessibleActionInterface, QColor, QFont, QPainter,
     QPainterPath, QPen, QPixmap,
 )
 from PySide6.QtWidgets import (
-    QAbstractScrollArea, QAccessibleWidget, QApplication, QFrame, QHBoxLayout,
+    QAbstractScrollArea, QAccessibleWidget, QFrame, QHBoxLayout,
     QHeaderView, QLabel, QScrollArea, QSizePolicy, QStyle,
     QStyleOptionFocusRect, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from . import cardgrid, relicslots, tabheader
-from .theme import ACCENT, BAD, BORDER, DEEP, GOOD, MUTED, PANEL
+from .theme import ACCENT, BAD, BORDER, DEEP, GOOD, HOVER_FILL, MUTED, PANEL
 
 # Watched in play: above a wiki claim, below a param read.
 OBSERVED_COLOUR = "#7fae72"
@@ -45,43 +46,6 @@ CARD_WIDTH = 250
 #: so the two tabs say "this one" the same way (A13).
 SELECTED_EDGE = ACCENT
 SELECTED_FILL = "rgba(200, 164, 92, 60)"
-
-#: How the grid shows which card the pointer is standing on (QA-154).
-#:
-#: The finding is not the hit area. Measured on 2026-09-06 on Windows under
-#: Fusion at 150 % scale, at a 1600x900 logical-px window: every one of 3 420
-#: probe points, one every 4 logical px over the whole 302x178 card, opened
-#: that card -- the labels inside it ignore a press and Qt hands it to the
-#: frame. What is dead is the 8 logical px between two neighbours, and a
-#: reader had no way to see which side of that line he was on: a near miss
-#: opened the wrong Nightlord and a miss opened nothing, and the grid looked
-#: identical in both cases.
-#:
-#: So the marker is on the pointer rather than on the click. A third channel
-#: again: fill only, edge untouched. Selection changes both, an Everdark twin
-#: owns DEEP on the edge, and hover changes the one thing neither of those
-#: two moves -- so the three states stay apart at a glance.
-#:
-#: **The value is measured, not chosen by eye.** Sampled off a grab of the
-#: whole window -- a card grabbed alone lands its translucent selection fill
-#: on a transparent pixmap and reads back as the colour the stylesheet names
-#: rather than the colour a reader sees -- on Windows under Fusion at 150 %
-#: scale, at a 1600x900 logical-px window. An unmarked card is (30, 31, 35)
-#: and a chosen one composites to (64, 57, 42), a WCAG contrast of 1.440.
-#: The first hover fill tried here, `#26272c`, composited to (38, 39, 44):
-#: **1.105**, a step small enough that the screenshot had to be measured to
-#: tell whether the pointer was on the card at all. That is not feedback.
-#: This one composites to (51, 52, 60) -- **1.331** against an unmarked card,
-#: nearly the 1.440 the selection's own fill manages, while staying the only
-#: neutral of the three: the selection is the one warm thing on this grid and
-#: keeps its gold edge as well, so hover and selection are apart by hue and
-#: by border even where their luminance is close.
-#:
-#: Cooler fills were measured too and reach further -- `#334055` gives 1.572
-#: and `#3a4a60` 1.825 -- but both put a new hue on a tab where DEEP already
-#: means something on the edge of a card. That is the `ui-ux-designer`'s call
-#: to make with these figures, not this file's.
-HOVER_FILL = "#33343c"
 
 #: What the detail panel is given where there is room for it, and the least it
 #: is ever given. `setFixedWidth(330)` was one figure doing both jobs, so at
@@ -202,14 +166,12 @@ DEBUFF_ON_BREAK_SIGHTING = (
 # What OBSERVED_COLOUR means, said once on the panel that uses it (AK-74,
 # QA-145). It sat one step from GOOD -- 0x7f against 0x6f in the red channel
 # alone -- with nothing anywhere saying the two were different things. Drawn
-# in the colour it explains, the way the Red variants tab already names its
-# community-reported line.
+# in the colour it explains.
 #
-# It says what the colour means and stops there. The World Events tab can add
-# "everything else is the game's own data" because on that tab it is true; on
-# this one it is not yet -- `Set off by` and the trigger clause of a defence
-# step are sightings drawn in the ordinary colour (AK-94, reported to the
-# director rather than changed here). A legend that claimed it would be the
+# It says what the colour means and stops there. "Everything else is the
+# game's own data" would not be true on this panel -- `Set off by` and the
+# trigger clause of a defence step are sightings drawn in the ordinary colour
+# (AK-94, reported to the director rather than changed here). A legend that claimed it would be the
 # one false sentence on the panel.
 SIGHTING_LEGEND = (
     "Lines in this colour were watched in play rather than read from the "
@@ -460,9 +422,7 @@ def _accessible_for(_key: str, obj) -> QAccessible:
     return CardAccessible(obj) if isinstance(obj, BossCard) else None
 
 
-_factory_installed = False
-
-
+@functools.cache
 def _install_factory() -> None:
     """Register `CardAccessible` with Qt, once per process.
 
@@ -471,13 +431,10 @@ def _install_factory() -> None:
     that is missing wherever somebody forgot -- and the symptom would be
     exactly QA-161 again: a card that looks right and does nothing.
     """
-    global _factory_installed
-    if not _factory_installed:
-        QAccessible.installFactory(_accessible_for)
-        _factory_installed = True
+    QAccessible.installFactory(_accessible_for)
 
 
-class BossCard(QFrame):
+class BossCard(cardgrid.HoverCard):
     """One expedition: its icon, the boss it ends on, and the flavour text.
 
     The card answers to more than a mouse (QA-161): it carries the Nightlord's
@@ -514,7 +471,6 @@ class BossCard(QFrame):
 
         self._edge = DEEP if boss.get("everdark") else BORDER
         self._selected = False
-        self._hovered = False
         self._apply_appearance()
 
         layout = QVBoxLayout(self)
@@ -597,67 +553,6 @@ class BossCard(QFrame):
             return
         self._selected = selected
         self._apply_appearance()
-
-    @property
-    def hovered(self) -> bool:
-        """Is the pointer on this card, its own area or a label inside it?"""
-        return self._hovered
-
-    def _set_hovered(self, hovered: bool) -> None:
-        if hovered == self._hovered:
-            return
-        self._hovered = hovered
-        self._apply_appearance()
-
-    def enterEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        """The pointer arrived, here or on one of the labels.
-
-        Qt sends Enter down the whole chain under the pointer and Leave only
-        to the widgets it actually left, so moving from the card onto the
-        name inside it is not a departure and this card stays marked.
-        """
-        self._set_hovered(True)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        self._set_hovered(False)
-        super().leaveEvent(event)
-
-    def _pointer_is_here(self) -> bool:
-        """Is the pointer standing on this card at this instant?
-
-        Asked of the screen instead of remembering the last Enter and Leave,
-        because Qt sends those on pointer movement only. `widgetAt` answers
-        for this application's windows and takes clipping and stacking with
-        it, so a card scrolled out of sight or covered by another program
-        does not claim the pointer.
-        """
-        under = QApplication.widgetAt(QCursor.pos())
-        return under is not None and (under is self or self.isAncestorOf(under))
-
-    def follow_the_pointer(self) -> None:
-        """Put the mark where the pointer actually is, not where it was.
-
-        QA-164: the grid reflows from three columns to two while the pointer
-        rests, and the mark stays on a card that is no longer under it -- or
-        a card appears under a resting pointer and never takes the mark at
-        all. Both are the same gap: geometry changed and no pointer event
-        followed. The card's own move, resize and show are exactly the
-        moments that happens, so it re-reads the pointer there.
-        """
-        self._set_hovered(self._pointer_is_here())
-
-    def moveEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        super().moveEvent(event)
-        self.follow_the_pointer()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        super().resizeEvent(event)
-        self.follow_the_pointer()
-
-    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        super().showEvent(event)
-        self.follow_the_pointer()
 
     def press(self) -> None:
         """Open this Nightlord's profile. Every route ends here."""

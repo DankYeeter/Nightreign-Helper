@@ -23,9 +23,8 @@ import dataclasses
 import datetime
 import os
 import pathlib
-import traceback
 
-from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, Signal
+from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QLabel, QProgressBar, QPushButton,
                                QVBoxLayout, QWidget)
@@ -83,10 +82,8 @@ def what_is_needed(game: pathlib.Path | None) -> list[str]:
         except Exception:  # noqa: BLE001 - an unreadable snapshot is a rebuild
             needed.append("snapshot")
 
-    # Same for the icon pack: whichever one IconPack would find.
-    from .iconpack import IconPack
-
-    pack = IconPack.locate()
+    # Same for the icon pack IconPack reads.
+    pack = paths.icons_dir()
     icon_manifest = pack / "manifest.json"
     if not icon_manifest.exists():
         needed.append("icons")
@@ -175,13 +172,6 @@ LEAST_PANEL_HEIGHT = 230
 #: a wrapped line has to be worked out against the width they leave.
 SIDE_MARGIN = 28
 TOP_MARGIN = 24
-
-#: The last place worth opening the folder dialog in when nothing nearer is
-#: known (section 4.1) -- Steam's own library list, read through
-#: `gamefiles.steam_common_folders`, is tried first in
-#: `where_to_start_looking`; this is only what stands in for it when Steam
-#: itself cannot be found at all.
-STEAM_COMMON = pathlib.Path(r"C:\Program Files (x86)\Steam\steamapps\common")
 
 #: What a button hands back. Plain strings rather than an enum: they are
 #: compared and never counted, and a failed comparison reads as itself.
@@ -523,14 +513,15 @@ def the_opening_panel(remembered, day: str) -> Panel:
 def where_to_start_looking(remembered) -> pathlib.Path | None:
     """The nearest place to the goal that exists, or nowhere (section 4.1).
 
-    Nowhere means "This PC": an empty start is what opens the system dialog
-    there, and a start that does not exist would open it anywhere at all.
+    Nowhere means "This PC" (`THIS_PC`). A start that does not exist would
+    open the system dialog anywhere at all.
     """
     places = []
     if remembered is not None:
         places += [pathlib.Path(remembered), pathlib.Path(remembered).parent]
+    # Only the libraries Steam itself names: a fixed default folder was the
+    # last root in this module that no Steam install vouched for (SEC-042).
     places += gamefiles.steam_common_folders()
-    places.append(STEAM_COMMON)
     for place in places:
         try:
             if place.is_dir():
@@ -672,7 +663,7 @@ class _Builder(QObject):
                     report=lambda line: self.progress.emit(line.strip()),
                 )
         except Exception as exc:  # noqa: BLE001 - reported in the dialog
-            traceback.print_exc()
+            errortext.print_traceback(exc)
             # `errortext` and not the exception itself: the build reads the
             # game's own folders, so most of what can fail here is an
             # `OSError`, and Windows words those in its own language (QA-211).
@@ -991,6 +982,12 @@ def _wrappable(line: Line) -> str:
             .replace("/", "/" + BREAK_HERE))
 
 
+#: "This PC" for the native dialog, by its known-folder id
+#: (FOLDERID_ComputerFolder). An empty start is not it: Qt opens that in the
+#: process's working directory (QA-302).
+THIS_PC = QUrl("clsid:0AC0837C-BBF8-452A-850D-79D08E667CA7")
+
+
 def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
     """The system's own folder dialog, opened as near the goal as may be.
 
@@ -1003,10 +1000,11 @@ def _pick_a_folder(parent, start_at) -> pathlib.Path | None:
     Windows. Writing one here would put an English sentence where his own
     system has its own word; A8 is about this program's texts, not Qt's.
     """
-    picked = QFileDialog.getExistingDirectory(
-        parent, "", "" if start_at is None else os.fspath(start_at),
+    picked = QFileDialog.getExistingDirectoryUrl(
+        parent, "",
+        THIS_PC if start_at is None else QUrl.fromLocalFile(os.fspath(start_at)),
         QFileDialog.Option.ShowDirsOnly)
-    return pathlib.Path(picked) if picked else None
+    return pathlib.Path(picked.toLocalFile()) if picked.isLocalFile() else None
 
 
 def _build_what_is_missing(game: pathlib.Path | None, window: _Window | None,

@@ -83,9 +83,13 @@ TABLE = [
                                          marking_changed=True),
      "The effects you marked changed while this was working out — use "
      "Optimize again."),
-    ("4.8", advisorbar.Situation(advisorbar.State.NO_SAVE),
-     "No save was read, so there are no relics to choose from — use Rescan "
+    ("4.8a", advisorbar.Situation(advisorbar.State.NO_SAVE),
+     "No save was read, so there are no relics to choose from — use Find my "
      "save."),
+    ("4.8b", advisorbar.Situation(advisorbar.State.NO_SAVE,
+                                  save_is_empty=True),
+     "Your save has no relics in it yet — if you just played, use Rescan "
+     "save; if they are on another Steam account, use Find my save."),
     ("4.9a", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
         goal_label="Maximise damage", slots=6, slots_filled=6,
@@ -387,7 +391,7 @@ def test_without_a_save_the_row_says_so_and_disables_its_own_two_controls(bar):
     assert bar.situation.state is advisorbar.State.NO_SAVE
     assert bar.status.accessibleName() == (
         "No save was read, so there are no relics to choose from — use "
-        "Rescan save.")
+        "Find my save.")
     assert not bar.goal_box.isEnabled()
     assert not bar.optimize_button.isEnabled()
 
@@ -524,6 +528,46 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     assert bar.status.accessibleName() == (
         "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
         "choose from.")
+
+
+def test_nothing_owned_reaching_the_choice_is_a_yellow_line_under_the_row(
+        bar):
+    """T-335a (user decision 28.10.2026): the run's whole sentence, `⚠ `
+    first, in the theme's yellow, under the row; the status line keeps its
+    clause and its tooltip, and the next state takes the line away."""
+    assert bar.warning.isHidden()
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(
+        _an_answer(filled=0), suggestions=(), no_carrier_for="fire damage"))
+
+    assert not bar.warning.isHidden()
+    assert bar.warning.text() == (
+        "⚠ Nothing you own reaches fire damage here: the armament it is "
+        "ranked on does not carry it — for a spell the staff or seal on the "
+        "selected tile, for a weapon art the armament on it, and the starting "
+        "one where the tile has none; otherwise the starting "
+        "armament — and nothing in your inventory swaps in a spell or weapon "
+        "art that does.")
+    assert advisorbar.WARNING_COLOUR in bar.warning.styleSheet()
+    assert bar.warning.wordWrap()
+    assert bar.status.accessibleName().endswith(
+        "nothing you own reaches fire damage here.")
+    assert "nothing you own reaches fire damage here" in bar.toolTip()
+    layout = bar.layout()
+    assert layout.indexOf(bar.warning) == layout.count() - 1
+
+    bar.clear()
+    assert bar.warning.isHidden()
+
+
+def test_an_empty_slot_for_another_cause_shows_no_warning_line(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer(filled=5))
+
+    assert bar.warning.isHidden()
+    assert bar.warning.text() == ""
 
 
 def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
@@ -1011,10 +1055,11 @@ def test_the_three_tooltips_are_the_three_the_spec_writes(bar):
         "Chooses what the Advisor ranks your build for.")
     assert bar.hit_with_box.toolTip() == (
         "Chooses what the figure ranks: the starting armament, its Weapon "
-        "Art, or the spell the starting catalyst throws. Weapon art counts "
-        "Weapon Arts only — a Nightfarer's own skills are never counted. "
-        "Sorceries, Incantations and a school rank the one spell this "
-        "Nightfarer's own equipment casts, not a spell found in the run.")
+        "Art, or the spell of the staff or seal on the selected tile (or "
+        "else the starting one). Weapon art counts Weapon Arts only — a "
+        "Nightfarer's own skills are never counted. Sorceries, Incantations "
+        "and a school rank the one spell that staff or seal casts, not a "
+        "spell found in the run.")
     assert bar.damage_type_box.toolTip() == (
         "Restricts Maximise damage to one kind of damage.")
 
@@ -1058,14 +1103,139 @@ def test_the_chosen_kind_of_damage_stands_in_both_halves_of_the_question(
             frozen, asking.ctx)
 
 
+def test_the_selected_staff_reaches_the_key_and_the_context(planner):
+    """T-335b: the spell cells cast from the selected tile's staff, so its id
+    is in the key beside the context that reads it, and a tile without one
+    puts neither there. Red with either assignment in `asking_from` taken
+    out (`run._refuse_a_request_that_asks_about_another_run`)."""
+    from nrplanner import weaponslots
+    from nrplanner.advisor import run as advisor_run
+
+    staff = planner.weapon_by_id(33200000)
+    for weapon, expected in ((staff, staff["id"]), (None, None)):
+        planner.weapon_slots = [weaponslots.WeaponSlot(weapon=weapon)] + [
+            weaponslots.WeaponSlot()
+            for _ in range(weaponslots.SLOT_COUNT - 1)]
+        planner.active_weapon = 0
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.selected_catalyst_id == expected
+        assert (asking.ctx.selected_catalyst or {}).get("id") == expected
+        frozen = advisor_run.frozen_inventory(asking.inventory,
+                                              asking.request.problem)
+        request = dataclasses.replace(
+            asking.request, inventory_fingerprint=advisor_run.
+            inventory_fingerprint(frozen))
+        advisor_run._refuse_a_request_that_asks_about_another_run(
+            request, frozen, asking.ctx)
+        with pytest.raises(ValueError, match="selected_catalyst_id"):
+            advisor_run._refuse_a_request_that_asks_about_another_run(
+                dataclasses.replace(request, selected_catalyst_id=-1),
+                frozen, asking.ctx)
+
+
+def test_the_chosen_spell_reaches_the_key_only_under_a_spell_row(
+        planner, monkeypatch):
+    """AK-415: the tile's spell is in key and context under Sorceries, and
+    nowhere where it moves no answer."""
+    from nrplanner import model, weaponslots
+
+    staff = planner.weapon_by_id(33200000)
+    planner.weapon_slots = [weaponslots.WeaponSlot(weapon=staff, spell_id=4070)
+                            ] + [weaponslots.WeaponSlot()
+                                 for _ in range(weaponslots.SLOT_COUNT - 1)]
+    planner.active_weapon = 0
+    for hit_with, expected in ((model.SORCERIES_ART, 4070), ("", None)):
+        monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                            lambda chosen=hit_with: chosen)
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.selected_spell_id == expected
+        assert asking.ctx.selected_spell_id == expected
+
+
+def test_the_fallback_catalyst_casts_the_spell_chosen_on_its_tile(
+        planner, game_data, monkeypatch):
+    """Director, 31.10.2026 (T-335qa): Recluse with Arc chosen on her staff
+    and a greatsword selected -- the spell row falls back to her staff and
+    casts Arc, not Pebble."""
+    from nrplanner import model, weaponslots
+    from tests import weapon_damage_cases as cases
+
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    planner.hero_index = planner.heroes.index(recluse)
+    staff = planner.weapon_by_id(recluse["starting_weapon"])
+    sword = planner.weapon_by_id(2000800)
+    planner.weapon_slots = [
+        weaponslots.WeaponSlot(weapon=staff, spell_id=4070),
+        weaponslots.WeaponSlot(weapon=sword)] + [
+        weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT - 2)]
+    planner.active_weapon = 1
+    monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                        lambda: model.SORCERIES_ART)
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+
+    assert asking.request.selected_catalyst_id is None
+    assert asking.request.selected_spell_id == 4070
+    assert asking.ctx.selected_spell_id == 4070
+
+
+def test_the_selected_tile_reaches_the_key_only_under_weapon_art(
+        planner, monkeypatch):
+    """User decision 31.10. 13:50: under `Weapon art` the selected tile --
+    armament, tier, art pick, slot -- is in key and context; elsewhere it is
+    in neither. Red with the key half taken out of `asking_from`."""
+    from nrplanner import model, weaponslots
+    from nrplanner.advisor import run as advisor_run
+
+    sword = planner.weapon_by_id(2000800)
+    planner.weapon_slots = [weaponslots.WeaponSlot()] + [
+        weaponslots.WeaponSlot(weapon=sword, tier=3, art_id=200)] + [
+        weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT - 2)]
+    planner.active_weapon = 1
+    for hit_with, expected in ((model.SKILL_ART, (2000800, 3, 200, 1)),
+                               ("", None)):
+        monkeypatch.setattr(planner.advisor_bar, "hit_with",
+                            lambda chosen=hit_with: chosen)
+        asking = advisorbar.asking_from(planner, "max_damage")
+        assert asking.request.art_tile == expected
+        assert (None if asking.ctx.art_tile is None
+                else asking.ctx.art_tile.key) == expected
+    frozen = advisor_run.frozen_inventory(asking.inventory,
+                                          asking.request.problem)
+    with pytest.raises(ValueError, match="art_tile"):
+        advisor_run._refuse_a_request_that_asks_about_another_run(
+            dataclasses.replace(
+                asking.request, art_tile=(2000800, 3, 200, 1),
+                inventory_fingerprint=advisor_run.inventory_fingerprint(
+                    frozen)),
+            frozen, asking.ctx)
+
+
+def test_held_swap_relics_are_read_without_a_calculation():
+    """AD-056.7: the art ids of the held relics' swap effects, nothing else
+    -- a slot held empty, an effect without the field, an unknown id."""
+    effects = {"1": {"modifiers": {"startSwordArtsId": 217}},
+               "2": {"modifiers": {"startSwordArtsId": 200}},
+               "3": {"modifiers": {}}}
+    held = (types.HeldSlot(index=0),
+            types.HeldSlot(index=1, relic=types.HeldRelic(
+                relic_id=1, name="a", effect_ids=(2, 3, 9))),
+            types.HeldSlot(index=2, relic=types.HeldRelic(
+                relic_id=2, name="b", effect_ids=(1, 2))))
+
+    assert advisorbar.held_swapped_art_ids(held, effects) == (200, 217)
+
+
 def test_a_declared_condition_outlives_the_baseline(planner):
     """AD-036.6: the baseline is a default for a condition, never a value.
 
     An effect the baseline would set to 1 is declared at 3 by the player;
     the run carries the declaration as the player made it, in the context
-    and in the key, and every other switchable condition at the baseline.
+    and in the key, and every other switchable condition at the baseline --
+    the armament-count ones apart from `declared`, because only one armament
+    type of them may hold in a build (QA-299).
     """
-    from nrplanner import model
+    from nrplanner import effecttext, model
 
     effect = min(model.advisor_defaults())
     planner.declared = {effect: 3}
@@ -1074,7 +1244,15 @@ def test_a_declared_condition_outlives_the_baseline(planner):
     declared = dict(asking.ctx.declared)
     assert declared[effect] == 3, "the baseline overwrote what the player declared"
     assert asking.request.declared == asking.ctx.declared
-    assert declared.keys() >= set(model.advisor_defaults())
+    assumed = set(asking.ctx.assumed_armament_counts)
+    assert assumed and not assumed & declared.keys()
+    # Of the armament-count ones only the selected tile's type is assumed
+    # (28.10.2026): `tests/test_one_armament_count_type.py`.
+    counts = {effect_id for effect_id in model.advisor_defaults()
+              if effecttext.counts_armaments(
+                  planner.data["effects"][str(effect_id)])}
+    assert assumed <= counts
+    assert declared.keys() | counts >= set(model.advisor_defaults())
 
 
 def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
@@ -1181,7 +1359,7 @@ def test_the_filters_tooltip_counts_the_marked_effects_in_every_state(qapp):
         filters.mark_family("Dexterity", False)
         asking["value"] = None
         widget.the_build_changed()
-        assert widget.toolTip().endswith("use Rescan save.</span>")
+        assert widget.toolTip().endswith("use Find my save.</span>")
         assert widget.filters_button.toolTip().endswith(
             "2 effects avoided  ·  1 effect favourited</span>")
         assert advisorbar.marking_clauses(None) == []
@@ -1298,27 +1476,200 @@ def test_the_row_does_not_scroll_away_with_the_slots(planner):
         planner.close()
 
 
-def test_the_row_asks_the_window_for_no_width_at_all(planner):
-    """AK-03, at the place the criterion is really about.
-
-    The window's own floor is a figure of the tab beside this one and of the
-    style; what this change may not do is make the middle column insist on
-    more room than the scrolling part of it did. Everything outside a scroll
-    area is a pixel on the window's floor, and the two blocks this task put
-    there ask for none.
-    """
-    column = _the_middle_column(planner)
-    area = _the_slot_area(planner)
-    assert column.minimumSizeHint().width() <= area.minimumSizeHint().width()
-    assert (planner.advisor_bar.minimumSizeHint().width()
-            > area.minimumSizeHint().width()), (
-        "the row is wider than the area's floor, so this case would pass "
-        "whatever the size policies said")
+#: The row's two lines, by the names `advisor_row_at_the_window` gives the
+#: controls (AK-396). The status line stands between `optimize_button` and
+#: `apply_button` and is measured on its own.
+FIRST_LINE = ("heading", "goal_box", "hit_with_label", "hit_with_box",
+              "damage_type_label", "damage_type_box")
+SECOND_LINE = ("filters_button", "optimize_button", "apply_button",
+               "why_button", "clear_button")
+BOXES = ("goal_box", "hit_with_box", "damage_type_box")
 
 
-def test_the_row_keeps_the_vertical_budget(planner):
-    """AK-04/§3.1: at most 32 px of content, plus 6 px above and below."""
-    assert planner.advisor_bar.sizeHint().height() <= 44
+def _every_width(figures) -> dict:
+    """The check table's widths and the window's least width, by name."""
+    return {**figures["at"], "least": figures["window_minimum"]}
+
+
+def _middle(rect) -> float:
+    _x, y, _width, height = rect
+    return y + height / 2
+
+
+def _first_line_need(row) -> int:
+    """What line one asks for with nothing shortened (AK-399)."""
+    return (sum(row["hints"][name] for name in FIRST_LINE)
+            + (len(FIRST_LINE) - 1) * advisorbar.SPACING)
+
+
+def test_the_window_minimum_is_one_figure_under_1366(
+        advisor_row_at_the_window):
+    """AK-400, replacing AK-03: the row asks for the wider of its two lines
+    at their tightest, in every direction, with and without a suggestion;
+    and the window does not get narrower than that."""
+    least = advisor_row_at_the_window["window_minimum"]
+    assert len(set(least["window_minimums"])) == 1, least["window_minimums"]
+    assert least["window_minimums"][0] <= 1366
+    assert least["width"] == least["window_minimums"][0]
+    first_line_floor = (sum(least["hints"][name] for name in FIRST_LINE
+                            if name not in BOXES)
+                        + sum(least["minimums"][name] for name in BOXES)
+                        + (len(FIRST_LINE) - 1) * advisorbar.SPACING)
+    # Five gaps, not four: the status line, 0 px here, is a sixth item.
+    second_line_floor = (sum(least["hints"][name] for name in SECOND_LINE)
+                         + len(SECOND_LINE) * advisorbar.SPACING)
+    assert least["row_width"] == max(first_line_floor, second_line_floor)
+
+
+def test_one_line_holds_the_status_floor_and_two_lines_start_below_it(
+        advisor_row_at_the_window):
+    """AK-401/AK-194: one line at the opening width, two at 1728 and 1536,
+    and the status at least `STATUS_FLOOR` on one line, never 0 on two."""
+    figures = advisor_row_at_the_window
+    assert figures["lines"] == 1
+    assert figures["failed"]["status_width"] >= advisorbar.STATUS_FLOOR
+    for name, row in _every_width(figures).items():
+        if row["lines"] == 2:
+            assert row["status_width"] > 0, name
+    assert figures["at"]["1728"]["lines"] == 2
+    assert figures["at"]["1536"]["lines"] == 2
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_the_row_breaks_one_px_under_its_one_line_need(
+        advisor_row_at_the_window, goal_id):
+    """AK-395: two lines exactly below the need of the direction shown --
+    line one as the direction shows it, every action button and
+    `STATUS_FLOOR` counted on line two."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    hints = advisor_row_at_the_window["at"]["1959"]["hints"]
+    first_line = (FIRST_LINE if goal_id == "max_damage"
+                  else ("heading", "goal_box"))
+    assert threshold["need"] == (
+        sum(hints[name] for name in first_line + SECOND_LINE)
+        + advisorbar.STATUS_FLOOR
+        + (len(first_line) + len(SECOND_LINE)) * advisorbar.SPACING)
+    for step, lines in (("-1", 2), ("0", 1)):
+        at = threshold[step]
+        assert at["row_width"] == threshold["need"] + int(step), (
+            "the row was not sized where this case asks about")
+        assert at["lines"] == lines, f"{step}: {at}"
+
+
+def test_the_damage_question_counts_in_the_need(bar):
+    """AK-395: the direction's own controls are part of the need -- the
+    need of `max_damage` is wider by exactly what its two pairs ask."""
+    bar.choose_goal("min_damage_taken")
+    narrower = bar._lines.one_line_need()
+    bar.choose_goal("max_damage")
+    assert (bar._lines.one_line_need() - narrower
+            == bar.damage_question_extra_width())
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_nothing_the_row_shows_moves_it_between_its_lines(
+        advisor_row_at_the_window, goal_id):
+    """AK-397: a suggestion, `Undo apply`, a run, `Cancel`, 4.12 and the
+    empty row, one after the other, at either side of the break."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    for step in ("-1", "0"):
+        seen = threshold[step]["through_the_states"]
+        assert set(seen) == {threshold[step]["lines"]}, f"{step}: {seen}"
+
+
+@pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
+def test_another_layout_pass_leaves_the_lines_as_they_are(
+        advisor_row_at_the_window, goal_id):
+    """AK-404: no circle between the line count and the width."""
+    threshold = advisor_row_at_the_window["threshold"][goal_id]
+    for step in ("-1", "0"):
+        at = threshold[step]
+        assert at["after_another_pass"] == at["lines"], step
+
+
+@pytest.mark.parametrize("width", ["1536", "1959"])
+def test_the_lines_keep_the_order_of_one_line(advisor_row_at_the_window,
+                                              width):
+    """AK-396: on two lines the question stands above the doing, 6 px
+    between them, both from the same left edge; on one line everything
+    stands side by side; in the same left-to-right order either way."""
+    row = advisor_row_at_the_window["at"][width]
+    geometry = row["geometry"]
+    first = [geometry[name] for name in FIRST_LINE]
+    second = [geometry[name] for name in SECOND_LINE]
+    if row["lines"] == 1:
+        everything = first + second
+        assert len({_middle(rect) for rect in everything}) == 1
+        assert [rect[0] for rect in everything] == sorted(
+            rect[0] for rect in everything)
+        return
+    assert len({_middle(rect) for rect in first}) == 1
+    assert len({_middle(rect) for rect in second}) == 1
+    first_bottom = max(y + height for _x, y, _w, height in first)
+    second_top = min(y for _x, y, _w, _h in second)
+    assert second_top - first_bottom == advisorbar.SPACING
+    assert first[0][0] == second[0][0] == 0
+    for line in (first, second):
+        assert [rect[0] for rect in line] == sorted(rect[0] for rect in line)
+
+
+def test_no_label_or_button_is_ever_under_its_size_hint(
+        advisor_row_at_the_window):
+    """AK-398 at every width of the check table and at the window's least:
+    never 100 -> 70 -> 57 px again (QA-292)."""
+    for name, row in _every_width(advisor_row_at_the_window).items():
+        for control in FIRST_LINE + SECOND_LINE:
+            if control in BOXES:
+                continue
+            assert row["geometry"][control][2] >= row["hints"][control], (
+                f"{name}: {control}")
+
+
+def test_the_boxes_give_way_only_on_line_one_and_only_so_far(
+        advisor_row_at_the_window):
+    """AK-399, replacing AK-05/AK-269/AK-271's "the boxes may be cut":
+    each box's least width is `min(floor, sizeHint)`, it is never narrower,
+    and it is cut only on two lines with line one under its own need."""
+    for name, row in _every_width(advisor_row_at_the_window).items():
+        for box, floor in zip(BOXES, advisorbar.BOX_FLOORS):
+            assert row["minimums"][box] == min(floor, row["hints"][box])
+            assert row["geometry"][box][2] >= row["minimums"][box], (
+                f"{name}: {box}")
+        may_cut = (row["lines"] == 2
+                   and row["row_width"] < _first_line_need(row))
+        allowed = set(BOXES) if may_cut else set()
+        assert set(row["cut"]) <= allowed, f"{name}: {row['cut']}"
+
+
+def test_the_row_is_as_tall_as_its_lines_and_the_column_follows(
+        advisor_row_at_the_window):
+    """AK-402 and AK-04: 36 px on one line, 66 on two; nothing reaches out of
+    the row; the column lays the first card right under it and its own least
+    height grows by the second line."""
+    rows = _every_width(advisor_row_at_the_window)
+    heights = {1: 36, 2: 66}
+    for name, row in rows.items():
+        assert abs(row["height"] - heights[row["lines"]]) <= 1, name
+        assert row["outside_the_row"] == [], name
+        assert row["gap_below"] == row["column_spacing"], name
+    one, two = rows["1959"], rows["1728"]
+    assert (one["lines"], two["lines"]) == (1, 2)
+    assert (two["column_minimum_height"] - one["column_minimum_height"]
+            == two["height"] - one["height"])
+
+
+def test_dragging_across_the_break_keeps_order_focus_and_names(
+        advisor_row_at_the_window):
+    """AK-403: the same tab chain on both sides, `Optimize` keeps the focus,
+    and the accessible names (AK-380) stay."""
+    sides = advisor_row_at_the_window["across_the_break"]
+    one, two = sides["0"], sides["-1"]
+    assert (one["lines"], two["lines"]) == (1, 2)
+    assert one["tab_chain"] == two["tab_chain"] == [
+        "goal_box", "hit_with_box", "damage_type_box", "filters_button",
+        "optimize_button", "apply_button", "why_button", "clear_button"]
+    assert one["focus_is_optimize"] and two["focus_is_optimize"]
+    assert one["accessible_names"] == two["accessible_names"]
 
 
 def test_at_the_opening_width_only_the_status_is_shortened(
@@ -1339,44 +1690,36 @@ def test_at_the_opening_width_only_the_status_is_shortened(
     assert html.escape(row["status_whole_text"]) in row["status_tooltip"]
 
 
-def test_at_the_opening_width_the_status_keeps_some_width(
-        advisor_row_at_the_window):
-    """AK-194: the status is never 0 px at the width the window opens at.
-
-    Measured 67 px on 2026-09-13 (T-225; Fusion, Segoe UI 9 pt, ratio
-    1.25, window 1 350 px, row 498). The figure is not written here: the
-    criterion is `> 0`, and the environment is what decides the rest.
-    """
-    assert advisor_row_at_the_window["failed"]["status_width"] > 0
-
-
 @pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
-def test_on_a_narrow_desktop_the_row_keeps_every_control_and_carries_the_status(
+def test_on_a_narrow_desktop_the_row_cuts_nothing_and_carries_the_status(
         advisor_row_at_the_window, room):
-    """AK-05 on a desktop that caps the opening width (QA-250).
-
-    Decided 2026-09-13: the boxes come first and the status may go, down
-    to 0 px -- so AK-194's `> 0` is not asked here, and a status too narrow
-    to hover has its sentence in the row's own tooltip instead.
-
-    Option B (user decision 2026-09-19): AK-05 itself only holds at 1676 px
-    and up, above both desktops of `NARROW_DESKTOPS` -- below that floor
-    `goal_box` and `damage_type_box` may give way to eliding, and neither
-    desktop's width is asked to keep any caption whole. What stays is
-    usability, not full captions: every control this task's rows started
-    with is still on screen, and the tooltip carries the status text
-    whether or not the boxes gave way too.
-    """
+    """AK-05/AK-269/AK-271 since T-334n: the window opens at 1536 px on both
+    desktops, the row on two lines with every control whole -- the boxes
+    no longer give way there -- and the tooltip carries the status."""
     at_room = advisor_row_at_the_window["rooms"][room]
     assert at_room["width"] < advisor_row_at_the_window["width"], (
         "this desktop does not cap the opening width, so the case would "
         "measure the same row twice")
+    assert at_room["lines"] == 2
     for state in ("failed", "suggested"):
         base = advisor_row_at_the_window[state]
         row = at_room[state]
-        assert set(row["on_screen"]) == set(base["on_screen"]), (
-            "a control left the row on this desktop, not just its caption")
+        assert set(row["on_screen"]) == set(base["on_screen"])
+        assert row["cut"] == [], f"{state}: {row['cut']}"
         assert html.escape(row["status_whole_text"]) in row["row_tooltip"]
+
+
+@pytest.mark.parametrize("room", [str(room) for room in NARROW_DESKTOPS])
+def test_on_a_narrow_desktop_the_warning_line_covers_nothing(
+        advisor_row_at_the_window, room):
+    """T-335a, QA-292/304: the warning line wraps inside the row, whole,
+    and the row grows for it rather than reaching over the slots below."""
+    warning = advisor_row_at_the_window["rooms"][room]["warning"]
+    assert warning["shown"]
+    assert warning["inside_the_row"]
+    assert warning["short_by"] <= 0
+    assert warning["gap_below"] >= 0
+    assert warning["cut"] == []
 
 
 def _spin_until(predicate, timeout: float = A_RUN_AT_MOST) -> bool:

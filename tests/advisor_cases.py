@@ -286,19 +286,19 @@ def make_inventory(data: dict, hero: dict, *, colour: int = RED,
     if len(rolls) < needed:
         rolls = rolls + [list(rolls[-1])] * (needed - len(rolls))
     templates = relic_helpers.templates_for(data, colour, count)
-    owned = [relic_helpers.make_relic(template, handle, index, rolls[index])
+    owned = [relic_helpers.make_relic(template, handle, rolls[index])
              for index, (template, handle)
              in enumerate(zip(templates, handles))]
 
     for index, template in enumerate(deep_templates_for(data, colour,
                                                         deep_count)):
         owned.append(relic_helpers.make_relic(
-            template, 200 + index, count + index, rolls[count + index]))
+            template, 200 + index, rolls[count + index]))
 
     if other_colour is not None:
         template = relic_helpers.templates_for(data, other_colour, 1)[0]
         owned.append(relic_helpers.make_relic(
-            template, 300, count + deep_count, rolls[-1]))
+            template, 300, rolls[-1]))
 
     return inventory.Inventory(source="test", relics=owned)
 
@@ -478,6 +478,7 @@ def request_for(problem: types.SlotProblem, ctx: types.GoalContext,
         reference_weapon_id=(None if ctx.reference is None
                              else ctx.reference.weapon["id"]),
         declared=tuple(ctx.declared),
+        assumed_armament_counts=tuple(ctx.assumed_armament_counts),
         two_handed=ctx.two_handed,
         data_version=str(meta.get("data_version") or ""),
         inventory_fingerprint=run.inventory_fingerprint(inventory),

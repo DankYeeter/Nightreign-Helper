@@ -338,6 +338,28 @@ gesichert unter
 skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
 (Zahlen, Herkunft T-324b, Grenze "ueber 16").
 
+*Ersetzt am 31.10.2026 (T-335s, developer):* `EXTRACT_VERSION` **17** und
+`ICON_VERSION` **4** (AD-056 Schritte 1-2: `arts`-Block, `art_default`,
+`art_pool`, `spell_pools`; Art-Symbole im Item-Satz). Diesmal **beides** neu
+gebaut, weil `ICON_VERSION` mitsteigt: `nightreign_data.json` 9 025 778 B
+(+214 036 B = +2,4 %, `extract.write_snapshot` an der echten Installation,
+37,1 s), Symbolsatz per `iconbuild.build` (29,1 s, 899 von 973 Item-Symbolen,
+13,4 MB). Stand der Vorlage: **1027 Dateien, 23 029 877 B**, Ort unveraendert.
+Alte v16-Vorlage ganz gesichert unter
+`...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v16`
+(841 Dateien, 21 139 391 B). `CLAUDE.md` "Fester Testabzug" ist auf diesen
+Stand gezogen (Grenze "ueber 17" bzw. `ICON_VERSION` "ueber 4").
+
+*Ersetzt am 31.10.2026 (T-335w, developer):* `EXTRACT_VERSION` **18** (AD-056
+P.7: `arts[].element_correct_id`, `art_pool`/`spell_pools` einer Variante ohne
+eigene Tabelle von der Grundwaffe). Nur `nightreign_data.json` neu
+(`extract.write_snapshot` an der echten Installation, 38 s): 9 464 317 B
+(+438 539 B = +4,9 %); `ICON_VERSION` bleibt 4, Symbole unangetastet. Stand
+der Vorlage: **1027 Dateien, 23 468 416 B**, Ort unveraendert. Alte v17-JSON
+gesichert unter `...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v17`
+(9 025 778 B). `CLAUDE.md` "Fester Testabzug" ist nachgezogen (Grenze
+"ueber 18").
+
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
 Projektbaums, nicht bloss in `.gitignore`.
@@ -638,3 +660,18 @@ und **bei 1,4 % gestoppt**, `StrEnum` am Zirkelimport abgelehnt, `CLAUDE.md`
 Aussicht gestellt hat — und dazu ein Waechter, den es vorher nicht gab, zwei
 bestaetigte strukturelle Schulden (P10) und sieben neue Befunde. **Der Wert
 dieses Korbs lag nicht in den geloeschten Zeilen.**
+
+## Naechstes Release, zuerst (Nutzer 28.10.2026 22:40)
+
+- Zauber und Weapon Art selbst waehlen, damit die Schadenszahl jeden Zauber
+  bzw. jede Art zeigt (heute fest am Stab/an der Startwaffe). Woertlich:
+  "ich muss ja spells auswählen damit du mir den dmg davon anzeigen kannst.
+  dasselbe gilt für weapon arts. hier müssen wir demnächst nachbessern."
+- OF-54 Restabweichung: "Magic Attack Power Up" (1,045) an der Puppe 128,
+  Programm 129 (Recluse Stufe 15); 123 und 138 (+4) passen genau. Ursache
+  offen (T-335j).
+- Flach-Klasse Weapon Arts (AD-056 P.7): ob der Flachwert mit der
+  Waffenstufe waechst, ist ungemessen (Puppe nur mit grauen Startwaffen,
+  Nutzer 31.10.); gebaut ohne Stufenfaktor. Messung nur im Lauf moeglich.
+- R1 zweihaendig nach Stamp (Wylder Lv15): Puppe 126, Programm 125 (T-335v).
+- Bau nur mit `PYTHONHASHSEED=0` und `SOURCE_DATE_EPOCH` bitgleich (T-335bau); in Bauskript/`release.yml` aufnehmen.

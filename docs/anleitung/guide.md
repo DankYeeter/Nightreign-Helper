@@ -35,7 +35,9 @@ The main screen. Pick a Nightfarer, pick a vessel, fill the slots, read the
 consequences on the right.
 
 **Nightfarer** — the ten portraits at the top left. Some have alternate artwork;
-your choice is remembered between sessions.
+your choice is remembered between sessions. Clicking the Nightfarer that is
+already selected changes nothing and shows `{Name} is already selected.`; to
+re-read your save, use **Rescan save**.
 
 **Vessel** — split into that Nightfarer's own vessels and the **Shared Grails**,
 which any Nightfarer can carry. The vessel decides how many relic slots you get
@@ -91,6 +93,9 @@ six slots.
   where you land after Reset Chalice. Choosing it deliberately changes nothing
   on screen: it is the list saying what you are looking at, not an action.
 - **Save** stores the slots as they stand under a name; **Delete** forgets one.
+  After a successful save a note under the build list reads `Saved "{name}".`
+  for about four seconds; if the name was already taken it reads `Saved over
+  "{name}".` and the older build is replaced without a question.
 - **Hide** keeps a build out of the list without deleting it — for work you
   have finished with and do not want to lose. **Show hidden**, beside it, lists
   the hidden ones again, and selecting one turns the button into **Unhide**.
@@ -106,8 +111,8 @@ switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
 With **Maximise damage** picked, two boxes appear beside it. **Hit with**
 chooses what gets ranked — the starting armament, its *Weapon art*, or the
-spell the starting catalyst throws (*Sorceries*, *Incantations*, or a single
-spell school) — and **Damage type** narrows that to one of the five damage
+spell of the staff or seal on the selected weapon tile (*Sorceries*,
+*Incantations*, or a single spell school) — and **Damage type** narrows that to one of the five damage
 types. Both remember whichever value you last chose the next time you open
 the program, starting on *Weapon* and *All* the very first time. Neither box
 hides or disables an entry depending on the Nightfarer or on the other box's
@@ -116,46 +121,62 @@ sentence in **Why** instead of disappearing.
 
 *Weapon art* counts only the skill bound to the weapon or catalyst in hand;
 a Nightfarer's own ability is never counted, no matter what the game itself
-calls it. *Sorceries*, *Incantations* and a spell school all rank the one
-spell this Nightfarer's own starting catalyst throws — not a spell picked up
-during the run. A relic that changes which spell the starting catalyst
-throws (the ten "Changes compatible armament's sorcery/incantation to …"
-effects) is used instead of the default spell as soon as it is held or even
-just suggested; holding two such relics at once is a combination the game
-itself does not allow, and **Why** names which of the two spells was ranked.
+calls it. *Sorceries*, *Incantations* and a spell school all rank the spell of
+the staff or seal on the weapon tile you have selected (one click highlights a
+tile), for any Nightfarer — a Duchess or a Raider with a staff found during
+the run included. With no staff or seal on the selected tile, the Nightfarer's
+starting catalyst is used instead (Recluse, Revenant). The spell row on the
+stat sheet follows the upgrade level that tile shows. The Advisor's figure is
+always worked out at the lowest upgrade level. A relic that changes which spell the
+starting catalyst throws (the ten "Changes compatible armament's
+sorcery/incantation to …" effects) is used instead of the default spell as
+soon as it is held or even just suggested, but only for the starting catalyst;
+it does not change the spell of a staff or seal found during the run. Holding
+two such relics at once is a combination the game itself does not allow, and
+**Why** names which of the two spells was ranked.
+
+The effects "Improved Attack Power with 3+ … Equipped" (for example 3+ Daggers)
+are assumed met only for the weapon type of the selected tile; with an empty
+tile selected, none are.
 
 Choosing anything but *Weapon* and *All* adds a line to **Why** naming the
 choice — for example "Ranked on fire damage only — every other effect on a
 candidate still shows, but only this counts toward the ranking." One of the
 five damage types also relabels the suggestion card's attack-rating figure
-to match, to *Fire attack rating* instead of plain *Attack rating*; *Weapon
-art* adds *Weapon art attack rating* the same way, and both combine into
-*Fire Weapon art attack rating* where both apply — where a choice changes
-nothing, the label stays *Attack rating* because the figure really is the
-one the defaults would give too.
+to match, to *Fire attack rating* instead of plain *Attack rating* — where a
+choice changes nothing, the label stays *Attack rating* because the figure
+really is the one the defaults would give too.
 
-Ranking on a spell shows a number of its own, *Spell damage*, always next to
-a line in **Why** that the figure is uncalibrated: it is the damage formula
-applied to the game's own values, and the game shows no spell damage on
-screen to check it against — compare two spells by it, not the figure
-itself. A spell that deals no damage of its own shows `0.00` — Revenant's
-starting Incantation, Rejection, is one — until a relic changes which spell
-is thrown; measured in testing, the Beast Claw relic turned that `0.00` into
-`350.5` Spell damage at the Finger Seal.
+Ranking on *Weapon art* shows one hit of the art on the selected tile, with
+the same number as its *Weapon art* line on the stats panel — for example
+*Weapon art (Stamp (Upward Cut)) 262*. A relic that changes the starting
+armament's skill counts only while you hold it; the advisor never suggests
+one. A tile whose art has no number gets a sentence saying why instead.
+
+Ranking on a spell shows a number of its own, *Spell damage*: what the spell
+hits a training dummy for, calibrated against a measurement in the game. A
+spell that deals no damage of its own shows `0.00` — Revenant's starting
+Incantation, Rejection, is one — until a relic changes which spell is
+thrown; measured in testing, the Beast Claw relic turned that `0.00` into
+`346` Spell damage at the Finger Seal.
 
 A choice this build cannot answer says so instead of showing a figure. Eight
 Nightfarers carry neither a staff nor a seal; choosing *Sorceries*,
-*Incantations* or a school for one of them gives, for example, "This
-Nightfarer starts with neither a staff nor a seal, so Sorceries is not
-counted: there is no spell of this build's own to rank" and shows *Spell
-damage not counted* with no digit attached. A catalyst of the wrong kind —
-a staff under *Incantations*, a seal under *Sorceries* — is rejected the
-same way, naming which kind the catalyst actually casts. Ranking a staff or
+*Incantations* or a school for one of them, with no staff or seal on the
+selected tile, gives "There is no staff or seal on the selected tile and this
+Nightfarer starts with neither, so Sorceries is not counted: put one on a tile
+and select it to rank its spell." and shows *Spell damage not counted* with no
+digit attached. A catalyst of the wrong kind — a staff under *Incantations*, a
+seal under *Sorceries* — is rejected the same way: "Incantations is not counted
+here: {catalyst} casts sorceries, and this run ranks the spell of the staff or
+seal on the selected tile, or else the starting one." Ranking a staff or
 seal itself under *Weapon* or *Weapon art* is rejected too: it is ranked on
 the spell power the game shows for it, and no damage type or Weapon art
 reaches that figure. If nothing you own raises the chosen kind of damage at
 all, Optimize leaves that slot without a suggestion rather than offering one
-that changes nothing.
+that changes nothing, and a yellow line starting with "⚠" under the Advisor
+row says so in full whenever nothing you own raises the chosen kind of damage;
+it disappears when something does.
 
 Opening a relic picker while **Hit with** or **Damage type** is chosen
 carries the choice with it: the value line on each card, its `BEST FOR …`
@@ -168,9 +189,21 @@ choice stands until you change it in the Advisor row — closing and
 reopening the program does not reset it either.
 
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
-its own card. **Undo apply** puts the previous slots back. **Why** opens the
-full account of what the suggestion counted and what it left out; **Clear**
-puts a suggestion away without applying it.
+its own card. **Undo apply** puts the previous slots back. **Why**, in the
+Advisor row, opens the full account of what the suggestion counted and what it
+left out; **Why this relic**, on a slot card, opens the same dialog already
+scrolled so that card's slot is at the top. **Clear** puts a suggestion away
+without applying it.
+
+In the **Why** dialog, effects that have no number — they apply only under a
+condition, or only to a particular armament, or the game gives no figure — are
+hidden at first. Under each slot's lines a button reads `Show {n} effects
+without a number`; click it to list them, click `Hide …` to put them away
+again. Curses always stay visible, because they show what a relic costs. The
+notes at the bottom (what was not measured, how the figures were worked out)
+sit behind **Notes on these figures**; they open by themselves when the run
+could not answer part of the question or stopped its search early. Which
+buttons are open is not remembered: the dialog starts folded every time.
 
 **Hold**, on a slot card, keeps Optimize away from that one slot — you can
 still change it by hand, and a slot held on purpose while empty says so
@@ -195,8 +228,9 @@ instead. Marks are remembered across restarts. A favourited effect no relic
 of yours carries, or one no combination of your relics can bring together
 with the others, is said so by name rather than dropped quietly. The
 **Why** dialog shows the same marks, but only to read — a `▲` marks a
-favourited effect, a struck-through one an avoided effect, and changing
-either happens in the Filters window, not there. Conditional effects — a
+favourited effect, a struck-through one does nothing for you (an avoided
+effect, or one that works only for another Nightfarer), and changing a
+mark happens in the Filters window, not there. Conditional effects — a
 handful of curses and buffs that only apply below a health threshold, on a
 dodge, after drinking a Flask — are counted as met unless you say otherwise
 on the sheet (see "About the switches" below).
@@ -286,35 +320,75 @@ Grey is your base at that level; the coloured figure is what the equipped relics
 add. **Curses are shown in red** with a ✦, both on the slot and in the totals —
 they are folded into the maths rather than quietly ignored.
 
-**Weapon art and Spell damage.** Two more rows can appear right under the
-weapon panel's **Total** line, but only on the tile that carries your
-Nightfarer's own starting armament — move that weapon to another tile and the
-rows move with it; put a different, found weapon on the starting tile and
-neither row appears there.
+**Casting.** Under the six weapon tiles a block titled `CASTING` shows which
+spell or which weapon art the panel counts for the selected tile. It appears
+only when the selected tile holds a staff or seal with a spell, or a weapon
+that has a weapon art; otherwise it is not there. It lists only what lies on
+that one weapon, never every spell or art in the game.
 
-- **Weapon art** shows what your character skill adds on top of the Total
-  above it, so its own base figure is that Total, not zero — a relic that
-  raises attack moves both rows by the same amount and leaves this row's
-  change at `no change`; only a relic that boosts skill damage moves it on
-  its own. On a staff or a seal there is no number to show here (the game
-  ranks a catalyst by spell power, not by an attack art), so the row reads a
-  sentence instead: *"Weapon art — not shown: a staff or a seal is ranked on
-  the spell power the game shows for it, and no attack art reaches that
-  figure."*
-- **Spell damage (\<spell name>)** appears only if your Nightfarer's starting
-  kit includes a staff or a seal — eight of the ten do not, and get no row at
-  all. The spell shown is whichever one that catalyst actually casts: a relic
-  that swaps its spell takes priority over the catalyst's own default. If
-  that spell deals no damage by itself (Revenant's default Rejection/Heal,
-  for example), the row still shows a number, `0`, not a sentence. Click the
-  bold figure for a breakdown tooltip; it always ends with one of two notes —
-  either that spell damage is uncalibrated (the formula applied to the
-  game's own values, with nothing in the game to check it against — use it to
-  compare two spells, not as an absolute number), or, for a spell that deals
-  no damage, that only a relic swapping the cast spell would bring damage
-  here. Do not add this figure to the weapon's attack rating above it —
-  attack rating and spell damage are two different scales and this panel
-  never mixes them.
+- On a staff or a seal there is one chip per spell slot, captioned `R1` and
+  `R2`. With no choice from you, `R1` is counted. A slot that holds one spell
+  is chosen with one click; a slot whose spell can differ from run to run
+  opens a list of the spells that slot can hold. Which spells a given staff
+  rolls cannot be known in advance, so the list is yours to pick from.
+- On any other weapon with an art there is one chip captioned `ART`. A click
+  opens a list of the arts that weapon can carry; click one to choose it. Only
+  your starting armament has a default art: it is listed first and marked with
+  a dot. A weapon with a single possible art shows it without a list. Any other
+  weapon with several possible arts is treated as rolled: it has no default and
+  no dot, the chip is dashed and reads `Choose a weapon art`, and the panel
+  names no art until you pick one. On such a weapon the list's footer ends
+  with "Choose this weapon's art".
+- The chosen chip has the orange frame, and its figure is the same number as
+  the `Spell damage` row below. Hover a chip for its name, school or art, FP
+  cost and whether it is the weapon's default. Keyboard: Tab goes through the
+  tiles, then the chips, then the 1H/2H switch; Enter opens or chooses, Esc
+  closes a list.
+- The choice is remembered per Nightfarer and per tile while the program
+  runs, not after a restart. A different weapon on the tile, or clearing the
+  tile, resets it to the default; confirming the same weapon keeps it.
+- A relic that changes the **starting** armament's spell or skill beats your
+  choice: the block then shows only that entry, captioned `RELIC`, with the
+  sentence *"A relic changed the starting armament's spell to \<name>. Your
+  choice applies again without it."* Without the relic your choice counts
+  again. On any other tile no relic changes the spell or the art.
+
+**Weapon art and Spell damage.** Two more rows can appear right under the
+weapon panel's **Total** line, for the selected tile.
+
+- **Weapon art (\<art name>)** appears on any filled tile whose art is known:
+  the starting armament's default art, the only art of a weapon that has just
+  one, or the one you chose in `CASTING`. It is one hit
+  of that art, not an addition to the Total above it: the grey figure is that
+  hit with nothing equipped, then the change your relics make, then the bold
+  figure. It is one figure, not a pair, and it does not follow the 1H/2H
+  switch. A relic that raises attack moves it, and a relic that boosts skill
+  damage moves it further. If the art has no figure of its own (it deals no
+  damage, its damage comes from a projectile this program does not read, or
+  its fixed figure is not calibrated yet), the row names the art and says why
+  instead of showing a number. A weapon with several possible arts and none
+  chosen shows no row; `CASTING` asks for the choice. On a staff or a seal
+  there is no number to show (the game ranks a catalyst by spell power, not
+  by an attack art), so the row reads a sentence instead: *"Weapon art — not
+  shown: a staff or a seal is ranked on the spell power the game shows for
+  it, and no attack art reaches that figure."*
+- **Spell damage (\<spell name>)** appears when the selected tile holds a
+  staff or a seal, for any Nightfarer, and for Recluse and Revenant when no
+  tile holds one (their starting catalyst is used). Any other Nightfarer with
+  no staff or seal on the selected tile gets no row. The spell shown is the
+  one chosen in `CASTING`, `R1` if you chose none. The figure is at the
+  upgrade level of the tile. If that spell deals no damage by itself
+  (Revenant's default Rejection/Heal, for example), the row still shows a
+  number, `0`, not a sentence. Click the bold figure for a breakdown tooltip:
+  the base, the relics that moved it and the figure, and for a spell that
+  deals no damage a note that only a relic swapping the cast spell would
+  bring damage here. Do not add this figure to the weapon's attack rating
+  above it — attack rating and spell damage are two different scales and this
+  panel never mixes them.
+
+The Advisor reads the same choice: **Hit with** *Weapon art*, *Sorceries* and
+*Incantations* rank the art or spell chosen on the selected tile and show the
+same number as the rows above.
 
 **About the switches.** The tool cannot know whether you are below 40% HP, or
 how many Night Invaders you have killed, or whether your Character Skill is up
@@ -377,8 +451,9 @@ two-handed, its rating on this tab shows both hands side by side —
 `144 / 149 2H` — same as the Build planner; this tab has no **1H/2H** switch
 of its own, since it rates every armament in the game rather than one build.
 Sorceries and incantations show their FP cost here rather than a damage
-figure — the Advisor's *Spell damage* is worked out for one Nightfarer's own
-starting spell against a chosen damage type (see *Advisor* above), not for
+figure — the Advisor's *Spell damage* is worked out for the spell of one
+staff or seal in your build against a chosen damage type (see *Advisor*
+above), not for
 every spell in the game against every damage type, so this tile has no
 figure to show.
 
@@ -474,9 +549,10 @@ What each of the five Depths changes, in the order the questions get asked.
   the game sorts enemies into groups without recording which creature is in
   which.
 - **What moves your rating** — a win, and what each kind of loss costs, per
-  Depth. This block is **not** from the game files and says so on itself: no
-  param holds it. The win value and Depth 1 costing nothing are confirmed in
-  game; the bonuses and the loss table are community-reported.
+  Depth. No param in the game holds these figures; they read like every other
+  value on the tab, with nothing marking them apart. The win value and Depth 1
+  costing nothing are confirmed in game; the map bonus and the loss table are
+  reported by the community and corroborate each other.
 - **What else changes with depth** — the chance of a second cataclysm, of the
   map or the Nightlord being hidden from you, and the rates at which relics
   come cursed. Read from the game's own depth table.
@@ -518,9 +594,10 @@ carries the event — the closest thing to "how likely am I to see this" the
 game's data supports. The demon's card lists everything the demon can do, in
 the game's own words.
 
-Anything shown in blue is community-reported and could not be verified against
-the game's data. The three expansion events are tagged **Deep of Night only**,
-and events with no announcement banner are marked *no banner*.
+The card text draws on both the game's own data and community write-ups;
+both read alike, with nothing on screen marking one apart from the other. The
+three expansion events are tagged **Deep of Night only**, and events with no
+announcement banner are marked *no banner*.
 
 ---
 
@@ -691,17 +768,22 @@ thrown away.
 
 ## How values are derived
 
-One rule runs through the whole project: **every value comes from the game files,
-and anything that does not is labelled.**
+One rule runs through the whole project: **every value comes from the game
+files, save a handful the game does not track at all — and those read like
+every other value, with nothing on screen setting them apart.**
 
 In practice that means stacking rules are read from the game's own exclusivity
 keys rather than inferred from a shared category; conditional effects stay out of
 the flat totals rather than being applied unconditionally; and where a chain from
 the menu to the underlying data cannot be closed, the tab says so on itself.
 
-The handful of figures that genuinely are not in the files — the expedition
-rating table, the cataclysm split — are marked *confirmed in game* or
-*community-reported* where they appear, never presented as extracted data.
+The figures that genuinely are not in the files are the Deep of Night rating
+table (see [Deep of Night](#5-deep-of-night)), part of the Red variants intro
+— the weapon-drop and Everdark Sovereign lines (see [Red
+variants](#6-red-variants)) — and part of the World Events prose (see [World
+Events](#7-world-events)). None of them is marked *confirmed in game* or
+*community-reported* on screen — that distinction lives only in this
+document.
 
 It also means a field is shown only when it is understood. Some values in the
 game's tables are pointers into other tables rather than quantities, and a few
@@ -775,10 +857,6 @@ Stated plainly rather than hidden:
   scripts, but their constants are not yet scoped to the functions using them.
 - **Weak parts are numbered, not named.** Nothing in the files says which body
   part a slot refers to.
-- **Spell damage is uncalibrated.** The Advisor shows a *Spell damage* figure
-  for staves and seals (see [Build planner](#1-build-planner)), but the game
-  displays no spell-damage number on screen to check it against, so treat it
-  as a way to compare two spells, not as an exact figure.
 - **Mutation categories are unnamed** in the files, so the Depth weighting tab
   shows ids.
 - **A PC with no Steam installed cannot point the tool at the game at all.**

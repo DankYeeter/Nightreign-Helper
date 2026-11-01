@@ -15,8 +15,7 @@ import pathlib
 import pytest
 
 from nrdata import iconbuild
-from nrplanner import firstrun
-from nrplanner.iconpack import IconPack
+from nrplanner import firstrun, paths
 
 #: One entry of each shape the manifest has: id -> file, and the variants'
 #: hero -> [{"id", "file"}].
@@ -35,7 +34,7 @@ PROMISED = ["hero_1.png", "item_200.png", "variant_49000.png", "ui_slot.png"]
 def pack(tmp_path, monkeypatch) -> pathlib.Path:
     """A pack folder the launch check looks at, with a current manifest."""
     (tmp_path / "manifest.json").write_text(json.dumps(MANIFEST))
-    monkeypatch.setattr(IconPack, "locate", staticmethod(lambda: tmp_path))
+    monkeypatch.setattr(paths, "icons_dir", lambda: tmp_path)
     # Not under test here: a snapshot that is missing is simply reported.
     monkeypatch.setattr(firstrun, "bundled_path",
                         lambda: tmp_path / "no-snapshot.json")
@@ -124,3 +123,19 @@ def test_the_walk_skips_a_variant_without_a_file_or_with_a_non_string():
 def test_a_manifest_of_the_wrong_shape_is_a_rebuild_not_a_crash(pack, shape):
     (pack / "manifest.json").write_text(shape)
     assert "icons" in firstrun.what_is_needed(pack)
+
+
+#: Stamp's symbol, Wylder's starting art (ARCHITECTURE.md P.1, 2026-10-31).
+STAMP_ICON = 8305
+
+
+def test_the_pack_asks_for_the_weapon_arts_symbols(installed_game):
+    """AD-056.2: the art symbols ride in the item set, so the pack wants them."""
+    from nrdata import paramdef, regulation
+
+    game, defs_dir = installed_game
+    members = {f.basename[: -len(".param")]: f.data
+               for f in regulation.load_params(game / "regulation.bin")}
+
+    assert STAMP_ICON in iconbuild.item_icon_ids(members,
+                                                 paramdef.load_all(defs_dir))

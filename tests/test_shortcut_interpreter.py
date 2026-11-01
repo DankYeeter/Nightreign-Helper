@@ -10,23 +10,21 @@ with this module's own arguments.
 
 from __future__ import annotations
 
-import os
 import pathlib
 import subprocess
-
-import pytest
 
 from nrplanner import shortcut
 
 
-def test_the_interpreter_is_taken_from_the_windows_folder():
-    found = shortcut.powershell_path()
-    if found is None:
-        pytest.skip("this machine has no %SystemRoot% PowerShell to find")
-    assert found.is_absolute()
-    assert found.is_file()
-    system_root = pathlib.Path(os.environ["SystemRoot"]).resolve()
-    assert found.resolve().is_relative_to(system_root)
+def test_the_interpreter_is_taken_from_the_windows_folder(tmp_path,
+                                                          monkeypatch):
+    # QA-236: the Windows folder is set here, not read off this machine.
+    exe = tmp_path.joinpath(*shortcut.POWERSHELL_RELATIVE)
+    exe.parent.mkdir(parents=True)
+    exe.touch()
+    monkeypatch.setenv("SystemRoot", str(tmp_path))
+
+    assert shortcut.powershell_path() == exe
 
 
 def test_no_system_root_means_no_interpreter(monkeypatch):

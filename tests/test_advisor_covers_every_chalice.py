@@ -131,7 +131,7 @@ def made_inventory(data: dict, hero: dict):
                      + advisor.deep_templates_for(data, colour, per_colour))
         for template in templates:
             index = len(owned)
-            owned.append(relic_helpers.make_relic(template, 100 + index, index,
+            owned.append(relic_helpers.make_relic(template, 100 + index,
                                                   rolls[index]))
     return inventory.Inventory(source="test", relics=owned)
 

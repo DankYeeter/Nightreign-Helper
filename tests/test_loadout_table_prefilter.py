@@ -34,12 +34,8 @@ from nrdata import savefile
 NO_GRAILS = 0
 
 # The fewest real, consecutive markers a table needs before it is recognised
-# at all. MIN_HEROES itself is one short -- the last group is only counted
-# once a marker one higher than it has been found, so a run of exactly
-# MIN_HEROES markers is rejected today (see test_loadout_table.py, "a short
-# run of Nightfarers"; QA-009). A prefilter test needs a table that is
-# actually found, so it uses this instead.
-A_FOUND_TABLE = savefile.MIN_HEROES + 1
+# at all (QA-009).
+A_FOUND_TABLE = savefile.MIN_HEROES
 
 
 def group_marker(hero: int) -> bytes:
@@ -104,7 +100,8 @@ def full_walk(slot_data: bytes) -> list[tuple[int, int]]:
             groups.append((pos, found))
             pos = pos + 8 + found * savefile.LOADOUT_RECORD
             hero += 1
-        if len(groups) >= savefile.MIN_HEROES and len(groups) > len(best):
+        if (len(groups) + 1 >= savefile.MIN_HEROES
+                and len(groups) + 1 > len(best)):
             records = 0
             while records < savefile.MAX_GRAILS:
                 probe = pos + 8 + records * savefile.LOADOUT_RECORD
@@ -123,11 +120,13 @@ def full_walk(slot_data: bytes) -> list[tuple[int, int]]:
             hits = slot_data.count(marker)
             if hits:
                 seen.append(f"ff{n:02x}×{hits}")
-        raise ValueError(
-            "equipped-loadout table not found in this save slot "
-            f"(no ascending run of {savefile.MIN_HEROES}+ Nightfarer "
-            f"markers; markers present: {', '.join(seen) or 'none'})"
-        )
+        refusal = ValueError(
+            "this save keeps them somewhere this program does not look; "
+            "the game may have changed how it stores them")
+        refusal.add_note(
+            f"no ascending run of {savefile.MIN_HEROES}+ Nightfarer markers; "
+            f"markers present: {', '.join(seen) or 'none'}")
+        raise refusal
     return best
 
 
@@ -136,7 +135,7 @@ def outcome(scan, blob: bytes):
     try:
         return scan(blob)
     except ValueError as exc:
-        return ("refused", str(exc))
+        return ("refused", str(exc), getattr(exc, "__notes__", []))
 
 
 def both_walks_agree(blob: bytes):
@@ -292,10 +291,9 @@ def test_a_lone_marker_amid_unrelated_data_is_still_not_a_table():
     buffer[100:104] = group_marker(1)
 
     result = both_walks_agree(bytes(buffer))
-    assert result == ("refused",
-                       "equipped-loadout table not found in this save slot "
-                       "(no ascending run of 4+ Nightfarer markers; markers "
-                       "present: ff01×1)")
+    assert result[0] == "refused"
+    assert result[2] == ["no ascending run of 4+ Nightfarer markers; "
+                         "markers present: ff01×1"]
 
 
 def test_two_tables_in_one_slot_the_longer_one_wins():

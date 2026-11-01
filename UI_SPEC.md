@@ -2126,10 +2126,13 @@ in jedem Zustand, wie AK-329):
 
 `hit_with_box`:
 > `"Chooses what the figure ranks: the starting armament, its Weapon Art, "`
-> `"or the spell the starting catalyst throws. Weapon art counts Weapon "`
-> `"Arts only — a Nightfarer's own skills are never counted. Sorceries, "`
-> `"Incantations and a school rank the one spell this Nightfarer's own "`
-> `"equipment casts, not a spell found in the run."`
+> `"or the spell of the staff or seal on the selected tile (or else the "`
+> `"starting one). Weapon art counts Weapon Arts only — a Nightfarer's own "`
+> `"skills are never counted. Sorceries, Incantations and a school rank the "`
+> `"one spell that staff or seal casts, not a spell found in the run."`
+
+(Wortlaut seit T-335c, Director 28.10.2026: der Katalysator der gewaehlten
+Kachel geht dem Start-Katalysator vor, AK-353 Punkt 2.)
 
 `damage_type_box`:
 > `"Restricts {direction} to one kind of damage."`
@@ -2258,14 +2261,16 @@ davon eine leere Zelle ohne Erklaerung (AD-025.2):
 
 1. **Acht Nightfarer ohne Katalysator**, jede Wahl von `Sorceries`,
    `Incantations` oder einer Schule in `hit_with_box`:
-   > `"This Nightfarer starts with neither a staff nor a seal, so {choice} "`
-   > `"is not counted: there is no spell of this build's own to rank."`
+   > `"There is no staff or seal on the selected tile and this Nightfarer "`
+   > `"starts with neither, so {choice} is not counted: put one on a tile "`
+   > `"and select it to rank its spell."`
+   (Wortlaut 1 und 2 seit T-335c, Director 28.10.2026.)
    Zahl: `0.00` (Ranking-neutral), Anzeige: `"Spell damage not counted"`
    (**kein** Zahlenwert im Text — Unterschied zu AK-342s `"…0"`, siehe unten).
 2. **Stab unter `Incantations`, Siegel unter `Sorceries`** (falsche Gattung):
-   > `"{choice} is not counted for this Nightfarer: {catalyst} casts "`
-   > `"{genus}, and this run ranks the spell the starting equipment really "`
-   > `"throws."`
+   > `"{choice} is not counted here: {catalyst} casts {genus}, and this "`
+   > `"run ranks the spell of the staff or seal on the selected tile, or "`
+   > `"else the starting one."`
    Gilt nur fuer die direkte Gattungswahl (`Sorceries`/`Incantations`), nicht
    fuer eine Schulwahl — eine Schule, der der geworfene Zauber nicht angehoert,
    ist kein Ablehnungsfall, sondern eine Zahl ohne Schulfaktor (Kombinations-
@@ -2925,13 +2930,20 @@ des aktuellen Nightfarer:
    Punkt 1). Verschiebt der Spieler die Startwaffe auf eine andere Kachel,
    verschwindet die Zeile mit ihr — das ist dieselbe Regel, der auch der
    Statusmalus folgt, keine zweite.
-2. **`Spell damage (<Zauber>)`** erscheint, wenn die aktive Kachel **entweder**
-   die rechte Starthand ist (Punkt 1) **oder** ihre Waffe die Id des per
-   AD-052 aufgeloesten Start-Katalysators traegt (die linke Starthand, falls
-   sie ein Stab oder Siegel ist und der Spieler sie manuell auf eine Kachel
-   gelegt hat). In beiden Faellen stammt die Zahl **ausschliesslich** aus der
-   Fassade (AK-357), nie aus einer eigenen Berechnung ueber die Waffe der
-   aktiven Kachel.
+2. **`Spell damage (<Zauber>)`** erscheint, wenn die Waffe der aktiven Kachel
+   einen `wep_type` aus `damage.GENUS_OF_CATALYST` hat (Stab oder Siegel,
+   gleich welcher Nightfarer und woher — Korrektur T-335b, Nutzer
+   28.10.2026: "ich kann theoretisch auch duchess weil sie so viel int hat
+   als magierin spielen"). Zauber ist der dieses Katalysators
+   (`SPELL_SLOTS_KEY`); Tausch-Relikte (`swapped_spell_ids`) gelten nur,
+   wenn er der Start-Katalysator ist, denn sie tauschen den Zauber der
+   Startwaffe. Stufe ist die der Kachel, auf der auch ihre Zeile `Spell
+   power` steht. **Ohne** Katalysator auf der aktiven Kachel bleibt der
+   bisherige Fall: die rechte Starthand (Punkt 1) traegt die Zeile des per
+   AD-052 aufgeloesten Start-Katalysators auf `weapons.MIN_UPGRADE`
+   (Revenant: Finger Seal auf keiner Kachel, Claws aktiv). Katalysatorwahl:
+   `damage.spell_catalyst`, dieselbe Funktion fuer den Berater (§3.8).
+   Die Zahl stammt **ausschliesslich** aus der Fassade (AK-357).
 3. Auf jeder anderen Kachel (ein im Lauf gefundenes Schwert in Slot 3, ein
    verschobenes Schild) erscheint **keine** der beiden Zeilen — die
    Schadenstafel verhaelt sich dort exakt wie heute (AK-31 bis AK-40
@@ -2943,7 +2955,9 @@ Kachel 1 (Cursed Claws) aktiv, Finger Seal auf keiner Kachel: `Weapon art`
 **und** `Spell damage (Beast Claw)` erscheinen zusammen — der Nachweis aus
 `GOAL.md` A27 woertlich. Revenant, Kachel 3 mit einem gefundenen Fist belegt
 und aktiv: keine der beiden Zeilen, auch wenn Kachel 1 im Hintergrund
-weiterhin die Claws traegt.
+weiterhin die Claws traegt. Raider oder Duchess mit Academy Glintstone Staff
+auf der aktiven Kachel: `Spell damage (Glintstone Pebble)` auf deren Stufe
+(T-335b). Wylder mit Greatsword: keine Zeile.
 
 #### AK-354 — `Weapon art`: Formel und Fassadenaufruf
 
@@ -3026,7 +3040,7 @@ gemeinsam rufen (z. B. neben `damage.spell` in `damage.py`, oder ein
 eigenstaendiges Modul); ein Copy-Paste der Auswahl nach `statsheet.py` waere
 der zweite Ort, den AD-019 ausdruecklich verbietet. Aufruf danach:
 `damage.spell(thrown, catalyst, weapons.MIN_UPGRADE, build, data,
-hit_with=genus)` mit `genus = model.SORCERIES_ART` fuer einen Stab,
+hit_with=genus)` (Stufe seit T-335b nach AK-353 Punkt 2) mit `genus = model.SORCERIES_ART` fuer einen Stab,
 `model.INCANTATIONS_ART` fuer ein Siegel (`_GENUS_OF_CATALYST[catalyst
 ["wep_type"]]`) und `damage_type=""` (Summe aller Arten — diese Tafel hat
 keine Damage-type-Box). **Ausdruecklich nicht Teil dieser Vorgabe:** eine
@@ -3038,7 +3052,8 @@ Advisor-Leiste (§3.8) vorbehalten.
 
 **AK-358** Traegt der Nightfarer **weder** in der rechten **noch** in der
 linken Starthand einen Stab oder ein Siegel (acht von zehn, AD-052 gemessen),
-erscheint die Zeile `Spell damage` **auf keiner Kachel**, auch nicht als
+erscheint die Zeile `Spell damage` **auf keiner Kachel ohne Katalysator**
+(seit T-335b traegt jede Kachel mit Stab oder Siegel sie, AK-353 Punkt 2), auch nicht als
 Ablehnungssatz — anders als `AK-341`s Regel fuer die Advisor-Leiste (dort eine
 dauerhafte Box, die jeder Nightfarer gleich sieht, hier eine Zeile, die schon
 durch AK-353 an die Startausruestung **dieses** Nightfarer gebunden ist). Das
@@ -7444,11 +7459,11 @@ ersetzt.*
 
 1. **`MAX_DAMAGE.scope`, letzter Satz, endgueltig** (ersetzt den
    provisorischen Satz in `_ATTACK_RATING_SCOPE` woertlich):
-   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the roles a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
+   `"Scaled on the Nightfarer's own starting armament at its lowest tier, without the rolls a carried copy could add; one- or two-handed as the stat sheet's hand switch says."`
    „own starting armament" = die feste Bezugswaffe aus AD-038 Punkt 1
    (Startwaffe des Nightfarers, `weapons.MIN_UPGRADE`,
    `slot_index=damage.STARTING_SLOT`, OF-42 Nutzerentscheid); „without the
-   roles a carried copy could add" = `weapons_held`/`armament_effect_ids`
+   rolls a carried copy could add" = `weapons_held`/`armament_effect_ids`
    bleiben leer (AD-038 Punkt 1, „ohne ihre Rollen"); „the stat sheet's hand
    switch" = der bestehende 1H/2H-Schalter des Statblatts (AD-037,
    `ctx.two_handed`), kein neues Bedienelement im Berater — OF-41 bleibt
@@ -7560,9 +7575,17 @@ Tauschrelikt im Bestand daran etwas.
    bestehenden Funktionen).
 2. **`unknowns`** (Why-Dialog, Punkt 4 von §3.4, `advisorblock._footer_text`),
    zusaetzlich zur Zeile oben, ein vollstaendiger Satz:
-   > `"Nothing you own reaches {choice} here: your starting equipment does "`
-   > `"not carry it, and nothing in your inventory swaps in a spell or "`
-   > `"weapon art that does."`
+   > `"Nothing you own reaches {choice} here: the armament it is ranked on "`
+   > `"does not carry it — for a spell the staff or seal on the selected "`
+   > `"tile, for a weapon art the armament on it, and the starting one where "`
+   > `"the tile has none; otherwise the starting armament — and "`
+   > `"nothing in your inventory swaps in a spell or weapon art that does."`
+
+   (Wortlaut seit T-335f, QA-306: seit T-335b rechnet ein Zauber auf dem
+   Stab/Siegel der gewaehlten Kachel, Waffe und Weapon Art weiter auf der
+   Startwaffe; "your starting equipment" stimmte fuer Zauber nicht mehr. Seit
+   T-335fix, QA-310: die Weapon Art rechnet auf der Waffe der markierten
+   Kachel, bei leerer Kachel auf der Startwaffe.)
 
 `{choice}` ist in beiden `chosen_label(hit_with, damage_type)`
 (`advisor/goals.py:279`, dieselbe Funktion wie AK-342/AK-344/AK-346 — kein
@@ -7812,3 +7835,1090 @@ ergaenzen, falls `MUTED` dort noch nicht importiert ist).
 Endet der vorangehende Text mit einem Punkt (die "Loaded …"-Zeile von
 `load_equipped`), ersetzt der Halbsatz diesen Punkt: "… with 3 relics — 1
 other save was found; …", nie ". —". Wortlaut des Halbsatzes unveraendert.
+
+#### Nachtrag T-334b (ui-ux-designer), 2026-10-13 — QA-300/QA-301 und der Why-Satz der favorisierten Waffenart (Spec-Modus)
+
+*Auftrag T-334b, Spec ohne Varianten (Nutzer 18:11: "Designer entscheidet nach
+Best Practice"), **kein Fensterlauf**, Vorgabe aus Codelesung Stand `661bb73`
+und `docs/berichte/T-333b-power-user.md`. Naechste freie AK-Nummer gemessen
+(`grep -ohE 'AK-[0-9]+' UI_SPEC.md UI_SPEC_REGISTER.md | sort -t- -k2 -n -u |
+tail -1` = AK-371 aus T-329m) — ab **AK-372**. Gegengelesen: `ARCHITECTURE.md`
+AD-036 Punkt 6 samt Nachtrag 12.10.2026 (QA-299), AK-141, AK-155, AK-165,
+AK-170, AK-171, AK-274, AK-290, AK-301.*
+
+**Zweck und Nutzerziel.** Wer `Why` drueckt, will in einem Blick lesen, welche
+Relikte warum vorgeschlagen sind und was sie kosten — nicht durch Zeilen
+waten, die nur sagen, dass es keine Zahl gibt. Wer `Save` drueckt oder einen
+Nightfarer anklickt, will sehen, dass etwas geschehen ist.
+
+**Befunde (Lesart des Designers).** QA-300 sind drei Fehler: (1) *Untergehen*:
+im `WhyDialog` stehen die Zeilen der Gruppe in Relikt-Reihenfolge
+(`explain.py` `reasons`, Z. 770-786), Zahllose (`only applies under a
+condition, so no number here.` u. a.) zwischen den Zeilen mit Zahl; darunter
+bis zu fuenf Fussnoten-Saetze (`advisorblock._footer_text`, Z. 586-604:
+`Goal.scope`, `unknowns`, `weights_note`, `budget_note`, `data_note`);
+(2) *zwei gleichnamige Knoepfe* `Why` (Leiste `advisorbar.py:809`, Karte
+`advisorblock.py:334`), obwohl AK-274 ihnen denselben Inhalt gibt — der
+Nutzer erwartet nach QA-260 von der Karte "pro Relikt"; (3) *Zielwahl ohne
+Namen*: `goal_box` (`advisorbar.py:704`) hat weder Accessible-Name noch
+Buddy-Label (`setAccessibleName` kommt im Projekt nur an `advisorbar.py:619`
+und `bosstab.py:499` vor). QA-301: Save und Nightfarer-Wiederklick
+(`app.py:1318`, `app.py:1895`) geben keine Rueckmeldung.
+
+**Aufwand je Ziel (aus dem Code, nicht geschaetzt).**
+
+| Ziel | heute | Vorgabe |
+|---|---|---|
+| Warum diese Relikte lesen | 1 Klick + Scrollen durch Zahllose und Fussnoten | 1 Klick; Zahllose und Fussnoten kosten 0 Handlungen, es sei denn man will sie (1 Klick je Gruppe) |
+| Warum *dieses* Relikt lesen | 1 Klick auf Karten-`Why`, dann suchen | 1 Klick, Dialog steht auf der Gruppe (0 Suchen) |
+| Build speichern | 3 (Klick, Name, Enter), keine Rueckmeldung | unveraendert 3, plus Rueckmeldung ohne Handlung |
+| Nightfarer waehlen, schon gewaehlt | 1 Klick, volles Neuladen, keine Rueckmeldung | 1 Klick, kein Neuladen, Rueckmeldung |
+
+Nichts davon fragt etwas Neues ab; das Programm merkt sich weiterhin nur, was
+es heute merkt (Faltungszustand ausdruecklich **nicht**, AK-377).
+
+##### Why-Dialog (AK-372 bis AK-377)
+
+**Aufbau, neu.** Kopfsatz, dann je Slot-Gruppe: **fetter** Titel
+`Slot n — Relikt`, `count_line`, sichtbare Zeilen, Faltknopf, (aufgeklappt) die
+Zahllosen; danach die Listen `Effects you've avoided/favourited`, die bedingte
+Liste, die Legenden, zuletzt der Faltknopf `Notes on these figures` mit den
+Fussnoten. Die Reihenfolge der Bausteine bleibt die heutige; neu sind nur
+Fettdruck, die zwei Faltknopfarten und das Verbergen der Zahllosen.
+**Gefaltet heisst nur nicht gezeichnet, nicht entfernt:** Widgets und Saetze
+bleiben im Dialog (`dialog.groups`, `dialog.footer`), unsortiert, ungefiltert,
+unentdoppelt (AK-165 gilt unveraendert), und `effects_total -
+effects_with_a_figure` (AK-155) zaehlt wie bisher.
+
+**AK-372** *(Zahllose einklappen.)* Eine Zeile einer Gruppe ist **zahllos**,
+wenn `line.is_curse` falsch ist und `line.silence` eines von
+`SILENT_NO_NUMBER_HERE`, `SILENT_UNDER_A_CONDITION`, `SILENT_ARMAMENT_BOUND`
+ist. Zahllose Zeilen sind im frisch geoeffneten Dialog **nicht sichtbar**
+(`isVisible()` falsch, Widget vorhanden). Hat eine Gruppe n ≥ 1 zahllose
+Zeilen, steht unter ihren uebrigen Zeilen ein Faltknopf mit dem Text
+`Show 1 effect without a number` bzw. `Show {n} effects without a number`;
+aufgeklappt `Hide 1 effect without a number` / `Hide {n} effects without a
+number`. Ein Klick klappt nur diese Gruppe; die Zahllosen erscheinen unter dem
+Knopf in ihrer bisherigen Reihenfolge. Hat die Gruppe n = 0, gibt es keinen
+Knopf (kein Platzhalter). Pruefweg: Dialog mit einer Antwort, die Zahllose
+traegt, ueber `dialog.groups` lesen; die Zahl im Knopftext gleich der Anzahl
+der Zeilen mit diesen drei `silence`-Werten.
+
+**AK-373** *(was nie eingeklappt wird.)* Immer sichtbar: Zeilen mit Zahl;
+**jeder Fluch** (`is_curse`), auch `…: no number here shows what this costs.`
+(der Preis ist vor dem Anwenden lesbar, vgl. `types.drawn_in_the_block`); sowie
+die Zeilen mit `silence` ∈ {`SILENT_ANOTHER_NIGHTFARER`,
+`SILENT_ALREADY_COUNTED`, `SILENT_NOT_IN_THE_DATA`, `SILENT_EXCLUDED`,
+`SILENT_REQUIRED`} und die neue Art aus AK-383 — sie sagen etwas ueber eine
+Entscheidung des Nutzers oder deren Folge, nicht "es gibt keine Zahl". Die
+sichtbaren Zeilen behalten die Relikt-Reihenfolge; nur die drei Arten aus
+AK-372 fehlen darin.
+
+**AK-374** *(die Antwort steht oben.)* Der Titel jeder Gruppe (`Slot n — …`)
+ist fett (`font().bold()` wahr), `count_line` steht unmittelbar darunter
+unveraendert. Bei der Dialoggroesse 640 x 620 (`advisorblock.py:473`) liegen
+im frisch geoeffneten Dialog der Titel der ersten Gruppe samt `count_line` und
+mindestens einer Zeile **ohne Scrollen** im sichtbaren Bereich des
+`QScrollArea`. Pruefweg: Geometrie von Titel und erster Zeile gegen
+`scroller.viewport().height()`; Fall: die Wylder-Antwort mit drei Relikten aus
+dem Laientest (T-333b).
+
+**AK-375** *(Fussnoten einklappen, nichts streichen.)* Der heutige `footer`
+(`_footer_text`, unveraendert in Inhalt und Reihenfolge, AK-165/AK-171) steht
+hinter **einem** Faltknopf `Notes on these figures` (aufgeklappt `Hide notes on
+these figures`), als letztes Element der Seite. Frisch geoeffnet ist er
+**eingeklappt**, ausser `result.unknowns` oder `result.budget_note` ist nicht
+leer — dann **aufgeklappt**, weil beides eine Aussage ueber *diesen* Lauf ist
+(`No armament selected — …`, die Suche wurde gekappt), waehrend `Goal.scope`
+(u. a. "Scholar and Undertaker were not measured") und `data_note` fuer jeden
+Lauf derselben Richtung gleich lauten (AK-172). Ist der `footer` leer, gibt es
+den Knopf nicht (AK-170: nichts zeichnen).
+
+**AK-376** *(Faltknoepfe: bedienbar.)* Beide Arten sind `QToolButton` mit Pfeil
+im Text (`▸ ` zu, `▾ ` auf), ohne Rahmen (`setAutoRaise(True)`), Textfarbe
+`theme.ACCENT` (6,99:1 gegen `PANEL`, gerechnet 13.10.2026), Hoehe ≥ 24 px, in
+der Tab-Reihenfolge direkt hinter den Zeilen ihrer Gruppe bzw. hinter dem
+letzten Inhalt; Leertaste und Enter klappen, Fokusrahmen sichtbar;
+`accessibleName` = sichtbarer Text ohne Pfeil. Kein Tooltip noetig.
+
+**AK-377** *(kein Gedaechtnis.)* Der Faltzustand ist reiner Dialogzustand: er
+wird nicht gespeichert (`favourites.settings()` bekommt keinen Schluessel,
+OF-15), jede Oeffnung beginnt wie AK-372/AK-375 beschreiben. Aendert sich
+`EffectFilters` bei offenem Dialog (`filters.changed`), bleibt der Faltzustand
+unberuehrt.
+
+##### Zwei `Why`-Knoepfe (AK-378, AK-379)
+
+**AK-378** *(Karte und Leiste heissen verschieden.)* Der Knopf der Leiste
+(`advisorbar.py:809`) bleibt `Why` (80 px, AK-07/AK-274/AK-302 messen auf ihm);
+sein Tooltip lautet `Why this whole suggestion`, er oeffnet am Dialoganfang.
+Der Knopf der Karte (`advisorblock.py:334`) heisst `Why this relic`, Tooltip
+`Why this relic is suggested for this slot`. Sichtbarkeit unveraendert nach
+AK-274. **Messgrenze:** die Kartenkopfzeile darf die Karte nicht verbreitern
+(AK-160: kein horizontaler Bildlauf in der mittleren Spalte bei der
+abgeleiteten Startbreite und bei 1536 px); haelt das nicht, meldet der
+`developer` den Messwert als Befund zurueck, statt den Text zu kuerzen — der
+Designer entscheidet dann zwischen `Why here` und einem Umbruch.
+
+**AK-379** *(die Karte fuehrt an die richtige Stelle.)* Der Karten-Knopf
+oeffnet **denselben** Dialog mit **demselben** Volltext wie die Leiste (AK-274
+unveraendert, Volltextvergleich). Unterschied allein: der Dialog ist so
+gescrollt, dass der Titel der Gruppe dieses Slots (`Slot n — …`, n =
+`slot_index + 1` der Karte) oben im sichtbaren Bereich steht (Scrollbalken-Wert
+= `title.y()`, auf das Maximum gedeckelt; `ensureWidgetVisible` genuegt nicht,
+es macht nur sichtbar, nicht oben). Hat die Antwort fuer diesen Slot keine
+Gruppe, oeffnet der Dialog am Anfang. Faltzustand bleibt AK-372/AK-375.
+Verdrahtung: `app.py:2765` reicht den Slot mit (wie `use_requested`,
+`lambda slot=card`), `open_why` (`app.py:3051`) bekommt ihn optional. *Hebt den
+Ausschluss am Ende von AK-274 auf ("ob der geoeffnete Dialog zur Gruppe
+scrollt" — dort ein Vorschlag fuer einen spaeteren Auftrag).*
+
+##### Zielwahl der Leiste (AK-380)
+
+**AK-380** *(Namen ohne neue Breite.)* `goal_box`, `hit_with_box` und
+`damage_type_box` bekommen `setAccessibleName("Goal")`, `("Hit with")`,
+`("Damage type")` (`advisorbar.py:704, 734, 761`); **kein** neues sichtbares
+Label. Begruendung: die Eintraege der Zielwahl sind ganze Saetze (`Maximise
+damage`), die beiden anderen tragen ihr Label schon (der Kommentar an
+`hit_with_label` begruendet das mit der Mehrdeutigkeit kurzer Eintraege wie
+`Holy`, die bei der Zielwahl nicht besteht), und die Leiste hat laut AK-302
+nur 72 px Marge am 1536-px-Boden. Pruefweg: `box.accessibleName()` nicht leer
+bei allen dreien; UIA-Name der Zielwahl im Fensterlauf gleich `Goal`.
+
+##### Rueckmeldungen (AK-381, AK-382)
+
+**AK-381** *(Build speichern bestaetigt.)* Nach erfolgreichem
+`chalices.save_build` (`app.py:1923`) zeigt das Fenster im vorhandenen Muster
+(`QToolTip.showText`, wie `Hidden. Tick "Show hidden"…`, `app.py:1953`) einen
+Hinweis, aber **an der Build-Liste verankert**, nicht am Mauszeiger (der steht
+nach dem Namensdialog am Dialogknopf, nicht dort, wo sich etwas aenderte):
+`QToolTip.showText(build_box.mapToGlobal(QPoint(0, build_box.height())), text,
+build_box, QRect(), 4000)`. Text `Saved "{name}".`; existierte der Name vorher
+in `chalices.build_names(hero_id)`: `Saved over "{name}".` (ehrlich zum stillen
+Ueberschreiben, das heute geschieht; eine Rueckfrage ist **nicht** Teil dieser
+Vorgabe). Ein Name ueber 40 Zeichen steht hinten mit `…` gekuerzt. Nur nach
+Erfolg: nach den beiden Ablehnungen (`app.py:1908-1921`) bleibt deren Hinweis
+der einzige. Pruefweg: `QToolTip.showText` abfangen, genau ein Aufruf mit
+diesem Text, Widget = `build_box`.
+
+**AK-382** *(Wiederklick auf den gewaehlten Nightfarer.)* `select_hero`
+(`app.py:1318`) mit `index == self.hero_index` **und** bereits einmal gewaehlt
+tut nichts ausser: die Kachel bleibt angehakt (die Kacheln sind `checkable`,
+ein Klick auf die angehakte schaltet sie aus; heute stellt die Schleife
+`app.py:1320` sie nur durch das volle Neuladen wieder her), kein
+`reload_chalices`, kein `refresh_build_list`, kein Schreiben von `HERO_KEY`;
+dazu ein Hinweis im selben Tooltip-Muster, an der Kachel verankert: `{Name} is
+already selected.` **Achtung Start:** `hero_index` beginnt bei 0
+(`app.py:470`) und `select_hero(start_index)` (`app.py:674`) muss auch fuer
+Index 0 voll laufen — ein eigener Merker, nicht der Indexvergleich allein.
+Pruefweg: zweiter Klick auf dieselbe Kachel: `reload_chalices` nicht
+aufgerufen (Zaehler), Kachel `isChecked()`, ein `QToolTip.showText`-Aufruf.
+Wer den Spielstand neu einlesen will, hat den Knopf `app.py:814`.
+
+##### Der Why-Satz zur favorisierten Waffenart (AK-383)
+
+Heute `explain._marked_line` (`explain.py:557-567`): jeder favorisierte,
+zahllose Effekt bekommt `"{name}: you favourited it, so it always counts."`
+(AK-290.2). Seit dem Nachtrag AD-036.6 vom 12.10.2026 gilt in einem Vorschlag
+hoechstens **eine** Waffenart einer Waffenzahl-Bedingung
+(`effecttext.counts_armaments`, 31 Ids); ein favorisierter Effekt einer
+**anderen** Art zaehlt dort nicht, und der Satz luegt.
+
+**AK-383** *(Wahrheit vor Kuerze.)* AK-290.2 gilt nur noch, wenn der Effekt in
+der Rechnung dieses Vorschlags **tatsaechlich zaehlt**. Ist der Effekt
+favorisiert, eine Waffenzahl-Bedingung und seine Art nicht die in dieser
+Antwort angenommene (`GoalContext.assumed_armament_counts`, `evaluate`),
+lautet die Zeile (woertlich, A8 Englisch, Muster `"{name}: <Ursache>, so
+<Folge>."`):
+
+`{name}: you favourited it, but a build can meet the weapon-count condition of only one weapon type, and another type counts here, so this one is not counted.`
+
+Die Zeile hat einen **eigenen** `silence`-Wert (neu in `types.py`, z. B.
+`SILENT_REQUIRED_OTHER_TYPE`), wird wie jede favorisierte Zeile mit `▲` und
+fett in `ACCENT` gezeichnet (`advisorblock._styled`; der Zustand kommt aus
+`EffectFilters`, nicht aus dem Satz) und steht nach AK-373 immer sichtbar. Die
+Zaehlzeile der Gruppe (`_count_line`) aendert sich nicht. Pruefweg: Antwort
+mit zwei favorisierten Waffenzahl-Effekten verschiedener Art; die Gruppe
+nennt den gezaehlten ohne Zusatz und den anderen mit dem Satz oben.
+Negativprobe: ein gezaehlter favorisierter Effekt traegt weiter AK-290.2.
+Aenderungsstelle `explain.py:561`, dieselbe Stelle, an der heute der falsche
+Satz steht.
+
+**Ausdruecklich nicht Teil dieser Vorgabe.**
+- Ob ein Favorit die Waffenart *festlegt* (wie eine von Hand erklaerte
+  Waffenzahl-Bedingung, AD-036.6 Nachtrag) statt nur den Satz zu bekommen —
+  Produktfrage, siehe offene Frage im Bericht.
+- Eine Rueckfrage beim Ueberschreiben eines gespeicherten Builds (AK-381).
+- Einrichtung ~50 s (QA-301 Teil 3): **kein UI-Befund.** `iconbuild.py:188`
+  schreibt `item icons: {len(manifest['items'])} of {len(wanted)} requested`;
+  713 von 786 ist die Normalausgabe des Symbolbaus, kein Fehlerzeichen. Dass
+  der Bau ueberhaupt lief, heisst: der kopierte Testabzug
+  (`NightreignHelper-Testabzug`: `nightreign_data.json` + `icons/`, 841
+  Dateien, `EXTRACT_VERSION` 16 = heutiger Stand `nrdata/extract.py:104`) hat
+  im Laientest nicht gegriffen. Frage an die Lauf-Vorbereitung (Kopierziel
+  `LOCALAPPDATA`, Lage der Dateien), nicht an die Oberflaeche; die
+  Fortschrittsanzeige in Worten bewertete der Laie als gut.
+- Ein Antwortsatz ueber dem Kopfsatz des Dialogs: Gruppentitel samt
+  `count_line` sind die Antwort (AK-374); ein Vorab-Statement waere die
+  Doppelung, die AK-274 vermeidet.
+
+**Betroffene Dateien (fuer disjunkte Fixpakete).**
+`nrplanner/advisorblock.py` (AK-372 bis AK-379), `nrplanner/advisorbar.py`
+(AK-378, AK-380), `nrplanner/app.py` (AK-379 Verdrahtung, AK-381, AK-382),
+`nrplanner/advisor/explain.py` (AK-383, Z. 557-567),
+`nrplanner/advisor/types.py` (AK-383, neuer `silence`-Wert). Bestandstests,
+die sich aendern: alle, die `dialog.footer.isVisible()` oder die Sichtbarkeit
+zahlloser Zeilen im frisch geoeffneten Dialog lesen (AK-141/AK-170/AK-171),
+und die, die den Kartenknopf als `Why` finden.
+
+---
+
+#### Nachtrag T-334k (ui-ux-designer), 2026-10-13 — QA-292 Mindestbreiten der Leiste, Abnahme der Texte aus T-334h/T-334d (Spec-Modus)
+
+*Kein Fensterlauf; Grundlage Code (`advisorbar.py:691-824`, `app.py:203-293`,
+`:2229-2243`, `:2535-2552`, `:2766-2798`, `:3161-3169`,
+`relicpicker.py:217-219`/`:1838`, `effectfilterdialog.py:86-88`). Zahlen unten
+sind Startwerte; der `developer` misst am laufenden Fenster und nennt die
+endgueltigen im Bericht. Naechste freie AK: AK-384 (hoechste vergebene war AK-383).*
+
+##### 1. QA-292 — wie schmal die Leiste werden darf
+
+**Ursache (Code):** Die Leiste steht waagerecht auf `QSizePolicy.Ignored`
+(`advisorbar.py:691`) und gibt dem Fenster keine Mindestbreite. Zieht der
+Nutzer das Fenster unter ihren Bedarf, verteilt Qt das Defizit auf alle Teile,
+auch auf die Knoepfe. AK-351.3 ("Aktionsknoepfe nie") galt bisher nur fuer die
+*Startbreite*, nicht fuer jede Fensterbreite.
+
+**Vorgabe.** Die Kuerzungsreihenfolge von AK-351 bleibt (Statuszeile auf 0 px,
+dann Boxen elidieren, Aktionsknoepfe nie) und endet an einer harten
+Untergrenze, die das Fenster selbst haelt:
+
+- **Boxen** (`setMinimumWidth`, logische px): `goal_box` 120, `hit_with_box`
+  100, `damage_type_box` 80 — genug fuer etwa sechs Zeichen und den Pfeil.
+  Obergrenze (`GOAL_BOX_WIDTH` 200) und `AdjustToContents` bleiben; gekuerzt
+  wird weiter durch die native Elision, voller Text im Tooltip (AK-351.2,
+  AK-340).
+- **Knoepfe** (`Filters`, `Optimize`, `Apply all`, `Why`, `Clear`):
+  Mindestbreite = `sizeHint`-Breite des **laengsten** Texts, den der Knopf je
+  traegt (`Optimize`/`Cancel`, `Apply all`/`Undo apply`). Ein Textwechsel
+  aendert die Breite an der Grenze nicht.
+- **Fenster-Mindestbreite:** mindestens der Bedarf der Leiste im
+  **unguenstigsten Zustand** — beide Boxenpaare und alle drei Aktionsknoepfe
+  gezaehlt, Statuszeile 0 px, Boxen auf Mindestbreite — plus die Raender der
+  Spalte. Der Wert ist **konstant**: unabhaengig von der Richtung (Paare
+  sichtbar/verborgen) und davon, ob ein Vorschlag steht. Sonst wuerde das
+  Umschalten der Richtung oder ein neuer Vorschlag die Mindestgrenze
+  veraendern, und Knoepfe schrumpften nachtraeglich. Die Leiste gibt die
+  Breite dazu an das Fenster weiter (Richtung: Policy von `Ignored` auf
+  `Minimum`, oder eine ausdrueckliche Fenster-Mindestbreite aus
+  `action_buttons_extra_width()` + `damage_question_extra_width()`; Wahl beim
+  `developer`).
+- **Unterhalb der Summe** gilt nichts: das Fenster laesst sich nicht schmaler
+  ziehen. Keine vierte Kuerzungsstufe, kein Umbruch, kein Ausblenden von Knoepfen.
+- **Kleine Bildschirme:** die neue Mindestbreite muss unter 1366 logischen px
+  liegen. Liegt sie darueber, wird sie nicht durch Kuerzen der Knoepfe erreicht,
+  sondern als Befund gemeldet (die Boxen-Mindestwerte werden dann neu
+  entschieden).
+
+Bewusst offen: ein Umbruch der Leiste in zwei Zeilen auf schmalen Fenstern
+(waere ein anderes Layout, kein Mindestmass).
+
+| ID | Akzeptanzkriterium |
+|---|---|
+| **AK-384** | Jede der drei Boxen hat eine Mindestbreite (Startwerte 120/100/80 px); bei jeder Fensterbreite >= Fenster-Mindestbreite ist `box.width() >= minimumWidth()`, und die Box elidiert nativ, wenn der volle Text nicht passt (Tooltip unveraendert). |
+| **AK-385** | Bei jeder Fensterbreite >= Fenster-Mindestbreite ist die Breite von `Filters`, `Optimize`, `Apply all`, `Why`, `Clear` >= `sizeHint` des laengsten Texts, den der Knopf traegt; gemessen bei 1522 und 1426 logischen px (die QA-292-Werte) bzw. an der Mindestbreite: nie 100 -> 70 -> 57 px. Erweitert AK-351.3 von der Startbreite auf jede Breite. |
+| **AK-386** | Die Fenster-Mindestbreite ist konstant (gleich mit/ohne Vorschlag, in allen drei Richtungen), >= Leistenbedarf im unguenstigsten Zustand und <= 1366 logische px; das Fenster laesst sich nicht schmaler ziehen (`width() >= minimumWidth()` nach `resize(300, …)`). |
+| **AK-387** | Kuerzungsreihenfolge unveraendert: bei 0 px Statuszeile elidieren erst die Boxen, Knoepfe nie; die Statuszeile darf weiter 0 px haben (AK-194/AK-269/AK-351.1). |
+
+##### 2. QA-008 — leerer Spielstand, automatischer Weg
+
+`CHOSEN_SAVE_IS_EMPTY` ("That save has no relics in it yet. …") sagt "That
+save" ohne Bezug, wenn der Nutzer keine Datei gewaehlt hat (`app.py:2535-2538`,
+Zweig `saves_hold_nothing`). **Wortlaut, neu, nur fuer den automatischen Weg**
+(`SAVES_HOLD_NOTHING`):
+
+> `Your save has no relics in it yet. If you play on more than one Steam account, they may be in another save — use Find my save.`
+
+Der Zweig `_answers_a_chosen_save` behaelt `CHOSEN_SAVE_IS_EMPTY` wortgleich
+(AK-124: "That save" hat dort die gewaehlte Datei als Bezug). `Find my save...`
+bleibt sichtbar (`:2539`); der Satz nennt den Knopf deshalb.
+
+**Nachbarstellen, derselbe Fehler.** Bei leerem Spielstand ist `owned` `None`;
+zwei Stellen sagen "No save was read", obwohl gelesen wurde:
+
+- `app.py:3161-3169` (`open_effect_filters`): im automatischen Weg mit
+  `saves_hold_nothing` landet es bei `NO_SAVE_WAS_READ`. Neu: dritter Zustand
+  `Your save has no relics in it yet, so there is nothing to filter.` Die
+  gewaehlte-Datei-Variante `SAVE_HAS_NO_RELICS` bleibt.
+- `relicpicker.py:217` (`NO_SAVE_WAS_READ`, Kopfzeile `:1838`): bei gelesenem,
+  leerem Spielstand (automatisch oder gewaehlt)
+  `Your save has no relics in it yet, so there is nothing to rank — use Rescan save.`
+  `NO_SAVE_WAS_READ` bleibt nur fuer "keine Datei gefunden/gelesen".
+
+Der Zustand "gelesen, leer" muss dafuer bis zu den beiden Dialogen gelangen
+(z. B. ein Merkflag am Fenster); wie, entscheidet der `developer`.
+
+| ID | AK |
+|---|---|
+| **AK-388** | Findet die Suche Spielstaende ohne Relikte (kein gewaehlter Pfad), steht in `owned_label` exakt `SAVES_HOLD_NOTHING`; mit gewaehlter Datei weiter `CHOSEN_SAVE_IS_EMPTY`; ohne Spielstand `NO_SAVE_FOUND`. Kein Zweig sagt "That save" ohne gewaehlte Datei. |
+| **AK-389** | Bei gelesenem, leerem Spielstand sagen weder der Leerzustand des Effektfilters noch die Kopfzeile des Relic Pickers "No save was read", sondern die beiden Saetze oben. Bei "keine Datei gelesen" bleibt `NO_SAVE_WAS_READ` unveraendert. |
+
+##### 3. QA-030 — Schalter `Deep of Night`
+
+Abgenommen **mit Aenderung**. "1 relic emptied" liest sich, als sei ein Relikt
+geleert worden; gemeint ist, dass ein Slot leer bleibt. Die Zahl zaehlt Slots.
+
+- `DEEP_SLOT_EMPTIED` = `" — {count} left empty"`, `count` reine Zahl
+  (`Deep of Night (3 extra slots) — 1 left empty`). Kurz, weil ein
+  Checkbox-Text nicht umbricht und in einer schmalen Spalte steht; der
+  Tooltip traegt die Erklaerung.
+- Tooltip Einzahl, wie gebaut: `A Deep of Night slot of this build names a relic that is already worn in another slot, so it was left empty. Turn Deep of Night on to see it.`
+  Mehrzahl (`count > 1`): `Deep of Night slots of this build name relics that are already worn in other slots, so they were left empty. Turn Deep of Night on to see them.`
+
+| ID | AK |
+|---|---|
+| **AK-390** | `deep_check.text()` ist `Deep of Night (3 extra slots)` ohne Leerslot und `Deep of Night (3 extra slots) — {n} left empty` mit `n >= 1`; Tooltip je Einzahl/Mehrzahl wie oben, leer ohne Leerslot. Der Zusatz (gemessen mit `n = 3`) vergroessert die Mindestbreite der Spalte nicht; sonst Befund statt Kuerzung. |
+
+##### 4. QA-031 / QA-027 — Ladehinweis (`owned_label`)
+
+**Abgenommen.** `The equipped X is shown empty.` plus je Grund ein eigener Satz,
+und `N relic(s) the save has equipped is/are no longer in your inventory.`
+sind in Ordnung (Ergebnis vor Ursachen, Einzahl/Mehrzahl gebaut; "shown" haelt
+den Unterschied zu "is empty in game" fest). **Eine Aenderung:** haben zwei
+Gruende zugleich zugeschlagen (`unfit` und `clashed`), beginnt der zweite Satz
+mit `{n} other relic(s) could not be placed: …` statt wortgleich wie der erste
+(`app.py:2788`/`:2791`); sonst steht dieselbe Satzeroeffnung zweimal in einer Zeile.
+
+| ID | AK |
+|---|---|
+| **AK-391** | Ist kein Relikt platziert und gilt `unfit`, `clashed` oder `missing`: Satz `The equipped {vessel} is shown empty.`, danach je zutreffendem Grund genau ein Satz; bei `unfit` **und** `clashed` beginnt der Satz des zweiten `{n} other relic(s) could not be placed: …`. |
+| **AK-392** | `missing > 0`: `{n} relic(s) the save has equipped is|are no longer in your inventory.` (1 -> `1 relic … is`, sonst `n relics … are`), auch bei platzierten Relikten; bei `missing == 0` fehlt der Satz. |
+
+##### 5. QA-171 / QA-020 — Titel und Zeile des Spielstands
+
+- **QA-171 abgenommen mit einer Randfall-Aenderung.** Gibt
+  `firstrun.the_day_the_data_was_read()` `""` zurueck (`firstrun.py:589-598`),
+  entstuende `data from , not checked`. Dann lautet der Zusatz
+  `  —  data not checked against your installed game`. Sonst
+  `  —  data from {day}, not checked against your installed game`
+  (`{day}` z. B. `3 October 2026`, `firstrun._the_day`).
+- **QA-020 abgenommen, unveraendert** (`savefile.py:633-636`, hinten an die
+  Zeile angehaengt wie gebaut):
+  `… — no stored builds could be read: this save keeps them somewhere this program does not look; the game may have changed how it stores them`.
+  Andere `loadout_error`-Saetze bleiben, sie stehen hinter demselben Doppelpunkt.
+
+| ID | AK |
+|---|---|
+| **AK-393** | Der Fenstertitel traegt bei `meta["stale_check_failed"]` genau `  —  data from {day}, not checked against your installed game`; bei leerem `{day}` genau `  —  data not checked against your installed game`; ohne das Merkmal keinen Zusatz. |
+| **AK-394** | Bei `loadout_error` aus `NotWhatItClaims` (kein Heldenmarker) lautet die Zeile `{n} relics in {source} — no stored builds could be read: this save keeps them somewhere this program does not look; the game may have changed how it stores them`; kein Markerzahlenwerk im Text (steht nur im Traceback). |
+
+**Ausdruecklich nicht Teil dieser Vorgabe:** Wortwahl `Rescan save`/`Find my
+save...` (Bestand); ob der leere Zustand des Relic Pickers einen eigenen Knopf
+braucht; die Spaltenbreite des Schalters jenseits von AK-390.
+
+**Betroffene Dateien:** `nrplanner/advisorbar.py` (AK-384 bis AK-387),
+`nrplanner/app.py` (AK-386 falls die Fenster-Mindestbreite dort gesetzt wird,
+AK-388 bis AK-393), `nrplanner/relicpicker.py` und
+`nrplanner/effectfilterdialog.py` (AK-389), `nrplanner/inventory.py`/`nrdata/savefile.py`
+unveraendert (AK-394 prueft nur). Tests: Mindestbreiten am echten Widget
+(`resize` auf die Messbreiten), Texte als Zeichenketten-Gleichheit.
+
+> **Abgeloest am 14.10.2026 (T-334n):** AK-384 bis AK-387 dieses Abschnitts gelten
+> nicht mehr; Nutzerentscheidung "Leiste zweizeilig" (QA-292). Ersatz: AK-395 bis
+> AK-404 im Nachtrag T-334n unten. AK-388 bis AK-394 bleiben.
+
+---
+
+#### Nachtrag T-334n (ui-ux-designer), 2026-10-14 — QA-292: die Leiste bricht in zwei Zeilen um (Spec-Modus)
+
+*Nutzerentscheidung 14.10.2026 17:23: "Leiste zweizeilig". Sie loest die
+Mindestbreiten-Spec **AK-384 bis AK-387 (T-334k) ab** — deren Fenster-
+Mindestbreite von 1628 px lag ueber 1366 und haette kleine Bildschirme
+ausgesperrt. Gemessen am laufenden Fenster (`QT_QPA_PLATFORM=windows`,
+`WA_DontShowOnScreen`, Fusion, Segoe UI 9 pt, DPR 1,25, Stand `553b6be`,
+Umlenkung `DankYeeterT-334n`; kein Klon, Arbeitsbaum sauber, keine andere Rolle
+schreibt); Messskript `T-334n/measure.py` im Scratchpad des Auftrags. Alle
+Zahlen sind logische px und **Startwerte**; der `developer` misst nach dem Bau
+gegen dieselben Groessen und nennt Abweichungen. Naechste freie AK: AK-395.*
+
+##### 1. Messbefund (Ausgangslage)
+
+| Groesse | Wert |
+|---|---|
+| Breite der Leiste | Fensterbreite − **852** bei Standard-Seitenpanes (430 / 370); − **692**, wenn beide Seitenpanes auf ihrem Minimum (300 / 340) stehen |
+| `sizeHint`-Breiten | `Advisor` 57 · `goal_box` 183 · `Hit with` 42 · `hit_with_box` 136 · `Damage type` 71 · `damage_type_box` 78 · jeder Knopf 80 (Fusion) · Abstand 6 |
+| Leiste einzeilig, `max_damage`, drei Aktionsknoepfe gezaehlt, Statuszeile 0 | **1033** (Fenster 1885) |
+| dasselbe in jeder anderen Richtung | **682** (gemessen 424 ohne die drei Knoepfe + 258), Fenster 1534 |
+| Fenster-Mindestbreite heute | 760; dort ist die Leiste **68 px** breit, jedes Bedienelement 0 bis 1 px |
+| Hoehe der Leiste / eines Elements | 36 / 24 (Raender 6 + 6) |
+| Leiste bei Fensterbreite 1426 / 1536 / 1728 (`max_damage`, Vorschlag) | Knoepfe 46–47 / 57–58 / 80 px, `goal_box` 47 / 58 / 81 px, Statuszeile 0 |
+
+Eine Zeile mit allen Teilen braucht im ungunstigsten Zustand 936 px (Boxen auf
+Mindestbreite) bis 1033 px (Boxen unverkuerzt); mit den 692 px Rest ist das
+Fenster 1628 bis 1885 px breit. Das liegt ueber 1366 px. Darum **zwei Zeilen
+statt Verzicht auf Kuerzung**.
+
+##### 2. Vorgabe
+
+**Zweck.** Die Leiste bleibt auf jeder zulaessigen Fensterbreite vollstaendig
+bedienbar: kein Knopf schmaler als sein `sizeHint`, kein Bedienelement auf
+0 px. Aufwand je Ziel: **0 zusaetzliche Schritte** — kein Umschalter, keine
+Einstellung, kein Gedaechtnis; allein die Breite entscheidet.
+
+**Zwei Modi, ein Satz Widgets.** Dieselben Objekte (`bar.optimize_button` usw.)
+stehen in beiden Modi; sie werden nur anders angeordnet.
+
+- **Einzeilig** (wie heute): `Advisor` · `goal_box` · [`Hit with` · `hit_with_box` ·
+  `Damage type` · `damage_type_box`, nur Richtung `max_damage`] · `Filters` ·
+  `Optimize` · Statuszeile (dehnt) · Fortschrittsbalken · `Apply all`/`Undo apply` ·
+  `Why` · `Clear`.
+- **Zweizeilig:**
+  - **Zeile 1 — die Frage:** `Advisor`, `goal_box`, und in `max_damage` die
+    zwei Paare. In den anderen Richtungen stehen dort nur `Advisor` und
+    `goal_box` (die Zeile bleibt kurz; kein Auffuellen mit anderen Teilen —
+    eine Regel fuer alle Richtungen).
+  - **Zeile 2 — Tun und Ergebnis:** `Filters`, `Optimize`, Statuszeile (dehnt),
+    Fortschrittsbalken, `Apply all`/`Undo apply`, `Why`, `Clear`. Linksbuendig
+    an der Spaltenkante, **kein Einzug** unter `Advisor`.
+  - Zeilenabstand 6 (der vorhandene Abstand), Raender oben/unten je 6 wie heute.
+  - Die Lesereihenfolge links→rechts, oben→unten ist **dieselbe Reihenfolge wie
+    einzeilig**; darum bleibt auch die Tab-Reihenfolge gleich.
+
+**Schwelle (wann zwei Zeilen).** Zweizeilig genau dann, wenn die Leiste
+schmaler ist als ihr **Einzeilen-Bedarf**:
+
+> Einzeilen-Bedarf = Summe der `sizeHint`-Breiten der Teile **der aktuellen
+> Richtung** (in `max_damage` mit den zwei Paaren, sonst ohne) + `Filters` +
+> `Optimize` + **alle drei Aktionsknoepfe, immer mitgezaehlt**, auch wenn sie
+> gerade verborgen sind (jeweils der laengste Text: `Optimize`/`Cancel`,
+> `Apply all`/`Undo apply`) + Abstaende + **`STATUS_FLOOR` = 48 px** fuer die
+> Statuszeile.
+
+Begruendung: Einzeilig heisst *nichts verkuerzt und die Statuszeile nicht auf
+einem Strich*. Die Aktionsknoepfe zaehlen immer mit, damit das Eintreffen eines
+Vorschlags die Leiste nie umbricht — sie springt nicht unter dem Blick des
+Nutzers. Die Richtung zaehlt mit, weil der Nutzer sie selbst in genau dieser
+Leiste waehlt und dort ohnehin Teile erscheinen oder verschwinden.
+Startwerte: `max_damage` 1033 + 48 = **1081** (Fenster 1933), andere Richtungen
+682 + 48 = **730** (Fenster 1582). Die Schwelle haengt nicht an Statustext,
+Vorschlag, Fortschrittsanzeige oder Textwechsel der Knoepfe. Eine Hysterese
+braucht es nicht: der Moduswechsel aendert die Leistenbreite nie, nur die Hoehe.
+
+**Kuerzung.**
+
+1. Statuszeile: schrumpft wie bisher, einzeilig aber nie unter `STATUS_FLOOR`
+   (darunter kippt die Leiste in zwei Zeilen); zweizeilig bekommt sie den Rest
+   von Zeile 2 (Zeilenbedarf 430, Statuszeile = Leistenbreite − 430, bei der
+   Mindestbreite 68 px, nie 0). Voller Text bleibt im Tooltip.
+2. `goal_box` / `hit_with_box` / `damage_type_box`: Mindestbreite je
+   `min(Startwert, sizeHint)` mit Startwerten **120 / 100 / 80** (die `sizeHint`
+   der Artbox ist 78, ihr Minimum daher 78); Obergrenze `GOAL_BOX_WIDTH` 200 und
+   `AdjustToContents` bleiben. Unter ihrem `sizeHint` kuerzt nur die native
+   Elision, voller Text im Tooltip (AK-351.2/AK-340) — und das **nur in
+   Zeile 1 des zweizeiligen Modus**, wenn die Leiste unter der Summe der
+   `sizeHint`-Breiten von Zeile 1 liegt (Startwert 597, Fenster 1449).
+3. Knoepfe, `Advisor` und die Beschriftungen `Hit with`/`Damage type`: **nie**.
+
+**Fenster-Mindestbreite.** Konstant (nicht an Richtung, Vorschlag oder Modus
+gebunden) und gleich dem Bedarf der **breiteren** der zwei Zeilen im
+ungunstigsten Zustand plus 692: Zeile 1 mit beiden Paaren und Boxen auf
+Mindestbreite = 57 + 120 + 42 + 100 + 71 + 78 + 5×6 = **498**; Zeile 2 mit
+Statuszeile 0 = **430**. Fenster-Mindestbreite also **1190** (Startwert, bisher
+760) und damit unter 1366. Die Leiste gibt ihren Mindestbedarf an das Fenster
+weiter (Richtung: Policy von `Ignored` auf `Minimum` oder ausdrueckliche
+Fenster-Mindestbreite; Wahl beim `developer`). Das Fenster laesst sich nicht
+schmaler ziehen; kein Umbruch in drei Zeilen, keine Kuerzung der Knoepfe.
+Zwischen 1190 und 1350 Fensterbreite schrumpfen dafuer die Seitenpanes auf ihr
+vorhandenes Minimum (300 / 340), die Mittelspalte nicht unter 498.
+
+**Hoehe.** Einzeilig 36 (unveraendert), zweizeilig **66** (36 + Zeile 24 +
+Abstand 6). Die Leiste meldet ihre Hoehe je Modus an das Layout der Spalte
+(Qt-konform: `hasHeightForWidth`/`heightForWidth` auf einem eigenen `QLayout`,
+das die Elemente je Modus setzt; kein Umhaengen in `resizeEvent`, das einen
+Frame mit falscher Anordnung zeigen wuerde — Wahl beim `developer`). Die
+Karten darunter ruecken beim Moduswechsel um 30 px; sonst bewegt sich nichts.
+
+**Zustaende.** Leer/`NOTHING_YET`: Zeile 2 traegt `Filters`, `Optimize` und eine
+leere Statuszeile, die drei Aktionsknoepfe sind verborgen und nehmen keinen
+Platz (nur ihr Mitzaehlen in der Schwelle bleibt). Laedt: Fortschrittsbalken in
+der Zeile der Statuszeile. Fehler (4.12, langer Satz): in Zeile 2 mit dem Rest
+der Zeile, dahinter Elision und Tooltip. Erfolg: die drei Knoepfe erscheinen,
+der Modus bleibt (die Schwelle zaehlt sie schon). Lange Texte: Boxen elidieren
+nativ, Knoepfe nie. Sehr viele Daten: nicht beruehrt.
+
+**Plattform.** Windows-Desktop, Maus und Tastatur, Fusion-Stil des Programms.
+Zielgroessen unveraendert (Knopf 80×24 logisch); kein Hover-Zwang.
+
+**Verwendete Token.** Nur Bestand: Abstand 6, Raender 6/6, `GOAL_BOX_WIDTH` 200,
+Knopfmasse des Stils. Neu: `STATUS_FLOOR` (48), die drei Box-Mindestbreiten
+(Begruendung oben). Keine neue Farbe, keine neue Schrift, kein neues
+Bedienelement.
+
+##### 3. Akzeptanzkriterien
+
+Alle am echten Planner unter `QT_QPA_PLATFORM=windows` (Messweg
+`tests/advisor_row_at_the_window.py`), nicht offscreen (L-009). "Messbreiten"
+sind Fensterbreiten 1366, 1426, 1522, 1536, 1728, 1959.
+
+| ID | Akzeptanzkriterium |
+|---|---|
+| **AK-395** | Die Leiste hat genau zwei Modi (`bar.rows` ∈ {1, 2}; Name beim `developer`). Zweizeilig genau dann, wenn die Leistenbreite < Einzeilen-Bedarf der aktuellen Richtung (Definition oben, Startwerte 1081 fuer `max_damage`, 730 sonst); getestet je Richtung bei Schwelle −1 / +0 px. |
+| **AK-396** | Zweizeilig stehen `Advisor`, `goal_box` und in `max_damage` die zwei Paare in Zeile 1 (gleiche vertikale Mitte), `Filters`, `Optimize`, Statuszeile, Fortschrittsbalken, `Apply all`/`Undo apply`, `Why`, `Clear` in Zeile 2; Zeile 2 liegt unter Zeile 1, der Zeilenabstand ist 6 px, beide Zeilen beginnen an derselben linken Kante. Einzeilig stehen alle in einer Zeile in derselben Reihenfolge wie heute. |
+| **AK-397** | Der Modus aendert sich bei gleicher Breite und gleicher Richtung nicht durch Vorschlag ein/aus, Statustext, Fortschrittsanzeige, Textwechsel `Optimize`/`Cancel` oder `Apply all`/`Undo apply`; er aendert sich nur durch Leistenbreite und Richtung. Gemessen: `bar.rows` vor und nach `_show(SUGGESTED)`, `_on_failed(langer Satz)`, `_on_started()`. |
+| **AK-398** | Bei jeder Fensterbreite ≥ Fenster-Mindestbreite, in beiden Modi, ist die Breite von `Filters`, `Optimize`, `Apply all`, `Why`, `Clear` ≥ `sizeHint` des laengsten Texts, den der Knopf traegt (Fusion: 80); gemessen an den Messbreiten **und** an der Mindestbreite: nie 100 → 70 → 57 px (QA-292). `Advisor`, `Hit with`, `Damage type` ebenso nie unter `sizeHint`. |
+| **AK-399** | Boxen: `minimumWidth()` = `min(Startwert, sizeHint)` mit Startwerten 120 / 100 / 80; bei jeder Fensterbreite ≥ Fenster-Mindestbreite ist `box.width() ≥ minimumWidth()`. Einzeilig ist keine Box elidiert; zweizeilig ist eine Box nur elidiert, wenn die Leistenbreite unter der Summe der `sizeHint`-Breiten von Zeile 1 liegt (Startwert 597). Tooltip der Boxen unveraendert. |
+| **AK-400** | Fenster-Mindestbreite ist konstant (gleich in allen drei Richtungen, mit/ohne Vorschlag, in beiden Modi), ≥ Bedarf der breiteren Zeile im ungunstigsten Zustand + Rest (Startwert **1190**) und ≤ 1366; `window.width() ≥ minimumWidth()` nach `resize(300, …)`; dort ist die Leiste ≥ 498 breit und kein Bedienelement unter seiner Mindestbreite. |
+| **AK-401** | Startbreiten ungeaendert (AK-350/AK-352: 1959 / 1728 / 1536 fuer Raum ≥ 2177 / 1920 / ≤ 1706). **Einzeilig** an 1959 (Statuszeile ≥ `STATUS_FLOOR`, gemessen 74; AK-194 bleibt erfuellt); **zweizeilig** an 1728 (Statuszeile ≈ 446) und 1536 (≈ 254), dort ohne Elision der Boxen. `Planner._width_around_the_advisor_row` leitet seine zwei Zusaetze aus dem `sizeHint`-Bedarf ab (nicht mehr aus `minimumSizeHint`, der jetzt konstant ist); `_opening_width()` fuer Raum 1366 / 1536 / 1920 / 2560 bleibt 1536 / 1536 / 1728 / 1959. |
+| **AK-402** | Hoehe der Leiste einzeilig 36, zweizeilig 66 (±1); kein Bedienelement ragt aus der Leiste (`rendered.clipped(...) == []`); die Spalte darunter wird beim Moduswechsel neu gelegt (kein Ueberdecken der ersten Karte, kein Rest-Leerraum). |
+| **AK-403** | Die Tab-Reihenfolge der Leiste ist in beiden Modi identisch (`goal_box` → … → `Clear`); ein Moduswechsel durch Ziehen aendert weder das Widget-Objekt noch den Fokus (`QApplication.focusWidget()` vorher = nachher), Accessible-Names (AK-380) bleiben; der Fokusrahmen eines Knopfs wird in Zeile 2 nicht abgeschnitten. |
+| **AK-404** | Kein Kreislauf: nach `resize` auf Schwelle ±1 px und `settle` aendert ein weiterer Layoutlauf den Modus nicht (zwei Laeufe, gleiche `bar.rows`). |
+
+##### 4. Aenderungen am Bestand (T-334n ersetzt oder erweitert)
+
+- **AK-384 bis AK-387 (T-334k): abgeloest** durch AK-398 bis AK-400. Nicht
+  umsetzen; der Wip-Zweig `t334-pl-minwidth` (`e2bdd9e`) ist verworfen.
+- **AK-03** ("Leiste traegt nichts zur Fenster-Mindestbreite bei") — **ersetzt**
+  durch AK-400. Die Leiste traegt jetzt bewusst bei; die Mindestbreite steigt von
+  760 auf ≈ 1190, weil darunter die Leiste mit 0–1 px breiten Elementen nicht
+  bedienbar ist (gemessen). Grenze bleibt 1366.
+- **AK-04** — die Mindesthoehe waechst zusaetzlich um 30 px, nur im zweizeiligen
+  Modus; einzeilig unveraendert.
+- **AK-05 / AK-269 / AK-271** — "darunter duerfen die Boxen abgeschnitten sein"
+  entfaellt. Es gilt: bei jeder Breite ≥ Fenster-Mindestbreite ist in der Leiste
+  kein Text abgeschnitten ausser der Statuszeile und — nur zweizeilig, Zeile 1,
+  unter 597 px Leistenbreite — den drei Boxen (AK-399). Die Untergrenze 1536 aus
+  AK-271 ist kein Sprung mehr: bei 1536 sind die Boxen unverkuerzt
+  (Leiste 684 ≥ 597).
+- **AK-194** — einzeilig gilt `> 0` weiter (hier mindestens `STATUS_FLOOR`);
+  zweizeilig ist die Statuszeile nie 0 px.
+- **AK-351** — Stufe 1 (Statuszeile zuerst) bleibt; Stufe 2 wird durch den Umbruch
+  vorgezogen (Boxen elidieren nur noch in Zeile 1, AK-399); Stufe 3 (Knoepfe nie)
+  gilt jetzt auf jeder Breite (AK-398).
+- **AK-352**, Zeile 1920 px: Startbreite 1728 bleibt, der Zustand mit Vorschlag
+  ist jetzt "**zweizeilig, Boxen unverkuerzt, Statuszeile ≈ 446 px**" statt
+  "Statuszeile 0 px und Boxen elidiert". Zeile 2560 px unveraendert (einzeilig).
+- **AK-349/AK-350**: Formel und `RATIO` unveraendert.
+
+##### 5. Pruefung (Erwartungswerte; `max_damage`, Vorschlag steht, Standard-Seitenpanes)
+
+| Fensterbreite | Leiste | Modus | Zeile 1 | Zeile 2 |
+|---|---|---|---|---|
+| 1190 (Minimum) | 498 | 2 | Boxen auf Mindestbreite 120/100/78 | Statuszeile 68, Knoepfe 80; Seitenpanes 300 / 340 |
+| 1366 | 514 | 2 | Boxen zwischen Minimum und `sizeHint` (Luecke 83 px) | Statuszeile 84, Knoepfe 80 |
+| 1426 | 574 | 2 | Luecke 23 px, Boxen leicht elidiert | Statuszeile 144 |
+| 1522 (QA-292) | 670 | 2 | unverkuerzt | Statuszeile 240, Knoepfe 80 (nicht 70/57) |
+| 1536 | 684 | 2 | unverkuerzt | Statuszeile 254 |
+| 1728 | 876 | 2 | unverkuerzt | Statuszeile 446 |
+| 1959 (Startbreite grosser Bildschirme) | 1107 | **1** | — | Statuszeile 74 |
+
+Bei 1366/1426 messen: `box.width() ≥ minimumWidth()`, Knopfbreiten, `clipped == []`.
+Dazu je Richtung (3×) die Schwelle (AK-395), je Modus der Tab-Pass (AK-403) und
+je Zeile der Tabelle ein Bild per `QWidget.grab()` (NH-002: nur aus dem
+Programmfenster).
+
+##### 6. Ausdruecklich nicht Teil der Vorgabe
+
+Drei oder mehr Zeilen; ein Umschalter oder gemerkter Modus; andere Standardbreiten
+der Seitenpanes (430 / 370); Aenderung von Beschriftungen oder Reihenfolge; ein
+Einzug von Zeile 2; Wahl des Layoutmechanismus.
+
+**Betroffene Dateien:** `nrplanner/advisorbar.py` (Layout, Mindestbreiten, Modus),
+`nrplanner/app.py` (`_width_around_the_advisor_row` :1288-1290, Fenster-
+Mindestbreite, Leiste in der Spalte :1048-1051), `tests/advisor_row_at_the_window.py`
+und alle Tests zu AK-03/AK-04/AK-05/AK-194/AK-269/AK-271/AK-351/AK-352 sowie zu
+`action_buttons_extra_width`/`damage_question_extra_width` (deren Messweg
+`minimumSizeHint` entfaellt).
+
+**Hinweis an den `technical-writer`:** das README nennt 1536 px als empfohlene
+Mindestbreite; die harte Mindestbreite des Fensters ist neu ≈ 1190 px, und unter
+rund 1933 px Fensterbreite zeigt die Leiste zwei Zeilen.
+
+#### Nachtrag T-335j (developer, Nutzerentscheid), 2026-10-31 — Zauberzahl kalibriert, Unkalibriert-Satz entfaellt (AK-343, AK-361)
+
+Puppenmessung des Nutzers 31.10.2026 (Recluse Stufe 15, Recluse's Staff, keine
+Relikte, Glintstone Pebble: 123): `damage.spell` traegt jetzt denselben Faktor
+`weapons.GAME_ATTACK_POWER_RATE` wie die Waffen-AR, die Anzeige schneidet ueber
+`damage.displayed` ab. Der Satz `SPELL_DAMAGE_UNCALIBRATED` ist entfernt
+(Nutzer "direkt einbauen"):
+
+- **AK-343:** Name `Spell damage` bleibt; kein Vorbehalt mehr in `unknowns`.
+  Es bleibt nur der AK-344-Satz ("deals no damage") fuer eine 0.00.
+- **AK-361:** Der Klick-Tooltip bleibt (Grundlinie, Raten, Endwert); er traegt
+  nur noch fuer eine Zeile ohne Schaden den `NO_SPELL_DAMAGE`-Satz, sonst keinen.
+
+
+#### Nachtrag T-335n (ui-ux-designer), 2026-10-31 — Kleinbefunde: Build-Zeile, Kein-Spielstand-Saetze, Legende Durchstreichen, lange Slotkarten (AK-405 bis AK-409, Spec-Modus)
+
+*Auftrag T-335n, `docs/tasks/T-335.md`. Methode: **kein Programmstart** (der
+Nutzer hat die Exe offen), Code gelesen am Stand `7a9e7dd`; jede Messzahl unten
+stammt aus dem genannten Befund, hier ist nichts gemessen. Die Zeilenangaben des
+Auftrags sind gewandert (`advisorbar.py:331` steht jetzt bei 357-359, der
+Entwickler schreibt parallel an T-335o); massgeblich sind die Angaben dieses
+Abschnitts. Bestand wiederverwendet: Statustabelle der Leiste (AK-396 ff.),
+`save_holds_no_relics` (`app.py:2588`, AK-389), `MARK_LEGEND` (AK-301),
+Tooltip-Muster der Statuszeile. Kein neues Token, keine neue Farbe.*
+
+##### 1. AK-405 — Build-Zeile: nichts ueberdeckt sich (QA-304)
+
+**Zweck.** Der Spieler waehlt, speichert, loescht und blendet Builds aus, ohne
+dass ein Knopf das Auswahlfeld verdeckt.
+
+**Bestand.** `app.py:1010-1042`: eine `QHBoxLayout` (Abstand 6) aus Label
+`Build`, `build_box` (`setMinimumWidth(180)`, Stretch 1, `:1014`), `Save`,
+`Delete`, `Hide`, Haken `Show hidden` (`:1035`). Befund QA-304 (power-user
+T-334s, UIA): bei ~1506 px physisch endet das Feld bei 2833, `Save` beginnt bei
+2743, also **90 px physisch Ueberdeckung inkl. Aufklapp-Pfeil**; ein Klick auf den
+Pfeil oeffnet `Save build`. Das Feld ist dort 225 px physisch breit. Lesart
+(**unverifiziert**, die Skalierung steht nicht im Befund): bei 125 % sind das 180
+logische px, das Feld steht also auf seinem Minimum, und der Behaelter der Zeile
+ist schmaler als das Minimum des Layouts. AK-400 (Mindestbreite 1190) deckt nur
+die Leiste, nicht diese Zeile.
+
+**Aufbau/Interaktion.** Reihenfolge, Beschriftungen und Tab-Reihenfolge bleiben
+(`build_box` → `Save` → `Delete` → `Hide` → `Show hidden`). Prioritaet bei
+Platzmangel: Feld und die drei Knoepfe behalten ihre Breite; **`Show hidden`**
+(Moduswahl, am seltensten benutzt) geht als erstes in eine zweite Zeile unter
+das Feld, linksbuendig. Die Fenster-Mindestbreite wird **nicht** erhoeht (AK-400
+bleibt, ≤ 1366).
+
+**Zustaende.** Ohne gespeicherte Builds; mit 110 gespeicherten Builds; mit sehr
+langem Buildnamen (Feld kuerzt am Ende, voller Name im Tooltip des Feldes);
+`Delete`/`Hide` ohne Auswahl ausgegraut: alle in beiden Zeilenformen ohne
+Ueberdeckung.
+
+**AK-405** Bei jeder Fensterbreite von `minimumWidth()` bis 2560 logisch und bei
+100/125/150 % Skalierung: (a) die Rechtecke von Label, `build_box`, `Save`,
+`Delete`, `Hide`, `Show hidden` schneiden sich paarweise nicht (Schnittflaeche 0,
+gemessen in Fensterkoordinaten); (b) `build_box.width() ≥ 180` logisch und jeder
+Knopf ≥ seiner `sizeHint`-Breite; (c) die Zeile liegt vollstaendig im Sichtbereich
+der mittleren Spalte, kein waagerechter Rollbalken (AK-160); (d) ein Mausklick auf
+den rechten Rand (letzte 20 logische px) des Feldes oeffnet dessen Liste und nie
+`Save build`; (e) Tab-Reihenfolge wie oben, Fokusrahmen nirgends abgeschnitten;
+(f) die Zeile ist einzeilig, sobald der Platz fuer alle sechs Teile reicht, sonst
+zweizeilig mit `Show hidden` unten. Gemessen bei `minimumWidth()`, 1366 und der
+Breite, die 1506 physisch bei 125 % ergibt; je ein Bild per `QWidget.grab()`
+(NH-002).
+
+**Nicht Teil.** Neue Knoepfe, andere Beschriftungen, ein Menue statt der Knoepfe.
+
+##### 2. AK-406 — Leiste ohne Relikte: der Satz nennt die wahre Ursache
+
+**Zweck.** Wer keine Relikte hat, erfaehrt in der Leiste, warum, und bekommt den
+Knopf, der es behebt.
+
+**Bestand.** `advisorbar.py:357-359` (`status_line`, `State.NO_SAVE`, Zeile 4.8 der
+Statustabelle): *"No save was read, so there are no relics to choose from — use
+Rescan save."* Der Zustand entsteht, wo `_asking` `None` liefert (`:1236`,
+`:1365-1369`), also bei **drei** Ursachen: kein Spielstand gefunden, Datei nicht
+lesbar, Spielstand gelesen aber ohne Relikte (`save_holds_no_relics`,
+`app.py:2588`). Fuer die dritte ist der Satz **falsch** (ein Spielstand wurde
+gelesen) und der genannte Knopf nicht der, der hilft. Relic Picker
+(`relicpicker.py:220`, AK-389) und Effektfilter (`effectfilterdialog.py:90`)
+unterscheiden sie schon.
+
+**Aufbau.** Zeile 4.8 wird zwei Saetze, Qt-frei in `status_line` (Wortlaut als
+Literal pruefbar):
+
+- **4.8a** (nichts gelesen: nicht gefunden oder nicht lesbar) — *"No save was
+  read, so there are no relics to choose from — use Find my save."*
+- **4.8b** (gelesen, leer; `save_holds_no_relics` wahr) — *"Your save has no
+  relics in it yet — if you just played, use Rescan save; if they are on another
+  Steam account, use Find my save."*
+
+Die Leiste liest dazu dasselbe Merkmal wie der Picker (`window.save_holds_no_relics`),
+keine zweite Ableitung (AD-019). Die Statuszeile kuerzt am Ende und traegt den
+vollen Satz als Tooltip und Zugaenglichkeitsname (`advisorbar.py:651-690`): kein
+neuer Platzbedarf, `STATUS_FLOOR` (48) und AK-401 bleiben.
+
+**Aufwand je Ziel.** Von der Meldung zum Behebungsweg: 1 Klick auf den genannten
+Knopf (`Find my save...` ist bei fehlendem Spielstand sichtbar, AK-123). Heute:
+1 Klick auf den falschen Knopf plus Rueckweg.
+
+**AK-406** (a) Ohne gelesenen Spielstand zeigt die Leiste exakt 4.8a; (b) mit
+gelesenem, leerem Spielstand (gewaehlt oder automatisch) exakt 4.8b, und der Satz
+enthaelt **nicht** "No save was read"; (c) beide Saetze bleiben nach `Optimize`
+ohne Relikte unveraendert (`_ask`, `:1236`); (d) die genannten Knoepfe sind
+sichtbar, wenn der Satz steht (`find_save_button.isVisible()` und
+`rescan_button.isVisible()`); (e) Tooltip der Statuszeile = voller Satz.
+
+##### 3. AK-407 — Rescan oder Find my save: ein Wortlaut je Ursache, an allen Stellen
+
+**Zweck.** Jeder Satz ohne Spielstand nennt den Knopf, der seine Ursache behebt;
+`Rescan save` steht nur, wo der Spielstand sich geaendert haben kann.
+
+**Regel.** `Rescan save` liest dort, wo zuletzt gelesen wurde (oder per
+automatischer Suche, `app.py:2438-2468`): es wiederholt dieselbe Suche und hilft
+nur, wenn sich die Datei seither geaendert hat (gespielt). `Find my save...` laesst
+eine Datei waehlen und hilft, wenn sie woanders liegt. Eine Meldung "nichts
+gefunden" nennt deshalb `Find my save`; "gelesen, leer" nennt beide mit ihrem
+Grund (AK-406, 4.8b).
+
+**Stellen und Wortlaut (verbindlich, Englisch):**
+
+| Stelle | heute | neu |
+|---|---|---|
+| `relicpicker.py:215-216` `NO_SAVE_WAS_READ` | "...nothing to rank these against — use Rescan save." | "No save was read, so there is nothing to rank these against — use Find my save." |
+| `relicpicker.py:220-221` `SAVE_HOLDS_NO_RELICS` | "...nothing to rank — use Rescan save." | "Your save has no relics in it yet, so there is nothing to rank — if you just played, use Rescan save; if they are on another Steam account, use Find my save." |
+| `effectfilterdialog.py:86` `NO_SAVE_WAS_READ` | "...no effects to filter yet." (kein Weg genannt) | "No save was read, so there are no effects to filter yet — use Find my save." |
+| `app.py:891` `rescan_button` | kein Tooltip | Tooltip: "Read your save again, from the file read last. Use it after you played." Solange `find_save_button` sichtbar ist, mit dem Zusatz: " If none was found, use Find my save." |
+
+Unveraendert bleiben `NO_SAVE_FOUND` (`app.py:209`), `SAVES_HOLD_NOTHING`
+(`:292`) und `CHOSEN_SAVE_IS_EMPTY` (`:296`): sie nennen schon einen passenden
+Knopf (AK-388/AK-389).
+
+**AK-407** (a) Suche ueber `nrplanner/` nach `use Rescan save` trifft keinen Satz
+mehr, der eine fehlende Datei meldet; `Rescan save` steht nur in 4.8b,
+`SAVE_HOLDS_NO_RELICS` und dem Tooltip. Die Trefferzahl beider Suchmasken
+(`use Rescan save`, `Rescan save`) steht im Baubericht; (b) die vier Texte der
+Tabelle stehen als Literale im Test; (c) der Tooltip von `rescan_button` traegt
+den Zusatz genau dann, wenn `find_save_button.isVisible()`.
+
+**Nicht Teil.** Ein Knopf in Picker oder Effektfilter: beide sind modal und nennen
+einen Knopf des Hauptfensters; der Spieler schliesst sie (1 Klick) und findet ihn
+in der linken Spalte.
+
+##### 4. AK-408 — Legende des Durchstreichens (Why-Dialog)
+
+**Zweck.** Ein durchgestrichener Effekt wird als "wirkt nicht fuer dich" gelesen,
+gleich aus welchem Grund.
+
+**Bestand.** Durchgestrichen in `BAD` heisst im Programm zwei Dinge: (1)
+**gemieden** (`effectfilters.EXCLUDED`, `advisorblock.py:146-147`) und (2) **gehoert
+einem anderen Nightfarer** (`SILENT_ANOTHER_NIGHTFARER`, `advisorblock.py:152-153`;
+Slotkarte `relicslots.py:439-447`; Statustafel `statsheet.py:1170-1172`;
+Direktorentscheid 06.09.2026: ein Stil fuer beides). Die Legende `MARK_LEGEND`
+(`advisorblock.py:81-83`, AK-301) erklaert nur (1): *"... a struck-through effect
+one you avoided ..."*. Im Why-Dialog stehen die stillen Effekte anderer
+Nightfarer durchgestrichen (`explain.py:640-646` liefert ihre Zeile); dort liest
+die Legende sie als "von dir gemieden", eine falsche Aussage. In der Slotkarte
+(`— not working ({who} only)`), in der Statustafel (Zeile `NOT WORKING ...`) und im
+kompakten Block (er zeichnet keine stillen Zeilen, `types.drawn_in_the_block`,
+`types.py:681`) braucht es keine Legende: dort steht der Grund im Text bzw. die
+Zeile fehlt.
+
+**Aufbau.** `MARK_LEGEND` neu (eine Zeile, `MUTED`, `SMALL_TEXT`, immer sichtbar
+wie bisher): *"▲ marks an effect you favourited. A struck-through effect does
+nothing for you: you avoided it (change that in the effect filter, filter icon in
+the advisor bar) or it works only for another Nightfarer."* Das ersetzt den
+Wortlaut von AK-301 (Vermerk: AK-301 blieb sonst falsch fuer die zweite
+Bedeutung; der Stil selbst bleibt, Direktorentscheid).
+
+**AK-408** (a) `MARK_LEGEND` ist wortgleich der Zeile oben (Literal im Test); (b)
+der Why-Dialog zeigt sie auch dann, wenn nur Zeilen der Bedeutung (2)
+durchgestrichen sind; (c) Slotkarte und Statustafel behalten ihren Wortlaut
+(`not working (` in `relicslots.py`, `NOT WORKING` in `statsheet.py`: je ein
+Treffer pro Stelle); (d) der kompakte Block zeichnet weiterhin keine
+durchgestrichene Zeile (Test: ein Vorschlag mit einem Effekt eines anderen
+Nightfarers zeichnet ihn nicht im Block, aber im Dialog).
+
+##### 5. AK-409 — Lange Slotkarten: ein Rahmen fuer den Vorschlag (ersetzt, siehe Korrektur unten)
+
+**Zweck.** Eine Slotkarte bleibt als Karte lesbar; ein langer Vorschlag schiebt
+die Nachbarn nicht aus dem Bild.
+
+**Bestand und Grenze der Aussage.** power-user T-334s meldet "8 Flask-Zeilen" als
+lange Karte (Beobachtung, kein Befund-Eintrag, **Ursache nicht reproduziert**,
+hier ohne Programmstart nicht pruefbar). Zeilenquellen einer Karte:
+`rolled_label` (die eigenen Effekte und Flueche des Relikts,
+`relicslots.py:432-453`, Umbruch an) und `SuggestionBlock.lines`
+(`advisorblock.py:404-405`, `:452-455`; Flueche immer, Effekte mit Zahl, stille
+Effekte nie, `types.py:681-693`; der Docstring dort nennt "16 lines" als die
+schlimmste gemessene Karte). Der erste Baubericht **reproduziert** den Fall
+(welches Relikt, welche Zeilenzahl, welche Quelle) und nennt ihn; die Schwelle
+unten ist ein Entwurfswert nach der Beobachtung, kein gemessener.
+
+**Aufbau.** Der Block (nicht `rolled_label`: die eigenen Effekte des Relikts
+bleiben vollstaendig sichtbar) hat ein Zeilenbudget von **8 Textzeilen** (ein
+Zeilenumbruch zaehlt als Zeile). Darueber: alle Fluchzeilen bleiben (ein Fluch
+ist eine Falle, Direktorentscheid 06.09.2026), Effektzeilen stehen bis zum
+Budget, der Rest wird eine einzige `MUTED`-Zeile *"+{n} more effect lines — see
+Why this relic"*; der Knopf `Why this relic` (AK-274) fuehrt zur vollen Liste,
+kein zweiter Weg. Bis 8 Zeilen aendert sich nichts.
+
+**Aufwand je Ziel.** Den Rest lesen: 1 Klick (`Why this relic` steht schon im Kopf
+des Blocks). Heute: durch eine Karte mit 8 und mehr Zeilen rollen.
+
+**AK-409** (a) Ein Block bis 8 Textzeilen hoch bei der Spaltenbreite wird
+unveraendert gezeichnet (Test: gleiche Hoehe wie vor der Aenderung); (b) ein Block
+mit mehr: Hoehe der Textflaeche ≤ 9 Zeilenhoehen (8 + die Faltzeile), alle
+Fluchzeilen darin vollstaendig, die Faltzeile nennt `n` = Anzahl der
+ausgelassenen Effektzeilen; (c) enthaelt der Block allein mehr als 8 Fluchzeilen,
+wachsen die Fluchzeilen ueber das Budget (kein Fluch wird versteckt) und keine
+Effektzeile steht; (d) `rolled_label` ist unveraendert; (e) der Bericht nennt den
+reproduzierten Fall mit Zeilenzahl je Quelle und der Spaltenbreite der Messung.
+
+**Korrektur T-335p (Nutzerentscheid 31.10.2026, "Gleiche Werte buendeln"):
+AK-409 oben ist ersetzt, kein Zeilenbudget, keine Faltzeile.** Reproduziert
+(Testfenster, echter Spielstand, 10 Nightfarer x 3 Ziele, je erster Vorschlag,
+171 Gruppen): 53 Gruppen ueber 8 Zeilen, hoechstens 16. Die "8 Flask-Zeilen"
+sind der **Fluch** "Reduced Damage Negation for Flask Usages" (6850900): eine
+Zeile je Schadensart, alle +45,0 %; das Budget haette sie nie gekuerzt.
+Neue Regel: Zeilen **einer** Wirkung, die denselben Betrag mit demselben
+Vorzeichen-Urteil sagen, stehen als **eine** Zeile, Flueche eingeschlossen;
+sie nennt alle Felder ("Skill FP cost, Spell FP cost and Item use cost -8.0%")
+oder das Wort der Statustafel fuer den ganzen Satz ("All damage taken",
+"All damage"). Nichts wird versteckt. Ausgenommen (stehen einzeln):
+Attributzeilen (AK-315), Zauberpfad, art-gebundene Buffs, Waffenklassen-Felder,
+Felder mit dem Namen der Wirkung selbst. Eine Quelle (`advisor/explain.py`),
+daher gleich in Block, Slotkarte und Why. **AK-409neu:** der Fluch 6850900
+steht als genau eine Zeile `...: All damage taken +45.0% — this figure does
+not count it.` (Test `test_one_figure_an_effect_moves_on_many_fields_is_one_line`).
+
+##### 6. Ausdruecklich nicht Teil der Vorgabe
+
+Neue Farben, Icons oder Dialoge; eine Aenderung der Mindestbreite (AK-400); ein
+Umbau der Statustabelle ueber 4.8 hinaus; die Wahl von Zaubern und Weapon Arts
+(T-335m, vergibt noch keine AK); der Wortlaut von `SAVES_HOLD_NOTHING` und
+`NO_SAVE_FOUND`; eine Faltung von `rolled_label`.
+
+**Betroffene Dateien (Stand `7a9e7dd`):** `nrplanner/app.py` (Build-Zeile
+`:1010-1042`, `rescan_button` `:891`), `nrplanner/advisorbar.py` (`:357-359`,
+`:1236`, `:1365-1369`, Zeile 4.8 der Statustabelle), `nrplanner/relicpicker.py`
+(`:215-221`), `nrplanner/effectfilterdialog.py` (`:86`),
+`nrplanner/advisorblock.py` (`:81-83`, `:404-405`, `:452-455`),
+`nrplanner/advisor/types.py` (`:681-693`, nur lesen), Tests zu AK-123, AK-389,
+AK-301/AK-309.
+
+
+#### Nachtrag T-335r (ui-ux-designer), 2026-10-31 — Casting-Leiste: Zauber und Weapon Art waehlen, mit Icon (AK-410 bis AK-419, Spec-Modus)
+
+*Auftrag T-335r, `docs/tasks/T-335.md`; Richtung B der Skizzen T-335m, vom Nutzer
+am 31.10. 12:23 gewaehlt. Methode: **kein Programmstart** (Nutzer hat die Exe
+offen); Code gelesen am Stand `3ab6fb8`, Daten (nur lesend) aus dem Testabzug,
+EXTRACT_VERSION 16. Pool-Groessen und Start-Katalysatoren unten sind aus dem
+Snapshot gelesen; Pixelwerte sind Entwurfswerte, nichts ist gemessen.
+Bestand wiederverwendet: `WeaponSlot`/`weapon_loadouts` (`app.py:552`,
+`:1454`), Kachelsprache von `WeaponTile` (ACCENT-Rahmen = gewaehlt, BORDER,
+PANEL, HOVER_FILL, MUTED), Zauber-Zeile `_spell_damage_rows` (`statsheet.py:623`),
+`damage.spell_catalyst`/`spell_thrown`, `GoalContext.selected_catalyst`
+(AD-052/T-335b), `iconpack.item`/`menu`. Kein neues Token, keine neue Farbe.*
+
+**Annahmen, die nicht im Bestand stehen (Feldnamen folgen aus dem
+ARCHITECTURE-Abschnitt T-335q; der Entwickler setzt die dort gewaehlten ein):**
+`data["arts"]` = Liste `{id, name, icon, fp}` (EXTRACT_VERSION 17);
+`weapon["art_default"]` = Art-Id der festen Standardart oder `None`;
+`weapon["art_pool"]` = Art-Ids, die diese Waffe tragen/rollen kann (kann
+`art_default` enthalten, kann leer sein); `Build.swapped_art_ids` analog zu
+`swapped_spell_ids` (`model.py:1061`, Wirkung `startSwordArtsId`);
+`WeaponSlot.spell_id: int | None` und `WeaponSlot.art_id: int | None` (die
+ausdrueckliche Wahl des Spielers). Zauber-Pool einer Waffe = ihre belegten
+`equipped_spells` (Snapshot: 29 Waffen haben belegte Zauberplaetze, jede genau 2, die
+uebrigen 1764 keinen; Recluse's Staff: Glintstone Pebble, Glintstone Arc). Faellt eine Annahme
+anders aus, aendert der Entwickler den Namen, nicht die Regel, und meldet es.
+
+**Entscheid, der den Abschnitt traegt: die Wahl haengt an der Kachel.** Sie steht
+im `WeaponSlot` und reist damit ohne weiteren Code mit `WeaponSlot.copy()` in
+`weapon_loadouts[hero_id]`: gemerkt **je Nightfarer und je Kachel, wie das uebrige
+Loadout** (Nutzer 12:23), also fuer die Programmlaufzeit, nicht ueber den Neustart
+(die Kacheln selbst sind es nicht, `app.py:544-548`). Gespeichert wird nur die
+**ausdrueckliche** Wahl; `None` heisst "folge dem Standard der Waffe".
+
+##### 1. Zweck, Aufbau
+
+**Zweck.** Der Spieler sieht und waehlt, welchen Zauber bzw. welche Weapon Art die
+Schadenstafel fuer die gewaehlte Kachel rechnet; Berater und Why rechnen
+denselben.
+
+**Aufbau.** Ein neuer Block `CASTING` (Titel wie `Weapon damage`, gleiche Schrift)
+**zwischen Kachelraster und Hand-Schalter** (`statsheet.py:344-352`), in der
+Kachelspalte. Inhalt: bis zu **zwei Chips** in Kachelbreite (zwei von drei
+Spalten, der Rest bleibt leer). Jeder Chip: Icon (40 px) oben, Name darunter (bis
+2 Zeilen), darunter eine MUTED-Zeile (Zahl bzw. FP, Punkt 3). Der gewaehlte Chip
+traegt den ACCENT-Rahmen wie die gewaehlte Kachel; die Standardwahl der Waffe einen
+kleinen ACCENT-Punkt im Eck (Legende im Tooltip). Je gewaehlter Kachel genau eine
+der drei Formen:
+
+- **Katalysator** (`wep_type in GENUS_OF_CATALYST`): ein Chip je belegtem Zauber
+  des Stabs/Siegels, Kleinschrift `R1`/`R2` ueber dem Icon.
+- **Waffe mit Art** (`art_default` gesetzt oder `art_pool` nicht leer): **ein**
+  Chip mit Kleinschrift `ART`; Klick oeffnet das Pool-Popup (Punkt 2).
+- **sonst, oder leere Kachel:** der Block ist **nicht da** (kein Titel, keine
+  Hoehe); die Tafel verhaelt sich wie heute.
+
+Es gibt **kein** Raster aller Zauber oder Arts des Spiels und keinen
+`Other...`-Chip: waehlbar ist nur, was auf genau dieser Waffe liegt (Nutzer 12:23).
+
+**Wechselt die Kachel** (Einzelklick, AK-353), baut sich der Block neu aus der
+neuen Kachel; er erscheint und verschwindet dabei, die Spalte darunter rueckt mit
+(bewusst kein reservierter Leerraum).
+
+##### 2. Interaktion und Aufwand
+
+- **Zauber-Chip** (1 Klick): waehlt den Zauber; kein Popup, beide stehen offen.
+- **Art-Chip** (2 Klicks): oeffnet ein Popup (`Qt.Popup`, unter dem Chip, Breite
+  der Spalte, 6 Icons je Reihe, hoechstens 5 Reihen sichtbar, dann Rollbalken);
+  Klick auf ein Icon waehlt und schliesst. Fusszeile des Popups: Name, `FP {n}`,
+  bei der Standardart `this weapon's own art`; sie folgt Maus und Tastaturfokus.
+  Der Pool zeigt **nur** `art_pool` der Waffe, Standardart zuerst, Rest nach Name;
+  die Standardart traegt den ACCENT-Punkt.
+- Hat der Pool genau **einen** Eintrag, ist der Chip reine Anzeige (kein Klick, kein
+  Popup; Tooltip: `the only one this weapon has`).
+- **Tastatur:** Chips `StrongFocus`, Tab-Reihenfolge nach den Kacheln und vor dem
+  Hand-Schalter, R1 vor R2; Enter/Leertaste waehlt bzw. oeffnet; im Popup bewegen
+  die Pfeiltasten den Fokus, Enter waehlt, Esc schliesst und gibt dem Chip den
+  Fokus zurueck. Fokusrahmen sichtbar in ACCENT, nirgends abgeschnitten.
+- **Aufwand je Ziel (Eingaben):** Standard rechnen lassen: **0** (alles vorbelegt;
+  die Startwaffe des Nightfarer und ein Tausch-Relikt werden erkannt, Punkt 5).
+  Anderen Zauber desselben Stabs: **1**. Andere Art: **2**. Nichts wird doppelt
+  abgefragt: eine Wahl gilt fuer Tafel, Berater und Why.
+
+##### 3. Was der Chip zeigt, und die Zustaende
+
+| Zustand | Zauber-Chip | Art-Chip | Tafel |
+|---|---|---|---|
+| Standard (keine Wahl gespeichert) | Name, Zahl, Standardpunkt | Name, `FP n`, Punkt | rechnet den Standard, Name in der Zeile |
+| Spieler hat gewaehlt | Name, Zahl, ACCENT-Rahmen | Name, `FP n` | rechnet die Wahl |
+| **Noch nichts gewaehlt** (nur Art: Pool > 1 und kein `art_default`) | entfaellt (Zauber haben immer einen Standard, R1) | gestrichelter Chip `Choose a weapon art`, ohne Icon | **keine geratene Zahl**: die Zeile `Weapon art` bleibt wie heute (Skill-Faktor auf die AR, AK-355, ohne Namen) |
+| Zauber ohne Schaden (Rejection, Heal) | Zahlzeile `no damage` | — | Zeile nach AK-344 (`NO_SPELL_DAMAGE`) |
+| Art ohne eigene Schadenszahl (Fassung F2, unten) | — | `FP n` statt Zahl | Zeile mit Namen, AR-Wert wie heute, Hinweissatz im Block |
+| Relikt tauscht Zauber/Art der Startwaffe | genau ein Chip, Punkt 5 | wie links | rechnet den getauschten |
+| Icon fehlt (Datei nicht lesbar) | neutrale Flaeche (`PANEL`), Name bleibt | wie links | unveraendert |
+| Name sehr lang (> 2 Zeilen) | am Ende gekuerzt, voller Name im Tooltip | wie links | in der Zeile voll, Umbruch |
+| Pool mit 54 Eintraegen | — | Popup rollt, Fokus folgt | — |
+
+Die Zahl im Zauber-Chip ist `damage.spell(...).figure` fuer genau diesen Zauber
+(`damage_type=""`, Stufe der Kachel wie die Tafelzeile), aus der Fassade
+(AK-357). Der gewaehlte Chip zeigt dieselbe Zahl wie die Zeile `Spell damage`.
+
+**Fassung F2 / F1 der Art-Zahl (haengt an T-335q).** Bis der `architect` eine
+belegte Formel fuer den Schaden je Art liefert, gilt **F2**: die Art bewegt keine
+Zahl; die Zeile `Weapon art (<Name>)` zeigt den Skill-Faktor-Wert wie
+AK-354/AK-355, und ein MUTED-Satz im Block sagt es ehrlich: *"{name} has no damage
+figure of its own here — the row shows the weapon's attack rating under the art's
+factor."* (Wortlaut Entwurf, im Test als Literal). Liefert T-335q eine Formel
+(F1), ersetzt der `director` AK-415(d) und AK-416(c) durch die dortige Zahl;
+Aufbau, Chips, Popup und Merken aendern sich nicht.
+
+##### 4. Merken und Beziehung zu den Kacheln
+
+Eine Wahl aendert `WeaponSlot`, ruft `_store_weapon_loadout()` und `recompute()`
+(wie `_edit_weapon_slot`, `app.py:1468-1475`). Wechsel der Waffe auf einer Kachel
+(`WeaponDialog`) setzt beide Wahlen auf `None`; bestaetigt der Spieler dieselbe
+Waffe (gleiche `id`), bleiben sie: `result_slot()` baut ein neues `WeaponSlot` und
+muss sie uebernehmen, sonst gehen sie bei jedem OK verloren. Kachel leeren setzt
+sie zurueck. Nightfarer-Wechsel und zurueck zeigt dieselben Wahlen
+(`apply_hero_weapon`, `app.py:1477`). Neuer Nightfarer ohne Vorgeschichte: alles
+Standard.
+
+##### 5. Tausch-Relikte ("starting armament's skill/spell changed to X")
+
+Regel wie heute fuer Zauber (`spell_thrown(..., starting=own)`), neu auch fuer
+Arts: gilt nur fuer die **Startwaffe** (`damage.is_starting_armament` fuer die Art,
+`own` aus `spell_catalyst` fuer den Zauber), und der getauschte Eintrag
+**schlaegt Wahl und Standard**. Der Block zeigt dann auf dieser Kachel **nur den
+getauschten Eintrag** (ein Chip, ACCENT-Rahmen, Kleinschrift `RELIC`, kein Klick)
+und darunter eine MUTED-Zeile: *"A relic changed the starting armament's spell to
+{name}. Your choice applies again without it."* (bzw. `skill`). Die gespeicherte
+Wahl bleibt unberuehrt. Tauschen zwei Relikte, gilt der staerkere wie bisher
+(`_TWO_SWAPPED_SPELLS`, `goals.py:459`) und die Zeile nennt es. Auf jeder anderen
+Kachel gibt es keinen Tausch.
+
+**Revenant:** Finger Seal (`starting_weapon_left`) liegt auf **keiner** Kachel
+(AK-353) und hat keinen Ort fuer eine Wahl. Seine Zauber (Rejection, Heal, beide
+ohne Schaden) bewegen keine Zahl; fuer ihn gilt: kein Chip, kein Speichern, der
+Zauber ist R1 bzw. der getauschte (Zeile wie heute). Findet der Entwickler einen
+Start-Katalysator abseits der Kachel mit schadendem Zauber, hoert er auf und
+meldet es, statt einen Speicherort zu raten.
+
+##### 6. Berater und Why (AD-019, eine Quelle)
+
+Die aufgeloeste Wahl ist ein Wert, den Tafel und Berater **aus einer Funktion der
+Fassade** lesen, nicht je ein eigener Zweig: `damage.chosen_spell(slot, hero, data,
+build)` bzw. `chosen_art(...)` (Namen Entwurf). `GoalContext` erhaelt
+`selected_spell_id` neben `selected_catalyst` (`advisorbar.py:615`); `_spell_cell`
+(`goals.py:437-447`) ruft `spell_thrown` mit dieser Wahl und rechnet unveraendert
+auf `MIN_UPGRADE` (AD-052). Der Cache-Schluessel der Leiste (`advisorbar.py:636`)
+erhaelt `selected_spell_id` (Lehre T-335a: ein Treffer ueber zwei Kacheln antwortet
+sonst fuer die andere); die Art-Id nur, wenn die Art die Antwort bewegen kann
+(F1), unter F2 **nicht**. Why (`explain.py`) nennt den Zauber mit demselben Namen
+wie die Zeile. Eine Wahl-Aenderung ist wie jede Leisteneingabe: neue Antwort,
+kein veralteter Treffer.
+
+##### 7. Akzeptanzkriterien
+
+**AK-410** Der Block `CASTING` steht zwischen Kachelraster und Hand-Schalter, nur
+wenn die gewaehlte Kachel gefuellt ist und ein Katalysator mit >= 1 belegtem
+Zauber ist oder eine Art hat (`art_default` oder nicht leerer `art_pool`); sonst
+ist er unsichtbar und belegt 0 px Hoehe (Test: `isVisible()` und Hoehe je Fall:
+Wylder Kachel 1, Recluse Kachel 1, leere Kachel, Waffe ohne Art und ohne Zauber).
+Wechsel der Kachel baut ihn neu (Test: Staff -> leer -> Staff).
+
+**AK-411** Inhalt nur von dieser Waffe: Zauber-Chips = belegte `equipped_spells`
+der Waffe (Recluse's Staff: genau `Glintstone Pebble`, `Glintstone Arc`); Art-Popup
+= `art_pool` der Waffe, kein Eintrag ausserhalb (Test: Menge der Popup-Ids ==
+`set(art_pool)`; kein `Other`-Element im Widgetbaum). Wylder's Greatsword: die
+Standardart steht als erster Eintrag des Popups mit Punkt.
+
+**AK-412** Vorbelegung: ohne gespeicherte Wahl rechnet die Tafel den ersten
+belegten Zauber (R1, gleich dem heutigen `spell_thrown`: Recluse Stufe 15 ohne
+Relikte `Spell damage (Glintstone Pebble) 123`, unveraendert) bzw. `art_default`;
+0 Eingaben. Hat eine Waffe mit Pool > 1 keinen `art_default`, zeigt der Block den
+gestrichelten Chip `Choose a weapon art` und **keine** Art-Zahl ausser der
+heutigen Skill-Faktor-Zeile ohne Namen (Test mit einer solchen Waffe aus dem
+Snapshot; gibt es keine, ein synthetischer Datensatz, Vermerk im Bericht).
+
+**AK-413** Bedienung: Zauber-Wahl = 1 Klick, Art-Wahl = 2 Klicks, per Tastatur Tab
+-> Enter (-> Pfeile -> Enter); Esc schliesst das Popup und gibt dem Chip den
+Fokus; Tab-Reihenfolge Kacheln -> R1 -> R2 -> Hand-Schalter; Fokusrahmen sichtbar;
+ein Pool mit einem Eintrag oeffnet nichts. Gemessen per UIA am Fenster
+(`scripts/drive_window.ps1`) durch den `qa-engineer`.
+
+**AK-414** Merken: nach Wahl von R2, Nightfarer-Wechsel und zurueck ist R2 noch
+gewaehlt (Test ueber `weapon_loadouts`); OK im `WeaponDialog` mit unveraenderter
+Waffe behaelt die Wahl; eine andere Waffe setzt sie auf Standard; Kachel leeren
+setzt sie zurueck; nach Neustart ist alles Standard (bewusst, Entscheid oben).
+`WeaponSlot.copy()` uebernimmt beide Felder.
+
+**AK-415** Eine Zahlquelle: (a) der gewaehlte Zauber-Chip zeigt dieselbe Zahl wie
+die Zeile `Spell damage (<Name>)`; (b) jede Chip-Zahl ist `damage.spell` fuer
+ihren Zauber, nirgends ein zweiter Rechenweg (Suche nach Produkten in
+`weaponslots.py`/`statsheet.py`, Ergebnis im Bericht); (c) der Berater (`Hit with
+Sorceries/Incantations`) und `Why` rechnen den gewaehlten Zauber, Test: Recluse,
+R2 gewaehlt -> `display` des Berater-Laufs nennt `Glintstone Arc` mit der Zahl der
+Fassade; (d) F2: die Wahl einer anderen Art aendert **keine** Zahl der Tafel und
+keinen Rang im Berater (Test, als Erwartung F2 benannt).
+
+**AK-416** Art-Zeile: (a) `Weapon art (<Name>)` erscheint auf jeder gefuellten
+Nicht-Katalysator-Kachel mit aufgeloester Art **und** weiterhin auf der Startwaffe
+nach AK-353.1; (b) AK-356 (Art auf Katalysator) unveraendert; (c) unter F2 steht
+der Satz aus Punkt 3 genau einmal im Block (Literal im Test); (d) die Zahl der
+Zeile bleibt aus `damage.equipped(..., art=SKILL_ART)` (AK-354).
+
+**AK-417** Tausch: Recluse mit einem Zauber-Tausch-Relikt: der Block zeigt genau
+einen Chip `RELIC` mit dem getauschten Zauber und den Satz aus Punkt 5 (Literal),
+die Tafel rechnet ihn; ohne das Relikt gilt wieder die gespeicherte Wahl (Test:
+Wahl R2, Relikt rein/raus). Art-Tausch ebenso fuer die Startwaffe
+(`swapped_art_ids`), auf anderen Kacheln kein Tausch. Revenant: kein Chip, Zeile
+wie heute (Pruefweg AK-353 unveraendert).
+
+**AK-418** Darstellung: Chips nur aus Bestandstoken (ACCENT, BORDER, PANEL,
+HOVER_FILL, MUTED; Suche nach neuen Hex-Literalen im Diff leer); Icon 40 px
+logisch, skaliert mit `ui/scale` 90 bis 200 %; Name 2 Zeilen, dann Auslassung mit
+vollem Namen im Tooltip; Tooltip jedes Chips: Name, Schule bzw. Art, `FP n`, bei
+Standard `default of this weapon`; Zugaenglichkeitsname je Chip (`R1: Glintstone
+Pebble, 123, selected`); zwei Chips plus Rand passen in die Spalte bei
+`minimumWidth()` ohne Abschneiden und ohne waagerechten Rollbalken
+(QA-292/304-Muster); Bilder per `QWidget.grab()` (NH-002): Recluse Kachel 1, Wylder
+Kachel 1 mit offenem Popup, Recluse mit Relikt-Tausch. Fehlt ein Icon, bleibt der
+Chip bedienbar (Test mit `iconpack` ohne Datei).
+
+**AK-419** Spieltext als Text, nie als Markup (SEC-019): Chip-Name, Tooltip,
+Popup-Fusszeile, Tafelzeile (`html.escape`, wie `statsheet.py:671`); der Waechter
+`tests/test_game_text_is_never_markup.py` deckt die neuen Senken ab. Alle neuen
+Saetze Englisch (A8).
+
+##### 8. Ausdruecklich nicht Teil der Vorgabe
+
+Ein Raster aller Zauber/Arts des Spiels; Wahl ueber den `WeaponDialog`; Speichern
+der Wahl ueber den Neustart oder im gespeicherten Build; eine Art-Schadenszahl
+(wartet auf T-335q, Fassung F1); eine Wahl fuer eine Start-Waffe abseits jeder
+Kachel (Revenants Siegel); Schadensart-Filter im Block; neue Farben oder
+Icon-Rahmen; Aenderung der Mindestbreite (AK-400).
+
+**Betroffene Dateien (Stand `3ab6fb8`, Entwurf):** `nrplanner/weaponslots.py`
+(`WeaponSlot`, `result_slot`), `nrplanner/statsheet.py` (Block `:344-352`,
+`:623-678`, `_weapon_art_row` `:587`), `nrplanner/app.py` (`:1454-1491`),
+`nrplanner/damage.py` (aufgeloeste Wahl, Tausch der Art), `nrplanner/model.py`
+(`swapped_art_ids`), `nrplanner/advisorbar.py` (`:615`, `:636`),
+`nrplanner/advisor/goals.py` (`:437-447`), `nrplanner/advisor/explain.py`,
+`nrdata/` und `nrplanner/iconpack.py` (Art-Icons, EXTRACT_VERSION 17), Tests.

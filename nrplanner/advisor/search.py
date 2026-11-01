@@ -114,7 +114,7 @@ def goal_scorer(problem: types.SlotProblem, ctx: types.GoalContext,
     """
     def score(assignment: tuple[types.Candidate, ...]) -> types.GoalScore:
         return goal.score(evaluate(problem, assignment, ctx,
-                                   want_qualitative=False), ctx)
+                                   want_qualitative=False, goal=goal), ctx)
 
     return Scorer(goal_id=goal.id, score=score)
 

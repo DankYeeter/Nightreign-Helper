@@ -2578,3 +2578,294 @@ Eintrag einen Auftrag, wird es eine Massnahme.
 - **T-329.md** wurde per Python im Textmodus geschrieben (CRLF-Warnung
   00:33); Git normalisiert, kein Schaden.
 
+## Zyklus 32 — 2026-10-12 (T-333 a-i, Stand `c5eaa41`)
+
+**Ziel des Zyklus:** Fensterlaeufe ohne Fokusraub (Nutzer 19:55: "ich will
+aber den fokus behalten in meinem spiel"), dann Laientest an Exe 1.19.0, dann
+Ingame-Test. Entstanden: Treiber `05143d2` ohne Maus/`SetForegroundWindow`,
+Fokusraub **nicht** behoben (Fensterlaeufe nur bei freiem PC, Nutzer 21:05);
+Laientest 2/2; QA-299 gefixt (`59a5f03`), Test nachgezogen (`6ab0c4b`),
+Neubau 1.19.0 (`7347908`), Ingame-Test offen.
+
+**Datengrundlage:** `docs/tasks/T-333.md`, `docs/state.md`,
+`docs/berichte/T-333e-qa-engineer.md`, `T-265d-qa-engineer.md`,
+`T-325-qa-engineer.md`, `qa/findings.md` (QA-297, QA-299),
+`docs/tasks/T-332.md`, Director-Transkript `4df151eb-….jsonl` und die zehn
+Subagenten-Transkripte darunter (Zeiten Ortszeit), Sitzung `12a0c381`
+(Zyklus 31) fuer Hook-Zaehlungen, `_rahmen.md`, `commands/director.md`,
+`agents/qa-engineer.md`, `templates/task.md`, Team-Repo
+`referenz/retro-2026-10-10.md` (L-053). Zyklen 30/31 hatten keine
+Retrospektive; sie gehen nur ueber Hook-Zaehlungen in die Wirkungskontrolle ein.
+
+**Nummernraum — geprueft.** `T-333.md`, `T-333*`-Berichte und die
+Commit-Texte `05143d2^..HEAD` zitieren keine `L-`/`NH-`-Nummer (grep, 0
+Treffer). Naechste freie: `NH-014` (state.md, grep bestaetigt nur dort);
+teamweit hoechste `L-062`, `L-063` frei (grep ueber alle Projekt-Repos ohne
+Worktrees, Agenten-Repo, `~/.claude`).
+
+**Korrektur am Auftrag:** Die Nutzerentscheidung "Programm umbauen" (20:12)
+folgte auf die **erste** Fehlhypothese (T-333a "Programm aktiviert sich"),
+nicht auf die zweite. Die zweite (".NET-Client", T-333c) ging 20:41 als
+Tatsache an den Nutzer, ohne Entscheidung.
+
+### Gut gelaufen (schuetzenswert)
+
+- **Der Bestand schlug den Auftrag:** T-333c bekam einen Programm-Fix,
+  widerlegte die Praemisse, aenderte keine Zeile und schrieb selbst: "Die
+  Nutzerentscheidung ... beruhte auf dem T-333a-Befund ... Der ist hiermit
+  widerlegt; der Nutzer sollte das wissen." Gespart: Programmumbau, Neubau,
+  QA (`_rahmen.md:14-16` wirkt).
+- **Der Director korrigierte sofort und offen** (20:41:53): "Deine Wahl
+  'Programm umbauen' beruhte auf der falschen ersten Vermutung."
+- **Kein Fokusraub am Spiel:** Messungen nur bei "Claude vorne" (Absicherung
+  `probe.ps1`), dann zweiter, unsichtbarer Desktop (T-333c). Das Verfahren
+  liegt als Agenten-Notiz `reference_fokusursache_unsichtbarer_desktop.md`.
+- **Spec-Frage als Registerzeile wird in Minuten entschieden:** T-333e lieferte
+  QA-299 mit Status `offen -- Spec-Entscheid director` (21:10), Frage an den
+  Nutzer 21:11, Entscheid 21:15, AD-036.6-Nachtrag woertlich in T-333f. Das ist
+  die Form, die NH-015 zur Regel macht.
+- **Retest mit Mutationsfrage:** T-333g sollte "ausdruecklich sagen, ob die
+  Tests das Kriterium pruefen oder nur den Code" — und fand die Luecke vor dem
+  Bau. Gleiche Leistung in Zyklus 31 (QA-297). Diese Frage gehoert in jeden
+  Retest-Auftrag eines Fixes.
+- **Laientest fand, was die Pruefkette dreimal als "Vorgabe" abgelegt hatte**
+  (QA-299; T-265d, T-324g-Gegenprobe, T-325). A11 fuer 1.19.0 belegt.
+- **Release nach Ausloeser (NH-010):** T-333i begruendet je Rolle aus
+  `git diff 7fc3e43..HEAD`, Kette nur `release-manager`; Director mass SHA
+  selbst nach (22:33).
+- **Uebergabe ueber das Scratchpad innerhalb der Sitzung:** c nutzte die
+  Messskripte aus a, d den Harness aus c, f das Nachstellskript aus e, h die
+  Mutationsskripte aus g — kein Rezept neu gebaut.
+
+---
+
+### NH-014 — Ursachen ohne Gegenprobe am Verdaechtigen gingen als Tatsache an den Nutzer: drei in einer Kette, und L-053 stand schon da
+
+**Belege:**
+
+| Lauf | Behauptete Ursache | Messart | Gegenprobe am Verdaechtigen | an den Nutzer |
+|---|---|---|---|---|
+| T-333a 20:10 (sonnet) | "Das Programm aktiviert sein Fenster selbst, sobald ein UIA-Muster darauf wirkt" — unter BLOCKIERT DURCH; "Den genauen Qt-Aufruf habe ich nicht gefunden" | Vordergrund-Sampler 25 ms | keine: die "Gegenprobe" war ein `Invoke` auf "Show hidden" — gleicher Client, gleiches Ziel | 20:10:49 Fragewerkzeug, Option "Programm umbauen — Das Fenster nimmt bei Fernbedienung keinen Fokus mehr. Das ist Anwendungscode …"; Nutzer 20:12 waehlt sie |
+| T-333c 20:41 | ".NET-UIA-Client (`System.Windows.Automation`) ruft `SetFocus`/`SetForegroundWindow`" | IAT-Hook im Programmprozess (kein Aktivierungsaufruf) + Stapel bei `WM_ACTIVATE` — belegt "nicht das Programm"; die Zuordnung zum .NET-Client stammt aus "die .NET-Client-Bibliotheken enthalten `SetForegroundWindow`" (Import, kein gemessener Aufruf) | keine; der Bericht selbst: "native UIA-COM … nicht geprueft" | 20:41:53: "Den Fokus nimmt die Windows-Bibliothek, mit der das Testskript Knoepfe drueckt." |
+| T-333d 20:53 | "Die Ursache sitzt im UIA-Kern von Windows" | native COM aktiviert ebenso | keine Probe an einem Nicht-Qt-Ziel (Transkriptsuche `notepad`/`calc`/`nicht-Qt`: notepad nur als Vordergrund-Stellvertreter; `T-333c/foreign.py` ist ein Tk-Fenster, das den Vordergrund haelt, kein Ziel); MSAA ungemessen | `docs/state.md:134` "Fokusraub sitzt im Windows-UIA-Kern (T-333c/d)" als Tatsache |
+
+Teamregel L-053 (`commands/director.md:307-309`, uebernommen 10.10.,
+`231ba76`): "eine Ursache aus nur einer Messart sind Hypothesen; an den Nutzer
+gehen sie nur als solche markiert" — zwei Tage spaeter zweimal nicht
+angewendet. Ebenso `director.md:310` ("Ein aus einem Bericht uebernommener
+Vorschlag ist erst nach eigener Nachrechnung eine Vorgabe"): Option 1 aus
+T-333a ging ungeprueft ins Fragewerkzeug.
+
+**Was im ersten Lauf entschieden haette:** nicht der unsichtbare Desktop — der
+loeste nur "messen, ohne dem Spieler den Fokus zu nehmen". Die Frage
+"Programm oder nicht" entscheidet eine Probe, die **genau den Verdaechtigen
+tauscht**: derselbe `Invoke` desselben Clients an einem Nicht-Qt-Fenster eines
+Hilfsprozesses, oder derselbe Ablauf ueber einen zweiten Client. Beides ging in
+T-333a mit derselben Absicherung "Claude vorne" wie die dort gefahrene
+Gegenprobe; der IAT-Hook aus T-333c laeuft auch am echten Desktop. Mit welchem
+Ausgang, ist bis heute ungemessen.
+
+**Ursache:** Der Rahmen verlangt einen Gegenfall nur fuer Abwesenheit
+(`_rahmen.md:56-57`); eine Ursachenbehauptung braucht keinen, steht deshalb
+unter BLOCKIERT DURCH statt ANNAHMEN, und L-053 setzt beim Director ein Urteil
+("nur eine Messart") voraus, das er aus dem Bericht nicht treffen kann.
+
+**Massnahme — Agenten-Repo (ersetzt L-053, kein Zuwachs im Director):**
+1. `agents/_rahmen.md:56-57` ersetzen durch:
+   > - Wer "hier ist nichts", "das ist zu" oder "X verursacht es" sagt, zeigt
+   >   einen Fall, in dem seine Pruefung anschlaegt — bei einer Ursache
+   >   denselben Ablauf mit nur X getauscht (anderes Ziel, anderer Aufrufer, X
+   >   abgeschaltet). Ohne diesen Fall steht die Ursache unter ANNAHMEN, nie
+   >   unter BLOCKIERT DURCH.
+2. `commands/director.md:307-309`, den Satz "Eine Regel aus wenigen Beispielen
+   und eine Ursache aus nur einer Messart sind Hypothesen; an den Nutzer gehen
+   sie nur als solche markiert." ersetzen durch:
+   > Eine Regel aus wenigen Beispielen ist eine Hypothese. Eine Ursache aus den
+   > ANNAHMEN eines Berichts ist nie Praemisse einer Option im Fragewerkzeug;
+   > die Option heisst dann "Ursache erst belegen".
+
+**Streichung:** L-053s Satzhaelfte "aus nur einer Messart" entfaellt; Rahmen
++1 Zeile, Director +-0. Kein Riegel: eine Ursachenbehauptung ist am Wortlaut
+nicht verlaesslich erkennbar (NH-011 zeigt, was Wortmasken kosten).
+
+**Wer liest es wann:** jede Rolle den Rahmen in jedem Lauf; der Director
+`director.md` je Sitzung und schaut beim Fragewerkzeug auf ANNAHMEN, nicht auf
+BLOCKIERT DURCH.
+
+**Kosten:** eine Tauschprobe vor jeder Ursachenaussage (in T-333a ein weiterer
+`Invoke` an einem Hilfsfenster, Minuten). Mehr Eintraege unter ANNAHMEN.
+
+**Erfolgskriterium (zwei Zyklen):** keine Nutzerentscheidung, deren Ursache
+spaeter widerlegt wird; jede Ursache unter BLOCKIERT DURCH nennt ihre
+Tauschprobe; keine Option im Fragewerkzeug auf einer Ursache aus ANNAHMEN.
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-015 — Eine Spec-Frage aus einem QA-Bericht erreicht niemanden, solange sie keine Registerzeile hat: QA-299 lag 27 Tage offen
+
+**Belege (geprueft, nicht aus T-333e uebernommen):**
+- **T-265d, 15.09.** (`docs/berichte/T-265d-qa-engineer.md:79` und `:93`,
+  Abschnitt "Offene Fragen", an "director / ui-ux-designer"): vier
+  Waffenzahl-Bedingungen in einem Build "mit sechs Waffenplaetzen nicht
+  gemeinsam erfuellbar"; Urteil "PASS mit CONCERNS". Keine Registerzeile
+  (grep `qa/findings.md`), keine OF-Nummer (`ARCHITECTURE_REGISTER.md`, 65
+  OF-Zeilen), Commit `51e51e4` nennt nur QA-273; `docs/state.md` an `ae4d9fd`
+  (15.09. 12:26): "A18/A19 erfuellt am Artefakt (T-265d)". Die beiden anderen
+  Fragen desselben Abschnitts (Berater gegen Werteblatt; Hand-Schalter auf
+  leerem Gefaess) haben ebenfalls keine Spur (grep "leerem Gefaess",
+  "Hand-Schalter", "Werteblatt.*widersprech").
+- **T-325, 21.09.** (`T-325-qa-engineer.md:159-160`): dieselbe Vorbelegung
+  ("3+ Hammers" auf einem Zauber, x1,2) als "**Vorgabe, kein Befund**" unter
+  Beobachtungen — wie `agents/qa-engineer.md:212-218` es fuer Spec-Konformes
+  vorschreibt: "ohne Nummer".
+- **Stichprobe weiterer Berichte:** T-263 (Frage "`Load equipped` ...
+  uebernimmt den aktuellen Schalter ... beabsichtigt?") und T-327 (Why-Kopfzeile
+  zaehlt einen nicht gewerteten Effekt) — keine Spur in `UI_SPEC*.md`,
+  `ARCHITECTURE_REGISTER.md`, `docs/state.md` (Suchbegriffe "Load equipped"
+  mit Schalter/1H/2H; "Kopfzeile", "N of its M"). Mindestens fuenf Fragen
+  aus drei Berichten.
+- **Gegenbeispiel, das wirkte:** T-333e schrieb die Frage als Registerzeile
+  `offen -- Spec-Entscheid director` → Entscheid in 5 Minuten.
+
+Die Regel dagegen stand: `director.md:105-107` ("Sonstige Fragen sammelst du
+in `docs/state.md` unter 'Beim Nutzer — offen'"), im Team-Repo seit `51e7ee7`
+(13.09.).
+
+**Ursache:** `qa-engineer.md` leitet "Bug oder Absicht?" und "spec-konform,
+fuer den Spieler unerreichbar" in zwei nummernlose Abschnitte (Offene Fragen,
+Beobachtungen), die Buchfuehrung des Directors haengt aber nur Registerzeilen
+an — was keine Zeile hat, faellt zwischen Bericht und Register heraus.
+
+**Massnahme — Agenten-Repo:** `agents/qa-engineer.md:219-220` ersetzen durch:
+> - **Offene Fragen:** Bug oder Absicht unklar — oder spec-konform, aber fuer
+>   den Spieler so nicht erreichbar: Registerzeile wie ein Befund, ohne
+>   Prioritaet, Adressat der Besitzer der Spec, Status
+>   `offen -- Spec-Entscheid <rolle>`. Eine Frage nur im Berichtstext erreicht
+>   niemanden (QA-299: T-265d 15.09. bis 12.10.).
+
+**Streichung:** ersetzt die zwei Zeilen am selben Ort (+3 Zeilen). Begruendung
+des Zuwachses: er traegt die Form, die in T-333e nachweislich wirkte; dafuer
+wird `director.md:105-107` nicht erweitert.
+
+**Wer liest es wann:** der `qa-engineer` in jedem Lauf (Rollendatei) und liest
+`qa/findings.md` vor jedem Lauf — eine spaetere Pruefung (wie T-325) sieht die
+offene Zeile, statt dasselbe als "Vorgabe" abzulegen. Der Director haengt die
+Zeile in seinem ohnehin bestehenden Buchfuehrungsschritt an.
+
+**Kosten:** mehr offene Zeilen im Register (135 nicht geschlossene IDs am
+23.09.); per `grep "Spec-Entscheid" qa/findings.md` getrennt abrufbar. Der
+Director muss entscheiden oder fragen — das ist der Zweck.
+
+**Erfolgskriterium (zwei Zyklen):** jede Frage unter "Offene Fragen" eines
+QA-Berichts hat eine Registerzeile; kein QA-Bericht legt ein Verhalten als
+"Vorgabe, kein Befund" ab, zu dem eine `Spec-Entscheid`-Zeile offen ist; kein
+Laienbefund, den ein frueherer QA-Bericht schon als Frage gestellt hatte.
+
+**Status:** vorgeschlagen
+
+---
+
+### NH-016 — Der Regressionstest haelt den Fix, nicht jeden Teilsatz des woertlichen Kriteriums: zweimal in zwei Zyklen ein Nacharbeitslauf
+
+**Belege:**
+- **T-333f → g → h:** Kriterium woertlich "der Optimierer waehlt das Beste
+  unter dieser Regel (nicht bloss die zweite Bedingung nachtraeglich nullen …)".
+  Der Bericht T-333f listet unter "Er prueft": "keine zwei gezaehlten Arten,
+  das schwaechere Relikt ersetzt die zweite Art, die Handeingabe" — "die
+  beste Art" fehlt, obwohl der Code `max` nimmt. T-333g: Mutation M2 (erste
+  Art) und M3 (`min`) ueberleben die neue Datei und 257 Advisor-Tests, weil
+  die Fixtur zwei gleich starke Arten (je x1,2) nimmt. Nacharbeit T-333h
+  (22:16-22:26).
+- **T-332c → f → h → i (Zyklus 31):** Vorgabe "an den zwei Aufrufern …
+  nur mit Test, der ein Pixel byte-gleich vor/nach vergleicht"
+  (`T-332.md:124-127`); getestet war einer. QA-297: "Mutation ueberlebt volle
+  Suite" (`qa/findings.md:678`), Fix `0b2d9fa`, Retest T-332i.
+- **Familie:** L-008 Faelle 1 und 6 (Zyklus 12-13): Fixturen im
+  Vorgabezustand bzw. zwei leere Listen, unter denen die zu pruefende
+  Unterscheidung unsichtbar ist.
+
+Beide Male erfuellte der Test `_rahmen.md:52-53` ("faellt ohne den Fix" —
+T-333f: "vor dem Fix rot: 2 failed"); die Regel fragt nach dem Fix als Ganzem,
+nicht nach den Teilsaetzen.
+
+**Ursache:** Weder Auftragsvorlage noch Rahmen zerlegen das woertliche
+Kriterium in Teilsaetze, fuer die je ein Fall fallen muss — also prueft der
+Test den Teil, den der Fix offensichtlich aendert, und eine entartete Fixtur
+verdeckt den Rest.
+
+**Massnahme — Agenten-Repo (Vorlagenfeld statt Text, `_rahmen.md:113`):**
+1. `templates/task.md`, direkt unter `**Abnahmekriterium (GOAL.md, woertlich):** <…>`:
+   > **Teilsaetze mit eigenem Testfall:** <jede Wahl ("das Beste"), jeder
+   > Aufrufer, jede Grenze des Kriteriums — oder "einer">
+2. `agents/_rahmen.md:52-53`, den Satz "Ein Fix, eine Pruefung: jeder Test, der
+   einen Fix sichert, faellt ohne den Fix — nenne die Aenderung, die ihn
+   brechen liesse." ersetzen durch:
+   > Ein Fix, eine Pruefung: je Teilsatz des Auftrags ein Fall, der ohne den
+   > Fix faellt; nenne je Teilsatz die Aenderung, die ihn brechen liesse.
+
+**Streichung:** Rahmen +-0 (Satz ersetzt), Vorlage +2 Zeilen. Begruendung: das
+Feld ist der Waechter, den `_rahmen.md:113` fuer das zweite Auftreten
+verlangt; der Director schreibt die Teilsaetze ohnehin schon (T-333f, T-332c),
+nur nicht als Liste, die der Bericht abhaken muss.
+
+**Wer liest es wann:** der Director beim `cp` der Vorlage je Auftrag; der
+`developer` Rahmen und Auftrag in jedem Lauf und nennt im Bericht je Teilsatz
+die brechende Aenderung — eine Luecke steht dann im Bericht statt erst im
+Retest; der `qa-engineer` mutiert im Retest je gelistetem Teilsatz.
+
+**Kosten:** eine Zeile je Auftrag, ein bis zwei Testfaelle mehr je Fix (T-333h:
+ein Fall, 10 Minuten) — weniger als ein Nacharbeitslauf samt Retest.
+
+**Erfolgskriterium (zwei Zyklen):** kein Retest-Befund "Mutation ueberlebt" zu
+einem Teilsatz, der im Auftrag stand; kein Folgeauftrag "Test nachziehen".
+
+**Status:** vorgeschlagen
+
+---
+
+### Wirkungskontrolle frueherer Massnahmen
+
+| ID | Massnahme | Uebernommen am | Wirkung | Konsequenz |
+|---|---|---|---|---|
+| **NH-011** | Hook-Masken an Befehlsstelle, Volllauf-Zaehler nur bei erlaubtem Lauf | 2026-09-23 (T-330, `700c629`, Team-Repo `9d0d22b`) | **Wirkt.** Zyklus 32: 10 Laeufe, 0 `[datenumlenkung]`-, 0 `Volllauf-Schwelle`-Abweisungen. Zyklus 31 (`12a0c381`, 15 Laeufe): 0 Volllauf-Fehlsperren, 3 Umlenkungs-Abweisungen — 1 echter Exe-Start ohne Umlenkung (richtig), 2 Fehlsperren der EXE-Maske (Heredoc-Text, Commit-Nachricht), in T-332 nachgebessert. | Behalten; Kriterium erfuellt |
+| **NH-012** | Commit-Recht der Doku-Rollen angleichen | nicht freigegeben (`T-330.md:5-6`) | — | Status: verworfen (Nutzer 23.09., nicht freigegeben) |
+| **NH-013** | Remote-Pruefung als Hook am Push | nicht freigegeben (`T-330.md:5-6`) | — | Status: verworfen (Nutzer 23.09., nicht freigegeben) |
+| **NH-009** | Treiber `scripts/drive_window.ps1` | 2026-09-19 | **Wirkt fuer den Treiber** (T-333a/d/g arbeiten daran, kein Neubau). Die neuen Messwerkzeuge (`desk.py`, `harness.py`, `iathook.py`) liegen nur im Sitzungs-Scratchpad; `docs/state.md` verweist auf `scratchpad/T-333d`. | Beobachtung unten |
+| **NH-010** | Release nach Ausloeser | 2026-09-21 | **Wirkt:** T-333i Ausloeser je Rolle aus dem Diff, Kette nur `release-manager`. | Behalten |
+| **L-053** (teamweit) | Ursache aus einer Messart = Hypothese, so an den Nutzer | 2026-10-10 (`231ba76`) | **Keine Wirkung** im ersten Anwendungsfall: 2 von 2 Ursachen gingen als Tatsache an den Nutzer (20:10:49, 20:41:53), eine davon als Praemisse einer gewaehlten Option. | Ersetzt durch NH-014 |
+| **L-048/L-056** (teamweit) | Uebergabe ohne Kontraktblock/Volllauf einmal abweisen | 2026-09-29 / 2026-10-10 | **Wirkt, mit Reibung:** 9 von 9 Laeufen vollstaendig, aber jeder brauchte mindestens einen zweiten Versuch (8x Block fehlt, 2x Volllauf fehlt). | Keine Massnahme: ein Zug je Lauf, der Riegel tut, wofuer er gebaut ist |
+
+**Bilanz: fuenf uebernommene geprueft — vier wirken (NH-011, NH-009, NH-010,
+L-048/L-056), eine nicht (L-053 → ersetzt durch NH-014); zwei nie
+freigegeben (NH-012, NH-013).**
+
+### Beobachtungen (noch kein Muster)
+
+- **Diagnose im Fix-Auftrag:** T-333c ("Ursache: unbekannt. Erst belegen, dann
+  fixen") und T-333d gingen an den `developer`; der `fehlerdiagnostiker`
+  (Beschreibung: "bei Fehlern ohne erkennbare Ursache") wird laut
+  `director.md:188` nur nach dem zweiten erfolglosen Fixversuch gerufen.
+  T-333d war der dritte. Ein Vorkommen; beim naechsten gehoert "oder Ursache
+  unbekannt" in `director.md:188`.
+- **Modellwahl:** die erste Fehlursache kam aus einem `sonnet`-Lauf (T-333a,
+  Stufe klein), der aus einem Fix eine Diagnose machen musste. Ein Vorkommen.
+- **Messwerkzeuge nur im Scratchpad** (NH-009-Klasse): der Harness fuer den
+  unsichtbaren Desktop verschwindet mit der Sitzung; `docs/state.md`
+  "Naechster Zyklus" zeigt auf `scratchpad/T-333d`. Erstes Vorkommen seit
+  NH-009; beim zweiten: Harness nach `scripts/`.
+- **Spec-konform als Befund-Ausschluss:** `qa-engineer.md:212-218`
+  ("ohne Nummer") traf in T-325 einen Fall, den der Spieler fuer falsch haelt.
+  NH-015 deckt es mit ab; wirkt NH-015 nicht, ist diese Stelle die naechste.
+
+### Nebenfunde an den director (nicht meine Sache)
+
+- `docs/state.md:134` fuehrt "Fokusraub sitzt im Windows-UIA-Kern (T-333c/d)"
+  als Tatsache. Belegt ist nur: nicht das Programm (IAT-Hook, T-333c), nicht
+  allein die .NET-Huelle (T-333d). Vorschlag: "Hypothese; Tauschprobe an
+  einem Nicht-Qt-Ziel und MSAA ungemessen".
+- Die beiden uebrigen T-265d-Fragen (Berater gegen Werteblatt nach `Apply
+  all`; Hand-Schalter auf leerem Gefaess beim Neustart) und die Fragen aus
+  T-263 und T-327 (siehe NH-015) sind nach meiner Suche unbeantwortet.
+

@@ -1,7 +1,7 @@
 """The five depths: how much tougher enemies get, and what it pays.
 
 Every number here is read from the game's own params except the rating table,
-which is labelled where it appears because no param holds it.
+which no param holds; it comes from play (see WIN_RATING below).
 
 Laid out in the order a player asks the questions: what do I get for going
 deeper, what does it cost me in difficulty, what moves my rating, and what else
@@ -36,8 +36,9 @@ QUESTION = (
 
 # Rating changes per expedition. These are NOT in regulation.bin: no param
 # carries them, no field name anywhere mentions rank or rating, and the text
-# tables state only the band thresholds. They come from play instead, and the
-# tab says so rather than passing them off as extracted.
+# tables state only the band thresholds. They come from play instead; on
+# screen they read like every other figure, without a mark of their own
+# (GOAL.md non-goals, user decision 2026-09-23).
 #
 # Confirmed in game by this project's owner: +200 for a win, +100 for an
 # unknown Nightlord. The map bonus and the loss table are community-reported
@@ -70,13 +71,6 @@ CONTROL_ROWS = (
     ("Cursed relic — Uncommon", "cursed_uncommon"),
     ("Cursed relic — Rare", "cursed_rare"),
 )
-
-
-def _note(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setWordWrap(True)
-    label.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
-    return label
 
 
 def _source(text: str) -> QLabel:
@@ -249,12 +243,12 @@ class DeepTab(QWidget):
         # not in the files, so the tab says that rather than letting a reader
         # supply a subject of their own; the sigil count is read, while the
         # name against it was identified in game.
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             "Reward multiplier: the game's own multiplier for this Depth. "
             "The files do not say what it multiplies, so it is shown as a "
             "comparison between Depths and nothing more."
         ))
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             f"{sigil}: the figure comes from the depth table. That the item "
             f"is the {sigil} was identified in game, not read from a link in "
             f"the files."
@@ -268,13 +262,13 @@ class DeepTab(QWidget):
 
         # Kept from the game's own tutorial because it changes how you play:
         # it says when a loss cannot cost you the Depth you have reached.
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             "Once you reach Depth 2 you cannot drop back to Depth 1, and at "
             "Depth 3 your Depth is held for several expeditions before it can "
             "fall."
         ))
         if any(tiers):
-            box.addWidget(_note(
+            box.addWidget(tabheader.question(
                 "Relic tiers run Delicate, Polished, then Grand, and every "
                 "tier comes in all four colours. The reward lots drop the "
                 "lower tiers as the Depth rises — by Depth 4 only Grand "
@@ -383,7 +377,7 @@ class DeepTab(QWidget):
                 self.scaling_table.setItem(row, col, _cell(text))
         box.addWidget(_fit(self.scaling_table))
 
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             "The big figure is typical; the range under it is the spread from "
             "the weakest enemy group to the toughest."
         ))
@@ -408,15 +402,10 @@ class DeepTab(QWidget):
 
         bonuses = ", ".join(f"{name} +{value}"
                            for name, value in RATING_BONUSES)
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             f"On top of a win, and they add up: {bonuses}. So a win against an "
             f"unknown Nightlord on an obstructed map is "
             f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."
-        ))
-        box.addWidget(_source(
-            "The only figures on this tab the game's own data does not "
-            "state. The win value and Depth 1 costing nothing are confirmed "
-            "in game; the bonuses and the loss table are community-reported."
         ))
         return panel
 
@@ -435,7 +424,7 @@ class DeepTab(QWidget):
                 table.setItem(row, col, _cell(text))
         box.addWidget(_fit(table))
 
-        box.addWidget(_note(
+        box.addWidget(tabheader.question(
             "Cataclysms are the empowered camps that carry night invaders — "
             "the game never places zero, so the figure above is the chance of "
             "the second. Concealment starts at Depth 3, and because it is one "

@@ -4,6 +4,157 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.19.0] - 2026-10-28
+
+### Added
+- The Nightfarer you last selected is now remembered across a restart; the
+  program reopens with that one instead of always the first in the list.
+- Saving a build now confirms it with a short note by the build name
+  (`Saved "name".`, or `Saved over "name".` when it replaced one).
+- Clicking the Nightfarer that is already selected now tells you so
+  (`<Name> is already selected.`) instead of doing nothing visible.
+- Relic cards and weapon tiles that can be clicked now show which one the
+  pointer is on.
+- When a suggestion cannot reach the chosen Hit with / Damage type at all
+  (for example Sorceries with Fire damage and nothing you own raising it),
+  the advisor bar now shows that as its own yellow line, marked with a
+  warning sign, directly under the bar; the bar text and tooltip stay.
+- The **Spell damage (\<spell>)** row on the stat sheet now appears for
+  every Nightfarer, not only those who start with a staff or seal: put any
+  staff or seal on the selected weapon tile and the row shows that
+  catalyst's spell with the figures of your current build.
+- Under the six weapon tiles a **Casting** block now lets you choose which
+  spell or weapon art the panel counts for the selected tile, with icons.
+  On a staff or seal there is one chip per spell slot (`R1`, `R2`); on
+  another weapon one `ART` chip. A click opens the list of spells or arts
+  that weapon can carry, the weapon's default marked with a dot. `R1` is
+  filled in with the staff's default spell; `R2` and the art can be picked
+  from the weapon's list, because which spells a staff rolls is not known in
+  advance. A weapon without a default art shows `Choose a weapon art` until
+  you pick one. A relic that swaps the starting armament's spell or art wins
+  over your choice and the block says so (`RELIC`). The choice is remembered
+  per Nightfarer and tile until you close the program. The chips and the
+  tiles can be reached with Tab.
+- The **Weapon art** row now shows one figure for the chosen art. Arts that
+  only add a flat amount (rather than a swing) get a figure too.
+- Effect lines of one relic with the same value are now combined into one
+  line (a curse that lowered six damage types by the same 45 % now takes one
+  line instead of six).
+- The build line above the relic grid no longer collides with the **Show
+  hidden** button when the window is narrow; it wraps instead.
+- The sentences shown when no save was found now name the button that fixes
+  the cause.
+
+### Changed
+- The "Why" dialog now leads with the answer. Effects that carry no number
+  and the footnotes are folded away behind buttons (`Show n effects without
+  a number`, `Notes on these figures`); the notes open by themselves when
+  they hold something you need to know. The button on the advisor bar is
+  now `Why` (the whole suggestion) and the one on a relic card `Why this
+  relic`, which opens the dialog at that relic's slot.
+- When you have marked an effect as a favourite but a suggestion cannot
+  count it (a build can meet the weapon-count condition of only one weapon
+  type), the explanation now says so instead of claiming it always counts.
+- The advisor bar wraps into two rows when the window is too narrow for one,
+  instead of squeezing its buttons. The smallest window width is now about
+  1190 px (it was 760 px); the opening size is unchanged.
+- Clearer wording when a save has no relics, when relics the save has
+  equipped are no longer in your inventory, when the stored builds of a save
+  could not be read, and when the data shown is from an earlier day than
+  your installed game. A Deep of Night slot left empty because its relic is
+  worn elsewhere now says `— n left empty`.
+- The filter menus show their full value in a tooltip, the Favourites menu
+  shows each Nightfarer's name, and shortened column headers are read out in
+  full by screen readers.
+- If the Steam entry cannot be found, the folder picker for your game now
+  opens at "This PC" rather than at a fixed Steam folder.
+- Console error output no longer includes the text of the error itself.
+- Deep of Night, Red variant and World Event values that come from
+  community write-ups (rather than the game's own data) are no longer
+  marked "community-reported" or shown in a different colour; they now
+  appear alongside every other value. Their content is unchanged.
+- The colours used for community-reported and curse/debuff values are now
+  the same on every tab that shows them (they used to differ from tab to
+  tab); the curse colour on the effects list also now meets standard
+  contrast guidelines.
+- The suggestions under **Hit with** Weapon art, Sorceries and Incantations
+  now calculate with the weapon, the spell and the art on the weapon tile you
+  have highlighted (an empty tile falls back to your starting weapon). Relics
+  that swap a spell or an art are counted only when you hold one, and are
+  never suggested. The explanation names the tile's spell or art.
+- Weapon variants without art or spell choices of their own now inherit those
+  of their base weapon (for example Magic Longsword takes the Longsword's).
+- Spell damage is now calibrated against measurements on the in-game
+  training dummy: the spell figure uses the game's 0.6 factor and the same
+  rounding as weapon attack ratings, so it matches the dummy for the
+  Glintstone Arc and Pebble cases we measured.
+- The data cache is rebuilt once on the first launch after this update
+  (about 40 seconds, plus the icon pack), because it now also stores weapon
+  arts and each weapon's pools of spells and arts.
+- The explanation (`Why`) and the yellow warning line under Weapon art now
+  name the highlighted tile and its art.
+- A keyboard-focused weapon tile or chip shows a dashed orange frame (a solid
+  frame still marks the active one); the frame appears after Tab only, not
+  after a mouse click, and no longer shifts the neighbouring tiles.
+
+### Fixed
+- The program now checks each character slot of your save against the
+  checksum stored in the file. If one does not match, the save is reported
+  as not readable, with the reason, rather than showing relics that may be
+  wrong.
+- A save with more relics than the program will read now ends in the
+  explanatory sentence instead of an error trace, and malformed script data
+  in the game's files is read within fixed limits.
+- Two messages claimed the game was searched for on drives C to H; that
+  search no longer exists, and the text now says what actually happens.
+- Relic and curse names containing markup characters are now shown as plain
+  text in tooltips.
+- The survival goal now checks its weighting and damage-pass rate, and a
+  weighting that names the same damage field twice is refused, instead of
+  producing a wrong or absurd figure.
+- The relic advisor no longer counts "3+ ... Equipped" weapon-count
+  effects of weapon types you are not using (for example 3+ Daggers while
+  your highlighted weapon tile holds a greatsword), and it no longer counts
+  two different weapon-count conditions as both fulfilled in one suggestion,
+  which would have needed more weapons than the six armament slots. Only
+  the condition for the weapon type on the highlighted weapon tile counts;
+  with an empty highlighted tile none does. Changing the highlighted tile
+  updates the suggestion.
+- If your save-file scan found more than one readable save, the program
+  silently picked the one with the most relics without telling you (or,
+  on a tie, the wrong one). The note under your inventory now says how
+  many other saves were found, correctly credits a tie to the most recent
+  one, and keeps the "Find my save" button available so you can pick a
+  different save.
+- A damaged or cut-short data cache file could stop the program from
+  starting when it also could not find your game install; it now falls
+  back to extracting fresh data instead, the same as if there were no
+  cache file at all.
+- The data cache file is now written atomically, so an interruption while
+  it is being built can no longer leave a corrupted file behind.
+- The program could close without a message when you switched a weapon
+  slot in the armament dialog from a weapon that has effects to one that
+  has none (for example Unarmed, Wylder's Small Shield or a Finger Seal)
+  and then pressed OK or Cancel. It no longer does.
+- Closing a dialog (armament, Why, Filters, relic picker and the smaller
+  ones) did not free it, so memory use grew by about 30 MB each time a
+  dialog was opened. Dialogs are now released when they close.
+- The explanation of a Hit with Sorceries / Incantations suggestion and its
+  tooltip now name the staff or seal on the selected weapon tile, or else
+  the starting one, which is the one the figure is computed for.
+- A save that you cleared of all relic slots can now be saved as an empty
+  build instead of being refused.
+- Nightfarer names in the sidebar tooltips and the Favourites menu are shown
+  as plain text.
+- The pool list for a weapon art or spell opens fully on screen near the
+  bottom or right edge of the display, and shows six icons per row at every
+  display scaling (it showed five at 150 %).
+- The list of World Events is drawn in its normal style again (a stray
+  style rule made the console report `Could not parse stylesheet`).
+- Without a save, the explanatory sentence for the legend of crossed-out
+  relics names both meanings, and the bar without relics names the true
+  cause.
+
 ## [1.18.0] - 2026-09-21
 
 ### Added

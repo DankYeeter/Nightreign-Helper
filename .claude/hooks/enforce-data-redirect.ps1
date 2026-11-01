@@ -80,7 +80,18 @@ $istQuellstart = $cmd -match '(?i)(^|[;&|(]\s*|\s)["'']?(\S*[\\/])?(python3?|pyt
 # stumm und die Rolle wartet - T-241d 23 min, T-285a 28 min. Bei laufender
 # Kopie wird der Start abgewiesen, damit die Rolle sofort `blockiert` meldet
 # statt zu pollen).
-$istExeKommando = $cmd -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
+# T-330a Nebenfund: [;&|(] in einem Grep-Muster ("foo|NightreignHelper.exe")
+# zaehlte als Befehlsgrenze. T-332b blendete darum Grenzzeichen in jedem
+# Anfuehrungszeichen-Text aus - und damit auch verschachtelte Starts
+# (powershell -Command "cd dist; .\NightreignHelper.exe", cmd /c, bash -c;
+# SEC-052). Jetzt nur noch in den Argumenten eines Suchbefehls (grep, rg,
+# Select-String): Wortfolge bis zur ersten Grenze ausserhalb von
+# Anfuehrungszeichen. Alles andere wird ungeblendet abgeglichen.
+$cmdFuerExeAbgleich = [regex]::Replace($cmd,
+    '(?i)(?<![\w-])(grep|rg|Select-String)(\s+("[^"]*"|''[^'']*''|[^\s"'';&|(]+))*',
+    { param($m) $m.Value -replace '[;&|(]', ' ' })
+
+$istExeKommando = $cmdFuerExeAbgleich -match '(?i)(^|[;&|(]\s*|Start-Process\s+(-FilePath\s+)?|&\s+)["'']?([^\s"'']*[\\/])?NightreignHelper\.exe["'']?(\s|$)'
 
 # QA-244: von den acht Skripten unter scripts/measure_*.py bauen nur diese
 # zwei ein echtes Planner-Fenster (appmod.Planner(...), nachgesehen T-214) und

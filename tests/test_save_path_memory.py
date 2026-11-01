@@ -36,11 +36,12 @@ import pathlib
 import struct
 
 import pytest
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QUrl
 from PySide6.QtWidgets import QApplication
 
 from nrdata import savefile
-from nrplanner import (app as appmod, favourites, gamepath, inventory,
+from nrplanner import (app as appmod, effectfilterdialog, favourites,
+                       gamepath, inventory, relicpicker,
                        savereader)
 from tests import conftest, rendered
 from tests.test_save_read_in_the_background import (READ_FUSE_S, StatedRead,
@@ -502,13 +503,27 @@ def test_the_dialog_opens_in_the_profile_when_the_folder_is_missing(
     assert savereader.where_saves_usually_are() == roaming
 
 
-def test_the_dialog_opens_wherever_qt_would_when_neither_is_there(
+def test_the_dialog_opens_in_this_pc_when_neither_is_there(
         monkeypatch, tmp_path):
-    """Nothing to offer is an answer, not a path made up out of pieces."""
+    """Nothing to offer is "This PC", not a path made up out of pieces.
+
+    QA-302: an empty start opened in the process's working directory.
+    """
+    from nrplanner import firstrun
+
     monkeypatch.setattr(savefile, "save_roots",
                         lambda: [tmp_path / "nowhere" / "Nightreign"])
+    asked = []
+
+    def the_dialog(_parent, _caption, start, _filters):
+        asked.append(start)
+        return QUrl.fromLocalFile(str(tmp_path / "NR0000.sl2")), ""
+
+    monkeypatch.setattr(savereader.QFileDialog, "getOpenFileUrl", the_dialog)
 
     assert savereader.where_saves_usually_are() is None
+    assert savereader._pick_a_save_file(None) == tmp_path / "NR0000.sl2"
+    assert asked == [firstrun.THIS_PC]
 
 
 # -- read_the_save: which exit a real file falls into ----------------------
@@ -831,6 +846,10 @@ def test_the_note_says_how_many_saves_were_passed_over(
             assert the_line(window).startswith(
                 head + clause + " — this save stores no builds yet")
             assert offers_to_find_the_save(window)
+        # AK-407 (c), with a save loaded: the addition follows the button.
+        assert window.rescan_button.toolTip() == (
+            RESCAN_TOOLTIP_NONE_FOUND if offers_to_find_the_save(window)
+            else RESCAN_TOOLTIP)
     finally:
         close(window, read)
 
@@ -922,3 +941,176 @@ def test_the_automatic_route_of_the_suite_reads_the_frozen_slot(game_data):
     assert not any(root.exists() for root in savefile.save_roots())
     assert inventory.scan(game_data).source == conftest.frozen_scan().source
     assert inventory.scan(game_data).folder == "frozen save folder"
+
+
+# -- QA-008: the automatic route tells "no save" from "a save with nothing" --
+
+
+def test_the_automatic_route_says_when_the_saves_it_found_hold_nothing(
+        game_data, monkeypatch, tmp_path):
+    """A save on the disk without relics is not "no save file found".
+
+    `inventory.scan` answers None to both, so the automatic route has to ask
+    the disk whether there was a file at all -- in the reading thread, where
+    a slow folder costs the window nothing.
+    """
+    found = a_save_file(tmp_path, an_empty_container())
+    monkeypatch.setattr(savefile, "find_saves", lambda: [found])
+    monkeypatch.setattr(inventory, "scan", lambda data, *rest: None)
+
+    assert savereader.read_the_save(game_data) is savereader.SAVES_HOLD_NO_RELICS
+
+
+#: AK-388/AK-389, word for word out of `UI_SPEC` "Nachtrag T-334k" -- not
+#: imported, so a changed constant cannot carry its test along with it.
+SAVES_HOLD_NOTHING = ("Your save has no relics in it yet. If you play on more "
+                     "than one Steam account, they may be in another save — "
+                     "use Find my save.")
+NOTHING_TO_FILTER = ("Your save has no relics in it yet, so there is nothing "
+                     "to filter.")
+NOTHING_TO_RANK = ("Your save has no relics in it yet, so there is nothing to "
+                   "rank — if you just played, use Rescan save; if they are "
+                   "on another Steam account, use Find my save.")
+#: AK-407 (b), the other three texts of its table.
+NOTHING_READ_TO_RANK = ("No save was read, so there is nothing to rank these "
+                        "against — use Find my save.")
+NOTHING_READ_TO_FILTER = ("No save was read, so there are no effects to "
+                          "filter yet — use Find my save.")
+RESCAN_TOOLTIP = ("Read your save again, from the file read last. Use it "
+                  "after you played.")
+RESCAN_TOOLTIP_NONE_FOUND = RESCAN_TOOLTIP + (" If none was found, use Find "
+                                              "my save.")
+#: AK-406, 4.8a and 4.8b of the advisor bar, word for word out of `UI_SPEC`
+#: "Nachtrag T-335n".
+BAR_NO_SAVE_READ = ("No save was read, so there are no relics to choose from "
+                    "— use Find my save.")
+BAR_SAVE_IS_EMPTY = ("Your save has no relics in it yet — if you just played, "
+                     "use Rescan save; if they are on another Steam account, "
+                     "use Find my save.")
+
+
+def the_bar_says(window) -> str:
+    """The advisor bar's status line, before and after a run is asked for.
+
+    `_ask` directly: the button is shut in 4.8, and the sentence must hold
+    through every way a run can be asked for (AK-406 (c)).
+    """
+    bar = window.advisor_bar
+    resting = bar.status.accessibleName()
+    bar._ask()
+    assert bar.status.accessibleName() == resting, "AK-406 (c)"
+    assert bar.status.toolTip() == f"<span>{resting}</span>", "AK-406 (e)"
+    return resting
+
+
+def test_the_line_names_an_empty_save_on_the_automatic_route(store, game_data,
+                                                             qapp):
+    """QA-008/AK-388 at the window: no file was chosen, so not "That save"."""
+    read = StatedRead(savereader.SAVES_HOLD_NO_RELICS)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_line(window) == SAVES_HOLD_NOTHING
+        assert "That save" not in the_line(window)
+        assert window.owned is None
+        assert offers_to_find_the_save(window)
+    finally:
+        close(window, read)
+
+
+def the_filter_window_says(window, monkeypatch) -> str:
+    """The empty state of the effect filter window, opened over `window`."""
+    opened = []
+    monkeypatch.setattr(effectfilterdialog.EffectFilterWindow, "exec",
+                        lambda self: opened.append(self))
+    window.open_effect_filters()
+    return opened[-1].empty.text()
+
+
+def the_picker_says(window) -> str:
+    """The headline of a relic picker opened on the first slot."""
+    card = window.base_slots[0]
+    dialog = relicpicker.RelicPicker(card, card.icons, "", lambda _text: None)
+    try:
+        return dialog.headline.text()
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_read_empty_save_is_not_called_unread_on_the_automatic_route(
+        store, game_data, qapp, monkeypatch):
+    """AK-389: the filter window and the picker were told "No save was read"
+    about a save that was read and held nothing (QA-008 neighbours)."""
+    read = StatedRead(savereader.SAVES_HOLD_NO_RELICS)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_filter_window_says(window, monkeypatch) == NOTHING_TO_FILTER
+        assert the_picker_says(window) == NOTHING_TO_RANK
+        assert the_bar_says(window) == BAR_SAVE_IS_EMPTY
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.isVisibleTo(window)
+    finally:
+        close(window, read)
+
+
+def test_a_picked_empty_save_is_not_called_unread_by_the_picker(
+        store, game_data, qapp, monkeypatch, tmp_path):
+    """AK-389 for a chosen file: the picker says the same sentence, the filter
+    window keeps the chosen-file wording."""
+    chosen = a_save_file(tmp_path)
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        pick_and_read(window, chosen, read, monkeypatch)
+
+        assert the_picker_says(window) == NOTHING_TO_RANK
+        assert the_filter_window_says(window, monkeypatch) == (
+            "That save has no relics in it yet, so there is nothing to "
+            "filter.")
+        assert the_bar_says(window) == BAR_SAVE_IS_EMPTY
+    finally:
+        close(window, read)
+
+
+def test_no_save_at_all_is_still_no_save_read(store, game_data, qapp,
+                                              monkeypatch):
+    """AK-389's other half: with no file read the old sentences stay."""
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+
+        assert the_filter_window_says(window, monkeypatch) == (
+            NOTHING_READ_TO_FILTER)
+        assert the_picker_says(window) == NOTHING_READ_TO_RANK
+        assert the_bar_says(window) == BAR_NO_SAVE_READ
+        assert "No save was read" not in BAR_SAVE_IS_EMPTY
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.isVisibleTo(window)
+    finally:
+        close(window, read)
+
+
+def test_rescan_says_it_rereads_and_points_on_while_nothing_was_found(
+        store, game_data, qapp, monkeypatch, tmp_path):
+    """AK-407 (c): the addition stands exactly while `Find my save...` does."""
+    read = StatedRead(None)
+    window = a_window(game_data, read)
+    try:
+        conftest.wait_for_the_save(window)
+        rendered.settle()
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.toolTip() == RESCAN_TOOLTIP_NONE_FOUND
+
+        pick_and_read(window, a_save_file(tmp_path), read, monkeypatch)
+        assert offers_to_find_the_save(window)
+        assert window.rescan_button.toolTip() == RESCAN_TOOLTIP_NONE_FOUND
+    finally:
+        close(window, read)

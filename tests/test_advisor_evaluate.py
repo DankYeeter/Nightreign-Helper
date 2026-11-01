@@ -202,7 +202,8 @@ def test_the_advisor_computes_the_build_the_window_shows(planner, game_data):
     # as `ranking_with(..., as_the_bar_asked_before_a16)` does in
     # `test_advisor_goals.py`.
     as_the_sheet_declares = dataclasses.replace(
-        ctx, declared=tuple(sorted(planner.declared.items())))
+        ctx, declared=tuple(sorted(planner.declared.items())),
+        assumed_armament_counts=())
     assert figures(evaluate(problem, (), as_the_sheet_declares)) == \
         figures(planner.current_build())
 
@@ -220,6 +221,9 @@ CONTEXT_REACHES_COMPUTE = {
     "weapons_held": "weapons_held",
     "armament_effect_ids": "effects",
     "declared": "declared",
+    # Joins `declared` for one armament type per build, the goal's pick
+    # (AD-036.6, QA-299): `tests/test_one_armament_count_type.py`.
+    "assumed_armament_counts": "declared",
     # The weighting is the goal's business and never the model's: it decides
     # how a figure is averaged after the build exists (AD-004, OF-3).
     "weighting": None,
@@ -233,6 +237,16 @@ CONTEXT_REACHES_COMPUTE = {
     # and the goal decides which of them the question was about.
     "hit_with": None,
     "damage_type": None,
+    # Which staff the spell cells cast from is the damage direction's choice
+    # (T-335b); the model books the same build whichever it is.
+    "selected_catalyst": None,
+    # The spell chosen on that tile, likewise (AK-415).
+    "selected_spell_id": None,
+    # The tile a Weapon art question swings, and which swaps count for it:
+    # the goal's business; the model books every swap relic either way and
+    # the goal takes back the ones not held (AD-056.7).
+    "art_tile": None,
+    "held_swapped_art_ids": None,
 }
 
 

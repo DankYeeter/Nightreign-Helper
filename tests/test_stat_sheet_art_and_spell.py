@@ -10,8 +10,8 @@ Read off the rendered label, not off the objects behind it: what the player
 compares are the two figures as they are written, and a row that is computed
 but not drawn is not a row. The figures themselves are asserted against the
 facade rather than against literals -- the point of every case here is that
-the panel asks `damage` the same question the advisor asks it (AD-019), not
-that the uncalibrated product has a particular value (OF-54).
+the panel asks `damage` the same question the advisor asks it (AD-019); the
+one measured value is pinned in `test_advisor_goals.py` (T-335j).
 """
 
 from __future__ import annotations
@@ -33,6 +33,10 @@ TIER = 1
 #: It carries no rate at all: what it moves is the base value of the spell in
 #: his hand, which is why it is the relic the A27 criterion is written around.
 BEAST_CLAW_RELIC = 7370900
+#: A staff any Nightfarer can pick up, casting Glintstone Pebble, and a seal
+#: other than Revenant's own, casting Bestial Sling (T-335b).
+ACADEMY_STAFF = 33200000
+CLAWMARK_SEAL = 34040000
 #: "Improved Skill Attack Power": scope 112/111, so its five attack rates
 #: reach the Weapon Art and nothing else (`model.art_factor`).
 SKILL_BUFF = 312300
@@ -43,12 +47,13 @@ SKILL_BUFF = 312300
 FIGURE = (r"(-?\d+)"
           r"(?: 1H<span[^>]*> / -?\d+ 2H</span>)?")
 
-#: `Weapon art <grey> <change> <bold>` (AK-355), the wording out of
-#: `model.ART_LABELS` (AK-363).
+#: `Weapon art (<art>) <grey> <change> <bold>` (AK-416, F1), the wording out
+#: of `model.ART_LABELS` (AK-363). One figure each, no two-handed twin: the
+#: dummy shows an art at one figure in either hand (M1, 31.10. 12:59).
 ART_ROW = re.compile(
-    rf"<div>Weapon art <span style='color:[^']*'>{FIGURE}</span> "
-    rf"<span style='color:[^']*'>([^<]*)</span> "
-    rf"<b style='color:[^']*'>{FIGURE}</b></div>")
+    r"<div>Weapon art \((.*?)\) <span style='color:[^']*'>(-?\d+)</span> "
+    r"<span style='color:[^']*'>([^<]*)</span> "
+    r"<b style='color:[^']*'>(-?\d+)</b></div>")
 
 #: `Spell damage (<spell>) <grey> <change> <bold, a link>` (AK-359/AK-361),
 #: and deliberately without the two-handed alternative above: the two-handing
@@ -75,7 +80,12 @@ def panel(planner) -> str:
 def art_row(planner):
     """(grey, change, bold) of the Weapon art row, or None where none is drawn."""
     match = ART_ROW.search(panel(planner))
-    return match and (int(match.group(1)), match.group(2), int(match.group(3)))
+    return match and (int(match.group(2)), match.group(3), int(match.group(4)))
+
+
+def art_name(planner) -> str | None:
+    match = ART_ROW.search(panel(planner))
+    return match and match.group(1)
 
 
 def spell_row(planner):
@@ -92,7 +102,7 @@ def total_row(planner):
 
 
 def draw(planner, game_data, hero, effect_ids=(), armaments=None,
-         active: int = 0):
+         active: int = 0, tier: int = TIER):
     """Fill the grid, draw it, and hand back the build it was drawn on.
 
     `armaments` is `(slot index, armament id)` pairs; slot 1 holds this
@@ -108,7 +118,7 @@ def draw(planner, game_data, hero, effect_ids=(), armaments=None,
     slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
     for index, weapon_id in pairs:
         slots[index] = weaponslots.WeaponSlot(
-            weapon=cases.weapon_by_id(game_data, weapon_id), tier=TIER)
+            weapon=cases.weapon_by_id(game_data, weapon_id), tier=tier)
     planner.hero_index = game_data["heroes"].index(hero)
     planner.weapon_slots = slots
     planner.declared = {}
@@ -122,12 +132,13 @@ def draw(planner, game_data, hero, effect_ids=(), armaments=None,
     return build
 
 
-def spell_figure(game_data, hero, build) -> damage.SpellRating:
+def spell_figure(game_data, hero, build, selected=None,
+                 tier: int = weapons.MIN_UPGRADE) -> damage.SpellRating:
     """What the facade answers for this build -- the panel's own question."""
-    catalyst = damage.start_catalyst(hero, game_data)
-    thrown = damage.spell_thrown(build, game_data, catalyst)[0]
+    catalyst, own = damage.spell_catalyst(selected, hero, game_data)
+    thrown = damage.spell_thrown(build, game_data, catalyst, starting=own)[0]
     return damage.spell(
-        thrown, catalyst, weapons.MIN_UPGRADE, build, game_data,
+        thrown, catalyst, tier, build, game_data,
         hit_with=damage.GENUS_OF_CATALYST[catalyst["wep_type"]])
 
 
@@ -164,9 +175,9 @@ def test_revenant_reads_his_swapped_spell_beside_the_claws_attack_rating(
     spell_name, grey, change, bold = row
     assert spell_name == "Beast Claw"
     assert bold == damage.displayed(rating.figure)
-    assert 500 <= bold <= 650, (
-        f"the criterion reads about 578 for this pairing and the panel shows "
-        f"{bold}")
+    assert 300 <= bold <= 400, (
+        f"the criterion reads about 346 for this pairing since T-335j (577 "
+        f"before the game's 0.6) and the panel shows {bold}")
     # Nothing but the swap relic is equipped, and it carries no rate: the
     # baseline and the figure are one and the same (AK-359).
     assert grey == bold
@@ -204,39 +215,69 @@ def test_a_physical_attack_relic_moves_the_spell_row_and_the_total_alike(
     assert total_row(planner)[0] == before_total[0]
 
 
-def test_wylder_s_weapon_art_row_moves_under_a_skill_buff_and_not_otherwise(
+def test_wylder_s_weapon_art_row_moves_under_a_skill_buff_and_a_physical_one(
         planner, game_data, physical_relic):
-    """The other half of the A27 criterion, in both directions.
+    """The art row under F1 (AK-416): one hit of the art, grey with nothing
+    equipped, the way every other row of the panel compares.
 
     A skill-scoped relic moves this row and leaves the total alone; a
-    physical attack relic moves the total and leaves this row's difference at
-    `no change`, because its baseline is the total beside it rather than a
-    relic-free figure (AK-355). Both halves are needed: with either one
-    missing, a row that simply repeated the total would pass.
+    physical attack relic moves both, the art by the motion value's share.
     """
     hero = cases.hero_by_name(game_data, "Wylder")
     draw(planner, game_data, hero)
-    assert art_row(planner) == pytest.approx(art_row(planner))
     bare_grey, bare_change, bare_bold = art_row(planner)
-    assert bare_change == "no change" and bare_grey == bare_bold, (
-        "with nothing equipped the Weapon Art reaches no factor, so the row "
-        "has to read as unmoved")
+    assert bare_change == "no change" and bare_grey == bare_bold
 
     draw(planner, game_data, hero, [SKILL_BUFF])
     grey, change, bold = art_row(planner)
     assert re.fullmatch(r"\+\d+", change), (
         f"the skill buff left the Weapon art row at {change!r}")
-    assert bold > grey
+    assert bold > grey == bare_grey
     assert total_row(planner)[1] == "no change", (
         "the skill buff moved the total row as well, and scope 112/111 "
         "reaches the Weapon Art alone")
 
     draw(planner, game_data, hero, [physical_relic(hero)])
-    assert art_row(planner)[1] == "no change", (
-        "a physical attack relic moved the Weapon art row's difference; its "
-        "baseline is the total above it, which the same relic lifts by the "
-        "same amount")
+    assert re.fullmatch(r"\+\d+", art_row(planner)[1])
     assert re.fullmatch(r"\+\d+", total_row(planner)[1])
+
+
+@pytest.mark.parametrize("two_handing", [False, True])
+def test_stamp_reads_262_in_either_hand(planner, game_data, two_handing):
+    """M1, measured at the dummy 31.10. 12:59: one figure, no twin, and the
+    hand switch does not move it."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    planner.stat_sheet.hand_switch.setChecked(two_handing)
+    draw(planner, game_data, hero)
+
+    assert art_name(planner) == "Stamp (Upward Cut)"
+    assert art_row(planner)[2] == 262
+
+
+def test_a_rolled_armament_without_a_choice_gets_no_art_row(
+        planner, game_data):
+    """AK-412: no guessed figure -- the casting bar asks for the choice."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    draw(planner, game_data, hero,
+         armaments=((0, hero["starting_weapon"]),
+                    (1, hero["starting_weapon"])), active=1)
+
+    assert art_row(planner) is None
+
+
+def test_a_fixed_art_on_a_found_armament_gets_its_row(planner, game_data):
+    """AK-416 (a): every filled tile with a resolved art, not only slot 1."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    found = next(w for w in game_data["weapons"]
+                 if not w["art_pool"] and w["id"] != hero["starting_weapon"]
+                 and w.get("wep_type") not in damage.GENUS_OF_CATALYST
+                 and "motion_value" in next(
+                     a for a in game_data["arts"]
+                     if a["id"] == w["art_default"]))
+    draw(planner, game_data, hero,
+         armaments=((0, hero["starting_weapon"]), (1, found["id"])), active=1)
+
+    assert art_row(planner) is not None
 
 
 def test_wylder_gets_no_spell_row_at_all(planner, game_data):
@@ -282,7 +323,7 @@ def test_a_nightfarer_whose_seal_throws_nothing_reads_a_figure_of_zero(
     Revenant's default state, not an edge case: the Finger Seal casts
     Rejection, which damages nothing, and a zero with a reason is the answer
     (AD-052 point 5). The sentence is in the click-through, where AK-361 puts
-    it, and it is the particular one -- never both, never the general one.
+    it.
     """
     hero = cases.hero_by_name(game_data, "Revenant")
     draw(planner, game_data, hero)
@@ -295,15 +336,14 @@ def test_a_nightfarer_whose_seal_throws_nothing_reads_a_figure_of_zero(
     # spell's name is game text (SEC-019).
     note = planner.stat_sheet._spell_breakdown_text()
     assert html.escape(damage.NO_SPELL_DAMAGE.format(name="Rejection")) in note
-    assert "uncalibrated" not in note
 
 
-def test_the_click_through_carries_the_baseline_and_the_uncalibrated_note(
+def test_the_click_through_carries_the_baseline_and_the_rates(
         planner, game_data, physical_relic):
-    """AK-361: the baseline, the rates with their relics, the figure, the note.
+    """AK-361: the baseline, the rates with their relics, the figure.
 
-    Exactly one of the two sentences, and here the general one -- the spell
-    does carry damage, so the particular sentence has nothing to say.
+    The spell does carry damage, so the facade's sentence for a 0.00 has
+    nothing to say, and since T-335j there is no caveat in its place.
     """
     hero = cases.hero_by_name(game_data, "Revenant")
     relic = physical_relic(hero)
@@ -321,8 +361,6 @@ def test_the_click_through_carries_the_baseline_and_the_uncalibrated_note(
     assert name in note, (
         "the click-through names no relic behind the rate that moved the "
         "figure, which is the whole of what it is for")
-    assert html.escape(damage.SPELL_DAMAGE_UNCALIBRATED.format(
-        name=damage.SPELL_DAMAGE_NAME)) in note
     assert "deals no damage" not in note
 
 
@@ -381,3 +419,41 @@ def test_the_hand_switch_moves_no_figure_of_the_spell_row(
     draw(planner, game_data, hero, [BEAST_CLAW_RELIC])
     assert spell_row(planner) == one_handed
     assert damage.TWO_HANDED_MARK not in SPELL_ROW.search(panel(planner))[0]
+
+
+@pytest.mark.parametrize("hero_name", ["Raider", "Duchess"])
+def test_a_staff_on_the_selected_tile_carries_its_spell_row(
+        planner, game_data, hero_name):
+    """T-335b: any Nightfarer casts from a staff he has picked up.
+
+    At the tile's own tier, the one its `Spell power` stands on, so that
+    the rows of one tile describe one armament.
+    """
+    hero = cases.hero_by_name(game_data, hero_name)
+    staff = cases.weapon_by_id(game_data, ACADEMY_STAFF)
+    build = draw(planner, game_data, hero, armaments=((0, ACADEMY_STAFF),),
+                 tier=3)
+
+    rating = spell_figure(game_data, hero, build, staff, tier=3)
+    spell_name, _grey, _change, bold = spell_row(planner)
+    assert spell_name == "Glintstone Pebble"
+    assert bold == damage.displayed(rating.figure)
+    assert bold != damage.displayed(spell_figure(
+        game_data, hero, build, staff).figure), (
+        "the tier did not move the figure, so the case cannot tell the "
+        "tile's tier from the advisor's")
+
+
+def test_a_seal_found_in_the_run_casts_its_own_spell_not_the_swapped_one(
+        planner, game_data):
+    """T-335b: a swap relic swaps the starting armament's spell only.
+
+    Revenant holds Beast Claw and has a Clawmark Seal on the selected tile:
+    that seal throws Bestial Sling, as it does in his hand.
+    """
+    hero = cases.hero_by_name(game_data, "Revenant")
+    draw(planner, game_data, hero, [BEAST_CLAW_RELIC],
+         armaments=((0, hero["starting_weapon"]), (2, CLAWMARK_SEAL)),
+         active=2)
+
+    assert spell_row(planner)[0] == "Bestial Sling"

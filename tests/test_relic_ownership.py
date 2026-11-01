@@ -36,7 +36,7 @@ def test_one_relic_cannot_fill_two_slots(planner, game_data,
     """The copy in slot 1 is not on offer in slot 2, and it is owned once."""
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
-    only_copy = make_relic(template, handle=4242, index=0,
+    only_copy = make_relic(template, handle=4242,
                            effects=some_effect_ids(game_data, 2))
     planner.owned = inventory.Inventory(source="test", relics=[only_copy])
     select_vessel(planner, row)
@@ -64,7 +64,7 @@ def test_a_second_copy_of_the_same_roll_is_still_offered(
     row, vessel, colour = two_slots_of_one_colour
     template = templates_for(game_data, colour, 1)[0]
     rolls = some_effect_ids(game_data, 2)
-    copies = [make_relic(template, handle=1000 + n, index=n, effects=rolls)
+    copies = [make_relic(template, handle=1000 + n, effects=rolls)
               for n in range(2)]
     planner.owned = inventory.Inventory(source="test", relics=copies)
     select_vessel(planner, row)
@@ -95,9 +95,9 @@ def test_a_copy_without_a_handle_is_offered_nowhere(
     # Two rolls, or the picker collapses both copies onto one card and the
     # handle-less one is hidden whether or not it is on offer.
     first_roll, second_roll = some_effect_ids(game_data, 2)
-    with_handle = make_relic(template, handle=9, index=0,
+    with_handle = make_relic(template, handle=9,
                              effects=[first_roll])
-    handleless = make_relic(template, handle=None, index=1,
+    handleless = make_relic(template, handle=None,
                             effects=[second_roll])
     owned = inventory.Inventory(source="test",
                                 relics=[with_handle, handleless])
@@ -135,10 +135,10 @@ def test_a_custom_relic_may_be_planned_into_every_slot(
 def test_copy_key_tells_the_cases_apart():
     """The identity itself, without a window around it."""
     template = {"id": 5, "name": "x", "colour": 0}
-    with_handle = make_relic(template, handle=9, index=0, effects=[])
-    same_handle = make_relic(template, handle=9, index=1, effects=[])
-    without = make_relic(template, handle=None, index=2, effects=[])
-    other_without = make_relic(template, handle=None, index=3, effects=[])
+    with_handle = make_relic(template, handle=9, effects=[])
+    same_handle = make_relic(template, handle=9, effects=[])
+    without = make_relic(template, handle=None, effects=[])
+    other_without = make_relic(template, handle=None, effects=[])
     custom = inventory.OwnedItem(
         relic_id=inventory.CUSTOM_RELIC_ID, name="Custom relic", colour=0,
         effect_ids=[], is_deep=False)

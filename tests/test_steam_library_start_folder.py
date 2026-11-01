@@ -77,12 +77,7 @@ def test_a_root_that_does_not_exist_offers_nothing(tmp_path, monkeypatch):
 
 def test_the_dialog_starts_in_a_library_the_default_folder_is_not(
         tmp_path, monkeypatch):
-    """AK-110 end to end: the library list beats the hard-coded fallback.
-
-    Neither exists, so a bare `STEAM_COMMON` on this machine could not be
-    told apart from "found nothing" -- a library folder that is built here,
-    and is not `STEAM_COMMON`, can.
-    """
+    """AK-110 end to end: the dialog starts in the library Steam names."""
     library = tmp_path / "SteamLibrary" / "steamapps" / "common"
     library.mkdir(parents=True)
     monkeypatch.setattr(gamefiles, "steam_common_folders", lambda: [library])

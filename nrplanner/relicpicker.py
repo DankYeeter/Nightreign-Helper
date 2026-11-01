@@ -26,20 +26,24 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import html
 
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QFontMetrics, QIcon
+from PySide6.QtGui import QFontMetrics, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMenu, QPushButton, QScrollArea,
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, cardgrid, effecttext, favourites, model
+from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
-from .theme import ACCENT, BORDER, CURSE, MUTED, PANEL, SLOT_COLOURS
+from .theme import (
+    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, NAME_POINT_SIZE, PANEL,
+    SLOT_COLOURS,
+)
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
 #: grid: the grid reflows to whatever width it is actually given, and this
@@ -210,7 +214,15 @@ NO_CHANGE = "no change"
 #: carries no figures for what the player owns is a different state, said by
 #: `nothing_raises` under a ranking that exists (AK-46, AK-49).
 NO_SAVE_WAS_READ = ("No save was read, so there is nothing to rank these "
-                    "against — use Rescan save.")
+                    "against — use Find my save.")
+
+#: The save was read and holds no relics, chosen or found (AK-389):
+#: `NO_SAVE_WAS_READ` would be false then. Both buttons, each with its
+#: cause (AK-407).
+SAVE_HOLDS_NO_RELICS = ("Your save has no relics in it yet, so there is "
+                        "nothing to rank — if you just played, use Rescan "
+                        "save; if they are on another Steam account, use "
+                        "Find my save.")
 
 #: What stands where the top left card will stand while the question is out
 #: (§3.8 fassung 3, AK-212). One line and nothing else: an empty area three
@@ -447,10 +459,10 @@ class SlotAdvice:
     dialog's part is in `RelicPicker`.
 
     **The direction asked under is not the direction drawn in** (Nachtrag
-    IX-2). The track is asked under `goals.CANONICAL_POOL_ORDER`, marked
-    `pool_order_only` so no reader can take it for the player's choice: a pool
-    measures every candidate under every direction, so one entry serves both,
-    and the same slot opened under the two directions is one question rather
+    IX-2). The track is asked under `goals.CANONICAL_POOL_ORDER`, never the
+    player's choice (see `AdvisorRequest.goal_id`): a pool measures every
+    candidate under every direction, so one entry serves both, and the same
+    slot opened under the two directions is one question rather
     than two. What the screen draws in is `goal_id()` below.
 
     **The answer may arrive after the dialog has gone.** The track lives at
@@ -519,8 +531,7 @@ class SlotAdvice:
             held=tuple(advisorbar.held_slot(index, card)
                        for index, card in enumerate(cards)
                        if index != open_index))
-        request = dataclasses.replace(asking.request, problem=problem,
-                                      pool_order_only=True)
+        request = dataclasses.replace(asking.request, problem=problem)
         known = self._track.ask_and_answer_if_known(
             request, asking.inventory, asking.ctx)
         if known is not None:
@@ -639,7 +650,7 @@ class ValueBlock(QWidget):
             value.setText(text)
 
 
-class RelicCard(QFrame):
+class RelicCard(cardgrid.HoverCard):
     """One relic: its icon, name and the effects it actually rolled.
 
     Effect and curse lines are text (AK-301): a mark on an effect is set and
@@ -660,16 +671,12 @@ class RelicCard(QFrame):
         # can be both. Selection takes the border because it is about the slot
         # being edited; the star carries the favourite through either state.
         if selected:
-            edge, width = ACCENT, SELECTION_BORDER
+            self._border = f"{SELECTION_BORDER}px solid {ACCENT}"
         elif favourite:
-            edge, width = FAVOURITE, SELECTION_BORDER
+            self._border = f"{SELECTION_BORDER}px solid {FAVOURITE}"
         else:
-            edge, width = BORDER, 1
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL};"
-            f" border: {width}px solid {edge};"
-            f" border-radius: 6px; }}"
-        )
+            self._border = f"1px solid {BORDER}"
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
@@ -747,7 +754,7 @@ class RelicCard(QFrame):
         for curse_name, curse_detail in (curses or []):
             line = self._line(f"✦ {curse_name}", CURSE_LINE_STYLE)
             if curse_detail:
-                line.setToolTip(curse_detail)
+                line.setToolTip(advisorblock.as_a_tooltip(curse_detail))
             self.lines.append(line)
         for line in self.lines:
             layout.addWidget(line)
@@ -758,10 +765,20 @@ class RelicCard(QFrame):
             layout.addWidget(self._line(f"✦ comes with {what}",
                                         CURSE_LINE_STYLE))
 
+        # Curse names come from the game's text files; Qt would read a `<`
+        # in one as markup (AK-30, SEC-021).
         if tooltip:
-            self.setToolTip(tooltip)
+            self.setToolTip(advisorblock.as_a_tooltip(tooltip))
 
         layout.addStretch()
+
+    def _apply_appearance(self) -> None:
+        """Hover fills the card and leaves the edge to selection (QA-157)."""
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"QFrame {{ background: {fill}; border: {self._border};"
+            f" border-radius: 6px; }}"
+        )
 
     @staticmethod
     def _line(text: str, style: str) -> QLabel:
@@ -797,7 +814,7 @@ class RelicCard(QFrame):
         self.on_favourite(self.item, event.globalPos())
 
 
-class CustomRelicCard(QFrame):
+class CustomRelicCard(cardgrid.HoverCard):
     """The build-your-own tile that leads the grid.
 
     Everything else in the picker is a relic the player actually holds. This
@@ -809,11 +826,8 @@ class CustomRelicCard(QFrame):
         super().__init__()
         self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet(
-            f"QFrame {{ background: {PANEL};"
-            f" border: 1px dashed {ACCENT if selected else MUTED};"
-            f" border-radius: 6px; }}"
-        )
+        self._edge = ACCENT if selected else MUTED
+        self._apply_appearance()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
@@ -856,6 +870,14 @@ class CustomRelicCard(QFrame):
 
         layout.addStretch()
         self.setToolTip("Build a hypothetical relic for this slot")
+
+    def _apply_appearance(self) -> None:
+        """Hover fills the tile and leaves the dashed edge alone (QA-157)."""
+        fill = HOVER_FILL if self.hovered else PANEL
+        self.setStyleSheet(
+            f"QFrame {{ background: {fill}; border: 1px dashed {self._edge};"
+            f" border-radius: 6px; }}"
+        )
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt naming
         self.button.click()
@@ -901,20 +923,33 @@ class FavouriteMenu(QMenu):
         button.setChecked(checked)
         button.setAutoRaise(True)
         button.setCursor(Qt.PointingHandCursor)
-        button.setFixedSize(HERO_ICON + 8, HERO_ICON + 8)
-        button.setToolTip(hero["name"])
+        # Escaped inside a span, so it is rendered as text (SEC-019).
+        button.setToolTip(f"<span>{html.escape(hero['name'])}</span>")
+        # The name under the portrait, as on the sidebar tiles (QA-158,
+        # QA-155(b)), at the size measured there: `Undertaker`, the widest,
+        # needs 44 px at 7 pt and the tile has 48 inside its border.
+        button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        button.setText(hero["name"])
+        font = button.font()
+        font.setPointSize(NAME_POINT_SIZE)
+        button.setFont(font)
+        button.setIconSize(QSize(HERO_ICON, HERO_ICON))
         pixmap = icons.portrait(hero["id"]) if icons is not None else None
-        if pixmap is not None:
-            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-            button.setIconSize(QSize(HERO_ICON, HERO_ICON))
-            button.setIcon(QIcon(pixmap))
-        else:
-            # The DLC characters have no extractable artwork, so their tiles
-            # carry initials and keep the grid the same shape either way.
-            button.setText(hero["name"][:2])
+        if pixmap is None:
+            # The DLC characters have no extractable artwork. An empty
+            # portrait keeps their tiles the same shape as the others; the
+            # name under it says who they are.
+            pixmap = QPixmap(HERO_ICON, HERO_ICON)
+            pixmap.fill(Qt.transparent)
+        # Before the size is fixed: a button with text and no icon reports
+        # itself text-only and would be sized one line tall (see HeroTile).
+        button.setIcon(QIcon(pixmap))
+        button.setFixedSize(HERO_ICON + 8, button.sizeHint().height())
+        # Two pixels in both states, so the name keeps its room when checked.
         button.setStyleSheet(
-            f"QToolButton {{ border: 1px solid {BORDER}; border-radius: 4px;"
+            f"QToolButton {{ border: 2px solid {BORDER}; border-radius: 4px;"
             f" background: {PANEL}; color: #cfcfcf; padding: 0px; }}"
+            f"QToolButton:hover {{ background: {HOVER_FILL}; }}"
             f"QToolButton:checked {{ border: 2px solid {FAVOURITE}; }}"
         )
         button.clicked.connect(
@@ -997,7 +1032,7 @@ class CustomRelicDialog(QDialog):
             mark = "✓ " if eff["id"] in self.chosen else "   "
             entry = QListWidgetItem(f"{mark}{label} — {detail}")
             entry.setData(Qt.UserRole, eff["id"])
-            entry.setToolTip(detail)
+            entry.setToolTip(advisorblock.as_a_tooltip(detail))
             self.list.addItem(entry)
 
         by_id = {e["id"]: e for e in self.choices}
@@ -1457,6 +1492,7 @@ class RelicPicker(QDialog):
         # Refreshing while the menu is open would delete the card it is
         # anchored to, so the grid is rebuilt only once the menu has closed.
         menu.exec(position)
+        menu.deleteLater()
         if menu.changed:
             # This one card's star and border are stale, and no other one's
             # is -- dropping the whole cache for one toggle would put QA-258
@@ -1809,8 +1845,11 @@ class RelicPicker(QDialog):
         if self.ranking is None:
             for _item, card in pairs:
                 card.show_values([NO_FIGURE] * len(VALUE_DIRECTIONS))
-            self._headline(could_not_work_out(self._failure) if self._failure
-                           else NO_SAVE_WAS_READ)
+            self._headline(
+                could_not_work_out(self._failure) if self._failure
+                else SAVE_HOLDS_NO_RELICS
+                if getattr(self.slot.window(), "save_holds_no_relics", False)
+                else NO_SAVE_WAS_READ)
             return
 
         groups = self._top_groups()
@@ -1898,7 +1937,9 @@ class RelicPicker(QDialog):
             self.slot.rollable_effects(),
             list(existing.effect_ids) if existing is not None else [],
         )
-        if not dialog.exec():
+        accepted = dialog.exec()
+        dialog.deleteLater()
+        if not accepted:
             return
         self.slot.set_custom(dialog.chosen)
         self.chosen = self.slot.custom_item

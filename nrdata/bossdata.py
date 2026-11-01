@@ -92,7 +92,10 @@ def _flag_entities(blob: bytes) -> dict[int, int]:
         size, arg_offset = struct.unpack_from("<Qq", blob, record + 8)
         if arg_offset < 0 or size < 16:
             continue
-        args = blob[arg_base + arg_offset : arg_base + arg_offset + size]
+        # Only the four ints below are read; `size` is the file's word and
+        # would otherwise unpack the whole file per call (SEC-049).
+        start = arg_base + arg_offset
+        args = blob[start : start + min(size, 4 * 4)]
         ints = struct.unpack_from(f"<{len(args) // 4}i", args)
         # (slot, eventId, flag, entity): a menu flag is small, an entity large.
         if len(ints) >= 4 and 100 <= ints[2] < 1000 and ints[3] > 1_000_000:
@@ -128,7 +131,9 @@ def _healthbar_names(blob: bytes) -> dict[int, int]:
         size, arg_offset = struct.unpack_from("<Qq", blob, record + 8)
         if arg_offset < 0:
             continue
-        args = blob[arg_base + arg_offset : arg_base + arg_offset + size]
+        # Only the five ints below are read, as in `_flag_entities` (SEC-049).
+        start = arg_base + arg_offset
+        args = blob[start : start + min(size, 5 * 4)]
         ints = struct.unpack_from(f"<{len(args) // 4}i", args)
         # (slot, eventId, unknown, entity, nameId): a truncated call is a
         # call this pass has no name from, not an index error.
@@ -441,7 +446,7 @@ def derive(game_dir, members: dict, defs: dict,
     # which still pins the arena.
     pairs: dict[int, int] = {}
     candidates: dict[int, list[tuple[int, str]]] = {}
-    for name in _event_names(archives):
+    for name in _event_names():
         path = f"/event/{name}"
         arc = next((a for a in archives.values() if path in a), None)
         if arc is None:
@@ -684,9 +689,12 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
             # event path; the same character carries different figures from
             # one map to the next, so the fallback to every row of the
             # character is the second choice, not the first.
-            ints = struct.unpack_from(f"<{len(record) // 4}i", record, 0)
-            exact = [v for v in dict.fromkeys(ints)
-                     if v in by_id and v // 10000 == chr_id]
+            # Filtered while unpacking: a record is as long as the file says,
+            # and every int of it held at once cost x25 its size (SEC-050).
+            words = memoryview(record)[: len(record) // 4 * 4]
+            exact = list(dict.fromkeys(
+                v for (v,) in struct.iter_unpack("<i", words)
+                if v in by_id and v // 10000 == chr_id))
             rows_for[chr_id] = ([by_id[v] for v in exact]
                                 or by_chr.get(chr_id, []))
 
@@ -756,7 +764,7 @@ def _flags_mentioned(blob: bytes, flags: set[int]) -> set[int]:
     return out
 
 
-def _event_names(archives) -> list[str]:
+def _event_names() -> list[str]:
     """Event scripts worth opening.
 
     Every mAA_BB, not just every tenth: the later bosses do not live in the

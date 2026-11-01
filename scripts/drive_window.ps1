@@ -4,13 +4,23 @@
 #
 #   . scripts\drive_window.ps1 -Org $env:NIGHTREIGN_SETTINGS_ORG
 #   $m = Main; Dump $m                          # UIA-Baum des Hauptfensters
-#   Click ((Els $m '^Optimize$' 'Button')[0])    # Klick per echter Mausposition
+#   Click ((Els $m '^Optimize$' 'Button')[0])    # UIA-Muster, kein Fokus, keine Maus
 #   Shot $m out.png                              # PrintWindow-Bildnachweis
 #
+# Standard (T-333a): der Treiber nimmt weder das Vordergrundfenster noch den
+# Mauszeiger. Click/ClickAt druecken ueber UIA-Muster (Invoke, Toggle,
+# SelectionItem, ExpandCollapse); hat das Ziel keines, melden sie "NO PATTERN"
+# und tun nichts. SetText setzt den Wert ohne SetFocus; Fg prueft nur noch.
+# Gemessen (T-333a): das Programm selbst aktiviert sein Fenster, sobald ein
+# UIA-Muster darauf wirkt und Windows es zulaesst - der Treiber allein haelt
+# den Fokus des Nutzers also noch nicht (docs/tasks/T-333.md).
+# Nur mit -Real gilt das alte Rezept: Alt-Trick + SetForegroundWindow und
+# echte Mausereignisse (SetCursorPos, mouse_event) - das raubt dem Nutzer den
+# Fokus, also nie waehrend er spielt.
+#
 # NH-009 (Retrospektive Zyklus 27, docs/berichte/T-297-retrospective.md
-# Vorschlag 3): das Rezept - Fenster finden, per Alt-Trick in den
-# Vordergrund holen, per GetWindowRect-Koordinaten klicken, Text per UIA
-# lesen - stand in 15 Berichten und wurde in T-290b erneut teuer entdeckt.
+# Vorschlag 3): das Rezept - Fenster finden, Text per UIA lesen, klicken -
+# stand in 15 Berichten und wurde in T-290b erneut teuer entdeckt.
 # Aus dem Treiber der QA-Laeufe T-285/T-290b/T-293b uebernommen. Bei
 # Luecken (fehlende Funktion, neues Steuerelement) einen Befund an den
 # developer, nicht selbst neu bauen.
@@ -23,10 +33,12 @@
 # keinen echten Schluessel (kein Zugriff auf die echten Nutzerdaten).
 # Bewusst ohne Umlaute (PowerShell 5.1 / kein BOM).
 
-param([string]$Org = $env:NIGHTREIGN_SETTINGS_ORG)
+param([string]$Org = $env:NIGHTREIGN_SETTINGS_ORG, [switch]$Real)
+$script:Real = $Real.IsPresent
 
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @'
@@ -90,6 +102,7 @@ function Dump($root, $name = "", $ctrl = "", $cls = "") { foreach ($e in (Els $r
 function Fg($e) {
     $h = [IntPtr]$e.Current.NativeWindowHandle
     if ($h -eq [IntPtr]::Zero) { $h = [IntPtr](Main).Current.NativeWindowHandle }
+    if (-not $script:Real) { return ([W4]::GetForegroundWindow() -eq $h) }
     for ($i = 0; $i -lt 6; $i++) {
         if ([W4]::GetForegroundWindow() -eq $h) { return $true }
         [W4]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [W4]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
@@ -101,21 +114,37 @@ function ClickAt($x, $y) {
     $pt = New-Object W4+POINT; $pt.X = [int]$x; $pt.Y = [int]$y
     $h = [W4]::WindowFromPoint($pt); [uint32]$p = 0; [W4]::GetWindowThreadProcessId($h, [ref]$p) | Out-Null
     if ($p -ne $script:PIDW) { return "GUARD: point $x,$y belongs to pid $p not $script:PIDW" }
+    if (-not $script:Real) {
+        $at = $A::FromPoint((New-Object System.Windows.Point ([double]$x), ([double]$y)))
+        return (Press $at)
+    }
     [W4]::SetCursorPos([int]$x, [int]$y) | Out-Null; Start-Sleep -Milliseconds 60
     [W4]::mouse_event(0x0001, 1, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 40
     [W4]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
     [W4]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 250
     return "clicked $x,$y"
 }
+function Press($e) {
+    $name = $e.Current.Name; $o = $null
+    if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$o)) { $o.Invoke(); $how = "Invoke" }
+    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$o)) { $o.Toggle(); $how = "Toggle" }
+    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$o)) { $o.Select(); $how = "SelectionItem" }
+    elseif ($e.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$o)) {
+        if ($o.Current.ExpandCollapseState -eq "Collapsed") { $o.Expand() } else { $o.Collapse() }; $how = "ExpandCollapse"
+    }
+    else { return "NO PATTERN on '$name' (use -Real to click with the mouse)" }
+    Start-Sleep -Milliseconds 300
+    return "pressed '$name' via $how"
+}
 function Click($e, $dx = 0, $dy = 0) {
-    $w = $e; try { $top = [System.Windows.Automation.TreeWalker]::ControlViewWalker } catch {}
+    if (-not $script:Real) { return (Press $e) }
     $r = $e.Current.BoundingRectangle
     ClickAt ($r.X + $r.Width/2 + $dx) ($r.Y + $r.Height/2 + $dy)
 }
 function Invoke-El($e) { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 300 }
 function Toggle-El($e) { $p = $e.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); $b = $p.Current.ToggleState; $p.Toggle(); Start-Sleep -Milliseconds 300; "toggle $b -> $($p.Current.ToggleState)" }
 function ToggleState($e) { $e.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState }
-function SetText($e, $t) { $e.SetFocus(); Start-Sleep -Milliseconds 100; $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($t); Start-Sleep -Milliseconds 400 }
+function SetText($e, $t) { $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($t); Start-Sleep -Milliseconds 400 }
 function Shot($e, $out) {
     $h = [IntPtr]$e.Current.NativeWindowHandle
     $g0 = New-Object W4+RECT; [W4]::GetWindowRect($h, [ref]$g0) | Out-Null

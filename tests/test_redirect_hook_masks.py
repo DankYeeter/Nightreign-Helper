@@ -29,6 +29,10 @@ NOT_A_START = [
     "roots=['nrplanner','nrdata','scripts','tests','run.py']\nEOF",
     "sed -n 1,5p nrplanner/advisor/run.py; pytest tests/test_advisor.py -q",
     "python scratchpad/show.py . scripts/measure_advisor_block.py:wait",
+    # T-330a Nebenfund (T-332b): "|" in einem Anfuehrungszeichen-Text zaehlte
+    # als Befehlsgrenze und liess $istExeKommando faelschlich anschlagen.
+    'grep -E "foo|NightreignHelper.exe" datei',
+    "Select-String -Pattern 'a|NightreignHelper\\.exe'",
 ]
 
 A_START = [
@@ -39,6 +43,18 @@ A_START = [
     "Start-Process -FilePath python -ArgumentList 'run.py'",
     '& "C:\\Py\\python.exe" run.py',
     "python scripts/measure_advisor_block.py",
+    # $istExeKommando muss trotz der Quotes-Maske oben weiterhin greifen.
+    '& "C:\\x\\NightreignHelper.exe"',
+    'Start-Process -FilePath ".\\dist\\NightreignHelper.exe"',
+    "dist\\NightreignHelper.exe",
+    "cmd; NightreignHelper.exe",
+    # SEC-052: a start nested in the quoted command of another shell.
+    'powershell -Command "cd dist; .\\NightreignHelper.exe"',
+    'cmd /c "cd dist & NightreignHelper.exe"',
+    'powershell -Command "& \'C:\\x\\NightreignHelper.exe\' --x"',
+    'bash -c "cd dist && ./NightreignHelper.exe"',
+    # A search earlier in the line does not exempt the start after it.
+    'grep -E "a|b" f; NightreignHelper.exe',
 ]
 
 

@@ -133,3 +133,35 @@ starts there.
   else the catalyst's default), each carrying only the change your relics
   make to it. The "Why" line under a spell-school choice now names the
   correct relic that moved a figure.
+- **1.19.0** — your last selected Nightfarer is now remembered across a
+  restart; Deep of Night, Red variant and World Event values sourced from
+  community write-ups no longer carry a separate note or colour; the note
+  under your inventory now tells you when a save-file scan passed over
+  other readable saves; a damaged data cache no longer stops the program
+  from starting; the relic advisor now counts a "3+ ... Equipped" weapon-count
+  effect only for the weapon type on your highlighted weapon tile (and never
+  two of them at once); a yellow warning line under the advisor bar says
+  when nothing you own reaches your chosen Hit with / Damage type; the
+  **Spell damage** row now appears for any Nightfarer who puts a staff or
+  seal on the selected weapon tile; a crash when switching a weapon slot to
+  a weapon without effects in the armament dialog and closing it is fixed,
+  and closed dialogs no longer pile up in memory. The "Why" dialog now
+  leads with the answer and folds away effects without a number and the
+  footnotes; saving a build and re-clicking the selected Nightfarer now
+  confirm what happened; the advisor bar wraps into two rows on a narrow
+  window (smallest window width is now about 1190 px, was 760 px); each
+  character slot of your save is now checked against its stored checksum,
+  and a mismatch is reported as "not readable" with the reason instead of
+  showing possibly wrong relics; a new **Casting** block under the weapon
+  tiles lets you choose, with icons, the spell (staff or seal: `R1` fixed to
+  the default, `R2` from the weapon's pool) or the weapon art (from the
+  weapon's pool) the panel counts for the selected tile, and the advisor
+  now calculates with the highlighted tile's weapon, spell and art; the
+  **Weapon art** row shows one figure (flat-bonus arts included); spell
+  damage was checked against the in-game training dummy; effect lines of a
+  relic with the same value are combined (a curse of six equal lines is one
+  line); the build line, the no-save sentences and the folder picker ("This
+  PC" as start) were reworked; an empty build can be saved; and the pool list
+  stays on screen at every display scaling. **The data cache rebuilds once on
+  first launch after this update (about 40 seconds, plus the icon pack).**
+  Many smaller wording and tooltip fixes (see `CHANGELOG.md`).

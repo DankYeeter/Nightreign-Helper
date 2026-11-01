@@ -9,7 +9,6 @@ import pathlib
 from PySide6.QtGui import QIcon, QPixmap
 
 from . import paths
-from .datasource import _base_dir
 
 
 def _read_with_retries(path: pathlib.Path, attempts: int = 4) -> bytes | None:
@@ -67,23 +66,8 @@ def inside_pack(base: pathlib.Path, filename: str | None) -> pathlib.Path | None
 
 
 class IconPack:
-    @staticmethod
-    def locate() -> pathlib.Path:
-        """Where the icon pack is, or where it should be built.
-
-        The pack is extracted from the game into the per-user cache, so that
-        is checked first. The other two are source trees that still have a
-        locally built pack sitting beside the package.
-        """
-        base = _base_dir()
-        candidates = (paths.icons_dir(), base / "icons", base / "data" / "icons")
-        return next(
-            (d for d in candidates if (d / "manifest.json").exists()),
-            paths.icons_dir(),
-        )
-
     def __init__(self) -> None:
-        self.dir = self.locate()
+        self.dir = paths.icons_dir()
         self.manifest: dict = {"portraits": {}, "items": {}, "variants": {},
                                "menu": {}, "ui": {}}
         path = self.dir / "manifest.json"

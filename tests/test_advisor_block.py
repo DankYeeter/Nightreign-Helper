@@ -26,7 +26,8 @@ slot.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QAbstractButton, QLabel, QToolButton
 
 from nrplanner import advisorbar, advisorblock, effectfilters
@@ -222,7 +223,7 @@ def test_the_block_carries_exactly_use_and_why(block):
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     buttons = block.findChildren(QAbstractButton)
-    assert [button.text() for button in buttons] == ["Use", "Why"]
+    assert [button.text() for button in buttons] == ["Use", "Why this relic"]
     assert all(button.isVisibleTo(block) for button in buttons)
 
 
@@ -523,12 +524,13 @@ def test_a_budget_note_stands_under_the_run_findings(qapp):
 
 
 def test_the_dialog_carries_no_apply(qapp):
-    """§3.4: `Close` is the only button. Applying has two places, not three,
-    and since AK-301 no line carries a control either."""
+    """§3.4: `Close` is the only button beside the folds of AK-372/AK-375.
+    Applying has two places, not three, and since AK-301 no line carries a
+    control either."""
     dialog = a_dialog(qapp, an_answer(a_mixed_group()))
 
-    assert [button.text() for button in
-            dialog.findChildren(QAbstractButton)] == ["Close"]
+    assert [button.text() for button in dialog.findChildren(QAbstractButton)
+            if not isinstance(button, advisorblock.FoldButton)] == ["Close"]
     dialog.deleteLater()
 
 
@@ -818,12 +820,13 @@ def test_why_with_no_answer_on_screen_opens_nothing(planner, monkeypatch):
 
 
 def test_the_cards_why_opens_the_same_dialog_as_the_bars(planner, monkeypatch):
-    """AK-274: one dialog, one handler, reached from either button."""
+    """AK-274: one dialog, one handler, reached from either button; the
+    card's names its slot, the bar's none (AK-379)."""
     built = []
 
     class _Stub:
-        def __init__(self, heading, result, parent=None, **_marking):
-            built.append((heading, result))
+        def __init__(self, heading, result, parent=None, **marking):
+            built.append((heading, result, marking["slot_index"]))
 
         def exec(self):
             return 0
@@ -840,11 +843,13 @@ def test_the_cards_why_opens_the_same_dialog_as_the_bars(planner, monkeypatch):
     assert card.suggestion.why_button.isVisibleTo(card.suggestion), (
         "the bar is acting, so the card offers Why too")
     card.suggestion.why_requested.emit()
+    planner.advisor_bar.why_requested.emit()
 
-    assert len(built) == 1
-    heading, seen = built[0]
-    assert seen is answer
+    assert len(built) == 2
+    heading, seen, slot_index = built[0]
+    assert seen is answer and slot_index == 0
     assert heading.goal_label == "Maximise damage"
+    assert built[1][1] is answer and built[1][2] is None
 
 
 def test_the_cards_why_follows_the_bars_own_gate(planner):
@@ -906,8 +911,8 @@ def test_every_line_of_the_dialog_shows_its_effects_state_and_sets_none(
     first, second = (lines[0] for _t, _c, lines in dialog.groups)
     assert first.line.effect_id == second.line.effect_id == 1
     assert first.bullet.text() == "•" and first.kind() is None
-    assert dialog.findChildren(QToolButton) == []
     for line in (first, second):
+        assert line.findChildren(QToolButton) == []
         assert isinstance(line.bullet, QLabel)
         assert not (line.bullet.focusPolicy() & Qt.TabFocus)
         assert line.bullet.toolTip() == "" and line.toolTip() == ""
@@ -965,12 +970,27 @@ def test_an_avoided_curse_keeps_its_curse_bullet(qapp, filters):
 
 
 def test_the_legend_names_the_marks_and_where_they_are_set():
-    """AK-301, verbatim from `UI_SPEC.md`, never imported: the legend
-    describes no click on the dialog, because there is none."""
+    """AK-408 (replacing AK-301's wording), verbatim from `UI_SPEC.md`,
+    never imported: the legend describes no click on the dialog, because
+    there is none."""
     assert advisorblock.MARK_LEGEND == (
-        "▲ marks an effect you favourited, a struck-through effect one you "
-        "avoided — change these in the effect filter (filter icon in the "
-        "advisor bar).")
+        "▲ marks an effect you favourited. A struck-through effect does "
+        "nothing for you: you avoided it (change that in the effect filter, "
+        "filter icon in the advisor bar) or it works only for another "
+        "Nightfarer.")
+
+
+def test_the_legend_stands_when_only_another_nightfarers_line_is_struck(
+        qapp, filters):
+    """AK-408 (b): nothing avoided, one line struck for another Nightfarer."""
+    dialog = a_dialog(qapp, an_answer(a_group(
+        a_line("[Duchess] Improved Sleep Resistance: works only for Duchess, "
+               "and you are Wylder.", silence=types.SILENT_ANOTHER_NIGHTFARER))),
+        filters)
+    assert not filters.excluded
+    assert dialog.mark_legend.isVisibleTo(dialog)
+    assert dialog.mark_legend.text() == advisorblock.MARK_LEGEND
+    dialog.deleteLater()
 
 
 def test_the_lists_and_the_legend_follow_the_sets(qapp, filters):
@@ -1023,3 +1043,201 @@ def test_the_block_draws_no_line_widgets(block, filters):
     """The compact block keeps its one rich label; `Why` is a click away."""
     block.show_the_suggestion("Maximise damage", a_mixed_group())
     assert block.findChildren(advisorblock.WhyLine) == []
+
+
+# --- folds, names and the card's own `Why` (AK-372 to AK-380, T-334c) -------
+
+#: The three silent fillings that only say "no number" (AK-372).
+NUMBERLESS = (types.SILENT_NO_NUMBER_HERE, types.SILENT_UNDER_A_CONDITION,
+              types.SILENT_ARMAMENT_BOUND)
+#: The silent fillings that tell of the player's decision (AK-373, AK-383).
+NEVER_FOLDED = (types.SILENT_ANOTHER_NIGHTFARER, types.SILENT_ALREADY_COUNTED,
+                types.SILENT_NOT_IN_THE_DATA, types.SILENT_EXCLUDED,
+                types.SILENT_REQUIRED, types.SILENT_REQUIRED_OTHER_TYPE)
+
+
+def a_shown_dialog(qapp, result, filters=None, slot_index=None):
+    """The dialog on screen at its own 640 x 620; the card's if
+    `slot_index`."""
+    heading = advisorblock.WhyHeading("Maximise damage", "Wylder",
+                                      "Wylder's Chalice", True, 309)
+    dialog = advisorblock.WhyDialog(
+        heading, result,
+        filters=effectfilters.EffectFilters() if filters is None else filters,
+        effects=EFFECTS, slot_index=slot_index)
+    dialog.show()
+    qapp.processEvents()
+    return dialog
+
+
+def test_numberless_lines_start_folded_under_a_counted_button(qapp):
+    """AK-372: the three "no number" fillings are folded, behind `Show {n}
+    effects without a number`; a click shows them, in their order."""
+    group = a_group(
+        a_line("A: Physical Attack +1"),
+        *(a_line(f"N{i}: no number.", silence=silence)
+          for i, silence in enumerate(NUMBERLESS)))
+    dialog = a_shown_dialog(qapp, an_answer(group))
+
+    (_title, _count, lines), = dialog.groups
+    fold, = dialog.folds
+    assert [line.line.text for line in lines] == [
+        line.text for line in group.lines], "every widget stays (AK-165)"
+    assert lines[0].isVisible()
+    assert not any(line.isVisible() for line in lines[1:])
+    assert fold.text() == "▸ Show 3 effects without a number"
+
+    fold.click()
+    assert all(line.isVisible() for line in lines)
+    assert fold.text() == "▾ Hide 3 effects without a number"
+    assert [line.y() for line in lines[1:]] == sorted(
+        line.y() for line in lines[1:])
+    dialog.deleteLater()
+
+
+def test_one_numberless_line_is_said_in_the_singular_and_none_draws_no_fold(
+        qapp):
+    """AK-372: `1 effect`; a group with none has no fold, not a placeholder."""
+    dialog = a_shown_dialog(qapp, an_answer(
+        a_mixed_group(slot=0),
+        a_group(a_line("A: Physical Attack +1", slot=1), slot=1)))
+
+    first, second = dialog.folds
+    assert first.text() == "▸ Show 1 effect without a number"
+    first.click()
+    assert first.text() == "▾ Hide 1 effect without a number"
+    assert second is None
+    dialog.deleteLater()
+
+
+def test_curses_and_the_players_own_decisions_are_never_folded(qapp):
+    """AK-373: every curse, also `no number here shows what this costs.`,
+    and every filling about a decision of the player's stays drawn."""
+    group = a_group(
+        a_line("C: no number here shows what this costs.", curse=True,
+               silence=types.SILENT_NO_NUMBER_HERE),
+        *(a_line(f"D{i}: said.", silence=silence)
+          for i, silence in enumerate(NEVER_FOLDED)))
+    dialog = a_shown_dialog(qapp, an_answer(group))
+
+    (_title, _count, lines), = dialog.groups
+    assert all(line.isVisible() for line in lines)
+    assert dialog.folds == [None]
+    dialog.deleteLater()
+
+
+def test_the_answer_stands_at_the_top_in_bold(qapp):
+    """AK-374: bold titles, and at 640 x 620 the first title, its count line
+    and a line of it stand in view without scrolling."""
+    dialog = a_shown_dialog(qapp, an_answer(
+        *(a_mixed_group(slot=slot) for slot in range(3))))
+
+    viewport = dialog.scroller.viewport().height()
+    page = dialog.scroller.widget()
+    for title, _count, _lines in dialog.groups:
+        assert title.font().bold()
+    title, count_line, lines = dialog.groups[0]
+    assert dialog.scroller.verticalScrollBar().value() == 0
+    for widget in (title, count_line, lines[0]):
+        assert widget.mapTo(page, QPoint(0, widget.height())).y() <= viewport
+    dialog.deleteLater()
+
+
+def test_the_notes_are_folded_unless_they_speak_of_this_run(qapp):
+    """AK-375: one fold, last, closed -- open where `unknowns` or
+    `budget_note` say something about this run; none for an empty footer."""
+    closed = a_shown_dialog(qapp, an_answer(a_mixed_group()))
+    assert closed.notes_button.text() == "▸ Notes on these figures"
+    assert closed.footer.text() and not closed.footer.isVisible()
+    closed.notes_button.click()
+    assert closed.footer.isVisible()
+    assert closed.notes_button.text() == "▾ Hide notes on these figures"
+    closed.deleteLater()
+
+    for run_finding in ({"unknowns": ("No armament selected.",)},
+                        {"budget_note": "Not every combination was tried."}):
+        opened = a_shown_dialog(qapp, an_answer(a_mixed_group(),
+                                                **run_finding))
+        assert opened.footer.isVisible(), run_finding
+        assert opened.notes_button.text() == "▾ Hide notes on these figures"
+        opened.deleteLater()
+
+    empty = a_shown_dialog(qapp, an_answer(a_mixed_group(), goal_id="none",
+                                           unknowns=(), weights_note=""))
+    assert empty.notes_button is None
+    empty.deleteLater()
+
+
+def test_a_fold_is_a_flat_accent_tool_button_the_keyboard_works(qapp):
+    """AK-376: `QToolButton`, no frame, `ACCENT`, >= 24 px, a tab stop,
+    Space and Enter fold, the accessible name is the text without arrow."""
+    from nrplanner.theme import ACCENT
+
+    dialog = a_shown_dialog(qapp, an_answer(a_mixed_group()))
+    fold = dialog.folds[0]
+    assert isinstance(fold, QToolButton) and fold.autoRaise()
+    assert ACCENT in fold.styleSheet() and ":focus" in fold.styleSheet()
+    assert fold.height() >= advisorblock.FOLD_HEIGHT
+    assert fold.focusPolicy() & Qt.TabFocus
+    assert fold.accessibleName() == "Show 1 effect without a number"
+
+    fold.setFocus()
+    QTest.keyClick(fold, Qt.Key_Space)
+    assert fold.isChecked()
+    QTest.keyClick(fold, Qt.Key_Return)
+    assert not fold.isChecked()
+    assert dialog.isVisible(), "Enter folded and did not press Close"
+    assert fold.accessibleName() == "Show 1 effect without a number"
+    dialog.deleteLater()
+
+
+def test_the_fold_state_is_the_dialogs_alone(qapp, filters):
+    """AK-377: a marking leaves it as it is; the next opening starts
+    folded again."""
+    dialog = a_shown_dialog(qapp, an_answer(a_mixed_group()), filters)
+    dialog.folds[0].click()
+    filters.mark(1, effectfilters.REQUIRED)
+    assert dialog.folds[0].isChecked()
+    dialog.deleteLater()
+
+    again = a_shown_dialog(qapp, an_answer(a_mixed_group()), filters)
+    assert not again.folds[0].isChecked()
+    again.deleteLater()
+
+
+def test_the_two_why_buttons_say_what_they_explain(qapp, block, planner):
+    """AK-378: the card's is `Why this relic`, the bar's stays `Why` and
+    says in its tooltip that it is the whole suggestion."""
+    assert block.why_button.text() == "Why this relic"
+    assert block.why_button.toolTip() == (
+        "Why this relic is suggested for this slot")
+    assert planner.advisor_bar.why_button.text() == "Why"
+    assert planner.advisor_bar.why_button.toolTip() == (
+        "Why this whole suggestion")
+
+
+def test_the_cards_dialog_stands_on_its_own_slot(qapp):
+    """AK-379: the same dialog, scrolled so the slot's title is at the top;
+    a slot without a group opens at the start."""
+    long_group = [a_group(*(a_line(f"E{i}: Physical Attack +1", slot=slot)
+                            for i in range(20)), slot=slot)
+                  for slot in range(3)]
+    dialog = a_shown_dialog(qapp, an_answer(*long_group), slot_index=1)
+    bar = dialog.scroller.verticalScrollBar()
+    title = dialog.groups[1][0]
+    assert 0 < bar.value() == min(title.y(), bar.maximum())
+    dialog.deleteLater()
+
+    nowhere = a_shown_dialog(qapp, an_answer(*long_group), slot_index=5)
+    assert nowhere.scroller.verticalScrollBar().value() == 0
+    nowhere.deleteLater()
+
+
+def test_the_three_boxes_of_the_bar_carry_a_name(planner):
+    """AK-380: an accessible name for each, and no new visible label."""
+    bar = planner.advisor_bar
+    assert [box.accessibleName() for box in (
+        bar.goal_box, bar.hit_with_box, bar.damage_type_box)] == [
+        "Goal", "Hit with", "Damage type"]
+    assert not any(label.text() == "Goal"
+                   for label in bar.findChildren(QLabel))

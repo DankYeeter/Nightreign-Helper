@@ -36,7 +36,7 @@ import dataclasses
 
 import pytest
 
-from nrplanner import advisorbar, damage, model, weaponslots
+from nrplanner import advisorbar, damage, effecttext, model, weaponslots
 from nrplanner.advisor import candidates, explain, goals, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -207,8 +207,8 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
     * "Spell damage is not in the game data, so spells are not rated" became
       false when A26-1 extracted it and AD-052 gave the spell rows a figure
       of their own. What stands there now is the scope of *that* figure: the
-      spell rows only, and the equipment the Nightfarer starts an expedition
-      with -- never a spell found in a run.
+      spell rows only, and the staff or seal on the selected tile, or else
+      the starting one (T-335b) -- never a spell found in a run.
 
     Read off the registry since AD-025 and no longer off a score: the two runs
     this used to loop over asked the same question of the same constant, and
@@ -249,10 +249,11 @@ def test_the_damage_goal_always_carries_the_attack_rating_reservation():
         "used to say spells are not rated at all became false with AD-052, "
         "and a scope dropped along with a false reservation is the A7 "
         "failure this project keeps repeating")
-    assert any("starts an expedition with" in line for line in spell_rows), (
-        "the spell line does not say that the figure hangs on the equipment "
-        "the Nightfarer starts with, which is the whole of what it can and "
-        "cannot promise (AD-052)")
+    assert any("on the selected tile, or else the starting one" in line
+               for line in spell_rows), (
+        "the spell line does not say that the figure hangs on the staff or "
+        "seal of the selected tile, or else the starting one, which is the "
+        "whole of what it can and cannot promise (AD-052, T-335b)")
     assert any("Critical-only" in line for line in stated)
     assert not any("convert" in line for line in stated), (
         "the old conversion reservation is back; it says a relic that "
@@ -407,13 +408,14 @@ def rate_of(game_data, effect_id: int, field_name: str) -> float:
     return cases.effect_by_id(game_data, effect_id)["modifiers"][field_name]
 
 
-def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
+def damage_scores(game_data, hero, carried, **question):
     """The damage figure under one chosen cell, one entry per relic carried.
 
     `carried` maps a name to the effect ids one candidate brings, and `()` is
     the build that brings nothing -- the base state every gain below is
-    measured against. One context per entry, because the two fields of the
-    question belong to the question and not to the build (AD-051).
+    measured against. One context per entry, because the fields of the
+    question (`question`, `GoalContext` fields) belong to the question and
+    not to the build (AD-051).
     """
     reference = starting_armament(game_data, hero)
     scores = {}
@@ -421,7 +423,7 @@ def damage_scores(game_data, hero, carried, *, hit_with="", damage_type=""):
         ctx = dataclasses.replace(
             advisor.context(game_data, hero, reference=reference,
                             armament_effect_ids=tuple(effect_ids)),
-            hit_with=hit_with, damage_type=damage_type)
+            **question)
         build = evaluate(advisor.problem([advisor.RED]), (), ctx)
         scores[name] = goals.GOALS["max_damage"].score(build, ctx)
     return scores
@@ -520,10 +522,13 @@ INCANTATION_BUFF = 8330100
 REVENANT_DEFAULT_SPELL = "Rejection"
 
 #: Level 15, Finger Seal at tier 1, no relics: 362 physical times the seal's
-#: spell power of 159.545 / 100. Pinned to four places because every case
-#: below is a factor on it, and because it is the first figure this program
-#: shows that no screen of the game can be held against (OF-54).
-BEAST_CLAW_FIGURE = 577.5545
+#: spell power of 159.545 / 100 times `GAME_ATTACK_POWER_RATE` 0.6 (T-335j).
+#: Pinned to four places because every case below is a factor on it.
+BEAST_CLAW_FIGURE = 346.5327
+#: The two spells' own base damage, which a rate lifts before the spell
+#: power reaches it (T-335u).
+BEAST_CLAW_BASE = 362
+PEBBLE_BASE = 152
 
 
 def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
@@ -553,9 +558,25 @@ def test_the_spell_row_rates_the_spell_the_equipment_throws(game_data):
     assert spell["claw"].value == pytest.approx(BEAST_CLAW_FIGURE, abs=5e-5)
     assert "Beast Claw" in spell["claw"].display
     assert damage.SPELL_DAMAGE_NAME in spell["claw"].display
-    assert any("uncalibrated" in line for line in spell["claw"].unknowns), (
-        f"OF-54: the figure has to say it is a premise, not a measurement: "
+    assert spell["claw"].unknowns == (), (
+        f"T-335j: the figure is calibrated, so it carries no caveat: "
         f"{spell['claw'].unknowns!r}")
+
+
+def test_recluses_pebble_reads_what_the_dummy_took(game_data):
+    """T-335j: the spell figure the game shows, measured on a dummy.
+
+    User's measurement, 2026-10-31: Recluse at level 15, Recluse's Staff, no
+    relics -- Glintstone Pebble hits a training dummy for 123. The formula
+    alone gave 206; the weapons' `GAME_ATTACK_POWER_RATE`, truncated on
+    display, brings it to the game's figure.
+    """
+    recluse = cases.hero_by_name(game_data, "Recluse")
+
+    bare = damage_scores(game_data, recluse, {"bare": ()},
+                         hit_with=model.SORCERIES_ART)["bare"]
+
+    assert bare.display == "Spell damage (Glintstone Pebble) 123"
 
 
 def test_a_physical_buff_lifts_the_beast_claw_and_a_holy_one_does_not(
@@ -582,7 +603,8 @@ def test_a_physical_buff_lifts_the_beast_claw_and_a_holy_one_does_not(
     rate = rate_of(game_data, physical, "physicsAttackRate")
 
     assert spell["claw+physical"].value == pytest.approx(
-        spell["claw"].value * rate, abs=5e-5)
+        cases.spell_with_rate(spell["claw"].value, BEAST_CLAW_BASE, rate),
+        abs=5e-5)
     assert spell["claw+holy"].value == pytest.approx(spell["claw"].value), (
         "a holy buff lifted a physical spell, so the rates are not being "
         "read per damage type")
@@ -609,10 +631,14 @@ def test_a_school_counts_only_where_the_spell_belongs_to_it(game_data):
     dragon_cult = damage_scores(game_data, revenant, carried,
                                 hit_with=f"{model.ART_FAMILY_PREFIX}22")
 
+    def lifted(figure: float, rate: float) -> float:
+        return cases.spell_with_rate(figure, BEAST_CLAW_BASE, rate)
+
     assert bestial["school"].value == pytest.approx(
-        bestial["claw"].value * school_rate, abs=5e-5)
+        lifted(bestial["claw"].value, school_rate), abs=5e-5)
     assert bestial["both"].value == pytest.approx(
-        bestial["claw"].value * school_rate * genus_rate, abs=5e-5), (
+        lifted(bestial["claw"].value, school_rate * genus_rate),
+        abs=5e-5), (
         "under a school the genus buff counts beside the school's own, "
         "multiplied (OF-51)")
     assert dragon_cult["school"].value == pytest.approx(
@@ -620,7 +646,7 @@ def test_a_school_counts_only_where_the_spell_belongs_to_it(game_data):
         "a Bestial buff lifted the figure under Dragon Cult, so the school "
         "is being applied without asking whether the spell belongs to it")
     assert dragon_cult["genus"].value == pytest.approx(
-        dragon_cult["claw"].value * genus_rate, abs=5e-5), (
+        lifted(dragon_cult["claw"].value, genus_rate), abs=5e-5), (
         "asking about a school the spell is not in still leaves it an "
         "incantation, so the genus buff has to reach it")
 
@@ -716,9 +742,9 @@ def test_the_spell_headline_names_the_damage_type_asked_about(game_data):
 
     assert fire.value == 0.0
     assert fire.display == "Fire spell damage (Beast Claw) 0"
-    assert len(fire.unknowns) == 1 and "uncalibrated" in fire.unknowns[0], (
-        f"a measured zero is a ranking, so the only sentence here is the "
-        f"caveat the figure always carries: {fire.unknowns!r}")
+    assert fire.unknowns == (), (
+        f"a measured zero is a ranking, not a fault, so no sentence comes "
+        f"with it: {fire.unknowns!r}")
 
 
 def test_a_school_earns_the_spell_headline_only_once_it_moves_the_figure(
@@ -739,7 +765,7 @@ def test_a_school_earns_the_spell_headline_only_once_it_moves_the_figure(
     bestial = damage_scores(game_data, revenant, carried,
                             hit_with=f"{model.ART_FAMILY_PREFIX}23")
 
-    assert bestial["claw"].display == "Spell damage (Beast Claw) 577"
+    assert bestial["claw"].display == "Spell damage (Beast Claw) 346"
     assert bestial["school"].display.startswith(
         "Bestial spell damage (Beast Claw) "), (
         f"the school moved the figure, so it names it: "
@@ -807,6 +833,35 @@ def test_a_nightfarer_without_a_catalyst_has_no_spell_row(game_data, wylder):
         spell["nothing"].unknowns[0]
 
 
+def test_a_staff_on_the_selected_tile_is_what_the_spell_row_ranks(
+        game_data):
+    """T-335b: the stat sheet's catalyst, the selected tile's before the
+    starting one -- a Raider with a staff casts its Glintstone Pebble, and a
+    seal found in the run casts its own spell whatever relic swaps the
+    starting one's.
+    """
+    raider = cases.hero_by_name(game_data, "Raider")
+    staff = cases.weapon_by_id(game_data, 33200000)
+    carried = {"nothing": ()}
+
+    without = damage_scores(game_data, raider, carried,
+                            hit_with=model.SORCERIES_ART)["nothing"]
+    with_staff = damage_scores(game_data, raider, carried,
+                               hit_with=model.SORCERIES_ART,
+                               selected_catalyst=staff)["nothing"]
+
+    assert without.value == 0.0
+    assert "Glintstone Pebble" in with_staff.display
+    assert with_staff.value > 0.0
+
+    revenant = cases.hero_by_name(game_data, "Revenant")
+    seal = cases.weapon_by_id(game_data, 34040000)
+    found = damage_scores(game_data, revenant, {"claw": (BEAST_CLAW_SWAP,)},
+                          hit_with=model.INCANTATIONS_ART,
+                          selected_catalyst=seal)["claw"]
+    assert "Bestial Sling" in found.display
+
+
 def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
     """AD-052 point 1: the catalyst in the **right** hand, and its own spell.
 
@@ -826,13 +881,35 @@ def test_recluse_is_ranked_on_the_pebble_her_own_staff_carries(game_data):
     rate = rate_of(game_data, magic, "magicAttackRate")
 
     assert "Glintstone Pebble" in spell["nothing"].display
-    assert spell["nothing"].value == pytest.approx(206.1327, abs=5e-5)
+    assert spell["nothing"].value == pytest.approx(123.6796, abs=5e-5)
     assert spell["magic"].value == pytest.approx(
-        spell["nothing"].value * rate, abs=5e-5)
+        cases.spell_with_rate(spell["nothing"].value, PEBBLE_BASE, rate),
+        abs=5e-5)
     assert spell["claw"].display == spell["nothing"].display, (
         "a swap relic of the other genus reached a staff: each of the ten "
         "works for one Nightfarer only (`allowed_heroes`), which is what "
         "keeps a sorcery off a seal and an incantation off a staff")
+
+
+def test_recluse_with_r2_chosen_is_ranked_on_glintstone_arc(game_data):
+    """AK-415 (c): the advisor casts the spell chosen on the tile, with the
+    facade's own figure (`damage.spell` on the thrown spell)."""
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    staff = cases.weapon_by_id(game_data, recluse["starting_weapon"])
+    arc = next(s for s in game_data["spells"] if s["name"] == "Glintstone Arc")
+
+    score = damage_scores(game_data, recluse, {"nothing": ()},
+                          hit_with=model.SORCERIES_ART,
+                          selected_catalyst=staff,
+                          selected_spell_id=arc["id"])["nothing"]
+    ctx = advisor.context(game_data, recluse,
+                          reference=starting_armament(game_data, recluse))
+    build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+    facade = damage.spell(arc, staff, 1, build, game_data,
+                          hit_with=model.SORCERIES_ART)
+
+    assert f"(Glintstone Arc) {damage.displayed(facade.figure)}"         in score.display
+    assert score.value == pytest.approx(facade.figure)
 
 
 def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
@@ -845,15 +922,16 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
     armament, so the figure carries the conversion and not the frost penalty
     -- 123.85 and not 103.74. Either way the point of the case holds:
     choosing an art does not put the figure back on a state where the
-    conversion is missing.
+    conversion is missing. Since T-335z the figure is one hit of Stamp,
+    the armament's figure times its motion value 215 (AD-056.3).
     """
     carried = {"nothing": (), "pair": (FIRE_CONVERSION, FROST_STATUS)}
 
     skill = damage_scores(game_data, wylder, carried,
                           hit_with="skill")
 
-    assert skill["nothing"].value == pytest.approx(122.0506, abs=5e-5)
-    assert skill["pair"].value == pytest.approx(123.8506, abs=5e-5)
+    assert skill["nothing"].value == pytest.approx(122.0506 * 2.15, abs=5e-4)
+    assert skill["pair"].value == pytest.approx(123.8506 * 2.15, abs=5e-4)
 
 
 #: "Improved Skill Attack Power": scope 112, +15 % on every element rate
@@ -862,45 +940,102 @@ def test_the_starting_armament_pair_keeps_its_conversion_under_an_art(
 SKILL_ATTACK_BUFF = 312300
 
 
-def test_an_art_choice_that_leaves_the_value_unmoved_keeps_the_all_headline(
+#: "Changes compatible armament's skill to Lightning Slash" (M2, AD-056 P.4).
+LIGHTNING_SLASH_SWAP = 7123200
+LIGHTNING_SLASH = 217
+#: Magic Longsword and the flat-class art Glintblade Phalanx (M5, P.7.2).
+MAGIC_LONGSWORD = 2000800
+GLINTBLADE_PHALANX = 200
+
+
+def test_wylder_stamp_reads_262_in_the_advisor_as_on_the_stat_sheet(
         game_data, wylder):
-    """AK-335: an art choice earns the headline only once it actually moves
-    the figure. No relic here scopes a buff to `Weapon art`, so `art_rate`
-    stays 1.0 and the figure is the `All` figure verbatim -- the headline
-    says so by staying `Attack rating` rather than claiming a difference
-    that is not there.
-    """
-    carried = {"nothing": ()}
-
-    skill = damage_scores(game_data, wylder, carried,
-                          hit_with="skill")["nothing"]
-
-    assert skill.display.startswith("Attack rating"), (
-        f"art_rate is 1.0 here, so the headline must not change: "
-        f"{skill.display!r}")
+    """AK-415/M1: `Weapon art` is the stat sheet's one hit of the art in use
+    (`test_stat_sheet_art_and_spell.test_stamp_reads_262_in_either_hand`),
+    named, and one-handed whatever the hand switch says (P.7.1)."""
+    for two_handed in (False, True):
+        skill = damage_scores(game_data, wylder, {"nothing": ()},
+                              hit_with="skill",
+                              two_handed=two_handed)["nothing"]
+        assert skill.display == "Weapon art (Stamp (Upward Cut)) 262"
 
 
-def test_an_art_choice_that_moves_the_value_earns_the_headline(game_data,
-                                                                wylder):
-    """AK-335: the art counterpart of DR-034's type fix. Once a relic scopes
-    a buff to the chosen art (`art_rate != 1.0`), the headline names the
-    choice exactly as a type does -- since AK-338 in the entry's new
-    wording, `Weapon art`, which shares no word with `attack rating` and is
-    therefore written out in full beside it.
-    """
-    carried = {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)}
-
-    everything = damage_scores(game_data, wylder, carried)
-    skill = damage_scores(game_data, wylder, carried,
+def test_a_skill_buff_still_moves_the_art_figure(game_data, wylder):
+    """AD-056.7: the motion value is one factor after the rates, so a relic
+    that buffs the art still ranks above one that does not."""
+    skill = damage_scores(game_data, wylder,
+                          {"nothing": (), "buffed": (SKILL_ATTACK_BUFF,)},
                           hit_with="skill")
 
-    assert skill["buffed"].value != pytest.approx(everything["buffed"].value), (
-        "this case needs a buff that actually moves art_rate for `skill`, "
-        "or it cannot show AK-335's condition is met")
-    assert skill["buffed"].display.startswith("Weapon art attack rating"), (
-        f"the headline names the entry as the box shows it: "
-        f"{skill['buffed'].display!r}")
-    assert "Skill attack" not in skill["buffed"].display
+    assert skill["buffed"].value > skill["nothing"].value
+
+
+def test_the_selected_tile_swings_its_chosen_art(game_data, wylder):
+    """User decision 31.10. 13:50: the selected tile, not the starting
+    armament -- Magic Longsword with Glintblade Phalanx hits 34 (M5)."""
+    tile = types.ReferenceArmament(
+        weapon=cases.weapon_by_id(game_data, MAGIC_LONGSWORD), tier=1,
+        slot_index=1, art_id=GLINTBLADE_PHALANX)
+
+    skill = damage_scores(game_data, wylder, {"nothing": ()},
+                          hit_with="skill", art_tile=tile)["nothing"]
+
+    assert skill.display == "Weapon art (Glintblade Phalanx) 34"
+
+
+def test_the_art_finding_names_what_it_swings(game_data, wylder):
+    """QA-310: Why names the tile's art and armament, or the starting
+    armament where the tile is empty -- not "the armament's attack rating",
+    which Glintblade Phalanx does not scale."""
+    tile = types.ReferenceArmament(
+        weapon=cases.weapon_by_id(game_data, MAGIC_LONGSWORD), tier=1,
+        slot_index=1, art_id=GLINTBLADE_PHALANX)
+
+    on_tile = damage_scores(game_data, wylder, {"nothing": ()},
+                            hit_with="skill", art_tile=tile)["nothing"]
+    on_start = damage_scores(game_data, wylder, {"nothing": ()},
+                             hit_with="skill")["nothing"]
+
+    assert on_tile.unknowns == (
+        "Ranked on weapon art damage only — every other effect on a "
+        "candidate still shows, but only this counts toward the ranking. It "
+        "is one hit of Glintblade Phalanx from Magic Longsword on the "
+        "selected tile, at its tier, one-handed.",)
+    start = cases.weapon_by_id(game_data, wylder["starting_weapon"])["name"]
+    assert on_start.unknowns[0].endswith(
+        f"It is one hit of Stamp (Upward Cut) from {start} — the starting "
+        f"armament at its lowest tier, as the selected tile is empty, "
+        f"one-handed.")
+
+
+def test_only_a_held_swap_relic_swaps_the_art(game_data, wylder):
+    """AD-056.7: a held swap relic moves the figure (M2: Lightning Slash
+    207); the same relic as a candidate moves nothing, so it is never
+    proposed."""
+    carried = {"nothing": (), "swap": (LIGHTNING_SLASH_SWAP,)}
+
+    candidate = damage_scores(game_data, wylder, carried, hit_with="skill")
+    held = damage_scores(game_data, wylder, carried, hit_with="skill",
+                         held_swapped_art_ids=(LIGHTNING_SLASH,))
+
+    assert candidate["swap"].value == candidate["nothing"].value
+    assert held["swap"].display == "Weapon art (Lightning Slash) 207"
+    assert held["nothing"].display == "Weapon art (Stamp (Upward Cut)) 262"
+
+
+def test_a_tile_without_an_art_figure_gets_a_sentence(game_data, wylder):
+    """AD-056.5: a rolled armament nobody chose an art for, and a staff, get
+    the reason instead of a number, at 0.00 for every candidate (QA-290)."""
+    for weapon_id, reason in (
+            (2000000, damage.NO_ART_CHOSEN),
+            (33200000, goals._ART_ON_A_CATALYST.format(choice="Weapon art"))):
+        tile = types.ReferenceArmament(
+            weapon=cases.weapon_by_id(game_data, weapon_id), tier=1,
+            slot_index=1)
+        skill = damage_scores(game_data, wylder, {"nothing": ()},
+                              hit_with="skill", art_tile=tile)["nothing"]
+        assert (skill.value, skill.display, skill.unknowns) == (
+            0.0, "Weapon art not counted", (reason,))
 
 
 def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
@@ -934,7 +1069,7 @@ def test_an_art_and_a_type_are_combined_exactly_once(game_data, wylder):
     assert cell.value == pytest.approx(fire.value * factor, abs=5e-5)
     assert cell.value != pytest.approx(fire.value * factor * factor,
                                        abs=5e-5)
-    assert cell.display.startswith("Fire Weapon art attack rating"), (
+    assert cell.display.startswith("Fire weapon art (Stamp (Upward Cut))"), (
         f"the cell names both halves of the question: {cell.display!r}")
 
 
@@ -1398,7 +1533,8 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     ctx = advisorbar.asking_from(planner, rank_by).ctx
     if as_the_bar_asked_before_a16:
         ctx = dataclasses.replace(
-            ctx, declared=tuple(sorted(planner.declared.items())))
+            ctx, declared=tuple(sorted(planner.declared.items())),
+            assumed_armament_counts=())
     if as_the_bar_asked_before_a17:
         ctx = dataclasses.replace(
             ctx,
@@ -1607,6 +1743,11 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     figure, because both lists are right. T-329r took the armament field off
     the request altogether, so what is left to hold is that the context
     carries no rolls either.
+
+    One part of the armament is in the key since 28.10.2026: the "3+ X
+    Equipped" conditions of the selected tile's type
+    (`assumed_armament_counts`) -- the two types here are two questions
+    there, and in nothing else.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
@@ -1620,7 +1761,10 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     one = asking_with(planner, first, (non_stacking,))
     other = asking_with(planner, second, (stacking,))
 
-    assert one.request == other.request, (
+    assert one.request.assumed_armament_counts != (
+        other.request.assumed_armament_counts)
+    assert dataclasses.replace(one.request, assumed_armament_counts=()) == (
+        dataclasses.replace(other.request, assumed_armament_counts=())), (
         "the cache key still separates two runs that are asked the same "
         "question, so the second one pays for a search whose answer was "
         "already there (P-1)")
@@ -1744,6 +1888,48 @@ def test_a_weighting_with_no_weights_is_refused(game_data, wylder):
         goals.GOALS["min_damage_taken"].score(build, ctx)
 
 
+def test_a_weighting_a_caller_got_wrong_is_refused(game_data, wylder):
+    """QA-103, QA-105: each way to get a weighting wrong ends in a sentence.
+
+    Before, a zero sum was a bare `ZeroDivisionError`, a negative weight a
+    quietly wrong figure, an unknown field name a quietly neutral one and a
+    field named twice a weight quietly dropped.
+    """
+    wrong = {
+        "zero sum": ((("fireDamageCutRate", 0.0),), "more than zero"),
+        "negative weight": ((("fireDamageCutRate", 2.0),
+                             ("darkDamageCutRate", -1.0)), "zero or more"),
+        "unknown field": ((("fireDamageCutRat", 1.0),), "not a damage-cut"),
+        "duplicate field": ((("fireDamageCutRate", 1.0),
+                             ("fireDamageCutRate", 2.0)), "more than once"),
+    }
+    for kind, (weights, said) in wrong.items():
+        weighting = types.Weighting(id=kind, label=kind, note="", weights=weights)
+        ctx = advisor.context(game_data, wylder, weighting=weighting)
+        build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+        with pytest.raises(ValueError, match=said):
+            goals.GOALS["min_damage_taken"].score(build, ctx)
+
+
+def test_a_build_that_lets_no_damage_through_has_no_effective_hp(game_data,
+                                                                  wylder):
+    """QA-103: a rate of zero or below is refused, not divided by."""
+    build, ctx = build_with(game_data, wylder)
+    for rate in (0.0, -0.5):
+        broken = dataclasses.replace(
+            build, rates={**build.rates, "fireDamageCutRate": rate})
+        with pytest.raises(ValueError, match="lets no damage through"):
+            goals.GOALS["min_damage_taken"].score(broken, ctx)
+
+
+def test_the_no_armament_note_names_the_weapon_class_bonuses(game_data,
+                                                              wylder):
+    """QA-104: a class-bound attack bonus counts zero without a weapon."""
+    build, ctx = build_with(game_data, wylder)
+    note = goals.GOALS["max_damage"].score(build, ctx).weights_note
+    assert "weapon class" in note and "zero" in note
+
+
 def test_a_dataset_without_curves_has_no_effective_hp(game_data, wylder):
     """HP comes from the attribute curves; without them there is no figure.
 
@@ -1821,8 +2007,11 @@ SWITCHABLE_CONDITIONS = 420
 #: copies) change their `min_damage_taken` figure between the baseline and
 #: the bar as it asked before A16 -- the player's declarations alone.
 #: Counted 2026-09-14 on the frozen copy (21 of the 314 frozen the day
-#: before; seven rolls came, six went, T-252).
-COPIES_THE_BASELINE_MOVES = 24
+#: before; seven rolls came, six went, T-252). 24 until 28.10.2026: the case
+#: asks with an empty selected tile, which assumes no "3+ X Equipped"
+#: condition since then, and two copies moved by one alone -- "Max HP Up
+#: with 3+ Medium Shields" and "... 3+ Greatshields Equipped" (T-335a).
+COPIES_THE_BASELINE_MOVES = 22
 
 SURVIVAL = "min_damage_taken"
 
@@ -1877,12 +2066,22 @@ def test_the_baseline_leaves_no_switchable_condition_uncounted(
     """
     planner.owned = frozen_inventory
     ctx = advisorbar.asking_from(planner, SURVIVAL).ctx
+    counts = [effect for effect in planner.data["effects"].values()
+              if effecttext.counts_armaments(effect)
+              and effect["id"] in model.advisor_defaults()]
 
     before_a16 = not_counted_under(planner, dataclasses.replace(
         ctx, declared=()))
     assert before_a16, ("a save whose copies carry no condition proves "
                         "nothing about the baseline")
-    assert not_counted_under(planner, ctx) == []
+    # The window assumes the selected tile's armament type only
+    # (28.10.2026), so the other types' count conditions are all that waits;
+    # with every type assumed, one per one-relic build, nothing does.
+    assert set(not_counted_under(planner, ctx)) <= {
+        effecttext.name(effect) for effect in counts}
+    every_type = dataclasses.replace(ctx, assumed_armament_counts=tuple(
+        sorted(effect["id"] for effect in counts)))
+    assert not_counted_under(planner, every_type) == []
 
 
 def what_the_baseline_moves(planner, inventory) -> tuple[bool, list[str]]:

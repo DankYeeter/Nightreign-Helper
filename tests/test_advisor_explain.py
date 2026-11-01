@@ -42,6 +42,7 @@ from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
 from tests import weapon_damage_cases as cases
+from tests.test_one_armament_count_type import two_armament_count_buffs
 
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
@@ -517,8 +518,10 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
 
     Through `model.collapse_by_label`, the model's own rule, so what the
     advisor merges and what the stat sheet merges cannot come apart. Five
-    lines saying FP costs 8 % less is the noise it exists against; the three
-    that remain are three different things the sheet names differently.
+    lines saying FP costs 8 % less is the noise it exists against. The three
+    the sheet names differently say the same -8 %, so since T-335p (user
+    decision 31.10.2026, replacing AK-409) they stand as one line naming
+    all three.
     """
     ctx = a_context({1: "Reduced FP Consumption"})
     fields = ("artsConsumptionRate", "magicConsumptionRate",
@@ -533,9 +536,8 @@ def test_one_idea_split_over_several_fields_is_not_said_several_times():
                                      goals.GOALS[DAMAGE]))
 
     assert lines == (
-        "Reduced FP Consumption: Skill FP cost -8.0%",
-        "Reduced FP Consumption: Spell FP cost -8.0%",
-        "Reduced FP Consumption: Item use cost -8.0%",
+        "Reduced FP Consumption: Skill FP cost, Spell FP cost and Item use "
+        "cost -8.0%",
     )
 
 
@@ -2308,6 +2310,59 @@ def test_a_required_effect_with_no_figure_says_it_always_counts(game_data,
     assert line.effect_id == waiting
 
 
+def test_a_favourite_of_the_armament_type_that_does_not_count_says_so(
+        game_data, wylder, armament):
+    """AK-383: two favourited weapon-count buffs of two types, and a build
+    counts one type only (AD-036.6): the counted one carries its figure, the
+    other says why it is not counted instead of "it always counts"."""
+    both = two_armament_count_buffs(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED, advisor.RED]),
+                                  required=frozenset(both))
+    chosen = (a_copy(0, 1, "One", [both[0]]), a_copy(1, 2, "Two", [both[1]]))
+    ctx = dataclasses.replace(
+        advisor.context(game_data, wylder, reference=armament),
+        assumed_armament_counts=both)
+    goal = goals.GOALS[DAMAGE]
+
+    groups = explain.reasons(problem, chosen,
+                             evaluate(problem, (), ctx, goal=goal),
+                             evaluate(problem, chosen, ctx, goal=goal), ctx,
+                             goal)
+
+    silences = {line.effect_id: line.silence
+                for group in groups for line in group.lines}
+    assert sorted(silences.values()) == sorted(
+        [types.CARRIES_A_FIGURE, types.SILENT_REQUIRED_OTHER_TYPE])
+    line, = [line for group in groups for line in group.lines
+             if line.silence == types.SILENT_REQUIRED_OTHER_TYPE]
+    name, = effect_names(game_data, [line.effect_id])
+    assert line.text == (
+        f"{name}: you favourited it, but a weapon-count condition counts "
+        f"only for the weapon type of the selected armament tile or one you "
+        f"set by hand, so this one is not counted.")
+
+
+def test_a_favourite_of_a_type_the_selected_tile_is_not_says_so(
+        game_data, wylder, armament):
+    """28.10.2026: a favourited weapon-count buff of a type the window does
+    not assume at all -- not "it always counts"."""
+    favourite, _ = two_armament_count_buffs(game_data, wylder)
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({favourite}))
+    chosen = (a_copy(0, 1, "One", [favourite]),)
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    assert ctx.assumed_armament_counts == ()
+    goal = goals.GOALS[DAMAGE]
+
+    groups = explain.reasons(problem, chosen,
+                             evaluate(problem, (), ctx, goal=goal),
+                             evaluate(problem, chosen, ctx, goal=goal), ctx,
+                             goal)
+
+    assert [line.silence for group in groups for line in group.lines] == [
+        types.SILENT_REQUIRED_OTHER_TYPE]
+
+
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
     """AK-276 binds the marking control to the effect id, so every line of
     every filling -- figure, silent, curse -- has to say which it is."""
@@ -2335,3 +2390,25 @@ def test_held_favourites_card_line_summarises_from_two_on():
                 "Wylder's Earring held in Slot 2.",)
     assert explain.held_favourites_card_line(two) == (
         "2 favourited effects are already carried by relics you hold.")
+
+
+def test_one_figure_an_effect_moves_on_many_fields_is_one_line(
+        game_data, wylder, armament):
+    """T-335p (replacing AK-409): "Reduced Damage Negation for Flask Usages"
+    moved eight damage-taken fields by the same +45 % and stood as eight
+    curse lines; it stands as one, in the stat sheet's own word, and hides
+    nothing (the block, the card and `Why` all draw these lines)."""
+    flask_curse = 6850900
+    problem = advisor.problem([advisor.RED], deep=True)
+    # Declared, so its condition counts as met and it moves its figures.
+    ctx = advisor.context(game_data, wylder, reference=armament,
+                          declared=((flask_curse, 1),))
+    chosen = (a_copy(0, 1, "Deep copy", curse_ids=[flask_curse]),)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                             evaluate(problem, chosen, ctx), ctx,
+                             goals.GOALS[DAMAGE])
+
+    name = effect_names(game_data, [flask_curse]).pop()
+    assert lines_of(groups) == (
+        f"{name}: All damage taken +45.0% — this figure does not count it.",)
+    assert all(line.is_curse for group in groups for line in group.lines)

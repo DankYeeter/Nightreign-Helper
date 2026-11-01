@@ -237,6 +237,11 @@ class AdvisorRequest:
     hero_id: int
     level: int
     problem: SlotProblem
+    #: The player's choice on the Advisor bar's track, an ordering and
+    #: nothing else on the picker's (Nachtrag IX-2): the picker asks under
+    #: `goals.CANONICAL_POOL_ORDER` whatever the player selected, because a
+    #: pool serves every direction (AK-43, AK-205). Taking the picker's
+    #: `goal_id` for the choice repeats T-077 at `SlotPool.rank_by`'s twin.
     goal_id: str
     weighting_id: str
     #: The armament the damage goal ranks on, `None` when none is chosen
@@ -244,6 +249,19 @@ class AdvisorRequest:
     reference_weapon_id: int | None = None
     #: effect id -> how many times the player declares its condition met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: `GoalContext.assumed_armament_counts`: they follow the selected
+    #: armament tile, so two tiles of two types are two questions.
+    assumed_armament_counts: tuple[int, ...] = ()
+    #: `GoalContext.selected_catalyst`'s id: a spell asked of another staff
+    #: is another question.
+    selected_catalyst_id: int | None = None
+    #: `GoalContext.selected_spell_id`: another spell of the same staff is
+    #: another question (AK-415). Empty unless a spell row is asked.
+    selected_spell_id: int | None = None
+    #: `GoalContext.art_tile.key`: another armament, tier, art or slot on the
+    #: selected tile is another question (AK-415). Empty unless `Weapon art`
+    #: is asked of a filled tile.
+    art_tile: tuple[int, int, int | None, int] | None = None
     #: Which hand the damage direction ranks (AK-292/AK-293). In the key
     #: because a run ranked one-handed is not the answer to a two-handed ask.
     two_handed: bool = False
@@ -273,15 +291,6 @@ class AdvisorRequest:
     #: reads the save; the advisor never recomputes it from a live inventory.
     inventory_fingerprint: str = ""
     generation: int = 0
-    #: `goal_id` is the player's choice on the Advisor bar's track and an
-    #: ordering and nothing else on the picker's (Nachtrag IX-2): the picker
-    #: asks under one fixed direction whatever the player selected, because a
-    #: pool serves every direction and only its order depends on one, and the
-    #: screen draws in the program's one goal setting (AK-43, AK-205). A
-    #: reader that took the picker's `goal_id` for the player's choice would
-    #: repeat the fault behind 10,2 % silently wrong figures at this field's
-    #: twin (`SlotPool.rank_by`, T-077) -- so the picker says so here.
-    pool_order_only: bool = False
 
 
 # --- the answer ------------------------------------------------------------
@@ -366,11 +375,20 @@ class ReferenceArmament:
     starting-armament pairing needs: the penalty follows the pairing of slot 1
     with the Nightfarer's own starting armament, not the weapon and not the
     slot alone (`damage.is_starting_armament`, verified in play).
+
+    `art_id` is the tile's own art pick (`WeaponSlot.art_id`), the third
+    attribute `damage.weapon_art` asks a slot for.
     """
 
     weapon: Mapping
     tier: int
     slot_index: int
+    art_id: int | None = None
+
+    @property
+    def key(self) -> tuple[int, int, int | None, int]:
+        """This armament as a cache key holds it (`AdvisorRequest.art_tile`)."""
+        return (self.weapon["id"], self.tier, self.art_id, self.slot_index)
 
 
 @dataclass(frozen=True)
@@ -415,6 +433,36 @@ class GoalContext:
     armament_effect_ids: tuple[int, ...] = ()
     #: effect id -> how many times its condition is declared met.
     declared: tuple[tuple[int, int], ...] = ()
+    #: Armament-count conditions ("3+ X Equipped") the baseline counts as
+    #: met, sorted. The window fills in those of the selected tile's
+    #: armament type only (user decision 28.10.2026); given several types,
+    #: `evaluate` counts **one** per build (AD-036.6, addendum 12.10.2026,
+    #: QA-299). Apart from `declared` because a type declared by hand
+    #: replaces them, and a declaration by hand is never narrowed. In the key
+    #: as `AdvisorRequest.assumed_armament_counts`.
+    assumed_armament_counts: tuple[int, ...] = ()
+    #: The staff or seal on the selected tile, `None` where it holds none:
+    #: the spell cells cast from it before the starting catalyst
+    #: (`damage.spell_catalyst`, T-335b). In the key as
+    #: `AdvisorRequest.selected_catalyst_id`.
+    selected_catalyst: Mapping | None = None
+    #: The spell the player chose on that tile (`WeaponSlot.spell_id`), cast
+    #: where it lies in the staff's pools (`damage.spell_thrown`, AK-415).
+    #: `None` unless a spell row is asked, so the key splits only where the
+    #: answer moves. In the key as `AdvisorRequest.selected_spell_id`.
+    selected_spell_id: int | None = None
+    #: The selected tile -- armament, tier, art pick, slot -- that a
+    #: `Weapon art` question swings (`damage.weapon_art`, user decision
+    #: 31.10.2026 13:50: "Markierte Kachel"), `None` unless that art is asked
+    #: of a filled tile; the goal then swings `reference`. Its rolls stay out
+    #: (A17). In the key as `AdvisorRequest.art_tile`.
+    art_tile: ReferenceArmament | None = None
+    #: The art ids the player's **held** relics swap onto the starting
+    #: armament (`modifiers["startSwordArtsId"]`). Only these swap the art a
+    #: `Weapon art` question swings: a candidate that would swap it is never
+    #: proposed for it (AD-056.7). Follows `SlotProblem.held`, so the key
+    #: carries it already.
+    held_swapped_art_ids: tuple[int, ...] = ()
     #: The hand the damage direction ranks -- the stat sheet's `1H`/`2H`
     #: switch (AK-292). Changes what the direction *counts*, not what any
     #: display shows (AK-293 point 1).
@@ -610,6 +658,11 @@ SILENT_EXCLUDED = "excluded"
 #: The player required it (`SlotProblem.required`, A19) and it moved no
 #: figure of its own: the line says why the copy was suggested all the same.
 SILENT_REQUIRED = "required"
+#: The player required a weapon-count condition of one armament type, and the
+#: build counts another type's or none: a build meets the condition of only
+#: one type (AD-036.6, addendum 12.10.2026), the selected tile's unless one
+#: is declared by hand (28.10.2026), so this one moved nothing (AK-383).
+SILENT_REQUIRED_OTHER_TYPE = "required_other_type"
 
 
 @dataclass(frozen=True)

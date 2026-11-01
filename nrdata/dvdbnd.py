@@ -23,7 +23,6 @@ FILE_HEADER_SIZE = 40
 
 @dataclass
 class FileEntry:
-    hash: int
     padded_size: int
     unpadded_size: int
     offset: int
@@ -62,7 +61,7 @@ class Archive:
                 (h, padded, unpadded, off, _sha, aes) = struct.unpack_from(
                     "<QIIQQQ", self.header, offset + j * FILE_HEADER_SIZE
                 )
-                self.entries[h] = FileEntry(h, padded, unpadded, off, aes)
+                self.entries[h] = FileEntry(padded, unpadded, off, aes)
 
     def __contains__(self, path: str) -> bool:
         return bhd5.path_hash(path) in self.entries

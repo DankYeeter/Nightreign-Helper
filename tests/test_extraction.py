@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import struct
+import tracemalloc
 import types
 
 import pytest
@@ -428,6 +429,54 @@ def test_only_the_health_bar_call_hands_out_a_name():
     ])
 
     assert bossdata._healthbar_names(blob) == {46540800: 903253500}
+
+
+def test_a_script_call_reads_only_the_arguments_it_uses(monkeypatch):
+    """SEC-049. The argument size is the file's word: each call used to
+    unpack everything from its offset to that size, which a file claiming a
+    huge size turns into the whole file per instruction -- quadratic. Both
+    passes read at most five ints, so no buffer they unpack may be longer.
+    """
+    padding = [0] * 1000
+    blob = _emevd([(6, [0, 90015000, 0, 46540800, 903253500] + padding),
+                   (0, [0, 0, 300, 46540800] + padding)])
+    unpacked: list[int] = []
+    real_unpack_from = struct.unpack_from
+
+    def spy(fmt, buffer, *args):
+        if buffer is not blob:
+            unpacked.append(len(buffer))
+        return real_unpack_from(fmt, buffer, *args)
+
+    monkeypatch.setattr(bossdata.struct, "unpack_from", spy)
+
+    assert bossdata._healthbar_names(blob) == {46540800: 903253500}
+    assert bossdata._flag_entities(blob) == {300: 46540800}
+    assert unpacked and max(unpacked) <= 5 * 4
+
+
+def test_a_long_part_record_is_not_held_as_ints(monkeypatch):
+    """SEC-050. A part record is as long as the map's section offsets say;
+    unpacking all of it into ints and a dict cost x25 its size. The NpcParam
+    row is still found at the far end of a 1 MiB record, without more memory
+    than the record itself.
+    """
+    row = _npc_row(44800010, 1939, 0.2)
+    record = b"\0" * (1 << 20) + struct.pack("<i", row.id)
+    monkeypatch.setattr(bossdata, "_parts",
+                        lambda _blob: [("c4480_0000", record)])
+
+    tracemalloc.start()
+    try:
+        places = bossdata.derive_places(
+            {"data0": _MapsOnly()}, types.SimpleNamespace(rows=[row]),
+            {4671: "m46_71_00_00"}, {})
+        _now, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert places[4671]["primary"] == 4480
+    assert peak < len(record)
 
 
 @pytest.mark.slow

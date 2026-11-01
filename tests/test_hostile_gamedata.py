@@ -39,7 +39,8 @@ import zlib
 
 import pytest
 
-from nrdata import binary, bossdata, dcx, dds, icons, oodle, tpf
+from nrdata import (binary, bnd4, bossdata, dcx, dds, dvdbnd, icons, oodle,
+                    tae, tpf)
 from nrplanner import errortext
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -88,6 +89,27 @@ def test_a_payload_of_exactly_the_right_size_still_decodes():
     width, height, rgba = dds.decode(exact)
     assert (width, height) == (IMAGE_EDGE, IMAGE_EDGE)
     assert len(rgba) == IMAGE_EDGE * IMAGE_EDGE * 4
+
+
+# One BC1 block, every pixel its first colour, which is pure red in RGB565.
+RED_TEXTURE = dds_file(b"DXT1", 4, 4, struct.pack("<HH", 0xF800, 0) + b"\0" * 4)
+RED = (255, 0, 0, 255)
+
+
+def test_a_red_texture_comes_out_of_the_atlas_red():
+    """The decoder hands back BGRA; red and blue must not trade places."""
+    pytest.importorskip("PIL", reason="Pillow is needed to build an atlas")
+    source = icons.IconSource.__new__(icons.IconSource)
+    source._textures = {"atlas": RED_TEXTURE}
+    source._decoded = {}
+
+    assert source._atlas_image("atlas").getpixel((0, 0)) == RED
+
+
+def test_a_red_character_illustration_comes_out_red():
+    """QA-297: the icon build decodes the full-body variants through this."""
+    pytest.importorskip("PIL", reason="Pillow is needed to decode a texture")
+    assert icons.texture_image(RED_TEXTURE).getpixel((0, 0)) == RED
 
 
 def test_the_needed_size_counts_a_partial_edge_block_whole():
@@ -464,3 +486,106 @@ def test_a_damaged_snapshot_counts_as_no_snapshot(monkeypatch, tmp_path):
 
     assert datasource._snapshot() is None
     assert broken.exists()
+
+
+# QA-037: the three counters SEC-002 put a ceiling on were guarded and never
+# attacked. Each case below has a control that is accepted, so a refusal here
+# is the guard's and not a header that was malformed some other way.
+
+IMPOSSIBLE_COUNT = 2**31
+
+
+def binder_header(magic: bytes, file_count: int, entry_size: int) -> bytes:
+    """A BND4 / BHF4 header of 0x40 bytes and room for a few members after it.
+
+    Format byte 0 means no ids, names, compression or long offsets, so a
+    member header must hold 20 bytes and not fewer. The room is what lets a
+    stride that is too small be told from a table that is too long.
+    """
+    head = magic + bytes(5) + bytes([0, 0, 0])
+    head += struct.pack("<IQ8sQQ", file_count, 0x40, b"", entry_size, 0)
+    head += bytes([0, 0, 0, 0]) + struct.pack("<IQ", 0, 0)
+    assert len(head) == bnd4.HEADER_SIZE
+    return head + bytes(64)
+
+
+BINDER_READERS = {b"BND4": bnd4.read, b"BHF4": bnd4.read_split_header}
+
+
+@pytest.mark.parametrize("magic", sorted(BINDER_READERS))
+def test_a_binder_with_no_members_still_reads(magic):
+    assert BINDER_READERS[magic](binder_header(magic, 0, 20)) == []
+
+
+@pytest.mark.parametrize("magic", sorted(BINDER_READERS))
+@pytest.mark.parametrize("file_count, entry_size", [
+    (IMPOSSIBLE_COUNT, 20),   # a count the archive cannot hold
+    (1, 4),                   # a stride too small for the fields it holds
+], ids=["count", "stride"])
+def test_a_binder_whose_table_does_not_fit_is_refused(magic, file_count,
+                                                      entry_size):
+    blob = binder_header(magic, file_count, entry_size)
+    with pytest.raises(binary.NotWhatItClaims, match="archive claims"):
+        BINDER_READERS[magic](blob)
+
+
+def archive_header(buckets: list[tuple[int, int]], bucket_count: int,
+                   body: bytes = b"") -> bytes:
+    """A decrypted BHD5 header: the bucket table at 0x18, then `body`."""
+    head = b"BHD5" + bytes(12) + struct.pack("<II", bucket_count, 0x18)
+    head += b"".join(struct.pack("<II", count, offset)
+                     for count, offset in buckets)
+    assert len(head) == 0x18 + 8 * len(buckets)
+    return head + body
+
+
+def open_archive(monkeypatch, tmp_path, header: bytes):
+    """dvdbnd.Archive over a header the decryption step is made to yield."""
+    bhd = tmp_path / "data0.bhd"
+    bhd.write_bytes(b"x")
+    monkeypatch.setattr(dvdbnd.bhd5, "decrypt_header",
+                        lambda data, pem: header)
+    return dvdbnd.Archive(bhd, "unused")
+
+
+def test_an_archive_with_one_file_still_opens(monkeypatch, tmp_path):
+    entry = struct.pack("<QIIQQQ", 7, 16, 16, 0, 0, 0)
+    header = archive_header([(1, 0x20)], 1, entry)
+    assert list(open_archive(monkeypatch, tmp_path, header).entries) == [7]
+
+
+def test_a_bucket_count_the_header_cannot_hold_is_refused(monkeypatch,
+                                                          tmp_path):
+    header = archive_header([], IMPOSSIBLE_COUNT)
+    with pytest.raises(binary.NotWhatItClaims, match="buckets do not fit"):
+        open_archive(monkeypatch, tmp_path, header)
+
+
+def test_a_file_count_the_header_cannot_hold_is_refused(monkeypatch,
+                                                        tmp_path):
+    header = archive_header([(IMPOSSIBLE_COUNT, 0x20)], 1)
+    with pytest.raises(binary.NotWhatItClaims, match="bucket 0 claims"):
+        open_archive(monkeypatch, tmp_path, header)
+
+
+def tae_header(count: int, start: int, end: int, size: int = 0x100) -> bytes:
+    """The fields of a TAE file `animations` reads, zero elsewhere."""
+    blob = bytearray(size)
+    blob[:4] = b"TAE "
+    struct.pack_into("<qqq", blob, 0x58, start, end, 0)
+    struct.pack_into("<q", blob, 0x70, count)
+    return bytes(blob)
+
+
+def test_a_tae_with_its_table_inside_the_file_still_lists_it():
+    blob = bytearray(tae_header(count=2, start=0x80, end=0xA0))
+    struct.pack_into("<qqqq", blob, 0x80, 1, 0x90, 2, 0x98)
+    assert tae.animations(bytes(blob)) == [(1, 0x90), (2, 0x98)]
+
+
+@pytest.mark.parametrize("count, start, end", [
+    (2**20, 0x80, 0x80 + 2**20 * 16),   # agrees with itself, past the file
+    (2, 0x80, 0x80 + 16),               # start and end disagree with the count
+], ids=["past the file", "disagrees"])
+def test_a_tae_whose_table_does_not_fit_lists_nothing(count, start, end):
+    assert tae.animations(tae_header(count, start, end)) == []

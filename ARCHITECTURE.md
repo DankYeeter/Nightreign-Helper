@@ -6200,6 +6200,18 @@ gegen A6 (Optimize < 6 s; gemessen 1229 ms Median auf dem 5900X, T-241d).
    Bedingung gilt jetzt n-mal", wirkt in Werteblatt **und** Berater; der
    Ausschluss wirkt nur im Berater und ueberstimmt dort jede Erklaerung (A18:
    "zaehlt in keinem Vorschlag").
+   **Nachtrag 12.10.2026 (QA-299, Nutzerentscheid 21:15, Director):** Von den
+   Waffenzahl-Bedingungen (`wepTypeTriggerCount`, "3+ X Equipped") gilt in
+   einem Vorschlag hoechstens **eine Waffenart** als erfuellt; mehrere Kopien
+   derselben Art bleiben erlaubt (Stapelregeln wie bisher). Grund: 3+ Hammers
+   + 3+ Great Hammers + Bezugswaffe = 7 Waffen > 6 Plaetze, ingame
+   unerreichbar. Handeingabe (`declared`) bleibt unberuehrt.
+   Umsetzung `59a5f03` (T-333f): Waffenzahl-Bedingung =
+   `effecttext.counts_armaments` (31 Ids), Art = `wepTypeTrigger`;
+   `GoalContext.assumed_armament_counts` traegt die nicht erklaerten Ids,
+   `evaluate` rechnet je im Build vorkommender Art eine Variante und nimmt die
+   beste fuers Ziel (`evaluate_per_goal` fuer alle Ziele); eine von Hand
+   erklaerte Waffenzahl-Bedingung legt die Art fest.
    **Randbedingung dieser Wahl — OF-37:** A18 Satz 1 ("bedingte Effekte gehen
    in die Rechnung ein wie unbedingte") liesse auch die sieben bedingten
    Fluch-Ids zaehlen; A18 "Nachweis" verlangt aber woertlich, dass die
@@ -8504,7 +8516,7 @@ bereits die richtige Form, und eine Extraktion der Kunstdaten bringt dieser Zell
 
 ---
 
-### AD-050 — Der Extraktor bekommt **drei** Lesungen und eine Zeilenverlaengerung, keine vierte Quelle: linke Starthand, Zauber-Angriffswerte ueber `Magic -> Bullet -> AtkParam_Pc`, und die Zauber-Id des Tauschrelikts aus dem unbeschriebenen `SpEffectParam`-Rest; `EXTRACT_VERSION` 16 (2026-09-20, Status: aktiv; setzt AD-011/AD-012 fort, Waffenkunst-Daten ausdruecklich **nicht**)
+### AD-050 — Der Extraktor bekommt **drei** Lesungen und eine Zeilenverlaengerung, keine vierte Quelle: linke Starthand, Zauber-Angriffswerte ueber `Magic -> Bullet -> AtkParam_Pc`, und die Zauber-Id des Tauschrelikts aus dem unbeschriebenen `SpEffectParam`-Rest; `EXTRACT_VERSION` 16 (2026-09-20, Status: aktiv; setzt AD-011/AD-012 fort, Waffenkunst-Daten ausdruecklich **nicht**; **Punkt 7 abgeloest durch AD-056**)
 
 **Kontext.** A26 verlangt echte Zauberzahlen. Heute traegt der Auszug je Zauber nur
 Kosten, Slots, Schule und Symbol (R-009 Befund 4), je Nightfarer nur die **rechte**
@@ -8695,7 +8707,7 @@ an AD-050 und damit am Extrakt).
 
 ---
 
-### AD-053 — Die Zauberzahl entsteht in der **Fassade** (`damage.spell`) nach derselben Bauform wie die Waffenzahl, und sie loest AD-048 **fuer Zauberziele** ab, nicht fuer Waffenziele (2026-09-20, Status: aktiv; **engt AD-048 ein**, wahrt AD-019/AD-021, beruehrt AD-020 nicht)
+### AD-053 — Die Zauberzahl entsteht in der **Fassade** (`damage.spell`) nach derselben Bauform wie die Waffenzahl, und sie loest AD-048 **fuer Zauberziele** ab, nicht fuer Waffenziele (2026-09-20, Status: aktiv; **engt AD-048 ein**, wahrt AD-019/AD-021, beruehrt AD-020 nicht; **Punkt 3 abgeloest durch AD-056**)
 
 **Kontext.** AD-048 sagt: auf einer Katalysator-Bezugswaffe erreicht keine Art- und keine
 Typwahl die Zahl, weil das Programm sonst eine Rate auf eine **Skalierungszahl** legen
@@ -9075,6 +9087,344 @@ Rueckbau = Feld und Zweig zurueck, ein Filter weg.
   werden beide Exemplare eines Doppel-Handles zu einem, statt dass eines fehlt.
 
 ---
+
+---
+
+## Themenbereich P — Weapon Arts und Zauber je Waffe waehlbar, Schaden je Art (2026-10-31, T-335q)
+
+*Auftrag T-335q, `docs/tasks/T-335.md`; Nutzerentscheide 31.10. 12:23 dort woertlich.
+Vorlauf gelesen: `docs/research/R-010.md` (Kette SwordArts -> AtkParam), Themenbereich N
+(AD-050 Option B verworfen, AD-053 Punkt 3 "keine Motion Values", "Bewusst nicht getan
+(A26)": **wieder interessant, wenn der Nutzer absolute Kunstzahlen sehen will** — diese
+Bedingung ist mit 12:23 eingetreten). `UI_SPEC.md` Nachtrag T-335r (AK-410..419, parallel
+entstanden) nennt Feldnamen als Annahme; Abweichungen stehen unten unter P.6.*
+
+**Methode.** Kein Programmstart. Proben lesend gegen
+`d:\steam\steamapps\common\ELDEN RING NIGHTREIGN\Game\regulation.bin`
+(`data_version` 10350000, wie der Testabzug v16), `paramdef.load_all` mit Alias
+`AtkParam_Pc`/`BehaviorParam_PC` -> `AtkParam`/`BehaviorParam`; Rechnungen ueber
+`damage.equipped` gegen den Testabzug v16 (Umlenkung `DankYeeterT-335q`, `LOCALAPPDATA`/
+`APPDATA` ins Scratchpad). Skripte: Session-Scratchpad `T-335q/probe1..6.py`. Alles mit
+"gemessen" stammt daraus, **nicht** aus einem Lauf des geaenderten Codes.
+
+### P.1 Faehigkeitsprobe Wylder's Greatsword — eine Zahl ist ableitbar
+
+| Glied | gemessen 31.10. |
+|---|---|
+| `EquipParamWeapon[3750000].swordArtsParamId` | **106** = "Stamp (Upward Cut)", `iconId` 8305, `useMagicPoint_L2` 5, `_R2` 8 |
+| `SwordArtsParam[106].atkParamId` | **300000290** |
+| `AtkParam_Pc[300000290]` | `atkPhys..atkDark` alle **0**, `atk*Correction` alle fuenf **215**, `isAddBaseAtk` 0, `subCategory1` 112, `overwriteAttackElementCorrectId` −1 |
+| Nachbarzeile `AtkParam_Pc[300000295]` | Korrekturen alle **100**, sonst gleich; `BehaviorParam_PC` 300000290 und 300000295 (`variationId` 0) zeigen je auf ihre Zeile |
+| Wylder Lv15, Startwaffe Stufe `MIN_UPGRADE`, ohne Relikte (`damage.equipped`) | AR **122,0506** (Anzeige 122), zweihaendig **125,7121** (125) — gleich den A20-Messzellen |
+
+**Ergebnis: eindeutig aus den Params** — eine Zeile, ein Korrekturwert fuer alle fuenf
+Typen, kein flacher Anteil, kein Zuschlag. Offen ist nicht die Ableitung, sondern die
+**Kalibrierung** (welcher Treffer, Puppe ohne Verteidigung) — dieselbe Lage wie die
+Zauberformel vor T-335j. Deshalb kein Abbruch, sondern Messfaelle (P.4).
+
+### P.2 Was ueber alle Arten gilt (gemessen 31.10.)
+
+| Befund | Zahl |
+|---|---|
+| `SwordArtsParam` Zeilen / mit Namen (`ArtsName`) | 194 / 187 |
+| Klasse **Motion** (Zeile aufloesbar, kein flacher Anteil, Korrektur > 0) | 91 mit fuenf gleichen Werten + 6 gemischt; davon tragen einige **0** (Chilling Mist, Poisonous Mist, Hoarfrost Stomp, Beast's Roar: der Schaden kommt aus einem nicht verknuepften Geschoss) |
+| Klasse **Flach** (`atk*` > 0, fast immer `isAddBaseAtk` 1) | 50 (48 mit Zuschlag) — z. B. Glintblade Phalanx `atkMag` 51, Sacred Blade `atkDark` 180, Ground Slam `atkPhys` 264 |
+| Klasse **ohne Angriff** (`atkParamId` −1: Endure, Quickstep, Determination, Golden Vow ...) oder **unaufgeloest** (Ironeye's Bow 402 -> 5000810, keine `AtkParam_Pc`-Zeile) | 47 zusammen |
+| Startwaffen | Wylder 106 Motion 215 · Executor 114 Motion 190 · Undertaker 208 Motion 235 · Scholar 109 Motion 99 · Guardian 105 Motion 50 · Raider 700, Revenant 850, Duchess 1056, Recluse 10 "No Skill": ohne Angriff · Ironeye 402 unaufgeloest |
+| Pool je Waffe: `EquipParamCustomWeapon.swordArtsTableId` -> `SwordArtsTableParam` (**Zeilen-Id = Tabellen-Id**, `chanceWeight` > 0) | 361 der 1793 benannten Waffen haben einen Pool; Groesse 0: 1432, 1: 106, >1: 255 (Median 12, max 56); Standardart im eigenen Pool: 352/361; 183 verschiedene Arten in Pools, alle benannt |
+| Symbole | `SwordArtsParam.iconId` liegt im selben Sprite-Satz wie Relikte/Zauber (`MENU_ItemIcon_<id>`): 54 von 54 Wylder-Pool-Symbolen per `icons.IconSource.item_icon` gelesen (T-335m) |
+
+**Zauber je Stab/Siegel — fest oder gerollt (Auftragsfrage):** gerollt im **zweiten**
+Platz. `EquipParamCustomWeapon.magicTableId_1/2` -> `MagicTableParam` (`magicId`,
+`chanceWeight`): Platz 1 traegt bei **28 von 28** Katalysatoren mit Zeilen genau **einen**
+Zauber (= `equippedSpell_R1`), Platz 2 einen Pool von **64** (Stab, 19) bzw. **92**
+(Siegel, 9) Zaubern; Sondervarianten fixieren Platz 2 (Gelmir: Roiling Magma / Rykard's
+Rancor / Gelmir's Fury). Revenants Finger Seal 34750000 hat keine Zeile. Die heutigen
+`equipped_spells` sind fuer Platz 2 also nur der **Standardwert** des Waffeneintrags,
+nicht "der Zauber dieses Stabs".
+
+**Startwaffen haben ebenfalls Pool-Zeilen** (Wylder 53 Arten + Storm Ruler, Recluse Platz 2
+64 Zauber), ingame starten sie aber fest: Recluse wirft Glintstone Arc (Nutzermessung
+12:06, 120 = Programm), Wylder hat Stamp. Wozu diese Zeilen dienen, ist **ungeklaert und
+nicht tragend** — die Regel P.3 Punkt 4 nimmt fuer die Startarmatur den Standardwert.
+
+**Art-Tauschrelikte (Auftragsfrage):** 20 Effekte, alle `game_category` "Starting
+Armaments (Skill)", tragen im Snapshot v16 **schon** `modifiers["startSwordArtsId"]` mit
+einer `SwordArtsParam`-Id — 7122700 Glintblade Phalanx (200), 7122800 Gravitas (209),
+7122900 Flaming Strike (214), 7123000 Eruption (207), 7123100 Thunderbolt (216), 7123200
+Lightning Slash (217), 7123300 Sacred Blade (201), 7123400 Prayerful Strike (208), 7123500
+Poisonous Mist (228), 7123600 Poison Moth Flight (119), 7123700 Blood Blade (224), 7123800
+Seppuku (606), 7123900 Chilling Mist (227), 7124000 Hoarfrost Stomp (501), 7124100 White
+Shadow's Lure (850), 7124300 Endure (700), 7124400 Quickstep (800), 7124500 Storm Stomp
+(502), 7124600 Determination (600), 7124700 Rain of Arrows (406). Kein Extraktorweg noetig
+(anders als `start_magic_id`, AD-050 Punkt 4).
+
+### AD-056 — Arten und Zauber werden **je Kachel gewaehlt** aus dem Pool genau dieser Waffe; der Auszug traegt Art-Block und Pools, die Zahl einer Art ist **AR x Motion Value** und nur fuer die Motion-Klasse (2026-10-31, Status: aktiv; **loest AD-050 Punkt 7 und AD-053 Punkt 3 ab** — Kunstdaten werden jetzt extrahiert, der Motion Value erreicht die Zahl —, **erweitert AD-052**: das Bezugsobjekt einer Art-/Zauberfrage ist die gewaehlte, nicht mehr nur die Standard-Belegung; wahrt AD-019/AD-021; **Punkte 1, 3, 4.3, 5 ergaenzt durch Nachtrag P.7, T-335v**)
+
+**Kontext.** Nutzer 12:23: Zauber und Art "immer nur die auf der Waffe", vorher waehlen,
+"ausser das Item kommt default mit etwas", Tauschrelikte erkennen und dynamisch rechnen,
+je Nightfarer gemerkt. Heute: Art = Startwaffen-Art ohne Namen und ohne eigene Zahl
+(AR x Skill-Rate, AK-354), Zauber = Platz 1 des Katalysators (`spell_thrown`).
+
+**Kraefte.** Echte Zahl gegen unkalibrierte Zahl; ein Datenweg fuer zwei Wahlen gegen zwei
+Sonderwege; jede neue Lesung kostet einen `EXTRACT_VERSION`-Schritt, den Testabzug und
+einen clean-room-Lauf.
+
+**Optionen.**
+- **A — im Bestand bleiben** (nur Name + Symbol, Zahl wie heute AR x Skill-Rate, T-335r
+  Fassung F2). Konsequenz: ein Extraktorschritt fuer Namen und Symbole ist trotzdem noetig;
+  die Art-Zeile zeigt fuer Stamp 122 statt der Groessenordnung 262, und eine Tauschwahl
+  bewegt keine Zahl — genau das, was der Nutzer "dynamisch kalkuliert" haben will.
+  Verworfen.
+- **B — volle Schadenskette je Art** (alle Treffer ueber TAE/Behavior, flache Anteile mit
+  ER-Zuschlagsformel). Konsequenz: die Treffer haengen an Animationsdateien, die das Projekt
+  nicht liest; die Zuschlagsformel fuer `isAddBaseAtk` ist fuer Nightreign in keiner Quelle
+  belegt (R-010 Befund 3). Verworfen bis zu einer Puppenmessung (OF-60).
+- **C — Motion-Klasse rechnen, Rest benennen** (gewaehlt). Ein Faktor je Art aus der vom
+  Spiel genannten Zeile; Flach/ohne Angriff/unaufgeloest bekommen Name, Symbol und einen
+  Satz statt einer Zahl.
+
+**Entscheidung: C.**
+
+**Punkte.**
+1. **Datenmodell, `EXTRACT_VERSION` 16 -> 17.**
+   ```text
+   data["arts"]: [ { "id": 106, "name": "Stamp (Upward Cut)", "icon": 8305,
+                     "fp": 5,                       # useMagicPoint_L2, fehlt bei -1
+                     "fp_follow_up": 8,             # max(_R1, _R2), nur wenn > 0
+                     "damage_atk": 300000290,       # fehlt bei atkParamId -1/unaufgeloest
+                     "motion_value": {"Physics": 215, "Magic": 215, "Fire": 215,
+                                      "Thunder": 215, "Dark": 215},  # nur Motion-Klasse, nur Werte > 0
+                     "damage": {"Magic": 51} } ]    # nur Flach-Klasse, Werte > 0
+   weapons[].art_default: int          # EquipParamWeapon.swordArtsParamId, roh
+   weapons[].art_pool:    [int, ...]   # Art-Ids aller CustomWeapon-Zeilen, vereinigt, sortiert; [] wenn keine
+   weapons[].spell_pools: [[int], [int, ...]]   # nur Katalysatoren mit CustomWeapon-Zeilen, je Platz vereinigt
+   ```
+   Typschluessel wie `extract.DAMAGE_TYPES`. `weapon_skill_pools` (heute Tabellen-Ids,
+   ungenutzt) wird durch die Aufloesung ueber `SwordArtsTableParam` ersetzt, nicht
+   daneben gestellt. `damage` der Flach-Klasse wird **ohne Verbraucher** mitgeschrieben:
+   die eine Puppenmessung aus OF-60 kann dann ohne Versionsschritt 18 kalibrieren.
+   Nur benannte Arten kommen in den Block.
+2. **Symbole:** `iconbuild` nimmt `SwordArtsParam.iconId` in den vorhandenen
+   Item-Satz (`wanted |= ...`, eine Zeile), `ICON_VERSION` 3 -> 4. Kein neuer
+   Manifest-Bereich: `IconPack` schlaegt Art-Symbole wie Zaubersymbole unter `items` nach.
+3. **Formel (Motion-Klasse):**
+   ```text
+   art_hit[T] = final_per_type[T]  (damage.equipped(..., art=SKILL_ART)[1], je Hand)
+                x motion_value[T] / 100
+   Anzeige     = damage.displayed(sum_T art_hit[T])
+   ```
+   `final_per_type` traegt schon `GAME_ATTACK_POWER_RATE`, Startwaffen-Konversion,
+   Relikt- und Skill-Raten (AD-047); der Motion Value ist genau ein Faktor danach.
+   **Belegt:** Struktur (AtkParam-Felder, R-010 Befund 2; 135/147 gleiche Korrekturen,
+   Themenbereich N), Wylders Kette P.1. **Annahme, unvermessen:** (a) die Puppe zeigt
+   AR x MV ohne Verteidigungsabzug — uebertragen von der Zauber-Kalibrierung (Pebble
+   152 x 135,61/100 x 0,6 = 123,7, Puppe 123); (b) die von `SwordArtsParam.atkParamId`
+   genannte Zeile ist der Haupttreffer — fuer Stamp gibt es eine zweite Zeile mit 100.
+   Die Zahl ist **ein Treffer**, nicht die Summe einer Mehrfachkunst (wie OF-57 bei
+   Zaubern).
+4. **Welche Art/welcher Zauber gilt — eine Regel, in `damage`, neben `spell_thrown`:**
+   1. Startarmatur (`is_starting_armament`) mit Tauschrelikt im Build -> die getauschte
+      Art (`Build.swapped_art_ids` aus `modifiers["startSwordArtsId"]`, nur Ids im
+      `arts`-Block; bei zweien die mit dem hoeheren `motion_value`-Maximum, Muster
+      AD-052 Punkt 3).
+   2. ausdrueckliche Wahl der Kachel (`WeaponSlot.art_id`/`spell_id`), wenn sie im Pool
+      dieser Waffe liegt — sonst verworfen;
+   3. fest: Startarmatur -> `art_default` bzw. `equipped_spells[i]`; Pool mit hoechstens
+      einem Eintrag -> dieser bzw. `art_default`;
+   4. sonst **keine** (gerollte Waffe ohne Wahl): Zeile ohne Art-Zahl, Satz "choose".
+   Statustafel, Casting-Leiste, Berater und Why fragen nur diese Funktion (AD-019).
+   Fuer Zauber gilt dieselbe Regel je Platz; Platz 1 ist gemessen immer fest.
+5. **Was keine Zahl bekommt, sagt warum** (Muster `NO_SPELL_DAMAGE`): ohne Angriff
+   ("deals no damage"), Flach-Klasse ("not calibrated yet"), Motion 0 oder unaufgeloest
+   ("its damage comes from a projectile this program does not read"). Kein 0,00 im
+   Ranking.
+6. **Abweichung von den T-335r-Annahmen:** `art_default` ist der **rohe** Standardwert,
+   nicht "nur wenn fest" — ob er vorbelegt, entscheidet Punkt 4 (sonst laege die Regel
+   halb im Extraktor, halb im Planer). Der Zauber-Pool ist `spell_pools`, nicht
+   `equipped_spells`: Platz 2 eines gefundenen Stabs ist gerollt. `data["arts"]`,
+   `art_pool`, `Build.swapped_art_ids`, `WeaponSlot.art_id`/`spell_id` wie angenommen.
+7. **Berater:** "Hit with Weapon art" rechnet die Art aus Punkt 4. Der Motion Value ist je
+   Art konstant, die Rangfolge der Raten-Relikte aendert sich also **nicht** (gemessen
+   in Themenbereich N); es aendert sich der Betrag in Ergebniszeile und Why. Ein
+   gehaltenes Tauschrelikt bewegt die Zahl; das **Vorschlagen** von Tauschrelikten fuer
+   Weapon-art-Ziele bleibt aus (wie heute, `_GATES_THE_NAME_ANSWERS`).
+
+**Konsequenzen.** Leicht: ein Patch an Pools, Kosten oder Motion Values zieht ohne Code
+nach; Kalibrierung der Flach-Klasse ist eine Formelzeile ohne Versionsschritt. Dauerhaft
+schwer: die Zahl haengt an der Annahme "genannte Zeile = Haupttreffer"; Mehrfachkuenste
+zeigen einen Treffer.
+
+**Umkehrbarkeit: mittel.** Felder entfernen = je Feld eine Zeile plus Versionsschritt und
+Testabzug; die Wahlregel ist eine Funktion.
+
+### P.4 Messfaelle Trainingspuppe (Nutzer, Lv15, keine Relikte ausser genannt, einhaendig ausser genannt)
+
+| # | Fall | erwartet (Programm nach Bau) | trennt |
+|---|---|---|---|
+| M1 | Wylder, Startwaffe, Stamp: Folgeangriff nach der Haltung | **262** (122,05 x 2,15); zweihaendig **270** | Annahme 3a/3b; ~122 hiesse: Zeile 300000295 ist der gemessene Treffer |
+| M2 | Wylder, Relikt 7123200 (Lightning Slash) | **207** (122,05 x 1,70), zweihaendig 213 | Tauschweg + zweite Motion-Art |
+| M3 | Executor, Startwaffe, Art | **180** (94,90 x 1,90) | Gegenprobe andere Waffe |
+| M4 | Undertaker, Startwaffe, Art | **214** (91,11 x 2,35) | ebd. |
+| M5 | Wylder, Relikt 7122700 (Glintblade Phalanx), ein Treffer | **keine Vorhersage** — Zahl notieren | Kalibrierung Flach-Klasse (OF-60) |
+
+Erwartungen gerechnet mit `damage.equipped` am Testabzug v16 (Rohwerte oben), **nicht** am
+gebauten Code. M1 ist der Pflichtfall; trifft er, gelten 3a/3b fuer Wylder als belegt.
+
+### P.5 Migration
+
+- `EXTRACT_VERSION` 17 und `ICON_VERSION` 4: der erste Start baut Auszug und Symbolsatz neu
+  (`firstrun.py:115` prueft beide). **clean-room-Ausloeser** (`CLAUDE.md` NH-010:
+  `EXTRACT_VERSION`); `security-reviewer`-Ausloeser `nrdata/`.
+- **Fester Testabzug ungueltig** (v16): der Extraktor-Auftrag baut ihn neu am selben Ort,
+  traegt Dateizahl/Bytes in `CLAUDE.md` nach und vermerkt es in
+  `docs/plan-restarbeiten.md`.
+- Keine Migration gespeicherter Builds: Waffenkacheln werden nicht gespeichert
+  (`favourites.py` schreibt nur Relikt-Effekte; `weapon_loadouts` lebt je Laufzeit,
+  `app.py:559`). Die Wahl reist mit `WeaponSlot.copy()`.
+
+### P.6 Umsetzungsschnitt (developer, je Schritt ein Commit, Suite `-n auto`)
+
+1. **Extraktor** (`nrdata/extract.py`, Tests): `arts`-Block, `art_default`, `art_pool`,
+   `spell_pools` nach Punkt 1, `EXTRACT_VERSION` 17 mit Logzeile; Testabzug neu bauen.
+   Test gegen den Datensatz: Wylder's Greatsword `art_default` 106, `art_pool` 54 Eintraege
+   mit 106; `arts[106].motion_value` fuenfmal 215; Recluse's Staff `spell_pools`
+   `[[4000], <64 Ids mit 4070>]`; Finger Seal 34750000 ohne `spell_pools`; alle 20
+   `startSwordArtsId`-Werte im `arts`-Block.
+2. **Symbole** (`nrdata/iconbuild.py`): Art-`iconId` in `wanted`, `ICON_VERSION` 4. Test:
+   8305 im Manifest.
+3. **Wahlregel + Zahl** (`nrplanner/model.py` `swapped_art_ids`; `nrplanner/damage.py`
+   `art_in_use`/Zauber-Gegenstueck zu `spell_thrown`, `weapon_art(...)` -> Zahl oder Satz;
+   `WeaponSlot.art_id`/`spell_id` + `copy`). Tests: M1-M4 als Zahlen am Testabzug v17;
+   Wahl ausserhalb des Pools verworfen; gerollte Waffe ohne Wahl -> keine Zahl; Tausch vor
+   Wahl nur auf der Startarmatur.
+4. **Anzeige** (`nrplanner/statsheet.py`, Casting-Leiste nach AK-410..419 in F1):
+   `Weapon art (<Name>)` aus `weapon_art`, Zauberzeile aus der Regel.
+5. **Berater/Why** (`nrplanner/advisor/goals.py`, `explain.py`): dieselbe Funktion; Test
+   "Rangfolge der Raten-Relikte unter Weapon art unveraendert, Betrag x 2,15 bei Wylder".
+
+Schritt 1-2 sind unabhaengig von 3-5; 3 braucht 1; 4 und 5 brauchen 3.
+
+**Der developer soll ausdruecklich nicht:** Treffer ueber TAE/Behavior summieren; die
+Flach-Klasse mit der ER-Zuschlagsformel rechnen; `art_default` im Extraktor nach
+"fest/gerollt" filtern; eine zweite Wahlregel in `statsheet`/`weaponslots`/`goals`
+schreiben; Tauschrelikte im Berater fuer Weapon-art-Ziele vorschlagen; die Wahl in
+gespeicherte Builds schreiben.
+
+### P.7 Nachtrag T-335v zu AD-056 (2026-10-31) — eine Art-Zahl, Flach-Klasse aus M5, Pools der Varianten
+
+*Auftrag T-335v; Messungen des Nutzers 31.10. 12:59 (`docs/tasks/T-335.md`). Proben lesend
+gegen `regulation.bin` und den Testabzug **v17** (T-335s), Skripte Session-Scratchpad
+`T-335q/m5a..m5d.py`; nicht aus einem Lauf des geaenderten Codes.*
+
+**1. Eine Zahl, kein 1H/2H-Paar (aendert AD-056 Punkt 3 und P.4 M1).** Gemessen: Stamp ueber
+R2 einhaendig **262** und zweihaendig **262**; Vorhersage 270 fuer 2H war falsch. Der
+Grund steht in den Params: `AtkParam_Pc[300000290].isDisableBothHandsAtkBonus` = **1**,
+ebenso auf **139 von 147** aufloesbaren Art-Zeilen (gemessen). Regel: die Art-Zahl steht
+immer auf der **einhaendigen** Wertung, gleich welcher Hand-Schalter. Die 8 Zeilen mit 0
+(Spinning Chain, Through and Through, Barrage, Enchanted Shot, Sky Shot, Rain of Arrows,
+Spearcall Ritual, Radahn's Rain; ueberwiegend Bogen) folgen derselben Regel —
+**Annahme**, kein Feld dafuer. Der Arbeitsbaum zeigt `damage.weapon_art` bereits so
+(uncommittet, paralleler Lauf); gilt als Teil dieses Nachtrags.
+*Nebenbefund, nicht untersucht:* R1 zweihaendig nach Stamp 126, Programm-Anzeige 2H 125
+(`weapons.TWO_HANDED_RATE` 1,03 ist laut `weapons.py:160-175` eine Menue-Regel, nicht die
+Trefferregel).
+
+**2. Formel der Flach-Klasse (aendert AD-056 Punkt 3 und 5).** Glintblade Phalanx:
+`AtkParam_Pc[300200867]` `atkMag` 51, alle Korrekturen 0, `isAddBaseAtk` 1,
+`isDisableBothHandsAtkBonus` 1, `overwriteAttackElementCorrectId` **51080** (jede
+Schadensart skaliert nur mit Intelligence); `Bullet` 2300 `numShoot` 4 (vier Klingen).
+
+```text
+bonus[T]    = wie weapons._rate_shared, aber mit der AEC der Art-Zeile, falls != -1,
+              sonst der der Waffe: Summe_stat  scaling[stat]/100 x correct[stat]
+                                   x curve_T(attr)/100 x influence, nur Stats "on"
+flat_hit[T] = damage[T] x (1 + bonus[T]) x GAME_ATTACK_POWER_RATE   -> dann dieselben
+              Raten wie die Motion-Klasse (_multiplied, art=SKILL_ART)
+Anzeige     = damage.displayed(Summe_T flat_hit[T])     # je Treffer
+```
+
+M5 nachgerechnet: Wylder Lv15 Intelligence **15**, Magic Longsword `scaling.Intelligence`
+30, Kurve 4 -> 45,4545; bonus = 0,30 x 0,454545 = 0,13636; 51 x 1,13636 x 0,6 = **34,77
+-> 34**; vier Klingen je abgeschnitten = **136** = Messung. **Kein freier Parameter**
+(Wylders Attribute, Waffenwerte, AEC und 0,6 stehen alle fest). Gegenproben: ohne Bonus
+30,6 -> 30 (120), ohne 0,6 57 — beide widerlegt. Ebenfalls gemessen: Treffer werden
+**einzeln** abgeschnitten (Summe ungeschnitten waere 139).
+**Offen bleibt genau eine Groesse: ob der Flachwert mit der Waffenstufe waechst.** Bei
+Stufe 1 (`reinforce.atk` 1,0) sind beide Lesarten gleich; die Stufe des gemessenen
+Schwerts ist unbekannt (**Annahme** des Auftrags). Gebaut wird **ohne** Stufenfaktor —
+diese Lesart trifft M5 auf jeder Stufe, die andere nur auf Stufe 1.
+
+| Stufe der Magic Longsword | mit `reinforce.atk.Magic` (1,0/1,23/1,5/1,7) | ohne (gebaut) |
+|---|---|---|
+| 1 | 34 | 34 |
+| 2 | 42 | 34 |
+| 3 | 52 | 34 |
+| 4 | 59 | 34 |
+
+**Trennender Messfall M6 (Pflicht):** Glintblade Phalanx auf einer Waffe **bekannter**
+Stufe ueber 1 (Seltenheitsfarbe nennen), eine Klinge: 34 bestaetigt "ohne", 42/52/59
+"mit". War das M5-Schwert schon ueber Stufe 1, ist M5 selbst der Beleg fuer "ohne" —
+erste Rueckfrage an den Nutzer ist deshalb nur die Farbe. **M7 (optional):** Glintblade
+Phalanx auf dem einfachen Longsword (Int-Skalierung 0) -> **30** je Klinge.
+
+**3. Datenfeld, `EXTRACT_VERSION` 17 -> 18 (aendert AD-056 Punkt 1).** `arts[]` bekommt
+`element_correct_id` (nur wenn `overwriteAttackElementCorrectId` != −1): gemessen tragen
+**28 von 50** Flach-Arten eine eigene AEC (13 verschiedene Ids, 1005 steht nicht in
+`element_correct` -> diese Art bleibt ohne Zahl mit Satz); 22 nehmen die der Waffe.
+Kein Release liegt auf v17 (1.19.0 ist noch nicht getaggt), der Schritt kostet nur den
+Testabzug.
+
+**4. Pools der Varianten (aendert AD-056 Punkt 1 und 4.3 — Befund aus M5).** Die Magic
+Longsword (2000800) traegt im Auszug `art_pool` **[]** und damit nach Regel 4.3 fest
+"Square Off" (115); der Nutzer hatte sie mit Glintblade Phalanx, und ein Tausch ist nur
+auf der Startarmatur moeglich. Ursache: `EquipParamCustomWeapon` nennt nur die
+Grundwaffe (Longsword 2000000, Pool 52 mit 200). Gemessen: **1398 der 1432** Waffen ohne
+eigenen Pool haben eine Grundwaffe `id // 10000 * 10000` mit Pool; die uebrigen 34 sind
+Katalysatoren, Schilde, Unarmed, Scholar-Sonderzeilen. Regel: **ohne eigene
+CustomWeapon-Zeile erbt eine Waffe den Pool ihrer Grundwaffe** (gleiches fuer
+`spell_pools`). Dieselbe Luecke hat vermutlich `effect_pool` (1404 leer, Longsword 369,
+Magic Longsword 0) — **nicht Teil dieses Nachtrags**, Befund an den director.
+
+**Fixauftrag (developer, ohne Programmstart, je Punkt ein Commit, Suite `-n auto`):**
+1. `nrdata/extract.py`: `arts[].element_correct_id`; `art_pool`/`spell_pools` mit
+   Erbregel Punkt 4; `EXTRACT_VERSION` 18 mit Logzeile; Testabzug neu bauen, `CLAUDE.md`
+   und `docs/plan-restarbeiten.md` nachtragen. Tests: `art_pool[2000800] ==
+   art_pool[2000000]` und enthaelt 200; `arts[200].element_correct_id == 51080`;
+   Zahl der Waffen ohne Pool 34.
+2. `nrplanner/damage.py` `weapon_art`: Flach-Klasse nach Punkt 2 — Bonus ueber
+   `weapons._rate_shared` mit Ersatz-Waffe (`base` = `art["damage"]`, AEC der Art), **nur
+   der Bonus**, kein `reinforce.atk`, keine Nightfarer-Kalibrierung; `ART_NOT_CALIBRATED`
+   bleibt nur fuer eine AEC-Id ohne Eintrag. Einhaendig fest (Punkt 1, falls nicht schon
+   committet). Tests: Wylder Lv15, Magic Longsword Stufe 1, Wahl 200 -> **34**; Stufe 3
+   -> **34**; Longsword Stufe 1, Wahl 200 -> **30**; Stamp mit 2H-Schalter -> **262**
+   wie 1H; ein "Magic Attack Power Up"-Relikt bewegt die Glintblade-Zahl.
+
+**Nicht tun:** `numShoot` in die Zahl multiplizieren (die Zahl bleibt ein Treffer, wie
+AD-056.3); den Stufenfaktor einbauen, bevor M6 vorliegt; `effect_pool` mitaendern.
+
+**Nachtrag T-335z (Nutzerentscheid 31.10. 13:50, "Markierte Kachel"; aendert AD-056 Punkt 7, Ausnahme von A17/AD-038 wie T-335b):** Unter "Hit with Weapon art" rechnet der Berater `damage.weapon_art` auf der markierten Kachel (Waffe, Stufe, Art-Wahl; leere Kachel -> Startarmatur), Anzeige `Weapon art (<Name>) N` = Tafelzahl; die Kachel steht als `AdvisorRequest.art_tile` im Schluessel.
+Tauschrelikte zaehlen nur gehalten (`GoalContext.held_swapped_art_ids`, von `asking_from` ohne Rechnung gelesen); ein Kandidat mit Tauschrelikt bewegt die Zahl nicht und wird dafuer nie vorgeschlagen.
+Kachel ohne Art-Zahl (Katalysator, keine Wahl, Gruende aus AD-056.5): Satz statt Zahl, 0,00 fuer alle Kandidaten (QA-290).
+
+### Bewusst nicht getan (P)
+
+- **Keine Treffersumme je Kunst.** Wieder interessant, wenn das Projekt Animationsdaten
+  liest oder der Nutzer Gesamtschaden je Einsatz verlangt.
+- **Keine Zahl fuer die Flach-Klasse** (50 Arten, 9 der 20 Tauschrelikte). Wieder
+  interessant nach M5 (OF-60).
+- **Kein Speichern der Wahl ueber den Neustart** — folgt den Kacheln (T-335r).
+
+### Offene Fragen (P)
+
+- **OF-59 (director -> ui-ux-designer):** AK-411 nimmt als Zauber-Pool die belegten
+  `equipped_spells`. Gemessen ist Platz 2 eines gefundenen Stabs/Siegels aus 64/92
+  Zaubern gerollt; nur die Startkatalysatoren und Sondervarianten sind fest. Braucht der
+  R2-Chip ein Pool-Popup wie die Art (Vorschlag: ja, gleiche Bedienung)?
+- **OF-60 — beantwortet durch P.7 (M5 = 136), Rest offen als M6.** ~~(director -> Nutzer):~~ Messfall M5 (Wylder mit Glintblade-Phalanx-Relikt, eine
+  Trefferzahl an der Puppe) — erst danach bekommt die Flach-Klasse eine Zahl.
+- **OF-61 (director):** M1 vor oder nach dem Bau messen? Vorschlag: nach Schritt 3, mit der
+  Programmzahl daneben (wie OF-54).
 
 ---
 
