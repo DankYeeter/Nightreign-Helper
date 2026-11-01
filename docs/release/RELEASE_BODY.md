@@ -172,3 +172,12 @@ starts there.
   Nightfarer's starting weapon type counts. The relic picker no longer
   stretches its cards to the full window height when a filter leaves only a
   few relics. The data cache is not rebuilt.
+- **1.20.0** — the relic advisor counts "Attack power up when facing
+  frostbite-afflicted enemy" and its poison and scarlet rot versions only
+  when your build inflicts that ailment itself (a weapon on any tile, a
+  rolled effect such as "Attacks Inflict Frost", the weapon skill or spell
+  chosen in the casting bar, or a relic that adds the ailment or swaps in a
+  skill that inflicts it); the "Why" dialog no longer claims a favourited
+  effect "always counts" when it does not, and says why it is not counted.
+  **The data cache rebuilds once on first launch after this update (about
+  40 seconds, plus the icon pack).** Saved builds and favourites are kept.
