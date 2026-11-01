@@ -165,3 +165,10 @@ starts there.
   stays on screen at every display scaling. **The data cache rebuilds once on
   first launch after this update (about 40 seconds, plus the icon pack).**
   Many smaller wording and tooltip fixes (see `CHANGELOG.md`).
+- **1.19.1** — the relic advisor, its "Why" dialog and the relic picker's
+  Damage column now count a weapon-type bonus (for example "Improved Dagger
+  Attack Power") only for the weapon on your highlighted weapon tile, as they
+  already did for the "3+ ... Equipped" effects; with an empty tile only your
+  Nightfarer's starting weapon type counts. The relic picker no longer
+  stretches its cards to the full window height when a filter leaves only a
+  few relics. The data cache is not rebuilt.

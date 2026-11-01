@@ -4,7 +4,7 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
-## [1.19.1]
+## [1.19.1] - 2026-11-01
 
 ### Fixed
 - The relic advisor, its Why dialog and the relic picker's Damage column
