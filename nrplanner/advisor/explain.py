@@ -642,8 +642,8 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
             unless = ("a weapon-type bonus counts only for the weapon type "
                       "of the selected armament tile or one you set by hand")
         elif ailment is not None:
-            unless = (f"it counts only when your build inflicts "
-                      f"{ailment.lower()} itself or you set it by hand")
+            unless = (f"it counts only when your selected armament or a relic "
+                      f"inflicts {ailment.lower()} or you set it by hand")
         else:
             unless = ""
         if unless:

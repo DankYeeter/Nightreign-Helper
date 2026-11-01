@@ -1,10 +1,12 @@
 """An ailment-gated condition counts only where the build inflicts it.
 
 User decision 01.11.2026: "Attack power up when facing frostbite-afflicted
-enemy" and its poison and scarlet-rot twins count in the advisor's baseline only where the build inflicts the ailment
-itself -- an armament anywhere on the grid, or a relic that makes the attacks
-inflict it ("Starting armament inflicts frost"). A declaration by hand
-stands. Every effect is found by a property of the dataset.
+enemy" and its poison and scarlet-rot twins count in the advisor's baseline
+only where the build inflicts the ailment itself -- the armament on the
+selected tile (its rolls, art or spell; the starting armament for an empty
+tile), or a relic that makes the attacks inflict it ("Starting armament
+inflicts frost"). An armament on another tile is not a source. A declaration
+by hand stands. Every effect is found by a property of the dataset.
 """
 
 from __future__ import annotations
@@ -83,15 +85,32 @@ def test_without_a_source_the_condition_does_not_count(planner, game_data):
         types.SILENT_UNDER_A_CONDITION}
 
 
-def test_an_armament_on_any_tile_is_a_source(planner, game_data):
+def test_an_armament_on_another_tile_is_no_source(planner, game_data):
+    """The user's case, 01.11.2026: Wylder, his greatsword on the selected
+    tile, a Cold Dagger on the next one -- the frost buff counted, though
+    the dagger is not the armament in hand."""
+    planner.declared = {}
+    frost = awaiting(game_data, planner.current_hero(), "Frost")
+    assert "Frost" not in (planner.active_slot().weapon.get("inflicts") or {})
+    elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
+    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(
+        weapon=an_armament_inflicting(game_data, "Frost"))
+
+    asking = advisorbar.asking_from(planner, DAMAGE)
+
+    assert frost not in dict(asking.ctx.declared)
+    assert frost in asking.ctx.awaiting_ailment
+
+
+def test_the_armament_on_the_selected_tile_is_a_source(planner, game_data):
     planner.declared = {}
     hero = planner.current_hero()
     frost = awaiting(game_data, hero, "Frost")
     poison = awaiting(game_data, hero, "Poison")
-    elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
     cold = an_armament_inflicting(game_data, "Frost")
     assert "Poison" not in cold["inflicts"]
-    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(weapon=cold)
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot(
+        weapon=cold)
 
     asking = advisorbar.asking_from(planner, DAMAGE)
 
@@ -101,20 +120,52 @@ def test_an_armament_on_any_tile_is_a_source(planner, game_data):
     assert counted(result.suggestions[0], (frost,)) == {frost}
 
 
-def test_a_roll_on_any_tile_is_a_source(planner, game_data):
-    """User decision 01.11.2026: "Attacks Inflict Frost" rolled on an
-    armament of the grid inflicts frost as a built-in one does."""
+def test_an_empty_selected_tile_stands_for_the_starting_armament(
+        planner, game_data, monkeypatch):
+    """No starting armament of this dataset inflicts frost, poison or rot,
+    so one that does is put in its place: the empty tile reads it, and a
+    frost armament on another tile still does not count."""
+    planner.declared = {}
+    hero = planner.current_hero()
+    frost = awaiting(game_data, hero, "Frost")
+    cold = an_armament_inflicting(game_data, "Frost")
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot()
+    elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
+    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(weapon=cold)
+    assert frost not in dict(advisorbar.asking_from(planner, DAMAGE)
+                             .ctx.declared)
+
+    starting = planner.weapon_by_id
+    monkeypatch.setattr(planner, "weapon_by_id", lambda weapon_id: (
+        cold if weapon_id == hero["starting_weapon"] else starting(weapon_id)))
+
+    assert frost in dict(advisorbar.asking_from(planner, DAMAGE).ctx.declared)
+
+
+def frost_roll(data: dict) -> int:
+    """The lowest-numbered armament roll "Attacks Inflict Frost"."""
+    return next(int(key) for key in sorted(data["effects"], key=int)
+                if "Frost" in (data["effects"][key].get(
+                    "inflicts_on_hit") or {})
+                and not data["effects"][key].get("colours"))
+
+
+def test_a_roll_on_the_selected_tile_is_a_source(planner, game_data):
+    """User decision 01.11.2026: "Attacks Inflict Frost" rolled on the
+    selected armament inflicts frost as a built-in one does; rolled on
+    another tile, it does not."""
     planner.declared = {}
     frost = awaiting(game_data, planner.current_hero(), "Frost")
-    roll = next(int(key) for key in sorted(game_data["effects"], key=int)
-                if "Frost" in (game_data["effects"][key].get(
-                    "inflicts_on_hit") or {})
-                and not game_data["effects"][key].get("colours"))
     plain = next(weapon for weapon in game_data["weapons"]
                  if not weapon.get("inflicts"))
+    rolled = weaponslots.WeaponSlot(weapon=plain,
+                                    effect_ids=[frost_roll(game_data)])
     elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
-    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(
-        weapon=plain, effect_ids=[roll])
+    planner.weapon_slots[elsewhere] = rolled
+    assert frost not in dict(advisorbar.asking_from(planner, DAMAGE)
+                             .ctx.declared)
+
+    planner.weapon_slots[planner.active_weapon] = rolled.copy()
 
     assert frost in dict(advisorbar.asking_from(planner, DAMAGE).ctx.declared)
 
@@ -230,8 +281,9 @@ def test_a_favourite_without_a_source_says_it_is_not_counted(planner,
              for line in group.lines if line.effect_id == frost]
     assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
     assert line.text.endswith("you favourited it, but it counts only when "
-                              "your build inflicts frost itself or you set "
-                              "it by hand, so this one is not counted.")
+                              "your selected armament or a relic inflicts "
+                              "frost or you set it by hand, so this one is "
+                              "not counted.")
 
 
 def test_a_favourite_weapon_type_bonus_of_another_type_says_so(planner,

@@ -48,7 +48,7 @@ from PySide6.QtWidgets import (QBoxLayout, QComboBox, QHBoxLayout, QLabel,
                                QProgressBar, QPushButton, QSizePolicy,
                                QVBoxLayout, QWidget)
 
-from . import damage, effecttext, favourites, model, weapons
+from . import damage, effecttext, favourites, model, weapons, weaponslots
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
@@ -556,9 +556,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     **And a third (01.11.2026):** the selected tile's type also decides
     which weapon-type buffs ("Improved Dagger Attack Power") the baseline
     counts as met; it reaches the key through `declared`. **And a fourth
-    (01.11.2026):** the ailments the armaments on all six tiles inflict
-    decide which ailment-gated conditions the baseline counts as met, again
-    through `declared`.
+    (01.11.2026):** the ailments the selected tile's armament inflicts
+    (the starting armament for an empty tile) decide which ailment-gated
+    conditions the baseline counts as met, again through `declared`.
     """
     owned = planner.owned
     if owned is None:
@@ -603,20 +603,24 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                      None})
     # "Attack power up when facing frostbite-afflicted enemy" and its twins,
     # if the player did not declare them, hold only where the build inflicts
-    # the ailment itself (user decision 01.11.2026): an armament anywhere on
-    # the grid or one of its rolls ("Attacks Inflict Frost") here, a relic of
-    # the build in `evaluate` (`ctx.awaiting_ailment`), and the art or spell
-    # the casting bar has the selected tile use, without a relic's swap: a
-    # swap relic is a relic of the build, and `evaluate` reads it.
+    # the ailment itself (user decision 01.11.2026): the selected tile's
+    # armament, its rolls ("Attacks Inflict Frost") and the art or spell the
+    # casting bar has it use, without a relic's swap, here; a relic of the
+    # build, swap relics included, in `evaluate` (`ctx.awaiting_ailment`).
+    # An armament on another tile is not a source -- only the selected one
+    # is in hand -- and an empty selected tile stands for the starting
+    # armament.
+    tile, tile_index = planner.active_slot(), planner.active_weapon
+    if tile.weapon is None:
+        tile = weaponslots.WeaponSlot(
+            weapon=planner.weapon_by_id(hero.get("starting_weapon")))
+        tile_index = damage.STARTING_SLOT
     inflicted: set[str] = set()
-    for slot in planner.weapon_slots:
-        if slot.weapon is not None:
-            inflicted.update(slot.weapon.get("inflicts") or {})
-            for effect_id in slot.effect_ids:
-                inflicted.update((effects.get(str(effect_id)) or {}).get(
-                    "inflicts_on_hit") or {})
-    tile = planner.active_slot()
     if tile.weapon is not None:
+        inflicted.update(tile.weapon.get("inflicts") or {})
+        for effect_id in tile.effect_ids:
+            inflicted.update((effects.get(str(effect_id)) or {}).get(
+                "inflicts_on_hit") or {})
         if (tile.weapon.get("wep_type") in damage.GENUS_OF_CATALYST
                 and any(s != -1 for s in
                         tile.weapon.get("equipped_spells") or ())):
@@ -625,7 +629,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                                        tile.weapon, starting=own,
                                        chosen=tile.spell_id)[0]
         else:
-            used = damage.art_in_use(tile, planner.active_weapon,
+            used = damage.art_in_use(tile, tile_index,
                                      model.Build(), hero, planner.data)[0]
         inflicted.update((used or {}).get("inflicts") or {})
     awaiting = {effect_id for effect_id in baseline

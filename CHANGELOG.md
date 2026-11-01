@@ -4,6 +4,14 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.20.1] - 2026-11-01
+
+### Changed
+- An ailment bonus such as "Attack power up when facing frostbite-afflicted
+  enemy" now counts only for the weapon on the selected tile (its rolled
+  effects, skill or spell; the starting weapon if that tile is empty) or a
+  relic; weapons on other tiles no longer count.
+
 ## [1.20.0] - 2026-11-01
 
 ### Changed

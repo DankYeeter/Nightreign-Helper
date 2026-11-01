@@ -444,8 +444,9 @@ class GoalContext:
     #: Conditions on an enemy ailment (`effecttext.ailment_awaited`) the
     #: baseline counts in a build only where one of its relics makes the
     #: attacks inflict the ailment (`inflicts_on_hit`, user decision
-    #: 01.11.2026), sorted. Those an armament on the grid inflicts are in
-    #: `declared` instead. Not in the key: they are the conditions of that
+    #: 01.11.2026), sorted. Those the selected tile's armament inflicts
+    #: (its rolls, art or spell included) are in `declared` instead; an
+    #: armament on another tile is no source. Not in the key: they are the conditions of that
     #: kind `declared` leaves out, so `declared` decides them.
     awaiting_ailment: tuple[int, ...] = ()
     #: The staff or seal on the selected tile, `None` where it holds none:
