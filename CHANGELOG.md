@@ -15,8 +15,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
   Inflict Frost" on any weapon tile, the weapon skill or spell selected in
   the casting bar, and relics that swap in a skill which inflicts the
   ailment (for example Poison Moth Flight). **The data cache is rebuilt once
-  on first launch after this update (about 40 seconds, plus the icon
-  pack).** Your saved builds and favourites are kept.
+  on first launch after this update (about 45 seconds; the icon pack is not
+  rebuilt).** Your saved builds and favourites are kept.
 
 ### Fixed
 - The Why dialog no longer says a favourited effect "always counts" when it

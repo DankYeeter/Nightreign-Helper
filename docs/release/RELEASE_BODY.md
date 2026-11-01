@@ -180,4 +180,5 @@ starts there.
   skill that inflicts it); the "Why" dialog no longer claims a favourited
   effect "always counts" when it does not, and says why it is not counted.
   **The data cache rebuilds once on first launch after this update (about
-  40 seconds, plus the icon pack).** Saved builds and favourites are kept.
+  45 seconds; the icon pack is not rebuilt).** Saved builds and favourites
+  are kept.
