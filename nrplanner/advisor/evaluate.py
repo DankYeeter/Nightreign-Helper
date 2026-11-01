@@ -89,6 +89,21 @@ def _effects(ctx: types.GoalContext,
     return found
 
 
+def _inflicted_by(effect: dict, data: Mapping) -> set[str]:
+    """The ailments a relic effect makes the attacks inflict: its own
+    on-hit buildup, or that of the art or spell it swaps in ("Changes
+    compatible armament's skill to Poison Moth Flight")."""
+    found = set(effect.get("inflicts_on_hit") or {})
+    swaps = (("arts", (effect.get("modifiers") or {}).get("startSwordArtsId")),
+             ("spells", effect.get("start_magic_id")))
+    for block, record_id in swaps:
+        if isinstance(record_id, int):
+            found.update(next((record.get("inflicts") or {}
+                               for record in data.get(block) or ()
+                               if record["id"] == record_id), {}))
+    return found
+
+
 def _declared_variants(ctx: types.GoalContext,
                        effect_ids: tuple[int, ...]) -> list[dict[int, int]]:
     """`declared` once per armament type the baseline may assume met here.
@@ -115,7 +130,7 @@ def _declared_variants(ctx: types.GoalContext,
         hero = str(ctx.hero.get("name", ""))
         inflicted = {label for effect in _effects(ctx, effect_ids)
                      if effecttext.works_for(effect, hero)
-                     for label in effect.get("inflicts_on_hit") or {}}
+                     for label in _inflicted_by(effect, ctx.data)}
         declared.update(dict.fromkeys(
             (effect_id for effect_id in ctx.awaiting_ailment
              if effecttext.ailment_awaited(effects[str(effect_id)])

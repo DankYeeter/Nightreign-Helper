@@ -604,11 +604,30 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # "Attack power up when facing frostbite-afflicted enemy" and its twins,
     # if the player did not declare them, hold only where the build inflicts
     # the ailment itself (user decision 01.11.2026): an armament anywhere on
-    # the grid here, a relic of the build in `evaluate`
-    # (`ctx.awaiting_ailment`). Arts and spells carry no ailment in the data.
-    inflicted = {label for slot in planner.weapon_slots
-                 if slot.weapon is not None
-                 for label in slot.weapon.get("inflicts") or {}}
+    # the grid or one of its rolls ("Attacks Inflict Frost") here, a relic of
+    # the build in `evaluate` (`ctx.awaiting_ailment`), and the art or spell
+    # the casting bar has the selected tile use, without a relic's swap: a
+    # swap relic is a relic of the build, and `evaluate` reads it.
+    inflicted: set[str] = set()
+    for slot in planner.weapon_slots:
+        if slot.weapon is not None:
+            inflicted.update(slot.weapon.get("inflicts") or {})
+            for effect_id in slot.effect_ids:
+                inflicted.update((effects.get(str(effect_id)) or {}).get(
+                    "inflicts_on_hit") or {})
+    tile = planner.active_slot()
+    if tile.weapon is not None:
+        if (tile.weapon.get("wep_type") in damage.GENUS_OF_CATALYST
+                and any(s != -1 for s in
+                        tile.weapon.get("equipped_spells") or ())):
+            own = damage.spell_catalyst(tile.weapon, hero, planner.data)[1]
+            used = damage.spell_thrown(model.Build(), planner.data,
+                                       tile.weapon, starting=own,
+                                       chosen=tile.spell_id)[0]
+        else:
+            used = damage.art_in_use(tile, planner.active_weapon,
+                                     model.Build(), hero, planner.data)[0]
+        inflicted.update((used or {}).get("inflicts") or {})
     awaiting = {effect_id for effect_id in baseline
                 if effect_id not in planner.declared
                 and effecttext.ailment_awaited(effects[str(effect_id)])

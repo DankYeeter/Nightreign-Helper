@@ -114,7 +114,13 @@ MAX_LEVEL = 15
 #      (`id // 10000 * 10000`, AD-056 P.7): a Magic Longsword is found with
 #      the Longsword's arts. A cache left on 17 would fix every found
 #      variant on one art.
-EXTRACT_VERSION = 18
+#  19  the status buildup an art or a spell applies to what it hits,
+#      `arts[].inflicts` and `spells[].inflicts`, over AtkParam/Bullet
+#      spEffectId0..4, and `effects[].inflicts_on_hit` also over the attach
+#      row's onHitSpEffect ("Attacks Inflict Rot" 8110400-402). A cache left
+#      on 18 would leave the advisor without those sources of an ailment
+#      (user decision 01.11.2026).
+EXTRACT_VERSION = 19
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -167,7 +173,14 @@ VARIANT_SPAN = 10000
 # 2 is a special effect and carries no damage of its own.
 MAGIC_REF_ATTACK = 0
 MAGIC_REF_BULLET = 1
+MAGIC_REF_SPEFFECT = 2
 MAGIC_REF_SLOTS = 10
+
+# The SpEffect rows an AtkParam or Bullet row applies to what it hits: where
+# an art's or a spell's status buildup sits (Zamor Ice Storm's frost 35 on
+# its bullet's spEffectId0, Poison Moth Flight's poison on its attack row's
+# spEffectId1).
+HIT_SP_EFFECT_FIELDS = tuple(f"spEffectId{i}" for i in range(5))
 
 # A bullet that spawns another (HitBulletID) is how a charged or delayed hit
 # is built, and the strongest figure of a spell often sits on such a child:
@@ -2349,7 +2362,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         # the wearer. The difference is the field the chain starts from --
         # atkOccurrenceSpEffectId fires on an attack landing, the other chain
         # fields fire on a timer or on being hit.
-        on_hit_ids = [modifiers.get(ATTACK_CHAIN_FIELD)]
+        # The attach row's own onHitSpEffect is the other door: "Attacks
+        # Inflict Rot" 8110400-402 carries nothing else, and its payload
+        # is the very row 8110410 reaches through atkOccurrenceSpEffectId.
+        on_hit_ids = [modifiers.get(ATTACK_CHAIN_FIELD),
+                      row.values.get("onHitSpEffect")]
         on_hit_ids += [sp_by_id[i].values.get(ATTACK_CHAIN_FIELD)
                        for i in sp_ids if i in sp_by_id]
         inflicts_on_hit: dict[str, Any] = {}
@@ -2938,7 +2955,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     atk_table = param.read(
         members["AtkParam_Pc"],
         only(atk_def, {*SPELL_DAMAGE_FIELDS.values(), *ART_MOTION_FIELDS.values(),
-                       ART_ELEMENT_CORRECT_FIELD}),
+                       ART_ELEMENT_CORRECT_FIELD, *HIT_SP_EFFECT_FIELDS}),
     )
     if not atk_table.rows or not atk_table.rows[0].values:
         raise NotWhatItClaims(
@@ -2951,12 +2968,29 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         r.id: r
         for r in param.read(
             members["Bullet"],
-            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID"}),
+            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
+                                      *HIT_SP_EFFECT_FIELDS}),
         ).rows
     }
+    statuses = set(STATUS_POWER.values())
 
-    def spell_damage(row: param.ParamRow) -> tuple[dict[str, int], int]:
-        """The spell's strongest single hit, per damage type, and its row.
+    def hit_inflicts(sp_ids) -> dict[str, Any]:
+        """The status buildup these SpEffect rows apply to what is hit."""
+        found: dict[str, Any] = {}
+        for sp_id in sp_ids:
+            if isinstance(sp_id, int) and sp_id > 0:
+                for label, value in follow_chain(sp_id).items():
+                    if label in statuses:
+                        found.setdefault(label, value)
+        return found
+
+    def hit_sp_ids(row) -> list:
+        return [row.values.get(field) for field in HIT_SP_EFFECT_FIELDS]
+
+    def spell_damage(row: param.ParamRow
+                     ) -> tuple[dict[str, int], int, dict[str, Any]]:
+        """The spell's strongest single hit, per damage type, its row, and
+        the status buildup any of its hits applies.
 
         Strongest rather than first: across the shipped data both name the
         same set of damage types, so the choice moves no ranking, and the
@@ -2965,6 +2999,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         a charged form this is the charged figure -- Beast Claw 362, not 323.
         """
         atk_ids: list[int] = []
+        on_hit: list = []
         seen: set[int] = set()
 
         def follow_bullet(bullet_id, depth: int) -> None:
@@ -2980,6 +3015,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             if bullet is None:
                 return
             atk_ids.append(bullet.values.get("atkId_Bullet", -1))
+            on_hit.extend(hit_sp_ids(bullet))
             follow_bullet(bullet.values.get("HitBulletID", -1), depth + 1)
 
         for slot in range(1, MAGIC_REF_SLOTS + 1):
@@ -2991,6 +3027,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 follow_bullet(ref, 0)
             elif category == MAGIC_REF_ATTACK:
                 atk_ids.append(ref)
+            elif category == MAGIC_REF_SPEFFECT and ref in sp_by_id:
+                # A buff on the caster ("Poison Armament"): only what it
+                # makes the caster's attacks apply, never what it does to
+                # the caster.
+                on_hit.append(sp_by_id[ref].values.get(ATTACK_CHAIN_FIELD))
 
         best: dict[str, int] = {}
         best_atk = -1
@@ -2998,6 +3039,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             atk_row = atk_by_id.get(atk_id)
             if atk_row is None:
                 continue
+            on_hit.extend(hit_sp_ids(atk_row))
             # Whole numbers above zero only. A type a hit does not deal has
             # no place in the mapping, and a value that is not an integer is
             # not this field -- NaN would go into the snapshot as a token no
@@ -3010,7 +3052,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             }
             if sum(hit.values()) > sum(best.values()):
                 best, best_atk = hit, atk_row.id
-        return best, best_atk
+        return best, best_atk, hit_inflicts(on_hit)
 
     # Families the buffs do not name: mine the spell descriptions, which say
     # things like "one of the primeval sorceries". Only accept a phrase that
@@ -3066,7 +3108,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if category is None:
             continue
         sub = r.values.get("subCategory1")
-        damage_by_type, damage_atk = spell_damage(r)
+        damage_by_type, damage_atk, inflicts = spell_damage(r)
         spells.append(
             {
                 "id": r.id,
@@ -3090,6 +3132,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # spell that damages nothing -- a heal, a buff, a shield.
                 **({"damage": damage_by_type, "damage_atk": damage_atk}
                    if damage_by_type else {}),
+                # Status buildup per hit; absent where no hit applies one.
+                **({"inflicts": inflicts} if inflicts else {}),
             }
         )
 
@@ -3116,7 +3160,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         flat: dict[str, int] = {}
         motion: dict[str, int] = {}
         element_correct_id = -1
+        inflicts = {}
         if atk_row is not None:
+            inflicts = hit_inflicts(hit_sp_ids(atk_row))
             element_correct_id = atk_row.values.get(
                 ART_ELEMENT_CORRECT_FIELD, -1)
             flat = {damage: atk_row.values[field]
@@ -3139,6 +3185,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # (AD-056 P.7.2); absent where the art keeps the armament's.
             **({"element_correct_id": element_correct_id}
                if element_correct_id != -1 else {}),
+            # Status buildup of the row the art names; absent where none.
+            # Hoarfrost Stomp's frost is not on it (01.11.2026).
+            **({"inflicts": inflicts} if inflicts else {}),
         })
 
     # ---- Chances the engine keeps in PlayerCommonParam's undescribed tail --

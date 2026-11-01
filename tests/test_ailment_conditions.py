@@ -101,6 +101,24 @@ def test_an_armament_on_any_tile_is_a_source(planner, game_data):
     assert counted(result.suggestions[0], (frost,)) == {frost}
 
 
+def test_a_roll_on_any_tile_is_a_source(planner, game_data):
+    """User decision 01.11.2026: "Attacks Inflict Frost" rolled on an
+    armament of the grid inflicts frost as a built-in one does."""
+    planner.declared = {}
+    frost = awaiting(game_data, planner.current_hero(), "Frost")
+    roll = next(int(key) for key in sorted(game_data["effects"], key=int)
+                if "Frost" in (game_data["effects"][key].get(
+                    "inflicts_on_hit") or {})
+                and not game_data["effects"][key].get("colours"))
+    plain = next(weapon for weapon in game_data["weapons"]
+                 if not weapon.get("inflicts"))
+    elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
+    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(
+        weapon=plain, effect_ids=[roll])
+
+    assert frost in dict(advisorbar.asking_from(planner, DAMAGE).ctx.declared)
+
+
 def test_a_relic_source_and_its_beneficiary_are_found_as_a_pair(
         planner, game_data):
     """Relic A makes the starting armament inflict frost, relic B profits:
@@ -126,3 +144,61 @@ def test_a_declaration_by_hand_stands(planner, game_data):
 
     assert dict(asking.ctx.declared)[frost] == 1
     assert frost not in asking.ctx.awaiting_ailment
+
+
+def test_arts_spells_and_rot_rolls_carry_their_ailment(game_data):
+    """EXTRACT_VERSION 19: the buildup an art's or a spell's hit applies,
+    and the on-hit door of "Attacks Inflict Rot" (`onHitSpEffect`)."""
+    assert any(art.get("inflicts") for art in game_data["arts"])
+    assert any(spell.get("inflicts") for spell in game_data["spells"])
+    rot = [effect for effect in game_data["effects"].values()
+           if effecttext.name(effect) == "Attacks Inflict Rot"]
+    assert rot and all("Scarlet Rot" in effect["inflicts_on_hit"]
+                       for effect in rot)
+
+
+def an_art_inflicting(data: dict, ailment: str) -> dict:
+    for art in data["arts"]:
+        if ailment in (art.get("inflicts") or {}):
+            return art
+    pytest.skip(f"no art in this dataset inflicts {ailment}")
+
+
+def test_the_art_the_casting_bar_uses_is_a_source(planner, game_data):
+    planner.declared = {}
+    poison = awaiting(game_data, planner.current_hero(), "Poison")
+    art = an_art_inflicting(game_data, "Poison")
+    weapon = next((w for w in game_data["weapons"]
+                   if art["id"] in (w.get("art_pool") or ())
+                   and "Poison" not in (w.get("inflicts") or {})
+                   and not w.get("equipped_spells", [-1]) != [-1, -1]), None)
+    if weapon is None:
+        pytest.skip("no armament without poison offers that art")
+    planner.weapon_slots[planner.active_weapon] = weaponslots.WeaponSlot(
+        weapon=weapon, art_id=art["id"])
+
+    assert poison in dict(advisorbar.asking_from(planner, DAMAGE).ctx.declared)
+
+
+def test_a_relic_swapping_in_an_art_is_a_source(planner, game_data):
+    """"Changes compatible armament's skill to Poison Moth Flight": the
+    swapped art inflicts poison, so held, it lets the poison buff count."""
+    art = an_art_inflicting(game_data, "Poison")
+    swap = next((effect for effect in game_data["effects"].values()
+                 if effect["modifiers"].get("startSwordArtsId") == art["id"]
+                 and effect.get("colours")), None)
+    if swap is None:
+        pytest.skip("no relic swaps in a poison art")
+    owner = (swap["allowed_heroes"] or [planner.current_hero()["name"]])[0]
+    planner.select_hero(next(index for index, hero
+                             in enumerate(planner.heroes)
+                             if hero["name"] == owner))
+    planner.declared = {}
+    poison = awaiting(game_data, planner.current_hero(), "Poison")
+    swap = swap["id"]
+    asking = advisorbar.asking_from(planner, DAMAGE)
+
+    held = suggest(asking, game_data, [[swap], [poison]], slots=2,
+                   holding_first=True)
+
+    assert counted(held.suggestions[0], (poison,)) == {poison}
