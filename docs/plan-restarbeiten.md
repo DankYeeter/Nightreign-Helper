@@ -694,3 +694,12 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
 - QA 1.19.1, besteht schon in 1.19.0, gegen Spec ungeprueft: Recluse,
   Gebetsfamilie "Thorn" liefert "Spell damage (Glintstone Pebble)";
   "Hit with Weapon art" liefert fuer Recluse und Revenant keinen Vorschlag.
+- Zustandsquellen, Datenluecke (EXTRACT_VERSION 19, 01.11.2026): Hoarfrost
+  Stomp, Chilling Mist, Poisonous Mist, Blood Blade (Zustand nicht auf der
+  genannten AtkParam-Zeile), 7034600 Ironeye Art Charge Poison und 6500000
+  Wylder Skill Blood Loss (Kette ohne Zustand) liefern keine Quelle. Trifft
+  eigene Relikte des Nutzers (z. B. 3229614166).
+- Hand-Erklaerung gilt je Effekt: wer die "+1"-Stufe erklaert, schaltet den
+  Grund-Frost-Bonus 7260400 nicht mit frei (QA 1.20.0).
+- Why bei einer Zustandsquelle nennt nur "-15 % counted against it", nicht den
+  freigeschalteten Gewinn (Reliktwahl zeigt +1.1 AR): ui-ux-designer.

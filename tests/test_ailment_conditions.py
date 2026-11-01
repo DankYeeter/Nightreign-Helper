@@ -202,3 +202,65 @@ def test_a_relic_swapping_in_an_art_is_a_source(planner, game_data):
                    holding_first=True)
 
     assert counted(held.suggestions[0], (poison,)) == {poison}
+
+
+def test_a_favourite_without_a_source_says_it_is_not_counted(planner,
+                                                             game_data):
+    """QA-321: Wylder, his greatsword alone on the grid, the frost buff
+    favourited -- the Why said "you favourited it, so it always counts"
+    while the build counted nothing for it (AK-383)."""
+    import dataclasses
+
+    from nrplanner.advisor import goals, run
+
+    from tests import advisor_cases as advisor
+
+    planner.declared = {}
+    frost = awaiting(game_data, planner.current_hero(), "Frost")
+    asking = advisorbar.asking_from(planner, DAMAGE)
+    owned = advisor.make_inventory(game_data, asking.ctx.hero, count=1,
+                                   handles=[100], rolls=[[frost]])
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({frost}))
+    frozen = run.frozen_inventory(owned, problem)
+    result = run.run(advisor.request_for(problem, asking.ctx, frozen),
+                     frozen, asking.ctx, goals.GOALS)
+
+    line, = [line for group in result.suggestions[0].reasons
+             for line in group.lines if line.effect_id == frost]
+    assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
+    assert line.text.endswith("you favourited it, but it counts only when "
+                              "your build inflicts frost itself or you set "
+                              "it by hand, so this one is not counted.")
+
+
+def test_a_favourite_weapon_type_bonus_of_another_type_says_so(planner,
+                                                               game_data):
+    """QA-321, the 1.19.1 half: "Improved Dagger Attack Power" favourited
+    beside Wylder's greatsword."""
+    import dataclasses
+
+    from nrplanner.advisor import goals, run
+
+    from tests import advisor_cases as advisor
+    from tests.test_one_armament_count_type import a_weapon_type_attack_buff
+
+    planner.declared = {}
+    hero = planner.current_hero()
+    selected = planner.active_slot().weapon["wep_type"]
+    other = min({w.get("wep_type") for w in game_data["weapons"]}
+                - {selected, None})
+    buff = a_weapon_type_attack_buff(game_data, hero, other)
+    asking = advisorbar.asking_from(planner, DAMAGE)
+    owned = advisor.make_inventory(game_data, hero, count=1, handles=[100],
+                                   rolls=[[buff]])
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({buff}))
+    frozen = run.frozen_inventory(owned, problem)
+    result = run.run(advisor.request_for(problem, asking.ctx, frozen),
+                     frozen, asking.ctx, goals.GOALS)
+
+    line, = [line for group in result.suggestions[0].reasons
+             for line in group.lines if line.effect_id == buff]
+    assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
+    assert "a weapon-type bonus counts only" in line.text

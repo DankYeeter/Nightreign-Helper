@@ -627,15 +627,29 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     # type of the selected armament tile, and only when no other type is
     # declared by hand (`advisorbar.asking_from`,
     # `evaluate._declared_variants`); otherwise it waits on its condition.
+    # The same holds for a weapon-type bonus of another type and for a
+    # condition on an enemy ailment the build does not inflict (01.11.2026,
+    # QA-321).
     if (effect_id in problem.required
-            and effecttext.counts_armaments(effect)
             and effect_id not in dict(ctx.declared)
             and _waits_on_its_condition(effect_id, built)):
-        return said(f"{name}: you favourited it, but a weapon-count "
-                    f"condition counts only for the weapon type of the "
-                    f"selected armament tile or one you set by hand, so "
-                    f"this one is not counted.",
-                    types.SILENT_REQUIRED_OTHER_TYPE)
+        ailment = effecttext.ailment_awaited(effect)
+        if effecttext.counts_armaments(effect):
+            unless = ("a weapon-count condition counts only for the weapon "
+                      "type of the selected armament tile or one you set by "
+                      "hand")
+        elif "triggerOnWepType" in effect["modifiers"]:
+            unless = ("a weapon-type bonus counts only for the weapon type "
+                      "of the selected armament tile or one you set by hand")
+        elif ailment is not None:
+            unless = (f"it counts only when your build inflicts "
+                      f"{ailment.lower()} itself or you set it by hand")
+        else:
+            unless = ""
+        if unless:
+            return said(f"{name}: you favourited it, but {unless}, so this "
+                        f"one is not counted.",
+                        types.SILENT_REQUIRED_OTHER_TYPE)
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked

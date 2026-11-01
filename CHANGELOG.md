@@ -10,6 +10,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - The relic advisor counts "Attack power up when facing frostbite-afflicted enemy" and its poison and scarlet rot versions only when your build inflicts that ailment itself: a weapon on any tile, or a relic such as "Starting armament inflicts frost".
 - These ailment sources now also include rolled effects such as "Attacks Inflict Frost" on any weapon tile, the weapon skill or spell selected in the casting bar, and relics that swap in a skill which inflicts the ailment (for example Poison Moth Flight). The data cache is rebuilt once on first launch.
 
+### Fixed
+- The Why dialog no longer says a favourited effect "always counts" when it does not count: a weapon-type bonus for another weapon type, or an ailment bonus your build cannot trigger, now says why it is not counted.
+
 ## [1.19.1] - 2026-11-01
 
 ### Fixed

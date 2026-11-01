@@ -669,6 +669,8 @@ SILENT_REQUIRED = "required"
 #: build counts another type's or none: a build meets the condition of only
 #: one type (AD-036.6, addendum 12.10.2026), the selected tile's unless one
 #: is declared by hand (28.10.2026), so this one moved nothing (AK-383).
+#: Likewise a weapon-type bonus of another type and a condition on an enemy
+#: ailment the build does not inflict (01.11.2026, QA-321).
 SILENT_REQUIRED_OTHER_TYPE = "required_other_type"
 
 
