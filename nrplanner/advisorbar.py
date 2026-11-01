@@ -553,6 +553,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     selected tile is what the spell cells cast from (`ctx.selected_catalyst`,
     in the key as `selected_catalyst_id`), the one the stat sheet's spell
     row stands on; its tier and rolls stay out, as the starting armament's.
+    **And a third (01.11.2026):** the selected tile's type also decides
+    which weapon-type buffs ("Improved Dagger Attack Power") the baseline
+    counts as met; it reaches the key through `declared`.
     """
     owned = planner.owned
     if owned is None:
@@ -586,10 +589,22 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # to it).
     baseline = {**model.advisor_defaults(), **planner.declared}
     effects = planner.data["effects"]
+    selected = planner.active_slot().weapon
+    # A weapon-type buff ("Improved Dagger Attack Power") the player did not
+    # declare holds only for the selected tile's type, by the same user
+    # decision as the count conditions below (01.11.2026); an empty tile
+    # leaves it to the starting armament `model.compute` gates against. A
+    # `triggerOnWepType` no armament carries (256, 512) is no type and stays.
+    unselected = ({weapon.get("wep_type") for weapon in planner.data["weapons"]}
+                  - {None if selected is None else selected.get("wep_type"),
+                     None})
+    baseline = {effect_id: count for effect_id, count in baseline.items()
+                if effect_id in planner.declared
+                or effects[str(effect_id)]["modifiers"].get("triggerOnWepType")
+                not in unselected}
     counts = {effect_id for effect_id in baseline
               if effect_id not in planner.declared
               and effecttext.counts_armaments(effects[str(effect_id)])}
-    selected = planner.active_slot().weapon
     neutral_type = (planner.data.get("field_baselines") or {}).get(
         "wepTypeTrigger")
     assumed = set() if selected is None else {

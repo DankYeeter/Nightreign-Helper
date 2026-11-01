@@ -675,3 +675,10 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   Nutzer 31.10.); gebaut ohne Stufenfaktor. Messung nur im Lauf moeglich.
 - R1 zweihaendig nach Stamp (Wylder Lv15): Puppe 126, Programm 125 (T-335v).
 - Bau nur mit `PYTHONHASHSEED=0` und `SOURCE_DATE_EPOCH` bitgleich (T-335bau); in Bauskript/`release.yml` aufnehmen.
+- Waffentyp-Bonus, Restfall (1.19.1): Dolch auf der markierten Kachel ->
+  "Improved Greatsword Attack Power" zaehlt fuer Wylder weiter, weil
+  `model.compute` gegen die Startwaffe prueft (AD-038). Aendern hiesse
+  `ctx.weapons_held` fuellen, beruehrt A17-Waechter. GOAL.md A17 und AD-Doku
+  nennen die neue Ausnahme (markierte Kachel) noch nicht: architect.
+- Vessel-Liste bei schmalem Fenster: Namen abgeschnitten ("Soot-Covered Wy"),
+  waagerechter Rollbalken (Nutzertest 1.19.0, 01.11.2026).

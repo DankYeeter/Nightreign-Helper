@@ -4,6 +4,18 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [1.19.1]
+
+### Fixed
+- The relic advisor, its Why dialog and the relic picker's Damage column
+  no longer count a weapon-type bonus such as "Improved Dagger Attack
+  Power" for a type other than the weapon on your highlighted weapon tile,
+  as for the "3+ ... Equipped" effects; with an empty highlighted tile only
+  your Nightfarer's starting weapon type counts.
+- The relic picker no longer stretches its cards to the full window height
+  when a filter leaves only a few relics; cards stand at the top, each row
+  as tall as its tallest card.
+
 ## [1.19.0] - 2026-10-28
 
 ### Added

@@ -1252,7 +1252,13 @@ def test_a_declared_condition_outlives_the_baseline(planner):
               if effecttext.counts_armaments(
                   planner.data["effects"][str(effect_id)])}
     assert assumed <= counts
-    assert declared.keys() | counts >= set(model.advisor_defaults())
+    # The weapon-type buffs follow the selected tile's type (01.11.2026):
+    # `tests/test_one_armament_count_type.py`.
+    weapon_type = {effect_id for effect_id in model.advisor_defaults()
+                   if "triggerOnWepType" in planner.data["effects"][
+                       str(effect_id)]["modifiers"]}
+    assert declared.keys() | counts | weapon_type >= set(
+        model.advisor_defaults())
 
 
 def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
