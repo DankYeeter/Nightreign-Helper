@@ -188,6 +188,8 @@ starts there.
   They now count only for the weapon on your **highlighted tile** (its rolled
   effects, skill or spell; your Nightfarer's starting weapon if that tile is
   empty) or for a relic that adds the ailment; weapons on other tiles no
-  longer count. The relic picker no longer shows stray relic cards beside the
+  longer count. A relic that swaps the highlighted weapon's skill or spell for
+  one without the ailment now also removes it as a source. The relic picker
+  no longer shows stray relic cards beside the
   list when you type into the filter while the list is still filling. The
   data cache is not rebuilt.
