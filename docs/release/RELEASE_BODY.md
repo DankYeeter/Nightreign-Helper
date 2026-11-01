@@ -182,3 +182,12 @@ starts there.
   **The data cache rebuilds once on first launch after this update (about
   45 seconds; the icon pack is not rebuilt).** Saved builds and favourites
   are kept.
+- **1.20.1** — changes what 1.20.0 said: the ailment bonuses ("Attack power
+  up when facing frostbite-afflicted enemy" and its poison and scarlet rot
+  versions) no longer count when a weapon on *any* tile inflicts the ailment.
+  They now count only for the weapon on your **highlighted tile** (its rolled
+  effects, skill or spell; your Nightfarer's starting weapon if that tile is
+  empty) or for a relic that adds the ailment; weapons on other tiles no
+  longer count. The relic picker no longer shows stray relic cards beside the
+  list when you type into the filter while the list is still filling. The
+  data cache is not rebuilt.
