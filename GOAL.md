@@ -344,13 +344,16 @@ Effekte**.
 - **Ausschlussfilter:** Der Spieler kann einzelne Effekte (z. B. `at low
   HP`-Varianten) als *don't include* markieren. Ein markierter Effekt zaehlt
   in keinem Vorschlag und in keiner Rangfolge des Beraters, egal welches
-  Relikt ihn traegt; das Relikt selbst bleibt waehlbar, wenn seine uebrigen
-  Effekte tragen. Die Markierung wird gespeichert und beim naechsten Start
-  wieder angewandt.
+  Relikt ihn traegt. **Ersetzt am 06.11.2026 (Nutzer: "avoided effekte duerfen
+  nie mitkommen"):** Ein Relikt, das einen markierten Effekt oder Fluch traegt,
+  wird nie vorgeschlagen. Von Hand darf der Spieler es weiter waehlen oder
+  halten. Die Markierung wird gespeichert und beim naechsten Start wieder
+  angewandt.
 - **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand mit mindestens
-  einem markierten Effekt, dass kein Vorschlag ihn zaehlt, und dass die
-  Rangfolge ohne Markierung der heutigen Best-case-Rangfolge entspricht.
-- **Nicht-Ziel:** Sperrliste fuer ganze Relikte, Bedingungsklassen-Schalter.
+  einem markierten Effekt, dass kein Vorschlag ein Relikt mit diesem Effekt
+  enthaelt.
+- **Nicht-Ziel:** Bedingungsklassen-Schalter. Die Sperrliste fuer ganze Relikte
+  ist seit A28 kein Nicht-Ziel mehr.
 
 *Folgen fuer die Spec: AK-268 (Lesarten) und AK-273 (Benennung) entfallen;
 AK-194/AK-05 (Leistenbreite) neu messen. Folgen fuer die Architektur:
@@ -601,3 +604,28 @@ als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
   Trainingspuppe, kein Unkalibriert-Hinweis mehr) und
   ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
   "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.
+
+### A28 — Bester Chalice, Pflicht-Relikte, Ablehnen im Vorschlag (Nutzer, 06.11.2026)
+
+**Woertlich:** *"Welcher Chalice waere insgesamt der beste fuer die relikte die
+ich will. ich will gewisse relikte als favourite setzen koennen. oder effekte
+direkt im build bevor ich effekte uebernehme ablehnen koennen."*
+
+Entschieden per Fragewerkzeug am 06.11.2026:
+
+- **Chalice-Vergleich automatisch bei `Optimize`:** Jeder Lauf bewertet alle
+  Gefaesse des Nightfarers (eigene und Grails) mit Ziel, Filtern und gehaltenen
+  Relikten und nennt das beste. Der Vorschlag fuer das gewaehlte Gefaess bleibt
+  der angezeigte, das Gefaess wechselt nicht ungefragt.
+- **Stern auf einem Relikt:** Das Relikt muss in den Vorschlag, wenn es passt.
+  Passt nicht jedes markierte Relikt, nennt der Berater die uebrigen, statt den
+  ganzen Vorschlag zu blockieren.
+- **Ablehnen im Vorschlag:** Jede Effektzeile hat ein X, das den Effekt dauerhaft
+  auf Avoid setzt (A18). Das Relikt hat ein `Reject`, das nur fuer diesen Build
+  gilt. Der Vorschlag rechnet danach sofort neu.
+- **Weisse Slots und Favoriten:** Bleibt ein Slot wegen Effekt-Favoriten leer
+  oder blockiert, nennt der Berater den Grund, und der Vorschlag fuellt die
+  uebrigen Slots soweit moeglich (Nutzer: "Bleibt leer / blockiert").
+- **Budget:** Die 6 s aus A6 gelten bis zum Vorschlag fuer das gewaehlte Gefaess;
+  der Vergleich darf danach im Hintergrund fertig werden. Entscheidung des
+  Directors, vom Nutzer nicht vorgegeben.
