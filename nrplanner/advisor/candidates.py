@@ -24,7 +24,10 @@ The `architect` measured it against the real inventory on 2026-09-01: 309
 copies carry 306 distinct rolls, so collapsing them saves one per cent and
 gives up exactly the identity that a suggestion has to be tradeable on. A copy
 already held is not offered again (AD-014.5), and a copy with no handle is not
-offered at all and is reported instead (AD-013 point 4).
+offered at all and is reported instead (AD-013 point 4). A copy the player
+marked away -- an avoided effect or curse, a rejected roll -- is not offered
+either (AD-057.1); this is the one place that says so, because `run.run`,
+`run.slot_pool` and through the pools `search.beam` all come through here.
 
 **What a pool reports about itself** are run findings and only those
 (AD-025.2): the copies this save gives no handle for and the candidates
@@ -253,7 +256,8 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
             raise types.Cancelled(
                 f"stopped during the pre-sort of slot {slot_index}, after "
                 f"{len(measured)} candidates")
-        if relic.handle is None or relic.handle in taken:
+        if (relic.handle is None or relic.handle in taken
+                or types.unwanted(problem, relic)):
             continue
         candidate = _offer(slot, relic)
         builds = evaluate_per_goal(base_problem, (candidate,), ctx, goals)

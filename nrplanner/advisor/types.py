@@ -137,6 +137,11 @@ class HeldSlot:
     relic: HeldRelic | None = None
 
 
+#: A copy by what it rolled, not by its handle: relic id, effects, curses. Two
+#: copies of one roll are the same relic to a player (`favourites.key`).
+Roll = tuple[int, tuple[int, ...], tuple[int, ...]]
+
+
 @dataclass(frozen=True)
 class SlotProblem:
     """The slots in play and which of them the player is holding.
@@ -152,12 +157,16 @@ class SlotProblem:
     Deep ones. A vessel with Deep of Night switched off contributes three.
 
     `excluded` are the effect ids the player marked `Avoid` (`GOAL.md`
-    A18, AD-036): a boundary condition of the same kind as holding. Such an
-    id -- effect or curse -- is struck before the calculation sees it
-    (`evaluate.effect_ids_of`), so every state, pool, beam and picker ranking
-    of this problem is built without it, and the `Why` says it was excluded
-    rather than that it carried no number. The relic stays a candidate; it
-    is worth whatever its other effects are worth.
+    A18, AD-036, AD-057): a boundary condition of the same kind as holding. A
+    copy carrying such an id -- effect or curse -- is never offered
+    (`candidates.pool`). A relic the player put there themselves stays where
+    it is, with the id struck before the calculation sees it
+    (`evaluate.effect_ids_of`), and the `Why` says it was excluded rather
+    than that it carried no number.
+
+    `rejected` are the rolls the player turned down for this question (A28,
+    AD-060): no copy of such a roll is offered, whichever copy was shown.
+    What the player holds is untouched, as it is for `excluded`.
 
     `required` are the effect ids the player marked `Favourite` (A19,
     AD-036.4): every suggestion carries each of them on a held relic or a
@@ -172,6 +181,7 @@ class SlotProblem:
     held: tuple[HeldSlot, ...] = ()
     excluded: frozenset[int] = frozenset()
     required: frozenset[int] = frozenset()
+    rejected: frozenset[Roll] = frozenset()
 
     def __post_init__(self) -> None:
         both = self.excluded & self.required
@@ -881,6 +891,22 @@ def held_handles(problem: SlotProblem) -> frozenset[int]:
     """
     return frozenset(relic.handle for relic in held_relics(problem)
                      if relic.handle is not None)
+
+
+def roll_of(copy) -> Roll:
+    """This copy's roll: anything that carries the three fields."""
+    return copy.relic_id, tuple(copy.effect_ids), tuple(copy.curse_ids)
+
+
+def unwanted(problem: SlotProblem, copy) -> bool:
+    """May no suggestion use this copy (A18, A28, AD-057.1)?
+
+    It carries an id marked `Avoid`, effect or curse, or its roll was turned
+    down.
+    """
+    return (not problem.excluded.isdisjoint(copy.effect_ids)
+            or not problem.excluded.isdisjoint(copy.curse_ids)
+            or roll_of(copy) in problem.rejected)
 
 
 def marginal_for(candidate: Candidate, goal_id: str) -> float:

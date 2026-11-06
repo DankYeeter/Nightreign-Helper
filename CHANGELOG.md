@@ -4,6 +4,12 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [Unreleased]
+
+### Changed
+- Optimize no longer suggests a relic that carries an effect or curse you
+  marked Avoid; a relic you hold or place yourself stays where you put it.
+
 ## [1.20.1] - 2026-11-01
 
 ### Changed

@@ -21,6 +21,8 @@ is the difference between forty usable suggestions and none.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from nrplanner import model
@@ -269,6 +271,56 @@ def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
 
     assert held.handle not in advisor.handles(pool)
     assert len(pool.candidates) == 2
+
+
+def test_a_copy_carrying_an_avoided_effect_is_not_offered(game_data, wylder):
+    """A18 (06.11.2026), AD-057.1: not "offered without the effect", not
+    offered at all. Only the carrier goes; the rest of the pool is what it
+    would have been."""
+    inventory = advisor.make_inventory(game_data, wylder, count=3)
+    carrier = inventory.relics[0]
+    free = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder)
+    avoiding = dataclasses.replace(
+        free, excluded=frozenset({carrier.effect_ids[0]}))
+
+    pool = pool_for(inventory, avoiding, 0, ctx)
+
+    assert advisor.handles(pool) == [
+        handle for handle in advisor.handles(pool_for(inventory, free, 0, ctx))
+        if handle != carrier.handle]
+
+
+def test_a_copy_carrying_an_avoided_curse_is_not_offered(game_data, wylder):
+    """The same for a curse: A18 names effect ids, not kinds."""
+    inventory = advisor.make_inventory(game_data, wylder, count=3)
+    carrier = inventory.relics[0]
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    carrier.curse_ids = [curse]
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  excluded=frozenset({curse}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert carrier.handle not in advisor.handles(pool)
+    assert len(pool.candidates) == 2
+
+
+def test_a_rejected_roll_takes_every_copy_of_it_out(game_data, wylder):
+    """AD-060: a Reject follows the roll, or the second copy of what the
+    player just turned down comes straight back. Another roll of the same
+    relic stays, because that is a different relic to the player."""
+    roll = advisor.raising_effects(game_data, wylder, 2)
+    inventory = advisor.make_inventory(game_data, wylder, count=3,
+                                       rolls=[roll[0], list(roll[0]), roll[1]])
+    first, second, other = inventory.relics
+    second.relic_id = first.relic_id
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  rejected=frozenset({types.roll_of(first)}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert advisor.handles(pool) == [other.handle]
 
 
 def test_two_copies_of_one_roll_are_two_candidates(game_data, wylder):

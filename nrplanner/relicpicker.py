@@ -514,7 +514,9 @@ class SlotAdvice:
         (AD-018.1, AD-028 point 3): the question is what fits *this* slot
         beside the build as it stands, so the rest of the build is a boundary
         condition -- and the one slot left free is how the question says which
-        slot it is about, without a field of its own in the key.
+        slot it is about, without a field of its own in the key. A Reject is
+        about the suggestion and this is the hand choice, so it stays out
+        (AD-057.3).
         """
         window = self._slot.window()
         asking = advisorbar.asking_from(
@@ -530,7 +532,8 @@ class SlotAdvice:
             asking.request.problem,
             held=tuple(advisorbar.held_slot(index, card)
                        for index, card in enumerate(cards)
-                       if index != open_index))
+                       if index != open_index),
+            rejected=frozenset())
         request = dataclasses.replace(asking.request, problem=problem)
         known = self._track.ask_and_answer_if_known(
             request, asking.inventory, asking.ctx)

@@ -404,6 +404,36 @@ def test_the_pickers_question_carries_the_marked_sets(slot):
             filters.mark(effect_id, None)
 
 
+def test_a_reject_does_not_reach_the_pickers_question(slot, monkeypatch):
+    """AD-057.3: a Reject is about the suggestion; the picker is the hand
+    choice, and it still offers that relic with its figure."""
+    from nrplanner import advisorbar
+
+    class Recording:
+        request = None
+
+        def ask_and_answer_if_known(self, request, inventory, ctx):
+            self.request = request
+            return pool_of(slot, {})
+
+    real = advisorbar.asking_from
+
+    def with_a_reject(window, goal_id):
+        asking = real(window, goal_id)
+        return dataclasses.replace(asking, request=dataclasses.replace(
+            asking.request, problem=dataclasses.replace(
+                asking.request.problem,
+                rejected=frozenset({(1, (2,), ())}))))
+
+    monkeypatch.setattr(advisorbar, "asking_from", with_a_reject)
+    track = Recording()
+
+    relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
+                           track).ask(lambda *_: None)
+
+    assert track.request.problem.rejected == frozenset()
+
+
 def test_every_relic_card_carries_a_value_block(slot):
     """AK-41: first line of the card body, both directions, on every card."""
     dialog = open_picker(slot, {0: 12.44})

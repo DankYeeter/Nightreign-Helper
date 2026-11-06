@@ -227,22 +227,21 @@ def test_a_chosen_kind_something_owned_reaches_says_nothing_of_it(game_data):
     assert NO_CARRIER_SENTENCE not in result.unknowns
 
 
-def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
+def test_an_excluded_effect_takes_its_carrier_out_of_the_whole_run(
         monkeypatch, game_data, wylder):
-    """`GOAL.md` A18, the Qt-free proof: exclude the effect one copy lives
-    on, and the whole run -- pre-sort, beam, base, reasons -- computes as if
-    that copy carried nothing. Read at `model.compute`, the one place every
-    figure of the run is formed, and against a second run on an inventory
-    where the copy really carries nothing: same copies, same order, same
-    figures. With an empty exclusion the run is the baseline run.
+    """`GOAL.md` A18 (06.11.2026), the Qt-free proof: exclude the effect one
+    copy lives on, and the whole run -- pre-sort, beam, base, reasons -- is
+    the run over an inventory **without that copy**: same copies, same order,
+    same figures. Read at `model.compute`, the one place every figure of the
+    run is formed. With an empty exclusion the run is the baseline run.
     """
-    from nrplanner import model
+    from nrplanner import inventory, model
 
     rolls = advisor.raising_effects(game_data, wylder, 5)
     struck_out = rolls[0][0]
     owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
-    bare = advisor.make_inventory(game_data, wylder, count=4,
-                                  rolls=[[]] + rolls[1:])
+    carrier = owned.relics[0].handle
+    bare = inventory.Inventory(source="test", relics=owned.relics[1:])
     problem = advisor.problem([advisor.RED, advisor.RED])
     excluding = dataclasses.replace(problem,
                                     excluded=frozenset({struck_out}))
@@ -276,16 +275,35 @@ def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
     assert _ranking(a_run(dataclasses.replace(problem,
                                               excluded=frozenset()),
                           owned)) == _ranking(baseline)
+    assert not any(carrier == choice.handle
+                   for suggestion in excluded.suggestions
+                   for choice in suggestion.choices)
 
-    name = " ".join(game_data["effects"][str(struck_out)]["name"].split())
-    carrier = owned.relics[0].handle
-    for suggestion in excluded.suggestions:
-        if carrier not in {choice.handle for choice in suggestion.choices}:
-            continue
-        said = [line.text for group in suggestion.reasons
-                for line in group.lines
-                if line.silence == types.SILENT_EXCLUDED]
-        assert said == [f"{name}: you avoided it, so it is not counted."]
+
+def test_avoid_beats_a_favourite_on_the_one_copy_that_carries_both(game_data,
+                                                                   wylder):
+    """A18 against A19 on one relic: the only carrier of a favourited effect
+    also carries an avoided one. "Never suggested" holds whatever else it
+    carries, so no suggestion names that copy."""
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    wanted, avoided = rolls[0][0], rolls[4][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    carrier = owned.relics[0]
+    carrier.effect_ids = [wanted, avoided]
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    question = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED]),
+        excluded=frozenset({avoided}), required=frozenset({wanted}))
+    frozen = run.frozen_inventory(owned, question)
+
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert not any(choice.handle == carrier.handle
+                   for suggestion in result.suggestions
+                   for choice in suggestion.choices)
 
 
 def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
