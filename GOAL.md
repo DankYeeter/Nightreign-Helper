@@ -371,6 +371,9 @@ effekt XYZ die beste waere."*
   gewaehltes Relikt jeden markierten Effekt traegt, und optimiert den Rest
   nach der gewaehlten Richtung. Gibt es im Besitz keine passende Kopie fuer
   die freien Slots, sagt er das (A7) statt den Filter still fallen zu lassen.
+  **Ergaenzt 06.11.2026 (A28):** Passen nicht alle markierten Effekte in das
+  Gefaess, liefert er die groesste erreichbare Teilmenge und nennt die
+  fehlenden; der Vorschlag blockiert nicht mehr.
 - Ausschluss (A18) und Pflicht (A19) sind zwei Listen mit derselben Bedienung
   und derselben Persistenz.
 - **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand, dass jeder
@@ -629,3 +632,9 @@ Entschieden per Fragewerkzeug am 06.11.2026:
 - **Budget:** Die 6 s aus A6 gelten bis zum Vorschlag fuer das gewaehlte Gefaess;
   der Vergleich darf danach im Hintergrund fertig werden. Entscheidung des
   Directors, vom Nutzer nicht vorgegeben.
+- **Rang im Chalice-Vergleich (Nutzer, 06.11.2026, OF-62):** *"die relikte als
+  beste markieren die die meisten effekte die ich will zulassen, darinn dann
+  sortiert nach dmg und defense ranking."* BEST ist das Gefaess mit den meisten
+  erfuellten Effekt-Favoriten. Innerhalb gleicher Anzahl entscheidet die Zahl
+  des gewaehlten Ziels, bei Gleichstand das jeweils andere Ziel (Schaden bzw.
+  Abwehr). Stern-Relikte stehen zwischen Favoriten und Zahl (Director).
